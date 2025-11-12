@@ -9,7 +9,7 @@ use codec::Decode;
 use cord_primitives::{
 	identifier::Ss58Identifier,
 	registry::RegistryInfoView,
-	view_api::{EntityAccountTokenRequest, EntityInfoBytesRequest, ViewRequestAuth},
+	view_api::{AuthorizationRequest, EntityAccountTokenRequest, EntityInfoBytesRequest},
 };
 use getrandom::getrandom;
 use hex;
@@ -30,13 +30,13 @@ pub fn ss58_string(id: &Ss58Identifier) -> String {
 pub async fn ensure_entity_token(
 	client: &Client,
 	signer: &tx::signer::sr25519::Keypair,
-	view_auth: &ViewRequestAuth,
+	authorization: &AuthorizationRequest,
 	account_id: &AccountId32,
 	profile: &JsonValue,
 ) -> Result<(String, bool)> {
 	let raw: [u8; 32] = *account_id.as_ref();
 	let account = RuntimeAccount::from(raw);
-	let request = EntityAccountTokenRequest { auth: view_auth.clone(), account };
+	let request = EntityAccountTokenRequest { auth: authorization.clone(), account };
 	if let Some(token) = client.query().entity().account_token(&request).await? {
 		return Ok((token, false));
 	}
@@ -155,7 +155,7 @@ pub fn entity_profile(label: &str) -> JsonValue {
 
 pub async fn fetch_entity_info_bytes(
 	client: &Client,
-	auth: &ViewRequestAuth,
+	auth: &AuthorizationRequest,
 	token: &Ss58Identifier,
 ) -> Result<Option<Vec<u8>>> {
 	let req = EntityInfoBytesRequest { auth: auth.clone(), token: token.clone() };

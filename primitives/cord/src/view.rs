@@ -6,18 +6,13 @@
 // View-friendly structs for SDKs and off-chain clients.
 
 use crate::{
+	dev::{base58_string, base64_string, hex_string, maybe_utf8, ss58_string, DevEventBlockView},
 	identifier::Ss58Identifier,
 	packet::{Attribute, Element, PacketMetadata, PacketState, PacketStatus},
 };
-use alloc::{
-	string::{String, ToString},
-	vec::Vec,
-};
-use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
-use bs58;
+use alloc::{string::String, vec::Vec};
 use codec::{Decode, Encode};
 use frame_support::traits::Get;
-use hex;
 use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
@@ -261,22 +256,46 @@ where
 	pub registry_status: S,
 }
 
-#[derive(
-	Clone,
-	PartialEq,
-	Eq,
-	Encode,
-	Decode,
-	TypeInfo,
-	RuntimeDebug,
-	Serialize,
-	Deserialize,
-	DecodeAsType,
-)]
-#[serde(rename_all = "camelCase")]
-pub struct DevEventBlockView {
-	pub height: u32,
-	pub index: u32,
+pub fn dev_element_from(ev: &ElementView) -> DevElement {
+	match ev {
+		ElementView::None => DevElement::None,
+		ElementView::Bool(value) => DevElement::Bool(*value),
+		ElementView::U64(value) => DevElement::U64(*value),
+		ElementView::U128(value) => DevElement::U128(*value),
+		ElementView::Hash(bytes) => DevElement::HashHex(hex_string(bytes)),
+		ElementView::Token(token) => DevElement::TokenSs58(ss58_string(token)),
+		ElementView::Cid(bytes) => DevElement::CidBase58(base58_string(bytes)),
+		ElementView::Raw(bytes) => DevElement::RawBase64(base64_string(bytes)),
+	}
+}
+
+pub fn dev_attr_from(view: &AttributeValueView) -> DevAttr {
+	DevAttr {
+		key_utf8: maybe_utf8(&view.key),
+		key_hex: hex_string(&view.key),
+		value: dev_element_from(&view.value),
+	}
+}
+
+pub fn dev_packet_state_from(view: &PacketStateView) -> DevPacketState {
+	DevPacketState {
+		registry_ss58: ss58_string(&view.registry),
+		controller_ss58: ss58_string(&view.controller),
+		status: view.status.clone(),
+		version: view.version,
+		attributes_hash_hex: hex_string(&view.attributes_hash),
+		attributes: view.attributes.iter().map(dev_attr_from).collect(),
+	}
+}
+
+pub fn dev_packet_snapshot_from<S>(
+	state: &PacketStateView,
+	registry_status: S,
+) -> DevPacketSnapshot<S>
+where
+	S: Serialize + Clone + PartialEq + Eq + Encode + Decode + TypeInfo + DecodeAsType,
+{
+	DevPacketSnapshot { state: dev_packet_state_from(state), registry_status }
 }
 
 #[derive(
@@ -319,77 +338,6 @@ pub struct InfoTokenHistoryEntry {
 	pub action_base64: String,
 	pub digest_hex: String,
 	pub block: DevEventBlockView,
-}
-
-pub fn ss58_string(id: &Ss58Identifier) -> String {
-	match core::str::from_utf8(id.as_ref()) {
-		Ok(s) => s.to_string(),
-		Err(_) => {
-			let mut fallback = String::from("0x");
-			fallback.push_str(&hex::encode(id.as_ref()));
-			fallback
-		},
-	}
-}
-
-pub fn hex_string(bytes: &[u8]) -> String {
-	let mut s = String::from("0x");
-	s.push_str(&hex::encode(bytes));
-	s
-}
-
-pub fn base58_string(bytes: &[u8]) -> String {
-	bs58::encode(bytes).into_string()
-}
-
-pub fn base64_string(bytes: &[u8]) -> String {
-	BASE64_STANDARD.encode(bytes)
-}
-
-pub fn maybe_utf8(bytes: &[u8]) -> Option<String> {
-	core::str::from_utf8(bytes).ok().map(|s| s.to_string())
-}
-
-pub fn dev_element_from(ev: &ElementView) -> DevElement {
-	match ev {
-		ElementView::None => DevElement::None,
-		ElementView::Bool(value) => DevElement::Bool(*value),
-		ElementView::U64(value) => DevElement::U64(*value),
-		ElementView::U128(value) => DevElement::U128(*value),
-		ElementView::Hash(bytes) => DevElement::HashHex(hex_string(bytes)),
-		ElementView::Token(token) => DevElement::TokenSs58(ss58_string(token)),
-		ElementView::Cid(bytes) => DevElement::CidBase58(base58_string(bytes)),
-		ElementView::Raw(bytes) => DevElement::RawBase64(base64_string(bytes)),
-	}
-}
-
-pub fn dev_attr_from(view: &AttributeValueView) -> DevAttr {
-	DevAttr {
-		key_utf8: maybe_utf8(&view.key),
-		key_hex: hex_string(&view.key),
-		value: dev_element_from(&view.value),
-	}
-}
-
-pub fn dev_packet_state_from(view: &PacketStateView) -> DevPacketState {
-	DevPacketState {
-		registry_ss58: ss58_string(&view.registry),
-		controller_ss58: ss58_string(&view.controller),
-		status: view.status.clone(),
-		version: view.version,
-		attributes_hash_hex: hex_string(&view.attributes_hash),
-		attributes: view.attributes.iter().map(dev_attr_from).collect(),
-	}
-}
-
-pub fn dev_packet_snapshot_from<S>(
-	state: &PacketStateView,
-	registry_status: S,
-) -> DevPacketSnapshot<S>
-where
-	S: Serialize + Clone + PartialEq + Eq + Encode + Decode + TypeInfo + DecodeAsType,
-{
-	DevPacketSnapshot { state: dev_packet_state_from(state), registry_status }
 }
 
 #[cfg(test)]

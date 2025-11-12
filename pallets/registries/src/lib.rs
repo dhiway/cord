@@ -291,7 +291,7 @@ pub mod pallet {
 		/// The function checks that the caller is authorized (as an admin) to add
 		/// a delegate with `ASSERT` permissions to the registry. If the caller's
 		/// authorization is verified, the delegate is added using the internal
-		/// `registry_delegate_addition` function.
+		/// `delegate_permissions_addition` function.
 		///
 		/// # Parameters
 		/// - `origin`: The origin of the call, which must be signed by an admin of the registry.
@@ -312,7 +312,7 @@ pub mod pallet {
 		/// # Errors
 		/// - `UnauthorizedOperation`: If the caller does not have the necessary admin permissions
 		///   for the registry.
-		/// - Propagates errors from `registry_delegate_addition` if the addition fails.
+		/// - Propagates errors from `delegate_permissions_addition` if the addition fails.
 		#[pallet::call_index(0)]
 		#[pallet::weight({0})]
 		pub fn add_delegate(
@@ -337,7 +337,7 @@ pub mod pallet {
 			ensure!(auth_registry_id == registry_id, Error::<T>::UnauthorizedOperation);
 
 			let permissions = Permissions::ASSERT;
-			Self::registry_delegate_addition(auth_registry_id, delegate, creator, permissions)?;
+			Self::delegate_permissions_addition(auth_registry_id, delegate, creator, permissions)?;
 
 			Ok(())
 		}
@@ -352,7 +352,7 @@ pub mod pallet {
 		/// The function ensures that the caller has sufficient administrative
 		/// privileges in the registry and that the `registry_id` matches the
 		/// authorization. If the checks pass, the delegate is added with `ADMIN`
-		/// permissions using the internal `registry_delegate_addition` function.
+		/// permissions using the internal `delegate_permissions_addition` function.
 		///
 		/// # Parameters
 		/// - `origin`: The origin of the call, which must be signed by an existing administrator of
@@ -373,7 +373,7 @@ pub mod pallet {
 		/// # Errors
 		/// - `UnauthorizedOperation`: If the caller does not have admin permissions in the
 		///   registry.
-		/// - Propagates errors from `registry_delegate_addition` if delegate addition fails.
+		/// - Propagates errors from `delegate_permissions_addition` if delegate addition fails.
 		#[pallet::call_index(1)]
 		#[pallet::weight({0})]
 		pub fn add_admin_delegate(
@@ -401,7 +401,7 @@ pub mod pallet {
 			ensure!(auth_registry_id == registry_id, Error::<T>::UnauthorizedOperation);
 
 			let permissions = Permissions::ADMIN;
-			Self::registry_delegate_addition(auth_registry_id, delegate, creator, permissions)?;
+			Self::delegate_permissions_addition(auth_registry_id, delegate, creator, permissions)?;
 
 			Ok(())
 		}
@@ -414,7 +414,7 @@ pub mod pallet {
 		/// necessary administrative rights to add an audit delegate to the registry.
 		///
 		/// If the caller is authorized, the delegate is added with the `AUDIT`
-		/// permission using the internal `registry_delegate_addition` function.
+		/// permission using the internal `delegate_permissions_addition` function.
 		///
 		/// # Parameters
 		/// - `origin`: The origin of the call, which must be signed by an existing administrator of
@@ -435,7 +435,7 @@ pub mod pallet {
 		/// # Errors
 		/// - `UnauthorizedOperation`: If the caller does not have the necessary admin permissions
 		///   for the registry.
-		/// - Propagates errors from `registry_delegate_addition` if delegate addition fails.
+		/// - Propagates errors from `delegate_permissions_addition` if delegate addition fails.
 		#[pallet::call_index(2)]
 		#[pallet::weight({0})]
 		pub fn add_delegator(
@@ -462,7 +462,7 @@ pub mod pallet {
 			ensure!(auth_registry_id == registry_id, Error::<T>::UnauthorizedOperation);
 
 			let permissions = Permissions::DELEGATE;
-			Self::registry_delegate_addition(auth_registry_id, delegate, creator, permissions)?;
+			Self::delegate_permissions_addition(auth_registry_id, delegate, creator, permissions)?;
 
 			Ok(())
 		}
@@ -1085,7 +1085,7 @@ impl<T: Config> Pallet<T> {
 	/// an authorization ID based on the registry ID, delegate, and creator,
 	/// ensuring that the delegate is not already added. It also checks that the
 	/// registry is not archived and is not revoked.
-	fn registry_delegate_addition(
+	fn delegate_permissions_addition(
 		registry_id: RegistryIdOf,
 		delegate: RegistryCreatorOf<T>,
 		creator: RegistryCreatorOf<T>,

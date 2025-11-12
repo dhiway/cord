@@ -25,8 +25,8 @@ use frame_system::Config;
 
 pub trait WeightInfo {
 	fn create_registry(payload: u32) -> Weight;
-	fn set_registry_delegate(count: u32) -> Weight;
-	fn remove_registry_delegate() -> Weight;
+	fn set_delegate_permissions(count: u32) -> Weight;
+	fn remove_delegate_permissions() -> Weight;
 	fn update_registry_info(size: u32) -> Weight;
 	fn revoke_registry() -> Weight;
 	fn restore_registry() -> Weight;
@@ -47,13 +47,13 @@ impl<T: Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads_writes(2, 3))
 	}
 
-	fn set_registry_delegate(count: u32) -> Weight {
+	fn set_delegate_permissions(count: u32) -> Weight {
 		Weight::from_parts(30_000_000, 0)
 			.saturating_add(Weight::from_parts(count as u64 * 2_000, 0))
 			.saturating_add(T::DbWeight::get().reads_writes(3, 2))
 	}
 
-	fn remove_registry_delegate() -> Weight {
+	fn remove_delegate_permissions() -> Weight {
 		Weight::from_parts(24_000_000, 0).saturating_add(T::DbWeight::get().reads_writes(2, 2))
 	}
 
@@ -107,13 +107,13 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads_writes(2, 3))
 	}
 
-	fn set_registry_delegate(count: u32) -> Weight {
+	fn set_delegate_permissions(count: u32) -> Weight {
 		Weight::from_parts(30_000_000, 0)
 			.saturating_add(Weight::from_parts(count as u64 * 2_000, 0))
 			.saturating_add(RocksDbWeight::get().reads_writes(3, 2))
 	}
 
-	fn remove_registry_delegate() -> Weight {
+	fn remove_delegate_permissions() -> Weight {
 		Weight::from_parts(24_000_000, 0).saturating_add(RocksDbWeight::get().reads_writes(2, 2))
 	}
 

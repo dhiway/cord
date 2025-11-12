@@ -6,7 +6,10 @@ use crate::{
 use cord_primitives::{
 	registry::{LookupSpecView, RegistryInfoView, RegistryStatus},
 	view::DevPacketSnapshot,
-	view_api::{RegisterInfoRequest, RegisterLookupSpecsRequest, RegisterPacketRequest, ViewError},
+	view_api::{
+		AuthorizationError, RegisterDetailsRequest, RegisterLookupSpecsRequest,
+		RegisterPacketSnapshotRequest,
+	},
 };
 use scale_value::Value;
 
@@ -16,15 +19,15 @@ pub struct RegisterQuery<'a> {
 }
 
 impl<'a> RegisterQuery<'a> {
-	pub async fn registry_info(&self, req: &RegisterInfoRequest) -> Result<RegistryInfoView> {
+	pub async fn details(&self, req: &RegisterDetailsRequest) -> Result<RegistryInfoView> {
 		let args = self.base_args(&req.auth, &req.registry)?;
-		let raw: core::result::Result<RegistryInfoView, ViewError> =
-			self.query.call_typed("Register", "registry_info", args).await?;
-		raw.map_err(|err| view_failure("register.registry_info", err))
+		let raw: core::result::Result<RegistryInfoView, AuthorizationError> =
+			self.query.call_typed("Register", "details", args).await?;
+		raw.map_err(|err| view_failure("register.details", err))
 	}
 
-	pub async fn schema(&self, req: &RegisterInfoRequest) -> Result<RegistrySchema> {
-		let view = self.registry_info(req).await?;
+	pub async fn schema(&self, req: &RegisterDetailsRequest) -> Result<RegistrySchema> {
+		let view = self.details(req).await?;
 		Ok(RegistrySchema::from_view(&view))
 	}
 
@@ -33,35 +36,35 @@ impl<'a> RegisterQuery<'a> {
 		req: &RegisterLookupSpecsRequest,
 	) -> Result<Vec<LookupSpecView>> {
 		let args = self.base_args(&req.auth, &req.registry)?;
-		let raw: core::result::Result<Vec<LookupSpecView>, ViewError> =
-			self.query.call_typed("Register", "lookup_specs_view", args).await?;
-		raw.map_err(|err| view_failure("register.lookup_specs_view", err))
+		let raw: core::result::Result<Vec<LookupSpecView>, AuthorizationError> =
+			self.query.call_typed("Register", "lookup_specs", args).await?;
+		raw.map_err(|err| view_failure("register.lookup_specs", err))
 	}
 
 	pub async fn packet_snapshot(
 		&self,
-		req: &RegisterPacketRequest,
+		req: &RegisterPacketSnapshotRequest,
 	) -> Result<DevPacketSnapshot<RegistryStatus>> {
 		let args = self.packet_args(req)?;
-		let raw: core::result::Result<DevPacketSnapshot<RegistryStatus>, ViewError> =
-			self.query.call_typed("Register", "packet", args).await?;
-		raw.map_err(|err| view_failure("register.packet", err))
+		let raw: core::result::Result<DevPacketSnapshot<RegistryStatus>, AuthorizationError> =
+			self.query.call_typed("Register", "packet_snapshot_dev", args).await?;
+		raw.map_err(|err| view_failure("register.packet_snapshot_dev", err))
 	}
 
 	fn base_args(
 		&self,
-		auth: &cord_primitives::view_api::ViewRequestAuth,
+		auth: &cord_primitives::view_api::AuthorizationRequest,
 		registry: &cord_primitives::identifier::Ss58Identifier,
 	) -> Result<Value> {
 		let mut builder = ArgBuilder::default();
-		builder.push("auth", super::view_auth_value(auth)?);
+		builder.push("auth", super::authorization_value(auth)?);
 		builder.push("registry", super::identifier_struct_value(registry));
 		Ok(builder.finish())
 	}
 
-	fn packet_args(&self, req: &RegisterPacketRequest) -> Result<Value> {
+	fn packet_args(&self, req: &RegisterPacketSnapshotRequest) -> Result<Value> {
 		let mut builder = ArgBuilder::default();
-		builder.push("auth", super::view_auth_value(&req.auth)?);
+		builder.push("auth", super::authorization_value(&req.auth)?);
 		builder.push("rtoken", super::identifier_struct_value(&req.registry));
 		builder.push("ptoken", super::identifier_struct_value(&req.packet));
 		builder.push("version", super::option_u32_value(req.version));
@@ -69,15 +72,12 @@ impl<'a> RegisterQuery<'a> {
 	}
 }
 
-fn view_failure(ctx: &str, err: ViewError) -> Error {
+fn view_failure(ctx: &str, err: AuthorizationError) -> Error {
 	match err {
-		ViewError::NotFound => Error::NotFound(format!("{ctx}: not found")),
-		ViewError::AuthFailed | ViewError::PermissionDenied => {
-			Error::Params(format!("{ctx}: {err:?}"))
-		},
-		ViewError::InvalidRequest | ViewError::InvalidContext | ViewError::Replay => {
-			Error::Params(format!("{ctx}: {err:?}"))
-		},
-		ViewError::Expired => Error::Params(format!("{ctx}: authorization expired")),
+		AuthorizationError::NotFound => Error::NotFound(format!("{ctx}: not found")),
+		AuthorizationError::Unauthorized => Error::Params(format!("{ctx}: unauthorized")),
+		AuthorizationError::InvalidInput => Error::Params(format!("{ctx}: invalid input")),
+		AuthorizationError::TooLarge => Error::Params(format!("{ctx}: result too large")),
+		AuthorizationError::Internal => Error::ViewDecode(format!("{ctx}: internal error")),
 	}
 }

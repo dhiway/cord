@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use cord_primitives::view_api::{RegisterInfoRequest, RegisterLookupSpecsRequest};
+use cord_primitives::view_api::{RegisterDetailsRequest, RegisterLookupSpecsRequest};
 use origin::{
 	demo,
 	params::config::CordConfig,
@@ -16,11 +16,11 @@ async fn main() -> Result<()> {
 		<tx::signer::sr25519::Keypair as subxt::tx::Signer<CordConfig>>::account_id(&signer);
 	let signed_auth = AuthorizationBuilder::from_signer(&signer, SignatureScheme::Sr25519, None)
 		.context("failed to build view authorization")?;
-	let view_auth = signed_auth.as_request().context("failed to convert view authorization")?;
+	let authorization = signed_auth.as_request().context("failed to convert view authorization")?;
 
 	let profile = demo::entity_profile(&label);
 	let (entity_token, created) =
-		demo::ensure_entity_token(&client, &signer, &view_auth, &account_id, &profile).await?;
+		demo::ensure_entity_token(&client, &signer, &authorization, &account_id, &profile).await?;
 	if created {
 		println!("Set entity profile for Alice (token {entity_token})");
 	} else {
@@ -33,8 +33,8 @@ async fn main() -> Result<()> {
 	let registry_ident = registry_id.clone();
 
 	let info_req =
-		RegisterInfoRequest { auth: view_auth.clone(), registry: registry_ident.clone() };
-	let info = client.query().register().registry_info(&info_req).await?;
+		RegisterDetailsRequest { auth: authorization.clone(), registry: registry_ident.clone() };
+	let info = client.query().register().details(&info_req).await?;
 	println!("registry info:\n{}", serde_json::to_string_pretty(&info)?);
 
 	let _schema = client.query().register().schema(&info_req).await?;
@@ -44,8 +44,10 @@ async fn main() -> Result<()> {
 		println!("- {} ({:?}){}", key, attr.kind, if attr.optional { " [optional]" } else { "" });
 	}
 
-	let lookup_req =
-		RegisterLookupSpecsRequest { auth: view_auth.clone(), registry: registry_ident.clone() };
+	let lookup_req = RegisterLookupSpecsRequest {
+		auth: authorization.clone(),
+		registry: registry_ident.clone(),
+	};
 	let lookups = client.query().register().lookup_specs(&lookup_req).await?;
 	println!("\nlookup specs: {lookups:?}");
 	Ok(())

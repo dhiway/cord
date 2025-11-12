@@ -47,7 +47,7 @@ impl frame_system::Config for Test {
 parameter_types! {
 	pub const MaxDataKeyLength: u8 = 128;
 	pub const MaxDataValueLength: u32 = 1 * 1024; //1KB
-	pub const MaxTokenViewAuthorizationLen: u32 = 128;
+	pub const MaxTokenAuthorizationLen: u32 = 128;
 	pub const MaxTokenTimelineViewResults: u32 = 32;
 	pub const DefaultTokenTimelineViewResults: u32 = 16;
 }
@@ -62,7 +62,7 @@ impl pallet_profile::Config for Test {
 impl pallet_token::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = frame_system::Pallet<Test>;
-	type MaxViewAuthorizationLen = MaxTokenViewAuthorizationLen;
+	type MaxAuthorizationLen = MaxTokenAuthorizationLen;
 	type MaxTimelineViewResults = MaxTokenTimelineViewResults;
 	type DefaulTimelineViewResults = DefaultTokenTimelineViewResults;
 }

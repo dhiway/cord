@@ -23,11 +23,12 @@ use core::convert::TryInto;
 use frame_support::{assert_err, assert_ok};
 use sp_core::{sr25519, Pair, H256};
 
-fn make_auth(payload: &[u8], pair: &sr25519::Pair) -> ViewAuthorization<Test> {
+fn make_auth(payload: &[u8], pair: &sr25519::Pair) -> Authorization<Test> {
 	let vec_payload = payload.to_vec();
 	let signature: Signature = pair.sign(&vec_payload).into();
-	let bounded: ViewAuthPayloadOf<Test> = vec_payload.try_into().expect("payload within bounds");
-	ViewAuthorization::<Test> { account: pair.public().into(), payload: bounded, signature }
+	let bounded: AuthorizationPayloadOf<Test> =
+		vec_payload.try_into().expect("payload within bounds");
+	Authorization::<Test> { account: pair.public().into(), payload: bounded, signature }
 }
 
 /// Test that a valid pallet name can be stored and returns a consistent index.
@@ -138,7 +139,7 @@ fn history_view_requires_authorization() {
 		assert_eq!(entries.len(), 1);
 
 		let replay = Pallet::<Test>::history_view(auth, token.clone(), Some(0), 8);
-		assert!(matches!(replay, Err(ViewError::Replay)));
+		assert!(matches!(replay, Err(AuthorizationError::Unauthorized)));
 	});
 }
 
@@ -160,14 +161,17 @@ fn timeline_view_requires_valid_authorization() {
 		assert_eq!(entries[0].digest_hex, format!("0x{}", hex::encode(digest)));
 
 		let replay = Pallet::<Test>::timeline(auth, token.clone(), Some(0), Some(10));
-		assert!(matches!(replay, Err(ViewError::Replay)), "reused authorizations must be rejected");
+		assert!(
+			matches!(replay, Err(AuthorizationError::Unauthorized)),
+			"reused authorizations must be rejected"
+		);
 
 		let forge = sr25519::Pair::from_seed(&[99u8; 32]);
 		let mut forged = make_auth(b"view-history", &forge);
 		forged.account = signer.public().into();
 		let rejected = Pallet::<Test>::timeline(forged, token.clone(), Some(0), Some(10));
 		assert!(
-			matches!(rejected, Err(ViewError::AuthFailed)),
+			matches!(rejected, Err(AuthorizationError::Unauthorized)),
 			"invalid signature should be rejected"
 		);
 
@@ -194,7 +198,7 @@ fn resolve_identifier_view_requires_authorization() {
 
 		assert!(matches!(
 			Pallet::<Test>::resolve_identifier(auth, token.clone()),
-			Err(ViewError::Replay)
+			Err(AuthorizationError::Unauthorized)
 		));
 	});
 }
@@ -210,7 +214,10 @@ fn resolve_identifier_view_enforces_replay_protection() {
 		assert_eq!(decoded.pallet, 12);
 
 		let replay = Pallet::<Test>::resolve_identifier_view(auth, token.clone());
-		assert!(matches!(replay, Err(ViewError::Replay)), "helper must reject replay");
+		assert!(
+			matches!(replay, Err(AuthorizationError::Unauthorized)),
+			"helper must reject replay"
+		);
 	});
 }
 
@@ -229,7 +236,7 @@ fn resolve_pallet_view_enforces_signature() {
 			sr25519::Pair::from_seed(&[99u8; 32]).sign(forged.payload.as_slice()).into();
 		assert!(matches!(
 			Pallet::<Test>::resolve_pallet_view(forged, index),
-			Err(ViewError::AuthFailed)
+			Err(AuthorizationError::Unauthorized)
 		));
 	});
 }
@@ -248,7 +255,10 @@ fn resolve_pallet_view_requires_authorization() {
 		let raw = Pallet::<Test>::resolve_pallet_plain(index).expect("helper");
 		assert_eq!(raw, pallet_name);
 
-		assert!(matches!(Pallet::<Test>::resolve_pallet(auth, index), Err(ViewError::Replay)));
+		assert!(matches!(
+			Pallet::<Test>::resolve_pallet(auth, index),
+			Err(AuthorizationError::Unauthorized)
+		));
 	});
 }
 

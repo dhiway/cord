@@ -31,15 +31,18 @@ pub use crate::registry::{
 	LookupSpecView, RegistryAttributeView, RegistryInfoView, RegistryKind, RegistryPermissions,
 	RegistryStatus,
 };
+pub mod dev;
+pub use crate::dev::{
+	base58_string, base64_string, hex_string, maybe_utf8, ss58_string, DevEventBlockView,
+};
 pub mod view;
 pub use crate::view::{
-	base58_string, base64_string, dev_attr_from, dev_element_from, dev_packet_snapshot_from,
-	dev_packet_state_from, hex_string, maybe_utf8, ss58_string, AttributeValueView, DevAttr,
-	DevElement, DevEventBlockView, DevPacketSnapshot, DevPacketState, ElementView,
+	dev_attr_from, dev_element_from, dev_packet_snapshot_from, dev_packet_state_from,
+	AttributeValueView, DevAttr, DevElement, DevPacketSnapshot, DevPacketState, ElementView,
 	InfoAttributeHistoryEntry, InfoTokenHistoryEntry, PacketMetadataView, PacketStateView,
 };
-pub mod view_auth;
-pub use crate::view_auth::{view_signature_hash, ViewAuthorization};
+pub mod authorization;
+pub use crate::authorization::{authorization_signature_hash, Authorization};
 pub mod identifier;
 pub mod view_api;
 pub use crate::identifier::Ss58Identifier;

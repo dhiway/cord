@@ -26,7 +26,7 @@ use alloc::format;
 use codec::Decode;
 use cord_primitives::{
 	packet::{Attribute, Attributes, AttributesError, Element},
-	view_api::ViewError,
+	view_api::AuthorizationError,
 	Signature,
 };
 use core::sync::atomic::{AtomicU64, Ordering};
@@ -58,18 +58,18 @@ fn _test_id(input: &[u8]) -> Ss58Identifier {
 
 static VIEW_AUTH_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-fn view_auth(account: &AccountId) -> ViewAuthorizationOf<Test> {
+fn authorization(account: &AccountId) -> AuthorizationOf<Test> {
 	let counter = VIEW_AUTH_COUNTER.fetch_add(1, Ordering::Relaxed);
 	let payload_text = format!("entity-view-{counter}");
 	let payload_vec = payload_text.into_bytes();
-	let payload: ViewAuthPayloadOf<Test> =
+	let payload: AuthorizationPayloadOf<Test> =
 		payload_vec.clone().try_into().expect("payload within bounds");
 	let signature = mock::ACCOUNT_KEYS.with(|keys| {
 		let map = keys.borrow();
 		let pair = map.get(account).cloned().expect("account key seeded via mock::account helper");
 		Signature::from(pair.sign(&payload_vec))
 	});
-	ViewAuthorizationOf::<Test> { account: account.clone(), payload, signature }
+	AuthorizationOf::<Test> { account: account.clone(), payload, signature }
 }
 
 mod set_info_tests {
@@ -403,7 +403,7 @@ mod linked_accounts_tests {
 			let linked = LinkedAccounts::<Test>::get(&token);
 			assert_eq!(linked.len(), 1);
 			assert_eq!(linked[0], owner.clone());
-			let view = EntityPallet::<Test>::linked_accounts(view_auth(&owner), token.clone())
+			let view = EntityPallet::<Test>::linked_accounts(authorization(&owner), token.clone())
 				.expect("view");
 			assert_eq!(view, vec![owner.into()]);
 		});
@@ -607,7 +607,7 @@ mod view_tests {
 				plain_data(b"new")
 			));
 
-			let auth = view_auth(&who);
+			let auth = authorization(&who);
 			let records = EntityPallet::<Test>::get_attribute_history(auth.clone(), token.clone())
 				.expect("authorized history view");
 			assert_eq!(records.len(), 1);
@@ -617,7 +617,7 @@ mod view_tests {
 			tampered.signature = Signature::from(sr25519::Pair::from_seed(&[99; 32]).sign(b"nope"));
 			assert!(matches!(
 				EntityPallet::<Test>::get_attribute_history(tampered, token),
-				Err(ViewError::AuthFailed)
+				Err(AuthorizationError::Unauthorized)
 			));
 		});
 	}
@@ -638,7 +638,7 @@ mod view_tests {
 			));
 
 			let hist = EntityPallet::<Test>::attribute_history_plain(&token);
-			let auth = view_auth(&who);
+			let auth = authorization(&who);
 			let entries =
 				EntityPallet::<Test>::attribute_history_entries(auth, token).expect("dev entries");
 			assert_eq!(entries.len(), hist.len());
@@ -652,12 +652,12 @@ mod view_tests {
 		new_test_ext().execute_with(|| {
 			let who = account(60);
 			let token = init_with_display(who.clone(), b"info-view");
-			let auth = view_auth(&who);
+			let auth = authorization(&who);
 			let info =
 				EntityPallet::<Test>::entity_info(auth, token.clone()).expect("entity info view");
 			assert_eq!(info.display, plain_data(b"info-view"));
 
-			let bytes = EntityPallet::<Test>::entity_info_bytes(view_auth(&who), token.clone())
+			let bytes = EntityPallet::<Test>::entity_info_bytes(authorization(&who), token.clone())
 				.expect("entity info bytes view");
 			let decoded =
 				EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::decode(&mut &bytes[..])
@@ -677,16 +677,18 @@ mod view_tests {
 				sub.clone()
 			));
 
-			let resolved = EntityPallet::<Test>::account_token(view_auth(&owner), owner.clone())
-				.expect("account token view");
+			let resolved =
+				EntityPallet::<Test>::account_token(authorization(&owner), owner.clone())
+					.expect("account token view");
 			assert_eq!(resolved, token);
 
-			let listed = EntityPallet::<Test>::linked_accounts(view_auth(&owner), token.clone())
-				.expect("links");
+			let listed =
+				EntityPallet::<Test>::linked_accounts(authorization(&owner), token.clone())
+					.expect("links");
 			assert_eq!(listed, vec![owner.clone().into(), sub.clone().into()]);
 
 			let controller =
-				EntityPallet::<Test>::controller_account_view(view_auth(&owner), token.clone())
+				EntityPallet::<Test>::controller_account_view(authorization(&owner), token.clone())
 					.expect("controller view");
 			assert_eq!(controller, owner.clone().into());
 		});
@@ -712,24 +714,25 @@ mod view_tests {
 			));
 
 			let name_bytes =
-				EntityPallet::<Test>::entity_nym(view_auth(&who), token.clone()).expect("name");
+				EntityPallet::<Test>::entity_nym(authorization(&who), token.clone()).expect("name");
 			assert!(core::str::from_utf8(&name_bytes).unwrap().ends_with(".nym.org.in"));
 
 			let lookup =
-				EntityPallet::<Test>::entity_nym_lookup(view_auth(&who), name_bytes.clone())
+				EntityPallet::<Test>::entity_nym_lookup(authorization(&who), name_bytes.clone())
 					.expect("name lookup");
 			assert_eq!(lookup, token);
 
 			let version = EntityPallet::<Test>::attribute_version(
-				view_auth(&who),
+				authorization(&who),
 				token.clone(),
 				b"rot".to_vec(),
 			)
 			.expect("attribute version");
 			assert_eq!(version, 1);
 
-			let versions = EntityPallet::<Test>::attribute_versions(view_auth(&who), token.clone())
-				.expect("versions");
+			let versions =
+				EntityPallet::<Test>::attribute_versions(authorization(&who), token.clone())
+					.expect("versions");
 			assert_eq!(versions, vec![(b"rot".to_vec(), 1)]);
 		});
 	}
@@ -746,8 +749,9 @@ mod view_tests {
 				next.clone(),
 			));
 
-			let entries = EntityPallet::<Test>::account_history(view_auth(&next), token.clone())
-				.expect("history");
+			let entries =
+				EntityPallet::<Test>::account_history(authorization(&next), token.clone())
+					.expect("history");
 			assert_eq!(entries.len(), 1);
 			assert_eq!(entries[0].0, owner.into());
 			assert!(entries[0].1.height > 0);

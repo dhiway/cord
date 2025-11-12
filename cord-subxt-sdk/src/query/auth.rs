@@ -1,5 +1,7 @@
 use crate::error::{Error, Result};
-use cord_primitives::view_api::{ViewAuthPayload, ViewRequestAuth, VIEW_AUTH_MAX_BYTES};
+use cord_primitives::view_api::{
+	AuthorizationPayload, AuthorizationRequest, AUTHORIZATION_MAX_BYTES,
+};
 use serde::{Deserialize, Serialize};
 use sp_core::{ecdsa, ed25519, sr25519};
 use sp_runtime::AccountId32;
@@ -18,7 +20,7 @@ pub enum SignatureScheme {
 
 /// Payload that authorises runtime view calls.
 #[derive(Clone, Serialize, Deserialize)]
-pub struct ViewAuthorization {
+pub struct Authorization {
 	pub account_ss58: String,
 	pub account_id: subxt::utils::AccountId32,
 	pub scheme: SignatureScheme,
@@ -43,7 +45,7 @@ impl AuthorizationBuilder {
 		signer: &S,
 		scheme: SignatureScheme,
 		message: Option<&[u8]>,
-	) -> Result<ViewAuthorization> {
+	) -> Result<Authorization> {
 		let msg = message.map(|m| m.to_vec()).unwrap_or_else(Self::random_message);
 		let sig = signer.sign(&msg);
 		let sig_bytes = match sig {
@@ -51,7 +53,7 @@ impl AuthorizationBuilder {
 			subxt::utils::MultiSignature::Sr25519(inner) => inner.as_ref().to_vec(),
 			subxt::utils::MultiSignature::Ecdsa(inner) => inner.as_ref().to_vec(),
 		};
-		Ok(ViewAuthorization {
+		Ok(Authorization {
 			account_ss58: signer.account_id().to_string(),
 			account_id: signer.account_id(),
 			scheme,
@@ -61,10 +63,10 @@ impl AuthorizationBuilder {
 	}
 }
 
-impl ViewAuthorization {
-	pub fn as_request(&self) -> Result<ViewRequestAuth> {
-		let payload = ViewAuthPayload::try_from(self.message.clone()).map_err(|_| {
-			Error::Params(format!("view payload exceeds {} bytes", VIEW_AUTH_MAX_BYTES))
+impl Authorization {
+	pub fn as_request(&self) -> Result<AuthorizationRequest> {
+		let payload = AuthorizationPayload::try_from(self.message.clone()).map_err(|_| {
+			Error::Params(format!("view payload exceeds {} bytes", AUTHORIZATION_MAX_BYTES))
 		})?;
 		let account = AccountId32::new(*self.account_id.as_ref());
 		let signature =
@@ -91,6 +93,6 @@ impl ViewAuthorization {
 					cord_primitives::Signature::from(ecdsa::Signature::from_raw(raw))
 				},
 			};
-		Ok(ViewRequestAuth { account, payload, signature })
+		Ok(AuthorizationRequest { account, payload, signature })
 	}
 }

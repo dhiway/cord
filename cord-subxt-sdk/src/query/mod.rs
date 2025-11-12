@@ -10,7 +10,7 @@ use crate::{
 	types,
 };
 use codec::Decode;
-use cord_primitives::{identifier::Ss58Identifier, view_api::ViewRequestAuth};
+use cord_primitives::{identifier::Ss58Identifier, view_api::AuthorizationRequest};
 use hex::ToHex;
 use scale_value::{Composite, Value};
 use sp_runtime::MultiSignature;
@@ -93,7 +93,7 @@ impl ArgBuilder {
 	}
 }
 
-pub(crate) fn view_auth_value(authz: &ViewRequestAuth) -> Result<Value> {
+pub(crate) fn authorization_value(authz: &AuthorizationRequest) -> Result<Value> {
 	let account = account_value(authz.account.as_ref());
 	let payload = types::bytes_value(authz.payload.as_slice());
 	let signature = signature_value(authz);
@@ -135,7 +135,7 @@ fn option_value(inner: Option<Value>) -> Value {
 	}
 }
 
-fn signature_value(authz: &ViewRequestAuth) -> Value {
+fn signature_value(authz: &AuthorizationRequest) -> Value {
 	let (scheme, bytes) = match &authz.signature {
 		MultiSignature::Sr25519(sig) => ("Sr25519", sig.as_ref()),
 		MultiSignature::Ed25519(sig) => ("Ed25519", sig.as_ref()),
