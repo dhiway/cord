@@ -1,14 +1,10 @@
 use alloc::{collections::BTreeSet, vec, vec::Vec};
 use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-pub use cord_primitives::registry::{
-	LookupSpecView, RegistryAttributeView, RegistryInfoView, RegistryKind, RegistryPermissions,
-	RegistryStatus,
-};
+pub use cord_primitives::registry::{RegistryKind, RegistryPermissions, RegistryStatus};
 use cord_primitives::{
 	identifier::Ss58Identifier,
 	packet::{Attribute, Element, ElementType, PacketUpdateError},
-	view::ElementView,
 };
 use frame_support::{ensure, traits::Get, BoundedVec, RuntimeDebugNoBound};
 use scale_info::TypeInfo;
@@ -53,12 +49,6 @@ pub struct AttributeSpec {
 	pub flags: AttributeFlags,
 }
 
-impl From<&AttributeSpec> for RegistryAttributeView {
-	fn from(spec: &AttributeSpec) -> Self {
-		Self { key: spec.key.to_vec(), kind: spec.kind, optional: spec.flags.is_optional() }
-	}
-}
-
 /// Lookup specification describing how attribute keys are reused without duplicating values.
 #[derive(Encode, Decode, DecodeWithMemTracking, RuntimeDebugNoBound, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(MaxAdditionalAttributes))]
@@ -67,18 +57,6 @@ pub enum LookupSpec<MaxAdditionalAttributes: Get<u32>> {
 	Single(Attribute),
 	/// Bounded list of attribute keys representing a composite index.
 	Combo(BoundedVec<Attribute, MaxAdditionalAttributes>),
-}
-
-impl<MaxAdditionalAttributes: Get<u32>> From<&LookupSpec<MaxAdditionalAttributes>>
-	for LookupSpecView
-{
-	fn from(spec: &LookupSpec<MaxAdditionalAttributes>) -> Self {
-		match spec {
-			LookupSpec::Single(attr) => LookupSpecView::Single(attr.to_vec()),
-			LookupSpec::Combo(list) =>
-				LookupSpecView::Combo(list.iter().map(|attr| attr.to_vec()).collect()),
-		}
-	}
 }
 
 impl<MaxAdditionalAttributes: Get<u32>> Clone for LookupSpec<MaxAdditionalAttributes> {
@@ -338,21 +316,5 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 			}
 		}
 		Ok(())
-	}
-}
-
-impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
-	From<&RegistryInfo<MaxRawDataLength, MaxAdditionalAttributes>> for RegistryInfoView
-{
-	fn from(info: &RegistryInfo<MaxRawDataLength, MaxAdditionalAttributes>) -> Self {
-		Self {
-			info: ElementView::from(&info.info),
-			maintainer: info.maintainer().as_ref().to_vec(),
-			attributes: info.attributes.iter().map(RegistryAttributeView::from).collect(),
-			token_spec: LookupSpecView::from(&info.token_spec),
-			lookup_specs: info.lookup_specs.iter().map(LookupSpecView::from).collect(),
-			kind: info.kind.clone(),
-			status: info.status,
-		}
 	}
 }

@@ -31,8 +31,8 @@ use cord_primitives::{
 		authorization_signature_hash as primitives_authorization_signature_hash,
 		Authorization as CoreAuthorization,
 	},
-	dev::{base64_string, hex_string, maybe_utf8, DevEventBlockView},
 	identifier::{DecodedIdentifier, IdentifierError, Ss58Identifier},
+	view::{base64_string, hex_string, maybe_utf8, DevEventBlockView, InfoTokenHistoryEntry},
 	view_api::AuthorizationError,
 	Signature,
 };
@@ -50,7 +50,6 @@ use sp_runtime::{
 	traits::{BlockNumberProvider, UniqueSaturatedInto, Verify},
 	AccountId32,
 };
-use types::InfoTokenHistoryEntry;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -58,7 +57,6 @@ mod benchmarking;
 pub mod mock;
 #[cfg(test)]
 mod tests;
-pub mod types;
 
 /// The starting index for pallets.
 const INDEX: u16 = 64;

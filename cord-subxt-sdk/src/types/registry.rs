@@ -1,12 +1,12 @@
 use crate::{
+	api::runtime,
 	error::{Error, Result},
 	types::{attribute_pair_value, base64_to_bytes, element_json_to_dynamic, ElementJson},
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use cord_primitives::{
-	packet::ElementType,
-	registry::{RegistryAttributeView, RegistryInfoView},
-};
+use cord_primitives::packet::ElementType;
+#[cfg(test)]
+use cord_primitives::registry::{RegistryAttributeView, RegistryInfoView};
 use scale_value::{Composite, Value};
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
@@ -14,6 +14,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 const ATTRIBUTE_KEY_MAX: usize = 64;
 const ATTRIBUTE_FLAG_OPTIONAL: u8 = 1 << 0;
+
+type RuntimeRegistryInfo = runtime::runtime_types::pallet_register::register::RegistryInfo;
+type RuntimeAttributeSpec = runtime::runtime_types::pallet_register::register::AttributeSpec;
+type RuntimeAttributeFlags = runtime::runtime_types::pallet_register::register::AttributeFlags;
 
 /// High-level registry definition parsed from developer JSON.
 pub struct RegistryBlueprint {
@@ -98,13 +102,22 @@ impl RegistryBlueprint {
 	}
 }
 
-/// Schema view derived from a chain-provided [`RegistryInfoView`].
+/// Schema view derived from the runtime-provided [`RuntimeRegistryInfo`].
 #[derive(Clone)]
 pub struct RegistrySchema {
 	attributes: BTreeMap<Vec<u8>, SchemaAttribute>,
 }
 
 impl RegistrySchema {
+	pub fn from_runtime(info: &RuntimeRegistryInfo) -> Self {
+		let mut attributes = BTreeMap::new();
+		for spec in info.attributes.iter() {
+			attributes.insert(spec.key.to_vec(), SchemaAttribute::from_runtime(spec));
+		}
+		Self { attributes }
+	}
+
+	#[cfg(test)]
 	pub fn from_view(view: &RegistryInfoView) -> Self {
 		let mut attributes = BTreeMap::new();
 		for spec in &view.attributes {
@@ -206,6 +219,12 @@ impl SchemaAttribute {
 		Self { key, label, kind, optional }
 	}
 
+	fn from_runtime(spec: &RuntimeAttributeSpec) -> Self {
+		let optional = spec.flags.contains(RuntimeAttributeFlags::OPTIONAL);
+		Self::new(spec.key.to_vec(), spec.kind, optional)
+	}
+
+	#[cfg(test)]
 	fn from_view(view: &RegistryAttributeView) -> Self {
 		Self::new(view.key.clone(), view.kind, view.optional)
 	}
@@ -463,8 +482,9 @@ where
 			}
 			Ok(())
 		},
-		JsonValue::Array(_) =>
-			Err(Error::Params(format!("attribute '{prefix}' cannot be an array"))),
+		JsonValue::Array(_) => {
+			Err(Error::Params(format!("attribute '{prefix}' cannot be an array")))
+		},
 		_ => {
 			if prefix.is_empty() {
 				return Err(Error::Params("attributes payload must be a JSON object".into()));
@@ -513,8 +533,9 @@ fn convert_raw(value: &JsonValue, label: &str) -> Result<ElementJson> {
 				label
 			)))
 		},
-		other =>
-			Err(Error::Params(format!("raw attribute '{}' cannot use value {:?}", label, other))),
+		other => {
+			Err(Error::Params(format!("raw attribute '{}' cannot use value {:?}", label, other)))
+		},
 	}
 }
 
@@ -524,8 +545,9 @@ fn convert_bool(value: &JsonValue, label: &str) -> Result<ElementJson> {
 		JsonValue::String(s) => match s.to_ascii_lowercase().as_str() {
 			"true" => Ok(ElementJson::Bool(true)),
 			"false" => Ok(ElementJson::Bool(false)),
-			_ =>
-				Err(Error::Params(format!("bool attribute '{}' expects 'true' or 'false'", label))),
+			_ => {
+				Err(Error::Params(format!("bool attribute '{}' expects 'true' or 'false'", label)))
+			},
 		},
 		_ => Err(Error::Params(format!("bool attribute '{}' expects boolean", label))),
 	}

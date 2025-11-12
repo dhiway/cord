@@ -22,14 +22,13 @@ use super::*;
 use crate::{
 	mock::*,
 	register::{AttributeFlags, LookupSpec},
-	AttributePairsOf, ElementView, LookupIndex, PacketPointer, PacketStatus, Packets,
-	RegistryQueryCounts,
+	AttributePairsOf, LookupIndex, PacketPointer, PacketSnapshotOf, PacketStatus, Packets,
+	RegistryInfoOf, RegistryQueryCounts,
 };
 use alloc::format;
 use cord_primitives::{
 	packet::{Attribute, Element, ElementType},
-	registry::{LookupSpecView, RegistryKind, RegistryPermissions, RegistryStatus},
-	view::DevPacketSnapshot,
+	registry::{RegistryKind, RegistryPermissions, RegistryStatus},
 	AccountId, Signature,
 };
 use core::{
@@ -97,25 +96,16 @@ fn lookup_specs(specs: &[&[&[u8]]]) -> LookupSpecListOf<Test> {
 	list
 }
 
-fn registry_info_struct(registry: &Ss58Identifier) -> RegistryInfoView {
+fn registry_info_struct(registry: &Ss58Identifier) -> RegistryInfoOf<Test> {
 	<Pallet<Test> as RegistryView<Test>>::registry_info(registry).expect("registry info")
 }
 
-fn registry_details_from_view(registry: &Ss58Identifier) -> RegistryInfoView {
-	Pallet::<Test>::details(default_auth(), registry.clone()).expect("details view")
+fn registry_details(registry: &Ss58Identifier) -> RegistryInfoOf<Test> {
+	Pallet::<Test>::details(default_auth(), registry.clone()).expect("details query")
 }
 
-fn packet_snapshot_struct(packet: &Ss58Identifier, version: Option<u32>) -> PacketSnapshotView {
+fn packet_snapshot_struct(packet: &Ss58Identifier, version: Option<u32>) -> PacketSnapshotOf<Test> {
 	<Pallet<Test> as RegistryView<Test>>::packet_state(packet, version).expect("snapshot")
-}
-
-fn packet_snapshot_from_view(
-	registry: &Ss58Identifier,
-	packet: &Ss58Identifier,
-	version: Option<u32>,
-) -> DevPacketSnapshot<RegistryStatus> {
-	Pallet::<Test>::packet_snapshot_dev(default_auth(), registry.clone(), packet.clone(), version)
-		.expect("packet view bytes")
 }
 
 fn authorization(account: AccountId) -> AuthorizationOf<Test> {
@@ -181,13 +171,13 @@ fn registry_creation_defaults_to_active() {
 		);
 
 		let info = registry_info_struct(&registry);
-		assert_eq!(info.maintainer, maintainer_token.as_ref().to_vec());
+		assert_eq!(info.maintainer(), &maintainer_token);
 		assert_eq!(info.status, RegistryStatus::Active);
 		assert_eq!(info.kind, RegistryKind::Raw);
 		assert_eq!(info.attributes.len(), attributes.len());
 		match &info.token_spec {
-			LookupSpecView::Single(key) => assert_eq!(key, b"id"),
-			LookupSpecView::Combo(_) => panic!("expected single key"),
+			LookupSpec::Single(key) => assert_eq!(key.as_slice(), b"id"),
+			LookupSpec::Combo(_) => panic!("expected single key"),
 		}
 		assert!(<Pallet<Test> as RegistryView<Test>>::registry_active(&registry));
 	});
@@ -205,17 +195,17 @@ fn registry_view_trait_does_not_require_authorization() {
 			lookup_specs(&[&[b"id"]]),
 		);
 
-		let info = <Pallet<Test> as RegistryView<Test>>::registry_info(&registry)
-			.expect("registry info reachable");
-		assert_eq!(info.maintainer, maintainer_token.as_ref().to_vec());
+		let info =
+			<Pallet<Test> as RegistryView<Test>>::registry_info(&registry).expect("registry info");
+		assert_eq!(info.maintainer(), &maintainer_token);
 		let keys = <Pallet<Test> as RegistryView<Test>>::attribute_keys(&registry)
 			.expect("keys reachable");
 		assert_eq!(keys, vec![b"id".to_vec()]);
 		match <Pallet<Test> as RegistryView<Test>>::token_fingerprint(&registry)
 			.expect("token spec")
 		{
-			LookupSpecView::Single(field) => assert_eq!(field, b"id"),
-			LookupSpecView::Combo(_) => panic!("expected single lookup field"),
+			LookupSpec::Single(field) => assert_eq!(field.as_slice(), b"id"),
+			LookupSpec::Combo(_) => panic!("expected single lookup field"),
 		}
 		assert!(<Pallet<Test> as RegistryView<Test>>::registry_active(&registry));
 	});
@@ -343,9 +333,9 @@ fn update_registry_info_requires_admin() {
 			registry.clone(),
 			raw(b"Updated"),
 		));
-		let info_view = registry_info_struct(&registry);
-		match info_view.info {
-			ElementView::Raw(bytes) => assert_eq!(bytes, b"Updated"),
+		let info = registry_info_struct(&registry);
+		match info.info {
+			Element::Raw(bytes) => assert_eq!(bytes.as_slice(), b"Updated"),
 			other => panic!("unexpected info payload: {:?}", other),
 		}
 	});
@@ -513,8 +503,9 @@ fn packet_lifecycle_tracks_versions() {
 		let packet_id = System::events()
 			.iter()
 			.find_map(|record| match &record.event {
-				RuntimeEvent::Register(crate::Event::PacketCreated { packet, .. }) =>
-					Some(packet.clone()),
+				RuntimeEvent::Register(crate::Event::PacketCreated { packet, .. }) => {
+					Some(packet.clone())
+				},
 				_ => None,
 			})
 			.expect("created token");
@@ -1001,14 +992,25 @@ fn list_by_token_prefix_returns_snapshots() {
 		let prefix_len = min(4, token_bytes.len());
 		let token_prefix = token_bytes[..prefix_len].to_vec();
 
-		let full_matches =
-			Pallet::<Test>::list_by_token(authorization(account(92)), token_bytes, None)
-				.expect("packet view");
+		let (full_matches, next_cursor) = Pallet::<Test>::list_by_token(
+			authorization(account(92)),
+			token_bytes,
+			None,
+			None,
+			None,
+		)
+		.expect("packet list");
 		assert!(full_matches.iter().any(|snapshot| snapshot.state.registry == registry));
+		assert!(next_cursor.is_none());
 
-		let prefix_matches =
-			Pallet::<Test>::list_by_token(authorization(account(93)), token_prefix, None)
-				.expect("packet view");
+		let (prefix_matches, _) = Pallet::<Test>::list_by_token(
+			authorization(account(93)),
+			token_prefix,
+			None,
+			None,
+			Some(5),
+		)
+		.expect("packet list");
 		assert!(prefix_matches.iter().any(|snapshot| snapshot.state.registry == registry));
 	});
 }
@@ -1040,14 +1042,25 @@ fn packets_by_lookup_digest_returns_snapshots() {
 		let prefix_len = min(4, digest_bytes.len());
 		let digest_prefix = digest_bytes[..prefix_len].to_vec();
 
-		let full_matches =
-			Pallet::<Test>::list_by_digest(authorization(account(96)), digest_bytes, None)
-				.expect("digest view");
+		let (full_matches, next_cursor) = Pallet::<Test>::list_by_digest(
+			authorization(account(96)),
+			digest_bytes,
+			None,
+			None,
+			None,
+		)
+		.expect("digest list");
 		assert!(full_matches.iter().any(|snapshot| snapshot.state.registry == registry));
+		assert!(next_cursor.is_none());
 
-		let prefix_matches =
-			Pallet::<Test>::list_by_digest(authorization(account(97)), digest_prefix, None)
-				.expect("digest view");
+		let (prefix_matches, _) = Pallet::<Test>::list_by_digest(
+			authorization(account(97)),
+			digest_prefix,
+			None,
+			None,
+			Some(3),
+		)
+		.expect("digest list");
 		assert!(prefix_matches.iter().any(|snapshot| snapshot.state.registry == registry));
 	});
 }
@@ -1061,13 +1074,13 @@ fn info_view_returns_scale_payload() {
 			token_spec(&[b"asset_id"]),
 			lookup_specs(&[&[b"asset_id"]]),
 		);
-		let view = registry_details_from_view(&registry);
+		let view = registry_details(&registry);
 		assert_eq!(view.status, RegistryStatus::Active);
 	});
 }
 
 #[test]
-fn packet_snapshot_returns_dev_snapshot() {
+fn packet_snapshot_returns_snapshot() {
 	new_test_ext().execute_with(|| {
 		let (registry, _) = create_registry(
 			account(121),
@@ -1084,7 +1097,13 @@ fn packet_snapshot_returns_dev_snapshot() {
 			payload,
 		));
 		let packet_id = Packets::<Test>::iter_keys().next().expect("packet stored");
-		let snapshot = packet_snapshot_from_view(&registry, &packet_id, None);
+		let snapshot = Pallet::<Test>::packet_snapshot(
+			default_auth(),
+			registry.clone(),
+			packet_id.clone(),
+			None,
+		)
+		.expect("packet snapshot");
 		assert_eq!(snapshot.state.version, 1);
 		assert_eq!(snapshot.registry_status, RegistryStatus::Active);
 	});
@@ -1118,10 +1137,10 @@ fn registry_view_queries_increment_counter() {
 		let account = account(0);
 		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 0);
 
-		let _ = Pallet::<Test>::info(default_auth(), registry.clone()).expect("info");
+		let _ = Pallet::<Test>::details(default_auth(), registry.clone()).expect("details");
 		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 1);
 
-		let _ = Pallet::<Test>::packet_snapshot_dev(
+		let _ = Pallet::<Test>::packet_snapshot(
 			default_auth(),
 			registry.clone(),
 			packet_id.clone(),
@@ -1136,8 +1155,8 @@ fn registry_view_queries_increment_counter() {
 		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 3);
 
 		let token_bytes = packet_id.as_ref().to_vec();
-		let token_matches =
-			Pallet::<Test>::list_by_token(default_auth(), token_bytes.clone(), None)
+		let (token_matches, _) =
+			Pallet::<Test>::list_by_token(default_auth(), token_bytes.clone(), None, None, None)
 				.expect("token matches");
 		assert!(!token_matches.is_empty());
 		assert_eq!(
@@ -1145,9 +1164,14 @@ fn registry_view_queries_increment_counter() {
 			3 + token_matches.len() as u64
 		);
 
-		let digest_matches =
-			Pallet::<Test>::list_by_digest(default_auth(), digest.as_ref().to_vec(), None)
-				.expect("digest matches");
+		let (digest_matches, _) = Pallet::<Test>::list_by_digest(
+			default_auth(),
+			digest.as_ref().to_vec(),
+			None,
+			None,
+			None,
+		)
+		.expect("digest matches");
 		assert!(!digest_matches.is_empty());
 		assert_eq!(
 			RegistryQueryCounts::<Test>::get(&registry, account),
@@ -1186,7 +1210,7 @@ fn query_count_view_returns_counter() {
 			lookup_specs(&[&[b"asset_id"]]),
 		);
 		let viewer = account(0);
-		let _ = Pallet::<Test>::info(default_auth(), registry.clone()).expect("info view");
+		let _ = Pallet::<Test>::details(default_auth(), registry.clone()).expect("details");
 		let count = Pallet::<Test>::query_count(
 			authorization(account(144)),
 			registry.clone(),

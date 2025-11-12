@@ -78,11 +78,13 @@ impl SubstrateCli for Cli {
 		}
 
 		let spec: Box<dyn sc_service::ChainSpec> = match id {
-			"dev" | "orb-dev" | "cord-dev" =>
-				Box::new(chain_spec::orb_development_config().map_err(|e| e.to_string())?),
+			"dev" | "orb-dev" | "cord-dev" => {
+				Box::new(chain_spec::orb_development_config().map_err(|e| e.to_string())?)
+			},
 
-			"local" | "orb" | "orb-local" | "cord" | "cord-local" =>
-				Box::new(chain_spec::orb_staging_config().map_err(|e| e.to_string())?),
+			"local" | "orb" | "orb-local" | "cord" | "cord-local" => {
+				Box::new(chain_spec::orb_staging_config().map_err(|e| e.to_string())?)
+			},
 			path => {
 				let spec = cord_service::GenericCordChainSpec::from_json_file(
 					std::path::PathBuf::from(path),

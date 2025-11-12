@@ -405,7 +405,7 @@ mod linked_accounts_tests {
 			assert_eq!(linked[0], owner.clone());
 			let view = EntityPallet::<Test>::linked_accounts(authorization(&owner), token.clone())
 				.expect("view");
-			assert_eq!(view, vec![owner.into()]);
+			assert_eq!(view, vec![owner]);
 		});
 	}
 
@@ -608,15 +608,15 @@ mod view_tests {
 			));
 
 			let auth = authorization(&who);
-			let records = EntityPallet::<Test>::get_attribute_history(auth.clone(), token.clone())
-				.expect("authorized history view");
+			let records = EntityPallet::<Test>::attribute_history(auth.clone(), token.clone())
+				.expect("history");
 			assert_eq!(records.len(), 1);
 			assert_eq!(records[0].0, b"rot".to_vec());
 
 			let mut tampered = auth;
 			tampered.signature = Signature::from(sr25519::Pair::from_seed(&[99; 32]).sign(b"nope"));
 			assert!(matches!(
-				EntityPallet::<Test>::get_attribute_history(tampered, token),
+				EntityPallet::<Test>::attribute_history(tampered, token),
 				Err(AuthorizationError::Unauthorized)
 			));
 		});
@@ -640,34 +640,33 @@ mod view_tests {
 			let hist = EntityPallet::<Test>::attribute_history_plain(&token);
 			let auth = authorization(&who);
 			let entries =
-				EntityPallet::<Test>::attribute_history_entries(auth, token).expect("dev entries");
+				EntityPallet::<Test>::attribute_history(auth, token).expect("history entries");
 			assert_eq!(entries.len(), hist.len());
-			assert_eq!(entries[0].key_utf8.as_deref(), Some("rot"));
-			assert_eq!(entries[0].version, hist[0].1);
+			assert_eq!(entries[0].0, hist[0].0);
+			assert_eq!(entries[0].1, hist[0].1);
 		});
 	}
 
 	#[test]
-	fn entity_info_view_roundtrip() {
+	fn entity_details_roundtrip() {
 		new_test_ext().execute_with(|| {
 			let who = account(60);
 			let token = init_with_display(who.clone(), b"info-view");
 			let auth = authorization(&who);
-			let info =
-				EntityPallet::<Test>::entity_info(auth, token.clone()).expect("entity info view");
+			let info = EntityPallet::<Test>::details(auth, token.clone()).expect("entity details");
 			assert_eq!(info.display, plain_data(b"info-view"));
 
-			let bytes = EntityPallet::<Test>::entity_info_bytes(authorization(&who), token.clone())
-				.expect("entity info bytes view");
+			// Clients can SCALE encode the struct locally when bytes are required.
+			let encoded = info.encode();
 			let decoded =
-				EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::decode(&mut &bytes[..])
+				EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::decode(&mut &encoded[..])
 					.expect("decode");
 			assert_eq!(decoded.display, plain_data(b"info-view"));
 		});
 	}
 
 	#[test]
-	fn account_and_controller_views_return_expected_data() {
+	fn account_and_controller_queries_return_expected_data() {
 		new_test_ext().execute_with(|| {
 			let owner = account(61);
 			let sub = account(62);
@@ -685,12 +684,12 @@ mod view_tests {
 			let listed =
 				EntityPallet::<Test>::linked_accounts(authorization(&owner), token.clone())
 					.expect("links");
-			assert_eq!(listed, vec![owner.clone().into(), sub.clone().into()]);
+			assert_eq!(listed, vec![owner.clone(), sub.clone()]);
 
 			let controller =
-				EntityPallet::<Test>::controller_account_view(authorization(&owner), token.clone())
-					.expect("controller view");
-			assert_eq!(controller, owner.clone().into());
+				EntityPallet::<Test>::controller_account(authorization(&owner), token.clone())
+					.expect("controller account");
+			assert_eq!(controller, owner.clone());
 		});
 	}
 
@@ -753,7 +752,7 @@ mod view_tests {
 				EntityPallet::<Test>::account_history(authorization(&next), token.clone())
 					.expect("history");
 			assert_eq!(entries.len(), 1);
-			assert_eq!(entries[0].0, owner.into());
+			assert_eq!(entries[0].0, owner);
 			assert!(entries[0].1.height > 0);
 		});
 	}

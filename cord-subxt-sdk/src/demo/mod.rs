@@ -8,8 +8,7 @@ use crate::{
 use codec::Decode;
 use cord_primitives::{
 	identifier::Ss58Identifier,
-	registry::RegistryInfoView,
-	view_api::{AuthorizationRequest, EntityAccountTokenRequest, EntityInfoBytesRequest},
+	view_api::{AuthorizationRequest, EntityAccountTokenRequest},
 };
 use getrandom::getrandom;
 use hex;
@@ -73,14 +72,16 @@ pub async fn create_registry(
 	Err(Error::NotFound("RegistryCreated event not found".into()))
 }
 
+use crate::query::register::RuntimeRegistryInfo;
+
 pub async fn create_packet(
 	client: &Client,
 	signer: &tx::signer::sr25519::Keypair,
 	registry_ss58: &str,
 	attributes: JsonValue,
-	registry_view: &RegistryInfoView,
+	registry_info: &RuntimeRegistryInfo,
 ) -> Result<Ss58Identifier> {
-	let call = client.tx().packet_create_json(registry_ss58, attributes, registry_view).await?;
+	let call = client.tx().packet_create_json(registry_ss58, attributes, registry_info).await?;
 	let events = submit_and_wait(client, signer, call).await?;
 	for ev in events.iter() {
 		let ev = ev?;

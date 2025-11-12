@@ -63,7 +63,7 @@ pub struct EntityAttributeHistoryRequest {
 	pub token: Ss58Identifier,
 }
 
-/// Request payload for `Entity::attribute_history_for_key_entries`.
+/// Request payload for `Entity::attribute_history_for_key`.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct EntityAttributeHistoryForKeyRequest {
@@ -72,7 +72,7 @@ pub struct EntityAttributeHistoryForKeyRequest {
 	pub key: AttributeKey,
 }
 
-/// Request payload for `Entity::attribute_history_entry_view`.
+/// Request payload for `Entity::attribute_history_entry`.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct EntityAttributeHistoryEntryRequest {
@@ -88,14 +88,6 @@ pub struct EntityAttributeHistoryEntryRequest {
 pub struct EntityAccountTokenRequest {
 	pub auth: AuthorizationRequest,
 	pub account: AccountId,
-}
-
-/// Request payload for `Entity::entity_info_bytes`.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct EntityInfoBytesRequest {
-	pub auth: AuthorizationRequest,
-	pub token: Ss58Identifier,
 }
 
 /// Request payload for `Entity::linked_accounts`.
@@ -223,11 +215,7 @@ mod tests {
 			key: key(b"name"),
 			version: 42,
 		});
-		roundtrip(&EntityAccountTokenRequest {
-			auth: auth.clone(),
-			account: AccountId::from([3u8; 32]),
-		});
-		roundtrip(&EntityInfoBytesRequest { auth: auth.clone(), token });
+		roundtrip(&EntityAccountTokenRequest { auth, account: AccountId::from([3u8; 32]) });
 	}
 
 	#[test]

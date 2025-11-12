@@ -29,7 +29,6 @@ mod benchmarking;
 
 pub mod entity;
 pub mod signature;
-pub mod types;
 pub mod weights;
 
 extern crate alloc;
@@ -42,7 +41,6 @@ use cord_primitives::{
 		authorization_signature_hash as primitives_authorization_signature_hash,
 		Authorization as CoreAuthorization,
 	},
-	dev::{base64_string, hex_string, maybe_utf8, DevEventBlockView},
 	identifier::Ss58Identifier,
 	packet::{Attribute, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp},
 	view_api::AuthorizationError,
@@ -63,22 +61,22 @@ use sp_runtime::{
 	traits::{Hash, Verify},
 	AccountId32,
 };
-use types::InfoAttributeHistoryEntry;
 pub use weights::WeightInfo;
 
 pub type DataOf<T> = Element<<T as Config>::MaxRawDataLength>;
 pub type UpdateOpOf<T> = <<T as Config>::EntityInfoPacket as PacketInformationProvider>::UpdateOp;
 pub type EntityNym<T> = BoundedVec<u8, <T as Config>::MaxEntityNymLength>;
 pub type AttributeUpdateKeyOpOf<T> = (Vec<u8>, DataOf<T>);
-/// Authorization payload supplied for entity view calls.
+/// Authorization payload supplied for entity authorization requests.
 pub type AuthorizationPayloadOf<T> = BoundedVec<u8, <T as Config>::MaxAuthorizationLen>;
-/// Authorization structure reused by view functions.
+/// Authorization structure reused by authorization-gated queries.
 pub type Authorization<T> =
 	CoreAuthorization<<T as frame_system::Config>::AccountId, AuthorizationPayloadOf<T>, Signature>;
 pub type AuthorizationOf<T> = Authorization<T>;
-/// Replay-protection hash derived from the view authorization tuple.
+/// Replay-protection hash derived from the authorization tuple.
 pub type AuthorizationSignatureHash = [u8; 16];
-pub type LinkedAccountsViewOf<T> = BoundedVec<AccountId32, <T as Config>::MaxLinkedAccounts>;
+pub type LinkedAccountsListOf<T> =
+	BoundedVec<<T as frame_system::Config>::AccountId, <T as Config>::MaxLinkedAccounts>;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -217,9 +215,9 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-	/// Replay-protection map for view authorizations.
+	/// Replay-protection map for authorization payloads.
 	#[pallet::storage]
-	pub type ViewSignatureUses<T: Config> =
+	pub type AuthorizationSignatureUses<T: Config> =
 		StorageMap<_, Blake2_128Concat, AuthorizationSignatureHash, (), OptionQuery>;
 	#[pallet::error]
 	pub enum Error<T> {
@@ -771,20 +769,12 @@ pub mod pallet {
 	where
 		T::AccountId: Clone + Into<AccountId32>,
 	{
-		pub fn entity_info(
+		pub fn details(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 		) -> Result<T::EntityInfoPacket, AuthorizationError> {
-			Self::authorize_account_view(&auth)?;
+			Self::authorize_account_query(&auth)?;
 			EntityInfoOf::<T>::get(&token).ok_or(AuthorizationError::NotFound)
-		}
-
-		pub fn entity_info_bytes(
-			auth: AuthorizationOf<T>,
-			token: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			let info = Self::entity_info(auth, token)?;
-			Ok(info.encode())
 		}
 
 		pub fn account_token(
@@ -798,42 +788,34 @@ pub mod pallet {
 		pub fn linked_accounts(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
-		) -> Result<LinkedAccountsViewOf<T>, AuthorizationError> {
-			Self::authorize_account_view(&auth)?;
-			let converted: Vec<AccountId32> = LinkedAccounts::<T>::get(&token)
-				.into_iter()
-				.map(|account| account.into())
-				.collect();
-			LinkedAccountsViewOf::<T>::try_from(converted)
-				.map_err(|_| AuthorizationError::InvalidInput)
+		) -> Result<LinkedAccountsListOf<T>, AuthorizationError> {
+			Self::authorize_account_query(&auth)?;
+			Ok(LinkedAccounts::<T>::get(&token))
 		}
 
-		pub fn controller_account_view(
+		pub fn controller_account(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
-		) -> Result<AccountId32, AuthorizationError> {
-			Self::authorize_account_view(&auth)?;
+		) -> Result<T::AccountId, AuthorizationError> {
+			Self::authorize_account_query(&auth)?;
 			let controller =
 				ControllerOfSs58::<T>::get(&token).ok_or(AuthorizationError::NotFound)?;
-			Ok(controller.into())
+			Ok(controller)
 		}
 
 		pub fn account_history(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
-		) -> Result<Vec<(AccountId32, EventBlock)>, AuthorizationError> {
-			Self::authorize_account_view(&auth)?;
-			let entries = Ss58OfAccountHistory::<T>::iter_prefix(&token)
-				.map(|(account, block)| (account.into(), block))
-				.collect();
-			Ok(entries)
+		) -> Result<Vec<(T::AccountId, EventBlock)>, AuthorizationError> {
+			Self::authorize_account_query(&auth)?;
+			Ok(Ss58OfAccountHistory::<T>::iter_prefix(&token).collect())
 		}
 
 		pub fn entity_nym(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_account_view(&auth)?;
+			Self::authorize_account_query(&auth)?;
 			EntityNymOf::<T>::get(&token)
 				.map(|name| name.into_inner())
 				.ok_or(AuthorizationError::NotFound)
@@ -843,7 +825,7 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			nym: Vec<u8>,
 		) -> Result<Ss58Identifier, AuthorizationError> {
-			Self::authorize_account_view(&auth)?;
+			Self::authorize_account_query(&auth)?;
 			let bounded: EntityNym<T> =
 				nym.try_into().map_err(|_| AuthorizationError::InvalidInput)?;
 			EntityNymIndex::<T>::get(&bounded).ok_or(AuthorizationError::NotFound)
@@ -854,7 +836,7 @@ pub mod pallet {
 			token: Ss58Identifier,
 			key: Vec<u8>,
 		) -> Result<u64, AuthorizationError> {
-			Self::authorize_account_view(&auth)?;
+			Self::authorize_account_query(&auth)?;
 			let attribute: Attribute =
 				key.try_into().map_err(|_| AuthorizationError::InvalidInput)?;
 			Ok(Ss58OfAttributeVersion::<T>::get(&token, attribute))
@@ -864,80 +846,39 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 		) -> Result<Vec<(Vec<u8>, u64)>, AuthorizationError> {
-			Self::authorize_account_view(&auth)?;
+			Self::authorize_account_query(&auth)?;
 			let entries = Ss58OfAttributeVersion::<T>::iter_prefix(&token)
 				.map(|(attribute, version)| (attribute.into_inner(), version))
 				.collect();
 			Ok(entries)
 		}
 
-		pub fn get_attribute_history(
+		pub fn attribute_history(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 		) -> Result<Vec<(Vec<u8>, u64, Vec<u8>, EventBlock)>, AuthorizationError> {
-			Self::authorize_account_view(&auth)?;
+			Self::authorize_account_query(&auth)?;
 			Ok(Self::attribute_history_plain(&token))
 		}
 
-		pub fn attribute_history_entries(
-			auth: AuthorizationOf<T>,
-			token: Ss58Identifier,
-		) -> Result<Vec<InfoAttributeHistoryEntry>, AuthorizationError> {
-			Self::authorize_account_view(&auth)?;
-			let entries = Self::attribute_history_plain(&token)
-				.into_iter()
-				.map(|(key, version, old, block)| {
-					Self::dev_history_entry(key.as_slice(), version, old.as_slice(), &block)
-				})
-				.collect();
-			Ok(entries)
-		}
-
-		pub fn get_attribute_history_for_key(
+		pub fn attribute_history_for_key(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 			key: Vec<u8>,
 		) -> Result<Vec<(u64, Vec<u8>, EventBlock)>, AuthorizationError> {
-			Self::authorize_account_view(&auth)?;
+			Self::authorize_account_query(&auth)?;
 			Ok(Self::attribute_history_for_key_plain(&token, &key))
 		}
 
-		pub fn attribute_history_for_key_entries(
-			auth: AuthorizationOf<T>,
-			token: Ss58Identifier,
-			key: Vec<u8>,
-		) -> Result<Vec<InfoAttributeHistoryEntry>, AuthorizationError> {
-			Self::authorize_account_view(&auth)?;
-			let entries = Self::attribute_history_for_key_plain(&token, &key)
-				.into_iter()
-				.map(|(version, old, block)| {
-					Self::dev_history_entry(key.as_slice(), version, old.as_slice(), &block)
-				})
-				.collect();
-			Ok(entries)
-		}
-
-		pub fn get_attribute_history_entry(
+		pub fn attribute_history_entry(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 			key: Vec<u8>,
 			version: u64,
 		) -> Result<(Vec<u8>, EventBlock), AuthorizationError> {
-			Self::authorize_account_view(&auth)?;
+			Self::authorize_account_query(&auth)?;
 			Self::attribute_history_entry_plain(&token, &key, version)
 				.ok_or(AuthorizationError::NotFound)
-		}
-
-		pub fn attribute_history_entry_view(
-			auth: AuthorizationOf<T>,
-			token: Ss58Identifier,
-			key: Vec<u8>,
-			version: u64,
-		) -> Result<InfoAttributeHistoryEntry, AuthorizationError> {
-			Self::authorize_account_view(&auth)?;
-			let entry = Self::attribute_history_entry_plain(&token, &key, version)
-				.ok_or(AuthorizationError::NotFound)?;
-			Ok(Self::dev_history_entry(key.as_slice(), version, entry.0.as_slice(), &entry.1))
 		}
 	}
 }
@@ -946,25 +887,6 @@ impl<T: Config> Pallet<T> {
 	/// Returns `true` if the supplied origin is signed by an approved feeless account.
 	pub fn is_origin_feeless(origin: &OriginFor<T>) -> bool {
 		origin.caller().as_signed().map(T::Feeless::is_feeless).unwrap_or(false)
-	}
-
-	fn dev_block_view(block: &EventBlock) -> DevEventBlockView {
-		DevEventBlockView { height: block.height, index: block.index }
-	}
-
-	fn dev_history_entry(
-		key: &[u8],
-		version: u64,
-		old_value: &[u8],
-		block: &EventBlock,
-	) -> InfoAttributeHistoryEntry {
-		InfoAttributeHistoryEntry {
-			key_hex: hex_string(key),
-			key_utf8: maybe_utf8(key),
-			version,
-			old_value_base64: base64_string(old_value),
-			block: Self::dev_block_view(block),
-		}
 	}
 
 	pub fn attribute_history_plain(
@@ -1014,7 +936,7 @@ impl<T: Config> Pallet<T> {
 		)
 	}
 
-	fn consume_view_signature(
+	fn consume_authorization_signature(
 		auth: &AuthorizationOf<T>,
 		expected: &T::AccountId,
 	) -> Result<(), AuthorizationError>
@@ -1029,18 +951,18 @@ impl<T: Config> Pallet<T> {
 			return Err(AuthorizationError::Unauthorized);
 		}
 		let hash = Self::authorization_signature_hash(auth);
-		if ViewSignatureUses::<T>::contains_key(&hash) {
+		if AuthorizationSignatureUses::<T>::contains_key(&hash) {
 			return Err(AuthorizationError::Unauthorized);
 		}
-		ViewSignatureUses::<T>::insert(hash, ());
+		AuthorizationSignatureUses::<T>::insert(hash, ());
 		Ok(())
 	}
 
-	fn authorize_account_view(auth: &AuthorizationOf<T>) -> Result<(), AuthorizationError>
+	fn authorize_account_query(auth: &AuthorizationOf<T>) -> Result<(), AuthorizationError>
 	where
 		T::AccountId: Clone + Into<AccountId32>,
 	{
-		Self::consume_view_signature(auth, &auth.account)
+		Self::consume_authorization_signature(auth, &auth.account)
 	}
 
 	fn authorize_account_lookup(
@@ -1050,7 +972,7 @@ impl<T: Config> Pallet<T> {
 	where
 		T::AccountId: Clone + Into<AccountId32>,
 	{
-		Self::consume_view_signature(auth, account)
+		Self::consume_authorization_signature(auth, account)
 	}
 
 	fn do_set_linked_account(token: &Ss58Identifier, account: &T::AccountId) -> DispatchResult {
@@ -1178,7 +1100,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Resolve the controller account for the supplied entity token.
-	pub fn controller_account(
+	pub fn resolve_controller_account(
 		token: &Ss58Identifier,
 	) -> Result<T::AccountId, SignatureVerificationError> {
 		ControllerOfSs58::<T>::get(token)
