@@ -62,7 +62,9 @@ async fn main() -> Result<()> {
 	seed_profile_attribute(&mut profile, "demo", &demo_value);
 	seed_profile_attribute(&mut profile, "public_key", &initial_public_key);
 
-	let output_json = std::env::args().any(|arg| arg == "--json");
+	let args: Vec<String> = std::env::args().collect();
+	let output_json = args.iter().any(|arg| arg == "--json");
+	let full_view = args.iter().any(|arg| arg == "--full");
 	let mut transactions = Vec::new();
 	let mut mutated_keys: BTreeSet<Vec<u8>> = BTreeSet::new();
 
@@ -252,7 +254,14 @@ async fn main() -> Result<()> {
 	}
 
 	println!();
-	print_summary(&snapshot, &attribute_history, &combined_timeline, &sub_accounts, &transactions);
+	print_summary(
+		&snapshot,
+		&attribute_history,
+		&combined_timeline,
+		&sub_accounts,
+		&transactions,
+		full_view,
+	);
 	Ok(())
 }
 
@@ -607,6 +616,7 @@ fn print_summary(
 	timeline: &[TimelineRow],
 	accounts: &[AccountId32],
 	transactions: &[String],
+	full_view: bool,
 ) {
 	println!("🧾 Transactions");
 	for tx in transactions {
@@ -618,8 +628,8 @@ fn print_summary(
 	}
 	snapshot.print_cli();
 	entity::print_accounts_cli(accounts);
-	print_combined_timeline(timeline);
-	print_attribute_history(attr_history);
+	print_attribute_history(attr_history, full_view);
+	print_combined_timeline(timeline, full_view);
 }
 
 async fn block_label(client: &Client, block_hash: H256) -> String {
@@ -637,6 +647,18 @@ fn truncate_label(value: &str, max_len: usize) -> String {
 		truncated.push('…');
 		truncated
 	}
+}
+
+const MAX_LABEL_LEN: usize = 32;
+
+fn short_label(value: &str) -> String {
+	if value.len() <= MAX_LABEL_LEN {
+		return value.to_string();
+	}
+	let head = 16.min(value.len());
+	let tail = 16.min(value.len().saturating_sub(head + 1));
+	let tail_start = value.len().saturating_sub(tail);
+	return format!("{}…{}", &value[..head], &value[tail_start..]);
 }
 
 fn random_public_key_hex() -> String {
@@ -852,45 +874,63 @@ fn build_token_activity(entries: &[TokenTimelineEntry]) -> Vec<TimelineRow> {
 			version: entry.version as u64,
 			action: maybe_utf8(entry.event.action.as_slice())
 				.unwrap_or_else(|| format!("0x{}", hex::encode(&entry.event.action))),
-			digest: truncate_digest(&format!("0x{}", hex::encode(entry.event.digest)), 16),
+			digest: format!("0x{}", hex::encode(entry.event.digest)),
 			block: entry.event.seal.height,
 			extrinsic: entry.event.seal.index,
 		})
 		.collect()
 }
 
-fn print_combined_timeline(entries: &[TimelineRow]) {
+fn print_combined_timeline(entries: &[TimelineRow], full_view: bool) {
 	println!("\n🕛 Entity Activity:");
 	if entries.is_empty() {
-		println!("    • (no recorded activity)");
+		println!("  • (no recorded activity)");
 		return;
 	}
 	println!(
-		"    ↳  {:>8}  {:>8}  {:>6}    {:<30} {:<18}",
+		"  ↳  {:>8}  {:>8}  {:>6}    {:<30} {:<34}",
 		"Version", "Block", "Index", "Action", "Digest"
 	);
-	for entry in entries {
+	let total = entries.len();
+	let mut shown = 0usize;
+	let iter: Box<dyn Iterator<Item = &TimelineRow>> = if full_view {
+		Box::new(entries.iter().rev())
+	} else {
+		Box::new(entries.iter().rev().take(10))
+	};
+	for entry in iter {
 		println!(
-			"       {:>8}  {:>8}  {:>6}    {:<30} {:<18}",
+			"       {:>8}  {:>8}  {:>6}    {:<30} {:<34}",
 			entry.version,
 			format!("#{}", entry.block),
 			entry.extrinsic,
 			truncate_label(&entry.action, 30),
-			entry.digest
+			short_label(&entry.digest)
 		);
+		shown += 1;
+	}
+	if !full_view && total > shown {
+		println!("   … {} older", total - shown);
 	}
 }
 
-fn print_attribute_history(entries: &[HistoryEntry]) {
+fn print_attribute_history(entries: &[HistoryEntry], full_view: bool) {
 	println!("\n📜 Attribute Rotations:");
 	if entries.is_empty() {
 		println!("    • (no attribute history)");
 		return;
 	}
 	println!("    ↳  {:>8}  {:>6}    {:<18} {:<34}", "Block", "Index", "Key", "Rotated Value");
-	for entry in entries {
+	let total = entries.len();
+	let mut shown = 0usize;
+	let iter: Box<dyn Iterator<Item = &HistoryEntry>> = if full_view {
+		Box::new(entries.iter().rev())
+	} else {
+		Box::new(entries.iter().rev().take(10))
+	};
+	for entry in iter {
 		let key = entry.key_utf8.clone().unwrap_or_else(|| entry.key_hex.clone());
-		let value = truncate_label(&decode_attr_value(&entry.old_value_base64), 34);
+		let value = short_label(&decode_attr_value(&entry.old_value_base64));
 		println!(
 			"       {:>8}  {:>6}    {:<18} {:<34}",
 			format!("#{}", entry.block.height),
@@ -898,16 +938,10 @@ fn print_attribute_history(entries: &[HistoryEntry]) {
 			truncate_label(&key, 18),
 			value
 		);
+		shown += 1;
 	}
-}
-
-fn truncate_digest(hex: &str, bytes: usize) -> String {
-	let prefix = if hex.starts_with("0x") { 2 } else { 0 };
-	let chars = prefix + bytes * 2;
-	if hex.len() <= chars {
-		hex.to_string()
-	} else {
-		hex.chars().take(chars).collect()
+	if !full_view && total > shown {
+		println!("   … {} older", total - shown);
 	}
 }
 

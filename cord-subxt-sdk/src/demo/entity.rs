@@ -77,9 +77,27 @@ impl EntitySnapshot {
 		println!("  • Twitter : {}", self.twitter);
 		println!("  • Attributes:");
 		for (key, value) in &self.attributes {
-			println!("      ◦ {}: {}", key, value);
+			let rendered = short_label(value);
+			println!("      ◦ {}: {}", key, rendered);
 		}
 	}
+}
+
+const MAX_ATTR_LABEL_LEN: usize = "entity-demo-78abb661@cord.dev".len() + 5;
+
+fn short_label(value: &str) -> String {
+	if value.len() <= MAX_ATTR_LABEL_LEN {
+		return value.to_string();
+	}
+	if value.starts_with("0x") && value.len() > 2 {
+		let head = 12.min(value.len());
+		let tail = 6.min(value.len().saturating_sub(head + 1));
+		let tail_start = value.len().saturating_sub(tail);
+		return format!("{}…{}", &value[..head], &value[tail_start..]);
+	}
+	let take = MAX_ATTR_LABEL_LEN.saturating_sub(1);
+	let trimmed: String = value.chars().take(take).collect();
+	format!("{trimmed}…")
 }
 
 pub fn print_history_cli(entries: &[(HistoryEntry, Option<String>)]) {
