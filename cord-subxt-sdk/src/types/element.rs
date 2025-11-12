@@ -1,12 +1,14 @@
 use crate::{
 	api::runtime,
 	error::{Error, Result},
+	runtime_helpers::{bounded_bytes_vec, identifier_string},
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bs58;
 use hex;
 use scale_value::{Composite, Value};
 use serde::{Deserialize, Serialize};
+use cord_primitives::view::ElementView as ViewElement;
 
 /// JSON-friendly representation of on-chain `Element` variants.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -91,9 +93,10 @@ pub fn element_text_from_runtime(
 	match element {
 		runtime::runtime_types::cord_primitives::element::Elum::None => None,
 		runtime::runtime_types::cord_primitives::element::Elum::Raw(bytes) => {
-			match String::from_utf8(bytes.0.clone()) {
+			let raw = bounded_bytes_vec(bytes);
+			match String::from_utf8(raw.clone()) {
 				Ok(text) => Some(text),
-				Err(_) => Some(format!("0x{}", hex::encode(&bytes.0))),
+				Err(_) => Some(format!("0x{}", hex::encode(&raw))),
 			}
 		},
 		runtime::runtime_types::cord_primitives::element::Elum::Bool(flag) => {
@@ -109,11 +112,32 @@ pub fn element_text_from_runtime(
 			Some(format!("0x{}", hex::encode(digest)))
 		},
 		runtime::runtime_types::cord_primitives::element::Elum::Token(identifier) => {
-			Some(String::from_utf8_lossy(identifier.as_ref()).into_owned())
+			Some(identifier_string(identifier))
 		},
 		runtime::runtime_types::cord_primitives::element::Elum::CID(bytes) => {
-			Some(bs58::encode(bytes.0.clone()).into_string())
+			Some(bs58::encode(bounded_bytes_vec(bytes)).into_string())
 		},
+	}
+}
+
+pub fn element_text_from_view(element: &ViewElement) -> Option<String> {
+	match element {
+		ViewElement::None => None,
+		ViewElement::Raw(bytes) => match String::from_utf8(bytes.clone()) {
+			Ok(text) => Some(text),
+			Err(_) => Some(format!("0x{}", hex::encode(bytes))),
+		},
+		ViewElement::Bool(flag) => Some(flag.to_string()),
+		ViewElement::U64(value) => Some(value.to_string()),
+		ViewElement::U128(value) => Some(value.to_string()),
+		ViewElement::Hash(digest) => Some(format!("0x{}", hex::encode(digest))),
+		ViewElement::Token(identifier) => {
+			match std::str::from_utf8(identifier.as_ref()) {
+				Ok(text) => Some(text.to_owned()),
+				Err(_) => Some(format!("0x{}", hex::encode(identifier.as_ref()))),
+			}
+		},
+		ViewElement::Cid(bytes) => Some(bs58::encode(bytes).into_string()),
 	}
 }
 
@@ -123,7 +147,7 @@ pub fn element_json_from_runtime(
 	match element {
 		runtime::runtime_types::cord_primitives::element::Elum::None => ElementJson::None,
 		runtime::runtime_types::cord_primitives::element::Elum::Raw(bytes) => {
-			ElementJson::RawBase64(BASE64.encode(&bytes.0))
+			ElementJson::RawBase64(BASE64.encode(bounded_bytes_vec(bytes)))
 		},
 		runtime::runtime_types::cord_primitives::element::Elum::Bool(flag) => {
 			ElementJson::Bool(*flag != 0)
@@ -138,10 +162,10 @@ pub fn element_json_from_runtime(
 			ElementJson::HashHex(format!("0x{}", hex::encode(digest)))
 		},
 		runtime::runtime_types::cord_primitives::element::Elum::Token(identifier) => {
-			ElementJson::TokenSs58(String::from_utf8_lossy(identifier.as_ref()).into_owned())
+			ElementJson::TokenSs58(identifier_string(identifier))
 		},
 		runtime::runtime_types::cord_primitives::element::Elum::CID(bytes) => {
-			ElementJson::CidBase58(bs58::encode(bytes.0.clone()).into_string())
+			ElementJson::CidBase58(bs58::encode(bounded_bytes_vec(bytes)).into_string())
 		},
 	}
 }

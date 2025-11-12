@@ -2706,6 +2706,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-decode",
  "scale-info",
+ "scale-type-resolver",
  "scale-value",
  "serde",
  "serde_json",

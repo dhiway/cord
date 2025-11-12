@@ -1,8 +1,9 @@
 use anyhow::{anyhow, Context, Result};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use codec::Decode;
 use cord_primitives::{
 	identifier::Ss58Identifier,
-	view::{maybe_utf8, InfoAttributeHistoryEntry},
+	view::{maybe_utf8, DevEventBlockView, InfoAttributeHistoryEntry},
 	view_api::{
 		AttributeKey, AuthorizationRequest, EntityAccountTokenRequest,
 		EntityAttributeHistoryForKeyRequest, EntityAttributeHistoryRequest,
@@ -16,14 +17,13 @@ use oc::{
 	demo::entity::{self, EntitySnapshot},
 	params::config::CordConfig,
 	query::auth::{AuthorizationBuilder, SignatureScheme},
-	query::entity::RuntimeEntityInfo,
 	query::token::RuntimeStateEvent,
 	tx,
 	tx::nonce::{NonceMode, NonceTracker},
 	types::{
 		self,
-		element::element_text_from_runtime,
-		entity::{AttributeEntry, ElementJson},
+		element::element_text_from_view,
+		entity::{AttributeEntry, ElementJson, EntityInfoRecord, HistoryEntry},
 	},
 	ChainFlavor, Client, Error as OcError,
 };
@@ -66,16 +66,16 @@ async fn main() -> Result<()> {
 	let mut transactions = Vec::new();
 	let mut mutated_keys: BTreeSet<Vec<u8>> = BTreeSet::new();
 
-	let (entity_token, created) =
+	let (token_identifier, created) =
 		ensure_entity_token_verbose(&client, &signer, &account_id, &profile, &mut nonce_tracker)
 			.await?;
+	let entity_token = demo::ss58_string(&token_identifier);
 	if created {
 		transactions.push("Set entity profile for Alice".to_string());
 	} else {
 		transactions.push("Synced entity profile for Alice".to_string());
 	}
 	let mut snapshot = EntitySnapshot::from_profile(&profile, &entity_token);
-	let token_identifier = identifier_from_str(&entity_token)?;
 	let chain_state = if created {
 		EntityChainState::from_profile(&profile)
 	} else {
@@ -249,13 +249,14 @@ async fn ensure_entity_token_verbose(
 	account_id: &AccountId32,
 	profile: &serde_json::Value,
 	nonce_tracker: &mut NonceTracker,
-) -> Result<(String, bool)> {
+) -> Result<(Ss58Identifier, bool)> {
 	let raw: [u8; 32] = *account_id.as_ref();
 	let runtime_account = RuntimeAccount::from(raw);
 	let request =
 		EntityAccountTokenRequest { auth: fresh_authorization(signer)?, account: runtime_account };
 	if let Some(token) = client.query().entity().account_token(&request).await? {
-		println!("ℹ️ Entity profile already exists (token {token})");
+		let display = demo::ss58_string(&token);
+		println!("ℹ️ Entity profile already exists (token {display})");
 		return Ok((token, false));
 	}
 
@@ -272,7 +273,9 @@ async fn ensure_entity_token_verbose(
 				.map_err(|e| anyhow!("failed to decode account: {e}"))?;
 			let token: Ss58Identifier =
 				Decode::decode(&mut cursor).map_err(|e| anyhow!("failed to decode token: {e}"))?;
-			return Ok((demo::ss58_string(&token), true));
+			let display = demo::ss58_string(&token);
+			println!("ℹ️ Minted new entity token {display}");
+			return Ok((token, true));
 		}
 	}
 	Err(anyhow!("EntityInfoSet event not found"))
@@ -478,11 +481,6 @@ fn signer_account_id(signer: &tx::signer::sr25519::Keypair) -> AccountId32 {
 	<tx::signer::sr25519::Keypair as subxt::tx::Signer<CordConfig>>::account_id(signer)
 }
 
-fn identifier_from_str(ss58: &str) -> Result<Ss58Identifier> {
-	Ss58Identifier::try_from(ss58.to_string())
-		.map_err(|_| anyhow::anyhow!("invalid ss58 identifier"))
-}
-
 #[derive(Default)]
 struct EntityChainState {
 	reserved: BTreeMap<String, String>,
@@ -506,17 +504,17 @@ impl EntityChainState {
 		state
 	}
 
-	fn from_runtime(info: &RuntimeEntityInfo) -> Self {
+	fn from_info(info: &EntityInfoRecord) -> Self {
 		let mut state = EntityChainState::default();
-		state.insert_reserved("display", element_text_from_runtime(&info.display));
-		state.insert_reserved("legal", element_text_from_runtime(&info.legal));
-		state.insert_reserved("web", element_text_from_runtime(&info.web));
-		state.insert_reserved("email", element_text_from_runtime(&info.email));
-		state.insert_reserved("twitter", element_text_from_runtime(&info.twitter));
+		state.insert_reserved("display", element_text_from_view(&info.display));
+		state.insert_reserved("legal", element_text_from_view(&info.legal));
+		state.insert_reserved("web", element_text_from_view(&info.web));
+		state.insert_reserved("email", element_text_from_view(&info.email));
+		state.insert_reserved("twitter", element_text_from_view(&info.twitter));
 		if let Some(attrs) = &info.attributes {
-			for (key, value) in attrs.iter() {
-				let label = attribute_label(key.as_slice());
-				let text = element_text_from_runtime(value);
+			for attr in attrs {
+				let label = attribute_label(attr.key.as_slice());
+				let text = element_text_from_view(&attr.value);
 				state.insert_attribute(label, text);
 			}
 		}
@@ -552,7 +550,7 @@ async fn fetch_entity_chain_state(
 	let Some(info) = client.query().entity().details(&auth, token).await? else {
 		return Ok(EntityChainState::default());
 	};
-	Ok(EntityChainState::from_runtime(&info))
+	Ok(EntityChainState::from_info(&info))
 }
 
 fn attribute_label(bytes: &[u8]) -> String {
@@ -635,6 +633,16 @@ fn random_public_key_hex() -> String {
 	format!("0x{}", hex::encode(pair.public()))
 }
 
+fn history_entry_to_view(entry: HistoryEntry) -> InfoAttributeHistoryEntry {
+	InfoAttributeHistoryEntry {
+		key_hex: entry.key_hex,
+		key_utf8: entry.key_utf8,
+		version: entry.version,
+		old_value_base64: entry.old_value_base64,
+		block: DevEventBlockView { height: entry.block.height, index: entry.block.index },
+	}
+}
+
 const TIMELINE_PAGE_SIZE: u32 = 32;
 
 const ATTRIBUTE_HISTORY_RETRIES: usize = 3;
@@ -674,8 +682,8 @@ async fn fetch_attribute_history_snapshot(
 		auth: fresh_authorization(signer)?,
 		token: token_identifier.clone(),
 	};
-	let mut entries = match client.query().entity().attribute_history_entries(&history_req).await {
-		Ok(entries) => entries,
+	let mut entries = match client.query().entity().attribute_history(&history_req).await {
+		Ok(entries) => entries.into_iter().map(history_entry_to_view).collect(),
 		Err(OcError::NotFound(_)) => Vec::new(),
 		Err(err) => return Err(anyhow!(err)),
 	};
@@ -696,8 +704,8 @@ async fn fetch_attribute_history_snapshot(
 			token: token_identifier.clone(),
 			key: bounded_key,
 		};
-		match client.query().entity().attribute_history_for_key_entries(&key_req).await {
-			Ok(mut extra) => entries.append(&mut extra),
+		match client.query().entity().attribute_history_for_key(&key_req).await {
+			Ok(extra) => entries.extend(extra.into_iter().map(history_entry_to_view)),
 			Err(OcError::NotFound(_)) => {},
 			Err(err) => return Err(anyhow!(err)),
 		}

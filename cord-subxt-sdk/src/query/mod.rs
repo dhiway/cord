@@ -4,18 +4,11 @@ pub mod entity;
 pub mod register;
 pub mod token;
 
-use crate::{
-	client::Client,
-	error::{Error, Result},
-	types,
-};
-use codec::Decode;
+use crate::{client::Client, error::Result, types};
 use cord_primitives::{identifier::Ss58Identifier, view_api::AuthorizationRequest};
-use hex::ToHex;
 use scale_decode::DecodeAsType;
 use scale_value::{Composite, Value};
 use sp_runtime::MultiSignature;
-use subxt::dynamic::DecodedValueThunk;
 
 /// Facade for runtime query functions.
 pub struct Query<'a> {
@@ -35,14 +28,14 @@ impl<'a> Query<'a> {
 		token::TokenQuery { query: self }
 	}
 
-	pub(crate) async fn call_typed<T: Decode + 'static>(
+	pub(crate) async fn call_view_as<T: DecodeAsType + 'static>(
 		&self,
 		pallet: &str,
 		function: &str,
 		args: Value,
 	) -> Result<T> {
-		let thunk = self.call_dynamic(pallet, function, args).await?;
-		self.decode_view_result::<T>(thunk)
+		let view_bytes = self.call_view_bytes(pallet, function, args).await?;
+		crate::scale::decode::decode_with_metadata(&view_bytes.metadata, view_bytes.type_id, &view_bytes.data)
 	}
 
 	pub(crate) async fn call_result<T, E>(
@@ -50,46 +43,32 @@ impl<'a> Query<'a> {
 		pallet: &str,
 		function: &str,
 		args: Value,
-	) -> Result<Result<T, E>>
+	) -> Result<core::result::Result<T, E>>
 	where
 		T: DecodeAsType + 'static,
 		E: DecodeAsType + 'static,
 	{
-		let thunk = self.call_dynamic(pallet, function, args).await?;
-		thunk.as_type().map_err(|e| Error::ViewDecode(e.to_string()))
+		self.call_view_as::<core::result::Result<T, E>>(pallet, function, args).await
 	}
-
-	async fn call_dynamic(
+	async fn call_view_bytes(
 		&self,
 		pallet: &str,
 		function: &str,
 		args: Value,
-	) -> Result<DecodedValueThunk> {
-		dynamic::call_view(self.client, pallet, function, args).await
-	}
-
-	fn decode_view_result<T: Decode>(&self, thunk: DecodedValueThunk) -> Result<T> {
-		let bytes = self.extract_view_ok(thunk)?;
-		T::decode(&mut &bytes[..]).map_err(|e| Error::ViewDecode(e.to_string()))
-	}
-
-	fn extract_view_ok(&self, thunk: DecodedValueThunk) -> Result<Vec<u8>> {
-		type Envelope = core::result::Result<Vec<u8>, Vec<u8>>;
-		let bytes = thunk.into_encoded();
-		let result: Envelope =
-			Decode::decode(&mut &bytes[..]).map_err(|e| Error::ViewDecode(e.to_string()))?;
-		match result {
-			Ok(inner) => Ok(inner),
-			Err(err) => Err(view_error(err)),
-		}
+	) -> Result<ViewBytes> {
+		let dispatch = dynamic::call_view(self.client, pallet, function, args).await?;
+		Ok(ViewBytes {
+			data: dispatch.thunk.into_encoded(),
+			type_id: dispatch.output_ty,
+			metadata: dispatch.metadata,
+		})
 	}
 }
 
-fn view_error(err_bytes: Vec<u8>) -> Error {
-	match String::from_utf8(err_bytes.clone()) {
-		Ok(text) if !text.is_empty() => Error::ViewDecode(text),
-		_ => Error::ViewDecode(format!("0x{}", err_bytes.encode_hex::<String>())),
-	}
+struct ViewBytes {
+	data: Vec<u8>,
+	type_id: u32,
+	metadata: subxt::Metadata,
 }
 
 #[derive(Default)]

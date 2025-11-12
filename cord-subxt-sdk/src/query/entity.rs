@@ -2,7 +2,10 @@ use super::{ArgBuilder, Query};
 use crate::{
 	api::runtime,
 	error::{Error, Result},
-	types::entity::{BlockRef, HistoryEntry},
+	types::entity::{
+		AttributeHistoryEntryRecord, AttributeHistoryRecord, AttributeHistoryVersionRecord, BlockRef,
+		EntityInfoRecord, HistoryEntry,
+	},
 };
 use cord_primitives::{
 	identifier::Ss58Identifier,
@@ -15,7 +18,6 @@ use cord_primitives::{
 use scale_value::Value;
 use subxt::utils::AccountId32;
 
-pub type RuntimeEntityInfo = runtime::runtime_types::pallet_entity::entity::EntityInfo;
 pub type RuntimeEventBlock = runtime::runtime_types::pallet_token::EventBlock;
 
 /// Facade for `pallet-entity` query functions.
@@ -28,9 +30,9 @@ impl<'a> EntityQuery<'a> {
 		&self,
 		auth: &AuthorizationRequest,
 		token: &Ss58Identifier,
-	) -> Result<Option<RuntimeEntityInfo>> {
+	) -> Result<Option<EntityInfoRecord>> {
 		let args = self.token_args(auth, token)?;
-		let raw: core::result::Result<RuntimeEntityInfo, AuthorizationError> =
+		let raw: core::result::Result<EntityInfoRecord, AuthorizationError> =
 			self.query.call_result("Entity", "details", args).await?;
 		match raw {
 			Ok(info) => Ok(Some(info)),
@@ -44,18 +46,10 @@ impl<'a> EntityQuery<'a> {
 		req: &EntityAttributeHistoryRequest,
 	) -> Result<Vec<HistoryEntry>> {
 		let args = self.token_args(&req.auth, &req.token)?;
-		let raw: core::result::Result<
-			Vec<(Vec<u8>, u64, Vec<u8>, RuntimeEventBlock)>,
-			AuthorizationError,
-		> = self.query.call_result("Entity", "attribute_history", args).await?;
-		raw.map_err(|err| view_failure("entity.attribute_history", err)).map(|records| {
-			records
-				.into_iter()
-				.map(|(key, version, old, block)| {
-					HistoryEntry::from_raw(&key, version, &old, block_ref(block))
-				})
-				.collect()
-		})
+		let raw: core::result::Result<Vec<AttributeHistoryRecord>, AuthorizationError> =
+			self.query.call_result("Entity", "attribute_history", args).await?;
+		raw.map_err(|err| view_failure("entity.attribute_history", err))
+			.map(|records| records.into_iter().map(HistoryEntry::from).collect())
 	}
 
 	pub async fn attribute_history_for_key(
@@ -63,15 +57,13 @@ impl<'a> EntityQuery<'a> {
 		req: &EntityAttributeHistoryForKeyRequest,
 	) -> Result<Vec<HistoryEntry>> {
 		let args = self.token_key_args(&req.auth, &req.token, req.key.as_slice())?;
-		let raw: core::result::Result<Vec<(u64, Vec<u8>, RuntimeEventBlock)>, AuthorizationError> =
+		let raw: core::result::Result<Vec<AttributeHistoryVersionRecord>, AuthorizationError> =
 			self.query.call_result("Entity", "attribute_history_for_key", args).await?;
 		raw.map_err(|err| view_failure("entity.attribute_history_for_key", err))
 			.map(|records| {
 				records
 					.into_iter()
-					.map(|(version, old, block)| {
-						HistoryEntry::from_raw(req.key.as_slice(), version, &old, block_ref(block))
-					})
+					.map(|record| record.into_entry(req.key.as_slice()))
 					.collect()
 			})
 	}
@@ -82,21 +74,21 @@ impl<'a> EntityQuery<'a> {
 	) -> Result<HistoryEntry> {
 		let args =
 			self.token_key_version_args(&req.auth, &req.token, req.key.as_slice(), req.version)?;
-		let raw: core::result::Result<(Vec<u8>, RuntimeEventBlock), AuthorizationError> =
+		let raw: core::result::Result<AttributeHistoryEntryRecord, AuthorizationError> =
 			self.query.call_result("Entity", "attribute_history_entry", args).await?;
-		raw.map_err(|err| view_failure("entity.attribute_history_entry", err)).map(
-			|(old, block)| {
-				HistoryEntry::from_raw(req.key.as_slice(), req.version, &old, block_ref(block))
-			},
-		)
+		raw.map_err(|err| view_failure("entity.attribute_history_entry", err))
+			.map(|record| record.into_entry(req.key.as_slice(), req.version))
 	}
 
-	pub async fn account_token(&self, req: &EntityAccountTokenRequest) -> Result<Option<String>> {
+	pub async fn account_token(
+		&self,
+		req: &EntityAccountTokenRequest,
+	) -> Result<Option<Ss58Identifier>> {
 		let args = self.account_args(req)?;
 		let raw: core::result::Result<Ss58Identifier, AuthorizationError> =
 			self.query.call_result("Entity", "account_token", args).await?;
 		match raw {
-			Ok(id) => Ok(Some(identifier_to_string(&id))),
+			Ok(id) => Ok(Some(id)),
 			Err(AuthorizationError::NotFound) => Ok(None),
 			Err(err) => Err(view_failure("entity.account_token", err)),
 		}
@@ -227,8 +219,4 @@ fn view_failure(ctx: &str, err: AuthorizationError) -> Error {
 
 fn block_ref(block: RuntimeEventBlock) -> BlockRef {
 	BlockRef { height: block.height, index: block.index }
-}
-
-fn identifier_to_string(id: &Ss58Identifier) -> String {
-	String::from_utf8_lossy(id.as_ref()).into_owned()
 }

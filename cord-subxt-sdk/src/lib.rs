@@ -16,6 +16,7 @@ pub mod scale;
 pub mod state;
 pub mod tx;
 pub mod types;
+mod runtime_helpers;
 
 pub use client::Client;
 pub use error::Error;

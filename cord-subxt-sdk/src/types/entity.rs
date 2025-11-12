@@ -1,9 +1,11 @@
 use crate::error::{Error, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use cord_primitives::view::{AttributeValueView, ElementView};
+use scale_decode::DecodeAsType;
 use scale_value::Value;
 use serde::{Deserialize, Serialize};
 
-use super::element::attribute_pair_value;
+use super::element::{attribute_pair_value, element_text_from_view};
 pub use super::element::ElementJson;
 
 /// Attribute entry used when constructing entity extrinsics.
@@ -38,6 +40,90 @@ impl AttributeEntry {
 	/// Convert the entry into the `(Vec<u8>, Element)` tuple expected by the runtime metadata.
 	pub fn to_dynamic_pair(&self) -> Result<Value> {
 		attribute_pair_value(&self.key_bytes()?, &self.value)
+	}
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType)]
+#[serde(rename_all = "camelCase")]
+pub struct EntityInfoRecord {
+	pub display: ElementView,
+	pub legal: ElementView,
+	pub web: ElementView,
+	pub email: ElementView,
+	pub twitter: ElementView,
+	pub attributes: Option<Vec<AttributeValueView>>,
+}
+
+impl EntityInfoRecord {
+	pub fn attribute_items(&self) -> impl Iterator<Item = &AttributeValueView> {
+		self.attributes.as_deref().into_iter().flatten()
+	}
+
+	pub fn text_field(&self, key: &str) -> Option<String> {
+		let element = match key {
+			"display" => Some(&self.display),
+			"legal" => Some(&self.legal),
+			"web" => Some(&self.web),
+			"email" => Some(&self.email),
+			"twitter" => Some(&self.twitter),
+			_ => None,
+		}?;
+		element_text_from_view(element)
+	}
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType)]
+#[serde(rename_all = "camelCase")]
+pub struct EventBlockRecord {
+	pub height: u32,
+	pub index: u32,
+}
+
+impl From<EventBlockRecord> for BlockRef {
+	fn from(value: EventBlockRecord) -> Self {
+		Self { height: value.height, index: value.index }
+	}
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType)]
+#[serde(rename_all = "camelCase")]
+pub struct AttributeHistoryRecord {
+	pub key: Vec<u8>,
+	pub version: u64,
+	pub old: Vec<u8>,
+	pub block: EventBlockRecord,
+}
+
+impl From<AttributeHistoryRecord> for HistoryEntry {
+	fn from(record: AttributeHistoryRecord) -> Self {
+		HistoryEntry::from_raw(&record.key, record.version, &record.old, record.block.into())
+	}
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType)]
+#[serde(rename_all = "camelCase")]
+pub struct AttributeHistoryVersionRecord {
+	pub version: u64,
+	pub old: Vec<u8>,
+	pub block: EventBlockRecord,
+}
+
+impl AttributeHistoryVersionRecord {
+	pub fn into_entry(self, key: &[u8]) -> HistoryEntry {
+		HistoryEntry::from_raw(key, self.version, &self.old, self.block.into())
+	}
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType)]
+#[serde(rename_all = "camelCase")]
+pub struct AttributeHistoryEntryRecord {
+	pub old: Vec<u8>,
+	pub block: EventBlockRecord,
+}
+
+impl AttributeHistoryEntryRecord {
+	pub fn into_entry(self, key: &[u8], version: u64) -> HistoryEntry {
+		HistoryEntry::from_raw(key, version, &self.old, self.block.into())
 	}
 }
 

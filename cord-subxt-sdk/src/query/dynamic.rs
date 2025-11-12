@@ -5,12 +5,18 @@ use crate::{
 use scale_value::{Composite, Value, ValueDef};
 use subxt::dynamic::{self, DecodedValueThunk};
 
+pub struct ViewDispatch {
+	pub thunk: DecodedValueThunk,
+	pub metadata: subxt::Metadata,
+	pub output_ty: u32,
+}
+
 pub async fn call_view(
 	client: &Client,
 	pallet: &str,
 	function: &str,
 	args: Value,
-) -> Result<DecodedValueThunk> {
+) -> Result<ViewDispatch> {
 	let metadata = client.api.metadata();
 	let pallet_meta = metadata
 		.pallet_by_name(pallet)
@@ -18,9 +24,13 @@ pub async fn call_view(
 	let view = pallet_meta
 		.view_function_by_name(function)
 		.ok_or_else(|| Error::NotFound(format!("view '{pallet}.{function}' not found")))?;
-	let payload = dynamic::view_function_call(*view.query_id(), expect_composite(args)?);
+	let query_id = *view.query_id();
+	let output_ty = view.output_ty();
+	let payload = dynamic::view_function_call(query_id, expect_composite(args)?);
 	let api = client.api.view_functions().at_latest().await.map_err(Error::from)?;
-	api.call(payload).await.map_err(Error::from)
+	let thunk = api.call(payload).await.map_err(Error::from)?;
+	let metadata = metadata.clone();
+	Ok(ViewDispatch { thunk, metadata, output_ty })
 }
 
 fn expect_composite(value: Value) -> Result<Composite<()>> {
