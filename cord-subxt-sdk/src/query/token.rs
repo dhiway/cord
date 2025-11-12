@@ -1,7 +1,7 @@
 use super::{ArgBuilder, Query};
 use crate::{
-	api::runtime,
 	error::{Error, Result},
+	types::token::StateEventRecord,
 };
 use cord_primitives::{
 	identifier::DecodedIdentifier,
@@ -16,9 +16,6 @@ use scale_value::Value;
 pub struct TokenQuery<'a> {
 	pub(crate) query: &'a Query<'a>,
 }
-
-pub type RuntimeStateEvent =
-	runtime::runtime_types::pallet_token::StateEvent<::subxt::ext::subxt_core::utils::H256>;
 
 impl<'a> TokenQuery<'a> {
 	pub async fn state_version(&self, req: &TokenStateVersionRequest) -> Result<u32> {
@@ -41,9 +38,9 @@ impl<'a> TokenQuery<'a> {
 	pub async fn timeline(
 		&self,
 		req: &TokenTimelineRequest,
-	) -> Result<(Vec<RuntimeStateEvent>, Option<u32>)> {
+	) -> Result<(Vec<StateEventRecord>, Option<u32>)> {
 		let args = self.timeline_args(req)?;
-		let raw: core::result::Result<(Vec<RuntimeStateEvent>, Option<u32>), AuthorizationError> =
+		let raw: core::result::Result<(Vec<StateEventRecord>, Option<u32>), AuthorizationError> =
 			self.query.call_result("Token", "timeline", args).await?;
 		raw.map_err(|err| view_failure("token.timeline", err))
 	}
