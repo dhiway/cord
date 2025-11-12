@@ -123,7 +123,7 @@ fn record_activity_positive() {
 }
 
 #[test]
-fn history_view_requires_authorization() {
+fn history_requires_authorization() {
 	new_test_ext().execute_with(|| {
 		let token =
 			Ss58Identifier::to_encoded(vec![5u8; 32], 250, 11, 0).expect("token encoding ok");
@@ -135,16 +135,16 @@ fn history_view_requires_authorization() {
 		let signer = sr25519::Pair::from_seed(&[21u8; 32]);
 		let auth = make_auth(b"history", &signer);
 		let entries =
-			Pallet::<Test>::history_view(auth.clone(), token.clone(), Some(0), 8).expect("view");
+			Pallet::<Test>::history(auth.clone(), token.clone(), Some(0), 8).expect("entries");
 		assert_eq!(entries.len(), 1);
 
-		let replay = Pallet::<Test>::history_view(auth, token.clone(), Some(0), 8);
+		let replay = Pallet::<Test>::history(auth, token.clone(), Some(0), 8);
 		assert!(matches!(replay, Err(AuthorizationError::Unauthorized)));
 	});
 }
 
 #[test]
-fn timeline_view_requires_valid_authorization() {
+fn timeline_requires_valid_authorization() {
 	new_test_ext().execute_with(|| {
 		let id_digest = vec![2u8; 32];
 		let token = Ss58Identifier::to_encoded(id_digest, 200, 7, 0).expect("token encoding ok");
@@ -155,10 +155,12 @@ fn timeline_view_requires_valid_authorization() {
 
 		let signer = sr25519::Pair::from_seed(&[42u8; 32]);
 		let auth = make_auth(b"view-history", &signer);
-		let entries = Pallet::<Test>::timeline(auth.clone(), token.clone(), Some(0), Some(10))
-			.expect("authorized timeline");
+		let (entries, next) =
+			Pallet::<Test>::timeline(auth.clone(), token.clone(), Some(0), Some(10))
+				.expect("authorized timeline");
 		assert_eq!(entries.len(), 1);
-		assert_eq!(entries[0].digest_hex, format!("0x{}", hex::encode(digest)));
+		assert_eq!(entries[0].digest, digest);
+		assert!(next.is_none());
 
 		let replay = Pallet::<Test>::timeline(auth, token.clone(), Some(0), Some(10));
 		assert!(
@@ -175,13 +177,14 @@ fn timeline_view_requires_valid_authorization() {
 			"invalid signature should be rejected"
 		);
 
-		let raw = Pallet::<Test>::timeline_entries(&token, Some(0), 10);
+		let (raw, cursor) = Pallet::<Test>::timeline_entries(&token, Some(0), 10);
 		assert_eq!(raw.len(), 1, "helpers remain accessible without auth");
+		assert!(cursor.is_none());
 	});
 }
 
 #[test]
-fn resolve_identifier_view_requires_authorization() {
+fn resolve_identifier_requires_authorization() {
 	new_test_ext().execute_with(|| {
 		let digest = vec![3u8; 32];
 		let token = Ss58Identifier::to_encoded(digest.clone(), 300, 9, 0).unwrap();
@@ -204,16 +207,16 @@ fn resolve_identifier_view_requires_authorization() {
 }
 
 #[test]
-fn resolve_identifier_view_enforces_replay_protection() {
+fn resolve_identifier_query_enforces_replay_protection() {
 	new_test_ext().execute_with(|| {
 		let token = Ss58Identifier::to_encoded(vec![6u8; 32], 310, 12, 0).unwrap();
 		let signer = sr25519::Pair::from_seed(&[8u8; 32]);
 		let auth = make_auth(b"resolve-helper", &signer);
 		let decoded =
-			Pallet::<Test>::resolve_identifier_view(auth.clone(), token.clone()).expect("view ok");
+			Pallet::<Test>::resolve_identifier_query(auth.clone(), token.clone()).expect("helper");
 		assert_eq!(decoded.pallet, 12);
 
-		let replay = Pallet::<Test>::resolve_identifier_view(auth, token.clone());
+		let replay = Pallet::<Test>::resolve_identifier_query(auth, token.clone());
 		assert!(
 			matches!(replay, Err(AuthorizationError::Unauthorized)),
 			"helper must reject replay"
@@ -222,34 +225,34 @@ fn resolve_identifier_view_enforces_replay_protection() {
 }
 
 #[test]
-fn resolve_pallet_view_enforces_signature() {
+fn resolve_pallet_query_enforces_signature() {
 	new_test_ext().execute_with(|| {
 		let index = Pallet::<Test>::get_or_add_pallet_index("Guarded").unwrap();
 		let signer = sr25519::Pair::from_seed(&[55u8; 32]);
 		let auth = make_auth(b"pallet-helper", &signer);
 		let fetched =
-			Pallet::<Test>::resolve_pallet_view(auth.clone(), index).expect("helper succeeds");
+			Pallet::<Test>::resolve_pallet_query(auth.clone(), index).expect("helper succeeds");
 		assert_eq!(fetched, "Guarded");
 
 		let mut forged = auth;
 		forged.signature =
 			sr25519::Pair::from_seed(&[99u8; 32]).sign(forged.payload.as_slice()).into();
 		assert!(matches!(
-			Pallet::<Test>::resolve_pallet_view(forged, index),
+			Pallet::<Test>::resolve_pallet_query(forged, index),
 			Err(AuthorizationError::Unauthorized)
 		));
 	});
 }
 
 #[test]
-fn resolve_pallet_view_requires_authorization() {
+fn resolve_pallet_requires_authorization() {
 	new_test_ext().execute_with(|| {
 		let signer = sr25519::Pair::from_seed(&[11u8; 32]);
 		let pallet_name = "TokenView";
 		let index = Pallet::<Test>::get_or_add_pallet_index(pallet_name).unwrap();
 		let auth = make_auth(b"resolve-pallet", &signer);
 		let name =
-			Pallet::<Test>::resolve_pallet(auth.clone(), index).expect("authorized pallet view");
+			Pallet::<Test>::resolve_pallet(auth.clone(), index).expect("authorized pallet query");
 		assert_eq!(name, pallet_name);
 
 		let raw = Pallet::<Test>::resolve_pallet_plain(index).expect("helper");

@@ -1926,7 +1926,7 @@ sp_api::impl_runtime_apis! {
 			index: u16,
 		) -> Option<String> {
 			let auth = convert_token_authorizationorization(auth)?;
-			Token::resolve_pallet_view(auth, index).ok()
+			Token::resolve_pallet_query(auth, index).ok()
 		}
 
 		fn resolve_identifier(
@@ -1935,7 +1935,7 @@ sp_api::impl_runtime_apis! {
 		) -> Option<token_api::DecodedTokenApi> {
 			let auth = convert_token_authorizationorization(auth)?;
 			let ss58_id = Ss58Identifier::try_from(token).ok()?;
-			let decoded = Token::resolve_identifier_view(auth, ss58_id).ok()?;
+			let decoded = Token::resolve_identifier_query(auth, ss58_id).ok()?;
 			Some(token_api::DecodedTokenApi {
 				origin: decoded.origin,
 				network: decoded.network,
@@ -1958,7 +1958,7 @@ sp_api::impl_runtime_apis! {
 				Ok(id) => id,
 				Err(_) => return Vec::new(),
 			};
-			let history = match Token::history_view(auth, ss58_id, start, limit) {
+			let history = match Token::history(auth, ss58_id, start, limit) {
 				Ok(events) => events,
 				Err(_) => return Vec::new(),
 			};

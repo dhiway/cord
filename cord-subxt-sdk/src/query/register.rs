@@ -14,8 +14,7 @@ pub type RuntimeRegistryInfo = runtime::runtime_types::pallet_register::register
 pub type RuntimeLookupSpec = runtime::runtime_types::pallet_register::register::LookupSpec;
 pub type RuntimeLookupSpecList =
 	runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec<RuntimeLookupSpec>;
-pub type RuntimePacketSnapshot =
-	runtime::runtime_types::pallet_register::packet::PacketSnapshotView;
+pub type RuntimePacketSnapshot = runtime::runtime_types::pallet_register::packet::PacketSnapshot;
 
 /// Entry point for register-specific view helpers.
 pub struct RegisterQuery<'a> {

@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use cord_primitives::view_api::{
 	RegisterDetailsRequest, RegisterPacketSnapshotRequest, TokenTimelineRequest,
 };
+use hex;
 use origin::{
 	demo,
 	params::config::CordConfig,
@@ -9,6 +10,7 @@ use origin::{
 	tx,
 };
 use serde_json;
+use std::str;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -62,7 +64,19 @@ async fn main() -> Result<()> {
 		start: None,
 		limit: Some(10),
 	};
-	let timeline = client.query().token().timeline(&timeline_req).await?;
-	println!("\nToken timeline:\n{}", serde_json::to_string_pretty(&timeline)?);
+	let (timeline, next_cursor) = client.query().token().timeline(&timeline_req).await?;
+	println!("\nToken timeline (next cursor {:?}):", next_cursor);
+	for (index, event) in timeline.iter().enumerate() {
+		let action_bytes = &event.action.0;
+		let action_hex = format!("0x{}", hex::encode(action_bytes));
+		let action_utf8 = str::from_utf8(action_bytes)
+			.map(|s| s.to_owned())
+			.unwrap_or_else(|_| action_hex.clone());
+		let digest = format!("0x{}", hex::encode(event.digest.as_ref()));
+		println!(
+			"  #{index}: action={} ({}) digest={} block={} extrinsic={}",
+			action_utf8, action_hex, digest, event.seal.height, event.seal.index
+		);
+	}
 	Ok(())
 }

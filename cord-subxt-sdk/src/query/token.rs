@@ -1,8 +1,10 @@
 use super::{ArgBuilder, Query};
-use crate::error::{Error, Result};
+use crate::{
+	api::runtime,
+	error::{Error, Result},
+};
 use cord_primitives::{
 	identifier::DecodedIdentifier,
-	view::InfoTokenHistoryEntry,
 	view_api::{
 		AuthorizationError, TokenResolveIdentifierRequest, TokenResolvePalletRequest,
 		TokenStateVersionRequest, TokenTimelineRequest,
@@ -14,6 +16,9 @@ use scale_value::Value;
 pub struct TokenQuery<'a> {
 	pub(crate) query: &'a Query<'a>,
 }
+
+pub type RuntimeStateEvent =
+	runtime::runtime_types::pallet_token::StateEvent<::subxt::ext::subxt_core::utils::H256>;
 
 impl<'a> TokenQuery<'a> {
 	pub async fn state_version(&self, req: &TokenStateVersionRequest) -> Result<u32> {
@@ -33,9 +38,12 @@ impl<'a> TokenQuery<'a> {
 		raw.map_err(|err| view_failure("token.resolve_identifier", err))
 	}
 
-	pub async fn timeline(&self, req: &TokenTimelineRequest) -> Result<Vec<InfoTokenHistoryEntry>> {
+	pub async fn timeline(
+		&self,
+		req: &TokenTimelineRequest,
+	) -> Result<(Vec<RuntimeStateEvent>, Option<u32>)> {
 		let args = self.timeline_args(req)?;
-		let raw: core::result::Result<Vec<InfoTokenHistoryEntry>, AuthorizationError> =
+		let raw: core::result::Result<(Vec<RuntimeStateEvent>, Option<u32>), AuthorizationError> =
 			self.query.call_typed("Token", "timeline", args).await?;
 		raw.map_err(|err| view_failure("token.timeline", err))
 	}

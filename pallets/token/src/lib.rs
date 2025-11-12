@@ -32,11 +32,10 @@ use cord_primitives::{
 		Authorization as CoreAuthorization,
 	},
 	identifier::{DecodedIdentifier, IdentifierError, Ss58Identifier},
-	view::{base64_string, hex_string, maybe_utf8, DevEventBlockView, InfoTokenHistoryEntry},
 	view_api::AuthorizationError,
 	Signature,
 };
-use core::{cmp, convert::TryInto};
+use core::convert::TryInto;
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
@@ -100,14 +99,14 @@ pub trait Token<T: frame_system::Config> {
 /// EntryTypeOf is a bounded vector (max 128 bytes) that holds part of an event message.
 pub type EventTypeOf = BoundedVec<u8, ConstU32<128>>;
 
-/// Maximum payload size for view authorizations.
+/// Maximum payload size for token authorization payloads.
 pub type AuthorizationPayloadOf<T> = BoundedVec<u8, <T as Config>::MaxAuthorizationLen>;
 
-/// Authorization required for read-only token views.
+/// Authorization required for read-only token queries.
 pub type Authorization<T> =
 	CoreAuthorization<<T as frame_system::Config>::AccountId, AuthorizationPayloadOf<T>, Signature>;
 
-/// Replay-protection hash for view authorizations.
+/// Replay-protection hash for token authorization payloads.
 pub type AuthorizationSignatureHash = [u8; 16];
 
 /// ActivityRecord stores an update entry and the corresponding event stamp.
@@ -121,8 +120,6 @@ pub struct StateEvent<Hash> {
 pub type StateEventOf<T> = StateEvent<HashOf<T>>;
 
 pub type TimelineEventsOf<T> = BoundedVec<StateEventOf<T>, <T as Config>::MaxTimelineViewResults>;
-pub type TimelineHistoryOf<T> =
-	BoundedVec<InfoTokenHistoryEntry, <T as Config>::MaxTimelineViewResults>;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -187,7 +184,7 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, Ss58Identifier, u32, ValueQuery>;
 
 	#[pallet::storage]
-	pub type ViewSignatureUses<T: Config> =
+	pub type AuthorizationSignatureUses<T: Config> =
 		StorageMap<_, Blake2_128Concat, AuthorizationSignatureHash, (), OptionQuery>;
 
 	#[pallet::event]
@@ -293,7 +290,7 @@ pub mod pallet {
 			auth: Authorization<T>,
 			name: Vec<u8>,
 		) -> Result<u16, AuthorizationError> {
-			Self::authorize_view(&auth)?;
+			Self::authorize_query(&auth)?;
 			let bounded: BoundedVec<u8, ConstU32<64>> =
 				name.try_into().map_err(|_| AuthorizationError::InvalidInput)?;
 			PalletIndex::<T>::get(&bounded).ok_or(AuthorizationError::NotFound)
@@ -304,7 +301,7 @@ pub mod pallet {
 			auth: Authorization<T>,
 			index: u16,
 		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_view(&auth)?;
+			Self::authorize_query(&auth)?;
 			IndexToPallet::<T>::get(index)
 				.map(Into::into)
 				.ok_or(AuthorizationError::NotFound)
@@ -312,19 +309,19 @@ pub mod pallet {
 
 		/// Returns the next pallet index counter.
 		pub fn next_pallet_index(auth: Authorization<T>) -> Result<u16, AuthorizationError> {
-			Self::authorize_view(&auth)?;
+			Self::authorize_query(&auth)?;
 			Ok(NextPalletIndex::<T>::get())
 		}
 
 		/// Returns the configured genesis network identifier.
 		pub fn genesis_network_id(auth: Authorization<T>) -> Result<u16, AuthorizationError> {
-			Self::authorize_view(&auth)?;
+			Self::authorize_query(&auth)?;
 			Ok(GenesisNetworkId::<T>::get())
 		}
 
 		/// Returns whether the chain is running in origin mode.
 		pub fn origin_chain_flag(auth: Authorization<T>) -> Result<bool, AuthorizationError> {
-			Self::authorize_view(&auth)?;
+			Self::authorize_query(&auth)?;
 			Ok(IsOriginChain::<T>::get())
 		}
 
@@ -333,30 +330,18 @@ pub mod pallet {
 			auth: Authorization<T>,
 			token: Ss58Identifier,
 		) -> Result<u32, AuthorizationError> {
-			Self::authorize_view(&auth)?;
+			Self::authorize_query(&auth)?;
 			Ok(StateVersion::<T>::get(&token))
 		}
 
 		/// Returns a specific state event for a token and version.
-		pub fn state_event_view(
+		pub fn state_event(
 			auth: Authorization<T>,
 			token: Ss58Identifier,
 			version: u32,
 		) -> Result<StateEventOf<T>, AuthorizationError> {
-			Self::authorize_view(&auth)?;
+			Self::authorize_query(&auth)?;
 			StateHistory::<T>::get(&token, version).ok_or(AuthorizationError::NotFound)
-		}
-
-		/// Returns a bounded list of state events mirroring direct storage scans.
-		pub fn state_events(
-			auth: Authorization<T>,
-			token: Ss58Identifier,
-			start: Option<u32>,
-			limit: u32,
-		) -> Result<TimelineEventsOf<T>, AuthorizationError> {
-			Self::authorize_view(&auth)?;
-			let capped = cmp::min(limit, T::MaxTimelineViewResults::get());
-			Ok(Self::timeline_entries(&token, start, capped))
 		}
 
 		pub fn timeline(
@@ -364,25 +349,20 @@ pub mod pallet {
 			token: Ss58Identifier,
 			start: Option<u32>,
 			limit: Option<u32>,
-		) -> Result<TimelineHistoryOf<T>, AuthorizationError> {
-			Self::authorize_view(&auth)?;
+		) -> Result<(TimelineEventsOf<T>, Option<u32>), AuthorizationError> {
+			Self::authorize_query(&auth)?;
 			let cap = T::MaxTimelineViewResults::get();
 			let def = T::DefaulTimelineViewResults::get();
-			let eff = limit.unwrap_or(def).min(cap);
-
-			let events = Self::timeline_entries(&token, start, eff);
-			let mut history = TimelineHistoryOf::<T>::default();
-			for event in events.into_iter() {
-				let _ = history.try_push(Self::info_token_history_entry(event));
-			}
-			Ok(history)
+			let eff = limit.unwrap_or(def).max(1).min(cap);
+			let (events, next_cursor) = Self::timeline_entries(&token, start, eff);
+			Ok((events, next_cursor))
 		}
 
 		pub fn resolve_identifier(
 			auth: Authorization<T>,
 			token: Ss58Identifier,
 		) -> Result<DecodedIdentifier, AuthorizationError> {
-			Self::authorize_view(&auth)?;
+			Self::authorize_query(&auth)?;
 			Self::resolve_identifier_plain(&token)
 		}
 
@@ -390,7 +370,7 @@ pub mod pallet {
 			auth: Authorization<T>,
 			index: u16,
 		) -> Result<String, AuthorizationError> {
-			Self::authorize_view(&auth)?;
+			Self::authorize_query(&auth)?;
 			Self::resolve_pallet_plain(index)
 		}
 	}
@@ -484,78 +464,53 @@ where
 		)
 	}
 
-	fn authorize_view(auth: &Authorization<T>) -> Result<(), AuthorizationError> {
+	fn authorize_query(auth: &Authorization<T>) -> Result<(), AuthorizationError> {
 		let signer: AccountId32 = auth.account.clone().into();
 		if !auth.signature.verify(auth.payload.as_slice(), &signer) {
 			return Err(AuthorizationError::Unauthorized);
 		}
 		let hash = Self::authorization_signature_hash(auth);
-		if ViewSignatureUses::<T>::contains_key(&hash) {
+		if AuthorizationSignatureUses::<T>::contains_key(&hash) {
 			return Err(AuthorizationError::Unauthorized);
 		}
-		ViewSignatureUses::<T>::insert(hash, ());
+		AuthorizationSignatureUses::<T>::insert(hash, ());
 		Ok(())
-	}
-
-	fn info_token_event_block(block: &EventBlock) -> DevEventBlockView {
-		DevEventBlockView { height: block.height, index: block.index }
-	}
-
-	fn info_token_history_entry(entry: StateEventOf<T>) -> InfoTokenHistoryEntry {
-		let StateEvent { action, digest, seal } = entry;
-		let action_bytes = action.as_slice();
-		InfoTokenHistoryEntry {
-			action_utf8: maybe_utf8(action_bytes),
-			action_hex: hex_string(action_bytes),
-			action_base64: base64_string(action_bytes),
-			digest_hex: hex_string(digest.as_ref()),
-			block: Self::info_token_event_block(&seal),
-		}
 	}
 
 	pub fn timeline_entries(
 		token: &Ss58Identifier,
-		start: Option<u32>,
+		cursor: Option<u32>,
 		limit: u32,
-	) -> TimelineEventsOf<T> {
+	) -> (TimelineEventsOf<T>, Option<u32>) {
 		let mut results = TimelineEventsOf::<T>::default();
 		let upper = StateVersion::<T>::get(token);
 		if upper == 0 {
-			return results;
+			return (results, None);
 		}
-		let start_index = start.unwrap_or(0);
-		if start_index >= upper {
-			return results;
+		let mut index = cursor.unwrap_or(0);
+		if index >= upper {
+			return (results, None);
 		}
-		let max = cmp::min(limit, T::MaxTimelineViewResults::get());
-		let mut index = start_index;
-		while index < upper && (results.len() as u32) < max {
+		let cap = limit.max(1).min(T::MaxTimelineViewResults::get());
+		while index < upper && (results.len() as u32) < cap {
 			if let Some(event) = StateHistory::<T>::get(token, index) {
 				let _ = results.try_push(event);
 			}
 			index = index.saturating_add(1);
 		}
-		results
+		let next_cursor = if index < upper { Some(index) } else { None };
+		(results, next_cursor)
 	}
 
-	pub fn timeline_view(
+	pub fn history(
 		auth: Authorization<T>,
 		token: Ss58Identifier,
 		start: Option<u32>,
 		limit: u32,
 	) -> Result<TimelineEventsOf<T>, AuthorizationError> {
-		Self::authorize_view(&auth)?;
-		Ok(Self::timeline_entries(&token, start, limit))
-	}
-
-	pub fn history_view(
-		auth: Authorization<T>,
-		token: Ss58Identifier,
-		start: Option<u32>,
-		limit: u32,
-	) -> Result<TimelineEventsOf<T>, AuthorizationError> {
-		Self::authorize_view(&auth)?;
-		Ok(Self::timeline_entries(&token, start, limit))
+		Self::authorize_query(&auth)?;
+		let capped = limit.max(1).min(T::MaxTimelineViewResults::get());
+		Ok(Self::timeline_entries(&token, start, capped).0)
 	}
 
 	pub fn resolve_identifier_plain(
@@ -564,11 +519,11 @@ where
 		Self::resolve_token(token).map_err(|_| AuthorizationError::InvalidInput)
 	}
 
-	pub fn resolve_identifier_view(
+	pub fn resolve_identifier_query(
 		auth: Authorization<T>,
 		token: Ss58Identifier,
 	) -> Result<DecodedIdentifier, AuthorizationError> {
-		Self::authorize_view(&auth)?;
+		Self::authorize_query(&auth)?;
 		Self::resolve_identifier_plain(&token)
 	}
 
@@ -580,11 +535,11 @@ where
 		}
 	}
 
-	pub fn resolve_pallet_view(
+	pub fn resolve_pallet_query(
 		auth: Authorization<T>,
 		index: u16,
 	) -> Result<String, AuthorizationError> {
-		Self::authorize_view(&auth)?;
+		Self::authorize_query(&auth)?;
 		Self::resolve_pallet_plain(index)
 	}
 }

@@ -3,7 +3,7 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use codec::Decode;
 use cord_primitives::{
 	identifier::Ss58Identifier,
-	view::{DevElement, ElementView, InfoAttributeHistoryEntry, InfoTokenHistoryEntry},
+	view::{maybe_utf8, DevElement, ElementView, InfoAttributeHistoryEntry},
 	view_api::{
 		AttributeKey, AuthorizationRequest, EntityAccountTokenRequest,
 		EntityAttributeHistoryForKeyRequest, EntityAttributeHistoryRequest, EntityInfoBytesRequest,
@@ -17,6 +17,7 @@ use oc::{
 	demo::entity::{self, EntitySnapshot},
 	params::config::CordConfig,
 	query::auth::{AuthorizationBuilder, SignatureScheme},
+	query::token::RuntimeStateEvent,
 	scale::{decode_dev_attribute_map, decode_element_view, MetadataResolver},
 	tx,
 	tx::nonce::{NonceMode, NonceTracker},
@@ -784,30 +785,29 @@ async fn fetch_full_token_timeline(
 	client: &Client,
 	signer: &tx::signer::sr25519::Keypair,
 	token: &Ss58Identifier,
-) -> Result<Vec<(u32, InfoTokenHistoryEntry)>> {
-	let mut start = Some(0u32);
-	let mut version_cursor = start.unwrap_or(0);
+) -> Result<Vec<(u32, RuntimeStateEvent)>> {
+	let mut cursor = Some(0u32);
+	let mut version_cursor = cursor.unwrap_or(0);
 	let mut rows = Vec::new();
 	loop {
 		let req = TokenTimelineRequest {
 			auth: fresh_authorization(signer)?,
 			token: token.clone(),
-			start,
+			start: cursor,
 			limit: Some(TIMELINE_PAGE_SIZE),
 		};
-		let batch = client.query().token().timeline(&req).await?;
+		let (batch, next_cursor) = client.query().token().timeline(&req).await?;
 		if batch.is_empty() {
 			break;
 		}
-		let fetched = batch.len() as u32;
 		for entry in batch {
 			rows.push((version_cursor, entry));
 			version_cursor = version_cursor.saturating_add(1);
 		}
-		if fetched < TIMELINE_PAGE_SIZE {
+		cursor = next_cursor;
+		if cursor.is_none() {
 			break;
 		}
-		start = Some(version_cursor);
 	}
 	Ok(rows)
 }
@@ -822,20 +822,21 @@ struct TimelineRow {
 	pub extrinsic: u32,
 }
 
-fn build_token_activity(entries: &[(u32, InfoTokenHistoryEntry)]) -> Vec<TimelineRow> {
+fn build_token_activity(entries: &[(u32, RuntimeStateEvent)]) -> Vec<TimelineRow> {
 	let mut rows: Vec<_> = entries
 		.iter()
-		.map(|(version, entry)| (*version, entry.block.height, entry.block.index, entry))
+		.map(|(version, entry)| (*version, entry.seal.height, entry.seal.index, entry))
 		.collect();
 	rows.sort_by(|a, b| (a.1, a.2).cmp(&(b.1, b.2)));
 	rows.into_iter()
 		.map(|(version, _, _, entry)| TimelineRow {
 			version: version as u64,
-			action: entry.action_utf8.clone().unwrap_or_else(|| entry.action_hex.clone()),
-			action_hex: entry.action_hex.clone(),
-			digest: truncate_digest(&entry.digest_hex, 16),
-			block: entry.block.height,
-			extrinsic: entry.block.index,
+			action: maybe_utf8(entry.action.0.as_slice())
+				.unwrap_or_else(|| format!("0x{}", hex::encode(&entry.action.0))),
+			action_hex: format!("0x{}", hex::encode(&entry.action.0)),
+			digest: truncate_digest(&format!("0x{}", hex::encode(entry.digest.as_ref())), 16),
+			block: entry.seal.height,
+			extrinsic: entry.seal.index,
 		})
 		.collect()
 }
