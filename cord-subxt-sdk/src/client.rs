@@ -6,6 +6,7 @@ use crate::{
 #[allow(unused_imports)]
 use futures::StreamExt;
 use sp_core::hashing::blake2_256;
+use std::convert::TryFrom;
 use std::sync::Arc;
 use subxt::{
 	backend::rpc::RpcClient,
@@ -93,6 +94,19 @@ impl Client {
 	/// Access the query facade.
 	pub fn query(&self) -> crate::query::Query<'_> {
 		crate::query::Query { client: self }
+	}
+
+	pub async fn chain_prefix(&self) -> sp_core::crypto::Ss58AddressFormat {
+		let default = sp_core::crypto::Ss58AddressFormat::from(self.flavor.ss58_prefix());
+		match self.legacy_methods().system_properties().await {
+			Ok(props) => props
+				.get("ss58Format")
+				.and_then(|value| value.as_u64())
+				.and_then(|fmt| u16::try_from(fmt).ok())
+				.map(sp_core::crypto::Ss58AddressFormat::from)
+				.unwrap_or(default),
+			Err(_) => default,
+		}
 	}
 
 	/// Access the extrinsic builder facade.

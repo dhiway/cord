@@ -87,7 +87,7 @@ use cord_primitives::{
 		authorization_signature_hash as primitives_authorization_signature_hash,
 		Authorization as CoreAuthorization,
 	},
-	packet::{PacketMetadata, PacketPointer, PacketState, PacketStatus},
+	packet::{PacketPointer, PacketStatus},
 	registry::{RegistryKind, RegistryPermissions, RegistryStatus},
 	view_api::AuthorizationError,
 };
