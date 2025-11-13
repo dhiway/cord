@@ -98,6 +98,30 @@ cord-subxt-sdk/scripts/build-release.sh
 
 The explainers live in `docs/examples/subxt-sdk/*.md` so they can also be rendered inside other documentation toolchains.
 
+## Extrinsic helpers
+
+Origin runtimes share the same signed-extension tuple, so the SDK exposes four composable helper
+paths that map directly to common transaction flows:
+
+1. **Single extrinsic** – use `TxSubmitter::submit_with_progress` together with
+   `Client::tx().build(...)` to sign-and-watch a single call while the helper manages nonce
+   reservations and structured progress logs.
+2. **Utility batch** – call `Client::tx().utility_batch(calls)` to wrap several calls inside
+   `pallet_utility::batch`, which will continue even if one item fails. This is ideal for
+   “best effort” multi-attribute updates like the entity demo.
+3. **Utility batch_all** – call `Client::tx().utility_batch_all(calls)` when every call must succeed
+   or the entire transaction should revert. Use this for critical migrations where partial outcomes
+   are unacceptable.
+4. **Meta transaction dispatch** – call `Client::tx().meta_dispatch(call, meta_signer, opts)` to build
+   a `MetaTx::dispatch` payload. You supply the **signer** (who authorises the payload) via the
+   `MetaSigner` trait plus a `MetaTxOptions` struct, and submit the resulting extrinsic with your
+   relayer’s `TxSubmitter`. The helper reconstructs the runtime’s signed-extension tuple, computes
+   the same implicit payload that the chain verifies, and signs the meta transaction on the
+   signer’s behalf. The relayer only needs to call `submit_with_progress` on the returned payload.
+
+Each helper runs on top of the reconnecting RPC client introduced in `Client::connect_with`, so
+calls are automatically retried with exponential backoff when the node restarts.
+
 ## Customising walkthrough data
 
 Payloads for every pallet extrinsic now come from `sample_data/demo.json`. The CLI transforms the JSON into the strongly typed structures that the runtime expects, so you can tweak fields without recompiling the binary. To point the walkthrough at a different file, pass `--sample-data /path/to/your.json`. Each JSON template can reference `{label}`, `{base_label}`, and `{run_id}` placeholders, which are resolved per run, and tokens such as the entity or registry identifier can be injected via `"type": "token"` entries. The bundled template defines optional attributes (`expires_at`, `notes`) and multiple lookup specs so you can demonstrate flexible schemas without editing Rust code.

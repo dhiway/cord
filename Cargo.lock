@@ -2703,6 +2703,7 @@ dependencies = [
  "futures",
  "getrandom 0.2.16",
  "hex",
+ "log",
  "parity-scale-codec",
  "scale-decode",
  "scale-info",

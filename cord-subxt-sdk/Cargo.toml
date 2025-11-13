@@ -21,6 +21,7 @@ cord-primitives = { path = "../primitives/cord" }
 futures = "0.3"
 getrandom = "0.2"
 hex = "0.4"
+log = "0.4"
 scale-info = { workspace = true, features = ["std"] }
 scale-value = { version = "0.18", features = ["serde", "__std"] }
 serde = { workspace = true, features = ["derive", "std"] }

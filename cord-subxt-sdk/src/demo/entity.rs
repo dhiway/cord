@@ -5,7 +5,7 @@ use sp_runtime::AccountId32 as RuntimeAccount;
 use std::collections::BTreeMap;
 use subxt::utils::AccountId32;
 
-use crate::types::entity::HistoryEntry;
+use crate::{types::entity::HistoryEntry, utils};
 
 #[derive(Clone, Serialize)]
 pub struct EntitySnapshot {
@@ -77,29 +77,13 @@ impl EntitySnapshot {
 		println!("  • Twitter : {}", self.twitter);
 		println!("  • Attributes:");
 		for (key, value) in &self.attributes {
-			let rendered = short_label(value);
+			let rendered = utils::short_label(value, MAX_ATTR_LABEL_LEN);
 			println!("      ◦ {}: {}", key, rendered);
 		}
 	}
 }
 
 const MAX_ATTR_LABEL_LEN: usize = "entity-demo-78abb661@cord.dev".len() + 5;
-
-fn short_label(value: &str) -> String {
-	if value.len() <= MAX_ATTR_LABEL_LEN {
-		return value.to_string();
-	}
-	if value.starts_with("0x") && value.len() > 2 {
-		let keep = MAX_ATTR_LABEL_LEN.saturating_sub(1);
-		let head = keep / 2;
-		let tail = keep - head;
-		let tail_start = value.len().saturating_sub(tail);
-		return format!("{}…{}", &value[..head], &value[tail_start..]);
-	}
-	let take = MAX_ATTR_LABEL_LEN.saturating_sub(1);
-	let trimmed: String = value.chars().take(take).collect();
-	format!("{trimmed}…")
-}
 
 pub fn print_history_cli(entries: &[(HistoryEntry, Option<String>)]) {
 	println!("\n📜 Attribute Timeline:");

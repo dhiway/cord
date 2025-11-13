@@ -8,11 +8,7 @@ use crate::{
 	},
 };
 use std::fmt;
-use subxt::{
-	blocks::ExtrinsicEvents,
-	tx::{DynamicPayload, TxStatus},
-	utils::H256,
-};
+use subxt::{blocks::ExtrinsicEvents, tx::TxStatus, utils::H256};
 
 /// Structured events emitted while tracking extrinsic submission.
 #[derive(Clone, Debug)]
@@ -89,14 +85,15 @@ where
 		self.client
 	}
 
-	pub async fn submit_with_progress<F>(
+	pub async fn submit_with_progress<F, P>(
 		&mut self,
-		call: DynamicPayload,
+		call: P,
 		description: impl Into<String>,
 		mut handler: F,
 	) -> Result<ExtrinsicEvents<crate::params::config::CordConfig>, SubmitError>
 	where
 		F: FnMut(SubmitStage),
+		P: subxt::tx::Payload,
 	{
 		let desc = description.into();
 		let nonce = self
