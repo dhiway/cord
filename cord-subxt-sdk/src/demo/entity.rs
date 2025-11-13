@@ -1,5 +1,6 @@
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use serde::Serialize;
+use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use sp_runtime::AccountId32 as RuntimeAccount;
 use std::collections::BTreeMap;
 use subxt::utils::AccountId32;
@@ -50,14 +51,13 @@ impl EntitySnapshot {
 		self.attributes.insert(key.to_string(), value);
 	}
 
-	pub fn set_active_accounts(&mut self, accounts: &[AccountId32]) {
-		self.active_accounts = accounts
-			.iter()
-			.map(|acct| {
-				let raw: [u8; 32] = *acct.as_ref();
-				RuntimeAccount::from(raw).to_string()
-			})
-			.collect();
+	pub fn set_active_accounts(
+		&mut self,
+		accounts: &[AccountId32],
+		chain_prefix: Ss58AddressFormat,
+	) {
+		self.active_accounts =
+			accounts.iter().map(|acct| format_account(acct, chain_prefix)).collect();
 	}
 
 	pub fn set_entity_nym(&mut self, nym: String) {
@@ -125,17 +125,22 @@ pub fn print_history_cli(entries: &[(HistoryEntry, Option<String>)]) {
 	}
 }
 
-pub fn print_accounts_cli(accounts: &[AccountId32]) {
+pub fn print_accounts_cli(accounts: &[AccountId32], chain_prefix: Ss58AddressFormat) {
 	println!("\n🔗 Linked Accounts:");
 	if accounts.is_empty() {
 		println!("    • (none)");
 		return;
 	}
 	for (idx, account) in accounts.iter().enumerate() {
-		let raw: [u8; 32] = *account.as_ref();
-		let runtime = RuntimeAccount::from(raw);
-		println!("    • [{}] {}", idx + 1, runtime);
+		let formatted = format_account(account, chain_prefix);
+		println!("    • [{}] {}", idx + 1, formatted);
 	}
+}
+
+fn format_account(account: &AccountId32, chain_prefix: Ss58AddressFormat) -> String {
+	let raw: [u8; 32] = *account.as_ref();
+	let runtime = RuntimeAccount::from(raw);
+	runtime.to_ss58check_with_version(chain_prefix)
 }
 
 fn base64_to_utf8(value: &str) -> String {
