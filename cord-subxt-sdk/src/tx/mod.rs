@@ -15,6 +15,7 @@ use crate::{
 	params::config::CordConfig,
 };
 use subxt::{
+	dynamic::Value,
 	tx::{self, DynamicPayload, TxProgress},
 	utils::Era,
 };
@@ -82,5 +83,11 @@ impl<'a> Transactions<'a> {
 		let prepared = params::PreparedTxOptions { era, nonce: nonce_value, tip };
 		let params = params::build_params_from(prepared);
 		tx.sign_and_submit_then_watch(&call, signer, params).await.map_err(Error::from)
+	}
+
+	pub async fn utility_batch_all(&self, calls: Vec<DynamicPayload>) -> Result<DynamicPayload> {
+		let values = calls.into_iter().map(|call| call.into_value()).collect::<Vec<_>>();
+		let args = Value::named_composite([("calls", Value::unnamed_composite(values))]);
+		self.build("Utility", "batch_all", args).await
 	}
 }
