@@ -1,6 +1,8 @@
 pub mod entity;
+pub mod util;
 use crate::{
 	client::Client,
+	demo::util::{LogSink, TxExecutor},
 	error::{Error, Result},
 	params::config::CordConfig,
 	tx::{self, TxOptions},
@@ -63,6 +65,24 @@ pub async fn create_registry(
 ) -> Result<Ss58Identifier> {
 	let call = client.tx().register_create_registry_json(spec).await?;
 	let events = submit_and_wait(client, signer, call).await?;
+	decode_registry_created(&events)
+}
+
+pub async fn create_registry_with_executor(
+	client: &Client,
+	executor: &mut TxExecutor<'_, '_>,
+	spec: JsonValue,
+	sink: &mut LogSink<'_>,
+) -> Result<Ss58Identifier> {
+	let call = client.tx().register_create_registry_json(spec).await?;
+	let events = executor
+		.submit(client, call, "Create registry", sink)
+		.await
+		.map_err(|e| Error::Signer(e.to_string()))?;
+	decode_registry_created(&events)
+}
+
+fn decode_registry_created(events: &ExtrinsicEvents<CordConfig>) -> Result<Ss58Identifier> {
 	for ev in events.iter() {
 		let ev = ev?;
 		if ev.pallet_name() == "Register" && ev.variant_name() == "RegistryCreated" {
@@ -83,6 +103,26 @@ pub async fn create_packet(
 ) -> Result<Ss58Identifier> {
 	let call = client.tx().packet_create_json(registry_ss58, attributes, registry_info).await?;
 	let events = submit_and_wait(client, signer, call).await?;
+	decode_packet_created(&events)
+}
+
+pub async fn create_packet_with_executor(
+	client: &Client,
+	executor: &mut TxExecutor<'_, '_>,
+	registry_ss58: &str,
+	attributes: JsonValue,
+	registry_info: &RegistryInfoView,
+	sink: &mut LogSink<'_>,
+) -> Result<Ss58Identifier> {
+	let call = client.tx().packet_create_json(registry_ss58, attributes, registry_info).await?;
+	let events = executor
+		.submit(client, call, "Create packet", sink)
+		.await
+		.map_err(|e| Error::Signer(e.to_string()))?;
+	decode_packet_created(&events)
+}
+
+fn decode_packet_created(events: &ExtrinsicEvents<CordConfig>) -> Result<Ss58Identifier> {
 	for ev in events.iter() {
 		let ev = ev?;
 		if ev.pallet_name() == "Register" && ev.variant_name() == "PacketCreated" {

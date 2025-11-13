@@ -1,10 +1,6 @@
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use codec::Decode;
-use cord_primitives::{
-	identifier::Ss58Identifier,
-	view_api::{AuthorizationRequest, EntityAccountTokenRequest, EntityNymRequest},
-};
+use cord_primitives::{identifier::Ss58Identifier, view_api::EntityNymRequest};
 use oc::types::{
 	self,
 	entity::{AttributeEntry, HistoryEntry},
@@ -12,43 +8,21 @@ use oc::types::{
 };
 use oc::{
 	demo,
-	demo::entity::{self, EntitySnapshot},
+	demo::{
+		entity::{self, EntitySnapshot},
+		util::{
+			ensure_entity_token_verbose, fresh_authorization, init_logging, parse_identifier,
+			signer_account_id, LogSink, RunMode, TxExecutor, TxFlow, ViewStyle,
+		},
+	},
 	entity::{self as sdk_entity, AttributePlan, EntityChainState, TimelineRow},
-	params::config::CordConfig,
-	query::auth::{AuthorizationBuilder, SignatureScheme},
-	tx::{self, MetaTxOptions, SubmitError, SubmitStage, TxSubmitter},
-	utils, ChainFlavor, Client, Error as SdkError,
+	tx::{self, SubmitError, TxSubmitter},
+	utils, ChainFlavor, Client,
 };
 use serde_json::json;
 use sp_core::crypto::Ss58AddressFormat;
-use sp_runtime::AccountId32 as RuntimeAccount;
-use std::{sync::Once, time::Duration};
-use subxt::{
-	blocks::ExtrinsicEvents,
-	tx::DynamicPayload,
-	utils::{AccountId32, H256},
-};
-
-fn fresh_authorization(
-	signer: &tx::signer::sr25519::Keypair,
-) -> oc::error::Result<AuthorizationRequest> {
-	AuthorizationBuilder::from_signer(signer, SignatureScheme::Sr25519, None)
-		.map_err(|e| SdkError::Signer(e.to_string()))?
-		.as_request()
-		.map_err(|e| SdkError::Signer(e.to_string()))
-}
-
-#[derive(Clone, Copy)]
-enum ViewStyle {
-	Compact,
-	Full,
-}
-
-impl ViewStyle {
-	fn is_full(&self) -> bool {
-		matches!(self, ViewStyle::Full)
-	}
-}
+use std::time::Duration;
+use subxt::utils::AccountId32;
 
 struct CliOptions {
 	view: ViewStyle,
@@ -57,52 +31,6 @@ struct CliOptions {
 	mode: RunMode,
 	flow: TxFlow,
 	token: Option<String>,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum RunMode {
-	Transaction,
-	View,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum TxFlow {
-	Direct,
-	Relayed,
-}
-
-enum TxExecutor<'a, 'b> {
-	Direct {
-		submitter: &'b mut TxSubmitter<'a, tx::signer::sr25519::Keypair>,
-	},
-	Relayed {
-		relayer: &'b mut TxSubmitter<'a, tx::signer::sr25519::Keypair>,
-		meta_signer: &'a tx::signer::sr25519::Keypair,
-	},
-}
-
-impl<'a, 'b> TxExecutor<'a, 'b> {
-	async fn submit(
-		&mut self,
-		client: &Client,
-		call: DynamicPayload,
-		description: &str,
-		sink: &mut LogSink<'_>,
-	) -> Result<ExtrinsicEvents<CordConfig>, SubmitError> {
-		match self {
-			TxExecutor::Direct { submitter } => {
-				submit_with_logging(submitter, call, description, sink).await
-			},
-			TxExecutor::Relayed { relayer, meta_signer } => {
-				let payload = client
-					.tx()
-					.meta_dispatch(call, meta_signer, MetaTxOptions::default())
-					.await
-					.map_err(SubmitError::from_origin_error)?;
-				submit_with_logging(relayer, payload, &format!("Meta {description}"), sink).await
-			},
-		}
-	}
 }
 
 fn parse_args(args: &[String]) -> Result<CliOptions> {
@@ -525,58 +453,6 @@ async fn render_snapshot(
 	Ok(())
 }
 
-static LOG_INIT: Once = Once::new();
-
-fn init_logging() {
-	LOG_INIT.call_once(|| {
-		let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-			.format_timestamp_secs()
-			.try_init();
-	});
-}
-
-fn parse_identifier(value: &str) -> Result<Ss58Identifier> {
-	Ss58Identifier::try_from(value.to_string())
-		.map_err(|_| anyhow!("invalid identifier: {}", value))
-}
-
-async fn ensure_entity_token_verbose(
-	client: &Client,
-	signer: &tx::signer::sr25519::Keypair,
-	account_id: &AccountId32,
-	profile: &serde_json::Value,
-	tx_executor: &mut TxExecutor<'_, '_>,
-) -> Result<(Ss58Identifier, bool, Vec<String>)> {
-	let raw: [u8; 32] = *account_id.as_ref();
-	let runtime_account = RuntimeAccount::from(raw);
-	let request =
-		EntityAccountTokenRequest { auth: fresh_authorization(signer)?, account: runtime_account };
-	if let Some(token) = client.query().entity().account_token(&request).await? {
-		return Ok((token, false, Vec::new()));
-	}
-
-	let mut logs = Vec::new();
-	let call = client.tx().entity_set_info_json(profile.clone()).await?;
-	let mut sink = LogSink::new(Some(&mut logs));
-	let events = tx_executor
-		.submit(client, call, "Set entity info", &mut sink)
-		.await
-		.map_err(|e| anyhow!(e))?;
-	for ev in events.iter() {
-		let ev = ev?;
-		if ev.pallet_name() == "Entity" && ev.variant_name() == "EntityInfoSet" {
-			let mut cursor = ev.field_bytes();
-			let _: AccountId32 = Decode::decode(&mut cursor)
-				.map_err(|e| anyhow!("failed to decode account: {e}"))?;
-			let token: Ss58Identifier =
-				Decode::decode(&mut cursor).map_err(|e| anyhow!("failed to decode token: {e}"))?;
-			logs.push("\nℹ️ Setting entity nym".to_string());
-			return Ok((token, true, logs));
-		}
-	}
-	Err(anyhow!("EntityInfoSet event not found"))
-}
-
 async fn apply_attribute_plan(
 	client: &Client,
 	tx_executor: &mut TxExecutor<'_, '_>,
@@ -616,47 +492,6 @@ async fn apply_attribute_plan(
 	Ok(())
 }
 
-struct LogSink<'a> {
-	buffer: Option<&'a mut Vec<String>>,
-}
-
-impl<'a> LogSink<'a> {
-	fn new(buffer: Option<&'a mut Vec<String>>) -> Self {
-		Self { buffer }
-	}
-
-	fn stage(&mut self, stage: SubmitStage) {
-		let message = match stage {
-			SubmitStage::Validated => "  ↳ 🟡 validated and queued".to_string(),
-			SubmitStage::Broadcasted => "  ↳ 📡 broadcast to peers".to_string(),
-			SubmitStage::Retracted => {
-				"  ↳ ⚠️ retracted from best block, waiting for re-inclusion".to_string()
-			},
-			SubmitStage::InBlock { hash, label } => {
-				format!("  ↳ 📦 included in block {}", block_display(label, &hash))
-			},
-			SubmitStage::Finalized { description, .. } => {
-				format!("  ↳ 🛡️ finalized {description}")
-			},
-			SubmitStage::Completed { description } => format!("  ↳ ✅ {description}"),
-		};
-		self.line(message);
-	}
-
-	fn line(&mut self, msg: impl Into<String>) {
-		let text = msg.into();
-		if let Some(buf) = self.buffer.as_deref_mut() {
-			buf.push(text);
-		} else {
-			println!("{}", text);
-		}
-	}
-}
-
-fn block_display(label: Option<String>, hash: &H256) -> String {
-	label.unwrap_or_else(|| format!("{hash:?}"))
-}
-
 fn attribute_entry(key: &str, value: String) -> AttributeEntry {
 	AttributeEntry {
 		key_hex: types::to_key_hex_from_utf8(key),
@@ -667,27 +502,6 @@ fn attribute_entry(key: &str, value: String) -> AttributeEntry {
 
 fn base64_element(bytes: &[u8]) -> ElementJson {
 	ElementJson::RawBase64(BASE64.encode(bytes))
-}
-
-async fn submit_with_logging<S, P>(
-	submitter: &mut TxSubmitter<'_, S>,
-	call: P,
-	description: &str,
-	sink: &mut LogSink<'_>,
-) -> Result<ExtrinsicEvents<CordConfig>, SubmitError>
-where
-	S: subxt::tx::Signer<CordConfig>,
-	P: subxt::tx::Payload,
-{
-	let events = submitter
-		.submit_with_progress(call, description.to_string(), |stage| sink.stage(stage))
-		.await?;
-	utils::short_delay(Duration::from_secs(1)).await;
-	Ok(events)
-}
-
-fn signer_account_id(signer: &tx::signer::sr25519::Keypair) -> AccountId32 {
-	<tx::signer::sr25519::Keypair as subxt::tx::Signer<CordConfig>>::account_id(signer)
 }
 
 fn seed_profile_attribute(profile: &mut serde_json::Value, key: &str, value: &str) {
