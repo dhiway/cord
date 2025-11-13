@@ -4728,6 +4728,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "finito"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2384245d85162258a14b43567a9ee3598f5ae746a1581fb5d3d2cb780f0dbf95"
+dependencies = [
+ "futures-timer",
+ "pin-project",
+]
+
+[[package]]
 name = "fixed-hash"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -17280,6 +17290,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab68a9c20ecedb0cb7d62d64f884e6add91bb70485783bf40aa8eac5c389c6e0"
 dependencies = [
  "derive-where",
+ "finito",
  "frame-metadata 23.0.0",
  "futures",
  "hex",
@@ -17292,6 +17303,7 @@ dependencies = [
  "subxt-core 0.44.0",
  "subxt-lightclient 0.44.0",
  "thiserror 2.0.17",
+ "tokio",
  "tokio-util",
  "tracing",
  "url",

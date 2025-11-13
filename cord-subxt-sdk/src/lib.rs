@@ -20,7 +20,7 @@ pub mod tx;
 pub mod types;
 pub mod utils;
 
-pub use client::Client;
+pub use client::{Client, ConnectionConfig, RetryPolicy, DEFAULT_RPC_ENDPOINT};
 pub use error::Error;
 pub use flavors::ChainFlavor;
 pub use scale::MetadataResolver;

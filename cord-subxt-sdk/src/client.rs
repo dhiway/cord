@@ -6,16 +6,69 @@ use crate::{
 #[allow(unused_imports)]
 use futures::StreamExt;
 use sp_core::hashing::blake2_256;
-use std::convert::TryFrom;
-use std::sync::Arc;
+use std::{convert::TryFrom, sync::Arc, time::Duration};
 use subxt::{
-	backend::rpc::RpcClient,
+	backend::rpc::{
+		reconnecting_rpc_client::{
+			ExponentialBackoff as RpcBackoff, RpcClient as ReconnectingRpcClient,
+		},
+		RpcClient,
+	},
 	config::PolkadotConfig,
 	ext::{
 		subxt_core::client::RuntimeVersion as CoreRuntimeVersion,
 		subxt_rpcs::methods::legacy::{LegacyRpcMethods, SystemHealth},
 	},
 };
+
+pub const DEFAULT_RPC_ENDPOINT: &str = "ws://127.0.0.1:9944";
+
+/// Controls how the SDK establishes and maintains its RPC connection.
+#[derive(Clone, Debug)]
+pub struct ConnectionConfig {
+	pub url: String,
+	pub flavor: ChainFlavor,
+	pub retry: RetryPolicy,
+}
+
+impl ConnectionConfig {
+	pub fn new(url: impl Into<String>, flavor: ChainFlavor) -> Self {
+		Self { url: url.into(), flavor, ..Default::default() }
+	}
+
+	pub fn with_retry(mut self, retry: RetryPolicy) -> Self {
+		self.retry = retry;
+		self
+	}
+}
+
+impl Default for ConnectionConfig {
+	fn default() -> Self {
+		Self {
+			url: DEFAULT_RPC_ENDPOINT.into(),
+			flavor: ChainFlavor::Auto,
+			retry: RetryPolicy::default(),
+		}
+	}
+}
+
+/// Retry/backoff settings for the reconnecting RPC client.
+#[derive(Clone, Debug)]
+pub struct RetryPolicy {
+	pub initial_backoff: Duration,
+	pub max_backoff: Duration,
+	pub max_retries: Option<usize>,
+}
+
+impl Default for RetryPolicy {
+	fn default() -> Self {
+		Self {
+			initial_backoff: Duration::from_millis(50),
+			max_backoff: Duration::from_secs(10),
+			max_retries: None,
+		}
+	}
+}
 
 /// High-level handle to a connected Origin-derived chain.
 pub struct Client {
@@ -27,15 +80,16 @@ pub struct Client {
 impl Client {
 	/// Connect to a node at `url`, optionally forcing the chain flavor.
 	pub async fn connect(url: &str, flavor: ChainFlavor) -> Result<Self> {
-		let rpc = Arc::new(
-			RpcClient::from_insecure_url(url)
-				.await
-				.map_err(|e| Error::Transport(e.to_string()))?,
-		);
+		Self::connect_with(ConnectionConfig::new(url.to_string(), flavor)).await
+	}
+
+	/// Connect using a reusable [`ConnectionConfig`].
+	pub async fn connect_with(config: ConnectionConfig) -> Result<Self> {
+		let rpc = build_reconnecting_rpc(&config).await?;
 		let api = subxt::OnlineClient::<CordConfig>::from_rpc_client(rpc.as_ref().clone())
 			.await
 			.map_err(Error::from)?;
-		let flavor = match flavor {
+		let flavor = match config.flavor {
 			ChainFlavor::Auto => crate::flavors::detect_flavor(&api).await?,
 			other => other,
 		};
@@ -135,5 +189,53 @@ impl Client {
 			.await
 			.map(|blob| blob.into_raw())
 			.map_err(|e| Error::Transport(e.to_string()))
+	}
+}
+
+async fn build_reconnecting_rpc(config: &ConnectionConfig) -> Result<Arc<RpcClient>> {
+	let strategy = ReconnectBackoff::new(&config.retry);
+	let reconnecting = ReconnectingRpcClient::builder()
+		.retry_policy(strategy)
+		.build(&config.url)
+		.await
+		.map_err(|e| Error::Transport(e.to_string()))?;
+	let rpc = RpcClient::new(reconnecting);
+	Ok(Arc::new(rpc))
+}
+
+#[derive(Clone)]
+struct ReconnectBackoff {
+	inner: RpcBackoff,
+	remaining: Option<usize>,
+}
+
+impl ReconnectBackoff {
+	fn new(policy: &RetryPolicy) -> Self {
+		let mut inner = RpcBackoff::from_millis(duration_to_millis(policy.initial_backoff));
+		inner = inner.max_delay(policy.max_backoff);
+		Self { inner, remaining: policy.max_retries }
+	}
+}
+
+impl Iterator for ReconnectBackoff {
+	type Item = Duration;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		if let Some(rem) = self.remaining.as_mut() {
+			if *rem == 0 {
+				return None;
+			}
+			*rem -= 1;
+		}
+		self.inner.next()
+	}
+}
+
+fn duration_to_millis(duration: Duration) -> u64 {
+	let ms = duration.as_millis();
+	if ms == 0 {
+		1
+	} else {
+		ms.min(u64::MAX as u128) as u64
 	}
 }

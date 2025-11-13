@@ -29,7 +29,7 @@ sp-core = { workspace = true, features = ["std"] }
 sp-runtime = { workspace = true, features = ["std"] }
 scale-decode = { version = "0.16", default-features = false, features = ["derive"] }
 scale-type-resolver = { version = "0.2" }
-subxt = { version = "0.44", default-features = true, features = ["jsonrpsee", "native"] }
+subxt = { version = "0.44", default-features = true, features = ["jsonrpsee", "native", "reconnecting-rpc-client"] }
 subxt-signer = { version = "0.44", default-features = false, features = ["sr25519", "std", "subxt"] }
 thiserror = "1"
 tokio = { version = "1.40", features = ["macros", "rt-multi-thread"] }
