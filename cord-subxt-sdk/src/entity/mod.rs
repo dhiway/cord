@@ -166,9 +166,10 @@ where
 	let target_hex: Vec<String> =
 		mutated_keys.iter().map(|key| format!("0x{}", hex::encode(key))).collect();
 
+	let mut combined = baseline.clone();
 	let mut attempt = 0usize;
 	loop {
-		let mut combined = Vec::new();
+		let mut extras = Vec::new();
 		for key in &keys_to_fetch {
 			let Ok(bounded_key) = AttributeKey::try_from(key.clone()) else {
 				continue;
@@ -179,21 +180,13 @@ where
 				key: bounded_key,
 			};
 			match client.query().entity().attribute_history_for_key(&key_req).await {
-				Ok(mut extra) => combined.append(&mut extra),
+				Ok(mut extra) => extras.append(&mut extra),
 				Err(SdkError::NotFound(_)) => {},
 				Err(err) => return Err(err),
 			}
 		}
-
-		if combined.is_empty() {
-			let mut fallback = baseline.clone();
-			fallback.sort_by(|a, b| {
-				(a.block.height, a.block.index).cmp(&(b.block.height, b.block.index))
-			});
-			return Ok(fallback);
-		}
-		combined
-			.sort_by(|a, b| (a.block.height, a.block.index).cmp(&(b.block.height, b.block.index)));
+		combined.extend(extras.into_iter());
+		combined.sort_by(|a, b| b.version.cmp(&a.version));
 		let complete = target_hex.is_empty()
 			|| target_hex.iter().all(|hex_key| {
 				combined.iter().any(|entry| entry.key_hex.eq_ignore_ascii_case(hex_key))
@@ -268,7 +261,7 @@ where
 
 pub fn build_token_activity(entries: &[TokenTimelineEntry]) -> Vec<TimelineRow> {
 	let mut ordered = entries.to_vec();
-	ordered.sort_by_key(|entry| entry.version);
+	ordered.sort_by(|a, b| b.version.cmp(&a.version));
 	ordered
 		.into_iter()
 		.map(|entry| TimelineRow {

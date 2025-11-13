@@ -1,4 +1,8 @@
-use crate::{client::Client, error::Result, flavors::ChainFlavor};
+use crate::{
+	client::{Client, ConnectionConfig, DEFAULT_RPC_ENDPOINT},
+	error::Result,
+	flavors::ChainFlavor,
+};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use getrandom::getrandom;
 use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
@@ -6,12 +10,13 @@ use sp_core::{sr25519, Pair};
 use std::time::Duration;
 use tokio::time::sleep;
 
-pub const DEFAULT_NODE_URL: &str = "ws://127.0.0.1:9944";
+pub const DEFAULT_NODE_URL: &str = DEFAULT_RPC_ENDPOINT;
 
 /// Connect to the supplied node URL or fall back to the local dev node.
 pub async fn connect_or_default(url: Option<&str>, flavor: ChainFlavor) -> Result<Client> {
 	let target = url.unwrap_or(DEFAULT_NODE_URL);
-	Client::connect(target, flavor).await
+	let config = ConnectionConfig::new(target.to_string(), flavor);
+	Client::connect_with(config).await
 }
 
 /// Convenience wrapper around `tokio::time::sleep` for short demo delays.

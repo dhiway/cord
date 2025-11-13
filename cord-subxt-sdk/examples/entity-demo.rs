@@ -503,11 +503,8 @@ fn print_combined_timeline(entries: &[TimelineRow], full_view: bool) {
 	);
 	let total = entries.len();
 	let mut shown = 0usize;
-	let iter: Box<dyn Iterator<Item = &TimelineRow>> = if full_view {
-		Box::new(entries.iter().rev())
-	} else {
-		Box::new(entries.iter().rev().take(10))
-	};
+	let iter: Box<dyn Iterator<Item = &TimelineRow>> =
+		if full_view { Box::new(entries.iter()) } else { Box::new(entries.iter().take(10)) };
 	for entry in iter {
 		println!(
 			"       {:>8}  {:>8}  {:>6}    {:<30} {:<34}",
@@ -533,11 +530,8 @@ fn print_attribute_history(entries: &[HistoryEntry], full_view: bool) {
 	println!("  ↳    {:>8}  {:>6}    {:<18} {:<34}", "Block", "Index", "Key", "Rotated Value");
 	let total = entries.len();
 	let mut shown = 0usize;
-	let iter: Box<dyn Iterator<Item = &HistoryEntry>> = if full_view {
-		Box::new(entries.iter().rev())
-	} else {
-		Box::new(entries.iter().rev().take(10))
-	};
+	let iter: Box<dyn Iterator<Item = &HistoryEntry>> =
+		if full_view { Box::new(entries.iter()) } else { Box::new(entries.iter().take(10)) };
 	for entry in iter {
 		let key = entry.key_utf8.clone().unwrap_or_else(|| entry.key_hex.clone());
 		let value =
