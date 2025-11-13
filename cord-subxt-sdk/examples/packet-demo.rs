@@ -3,11 +3,11 @@ use cord_primitives::view_api::{
 	RegisterDetailsRequest, RegisterPacketSnapshotRequest, TokenTimelineRequest,
 };
 use hex;
-use origin::{
+use oc::{
 	demo,
 	params::config::CordConfig,
 	query::auth::{AuthorizationBuilder, SignatureScheme},
-	tx,
+	tx, ChainFlavor, Client,
 };
 use serde_json;
 use std::str;
@@ -15,7 +15,7 @@ use std::str;
 #[tokio::main]
 async fn main() -> Result<()> {
 	let label = demo::random_label("packet-demo");
-	let client = origin::Client::connect("ws://127.0.0.1:9944", origin::ChainFlavor::Auto).await?;
+	let client = Client::connect("ws://127.0.0.1:9944", ChainFlavor::Auto).await?;
 	let signer = tx::signer::dev_alice();
 	let account_id =
 		<tx::signer::sr25519::Keypair as subxt::tx::Signer<CordConfig>>::account_id(&signer);
@@ -67,7 +67,7 @@ async fn main() -> Result<()> {
 	let (timeline, next_cursor) = client.query().token().timeline(&timeline_req).await?;
 	println!("\nToken timeline (next cursor {:?}):", next_cursor);
 	for (index, event) in timeline.iter().enumerate() {
-		let action_bytes = &event.action.0;
+		let action_bytes = &event.action;
 		let action_hex = format!("0x{}", hex::encode(action_bytes));
 		let action_utf8 = str::from_utf8(action_bytes)
 			.map(|s| s.to_owned())

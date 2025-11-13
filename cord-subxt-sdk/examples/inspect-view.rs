@@ -1,4 +1,4 @@
-use cord_subxt_sdk::{client::Client, flavors::ChainFlavor};
+use oc::{client::Client, flavors::ChainFlavor};
 use subxt::Metadata;
 
 #[tokio::main]
@@ -16,7 +16,7 @@ fn print_view(metadata: &Metadata, pallet: &str, function: &str) {
 	let view = pallet_meta.view_function_by_name(function).expect("view");
 	let ty_id = view.output_ty();
 	let ty = metadata.types().resolve(ty_id).expect("type");
-	println!("{pallet}.{function} -> {:?}", ty.ty.path);
+	println!("{pallet}.{function} -> {:?}", ty.path);
 	println!("  type id: {ty_id}");
-	println!("  type def: {:?}\n", ty.ty.def);
+	println!("  type def: {:?}\n", ty.type_def);
 }

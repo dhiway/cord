@@ -5,7 +5,7 @@ use sp_runtime::AccountId32 as RuntimeAccount;
 use std::collections::BTreeMap;
 use subxt::utils::AccountId32;
 
-use crate::{types::entity::HistoryEntry, utils};
+use crate::{entity::EntityChainState, types::entity::HistoryEntry, utils};
 
 #[derive(Clone, Serialize)]
 pub struct EntitySnapshot {
@@ -62,6 +62,24 @@ impl EntitySnapshot {
 
 	pub fn set_entity_nym(&mut self, nym: String) {
 		self.entity_nym = Some(nym);
+	}
+
+	pub fn from_chain_state(state: &EntityChainState, token: &str) -> Self {
+		let mut snapshot = Self {
+			token: token.to_string(),
+			display: state.get("display").unwrap_or("-").to_string(),
+			legal: state.get("legal").unwrap_or("-").to_string(),
+			web: state.get("web").unwrap_or("-").to_string(),
+			email: state.get("email").unwrap_or("-").to_string(),
+			twitter: state.get("twitter").unwrap_or("-").to_string(),
+			entity_nym: None,
+			attributes: BTreeMap::new(),
+			active_accounts: Vec::new(),
+		};
+		for (key, value) in state.attributes_iter() {
+			snapshot.attributes.insert(key.clone(), value.clone());
+		}
+		snapshot
 	}
 
 	pub fn print_cli(&self) {

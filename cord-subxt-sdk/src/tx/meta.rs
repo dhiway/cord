@@ -82,6 +82,16 @@ impl MetaSigner for subxt_signer::sr25519::Keypair {
 	}
 }
 
+impl<'a> MetaSigner for &'a subxt_signer::sr25519::Keypair {
+	fn account_id(&self) -> AccountId32 {
+		(**self).account_id()
+	}
+
+	fn sign_meta_payload(&self, message: [u8; 32]) -> MultiSignature {
+		(**self).sign_meta_payload(message)
+	}
+}
+
 pub async fn dispatch_call_with_meta<S: MetaSigner>(
 	client: &Client,
 	call: DynamicPayload,

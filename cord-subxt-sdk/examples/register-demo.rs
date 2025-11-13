@@ -1,16 +1,16 @@
 use anyhow::{Context, Result};
 use cord_primitives::view_api::{RegisterDetailsRequest, RegisterLookupSpecsRequest};
-use origin::{
+use oc::{
 	demo,
 	params::config::CordConfig,
 	query::auth::{AuthorizationBuilder, SignatureScheme},
-	tx,
+	tx, ChainFlavor, Client,
 };
 
 #[tokio::main]
 async fn main() -> Result<()> {
 	let label = demo::random_label("register-demo");
-	let client = origin::Client::connect("ws://127.0.0.1:9944", origin::ChainFlavor::Auto).await?;
+	let client = Client::connect("ws://127.0.0.1:9944", ChainFlavor::Auto).await?;
 	let signer = tx::signer::dev_alice();
 	let account_id =
 		<tx::signer::sr25519::Keypair as subxt::tx::Signer<CordConfig>>::account_id(&signer);

@@ -15,14 +15,14 @@ use cord_primitives::{
 	identifier::Ss58Identifier,
 	view::{maybe_utf8, AttributeValueView},
 	view_api::{
-		AttributeKey, AuthorizationRequest, EntityAttributeHistoryForKeyRequest,
-		EntityAttributeHistoryRequest, EntityLinkedAccountsRequest, TokenStateVersionRequest,
-		TokenTimelineRequest,
+		AuthorizationRequest, EntityAttributeHistoryRequest, EntityLinkedAccountsRequest,
+		TokenStateVersionRequest, TokenTimelineRequest,
 	},
 };
 use hex;
+use log::debug;
 use serde::Serialize;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::BTreeMap;
 use subxt::utils::AccountId32;
 
 use crate::types::token::StateEventRecord;
@@ -85,6 +85,10 @@ impl EntityChainState {
 			self.attributes.insert(key, val);
 		}
 	}
+
+	pub fn attributes_iter(&self) -> std::collections::btree_map::Iter<'_, String, String> {
+		self.attributes.iter()
+	}
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -140,60 +144,32 @@ const ATTRIBUTE_HISTORY_RETRIES: usize = 3;
 pub async fn collect_attribute_history<F>(
 	client: &Client,
 	token_identifier: &Ss58Identifier,
-	mutated_keys: &BTreeSet<Vec<u8>>,
-	schema_keys: &BTreeSet<Vec<u8>>,
 	auth_builder: &mut F,
 ) -> Result<Vec<HistoryEntry>>
 where
 	F: FnMut() -> Result<AuthorizationRequest>,
 {
-	let history_req =
-		EntityAttributeHistoryRequest { auth: auth_builder()?, token: token_identifier.clone() };
-	let baseline = match client.query().entity().attribute_history(&history_req).await {
-		Ok(entries) => entries,
-		Err(SdkError::NotFound(_)) => Vec::new(),
-		Err(err) => return Err(err),
-	};
-
-	let mut keys_to_fetch: BTreeSet<Vec<u8>> = baseline
-		.iter()
-		.filter_map(|entry| types::hex_to_bytes(&entry.key_hex).ok())
-		.filter(|bytes| !bytes.is_empty())
-		.collect();
-	keys_to_fetch.extend(mutated_keys.iter().cloned());
-	keys_to_fetch.extend(schema_keys.iter().cloned());
-
-	let target_hex: Vec<String> =
-		mutated_keys.iter().map(|key| format!("0x{}", hex::encode(key))).collect();
-
-	let mut combined = baseline.clone();
 	let mut attempt = 0usize;
 	loop {
-		let mut extras = Vec::new();
-		for key in &keys_to_fetch {
-			let Ok(bounded_key) = AttributeKey::try_from(key.clone()) else {
-				continue;
-			};
-			let key_req = EntityAttributeHistoryForKeyRequest {
-				auth: auth_builder()?,
-				token: token_identifier.clone(),
-				key: bounded_key,
-			};
-			match client.query().entity().attribute_history_for_key(&key_req).await {
-				Ok(mut extra) => extras.append(&mut extra),
-				Err(SdkError::NotFound(_)) => {},
-				Err(err) => return Err(err),
-			}
-		}
-		combined.extend(extras.into_iter());
-		dedup_history_entries(&mut combined);
+		let history_req = EntityAttributeHistoryRequest {
+			auth: auth_builder()?,
+			token: token_identifier.clone(),
+		};
+		let mut combined = match client.query().entity().attribute_history(&history_req).await {
+			Ok(entries) => entries,
+			Err(SdkError::NotFound(_)) => Vec::new(),
+			Err(err) => return Err(err),
+		};
 		combined
 			.sort_by(|a, b| (b.block.height, b.block.index).cmp(&(a.block.height, a.block.index)));
-		let complete = target_hex.is_empty()
-			|| target_hex.iter().all(|hex_key| {
-				combined.iter().any(|entry| entry.key_hex.eq_ignore_ascii_case(hex_key))
-			});
-		if complete || attempt >= ATTRIBUTE_HISTORY_RETRIES {
+		debug!(
+			target: "sdk::entity::history",
+			"attribute_history attempt #{attempt} returned {} entries:\n{:#?}",
+			combined.len(),
+			combined
+		);
+
+		if attempt >= ATTRIBUTE_HISTORY_RETRIES || !combined.is_empty() {
 			return Ok(combined);
 		}
 		attempt += 1;
@@ -358,14 +334,6 @@ where
 
 fn base64_element(bytes: &[u8]) -> ElementJson {
 	ElementJson::RawBase64(BASE64.encode(bytes))
-}
-
-fn dedup_history_entries(entries: &mut Vec<HistoryEntry>) {
-	let mut seen = HashSet::new();
-	entries.retain(|entry| {
-		let key = (entry.block.height, entry.block.index, entry.key_hex.clone());
-		seen.insert(key)
-	});
 }
 
 fn attribute_label(attr: &AttributeValueView) -> String {
