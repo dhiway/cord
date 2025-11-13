@@ -1,10 +1,15 @@
 use anyhow::{anyhow, Result};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use codec::Decode;
 use cord_primitives::{
 	identifier::Ss58Identifier,
 	view_api::{AuthorizationRequest, EntityAccountTokenRequest, EntityNymRequest},
 };
-use oc::types::entity::HistoryEntry;
+use oc::types::{
+	self,
+	entity::{AttributeEntry, HistoryEntry},
+	ElementJson,
+};
 use oc::{
 	demo,
 	demo::entity::{self, EntitySnapshot},
@@ -20,6 +25,7 @@ use sp_runtime::AccountId32 as RuntimeAccount;
 use std::{collections::BTreeSet, time::Duration};
 use subxt::{
 	blocks::ExtrinsicEvents,
+	tx::DynamicPayload,
 	utils::{AccountId32, H256},
 };
 
@@ -115,6 +121,7 @@ async fn main() -> Result<()> {
 	let style = cli.view;
 	let output_json = cli.output_json;
 	let mut mutated_keys: BTreeSet<Vec<u8>> = BTreeSet::new();
+	let mut pending_calls: Vec<(String, DynamicPayload)> = Vec::new();
 
 	let (token_identifier, created, mut setup_logs) =
 		ensure_entity_token_verbose(&client, &signer, &account_id, &profile, &mut submitter)
@@ -183,7 +190,11 @@ async fn main() -> Result<()> {
 				snapshot.set_email(email_value.clone());
 			},
 			plan @ (AttributePlan::Add | AttributePlan::Rotate) => {
-				apply_attribute_plan(plan, &mut submitter, "email", email_value.clone()).await?;
+				if let Some(call) =
+					enqueue_attribute_call(plan, &client, "email", email_value.clone()).await?
+				{
+					pending_calls.push(call);
+				}
 				snapshot.set_email(email_value.clone());
 				mutated_keys.insert(b"email".to_vec());
 				expected_state_events = expected_state_events.saturating_add(1);
@@ -196,7 +207,11 @@ async fn main() -> Result<()> {
 				snapshot.set_attribute("demo", demo_value.clone());
 			},
 			plan @ (AttributePlan::Add | AttributePlan::Rotate) => {
-				apply_attribute_plan(plan, &mut submitter, "demo", demo_value.clone()).await?;
+				if let Some(call) =
+					enqueue_attribute_call(plan, &client, "demo", demo_value.clone()).await?
+				{
+					pending_calls.push(call);
+				}
 				snapshot.set_attribute("demo", demo_value.clone());
 				mutated_keys.insert(b"demo".to_vec());
 				expected_state_events = expected_state_events.saturating_add(1);
@@ -211,13 +226,12 @@ async fn main() -> Result<()> {
 				snapshot.set_attribute("public_key", rotation_public_key.clone());
 			},
 			plan @ (AttributePlan::Add | AttributePlan::Rotate) => {
-				apply_attribute_plan(
-					plan,
-					&mut submitter,
-					"public_key",
-					rotation_public_key.clone(),
-				)
-				.await?;
+				if let Some(call) =
+					enqueue_attribute_call(plan, &client, "public_key", rotation_public_key.clone())
+						.await?
+				{
+					pending_calls.push(call);
+				}
 				snapshot.set_attribute("public_key", rotation_public_key.clone());
 				mutated_keys.insert(b"public_key".to_vec());
 				expected_state_events = expected_state_events.saturating_add(1);
@@ -225,7 +239,30 @@ async fn main() -> Result<()> {
 		}
 	}
 
-	utils::short_delay(Duration::from_secs(6)).await;
+	if !pending_calls.is_empty() {
+		if pending_calls.len() == 1 {
+			let (desc, call) = pending_calls.pop().expect("call present");
+			let mut sink = LogSink::new(None);
+			submit_with_logging(&mut submitter, call, &desc, &mut sink).await?;
+		} else {
+			println!(
+				"\n🧺 Submitting {} attribute updates via utility.batch_all",
+				pending_calls.len()
+			);
+			for (desc, _) in &pending_calls {
+				println!("  • {desc}");
+			}
+			let calls: Vec<DynamicPayload> =
+				pending_calls.into_iter().map(|(_, call)| call).collect();
+			let batch_call = client.tx().utility_batch_all(calls).await?;
+			let mut sink = LogSink::new(None);
+			submit_with_logging(&mut submitter, batch_call, "Batch attribute updates", &mut sink)
+				.await?;
+		}
+		utils::short_delay(Duration::from_secs(3)).await;
+	}
+
+	utils::short_delay(Duration::from_secs(3)).await;
 
 	let target_version = baseline_state_version.saturating_add(expected_state_events);
 	let mut timeline_auth = || fresh_authorization(&signer);
@@ -324,31 +361,26 @@ async fn ensure_entity_token_verbose(
 	Err(anyhow!("EntityInfoSet event not found"))
 }
 
-async fn apply_attribute_plan(
+async fn enqueue_attribute_call(
 	plan: AttributePlan,
-	submitter: &mut TxSubmitter<'_, tx::signer::sr25519::Keypair>,
+	client: &Client,
 	key: &str,
 	value: String,
-) -> Result<()> {
+) -> Result<Option<(String, DynamicPayload)>> {
 	match plan {
-		AttributePlan::Skip => Ok(()),
+		AttributePlan::Skip => Ok(None),
 		AttributePlan::Add => {
-			println!("\n➕ attribute '{key}' missing on-chain; submitting add");
-			let mut sink = LogSink::new(None);
-			sdk_entity::submit_attribute_add(submitter, key, value, |stage| sink.stage(stage))
-				.await
-				.map_err(|e| anyhow!(e))?;
-			utils::short_delay(Duration::from_secs(1)).await;
-			Ok(())
+			println!("\n➕ attribute '{key}' missing on-chain; queued for add");
+			let entry = attribute_entry(key, value);
+			let call =
+				client.tx().entity_add_attributes(vec![entry]).await.map_err(|e| anyhow!(e))?;
+			Ok(Some((format!("Add attribute '{key}'"), call)))
 		},
 		AttributePlan::Rotate => {
-			println!("\n🔁 attribute '{key}' exists with different value; rotating");
-			let mut sink = LogSink::new(None);
-			sdk_entity::submit_attribute_rotation(submitter, key, value, |stage| sink.stage(stage))
-				.await
-				.map_err(|e| anyhow!(e))?;
-			utils::short_delay(Duration::from_secs(1)).await;
-			Ok(())
+			println!("\n🔁 attribute '{key}' exists with different value; queued rotation");
+			let entry = attribute_entry(key, value);
+			let call = client.tx().entity_rotate_attribute(entry).await.map_err(|e| anyhow!(e))?;
+			Ok(Some((format!("Rotate attribute '{key}'"), call)))
 		},
 	}
 }
@@ -392,6 +424,18 @@ impl<'a> LogSink<'a> {
 
 fn block_display(label: Option<String>, hash: &H256) -> String {
 	label.unwrap_or_else(|| format!("{hash:?}"))
+}
+
+fn attribute_entry(key: &str, value: String) -> AttributeEntry {
+	AttributeEntry {
+		key_hex: types::to_key_hex_from_utf8(key),
+		key_utf8: Some(key.into()),
+		value: base64_element(value.as_bytes()),
+	}
+}
+
+fn base64_element(bytes: &[u8]) -> ElementJson {
+	ElementJson::RawBase64(BASE64.encode(bytes))
 }
 
 async fn submit_with_logging<S>(

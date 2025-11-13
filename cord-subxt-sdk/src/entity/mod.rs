@@ -186,7 +186,8 @@ where
 			}
 		}
 		combined.extend(extras.into_iter());
-		combined.sort_by(|a, b| b.version.cmp(&a.version));
+		combined
+			.sort_by(|a, b| (b.block.height, b.block.index).cmp(&(a.block.height, a.block.index)));
 		let complete = target_hex.is_empty()
 			|| target_hex.iter().all(|hex_key| {
 				combined.iter().any(|entry| entry.key_hex.eq_ignore_ascii_case(hex_key))
