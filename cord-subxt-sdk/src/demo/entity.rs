@@ -126,14 +126,14 @@ pub fn print_history_cli(entries: &[(HistoryEntry, Option<String>)]) {
 }
 
 pub fn print_accounts_cli(accounts: &[AccountId32], chain_prefix: Ss58AddressFormat) {
-	println!("\n🔗 Linked Accounts:");
+	println!("\n➡️ Linked Accounts");
 	if accounts.is_empty() {
-		println!("    • (none)");
+		println!("  ↳ • (none)");
 		return;
 	}
 	for (idx, account) in accounts.iter().enumerate() {
 		let formatted = format_account(account, chain_prefix);
-		println!("    • [{}] {}", idx + 1, formatted);
+		println!("  ↳ • [{}] {}", idx + 1, formatted);
 	}
 }
 

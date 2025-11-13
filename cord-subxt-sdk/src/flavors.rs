@@ -19,6 +19,16 @@ impl Default for ChainFlavor {
 	}
 }
 
+impl ChainFlavor {
+	pub fn ss58_prefix(self) -> u16 {
+		match self {
+			Self::Auto | Self::Orb => 42,
+			Self::Origin => 42,
+			Self::OriginHub => 42,
+		}
+	}
+}
+
 /// Inspect the connected chain and infer the correct [`ChainFlavor`].
 pub async fn detect_flavor(api: &subxt::OnlineClient<CordConfig>) -> Result<ChainFlavor> {
 	// Inspect metadata for pallets that only exist on specific flavors.

@@ -76,7 +76,7 @@ pub fn get_properties(symbol: &str, decimals: u32, ss58format: u32) -> Propertie
 }
 
 pub fn orb_development_config() -> Result<GenericCordChainSpec, String> {
-	let properties = get_properties("UNITS", 12, 3893);
+	let properties = get_properties("UNITS", 12, 29);
 	Ok(GenericCordChainSpec::builder(
 		cord_orb_runtime::WASM_BINARY.ok_or("Orb development wasm not available")?,
 		Default::default(),
@@ -95,7 +95,7 @@ pub fn orb_development_config() -> Result<GenericCordChainSpec, String> {
 }
 
 pub fn orb_staging_config() -> Result<GenericCordChainSpec, String> {
-	let properties = get_properties("UNITS", 12, 3893);
+	let properties = get_properties("UNITS", 12, 29);
 	Ok(GenericCordChainSpec::builder(
 		cord_orb_runtime::WASM_BINARY.ok_or("Orb wasm not available")?,
 		Default::default(),

@@ -97,7 +97,7 @@ fn style_from_value(value: impl AsRef<str>) -> Option<ViewStyle> {
 async fn main() -> Result<()> {
 	let label = demo::random_label("entity-demo");
 	let client = Client::connect("ws://127.0.0.1:9944", ChainFlavor::Auto).await?;
-	let chain_prefix = client.online().chain_info().ss58_format();
+	let chain_prefix = client.chain_prefix().await;
 	let signer = tx::signer::dev_alice();
 	let account_id = signer_account_id(&signer);
 	let mut nonce_tracker = NonceTracker::new(account_id.clone());
@@ -106,22 +106,14 @@ async fn main() -> Result<()> {
 	let mut profile = demo::entity_profile(&label);
 	seed_profile_attribute(&mut profile, "demo", &demo_value);
 	seed_profile_attribute(&mut profile, "public_key", &initial_public_key);
-
 	let args: Vec<String> = std::env::args().collect();
 	let (style, output_json) = parse_args(&args[1..]);
-	// Track mutated keys (rotation/insert) so we can fetch precise history even if the pallet view is capped.
 	let mut mutated_keys: BTreeSet<Vec<u8>> = BTreeSet::new();
 
-	// println!("🌐 Origin Entity Demo");
 	let (token_identifier, created, mut setup_logs) =
 		ensure_entity_token_verbose(&client, &signer, &account_id, &profile, &mut nonce_tracker)
 			.await?;
 	let entity_token = demo::ss58_string(&token_identifier);
-	// if created {
-	// 	transactions.push("Set entity profile for {account_id}".to_string());
-	// } else {
-	// 	transactions.push("Synced entity profile for {account_id}".to_string());
-	// }
 	let mut snapshot = EntitySnapshot::from_profile(&profile, &entity_token);
 	let baseline_state_version =
 		match fetch_state_version(&client, &signer, &token_identifier).await {
@@ -151,7 +143,6 @@ async fn main() -> Result<()> {
 		EntityNymRequest { auth: fresh_authorization(&signer)?, token: token_identifier.clone() };
 	let existing_nym = client.query().entity().entity_nym(&nym_req).await?;
 	if let Some(nym) = existing_nym {
-		// println!("ℹ️ Entity nym already set: {nym}");
 		snapshot.set_entity_nym(nym);
 	} else if submit_entity_nym(
 		&client,
@@ -174,7 +165,8 @@ async fn main() -> Result<()> {
 
 	let email_value = format!("{label}@cord.dev");
 	if created {
-		println!("ℹ️ Setting entity info");
+		println!("\n✅ Entity initialized with nym/demo/public_key attributes.");
+		short_delay(Duration::from_secs(2)).await;
 	} else {
 		match plan_attribute_update(chain_state.get("email"), &email_value) {
 			AttributePlan::Skip => {
@@ -191,13 +183,6 @@ async fn main() -> Result<()> {
 					&mut nonce_tracker,
 				)
 				.await?;
-				// match plan {
-				// 	AttributePlan::Add => transactions.push("Added attribute 'email'".to_string()),
-				// 	AttributePlan::Rotate => {
-				// 		transactions.push("Rotated attribute 'email'".to_string())
-				// 	},
-				// 	AttributePlan::Skip => unreachable!(),
-				// }
 				snapshot.set_email(email_value.clone());
 				mutated_keys.insert(b"email".to_vec());
 				expected_state_events = expected_state_events.saturating_add(1);
@@ -219,13 +204,6 @@ async fn main() -> Result<()> {
 					&mut nonce_tracker,
 				)
 				.await?;
-				// match plan {
-				// 	AttributePlan::Add => transactions.push("Added attribute 'demo'".to_string()),
-				// 	AttributePlan::Rotate => {
-				// 		transactions.push("Rotated attribute 'demo'".to_string())
-				// 	},
-				// 	AttributePlan::Skip => unreachable!(),
-				// }
 				snapshot.set_attribute("demo", demo_value.clone());
 				mutated_keys.insert(b"demo".to_vec());
 				expected_state_events = expected_state_events.saturating_add(1);
@@ -248,23 +226,19 @@ async fn main() -> Result<()> {
 					&mut nonce_tracker,
 				)
 				.await?;
-				// match plan {
-				// 	AttributePlan::Add => {
-				// 		transactions.push("Added attribute 'public_key'".to_string())
-				// 	},
-				// 	AttributePlan::Rotate => {
-				// 		transactions.push("Rotated attribute 'public_key'".to_string())
-				// 	},
-				// 	AttributePlan::Skip => unreachable!(),
-				// }
 				snapshot.set_attribute("public_key", rotation_public_key.clone());
 				mutated_keys.insert(b"public_key".to_vec());
 				expected_state_events = expected_state_events.saturating_add(1);
 			},
 		}
-		// short_delay(Duration::from_secs(1)).await;
 	}
+
 	short_delay(Duration::from_secs(6)).await;
+
+	let target_version = baseline_state_version.saturating_add(expected_state_events);
+	let token_timeline_entries =
+		fetch_full_token_timeline(&client, &signer, &token_identifier, target_version).await?;
+	let combined_timeline = build_token_activity(&token_timeline_entries);
 
 	let schema_keys: BTreeSet<Vec<u8>> =
 		snapshot.attributes.keys().map(|k| k.as_bytes().to_vec()).collect();
@@ -272,16 +246,8 @@ async fn main() -> Result<()> {
 		collect_attribute_history(&client, &signer, &token_identifier, &mutated_keys, &schema_keys)
 			.await?;
 
-	short_delay(Duration::from_secs(2)).await;
-	let target_version = baseline_state_version.saturating_add(expected_state_events);
-	let token_timeline_entries =
-		fetch_full_token_timeline(&client, &signer, &token_identifier, target_version).await?;
-	let combined_timeline = build_token_activity(&token_timeline_entries);
-
 	let sub_accounts = fetch_linked_accounts(&client, &signer, &token_identifier).await?;
 	snapshot.set_active_accounts(&sub_accounts, chain_prefix);
-
-	// snapshot already updated if nym exists or newly set.
 
 	if output_json {
 		let attr_json: Vec<_> = attribute_history
@@ -333,16 +299,10 @@ async fn ensure_entity_token_verbose(
 
 	let mut logs = Vec::new();
 	let call = client.tx().entity_set_info_json(profile.clone()).await?;
-	let events = submit_and_confirm(
-		client,
-		signer,
-		call,
-		"Set entity profile for Alice",
-		nonce_tracker,
-		Some(&mut logs),
-	)
-	.await
-	.map_err(|e| anyhow!(e))?;
+	let events =
+		submit_and_confirm(client, signer, call, "Set entity nfo", nonce_tracker, Some(&mut logs))
+			.await
+			.map_err(|e| anyhow!(e))?;
 	for ev in events.iter() {
 		let ev = ev?;
 		if ev.pallet_name() == "Entity" && ev.variant_name() == "EntityInfoSet" {
@@ -351,8 +311,7 @@ async fn ensure_entity_token_verbose(
 				.map_err(|e| anyhow!("failed to decode account: {e}"))?;
 			let token: Ss58Identifier =
 				Decode::decode(&mut cursor).map_err(|e| anyhow!("failed to decode token: {e}"))?;
-			let display = demo::ss58_string(&token);
-			logs.push(format!("ℹ️ Minted new entity token {display}"));
+			logs.push(format!("\nℹ️ Setting entity nym"));
 			return Ok((token, true, logs));
 		}
 	}
@@ -367,15 +326,8 @@ async fn submit_entity_nym(
 	logs: Option<&mut Vec<String>>,
 ) -> Result<bool> {
 	let call = client.tx().entity_set_entity_nym(prefix).await?;
-	match submit_and_confirm(
-		client,
-		signer,
-		call,
-		&format!("Set entity nym prefix '{prefix}'"),
-		nonce_tracker,
-		logs,
-	)
-	.await
+	match submit_and_confirm(client, signer, call, &format!("Set entity nym'"), nonce_tracker, logs)
+		.await
 	{
 		Ok(_) => Ok(true),
 		Err(err) => {
@@ -517,7 +469,6 @@ async fn submit_and_confirm(
 	nonce_tracker: &mut NonceTracker,
 	logs: Option<&mut Vec<String>>,
 ) -> Result<ExtrinsicEvents<CordConfig>, SubmitError> {
-	// println!("⏳ {description} ...");
 	let mut logger = LogSink::new(logs);
 	let nonce = nonce_tracker
 		.reserve(client)
@@ -564,12 +515,9 @@ async fn submit_and_confirm(
 				return Ok(events);
 			},
 			TxStatus::InFinalizedBlock(in_block) => {
-				// let block_hash = in_block.block_hash();
-				// let block_label = block_label(client, block_hash).await;
 				logger.line(format!("  ↳ 🛡️ finalized {description}"));
 				let events =
 					in_block.wait_for_success().await.map_err(SubmitError::from_subxt_error)?;
-				// println!("  ↳ ✅ {description} finalized in block {block_label}");
 				nonce_tracker.confirm();
 				short_delay(Duration::from_secs(1)).await;
 				return Ok(events);
@@ -705,7 +653,7 @@ fn sanitize_entity_nym(label: &str) -> String {
 
 fn print_transaction_header(created: bool, snapshot: &EntitySnapshot) {
 	println!("\n🌐 Origin Entity Demo\n");
-	println!("⏳  Transactions\n");
+	println!("🔄 State Updates\n");
 
 	if created {
 		println!("ℹ️ Setting entity info");
@@ -730,11 +678,12 @@ fn print_entity_sections(
 	style: ViewStyle,
 	chain_prefix: Ss58AddressFormat,
 ) {
-	println!("\nℹ️ Entity");
+	println!("\n⏺️ Entity Snapshot (latest block)");
+	println!("\nℹ️ Identifiers");
 	print_identifier_block(snapshot, "    ");
-	println!("\n🆔 Info");
+	println!("\n🈁 Info");
 	print_entity_info(snapshot);
-	println!("\n📇 Attributes");
+	println!("\n🔢 Attributes");
 	print_attribute_list(snapshot);
 	entity::print_accounts_cli(accounts, chain_prefix);
 	print_attribute_history(attr_history, style.is_full());
@@ -743,7 +692,7 @@ fn print_entity_sections(
 }
 
 fn print_entity_info(snapshot: &EntitySnapshot) {
-	println!("    • Display : {}", snapshot.display);
+	println!("  ↳ • Display : {}", snapshot.display);
 	println!("    • Legal   : {}", snapshot.legal);
 	println!("    • Web     : {}", snapshot.web);
 	println!("    • Email   : {}", snapshot.email);
@@ -752,11 +701,11 @@ fn print_entity_info(snapshot: &EntitySnapshot) {
 
 fn print_attribute_list(snapshot: &EntitySnapshot) {
 	if snapshot.attributes.is_empty() {
-		println!("    • (no custom attributes)");
+		println!("  ↳ • (no custom attributes)");
 		return;
 	}
 	for (key, value) in &snapshot.attributes {
-		println!("    • {:<10} : {}", key, short_label(value));
+		println!("  ↳ • {:<10} : {}", key, short_label(value));
 	}
 }
 
@@ -777,22 +726,17 @@ fn truncate_label(value: &str, max_len: usize) -> String {
 	}
 }
 
-const MAX_LABEL_LEN: usize = "entity-demo-78abb661@cord.dev".len() + 5;
+const MAX_LABEL_LEN: usize = 32;
 
 fn short_label(value: &str) -> String {
 	if value.len() <= MAX_LABEL_LEN {
 		return value.to_string();
 	}
-	if value.starts_with("0x") && value.len() > 2 {
-		let keep = MAX_LABEL_LEN.saturating_sub(1);
-		let head = keep / 2;
-		let tail = keep - head;
-		let tail_start = value.len().saturating_sub(tail);
-		return format!("{}…{}", &value[..head], &value[tail_start..]);
-	}
-	let take = MAX_LABEL_LEN.saturating_sub(1);
-	let trimmed: String = value.chars().take(take).collect();
-	format!("{trimmed}…")
+	let keep = MAX_LABEL_LEN.saturating_sub(1);
+	let head = keep / 2;
+	let tail = keep - head;
+	let tail_start = value.len().saturating_sub(tail);
+	return format!("{}…{}", &value[..head], &value[tail_start..]);
 }
 
 fn random_public_key_hex() -> String {
@@ -804,9 +748,7 @@ fn random_public_key_hex() -> String {
 
 const TIMELINE_PAGE_SIZE: u32 = 32;
 const TIMELINE_MAX_RETRIES: usize = 6;
-const TIMELINE_RETRY_DELAY: Duration = Duration::from_millis(500);
 const LINKED_ACCOUNTS_RETRIES: usize = 5;
-const LINKED_ACCOUNTS_DELAY: Duration = Duration::from_millis(400);
 
 const ATTRIBUTE_HISTORY_RETRIES: usize = 3;
 
@@ -917,7 +859,6 @@ async fn fetch_linked_accounts(
 			},
 		}
 		attempt += 1;
-		short_delay(LINKED_ACCOUNTS_DELAY).await;
 	}
 }
 
@@ -943,7 +884,6 @@ async fn fetch_full_token_timeline(
 			return Ok(entries);
 		}
 		attempt += 1;
-		short_delay(TIMELINE_RETRY_DELAY).await;
 	}
 }
 
@@ -1016,13 +956,13 @@ fn build_token_activity(entries: &[TokenTimelineEntry]) -> Vec<TimelineRow> {
 }
 
 fn print_combined_timeline(entries: &[TimelineRow], full_view: bool) {
-	println!("\n🕛  Activity (latest first)");
+	println!("\n🔀 Activity (latest first)");
 	if entries.is_empty() {
 		println!("    • (no recorded activity)");
 		return;
 	}
 	println!(
-		"    ↳  {:>8}  {:>8}  {:>6}    {:<30} {:<34}",
+		"  ↳    {:>8}  {:>8}  {:>6}    {:<30} {:<34}",
 		"Version", "Block", "Index", "Action", "Digest"
 	);
 	let total = entries.len();
@@ -1051,10 +991,10 @@ fn print_combined_timeline(entries: &[TimelineRow], full_view: bool) {
 fn print_attribute_history(entries: &[HistoryEntry], full_view: bool) {
 	println!("\n🔁 Rotations (latest first)");
 	if entries.is_empty() {
-		println!("    • (no attribute history)");
+		println!("  ↳ • (no attribute history)");
 		return;
 	}
-	println!("    ↳  {:>8}  {:>6}    {:<18} {:<34}", "Block", "Index", "Key", "Rotated Value");
+	println!("  ↳    {:>8}  {:>6}    {:<18} {:<34}", "Block", "Index", "Key", "Rotated Value");
 	let total = entries.len();
 	let mut shown = 0usize;
 	let iter: Box<dyn Iterator<Item = &HistoryEntry>> = if full_view {
