@@ -29,7 +29,7 @@ use oc::{
 };
 use serde::Serialize;
 use serde_json::json;
-use sp_core::{sr25519 as sp_sr25519, Pair as _};
+use sp_core::{crypto::Ss58AddressFormat, sr25519 as sp_sr25519, Pair as _};
 use sp_runtime::AccountId32 as RuntimeAccount;
 use std::{
 	collections::{BTreeMap, BTreeSet},
@@ -97,6 +97,7 @@ fn style_from_value(value: impl AsRef<str>) -> Option<ViewStyle> {
 async fn main() -> Result<()> {
 	let label = demo::random_label("entity-demo");
 	let client = Client::connect("ws://127.0.0.1:9944", ChainFlavor::Auto).await?;
+	let chain_prefix = client.online().chain_info().ss58_format();
 	let signer = tx::signer::dev_alice();
 	let account_id = signer_account_id(&signer);
 	let mut nonce_tracker = NonceTracker::new(account_id.clone());
@@ -278,7 +279,7 @@ async fn main() -> Result<()> {
 	let combined_timeline = build_token_activity(&token_timeline_entries);
 
 	let sub_accounts = fetch_linked_accounts(&client, &signer, &token_identifier).await?;
-	snapshot.set_active_accounts(&sub_accounts);
+	snapshot.set_active_accounts(&sub_accounts, chain_prefix);
 
 	// snapshot already updated if nym exists or newly set.
 
@@ -304,7 +305,14 @@ async fn main() -> Result<()> {
 		return Ok(());
 	}
 
-	print_entity_sections(&snapshot, &attribute_history, &combined_timeline, &sub_accounts, style);
+	print_entity_sections(
+		&snapshot,
+		&attribute_history,
+		&combined_timeline,
+		&sub_accounts,
+		style,
+		chain_prefix,
+	);
 	Ok(())
 }
 
@@ -720,6 +728,7 @@ fn print_entity_sections(
 	timeline: &[TimelineRow],
 	accounts: &[AccountId32],
 	style: ViewStyle,
+	chain_prefix: Ss58AddressFormat,
 ) {
 	println!("\nℹ️ Entity");
 	print_identifier_block(snapshot, "    ");
@@ -727,7 +736,7 @@ fn print_entity_sections(
 	print_entity_info(snapshot);
 	println!("\n📇 Attributes");
 	print_attribute_list(snapshot);
-	entity::print_accounts_cli(accounts);
+	entity::print_accounts_cli(accounts, chain_prefix);
 	print_attribute_history(attr_history, style.is_full());
 	print_combined_timeline(timeline, style.is_full());
 	println!();
