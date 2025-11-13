@@ -68,13 +68,13 @@ fn parse_args(args: &[String]) -> (ViewStyle, bool) {
 	while let Some(arg) = iter.next() {
 		match arg.as_str() {
 			"--json" => json = true,
-			"--style" => {
+			"--display" => {
 				if let Some(value) = iter.next() {
 					style = style_from_value(value);
 				}
 			},
-			_ if arg.starts_with("--style=") => {
-				let value = arg.trim_start_matches("--style=");
+			_ if arg.starts_with("--diaplay=") => {
+				let value = arg.trim_start_matches("--display=");
 				style = style_from_value(value);
 			},
 			_ => {},
@@ -108,12 +108,11 @@ async fn main() -> Result<()> {
 
 	let args: Vec<String> = std::env::args().collect();
 	let (style, output_json) = parse_args(&args[1..]);
-	let mut transactions = Vec::new();
 	// Track mutated keys (rotation/insert) so we can fetch precise history even if the pallet view is capped.
 	let mut mutated_keys: BTreeSet<Vec<u8>> = BTreeSet::new();
 
 	// println!("🌐 Origin Entity Demo");
-	let (token_identifier, created) =
+	let (token_identifier, created, mut setup_logs) =
 		ensure_entity_token_verbose(&client, &signer, &account_id, &profile, &mut nonce_tracker)
 			.await?;
 	let entity_token = demo::ss58_string(&token_identifier);
@@ -153,21 +152,28 @@ async fn main() -> Result<()> {
 	if let Some(nym) = existing_nym {
 		// println!("ℹ️ Entity nym already set: {nym}");
 		snapshot.set_entity_nym(nym);
-	} else if submit_entity_nym(&client, &signer, &entity_nym_prefix, &mut nonce_tracker).await? {
+	} else if submit_entity_nym(
+		&client,
+		&signer,
+		&entity_nym_prefix,
+		&mut nonce_tracker,
+		if created { Some(&mut setup_logs) } else { None },
+	)
+	.await?
+	{
 		snapshot.set_entity_nym(format!("{entity_nym_prefix}.nym.org.in"));
-		transactions.push(format!("Set entity nym (token {entity_token})"));
 		expected_state_events = expected_state_events.saturating_add(1);
 	}
 	print_transaction_header(created, &snapshot);
+	if created {
+		for line in &setup_logs {
+			println!("{line}");
+		}
+	}
 
 	let email_value = format!("{label}@cord.dev");
 	if created {
-		println!(
-			"  ↳ • entity initialized; demo/public_key attributes were seeded during profile creation"
-		);
-		snapshot.set_email(email_value.clone());
-		snapshot.set_attribute("demo", demo_value.clone());
-		snapshot.set_attribute("public_key", initial_public_key.clone());
+		println!("ℹ️ Setting entity info");
 	} else {
 		match plan_attribute_update(chain_state.get("email"), &email_value) {
 			AttributePlan::Skip => {
@@ -293,7 +299,6 @@ async fn main() -> Result<()> {
 			"snapshot": snapshot,
 			"timeline": combined_timeline,
 			"attributeHistory": attr_json,
-			"transactions": transactions,
 		});
 		println!("{}", serde_json::to_string_pretty(&json)?);
 		return Ok(());
@@ -309,22 +314,27 @@ async fn ensure_entity_token_verbose(
 	account_id: &AccountId32,
 	profile: &serde_json::Value,
 	nonce_tracker: &mut NonceTracker,
-) -> Result<(Ss58Identifier, bool)> {
+) -> Result<(Ss58Identifier, bool, Vec<String>)> {
 	let raw: [u8; 32] = *account_id.as_ref();
 	let runtime_account = RuntimeAccount::from(raw);
 	let request =
 		EntityAccountTokenRequest { auth: fresh_authorization(signer)?, account: runtime_account };
 	if let Some(token) = client.query().entity().account_token(&request).await? {
-		// let display = demo::ss58_string(&token);
-		// println!("ℹ️ Entity profile already exists (token {display})");
-		return Ok((token, false));
+		return Ok((token, false, Vec::new()));
 	}
 
+	let mut logs = Vec::new();
 	let call = client.tx().entity_set_info_json(profile.clone()).await?;
-	let events =
-		submit_and_confirm(client, signer, call, "Set entity profile for Alice", nonce_tracker)
-			.await
-			.map_err(|e| anyhow!(e))?;
+	let events = submit_and_confirm(
+		client,
+		signer,
+		call,
+		"Set entity profile for Alice",
+		nonce_tracker,
+		Some(&mut logs),
+	)
+	.await
+	.map_err(|e| anyhow!(e))?;
 	for ev in events.iter() {
 		let ev = ev?;
 		if ev.pallet_name() == "Entity" && ev.variant_name() == "EntityInfoSet" {
@@ -334,8 +344,8 @@ async fn ensure_entity_token_verbose(
 			let token: Ss58Identifier =
 				Decode::decode(&mut cursor).map_err(|e| anyhow!("failed to decode token: {e}"))?;
 			let display = demo::ss58_string(&token);
-			println!("ℹ️ Minted new entity token {display}");
-			return Ok((token, true));
+			logs.push(format!("ℹ️ Minted new entity token {display}"));
+			return Ok((token, true, logs));
 		}
 	}
 	Err(anyhow!("EntityInfoSet event not found"))
@@ -346,6 +356,7 @@ async fn submit_entity_nym(
 	signer: &tx::signer::sr25519::Keypair,
 	prefix: &str,
 	nonce_tracker: &mut NonceTracker,
+	logs: Option<&mut Vec<String>>,
 ) -> Result<bool> {
 	let call = client.tx().entity_set_entity_nym(prefix).await?;
 	match submit_and_confirm(
@@ -354,6 +365,7 @@ async fn submit_entity_nym(
 		call,
 		&format!("Set entity nym prefix '{prefix}'"),
 		nonce_tracker,
+		logs,
 	)
 	.await
 	{
@@ -429,8 +441,15 @@ async fn submit_attribute_rotation(
 		.entity_rotate_attribute(entry)
 		.await
 		.map_err(SubmitError::from_origin_error)?;
-	submit_and_confirm(client, signer, call, &format!("Rotated attribute '{key}'"), nonce_tracker)
-		.await?;
+	submit_and_confirm(
+		client,
+		signer,
+		call,
+		&format!("Rotated attribute '{key}'"),
+		nonce_tracker,
+		None,
+	)
+	.await?;
 	Ok(())
 }
 
@@ -451,9 +470,35 @@ async fn submit_attribute_add(
 		.entity_add_attributes(vec![entry])
 		.await
 		.map_err(SubmitError::from_origin_error)?;
-	submit_and_confirm(client, signer, call, &format!("Added attribute '{key}'"), nonce_tracker)
-		.await?;
+	submit_and_confirm(
+		client,
+		signer,
+		call,
+		&format!("Added attribute '{key}'"),
+		nonce_tracker,
+		None,
+	)
+	.await?;
 	Ok(())
+}
+
+struct LogSink<'a> {
+	buffer: Option<&'a mut Vec<String>>,
+}
+
+impl<'a> LogSink<'a> {
+	fn new(buffer: Option<&'a mut Vec<String>>) -> Self {
+		Self { buffer }
+	}
+
+	fn line(&mut self, msg: impl Into<String>) {
+		let text = msg.into();
+		if let Some(buf) = self.buffer.as_deref_mut() {
+			buf.push(text);
+		} else {
+			println!("{}", text);
+		}
+	}
 }
 
 async fn submit_and_confirm(
@@ -462,8 +507,10 @@ async fn submit_and_confirm(
 	call: subxt::tx::DynamicPayload,
 	description: &str,
 	nonce_tracker: &mut NonceTracker,
+	logs: Option<&mut Vec<String>>,
 ) -> Result<ExtrinsicEvents<CordConfig>, SubmitError> {
 	// println!("⏳ {description} ...");
+	let mut logger = LogSink::new(logs);
 	let nonce = nonce_tracker
 		.reserve(client)
 		.await
@@ -492,18 +539,18 @@ async fn submit_and_confirm(
 			},
 		};
 		match status {
-			TxStatus::Validated => println!("  ↳ 🟡 validated and queued"),
-			TxStatus::Broadcasted => println!("  ↳ 📡 broadcast to peers"),
+			TxStatus::Validated => logger.line("  ↳ 🟡 validated and queued"),
+			TxStatus::Broadcasted => logger.line("  ↳ 📡 broadcast to peers"),
 			TxStatus::NoLongerInBestBlock => {
-				println!("  ↳ ⚠️ retracted from best block, waiting for re-inclusion")
+				logger.line("  ↳ ⚠️ retracted from best block, waiting for re-inclusion")
 			},
 			TxStatus::InBestBlock(in_block) => {
 				let block_hash = in_block.block_hash();
 				let block_label = block_label(client, block_hash).await;
-				println!("  ↳ 📦 included in block {block_label}");
+				logger.line(format!("  ↳ 📦 included in block {block_label}"));
 				let events =
 					in_block.wait_for_success().await.map_err(SubmitError::from_subxt_error)?;
-				println!("  ↳ ✅ {description}");
+				logger.line(format!("  ↳ ✅ {description}"));
 				nonce_tracker.confirm();
 				short_delay(Duration::from_secs(1)).await;
 				return Ok(events);
@@ -511,7 +558,7 @@ async fn submit_and_confirm(
 			TxStatus::InFinalizedBlock(in_block) => {
 				// let block_hash = in_block.block_hash();
 				// let block_label = block_label(client, block_hash).await;
-				println!("  ↳ 🛡️ finalized {description}");
+				logger.line(format!("  ↳ 🛡️ finalized {description}"));
 				let events =
 					in_block.wait_for_success().await.map_err(SubmitError::from_subxt_error)?;
 				// println!("  ↳ ✅ {description} finalized in block {block_label}");
@@ -650,7 +697,7 @@ fn sanitize_entity_nym(label: &str) -> String {
 
 fn print_transaction_header(created: bool, snapshot: &EntitySnapshot) {
 	println!("\n🌐 Origin Entity Demo\n");
-	println!("\n⏳  Transactions\n");
+	println!("⏳  Transactions\n");
 
 	if created {
 		println!("ℹ️ Setting entity info");
