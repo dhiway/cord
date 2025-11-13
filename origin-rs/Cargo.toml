@@ -1,8 +1,8 @@
 [package]
-name = "cord-subxt-sdk"
-version = "0.1.0"
+name = "origin-rs"
+version = "0.9.9"
 edition = "2021"
-description = "Origin SDK prototype built on Subxt"
+description = "Origin SDK"
 license = "GPL-3.0-or-later"
 
 [lib]
@@ -32,7 +32,6 @@ sp-runtime = { workspace = true, features = ["std"] }
 scale-decode = { version = "0.16", default-features = false, features = ["derive"] }
 scale-type-resolver = { version = "0.2" }
 subxt = { version = "0.44", default-features = true, features = ["jsonrpsee", "native", "reconnecting-rpc-client"] }
-subxt-signer = { version = "0.44", default-features = false, features = ["sr25519", "std", "subxt"] }
 thiserror = "1"
 tokio = { version = "1.40", features = ["macros", "rt-multi-thread"] }
 

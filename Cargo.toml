@@ -38,7 +38,7 @@ members = [
 	"runtime/common",
 	"runtime/constants",
 	"test-utils/cli",
-	"cord-subxt-sdk",
+	"origin-rs",
 ]
 default-members = ["node/cli"]
 # default-members = ["node/cli", "origin/relay"]

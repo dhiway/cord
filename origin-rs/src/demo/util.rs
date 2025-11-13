@@ -1,7 +1,7 @@
 use crate::{
 	error::{Error, Result},
 	params::config::CordConfig,
-	query::auth::{AuthorizationBuilder, SignatureScheme},
+	query::auth::AuthorizationBuilder,
 	tx::{self, MetaTxOptions, SubmitError, SubmitStage, TxSubmitter},
 	utils, Client,
 };
@@ -56,11 +56,11 @@ pub enum TxFlow {
 
 pub enum TxExecutor<'a, 'b> {
 	Direct {
-		submitter: &'b mut TxSubmitter<'a, tx::signer::sr25519::Keypair>,
+		submitter: &'b mut TxSubmitter<'a, tx::signer::Keypair>,
 	},
 	Relayed {
-		relayer: &'b mut TxSubmitter<'a, tx::signer::sr25519::Keypair>,
-		meta_signer: &'a tx::signer::sr25519::Keypair,
+		relayer: &'b mut TxSubmitter<'a, tx::signer::Keypair>,
+		meta_signer: &'a tx::signer::Keypair,
 	},
 }
 
@@ -129,8 +129,8 @@ fn block_display(label: Option<String>, hash: &H256) -> String {
 	label.unwrap_or_else(|| format!("{hash:?}"))
 }
 
-pub fn signer_account_id(signer: &tx::signer::sr25519::Keypair) -> AccountId32 {
-	<tx::signer::sr25519::Keypair as subxt::tx::Signer<CordConfig>>::account_id(signer)
+pub fn signer_account_id(signer: &tx::signer::Keypair) -> AccountId32 {
+	signer.account_id()
 }
 
 pub fn parse_identifier(value: &str) -> Result<Ss58Identifier> {
@@ -138,8 +138,8 @@ pub fn parse_identifier(value: &str) -> Result<Ss58Identifier> {
 		.map_err(|_| Error::Params(format!("invalid identifier: {value}")))
 }
 
-pub fn fresh_authorization(signer: &tx::signer::sr25519::Keypair) -> Result<AuthorizationRequest> {
-	AuthorizationBuilder::from_signer(signer, SignatureScheme::Sr25519, None)
+pub fn fresh_authorization(signer: &tx::signer::Keypair) -> Result<AuthorizationRequest> {
+	AuthorizationBuilder::from_signer(signer, None)
 		.map_err(|e| Error::Signer(e.to_string()))?
 		.as_request()
 		.map_err(|e| Error::Signer(e.to_string()))
@@ -147,7 +147,7 @@ pub fn fresh_authorization(signer: &tx::signer::sr25519::Keypair) -> Result<Auth
 
 pub async fn ensure_entity_token_verbose(
 	client: &Client,
-	signer: &tx::signer::sr25519::Keypair,
+	signer: &tx::signer::Keypair,
 	account_id: &AccountId32,
 	profile: &JsonValue,
 	tx_executor: &mut TxExecutor<'_, '_>,
