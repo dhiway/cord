@@ -8,6 +8,7 @@
 pub mod api;
 pub mod client;
 pub mod demo;
+pub mod entity;
 pub mod error;
 pub mod flavors;
 pub mod params;
@@ -17,6 +18,7 @@ pub mod scale;
 pub mod state;
 pub mod tx;
 pub mod types;
+pub mod utils;
 
 pub use client::Client;
 pub use error::Error;

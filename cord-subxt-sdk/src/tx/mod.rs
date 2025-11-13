@@ -4,6 +4,9 @@ pub mod nonce;
 pub mod packet;
 pub mod register;
 pub mod signer;
+pub mod submitter;
+
+pub use submitter::{SubmitError, SubmitStage, TxSubmitter};
 
 use crate::{
 	client::Client,
