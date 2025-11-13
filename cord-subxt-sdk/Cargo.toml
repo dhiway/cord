@@ -25,6 +25,7 @@ log = "0.4"
 scale-info = { workspace = true, features = ["std"] }
 scale-value = { version = "0.18", features = ["serde", "__std"] }
 serde = { workspace = true, features = ["derive", "std"] }
+env_logger = "0.11"
 serde_json = { workspace = true, features = ["std"] }
 sp-core = { workspace = true, features = ["std"] }
 sp-runtime = { workspace = true, features = ["std"] }

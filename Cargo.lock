@@ -2700,6 +2700,7 @@ dependencies = [
  "base64 0.22.1",
  "bs58",
  "cord-primitives",
+ "env_logger",
  "futures",
  "getrandom 0.2.16",
  "hex",

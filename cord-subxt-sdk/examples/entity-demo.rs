@@ -16,15 +16,16 @@ use oc::{
 	entity::{self as sdk_entity, AttributePlan, EntityChainState, TimelineRow},
 	params::config::CordConfig,
 	query::auth::{AuthorizationBuilder, SignatureScheme},
-	tx::{self, SubmitError, SubmitStage, TxSubmitter},
+	tx::{self, MetaTxOptions, SubmitError, SubmitStage, TxSubmitter},
 	utils, ChainFlavor, Client, Error as SdkError,
 };
 use serde_json::json;
 use sp_core::crypto::Ss58AddressFormat;
 use sp_runtime::AccountId32 as RuntimeAccount;
-use std::{collections::BTreeSet, time::Duration};
+use std::{sync::Once, time::Duration};
 use subxt::{
 	blocks::ExtrinsicEvents,
+	tx::DynamicPayload,
 	utils::{AccountId32, H256},
 };
 
@@ -53,32 +54,86 @@ struct CliOptions {
 	view: ViewStyle,
 	output_json: bool,
 	node: Option<String>,
+	mode: RunMode,
+	flow: TxFlow,
+	token: Option<String>,
 }
 
-fn parse_args(args: &[String]) -> CliOptions {
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RunMode {
+	Transaction,
+	View,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TxFlow {
+	Direct,
+	Relayed,
+}
+
+enum TxExecutor<'a, 'b> {
+	Direct {
+		submitter: &'b mut TxSubmitter<'a, tx::signer::sr25519::Keypair>,
+	},
+	Relayed {
+		relayer: &'b mut TxSubmitter<'a, tx::signer::sr25519::Keypair>,
+		meta_signer: &'a tx::signer::sr25519::Keypair,
+	},
+}
+
+impl<'a, 'b> TxExecutor<'a, 'b> {
+	async fn submit(
+		&mut self,
+		client: &Client,
+		call: DynamicPayload,
+		description: &str,
+		sink: &mut LogSink<'_>,
+	) -> Result<ExtrinsicEvents<CordConfig>, SubmitError> {
+		match self {
+			TxExecutor::Direct { submitter } => {
+				submit_with_logging(submitter, call, description, sink).await
+			},
+			TxExecutor::Relayed { relayer, meta_signer } => {
+				let payload = client
+					.tx()
+					.meta_dispatch(call, meta_signer, MetaTxOptions::default())
+					.await
+					.map_err(SubmitError::from_origin_error)?;
+				submit_with_logging(relayer, payload, &format!("Meta {description}"), sink).await
+			},
+		}
+	}
+}
+
+fn parse_args(args: &[String]) -> Result<CliOptions> {
 	let mut style: Option<ViewStyle> = None;
 	let mut json = false;
 	let mut node: Option<String> = None;
+	let mut mode = RunMode::Transaction;
+	let mut flow = TxFlow::Direct;
+	let mut token: Option<String> = None;
 	let mut iter = args.iter().peekable();
+	if args.iter().any(|arg| matches!(arg.as_str(), "--help" | "-h")) {
+		print_usage();
+		std::process::exit(0);
+	}
+
 	while let Some(arg) = iter.next() {
 		match arg.as_str() {
 			"--json" | "-j" => json = true,
 			"--display" | "-d" => {
-				if let Some(value) = iter.next() {
-					style = style_from_value(value);
-				}
+				let value = require_value(&mut iter, arg.as_str())?;
+				style = Some(parse_display_style(&value)?);
 			},
 			_ if arg.starts_with("--display=") => {
 				let value = arg.trim_start_matches("--display=");
-				style = style_from_value(value);
+				style = Some(parse_display_style(value)?);
 			},
 			_ if arg.starts_with("-d=") => {
-				style = style_from_value(arg.trim_start_matches("-d="));
+				style = Some(parse_display_style(arg.trim_start_matches("-d="))?);
 			},
 			"--node" | "-n" => {
-				if let Some(value) = iter.next() {
-					node = Some(value.clone());
-				}
+				node = Some(require_value(&mut iter, arg.as_str())?);
 			},
 			_ if arg.starts_with("--node=") => {
 				node = arg.splitn(2, '=').nth(1).map(|v| v.to_string());
@@ -86,49 +141,166 @@ fn parse_args(args: &[String]) -> CliOptions {
 			_ if arg.starts_with("-n=") => {
 				node = arg.splitn(2, '=').nth(1).map(|v| v.to_string());
 			},
-			_ => {},
+			"--mode" | "-m" => {
+				let value = require_value(&mut iter, arg.as_str())?;
+				mode = mode_from_value(&value)
+					.ok_or_else(|| anyhow!("invalid --mode value: {value} (expected tx|view)"))?;
+			},
+			_ if arg.starts_with("--mode=") => {
+				let value = arg.trim_start_matches("--mode=");
+				mode = mode_from_value(value)
+					.ok_or_else(|| anyhow!("invalid --mode value: {value} (expected tx|view)"))?;
+			},
+			"--flow" | "-f" => {
+				let value = require_value(&mut iter, arg.as_str())?;
+				flow = flow_from_value(&value).ok_or_else(|| {
+					anyhow!("invalid --flow value: {value} (expected direct|relay)")
+				})?;
+			},
+			_ if arg.starts_with("--flow=") => {
+				let value = arg.trim_start_matches("--flow=");
+				flow = flow_from_value(value).ok_or_else(|| {
+					anyhow!("invalid --flow value: {value} (expected direct|relay)")
+				})?;
+			},
+			"--token" | "-t" => {
+				token = Some(require_value(&mut iter, arg.as_str())?);
+			},
+			_ if arg.starts_with("--token=") => {
+				token = arg.splitn(2, '=').nth(1).map(|v| v.to_string());
+			},
+			_ if arg == "--" => break,
+			_ if arg.starts_with('-') => {
+				return Err(anyhow!(
+					"unrecognized option '{arg}'. Use --help to view supported flags"
+				));
+			},
+			_ => {
+				return Err(anyhow!(
+					"unexpected argument '{arg}'. Use --help to view supported flags"
+				));
+			},
 		}
 	}
 	let resolved_style =
 		style.unwrap_or_else(|| if json { ViewStyle::Full } else { ViewStyle::Compact });
-	CliOptions { view: resolved_style, output_json: json, node }
+	if mode == RunMode::View && token.is_none() {
+		return Err(anyhow!("--token <identifier> is required in view mode"));
+	}
+	Ok(CliOptions { view: resolved_style, output_json: json, node, mode, flow, token })
+}
+
+fn require_value<'a>(
+	iter: &mut std::iter::Peekable<std::slice::Iter<'a, String>>,
+	flag: &str,
+) -> Result<String> {
+	iter.next()
+		.map(|value| value.clone())
+		.ok_or_else(|| anyhow!("{flag} expects a value"))
+}
+
+fn parse_display_style(value: &str) -> Result<ViewStyle> {
+	style_from_value(value)
+		.ok_or_else(|| anyhow!("invalid display style '{value}' (expected less|more/full)"))
+}
+
+fn print_usage() {
+	println!(
+		r#"Usage: entity-demo [OPTIONS]
+
+Transaction mode (default):
+  entity-demo
+  entity-demo --flow relay
+
+View mode (read-only):
+  entity-demo --mode view --token <identifier>
+
+Options:
+  -m, --mode <tx|view>         Run mode (default: tx)
+  -f, --flow <direct|relay>    Transaction flow when in transaction mode (default: direct)
+  -t, --token <identifier>     Target identifier for view mode
+  -d, --display <less|more>    Display style (default: less unless --json)
+  -j, --json                   Emit JSON snapshot instead of CLI tables
+  -n, --node <url>             WebSocket endpoint (default: ws://127.0.0.1:9944)
+  -h, --help                   Show this help message
+"#
+	);
 }
 
 fn style_from_value(value: impl AsRef<str>) -> Option<ViewStyle> {
-	match value.as_ref() {
-		"full" | "Full" => Some(ViewStyle::Full),
-		"compact" | "Compact" => Some(ViewStyle::Compact),
+	match value.as_ref().to_ascii_lowercase().as_str() {
+		"full" | "more" => Some(ViewStyle::Full),
+		"compact" | "less" => Some(ViewStyle::Compact),
+		_ => None,
+	}
+}
+
+fn mode_from_value(value: impl AsRef<str>) -> Option<RunMode> {
+	match value.as_ref().to_ascii_lowercase().as_str() {
+		"tx" | "transaction" => Some(RunMode::Transaction),
+		"view" => Some(RunMode::View),
+		_ => None,
+	}
+}
+
+fn flow_from_value(value: impl AsRef<str>) -> Option<TxFlow> {
+	match value.as_ref().to_ascii_lowercase().as_str() {
+		"direct" | "signer" => Some(TxFlow::Direct),
+		"relayed" | "relay" | "meta" => Some(TxFlow::Relayed),
 		_ => None,
 	}
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-	let label = demo::random_label("entity-demo");
+	init_logging();
 	let args: Vec<String> = std::env::args().collect();
-	let cli = parse_args(&args[1..]);
+	let cli = parse_args(&args[1..])?;
 	let client = utils::connect_or_default(cli.node.as_deref(), ChainFlavor::Auto).await?;
 	let chain_prefix = client.chain_prefix().await;
+	match cli.mode {
+		RunMode::Transaction => run_transaction_flow(&cli, &client, chain_prefix).await,
+		RunMode::View => run_view_flow(&cli, &client, chain_prefix).await,
+	}
+}
+
+async fn run_transaction_flow(
+	cli: &CliOptions,
+	client: &Client,
+	chain_prefix: Ss58AddressFormat,
+) -> Result<()> {
+	let label = demo::random_label("entity-demo");
 	let signer = tx::signer::dev_alice();
 	let account_id = signer_account_id(&signer);
-	let mut submitter = TxSubmitter::new(&client, &signer);
 	let demo_value = format!("Demo attribute for {label}");
 	let initial_public_key = utils::random_public_key_hex();
 	let mut profile = demo::entity_profile(&label);
 	seed_profile_attribute(&mut profile, "demo", &demo_value);
 	seed_profile_attribute(&mut profile, "public_key", &initial_public_key);
-	let style = cli.view;
-	let output_json = cli.output_json;
-	let mut mutated_keys: BTreeSet<Vec<u8>> = BTreeSet::new();
+
+	let mut direct_submitter = TxSubmitter::new(client, &signer);
+	let mut _relayer_signer =
+		if cli.flow == TxFlow::Relayed { Some(tx::signer::dev_bob()) } else { None };
+	let mut relayer_submitter =
+		_relayer_signer.as_ref().map(|relayer| TxSubmitter::new(client, relayer));
+	let mut tx_executor = match cli.flow {
+		TxFlow::Direct => TxExecutor::Direct { submitter: &mut direct_submitter },
+		TxFlow::Relayed => TxExecutor::Relayed {
+			relayer: relayer_submitter
+				.as_mut()
+				.expect("relayer submitter should exist in relayed mode"),
+			meta_signer: &signer,
+		},
+	};
 
 	let (token_identifier, created, mut setup_logs) =
-		ensure_entity_token_verbose(&client, &signer, &account_id, &profile, &mut submitter)
+		ensure_entity_token_verbose(client, &signer, &account_id, &profile, &mut tx_executor)
 			.await?;
 	let entity_token = demo::ss58_string(&token_identifier);
 	let mut snapshot = EntitySnapshot::from_profile(&profile, &entity_token);
 	let mut state_auth = || fresh_authorization(&signer);
 	let baseline_state_version: u32 =
-		match sdk_entity::fetch_state_version(&client, &token_identifier, &mut state_auth).await {
+		match sdk_entity::fetch_state_version(client, &token_identifier, &mut state_auth).await {
 			Ok(value) => value,
 			Err(err) => {
 				println!("⚠️ unable to fetch token state version ({}); assuming 0", err);
@@ -140,7 +312,7 @@ async fn main() -> Result<()> {
 		EntityChainState::from_profile(&profile)
 	} else {
 		let mut auth_builder = || fresh_authorization(&signer);
-		match sdk_entity::fetch_entity_chain_state(&client, &token_identifier, &mut auth_builder)
+		match sdk_entity::fetch_entity_chain_state(client, &token_identifier, &mut auth_builder)
 			.await
 		{
 			Ok(state) => state,
@@ -161,14 +333,10 @@ async fn main() -> Result<()> {
 		snapshot.set_entity_nym(nym);
 	} else {
 		let mut sink = LogSink::new(if created { Some(&mut setup_logs) } else { None });
-		if sdk_entity::submit_entity_nym(&mut submitter, &entity_nym_prefix, |stage| {
-			sink.stage(stage)
-		})
-		.await?
-		{
-			snapshot.set_entity_nym(format!("{entity_nym_prefix}.nym.org.in"));
-			expected_state_events = expected_state_events.saturating_add(1);
-		}
+		let call = client.tx().entity_set_entity_nym(&entity_nym_prefix).await?;
+		tx_executor.submit(client, call, "Set entity nym", &mut sink).await?;
+		snapshot.set_entity_nym(format!("{entity_nym_prefix}.nym.org.in"));
+		expected_state_events = expected_state_events.saturating_add(1);
 	}
 	print_transaction_header(created, &snapshot);
 	if created {
@@ -188,10 +356,9 @@ async fn main() -> Result<()> {
 				snapshot.set_email(email_value.clone());
 			},
 			plan @ (AttributePlan::Add | AttributePlan::Rotate) => {
-				apply_attribute_plan(&client, &mut submitter, plan, "email", email_value.clone())
+				apply_attribute_plan(client, &mut tx_executor, plan, "email", email_value.clone())
 					.await?;
 				snapshot.set_email(email_value.clone());
-				mutated_keys.insert(b"email".to_vec());
 				expected_state_events = expected_state_events.saturating_add(1);
 			},
 		}
@@ -202,10 +369,9 @@ async fn main() -> Result<()> {
 				snapshot.set_attribute("demo", demo_value.clone());
 			},
 			plan @ (AttributePlan::Add | AttributePlan::Rotate) => {
-				apply_attribute_plan(&client, &mut submitter, plan, "demo", demo_value.clone())
+				apply_attribute_plan(client, &mut tx_executor, plan, "demo", demo_value.clone())
 					.await?;
 				snapshot.set_attribute("demo", demo_value.clone());
-				mutated_keys.insert(b"demo".to_vec());
 				expected_state_events = expected_state_events.saturating_add(1);
 			},
 		}
@@ -219,52 +385,114 @@ async fn main() -> Result<()> {
 			},
 			plan @ (AttributePlan::Add | AttributePlan::Rotate) => {
 				apply_attribute_plan(
-					&client,
-					&mut submitter,
+					client,
+					&mut tx_executor,
 					plan,
 					"public_key",
 					rotation_public_key.clone(),
 				)
 				.await?;
 				snapshot.set_attribute("public_key", rotation_public_key.clone());
-				mutated_keys.insert(b"public_key".to_vec());
 				expected_state_events = expected_state_events.saturating_add(1);
 			},
 		}
 	}
 
 	utils::short_delay(Duration::from_secs(6)).await;
-
 	let target_version = baseline_state_version.saturating_add(expected_state_events);
-	let mut timeline_auth = || fresh_authorization(&signer);
-	let token_timeline_entries = sdk_entity::fetch_full_token_timeline(
-		&client,
+	render_snapshot(
+		client,
+		&signer,
 		&token_identifier,
+		&mut snapshot,
+		cli.view,
+		cli.output_json,
+		chain_prefix,
 		target_version,
-		&mut timeline_auth,
+		false,
 	)
-	.await?;
-	let combined_timeline = sdk_entity::build_token_activity(&token_timeline_entries);
+	.await
+}
 
-	let schema_keys: BTreeSet<Vec<u8>> =
-		snapshot.attributes.keys().map(|k| k.as_bytes().to_vec()).collect();
-	let mut history_auth = || fresh_authorization(&signer);
-	let attribute_history = sdk_entity::collect_attribute_history(
-		&client,
+async fn run_view_flow(
+	cli: &CliOptions,
+	client: &Client,
+	chain_prefix: Ss58AddressFormat,
+) -> Result<()> {
+	let token_str = cli
+		.token
+		.as_deref()
+		.ok_or_else(|| anyhow!("--token is required in view mode"))?;
+	let token_identifier = parse_identifier(token_str)?;
+	let signer = tx::signer::dev_alice();
+
+	let details_auth = || fresh_authorization(&signer);
+	let auth = details_auth()?;
+	let entity_info = client
+		.query()
+		.entity()
+		.details(&auth, &token_identifier)
+		.await?
+		.ok_or_else(|| anyhow!("no entity info found for token {}", token_str))?;
+	let chain_state = EntityChainState::from_record(&entity_info);
+	let mut snapshot = EntitySnapshot::from_chain_state(&chain_state, token_str);
+
+	let nym_req =
+		EntityNymRequest { auth: fresh_authorization(&signer)?, token: token_identifier.clone() };
+	if let Some(nym) = client.query().entity().entity_nym(&nym_req).await? {
+		snapshot.set_entity_nym(nym);
+	}
+
+	render_snapshot(
+		client,
+		&signer,
 		&token_identifier,
-		&mutated_keys,
-		&schema_keys,
-		&mut history_auth,
+		&mut snapshot,
+		cli.view,
+		cli.output_json,
+		chain_prefix,
+		0,
+		true,
 	)
-	.await?;
+	.await
+}
+
+async fn render_snapshot(
+	client: &Client,
+	signer: &tx::signer::sr25519::Keypair,
+	token_identifier: &Ss58Identifier,
+	snapshot: &mut EntitySnapshot,
+	style: ViewStyle,
+	output_json: bool,
+	chain_prefix: Ss58AddressFormat,
+	min_expected: u32,
+	include_history: bool,
+) -> Result<()> {
+	let mut timeline = Vec::new();
+	let mut history = Vec::new();
+
+	if include_history {
+		let mut timeline_auth = || fresh_authorization(&signer);
+		timeline = sdk_entity::fetch_full_token_timeline(
+			client,
+			token_identifier,
+			min_expected,
+			&mut timeline_auth,
+		)
+		.await?;
+		let mut history_auth = || fresh_authorization(&signer);
+		history =
+			sdk_entity::collect_attribute_history(client, token_identifier, &mut history_auth)
+				.await?;
+	}
 
 	let mut links_auth = || fresh_authorization(&signer);
 	let sub_accounts =
-		sdk_entity::fetch_linked_accounts(&client, &token_identifier, &mut links_auth).await?;
+		sdk_entity::fetch_linked_accounts(client, token_identifier, &mut links_auth).await?;
 	snapshot.set_active_accounts(&sub_accounts, chain_prefix);
 
 	if output_json {
-		let attr_json: Vec<_> = attribute_history
+		let attr_json: Vec<_> = history
 			.iter()
 			.map(|entry| {
 				json!({
@@ -278,22 +506,38 @@ async fn main() -> Result<()> {
 			.collect();
 		let json = json!({
 			"snapshot": snapshot,
-			"timeline": combined_timeline,
+			"timeline": sdk_entity::build_token_activity(&timeline),
 			"attributeHistory": attr_json,
 		});
 		println!("{}", serde_json::to_string_pretty(&json)?);
-		return Ok(());
+	} else if include_history {
+		print_entity_sections(
+			snapshot,
+			&history,
+			&sdk_entity::build_token_activity(&timeline),
+			&sub_accounts,
+			style,
+			chain_prefix,
+		);
+	} else {
+		print_entity_summary(snapshot, &sub_accounts, chain_prefix);
 	}
-
-	print_entity_sections(
-		&snapshot,
-		&attribute_history,
-		&combined_timeline,
-		&sub_accounts,
-		style,
-		chain_prefix,
-	);
 	Ok(())
+}
+
+static LOG_INIT: Once = Once::new();
+
+fn init_logging() {
+	LOG_INIT.call_once(|| {
+		let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+			.format_timestamp_secs()
+			.try_init();
+	});
+}
+
+fn parse_identifier(value: &str) -> Result<Ss58Identifier> {
+	Ss58Identifier::try_from(value.to_string())
+		.map_err(|_| anyhow!("invalid identifier: {}", value))
 }
 
 async fn ensure_entity_token_verbose(
@@ -301,7 +545,7 @@ async fn ensure_entity_token_verbose(
 	signer: &tx::signer::sr25519::Keypair,
 	account_id: &AccountId32,
 	profile: &serde_json::Value,
-	submitter: &mut TxSubmitter<'_, tx::signer::sr25519::Keypair>,
+	tx_executor: &mut TxExecutor<'_, '_>,
 ) -> Result<(Ss58Identifier, bool, Vec<String>)> {
 	let raw: [u8; 32] = *account_id.as_ref();
 	let runtime_account = RuntimeAccount::from(raw);
@@ -314,7 +558,8 @@ async fn ensure_entity_token_verbose(
 	let mut logs = Vec::new();
 	let call = client.tx().entity_set_info_json(profile.clone()).await?;
 	let mut sink = LogSink::new(Some(&mut logs));
-	let events = submit_with_logging(submitter, call, "Set entity info", &mut sink)
+	let events = tx_executor
+		.submit(client, call, "Set entity info", &mut sink)
 		.await
 		.map_err(|e| anyhow!(e))?;
 	for ev in events.iter() {
@@ -334,7 +579,7 @@ async fn ensure_entity_token_verbose(
 
 async fn apply_attribute_plan(
 	client: &Client,
-	submitter: &mut TxSubmitter<'_, tx::signer::sr25519::Keypair>,
+	tx_executor: &mut TxExecutor<'_, '_>,
 	plan: AttributePlan,
 	key: &str,
 	value: String,
@@ -350,7 +595,8 @@ async fn apply_attribute_plan(
 				.await
 				.map_err(SubmitError::from_origin_error)?;
 			let mut sink = LogSink::new(None);
-			submit_with_logging(submitter, call, &format!("Add attribute '{key}'"), &mut sink)
+			tx_executor
+				.submit(client, call, &format!("Add attribute '{key}'"), &mut sink)
 				.await?;
 		},
 		AttributePlan::Rotate => {
@@ -362,7 +608,8 @@ async fn apply_attribute_plan(
 				.await
 				.map_err(SubmitError::from_origin_error)?;
 			let mut sink = LogSink::new(None);
-			submit_with_logging(submitter, call, &format!("Rotate attribute '{key}'"), &mut sink)
+			tx_executor
+				.submit(client, call, &format!("Rotate attribute '{key}'"), &mut sink)
 				.await?;
 		},
 	}
@@ -477,6 +724,26 @@ fn print_entity_sections(
 	style: ViewStyle,
 	chain_prefix: Ss58AddressFormat,
 ) {
+	print_entity_core(snapshot, accounts, chain_prefix);
+	print_attribute_history(attr_history, style.is_full());
+	print_combined_timeline(timeline, style.is_full());
+	println!();
+}
+
+fn print_entity_summary(
+	snapshot: &EntitySnapshot,
+	accounts: &[AccountId32],
+	chain_prefix: Ss58AddressFormat,
+) {
+	print_entity_core(snapshot, accounts, chain_prefix);
+	println!();
+}
+
+fn print_entity_core(
+	snapshot: &EntitySnapshot,
+	accounts: &[AccountId32],
+	chain_prefix: Ss58AddressFormat,
+) {
 	println!("\n⏺️ Entity Snapshot (latest block)");
 	println!("\nℹ️ Identifiers");
 	print_identifier_block(snapshot, "    ");
@@ -485,9 +752,6 @@ fn print_entity_sections(
 	println!("\n🔢 Attributes");
 	print_attribute_list(snapshot);
 	entity::print_accounts_cli(accounts, chain_prefix);
-	print_attribute_history(attr_history, style.is_full());
-	print_combined_timeline(timeline, style.is_full());
-	println!();
 }
 
 fn print_entity_info(snapshot: &EntitySnapshot) {
