@@ -22,7 +22,7 @@ use cord_primitives::{
 };
 use hex;
 use serde::Serialize;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use subxt::utils::AccountId32;
 
 use crate::types::token::StateEventRecord;
@@ -186,6 +186,7 @@ where
 			}
 		}
 		combined.extend(extras.into_iter());
+		dedup_history_entries(&mut combined);
 		combined
 			.sort_by(|a, b| (b.block.height, b.block.index).cmp(&(a.block.height, a.block.index)));
 		let complete = target_hex.is_empty()
@@ -357,6 +358,14 @@ where
 
 fn base64_element(bytes: &[u8]) -> ElementJson {
 	ElementJson::RawBase64(BASE64.encode(bytes))
+}
+
+fn dedup_history_entries(entries: &mut Vec<HistoryEntry>) {
+	let mut seen = HashSet::new();
+	entries.retain(|entry| {
+		let key = (entry.block.height, entry.block.index, entry.key_hex.clone());
+		seen.insert(key)
+	});
 }
 
 fn attribute_label(attr: &AttributeValueView) -> String {

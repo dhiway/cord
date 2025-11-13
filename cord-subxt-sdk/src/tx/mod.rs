@@ -1,11 +1,13 @@
 pub mod dynamic;
 pub mod entity;
+pub mod meta;
 pub mod nonce;
 pub mod packet;
 pub mod register;
 pub mod signer;
 pub mod submitter;
 
+pub use meta::{MetaEra, MetaNonce, MetaSigner, MetaTxOptions, MetadataMode};
 pub use submitter::{SubmitError, SubmitStage, TxSubmitter};
 
 use crate::{
@@ -16,7 +18,7 @@ use crate::{
 };
 use subxt::{
 	dynamic::Value,
-	tx::{self, DynamicPayload, TxProgress},
+	tx::{self, DynamicPayload, Payload, TxProgress},
 	utils::Era,
 };
 
@@ -67,9 +69,12 @@ impl<'a> Transactions<'a> {
 		dynamic::sign_and_submit_with_flavor(self.client, call, signer, opts).await
 	}
 
-	pub async fn sign_and_submit_then_watch_with_opts<S: subxt::tx::Signer<CordConfig>>(
+	pub async fn sign_and_submit_then_watch_with_opts<
+		S: subxt::tx::Signer<CordConfig>,
+		P: Payload,
+	>(
 		&self,
-		call: DynamicPayload,
+		call: P,
 		signer: &S,
 		opts: TxOptions,
 	) -> Result<TxProgress<CordConfig, subxt::OnlineClient<CordConfig>>> {
@@ -89,5 +94,20 @@ impl<'a> Transactions<'a> {
 		let values = calls.into_iter().map(|call| call.into_value()).collect::<Vec<_>>();
 		let args = Value::named_composite([("calls", Value::unnamed_composite(values))]);
 		self.build("Utility", "batch_all", args).await
+	}
+
+	pub async fn utility_batch(&self, calls: Vec<DynamicPayload>) -> Result<DynamicPayload> {
+		let values = calls.into_iter().map(|call| call.into_value()).collect::<Vec<_>>();
+		let args = Value::named_composite([("calls", Value::unnamed_composite(values))]);
+		self.build("Utility", "batch", args).await
+	}
+
+	pub async fn meta_dispatch<S: MetaSigner>(
+		&self,
+		call: DynamicPayload,
+		meta_signer: &S,
+		opts: MetaTxOptions,
+	) -> Result<DynamicPayload> {
+		meta::dispatch_call_with_meta(self.client, call, meta_signer, opts).await
 	}
 }

@@ -6,3 +6,8 @@ pub use subxt_signer::sr25519;
 pub fn dev_alice() -> sr25519::Keypair {
 	sr25519::dev::alice()
 }
+
+/// Return Bob's well-known dev key.
+pub fn dev_bob() -> sr25519::Keypair {
+	sr25519::dev::bob()
+}
