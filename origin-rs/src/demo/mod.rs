@@ -32,7 +32,7 @@ pub fn ss58_string(id: &Ss58Identifier) -> String {
 
 pub async fn ensure_entity_token(
 	client: &Client,
-	signer: &tx::signer::sr25519::Keypair,
+	signer: &tx::signer::Keypair,
 	authorization: &AuthorizationRequest,
 	account_id: &AccountId32,
 	profile: &JsonValue,
@@ -60,7 +60,7 @@ pub async fn ensure_entity_token(
 
 pub async fn create_registry(
 	client: &Client,
-	signer: &tx::signer::sr25519::Keypair,
+	signer: &tx::signer::Keypair,
 	spec: JsonValue,
 ) -> Result<Ss58Identifier> {
 	let call = client.tx().register_create_registry_json(spec).await?;
@@ -96,7 +96,7 @@ fn decode_registry_created(events: &ExtrinsicEvents<CordConfig>) -> Result<Ss58I
 
 pub async fn create_packet(
 	client: &Client,
-	signer: &tx::signer::sr25519::Keypair,
+	signer: &tx::signer::Keypair,
 	registry_ss58: &str,
 	attributes: JsonValue,
 	registry_info: &RegistryInfoView,
@@ -137,7 +137,7 @@ fn decode_packet_created(events: &ExtrinsicEvents<CordConfig>) -> Result<Ss58Ide
 
 pub async fn submit_and_wait(
 	client: &Client,
-	signer: &tx::signer::sr25519::Keypair,
+	signer: &tx::signer::Keypair,
 	call: subxt::tx::DynamicPayload,
 ) -> Result<ExtrinsicEvents<CordConfig>> {
 	Ok(client

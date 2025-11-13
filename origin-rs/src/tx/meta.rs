@@ -5,7 +5,7 @@ use crate::{
 };
 use codec::Encode;
 use scale_value::{scale, Value};
-use sp_core::{hashing::blake2_256, sr25519, H256};
+use sp_core::{hashing::blake2_256, H256};
 use sp_runtime::{generic::Era, MultiSignature};
 use std::marker::PhantomData;
 use subxt::{
@@ -70,25 +70,23 @@ pub trait MetaSigner {
 	fn sign_meta_payload(&self, message: [u8; 32]) -> MultiSignature;
 }
 
-impl MetaSigner for subxt_signer::sr25519::Keypair {
+impl MetaSigner for crate::tx::signer::Keypair {
 	fn account_id(&self) -> AccountId32 {
-		<subxt_signer::sr25519::Keypair as subxt::tx::Signer<crate::params::config::CordConfig>>::account_id(self)
+		self.account_id()
 	}
 
 	fn sign_meta_payload(&self, message: [u8; 32]) -> MultiSignature {
-		let signature = self.sign(&message);
-		let signature = sr25519::Signature::from_raw(signature.0);
-		MultiSignature::Sr25519(signature)
+		self.sign_message(&message)
 	}
 }
 
-impl<'a> MetaSigner for &'a subxt_signer::sr25519::Keypair {
+impl<'a> MetaSigner for &'a crate::tx::signer::Keypair {
 	fn account_id(&self) -> AccountId32 {
 		(**self).account_id()
 	}
 
 	fn sign_meta_payload(&self, message: [u8; 32]) -> MultiSignature {
-		(**self).sign_meta_payload(message)
+		(**self).sign_message(&message)
 	}
 }
 

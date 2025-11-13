@@ -40,18 +40,23 @@ impl AuthorizationBuilder {
 		out
 	}
 
-	/// Sign a payload using the provided Subxt signer.
+	/// Sign a payload using the provided Subxt signer, inferring the signature scheme automatically.
 	pub fn from_signer<S: subxt::tx::Signer<C>>(
 		signer: &S,
-		scheme: SignatureScheme,
 		message: Option<&[u8]>,
 	) -> Result<Authorization> {
 		let msg = message.map(|m| m.to_vec()).unwrap_or_else(Self::random_message);
 		let sig = signer.sign(&msg);
-		let sig_bytes = match sig {
-			subxt::utils::MultiSignature::Ed25519(inner) => inner.as_ref().to_vec(),
-			subxt::utils::MultiSignature::Sr25519(inner) => inner.as_ref().to_vec(),
-			subxt::utils::MultiSignature::Ecdsa(inner) => inner.as_ref().to_vec(),
+		let (scheme, sig_bytes) = match sig {
+			subxt::utils::MultiSignature::Ed25519(inner) => {
+				(SignatureScheme::Ed25519, inner.as_ref().to_vec())
+			},
+			subxt::utils::MultiSignature::Sr25519(inner) => {
+				(SignatureScheme::Sr25519, inner.as_ref().to_vec())
+			},
+			subxt::utils::MultiSignature::Ecdsa(inner) => {
+				(SignatureScheme::Ecdsa, inner.as_ref().to_vec())
+			},
 		};
 		Ok(Authorization {
 			account_ss58: signer.account_id().to_string(),

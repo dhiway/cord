@@ -387,7 +387,7 @@ async fn run_view_flow(
 
 async fn render_snapshot(
 	client: &Client,
-	signer: &tx::signer::sr25519::Keypair,
+	signer: &tx::signer::Keypair,
 	token_identifier: &Ss58Identifier,
 	snapshot: &mut EntitySnapshot,
 	style: ViewStyle,

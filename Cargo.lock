@@ -2693,34 +2693,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cord-subxt-sdk"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "bs58",
- "cord-primitives",
- "env_logger",
- "futures",
- "getrandom 0.2.16",
- "hex",
- "log",
- "parity-scale-codec",
- "scale-decode",
- "scale-info",
- "scale-type-resolver",
- "scale-value",
- "serde",
- "serde_json",
- "sp-core",
- "sp-runtime",
- "subxt 0.44.0",
- "subxt-signer 0.44.0",
- "thiserror 1.0.69",
- "tokio",
-]
-
-[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4898,7 +4870,7 @@ dependencies = [
  "sp-version",
  "sp-wasm-interface",
  "subxt 0.41.0",
- "subxt-signer 0.41.0",
+ "subxt-signer",
  "thiserror 1.0.69",
  "thousands",
 ]
@@ -8570,6 +8542,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "origin-rs"
+version = "0.9.9"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "bs58",
+ "cord-primitives",
+ "env_logger",
+ "futures",
+ "getrandom 0.2.16",
+ "hex",
+ "log",
+ "parity-scale-codec",
+ "scale-decode",
+ "scale-info",
+ "scale-type-resolver",
+ "scale-value",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-runtime",
+ "subxt 0.44.0",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "origin-staging-runtime"
 version = "0.9.9"
 dependencies = [
@@ -9609,7 +9608,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "substrate-bn",
- "subxt-signer 0.41.0",
+ "subxt-signer",
 ]
 
 [[package]]
@@ -17337,34 +17336,6 @@ dependencies = [
  "sha2 0.10.9",
  "sp-crypto-hashing 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "subxt-core 0.41.0",
- "thiserror 2.0.17",
- "zeroize",
-]
-
-[[package]]
-name = "subxt-signer"
-version = "0.44.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fb6463f7f46817043de9f20ba11f485ee474378fcdbe4150aa849274523bd1c"
-dependencies = [
- "base64 0.22.1",
- "bip39",
- "cfg-if",
- "crypto_secretbox",
- "hex",
- "hmac 0.12.1",
- "parity-scale-codec",
- "pbkdf2",
- "regex",
- "schnorrkel",
- "scrypt",
- "secp256k1 0.30.0",
- "secrecy 0.10.3",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "sp-crypto-hashing 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "subxt-core 0.44.0",
  "thiserror 2.0.17",
  "zeroize",
 ]
