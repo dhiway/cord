@@ -112,18 +112,16 @@ async fn main() -> Result<()> {
 	// Track mutated keys (rotation/insert) so we can fetch precise history even if the pallet view is capped.
 	let mut mutated_keys: BTreeSet<Vec<u8>> = BTreeSet::new();
 
-	println!("🌐 Origin Entity Demo");
+	// println!("🌐 Origin Entity Demo");
 	let (token_identifier, created) =
 		ensure_entity_token_verbose(&client, &signer, &account_id, &profile, &mut nonce_tracker)
 			.await?;
 	let entity_token = demo::ss58_string(&token_identifier);
-	let temp_snapshot = EntitySnapshot::from_profile(&profile, &entity_token);
-	print_transaction_header(created, &temp_snapshot);
-	if created {
-		transactions.push("Set entity profile for {account_id}".to_string());
-	} else {
-		transactions.push("Synced entity profile for {account_id}".to_string());
-	}
+	// if created {
+	// 	transactions.push("Set entity profile for {account_id}".to_string());
+	// } else {
+	// 	transactions.push("Synced entity profile for {account_id}".to_string());
+	// }
 	let mut snapshot = EntitySnapshot::from_profile(&profile, &entity_token);
 	let baseline_state_version =
 		match fetch_state_version(&client, &signer, &token_identifier).await {
@@ -153,18 +151,19 @@ async fn main() -> Result<()> {
 		EntityNymRequest { auth: fresh_authorization(&signer)?, token: token_identifier.clone() };
 	let existing_nym = client.query().entity().entity_nym(&nym_req).await?;
 	if let Some(nym) = existing_nym {
-		println!("ℹ️ Entity nym already set: {nym}");
+		// println!("ℹ️ Entity nym already set: {nym}");
 		snapshot.set_entity_nym(nym);
 	} else if submit_entity_nym(&client, &signer, &entity_nym_prefix, &mut nonce_tracker).await? {
 		snapshot.set_entity_nym(format!("{entity_nym_prefix}.nym.org.in"));
 		transactions.push(format!("Set entity nym (token {entity_token})"));
 		expected_state_events = expected_state_events.saturating_add(1);
 	}
+	print_transaction_header(created, &snapshot);
 
 	let email_value = format!("{label}@cord.dev");
 	if created {
 		println!(
-			"ℹ️ entity initialized; demo/public_key attributes were seeded during profile creation"
+			"  ↳ • entity initialized; demo/public_key attributes were seeded during profile creation"
 		);
 		snapshot.set_email(email_value.clone());
 		snapshot.set_attribute("demo", demo_value.clone());
@@ -185,13 +184,13 @@ async fn main() -> Result<()> {
 					&mut nonce_tracker,
 				)
 				.await?;
-				match plan {
-					AttributePlan::Add => transactions.push("Added attribute 'email'".to_string()),
-					AttributePlan::Rotate => {
-						transactions.push("Rotated attribute 'email'".to_string())
-					},
-					AttributePlan::Skip => unreachable!(),
-				}
+				// match plan {
+				// 	AttributePlan::Add => transactions.push("Added attribute 'email'".to_string()),
+				// 	AttributePlan::Rotate => {
+				// 		transactions.push("Rotated attribute 'email'".to_string())
+				// 	},
+				// 	AttributePlan::Skip => unreachable!(),
+				// }
 				snapshot.set_email(email_value.clone());
 				mutated_keys.insert(b"email".to_vec());
 				expected_state_events = expected_state_events.saturating_add(1);
@@ -213,13 +212,13 @@ async fn main() -> Result<()> {
 					&mut nonce_tracker,
 				)
 				.await?;
-				match plan {
-					AttributePlan::Add => transactions.push("Added attribute 'demo'".to_string()),
-					AttributePlan::Rotate => {
-						transactions.push("Rotated attribute 'demo'".to_string())
-					},
-					AttributePlan::Skip => unreachable!(),
-				}
+				// match plan {
+				// 	AttributePlan::Add => transactions.push("Added attribute 'demo'".to_string()),
+				// 	AttributePlan::Rotate => {
+				// 		transactions.push("Rotated attribute 'demo'".to_string())
+				// 	},
+				// 	AttributePlan::Skip => unreachable!(),
+				// }
 				snapshot.set_attribute("demo", demo_value.clone());
 				mutated_keys.insert(b"demo".to_vec());
 				expected_state_events = expected_state_events.saturating_add(1);
@@ -242,15 +241,15 @@ async fn main() -> Result<()> {
 					&mut nonce_tracker,
 				)
 				.await?;
-				match plan {
-					AttributePlan::Add => {
-						transactions.push("Added attribute 'public_key'".to_string())
-					},
-					AttributePlan::Rotate => {
-						transactions.push("Rotated attribute 'public_key'".to_string())
-					},
-					AttributePlan::Skip => unreachable!(),
-				}
+				// match plan {
+				// 	AttributePlan::Add => {
+				// 		transactions.push("Added attribute 'public_key'".to_string())
+				// 	},
+				// 	AttributePlan::Rotate => {
+				// 		transactions.push("Rotated attribute 'public_key'".to_string())
+				// 	},
+				// 	AttributePlan::Skip => unreachable!(),
+				// }
 				snapshot.set_attribute("public_key", rotation_public_key.clone());
 				mutated_keys.insert(b"public_key".to_vec());
 				expected_state_events = expected_state_events.saturating_add(1);
@@ -300,15 +299,6 @@ async fn main() -> Result<()> {
 		return Ok(());
 	}
 
-	if created {
-		println!("\nℹ️ New entity info set with nym, demo, and public_key attributes.\n");
-	}
-
-	println!();
-	if created {
-		println!("\nℹ️ Entity");
-		print_identifier_block(&snapshot, "    ");
-	}
 	print_entity_sections(&snapshot, &attribute_history, &combined_timeline, &sub_accounts, style);
 	Ok(())
 }
@@ -325,8 +315,8 @@ async fn ensure_entity_token_verbose(
 	let request =
 		EntityAccountTokenRequest { auth: fresh_authorization(signer)?, account: runtime_account };
 	if let Some(token) = client.query().entity().account_token(&request).await? {
-		let display = demo::ss58_string(&token);
-		println!("ℹ️ Entity profile already exists (token {display})");
+		// let display = demo::ss58_string(&token);
+		// println!("ℹ️ Entity profile already exists (token {display})");
 		return Ok((token, false));
 	}
 
@@ -408,13 +398,13 @@ async fn apply_attribute_plan(
 	match plan {
 		AttributePlan::Skip => Ok(()),
 		AttributePlan::Add => {
-			println!("➕ attribute '{key}' missing on-chain; submitting add");
+			println!("\n➕ attribute '{key}' missing on-chain; submitting add");
 			submit_attribute_add(client, signer, key, value, nonce_tracker)
 				.await
 				.map_err(|e| anyhow!(e))
 		},
 		AttributePlan::Rotate => {
-			println!("🔁 attribute '{key}' exists with different value; rotating");
+			println!("\n🔁 attribute '{key}' exists with different value; rotating");
 			submit_attribute_rotation(client, signer, key, value, nonce_tracker)
 				.await
 				.map_err(|e| anyhow!(e))
@@ -473,7 +463,7 @@ async fn submit_and_confirm(
 	description: &str,
 	nonce_tracker: &mut NonceTracker,
 ) -> Result<ExtrinsicEvents<CordConfig>, SubmitError> {
-	println!("⏳ {description} ...");
+	// println!("⏳ {description} ...");
 	let nonce = nonce_tracker
 		.reserve(client)
 		.await
@@ -513,18 +503,18 @@ async fn submit_and_confirm(
 				println!("  ↳ 📦 included in block {block_label}");
 				let events =
 					in_block.wait_for_success().await.map_err(SubmitError::from_subxt_error)?;
-				println!("✅ {description} recorded in block {block_label}");
+				println!("  ↳ ✅ {description}");
 				nonce_tracker.confirm();
 				short_delay(Duration::from_secs(1)).await;
 				return Ok(events);
 			},
 			TxStatus::InFinalizedBlock(in_block) => {
-				let block_hash = in_block.block_hash();
-				let block_label = block_label(client, block_hash).await;
-				println!("  ↳ 🛡️ finalized in block {block_label}");
+				// let block_hash = in_block.block_hash();
+				// let block_label = block_label(client, block_hash).await;
+				println!("  ↳ 🛡️ finalized {description}");
 				let events =
 					in_block.wait_for_success().await.map_err(SubmitError::from_subxt_error)?;
-				println!("✅ {description} finalized in block {block_label}");
+				// println!("  ↳ ✅ {description} finalized in block {block_label}");
 				nonce_tracker.confirm();
 				short_delay(Duration::from_secs(1)).await;
 				return Ok(events);
@@ -659,20 +649,21 @@ fn sanitize_entity_nym(label: &str) -> String {
 }
 
 fn print_transaction_header(created: bool, snapshot: &EntitySnapshot) {
-	println!("⏳  Transactions\n");
+	println!("\n🌐 Origin Entity Demo\n");
+	println!("\n⏳  Transactions\n");
+
 	if created {
-		println!("\nℹ️ Preparing new entity …\n");
+		println!("ℹ️ Setting entity info");
 	} else {
-		println!("\nℹ️ Entity found");
+		println!("ℹ️ Entity found");
 		print_identifier_block(snapshot, "    ");
-		println!();
 	}
 }
 
-fn print_identifier_block(snapshot: &EntitySnapshot, indent: &str) {
-	println!("{indent}• Token    : {}", snapshot.token);
+fn print_identifier_block(snapshot: &EntitySnapshot, _indent: &str) {
+	println!("  ↳ • Token  : {}", snapshot.token);
 	if let Some(nym) = &snapshot.entity_nym {
-		println!("{indent}• Nym      : {}", nym);
+		println!("  ↳ • Nym    : {}", nym);
 	}
 }
 
@@ -683,7 +674,9 @@ fn print_entity_sections(
 	accounts: &[AccountId32],
 	style: ViewStyle,
 ) {
-	println!("\n🆔  Info");
+	println!("\nℹ️ Entity");
+	print_identifier_block(snapshot, "    ");
+	println!("\n🆔 Info");
 	print_entity_info(snapshot);
 	println!("\n📇 Attributes");
 	print_attribute_list(snapshot);
@@ -967,7 +960,7 @@ fn build_token_activity(entries: &[TokenTimelineEntry]) -> Vec<TimelineRow> {
 }
 
 fn print_combined_timeline(entries: &[TimelineRow], full_view: bool) {
-	println!("\n🕛  Entity Activity:");
+	println!("\n🕛  Activity (latest first)");
 	if entries.is_empty() {
 		println!("    • (no recorded activity)");
 		return;
@@ -1000,7 +993,7 @@ fn print_combined_timeline(entries: &[TimelineRow], full_view: bool) {
 }
 
 fn print_attribute_history(entries: &[HistoryEntry], full_view: bool) {
-	println!("\n📜 Attribute Rotations:");
+	println!("\n🔁 Rotations (latest first)");
 	if entries.is_empty() {
 		println!("    • (no attribute history)");
 		return;
