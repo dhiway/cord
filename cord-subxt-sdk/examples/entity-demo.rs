@@ -49,6 +49,50 @@ fn fresh_authorization(signer: &tx::signer::sr25519::Keypair) -> Result<Authoriz
 		.context("failed to convert view authorization")
 }
 
+#[derive(Clone, Copy)]
+enum ViewStyle {
+	Compact,
+	Full,
+}
+
+impl ViewStyle {
+	fn is_full(&self) -> bool {
+		matches!(self, ViewStyle::Full)
+	}
+}
+
+fn parse_args(args: &[String]) -> (ViewStyle, bool) {
+	let mut style: Option<ViewStyle> = None;
+	let mut json = false;
+	let mut iter = args.iter().peekable();
+	while let Some(arg) = iter.next() {
+		match arg.as_str() {
+			"--json" => json = true,
+			"--style" => {
+				if let Some(value) = iter.next() {
+					style = style_from_value(value);
+				}
+			},
+			_ if arg.starts_with("--style=") => {
+				let value = arg.trim_start_matches("--style=");
+				style = style_from_value(value);
+			},
+			_ => {},
+		}
+	}
+	let resolved_style =
+		style.unwrap_or_else(|| if json { ViewStyle::Full } else { ViewStyle::Compact });
+	(resolved_style, json)
+}
+
+fn style_from_value(value: impl AsRef<str>) -> Option<ViewStyle> {
+	match value.as_ref() {
+		"full" | "Full" => Some(ViewStyle::Full),
+		"compact" | "Compact" => Some(ViewStyle::Compact),
+		_ => None,
+	}
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
 	let label = demo::random_label("entity-demo");
@@ -63,19 +107,22 @@ async fn main() -> Result<()> {
 	seed_profile_attribute(&mut profile, "public_key", &initial_public_key);
 
 	let args: Vec<String> = std::env::args().collect();
-	let output_json = args.iter().any(|arg| arg == "--json");
-	let full_view = args.iter().any(|arg| arg == "--full");
+	let (style, output_json) = parse_args(&args[1..]);
 	let mut transactions = Vec::new();
+	// Track mutated keys (rotation/insert) so we can fetch precise history even if the pallet view is capped.
 	let mut mutated_keys: BTreeSet<Vec<u8>> = BTreeSet::new();
 
+	println!("🌐 Origin Entity Demo");
 	let (token_identifier, created) =
 		ensure_entity_token_verbose(&client, &signer, &account_id, &profile, &mut nonce_tracker)
 			.await?;
 	let entity_token = demo::ss58_string(&token_identifier);
+	let temp_snapshot = EntitySnapshot::from_profile(&profile, &entity_token);
+	print_transaction_header(created, &temp_snapshot);
 	if created {
-		transactions.push("Set entity profile for Alice".to_string());
+		transactions.push("Set entity profile for {account_id}".to_string());
 	} else {
-		transactions.push("Synced entity profile for Alice".to_string());
+		transactions.push("Synced entity profile for {account_id}".to_string());
 	}
 	let mut snapshot = EntitySnapshot::from_profile(&profile, &entity_token);
 	let baseline_state_version =
@@ -253,15 +300,16 @@ async fn main() -> Result<()> {
 		return Ok(());
 	}
 
+	if created {
+		println!("\nℹ️ New entity info set with nym, demo, and public_key attributes.\n");
+	}
+
 	println!();
-	print_summary(
-		&snapshot,
-		&attribute_history,
-		&combined_timeline,
-		&sub_accounts,
-		&transactions,
-		full_view,
-	);
+	if created {
+		println!("\nℹ️ Entity");
+		print_identifier_block(&snapshot, "    ");
+	}
+	print_entity_sections(&snapshot, &attribute_history, &combined_timeline, &sub_accounts, style);
 	Ok(())
 }
 
@@ -610,26 +658,57 @@ fn sanitize_entity_nym(label: &str) -> String {
 	filtered
 }
 
-fn print_summary(
+fn print_transaction_header(created: bool, snapshot: &EntitySnapshot) {
+	println!("⏳  Transactions\n");
+	if created {
+		println!("\nℹ️ Preparing new entity …\n");
+	} else {
+		println!("\nℹ️ Entity found");
+		print_identifier_block(snapshot, "    ");
+		println!();
+	}
+}
+
+fn print_identifier_block(snapshot: &EntitySnapshot, indent: &str) {
+	println!("{indent}• Token    : {}", snapshot.token);
+	if let Some(nym) = &snapshot.entity_nym {
+		println!("{indent}• Nym      : {}", nym);
+	}
+}
+
+fn print_entity_sections(
 	snapshot: &EntitySnapshot,
 	attr_history: &[HistoryEntry],
 	timeline: &[TimelineRow],
 	accounts: &[AccountId32],
-	transactions: &[String],
-	full_view: bool,
+	style: ViewStyle,
 ) {
-	println!("🧾 Transactions");
-	for tx in transactions {
-		println!("  • {}", tx);
-	}
-	println!("\n🆔 Entity Token: {}", snapshot.token);
-	if let Some(nym) = &snapshot.entity_nym {
-		println!("🏷️ Entity Nym : {}", nym);
-	}
-	snapshot.print_cli();
+	println!("\n🆔  Info");
+	print_entity_info(snapshot);
+	println!("\n📇 Attributes");
+	print_attribute_list(snapshot);
 	entity::print_accounts_cli(accounts);
-	print_attribute_history(attr_history, full_view);
-	print_combined_timeline(timeline, full_view);
+	print_attribute_history(attr_history, style.is_full());
+	print_combined_timeline(timeline, style.is_full());
+	println!();
+}
+
+fn print_entity_info(snapshot: &EntitySnapshot) {
+	println!("    • Display : {}", snapshot.display);
+	println!("    • Legal   : {}", snapshot.legal);
+	println!("    • Web     : {}", snapshot.web);
+	println!("    • Email   : {}", snapshot.email);
+	println!("    • Twitter : {}", snapshot.twitter);
+}
+
+fn print_attribute_list(snapshot: &EntitySnapshot) {
+	if snapshot.attributes.is_empty() {
+		println!("    • (no custom attributes)");
+		return;
+	}
+	for (key, value) in &snapshot.attributes {
+		println!("    • {:<10} : {}", key, short_label(value));
+	}
 }
 
 async fn block_label(client: &Client, block_hash: H256) -> String {
@@ -649,16 +728,22 @@ fn truncate_label(value: &str, max_len: usize) -> String {
 	}
 }
 
-const MAX_LABEL_LEN: usize = 32;
+const MAX_LABEL_LEN: usize = "entity-demo-78abb661@cord.dev".len() + 5;
 
 fn short_label(value: &str) -> String {
 	if value.len() <= MAX_LABEL_LEN {
 		return value.to_string();
 	}
-	let head = 16.min(value.len());
-	let tail = 16.min(value.len().saturating_sub(head + 1));
-	let tail_start = value.len().saturating_sub(tail);
-	return format!("{}…{}", &value[..head], &value[tail_start..]);
+	if value.starts_with("0x") && value.len() > 2 {
+		let keep = MAX_LABEL_LEN.saturating_sub(1);
+		let head = keep / 2;
+		let tail = keep - head;
+		let tail_start = value.len().saturating_sub(tail);
+		return format!("{}…{}", &value[..head], &value[tail_start..]);
+	}
+	let take = MAX_LABEL_LEN.saturating_sub(1);
+	let trimmed: String = value.chars().take(take).collect();
+	format!("{trimmed}…")
 }
 
 fn random_public_key_hex() -> String {
@@ -882,13 +967,13 @@ fn build_token_activity(entries: &[TokenTimelineEntry]) -> Vec<TimelineRow> {
 }
 
 fn print_combined_timeline(entries: &[TimelineRow], full_view: bool) {
-	println!("\n🕛 Entity Activity:");
+	println!("\n🕛  Entity Activity:");
 	if entries.is_empty() {
-		println!("  • (no recorded activity)");
+		println!("    • (no recorded activity)");
 		return;
 	}
 	println!(
-		"  ↳  {:>8}  {:>8}  {:>6}    {:<30} {:<34}",
+		"    ↳  {:>8}  {:>8}  {:>6}    {:<30} {:<34}",
 		"Version", "Block", "Index", "Action", "Digest"
 	);
 	let total = entries.len();
@@ -910,7 +995,7 @@ fn print_combined_timeline(entries: &[TimelineRow], full_view: bool) {
 		shown += 1;
 	}
 	if !full_view && total > shown {
-		println!("   … {} older", total - shown);
+		println!("    … {} older", total - shown);
 	}
 }
 
@@ -941,7 +1026,7 @@ fn print_attribute_history(entries: &[HistoryEntry], full_view: bool) {
 		shown += 1;
 	}
 	if !full_view && total > shown {
-		println!("   … {} older", total - shown);
+		println!("    … {} older", total - shown);
 	}
 }
 

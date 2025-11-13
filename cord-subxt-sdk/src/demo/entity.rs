@@ -90,8 +90,9 @@ fn short_label(value: &str) -> String {
 		return value.to_string();
 	}
 	if value.starts_with("0x") && value.len() > 2 {
-		let head = 12.min(value.len());
-		let tail = 6.min(value.len().saturating_sub(head + 1));
+		let keep = MAX_ATTR_LABEL_LEN.saturating_sub(1);
+		let head = keep / 2;
+		let tail = keep - head;
 		let tail_start = value.len().saturating_sub(tail);
 		return format!("{}…{}", &value[..head], &value[tail_start..]);
 	}
