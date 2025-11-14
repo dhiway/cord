@@ -1,8 +1,5 @@
 use super::{ArgBuilder, Query};
-use crate::{
-	error::{Error, Result},
-	types::token::StateEventRecord,
-};
+use crate::{error::Result, types::token::StateEventRecord};
 use cord_primitives::{
 	identifier::DecodedIdentifier,
 	view_api::{
@@ -22,7 +19,7 @@ impl<'a> TokenQuery<'a> {
 		let args = self.token_args(&req.auth, &req.token)?;
 		let raw: core::result::Result<u32, AuthorizationError> =
 			self.query.call_result("Token", "state_version", args).await?;
-		raw.map_err(|err| view_failure("token.state_version", err))
+		raw.map_err(|err| super::view_failure("token.state_version", err))
 	}
 
 	pub async fn resolve_identifier(
@@ -32,7 +29,7 @@ impl<'a> TokenQuery<'a> {
 		let args = self.token_args(&req.auth, &req.token)?;
 		let raw: core::result::Result<DecodedIdentifier, AuthorizationError> =
 			self.query.call_result("Token", "resolve_identifier", args).await?;
-		raw.map_err(|err| view_failure("token.resolve_identifier", err))
+		raw.map_err(|err| super::view_failure("token.resolve_identifier", err))
 	}
 
 	pub async fn timeline(
@@ -42,14 +39,14 @@ impl<'a> TokenQuery<'a> {
 		let args = self.timeline_args(req)?;
 		let raw: core::result::Result<(Vec<StateEventRecord>, Option<u32>), AuthorizationError> =
 			self.query.call_result("Token", "timeline", args).await?;
-		raw.map_err(|err| view_failure("token.timeline", err))
+		raw.map_err(|err| super::view_failure("token.timeline", err))
 	}
 
 	pub async fn resolve_pallet(&self, req: &TokenResolvePalletRequest) -> Result<String> {
 		let args = self.resolve_pallet_args(req)?;
 		let raw: core::result::Result<String, AuthorizationError> =
 			self.query.call_result("Token", "resolve_pallet", args).await?;
-		raw.map_err(|err| view_failure("token.resolve_pallet", err))
+		raw.map_err(|err| super::view_failure("token.resolve_pallet", err))
 	}
 
 	fn token_args(
@@ -77,16 +74,5 @@ impl<'a> TokenQuery<'a> {
 		builder.push("auth", super::authorization_value(&req.auth)?);
 		builder.push("index", super::u16_value(req.index));
 		Ok(builder.finish())
-	}
-}
-
-fn view_failure(ctx: &str, err: AuthorizationError) -> Error {
-	match err {
-		AuthorizationError::NotFound => Error::NotFound(format!("{ctx}: not found")),
-		AuthorizationError::Unauthorized => Error::Params(format!("{ctx}: unauthorized")),
-		AuthorizationError::InvalidInput => Error::Params(format!("{ctx}: invalid input")),
-		AuthorizationError::TooLarge => Error::Params(format!("{ctx}: result too large")),
-		AuthorizationError::Expired => Error::Params(format!("{ctx}: authorization expired")),
-		AuthorizationError::Internal => Error::ViewDecode(format!("{ctx}: internal error")),
 	}
 }

@@ -163,6 +163,20 @@ pub enum AuthorizationError {
 	Internal,
 }
 
+/// Ensure an authorization produced at `reference_block` remains valid for the provided TTL.
+pub fn ensure_authorization_ttl(
+	current_block: u32,
+	reference_block: u32,
+	max_ttl: u32,
+) -> Result<(), AuthorizationError> {
+	let expires_at = reference_block.saturating_add(max_ttl);
+	if current_block >= expires_at {
+		Err(AuthorizationError::Expired)
+	} else {
+		Ok(())
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;

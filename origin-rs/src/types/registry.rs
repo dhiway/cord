@@ -649,19 +649,25 @@ fn normalize_hex(raw: &str) -> Result<String> {
 	Ok(format!("0x{}", hex::encode(bytes)))
 }
 
-#[cfg(test)]
-mod tests {
-	use super::*;
-	use cord_primitives::{
-		registry::{LookupSpecView, RegistryKind as RuntimeRegistryKind, RegistryStatus},
-		view::ElementView,
-	};
-	use serde_json::json;
+	#[cfg(test)]
+	mod tests {
+		use super::*;
+		use cord_primitives::{
+			identifier::Ss58Identifier,
+			registry::{LookupSpecView, RegistryKind as RuntimeRegistryKind, RegistryStatus},
+			view::ElementView,
+		};
+		use serde_json::json;
 
-	fn sample_view() -> RegistryInfoView {
-		RegistryInfoView {
-			info: ElementView::Raw(Vec::new()),
-			maintainer: Vec::new(),
+		fn dummy_identifier() -> Ss58Identifier {
+			let digest = [0u8; 32];
+			Ss58Identifier::to_encoded(digest, 100, 5, 0).expect("identifier")
+		}
+
+		fn sample_view() -> RegistryInfoView {
+			RegistryInfoView {
+				info: ElementView::Raw(Vec::new()),
+				maintainer: dummy_identifier(),
 			attributes: vec![
 				RegistryAttributeView {
 					key: b"record_id".to_vec(),

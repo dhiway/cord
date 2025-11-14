@@ -48,12 +48,6 @@ where
 /// Size of the `reference_block` trailer encoded into authorization payloads.
 pub const AUTHORIZATION_VALID_UNTIL_BYTES: usize = core::mem::size_of::<u32>();
 
-/// Append the reference block number (as little-endian `u32`) to the provided payload bytes.
-pub fn append_valid_until(mut payload: Vec<u8>, reference_block: u32) -> Vec<u8> {
-	payload.extend_from_slice(&reference_block.to_le_bytes());
-	payload
-}
-
 /// Extract the trailing reference block number from a payload.
 pub fn extract_valid_until(payload: &[u8]) -> Option<u32> {
 	if payload.len() < AUTHORIZATION_VALID_UNTIL_BYTES {

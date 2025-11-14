@@ -1,7 +1,8 @@
 use super::{ArgBuilder, Query};
+
 use crate::{
 	api::runtime,
-	error::{Error, Result},
+	error::Result,
 	types::entity::{
 		AttributeHistoryEntryRecord, AttributeHistoryRecord, AttributeHistoryVersionRecord,
 		BlockRef, EntityInfoRecord, HistoryEntry,
@@ -37,7 +38,7 @@ impl<'a> EntityQuery<'a> {
 		match raw {
 			Ok(info) => Ok(Some(info)),
 			Err(AuthorizationError::NotFound) => Ok(None),
-			Err(err) => Err(view_failure("entity.details", err)),
+			Err(err) => Err(super::view_failure("entity.details", err)),
 		}
 	}
 
@@ -48,7 +49,7 @@ impl<'a> EntityQuery<'a> {
 		let args = self.token_args(&req.auth, &req.token)?;
 		let raw: core::result::Result<Vec<AttributeHistoryRecord>, AuthorizationError> =
 			self.query.call_result("Entity", "attribute_history", args).await?;
-		raw.map_err(|err| view_failure("entity.attribute_history", err))
+		raw.map_err(|err| super::view_failure("entity.attribute_history", err))
 			.map(|records| records.into_iter().map(HistoryEntry::from).collect())
 	}
 
@@ -59,7 +60,7 @@ impl<'a> EntityQuery<'a> {
 		let args = self.token_key_args(&req.auth, &req.token, req.key.as_slice())?;
 		let raw: core::result::Result<Vec<AttributeHistoryVersionRecord>, AuthorizationError> =
 			self.query.call_result("Entity", "attribute_history_for_key", args).await?;
-		raw.map_err(|err| view_failure("entity.attribute_history_for_key", err))
+		raw.map_err(|err| super::view_failure("entity.attribute_history_for_key", err))
 			.map(|records| {
 				records
 					.into_iter()
@@ -76,7 +77,7 @@ impl<'a> EntityQuery<'a> {
 			self.token_key_version_args(&req.auth, &req.token, req.key.as_slice(), req.version)?;
 		let raw: core::result::Result<AttributeHistoryEntryRecord, AuthorizationError> =
 			self.query.call_result("Entity", "attribute_history_entry", args).await?;
-		raw.map_err(|err| view_failure("entity.attribute_history_entry", err))
+		raw.map_err(|err| super::view_failure("entity.attribute_history_entry", err))
 			.map(|record| record.into_entry(req.key.as_slice(), req.version))
 	}
 
@@ -90,7 +91,7 @@ impl<'a> EntityQuery<'a> {
 		match raw {
 			Ok(id) => Ok(Some(id)),
 			Err(AuthorizationError::NotFound) => Ok(None),
-			Err(err) => Err(view_failure("entity.account_token", err)),
+			Err(err) => Err(super::view_failure("entity.account_token", err)),
 		}
 	}
 
@@ -101,7 +102,7 @@ impl<'a> EntityQuery<'a> {
 		let args = self.token_args(&req.auth, &req.token)?;
 		let raw: core::result::Result<Vec<AccountId32>, AuthorizationError> =
 			self.query.call_result("Entity", "linked_accounts", args).await?;
-		raw.map_err(|err| view_failure("entity.linked_accounts", err))
+		raw.map_err(|err| super::view_failure("entity.linked_accounts", err))
 	}
 
 	pub async fn entity_nym(&self, req: &EntityNymRequest) -> Result<Option<String>> {
@@ -111,7 +112,7 @@ impl<'a> EntityQuery<'a> {
 		match raw {
 			Ok(bytes) => Ok(Some(String::from_utf8_lossy(&bytes).into_owned())),
 			Err(AuthorizationError::NotFound) => Ok(None),
-			Err(err) => Err(view_failure("entity.entity_nym", err)),
+			Err(err) => Err(super::view_failure("entity.entity_nym", err)),
 		}
 	}
 
@@ -129,7 +130,7 @@ impl<'a> EntityQuery<'a> {
 		match raw {
 			Ok(id) => Ok(Some(id)),
 			Err(AuthorizationError::NotFound) => Ok(None),
-			Err(err) => Err(view_failure("entity.entity_nym_lookup", err)),
+			Err(err) => Err(super::view_failure("entity.entity_nym_lookup", err)),
 		}
 	}
 
@@ -141,7 +142,7 @@ impl<'a> EntityQuery<'a> {
 		let args = self.token_args(auth, token)?;
 		let raw: core::result::Result<AccountId32, AuthorizationError> =
 			self.query.call_result("Entity", "controller_account", args).await?;
-		raw.map_err(|err| view_failure("entity.controller_account", err))
+		raw.map_err(|err| super::view_failure("entity.controller_account", err))
 	}
 
 	pub async fn account_history(
@@ -152,7 +153,7 @@ impl<'a> EntityQuery<'a> {
 		let args = self.token_args(auth, token)?;
 		let raw: core::result::Result<Vec<(AccountId32, RuntimeEventBlock)>, AuthorizationError> =
 			self.query.call_result("Entity", "account_history", args).await?;
-		raw.map_err(|err| view_failure("entity.account_history", err)).map(|records| {
+		raw.map_err(|err| super::view_failure("entity.account_history", err)).map(|records| {
 			records
 				.into_iter()
 				.map(|(account, block)| (account, block_ref(block)))
@@ -204,17 +205,6 @@ impl<'a> EntityQuery<'a> {
 		builder.push("auth", super::authorization_value(&req.auth)?);
 		builder.push("account", super::account_value(req.account.as_ref()));
 		Ok(builder.finish())
-	}
-}
-
-fn view_failure(ctx: &str, err: AuthorizationError) -> Error {
-	match err {
-		AuthorizationError::NotFound => Error::NotFound(format!("{ctx}: not found")),
-		AuthorizationError::Unauthorized => Error::Params(format!("{ctx}: unauthorized")),
-		AuthorizationError::InvalidInput => Error::Params(format!("{ctx}: invalid input")),
-		AuthorizationError::TooLarge => Error::Params(format!("{ctx}: result too large")),
-		AuthorizationError::Expired => Error::Params(format!("{ctx}: authorization expired")),
-		AuthorizationError::Internal => Error::ViewDecode(format!("{ctx}: internal error")),
 	}
 }
 

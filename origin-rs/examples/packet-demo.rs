@@ -99,7 +99,7 @@ async fn run_transaction_flow(
 ) -> Result<()> {
 	let label = demo::random_label("packet-demo");
 	let maintainer = tx::signer::dev_alice();
-	let delegate_signer = tx::signer::dev_bob();
+	let delegate_signer = tx::signer::dev_charlie();
 	let maint_account = signer_account_id(&maintainer);
 	let delegate_account = signer_account_id(&delegate_signer);
 	let delegate_ss58 = utils::format_account(&delegate_account, chain_prefix);

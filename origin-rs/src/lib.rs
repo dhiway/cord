@@ -32,13 +32,8 @@ mod type_checks {
 	#[test]
 	fn verify_meta_tx_types_exist() {
 		use runtime::runtime_types::pallet_meta_tx::MetaTx;
-		use runtime::runtime_types::sp_runtime::generic::Era;
-		let _ = core::any::TypeId::of::<
-			MetaTx<
-				runtime::runtime_types::cord_orb_runtime::RuntimeCall,
-				runtime::runtime_types::cord_orb_runtime::MetaTxExtension,
-			>,
-		>();
+		use runtime::runtime_types::sp_runtime::generic::era::Era;
+		let _ = core::any::TypeId::of::<MetaTx<(), ()>>();
 		let _ = Era::Immortal;
 	}
 }

@@ -43,7 +43,7 @@ use cord_primitives::{
 	authorization::{extract_valid_until, Authorization as CoreAuthorization},
 	identifier::Ss58Identifier,
 	packet::{Attribute, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp},
-	view_api::AuthorizationError,
+	view_api::{ensure_authorization_ttl, AuthorizationError},
 	Signature,
 };
 use core::convert::TryInto;
@@ -953,11 +953,7 @@ impl<T: Config> Pallet<T> {
 		let issued_at = extract_valid_until(payload).ok_or(AuthorizationError::InvalidInput)?;
 		let now: u32 = frame_system::Pallet::<T>::block_number().unique_saturated_into();
 		let ttl = T::MaxAuthorizationTTL::get();
-		let expires_at = issued_at.saturating_add(ttl);
-		if now >= expires_at {
-			return Err(AuthorizationError::Expired);
-		}
-		Ok(())
+		ensure_authorization_ttl(now, issued_at, ttl)
 	}
 
 	fn authorize_account_query(auth: &AuthorizationOf<T>) -> Result<(), AuthorizationError>
