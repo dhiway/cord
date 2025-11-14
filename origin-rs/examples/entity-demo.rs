@@ -275,7 +275,7 @@ async fn run_transaction_flow(
 
 	let email_value = format!("{label}@cord.dev");
 	if created {
-		println!("\n✅ Entity initialized with nym/demo/public_key attributes.");
+		println!("\n✅ Entity initialized with info/nym/demo/public_key attributes.");
 		utils::short_delay(Duration::from_secs(2)).await;
 	} else {
 		match sdk_entity::plan_attribute_update(chain_state.get("email"), &email_value) {
@@ -485,7 +485,7 @@ async fn apply_attribute_plan(
 				.map_err(SubmitError::from_origin_error)?;
 			let mut sink = LogSink::new(None);
 			tx_executor
-				.submit(client, call, &format!("Rotate attribute '{key}'"), &mut sink)
+				.submit(client, call, &format!("Rotated attribute '{key}'"), &mut sink)
 				.await?;
 		},
 	}
@@ -512,14 +512,15 @@ fn seed_profile_attribute(profile: &mut serde_json::Value, key: &str, value: &st
 }
 
 fn print_transaction_header(created: bool, snapshot: &EntitySnapshot) {
-	println!("\n🌐 Origin Entity Demo\n");
-	println!("🔄 State Updates\n");
+	println!("\n🏷️ Origin Entity Demo\n");
 
 	if created {
+		println!("🔄 Create Entity\n");
 		println!("ℹ️ Setting entity info");
 	} else {
 		println!("ℹ️ Entity found");
 		print_identifier_block(snapshot, "    ");
+		println!("\n🔄 State Updates");
 	}
 }
 

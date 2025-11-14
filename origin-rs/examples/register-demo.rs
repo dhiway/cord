@@ -1,6 +1,10 @@
 use anyhow::{anyhow, Result};
 use bs58;
-	registry::{LookupSpecView, RegistryAttributeView, RegistryInfoView},
+use cord_primitives::{
+	packet::ElementType,
+	registry::{
+		LookupSpecView, RegistryAttributeView, RegistryInfoView, RegistryKind, RegistryStatus,
+	},
 	view::ElementView,
 	view_api::{RegisterDetailsRequest, RegisterLookupSpecsRequest},
 };
@@ -74,13 +78,15 @@ fn parse_args(args: &[String]) -> Result<CliOptions> {
 			},
 			"--flow" | "-f" => {
 				let value = require_value(&mut iter, arg.as_str())?;
-				flow = flow_from_value(&value)
-					.ok_or_else(|| anyhow!("invalid --flow value: {value} (expected direct|relay)"))?;
+				flow = flow_from_value(&value).ok_or_else(|| {
+					anyhow!("invalid --flow value: {value} (expected direct|relay)")
+				})?;
 			},
 			_ if arg.starts_with("--flow=") => {
 				let value = arg.trim_start_matches("--flow=");
-				flow = flow_from_value(value)
-					.ok_or_else(|| anyhow!("invalid --flow value: {value} (expected direct|relay)"))?;
+				flow = flow_from_value(value).ok_or_else(|| {
+					anyhow!("invalid --flow value: {value} (expected direct|relay)")
+				})?;
 			},
 			"--registry" | "-r" => {
 				registry = Some(require_value(&mut iter, arg.as_str())?);
@@ -117,8 +123,7 @@ fn require_value<'a>(
 	iter: &mut std::iter::Peekable<std::slice::Iter<'a, String>>,
 	flag: &str,
 ) -> Result<String> {
-	iter
-		.next()
+	iter.next()
 		.map(|value| value.clone())
 		.ok_or_else(|| anyhow!("{flag} expects a value"))
 }
@@ -193,7 +198,7 @@ async fn run_transaction_flow(cli: &CliOptions, client: &Client) -> Result<()> {
 	let account_id = signer_account_id(&signer);
 
 	let mut direct_submitter = TxSubmitter::new(client, &signer);
-	let mut relayer_signer =
+	let relayer_signer =
 		if cli.flow == TxFlow::Relayed { Some(tx::signer::dev_bob()) } else { None };
 	let mut relayer_submitter =
 		relayer_signer.as_ref().map(|relayer| TxSubmitter::new(client, relayer));
@@ -208,28 +213,32 @@ async fn run_transaction_flow(cli: &CliOptions, client: &Client) -> Result<()> {
 	};
 
 	let profile = demo::entity_profile(&label);
-	let (entity_token, created, mut entity_logs) =
-		ensure_entity_token_verbose(client, &signer, &account_id, &profile, &mut tx_executor).await?;
+	let (entity_token_id, created, entity_logs) =
+		ensure_entity_token_verbose(client, &signer, &account_id, &profile, &mut tx_executor)
+			.await?;
+	let entity_token = demo::ss58_string(&entity_token_id);
 	print_entity_setup(created, &entity_token, &entity_logs);
 
 	let mut registry_logs = Vec::new();
 	let registry_spec = demo::registry_blueprint(&label);
 	let mut sink = LogSink::new(Some(&mut registry_logs));
 	let registry_id =
-		demo::create_registry_with_executor(client, &mut tx_executor, registry_spec, &mut sink)?;
+		demo::create_registry_with_executor(client, &mut tx_executor, registry_spec, &mut sink)
+			.await?;
 	let registry_ss58 = demo::ss58_string(&registry_id);
 	print_registry_header(&entity_token, &registry_ss58);
 	for line in registry_logs {
 		println!("{line}");
 	}
 
-	utils::short_delay(Duration::from_secs(3)).await;
+	utils::short_delay(Duration::from_secs(6)).await;
 
 	let auth = fresh_authorization(&signer)?;
 	let details_req = RegisterDetailsRequest { auth: auth.clone(), registry: registry_id.clone() };
 	let details = client.query().register().details(&details_req).await?;
 	let lookup_req = RegisterLookupSpecsRequest { auth, registry: registry_id.clone() };
 	let lookups = client.query().register().lookup_specs(&lookup_req).await?;
+
 	render_registry_snapshot(&registry_ss58, &details, &lookups, cli.view, cli.output_json)
 }
 
@@ -280,7 +289,7 @@ fn render_registry_snapshot(
 	if output_json {
 		let json = json!({
 			"registry": registry_ss58,
-			"maintainer": String::from_utf8_lossy(&details.maintainer),
+			"maintainer": demo::ss58_string(&details.maintainer),
 			"details": details,
 			"lookupSpecs": lookups,
 		});
@@ -289,11 +298,11 @@ fn render_registry_snapshot(
 	}
 
 	println!("\n🗂️ Registry Snapshot");
-	let maintainer = String::from_utf8_lossy(&details.maintainer);
+	let maintainer = demo::ss58_string(&details.maintainer);
 	println!("  ↳ • Registry   : {registry_ss58}");
 	println!("  ↳ • Maintainer : {maintainer}");
-	println!("  ↳ • Kind       : {:?}", details.kind);
-	println!("  ↳ • Status     : {:?}", details.status);
+	println!("  ↳ • Kind       : {}", describe_registry_kind(&details.kind));
+	println!("  ↳ • Status     : {}", describe_registry_status(&details.status));
 	println!("\n📝 Info\n  {}", describe_element(&details.info));
 	println!("\n🔑 Token Spec\n  {}", describe_lookup(&details.token_spec));
 	print_attribute_schema(&details.attributes, style.is_full());
@@ -312,9 +321,9 @@ fn print_attribute_schema(attributes: &[RegistryAttributeView], full: bool) {
 	for attr in attributes.iter().take(limit) {
 		let key = key_to_label(&attr.key);
 		println!(
-			"  ↳ • {:<16} kind={:?}{}",
+			"  ↳ • {:<16} {}{}",
 			key,
-			attr.kind,
+			describe_element_type(&attr.kind),
 			if attr.optional { " [optional]" } else { "" }
 		);
 		shown += 1;
@@ -361,7 +370,8 @@ fn describe_element(view: &ElementView) -> String {
 		ElementView::Token(token) => format!("token:{}", demo::ss58_string(token)),
 		ElementView::Cid(bytes) => format!("cid:{}", bs58::encode(bytes).into_string()),
 		ElementView::Raw(bytes) => {
-			let text = String::from_utf8(bytes.clone()).unwrap_or_else(|_| format!("0x{}", hex::encode(bytes)));
+			let text = String::from_utf8(bytes.clone())
+				.unwrap_or_else(|_| format!("0x{}", hex::encode(bytes)));
 			format!("raw:{text}")
 		},
 	}
@@ -369,4 +379,33 @@ fn describe_element(view: &ElementView) -> String {
 
 fn key_to_label(bytes: &[u8]) -> String {
 	String::from_utf8(bytes.to_vec()).unwrap_or_else(|_| format!("0x{}", hex::encode(bytes)))
+}
+
+fn describe_registry_kind(kind: &RegistryKind) -> &'static str {
+	match kind {
+		RegistryKind::Raw => "Raw",
+		RegistryKind::Token => "Token",
+		RegistryKind::Hash => "Hash",
+	}
+}
+
+fn describe_registry_status(status: &RegistryStatus) -> &'static str {
+	match status {
+		RegistryStatus::Active => "Active",
+		RegistryStatus::Revoked => "Revoked",
+		RegistryStatus::Deleted => "Deleted",
+	}
+}
+
+fn describe_element_type(kind: &ElementType) -> &'static str {
+	match kind {
+		ElementType::None => "None",
+		ElementType::Raw => "Raw",
+		ElementType::Bool => "Bool",
+		ElementType::U64 => "U64",
+		ElementType::U128 => "U128",
+		ElementType::Hash => "Hash",
+		ElementType::Token => "Token",
+		ElementType::Cid => "Cid",
+	}
 }

@@ -55,7 +55,7 @@ impl<'a> Transactions<'a> {
 			("delegate", account_value(&delegate)),
 			("roles", permissions_value(roles)),
 		]);
-		self.build("Register", "set_registry_delegate", args).await
+		self.build("Register", "set_delegate_permissions", args).await
 	}
 
 	pub async fn register_remove_delegate(
@@ -67,7 +67,7 @@ impl<'a> Transactions<'a> {
 			("registry", identifier_value(registry_ss58)?),
 			("delegate", identifier_value(delegate_token_ss58)?),
 		]);
-		self.build("Register", "remove_registry_delegate", args).await
+		self.build("Register", "remove_delegate_permissions", args).await
 	}
 
 	pub async fn register_revoke(&self, registry_ss58: &str) -> Result<subxt::tx::DynamicPayload> {
