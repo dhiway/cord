@@ -6,12 +6,12 @@ use oc::{
 	demo,
 	demo::{
 		cli::{parse_common_cli, require_value, CommonCliOptions},
-	entity::{self, EntitySnapshot},
-	util::{
-		ensure_entity_token_verbose, fresh_authorization, fresh_authorization_with_client,
-		init_logging, parse_identifier, resolve_token_target, signer_account_id, LogSink, RunMode,
-		TokenTarget, TxExecutor, TxFlow,
-	},
+		entity::{self, EntitySnapshot},
+		util::{
+			ensure_entity_token_verbose, fresh_authorization, fresh_authorization_with_client,
+			init_logging, parse_identifier, resolve_token_target, signer_account_id, LogSink,
+			RunMode, TokenTarget, TxExecutor, TxFlow,
+		},
 	},
 	entity::{self as sdk_entity, AttributePlan, EntityChainState},
 	tx::{self, SubmitError, TxSubmitter},
@@ -126,7 +126,8 @@ async fn run_transaction_flow(
 			.await?;
 	let entity_token = demo::ss58_string(&token_identifier);
 	let mut snapshot = EntitySnapshot::from_profile(&profile, &entity_token);
-	let mut state_auth = || fresh_authorization(&signer);
+	let state_reference_block = client.view_auth_reference_block().await?;
+	let mut state_auth = || fresh_authorization(state_reference_block, &signer);
 	let baseline_state_version: u32 =
 		match sdk_entity::fetch_state_version(client, &token_identifier, &mut state_auth).await {
 			Ok(value) => value,
@@ -139,7 +140,8 @@ async fn run_transaction_flow(
 	let chain_state = if created {
 		EntityChainState::from_profile(&profile)
 	} else {
-		let mut auth_builder = || fresh_authorization(&signer);
+		let chain_state_reference_block = client.view_auth_reference_block().await?;
+		let mut auth_builder = || fresh_authorization(chain_state_reference_block, &signer);
 		match sdk_entity::fetch_entity_chain_state(client, &token_identifier, &mut auth_builder)
 			.await
 		{
@@ -154,8 +156,10 @@ async fn run_transaction_flow(
 		}
 	};
 	let entity_nym_prefix = utils::sanitize_entity_nym(&label);
-	let nym_req =
-		EntityNymRequest { auth: fresh_authorization(&signer)?, token: token_identifier.clone() };
+	let nym_req = EntityNymRequest {
+		auth: fresh_authorization_with_client(client, &signer).await?,
+		token: token_identifier.clone(),
+	};
 	let existing_nym = client.query().entity().entity_nym(&nym_req).await?;
 	if let Some(nym) = existing_nym {
 		snapshot.set_entity_nym(nym);
@@ -253,7 +257,7 @@ async fn run_view_flow(
 		.ok_or_else(|| anyhow!("--token <identifier> is required in view mode"))?;
 	let requested_token = parse_identifier(token_str)?;
 	let signer = tx::signer::dev_alice();
-	let resolver_auth = fresh_authorization(&signer)?;
+	let resolver_auth = fresh_authorization_with_client(client, &signer).await?;
 	let token_identifier =
 		match resolve_token_target(client, &resolver_auth, &requested_token).await? {
 			TokenTarget::Entity { token } => token,
@@ -269,7 +273,7 @@ async fn run_view_flow(
 			},
 		};
 
-	let auth = fresh_authorization(&signer)?;
+	let auth = fresh_authorization_with_client(client, &signer).await?;
 	let entity_info = client
 		.query()
 		.entity()
@@ -279,8 +283,10 @@ async fn run_view_flow(
 	let chain_state = EntityChainState::from_record(&entity_info);
 	let mut snapshot = EntitySnapshot::from_chain_state(&chain_state, token_str);
 
-	let nym_req =
-		EntityNymRequest { auth: fresh_authorization(&signer)?, token: token_identifier.clone() };
+	let nym_req = EntityNymRequest {
+		auth: fresh_authorization_with_client(client, &signer).await?,
+		token: token_identifier.clone(),
+	};
 	if let Some(nym) = client.query().entity().entity_nym(&nym_req).await? {
 		snapshot.set_entity_nym(nym);
 	}

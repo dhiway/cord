@@ -93,11 +93,12 @@ For relayed flows, wrap the call via `client.tx().meta_dispatch(call, &meta_sign
 
 ## Runtime Views
 
-1. Create an authorization request with `demo::util::fresh_authorization` or `AuthorizationBuilder::from_signer(&keypair, None)`.
+1. Fetch the latest block height (e.g., `let reference_block = client.view_auth_reference_block().await?;`) and create an authorization with `demo::util::fresh_authorization(reference_block, &signer)` or `AuthorizationBuilder::generate_view_authorization(&keypair, &AuthorizationBuilder::default_context(), reference_block, None)`.
 2. Call a view facade:
 
 ```rust
-let auth = fresh_authorization(&signer)?;
+let reference_block = client.view_auth_reference_block().await?;
+let auth = fresh_authorization(reference_block, &signer)?;
 let details = client
     .query()
     .entity()

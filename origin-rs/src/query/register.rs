@@ -5,7 +5,7 @@ use crate::{
 	runtime_helpers::{
 		attribute_optional, bounded_bytes_vec, bounded_iter, element_type_to_sdk, identifier_bytes,
 	},
-	types::{self, RegistrySchema},
+	types::RegistrySchema,
 };
 use cord_primitives::{
 	identifier::Ss58Identifier,
@@ -17,7 +17,7 @@ use cord_primitives::{
 		PacketStateView,
 	},
 	view_api::{
-		AuthorizationError, AuthorizationRequest, RegisterDetailsRequest,
+		AuthorizationError, RegisterDetailsRequest,
 		RegisterLookupSpecsRequest, RegisterPacketSnapshotByTokenRequest,
 		RegisterPacketSnapshotRequest,
 	},
@@ -41,9 +41,6 @@ struct PacketStateRecord {
 	attributes_hash: [u8; 32],
 	attributes: RuntimeAttributes,
 }
-
-#[derive(scale_decode::DecodeAsType)]
-struct PacketSnapshotListRecord(Vec<PacketSnapshotRecord>, Option<Ss58Identifier>);
 
 /// Entry point for register-specific view helpers.
 pub struct RegisterQuery<'a> {
@@ -134,21 +131,6 @@ impl<'a> RegisterQuery<'a> {
 		Ok(builder.finish())
 	}
 
-	fn list_by_token_args(
-		&self,
-		auth: &AuthorizationRequest,
-		token_prefix: &[u8],
-		version: Option<u32>,
-	) -> Result<Value> {
-		let mut builder = ArgBuilder::default();
-		builder.push("auth", super::authorization_value(auth)?);
-		builder.push("token_prefix", types::bytes_value(token_prefix));
-		builder.push("version", super::option_u32_value(version));
-		builder.push("cursor", super::option_value(None));
-		builder.push("limit", super::option_u32_value(Some(1)));
-		Ok(builder.finish())
-	}
-
 	fn packet_by_token_args(&self, req: &RegisterPacketSnapshotByTokenRequest) -> Result<Value> {
 		let mut builder = ArgBuilder::default();
 		builder.push("auth", super::authorization_value(&req.auth)?);
@@ -162,11 +144,11 @@ fn view_failure(ctx: &str, err: AuthorizationError) -> Error {
 	match err {
 		AuthorizationError::NotFound => Error::NotFound(format!("{ctx}: not found")),
 		AuthorizationError::Unauthorized => Error::Params(format!("{ctx}: unauthorized")),
-	AuthorizationError::InvalidInput => Error::Params(format!("{ctx}: invalid input")),
-	AuthorizationError::TooLarge => Error::Params(format!("{ctx}: result too large")),
-	AuthorizationError::Expired => Error::Params(format!("{ctx}: authorization expired")),
-	AuthorizationError::Internal => Error::ViewDecode(format!("{ctx}: internal error")),
-}
+		AuthorizationError::InvalidInput => Error::Params(format!("{ctx}: invalid input")),
+		AuthorizationError::TooLarge => Error::Params(format!("{ctx}: result too large")),
+		AuthorizationError::Expired => Error::Params(format!("{ctx}: authorization expired")),
+		AuthorizationError::Internal => Error::ViewDecode(format!("{ctx}: internal error")),
+	}
 }
 
 type RuntimeRegistryInfo = runtime::runtime_types::pallet_register::register::RegistryInfo;

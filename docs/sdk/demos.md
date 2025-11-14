@@ -6,7 +6,7 @@ The executable demos live under `origin-rs/examples/` and share common utilities
 
 - `demo::util::TxExecutor` – abstracts direct vs. relayed submissions.
 - `demo::util::LogSink` – consistent log formatting (`Validated`, `Broadcasted`, etc.).
-- `demo::util::fresh_authorization` – wraps `AuthorizationBuilder` for runtime views.
+- `demo::util::fresh_authorization_with_client` – fetches the latest reference block and wraps `AuthorizationBuilder` for runtime views.
 - `demo::entity` – snapshot structs + renderers used by both `entity-demo` and the global `state` viewer.
 - `demo::register` – formatting helpers for registry snapshots (kind/status, schema, lookup specs, token timelines).
 

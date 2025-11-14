@@ -19,33 +19,55 @@
 #[cfg(test)]
 use super::*;
 use crate::mock::{new_test_ext, Test};
+use codec::Encode;
 use core::convert::TryInto;
 use frame_support::{assert_err, assert_ok};
-use sp_runtime::traits::UniqueSaturatedInto;
 use sp_core::{sr25519, Pair, H256};
-use cord_primitives::authorization::append_valid_until;
-
-const AUTH_TTL: u32 = 30;
+use sp_runtime::traits::UniqueSaturatedInto;
+use sp_io::hashing::twox_128;
 
 fn current_block_u32() -> u32 {
 	frame_system::Pallet::<Test>::block_number().unique_saturated_into()
 }
 
-fn make_auth_with_valid_until(
+fn view_payload(
+	account: &<Test as frame_system::Config>::AccountId,
+	nonce: &[u8],
+	reference_block: u32,
+) -> Vec<u8> {
+	let account_bytes = account.encode();
+	let mut preimage = Vec::with_capacity(
+		nonce.len() + account_bytes.len() + core::mem::size_of::<u32>() + b"token::tests".len(),
+	);
+	preimage.extend_from_slice(nonce);
+	preimage.extend_from_slice(b"token::tests");
+	preimage.extend_from_slice(&account_bytes);
+	preimage.extend_from_slice(&reference_block.to_le_bytes());
+	let digest = twox_128(&preimage);
+	let mut payload = Vec::with_capacity(digest.len() + account_bytes.len() + 4);
+	payload.extend_from_slice(&digest);
+	payload.extend_from_slice(&account_bytes);
+	payload.extend_from_slice(&reference_block.to_le_bytes());
+	payload
+}
+
+fn make_auth_with_reference_block(
 	payload: &[u8],
 	pair: &sr25519::Pair,
-	valid_until: u32,
+	reference_block: u32,
 ) -> Authorization<Test> {
-	let vec_payload = append_valid_until(payload.to_vec(), valid_until);
+	let account: <Test as frame_system::Config>::AccountId = pair.public().into();
+	let nonce = payload.to_vec();
+	let vec_payload = view_payload(&account, &nonce, reference_block);
 	let signature: Signature = pair.sign(&vec_payload).into();
 	let bounded: AuthorizationPayloadOf<Test> =
 		vec_payload.try_into().expect("payload within bounds");
-	Authorization::<Test> { account: pair.public().into(), payload: bounded, signature }
+	Authorization::<Test> { account, payload: bounded, signature }
 }
 
 fn make_auth(payload: &[u8], pair: &sr25519::Pair) -> Authorization<Test> {
-	let valid_until = current_block_u32().saturating_add(AUTH_TTL);
-	make_auth_with_valid_until(payload, pair, valid_until)
+	let reference_block = current_block_u32();
+	make_auth_with_reference_block(payload, pair, reference_block)
 }
 
 /// Test that a valid pallet name can be stored and returns a consistent index.
@@ -159,16 +181,17 @@ fn history_requires_authorization() {
 		)
 		.unwrap();
 
-	let signer = sr25519::Pair::from_seed(&[21u8; 32]);
-	let valid_until = current_block_u32().saturating_add(5);
-	let auth = make_auth_with_valid_until(b"history", &signer, valid_until);
-	let entries =
-		Pallet::<Test>::history(auth.clone(), token.clone(), Some(0), 8).expect("entries");
-	assert_eq!(entries.len(), 1);
+		let signer = sr25519::Pair::from_seed(&[21u8; 32]);
+		let reference_block = current_block_u32();
+		let auth = make_auth_with_reference_block(b"history", &signer, reference_block);
+		let entries =
+			Pallet::<Test>::history(auth.clone(), token.clone(), Some(0), 8).expect("entries");
+		assert_eq!(entries.len(), 1);
 
-	frame_system::Pallet::<Test>::set_block_number((valid_until + 1).into());
-	let expired = Pallet::<Test>::history(auth, token.clone(), Some(0), 8);
-	assert!(matches!(expired, Err(AuthorizationError::Expired)));
+		let ttl = <Test as Config>::MaxAuthorizationTTL::get();
+		frame_system::Pallet::<Test>::set_block_number((reference_block + ttl + 1).into());
+		let expired = Pallet::<Test>::history(auth, token.clone(), Some(0), 8);
+		assert!(matches!(expired, Err(AuthorizationError::Expired)));
 	});
 }
 
@@ -182,19 +205,20 @@ fn timeline_requires_valid_authorization() {
 		let seal = EventBlock { height: 5, index: 1 };
 		Pallet::<Test>::update_token_state(&token, digest, action.clone(), seal.clone()).unwrap();
 
-	let signer = sr25519::Pair::from_seed(&[42u8; 32]);
-	let valid_until = current_block_u32().saturating_add(5);
-	let auth = make_auth_with_valid_until(b"view-history", &signer, valid_until);
-	let (entries, next) =
-		Pallet::<Test>::timeline(auth.clone(), token.clone(), Some(0), Some(10))
-			.expect("authorized timeline");
-	assert_eq!(entries.len(), 1);
-	assert_eq!(entries[0].digest, digest);
-	assert!(next.is_none());
+		let signer = sr25519::Pair::from_seed(&[42u8; 32]);
+		let reference_block = current_block_u32();
+		let auth = make_auth_with_reference_block(b"view-history", &signer, reference_block);
+		let (entries, next) =
+			Pallet::<Test>::timeline(auth.clone(), token.clone(), Some(0), Some(10))
+				.expect("authorized timeline");
+		assert_eq!(entries.len(), 1);
+		assert_eq!(entries[0].digest, digest);
+		assert!(next.is_none());
 
-	frame_system::Pallet::<Test>::set_block_number((valid_until + 1).into());
-	let expired = Pallet::<Test>::timeline(auth, token.clone(), Some(0), Some(10));
-	assert!(matches!(expired, Err(AuthorizationError::Expired)));
+		let ttl = <Test as Config>::MaxAuthorizationTTL::get();
+		frame_system::Pallet::<Test>::set_block_number((reference_block + ttl + 1).into());
+		let expired = Pallet::<Test>::timeline(auth, token.clone(), Some(0), Some(10));
+		assert!(matches!(expired, Err(AuthorizationError::Expired)));
 
 		let forge = sr25519::Pair::from_seed(&[99u8; 32]);
 		let mut forged = make_auth(b"view-history", &forge);
@@ -217,7 +241,8 @@ fn resolve_identifier_requires_authorization() {
 		let digest = vec![3u8; 32];
 		let token = Ss58Identifier::to_encoded(digest.clone(), 300, 9, 0).unwrap();
 		let signer = sr25519::Pair::from_seed(&[7u8; 32]);
-		let auth = make_auth(b"resolve-id", &signer);
+		let reference_block = current_block_u32();
+		let auth = make_auth_with_reference_block(b"resolve-id", &signer, reference_block);
 		let decoded = Pallet::<Test>::resolve_identifier(auth.clone(), token.clone())
 			.expect("authorized view should succeed");
 		assert_eq!(decoded.network, 300);
@@ -227,9 +252,11 @@ fn resolve_identifier_requires_authorization() {
 		let raw = Pallet::<Test>::resolve_identifier_plain(&token).expect("helper");
 		assert_eq!(raw.network, 300);
 
+		let ttl = <Test as Config>::MaxAuthorizationTTL::get();
+		frame_system::Pallet::<Test>::set_block_number((reference_block + ttl + 1).into());
 		assert!(matches!(
 			Pallet::<Test>::resolve_identifier(auth, token.clone()),
-			Err(AuthorizationError::Unauthorized)
+			Err(AuthorizationError::Expired)
 		));
 	});
 }
@@ -239,13 +266,14 @@ fn resolve_identifier_query_expires_after_valid_until() {
 	new_test_ext().execute_with(|| {
 		let token = Ss58Identifier::to_encoded(vec![6u8; 32], 310, 12, 0).unwrap();
 		let signer = sr25519::Pair::from_seed(&[8u8; 32]);
-		let valid_until = current_block_u32().saturating_add(5);
-		let auth = make_auth_with_valid_until(b"resolve-helper", &signer, valid_until);
+		let reference_block = current_block_u32();
+		let auth = make_auth_with_reference_block(b"resolve-helper", &signer, reference_block);
 		let decoded =
 			Pallet::<Test>::resolve_identifier_query(auth.clone(), token.clone()).expect("helper");
 		assert_eq!(decoded.pallet, 12);
 
-		frame_system::Pallet::<Test>::set_block_number((valid_until + 1).into());
+		let ttl = <Test as Config>::MaxAuthorizationTTL::get();
+		frame_system::Pallet::<Test>::set_block_number((reference_block + ttl + 1).into());
 		let expired = Pallet::<Test>::resolve_identifier_query(auth, token.clone());
 		assert!(matches!(expired, Err(AuthorizationError::Expired)));
 	});
@@ -277,7 +305,8 @@ fn resolve_pallet_requires_authorization() {
 		let signer = sr25519::Pair::from_seed(&[11u8; 32]);
 		let pallet_name = "TokenView";
 		let index = Pallet::<Test>::get_or_add_pallet_index(pallet_name).unwrap();
-		let auth = make_auth(b"resolve-pallet", &signer);
+		let reference_block = current_block_u32();
+		let auth = make_auth_with_reference_block(b"resolve-pallet", &signer, reference_block);
 		let name =
 			Pallet::<Test>::resolve_pallet(auth.clone(), index).expect("authorized pallet query");
 		assert_eq!(name, pallet_name);
@@ -285,9 +314,11 @@ fn resolve_pallet_requires_authorization() {
 		let raw = Pallet::<Test>::resolve_pallet_plain(index).expect("helper");
 		assert_eq!(raw, pallet_name);
 
+		let ttl = <Test as Config>::MaxAuthorizationTTL::get();
+		frame_system::Pallet::<Test>::set_block_number((reference_block + ttl + 1).into());
 		assert!(matches!(
 			Pallet::<Test>::resolve_pallet(auth, index),
-			Err(AuthorizationError::Unauthorized)
+			Err(AuthorizationError::Expired)
 		));
 	});
 }

@@ -1,10 +1,7 @@
 use crate::error::{Error, Result};
-use cord_primitives::{
-	authorization::append_valid_until,
-	view_api::{AuthorizationPayload, AuthorizationRequest, AUTHORIZATION_MAX_BYTES},
-};
+use cord_primitives::view_api::{AuthorizationPayload, AuthorizationRequest, AUTHORIZATION_MAX_BYTES};
 use serde::{Deserialize, Serialize};
-use sp_core::{ecdsa, ed25519, sr25519};
+use sp_core::{ecdsa, ed25519, hashing::twox_128, sr25519};
 use sp_runtime::AccountId32;
 use std::convert::{TryFrom, TryInto};
 use subxt::config::PolkadotConfig as C;
@@ -25,7 +22,7 @@ pub struct Authorization {
 	pub account_ss58: String,
 	pub account_id: subxt::utils::AccountId32,
 	pub scheme: SignatureScheme,
-	pub message: Vec<u8>,
+	pub payload: Vec<u8>,
 	pub signature: Vec<u8>,
 }
 
@@ -34,23 +31,53 @@ pub struct AuthorizationBuilder;
 pub const DEFAULT_VIEW_AUTH_TTL: u32 = 30;
 
 impl AuthorizationBuilder {
-	/// Construct a random "cord:view" payload.
-	pub fn random_message() -> Vec<u8> {
-		let mut out = b"cord:view:v1|".to_vec();
-		let mut rnd = [0u8; 48];
-		let _ = getrandom::getrandom(&mut rnd);
-		out.extend_from_slice(&rnd);
+	/// Construct a random 48-byte nonce.
+	pub fn random_nonce() -> Vec<u8> {
+		let mut out = vec![0u8; 48];
+		let _ = getrandom::getrandom(&mut out);
 		out
 	}
 
-	/// Sign a payload using the provided Subxt signer, inferring the signature scheme automatically.
-	pub fn from_signer<S: subxt::tx::Signer<C>>(
+	/// Hash a pallet/view pair into a 16-byte context tag.
+	pub fn view_context(pallet: &str, view: &str) -> [u8; 16] {
+		let mut label = Vec::with_capacity(pallet.len() + view.len() + 2);
+		label.extend_from_slice(pallet.as_bytes());
+		label.extend_from_slice(b"::");
+		label.extend_from_slice(view.as_bytes());
+		twox_128(&label)
+	}
+
+	/// Default context used by legacy helpers.
+	pub fn default_context() -> [u8; 16] {
+		Self::view_context("cord", "view")
+	}
+
+	fn compose_payload(
+		account: &subxt::utils::AccountId32,
+		context: &[u8],
+		nonce: &[u8],
+		reference_block: u32,
+	) -> Vec<u8> {
+		let account_bytes: &[u8] = account.as_ref();
+		let mut preimage = Vec::with_capacity(
+			nonce.len() + context.len() + account_bytes.len() + core::mem::size_of::<u32>(),
+		);
+		preimage.extend_from_slice(nonce);
+		preimage.extend_from_slice(context);
+		preimage.extend_from_slice(account_bytes);
+		preimage.extend_from_slice(&reference_block.to_le_bytes());
+		let digest = twox_128(&preimage);
+		let mut payload = Vec::with_capacity(digest.len() + account_bytes.len() + 4);
+		payload.extend_from_slice(&digest);
+		payload.extend_from_slice(account_bytes);
+		payload.extend_from_slice(&reference_block.to_le_bytes());
+		payload
+	}
+
+	fn sign_payload<S: subxt::tx::Signer<C>>(
 		signer: &S,
-		valid_until: u32,
-		message: Option<&[u8]>,
+		payload: Vec<u8>,
 	) -> Result<Authorization> {
-		let msg = message.map(|m| m.to_vec()).unwrap_or_else(Self::random_message);
-		let payload = append_valid_until(msg, valid_until);
 		let sig = signer.sign(&payload);
 		let (scheme, sig_bytes) = match sig {
 			subxt::utils::MultiSignature::Ed25519(inner) => {
@@ -67,15 +94,43 @@ impl AuthorizationBuilder {
 			account_ss58: signer.account_id().to_string(),
 			account_id: signer.account_id(),
 			scheme,
-			message: payload,
+			payload,
 			signature: sig_bytes,
 		})
+	}
+
+	/// Generate a ready-to-use authorization request for a specific pallet view.
+	pub fn generate_view_authorization<S: subxt::tx::Signer<C>>(
+		signer: &S,
+		context: &[u8; 16],
+		reference_block: u32,
+		nonce: Option<&[u8]>,
+	) -> Result<AuthorizationRequest> {
+		let account = signer.account_id();
+		let nonce_vec = nonce.map(|n| n.to_vec()).unwrap_or_else(Self::random_nonce);
+		let payload = Self::compose_payload(&account, context, &nonce_vec, reference_block);
+		Self::sign_payload(signer, payload)?.as_request()
+	}
+
+	/// Legacy helper retained for compatibility; prefer [`generate_view_authorization`].
+	#[allow(dead_code)]
+	#[deprecated(note = "use generate_view_authorization with an explicit context")]
+	pub fn from_signer<S: subxt::tx::Signer<C>>(
+		signer: &S,
+		reference_block: u32,
+		nonce: Option<&[u8]>,
+	) -> Result<Authorization> {
+		let ctx = Self::default_context();
+		let account = signer.account_id();
+		let nonce_vec = nonce.map(|n| n.to_vec()).unwrap_or_else(Self::random_nonce);
+		let payload = Self::compose_payload(&account, &ctx, &nonce_vec, reference_block);
+		Self::sign_payload(signer, payload)
 	}
 }
 
 impl Authorization {
 	pub fn as_request(&self) -> Result<AuthorizationRequest> {
-		let payload = AuthorizationPayload::try_from(self.message.clone()).map_err(|_| {
+		let payload = AuthorizationPayload::try_from(self.payload.clone()).map_err(|_| {
 			Error::Params(format!("view payload exceeds {} bytes", AUTHORIZATION_MAX_BYTES))
 		})?;
 		let account = AccountId32::new(*self.account_id.as_ref());

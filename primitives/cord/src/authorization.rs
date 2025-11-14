@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 use codec::{Decode, Encode, MaxEncodedLen};
 use core::fmt;
 use scale_info::TypeInfo;
-use sp_io::hashing::blake2_128;
+use sp_io::hashing::twox_128;
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -29,7 +29,7 @@ where
 	}
 }
 
-/// Helper to compute the Blake2-128 signature hash used for replay protection.
+/// Helper to compute the xxHash-128 signature hash used for replay protection.
 pub fn authorization_signature_hash<AccountId, Signature>(
 	account: &AccountId,
 	payload: &[u8],
@@ -42,26 +42,25 @@ where
 	let mut encoded: Vec<u8> = account.encode();
 	encoded.extend_from_slice(payload);
 	encoded.extend(signature.encode());
-	blake2_128(&encoded)
+	twox_128(&encoded)
 }
 
-/// Size of the `valid_until` trailer encoded into authorization payloads.
+/// Size of the `reference_block` trailer encoded into authorization payloads.
 pub const AUTHORIZATION_VALID_UNTIL_BYTES: usize = core::mem::size_of::<u32>();
 
-/// Append a `valid_until` (as little-endian `u32`) to the provided payload bytes.
-pub fn append_valid_until(mut payload: Vec<u8>, valid_until: u32) -> Vec<u8> {
-	payload.extend_from_slice(&valid_until.to_le_bytes());
+/// Append the reference block number (as little-endian `u32`) to the provided payload bytes.
+pub fn append_valid_until(mut payload: Vec<u8>, reference_block: u32) -> Vec<u8> {
+	payload.extend_from_slice(&reference_block.to_le_bytes());
 	payload
 }
 
-/// Extract the trailing `valid_until` block number from a payload.
+/// Extract the trailing reference block number from a payload.
 pub fn extract_valid_until(payload: &[u8]) -> Option<u32> {
 	if payload.len() < AUTHORIZATION_VALID_UNTIL_BYTES {
 		return None;
 	}
 	let idx = payload.len() - AUTHORIZATION_VALID_UNTIL_BYTES;
-	let bytes: [u8; AUTHORIZATION_VALID_UNTIL_BYTES] =
-		payload[idx..].try_into().ok()?;
+	let bytes: [u8; AUTHORIZATION_VALID_UNTIL_BYTES] = payload[idx..].try_into().ok()?;
 	Some(u32::from_le_bytes(bytes))
 }
 

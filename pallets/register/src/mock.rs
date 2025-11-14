@@ -68,6 +68,7 @@ impl pallet_token::Config for Test {
 	type MaxAuthorizationLen = MaxAuthorizationLen;
 	type MaxTimelineViewResults = MaxTimelineViewResults;
 	type DefaultTimelineViewResults = DefaultTimelineViewResults;
+	type MaxAuthorizationTTL = MaxAuthorizationTTL;
 }
 
 parameter_types! {
