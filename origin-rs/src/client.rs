@@ -2,10 +2,12 @@ use crate::{
 	error::{Error, Result},
 	flavors::ChainFlavor,
 	params::config::CordConfig,
+	query::auth::DEFAULT_VIEW_AUTH_TTL,
 };
 #[allow(unused_imports)]
 use futures::StreamExt;
 use sp_core::hashing::blake2_256;
+use sp_runtime::traits::SaturatedConversion;
 use std::{convert::TryFrom, sync::Arc, time::Duration};
 use subxt::{
 	backend::rpc::{
@@ -121,6 +123,21 @@ impl Client {
 			.await
 			.map_err(|e| Error::Transport(e.to_string()))?;
 		Ok(blake2_256(&raw.into_raw()))
+	}
+
+	pub async fn view_auth_reference_block(&self) -> Result<u32> {
+		let header = self
+			.legacy_methods()
+			.chain_get_header(None)
+			.await
+			.map_err(|e| Error::Transport(e.to_string()))?;
+		let header = header.ok_or_else(|| Error::NotFound("latest header".into()))?;
+		Ok(header.number.saturated_into())
+	}
+
+	pub async fn view_auth_valid_until(&self) -> Result<u32> {
+		let number = self.view_auth_reference_block().await?;
+		Ok(number.saturating_add(DEFAULT_VIEW_AUTH_TTL))
 	}
 
 	/// Wait for a runtime upgrade notification and return once one is observed.

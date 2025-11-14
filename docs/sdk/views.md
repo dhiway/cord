@@ -5,12 +5,12 @@ Most read-only data comes from runtime view functions secured with the `Authoriz
 ## Signing View Payloads
 
 ```rust
-use oc::demo::util::fresh_authorization; // thin wrapper
+use oc::demo::util::fresh_authorization_with_client; // thin wrapper
 
-let auth = fresh_authorization(&signer)?; // random "cord:view:v1" payload
+let auth = fresh_authorization_with_client(&client, &signer).await?; // valid for ~30 blocks
 ```
 
-Under the hood this calls `AuthorizationBuilder::from_signer(&keypair, None)`, detects the signature scheme, and returns an `AuthorizationRequest` ready for the view functions.
+Under the hood this calls `AuthorizationBuilder::generate_view_authorization(&keypair, &AuthorizationBuilder::default_context(), reference_block, None)`, detects the signature scheme, and returns an `AuthorizationRequest` ready for the view functions.
 
 ## Entity Views
 
@@ -25,7 +25,7 @@ let timeline = client
     .query()
     .token()
     .timeline(&TokenTimelineRequest {
-        auth: fresh_authorization(&signer)?,
+        auth: fresh_authorization_with_client(&client, &signer).await?,
         token: token_identifier.clone(),
         start: None,
         limit: Some(10),
@@ -38,15 +38,18 @@ let timeline = client
 ## Register Views
 
 ```rust
-let req = RegisterDetailsRequest { auth: fresh_authorization(&signer)?, registry: registry_id.clone() };
+let req = RegisterDetailsRequest {
+    auth: fresh_authorization_with_client(&client, &signer).await?,
+    registry: registry_id.clone(),
+};
 let details = client.query().register().details(&req).await?;
 let lookup_specs = client.query().register().lookup_specs(&RegisterLookupSpecsRequest {
-    auth: fresh_authorization(&signer)?,
+    auth: fresh_authorization_with_client(&client, &signer).await?,
     registry: registry_id.clone(),
 }).await?;
 
 let packet = client.query().register().packet_snapshot(&RegisterPacketSnapshotRequest {
-    auth: fresh_authorization(&signer)?,
+    auth: fresh_authorization_with_client(&client, &signer).await?,
     registry: registry_id.clone(),
     packet: packet_id.clone(),
     version: None,

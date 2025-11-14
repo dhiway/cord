@@ -143,10 +143,12 @@ pub fn parse_identifier(value: &str) -> Result<Ss58Identifier> {
 		.map_err(|_| Error::Params(format!("invalid identifier: {value}")))
 }
 
-pub fn fresh_authorization(valid_until: u32, signer: &tx::signer::Keypair) -> Result<AuthorizationRequest> {
-	AuthorizationBuilder::from_signer(signer, valid_until, None)
-		.map_err(|e| Error::Signer(e.to_string()))?
-		.as_request()
+pub fn fresh_authorization(
+	reference_block: u32,
+	signer: &tx::signer::Keypair,
+) -> Result<AuthorizationRequest> {
+	let context = AuthorizationBuilder::default_context();
+	AuthorizationBuilder::generate_view_authorization(signer, &context, reference_block, None)
 		.map_err(|e| Error::Signer(e.to_string()))
 }
 
@@ -154,8 +156,8 @@ pub async fn fresh_authorization_with_client(
 	client: &Client,
 	signer: &tx::signer::Keypair,
 ) -> Result<AuthorizationRequest> {
-	let valid_until = client.view_auth_valid_until().await?;
-	fresh_authorization(valid_until, signer)
+	let reference_block = client.view_auth_reference_block().await?;
+	fresh_authorization(reference_block, signer)
 }
 
 pub async fn ensure_entity_token_verbose(
@@ -167,8 +169,10 @@ pub async fn ensure_entity_token_verbose(
 ) -> Result<(Ss58Identifier, bool, Vec<String>)> {
 	let raw: [u8; 32] = *account_id.as_ref();
 	let runtime_account = RuntimeAccount::from(raw);
-	let request =
-		EntityAccountTokenRequest { auth: fresh_authorization(signer)?, account: runtime_account };
+	let request = EntityAccountTokenRequest {
+		auth: fresh_authorization_with_client(client, signer).await?,
+		account: runtime_account,
+	};
 	if let Some(token) = client.query().entity().account_token(&request).await? {
 		return Ok((token, false, Vec::new()));
 	}

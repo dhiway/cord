@@ -23,9 +23,8 @@ use crate::{
 	signature::SignatureVerificationError, Error,
 };
 use alloc::format;
-use codec::Decode;
+use codec::{Decode, Encode};
 use cord_primitives::{
-	authorization::append_valid_until,
 	packet::{Attribute, Attributes, AttributesError, Element},
 	view_api::AuthorizationError,
 	Signature,
@@ -34,7 +33,11 @@ use core::sync::atomic::{AtomicU64, Ordering};
 use frame_support::{assert_noop, assert_ok};
 use pallet_token::Token;
 use sp_core::{sr25519, Pair};
-use sp_runtime::{traits::{IdentifyAccount, UniqueSaturatedInto}, MultiSigner};
+use sp_runtime::{
+	traits::{IdentifyAccount, SaturatedConversion},
+	MultiSigner,
+};
+use sp_io::hashing::twox_128;
 
 /// Shortcut to wrap raw bytes into our `Data` type.
 fn plain_data(s: &[u8]) -> Element<MaxRawDataLength> {
@@ -59,13 +62,29 @@ fn _test_id(input: &[u8]) -> Ss58Identifier {
 
 static VIEW_AUTH_COUNTER: AtomicU64 = AtomicU64::new(0);
 
+fn view_payload(account: &AccountId, nonce: &[u8], reference_block: u32) -> Vec<u8> {
+	let account_bytes = account.encode();
+	let mut preimage = Vec::with_capacity(
+		nonce.len() + account_bytes.len() + core::mem::size_of::<u32>() + b"entity::tests".len(),
+	);
+	preimage.extend_from_slice(nonce);
+	preimage.extend_from_slice(b"entity::tests");
+	preimage.extend_from_slice(&account_bytes);
+	preimage.extend_from_slice(&reference_block.to_le_bytes());
+	let digest = twox_128(&preimage);
+	let mut payload = Vec::with_capacity(digest.len() + account_bytes.len() + 4);
+	payload.extend_from_slice(&digest);
+	payload.extend_from_slice(&account_bytes);
+	payload.extend_from_slice(&reference_block.to_le_bytes());
+	payload
+}
+
 fn authorization(account: &AccountId) -> AuthorizationOf<Test> {
 	let counter = VIEW_AUTH_COUNTER.fetch_add(1, Ordering::Relaxed);
 	let payload_text = format!("entity-view-{counter}");
-	let valid_until = frame_system::Pallet::<Test>::block_number()
-		.unique_saturated_into::<u32>()
-		.saturating_add(30);
-	let payload_vec = append_valid_until(payload_text.into_bytes(), valid_until);
+	let issued_at = frame_system::Pallet::<Test>::block_number().saturated_into::<u32>();
+	let nonce = payload_text.into_bytes();
+	let payload_vec = view_payload(account, &nonce, issued_at);
 	let payload: AuthorizationPayloadOf<Test> =
 		payload_vec.clone().try_into().expect("payload within bounds");
 	let signature = mock::ACCOUNT_KEYS.with(|keys| {

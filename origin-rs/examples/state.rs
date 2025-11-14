@@ -11,8 +11,8 @@ use oc::{
 	demo::packet::render_packet_snapshot_cli,
 	demo::register::render_registry_snapshot_cli,
 	demo::util::{
-		fresh_authorization, init_logging, parse_identifier, resolve_token_target, token_timeline,
-		RunMode, TokenTarget,
+		fresh_authorization_with_client, init_logging, parse_identifier, resolve_token_target,
+		token_timeline, RunMode, TokenTarget,
 	},
 	entity::EntityChainState,
 	query::register::PacketSnapshotView,
@@ -92,7 +92,7 @@ async fn main() -> Result<()> {
 	let signer = tx::signer::dev_alice();
 	let token_str = cli.token.as_deref().expect("token required");
 	let token_id = parse_identifier(token_str)?;
-	let auth = fresh_authorization(&signer)?;
+	let auth = fresh_authorization_with_client(&client, &signer).await?;
 	let target = resolve_token_target(&client, &auth, &token_id).await?;
 
 	match target {
@@ -117,7 +117,7 @@ async fn render_entity_state(
 	chain_prefix: Ss58AddressFormat,
 	common: &CommonCliOptions,
 ) -> Result<()> {
-	let auth = fresh_authorization(signer)?;
+	let auth = fresh_authorization_with_client(client, signer).await?;
 	let entity_info = client
 		.query()
 		.entity()
@@ -127,7 +127,10 @@ async fn render_entity_state(
 	let chain_state = EntityChainState::from_record(&entity_info);
 	let mut snapshot = EntitySnapshot::from_chain_state(&chain_state, token_str);
 
-	let nym_req = EntityNymRequest { auth: fresh_authorization(signer)?, token: token.clone() };
+	let nym_req = EntityNymRequest {
+		auth: fresh_authorization_with_client(client, signer).await?,
+		token: token.clone(),
+	};
 	if let Some(nym) = client.query().entity().entity_nym(&nym_req).await? {
 		snapshot.set_entity_nym(nym);
 	}
@@ -154,7 +157,7 @@ async fn render_registry_state(
 	common: &CommonCliOptions,
 ) -> Result<()> {
 	let registry_ss58 = demo::ss58_string(&registry);
-	let auth = fresh_authorization(signer)?;
+	let auth = fresh_authorization_with_client(client, signer).await?;
 	let lookup_req = RegisterLookupSpecsRequest { auth: auth.clone(), registry: registry.clone() };
 	let lookups = client.query().register().lookup_specs(&lookup_req).await?;
 	let (timeline, next_cursor) = token_timeline(client, &auth, &registry, Some(12)).await?;
@@ -179,7 +182,7 @@ async fn render_packet_state(
 ) -> Result<()> {
 	let registry_ss58 = demo::ss58_string(&registry);
 	let packet_ss58 = demo::ss58_string(&packet);
-	let auth = fresh_authorization(signer)?;
+	let auth = fresh_authorization_with_client(client, signer).await?;
 	let (timeline, next_cursor) = token_timeline(client, &auth, &packet, Some(12)).await?;
 	render_packet_snapshot_cli(
 		&registry_ss58,

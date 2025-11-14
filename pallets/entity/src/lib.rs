@@ -950,15 +950,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn ensure_authorization_fresh(payload: &[u8]) -> Result<(), AuthorizationError> {
-		let valid_until = extract_valid_until(payload).ok_or(AuthorizationError::InvalidInput)?;
+		let issued_at = extract_valid_until(payload).ok_or(AuthorizationError::InvalidInput)?;
 		let now: u32 = frame_system::Pallet::<T>::block_number().unique_saturated_into();
-		if now > valid_until {
+		let ttl = T::MaxAuthorizationTTL::get();
+		let expires_at = issued_at.saturating_add(ttl);
+		if now >= expires_at {
 			return Err(AuthorizationError::Expired);
-		}
-		let max_ttl = T::MaxAuthorizationTTL::get();
-		let remaining = valid_until.saturating_sub(now);
-		if remaining > max_ttl {
-			return Err(AuthorizationError::InvalidInput);
 		}
 		Ok(())
 	}

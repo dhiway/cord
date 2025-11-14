@@ -1195,38 +1195,36 @@ pub mod pallet {
 			origin.caller().as_signed().map(T::Feeless::is_feeless).unwrap_or(false)
 		}
 
-	fn record_registry_query(registry: &Ss58Identifier, account: &T::AccountId) {
-		RegistryQueryCounts::<T>::mutate(registry, account.clone(), |count| {
-			*count = count.saturating_add(1);
-		});
-	}
-
-	fn authorize_query(
-		auth: &AuthorizationOf<T>,
-	) -> Result<Ss58Identifier, AuthorizationError> {
-		Self::ensure_authorization_fresh(auth.payload.as_slice())?;
-		let token = T::EntityLookup::verify_account_signature(
-			&auth.account,
-			auth.payload.as_slice(),
-			&auth.signature,
-		)
-		.map_err(|_| AuthorizationError::Unauthorized)?;
-		Ok(token)
-	}
-
-	fn ensure_authorization_fresh(payload: &[u8]) -> Result<(), AuthorizationError> {
-		let valid_until = extract_valid_until(payload).ok_or(AuthorizationError::InvalidInput)?;
-		let now: u32 = frame_system::Pallet::<T>::block_number().unique_saturated_into();
-		if now > valid_until {
-			return Err(AuthorizationError::Expired);
+		fn record_registry_query(registry: &Ss58Identifier, account: &T::AccountId) {
+			RegistryQueryCounts::<T>::mutate(registry, account.clone(), |count| {
+				*count = count.saturating_add(1);
+			});
 		}
-		let max_ttl = T::MaxAuthorizationTTL::get();
-		let remaining = valid_until.saturating_sub(now);
-		if remaining > max_ttl {
-			return Err(AuthorizationError::InvalidInput);
+
+		fn authorize_query(
+			auth: &AuthorizationOf<T>,
+		) -> Result<Ss58Identifier, AuthorizationError> {
+			Self::ensure_authorization_fresh(auth.payload.as_slice())?;
+			let token = T::EntityLookup::verify_account_signature(
+				&auth.account,
+				auth.payload.as_slice(),
+				&auth.signature,
+			)
+			.map_err(|_| AuthorizationError::Unauthorized)?;
+			Ok(token)
 		}
-		Ok(())
-	}
+
+		fn ensure_authorization_fresh(payload: &[u8]) -> Result<(), AuthorizationError> {
+			let issued_at =
+				extract_valid_until(payload).ok_or(AuthorizationError::InvalidInput)?;
+			let now: u32 = frame_system::Pallet::<T>::block_number().unique_saturated_into();
+			let ttl = T::MaxAuthorizationTTL::get();
+			let expires_at = issued_at.saturating_add(ttl);
+			if now >= expires_at {
+				return Err(AuthorizationError::Expired);
+			}
+			Ok(())
+		}
 
 		fn snapshot_for(
 			token: &Ss58Identifier,

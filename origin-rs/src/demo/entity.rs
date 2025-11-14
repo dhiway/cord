@@ -315,7 +315,8 @@ pub async fn render_entity_snapshot(
 	let mut history = Vec::new();
 
 	if include_history {
-		let mut timeline_auth = || fresh_authorization(&signer);
+		let timeline_reference_block = client.view_auth_reference_block().await?;
+		let mut timeline_auth = || fresh_authorization(timeline_reference_block, &signer);
 		timeline = crate::entity::fetch_full_token_timeline(
 			client,
 			token_identifier,
@@ -323,13 +324,15 @@ pub async fn render_entity_snapshot(
 			&mut timeline_auth,
 		)
 		.await?;
-		let mut history_auth = || fresh_authorization(&signer);
+		let history_reference_block = client.view_auth_reference_block().await?;
+		let mut history_auth = || fresh_authorization(history_reference_block, &signer);
 		history =
 			crate::entity::collect_attribute_history(client, token_identifier, &mut history_auth)
 				.await?;
 	}
 
-	let mut links_auth = || fresh_authorization(&signer);
+	let links_reference_block = client.view_auth_reference_block().await?;
+	let mut links_auth = || fresh_authorization(links_reference_block, &signer);
 	let sub_accounts =
 		crate::entity::fetch_linked_accounts(client, token_identifier, &mut links_auth).await?;
 	snapshot.set_active_accounts(&sub_accounts, chain_prefix);
