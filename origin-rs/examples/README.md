@@ -14,9 +14,9 @@ Every demo accepts `--node ws://…` plus shared UX flags:
 | `-f, --flow <direct|relay>` | Direct signing vs. relayed meta-transaction flow (entity/register demos support both; packet-demo relays maintainer calls and submits the packet directly via the delegate). |
 | `-d, --display <less|more>` | Compact vs. full CLI tables. `--json` implies full. |
 | `-j, --json` | Emit JSON snapshots instead of tables. |
-| `-t, --token` | Entity identifier for `entity-demo` view mode. |
-| `-r, --registry` | Registry identifier for view mode (register-demo / packet-demo). |
-| `-p, --packet` | Packet identifier for `packet-demo` view mode. |
+| `-t, --token <identifier>` | Preferred flag. Auto-resolves whether the token is an entity, registry, or packet. Works across `entity-demo`, `register-demo`, `packet-demo`, and `state`. |
+| `-r, --registry <identifier>` | Optional override for register/packet demos if you only know the registry token. |
+| `-p, --packet <identifier>` | Optional override for packet view mode when you want to bypass auto-resolution. |
 
 Behind the scenes, each demo uses the shared helpers from `src/demo/util.rs` (logging, `TxExecutor`, authorizations) and `src/demo/entity.rs` (snapshot rendering).
 
@@ -33,7 +33,7 @@ Behind the scenes, each demo uses the shared helpers from `src/demo/util.rs` (lo
 4. Set the entity nym if missing.
 5. Fetch attribute history, token timeline, and linked accounts; render tables or JSON.
 
-**View mode:** requires `--token`. Skips writes and only renders the latest snapshot/history.
+**View mode:** pass `--token`. Skips writes and only renders the latest snapshot/history.
 
 ```bash
 cargo run -p origin-rs --example entity-demo -- --flow relay
@@ -52,11 +52,11 @@ cargo run -p origin-rs --example entity-demo -- --mode view --token 5F...
 3. Submit `register_create_registry_json` (direct or relayed) and print structured logs.
 4. Query `register.details` + `register.lookup_specs` and display them.
 
-**View mode:** requires `--registry`. Only fetches runtime views.
+**View mode:** prefers `--token` (auto-detects registry vs. packet). `--registry` remains as a fallback for older scripts.
 
 ```bash
 cargo run -p origin-rs --example register-demo
-cargo run -p origin-rs --example register-demo -- --mode view --registry 5G...
+cargo run -p origin-rs --example register-demo -- --mode view --token 2U...
 ```
 
 ---
@@ -72,13 +72,25 @@ cargo run -p origin-rs --example register-demo -- --mode view --registry 5G...
 4. Compose packet attributes and submit `register::create_packet` with the delegate signer.
 5. Fetch `register.packet_snapshot` + `token.timeline` and render output.
 
-**View mode:** requires both `--registry` and `--packet`.
+**View mode:** pass `--token` and the demo will resolve whether it is a packet or registry token. Use `--registry/--packet` only when you want to pin the pair manually.
 
 ```bash
 cargo run -p origin-rs --example packet-demo
-cargo run -p origin-rs --example packet-demo -- \
-  --mode view --registry 5G... --packet 5E...
+cargo run -p origin-rs --example packet-demo -- --mode view --token 2U...
 ```
+
+---
+
+## state (unified viewer)
+
+**Purpose:** accept any token, resolve what it represents via SDK view helpers, and render the appropriate snapshot (entity / registry / packet) using the same output modules as the demos.
+
+```bash
+cargo run -p origin-rs --example state -- --token 2U...
+cargo run -p origin-rs --example state -- --token 2U... --json
+```
+
+The `state` example is view-only (`--mode view` is implied). It is ideal for scripts, quick inspections, or regression tests where you have a token but don’t want to remember which demo handles it.
 
 ---
 
