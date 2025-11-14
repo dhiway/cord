@@ -27,6 +27,9 @@ cargo run -p origin-rs --example entity-demo
 # 4. View an existing entity snapshot (requires --token)
 cargo run -p origin-rs --example entity-demo -- \
   --mode view --token <identifier>
+
+# 5. Use the unified state viewer (auto-detects entity/registry/packet)
+cargo run -p origin-rs --example state -- --token <identifier>
 ```
 
 All demos accept `--node ws://…` and share the same `--mode` / `--flow` / `--display` / `--json` switches. See the [Demo Playbook](examples/README.md) for details.
@@ -111,6 +114,7 @@ Token timelines, register packet snapshots, and lookup specs follow the same pat
 - `entity-demo` – attribute rotation, timeline/history rendering, view mode.
 - `register-demo` – maintainer setup, registry mint, schema/lookup inspection.
 - `packet-demo` – entity + registry + delegate + packet snapshot with token timeline.
+- `state` – single-entry CLI that accepts any token, resolves what it represents, and invokes the right snapshot renderer (entity / registry / packet) with JSON or table output.
 - `quickstart` – RPC probe.
 - `inspect-view` – ad-hoc runtime view inspector.
 - `update-metadata` – writes the latest runtime metadata to `origin-rs/metadata/cord.scale`.

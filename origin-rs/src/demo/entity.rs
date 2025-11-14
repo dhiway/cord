@@ -1,11 +1,20 @@
+use crate::{
+	demo::util::{fresh_authorization, ViewStyle},
+	entity::TimelineRow,
+	tx,
+	types::entity::HistoryEntry,
+	utils, Client,
+};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
+use cord_primitives::identifier::Ss58Identifier;
 use serde::Serialize;
+use serde_json::json;
 use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use sp_runtime::AccountId32 as RuntimeAccount;
 use std::collections::BTreeMap;
 use subxt::utils::AccountId32;
 
-use crate::{entity::EntityChainState, types::entity::HistoryEntry, utils};
+use crate::entity::EntityChainState;
 
 #[derive(Clone, Serialize)]
 pub struct EntitySnapshot {
@@ -163,4 +172,208 @@ fn truncate_value(value: &str, max_len: usize) -> String {
 		truncated.push('…');
 		truncated
 	}
+}
+
+pub fn print_entity_sections(
+	snapshot: &EntitySnapshot,
+	attr_history: &[HistoryEntry],
+	timeline: &[TimelineRow],
+	accounts: &[AccountId32],
+	style: ViewStyle,
+	chain_prefix: Ss58AddressFormat,
+) {
+	print_entity_core(snapshot, accounts, chain_prefix);
+	print_attribute_history(attr_history, style.is_full());
+	print_combined_timeline(timeline, style.is_full());
+	println!();
+}
+
+pub fn print_entity_summary(
+	snapshot: &EntitySnapshot,
+	accounts: &[AccountId32],
+	chain_prefix: Ss58AddressFormat,
+) {
+	print_entity_core(snapshot, accounts, chain_prefix);
+	println!();
+}
+
+pub fn print_combined_timeline(entries: &[TimelineRow], full_view: bool) {
+	println!("\n🔀 Activity (latest first)");
+	if entries.is_empty() {
+		println!("    • (no recorded activity)");
+		return;
+	}
+	println!(
+		"  ↳    {:>8}  {:>8}  {:>6}    {:<30} {:<34}",
+		"Version", "Block", "Index", "Action", "Digest"
+	);
+	let total = entries.len();
+	let mut shown = 0usize;
+	let iter: Box<dyn Iterator<Item = &TimelineRow>> =
+		if full_view { Box::new(entries.iter()) } else { Box::new(entries.iter().take(10)) };
+	for entry in iter {
+		println!(
+			"       {:>8}  {:>8}  {:>6}    {:<30} {:<34}",
+			entry.version,
+			format!("#{}", entry.block),
+			entry.extrinsic,
+			truncate_label(&entry.action, 30),
+			utils::short_label(&entry.digest, MAX_LABEL_LEN)
+		);
+		shown += 1;
+	}
+	if !full_view && total > shown {
+		println!("    … {} older", total - shown);
+	}
+}
+
+pub fn print_attribute_history(entries: &[HistoryEntry], full_view: bool) {
+	println!("\n🔁 Rotations (latest first)");
+	if entries.is_empty() {
+		println!("  ↳ • (no attribute history)");
+		return;
+	}
+	println!("  ↳    {:>8}  {:>6}    {:<18} {:<34}", "Block", "Index", "Key", "Rotated Value");
+	let mut ordered: Vec<&HistoryEntry> = entries.iter().collect();
+	ordered.sort_by(|a, b| (b.block.height, b.block.index).cmp(&(a.block.height, a.block.index)));
+	let total = ordered.len();
+	let mut shown = 0usize;
+	let iter: Box<dyn Iterator<Item = &&HistoryEntry>> =
+		if full_view { Box::new(ordered.iter()) } else { Box::new(ordered.iter().take(10)) };
+	for entry in iter {
+		let key = entry.key_utf8.clone().unwrap_or_else(|| entry.key_hex.clone());
+		let value =
+			utils::short_label(&utils::decode_attr_value(&entry.old_value_base64), MAX_LABEL_LEN);
+		println!(
+			"       {:>8}  {:>6}    {:<18} {:<34}",
+			format!("#{}", entry.block.height),
+			entry.block.index,
+			truncate_label(&key, 18),
+			value
+		);
+		shown += 1;
+	}
+	if !full_view && total > shown {
+		println!("    … {} older", total - shown);
+	}
+}
+
+pub fn print_identifier_block(snapshot: &EntitySnapshot) {
+	println!("  ↳ • Token  : {}", snapshot.token);
+	if let Some(nym) = &snapshot.entity_nym {
+		println!("  ↳ • Nym    : {}", nym);
+	}
+}
+
+pub fn print_entity_core(
+	snapshot: &EntitySnapshot,
+	accounts: &[AccountId32],
+	chain_prefix: Ss58AddressFormat,
+) {
+	println!("\n⏺️ Entity Snapshot (latest block)");
+	println!("\nℹ️ Identifiers");
+	print_identifier_block(snapshot);
+	println!("\n🈁 Info");
+	print_entity_info(snapshot);
+	println!("\n🔢 Attributes");
+	print_attribute_list(snapshot);
+	print_accounts_cli(accounts, chain_prefix);
+}
+
+pub fn print_entity_info(snapshot: &EntitySnapshot) {
+	println!("  ↳ • Display : {}", snapshot.display);
+	println!("    • Legal   : {}", snapshot.legal);
+	println!("    • Web     : {}", snapshot.web);
+	println!("    • Email   : {}", snapshot.email);
+	println!("    • Twitter : {}", snapshot.twitter);
+}
+
+pub fn print_attribute_list(snapshot: &EntitySnapshot) {
+	if snapshot.attributes.is_empty() {
+		println!("  ↳ • (no custom attributes)");
+		return;
+	}
+	for (key, value) in &snapshot.attributes {
+		println!("  ↳ • {:<10} : {}", key, utils::short_label(value, MAX_LABEL_LEN));
+	}
+}
+
+pub fn truncate_label(value: &str, max_len: usize) -> String {
+	if value.len() <= max_len {
+		value.to_string()
+	} else {
+		let mut truncated = value.chars().take(max_len.saturating_sub(1)).collect::<String>();
+		truncated.push('…');
+		truncated
+	}
+}
+
+const MAX_LABEL_LEN: usize = 32;
+
+pub async fn render_entity_snapshot(
+	client: &Client,
+	signer: &tx::signer::Keypair,
+	token_identifier: &Ss58Identifier,
+	snapshot: &mut EntitySnapshot,
+	style: ViewStyle,
+	output_json: bool,
+	chain_prefix: Ss58AddressFormat,
+	min_expected: u32,
+	include_history: bool,
+) -> anyhow::Result<()> {
+	let mut timeline = Vec::new();
+	let mut history = Vec::new();
+
+	if include_history {
+		let mut timeline_auth = || fresh_authorization(&signer);
+		timeline = crate::entity::fetch_full_token_timeline(
+			client,
+			token_identifier,
+			min_expected,
+			&mut timeline_auth,
+		)
+		.await?;
+		let mut history_auth = || fresh_authorization(&signer);
+		history =
+			crate::entity::collect_attribute_history(client, token_identifier, &mut history_auth)
+				.await?;
+	}
+
+	let mut links_auth = || fresh_authorization(&signer);
+	let sub_accounts =
+		crate::entity::fetch_linked_accounts(client, token_identifier, &mut links_auth).await?;
+	snapshot.set_active_accounts(&sub_accounts, chain_prefix);
+
+	if output_json {
+		let attr_json: Vec<_> = history
+			.iter()
+			.map(|entry| {
+				json!({
+					"version": entry.version,
+					"key": entry.key_utf8.clone().unwrap_or_else(|| entry.key_hex.clone()),
+					"oldValue": utils::decode_attr_value(&entry.old_value_base64),
+					"block": entry.block.height,
+					"extrinsic": entry.block.index,
+				})
+			})
+			.collect();
+		let json = json!({
+			"snapshot": snapshot,
+			"timeline": crate::entity::build_token_activity(&timeline),
+			"attributeHistory": attr_json,
+		});
+		println!("{}", serde_json::to_string_pretty(&json)?);
+	} else if include_history {
+		print_entity_sections(
+			snapshot,
+			&history,
+			&crate::entity::build_token_activity(&timeline),
+			&sub_accounts,
+			style,
+			chain_prefix,
+		);
+	} else {
+		print_entity_summary(snapshot, &sub_accounts, chain_prefix);
+	}
+	Ok(())
 }
