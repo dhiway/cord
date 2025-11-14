@@ -1,14 +1,19 @@
 use crate::{
 	error::{Error, Result},
 	params::config::CordConfig,
-	query::auth::AuthorizationBuilder,
+	query::{auth::AuthorizationBuilder, register::PacketSnapshotView},
 	tx::{self, MetaTxOptions, SubmitError, SubmitStage, TxSubmitter},
+	types::token::StateEventRecord,
 	utils, Client,
 };
 use codec::Decode;
 use cord_primitives::{
 	identifier::Ss58Identifier,
-	view_api::{AuthorizationRequest, EntityAccountTokenRequest},
+	registry::RegistryInfoView,
+	view_api::{
+		AuthorizationRequest, EntityAccountTokenRequest, RegisterDetailsRequest,
+		TokenTimelineRequest,
+	},
 };
 use serde_json::Value as JsonValue;
 use sp_runtime::AccountId32 as RuntimeAccount;
@@ -30,7 +35,7 @@ pub fn init_logging() {
 	});
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum ViewStyle {
 	Compact,
 	Full,
@@ -42,13 +47,13 @@ impl ViewStyle {
 	}
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RunMode {
 	Transaction,
 	View,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum TxFlow {
 	Direct,
 	Relayed,
@@ -197,4 +202,52 @@ where
 		.await?;
 	utils::short_delay(Duration::from_secs(1)).await;
 	Ok(events)
+}
+
+pub enum TokenTarget {
+	Entity { token: Ss58Identifier },
+	Registry { registry: Ss58Identifier, info: RegistryInfoView },
+	Packet { registry: Ss58Identifier, packet: Ss58Identifier, snapshot: PacketSnapshotView },
+}
+
+pub async fn resolve_token_target(
+	client: &Client,
+	auth: &AuthorizationRequest,
+	token: &Ss58Identifier,
+) -> Result<TokenTarget> {
+	if let Some(_) = client.query().entity().details(auth, token).await? {
+		return Ok(TokenTarget::Entity { token: token.clone() });
+	}
+
+	let reg_req = RegisterDetailsRequest { auth: auth.clone(), registry: token.clone() };
+	match client.query().register().details(&reg_req).await {
+		Ok(info) => return Ok(TokenTarget::Registry { registry: token.clone(), info }),
+		Err(Error::NotFound(_)) => {},
+		Err(err) => return Err(err),
+	}
+
+	match client.query().register().packet_snapshot_by_token(auth, token, None).await {
+		Ok(Some(snapshot)) => {
+			let registry =
+				Ss58Identifier::try_from(snapshot.state.registry_ss58.clone()).map_err(|_| {
+					Error::ViewDecode("packet snapshot returned invalid registry id".into())
+				})?;
+			return Ok(TokenTarget::Packet { registry, packet: token.clone(), snapshot });
+		},
+		Ok(None) => {},
+		Err(Error::NotFound(_)) => {},
+		Err(err) => return Err(err),
+	}
+
+	Err(Error::NotFound("token does not map to entity, registry, or packet".into()))
+}
+
+pub async fn token_timeline(
+	client: &Client,
+	auth: &AuthorizationRequest,
+	token: &Ss58Identifier,
+	limit: Option<u32>,
+) -> Result<(Vec<StateEventRecord>, Option<u32>)> {
+	let req = TokenTimelineRequest { auth: auth.clone(), token: token.clone(), start: None, limit };
+	client.query().token().timeline(&req).await
 }

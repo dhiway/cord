@@ -9,10 +9,12 @@ use oc::types::{
 use oc::{
 	demo,
 	demo::{
+		cli::{parse_common_cli, require_value, CommonCliOptions},
 		entity::{self, EntitySnapshot},
 		util::{
 			ensure_entity_token_verbose, fresh_authorization, init_logging, parse_identifier,
-			signer_account_id, LogSink, RunMode, TxExecutor, TxFlow, ViewStyle,
+			resolve_token_target, signer_account_id, LogSink, RunMode, TokenTarget, TxExecutor,
+			TxFlow, ViewStyle,
 		},
 	},
 	entity::{self as sdk_entity, AttributePlan, EntityChainState, TimelineRow},
@@ -25,111 +27,39 @@ use std::time::Duration;
 use subxt::utils::AccountId32;
 
 struct CliOptions {
-	view: ViewStyle,
-	output_json: bool,
-	node: Option<String>,
-	mode: RunMode,
-	flow: TxFlow,
+	common: CommonCliOptions,
 	token: Option<String>,
 }
 
 fn parse_args(args: &[String]) -> Result<CliOptions> {
-	let mut style: Option<ViewStyle> = None;
-	let mut json = false;
-	let mut node: Option<String> = None;
-	let mut mode = RunMode::Transaction;
-	let mut flow = TxFlow::Direct;
-	let mut token: Option<String> = None;
-	let mut iter = args.iter().peekable();
 	if args.iter().any(|arg| matches!(arg.as_str(), "--help" | "-h")) {
 		print_usage();
 		std::process::exit(0);
 	}
-
+	let parsed = parse_common_cli(args)?;
+	let mut token: Option<String> = None;
+	let mut iter = parsed.rest.iter().peekable();
 	while let Some(arg) = iter.next() {
 		match arg.as_str() {
-			"--json" | "-j" => json = true,
-			"--display" | "-d" => {
-				let value = require_value(&mut iter, arg.as_str())?;
-				style = Some(parse_display_style(&value)?);
-			},
-			_ if arg.starts_with("--display=") => {
-				let value = arg.trim_start_matches("--display=");
-				style = Some(parse_display_style(value)?);
-			},
-			_ if arg.starts_with("-d=") => {
-				style = Some(parse_display_style(arg.trim_start_matches("-d="))?);
-			},
-			"--node" | "-n" => {
-				node = Some(require_value(&mut iter, arg.as_str())?);
-			},
-			_ if arg.starts_with("--node=") => {
-				node = arg.splitn(2, '=').nth(1).map(|v| v.to_string());
-			},
-			_ if arg.starts_with("-n=") => {
-				node = arg.splitn(2, '=').nth(1).map(|v| v.to_string());
-			},
-			"--mode" | "-m" => {
-				let value = require_value(&mut iter, arg.as_str())?;
-				mode = mode_from_value(&value)
-					.ok_or_else(|| anyhow!("invalid --mode value: {value} (expected tx|view)"))?;
-			},
-			_ if arg.starts_with("--mode=") => {
-				let value = arg.trim_start_matches("--mode=");
-				mode = mode_from_value(value)
-					.ok_or_else(|| anyhow!("invalid --mode value: {value} (expected tx|view)"))?;
-			},
-			"--flow" | "-f" => {
-				let value = require_value(&mut iter, arg.as_str())?;
-				flow = flow_from_value(&value).ok_or_else(|| {
-					anyhow!("invalid --flow value: {value} (expected direct|relay)")
-				})?;
-			},
-			_ if arg.starts_with("--flow=") => {
-				let value = arg.trim_start_matches("--flow=");
-				flow = flow_from_value(value).ok_or_else(|| {
-					anyhow!("invalid --flow value: {value} (expected direct|relay)")
-				})?;
-			},
-			"--token" | "-t" => {
-				token = Some(require_value(&mut iter, arg.as_str())?);
-			},
+			"--token" | "-t" => token = Some(require_value(&mut iter, arg)?),
 			_ if arg.starts_with("--token=") => {
 				token = arg.splitn(2, '=').nth(1).map(|v| v.to_string());
 			},
-			_ if arg == "--" => break,
-			_ if arg.starts_with('-') => {
-				return Err(anyhow!(
-					"unrecognized option '{arg}'. Use --help to view supported flags"
-				));
+			_ if arg.starts_with("-t=") => {
+				token = arg.splitn(2, '=').nth(1).map(|v| v.to_string());
 			},
+			"--" => break,
 			_ => {
 				return Err(anyhow!(
-					"unexpected argument '{arg}'. Use --help to view supported flags"
+					"unrecognized option {arg}. Use --help to view supported flags"
 				));
 			},
 		}
 	}
-	let resolved_style =
-		style.unwrap_or_else(|| if json { ViewStyle::Full } else { ViewStyle::Compact });
-	if mode == RunMode::View && token.is_none() {
+	if parsed.common.mode == RunMode::View && token.is_none() {
 		return Err(anyhow!("--token <identifier> is required in view mode"));
 	}
-	Ok(CliOptions { view: resolved_style, output_json: json, node, mode, flow, token })
-}
-
-fn require_value<'a>(
-	iter: &mut std::iter::Peekable<std::slice::Iter<'a, String>>,
-	flag: &str,
-) -> Result<String> {
-	iter.next()
-		.map(|value| value.clone())
-		.ok_or_else(|| anyhow!("{flag} expects a value"))
-}
-
-fn parse_display_style(value: &str) -> Result<ViewStyle> {
-	style_from_value(value)
-		.ok_or_else(|| anyhow!("invalid display style '{value}' (expected less|more/full)"))
+	Ok(CliOptions { common: parsed.common, token })
 }
 
 fn print_usage() {
@@ -155,38 +85,14 @@ Options:
 	);
 }
 
-fn style_from_value(value: impl AsRef<str>) -> Option<ViewStyle> {
-	match value.as_ref().to_ascii_lowercase().as_str() {
-		"full" | "more" => Some(ViewStyle::Full),
-		"compact" | "less" => Some(ViewStyle::Compact),
-		_ => None,
-	}
-}
-
-fn mode_from_value(value: impl AsRef<str>) -> Option<RunMode> {
-	match value.as_ref().to_ascii_lowercase().as_str() {
-		"tx" | "transaction" => Some(RunMode::Transaction),
-		"view" => Some(RunMode::View),
-		_ => None,
-	}
-}
-
-fn flow_from_value(value: impl AsRef<str>) -> Option<TxFlow> {
-	match value.as_ref().to_ascii_lowercase().as_str() {
-		"direct" | "signer" => Some(TxFlow::Direct),
-		"relayed" | "relay" | "meta" => Some(TxFlow::Relayed),
-		_ => None,
-	}
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
 	init_logging();
 	let args: Vec<String> = std::env::args().collect();
 	let cli = parse_args(&args[1..])?;
-	let client = utils::connect_or_default(cli.node.as_deref(), ChainFlavor::Auto).await?;
+	let client = utils::connect_or_default(cli.common.node.as_deref(), ChainFlavor::Auto).await?;
 	let chain_prefix = client.chain_prefix().await;
-	match cli.mode {
+	match cli.common.mode {
 		RunMode::Transaction => run_transaction_flow(&cli, &client, chain_prefix).await,
 		RunMode::View => run_view_flow(&cli, &client, chain_prefix).await,
 	}
@@ -208,10 +114,10 @@ async fn run_transaction_flow(
 
 	let mut direct_submitter = TxSubmitter::new(client, &signer);
 	let mut _relayer_signer =
-		if cli.flow == TxFlow::Relayed { Some(tx::signer::dev_bob()) } else { None };
+		if cli.common.flow == TxFlow::Relayed { Some(tx::signer::dev_bob()) } else { None };
 	let mut relayer_submitter =
 		_relayer_signer.as_ref().map(|relayer| TxSubmitter::new(client, relayer));
-	let mut tx_executor = match cli.flow {
+	let mut tx_executor = match cli.common.flow {
 		TxFlow::Direct => TxExecutor::Direct { submitter: &mut direct_submitter },
 		TxFlow::Relayed => TxExecutor::Relayed {
 			relayer: relayer_submitter
@@ -333,8 +239,8 @@ async fn run_transaction_flow(
 		&signer,
 		&token_identifier,
 		&mut snapshot,
-		cli.view,
-		cli.output_json,
+		cli.common.view,
+		cli.common.output_json,
 		chain_prefix,
 		target_version,
 		false,
@@ -350,18 +256,32 @@ async fn run_view_flow(
 	let token_str = cli
 		.token
 		.as_deref()
-		.ok_or_else(|| anyhow!("--token is required in view mode"))?;
-	let token_identifier = parse_identifier(token_str)?;
+		.ok_or_else(|| anyhow!("--token <identifier> is required in view mode"))?;
+	let requested_token = parse_identifier(token_str)?;
 	let signer = tx::signer::dev_alice();
+	let resolver_auth = fresh_authorization(&signer)?;
+	let token_identifier =
+		match resolve_token_target(client, &resolver_auth, &requested_token).await? {
+			TokenTarget::Entity { token } => token,
+			TokenTarget::Registry { .. } => {
+				return Err(anyhow!(format!(
+				"token {token_str} is a registry; run register-demo --mode view --token {token_str}"
+			)));
+			},
+			TokenTarget::Packet { .. } => {
+				return Err(anyhow!(format!(
+				"token {token_str} is a packet; run packet-demo --mode view --token {token_str}"
+			)));
+			},
+		};
 
-	let details_auth = || fresh_authorization(&signer);
-	let auth = details_auth()?;
+	let auth = fresh_authorization(&signer)?;
 	let entity_info = client
 		.query()
 		.entity()
 		.details(&auth, &token_identifier)
 		.await?
-		.ok_or_else(|| anyhow!("no entity info found for token {}", token_str))?;
+		.ok_or_else(|| anyhow!(format!("no entity info found for token {token_str}")))?;
 	let chain_state = EntityChainState::from_record(&entity_info);
 	let mut snapshot = EntitySnapshot::from_chain_state(&chain_state, token_str);
 
@@ -376,8 +296,8 @@ async fn run_view_flow(
 		&signer,
 		&token_identifier,
 		&mut snapshot,
-		cli.view,
-		cli.output_json,
+		cli.common.view,
+		cli.common.output_json,
 		chain_prefix,
 		0,
 		true,

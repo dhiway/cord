@@ -5,7 +5,7 @@ use crate::{
 	runtime_helpers::{
 		attribute_optional, bounded_bytes_vec, bounded_iter, element_type_to_sdk, identifier_bytes,
 	},
-	types::RegistrySchema,
+	types::{self, RegistrySchema},
 };
 use cord_primitives::{
 	identifier::Ss58Identifier,
@@ -17,8 +17,8 @@ use cord_primitives::{
 		PacketStateView,
 	},
 	view_api::{
-		AuthorizationError, RegisterDetailsRequest, RegisterLookupSpecsRequest,
-		RegisterPacketSnapshotRequest,
+		AuthorizationError, AuthorizationRequest, RegisterDetailsRequest,
+		RegisterLookupSpecsRequest, RegisterPacketSnapshotRequest,
 	},
 };
 use scale_value::Value;
@@ -40,6 +40,9 @@ struct PacketStateRecord {
 	attributes_hash: [u8; 32],
 	attributes: RuntimeAttributes,
 }
+
+#[derive(scale_decode::DecodeAsType)]
+struct PacketSnapshotListRecord(Vec<PacketSnapshotRecord>, Option<Ss58Identifier>);
 
 /// Entry point for register-specific view helpers.
 pub struct RegisterQuery<'a> {
@@ -93,6 +96,28 @@ impl<'a> RegisterQuery<'a> {
 		}
 	}
 
+	pub async fn packet_snapshot_by_token(
+		&self,
+		auth: &AuthorizationRequest,
+		token: &Ss58Identifier,
+		version: Option<u32>,
+	) -> Result<Option<PacketSnapshotView>> {
+		let args = self.list_by_token_args(auth, token.as_ref(), version)?;
+		let raw: core::result::Result<PacketSnapshotListRecord, AuthorizationError> =
+			self.query.call_result("Register", "list_by_token", args).await?;
+		match raw {
+			Ok(PacketSnapshotListRecord(entries, _cursor)) => {
+				if let Some(record) = entries.into_iter().next() {
+					let state = packet_state_view_from_record(&record.state)?;
+					Ok(Some(dev_packet_snapshot_from(&state, record.registry_status)))
+				} else {
+					Ok(None)
+				}
+			},
+			Err(err) => Err(view_failure("register.list_by_token", err)),
+		}
+	}
+
 	fn base_args(
 		&self,
 		auth: &cord_primitives::view_api::AuthorizationRequest,
@@ -110,6 +135,21 @@ impl<'a> RegisterQuery<'a> {
 		builder.push("rtoken", super::identifier_struct_value(&req.registry));
 		builder.push("ptoken", super::identifier_struct_value(&req.packet));
 		builder.push("version", super::option_u32_value(req.version));
+		Ok(builder.finish())
+	}
+
+	fn list_by_token_args(
+		&self,
+		auth: &AuthorizationRequest,
+		token_prefix: &[u8],
+		version: Option<u32>,
+	) -> Result<Value> {
+		let mut builder = ArgBuilder::default();
+		builder.push("auth", super::authorization_value(auth)?);
+		builder.push("token_prefix", types::bytes_value(token_prefix));
+		builder.push("version", super::option_u32_value(version));
+		builder.push("cursor", super::option_value(None));
+		builder.push("limit", super::option_u32_value(Some(1)));
 		Ok(builder.finish())
 	}
 }

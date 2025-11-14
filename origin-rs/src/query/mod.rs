@@ -130,7 +130,7 @@ pub(crate) fn account_value(account: &[u8]) -> Value {
 	Value::from_bytes(account.to_vec())
 }
 
-fn option_value(inner: Option<Value>) -> Value {
+pub(crate) fn option_value(inner: Option<Value>) -> Value {
 	match inner {
 		Some(value) => Value::variant("Some", Composite::unnamed(vec![value])),
 		None => Value::variant("None", Composite::unnamed(Vec::new())),

@@ -1,4 +1,6 @@
+pub mod cli;
 pub mod entity;
+pub mod packet;
 pub mod util;
 use crate::{
 	client::Client,
