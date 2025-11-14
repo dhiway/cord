@@ -9,11 +9,15 @@ use cord_primitives::{
 	view_api::{RegisterDetailsRequest, RegisterLookupSpecsRequest},
 };
 use hex;
+use oc::demo::packet::render_packet_snapshot_cli;
+use oc::types::token::StateEventRecord;
 use oc::{
 	demo,
+	demo::cli::{parse_common_cli, require_value, CommonCliOptions},
 	demo::util::{
 		ensure_entity_token_verbose, fresh_authorization, init_logging, parse_identifier,
-		signer_account_id, LogSink, RunMode, TxExecutor, TxFlow, ViewStyle,
+		resolve_token_target, signer_account_id, token_timeline, LogSink, RunMode, TokenTarget,
+		TxExecutor, TxFlow, ViewStyle,
 	},
 	tx::{self, TxSubmitter},
 	utils, ChainFlavor, Client,
@@ -22,139 +26,50 @@ use serde_json::json;
 use std::time::Duration;
 
 struct CliOptions {
-	view: ViewStyle,
-	output_json: bool,
-	node: Option<String>,
-	mode: RunMode,
-	flow: TxFlow,
+	common: CommonCliOptions,
 	registry: Option<String>,
+	token: Option<String>,
 }
 
 fn parse_args(args: &[String]) -> Result<CliOptions> {
-	let mut style: Option<ViewStyle> = None;
-	let mut json = false;
-	let mut node: Option<String> = None;
-	let mut mode = RunMode::Transaction;
-	let mut flow = TxFlow::Direct;
-	let mut registry: Option<String> = None;
-	let mut iter = args.iter().peekable();
 	if args.iter().any(|arg| matches!(arg.as_str(), "--help" | "-h")) {
 		print_usage();
 		std::process::exit(0);
 	}
-
+	let parsed = parse_common_cli(args)?;
+	let mut registry: Option<String> = None;
+	let mut token: Option<String> = None;
+	let mut iter = parsed.rest.iter().peekable();
 	while let Some(arg) = iter.next() {
 		match arg.as_str() {
-			"--json" | "-j" => json = true,
-			"--display" | "-d" => {
-				let value = require_value(&mut iter, arg.as_str())?;
-				style = Some(parse_display_style(&value)?);
-			},
-			_ if arg.starts_with("--display=") => {
-				let value = arg.trim_start_matches("--display=");
-				style = Some(parse_display_style(value)?);
-			},
-			_ if arg.starts_with("-d=") => {
-				style = Some(parse_display_style(arg.trim_start_matches("-d="))?);
-			},
-			"--node" | "-n" => {
-				node = Some(require_value(&mut iter, arg.as_str())?);
-			},
-			_ if arg.starts_with("--node=") => {
-				node = arg.splitn(2, '=').nth(1).map(|v| v.to_string());
-			},
-			_ if arg.starts_with("-n=") => {
-				node = arg.splitn(2, '=').nth(1).map(|v| v.to_string());
-			},
-			"--mode" | "-m" => {
-				let value = require_value(&mut iter, arg.as_str())?;
-				mode = mode_from_value(&value)
-					.ok_or_else(|| anyhow!("invalid --mode value: {value} (expected tx|view)"))?;
-			},
-			_ if arg.starts_with("--mode=") => {
-				let value = arg.trim_start_matches("--mode=");
-				mode = mode_from_value(value)
-					.ok_or_else(|| anyhow!("invalid --mode value: {value} (expected tx|view)"))?;
-			},
-			"--flow" | "-f" => {
-				let value = require_value(&mut iter, arg.as_str())?;
-				flow = flow_from_value(&value).ok_or_else(|| {
-					anyhow!("invalid --flow value: {value} (expected direct|relay)")
-				})?;
-			},
-			_ if arg.starts_with("--flow=") => {
-				let value = arg.trim_start_matches("--flow=");
-				flow = flow_from_value(value).ok_or_else(|| {
-					anyhow!("invalid --flow value: {value} (expected direct|relay)")
-				})?;
-			},
-			"--registry" | "-r" => {
-				registry = Some(require_value(&mut iter, arg.as_str())?);
-			},
+			"--registry" | "-r" => registry = Some(require_value(&mut iter, arg)?),
 			_ if arg.starts_with("--registry=") => {
 				registry = arg.splitn(2, '=').nth(1).map(|v| v.to_string());
 			},
 			_ if arg.starts_with("-r=") => {
 				registry = arg.splitn(2, '=').nth(1).map(|v| v.to_string());
 			},
-			"--" => break,
-			_ if arg.starts_with('-') => {
-				return Err(anyhow!(
-					"unrecognized option '{arg}'. Use --help to view supported flags"
-				));
+			"--token" | "-t" => token = Some(require_value(&mut iter, arg)?),
+			_ if arg.starts_with("--token=") => {
+				token = arg.splitn(2, '=').nth(1).map(|v| v.to_string());
 			},
+			_ if arg.starts_with("-t=") => {
+				token = arg.splitn(2, '=').nth(1).map(|v| v.to_string());
+			},
+			"--" => break,
 			_ => {
 				return Err(anyhow!(
-					"unexpected argument '{arg}'. Use --help to view supported flags"
+					"unrecognized option {arg}. Use --help to view supported flags"
 				));
 			},
 		}
 	}
-
-	let resolved_style =
-		style.unwrap_or_else(|| if json { ViewStyle::Full } else { ViewStyle::Compact });
-	if mode == RunMode::View && registry.is_none() {
-		return Err(anyhow!("--registry <identifier> is required in view mode"));
+	if parsed.common.mode == RunMode::View && registry.is_none() && token.is_none() {
+		return Err(anyhow!(
+			"--token <identifier> (or --registry for legacy mode) is required in view mode"
+		));
 	}
-	Ok(CliOptions { view: resolved_style, output_json: json, node, mode, flow, registry })
-}
-
-fn require_value<'a>(
-	iter: &mut std::iter::Peekable<std::slice::Iter<'a, String>>,
-	flag: &str,
-) -> Result<String> {
-	iter.next()
-		.map(|value| value.clone())
-		.ok_or_else(|| anyhow!("{flag} expects a value"))
-}
-
-fn parse_display_style(value: &str) -> Result<ViewStyle> {
-	style_from_value(value)
-		.ok_or_else(|| anyhow!("invalid display style '{value}' (expected less|more/full)"))
-}
-
-fn style_from_value(value: impl AsRef<str>) -> Option<ViewStyle> {
-	match value.as_ref().to_ascii_lowercase().as_str() {
-		"full" | "more" => Some(ViewStyle::Full),
-		"compact" | "less" => Some(ViewStyle::Compact),
-		_ => None,
-	}
-}
-
-fn mode_from_value(value: impl AsRef<str>) -> Option<RunMode> {
-	match value.as_ref().to_ascii_lowercase().as_str() {
-		"tx" | "transaction" => Some(RunMode::Transaction),
-		"view" => Some(RunMode::View),
-		_ => None,
-	}
-}
-
-fn flow_from_value(value: impl AsRef<str>) -> Option<TxFlow> {
-	match value.as_ref().to_ascii_lowercase().as_str() {
-		"direct" | "signer" => Some(TxFlow::Direct),
-		"relayed" | "relay" | "meta" => Some(TxFlow::Relayed),
-		_ => None,
-	}
+	Ok(CliOptions { common: parsed.common, registry, token })
 }
 
 fn print_usage() {
@@ -166,12 +81,14 @@ Transaction mode (default):
   register-demo --flow relay
 
 View mode (read-only):
-  register-demo --mode view --registry <identifier>
+  register-demo --mode view --token <identifier>
+  register-demo --mode view --registry <identifier>  # legacy fallback
 
 Options:
   -m, --mode <tx|view>         Run mode (default: tx)
   -f, --flow <direct|relay>    Transaction flow when in transaction mode (default: direct)
-  -r, --registry <identifier>  Target registry for view mode
+  -r, --registry <identifier>  Target registry token for transaction/view mode
+      --token <identifier>     Auto-detect target token (preferred for view mode)
   -d, --display <less|more>    Display style (default: less unless --json)
   -j, --json                   Emit JSON snapshot instead of CLI tables
   -n, --node <url>             WebSocket endpoint (default: ws://127.0.0.1:9944)
@@ -185,8 +102,8 @@ async fn main() -> Result<()> {
 	init_logging();
 	let args: Vec<String> = std::env::args().collect();
 	let cli = parse_args(&args[1..])?;
-	let client = utils::connect_or_default(cli.node.as_deref(), ChainFlavor::Auto).await?;
-	match cli.mode {
+	let client = utils::connect_or_default(cli.common.node.as_deref(), ChainFlavor::Auto).await?;
+	match cli.common.mode {
 		RunMode::Transaction => run_transaction_flow(&cli, &client).await,
 		RunMode::View => run_view_flow(&cli, &client).await,
 	}
@@ -199,10 +116,10 @@ async fn run_transaction_flow(cli: &CliOptions, client: &Client) -> Result<()> {
 
 	let mut direct_submitter = TxSubmitter::new(client, &signer);
 	let relayer_signer =
-		if cli.flow == TxFlow::Relayed { Some(tx::signer::dev_bob()) } else { None };
+		if cli.common.flow == TxFlow::Relayed { Some(tx::signer::dev_bob()) } else { None };
 	let mut relayer_submitter =
 		relayer_signer.as_ref().map(|relayer| TxSubmitter::new(client, relayer));
-	let mut tx_executor = match cli.flow {
+	let mut tx_executor = match cli.common.flow {
 		TxFlow::Direct => TxExecutor::Direct { submitter: &mut direct_submitter },
 		TxFlow::Relayed => TxExecutor::Relayed {
 			relayer: relayer_submitter
@@ -236,24 +153,90 @@ async fn run_transaction_flow(cli: &CliOptions, client: &Client) -> Result<()> {
 	let auth = fresh_authorization(&signer)?;
 	let details_req = RegisterDetailsRequest { auth: auth.clone(), registry: registry_id.clone() };
 	let details = client.query().register().details(&details_req).await?;
-	let lookup_req = RegisterLookupSpecsRequest { auth, registry: registry_id.clone() };
+	let lookup_req =
+		RegisterLookupSpecsRequest { auth: auth.clone(), registry: registry_id.clone() };
 	let lookups = client.query().register().lookup_specs(&lookup_req).await?;
+	let (timeline, next_cursor) = token_timeline(client, &auth, &registry_id, Some(12)).await?;
 
-	render_registry_snapshot(&registry_ss58, &details, &lookups, cli.view, cli.output_json)
+	render_registry_snapshot(
+		&registry_ss58,
+		&details,
+		&lookups,
+		&timeline,
+		next_cursor,
+		cli.common.view,
+		cli.common.output_json,
+	)
 }
 
 async fn run_view_flow(cli: &CliOptions, client: &Client) -> Result<()> {
-	let Some(registry_str) = cli.registry.as_deref() else {
-		return Err(anyhow!("--registry <identifier> is required in view mode"));
-	};
-	let registry_id = parse_identifier(registry_str)?;
 	let signer = tx::signer::dev_alice();
 	let auth = fresh_authorization(&signer)?;
+	if let Some(token_str) = cli.token.as_deref() {
+		let token_id = parse_identifier(token_str)?;
+		match resolve_token_target(client, &auth, &token_id).await? {
+			TokenTarget::Registry { registry, info } => {
+				let registry_ss58 = demo::ss58_string(&registry);
+				let lookup_req =
+					RegisterLookupSpecsRequest { auth: auth.clone(), registry: registry.clone() };
+				let lookups = client.query().register().lookup_specs(&lookup_req).await?;
+				let (timeline, next_cursor) =
+					token_timeline(client, &auth, &registry, Some(12)).await?;
+				return render_registry_snapshot(
+					&registry_ss58,
+					&info,
+					&lookups,
+					&timeline,
+					next_cursor,
+					cli.common.view,
+					cli.common.output_json,
+				);
+			},
+			TokenTarget::Packet { registry, packet, snapshot } => {
+				let registry_ss58 = demo::ss58_string(&registry);
+				let packet_ss58 = demo::ss58_string(&packet);
+				let (timeline, next_cursor) =
+					token_timeline(client, &auth, &packet, Some(12)).await?;
+				render_packet_snapshot_cli(
+					&registry_ss58,
+					&packet_ss58,
+					None,
+					&snapshot,
+					&timeline,
+					next_cursor,
+					cli.common.view,
+					cli.common.output_json,
+				);
+				return Ok(());
+			},
+			TokenTarget::Entity { .. } => {
+				return Err(anyhow!(format!(
+					"token {token_str} is an entity profile; run entity-demo --mode view --token {token_str} to inspect it"
+				)));
+			},
+		}
+	}
+
+	let registry_str = cli
+		.registry
+		.as_deref()
+		.ok_or_else(|| anyhow!("--token or --registry is required in view mode"))?;
+	let registry_id = parse_identifier(registry_str)?;
 	let details_req = RegisterDetailsRequest { auth: auth.clone(), registry: registry_id.clone() };
 	let details = client.query().register().details(&details_req).await?;
-	let lookup_req = RegisterLookupSpecsRequest { auth, registry: registry_id.clone() };
+	let lookup_req =
+		RegisterLookupSpecsRequest { auth: auth.clone(), registry: registry_id.clone() };
 	let lookups = client.query().register().lookup_specs(&lookup_req).await?;
-	render_registry_snapshot(registry_str, &details, &lookups, cli.view, cli.output_json)
+	let (timeline, next_cursor) = token_timeline(client, &auth, &registry_id, Some(12)).await?;
+	render_registry_snapshot(
+		registry_str,
+		&details,
+		&lookups,
+		&timeline,
+		next_cursor,
+		cli.common.view,
+		cli.common.output_json,
+	)
 }
 
 fn print_entity_setup(created: bool, entity_token: &str, logs: &[String]) {
@@ -283,6 +266,8 @@ fn render_registry_snapshot(
 	registry_ss58: &str,
 	details: &RegistryInfoView,
 	lookups: &[LookupSpecView],
+	timeline: &[StateEventRecord],
+	next_cursor: Option<u32>,
 	style: ViewStyle,
 	output_json: bool,
 ) -> Result<()> {
@@ -292,6 +277,8 @@ fn render_registry_snapshot(
 			"maintainer": demo::ss58_string(&details.maintainer),
 			"details": details,
 			"lookupSpecs": lookups,
+			"timeline": timeline,
+			"nextCursor": next_cursor,
 		});
 		println!("{}", serde_json::to_string_pretty(&json)?);
 		return Ok(());
@@ -299,14 +286,15 @@ fn render_registry_snapshot(
 
 	println!("\n🗂️ Registry Snapshot");
 	let maintainer = demo::ss58_string(&details.maintainer);
-	println!("  ↳ • Registry   : {registry_ss58}");
-	println!("  ↳ • Maintainer : {maintainer}");
-	println!("  ↳ • Kind       : {}", describe_registry_kind(&details.kind));
-	println!("  ↳ • Status     : {}", describe_registry_status(&details.status));
+	println!("  ↳ • registry   : {registry_ss58}");
+	println!("  ↳ • maintainer : {maintainer}");
+	println!("  ↳ • kind       : {}", describe_registry_kind(&details.kind));
+	println!("  ↳ • status     : {}", describe_registry_status(&details.status));
 	println!("\n📝 Info\n  {}", describe_element(&details.info));
 	println!("\n🔑 Token Spec\n  {}", describe_lookup(&details.token_spec));
 	print_attribute_schema(&details.attributes, style.is_full());
 	print_lookup_specs(lookups, style.is_full());
+	print_registry_timeline(timeline, next_cursor, style.is_full());
 	Ok(())
 }
 
@@ -347,6 +335,33 @@ fn print_lookup_specs(specs: &[LookupSpecView], full: bool) {
 	}
 	if !full && specs.len() > shown {
 		println!("    … {} more", specs.len() - shown);
+	}
+}
+
+fn print_registry_timeline(records: &[StateEventRecord], next_cursor: Option<u32>, full: bool) {
+	println!("\n⏱️ Token Timeline");
+	if records.is_empty() {
+		println!("  ↳ • (no events)");
+	} else {
+		let limit = if full { records.len() } else { records.len().min(8) };
+		for (idx, event) in records.iter().take(limit).enumerate() {
+			let action_utf8 = String::from_utf8(event.action.clone())
+				.unwrap_or_else(|_| format!("0x{}", hex::encode(&event.action)));
+			println!(
+				"  ↳ • #{:<2} action={:<24} block=#{} extrinsic={} digest=0x{}",
+				idx + 1,
+				action_utf8,
+				event.seal.height,
+				event.seal.index,
+				hex::encode(event.digest)
+			);
+		}
+		if !full && records.len() > limit {
+			println!("    … {} more", records.len() - limit);
+		}
+	}
+	if let Some(cursor) = next_cursor {
+		println!("  ↳ • next cursor: {cursor}");
 	}
 }
 
