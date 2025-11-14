@@ -60,26 +60,38 @@ mod benchmarks {
 		Ok(())
 	}
 
-	/// 2) update_info
+	/// 2) rotate_attributes
 	#[benchmark]
-	fn update_info() -> Result<(), BenchmarkError> {
+	fn rotate_attributes() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		// seed
-		let info = T::EntityInfoPacket::create_info();
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(info.clone()),
+			Box::new(<T::EntityInfoPacket as Default>::default()),
+		)
+		.unwrap();
+		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
+
+		// add a user attribute to rotate alongside a reserved key
+		EntityPallet::<T>::add_attributes(
+			RawOrigin::Signed(caller.clone()).into(),
+			vec![(b"custom".to_vec(), Element::None)],
 		)
 		.unwrap();
 
-		let ops = vec![(b"display".to_vec(), Element::None)];
+		let new_display = Element::Raw(b"disp".to_vec().try_into().unwrap());
+		let new_custom = Element::Raw(b"cust".to_vec().try_into().unwrap());
+		let ops = vec![(b"display".to_vec(), new_display), (b"custom".to_vec(), new_custom)];
 
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), ops.clone());
 
-		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 		assert_last_event::<T>(
-			EntityEvent::<T>::EntityInfoUpdated { who: caller.clone(), token }.into(),
+			EntityEvent::<T>::EntityAttributeRotated {
+				who: caller.clone(),
+				token,
+				attr: b"custom".to_vec().try_into().unwrap(),
+			}
+			.into(),
 		);
 		Ok(())
 	}
@@ -346,7 +358,7 @@ mod benchmarks {
 		_(RawOrigin::Signed(caller.clone()), prefix.clone());
 
 		let mut uname = prefix.clone();
-		uname.extend(b".myn.social");
+		uname.extend(b".nym.org.in");
 		let uname: Vec<u8> = uname;
 		let uname = uname.try_into().unwrap();
 

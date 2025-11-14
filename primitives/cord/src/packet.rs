@@ -296,6 +296,17 @@ pub struct PacketState<
 	pub attributes: Attributes<MaxRawDataLength, MaxAdditionalAttributes>,
 }
 
+impl<
+		MaxRawDataLength: Get<u32>,
+		MaxAdditionalAttributes: Get<u32>,
+		Hash: Clone + PartialEq + Eq + core::fmt::Debug,
+	> PacketState<MaxRawDataLength, MaxAdditionalAttributes, Hash>
+{
+	pub fn attribute(&self, key: &[u8]) -> Option<&Element<MaxRawDataLength>> {
+		self.attributes.get(key)
+	}
+}
+
 impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 	From<Attributes<MaxRawDataLength, MaxAdditionalAttributes>>
 	for Vec<(Attribute, Element<MaxRawDataLength>)>

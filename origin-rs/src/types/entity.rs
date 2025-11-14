@@ -90,10 +90,8 @@ fn maybe_utf8(bytes: &[u8]) -> Option<String> {
 #[serde(rename_all = "camelCase")]
 pub struct EntityInfoRecord {
 	pub display: ElementView,
-	pub legal: ElementView,
 	pub web: ElementView,
 	pub email: ElementView,
-	pub twitter: ElementView,
 	pub attributes: Option<Vec<AttributeValueView>>,
 }
 
@@ -105,10 +103,8 @@ impl EntityInfoRecord {
 	pub fn text_field(&self, key: &str) -> Option<String> {
 		let element = match key {
 			"display" => Some(&self.display),
-			"legal" => Some(&self.legal),
 			"web" => Some(&self.web),
 			"email" => Some(&self.email),
-			"twitter" => Some(&self.twitter),
 			_ => None,
 		}?;
 		element_text_from_view(element)

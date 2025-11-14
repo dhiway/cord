@@ -61,7 +61,7 @@ impl<'a> State<'a> {
 		account: &AccountId32,
 	) -> Result<Option<Ss58Identifier>> {
 		let key = dynamic::Value::from_bytes(account);
-		let addr = dynamic::storage("Entity", "Ss58OfActiveAccounts", vec![key]);
+		let addr = dynamic::storage("Entity", "EntityTokenOfAccount", vec![key]);
 		let snapshot = self.client.api.storage().at_latest().await.map_err(Error::from)?;
 		let Some(raw) = snapshot.fetch(&addr).await.map_err(Error::from)? else {
 			return Ok(None);

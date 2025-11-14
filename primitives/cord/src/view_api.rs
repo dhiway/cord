@@ -55,6 +55,15 @@ pub struct RegisterPacketSnapshotRequest {
 	pub version: Option<u32>,
 }
 
+/// Request payload for `Register::packet_snapshot_by_token`.
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct RegisterPacketSnapshotByTokenRequest {
+	pub auth: AuthorizationRequest,
+	pub token: Ss58Identifier,
+	pub version: Option<u32>,
+}
+
 /// Request payload for `Entity::attribute_history_entries`.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -150,6 +159,7 @@ pub enum AuthorizationError {
 	NotFound,
 	InvalidInput,
 	TooLarge,
+	Expired,
 	Internal,
 }
 

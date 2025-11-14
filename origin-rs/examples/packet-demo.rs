@@ -8,7 +8,7 @@ use oc::{
 	demo::cli::{parse_common_cli, require_value, CommonCliOptions},
 	demo::packet::render_packet_snapshot_cli,
 	demo::util::{
-		ensure_entity_token_verbose, fresh_authorization, init_logging, parse_identifier,
+		ensure_entity_token_verbose, fresh_authorization_with_client, init_logging, parse_identifier,
 		resolve_token_target, signer_account_id, token_timeline, LogSink, RunMode, TokenTarget,
 		TxExecutor, TxFlow,
 	},
@@ -179,7 +179,7 @@ async fn run_transaction_flow(
 		.map_err(|e| anyhow!(e))?;
 	print_delegate_section(&delegate_ss58, &delegate_logs);
 
-	let auth = fresh_authorization(&maintainer)?;
+	let auth = fresh_authorization_with_client(client, &maintainer).await?;
 	let details_req = RegisterDetailsRequest { auth: auth.clone(), registry: registry_id.clone() };
 	let registry_details = client.query().register().details(&details_req).await?;
 	let packet_payload = demo::packet_attributes(&label, &entity_token);
@@ -203,7 +203,7 @@ async fn run_transaction_flow(
 
 	utils::short_delay(Duration::from_secs(3)).await;
 
-	let maint_auth = fresh_authorization(&maintainer)?;
+	let maint_auth = fresh_authorization_with_client(client, &maintainer).await?;
 	let snapshot_req = RegisterPacketSnapshotRequest {
 		auth: maint_auth.clone(),
 		registry: registry_id.clone(),
@@ -231,7 +231,7 @@ async fn run_view_flow(cli: &CliOptions, client: &Client) -> Result<()> {
 		.as_deref()
 		.ok_or_else(|| anyhow!("--token <identifier> is required in view mode"))?;
 	let signer = tx::signer::dev_alice();
-	let auth = fresh_authorization(&signer)?;
+	let auth = fresh_authorization_with_client(client, &signer).await?;
 	let token_id = parse_identifier(token_str)?;
 	match resolve_token_target(client, &auth, &token_id).await? {
 		TokenTarget::Packet { registry, packet, snapshot } => {

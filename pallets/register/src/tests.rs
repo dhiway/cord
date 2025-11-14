@@ -27,6 +27,7 @@ use crate::{
 };
 use alloc::format;
 use cord_primitives::{
+	authorization::append_valid_until,
 	packet::{Attribute, Element, ElementType},
 	registry::{RegistryKind, RegistryPermissions, RegistryStatus},
 	AccountId, Signature,
@@ -38,6 +39,7 @@ use core::{
 };
 use frame_support::{assert_noop, assert_ok, BoundedVec};
 use sp_core::Pair;
+use sp_runtime::traits::UniqueSaturatedInto;
 
 static VIEW_AUTH_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -115,7 +117,10 @@ fn authorization(account: AccountId) -> AuthorizationOf<Test> {
 	bind_account(account.clone());
 	let id = VIEW_AUTH_COUNTER.fetch_add(1, Ordering::Relaxed);
 	let payload_text = format!("view-auth-{id}");
-	let payload_vec = payload_text.into_bytes();
+	let valid_until = frame_system::Pallet::<Test>::block_number()
+		.unique_saturated_into::<u32>()
+		.saturating_add(30);
+	let payload_vec = append_valid_until(payload_text.into_bytes(), valid_until);
 	let payload: AuthorizationPayloadOf<Test> =
 		payload_vec.clone().try_into().expect("payload within bounds");
 	let signature = Signature::from(pair.sign(&payload_vec));

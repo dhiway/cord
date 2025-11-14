@@ -1,6 +1,7 @@
 use crate::error::{Error, Result};
-use cord_primitives::view_api::{
-	AuthorizationPayload, AuthorizationRequest, AUTHORIZATION_MAX_BYTES,
+use cord_primitives::{
+	authorization::append_valid_until,
+	view_api::{AuthorizationPayload, AuthorizationRequest, AUTHORIZATION_MAX_BYTES},
 };
 use serde::{Deserialize, Serialize};
 use sp_core::{ecdsa, ed25519, sr25519};
@@ -30,6 +31,8 @@ pub struct Authorization {
 
 pub struct AuthorizationBuilder;
 
+pub const DEFAULT_VIEW_AUTH_TTL: u32 = 30;
+
 impl AuthorizationBuilder {
 	/// Construct a random "cord:view" payload.
 	pub fn random_message() -> Vec<u8> {
@@ -43,10 +46,12 @@ impl AuthorizationBuilder {
 	/// Sign a payload using the provided Subxt signer, inferring the signature scheme automatically.
 	pub fn from_signer<S: subxt::tx::Signer<C>>(
 		signer: &S,
+		valid_until: u32,
 		message: Option<&[u8]>,
 	) -> Result<Authorization> {
 		let msg = message.map(|m| m.to_vec()).unwrap_or_else(Self::random_message);
-		let sig = signer.sign(&msg);
+		let payload = append_valid_until(msg, valid_until);
+		let sig = signer.sign(&payload);
 		let (scheme, sig_bytes) = match sig {
 			subxt::utils::MultiSignature::Ed25519(inner) => {
 				(SignatureScheme::Ed25519, inner.as_ref().to_vec())
@@ -62,7 +67,7 @@ impl AuthorizationBuilder {
 			account_ss58: signer.account_id().to_string(),
 			account_id: signer.account_id(),
 			scheme,
-			message: msg,
+			message: payload,
 			signature: sig_bytes,
 		})
 	}

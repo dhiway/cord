@@ -39,7 +39,7 @@ Signature>` where `Payload` is a byte buffer produced via
   arguments (excluding `auth`) in metadata order. Helper methods in the SDK
   reuse Subxt’s typed encoders to keep this canonical.
 - **Size limit**: the runtime enforces `Payload::len() <= MaxAuthorizationLen`
-  (currently 512 bytes in Origin runtimes). Builders should clamp requests
+  (currently 256 bytes in Origin runtimes). Builders should clamp requests
   before signing.
 
 ## Signature and Replay Rules

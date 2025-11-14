@@ -32,15 +32,15 @@ pub mod signature;
 pub mod weights;
 
 extern crate alloc;
-use alloc::{boxed::Box, fmt::Debug, vec::Vec};
+use alloc::{boxed::Box, collections::BTreeSet, fmt::Debug, vec::Vec};
 use codec::{Encode, EncodeLike};
 
-use crate::signature::{verify_multisignature, SignatureVerificationError};
+use crate::{
+	entity::EntityField,
+	signature::{verify_multisignature, SignatureVerificationError},
+};
 use cord_primitives::{
-	authorization::{
-		authorization_signature_hash as primitives_authorization_signature_hash,
-		Authorization as CoreAuthorization,
-	},
+	authorization::{extract_valid_until, Authorization as CoreAuthorization},
 	identifier::Ss58Identifier,
 	packet::{Attribute, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp},
 	view_api::AuthorizationError,
@@ -50,6 +50,7 @@ use core::convert::TryInto;
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
+	storage::{with_transaction, TransactionOutcome},
 	traits::{CallerTrait, Get, StorageVersion},
 	BoundedVec,
 };
@@ -58,7 +59,7 @@ pub use pallet::*;
 use pallet_feeless::FeelessAccounts;
 use pallet_token::{EventBlock, EventTypeOf, Token};
 use sp_runtime::{
-	traits::{Hash, Verify},
+	traits::{Hash, UniqueSaturatedInto, Verify},
 	AccountId32,
 };
 pub use weights::WeightInfo;
@@ -73,10 +74,10 @@ pub type AuthorizationPayloadOf<T> = BoundedVec<u8, <T as Config>::MaxAuthorizat
 pub type Authorization<T> =
 	CoreAuthorization<<T as frame_system::Config>::AccountId, AuthorizationPayloadOf<T>, Signature>;
 pub type AuthorizationOf<T> = Authorization<T>;
-/// Replay-protection hash derived from the authorization tuple.
-pub type AuthorizationSignatureHash = [u8; 16];
 pub type LinkedAccountsListOf<T> =
 	BoundedVec<<T as frame_system::Config>::AccountId, <T as Config>::MaxLinkedAccounts>;
+
+const ENTITY_NYM_SUFFIX: &[u8] = b".nym.org.in";
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -128,6 +129,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxAuthorizationLen: Get<u32>;
 
+		/// Maximum number of blocks an authorization remains valid.
+		#[pallet::constant]
+		type MaxAuthorizationTTL: Get<u32>;
+
 		/// Source of feeless account information.
 		type Feeless: FeelessAccounts<Self::AccountId>;
 
@@ -149,9 +154,9 @@ pub mod pallet {
 	pub type EntityInfoOf<T: Config> =
 		StorageMap<_, Blake2_128Concat, Ss58Identifier, T::EntityInfoPacket, OptionQuery>;
 
-	/// What Ss58‐ID does this account currently hold?
+	/// Which entity token (if any) is currently bound to this account?
 	#[pallet::storage]
-	pub type Ss58OfActiveAccounts<T: Config> =
+	pub type EntityTokenOfAccount<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, Ss58Identifier, OptionQuery>;
 
 	/// Linked accounts for each entity token.
@@ -164,14 +169,14 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
-	/// Which account currently “owns” this Ss58‐ID?
+	/// Which account currently controls this entity token?
 	#[pallet::storage]
-	pub type ControllerOfSs58<T: Config> =
+	pub type ControllerAccountOf<T: Config> =
 		StorageMap<_, Blake2_128Concat, Ss58Identifier, T::AccountId, OptionQuery>;
 
-	/// When was this account un-bound from this entity token?
+	/// When was this account unbound from this entity token?
 	#[pallet::storage]
-	pub type Ss58OfAccountHistory<T: Config> = StorageDoubleMap<
+	pub type AccountUnbindHistory<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		Ss58Identifier,
@@ -193,7 +198,7 @@ pub mod pallet {
 
 	/// Version counter for each (token, attribute key).
 	#[pallet::storage]
-	pub type Ss58OfAttributeVersion<T: Config> = StorageDoubleMap<
+	pub type AttributeVersionOf<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		Ss58Identifier,
@@ -203,9 +208,9 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
-	/// All history entries: (token, (key, version)) → (old_value,  block).
+	/// All history entries: (token, (key, version)) → (old_value, block).
 	#[pallet::storage]
-	pub type Ss58OfAttributeHistory<T: Config> = StorageDoubleMap<
+	pub type AttributeHistoryOf<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		Ss58Identifier,
@@ -215,10 +220,6 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-	/// Replay-protection map for authorization payloads.
-	#[pallet::storage]
-	pub type AuthorizationSignatureUses<T: Config> =
-		StorageMap<_, Blake2_128Concat, AuthorizationSignatureHash, (), OptionQuery>;
 	#[pallet::error]
 	pub enum Error<T> {
 		///Bad Origin
@@ -296,6 +297,8 @@ pub mod pallet {
 		TooManyAttributes,
 		/// Tried to update or remove an attribute that doesn't exist.
 		AttributeNotFound,
+		/// Tried to remove a reserved/preset attribute key.
+		ReservedAttribute,
 		// State Update Failed
 		StateUpdateFailed,
 	}
@@ -305,8 +308,6 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A name was set or reset (which will remove all judgements).
 		EntityInfoSet { who: T::AccountId, token: Ss58Identifier },
-		/// An entity info was updated.
-		EntityInfoUpdated { who: T::AccountId, token: Ss58Identifier },
 		/// An entity attribute was updated.
 		EntityAttributeUpdated { who: T::AccountId, token: Ss58Identifier },
 		/// An entity attribute was removed.
@@ -344,7 +345,7 @@ pub mod pallet {
 		pub fn set_info(origin: OriginFor<T>, info: Box<T::EntityInfoPacket>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(
-				!Ss58OfActiveAccounts::<T>::contains_key(&who),
+				!EntityTokenOfAccount::<T>::contains_key(&who),
 				Error::<T>::AccountAlreadyLinked
 			);
 
@@ -365,9 +366,7 @@ pub mod pallet {
 				}
 			}
 
-			for reserved in
-				[&b"display"[..], &b"legal"[..], &b"web"[..], &b"email"[..], &b"twitter"[..]]
-			{
+			for reserved in [&b"display"[..], &b"web"[..], &b"email"[..]] {
 				info.get_key(reserved)
 					.validate()
 					.map_err(|_| Error::<T>::InvalidAttributeEntry)?;
@@ -390,7 +389,7 @@ pub mod pallet {
 			})?;
 
 			Self::do_set_linked_account(&token, &who)?;
-			ControllerOfSs58::<T>::insert(&token, who.clone());
+			ControllerAccountOf::<T>::insert(&token, who.clone());
 
 			Self::record_activity(&token, digest, b"EntityInfoSet")?;
 			Self::deposit_event(Event::EntityInfoSet { who, token });
@@ -398,13 +397,13 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Update attributes in an existing entity.
+		/// Rotate multiple attributes in a single dispatch, recording history per key.
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::update_info(ops.encoded_size() as u32))]
+		#[pallet::weight(T::WeightInfo::rotate_attributes(ops.encoded_size() as u32))]
 		#[pallet::feeless_if(|origin: &OriginFor<T>, _ops: &Vec<AttributeUpdateKeyOpOf<T>>| -> bool {
 			Pallet::<T>::is_origin_feeless(origin)
 		})]
-		pub fn update_info(
+		pub fn rotate_attributes(
 			origin: OriginFor<T>,
 			ops: Vec<AttributeUpdateKeyOpOf<T>>,
 		) -> DispatchResult {
@@ -413,25 +412,36 @@ pub mod pallet {
 			let controller = Self::lookup_controller_of(&token)?;
 			ensure!(who == controller, Error::<T>::BadOrigin);
 
-			EntityInfoOf::<T>::try_mutate(&token, |maybe_info| -> DispatchResult {
-				let info = maybe_info.as_mut().ok_or(Error::<T>::TokenNotFound)?;
-				for (raw_key, val) in ops.iter() {
-					let key: Attribute = raw_key
-						.clone()
-						.try_into()
-						.map_err(|_| Error::<T>::InvalidAttributeEntry)?;
-					let op = PacketUpdateOp::UpdateAttribute(key.clone(), val.clone());
-					info.apply_update(&op).map_err(|e| match e {
-						PacketUpdateError::AttributeNotFound => Error::<T>::AttributeNotFound,
-						_ => Error::<T>::InvalidAttributeEntry,
-					})?;
+			let parsed: Vec<(Attribute, DataOf<T>)> = ops
+				.into_iter()
+				.map(|(raw_key, val)| {
+					let attr: Attribute =
+						raw_key.try_into().map_err(|_| Error::<T>::InvalidAttributeEntry)?;
+					Ok((attr, val))
+				})
+				.collect::<Result<_, Error<T>>>()?;
+			let mut seen = BTreeSet::new();
+			for (attr, _) in parsed.iter() {
+				let inserted = seen.insert(attr.clone().into_inner());
+				ensure!(inserted, Error::<T>::DuplicateAttributeKey);
+			}
+
+			with_transaction(|| {
+				for (attr, val) in parsed.iter() {
+					if let Err(err) = Self::do_rotate_attribute(&token, attr, val) {
+						return TransactionOutcome::Rollback(Err(err));
+					}
 				}
-				Ok(())
+				TransactionOutcome::Commit(Ok(()))
 			})?;
 
-			let digest = T::Hashing::hash(&(&token, &ops, b"EntityInfoUpdated" as &[u8]).encode());
-			Self::record_activity(&token, digest, b"EntityInfoUpdated")?;
-			Self::deposit_event(Event::EntityInfoUpdated { who, token });
+			for (attr, _) in parsed.iter() {
+				Self::deposit_event(Event::EntityAttributeRotated {
+					who: who.clone(),
+					token: token.clone(),
+					attr: attr.clone(),
+				});
+			}
 
 			Ok(())
 		}
@@ -450,13 +460,25 @@ pub mod pallet {
 			let token = Self::lookup_token_of(&who)?;
 			ensure!(who == Self::lookup_controller_of(&token)?, Error::<T>::BadOrigin);
 
-			EntityInfoOf::<T>::try_mutate(&token, |maybe_info| -> DispatchResult {
-				let info = maybe_info.as_mut().ok_or(Error::<T>::TokenNotFound)?;
-				for (raw_key, val) in ops.iter() {
+			let parsed: Vec<(Attribute, DataOf<T>)> = ops
+				.iter()
+				.map(|(raw_key, val)| {
 					let key: Attribute = raw_key
 						.clone()
 						.try_into()
 						.map_err(|_| Error::<T>::InvalidAttributeEntry)?;
+					Ok((key, val.clone()))
+				})
+				.collect::<Result<_, Error<T>>>()?;
+			let mut seen = BTreeSet::new();
+			for (attr, _) in parsed.iter() {
+				let inserted = seen.insert(attr.clone().into_inner());
+				ensure!(inserted, Error::<T>::DuplicateAttributeKey);
+			}
+
+			EntityInfoOf::<T>::try_mutate(&token, |maybe_info| -> DispatchResult {
+				let info = maybe_info.as_mut().ok_or(Error::<T>::TokenNotFound)?;
+				for (key, val) in parsed.iter() {
 					info.apply_update(&PacketUpdateOp::AddAttribute(key.clone(), val.clone()))
 						.map_err(|e| match e {
 							PacketUpdateError::AttributeExists => Error::<T>::AttributeExists,
@@ -488,6 +510,10 @@ pub mod pallet {
 
 			let attr: Attribute =
 				key.clone().try_into().map_err(|_| Error::<T>::InvalidAttributeEntry)?;
+			ensure!(
+				EntityField::from_bytes(attr.as_slice()).is_none(),
+				Error::<T>::ReservedAttribute
+			);
 			EntityInfoOf::<T>::try_mutate(&token, |opt| -> DispatchResult {
 				let info = opt.as_mut().ok_or(Error::<T>::TokenNotFound)?;
 				info.apply_update(&PacketUpdateOp::RemoveAttribute(attr.clone()))
@@ -522,30 +548,7 @@ pub mod pallet {
 
 			let attr: Attribute =
 				key.clone().try_into().map_err(|_| Error::<T>::InvalidAttributeEntry)?;
-
-			EntityInfoOf::<T>::try_mutate(&token, |maybe_info| -> DispatchResult {
-				let info = maybe_info.as_mut().ok_or(Error::<T>::TokenNotFound)?;
-				let old_val = info.get_key(&key);
-
-				info.apply_update(&PacketUpdateOp::UpdateAttribute(attr.clone(), val.clone()))
-					.map_err(|_| Error::<T>::AttributeNotFound)?;
-
-				let ver = Ss58OfAttributeVersion::<T>::get(&token, &attr).saturating_add(1);
-				Ss58OfAttributeVersion::<T>::insert(&token, &attr, ver);
-				Ss58OfAttributeHistory::<T>::insert(
-					&token,
-					(attr.clone(), ver),
-					(old_val.clone(), EventBlock::current::<T>()),
-				);
-
-				Ok(())
-			})?;
-
-			let digest = T::Hashing::hash(
-				&(&token, &key, &val, b"EntityAttributeRotated" as &[u8]).encode(),
-			);
-
-			Self::record_activity(&token, digest, b"EntityAttributeRotated")?;
+			Self::do_rotate_attribute(&token, &attr, &val)?;
 			Self::deposit_event(Event::EntityAttributeRotated { who, token, attr });
 
 			Ok(())
@@ -623,10 +626,10 @@ pub mod pallet {
 			ensure!(new_controller != who, Error::<T>::AlreadyController);
 			Self::ensure_account_linked(&token, &new_controller)?;
 
-			Ss58OfActiveAccounts::<T>::remove(&who);
-			Ss58OfActiveAccounts::<T>::insert(&new_controller, token.clone());
-			ControllerOfSs58::<T>::insert(&token, new_controller.clone());
-			Ss58OfAccountHistory::<T>::insert(&token, &who, EventBlock::current::<T>());
+			EntityTokenOfAccount::<T>::remove(&who);
+			EntityTokenOfAccount::<T>::insert(&new_controller, token.clone());
+			ControllerAccountOf::<T>::insert(&token, new_controller.clone());
+			AccountUnbindHistory::<T>::insert(&token, &who, EventBlock::current::<T>());
 
 			let digest = T::Hashing::hash(
 				&(&token, &new_controller, b"EntityControllerRotated" as &[u8]).encode(),
@@ -652,11 +655,11 @@ pub mod pallet {
 			ensure!(current_controller != new_controller, Error::<T>::AlreadyController);
 			Self::ensure_account_linked(&token, &new_controller)?;
 
-			Ss58OfActiveAccounts::<T>::remove(&current_controller);
-			Ss58OfActiveAccounts::<T>::insert(&new_controller, token.clone());
-			ControllerOfSs58::<T>::insert(&token, new_controller.clone());
+			EntityTokenOfAccount::<T>::remove(&current_controller);
+			EntityTokenOfAccount::<T>::insert(&new_controller, token.clone());
+			ControllerAccountOf::<T>::insert(&token, new_controller.clone());
 
-			Ss58OfAccountHistory::<T>::insert(
+			AccountUnbindHistory::<T>::insert(
 				&token,
 				&current_controller,
 				EventBlock::current::<T>(),
@@ -722,7 +725,7 @@ pub mod pallet {
 				*b = b.to_ascii_lowercase();
 			}
 			ensure!(Self::is_valid_entity_nym_prefix(&prefix), Error::<T>::InvalidEntityNym);
-			prefix.extend(b".nym.org.in");
+			prefix.extend_from_slice(ENTITY_NYM_SUFFIX);
 
 			let bounded_uname: EntityNym<T> =
 				prefix.try_into().map_err(|_| Error::<T>::InvalidEntityNym)?;
@@ -743,7 +746,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Remove an existing entity nym under the suffix "myn.social".
+		/// Remove an existing entity nym under the suffix "nym.org.in".
 		#[pallet::call_index(13)]
 		#[pallet::weight(T::WeightInfo::remove_entity_nym())]
 		#[pallet::feeless_if(|origin: &OriginFor<T>, _token: &Ss58Identifier| -> bool {
@@ -782,7 +785,7 @@ pub mod pallet {
 			account: T::AccountId,
 		) -> Result<Ss58Identifier, AuthorizationError> {
 			Self::authorize_account_lookup(&auth, &account)?;
-			Ss58OfActiveAccounts::<T>::get(&account).ok_or(AuthorizationError::NotFound)
+			EntityTokenOfAccount::<T>::get(&account).ok_or(AuthorizationError::NotFound)
 		}
 
 		pub fn linked_accounts(
@@ -799,7 +802,7 @@ pub mod pallet {
 		) -> Result<T::AccountId, AuthorizationError> {
 			Self::authorize_account_query(&auth)?;
 			let controller =
-				ControllerOfSs58::<T>::get(&token).ok_or(AuthorizationError::NotFound)?;
+				ControllerAccountOf::<T>::get(&token).ok_or(AuthorizationError::NotFound)?;
 			Ok(controller)
 		}
 
@@ -808,7 +811,7 @@ pub mod pallet {
 			token: Ss58Identifier,
 		) -> Result<Vec<(T::AccountId, EventBlock)>, AuthorizationError> {
 			Self::authorize_account_query(&auth)?;
-			Ok(Ss58OfAccountHistory::<T>::iter_prefix(&token).collect())
+			Ok(AccountUnbindHistory::<T>::iter_prefix(&token).collect())
 		}
 
 		pub fn entity_nym(
@@ -839,7 +842,7 @@ pub mod pallet {
 			Self::authorize_account_query(&auth)?;
 			let attribute: Attribute =
 				key.try_into().map_err(|_| AuthorizationError::InvalidInput)?;
-			Ok(Ss58OfAttributeVersion::<T>::get(&token, attribute))
+			Ok(AttributeVersionOf::<T>::get(&token, attribute))
 		}
 
 		pub fn attribute_versions(
@@ -847,7 +850,7 @@ pub mod pallet {
 			token: Ss58Identifier,
 		) -> Result<Vec<(Vec<u8>, u64)>, AuthorizationError> {
 			Self::authorize_account_query(&auth)?;
-			let entries = Ss58OfAttributeVersion::<T>::iter_prefix(&token)
+			let entries = AttributeVersionOf::<T>::iter_prefix(&token)
 				.map(|(attribute, version)| (attribute.into_inner(), version))
 				.collect();
 			Ok(entries)
@@ -892,7 +895,7 @@ impl<T: Config> Pallet<T> {
 	pub fn attribute_history_plain(
 		token: &Ss58Identifier,
 	) -> Vec<(Vec<u8>, u64, Vec<u8>, EventBlock)> {
-		Ss58OfAttributeHistory::<T>::iter_prefix(token)
+		AttributeHistoryOf::<T>::iter_prefix(token)
 			.map(|((key, version), (old, block))| {
 				(key.to_vec(), version, old.as_ref().to_vec(), block)
 			})
@@ -907,7 +910,7 @@ impl<T: Config> Pallet<T> {
 			Ok(attr) => attr,
 			Err(_) => return Vec::new(),
 		};
-		Ss58OfAttributeHistory::<T>::iter_prefix(token)
+		AttributeHistoryOf::<T>::iter_prefix(token)
 			.filter_map(|((k, version), (old, block))| {
 				if k == key_attr {
 					Some((version, old.as_ref().to_vec(), block))
@@ -924,16 +927,8 @@ impl<T: Config> Pallet<T> {
 		version: u64,
 	) -> Option<(Vec<u8>, EventBlock)> {
 		let key_attr: Attribute = key.to_vec().try_into().ok()?;
-		Ss58OfAttributeHistory::<T>::get(token, (key_attr, version))
+		AttributeHistoryOf::<T>::get(token, (key_attr, version))
 			.map(|(old, block)| (old.as_ref().to_vec(), block))
-	}
-
-	fn authorization_signature_hash(auth: &AuthorizationOf<T>) -> AuthorizationSignatureHash {
-		primitives_authorization_signature_hash(
-			&auth.account,
-			auth.payload.as_slice(),
-			&auth.signature,
-		)
 	}
 
 	fn consume_authorization_signature(
@@ -943,6 +938,7 @@ impl<T: Config> Pallet<T> {
 	where
 		T::AccountId: Clone + Into<AccountId32>,
 	{
+		Self::ensure_authorization_fresh(auth.payload.as_slice())?;
 		if &auth.account != expected {
 			return Err(AuthorizationError::InvalidInput);
 		}
@@ -950,11 +946,20 @@ impl<T: Config> Pallet<T> {
 		if !auth.signature.verify(auth.payload.as_slice(), &signer) {
 			return Err(AuthorizationError::Unauthorized);
 		}
-		let hash = Self::authorization_signature_hash(auth);
-		if AuthorizationSignatureUses::<T>::contains_key(&hash) {
-			return Err(AuthorizationError::Unauthorized);
+		Ok(())
+	}
+
+	fn ensure_authorization_fresh(payload: &[u8]) -> Result<(), AuthorizationError> {
+		let valid_until = extract_valid_until(payload).ok_or(AuthorizationError::InvalidInput)?;
+		let now: u32 = frame_system::Pallet::<T>::block_number().unique_saturated_into();
+		if now > valid_until {
+			return Err(AuthorizationError::Expired);
 		}
-		AuthorizationSignatureUses::<T>::insert(hash, ());
+		let max_ttl = T::MaxAuthorizationTTL::get();
+		let remaining = valid_until.saturating_sub(now);
+		if remaining > max_ttl {
+			return Err(AuthorizationError::InvalidInput);
+		}
 		Ok(())
 	}
 
@@ -977,7 +982,7 @@ impl<T: Config> Pallet<T> {
 
 	fn do_set_linked_account(token: &Ss58Identifier, account: &T::AccountId) -> DispatchResult {
 		ensure!(
-			!Ss58OfActiveAccounts::<T>::contains_key(account),
+			!EntityTokenOfAccount::<T>::contains_key(account),
 			Error::<T>::LinkedAccountAlreadyClaimed
 		);
 		LinkedAccounts::<T>::try_mutate(token, |list| {
@@ -987,7 +992,7 @@ impl<T: Config> Pallet<T> {
 			);
 			list.try_push(account.clone()).map_err(|_| Error::<T>::TooManyLinkedAccounts)
 		})?;
-		Ss58OfActiveAccounts::<T>::insert(account, token.clone());
+		EntityTokenOfAccount::<T>::insert(account, token.clone());
 		Ok(())
 	}
 
@@ -995,7 +1000,7 @@ impl<T: Config> Pallet<T> {
 		let already_linked = LinkedAccounts::<T>::get(token).iter().any(|acct| acct == account);
 		if already_linked {
 			let bound =
-				Ss58OfActiveAccounts::<T>::get(account).ok_or(Error::<T>::LinkedAccountNotFound)?;
+				EntityTokenOfAccount::<T>::get(account).ok_or(Error::<T>::LinkedAccountNotFound)?;
 			ensure!(bound == *token, Error::<T>::LinkedAccountNotLinked);
 			Ok(())
 		} else {
@@ -1005,14 +1010,14 @@ impl<T: Config> Pallet<T> {
 
 	// Revoke linked-account helper
 	fn do_revoke_linked_account(token: &Ss58Identifier, account: &T::AccountId) -> DispatchResult {
-		let controller = ControllerOfSs58::<T>::get(token).ok_or(Error::<T>::TokenNotFound)?;
+		let controller = ControllerAccountOf::<T>::get(token).ok_or(Error::<T>::TokenNotFound)?;
 		ensure!(controller != *account, Error::<T>::ControllerAccount);
 		let bound =
-			Ss58OfActiveAccounts::<T>::get(account).ok_or(Error::<T>::LinkedAccountNotFound)?;
+			EntityTokenOfAccount::<T>::get(account).ok_or(Error::<T>::LinkedAccountNotFound)?;
 		ensure!(bound == *token, Error::<T>::LinkedAccountNotLinked);
-		Ss58OfActiveAccounts::<T>::remove(account);
+		EntityTokenOfAccount::<T>::remove(account);
 		let now = EventBlock::current::<T>();
-		Ss58OfAccountHistory::<T>::insert(token, account, now);
+		AccountUnbindHistory::<T>::insert(token, account, now);
 		LinkedAccounts::<T>::try_mutate(token, |list| {
 			if let Some(pos) = list.iter().position(|x| x == account) {
 				list.swap_remove(pos);
@@ -1031,12 +1036,12 @@ impl<T: Config> Pallet<T> {
 	fn do_clear_everything(token: &Ss58Identifier) -> DispatchResult {
 		let now = EventBlock::current::<T>();
 		for sub in LinkedAccounts::<T>::take(token).into_iter() {
-			Ss58OfActiveAccounts::<T>::remove(&sub);
-			Ss58OfAccountHistory::<T>::insert(token, &sub, now.clone());
+			EntityTokenOfAccount::<T>::remove(&sub);
+			AccountUnbindHistory::<T>::insert(token, &sub, now.clone());
 		}
-		if let Some(ctrl) = ControllerOfSs58::<T>::take(token) {
-			if Ss58OfActiveAccounts::<T>::take(&ctrl).is_some() {
-				Ss58OfAccountHistory::<T>::insert(token, &ctrl, now.clone());
+		if let Some(ctrl) = ControllerAccountOf::<T>::take(token) {
+			if EntityTokenOfAccount::<T>::take(&ctrl).is_some() {
+				AccountUnbindHistory::<T>::insert(token, &ctrl, now.clone());
 			}
 		}
 		EntityInfoOf::<T>::remove(token);
@@ -1050,17 +1055,43 @@ impl<T: Config> Pallet<T> {
 
 	/// Get the current Ss58 ID of `who`, or an error if none.
 	pub fn lookup_token_of(who: &T::AccountId) -> Result<Ss58Identifier, Error<T>> {
-		Ss58OfActiveAccounts::<T>::get(who).ok_or(Error::<T>::AccountNotFound)
+		EntityTokenOfAccount::<T>::get(who).ok_or(Error::<T>::AccountNotFound)
+	}
+
+	fn do_rotate_attribute(
+		token: &Ss58Identifier,
+		attr: &Attribute,
+		val: &DataOf<T>,
+	) -> DispatchResult {
+		let key_vec: Vec<u8> = attr.clone().into_inner();
+		EntityInfoOf::<T>::try_mutate(token, |maybe_info| -> DispatchResult {
+			let info = maybe_info.as_mut().ok_or(Error::<T>::TokenNotFound)?;
+			let old_val = info.get_key(&key_vec);
+			info.apply_update(&PacketUpdateOp::UpdateAttribute(attr.clone(), val.clone()))
+				.map_err(|_| Error::<T>::AttributeNotFound)?;
+			let ver = AttributeVersionOf::<T>::get(token, attr).saturating_add(1);
+			AttributeVersionOf::<T>::insert(token, attr, ver);
+			AttributeHistoryOf::<T>::insert(
+				token,
+				(attr.clone(), ver),
+				(old_val, EventBlock::current::<T>()),
+			);
+			Ok(())
+		})?;
+		let digest =
+			T::Hashing::hash(&(&token, &key_vec, val, b"EntityAttributeRotated" as &[u8]).encode());
+		Self::record_activity(token, digest, b"EntityAttributeRotated")?;
+		Ok(())
 	}
 
 	/// Get the controller account of `token`, or error if none.
 	pub fn lookup_controller_of(token: &Ss58Identifier) -> Result<T::AccountId, Error<T>> {
-		ControllerOfSs58::<T>::get(token).ok_or(Error::<T>::TokenNotFound)
+		ControllerAccountOf::<T>::get(token).ok_or(Error::<T>::TokenNotFound)
 	}
 
 	/// Get the full history for `token` as `(AccountId, BlockNumber)` pairs.
 	pub fn lookup_history(token: &Ss58Identifier) -> Vec<(T::AccountId, EventBlock)> {
-		Ss58OfAccountHistory::<T>::iter_prefix(token).collect()
+		AccountUnbindHistory::<T>::iter_prefix(token).collect()
 	}
 
 	/// Check if `who` has _all_ of the requested `fields` in their on-chain identity.
@@ -1068,7 +1099,7 @@ impl<T: Config> Pallet<T> {
 		who: &T::AccountId,
 		mask: <T::EntityInfoPacket as PacketInformationProvider>::FieldMask,
 	) -> bool {
-		Ss58OfActiveAccounts::<T>::get(who)
+		EntityTokenOfAccount::<T>::get(who)
 			.and_then(|token| EntityInfoOf::<T>::get(&token))
 			.map_or(false, |info| info.has_info_fields(mask))
 	}
@@ -1077,7 +1108,8 @@ impl<T: Config> Pallet<T> {
 	fn is_valid_entity_nym_prefix(input: &[u8]) -> bool {
 		// reject empty, too long, leading/trailing period, or consecutive periods
 		let max_len = T::MaxEntityNymLength::get() as usize;
-		if input.is_empty() || input.len() > max_len {
+		let suffix_len = ENTITY_NYM_SUFFIX.len();
+		if input.is_empty() || input.len() + suffix_len > max_len {
 			return false;
 		}
 		let (_, ok) = input.iter().copied().fold((false, true), |(prev_dot, ok), b| {
@@ -1103,7 +1135,7 @@ impl<T: Config> Pallet<T> {
 	pub fn resolve_controller_account(
 		token: &Ss58Identifier,
 	) -> Result<T::AccountId, SignatureVerificationError> {
-		ControllerOfSs58::<T>::get(token)
+		ControllerAccountOf::<T>::get(token)
 			.ok_or(SignatureVerificationError::SignerInformationNotPresent)
 	}
 
@@ -1117,7 +1149,7 @@ impl<T: Config> Pallet<T> {
 	where
 		T::AccountId: Clone + Into<sp_runtime::AccountId32>,
 	{
-		let token = Ss58OfActiveAccounts::<T>::get(account)
+		let token = EntityTokenOfAccount::<T>::get(account)
 			.ok_or(SignatureVerificationError::SignerInformationNotPresent)?;
 		verify_multisignature(account, payload, signature)?;
 		Ok(token)
@@ -1162,15 +1194,15 @@ impl<T: Config> EntityLookup<T> for Pallet<T> {
 	type EntityNym = EntityNym<T>;
 
 	fn lookup_token_of(who: &T::AccountId) -> Result<Ss58Identifier, Self::Error> {
-		Ss58OfActiveAccounts::<T>::get(who).ok_or(Error::<T>::AccountNotFound)
+		Pallet::<T>::lookup_token_of(who)
 	}
 
 	fn lookup_controller_of(token: &Ss58Identifier) -> Result<T::AccountId, Self::Error> {
-		ControllerOfSs58::<T>::get(token).ok_or(Error::<T>::TokenNotFound)
+		Pallet::<T>::lookup_controller_of(token)
 	}
 
 	fn lookup_history(token: &Ss58Identifier) -> Vec<(T::AccountId, EventBlock)> {
-		Ss58OfAccountHistory::<T>::iter_prefix(token).collect()
+		Pallet::<T>::lookup_history(token)
 	}
 
 	fn lookup_nym_of_identifier(token: &Ss58Identifier) -> Option<EntityNym<T>> {
@@ -1189,6 +1221,6 @@ impl<T: Config> EntityLookup<T> for Pallet<T> {
 	where
 		T::AccountId: Clone + Into<sp_runtime::AccountId32>,
 	{
-		Self::verify_account_signature(account, payload, signature)
+		Pallet::<T>::verify_account_signature(account, payload, signature)
 	}
 }

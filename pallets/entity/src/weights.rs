@@ -31,7 +31,7 @@ use frame_system::Config;
 
 pub trait WeightInfo {
     fn set_info(info_size: u32) -> Weight;
-    fn update_info(ops_size: u32) -> Weight;
+    fn rotate_attributes(ops_size: u32) -> Weight;
     fn add_attributes(kv_size: u32) -> Weight;
     fn remove_attribute(k_size: u32) -> Weight;
     fn rotate_attribute(kv_size: u32) -> Weight;
@@ -56,7 +56,7 @@ impl<T: Config> WeightInfo for SubstrateWeight<T> {
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(4))
     }
-    fn update_info(ops_size: u32) -> Weight {
+    fn rotate_attributes(ops_size: u32) -> Weight {
         Weight::from_parts(30_000_000, 0)
             .saturating_add(Weight::from_parts(ops_size as u64 * 500, 0))
             // assume each history insert is an extra write
@@ -141,7 +141,7 @@ impl WeightInfo for () {
             .saturating_add(RocksDbWeight::get().reads(1))
             .saturating_add(RocksDbWeight::get().writes(4))
     }
-    fn update_info(ops_size: u32) -> Weight {
+    fn rotate_attributes(ops_size: u32) -> Weight {
         Weight::from_parts(30_000_000, 0)
             .saturating_add(Weight::from_parts(ops_size as u64 * 500, 0))
             // assume each history insert is an extra write

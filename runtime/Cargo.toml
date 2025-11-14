@@ -25,6 +25,7 @@ log = { workspace = true }
 cord-primitives = { workspace = true }
 cord-orb-runtime-constants = { workspace = true }
 cord-runtime-common = { workspace = true }
+token-runtime-api = { workspace = true }
 
 # Substrate
 sp-authority-discovery = { workspace = true }
@@ -126,6 +127,7 @@ std = [
 	"pallet-feeless/std",
 	"pallet-grandpa/std",
 	"pallet-token/std",
+	"token-runtime-api/std",
 	"pallet-tx-pause/std",
 	"pallet-indices/std",
 	"pallet-meta-tx/std",

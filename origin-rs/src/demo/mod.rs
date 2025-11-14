@@ -186,11 +186,9 @@ pub fn packet_attributes(label: &str, controller: &str) -> JsonValue {
 
 pub fn entity_profile(label: &str) -> JsonValue {
 	json!({
-		"display": format!("CORD SDK entity run {label}"),
-		"legal": "CORD Demo LLC",
-		"web": format!("https://demo.cord/{label}"),
-		"email": format!("{label}@cord.dev"),
-		"twitter": format!("@{label}"),
+	"display": format!("CORD SDK entity run {label}"),
+	"web": format!("https://demo.cord/{label}"),
+	"email": format!("{label}@cord.dev"),
 		"attributes": {
 			"support": "support@cord.dev"
 		}

@@ -45,6 +45,26 @@ where
 	blake2_128(&encoded)
 }
 
+/// Size of the `valid_until` trailer encoded into authorization payloads.
+pub const AUTHORIZATION_VALID_UNTIL_BYTES: usize = core::mem::size_of::<u32>();
+
+/// Append a `valid_until` (as little-endian `u32`) to the provided payload bytes.
+pub fn append_valid_until(mut payload: Vec<u8>, valid_until: u32) -> Vec<u8> {
+	payload.extend_from_slice(&valid_until.to_le_bytes());
+	payload
+}
+
+/// Extract the trailing `valid_until` block number from a payload.
+pub fn extract_valid_until(payload: &[u8]) -> Option<u32> {
+	if payload.len() < AUTHORIZATION_VALID_UNTIL_BYTES {
+		return None;
+	}
+	let idx = payload.len() - AUTHORIZATION_VALID_UNTIL_BYTES;
+	let bytes: [u8; AUTHORIZATION_VALID_UNTIL_BYTES] =
+		payload[idx..].try_into().ok()?;
+	Some(u32::from_le_bytes(bytes))
+}
+
 impl<AccountId, Payload, Signature> MaxEncodedLen for Authorization<AccountId, Payload, Signature>
 where
 	AccountId: MaxEncodedLen,

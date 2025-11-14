@@ -23,10 +23,8 @@ fn attribute_vec(entries: Vec<AttributeEntry>) -> crate::error::Result<Value> {
 #[derive(Deserialize)]
 struct EntityProfileJson {
 	display: Option<String>,
-	legal: Option<String>,
 	web: Option<String>,
 	email: Option<String>,
-	twitter: Option<String>,
 	#[serde(default)]
 	attributes: BTreeMap<String, String>,
 }
@@ -34,17 +32,13 @@ struct EntityProfileJson {
 impl EntityProfileJson {
 	fn into_value(self) -> crate::error::Result<Value> {
 		let display = element_from_string(self.display);
-		let legal = element_from_string(self.legal);
 		let web = element_from_string(self.web);
 		let email = element_from_string(self.email);
-		let twitter = element_from_string(self.twitter);
 		let attrs_value = option_attributes_value(self.attributes)?;
 		Ok(Value::named_composite([
 			("display", types::element_json_to_dynamic(&display)?),
-			("legal", types::element_json_to_dynamic(&legal)?),
 			("web", types::element_json_to_dynamic(&web)?),
 			("email", types::element_json_to_dynamic(&email)?),
-			("twitter", types::element_json_to_dynamic(&twitter)?),
 			("attributes", attrs_value),
 		]))
 	}
@@ -84,15 +78,6 @@ impl<'a> Transactions<'a> {
 		self.build("Entity", "set_info", args).await
 	}
 
-	pub async fn entity_update_info(
-		&self,
-		entries: Vec<AttributeEntry>,
-	) -> crate::error::Result<DynamicPayload> {
-		let ops = attribute_vec(entries)?;
-		let args = Value::named_composite([("ops", ops)]);
-		self.build("Entity", "update_info", args).await
-	}
-
 	pub async fn entity_add_attributes(
 		&self,
 		entries: Vec<AttributeEntry>,
@@ -127,6 +112,15 @@ impl<'a> Transactions<'a> {
 		let element = types::element_json_to_dynamic(&entry.value)?;
 		let args = Value::named_composite([("key", bytes_value(&key_bytes)), ("val", element)]);
 		self.build("Entity", "rotate_attribute", args).await
+	}
+
+	pub async fn entity_rotate_attributes(
+		&self,
+		entries: Vec<AttributeEntry>,
+	) -> crate::error::Result<DynamicPayload> {
+		let ops = attribute_vec(entries)?;
+		let args = Value::named_composite([("ops", ops)]);
+		self.build("Entity", "rotate_attributes", args).await
 	}
 
 	pub async fn entity_set_linked_account(

@@ -1,10 +1,8 @@
 {
   "entity": {
     "display": "CORD showcase for {label}",
-    "legal": "CORD Showcase LLP",
     "web": "https://{label}.cord.dev/demo",
     "email": "ops@cord.dev",
-    "twitter": "@cord_demo",
     "attributes": {
       "support": "support@cord.dev",
       "website": "https://{label}.cord.dev"

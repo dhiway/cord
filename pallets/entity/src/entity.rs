@@ -46,10 +46,8 @@ use scale_info::{build::Variants, Path, Type, TypeInfo};
 )]
 pub enum EntityField {
 	Display,
-	Legal,
 	Web,
 	Email,
-	Twitter,
 	Attributes,
 }
 
@@ -58,10 +56,8 @@ impl EntityField {
 	pub fn from_bytes(key: &[u8]) -> Option<Self> {
 		match key {
 			b"display" => Some(EntityField::Display),
-			b"legal" => Some(EntityField::Legal),
 			b"web" => Some(EntityField::Web),
 			b"email" => Some(EntityField::Email),
-			b"twitter" => Some(EntityField::Twitter),
 			b"attributes" => Some(EntityField::Attributes),
 			_ => None,
 		}
@@ -74,11 +70,9 @@ impl TypeInfo for EntityField {
 		Type::builder().path(Path::new("EntityField", module_path!())).variant(
 			Variants::new()
 				.variant("Display", |v| v.index(0))
-				.variant("Legal", |v| v.index(1))
-				.variant("Web", |v| v.index(2))
-				.variant("Email", |v| v.index(3))
-				.variant("Twitter", |v| v.index(4))
-				.variant("Attributes", |v| v.index(5)),
+				.variant("Web", |v| v.index(1))
+				.variant("Email", |v| v.index(2))
+				.variant("Attributes", |v| v.index(3)),
 		)
 	}
 }
@@ -111,10 +105,8 @@ fn map_attributes_error(err: AttributesError) -> PacketUpdateError {
 #[scale_info(skip_type_params(MaxRawDataLength, MaxAdditionalAttributes))]
 pub struct EntityInfo<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>> {
 	pub display: Element<MaxRawDataLength>,
-	pub legal: Element<MaxRawDataLength>,
 	pub web: Element<MaxRawDataLength>,
 	pub email: Element<MaxRawDataLength>,
-	pub twitter: Element<MaxRawDataLength>,
 	pub attributes: Option<Attributes<MaxRawDataLength, MaxAdditionalAttributes>>,
 }
 
@@ -126,17 +118,11 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 		if !self.display.is_none() {
 			bits.insert(EntityField::Display)
 		}
-		if !self.legal.is_none() {
-			bits.insert(EntityField::Legal)
-		}
 		if !self.web.is_none() {
 			bits.insert(EntityField::Web)
 		}
 		if !self.email.is_none() {
 			bits.insert(EntityField::Email)
-		}
-		if !self.twitter.is_none() {
-			bits.insert(EntityField::Twitter)
 		}
 		if let Some(attrs) = &self.attributes {
 			if !attrs.is_empty() {
@@ -165,10 +151,8 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 		if let Some(field) = EntityField::from_bytes(key) {
 			return match field {
 				EntityField::Display => self.display.clone(),
-				EntityField::Legal => self.legal.clone(),
 				EntityField::Web => self.web.clone(),
 				EntityField::Email => self.email.clone(),
-				EntityField::Twitter => self.twitter.clone(),
 				EntityField::Attributes => Element::default(),
 			};
 		}
@@ -203,10 +187,8 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 				if let Some(field) = EntityField::from_bytes(k) {
 					match field {
 						EntityField::Display => self.display = Element::default(),
-						EntityField::Legal => self.legal = Element::default(),
 						EntityField::Web => self.web = Element::default(),
 						EntityField::Email => self.email = Element::default(),
-						EntityField::Twitter => self.twitter = Element::default(),
 						EntityField::Attributes => {
 							return Err(PacketUpdateError::AttributeNotFound);
 						},
@@ -229,10 +211,8 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 					v.validate().map_err(|_| PacketUpdateError::InvalidElement)?;
 					match field {
 						EntityField::Display => self.display = v.clone(),
-						EntityField::Legal => self.legal = v.clone(),
 						EntityField::Web => self.web = v.clone(),
 						EntityField::Email => self.email = v.clone(),
-						EntityField::Twitter => self.twitter = v.clone(),
 						EntityField::Attributes => {
 							return Err(PacketUpdateError::AttributeNotFound);
 						},
@@ -260,10 +240,8 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 		}
 		EntityInfo {
 			display: empty.clone(),
-			legal: empty.clone(),
 			web: empty.clone(),
 			email: empty.clone(),
-			twitter: empty.clone(),
 			attributes: Some(attrs),
 		}
 	}
@@ -279,10 +257,8 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>> Default
 	fn default() -> Self {
 		EntityInfo {
 			display: Element::default(),
-			legal: Element::default(),
 			web: Element::default(),
 			email: Element::default(),
-			twitter: Element::default(),
 			attributes: None,
 		}
 	}

@@ -25,9 +25,8 @@ extern crate alloc;
 
 use alloc::{string::String, vec::Vec};
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{pallet_prelude::ConstU32, BoundedVec};
+use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
 
 /// Maximum payload length supported by portable view authorizations.
 pub const AUTHORIZATION_MAX_BYTES: u32 = 256;

@@ -25,6 +25,7 @@ use crate::{
 use alloc::format;
 use codec::Decode;
 use cord_primitives::{
+	authorization::append_valid_until,
 	packet::{Attribute, Attributes, AttributesError, Element},
 	view_api::AuthorizationError,
 	Signature,
@@ -33,7 +34,7 @@ use core::sync::atomic::{AtomicU64, Ordering};
 use frame_support::{assert_noop, assert_ok};
 use pallet_token::Token;
 use sp_core::{sr25519, Pair};
-use sp_runtime::{traits::IdentifyAccount, MultiSigner};
+use sp_runtime::{traits::{IdentifyAccount, UniqueSaturatedInto}, MultiSigner};
 
 /// Shortcut to wrap raw bytes into our `Data` type.
 fn plain_data(s: &[u8]) -> Element<MaxRawDataLength> {
@@ -45,7 +46,7 @@ fn init_with_display(who: AccountId, disp: &[u8]) -> Ss58Identifier {
 	let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 	info.display = plain_data(disp);
 	assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info)));
-	Ss58OfActiveAccounts::<Test>::get(&who).unwrap()
+	EntityTokenOfAccount::<Test>::get(&who).unwrap()
 }
 
 /// Build a “fake” identifier from arbitrary input.
@@ -61,7 +62,10 @@ static VIEW_AUTH_COUNTER: AtomicU64 = AtomicU64::new(0);
 fn authorization(account: &AccountId) -> AuthorizationOf<Test> {
 	let counter = VIEW_AUTH_COUNTER.fetch_add(1, Ordering::Relaxed);
 	let payload_text = format!("entity-view-{counter}");
-	let payload_vec = payload_text.into_bytes();
+	let valid_until = frame_system::Pallet::<Test>::block_number()
+		.unique_saturated_into::<u32>()
+		.saturating_add(30);
+	let payload_vec = append_valid_until(payload_text.into_bytes(), valid_until);
 	let payload: AuthorizationPayloadOf<Test> =
 		payload_vec.clone().try_into().expect("payload within bounds");
 	let signature = mock::ACCOUNT_KEYS.with(|keys| {
@@ -221,58 +225,71 @@ mod add_attributes_tests {
 	}
 }
 
-mod update_info_tests {
+mod rotate_attributes_tests {
 	use super::*;
 
 	#[test]
-	fn update_existing_attribute_positive() {
+	fn rotates_reserved_and_user_attributes() {
 		new_test_ext().execute_with(|| {
 			let who = account(9);
-			let token = init_with_display(who.clone(), b"x");
-
-			// add then update
+			let token = init_with_display(who.clone(), b"orig");
 			assert_ok!(Entity::add_attributes(
 				RuntimeOrigin::signed(who.clone()),
-				vec![(b"key".to_vec(), plain_data(b"v1"))]
-			));
-			assert_ok!(Entity::update_info(
-				RuntimeOrigin::signed(who.clone()),
-				vec![(b"key".to_vec(), plain_data(b"v2"))]
+				vec![(b"custom".to_vec(), plain_data(b"old"))]
 			));
 
+			let ops = vec![
+				(b"display".to_vec(), plain_data(b"new-display")),
+				(b"custom".to_vec(), plain_data(b"new-custom")),
+			];
+			assert_ok!(Entity::rotate_attributes(RuntimeOrigin::signed(who.clone()), ops));
+
 			let stored = EntityInfoOf::<Test>::get(&token).unwrap();
+			assert_eq!(stored.display, plain_data(b"new-display"));
 			let attrs = stored.attributes.unwrap();
-			assert!(attrs.iter().any(|(k, v)| &k[..] == b"key" && v == &plain_data(b"v2")));
+			assert!(attrs
+				.iter()
+				.any(|(k, v)| &k[..] == b"custom" && v == &plain_data(b"new-custom")));
 		});
 	}
 
 	#[test]
-	fn update_missing_attribute_fails() {
+	fn rotate_attributes_missing_key_fails() {
 		new_test_ext().execute_with(|| {
 			let who = account(10);
-			let _ = init_with_display(who.clone(), b"x");
-
+			let _ = init_with_display(who.clone(), b"orig");
+			let ops = vec![(b"missing".to_vec(), plain_data(b"v"))];
 			assert_noop!(
-				Entity::update_info(
-					RuntimeOrigin::signed(who.clone()),
-					vec![(b"nope".to_vec(), plain_data(b"x"))]
-				),
+				Entity::rotate_attributes(RuntimeOrigin::signed(who.clone()), ops),
 				Error::<Test>::AttributeNotFound
 			);
 		});
 	}
 
 	#[test]
-	fn update_bad_origin_fails() {
+	fn rotate_attributes_duplicate_key_fails() {
 		new_test_ext().execute_with(|| {
 			let who = account(11);
-			let _ = init_with_display(who.clone(), b"x");
-			let other = account(12);
-
+			let _ = init_with_display(who.clone(), b"orig");
+			let ops = vec![
+				(b"display".to_vec(), plain_data(b"first")),
+				(b"display".to_vec(), plain_data(b"second")),
+			];
 			assert_noop!(
-				Entity::update_info(
-					RuntimeOrigin::signed(other.clone()),
-					vec![(b"some".to_vec(), plain_data(b"v"))]
+				Entity::rotate_attributes(RuntimeOrigin::signed(who), ops),
+				Error::<Test>::DuplicateAttributeKey
+			);
+		});
+	}
+
+	#[test]
+	fn rotate_attributes_bad_origin_fails() {
+		new_test_ext().execute_with(|| {
+			let who = account(11);
+			assert_noop!(
+				Entity::rotate_attributes(
+					RuntimeOrigin::signed(who.clone()),
+					vec![(b"display".to_vec(), plain_data(b"x"))]
 				),
 				Error::<Test>::AccountNotFound
 			);
@@ -311,6 +328,18 @@ mod remove_attribute_tests {
 			assert_noop!(
 				Entity::remove_attribute(RuntimeOrigin::signed(who.clone()), b"nope".to_vec()),
 				Error::<Test>::AttributeNotFound
+			);
+		});
+	}
+
+	#[test]
+	fn cannot_remove_reserved_attribute() {
+		new_test_ext().execute_with(|| {
+			let who = account(90);
+			let _ = init_with_display(who.clone(), b"preset");
+			assert_noop!(
+				Entity::remove_attribute(RuntimeOrigin::signed(who.clone()), b"display".to_vec()),
+				Error::<Test>::ReservedAttribute
 			);
 		});
 	}
@@ -388,7 +417,7 @@ mod linked_accounts_tests {
 				Error::<Test>::TooManyLinkedAccounts
 			);
 			let linked =
-				LinkedAccounts::<Test>::get(&Ss58OfActiveAccounts::<Test>::get(&main).unwrap());
+				LinkedAccounts::<Test>::get(&EntityTokenOfAccount::<Test>::get(&main).unwrap());
 			assert_eq!(linked.len(), 2);
 			assert!(linked.contains(&main));
 			assert!(linked.contains(&sub1));
@@ -454,6 +483,26 @@ mod linked_accounts_tests {
 			);
 		});
 	}
+	#[test]
+	fn root_can_revoke_linked_account_for() {
+		new_test_ext().execute_with(|| {
+			let owner = account(40);
+			let sub = account(41);
+			let token = init_with_display(owner.clone(), b"root-revoke");
+			assert_ok!(Entity::set_linked_account(
+				RuntimeOrigin::signed(owner.clone()),
+				sub.clone()
+			));
+
+			assert_ok!(Entity::revoke_linked_account_for(
+				RuntimeOrigin::root(),
+				token.clone(),
+				sub.clone()
+			));
+			let linked = LinkedAccounts::<Test>::get(&token);
+			assert!(!linked.contains(&sub));
+		});
+	}
 }
 
 mod controller_rotation_and_clear_tests {
@@ -471,7 +520,7 @@ mod controller_rotation_and_clear_tests {
 			// rotate self
 			assert_ok!(Entity::rotate_controller(
 				RuntimeOrigin::signed(owner.clone()),
-				Ss58OfActiveAccounts::<Test>::get(&owner).unwrap(),
+				EntityTokenOfAccount::<Test>::get(&owner).unwrap(),
 				newc.clone()
 			));
 
@@ -479,11 +528,25 @@ mod controller_rotation_and_clear_tests {
 			assert_noop!(
 				Entity::rotate_controller(
 					RuntimeOrigin::signed(owner.clone()),
-					Ss58OfActiveAccounts::<Test>::get(&newc).unwrap(),
+					EntityTokenOfAccount::<Test>::get(&newc).unwrap(),
 					owner.clone()
 				),
 				Error::<Test>::BadOrigin
 			);
+
+			let token = EntityTokenOfAccount::<Test>::get(&newc).unwrap();
+			// remove the stale owner link to simulate an admin cleanup before rotating back
+			LinkedAccounts::<Test>::mutate(&token, |list| {
+				if let Some(pos) = list.iter().position(|acct| acct == &owner) {
+					list.swap_remove(pos);
+				}
+			});
+			assert_ok!(Entity::rotate_controller_for(
+				RuntimeOrigin::root(),
+				token.clone(),
+				owner.clone()
+			));
+			assert_eq!(ControllerAccountOf::<Test>::get(&token), Some(owner));
 		});
 	}
 
@@ -497,7 +560,7 @@ mod controller_rotation_and_clear_tests {
 			assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info)));
 			assert_ok!(Entity::set_linked_account(RuntimeOrigin::signed(who.clone()), sub.clone()));
 
-			let token = Ss58OfActiveAccounts::<Test>::get(&who).unwrap();
+			let token = EntityTokenOfAccount::<Test>::get(&who).unwrap();
 			assert_ok!(Entity::clear_everything(RuntimeOrigin::signed(who.clone()), token.clone()));
 			assert!(!EntityInfoOf::<Test>::contains_key(&token));
 
@@ -505,7 +568,7 @@ mod controller_rotation_and_clear_tests {
 			let mut info2 = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info2.display = plain_data(b"y");
 			assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info2)));
-			let id2 = Ss58OfActiveAccounts::<Test>::get(&who).unwrap();
+			let id2 = EntityTokenOfAccount::<Test>::get(&who).unwrap();
 			assert_ok!(Entity::clear_everything_for(RuntimeOrigin::root(), id2.clone()));
 			assert!(!EntityInfoOf::<Test>::contains_key(&id2));
 		});
@@ -542,7 +605,7 @@ mod entity_nym_tests {
 			);
 
 			// remove
-			let token = Ss58OfActiveAccounts::<Test>::get(&who).unwrap();
+			let token = EntityTokenOfAccount::<Test>::get(&who).unwrap();
 			assert_ok!(Entity::remove_entity_nym(
 				RuntimeOrigin::signed(who.clone()),
 				token.clone()
