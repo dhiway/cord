@@ -23,12 +23,15 @@
 #![recursion_limit = "1024"]
 
 extern crate alloc;
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
+use cord_primitives::{
+	identifier::{DecodedIdentifier, Ss58Identifier},
+	AccountIndex, Balance, BlockNumber, Hash, Moment, Nonce,
+};
 pub use cord_primitives::{AccountId, AccountPublic, Signature};
-use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Moment, Nonce};
 use cord_runtime_common::{impl_runtime_weights, prod_or_fast, BlockHashCount, BlockLength};
 use core::{cmp::Ordering, convert::TryInto};
 use frame_support::{
@@ -85,6 +88,8 @@ pub mod genesis_config_presets;
 // Weights used in the runtime.
 mod weights;
 
+pub use token_runtime_api as token_api;
+
 /// Default logging target.
 pub const LOG_TARGET: &str = "runtime::orb";
 
@@ -135,6 +140,15 @@ pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
 #[cfg(any(feature = "std", test))]
 pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
+}
+
+fn convert_token_authorization(
+	auth: token_api::Authorization<AccountId, Signature>,
+) -> Option<pallet_token::Authorization<Runtime>> {
+	let token_api::Authorization { account, payload, signature } = auth;
+	let payload_vec: Vec<u8> = payload.into();
+	let payload: pallet_token::AuthorizationPayloadOf<Runtime> = payload_vec.try_into().ok()?;
+	Some(pallet_token::Authorization::<Runtime> { account, payload, signature })
 }
 
 /// Calls that can bypass the safe-mode pallet.
@@ -748,13 +762,17 @@ parameter_types! {
 	pub const MaxAdditionalAttributes: u32 = 32;
 	pub const MaxLinkedAccounts: u32 = 2;
 	pub const MaxEntityNymLength: u32 = 64;
-	pub const EntityMaxAuthorizationLen: u32 = 128;
+	pub const EntityMaxAuthorizationLen: u32 = 256;
 }
 
 parameter_types! {
-	pub const TokenMaxAuthorizationLen: u32 = 128;
+	pub const TokenMaxAuthorizationLen: u32 = 256;
 	pub const TokenMaxTimelineViewResults: u32 = 64;
 	pub const TokenDefaultTimelineViewResults: u32 = 32;
+}
+
+parameter_types! {
+	pub const ViewAuthorizationTTL: u32 = 30;
 }
 
 impl pallet_token::Config for Runtime {
@@ -762,7 +780,8 @@ impl pallet_token::Config for Runtime {
 	type BlockNumberProvider = System;
 	type MaxAuthorizationLen = TokenMaxAuthorizationLen;
 	type MaxTimelineViewResults = TokenMaxTimelineViewResults;
-	type DefaulTimelineViewResults = TokenDefaultTimelineViewResults;
+	type DefaultTimelineViewResults = TokenDefaultTimelineViewResults;
+	type MaxAuthorizationTTL = ViewAuthorizationTTL;
 }
 
 impl pallet_entity::Config for Runtime {
@@ -774,6 +793,7 @@ impl pallet_entity::Config for Runtime {
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type MaxEntityNymLength = MaxEntityNymLength;
 	type MaxAuthorizationLen = EntityMaxAuthorizationLen;
+	type MaxAuthorizationTTL = ViewAuthorizationTTL;
 	type Feeless = Feeless;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
@@ -782,7 +802,7 @@ impl pallet_entity::Config for Runtime {
 parameter_types! {
 	pub const MaxRegistryRawDataLength: u32 = 4096;
 	pub const MaxRegistryAdditionalAttributes: u32 = 64;
-	pub const MaxAuthorizationLen: u32 = 128;
+	pub const MaxAuthorizationLen: u32 = 256;
 	pub const MaxPacketListResults: u32 = 200;
 }
 
@@ -793,6 +813,7 @@ impl pallet_register::Config for Runtime {
 	type MaxRawDataLength = MaxRegistryRawDataLength;
 	type MaxAdditionalAttributes = MaxRegistryAdditionalAttributes;
 	type MaxAuthorizationLen = MaxAuthorizationLen;
+	type MaxAuthorizationTTL = ViewAuthorizationTTL;
 	type MaxPacketListResults = MaxPacketListResults;
 	type Feeless = Feeless;
 	type WeightInfo = ();
@@ -1230,10 +1251,75 @@ impl_runtime_apis! {
 		fn query_weight_to_fee(weight: Weight) -> Balance {
 			TransactionPayment::weight_to_fee(weight)
 		}
-		fn query_length_to_fee(length: u32) -> Balance {
-			TransactionPayment::length_to_fee(length)
-		}
+	fn query_length_to_fee(length: u32) -> Balance {
+		TransactionPayment::length_to_fee(length)
 	}
+}
+
+impl token_api::TokenApi<Block, AccountId, Signature, Hash> for Runtime {
+	fn decode_token(token: Vec<u8>) -> Option<token_api::DecodedTokenApi> {
+		let ss58_id = Ss58Identifier::try_from(token).ok()?;
+		let decoded: DecodedIdentifier = Token::resolve_identifier_plain(&ss58_id).ok()?;
+		Some(token_api::DecodedTokenApi {
+			origin: decoded.origin,
+			network: decoded.network,
+			pallet: decoded.pallet,
+			genesis: decoded.genesis,
+		})
+	}
+
+	fn resolve_pallet(
+		auth: token_api::Authorization<AccountId, Signature>,
+		index: u16,
+	) -> Option<String> {
+		let auth = convert_token_authorization(auth)?;
+		Token::resolve_pallet_query(auth, index).ok()
+	}
+
+	fn resolve_identifier(
+		auth: token_api::Authorization<AccountId, Signature>,
+		token: Vec<u8>,
+	) -> Option<token_api::DecodedTokenApi> {
+		let auth = convert_token_authorization(auth)?;
+		let ss58_id = Ss58Identifier::try_from(token).ok()?;
+		let decoded = Token::resolve_identifier_query(auth, ss58_id).ok()?;
+		Some(token_api::DecodedTokenApi {
+			origin: decoded.origin,
+			network: decoded.network,
+			pallet: decoded.pallet,
+			genesis: decoded.genesis,
+		})
+	}
+
+	fn token_history(
+		auth: token_api::Authorization<AccountId, Signature>,
+		token: Vec<u8>,
+		start: Option<u32>,
+		limit: u32,
+	) -> Vec<token_api::TokenHistoryEvent<Hash>> {
+		let auth = match convert_token_authorization(auth) {
+			Some(auth) => auth,
+			None => return Vec::new(),
+		};
+		let ss58_id = match Ss58Identifier::try_from(token) {
+			Ok(id) => id,
+			Err(_) => return Vec::new(),
+		};
+		let history = match Token::history(auth, ss58_id, start, limit) {
+			Ok(events) => events,
+			Err(_) => return Vec::new(),
+		};
+		history
+			.into_iter()
+			.map(|event| token_api::TokenHistoryEvent {
+				action: event.action.into(),
+				digest: event.digest,
+				height: event.seal.height,
+				index: event.seal.index,
+			})
+			.collect()
+	}
+}
 
 	impl sp_session::SessionKeys<Block> for Runtime {
 		fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {

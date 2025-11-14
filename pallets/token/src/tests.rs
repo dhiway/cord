@@ -21,14 +21,31 @@ use super::*;
 use crate::mock::{new_test_ext, Test};
 use core::convert::TryInto;
 use frame_support::{assert_err, assert_ok};
+use sp_runtime::traits::UniqueSaturatedInto;
 use sp_core::{sr25519, Pair, H256};
+use cord_primitives::authorization::append_valid_until;
 
-fn make_auth(payload: &[u8], pair: &sr25519::Pair) -> Authorization<Test> {
-	let vec_payload = payload.to_vec();
+const AUTH_TTL: u32 = 30;
+
+fn current_block_u32() -> u32 {
+	frame_system::Pallet::<Test>::block_number().unique_saturated_into()
+}
+
+fn make_auth_with_valid_until(
+	payload: &[u8],
+	pair: &sr25519::Pair,
+	valid_until: u32,
+) -> Authorization<Test> {
+	let vec_payload = append_valid_until(payload.to_vec(), valid_until);
 	let signature: Signature = pair.sign(&vec_payload).into();
 	let bounded: AuthorizationPayloadOf<Test> =
 		vec_payload.try_into().expect("payload within bounds");
 	Authorization::<Test> { account: pair.public().into(), payload: bounded, signature }
+}
+
+fn make_auth(payload: &[u8], pair: &sr25519::Pair) -> Authorization<Test> {
+	let valid_until = current_block_u32().saturating_add(AUTH_TTL);
+	make_auth_with_valid_until(payload, pair, valid_until)
 }
 
 /// Test that a valid pallet name can be stored and returns a consistent index.
@@ -110,7 +127,12 @@ fn record_activity_positive() {
 			vec![1u8; 10].try_into().expect("Should create a valid bounded vector");
 		let seal = EventBlock { height: 1, index: 0 };
 
-		assert_ok!(Pallet::<Test>::state_event(&token, digest, action.clone(), seal.clone()));
+		assert_ok!(Pallet::<Test>::update_token_state(
+			&token,
+			digest,
+			action.clone(),
+			seal.clone()
+		));
 
 		let counter = StateVersion::<Test>::get(&token);
 		assert_eq!(counter, 1);
@@ -129,17 +151,24 @@ fn history_requires_authorization() {
 			Ss58Identifier::to_encoded(vec![5u8; 32], 250, 11, 0).expect("token encoding ok");
 		let digest = H256::random();
 		let action: EventTypeOf = b"log".to_vec().try_into().unwrap();
-		Pallet::<Test>::state_event(&token, digest, action, EventBlock { height: 2, index: 0 })
-			.unwrap();
+		Pallet::<Test>::update_token_state(
+			&token,
+			digest,
+			action,
+			EventBlock { height: 2, index: 0 },
+		)
+		.unwrap();
 
-		let signer = sr25519::Pair::from_seed(&[21u8; 32]);
-		let auth = make_auth(b"history", &signer);
-		let entries =
-			Pallet::<Test>::history(auth.clone(), token.clone(), Some(0), 8).expect("entries");
-		assert_eq!(entries.len(), 1);
+	let signer = sr25519::Pair::from_seed(&[21u8; 32]);
+	let valid_until = current_block_u32().saturating_add(5);
+	let auth = make_auth_with_valid_until(b"history", &signer, valid_until);
+	let entries =
+		Pallet::<Test>::history(auth.clone(), token.clone(), Some(0), 8).expect("entries");
+	assert_eq!(entries.len(), 1);
 
-		let replay = Pallet::<Test>::history(auth, token.clone(), Some(0), 8);
-		assert!(matches!(replay, Err(AuthorizationError::Unauthorized)));
+	frame_system::Pallet::<Test>::set_block_number((valid_until + 1).into());
+	let expired = Pallet::<Test>::history(auth, token.clone(), Some(0), 8);
+	assert!(matches!(expired, Err(AuthorizationError::Expired)));
 	});
 }
 
@@ -151,22 +180,21 @@ fn timeline_requires_valid_authorization() {
 		let digest = H256::random();
 		let action: EventTypeOf = b"history".to_vec().try_into().unwrap();
 		let seal = EventBlock { height: 5, index: 1 };
-		Pallet::<Test>::state_event(&token, digest, action.clone(), seal.clone()).unwrap();
+		Pallet::<Test>::update_token_state(&token, digest, action.clone(), seal.clone()).unwrap();
 
-		let signer = sr25519::Pair::from_seed(&[42u8; 32]);
-		let auth = make_auth(b"view-history", &signer);
-		let (entries, next) =
-			Pallet::<Test>::timeline(auth.clone(), token.clone(), Some(0), Some(10))
-				.expect("authorized timeline");
-		assert_eq!(entries.len(), 1);
-		assert_eq!(entries[0].digest, digest);
-		assert!(next.is_none());
+	let signer = sr25519::Pair::from_seed(&[42u8; 32]);
+	let valid_until = current_block_u32().saturating_add(5);
+	let auth = make_auth_with_valid_until(b"view-history", &signer, valid_until);
+	let (entries, next) =
+		Pallet::<Test>::timeline(auth.clone(), token.clone(), Some(0), Some(10))
+			.expect("authorized timeline");
+	assert_eq!(entries.len(), 1);
+	assert_eq!(entries[0].digest, digest);
+	assert!(next.is_none());
 
-		let replay = Pallet::<Test>::timeline(auth, token.clone(), Some(0), Some(10));
-		assert!(
-			matches!(replay, Err(AuthorizationError::Unauthorized)),
-			"reused authorizations must be rejected"
-		);
+	frame_system::Pallet::<Test>::set_block_number((valid_until + 1).into());
+	let expired = Pallet::<Test>::timeline(auth, token.clone(), Some(0), Some(10));
+	assert!(matches!(expired, Err(AuthorizationError::Expired)));
 
 		let forge = sr25519::Pair::from_seed(&[99u8; 32]);
 		let mut forged = make_auth(b"view-history", &forge);
@@ -207,20 +235,19 @@ fn resolve_identifier_requires_authorization() {
 }
 
 #[test]
-fn resolve_identifier_query_enforces_replay_protection() {
+fn resolve_identifier_query_expires_after_valid_until() {
 	new_test_ext().execute_with(|| {
 		let token = Ss58Identifier::to_encoded(vec![6u8; 32], 310, 12, 0).unwrap();
 		let signer = sr25519::Pair::from_seed(&[8u8; 32]);
-		let auth = make_auth(b"resolve-helper", &signer);
+		let valid_until = current_block_u32().saturating_add(5);
+		let auth = make_auth_with_valid_until(b"resolve-helper", &signer, valid_until);
 		let decoded =
 			Pallet::<Test>::resolve_identifier_query(auth.clone(), token.clone()).expect("helper");
 		assert_eq!(decoded.pallet, 12);
 
-		let replay = Pallet::<Test>::resolve_identifier_query(auth, token.clone());
-		assert!(
-			matches!(replay, Err(AuthorizationError::Unauthorized)),
-			"helper must reject replay"
-		);
+		frame_system::Pallet::<Test>::set_block_number((valid_until + 1).into());
+		let expired = Pallet::<Test>::resolve_identifier_query(auth, token.clone());
+		assert!(matches!(expired, Err(AuthorizationError::Expired)));
 	});
 }
 
@@ -314,27 +341,27 @@ fn state_views_roundtrip_with_authorization() {
 		let token = Ss58Identifier::to_encoded(vec![4u8; 32], 400, 3, 0).unwrap();
 		let action: EventTypeOf = b"state".to_vec().try_into().unwrap();
 		let seal = EventBlock { height: 10, index: 0 };
-		Pallet::<Test>::state_event(&token, digest, action.clone(), seal.clone()).unwrap();
+		Pallet::<Test>::update_token_state(&token, digest, action.clone(), seal.clone()).unwrap();
 
 		let version =
 			Pallet::<Test>::state_version(make_auth(b"state-version", &pair), token.clone())
 				.expect("state version view");
 		assert_eq!(version, 1);
 
-		let event =
-			Pallet::<Test>::state_event_view(make_auth(b"state-event", &pair), token.clone(), 0)
-				.expect("state event view");
+		let event = Pallet::<Test>::state_event(make_auth(b"state-event", &pair), token.clone(), 0)
+			.expect("state event view");
 		assert_eq!(event.action, action);
 		assert_eq!(event.seal, seal);
 
-		let batch = Pallet::<Test>::state_events(
+		let (batch, cursor) = Pallet::<Test>::timeline(
 			make_auth(b"state-events", &pair),
 			token.clone(),
 			Some(0),
-			5,
+			Some(5),
 		)
 		.expect("state events");
 		assert_eq!(batch.len(), 1);
 		assert_eq!(batch[0].digest, digest);
+		assert!(cursor.is_none());
 	});
 }

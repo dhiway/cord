@@ -27,10 +27,7 @@ use alloc::{string::String, vec, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 
 use cord_primitives::{
-	authorization::{
-		authorization_signature_hash as primitives_authorization_signature_hash,
-		Authorization as CoreAuthorization,
-	},
+	authorization::{extract_valid_until, Authorization as CoreAuthorization},
 	identifier::{DecodedIdentifier, IdentifierError, Ss58Identifier},
 	view_api::AuthorizationError,
 	Signature,
@@ -47,7 +44,7 @@ use scale_info::TypeInfo;
 use sp_core as _;
 use sp_runtime::{
 	traits::{BlockNumberProvider, UniqueSaturatedInto, Verify},
-	AccountId32,
+	AccountId32, RuntimeDebug,
 };
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -106,11 +103,18 @@ pub type AuthorizationPayloadOf<T> = BoundedVec<u8, <T as Config>::MaxAuthorizat
 pub type Authorization<T> =
 	CoreAuthorization<<T as frame_system::Config>::AccountId, AuthorizationPayloadOf<T>, Signature>;
 
-/// Replay-protection hash for token authorization payloads.
-pub type AuthorizationSignatureHash = [u8; 16];
-
 /// ActivityRecord stores an update entry and the corresponding event stamp.
-#[derive(Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	PartialEq,
+	Eq,
+	TypeInfo,
+	MaxEncodedLen,
+	RuntimeDebug,
+)]
 pub struct StateEvent<Hash> {
 	pub action: EventTypeOf,
 	pub digest: Hash,
@@ -144,7 +148,11 @@ pub mod pallet {
 
 		// Default limit when the caller doesn't provide one
 		#[pallet::constant]
-		type DefaulTimelineViewResults: Get<u32>;
+		type DefaultTimelineViewResults: Get<u32>;
+
+		/// Maximum number of blocks for which an authorization stays valid.
+		#[pallet::constant]
+		type MaxAuthorizationTTL: Get<u32>;
 	}
 
 	#[pallet::pallet]
@@ -182,10 +190,6 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type StateVersion<T: Config> =
 		StorageMap<_, Blake2_128Concat, Ss58Identifier, u32, ValueQuery>;
-
-	#[pallet::storage]
-	pub type AuthorizationSignatureUses<T: Config> =
-		StorageMap<_, Blake2_128Concat, AuthorizationSignatureHash, (), OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -352,7 +356,7 @@ pub mod pallet {
 		) -> Result<(TimelineEventsOf<T>, Option<u32>), AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let cap = T::MaxTimelineViewResults::get();
-			let def = T::DefaulTimelineViewResults::get();
+			let def = T::DefaultTimelineViewResults::get();
 			let eff = limit.unwrap_or(def).max(1).min(cap);
 			let (events, next_cursor) = Self::timeline_entries(&token, start, eff);
 			Ok((events, next_cursor))
@@ -450,30 +454,19 @@ impl<T: Config> From<IdentifierError> for Error<T> {
 	}
 }
 
+
 impl<T> Pallet<T>
 where
 	T: Config,
 	AccountId32: From<<T as frame_system::Config>::AccountId>,
 	<T as frame_system::Config>::AccountId: Clone,
 {
-	fn authorization_signature_hash(auth: &Authorization<T>) -> AuthorizationSignatureHash {
-		primitives_authorization_signature_hash(
-			&auth.account,
-			auth.payload.as_slice(),
-			&auth.signature,
-		)
-	}
-
 	fn authorize_query(auth: &Authorization<T>) -> Result<(), AuthorizationError> {
+		Self::ensure_authorization_fresh(auth.payload.as_slice())?;
 		let signer: AccountId32 = auth.account.clone().into();
 		if !auth.signature.verify(auth.payload.as_slice(), &signer) {
 			return Err(AuthorizationError::Unauthorized);
 		}
-		let hash = Self::authorization_signature_hash(auth);
-		if AuthorizationSignatureUses::<T>::contains_key(&hash) {
-			return Err(AuthorizationError::Unauthorized);
-		}
-		AuthorizationSignatureUses::<T>::insert(hash, ());
 		Ok(())
 	}
 
@@ -517,6 +510,20 @@ where
 		token: &Ss58Identifier,
 	) -> Result<DecodedIdentifier, AuthorizationError> {
 		Self::resolve_token(token).map_err(|_| AuthorizationError::InvalidInput)
+	}
+
+	fn ensure_authorization_fresh(payload: &[u8]) -> Result<(), AuthorizationError> {
+		let valid_until = extract_valid_until(payload).ok_or(AuthorizationError::InvalidInput)?;
+		let now: u32 = frame_system::Pallet::<T>::block_number().unique_saturated_into();
+		if now > valid_until {
+			return Err(AuthorizationError::Expired);
+		}
+		let max_ttl = T::MaxAuthorizationTTL::get();
+		let remaining = valid_until.saturating_sub(now);
+		if remaining > max_ttl {
+			return Err(AuthorizationError::InvalidInput);
+		}
+		Ok(())
 	}
 
 	pub fn resolve_identifier_query(

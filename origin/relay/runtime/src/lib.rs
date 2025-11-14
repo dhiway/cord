@@ -167,7 +167,7 @@ pub const BABE_GENESIS_EPOCH_CONFIG: babe_primitives::BabeEpochConfiguration =
 		allowed_slots: babe_primitives::AllowedSlots::PrimaryAndSecondaryVRFSlots,
 	};
 
-fn convert_token_authorizationorization(
+fn convert_token_authorization(
 	auth: token_api::Authorization<AccountId, Signature>,
 ) -> Option<pallet_token::Authorization<Runtime>> {
 	let token_api::Authorization { account, payload, signature } = auth;
@@ -961,9 +961,10 @@ impl pallet_authorities::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TokenMaxAuthorizationLen: u32 = 128;
+	pub const TokenMaxAuthorizationLen: u32 = 256;
 	pub const TokenMaxTimelineViewResults: u32 = 64;
 	pub const TokenDefaultTimelineViewResults: u32 = 32;
+	pub const TokenAuthorizationTTL: u32 = 30;
 }
 
 impl pallet_token::Config for Runtime {
@@ -971,7 +972,8 @@ impl pallet_token::Config for Runtime {
 	type BlockNumberProvider = System;
 	type MaxAuthorizationLen = TokenMaxAuthorizationLen;
 	type MaxTimelineViewResults = TokenMaxTimelineViewResults;
-	type DefaulTimelineViewResults = TokenDefaultTimelineViewResults;
+	type DefaultTimelineViewResults = TokenDefaultTimelineViewResults;
+	type MaxAuthorizationTTL = TokenAuthorizationTTL;
 }
 
 parameter_types! {
@@ -1925,7 +1927,7 @@ sp_api::impl_runtime_apis! {
 			auth: token_api::Authorization<AccountId, Signature>,
 			index: u16,
 		) -> Option<String> {
-			let auth = convert_token_authorizationorization(auth)?;
+			let auth = convert_token_authorization(auth)?;
 			Token::resolve_pallet_query(auth, index).ok()
 		}
 
@@ -1933,7 +1935,7 @@ sp_api::impl_runtime_apis! {
 			auth: token_api::Authorization<AccountId, Signature>,
 			token: Vec<u8>,
 		) -> Option<token_api::DecodedTokenApi> {
-			let auth = convert_token_authorizationorization(auth)?;
+			let auth = convert_token_authorization(auth)?;
 			let ss58_id = Ss58Identifier::try_from(token).ok()?;
 			let decoded = Token::resolve_identifier_query(auth, ss58_id).ok()?;
 			Some(token_api::DecodedTokenApi {
@@ -1950,7 +1952,7 @@ sp_api::impl_runtime_apis! {
 			start: Option<u32>,
 			limit: u32,
 		) -> Vec<token_api::TokenHistoryEvent<Hash>> {
-			let auth = match convert_token_authorizationorization(auth) {
+			let auth = match convert_token_authorization(auth) {
 				Some(auth) => auth,
 				None => return Vec::new(),
 			};

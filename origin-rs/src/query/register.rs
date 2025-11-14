@@ -18,7 +18,8 @@ use cord_primitives::{
 	},
 	view_api::{
 		AuthorizationError, AuthorizationRequest, RegisterDetailsRequest,
-		RegisterLookupSpecsRequest, RegisterPacketSnapshotRequest,
+		RegisterLookupSpecsRequest, RegisterPacketSnapshotByTokenRequest,
+		RegisterPacketSnapshotRequest,
 	},
 };
 use scale_value::Value;
@@ -98,23 +99,18 @@ impl<'a> RegisterQuery<'a> {
 
 	pub async fn packet_snapshot_by_token(
 		&self,
-		auth: &AuthorizationRequest,
-		token: &Ss58Identifier,
-		version: Option<u32>,
+		req: &RegisterPacketSnapshotByTokenRequest,
 	) -> Result<Option<PacketSnapshotView>> {
-		let args = self.list_by_token_args(auth, token.as_ref(), version)?;
-		let raw: core::result::Result<PacketSnapshotListRecord, AuthorizationError> =
-			self.query.call_result("Register", "list_by_token", args).await?;
+		let args = self.packet_by_token_args(req)?;
+		let raw: core::result::Result<Option<PacketSnapshotRecord>, AuthorizationError> =
+			self.query.call_result("Register", "packet_snapshot_by_token", args).await?;
 		match raw {
-			Ok(PacketSnapshotListRecord(entries, _cursor)) => {
-				if let Some(record) = entries.into_iter().next() {
-					let state = packet_state_view_from_record(&record.state)?;
-					Ok(Some(dev_packet_snapshot_from(&state, record.registry_status)))
-				} else {
-					Ok(None)
-				}
+			Ok(Some(record)) => {
+				let state = packet_state_view_from_record(&record.state)?;
+				Ok(Some(dev_packet_snapshot_from(&state, record.registry_status)))
 			},
-			Err(err) => Err(view_failure("register.list_by_token", err)),
+			Ok(None) => Ok(None),
+			Err(err) => Err(view_failure("register.packet_snapshot_by_token", err)),
 		}
 	}
 
@@ -152,16 +148,25 @@ impl<'a> RegisterQuery<'a> {
 		builder.push("limit", super::option_u32_value(Some(1)));
 		Ok(builder.finish())
 	}
+
+	fn packet_by_token_args(&self, req: &RegisterPacketSnapshotByTokenRequest) -> Result<Value> {
+		let mut builder = ArgBuilder::default();
+		builder.push("auth", super::authorization_value(&req.auth)?);
+		builder.push("token", super::identifier_struct_value(&req.token));
+		builder.push("version", super::option_u32_value(req.version));
+		Ok(builder.finish())
+	}
 }
 
 fn view_failure(ctx: &str, err: AuthorizationError) -> Error {
 	match err {
 		AuthorizationError::NotFound => Error::NotFound(format!("{ctx}: not found")),
 		AuthorizationError::Unauthorized => Error::Params(format!("{ctx}: unauthorized")),
-		AuthorizationError::InvalidInput => Error::Params(format!("{ctx}: invalid input")),
-		AuthorizationError::TooLarge => Error::Params(format!("{ctx}: result too large")),
-		AuthorizationError::Internal => Error::ViewDecode(format!("{ctx}: internal error")),
-	}
+	AuthorizationError::InvalidInput => Error::Params(format!("{ctx}: invalid input")),
+	AuthorizationError::TooLarge => Error::Params(format!("{ctx}: result too large")),
+	AuthorizationError::Expired => Error::Params(format!("{ctx}: authorization expired")),
+	AuthorizationError::Internal => Error::ViewDecode(format!("{ctx}: internal error")),
+}
 }
 
 type RuntimeRegistryInfo = runtime::runtime_types::pallet_register::register::RegistryInfo;

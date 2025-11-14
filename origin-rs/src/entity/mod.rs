@@ -36,7 +36,7 @@ pub struct EntityChainState {
 impl EntityChainState {
 	pub fn from_profile(profile: &serde_json::Value) -> Self {
 		let mut state = EntityChainState::default();
-		let reserved_fields = ["display", "legal", "web", "email", "twitter"];
+		let reserved_fields = ["display", "web", "email"];
 		for key in reserved_fields {
 			let value = profile.get(key).and_then(|v| v.as_str()).map(|s| s.to_string());
 			state.insert_reserved(key, value);
@@ -53,10 +53,8 @@ impl EntityChainState {
 	pub fn from_record(info: &EntityInfoRecord) -> Self {
 		let mut state = EntityChainState::default();
 		state.insert_reserved("display", element_text_from_view(&info.display));
-		state.insert_reserved("legal", element_text_from_view(&info.legal));
 		state.insert_reserved("web", element_text_from_view(&info.web));
 		state.insert_reserved("email", element_text_from_view(&info.email));
-		state.insert_reserved("twitter", element_text_from_view(&info.twitter));
 		if let Some(attrs) = &info.attributes {
 			for attr in attrs {
 				let label = attribute_label(attr);

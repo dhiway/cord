@@ -211,10 +211,11 @@ fn view_failure(ctx: &str, err: AuthorizationError) -> Error {
 	match err {
 		AuthorizationError::NotFound => Error::NotFound(format!("{ctx}: not found")),
 		AuthorizationError::Unauthorized => Error::Params(format!("{ctx}: unauthorized")),
-		AuthorizationError::InvalidInput => Error::Params(format!("{ctx}: invalid input")),
-		AuthorizationError::TooLarge => Error::Params(format!("{ctx}: result too large")),
-		AuthorizationError::Internal => Error::ViewDecode(format!("{ctx}: internal error")),
-	}
+	AuthorizationError::InvalidInput => Error::Params(format!("{ctx}: invalid input")),
+	AuthorizationError::TooLarge => Error::Params(format!("{ctx}: result too large")),
+	AuthorizationError::Expired => Error::Params(format!("{ctx}: authorization expired")),
+	AuthorizationError::Internal => Error::ViewDecode(format!("{ctx}: internal error")),
+}
 }
 
 fn block_ref(block: RuntimeEventBlock) -> BlockRef {

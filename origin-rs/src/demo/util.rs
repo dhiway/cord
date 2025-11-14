@@ -12,7 +12,7 @@ use cord_primitives::{
 	registry::RegistryInfoView,
 	view_api::{
 		AuthorizationRequest, EntityAccountTokenRequest, RegisterDetailsRequest,
-		TokenTimelineRequest,
+		RegisterPacketSnapshotByTokenRequest, TokenTimelineRequest,
 	},
 };
 use serde_json::Value as JsonValue;
@@ -143,11 +143,19 @@ pub fn parse_identifier(value: &str) -> Result<Ss58Identifier> {
 		.map_err(|_| Error::Params(format!("invalid identifier: {value}")))
 }
 
-pub fn fresh_authorization(signer: &tx::signer::Keypair) -> Result<AuthorizationRequest> {
-	AuthorizationBuilder::from_signer(signer, None)
+pub fn fresh_authorization(valid_until: u32, signer: &tx::signer::Keypair) -> Result<AuthorizationRequest> {
+	AuthorizationBuilder::from_signer(signer, valid_until, None)
 		.map_err(|e| Error::Signer(e.to_string()))?
 		.as_request()
 		.map_err(|e| Error::Signer(e.to_string()))
+}
+
+pub async fn fresh_authorization_with_client(
+	client: &Client,
+	signer: &tx::signer::Keypair,
+) -> Result<AuthorizationRequest> {
+	let valid_until = client.view_auth_valid_until().await?;
+	fresh_authorization(valid_until, signer)
 }
 
 pub async fn ensure_entity_token_verbose(
@@ -226,7 +234,12 @@ pub async fn resolve_token_target(
 		Err(err) => return Err(err),
 	}
 
-	match client.query().register().packet_snapshot_by_token(auth, token, None).await {
+	let packet_req = RegisterPacketSnapshotByTokenRequest {
+		auth: auth.clone(),
+		token: token.clone(),
+		version: None,
+	};
+	match client.query().register().packet_snapshot_by_token(&packet_req).await {
 		Ok(Some(snapshot)) => {
 			let registry =
 				Ss58Identifier::try_from(snapshot.state.registry_ss58.clone()).map_err(|_| {

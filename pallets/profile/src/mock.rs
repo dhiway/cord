@@ -47,9 +47,10 @@ impl frame_system::Config for Test {
 parameter_types! {
 	pub const MaxDataKeyLength: u8 = 128;
 	pub const MaxDataValueLength: u32 = 1 * 1024; //1KB
-	pub const MaxTokenAuthorizationLen: u32 = 128;
+	pub const MaxTokenAuthorizationLen: u32 = 256;
 	pub const MaxTokenTimelineViewResults: u32 = 32;
 	pub const DefaultTokenTimelineViewResults: u32 = 16;
+	pub const MaxTokenAuthorizationTTL: u32 = 30;
 }
 
 impl pallet_profile::Config for Test {
@@ -64,7 +65,8 @@ impl pallet_token::Config for Test {
 	type BlockNumberProvider = frame_system::Pallet<Test>;
 	type MaxAuthorizationLen = MaxTokenAuthorizationLen;
 	type MaxTimelineViewResults = MaxTokenTimelineViewResults;
-	type DefaulTimelineViewResults = DefaultTokenTimelineViewResults;
+	type DefaultTimelineViewResults = DefaultTokenTimelineViewResults;
+	type MaxAuthorizationTTL = MaxTokenAuthorizationTTL;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

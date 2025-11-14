@@ -4,14 +4,15 @@ use cord_primitives::{
 	registry::{LookupSpecView, RegistryInfoView},
 	view_api::{RegisterDetailsRequest, RegisterLookupSpecsRequest},
 };
-use oc::error::Error as SdkError;
 use oc::demo::packet::render_packet_snapshot_cli;
 use oc::demo::register::render_registry_snapshot_cli;
+use oc::error::Error as SdkError;
 use oc::{
 	demo,
 	demo::cli::{parse_common_cli, require_value, CommonCliOptions},
 	demo::util::{
-		ensure_entity_token_verbose, fresh_authorization, init_logging, parse_identifier,
+		ensure_entity_token_verbose, fresh_authorization_with_client, init_logging,
+		parse_identifier,
 		resolve_token_target, signer_account_id, token_timeline, LogSink, RunMode, TokenTarget,
 		TxExecutor, TxFlow,
 	},
@@ -147,7 +148,7 @@ async fn run_transaction_flow(cli: &CliOptions, client: &Client) -> Result<()> {
 
 	let (details, lookups) =
 		fetch_registry_snapshot_with_retry(client, &signer, &registry_id, "transaction").await?;
-	let auth = fresh_authorization(&signer)?;
+	let auth = fresh_authorization_with_client(client, &signer).await?;
 	let (timeline, next_cursor) = token_timeline(client, &auth, &registry_id, Some(12)).await?;
 
 	render_registry_snapshot_cli(
@@ -169,12 +170,11 @@ async fn fetch_registry_snapshot_with_retry(
 ) -> Result<(RegistryInfoView, Vec<LookupSpecView>)> {
 	const MAX_ATTEMPTS: usize = 5;
 	for attempt in 0..MAX_ATTEMPTS {
-		let auth = fresh_authorization(signer)?;
+		let auth = fresh_authorization_with_client(client, signer).await?;
 		let details_req = RegisterDetailsRequest { auth: auth.clone(), registry: registry.clone() };
 		match client.query().register().details(&details_req).await {
 			Ok(details) => {
-				let lookup_req =
-					RegisterLookupSpecsRequest { auth, registry: registry.clone() };
+				let lookup_req = RegisterLookupSpecsRequest { auth, registry: registry.clone() };
 				let lookups = client.query().register().lookup_specs(&lookup_req).await?;
 				return Ok((details, lookups));
 			},
@@ -195,7 +195,7 @@ async fn fetch_registry_snapshot_with_retry(
 
 async fn run_view_flow(cli: &CliOptions, client: &Client) -> Result<()> {
 	let signer = tx::signer::dev_alice();
-	let auth = fresh_authorization(&signer)?;
+	let auth = fresh_authorization_with_client(client, &signer).await?;
 	if let Some(token_str) = cli.token.as_deref() {
 		let token_id = parse_identifier(token_str)?;
 		match resolve_token_target(client, &auth, &token_id).await? {

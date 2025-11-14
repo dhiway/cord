@@ -54,7 +54,7 @@ use pallet_feeless::FeelessAccounts;
 use pallet_token::{EventBlock, EventTypeOf, Token};
 use register::{AttributeFlags, AttributeSpec, LookupSpec, RegistryFieldError, RegistryInfo};
 use sp_io as _;
-use sp_runtime::traits::Hash;
+use sp_runtime::traits::{Hash, UniqueSaturatedInto};
 pub use weights::WeightInfo;
 
 /// Convenience type aliases bound to pallet Config.
@@ -70,9 +70,6 @@ pub type LookupSpecListOf<T> = BoundedVec<
 /// Authorization payload supplied for register authorization requests.
 pub type AuthorizationPayloadOf<T> = BoundedVec<u8, <T as Config>::MaxAuthorizationLen>;
 
-/// Compact hash stored for replay protection across authorization requests.
-pub type AuthorizationSignatureHash = [u8; 16];
-
 /// Authorization details that must accompany every query request.
 pub type Authorization<T> =
 	CoreAuthorization<<T as frame_system::Config>::AccountId, AuthorizationPayloadOf<T>, Signature>;
@@ -83,10 +80,7 @@ pub type RegistryInfoOf<T> =
 	RegistryInfo<<T as Config>::MaxRawDataLength, <T as Config>::MaxAdditionalAttributes>;
 
 use cord_primitives::{
-	authorization::{
-		authorization_signature_hash as primitives_authorization_signature_hash,
-		Authorization as CoreAuthorization,
-	},
+	authorization::{extract_valid_until, Authorization as CoreAuthorization},
 	packet::{PacketPointer, PacketStatus},
 	registry::{RegistryKind, RegistryPermissions, RegistryStatus},
 	view_api::AuthorizationError,
@@ -161,6 +155,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxAuthorizationLen: Get<u32>;
 
+		/// Maximum blocks a view authorization remains valid.
+		#[pallet::constant]
+		type MaxAuthorizationTTL: Get<u32>;
+
 		/// Maximum number of packet snapshots returned by query functions.
 		#[pallet::constant]
 		type MaxPacketListResults: Get<u32>;
@@ -221,11 +219,6 @@ pub mod pallet {
 		packet::LookupAnchor,
 		OptionQuery,
 	>;
-
-	/// Replay protection cache for authorization requests.
-	#[pallet::storage]
-	pub type AuthorizationSignatureUses<T: Config> =
-		StorageMap<_, Identity, AuthorizationSignatureHash, (), OptionQuery>;
 
 	/// Per-account access counter per registry for query functions.
 	#[pallet::storage]
@@ -1125,6 +1118,20 @@ pub mod pallet {
 			Ok(snapshot)
 		}
 
+		/// Returns a packet snapshot by token without requiring the registry identifier.
+		pub fn packet_snapshot_by_token(
+			auth: AuthorizationOf<T>,
+			token: Ss58Identifier,
+			version: Option<u32>,
+		) -> Result<Option<PacketSnapshotOf<T>>, AuthorizationError> {
+			Self::authorize_query(&auth)?;
+			let snapshot = Self::packet_state_unchecked(&token, version);
+			if let Some(ref snapshot) = snapshot {
+				Self::record_registry_query(&snapshot.state.registry, &auth.account);
+			}
+			Ok(snapshot)
+		}
+
 		/// Resolves a packet state via a lookup digest.
 		pub fn lookup_snapshot(
 			auth: AuthorizationOf<T>,
@@ -1188,38 +1195,38 @@ pub mod pallet {
 			origin.caller().as_signed().map(T::Feeless::is_feeless).unwrap_or(false)
 		}
 
-		fn authorization_signature_hash(auth: &AuthorizationOf<T>) -> AuthorizationSignatureHash {
-			primitives_authorization_signature_hash(
-				&auth.account,
-				auth.payload.as_slice(),
-				&auth.signature,
-			)
+	fn record_registry_query(registry: &Ss58Identifier, account: &T::AccountId) {
+		RegistryQueryCounts::<T>::mutate(registry, account.clone(), |count| {
+			*count = count.saturating_add(1);
+		});
+	}
+
+	fn authorize_query(
+		auth: &AuthorizationOf<T>,
+	) -> Result<Ss58Identifier, AuthorizationError> {
+		Self::ensure_authorization_fresh(auth.payload.as_slice())?;
+		let token = T::EntityLookup::verify_account_signature(
+			&auth.account,
+			auth.payload.as_slice(),
+			&auth.signature,
+		)
+		.map_err(|_| AuthorizationError::Unauthorized)?;
+		Ok(token)
+	}
+
+	fn ensure_authorization_fresh(payload: &[u8]) -> Result<(), AuthorizationError> {
+		let valid_until = extract_valid_until(payload).ok_or(AuthorizationError::InvalidInput)?;
+		let now: u32 = frame_system::Pallet::<T>::block_number().unique_saturated_into();
+		if now > valid_until {
+			return Err(AuthorizationError::Expired);
 		}
-
-		fn record_registry_query(registry: &Ss58Identifier, account: &T::AccountId) {
-			RegistryQueryCounts::<T>::mutate(registry, account.clone(), |count| {
-				*count = count.saturating_add(1);
-			});
+		let max_ttl = T::MaxAuthorizationTTL::get();
+		let remaining = valid_until.saturating_sub(now);
+		if remaining > max_ttl {
+			return Err(AuthorizationError::InvalidInput);
 		}
-
-		fn authorize_query(
-			auth: &AuthorizationOf<T>,
-		) -> Result<Ss58Identifier, AuthorizationError> {
-			let token = T::EntityLookup::verify_account_signature(
-				&auth.account,
-				auth.payload.as_slice(),
-				&auth.signature,
-			)
-			.map_err(|_| AuthorizationError::Unauthorized)?;
-
-			let signature_hash = Self::authorization_signature_hash(auth);
-			if AuthorizationSignatureUses::<T>::contains_key(&signature_hash) {
-				return Err(AuthorizationError::Unauthorized);
-			}
-
-			AuthorizationSignatureUses::<T>::insert(signature_hash, ());
-			Ok(token)
-		}
+		Ok(())
+	}
 
 		fn snapshot_for(
 			token: &Ss58Identifier,

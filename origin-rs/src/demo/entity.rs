@@ -20,10 +20,8 @@ use crate::entity::EntityChainState;
 pub struct EntitySnapshot {
 	pub token: String,
 	pub display: String,
-	pub legal: String,
 	pub web: String,
 	pub email: String,
-	pub twitter: String,
 	pub entity_nym: Option<String>,
 	pub attributes: BTreeMap<String, String>,
 	pub active_accounts: Vec<String>,
@@ -42,10 +40,8 @@ impl EntitySnapshot {
 		Self {
 			token: token.to_string(),
 			display: profile.get("display").and_then(|v| v.as_str()).unwrap_or("-").to_string(),
-			legal: profile.get("legal").and_then(|v| v.as_str()).unwrap_or("-").to_string(),
 			web: profile.get("web").and_then(|v| v.as_str()).unwrap_or("-").to_string(),
 			email: profile.get("email").and_then(|v| v.as_str()).unwrap_or("-").to_string(),
-			twitter: profile.get("twitter").and_then(|v| v.as_str()).unwrap_or("-").to_string(),
 			entity_nym: None,
 			attributes,
 			active_accounts: Vec::new(),
@@ -77,10 +73,8 @@ impl EntitySnapshot {
 		let mut snapshot = Self {
 			token: token.to_string(),
 			display: state.get("display").unwrap_or("-").to_string(),
-			legal: state.get("legal").unwrap_or("-").to_string(),
 			web: state.get("web").unwrap_or("-").to_string(),
 			email: state.get("email").unwrap_or("-").to_string(),
-			twitter: state.get("twitter").unwrap_or("-").to_string(),
 			entity_nym: None,
 			attributes: BTreeMap::new(),
 			active_accounts: Vec::new(),
@@ -98,10 +92,8 @@ impl EntitySnapshot {
 			println!("  • Nym     : {}", nym);
 		}
 		println!("  • Display : {}", self.display);
-		println!("  • Legal   : {}", self.legal);
 		println!("  • Web     : {}", self.web);
 		println!("  • Email   : {}", self.email);
-		println!("  • Twitter : {}", self.twitter);
 		println!("  • Attributes:");
 		for (key, value) in &self.attributes {
 			let rendered = utils::short_label(value, MAX_ATTR_LABEL_LEN);
@@ -282,10 +274,8 @@ pub fn print_entity_core(
 
 pub fn print_entity_info(snapshot: &EntitySnapshot) {
 	println!("  ↳ • Display : {}", snapshot.display);
-	println!("    • Legal   : {}", snapshot.legal);
 	println!("    • Web     : {}", snapshot.web);
 	println!("    • Email   : {}", snapshot.email);
-	println!("    • Twitter : {}", snapshot.twitter);
 }
 
 pub fn print_attribute_list(snapshot: &EntitySnapshot) {

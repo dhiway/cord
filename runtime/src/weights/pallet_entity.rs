@@ -37,7 +37,7 @@ impl<T: frame_system::Config> pallet_entity::WeightInfo for WeightInfo<T> {
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(4))
     }
-    fn update_info(ops_size: u32) -> Weight {
+    fn rotate_attributes(ops_size: u32) -> Weight {
         Weight::from_parts(30_000_000, 0)
             .saturating_add(Weight::from_parts(ops_size as u64 * 500, 0))
             // assume each history insert is an extra write

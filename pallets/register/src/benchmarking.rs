@@ -9,7 +9,7 @@ use cord_primitives::packet::ElementType;
 use frame_benchmarking::{v2::*, BenchmarkError};
 use frame_support::{ensure, traits::PalletInfoAccess};
 use frame_system::RawOrigin;
-use pallet_entity::Ss58OfActiveAccounts;
+use pallet_entity::EntityTokenOfAccount;
 use sp_runtime::traits::Hash;
 
 pub trait EntityBinder<T: Config> {
@@ -21,7 +21,7 @@ where
 	T: Config + pallet_entity::Config,
 {
 	fn bind_account(account: &T::AccountId, token: &Ss58Identifier) {
-		Ss58OfActiveAccounts::<T>::insert(account, token);
+		EntityTokenOfAccount::<T>::insert(account, token);
 	}
 }
 

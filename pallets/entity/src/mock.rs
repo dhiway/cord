@@ -62,10 +62,12 @@ parameter_types! {
 	pub const MaxAdditionalAttributes: u32 = 32;
 	pub const MaxLinkedAccounts: u32 = 2;
 	pub const MaxEntityNymLength: u32 = 20;
-	pub const MaxTokenAuthorizationLen: u32 = 128;
+	pub const MaxTokenAuthorizationLen: u32 = 256;
 	pub const MaxTokenTimelineViewResults: u32 = 32;
 	pub const DefaultTokenTimelineViewResults: u32 = 16;
-	pub const MaxEntityAuthorizationLen: u32 = 128;
+	pub const MaxTokenAuthorizationTTL: u32 = 30;
+	pub const MaxEntityAuthorizationLen: u32 = 256;
+	pub const MaxEntityAuthorizationTTL: u32 = 30;
 }
 
 thread_local! {
@@ -82,6 +84,7 @@ impl pallet_entity::Config for Test {
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type MaxEntityNymLength = MaxEntityNymLength;
 	type MaxAuthorizationLen = MaxEntityAuthorizationLen;
+	type MaxAuthorizationTTL = MaxEntityAuthorizationTTL;
 	type Feeless = ();
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
@@ -92,7 +95,8 @@ impl pallet_token::Config for Test {
 	type BlockNumberProvider = System;
 	type MaxAuthorizationLen = MaxTokenAuthorizationLen;
 	type MaxTimelineViewResults = MaxTokenTimelineViewResults;
-	type DefaulTimelineViewResults = DefaultTokenTimelineViewResults;
+	type DefaultTimelineViewResults = DefaultTokenTimelineViewResults;
+	type MaxAuthorizationTTL = MaxTokenAuthorizationTTL;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
