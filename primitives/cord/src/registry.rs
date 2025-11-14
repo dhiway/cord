@@ -1,4 +1,4 @@
-use crate::{packet::ElementType, view::ElementView};
+use crate::{identifier::Ss58Identifier, packet::ElementType, view::ElementView};
 use alloc::{format, string::String, vec::Vec};
 use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
@@ -181,7 +181,7 @@ impl LookupSpecView {
 #[serde(rename_all = "camelCase")]
 pub struct RegistryInfoView {
 	pub info: ElementView,
-	pub maintainer: Vec<u8>,
+	pub maintainer: Ss58Identifier,
 	pub attributes: Vec<RegistryAttributeView>,
 	pub token_spec: LookupSpecView,
 	pub lookup_specs: Vec<LookupSpecView>,

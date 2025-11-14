@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use cord_primitives::{
-	registry::RegistryPermissions,
+	packet::PacketStatus,
+	registry::{RegistryPermissions, RegistryStatus},
 	view::{DevAttr, DevElement},
 	view_api::{RegisterDetailsRequest, RegisterPacketSnapshotRequest, TokenTimelineRequest},
 };
@@ -11,6 +12,7 @@ use oc::{
 		ensure_entity_token_verbose, fresh_authorization, init_logging, parse_identifier,
 		signer_account_id, LogSink, RunMode, TxExecutor, TxFlow, ViewStyle,
 	},
+	error::Error as SdkError,
 	query::register::PacketSnapshotView,
 	tx::{self, TxSubmitter},
 	types::token::StateEventRecord,
@@ -211,7 +213,7 @@ async fn run_transaction_flow(
 	let delegate_ss58 = utils::format_account(&delegate_account, chain_prefix);
 
 	let mut direct_submitter = TxSubmitter::new(client, &maintainer);
-	let mut relayer_signer =
+	let relayer_signer =
 		if cli.flow == TxFlow::Relayed { Some(tx::signer::dev_bob()) } else { None };
 	let mut relayer_submitter =
 		relayer_signer.as_ref().map(|relayer| TxSubmitter::new(client, relayer));
@@ -224,9 +226,11 @@ async fn run_transaction_flow(
 			meta_signer: &maintainer,
 		},
 	};
+	let mut delegate_submitter = TxSubmitter::new(client, &delegate_signer);
+	let mut delegate_executor = TxExecutor::Direct { submitter: &mut delegate_submitter };
 
 	let profile = demo::entity_profile(&label);
-	let (entity_token, created, mut entity_logs) = ensure_entity_token_verbose(
+	let (entity_token_id, created, entity_logs) = ensure_entity_token_verbose(
 		client,
 		&maintainer,
 		&maint_account,
@@ -234,7 +238,25 @@ async fn run_transaction_flow(
 		&mut maint_executor,
 	)
 	.await?;
+	let entity_token = demo::ss58_string(&entity_token_id);
 	print_entity_setup(created, &entity_token, &entity_logs);
+
+	let delegate_profile = demo::entity_profile(&format!("{label}-delegate"));
+	let (delegate_token_id, delegate_created, delegate_entity_logs) = ensure_entity_token_verbose(
+		client,
+		&delegate_signer,
+		&delegate_account,
+		&delegate_profile,
+		&mut delegate_executor,
+	)
+	.await?;
+	let delegate_token = demo::ss58_string(&delegate_token_id);
+	print_delegate_entity_setup(
+		delegate_created,
+		&delegate_token,
+		&delegate_ss58,
+		&delegate_entity_logs,
+	);
 
 	let mut registry_logs = Vec::new();
 	let registry_spec = demo::registry_blueprint(&label);
@@ -244,12 +266,14 @@ async fn run_transaction_flow(
 		&mut maint_executor,
 		registry_spec,
 		&mut registry_sink,
-	)?;
+	)
+	.await?;
 	let registry_ss58 = demo::ss58_string(&registry_id);
 	print_registry_header(&entity_token, &registry_ss58);
 	for line in registry_logs {
 		println!("{line}");
 	}
+	utils::short_delay(Duration::from_secs(10)).await;
 
 	let mut delegate_logs = Vec::new();
 	let mut delegate_sink = LogSink::new(Some(&mut delegate_logs));
@@ -268,8 +292,6 @@ async fn run_transaction_flow(
 	let registry_details = client.query().register().details(&details_req).await?;
 	let packet_payload = demo::packet_attributes(&label, &entity_token);
 
-	let mut delegate_submitter = TxSubmitter::new(client, &delegate_signer);
-	let mut delegate_executor = TxExecutor::Direct { submitter: &mut delegate_submitter };
 	if cli.flow == TxFlow::Relayed {
 		println!("ℹ️ Delegate packet submission currently uses direct signing.");
 	}
@@ -282,7 +304,8 @@ async fn run_transaction_flow(
 		packet_payload,
 		&registry_details,
 		&mut packet_sink,
-	)?;
+	)
+	.await?;
 	let packet_ss58 = demo::ss58_string(&packet_id);
 	print_packet_header(&packet_ss58, &packet_logs);
 
@@ -294,7 +317,7 @@ async fn run_transaction_flow(
 		packet: packet_id.clone(),
 		version: None,
 	};
-	let snapshot = client.query().register().packet_snapshot(&snapshot_req).await?;
+	let snapshot = fetch_packet_snapshot_with_retry(client, &snapshot_req, "transaction").await?;
 	let timeline_req = TokenTimelineRequest {
 		auth: fresh_authorization(&maintainer)?,
 		token: packet_id.clone(),
@@ -326,7 +349,7 @@ async fn run_view_flow(cli: &CliOptions, client: &Client) -> Result<()> {
 		packet: packet_id.clone(),
 		version: None,
 	};
-	let snapshot = client.query().register().packet_snapshot(&snapshot_req).await?;
+	let snapshot = fetch_packet_snapshot_with_retry(client, &snapshot_req, "view").await?;
 	let timeline_req = TokenTimelineRequest {
 		auth: fresh_authorization(&signer)?,
 		token: packet_id.clone(),
@@ -380,6 +403,27 @@ fn print_delegate_section(delegate_ss58: &str, logs: &[String]) {
 	}
 }
 
+fn print_delegate_entity_setup(
+	created: bool,
+	delegate_token: &str,
+	delegate_account: &str,
+	logs: &[String],
+) {
+	println!("\n🧑‍🤝‍🧑 Delegate Entity");
+	println!("  ↳ • Account : {delegate_account}");
+	println!("  ↳ • Token   : {delegate_token}");
+	println!(
+		"  ↳ • Action  : {}",
+		if created { "Created new entity" } else { "Reused existing entity" }
+	);
+	if !logs.is_empty() {
+		println!("\n  Delegate logs:");
+		for line in logs {
+			println!("    {line}");
+		}
+	}
+}
+
 fn print_packet_header(packet_ss58: &str, logs: &[String]) {
 	println!("\n📦 Packet Issue");
 	println!("  ↳ • Packet : {packet_ss58}");
@@ -390,6 +434,31 @@ fn print_packet_header(packet_ss58: &str, logs: &[String]) {
 			println!("    {line}");
 		}
 	}
+}
+
+async fn fetch_packet_snapshot_with_retry(
+	client: &Client,
+	req: &RegisterPacketSnapshotRequest,
+	label: &str,
+) -> Result<PacketSnapshotView> {
+	const MAX_ATTEMPTS: usize = 5;
+	for attempt in 0..MAX_ATTEMPTS {
+		match client.query().register().packet_snapshot(req).await {
+			Ok(snapshot) => return Ok(snapshot),
+			Err(SdkError::NotFound(_msg)) if attempt + 1 < MAX_ATTEMPTS => {
+				println!(
+					"⏱️ waiting for packet snapshot ({} attempt {}/{})",
+					label,
+					attempt + 1,
+					MAX_ATTEMPTS
+				);
+				utils::short_delay(Duration::from_secs(2)).await;
+			},
+			Err(SdkError::NotFound(msg)) => return Err(anyhow!(msg)),
+			Err(other) => return Err(anyhow!(other)),
+		}
+	}
+	Err(anyhow!("packet snapshot unavailable after retries"))
 }
 
 fn render_packet_snapshot(
@@ -421,8 +490,9 @@ fn render_packet_snapshot(
 	println!("  ↳ • Delegate   : {delegate_ss58}");
 	println!("  ↳ • Controller : {}", snapshot.state.controller_ss58);
 	println!(
-		"  ↳ • Status     : {:?} (registry {:?})",
-		snapshot.state.status, snapshot.registry_status
+		"  ↳ • Status     : {} (registry {})",
+		describe_packet_status(&snapshot.state.status),
+		describe_registry_status(&snapshot.registry_status)
 	);
 	println!("  ↳ • Version    : {}", snapshot.state.version);
 	println!("  ↳ • Attr Hash  : {}", snapshot.state.attributes_hash_hex);
@@ -459,6 +529,22 @@ fn describe_dev_element(value: &DevElement) -> String {
 		DevElement::TokenSs58(token) => format!("token:{token}"),
 		DevElement::CidBase58(cid) => format!("cid:{cid}"),
 		DevElement::RawBase64(data) => format!("raw(base64):{data}"),
+	}
+}
+
+fn describe_packet_status(status: &PacketStatus) -> &'static str {
+	match status {
+		PacketStatus::Active => "Active",
+		PacketStatus::Revoked => "Revoked",
+		PacketStatus::Deleted => "Deleted",
+	}
+}
+
+fn describe_registry_status(status: &RegistryStatus) -> &'static str {
+	match status {
+		RegistryStatus::Active => "Active",
+		RegistryStatus::Revoked => "Revoked",
+		RegistryStatus::Deleted => "Deleted",
 	}
 }
 

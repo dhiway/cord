@@ -61,7 +61,7 @@ impl<'a> Query<'a> {
 	{
 		self.call_view_as::<core::result::Result<T, E>>(pallet, function, args).await
 	}
-	async fn call_view_bytes(
+	pub(crate) async fn call_view_bytes(
 		&self,
 		pallet: &str,
 		function: &str,
@@ -73,7 +73,7 @@ impl<'a> Query<'a> {
 	}
 }
 
-struct ViewBytes {
+pub(crate) struct ViewBytes {
 	data: Vec<u8>,
 	type_id: u32,
 	metadata: subxt::Metadata,
