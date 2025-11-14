@@ -10,7 +10,7 @@ use crate::{
 	types,
 };
 use codec::Decode;
-use cord_primitives::{identifier::Ss58Identifier, view_api::AuthorizationRequest};
+use cord_primitives::{identifier::Ss58Identifier, view_api::{AuthorizationError, AuthorizationRequest}};
 use hex::ToHex;
 use scale_decode::DecodeAsType;
 use scale_value::{Composite, Value};
@@ -145,6 +145,17 @@ fn signature_value(authz: &AuthorizationRequest) -> Value {
 	};
 	let inner = types::bytes_value(bytes);
 	Value::unnamed_variant(scheme, [inner])
+}
+
+pub(crate) fn view_failure(ctx: &str, err: AuthorizationError) -> Error {
+	match err {
+		AuthorizationError::NotFound => Error::NotFound(format!("{ctx}: not found")),
+		AuthorizationError::Unauthorized => Error::Params(format!("{ctx}: unauthorized")),
+		AuthorizationError::InvalidInput => Error::Params(format!("{ctx}: invalid input")),
+		AuthorizationError::TooLarge => Error::Params(format!("{ctx}: result too large")),
+		AuthorizationError::Expired => Error::Params(format!("{ctx}: authorization expired")),
+		AuthorizationError::Internal => Error::ViewDecode(format!("{ctx}: internal error")),
+	}
 }
 
 fn extract_view_payload(thunk: DecodedValueThunk) -> Result<Vec<u8>> {

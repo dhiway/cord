@@ -83,7 +83,7 @@ use cord_primitives::{
 	authorization::{extract_valid_until, Authorization as CoreAuthorization},
 	packet::{PacketPointer, PacketStatus},
 	registry::{RegistryKind, RegistryPermissions, RegistryStatus},
-	view_api::AuthorizationError,
+	view_api::{ensure_authorization_ttl, AuthorizationError},
 };
 pub use packet::{
 	attributes_digest, AttributePairsOf, LookupDigestOf, PacketAttributesOf, PacketDataOf,
@@ -1219,11 +1219,7 @@ pub mod pallet {
 				extract_valid_until(payload).ok_or(AuthorizationError::InvalidInput)?;
 			let now: u32 = frame_system::Pallet::<T>::block_number().unique_saturated_into();
 			let ttl = T::MaxAuthorizationTTL::get();
-			let expires_at = issued_at.saturating_add(ttl);
-			if now >= expires_at {
-				return Err(AuthorizationError::Expired);
-			}
-			Ok(())
+			ensure_authorization_ttl(now, issued_at, ttl)
 		}
 
 		fn snapshot_for(

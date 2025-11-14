@@ -211,6 +211,11 @@ pub fn dev_bob() -> Keypair {
 	Keypair::dev(DevAccount::Bob)
 }
 
+/// Return Charlie's well-known dev keypair (sr25519 by default).
+pub fn dev_charlie() -> Keypair {
+	Keypair::dev(DevAccount::Charlie)
+}
+
 /// Create a dev keypair for the selected account using the requested algorithm.
 pub fn dev_account_with(account: DevAccount, algorithm: KeyAlgorithm) -> Keypair {
 	Keypair::dev_with(account, algorithm)

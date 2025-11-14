@@ -39,7 +39,7 @@ pub enum MetadataMode {
 
 impl Default for MetadataMode {
 	fn default() -> Self {
-		Self::Auto
+		Self::Disabled
 	}
 }
 
@@ -153,7 +153,14 @@ pub async fn dispatch_call_with_meta<S: MetaSigner>(
 
 	let extension = (
 		raw::VerifySignature::Signed { signature, account: meta_account.clone() },
-		bare_tuple.clone(),
+		bare_tuple.0.clone(),
+		bare_tuple.1.clone(),
+		bare_tuple.2.clone(),
+		bare_tuple.3.clone(),
+		bare_tuple.4.clone(),
+		bare_tuple.5.clone(),
+		bare_tuple.6.clone(),
+		bare_tuple.7.clone(),
 	);
 
 	let raw_meta = RawMetaTx { call: RawRuntimeCall(&call_bytes), extension_version, extension };
@@ -246,11 +253,23 @@ impl BareExtension {
 	}
 }
 
+type RawExtension = (
+	raw::VerifySignature,
+	raw::MetaTxMarker,
+	raw::CheckNonZeroSender,
+	raw::CheckSpecVersion,
+	raw::CheckTxVersion,
+	raw::CheckGenesis,
+	raw::CheckMortality,
+	raw::CheckNonce,
+	raw::CheckMetadataHash,
+);
+
 #[derive(Encode)]
 struct RawMetaTx<'a> {
 	call: RawRuntimeCall<'a>,
 	extension_version: u8,
-	extension: (raw::VerifySignature, RawBareExtension),
+	extension: RawExtension,
 }
 
 #[derive(Clone)]

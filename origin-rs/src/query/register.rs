@@ -54,7 +54,7 @@ impl<'a> RegisterQuery<'a> {
 			self.query.call_result("Register", "details", args.clone()).await?;
 		let info = match raw {
 			Ok(runtime_info) => runtime_info,
-			Err(err) => return Err(view_failure("register.details", err)),
+			Err(err) => return Err(super::view_failure("register.details", err)),
 		};
 		if std::env::var("ORIGIN_RS_DEBUG_REGISTRY").is_ok() {
 			let view = self.query.call_view_bytes("Register", "details", args).await?;
@@ -75,7 +75,7 @@ impl<'a> RegisterQuery<'a> {
 		let args = self.base_args(&req.auth, &req.registry)?;
 		let raw: core::result::Result<Vec<LookupSpecView>, AuthorizationError> =
 			self.query.call_result("Register", "lookup_specs", args).await?;
-		raw.map_err(|err| view_failure("register.lookup_specs", err))
+		raw.map_err(|err| super::view_failure("register.lookup_specs", err))
 	}
 
 	pub async fn packet_snapshot(
@@ -90,7 +90,7 @@ impl<'a> RegisterQuery<'a> {
 				&packet_state_view_from_record(&record.state)?,
 				record.registry_status,
 			)),
-			Err(err) => Err(view_failure("register.packet_snapshot", err)),
+			Err(err) => Err(super::view_failure("register.packet_snapshot", err)),
 		}
 	}
 
@@ -107,7 +107,7 @@ impl<'a> RegisterQuery<'a> {
 				Ok(Some(dev_packet_snapshot_from(&state, record.registry_status)))
 			},
 			Ok(None) => Ok(None),
-			Err(err) => Err(view_failure("register.packet_snapshot_by_token", err)),
+			Err(err) => Err(super::view_failure("register.packet_snapshot_by_token", err)),
 		}
 	}
 
@@ -137,17 +137,6 @@ impl<'a> RegisterQuery<'a> {
 		builder.push("token", super::identifier_struct_value(&req.token));
 		builder.push("version", super::option_u32_value(req.version));
 		Ok(builder.finish())
-	}
-}
-
-fn view_failure(ctx: &str, err: AuthorizationError) -> Error {
-	match err {
-		AuthorizationError::NotFound => Error::NotFound(format!("{ctx}: not found")),
-		AuthorizationError::Unauthorized => Error::Params(format!("{ctx}: unauthorized")),
-		AuthorizationError::InvalidInput => Error::Params(format!("{ctx}: invalid input")),
-		AuthorizationError::TooLarge => Error::Params(format!("{ctx}: result too large")),
-		AuthorizationError::Expired => Error::Params(format!("{ctx}: authorization expired")),
-		AuthorizationError::Internal => Error::ViewDecode(format!("{ctx}: internal error")),
 	}
 }
 
