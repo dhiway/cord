@@ -1,5 +1,3 @@
-#![cfg(not(feature = "runtime-benchmarks"))]
-
 // This file is part of CORD – https://cord.network
 
 // Copyright (C) Dhiway Networks Pvt. Ltd.
@@ -20,11 +18,11 @@
 
 use codec::{Encode, Joiner};
 use cord_node_testing::keyring::*;
-use cord_orb_runtime::{Balances, CheckedExtrinsic, Runtime, RuntimeCall, TransactionPayment};
-use cord_orb_runtime_constants::{currency::*, time::SLOT_DURATION};
+use cord_weave_runtime::{Balances, CheckedExtrinsic, Runtime, RuntimeCall, TransactionPayment};
+use cord_weave_runtime_constants::{currency::*, time::SLOT_DURATION};
 use frame_support::{dispatch::GetDispatchInfo, traits::Currency};
 use pallet_transaction_payment::Multiplier;
-use sp_runtime::traits::One;
+use sp_runtime::{traits::One, Perbill};
 
 pub mod common;
 use self::common::{sign, *};
@@ -55,8 +53,10 @@ fn fee_multiplier_increases_and_decreases_on_big_weight() {
 			},
 			CheckedExtrinsic {
 				format: sp_runtime::generic::ExtrinsicFormat::Signed(charlie(), tx_ext(0, 0)),
-				function: RuntimeCall::System(frame_system::Call::remark {
-					remark: vec![0; 128 * 1024],
+				function: RuntimeCall::Sudo(pallet_sudo::Call::sudo {
+					call: Box::new(RuntimeCall::RootTesting(
+						pallet_root_testing::Call::fill_block { ratio: Perbill::from_percent(60) },
+					)),
 				}),
 			},
 		],

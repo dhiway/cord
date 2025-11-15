@@ -33,12 +33,12 @@ use crate::{
 	keyring::*,
 };
 use codec::{Decode, Encode};
-use cord_orb_runtime::{
+use cord_primitives::Block;
+use cord_weave_runtime::{
 	AccountId, BalancesCall, CheckedExtrinsic, MinimumPeriod, RuntimeCall, Signature, SystemCall,
 	UncheckedExtrinsic,
 };
-use cord_orb_runtime_constants::currency::UNITS;
-use cord_primitives::Block;
+use cord_weave_runtime_constants::currency::UNITS;
 use futures::executor;
 use sc_block_builder::BlockBuilderBuilder;
 use sc_client_api::{execution_extensions::ExecutionExtensions, UsageProvider};
@@ -54,7 +54,7 @@ use sp_core::{
 use sp_crypto_hashing::blake2_256;
 use sp_inherents::InherentData;
 use sp_runtime::{
-	generic::{self, ExtrinsicFormat, Preamble},
+	generic::{self, ExtrinsicFormat, Preamble, EXTRINSIC_FORMAT_VERSION},
 	traits::{Block as BlockT, IdentifyAccount, Verify},
 	OpaqueExtrinsic,
 };
@@ -302,26 +302,25 @@ impl<'a> Iterator for BlockContentIterator<'a> {
 			CheckedExtrinsic {
 				format: ExtrinsicFormat::Signed(
 					sender,
-					tx_ext(0, cord_orb_runtime::ExistentialDeposit::get() + 1),
+					tx_ext(0, cord_weave_runtime::ExistentialDeposit::get() + 1),
 				),
 				function: match self.content.block_type {
-					BlockType::RandomTransfersKeepAlive => {
+					BlockType::RandomTransfersKeepAlive =>
 						RuntimeCall::Balances(BalancesCall::transfer_keep_alive {
 							dest: sp_runtime::MultiAddress::Id(receiver),
-							value: cord_orb_runtime::ExistentialDeposit::get() + 1,
-						})
-					},
+							value: cord_weave_runtime::ExistentialDeposit::get() + 1,
+						}),
 					BlockType::RandomTransfersReaping => {
 						RuntimeCall::Balances(BalancesCall::transfer_allow_death {
 							dest: sp_runtime::MultiAddress::Id(receiver),
 							// Transfer so that ending balance would be 1 less than existential
 							// deposit so that we kill the sender account.
-							value: 100 * UNITS - (cord_orb_runtime::ExistentialDeposit::get() - 1),
+							value: 100 * UNITS -
+								(cord_weave_runtime::ExistentialDeposit::get() - 1),
 						})
 					},
-					BlockType::Noop => {
-						RuntimeCall::System(SystemCall::remark { remark: Vec::new() })
-					},
+					BlockType::Noop =>
+						RuntimeCall::System(SystemCall::remark { remark: Vec::new() }),
 				},
 			},
 			self.runtime_version.spec_version,
@@ -391,7 +390,6 @@ impl BenchDb {
 			state_pruning: Some(PruningMode::ArchiveAll),
 			source: database_type.into_settings(dir.into()),
 			blocks_pruning: sc_client_db::BlocksPruning::KeepAll,
-			metrics_registry: None,
 		};
 		let task_executor = TaskExecutor::new();
 
@@ -589,22 +587,26 @@ impl BenchKeyring {
 						key.sign(b)
 					}
 				});
-				generic::UncheckedExtrinsic::new_signed(
-					payload.0,
-					sp_runtime::MultiAddress::Id(signed),
-					signature,
-					tx_ext,
-				)
+				generic::UncheckedExtrinsic {
+					preamble: Preamble::Signed(
+						sp_runtime::MultiAddress::Id(signed),
+						signature,
+						tx_ext,
+					),
+					function: payload.0,
+				}
 				.into()
 			},
-			ExtrinsicFormat::Bare => generic::UncheckedExtrinsic::new_bare(xt.function).into(),
-			ExtrinsicFormat::General(ext_version, tx_ext) => {
-				generic::UncheckedExtrinsic::from_parts(
-					xt.function,
-					Preamble::General(ext_version, tx_ext),
-				)
-				.into()
-			},
+			ExtrinsicFormat::Bare => generic::UncheckedExtrinsic {
+				preamble: Preamble::Bare(EXTRINSIC_FORMAT_VERSION),
+				function: xt.function,
+			}
+			.into(),
+			ExtrinsicFormat::General(ext_version, tx_ext) => generic::UncheckedExtrinsic {
+				preamble: sp_runtime::generic::Preamble::General(ext_version, tx_ext),
+				function: xt.function,
+			}
+			.into(),
 		}
 	}
 
@@ -619,7 +621,7 @@ impl sp_runtime::BuildStorage for BenchKeyring {
 	fn assimilate_storage(&self, storage: &mut sp_core::storage::Storage) -> Result<(), String> {
 		storage.top.insert(
 			sp_core::storage::well_known_keys::CODE.to_vec(),
-			cord_orb_runtime::wasm_binary_unwrap().into(),
+			cord_weave_runtime::wasm_binary_unwrap().into(),
 		);
 		crate::genesis::config_endowed(self.collect_account_ids()).assimilate_storage(storage)
 	}

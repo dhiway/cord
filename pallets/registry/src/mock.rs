@@ -29,7 +29,7 @@ frame_support::construct_runtime!(
 	pub enum Test {
 		System: system,
 		Registry: pallet_registry,
-		Identifier: pallet_token,
+		Identifier: pallet_doken,
 		Profile: pallet_profile,
 	}
 );
@@ -67,7 +67,7 @@ impl pallet_registry::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_token::Config for Test {
+impl pallet_doken::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = frame_system::Pallet<Test>;
 }

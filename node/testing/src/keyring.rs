@@ -19,12 +19,12 @@
 //! Test accounts.
 
 use codec::Encode;
-use cord_orb_runtime::{CheckedExtrinsic, SessionKeys, TxExtension, UncheckedExtrinsic};
 use cord_primitives::{AccountId, Balance, Nonce};
-use sp_core::{crypto::get_public_from_string_or_panic, ed25519, sr25519};
+use cord_weave_runtime::{CheckedExtrinsic, SessionKeys, TxExtension, UncheckedExtrinsic};
+use sp_core::{crypto::get_public_from_string_or_panic, ecdsa, ed25519, sr25519};
 use sp_crypto_hashing::blake2_256;
 use sp_keyring::Sr25519Keyring;
-use sp_runtime::generic::{self, Era, ExtrinsicFormat};
+use sp_runtime::generic::{self, Era, ExtrinsicFormat, EXTRINSIC_FORMAT_VERSION};
 
 /// Alice's account id.
 pub fn alice() -> AccountId {
@@ -61,7 +61,9 @@ pub fn session_keys_from_seed(seed: &str) -> SessionKeys {
 	SessionKeys {
 		grandpa: get_public_from_string_or_panic::<ed25519::Public>(seed).into(),
 		babe: get_public_from_string_or_panic::<sr25519::Public>(seed).into(),
+		im_online: get_public_from_string_or_panic::<sr25519::Public>(seed).into(),
 		authority_discovery: get_public_from_string_or_panic::<sr25519::Public>(seed).into(),
+		beefy: get_public_from_string_or_panic::<ecdsa::Public>(seed).into(),
 	}
 }
 
@@ -75,7 +77,7 @@ pub fn tx_ext(nonce: Nonce, extra_fee: Balance) -> TxExtension {
 		frame_system::CheckMortality::from(Era::mortal(256, 0)),
 		frame_system::CheckNonce::from(nonce),
 		frame_system::CheckWeight::new(),
-		pallet_transaction_payment::ChargeTransactionPayment::from(extra_fee),
+		pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::from(extra_fee, None),
 		frame_metadata_hash_extension::CheckMetadataHash::new(false),
 		frame_system::WeightReclaim::new(),
 	)
@@ -111,19 +113,25 @@ pub fn sign(
 						}
 					})
 					.into();
-			generic::UncheckedExtrinsic::new_signed(
-				payload.0,
-				sp_runtime::MultiAddress::Id(signed),
-				signature,
-				tx_ext,
-			)
+			generic::UncheckedExtrinsic {
+				preamble: sp_runtime::generic::Preamble::Signed(
+					sp_runtime::MultiAddress::Id(signed),
+					signature,
+					tx_ext,
+				),
+				function: payload.0,
+			}
 			.into()
 		},
-		ExtrinsicFormat::Bare => generic::UncheckedExtrinsic::new_bare(xt.function).into(),
-		ExtrinsicFormat::General(ext_version, tx_ext) => generic::UncheckedExtrinsic::from_parts(
-			xt.function,
-			generic::Preamble::General(ext_version, tx_ext),
-		)
+		ExtrinsicFormat::Bare => generic::UncheckedExtrinsic {
+			preamble: sp_runtime::generic::Preamble::Bare(EXTRINSIC_FORMAT_VERSION),
+			function: xt.function,
+		}
+		.into(),
+		ExtrinsicFormat::General(ext_version, tx_ext) => generic::UncheckedExtrinsic {
+			preamble: sp_runtime::generic::Preamble::General(ext_version, tx_ext),
+			function: xt.function,
+		}
 		.into(),
 	}
 }

@@ -26,7 +26,7 @@ log = { workspace = true }
 
 # Internal dependencies
 cord-primitives = { workspace = true }
-pallet-token = { workspace = true }
+pallet-doken = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { optional = true, workspace = true }
@@ -50,7 +50,7 @@ std = [
 	"frame-benchmarking/std",
 	"frame-support/std",
 	"frame-system/std",
-	"pallet-token/std",
+	"pallet-doken/std",
 	"cord-primitives/std",
 	"scale-info/std",
 	"sp-core/std",

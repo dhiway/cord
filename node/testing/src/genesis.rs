@@ -19,12 +19,13 @@
 //! Genesis Configuration.
 
 use crate::keyring::*;
-use cord_orb_runtime::{
-	AccountId, AuthorityManagerConfig, BalancesConfig, IndicesConfig, RuntimeGenesisConfig,
-	SessionConfig, TokenConfig,
+use cord_weave_runtime::{
+	AccountId, AssetsConfig, BalancesConfig, IdentifierConfig, IndicesConfig, RuntimeGenesisConfig,
+	SessionConfig, StakerStatus, StakingConfig,
 };
-use cord_orb_runtime_constants::currency::*;
+use cord_weave_runtime_constants::currency::*;
 use sp_keyring::Ed25519Keyring;
+use sp_runtime::Perbill;
 
 /// Create genesis runtime configuration for tests.
 pub fn config() -> RuntimeGenesisConfig {
@@ -34,9 +35,6 @@ pub fn config() -> RuntimeGenesisConfig {
 /// Create genesis runtime configuration for tests with some extra
 /// endowed accounts.
 pub fn config_endowed(extra_endowed: Vec<AccountId>) -> RuntimeGenesisConfig {
-	let initial_authorities: Vec<AccountId> =
-		vec![alice(), bob(), charlie(), dave(), eve(), ferdie()];
-
 	let mut endowed = vec![
 		(alice(), 111 * UNITS),
 		(bob(), 100 * UNITS),
@@ -51,15 +49,7 @@ pub fn config_endowed(extra_endowed: Vec<AccountId>) -> RuntimeGenesisConfig {
 	RuntimeGenesisConfig {
 		indices: IndicesConfig { indices: vec![] },
 		balances: BalancesConfig { balances: endowed, ..Default::default() },
-		token: TokenConfig {
-			protocol_id: "c0rd".to_string(),
-			network_id: 100,
-			..Default::default()
-		},
-		authority_manager: AuthorityManagerConfig {
-			initial_authorities: initial_authorities.clone(),
-			..Default::default()
-		},
+		identifier: IdentifierConfig { network_id: 2000, ..Default::default() },
 		session: SessionConfig {
 			keys: vec![
 				(alice(), dave(), session_keys_from_seed(Ed25519Keyring::Alice.into())),
@@ -68,6 +58,19 @@ pub fn config_endowed(extra_endowed: Vec<AccountId>) -> RuntimeGenesisConfig {
 			],
 			..Default::default()
 		},
+		staking: StakingConfig {
+			stakers: vec![
+				(dave(), dave(), 111 * UNITS, StakerStatus::Validator),
+				(eve(), eve(), 100 * UNITS, StakerStatus::Validator),
+				(ferdie(), ferdie(), 100 * UNITS, StakerStatus::Validator),
+			],
+			validator_count: 3,
+			minimum_validator_count: 0,
+			slash_reward_fraction: Perbill::from_percent(10),
+			invulnerables: vec![alice(), bob(), charlie()],
+			..Default::default()
+		},
+		assets: AssetsConfig { assets: vec![(9, alice(), true, 1)], ..Default::default() },
 		..Default::default()
 	}
 }

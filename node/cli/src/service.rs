@@ -22,21 +22,30 @@
 #![deny(unused_results)]
 
 use crate::cli::Cli;
-use codec::Encode;
 
-use sc_client_api::BlockBackend;
-use sc_consensus_grandpa::{self};
+#[cfg(feature = "full-node")]
+use {
+	sc_client_api::BlockBackend,
+	sc_consensus_grandpa::{self},
+};
 
-pub use sc_client_api::AuxStore;
-pub use sp_authority_discovery::AuthorityDiscoveryApi;
-pub use sp_blockchain::{HeaderBackend, HeaderMetadata};
-pub use sp_consensus_babe::BabeApi;
+#[cfg(feature = "full-node")]
+pub use {
+	sc_client_api::AuxStore,
+	sp_authority_discovery::AuthorityDiscoveryApi,
+	sp_blockchain::{HeaderBackend, HeaderMetadata},
+	sp_consensus_babe::BabeApi,
+};
 
 use sc_service::RpcHandlers;
+use sc_telemetry::TelemetryWorker;
 use std::{path::Path, sync::Arc};
 
+#[cfg(feature = "full-node")]
+use sc_telemetry::Telemetry;
+
 pub use crate::{
-	chain_spec::GenericCordChainSpec,
+	chain_spec::{BraidChainSpec, GenericChainSpec, LoomChainSpec, WeaveChainSpec},
 	fake_runtime_api::{GetLastTimestamp, RuntimeApi},
 };
 pub use cord_primitives::Block;
@@ -44,6 +53,7 @@ use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
 use sc_client_api::Backend as BackendT;
 pub use sc_consensus::{BlockImport, LongestChain};
 pub use sc_executor::NativeExecutionDispatch;
+use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
 pub use sc_service::{
 	config::{DatabaseSource, PrometheusConfig},
 	ChainSpec, Configuration, Error as ServiceError, PruningMode, Role, TFullBackend,
@@ -52,13 +62,12 @@ pub use sc_service::{
 use sc_statement_store::Store as StatementStore;
 pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi};
 pub use sp_consensus::{Proposal, SelectChain};
-// use sp_consensus_beefy::ecdsa_crypto::AuthorityId;
+use sp_consensus_beefy::ecdsa_crypto::AuthorityId;
 pub use sp_runtime::{
 	generic,
 	traits::{self as runtime_traits, BlakeTwo256, Block as BlockT, Header as HeaderT, NumberFor},
 };
 
-use frame_system_rpc_runtime_api::AccountNonceApi;
 use futures::prelude::*;
 use sc_consensus_babe::{self, SlotProportion};
 use sp_consensus_babe::inherents::BabeCreateInherentDataProviders;
@@ -67,18 +76,180 @@ use sc_network::{
 	event::Event, service::traits::NetworkService, NetworkBackend, NetworkEventStream,
 };
 use sc_network_sync::{strategy::warp::WarpSyncConfig, SyncingService};
-use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_transaction_pool::TransactionPoolHandle;
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
-use sp_core::crypto::Pair;
+
 pub use sp_runtime::{OpaqueExtrinsic, SaturatedConversion};
 
-/// Host functions required for kitchensink runtime and Substrate node.
+#[cfg(feature = "braid-native")]
+pub use {cord_braid_runtime, cord_braid_runtime_constants};
+#[cfg(feature = "loom-native")]
+pub use {cord_loom_runtime, cord_loom_runtime_constants};
+#[cfg(feature = "weave-native")]
+pub use {cord_weave_runtime, cord_weave_runtime_constants};
+
+/// The minimum period of blocks on which justifications will be
+/// imported and generated.
+const GRANDPA_JUSTIFICATION_PERIOD: u32 = 512;
+
+/// Provides the header and block number for a hash.
+///
+/// Decouples `sc_client_api::Backend` and `sp_blockchain::HeaderBackend`.
+pub trait HeaderProvider<Block, Error = sp_blockchain::Error>: Send + Sync + 'static
+where
+	Block: BlockT,
+	Error: std::fmt::Debug + Send + Sync + 'static,
+{
+	/// Obtain the header for a hash.
+	fn header(
+		&self,
+		hash: <Block as BlockT>::Hash,
+	) -> Result<Option<<Block as BlockT>::Header>, Error>;
+	/// Obtain the block number for a hash.
+	fn number(
+		&self,
+		hash: <Block as BlockT>::Hash,
+	) -> Result<Option<<<Block as BlockT>::Header as HeaderT>::Number>, Error>;
+}
+
+impl<Block, T> HeaderProvider<Block> for T
+where
+	Block: BlockT,
+	T: sp_blockchain::HeaderBackend<Block> + 'static,
+{
+	fn header(
+		&self,
+		hash: Block::Hash,
+	) -> sp_blockchain::Result<Option<<Block as BlockT>::Header>> {
+		<Self as sp_blockchain::HeaderBackend<Block>>::header(self, hash)
+	}
+	fn number(
+		&self,
+		hash: Block::Hash,
+	) -> sp_blockchain::Result<Option<<<Block as BlockT>::Header as HeaderT>::Number>> {
+		<Self as sp_blockchain::HeaderBackend<Block>>::number(self, hash)
+	}
+}
+
+/// Decoupling the provider.
+///
+/// Mandated since `trait HeaderProvider` can only be
+/// implemented once for a generic `T`.
+pub trait HeaderProviderProvider<Block>: Send + Sync + 'static
+where
+	Block: BlockT,
+{
+	type Provider: HeaderProvider<Block> + 'static;
+
+	fn header_provider(&self) -> &Self::Provider;
+}
+
+impl<Block, T> HeaderProviderProvider<Block> for T
+where
+	Block: BlockT,
+	T: sc_client_api::Backend<Block> + 'static,
+{
+	type Provider = <T as sc_client_api::Backend<Block>>::Blockchain;
+
+	fn header_provider(&self) -> &Self::Provider {
+		self.blockchain()
+	}
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+	#[error(transparent)]
+	Io(#[from] std::io::Error),
+
+	#[error(transparent)]
+	AddrFormatInvalid(#[from] std::net::AddrParseError),
+
+	#[error(transparent)]
+	Sub(#[from] ServiceError),
+
+	#[error(transparent)]
+	Blockchain(#[from] sp_blockchain::Error),
+
+	#[error(transparent)]
+	Consensus(#[from] sp_consensus::Error),
+
+	#[error(transparent)]
+	Prometheus(#[from] prometheus_endpoint::PrometheusError),
+
+	#[error(transparent)]
+	Telemetry(#[from] sc_telemetry::Error),
+
+	#[cfg(feature = "full-node")]
+	#[error("Creating a custom database is required for validators")]
+	DatabasePathRequired,
+
+	#[cfg(feature = "full-node")]
+	#[error("Expected at least one of braid, loom or weave runtime feature")]
+	NoRuntime,
+}
+
+/// Identifies the variant of the chain.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Chain {
+	/// Braid
+	Braid,
+	/// Loom.
+	Loom,
+	/// Weave
+	Weave,
+	/// Unknown chain?
+	Unknown,
+}
+
+pub trait IdentifyVariant {
+	/// Returns `true` if this is a configuration for braid network.
+	fn is_braid(&self) -> bool;
+
+	/// Returns `true` if this is a configuration for loom network.
+	fn is_loom(&self) -> bool;
+
+	/// Returns `true` if this is a configuration for weave network.
+	fn is_weave(&self) -> bool;
+
+	/// Returns true if this configuration is for a development network.
+	fn is_dev(&self) -> bool;
+
+	/// Identifies the variant of the chain.
+	fn identify_chain(&self) -> Chain;
+}
+
+impl IdentifyVariant for Box<dyn ChainSpec> {
+	fn is_braid(&self) -> bool {
+		self.id().starts_with("braid")
+	}
+	fn is_loom(&self) -> bool {
+		self.id().starts_with("loom")
+	}
+	fn is_weave(&self) -> bool {
+		self.id().starts_with("weave")
+	}
+	fn is_dev(&self) -> bool {
+		self.id().ends_with("dev")
+	}
+	fn identify_chain(&self) -> Chain {
+		if self.is_braid() {
+			Chain::Braid
+		} else if self.is_loom() {
+			Chain::Loom
+		} else if self.is_weave() {
+			Chain::Weave
+		} else {
+			Chain::Unknown
+		}
+	}
+}
+
+/// Host functions required for runtime and node.
 #[cfg(not(feature = "runtime-benchmarks"))]
 pub type HostFunctions =
 	(sp_io::SubstrateHostFunctions, sp_statement_store::runtime_api::HostFunctions);
 
-/// Host functions required for kitchensink runtime and Substrate node.
+/// Host functions required for runtime and node.
 #[cfg(feature = "runtime-benchmarks")]
 pub type HostFunctions = (
 	sp_io::SubstrateHostFunctions,
@@ -91,139 +262,29 @@ pub type HostFunctions = (
 pub type RuntimeExecutor = sc_executor::WasmExecutor<HostFunctions>;
 
 /// The full client type definition.
+#[cfg(feature = "full-node")]
 pub type FullClient = sc_service::TFullClient<Block, RuntimeApi, RuntimeExecutor>;
+#[cfg(feature = "full-node")]
 type FullBackend = sc_service::TFullBackend<Block>;
+#[cfg(feature = "full-node")]
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
+#[cfg(feature = "full-node")]
 type FullGrandpaBlockImport =
 	sc_consensus_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
-
+#[cfg(feature = "full-node")]
+type FullBeefyBlockImport<InnerBlockImport> = sc_consensus_beefy::import::BeefyBlockImport<
+	Block,
+	FullBackend,
+	FullClient,
+	InnerBlockImport,
+	AuthorityId,
+>;
 /// The transaction pool type defintion.
 pub type TransactionPool = sc_transaction_pool::TransactionPoolHandle<Block, FullClient>;
 
-/// The minimum period of blocks on which justifications will be
-/// imported and generated.
-const GRANDPA_JUSTIFICATION_PERIOD: u32 = 512;
-
-/// Fetch the nonce of the given `account` from the chain state.
-///
-/// Note: Should only be used for tests.
-pub fn fetch_nonce(client: &FullClient, account: sp_core::sr25519::Pair) -> u32 {
-	let best_hash = client.chain_info().best_hash;
-	client
-		.runtime_api()
-		.account_nonce(best_hash, account.public().into())
-		.expect("Fetching account nonce works; qed")
-}
-
-/// Create a transaction using the given `call`.
-///
-/// The transaction will be signed by `sender`. If `nonce` is `None` it will be fetched from the
-/// state of the best block.
-///
-/// Note: Should only be used for tests.
-pub fn create_extrinsic(
-	client: &FullClient,
-	sender: sp_core::sr25519::Pair,
-	function: impl Into<cord_orb_runtime::RuntimeCall>,
-	nonce: Option<u32>,
-) -> cord_orb_runtime::UncheckedExtrinsic {
-	let function = function.into();
-	let genesis_hash = client.block_hash(0).ok().flatten().expect("Genesis block exists; qed");
-	let best_hash = client.chain_info().best_hash;
-	let best_block = client.chain_info().best_number;
-	let nonce = nonce.unwrap_or_else(|| fetch_nonce(client, sender.clone()));
-
-	let period = cord_runtime_common::BlockHashCount::get()
-		.checked_next_power_of_two()
-		.map(|c| c / 2)
-		.unwrap_or(2) as u64;
-
-	let extra: cord_orb_runtime::TxExtension = (
-		frame_system::AuthorizeCall::<cord_orb_runtime::Runtime>::new(),
-		frame_system::CheckNonZeroSender::<cord_orb_runtime::Runtime>::new(),
-		frame_system::CheckSpecVersion::<cord_orb_runtime::Runtime>::new(),
-		frame_system::CheckTxVersion::<cord_orb_runtime::Runtime>::new(),
-		frame_system::CheckGenesis::<cord_orb_runtime::Runtime>::new(),
-		frame_system::CheckEra::<cord_orb_runtime::Runtime>::from(generic::Era::mortal(
-			period,
-			best_block.saturated_into(),
-		)),
-		frame_system::CheckNonce::<cord_orb_runtime::Runtime>::from(nonce),
-		frame_system::CheckWeight::<cord_orb_runtime::Runtime>::new(),
-		pallet_skip_feeless_payment::SkipCheckIfFeeless::from(
-			pallet_transaction_payment::ChargeTransactionPayment::<cord_orb_runtime::Runtime>::from(
-				0,
-			),
-		),
-		frame_metadata_hash_extension::CheckMetadataHash::new(false),
-		frame_system::WeightReclaim::<cord_orb_runtime::Runtime>::new(),
-	);
-
-	let raw_payload = cord_orb_runtime::SignedPayload::from_raw(
-		function.clone(),
-		extra.clone(),
-		(
-			(),
-			(),
-			cord_orb_runtime::VERSION.spec_version,
-			cord_orb_runtime::VERSION.transaction_version,
-			genesis_hash,
-			best_hash,
-			(),
-			(),
-			(),
-			None,
-			(),
-		),
-	);
-	let signature = raw_payload.using_encoded(|e| sender.sign(e));
-
-	cord_orb_runtime::UncheckedExtrinsic::new_signed(
-		function,
-		sp_runtime::AccountId32::from(sender.public()).into(),
-		cord_orb_runtime::Signature::Sr25519(signature),
-		extra,
-	)
-}
-
-/// Identifies the variant of the chain.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Chain {
-	/// orb
-	Orb,
-	/// Unknown chain?
-	Unknown,
-}
-
-pub trait IdentifyVariant {
-	/// Returns `true` if this is a configuration for braid network.
-	fn is_orb(&self) -> bool;
-
-	/// Returns true if this configuration is for a development network.
-	fn is_dev(&self) -> bool;
-
-	/// Identifies the variant of the chain.
-	fn identify_chain(&self) -> Chain;
-}
-
-impl IdentifyVariant for Box<dyn ChainSpec> {
-	fn is_orb(&self) -> bool {
-		self.id().starts_with("orb")
-	}
-	fn is_dev(&self) -> bool {
-		self.id().ends_with("dev")
-	}
-	fn identify_chain(&self) -> Chain {
-		if self.is_orb() {
-			Chain::Orb
-		} else {
-			Chain::Unknown
-		}
-	}
-}
-
 /// Creates PartialComponents for a node.
 /// Enables chain operations for cases when full node is unnecessary.
+#[cfg(feature = "full-node")]
 pub fn new_partial(
 	config: &Configuration,
 ) -> Result<
@@ -241,12 +302,16 @@ pub fn new_partial(
 				sc_consensus_babe::BabeBlockImport<
 					Block,
 					FullClient,
-					FullGrandpaBlockImport,
+					FullBeefyBlockImport<FullGrandpaBlockImport>,
 					BabeCreateInherentDataProviders<Block>,
 					FullSelectChain,
 				>,
 				sc_consensus_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
 				sc_consensus_babe::BabeLink<Block>,
+				sc_consensus_beefy::BeefyVoterLinks<
+					Block,
+					sp_consensus_beefy::ecdsa_crypto::AuthorityId,
+				>,
 			),
 			sc_consensus_grandpa::SharedVoterState,
 			Option<Telemetry>,
@@ -266,7 +331,20 @@ pub fn new_partial(
 		})
 		.transpose()?;
 
-	let executor = sc_service::new_wasm_executor(&config.executor);
+	let heap_pages = config
+		.executor
+		.default_heap_pages
+		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static { extra_pages: h as _ });
+
+	let executor = WasmExecutor::builder()
+		.with_execution_method(config.executor.wasm_method)
+		.with_onchain_heap_alloc_strategy(heap_pages)
+		.with_offchain_heap_alloc_strategy(heap_pages)
+		.with_max_runtime_instances(config.executor.max_runtime_instances)
+		.with_runtime_cache_size(config.executor.runtime_cache_size)
+		.build();
+
+	// let executor = sc_service::new_wasm_executor(config);
 
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, _>(
@@ -274,6 +352,7 @@ pub fn new_partial(
 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 			executor,
 		)?;
+
 	let client = Arc::new(client);
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
@@ -294,6 +373,7 @@ pub fn new_partial(
 		.build(),
 	);
 
+	// #[allow(clippy::redundant_clone)]
 	let (grandpa_block_import, grandpa_link) = sc_consensus_grandpa::block_import(
 		client.clone(),
 		GRANDPA_JUSTIFICATION_PERIOD,
@@ -303,11 +383,20 @@ pub fn new_partial(
 	)?;
 	let justification_import = grandpa_block_import.clone();
 
+	let (beefy_block_import, beefy_voter_links, beefy_rpc_links) =
+	sc_consensus_beefy::beefy_block_import_and_links(
+		grandpa_block_import,
+		backend.clone(),
+		client.clone(),
+		config.prometheus_registry().cloned(),
+	);
+
+
 	let babe_config = sc_consensus_babe::configuration(&*client)?;
 	let slot_duration = babe_config.slot_duration();
 	let (block_import, babe_link) = sc_consensus_babe::block_import(
 		babe_config,
-		grandpa_block_import,
+		beefy_block_import,
 		client.clone(),
 		Arc::new(move |_, _| async move {
 			let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
@@ -334,7 +423,7 @@ pub fn new_partial(
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
 		})?;
 
-	let import_setup = (block_import, grandpa_link, babe_link);
+	let import_setup = (block_import, grandpa_link, babe_link, beefy_voter_links);
 
 	let statement_store = sc_statement_store::Store::new_shared(
 		&config.data_path,
@@ -347,7 +436,7 @@ pub fn new_partial(
 	.map_err(|e| ServiceError::Other(format!("Statement store error: {:?}", e)))?;
 
 	let (rpc_extensions_builder, rpc_setup) = {
-		let (_, grandpa_link, _) = &import_setup;
+		let (_, grandpa_link, _, _) = &import_setup;
 
 		let justification_stream = grandpa_link.justification_stream();
 		let shared_authority_set = grandpa_link.shared_authority_set().clone();
@@ -385,6 +474,17 @@ pub fn new_partial(
 						subscription_executor: subscription_executor.clone(),
 						finality_provider: finality_proof_provider.clone(),
 					},
+					beefy: cord_node_rpc::BeefyDeps::<
+						sp_consensus_beefy::ecdsa_crypto::AuthorityId,
+					> {
+						beefy_finality_proof_stream: beefy_rpc_links
+							.from_voter_justif_stream
+							.clone(),
+						beefy_best_block_stream: beefy_rpc_links
+							.from_voter_best_beefy_stream
+							.clone(),
+						subscription_executor,
+					},
 					statement_store: rpc_statement_store.clone(),
 					backend: rpc_backend.clone(),
 				};
@@ -408,6 +508,7 @@ pub fn new_partial(
 }
 
 /// Result of [`new_full_base`].
+#[cfg(feature = "full-node")]
 pub struct NewFullBase {
 	/// The task manager of the node.
 	pub task_manager: TaskManager,
@@ -424,6 +525,7 @@ pub struct NewFullBase {
 }
 
 /// Creates a full service from the configuration.
+#[cfg(feature = "full-node")]
 pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	config: Configuration,
 	disable_hardware_benchmarks: bool,
@@ -431,16 +533,20 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 		&sc_consensus_babe::BabeBlockImport<
 			Block,
 			FullClient,
-			FullGrandpaBlockImport,
+			FullBeefyBlockImport<FullGrandpaBlockImport>,
 			BabeCreateInherentDataProviders<Block>,
 			FullSelectChain,
 		>,
 		&sc_consensus_babe::BabeLink<Block>,
 	),
 ) -> Result<NewFullBase, ServiceError> {
+	let is_offchain_indexing_enabled = config.offchain_worker.indexing_enabled;
 	let role = config.role;
 	let force_authoring = config.force_authoring;
-	let backoff_authoring_blocks = if config.chain_spec.is_orb() {
+	let backoff_authoring_blocks = if config.chain_spec.is_braid() ||
+		config.chain_spec.is_loom() ||
+		config.chain_spec.is_weave()
+	{
 		// the block authoring backoff is disabled on production networks
 		None
 	} else {
@@ -501,6 +607,28 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 			Arc::clone(&peer_store_handle),
 		);
 	net_config.add_notification_protocol(grandpa_protocol_config);
+
+	let beefy_gossip_proto_name =
+		sc_consensus_beefy::gossip_protocol_name(&genesis_hash, config.chain_spec.fork_id());
+	// `beefy_on_demand_justifications_handler` is given to `beefy-gadget` task to be run,
+	// while `beefy_req_resp_cfg` is added to `config.network.request_response_protocols`.
+	let (beefy_on_demand_justifications_handler, beefy_req_resp_cfg) =
+		sc_consensus_beefy::communication::request_response::BeefyJustifsRequestHandler::new::<_, N>(
+			&genesis_hash,
+			config.chain_spec.fork_id(),
+			client.clone(),
+			prometheus_registry.clone(),
+		);
+
+	let (beefy_notification_config, beefy_notification_service) =
+		sc_consensus_beefy::communication::beefy_peers_set_config::<_, N>(
+			beefy_gossip_proto_name.clone(),
+			metrics.clone(),
+			Arc::clone(&peer_store_handle),
+		);
+
+	net_config.add_notification_protocol(beefy_notification_config);
+	net_config.add_request_response_protocol(beefy_req_resp_cfg);
 
 	let (statement_handler_proto, statement_config) =
 		sc_network_statement::StatementHandlerPrototype::new::<_, _, N>(
@@ -569,7 +697,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 		}
 	}
 
-	let (block_import, grandpa_link, babe_link) = import_setup;
+	let (block_import, grandpa_link, babe_link, beefy_links) = import_setup;
 
 	(with_startup_data)(&block_import, &babe_link);
 
@@ -666,6 +794,49 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	// need a keystore, regardless of which protocol we use below.
 	let keystore = if role.is_authority() { Some(keystore_container.keystore()) } else { None };
 
+	// beefy is enabled if its notification service exists
+	let network_params = sc_consensus_beefy::BeefyNetworkParams {
+		network: Arc::new(network.clone()),
+		sync: sync_service.clone(),
+		gossip_protocol_name: beefy_gossip_proto_name,
+		justifications_protocol_name: beefy_on_demand_justifications_handler.protocol_name(),
+		notification_service: beefy_notification_service,
+		_phantom: core::marker::PhantomData::<Block>,
+	};
+	let beefy_params = sc_consensus_beefy::BeefyParams {
+		client: client.clone(),
+		backend: backend.clone(),
+		payload_provider: sp_consensus_beefy::mmr::MmrRootProvider::new(client.clone()),
+		runtime: client.clone(),
+		key_store: keystore.clone(),
+		network_params,
+		min_block_delta: 8,
+		prometheus_registry: prometheus_registry.clone(),
+		links: beefy_links,
+		on_demand_justifications_handler: beefy_on_demand_justifications_handler,
+		is_authority: role.is_authority(),
+	};
+
+	let beefy_gadget =
+		sc_consensus_beefy::start_beefy_gadget::<_, _, _, _, _, _, _, _>(beefy_params);
+	// BEEFY is part of consensus, if it fails we'll bring the node down with it to make sure it
+	// is noticed.
+	task_manager
+		.spawn_essential_handle()
+		.spawn_blocking("beefy-gadget", None, beefy_gadget);
+	// When offchain indexing is enabled, MMR gadget should also run.
+	if is_offchain_indexing_enabled {
+		task_manager.spawn_essential_handle().spawn_blocking(
+			"mmr-gadget",
+			None,
+			mmr_gadget::MmrGadget::start(
+				client.clone(),
+				backend.clone(),
+				sp_mmr_primitives::INDEXING_PREFIX.to_vec(),
+			),
+		);
+	}
+
 	let grandpa_config = sc_consensus_grandpa::Config {
 		// FIXME #1578 make this available through chainspec
 		gossip_duration: std::time::Duration::from_millis(333),
@@ -760,38 +931,144 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	})
 }
 
-/// Builds a new service for a full client.
-pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
-	let database_path = config.database.path().map(Path::to_path_buf);
-	let task_manager = match config.network.network_backend {
-		sc_network::config::NetworkBackendType::Libp2p => {
-			let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
-				config,
-				cli.no_hardware_benchmarks,
-				|_, _| (),
-			)
-			.map(|NewFullBase { task_manager, .. }| task_manager)?;
-			task_manager
-		},
-		sc_network::config::NetworkBackendType::Litep2p => {
-			let task_manager = new_full_base::<sc_network::Litep2pNetworkBackend>(
-				config,
-				cli.no_hardware_benchmarks,
-				|_, _| (),
-			)
-			.map(|NewFullBase { task_manager, .. }| task_manager)?;
-			task_manager
-		},
-	};
+#[cfg(feature = "full-node")]
+pub trait RuntimeConfig {
+	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError>;
+}
 
-	if let Some(database_path) = database_path {
-		sc_storage_monitor::StorageMonitorService::try_spawn(
-			cli.storage_monitor,
-			database_path,
-			&task_manager.spawn_essential_handle(),
-		)
-		.map_err(|e| ServiceError::Application(e.into()))?;
+#[cfg(feature = "full-node")]
+pub struct BraidRuntime;
+#[cfg(feature = "full-node")]
+impl RuntimeConfig for BraidRuntime {
+	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
+		let database_path = config.database.path().map(Path::to_path_buf);
+		let task_manager = match config.network.network_backend {
+			sc_network::config::NetworkBackendType::Libp2p => {
+				let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
+					config,
+					cli.no_hardware_benchmarks,
+					|_, _| (),
+				)
+				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+				task_manager
+			},
+			sc_network::config::NetworkBackendType::Litep2p => {
+				let task_manager = new_full_base::<sc_network::Litep2pNetworkBackend>(
+					config,
+					cli.no_hardware_benchmarks,
+					|_, _| (),
+				)
+				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+				task_manager
+			},
+		};
+
+		if let Some(database_path) = database_path {
+			sc_storage_monitor::StorageMonitorService::try_spawn(
+				cli.storage_monitor,
+				database_path,
+				&task_manager.spawn_essential_handle(),
+			)
+			.map_err(|e| ServiceError::Application(e.into()))?;
+		}
+
+		Ok(task_manager)
 	}
+}
 
-	Ok(task_manager)
+#[cfg(feature = "full-node")]
+pub struct LoomRuntime;
+#[cfg(feature = "full-node")]
+impl RuntimeConfig for LoomRuntime {
+	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
+		let database_path = config.database.path().map(Path::to_path_buf);
+		let task_manager = match config.network.network_backend {
+			sc_network::config::NetworkBackendType::Libp2p => {
+				let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
+					config,
+					cli.no_hardware_benchmarks,
+					|_, _| (),
+				)
+				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+				task_manager
+			},
+			sc_network::config::NetworkBackendType::Litep2p => {
+				let task_manager = new_full_base::<sc_network::Litep2pNetworkBackend>(
+					config,
+					cli.no_hardware_benchmarks,
+					|_, _| (),
+				)
+				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+				task_manager
+			},
+		};
+
+		if let Some(database_path) = database_path {
+			sc_storage_monitor::StorageMonitorService::try_spawn(
+				cli.storage_monitor,
+				database_path,
+				&task_manager.spawn_essential_handle(),
+			)
+			.map_err(|e| ServiceError::Application(e.into()))?;
+		}
+
+		Ok(task_manager)
+	}
+}
+
+#[cfg(feature = "full-node")]
+pub struct WeaveRuntime;
+#[cfg(feature = "full-node")]
+impl RuntimeConfig for WeaveRuntime {
+	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
+		let database_path = config.database.path().map(Path::to_path_buf);
+		let task_manager = match config.network.network_backend {
+			sc_network::config::NetworkBackendType::Libp2p => {
+				let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
+					config,
+					cli.no_hardware_benchmarks,
+					|_, _| (),
+				)
+				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+				task_manager
+			},
+			sc_network::config::NetworkBackendType::Litep2p => {
+				let task_manager = new_full_base::<sc_network::Litep2pNetworkBackend>(
+					config,
+					cli.no_hardware_benchmarks,
+					|_, _| (),
+				)
+				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+				task_manager
+			},
+		};
+
+		if let Some(database_path) = database_path {
+			sc_storage_monitor::StorageMonitorService::try_spawn(
+				cli.storage_monitor,
+				database_path,
+				&task_manager.spawn_essential_handle(),
+			)
+			.map_err(|e| ServiceError::Application(e.into()))?;
+		}
+
+		Ok(task_manager)
+	}
+}
+
+pub fn select_runtime(config: &Configuration) -> Box<dyn RuntimeConfig> {
+	if config.chain_spec.is_braid() {
+		Box::new(BraidRuntime)
+	} else if config.chain_spec.is_loom() {
+		Box::new(LoomRuntime)
+	} else if config.chain_spec.is_weave() {
+		Box::new(WeaveRuntime)
+	} else {
+		panic!("Unsupported runtime");
+	}
+}
+
+pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
+	let runtime = select_runtime(&config);
+	runtime.new_full(config, cli)
 }

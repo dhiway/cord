@@ -16,30 +16,40 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use std::{fs, io::Write};
+use std::{fs, io::Write, path::PathBuf};
 
-use sc_cli::Error;
+use sc_cli::{
+	clap::{self, Args},
+	Error,
+};
 use serde::Deserialize;
 
-use crate::{
-	chain_spec::{
-		bootstrap::{cord_custom_config, AuthorityKeys, ChainParams},
-		ChainType,
-	},
-	subcommands::BootstrapChainCmd,
+use crate::chain_spec::{
+	bootstrap::{cord_custom_config, ChainParams},
+	ChainType,
 };
-
-const MAX_CHAIN_NAME_LEN: usize = 64;
-const NETWORK_ID_MIN: u32 = 100;
-const NETWORK_ID_MAX: u32 = 1_999;
 
 #[derive(Debug, Deserialize)]
 pub struct ChainConfigParams {
 	pub chain_name: String,
 	pub chain_type: String,
+	pub runtime_type: String,
 	pub authorities: Vec<Vec<String>>,
+	pub well_known_nodes: Vec<Vec<String>>,
+	pub network_members: Vec<Vec<String>>,
+	pub council_members: Option<Vec<String>>,
+	pub tech_committee_members: Option<Vec<String>>,
 	pub sudo_key: Option<String>,
-	pub network_id: u32,
+	pub network_id: i32,
+}
+
+#[derive(Debug, Args)]
+pub struct BootstrapChainCmd {
+	#[arg(long = "raw")]
+	raw: bool,
+
+	#[arg(long, short = 'c')]
+	config: PathBuf,
 }
 
 impl BootstrapChainCmd {
@@ -48,91 +58,112 @@ impl BootstrapChainCmd {
 		let config: ChainConfigParams =
 			toml::from_str(&toml_config).map_err(|e| sc_cli::Error::Application(Box::new(e)))?;
 
-		if config.authorities.is_empty() {
-			return Err("Authorities cannot be empty".into());
+		if config.authorities.is_empty() || config.well_known_nodes.is_empty() {
+			eprintln!("Error: authorities and well_known_nodes cannot be empty");
+			std::process::exit(1);
 		}
 
-		for (index, auth) in config.authorities.iter().enumerate() {
+		// Validate that each authority has exactly 4 keys
+		for (i, auth) in config.authorities.iter().enumerate() {
 			if auth.len() != 4 {
-				return Err(format!(
-					"Authority {} has invalid length: expected 4 keys, got {}",
-					index,
+				eprintln!(
+					"Error: Authority {} has invalid length: expected 4 keys, got {}",
+					i,
 					auth.len()
-				)
-				.into());
+				);
+				std::process::exit(1);
 			}
 		}
 
-		let trimmed_name = config.chain_name.trim();
-		if trimmed_name.is_empty() {
-			return Err("Chain name must not be empty".into());
-		}
-
-		let chain_name = if trimmed_name.len() <= MAX_CHAIN_NAME_LEN {
-			trimmed_name.to_string()
+		let chain_name = if config.chain_name.len() <= 64 {
+			config.chain_name.clone()
 		} else {
-			return Err(format!(
-				"Chain name should not be more than {} characters",
-				MAX_CHAIN_NAME_LEN
-			)
-			.into());
+			return Err("Chain name should not be more than 64 characters".into());
 		};
 
-		let chain_type_input = config.chain_type.trim();
-		let chain_type = match chain_type_input.to_lowercase().as_str() {
-			"dev" => ChainType::Development,
-			"local" => ChainType::Local,
-			"live" => ChainType::Live,
-			_ => {
+		let chain_type: Result<ChainType, String> = match config.chain_type.as_str() {
+			"dev" => Ok(ChainType::Development),
+			"local" => Ok(ChainType::Local),
+			"live" => Ok(ChainType::Live),
+			other => Err(format!(
+				"Invalid chain_type: {}. Possible values are 'dev', 'local', 'live'",
+				other
+			)),
+		};
+
+		let chain_type = chain_type?;
+
+		let runtime_type =
+			if ["braid", "loom", "weave"].contains(&config.runtime_type.to_lowercase().as_str()) {
+				config.runtime_type.to_lowercase()
+			} else {
 				return Err(format!(
-					"Invalid chain_type: {}. Possible values are 'dev', 'local', 'live'",
-					chain_type_input
+					"Invalid runtime_type: {}. Supported types are 'braid', 'loom', 'weave'.",
+					config.runtime_type
 				)
-				.into())
-			},
-		};
+				.into());
+			};
 
-		let authorities = config
+		let initial_members: Vec<String> =
+			config.network_members.iter().map(|net| net[1].clone()).collect();
+
+		let initial_well_known_nodes: Vec<Vec<String>> = config
+			.well_known_nodes
+			.iter()
+			.map(|node| vec![node[1].clone(), node[2].clone()])
+			.collect();
+
+		let initial_authorities: Vec<Vec<String>> = config
 			.authorities
 			.iter()
-			.map(|auth| AuthorityKeys {
-				stash: auth[0].trim().to_string(),
-				babe: auth[1].trim().to_string(),
-				grandpa: auth[2].trim().to_string(),
-				authority_discovery: auth[3].trim().to_string(),
-			})
-			.collect::<Vec<_>>();
+			.map(|auth| vec![auth[1].clone(), auth[2].clone(), auth[3].clone()])
+			.collect();
 
-		let sudo_key = config
-			.sudo_key
-			.as_ref()
-			.map(|key| key.trim().to_string())
-			.filter(|key| !key.is_empty())
-			.unwrap_or_else(|| {
-				authorities
-					.get(0)
-					.expect("authorities list validated as non-empty; qed")
-					.stash
-					.clone()
-			});
+		let initial_council_members: Vec<String> =
+			if let Some(council_members) = &config.council_members {
+				council_members.to_vec()
+			} else {
+				config.authorities.iter().map(|auth| auth[1].clone()).collect()
+			};
 
-		if !(NETWORK_ID_MIN..=NETWORK_ID_MAX).contains(&config.network_id) {
-			return Err(format!(
-				"network_id must be between {} and {} (inclusive)",
-				NETWORK_ID_MIN, NETWORK_ID_MAX
-			)
-			.into());
-		}
+		let initial_tech_committee_members: Vec<String> =
+			if let Some(committee_members) = &config.tech_committee_members {
+				committee_members.to_vec()
+			} else {
+				config.authorities.iter().map(|auth| auth[1].clone()).collect()
+			};
+
+		let initial_sudo_key: String = config.sudo_key.unwrap_or_else(|| {
+			config
+				.authorities
+				.get(0)
+				.map(|auth| auth[0].clone())
+				.expect("No authorities provided; cannot set sudo_key")
+		});
+
+		/* TODO: Make ProtocolId modular so we can support for Origin based custom chain
+		 * deployments. Currently we have the default protocol_id as 'c0rd' which is standalone
+		 * mode & it requires the network-id to be in range of [100, 1999)
+		 */
+		let network_id: i32 = config.network_id;
 
 		let chain_params = ChainParams {
 			chain_name,
 			chain_type,
-			authorities,
-			sudo_key,
-			network_id: config.network_id,
+			runtime_type,
+			authorities: initial_authorities,
+			well_known_nodes: initial_well_known_nodes,
+			network_members: initial_members,
+			council_members: initial_council_members,
+			tech_committee_members: initial_tech_committee_members,
+			sudo_key: initial_sudo_key,
+			network_id,
 		};
 
-		let chain_spec = cord_custom_config(&chain_params).map_err(Error::from)?;
+		let chain_spec = match cord_custom_config(chain_params) {
+			Ok(spec) => spec,
+			Err(e) => panic!("Chain spec creation failed: {}", e),
+		};
 
 		let json = sc_service::chain_ops::build_spec(&chain_spec, self.raw)?;
 		if std::io::stdout().write_all(json.as_bytes()).is_err() {

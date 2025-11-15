@@ -25,7 +25,7 @@ bitflags = { workspace = true }
 
 # Internal dependencies
 cord-primitives = { workspace = true }
-pallet-token = { workspace = true }
+pallet-doken = { workspace = true }
 pallet-profile = { workspace = true }
 
 # Substrate dependencies

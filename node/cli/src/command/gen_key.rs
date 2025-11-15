@@ -16,14 +16,24 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use sc_cli::{utils, with_crypto_scheme, CryptoScheme, Error, SubstrateCli};
+use sc_cli::{
+	utils, with_crypto_scheme, CryptoScheme, Error, KeystoreParams, SharedParams, SubstrateCli,
+};
 use sc_keystore::LocalKeystore;
 use sc_service::config::{BasePath, KeystoreConfig};
 use sp_core::crypto::{AccountId32, KeyTypeId, SecretString};
 use sp_keystore::{Keystore, KeystorePtr};
 use std::sync::Arc;
 
-use crate::subcommands::{GenSessionKeysCmd, KeySubcommand};
+#[derive(Debug, clap::Subcommand)]
+pub enum KeySubcommand {
+	/// Generate session keys and store them in the keystore
+	GenerateSessionKeys(GenSessionKeysCmd),
+
+	#[allow(missing_docs)]
+	#[clap(flatten)]
+	Key(sc_cli::KeySubcommand),
+}
 
 impl KeySubcommand {
 	/// Run the command
@@ -35,10 +45,29 @@ impl KeySubcommand {
 	}
 }
 
-const KEY_TYPES: [(KeyTypeId, CryptoScheme); 3] = [
-	(KeyTypeId(*b"babe"), CryptoScheme::Sr25519),
+#[derive(Debug, clap::Args)]
+pub struct GenSessionKeysCmd {
+	/// The secret key URI.
+	/// If the value is a file, the file content is used as URI.
+	/// If not given, you will be prompted for the URI.
+	#[clap(long)]
+	suri: Option<String>,
+
+	#[allow(missing_docs)]
+	#[clap(flatten)]
+	pub shared_params: SharedParams,
+
+	#[allow(missing_docs)]
+	#[clap(flatten)]
+	pub keystore_params: KeystoreParams,
+}
+
+const KEY_TYPES: [(KeyTypeId, CryptoScheme); 5] = [
 	(KeyTypeId(*b"gran"), CryptoScheme::Ed25519),
+	(KeyTypeId(*b"babe"), CryptoScheme::Sr25519),
+	(KeyTypeId(*b"imon"), CryptoScheme::Sr25519),
 	(KeyTypeId(*b"audi"), CryptoScheme::Sr25519),
+	(KeyTypeId(*b"beef"), CryptoScheme::Ecdsa),
 ];
 
 impl GenSessionKeysCmd {
@@ -72,18 +101,29 @@ impl GenSessionKeysCmd {
 		}
 
 		let mut buffer = [0; 32];
-
-		// babe
-		buffer.copy_from_slice(&public_keys_bytes[..32]);
-		println!("babe: {}", AccountId32::new(buffer));
+		let mut ecdsa_buffer = [0; 33];
 
 		// grandpa
-		buffer.copy_from_slice(&public_keys_bytes[32..64]);
+		buffer.copy_from_slice(&public_keys_bytes[..32]);
 		println!("grandpa: {}", AccountId32::new(buffer));
 
-		// authority discovery
+		// babe
+		buffer.copy_from_slice(&public_keys_bytes[32..64]);
+		println!("babe: {}", AccountId32::new(buffer));
+
+		// im_online
 		buffer.copy_from_slice(&public_keys_bytes[64..96]);
+		println!("im_online: {}", AccountId32::new(buffer));
+
+		// authority discovery
+		buffer.copy_from_slice(&public_keys_bytes[96..128]);
 		println!("authority_discovery: {}", AccountId32::new(buffer));
+
+		// beefy (ECDSA key with 33 bytes)
+		ecdsa_buffer.copy_from_slice(&public_keys_bytes[128..]);
+		// println!("beefy (raw): {:?}", ecdsa_buffer);
+		buffer.copy_from_slice(&ecdsa_buffer[1..]);
+		println!("beefy: {}", AccountId32::new(buffer));
 
 		println!("Session Keys: 0x{}", hex::encode(public_keys_bytes));
 

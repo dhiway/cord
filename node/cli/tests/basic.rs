@@ -1,5 +1,3 @@
-#![cfg(not(feature = "runtime-benchmarks"))]
-
 // This file is part of CORD – https://cord.network
 
 // Copyright (C) Dhiway Networks Pvt. Ltd.
@@ -30,16 +28,15 @@ use sp_runtime::{
 	traits::Hash as HashT, transaction_validity::InvalidTransaction, ApplyExtrinsicResult,
 };
 
-use cord_orb_runtime::{
+use cord_weave_runtime::{
 	Balances, CheckedExtrinsic, Header, Runtime, RuntimeCall, RuntimeEvent, System,
-	TransactionPayment, UncheckedExtrinsic,
+	TransactionPayment, Treasury, UncheckedExtrinsic,
 };
-use cord_orb_runtime_constants::{currency::*, time::SLOT_DURATION};
+use cord_weave_runtime_constants::{currency::*, time::SLOT_DURATION};
 
 use cord_node_testing::keyring::*;
 use cord_primitives::{Balance, Hash};
 use pretty_assertions::assert_eq;
-use std::sync::OnceLock;
 use wat;
 
 pub mod common;
@@ -51,19 +48,10 @@ use self::common::{sign, *};
 /// have to execute provided wasm code instead of the native equivalent. This trick is used to
 /// test code paths that differ between native and wasm versions.
 pub fn bloaty_code_unwrap() -> &'static [u8] {
-	static CORRUPTED: OnceLock<&'static [u8]> = OnceLock::new();
-	*CORRUPTED.get_or_init(|| {
-		let mut bytes = cord_orb_runtime::WASM_BINARY
-			.expect(
-				"Development wasm binary is not available. \
-			 Testing is only supported with the flag disabled.",
-			)
-			.to_vec();
-		if let Some(byte) = bytes.first_mut() {
-			*byte = byte.wrapping_add(1);
-		}
-		Box::leak(bytes.into_boxed_slice())
-	})
+	cord_weave_runtime::WASM_BINARY_BLOATY.expect(
+		"Development wasm binary is not available. \
+											 Testing is only supported with the flag disabled.",
+	)
 }
 
 /// Default transfer fee. This will use the same logic that is implemented in transaction-payment
@@ -392,6 +380,14 @@ fn full_native_block_import_works() {
 			},
 			EventRecord {
 				phase: Phase::ApplyExtrinsic(1),
+				event: RuntimeEvent::Balances(pallet_balances::Event::Deposit {
+					who: pallet_treasury::Pallet::<Runtime>::account_id(),
+					amount: fees_after_refund,
+				}),
+				topics: vec![],
+			},
+			EventRecord {
+				phase: Phase::ApplyExtrinsic(1),
 				event: RuntimeEvent::TransactionPayment(
 					pallet_transaction_payment::Event::TransactionFeePaid {
 						who: alice().into(),
@@ -417,6 +413,7 @@ fn full_native_block_import_works() {
 	});
 
 	fees = t.execute_with(|| transfer_fee(&xt()));
+	let pot = t.execute_with(|| Treasury::pot());
 	let extension_weight = xt().extension_weight();
 	let weight_refund = Weight::zero();
 	let fees_after_refund = t.execute_with(|| transfer_fee_with_refund(&xt(), weight_refund));
@@ -430,6 +427,14 @@ fn full_native_block_import_works() {
 		);
 		assert_eq!(Balances::total_balance(&bob()), 179 * UNITS - fees_after_refund);
 		let events = vec![
+			EventRecord {
+				phase: Phase::Initialization,
+				event: RuntimeEvent::Treasury(pallet_treasury::Event::UpdatedInactive {
+					reactivated: 0,
+					deactivated: pot,
+				}),
+				topics: vec![],
+			},
 			EventRecord {
 				phase: Phase::ApplyExtrinsic(0),
 				event: RuntimeEvent::System(frame_system::Event::ExtrinsicSuccess {
@@ -455,6 +460,14 @@ fn full_native_block_import_works() {
 					from: bob().into(),
 					to: alice().into(),
 					amount: 5 * UNITS,
+				}),
+				topics: vec![],
+			},
+			EventRecord {
+				phase: Phase::ApplyExtrinsic(1),
+				event: RuntimeEvent::Balances(pallet_balances::Event::Deposit {
+					who: pallet_treasury::Pallet::<Runtime>::account_id(),
+					amount: fees_after_refund,
 				}),
 				topics: vec![],
 			},
@@ -494,6 +507,14 @@ fn full_native_block_import_works() {
 					from: alice().into(),
 					to: bob().into(),
 					amount: 15 * UNITS,
+				}),
+				topics: vec![],
+			},
+			EventRecord {
+				phase: Phase::ApplyExtrinsic(2),
+				event: RuntimeEvent::Balances(pallet_balances::Event::Deposit {
+					who: pallet_treasury::Pallet::<Runtime>::account_id(),
+					amount: fees_after_refund,
 				}),
 				topics: vec![],
 			},
@@ -650,6 +671,62 @@ const CODE_TRANSFER: &str = r#"
 (data (i32.const 52) "\04")
 )
 "#;
+
+#[test]
+fn deploying_wasm_contract_should_work() {
+	let transfer_code = wat::parse_str(CODE_TRANSFER).unwrap();
+	let transfer_ch = <Runtime as frame_system::Config>::Hashing::hash(&transfer_code);
+
+	let addr =
+		pallet_contracts::Pallet::<Runtime>::contract_address(&charlie(), &transfer_ch, &[], &[]);
+
+	let time = 42 * 1000;
+	let b = construct_block(
+		&mut new_test_ext(compact_code_unwrap()),
+		1,
+		GENESIS_HASH.into(),
+		vec![
+			CheckedExtrinsic {
+				format: sp_runtime::generic::ExtrinsicFormat::Bare,
+				function: RuntimeCall::Timestamp(pallet_timestamp::Call::set { now: time }),
+			},
+			CheckedExtrinsic {
+				format: sp_runtime::generic::ExtrinsicFormat::Signed(charlie(), tx_ext(0, 0)),
+				function: RuntimeCall::Contracts(pallet_contracts::Call::instantiate_with_code::<
+					Runtime,
+				> {
+					value: 0,
+					gas_limit: Weight::from_parts(500_000_000, 0),
+					storage_deposit_limit: None,
+					code: transfer_code,
+					data: Vec::new(),
+					salt: Vec::new(),
+				}),
+			},
+			CheckedExtrinsic {
+				format: sp_runtime::generic::ExtrinsicFormat::Signed(charlie(), tx_ext(1, 0)),
+				function: RuntimeCall::Contracts(pallet_contracts::Call::call::<Runtime> {
+					dest: sp_runtime::MultiAddress::Id(addr.clone()),
+					value: 10,
+					gas_limit: Weight::from_parts(500_000_000, 0),
+					storage_deposit_limit: None,
+					data: vec![0x00, 0x01, 0x02, 0x03],
+				}),
+			},
+		],
+		(time / SLOT_DURATION).into(),
+	);
+
+	let mut t = new_test_ext(compact_code_unwrap());
+
+	executor_call(&mut t, "Core_execute_block", &b.0).0.unwrap();
+
+	t.execute_with(|| {
+		// Verify that the contract does exist by querying some of its storage items
+		// It does not matter that the storage item itself does not exist.
+		assert!(&pallet_contracts::Pallet::<Runtime>::get_storage(addr, vec![]).is_ok());
+	});
+}
 
 #[test]
 fn wasm_big_block_import_fails() {

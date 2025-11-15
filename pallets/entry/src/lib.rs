@@ -52,7 +52,7 @@ use frame_support::{
 	traits::{Get, StorageVersion},
 	BoundedVec,
 };
-use pallet_token::{EventBlock, EventTypeOf, Token};
+use pallet_doken::{Doken, EventBlock, EventTypeOf};
 use sp_runtime::traits::Hash;
 
 pub use pallet::*;
@@ -95,7 +95,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config:
 		frame_system::Config
-		+ pallet_token::Config
+		+ pallet_doken::Config
 		+ pallet_profile::Config
 		+ pallet_registry::Config
 	{
@@ -271,7 +271,7 @@ pub mod pallet {
 				<crate::pallet::Pallet<T> as frame_support::traits::PalletInfoAccess>::name();
 
 			let registry_entry_id =
-				<pallet_token::Pallet<T> as Token<T>>::build(&(digest).encode()[..], pallet_name)
+				<pallet_doken::Pallet<T> as Doken<T>>::build(&(digest).encode()[..], pallet_name)
 					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			/* Ensure that the registry_entry_id does not already exist */
@@ -613,7 +613,7 @@ impl<T: Config> Pallet<T> {
 		let action: EventTypeOf =
 			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEventType)?;
 		let stamp = EventBlock::current::<T>();
-		<pallet_token::Pallet<T> as Token<T>>::state_event(identifier, digest, action, stamp)
+		<pallet_doken::Pallet<T> as Doken<T>>::state_event(identifier, digest, action, stamp)
 			.map_err(|_| Error::<T>::StateUpdateFailed)?;
 		Ok(())
 	}
