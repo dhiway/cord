@@ -15,7 +15,7 @@ frame-support = { workspace = true }
 pallet-remote-proxy = { workspace = true }
 polkadot-primitives = { workspace = true }
 polkadot-runtime-common = { workspace = true }
-origin-runtime-common = { workspace = true }
+origin-common = { workspace = true }
 sp-runtime = { workspace = true }
 sp-weights = { workspace = true }
 sp-core = { workspace = true }

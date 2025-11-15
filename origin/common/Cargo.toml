@@ -25,9 +25,6 @@ sp-core = { workspace = true }
 sp-runtime = { workspace = true }
 sp-weights = { workspace = true }
 
-sp-api = { workspace = true }
-polkadot-primitives = { workspace = true }
-pallet-staking-reward-fn = { workspace = true }
 
 [features]
 default = ["std"]
@@ -40,11 +37,10 @@ std = [
     "pallet-balances/std",
     "pallet-timestamp/std",
     "pallet-transaction-payment/std",
-    "origin-primitives/std",
-    "sp-core/std",
-    "sp-runtime/std",
-    "sp-weights/std",
-    "sp-api/std",
-    "polkadot-primitives/std",
-    "pallet-staking-reward-fn/std",
+	"origin-primitives/std",
+	"sp-core/std",
+	"sp-runtime/std",
+	"sp-weights/std",
 ]
+runtime-benchmarks = []
+try-runtime = []

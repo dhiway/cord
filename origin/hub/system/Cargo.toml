@@ -19,9 +19,9 @@ serde_json = { features = ["alloc"], workspace = true }
 
 # Local
 cord-primitives = { workspace = true }
-origin-staging-runtime-constants = { workspace = true }
+origin-runtime-constants = { workspace = true }
 cord-origin-system-chains-staging-constants = { workspace = true }
-token-runtime-api = { workspace = true }
+token-origin-hub-runtime-api = { workspace = true }
 
 # Substrate
 frame-benchmarking = { optional = true, workspace = true }
@@ -96,9 +96,9 @@ default = ["std"]
 std = [
 	"codec/std",
 	"cord-primitives/std",
-	"origin-staging-runtime-constants/std",
+	"origin-runtime-constants/std",
 	"cord-origin-system-chains-staging-constants/std",
-	"token-runtime-api/std",
+	"token-origin-hub-runtime-api/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
 	"cumulus-pallet-session-benchmarking/std",
@@ -165,7 +165,7 @@ std = [
 
 
 runtime-benchmarks = [
-	"origin-staging-runtime-constants/std",
+	"origin-runtime-constants/std",
 	"cord-origin-system-chains-staging-constants/std",
 	"cumulus-pallet-parachain-system/runtime-benchmarks",
 	"cumulus-pallet-session-benchmarking/runtime-benchmarks",
@@ -232,7 +232,7 @@ try-runtime = [
 	"sp-runtime/try-runtime",
 ]
 
-fast-runtime = ["origin-staging-runtime-constants/fast-runtime"]
+fast-runtime = ["origin-runtime-constants/fast-runtime"]
 
 # Enable metadata hash generation at compile time for the `CheckMetadataHash` extension.
 metadata-hash = ["substrate-wasm-builder/metadata-hash"]

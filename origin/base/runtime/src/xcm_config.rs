@@ -27,7 +27,7 @@ use frame_support::{
 	weights::Weight,
 };
 use frame_system::EnsureRoot;
-use origin_staging_runtime_constants::{currency::MILLI, system_parachain::*};
+use origin_runtime_constants::{currency::MILLI, system_parachain::*};
 use polkadot_runtime_common::{
 	xcm_sender::{ChildParachainRouter, ExponentialPrice},
 	ToAuthor,

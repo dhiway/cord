@@ -61,11 +61,15 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature, MultiSigner, Perbill, RuntimeDebug,
 };
-use sp_staking::SessionIndex;
 
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
+
+/// Alias the session index used by session/grandpa without pulling staking pallets.
+pub type SessionIndex = u32;
+/// Alias the era index type used for session tracking.
+pub type EraIndex = u32;
 
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
@@ -88,7 +92,7 @@ pub mod genesis_config_presets;
 // Weights used in the runtime.
 mod weights;
 
-pub use token_runtime_api as token_api;
+pub use token_origin_hub_runtime_api as token_api;
 
 /// Default logging target.
 pub const LOG_TARGET: &str = "runtime::origin_dev";
@@ -140,15 +144,6 @@ pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
 #[cfg(any(feature = "std", test))]
 pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
-}
-
-fn convert_token_authorization(
-	auth: token_api::Authorization<AccountId, Signature>,
-) -> Option<pallet_token::Authorization<Runtime>> {
-	let token_api::Authorization { account, payload, signature } = auth;
-	let payload_vec: Vec<u8> = payload.into();
-	let payload: pallet_token::AuthorizationPayloadOf<Runtime> = payload_vec.try_into().ok()?;
-	Some(pallet_token::Authorization::<Runtime> { account, payload, signature })
 }
 
 /// Calls that can bypass the safe-mode pallet.
@@ -312,7 +307,7 @@ parameter_types! {
 		"DEV_EPOCH_DURATION"
 	);
 	pub const SessionsPerEra: SessionIndex = 6;
-	pub const BondingDuration: sp_staking::EraIndex = 28;
+	pub const BondingDuration: EraIndex = 28;
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
 	pub ReportLongevity: u64 = EpochDuration::get() as u64 * 10;
 	pub const MaxAuthorities: u32 = 1_000;
@@ -1256,7 +1251,7 @@ impl_runtime_apis! {
 	}
 }
 
-impl token_api::TokenApi<Block, AccountId, Signature, Hash> for Runtime {
+impl token_api::TokenOriginHubRuntimeApi<Block> for Runtime {
 	fn decode_token(token: Vec<u8>) -> Option<token_api::DecodedTokenApi> {
 		let ss58_id = Ss58Identifier::try_from(token).ok()?;
 		let decoded: DecodedIdentifier = Token::resolve_identifier_plain(&ss58_id).ok()?;
@@ -1268,56 +1263,31 @@ impl token_api::TokenApi<Block, AccountId, Signature, Hash> for Runtime {
 		})
 	}
 
-	fn resolve_pallet(
-		auth: token_api::Authorization<AccountId, Signature>,
-		index: u16,
-	) -> Option<String> {
-		let auth = convert_token_authorization(auth)?;
-		Token::resolve_pallet_query(auth, index).ok()
+	fn resolve_pallet(index: u16) -> Option<String> {
+		Token::resolve_pallet_plain(index).ok()
 	}
 
-	fn resolve_identifier(
-		auth: token_api::Authorization<AccountId, Signature>,
-		token: Vec<u8>,
-	) -> Option<token_api::DecodedTokenApi> {
-		let auth = convert_token_authorization(auth)?;
-		let ss58_id = Ss58Identifier::try_from(token).ok()?;
-		let decoded = Token::resolve_identifier_query(auth, ss58_id).ok()?;
-		Some(token_api::DecodedTokenApi {
-			origin: decoded.origin,
-			network: decoded.network,
-			pallet: decoded.pallet,
-			genesis: decoded.genesis,
-		})
-	}
-
-	fn token_history(
-		auth: token_api::Authorization<AccountId, Signature>,
-		token: Vec<u8>,
-		start: Option<u32>,
-		limit: u32,
-	) -> Vec<token_api::TokenHistoryEvent<Hash>> {
-		let auth = match convert_token_authorization(auth) {
-			Some(auth) => auth,
-			None => return Vec::new(),
-		};
+	fn token_status(token: Vec<u8>) -> token_api::TokenStatusApi {
 		let ss58_id = match Ss58Identifier::try_from(token) {
 			Ok(id) => id,
-			Err(_) => return Vec::new(),
+			Err(_) => return token_api::TokenStatusApi::InvalidToken,
 		};
-		let history = match Token::history(auth, ss58_id, start, limit) {
-			Ok(events) => events,
-			Err(_) => return Vec::new(),
+		let decoded = match Token::resolve_identifier_plain(&ss58_id) {
+			Ok(info) => info,
+			Err(_) => return token_api::TokenStatusApi::InvalidToken,
 		};
-		history
-			.into_iter()
-			.map(|event| token_api::TokenHistoryEvent {
-				action: event.action.into(),
-				digest: event.digest,
-				height: event.seal.height,
-				index: event.seal.index,
-			})
-			.collect()
+		if !decoded.origin || decoded.network != Token::get_network_id() {
+			return token_api::TokenStatusApi::WrongChain;
+		}
+		if Token::resolve_pallet_plain(decoded.pallet).is_err() {
+			return token_api::TokenStatusApi::PalletNotFound;
+		}
+		if !pallet_token::StateVersion::<Runtime>::contains_key(&ss58_id) {
+			return token_api::TokenStatusApi::TokenNotFound;
+		}
+		let version = pallet_token::StateVersion::<Runtime>::get(&ss58_id);
+		let last_state = version.checked_sub(1);
+		token_api::TokenStatusApi::Found { last_state }
 	}
 }
 

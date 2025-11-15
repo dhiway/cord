@@ -25,7 +25,7 @@ log = { workspace = true }
 origin-primitives = { workspace = true }
 origin-dev-runtime-constants = { workspace = true }
 origin-common = { workspace = true }
-token-runtime-api = { workspace = true }
+token-origin-hub-runtime-api = { workspace = true }
 
 # Substrate
 sp-authority-discovery = { workspace = true }
@@ -35,7 +35,6 @@ sp-api = { workspace = true }
 sp-inherents = { workspace = true }
 sp-offchain = { workspace = true }
 sp-runtime = {  workspace = true }
-sp-staking = {  workspace = true }
 sp-core = {  workspace = true }
 sp-io = { workspace = true }
 sp-keyring = { workspace = true }
@@ -91,10 +90,6 @@ frame-try-runtime = { workspace = true, optional = true }
 pallet-offences-benchmarking = { optional = true, workspace = true }
 pallet-session-benchmarking = { optional = true, workspace = true }
 
-[dev-dependencies]
-sp-staking = { workspace = true }
-pallet-staking = { workspace = true }
-
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true, default-features = true }
 
@@ -127,7 +122,7 @@ std = [
 	"pallet-feeless/std",
 	"pallet-grandpa/std",
 	"pallet-token/std",
-	"token-runtime-api/std",
+	"token-origin-hub-runtime-api/std",
 	"pallet-tx-pause/std",
 	"pallet-indices/std",
 	"pallet-meta-tx/std",
@@ -142,7 +137,6 @@ std = [
 	"pallet-scheduler/std",
 	"pallet-session-benchmarking?/std",
 	"pallet-session/std",
-	"pallet-staking/std",
 	"pallet-statement/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
@@ -155,7 +149,6 @@ std = [
 	"pallet-runtime-upgrade/std",
 	"pallet-verify-signature/std",
 	"sp-runtime/std",
-	"sp-staking/std",
 	"frame-system/std",
 	"frame-system-rpc-runtime-api/std",
 	"sp-version/std",
@@ -178,7 +171,6 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"origin-common/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"sp-staking/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-entity/runtime-benchmarks",

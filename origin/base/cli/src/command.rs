@@ -103,11 +103,15 @@ impl SubstrateCli for Cli {
 			#[cfg(feature = "origin-native")]
 			"dev" | "origin-dev" => Box::new(chain_spec::origin_dev_development_config()?),
 			#[cfg(feature = "origin-native")]
-			"local"
-			| "origin-local"
-			| "origin-dev-local"
-			| "origin-staging"
-			| "origin-relay-staging" => Box::new(chain_spec::origin_dev_local_config()?),
+			"local" | "origin-local" | "origin-dev-local" => {
+				Box::new(chain_spec::origin_dev_local_config()?)
+			},
+			#[cfg(feature = "origin-native")]
+			"origin-relay-dev" | "origin-relay" => Box::new(chain_spec::origin_relay_development_config()?),
+			#[cfg(feature = "origin-native")]
+			"origin-relay-local" | "origin-relay-staging" | "origin-staging" => {
+				Box::new(chain_spec::origin_relay_local_config()?)
+			},
 			path => {
 				let path = std::path::PathBuf::from(path);
 

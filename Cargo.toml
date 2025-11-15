@@ -15,11 +15,11 @@ members = [
 	"node/inspect",
 	"node/testing",
 	"origin/primitives",
+	"origin/runtime-api/token-origin-runtime-api",
+	"origin/runtime-api/token-origin-hub-runtime-api",
 	"origin/base",
 	"origin/base/cli",
 	"origin/base/runtime",
-	# "origin/base/runtime/authorities",
-	# "origin/base/runtime/constants",
 	# "origin/hub",
 	# "origin/hub/onstants",
 	# "origin/hub/system",
@@ -56,18 +56,13 @@ members = [
 	"runtimes/weave/",
 	"runtimes/weave/constants",
 	"test-utils/cli",
-	# "pallets/authorities",
 	# "pallets/remote-proxy",
 	"pallets/runtime-upgrade",
 	"primitives/cord",
-	"primitives/token-api",
-	# "runtime/",
-	# "runtime/common",
-	# "runtime/constants",
 	"test-utils/cli",
 	"origin-rs",
 ]
-default-members = ["node/cli"]
+default-members = ["node/cli", "origin/base"]
 # default-members = ["node/cli", "origin/relay"]
 
 [workspace.lints.rust]
@@ -812,7 +807,8 @@ origin-dev-runtime = { path = "origin/solo", default-features = false }
 # # origin-authorities = { path = "origin/relay/runtime/authorities", default-features = false }
 # origin-system-chains-staging-constants = { path = "origin/container/constants", default-features = false }
 # origin-system-staging-runtime = { path = "origin/container/system", default-features = false }
-token-runtime-api = { path = "primitives/token-api", default-features = false }
+token-origin-runtime-api = { path = "origin/api/runtime-api/token-origin-runtime-api", default-features = false }
+token-origin-hub-runtime-api = { path = "origin/api/runtime-api/token-origin-hub-runtime-api", default-features = false }
 
 [profile.release]
 panic = 'unwind'

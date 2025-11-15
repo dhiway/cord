@@ -11,7 +11,7 @@ license.workspace = true
 smallvec = { workspace = true }
 
 frame-support = { workspace = true }
-origin-staging-runtime-constants = { workspace = true }
+origin-runtime-constants = { workspace = true }
 parachains-common = { workspace = true }
 polkadot-core-primitives = { workspace = true }
 polkadot-primitives = { workspace = true }
@@ -23,7 +23,7 @@ xcm = { workspace = true }
 default = ["std"]
 std = [
 	"frame-support/std",
-	"origin-staging-runtime-constants/std",
+	"origin-runtime-constants/std",
 	"parachains-common/std",
 	"polkadot-core-primitives/std",
 	"polkadot-primitives/std",
@@ -33,7 +33,7 @@ std = [
 ]
 runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
-	"origin-staging-runtime-constants/runtime-benchmarks",
+	"origin-runtime-constants/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
