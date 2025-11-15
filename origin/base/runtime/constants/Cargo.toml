@@ -1,5 +1,5 @@
 [package]
-name = "origin-base-runtime-constants"
+name = "origin-runtime-constants"
 repository.workspace = true
 version.workspace = true
 authors.workspace = true
