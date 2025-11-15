@@ -66,7 +66,6 @@ pallet-sudo = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 frame-system-rpc-runtime-api = { workspace = true }
-origin-authorities = { workspace = true }
 origin-staging-runtime-constants = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-utility = { workspace = true }
@@ -121,7 +120,7 @@ std = [
 	"binary-merkle-tree/std",
 	"codec/std",
 	"cord-primitives/std",
-	"origin-authorities/std",
+	"pallet-authorities/std",
 	"origin-staging-runtime-constants/std",
 	"frame-benchmarking?/std",
 	"frame-executive/std",
@@ -198,7 +197,7 @@ std = [
 #Local
 runtime-benchmarks = [
 	"origin-staging-runtime-constants/runtime-benchmarks",
-	"origin-authorities/runtime-benchmarks",
+	"pallet-authorities/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",

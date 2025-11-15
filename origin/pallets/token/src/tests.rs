@@ -23,8 +23,8 @@ use codec::Encode;
 use core::convert::TryInto;
 use frame_support::{assert_err, assert_ok};
 use sp_core::{sr25519, Pair, H256};
-use sp_runtime::traits::UniqueSaturatedInto;
 use sp_io::hashing::twox_128;
+use sp_runtime::traits::UniqueSaturatedInto;
 
 fn current_block_u32() -> u32 {
 	frame_system::Pallet::<Test>::block_number().unique_saturated_into()

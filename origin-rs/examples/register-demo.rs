@@ -1,15 +1,17 @@
 use anyhow::{anyhow, Result};
-use oc::demo::packet::render_packet_snapshot_cli;
-use oc::demo::register::render_registry_snapshot_cli;
-use oc::error::Error as SdkError;
 use oc::{
 	demo,
-	demo::cli::{parse_common_cli, require_value, CommonCliOptions},
-	demo::util::{
-		ensure_entity_token_verbose, fresh_authorization_with_client, init_logging,
-		parse_identifier, resolve_token_target, signer_account_id, token_timeline, LogSink,
-		RunMode, TokenTarget, TxExecutor, TxFlow,
+	demo::{
+		cli::{parse_common_cli, require_value, CommonCliOptions},
+		packet::render_packet_snapshot_cli,
+		register::render_registry_snapshot_cli,
+		util::{
+			ensure_entity_token_verbose, fresh_authorization_with_client, init_logging,
+			parse_identifier, resolve_token_target, signer_account_id, token_timeline, LogSink,
+			RunMode, TokenTarget, TxExecutor, TxFlow,
+		},
 	},
+	error::Error as SdkError,
 	tx::{self, TxSubmitter},
 	utils, ChainFlavor, Client,
 };

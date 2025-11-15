@@ -186,16 +186,14 @@ where
 	loop {
 		let req = EntityLinkedAccountsRequest { auth: auth_builder()?, token: token.clone() };
 		match client.query().entity().linked_accounts(&req).await {
-			Ok(accounts) => {
+			Ok(accounts) =>
 				if !accounts.is_empty() || attempt >= LINKED_ACCOUNTS_RETRIES {
 					return Ok(accounts);
-				}
-			},
-			Err(err) => {
+				},
+			Err(err) =>
 				if attempt >= LINKED_ACCOUNTS_RETRIES {
 					return Err(err);
-				}
-			},
+				},
 		}
 		attempt += 1;
 	}

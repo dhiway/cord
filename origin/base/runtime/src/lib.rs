@@ -1160,7 +1160,7 @@ mod benches {
 	use super::*;
 
 	frame_benchmarking::define_benchmarks!(
-		[origin_authorities, AuthorityManager]
+		[pallet_authorities, AuthorityManager]
 		[polkadot_runtime_common::slots, Slots]
 		[polkadot_runtime_common::paras_registrar, Registrar]
 		[runtime_parachains::configuration, Configuration]
@@ -1177,7 +1177,6 @@ mod benches {
 		[pallet_balances, Balances]
 		[pallet_beefy_mmr, MmrLeaf]
 		[frame_benchmarking::baseline, Baseline::<Runtime>]
-		// [pallet_im_online, ImOnline]
 		[pallet_indices, Indices]
 		[pallet_message_queue, MessageQueue]
 		[pallet_migrations, MultiBlockMigrations]
@@ -1195,7 +1194,6 @@ mod benches {
 		[pallet_xcm, PalletXcmExtrinsicsBenchmark::<Runtime>]
 		[pallet_xcm_benchmarks::fungible, pallet_xcm_benchmarks::fungible::Pallet::<Runtime>]
 		[pallet_xcm_benchmarks::generic, pallet_xcm_benchmarks::generic::Pallet::<Runtime>]
-		// Sudo
 		[pallet_sudo, Sudo]
 	);
 

@@ -51,7 +51,7 @@ pub type OriginChainSpec = sc_service::GenericChainSpec<Extensions>;
 pub fn origin_chain_spec_properties() -> serde_json::map::Map<String, serde_json::Value> {
 	serde_json::json!({
 		"ss58Format": "29",
-		"tokenSymbol":"UNIT",
+		"tokenSymbol":"ORGN",
 		"tokenDecimals": 10,
 	})
 	.as_object()
@@ -59,38 +59,38 @@ pub fn origin_chain_spec_properties() -> serde_json::map::Map<String, serde_json
 	.clone()
 }
 
-/// Origin development config (single validator Alice)
-pub fn origin_development_config() -> Result<OriginChainSpec, String> {
+/// Origin Dev development config (single validator Alice)
+pub fn origin_dev_development_config() -> Result<OriginChainSpec, String> {
 	Ok(OriginChainSpec::builder(
-		origin_staging_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
+		origin_dev_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Origin Development")
-	.with_id("origin_dev")
+	.with_name("Origin Dev Development")
+	.with_id("origin_dev_dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(
-		origin_staging_runtime::genesis_config_presets::origin_development_config_genesis(),
+		origin_dev_runtime::genesis_config_presets::origin_dev_development_config_genesis(),
 	)
 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
 	.with_properties(origin_chain_spec_properties())
 	.build())
 }
 
-/// Origin local testnet config (multivalidator Alice + Bob)
-pub fn origin_staging_config() -> Result<OriginChainSpec, String> {
+/// Origin Dev local config (multivalidator Alice, Bob, Charlie)
+pub fn origin_dev_local_config() -> Result<OriginChainSpec, String> {
 	Ok(OriginChainSpec::builder(
-		origin_staging_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
+		origin_dev_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Origin Staging")
-	.with_id("origin_staging")
+	.with_name("Origin Dev Local")
+	.with_id("origin_dev_local")
 	.with_chain_type(ChainType::Local)
 	.with_genesis_config_patch(
-		origin_staging_runtime::genesis_config_presets::origin_staging_config_genesis(),
+		origin_dev_runtime::genesis_config_presets::origin_dev_local_config_genesis(),
 	)
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(ORIGIN_TELEMETRY_URL.to_string(), 0)])
-			.expect("Origin Staging telemetry url is valid; qed"),
+			.expect("Origin Dev telemetry url is valid; qed"),
 	)
 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
 	.with_properties(origin_chain_spec_properties())

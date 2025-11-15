@@ -195,9 +195,8 @@ fn element_view_from_runtime(element: &RuntimeElement) -> Result<ElementView> {
 		RuntimeElementEnum::U64(bytes) => ElementView::U64(u64::from_le_bytes(*bytes)),
 		RuntimeElementEnum::U128(bytes) => ElementView::U128(u128::from_le_bytes(*bytes)),
 		RuntimeElementEnum::Hash(digest) => ElementView::Hash(*digest),
-		RuntimeElementEnum::Token(identifier) => {
-			ElementView::Token(identifier_from_runtime(identifier)?)
-		},
+		RuntimeElementEnum::Token(identifier) =>
+			ElementView::Token(identifier_from_runtime(identifier)?),
 		RuntimeElementEnum::CID(bytes) => ElementView::Cid(bounded_bytes_vec(bytes)),
 	};
 	Ok(view)

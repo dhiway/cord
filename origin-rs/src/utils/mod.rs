@@ -5,8 +5,10 @@ use crate::{
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use getrandom::getrandom;
-use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
-use sp_core::{sr25519, Pair};
+use sp_core::{
+	crypto::{Ss58AddressFormat, Ss58Codec},
+	sr25519, Pair,
+};
 use std::time::Duration;
 use tokio::time::sleep;
 

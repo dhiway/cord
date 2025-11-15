@@ -101,9 +101,13 @@ impl SubstrateCli for Cli {
 			// 	&include_bytes!("../../chain-specs/tbd.json")[..],
 			// )?),
 			#[cfg(feature = "origin-native")]
-			"dev" | "origin-dev" => Box::new(chain_spec::origin_development_config()?),
+			"dev" | "origin-dev" => Box::new(chain_spec::origin_dev_development_config()?),
 			#[cfg(feature = "origin-native")]
-			"origin-staging" | "origin-relay-staging" => Box::new(chain_spec::origin_staging_config()?),
+			"local"
+			| "origin-local"
+			| "origin-dev-local"
+			| "origin-staging"
+			| "origin-relay-staging" => Box::new(chain_spec::origin_dev_local_config()?),
 			path => {
 				let path = std::path::PathBuf::from(path);
 

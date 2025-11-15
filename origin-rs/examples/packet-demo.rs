@@ -1,12 +1,14 @@
 use anyhow::{anyhow, Result};
 use oc::{
 	demo,
-	demo::cli::{parse_common_cli, require_value, CommonCliOptions},
-	demo::packet::render_packet_snapshot_cli,
-	demo::util::{
-		ensure_entity_token_verbose, fresh_authorization_with_client, init_logging,
-		parse_identifier, resolve_token_target, signer_account_id, token_timeline, LogSink,
-		RunMode, TokenTarget, TxExecutor, TxFlow,
+	demo::{
+		cli::{parse_common_cli, require_value, CommonCliOptions},
+		packet::render_packet_snapshot_cli,
+		util::{
+			ensure_entity_token_verbose, fresh_authorization_with_client, init_logging,
+			parse_identifier, resolve_token_target, signer_account_id, token_timeline, LogSink,
+			RunMode, TokenTarget, TxExecutor, TxFlow,
+		},
 	},
 	error::Error as SdkError,
 	query::register::PacketSnapshotView,
