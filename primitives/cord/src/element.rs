@@ -22,129 +22,109 @@
 // modules that need to interact with elements.
 
 use crate::identifier::Ss58Identifier;
-use alloc::vec::Vec;
-use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use frame_support::{
-	traits::Get, BoundedVec, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
-};
-use scale_decode::DecodeAsType;
+use alloc::{vec, vec::Vec};
+use codec::{Compact, Decode, DecodeWithMemTracking, Encode, EncodeLike, MaxEncodedLen};
+use frame_support::{traits::Get, BoundedVec, CloneNoBound, RuntimeDebugNoBound};
 use scale_info::TypeInfo;
-use serde::{Deserialize, Serialize};
-use sp_runtime::RuntimeDebug;
 
-#[cfg(test)]
-use alloc::vec;
-
-const fn compact_len_u32(len: u32) -> usize {
-	if len <= 0b0011_1111 {
-		1
-	} else if len <= 0b0011_1111_1111_1111 {
-		2
-	} else if len <= 0x3FFF_FFFF {
-		4
-	} else {
-		5
-	}
-}
-
-/// The `Elum` enum supports a set of typed payloads used across CORD.
-/// * `None`: Represents an unset/empty value.
-/// * `Raw`: Arbitrary bounded bytes. Use this for free-form payloads that do not fit a dedicated
-///   type (e.g. JSON, CBOR, signatures). Any type **except** hashes or SS58 identifiers can be
-///   encoded here.
-/// * `Bool`, `U64`, `U128`: Fixed-width scalar encodings using little-endian byte order. The
-///   dedicated variants avoid per-call decoding for common primitives.
-/// * `Hash`: BlakeTwo compatible 32-byte digests.
-/// * `Token`: Embedded [`Ss58Identifier`], typically used for entity or registry ownership.
-/// * `CID`: Content identifier (64-byte multihash or equivalent).
-#[derive(
-	CloneNoBound,
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	PartialEqNoBound,
-	EqNoBound,
-	RuntimeDebugNoBound,
-	MaxEncodedLen,
-	TypeInfo,
-)]
+/// The `Elum` enum supports the following variants:
+/// - None: Indicates that no data is provided.
+/// - Raw: Contains data stored directly as a bounded vector; the capacity is specified by
+///   `MAX_CAP`.
+/// - Digest: A fixed 32-byte digest (e.g., computed using BlakeTwo256).
+/// - Doken: An embedded Ss58Identifier.
+/// - CID: A fixed 64-byte content identifier.
+#[derive(CloneNoBound, DecodeWithMemTracking, RuntimeDebugNoBound, MaxEncodedLen, TypeInfo)]
 #[scale_info(skip_type_params(MaxCap))]
 pub enum Elum<MaxCap: Get<u32>> {
 	/// No data provided.
-	#[codec(index = 0)]
 	None,
 	/// Raw data stored directly.
-	#[codec(index = 1)]
 	Raw(BoundedVec<u8, MaxCap>),
-	/// Boolean value stored as `0`/`1`.
-	#[codec(index = 2)]
-	Bool(u8),
-	/// Unsigned 64-bit value in little-endian byte order.
-	#[codec(index = 3)]
-	U64([u8; 8]),
-	/// Unsigned 128-bit value in little-endian byte order.
-	#[codec(index = 4)]
-	U128([u8; 16]),
 	/// A 32-byte BlakeTwo256 digest.
-	#[codec(index = 5)]
-	Hash([u8; 32]),
-	/// An embedded token. The underlying bytes are the canonical binary encoding of the
-	/// identifier.
-	#[codec(index = 6)]
-	Token(Ss58Identifier),
-	/// Content identifier stored as bounded bytes.
-	#[codec(index = 7)]
-	CID(BoundedVec<u8, MaxCap>),
+	Digest([u8; 32]),
+	/// An embedded doken.
+	Doken(Ss58Identifier),
+	/// A 64-byte content identifier.
+	CID([u8; 64]),
 }
 
-/// Declarative descriptor of the variants supported by [`Elum`].
-#[derive(
-	Clone,
-	Copy,
-	PartialEq,
-	Eq,
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	MaxEncodedLen,
-	TypeInfo,
-	RuntimeDebug,
-	Serialize,
-	Deserialize,
-	DecodeAsType,
-)]
-pub enum ElementType {
-	None,
-	Raw,
-	Bool,
-	U64,
-	U128,
-	Hash,
-	Token,
-	Cid,
-}
-
-impl<MaxCap: Get<u32>> From<&Elum<MaxCap>> for ElementType {
-	fn from(value: &Elum<MaxCap>) -> Self {
-		match value {
-			Elum::None => ElementType::None,
-			Elum::Raw(_) => ElementType::Raw,
-			Elum::Bool(_) => ElementType::Bool,
-			Elum::U64(_) => ElementType::U64,
-			Elum::U128(_) => ElementType::U128,
-			Elum::Hash(_) => ElementType::Hash,
-			Elum::Token(_) => ElementType::Token,
-			Elum::CID(_) => ElementType::Cid,
+// Custom Encode implementation with a one-byte discriminant.
+impl<MaxCap: Get<u32>> Encode for Elum<MaxCap> {
+	fn encode(&self) -> Vec<u8> {
+		match self {
+			Elum::None => vec![0],
+			Elum::Raw(raw) => {
+				let slice = raw.as_slice();
+				let mut out = Vec::with_capacity(1 + 4 + slice.len());
+				out.push(1);
+				Compact(slice.len() as u32).encode_to(&mut out);
+				out.extend_from_slice(slice);
+				out
+			},
+			Elum::Digest(d) => {
+				let mut out = Vec::with_capacity(1 + 32);
+				out.push(2);
+				out.extend(d.encode());
+				out
+			},
+			Elum::Doken(id) => {
+				let id_bytes = id.encode();
+				let mut out = Vec::with_capacity(1 + id_bytes.len());
+				out.push(3);
+				out.extend(id_bytes);
+				out
+			},
+			Elum::CID(c) => {
+				let mut out = Vec::with_capacity(1 + 64);
+				out.push(4);
+				out.extend(c.encode());
+				out
+			},
 		}
 	}
 }
 
-impl ElementType {
-	/// Returns `true` if this schema variant expects an embedded Ss58Identifier.
-	pub fn is_token(self) -> bool {
-		matches!(self, ElementType::Token)
+impl<MaxCap: Get<u32>> Decode for Elum<MaxCap> {
+	fn decode<I: codec::Input>(input: &mut I) -> Result<Self, codec::Error> {
+		let variant = input.read_byte()?;
+		match variant {
+			0 => Ok(Elum::None),
+			1 => {
+				let raw = BoundedVec::<u8, MaxCap>::decode(input)?;
+				Ok(Elum::Raw(raw))
+			},
+			2 => {
+				let hash = <[u8; 32]>::decode(input)?;
+				Ok(Elum::Digest(hash))
+			},
+			3 => {
+				let id = Ss58Identifier::decode(input)?;
+				Ok(Elum::Doken(id))
+			},
+			4 => {
+				let cid = <[u8; 64]>::decode(input)?;
+				Ok(Elum::CID(cid))
+			},
+			_ => Err("Unknown variant for Elum".into()),
+		}
 	}
 }
+
+impl<MaxCap: Get<u32>> PartialEq for Elum<MaxCap> {
+	fn eq(&self, other: &Self) -> bool {
+		match (self, other) {
+			(Elum::None, Elum::None) => true,
+			(Elum::Raw(a), Elum::Raw(b)) => a == b,
+			(Elum::Digest(a), Elum::Digest(b)) => a == b,
+			(Elum::Doken(a), Elum::Doken(b)) => a == b,
+			(Elum::CID(a), Elum::CID(b)) => a == b,
+			_ => false,
+		}
+	}
+}
+
+impl<MaxCap: Get<u32>> Eq for Elum<MaxCap> {}
 
 // Provide a unified AsRef<[u8]> implementation to obtain a view of the inner bytes.
 impl<MaxCap: Get<u32>> AsRef<[u8]> for Elum<MaxCap> {
@@ -152,12 +132,9 @@ impl<MaxCap: Get<u32>> AsRef<[u8]> for Elum<MaxCap> {
 		match self {
 			Elum::None => &[],
 			Elum::Raw(raw) => raw.as_slice(),
-			Elum::Bool(flag) => core::slice::from_ref(flag),
-			Elum::U64(bytes) => bytes,
-			Elum::U128(bytes) => bytes,
-			Elum::Hash(digest) => digest,
-			Elum::Token(id) => id.as_bytes(),
-			Elum::CID(cid) => cid.as_slice(),
+			Elum::Digest(digest) => digest,
+			Elum::Doken(id) => id.as_bytes(),
+			Elum::CID(cid) => cid,
 		}
 	}
 }
@@ -169,51 +146,6 @@ impl<MaxCap: Get<u32>> Elum<MaxCap> {
 		matches!(self, Elum::None)
 	}
 
-	/// Validate internal invariants (e.g., boolean payloads).
-	pub fn validate(&self) -> Result<(), codec::Error> {
-		match self {
-			Elum::Bool(flag) if *flag > 1 => {
-				Err("Invalid boolean discriminant for Elum::Bool".into())
-			},
-			_ => Ok(()),
-		}
-	}
-
-	/// Returns `true` if the Elum contains raw bytes.
-	pub fn is_raw(&self) -> bool {
-		matches!(self, Elum::Raw(_))
-	}
-
-	/// Returns `true` if the Elum contains a boolean.
-	pub fn is_bool(&self) -> bool {
-		matches!(self, Elum::Bool(_))
-	}
-
-	/// Returns `true` if the Elum contains an unsigned 64-bit integer.
-	pub fn is_u64(&self) -> bool {
-		matches!(self, Elum::U64(_))
-	}
-
-	/// Returns `true` if the Elum contains an unsigned 128-bit integer.
-	pub fn is_u128(&self) -> bool {
-		matches!(self, Elum::U128(_))
-	}
-
-	/// Returns `true` if the Elum contains a hash digest.
-	pub fn is_hash(&self) -> bool {
-		matches!(self, Elum::Hash(_))
-	}
-
-	/// Returns `true` if the Elum contains an SS58 identifier.
-	pub fn is_token(&self) -> bool {
-		matches!(self, Elum::Token(_))
-	}
-
-	/// Returns `true` if the Elum contains a CID.
-	pub fn is_cid(&self) -> bool {
-		matches!(self, Elum::CID(_))
-	}
-
 	/// If the Elum is `Raw`, returns a reference to its contents; otherwise, `None`.
 	pub fn as_raw(&self) -> Option<&[u8]> {
 		if let Elum::Raw(raw) = self {
@@ -223,35 +155,9 @@ impl<MaxCap: Get<u32>> Elum<MaxCap> {
 		}
 	}
 
-	/// If the Elum is `Bool`, returns the boolean value; otherwise, `None`.
-	pub fn as_bool(&self) -> Option<bool> {
-		if let Elum::Bool(flag) = self {
-			Some(*flag != 0)
-		} else {
-			None
-		}
-	}
-	/// If the Elum is `U64`, returns the 64-bit integer; otherwise, `None`.
-	pub fn as_u64(&self) -> Option<u64> {
-		if let Elum::U64(bytes) = self {
-			Some(u64::from_le_bytes(*bytes))
-		} else {
-			None
-		}
-	}
-
-	/// If the Elum is `U128`, returns the 128-bit integer; otherwise, `None`.
-	pub fn as_u128(&self) -> Option<u128> {
-		if let Elum::U128(bytes) = self {
-			Some(u128::from_le_bytes(*bytes))
-		} else {
-			None
-		}
-	}
-
-	/// If the Elum is `Hash`, returns the 32-byte digest; otherwise, `None`.
-	pub fn as_hash(&self) -> Option<&[u8; 32]> {
-		if let Elum::Hash(digest) = self {
+	/// If the Elum is `Digest`, returns the 32-byte digest; otherwise, `None`.
+	pub fn as_digest(&self) -> Option<&[u8; 32]> {
+		if let Elum::Digest(digest) = self {
 			Some(digest)
 		} else {
 			None
@@ -259,8 +165,8 @@ impl<MaxCap: Get<u32>> Elum<MaxCap> {
 	}
 
 	/// Returns the embedded Ss58Identifier if the element is `Identifier`.
-	pub fn as_token(&self) -> Option<&Ss58Identifier> {
-		if let Elum::Token(id) = self {
+	pub fn as_doken(&self) -> Option<&Ss58Identifier> {
+		if let Elum::Doken(id) = self {
 			Some(id)
 		} else {
 			None
@@ -268,97 +174,20 @@ impl<MaxCap: Get<u32>> Elum<MaxCap> {
 	}
 
 	/// If the Elum is `CID`, returns the 64-byte CID; otherwise, `None`.
-	pub fn as_cid(&self) -> Option<&[u8]> {
+	pub fn as_cid(&self) -> Option<&[u8; 64]> {
 		if let Elum::CID(cid) = self {
-			Some(cid.as_slice())
+			Some(cid)
 		} else {
 			None
 		}
 	}
-
-	/// Payload byte length (excludes the discriminant and any length prefix).
-	pub fn byte_len(&self) -> usize {
-		match self {
-			Elum::None => 0,
-			Elum::Raw(raw) => raw.len(),
-			Elum::Bool(_) => 1,
-			Elum::U64(bytes) => bytes.len(),
-			Elum::U128(bytes) => bytes.len(),
-			Elum::Hash(bytes) => bytes.len(),
-			Elum::Token(id) => id.as_bytes().len(),
-			Elum::CID(cid) => cid.len(),
-		}
-	}
-
-	/// Full SCALE-encoded length including discriminant and any prefixes.
-	pub fn encoded_len(&self) -> usize {
-		match self {
-			Elum::None => 1,
-			Elum::Raw(raw) => 1 + compact_len_u32(raw.len() as u32) + raw.len(),
-			Elum::Bool(_) => 1 + 1,
-			Elum::U64(_) => 1 + 8,
-			Elum::U128(_) => 1 + 16,
-			Elum::Hash(_) => 1 + 32,
-			Elum::Token(id) => 1 + id.encoded_size(),
-			Elum::CID(cid) => 1 + compact_len_u32(cid.len() as u32) + cid.len(),
-		}
-	}
-
-	/// Construct a boolean element.
-	pub fn from_bool(value: bool) -> Self {
-		Self::Bool(value as u8)
-	}
-
-	/// Construct a `U64` element using little-endian encoding.
-	pub fn from_u64(value: u64) -> Self {
-		Self::U64(value.to_le_bytes())
-	}
-
-	/// Construct a `U128` element using little-endian encoding.
-	pub fn from_u128(value: u128) -> Self {
-		Self::U128(value.to_le_bytes())
-	}
 }
+
+impl<MaxCap: Get<u32>> EncodeLike for Elum<MaxCap> {}
 
 impl<MaxCap: Get<u32>> Default for Elum<MaxCap> {
 	fn default() -> Self {
 		Elum::None
-	}
-}
-
-impl<MaxCap: Get<u32>> From<bool> for Elum<MaxCap> {
-	fn from(value: bool) -> Self {
-		Self::from_bool(value)
-	}
-}
-
-impl<MaxCap: Get<u32>> From<u64> for Elum<MaxCap> {
-	fn from(value: u64) -> Self {
-		Self::from_u64(value)
-	}
-}
-
-impl<MaxCap: Get<u32>> From<u128> for Elum<MaxCap> {
-	fn from(value: u128) -> Self {
-		Self::from_u128(value)
-	}
-}
-
-impl<MaxCap: Get<u32>> TryFrom<Vec<u8>> for Elum<MaxCap> {
-	type Error = ();
-
-	fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-		BoundedVec::<u8, MaxCap>::try_from(value).map(Elum::Raw).map_err(|_| ())
-	}
-}
-
-impl<'a, MaxCap: Get<u32>> TryFrom<&'a [u8]> for Elum<MaxCap> {
-	type Error = ();
-
-	fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
-		BoundedVec::<u8, MaxCap>::try_from(value.to_vec())
-			.map(Elum::Raw)
-			.map_err(|_| ())
 	}
 }
 
@@ -382,15 +211,10 @@ mod tests {
 		assert_eq!(decoded, element);
 		assert_eq!(element.as_ref(), &[] as &[u8]);
 		assert!(element.is_none());
-		assert_eq!(element.encoded_len(), encoded.len());
-		assert!(element.validate().is_ok());
 		assert!(element.as_raw().is_none());
-		assert!(element.as_bool().is_none());
-		assert!(element.as_u64().is_none());
-		assert!(element.as_u128().is_none());
-		assert!(element.as_hash().is_none());
+		assert!(element.as_digest().is_none());
 		assert!(element.as_cid().is_none());
-		assert!(element.as_token().is_none());
+		assert!(element.as_doken().is_none());
 	}
 
 	#[test]
@@ -403,35 +227,6 @@ mod tests {
 		assert_eq!(decoded, element);
 		assert_eq!(element.as_raw(), Some(&raw_data[..]));
 		assert_eq!(element.as_ref(), &raw_data[..]);
-		assert!(element.is_raw());
-		assert_eq!(element.encoded_len(), encoded.len());
-		assert!(element.validate().is_ok());
-	}
-
-	#[test]
-	fn test_element_bool_encode_decode() {
-		let element: DefaultElement = DefaultElement::from_bool(true);
-		let encoded = element.encode();
-		let decoded = DefaultElement::decode(&mut &encoded[..]).expect("Decode Bool");
-		assert_eq!(decoded, element);
-		assert_eq!(element.as_bool(), Some(true));
-		assert_eq!(element.as_ref(), &[1u8][..]);
-		assert!(element.is_bool());
-		assert_eq!(element.encoded_len(), encoded.len());
-		assert!(element.validate().is_ok());
-	}
-
-	#[test]
-	fn test_numeric_is_helpers() {
-		let u64_elem = DefaultElement::from_u64(9);
-		assert!(u64_elem.is_u64());
-		assert_eq!(u64_elem.as_u64(), Some(9));
-		assert!(u64_elem.validate().is_ok());
-
-		let u128_elem = DefaultElement::from_u128(11);
-		assert!(u128_elem.is_u128());
-		assert_eq!(u128_elem.as_u128(), Some(11));
-		assert!(u128_elem.validate().is_ok());
 	}
 
 	#[test]
@@ -439,44 +234,36 @@ mod tests {
 		let digest: Vec<u8> = vec![0xAB; 32];
 		let ss58_id =
 			Ss58Identifier::to_encoded(digest.clone(), 100, 5, 1).expect("Ss58Identifier created");
-		let element: DefaultElement = DefaultElement::Token(ss58_id.clone());
+		let element: DefaultElement = DefaultElement::Doken(ss58_id.clone());
 		let encoded = element.encode();
 		let decoded = DefaultElement::decode(&mut &encoded[..]).expect("Decode Identifier");
 		assert_eq!(decoded, element);
-		assert_eq!(element.as_token(), Some(&ss58_id));
+		assert_eq!(element.as_doken(), Some(&ss58_id));
 		assert_eq!(element.as_ref(), ss58_id.as_bytes());
-		assert!(element.is_token());
-		assert_eq!(element.encoded_len(), encoded.len());
 	}
 
 	#[test]
-	fn test_element_hash_encode_decode() {
+	fn test_element_digest_encode_decode() {
 		let digest: [u8; 32] = [0xAA; 32];
-		let element: DefaultElement = DefaultElement::Hash(digest);
+		let element: DefaultElement = DefaultElement::Digest(digest);
 		let encoded = element.encode();
 		assert_eq!(encoded.len(), 33);
-		let decoded = DefaultElement::decode(&mut &encoded[..]).expect("Decode Hash");
+		let decoded = DefaultElement::decode(&mut &encoded[..]).expect("Decode Digest");
 		assert_eq!(decoded, element);
-		assert_eq!(element.as_hash(), Some(&digest));
+		assert_eq!(element.as_digest(), Some(&digest));
 		assert_eq!(element.as_ref(), &digest[..]);
-		assert!(element.is_hash());
-		assert_eq!(element.encoded_len(), encoded.len());
-		assert!(element.validate().is_ok());
 	}
 
 	#[test]
 	fn test_element_cid_encode_decode() {
-		let cid_vec = vec![0x55; 64];
-		let cid: BoundedVec<u8, ConstU32<1024>> = cid_vec.clone().try_into().unwrap();
-		let element: DefaultElement = DefaultElement::CID(cid.clone());
+		let cid: [u8; 64] = [0x55; 64];
+		let element: DefaultElement = DefaultElement::CID(cid);
 		let encoded = element.encode();
+		assert_eq!(encoded.len(), 65);
 		let decoded = DefaultElement::decode(&mut &encoded[..]).expect("Decode CID");
 		assert_eq!(decoded, element);
-		assert_eq!(element.as_cid(), Some(&cid_vec[..]));
-		assert_eq!(element.as_ref(), &cid_vec[..]);
-		assert!(element.is_cid());
-		assert_eq!(element.encoded_len(), encoded.len());
-		assert!(element.validate().is_ok());
+		assert_eq!(element.as_cid(), Some(&cid));
+		assert_eq!(element.as_ref(), &cid[..]);
 	}
 
 	#[test]
@@ -489,17 +276,15 @@ mod tests {
 		let raw_elem: DefaultElement = DefaultElement::Raw(bounded);
 		assert_eq!(raw_elem.as_ref(), &raw_data[..]);
 
-		let hash_elem: DefaultElement = DefaultElement::Hash([1; 32]);
-		assert_eq!(hash_elem.as_ref(), &[1; 32][..]);
+		let digest_elem: DefaultElement = DefaultElement::Digest([1; 32]);
+		assert_eq!(digest_elem.as_ref(), &[1; 32][..]);
 
-		let cid_bytes = vec![2; 64];
-		let cid_bounded: BoundedVec<u8, ConstU32<1024>> = cid_bytes.clone().try_into().unwrap();
-		let cid_elem: DefaultElement = DefaultElement::CID(cid_bounded);
-		assert_eq!(cid_elem.as_ref(), &cid_bytes[..]);
+		let cid_elem: DefaultElement = DefaultElement::CID([2; 64]);
+		assert_eq!(cid_elem.as_ref(), &[2; 64][..]);
 
 		let ss58_id = Ss58Identifier::to_encoded(vec![0xAB; 32], 100, 5, 1).unwrap();
-		let id_elem: DefaultElement = DefaultElement::Token(ss58_id.clone());
-		assert_eq!(id_elem.as_token(), Some(&ss58_id));
+		let id_elem: DefaultElement = DefaultElement::Doken(ss58_id.clone());
+		assert_eq!(id_elem.as_doken(), Some(&ss58_id));
 		assert_eq!(id_elem.as_ref(), ss58_id.as_bytes());
 	}
 
@@ -520,16 +305,15 @@ mod tests {
 	}
 
 	#[test]
-	fn test_decode_incomplete_hash() {
-		let mut encoded = DefaultElement::Hash([0xAA; 32]).encode();
+	fn test_decode_incomplete_digest() {
+		let mut encoded = DefaultElement::Digest([0xAA; 32]).encode();
 		encoded.truncate(encoded.len() - 5);
 		assert!(DefaultElement::decode(&mut &encoded[..]).is_err());
 	}
 
 	#[test]
 	fn test_decode_incomplete_cid() {
-		let cid: BoundedVec<u8, ConstU32<1024>> = vec![0x55; 64].try_into().unwrap();
-		let mut encoded = DefaultElement::CID(cid).encode();
+		let mut encoded = DefaultElement::CID([0x55; 64]).encode();
 		encoded.truncate(encoded.len() - 10);
 		assert!(DefaultElement::decode(&mut &encoded[..]).is_err());
 	}
@@ -565,14 +349,10 @@ mod tests {
 	fn test_discriminant_bytes() {
 		assert_eq!(DefaultElement::None.encode()[0], 0);
 		assert_eq!(DefaultElement::Raw(vec![].try_into().unwrap()).encode()[0], 1);
-		assert_eq!(DefaultElement::from_bool(true).encode()[0], 2);
-		assert_eq!(DefaultElement::from_u64(7).encode()[0], 3);
-		assert_eq!(DefaultElement::from_u128(7).encode()[0], 4);
-		assert_eq!(DefaultElement::Hash([0; 32]).encode()[0], 5);
 		let ss58 = Ss58Identifier::to_encoded(vec![0; 32], 0, 0, 0).unwrap();
-		assert_eq!(DefaultElement::Token(ss58).encode()[0], 6);
-		let cid: BoundedVec<u8, ConstU32<1024>> = vec![0; 64].try_into().unwrap();
-		assert_eq!(DefaultElement::CID(cid).encode()[0], 7);
+		assert_eq!(DefaultElement::Digest([0; 32]).encode()[0], 2);
+		assert_eq!(DefaultElement::Doken(ss58).encode()[0], 3);
+		assert_eq!(DefaultElement::CID([0; 64]).encode()[0], 4);
 	}
 
 	#[test]
@@ -603,27 +383,13 @@ mod tests {
 
 	#[test]
 	fn test_vec_of_elements_encode_decode() {
-		let cid: BoundedVec<u8, ConstU32<1024>> = vec![2; 64].try_into().unwrap();
-		let elems =
-			vec![DefaultElement::None, DefaultElement::Hash([1; 32]), DefaultElement::CID(cid)];
+		let elems = vec![
+			DefaultElement::None,
+			DefaultElement::Digest([1; 32]),
+			DefaultElement::CID([2; 64]),
+		];
 		let decoded: Vec<DefaultElement> = Decode::decode(&mut &elems.encode()[..]).unwrap();
 		assert_eq!(decoded, elems);
-	}
-
-	#[test]
-	fn test_validate_catches_invalid_bool() {
-		let invalid = vec![2, 2];
-		let decoded =
-			DefaultElement::decode(&mut &invalid[..]).expect("decoded despite invalid flag");
-		assert!(decoded.validate().is_err());
-	}
-
-	#[test]
-	fn test_try_from_vec_raw() {
-		let data = vec![1u8; 8];
-		let element = DefaultElement::try_from(data.clone()).expect("bounded raw");
-		assert!(element.is_raw());
-		assert_eq!(element.as_raw(), Some(&data[..]));
 	}
 
 	#[test]

@@ -1,5 +1,3 @@
-#![cfg(not(feature = "runtime-benchmarks"))]
-
 // This file is part of CORD – https://cord.network
 
 // Copyright (C) Dhiway Networks Pvt. Ltd.
@@ -40,6 +38,6 @@ async fn purge_chain_works() {
 	assert!(status.success());
 
 	// Make sure that the `dev` chain folder exists, but the `db` is deleted.
-	assert!(base_path.path().join("chains/orb-dev/").exists());
-	assert!(!base_path.path().join("chains/orb-dev/db/full").exists());
+	assert!(base_path.path().join("chains/weave-dev/").exists());
+	assert!(!base_path.path().join("chains/weave-dev/db/full").exists());
 }

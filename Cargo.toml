@@ -14,29 +14,58 @@ members = [
 	"node/rpc",
 	"node/inspect",
 	"node/testing",
-	"origin/container",
-	"origin/container/coretime",
-	"origin/container/constants",
-	# "origin/container/entity",
-	"origin/container/system",
-	"origin/relay",
-	"origin/relay/cli",
-	"origin/relay/common",
-	"origin/relay/runtime",
-	"origin/relay/runtime/authorities",
-	"origin/relay/runtime/constants",
-	"pallets/authorities",
-	"pallets/token",
-	"pallets/entity",
-	"pallets/feeless",
-	"pallets/register",
+	# "origin/primitives",
+	# "origin/base",
+	# "origin/base/cli",
+	# "origin/base/common",
+	# "origin/base/runtime",
+	# "origin/base/runtime/authorities",
+	# "origin/base/runtime/constants",
+	# "origin/hub",
+	# "origin/hub/onstants",
+	# "origin/hub/system",
+	# "origin/solo",
+	# "origin/solo/constants",
+	# "origin/solo/common",
+	# "origin/pallets/authorities",
+	# "origin/pallets/token",
+	# "origin/pallets/entity",
+	# "origin/pallets/register",
+	"pallets/collection",
+	"pallets/doken",
+	# "pallets/entity",
+	"pallets/identity",
+	"pallets/network-membership",
+	"pallets/node-authorization",
+	"pallets/offences",
+	"pallets/registry",
 	"pallets/remote-proxy",
+	"pallets/runtime-upgrade",
+	"pallets/session-benchmarking",
+	"pallets/profile",
+	"pallets/entry",
+	"primitives/cord",
+	"primitives/network-membership",
+	"runtimes/common",
+	"runtimes/common/api/assets",
+	"runtimes/common/api/doken",
+	"runtimes/common/authorities",
+	"runtimes/braid/",
+	"runtimes/braid/constants",
+	"runtimes/loom/",
+	"runtimes/loom/constants",
+	"runtimes/weave/",
+	"runtimes/weave/constants",
+	"test-utils/cli",
+	# "pallets/feeless",
+	# "pallets/authorities",
+	# "pallets/remote-proxy",
 	"pallets/runtime-upgrade",
 	"primitives/cord",
 	"primitives/token-api",
-	"runtime/",
-	"runtime/common",
-	"runtime/constants",
+	# "runtime/",
+	# "runtime/common",
+	# "runtime/constants",
 	"test-utils/cli",
 	"origin-rs",
 ]
@@ -732,35 +761,60 @@ zombienet-sdk = { version = "0.3.8" }
 zstd = { version = "0.12.4", default-features = false }
 
 # local dependencies
+authority-membership = { path = "runtimes/common/authorities", default-features = false }
+cord-doken-runtime-api = { path = "runtimes/common/api/doken", default-features = false }
 cord-node-cli = { path = "node/cli", default-features = false }
 cord-primitives = { path = "primitives/cord", default-features = false }
+network-membership = { path = "primitives/network-membership", default-features = false }
+cord-braid-runtime = { path = "runtimes/braid", default-features = false }
+cord-braid-runtime-constants = { path = "runtimes/braid/constants", default-features = false }
+cord-runtime-common = { path = "runtimes/common", default-features = false }
+cord-loom-runtime = { path = "runtimes/loom", default-features = false }
+cord-loom-runtime-constants = { path = "runtimes/loom/constants", default-features = false }
+cord-weave-runtime = { path = "runtimes/weave", default-features = false }
+cord-weave-runtime-constants = { path = "runtimes/weave/constants", default-features = false }
 cord-utilities = { path = "utilities", default-features = false }
-cord-runtime-common = { path = "runtime/common", default-features = false }
-cord-orb-runtime = { path = "runtime/", default-features = false }
-cord-orb-runtime-constants = { path = "runtime/constants", default-features = false }
 cord-node-service = { path = "node/service", default-features = false }
 cord-node-inspect = { path = "node/inspect", default-features = false }
 cord-node-rpc = { path = "node/rpc", default-features = false }
 cord-node-testing = { path = "node/testing", default-features = false }
 cord-cli-test-utils = { path = "test-utils/cli", default-features = false }
-pallet-authorities = { path = 'pallets/authorities', default-features = false }
-pallet-register = { path = 'pallets/register/', default-features = false }
+pallet-council-membership = { path = 'pallets/membership/', default-features = false }
+pallet-collection = { path = 'pallets/collection/', default-features = false }
+pallet-network-membership = { path = 'pallets/network-membership', default-features = false }
+pallet-registry = { path = 'pallets/registry/', default-features = false }
 pallet-remote-proxy = { path = 'pallets/remote-proxy/', default-features = false }
+pallet-entry = { path = 'pallets/entry', default-features = false }
 pallet-runtime-upgrade = { path = 'pallets/runtime-upgrade', default-features = false }
-pallet-token = { path = "pallets/token", default-features = false }
-pallet-entity = { path = "pallets/entity", default-features = false }
-pallet-feeless = { path = "pallets/feeless", default-features = false }
-origin-staging-runtime = { path = "origin/relay/runtime" }
-origin-staging-runtime-constants = { path = "origin/relay/runtime/constants", default-features = false }
-origin-node-cli = { path = "origin/relay/cli", default-features = false }
-origin-common = { path = "origin/relay/common", default-features = false }
-origin-authorities = { path = "origin/relay/runtime/authorities", default-features = false }
-cord-origin-container = { path = "origin/container", default-features = false }
-cord-origin-system-chains-staging-constants = { path = "origin/container/constants", default-features = false }
-# cord-origin-asset-staging-runtime = { path = "origin/container/asset", default-features = false }
-cord-origin-coretime-staging-runtime = { path = "origin/container/coretime", default-features = false }
-# cord-origin-entity-staging-runtime = { path = "origin/container/entity", default-features = false }
-cord-origin-system-staging-runtime = { path = "origin/container/system", default-features = false }
+pallet-cord-identity = { path = 'pallets/identity', default-features = false }
+pallet-cord-offences = { path = 'pallets/offences', default-features = false }
+pallet-cord-node-authorization = { path = "pallets/node-authorization", default-features = false }
+pallet-network-score = { path = 'pallets/network-score', default-features = false }
+pallet-cord-session-benchmarking = { path = 'pallets/session-benchmarking', default-features = false }
+pallet-assets-runtime-api = { path = "runtimes/common/api/assets", default-features = false }
+pallet-doken = { path = "pallets/doken", default-features = false }
+pallet-registries = { path = "pallets/registries", default-features = false }
+pallet-entries = { path = "pallets/entries", default-features = false }
+pallet-schema-accounts = { path = "pallets/schema-accounts", default-features = false }
+pallet-namespace = { path = 'pallets/namespace', default-features = false }
+pallet-profile = { path = "pallets/profile", default-features = false }
+# pallet-remote-proxy = { path = 'pallets/remote-proxy/', default-features = false }
+# pallet-feeless = { path = "pallets/feeless", default-features = false }
+# pallet-authorities = { path = 'origin/pallets/authorities', default-features = false }
+# pallet-register = { path = 'origin/pallets/register/', default-features = false }
+# pallet-token = { path = "origin/pallets/token", default-features = false }
+# pallet-entity = { path = "origin/pallets/entity", default-features = false }
+# origin-core-primitives = { path = "origin/primitives", default-features = false }
+# origin-node-cli = { path = "origin/base/cli", default-features = false }
+# origin-base-common = { path = "origin/base/common", default-features = false }
+# origin-base-runtime = { path = "origin/base/runtime" }
+# origin-base-runtime-constants = { path = "origin/base/runtime/constants", default-features = false }
+# origin-solo-dev-runtime-constants = { path = "origin/solo/constants", default-features = false }
+# origin-solo-dev-runtime-common = { path = "origin/solo/common", default-features = false }
+# origin-solo-dev-runtime = { path = "origin/solo", default-features = false }
+# # origin-authorities = { path = "origin/relay/runtime/authorities", default-features = false }
+# origin-system-chains-staging-constants = { path = "origin/container/constants", default-features = false }
+# origin-system-staging-runtime = { path = "origin/container/system", default-features = false }
 token-runtime-api = { path = "primitives/token-api", default-features = false }
 
 [profile.release]

@@ -26,23 +26,21 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # third-party dependencies
-array-bytes = { workspace = true, default-features = true }
+array-bytes = { workspace = true }
 clap = { features = ["derive"], optional = true, workspace = true }
 codec = { workspace = true, default-features = true }
-color-eyre = { workspace = true }
 serde = { features = ["derive"], workspace = true, default-features = true }
 serde_json = { workspace = true, default-features = true }
-futures = { workspace = true }
 jsonrpsee = { features = ["server"], workspace = true }
+futures = { workspace = true }
 log = { workspace = true, default-features = true }
 rand = { workspace = true, default-features = true }
+subxt-signer = { workspace = true, features = ["unstable-eth"] }
 hex = { workspace = true }
 toml = { workspace = true }
 kvdb = { workspace = true }
 kvdb-rocksdb = { workspace = true, optional = true, default-features = true }
 parity-db = { workspace = true, optional = true }
-pyroscope = { optional = true, workspace = true }
-pyroscope_pprofrs = { optional = true, workspace = true }
 bitvec = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tikv-jemallocator = { workspace = true, optional = true, features = [
@@ -53,13 +51,14 @@ tikv-jemallocator = { workspace = true, optional = true, features = [
 sp-authority-discovery = { workspace = true, default-features = true }
 sp-consensus = { workspace = true, default-features = true }
 sp-consensus-babe = { workspace = true, default-features = true }
+sp-consensus-beefy = { workspace = true, default-features = true }
 sp-consensus-grandpa = { workspace = true, default-features = true }
 sp-inherents = { workspace = true, default-features = true }
 sp-api = { workspace = true, default-features = true }
 sp-block-builder = { workspace = true, default-features = true }
 sp-blockchain = { workspace = true, default-features = true }
 sp-core = { workspace = true, default-features = true }
-sp-io = { workspace = true, default-features = true }
+sp-io = { features = ["std"], workspace = true, default-features = true }
 sp-keystore = { workspace = true, default-features = true }
 sp-offchain = { workspace = true, default-features = true }
 sp-runtime = { workspace = true, default-features = true }
@@ -71,98 +70,84 @@ sp-state-machine = { workspace = true, default-features = true }
 sp-weights = { workspace = true, default-features = true }
 sp-genesis-builder = { workspace = true, default-features = true }
 sp-version = { workspace = true, default-features = true }
-sp-transaction-storage-proof = { workspace = true, default-features = true }
+sp-transaction-storage-proof = { features = [
+	"std",
+], workspace = true, default-features = true }
 sp-keyring = { workspace = true, default-features = true }
 sp-std = { workspace = true, default-features = true }
 sp-maybe-compressed-blob = { workspace = true, default-features = true }
+sp-mmr-primitives = { workspace = true, default-features = true }
 sp-statement-store = { workspace = true, default-features = true }
-sp-core-hashing = { workspace = true, default-features = true }
-sp-core-hashing-proc-macro = { workspace = true, default-features = true }
-sp-database = { workspace = true, default-features = true }
-sp-panic-handler = { workspace = true, default-features = true }
-sp-rpc = { workspace = true, default-features = true }
 
-sc-allocator = { workspace = true, default-features = true }
 sc-authority-discovery = { workspace = true, default-features = true }
-sc-basic-authorship = { workspace = true, default-features = true }
-sc-block-builder = { workspace = true, default-features = true }
-sc-chain-spec = { workspace = true, default-features = true }
-sc-cli = { workspace = true, default-features = true }
-sc-client-api = { workspace = true, default-features = true }
-sc-client-db = { workspace = true, default-features = true }
 sc-consensus = { workspace = true, default-features = true }
-sc-consensus-aura = { workspace = true, default-features = true }
-sc-consensus-babe = { workspace = true, default-features = true }
-sc-consensus-babe-rpc = { workspace = true, default-features = true }
-sc-consensus-epochs = { workspace = true, default-features = true }
-sc-consensus-grandpa = { workspace = true, default-features = true }
-sc-consensus-grandpa-rpc = { workspace = true, default-features = true }
 sc-consensus-slots = { workspace = true, default-features = true }
+sc-consensus-babe = { workspace = true, default-features = true }
+sc-consensus-beefy = { workspace = true, default-features = true }
+sc-consensus-grandpa = { workspace = true, default-features = true }
+sc-block-builder = { workspace = true }
+sc-chain-spec = { workspace = true, default-features = true }
+sc-client-api = { workspace = true, default-features = true }
+sc-client-db = { workspace = true }
 sc-executor = { workspace = true, default-features = true }
-sc-executor-common = { workspace = true, default-features = true }
-sc-executor-polkavm = { workspace = true, default-features = true }
-sc-executor-wasmtime = { workspace = true, default-features = true }
-sc-informant = { workspace = true, default-features = true }
-sc-keystore = { workspace = true, default-features = true }
 sc-network = { workspace = true, default-features = true }
-sc-network-common = { workspace = true, default-features = true }
-sc-network-gossip = { workspace = true, default-features = true }
-sc-network-light = { workspace = true, default-features = true }
-sc-network-statement = { workspace = true, default-features = true }
+sc-network-common = { workspace = true }
 sc-network-sync = { workspace = true, default-features = true }
-sc-network-transactions = { workspace = true, default-features = true }
-sc-network-types = { workspace = true, default-features = true }
-sc-offchain = { workspace = true, default-features = true }
-sc-proposer-metrics = { workspace = true, default-features = true }
-sc-rpc = { workspace = true, default-features = true }
-sc-rpc-api = { workspace = true, default-features = true }
-sc-rpc-server = { workspace = true, default-features = true }
-sc-rpc-spec-v2 = { workspace = true, default-features = true }
-sc-service = { workspace = true, default-features = true }
-sc-state-db = { workspace = true, default-features = true }
-sc-statement-store = { workspace = true, default-features = true }
-sc-storage-monitor = { workspace = true, default-features = true }
-sc-sync-state-rpc = { workspace = true, default-features = true }
-sc-sysinfo = { workspace = true, default-features = true }
-sc-telemetry = { workspace = true, default-features = true }
-sc-tracing = {  workspace = true, default-features = true }
+sc-network-statement = { workspace = true, default-features = true }
 sc-transaction-pool = { workspace = true, default-features = true }
 sc-transaction-pool-api = { workspace = true, default-features = true }
-sc-utils = { workspace = true, default-features = true }
+sc-sync-state-rpc = { workspace = true, default-features = true }
+sc-keystore = { workspace = true, default-features = true }
+sc-basic-authorship = { workspace = true, default-features = true }
+sc-offchain = { workspace = true, default-features = true }
+sc-sysinfo = { workspace = true, default-features = true }
+sc-statement-store = { workspace = true, default-features = true }
+sc-service = { workspace = true }
+sc-telemetry = { workspace = true, default-features = true }
+sc-storage-monitor = { workspace = true }
+sc-rpc = { workspace = true }
+mmr-gadget = { workspace = true, default-features = true }
 
 # frame dependencies
-frame-benchmarking-cli = { workspace = true, default-features = true }
-remote-externalities = { workspace = true, default-features = true }
-frame-support-procedural-tools = { workspace = true, default-features = true }
-
-# Substrate dependencies
-substrate-build-script-utils = { workspace = true, default-features = true }
-substrate-frame-rpc-support = { workspace = true, default-features = true }
-substrate-frame-rpc-system = { workspace = true, default-features = true }
-prometheus-endpoint = { workspace = true, default-features = true }
-substrate-rpc-client = { workspace = true, default-features = true }
-substrate-state-trie-migration-rpc = { workspace = true, default-features = true }
-substrate-wasm-builder = { workspace = true, default-features = true }
-gum = { workspace = true, default-features = true }
-
-frame-benchmarking =  { workspace = true, default-features = true }
-frame-system =  { workspace = true, default-features = true }
-frame-support = { workspace = true, default-features = true }
-frame-system-rpc-runtime-api = { workspace = true, default-features = true }
-frame-metadata-hash-extension = { workspace = true, default-features = true }
+frame-benchmarking = { features = ["std"], workspace = true }
+frame-system = { features = ["std"], workspace = true }
+frame-support = { features = ["std"], workspace = true }
+frame-system-rpc-runtime-api = { features = ["std"], workspace = true }
+frame-metadata-hash-extension = { features = ["std"], workspace = true }
+pallet-babe = { features = ["std"], workspace = true }
+pallet-im-online = { features = ["std"], workspace = true }
 pallet-transaction-payment = { workspace = true }
-pallet-skip-feeless-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
+pallet-asset-conversion-tx-payment = { workspace = true }
+pallet-contracts = { features = ["std"], workspace = true }
+pallet-asset-conversion = { features = ["std"], workspace = true }
+prometheus-endpoint = { workspace = true }
 
 # cord-specific dependencies
-cord-orb-runtime = { optional = true, workspace = true, default-features = true }
-cord-runtime-common = { workspace = true }
-cord-primitives = { workspace = true, default-features = true }
+cord-braid-runtime = { workspace = true, features = ["std"], optional = true }
+cord-loom-runtime = { workspace = true, features = ["std"], optional = true }
+cord-weave-runtime = { workspace = true, features = ["std"], optional = true }
+cord-runtime-common = { workspace = true, default-features = true }
+cord-primitives = { features = ["std"], workspace = true }
+network-membership = { features = ["std"], workspace = true }
 cord-node-inspect = { optional = true, workspace = true, default-features = true }
 cord-node-rpc = { workspace = true }
-cord-orb-runtime-constants = { optional = true, workspace = true, default-features = true }
-
+cord-braid-runtime-constants = { features = [
+	"std",
+], workspace = true, optional = true }
+cord-loom-runtime-constants = { features = [
+	"std",
+], workspace = true, optional = true }
+cord-weave-runtime-constants = { features = [
+	"std",
+], workspace = true, optional = true }
+pallet-doken = { features = ["std"], workspace = true }
+pallet-network-membership = { features = ["std"], workspace = true }
 pallet-staking = { workspace = true }
+
+# CLI-specific dependencies
+sc-cli = { workspace = true, optional = true }
+frame-benchmarking-cli = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 tikv-jemallocator = { workspace = true, features = [
@@ -175,6 +160,7 @@ tempfile = { workspace = true }
 assert_cmd = { workspace = true }
 nix = { features = ["signal"], workspace = true }
 regex = { workspace = true }
+# platforms = { workspace = true }
 soketto = { workspace = true }
 criterion = { features = [
 	"async_tokio",
@@ -196,11 +182,13 @@ sp-keyring = { workspace = true }
 pretty_assertions.workspace = true
 env_logger = { workspace = true }
 assert_matches = { workspace = true }
+# serial_test = { workspace = true }
 sc-keystore = { workspace = true }
 sc-client-db = { workspace = true }
 sc-consensus = { workspace = true }
 sc-consensus-babe = { workspace = true }
 sc-consensus-epochs = { workspace = true }
+# cord-service-test = { workspace = true }
 sp-tracing = { workspace = true }
 sp-blockchain = { workspace = true }
 sp-crypto-hashing = { workspace = true }
@@ -208,6 +196,8 @@ cord-cli-test-utils = { workspace = true }
 frame-support = { workspace = true }
 cord-node-testing = { workspace = true }
 pallet-balances = { workspace = true }
+pallet-treasury = { workspace = true }
+sp-application-crypto = { workspace = true }
 pallet-root-testing = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-timestamp = { workspace = true }
@@ -217,59 +207,94 @@ sp-externalities = { workspace = true }
 sp-runtime = { workspace = true }
 sp-trie = { workspace = true }
 sp-state-machine = { workspace = true }
-sp-application-crypto = { workspace = true }
+
 
 [build-dependencies]
 clap = { workspace = true, optional = true }
 clap_complete = { workspace = true, optional = true }
-cord-node-inspect = { workspace = true, optional = true, default-features = true }
-frame-benchmarking-cli = { workspace = true, optional = true, default-features = true }
-sc-cli = { workspace = true, optional = true, default-features = true }
-sc-service = { workspace = true, optional = true, default-features = true }
-sc-tracing = { workspace = true, optional = true, default-features = true }
-sc-storage-monitor = { workspace = true, optional = true, default-features = true }
-substrate-build-script-utils = { workspace = true, optional = true, default-features = true }
+cord-node-inspect = { workspace = true, optional = true }
+frame-benchmarking-cli = { workspace = true, optional = true }
+substrate-build-script-utils = { workspace = true, optional = true }
+sc-storage-monitor = { workspace = true }
+
 
 [features]
-default = ["cli", "db", "orb-native"]
+default = [
+	"cli",
+	"db",
+	"full-node",
+	"weave-native",
+	"braid-native",
+	"loom-native",
+]
+
+full-node = ["parity-db"]
 
 cli = [
 	"clap",
 	"clap_complete",
 	"frame-benchmarking-cli",
-	"sc-cli",
-	"sc-service",
-	"sc-tracing",
-	"sc-storage-monitor",
 	"cord-node-inspect",
+	"sc-cli",
+	"sc-service/rocksdb",
 	"substrate-build-script-utils",
 ]
 
-db = ["sc-service/rocksdb"]
+db = [
+	"sc-service/rocksdb",
+	"sc-client-db/rocksdb",
+	"frame-benchmarking-cli/rocksdb",
+	"kvdb-rocksdb",
+]
 
 jemalloc-allocator = ["dep:tikv-jemallocator"]
 
-orb-native = ["cord-orb-runtime", "cord-orb-runtime-constants"]
+# Configure the native runtimes to use.
+braid-native = ["bitvec", "cord-braid-runtime", "cord-braid-runtime-constants"]
+loom-native = ["bitvec", "cord-loom-runtime", "cord-loom-runtime-constants"]
+weave-native = ["bitvec", "cord-weave-runtime", "cord-weave-runtime-constants"]
 
 runtime-benchmarks = [
 	"cord-runtime-common/runtime-benchmarks",
-	"cord-orb-runtime/runtime-benchmarks",
+	"cord-weave-runtime?/runtime-benchmarks",
+	"cord-braid-runtime?/runtime-benchmarks",
+	"cord-loom-runtime/runtime-benchmarks",
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"cord-node-inspect/runtime-benchmarks",
+	"cord-node-inspect?/runtime-benchmarks",
+	"pallet-im-online/runtime-benchmarks",
 	"sc-service/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"pallet-asset-conversion/runtime-benchmarks",
+	"pallet-babe/runtime-benchmarks",
+	"pallet-contracts/runtime-benchmarks",
+	"pallet-network-membership/runtime-benchmarks",
+	"sc-client-db/runtime-benchmarks",
 ]
-
+# Enable features that allow the runtime to be tried and debugged.
 try-runtime = [
-	"frame-system/try-runtime",
+	"cord-runtime-common/try-runtime",
+	"cord-weave-runtime?/try-runtime",
+	"cord-loom-runtime/try-runtime",
+	"cord-braid-runtime/try-runtime",
 	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"pallet-im-online/try-runtime",
 	"pallet-transaction-payment/try-runtime",
+	"pallet-asset-conversion-tx-payment/try-runtime",
 	"sp-runtime/try-runtime",
-	"cord-orb-runtime/try-runtime",
+	"cord-braid-runtime?/try-runtime",
+	"cord-weave-runtime?/try-runtime",
+	"pallet-asset-conversion/try-runtime",
+	"pallet-babe/try-runtime",
+	"pallet-contracts/try-runtime",
+	"pallet-network-membership/try-runtime",
 ]
 
-fast-runtime = ["cord-orb-runtime/fast-runtime"]
-
-metadata-hash = ["cord-orb-runtime/metadata-hash"]
+fast-runtime = [
+	"cord-braid-runtime/fast-runtime",
+	"cord-loom-runtime/fast-runtime",
+	"cord-weave-runtime/fast-runtime",
+]

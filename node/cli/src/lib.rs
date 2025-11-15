@@ -18,27 +18,24 @@
 
 //! CORD CLI library.
 
-#![allow(missing_docs)]
+#![warn(missing_docs)]
 
 pub mod benchmarking;
 pub mod chain_spec;
-
-#[cfg(all(feature = "cli", not(target_arch = "wasm32")))]
-pub mod command;
-
-#[cfg(all(feature = "cli", not(target_arch = "wasm32")))]
-pub mod subcommands;
-
-#[cfg(all(feature = "cli", not(target_arch = "wasm32")))]
-mod cli;
 pub mod fake_runtime_api;
 pub mod service;
 
-#[cfg(all(feature = "cli", not(target_arch = "wasm32")))]
+#[cfg(feature = "cli")]
+mod cli;
+
+#[cfg(feature = "cli")]
+mod command;
+
+#[cfg(feature = "cli")]
 pub use cli::*;
 
-#[cfg(all(feature = "cli", not(target_arch = "wasm32")))]
+#[cfg(feature = "cli")]
 pub use command::*;
 
-#[cfg(all(feature = "cli", not(target_arch = "wasm32")))]
+#[cfg(feature = "cli")]
 pub use sc_cli::{Error, Result};

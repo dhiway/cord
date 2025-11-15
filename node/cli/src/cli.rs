@@ -16,35 +16,19 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-/// CORD CLI library.
-use crate::subcommands::{BootstrapChainCmd, KeySubcommand};
-use sc_storage_monitor::StorageMonitorParams;
+//! CORD CLI library.
 
-// #[allow(missing_docs)]
+#![allow(missing_docs)]
+use crate::command::gen_key::KeySubcommand;
 
-/// An overarching CLI command definition.
-#[derive(Debug, clap::Parser)]
-pub struct Cli {
-	/// Possible subcommand with parameters.
-	#[command(subcommand)]
-	pub subcommand: Option<Subcommand>,
+use clap::Parser;
 
-	#[allow(missing_docs)]
-	#[clap(flatten)]
-	pub run: sc_cli::RunCmd,
+use crate::chain_setup::BootstrapChainCmd;
 
-	#[arg(long)]
-	pub no_hardware_benchmarks: bool,
-
-	#[allow(missing_docs)]
-	#[clap(flatten)]
-	pub storage_monitor: StorageMonitorParams,
-}
-
-/// Possible subcommands of the main binary.
-#[derive(Debug, clap::Subcommand)]
+#[allow(missing_docs)]
+#[derive(Debug, Parser)]
 pub enum Subcommand {
-	/// The custom inspect subcommand for decoding blocks and extrinsics.
+	/// The custom inspect subcommmand for decoding blocks and extrinsics.
 	#[command(
 		name = "inspect",
 		about = "Decode given block or extrinsic using current native runtime."
@@ -53,11 +37,6 @@ pub enum Subcommand {
 
 	/// Bootstrap a custom configuration
 	BootstrapChain(BootstrapChainCmd),
-
-	/// Sub-commands concerned with benchmarking.
-	/// The pallet benchmarking moved to the `pallet` sub-command.
-	#[command(subcommand)]
-	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
 
 	/// Key management cli utilities
 	#[command(subcommand)]
@@ -102,6 +81,30 @@ pub enum Subcommand {
 	/// Revert the chain to a previous state.
 	Revert(sc_cli::RevertCmd),
 
+	/// Sub-commands concerned with benchmarking.
+	/// The pallet benchmarking moved to the `pallet` sub-command.
+	#[command(subcommand)]
+	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+
 	/// Db meta columns information.
 	ChainInfo(sc_cli::ChainInfoCmd),
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Parser)]
+pub struct Cli {
+	/// Possible subcommand with parameters.
+	#[command(subcommand)]
+	pub subcommand: Option<Subcommand>,
+
+	#[allow(missing_docs)]
+	#[clap(flatten)]
+	pub run: sc_cli::RunCmd,
+
+	#[arg(long)]
+	pub no_hardware_benchmarks: bool,
+
+	#[allow(missing_docs)]
+	#[clap(flatten)]
+	pub storage_monitor: sc_storage_monitor::StorageMonitorParams,
 }

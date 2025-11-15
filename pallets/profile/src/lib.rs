@@ -45,7 +45,7 @@ use codec::Encode;
 use frame_support::{
 	ensure, pallet_prelude::DispatchResult, storage::types::StorageMap, BoundedVec,
 };
-use pallet_token::{EventBlock, EventTypeOf, Token};
+use pallet_doken::{Doken, EventBlock, EventTypeOf};
 use sp_runtime::traits::Hash;
 
 #[frame_support::pallet]
@@ -76,7 +76,8 @@ pub mod pallet {
 
 	#[pallet::config]
 	// TODO: Check workaround of not having TypeInfo here
-	pub trait Config: frame_system::Config + scale_info::TypeInfo + pallet_token::Config {
+	pub trait Config: frame_system::Config + scale_info::TypeInfo + pallet_doken::Config {
+		/// The overarching event type.
 		#[allow(deprecated)]
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -190,7 +191,7 @@ pub mod pallet {
 			let digest = T::Hashing::hash(&who.encode());
 			let pallet_name = <Self as frame_support::traits::PalletInfoAccess>::name();
 			let profile_id =
-				<pallet_token::Pallet<T> as Token<T>>::build(&(digest).encode()[..], pallet_name)
+				<pallet_doken::Pallet<T> as Doken<T>>::build(&(digest).encode()[..], pallet_name)
 					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!Profiles::<T>::contains_key(&profile_id), Error::<T>::ProfileAlreadyExists);
@@ -291,7 +292,7 @@ impl<T: Config> Pallet<T> {
 		let action: EventTypeOf =
 			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEventType)?;
 		let stamp = EventBlock::current::<T>();
-		<pallet_token::Pallet<T> as Token<T>>::state_event(identifier, digest, action, stamp)
+		<pallet_doken::Pallet<T> as Doken<T>>::state_event(identifier, digest, action, stamp)
 			.map_err(|_| Error::<T>::StateUpdateFailed)?;
 		Ok(())
 	}
