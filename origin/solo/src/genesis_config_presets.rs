@@ -22,7 +22,7 @@ use crate::*;
 
 #[cfg(not(feature = "std"))]
 use alloc::format;
-use alloc::{string::ToString, vec, vec::Vec};
+use alloc::{vec, vec::Vec};
 use origin_dev_runtime_constants::currency::UNITS;
 pub use origin_primitives::{AccountId, Balance, NodeId, Signature};
 use sp_consensus_babe::AuthorityId as BabeId;
@@ -32,7 +32,6 @@ use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
 use sp_runtime::traits::IdentifyAccount;
 
-const SOLO_PROTOCOL_ID: &str = "origin";
 const SOLO_NETWORK_ID: u32 = 100;
 const DEFAULT_ENDOWMENT: u128 = 500_000_000_000 * UNITS;
 
@@ -80,7 +79,7 @@ fn origin_dev_genesis_patch(
 		"balances": {
 			"balances": development_accounts.iter().map(|k| (k.clone(), DEFAULT_ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"token": { "protocolId": SOLO_PROTOCOL_ID.to_string(), "networkId": SOLO_NETWORK_ID},
+		"token": { "networkId": SOLO_NETWORK_ID},
 		"authorityManager":  {
 			"initialAuthorities": initial_authorities
 				.iter()

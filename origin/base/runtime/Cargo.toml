@@ -14,6 +14,7 @@ serde_json = { features = ["alloc"], workspace = true }
 log = { workspace = true }
 
 cord-primitives = { workspace = true }
+origin-primitives = { workspace = true }
 
 authority-discovery-primitives = { workspace = true }
 babe-primitives = { workspace = true }
@@ -66,12 +67,12 @@ pallet-sudo = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 frame-system-rpc-runtime-api = { workspace = true }
-origin-staging-runtime-constants = { workspace = true }
+origin-runtime-constants = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-utility = { workspace = true }
 pallet-xcm = { workspace = true }
 pallet-xcm-benchmarks = { optional = true, workspace = true }
-token-runtime-api = { workspace = true }
+token-origin-runtime-api = { workspace = true }
 
 frame-benchmarking = { optional = true, workspace = true }
 frame-try-runtime = { optional = true, workspace = true }
@@ -121,7 +122,7 @@ std = [
 	"codec/std",
 	"cord-primitives/std",
 	"pallet-authorities/std",
-	"origin-staging-runtime-constants/std",
+	"origin-runtime-constants/std",
 	"frame-benchmarking?/std",
 	"frame-executive/std",
 	"frame-metadata-hash-extension/std",
@@ -187,7 +188,7 @@ std = [
 	"sp-transaction-pool/std",
 	"sp-trie/std",
 	"sp-version/std",
-	"token-runtime-api/std",
+	"token-origin-runtime-api/std",
 	"substrate-wasm-builder",
 	"xcm-builder/std",
 	"xcm-executor/std",
@@ -196,7 +197,7 @@ std = [
 ]
 #Local
 runtime-benchmarks = [
-	"origin-staging-runtime-constants/runtime-benchmarks",
+	"origin-runtime-constants/runtime-benchmarks",
 	"pallet-authorities/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
@@ -283,7 +284,7 @@ metadata-hash = ["substrate-wasm-builder?/metadata-hash"]
 on-chain-release-build = ["metadata-hash", "sp-api/disable-logging"]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
-fast-runtime = ["origin-staging-runtime-constants/fast-runtime"]
+fast-runtime = ["origin-runtime-constants/fast-runtime"]
 
 runtime-metrics = ["runtime-parachains/runtime-metrics", "sp-io/with-tracing"]
 

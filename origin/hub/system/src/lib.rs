@@ -89,7 +89,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 pub use system_parachains_constants::async_backing::SLOT_DURATION;
 /// Runtime API definition for token.
-pub use token_runtime_api as token_api;
+pub use token_origin_hub_runtime_api as token_api;
 
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 use xcm::{
@@ -127,14 +127,6 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
-}
-
-fn convert_token_authorization(
-	auth: token_api::Authorization<AccountId, Signature>,
-) -> Option<pallet_token::Authorization<Runtime>> {
-	let token_api::Authorization { account, payload, signature } = auth;
-	let payload: pallet_token::AuthorizationPayloadOf<Runtime> = payload.try_into().ok()?;
-	Some(pallet_token::Authorization { account, payload, signature })
 }
 
 parameter_types! {
@@ -1024,7 +1016,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl token_api::TokenApi<Block, AccountId, Signature, Hash> for Runtime {
+	impl token_api::TokenOriginHubRuntimeApi<Block> for Runtime {
 		fn decode_token(token: Vec<u8>) -> Option<token_api::DecodedTokenApi> {
 			let ss58_id = Ss58Identifier::try_from(token).ok()?;
 			let decoded: DecodedIdentifier = Token::resolve_token(&ss58_id).ok()?;
@@ -1036,56 +1028,31 @@ impl_runtime_apis! {
 			})
 		}
 
-		fn resolve_identifier(
-			auth: token_api::Authorization<AccountId, Signature>,
-			token: Vec<u8>,
-		) -> Option<token_api::DecodedTokenApi> {
-			let auth = convert_token_authorization(auth)?;
-			let ss58_id = Ss58Identifier::try_from(token).ok()?;
-			let decoded = Token::resolve_identifier_query(auth, ss58_id).ok()?;
-			Some(token_api::DecodedTokenApi {
-				origin: decoded.origin,
-				network: decoded.network,
-				pallet: decoded.pallet,
-				genesis: decoded.genesis,
-			})
+		fn resolve_pallet(index: u16) -> Option<String> {
+			Token::resolve_pallet_plain(index).ok()
 		}
 
-		fn resolve_pallet(
-			auth: token_api::Authorization<AccountId, Signature>,
-			index: u16,
-		) -> Option<String> {
-			let auth = convert_token_authorization(auth)?;
-			Token::resolve_pallet_query(auth, index).ok()
-		}
-
-		fn token_history(
-			auth: token_api::Authorization<AccountId, Signature>,
-			token: Vec<u8>,
-			start: Option<u32>,
-			limit: u32,
-		) -> Vec<token_api::TokenHistoryEvent<Hash>> {
-			let auth = match convert_token_authorization(auth) {
-				Some(auth) => auth,
-				None => return Vec::new(),
-			};
+		fn token_status(token: Vec<u8>) -> token_api::TokenStatusApi {
 			let ss58_id = match Ss58Identifier::try_from(token) {
 				Ok(id) => id,
-				Err(_) => return Vec::new(),
+				Err(_) => return token_api::TokenStatusApi::InvalidToken,
 			};
-			let history = match Token::history(auth, ss58_id, start, limit) {
-				Ok(events) => events,
-				Err(_) => return Vec::new(),
+			let decoded = match Token::resolve_identifier_plain(&ss58_id) {
+				Ok(info) => info,
+				Err(_) => return token_api::TokenStatusApi::InvalidToken,
 			};
-			history
-				.into_iter()
-				.map(|event| token_api::TokenHistoryEvent {
-					action: event.action.into(),
-					digest: event.digest,
-					height: event.seal.height,
-					index: event.seal.index,
-				})
-				.collect()
+			if !decoded.origin || decoded.network != Token::get_network_id() {
+				return token_api::TokenStatusApi::WrongChain;
+			}
+			if Token::resolve_pallet_plain(decoded.pallet).is_err() {
+				return token_api::TokenStatusApi::PalletNotFound;
+			}
+			if !pallet_token::StateVersion::<Runtime>::contains_key(&ss58_id) {
+				return token_api::TokenStatusApi::TokenNotFound;
+			}
+			let version = pallet_token::StateVersion::<Runtime>::get(&ss58_id);
+			let last_state = version.checked_sub(1);
+			token_api::TokenStatusApi::Found { last_state }
 		}
 	}
 
@@ -1216,7 +1183,7 @@ cumulus_pallet_parachain_system::register_validate_block! {
 
 #[test]
 fn test_ed_is_one_tenth_of_relay() {
-	let relay_ed = origin_staging_runtime_constants::currency::EXISTENTIAL_DEPOSIT;
+	let relay_ed = origin_runtime_constants::currency::EXISTENTIAL_DEPOSIT;
 	let people_ed = ExistentialDeposit::get();
 	assert_eq!(relay_ed / 10, people_ed);
 }

@@ -44,7 +44,7 @@ fn system_origin_staging_genesis(
 			parachain_id: id,
 			..Default::default()
 		},
-		"token": TokenConfig { protocol_id: "0rbit".to_string(), network_id: 2006, ..Default::default()},
+		"token": TokenConfig { network_id: 2006, ..Default::default()},
 		"collatorSelection": CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
 			candidacy_bond: SYSTEM_ORIGIN_STAGING_ED * 16,

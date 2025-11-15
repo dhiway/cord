@@ -44,7 +44,7 @@ pub mod currency {
 
 /// Time and blocks.
 pub mod time {
-	use origin_runtime_common::prod_or_fast;
+	use origin_common::prod_or_fast;
 	use polkadot_primitives::{BlockNumber, Moment};
 	pub const MILLISECS_PER_BLOCK: Moment = 6000;
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;

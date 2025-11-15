@@ -50,7 +50,7 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use origin_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
-use origin_staging_runtime_constants::{
+use origin_runtime_constants::{
 	currency::*,
 	fee::*,
 	system_parachain::{coretime::TIMESLICE_PERIOD, ORIGIN_HUB_IN_ID},
@@ -131,14 +131,14 @@ pub use sp_runtime::BuildStorage;
 mod weights;
 
 /// Runtime API definition for token.
-pub use token_runtime_api as token_api;
+pub use token_origin_runtime_api as token_api;
 
 // Genesis preset configurations.
 pub mod genesis_config_presets;
 pub mod impls;
 pub mod xcm_config;
 
-impl_runtime_weights!(origin_staging_runtime_constants);
+impl_runtime_weights!(origin_runtime_constants);
 
 /// Default logging target.
 pub const LOG_TARGET: &str = "runtime::origin";
@@ -166,14 +166,6 @@ pub const BABE_GENESIS_EPOCH_CONFIG: babe_primitives::BabeEpochConfiguration =
 		c: PRIMARY_PROBABILITY,
 		allowed_slots: babe_primitives::AllowedSlots::PrimaryAndSecondaryVRFSlots,
 	};
-
-fn convert_token_authorization(
-	auth: token_api::Authorization<AccountId, Signature>,
-) -> Option<pallet_token::Authorization<Runtime>> {
-	let token_api::Authorization { account, payload, signature } = auth;
-	let payload: pallet_token::AuthorizationPayloadOf<Runtime> = payload.try_into().ok()?;
-	Some(pallet_token::Authorization { account, payload, signature })
-}
 
 /// Native version.
 #[cfg(any(feature = "std", test))]
@@ -380,7 +372,7 @@ impl pallet_beefy_mmr::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = origin_staging_runtime_constants::fee::TRANSACTION_BYTE_FEE;
+	pub const TransactionByteFee: Balance = origin_runtime_constants::fee::TRANSACTION_BYTE_FEE;
 	pub const OperationalFeeMultiplier: u8 = 5;
 }
 
@@ -1909,7 +1901,7 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
-	impl token_api::TokenApi<Block, AccountId, Signature, Hash> for Runtime {
+	impl token_api::TokenOriginRuntimeApi<Block> for Runtime {
 		fn decode_token(token: Vec<u8>) -> Option<token_api::DecodedTokenApi> {
 			let ss58_id = Ss58Identifier::try_from(token).ok()?;
 			let decoded: DecodedIdentifier = Token::resolve_token(&ss58_id).ok()?;
@@ -1919,58 +1911,6 @@ sp_api::impl_runtime_apis! {
 				pallet: decoded.pallet,
 				genesis: decoded.genesis,
 			})
-		}
-
-		fn resolve_pallet(
-			auth: token_api::Authorization<AccountId, Signature>,
-			index: u16,
-		) -> Option<String> {
-			let auth = convert_token_authorization(auth)?;
-			Token::resolve_pallet_query(auth, index).ok()
-		}
-
-		fn resolve_identifier(
-			auth: token_api::Authorization<AccountId, Signature>,
-			token: Vec<u8>,
-		) -> Option<token_api::DecodedTokenApi> {
-			let auth = convert_token_authorization(auth)?;
-			let ss58_id = Ss58Identifier::try_from(token).ok()?;
-			let decoded = Token::resolve_identifier_query(auth, ss58_id).ok()?;
-			Some(token_api::DecodedTokenApi {
-				origin: decoded.origin,
-				network: decoded.network,
-				pallet: decoded.pallet,
-				genesis: decoded.genesis,
-			})
-		}
-
-		fn token_history(
-			auth: token_api::Authorization<AccountId, Signature>,
-			token: Vec<u8>,
-			start: Option<u32>,
-			limit: u32,
-		) -> Vec<token_api::TokenHistoryEvent<Hash>> {
-			let auth = match convert_token_authorization(auth) {
-				Some(auth) => auth,
-				None => return Vec::new(),
-			};
-			let ss58_id = match Ss58Identifier::try_from(token) {
-				Ok(id) => id,
-				Err(_) => return Vec::new(),
-			};
-			let history = match Token::history(auth, ss58_id, start, limit) {
-				Ok(events) => events,
-				Err(_) => return Vec::new(),
-			};
-			history
-				.into_iter()
-				.map(|event| token_api::TokenHistoryEvent {
-					action: event.action.into(),
-					digest: event.digest,
-					height: event.seal.height,
-					index: event.seal.index,
-				})
-				.collect()
 		}
 	}
 

@@ -348,7 +348,6 @@ fn network_metadata_views_return_values() {
 		let pair = sr25519::Pair::from_seed(&[14u8; 32]);
 		NextPalletIndex::<Test>::put(9);
 		GenesisNetworkId::<Test>::put(4321);
-		IsOriginChain::<Test>::put(true);
 
 		let next =
 			Pallet::<Test>::next_pallet_index(make_auth(b"next-index", &pair)).expect("next index");
@@ -357,10 +356,6 @@ fn network_metadata_views_return_values() {
 		let nid =
 			Pallet::<Test>::genesis_network_id(make_auth(b"net-id", &pair)).expect("network id");
 		assert_eq!(nid, 4321);
-
-		let origin =
-			Pallet::<Test>::origin_chain_flag(make_auth(b"origin", &pair)).expect("origin flag");
-		assert!(origin);
 	});
 }
 

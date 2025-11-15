@@ -69,7 +69,7 @@ pub mod currency {
 	/// The default existential deposit for system chains. 1/10th of the Relay Chain's existential
 	/// deposit. Individual system parachains may modify this in special cases.
 	pub const SYSTEM_PARA_EXISTENTIAL_DEPOSIT: Balance =
-		origin_staging_runtime_constants::currency::EXISTENTIAL_DEPOSIT / 10;
+		origin_runtime_constants::currency::EXISTENTIAL_DEPOSIT / 10;
 
 	pub const UNITS: Balance = 10_000_000_000; // 10¹⁰
 	pub const MICRO: Balance = UNITS / 100;
@@ -80,7 +80,7 @@ pub mod currency {
 	/// Deposit rate for stored data. 1/100th of the Relay Chain's deposit rate. `items` is the
 	/// number of keys in storage and `bytes` is the size of the value.
 	pub const fn system_para_deposit(items: u32, bytes: u32) -> Balance {
-		origin_staging_runtime_constants::currency::deposit(items, bytes) / 100
+		origin_runtime_constants::currency::deposit(items, bytes) / 100
 	}
 }
 

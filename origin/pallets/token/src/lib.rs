@@ -174,9 +174,6 @@ pub mod pallet {
 	pub type GenesisNetworkId<T: Config> = StorageValue<_, u16, ValueQuery>;
 
 	#[pallet::storage]
-	pub type IsOriginChain<T: Config> = StorageValue<_, bool, ValueQuery>;
-
-	#[pallet::storage]
 	pub type StateHistory<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -240,46 +237,25 @@ pub mod pallet {
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
 		pub _config: core::marker::PhantomData<T>,
-		pub protocol_id: String,
 		pub network_id: u16,
 	}
 
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self { protocol_id: "0rigin".into(), network_id: 1000, _config: Default::default() }
+			Self { network_id: 29, _config: Default::default() }
 		}
 	}
 
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
-			let proto = self.protocol_id.as_str();
 			assert!(
-				matches!(proto, "c0rd" | "0rigin" | "0rbit"),
-				"Invalid protocol_id `{}` — must be `c0rd`, `0rigin`, or `0rbit`",
-				proto,
+				(1..16_383).contains(&self.network_id),
+				"networkId ({}) must be between 1 and 16382 for Origin chains",
+				self.network_id
 			);
 
-			let is_origin = matches!(proto, "0rigin" | "0rbit");
-			IsOriginChain::<T>::put(is_origin);
-
-			let chain_id: u16 = if is_origin {
-				assert!(
-					(1_000..16_383).contains(&self.network_id),
-					"ChainId ({}) must be > 2000 and < 16383 in Origin mode",
-					self.network_id
-				);
-				self.network_id
-			} else {
-				assert!(
-					(100..999).contains(&self.network_id),
-					"ChainId ({}) must be ≥ 100 and < 1999 in standalone mode",
-					self.network_id
-				);
-				self.network_id
-			};
-
-			GenesisNetworkId::<T>::put(chain_id);
+			GenesisNetworkId::<T>::put(self.network_id);
 		}
 	}
 
@@ -321,12 +297,6 @@ pub mod pallet {
 		pub fn genesis_network_id(auth: Authorization<T>) -> Result<u16, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			Ok(GenesisNetworkId::<T>::get())
-		}
-
-		/// Returns whether the chain is running in origin mode.
-		pub fn origin_chain_flag(auth: Authorization<T>) -> Result<bool, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			Ok(IsOriginChain::<T>::get())
 		}
 
 		/// Returns the current state version counter for a token.
@@ -414,10 +384,6 @@ impl<T: Config> Pallet<T> {
 
 	pub fn get_network_id() -> u16 {
 		GenesisNetworkId::<T>::get()
-	}
-
-	pub fn is_origin_chain() -> bool {
-		IsOriginChain::<T>::get()
 	}
 
 	/// Record an activity event for the given token by appending a new record.
@@ -550,7 +516,7 @@ impl<T: pallet::Config> Token<T> for Pallet<T> {
 	fn build(digest: &[u8], pallet: &str) -> Result<Ss58Identifier, Self::Error> {
 		let pid = Self::get_or_add_pallet_index(pallet)?;
 		let nid = Self::get_network_id();
-		let ori = Self::is_origin_chain() as u8;
+		let ori: u8 = 1;
 		Ss58Identifier::to_encoded(digest, nid, pid, ori).map_err(Into::into)
 	}
 

@@ -71,7 +71,7 @@ parameter_types! {
 	pub TreasuryAccount: AccountId = TREASURY_PALLET_ID.into_account_truncating();
 	pub StakingPot: AccountId = CollatorSelection::account_id();
 	pub RelayTreasuryLocation: Location =
-		(Parent, PalletInstance(origin_staging_runtime_constants::TREASURY_PALLET_ID)).into();
+		(Parent, PalletInstance(origin_runtime_constants::TREASURY_PALLET_ID)).into();
 	pub RelayTreasuryPalletAccount: AccountId =
 		LocationToAccountId::convert_location(&RelayTreasuryLocation::get())
 			.unwrap_or(TreasuryAccount::get());

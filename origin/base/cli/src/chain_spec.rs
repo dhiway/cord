@@ -65,7 +65,7 @@ pub fn origin_dev_development_config() -> Result<OriginChainSpec, String> {
 		origin_dev_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Origin Dev Development")
+	.with_name("Origin Development")
 	.with_id("origin_dev_dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(
@@ -91,6 +91,44 @@ pub fn origin_dev_local_config() -> Result<OriginChainSpec, String> {
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(ORIGIN_TELEMETRY_URL.to_string(), 0)])
 			.expect("Origin Dev telemetry url is valid; qed"),
+	)
+	.with_protocol_id(DEFAULT_PROTOCOL_ID)
+	.with_properties(origin_chain_spec_properties())
+	.build())
+}
+
+/// Origin Relay development config (single validator Alice)
+pub fn origin_relay_development_config() -> Result<OriginChainSpec, String> {
+	Ok(OriginChainSpec::builder(
+		origin_runtime::WASM_BINARY.ok_or("Origin relay wasm not available")?,
+		Default::default(),
+	)
+	.with_name("Origin Relay Development")
+	.with_id("origin_relay_dev")
+	.with_chain_type(ChainType::Development)
+	.with_genesis_config_patch(
+		origin_runtime::genesis_config_presets::origin_development_config_genesis(),
+	)
+	.with_protocol_id(DEFAULT_PROTOCOL_ID)
+	.with_properties(origin_chain_spec_properties())
+	.build())
+}
+
+/// Origin Relay local/staging config (multi-validator Alice + Bob)
+pub fn origin_relay_local_config() -> Result<OriginChainSpec, String> {
+	Ok(OriginChainSpec::builder(
+		origin_runtime::WASM_BINARY.ok_or("Origin relay wasm not available")?,
+		Default::default(),
+	)
+	.with_name("Origin Relay Local")
+	.with_id("origin_relay_local")
+	.with_chain_type(ChainType::Local)
+	.with_genesis_config_patch(
+		origin_runtime::genesis_config_presets::origin_staging_config_genesis(),
+	)
+	.with_telemetry_endpoints(
+		TelemetryEndpoints::new(vec![(ORIGIN_TELEMETRY_URL.to_string(), 0)])
+			.expect("Origin Relay telemetry url is valid; qed"),
 	)
 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
 	.with_properties(origin_chain_spec_properties())
