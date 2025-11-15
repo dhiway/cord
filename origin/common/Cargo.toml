@@ -1,0 +1,50 @@
+[package]
+name = "origin-common"
+description = "Shared runtime building blocks for Origin runtimes."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+codec = { features = ["derive", "max-encoded-len"], workspace = true }
+scale-info = { features = ["derive"], workspace = true }
+static_assertions = { workspace = true }
+
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+pallet-authorship = { workspace = true }
+pallet-balances = { workspace = true }
+pallet-timestamp = { workspace = true }
+pallet-transaction-payment = { workspace = true }
+origin-primitives = { workspace = true }
+sp-core = { workspace = true }
+sp-runtime = { workspace = true }
+sp-weights = { workspace = true }
+
+sp-api = { workspace = true }
+polkadot-primitives = { workspace = true }
+pallet-staking-reward-fn = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "pallet-authorship/std",
+    "pallet-balances/std",
+    "pallet-timestamp/std",
+    "pallet-transaction-payment/std",
+    "origin-primitives/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "sp-weights/std",
+    "sp-api/std",
+    "polkadot-primitives/std",
+    "pallet-staking-reward-fn/std",
+]

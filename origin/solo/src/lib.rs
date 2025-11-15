@@ -39,7 +39,7 @@ use frame_support::{
 	weights::ConstantMultiplier,
 };
 use frame_system::{EnsureRoot, EnsureRootWithSuccess};
-use origin_dev_runtime_common::{impl_runtime_weights, prod_or_fast, BlockHashCount, BlockLength};
+use origin_common::{impl_runtime_weights, prod_or_fast, BlockHashCount, BlockLength};
 use origin_primitives::{
 	identifier::{DecodedIdentifier, Ss58Identifier},
 	AccountIndex, Balance, BlockNumber, Hash, Moment, Nonce,
@@ -125,7 +125,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	system_version: 1,
 };
 
-use origin_dev_runtime_common as runtime_common;
+use origin_common as runtime_common;
 use runtime_common::SlowAdjustingFeeUpdate;
 impl_runtime_weights!(origin_dev_runtime_constants);
 

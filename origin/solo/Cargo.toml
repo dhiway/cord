@@ -24,7 +24,7 @@ log = { workspace = true }
 
 origin-primitives = { workspace = true }
 origin-dev-runtime-constants = { workspace = true }
-origin-dev-runtime-common = { workspace = true }
+origin-common = { workspace = true }
 token-runtime-api = { workspace = true }
 
 # Substrate
@@ -103,7 +103,7 @@ default = ['std']
 std = [
 	"sp-authority-discovery/std",
 	"origin-primitives/std",
-	"origin-dev-runtime-common/std",
+	"origin-common/std",
 	"frame-system-benchmarking?/std",
 	"frame-metadata-hash-extension/std",
 	"codec/std",
@@ -176,7 +176,7 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"origin-dev-runtime-common/runtime-benchmarks",
+	"origin-common/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"sp-staking/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",

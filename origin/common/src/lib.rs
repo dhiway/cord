@@ -196,3 +196,110 @@ macro_rules! prod_or_fast {
 		}
 	};
 }
+
+/// Relay-chain specific helpers shared across runtimes.
+pub mod relay {
+	//! Utilities adopted from the upstream Polkadot runtime for managing relay economics.
+	#![allow(clippy::needless_question_mark)]
+
+	use codec::{Decode, Encode, MaxEncodedLen};
+	use pallet_staking_reward_fn;
+	use polkadot_primitives::Balance;
+	use scale_info::TypeInfo;
+	use sp_runtime::{Perquintill, Saturating};
+
+	/// Extra runtime APIs for runtimes that expose inflation info downstream.
+	pub mod apis {
+		use super::*;
+		use sp_api::decl_runtime_apis;
+
+		/// Information about the current inflation rate of the system.
+		///
+		/// Both fields should be treated as best-effort, given that the inflation rate might not be
+		/// fully predict-able.
+		#[derive(TypeInfo, Encode, Decode, MaxEncodedLen)]
+		#[cfg_attr(feature = "std", derive(Debug, Clone, PartialEq))]
+		pub struct InflationInfo {
+			/// The rate of inflation estimated per annum.
+			pub inflation: sp_runtime::Perquintill,
+			/// Next amount that we anticipate to mint.
+			///
+			/// First item is the amount that goes to stakers, second is the leftover that is usually
+			/// forwarded to the treasury.
+			pub next_mint: (Balance, Balance),
+		}
+
+		decl_runtime_apis! {
+			pub trait Inflation {
+				/// Return the current estimates of the inflation amount.
+				///
+				/// This is marked as experimental in light of RFC#89. Nonetheless, its usage is highly
+				/// recommended over trying to read-storage, or re-create the onchain logic.
+				fn experimental_inflation_prediction_info() -> InflationInfo;
+			}
+		}
+	}
+
+	#[derive(Debug, Clone)]
+	/// Parameters passed into [`relay_era_payout`] function.
+	pub struct EraPayoutParams {
+		/// Total staked amount.
+		pub total_staked: Balance,
+		/// Total stakable amount.
+		///
+		/// Usually, this is equal to the total issuance, except if a large part of the issuance is
+		/// locked in another sub-system.
+		pub total_stakable: Balance,
+		/// Ideal stake ratio, which is reduced by `legacy_auction_proportion` if not `None`.
+		pub ideal_stake: Perquintill,
+		/// Maximum inflation rate.
+		pub max_annual_inflation: Perquintill,
+		/// Minimum inflation rate.
+		pub min_annual_inflation: Perquintill,
+		/// Falloff used to calculate era payouts.
+		pub falloff: Perquintill,
+		/// Fraction of the era period used to calculate era payouts.
+		pub period_fraction: Perquintill,
+		/// Legacy auction proportion, which, if not `None`, is subtracted from `ideal_stake`.
+		pub legacy_auction_proportion: Option<Perquintill>,
+	}
+
+	/// A specialized function to compute the inflation of the staking system, tailored for relay-style
+	/// chains (e.g. Polkadot, Kusama, and Origin relay configurations).
+	pub fn relay_era_payout(params: EraPayoutParams) -> (Balance, Balance) {
+		let EraPayoutParams {
+			total_staked,
+			total_stakable,
+			ideal_stake,
+			max_annual_inflation,
+			min_annual_inflation,
+			falloff,
+			period_fraction,
+			legacy_auction_proportion,
+		} = params;
+
+		let delta_annual_inflation = max_annual_inflation.saturating_sub(min_annual_inflation);
+
+		let ideal_stake = ideal_stake.saturating_sub(legacy_auction_proportion.unwrap_or_default());
+
+		let stake = Perquintill::from_rational(total_staked, total_stakable);
+		let adjustment = pallet_staking_reward_fn::compute_inflation(stake, ideal_stake, falloff);
+		let staking_inflation =
+			min_annual_inflation.saturating_add(delta_annual_inflation * adjustment);
+
+		let max_payout = period_fraction * max_annual_inflation * total_stakable;
+		let staking_payout = (period_fraction * staking_inflation) * total_stakable;
+		let rest = max_payout.saturating_sub(staking_payout);
+
+		let other_issuance = total_stakable.saturating_sub(total_staked);
+		if total_staked > other_issuance {
+			let _cap_rest =
+				Perquintill::from_rational(other_issuance, total_staked) * staking_payout;
+			// We don't do anything with this, but if we wanted to, we could introduce a cap on the
+			// treasury amount with: `rest = rest.min(cap_rest);`
+		}
+		(staking_payout, rest)
+	}
+}
+
+pub use relay::{apis, relay_era_payout, EraPayoutParams};
