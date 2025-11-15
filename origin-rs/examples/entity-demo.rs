@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use oc::types::{self, entity::AttributeEntry, ElementJson};
 use oc::{
 	demo,
 	demo::{
@@ -14,6 +13,7 @@ use oc::{
 	},
 	entity::{self as sdk_entity, AttributePlan, EntityChainState},
 	tx::{self, SubmitError, TxSubmitter},
+	types::{self, entity::AttributeEntry, ElementJson},
 	utils, ChainFlavor, Client,
 };
 use origin_primitives::view_api::EntityNymRequest;

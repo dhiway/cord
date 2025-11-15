@@ -252,3 +252,5 @@ fast-runtime = ["origin-dev-runtime-constants/fast-runtime"]
 on-chain-release-build = ["metadata-hash", "sp-api/disable-logging"]
 
 metadata-hash = ["substrate-wasm-builder/metadata-hash"]
+
+runtime-metrics = ["sp-io/with-tracing"]

@@ -384,13 +384,12 @@ pub fn new_partial(
 	let justification_import = grandpa_block_import.clone();
 
 	let (beefy_block_import, beefy_voter_links, beefy_rpc_links) =
-	sc_consensus_beefy::beefy_block_import_and_links(
-		grandpa_block_import,
-		backend.clone(),
-		client.clone(),
-		config.prometheus_registry().cloned(),
-	);
-
+		sc_consensus_beefy::beefy_block_import_and_links(
+			grandpa_block_import,
+			backend.clone(),
+			client.clone(),
+			config.prometheus_registry().cloned(),
+		);
 
 	let babe_config = sc_consensus_babe::configuration(&*client)?;
 	let slot_duration = babe_config.slot_duration();

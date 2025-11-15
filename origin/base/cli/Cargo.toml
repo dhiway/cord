@@ -60,8 +60,8 @@ sc-telemetry.workspace = true
 sc-telemetry.default-features = true
 sc-executor.workspace = true
 sc-executor.default-features = true
-origin-staging-runtime = { optional = true, workspace = true, default-features = true }
-origin-staging-runtime-constants = { optional = true, workspace = true, default-features = true }
+origin-dev-runtime = { optional = true, workspace = true, default-features = true }
+origin-dev-runtime-constants = { optional = true, workspace = true, default-features = true }
 
 [build-dependencies]
 substrate-build-script-utils = { workspace = true, default-features = true }
@@ -69,7 +69,7 @@ substrate-build-script-utils = { workspace = true, default-features = true }
 [features]
 default = ["cli", "db", "full-node", "origin-native"]
 db = ["polkadot-service/db"]
-metadata-hash = ["origin-staging-runtime/metadata-hash"]
+metadata-hash = ["origin-dev-runtime/metadata-hash"]
 service = ["dep:polkadot-service"]
 cli = [
 	"clap",
@@ -82,30 +82,30 @@ cli = [
 runtime-benchmarks = [
 	"frame-benchmarking-cli?/runtime-benchmarks",
 	"polkadot-node-metrics/runtime-benchmarks",
-	"origin-staging-runtime/runtime-benchmarks",
+	"origin-dev-runtime/runtime-benchmarks",
 	"sc-service?/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 ]
 full-node = ["polkadot-service/full-node"]
 origin-native = [
 	"frame-metadata-hash-extension",
-	"origin-staging-runtime",
-	"origin-staging-runtime-constants",
+	"origin-dev-runtime",
+	"origin-dev-runtime-constants",
 ]
 try-runtime = [
 	"frame-system/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"runtime-parachains/try-runtime",
-	"origin-staging-runtime/try-runtime",
+	"origin-dev-runtime/try-runtime",
 	"sp-runtime/try-runtime",
 ]
 fast-runtime = [
-	"origin-staging-runtime/fast-runtime",
-	"origin-staging-runtime-constants/fast-runtime",
+	"origin-dev-runtime/fast-runtime",
+	"origin-dev-runtime-constants/fast-runtime",
 ]
 pyroscope = ["dep:pyroscope", "pyroscope_pprofrs"]
 malus = ["full-node"]
 runtime-metrics = [
 	"polkadot-node-metrics/runtime-metrics",
-	"origin-staging-runtime/runtime-metrics",
+	"origin-dev-runtime/runtime-metrics",
 ]

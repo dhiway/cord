@@ -992,7 +992,6 @@ impl pallet_entry::Config for Runtime {
 	type WeightInfo = ();
 }
 
-
 parameter_types! {
 	pub const MaxDataKeyLength: u8 = 128;
 	pub const MaxDataValueLength: u32 = 1 * 1024; //1KB

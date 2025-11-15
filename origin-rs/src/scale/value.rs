@@ -56,9 +56,7 @@ fn value_bytes(value: &Value<u32>) -> Option<Vec<u8>> {
 	match &flatten(value).value {
 		ValueDef::Composite(Composite::Unnamed(items))
 			if items.iter().all(|item| item.as_u128().is_some()) =>
-		{
-			Some(items.iter().map(|item| item.as_u128().unwrap() as u8).collect())
-		},
+			Some(items.iter().map(|item| item.as_u128().unwrap() as u8).collect()),
 		ValueDef::Variant(var) => first_field(&var.values).and_then(value_bytes),
 		ValueDef::Primitive(_) => value.as_u128().map(|n| vec![n as u8]),
 		ValueDef::BitSequence(bits) => {

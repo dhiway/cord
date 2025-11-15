@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! The CORD Orb runtime. This can be compiled with `#[no_std]`, ready for Wasm.
+//! The Origin Dev runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limits.
@@ -91,7 +91,7 @@ mod weights;
 pub use token_runtime_api as token_api;
 
 /// Default logging target.
-pub const LOG_TARGET: &str = "runtime::orb";
+pub const LOG_TARGET: &str = "runtime::origin_dev";
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -115,8 +115,8 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 /// Runtime version.
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: alloc::borrow::Cow::Borrowed("orb"),
-	impl_name: alloc::borrow::Cow::Borrowed("dhiway-cord-orb"),
+	spec_name: alloc::borrow::Cow::Borrowed("origin-dev"),
+	impl_name: alloc::borrow::Cow::Borrowed("dhiway-origin-dev"),
 	authoring_version: 0,
 	spec_version: 9900,
 	impl_version: 0,

@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! Genesis configs presets for the CORD Loom runtime
+//! Genesis config presets for the Origin Dev runtime.
 
 use crate::*;
 
@@ -31,6 +31,10 @@ use sp_core::{sr25519, Pair, Public};
 use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
 use sp_runtime::traits::IdentifyAccount;
+
+const SOLO_PROTOCOL_ID: &str = "origin";
+const SOLO_NETWORK_ID: u32 = 100;
+const DEFAULT_ENDOWMENT: u128 = 500_000_000_000 * UNITS;
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -65,20 +69,18 @@ fn testnet_accounts() -> Vec<AccountId> {
 }
 
 #[allow(clippy::type_complexity)]
-fn cord_solo_dev_staging_genesis(
+fn origin_dev_genesis_patch(
 	initial_authorities: Vec<(AccountId, AccountId, BabeId, GrandpaId, AuthorityDiscoveryId)>,
 	root_key: AccountId,
 	endowed_accounts: Option<Vec<AccountId>>,
 ) -> serde_json::Value {
 	let development_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 
-	const ENDOWMENT: u128 = 500_000_000_000 * UNITS;
-
 	serde_json::json!( {
 		"balances": {
-			"balances": development_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
+			"balances": development_accounts.iter().map(|k| (k.clone(), DEFAULT_ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"token": { "protocolId": "c0rd".to_string(), "networkId": 100},
+		"token": { "protocolId": SOLO_PROTOCOL_ID.to_string(), "networkId": SOLO_NETWORK_ID},
 		"authorityManager":  {
 			"initialAuthorities": initial_authorities
 				.iter()
@@ -92,7 +94,7 @@ fn cord_solo_dev_staging_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						cord_solo_dev_session_keys(
+							origin_dev_session_keys(
 							x.2.clone(),
 							x.3.clone(),
 							x.4.clone(),
@@ -114,7 +116,7 @@ fn cord_solo_dev_staging_genesis(
 	})
 }
 
-fn cord_solo_dev_session_keys(
+fn origin_dev_session_keys(
 	babe: BabeId,
 	grandpa: GrandpaId,
 	authority_discovery: AuthorityDiscoveryId,
@@ -122,8 +124,8 @@ fn cord_solo_dev_session_keys(
 	SessionKeys { babe, grandpa, authority_discovery }
 }
 
-pub fn cord_solo_dev_staging_config_genesis() -> serde_json::Value {
-	cord_solo_dev_staging_genesis(
+pub fn origin_dev_local_config_genesis() -> serde_json::Value {
+	origin_dev_genesis_patch(
 		vec![
 			get_authority_keys_from_seed("Alice"),
 			get_authority_keys_from_seed("Bob"),
@@ -134,8 +136,8 @@ pub fn cord_solo_dev_staging_config_genesis() -> serde_json::Value {
 	)
 }
 
-pub fn cord_solo_dev_development_config_genesis() -> serde_json::Value {
-	cord_solo_dev_staging_genesis(
+pub fn origin_dev_development_config_genesis() -> serde_json::Value {
+	origin_dev_genesis_patch(
 		vec![get_authority_keys_from_seed("Alice")],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 		None,
@@ -153,8 +155,8 @@ pub fn preset_names() -> Vec<PresetId> {
 /// Provides the JSON representation of predefined genesis config for given `id`.
 pub fn get_preset(id: &sp_genesis_builder::PresetId) -> Option<Vec<u8>> {
 	let patch = match id.as_ref() {
-		sp_genesis_builder::DEV_RUNTIME_PRESET => cord_solo_dev_development_config_genesis(),
-		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => cord_solo_dev_staging_config_genesis(),
+		sp_genesis_builder::DEV_RUNTIME_PRESET => origin_dev_development_config_genesis(),
+		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => origin_dev_local_config_genesis(),
 		_ => return None,
 	};
 	Some(

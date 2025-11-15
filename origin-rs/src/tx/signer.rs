@@ -7,9 +7,11 @@ use sp_core::{
 };
 use sp_runtime::MultiSignature as RuntimeMultiSignature;
 use std::{fmt, str::FromStr};
-use subxt::config::PolkadotConfig;
-use subxt::tx::Signer as SubxtSigner;
-use subxt::utils::{AccountId32, MultiSignature as SubxtMultiSignature};
+use subxt::{
+	config::PolkadotConfig,
+	tx::Signer as SubxtSigner,
+	utils::{AccountId32, MultiSignature as SubxtMultiSignature},
+};
 
 /// Supported cryptographic algorithms for SDK keypairs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
