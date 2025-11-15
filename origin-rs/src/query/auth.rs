@@ -1,5 +1,7 @@
 use crate::error::{Error, Result};
-use cord_primitives::view_api::{AuthorizationPayload, AuthorizationRequest, AUTHORIZATION_MAX_BYTES};
+use origin_primitives::view_api::{
+	AuthorizationPayload, AuthorizationRequest, AUTHORIZATION_MAX_BYTES,
+};
 use serde::{Deserialize, Serialize};
 use sp_core::{ecdsa, ed25519, hashing::twox_128, sr25519};
 use sp_runtime::AccountId32;
@@ -141,21 +143,21 @@ impl Authorization {
 						self.signature.as_slice().try_into().map_err(|_| {
 							Error::Params("sr25519 signature must be 64 bytes".into())
 						})?;
-					cord_primitives::Signature::from(sr25519::Signature::from_raw(raw))
+					origin_primitives::Signature::from(sr25519::Signature::from_raw(raw))
 				},
 				SignatureScheme::Ed25519 => {
 					let raw: [u8; 64] =
 						self.signature.as_slice().try_into().map_err(|_| {
 							Error::Params("ed25519 signature must be 64 bytes".into())
 						})?;
-					cord_primitives::Signature::from(ed25519::Signature::from_raw(raw))
+					origin_primitives::Signature::from(ed25519::Signature::from_raw(raw))
 				},
 				SignatureScheme::Ecdsa => {
 					let raw: [u8; 65] =
 						self.signature.as_slice().try_into().map_err(|_| {
 							Error::Params("ecdsa signature must be 65 bytes".into())
 						})?;
-					cord_primitives::Signature::from(ecdsa::Signature::from_raw(raw))
+					origin_primitives::Signature::from(ecdsa::Signature::from_raw(raw))
 				},
 			};
 		Ok(AuthorizationRequest { account, payload, signature })

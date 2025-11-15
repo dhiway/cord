@@ -1,11 +1,11 @@
 use crate::api::runtime;
-use cord_primitives::packet::ElementType;
+use origin_primitives::packet::ElementType;
 
 pub(crate) type RuntimeBoundedVec<T> =
 	runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec<T>;
 
 pub(crate) type RuntimeIdentifier =
-	runtime::runtime_types::cord_primitives::identifier::Ss58Identifier;
+	runtime::runtime_types::origin_primitives::identifier::Ss58Identifier;
 
 pub(crate) fn identifier_bytes(identifier: &RuntimeIdentifier) -> &[u8] {
 	bounded_slice(&identifier.0)
@@ -38,9 +38,9 @@ pub(crate) fn attribute_optional(
 }
 
 pub(crate) fn element_type_to_sdk(
-	kind: &runtime::runtime_types::cord_primitives::element::ElementType,
+	kind: &runtime::runtime_types::origin_primitives::element::ElementType,
 ) -> ElementType {
-	use runtime::runtime_types::cord_primitives::element::ElementType as Rt;
+	use runtime::runtime_types::origin_primitives::element::ElementType as Rt;
 	match kind {
 		Rt::None => ElementType::None,
 		Rt::Raw => ElementType::Raw,

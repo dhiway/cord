@@ -7,7 +7,7 @@ use crate::{
 	utils, Client,
 };
 use codec::Decode;
-use cord_primitives::{
+use origin_primitives::{
 	identifier::Ss58Identifier,
 	registry::RegistryInfoView,
 	view_api::{

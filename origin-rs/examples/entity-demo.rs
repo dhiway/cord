@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use cord_primitives::view_api::EntityNymRequest;
 use oc::types::{self, entity::AttributeEntry, ElementJson};
 use oc::{
 	demo,
@@ -17,6 +16,7 @@ use oc::{
 	tx::{self, SubmitError, TxSubmitter},
 	utils, ChainFlavor, Client,
 };
+use origin_primitives::view_api::EntityNymRequest;
 use sp_core::crypto::Ss58AddressFormat;
 use std::time::Duration;
 

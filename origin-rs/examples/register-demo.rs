@@ -1,9 +1,4 @@
 use anyhow::{anyhow, Result};
-use cord_primitives::{
-	identifier::Ss58Identifier,
-	registry::{LookupSpecView, RegistryInfoView},
-	view_api::{RegisterDetailsRequest, RegisterLookupSpecsRequest},
-};
 use oc::demo::packet::render_packet_snapshot_cli;
 use oc::demo::register::render_registry_snapshot_cli;
 use oc::error::Error as SdkError;
@@ -17,6 +12,11 @@ use oc::{
 	},
 	tx::{self, TxSubmitter},
 	utils, ChainFlavor, Client,
+};
+use origin_primitives::{
+	identifier::Ss58Identifier,
+	registry::{LookupSpecView, RegistryInfoView},
+	view_api::{RegisterDetailsRequest, RegisterLookupSpecsRequest},
 };
 use std::time::Duration;
 

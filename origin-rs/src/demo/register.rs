@@ -1,13 +1,13 @@
 use anyhow::Result;
 use bs58;
-use cord_primitives::{
+use hex;
+use origin_primitives::{
 	packet::ElementType,
 	registry::{
 		LookupSpecView, RegistryAttributeView, RegistryInfoView, RegistryKind, RegistryStatus,
 	},
 	view::ElementView,
 };
-use hex;
 use serde_json::json;
 
 use crate::demo::util::ViewStyle;

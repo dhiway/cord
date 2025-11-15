@@ -5,8 +5,8 @@ use crate::{
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bs58;
-use cord_primitives::view::ElementView as ViewElement;
 use hex;
+use origin_primitives::view::ElementView as ViewElement;
 use scale_value::{Composite, Value};
 use serde::{Deserialize, Serialize};
 
@@ -88,27 +88,27 @@ pub fn attribute_pair_value(key: &[u8], element: &ElementJson) -> Result<Value> 
 }
 
 pub fn element_text_from_runtime(
-	element: &runtime::runtime_types::cord_primitives::element::Elum,
+	element: &runtime::runtime_types::origin_primitives::element::Elum,
 ) -> Option<String> {
 	match element {
-		runtime::runtime_types::cord_primitives::element::Elum::None => None,
-		runtime::runtime_types::cord_primitives::element::Elum::Raw(bytes) => {
+		runtime::runtime_types::origin_primitives::element::Elum::None => None,
+		runtime::runtime_types::origin_primitives::element::Elum::Raw(bytes) => {
 			let raw = bounded_bytes_vec(bytes);
 			match String::from_utf8(raw.clone()) {
 				Ok(text) => Some(text),
 				Err(_) => Some(format!("0x{}", hex::encode(&raw))),
 			}
 		},
-		runtime::runtime_types::cord_primitives::element::Elum::Bool(flag) => {
+		runtime::runtime_types::origin_primitives::element::Elum::Bool(flag) => {
 			Some(((*flag) != 0).to_string())
 		},
-		runtime::runtime_types::cord_primitives::element::Elum::U64(bytes) => {
+		runtime::runtime_types::origin_primitives::element::Elum::U64(bytes) => {
 			Some(u64::from_le_bytes(*bytes).to_string())
 		},
-		runtime::runtime_types::cord_primitives::element::Elum::U128(bytes) => {
+		runtime::runtime_types::origin_primitives::element::Elum::U128(bytes) => {
 			Some(u128::from_le_bytes(*bytes).to_string())
 		},
-		runtime::runtime_types::cord_primitives::element::Elum::Hash(digest) => {
+		runtime::runtime_types::origin_primitives::element::Elum::Hash(digest) => {
 			Some(format!("0x{}", hex::encode(digest)))
 		},
 		runtime::runtime_types::cord_primitives::element::Elum::Token(identifier) => {

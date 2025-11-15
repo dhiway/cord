@@ -1,0 +1,57 @@
+[package]
+name = "origin-hub"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+build = "build.rs"
+description = "Origin Hub"
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "origin-hub"
+path = "src/main.rs"
+
+[dependencies]
+color-eyre = { workspace = true }
+hex-literal = { workspace = true, default-features = true }
+log = { workspace = true, default-features = true }
+serde = { features = ["derive"], workspace = true, default-features = true }
+serde_json = { workspace = true, default-features = true }
+
+#Local
+cord-origin-system-staging-runtime = { default-features = true, workspace = true }
+
+#Substrate, Cumulus, Polkadot
+cumulus-primitives-core = { workspace = true, default-features = true }
+polkadot-omni-node-lib = { workspace = true }
+parachains-common = { workspace = true, default-features = true }
+sc-chain-spec = { workspace = true, default-features = true }
+sc-cli = { workspace = true, default-features = true }
+sc-service = { workspace = true, default-features = true }
+sp-core = { workspace = true, default-features = true }
+sp-genesis-builder = { workspace = true, default-features = true }
+sp-keyring = { workspace = true, default-features = true }
+xcm = { workspace = true, default-features = true }
+
+[build-dependencies]
+substrate-build-script-utils = { workspace = true, default-features = true }
+
+[features]
+default = []
+runtime-benchmarks = [
+	"cumulus-primitives-core/runtime-benchmarks",
+	"parachains-common/runtime-benchmarks",
+	"polkadot-omni-node-lib/runtime-benchmarks",
+	"sc-service/runtime-benchmarks",
+	"cord-origin-system-staging-runtime/runtime-benchmarks",
+]
+try-runtime = [
+	"polkadot-omni-node-lib/try-runtime",
+	"cord-origin-system-staging-runtime/try-runtime",
+]
+fast-runtime = ["cord-origin-system-staging-runtime/fast-runtime"]

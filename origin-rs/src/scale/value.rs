@@ -1,5 +1,5 @@
 use crate::error::{Error, Result};
-use cord_primitives::{
+use origin_primitives::{
 	identifier::Ss58Identifier,
 	view::{dev_attr_from, dev_element_from, AttributeValueView, DevAttr, ElementView},
 };
@@ -157,7 +157,7 @@ pub fn decode_dev_attributes(value: &Value<u32>) -> Result<Vec<DevAttr>> {
 }
 
 /// Decode an `Element` value directly into its printable developer form.
-pub fn decode_dev_element(value: &Value<u32>) -> Result<cord_primitives::view::DevElement> {
+pub fn decode_dev_element(value: &Value<u32>) -> Result<origin_primitives::view::DevElement> {
 	let view = decode_element_view(value)?;
 	Ok(dev_element_from(&view))
 }

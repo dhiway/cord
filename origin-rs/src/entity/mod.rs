@@ -11,7 +11,9 @@ use crate::{
 	},
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use cord_primitives::{
+use hex;
+use log::debug;
+use origin_primitives::{
 	identifier::Ss58Identifier,
 	view::{maybe_utf8, AttributeValueView},
 	view_api::{
@@ -19,8 +21,6 @@ use cord_primitives::{
 		TokenStateVersionRequest, TokenTimelineRequest,
 	},
 };
-use hex;
-use log::debug;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use subxt::utils::AccountId32;

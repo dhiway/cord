@@ -1,9 +1,4 @@
 use anyhow::{anyhow, Result};
-use cord_primitives::{
-	identifier::Ss58Identifier,
-	registry::RegistryInfoView,
-	view_api::{EntityNymRequest, RegisterLookupSpecsRequest},
-};
 use oc::{
 	demo,
 	demo::cli::{parse_common_cli, require_value, CommonCliOptions},
@@ -17,6 +12,11 @@ use oc::{
 	entity::EntityChainState,
 	query::register::PacketSnapshotView,
 	tx, utils, ChainFlavor, Client,
+};
+use origin_primitives::{
+	identifier::Ss58Identifier,
+	registry::RegistryInfoView,
+	view_api::{EntityNymRequest, RegisterLookupSpecsRequest},
 };
 use sp_core::crypto::Ss58AddressFormat;
 

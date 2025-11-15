@@ -1,0 +1,51 @@
+[package]
+name = "origin"
+description = "Origin Node"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "origin"
+path = "src/main.rs"
+
+[[bin]]
+name = "origin-execute-worker"
+path = "src/bin/execute-worker.rs"
+
+[[bin]]
+name = "origin-prepare-worker"
+path = "src/bin/prepare-worker.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+color-eyre = { workspace = true }
+tikv-jemallocator = { optional = true, features = [
+	"unprefixed_malloc_on_supported_platforms",
+], workspace = true }
+origin-node-cli = { workspace = true, default-features = true }
+polkadot-node-core-pvf = { workspace = true, default-features = true }
+polkadot-node-core-pvf-common = { workspace = true, default-features = true }
+polkadot-overseer = { workspace = true, default-features = true }
+polkadot-node-core-pvf-execute-worker = { workspace = true, default-features = true }
+polkadot-node-core-pvf-prepare-worker = { workspace = true, default-features = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+tikv-jemallocator = { version = "0.5.0", features = [
+	"unprefixed_malloc_on_supported_platforms",
+] }
+
+[build-dependencies]
+substrate-build-script-utils.workspace = true
+substrate-build-script-utils.default-features = true
+
+[features]
+jemalloc-allocator = [
+	"dep:tikv-jemallocator",
+	"polkadot-node-core-pvf-prepare-worker/jemalloc-allocator",
+	"polkadot-node-core-pvf/jemalloc-allocator",
+	"polkadot-overseer/jemalloc-allocator",
+]
