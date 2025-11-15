@@ -12,13 +12,13 @@ use crate::{
 	types::entity::EntityInfoRecord,
 };
 use codec::Decode;
-use cord_primitives::{
+use getrandom::getrandom;
+use hex;
+use origin_primitives::{
 	identifier::Ss58Identifier,
 	registry::RegistryInfoView,
 	view_api::{AuthorizationRequest, EntityAccountTokenRequest},
 };
-use getrandom::getrandom;
-use hex;
 use serde_json::{json, Value as JsonValue};
 use sp_runtime::AccountId32 as RuntimeAccount;
 use subxt::{blocks::ExtrinsicEvents, utils::AccountId32};

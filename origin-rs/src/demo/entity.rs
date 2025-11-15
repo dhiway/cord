@@ -6,7 +6,7 @@ use crate::{
 	utils, Client,
 };
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
-use cord_primitives::identifier::Ss58Identifier;
+use origin_primitives::identifier::Ss58Identifier;
 use serde::Serialize;
 use serde_json::json;
 use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};

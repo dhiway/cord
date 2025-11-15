@@ -4,7 +4,7 @@ use crate::{
 	types,
 };
 use codec::Decode;
-use cord_primitives::identifier::Ss58Identifier;
+use origin_primitives::identifier::Ss58Identifier;
 use subxt::{dynamic, utils::AccountId32};
 
 /// Convenience helpers for state queries that the SDK exposes frequently.

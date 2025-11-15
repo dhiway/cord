@@ -10,8 +10,11 @@ use crate::{
 	types,
 };
 use codec::Decode;
-use cord_primitives::{identifier::Ss58Identifier, view_api::{AuthorizationError, AuthorizationRequest}};
 use hex::ToHex;
+use origin_primitives::{
+	identifier::Ss58Identifier,
+	view_api::{AuthorizationError, AuthorizationRequest},
+};
 use scale_decode::DecodeAsType;
 use scale_value::{Composite, Value};
 use sp_runtime::MultiSignature;

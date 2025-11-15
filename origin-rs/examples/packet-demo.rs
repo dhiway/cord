@@ -1,8 +1,4 @@
 use anyhow::{anyhow, Result};
-use cord_primitives::{
-	registry::RegistryPermissions,
-	view_api::{RegisterDetailsRequest, RegisterPacketSnapshotRequest},
-};
 use oc::{
 	demo,
 	demo::cli::{parse_common_cli, require_value, CommonCliOptions},
@@ -16,6 +12,10 @@ use oc::{
 	query::register::PacketSnapshotView,
 	tx::{self, TxSubmitter},
 	utils, ChainFlavor, Client,
+};
+use origin_primitives::{
+	registry::RegistryPermissions,
+	view_api::{RegisterDetailsRequest, RegisterPacketSnapshotRequest},
 };
 use sp_core::crypto::Ss58AddressFormat;
 use std::time::Duration;

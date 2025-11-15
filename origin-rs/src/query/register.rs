@@ -7,7 +7,7 @@ use crate::{
 	},
 	types::RegistrySchema,
 };
-use cord_primitives::{
+use origin_primitives::{
 	identifier::Ss58Identifier,
 	registry::{
 		LookupSpecView, RegistryAttributeView, RegistryInfoView, RegistryKind, RegistryStatus,
@@ -17,9 +17,8 @@ use cord_primitives::{
 		PacketStateView,
 	},
 	view_api::{
-		AuthorizationError, RegisterDetailsRequest,
-		RegisterLookupSpecsRequest, RegisterPacketSnapshotByTokenRequest,
-		RegisterPacketSnapshotRequest,
+		AuthorizationError, RegisterDetailsRequest, RegisterLookupSpecsRequest,
+		RegisterPacketSnapshotByTokenRequest, RegisterPacketSnapshotRequest,
 	},
 };
 use scale_value::Value;
@@ -113,8 +112,8 @@ impl<'a> RegisterQuery<'a> {
 
 	fn base_args(
 		&self,
-		auth: &cord_primitives::view_api::AuthorizationRequest,
-		registry: &cord_primitives::identifier::Ss58Identifier,
+		auth: &origin_primitives::view_api::AuthorizationRequest,
+		registry: &origin_primitives::identifier::Ss58Identifier,
 	) -> Result<Value> {
 		let mut builder = ArgBuilder::default();
 		builder.push("auth", super::authorization_value(auth)?);
@@ -143,12 +142,12 @@ impl<'a> RegisterQuery<'a> {
 type RuntimeRegistryInfo = runtime::runtime_types::pallet_register::register::RegistryInfo;
 type RuntimeAttributeSpec = runtime::runtime_types::pallet_register::register::AttributeSpec;
 type RuntimeLookupSpec = runtime::runtime_types::pallet_register::register::LookupSpec;
-type RuntimeElement = runtime::runtime_types::cord_primitives::element::Elum;
-type RuntimeIdentifier = runtime::runtime_types::cord_primitives::identifier::Ss58Identifier;
-type RuntimeRegistryKind = runtime::runtime_types::cord_primitives::registry::RegistryKind;
-type RuntimeRegistryStatus = runtime::runtime_types::cord_primitives::registry::RegistryStatus;
-type RuntimePacketStatus = runtime::runtime_types::cord_primitives::packet::PacketStatus;
-type RuntimeAttributes = runtime::runtime_types::cord_primitives::packet::Attributes;
+type RuntimeElement = runtime::runtime_types::origin_primitives::element::Elum;
+type RuntimeIdentifier = runtime::runtime_types::origin_primitives::identifier::Ss58Identifier;
+type RuntimeRegistryKind = runtime::runtime_types::oridin_primitives::registry::RegistryKind;
+type RuntimeRegistryStatus = runtime::runtime_types::origin_primitives::registry::RegistryStatus;
+type RuntimePacketStatus = runtime::runtime_types::origin_primitives::packet::PacketStatus;
+type RuntimeAttributes = runtime::runtime_types::origin_primitives::packet::Attributes;
 
 fn registry_view_from_runtime(info: &RuntimeRegistryInfo) -> Result<RegistryInfoView> {
 	let attributes = bounded_iter(&info.attributes)
@@ -188,7 +187,7 @@ fn lookup_spec_from_runtime(spec: &RuntimeLookupSpec) -> LookupSpecView {
 }
 
 fn element_view_from_runtime(element: &RuntimeElement) -> Result<ElementView> {
-	use runtime::runtime_types::cord_primitives::element::Elum as RuntimeElementEnum;
+	use runtime::runtime_types::origin_primitives::element::Elum as RuntimeElementEnum;
 	let view = match element {
 		RuntimeElementEnum::None => ElementView::None,
 		RuntimeElementEnum::Raw(bytes) => ElementView::Raw(bounded_bytes_vec(bytes)),
@@ -211,7 +210,7 @@ fn identifier_from_runtime(identifier: &RuntimeIdentifier) -> Result<Ss58Identif
 }
 
 fn registry_kind_from_runtime(kind: &RuntimeRegistryKind) -> RegistryKind {
-	use runtime::runtime_types::cord_primitives::registry::RegistryKind as RuntimeKindEnum;
+	use runtime::runtime_types::origin_primitives::registry::RegistryKind as RuntimeKindEnum;
 	match kind {
 		RuntimeKindEnum::Raw => RegistryKind::Raw,
 		RuntimeKindEnum::Token => RegistryKind::Token,
@@ -220,7 +219,7 @@ fn registry_kind_from_runtime(kind: &RuntimeRegistryKind) -> RegistryKind {
 }
 
 fn registry_status_from_runtime(status: &RuntimeRegistryStatus) -> RegistryStatus {
-	use runtime::runtime_types::cord_primitives::registry::RegistryStatus as RuntimeStatusEnum;
+	use runtime::runtime_types::origin_primitives::registry::RegistryStatus as RuntimeStatusEnum;
 	match status {
 		RuntimeStatusEnum::Active => RegistryStatus::Active,
 		RuntimeStatusEnum::Revoked => RegistryStatus::Revoked,
@@ -242,12 +241,12 @@ fn packet_state_view_from_record(record: &PacketStateRecord) -> Result<PacketSta
 
 fn packet_status_from_runtime(
 	status: &RuntimePacketStatus,
-) -> cord_primitives::packet::PacketStatus {
-	use runtime::runtime_types::cord_primitives::packet::PacketStatus as RuntimePacketStatusEnum;
+) -> origin_primitives::packet::PacketStatus {
+	use runtime::runtime_types::origin_primitives::packet::PacketStatus as RuntimePacketStatusEnum;
 	match status {
-		RuntimePacketStatusEnum::Active => cord_primitives::packet::PacketStatus::Active,
-		RuntimePacketStatusEnum::Revoked => cord_primitives::packet::PacketStatus::Revoked,
-		RuntimePacketStatusEnum::Deleted => cord_primitives::packet::PacketStatus::Deleted,
+		RuntimePacketStatusEnum::Active => origin_primitives::packet::PacketStatus::Active,
+		RuntimePacketStatusEnum::Revoked => origin_primitives::packet::PacketStatus::Revoked,
+		RuntimePacketStatusEnum::Deleted => origin_primitives::packet::PacketStatus::Deleted,
 	}
 }
 

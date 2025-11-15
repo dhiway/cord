@@ -1,6 +1,6 @@
 use super::{ArgBuilder, Query};
 use crate::{error::Result, types::token::StateEventRecord};
-use cord_primitives::{
+use origin_primitives::{
 	identifier::DecodedIdentifier,
 	view_api::{
 		AuthorizationError, TokenResolveIdentifierRequest, TokenResolvePalletRequest,
@@ -51,8 +51,8 @@ impl<'a> TokenQuery<'a> {
 
 	fn token_args(
 		&self,
-		auth: &cord_primitives::view_api::AuthorizationRequest,
-		token: &cord_primitives::identifier::Ss58Identifier,
+		auth: &origin_primitives::view_api::AuthorizationRequest,
+		token: &origin_primitives::identifier::Ss58Identifier,
 	) -> Result<Value> {
 		let mut builder = ArgBuilder::default();
 		builder.push("auth", super::authorization_value(auth)?);

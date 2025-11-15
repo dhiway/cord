@@ -8,7 +8,7 @@ use crate::{
 		BlockRef, EntityInfoRecord, HistoryEntry,
 	},
 };
-use cord_primitives::{
+use origin_primitives::{
 	identifier::Ss58Identifier,
 	view_api::{
 		AuthorizationError, AuthorizationRequest, EntityAccountTokenRequest,
@@ -153,17 +153,18 @@ impl<'a> EntityQuery<'a> {
 		let args = self.token_args(auth, token)?;
 		let raw: core::result::Result<Vec<(AccountId32, RuntimeEventBlock)>, AuthorizationError> =
 			self.query.call_result("Entity", "account_history", args).await?;
-		raw.map_err(|err| super::view_failure("entity.account_history", err)).map(|records| {
-			records
-				.into_iter()
-				.map(|(account, block)| (account, block_ref(block)))
-				.collect()
-		})
+		raw.map_err(|err| super::view_failure("entity.account_history", err))
+			.map(|records| {
+				records
+					.into_iter()
+					.map(|(account, block)| (account, block_ref(block)))
+					.collect()
+			})
 	}
 
 	fn token_args(
 		&self,
-		auth: &cord_primitives::view_api::AuthorizationRequest,
+		auth: &origin_primitives::view_api::AuthorizationRequest,
 		token: &Ss58Identifier,
 	) -> Result<Value> {
 		let mut builder = ArgBuilder::default();
@@ -174,7 +175,7 @@ impl<'a> EntityQuery<'a> {
 
 	fn token_key_args(
 		&self,
-		auth: &cord_primitives::view_api::AuthorizationRequest,
+		auth: &origin_primitives::view_api::AuthorizationRequest,
 		token: &Ss58Identifier,
 		key: &[u8],
 	) -> Result<Value> {
@@ -187,7 +188,7 @@ impl<'a> EntityQuery<'a> {
 
 	fn token_key_version_args(
 		&self,
-		auth: &cord_primitives::view_api::AuthorizationRequest,
+		auth: &origin_primitives::view_api::AuthorizationRequest,
 		token: &Ss58Identifier,
 		key: &[u8],
 		version: u64,

@@ -1,5 +1,5 @@
 use crate::{demo::util::ViewStyle, types::token::StateEventRecord};
-use cord_primitives::{
+use origin_primitives::{
 	registry::RegistryStatus,
 	view::{DevAttr, DevElement, DevPacketSnapshot},
 };
@@ -76,11 +76,11 @@ fn describe_dev_element(value: &DevElement) -> String {
 	}
 }
 
-fn describe_packet_status(status: &cord_primitives::packet::PacketStatus) -> &'static str {
+fn describe_packet_status(status: &origin_primitives::packet::PacketStatus) -> &'static str {
 	match status {
-		cord_primitives::packet::PacketStatus::Active => "Active",
-		cord_primitives::packet::PacketStatus::Revoked => "Revoked",
-		cord_primitives::packet::PacketStatus::Deleted => "Deleted",
+		origin_primitives::packet::PacketStatus::Active => "Active",
+		origin_primitives::packet::PacketStatus::Revoked => "Revoked",
+		origin_primitives::packet::PacketStatus::Deleted => "Deleted",
 	}
 }
 
