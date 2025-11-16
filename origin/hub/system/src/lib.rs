@@ -34,21 +34,9 @@ pub mod xcm_config;
 
 use alloc::{borrow::Cow, string::String, vec, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use origin_hub_system_runtime_constants::{
-	async_backing::{
-		AVERAGE_ON_INITIALIZE_RATIO, HOURS, MAXIMUM_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO,
-	},
-	origin::{
-		consensus::{
-			async_backing::UNINCLUDED_SEGMENT_CAPACITY, BLOCK_PROCESSING_VELOCITY,
-			RELAY_CHAIN_SLOT_DURATION_MILLIS,
-		},
-		currency::*,
-		fee::WeightToFee,
-	},
-};
 use core::convert::TryInto;
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
+use cumulus_pallet_parachain_system::RelaychainDataProvider;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	construct_runtime, derive_impl,
@@ -66,18 +54,31 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot,
 };
+pub use origin_hub_system_runtime_constants::async_backing::SLOT_DURATION;
+use origin_hub_system_runtime_constants::{
+	async_backing::{
+		AVERAGE_ON_INITIALIZE_RATIO, HOURS, MAXIMUM_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO,
+	},
+	origin::{
+		consensus::{
+			async_backing::UNINCLUDED_SEGMENT_CAPACITY, BLOCK_PROCESSING_VELOCITY,
+			RELAY_CHAIN_SLOT_DURATION_MILLIS,
+		},
+		currency::*,
+		fee::WeightToFee,
+	},
+};
 use origin_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
-use pallet_token::Token as TokenTrait;
-use pallet_transaction_payment::FungibleAdapter;
 use origin_runtime_constants::currency::deposit;
 use origin_runtime_constants::fee;
-use cumulus_pallet_parachain_system::RelaychainDataProvider;
-use scale_info::TypeInfo;
+use pallet_token::Token as TokenTrait;
+use pallet_transaction_payment::FungibleAdapter;
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
 use parachains_common::{
 	message_queue::*, AccountId, AuraId, Balance, BlockNumber, Hash, Header, Nonce, Signature,
 };
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
+use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
@@ -92,18 +93,17 @@ pub use sp_runtime::{MultiAddress, Perbill, Permill};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-pub use origin_hub_system_runtime_constants::async_backing::SLOT_DURATION;
 /// Runtime API definition for token.
 pub use token_origin_hub_runtime_api as token_api;
 
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 use xcm::{
-	latest::prelude::*, Version as XcmVersion, VersionedAsset, VersionedAssetId, VersionedAssets,
+	latest::prelude::*, Version as XcmVersion, VersionedAssetId, VersionedAssets,
 	VersionedLocation, VersionedXcm,
 };
 use xcm_config::{
-	FellowshipLocation, GovernanceLocation, PriceForParentDelivery,
-	PriceForSiblingParachainDelivery, StakingPot, XcmConfig, XcmOriginToTransactDispatchOrigin,
+	GovernanceLocation, PriceForParentDelivery, PriceForSiblingParachainDelivery, XcmConfig,
+	XcmOriginToTransactDispatchOrigin,
 };
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
@@ -327,7 +327,7 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 					| RuntimeCall::Proxy(..)
 					| RuntimeCall::Multisig(..)
 					| RuntimeCall::MessageQueue(..)
-				),
+			),
 			ProxyType::CancelProxy => {
 				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))
 			},
@@ -625,8 +625,8 @@ pub type Executive = frame_executive::Executive<
 mod benches {
 	use super::*;
 	use alloc::boxed::Box;
-	use origin_hub_system_runtime_constants::kusama::locations::{
-		AssetHubLocation, AssetHubParaId,
+	use origin_hub_system_runtime_constants::origin::locations::{
+		OriginHubLocation, OriginHubParaId,
 	};
 
 	frame_benchmarking::define_benchmarks!(
@@ -712,13 +712,13 @@ mod benches {
 		}
 
 		fn set_up_complex_asset_transfer() -> Option<(Assets, u32, Location, Box<dyn FnOnce()>)> {
-			// Only supports native token teleports to system parachain
+			// Only supports native token teleports to default Origin Hub parachain
 			let native_location = Parent.into();
-			let dest = AssetHubLocation::get();
+			let dest = OriginHubLocation::get();
 
-			// TODO: Remove below line once we update to polkadot-sdk stable2503
+			// Polkadot SDK >= stable2509: HRMP open helper still required in benchmarks.
 			ParachainSystem::open_outbound_hrmp_channel_for_benchmarks_or_tests(
-				AssetHubParaId::get(),
+				OriginHubParaId::get(),
 			);
 
 			pallet_xcm::benchmarking::helpers::native_teleport_as_asset_transfer::<Runtime>(

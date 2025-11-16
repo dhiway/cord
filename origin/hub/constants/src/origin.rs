@@ -175,10 +175,17 @@ pub mod locations {
 	use polkadot_primitives::Id as ParaId;
 	use xcm::latest::prelude::{Junction::*, Location};
 
-	pub const ASSET_HUB_ID: u32 = 1000;
+	/// Origin Hub parachain IDs (regional hubs).
+	pub const ORIGIN_HUB_IN_ID: u32 = 1000;
+	pub const ORIGIN_HUB_NA_ID: u32 = 1001;
+	pub const ORIGIN_HUB_EU_ID: u32 = 1002;
+	pub const ORIGIN_HUB_AP_ID: u32 = 1003;
+	pub const ORIGIN_HUB_ME_ID: u32 = 1004;
+	pub const ORIGIN_HUB_AF_ID: u32 = 1005;
 
 	parameter_types! {
-		pub AssetHubParaId: ParaId = ParaId::from(ASSET_HUB_ID);
-		pub AssetHubLocation: Location = Location::new(1, Parachain(ASSET_HUB_ID));
+		/// Default hub used in configs/benches (India hub).
+		pub OriginHubParaId: ParaId = ParaId::from(ORIGIN_HUB_IN_ID);
+		pub OriginHubLocation: Location = Location::new(1, Parachain(ORIGIN_HUB_IN_ID));
 	}
 }

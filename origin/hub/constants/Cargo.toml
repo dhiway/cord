@@ -39,3 +39,6 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"xcm/runtime-benchmarks",
 ]
+
+# Enable faster block/slot timings for smoke tests (500ms target block time).
+fast-runtime = []

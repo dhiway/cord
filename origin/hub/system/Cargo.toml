@@ -232,7 +232,7 @@ try-runtime = [
 	"sp-runtime/try-runtime",
 ]
 
-fast-runtime = ["origin-runtime-constants/fast-runtime"]
+fast-runtime = ["origin-runtime-constants/fast-runtime", "origin-hub-system-runtime-constants/fast-runtime"]
 
 # Enable metadata hash generation at compile time for the `CheckMetadataHash` extension.
 metadata-hash = ["substrate-wasm-builder/metadata-hash"]

@@ -7,7 +7,7 @@
 timeout = 300
 
 [relaychain]
-chain = "origin-relay-local"
+chain = "origin-local"
 default_command = "../target/release/origin"
 
 [[relaychain.nodes]]

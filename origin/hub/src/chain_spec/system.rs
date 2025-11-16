@@ -28,7 +28,7 @@ const DEFAULT_PROTOCOL_ID: &str = "0rbit";
 fn properties() -> sc_chain_spec::Properties {
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("ss58Format".into(), 29.into());
-	properties.insert("tokenSymbol".into(), "ORU".into());
+	properties.insert("tokenSymbol".into(), "ORGN".into());
 	properties.insert("tokenDecimals".into(), 10.into());
 	properties
 }

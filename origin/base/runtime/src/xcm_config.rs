@@ -17,9 +17,13 @@
 //! XCM configurations for the Origin Staging runtime.
 
 use super::{
-	parachains_origin, AccountId, AllPalletsWithSystem, Balances, Dmp, ParaId, Runtime,
-	RuntimeCall, RuntimeEvent, RuntimeOrigin, TransactionByteFee, WeightToFee, XcmPallet,
+	parachains_origin, AccountId, AllPalletsWithSystem, ParaId, Runtime, RuntimeCall,
+	RuntimeEvent, RuntimeOrigin, TransactionByteFee, WeightToFee,
 };
+use runtime_parachains::dmp as parachains_dmp;
+type Balances = pallet_balances::Pallet<Runtime>;
+type XcmPallet = pallet_xcm::Pallet<Runtime>;
+type Dmp = parachains_dmp::Pallet<Runtime>;
 
 use frame_support::{
 	parameter_types,
