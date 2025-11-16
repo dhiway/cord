@@ -20,9 +20,9 @@ members = [
 	"origin/base",
 	"origin/base/cli",
 	"origin/base/runtime",
-	# "origin/hub",
-	# "origin/hub/onstants",
-	# "origin/hub/system",
+	"origin/hub",
+	"origin/hub/constants",
+	"origin/hub/system",
 	"origin/solo",
 	"origin/solo/constants",
 	"origin/common",
@@ -62,7 +62,7 @@ members = [
 	"test-utils/cli",
 	"origin-rs",
 ]
-default-members = ["node/cli", "origin/base"]
+default-members = ["node/cli", "origin/base", "origin/hub" ]
 # default-members = ["node/cli", "origin/relay"]
 
 [workspace.lints.rust]
@@ -804,11 +804,14 @@ origin-runtime-constants = { path = "origin/base/runtime/constants", default-fea
 origin-dev-runtime-constants = { path = "origin/solo/constants", default-features = false }
 origin-common = { path = "origin/common", default-features = false }
 origin-dev-runtime = { path = "origin/solo", default-features = false }
+# Origin hub system chain crates (parachain runtime + shared constants)
+origin-hub-system-runtime = { path = "origin/hub/system", default-features = false }
+origin-hub-system-runtime-constants = { path = "origin/hub/constants", default-features = false }
 # # origin-authorities = { path = "origin/relay/runtime/authorities", default-features = false }
 # origin-system-chains-staging-constants = { path = "origin/container/constants", default-features = false }
 # origin-system-staging-runtime = { path = "origin/container/system", default-features = false }
-token-origin-runtime-api = { path = "origin/api/runtime-api/token-origin-runtime-api", default-features = false }
-token-origin-hub-runtime-api = { path = "origin/api/runtime-api/token-origin-hub-runtime-api", default-features = false }
+token-origin-runtime-api = { path = "origin/runtime-api/token-origin-runtime-api", default-features = false }
+token-origin-hub-runtime-api = { path = "origin/runtime-api/token-origin-hub-runtime-api", default-features = false }
 
 [profile.release]
 panic = 'unwind'

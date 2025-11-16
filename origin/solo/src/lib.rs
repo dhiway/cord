@@ -814,25 +814,6 @@ impl pallet_register::Config for Runtime {
 	type WeightInfo = ();
 }
 
-parameter_types! {
-	pub StatementCost: Balance = 1 * UNITS;
-	pub StatementByteCost: Balance = 100 * MILLI;
-	pub const MinAllowedStatements: u32 = 4;
-	pub const MaxAllowedStatements: u32 = 10;
-	pub const MinAllowedBytes: u32 = 1024;
-	pub const MaxAllowedBytes: u32 = 4096;
-}
-
-impl pallet_statement::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type StatementCost = StatementCost;
-	type ByteCost = StatementByteCost;
-	type MinAllowedStatements = MinAllowedStatements;
-	type MaxAllowedStatements = MaxAllowedStatements;
-	type MinAllowedBytes = MinAllowedBytes;
-	type MaxAllowedBytes = MaxAllowedBytes;
-}
 
 impl pallet_feeless::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -941,9 +922,6 @@ mod runtime {
 	pub type SafeMode = pallet_safe_mode::Pallet<Runtime>;
 
 	#[runtime::pallet_index(72)]
-	pub type Statement = pallet_statement::Pallet<Runtime>;
-
-	#[runtime::pallet_index(73)]
 	pub type Feeless = pallet_feeless::Pallet<Runtime>;
 
 	#[runtime::pallet_index(101)]
@@ -1119,15 +1097,6 @@ impl_runtime_apis! {
 			block_hash: <Block as BlockT>::Hash,
 		) -> TransactionValidity {
 			Executive::validate_transaction(source, tx, block_hash)
-		}
-	}
-
-	impl sp_statement_store::runtime_api::ValidateStatement<Block> for Runtime {
-		fn validate_statement(
-			source: sp_statement_store::runtime_api::StatementSource,
-			statement: sp_statement_store::Statement,
-		) -> Result<sp_statement_store::runtime_api::ValidStatement, sp_statement_store::runtime_api::InvalidStatement> {
-			Statement::validate_statement(source, statement)
 		}
 	}
 

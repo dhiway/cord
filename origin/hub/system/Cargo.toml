@@ -1,6 +1,6 @@
 [package]
-name = "cord-origin-system-staging-runtime"
-description = "Origin Container System Runtime"
+name = "origin-hub-system-runtime"
+description = "Origin Hub System Runtime"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -18,9 +18,9 @@ scale-info = { features = ["derive"], workspace = true }
 serde_json = { features = ["alloc"], workspace = true }
 
 # Local
-cord-primitives = { workspace = true }
+origin-primitives = { workspace = true }
 origin-runtime-constants = { workspace = true }
-cord-origin-system-chains-staging-constants = { workspace = true }
+origin-hub-system-runtime-constants = { workspace = true }
 token-origin-hub-runtime-api = { workspace = true }
 
 # Substrate
@@ -95,9 +95,9 @@ substrate-wasm-builder = { optional = true, workspace = true }
 default = ["std"]
 std = [
 	"codec/std",
-	"cord-primitives/std",
+"origin-primitives/std",
 	"origin-runtime-constants/std",
-	"cord-origin-system-chains-staging-constants/std",
+	"origin-hub-system-runtime-constants/std",
 	"token-origin-hub-runtime-api/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
@@ -166,7 +166,7 @@ std = [
 
 runtime-benchmarks = [
 	"origin-runtime-constants/std",
-	"cord-origin-system-chains-staging-constants/std",
+	"origin-hub-system-runtime-constants/std",
 	"cumulus-pallet-parachain-system/runtime-benchmarks",
 	"cumulus-pallet-session-benchmarking/runtime-benchmarks",
 	"cumulus-pallet-xcmp-queue/runtime-benchmarks",

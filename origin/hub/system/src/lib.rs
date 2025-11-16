@@ -34,7 +34,7 @@ pub mod xcm_config;
 
 use alloc::{borrow::Cow, string::String, vec, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use cord_origin_system_chains_staging_constants::{
+use origin_hub_system_runtime_constants::{
 	async_backing::{
 		AVERAGE_ON_INITIALIZE_RATIO, HOURS, MAXIMUM_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO,
 	},
@@ -67,13 +67,18 @@ use frame_system::{
 	EnsureRoot,
 };
 use origin_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
+use pallet_token::Token as TokenTrait;
+use pallet_transaction_payment::FungibleAdapter;
+use origin_runtime_constants::currency::deposit;
+use origin_runtime_constants::fee;
+use cumulus_pallet_parachain_system::RelaychainDataProvider;
+use scale_info::TypeInfo;
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
 use parachains_common::{
 	message_queue::*, AccountId, AuraId, Balance, BlockNumber, Hash, Header, Nonce, Signature,
 };
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 use sp_api::impl_runtime_apis;
-pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -87,7 +92,7 @@ pub use sp_runtime::{MultiAddress, Perbill, Permill};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-pub use system_parachains_constants::async_backing::SLOT_DURATION;
+pub use origin_hub_system_runtime_constants::async_backing::SLOT_DURATION;
 /// Runtime API definition for token.
 pub use token_origin_hub_runtime_api as token_api;
 
@@ -116,7 +121,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("origin-hub"),
 	impl_name: Cow::Borrowed("dhiway-origin-hub"),
 	authoring_version: 1,
-	spec_version: 9900,
+	spec_version: 9901,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -229,7 +234,7 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = cord_origin_system_chains_staging_constants::fee::TRANSACTION_BYTE_FEE;
+pub const TransactionByteFee: Balance = fee::TRANSACTION_BYTE_FEE;
 	pub const OperationalFeeMultiplier: u8 = 5;
 }
 
@@ -269,18 +274,6 @@ impl pallet_utility::Config for Runtime {
 	type WeightInfo = weights::pallet_utility::WeightInfo<Runtime>;
 }
 parameter_types! {
-	pub const IndexDeposit: Balance =  EXISTENTIAL_DEPOSIT;
-}
-
-impl pallet_indices::Config for Runtime {
-	type AccountIndex = AccountIndex;
-	type Currency = Balances;
-	type Deposit = IndexDeposit;
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::pallet_indices::WeightInfo<Runtime>;
-}
-
-parameter_types! {
 	// One storage item; key size 32, value size 8; .
 	pub const ProxyDepositBase: Balance = system_para_deposit(1, 40);
 	// Additional storage item size of 33 bytes.
@@ -306,7 +299,6 @@ parameter_types! {
 	RuntimeDebug,
 	MaxEncodedLen,
 	TypeInfo,
-	Default,
 )]
 pub enum ProxyType {
 	Any,
@@ -326,20 +318,16 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::NonTransfer => matches!(
 				c,
 				RuntimeCall::System(..)
-					| RuntimeCall::Babe(..)
-					| RuntimeCall::Entity(..)
+					| RuntimeCall::ParachainSystem(..)
 					| RuntimeCall::Timestamp(..)
-					| RuntimeCall::Indices(pallet_indices::Call::claim { .. })
-					| RuntimeCall::Indices(pallet_indices::Call::free { .. })
-					| RuntimeCall::Indices(pallet_indices::Call::freeze { .. })
+					| RuntimeCall::Entity(..)
 					| RuntimeCall::Register(..)
 					| RuntimeCall::Session(..)
-					| RuntimeCall::Grandpa(..)
 					| RuntimeCall::Utility(..)
-					| RuntimeCall::Scheduler(..)
 					| RuntimeCall::Proxy(..)
 					| RuntimeCall::Multisig(..)
-			),
+					| RuntimeCall::MessageQueue(..)
+				),
 			ProxyType::CancelProxy => {
 				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))
 			},
@@ -380,7 +368,7 @@ parameter_types! {
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnSystemEvent = RemoteProxyRelayChain;
+	type OnSystemEvent = ();
 	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
 	type ReservedDmpWeight = ReservedDmpWeight;
@@ -402,6 +390,10 @@ type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
 
 impl parachain_info::Config for Runtime {}
 
+parameter_types! {
+	pub MessageQueueServiceWeight: Weight = Perbill::from_percent(20) * RuntimeBlockWeights::get().max_block;
+}
+
 impl pallet_message_queue::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_message_queue::WeightInfo<Runtime>;
@@ -420,8 +412,8 @@ impl pallet_message_queue::Config for Runtime {
 	type QueuePausedQuery = NarrowOriginToSibling<XcmpQueue>;
 	type HeapSize = sp_core::ConstU32<{ 64 * 1024 }>;
 	type MaxStale = sp_core::ConstU32<8>;
-	type ServiceWeight = dynamic_params::message_queue::MaxOnInitWeight;
-	type IdleMaxServiceWeight = dynamic_params::message_queue::MaxOnIdleWeight;
+	type ServiceWeight = MessageQueueServiceWeight;
+	type IdleMaxServiceWeight = MessageQueueServiceWeight;
 }
 
 impl cumulus_pallet_aura_ext::Config for Runtime {}
@@ -438,7 +430,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type MaxInboundSuspended = sp_core::ConstU32<1_000>;
 	type ControllerOrigin = EnsureRoot<AccountId>;
 	type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
-	type WeightInfo = weights::cumulus_pallet_xcmp_queue::WeightInfo<Runtime>;
+	type WeightInfo = cumulus_pallet_xcmp_queue::weights::SubstrateWeight<Runtime>;
 	type PriceForSiblingDelivery = PriceForSiblingParachainDelivery;
 }
 
@@ -633,7 +625,7 @@ pub type Executive = frame_executive::Executive<
 mod benches {
 	use super::*;
 	use alloc::boxed::Box;
-	use cord_origin_system_chains_staging_constants::kusama::locations::{
+	use origin_hub_system_runtime_constants::kusama::locations::{
 		AssetHubLocation, AssetHubParaId,
 	};
 
@@ -1019,7 +1011,7 @@ impl_runtime_apis! {
 	impl token_api::TokenOriginHubRuntimeApi<Block> for Runtime {
 		fn decode_token(token: Vec<u8>) -> Option<token_api::DecodedTokenApi> {
 			let ss58_id = Ss58Identifier::try_from(token).ok()?;
-			let decoded: DecodedIdentifier = Token::resolve_token(&ss58_id).ok()?;
+			let decoded: DecodedIdentifier = <pallet_token::Pallet<Runtime> as TokenTrait<Runtime>>::resolve_token(&ss58_id).ok()?;
 			Some(token_api::DecodedTokenApi {
 				origin: decoded.origin,
 				network: decoded.network,

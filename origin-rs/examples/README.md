@@ -101,6 +101,7 @@ The `state` example is view-only (`--mode view` is implied). It is ideal for scr
 | `quickstart.rs` | Prints node identity, runtime version, chain prefix, and metadata hash (connectivity probe). |
 | `inspect-view.rs` | Calls arbitrary runtime view functions from the CLI. |
 | `update-metadata.rs` | Writes the latest runtime metadata to `origin-rs/metadata/cord.scale`. |
+| `xcm-token-transfer.rs` | Sends a reserve-backed XCM v5 transfer from one hub parachain to another (dev default: Alice → sibling para). |
 
 Use these helpers when you want lightweight diagnostics without running the full demos.
 
