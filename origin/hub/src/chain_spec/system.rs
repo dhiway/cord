@@ -16,65 +16,97 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+use origin_hub_system_runtime::genesis_config_presets::{
+	system_origin_development_genesis, system_origin_local_testnet_genesis,
+};
+use origin_runtime_constants::system_parachain::{ORIGIN_HUB_IN_ID, ORIGIN_HUB_NA_ID};
 use polkadot_omni_node_lib::chain_spec::{Extensions, GenericChainSpec};
+use cumulus_primitives_core::ParaId;
 use sc_service::ChainType;
 const DEFAULT_PROTOCOL_ID: &str = "0rbit";
 
-pub fn system_origin_staging_development_config() -> GenericChainSpec {
+fn properties() -> sc_chain_spec::Properties {
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("ss58Format".into(), 29.into());
 	properties.insert("tokenSymbol".into(), "ORU".into());
 	properties.insert("tokenDecimals".into(), 10.into());
+	properties
+}
+
+fn system_spec(
+	name: &str,
+	id: &str,
+	chain_type: ChainType,
+	relay_chain: &str,
+	para_id: u32,
+	genesis_patch: serde_json::Value,
+) -> GenericChainSpec {
 
 	GenericChainSpec::builder(
-		cord_origin_system_staging_runtime::WASM_BINARY
+		origin_hub_system_runtime::WASM_BINARY
 			.expect("WASM binary was not built, please build it!"),
-		Extensions { relay_chain: "origin-dev".into(), para_id: 2006 },
+		Extensions::new(relay_chain.into(), para_id),
 	)
-	.with_name("Origin System Development")
-	.with_id("origin-system-dev")
-	.with_chain_type(ChainType::Development)
-	.with_genesis_config_preset_name(sp_genesis_builder::DEV_RUNTIME_PRESET)
+	.with_name(name)
+	.with_id(id)
+	.with_chain_type(chain_type)
+	.with_genesis_config_patch(genesis_patch)
 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
-	.with_properties(properties)
+	.with_properties(properties())
 	.build()
+}
+
+pub fn system_origin_staging_development_config() -> GenericChainSpec {
+	system_spec(
+		"Origin System Development",
+		"origin-system-dev",
+		ChainType::Development,
+		"origin-dev",
+		ORIGIN_HUB_IN_ID,
+		system_origin_development_genesis(ParaId::from(ORIGIN_HUB_IN_ID)),
+	)
+}
+
+pub fn system_origin_staging_development_config_na() -> GenericChainSpec {
+	system_spec(
+		"Origin System NA Development",
+		"origin-system-na-dev",
+		ChainType::Development,
+		"origin-dev",
+		ORIGIN_HUB_NA_ID,
+		system_origin_development_genesis(ParaId::from(ORIGIN_HUB_NA_ID)),
+	)
 }
 
 pub fn system_origin_staging_local_config() -> GenericChainSpec {
-	let mut properties = sc_chain_spec::Properties::new();
-	properties.insert("ss58Format".into(), 29.into());
-	properties.insert("tokenSymbol".into(), "ORU".into());
-	properties.insert("tokenDecimals".into(), 10.into());
-	GenericChainSpec::builder(
-		cord_origin_system_staging_runtime::WASM_BINARY
-			.expect("WASM binary was not built, please build it!"),
-		Extensions { relay_chain: "origin-dev".into(), para_id: 2006 },
+	system_spec(
+		"Origin System Local",
+		"origin-system-local",
+		ChainType::Local,
+		"origin-dev",
+		ORIGIN_HUB_IN_ID,
+		system_origin_local_testnet_genesis(ParaId::from(ORIGIN_HUB_IN_ID)),
 	)
-	.with_name("Origin System Local")
-	.with_id("origin-system-local")
-	.with_chain_type(ChainType::Local)
-	.with_genesis_config_preset_name(sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET)
-	.with_protocol_id(DEFAULT_PROTOCOL_ID)
-	.with_properties(properties)
-	.build()
+}
+
+pub fn system_origin_staging_local_config_na() -> GenericChainSpec {
+	system_spec(
+		"Origin System NA Local",
+		"origin-system-na-local",
+		ChainType::Local,
+		"origin-dev",
+		ORIGIN_HUB_NA_ID,
+		system_origin_local_testnet_genesis(ParaId::from(ORIGIN_HUB_NA_ID)),
+	)
 }
 
 pub fn origin_system_genesis_config() -> GenericChainSpec {
-	let mut properties = sc_chain_spec::Properties::new();
-	properties.insert("ss58Format".into(), 29.into());
-	properties.insert("tokenSymbol".into(), "ORU".into());
-	properties.insert("tokenDecimals".into(), 10.into());
-	let para_id = 2006;
-	GenericChainSpec::builder(
-		cord_origin_system_staging_runtime::WASM_BINARY
-			.expect("WASM binary was not built, please build it!"),
-		Extensions { relay_chain: "origin".into(), para_id },
+	system_spec(
+		"Origin System",
+		"origin-system",
+		ChainType::Live,
+		"origin",
+		ORIGIN_HUB_IN_ID,
+		system_origin_local_testnet_genesis(ParaId::from(ORIGIN_HUB_IN_ID)),
 	)
-	.with_name("Origin System")
-	.with_id("origin-system")
-	.with_chain_type(ChainType::Live)
-	.with_genesis_config_preset_name("genesis")
-	.with_protocol_id(DEFAULT_PROTOCOL_ID)
-	.with_properties(properties)
-	.build()
 }

@@ -22,7 +22,7 @@ use super::{
 	XcmpQueue,
 };
 use crate::{TransactionByteFee, MICRO};
-use cord_origin_system_chains_staging_constants::TREASURY_PALLET_ID;
+use origin_hub_system_runtime_constants::TREASURY_PALLET_ID;
 use frame_support::{
 	pallet_prelude::PalletInfoAccess,
 	parameter_types,
@@ -278,7 +278,7 @@ impl pallet_xcm::Config for Runtime {
 	type XcmExecuteFilter = Everything;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmTeleportFilter = Everything;
-	type XcmReserveTransferFilter = Nothing; // This parachain is not meant as a reserve location.
+	type XcmReserveTransferFilter = Everything;
 	type Weigher = WeightInfoBounds<
 		crate::weights::xcm::PeopleKusamaXcmWeight<RuntimeCall>,
 		RuntimeCall,

@@ -19,17 +19,19 @@
 //! Genesis config presets for the Origin System runtime
 
 use crate::*;
-use alloc::string::ToString;
-use cord_origin_system_chains_staging_constants::genesis_presets::*;
-use sp_core::sr25519;
+use origin_hub_system_runtime_constants::genesis_presets::*;
+use origin_runtime_constants::system_parachain::ORIGIN_HUB_IN_ID;
 use sp_genesis_builder::PresetId;
 
 const SYSTEM_ORIGIN_STAGING_ED: Balance = ExistentialDeposit::get();
+/// Default para-id used when no explicit override is supplied.
+const DEFAULT_SYSTEM_PARA_ID: u32 = ORIGIN_HUB_IN_ID;
 
 fn system_origin_staging_genesis(
 	invulnerables: Vec<(AccountId, parachains_common::AuraId)>,
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
+	token_network_id: u32,
 ) -> serde_json::Value {
 	serde_json::json!({
 		"balances": BalancesConfig {
@@ -44,7 +46,7 @@ fn system_origin_staging_genesis(
 			parachain_id: id,
 			..Default::default()
 		},
-		"token": TokenConfig { network_id: 2006, ..Default::default()},
+		"token": TokenConfig { network_id: token_network_id as u16, ..Default::default()},
 		"collatorSelection": CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
 			candidacy_bond: SYSTEM_ORIGIN_STAGING_ED * 16,
@@ -72,10 +74,10 @@ fn system_origin_staging_genesis(
 }
 
 pub fn system_origin_local_testnet_genesis(para_id: ParaId) -> serde_json::Value {
-	system_origin_staging_genesis(invulnerables(), testnet_accounts(), para_id)
+	system_origin_staging_genesis(invulnerables(), testnet_accounts(), para_id, para_id.into())
 }
 
-fn system_origin_development_genesis(para_id: ParaId) -> serde_json::Value {
+pub fn system_origin_development_genesis(para_id: ParaId) -> serde_json::Value {
 	system_origin_local_testnet_genesis(para_id)
 }
 
@@ -90,9 +92,11 @@ pub fn preset_names() -> Vec<PresetId> {
 /// Provides the JSON representation of predefined genesis config for given `id`.
 pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
 	let patch = match id.as_ref() {
-		sp_genesis_builder::DEV_RUNTIME_PRESET => system_origin_development_genesis(2006.into()),
+		sp_genesis_builder::DEV_RUNTIME_PRESET => {
+			system_origin_development_genesis(DEFAULT_SYSTEM_PARA_ID.into())
+		},
 		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => {
-			system_origin_local_testnet_genesis(2006.into())
+			system_origin_local_testnet_genesis(DEFAULT_SYSTEM_PARA_ID.into())
 		},
 		_ => return None,
 	};

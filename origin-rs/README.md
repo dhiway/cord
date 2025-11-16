@@ -119,6 +119,7 @@ Token timelines, register packet snapshots, and lookup specs follow the same pat
 - `quickstart` – RPC probe.
 - `inspect-view` – ad-hoc runtime view inspector.
 - `update-metadata` – writes the latest runtime metadata to `origin-rs/metadata/cord.scale`.
+- `xcm-token-transfer` – submits an XCM v5 `reserve_transfer_assets` from a hub parachain to a sibling (defaults to Alice on the source hub). Handy for smoke-testing multi-hub setups started via the updated zombienet config.
 
 See [examples/README.md](examples/README.md) for CLI usage and flow diagrams.
 

@@ -1,6 +1,6 @@
 [package]
-name = "cord-origin-system-chains-staging-constants"
-description = "Common constants for System chains runtimes"
+name = "origin-hub-system-runtime-constants"
+description = "Common constants for Origin Hub system runtimes"
 repository.workspace = true
 version.workspace = true
 authors.workspace = true
