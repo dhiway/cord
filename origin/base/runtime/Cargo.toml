@@ -58,11 +58,17 @@ pallet-message-queue = { workspace = true }
 pallet-mmr = { workspace = true }
 pallet-migrations = { workspace = true }
 pallet-multisig = { workspace = true }
+pallet-meta-tx = { workspace = true }
 pallet-offences = { workspace = true }
 pallet-preimage = { workspace = true }
 pallet-proxy = { workspace = true }
+pallet-runtime-upgrade = { workspace = true }
+pallet-safe-mode = { workspace = true }
+pallet-remark = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-session = { workspace = true }
+pallet-tx-pause = { workspace = true }
+pallet-verify-signature = { workspace = true }
 pallet-sudo = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
@@ -148,13 +154,19 @@ std = [
 	"pallet-migrations/std",
 	"pallet-mmr/std",
 	"pallet-multisig/std",
+	"pallet-meta-tx/std",
 	"pallet-offences-benchmarking?/std",
 	"pallet-offences/std",
 	"pallet-preimage/std",
 	"pallet-proxy/std",
+	"pallet-runtime-upgrade/std",
+	"pallet-safe-mode/std",
+	"pallet-remark/std",
 	"pallet-scheduler/std",
 	"pallet-session-benchmarking?/std",
 	"pallet-session/std",
+	"pallet-tx-pause/std",
+	"pallet-verify-signature/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
@@ -215,12 +227,17 @@ runtime-benchmarks = [
 	"pallet-migrations/runtime-benchmarks",
 	"pallet-mmr/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
+	"pallet-meta-tx/runtime-benchmarks",
 	"pallet-offences-benchmarking/runtime-benchmarks",
 	"pallet-offences/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-proxy/runtime-benchmarks",
+	"pallet-safe-mode/runtime-benchmarks",
+	"pallet-remark/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
 	"pallet-session-benchmarking/runtime-benchmarks",
+	"pallet-tx-pause/runtime-benchmarks",
+	"pallet-verify-signature/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-transaction-payment/runtime-benchmarks",
@@ -263,6 +280,7 @@ try-runtime = [
 	"pallet-offences/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-proxy/try-runtime",
+	"pallet-remark/try-runtime",
 	"pallet-scheduler/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",

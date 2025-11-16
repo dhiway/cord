@@ -48,7 +48,7 @@ use frame_support::{
 	weights::{ConstantMultiplier, WeightMeter, WeightToFee as _},
 	PalletId,
 };
-use frame_system::EnsureRoot;
+use frame_system::{EnsureRoot, EnsureRootWithSuccess};
 use origin_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
 use origin_runtime_constants::{
 	currency::*,
@@ -59,6 +59,7 @@ use origin_runtime_constants::{
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
 use pallet_session::historical as session_historical;
 use pallet_token::Token as _;
+use pallet_tx_pause::RuntimeCallNameOf;
 use pallet_transaction_payment::{FeeDetails, FungibleAdapter, RuntimeDispatchInfo};
 use polkadot_primitives::{
 	slashing,
@@ -76,6 +77,7 @@ use polkadot_runtime_common::{
 	impl_runtime_weights, paras_registrar, paras_sudo_wrapper, prod_or_fast, slots, traits::OnSwap,
 	BlockHashCount, BlockLength, SlowAdjustingFeeUpdate,
 };
+use sp_runtime::{MultiSignature, MultiSigner};
 use runtime_parachains::{
 	assigner_coretime as parachains_assigner_coretime, configuration as parachains_configuration,
 	configuration::ActiveConfigHrmpChannelSizeAndCapacityRatio,
@@ -153,7 +155,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: alloc::borrow::Cow::Borrowed("origin"),
 	impl_name: alloc::borrow::Cow::Borrowed("dhiway-origin"),
 	authoring_version: 0,
-	spec_version: 9900,
+	spec_version: 9901,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -171,6 +173,65 @@ pub const BABE_GENESIS_EPOCH_CONFIG: babe_primitives::BabeEpochConfiguration =
 #[cfg(any(feature = "std", test))]
 pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
+}
+
+/// Calls that can bypass the safe-mode pallet.
+pub struct SafeModeWhitelistedCalls;
+impl Contains<RuntimeCall> for SafeModeWhitelistedCalls {
+	fn contains(call: &RuntimeCall) -> bool {
+		match call {
+			RuntimeCall::System(_) | RuntimeCall::SafeMode(_) | RuntimeCall::TxPause(_) => true,
+			_ => false,
+		}
+	}
+}
+
+/// Calls that cannot be paused by the tx-pause pallet.
+pub struct TxPauseWhitelistedCalls;
+/// Whitelist `Balances::transfer_keep_alive`, all others are pauseable.
+impl Contains<RuntimeCallNameOf<Runtime>> for TxPauseWhitelistedCalls {
+	fn contains(full_name: &RuntimeCallNameOf<Runtime>) -> bool {
+		match (full_name.0.as_slice(), full_name.1.as_slice()) {
+			(b"Balances", b"transfer_keep_alive") => true,
+			_ => false,
+		}
+	}
+}
+
+impl pallet_tx_pause::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type PauseOrigin = EnsureRoot<AccountId>;
+	type UnpauseOrigin = EnsureRoot<AccountId>;
+	type WhitelistedCalls = TxPauseWhitelistedCalls;
+	type MaxNameLen = ConstU32<256>;
+	type WeightInfo = weights::pallet_tx_pause::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+		pub const EnterDuration: BlockNumber = 4 * HOURS;
+		pub const EnterDepositAmount: Balance = 2_000_000 * UNITS;
+		pub const ExtendDuration: BlockNumber = 2 * HOURS;
+		pub const ExtendDepositAmount: Balance = 1_000_000 * UNITS;
+		pub const ReleaseDelay: u32 = 2 * DAYS;
+}
+
+impl pallet_safe_mode::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type WhitelistedCalls = SafeModeWhitelistedCalls;
+	type EnterDuration = EnterDuration;
+	type EnterDepositAmount = EnterDepositAmount;
+	type ExtendDuration = ExtendDuration;
+	type ExtendDepositAmount = ExtendDepositAmount;
+	type ForceEnterOrigin = EnsureRootWithSuccess<AccountId, ConstU32<9>>;
+	type ForceExtendOrigin = EnsureRootWithSuccess<AccountId, ConstU32<11>>;
+	type ForceExitOrigin = EnsureRoot<AccountId>;
+	type ForceDepositOrigin = EnsureRoot<AccountId>;
+	type ReleaseDelay = ReleaseDelay;
+	type Notify = ();
+	type WeightInfo = weights::pallet_safe_mode::WeightInfo<Runtime>;
 }
 
 /// We currently allow all calls.
@@ -430,7 +491,7 @@ impl pallet_session::Config for Runtime {
 	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, AuthorityManager>;
 	type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = SessionKeys;
-	type DisablingStrategy = ();
+	type DisablingStrategy = pallet_session::disabling::UpToLimitWithReEnablingDisablingStrategy;
 	type WeightInfo = weights::pallet_session::WeightInfo<Runtime>;
 	type Currency = Balances;
 	type KeyDeposit = ();
@@ -513,6 +574,7 @@ where
 			.saturating_sub(1);
 		let tip = 0;
 		let tx_ext: TxExtension = (
+			frame_system::AuthorizeCall::<Runtime>::new(),
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 			frame_system::CheckTxVersion::<Runtime>::new(),
@@ -567,6 +629,7 @@ where
 {
 	fn create_extension() -> Self::Extension {
 		(
+			frame_system::AuthorizeCall::<Runtime>::new(),
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 			frame_system::CheckTxVersion::<Runtime>::new(),
@@ -703,6 +766,44 @@ impl pallet_proxy::Config for Runtime {
 	type AnnouncementDepositBase = AnnouncementDepositBase;
 	type AnnouncementDepositFactor = AnnouncementDepositFactor;
 	type BlockNumberProvider = System;
+}
+
+impl pallet_verify_signature::Config for Runtime {
+	type Signature = MultiSignature;
+	type AccountIdentifier = MultiSigner;
+	type WeightInfo = weights::pallet_verify_signature::WeightInfo<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
+pub type MetaTxExtension = (
+	pallet_verify_signature::VerifySignature<Runtime>,
+	pallet_meta_tx::MetaTxMarker<Runtime>,
+	frame_system::CheckNonZeroSender<Runtime>,
+	frame_system::CheckSpecVersion<Runtime>,
+	frame_system::CheckTxVersion<Runtime>,
+	frame_system::CheckGenesis<Runtime>,
+	frame_system::CheckEra<Runtime>,
+	frame_system::CheckNonce<Runtime>,
+	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+);
+
+impl pallet_meta_tx::Config for Runtime {
+	type WeightInfo = weights::pallet_meta_tx::WeightInfo<Runtime>;
+	type RuntimeEvent = RuntimeEvent;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Extension = MetaTxExtension;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Extension = pallet_meta_tx::WeightlessExtension<Runtime>;
+}
+
+impl pallet_runtime_upgrade::Config for Runtime {
+	type SetCodeOrigin = EnsureRoot<AccountId>;
+}
+
+impl pallet_remark::Config for Runtime {
+	type WeightInfo = weights::pallet_remark::WeightInfo<Runtime>;
+	type RuntimeEvent = RuntimeEvent;
 }
 
 impl parachains_origin::Config for Runtime {}
@@ -1041,7 +1142,6 @@ construct_runtime! {
 		// Session Historical
 		Historical: session_historical = 33,
 
-
 		// Parachains pallets. Start indices at 50 to leave room.
 		ParachainsOrigin: parachains_origin = 50,
 		Configuration: parachains_configuration = 51,
@@ -1080,6 +1180,14 @@ construct_runtime! {
 		Mmr: pallet_mmr = 201,
 		MmrLeaf: pallet_beefy_mmr = 202,
 
+		// Utilities
+		MetaTx: pallet_meta_tx = 215,
+		TxPause: pallet_tx_pause = 216,
+		SafeMode: pallet_safe_mode = 217,
+		RuntimeUpgrade: pallet_runtime_upgrade = 218,
+		VerifySignature: pallet_verify_signature = 219,
+		Remark: pallet_remark = 220,
+
 		// Migrations pallet
 		MultiBlockMigrations: pallet_migrations = 249,
 
@@ -1101,6 +1209,7 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 /// The TransactionExtension to the basic transaction logic.
 pub type TxExtension = (
+	frame_system::AuthorizeCall<Runtime>,
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,

@@ -59,52 +59,14 @@ pub fn origin_chain_spec_properties() -> serde_json::map::Map<String, serde_json
 	.clone()
 }
 
-/// Origin Dev development config (single validator Alice)
-pub fn origin_dev_development_config() -> Result<OriginChainSpec, String> {
+/// Origin Relay development config (single validator )
+pub fn origin_development_config() -> Result<OriginChainSpec, String> {
 	Ok(OriginChainSpec::builder(
-		origin_dev_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
+		origin_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
 		Default::default(),
 	)
 	.with_name("Origin Development")
-	.with_id("origin_dev_dev")
-	.with_chain_type(ChainType::Development)
-	.with_genesis_config_patch(
-		origin_dev_runtime::genesis_config_presets::origin_dev_development_config_genesis(),
-	)
-	.with_protocol_id(DEFAULT_PROTOCOL_ID)
-	.with_properties(origin_chain_spec_properties())
-	.build())
-}
-
-/// Origin Dev local config (multivalidator Alice, Bob, Charlie)
-pub fn origin_dev_local_config() -> Result<OriginChainSpec, String> {
-	Ok(OriginChainSpec::builder(
-		origin_dev_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
-		Default::default(),
-	)
-	.with_name("Origin Dev Local")
-	.with_id("origin_dev_local")
-	.with_chain_type(ChainType::Local)
-	.with_genesis_config_patch(
-		origin_dev_runtime::genesis_config_presets::origin_dev_local_config_genesis(),
-	)
-	.with_telemetry_endpoints(
-		TelemetryEndpoints::new(vec![(ORIGIN_TELEMETRY_URL.to_string(), 0)])
-			.expect("Origin Dev telemetry url is valid; qed"),
-	)
-	.with_protocol_id(DEFAULT_PROTOCOL_ID)
-	.with_properties(origin_chain_spec_properties())
-	.build())
-}
-
-/// Origin Relay development config (single validator Alice)
-pub fn origin_relay_development_config() -> Result<OriginChainSpec, String> {
-	Ok(OriginChainSpec::builder(
-		origin_runtime::WASM_BINARY.ok_or("Origin relay wasm not available")?,
-		Default::default(),
-	)
-	.with_name("Origin Relay Development")
-	.with_id("origin_relay_dev")
+	.with_id("origin_dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(
 		origin_runtime::genesis_config_presets::origin_development_config_genesis(),
@@ -114,21 +76,21 @@ pub fn origin_relay_development_config() -> Result<OriginChainSpec, String> {
 	.build())
 }
 
-/// Origin Relay local/staging config (multi-validator Alice + Bob)
-pub fn origin_relay_local_config() -> Result<OriginChainSpec, String> {
+/// Origin Relay local/staging config (multi-validator )
+pub fn origin_local_config() -> Result<OriginChainSpec, String> {
 	Ok(OriginChainSpec::builder(
-		origin_runtime::WASM_BINARY.ok_or("Origin relay wasm not available")?,
+		origin_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Origin Relay Local")
-	.with_id("origin_relay_local")
+	.with_name("Origin Local")
+	.with_id("origin_local")
 	.with_chain_type(ChainType::Local)
 	.with_genesis_config_patch(
 		origin_runtime::genesis_config_presets::origin_staging_config_genesis(),
 	)
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(ORIGIN_TELEMETRY_URL.to_string(), 0)])
-			.expect("Origin Relay telemetry url is valid; qed"),
+			.expect("Origin telemetry url is valid; qed"),
 	)
 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
 	.with_properties(origin_chain_spec_properties())
