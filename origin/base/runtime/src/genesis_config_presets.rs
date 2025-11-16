@@ -196,11 +196,25 @@ fn origin_session_keys(
 
 pub fn origin_staging_config_genesis() -> serde_json::Value {
 	origin_staging_genesis(
-		vec![get_authority_keys_from_seed("Alice"), get_authority_keys_from_seed("Bob")],
+		vec![
+			get_authority_keys_from_seed("Alice"),
+			get_authority_keys_from_seed("Bob"),
+			get_authority_keys_from_seed("Chrlie"),
+			get_authority_keys_from_seed("Dave"),
+			get_authority_keys_from_seed("Eve"),
+			get_authority_keys_from_seed("Fredie"),
+		],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 		None,
 	)
 }
+// pub fn origin_staging_config_genesis() -> serde_json::Value {
+// 	origin_staging_genesis(
+// 		vec![get_authority_keys_from_seed("Alice"), get_authority_keys_from_seed("Bob")],
+// 		get_account_id_from_seed::<sr25519::Public>("Alice"),
+// 		None,
+// 	)
+// }
 
 pub fn origin_development_config_genesis() -> serde_json::Value {
 	origin_staging_genesis(
