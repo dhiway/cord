@@ -18,9 +18,15 @@
 
 //! Genesis config presets for the Origin System runtime
 
-use crate::*;
+use crate::{
+	AccountId, Balance, BalancesConfig, CollatorSelectionConfig, ExistentialDeposit, ParaId,
+	ParachainInfoConfig, SessionConfig, SessionKeys, TokenConfig,
+};
+use alloc::vec;
+use alloc::vec::Vec;
 use origin_hub_system_runtime_constants::genesis_presets::*;
 use origin_runtime_constants::system_parachain::ORIGIN_HUB_IN_ID;
+use sp_core::sr25519;
 use sp_genesis_builder::PresetId;
 
 const SYSTEM_ORIGIN_STAGING_ED: Balance = ExistentialDeposit::get();
@@ -32,13 +38,22 @@ fn system_origin_staging_genesis(
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
 	token_network_id: u32,
+	root_key: AccountId,
 ) -> serde_json::Value {
+	let endowment = SYSTEM_ORIGIN_STAGING_ED.saturating_mul(4096 * 4096);
+	debug_assert!(
+		token_network_id <= u16::MAX as u32,
+		"token_network_id {} does not fit into u16",
+		token_network_id
+	);
+	// let development_accounts: Vec<AccountId> = endowed_accounts.clone();
+
 	serde_json::json!({
 		"balances": BalancesConfig {
 			balances: endowed_accounts
 				.iter()
 				.cloned()
-				.map(|k| (k, SYSTEM_ORIGIN_STAGING_ED * 4096 * 4096))
+				.map(|acc| (acc, endowment))
 				.collect(),
 			dev_accounts: None,
 		},
@@ -46,9 +61,16 @@ fn system_origin_staging_genesis(
 			parachain_id: id,
 			..Default::default()
 		},
-		"token": TokenConfig { network_id: token_network_id as u16, ..Default::default()},
+		"token": TokenConfig {
+			network_id: token_network_id as u16,
+			..Default::default()
+		},
 		"collatorSelection": CollatorSelectionConfig {
-			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
+			invulnerables: invulnerables
+				.iter()
+				.cloned()
+				.map(|(acc, _)| acc)
+				.collect(),
 			candidacy_bond: SYSTEM_ORIGIN_STAGING_ED * 16,
 			..Default::default()
 		},
@@ -57,24 +79,39 @@ fn system_origin_staging_genesis(
 				.into_iter()
 				.map(|(acc, aura)| {
 					(
-						acc.clone(),                         // account id
-						acc,                                 // validator id
-						SessionKeys { aura }, 		// session keys
+						acc.clone(),
+						acc,
+						SessionKeys { aura },
 					)
 				})
 				.collect(),
 			..Default::default()
 		},
+		"feeless": {
+			"feelessAccounts": endowed_accounts
+				.iter()
+				.cloned()
+				.collect::<Vec<_>>(),
+		},
+		"sudo": {
+			"key": Some(root_key),
+		},
 		"polkadotXcm": {
 			"safeXcmVersion": Some(SAFE_XCM_VERSION),
 		},
-		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
-		// of this. `aura: Default::default()`
 	})
 }
 
 pub fn system_origin_local_testnet_genesis(para_id: ParaId) -> serde_json::Value {
-	system_origin_staging_genesis(invulnerables(), testnet_accounts(), para_id, para_id.into())
+	let root_key = get_account_id_from_seed::<sr25519::Public>("Alice");
+
+	system_origin_staging_genesis(
+		invulnerables(),
+		testnet_accounts(),
+		para_id,
+		para_id.into(),
+		root_key,
+	)
 }
 
 pub fn system_origin_development_genesis(para_id: ParaId) -> serde_json::Value {

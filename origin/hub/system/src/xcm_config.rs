@@ -16,11 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use super::{
-	AccountId, AllPalletsWithSystem, Balances, Broker, CollatorSelection, ParachainInfo,
-	ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee,
-	XcmpQueue,
+use crate::{
+	AllPalletsWithSystem, Balances, Broker, CollatorSelection, ParachainInfo, ParachainSystem,
+	PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
 };
+use crate::AccountId;
 use crate::{TransactionByteFee, MICRO};
 use origin_hub_system_runtime_constants::TREASURY_PALLET_ID;
 use frame_support::{
@@ -53,7 +53,7 @@ use xcm_executor::{traits::ConvertLocation, XcmExecutor};
 
 parameter_types! {
 	pub const RootLocation: Location = Location::here();
-	pub const OruRelayLocation: Location = Location::parent();
+	pub const OrgnRelayLocation: Location = Location::parent();
 	pub const RelayNetwork: Option<NetworkId> = Some(NetworkId::Polkadot);
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 	pub UniversalLocation: InteriorLocation =
@@ -65,7 +65,7 @@ parameter_types! {
 	pub const GovernanceLocation: Location = Location::parent();
 	pub const FellowshipLocation: Location = Location::parent();
 	/// The asset ID for the asset that we use to pay for message delivery fees. Just KSM.
-	pub FeeAssetId: AssetId = AssetId(OruRelayLocation::get());
+	pub FeeAssetId: AssetId = AssetId(OrgnRelayLocation::get());
 	/// The base fee for the message delivery fees.
 	pub const BaseDeliveryFee: u128 = MICRO.saturating_mul(3);
 	pub TreasuryAccount: AccountId = TREASURY_PALLET_ID.into_account_truncating();
@@ -113,7 +113,7 @@ pub type FungibleTransactor = FungibleAdapter<
 	// Use this currency:
 	Balances,
 	// Use this currency when it is a fungible asset matching the given location or name:
-	IsConcrete<OruRelayLocation>,
+	IsConcrete<OrgnRelayLocation>,
 	// Convert an XCM `Location` into a local account ID:
 	LocationToAccountId,
 	// Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -209,7 +209,7 @@ pub type WaivedLocations = (
 
 /// We allow locations to alias into their own child locations, as well as
 /// AssetHub to alias into anything.
-pub type Aliasers = (AliasChildLocation, AliasOriginRootUsingFilter<OruRelayLocation, Everything>);
+pub type Aliasers = (AliasChildLocation, AliasOriginRootUsingFilter<OrgnRelayLocation, Everything>);
 
 pub struct XcmConfig;
 impl xcm_executor::Config for XcmConfig {
@@ -222,7 +222,7 @@ impl xcm_executor::Config for XcmConfig {
 	// where allowed (e.g. with the Relay Chain).
 	type IsReserve = ();
 	/// Only allow teleportation of KSM.
-	type IsTeleporter = ConcreteAssetFromSystem<OruRelayLocation>;
+	type IsTeleporter = ConcreteAssetFromSystem<OrgnRelayLocation>;
 	type UniversalLocation = UniversalLocation;
 	type Barrier = Barrier;
 	type Weigher = WeightInfoBounds<
@@ -230,7 +230,7 @@ impl xcm_executor::Config for XcmConfig {
 		RuntimeCall,
 		MaxInstructions,
 	>;
-	type Trader = UsingComponents<WeightToFee, OruRelayLocation, AccountId, Balances, ()>;
+	type Trader = UsingComponents<WeightToFee, OrgnRelayLocation, AccountId, Balances, ()>;
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
 	type AssetClaims = PolkadotXcm;

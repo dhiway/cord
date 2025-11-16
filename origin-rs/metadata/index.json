@@ -1,0 +1,20 @@
+{
+  "entries": [
+    {
+      "flavor": "origin",
+      "spec_version": 9901,
+      "metadata_hash": "0xa3798da4f31b7e873d6f7d39bf659b2ef15febfec1fe7acb2a3633cca00c091a",
+      "path": "origin/a3798da4f31b7e873d6f7d39bf659b2ef15febfec1fe7acb2a3633cca00c091a.scale",
+      "fetched_at_unix": 1763301727,
+      "node": "ws://127.0.0.1:9801"
+    },
+    {
+      "flavor": "origin-hub",
+      "spec_version": 9901,
+      "metadata_hash": "0xab4ccaf30e3406259855dcc760e93dc2eaf733e239f693ce6614a24faae69714",
+      "path": "origin-hub/ab4ccaf30e3406259855dcc760e93dc2eaf733e239f693ce6614a24faae69714.scale",
+      "fetched_at_unix": 1763301770,
+      "node": "ws://127.0.0.1:9810"
+    }
+  ]
+}

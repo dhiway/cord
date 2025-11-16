@@ -5,8 +5,6 @@ use crate::{error::Result, params::config::CordConfig};
 pub enum ChainFlavor {
 	/// Auto-detect based on metadata/spec name.
 	Auto,
-	/// The Orb development/runtime (default local node).
-	Orb,
 	/// Origin relay chain runtime.
 	Origin,
 	/// OriginHub parachain runtime.
@@ -22,23 +20,34 @@ impl Default for ChainFlavor {
 impl ChainFlavor {
 	pub fn ss58_prefix(self) -> u16 {
 		match self {
-			Self::Auto | Self::Orb => 42,
-			Self::Origin => 42,
-			Self::OriginHub => 42,
+			Self::Auto | Self::Origin | Self::OriginHub => 42,
 		}
 	}
 }
 
 /// Inspect the connected chain and infer the correct [`ChainFlavor`].
 pub async fn detect_flavor(api: &subxt::OnlineClient<CordConfig>) -> Result<ChainFlavor> {
-	// Inspect metadata for pallets that only exist on specific flavors.
 	let metadata = api.metadata();
-	if metadata.pallet_by_name("Register").is_some() && metadata.pallet_by_name("Entity").is_some()
-	{
-		Ok(ChainFlavor::Origin)
-	} else if metadata.pallet_by_name("Token").is_some() {
-		Ok(ChainFlavor::OriginHub)
-	} else {
-		Ok(ChainFlavor::Orb)
+	detect_flavor_from_metadata(&metadata)
+}
+
+/// Infer flavor from a metadata snapshot (no network calls).
+pub fn detect_flavor_from_metadata(metadata: &subxt::Metadata) -> Result<ChainFlavor> {
+	let has_register = metadata.pallet_by_name("Register").is_some();
+	let has_entity = metadata.pallet_by_name("Entity").is_some();
+	let has_token = metadata.pallet_by_name("Token").is_some();
+	let has_meta = metadata.pallet_by_name("MetaTx").is_some();
+
+	// Origin hub (parachain) exposes full user pallets including Token/Register/Entity.
+	if has_token && has_register && has_entity {
+		return Ok(ChainFlavor::OriginHub);
 	}
+
+	// Origin relay runtime supports meta transactions but omits Register/Entity.
+	if has_meta && !has_register && !has_entity {
+		return Ok(ChainFlavor::Origin);
+	}
+
+	// Fallback to OriginHub-compatible API.
+	Ok(ChainFlavor::OriginHub)
 }

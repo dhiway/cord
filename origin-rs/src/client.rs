@@ -3,25 +3,20 @@ use crate::{
 	flavors::ChainFlavor,
 	params::config::CordConfig,
 	query::auth::DEFAULT_VIEW_AUTH_TTL,
+	metadata,
 };
 #[allow(unused_imports)]
 use futures::StreamExt;
+use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
+use jsonrpsee_core::client::{async_client::PingConfig, Client as WsClient};
 use sp_core::hashing::blake2_256;
 use sp_runtime::traits::SaturatedConversion;
 use std::{convert::TryFrom, sync::Arc, time::Duration};
-use subxt::{
-	backend::rpc::{
-		reconnecting_rpc_client::{
-			ExponentialBackoff as RpcBackoff, RpcClient as ReconnectingRpcClient,
-		},
-		RpcClient,
-	},
-	config::PolkadotConfig,
-	ext::{
-		subxt_core::client::RuntimeVersion as CoreRuntimeVersion,
-		subxt_rpcs::methods::legacy::{LegacyRpcMethods, SystemHealth},
-	},
-};
+use url::Url;
+use subxt::{backend::rpc::RpcClient, config::PolkadotConfig, ext::{
+	subxt_core::client::RuntimeVersion as CoreRuntimeVersion,
+	subxt_rpcs::methods::legacy::{LegacyRpcMethods, SystemHealth},
+},};
 
 pub const DEFAULT_RPC_ENDPOINT: &str = "ws://127.0.0.1:9944";
 
@@ -88,14 +83,26 @@ impl Client {
 	/// Connect using a reusable [`ConnectionConfig`].
 	pub async fn connect_with(config: ConnectionConfig) -> Result<Self> {
 		let rpc = build_reconnecting_rpc(&config).await?;
-		let api = subxt::OnlineClient::<CordConfig>::from_rpc_client(rpc.as_ref().clone())
-			.await
-			.map_err(Error::from)?;
+		let (genesis_hash, runtime_version, metadata_snapshot, metadata_bytes) =
+			metadata::load_or_fetch(rpc.as_ref()).await?;
+
 		let flavor = match config.flavor {
-			ChainFlavor::Auto => crate::flavors::detect_flavor(&api).await?,
+			ChainFlavor::Auto => crate::flavors::detect_flavor_from_metadata(&metadata_snapshot)?,
 			other => other,
 		};
-		Ok(Self { api, rpc, flavor })
+
+		let api = subxt::OnlineClient::<CordConfig>::from_rpc_client_with(
+			genesis_hash,
+			runtime_version.clone(),
+			metadata_snapshot.clone(),
+			rpc.as_ref().clone(),
+		)
+		.map_err(Error::from)?;
+
+		let client = Self { api, rpc, flavor };
+		// Best-effort metadata caching for future runs.
+		let _ = metadata::cache_metadata(client.flavor, &runtime_version, &metadata_bytes).await;
+		Ok(client)
 	}
 
 	pub(crate) fn legacy_methods(&self) -> LegacyRpcMethods<PolkadotConfig> {
@@ -167,6 +174,11 @@ impl Client {
 		crate::query::Query { client: self }
 	}
 
+	/// The detected/selected chain flavor.
+	pub fn flavor(&self) -> ChainFlavor {
+		self.flavor
+	}
+
 	pub async fn chain_prefix(&self) -> sp_core::crypto::Ss58AddressFormat {
 		let default = sp_core::crypto::Ss58AddressFormat::from(self.flavor.ss58_prefix());
 		match self.legacy_methods().system_properties().await {
@@ -210,49 +222,21 @@ impl Client {
 }
 
 async fn build_reconnecting_rpc(config: &ConnectionConfig) -> Result<Arc<RpcClient>> {
-	let strategy = ReconnectBackoff::new(&config.retry);
-	let reconnecting = ReconnectingRpcClient::builder()
-		.retry_policy(strategy)
-		.build(&config.url)
+	let url = Url::parse(&config.url).map_err(|e| Error::Params(e.to_string()))?;
+	let (sender, receiver) = WsTransportClientBuilder::default()
+		.build(url.clone())
 		.await
 		.map_err(|e| Error::Transport(e.to_string()))?;
-	let rpc = RpcClient::new(reconnecting);
+
+	// Tune the ws client for high throughput and low latency.
+	let client = WsClient::builder()
+		.request_timeout(Duration::from_secs(10))
+		.max_buffer_capacity_per_subscription(16 * 1024 * 1024)
+		.enable_ws_ping(PingConfig::new().ping_interval(Duration::from_secs(10)))
+		.set_tcp_no_delay(true)
+		.max_concurrent_requests(1024 * 10)
+		.build_with_tokio(sender, receiver);
+
+	let rpc = RpcClient::new(client);
 	Ok(Arc::new(rpc))
-}
-
-#[derive(Clone)]
-struct ReconnectBackoff {
-	inner: RpcBackoff,
-	remaining: Option<usize>,
-}
-
-impl ReconnectBackoff {
-	fn new(policy: &RetryPolicy) -> Self {
-		let mut inner = RpcBackoff::from_millis(duration_to_millis(policy.initial_backoff));
-		inner = inner.max_delay(policy.max_backoff);
-		Self { inner, remaining: policy.max_retries }
-	}
-}
-
-impl Iterator for ReconnectBackoff {
-	type Item = Duration;
-
-	fn next(&mut self) -> Option<Self::Item> {
-		if let Some(rem) = self.remaining.as_mut() {
-			if *rem == 0 {
-				return None;
-			}
-			*rem -= 1;
-		}
-		self.inner.next()
-	}
-}
-
-fn duration_to_millis(duration: Duration) -> u64 {
-	let ms = duration.as_millis();
-	if ms == 0 {
-		1
-	} else {
-		ms.min(u64::MAX as u128) as u64
-	}
 }

@@ -1,7 +1,7 @@
 use super::{ArgBuilder, Query};
 use crate::{
-	api::runtime,
 	error::{Error, Result},
+	runtime,
 	runtime_helpers::{
 		attribute_optional, bounded_bytes_vec, bounded_iter, element_type_to_sdk, identifier_bytes,
 	},
@@ -44,10 +44,22 @@ struct PacketStateRecord {
 /// Entry point for register-specific view helpers.
 pub struct RegisterQuery<'a> {
 	pub(crate) query: &'a Query<'a>,
+	pub(crate) supported: bool,
 }
 
 impl<'a> RegisterQuery<'a> {
+	fn ensure_supported(&self) -> Result<()> {
+		if self.supported {
+			Ok(())
+		} else {
+			Err(Error::Params(
+				"register queries require origin-hub flavor (not available on origin relay)".into(),
+			))
+		}
+	}
+
 	pub async fn details(&self, req: &RegisterDetailsRequest) -> Result<RegistryInfoView> {
+		self.ensure_supported()?;
 		let args = self.base_args(&req.auth, &req.registry)?;
 		let raw: core::result::Result<RuntimeRegistryInfo, AuthorizationError> =
 			self.query.call_result("Register", "details", args.clone()).await?;
@@ -63,6 +75,7 @@ impl<'a> RegisterQuery<'a> {
 	}
 
 	pub async fn schema(&self, req: &RegisterDetailsRequest) -> Result<RegistrySchema> {
+		self.ensure_supported()?;
 		let info = self.details(req).await?;
 		Ok(RegistrySchema::from_view(&info))
 	}
@@ -71,6 +84,7 @@ impl<'a> RegisterQuery<'a> {
 		&self,
 		req: &RegisterLookupSpecsRequest,
 	) -> Result<Vec<LookupSpecView>> {
+		self.ensure_supported()?;
 		let args = self.base_args(&req.auth, &req.registry)?;
 		let raw: core::result::Result<Vec<LookupSpecView>, AuthorizationError> =
 			self.query.call_result("Register", "lookup_specs", args).await?;
@@ -81,6 +95,7 @@ impl<'a> RegisterQuery<'a> {
 		&self,
 		req: &RegisterPacketSnapshotRequest,
 	) -> Result<PacketSnapshotView> {
+		self.ensure_supported()?;
 		let args = self.packet_args(req)?;
 		let raw: core::result::Result<PacketSnapshotRecord, AuthorizationError> =
 			self.query.call_result("Register", "packet_snapshot", args).await?;
@@ -97,6 +112,7 @@ impl<'a> RegisterQuery<'a> {
 		&self,
 		req: &RegisterPacketSnapshotByTokenRequest,
 	) -> Result<Option<PacketSnapshotView>> {
+		self.ensure_supported()?;
 		let args = self.packet_by_token_args(req)?;
 		let raw: core::result::Result<Option<PacketSnapshotRecord>, AuthorizationError> =
 			self.query.call_result("Register", "packet_snapshot_by_token", args).await?;
@@ -144,7 +160,7 @@ type RuntimeAttributeSpec = runtime::runtime_types::pallet_register::register::A
 type RuntimeLookupSpec = runtime::runtime_types::pallet_register::register::LookupSpec;
 type RuntimeElement = runtime::runtime_types::origin_primitives::element::Elum;
 type RuntimeIdentifier = runtime::runtime_types::origin_primitives::identifier::Ss58Identifier;
-type RuntimeRegistryKind = runtime::runtime_types::oridin_primitives::registry::RegistryKind;
+type RuntimeRegistryKind = runtime::runtime_types::origin_primitives::registry::RegistryKind;
 type RuntimeRegistryStatus = runtime::runtime_types::origin_primitives::registry::RegistryStatus;
 type RuntimePacketStatus = runtime::runtime_types::origin_primitives::packet::PacketStatus;
 type RuntimeAttributes = runtime::runtime_types::origin_primitives::packet::Attributes;

@@ -35,3 +35,6 @@ scale-type-resolver = { version = "0.2" }
 subxt = { version = "0.44", default-features = true, features = ["jsonrpsee", "native", "reconnecting-rpc-client"] }
 thiserror = "1"
 tokio = { version = "1.40", features = ["macros", "rt-multi-thread"] }
+jsonrpsee-core = "0.24.10"
+jsonrpsee-client-transport = "0.24.10"
+url = "2.5"

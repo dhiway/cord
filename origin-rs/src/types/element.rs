@@ -1,6 +1,6 @@
 use crate::{
-	api::runtime,
 	error::{Error, Result},
+	runtime,
 	runtime_helpers::{bounded_bytes_vec, identifier_string},
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
@@ -107,9 +107,9 @@ pub fn element_text_from_runtime(
 			Some(u128::from_le_bytes(*bytes).to_string()),
 		runtime::runtime_types::origin_primitives::element::Elum::Hash(digest) =>
 			Some(format!("0x{}", hex::encode(digest))),
-		runtime::runtime_types::cord_primitives::element::Elum::Token(identifier) =>
+		runtime::runtime_types::origin_primitives::element::Elum::Token(identifier) =>
 			Some(identifier_string(identifier)),
-		runtime::runtime_types::cord_primitives::element::Elum::CID(bytes) =>
+		runtime::runtime_types::origin_primitives::element::Elum::CID(bytes) =>
 			Some(bs58::encode(bounded_bytes_vec(bytes)).into_string()),
 	}
 }
@@ -134,23 +134,23 @@ pub fn element_text_from_view(element: &ViewElement) -> Option<String> {
 }
 
 pub fn element_json_from_runtime(
-	element: &runtime::runtime_types::cord_primitives::element::Elum,
+	element: &runtime::runtime_types::origin_primitives::element::Elum,
 ) -> ElementJson {
 	match element {
-		runtime::runtime_types::cord_primitives::element::Elum::None => ElementJson::None,
-		runtime::runtime_types::cord_primitives::element::Elum::Raw(bytes) =>
+		runtime::runtime_types::origin_primitives::element::Elum::None => ElementJson::None,
+		runtime::runtime_types::origin_primitives::element::Elum::Raw(bytes) =>
 			ElementJson::RawBase64(BASE64.encode(bounded_bytes_vec(bytes))),
-		runtime::runtime_types::cord_primitives::element::Elum::Bool(flag) =>
+		runtime::runtime_types::origin_primitives::element::Elum::Bool(flag) =>
 			ElementJson::Bool(*flag != 0),
-		runtime::runtime_types::cord_primitives::element::Elum::U64(bytes) =>
+		runtime::runtime_types::origin_primitives::element::Elum::U64(bytes) =>
 			ElementJson::U64(u64::from_le_bytes(*bytes)),
-		runtime::runtime_types::cord_primitives::element::Elum::U128(bytes) =>
+		runtime::runtime_types::origin_primitives::element::Elum::U128(bytes) =>
 			ElementJson::U128(u128::from_le_bytes(*bytes)),
-		runtime::runtime_types::cord_primitives::element::Elum::Hash(digest) =>
+		runtime::runtime_types::origin_primitives::element::Elum::Hash(digest) =>
 			ElementJson::HashHex(format!("0x{}", hex::encode(digest))),
-		runtime::runtime_types::cord_primitives::element::Elum::Token(identifier) =>
+		runtime::runtime_types::origin_primitives::element::Elum::Token(identifier) =>
 			ElementJson::TokenSs58(identifier_string(identifier)),
-		runtime::runtime_types::cord_primitives::element::Elum::CID(bytes) =>
+		runtime::runtime_types::origin_primitives::element::Elum::CID(bytes) =>
 			ElementJson::CidBase58(bs58::encode(bounded_bytes_vec(bytes)).into_string()),
 	}
 }

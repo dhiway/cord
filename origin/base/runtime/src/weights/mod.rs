@@ -26,7 +26,6 @@ pub mod pallet_migrations;
 pub mod pallet_mmr;
 pub mod pallet_multisig;
 pub mod pallet_proxy;
-pub mod pallet_remark;
 pub mod pallet_safe_mode;
 pub mod pallet_scheduler;
 pub mod pallet_session;

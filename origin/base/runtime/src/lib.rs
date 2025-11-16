@@ -59,8 +59,8 @@ use origin_runtime_constants::{
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
 use pallet_session::historical as session_historical;
 use pallet_token::Token as _;
-use pallet_tx_pause::RuntimeCallNameOf;
 use pallet_transaction_payment::{FeeDetails, FungibleAdapter, RuntimeDispatchInfo};
+use pallet_tx_pause::RuntimeCallNameOf;
 use polkadot_primitives::{
 	slashing,
 	vstaging::{
@@ -77,7 +77,6 @@ use polkadot_runtime_common::{
 	impl_runtime_weights, paras_registrar, paras_sudo_wrapper, prod_or_fast, slots, traits::OnSwap,
 	BlockHashCount, BlockLength, SlowAdjustingFeeUpdate,
 };
-use sp_runtime::{MultiSignature, MultiSigner};
 use runtime_parachains::{
 	assigner_coretime as parachains_assigner_coretime, configuration as parachains_configuration,
 	configuration::ActiveConfigHrmpChannelSizeAndCapacityRatio,
@@ -95,6 +94,7 @@ use runtime_parachains::{
 	shared as parachains_shared,
 };
 use scale_info::TypeInfo;
+use sp_runtime::{MultiSignature, MultiSigner};
 
 use sp_core::{ConstUint, OpaqueMetadata, H256};
 use sp_runtime::{
@@ -797,15 +797,6 @@ impl pallet_meta_tx::Config for Runtime {
 	type Extension = pallet_meta_tx::WeightlessExtension<Runtime>;
 }
 
-impl pallet_runtime_upgrade::Config for Runtime {
-	type SetCodeOrigin = EnsureRoot<AccountId>;
-}
-
-impl pallet_remark::Config for Runtime {
-	type WeightInfo = weights::pallet_remark::WeightInfo<Runtime>;
-	type RuntimeEvent = RuntimeEvent;
-}
-
 impl parachains_origin::Config for Runtime {}
 
 impl parachains_configuration::Config for Runtime {
@@ -1184,9 +1175,9 @@ construct_runtime! {
 		MetaTx: pallet_meta_tx = 215,
 		TxPause: pallet_tx_pause = 216,
 		SafeMode: pallet_safe_mode = 217,
-		RuntimeUpgrade: pallet_runtime_upgrade = 218,
+		// RuntimeUpgrade: pallet_runtime_upgrade = 218,
 		VerifySignature: pallet_verify_signature = 219,
-		Remark: pallet_remark = 220,
+		// Remark: pallet_remark = 220,
 
 		// Migrations pallet
 		MultiBlockMigrations: pallet_migrations = 249,

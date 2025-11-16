@@ -1,11 +1,11 @@
 use crate::{
-	api::runtime,
 	error::{Error, Result},
+	runtime,
 	runtime_helpers::{attribute_optional, bounded_bytes_vec, bounded_iter, element_type_to_sdk},
 	types::{attribute_pair_value, base64_to_bytes, element_json_to_dynamic, ElementJson},
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use cord_primitives::{
+use origin_primitives::{
 	packet::ElementType,
 	registry::{RegistryAttributeView, RegistryInfoView},
 };
@@ -649,7 +649,7 @@ fn normalize_hex(raw: &str) -> Result<String> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use cord_primitives::{
+	use origin_primitives::{
 		identifier::Ss58Identifier,
 		registry::{LookupSpecView, RegistryKind as RuntimeRegistryKind, RegistryStatus},
 		view::ElementView,

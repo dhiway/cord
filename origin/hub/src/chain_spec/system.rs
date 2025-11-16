@@ -16,14 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+use cumulus_primitives_core::ParaId;
 use origin_hub_system_runtime::genesis_config_presets::{
 	system_origin_development_genesis, system_origin_local_testnet_genesis,
 };
 use origin_runtime_constants::system_parachain::{ORIGIN_HUB_IN_ID, ORIGIN_HUB_NA_ID};
 use polkadot_omni_node_lib::chain_spec::{Extensions, GenericChainSpec};
-use cumulus_primitives_core::ParaId;
 use sc_service::ChainType;
-const DEFAULT_PROTOCOL_ID: &str = "0rbit";
+const DEFAULT_PROTOCOL_ID: &str = "0hub";
 
 fn properties() -> sc_chain_spec::Properties {
 	let mut properties = sc_chain_spec::Properties::new();
@@ -41,7 +41,6 @@ fn system_spec(
 	para_id: u32,
 	genesis_patch: serde_json::Value,
 ) -> GenericChainSpec {
-
 	GenericChainSpec::builder(
 		origin_hub_system_runtime::WASM_BINARY
 			.expect("WASM binary was not built, please build it!"),

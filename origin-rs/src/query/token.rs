@@ -12,10 +12,22 @@ use scale_value::Value;
 /// Facade for `pallet-token` view functions.
 pub struct TokenQuery<'a> {
 	pub(crate) query: &'a Query<'a>,
+	pub(crate) supported: bool,
 }
 
 impl<'a> TokenQuery<'a> {
+	fn ensure_supported(&self) -> Result<()> {
+		if self.supported {
+			Ok(())
+		} else {
+			Err(crate::error::Error::Params(
+				"token queries require origin-hub flavor (not available on origin relay)".into(),
+			))
+		}
+	}
+
 	pub async fn state_version(&self, req: &TokenStateVersionRequest) -> Result<u32> {
+		self.ensure_supported()?;
 		let args = self.token_args(&req.auth, &req.token)?;
 		let raw: core::result::Result<u32, AuthorizationError> =
 			self.query.call_result("Token", "state_version", args).await?;
@@ -26,6 +38,7 @@ impl<'a> TokenQuery<'a> {
 		&self,
 		req: &TokenResolveIdentifierRequest,
 	) -> Result<DecodedIdentifier> {
+		self.ensure_supported()?;
 		let args = self.token_args(&req.auth, &req.token)?;
 		let raw: core::result::Result<DecodedIdentifier, AuthorizationError> =
 			self.query.call_result("Token", "resolve_identifier", args).await?;
@@ -36,6 +49,7 @@ impl<'a> TokenQuery<'a> {
 		&self,
 		req: &TokenTimelineRequest,
 	) -> Result<(Vec<StateEventRecord>, Option<u32>)> {
+		self.ensure_supported()?;
 		let args = self.timeline_args(req)?;
 		let raw: core::result::Result<(Vec<StateEventRecord>, Option<u32>), AuthorizationError> =
 			self.query.call_result("Token", "timeline", args).await?;

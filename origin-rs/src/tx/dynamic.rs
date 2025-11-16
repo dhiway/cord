@@ -67,7 +67,6 @@ pub async fn sign_and_submit_with_flavor<
 	let era = opts.era.unwrap_or(Era::Immortal);
 	let prepared = PreparedTxOptions { era, nonce: nonce_value, tip };
 	let params = match flavor {
-		ChainFlavor::Orb => params::orb::params(prepared),
 		ChainFlavor::Origin => params::origin::params(prepared),
 		ChainFlavor::OriginHub | ChainFlavor::Auto => params::origin_hub::params(prepared),
 	};

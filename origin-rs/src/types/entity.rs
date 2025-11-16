@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use cord_primitives::view::{AttributeValueView, ElementView};
+use origin_primitives::view::{AttributeValueView, ElementView};
 use scale_decode::DecodeAsType;
 use scale_value::Value;
 use serde::{Deserialize, Serialize};

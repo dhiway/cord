@@ -1,8 +1,8 @@
 use super::{ArgBuilder, Query};
 
 use crate::{
-	api::runtime,
-	error::Result,
+	error::{Error, Result},
+	runtime,
 	types::entity::{
 		AttributeHistoryEntryRecord, AttributeHistoryRecord, AttributeHistoryVersionRecord,
 		BlockRef, EntityInfoRecord, HistoryEntry,
@@ -24,14 +24,26 @@ pub type RuntimeEventBlock = runtime::runtime_types::pallet_token::EventBlock;
 /// Facade for `pallet-entity` query functions.
 pub struct EntityQuery<'a> {
 	pub(crate) query: &'a Query<'a>,
+	pub(crate) supported: bool,
 }
 
 impl<'a> EntityQuery<'a> {
+	fn ensure_supported(&self) -> Result<()> {
+		if self.supported {
+			Ok(())
+		} else {
+			Err(Error::Params(
+				"entity queries require origin-hub flavor (not available on origin relay)".into(),
+			))
+		}
+	}
+
 	pub async fn details(
 		&self,
 		auth: &AuthorizationRequest,
 		token: &Ss58Identifier,
 	) -> Result<Option<EntityInfoRecord>> {
+		self.ensure_supported()?;
 		let args = self.token_args(auth, token)?;
 		let raw: core::result::Result<EntityInfoRecord, AuthorizationError> =
 			self.query.call_result("Entity", "details", args).await?;
@@ -46,6 +58,7 @@ impl<'a> EntityQuery<'a> {
 		&self,
 		req: &EntityAttributeHistoryRequest,
 	) -> Result<Vec<HistoryEntry>> {
+		self.ensure_supported()?;
 		let args = self.token_args(&req.auth, &req.token)?;
 		let raw: core::result::Result<Vec<AttributeHistoryRecord>, AuthorizationError> =
 			self.query.call_result("Entity", "attribute_history", args).await?;
@@ -57,6 +70,7 @@ impl<'a> EntityQuery<'a> {
 		&self,
 		req: &EntityAttributeHistoryForKeyRequest,
 	) -> Result<Vec<HistoryEntry>> {
+		self.ensure_supported()?;
 		let args = self.token_key_args(&req.auth, &req.token, req.key.as_slice())?;
 		let raw: core::result::Result<Vec<AttributeHistoryVersionRecord>, AuthorizationError> =
 			self.query.call_result("Entity", "attribute_history_for_key", args).await?;
@@ -73,6 +87,7 @@ impl<'a> EntityQuery<'a> {
 		&self,
 		req: &EntityAttributeHistoryEntryRequest,
 	) -> Result<HistoryEntry> {
+		self.ensure_supported()?;
 		let args =
 			self.token_key_version_args(&req.auth, &req.token, req.key.as_slice(), req.version)?;
 		let raw: core::result::Result<AttributeHistoryEntryRecord, AuthorizationError> =
@@ -85,13 +100,14 @@ impl<'a> EntityQuery<'a> {
 		&self,
 		req: &EntityAccountTokenRequest,
 	) -> Result<Option<Ss58Identifier>> {
+		self.ensure_supported()?;
 		let args = self.account_args(req)?;
-		let raw: core::result::Result<Ss58Identifier, AuthorizationError> =
-			self.query.call_result("Entity", "account_token", args).await?;
-		match raw {
-			Ok(id) => Ok(Some(id)),
-			Err(AuthorizationError::NotFound) => Ok(None),
-			Err(err) => Err(super::view_failure("entity.account_token", err)),
+		match self.query.call_result("Entity", "account_token", args).await {
+			Ok(Ok(id)) => Ok(Some(id)),
+			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
+			Ok(Err(err)) => Err(super::view_failure("entity.account_token", err)),
+			Err(Error::NotFound(_)) => self.account_token_from_storage(&req.account).await,
+			Err(err) => Err(err),
 		}
 	}
 
@@ -99,6 +115,7 @@ impl<'a> EntityQuery<'a> {
 		&self,
 		req: &EntityLinkedAccountsRequest,
 	) -> Result<Vec<AccountId32>> {
+		self.ensure_supported()?;
 		let args = self.token_args(&req.auth, &req.token)?;
 		let raw: core::result::Result<Vec<AccountId32>, AuthorizationError> =
 			self.query.call_result("Entity", "linked_accounts", args).await?;
@@ -106,6 +123,7 @@ impl<'a> EntityQuery<'a> {
 	}
 
 	pub async fn entity_nym(&self, req: &EntityNymRequest) -> Result<Option<String>> {
+		self.ensure_supported()?;
 		let args = self.token_args(&req.auth, &req.token)?;
 		let raw: core::result::Result<Vec<u8>, AuthorizationError> =
 			self.query.call_result("Entity", "entity_nym", args).await?;
@@ -206,6 +224,28 @@ impl<'a> EntityQuery<'a> {
 		builder.push("auth", super::authorization_value(&req.auth)?);
 		builder.push("account", super::account_value(req.account.as_ref()));
 		Ok(builder.finish())
+	}
+
+	async fn account_token_from_storage(
+		&self,
+		account: &AccountId32,
+	) -> Result<Option<Ss58Identifier>> {
+		use subxt::dynamic::Value;
+
+		let address = subxt::dynamic::storage(
+			"Entity",
+			"EntityTokenOfAccount",
+			vec![Value::from_bytes(account.as_ref().to_vec())],
+		);
+		let mut storage = self.query.client.online().storage().at_latest().await.map_err(Error::from)?;
+		let raw = storage.fetch_raw(&address).await.map_err(Error::from)?;
+		if let Some(bytes) = raw {
+			let mut cursor = bytes.as_slice();
+			let id = Ss58Identifier::decode(&mut cursor).map_err(|e| Error::Codec(e.to_string()))?;
+			Ok(Some(id))
+		} else {
+			Ok(None)
+		}
 	}
 }
 

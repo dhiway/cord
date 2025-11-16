@@ -7,6 +7,7 @@ pub mod token;
 use crate::{
 	client::Client,
 	error::{Error, Result},
+	flavors::ChainFlavor,
 	types,
 };
 use codec::Decode;
@@ -27,15 +28,18 @@ pub struct Query<'a> {
 
 impl<'a> Query<'a> {
 	pub fn register(&self) -> register::RegisterQuery<'_> {
-		register::RegisterQuery { query: self }
+		let supported = !matches!(self.client.flavor(), ChainFlavor::Origin);
+		register::RegisterQuery { query: self, supported }
 	}
 
 	pub fn entity(&self) -> entity::EntityQuery<'_> {
-		entity::EntityQuery { query: self }
+		let supported = !matches!(self.client.flavor(), ChainFlavor::Origin);
+		entity::EntityQuery { query: self, supported }
 	}
 
 	pub fn token(&self) -> token::TokenQuery<'_> {
-		token::TokenQuery { query: self }
+		let supported = !matches!(self.client.flavor(), ChainFlavor::Origin);
+		token::TokenQuery { query: self, supported }
 	}
 
 	pub(crate) async fn call_view_as<T: DecodeAsType + 'static>(
