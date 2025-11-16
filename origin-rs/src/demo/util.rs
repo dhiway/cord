@@ -1,10 +1,11 @@
 use crate::{
+	demo::spinner,
 	error::{Error, Result},
 	params::config::CordConfig,
 	query::{auth::AuthorizationBuilder, register::PacketSnapshotView},
 	tx::{self, MetaTxOptions, SubmitError, SubmitStage, TxSubmitter},
 	types::token::StateEventRecord,
-	utils, Client,
+	Client,
 };
 use codec::Decode;
 use origin_primitives::{
@@ -17,7 +18,7 @@ use origin_primitives::{
 };
 use serde_json::Value as JsonValue;
 use sp_runtime::AccountId32 as RuntimeAccount;
-use std::{sync::Once, time::Duration};
+use std::sync::Once;
 use subxt::{
 	blocks::ExtrinsicEvents,
 	tx::{DynamicPayload, Payload},
@@ -207,11 +208,12 @@ where
 	S: subxt::tx::Signer<CordConfig>,
 	P: Payload,
 {
+	let spinner = spinner::Spinner::start(format!("Submitting {description}"));
 	let events = submitter
 		.submit_with_progress(call, description.to_string(), |stage| sink.stage(stage))
-		.await?;
-	utils::short_delay(Duration::from_secs(1)).await;
-	Ok(events)
+		.await;
+	spinner.finish(None).await;
+	events
 }
 
 pub enum TokenTarget {

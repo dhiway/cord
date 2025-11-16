@@ -17,7 +17,8 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
-use frame_support::{parameter_types, traits::Get};
+use crate::{Runtime, Token};
+use frame_support::parameter_types;
 use pallet_entity::entity::EntityInfo;
 
 parameter_types! {

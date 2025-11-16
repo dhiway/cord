@@ -16,7 +16,7 @@ allowed_ancestry_len = 2
 
 [relaychain.genesis.runtimeGenesis.patch.configuration.config.scheduler_params]
 max_validators_per_core = 1
-num_cores = 3
+num_cores = 4
 lookahead = 3
 
 [[relaychain.nodes]]
@@ -86,8 +86,21 @@ cumulus_based = true
 chain = "origin-system-local"
 
 [parachains.collator]
-name = "hub-fast"
+name = "hub-in-collator"
 rpc_port = 9810
 collator = true
 command = "../target/release/origin-hub"
 args = ["--execution=wasm", "--force-authoring"]
+
+[[parachains]]
+id = 1001
+addToGenesis = true
+cumulus_based = true
+chain = "origin-system-na-local"
+
+[parachains.collator]
+name = "hub-na-collator"
+rpc_port = 9910
+collator = true
+command = "../target/release/origin-hub"
+args = ["--trie-cache-size=0", "--execution=wasm"]

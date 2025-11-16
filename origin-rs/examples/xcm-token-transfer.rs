@@ -28,10 +28,16 @@ async fn main() -> Result<()> {
 		}
 	});
 
+	let to_bytes: [u8; 32] = opts.to.into();
+	let to_hex = hex::encode(to_bytes);
 	let beneficiary = json!({
 		"V5": {
 			"parents": 0,
-			"interior": { "X1": { "AccountId32": { "network": null, "id": hex::encode(opts.to.0) } } }
+			"interior": {
+				"X1": {
+					"AccountId32": { "network": null, "id": to_hex }
+				}
+			}
 		}
 	});
 
@@ -55,13 +61,14 @@ async fn main() -> Result<()> {
 		}),
 	).await?;
 
-	let mut progress = client
+	let progress = client
 		.tx()
 		.sign_and_submit_then_watch_with_opts(call, &signer, TxOptions::default())
 		.await?;
 
-	let finalized = progress.wait_for_finalized_success().await?;
-	println!("Finalized in block {:?}", finalized.block_hash());
+	let ext_hash = progress.extrinsic_hash();
+	progress.wait_for_finalized_success().await?;
+	println!("Finalized extrinsic {:?}", ext_hash);
 
 	Ok(())
 }

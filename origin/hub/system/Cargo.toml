@@ -39,6 +39,16 @@ pallet-broker = { workspace = true }
 pallet-entity = { workspace = true }
 pallet-register = { workspace = true }
 pallet-token = { workspace = true }
+pallet-indices = { workspace = true }
+pallet-scheduler = { workspace = true }
+pallet-sudo = { workspace = true }
+pallet-safe-mode = { workspace = true }
+pallet-tx-pause = { workspace = true }
+pallet-meta-tx = { workspace = true }
+pallet-verify-signature = { workspace = true }
+pallet-feeless = { workspace = true }
+pallet-skip-feeless-payment = { workspace = true }
+pallet-remark = { workspace = true }
 pallet-message-queue = { workspace = true }
 pallet-migrations = { workspace = true }
 pallet-multisig = { workspace = true }
@@ -125,6 +135,16 @@ std = [
 	"pallet-entity/std",
 	"pallet-register/std",
 	"pallet-token/std",
+	"pallet-indices/std",
+	"pallet-scheduler/std",
+	"pallet-sudo/std",
+	"pallet-safe-mode/std",
+	"pallet-tx-pause/std",
+	"pallet-meta-tx/std",
+	"pallet-verify-signature/std",
+	"pallet-feeless/std",
+	"pallet-skip-feeless-payment/std",
+	"pallet-remark/std",
 	"pallet-message-queue/std",
 	"pallet-migrations/std",
 	"pallet-multisig/std",
@@ -182,11 +202,16 @@ runtime-benchmarks = [
 	"pallet-entity/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
 	"pallet-migrations/runtime-benchmarks",
+	"pallet-meta-tx/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
+	"pallet-safe-mode/runtime-benchmarks",
 	"pallet-register/runtime-benchmarks",
 	"pallet-proxy/runtime-benchmarks",
+	"pallet-scheduler/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-transaction-payment/runtime-benchmarks",
+	"pallet-tx-pause/runtime-benchmarks",
+	"pallet-verify-signature/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
 	"pallet-xcm-benchmarks/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
@@ -217,13 +242,17 @@ try-runtime = [
 	"pallet-broker/try-runtime",
 	"pallet-entity/try-runtime",
 	"pallet-token/try-runtime",
+	"pallet-meta-tx/try-runtime",
 	"pallet-message-queue/try-runtime",
 	"pallet-migrations/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-register/try-runtime",
 	"pallet-proxy/try-runtime",
+	"pallet-safe-mode/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-timestamp/try-runtime",
+	"pallet-tx-pause/try-runtime",
+	"pallet-verify-signature/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"pallet-utility/try-runtime",
 	"pallet-xcm/try-runtime",

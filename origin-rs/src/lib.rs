@@ -2,7 +2,7 @@
 #![doc = include_str!("../README.md")]
 
 //! Origin SDK core library. Provides a lightweight facade over Subxt for
-//! connecting to Orb/Origin/OriginHub chains, composing extrinsics, and
+//! connecting to Origin/OriginHub chains, composing extrinsics, and
 //! calling runtime view functions using JSON payloads.
 
 pub mod api;
@@ -16,9 +16,15 @@ pub mod query;
 mod runtime_helpers;
 pub mod scale;
 pub mod state;
+pub mod metadata;
 pub mod tx;
 pub mod types;
 pub mod utils;
+
+// Expose both generated runtimes; keep `runtime` as the hub-default for
+// backward compatibility while allowing simultaneous use of both modules.
+pub use crate::api::runtime_hub as runtime;
+pub use crate::api::{runtime_hub, runtime_origin};
 
 pub use client::{Client, ConnectionConfig, RetryPolicy, DEFAULT_RPC_ENDPOINT};
 pub use error::Error;

@@ -3,6 +3,7 @@ pub mod entity;
 pub mod packet;
 pub mod register;
 pub mod util;
+pub mod spinner;
 use crate::{
 	client::Client,
 	demo::util::{LogSink, TxExecutor},
