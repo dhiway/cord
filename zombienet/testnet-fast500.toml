@@ -7,7 +7,7 @@
 timeout = 300
 
 [relaychain]
-chain = "origin-relay-local"
+chain = "origin-local"
 default_command = "../target/release/origin"
 
 [relaychain.genesis.runtimeGenesis.patch.configuration.config.async_backing_params]
@@ -16,24 +16,68 @@ allowed_ancestry_len = 2
 
 [relaychain.genesis.runtimeGenesis.patch.configuration.config.scheduler_params]
 max_validators_per_core = 1
-num_cores = 12
+num_cores = 3
 lookahead = 3
-
-[[relaychain.node_groups]]
-name = "elastic-validator"
-count = 12
 
 [[relaychain.nodes]]
 name = "alice"
-rpc_port = 9800
+rpc_port = 9801
 validator = true
-args = ["--trie-cache-size=0", "--disable-worker-version-check", "--execution=wasm"]
+args = [
+  "--trie-cache-size=0",
+  "--disable-worker-version-check",
+  "--execution=wasm",
+]
 
-# [[relaychain.nodes]]
-# name = "bob"
-# rpc_port = 9801
-# validator = true
-# args = ["--trie-cache-size=0", "--disable-worker-version-check", "--execution=wasm"]
+[[relaychain.nodes]]
+name = "bob"
+rpc_port = 9802
+validator = true
+args = [
+  "--trie-cache-size=0",
+  "--disable-worker-version-check",
+  "--execution=wasm",
+]
+
+[[relaychain.nodes]]
+name = "charlie"
+rpc_port = 9803
+validator = true
+args = [
+  "--trie-cache-size=0",
+  "--disable-worker-version-check",
+  "--execution=wasm",
+]
+
+[[relaychain.nodes]]
+name = "dave"
+rpc_port = 9804
+validator = true
+args = [
+  "--trie-cache-size=0",
+  "--disable-worker-version-check",
+  "--execution=wasm",
+]
+
+[[relaychain.nodes]]
+name = "eve"
+rpc_port = 9805
+validator = true
+args = [
+  "--trie-cache-size=0",
+  "--disable-worker-version-check",
+  "--execution=wasm",
+]
+
+[[relaychain.nodes]]
+name = "fredie"
+rpc_port = 9806
+validator = true
+args = [
+  "--trie-cache-size=0",
+  "--disable-worker-version-check",
+  "--execution=wasm",
+]
 
 [[parachains]]
 id = 1000
