@@ -23,8 +23,8 @@ members = [
 	"origin/hub",
 	"origin/hub/constants",
 	"origin/hub/system",
-	"origin/solo",
-	"origin/solo/constants",
+	# "origin/solo",
+	# "origin/solo/constants",
 	"origin/common",
 	"origin/pallets/authorities",
 	"origin/pallets/token",
@@ -183,6 +183,14 @@ cumulus-pallet-xcmp-queue = { git = "https://github.com/dhiway/sdk", default-fea
 cumulus-primitives-aura = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.20.0" }
 cumulus-primitives-core = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.20.0" }
 cumulus-primitives-utility = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.20.0" }
+cumulus-client-cli = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.20.0" }
+cumulus-client-collator = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.20.0" }
+cumulus-client-consensus-aura = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.20.0" }
+cumulus-client-consensus-common = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.20.0" }
+cumulus-client-consensus-proposer = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.20.0" }
+cumulus-client-service = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.20.0" }
+cumulus-relay-chain-interface = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.20.0" }
+cumulus-client-bootnodes = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.20.0" }
 curve25519-dalek = { version = "4.1.3" }
 derive-syn-parse = { version = "0.2.0" }
 derive-where = { version = "1.2.7" }
@@ -686,7 +694,7 @@ substrate-rpc-client = { git = "https://github.com/dhiway/sdk", default-features
 substrate-state-trie-migration-rpc = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.20.0" }
 substrate-test-client = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.20.0" }
 substrate-wasm-builder = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.20.0" }
-subxt = { version = "0.41", default-features = false }
+subxt = { version = "0.44", default-features = false }
 subxt-metadata = { version = "0.41", default-features = false }
 subxt-signer = { version = "0.41" }
 syn = { version = "2.0.87" }
@@ -805,6 +813,7 @@ origin-dev-runtime-constants = { path = "origin/solo/constants", default-feature
 origin-common = { path = "origin/common", default-features = false }
 origin-dev-runtime = { path = "origin/solo", default-features = false }
 # Origin hub system chain crates (parachain runtime + shared constants)
+origin-hub = { path = "origin/hub", default-features = false }
 origin-hub-system-runtime = { path = "origin/hub/system", default-features = false }
 origin-hub-system-runtime-constants = { path = "origin/hub/constants", default-features = false }
 # # origin-authorities = { path = "origin/relay/runtime/authorities", default-features = false }

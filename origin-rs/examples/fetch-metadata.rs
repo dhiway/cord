@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use hex::ToHex;
-use oc::{ChainFlavor, Client};
+use oc::{ChainFlavor, Client, ConnectionConfig};
 use serde::{Deserialize, Serialize};
 use std::{
 	fs,
@@ -58,7 +58,11 @@ async fn main() -> Result<()> {
 		other => return Err(anyhow!("invalid --flavor {other} (use origin|origin-hub)")),
 	};
 
-	let client = Client::connect(&opts.node, flavor).await?;
+	let mut cfg = ConnectionConfig::new(&opts.node, flavor);
+	if std::env::var("ORIGIN_RS_SKIP_VIEW_VALIDATION").is_ok() {
+		cfg = cfg.skip_view_validation();
+	}
+	let client = Client::connect_with(cfg).await?;
 	let version = client.runtime_version().await?;
 	let hash = client.metadata_hash().await?;
 	let hash_hex = hash.encode_hex::<String>();

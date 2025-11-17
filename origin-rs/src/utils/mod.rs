@@ -17,7 +17,10 @@ pub const DEFAULT_NODE_URL: &str = DEFAULT_RPC_ENDPOINT;
 /// Connect to the supplied node URL or fall back to the local dev node.
 pub async fn connect_or_default(url: Option<&str>, flavor: ChainFlavor) -> Result<Client> {
 	let target = url.unwrap_or(DEFAULT_NODE_URL);
-	let config = ConnectionConfig::new(target.to_string(), flavor);
+	let mut config = ConnectionConfig::new(target.to_string(), flavor);
+	if std::env::var("ORIGIN_RS_SKIP_VIEW_VALIDATION").is_ok() {
+		config = config.skip_view_validation();
+	}
 	Client::connect_with(config).await
 }
 

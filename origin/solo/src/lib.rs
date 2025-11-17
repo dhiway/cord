@@ -122,7 +122,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: alloc::borrow::Cow::Borrowed("origin-dev"),
 	impl_name: alloc::borrow::Cow::Borrowed("dhiway-origin-dev"),
 	authoring_version: 0,
-	spec_version: 9900,
+    spec_version: 9902,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -814,7 +814,6 @@ impl pallet_register::Config for Runtime {
 	type WeightInfo = ();
 }
 
-
 impl pallet_feeless::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_feeless::weights::SubstrateWeight<Runtime>;
@@ -1067,7 +1066,10 @@ impl_runtime_apis! {
 	}
 
 	impl frame_support::view_functions::runtime_api::RuntimeViewFunction<Block> for Runtime {
-		fn execute_view_function(id: frame_support::view_functions::ViewFunctionId, input: Vec<u8>) -> Result<Vec<u8>, frame_support::view_functions::ViewFunctionDispatchError> {
+		fn execute_view_function(
+			id: frame_support::view_functions::ViewFunctionId,
+			input: Vec<u8>
+		) -> Result<Vec<u8>, frame_support::view_functions::ViewFunctionDispatchError> {
 			Runtime::execute_view_function(id, input)
 		}
 	}
