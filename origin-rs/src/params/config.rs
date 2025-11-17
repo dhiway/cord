@@ -10,7 +10,7 @@ use subxt::{
 	},
 };
 
-pub type CordExtrinsicParams<T> = transaction_extensions::AnyOf<
+pub type OriginExtrinsicParams<T> = transaction_extensions::AnyOf<
 	T,
 	(
 		custom::AuthorizeCall<T>,
@@ -27,23 +27,40 @@ pub type CordExtrinsicParams<T> = transaction_extensions::AnyOf<
 	),
 >;
 
-/// Custom config mirroring the runtime's signed-extension tuple while retaining Substrate defaults.
+/// Config for the origin relay runtime.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum CordConfig {}
+pub enum OriginConfig {}
 
-impl Config for CordConfig {
+/// Config for the origin hub parachain runtime.
+///
+/// The signed-extension tuple matches [`OriginConfig`], but we expose a distinct
+/// type so examples can clearly target origin-hub when desired.
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub enum OriginHubConfig {}
+
+impl Config for OriginConfig {
 	type AccountId = AccountId32;
 	type Address = MultiAddress<Self::AccountId, u32>;
 	type Signature = MultiSignature;
 	type Hasher = subxt::config::substrate::DynamicHasher256;
 	type Header = SubstrateHeader<u32, Self::Hasher>;
-	type ExtrinsicParams = CordExtrinsicParams<Self>;
+	type ExtrinsicParams = OriginExtrinsicParams<Self>;
 	type AssetId = u32;
 }
 
-pub fn build_cord_params(
-	builder: DefaultExtrinsicParamsBuilder<CordConfig>,
-) -> <CordExtrinsicParams<CordConfig> as ExtrinsicParams<CordConfig>>::Params {
+impl Config for OriginHubConfig {
+	type AccountId = AccountId32;
+	type Address = MultiAddress<Self::AccountId, u32>;
+	type Signature = MultiSignature;
+	type Hasher = subxt::config::substrate::DynamicHasher256;
+	type Header = SubstrateHeader<u32, Self::Hasher>;
+	type ExtrinsicParams = OriginExtrinsicParams<Self>;
+	type AssetId = u32;
+}
+
+pub fn build_origin_params<C: Config<ExtrinsicParams = OriginExtrinsicParams<C>>>(
+	builder: DefaultExtrinsicParamsBuilder<C>,
+) -> <OriginExtrinsicParams<C> as ExtrinsicParams<C>>::Params {
 	let (
 		_,
 		spec_params,

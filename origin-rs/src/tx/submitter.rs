@@ -1,7 +1,7 @@
 use crate::{
 	client::Client,
 	error::Error as SdkError,
-	params::config::CordConfig,
+	params::config::OriginConfig,
 	tx::{
 		nonce::{NonceMode, NonceTracker},
 		TxOptions,
@@ -65,7 +65,7 @@ impl std::error::Error for SubmitError {}
 /// Handles nonce tracking and emits structured progress notifications for extrinsics.
 pub struct TxSubmitter<'a, S>
 where
-	S: subxt::tx::Signer<CordConfig>,
+	S: subxt::tx::Signer<OriginConfig>,
 {
 	client: &'a Client,
 	signer: &'a S,
@@ -74,7 +74,7 @@ where
 
 impl<'a, S> TxSubmitter<'a, S>
 where
-	S: subxt::tx::Signer<CordConfig>,
+	S: subxt::tx::Signer<OriginConfig>,
 {
 	pub fn new(client: &'a Client, signer: &'a S) -> Self {
 		let account_id = signer.account_id();
@@ -90,7 +90,7 @@ where
 		call: P,
 		description: impl Into<String>,
 		mut handler: F,
-	) -> Result<ExtrinsicEvents<crate::params::config::CordConfig>, SubmitError>
+	) -> Result<ExtrinsicEvents<crate::params::config::OriginConfig>, SubmitError>
 	where
 		F: FnMut(SubmitStage),
 		P: subxt::tx::Payload,

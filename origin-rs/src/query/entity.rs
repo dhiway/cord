@@ -106,7 +106,6 @@ impl<'a> EntityQuery<'a> {
 			Ok(Ok(id)) => Ok(Some(id)),
 			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
 			Ok(Err(err)) => Err(super::view_failure("entity.account_token", err)),
-			Err(Error::NotFound(_)) => self.account_token_from_storage(&req.account).await,
 			Err(err) => Err(err),
 		}
 	}
@@ -224,28 +223,6 @@ impl<'a> EntityQuery<'a> {
 		builder.push("auth", super::authorization_value(&req.auth)?);
 		builder.push("account", super::account_value(req.account.as_ref()));
 		Ok(builder.finish())
-	}
-
-	async fn account_token_from_storage(
-		&self,
-		account: &AccountId32,
-	) -> Result<Option<Ss58Identifier>> {
-		use subxt::dynamic::Value;
-
-		let address = subxt::dynamic::storage(
-			"Entity",
-			"EntityTokenOfAccount",
-			vec![Value::from_bytes(account.as_ref().to_vec())],
-		);
-		let mut storage = self.query.client.online().storage().at_latest().await.map_err(Error::from)?;
-		let raw = storage.fetch_raw(&address).await.map_err(Error::from)?;
-		if let Some(bytes) = raw {
-			let mut cursor = bytes.as_slice();
-			let id = Ss58Identifier::decode(&mut cursor).map_err(|e| Error::Codec(e.to_string()))?;
-			Ok(Some(id))
-		} else {
-			Ok(None)
-		}
 	}
 }
 

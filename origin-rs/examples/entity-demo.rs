@@ -10,11 +10,12 @@ use oc::{
 			init_logging, parse_identifier, resolve_token_target, signer_account_id, LogSink,
 			RunMode, TokenTarget, TxExecutor, TxFlow,
 		},
+		spinner,
 	},
 	entity::{self as sdk_entity, AttributePlan, EntityChainState},
 	tx::{self, SubmitError, TxSubmitter},
 	types::{self, entity::AttributeEntry, ElementJson},
-	utils, ChainFlavor, Client,
+	utils, ChainFlavor, Client, ConnectionConfig, RetryPolicy,
 };
 use origin_primitives::view_api::EntityNymRequest;
 use sp_core::crypto::Ss58AddressFormat;
@@ -84,12 +85,25 @@ async fn main() -> Result<()> {
 	init_logging();
 	let args: Vec<String> = std::env::args().collect();
 	let cli = parse_args(&args[1..])?;
-	let client = utils::connect_or_default(cli.common.node.as_deref(), ChainFlavor::Auto).await?;
+	let client = connect_client(cli.common.node.as_deref(), ChainFlavor::Auto).await?;
 	let chain_prefix = client.chain_prefix().await;
 	match cli.common.mode {
 		RunMode::Transaction => run_transaction_flow(&cli, &client, chain_prefix).await,
 		RunMode::View => run_view_flow(&cli, &client, chain_prefix).await,
 	}
+}
+
+async fn connect_client(node: Option<&str>, flavor: ChainFlavor) -> Result<Client> {
+	let endpoint = node.unwrap_or(utils::DEFAULT_NODE_URL);
+	let connection = ConnectionConfig::new(endpoint.to_string(), flavor).with_retry(RetryPolicy {
+		initial_backoff: Duration::from_millis(100),
+		max_backoff: Duration::from_secs(5),
+		max_retries: Some(8),
+	});
+	let spinner = spinner::Spinner::start(format!("Connecting to {endpoint} ({flavor:?})"));
+	let client = Client::connect_with(connection).await?;
+	spinner.finish(Some("Connected")).await;
+	Ok(client)
 }
 
 async fn run_transaction_flow(
@@ -180,7 +194,6 @@ async fn run_transaction_flow(
 	let email_value = format!("{label}@cord.dev");
 	if created {
 		println!("\n✅ Entity initialized with info/nym/demo/public_key attributes.");
-		utils::short_delay(Duration::from_secs(2)).await;
 	} else {
 		match sdk_entity::plan_attribute_update(chain_state.get("email"), &email_value) {
 			AttributePlan::Skip => {
@@ -230,7 +243,6 @@ async fn run_transaction_flow(
 		}
 	}
 
-	utils::short_delay(Duration::from_secs(6)).await;
 	let target_version = baseline_state_version.saturating_add(expected_state_events);
 	entity::render_entity_snapshot(
 		client,

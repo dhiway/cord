@@ -8,7 +8,7 @@ use crate::{
 	client::Client,
 	demo::util::{LogSink, TxExecutor},
 	error::{Error, Result},
-	params::config::CordConfig,
+	params::config::OriginConfig,
 	tx::{self, TxOptions},
 	types::entity::EntityInfoRecord,
 };
@@ -86,7 +86,7 @@ pub async fn create_registry_with_executor(
 	decode_registry_created(&events)
 }
 
-fn decode_registry_created(events: &ExtrinsicEvents<CordConfig>) -> Result<Ss58Identifier> {
+fn decode_registry_created(events: &ExtrinsicEvents<OriginConfig>) -> Result<Ss58Identifier> {
 	for ev in events.iter() {
 		let ev = ev?;
 		if ev.pallet_name() == "Register" && ev.variant_name() == "RegistryCreated" {
@@ -126,7 +126,7 @@ pub async fn create_packet_with_executor(
 	decode_packet_created(&events)
 }
 
-fn decode_packet_created(events: &ExtrinsicEvents<CordConfig>) -> Result<Ss58Identifier> {
+fn decode_packet_created(events: &ExtrinsicEvents<OriginConfig>) -> Result<Ss58Identifier> {
 	for ev in events.iter() {
 		let ev = ev?;
 		if ev.pallet_name() == "Register" && ev.variant_name() == "PacketCreated" {
@@ -143,7 +143,7 @@ pub async fn submit_and_wait(
 	client: &Client,
 	signer: &tx::signer::Keypair,
 	call: subxt::tx::DynamicPayload,
-) -> Result<ExtrinsicEvents<CordConfig>> {
+) -> Result<ExtrinsicEvents<OriginConfig>> {
 	Ok(client
 		.tx()
 		.sign_and_submit(call, signer, TxOptions::default())
@@ -187,7 +187,7 @@ pub fn packet_attributes(label: &str, controller: &str) -> JsonValue {
 
 pub fn entity_profile(label: &str) -> JsonValue {
 	json!({
-	"display": format!("CORD SDK entity run {label}"),
+	"display": format!("Origin SDK entity run {label}"),
 	"web": format!("https://demo.cord/{label}"),
 	"email": format!("{label}@cord.dev"),
 		"attributes": {

@@ -78,8 +78,8 @@ use origin_runtime_constants::currency::EXISTENTIAL_DEPOSIT;
 use origin_runtime_constants::fee;
 use origin_runtime_constants::time::DAYS;
 use pallet_token::Token as TokenTrait;
-use pallet_tx_pause::RuntimeCallNameOf;
 use pallet_transaction_payment::FungibleAdapter;
+use pallet_tx_pause::RuntimeCallNameOf;
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
 use parachains_common::{
 	message_queue::*, AccountId, AuraId, Balance, BlockNumber, Hash, Header, Nonce, Signature,
@@ -392,10 +392,6 @@ impl pallet_utility::Config for Runtime {
 	type WeightInfo = weights::pallet_utility::WeightInfo<Runtime>;
 }
 
-impl pallet_remark::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_remark::weights::SubstrateWeight<Runtime>;
-}
 parameter_types! {
 	// One storage item; key size 32, value size 8; .
 	pub const ProxyDepositBase: Balance = system_para_deposit(1, 40);
@@ -714,62 +710,178 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = weights::pallet_sudo::WeightInfo<Runtime>;
 }
 
-// Create the runtime by composing the FRAME pallets that were previously configured.
-construct_runtime!(
-	pub enum Runtime
-	{
-		// System support stuff.
-		System: frame_system = 0,
-		ParachainSystem: cumulus_pallet_parachain_system = 1,
-		Timestamp: pallet_timestamp = 2,
-		ParachainInfo: parachain_info = 3,
+#[frame_support::runtime]
+mod runtime {
+	use super::*;
 
-		// Monetary stuff.
-		Balances: pallet_balances = 10,
-		TransactionPayment: pallet_transaction_payment = 11,
-		Indices: pallet_indices = 12,
-		SkipFeelessPayment: pallet_skip_feeless_payment = 13,
+	#[runtime::runtime]
+	#[runtime::derive(
+		RuntimeCall,
+		RuntimeEvent,
+		RuntimeError,
+		RuntimeOrigin,
+		RuntimeFreezeReason,
+		RuntimeHoldReason,
+		RuntimeSlashReason,
+		RuntimeLockId,
+		RuntimeTask,
+		RuntimeViewFunction
+	)]
+	pub struct Runtime;
 
-		// Collator support. The order of these 5 are important and shall not change.
-		Authorship: pallet_authorship = 20,
-		CollatorSelection: pallet_collator_selection = 21,
-		Session: pallet_session = 22,
-		Aura: pallet_aura = 23,
-		AuraExt: cumulus_pallet_aura_ext = 24,
-		Scheduler: pallet_scheduler = 25,
+	#[runtime::pallet_index(0)]
+	pub type System = frame_system::Pallet<Runtime>;
 
-		// XCM & related
-		XcmpQueue: cumulus_pallet_xcmp_queue = 30,
-		PolkadotXcm: pallet_xcm = 31,
-		CumulusXcm: cumulus_pallet_xcm = 32,
-		MessageQueue: pallet_message_queue = 34,
+	#[runtime::pallet_index(1)]
+	pub type ParachainSystem = cumulus_pallet_parachain_system::Pallet<Runtime>;
 
-		// Handy utilities.
-		Utility: pallet_utility = 40,
-		Multisig: pallet_multisig = 41,
-		Proxy: pallet_proxy = 42,
+	#[runtime::pallet_index(2)]
+	pub type Timestamp = pallet_timestamp::Pallet<Runtime>;
 
-		// The main stage.
-		Entity: pallet_entity = 50,
-		Token: pallet_token = 51,
-		Register: pallet_register = 52,
-		Broker: pallet_broker = 53,
-		Feeless: pallet_feeless = 54,
+	#[runtime::pallet_index(3)]
+	pub type ParachainInfo = parachain_info::Pallet<Runtime>;
 
-		// Utilities
-		MetaTx: pallet_meta_tx = 215,
-		TxPause: pallet_tx_pause = 216,
-		SafeMode: pallet_safe_mode = 217,
-		VerifySignature: pallet_verify_signature = 219,
-		Remark: pallet_remark = 220,
+	#[runtime::pallet_index(10)]
+	pub type Balances = pallet_balances::Pallet<Runtime>;
 
-		// Migrations pallet
-		MultiBlockMigrations: pallet_migrations = 249,
+	#[runtime::pallet_index(11)]
+	pub type TransactionPayment = pallet_transaction_payment::Pallet<Runtime>;
 
-		// Sudo.
-		Sudo: pallet_sudo = 255,
-	}
-);
+	#[runtime::pallet_index(12)]
+	pub type Indices = pallet_indices::Pallet<Runtime>;
+
+	#[runtime::pallet_index(13)]
+	pub type SkipFeelessPayment = pallet_skip_feeless_payment::Pallet<Runtime>;
+
+	#[runtime::pallet_index(20)]
+	pub type Authorship = pallet_authorship::Pallet<Runtime>;
+
+	#[runtime::pallet_index(21)]
+	pub type CollatorSelection = pallet_collator_selection::Pallet<Runtime>;
+
+	#[runtime::pallet_index(22)]
+	pub type Session = pallet_session::Pallet<Runtime>;
+
+	#[runtime::pallet_index(23)]
+	pub type Aura = pallet_aura::Pallet<Runtime>;
+
+	#[runtime::pallet_index(24)]
+	pub type AuraExt = cumulus_pallet_aura_ext::Pallet<Runtime>;
+
+	#[runtime::pallet_index(25)]
+	pub type Scheduler = pallet_scheduler::Pallet<Runtime>;
+
+	#[runtime::pallet_index(30)]
+	pub type XcmpQueue = cumulus_pallet_xcmp_queue::Pallet<Runtime>;
+
+	#[runtime::pallet_index(31)]
+	pub type PolkadotXcm = pallet_xcm::Pallet<Runtime>;
+
+	#[runtime::pallet_index(32)]
+	pub type CumulusXcm = cumulus_pallet_xcm::Pallet<Runtime>;
+
+	#[runtime::pallet_index(34)]
+	pub type MessageQueue = pallet_message_queue::Pallet<Runtime>;
+
+	#[runtime::pallet_index(40)]
+	pub type Utility = pallet_utility::Pallet<Runtime>;
+
+	#[runtime::pallet_index(41)]
+	pub type Multisig = pallet_multisig::Pallet<Runtime>;
+
+	#[runtime::pallet_index(42)]
+	pub type Proxy = pallet_proxy::Pallet<Runtime>;
+
+	#[runtime::pallet_index(50)]
+	pub type Feeless = pallet_feeless::Pallet<Runtime>;
+
+	#[runtime::pallet_index(51)]
+	pub type Token = pallet_token::Pallet<Runtime>;
+
+	#[runtime::pallet_index(52)]
+	pub type Entity = pallet_entity::Pallet<Runtime>;
+
+	#[runtime::pallet_index(53)]
+	pub type Register = pallet_register::Pallet<Runtime>;
+
+	#[runtime::pallet_index(54)]
+	pub type Broker = pallet_broker::Pallet<Runtime>;
+
+	#[runtime::pallet_index(215)]
+	pub type MetaTx = pallet_meta_tx::Pallet<Runtime>;
+
+	#[runtime::pallet_index(216)]
+	pub type TxPause = pallet_tx_pause::Pallet<Runtime>;
+
+	#[runtime::pallet_index(217)]
+	pub type SafeMode = pallet_safe_mode::Pallet<Runtime>;
+
+	#[runtime::pallet_index(218)]
+	pub type VerifySignature = pallet_verify_signature::Pallet<Runtime>;
+
+	#[runtime::pallet_index(249)]
+	pub type MultiBlockMigrations = pallet_migrations::Pallet<Runtime>;
+
+	#[runtime::pallet_index(255)]
+	pub type Sudo = pallet_sudo::Pallet<Runtime>;
+}
+
+// // Create the runtime by composing the FRAME pallets that were previously configured.
+// construct_runtime!(
+// 	pub enum Runtime
+// 	{
+// 		// System support stuff.
+// 		System: frame_system = 0,
+// 		ParachainSystem: cumulus_pallet_parachain_system = 1,
+// 		Timestamp: pallet_timestamp = 2,
+// 		ParachainInfo: parachain_info = 3,
+
+// 		// Monetary stuff.
+// 		Balances: pallet_balances = 10,
+// 		TransactionPayment: pallet_transaction_payment = 11,
+// 		Indices: pallet_indices = 12,
+// 		SkipFeelessPayment: pallet_skip_feeless_payment = 13,
+
+// 		// Collator support. The order of these 5 are important and shall not change.
+// 		Authorship: pallet_authorship = 20,
+// 		CollatorSelection: pallet_collator_selection = 21,
+// 		Session: pallet_session = 22,
+// 		Aura: pallet_aura = 23,
+// 		AuraExt: cumulus_pallet_aura_ext = 24,
+// 		Scheduler: pallet_scheduler = 25,
+
+// 		// XCM & related
+// 		XcmpQueue: cumulus_pallet_xcmp_queue = 30,
+// 		PolkadotXcm: pallet_xcm = 31,
+// 		CumulusXcm: cumulus_pallet_xcm = 32,
+// 		MessageQueue: pallet_message_queue = 34,
+
+// 		// Handy utilities.
+// 		Utility: pallet_utility = 40,
+// 		Multisig: pallet_multisig = 41,
+// 		Proxy: pallet_proxy = 42,
+
+// 		// The main stage.
+// 		Entity: pallet_entity = 50,
+// 		Token: pallet_token = 51,
+// 		Register: pallet_register = 52,
+// 		Broker: pallet_broker = 53,
+// 		Feeless: pallet_feeless = 54,
+
+// 		// Utilities
+// 		MetaTx: pallet_meta_tx = 215,
+// 		TxPause: pallet_tx_pause = 216,
+// 		SafeMode: pallet_safe_mode = 217,
+// 		VerifySignature: pallet_verify_signature = 219,
+// 		Remark: pallet_remark = 220,
+
+// 		// Migrations pallet
+// 		MultiBlockMigrations: pallet_migrations = 249,
+
+// 		// Sudo.
+// 		Sudo: pallet_sudo = 255,
+// 	}
+// );
 
 /// The address format for describing accounts.
 pub type Address = MultiAddress<AccountId, ()>;
