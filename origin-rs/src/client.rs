@@ -24,6 +24,8 @@ use subxt::{
 use tokio::time::sleep;
 use url::Url;
 
+use crate::origin_client::{ClientConfig as DynamicClientConfig, OriginClient};
+
 pub const DEFAULT_RPC_ENDPOINT: &str = "ws://127.0.0.1:9944";
 
 /// Controls how the SDK establishes and maintains its RPC connection.
@@ -86,6 +88,7 @@ pub struct Client {
 	pub(crate) api: subxt::OnlineClient<OriginConfig>,
 	pub(crate) rpc: Arc<RpcClient>,
 	pub(crate) flavor: ChainFlavor,
+	pub(crate) origin: OriginClient,
 }
 
 impl Client {
@@ -117,7 +120,17 @@ impl Client {
 		)
 		.map_err(Error::from)?;
 
-		let client = Self { api, rpc, flavor };
+		let metadata_hash = blake2_256(&metadata_bytes);
+		let origin = OriginClient::from_online_parts(
+			api.clone(),
+			metadata_snapshot.clone(),
+			metadata_bytes.clone(),
+			metadata_hash,
+			DynamicClientConfig::default(),
+		)
+		.await?;
+
+		let client = Self { api, rpc, flavor, origin };
 		// Best-effort metadata caching for future runs.
 		let _ = metadata::cache_metadata(client.flavor, &runtime_version, &metadata_bytes).await;
 		Ok(client)
@@ -186,6 +199,11 @@ impl Client {
 	/// Access the query facade.
 	pub fn query(&self) -> crate::query::Query<'_> {
 		crate::query::Query { client: self }
+	}
+
+	/// Access the dynamic Origin client facade.
+	pub fn origin(&self) -> OriginClient {
+		self.origin.clone()
 	}
 
 	/// The detected/selected chain flavor.

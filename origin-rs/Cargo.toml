@@ -10,9 +10,8 @@ name = "oc"
 path = "src/lib.rs"
 
 [features]
-default = ["dynamic-sdk", "static-codegen"]
+default = ["dynamic-sdk"]
 dynamic-sdk = []
-static-codegen = []
 unstable-light-client = []
 
 [dependencies]

@@ -2,10 +2,9 @@ use super::{ArgBuilder, Query};
 
 use crate::{
 	error::{Error, Result},
-	runtime,
 	types::entity::{
 		AttributeHistoryEntryRecord, AttributeHistoryRecord, AttributeHistoryVersionRecord,
-		BlockRef, EntityInfoRecord, HistoryEntry,
+		BlockRef, EntityInfoRecord, EventBlockRecord, HistoryEntry,
 	},
 };
 use origin_primitives::{
@@ -18,8 +17,6 @@ use origin_primitives::{
 };
 use scale_value::Value;
 use subxt::utils::AccountId32;
-
-pub type RuntimeEventBlock = runtime::runtime_types::pallet_token::EventBlock;
 
 /// Facade for `pallet-entity` query functions.
 pub struct EntityQuery<'a> {
@@ -168,13 +165,13 @@ impl<'a> EntityQuery<'a> {
 		token: &Ss58Identifier,
 	) -> Result<Vec<(AccountId32, BlockRef)>> {
 		let args = self.token_args(auth, token)?;
-		let raw: core::result::Result<Vec<(AccountId32, RuntimeEventBlock)>, AuthorizationError> =
+		let raw: core::result::Result<Vec<(AccountId32, EventBlockRecord)>, AuthorizationError> =
 			self.query.call_result("Entity", "account_history", args).await?;
 		raw.map_err(|err| super::view_failure("entity.account_history", err))
 			.map(|records| {
 				records
 					.into_iter()
-					.map(|(account, block)| (account, block_ref(block)))
+					.map(|(account, block)| (account, block.into()))
 					.collect()
 			})
 	}
@@ -224,8 +221,4 @@ impl<'a> EntityQuery<'a> {
 		builder.push("account", super::account_value(req.account.as_ref()));
 		Ok(builder.finish())
 	}
-}
-
-fn block_ref(block: RuntimeEventBlock) -> BlockRef {
-	BlockRef { height: block.height, index: block.index }
 }

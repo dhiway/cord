@@ -57,7 +57,7 @@ pub async fn sign_and_submit_with_flavor<
 		subxt::OnlineClient<crate::params::config::OriginConfig>,
 	>,
 > {
-	let api = &client.api;
+	let api = client.origin().inner();
 	let flavor = client.flavor;
 	let mut tx = api.tx();
 	let who = signer.account_id();

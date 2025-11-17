@@ -316,6 +316,7 @@ pub struct RuntimeLayout {
 	metadata: Arc<Metadata>,
 	calls: RwLock<HashMap<(String, String), (u8, u8)>>,
 	views: RwLock<HashMap<(String, String), [u8; 32]>>,
+	view_output_types: RwLock<HashMap<(String, String), u32>>,
 	storage_value_types: RwLock<HashMap<(String, String), u32>>,
 	type_ids: RwLock<HashMap<Vec<String>, u32>>,
 	registry: PortableRegistry,
@@ -328,6 +329,7 @@ impl RuntimeLayout {
 			metadata,
 			calls: RwLock::new(HashMap::new()),
 			views: RwLock::new(HashMap::new()),
+			view_output_types: RwLock::new(HashMap::new()),
 			storage_value_types: RwLock::new(HashMap::new()),
 			type_ids: RwLock::new(HashMap::new()),
 			registry,
@@ -408,7 +410,34 @@ impl RuntimeLayout {
 		Ok(id)
 	}
 
+	pub async fn view_output_type(&self, pallet: &str, view: &str) -> Result<u32, Error> {
+		if let Some(hit) = self
+			.view_output_types
+			.read()
+			.await
+			.get(&(pallet.into(), view.into()))
+			.cloned()
+		{
+			return Ok(hit);
+		}
+
+		let pallet_meta = self
+			.metadata
+			.pallet_by_name(pallet)
+			.ok_or_else(|| Error::NotFound(format!("pallet '{pallet}' not found")))?;
+		let view_meta = pallet_meta
+			.view_function_by_name(view)
+			.ok_or_else(|| Error::NotFound(format!("view '{pallet}.{view}' not found")))?;
+		let ty = view_meta.output_ty();
+		self.view_output_types
+			.write()
+			.await
+			.insert((pallet.to_owned(), view.to_owned()), ty);
+		Ok(ty)
+	}
+
 	/// Resolve a type ID by its full path (e.g., ["Runtime", "EntityInfo"]).
+	#[allow(deprecated)]
 	pub async fn type_id_by_path(&self, path: &[&str]) -> Result<u32, Error> {
 		let key: Vec<String> = path.iter().map(|s| s.to_string()).collect();
 		if let Some(hit) = self.type_ids.read().await.get(&key).cloned() {
@@ -683,6 +712,23 @@ impl OriginClient {
 		let api = self.inner.view_functions().at_latest().await.map_err(Error::from)?;
 		let thunk = api.call(payload).await.map_err(Error::from)?;
 		thunk.to_value().map_err(|e| Error::Codec(e.to_string()))
+	}
+
+	/// Invoke a view and decode the result into a concrete type using metadata output type.
+	pub async fn call_view_typed<T: scale_decode::DecodeAsType>(
+		&self,
+		pallet: &str,
+		function: &str,
+		args: Value,
+	) -> Result<T, Error> {
+		let value = self.call_view(pallet, function, args).await?;
+		let ty = self.layout.view_output_type(pallet, function).await?;
+		let mut bytes = Vec::new();
+		scale_value_scale::encode_as_type(&value, ty, &self.layout.registry, &mut bytes)
+			.map_err(|e| Error::Codec(e.to_string()))?;
+		let mut cursor = &bytes[..];
+		scale_decode::DecodeAsType::decode_as_type(&mut cursor, ty, &self.layout.registry)
+			.map_err(|e| Error::Codec(e.to_string()))
 	}
 
 	/// Low-level dynamic call submission using dynamic metadata (args as `Value`s).
