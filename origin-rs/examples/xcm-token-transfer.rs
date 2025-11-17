@@ -26,8 +26,11 @@ async fn main() -> Result<()> {
 			max_backoff: Duration::from_secs(5),
 			max_retries: Some(8),
 		});
-	let connect_spinner =
-		spinner::Spinner::start(format!("Connecting to {} ({:?})", opts.node, ChainFlavor::OriginHub));
+	let connect_spinner = spinner::Spinner::start(format!(
+		"Connecting to {} ({:?})",
+		opts.node,
+		ChainFlavor::OriginHub
+	));
 	let client = Client::connect_with(connection).await?;
 	connect_spinner.finish(Some("Connected")).await;
 	let signer = oc::tx::signer::dev_alice();
@@ -61,16 +64,19 @@ async fn main() -> Result<()> {
 		]
 	});
 
-	let call = client.tx().build_json(
-		"PolkadotXcm",
-		"reserve_transfer_assets",
-		json!({
-			"dest": dest,
-			"beneficiary": beneficiary,
-			"assets": assets,
-			"fee_asset_item": 0,
-		}),
-	).await?;
+	let call = client
+		.tx()
+		.build_json(
+			"PolkadotXcm",
+			"reserve_transfer_assets",
+			json!({
+				"dest": dest,
+				"beneficiary": beneficiary,
+				"assets": assets,
+				"fee_asset_item": 0,
+			}),
+		)
+		.await?;
 
 	let mut progress = client
 		.tx()
@@ -83,7 +89,9 @@ async fn main() -> Result<()> {
 			return Err(anyhow!("extrinsic stream ended before inclusion"));
 		};
 		match status? {
-			TxStatus::InBestBlock(in_block) | TxStatus::InFinalizedBlock(in_block) => break in_block,
+			TxStatus::InBestBlock(in_block) | TxStatus::InFinalizedBlock(in_block) => {
+				break in_block
+			},
 			TxStatus::Error { message } => return Err(anyhow!("node error: {message}")),
 			TxStatus::Invalid { message } => return Err(anyhow!("invalid transaction: {message}")),
 			TxStatus::Dropped { message } => return Err(anyhow!("dropped transaction: {message}")),

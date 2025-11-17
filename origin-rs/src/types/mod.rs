@@ -13,8 +13,8 @@ pub use registry::{
 
 use crate::error::{Error, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use origin_primitives::identifier::Ss58Identifier;
 use core::{convert::AsRef, str::FromStr};
+use origin_primitives::identifier::Ss58Identifier;
 use scale_value::Value;
 use subxt::utils::AccountId32;
 

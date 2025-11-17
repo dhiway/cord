@@ -41,7 +41,8 @@ impl Index {
 	}
 
 	fn add_entry(&mut self, entry: IndexEntry) {
-		self.entries.retain(|e| !(e.flavor == entry.flavor && e.metadata_hash == entry.metadata_hash));
+		self.entries
+			.retain(|e| !(e.flavor == entry.flavor && e.metadata_hash == entry.metadata_hash));
 		self.entries.push(entry);
 	}
 }
@@ -147,7 +148,5 @@ impl Options {
 }
 
 fn take<'a>(iter: &mut impl Iterator<Item = &'a String>, flag: &str) -> Result<String> {
-	iter.next()
-		.cloned()
-		.ok_or_else(|| anyhow!("{flag} expects a value"))
+	iter.next().cloned().ok_or_else(|| anyhow!("{flag} expects a value"))
 }

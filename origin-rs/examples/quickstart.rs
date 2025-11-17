@@ -1,11 +1,12 @@
 use anyhow::Result;
-use oc::OriginClient;
+use oc::{DynamicApis, OriginClient};
 use scale_value::value;
 
 #[tokio::main]
 async fn main() -> Result<()> {
 	let url = std::env::var("ORIGIN_NODE_URL").unwrap_or_else(|_| "ws://127.0.0.1:9944".into());
 	let client = OriginClient::connect(&url).await?;
+	let dyn_apis = DynamicApis::new(client.clone());
 
 	// Basic health/runtime info (via dynamic client)
 	println!("connected to {url}");
@@ -23,9 +24,15 @@ async fn main() -> Result<()> {
 		},
 		"token": "dummy-token-id",
 	});
-	let _ = client.call_view("Entity", "details", args).await.map_err(|e| {
+	let _ = dyn_apis.entity().details(args).await.map_err(|e| {
 		println!("view call failed (expected if dummy auth): {e}");
 		e
 	});
+
+	// Dynamic events (finalized)
+	let mut events = dyn_apis.subscribe_finalized_events(64).await?;
+	if let Some(ev) = events.next().await {
+		println!("first event: {}::{} at #{}", ev.pallet, ev.variant, ev.block_number);
+	}
 	Ok(())
 }

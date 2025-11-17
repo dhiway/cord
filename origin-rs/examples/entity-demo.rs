@@ -5,12 +5,12 @@ use oc::{
 	demo::{
 		cli::{parse_common_cli, require_value, CommonCliOptions},
 		entity::{self, EntitySnapshot},
+		spinner,
 		util::{
 			ensure_entity_token_verbose, fresh_authorization, fresh_authorization_with_client,
 			init_logging, parse_identifier, resolve_token_target, signer_account_id, LogSink,
 			RunMode, TokenTarget, TxExecutor, TxFlow,
 		},
-		spinner,
 	},
 	entity::{self as sdk_entity, AttributePlan, EntityChainState},
 	tx::{self, SubmitError, TxSubmitter},

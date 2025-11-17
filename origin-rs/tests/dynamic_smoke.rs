@@ -24,9 +24,19 @@ async fn dynamic_storage_system_number() {
 	};
 
 	let client = OriginClient::connect(&url).await.expect("connect");
-	let block_no = client
-		.storage_value("System", "Number", vec![])
-		.await
-		.expect("fetch storage");
+	let block_no = client.storage_value("System", "Number", vec![]).await.expect("fetch storage");
 	assert!(block_no.is_some(), "System.Number should exist");
+}
+
+#[tokio::test]
+async fn dynamic_storage_system_number_typed() {
+	let Some(url) = node_url() else {
+		eprintln!("skipping (set ORIGIN_NODE_URL to run)");
+		return;
+	};
+
+	let client = OriginClient::connect(&url).await.expect("connect");
+	let block_no: Option<u32> =
+		client.storage_value_as("System", "Number", vec![], &["u32"]).await.ok();
+	assert!(block_no.is_some(), "typed System.Number should decode");
 }

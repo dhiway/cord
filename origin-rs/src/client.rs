@@ -1,9 +1,9 @@
 use crate::{
 	error::{Error, Result},
 	flavors::ChainFlavor,
+	metadata,
 	params::config::OriginConfig,
 	query::auth::DEFAULT_VIEW_AUTH_TTL,
-	metadata,
 };
 #[allow(unused_imports)]
 use futures::StreamExt;
@@ -13,12 +13,16 @@ use log::warn;
 use sp_core::hashing::blake2_256;
 use sp_runtime::traits::SaturatedConversion;
 use std::{convert::TryFrom, sync::Arc, time::Duration};
+use subxt::{
+	backend::rpc::RpcClient,
+	config::PolkadotConfig,
+	ext::{
+		subxt_core::client::RuntimeVersion as CoreRuntimeVersion,
+		subxt_rpcs::methods::legacy::{LegacyRpcMethods, SystemHealth},
+	},
+};
 use tokio::time::sleep;
 use url::Url;
-use subxt::{backend::rpc::RpcClient, config::PolkadotConfig, ext::{
-	subxt_core::client::RuntimeVersion as CoreRuntimeVersion,
-	subxt_rpcs::methods::legacy::{LegacyRpcMethods, SystemHealth},
-},};
 
 pub const DEFAULT_RPC_ENDPOINT: &str = "ws://127.0.0.1:9944";
 
@@ -237,9 +241,9 @@ fn validate_required_views(metadata: &subxt::Metadata, flavor: ChainFlavor) -> R
 			("Register", "packet_snapshot"),
 			("Token", "timeline"),
 		] {
-			let pallet_meta = metadata
-				.pallet_by_name(pallet)
-				.ok_or_else(|| Error::NotFound(format!("pallet '{pallet}' not found in metadata")))?;
+			let pallet_meta = metadata.pallet_by_name(pallet).ok_or_else(|| {
+				Error::NotFound(format!("pallet '{pallet}' not found in metadata"))
+			})?;
 			if pallet_meta.view_function_by_name(view).is_none() {
 				return Err(Error::NotFound(format!(
 					"required view '{pallet}.{view}' missing in runtime metadata; \
