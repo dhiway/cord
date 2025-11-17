@@ -1,17 +1,18 @@
-use crate::{error::Result, flavors::ChainFlavor};
-use codec::Decode;
+use crate::{error::Result, flavors::ChainFlavor, params::config::OriginConfig};
+use codec::{Decode, Encode};
+use subxt::ext::frame_metadata;
 use serde::{Deserialize, Serialize};
 use sp_core::hashing::blake2_256;
 use std::{fs, path::PathBuf, time::SystemTime};
 use subxt::{
 	backend::rpc::RpcClient,
-	config::PolkadotConfig,
 	ext::{
 		subxt_core::client::RuntimeVersion as CoreRuntimeVersion,
 		subxt_rpcs::methods::legacy::{LegacyRpcMethods, RuntimeVersion as LegacyRuntimeVersion},
 	},
 	Metadata,
-};
+	};
+use subxt_metadata::SUPPORTED_METADATA_VERSIONS;
 
 const DEFAULT_DIR: &str = "metadata";
 const INDEX_FILE: &str = "index.json";
@@ -111,7 +112,7 @@ pub async fn load_or_fetch(
 	rpc: &RpcClient,
 ) -> Result<(subxt::utils::H256, CoreRuntimeVersion, Metadata, Vec<u8>)> {
 	let dir = metadata_dir_from_env();
-	let legacy = LegacyRpcMethods::<PolkadotConfig>::new(rpc.clone());
+	let legacy = LegacyRpcMethods::<OriginConfig>::new(rpc.clone());
 
 	let genesis_hash = legacy
 		.chain_get_block_hash(Some(0u32.into()))
@@ -125,13 +126,9 @@ pub async fn load_or_fetch(
 		.map_err(|e| crate::error::Error::Transport(e.to_string()))?;
 	let runtime_version = convert_runtime_version(&runtime_version_legacy);
 
-	let raw_meta = legacy
-		.state_get_metadata(None)
-		.await
-		.map_err(|e| crate::error::Error::Transport(e.to_string()))?
-		.into_raw();
+	let (metadata, raw_meta) = fetch_metadata_latest(rpc, None).await?;
 
-let hash_hex = format!("0x{}", hex::encode(blake2_256(&raw_meta)));
+	let hash_hex = format!("0x{}", hex::encode(blake2_256(&raw_meta)));
 
 	for flavor_dir in ["origin", "origin-hub"] {
 		let candidate = dir.join(flavor_dir).join(format!("{}.scale", &hash_hex[2..]));
@@ -142,10 +139,44 @@ let hash_hex = format!("0x{}", hex::encode(blake2_256(&raw_meta)));
 		}
 	}
 
-	let meta = Metadata::decode(&mut &raw_meta[..])
-		.map_err(|e| crate::error::Error::Codec(e.to_string()))?;
+	Ok((genesis_hash, runtime_version, metadata, raw_meta))
+}
 
-	Ok((genesis_hash, runtime_version, meta, raw_meta))
+/// Fetch latest supported metadata (preferring V16 for view functions) along with the raw bytes.
+pub async fn fetch_metadata_latest(
+	rpc: &RpcClient,
+	at: Option<subxt::utils::H256>,
+) -> Result<(Metadata, Vec<u8>)> {
+	let legacy = LegacyRpcMethods::<OriginConfig>::new(rpc.clone());
+	let block_hash = match at {
+		Some(hash) => hash,
+		None => legacy
+			.chain_get_block_hash(None)
+			.await
+			.map_err(|e| crate::error::Error::Transport(e.to_string()))?
+			.ok_or_else(|| crate::error::Error::NotFound("latest block hash".into()))?,
+	};
+
+	for version in SUPPORTED_METADATA_VERSIONS {
+		let param = version.encode();
+		if let Ok(bytes) = legacy.state_call("Metadata_metadata_at_version", Some(&param), Some(block_hash)).await {
+			if let Ok(Some(opaque)) = Option::<frame_metadata::OpaqueMetadata>::decode(&mut &bytes[..]) {
+				if let Ok(meta) = Metadata::decode(&mut &opaque.0[..]) {
+					return Ok((meta, opaque.0));
+				}
+			}
+		}
+	}
+
+	// Fall back to legacy metadata (V14) if newer versions are unavailable.
+	let raw = legacy
+		.state_get_metadata(Some(block_hash))
+		.await
+		.map_err(|e| crate::error::Error::Transport(e.to_string()))?
+		.into_raw();
+	let meta = Metadata::decode(&mut &raw[..])
+		.map_err(|e| crate::error::Error::Codec(e.to_string()))?;
+	Ok((meta, raw))
 }
 fn convert_runtime_version(
 	rv: &LegacyRuntimeVersion,

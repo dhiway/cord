@@ -138,12 +138,8 @@ impl Client {
 
 	/// Compute the metadata hash for the latest runtime by hashing the raw metadata bytes.
 	pub async fn metadata_hash(&self) -> Result<[u8; 32]> {
-		let raw = self
-			.legacy_methods()
-			.state_get_metadata(None)
-			.await
-			.map_err(|e| Error::Transport(e.to_string()))?;
-		Ok(blake2_256(&raw.into_raw()))
+		let (_, raw) = crate::metadata::fetch_metadata_latest(self.rpc.as_ref(), None).await?;
+		Ok(blake2_256(&raw))
 	}
 
 	pub async fn view_auth_reference_block(&self) -> Result<u32> {
@@ -227,11 +223,8 @@ impl Client {
 	}
 
 	pub async fn fetch_metadata_blob(&self) -> Result<Vec<u8>> {
-		self.legacy_methods()
-			.state_get_metadata(None)
-			.await
-			.map(|blob| blob.into_raw())
-			.map_err(|e| Error::Transport(e.to_string()))
+		let (_, raw) = crate::metadata::fetch_metadata_latest(self.rpc.as_ref(), None).await?;
+		Ok(raw)
 	}
 }
 
