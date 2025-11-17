@@ -44,7 +44,9 @@ pub async fn build_call_json(
 }
 
 /// Sign and submit a call using the detected chain flavor's signed-extension tuple.
-pub async fn sign_and_submit_with_flavor<S: subxt::tx::Signer<crate::params::config::OriginConfig>>(
+pub async fn sign_and_submit_with_flavor<
+	S: subxt::tx::Signer<crate::params::config::OriginConfig>,
+>(
 	client: &Client,
 	call: DynamicPayload,
 	signer: &S,

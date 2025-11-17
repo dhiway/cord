@@ -2,8 +2,8 @@ pub mod cli;
 pub mod entity;
 pub mod packet;
 pub mod register;
-pub mod util;
 pub mod spinner;
+pub mod util;
 use crate::{
 	client::Client,
 	demo::util::{LogSink, TxExecutor},

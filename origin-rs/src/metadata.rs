@@ -1,9 +1,9 @@
 use crate::{error::Result, flavors::ChainFlavor, params::config::OriginConfig};
 use codec::{Decode, Encode};
-use subxt::ext::frame_metadata;
 use serde::{Deserialize, Serialize};
 use sp_core::hashing::blake2_256;
 use std::{fs, path::PathBuf, time::SystemTime};
+use subxt::ext::frame_metadata;
 use subxt::{
 	backend::rpc::RpcClient,
 	ext::{
@@ -11,7 +11,7 @@ use subxt::{
 		subxt_rpcs::methods::legacy::{LegacyRpcMethods, RuntimeVersion as LegacyRuntimeVersion},
 	},
 	Metadata,
-	};
+};
 use subxt_metadata::SUPPORTED_METADATA_VERSIONS;
 
 const DEFAULT_DIR: &str = "metadata";
@@ -50,7 +50,8 @@ impl Index {
 	}
 
 	fn upsert(&mut self, entry: Entry) {
-		self.entries.retain(|e| !(e.flavor == entry.flavor && e.metadata_hash == entry.metadata_hash));
+		self.entries
+			.retain(|e| !(e.flavor == entry.flavor && e.metadata_hash == entry.metadata_hash));
 		self.entries.push(entry);
 	}
 }
@@ -159,8 +160,13 @@ pub async fn fetch_metadata_latest(
 
 	for version in SUPPORTED_METADATA_VERSIONS {
 		let param = version.encode();
-		if let Ok(bytes) = legacy.state_call("Metadata_metadata_at_version", Some(&param), Some(block_hash)).await {
-			if let Ok(Some(opaque)) = Option::<frame_metadata::OpaqueMetadata>::decode(&mut &bytes[..]) {
+		if let Ok(bytes) = legacy
+			.state_call("Metadata_metadata_at_version", Some(&param), Some(block_hash))
+			.await
+		{
+			if let Ok(Some(opaque)) =
+				Option::<frame_metadata::OpaqueMetadata>::decode(&mut &bytes[..])
+			{
 				if let Ok(meta) = Metadata::decode(&mut &opaque.0[..]) {
 					return Ok((meta, opaque.0));
 				}
@@ -174,13 +180,11 @@ pub async fn fetch_metadata_latest(
 		.await
 		.map_err(|e| crate::error::Error::Transport(e.to_string()))?
 		.into_raw();
-	let meta = Metadata::decode(&mut &raw[..])
-		.map_err(|e| crate::error::Error::Codec(e.to_string()))?;
+	let meta =
+		Metadata::decode(&mut &raw[..]).map_err(|e| crate::error::Error::Codec(e.to_string()))?;
 	Ok((meta, raw))
 }
-fn convert_runtime_version(
-	rv: &LegacyRuntimeVersion,
-) -> CoreRuntimeVersion {
+fn convert_runtime_version(rv: &LegacyRuntimeVersion) -> CoreRuntimeVersion {
 	CoreRuntimeVersion {
 		spec_version: rv.spec_version,
 		transaction_version: rv.transaction_version,

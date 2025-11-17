@@ -6,6 +6,7 @@
 
 use crate::{origin_client::OriginClient, Error};
 use scale_value::{value, Value};
+use subxt::dynamic;
 use subxt::tx::TxProgress;
 
 /// Dynamic Entity API (writes via dynamic calls).
@@ -22,18 +23,23 @@ impl DynamicEntityApi {
 	///
 	/// `entity` and `key` are provided as strings; `val` is a raw string value.
 	/// For richer payloads, build your own `Value` vector and call `submit_dynamic_call`.
-	pub async fn set_attribute<S: subxt::tx::Signer<crate::params::config::OriginConfig> + Clone + Send + Sync>(
+	pub async fn set_attribute<
+		S: subxt::tx::Signer<crate::params::config::OriginConfig> + Clone + Send + Sync,
+	>(
 		&self,
 		entity: &str,
 		key: &str,
 		val: &str,
 		signer: &S,
-	) -> Result<TxProgress<crate::params::config::OriginConfig, subxt::OnlineClient<crate::params::config::OriginConfig>>, Error> {
-		let args = vec![
-			value!(entity.to_string()),
-			value!(key.to_string()),
-			value!(val.to_string()),
-		];
+	) -> Result<
+		TxProgress<
+			crate::params::config::OriginConfig,
+			subxt::OnlineClient<crate::params::config::OriginConfig>,
+		>,
+		Error,
+	> {
+		let args =
+			vec![value!(entity.to_string()), value!(key.to_string()), value!(val.to_string())];
 		self.client.submit_dynamic_call("Entity", "set_attribute", args, signer).await
 	}
 
@@ -49,6 +55,15 @@ impl DynamicEntityApi {
 	pub async fn linked_accounts(&self, args: Value) -> Result<Value<u32>, Error> {
 		self.client.call_view("Entity", "linked_accounts", args).await
 	}
+
+	pub async fn entity_storage(
+		&self,
+		entity: &str,
+	) -> Result<Option<dynamic::DecodedValue>, Error> {
+		self.client
+			.storage_value("Entity", "Entities", vec![value!(entity.to_string())])
+			.await
+	}
 }
 
 /// Dynamic Register API.
@@ -61,18 +76,23 @@ impl DynamicRegisterApi {
 		Self { client }
 	}
 
-	pub async fn add_attribute<S: subxt::tx::Signer<crate::params::config::OriginConfig> + Clone + Send + Sync>(
+	pub async fn add_attribute<
+		S: subxt::tx::Signer<crate::params::config::OriginConfig> + Clone + Send + Sync,
+	>(
 		&self,
 		register: &str,
 		key: &str,
 		val: &str,
 		signer: &S,
-	) -> Result<TxProgress<crate::params::config::OriginConfig, subxt::OnlineClient<crate::params::config::OriginConfig>>, Error> {
-		let args = vec![
-			value!(register.to_string()),
-			value!(key.to_string()),
-			value!(val.to_string()),
-		];
+	) -> Result<
+		TxProgress<
+			crate::params::config::OriginConfig,
+			subxt::OnlineClient<crate::params::config::OriginConfig>,
+		>,
+		Error,
+	> {
+		let args =
+			vec![value!(register.to_string()), value!(key.to_string()), value!(val.to_string())];
 		self.client.submit_dynamic_call("Register", "add_attribute", args, signer).await
 	}
 
@@ -82,6 +102,15 @@ impl DynamicRegisterApi {
 
 	pub async fn packet_snapshot(&self, args: Value) -> Result<Value<u32>, Error> {
 		self.client.call_view("Register", "packet_snapshot", args).await
+	}
+
+	pub async fn register_storage(
+		&self,
+		token: &str,
+	) -> Result<Option<dynamic::DecodedValue>, Error> {
+		self.client
+			.storage_value("Register", "Registers", vec![value!(token.to_string())])
+			.await
 	}
 }
 
@@ -95,12 +124,20 @@ impl DynamicTokenApi {
 		Self { client }
 	}
 
-	pub async fn mint<S: subxt::tx::Signer<crate::params::config::OriginConfig> + Clone + Send + Sync>(
+	pub async fn mint<
+		S: subxt::tx::Signer<crate::params::config::OriginConfig> + Clone + Send + Sync,
+	>(
 		&self,
 		token_id: &str,
 		amount: u128,
 		signer: &S,
-	) -> Result<TxProgress<crate::params::config::OriginConfig, subxt::OnlineClient<crate::params::config::OriginConfig>>, Error> {
+	) -> Result<
+		TxProgress<
+			crate::params::config::OriginConfig,
+			subxt::OnlineClient<crate::params::config::OriginConfig>,
+		>,
+		Error,
+	> {
 		let args = vec![value!(token_id.to_string()), value!(amount)];
 		self.client.submit_dynamic_call("Token", "mint", args, signer).await
 	}
@@ -111,6 +148,15 @@ impl DynamicTokenApi {
 
 	pub async fn resolve_identifier(&self, args: Value) -> Result<Value<u32>, Error> {
 		self.client.call_view("Token", "resolve_identifier", args).await
+	}
+
+	pub async fn token_storage(
+		&self,
+		token_id: &str,
+	) -> Result<Option<dynamic::DecodedValue>, Error> {
+		self.client
+			.storage_value("Token", "Tokens", vec![value!(token_id.to_string())])
+			.await
 	}
 }
 
@@ -134,5 +180,13 @@ impl DynamicApis {
 
 	pub fn token(&self) -> DynamicTokenApi {
 		DynamicTokenApi::new(self.client.clone())
+	}
+
+	/// Subscribe to finalized dynamic events.
+	pub async fn subscribe_finalized_events(
+		&self,
+		buffer: usize,
+	) -> Result<crate::origin_client::EventStream, Error> {
+		self.client.subscribe_finalized_events(buffer).await
 	}
 }

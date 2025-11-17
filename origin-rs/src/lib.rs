@@ -6,33 +6,37 @@
 //! calling runtime view functions using JSON payloads.
 
 pub mod api;
+pub mod api_dynamic;
 pub mod client;
 pub mod demo;
 pub mod entity;
 pub mod error;
 pub mod flavors;
+pub mod metadata;
+pub mod origin_client;
 pub mod params;
 pub mod query;
-pub mod api_dynamic;
 mod runtime_helpers;
 pub mod scale;
 pub mod state;
-pub mod metadata;
 pub mod tx;
 pub mod types;
 pub mod utils;
-pub mod origin_client;
 
-// Expose both generated runtimes; keep `runtime` as the hub-default for
-// backward compatibility while allowing simultaneous use of both modules.
+// Expose generated runtimes only when static-codegen feature is enabled.
+#[cfg(feature = "static-codegen")]
 pub use crate::api::runtime_hub as runtime;
+#[cfg(feature = "static-codegen")]
 pub use crate::api::{runtime_hub, runtime_origin};
 
-pub use client::{Client, ConnectionConfig, RetryPolicy, DEFAULT_RPC_ENDPOINT};
-pub use origin_client::{ClientConfig as DynamicClientConfig, NonceStrategy, OriginClient};
 pub use api_dynamic::{DynamicApis, DynamicEntityApi, DynamicRegisterApi, DynamicTokenApi};
+pub use client::{Client, ConnectionConfig, RetryPolicy, DEFAULT_RPC_ENDPOINT};
 pub use error::Error;
 pub use flavors::ChainFlavor;
+pub use origin_client::{
+	ClientConfig as DynamicClientConfig, DynamicEvent, EventStream, NonceStrategy, OriginClient,
+	OriginClientBuilder, SubmitRetryPolicy, WsConfig,
+};
 pub use params::config::{OriginConfig, OriginHubConfig};
 pub use scale::MetadataResolver;
 

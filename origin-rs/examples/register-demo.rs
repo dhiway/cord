@@ -5,12 +5,12 @@ use oc::{
 		cli::{parse_common_cli, require_value, CommonCliOptions},
 		packet::render_packet_snapshot_cli,
 		register::render_registry_snapshot_cli,
+		spinner,
 		util::{
 			ensure_entity_token_verbose, fresh_authorization_with_client, init_logging,
 			parse_identifier, resolve_token_target, signer_account_id, token_timeline, LogSink,
 			RunMode, TokenTarget, TxExecutor, TxFlow,
 		},
-		spinner,
 	},
 	error::Error as SdkError,
 	tx::{self, TxSubmitter},
@@ -198,7 +198,8 @@ async fn fetch_registry_snapshot_with_retry(
 					attempt + 1,
 					MAX_ATTEMPTS
 				);
-				spinner::with_spinner(wait_label, tokio::time::sleep(Duration::from_millis(800))).await;
+				spinner::with_spinner(wait_label, tokio::time::sleep(Duration::from_millis(800)))
+					.await;
 			},
 			Err(err) => return Err(err.into()),
 		}

@@ -11,8 +11,16 @@ async fn main() -> anyhow::Result<()> {
 	let mut iter = env::args().skip(1);
 	while let Some(arg) = iter.next() {
 		match arg.as_str() {
-			"--node" => if let Some(val) = iter.next() { node = val },
-			"--file" => if let Some(val) = iter.next() { file = Some(val) },
+			"--node" => {
+				if let Some(val) = iter.next() {
+					node = val
+				}
+			},
+			"--file" => {
+				if let Some(val) = iter.next() {
+					file = Some(val)
+				}
+			},
 			_ => {},
 		}
 	}
@@ -22,8 +30,7 @@ async fn main() -> anyhow::Result<()> {
 		let meta = Metadata::decode(&mut &bytes[..])?;
 		(meta, bytes)
 	} else {
-		let config =
-			ConnectionConfig::new(node, ChainFlavor::Auto).skip_view_validation(); // diagnostic helper
+		let config = ConnectionConfig::new(node, ChainFlavor::Auto).skip_view_validation(); // diagnostic helper
 		let client = Client::connect_with(config).await?;
 		let blob = client.fetch_metadata_blob().await?;
 		let meta = client.metadata();
