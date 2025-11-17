@@ -1,28 +1,53 @@
 // This file is part of CORD – https://cord.network
-
+//
 // Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
-
+//
 // CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-
+//
 // CORD is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-
+//
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
+//! Chain specification helpers for Origin Hub.
 
 use cumulus_primitives_core::ParaId;
 use origin_hub_system_runtime::genesis_config_presets::{
 	system_origin_development_genesis, system_origin_local_testnet_genesis,
 };
 use origin_runtime_constants::system_parachain::{ORIGIN_HUB_IN_ID, ORIGIN_HUB_NA_ID};
-use polkadot_omni_node_lib::chain_spec::{Extensions, GenericChainSpec};
+use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
+use serde::{Deserialize, Serialize};
+
+/// Specialized `ChainSpec` for the Origin Hub parachain.
+pub type ChainSpec = sc_service::GenericChainSpec<Extensions>;
+
+/// Chain spec extensions required by Cumulus.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension)]
+pub struct Extensions {
+	/// Relay chain identifier.
+	#[serde(alias = "relayChain", alias = "RelayChain")]
+	pub relay_chain: String,
+	/// Parachain identifier.
+	#[serde(alias = "paraId", alias = "ParaId")]
+	pub para_id: u32,
+}
+
+impl Extensions {
+	/// Extract [`Extensions`] from a chain spec if present.
+	pub fn try_get(chain_spec: &dyn sc_service::ChainSpec) -> Option<&Self> {
+		sc_chain_spec::get_extension(chain_spec.extensions())
+	}
+}
+
 const DEFAULT_PROTOCOL_ID: &str = "0hub";
 
 fn properties() -> sc_chain_spec::Properties {
@@ -40,11 +65,11 @@ fn system_spec(
 	relay_chain: &str,
 	para_id: u32,
 	genesis_patch: serde_json::Value,
-) -> GenericChainSpec {
-	GenericChainSpec::builder(
+) -> ChainSpec {
+	ChainSpec::builder(
 		origin_hub_system_runtime::WASM_BINARY
 			.expect("WASM binary was not built, please build it!"),
-		Extensions::new(relay_chain.into(), para_id),
+		Extensions { relay_chain: relay_chain.into(), para_id },
 	)
 	.with_name(name)
 	.with_id(id)
@@ -55,7 +80,8 @@ fn system_spec(
 	.build()
 }
 
-pub fn system_origin_staging_development_config() -> GenericChainSpec {
+/// Development network (IN region, parachain id == ORIGIN_HUB_IN_ID).
+pub fn system_development() -> ChainSpec {
 	system_spec(
 		"Origin System Development",
 		"origin-system-dev",
@@ -66,7 +92,8 @@ pub fn system_origin_staging_development_config() -> GenericChainSpec {
 	)
 }
 
-pub fn system_origin_staging_development_config_na() -> GenericChainSpec {
+/// Development network (NA region).
+pub fn system_development_na() -> ChainSpec {
 	system_spec(
 		"Origin System NA Development",
 		"origin-system-na-dev",
@@ -77,7 +104,8 @@ pub fn system_origin_staging_development_config_na() -> GenericChainSpec {
 	)
 }
 
-pub fn system_origin_staging_local_config() -> GenericChainSpec {
+/// Local testnet (IN region).
+pub fn system_local() -> ChainSpec {
 	system_spec(
 		"Origin System Local",
 		"origin-system-local",
@@ -88,7 +116,8 @@ pub fn system_origin_staging_local_config() -> GenericChainSpec {
 	)
 }
 
-pub fn system_origin_staging_local_config_na() -> GenericChainSpec {
+/// Local testnet (NA region).
+pub fn system_local_na() -> ChainSpec {
 	system_spec(
 		"Origin System NA Local",
 		"origin-system-na-local",
@@ -99,7 +128,8 @@ pub fn system_origin_staging_local_config_na() -> GenericChainSpec {
 	)
 }
 
-pub fn origin_system_genesis_config() -> GenericChainSpec {
+/// Live genesis configuration.
+pub fn system_genesis() -> ChainSpec {
 	system_spec(
 		"Origin System",
 		"origin-system",

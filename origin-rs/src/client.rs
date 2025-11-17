@@ -28,6 +28,7 @@ pub struct ConnectionConfig {
 	pub url: String,
 	pub flavor: ChainFlavor,
 	pub retry: RetryPolicy,
+	pub enforce_views: bool,
 }
 
 impl ConnectionConfig {
@@ -39,6 +40,12 @@ impl ConnectionConfig {
 		self.retry = retry;
 		self
 	}
+
+	/// Disable metadata view-function validation (useful for diagnostics against older runtimes).
+	pub fn skip_view_validation(mut self) -> Self {
+		self.enforce_views = false;
+		self
+	}
 }
 
 impl Default for ConnectionConfig {
@@ -47,6 +54,7 @@ impl Default for ConnectionConfig {
 			url: DEFAULT_RPC_ENDPOINT.into(),
 			flavor: ChainFlavor::Auto,
 			retry: RetryPolicy::default(),
+			enforce_views: true,
 		}
 	}
 }
@@ -93,7 +101,9 @@ impl Client {
 			other => other,
 		};
 
-		validate_required_views(&metadata_snapshot, flavor)?;
+		if config.enforce_views {
+			validate_required_views(&metadata_snapshot, flavor)?;
+		}
 
 		let api = subxt::OnlineClient::<OriginConfig>::from_rpc_client_with(
 			genesis_hash,
