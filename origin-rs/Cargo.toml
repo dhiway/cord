@@ -31,11 +31,12 @@ serde_json = { workspace = true, features = ["std"] }
 sp-core = { workspace = true, features = ["std"] }
 sp-runtime = { workspace = true, features = ["std"] }
 scale-decode = { version = "0.16", default-features = false, features = ["derive"] }
-scale-type-resolver = { version = "0.2" }
+scale-type-resolver = { version = "0.2", features = ["scale-info"] }
+lru = "0.12"
 subxt = { version = "0.44", default-features = true, features = ["jsonrpsee", "native", "reconnecting-rpc-client"] }
 subxt-metadata = "0.44"
 thiserror = "1"
-tokio = { version = "1.40", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.40", features = ["macros", "rt-multi-thread", "sync"] }
 jsonrpsee-core = "0.24.10"
 jsonrpsee-client-transport = "0.24.10"
 url = "2.5"

@@ -13,6 +13,7 @@ pub mod error;
 pub mod flavors;
 pub mod params;
 pub mod query;
+pub mod api_dynamic;
 mod runtime_helpers;
 pub mod scale;
 pub mod state;
@@ -20,6 +21,7 @@ pub mod metadata;
 pub mod tx;
 pub mod types;
 pub mod utils;
+pub mod origin_client;
 
 // Expose both generated runtimes; keep `runtime` as the hub-default for
 // backward compatibility while allowing simultaneous use of both modules.
@@ -27,6 +29,8 @@ pub use crate::api::runtime_hub as runtime;
 pub use crate::api::{runtime_hub, runtime_origin};
 
 pub use client::{Client, ConnectionConfig, RetryPolicy, DEFAULT_RPC_ENDPOINT};
+pub use origin_client::{ClientConfig as DynamicClientConfig, NonceStrategy, OriginClient};
+pub use api_dynamic::{DynamicApis, DynamicEntityApi, DynamicRegisterApi, DynamicTokenApi};
 pub use error::Error;
 pub use flavors::ChainFlavor;
 pub use params::config::{OriginConfig, OriginHubConfig};

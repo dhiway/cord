@@ -8890,6 +8890,7 @@ dependencies = [
  "jsonrpsee-client-transport",
  "jsonrpsee-core",
  "log",
+ "lru",
  "origin-primitives",
  "parity-scale-codec",
  "scale-decode",
