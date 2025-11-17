@@ -10,10 +10,11 @@ use oc::{
 			fresh_authorization_with_client, init_logging, parse_identifier, resolve_token_target,
 			token_timeline, RunMode, TokenTarget,
 		},
+		spinner,
 	},
 	entity::EntityChainState,
 	query::register::PacketSnapshotView,
-	tx, utils, ChainFlavor, Client,
+	tx, utils, ChainFlavor, Client, ConnectionConfig, RetryPolicy,
 };
 use origin_primitives::{
 	identifier::Ss58Identifier,
@@ -89,7 +90,7 @@ async fn main() -> Result<()> {
 		return Err(anyhow!("state example only supports --mode view"));
 	}
 
-	let client = utils::connect_or_default(cli.common.node.as_deref(), ChainFlavor::Auto).await?;
+	let client = connect_client(cli.common.node.as_deref(), ChainFlavor::Auto).await?;
 	let chain_prefix = client.chain_prefix().await;
 	let signer = tx::signer::dev_alice();
 	let token_str = cli.token.as_deref().expect("token required");
@@ -106,6 +107,19 @@ async fn main() -> Result<()> {
 		TokenTarget::Packet { registry, packet, snapshot } =>
 			render_packet_state(&client, &signer, registry, packet, snapshot, &cli.common).await,
 	}
+}
+
+async fn connect_client(node: Option<&str>, flavor: ChainFlavor) -> Result<Client> {
+	let endpoint = node.unwrap_or(utils::DEFAULT_NODE_URL);
+	let connection = ConnectionConfig::new(endpoint.to_string(), flavor).with_retry(RetryPolicy {
+		initial_backoff: std::time::Duration::from_millis(100),
+		max_backoff: std::time::Duration::from_secs(5),
+		max_retries: Some(8),
+	});
+	let spinner = spinner::Spinner::start(format!("Connecting to {endpoint} ({flavor:?})"));
+	let client = Client::connect_with(connection).await?;
+	spinner.finish(Some("Connected")).await;
+	Ok(client)
 }
 
 async fn render_entity_state(

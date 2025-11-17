@@ -9,11 +9,12 @@ use oc::{
 			parse_identifier, resolve_token_target, signer_account_id, token_timeline, LogSink,
 			RunMode, TokenTarget, TxExecutor, TxFlow,
 		},
+		spinner,
 	},
 	error::Error as SdkError,
 	query::register::PacketSnapshotView,
 	tx::{self, TxSubmitter},
-	utils, ChainFlavor, Client,
+	utils, ChainFlavor, Client, ConnectionConfig, RetryPolicy,
 };
 use origin_primitives::{
 	registry::RegistryPermissions,
@@ -86,12 +87,25 @@ async fn main() -> Result<()> {
 	init_logging();
 	let args: Vec<String> = std::env::args().collect();
 	let cli = parse_args(&args[1..])?;
-	let client = utils::connect_or_default(cli.common.node.as_deref(), ChainFlavor::Auto).await?;
+	let client = connect_client(cli.common.node.as_deref(), ChainFlavor::Auto).await?;
 	let chain_prefix = client.chain_prefix().await;
 	match cli.common.mode {
 		RunMode::Transaction => run_transaction_flow(&cli, &client, chain_prefix).await,
 		RunMode::View => run_view_flow(&cli, &client).await,
 	}
+}
+
+async fn connect_client(node: Option<&str>, flavor: ChainFlavor) -> Result<Client> {
+	let endpoint = node.unwrap_or(utils::DEFAULT_NODE_URL);
+	let connection = ConnectionConfig::new(endpoint.to_string(), flavor).with_retry(RetryPolicy {
+		initial_backoff: Duration::from_millis(100),
+		max_backoff: Duration::from_secs(5),
+		max_retries: Some(8),
+	});
+	let spinner = spinner::Spinner::start(format!("Connecting to {endpoint} ({flavor:?})"));
+	let client = Client::connect_with(connection).await?;
+	spinner.finish(Some("Connected")).await;
+	Ok(client)
 }
 
 async fn run_transaction_flow(
@@ -167,7 +181,6 @@ async fn run_transaction_flow(
 	for line in registry_logs {
 		println!("{line}");
 	}
-	utils::short_delay(Duration::from_secs(10)).await;
 
 	let mut delegate_logs = Vec::new();
 	let mut delegate_sink = LogSink::new(Some(&mut delegate_logs));
@@ -202,8 +215,6 @@ async fn run_transaction_flow(
 	.await?;
 	let packet_ss58 = demo::ss58_string(&packet_id);
 	print_packet_header(&packet_ss58, &packet_logs);
-
-	utils::short_delay(Duration::from_secs(3)).await;
 
 	let maint_auth = fresh_authorization_with_client(client, &maintainer).await?;
 	let snapshot_req = RegisterPacketSnapshotRequest {
@@ -339,13 +350,13 @@ async fn fetch_packet_snapshot_with_retry(
 		match client.query().register().packet_snapshot(req).await {
 			Ok(snapshot) => return Ok(snapshot),
 			Err(SdkError::NotFound(_msg)) if attempt + 1 < MAX_ATTEMPTS => {
-				println!(
+				let wait_label = format!(
 					"⏱️ waiting for packet snapshot ({} attempt {}/{})",
 					label,
 					attempt + 1,
 					MAX_ATTEMPTS
 				);
-				utils::short_delay(Duration::from_secs(2)).await;
+				spinner::with_spinner(wait_label, tokio::time::sleep(Duration::from_millis(800))).await;
 			},
 			Err(SdkError::NotFound(msg)) => return Err(anyhow!(msg)),
 			Err(other) => return Err(anyhow!(other)),

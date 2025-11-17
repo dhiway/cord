@@ -29,6 +29,7 @@ pub use crate::api::{runtime_hub, runtime_origin};
 pub use client::{Client, ConnectionConfig, RetryPolicy, DEFAULT_RPC_ENDPOINT};
 pub use error::Error;
 pub use flavors::ChainFlavor;
+pub use params::config::{OriginConfig, OriginHubConfig};
 pub use scale::MetadataResolver;
 
 #[cfg(test)]

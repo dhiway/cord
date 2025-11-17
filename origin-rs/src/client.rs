@@ -1,7 +1,7 @@
 use crate::{
 	error::{Error, Result},
 	flavors::ChainFlavor,
-	params::config::CordConfig,
+	params::config::OriginConfig,
 	query::auth::DEFAULT_VIEW_AUTH_TTL,
 	metadata,
 };
@@ -9,9 +9,11 @@ use crate::{
 use futures::StreamExt;
 use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
 use jsonrpsee_core::client::{async_client::PingConfig, Client as WsClient};
+use log::warn;
 use sp_core::hashing::blake2_256;
 use sp_runtime::traits::SaturatedConversion;
 use std::{convert::TryFrom, sync::Arc, time::Duration};
+use tokio::time::sleep;
 use url::Url;
 use subxt::{backend::rpc::RpcClient, config::PolkadotConfig, ext::{
 	subxt_core::client::RuntimeVersion as CoreRuntimeVersion,
@@ -69,7 +71,7 @@ impl Default for RetryPolicy {
 
 /// High-level handle to a connected Origin-derived chain.
 pub struct Client {
-	pub(crate) api: subxt::OnlineClient<CordConfig>,
+	pub(crate) api: subxt::OnlineClient<OriginConfig>,
 	pub(crate) rpc: Arc<RpcClient>,
 	pub(crate) flavor: ChainFlavor,
 }
@@ -91,7 +93,9 @@ impl Client {
 			other => other,
 		};
 
-		let api = subxt::OnlineClient::<CordConfig>::from_rpc_client_with(
+		validate_required_views(&metadata_snapshot, flavor)?;
+
+		let api = subxt::OnlineClient::<OriginConfig>::from_rpc_client_with(
 			genesis_hash,
 			runtime_version.clone(),
 			metadata_snapshot.clone(),
@@ -208,7 +212,7 @@ impl Client {
 	}
 
 	/// Expose the underlying Subxt client for advanced flows.
-	pub fn online(&self) -> &subxt::OnlineClient<CordConfig> {
+	pub fn online(&self) -> &subxt::OnlineClient<OriginConfig> {
 		&self.api
 	}
 
@@ -221,22 +225,58 @@ impl Client {
 	}
 }
 
+fn validate_required_views(metadata: &subxt::Metadata, flavor: ChainFlavor) -> Result<()> {
+	if matches!(flavor, ChainFlavor::OriginHub) {
+		for (pallet, view) in [
+			("Entity", "details"),
+			("Entity", "account_token"),
+			("Register", "details"),
+			("Register", "packet_snapshot"),
+			("Token", "timeline"),
+		] {
+			let pallet_meta = metadata
+				.pallet_by_name(pallet)
+				.ok_or_else(|| Error::NotFound(format!("pallet '{pallet}' not found in metadata")))?;
+			if pallet_meta.view_function_by_name(view).is_none() {
+				return Err(Error::NotFound(format!(
+					"required view '{pallet}.{view}' missing in runtime metadata; \
+					 rebuild @origin-hub-system-runtime with view_functions enabled \
+					 and refresh local metadata (cargo run -p origin-rs --example fetch-metadata -- --node <ws-url> --flavor origin-hub)"
+				)));
+			}
+		}
+	}
+	Ok(())
+}
+
 async fn build_reconnecting_rpc(config: &ConnectionConfig) -> Result<Arc<RpcClient>> {
 	let url = Url::parse(&config.url).map_err(|e| Error::Params(e.to_string()))?;
-	let (sender, receiver) = WsTransportClientBuilder::default()
-		.build(url.clone())
-		.await
-		.map_err(|e| Error::Transport(e.to_string()))?;
-
-	// Tune the ws client for high throughput and low latency.
-	let client = WsClient::builder()
-		.request_timeout(Duration::from_secs(10))
-		.max_buffer_capacity_per_subscription(16 * 1024 * 1024)
-		.enable_ws_ping(PingConfig::new().ping_interval(Duration::from_secs(10)))
-		.set_tcp_no_delay(true)
-		.max_concurrent_requests(1024 * 10)
-		.build_with_tokio(sender, receiver);
-
-	let rpc = RpcClient::new(client);
-	Ok(Arc::new(rpc))
+	let mut attempt = 0usize;
+	let mut backoff = config.retry.initial_backoff;
+	loop {
+		match WsTransportClientBuilder::default().build(url.clone()).await {
+			Ok((sender, receiver)) => {
+				// Tune the ws client for high throughput and low latency.
+				let client = WsClient::builder()
+					.request_timeout(Duration::from_secs(10))
+					.max_buffer_capacity_per_subscription(16 * 1024 * 1024)
+					.enable_ws_ping(PingConfig::new().ping_interval(Duration::from_secs(10)))
+					.set_tcp_no_delay(true)
+					.max_concurrent_requests(1024 * 10)
+					.build_with_tokio(sender, receiver);
+				return Ok(Arc::new(RpcClient::new(client)));
+			},
+			Err(err) => {
+				attempt = attempt.saturating_add(1);
+				let fallible = matches!(config.retry.max_retries, Some(max) if attempt >= max);
+				if fallible {
+					return Err(Error::Transport(format!("ws connect failed: {err}")));
+				}
+				let wait = backoff.min(config.retry.max_backoff);
+				warn!("ws connect failed (attempt #{attempt}): {err}; retrying in {wait:?}");
+				sleep(wait).await;
+				backoff = (backoff * 2).min(config.retry.max_backoff);
+			},
+		}
+	}
 }

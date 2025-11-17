@@ -44,17 +44,15 @@ pub async fn build_call_json(
 }
 
 /// Sign and submit a call using the detected chain flavor's signed-extension tuple.
-pub async fn sign_and_submit_with_flavor<
-	S: subxt::tx::Signer<crate::params::config::CordConfig>,
->(
+pub async fn sign_and_submit_with_flavor<S: subxt::tx::Signer<crate::params::config::OriginConfig>>(
 	client: &Client,
 	call: DynamicPayload,
 	signer: &S,
 	opts: TxOptions,
 ) -> Result<
 	subxt::tx::TxInBlock<
-		crate::params::config::CordConfig,
-		subxt::OnlineClient<crate::params::config::CordConfig>,
+		crate::params::config::OriginConfig,
+		subxt::OnlineClient<crate::params::config::OriginConfig>,
 	>,
 > {
 	let api = &client.api;

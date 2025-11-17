@@ -1,7 +1,7 @@
 use crate::{
 	demo::spinner,
 	error::{Error, Result},
-	params::config::CordConfig,
+	params::config::OriginConfig,
 	query::{auth::AuthorizationBuilder, register::PacketSnapshotView},
 	tx::{self, MetaTxOptions, SubmitError, SubmitStage, TxSubmitter},
 	types::token::StateEventRecord,
@@ -77,7 +77,7 @@ impl<'a, 'b> TxExecutor<'a, 'b> {
 		call: DynamicPayload,
 		description: &str,
 		sink: &mut LogSink<'_>,
-	) -> Result<ExtrinsicEvents<CordConfig>, SubmitError> {
+	) -> Result<ExtrinsicEvents<OriginConfig>, SubmitError> {
 		match self {
 			TxExecutor::Direct { submitter } =>
 				submit_with_logging(submitter, call, description, sink).await,
@@ -203,9 +203,9 @@ async fn submit_with_logging<S, P>(
 	call: P,
 	description: &str,
 	sink: &mut LogSink<'_>,
-) -> Result<ExtrinsicEvents<CordConfig>, SubmitError>
+) -> Result<ExtrinsicEvents<OriginConfig>, SubmitError>
 where
-	S: subxt::tx::Signer<CordConfig>,
+	S: subxt::tx::Signer<OriginConfig>,
 	P: Payload,
 {
 	let spinner = spinner::Spinner::start(format!("Submitting {description}"));

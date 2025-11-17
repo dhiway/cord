@@ -14,7 +14,7 @@ use crate::{
 	client::Client,
 	error::{Error, Result},
 	params,
-	params::config::CordConfig,
+	params::config::OriginConfig,
 };
 use subxt::{
 	dynamic::Value,
@@ -60,24 +60,24 @@ impl<'a> Transactions<'a> {
 		dynamic::build_call_json(self.client, pallet, call, json_args).await
 	}
 
-	pub async fn sign_and_submit<S: subxt::tx::Signer<CordConfig>>(
+	pub async fn sign_and_submit<S: subxt::tx::Signer<OriginConfig>>(
 		&self,
 		call: DynamicPayload,
 		signer: &S,
 		opts: TxOptions,
-	) -> Result<tx::TxInBlock<CordConfig, subxt::OnlineClient<CordConfig>>> {
+	) -> Result<tx::TxInBlock<OriginConfig, subxt::OnlineClient<OriginConfig>>> {
 		dynamic::sign_and_submit_with_flavor(self.client, call, signer, opts).await
 	}
 
 	pub async fn sign_and_submit_then_watch_with_opts<
-		S: subxt::tx::Signer<CordConfig>,
+		S: subxt::tx::Signer<OriginConfig>,
 		P: Payload,
 	>(
 		&self,
 		call: P,
 		signer: &S,
 		opts: TxOptions,
-	) -> Result<TxProgress<CordConfig, subxt::OnlineClient<CordConfig>>> {
+	) -> Result<TxProgress<OriginConfig, subxt::OnlineClient<OriginConfig>>> {
 		let api = &self.client.api;
 		let mut tx = api.tx();
 		let who = signer.account_id();

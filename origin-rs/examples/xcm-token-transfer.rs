@@ -1,9 +1,11 @@
-use anyhow::{Context, Result};
-use oc::{tx::TxOptions, ChainFlavor, Client};
+use anyhow::{anyhow, Context, Result};
+use futures::StreamExt;
+use oc::{demo::spinner, tx::TxOptions, ChainFlavor, Client, ConnectionConfig, RetryPolicy};
 use serde_json::json;
 use sp_core::crypto::Ss58Codec;
 use sp_runtime::AccountId32;
-use std::env;
+use std::{env, time::Duration};
+use subxt::tx::TxStatus;
 
 /// Minimal example that reserves and transfers native balances from one hub parachain
 /// to another using XCM v5 (`pallet_xcm::reserve_transfer_assets`).
@@ -18,7 +20,16 @@ use std::env;
 async fn main() -> Result<()> {
 	env_logger::init();
 	let opts = Options::from_env()?;
-	let client = Client::connect(&opts.node, ChainFlavor::Auto).await?;
+	let connection =
+		ConnectionConfig::new(opts.node.clone(), ChainFlavor::OriginHub).with_retry(RetryPolicy {
+			initial_backoff: Duration::from_millis(200),
+			max_backoff: Duration::from_secs(5),
+			max_retries: Some(8),
+		});
+	let connect_spinner =
+		spinner::Spinner::start(format!("Connecting to {} ({:?})", opts.node, ChainFlavor::OriginHub));
+	let client = Client::connect_with(connection).await?;
+	connect_spinner.finish(Some("Connected")).await;
 	let signer = oc::tx::signer::dev_alice();
 
 	let dest = json!({
@@ -61,14 +72,26 @@ async fn main() -> Result<()> {
 		}),
 	).await?;
 
-	let progress = client
+	let mut progress = client
 		.tx()
 		.sign_and_submit_then_watch_with_opts(call, &signer, TxOptions::default())
 		.await?;
 
 	let ext_hash = progress.extrinsic_hash();
-	progress.wait_for_finalized_success().await?;
-	println!("Finalized extrinsic {:?}", ext_hash);
+	let in_block = loop {
+		let Some(status) = progress.next().await else {
+			return Err(anyhow!("extrinsic stream ended before inclusion"));
+		};
+		match status? {
+			TxStatus::InBestBlock(in_block) | TxStatus::InFinalizedBlock(in_block) => break in_block,
+			TxStatus::Error { message } => return Err(anyhow!("node error: {message}")),
+			TxStatus::Invalid { message } => return Err(anyhow!("invalid transaction: {message}")),
+			TxStatus::Dropped { message } => return Err(anyhow!("dropped transaction: {message}")),
+			_ => {},
+		}
+	};
+	in_block.wait_for_success().await?;
+	println!("Included extrinsic {:?} in block {:?}", ext_hash, in_block.block_hash());
 
 	Ok(())
 }

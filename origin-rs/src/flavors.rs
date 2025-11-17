@@ -1,4 +1,4 @@
-use crate::{error::Result, params::config::CordConfig};
+use crate::{error::Result, params::config::OriginConfig};
 
 /// Supported runtime "flavors" that the SDK can target.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -26,7 +26,7 @@ impl ChainFlavor {
 }
 
 /// Inspect the connected chain and infer the correct [`ChainFlavor`].
-pub async fn detect_flavor(api: &subxt::OnlineClient<CordConfig>) -> Result<ChainFlavor> {
+pub async fn detect_flavor(api: &subxt::OnlineClient<OriginConfig>) -> Result<ChainFlavor> {
 	let metadata = api.metadata();
 	detect_flavor_from_metadata(&metadata)
 }

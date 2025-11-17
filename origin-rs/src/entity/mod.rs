@@ -1,7 +1,7 @@
 use crate::{
 	client::Client,
 	error::{Error as SdkError, Result},
-	params::config::CordConfig,
+	params::config::OriginConfig,
 	tx::submitter::{SubmitError, SubmitStage, TxSubmitter},
 	types::{
 		self,
@@ -256,7 +256,7 @@ pub async fn submit_attribute_add<'a, S, F>(
 	mut handler: F,
 ) -> Result<(), SubmitError>
 where
-	S: subxt::tx::Signer<CordConfig>,
+	S: subxt::tx::Signer<OriginConfig>,
 	F: FnMut(SubmitStage),
 {
 	let entry = AttributeEntry {
@@ -283,7 +283,7 @@ pub async fn submit_attribute_rotation<'a, S, F>(
 	mut handler: F,
 ) -> Result<(), SubmitError>
 where
-	S: subxt::tx::Signer<CordConfig>,
+	S: subxt::tx::Signer<OriginConfig>,
 	F: FnMut(SubmitStage),
 {
 	let entry = AttributeEntry {
@@ -309,7 +309,7 @@ pub async fn submit_entity_nym<'a, S, F>(
 	mut handler: F,
 ) -> Result<bool, SubmitError>
 where
-	S: subxt::tx::Signer<CordConfig>,
+	S: subxt::tx::Signer<OriginConfig>,
 	F: FnMut(SubmitStage),
 {
 	let call = submitter

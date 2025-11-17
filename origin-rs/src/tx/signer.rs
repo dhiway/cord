@@ -1,6 +1,6 @@
 //! Flexible keypair helpers with multi-algorithm support.
 
-use crate::params::config::CordConfig;
+use crate::params::config::OriginConfig;
 use sp_core::{
 	crypto::{Pair as _, SecretStringError},
 	ed25519, sr25519,
@@ -183,7 +183,7 @@ impl FromStr for Keypair {
 	}
 }
 
-impl SubxtSigner<CordConfig> for Keypair {
+impl SubxtSigner<OriginConfig> for Keypair {
 	fn account_id(&self) -> AccountId32 {
 		self.account_id()
 	}
