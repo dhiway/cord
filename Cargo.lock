@@ -8901,6 +8901,7 @@ dependencies = [
  "sp-core",
  "sp-runtime",
  "subxt 0.44.0",
+ "subxt-metadata 0.44.0",
  "thiserror 1.0.69",
  "tokio",
  "url",
