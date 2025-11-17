@@ -1,7 +1,5 @@
 use crate::{
 	error::{Error, Result},
-	runtime,
-	runtime_helpers::{attribute_optional, bounded_bytes_vec, bounded_iter, element_type_to_sdk},
 	types::{attribute_pair_value, base64_to_bytes, element_json_to_dynamic, ElementJson},
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
@@ -16,9 +14,6 @@ use std::collections::{BTreeMap, BTreeSet};
 
 const ATTRIBUTE_KEY_MAX: usize = 64;
 const ATTRIBUTE_FLAG_OPTIONAL: u8 = 1 << 0;
-
-type RuntimeRegistryInfo = runtime::runtime_types::pallet_register::register::RegistryInfo;
-type RuntimeAttributeSpec = runtime::runtime_types::pallet_register::register::AttributeSpec;
 
 /// High-level registry definition parsed from developer JSON.
 pub struct RegistryBlueprint {
@@ -103,22 +98,13 @@ impl RegistryBlueprint {
 	}
 }
 
-/// Schema view derived from the runtime-provided [`RuntimeRegistryInfo`].
+/// Schema view derived from on-chain registry metadata fetched dynamically.
 #[derive(Clone)]
 pub struct RegistrySchema {
 	attributes: BTreeMap<Vec<u8>, SchemaAttribute>,
 }
 
 impl RegistrySchema {
-	pub fn from_runtime(info: &RuntimeRegistryInfo) -> Self {
-		let mut attributes = BTreeMap::new();
-		for spec in bounded_iter(&info.attributes) {
-			let key = bounded_bytes_vec(&spec.key);
-			attributes.insert(key.clone(), SchemaAttribute::from_runtime(spec));
-		}
-		Self { attributes }
-	}
-
 	pub fn from_view(view: &RegistryInfoView) -> Self {
 		let mut attributes = BTreeMap::new();
 		for spec in &view.attributes {
@@ -218,13 +204,6 @@ impl SchemaAttribute {
 	fn new(key: Vec<u8>, kind: ElementType, optional: bool) -> Self {
 		let label = display_key(&key);
 		Self { key, label, kind, optional }
-	}
-
-	fn from_runtime(spec: &RuntimeAttributeSpec) -> Self {
-		let optional = attribute_optional(&spec.flags);
-		let key = bounded_bytes_vec(&spec.key);
-		let kind = element_type_to_sdk(&spec.kind);
-		Self::new(key, kind, optional)
 	}
 
 	fn from_view(view: &RegistryAttributeView) -> Self {

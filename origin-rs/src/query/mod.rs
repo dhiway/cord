@@ -1,5 +1,4 @@
 pub mod auth;
-pub mod dynamic;
 pub mod entity;
 pub mod register;
 pub mod token;
@@ -10,8 +9,6 @@ use crate::{
 	flavors::ChainFlavor,
 	types,
 };
-use codec::Decode;
-use hex::ToHex;
 use origin_primitives::{
 	identifier::Ss58Identifier,
 	view_api::{AuthorizationError, AuthorizationRequest},
@@ -19,7 +16,6 @@ use origin_primitives::{
 use scale_decode::DecodeAsType;
 use scale_value::{Composite, Value};
 use sp_runtime::MultiSignature;
-use subxt::dynamic::DecodedValueThunk;
 
 /// Facade for runtime query functions.
 pub struct Query<'a> {
@@ -48,12 +44,7 @@ impl<'a> Query<'a> {
 		function: &str,
 		args: Value,
 	) -> Result<T> {
-		let view_bytes = self.call_view_bytes(pallet, function, args).await?;
-		crate::scale::decode::decode_with_metadata(
-			&view_bytes.metadata,
-			view_bytes.type_id,
-			&view_bytes.data,
-		)
+		self.client.origin().call_view_typed(pallet, function, args).await
 	}
 
 	pub(crate) async fn call_result<T, E>(
@@ -74,16 +65,23 @@ impl<'a> Query<'a> {
 		function: &str,
 		args: Value,
 	) -> Result<ViewBytes> {
-		let dispatch = dynamic::call_view(self.client, pallet, function, args).await?;
-		let data = extract_view_payload(dispatch.thunk)?;
-		Ok(ViewBytes { data, type_id: dispatch.output_ty, metadata: dispatch.metadata })
+		let origin = self.client.origin();
+		let ty = origin.layout().view_output_type(pallet, function).await?;
+		let value = origin.call_view(pallet, function, args).await?;
+		let mut data = Vec::new();
+		scale_value::scale::encode_as_type(
+			&value,
+			ty,
+			origin.registry(),
+			&mut data,
+		)
+		.map_err(|e| Error::Codec(e.to_string()))?;
+		Ok(ViewBytes { data })
 	}
 }
 
 pub(crate) struct ViewBytes {
 	data: Vec<u8>,
-	type_id: u32,
-	metadata: subxt::Metadata,
 }
 
 #[derive(Default)]
@@ -162,23 +160,5 @@ pub(crate) fn view_failure(ctx: &str, err: AuthorizationError) -> Error {
 		AuthorizationError::TooLarge => Error::Params(format!("{ctx}: result too large")),
 		AuthorizationError::Expired => Error::Params(format!("{ctx}: authorization expired")),
 		AuthorizationError::Internal => Error::ViewDecode(format!("{ctx}: internal error")),
-	}
-}
-
-fn extract_view_payload(thunk: DecodedValueThunk) -> Result<Vec<u8>> {
-	type Envelope = core::result::Result<Vec<u8>, Vec<u8>>;
-	let bytes = thunk.into_encoded();
-	let result: Envelope =
-		Decode::decode(&mut &bytes[..]).map_err(|e| Error::ViewDecode(e.to_string()))?;
-	match result {
-		Ok(inner) => Ok(inner),
-		Err(err) => Err(view_error(err)),
-	}
-}
-
-fn view_error(err_bytes: Vec<u8>) -> Error {
-	match String::from_utf8(err_bytes.clone()) {
-		Ok(text) if !text.is_empty() => Error::ViewDecode(text),
-		_ => Error::ViewDecode(format!("0x{}", err_bytes.encode_hex::<String>())),
 	}
 }
