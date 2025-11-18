@@ -51,7 +51,10 @@ use frame_system::pallet_prelude::*;
 use origin_primitives::{
 	authorization::{extract_valid_until, Authorization as CoreAuthorization},
 	identifier::Ss58Identifier,
-	packet::{Attribute, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp},
+	packet::{
+		Attribute, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp,
+	},
+	view::{AttributeValueView, EntityInfoView, InfoAttributeHistoryEntry},
 	view_api::{ensure_authorization_ttl, AuthorizationError},
 	Signature,
 };
@@ -124,6 +127,14 @@ pub mod pallet {
 		/// Max length for an entity nym prefix (before the suffix).
 		#[pallet::constant]
 		type MaxEntityNymLength: Get<u32>;
+
+		/// Default number of history rows returned from the composite overview view.
+		#[pallet::constant]
+		type DefaultEntityOverviewHistory: Get<u32>;
+
+		/// Maximum number of history rows returned from the composite overview view.
+		#[pallet::constant]
+		type MaxEntityOverviewHistory: Get<u32>;
 
 		/// Maximum payload length for view authorizations.
 		#[pallet::constant]
@@ -834,6 +845,47 @@ pub mod pallet {
 			EntityNymIndex::<T>::get(&bounded).ok_or(AuthorizationError::NotFound)
 		}
 
+		pub fn overview(
+			auth: AuthorizationOf<T>,
+			token: Ss58Identifier,
+			history_limit: Option<u32>,
+		) -> Result<origin_primitives::view::EntityOverviewView<T::AccountId>, AuthorizationError> {
+			Self::authorize_account_query(&auth)?;
+			let info = EntityInfoOf::<T>::get(&token).ok_or(AuthorizationError::NotFound)?;
+			let entity_info_view = Self::entity_info_view(&info);
+
+			let nym = EntityNymOf::<T>::get(&token).map(|n| n.into_inner());
+			let linked_accounts = LinkedAccounts::<T>::get(&token);
+
+			let cap = T::MaxEntityOverviewHistory::get();
+			let def = T::DefaultEntityOverviewHistory::get();
+			let hist_len = history_limit.unwrap_or(def).max(1).min(cap) as usize;
+			let mut history: Vec<_> = AttributeHistoryOf::<T>::iter_prefix(&token)
+				.map(|((key, version), (old, block))| {
+					let key_bytes: Vec<u8> = key.clone().into_inner();
+					InfoAttributeHistoryEntry {
+						key_hex: origin_primitives::view::hex_string(&key_bytes),
+						key_utf8: origin_primitives::view::maybe_utf8(&key_bytes),
+						version,
+						old_value_base64: origin_primitives::view::base64_string(old.as_ref()),
+						block: origin_primitives::view::DevEventBlockView {
+							height: block.height,
+							index: block.index,
+						},
+					}
+				})
+				.collect();
+			history.sort_by(|a, b| (b.block.height, b.block.index).cmp(&(a.block.height, a.block.index)));
+			history.truncate(hist_len);
+
+			Ok(origin_primitives::view::EntityOverviewView {
+				info: entity_info_view,
+				nym,
+				linked_accounts: linked_accounts.to_vec(),
+				history,
+			})
+		}
+
 		pub fn attribute_version(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
@@ -929,6 +981,20 @@ impl<T: Config> Pallet<T> {
 		let key_attr: Attribute = key.to_vec().try_into().ok()?;
 		AttributeHistoryOf::<T>::get(token, (key_attr, version))
 			.map(|(old, block)| (old.as_ref().to_vec(), block))
+	}
+
+	fn entity_info_view(
+		info: &T::EntityInfoPacket,
+	) -> EntityInfoView {
+		let attributes = info.attributes().map(|attrs| {
+			attrs.iter().map(AttributeValueView::from_pair).collect()
+		});
+		EntityInfoView {
+			display: origin_primitives::view::ElementView::from(&info.get_key(b"display")),
+			web: origin_primitives::view::ElementView::from(&info.get_key(b"web")),
+			email: origin_primitives::view::ElementView::from(&info.get_key(b"email")),
+			attributes,
+		}
 	}
 
 	fn consume_authorization_signature(

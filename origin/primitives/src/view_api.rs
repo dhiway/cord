@@ -107,6 +107,15 @@ pub struct EntityLinkedAccountsRequest {
 	pub token: Ss58Identifier,
 }
 
+/// Request payload for `Entity::overview`.
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct EntityOverviewRequest {
+	pub auth: AuthorizationRequest,
+	pub token: Ss58Identifier,
+	pub history_limit: Option<u32>,
+}
+
 /// Request payload for `Entity::entity_nym`.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]

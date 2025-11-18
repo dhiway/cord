@@ -195,6 +195,8 @@ pub struct EntityOverview {
 	pub entity: Entity,
 	pub history: Vec<HistoryEntry>,
 	pub timeline: Vec<StateEventRecord>,
+	pub nym: Option<String>,
+	pub linked_accounts: Vec<subxt::utils::AccountId32>,
 }
 
 /// Register overview (currently same as register info; reserved for expansion).

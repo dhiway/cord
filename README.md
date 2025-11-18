@@ -16,6 +16,8 @@ CORD now supports multiple runtimes, each tailored to different types of network
 
 By offering these distinct runtimes, CORD provides a versatile foundation tailored to meet the specific needs of various industries and applications, enhancing its ability to deliver effective networked public services.
 
+Looking for a map of the Origin components (entity, registry, packet, token) and how developers interact with them? See `docs/origin-overview.md` plus the SDK operations guide in `docs/sdk/operations.md`.
+
 ## Get Started
 
 The first step in becoming a blockchain developer with CORD is to learn how to compile and launch a single local blockchain node. In this tutorial, you'll build and start a single node blockchain using the CORD framework.

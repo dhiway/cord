@@ -49,16 +49,16 @@ impl<'a> EntityApi<'a> {
 		auth: &origin_primitives::view_api::AuthorizationRequest,
 		id: &EntityId,
 	) -> Result<EntityOverview> {
-		// Get current entity info
-		let entity = self.get(auth, id).await?;
+		if let Ok(view) = wire::entity::fetch_overview(self.client, auth, id).await {
+			return Ok(view);
+		}
 
-		// History (truncate to 20)
+		// Fallback: legacy composition path.
+		let entity = self.get(auth, id).await?;
 		let mut history = self.history(auth, id).await?;
 		if history.len() > 20 {
 			history.truncate(20);
 		}
-
-		// Timeline via token pallet (limit 20)
 		let (timeline, _) = wire::token::timeline(
 			self.client,
 			auth,
@@ -68,6 +68,6 @@ impl<'a> EntityApi<'a> {
 		)
 		.await?;
 
-		Ok(EntityOverview { entity, history, timeline })
+		Ok(EntityOverview { entity, history, timeline, nym: None, linked_accounts: Vec::new() })
 	}
 }

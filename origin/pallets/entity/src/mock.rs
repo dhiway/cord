@@ -68,6 +68,8 @@ parameter_types! {
 	pub const MaxTokenAuthorizationTTL: u32 = 30;
 	pub const MaxEntityAuthorizationLen: u32 = 256;
 	pub const MaxEntityAuthorizationTTL: u32 = 30;
+	pub const DefaultEntityOverviewHistory: u32 = 10;
+	pub const MaxEntityOverviewHistory: u32 = 20;
 }
 
 thread_local! {
@@ -83,6 +85,8 @@ impl pallet_entity::Config for Test {
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type MaxEntityNymLength = MaxEntityNymLength;
+	type DefaultEntityOverviewHistory = DefaultEntityOverviewHistory;
+	type MaxEntityOverviewHistory = MaxEntityOverviewHistory;
 	type MaxAuthorizationLen = MaxEntityAuthorizationLen;
 	type MaxAuthorizationTTL = MaxEntityAuthorizationTTL;
 	type Feeless = ();

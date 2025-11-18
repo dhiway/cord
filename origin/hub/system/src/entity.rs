@@ -26,6 +26,8 @@ parameter_types! {
 	pub const MaxRawDataLength: u32 = 4096;
 	pub const MaxEntityNymLength: u32 = 32;
 	pub const MaxAdditionalAttributes: u32 = 32;
+	pub const DefaultEntityOverviewHistory: u32 = 20;
+	pub const MaxEntityOverviewHistory: u32 = 50;
 	pub const GeneralAdminBodyId: BodyId = BodyId::Administration;
 	pub const MaxAuthorizationLen: u32 = 256;
 	pub const MaxAuthorizationTTL: u32 = 30;
@@ -45,6 +47,8 @@ impl pallet_entity::Config for Runtime {
 	type EntityInfoPacket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type Feeless = ();
 	type MaxEntityNymLength = MaxEntityNymLength;
+	type DefaultEntityOverviewHistory = DefaultEntityOverviewHistory;
+	type MaxEntityOverviewHistory = MaxEntityOverviewHistory;
 	type MaxAuthorizationLen = MaxAuthorizationLen;
 	type MaxAuthorizationTTL = MaxAuthorizationTTL;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;

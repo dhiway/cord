@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use oc::error::Error as OcError;
 use oc::{
 	demo,
 	demo::{
@@ -177,7 +178,7 @@ async fn run_transaction_flow(
 		token: token_identifier.clone(),
 	};
 	let existing_nym = client.query().entity().entity_nym(&nym_req).await?;
-	if let Some(nym) = existing_nym {
+	if let Some(nym) = existing_nym.filter(|nym| !nym.is_empty()) {
 		snapshot.set_entity_nym(nym);
 	} else {
 		// Best-effort dynamic fallback in case typed decode fails due to new variants.
@@ -274,6 +275,17 @@ async fn run_transaction_flow(
 		}
 	}
 
+	// Ensure nym populated before final render (post-mint or existing token).
+	if snapshot.entity_nym.is_none() {
+		let req = EntityNymRequest {
+			auth: fresh_authorization_with_client(client, &signer).await?,
+			token: token_identifier.clone(),
+		};
+		if let Ok(Some(nym)) = client.query().entity().entity_nym(&req).await {
+			snapshot.set_entity_nym(nym);
+		}
+	}
+
 	let target_version = baseline_state_version.saturating_add(expected_state_events);
 	if let Err(err) = entity::render_entity_snapshot(
 		client,
@@ -306,29 +318,84 @@ async fn run_view_flow(
 	let requested_token = parse_identifier(token_str)?;
 	let signer = tx::signer::dev_alice();
 	let resolver_auth = fresh_authorization_with_client(client, &signer).await?;
-	let token_identifier =
-		match resolve_token_target(client, &resolver_auth, &requested_token).await? {
-			TokenTarget::Entity { token } => token,
-			TokenTarget::Registry { .. } => {
-				return Err(anyhow!(format!(
+	let token_identifier = match resolve_token_target(client, &resolver_auth, &requested_token).await
+	{
+		Ok(TokenTarget::Entity { token }) => token,
+		Ok(TokenTarget::Registry { .. }) => {
+			return Err(anyhow!(format!(
 				"token {token_str} is a registry; run register-demo --mode view --token {token_str}"
 			)));
-			},
-			TokenTarget::Packet { .. } => {
-				return Err(anyhow!(format!(
+		},
+		Ok(TokenTarget::Packet { .. }) => {
+			return Err(anyhow!(format!(
 				"token {token_str} is a packet; run packet-demo --mode view --token {token_str}"
 			)));
-			},
-		};
+		},
+		Err(OcError::Codec(_) | OcError::ViewDecode(_)) => {
+			println!(
+				"⚠️ token resolver hit a decode error; assuming {token_str} is an entity token"
+			);
+			requested_token.clone()
+		},
+		Err(err) => return Err(err.into()),
+	};
 
-	// Use new SDK overview for a concise view (info + history + timeline capped at 20).
-	let sdk = oc::sdk::OriginClient::connect(node_url).await?;
+		// If JSON requested, use SDK overview (prefers pallet composite view when available).
+		if cli.common.output_json {
+			let sdk = oc::sdk::OriginClient::connect(node_url).await?;
+			let auth = fresh_authorization_with_client(client, &signer).await?;
+			let overview = sdk.entities().overview(&auth, &token_identifier).await?;
+			#[derive(serde::Serialize)]
+			struct JsonOut<T, U> {
+				overview: T,
+				nym: Option<String>,
+				linked_accounts: Vec<U>,
+			}
+			let out =
+				JsonOut { nym: overview.nym.clone(), linked_accounts: overview.linked_accounts.clone(), overview };
+			println!("{}", serde_json::to_string_pretty(&out).unwrap());
+			return Ok(());
+		}
+
+	// Legacy rich rendering for CLI mode.
 	let auth = fresh_authorization_with_client(client, &signer).await?;
-	let overview = sdk.entities().overview(&auth, &token_identifier).await?;
-	if cli.common.output_json {
-		println!("{}", serde_json::to_string_pretty(&overview).unwrap());
-	} else {
-		println!("Entity overview for {token_str}:\n{:#?}", overview);
+	let entity_info = client
+		.query()
+		.entity()
+		.details(&auth, &token_identifier)
+		.await?
+		.ok_or_else(|| anyhow!(format!("no entity info found for token {token_str}")))?;
+	let chain_state = EntityChainState::from_record(&entity_info);
+	let mut snapshot = EntitySnapshot::from_chain_state(&chain_state, token_str);
+
+	let nym_req = EntityNymRequest {
+		auth: fresh_authorization_with_client(client, &signer).await?,
+		token: token_identifier.clone(),
+	};
+	if let Some(nym) = client.query().entity().entity_nym(&nym_req).await? {
+		snapshot.set_entity_nym(nym);
+	}
+	let linked_req = origin_primitives::view_api::EntityLinkedAccountsRequest {
+		auth: fresh_authorization_with_client(client, &signer).await?,
+		token: token_identifier.clone(),
+	};
+	let linked_accounts = client.query().entity().linked_accounts(&linked_req).await.unwrap_or_default();
+	snapshot.set_active_accounts(&linked_accounts, chain_prefix);
+
+	if let Err(err) = entity::render_entity_snapshot(
+		client,
+		&signer,
+		&token_identifier,
+		&mut snapshot,
+		cli.common.view,
+		false,
+		chain_prefix,
+		0,
+		true,
+	)
+	.await
+	{
+		println!("⚠️ unable to render entity snapshot: {err}");
 	}
 	Ok(())
 }
@@ -357,9 +424,15 @@ async fn apply_attribute_plan(
 				.await
 				.map_err(SubmitError::from_origin_error)?;
 			let mut sink = LogSink::new(None);
-			tx_executor
-				.submit(client, call, &format!("Add attribute '{key}'"), &mut sink)
-				.await?;
+			if let Err(err) =
+				tx_executor.submit(client, call, &format!("Add attribute '{key}'"), &mut sink).await
+			{
+				if matches_account_not_found(&err) {
+					println!("⚠️ controller not linked (AccountNotFound); skipping add for '{key}'");
+					return Ok(());
+				}
+				return Err(err);
+			}
 		},
 		AttributePlan::Rotate => {
 			println!("\n🔁 attribute '{key}' exists with different value; submitting rotation");
@@ -370,12 +443,28 @@ async fn apply_attribute_plan(
 				.await
 				.map_err(SubmitError::from_origin_error)?;
 			let mut sink = LogSink::new(None);
-			tx_executor
+			if let Err(err) = tx_executor
 				.submit(client, call, &format!("Rotated attribute '{key}'"), &mut sink)
-				.await?;
+				.await
+			{
+				if matches_account_not_found(&err) {
+					println!("⚠️ controller not linked (AccountNotFound); skipping rotation for '{key}'");
+					return Ok(());
+				}
+				return Err(err);
+			}
 		},
 	}
 	Ok(())
+}
+
+fn matches_account_not_found(err: &SubmitError) -> bool {
+	match err {
+		SubmitError::Runtime(msg) | SubmitError::Node(msg) | SubmitError::Invalid(msg) => {
+			msg.contains("Entity::AccountNotFound")
+		},
+		_ => false,
+	}
 }
 
 fn attribute_entry(key: &str, value: String) -> AttributeEntry {

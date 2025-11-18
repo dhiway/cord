@@ -757,6 +757,8 @@ parameter_types! {
 	pub const MaxAdditionalAttributes: u32 = 32;
 	pub const MaxLinkedAccounts: u32 = 2;
 	pub const MaxEntityNymLength: u32 = 64;
+	pub const DefaultEntityOverviewHistory: u32 = 20;
+	pub const MaxEntityOverviewHistory: u32 = 50;
 	pub const EntityMaxAuthorizationLen: u32 = 256;
 }
 
@@ -787,6 +789,8 @@ impl pallet_entity::Config for Runtime {
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type MaxEntityNymLength = MaxEntityNymLength;
+	type DefaultEntityOverviewHistory = DefaultEntityOverviewHistory;
+	type MaxEntityOverviewHistory = MaxEntityOverviewHistory;
 	type MaxAuthorizationLen = EntityMaxAuthorizationLen;
 	type MaxAuthorizationTTL = ViewAuthorizationTTL;
 	type Feeless = Feeless;

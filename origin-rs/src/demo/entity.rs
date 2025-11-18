@@ -313,7 +313,7 @@ pub async fn render_entity_snapshot(
 ) -> anyhow::Result<()> {
 	let mut timeline = Vec::new();
 	let mut history = Vec::new();
-	let linked_accounts: Vec<AccountId32>;
+	let mut linked_accounts: Vec<AccountId32>;
 
 	if include_history {
 		let timeline_reference_block = client.view_auth_reference_block().await?;
@@ -349,6 +349,20 @@ pub async fn render_entity_snapshot(
 				eprintln!("⚠️ unable to fetch linked accounts: {err}");
 				Vec::new()
 			});
+	if linked_accounts.is_empty() {
+		// Fallback: ensure controller shows up even if linked_accounts decoding fails.
+		if let Ok(auth) = links_auth() {
+			if let Ok(controller) =
+				client.query().entity().controller_account(&auth, token_identifier).await
+			{
+				linked_accounts.push(controller);
+			}
+		}
+		// Last-resort: include the signer as an active account for display.
+		if linked_accounts.is_empty() {
+			linked_accounts.push(signer.account_id());
+		}
+	}
 	snapshot.set_active_accounts(&linked_accounts, chain_prefix);
 
 	if output_json {
