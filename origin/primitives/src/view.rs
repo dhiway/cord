@@ -331,6 +331,55 @@ where
 	DecodeAsType,
 )]
 #[serde(rename_all = "camelCase")]
+pub struct EntityInfoView {
+	pub display: ElementView,
+	pub web: ElementView,
+	pub email: ElementView,
+	pub attributes: Option<Vec<AttributeValueView>>,
+}
+
+impl EntityInfoView {
+	pub fn attribute(&self, key: &[u8]) -> Option<&ElementView> {
+		self.attributes
+			.as_ref()
+			.and_then(|attrs| attrs.iter().find(|attr| attr.key.as_slice() == key))
+			.map(|attr| &attr.value)
+	}
+}
+
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct EntityOverviewView<AccountId> {
+	pub info: EntityInfoView,
+	pub nym: Option<Vec<u8>>,
+	pub linked_accounts: Vec<AccountId>,
+	pub history: Vec<InfoAttributeHistoryEntry>,
+}
+
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
+#[serde(rename_all = "camelCase")]
 pub struct InfoAttributeHistoryEntry {
 	pub key_hex: String,
 	pub key_utf8: Option<String>,

@@ -7,6 +7,7 @@ This directory captures the developer-facing surface of `origin-rs` (aka the Ori
 | [client.md](client.md) | Connecting to nodes, metadata guards, accessing transaction/query builders. |
 | [signers.md](signers.md) | Multi-algorithm key helpers (`Keypair`, `KeyAlgorithm`, `DevAccount`). |
 | [transactions.md](transactions.md) | Extrinsic composition (`TxSubmitter`, `TxExecutor`, `MetaSigner`, utility batches). |
+| [operations.md](operations.md) | End-to-end SDK surface: connecting, authorizations, entity/register/packet extrinsics, and all view helpers with examples. |
 | [views.md](views.md) | Runtime view helpers (`AuthorizationBuilder`, `entity/register/token` queries). |
 | [demos.md](demos.md) | How the runnable demos are structured and where to extend them. |
 

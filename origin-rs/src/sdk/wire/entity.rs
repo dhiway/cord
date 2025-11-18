@@ -11,7 +11,7 @@ use crate::{
 	client::Client,
 	sdk::{
 		error::{OriginError, Result},
-		types::{Attribute, Entity, EntityId, HistoryEntry},
+		types::{Attribute, Entity, EntityId, EntityOverview, HistoryEntry},
 	},
 	tx::TxOptions,
 	types::entity::EntityInfoRecord,
@@ -38,11 +38,61 @@ pub(crate) async fn fetch_history(
 	Ok(history)
 }
 
+pub(crate) async fn fetch_overview(
+	client: &Client,
+	auth: &AuthorizationRequest,
+	id: &EntityId,
+) -> Result<EntityOverview> {
+	let req = origin_primitives::view_api::EntityOverviewRequest {
+		auth: auth.clone(),
+		token: id.clone(),
+		history_limit: None,
+	};
+	match client.query().entity().overview(&req).await {
+		Ok(Some(view)) => {
+			let entity = entity_from_view(id.clone(), &view.info);
+			let history = view
+				.history
+				.into_iter()
+				.map(|entry| HistoryEntry {
+					key_hex: entry.key_hex,
+					key_utf8: entry.key_utf8,
+					version: entry.version,
+					old_value_base64: entry.old_value_base64,
+					block: crate::types::entity::BlockRef {
+						height: entry.block.height,
+						index: entry.block.index,
+					},
+				})
+				.collect();
+			let timeline = Vec::new();
+			let nym = view.nym.and_then(|bytes| String::from_utf8(bytes).ok());
+			let linked_accounts = view.linked_accounts;
+			let entity_overview =
+				EntityOverview { entity, history, timeline, nym, linked_accounts };
+			Ok(entity_overview)
+		},
+		Ok(None) => Err(OriginError::NotFound),
+		Err(err) => Err(OriginError::Rpc(err)),
+	}
+}
+
 fn entity_from_record(id: Ss58Identifier, record: EntityInfoRecord) -> Entity {
 	let attributes =
 		record.attributes.unwrap_or_default().into_iter().map(Attribute::from).collect();
 
 	Entity { id, display: record.display, web: record.web, email: record.email, attributes }
+}
+
+fn entity_from_view(id: Ss58Identifier, view: &origin_primitives::view::EntityInfoView) -> Entity {
+	let attributes = view
+		.attributes
+		.clone()
+		.unwrap_or_default()
+		.into_iter()
+		.map(Attribute::from)
+		.collect();
+	Entity { id, display: view.display.clone(), web: view.web.clone(), email: view.email.clone(), attributes }
 }
 
 /// Encode an entity and submit `Entity::set_info`.

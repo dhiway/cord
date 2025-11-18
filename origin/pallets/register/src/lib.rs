@@ -1125,7 +1125,7 @@ pub mod pallet {
 			ptoken: Ss58Identifier,
 		) -> Result<PacketMetadataOf<T>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
-			let metadata = PacketMetadata::<T>::get(&ptoken).ok_or(AuthorizationError::NotFound)?;
+			let metadata = Packets::<T>::get(&ptoken).ok_or(AuthorizationError::NotFound)?;
 			if metadata.registry != rtoken {
 				return Err(AuthorizationError::NotFound);
 			}
