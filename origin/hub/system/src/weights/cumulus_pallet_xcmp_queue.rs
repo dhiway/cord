@@ -1,7 +1,7 @@
 // Lightweight wrapper to use upstream auto-generated weights from cumulus_pallet_xcmp_queue.
+use core::marker::PhantomData;
 use cumulus_pallet_xcmp_queue::weights::SubstrateWeight;
 use frame_support::weights::Weight;
-use core::marker::PhantomData;
 
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> cumulus_pallet_xcmp_queue::WeightInfo for WeightInfo<T> {
@@ -23,11 +23,19 @@ impl<T: frame_system::Config> cumulus_pallet_xcmp_queue::WeightInfo for WeightIn
 	fn enqueue_1000_small_xcmp_messages() -> Weight {
 		SubstrateWeight::<T>::enqueue_1000_small_xcmp_messages()
 	}
-	fn suspend_channel() -> Weight { SubstrateWeight::<T>::suspend_channel() }
-	fn resume_channel() -> Weight { SubstrateWeight::<T>::resume_channel() }
+	fn suspend_channel() -> Weight {
+		SubstrateWeight::<T>::suspend_channel()
+	}
+	fn resume_channel() -> Weight {
+		SubstrateWeight::<T>::resume_channel()
+	}
 	fn take_first_concatenated_xcm(n: u32) -> Weight {
 		SubstrateWeight::<T>::take_first_concatenated_xcm(n)
 	}
-	fn on_idle_good_msg() -> Weight { SubstrateWeight::<T>::on_idle_good_msg() }
-	fn on_idle_large_msg() -> Weight { SubstrateWeight::<T>::on_idle_large_msg() }
+	fn on_idle_good_msg() -> Weight {
+		SubstrateWeight::<T>::on_idle_good_msg()
+	}
+	fn on_idle_large_msg() -> Weight {
+		SubstrateWeight::<T>::on_idle_large_msg()
+	}
 }

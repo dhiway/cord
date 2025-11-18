@@ -415,12 +415,8 @@ impl RuntimeLayout {
 	}
 
 	pub async fn view_output_type(&self, pallet: &str, view: &str) -> Result<u32, Error> {
-		if let Some(hit) = self
-			.view_output_types
-			.read()
-			.await
-			.get(&(pallet.into(), view.into()))
-			.cloned()
+		if let Some(hit) =
+			self.view_output_types.read().await.get(&(pallet.into(), view.into())).cloned()
 		{
 			return Ok(hit);
 		}

@@ -1,5 +1,6 @@
 use crate::{
 	client::Client,
+	dyn_helpers::DynHelpers,
 	error::Error,
 	error::{Error as SdkError, Result},
 	params::config::OriginConfig,
@@ -10,11 +11,10 @@ use crate::{
 		entity::{AttributeEntry, EntityInfoRecord, HistoryEntry},
 		ElementJson,
 	},
-	dyn_helpers::DynHelpers,
-	};
-	use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-	use bs58;
-	use hex;
+};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use bs58;
+use hex;
 use log::debug;
 use origin_primitives::{
 	identifier::Ss58Identifier,
@@ -359,16 +359,24 @@ fn element_value_to_text(value: &Value<u32>) -> Option<String> {
 			match variant.name.as_str() {
 				"None" => None,
 				"Raw" => field.and_then(|v| bytes_from_value(v).ok()).and_then(|b| {
-					String::from_utf8(b.clone()).ok().or_else(|| Some(format!("0x{}", hex::encode(b))))
+					String::from_utf8(b.clone())
+						.ok()
+						.or_else(|| Some(format!("0x{}", hex::encode(b))))
 				}),
 				"Bool" => field?.as_u128().map(|b| (b != 0).to_string()),
 				"U64" => field?.as_u128().map(|n| (n as u64).to_string()),
 				"U128" => field?.as_u128().map(|n| n.to_string()),
-				"Hash" => field.and_then(|v| bytes_from_value(v).ok()).map(|b| format!("0x{}", hex::encode(b))),
+				"Hash" => field
+					.and_then(|v| bytes_from_value(v).ok())
+					.map(|b| format!("0x{}", hex::encode(b))),
 				"Token" => field.and_then(|v| bytes_from_value(v).ok()).map(|b| {
-					String::from_utf8(b.clone()).ok().unwrap_or_else(|| format!("0x{}", hex::encode(b)))
+					String::from_utf8(b.clone())
+						.ok()
+						.unwrap_or_else(|| format!("0x{}", hex::encode(b)))
 				}),
-				"CID" => field.and_then(|v| bytes_from_value(v).ok()).map(|b| bs58::encode(b).into_string()),
+				"CID" => field
+					.and_then(|v| bytes_from_value(v).ok())
+					.map(|b| bs58::encode(b).into_string()),
 				_ => None,
 			}
 		},
@@ -429,7 +437,9 @@ fn parse_attributes(attr_value: &Value<u32>, state: &mut EntityChainState) {
 						.as_ref()
 						.ok()
 						.and_then(|b| std::str::from_utf8(b).ok().map(|s| s.to_string()))
-						.unwrap_or_else(|| format!("0x{}", hex::encode(key_bytes.unwrap_or_default())));
+						.unwrap_or_else(|| {
+							format!("0x{}", hex::encode(key_bytes.unwrap_or_default()))
+						});
 					if let Some(text) = element_value_to_text(elem_val) {
 						state.insert_attribute(key_label, Some(text));
 					}
@@ -451,7 +461,9 @@ fn parse_attributes(attr_value: &Value<u32>, state: &mut EntityChainState) {
 						.as_ref()
 						.ok()
 						.and_then(|b| std::str::from_utf8(b).ok().map(|s| s.to_string()))
-						.unwrap_or_else(|| format!("0x{}", hex::encode(key_bytes.unwrap_or_default())));
+						.unwrap_or_else(|| {
+							format!("0x{}", hex::encode(key_bytes.unwrap_or_default()))
+						});
 					if let Some(text) = element_value_to_text(elem_val) {
 						state.insert_attribute(key_label, Some(text));
 					}
@@ -473,7 +485,7 @@ async fn parse_entity_info_value(
 		},
 		_ => return Ok(None),
 	};
-	let Some(Value { value: ValueDef::Composite(info_fields) , ..}) = info else {
+	let Some(Value { value: ValueDef::Composite(info_fields), .. }) = info else {
 		return Ok(None);
 	};
 
@@ -516,10 +528,7 @@ async fn parse_entity_info_value(
 	Ok(Some(state))
 }
 
-fn build_entity_details_args(
-	auth: &AuthorizationRequest,
-	token: &Ss58Identifier,
-) -> Result<Value> {
+fn build_entity_details_args(auth: &AuthorizationRequest, token: &Ss58Identifier) -> Result<Value> {
 	let raw: [u8; 32] = *auth.account.as_ref();
 	let account = types::account_id_value(&subxt::utils::AccountId32::from(raw));
 	let payload = types::bytes_value(auth.payload.as_slice());

@@ -78,13 +78,8 @@ impl<'a> Query<'a> {
 		let ty = origin.layout().view_output_type(pallet, function).await?;
 		let value = origin.call_view(pallet, function, args).await?;
 		let mut data = Vec::new();
-		scale_value::scale::encode_as_type(
-			&value,
-			ty,
-			origin.registry(),
-			&mut data,
-		)
-		.map_err(|e| Error::Codec(e.to_string()))?;
+		scale_value::scale::encode_as_type(&value, ty, origin.registry(), &mut data)
+			.map_err(|e| Error::Codec(e.to_string()))?;
 		Ok(ViewBytes { data })
 	}
 }

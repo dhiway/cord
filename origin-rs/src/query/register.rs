@@ -9,8 +9,9 @@ use origin_primitives::{
 	registry::{LookupSpecView, RegistryInfoView, RegistryStatus},
 	view::DevPacketSnapshot,
 	view_api::{
-		AuthorizationError, AuthorizationRequest, RegisterDetailsRequest, RegisterLookupSpecsRequest,
-		RegisterPacketSnapshotByTokenRequest, RegisterPacketSnapshotRequest,
+		AuthorizationError, AuthorizationRequest, RegisterDetailsRequest,
+		RegisterLookupSpecsRequest, RegisterPacketSnapshotByTokenRequest,
+		RegisterPacketSnapshotRequest,
 	},
 };
 use scale_value::Value;

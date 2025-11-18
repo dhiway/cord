@@ -224,8 +224,9 @@ pub fn run() -> Result<()> {
 					let storage = partials.backend.expose_storage();
 					cmd.run(config, partials.client.clone(), db, storage)
 				}),
-				BenchmarkCmd::Machine(cmd) =>
-					runner.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())),
+				BenchmarkCmd::Machine(cmd) => {
+					runner.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()))
+				},
 				#[allow(unreachable_patterns)]
 				_ => Err("Benchmarking sub-command unsupported".into()),
 			}
@@ -257,9 +258,12 @@ pub fn run() -> Result<()> {
 				);
 
 				let tokio_handle = config.tokio_handle.clone();
-				let relay_config =
-					SubstrateCli::create_configuration(&relay_chain_cli, &relay_chain_cli, tokio_handle)
-						.map_err(|err| format!("Relay chain argument error: {err}"))?;
+				let relay_config = SubstrateCli::create_configuration(
+					&relay_chain_cli,
+					&relay_chain_cli,
+					tokio_handle,
+				)
+				.map_err(|err| format!("Relay chain argument error: {err}"))?;
 
 				info!("Is collating: {}", if config.role.is_authority() { "yes" } else { "no" });
 
