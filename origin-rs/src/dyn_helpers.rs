@@ -32,40 +32,40 @@ impl DynHelpers {
 		self.decode_as(&bytes, path).await
 	}
 
-    pub fn bytes_from_value(&self, value: &Value<u32>) -> Result<Vec<u8>, Error> {
-        match &value.value {
-            scale_value::ValueDef::Primitive(p) => {
-                if let Some(u) = p.as_u128() {
-                    Ok(vec![u as u8])
-                } else {
-                    Err(Error::Codec("expected byte primitive".into()))
-                }
-            },
-            scale_value::ValueDef::Composite(c) => {
-                let mut out = Vec::new();
-                match c {
-                    scale_value::Composite::Named(fields) => {
-                        for (_, v) in fields {
-                            out.extend(self.bytes_from_value(v)?);
-                        }
-                    },
-                    scale_value::Composite::Unnamed(values) => {
-                        for v in values {
-                            out.extend(self.bytes_from_value(v)?);
-                        }
-                    },
-                }
-                Ok(out)
-            }
-            _ => Err(Error::Codec("unsupported byte shape".into())),
-        }
-    }
+	pub fn bytes_from_value(&self, value: &Value<u32>) -> Result<Vec<u8>, Error> {
+		match &value.value {
+			scale_value::ValueDef::Primitive(p) => {
+				if let Some(u) = p.as_u128() {
+					Ok(vec![u as u8])
+				} else {
+					Err(Error::Codec("expected byte primitive".into()))
+				}
+			},
+			scale_value::ValueDef::Composite(c) => {
+				let mut out = Vec::new();
+				match c {
+					scale_value::Composite::Named(fields) => {
+						for (_, v) in fields {
+							out.extend(self.bytes_from_value(v)?);
+						}
+					},
+					scale_value::Composite::Unnamed(values) => {
+						for v in values {
+							out.extend(self.bytes_from_value(v)?);
+						}
+					},
+				}
+				Ok(out)
+			},
+			_ => Err(Error::Codec("unsupported byte shape".into())),
+		}
+	}
 
-    pub fn identifier_hex(&self, bytes: &[u8]) -> String {
-        format!("0x{}", hex::encode(bytes))
-    }
+	pub fn identifier_hex(&self, bytes: &[u8]) -> String {
+		format!("0x{}", hex::encode(bytes))
+	}
 
-    pub fn maybe_utf8(&self, bytes: &[u8]) -> Option<String> {
-        std::str::from_utf8(bytes).ok().map(|s| s.to_string())
-    }
+	pub fn maybe_utf8(&self, bytes: &[u8]) -> Option<String> {
+		std::str::from_utf8(bytes).ok().map(|s| s.to_string())
+	}
 }

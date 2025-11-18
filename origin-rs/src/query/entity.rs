@@ -113,14 +113,19 @@ impl<'a> EntityQuery<'a> {
 	) -> Result<Vec<AccountId32>> {
 		self.ensure_supported()?;
 		let args = self.token_args(&req.auth, &req.token)?;
-		let raw: core::result::Result<Vec<AccountId32>, AuthorizationError> =
-			self.query.call_result("Entity", "linked_accounts", args.clone()).await.unwrap_or_else(|_| Err(AuthorizationError::Internal));
+		let raw: core::result::Result<Vec<AccountId32>, AuthorizationError> = self
+			.query
+			.call_result("Entity", "linked_accounts", args.clone())
+			.await
+			.unwrap_or_else(|_| Err(AuthorizationError::Internal));
 		match raw {
 			Ok(accounts) => Ok(accounts),
 			Err(AuthorizationError::NotFound) => Ok(Vec::new()),
 			Err(err) => {
 				// Fallback: dynamic decode tolerant of type/variant changes.
-				if let Ok(dynamic) = self.query.client.origin().call_view("Entity", "linked_accounts", args).await {
+				if let Ok(dynamic) =
+					self.query.client.origin().call_view("Entity", "linked_accounts", args).await
+				{
 					let decoded: Result<Vec<AccountId32>, _> =
 						scale_value::serde::from_value::<u32, Vec<AccountId32>>(dynamic.clone());
 					return decoded.map_err(|e| Error::ViewDecode(e.to_string()));
@@ -133,14 +138,19 @@ impl<'a> EntityQuery<'a> {
 	pub async fn entity_nym(&self, req: &EntityNymRequest) -> Result<Option<String>> {
 		self.ensure_supported()?;
 		let args = self.token_args(&req.auth, &req.token)?;
-		let raw: core::result::Result<Vec<u8>, AuthorizationError> =
-			self.query.call_result("Entity", "entity_nym", args.clone()).await.unwrap_or_else(|_| Err(AuthorizationError::Internal));
+		let raw: core::result::Result<Vec<u8>, AuthorizationError> = self
+			.query
+			.call_result("Entity", "entity_nym", args.clone())
+			.await
+			.unwrap_or_else(|_| Err(AuthorizationError::Internal));
 		match raw {
 			Ok(bytes) => Ok(Some(String::from_utf8_lossy(&bytes).into_owned())),
 			Err(AuthorizationError::NotFound) => Ok(None),
 			Err(err) => {
 				// Fallback via dynamic decoding.
-				if let Ok(dynamic) = self.query.client.origin().call_view("Entity", "entity_nym", args).await {
+				if let Ok(dynamic) =
+					self.query.client.origin().call_view("Entity", "entity_nym", args).await
+				{
 					if let Ok(bytes) = scale_value::serde::from_value::<u32, Vec<u8>>(dynamic) {
 						return Ok(Some(String::from_utf8_lossy(&bytes).into_owned()));
 					}
@@ -189,10 +199,7 @@ impl<'a> EntityQuery<'a> {
 			self.query.call_result("Entity", "account_history", args).await?;
 		raw.map_err(|err| super::view_failure("entity.account_history", err))
 			.map(|records| {
-				records
-					.into_iter()
-					.map(|(account, block)| (account, block.into()))
-					.collect()
+				records.into_iter().map(|(account, block)| (account, block.into())).collect()
 			})
 	}
 

@@ -8,6 +8,7 @@
 pub mod api_dynamic;
 pub mod client;
 pub mod demo;
+pub mod dyn_helpers;
 pub mod entity;
 pub mod error;
 pub mod flavors;
@@ -16,11 +17,11 @@ pub mod origin_client;
 pub mod params;
 pub mod query;
 pub mod scale;
+pub mod sdk;
 pub mod state;
 pub mod tx;
 pub mod types;
 pub mod utils;
-pub mod dyn_helpers;
 
 pub use api_dynamic::{DynamicApis, DynamicEntityApi, DynamicRegisterApi, DynamicTokenApi};
 pub use client::{Client, ConnectionConfig, RetryPolicy, DEFAULT_RPC_ENDPOINT};

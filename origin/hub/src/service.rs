@@ -35,9 +35,9 @@ use cumulus_primitives_core::{
 	ParaId,
 };
 use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
-use origin_hub_system_runtime_constants::origin::consensus::RELAY_CHAIN_SLOT_DURATION_MILLIS;
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
 use origin_hub_system_runtime::RuntimeApi;
+use origin_hub_system_runtime_constants::origin::consensus::RELAY_CHAIN_SLOT_DURATION_MILLIS;
 use parachains_common::{Block, Hash};
 use prometheus_endpoint::Registry;
 use sc_client_api::Backend;
@@ -319,7 +319,8 @@ pub async fn start_parachain_node(
 		let transaction_pool = transaction_pool.clone();
 
 		Box::new(move |_| {
-			let deps = crate::rpc::FullDeps { client: client.clone(), pool: transaction_pool.clone() };
+			let deps =
+				crate::rpc::FullDeps { client: client.clone(), pool: transaction_pool.clone() };
 
 			crate::rpc::create_full(deps).map_err(Into::into)
 		})
@@ -367,9 +368,7 @@ pub async fn start_parachain_node(
 		Arc::new(move |hash, data| sync_service.announce_block(hash, data))
 	};
 
-	let relay_chain_slot_duration = Duration::from_millis(
-		RELAY_CHAIN_SLOT_DURATION_MILLIS as u64,
-	);
+	let relay_chain_slot_duration = Duration::from_millis(RELAY_CHAIN_SLOT_DURATION_MILLIS as u64);
 
 	let overseer_handle = relay_chain_interface
 		.overseer_handle()

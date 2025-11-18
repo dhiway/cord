@@ -17,8 +17,8 @@ use oc::{
 	types::{self, entity::AttributeEntry, ElementJson},
 	utils, ChainFlavor, Client, ConnectionConfig, RetryPolicy,
 };
-use scale_value;
 use origin_primitives::view_api::EntityNymRequest;
+use scale_value;
 use sp_core::crypto::Ss58AddressFormat;
 use std::time::Duration;
 
@@ -216,15 +216,15 @@ async fn run_transaction_flow(
 				snapshot.set_email(email_value.clone());
 			},
 			plan @ (AttributePlan::Add | AttributePlan::Rotate) => {
-					apply_attribute_plan(
-						client,
-						&mut tx_executor,
-						plan,
-						"email",
-						email_value.clone(),
-						created,
-					)
-					.await?;
+				apply_attribute_plan(
+					client,
+					&mut tx_executor,
+					plan,
+					"email",
+					email_value.clone(),
+					created,
+				)
+				.await?;
 				snapshot.set_email(email_value.clone());
 				expected_state_events = expected_state_events.saturating_add(1);
 			},
@@ -236,15 +236,15 @@ async fn run_transaction_flow(
 				snapshot.set_attribute("demo", demo_value.clone());
 			},
 			plan @ (AttributePlan::Add | AttributePlan::Rotate) => {
-					apply_attribute_plan(
-						client,
-						&mut tx_executor,
-						plan,
-						"demo",
-						demo_value.clone(),
-						created,
-					)
-					.await?;
+				apply_attribute_plan(
+					client,
+					&mut tx_executor,
+					plan,
+					"demo",
+					demo_value.clone(),
+					created,
+				)
+				.await?;
 				snapshot.set_attribute("demo", demo_value.clone());
 				expected_state_events = expected_state_events.saturating_add(1);
 			},
@@ -258,15 +258,15 @@ async fn run_transaction_flow(
 				snapshot.set_attribute("public_key", rotation_public_key.clone());
 			},
 			plan @ (AttributePlan::Add | AttributePlan::Rotate) => {
-					apply_attribute_plan(
-						client,
-						&mut tx_executor,
-						plan,
-						"public_key",
-						rotation_public_key.clone(),
-						created,
-					)
-					.await?;
+				apply_attribute_plan(
+					client,
+					&mut tx_executor,
+					plan,
+					"public_key",
+					rotation_public_key.clone(),
+					created,
+				)
+				.await?;
 				snapshot.set_attribute("public_key", rotation_public_key.clone());
 				expected_state_events = expected_state_events.saturating_add(1);
 			},

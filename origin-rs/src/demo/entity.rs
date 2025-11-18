@@ -331,22 +331,24 @@ pub async fn render_entity_snapshot(
 		});
 		let history_reference_block = client.view_auth_reference_block().await?;
 		let mut history_auth = || fresh_authorization(history_reference_block, &signer);
-		history = crate::entity::collect_attribute_history(client, token_identifier, &mut history_auth)
-			.await
-			.unwrap_or_else(|err| {
-				eprintln!("⚠️ unable to fetch attribute history: {err}");
-				Vec::new()
-			});
+		history =
+			crate::entity::collect_attribute_history(client, token_identifier, &mut history_auth)
+				.await
+				.unwrap_or_else(|err| {
+					eprintln!("⚠️ unable to fetch attribute history: {err}");
+					Vec::new()
+				});
 	}
 
 	let links_reference_block = client.view_auth_reference_block().await?;
 	let mut links_auth = || fresh_authorization(links_reference_block, &signer);
-	linked_accounts = crate::entity::fetch_linked_accounts(client, token_identifier, &mut links_auth)
-		.await
-		.unwrap_or_else(|err| {
-			eprintln!("⚠️ unable to fetch linked accounts: {err}");
-			Vec::new()
-		});
+	linked_accounts =
+		crate::entity::fetch_linked_accounts(client, token_identifier, &mut links_auth)
+			.await
+			.unwrap_or_else(|err| {
+				eprintln!("⚠️ unable to fetch linked accounts: {err}");
+				Vec::new()
+			});
 	snapshot.set_active_accounts(&linked_accounts, chain_prefix);
 
 	if output_json {
