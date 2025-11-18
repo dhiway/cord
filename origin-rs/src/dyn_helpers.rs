@@ -27,21 +27,33 @@ impl DynHelpers {
 	) -> Result<T, Error> {
 		let type_id = self.layout.type_id_by_path(path).await?;
 		let mut bytes = Vec::new();
-		scale_value::scale::encode_as_type(value, type_id, &self.layout.registry, &mut bytes)
+		scale_value::scale::encode_as_type(value, type_id, self.layout.registry(), &mut bytes)
 			.map_err(|e| Error::Codec(e.to_string()))?;
 		self.decode_as(&bytes, path).await
 	}
 
     pub fn bytes_from_value(&self, value: &Value<u32>) -> Result<Vec<u8>, Error> {
         match &value.value {
-            scale_value::ValueDef::Primitive(p) => p
-                .as_bytes()
-                .map(|b| b.to_vec())
-                .ok_or_else(|| Error::Codec("expected bytes".into())),
+            scale_value::ValueDef::Primitive(p) => {
+                if let Some(u) = p.as_u128() {
+                    Ok(vec![u as u8])
+                } else {
+                    Err(Error::Codec("expected byte primitive".into()))
+                }
+            },
             scale_value::ValueDef::Composite(c) => {
                 let mut out = Vec::new();
-                for v in c.iter() {
-                    out.extend(self.bytes_from_value(v)?);
+                match c {
+                    scale_value::Composite::Named(fields) => {
+                        for (_, v) in fields {
+                            out.extend(self.bytes_from_value(v)?);
+                        }
+                    },
+                    scale_value::Composite::Unnamed(values) => {
+                        for v in values {
+                            out.extend(self.bytes_from_value(v)?);
+                        }
+                    },
                 }
                 Ok(out)
             }

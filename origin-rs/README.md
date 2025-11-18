@@ -129,7 +129,7 @@ See [examples/README.md](examples/README.md) for CLI usage and flow diagrams.
 cargo run -p origin-rs --example update-metadata -- --node ws://127.0.0.1:9944
 ```
 
-Commit the new `origin-rs/metadata/cord.scale` whenever the runtime changes to keep Subxt bindings in sync.
+Commit the new `origin-rs/metadata/cord.scale` whenever the runtime changes so the dynamic client can reuse cached metadata offline.
 
 ---
 

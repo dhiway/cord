@@ -394,6 +394,10 @@ impl RuntimeLayout {
 			.map_err(|e| Error::Codec(e.to_string()))
 	}
 
+	pub fn registry(&self) -> &PortableRegistry {
+		&self.registry
+	}
+
 	pub async fn view_id(&self, pallet: &str, view: &str) -> Result<[u8; 32], Error> {
 		if let Some(hit) = self.views.read().await.get(&(pallet.into(), view.into())).cloned() {
 			return Ok(hit);
@@ -546,6 +550,11 @@ impl OriginClient {
 	}
 
 	pub fn registry(&self) -> &PortableRegistry {
+		&self.layout.registry
+	}
+
+	/// Expose the registry for helper utilities.
+	pub fn registry_ref(&self) -> &PortableRegistry {
 		&self.layout.registry
 	}
 

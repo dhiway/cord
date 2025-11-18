@@ -17,6 +17,7 @@ use oc::{
 	types::{self, entity::AttributeEntry, ElementJson},
 	utils, ChainFlavor, Client, ConnectionConfig, RetryPolicy,
 };
+use scale_value;
 use origin_primitives::view_api::EntityNymRequest;
 use sp_core::crypto::Ss58AddressFormat;
 use std::time::Duration;
@@ -178,11 +179,25 @@ async fn run_transaction_flow(
 	if let Some(nym) = existing_nym {
 		snapshot.set_entity_nym(nym);
 	} else {
-		let mut sink = LogSink::new(if created { Some(&mut setup_logs) } else { None });
-		let call = client.tx().entity_set_entity_nym(&entity_nym_prefix).await?;
-		tx_executor.submit(client, call, "Set entity nym", &mut sink).await?;
-		snapshot.set_entity_nym(format!("{entity_nym_prefix}.nym.org.in"));
-		expected_state_events = expected_state_events.saturating_add(1);
+		// Best-effort dynamic fallback in case typed decode fails due to new variants.
+		let mut nym_found = false;
+		if let Ok(args) = oc::entity::build_entity_nym_args(&nym_req) {
+			if let Ok(val) = client.origin().call_view("Entity", "entity_nym", args).await {
+				if let Ok(bytes) = scale_value::serde::from_value::<u32, Vec<u8>>(val.clone()) {
+					if let Ok(text) = String::from_utf8(bytes) {
+						snapshot.set_entity_nym(text.clone());
+						nym_found = true;
+					}
+				}
+			}
+		}
+		if !nym_found {
+			let mut sink = LogSink::new(if created { Some(&mut setup_logs) } else { None });
+			let call = client.tx().entity_set_entity_nym(&entity_nym_prefix).await?;
+			tx_executor.submit(client, call, "Set entity nym", &mut sink).await?;
+			snapshot.set_entity_nym(format!("{entity_nym_prefix}.nym.org.in"));
+			expected_state_events = expected_state_events.saturating_add(1);
+		}
 	}
 	print_transaction_header(created, &snapshot);
 	if created {
@@ -201,7 +216,14 @@ async fn run_transaction_flow(
 				snapshot.set_email(email_value.clone());
 			},
 			plan @ (AttributePlan::Add | AttributePlan::Rotate) => {
-				apply_attribute_plan(client, &mut tx_executor, plan, "email", email_value.clone())
+					apply_attribute_plan(
+						client,
+						&mut tx_executor,
+						plan,
+						"email",
+						email_value.clone(),
+						created,
+					)
 					.await?;
 				snapshot.set_email(email_value.clone());
 				expected_state_events = expected_state_events.saturating_add(1);
@@ -214,7 +236,14 @@ async fn run_transaction_flow(
 				snapshot.set_attribute("demo", demo_value.clone());
 			},
 			plan @ (AttributePlan::Add | AttributePlan::Rotate) => {
-				apply_attribute_plan(client, &mut tx_executor, plan, "demo", demo_value.clone())
+					apply_attribute_plan(
+						client,
+						&mut tx_executor,
+						plan,
+						"demo",
+						demo_value.clone(),
+						created,
+					)
 					.await?;
 				snapshot.set_attribute("demo", demo_value.clone());
 				expected_state_events = expected_state_events.saturating_add(1);
@@ -229,14 +258,15 @@ async fn run_transaction_flow(
 				snapshot.set_attribute("public_key", rotation_public_key.clone());
 			},
 			plan @ (AttributePlan::Add | AttributePlan::Rotate) => {
-				apply_attribute_plan(
-					client,
-					&mut tx_executor,
-					plan,
-					"public_key",
-					rotation_public_key.clone(),
-				)
-				.await?;
+					apply_attribute_plan(
+						client,
+						&mut tx_executor,
+						plan,
+						"public_key",
+						rotation_public_key.clone(),
+						created,
+					)
+					.await?;
 				snapshot.set_attribute("public_key", rotation_public_key.clone());
 				expected_state_events = expected_state_events.saturating_add(1);
 			},
@@ -244,7 +274,7 @@ async fn run_transaction_flow(
 	}
 
 	let target_version = baseline_state_version.saturating_add(expected_state_events);
-	entity::render_entity_snapshot(
+	if let Err(err) = entity::render_entity_snapshot(
 		client,
 		&signer,
 		&token_identifier,
@@ -256,6 +286,10 @@ async fn run_transaction_flow(
 		false,
 	)
 	.await
+	{
+		println!("⚠️ unable to render final snapshot: {err}");
+	}
+	Ok(())
 }
 
 async fn run_view_flow(
@@ -303,7 +337,7 @@ async fn run_view_flow(
 		snapshot.set_entity_nym(nym);
 	}
 
-	entity::render_entity_snapshot(
+	if let Err(err) = entity::render_entity_snapshot(
 		client,
 		&signer,
 		&token_identifier,
@@ -315,15 +349,25 @@ async fn run_view_flow(
 		true,
 	)
 	.await
+	{
+		println!("⚠️ unable to render entity snapshot: {err}");
+	}
+	Ok(())
 }
 
 async fn apply_attribute_plan(
 	client: &Client,
 	tx_executor: &mut TxExecutor<'_, '_>,
-	plan: AttributePlan,
+	mut plan: AttributePlan,
 	key: &str,
 	value: String,
+	created: bool,
 ) -> Result<(), SubmitError> {
+	if !created && matches!(plan, AttributePlan::Add) {
+		// On existing entities, prefer rotation to avoid AttributeExists when we couldn't
+		// accurately read the current value (e.g., new element variants).
+		plan = AttributePlan::Rotate;
+	}
 	match plan {
 		AttributePlan::Skip => return Ok(()),
 		AttributePlan::Add => {
