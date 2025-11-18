@@ -43,14 +43,14 @@ impl AttributeEntry {
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockRef {
 	pub height: u32,
 	pub index: u32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct HistoryEntry {
 	pub key_hex: String,
@@ -111,7 +111,7 @@ impl EntityInfoRecord {
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType)]
+#[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct EventBlockRecord {
 	pub height: u32,

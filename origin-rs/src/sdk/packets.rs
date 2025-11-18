@@ -4,7 +4,7 @@ use crate::{
 	client::Client,
 	sdk::{
 		error::Result,
-		types::{PacketId, PacketState, RegisterId},
+		types::{PacketId, PacketOverview, PacketState, RegisterId},
 		wire,
 	},
 	tx::TxOptions,
@@ -110,5 +110,23 @@ impl<'a> PacketApi<'a> {
 			opts,
 		)
 		.await
+	}
+
+	/// Packet overview composed from snapshot + token timeline (limit 20).
+	pub async fn overview(
+		&self,
+		auth: &origin_primitives::view_api::AuthorizationRequest,
+		registry: &RegisterId,
+		packet: &PacketId,
+		version: Option<u32>,
+	) -> Result<PacketOverview> {
+		let state = self.state(auth, registry, packet, version).await?;
+		let metadata = wire::packet::fetch_metadata(self.client, auth, registry, packet).await?;
+		let metadata = crate::sdk::types::PacketMetadata::from_view(packet.clone(), metadata);
+
+		let (timeline, _) =
+			wire::token::timeline(self.client, auth, packet, None, Some(20)).await?;
+
+		Ok(PacketOverview { metadata, state, timeline })
 	}
 }

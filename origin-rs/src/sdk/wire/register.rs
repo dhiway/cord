@@ -59,6 +59,25 @@ where
 	client.tx().sign_and_submit(call, signer, opts).await.map_err(OriginError::from)?;
 	Ok(())
 }
+
+pub(crate) async fn fetch_overview(
+	client: &Client,
+	auth: &origin_primitives::view_api::AuthorizationRequest,
+	id: &RegisterId,
+) -> Result<Register> {
+	let (info, specs) = client.query().register().overview(auth, id).await?;
+	let register = Register {
+		id: id.clone(),
+		info: info.info.clone(),
+		maintainer: info.maintainer,
+		attributes: info.attributes,
+		token_spec: info.token_spec,
+		lookup_specs: specs,
+		kind: info.kind,
+		status: info.status,
+	};
+	Ok(register)
+}
 use base64;
 use base64::Engine;
 use bs58;

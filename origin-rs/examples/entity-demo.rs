@@ -86,11 +86,12 @@ async fn main() -> Result<()> {
 	init_logging();
 	let args: Vec<String> = std::env::args().collect();
 	let cli = parse_args(&args[1..])?;
-	let client = connect_client(cli.common.node.as_deref(), ChainFlavor::Auto).await?;
+	let node_url = cli.common.node.clone().unwrap_or_else(|| utils::DEFAULT_NODE_URL.to_string());
+	let client = connect_client(Some(&node_url), ChainFlavor::Auto).await?;
 	let chain_prefix = client.chain_prefix().await;
 	match cli.common.mode {
 		RunMode::Transaction => run_transaction_flow(&cli, &client, chain_prefix).await,
-		RunMode::View => run_view_flow(&cli, &client, chain_prefix).await,
+		RunMode::View => run_view_flow(&cli, &client, &node_url, chain_prefix).await,
 	}
 }
 
@@ -295,6 +296,7 @@ async fn run_transaction_flow(
 async fn run_view_flow(
 	cli: &CliOptions,
 	client: &Client,
+	node_url: &str,
 	chain_prefix: Ss58AddressFormat,
 ) -> Result<()> {
 	let token_str = cli
@@ -319,38 +321,14 @@ async fn run_view_flow(
 			},
 		};
 
+	// Use new SDK overview for a concise view (info + history + timeline capped at 20).
+	let sdk = oc::sdk::OriginClient::connect(node_url).await?;
 	let auth = fresh_authorization_with_client(client, &signer).await?;
-	let entity_info = client
-		.query()
-		.entity()
-		.details(&auth, &token_identifier)
-		.await?
-		.ok_or_else(|| anyhow!(format!("no entity info found for token {token_str}")))?;
-	let chain_state = EntityChainState::from_record(&entity_info);
-	let mut snapshot = EntitySnapshot::from_chain_state(&chain_state, token_str);
-
-	let nym_req = EntityNymRequest {
-		auth: fresh_authorization_with_client(client, &signer).await?,
-		token: token_identifier.clone(),
-	};
-	if let Some(nym) = client.query().entity().entity_nym(&nym_req).await? {
-		snapshot.set_entity_nym(nym);
-	}
-
-	if let Err(err) = entity::render_entity_snapshot(
-		client,
-		&signer,
-		&token_identifier,
-		&mut snapshot,
-		cli.common.view,
-		cli.common.output_json,
-		chain_prefix,
-		0,
-		true,
-	)
-	.await
-	{
-		println!("⚠️ unable to render entity snapshot: {err}");
+	let overview = sdk.entities().overview(&auth, &token_identifier).await?;
+	if cli.common.output_json {
+		println!("{}", serde_json::to_string_pretty(&overview).unwrap());
+	} else {
+		println!("Entity overview for {token_str}:\n{:#?}", overview);
 	}
 	Ok(())
 }

@@ -7,7 +7,7 @@ use hex;
 use origin_primitives::{
 	identifier::Ss58Identifier,
 	registry::{LookupSpecView, RegistryInfoView, RegistryStatus},
-	view::DevPacketSnapshot,
+	view::{DevPacketSnapshot, PacketMetadataView},
 	view_api::{
 		AuthorizationError, AuthorizationRequest, RegisterDetailsRequest,
 		RegisterLookupSpecsRequest, RegisterPacketSnapshotByTokenRequest,
@@ -92,6 +92,38 @@ impl<'a> RegisterQuery<'a> {
 			Ok(None) => Ok(None),
 			Err(err) => Err(super::view_failure("register.packet_snapshot_by_token", err)),
 		}
+	}
+
+	pub async fn packet_metadata(
+		&self,
+		auth: &AuthorizationRequest,
+		registry: &Ss58Identifier,
+		packet: &Ss58Identifier,
+	) -> Result<PacketMetadataView> {
+		self.ensure_supported()?;
+		let mut builder = ArgBuilder::default();
+		builder.push("auth", super::authorization_value(auth)?);
+		builder.push("rtoken", super::identifier_struct_value(registry));
+		builder.push("ptoken", super::identifier_struct_value(packet));
+		let args = builder.finish();
+		let raw: core::result::Result<PacketMetadataView, AuthorizationError> =
+			self.query.call_result("Register", "packet_metadata", args).await?;
+		raw.map_err(|err| super::view_failure("register.packet_metadata", err))
+	}
+
+	pub async fn overview(
+		&self,
+		auth: &AuthorizationRequest,
+		registry: &Ss58Identifier,
+	) -> Result<(RegistryInfoView, Vec<LookupSpecView>)> {
+		self.ensure_supported()?;
+		let mut builder = ArgBuilder::default();
+		builder.push("auth", super::authorization_value(auth)?);
+		builder.push("registry", super::identifier_struct_value(registry));
+		let args = builder.finish();
+		let raw: core::result::Result<(RegistryInfoView, Vec<LookupSpecView>), AuthorizationError> =
+			self.query.call_result("Register", "overview", args).await?;
+		raw.map_err(|err| super::view_failure("register.overview", err))
 	}
 
 	fn base_args(&self, auth: &AuthorizationRequest, registry: &Ss58Identifier) -> Result<Value> {

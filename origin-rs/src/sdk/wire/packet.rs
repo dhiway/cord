@@ -138,6 +138,16 @@ where
 	Ok(())
 }
 
+pub(crate) async fn fetch_metadata(
+	client: &Client,
+	auth: &AuthorizationRequest,
+	registry: &RegisterId,
+	packet: &PacketId,
+) -> Result<origin_primitives::view::PacketMetadataView> {
+	let view = client.query().register().packet_metadata(auth, registry, packet).await?;
+	Ok(view)
+}
+
 fn build_payload_from_attributes(
 	attributes: Vec<crate::sdk::types::Attribute>,
 	view: &RegistryInfoView,
