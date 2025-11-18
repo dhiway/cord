@@ -20,6 +20,7 @@ pub mod state;
 pub mod tx;
 pub mod types;
 pub mod utils;
+pub mod dyn_helpers;
 
 pub use api_dynamic::{DynamicApis, DynamicEntityApi, DynamicRegisterApi, DynamicTokenApi};
 pub use client::{Client, ConnectionConfig, RetryPolicy, DEFAULT_RPC_ENDPOINT};

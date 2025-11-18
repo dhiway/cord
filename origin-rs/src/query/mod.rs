@@ -38,13 +38,22 @@ impl<'a> Query<'a> {
 		token::TokenQuery { query: self, supported }
 	}
 
-	pub(crate) async fn call_view_as<T: DecodeAsType + 'static>(
+	pub(crate) async fn call_view_as<T: DecodeAsType + serde::de::DeserializeOwned + 'static>(
 		&self,
 		pallet: &str,
 		function: &str,
 		args: Value,
 	) -> Result<T> {
-		self.client.origin().call_view_typed(pallet, function, args).await
+		match self.client.origin().call_view_typed(pallet, function, args.clone()).await {
+			Ok(val) => Ok(val),
+			Err(Error::Codec(_)) => {
+				// Fallback: decode via serde from the dynamic value to tolerate new variants.
+				let value = self.client.origin().call_view(pallet, function, args).await?;
+				scale_value::serde::from_value(value)
+					.map_err(|e| Error::Codec(format!("fallback decode failed: {e}")))
+			},
+			Err(err) => Err(err),
+		}
 	}
 
 	pub(crate) async fn call_result<T, E>(
@@ -54,8 +63,8 @@ impl<'a> Query<'a> {
 		args: Value,
 	) -> Result<core::result::Result<T, E>>
 	where
-		T: DecodeAsType + 'static,
-		E: DecodeAsType + 'static,
+		T: DecodeAsType + serde::de::DeserializeOwned + 'static,
+		E: DecodeAsType + serde::de::DeserializeOwned + 'static,
 	{
 		self.call_view_as::<core::result::Result<T, E>>(pallet, function, args).await
 	}
