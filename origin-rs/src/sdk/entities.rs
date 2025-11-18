@@ -4,7 +4,7 @@ use crate::{
 	client::Client,
 	sdk::{
 		error::Result,
-		types::{Entity, EntityId, HistoryEntry},
+		types::{Entity, EntityId, EntityOverview, HistoryEntry},
 		wire,
 	},
 };
@@ -41,5 +41,33 @@ impl<'a> EntityApi<'a> {
 		opts: crate::tx::TxOptions,
 	) -> Result<()> {
 		wire::entity::upsert_entity(self.client, signer, entity, opts).await
+	}
+
+	/// Compose an entity overview (info + limited history + timeline).
+	pub async fn overview(
+		&self,
+		auth: &origin_primitives::view_api::AuthorizationRequest,
+		id: &EntityId,
+	) -> Result<EntityOverview> {
+		// Get current entity info
+		let entity = self.get(auth, id).await?;
+
+		// History (truncate to 20)
+		let mut history = self.history(auth, id).await?;
+		if history.len() > 20 {
+			history.truncate(20);
+		}
+
+		// Timeline via token pallet (limit 20)
+		let (timeline, _) = wire::token::timeline(
+			self.client,
+			auth,
+			id,
+			None,
+			Some(20),
+		)
+		.await?;
+
+		Ok(EntityOverview { entity, history, timeline })
 	}
 }

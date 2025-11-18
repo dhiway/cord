@@ -3,7 +3,7 @@ use scale_decode::DecodeAsType;
 use serde::{Deserialize, Serialize};
 
 /// Portable representation of `pallet_token::StateEvent` decoded via metadata.
-#[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType)]
+#[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct StateEventRecord {
 	pub action: Vec<u8>,

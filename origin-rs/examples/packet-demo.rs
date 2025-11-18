@@ -87,11 +87,12 @@ async fn main() -> Result<()> {
 	init_logging();
 	let args: Vec<String> = std::env::args().collect();
 	let cli = parse_args(&args[1..])?;
-	let client = connect_client(cli.common.node.as_deref(), ChainFlavor::Auto).await?;
+	let node_url = cli.common.node.clone().unwrap_or_else(|| utils::DEFAULT_NODE_URL.to_string());
+	let client = connect_client(Some(&node_url), ChainFlavor::Auto).await?;
 	let chain_prefix = client.chain_prefix().await;
 	match cli.common.mode {
 		RunMode::Transaction => run_transaction_flow(&cli, &client, chain_prefix).await,
-		RunMode::View => run_view_flow(&cli, &client).await,
+		RunMode::View => run_view_flow(&cli, &client, &node_url).await,
 	}
 }
 
@@ -238,18 +239,29 @@ async fn run_transaction_flow(
 	Ok(())
 }
 
-async fn run_view_flow(cli: &CliOptions, client: &Client) -> Result<()> {
+async fn run_view_flow(cli: &CliOptions, client: &Client, node_url: &str) -> Result<()> {
 	let token_str = cli
 		.token
 		.as_deref()
 		.ok_or_else(|| anyhow!("--token <identifier> is required in view mode"))?;
 	let signer = tx::signer::dev_alice();
 	let auth = fresh_authorization_with_client(client, &signer).await?;
+	let sdk = oc::sdk::OriginClient::connect(node_url).await.ok();
 	let token_id = parse_identifier(token_str)?;
 	match resolve_token_target(client, &auth, &token_id).await? {
 		TokenTarget::Packet { registry, packet, snapshot } => {
 			let registry_ss58 = demo::ss58_string(&registry);
 			let packet_ss58 = demo::ss58_string(&packet);
+			if cli.common.output_json {
+				if let Some(ref sdkc) = sdk {
+					if let Ok(overview) =
+						sdkc.packets().overview(&auth, &registry, &packet, None).await
+					{
+						println!("{}", serde_json::to_string_pretty(&overview).unwrap());
+						return Ok(());
+					}
+				}
+			}
 			let (timeline, next_cursor) =
 				token_timeline(client, &auth, &packet, Some(12)).await?;
 			render_packet_snapshot_cli(

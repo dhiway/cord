@@ -4,6 +4,7 @@ use base64;
 use base64::Engine;
 use bs58;
 use hex;
+use serde::{Serialize, Deserialize};
 use origin_primitives::{
 	identifier::Ss58Identifier,
 	packet::PacketStatus,
@@ -16,7 +17,7 @@ use origin_primitives::{
 	},
 };
 
-use crate::types::entity::HistoryEntry as LegacyHistoryEntry;
+use crate::types::{entity::HistoryEntry as LegacyHistoryEntry, token::StateEventRecord};
 
 /// Canonical identifiers.
 pub type EntityId = Ss58Identifier;
@@ -28,7 +29,7 @@ pub type TokenId = Ss58Identifier;
 pub type Element = ElementView;
 
 /// Attribute key/value pair.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Attribute {
 	pub key: Vec<u8>,
 	pub value: Element,
@@ -50,7 +51,7 @@ impl From<DevAttr> for Attribute {
 }
 
 /// Entity snapshot returned by the SDK.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Entity {
 	pub id: EntityId,
 	pub display: Element,
@@ -66,7 +67,7 @@ impl Entity {
 }
 
 /// Register metadata view mapped into the SDK domain model.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Register {
 	pub id: RegisterId,
 	pub info: Element,
@@ -94,7 +95,7 @@ impl Register {
 }
 
 /// Packet state snapshot for a given version.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PacketState {
 	pub id: PacketId,
 	pub registry: RegisterId,
@@ -137,7 +138,7 @@ impl PacketState {
 }
 
 /// Packet metadata view.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PacketMetadata {
 	pub id: PacketId,
 	pub registry: RegisterId,
@@ -187,6 +188,28 @@ pub struct Token {
 
 /// History entry alias for readability within the new SDK surface.
 pub type HistoryEntry = LegacyHistoryEntry;
+
+/// Composed entity view (info + limited history + timeline).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct EntityOverview {
+	pub entity: Entity,
+	pub history: Vec<HistoryEntry>,
+	pub timeline: Vec<StateEventRecord>,
+}
+
+/// Register overview (currently same as register info; reserved for expansion).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RegisterOverview {
+	pub register: Register,
+}
+
+/// Packet overview (metadata + state + timeline).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PacketOverview {
+	pub metadata: PacketMetadata,
+	pub state: PacketState,
+	pub timeline: Vec<StateEventRecord>,
+}
 
 fn dev_element_into_element(dev: &DevElement) -> ElementView {
 	match dev {

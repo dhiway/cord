@@ -1118,6 +1118,35 @@ pub mod pallet {
 			Ok(snapshot)
 		}
 
+		/// Returns packet metadata only (lightweight).
+		pub fn packet_metadata(
+			auth: AuthorizationOf<T>,
+			rtoken: Ss58Identifier,
+			ptoken: Ss58Identifier,
+		) -> Result<PacketMetadataOf<T>, AuthorizationError> {
+			Self::authorize_query(&auth)?;
+			let metadata = PacketMetadata::<T>::get(&ptoken).ok_or(AuthorizationError::NotFound)?;
+			if metadata.registry != rtoken {
+				return Err(AuthorizationError::NotFound);
+			}
+			Self::record_registry_query(&rtoken, &auth.account);
+			Ok(metadata)
+		}
+
+		/// Lightweight registry overview (info + lookup specs).
+		pub fn overview(
+			auth: AuthorizationOf<T>,
+			registry: Ss58Identifier,
+		) -> Result<(RegistryInfoOf<T>, LookupSpecListOf<T>), AuthorizationError> {
+			Self::authorize_query(&auth)?;
+			let info = <Self as RegistryView<T>>::registry_info(&registry)
+				.ok_or(AuthorizationError::NotFound)?;
+			let specs = <Self as RegistryView<T>>::lookup_specs(&registry)
+				.ok_or(AuthorizationError::NotFound)?;
+			Self::record_registry_query(&registry, &auth.account);
+			Ok((info, specs))
+		}
+
 		/// Returns a packet snapshot by token without requiring the registry identifier.
 		pub fn packet_snapshot_by_token(
 			auth: AuthorizationOf<T>,

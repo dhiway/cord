@@ -4,7 +4,7 @@ use crate::{
 	client::Client,
 	sdk::{
 		error::Result,
-		types::{Register, RegisterId},
+		types::{Register, RegisterId, RegisterOverview},
 		wire,
 	},
 };
@@ -31,5 +31,15 @@ impl<'a> RegisterApi<'a> {
 		opts: crate::tx::TxOptions,
 	) -> Result<()> {
 		wire::register::update_register_info(self.client, signer, register, opts).await
+	}
+
+	/// Lightweight register overview (currently just details; reserved for expansion).
+	pub async fn overview(
+		&self,
+		auth: &origin_primitives::view_api::AuthorizationRequest,
+		id: &RegisterId,
+	) -> Result<RegisterOverview> {
+		let register = wire::register::fetch_overview(self.client, auth, id).await?;
+		Ok(RegisterOverview { register })
 	}
 }
