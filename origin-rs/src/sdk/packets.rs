@@ -3,11 +3,13 @@ use origin_primitives::view_api::AuthorizationRequest;
 use crate::{
 	client::Client,
 	sdk::{
-		error::{OriginError, Result},
+		error::Result,
 		types::{PacketId, PacketState, RegisterId},
 		wire,
 	},
+	tx::TxOptions,
 };
+use origin_primitives::registry::RegistryInfoView;
 
 /// Public-facing Packet API.
 pub struct PacketApi<'a> {
@@ -40,12 +42,73 @@ impl<'a> PacketApi<'a> {
 		wire::packet::fetch_packet_by_token(self.client, auth, token, version).await
 	}
 
-	/// Placeholder for sending packet updates.
-	pub async fn send(
+	/// Create a packet using registry schema and attribute JSON.
+	pub async fn create(
 		&self,
-		_signer: &impl subxt::tx::Signer<crate::params::config::OriginConfig>,
-		_packet: &PacketState,
+		signer: &impl subxt::tx::Signer<crate::params::config::OriginConfig>,
+		registry: &RegisterId,
+		attributes_json: serde_json::Value,
+		schema: &RegistryInfoView,
+		opts: TxOptions,
 	) -> Result<()> {
-		Err(OriginError::Unsupported("packet send not implemented yet"))
+		wire::packet::create_packet(self.client, signer, registry, attributes_json, schema, opts)
+			.await
+	}
+
+	/// Update an existing packet using registry schema and partial attribute JSON.
+	pub async fn update(
+		&self,
+		signer: &impl subxt::tx::Signer<crate::params::config::OriginConfig>,
+		registry: &RegisterId,
+		packet: &PacketId,
+		attributes_json: serde_json::Value,
+		schema: &RegistryInfoView,
+		opts: TxOptions,
+	) -> Result<()> {
+		wire::packet::update_packet(
+			self.client,
+			signer,
+			registry,
+			packet,
+			attributes_json,
+			schema,
+			opts,
+		)
+		.await
+	}
+
+	/// Create a packet from typed attributes (full payload).
+	pub async fn create_typed(
+		&self,
+		signer: &impl subxt::tx::Signer<crate::params::config::OriginConfig>,
+		registry: &RegisterId,
+		attributes: Vec<crate::sdk::types::Attribute>,
+		schema: &RegistryInfoView,
+		opts: TxOptions,
+	) -> Result<()> {
+		wire::packet::create_packet_typed(self.client, signer, registry, attributes, schema, opts)
+			.await
+	}
+
+	/// Update a packet from typed attributes (partial payload).
+	pub async fn update_typed(
+		&self,
+		signer: &impl subxt::tx::Signer<crate::params::config::OriginConfig>,
+		registry: &RegisterId,
+		packet: &PacketId,
+		attributes: Vec<crate::sdk::types::Attribute>,
+		schema: &RegistryInfoView,
+		opts: TxOptions,
+	) -> Result<()> {
+		wire::packet::update_packet_typed(
+			self.client,
+			signer,
+			registry,
+			packet,
+			attributes,
+			schema,
+			opts,
+		)
+		.await
 	}
 }

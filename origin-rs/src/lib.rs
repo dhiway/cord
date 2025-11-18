@@ -5,7 +5,6 @@
 //! connecting to Origin/OriginHub chains, composing extrinsics, and
 //! calling runtime view functions using JSON payloads.
 
-pub mod api_dynamic;
 pub mod client;
 pub mod demo;
 pub mod dyn_helpers;
@@ -23,7 +22,6 @@ pub mod tx;
 pub mod types;
 pub mod utils;
 
-pub use api_dynamic::{DynamicApis, DynamicEntityApi, DynamicRegisterApi, DynamicTokenApi};
 pub use client::{Client, ConnectionConfig, RetryPolicy, DEFAULT_RPC_ENDPOINT};
 pub use error::Error;
 pub use flavors::ChainFlavor;
