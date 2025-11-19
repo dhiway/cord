@@ -11,9 +11,9 @@ use crate::{
 	},
 	tx::TxOptions,
 };
+use base64::Engine;
 use origin_primitives::registry::RegistryInfoView;
 use subxt::tx::Signer;
-use base64::Engine;
 
 pub(crate) async fn fetch_packet_state(
 	client: &Client,
@@ -62,8 +62,11 @@ where
 		.packet_create_json(&registry_ss58, attributes_json, schema)
 		.await
 		.map_err(OriginError::from)?;
-	let _tx_in_block =
-		client.tx().sign_and_submit(call, signer, opts).await.map_err(OriginError::from)?;
+	let _tx_in_block = client
+		.tx()
+		.sign_and_submit(call, signer, opts)
+		.await
+		.map_err(OriginError::from)?;
 	Ok(())
 }
 
@@ -84,9 +87,13 @@ where
 	let call = client
 		.tx()
 		.packet_update_json(&registry_ss58, &packet_ss58, attributes_json, schema)
-	.await
-	.map_err(OriginError::from)?;
-	client.tx().sign_and_submit(call, signer, opts).await.map_err(OriginError::from)?;
+		.await
+		.map_err(OriginError::from)?;
+	client
+		.tx()
+		.sign_and_submit(call, signer, opts)
+		.await
+		.map_err(OriginError::from)?;
 	Ok(())
 }
 
@@ -101,14 +108,23 @@ pub(crate) async fn create_packet_typed<S>(
 where
 	S: Signer<crate::params::config::OriginConfig>,
 {
-	let payload = build_payload_from_attributes(attributes, schema, crate::types::PayloadMode::Full)?;
+	let payload =
+		build_payload_from_attributes(attributes, schema, crate::types::PayloadMode::Full)?;
 	let registry_ss58 = String::from_utf8_lossy(registry.as_ref()).into_owned();
 	let args = subxt::dynamic::Value::named_composite([
 		("rtoken", crate::types::identifier_value(&registry_ss58).map_err(OriginError::from)?),
 		("attributes", payload),
 	]);
-	let call = client.tx().build("Register", "create_packet", args).await.map_err(OriginError::from)?;
-	client.tx().sign_and_submit(call, signer, opts).await.map_err(OriginError::from)?;
+	let call = client
+		.tx()
+		.build("Register", "create_packet", args)
+		.await
+		.map_err(OriginError::from)?;
+	client
+		.tx()
+		.sign_and_submit(call, signer, opts)
+		.await
+		.map_err(OriginError::from)?;
 	Ok(())
 }
 
@@ -133,8 +149,16 @@ where
 		("ptoken", crate::types::identifier_value(&packet_ss58).map_err(OriginError::from)?),
 		("attributes", payload),
 	]);
-	let call = client.tx().build("Register", "update_packet", args).await.map_err(OriginError::from)?;
-	client.tx().sign_and_submit(call, signer, opts).await.map_err(OriginError::from)?;
+	let call = client
+		.tx()
+		.build("Register", "update_packet", args)
+		.await
+		.map_err(OriginError::from)?;
+	client
+		.tx()
+		.sign_and_submit(call, signer, opts)
+		.await
+		.map_err(OriginError::from)?;
 	Ok(())
 }
 
@@ -153,7 +177,7 @@ fn build_payload_from_attributes(
 	view: &RegistryInfoView,
 	mode: crate::types::PayloadMode,
 ) -> Result<subxt::dynamic::Value> {
-    use crate::types::{attribute_pair_value, registry::RegistrySchema};
+	use crate::types::{attribute_pair_value, registry::RegistrySchema};
 
 	let schema = RegistrySchema::from_view(view);
 	let mut collected = Vec::new();

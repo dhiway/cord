@@ -245,10 +245,8 @@ async fn run_view_flow(cli: &CliOptions, client: &Client, node_url: &str) -> Res
 				let packet_ss58 = demo::ss58_string(&packet);
 				if cli.common.output_json {
 					if let Some(ref sdkc) = sdk {
-						if let Ok(overview) = sdkc
-							.packets()
-							.overview(&auth, &registry, &packet, None)
-							.await
+						if let Ok(overview) =
+							sdkc.packets().overview(&auth, &registry, &packet, None).await
 						{
 							println!("{}", serde_json::to_string_pretty(&overview).unwrap());
 							return Ok(());

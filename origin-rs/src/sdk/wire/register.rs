@@ -55,8 +55,16 @@ where
 	let registry_value = identifier_value(&String::from_utf8_lossy(register.id.as_ref()))?;
 	let args = Value::named_composite([("registry", registry_value), ("info", info)]);
 
-	let call = client.tx().build("Register", "update_registry_info", args).await.map_err(OriginError::from)?;
-	client.tx().sign_and_submit(call, signer, opts).await.map_err(OriginError::from)?;
+	let call = client
+		.tx()
+		.build("Register", "update_registry_info", args)
+		.await
+		.map_err(OriginError::from)?;
+	client
+		.tx()
+		.sign_and_submit(call, signer, opts)
+		.await
+		.map_err(OriginError::from)?;
 	Ok(())
 }
 

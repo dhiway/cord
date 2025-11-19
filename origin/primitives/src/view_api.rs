@@ -64,6 +64,40 @@ pub struct RegisterPacketSnapshotByTokenRequest {
 	pub version: Option<u32>,
 }
 
+/// Maximum token prefix length for pagination helpers.
+pub const MAX_TOKEN_PREFIX_BYTES: u32 = 64;
+type TokenPrefixLimit = ConstU32<MAX_TOKEN_PREFIX_BYTES>;
+pub type TokenPrefix = BoundedVec<u8, TokenPrefixLimit>;
+
+/// Maximum digest prefix length for pagination helpers.
+pub const MAX_DIGEST_PREFIX_BYTES: u32 = 64;
+type DigestPrefixLimit = ConstU32<MAX_DIGEST_PREFIX_BYTES>;
+pub type DigestPrefix = BoundedVec<u8, DigestPrefixLimit>;
+
+/// Request payload for `Register::list_by_token`.
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct RegisterListByTokenRequest {
+	pub auth: AuthorizationRequest,
+	pub token_prefix: TokenPrefix,
+	pub version: Option<u32>,
+	pub cursor: Option<Ss58Identifier>,
+	pub limit: Option<u32>,
+}
+
+/// Request payload for `Register::list_by_digest`.
+///
+/// The cursor/digest fields are represented as raw hash bytes to stay portable across runtimes.
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct RegisterListByDigestRequest {
+	pub auth: AuthorizationRequest,
+	pub digest_prefix: DigestPrefix,
+	pub version: Option<u32>,
+	pub cursor: Option<[u8; 32]>,
+	pub limit: Option<u32>,
+}
+
 /// Request payload for `Entity::attribute_history_entries`.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]

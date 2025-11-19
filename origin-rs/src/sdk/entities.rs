@@ -59,14 +59,7 @@ impl<'a> EntityApi<'a> {
 		if history.len() > 20 {
 			history.truncate(20);
 		}
-		let (timeline, _) = wire::token::timeline(
-			self.client,
-			auth,
-			id,
-			None,
-			Some(20),
-		)
-		.await?;
+		let (timeline, _) = wire::token::timeline(self.client, auth, id, None, Some(20)).await?;
 
 		Ok(EntityOverview { entity, history, timeline, nym: None, linked_accounts: Vec::new() })
 	}

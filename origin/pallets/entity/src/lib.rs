@@ -51,9 +51,7 @@ use frame_system::pallet_prelude::*;
 use origin_primitives::{
 	authorization::{extract_valid_until, Authorization as CoreAuthorization},
 	identifier::Ss58Identifier,
-	packet::{
-		Attribute, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp,
-	},
+	packet::{Attribute, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp},
 	view::{AttributeValueView, EntityInfoView, InfoAttributeHistoryEntry},
 	view_api::{ensure_authorization_ttl, AuthorizationError},
 	Signature,
@@ -849,7 +847,8 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 			history_limit: Option<u32>,
-		) -> Result<origin_primitives::view::EntityOverviewView<T::AccountId>, AuthorizationError> {
+		) -> Result<origin_primitives::view::EntityOverviewView<T::AccountId>, AuthorizationError>
+		{
 			Self::authorize_account_query(&auth)?;
 			let info = EntityInfoOf::<T>::get(&token).ok_or(AuthorizationError::NotFound)?;
 			let entity_info_view = Self::entity_info_view(&info);
@@ -875,7 +874,9 @@ pub mod pallet {
 					}
 				})
 				.collect();
-			history.sort_by(|a, b| (b.block.height, b.block.index).cmp(&(a.block.height, a.block.index)));
+			history.sort_by(|a, b| {
+				(b.block.height, b.block.index).cmp(&(a.block.height, a.block.index))
+			});
 			history.truncate(hist_len);
 
 			Ok(origin_primitives::view::EntityOverviewView {
@@ -983,12 +984,10 @@ impl<T: Config> Pallet<T> {
 			.map(|(old, block)| (old.as_ref().to_vec(), block))
 	}
 
-	fn entity_info_view(
-		info: &T::EntityInfoPacket,
-	) -> EntityInfoView {
-		let attributes = info.attributes().map(|attrs| {
-			attrs.iter().map(AttributeValueView::from_pair).collect()
-		});
+	fn entity_info_view(info: &T::EntityInfoPacket) -> EntityInfoView {
+		let attributes = info
+			.attributes()
+			.map(|attrs| attrs.iter().map(AttributeValueView::from_pair).collect());
 		EntityInfoView {
 			display: origin_primitives::view::ElementView::from(&info.get_key(b"display")),
 			web: origin_primitives::view::ElementView::from(&info.get_key(b"web")),

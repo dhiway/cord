@@ -10,8 +10,8 @@ use origin_primitives::{
 	view::{DevPacketSnapshot, PacketMetadataView},
 	view_api::{
 		AuthorizationError, AuthorizationRequest, RegisterDetailsRequest,
-		RegisterLookupSpecsRequest, RegisterPacketSnapshotByTokenRequest,
-		RegisterPacketSnapshotRequest,
+		RegisterListByDigestRequest, RegisterListByTokenRequest, RegisterLookupSpecsRequest,
+		RegisterPacketSnapshotByTokenRequest, RegisterPacketSnapshotRequest,
 	},
 };
 use scale_value::Value;
@@ -23,6 +23,8 @@ pub struct RegisterQuery<'a> {
 	pub(crate) query: &'a Query<'a>,
 	pub(crate) supported: bool,
 }
+
+type LookupDigest = [u8; 32];
 
 impl<'a> RegisterQuery<'a> {
 	fn ensure_supported(&self) -> Result<()> {
@@ -126,6 +128,32 @@ impl<'a> RegisterQuery<'a> {
 		raw.map_err(|err| super::view_failure("register.overview", err))
 	}
 
+	pub async fn list_by_token(
+		&self,
+		req: &RegisterListByTokenRequest,
+	) -> Result<(Vec<PacketSnapshotView>, Option<Ss58Identifier>)> {
+		self.ensure_supported()?;
+		let args = self.list_by_token_args(req)?;
+		let raw: core::result::Result<
+			(Vec<PacketSnapshotView>, Option<Ss58Identifier>),
+			AuthorizationError,
+		> = self.query.call_result("Register", "list_by_token", args).await?;
+		raw.map_err(|err| super::view_failure("register.list_by_token", err))
+	}
+
+	pub async fn list_by_digest(
+		&self,
+		req: &RegisterListByDigestRequest,
+	) -> Result<(Vec<PacketSnapshotView>, Option<LookupDigest>)> {
+		self.ensure_supported()?;
+		let args = self.list_by_digest_args(req)?;
+		let raw: core::result::Result<
+			(Vec<PacketSnapshotView>, Option<LookupDigest>),
+			AuthorizationError,
+		> = self.query.call_result("Register", "list_by_digest", args).await?;
+		raw.map_err(|err| super::view_failure("register.list_by_digest", err))
+	}
+
 	fn base_args(&self, auth: &AuthorizationRequest, registry: &Ss58Identifier) -> Result<Value> {
 		let mut builder = ArgBuilder::default();
 		builder.push("auth", super::authorization_value(auth)?);
@@ -147,6 +175,30 @@ impl<'a> RegisterQuery<'a> {
 		builder.push("auth", super::authorization_value(&req.auth)?);
 		builder.push("token", super::identifier_struct_value(&req.token));
 		builder.push("version", super::option_u32_value(req.version));
+		Ok(builder.finish())
+	}
+
+	fn list_by_token_args(&self, req: &RegisterListByTokenRequest) -> Result<Value> {
+		let mut builder = ArgBuilder::default();
+		builder.push("auth", super::authorization_value(&req.auth)?);
+		builder.push("token_prefix", super::hex_arg(req.token_prefix.as_slice()));
+		builder.push("version", super::option_u32_value(req.version));
+		builder.push(
+			"cursor",
+			super::option_value(req.cursor.as_ref().map(super::identifier_struct_value)),
+		);
+		builder.push("limit", super::option_u32_value(req.limit));
+		Ok(builder.finish())
+	}
+
+	fn list_by_digest_args(&self, req: &RegisterListByDigestRequest) -> Result<Value> {
+		let mut builder = ArgBuilder::default();
+		builder.push("auth", super::authorization_value(&req.auth)?);
+		builder.push("digest_prefix", super::hex_arg(req.digest_prefix.as_slice()));
+		builder.push("version", super::option_u32_value(req.version));
+		builder
+			.push("cursor", super::option_value(req.cursor.map(|d| Value::from_bytes(d.to_vec()))));
+		builder.push("limit", super::option_u32_value(req.limit));
 		Ok(builder.finish())
 	}
 }

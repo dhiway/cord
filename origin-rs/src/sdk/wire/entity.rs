@@ -92,7 +92,13 @@ fn entity_from_view(id: Ss58Identifier, view: &origin_primitives::view::EntityIn
 		.into_iter()
 		.map(Attribute::from)
 		.collect();
-	Entity { id, display: view.display.clone(), web: view.web.clone(), email: view.email.clone(), attributes }
+	Entity {
+		id,
+		display: view.display.clone(),
+		web: view.web.clone(),
+		email: view.email.clone(),
+		attributes,
+	}
 }
 
 /// Encode an entity and submit `Entity::set_info`.
@@ -105,7 +111,9 @@ pub(crate) async fn upsert_entity<S>(
 where
 	S: Signer<crate::params::config::OriginConfig>,
 {
-	use crate::types::{attribute_pair_value, element::element_json_to_dynamic, element::ElementJson};
+	use crate::types::{
+		attribute_pair_value, element::element_json_to_dynamic, element::ElementJson,
+	};
 	use scale_value::Composite;
 	use subxt::dynamic::Value;
 
@@ -157,6 +165,10 @@ where
 
 	let args = Value::named_composite([("info", info)]);
 	let call = client.tx().build("Entity", "set_info", args).await.map_err(OriginError::from)?;
-	client.tx().sign_and_submit(call, signer, opts).await.map_err(OriginError::from)?;
+	client
+		.tx()
+		.sign_and_submit(call, signer, opts)
+		.await
+		.map_err(OriginError::from)?;
 	Ok(())
 }

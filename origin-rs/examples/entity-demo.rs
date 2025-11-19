@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use bs58;
 use oc::error::Error as OcError;
 use oc::{
 	demo,
@@ -19,9 +20,15 @@ use oc::{
 	utils, ChainFlavor, Client, ConnectionConfig, RetryPolicy,
 };
 use origin_primitives::view_api::EntityNymRequest;
-use scale_value;
 use sp_core::crypto::Ss58AddressFormat;
 use std::time::Duration;
+
+fn display_ss58(id: &origin_primitives::identifier::Ss58Identifier) -> String {
+	match core::str::from_utf8(id.as_ref()) {
+		Ok(s) => s.to_owned(),
+		Err(_) => bs58::encode(id.as_ref()).into_string(),
+	}
+}
 
 struct CliOptions {
 	common: CommonCliOptions,
@@ -141,7 +148,7 @@ async fn run_transaction_flow(
 	let (token_identifier, created, mut setup_logs) =
 		ensure_entity_token_verbose(client, &signer, &account_id, &profile, &mut tx_executor)
 			.await?;
-	let entity_token = demo::ss58_string(&token_identifier);
+	let entity_token = display_ss58(&token_identifier);
 	let mut snapshot = EntitySnapshot::from_profile(&profile, &entity_token);
 	let state_reference_block = client.view_auth_reference_block().await?;
 	let mut state_auth = || fresh_authorization(state_reference_block, &signer);
