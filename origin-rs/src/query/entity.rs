@@ -51,18 +51,6 @@ impl<'a> EntityQuery<'a> {
 			Ok(Ok(view)) => Ok(Some(view)),
 			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
 			Ok(Err(err)) => Err(super::view_failure("entity.overview", err)),
-			Err(Error::Codec(_)) | Err(Error::ViewDecode(_)) => {
-				let dynamic =
-					self.query.client.origin().call_view("Entity", "overview", args).await?;
-				match scale_value::serde::from_value::<
-					u32,
-					origin_primitives::view::EntityOverviewView<AccountId32>,
-				>(dynamic)
-				{
-					Ok(view) => Ok(Some(view)),
-					Err(err) => Err(Error::ViewDecode(err.to_string())),
-				}
-			},
 			Err(err) => Err(err),
 		}
 	}
@@ -78,17 +66,6 @@ impl<'a> EntityQuery<'a> {
 			Ok(Ok(info)) => Ok(Some(info)),
 			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
 			Ok(Err(err)) => Err(super::view_failure("entity.details", err)),
-			Err(Error::Codec(_)) | Err(Error::ViewDecode(_)) => {
-				// Fallback: dynamic decode tolerant of new variants.
-				if let Ok(dynamic) =
-					self.query.client.origin().call_view("Entity", "details", args).await
-				{
-					if let Ok(info) = scale_value::serde::from_value(dynamic) {
-						return Ok(Some(info));
-					}
-				}
-				Ok(None)
-			},
 			Err(err) => Err(err),
 		}
 	}
@@ -159,14 +136,6 @@ impl<'a> EntityQuery<'a> {
 			Ok(Ok(accounts)) => Ok(accounts),
 			Ok(Err(AuthorizationError::NotFound)) => Ok(Vec::new()),
 			Ok(Err(err)) => Err(super::view_failure("entity.linked_accounts", err)),
-			Err(Error::Codec(_)) | Err(Error::ViewDecode(_)) => {
-				// Fallback: dynamic decode tolerant of type/variant changes.
-				let dynamic =
-					self.query.client.origin().call_view("Entity", "linked_accounts", args).await?;
-				let decoded: Result<Vec<AccountId32>, _> =
-					scale_value::serde::from_value::<u32, Vec<AccountId32>>(dynamic);
-				decoded.map_err(|e| Error::ViewDecode(e.to_string()))
-			},
 			Err(err) => Err(err),
 		}
 	}
@@ -186,14 +155,6 @@ impl<'a> EntityQuery<'a> {
 			Ok(Ok(bytes)) => Ok(Some(String::from_utf8_lossy(&bytes).into_owned())),
 			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
 			Ok(Err(err)) => Err(super::view_failure("entity.entity_nym", err)),
-			Err(Error::Codec(_)) | Err(Error::ViewDecode(_)) => {
-				let dynamic =
-					self.query.client.origin().call_view("Entity", "entity_nym", args).await?;
-				if let Ok(bytes) = scale_value::serde::from_value::<u32, Vec<u8>>(dynamic) {
-					return Ok(Some(String::from_utf8_lossy(&bytes).into_owned()));
-				}
-				Err(Error::ViewDecode("entity_nym decode failed".into()))
-			},
 			Err(err) => Err(err),
 		}
 	}
