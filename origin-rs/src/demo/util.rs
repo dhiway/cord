@@ -16,6 +16,7 @@ use origin_primitives::{
 		RegisterPacketSnapshotByTokenRequest, TokenTimelineRequest,
 	},
 };
+use serde::Serialize;
 use serde_json::Value as JsonValue;
 use sp_runtime::AccountId32 as RuntimeAccount;
 use std::sync::Once;
@@ -161,12 +162,27 @@ pub async fn fresh_authorization_with_client(
 	fresh_authorization(reference_block, signer)
 }
 
+pub fn log_view_payload<T: Serialize>(enabled: bool, label: &str, phase: &str, payload: &T) {
+	if !enabled {
+		return;
+	}
+	match serde_json::to_string_pretty(payload) {
+		Ok(json) => println!("\n🔍 {label} {phase}:\n{json}"),
+		Err(err) => println!("\n🔍 {label} {phase}: <serialization error: {err}>"),
+	}
+}
+
+fn format_identifier(id: &Ss58Identifier) -> String {
+	id.to_string_lossy()
+}
+
 pub async fn ensure_entity_token_verbose(
 	client: &Client,
 	signer: &tx::signer::Keypair,
 	account_id: &AccountId32,
 	profile: &JsonValue,
 	tx_executor: &mut TxExecutor<'_, '_>,
+	view_debug: bool,
 ) -> Result<(Ss58Identifier, bool, Vec<String>)> {
 	let raw: [u8; 32] = *account_id.as_ref();
 	let runtime_account = RuntimeAccount::from(raw);
@@ -174,12 +190,17 @@ pub async fn ensure_entity_token_verbose(
 		auth: fresh_authorization_with_client(client, signer).await?,
 		account: runtime_account.clone(),
 	};
-	if let Some(token) = client.query().entity().account_token(&request).await? {
-		let is_zero = token.as_ref().iter().all(|b| *b == 0);
-		if !is_zero {
-			// Treat existing mapping as authoritative; avoid recreating and hitting AccountAlreadyLinked.
-			return Ok((token, false, Vec::new()));
-		}
+	log_view_payload(view_debug, "Entity.account_token", "request", &request);
+	let token_lookup = client.query().entity().account_token(&request).await?;
+	if view_debug {
+		let response = token_lookup
+			.as_ref()
+			.map(|id| format_identifier(id))
+			.unwrap_or_else(|| "None".into());
+		log_view_payload(view_debug, "Entity.account_token", "response", &response);
+	}
+	if let Some(token) = token_lookup {
+		return Ok((token, false, Vec::new()));
 	}
 
 	let mut logs = Vec::new();

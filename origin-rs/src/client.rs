@@ -3,19 +3,22 @@ use crate::{
 	flavors::ChainFlavor,
 	metadata,
 	params::config::OriginConfig,
-	query::auth::DEFAULT_VIEW_AUTH_TTL,
+	query::auth::{AuthorizationBuilder, DEFAULT_VIEW_AUTH_TTL},
 };
 #[allow(unused_imports)]
 use futures::StreamExt;
 use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
 use jsonrpsee_core::client::{async_client::PingConfig, Client as WsClient};
 use log::warn;
+use origin_primitives::view_api::AuthorizationRequest;
+use scale_decode::DecodeAsType;
 use sp_core::hashing::blake2_256;
 use sp_runtime::traits::SaturatedConversion;
 use std::{convert::TryFrom, sync::Arc, time::Duration};
 use subxt::{
 	backend::rpc::RpcClient,
 	config::PolkadotConfig,
+	dynamic::DecodedValue,
 	ext::{
 		subxt_core::client::RuntimeVersion as CoreRuntimeVersion,
 		subxt_rpcs::methods::legacy::{LegacyRpcMethods, SystemHealth},
@@ -242,6 +245,33 @@ impl Client {
 	/// Expose the underlying Subxt client for advanced flows.
 	pub fn online(&self) -> &subxt::OnlineClient<OriginConfig> {
 		&self.api
+	}
+
+	/// Decode a runtime constant into a dynamic value.
+	pub async fn constant_value(&self, pallet: &str, constant: &str) -> Result<DecodedValue> {
+		self.origin.constant_value(pallet, constant).await
+	}
+
+	/// Decode a runtime constant into a concrete type using metadata.
+	pub async fn constant_value_as<T: DecodeAsType>(
+		&self,
+		pallet: &str,
+		constant: &str,
+	) -> Result<T> {
+		self.origin.constant_value_as(pallet, constant).await
+	}
+
+	/// Build a scoped authorization for a specific view function using the latest reference block.
+	pub async fn build_view_authorization<S: subxt::tx::Signer<PolkadotConfig>>(
+		&self,
+		pallet: &str,
+		view: &str,
+		signer: &S,
+	) -> Result<AuthorizationRequest> {
+		let reference_block = self.view_auth_reference_block().await?;
+		let context = AuthorizationBuilder::view_context(pallet, view);
+		AuthorizationBuilder::generate_view_authorization(signer, &context, reference_block, None)
+			.map_err(|e| Error::Signer(e.to_string()))
 	}
 
 	pub async fn fetch_metadata_blob(&self) -> Result<Vec<u8>> {

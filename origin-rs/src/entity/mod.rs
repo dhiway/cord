@@ -1,6 +1,5 @@
 use crate::{
 	client::Client,
-	dyn_helpers::DynHelpers,
 	error::Error,
 	error::{Error as SdkError, Result},
 	params::config::OriginConfig,
@@ -117,17 +116,20 @@ where
 	F: FnMut() -> Result<AuthorizationRequest>,
 {
 	let auth = auth_builder()?;
-	if let Ok(Some(info)) = client.query().entity().details(&auth, token).await {
-		return Ok(EntityChainState::from_record(&info));
+	match client.query().entity().details(&auth, token).await {
+		Ok(Some(info)) => Ok(EntityChainState::from_record(&info)),
+		Ok(None) => Ok(EntityChainState::default()),
+		Err(Error::ViewDecode(_)) | Err(Error::Codec(_)) => {
+			let args = build_entity_details_args(&auth, token)?;
+			if let Ok(value) = client.origin().call_view("Entity", "details", args).await {
+				if let Some(state) = parse_entity_info_value(&value) {
+					return Ok(state);
+				}
+			}
+			Ok(EntityChainState::default())
+		},
+		Err(err) => Err(err),
 	}
-	// Fallback to dynamic decoding to remain forward-compatible with new element variants.
-	let args = build_entity_details_args(&auth, token)?;
-	if let Ok(value) = client.origin().call_view("Entity", "details", args).await {
-		if let Ok(Some(state)) = parse_entity_info_value(&value, client.origin()).await {
-			return Ok(state);
-		}
-	}
-	Ok(EntityChainState::default())
 }
 
 #[derive(Clone)]
@@ -349,6 +351,17 @@ where
 	}
 }
 
+fn base64_element(bytes: &[u8]) -> ElementJson {
+	ElementJson::RawBase64(BASE64.encode(bytes))
+}
+
+fn attribute_label(attr: &AttributeValueView) -> String {
+	match core::str::from_utf8(attr.key.as_slice()) {
+		Ok(text) => text.to_string(),
+		Err(_) => format!("0x{}", hex::encode(attr.key.as_slice())),
+	}
+}
+
 fn element_value_to_text(value: &Value<u32>) -> Option<String> {
 	match &value.value {
 		ValueDef::Variant(variant) => {
@@ -473,20 +486,16 @@ fn parse_attributes(attr_value: &Value<u32>, state: &mut EntityChainState) {
 	}
 }
 
-async fn parse_entity_info_value(
-	value: &Value<u32>,
-	client: crate::origin_client::OriginClient,
-) -> Result<Option<EntityChainState>> {
-	let _helpers = DynHelpers::new(client.layout());
+fn parse_entity_info_value(value: &Value<u32>) -> Option<EntityChainState> {
 	let info = match &value.value {
 		ValueDef::Variant(v) if v.name == "Ok" => match &v.values {
 			Composite::Named(fields) => fields.get(0).map(|(_, v)| v),
 			Composite::Unnamed(fields) => fields.get(0),
 		},
-		_ => return Ok(None),
+		_ => return None,
 	};
 	let Some(Value { value: ValueDef::Composite(info_fields), .. }) = info else {
-		return Ok(None);
+		return None;
 	};
 
 	let mut state = EntityChainState::default();
@@ -515,21 +524,19 @@ async fn parse_entity_info_value(
 			}
 		},
 		Composite::Unnamed(fields) => {
-			// Unexpected shape; best-effort scan for first four fields.
 			for field in fields {
-				if let ValueDef::Variant(_) = field.value {
-					if let Some(text) = element_value_to_text(field) {
-						state.insert_reserved("display", Some(text));
-					}
+				if let Some(text) = element_value_to_text(field) {
+					state.insert_reserved("display", Some(text));
 				}
 			}
 		},
 	}
-	Ok(Some(state))
+	Some(state)
 }
 
 fn build_entity_details_args(auth: &AuthorizationRequest, token: &Ss58Identifier) -> Result<Value> {
-	let raw: [u8; 32] = *auth.account.as_ref();
+	let mut raw = [0u8; 32];
+	raw.copy_from_slice(auth.account.as_ref());
 	let account = types::account_id_value(&subxt::utils::AccountId32::from(raw));
 	let payload = types::bytes_value(auth.payload.as_slice());
 	let signature = match &auth.signature {
@@ -550,41 +557,6 @@ fn build_entity_details_args(auth: &AuthorizationRequest, token: &Ss58Identifier
 	]);
 	let token_value = types::identifier_struct(token);
 	Ok(Value::named_composite([("auth", auth_value), ("token", token_value)]))
-}
-
-pub fn build_entity_nym_args(req: &origin_primitives::view_api::EntityNymRequest) -> Result<Value> {
-	let raw: [u8; 32] = *req.auth.account.as_ref();
-	let account = types::account_id_value(&subxt::utils::AccountId32::from(raw));
-	let payload = types::bytes_value(req.auth.payload.as_slice());
-	let signature = match &req.auth.signature {
-		origin_primitives::Signature::Sr25519(sig) => {
-			Value::unnamed_variant("Sr25519", [types::bytes_value(sig.as_ref())])
-		},
-		origin_primitives::Signature::Ed25519(sig) => {
-			Value::unnamed_variant("Ed25519", [types::bytes_value(sig.as_ref())])
-		},
-		origin_primitives::Signature::Ecdsa(sig) => {
-			Value::unnamed_variant("Ecdsa", [types::bytes_value(sig.as_ref())])
-		},
-	};
-	let auth_value = Value::named_composite([
-		("account", account),
-		("payload", payload),
-		("signature", signature),
-	]);
-	let token_value = types::identifier_struct(&req.token);
-	Ok(Value::named_composite([("auth", auth_value), ("token", token_value)]))
-}
-
-fn base64_element(bytes: &[u8]) -> ElementJson {
-	ElementJson::RawBase64(BASE64.encode(bytes))
-}
-
-fn attribute_label(attr: &AttributeValueView) -> String {
-	match core::str::from_utf8(attr.key.as_slice()) {
-		Ok(text) => text.to_string(),
-		Err(_) => format!("0x{}", hex::encode(attr.key.as_slice())),
-	}
 }
 
 async fn collect_timeline_once<F>(

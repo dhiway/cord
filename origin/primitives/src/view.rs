@@ -410,14 +410,7 @@ pub struct InfoTokenHistoryEntry {
 }
 
 pub fn ss58_string(id: &Ss58Identifier) -> String {
-	match core::str::from_utf8(id.as_ref()) {
-		Ok(s) => s.to_owned(),
-		Err(_) => {
-			let mut fallback = String::from("0x");
-			fallback.push_str(&hex::encode(id.as_ref()));
-			fallback
-		},
-	}
+	id.to_string_lossy()
 }
 
 pub fn hex_string(bytes: &[u8]) -> String {

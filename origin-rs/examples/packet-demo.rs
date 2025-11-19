@@ -145,6 +145,7 @@ async fn run_transaction_flow(
 		&maint_account,
 		&profile,
 		&mut maint_executor,
+		false,
 	)
 	.await?;
 	let entity_token = demo::ss58_string(&entity_token_id);
@@ -157,6 +158,7 @@ async fn run_transaction_flow(
 		&delegate_account,
 		&delegate_profile,
 		&mut delegate_executor,
+		false,
 	)
 	.await?;
 	let delegate_token = demo::ss58_string(&delegate_token_id);

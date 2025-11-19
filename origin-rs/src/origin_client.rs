@@ -319,6 +319,7 @@ pub struct RuntimeLayout {
 	view_output_types: RwLock<HashMap<(String, String), u32>>,
 	storage_value_types: RwLock<HashMap<(String, String), u32>>,
 	type_ids: RwLock<HashMap<Vec<String>, u32>>,
+	constants: RwLock<HashMap<(String, String), (Arc<Vec<u8>>, u32)>>,
 	registry: PortableRegistry,
 }
 
@@ -332,6 +333,7 @@ impl RuntimeLayout {
 			view_output_types: RwLock::new(HashMap::new()),
 			storage_value_types: RwLock::new(HashMap::new()),
 			type_ids: RwLock::new(HashMap::new()),
+			constants: RwLock::new(HashMap::new()),
 			registry,
 		}
 	}
@@ -434,6 +436,33 @@ impl RuntimeLayout {
 			.await
 			.insert((pallet.to_owned(), view.to_owned()), ty);
 		Ok(ty)
+	}
+
+	pub async fn constant_metadata(
+		&self,
+		pallet: &str,
+		constant: &str,
+	) -> Result<(Arc<Vec<u8>>, u32), Error> {
+		if let Some(hit) =
+			self.constants.read().await.get(&(pallet.into(), constant.into())).cloned()
+		{
+			return Ok(hit);
+		}
+
+		let pallet_meta = self
+			.metadata
+			.pallet_by_name(pallet)
+			.ok_or_else(|| Error::NotFound(format!("pallet '{pallet}' not found")))?;
+		let constant_meta = pallet_meta
+			.constant_by_name(constant)
+			.ok_or_else(|| Error::NotFound(format!("constant '{pallet}.{constant}' not found")))?;
+		let ty = constant_meta.ty();
+		let value = Arc::new(constant_meta.value().to_vec());
+		self.constants
+			.write()
+			.await
+			.insert((pallet.to_owned(), constant.to_owned()), (value.clone(), ty));
+		Ok((value, ty))
 	}
 
 	/// Resolve a type ID by its full path (e.g., ["Runtime", "EntityInfo"]).
@@ -703,6 +732,29 @@ impl OriginClient {
 			out.push(res?);
 		}
 		Ok(out)
+	}
+
+	/// Decode a runtime constant into a dynamic value.
+	pub async fn constant_value(
+		&self,
+		pallet: &str,
+		constant: &str,
+	) -> Result<dynamic::DecodedValue, Error> {
+		let (bytes, ty) = self.layout.constant_metadata(pallet, constant).await?;
+		scale_value_scale::decode_as_type(&mut &bytes[..], ty, self.layout.registry())
+			.map_err(|e| Error::Codec(e.to_string()))
+	}
+
+	/// Decode a runtime constant into a concrete type using metadata.
+	pub async fn constant_value_as<T: scale_decode::DecodeAsType>(
+		&self,
+		pallet: &str,
+		constant: &str,
+	) -> Result<T, Error> {
+		let (bytes, ty) = self.layout.constant_metadata(pallet, constant).await?;
+		let mut cursor = &bytes[..];
+		scale_decode::DecodeAsType::decode_as_type(&mut cursor, ty, self.layout.registry())
+			.map_err(|e| Error::Codec(e.to_string()))
 	}
 
 	/// Invoke a runtime view function dynamically and decode the output.

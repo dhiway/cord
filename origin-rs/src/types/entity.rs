@@ -1,12 +1,11 @@
 use crate::error::{Error, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use origin_primitives::view::{AttributeValueView, ElementView};
 use scale_decode::DecodeAsType;
 use scale_value::Value;
 use serde::{Deserialize, Serialize};
 
+use super::element::attribute_pair_value;
 pub use super::element::ElementJson;
-use super::element::{attribute_pair_value, element_text_from_view};
 
 /// Attribute entry used when constructing entity extrinsics.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -43,12 +42,7 @@ impl AttributeEntry {
 	}
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct BlockRef {
-	pub height: u32,
-	pub index: u32,
-}
+pub type BlockRef = origin_primitives::view::DevEventBlockView;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -86,43 +80,9 @@ fn maybe_utf8(bytes: &[u8]) -> Option<String> {
 	core::str::from_utf8(bytes).ok().map(|s| s.to_string())
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType)]
-#[serde(rename_all = "camelCase")]
-pub struct EntityInfoRecord {
-	pub display: ElementView,
-	pub web: ElementView,
-	pub email: ElementView,
-	pub attributes: Option<Vec<AttributeValueView>>,
-}
+pub type EntityInfoRecord = origin_primitives::view::EntityInfoView;
 
-impl EntityInfoRecord {
-	pub fn attribute_items(&self) -> impl Iterator<Item = &AttributeValueView> {
-		self.attributes.as_deref().into_iter().flatten()
-	}
-
-	pub fn text_field(&self, key: &str) -> Option<String> {
-		let element = match key {
-			"display" => Some(&self.display),
-			"web" => Some(&self.web),
-			"email" => Some(&self.email),
-			_ => None,
-		}?;
-		element_text_from_view(element)
-	}
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct EventBlockRecord {
-	pub height: u32,
-	pub index: u32,
-}
-
-impl From<EventBlockRecord> for BlockRef {
-	fn from(value: EventBlockRecord) -> Self {
-		Self { height: value.height, index: value.index }
-	}
-}
+pub type EventBlockRecord = origin_primitives::view::DevEventBlockView;
 
 #[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType)]
 #[serde(rename_all = "camelCase")]
