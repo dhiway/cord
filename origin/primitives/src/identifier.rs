@@ -27,9 +27,10 @@ use blake2::{Blake2b512, Digest};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use core::{convert::TryFrom, marker::PhantomData};
 use frame_support::{ensure, traits::ConstU32, BoundedVec};
+use hex;
 use scale_decode::{visitor, DecodeAsType, IntoVisitor, TypeResolver};
 use scale_info::TypeInfo;
-use serde::{ser::Error as SerdeError, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Constant prefix used in checksum calculation.
 const PREFIX: &[u8] = b"SS58PRE";
@@ -206,6 +207,27 @@ impl Ss58Identifier {
 	pub fn as_bytes(&self) -> &[u8] {
 		self.0.as_slice()
 	}
+
+	/// Render the identifier as a best-effort SS58 string.
+	pub fn to_string_lossy(&self) -> String {
+		let bytes = self.as_ref();
+		if let Ok(text) = core::str::from_utf8(bytes) {
+			if !text.trim().is_empty() {
+				return text.to_owned();
+			}
+		}
+		for offset in 0..bytes.len() {
+			if let Ok(text) = core::str::from_utf8(&bytes[offset..]) {
+				if text.chars().all(|ch| !ch.is_control()) {
+					let trimmed = text.trim();
+					if !trimmed.is_empty() {
+						return trimmed.to_owned();
+					}
+				}
+			}
+		}
+		format!("0x{}", hex::encode(bytes))
+	}
 }
 
 impl TryFrom<Vec<u8>> for Ss58Identifier {
@@ -247,9 +269,7 @@ impl Serialize for Ss58Identifier {
 	where
 		S: Serializer,
 	{
-		let s = core::str::from_utf8(self.as_ref())
-			.map_err(|_| SerdeError::custom("identifier bytes are not valid utf8"))?;
-		serializer.serialize_str(s)
+		serializer.serialize_str(&self.to_string_lossy())
 	}
 }
 

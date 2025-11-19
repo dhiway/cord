@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use bs58;
 use oc::error::Error as OcError;
 use oc::{
 	demo,
@@ -10,8 +9,8 @@ use oc::{
 		spinner,
 		util::{
 			ensure_entity_token_verbose, fresh_authorization, fresh_authorization_with_client,
-			init_logging, parse_identifier, resolve_token_target, signer_account_id, LogSink,
-			RunMode, TokenTarget, TxExecutor, TxFlow,
+			init_logging, log_view_payload, parse_identifier, resolve_token_target,
+			signer_account_id, LogSink, RunMode, TokenTarget, TxExecutor, TxFlow,
 		},
 	},
 	entity::{self as sdk_entity, AttributePlan, EntityChainState},
@@ -19,20 +18,18 @@ use oc::{
 	types::{self, entity::AttributeEntry, ElementJson},
 	utils, ChainFlavor, Client, ConnectionConfig, RetryPolicy,
 };
-use origin_primitives::view_api::EntityNymRequest;
+use origin_primitives::{view::ss58_string, view_api::EntityNymRequest};
 use sp_core::crypto::Ss58AddressFormat;
 use std::time::Duration;
 
 fn display_ss58(id: &origin_primitives::identifier::Ss58Identifier) -> String {
-	match core::str::from_utf8(id.as_ref()) {
-		Ok(s) => s.to_owned(),
-		Err(_) => bs58::encode(id.as_ref()).into_string(),
-	}
+	id.to_string_lossy()
 }
 
 struct CliOptions {
 	common: CommonCliOptions,
 	token: Option<String>,
+	view_debug: bool,
 }
 
 fn parse_args(args: &[String]) -> Result<CliOptions> {
@@ -42,6 +39,7 @@ fn parse_args(args: &[String]) -> Result<CliOptions> {
 	}
 	let parsed = parse_common_cli(args)?;
 	let mut token: Option<String> = None;
+	let mut view_debug = false;
 	let mut iter = parsed.rest.iter().peekable();
 	while let Some(arg) = iter.next() {
 		match arg.as_str() {
@@ -52,6 +50,7 @@ fn parse_args(args: &[String]) -> Result<CliOptions> {
 			_ if arg.starts_with("-t=") => {
 				token = arg.splitn(2, '=').nth(1).map(|v| v.to_string());
 			},
+			"--view-debug" => view_debug = true,
 			"--" => break,
 			_ => {
 				return Err(anyhow!(
@@ -63,7 +62,7 @@ fn parse_args(args: &[String]) -> Result<CliOptions> {
 	if parsed.common.mode == RunMode::View && token.is_none() {
 		return Err(anyhow!("--token <identifier> is required in view mode"));
 	}
-	Ok(CliOptions { common: parsed.common, token })
+	Ok(CliOptions { common: parsed.common, token, view_debug })
 }
 
 fn print_usage() {
@@ -84,6 +83,7 @@ Options:
   -d, --display <less|more>    Display style (default: less unless --json)
   -j, --json                   Emit JSON snapshot instead of CLI tables
   -n, --node <url>             WebSocket endpoint (default: ws://127.0.0.1:9944)
+      --view-debug             Log request/response payloads for every runtime view call
   -h, --help                   Show this help message
 "#
 	);
@@ -145,9 +145,15 @@ async fn run_transaction_flow(
 		},
 	};
 
-	let (token_identifier, created, mut setup_logs) =
-		ensure_entity_token_verbose(client, &signer, &account_id, &profile, &mut tx_executor)
-			.await?;
+	let (token_identifier, created, mut setup_logs) = ensure_entity_token_verbose(
+		client,
+		&signer,
+		&account_id,
+		&profile,
+		&mut tx_executor,
+		cli.view_debug,
+	)
+	.await?;
 	let entity_token = display_ss58(&token_identifier);
 	let mut snapshot = EntitySnapshot::from_profile(&profile, &entity_token);
 	let state_reference_block = client.view_auth_reference_block().await?;
@@ -184,28 +190,23 @@ async fn run_transaction_flow(
 		auth: fresh_authorization_with_client(client, &signer).await?,
 		token: token_identifier.clone(),
 	};
+	log_view_payload(cli.view_debug, "Entity.entity_nym", "request", &nym_req);
 	let existing_nym = client.query().entity().entity_nym(&nym_req).await?;
-	if let Some(nym) = existing_nym.filter(|nym| !nym.is_empty()) {
+	log_view_payload(cli.view_debug, "Entity.entity_nym", "response", &existing_nym);
+	if let Some(nym) = existing_nym {
 		snapshot.set_entity_nym(nym);
 	} else {
-		// Best-effort dynamic fallback in case typed decode fails due to new variants.
-		let mut nym_found = false;
-		if let Ok(args) = oc::entity::build_entity_nym_args(&nym_req) {
-			if let Ok(val) = client.origin().call_view("Entity", "entity_nym", args).await {
-				if let Ok(bytes) = scale_value::serde::from_value::<u32, Vec<u8>>(val.clone()) {
-					if let Ok(text) = String::from_utf8(bytes) {
-						snapshot.set_entity_nym(text.clone());
-						nym_found = true;
-					}
-				}
-			}
-		}
-		if !nym_found {
-			let mut sink = LogSink::new(if created { Some(&mut setup_logs) } else { None });
-			let call = client.tx().entity_set_entity_nym(&entity_nym_prefix).await?;
-			tx_executor.submit(client, call, "Set entity nym", &mut sink).await?;
-			snapshot.set_entity_nym(format!("{entity_nym_prefix}.nym.org.in"));
-			expected_state_events = expected_state_events.saturating_add(1);
+		let mut sink = LogSink::new(if created { Some(&mut setup_logs) } else { None });
+		let call = client.tx().entity_set_entity_nym(&entity_nym_prefix).await?;
+		match tx_executor.submit(client, call, "Set entity nym", &mut sink).await {
+			Ok(_events) => {
+				snapshot.set_entity_nym(format!("{entity_nym_prefix}.nym.org.in"));
+				expected_state_events = expected_state_events.saturating_add(1);
+			},
+			Err(SubmitError::Node(message)) if message.contains("Entity::EntityNymAlreadySet") => {
+				println!("ℹ️ entity nym already set on-chain; skipping");
+			},
+			Err(err) => return Err(err.into()),
 		}
 	}
 	print_transaction_header(created, &snapshot);
@@ -288,8 +289,19 @@ async fn run_transaction_flow(
 			auth: fresh_authorization_with_client(client, &signer).await?,
 			token: token_identifier.clone(),
 		};
-		if let Ok(Some(nym)) = client.query().entity().entity_nym(&req).await {
-			snapshot.set_entity_nym(nym);
+		log_view_payload(cli.view_debug, "Entity.entity_nym", "request", &req);
+		match client.query().entity().entity_nym(&req).await {
+			Ok(value) => {
+				log_view_payload(cli.view_debug, "Entity.entity_nym", "response", &value);
+				if let Some(nym) = value {
+					snapshot.set_entity_nym(nym);
+				}
+			},
+			Err(err) => {
+				if cli.view_debug {
+					println!("\n🔍 Entity.entity_nym response: <error {err}>");
+				}
+			},
 		}
 	}
 
@@ -325,53 +337,68 @@ async fn run_view_flow(
 	let requested_token = parse_identifier(token_str)?;
 	let signer = tx::signer::dev_alice();
 	let resolver_auth = fresh_authorization_with_client(client, &signer).await?;
-	let token_identifier = match resolve_token_target(client, &resolver_auth, &requested_token).await
-	{
-		Ok(TokenTarget::Entity { token }) => token,
-		Ok(TokenTarget::Registry { .. }) => {
-			return Err(anyhow!(format!(
+	let token_identifier =
+		match resolve_token_target(client, &resolver_auth, &requested_token).await {
+			Ok(TokenTarget::Entity { token }) => token,
+			Ok(TokenTarget::Registry { .. }) => {
+				return Err(anyhow!(format!(
 				"token {token_str} is a registry; run register-demo --mode view --token {token_str}"
 			)));
-		},
-		Ok(TokenTarget::Packet { .. }) => {
-			return Err(anyhow!(format!(
+			},
+			Ok(TokenTarget::Packet { .. }) => {
+				return Err(anyhow!(format!(
 				"token {token_str} is a packet; run packet-demo --mode view --token {token_str}"
 			)));
-		},
-		Err(OcError::Codec(_) | OcError::ViewDecode(_)) => {
-			println!(
-				"⚠️ token resolver hit a decode error; assuming {token_str} is an entity token"
-			);
-			requested_token.clone()
-		},
-		Err(err) => return Err(err.into()),
-	};
+			},
+			Err(OcError::Codec(_) | OcError::ViewDecode(_)) => {
+				println!(
+					"⚠️ token resolver hit a decode error; assuming {token_str} is an entity token"
+				);
+				requested_token.clone()
+			},
+			Err(err) => return Err(err.into()),
+		};
 
-		// If JSON requested, use SDK overview (prefers pallet composite view when available).
-		if cli.common.output_json {
-			let sdk = oc::sdk::OriginClient::connect(node_url).await?;
-			let auth = fresh_authorization_with_client(client, &signer).await?;
-			let overview = sdk.entities().overview(&auth, &token_identifier).await?;
-			#[derive(serde::Serialize)]
-			struct JsonOut<T, U> {
-				overview: T,
-				nym: Option<String>,
-				linked_accounts: Vec<U>,
-			}
-			let out =
-				JsonOut { nym: overview.nym.clone(), linked_accounts: overview.linked_accounts.clone(), overview };
-			println!("{}", serde_json::to_string_pretty(&out).unwrap());
-			return Ok(());
+	// If JSON requested, use SDK overview (prefers pallet composite view when available).
+	if cli.common.output_json {
+		let sdk = oc::sdk::OriginClient::connect(node_url).await?;
+		let auth = fresh_authorization_with_client(client, &signer).await?;
+		let overview_debug = serde_json::json!({
+			"auth": auth.clone(),
+			"token": token_identifier.clone(),
+		});
+		log_view_payload(cli.view_debug, "Entity.overview", "request", &overview_debug);
+		let overview = sdk.entities().overview(&auth, &token_identifier).await?;
+		log_view_payload(cli.view_debug, "Entity.overview", "response", &overview);
+		#[derive(serde::Serialize)]
+		struct JsonOut<T, U> {
+			overview: T,
+			nym: Option<String>,
+			linked_accounts: Vec<U>,
 		}
+		let out = JsonOut {
+			nym: overview.nym.clone(),
+			linked_accounts: overview.linked_accounts.clone(),
+			overview,
+		};
+		println!("{}", serde_json::to_string_pretty(&out).unwrap());
+		return Ok(());
+	}
 
 	// Legacy rich rendering for CLI mode.
 	let auth = fresh_authorization_with_client(client, &signer).await?;
+	let details_debug = serde_json::json!({
+		"auth": auth.clone(),
+		"token": token_identifier.clone(),
+	});
+	log_view_payload(cli.view_debug, "Entity.details", "request", &details_debug);
 	let entity_info = client
 		.query()
 		.entity()
 		.details(&auth, &token_identifier)
 		.await?
 		.ok_or_else(|| anyhow!(format!("no entity info found for token {token_str}")))?;
+	log_view_payload(cli.view_debug, "Entity.details", "response", &entity_info);
 	let chain_state = EntityChainState::from_record(&entity_info);
 	let mut snapshot = EntitySnapshot::from_chain_state(&chain_state, token_str);
 
@@ -379,14 +406,20 @@ async fn run_view_flow(
 		auth: fresh_authorization_with_client(client, &signer).await?,
 		token: token_identifier.clone(),
 	};
-	if let Some(nym) = client.query().entity().entity_nym(&nym_req).await? {
+	log_view_payload(cli.view_debug, "Entity.entity_nym", "request", &nym_req);
+	let view_nym = client.query().entity().entity_nym(&nym_req).await?;
+	log_view_payload(cli.view_debug, "Entity.entity_nym", "response", &view_nym);
+	if let Some(nym) = view_nym {
 		snapshot.set_entity_nym(nym);
 	}
 	let linked_req = origin_primitives::view_api::EntityLinkedAccountsRequest {
 		auth: fresh_authorization_with_client(client, &signer).await?,
 		token: token_identifier.clone(),
 	};
-	let linked_accounts = client.query().entity().linked_accounts(&linked_req).await.unwrap_or_default();
+	log_view_payload(cli.view_debug, "Entity.linked_accounts", "request", &linked_req);
+	let linked_accounts =
+		client.query().entity().linked_accounts(&linked_req).await.unwrap_or_default();
+	log_view_payload(cli.view_debug, "Entity.linked_accounts", "response", &linked_accounts);
 	snapshot.set_active_accounts(&linked_accounts, chain_prefix);
 
 	if let Err(err) = entity::render_entity_snapshot(
@@ -431,11 +464,14 @@ async fn apply_attribute_plan(
 				.await
 				.map_err(SubmitError::from_origin_error)?;
 			let mut sink = LogSink::new(None);
-			if let Err(err) =
-				tx_executor.submit(client, call, &format!("Add attribute '{key}'"), &mut sink).await
+			if let Err(err) = tx_executor
+				.submit(client, call, &format!("Add attribute '{key}'"), &mut sink)
+				.await
 			{
 				if matches_account_not_found(&err) {
-					println!("⚠️ controller not linked (AccountNotFound); skipping add for '{key}'");
+					println!(
+						"⚠️ controller not linked (AccountNotFound); skipping add for '{key}'"
+					);
 					return Ok(());
 				}
 				return Err(err);
@@ -455,7 +491,9 @@ async fn apply_attribute_plan(
 				.await
 			{
 				if matches_account_not_found(&err) {
-					println!("⚠️ controller not linked (AccountNotFound); skipping rotation for '{key}'");
+					println!(
+						"⚠️ controller not linked (AccountNotFound); skipping rotation for '{key}'"
+					);
 					return Ok(());
 				}
 				return Err(err);

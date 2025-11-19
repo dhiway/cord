@@ -46,20 +46,22 @@ impl<'a> Query<'a> {
 	) -> Result<T> {
 		let origin = self.client.origin();
 		let value = origin.call_view(pallet, function, args).await?;
-
-		// Primary: dynamic deserialize to tolerate newly added fields/variants.
 		if let Ok(decoded) = scale_value::serde::from_value::<u32, T>(value.clone()) {
 			return Ok(decoded);
 		}
 
-		// Fallback: use metadata-directed decoding for stricter types/errors without re-calling RPC.
 		let ty = origin.layout().view_output_type(pallet, function).await?;
 		let mut bytes = Vec::new();
 		scale_value::scale::encode_as_type(&value, ty, origin.registry(), &mut bytes)
 			.map_err(|e| Error::Codec(e.to_string()))?;
 		let mut cursor = &bytes[..];
-		scale_decode::DecodeAsType::decode_as_type(&mut cursor, ty, origin.registry())
-			.map_err(|e| Error::Codec(e.to_string()))
+		scale_decode::DecodeAsType::decode_as_type(&mut cursor, ty, origin.registry()).map_err(
+			|e| {
+				Error::ViewDecode(format!(
+					"{pallet}.{function}: decode failed ({e}); refresh metadata or update primitives if the runtime added new fields"
+				))
+			},
+		)
 	}
 
 	pub(crate) async fn call_result<T, E>(

@@ -49,8 +49,13 @@ impl AuthorizationBuilder {
 		twox_128(&label)
 	}
 
-	/// Default context used by legacy helpers.
+	/// Default context used by SDK helpers.
 	pub fn default_context() -> [u8; 16] {
+		Self::view_context("origin", "view")
+	}
+
+	/// Legacy context retained for backwards compatibility (pre-Origin rename).
+	pub fn legacy_default_context() -> [u8; 16] {
 		Self::view_context("cord", "view")
 	}
 

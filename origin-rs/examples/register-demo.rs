@@ -142,9 +142,15 @@ async fn run_transaction_flow(cli: &CliOptions, client: &Client) -> Result<()> {
 	};
 
 	let profile = demo::entity_profile(&label);
-	let (entity_token_id, created, entity_logs) =
-		ensure_entity_token_verbose(client, &signer, &account_id, &profile, &mut tx_executor)
-			.await?;
+	let (entity_token_id, created, entity_logs) = ensure_entity_token_verbose(
+		client,
+		&signer,
+		&account_id,
+		&profile,
+		&mut tx_executor,
+		false,
+	)
+	.await?;
 	let entity_token = demo::ss58_string(&entity_token_id);
 	print_entity_setup(created, &entity_token, &entity_logs);
 

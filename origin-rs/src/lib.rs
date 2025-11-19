@@ -7,7 +7,6 @@
 
 pub mod client;
 pub mod demo;
-pub mod dyn_helpers;
 pub mod entity;
 pub mod error;
 pub mod flavors;
