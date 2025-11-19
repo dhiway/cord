@@ -44,9 +44,7 @@ impl<'a> EntityQuery<'a> {
 		let mut builder = ArgBuilder::default();
 		builder.push("auth", super::authorization_value(&req.auth)?);
 		builder.push("token", super::identifier_struct_value(&req.token));
-		if let Some(limit) = req.history_limit {
-			builder.push("history_limit", Value::u128(limit as u128));
-		}
+		builder.push("history_limit", super::option_u32_value(req.history_limit));
 		let args = builder.finish();
 
 		match self.query.call_result("Entity", "overview", args.clone()).await {
@@ -54,8 +52,13 @@ impl<'a> EntityQuery<'a> {
 			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
 			Ok(Err(err)) => Err(super::view_failure("entity.overview", err)),
 			Err(Error::Codec(_)) | Err(Error::ViewDecode(_)) => {
-				let dynamic = self.query.client.origin().call_view("Entity", "overview", args).await?;
-				match scale_value::serde::from_value::<u32, origin_primitives::view::EntityOverviewView<AccountId32>>(dynamic) {
+				let dynamic =
+					self.query.client.origin().call_view("Entity", "overview", args).await?;
+				match scale_value::serde::from_value::<
+					u32,
+					origin_primitives::view::EntityOverviewView<AccountId32>,
+				>(dynamic)
+				{
 					Ok(view) => Ok(Some(view)),
 					Err(err) => Err(Error::ViewDecode(err.to_string())),
 				}
@@ -200,6 +203,7 @@ impl<'a> EntityQuery<'a> {
 		auth: &AuthorizationRequest,
 		nym: Vec<u8>,
 	) -> Result<Option<Ss58Identifier>> {
+		self.ensure_supported()?;
 		let mut builder = ArgBuilder::default();
 		builder.push("auth", super::authorization_value(auth)?);
 		builder.push("nym", super::hex_arg(&nym));

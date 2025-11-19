@@ -57,6 +57,7 @@ impl<'a> TokenQuery<'a> {
 	}
 
 	pub async fn resolve_pallet(&self, req: &TokenResolvePalletRequest) -> Result<String> {
+		self.ensure_supported()?;
 		let args = self.resolve_pallet_args(req)?;
 		let raw: core::result::Result<String, AuthorizationError> =
 			self.query.call_result("Token", "resolve_pallet", args).await?;

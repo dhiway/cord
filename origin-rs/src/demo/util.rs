@@ -1,5 +1,4 @@
 use crate::{
-	demo,
 	demo::spinner,
 	error::{Error, Result},
 	params::config::OriginConfig,
@@ -177,14 +176,10 @@ pub async fn ensure_entity_token_verbose(
 	};
 	if let Some(token) = client.query().entity().account_token(&request).await? {
 		let is_zero = token.as_ref().iter().all(|b| *b == 0);
-		let has_info = client.query().entity().details(&request.auth, &token).await.ok().flatten();
-		if !is_zero && has_info.is_some() {
+		if !is_zero {
+			// Treat existing mapping as authoritative; avoid recreating and hitting AccountAlreadyLinked.
 			return Ok((token, false, Vec::new()));
 		}
-		log::warn!(
-			"account has token mapping but no entity info; recreating entity for {}",
-			demo::ss58_string(&token)
-		);
 	}
 
 	let mut logs = Vec::new();

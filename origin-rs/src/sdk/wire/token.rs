@@ -4,10 +4,7 @@ use origin_primitives::view_api::{
 
 use crate::{
 	client::Client,
-	sdk::{
-		error::Result,
-		types::TokenId,
-	},
+	sdk::{error::Result, types::TokenId},
 	types::token::StateEventRecord,
 };
 

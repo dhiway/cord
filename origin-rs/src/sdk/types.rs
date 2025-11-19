@@ -4,7 +4,6 @@ use base64;
 use base64::Engine;
 use bs58;
 use hex;
-use serde::{Serialize, Deserialize};
 use origin_primitives::{
 	identifier::Ss58Identifier,
 	packet::PacketStatus,
@@ -16,6 +15,7 @@ use origin_primitives::{
 		PacketStateView,
 	},
 };
+use serde::{Deserialize, Serialize};
 
 use crate::types::{entity::HistoryEntry as LegacyHistoryEntry, token::StateEventRecord};
 
@@ -231,9 +231,7 @@ fn dev_element_into_element(dev: &DevElement) -> ElementView {
 			}
 			ElementView::Hash(digest)
 		},
-		DevElement::TokenSs58(ss58) => {
-			ElementView::Token(decode_ss58_or_zero(ss58))
-		},
+		DevElement::TokenSs58(ss58) => ElementView::Token(decode_ss58_or_zero(ss58)),
 		DevElement::CidBase58(b58) => {
 			let bytes = bs58::decode(b58).into_vec().unwrap_or_default();
 			ElementView::Cid(bytes)
