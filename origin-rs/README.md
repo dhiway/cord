@@ -118,7 +118,7 @@ Token timelines, register packet snapshots, and lookup specs follow the same pat
 - `state` – single-entry CLI that accepts any token, resolves what it represents, and invokes the right snapshot renderer (entity / registry / packet) with JSON or table output.
 - `quickstart` – RPC probe.
 - `inspect-view` – ad-hoc runtime view inspector.
-- `update-metadata` – writes the latest runtime metadata to `origin-rs/metadata/cord.scale`.
+- `update-metadata` – writes the latest runtime metadata to `origin-rs/metadata/origin(.hub).scale` based on the connected chain flavor.
 - `xcm-token-transfer` – submits an XCM v5 `reserve_transfer_assets` from a hub parachain to a sibling (defaults to Alice on the source hub). Handy for smoke-testing multi-hub setups started via the updated zombienet config.
 
 See [examples/README.md](examples/README.md) for CLI usage and flow diagrams.
@@ -129,7 +129,7 @@ See [examples/README.md](examples/README.md) for CLI usage and flow diagrams.
 cargo run -p origin-rs --example update-metadata -- --node ws://127.0.0.1:9944
 ```
 
-Commit the new `origin-rs/metadata/cord.scale` whenever the runtime changes so the dynamic client can reuse cached metadata offline.
+Commit the refreshed `origin-rs/metadata/origin.scale` (relay) or `origin-rs/metadata/origin-hub.scale` (hub) whenever the runtime changes so the dynamic client can reuse cached metadata offline.
 
 ---
 
