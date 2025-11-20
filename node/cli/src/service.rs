@@ -542,9 +542,9 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	let is_offchain_indexing_enabled = config.offchain_worker.indexing_enabled;
 	let role = config.role;
 	let force_authoring = config.force_authoring;
-	let backoff_authoring_blocks = if config.chain_spec.is_braid()
-		|| config.chain_spec.is_loom()
-		|| config.chain_spec.is_weave()
+	let backoff_authoring_blocks = if config.chain_spec.is_braid() ||
+		config.chain_spec.is_loom() ||
+		config.chain_spec.is_weave()
 	{
 		// the block authoring backoff is disabled on production networks
 		None

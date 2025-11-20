@@ -1,7 +1,6 @@
 use crate::{
 	client::Client,
-	error::Error,
-	error::{Error as SdkError, Result},
+	error::{Error, Error as SdkError, Result},
 	params::config::OriginConfig,
 	tx::submitter::{SubmitError, SubmitStage, TxSubmitter},
 	types::{
@@ -12,7 +11,6 @@ use crate::{
 	},
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use bs58;
 use hex;
 use log::debug;
 use origin_primitives::{
@@ -20,7 +18,7 @@ use origin_primitives::{
 	view::{maybe_utf8, AttributeValueView},
 	view_api::{
 		AuthorizationRequest, EntityAttributeHistoryRequest, EntityLinkedAccountsRequest,
-		TokenStateVersionRequest, TokenTimelineRequest,
+		EntityOverviewRequest, TokenStateVersionRequest, TokenTimelineRequest,
 	},
 };
 use serde::Serialize;
@@ -28,7 +26,6 @@ use std::collections::BTreeMap;
 use subxt::utils::AccountId32;
 
 use crate::types::token::StateEventRecord;
-use scale_value::{Composite, Value, ValueDef};
 
 #[derive(Default, Clone)]
 pub struct EntityChainState {
@@ -116,18 +113,11 @@ where
 	F: FnMut() -> Result<AuthorizationRequest>,
 {
 	let auth = auth_builder()?;
-	match client.query().entity().details(&auth, token).await {
-		Ok(Some(info)) => Ok(EntityChainState::from_record(&info)),
+	let req =
+		EntityOverviewRequest { auth, token: token.as_ref().to_vec(), history_limit: Some(1) };
+	match client.query().entity().overview(&req).await {
+		Ok(Some(view)) => Ok(EntityChainState::from_record(&view.info)),
 		Ok(None) => Ok(EntityChainState::default()),
-		Err(Error::ViewDecode(_)) | Err(Error::Codec(_)) => {
-			let args = build_entity_details_args(&auth, token)?;
-			if let Ok(value) = client.origin().call_view("Entity", "details", args).await {
-				if let Some(state) = parse_entity_info_value(&value) {
-					return Ok(state);
-				}
-			}
-			Ok(EntityChainState::default())
-		},
 		Err(err) => Err(err),
 	}
 }
@@ -164,7 +154,7 @@ where
 	loop {
 		let history_req = EntityAttributeHistoryRequest {
 			auth: auth_builder()?,
-			token: token_identifier.clone(),
+			token: token_identifier.as_ref().to_vec(),
 		};
 		let mut combined = match client.query().entity().attribute_history(&history_req).await {
 			Ok(entries) => entries,
@@ -197,14 +187,16 @@ where
 {
 	let mut attempt = 0usize;
 	loop {
-		let req = EntityLinkedAccountsRequest { auth: auth_builder()?, token: token.clone() };
+		let req = EntityLinkedAccountsRequest {
+			auth: auth_builder()?,
+			token: token.as_ref().to_vec(),
+		};
 		let result = client.query().entity().linked_accounts(&req).await;
 		match result {
-			Ok(accounts) => {
+			Ok(accounts) =>
 				if !accounts.is_empty() || attempt >= LINKED_ACCOUNTS_RETRIES {
 					return Ok(accounts);
-				}
-			},
+				},
 			Err(err) => {
 				let decode_error = matches!(err, Error::ViewDecode(_) | Error::Codec(_));
 				if attempt >= LINKED_ACCOUNTS_RETRIES {
@@ -360,203 +352,6 @@ fn attribute_label(attr: &AttributeValueView) -> String {
 		Ok(text) => text.to_string(),
 		Err(_) => format!("0x{}", hex::encode(attr.key.as_slice())),
 	}
-}
-
-fn element_value_to_text(value: &Value<u32>) -> Option<String> {
-	match &value.value {
-		ValueDef::Variant(variant) => {
-			let field = match &variant.values {
-				Composite::Named(fields) => fields.get(0).map(|(_, v)| v),
-				Composite::Unnamed(fields) => fields.get(0),
-			};
-			match variant.name.as_str() {
-				"None" => None,
-				"Raw" => field.and_then(|v| bytes_from_value(v).ok()).and_then(|b| {
-					String::from_utf8(b.clone())
-						.ok()
-						.or_else(|| Some(format!("0x{}", hex::encode(b))))
-				}),
-				"Bool" => field?.as_u128().map(|b| (b != 0).to_string()),
-				"U64" => field?.as_u128().map(|n| (n as u64).to_string()),
-				"U128" => field?.as_u128().map(|n| n.to_string()),
-				"Hash" => field
-					.and_then(|v| bytes_from_value(v).ok())
-					.map(|b| format!("0x{}", hex::encode(b))),
-				"Token" => field.and_then(|v| bytes_from_value(v).ok()).map(|b| {
-					String::from_utf8(b.clone())
-						.ok()
-						.unwrap_or_else(|| format!("0x{}", hex::encode(b)))
-				}),
-				"CID" => field
-					.and_then(|v| bytes_from_value(v).ok())
-					.map(|b| bs58::encode(b).into_string()),
-				_ => None,
-			}
-		},
-		_ => None,
-	}
-}
-
-fn bytes_from_value(v: &Value<u32>) -> Result<Vec<u8>, Error> {
-	match &v.value {
-		ValueDef::Composite(comp) => {
-			let mut acc = Vec::new();
-			match comp {
-				Composite::Named(fields) => {
-					for (_, field) in fields {
-						acc.extend(bytes_from_value(field)?);
-					}
-				},
-				Composite::Unnamed(fields) => {
-					for field in fields {
-						acc.extend(bytes_from_value(field)?);
-					}
-				},
-			}
-			Ok(acc)
-		},
-		ValueDef::Primitive(p) => {
-			if let Some(u) = p.as_u128() {
-				Ok(vec![u as u8])
-			} else {
-				Err(Error::Codec("expected byte primitive".into()))
-			}
-		},
-		_ => Err(Error::Codec("unsupported byte shape".into())),
-	}
-}
-
-fn parse_attributes(attr_value: &Value<u32>, state: &mut EntityChainState) {
-	let variant = match &attr_value.value {
-		ValueDef::Variant(v) => v,
-		_ => return,
-	};
-	if variant.name != "Some" {
-		return;
-	}
-	match &variant.values {
-		Composite::Named(fields) => {
-			for (_, entry) in fields {
-				if let ValueDef::Composite(comp_inner) = &entry.value {
-					let mut iter = match comp_inner {
-						Composite::Named(inner) => inner.iter().map(|(_, v)| v).collect::<Vec<_>>(),
-						Composite::Unnamed(inner) => inner.iter().collect::<Vec<_>>(),
-					}
-					.into_iter();
-					let Some(key_val) = iter.next() else { continue };
-					let Some(elem_val) = iter.next() else { continue };
-					let key_bytes = bytes_from_value(key_val);
-					let key_label = key_bytes
-						.as_ref()
-						.ok()
-						.and_then(|b| std::str::from_utf8(b).ok().map(|s| s.to_string()))
-						.unwrap_or_else(|| {
-							format!("0x{}", hex::encode(key_bytes.unwrap_or_default()))
-						});
-					if let Some(text) = element_value_to_text(elem_val) {
-						state.insert_attribute(key_label, Some(text));
-					}
-				}
-			}
-		},
-		Composite::Unnamed(fields) => {
-			for entry in fields {
-				if let ValueDef::Composite(comp_inner) = &entry.value {
-					let mut iter = match comp_inner {
-						Composite::Named(inner) => inner.iter().map(|(_, v)| v).collect::<Vec<_>>(),
-						Composite::Unnamed(inner) => inner.iter().collect::<Vec<_>>(),
-					}
-					.into_iter();
-					let Some(key_val) = iter.next() else { continue };
-					let Some(elem_val) = iter.next() else { continue };
-					let key_bytes = bytes_from_value(key_val);
-					let key_label = key_bytes
-						.as_ref()
-						.ok()
-						.and_then(|b| std::str::from_utf8(b).ok().map(|s| s.to_string()))
-						.unwrap_or_else(|| {
-							format!("0x{}", hex::encode(key_bytes.unwrap_or_default()))
-						});
-					if let Some(text) = element_value_to_text(elem_val) {
-						state.insert_attribute(key_label, Some(text));
-					}
-				}
-			}
-		},
-	}
-}
-
-fn parse_entity_info_value(value: &Value<u32>) -> Option<EntityChainState> {
-	let info = match &value.value {
-		ValueDef::Variant(v) if v.name == "Ok" => match &v.values {
-			Composite::Named(fields) => fields.get(0).map(|(_, v)| v),
-			Composite::Unnamed(fields) => fields.get(0),
-		},
-		_ => return None,
-	};
-	let Some(Value { value: ValueDef::Composite(info_fields), .. }) = info else {
-		return None;
-	};
-
-	let mut state = EntityChainState::default();
-	match info_fields {
-		Composite::Named(fields) => {
-			for (name, field) in fields {
-				match name.as_str() {
-					"display" => {
-						if let Some(text) = element_value_to_text(field) {
-							state.insert_reserved("display", Some(text));
-						}
-					},
-					"web" => {
-						if let Some(text) = element_value_to_text(field) {
-							state.insert_reserved("web", Some(text));
-						}
-					},
-					"email" => {
-						if let Some(text) = element_value_to_text(field) {
-							state.insert_reserved("email", Some(text));
-						}
-					},
-					"attributes" => parse_attributes(field, &mut state),
-					_ => {},
-				}
-			}
-		},
-		Composite::Unnamed(fields) => {
-			for field in fields {
-				if let Some(text) = element_value_to_text(field) {
-					state.insert_reserved("display", Some(text));
-				}
-			}
-		},
-	}
-	Some(state)
-}
-
-fn build_entity_details_args(auth: &AuthorizationRequest, token: &Ss58Identifier) -> Result<Value> {
-	let mut raw = [0u8; 32];
-	raw.copy_from_slice(auth.account.as_ref());
-	let account = types::account_id_value(&subxt::utils::AccountId32::from(raw));
-	let payload = types::bytes_value(auth.payload.as_slice());
-	let signature = match &auth.signature {
-		origin_primitives::Signature::Sr25519(sig) => {
-			Value::unnamed_variant("Sr25519", [types::bytes_value(sig.as_ref())])
-		},
-		origin_primitives::Signature::Ed25519(sig) => {
-			Value::unnamed_variant("Ed25519", [types::bytes_value(sig.as_ref())])
-		},
-		origin_primitives::Signature::Ecdsa(sig) => {
-			Value::unnamed_variant("Ecdsa", [types::bytes_value(sig.as_ref())])
-		},
-	};
-	let auth_value = Value::named_composite([
-		("account", account),
-		("payload", payload),
-		("signature", signature),
-	]);
-	let token_value = types::identifier_struct(token);
-	Ok(Value::named_composite([("auth", auth_value), ("token", token_value)]))
 }
 
 async fn collect_timeline_once<F>(

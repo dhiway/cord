@@ -11,20 +11,19 @@ use jsonrpsee_core::client::{async_client::PingConfig, Client as WsClient};
 use log::warn;
 use lru::LruCache;
 use scale_info::PortableRegistry;
-use scale_value::scale as scale_value_scale;
-use scale_value::Value;
+use scale_value::{scale as scale_value_scale, Value};
 use sp_core::hashing::blake2_256;
 use sp_runtime::traits::SaturatedConversion;
 use std::{collections::HashMap, num::NonZeroUsize, sync::Arc, time::Duration};
-use subxt::backend::rpc::RpcClient;
-use subxt::dynamic::DecodedValueThunk;
-use subxt::utils::AccountId32;
 use subxt::{
-	config::DefaultExtrinsicParamsBuilder, dynamic, storage::DynamicAddress, Metadata, OnlineClient,
+	backend::rpc::RpcClient, config::DefaultExtrinsicParamsBuilder, dynamic,
+	dynamic::DecodedValueThunk, storage::DynamicAddress, utils::AccountId32, Metadata,
+	OnlineClient,
 };
-use tokio::sync::mpsc;
-use tokio::sync::{Mutex, RwLock, Semaphore};
-use tokio::time::sleep;
+use tokio::{
+	sync::{mpsc, Mutex, RwLock, Semaphore},
+	time::sleep,
+};
 use url::Url;
 
 fn spawn_nonce_resync_if_enabled(
@@ -266,9 +265,8 @@ impl NonceManager {
 		account: &AccountId32,
 	) -> Result<u64, Error> {
 		match self.strategy {
-			NonceStrategy::RpcPerTx => {
-				client.tx().account_nonce(account).await.map_err(Error::from)
-			},
+			NonceStrategy::RpcPerTx =>
+				client.tx().account_nonce(account).await.map_err(Error::from),
 			NonceStrategy::LocalCache => {
 				let key = account.0;
 				// Fast path: try read lock first.

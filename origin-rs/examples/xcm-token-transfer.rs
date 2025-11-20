@@ -89,9 +89,8 @@ async fn main() -> Result<()> {
 			return Err(anyhow!("extrinsic stream ended before inclusion"));
 		};
 		match status? {
-			TxStatus::InBestBlock(in_block) | TxStatus::InFinalizedBlock(in_block) => {
-				break in_block
-			},
+			TxStatus::InBestBlock(in_block) | TxStatus::InFinalizedBlock(in_block) =>
+				break in_block,
 			TxStatus::Error { message } => return Err(anyhow!("node error: {message}")),
 			TxStatus::Invalid { message } => return Err(anyhow!("invalid transaction: {message}")),
 			TxStatus::Dropped { message } => return Err(anyhow!("dropped transaction: {message}")),

@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
-use base64;
-use base64::Engine;
+use base64::{self, Engine};
 use bs58;
 use hex;
 use origin_primitives::{

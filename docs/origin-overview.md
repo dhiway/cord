@@ -20,7 +20,7 @@ Origin assembles four tightly-coupled pallets—`entity`, `register` (registry +
   - `clear`, `clear_everything_for` – wipe an entity token (controller only).
 - **Read-only views** (authorization-gated)
   - `details` (entity info packet), `account_token`, `controller_account`, `linked_accounts`, `account_history`.
-  - Nym lookups: `entity_nym`, `entity_nym_lookup`.
+  - Nym helper: `entity_nym`.
   - Attribute history/version helpers: `attribute_version`, `attribute_versions`, `attribute_history`, `attribute_history_for_key`, `attribute_history_entry`.
 
 ## Register pallet (registries + delegates + packets)

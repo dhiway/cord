@@ -22,7 +22,7 @@
 // modules that need to interact with identifiers.
 
 extern crate alloc;
-use alloc::{format, string::String, vec::Vec};
+use alloc::{borrow::ToOwned, format, string::String, vec::Vec};
 use blake2::{Blake2b512, Digest};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use core::{convert::TryFrom, marker::PhantomData};

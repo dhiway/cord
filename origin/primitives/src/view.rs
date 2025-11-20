@@ -13,12 +13,75 @@ use alloc::{borrow::ToOwned, string::String, vec::Vec};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use bs58;
 use codec::{Decode, Encode};
+use core::{marker::PhantomData, ops::Deref};
 use frame_support::traits::Get;
 use hex;
-use scale_decode::DecodeAsType;
+use scale_decode::{visitor, DecodeAsType, IntoVisitor, TypeResolver};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
-use sp_runtime::RuntimeDebug;
+use sp_runtime::{AccountId32 as RuntimeAccountId32, RuntimeDebug};
+
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct AccountId32(RuntimeAccountId32);
+
+impl AccountId32 {
+	pub fn into_inner(self) -> RuntimeAccountId32 {
+		self.0
+	}
+
+	pub fn as_inner(&self) -> &RuntimeAccountId32 {
+		&self.0
+	}
+}
+
+impl From<RuntimeAccountId32> for AccountId32 {
+	fn from(value: RuntimeAccountId32) -> Self {
+		Self(value)
+	}
+}
+
+impl From<&RuntimeAccountId32> for AccountId32 {
+	fn from(value: &RuntimeAccountId32) -> Self {
+		Self(value.clone())
+	}
+}
+
+impl Deref for AccountId32 {
+	type Target = RuntimeAccountId32;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+pub struct AccountId32Visitor<R>(PhantomData<R>);
+
+impl<R: TypeResolver> visitor::Visitor for AccountId32Visitor<R> {
+	type Value<'scale, 'resolver> = AccountId32;
+	type Error = scale_decode::Error;
+	type TypeResolver = R;
+
+	fn unchecked_decode_as_type<'scale, 'resolver>(
+		self,
+		input: &mut &'scale [u8],
+		type_id: <Self::TypeResolver as TypeResolver>::TypeId,
+		types: &'resolver Self::TypeResolver,
+	) -> visitor::DecodeAsTypeResult<Self, Result<Self::Value<'scale, 'resolver>, Self::Error>> {
+		let decoded =
+			visitor::decode_with_visitor(input, type_id, types, <[u8; 32]>::into_visitor())
+				.map(|bytes| AccountId32(RuntimeAccountId32::from(bytes)));
+		visitor::DecodeAsTypeResult::Decoded(decoded)
+	}
+}
+
+impl IntoVisitor for AccountId32 {
+	type AnyVisitor<R: TypeResolver> = AccountId32Visitor<R>;
+
+	fn into_visitor<R: TypeResolver>() -> Self::AnyVisitor<R> {
+		AccountId32Visitor(PhantomData)
+	}
+}
 
 /// Human-friendly representation of [`Element`].
 #[derive(
@@ -276,6 +339,14 @@ pub struct DevEventBlockView {
 	pub index: u32,
 }
 
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntityEventBlock {
+	pub account: crate::view::AccountId32,
+	pub height: u32,
+	pub index: u32,
+}
+
 pub fn dev_element_from(ev: &ElementView) -> DevElement {
 	match ev {
 		ElementView::None => DevElement::None,
@@ -347,23 +418,12 @@ impl EntityInfoView {
 	}
 }
 
-#[derive(
-	Clone,
-	PartialEq,
-	Eq,
-	Encode,
-	Decode,
-	TypeInfo,
-	RuntimeDebug,
-	Serialize,
-	Deserialize,
-	DecodeAsType,
-)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct EntityOverviewView<AccountId> {
+pub struct EntityOverview {
 	pub info: EntityInfoView,
 	pub nym: Option<Vec<u8>>,
-	pub linked_accounts: Vec<AccountId>,
+	pub linked_accounts: Vec<crate::view::AccountId32>,
 	pub history: Vec<InfoAttributeHistoryEntry>,
 }
 

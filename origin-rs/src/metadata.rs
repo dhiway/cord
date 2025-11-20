@@ -3,10 +3,10 @@ use codec::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use sp_core::hashing::blake2_256;
 use std::{fs, path::PathBuf, time::SystemTime};
-use subxt::ext::frame_metadata;
 use subxt::{
 	backend::rpc::RpcClient,
 	ext::{
+		frame_metadata,
 		subxt_core::client::RuntimeVersion as CoreRuntimeVersion,
 		subxt_rpcs::methods::legacy::{LegacyRpcMethods, RuntimeVersion as LegacyRuntimeVersion},
 	},

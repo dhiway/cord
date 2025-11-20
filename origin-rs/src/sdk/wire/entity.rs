@@ -1,12 +1,13 @@
-use base64;
-use base64::Engine;
+use base64::{self, Engine};
 use bs58;
 use hex;
 use origin_primitives::{
 	identifier::Ss58Identifier,
-	view_api::{AuthorizationRequest, EntityAttributeHistoryRequest},
+	view::AccountId32 as ViewAccount32,
+	view_api::{AuthorizationRequest, EntityAttributeHistoryRequest, EntityOverviewRequest},
 };
 
+use super::token;
 use crate::{
 	client::Client,
 	sdk::{
@@ -14,18 +15,23 @@ use crate::{
 		types::{Attribute, Entity, EntityId, EntityOverview, HistoryEntry},
 	},
 	tx::TxOptions,
-	types::entity::EntityInfoRecord,
 };
-use subxt::tx::Signer;
+use subxt::{tx::Signer, utils::AccountId32 as SubxtAccount32};
 
 pub(crate) async fn fetch_entity(
 	client: &Client,
 	auth: &AuthorizationRequest,
 	id: &EntityId,
 ) -> Result<Entity> {
-	let info: Option<EntityInfoRecord> = client.query().entity().details(auth, id).await?;
-	let info = info.ok_or(OriginError::NotFound)?;
-	Ok(entity_from_record(id.clone(), info))
+	let req = EntityOverviewRequest {
+		auth: auth.clone(),
+		token: id.as_ref().to_vec(),
+		history_limit: Some(1),
+	};
+	match client.query().entity().overview(&req).await? {
+		Some(view) => Ok(entity_from_view(id.clone(), &view.info)),
+		None => Err(OriginError::NotFound),
+	}
 }
 
 pub(crate) async fn fetch_history(
@@ -33,7 +39,7 @@ pub(crate) async fn fetch_history(
 	auth: &AuthorizationRequest,
 	id: &EntityId,
 ) -> Result<Vec<HistoryEntry>> {
-	let req = EntityAttributeHistoryRequest { auth: auth.clone(), token: id.clone() };
+	let req = EntityAttributeHistoryRequest { auth: auth.clone(), token: id.as_ref().to_vec() };
 	let history = client.query().entity().attribute_history(&req).await?;
 	Ok(history)
 }
@@ -43,9 +49,9 @@ pub(crate) async fn fetch_overview(
 	auth: &AuthorizationRequest,
 	id: &EntityId,
 ) -> Result<EntityOverview> {
-	let req = origin_primitives::view_api::EntityOverviewRequest {
+	let req = EntityOverviewRequest {
 		auth: auth.clone(),
-		token: id.clone(),
+		token: id.as_ref().to_vec(),
 		history_limit: None,
 	};
 	match client.query().entity().overview(&req).await {
@@ -65,9 +71,12 @@ pub(crate) async fn fetch_overview(
 					},
 				})
 				.collect();
-			let timeline = Vec::new();
+			let timeline = token::timeline(client, auth, id, None, Some(20))
+				.await
+				.map(|(events, _)| events)
+				.unwrap_or_default();
 			let nym = view.nym.and_then(|bytes| String::from_utf8(bytes).ok());
-			let linked_accounts = view.linked_accounts;
+			let linked_accounts = view.linked_accounts.into_iter().map(to_subxt_account).collect();
 			let entity_overview =
 				EntityOverview { entity, history, timeline, nym, linked_accounts };
 			Ok(entity_overview)
@@ -75,13 +84,6 @@ pub(crate) async fn fetch_overview(
 		Ok(None) => Err(OriginError::NotFound),
 		Err(err) => Err(OriginError::Rpc(err)),
 	}
-}
-
-fn entity_from_record(id: Ss58Identifier, record: EntityInfoRecord) -> Entity {
-	let attributes =
-		record.attributes.unwrap_or_default().into_iter().map(Attribute::from).collect();
-
-	Entity { id, display: record.display, web: record.web, email: record.email, attributes }
 }
 
 fn entity_from_view(id: Ss58Identifier, view: &origin_primitives::view::EntityInfoView) -> Entity {
@@ -101,6 +103,12 @@ fn entity_from_view(id: Ss58Identifier, view: &origin_primitives::view::EntityIn
 	}
 }
 
+fn to_subxt_account(account: ViewAccount32) -> SubxtAccount32 {
+	let runtime_account = account.into_inner();
+	let raw: [u8; 32] = runtime_account.into();
+	SubxtAccount32::from(raw)
+}
+
 /// Encode an entity and submit `Entity::set_info`.
 pub(crate) async fn upsert_entity<S>(
 	client: &Client,
@@ -112,7 +120,8 @@ where
 	S: Signer<crate::params::config::OriginConfig>,
 {
 	use crate::types::{
-		attribute_pair_value, element::element_json_to_dynamic, element::ElementJson,
+		attribute_pair_value,
+		element::{element_json_to_dynamic, ElementJson},
 	};
 	use scale_value::Composite;
 	use subxt::dynamic::Value;
@@ -120,19 +129,16 @@ where
 	let to_element_json = |el: &origin_primitives::view::ElementView| -> ElementJson {
 		match el {
 			origin_primitives::view::ElementView::None => ElementJson::None,
-			origin_primitives::view::ElementView::Raw(bytes) => {
-				ElementJson::RawBase64(base64::engine::general_purpose::STANDARD.encode(bytes))
-			},
+			origin_primitives::view::ElementView::Raw(bytes) =>
+				ElementJson::RawBase64(base64::engine::general_purpose::STANDARD.encode(bytes)),
 			origin_primitives::view::ElementView::Bool(v) => ElementJson::Bool(*v),
 			origin_primitives::view::ElementView::U64(v) => ElementJson::U64(*v),
 			origin_primitives::view::ElementView::U128(v) => ElementJson::U128(*v),
 			origin_primitives::view::ElementView::Hash(h) => ElementJson::HashHex(hex::encode(h)),
-			origin_primitives::view::ElementView::Token(tok) => {
-				ElementJson::TokenSs58(String::from_utf8_lossy(tok.as_ref()).into_owned())
-			},
-			origin_primitives::view::ElementView::Cid(cid) => {
-				ElementJson::CidBase58(bs58::encode(cid).into_string())
-			},
+			origin_primitives::view::ElementView::Token(tok) =>
+				ElementJson::TokenSs58(String::from_utf8_lossy(tok.as_ref()).into_owned()),
+			origin_primitives::view::ElementView::Cid(cid) =>
+				ElementJson::CidBase58(bs58::encode(cid).into_string()),
 		}
 	};
 
