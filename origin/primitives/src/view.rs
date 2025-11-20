@@ -418,7 +418,18 @@ impl EntityInfoView {
 	}
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct EntityOverview {
 	pub info: EntityInfoView,

@@ -48,14 +48,15 @@ impl<'a> EntityQuery<'a> {
 		builder.push("token", Value::from_bytes(req.token.clone()));
 		builder.push("history_limit", super::option_u32_value(req.history_limit));
 		let args = builder.finish();
-
-		let bytes = self.query.call_view_bytes("Entity", "overview", args).await?;
-		let mut cursor = &bytes.data[..];
-		let decoded: core::result::Result<
-			origin_primitives::view::EntityOverview,
-			AuthorizationError,
-		> = Decode::decode(&mut cursor).map_err(|e| Error::Codec(e.to_string()))?;
-		match decoded {
+		match self
+			.query
+			.call_result::<origin_primitives::view::EntityOverview, AuthorizationError>(
+				"Entity",
+				"overview",
+				args,
+			)
+			.await?
+		{
 			Ok(view) => Ok(Some(view)),
 			Err(AuthorizationError::NotFound) => Ok(None),
 			Err(err) => Err(super::view_failure("entity.overview", err)),
