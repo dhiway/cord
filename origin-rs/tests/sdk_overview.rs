@@ -1,5 +1,7 @@
-use oc::sdk::types::{EntityOverview, PacketOverview, RegisterOverview};
-use oc::sdk::OriginClient;
+use oc::sdk::{
+	types::{EntityOverview, PacketOverview, RegisterOverview},
+	OriginClient,
+};
 use origin_primitives::view_api::AuthorizationRequest;
 
 fn fake_auth() -> AuthorizationRequest {

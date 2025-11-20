@@ -16,12 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::AccountId;
 use crate::{
-	AllPalletsWithSystem, Balances, Broker, CollatorSelection, ParachainInfo, ParachainSystem,
-	PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
+	AccountId, AllPalletsWithSystem, Balances, Broker, CollatorSelection, ParachainInfo,
+	ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
+	TransactionByteFee, WeightToFee, XcmpQueue, MICRO,
 };
-use crate::{TransactionByteFee, MICRO};
 use frame_support::{
 	pallet_prelude::PalletInfoAccess,
 	parameter_types,

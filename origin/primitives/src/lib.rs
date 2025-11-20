@@ -34,9 +34,10 @@ pub use crate::registry::{
 pub mod view;
 pub use crate::view::{
 	base58_string, base64_string, dev_attr_from, dev_element_from, dev_packet_snapshot_from,
-	dev_packet_state_from, hex_string, maybe_utf8, ss58_string, AttributeValueView, DevAttr,
-	DevElement, DevEventBlockView, DevPacketSnapshot, DevPacketState, ElementView,
-	InfoAttributeHistoryEntry, InfoTokenHistoryEntry, PacketMetadataView, PacketStateView,
+	dev_packet_state_from, hex_string, maybe_utf8, ss58_string, AccountId32, AttributeValueView,
+	DevAttr, DevElement, DevEventBlockView, DevPacketSnapshot, DevPacketState, ElementView,
+	EntityEventBlock, EntityOverview, InfoAttributeHistoryEntry, InfoTokenHistoryEntry,
+	PacketMetadataView, PacketStateView,
 };
 pub mod authorization;
 pub use crate::authorization::{authorization_signature_hash, Authorization};

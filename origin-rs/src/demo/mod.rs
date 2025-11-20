@@ -18,7 +18,7 @@ use hex;
 use origin_primitives::{
 	identifier::Ss58Identifier,
 	registry::RegistryInfoView,
-	view_api::{AuthorizationRequest, EntityAccountTokenRequest},
+	view_api::{AuthorizationRequest, EntityAccountTokenRequest, EntityOverviewRequest},
 };
 use serde_json::{json, Value as JsonValue};
 use sp_runtime::AccountId32 as RuntimeAccount;
@@ -201,7 +201,15 @@ pub async fn fetch_entity_info(
 	auth: &AuthorizationRequest,
 	token: &Ss58Identifier,
 ) -> Result<Option<EntityInfoRecord>> {
-	client.query().entity().details(auth, token).await
+	let req = EntityOverviewRequest {
+		auth: auth.clone(),
+		token: token.as_ref().to_vec(),
+		history_limit: Some(1),
+	};
+	match client.query().entity().overview(&req).await? {
+		Some(view) => Ok(Some(view.info)),
+		None => Ok(None),
+	}
 }
 
 fn decode_value<T: Decode>(cursor: &mut &[u8]) -> Result<T> {

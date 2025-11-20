@@ -72,7 +72,7 @@ let auth = AuthorizationBuilder::generate_view_authorization(
 - `details(auth, token)` – latest profile packet.
 - `linked_accounts`, `controller_account`, `account_token(account)`, `account_history`.
 - Attribute history helpers: `attribute_history`, `attribute_history_for_key`, `attribute_history_entry`, `attribute_version`, `attribute_versions`.
-- Nym helpers: `entity_nym(token)`, `entity_nym_lookup(auth, raw_nym_bytes)`.
+- Nym helper: `entity_nym(token)`.
 
 **Register queries** (`client.query().register()`)
 - Registry surface: `details`, `schema` (helper), `lookup_specs`, `overview` (info + lookup specs), `delegate_permissions`, `query_count`, `token_fingerprint`.

@@ -12,8 +12,8 @@ use origin_primitives::{
 	identifier::Ss58Identifier,
 	registry::RegistryInfoView,
 	view_api::{
-		AuthorizationRequest, EntityAccountTokenRequest, RegisterDetailsRequest,
-		RegisterPacketSnapshotByTokenRequest, TokenTimelineRequest,
+		AuthorizationRequest, EntityAccountTokenRequest, EntityOverviewRequest,
+		RegisterDetailsRequest, RegisterPacketSnapshotByTokenRequest, TokenTimelineRequest,
 	},
 };
 use serde::Serialize;
@@ -80,9 +80,8 @@ impl<'a, 'b> TxExecutor<'a, 'b> {
 		sink: &mut LogSink<'_>,
 	) -> Result<ExtrinsicEvents<OriginConfig>, SubmitError> {
 		match self {
-			TxExecutor::Direct { submitter } => {
-				submit_with_logging(submitter, call, description, sink).await
-			},
+			TxExecutor::Direct { submitter } =>
+				submit_with_logging(submitter, call, description, sink).await,
 			TxExecutor::Relayed { relayer, meta_signer } => {
 				let payload = client
 					.tx()
@@ -108,9 +107,8 @@ impl<'a> LogSink<'a> {
 		let message = match stage {
 			SubmitStage::Validated => "  ↳ 🟡 validated and queued".to_string(),
 			SubmitStage::Broadcasted => "  ↳ 📡 broadcast to peers".to_string(),
-			SubmitStage::Retracted => {
-				"  ↳ ⚠️ retracted from best block, waiting for re-inclusion".to_string()
-			},
+			SubmitStage::Retracted =>
+				"  ↳ ⚠️ retracted from best block, waiting for re-inclusion".to_string(),
 			SubmitStage::InBlock { hash, label } => {
 				format!("  ↳ 📦 included in block {}", block_display(label, &hash))
 			},
@@ -254,8 +252,15 @@ pub async fn resolve_token_target(
 	auth: &AuthorizationRequest,
 	token: &Ss58Identifier,
 ) -> Result<TokenTarget> {
-	if let Some(_) = client.query().entity().details(auth, token).await? {
-		return Ok(TokenTarget::Entity { token: token.clone() });
+	let entity_req = EntityOverviewRequest {
+		auth: auth.clone(),
+		token: token.as_ref().to_vec(),
+		history_limit: Some(1),
+	};
+	match client.query().entity().overview(&entity_req).await {
+		Ok(Some(_)) => return Ok(TokenTarget::Entity { token: token.clone() }),
+		Ok(None) => {},
+		Err(err) => return Err(err),
 	}
 
 	let reg_req = RegisterDetailsRequest { auth: auth.clone(), registry: token.clone() };

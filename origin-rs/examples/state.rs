@@ -99,16 +99,13 @@ async fn main() -> Result<()> {
 	let target = resolve_token_target(&client, &auth, &token_id).await?;
 
 	match target {
-		TokenTarget::Entity { token } => {
+		TokenTarget::Entity { token } =>
 			render_entity_state(&client, &signer, &token, token_str, chain_prefix, &cli.common)
-				.await
-		},
-		TokenTarget::Registry { registry, info } => {
-			render_registry_state(&client, &signer, registry, &info, &cli.common).await
-		},
-		TokenTarget::Packet { registry, packet, snapshot } => {
-			render_packet_state(&client, &signer, registry, packet, snapshot, &cli.common).await
-		},
+				.await,
+		TokenTarget::Registry { registry, info } =>
+			render_registry_state(&client, &signer, registry, &info, &cli.common).await,
+		TokenTarget::Packet { registry, packet, snapshot } =>
+			render_packet_state(&client, &signer, registry, packet, snapshot, &cli.common).await,
 	}
 }
 
@@ -145,7 +142,7 @@ async fn render_entity_state(
 
 	let nym_req = EntityNymRequest {
 		auth: fresh_authorization_with_client(client, signer).await?,
-		token: token.clone(),
+		token: token.as_ref().to_vec(),
 	};
 	if let Some(nym) = client.query().entity().entity_nym(&nym_req).await? {
 		snapshot.set_entity_nym(nym);

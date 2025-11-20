@@ -1,6 +1,5 @@
 use crate::error::{Error, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use scale_decode::DecodeAsType;
 use scale_value::Value;
 use serde::{Deserialize, Serialize};
 
@@ -83,45 +82,3 @@ fn maybe_utf8(bytes: &[u8]) -> Option<String> {
 pub type EntityInfoRecord = origin_primitives::view::EntityInfoView;
 
 pub type EventBlockRecord = origin_primitives::view::DevEventBlockView;
-
-#[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType)]
-#[serde(rename_all = "camelCase")]
-pub struct AttributeHistoryRecord {
-	pub key: Vec<u8>,
-	pub version: u64,
-	pub old: Vec<u8>,
-	pub block: EventBlockRecord,
-}
-
-impl From<AttributeHistoryRecord> for HistoryEntry {
-	fn from(record: AttributeHistoryRecord) -> Self {
-		HistoryEntry::from_raw(&record.key, record.version, &record.old, record.block.into())
-	}
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType)]
-#[serde(rename_all = "camelCase")]
-pub struct AttributeHistoryVersionRecord {
-	pub version: u64,
-	pub old: Vec<u8>,
-	pub block: EventBlockRecord,
-}
-
-impl AttributeHistoryVersionRecord {
-	pub fn into_entry(self, key: &[u8]) -> HistoryEntry {
-		HistoryEntry::from_raw(key, self.version, &self.old, self.block.into())
-	}
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType)]
-#[serde(rename_all = "camelCase")]
-pub struct AttributeHistoryEntryRecord {
-	pub old: Vec<u8>,
-	pub block: EventBlockRecord,
-}
-
-impl AttributeHistoryEntryRecord {
-	pub fn into_entry(self, key: &[u8], version: u64) -> HistoryEntry {
-		HistoryEntry::from_raw(key, version, &self.old, self.block.into())
-	}
-}

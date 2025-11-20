@@ -3,6 +3,7 @@
 // Typed request/response DTOs and error taxonomy for runtime view functions.
 
 use crate::{authorization::Authorization, identifier::Ss58Identifier, AccountId, Signature};
+use alloc::vec::Vec;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
@@ -28,6 +29,9 @@ type AttributeKeyLimit = ConstU32<MAX_ATTRIBUTE_KEY_BYTES>;
 
 /// Attribute key shape shared by entity/register view DTOs.
 pub type AttributeKey = BoundedVec<u8, AttributeKeyLimit>;
+
+/// Raw identifier bytes accepted by entity view functions.
+pub type TokenBytes = Vec<u8>;
 
 /// Request payload for `Register::details`.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
@@ -99,28 +103,28 @@ pub struct RegisterListByDigestRequest {
 }
 
 /// Request payload for `Entity::attribute_history_entries`.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct EntityAttributeHistoryRequest {
 	pub auth: AuthorizationRequest,
-	pub token: Ss58Identifier,
+	pub token: TokenBytes,
 }
 
 /// Request payload for `Entity::attribute_history_for_key`.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct EntityAttributeHistoryForKeyRequest {
 	pub auth: AuthorizationRequest,
-	pub token: Ss58Identifier,
+	pub token: TokenBytes,
 	pub key: AttributeKey,
 }
 
 /// Request payload for `Entity::attribute_history_entry`.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct EntityAttributeHistoryEntryRequest {
 	pub auth: AuthorizationRequest,
-	pub token: Ss58Identifier,
+	pub token: TokenBytes,
 	pub key: AttributeKey,
 	pub version: u64,
 }
@@ -134,28 +138,28 @@ pub struct EntityAccountTokenRequest {
 }
 
 /// Request payload for `Entity::linked_accounts`.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct EntityLinkedAccountsRequest {
 	pub auth: AuthorizationRequest,
-	pub token: Ss58Identifier,
+	pub token: TokenBytes,
 }
 
 /// Request payload for `Entity::overview`.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct EntityOverviewRequest {
 	pub auth: AuthorizationRequest,
-	pub token: Ss58Identifier,
+	pub token: TokenBytes,
 	pub history_limit: Option<u32>,
 }
 
 /// Request payload for `Entity::entity_nym`.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct EntityNymRequest {
 	pub auth: AuthorizationRequest,
-	pub token: Ss58Identifier,
+	pub token: TokenBytes,
 }
 
 /// Request payload for `Token::state_version`.
@@ -270,18 +274,32 @@ mod tests {
 	fn entity_requests_roundtrip() {
 		let auth = sample_auth();
 		let token = sample_token(11);
-		roundtrip(&EntityAttributeHistoryRequest { auth: auth.clone(), token: token.clone() });
+		let token_bytes = token.as_ref().to_vec();
+		roundtrip(&EntityAttributeHistoryRequest {
+			auth: auth.clone(),
+			token: token_bytes.clone(),
+		});
 		roundtrip(&EntityAttributeHistoryForKeyRequest {
 			auth: auth.clone(),
-			token: token.clone(),
+			token: token_bytes.clone(),
 			key: key(b"name"),
 		});
 		roundtrip(&EntityAttributeHistoryEntryRequest {
 			auth: auth.clone(),
-			token: token.clone(),
+			token: token_bytes.clone(),
 			key: key(b"name"),
 			version: 42,
 		});
+		roundtrip(&EntityLinkedAccountsRequest {
+			auth: auth.clone(),
+			token: token_bytes.clone(),
+		});
+		roundtrip(&EntityOverviewRequest {
+			auth: auth.clone(),
+			token: token_bytes.clone(),
+			history_limit: Some(3),
+		});
+		roundtrip(&EntityNymRequest { auth: auth.clone(), token: token_bytes });
 		roundtrip(&EntityAccountTokenRequest { auth, account: AccountId::from([3u8; 32]) });
 	}
 

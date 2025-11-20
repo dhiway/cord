@@ -37,12 +37,9 @@ pub mod xcm_config;
 
 use alloc::{borrow::Cow, string::String, vec, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use core::cmp::Ordering;
-use core::convert::TryInto;
-use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
-use cumulus_pallet_parachain_system::RelaychainDataProvider;
-use cumulus_primitives_core::relay_chain::AccountIndex;
-use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
+use core::{cmp::Ordering, convert::TryInto};
+use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
+use cumulus_primitives_core::{relay_chain::AccountIndex, AggregateMessageOrigin, ParaId};
 use frame_support::{
 	construct_runtime, derive_impl,
 	dispatch::DispatchClass,
@@ -74,9 +71,7 @@ use origin_hub_system_runtime_constants::{
 	},
 };
 use origin_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
-use origin_runtime_constants::currency::EXISTENTIAL_DEPOSIT;
-use origin_runtime_constants::fee;
-use origin_runtime_constants::time::DAYS;
+use origin_runtime_constants::{currency::EXISTENTIAL_DEPOSIT, fee, time::DAYS};
 use pallet_token::Token as TokenTrait;
 use pallet_transaction_payment::FungibleAdapter;
 use pallet_tx_pause::RuntimeCallNameOf;
@@ -94,10 +89,9 @@ use sp_runtime::{
 	generic, impl_opaque_keys,
 	traits::{BlakeTwo256, Block as BlockT},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, RuntimeDebug,
+	ApplyExtrinsicResult, MultiSignature, MultiSigner, RuntimeDebug,
 };
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
-use sp_runtime::{MultiSignature, MultiSigner};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -436,20 +430,20 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::Any => true,
 			ProxyType::NonTransfer => matches!(
 				c,
-				RuntimeCall::System(..)
-					| RuntimeCall::ParachainSystem(..)
-					| RuntimeCall::Timestamp(..)
-					| RuntimeCall::Indices(pallet_indices::Call::claim { .. })
-					| RuntimeCall::Indices(pallet_indices::Call::free { .. })
-					| RuntimeCall::Indices(pallet_indices::Call::freeze { .. })
-					| RuntimeCall::Entity(..)
-					| RuntimeCall::Feeless(..)
-					| RuntimeCall::Register(..)
-					| RuntimeCall::Session(..)
-					| RuntimeCall::Utility(..)
-					| RuntimeCall::Proxy(..)
-					| RuntimeCall::Multisig(..)
-					| RuntimeCall::MessageQueue(..)
+				RuntimeCall::System(..) |
+					RuntimeCall::ParachainSystem(..) |
+					RuntimeCall::Timestamp(..) |
+					RuntimeCall::Indices(pallet_indices::Call::claim { .. }) |
+					RuntimeCall::Indices(pallet_indices::Call::free { .. }) |
+					RuntimeCall::Indices(pallet_indices::Call::freeze { .. }) |
+					RuntimeCall::Entity(..) |
+					RuntimeCall::Feeless(..) |
+					RuntimeCall::Register(..) |
+					RuntimeCall::Session(..) |
+					RuntimeCall::Utility(..) |
+					RuntimeCall::Proxy(..) |
+					RuntimeCall::Multisig(..) |
+					RuntimeCall::MessageQueue(..)
 			),
 			ProxyType::CancelProxy => {
 				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))

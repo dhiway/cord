@@ -223,18 +223,15 @@ fn element_json_from_view(
 	use crate::types::element::ElementJson;
 	Ok(match el {
 		origin_primitives::view::ElementView::None => ElementJson::None,
-		origin_primitives::view::ElementView::Raw(bytes) => {
-			ElementJson::RawBase64(base64::engine::general_purpose::STANDARD.encode(bytes))
-		},
+		origin_primitives::view::ElementView::Raw(bytes) =>
+			ElementJson::RawBase64(base64::engine::general_purpose::STANDARD.encode(bytes)),
 		origin_primitives::view::ElementView::Bool(v) => ElementJson::Bool(*v),
 		origin_primitives::view::ElementView::U64(v) => ElementJson::U64(*v),
 		origin_primitives::view::ElementView::U128(v) => ElementJson::U128(*v),
 		origin_primitives::view::ElementView::Hash(h) => ElementJson::HashHex(hex::encode(h)),
-		origin_primitives::view::ElementView::Token(tok) => {
-			ElementJson::TokenSs58(String::from_utf8_lossy(tok.as_ref()).into_owned())
-		},
-		origin_primitives::view::ElementView::Cid(cid) => {
-			ElementJson::CidBase58(bs58::encode(cid).into_string())
-		},
+		origin_primitives::view::ElementView::Token(tok) =>
+			ElementJson::TokenSs58(String::from_utf8_lossy(tok.as_ref()).into_owned()),
+		origin_primitives::view::ElementView::Cid(cid) =>
+			ElementJson::CidBase58(bs58::encode(cid).into_string()),
 	})
 }

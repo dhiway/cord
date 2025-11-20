@@ -16,20 +16,20 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{weights, Balances, BlockNumber, PolkadotXcm, Runtime, RuntimeEvent};
-use crate::{xcm_config, xcm_config::LocationToAccountId};
-use alloc::vec;
-use alloc::vec::Vec;
+use crate::{
+	weights, xcm_config, xcm_config::LocationToAccountId, Balances, BlockNumber, PolkadotXcm,
+	Runtime, RuntimeEvent,
+};
+use alloc::{vec, vec::Vec};
 use codec::{Decode, Encode};
 use cumulus_pallet_parachain_system::RelaychainDataProvider;
 use cumulus_primitives_core::relay_chain;
-use frame_support::traits::ConstU32;
 use frame_support::{
 	parameter_types,
 	traits::{
 		fungible::{Balanced, Credit, Inspect},
 		tokens::{Fortitude, Preservation},
-		DefensiveResult, OnUnbalanced,
+		ConstU32, DefensiveResult, OnUnbalanced,
 	},
 	weights::constants::{WEIGHT_PROOF_SIZE_PER_KB, WEIGHT_REF_TIME_PER_MICROS},
 	PalletId,

@@ -11,16 +11,14 @@ async fn main() -> anyhow::Result<()> {
 	let mut iter = env::args().skip(1);
 	while let Some(arg) = iter.next() {
 		match arg.as_str() {
-			"--node" => {
+			"--node" =>
 				if let Some(val) = iter.next() {
 					node = val
-				}
-			},
-			"--file" => {
+				},
+			"--file" =>
 				if let Some(val) = iter.next() {
 					file = Some(val)
-				}
-			},
+				},
 			_ => {},
 		}
 	}

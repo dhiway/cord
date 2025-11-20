@@ -9,6 +9,7 @@ use crate::{
 	flavors::ChainFlavor,
 	types,
 };
+use codec::Encode;
 use origin_primitives::{
 	identifier::Ss58Identifier,
 	view_api::{AuthorizationError, AuthorizationRequest},
@@ -121,6 +122,10 @@ pub(crate) fn authorization_value(authz: &AuthorizationRequest) -> Result<Value>
 		("payload", payload),
 		("signature", signature),
 	]))
+}
+
+pub(crate) fn authorization_bytes_value(authz: &AuthorizationRequest) -> Result<Value> {
+	Ok(Value::from_bytes(authz.encode()))
 }
 
 pub(crate) fn identifier_struct_value(id: &Ss58Identifier) -> Value {

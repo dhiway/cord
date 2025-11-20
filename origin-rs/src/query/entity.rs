@@ -2,13 +2,15 @@ use super::{ArgBuilder, Query};
 
 use crate::{
 	error::{Error, Result},
-	types::entity::{
-		AttributeHistoryEntryRecord, AttributeHistoryRecord, AttributeHistoryVersionRecord,
-		BlockRef, EntityInfoRecord, EventBlockRecord, HistoryEntry,
-	},
+	types::entity::{BlockRef, HistoryEntry},
 };
+use codec::Decode;
+use core::convert::TryFrom;
+use hex;
+use log::warn;
 use origin_primitives::{
 	identifier::Ss58Identifier,
+	view::AccountId32 as ViewAccount32,
 	view_api::{
 		AuthorizationError, AuthorizationRequest, EntityAccountTokenRequest,
 		EntityAttributeHistoryEntryRequest, EntityAttributeHistoryForKeyRequest,
@@ -39,19 +41,24 @@ impl<'a> EntityQuery<'a> {
 	pub async fn overview(
 		&self,
 		req: &EntityOverviewRequest,
-	) -> Result<Option<origin_primitives::view::EntityOverviewView<AccountId32>>> {
+	) -> Result<Option<origin_primitives::view::EntityOverview>> {
 		self.ensure_supported()?;
 		let mut builder = ArgBuilder::default();
-		builder.push("auth", super::authorization_value(&req.auth)?);
-		builder.push("token", super::identifier_struct_value(&req.token));
+		builder.push("auth_bytes", super::authorization_bytes_value(&req.auth)?);
+		builder.push("token", Value::from_bytes(req.token.clone()));
 		builder.push("history_limit", super::option_u32_value(req.history_limit));
 		let args = builder.finish();
 
-		match self.query.call_result("Entity", "overview", args.clone()).await {
-			Ok(Ok(view)) => Ok(Some(view)),
-			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
-			Ok(Err(err)) => Err(super::view_failure("entity.overview", err)),
-			Err(err) => Err(err),
+		let bytes = self.query.call_view_bytes("Entity", "overview", args).await?;
+		let mut cursor = &bytes.data[..];
+		let decoded: core::result::Result<
+			origin_primitives::view::EntityOverview,
+			AuthorizationError,
+		> = Decode::decode(&mut cursor).map_err(|e| Error::Codec(e.to_string()))?;
+		match decoded {
+			Ok(view) => Ok(Some(view)),
+			Err(AuthorizationError::NotFound) => Ok(None),
+			Err(err) => Err(super::view_failure("entity.overview", err)),
 		}
 	}
 
@@ -59,11 +66,11 @@ impl<'a> EntityQuery<'a> {
 		&self,
 		auth: &AuthorizationRequest,
 		token: &Ss58Identifier,
-	) -> Result<Option<EntityInfoRecord>> {
+	) -> Result<Option<Vec<u8>>> {
 		self.ensure_supported()?;
-		let args = self.token_args(auth, token)?;
+		let args = self.token_args(auth, token.as_ref())?;
 		match self.query.call_result("Entity", "details", args.clone()).await {
-			Ok(Ok(info)) => Ok(Some(info)),
+			Ok(Ok(bytes)) => Ok(Some(bytes)),
 			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
 			Ok(Err(err)) => Err(super::view_failure("entity.details", err)),
 			Err(err) => Err(err),
@@ -75,11 +82,20 @@ impl<'a> EntityQuery<'a> {
 		req: &EntityAttributeHistoryRequest,
 	) -> Result<Vec<HistoryEntry>> {
 		self.ensure_supported()?;
-		let args = self.token_args(&req.auth, &req.token)?;
-		let raw: core::result::Result<Vec<AttributeHistoryRecord>, AuthorizationError> =
-			self.query.call_result("Entity", "attribute_history", args).await?;
+		let args = self.token_args(&req.auth, req.token.as_slice())?;
+		let raw: core::result::Result<
+			Vec<(Vec<u8>, u64, Vec<u8>, origin_primitives::view::DevEventBlockView)>,
+			AuthorizationError,
+		> = self.query.call_result("Entity", "attribute_history", args).await?;
 		raw.map_err(|err| super::view_failure("entity.attribute_history", err))
-			.map(|records| records.into_iter().map(HistoryEntry::from).collect())
+			.map(|records| {
+				records
+					.into_iter()
+					.map(|(key, version, old, block)| {
+						HistoryEntry::from_raw(&key, version, &old, block)
+					})
+					.collect()
+			})
 	}
 
 	pub async fn attribute_history_for_key(
@@ -87,14 +103,18 @@ impl<'a> EntityQuery<'a> {
 		req: &EntityAttributeHistoryForKeyRequest,
 	) -> Result<Vec<HistoryEntry>> {
 		self.ensure_supported()?;
-		let args = self.token_key_args(&req.auth, &req.token, req.key.as_slice())?;
-		let raw: core::result::Result<Vec<AttributeHistoryVersionRecord>, AuthorizationError> =
-			self.query.call_result("Entity", "attribute_history_for_key", args).await?;
+		let args = self.token_key_args(&req.auth, req.token.as_slice(), req.key.as_slice())?;
+		let raw: core::result::Result<
+			Vec<(u64, Vec<u8>, origin_primitives::view::DevEventBlockView)>,
+			AuthorizationError,
+		> = self.query.call_result("Entity", "attribute_history_for_key", args).await?;
 		raw.map_err(|err| super::view_failure("entity.attribute_history_for_key", err))
 			.map(|records| {
 				records
 					.into_iter()
-					.map(|record| record.into_entry(req.key.as_slice()))
+					.map(|(version, old, block)| {
+						HistoryEntry::from_raw(req.key.as_slice(), version, &old, block)
+					})
 					.collect()
 			})
 	}
@@ -104,12 +124,20 @@ impl<'a> EntityQuery<'a> {
 		req: &EntityAttributeHistoryEntryRequest,
 	) -> Result<HistoryEntry> {
 		self.ensure_supported()?;
-		let args =
-			self.token_key_version_args(&req.auth, &req.token, req.key.as_slice(), req.version)?;
-		let raw: core::result::Result<AttributeHistoryEntryRecord, AuthorizationError> =
-			self.query.call_result("Entity", "attribute_history_entry", args).await?;
+		let args = self.token_key_version_args(
+			&req.auth,
+			req.token.as_slice(),
+			req.key.as_slice(),
+			req.version,
+		)?;
+		let raw: core::result::Result<
+			(Vec<u8>, origin_primitives::view::DevEventBlockView),
+			AuthorizationError,
+		> = self.query.call_result("Entity", "attribute_history_entry", args).await?;
 		raw.map_err(|err| super::view_failure("entity.attribute_history_entry", err))
-			.map(|record| record.into_entry(req.key.as_slice(), req.version))
+			.map(|(old, block)| {
+				HistoryEntry::from_raw(req.key.as_slice(), req.version, &old, block)
+			})
 	}
 
 	pub async fn account_token(
@@ -118,12 +146,15 @@ impl<'a> EntityQuery<'a> {
 	) -> Result<Option<Ss58Identifier>> {
 		self.ensure_supported()?;
 		let args = self.account_args(req)?;
-		match self.query.call_result("Entity", "account_token", args).await {
-			Ok(Ok(id)) => Ok(Some(id)),
-			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
-			Ok(Err(err)) => Err(super::view_failure("entity.account_token", err)),
-			Err(err) => Err(err),
-		}
+		let bytes = self.query.call_view_bytes("Entity", "account_token", args).await?;
+		let mut cursor = &bytes.data[..];
+		let decoded: core::result::Result<Vec<u8>, AuthorizationError> =
+			Decode::decode(&mut cursor).map_err(|e| Error::Codec(e.to_string()))?;
+			match decoded {
+				Ok(raw) => Ok(decode_identifier_bytes(&raw)),
+				Err(AuthorizationError::NotFound) => Ok(None),
+				Err(err) => Err(super::view_failure("entity.account_token", err)),
+			}
 	}
 
 	pub async fn linked_accounts(
@@ -131,9 +162,17 @@ impl<'a> EntityQuery<'a> {
 		req: &EntityLinkedAccountsRequest,
 	) -> Result<Vec<AccountId32>> {
 		self.ensure_supported()?;
-		let args = self.token_args(&req.auth, &req.token)?;
-		match self.query.call_result("Entity", "linked_accounts", args.clone()).await {
-			Ok(Ok(accounts)) => Ok(accounts),
+		let args = self.token_args(&req.auth, req.token.as_slice())?;
+		match self
+			.query
+			.call_result::<Vec<ViewAccount32>, AuthorizationError>(
+				"Entity",
+				"linked_accounts",
+				args.clone(),
+			)
+			.await
+		{
+			Ok(Ok(accounts)) => Ok(accounts.into_iter().map(to_subxt_account).collect()),
 			Ok(Err(AuthorizationError::NotFound)) => Ok(Vec::new()),
 			Ok(Err(err)) => Err(super::view_failure("entity.linked_accounts", err)),
 			Err(err) => Err(err),
@@ -142,39 +181,15 @@ impl<'a> EntityQuery<'a> {
 
 	pub async fn entity_nym(&self, req: &EntityNymRequest) -> Result<Option<String>> {
 		self.ensure_supported()?;
-		let args = self.token_args(&req.auth, &req.token)?;
-		match self
-			.query
-			.call_view_as::<core::result::Result<Vec<u8>, AuthorizationError>>(
-				"Entity",
-				"entity_nym",
-				args.clone(),
-			)
-			.await
-		{
-			Ok(Ok(bytes)) => Ok(Some(String::from_utf8_lossy(&bytes).into_owned())),
-			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
-			Ok(Err(err)) => Err(super::view_failure("entity.entity_nym", err)),
-			Err(err) => Err(err),
-		}
-	}
-
-	pub async fn entity_nym_lookup(
-		&self,
-		auth: &AuthorizationRequest,
-		nym: Vec<u8>,
-	) -> Result<Option<Ss58Identifier>> {
-		self.ensure_supported()?;
-		let mut builder = ArgBuilder::default();
-		builder.push("auth", super::authorization_value(auth)?);
-		builder.push("nym", super::hex_arg(&nym));
-		let args = builder.finish();
-		let raw: core::result::Result<Ss58Identifier, AuthorizationError> =
-			self.query.call_result("Entity", "entity_nym_lookup", args).await?;
-		match raw {
-			Ok(id) => Ok(Some(id)),
+		let args = self.token_args(&req.auth, req.token.as_slice())?;
+		let bytes = self.query.call_view_bytes("Entity", "entity_nym", args).await?;
+		let mut cursor = &bytes.data[..];
+		let decoded: core::result::Result<Vec<u8>, AuthorizationError> =
+			Decode::decode(&mut cursor).map_err(|e| Error::Codec(e.to_string()))?;
+		match decoded {
+			Ok(raw) => Ok(Some(String::from_utf8_lossy(&raw).into_owned())),
 			Err(AuthorizationError::NotFound) => Ok(None),
-			Err(err) => Err(super::view_failure("entity.entity_nym_lookup", err)),
+			Err(err) => Err(super::view_failure("entity.entity_nym", err)),
 		}
 	}
 
@@ -183,10 +198,11 @@ impl<'a> EntityQuery<'a> {
 		auth: &AuthorizationRequest,
 		token: &Ss58Identifier,
 	) -> Result<AccountId32> {
-		let args = self.token_args(auth, token)?;
-		let raw: core::result::Result<AccountId32, AuthorizationError> =
+		let args = self.token_args(auth, token.as_ref())?;
+		let raw: core::result::Result<ViewAccount32, AuthorizationError> =
 			self.query.call_result("Entity", "controller_account", args).await?;
-		raw.map_err(|err| super::view_failure("entity.controller_account", err))
+		raw.map(|account| to_subxt_account(account))
+			.map_err(|err| super::view_failure("entity.controller_account", err))
 	}
 
 	pub async fn account_history(
@@ -194,35 +210,48 @@ impl<'a> EntityQuery<'a> {
 		auth: &AuthorizationRequest,
 		token: &Ss58Identifier,
 	) -> Result<Vec<(AccountId32, BlockRef)>> {
-		let args = self.token_args(auth, token)?;
-		let raw: core::result::Result<Vec<(AccountId32, EventBlockRecord)>, AuthorizationError> =
-			self.query.call_result("Entity", "account_history", args).await?;
-		raw.map_err(|err| super::view_failure("entity.account_history", err))
+		let args = self.token_args(auth, token.as_ref())?;
+		let bytes = self.query.call_view_bytes("Entity", "account_history", args).await?;
+		let mut cursor = &bytes.data[..];
+		let decoded: core::result::Result<
+			Vec<origin_primitives::view::EntityEventBlock>,
+			AuthorizationError,
+		> = Decode::decode(&mut cursor).map_err(|e| Error::Codec(e.to_string()))?;
+		decoded
+			.map_err(|err| super::view_failure("entity.account_history", err))
 			.map(|records| {
-				records.into_iter().map(|(account, block)| (account, block.into())).collect()
+				records
+					.into_iter()
+					.map(|entry| {
+						(
+							to_subxt_account(entry.account),
+							BlockRef { height: entry.height, index: entry.index },
+						)
+					})
+					.collect()
 			})
 	}
 
 	fn token_args(
 		&self,
 		auth: &origin_primitives::view_api::AuthorizationRequest,
-		token: &Ss58Identifier,
+		token: &[u8],
 	) -> Result<Value> {
 		let mut builder = ArgBuilder::default();
-		builder.push("auth", super::authorization_value(auth)?);
-		builder.push("token", super::identifier_struct_value(token));
+		builder.push("auth_bytes", super::authorization_bytes_value(auth)?);
+		builder.push("token", Value::from_bytes(token.to_vec()));
 		Ok(builder.finish())
 	}
 
 	fn token_key_args(
 		&self,
 		auth: &origin_primitives::view_api::AuthorizationRequest,
-		token: &Ss58Identifier,
+		token: &[u8],
 		key: &[u8],
 	) -> Result<Value> {
 		let mut builder = ArgBuilder::default();
-		builder.push("auth", super::authorization_value(auth)?);
-		builder.push("token", super::identifier_struct_value(token));
+		builder.push("auth_bytes", super::authorization_bytes_value(auth)?);
+		builder.push("token", Value::from_bytes(token.to_vec()));
 		builder.push("key", super::hex_arg(key));
 		Ok(builder.finish())
 	}
@@ -230,13 +259,13 @@ impl<'a> EntityQuery<'a> {
 	fn token_key_version_args(
 		&self,
 		auth: &origin_primitives::view_api::AuthorizationRequest,
-		token: &Ss58Identifier,
+		token: &[u8],
 		key: &[u8],
 		version: u64,
 	) -> Result<Value> {
 		let mut builder = ArgBuilder::default();
-		builder.push("auth", super::authorization_value(auth)?);
-		builder.push("token", super::identifier_struct_value(token));
+		builder.push("auth_bytes", super::authorization_bytes_value(auth)?);
+		builder.push("token", Value::from_bytes(token.to_vec()));
 		builder.push("key", super::hex_arg(key));
 		builder.push("version", super::u64_value(version));
 		Ok(builder.finish())
@@ -244,8 +273,38 @@ impl<'a> EntityQuery<'a> {
 
 	fn account_args(&self, req: &EntityAccountTokenRequest) -> Result<Value> {
 		let mut builder = ArgBuilder::default();
-		builder.push("auth", super::authorization_value(&req.auth)?);
+		builder.push("auth_bytes", super::authorization_bytes_value(&req.auth)?);
 		builder.push("account", super::account_value(req.account.as_ref()));
 		Ok(builder.finish())
 	}
+}
+
+fn to_subxt_account(account: ViewAccount32) -> AccountId32 {
+	let raw: [u8; 32] = account.into_inner().into();
+	AccountId32::from(raw)
+}
+
+fn decode_identifier_bytes(bytes: &[u8]) -> Option<Ss58Identifier> {
+	if bytes.iter().all(|b| *b <= 1) {
+		return None;
+	}
+	if let Ok(id) = Ss58Identifier::try_from(bytes.to_vec()) {
+		return Some(id);
+	}
+	if let Some(pos) = bytes.iter().position(|b| b.is_ascii_graphic()) {
+		let ascii = &bytes[pos..];
+		if let Ok(text) = String::from_utf8(ascii.to_vec()) {
+			if !text.trim().is_empty() {
+				if let Ok(id) = Ss58Identifier::try_from(text) {
+					return Some(id);
+				}
+			}
+		}
+	}
+	let raw_hex = hex::encode(bytes);
+	warn!(
+		target: "sdk::entity::account_token",
+		"runtime returned non-SS58 token bytes; treating as None (0x{raw_hex})"
+	);
+	None
 }

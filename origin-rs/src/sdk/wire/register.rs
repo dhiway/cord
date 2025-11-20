@@ -29,25 +29,25 @@ pub(crate) async fn update_register_info<S>(
 where
 	S: Signer<crate::params::config::OriginConfig>,
 {
-	use crate::types::{element::element_json_to_dynamic, element::ElementJson, identifier_value};
+	use crate::types::{
+		element::{element_json_to_dynamic, ElementJson},
+		identifier_value,
+	};
 	use subxt::dynamic::Value;
 
 	let to_element_json = |el: &origin_primitives::view::ElementView| -> ElementJson {
 		match el {
 			origin_primitives::view::ElementView::None => ElementJson::None,
-			origin_primitives::view::ElementView::Raw(bytes) => {
-				ElementJson::RawBase64(base64::engine::general_purpose::STANDARD.encode(bytes))
-			},
+			origin_primitives::view::ElementView::Raw(bytes) =>
+				ElementJson::RawBase64(base64::engine::general_purpose::STANDARD.encode(bytes)),
 			origin_primitives::view::ElementView::Bool(v) => ElementJson::Bool(*v),
 			origin_primitives::view::ElementView::U64(v) => ElementJson::U64(*v),
 			origin_primitives::view::ElementView::U128(v) => ElementJson::U128(*v),
 			origin_primitives::view::ElementView::Hash(h) => ElementJson::HashHex(hex::encode(h)),
-			origin_primitives::view::ElementView::Token(tok) => {
-				ElementJson::TokenSs58(String::from_utf8_lossy(tok.as_ref()).into_owned())
-			},
-			origin_primitives::view::ElementView::Cid(cid) => {
-				ElementJson::CidBase58(bs58::encode(cid).into_string())
-			},
+			origin_primitives::view::ElementView::Token(tok) =>
+				ElementJson::TokenSs58(String::from_utf8_lossy(tok.as_ref()).into_owned()),
+			origin_primitives::view::ElementView::Cid(cid) =>
+				ElementJson::CidBase58(bs58::encode(cid).into_string()),
 		}
 	};
 
@@ -86,7 +86,6 @@ pub(crate) async fn fetch_overview(
 	};
 	Ok(register)
 }
-use base64;
-use base64::Engine;
+use base64::{self, Engine};
 use bs58;
 use hex;
