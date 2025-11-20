@@ -23,7 +23,6 @@ use origin_primitives::{
 	view::{AttributeValueView, EntityInfoView},
 	view_api::EntityNymRequest,
 };
-use log::warn;
 use sp_core::crypto::Ss58AddressFormat;
 use std::time::Duration;
 
@@ -196,11 +195,7 @@ async fn run_transaction_flow(
 		token: token_identifier.as_ref().to_vec(),
 	};
 	log_view_payload(cli.view_debug, "Entity.entity_nym", "request", &nym_req);
-	let existing_nym = sanitize_nym(
-		client.query().entity().entity_nym(&nym_req).await?,
-		cli.view_debug,
-		"Entity.entity_nym",
-	);
+	let existing_nym = client.query().entity().entity_nym(&nym_req).await?;
 	log_view_payload(cli.view_debug, "Entity.entity_nym", "response", &existing_nym);
 	if let Some(nym) = existing_nym {
 		snapshot.set_entity_nym(nym);
@@ -303,11 +298,7 @@ async fn run_transaction_flow(
 			token: token_identifier.as_ref().to_vec(),
 		};
 		log_view_payload(cli.view_debug, "Entity.entity_nym", "request", &req);
-		let refreshed = sanitize_nym(
-			client.query().entity().entity_nym(&req).await?,
-			cli.view_debug,
-			"Entity.entity_nym",
-		);
+		let refreshed = client.query().entity().entity_nym(&req).await?;
 		log_view_payload(cli.view_debug, "Entity.entity_nym", "response", &refreshed);
 		if let Some(nym) = refreshed {
 			snapshot.set_entity_nym(nym);
@@ -481,27 +472,6 @@ fn matches_account_not_found(err: &SubmitError) -> bool {
 		SubmitError::Runtime(msg) | SubmitError::Node(msg) | SubmitError::Invalid(msg) =>
 			msg.contains("Entity::AccountNotFound"),
 		_ => false,
-	}
-}
-
-fn sanitize_nym(value: Option<String>, view_debug: bool, label: &str) -> Option<String> {
-	if let Some(ref nym) = value {
-		let trimmed = nym.trim();
-		if trimmed.is_empty() || trimmed.chars().any(|ch| ch.is_control()) {
-			log_nym_warning(
-				view_debug,
-				&format!("{label} returned non-printable nym; leaving original value untouched"),
-			);
-		}
-	}
-	value
-}
-
-fn log_nym_warning(view_debug: bool, message: &str) {
-	if view_debug {
-		println!("⚠️ {message}");
-	} else {
-		warn!("{message}");
 	}
 }
 
