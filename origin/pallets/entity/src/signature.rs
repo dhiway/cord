@@ -17,7 +17,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use frame_support::weights::Weight;
-use origin_primitives::Signature;
+use origin_primitives::{AccountId, Signature};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::Verify, AccountId32};
 
@@ -62,7 +62,7 @@ pub fn verify_multisignature<Account>(
 where
 	Account: Clone + Into<AccountId32>,
 {
-	let signer: AccountId32 = account.clone().into();
+	let signer: AccountId = account.clone().into();
 	if signature.verify(payload, &signer) {
 		SignatureVerificationResult::Ok(())
 	} else {

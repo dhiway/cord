@@ -35,9 +35,11 @@ use frame_support::{
 	BoundedVec,
 };
 use origin_primitives::{
-	authorization::{extract_valid_until, Authorization as CoreAuthorization},
+	authorization::{
+		ensure_authorization_ttl, extract_valid_until, Authorization as CoreAuthorization,
+		AuthorizationError,
+	},
 	identifier::{DecodedIdentifier, IdentifierError, Ss58Identifier},
-	view_api::{ensure_authorization_ttl, AuthorizationError},
 	Signature,
 };
 use scale_info::TypeInfo;
