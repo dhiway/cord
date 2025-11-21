@@ -22,7 +22,7 @@ use crate::{
 	element::{ElementType, ElementView},
 	identifier::Ss58Identifier,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
@@ -156,4 +156,73 @@ pub struct RegistryInfoView {
 	pub lookup_specs: Vec<LookupSpec>,
 	pub kind: RegistryKind,
 	pub status: RegistryStatus,
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::element::ElementView;
+
+	#[test]
+	fn permissions_from_list_adds_view_bit_when_elevated() {
+		let perms = RegistryPermissions::from_list(&[RegistryPermissions::ADMIN]);
+		assert!(perms.has_admin());
+		assert!(perms.has_view());
+		assert!(perms.has_entry());
+
+		let delegate_only = RegistryPermissions::from_list(&[RegistryPermissions::DELEGATE]);
+		assert!(delegate_only.has_delegate());
+		assert!(delegate_only.has_view(), "delegate implies view");
+	}
+
+	#[test]
+	fn default_permissions_include_entry_and_view_only() {
+		let perms = RegistryPermissions::default();
+		assert!(perms.has_entry());
+		assert!(perms.has_view());
+		assert!(!perms.has_admin());
+		assert!(!perms.has_delegate());
+	}
+
+	#[test]
+	fn status_helpers_match_variants() {
+		assert!(RegistryStatus::Active.is_active());
+		assert!(RegistryStatus::Revoked.is_revoked());
+		assert!(RegistryStatus::Deleted.is_deleted());
+	}
+
+	#[test]
+	fn registry_kind_default_is_raw() {
+		assert!(matches!(RegistryKind::default(), RegistryKind::Raw));
+	}
+
+	#[test]
+	fn registry_info_view_round_trip_fields() {
+		let info = ElementView::Raw(vec![1, 2, 3]);
+		let maintainer =
+			Ss58Identifier::to_encoded([0u8; 32], 1, 1, 1).expect("identifier ok");
+		let attributes = vec![RegistryAttributeSpec {
+			key: b"id".to_vec(),
+			kind: ElementType::Raw,
+			optional: false,
+		}];
+		let token_spec = LookupSpec::Single(b"id".to_vec());
+		let lookup_specs = vec![LookupSpec::Combo(vec![b"id".to_vec(), b"name".to_vec()])];
+		let view = RegistryInfoView {
+			info: info.clone(),
+			maintainer: maintainer.clone(),
+			attributes: attributes.clone(),
+			token_spec,
+			lookup_specs: lookup_specs.clone(),
+			kind: RegistryKind::Token,
+			status: RegistryStatus::Active,
+		};
+		let encoded = view.encode();
+		let decoded = RegistryInfoView::decode(&mut &encoded[..]).expect("decode view");
+		assert_eq!(decoded.info, info);
+		assert_eq!(decoded.maintainer, maintainer);
+		assert_eq!(decoded.attributes, attributes);
+		assert_eq!(decoded.lookup_specs, lookup_specs);
+		assert!(decoded.status.is_active());
+	}
 }

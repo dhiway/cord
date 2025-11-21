@@ -17,15 +17,13 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	attribute::{Attribute, AttributeValueView, Attributes, AttributesError, Element},
+	attribute::{Attribute, AttributeValueView, Attributes, Element},
 	element::ElementView,
 	identifier::Ss58Identifier,
 };
 use alloc::vec::Vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use frame_support::{
-	traits::Get, BoundedVec, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
-};
+use frame_support::{traits::Get, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
@@ -269,7 +267,11 @@ impl<Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode> From<&PacketMetad
 
 #[cfg(test)]
 mod tests {
-	use super::{Attribute, Attributes, AttributesError, Element};
+	use super::{
+		Attribute, Attributes, AttributesError, Element, PacketMetadata, PacketMetadataView,
+		PacketState, PacketStateView, PacketStatus,
+	};
+	use crate::identifier::Ss58Identifier;
 	use alloc::{vec, vec::Vec};
 	use codec::{Decode, Encode};
 	use frame_support::{traits::ConstU32, BoundedVec};
@@ -456,5 +458,54 @@ mod tests {
 		let mut cursor = &encoded[..];
 		let err = Attributes::<MaxRaw, MaxAttrs>::decode(&mut cursor).unwrap_err();
 		assert_eq!(err.to_string(), "Duplicate attribute keys found");
+	}
+
+	#[test]
+	fn packet_state_view_exposes_attributes_and_metadata() {
+		let registry = Ss58Identifier::to_encoded([1u8; 32], 1, 1, 1).expect("registry id ok");
+		let controller = Ss58Identifier::to_encoded([2u8; 32], 2, 2, 1).expect("controller id ok");
+
+		let attrs = Attributes::<MaxRaw, MaxAttrs>::try_from(vec![(
+			key(b"foo"),
+			Element::<MaxRaw>::from_bool(true),
+		)])
+		.expect("valid attrs");
+
+		let state = PacketState::<MaxRaw, MaxAttrs, [u8; 32]> {
+			registry: registry.clone(),
+			controller: controller.clone(),
+			status: PacketStatus::Active,
+			version: 3,
+			attributes_hash: [9u8; 32],
+			attributes: attrs,
+		};
+
+		let view = PacketStateView::from(&state);
+		assert_eq!(view.registry, registry);
+		assert_eq!(view.controller, controller);
+		assert_eq!(view.version, 3);
+		assert_eq!(view.status, PacketStatus::Active);
+		assert_eq!(view.attribute(b"foo").and_then(|v| v.as_bool()), Some(true));
+		assert!(view.attribute(b"missing").is_none());
+	}
+
+	#[test]
+	fn packet_metadata_view_round_trips_fields() {
+		let registry = Ss58Identifier::to_encoded([3u8; 32], 5, 5, 1).expect("registry id ok");
+		let controller = Ss58Identifier::to_encoded([4u8; 32], 6, 6, 1).expect("controller id ok");
+		let meta = PacketMetadata::<[u8; 32]> {
+			registry: registry.clone(),
+			controller: controller.clone(),
+			status: PacketStatus::Revoked,
+			latest_version: 7,
+			attributes_hash: [0xAA; 32],
+		};
+
+		let view = PacketMetadataView::from(&meta);
+		assert_eq!(view.registry, registry);
+		assert_eq!(view.controller, controller);
+		assert_eq!(view.status, PacketStatus::Revoked);
+		assert_eq!(view.latest_version, 7);
+		assert_eq!(view.attributes_hash, meta.attributes_hash.encode());
 	}
 }
