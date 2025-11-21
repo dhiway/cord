@@ -39,9 +39,13 @@ where
 	AccountId: Encode,
 	Signature: Encode,
 {
-	let mut encoded: Vec<u8> = account.encode();
+	let mut encoded: Vec<u8> =
+		Vec::with_capacity(account.encoded_size().saturating_add(payload.len()).saturating_add(
+			signature.encoded_size(),
+		));
+	account.encode_to(&mut encoded);
 	encoded.extend_from_slice(payload);
-	encoded.extend(signature.encode());
+	signature.encode_to(&mut encoded);
 	twox_128(&encoded)
 }
 
@@ -68,5 +72,43 @@ where
 		AccountId::max_encoded_len()
 			.saturating_add(Payload::max_encoded_len())
 			.saturating_add(Signature::max_encoded_len())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use codec::Encode;
+
+	#[test]
+	fn signature_hash_depends_on_inputs_and_is_deterministic() {
+		let account_a: u8 = 1;
+		let account_b: u8 = 2;
+		let payload: &[u8] = b"payload-bytes";
+		let signature: &[u8] = b"sig";
+
+		let hash_a = authorization_signature_hash(&account_a, payload, &signature);
+		let hash_b = authorization_signature_hash(&account_b, payload, &signature);
+		let hash_p = authorization_signature_hash(&account_a, b"different", &signature);
+
+		assert_ne!(hash_a, hash_b, "changing account must change hash");
+		assert_ne!(hash_a, hash_p, "changing payload must change hash");
+		assert_eq!(hash_a, authorization_signature_hash(&account_a, payload, &signature));
+	}
+
+	#[test]
+	fn extract_valid_until_reads_trailing_u32_le() {
+		let mut payload: Vec<u8> = b"body".encode();
+		let trailer: u32 = 0xA1B2C3D4;
+		payload.extend_from_slice(&trailer.to_le_bytes());
+
+		let got = extract_valid_until(&payload);
+		assert_eq!(got, Some(trailer));
+	}
+
+	#[test]
+	fn extract_valid_until_returns_none_when_payload_too_short() {
+		assert_eq!(extract_valid_until(&[]), None);
+		assert_eq!(extract_valid_until(&[1, 2, 3]), None);
 	}
 }
