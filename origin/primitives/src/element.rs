@@ -27,9 +27,7 @@ use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{
 	traits::Get, BoundedVec, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
 };
-use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
-use serde::{Deserialize, Serialize};
 use sp_runtime::RuntimeDebug;
 
 #[cfg(test)]
@@ -109,9 +107,6 @@ pub enum Elum<MaxCap: Get<u32>> {
 	MaxEncodedLen,
 	TypeInfo,
 	RuntimeDebug,
-	Serialize,
-	Deserialize,
-	DecodeAsType,
 )]
 pub enum ElementType {
 	None,
@@ -172,8 +167,9 @@ impl<MaxCap: Get<u32>> Elum<MaxCap> {
 	/// Validate internal invariants (e.g., boolean payloads).
 	pub fn validate(&self) -> Result<(), codec::Error> {
 		match self {
-			Elum::Bool(flag) if *flag > 1 =>
-				Err("Invalid boolean discriminant for Elum::Bool".into()),
+			Elum::Bool(flag) if *flag > 1 => {
+				Err("Invalid boolean discriminant for Elum::Bool".into())
+			},
 			_ => Ok(()),
 		}
 	}
@@ -358,6 +354,116 @@ impl<'a, MaxCap: Get<u32>> TryFrom<&'a [u8]> for Elum<MaxCap> {
 		BoundedVec::<u8, MaxCap>::try_from(value.to_vec())
 			.map(Elum::Raw)
 			.map_err(|_| ())
+	}
+}
+
+/// View-friendly, decoded representation of `Elum<MaxCap>`.
+///
+/// This keeps:
+/// - `Raw` / `Cid` as plain `Vec<u8>`,
+/// - `Bool`, `U64`, `U128` as native scalars,
+/// - `Hash` as `[u8; 32]`,
+/// - `Token` as `Ss58Identifier`.
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+pub enum ElementView {
+	None,
+	Raw(Vec<u8>),
+	Bool(bool),
+	U64(u64),
+	U128(u128),
+	Hash([u8; 32]),
+	Token(Ss58Identifier),
+	Cid(Vec<u8>),
+}
+
+impl<MaxCap: Get<u32>> From<&Elum<MaxCap>> for ElementView {
+	fn from(value: &Elum<MaxCap>) -> Self {
+		match value {
+			Elum::None => ElementView::None,
+			Elum::Raw(bytes) => ElementView::Raw(bytes.to_vec()),
+			Elum::Bool(flag) => ElementView::Bool(*flag != 0),
+			Elum::U64(bytes) => ElementView::U64(u64::from_le_bytes(*bytes)),
+			Elum::U128(bytes) => ElementView::U128(u128::from_le_bytes(*bytes)),
+			Elum::Hash(digest) => ElementView::Hash(*digest),
+			Elum::Token(token) => ElementView::Token(token.clone()),
+			Elum::CID(bytes) => ElementView::Cid(bytes.to_vec()),
+		}
+	}
+}
+
+impl ElementView {
+	pub fn is_none(&self) -> bool {
+		matches!(self, ElementView::None)
+	}
+
+	pub fn as_raw(&self) -> Option<&[u8]> {
+		if let ElementView::Raw(bytes) = self {
+			Some(bytes.as_slice())
+		} else {
+			None
+		}
+	}
+
+	pub fn as_bool(&self) -> Option<bool> {
+		if let ElementView::Bool(v) = self {
+			Some(*v)
+		} else {
+			None
+		}
+	}
+
+	pub fn as_u64(&self) -> Option<u64> {
+		if let ElementView::U64(v) = self {
+			Some(*v)
+		} else {
+			None
+		}
+	}
+
+	pub fn as_u128(&self) -> Option<u128> {
+		if let ElementView::U128(v) = self {
+			Some(*v)
+		} else {
+			None
+		}
+	}
+
+	pub fn as_hash(&self) -> Option<&[u8; 32]> {
+		if let ElementView::Hash(d) = self {
+			Some(d)
+		} else {
+			None
+		}
+	}
+
+	pub fn as_token(&self) -> Option<&Ss58Identifier> {
+		if let ElementView::Token(id) = self {
+			Some(id)
+		} else {
+			None
+		}
+	}
+
+	pub fn as_cid(&self) -> Option<&[u8]> {
+		if let ElementView::Cid(bytes) = self {
+			Some(bytes.as_slice())
+		} else {
+			None
+		}
+	}
+
+	/// Map this view to its declarative element type.
+	pub fn element_type(&self) -> ElementType {
+		match self {
+			ElementView::None => ElementType::None,
+			ElementView::Raw(_) => ElementType::Raw,
+			ElementView::Bool(_) => ElementType::Bool,
+			ElementView::U64(_) => ElementType::U64,
+			ElementView::U128(_) => ElementType::U128,
+			ElementView::Hash(_) => ElementType::Hash,
+			ElementView::Token(_) => ElementType::Token,
+			ElementView::Cid(_) => ElementType::Cid,
+		}
 	}
 }
 
@@ -634,5 +740,16 @@ mod tests {
 			let round = DefaultElement::decode(&mut &elem.encode()[..]).unwrap();
 			assert_eq!(round, elem);
 		}
+	}
+	#[test]
+	fn element_view_from_elum_matches_accessors() {
+		let raw: DefaultElement = DefaultElement::try_from(vec![1, 2, 3]).unwrap();
+		let view = ElementView::from(&raw);
+		assert_eq!(view.as_raw(), Some(&[1, 2, 3][..]));
+		assert!(matches!(view, ElementView::Raw(_)));
+
+		let b: DefaultElement = DefaultElement::from_bool(true);
+		let view = ElementView::from(&b);
+		assert_eq!(view.as_bool(), Some(true));
 	}
 }

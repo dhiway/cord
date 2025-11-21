@@ -19,31 +19,31 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
+
 pub mod element;
-pub use crate::element::Elum;
+pub use crate::element::{ElementType, ElementView, Elum};
+
+pub mod attribute;
+pub use crate::attribute::{Attribute, AttributeValueView, Attributes, AttributesError, Element};
+
 pub mod packet;
 pub use crate::packet::{
-	Attribute, Attributes, AttributesError, Element, PacketInformationProvider, PacketMetadata,
-	PacketPointer, PacketState, PacketStatus, PacketUpdateError, PacketUpdateOp,
+	PacketInformationProvider, PacketMetadata, PacketMetadataView, PacketPointer, PacketState,
+	PacketStateView, PacketStatus, PacketUpdateError, PacketUpdateOp,
 };
+
 pub mod registry;
 pub use crate::registry::{
-	LookupSpecView, RegistryAttributeView, RegistryInfoView, RegistryKind, RegistryPermissions,
+	LookupSpec, RegistryAttributeSpec, RegistryInfoView, RegistryKind, RegistryPermissions,
 	RegistryStatus,
 };
-pub mod view;
-pub use crate::view::{
-	base58_string, base64_string, dev_attr_from, dev_element_from, dev_packet_snapshot_from,
-	dev_packet_state_from, hex_string, maybe_utf8, ss58_string, AccountId32, AttributeValueView,
-	DevAttr, DevElement, DevEventBlockView, DevPacketSnapshot, DevPacketState, ElementView,
-	EntityEventBlock, EntityOverview, InfoAttributeHistoryEntry, InfoTokenHistoryEntry,
-	PacketMetadataView, PacketStateView,
-};
+
 pub mod authorization;
 pub use crate::authorization::{authorization_signature_hash, Authorization};
+
 pub mod identifier;
-pub mod view_api;
 pub use crate::identifier::Ss58Identifier;
+
 use alloc::vec::Vec;
 use sp_runtime::{
 	generic,

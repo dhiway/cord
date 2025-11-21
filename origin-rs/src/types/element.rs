@@ -18,6 +18,14 @@ pub enum ElementJson {
 	HashHex(String),
 	TokenSs58(String),
 	CidBase58(String),
+	Localized(Vec<LocalizedElementJson>),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalizedElementJson {
+	pub locale: String,
+	pub value: ElementJson,
 }
 
 fn empty_fields() -> Composite<()> {
@@ -73,6 +81,19 @@ pub fn element_json_to_dynamic(value: &ElementJson) -> Result<Value> {
 			let raw = bs58::decode(cid).into_vec().map_err(|e| Error::Params(e.to_string()))?;
 			Ok(Value::unnamed_variant("CID", [bytes_value(&raw)]))
 		},
+		ElementJson::Localized(entries) => {
+			let mut pairs = Vec::with_capacity(entries.len());
+			for entry in entries {
+				let locale = entry.locale.as_bytes();
+				let locale_value = bytes_value(locale);
+				let element_value = element_json_to_dynamic(&entry.value)?;
+				pairs.push(Value::unnamed_composite([locale_value, element_value]));
+			}
+			Ok(Value::unnamed_variant(
+				"Localized",
+				[Value::unnamed_composite(pairs)],
+			))
+		},
 	}
 }
 
@@ -99,5 +120,8 @@ pub fn element_text_from_view(element: &ViewElement) -> Option<String> {
 			Err(_) => Some(format!("0x{}", hex::encode(identifier.as_ref()))),
 		},
 		ViewElement::Cid(bytes) => Some(bs58::encode(bytes).into_string()),
+		ViewElement::Localized(entries) => entries
+			.first()
+			.and_then(|(_, value)| element_text_from_view(value)),
 	}
 }

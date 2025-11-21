@@ -265,8 +265,9 @@ impl NonceManager {
 		account: &AccountId32,
 	) -> Result<u64, Error> {
 		match self.strategy {
-			NonceStrategy::RpcPerTx =>
-				client.tx().account_nonce(account).await.map_err(Error::from),
+			NonceStrategy::RpcPerTx => {
+				client.tx().account_nonce(account).await.map_err(Error::from)
+			},
 			NonceStrategy::LocalCache => {
 				let key = account.0;
 				// Fast path: try read lock first.
@@ -766,7 +767,49 @@ impl OriginClient {
 		let payload = dynamic::view_function_call(query_id, expect_composite(args)?);
 		let api = self.inner.view_functions().at_latest().await.map_err(Error::from)?;
 		let thunk = api.call(payload).await.map_err(Error::from)?;
-		thunk.to_value().map_err(|e| Error::Codec(e.to_string()))
+		match thunk.to_value() {
+			Ok(value) => Ok(value),
+			Err(err) => {
+				if std::env::var_os("OC_VIEW_DECODE_DEBUG").is_some() {
+					let bytes = thunk.encoded();
+					let preview_len = bytes.len().min(512);
+					let mut hex_preview = String::with_capacity(preview_len * 2);
+					for b in &bytes[..preview_len] {
+						use core::fmt::Write;
+						let _ = write!(hex_preview, "{:02x}", b);
+					}
+					let ctx = format!("{pallet}.{function}");
+					log::warn!(
+						target: "query::decode",
+						"{ctx}: metadata decode failed ({err}); raw len {} preview 0x{}",
+						bytes.len(),
+						hex_preview
+					);
+					eprintln!(
+						"[query::decode] {ctx}: metadata decode failed ({err}); raw len {} preview 0x{}",
+						bytes.len(),
+						hex_preview
+					);
+					eprintln!(
+						"[query::decode] {ctx}: falling back to raw SCALE bytes"
+					);
+				}
+				Err(Error::Codec(err.to_string()))
+			},
+		}
+	}
+
+	pub async fn call_view_raw_bytes(
+		&self,
+		pallet: &str,
+		function: &str,
+		args: Value,
+	) -> Result<Vec<u8>, Error> {
+		let query_id = self.layout.view_id(pallet, function).await?;
+		let payload = dynamic::view_function_call(query_id, expect_composite(args)?);
+		let api = self.inner.view_functions().at_latest().await.map_err(Error::from)?;
+		let thunk = api.call(payload).await.map_err(Error::from)?;
+		Ok(thunk.encoded().to_vec())
 	}
 
 	/// Invoke a view and decode the result into a concrete type using metadata output type.

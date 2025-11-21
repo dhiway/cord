@@ -11,14 +11,16 @@ async fn main() -> anyhow::Result<()> {
 	let mut iter = env::args().skip(1);
 	while let Some(arg) = iter.next() {
 		match arg.as_str() {
-			"--node" =>
+			"--node" => {
 				if let Some(val) = iter.next() {
 					node = val
-				},
-			"--file" =>
+				}
+			},
+			"--file" => {
 				if let Some(val) = iter.next() {
 					file = Some(val)
-				},
+				}
+			},
 			_ => {},
 		}
 	}
@@ -38,7 +40,11 @@ async fn main() -> anyhow::Result<()> {
 	println!("Metadata hash: 0x{}", hex::encode(blake2_256(&raw_bytes)));
 
 	for (pallet, views) in [
-		("Entity", ["account_token", "details", "linked_accounts", "attribute_history"].as_slice()),
+		(
+			"Entity",
+			["account_token", "details", "linked_accounts", "overview", "attribute_history"]
+				.as_slice(),
+		),
 		("Register", ["details", "packet_snapshot"].as_slice()),
 		("Token", ["timeline", "resolve_identifier"].as_slice()),
 	] {

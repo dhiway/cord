@@ -8,15 +8,12 @@ use codec::Decode;
 use core::convert::TryFrom;
 use hex;
 use log::warn;
-use origin_primitives::{
-	identifier::Ss58Identifier,
-	view::AccountId32 as ViewAccount32,
-	view_api::{
-		AuthorizationError, AuthorizationRequest, EntityAccountTokenRequest,
-		EntityAttributeHistoryEntryRequest, EntityAttributeHistoryForKeyRequest,
-		EntityAttributeHistoryRequest, EntityLinkedAccountsRequest, EntityNymRequest,
-		EntityOverviewRequest,
-	},
+use origin_primitives::{identifier::Ss58Identifier, AuthorizationError, AuthorizationRequest};
+use origin_primitives::view::{
+	AccountId32 as ViewAccount32, EntityAccountTokenRequest,
+	EntityAttributeHistoryEntryRequest, EntityAttributeHistoryForKeyRequest,
+	EntityAttributeHistoryRequest, EntityLinkedAccountsRequest, EntityNymRequest,
+	EntityOverview, EntityOverviewRequest,
 };
 use scale_value::Value;
 use subxt::utils::AccountId32;
@@ -41,25 +38,34 @@ impl<'a> EntityQuery<'a> {
 	pub async fn overview(
 		&self,
 		req: &EntityOverviewRequest,
-	) -> Result<Option<origin_primitives::view::EntityOverview>> {
+	) -> Result<Option<EntityOverview>> {
 		self.ensure_supported()?;
 		let mut builder = ArgBuilder::default();
 		builder.push("auth_bytes", super::authorization_bytes_value(&req.auth)?);
 		builder.push("token", Value::from_bytes(req.token.clone()));
 		builder.push("history_limit", super::option_u32_value(req.history_limit));
 		let args = builder.finish();
-		match self
-			.query
-			.call_result::<origin_primitives::view::EntityOverview, AuthorizationError>(
-				"Entity",
-				"overview",
-				args,
-			)
-			.await?
-		{
-			Ok(view) => Ok(Some(view)),
-			Err(AuthorizationError::NotFound) => Ok(None),
-			Err(err) => Err(super::view_failure("entity.overview", err)),
+		match self.decode_overview_from_value(args.clone()).await {
+			Ok(result) => Ok(result),
+			Err(err) if Self::is_decode_error(&err) => {
+				if let Ok(result) = self.decode_overview_from_bytes(args.clone()).await {
+					return Ok(result);
+				}
+				if let Ok(result) = self.decode_overview_as_result(args.clone()).await {
+					return Ok(result);
+				}
+				if let Ok(result) = self.decode_overview_as_optional_result(args.clone()).await {
+					return Ok(result);
+				}
+				if let Ok(result) = self.decode_overview_as_optional(args.clone()).await {
+					return Ok(result);
+				}
+				if let Ok(result) = self.decode_overview_plain(args).await {
+					return Ok(result);
+				}
+				Err(err)
+			},
+			Err(err) => Err(err),
 		}
 	}
 
@@ -151,11 +157,11 @@ impl<'a> EntityQuery<'a> {
 		let mut cursor = &bytes.data[..];
 		let decoded: core::result::Result<Vec<u8>, AuthorizationError> =
 			Decode::decode(&mut cursor).map_err(|e| Error::Codec(e.to_string()))?;
-			match decoded {
-				Ok(raw) => Ok(decode_identifier_bytes(&raw)),
-				Err(AuthorizationError::NotFound) => Ok(None),
-				Err(err) => Err(super::view_failure("entity.account_token", err)),
-			}
+		match decoded {
+			Ok(raw) => Ok(decode_identifier_bytes(&raw)),
+			Err(AuthorizationError::NotFound) => Ok(None),
+			Err(err) => Err(super::view_failure("entity.account_token", err)),
+		}
 	}
 
 	pub async fn linked_accounts(
@@ -233,6 +239,86 @@ impl<'a> EntityQuery<'a> {
 			})
 	}
 
+	fn is_decode_error(err: &Error) -> bool {
+		matches!(err, Error::Codec(_) | Error::ViewDecode(_))
+	}
+
+	async fn decode_overview_from_bytes(
+		&self,
+		args: Value,
+	) -> Result<Option<EntityOverview>> {
+		let bytes = self.query.call_view_bytes("Entity", "overview", args).await?;
+		let mut cursor = &bytes.data[..];
+		let decoded: core::result::Result<
+			EntityOverview,
+			AuthorizationError,
+		> = Decode::decode(&mut cursor).map_err(|e| {
+			super::dump_view_bytes("Entity.overview", &bytes.data);
+			Error::Codec(e.to_string())
+		})?;
+		match decoded {
+			Ok(view) => Ok(Some(view)),
+			Err(AuthorizationError::NotFound) => Ok(None),
+			Err(err) => Err(super::view_failure("entity.overview", err)),
+		}
+	}
+
+	async fn decode_overview_as_result(
+		&self,
+		args: Value,
+	) -> Result<Option<EntityOverview>> {
+		match self
+			.query
+			.call_result::<EntityOverview, AuthorizationError>(
+				"Entity", "overview", args,
+			)
+			.await?
+		{
+			Ok(view) => Ok(Some(view)),
+			Err(AuthorizationError::NotFound) => Ok(None),
+			Err(err) => Err(super::view_failure("entity.overview", err)),
+		}
+	}
+
+	async fn decode_overview_as_optional_result(
+		&self,
+		args: Value,
+	) -> Result<Option<EntityOverview>> {
+		match self
+			.query
+			.call_result::<Option<EntityOverview>, AuthorizationError>(
+				"Entity", "overview", args,
+			)
+			.await?
+		{
+			Ok(Some(view)) => Ok(Some(view)),
+			Ok(None) => Ok(None),
+			Err(AuthorizationError::NotFound) => Ok(None),
+			Err(err) => Err(super::view_failure("entity.overview", err)),
+		}
+	}
+
+	async fn decode_overview_as_optional(
+		&self,
+		args: Value,
+	) -> Result<Option<EntityOverview>> {
+		self.query
+			.call_view_as::<Option<EntityOverview>>(
+				"Entity", "overview", args,
+			)
+			.await
+	}
+
+	async fn decode_overview_plain(
+		&self,
+		args: Value,
+	) -> Result<Option<EntityOverview>> {
+		self.query
+			.call_view_as::<EntityOverview>("Entity", "overview", args)
+			.await
+			.map(Some)
+	}
+
 	fn token_args(
 		&self,
 		auth: &origin_primitives::view_api::AuthorizationRequest,
@@ -270,6 +356,26 @@ impl<'a> EntityQuery<'a> {
 		builder.push("key", super::hex_arg(key));
 		builder.push("version", super::u64_value(version));
 		Ok(builder.finish())
+	}
+
+	async fn decode_overview_from_value(
+		&self,
+		args: Value,
+	) -> Result<Option<EntityOverview>> {
+		let value = self.query.call_view_value("Entity", "overview", args).await?;
+		let decoded = scale_value::serde::from_value::<
+			(),
+			core::result::Result<EntityOverview, AuthorizationError>,
+		>(value.clone());
+		match decoded {
+			Ok(Ok(view)) => Ok(Some(view)),
+			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
+			Ok(Err(err)) => Err(super::view_failure("entity.overview", err)),
+			Err(err) => {
+				super::dump_view_value("Entity.overview", &value);
+				Err(Error::Codec(err.to_string()))
+			},
+		}
 	}
 
 	fn account_args(&self, req: &EntityAccountTokenRequest) -> Result<Value> {

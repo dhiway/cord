@@ -463,8 +463,9 @@ where
 			}
 			Ok(())
 		},
-		JsonValue::Array(_) =>
-			Err(Error::Params(format!("attribute '{prefix}' cannot be an array"))),
+		JsonValue::Array(_) => {
+			Err(Error::Params(format!("attribute '{prefix}' cannot be an array")))
+		},
 		_ => {
 			if prefix.is_empty() {
 				return Err(Error::Params("attributes payload must be a JSON object".into()));
@@ -513,8 +514,9 @@ fn convert_raw(value: &JsonValue, label: &str) -> Result<ElementJson> {
 				label
 			)))
 		},
-		other =>
-			Err(Error::Params(format!("raw attribute '{}' cannot use value {:?}", label, other))),
+		other => {
+			Err(Error::Params(format!("raw attribute '{}' cannot use value {:?}", label, other)))
+		},
 	}
 }
 
@@ -524,8 +526,9 @@ fn convert_bool(value: &JsonValue, label: &str) -> Result<ElementJson> {
 		JsonValue::String(s) => match s.to_ascii_lowercase().as_str() {
 			"true" => Ok(ElementJson::Bool(true)),
 			"false" => Ok(ElementJson::Bool(false)),
-			_ =>
-				Err(Error::Params(format!("bool attribute '{}' expects 'true' or 'false'", label))),
+			_ => {
+				Err(Error::Params(format!("bool attribute '{}' expects 'true' or 'false'", label)))
+			},
 		},
 		_ => Err(Error::Params(format!("bool attribute '{}' expects boolean", label))),
 	}

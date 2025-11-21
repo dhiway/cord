@@ -7,15 +7,16 @@ use crate::{
 	types::token::StateEventRecord,
 	Client,
 };
-use codec::Decode;
+use codec::{Decode, Encode};
 use origin_primitives::{
 	identifier::Ss58Identifier,
 	registry::RegistryInfoView,
 	view_api::{
-		AuthorizationRequest, EntityAccountTokenRequest, EntityOverviewRequest,
+		AuthorizationError, AuthorizationRequest, EntityAccountTokenRequest, EntityOverviewRequest,
 		RegisterDetailsRequest, RegisterPacketSnapshotByTokenRequest, TokenTimelineRequest,
 	},
 };
+use scale_value::{Composite, Value};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use sp_runtime::AccountId32 as RuntimeAccount;
@@ -80,8 +81,9 @@ impl<'a, 'b> TxExecutor<'a, 'b> {
 		sink: &mut LogSink<'_>,
 	) -> Result<ExtrinsicEvents<OriginConfig>, SubmitError> {
 		match self {
-			TxExecutor::Direct { submitter } =>
-				submit_with_logging(submitter, call, description, sink).await,
+			TxExecutor::Direct { submitter } => {
+				submit_with_logging(submitter, call, description, sink).await
+			},
 			TxExecutor::Relayed { relayer, meta_signer } => {
 				let payload = client
 					.tx()
@@ -107,8 +109,9 @@ impl<'a> LogSink<'a> {
 		let message = match stage {
 			SubmitStage::Validated => "  ↳ 🟡 validated and queued".to_string(),
 			SubmitStage::Broadcasted => "  ↳ 📡 broadcast to peers".to_string(),
-			SubmitStage::Retracted =>
-				"  ↳ ⚠️ retracted from best block, waiting for re-inclusion".to_string(),
+			SubmitStage::Retracted => {
+				"  ↳ ⚠️ retracted from best block, waiting for re-inclusion".to_string()
+			},
 			SubmitStage::InBlock { hash, label } => {
 				format!("  ↳ 📦 included in block {}", block_display(label, &hash))
 			},
@@ -260,6 +263,11 @@ pub async fn resolve_token_target(
 	match client.query().entity().overview(&entity_req).await {
 		Ok(Some(_)) => return Ok(TokenTarget::Entity { token: token.clone() }),
 		Ok(None) => {},
+		Err(Error::Codec(_) | Error::ViewDecode(_)) => {
+			if try_entity_overview(client, &entity_req).await?.is_some() {
+				return Ok(TokenTarget::Entity { token: token.clone() });
+			}
+		},
 		Err(err) => return Err(err),
 	}
 
@@ -299,4 +307,34 @@ pub async fn token_timeline(
 ) -> Result<(Vec<StateEventRecord>, Option<u32>)> {
 	let req = TokenTimelineRequest { auth: auth.clone(), token: token.clone(), start: None, limit };
 	client.query().token().timeline(&req).await
+}
+
+async fn try_entity_overview(
+	client: &Client,
+	req: &EntityOverviewRequest,
+) -> Result<Option<origin_primitives::view::EntityOverview>> {
+	let mut entries = Vec::new();
+	entries.push(("auth_bytes", Value::from_bytes(req.auth.encode())));
+	entries.push(("token", Value::from_bytes(req.token.clone())));
+	entries.push(("history_limit", option_u32_value(req.history_limit)));
+	let args = Value::named_composite(entries);
+	let raw = client.origin().call_view("Entity", "overview", args).await?;
+	let plain = raw.remove_context();
+	match scale_value::serde::from_value::<
+		(),
+		core::result::Result<origin_primitives::view::EntityOverview, AuthorizationError>,
+	>(plain)
+	{
+		Ok(Ok(view)) => Ok(Some(view)),
+		Ok(Err(AuthorizationError::NotFound)) => Ok(None),
+		Ok(Err(err)) => Err(Error::ViewDecode(format!("entity.overview: {err:?}"))),
+		Err(err) => Err(Error::Codec(err.to_string())),
+	}
+}
+
+fn option_u32_value(value: Option<u32>) -> Value {
+	match value {
+		Some(v) => Value::variant("Some", Composite::unnamed(vec![Value::u128(v as u128)])),
+		None => Value::variant("None", Composite::unnamed(Vec::new())),
+	}
 }

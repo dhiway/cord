@@ -128,10 +128,12 @@ pub fn preset_names() -> Vec<PresetId> {
 /// Provides the JSON representation of predefined genesis config for given `id`.
 pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
 	let patch = match id.as_ref() {
-		sp_genesis_builder::DEV_RUNTIME_PRESET =>
-			system_origin_development_genesis(DEFAULT_SYSTEM_PARA_ID.into()),
-		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET =>
-			system_origin_local_testnet_genesis(DEFAULT_SYSTEM_PARA_ID.into()),
+		sp_genesis_builder::DEV_RUNTIME_PRESET => {
+			system_origin_development_genesis(DEFAULT_SYSTEM_PARA_ID.into())
+		},
+		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => {
+			system_origin_local_testnet_genesis(DEFAULT_SYSTEM_PARA_ID.into())
+		},
 		_ => return None,
 	};
 	Some(

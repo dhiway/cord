@@ -87,12 +87,15 @@ impl AuthorizationBuilder {
 	) -> Result<Authorization> {
 		let sig = signer.sign(&payload);
 		let (scheme, sig_bytes) = match sig {
-			subxt::utils::MultiSignature::Ed25519(inner) =>
-				(SignatureScheme::Ed25519, inner.as_ref().to_vec()),
-			subxt::utils::MultiSignature::Sr25519(inner) =>
-				(SignatureScheme::Sr25519, inner.as_ref().to_vec()),
-			subxt::utils::MultiSignature::Ecdsa(inner) =>
-				(SignatureScheme::Ecdsa, inner.as_ref().to_vec()),
+			subxt::utils::MultiSignature::Ed25519(inner) => {
+				(SignatureScheme::Ed25519, inner.as_ref().to_vec())
+			},
+			subxt::utils::MultiSignature::Sr25519(inner) => {
+				(SignatureScheme::Sr25519, inner.as_ref().to_vec())
+			},
+			subxt::utils::MultiSignature::Ecdsa(inner) => {
+				(SignatureScheme::Ecdsa, inner.as_ref().to_vec())
+			},
 		};
 		Ok(Authorization {
 			account_ss58: signer.account_id().to_string(),
