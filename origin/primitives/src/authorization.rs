@@ -5,6 +5,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use core::fmt;
 use scale_info::TypeInfo;
 use sp_io::hashing::twox_128;
+use sp_runtime::RuntimeDebug;
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -39,10 +40,12 @@ where
 	AccountId: Encode,
 	Signature: Encode,
 {
-	let mut encoded: Vec<u8> =
-		Vec::with_capacity(account.encoded_size().saturating_add(payload.len()).saturating_add(
-			signature.encoded_size(),
-		));
+	let mut encoded: Vec<u8> = Vec::with_capacity(
+		account
+			.encoded_size()
+			.saturating_add(payload.len())
+			.saturating_add(signature.encoded_size()),
+	);
 	account.encode_to(&mut encoded);
 	encoded.extend_from_slice(payload);
 	signature.encode_to(&mut encoded);
@@ -72,6 +75,35 @@ where
 		AccountId::max_encoded_len()
 			.saturating_add(Payload::max_encoded_len())
 			.saturating_add(Signature::max_encoded_len())
+	}
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+pub enum AuthorizationError {
+	Unauthorized,
+	NotFound,
+	InvalidInput,
+	TooLarge,
+	Expired,
+	Internal,
+	DecodeFailed,
+}
+
+/// Ensure an authorization produced at `reference_block` remains valid for the provided TTL.
+///
+/// `current_block`: current block number.
+/// `reference_block`: block number at which the auth was minted / signed.
+/// `max_ttl`: maximum allowed age in blocks.
+pub fn ensure_authorization_ttl(
+	current_block: u32,
+	reference_block: u32,
+	max_ttl: u32,
+) -> Result<(), AuthorizationError> {
+	let expires_at = reference_block.saturating_add(max_ttl);
+	if current_block >= expires_at {
+		Err(AuthorizationError::Expired)
+	} else {
+		Ok(())
 	}
 }
 
