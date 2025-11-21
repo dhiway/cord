@@ -16,7 +16,11 @@ use origin_primitives::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::types::{entity::HistoryEntry as LegacyHistoryEntry, token::StateEventRecord};
+use crate::types::{
+	element::{ElementJson, LocalizedElementJson},
+	entity::HistoryEntry as LegacyHistoryEntry,
+	token::StateEventRecord,
+};
 
 /// Canonical identifiers.
 pub type EntityId = Ss58Identifier;
@@ -242,4 +246,31 @@ fn decode_ss58_or_zero(s: &str) -> Ss58Identifier {
 	Ss58Identifier::try_from(s.to_string()).unwrap_or_else(|_| {
 		Ss58Identifier::to_encoded([0u8; 32], 0, 0, 0).expect("static ss58 identifier")
 	})
+}
+
+pub fn element_view_to_json(view: &ElementView) -> ElementJson {
+	match view {
+		ElementView::None => ElementJson::None,
+		ElementView::Raw(bytes) => {
+			ElementJson::RawBase64(base64::engine::general_purpose::STANDARD.encode(bytes))
+		},
+		ElementView::Bool(v) => ElementJson::Bool(*v),
+		ElementView::U64(v) => ElementJson::U64(*v),
+		ElementView::U128(v) => ElementJson::U128(*v),
+		ElementView::Hash(h) => ElementJson::HashHex(hex::encode(h)),
+		ElementView::Token(tok) => {
+			ElementJson::TokenSs58(String::from_utf8_lossy(tok.as_ref()).into_owned())
+		},
+		ElementView::Cid(cid) => ElementJson::CidBase58(bs58::encode(cid).into_string()),
+		ElementView::Localized(entries) => {
+			let mapped = entries
+				.iter()
+				.map(|(locale, value)| LocalizedElementJson {
+					locale: String::from_utf8_lossy(locale).into_owned(),
+					value: element_view_to_json(value),
+				})
+				.collect();
+			ElementJson::Localized(mapped)
+		},
+	}
 }

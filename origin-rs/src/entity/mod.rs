@@ -187,16 +187,15 @@ where
 {
 	let mut attempt = 0usize;
 	loop {
-		let req = EntityLinkedAccountsRequest {
-			auth: auth_builder()?,
-			token: token.as_ref().to_vec(),
-		};
+		let req =
+			EntityLinkedAccountsRequest { auth: auth_builder()?, token: token.as_ref().to_vec() };
 		let result = client.query().entity().linked_accounts(&req).await;
 		match result {
-			Ok(accounts) =>
+			Ok(accounts) => {
 				if !accounts.is_empty() || attempt >= LINKED_ACCOUNTS_RETRIES {
 					return Ok(accounts);
-				},
+				}
+			},
 			Err(err) => {
 				let decode_error = matches!(err, Error::ViewDecode(_) | Error::Codec(_));
 				if attempt >= LINKED_ACCOUNTS_RETRIES {

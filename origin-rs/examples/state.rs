@@ -99,13 +99,16 @@ async fn main() -> Result<()> {
 	let target = resolve_token_target(&client, &auth, &token_id).await?;
 
 	match target {
-		TokenTarget::Entity { token } =>
+		TokenTarget::Entity { token } => {
 			render_entity_state(&client, &signer, &token, token_str, chain_prefix, &cli.common)
-				.await,
-		TokenTarget::Registry { registry, info } =>
-			render_registry_state(&client, &signer, registry, &info, &cli.common).await,
-		TokenTarget::Packet { registry, packet, snapshot } =>
-			render_packet_state(&client, &signer, registry, packet, snapshot, &cli.common).await,
+				.await
+		},
+		TokenTarget::Registry { registry, info } => {
+			render_registry_state(&client, &signer, registry, &info, &cli.common).await
+		},
+		TokenTarget::Packet { registry, packet, snapshot } => {
+			render_packet_state(&client, &signer, registry, packet, snapshot, &cli.common).await
+		},
 	}
 }
 

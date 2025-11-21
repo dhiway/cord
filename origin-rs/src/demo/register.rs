@@ -143,6 +143,15 @@ fn describe_element(view: &ElementView) -> String {
 				.unwrap_or_else(|_| format!("0x{}", hex::encode(bytes)));
 			format!("raw:{text}")
 		},
+		ElementView::Localized(entries) => {
+			if let Some((locale, value)) = entries.first() {
+				let locale_str =
+					String::from_utf8(locale.clone()).unwrap_or_else(|_| format!("0x{}", hex::encode(locale)));
+				format!("localized[{locale_str}]:{}", describe_element(value))
+			} else {
+				"localized:[]".into()
+			}
+		},
 	}
 }
 

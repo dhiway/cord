@@ -430,20 +430,20 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::Any => true,
 			ProxyType::NonTransfer => matches!(
 				c,
-				RuntimeCall::System(..) |
-					RuntimeCall::ParachainSystem(..) |
-					RuntimeCall::Timestamp(..) |
-					RuntimeCall::Indices(pallet_indices::Call::claim { .. }) |
-					RuntimeCall::Indices(pallet_indices::Call::free { .. }) |
-					RuntimeCall::Indices(pallet_indices::Call::freeze { .. }) |
-					RuntimeCall::Entity(..) |
-					RuntimeCall::Feeless(..) |
-					RuntimeCall::Register(..) |
-					RuntimeCall::Session(..) |
-					RuntimeCall::Utility(..) |
-					RuntimeCall::Proxy(..) |
-					RuntimeCall::Multisig(..) |
-					RuntimeCall::MessageQueue(..)
+				RuntimeCall::System(..)
+					| RuntimeCall::ParachainSystem(..)
+					| RuntimeCall::Timestamp(..)
+					| RuntimeCall::Indices(pallet_indices::Call::claim { .. })
+					| RuntimeCall::Indices(pallet_indices::Call::free { .. })
+					| RuntimeCall::Indices(pallet_indices::Call::freeze { .. })
+					| RuntimeCall::Entity(..)
+					| RuntimeCall::Feeless(..)
+					| RuntimeCall::Register(..)
+					| RuntimeCall::Session(..)
+					| RuntimeCall::Utility(..)
+					| RuntimeCall::Proxy(..)
+					| RuntimeCall::Multisig(..)
+					| RuntimeCall::MessageQueue(..)
 			),
 			ProxyType::CancelProxy => {
 				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))
@@ -624,7 +624,7 @@ pub type MetaTxExtension = (
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
-	frame_system::CheckEra<Runtime>,
+	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
@@ -896,7 +896,7 @@ pub type TxExtensions = (
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
-	frame_system::CheckEra<Runtime>,
+	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
 	pallet_skip_feeless_payment::SkipCheckIfFeeless<

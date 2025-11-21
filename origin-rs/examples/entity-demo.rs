@@ -201,13 +201,8 @@ async fn run_transaction_flow(
 		snapshot.set_entity_nym(nym);
 	} else {
 		let log_buffer = if created { Some(&mut setup_logs) } else { None };
-		match set_entity_nym_on_chain(
-			client,
-			&mut tx_executor,
-			&entity_nym_prefix,
-			log_buffer,
-		)
-		.await
+		match set_entity_nym_on_chain(client, &mut tx_executor, &entity_nym_prefix, log_buffer)
+			.await
 		{
 			Ok(true) => {
 				snapshot.set_entity_nym(format!("{entity_nym_prefix}.nym.org.in"));
@@ -303,7 +298,8 @@ async fn run_transaction_flow(
 		if let Some(nym) = refreshed {
 			snapshot.set_entity_nym(nym);
 		} else {
-			match set_entity_nym_on_chain(client, &mut tx_executor, &entity_nym_prefix, None).await {
+			match set_entity_nym_on_chain(client, &mut tx_executor, &entity_nym_prefix, None).await
+			{
 				Ok(true) => {
 					snapshot.set_entity_nym(format!("{entity_nym_prefix}.nym.org.in"));
 					expected_state_events = expected_state_events.saturating_add(1);
@@ -469,8 +465,9 @@ async fn apply_attribute_plan(
 
 fn matches_account_not_found(err: &SubmitError) -> bool {
 	match err {
-		SubmitError::Runtime(msg) | SubmitError::Node(msg) | SubmitError::Invalid(msg) =>
-			msg.contains("Entity::AccountNotFound"),
+		SubmitError::Runtime(msg) | SubmitError::Node(msg) | SubmitError::Invalid(msg) => {
+			msg.contains("Entity::AccountNotFound")
+		},
 		_ => false,
 	}
 }

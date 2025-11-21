@@ -56,7 +56,9 @@ fn value_bytes(value: &Value<u32>) -> Option<Vec<u8>> {
 	match &flatten(value).value {
 		ValueDef::Composite(Composite::Unnamed(items))
 			if items.iter().all(|item| item.as_u128().is_some()) =>
-			Some(items.iter().map(|item| item.as_u128().unwrap() as u8).collect()),
+		{
+			Some(items.iter().map(|item| item.as_u128().unwrap() as u8).collect())
+		},
 		ValueDef::Variant(var) => first_field(&var.values).and_then(value_bytes),
 		ValueDef::Primitive(_) => value.as_u128().map(|n| vec![n as u8]),
 		ValueDef::BitSequence(bits) => {
@@ -128,6 +130,20 @@ pub fn decode_element_view(value: &Value<u32>) -> Result<ElementView> {
 		"CID" => {
 			let bytes = bytes_from_field(field, "cid bytes")?;
 			Ok(ElementView::Cid(bytes))
+		},
+		"Localized" => {
+			let Some(entries) = sequence_items(field.ok_or_else(|| Error::Codec("missing localized entries".into()))?) else {
+				return Ok(ElementView::Localized(Vec::new()));
+			};
+			let mut pairs = Vec::new();
+			for entry in entries {
+				if let Some((locale_value, element_value)) = tuple2(entry) {
+					let locale = value_bytes(locale_value).unwrap_or_default();
+					let element = decode_element_view(element_value)?;
+					pairs.push((locale, element));
+				}
+			}
+			Ok(ElementView::Localized(pairs))
 		},
 		other => Err(Error::Codec(format!("unsupported element variant {other}"))),
 	}

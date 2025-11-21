@@ -1,10 +1,31 @@
-use crate::{identifier::Ss58Identifier, packet::ElementType, view::ElementView};
-use alloc::{format, string::String, vec::Vec};
+// This file is part of CORD – https://cord.network
+//
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+//
+// Registry primitives
+
+use crate::{
+	element::{ElementType, ElementView},
+	identifier::Ss58Identifier,
+};
+use alloc::{string::String, vec::Vec};
 use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
-use serde::{Deserialize, Serialize};
 use sp_runtime::RuntimeDebug;
 
 bitflags! {
@@ -47,12 +68,13 @@ impl RegistryPermissions {
 	}
 
 	pub fn has_view(self) -> bool {
-		self.contains(RegistryPermissions::VIEW) ||
-			self.contains(RegistryPermissions::ENTRY) ||
-			self.contains(RegistryPermissions::ADMIN)
+		self.contains(RegistryPermissions::VIEW)
+			|| self.contains(RegistryPermissions::ENTRY)
+			|| self.contains(RegistryPermissions::ADMIN)
 	}
 }
 
+/// High-level kind of registry (what its primary value encodes).
 #[derive(
 	Encode,
 	Decode,
@@ -64,11 +86,7 @@ impl RegistryPermissions {
 	TypeInfo,
 	MaxEncodedLen,
 	Default,
-	Serialize,
-	Deserialize,
-	DecodeAsType,
 )]
-#[serde(rename_all = "camelCase")]
 pub enum RegistryKind {
 	#[default]
 	Raw,
@@ -76,6 +94,7 @@ pub enum RegistryKind {
 	Hash,
 }
 
+/// Lifecycle state of a registry.
 #[derive(
 	Encode,
 	Decode,
@@ -88,11 +107,7 @@ pub enum RegistryKind {
 	TypeInfo,
 	MaxEncodedLen,
 	Default,
-	Serialize,
-	Deserialize,
-	DecodeAsType,
 )]
-#[serde(rename_all = "camelCase")]
 pub enum RegistryStatus {
 	#[default]
 	Active,
@@ -113,78 +128,32 @@ impl RegistryStatus {
 		matches!(self, RegistryStatus::Deleted)
 	}
 }
-
-#[derive(
-	Clone,
-	PartialEq,
-	Eq,
-	Encode,
-	Decode,
-	TypeInfo,
-	RuntimeDebug,
-	Serialize,
-	Deserialize,
-	DecodeAsType,
-)]
-#[serde(rename_all = "camelCase")]
-pub struct RegistryAttributeView {
+/// Specification for a single attribute in a registry schema.
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+pub struct RegistryAttributeSpec {
+	/// Raw key bytes (e.g. "id", "name").
 	pub key: Vec<u8>,
+	/// Expected element kind for this attribute (Raw/Bool/Token/etc).
 	pub kind: ElementType,
+	/// Whether this attribute is optional in the schema.
 	pub optional: bool,
 }
 
-#[derive(
-	Clone,
-	PartialEq,
-	Eq,
-	Encode,
-	Decode,
-	TypeInfo,
-	RuntimeDebug,
-	Serialize,
-	Deserialize,
-	DecodeAsType,
-)]
-#[serde(rename_all = "camelCase")]
-pub enum LookupSpecView {
+/// How a registry can be looked up (single key or composite keys).
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+pub enum LookupSpec {
 	Single(Vec<u8>),
 	Combo(Vec<Vec<u8>>),
 }
 
-impl LookupSpecView {
-	pub fn fingerprint(&self) -> String {
-		match self {
-			LookupSpecView::Single(key) => format!("single:0x{}", hex::encode(key)),
-			LookupSpecView::Combo(list) => {
-				let mut buf = String::from("combo:");
-				for key in list {
-					buf.push_str(&format!("0x{};", hex::encode(key)));
-				}
-				buf
-			},
-		}
-	}
-}
-
-#[derive(
-	Clone,
-	PartialEq,
-	Eq,
-	Encode,
-	Decode,
-	TypeInfo,
-	RuntimeDebug,
-	Serialize,
-	Deserialize,
-	DecodeAsType,
-)]
-#[serde(rename_all = "camelCase")]
+/// View of a registry’s core metadata and schema,
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
 pub struct RegistryInfoView {
 	pub info: ElementView,
 	pub maintainer: Ss58Identifier,
-	pub attributes: Vec<RegistryAttributeView>,
-	pub token_spec: LookupSpecView,
-	pub lookup_specs: Vec<LookupSpecView>,
+	pub attributes: Vec<RegistryAttributeSpec>,
+	pub token_spec: LookupSpec,
+	pub lookup_specs: Vec<LookupSpec>,
 	pub kind: RegistryKind,
 	pub status: RegistryStatus,
 }

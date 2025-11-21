@@ -65,6 +65,19 @@ impl<'a> Query<'a> {
 		)
 	}
 
+	pub(crate) async fn call_view_value(
+		&self,
+		pallet: &str,
+		function: &str,
+		args: Value,
+	) -> Result<Value> {
+		let origin = self.client.origin();
+		origin
+			.call_view(pallet, function, args)
+			.await
+			.map(|value| value.remove_context())
+	}
+
 	pub(crate) async fn call_result<T, E>(
 		&self,
 		pallet: &str,
@@ -85,11 +98,19 @@ impl<'a> Query<'a> {
 	) -> Result<ViewBytes> {
 		let origin = self.client.origin();
 		let ty = origin.layout().view_output_type(pallet, function).await?;
-		let value = origin.call_view(pallet, function, args).await?;
-		let mut data = Vec::new();
-		scale_value::scale::encode_as_type(&value, ty, origin.registry(), &mut data)
-			.map_err(|e| Error::Codec(e.to_string()))?;
-		Ok(ViewBytes { data })
+		match origin.call_view(pallet, function, args.clone()).await {
+			Ok(value) => {
+				let mut data = Vec::new();
+				scale_value::scale::encode_as_type(&value, ty, origin.registry(), &mut data)
+					.map_err(|e| Error::Codec(e.to_string()))?;
+				Ok(ViewBytes { data })
+			},
+			Err(Error::Codec(_)) => {
+				let data = origin.call_view_raw_bytes(pallet, function, args).await?;
+				Ok(ViewBytes { data })
+			},
+			Err(err) => Err(err),
+		}
 	}
 }
 
@@ -169,6 +190,29 @@ fn signature_value(authz: &AuthorizationRequest) -> Value {
 	Value::unnamed_variant(scheme, [inner])
 }
 
+pub(crate) fn dump_view_value(ctx: &str, value: &Value) {
+	if std::env::var_os("OC_VIEW_DECODE_DEBUG").is_none() {
+		return;
+	}
+	match serde_json::to_string_pretty(value) {
+		Ok(json) => log::warn!(target: "query::decode", "{ctx}: raw value\n{json}"),
+		Err(err) => log::warn!(target: "query::decode", "{ctx}: raw value (json error {err}): {value:?}"),
+	}
+}
+
+pub(crate) fn dump_view_bytes(ctx: &str, bytes: &[u8]) {
+	if std::env::var_os("OC_VIEW_DECODE_DEBUG").is_none() {
+		return;
+	}
+	let preview = hex::encode(&bytes.iter().copied().take(256).collect::<Vec<_>>());
+	log::warn!(
+		target: "query::decode",
+		"{ctx}: raw bytes (len {}) preview 0x{}",
+		bytes.len(),
+		preview
+	);
+}
+
 pub(crate) fn view_failure(ctx: &str, err: AuthorizationError) -> Error {
 	match err {
 		AuthorizationError::NotFound => Error::NotFound(format!("{ctx}: not found")),
@@ -177,5 +221,8 @@ pub(crate) fn view_failure(ctx: &str, err: AuthorizationError) -> Error {
 		AuthorizationError::TooLarge => Error::Params(format!("{ctx}: result too large")),
 		AuthorizationError::Expired => Error::Params(format!("{ctx}: authorization expired")),
 		AuthorizationError::Internal => Error::ViewDecode(format!("{ctx}: internal error")),
+		AuthorizationError::DecodeFailed => Error::ViewDecode(format!(
+			"{ctx}: runtime could not decode the authorization payload; refresh metadata or rebuild the SDK"
+		)),
 	}
 }

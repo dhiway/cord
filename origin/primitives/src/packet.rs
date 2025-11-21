@@ -16,193 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{element::Elum, identifier::Ss58Identifier};
+use crate::{
+	attribute::{Attribute, AttributeValueView, Attributes, AttributesError, Element},
+	element::ElementView,
+	identifier::Ss58Identifier,
+};
 use alloc::vec::Vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{
-	traits::{ConstU32, Get},
-	BoundedVec, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
+	traits::Get, BoundedVec, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
 };
-use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
-use serde::{Deserialize, Serialize};
 use sp_runtime::RuntimeDebug;
-
-/// The raw‐data type used throughout the entity pallet.
-pub type Element<MaxRawDataLength> = Elum<MaxRawDataLength>;
-pub use crate::element::ElementType;
-
-/// Maximum length for an additional‐field key.
-pub type Attribute = BoundedVec<u8, ConstU32<64>>;
-
-/// Errors returned when normalising attribute collections.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum AttributesError {
-	DuplicateKey,
-	TooManyAttributes,
-	InvalidElement,
-}
-
-impl AttributesError {
-	fn into_codec_error(self) -> codec::Error {
-		match self {
-			AttributesError::DuplicateKey => "Duplicate attribute keys found".into(),
-			AttributesError::TooManyAttributes => "Attribute count exceeds limit".into(),
-			AttributesError::InvalidElement => "Attribute contains invalid element".into(),
-		}
-	}
-}
-
-/// Deterministic set of `(Attribute, Element)` pairs kept in lexicographic key order.
-#[derive(
-	Encode, CloneNoBound, PartialEqNoBound, EqNoBound, RuntimeDebugNoBound, MaxEncodedLen, TypeInfo,
-)]
-#[scale_info(skip_type_params(MaxRawDataLength, MaxAdditionalAttributes))]
-pub struct Attributes<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>(
-	BoundedVec<(Attribute, Element<MaxRawDataLength>), MaxAdditionalAttributes>,
-);
-
-impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
-	Attributes<MaxRawDataLength, MaxAdditionalAttributes>
-{
-	pub fn new() -> Self {
-		Self(BoundedVec::new())
-	}
-
-	pub fn len(&self) -> usize {
-		self.0.len()
-	}
-
-	pub fn is_empty(&self) -> bool {
-		self.0.is_empty()
-	}
-
-	pub fn iter(&self) -> core::slice::Iter<'_, (Attribute, Element<MaxRawDataLength>)> {
-		self.0.iter()
-	}
-
-	pub fn get(&self, key: &[u8]) -> Option<&Element<MaxRawDataLength>> {
-		self.position(key).ok().map(|idx| &self.0[idx].1)
-	}
-
-	pub fn get_mut(&mut self, key: &[u8]) -> Option<&mut Element<MaxRawDataLength>> {
-		self.position(key).ok().map(move |idx| &mut self.0[idx].1)
-	}
-
-	pub fn contains_key(&self, key: &[u8]) -> bool {
-		self.position(key).is_ok()
-	}
-
-	pub fn try_insert(
-		&mut self,
-		key: Attribute,
-		value: Element<MaxRawDataLength>,
-	) -> Result<(), AttributesError> {
-		value.validate().map_err(|_| AttributesError::InvalidElement)?;
-		match self.position(key.as_slice()) {
-			Ok(_) => Err(AttributesError::DuplicateKey),
-			Err(pos) => self
-				.0
-				.try_insert(pos, (key, value))
-				.map_err(|_| AttributesError::TooManyAttributes),
-		}
-	}
-
-	pub fn remove(&mut self, key: &[u8]) -> Option<(Attribute, Element<MaxRawDataLength>)> {
-		self.position(key).ok().map(|idx| self.0.remove(idx))
-	}
-
-	/// Construct an attribute map from an iterator, ensuring canonical order.
-	pub fn try_collect<I>(iter: I) -> Result<Self, AttributesError>
-	where
-		I: IntoIterator<Item = (Attribute, Element<MaxRawDataLength>)>,
-	{
-		let mut bounded =
-			BoundedVec::<(Attribute, Element<MaxRawDataLength>), MaxAdditionalAttributes>::new();
-		for (key, value) in iter.into_iter() {
-			value.validate().map_err(|_| AttributesError::InvalidElement)?;
-			bounded.try_push((key, value)).map_err(|_| AttributesError::TooManyAttributes)?;
-		}
-		Self::canonicalize(bounded)
-	}
-
-	/// Insert or update an attribute, maintaining canonical ordering.
-	pub fn upsert(
-		&mut self,
-		key: Attribute,
-		value: Element<MaxRawDataLength>,
-	) -> Result<(), AttributesError> {
-		value.validate().map_err(|_| AttributesError::InvalidElement)?;
-		match self.position(key.as_slice()) {
-			Ok(index) => {
-				self.0[index].1 = value;
-				Ok(())
-			},
-			Err(index) => self
-				.0
-				.try_insert(index, (key, value))
-				.map_err(|_| AttributesError::TooManyAttributes),
-		}
-	}
-
-	/// Merge another canonical attribute set into `self`.
-	pub fn merge(&mut self, updates: &Self) -> Result<(), AttributesError> {
-		for (key, value) in updates.iter() {
-			self.upsert(key.clone(), value.clone())?;
-		}
-		Ok(())
-	}
-
-	/// Materialize attributes into an encoded `(key, value)` representation sorted by key.
-	pub fn encoded_pairs(&self) -> Vec<(Vec<u8>, Vec<u8>)> {
-		self.0.iter().map(|(key, value)| (key.to_vec(), value.encode())).collect()
-	}
-
-	pub fn validate(&self) -> Result<(), AttributesError> {
-		let mut prev: Option<&[u8]> = None;
-		for (key, value) in self.0.iter() {
-			value.validate().map_err(|_| AttributesError::InvalidElement)?;
-			let key_slice = key.as_slice();
-			if let Some(prev_key) = prev {
-				if prev_key >= key_slice {
-					return Err(AttributesError::DuplicateKey);
-				}
-			}
-			prev = Some(key_slice);
-		}
-		Ok(())
-	}
-
-	fn position(&self, key: &[u8]) -> Result<usize, usize> {
-		self.0.binary_search_by(|(existing, _)| existing.as_slice().cmp(key))
-	}
-
-	fn canonicalize(
-		mut inner: BoundedVec<(Attribute, Element<MaxRawDataLength>), MaxAdditionalAttributes>,
-	) -> Result<Self, AttributesError> {
-		inner.sort_by(|(a, _), (b, _)| a.as_slice().cmp(b.as_slice()));
-		let attrs = Self(inner);
-		attrs.validate().map(|_| attrs)
-	}
-}
-
-impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>> Default
-	for Attributes<MaxRawDataLength, MaxAdditionalAttributes>
-{
-	fn default() -> Self {
-		Self::new()
-	}
-}
-
-impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>> core::ops::Deref
-	for Attributes<MaxRawDataLength, MaxAdditionalAttributes>
-{
-	type Target = [(Attribute, Element<MaxRawDataLength>)];
-
-	fn deref(&self) -> &Self::Target {
-		self.0.as_ref()
-	}
-}
 
 /// Pointer linking an index entry to a specific registry/packet version.
 #[derive(
@@ -215,11 +40,10 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>> core::ops::D
 	TypeInfo,
 	MaxEncodedLen,
 	RuntimeDebug,
-	DecodeAsType,
 )]
 pub struct PacketPointer {
-	pub rtoken: Ss58Identifier,
-	pub ptoken: Ss58Identifier,
+	pub registry: Ss58Identifier,
+	pub packet: Ss58Identifier,
 	pub version: u32,
 }
 
@@ -235,9 +59,6 @@ pub struct PacketPointer {
 	MaxEncodedLen,
 	RuntimeDebug,
 	Default,
-	Serialize,
-	Deserialize,
-	DecodeAsType,
 )]
 pub enum PacketStatus {
 	#[default]
@@ -307,58 +128,6 @@ impl<
 	}
 }
 
-impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
-	From<Attributes<MaxRawDataLength, MaxAdditionalAttributes>>
-	for Vec<(Attribute, Element<MaxRawDataLength>)>
-{
-	fn from(value: Attributes<MaxRawDataLength, MaxAdditionalAttributes>) -> Self {
-		value.0.into()
-	}
-}
-
-impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
-	TryFrom<Vec<(Attribute, Element<MaxRawDataLength>)>>
-	for Attributes<MaxRawDataLength, MaxAdditionalAttributes>
-{
-	type Error = AttributesError;
-
-	fn try_from(value: Vec<(Attribute, Element<MaxRawDataLength>)>) -> Result<Self, Self::Error> {
-		let bounded = BoundedVec::<_, MaxAdditionalAttributes>::try_from(value)
-			.map_err(|_| AttributesError::TooManyAttributes)?;
-		Self::canonicalize(bounded)
-	}
-}
-
-impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
-	TryFrom<BoundedVec<(Attribute, Element<MaxRawDataLength>), MaxAdditionalAttributes>>
-	for Attributes<MaxRawDataLength, MaxAdditionalAttributes>
-{
-	type Error = AttributesError;
-
-	fn try_from(
-		value: BoundedVec<(Attribute, Element<MaxRawDataLength>), MaxAdditionalAttributes>,
-	) -> Result<Self, Self::Error> {
-		Self::canonicalize(value)
-	}
-}
-
-impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>> Decode
-	for Attributes<MaxRawDataLength, MaxAdditionalAttributes>
-{
-	fn decode<I: codec::Input>(input: &mut I) -> Result<Self, codec::Error> {
-		let raw =
-			BoundedVec::<(Attribute, Element<MaxRawDataLength>), MaxAdditionalAttributes>::decode(
-				input,
-			)?;
-		Self::canonicalize(raw).map_err(AttributesError::into_codec_error)
-	}
-}
-
-impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>> DecodeWithMemTracking
-	for Attributes<MaxRawDataLength, MaxAdditionalAttributes>
-{
-}
-
 /// Errors that can occur when applying a single update.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PacketUpdateError {
@@ -370,7 +139,7 @@ pub enum PacketUpdateError {
 	InvalidElement,
 }
 
-/// Single‐op‐for‐any‐key update operations.
+/// Single-operation updates against packet state.
 #[derive(
 	Encode,
 	Decode,
@@ -389,7 +158,7 @@ pub enum PacketUpdateOp<MaxRawDataLength: Get<u32>> {
 	UpdateAttribute(Attribute, Element<MaxRawDataLength>),
 }
 
-/// Core trait for “token” info.
+/// Core trait for “token” info that can be addressed via a packet.
 pub trait PacketInformationProvider {
 	/// Bitmask type for which fields are set/updated.
 	type FieldMask: Encode + Decode + MaxEncodedLen + TypeInfo + Default;
@@ -410,7 +179,7 @@ pub trait PacketInformationProvider {
 		+ TypeInfo
 		+ MaxEncodedLen;
 
-	/// The raw attribute‐map (never `None`).
+	/// The raw attribute-map (never `None`).
 	fn attributes(
 		&self,
 	) -> Option<&Attributes<Self::MaxRawDataLength, Self::MaxAdditionalAttributes>>;
@@ -418,7 +187,7 @@ pub trait PacketInformationProvider {
 	/// Return the current value for _any_ key (reserved field or attribute).
 	fn get_key(&self, key: &[u8]) -> Element<Self::MaxRawDataLength>;
 
-	/// Return a bitmask of *all* the identity‐fields currently set.
+	/// Return a bitmask of *all* the fields currently set.
 	fn present_fields(&self) -> Self::FieldMask;
 
 	/// Check whether *all* bits in `mask` are set in `present_fields()`.
@@ -427,12 +196,75 @@ pub trait PacketInformationProvider {
 	/// Apply one operation.
 	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), PacketUpdateError>;
 
-	/// Helper function - Benchmarking and tests
+	/// Helper function - benchmarking and tests.
 	fn create_info() -> Self
 	where
 		Self: Sized;
-	/// Helper function - Benchmarking and tests
+
+	/// Helper function - benchmarking and tests.
 	fn all_fields() -> Self::FieldMask;
+}
+
+/// View-friendly representation of a packet’s state.
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+pub struct PacketStateView {
+	pub registry: Ss58Identifier,
+	pub controller: Ss58Identifier,
+	pub status: PacketStatus,
+	pub version: u32,
+	pub attributes_hash: Vec<u8>,
+	pub attributes: Vec<AttributeValueView>,
+}
+
+impl<
+		MaxRawDataLength: Get<u32>,
+		MaxAdditionalAttributes: Get<u32>,
+		Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode,
+	> From<&PacketState<MaxRawDataLength, MaxAdditionalAttributes, Hash>> for PacketStateView
+{
+	fn from(state: &PacketState<MaxRawDataLength, MaxAdditionalAttributes, Hash>) -> Self {
+		Self {
+			registry: state.registry.clone(),
+			controller: state.controller.clone(),
+			status: state.status.clone(),
+			version: state.version,
+			attributes_hash: state.attributes_hash.encode(),
+			attributes: Vec::<AttributeValueView>::from(&state.attributes),
+		}
+	}
+}
+
+impl PacketStateView {
+	pub fn attribute(&self, key: &[u8]) -> Option<&ElementView> {
+		self.attributes
+			.iter()
+			.find(|attr| attr.key.as_slice() == key)
+			.map(|attr| &attr.value)
+	}
+}
+
+/// View-friendly representation of packet metadata.
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+pub struct PacketMetadataView {
+	pub registry: Ss58Identifier,
+	pub controller: Ss58Identifier,
+	pub status: PacketStatus,
+	pub latest_version: u32,
+	pub attributes_hash: Vec<u8>,
+}
+
+impl<Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode> From<&PacketMetadata<Hash>>
+	for PacketMetadataView
+{
+	fn from(meta: &PacketMetadata<Hash>) -> Self {
+		Self {
+			registry: meta.registry.clone(),
+			controller: meta.controller.clone(),
+			status: meta.status.clone(),
+			latest_version: meta.latest_version,
+			attributes_hash: meta.attributes_hash.encode(),
+		}
+	}
 }
 
 #[cfg(test)]

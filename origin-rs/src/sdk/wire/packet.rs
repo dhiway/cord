@@ -11,7 +11,6 @@ use crate::{
 	},
 	tx::TxOptions,
 };
-use base64::Engine;
 use origin_primitives::registry::RegistryInfoView;
 use subxt::tx::Signer;
 
@@ -220,18 +219,5 @@ fn build_payload_from_attributes(
 fn element_json_from_view(
 	el: &origin_primitives::view::ElementView,
 ) -> Result<crate::types::element::ElementJson> {
-	use crate::types::element::ElementJson;
-	Ok(match el {
-		origin_primitives::view::ElementView::None => ElementJson::None,
-		origin_primitives::view::ElementView::Raw(bytes) =>
-			ElementJson::RawBase64(base64::engine::general_purpose::STANDARD.encode(bytes)),
-		origin_primitives::view::ElementView::Bool(v) => ElementJson::Bool(*v),
-		origin_primitives::view::ElementView::U64(v) => ElementJson::U64(*v),
-		origin_primitives::view::ElementView::U128(v) => ElementJson::U128(*v),
-		origin_primitives::view::ElementView::Hash(h) => ElementJson::HashHex(hex::encode(h)),
-		origin_primitives::view::ElementView::Token(tok) =>
-			ElementJson::TokenSs58(String::from_utf8_lossy(tok.as_ref()).into_owned()),
-		origin_primitives::view::ElementView::Cid(cid) =>
-			ElementJson::CidBase58(bs58::encode(cid).into_string()),
-	})
+	Ok(crate::sdk::types::element_view_to_json(el))
 }
