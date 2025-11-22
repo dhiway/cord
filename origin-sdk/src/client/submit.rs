@@ -73,10 +73,27 @@ impl SubmitClient {
 
 	pub async fn batch_submit(
 		&self,
-		_calls: Vec<dynamic::Value>,
-		_signer: &dyn Signer,
+		calls: Vec<super::super::extrinsic::builder::DynamicCall>,
+		signer: &dyn Signer,
 	) -> Result<TxHandle, OriginSdkError> {
-		Err(OriginSdkError::Unimplemented("batch_submit".into()))
+		let adapter = SubxtSignerAdapter::new(signer);
+		let account = adapter.account_id();
+		let nonce = self.nonce.allocate(self.connection.online(), &account.0).await?;
+		let params = DefaultExtrinsicParamsBuilder::<OriginConfig>::new().nonce(nonce).build();
+		let payloads: Vec<_> = calls
+			.into_iter()
+			.map(|c| dynamic::tx(c.pallet, c.function, c.args).into_value())
+			.collect();
+		let batch_call = dynamic::tx("Utility", "batch_all", payloads);
+		let progress = self
+			.connection
+			.online()
+			.tx()
+			.sign_and_submit_then_watch(&batch_call, &adapter, params)
+			.await?;
+		let hash = progress.extrinsic_hash();
+		let _ = progress.wait_for_finalized_success().await?;
+		Ok(TxHandle { hash })
 	}
 }
 

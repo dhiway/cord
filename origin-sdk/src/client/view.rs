@@ -22,7 +22,7 @@ impl ViewClient {
 		Self { connection }
 	}
 
-	/// Invoke a pallet view function dynamically using Subxt view RPC and decode via metadata.
+	/// Invoke a pallet view function dynamically and decode via metadata.
 	pub async fn call<T: Decode>(
 		&self,
 		pallet: &str,
@@ -62,27 +62,69 @@ impl ViewClient {
 					}
 					let args = scale_value::Composite::unnamed(values);
 					let payload = subxt::dynamic::view_function_call(query_id, args);
-					let api = connection
-						.online()
-						.view_functions()
-						.at_latest()
-						.await
-						.map_err(|e| OriginSdkError::View(e.to_string()))?;
-					let thunk =
-						api.call(payload).await.map_err(|e| OriginSdkError::View(e.to_string()))?;
-					let value = thunk.to_value().map_err(|e| OriginSdkError::Decode(e.to_string()))?;
+						let value = Self::call_value_inner(&connection, payload).await?;
 					let mut buf = Vec::new();
-			scale_value::scale::encode_as_type(
-				&value,
-				vf.output_ty(),
-				metadata.types(),
-				&mut buf,
-			)
-			.map_err(|e| OriginSdkError::Decode(e.to_string()))?;
-		T::decode(&mut &buf[..]).map_err(|e| OriginSdkError::Decode(e.to_string()))
-	}
+					scale_value::scale::encode_as_type(
+						&value,
+						vf.output_ty(),
+						metadata.types(),
+						&mut buf,
+					)
+					.map_err(|e| OriginSdkError::Decode(e.to_string()))?;
+					T::decode(&mut &buf[..]).map_err(|e| OriginSdkError::Decode(e.to_string()))
+				}
 			})
 			.await
+	}
+
+	async fn call_value_inner(
+		connection: &Arc<Connection>,
+		payload: subxt::view_functions::DefaultPayload<scale_value::Composite<()>, subxt::dynamic::DecodedValueThunk>,
+	) -> Result<subxt::dynamic::DecodedValue, OriginSdkError> {
+		let api = connection
+			.online()
+			.view_functions()
+			.at_latest()
+			.await
+			.map_err(|e| OriginSdkError::View(e.to_string()))?;
+		let thunk = api.call(payload).await.map_err(|e| OriginSdkError::View(e.to_string()))?;
+		thunk.to_value().map_err(|e| OriginSdkError::Decode(e.to_string()))
+	}
+
+	/// Invoke and return raw DecodedValue (no further decode).
+	pub async fn call_value(
+		&self,
+		pallet: &str,
+		function: &str,
+		raw_args: Vec<Vec<u8>>,
+	) -> Result<subxt::dynamic::DecodedValue, OriginSdkError> {
+		let metadata = self.connection.metadata();
+		let pallet_meta = metadata
+			.pallet_by_name(pallet)
+			.ok_or_else(|| OriginSdkError::View(format!("pallet {pallet} not found")))?;
+		let vf = pallet_meta
+			.view_functions()
+			.find(|vf| vf.name() == function)
+			.ok_or_else(|| OriginSdkError::View(format!("view {pallet}.{function} not found")))?;
+		let query_id = *vf.query_id();
+		let inputs: Vec<_> = vf.inputs().collect();
+		if inputs.len() != raw_args.len() {
+			return Err(OriginSdkError::InvalidInput(format!(
+				"expected {} args, got {}",
+				inputs.len(),
+				raw_args.len()
+			)));
+		}
+		let mut values = Vec::with_capacity(raw_args.len());
+		for (bytes, input) in raw_args.into_iter().zip(inputs) {
+			let mut cursor = &bytes[..];
+			let val = scale_value::scale::decode_as_type(&mut cursor, input.ty, metadata.types())
+				.map_err(|e| OriginSdkError::Decode(e.to_string()))?;
+			values.push(val.remove_context());
+		}
+		let args = scale_value::Composite::unnamed(values);
+		let payload = subxt::dynamic::view_function_call(query_id, args);
+		Self::call_value_inner(&self.connection, payload).await
 	}
 
 	/// Entity view helpers.
@@ -103,7 +145,7 @@ impl ViewClient {
 
 #[derive(Clone)]
 pub struct EntityViews {
-	inner: ViewClient,
+	pub(crate) inner: ViewClient,
 }
 
 impl EntityViews {
@@ -138,7 +180,7 @@ impl EntityViews {
 
 #[derive(Clone)]
 pub struct RegistryViews {
-	inner: ViewClient,
+	pub(crate) inner: ViewClient,
 }
 
 impl RegistryViews {
@@ -159,10 +201,18 @@ impl RegistryViews {
 
 #[derive(Clone)]
 pub struct PacketViews {
-	inner: ViewClient,
+	pub(crate) inner: ViewClient,
 }
 
 impl PacketViews {
+	pub async fn lookup(
+		&self,
+		auth: Auth,
+		key: Vec<u8>,
+	) -> Result<subxt::dynamic::DecodedValue, OriginSdkError> {
+		self.inner.call_value("Packet", "lookup", vec![auth.encode(), key.encode()]).await
+	}
+
 	pub async fn state(
 		&self,
 		auth: Auth,
@@ -175,5 +225,20 @@ impl PacketViews {
 				vec![auth.encode(), packet.encode()],
 			)
 			.await
+	}
+}
+
+#[derive(Clone)]
+pub struct TokenViews {
+	pub(crate) inner: ViewClient,
+}
+
+impl TokenViews {
+	pub async fn timeline(
+		&self,
+		auth: Auth,
+		token: origin_primitives::Ss58Identifier,
+	) -> Result<subxt::dynamic::DecodedValue, OriginSdkError> {
+		self.inner.call_value("Token", "timeline", vec![auth.encode(), token.encode()]).await
 	}
 }

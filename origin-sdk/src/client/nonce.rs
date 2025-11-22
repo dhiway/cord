@@ -9,6 +9,7 @@ pub struct NonceManager {
 }
 
 impl NonceManager {
+	#[allow(dead_code)]
 	pub fn new() -> Self {
 		Self::default()
 	}
@@ -30,6 +31,7 @@ impl NonceManager {
 		Ok(current)
 	}
 
+	#[allow(dead_code)]
 	pub async fn next(&self, account: &[u8; 32]) -> u64 {
 		let mut guard = self.inner.lock().await;
 		let entry = guard.entry(*account).or_insert(0);
@@ -38,6 +40,7 @@ impl NonceManager {
 		current
 	}
 
+	#[allow(dead_code)]
 	pub async fn set(&self, account: &[u8; 32], nonce: u64) {
 		let mut guard = self.inner.lock().await;
 		guard.insert(*account, nonce);

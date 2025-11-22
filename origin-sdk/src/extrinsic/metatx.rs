@@ -7,6 +7,7 @@ use super::builder::DynamicCall;
 /// Meta-transaction helper (scaffold).
 #[derive(Clone)]
 pub struct MetaTxClient {
+	#[allow(dead_code)]
 	connection: Arc<Connection>,
 }
 
