@@ -1,14 +1,14 @@
+use async_trait::async_trait;
 use sp_core::{ecdsa, ed25519, sr25519, Pair};
-use sp_runtime::{traits::IdentifyAccount, MultiSigner};
-use subxt::utils::{AccountId32, MultiSignature};
+use sp_runtime::{traits::IdentifyAccount, MultiSignature, MultiSigner};
+use subxt::utils::{AccountId32, MultiSignature as SubxtMultiSignature};
+use tokio::task;
 
-/// Generic signing interface for Origin SDK.
-pub trait Signer: Send + Sync {
-	/// Account identifier for extrinsics.
+/// Generic signing interface for Origin SDK (async to allow HSM/wallet flows).
+#[async_trait]
+pub trait Signer: Send + Sync + 'static {
 	fn account_id(&self) -> AccountId32;
-
-	/// Sign an arbitrary payload.
-	fn sign(&self, payload: &[u8]) -> MultiSignature;
+	async fn sign_payload(&self, payload: &[u8]) -> MultiSignature;
 }
 
 /// Multi-crypto signer covering sr25519, ed25519, and ecdsa.
@@ -37,8 +37,9 @@ impl MultiKeySigner {
 
 	/// Build from a secret URI seed; `scheme` may be "sr25519", "ed25519", or "ecdsa".
 	pub fn from_seed(seed: &str, scheme: &str) -> Result<Self, String> {
+		let scheme = if scheme.is_empty() { "sr25519" } else { scheme };
 		match scheme {
-			"sr25519" | "" => sr25519::Pair::from_string(seed, None)
+			"sr25519" => sr25519::Pair::from_string(seed, None)
 				.map(Self::Sr25519)
 				.map_err(|e| format!("invalid seed: {e}")),
 			"ed25519" => ed25519::Pair::from_string(seed, None)
@@ -50,25 +51,29 @@ impl MultiKeySigner {
 			other => Err(format!("unsupported key scheme '{other}'")),
 		}
 	}
-}
 
-impl Signer for MultiKeySigner {
-	fn account_id(&self) -> AccountId32 {
-		let multisigner: MultiSigner = match self {
+	fn multisigner(&self) -> MultiSigner {
+		match self {
 			Self::Sr25519(p) => MultiSigner::from(p.public()),
 			Self::Ed25519(p) => MultiSigner::from(p.public()),
 			Self::Ecdsa(p) => MultiSigner::from(p.public()),
-		};
-		let account: sp_runtime::AccountId32 = multisigner.into_account();
+		}
+	}
+}
+
+#[async_trait]
+impl Signer for MultiKeySigner {
+	fn account_id(&self) -> AccountId32 {
+		let account: sp_runtime::AccountId32 = self.multisigner().into_account();
 		let bytes: [u8; 32] = account.into();
 		AccountId32::from(bytes)
 	}
 
-	fn sign(&self, payload: &[u8]) -> MultiSignature {
+	async fn sign_payload(&self, payload: &[u8]) -> MultiSignature {
 		match self {
-			Self::Sr25519(p) => MultiSignature::Sr25519(p.sign(payload).into()),
-			Self::Ed25519(p) => MultiSignature::Ed25519(p.sign(payload).into()),
-			Self::Ecdsa(p) => MultiSignature::Ecdsa(p.sign(payload).into()),
+			Self::Sr25519(p) => MultiSignature::from(p.sign(payload)),
+			Self::Ed25519(p) => MultiSignature::from(p.sign(payload)),
+			Self::Ecdsa(p) => MultiSignature::from(p.sign(payload)),
 		}
 	}
 }
@@ -84,12 +89,44 @@ impl Sr25519Signer {
 	}
 }
 
+#[async_trait]
 impl Signer for Sr25519Signer {
 	fn account_id(&self) -> AccountId32 {
 		self.0.account_id()
 	}
 
-	fn sign(&self, payload: &[u8]) -> MultiSignature {
-		self.0.sign(payload)
+	async fn sign_payload(&self, payload: &[u8]) -> MultiSignature {
+		self.0.sign_payload(payload).await
+	}
+}
+
+/// Adapter to plug async Signer into Subxt (blocking on current runtime).
+#[derive(Clone)]
+pub struct SubxtSignerAdapter {
+	inner: std::sync::Arc<dyn Signer>,
+}
+
+impl SubxtSignerAdapter {
+	pub fn new(inner: std::sync::Arc<dyn Signer>) -> Self {
+		Self { inner }
+	}
+}
+
+impl subxt::tx::Signer<crate::client::OriginConfig> for SubxtSignerAdapter {
+	fn account_id(&self) -> subxt::utils::AccountId32 {
+		self.inner.account_id()
+	}
+
+	fn sign(&self, payload: &[u8]) -> SubxtMultiSignature {
+		let inner = self.inner.clone();
+		let sig = task::block_in_place(|| {
+			let handle = tokio::runtime::Handle::current();
+			handle.block_on(inner.sign_payload(payload))
+		});
+		match sig {
+			MultiSignature::Ed25519(s) => SubxtMultiSignature::Ed25519(s.0),
+			MultiSignature::Sr25519(s) => SubxtMultiSignature::Sr25519(s.0),
+			MultiSignature::Ecdsa(s) => SubxtMultiSignature::Ecdsa(s.0),
+		}
 	}
 }

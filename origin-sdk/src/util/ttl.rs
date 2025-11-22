@@ -1,10 +1,7 @@
-use std::time::{Duration, SystemTime};
-
-/// Simple TTL helper for authorization payloads.
-pub fn expires_in(ttl: Duration) -> u64 {
-	let now = SystemTime::now()
-		.duration_since(SystemTime::UNIX_EPOCH)
-		.unwrap_or_default()
-		.as_secs();
-	now + ttl.as_secs()
+/// Compute the block height at which a payload signed at `current_block` expires.
+///
+/// Pallet TTL checks are block-based, so avoid using wall-clock time when
+/// constructing authorization payloads.
+pub fn expires_at(current_block: u32, ttl_blocks: u32) -> u32 {
+	current_block.saturating_add(ttl_blocks)
 }

@@ -45,6 +45,6 @@ impl BatchBuilder {
 		self,
 	) -> Result<crate::client::submit::TxOutcome, OriginSdkError> {
 		let handle = self.client.batch_submit(self.calls, self.all).await?;
-		handle.wait_in_block().await
+		handle.wait_finalized().await
 	}
 }

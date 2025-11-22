@@ -9041,6 +9041,7 @@ name = "origin-sdk"
 version = "0.9.9"
 dependencies = [
  "anyhow",
+ "async-trait",
  "backoff",
  "env_logger",
  "futures",

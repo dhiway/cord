@@ -1,5 +1,6 @@
 pub(crate) mod connection;
 mod events;
+pub mod nonce;
 pub mod signer;
 pub mod submit;
 mod view;

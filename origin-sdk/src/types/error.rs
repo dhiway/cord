@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 /// Unified SDK error type.
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum OriginSdkError {
 	#[error("connection error: {0}")]
 	Connection(String),
