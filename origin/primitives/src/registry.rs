@@ -148,14 +148,31 @@ pub enum LookupSpec {
 
 /// View of a registry’s core metadata and schema,
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
-pub struct RegistryInfoView {
-	pub info: ElementView,
+pub struct RegistryStateView {
+	/// Registry identifier (Ss58Identifier)
+	pub registry: Ss58Identifier,
+	/// Owner/maintainer (entity token)
 	pub maintainer: Ss58Identifier,
-	pub attributes: Vec<RegistryAttributeSpec>,
-	pub token_spec: LookupSpec,
-	pub lookup_specs: Vec<LookupSpec>,
+	/// Human/application metadata (decoded)
+	pub info: ElementView,
+	/// Kind of registry (Raw/Token/Hash)
 	pub kind: RegistryKind,
+	/// Active / Revoked / Deleted
 	pub status: RegistryStatus,
+	/// Attribute schema
+	pub attributes: Vec<RegistryAttributeView>,
+	/// Token-spec defining registry ID derivation
+	pub token_spec: Vec<Vec<u8>>,
+	/// Lookup specifications (list of lists of keys)
+	pub lookup_specs: Vec<Vec<Vec<u8>>>,
+}
+
+/// Flattened view for a single registry attribute.
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+pub struct RegistryAttributeView {
+	pub key: Vec<u8>,
+	pub kind: ElementType,
+	pub optional: bool,
 }
 
 #[cfg(test)]
@@ -199,8 +216,7 @@ mod tests {
 	#[test]
 	fn registry_info_view_round_trip_fields() {
 		let info = ElementView::Raw(vec![1, 2, 3]);
-		let maintainer =
-			Ss58Identifier::to_encoded([0u8; 32], 1, 1, 1).expect("identifier ok");
+		let maintainer = Ss58Identifier::to_encoded([0u8; 32], 1, 1, 1).expect("identifier ok");
 		let attributes = vec![RegistryAttributeSpec {
 			key: b"id".to_vec(),
 			kind: ElementType::Raw,
@@ -208,7 +224,7 @@ mod tests {
 		}];
 		let token_spec = LookupSpec::Single(b"id".to_vec());
 		let lookup_specs = vec![LookupSpec::Combo(vec![b"id".to_vec(), b"name".to_vec()])];
-		let view = RegistryInfoView {
+		let view = RegistryStateView {
 			info: info.clone(),
 			maintainer: maintainer.clone(),
 			attributes: attributes.clone(),

@@ -34,7 +34,7 @@ pub use crate::packet::{
 
 pub mod registry;
 pub use crate::registry::{
-	LookupSpec, RegistryAttributeSpec, RegistryInfoView, RegistryKind, RegistryPermissions,
+	LookupSpec, RegistryAttributeSpec, RegistryKind, RegistryPermissions, RegistryStateView,
 	RegistryStatus,
 };
 
