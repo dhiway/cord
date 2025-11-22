@@ -19,7 +19,9 @@
 //! View adapters for registry + packet structures.
 
 use crate::*;
-use alloc::vec::Vec;
+
+use crate::register::LookupSpec;
+use alloc::{vec, vec::Vec};
 use codec::Encode;
 use origin_primitives::{
 	element::ElementView,
@@ -27,7 +29,6 @@ use origin_primitives::{
 	packet::{PacketAttributeView, PacketMetadataView, PacketSnapshot, PacketStateView},
 	registry::{RegistryAttributeView, RegistryStateView},
 };
-use crate::register::LookupSpec;
 
 /// Convert RegistryInfoOf<T> → RegistryStateView (fully flattened)
 pub fn build_registry_state_view<T: Config>(

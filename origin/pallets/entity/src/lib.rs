@@ -1076,8 +1076,6 @@ impl<T: Config> Pallet<T> {
 		}
 		let signer: AccountId32 = auth.account.clone().into();
 
-		// Signature valid? (AuthSignature: Verify<Signer = AccountId>)
-
 		if !auth.signature.verify(auth.payload.as_slice(), &signer) {
 			return Err(AuthorizationError::Unauthorized);
 		}

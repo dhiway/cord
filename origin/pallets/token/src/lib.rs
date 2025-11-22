@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! # CORD Dato Token (Token)
+//! # CORD Data Token (Token)
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
@@ -264,8 +264,8 @@ pub mod pallet {
 	#[pallet::view_functions]
 	impl<T: Config> Pallet<T>
 	where
-		AccountId32: From<<T as frame_system::Config>::AccountId>,
-		<T as frame_system::Config>::AccountId: Clone,
+		T::AccountId: Clone + Into<AccountId32>,
+		AccountId32: From<T::AccountId>,
 	{
 		/// Returns the pallet index previously assigned to the provided name.
 		pub fn pallet_index_of(
@@ -352,7 +352,11 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T> {
+impl<T: Config> Pallet<T>
+where
+	T::AccountId: Clone + Into<AccountId32>,
+	AccountId32: From<T::AccountId>,
+{
 	pub fn get_or_add_pallet_index(pallet_name: &str) -> Result<u16, Error<T>> {
 		let bounded_name: BoundedVec<u8, ConstU32<64>> = pallet_name
 			.as_bytes()
@@ -422,20 +426,36 @@ impl<T: Config> From<IdentifierError> for Error<T> {
 	}
 }
 
-impl<T> Pallet<T>
+impl<T: Config> Pallet<T>
 where
-	T: Config,
-	AccountId32: From<<T as frame_system::Config>::AccountId>,
-	<T as frame_system::Config>::AccountId: Clone,
+	T::AccountId: Clone + Into<AccountId32>,
+	AccountId32: From<T::AccountId>,
 {
+	#[inline]
 	fn authorize_query(auth: &Authorization<T>) -> Result<(), AuthorizationError> {
+		// expiry check
 		Self::ensure_authorization_fresh(auth.payload.as_slice())?;
+
 		let signer: AccountId32 = auth.account.clone().into();
+
 		if !auth.signature.verify(auth.payload.as_slice(), &signer) {
 			return Err(AuthorizationError::Unauthorized);
 		}
+
 		Ok(())
 	}
+
+	// fn authorize_query(auth: &Authorization<T>) -> Result<(), AuthorizationError>
+	// where
+	// 	T::AccountId: Clone + Into<AccountId32>,
+	// {
+	// 	Self::ensure_authorization_fresh(auth.payload.as_slice())?;
+	// 	let signer: AccountId32 = auth.account.clone().into();
+	// 	if !auth.signature.verify(auth.payload.as_slice(), &signer) {
+	// 		return Err(AuthorizationError::Unauthorized);
+	// 	}
+	// 	Ok(())
+	// }
 
 	pub fn timeline_entries(
 		token: &Ss58Identifier,
@@ -511,7 +531,11 @@ where
 	}
 }
 
-impl<T: pallet::Config> Token<T> for Pallet<T> {
+impl<T: pallet::Config> Token<T> for Pallet<T>
+where
+	T::AccountId: Clone + Into<AccountId32>,
+	AccountId32: From<T::AccountId>,
+{
 	type Hash = HashOf<T>;
 	type Error = pallet::Error<T>;
 
