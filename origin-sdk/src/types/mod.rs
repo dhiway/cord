@@ -9,3 +9,4 @@ pub use error::OriginSdkError;
 pub use identifiers::{DecodedIdentifier, Ss58Identifier};
 pub use packet::{PacketMetadataView, PacketPointer, PacketStateView, PacketStatus};
 pub use registry::RegistryStateView;
+pub type ViewValue = subxt::dynamic::DecodedValue;

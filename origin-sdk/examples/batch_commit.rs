@@ -1,11 +1,18 @@
 use origin_sdk::OriginClient;
+use subxt::dynamic::Value;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let client = OriginClient::connect("ws://localhost:9944").await?;
-	let empty = Vec::<subxt::dynamic::Value>::new();
-	let _ = client.tx().submit("Entity", "set_info", empty.clone(), &DummySigner {}).await?;
-	let _ = client.tx().submit("Entity", "set_info", empty, &DummySigner {}).await?;
+	let calls = vec![
+		client.call().call("Entity", "set_info", vec![]),
+		client.call().call("Entity", "set_info", vec![]),
+	];
+	let values: Vec<Value> = calls
+		.into_iter()
+		.map(|c| Value::unnamed_composite(vec![Value::from(c.pallet), Value::from(c.function), Value::from(c.args)]))
+		.collect();
+	let _ = client.tx().batch_submit(values, &DummySigner {}).await?;
 	Ok(())
 }
 

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use subxt::dynamic;
+use subxt::{config::DefaultExtrinsicParamsBuilder, dynamic};
+use subxt::tx::Signer as SubxtSigner;
 use crate::client::signer::Signer;
 use crate::client::{nonce::NonceManager, OriginConfig};
 use crate::types::error::OriginSdkError;
@@ -34,11 +35,14 @@ impl SubmitClient {
 	) -> Result<TxHandle, OriginSdkError> {
 		let adapter = SubxtSignerAdapter::new(signer);
 		let call = dynamic::tx(pallet, call, args);
-		let mut progress = self
+		let account = adapter.account_id();
+		let nonce = self.nonce.allocate(self.connection.online(), &account.0).await?;
+		let params = DefaultExtrinsicParamsBuilder::<OriginConfig>::new().nonce(nonce).build();
+		let progress = self
 			.connection
 			.online()
 			.tx()
-			.sign_and_submit_then_watch_default(&call, &adapter)
+			.sign_and_submit_then_watch(&call, &adapter, params)
 			.await?;
 		let hash = progress.extrinsic_hash();
 		Ok(TxHandle { hash })
@@ -53,11 +57,14 @@ impl SubmitClient {
 	) -> Result<TxHandle, OriginSdkError> {
 		let adapter = SubxtSignerAdapter::new(signer);
 		let call = dynamic::tx(pallet, call, args);
-		let mut progress = self
+		let account = adapter.account_id();
+		let nonce = self.nonce.allocate(self.connection.online(), &account.0).await?;
+		let params = DefaultExtrinsicParamsBuilder::<OriginConfig>::new().nonce(nonce).build();
+		let progress = self
 			.connection
 			.online()
 			.tx()
-			.sign_and_submit_then_watch_default(&call, &adapter)
+			.sign_and_submit_then_watch(&call, &adapter, params)
 			.await?;
 		let hash = progress.extrinsic_hash();
 		let _ = progress.wait_for_finalized_success().await?;
@@ -66,10 +73,23 @@ impl SubmitClient {
 
 	pub async fn batch_submit(
 		&self,
-		_calls: Vec<dynamic::Value>,
-		_signer: &dyn Signer,
+		calls: Vec<dynamic::Value>,
+		signer: &dyn Signer,
 	) -> Result<TxHandle, OriginSdkError> {
-		Err(OriginSdkError::Unimplemented("batch_submit".into()))
+		let adapter = SubxtSignerAdapter::new(signer);
+		let account = adapter.account_id();
+		let nonce = self.nonce.allocate(self.connection.online(), &account.0).await?;
+		let params = DefaultExtrinsicParamsBuilder::<OriginConfig>::new().nonce(nonce).build();
+		let payload = dynamic::tx("Utility", "batch_all", vec![dynamic::Value::from(calls)]);
+		let progress = self
+			.connection
+			.online()
+			.tx()
+			.sign_and_submit_then_watch(&payload, &adapter, params)
+			.await?;
+		let hash = progress.extrinsic_hash();
+		let _ = progress.wait_for_finalized_success().await?;
+		Ok(TxHandle { hash })
 	}
 }
 
