@@ -26,7 +26,7 @@ impl RetryPolicy {
 				Err(_e) if attempt < self.max_retries => {
 					attempt += 1;
 					tokio::time::sleep(self.base_delay * attempt as u32).await;
-				}
+				},
 				Err(e) => return Err(e),
 			}
 		}

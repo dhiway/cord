@@ -1,11 +1,23 @@
-use origin_sdk::OriginClient;
-use subxt::dynamic::Value;
+use origin_sdk::client::signer::MultiKeySigner;
+use origin_sdk::{extrinsic::builder::DynamicCallBuilder, OriginClient};
+use scale_value::Value;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-	let client = OriginClient::connect("ws://localhost:9944").await?;
-	let call = client.call().call("Entity", "set_info", vec![]);
-	let wrapped = client.metatx().wrap(call);
-	println!("meta-tx wrapper: {:?}", wrapped);
+	let signer = MultiKeySigner::from_seed("//Alice", "")?;
+	let client = OriginClient::connect("ws://localhost:9944", signer.clone()).await?;
+
+	let call = DynamicCallBuilder::new().call(
+		"Entity",
+		"set_attribute",
+		vec![
+			Value::from_bytes(b"entity-1"),
+			Value::from_bytes(b"email"),
+			Value::from_bytes(b"a@b.c"),
+		],
+	);
+
+	let tx = client.metatx().sign_and_submit(call).await?;
+	println!("Meta-tx submitted: {:?}", tx.hash);
 	Ok(())
 }

@@ -9042,10 +9042,12 @@ version = "0.9.9"
 dependencies = [
  "anyhow",
  "backoff",
+ "env_logger",
  "futures",
  "hex",
  "origin-primitives",
  "parity-scale-codec",
+ "rand 0.8.5",
  "scale-info",
  "scale-value",
  "serde",

@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use crate::params::config::OriginConfig;
+use async_trait::async_trait;
 use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{traits::IdentifyAccount, MultiSignature, MultiSigner};
 use subxt::{
@@ -39,15 +39,18 @@ impl MultiKeySigner {
 	pub fn from_seed(seed: &str, scheme: &str) -> Result<Self, crate::error::Error> {
 		let scheme = if scheme.is_empty() { "sr25519" } else { scheme };
 		match scheme {
-			"sr25519" => Ok(Self::from_sr25519(sr25519::Pair::from_string(seed, None).map_err(
-				|e| crate::error::Error::Signer(format!("invalid seed: {e}")),
-			)?)),
-			"ed25519" => Ok(Self::from_ed25519(ed25519::Pair::from_string(seed, None).map_err(
-				|e| crate::error::Error::Signer(format!("invalid seed: {e}")),
-			)?)),
-			"ecdsa" => Ok(Self::from_ecdsa(ecdsa::Pair::from_string(seed, None).map_err(
-				|e| crate::error::Error::Signer(format!("invalid seed: {e}")),
-			)?)),
+			"sr25519" => Ok(Self::from_sr25519(
+				sr25519::Pair::from_string(seed, None)
+					.map_err(|e| crate::error::Error::Signer(format!("invalid seed: {e}")))?,
+			)),
+			"ed25519" => Ok(Self::from_ed25519(
+				ed25519::Pair::from_string(seed, None)
+					.map_err(|e| crate::error::Error::Signer(format!("invalid seed: {e}")))?,
+			)),
+			"ecdsa" => Ok(Self::from_ecdsa(
+				ecdsa::Pair::from_string(seed, None)
+					.map_err(|e| crate::error::Error::Signer(format!("invalid seed: {e}")))?,
+			)),
 			other => Err(crate::error::Error::Signer(format!(
 				"unsupported key scheme '{other}', expected sr25519|ed25519|ecdsa"
 			))),

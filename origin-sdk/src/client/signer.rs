@@ -1,6 +1,6 @@
-use subxt::utils::{AccountId32, MultiSignature};
 use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{traits::IdentifyAccount, MultiSigner};
+use subxt::utils::{AccountId32, MultiSignature};
 
 /// Generic signing interface for Origin SDK.
 pub trait Signer: Send + Sync {

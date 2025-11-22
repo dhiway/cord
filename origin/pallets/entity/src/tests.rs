@@ -100,7 +100,11 @@ fn authorization(account: &AccountId) -> AuthorizationOf<Test> {
 	AuthorizationOf::<Test> { account: account.clone(), payload, signature }
 }
 
-fn authorization_with_pair<P>(account: &AccountId, pair: &P, reference_block: u32) -> AuthorizationOf<Test>
+fn authorization_with_pair<P>(
+	account: &AccountId,
+	pair: &P,
+	reference_block: u32,
+) -> AuthorizationOf<Test>
 where
 	P: Pair,
 	Signature: From<P::Signature>,
@@ -771,12 +775,14 @@ mod view_tests {
 				sub.clone()
 			));
 
-			let resolved = EntityPallet::<Test>::account_token(authorization(&owner), owner.clone())
-				.expect("account token view");
+			let resolved =
+				EntityPallet::<Test>::account_token(authorization(&owner), owner.clone())
+					.expect("account token view");
 			assert_eq!(resolved, token);
 
-			let listed = EntityPallet::<Test>::linked_accounts(authorization(&owner), token.clone())
-				.expect("links");
+			let listed =
+				EntityPallet::<Test>::linked_accounts(authorization(&owner), token.clone())
+					.expect("links");
 			assert_eq!(listed, vec![view_account(&owner), view_account(&sub)]);
 
 			let controller =
@@ -805,13 +811,14 @@ mod view_tests {
 				plain_data(b"new"),
 			));
 
-			let name_bytes = EntityPallet::<Test>::entity_nym(authorization(&who), token.clone())
-				.expect("name");
+			let name_bytes =
+				EntityPallet::<Test>::entity_nym(authorization(&who), token.clone()).expect("name");
 			assert!(core::str::from_utf8(&name_bytes).unwrap().ends_with(".nym.org.in"));
 
 			let attr: Attribute = b"rot".to_vec().try_into().unwrap();
-			let version = EntityPallet::<Test>::attribute_version(authorization(&who), token.clone(), attr)
-				.expect("attribute version");
+			let version =
+				EntityPallet::<Test>::attribute_version(authorization(&who), token.clone(), attr)
+					.expect("attribute version");
 			assert_eq!(version, 1);
 
 			let versions =
@@ -833,8 +840,9 @@ mod view_tests {
 				next.clone(),
 			));
 
-			let entries = EntityPallet::<Test>::account_history(authorization(&next), token.clone())
-				.expect("history");
+			let entries =
+				EntityPallet::<Test>::account_history(authorization(&next), token.clone())
+					.expect("history");
 			assert_eq!(entries.len(), 1);
 			assert_eq!(entries[0].account, owner.into());
 			assert!(entries[0].block.height > 0);

@@ -16,12 +16,7 @@ impl DynamicCallBuilder {
 		Self
 	}
 
-	pub fn call(
-		&self,
-		pallet: &str,
-		function: &str,
-		args: Vec<Value>,
-	) -> DynamicCall {
+	pub fn call(&self, pallet: &str, function: &str, args: Vec<Value>) -> DynamicCall {
 		DynamicCall { pallet: pallet.into(), function: function.into(), args }
 	}
 }

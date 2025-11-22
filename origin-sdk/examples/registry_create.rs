@@ -1,25 +1,20 @@
-use origin_sdk::OriginClient;
+use origin_sdk::client::signer::MultiKeySigner;
+use origin_sdk::{extrinsic::builder::DynamicCallBuilder, OriginClient};
+use scale_value::Value;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-	let client = OriginClient::connect("ws://localhost:9944").await?;
-	let _ = client.tx().submit(
-		"Registry",
+	let signer = MultiKeySigner::from_seed("//Alice", "")?;
+	let client = OriginClient::connect("ws://localhost:9944", signer.clone()).await?;
+
+	// Demo args: registry id + info bytes; adjust to your chain schema.
+	let call = DynamicCallBuilder::new().call(
+		"Register",
 		"create",
-		Vec::<subxt::dynamic::Value>::new(),
-		&DummySigner {},
-	).await?;
+		vec![Value::from_bytes(b"demo-registry"), Value::from_bytes(b"demo-info")],
+	);
+
+	let tx = client.tx().submit(&call.pallet, &call.function, call.args).await?;
+	println!("Submitted registry create hash: {:?}", tx.hash);
 	Ok(())
-}
-
-struct DummySigner;
-
-impl origin_sdk::client::signer::Signer for DummySigner {
-	fn account_id(&self) -> subxt::utils::AccountId32 {
-		subxt::utils::AccountId32::new([0u8; 32])
-	}
-
-	fn sign(&self, _payload: &[u8]) -> subxt::utils::MultiSignature {
-		subxt::utils::MultiSignature::from(subxt::utils::sr25519::Signature::from_raw([0u8; 64]))
-	}
 }

@@ -2,8 +2,9 @@
 
 use crate::{
 	client::nonce::{NonceManager, NonceStrategy},
-	extrinsic::{BatchBuilder, ExtrinsicBuilder, MetaTxClient},
+	domain::{EntityClient, PacketClient, RegistryClient, TokenClient},
 	error::Error,
+	extrinsic::{BatchBuilder, ExtrinsicBuilder, MetaTxClient},
 	metadata, params,
 };
 use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
@@ -18,7 +19,10 @@ use subxt::{
 	backend::rpc::RpcClient, config::DefaultExtrinsicParamsBuilder, dynamic, utils::AccountId32,
 	Metadata, OnlineClient,
 };
-use tokio::{sync::{mpsc, RwLock, Semaphore}, time::sleep};
+use tokio::{
+	sync::{mpsc, RwLock, Semaphore},
+	time::sleep,
+};
 use url::Url;
 
 fn spawn_nonce_resync_if_enabled(
@@ -48,7 +52,7 @@ fn expect_composite(value: Value) -> Result<scale_value::Composite<()>, Error> {
 	}
 }
 
-fn is_future_or_stale(err: &subxt::Error) -> bool {
+pub(crate) fn is_future_or_stale(err: &subxt::Error) -> bool {
 	let msg = err.to_string().to_lowercase();
 	msg.contains("future") || msg.contains("stale")
 }
@@ -240,13 +244,13 @@ impl OriginClientBuilder {
 /// Cached lookups for pallets, calls, and storage to avoid repeated string matching.
 #[derive(Debug)]
 pub struct RuntimeLayout {
-	metadata: Arc<Metadata>,
-	calls: RwLock<HashMap<(String, String), (u8, u8)>>,
-	views: RwLock<HashMap<(String, String), [u8; 32]>>,
-	view_output_types: RwLock<HashMap<(String, String), u32>>,
-	type_ids: RwLock<HashMap<Vec<String>, u32>>,
-	constants: RwLock<HashMap<(String, String), (Arc<Vec<u8>>, u32)>>,
-	registry: PortableRegistry,
+	pub(crate) metadata: Arc<Metadata>,
+	pub(crate) calls: RwLock<HashMap<(String, String), (u8, u8)>>,
+	pub(crate) views: RwLock<HashMap<(String, String), [u8; 32]>>,
+	pub(crate) view_output_types: RwLock<HashMap<(String, String), u32>>,
+	pub(crate) type_ids: RwLock<HashMap<Vec<String>, u32>>,
+	pub(crate) constants: RwLock<HashMap<(String, String), (Arc<Vec<u8>>, u32)>>,
+	pub(crate) registry: PortableRegistry,
 }
 
 impl RuntimeLayout {
@@ -292,8 +296,13 @@ impl RuntimeLayout {
 			.map_err(|e| Error::Codec(e.to_string()))
 	}
 
-	pub fn registry(&self) -> &PortableRegistry {
-		&self.registry
+	/// Find the first type id whose final path segment matches `name`.
+	pub fn type_id_by_name(&self, name: &str) -> Option<u32> {
+		self.registry
+			.types
+			.iter()
+			.find(|t| t.ty.path.segments.last() == Some(&name.into()))
+			.map(|t| t.id)
 	}
 
 	pub async fn view_id(&self, pallet: &str, view: &str) -> Result<[u8; 32], Error> {
@@ -423,10 +432,7 @@ impl OriginClient {
 		// OnlineClient has already fetched metadata via runtime API; cache it.
 		let metadata = Arc::new(metadata_snapshot);
 		let layout = Arc::new(RuntimeLayout::new(metadata.clone()));
-		let nonces = Arc::new(NonceManager::new(
-			config.nonce_strategy,
-			Duration::from_secs(30),
-		));
+		let nonces = Arc::new(NonceManager::new(config.nonce_strategy, Duration::from_secs(30)));
 		let in_flight = Arc::new(Semaphore::new(config.max_in_flight_txs));
 		spawn_nonce_resync_if_enabled(
 			config.nonce_resync_interval,
@@ -467,12 +473,18 @@ impl OriginClient {
 		self.layout.clone()
 	}
 
-	pub fn registry(&self) -> &PortableRegistry {
-		&self.layout.registry
+	/// Expose nonce manager for advanced flows.
+	pub fn nonces(&self) -> Arc<NonceManager> {
+		self.nonces.clone()
 	}
 
-	/// Expose the registry for helper utilities.
-	pub fn registry_ref(&self) -> &PortableRegistry {
+	/// Expose config for advanced flows.
+	pub fn config(&self) -> ClientConfig {
+		self.config.clone()
+	}
+
+	/// Expose the portable registry for helper utilities.
+	pub fn type_registry(&self) -> &PortableRegistry {
 		&self.layout.registry
 	}
 
@@ -538,7 +550,7 @@ impl OriginClient {
 		constant: &str,
 	) -> Result<dynamic::DecodedValue, Error> {
 		let (bytes, ty) = self.layout.constant_metadata(pallet, constant).await?;
-		scale_value_scale::decode_as_type(&mut &bytes[..], ty, self.layout.registry())
+		scale_value_scale::decode_as_type(&mut &bytes[..], ty, &self.layout.registry)
 			.map_err(|e| Error::Codec(e.to_string()))
 	}
 
@@ -550,7 +562,7 @@ impl OriginClient {
 	) -> Result<T, Error> {
 		let (bytes, ty) = self.layout.constant_metadata(pallet, constant).await?;
 		let mut cursor = &bytes[..];
-		scale_decode::DecodeAsType::decode_as_type(&mut cursor, ty, self.layout.registry())
+		scale_decode::DecodeAsType::decode_as_type(&mut cursor, ty, &self.layout.registry)
 			.map_err(|e| Error::Codec(e.to_string()))
 	}
 
@@ -588,9 +600,7 @@ impl OriginClient {
 						bytes.len(),
 						hex_preview
 					);
-					eprintln!(
-						"[query::decode] {ctx}: falling back to raw SCALE bytes"
-					);
+					eprintln!("[query::decode] {ctx}: falling back to raw SCALE bytes");
 				}
 				Err(Error::Codec(err.to_string()))
 			},
@@ -650,6 +660,23 @@ impl OriginClient {
 	/// Entry point for meta-transaction flows.
 	pub fn metatx(&self) -> MetaTxClient {
 		MetaTxClient::new(self.clone())
+	}
+
+	/// Domain facades for 1-liner DX.
+	pub fn entity(&self) -> EntityClient {
+		EntityClient::new(self.clone())
+	}
+
+	pub fn registry(&self) -> RegistryClient {
+		RegistryClient::new(self.clone())
+	}
+
+	pub fn packet(&self) -> PacketClient {
+		PacketClient::new(self.clone())
+	}
+
+	pub fn token(&self) -> TokenClient {
+		TokenClient::new(self.clone())
 	}
 
 	/// Low-level dynamic call submission using dynamic metadata (args as `Value`s).

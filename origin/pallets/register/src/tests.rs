@@ -162,7 +162,10 @@ fn forged_authorization(account: AccountId, signer: AccountId) -> AuthorizationO
 	AuthorizationOf::<Test> { account, payload, signature }
 }
 
-fn mismatched_account_authorization(account: AccountId, signer: AccountId) -> AuthorizationOf<Test> {
+fn mismatched_account_authorization(
+	account: AccountId,
+	signer: AccountId,
+) -> AuthorizationOf<Test> {
 	let signer_pair = mock::ACCOUNT_KEYS
 		.with(|keys| keys.borrow().get(&signer).cloned())
 		.expect("signer key seeded");
@@ -256,13 +259,13 @@ fn registry_view_trait_does_not_require_authorization() {
 		let info =
 			<Pallet<Test> as RegistryView<Test>>::registry_info(&registry).expect("registry info");
 		assert_eq!(info.maintainer(), &maintainer_token);
-	let keys = <Pallet<Test> as RegistryView<Test>>::attribute_keys(&registry)
-		.expect("keys reachable");
-	assert_eq!(keys, vec![b"id".to_vec()]);
-	match <Pallet<Test> as RegistryView<Test>>::token_specs(&registry).expect("token spec") {
-		LookupSpec::Single(field) => assert_eq!(field.as_slice(), b"id"),
-		LookupSpec::Combo(_) => panic!("expected single lookup field"),
-	}
+		let keys = <Pallet<Test> as RegistryView<Test>>::attribute_keys(&registry)
+			.expect("keys reachable");
+		assert_eq!(keys, vec![b"id".to_vec()]);
+		match <Pallet<Test> as RegistryView<Test>>::token_specs(&registry).expect("token spec") {
+			LookupSpec::Single(field) => assert_eq!(field.as_slice(), b"id"),
+			LookupSpec::Combo(_) => panic!("expected single lookup field"),
+		}
 		assert!(<Pallet<Test> as RegistryView<Test>>::registry_active(&registry));
 	});
 }
@@ -1063,8 +1066,8 @@ fn lookup_queries_return_latest_state() {
 		));
 
 		let anchor = LookupIndex::<Test>::get(&digest, &registry).expect("lookup anchor");
-	assert_eq!(anchor.pointer.packet, packet_id);
-	assert_eq!(anchor.pointer.registry, registry);
+		assert_eq!(anchor.pointer.packet, packet_id);
+		assert_eq!(anchor.pointer.registry, registry);
 		assert_eq!(anchor.pointer.version, 2);
 
 		let updated_snapshot =
@@ -1207,15 +1210,15 @@ fn packet_snapshot_returns_snapshot() {
 			payload,
 		));
 		let packet_id = Packets::<Test>::iter_keys().next().expect("packet stored");
-	let snapshot = Pallet::<Test>::packet_snapshot(
-		default_auth(),
-		registry.clone(),
-		packet_id.clone(),
-		None,
-	)
-	.expect("packet snapshot");
-	assert_eq!(snapshot.version, 1);
-	assert_eq!(snapshot.registry_status, RegistryStatus::Active);
+		let snapshot = Pallet::<Test>::packet_snapshot(
+			default_auth(),
+			registry.clone(),
+			packet_id.clone(),
+			None,
+		)
+		.expect("packet snapshot");
+		assert_eq!(snapshot.version, 1);
+		assert_eq!(snapshot.registry_status, RegistryStatus::Active);
 	});
 }
 
