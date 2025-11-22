@@ -1,13 +1,17 @@
-use std::sync::Arc;
+use std::{
+	sync::Arc,
+	time::{SystemTime, UNIX_EPOCH},
+};
 
 use super::connection::Connection;
 use super::Signer;
 use crate::types::error::OriginSdkError;
-use crate::util::{retry::RetryPolicy, ttl};
+use crate::util::retry::RetryPolicy;
 use codec::{Decode, Encode};
 use origin_primitives::authorization::AuthorizationError;
 use scale_value::{Composite as SvComposite, Primitive as SvPrimitive, ValueDef};
-use sp_core::{ecdsa, ed25519, sr25519};
+use sp_core::hashing::twox_128;
+use sp_runtime::traits::SaturatedConversion;
 
 type Auth = origin_primitives::Authorization<
 	origin_primitives::AccountId,
@@ -36,7 +40,7 @@ impl ViewClient {
 	) -> Result<T, OriginSdkError> {
 		let backoff = RetryPolicy::default();
 		let connection = self.connection.clone();
-		let auth = self.auth_for(pallet, function);
+		let auth = self.auth_for(pallet, function).await?;
 		backoff
 			.retry(|| {
 				let connection = connection.clone();
@@ -75,16 +79,9 @@ impl ViewClient {
 					}
 					let args = scale_value::Composite::unnamed(values);
 					let payload = subxt::dynamic::view_function_call(query_id, args);
-					let value = Self::call_value_inner(&connection, payload).await?;
-					let mut buf = Vec::new();
-					scale_value::scale::encode_as_type(
-						&value,
-						vf.output_ty(),
-						metadata.types(),
-						&mut buf,
-					)
-					.map_err(|e| OriginSdkError::Decode(e.to_string()))?;
-					T::decode(&mut &buf[..]).map_err(|e| OriginSdkError::Decode(e.to_string()))
+					let thunk = Self::call_value_inner(&connection, payload).await?;
+					let bytes = thunk.into_encoded();
+					T::decode(&mut &bytes[..]).map_err(|e| OriginSdkError::Decode(e.to_string()))
 				}
 			})
 			.await
@@ -96,15 +93,14 @@ impl ViewClient {
 			scale_value::Composite<()>,
 			subxt::dynamic::DecodedValueThunk,
 		>,
-	) -> Result<subxt::dynamic::DecodedValue, OriginSdkError> {
+	) -> Result<subxt::dynamic::DecodedValueThunk, OriginSdkError> {
 		let api = connection
 			.online()
 			.view_functions()
 			.at_latest()
 			.await
 			.map_err(|e| OriginSdkError::View(e.to_string()))?;
-		let thunk = api.call(payload).await.map_err(|e| OriginSdkError::View(e.to_string()))?;
-		thunk.to_value().map_err(|e| OriginSdkError::Decode(e.to_string()))
+		api.call(payload).await.map_err(|e| OriginSdkError::View(e.to_string()))
 	}
 
 	/// Invoke and return raw DecodedValue (no further decode).
@@ -124,7 +120,7 @@ impl ViewClient {
 			.ok_or_else(|| OriginSdkError::View(format!("view {pallet}.{function} not found")))?;
 		let query_id = *vf.query_id();
 		let inputs: Vec<_> = vf.inputs().collect();
-		let mut args_with_auth = vec![self.auth_for(pallet, function).encode()];
+		let mut args_with_auth = vec![self.auth_for(pallet, function).await?.encode()];
 		args_with_auth.extend(raw_args);
 		if inputs.len() != args_with_auth.len() {
 			return Err(OriginSdkError::InvalidInput(format!(
@@ -142,7 +138,88 @@ impl ViewClient {
 		}
 		let args = scale_value::Composite::unnamed(values);
 		let payload = subxt::dynamic::view_function_call(query_id, args);
-		Self::call_value_inner(&self.connection, payload).await
+		let thunk = Self::call_value_inner(&self.connection, payload).await?;
+		thunk.to_value().map_err(|e| OriginSdkError::Decode(e.to_string()))
+	}
+
+	/// Invoke a pallet view function and return the raw SCALE-encoded bytes.
+	pub async fn call_bytes(
+		&self,
+		pallet: &str,
+		function: &str,
+		raw_args: Vec<Vec<u8>>,
+	) -> Result<Vec<u8>, OriginSdkError> {
+		let metadata = self.connection.metadata();
+		let pallet_meta = metadata
+			.pallet_by_name(pallet)
+			.ok_or_else(|| OriginSdkError::View(format!("pallet {pallet} not found")))?;
+		let vf = pallet_meta
+			.view_functions()
+			.find(|vf| vf.name() == function)
+			.ok_or_else(|| OriginSdkError::View(format!("view {pallet}.{function} not found")))?;
+		let query_id = *vf.query_id();
+		let inputs: Vec<_> = vf.inputs().collect();
+		let mut args_with_auth = vec![self.auth_for(pallet, function).await?.encode()];
+		args_with_auth.extend(raw_args);
+		if inputs.len() != args_with_auth.len() {
+			return Err(OriginSdkError::InvalidInput(format!(
+				"expected {} args, got {}",
+				inputs.len(),
+				args_with_auth.len()
+			)));
+		}
+		let mut values = Vec::with_capacity(args_with_auth.len());
+		for (bytes, input) in args_with_auth.into_iter().zip(inputs) {
+			let mut cursor = &bytes[..];
+			let val = scale_value::scale::decode_as_type(&mut cursor, input.ty, metadata.types())
+				.map_err(|e| OriginSdkError::Decode(e.to_string()))?;
+			values.push(val.remove_context());
+		}
+		let args = scale_value::Composite::unnamed(values);
+		let payload = subxt::dynamic::view_function_call(query_id, args);
+		let thunk = Self::call_value_inner(&self.connection, payload).await?;
+		Ok(thunk.into_encoded())
+	}
+
+	/// For views that return `Result<T, AuthorizationError>`.
+	pub async fn call_auth_result<T: Decode>(
+		&self,
+		pallet: &str,
+		function: &str,
+		raw_args: Vec<Vec<u8>>,
+	) -> Result<T, OriginSdkError> {
+		let res: Result<Result<T, AuthorizationError>, OriginSdkError> =
+			self.call(pallet, function, raw_args).await;
+
+		match res {
+			Err(e) => Err(e), // transport / decode error
+
+			Ok(Ok(v)) => Ok(v), // happy path
+
+			Ok(Err(e)) => Err(OriginSdkError::View(format!("{pallet}.{function} err: {e:?}"))),
+		}
+	}
+
+	/// For views that return `Result<Option<T>, AuthorizationError>`.
+	pub async fn call_auth_option<T: Decode>(
+		&self,
+		pallet: &str,
+		function: &str,
+		raw_args: Vec<Vec<u8>>,
+	) -> Result<Option<T>, OriginSdkError> {
+		let res: Result<Result<Option<T>, AuthorizationError>, OriginSdkError> =
+			self.call(pallet, function, raw_args).await;
+
+		match res {
+			Err(e) => Err(e),
+
+			Ok(Ok(Some(v))) => Ok(Some(v)),
+			Ok(Ok(None)) => Ok(None),
+
+			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
+
+			Ok(Err(e)) => Err(OriginSdkError::View(format!("{pallet}.{function} err: {e:?}"))),
+		}
 	}
 
 	/// Entity view helpers.
@@ -171,13 +248,10 @@ impl EntityViews {
 		&self,
 		entity_id: origin_primitives::Ss58Identifier,
 	) -> Result<crate::types::EntityStateView, OriginSdkError> {
-		let res: Result<
-			Result<crate::types::EntityStateView, AuthorizationError>,
-			OriginSdkError,
-		> = self
-			.inner
-			.call("Entity", "overview", vec![entity_id.encode(), Option::<u32>::None.encode()])
-			.await;
+		let res: Result<Result<crate::types::EntityStateView, AuthorizationError>, OriginSdkError> =
+			self.inner
+				.call("Entity", "overview", vec![entity_id.encode(), Option::<u32>::None.encode()])
+				.await;
 		match res {
 			Ok(Ok(v)) => Ok(v),
 			Ok(Err(e)) => Err(OriginSdkError::View(format!("overview err: {e:?}"))),
@@ -189,21 +263,45 @@ impl EntityViews {
 		&self,
 		account: subxt::utils::AccountId32,
 	) -> Result<Option<origin_primitives::Ss58Identifier>, OriginSdkError> {
-		let res: Result<Result<origin_primitives::Ss58Identifier, AuthorizationError>, OriginSdkError> =
-			self.inner.call("Entity", "account_token", vec![account.encode()]).await;
+		// Decode as Result<Vec<u8>, AuthorizationError> then convert to Ss58Identifier.
+		let res: Result<Result<Vec<u8>, AuthorizationError>, OriginSdkError> = self
+			.inner
+			.call("Entity", "account_token", vec![account.encode()])
+			.await;
+
 		match res {
-			Ok(Ok(id)) => Ok(Some(id)),
+			Err(e) => Err(e),
+			Ok(Ok(raw)) => match origin_primitives::Ss58Identifier::try_from(raw) {
+				Ok(id) => Ok(Some(id)),
+				Err(e) => Err(OriginSdkError::Decode(format!("{e:?}"))),
+			},
 			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
 			Ok(Err(e)) => Err(OriginSdkError::View(format!("account_token err: {e:?}"))),
-			Err(e) => Err(e),
 		}
 	}
 
 	pub async fn details(
 		&self,
 		entity_id: origin_primitives::Ss58Identifier,
-	) -> Result<crate::types::EntityStateView, OriginSdkError> {
+	) -> Result<crate::types::EntityInfoView, OriginSdkError> {
 		self.inner.call("Entity", "details", vec![entity_id.encode()]).await
+	}
+
+	pub async fn nym(
+		&self,
+		entity_id: origin_primitives::Ss58Identifier,
+	) -> Result<Option<Vec<u8>>, OriginSdkError> {
+		let bytes = self
+			.inner
+			.call_bytes("Entity", "entity_nym", vec![entity_id.encode()])
+			.await?;
+		let res: Result<Vec<u8>, AuthorizationError> =
+			Decode::decode(&mut &bytes[..]).map_err(|e| OriginSdkError::Decode(e.to_string()))?;
+		match res {
+			Ok(nym) => Ok(Some(nym)),
+			Err(AuthorizationError::NotFound) => Ok(None),
+			Err(e) => Err(OriginSdkError::View(format!("entity_nym err: {e:?}"))),
+		}
 	}
 }
 
@@ -227,18 +325,47 @@ pub struct PacketViews {
 }
 
 impl PacketViews {
-	pub async fn lookup(
-		&self,
-		key: Vec<u8>,
-	) -> Result<subxt::dynamic::DecodedValue, OriginSdkError> {
-		self.inner.call_value("Packet", "lookup", vec![key.encode()]).await
-	}
-
+	/// Packet snapshot by token (optionally at a specific version).
 	pub async fn state(
 		&self,
 		packet: origin_primitives::PacketPointer,
+		version: Option<u32>,
 	) -> Result<crate::types::PacketStateView, OriginSdkError> {
-		self.inner.call("Packet", "state", vec![packet.encode()]).await
+		let res: Result<Result<crate::types::PacketStateView, AuthorizationError>, OriginSdkError> =
+			self.inner
+				.call(
+					"Register",
+					"packet_snapshot_by_token",
+					vec![packet.encode(), version.encode()],
+				)
+				.await;
+		match res {
+			Ok(Ok(v)) => Ok(v),
+			Ok(Err(e)) => Err(OriginSdkError::View(format!("packet state err: {e:?}"))),
+			Err(e) => Err(e),
+		}
+	}
+
+	/// Resolve a packet snapshot via lookup digest for a registry.
+	pub async fn lookup(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		digest: Vec<u8>,
+		version: Option<u32>,
+	) -> Result<crate::types::PacketStateView, OriginSdkError> {
+		let res: Result<Result<crate::types::PacketStateView, AuthorizationError>, OriginSdkError> =
+			self.inner
+				.call(
+					"Register",
+					"lookup_snapshot",
+					vec![registry.encode(), digest.encode(), version.encode()],
+				)
+				.await;
+		match res {
+			Ok(Ok(v)) => Ok(v),
+			Ok(Err(e)) => Err(OriginSdkError::View(format!("packet lookup err: {e:?}"))),
+			Err(e) => Err(e),
+		}
 	}
 }
 
@@ -251,42 +378,99 @@ impl TokenViews {
 	pub async fn timeline(
 		&self,
 		token: origin_primitives::Ss58Identifier,
+		start: Option<u32>,
+		limit: Option<u32>,
 	) -> Result<crate::types::TokenTimelineView, OriginSdkError> {
-		self.inner.call_value("Token", "timeline", vec![token.encode()]).await
+		let res: Result<
+			Result<crate::types::TokenTimelineView, AuthorizationError>,
+			OriginSdkError,
+		> = self
+			.inner
+			.call("Token", "timeline", vec![token.encode(), start.encode(), limit.encode()])
+			.await;
+		match res {
+			Ok(Ok(v)) => Ok(v),
+			Ok(Err(e)) => Err(OriginSdkError::View(format!("timeline err: {e:?}"))),
+			Err(e) => Err(e),
+		}
 	}
 
-	pub async fn lookup(
+	/// Resolve a token into its decoded identifier form.
+	pub async fn resolve_identifier(
 		&self,
 		token: origin_primitives::Ss58Identifier,
-		key: Vec<u8>,
 	) -> Result<crate::types::TokenLookupView, OriginSdkError> {
-		self.inner
-			.call_value("Token", "lookup", vec![token.encode(), key.encode()])
-			.await
+		let res: Result<Result<crate::types::TokenLookupView, AuthorizationError>, OriginSdkError> =
+			self.inner.call("Token", "resolve_identifier", vec![token.encode()]).await;
+		match res {
+			Ok(Ok(id)) => Ok(id),
+			Ok(Err(e)) => Err(OriginSdkError::View(format!("resolve_identifier err: {e:?}"))),
+			Err(e) => Err(e),
+		}
 	}
 }
 
 impl ViewClient {
-	fn auth_for(&self, pallet: &str, function: &str) -> Auth {
-		let expires = ttl::expires_in(std::time::Duration::from_secs(30));
-		let payload = format!("view:{pallet}.{function}:{expires}").into_bytes();
-		let sig = self.signer.sign(&payload);
-		let account = origin_primitives::AccountId::from(self.signer.account_id().0);
-		let signature = match sig {
-			subxt::utils::MultiSignature::Ed25519(raw) => {
-				sp_runtime::MultiSignature::Ed25519(ed25519::Signature::from_raw(raw))
-			},
-			subxt::utils::MultiSignature::Sr25519(raw) => {
-				sp_runtime::MultiSignature::Sr25519(sr25519::Signature::from_raw(raw))
-			},
-			subxt::utils::MultiSignature::Ecdsa(raw) => {
-				sp_runtime::MultiSignature::Ecdsa(ecdsa::Signature::from_raw(raw))
-			},
-		};
-		origin_primitives::Authorization { account, payload, signature }
+	async fn auth_for(&self, pallet: &str, function: &str) -> Result<Auth, OriginSdkError> {
+		let reference_block = self
+			.connection
+			.online()
+			.blocks()
+			.at_latest()
+			.await
+			.map_err(|e| OriginSdkError::View(e.to_string()))?
+			.number()
+			.saturated_into::<u32>();
+		let account = self.signer.account_id();
+		let payload = build_view_payload(&account, pallet, function, reference_block);
+		let signature = self.signer.sign_payload(&payload).await;
+		let account = origin_primitives::AccountId::from(account.0);
+		Ok(origin_primitives::Authorization { account, payload, signature })
 	}
 }
 
+/// Construct a view-authorization payload that matches the pallet-side expectations:
+///   payload = twox_128(nonce || pallet || "::" || function || account || reference_block)
+///           || account
+///           || reference_block
+/// The trailing `reference_block` (u32 LE) is required for TTL checks in the pallets.
+fn build_view_payload(
+	account: &subxt::utils::AccountId32,
+	pallet: &str,
+	function: &str,
+	reference_block: u32,
+) -> Vec<u8> {
+	let nonce = SystemTime::now()
+		.duration_since(UNIX_EPOCH)
+		.unwrap_or_default()
+		.as_nanos()
+		.to_le_bytes();
+	let account_bytes = account.encode();
+	let mut preimage = Vec::with_capacity(
+		nonce
+			.len()
+			.saturating_add(pallet.len())
+			.saturating_add(function.len())
+			.saturating_add(account_bytes.len())
+			.saturating_add(core::mem::size_of::<u32>())
+			.saturating_add(2),
+	);
+	preimage.extend_from_slice(&nonce);
+	preimage.extend_from_slice(pallet.as_bytes());
+	preimage.extend_from_slice(b"::");
+	preimage.extend_from_slice(function.as_bytes());
+	preimage.extend_from_slice(&account_bytes);
+	preimage.extend_from_slice(&reference_block.to_le_bytes());
+
+	let digest = twox_128(&preimage);
+	let mut payload = Vec::with_capacity(digest.len() + account_bytes.len() + 4);
+	payload.extend_from_slice(&digest);
+	payload.extend_from_slice(&account_bytes);
+	payload.extend_from_slice(&reference_block.to_le_bytes());
+	payload
+}
+
+#[allow(dead_code)]
 fn decode_result_ss58(
 	value: &subxt::dynamic::DecodedValue,
 ) -> Option<origin_primitives::Ss58Identifier> {
@@ -295,12 +479,14 @@ fn decode_result_ss58(
 			match &v.values {
 				SvComposite::Unnamed(vals) => vals.get(0).and_then(decode_ss58),
 				SvComposite::Named(vals) => vals.get(0).map(|(_, v)| v).and_then(decode_ss58),
-			}.map(|id| return id);
+			}
+			.map(|id| return id);
 		}
 	}
 	None
 }
 
+#[allow(dead_code)]
 fn decode_ss58(value: &subxt::dynamic::DecodedValue) -> Option<origin_primitives::Ss58Identifier> {
 	match &value.value {
 		ValueDef::Primitive(SvPrimitive::String(s)) => {

@@ -445,18 +445,6 @@ where
 		Ok(())
 	}
 
-	// fn authorize_query(auth: &Authorization<T>) -> Result<(), AuthorizationError>
-	// where
-	// 	T::AccountId: Clone + Into<AccountId32>,
-	// {
-	// 	Self::ensure_authorization_fresh(auth.payload.as_slice())?;
-	// 	let signer: AccountId32 = auth.account.clone().into();
-	// 	if !auth.signature.verify(auth.payload.as_slice(), &signer) {
-	// 		return Err(AuthorizationError::Unauthorized);
-	// 	}
-	// 	Ok(())
-	// }
-
 	pub fn timeline_entries(
 		token: &Ss58Identifier,
 		cursor: Option<u32>,
