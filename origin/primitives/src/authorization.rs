@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 // Common authorization structures shared by pallets.
 
 use alloc::vec::Vec;
@@ -142,5 +160,23 @@ mod tests {
 	fn extract_valid_until_returns_none_when_payload_too_short() {
 		assert_eq!(extract_valid_until(&[]), None);
 		assert_eq!(extract_valid_until(&[1, 2, 3]), None);
+	}
+
+	#[test]
+	fn ttl_allows_recent_authorization() {
+		let current: u32 = 10;
+		let reference: u32 = 5;
+		let ttl: u32 = 10;
+		assert!(ensure_authorization_ttl(current, reference, ttl).is_ok());
+	}
+
+	#[test]
+	fn ttl_rejects_at_boundary_and_beyond() {
+		let reference: u32 = 5;
+		let ttl: u32 = 5;
+		let expired_at_boundary = ensure_authorization_ttl(reference + ttl, reference, ttl);
+		assert!(matches!(expired_at_boundary, Err(AuthorizationError::Expired)));
+		let expired_later = ensure_authorization_ttl(reference + ttl + 1, reference, ttl);
+		assert!(matches!(expired_later, Err(AuthorizationError::Expired)));
 	}
 }
