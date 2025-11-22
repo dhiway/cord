@@ -99,12 +99,12 @@ impl SubmitClient {
 
 /// Adapter to plug the SDK `Signer` into Subxt transaction flows.
 #[derive(Clone)]
-struct SubxtSignerAdapter<'a> {
+pub struct SubxtSignerAdapter<'a> {
 	inner: &'a dyn Signer,
 }
 
 impl<'a> SubxtSignerAdapter<'a> {
-	fn new(inner: &'a dyn Signer) -> Self {
+	pub fn new(inner: &'a dyn Signer) -> Self {
 		Self { inner }
 	}
 }

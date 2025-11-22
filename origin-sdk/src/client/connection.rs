@@ -23,12 +23,15 @@ impl Connection {
 	) -> Result<Self, OriginSdkError> {
 		let _ = (timeout, auto_reconnect); // reserved for future logic
 		let api = backoff
-			.retry(|| {
-				let endpoint = endpoint.clone();
-				async move { subxt::OnlineClient::<OriginConfig>::from_url(endpoint.clone()).await }
-			})
-			.await
-			.map_err(|e| OriginSdkError::Connection(e.to_string()))?;
+		.retry(|| {
+			let endpoint = endpoint.clone();
+			async move {
+				let client = subxt::OnlineClient::<OriginConfig>::from_url(endpoint.as_str()).await?;
+				Ok::<_, subxt::Error>(client)
+			}
+		})
+		.await
+		.map_err(|e| OriginSdkError::Connection(e.to_string()))?;
 		Ok(Self { api, endpoint, backoff })
 	}
 
@@ -100,5 +103,4 @@ impl ConnectionBuilder {
 		let connection = Arc::new(connection);
 		let nonce = Arc::new(super::nonce::NonceManager::default());
 		Ok(super::OriginClient { connection, nonce })
-	}
-}
+	}}
