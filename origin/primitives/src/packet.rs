@@ -17,9 +17,10 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	attribute::{Attribute, AttributeValueView, Attributes, Element},
+	attribute::{Attribute, Attributes, AttributesError, Element},
 	element::ElementView,
 	identifier::Ss58Identifier,
+	registry::RegistryStatus,
 };
 use alloc::vec::Vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
@@ -86,7 +87,7 @@ where
 	pub controller: Ss58Identifier,
 	pub status: PacketStatus,
 	pub latest_version: u32,
-	pub attributes_hash: Hash,
+	pub digest: Hash,
 }
 
 /// Packet state persisted for each `(packet token, version)` pair.
@@ -111,7 +112,7 @@ pub struct PacketState<
 	pub controller: Ss58Identifier,
 	pub status: PacketStatus,
 	pub version: u32,
-	pub attributes_hash: Hash,
+	pub digest: Hash,
 	pub attributes: Attributes<MaxRawDataLength, MaxAdditionalAttributes>,
 }
 
@@ -121,13 +122,19 @@ impl<
 		Hash: Clone + PartialEq + Eq + core::fmt::Debug,
 	> PacketState<MaxRawDataLength, MaxAdditionalAttributes, Hash>
 {
+	#[inline]
 	pub fn attribute(&self, key: &[u8]) -> Option<&Element<MaxRawDataLength>> {
 		self.attributes.get(key)
+	}
+
+	#[inline]
+	pub fn is_deleted(&self) -> bool {
+		matches!(self.status, PacketStatus::Deleted)
 	}
 }
 
 /// Errors that can occur when applying a single update.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub enum PacketUpdateError {
 	AttributeExists,
 	TooManyAttributes,
@@ -203,36 +210,63 @@ pub trait PacketInformationProvider {
 	fn all_fields() -> Self::FieldMask;
 }
 
+#[derive(Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[scale_info(skip_type_params(MaxRaw, MaxAttrs, Hash))]
+pub struct PacketSnapshot<MaxRaw: Get<u32>, MaxAttrs: Get<u32>, Hash>
+where
+	Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode,
+{
+	pub state: PacketState<MaxRaw, MaxAttrs, Hash>,
+	pub registry_status: RegistryStatus,
+}
+
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+pub struct PacketAttributeView {
+	pub key: Vec<u8>,
+	pub value: ElementView,
+}
+
 /// View-friendly representation of a packet’s state.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
 pub struct PacketStateView {
 	pub registry: Ss58Identifier,
+	pub packet: Ss58Identifier,
 	pub controller: Ss58Identifier,
 	pub status: PacketStatus,
 	pub version: u32,
-	pub attributes_hash: Vec<u8>,
-	pub attributes: Vec<AttributeValueView>,
-}
-
-impl<
-		MaxRawDataLength: Get<u32>,
-		MaxAdditionalAttributes: Get<u32>,
-		Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode,
-	> From<&PacketState<MaxRawDataLength, MaxAdditionalAttributes, Hash>> for PacketStateView
-{
-	fn from(state: &PacketState<MaxRawDataLength, MaxAdditionalAttributes, Hash>) -> Self {
-		Self {
-			registry: state.registry.clone(),
-			controller: state.controller.clone(),
-			status: state.status.clone(),
-			version: state.version,
-			attributes_hash: state.attributes_hash.encode(),
-			attributes: Vec::<AttributeValueView>::from(&state.attributes),
-		}
-	}
+	pub registry_status: RegistryStatus,
+	pub digest: Vec<u8>,
+	pub attributes: Vec<PacketAttributeView>,
 }
 
 impl PacketStateView {
+	/// Generic constructor converting runtime snapshot → view
+	pub fn from_snapshot<
+		MaxRaw: Get<u32>,
+		MaxAttrs: Get<u32>,
+		Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode,
+	>(
+		packet: &Ss58Identifier,
+		snap: &PacketSnapshot<MaxRaw, MaxAttrs, Hash>,
+	) -> Self {
+		Self {
+			registry: snap.state.registry.clone(),
+			packet: packet.clone(),
+			controller: snap.state.controller.clone(),
+			status: snap.state.status.clone(),
+			version: snap.state.version,
+			registry_status: snap.registry_status.clone(),
+			digest: snap.state.digest.encode(),
+			attributes: snap
+				.state
+				.attributes
+				.iter()
+				.map(|(k, v)| PacketAttributeView { key: k.to_vec(), value: ElementView::from(v) })
+				.collect(),
+		}
+	}
+
+	#[inline]
 	pub fn attribute(&self, key: &[u8]) -> Option<&ElementView> {
 		self.attributes
 			.iter()
@@ -248,7 +282,7 @@ pub struct PacketMetadataView {
 	pub controller: Ss58Identifier,
 	pub status: PacketStatus,
 	pub latest_version: u32,
-	pub attributes_hash: Vec<u8>,
+	pub digest: Vec<u8>,
 }
 
 impl<Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode> From<&PacketMetadata<Hash>>
@@ -260,7 +294,7 @@ impl<Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode> From<&PacketMetad
 			controller: meta.controller.clone(),
 			status: meta.status.clone(),
 			latest_version: meta.latest_version,
-			attributes_hash: meta.attributes_hash.encode(),
+			digest: meta.digest.encode(),
 		}
 	}
 }
@@ -476,7 +510,7 @@ mod tests {
 			controller: controller.clone(),
 			status: PacketStatus::Active,
 			version: 3,
-			attributes_hash: [9u8; 32],
+			digest: [9u8; 32],
 			attributes: attrs,
 		};
 
@@ -498,7 +532,7 @@ mod tests {
 			controller: controller.clone(),
 			status: PacketStatus::Revoked,
 			latest_version: 7,
-			attributes_hash: [0xAA; 32],
+			digest: [0xAA; 32],
 		};
 
 		let view = PacketMetadataView::from(&meta);
@@ -506,6 +540,6 @@ mod tests {
 		assert_eq!(view.controller, controller);
 		assert_eq!(view.status, PacketStatus::Revoked);
 		assert_eq!(view.latest_version, 7);
-		assert_eq!(view.attributes_hash, meta.attributes_hash.encode());
+		assert_eq!(view.digest, meta.digest.encode());
 	}
 }

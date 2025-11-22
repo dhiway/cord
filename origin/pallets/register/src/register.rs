@@ -4,7 +4,7 @@ use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{ensure, traits::Get, BoundedVec, RuntimeDebugNoBound};
 pub use origin_primitives::registry::{RegistryKind, RegistryPermissions, RegistryStatus};
 use origin_primitives::{
-	attribute::{Attribute, Element, ElementType},
+	attribute::{Attribute, Element, ElementType, ElementView},
 	identifier::Ss58Identifier,
 	packet::PacketUpdateError,
 };
@@ -321,10 +321,30 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 	}
 }
 
-/// Flattened registry state view: identifier + info + lookup specs.
+/// Fully-flattened registry state snapshot.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
-pub struct RegistryStateView<Info, Specs> {
+pub struct RegistryStateView {
+	/// Registry identifier (Ss58Identifier)
 	pub registry: Ss58Identifier,
-	pub info: Info,
-	pub lookup_specs: Specs,
+	/// Maintainer (entity token) that owns the registry
+	pub maintainer: Ss58Identifier,
+	/// Registry metadata blob as ElementView
+	pub info: ElementView,
+	/// Registry kind (Raw / Token / Hash)
+	pub kind: RegistryKind,
+	/// Active / Revoked / Deleted
+	pub status: RegistryStatus,
+	/// Attribute schema flattened
+	pub attributes: Vec<RegistryAttributeView>,
+	/// Token-spec: list of keys used to derive registry identifier
+	pub token_spec: Vec<Vec<u8>>,
+	/// Lookup specifications: expressed as list<list<key>>
+	pub lookup_specs: Vec<Vec<Vec<u8>>>,
+}
+
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+pub struct RegistryAttributeView {
+	pub key: Vec<u8>,
+	pub kind: ElementType,
+	pub optional: bool,
 }
