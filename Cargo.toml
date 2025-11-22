@@ -61,6 +61,7 @@ members = [
 	"primitives/cord",
 	"test-utils/cli",
 	"origin-rs",
+	"origin-sdk",
 ]
 default-members = ["node/cli", "origin/base", "origin/hub" ]
 # default-members = ["node/cli", "origin/relay"]

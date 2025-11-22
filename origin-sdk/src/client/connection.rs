@@ -1,0 +1,93 @@
+use std::{sync::Arc, time::Duration};
+
+use crate::types::error::OriginSdkError;
+use crate::util::retry::RetryPolicy;
+use super::OriginConfig;
+
+/// Shared connection wrapper.
+#[derive(Clone)]
+pub struct Connection {
+	api: subxt::OnlineClient<OriginConfig>,
+	endpoint: String,
+	backoff: RetryPolicy,
+}
+
+impl Connection {
+	pub(crate) async fn connect(
+		endpoint: String,
+		backoff: RetryPolicy,
+		timeout: Duration,
+		auto_reconnect: bool,
+	) -> Result<Self, OriginSdkError> {
+		let _ = (timeout, auto_reconnect); // reserved for future logic
+		let api = subxt::OnlineClient::<OriginConfig>::from_url(endpoint.clone()).await?;
+		Ok(Self { api, endpoint, backoff })
+	}
+
+	pub fn metadata(&self) -> subxt::Metadata {
+		self.api.metadata()
+	}
+
+	pub fn online(&self) -> &subxt::OnlineClient<OriginConfig> {
+		&self.api
+	}
+
+	pub fn endpoint(&self) -> &str {
+		&self.endpoint
+	}
+
+	pub fn backoff(&self) -> &RetryPolicy {
+		&self.backoff
+	}
+}
+
+/// Fluent builder for `OriginClient`.
+pub struct ConnectionBuilder {
+	endpoint: Option<String>,
+	backoff: RetryPolicy,
+	timeout: Duration,
+	auto_reconnect: bool,
+}
+
+impl Default for ConnectionBuilder {
+	fn default() -> Self {
+		Self {
+			endpoint: None,
+			backoff: RetryPolicy::default(),
+			timeout: Duration::from_secs(30),
+			auto_reconnect: true,
+		}
+	}
+}
+
+impl ConnectionBuilder {
+	pub fn endpoint(mut self, endpoint: impl Into<String>) -> Self {
+		self.endpoint = Some(endpoint.into());
+		self
+	}
+
+	pub fn backoff(mut self, backoff: RetryPolicy) -> Self {
+		self.backoff = backoff;
+		self
+	}
+
+	pub fn timeout(mut self, timeout: Duration) -> Self {
+		self.timeout = timeout;
+		self
+	}
+
+	pub fn auto_reconnect(mut self, enabled: bool) -> Self {
+		self.auto_reconnect = enabled;
+		self
+	}
+
+	pub async fn build(self) -> Result<super::OriginClient, OriginSdkError> {
+		let endpoint = self
+			.endpoint
+			.ok_or_else(|| OriginSdkError::InvalidInput("endpoint is required".into()))?;
+		let connection = Connection::connect(endpoint, self.backoff, self.timeout, self.auto_reconnect).await?;
+		let connection = Arc::new(connection);
+		let nonce = Arc::new(super::nonce::NonceManager::default());
+		Ok(super::OriginClient { connection, nonce })
+	}
+}

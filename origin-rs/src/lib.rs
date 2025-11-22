@@ -9,16 +9,23 @@ pub mod flavors;
 pub mod metadata;
 pub mod origin_client;
 pub mod params;
+pub mod extrinsic;
+pub mod types;
+pub mod util;
 
 pub use client::{
-    BatchCall, Client, ConnectionConfig, EventFilter, EventWatcher, NonceManager, NonceState,
-    NonceStrategy, OriginSigner, RetryPolicy, SubxtSignerAdapter, TransactionClient, ViewApi,
-    DEFAULT_RPC_ENDPOINT,
+	BatchCall, Client, ConnectionConfig, EventFilter, EventWatcher, NonceManager, NonceState,
+	NonceStrategy, OriginSigner, RetryPolicy, SubxtSignerAdapter, TransactionClient, ViewApi,
+	DEFAULT_RPC_ENDPOINT,
 };
 pub use error::Error;
 pub use flavors::ChainFlavor;
+pub use extrinsic::{
+	BatchBuilder, CallFactory, DynamicCall, ExtrinsicBuilder, MetaTxClient,
+};
 pub use origin_client::{
-    ClientConfig as DynamicClientConfig, DynamicEvent, EventStream, OriginClient,
-    OriginClientBuilder, SubmitRetryPolicy, WsConfig,
+	ClientConfig as DynamicClientConfig, DynamicEvent, EventStream, OriginClient,
+	OriginClientBuilder, SubmitRetryPolicy, WsConfig,
 };
 pub use params::config::{OriginConfig, OriginHubConfig};
+pub use types::*;

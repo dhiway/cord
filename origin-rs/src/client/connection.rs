@@ -1,5 +1,5 @@
 use crate::{
-	client::{transaction::TransactionClient, view_api::ViewApi},
+	client::{submit::TransactionClient, view::ViewApi},
 	error::{Error, Result},
 	flavors::ChainFlavor,
 	metadata,
