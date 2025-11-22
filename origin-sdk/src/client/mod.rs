@@ -1,8 +1,8 @@
 pub(crate) mod connection;
 mod events;
 mod nonce;
-mod signer;
-mod submit;
+pub mod signer;
+pub mod submit;
 mod view;
 
 use std::sync::Arc;
