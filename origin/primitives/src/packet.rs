@@ -17,7 +17,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	attribute::{Attribute, Attributes, AttributesError, Element},
+	attribute::{Attribute, Attributes, Element},
 	element::ElementView,
 	identifier::Ss58Identifier,
 	registry::RegistryStatus,
@@ -302,10 +302,10 @@ impl<Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode> From<&PacketMetad
 #[cfg(test)]
 mod tests {
 	use super::{
-		Attribute, Attributes, AttributesError, Element, PacketMetadata, PacketMetadataView,
+		Attribute, Attributes, Element, PacketMetadata, PacketMetadataView, PacketSnapshot,
 		PacketState, PacketStateView, PacketStatus,
 	};
-	use crate::identifier::Ss58Identifier;
+	use crate::{attribute::AttributesError, identifier::Ss58Identifier, RegistryStatus};
 	use alloc::{vec, vec::Vec};
 	use codec::{Decode, Encode};
 	use frame_support::{traits::ConstU32, BoundedVec};
@@ -514,8 +514,12 @@ mod tests {
 			attributes: attrs,
 		};
 
-		let view = PacketStateView::from(&state);
+		let packet = Ss58Identifier::to_encoded([8u8; 32], 8, 8, 1).expect("packet id ok");
+		let snapshot =
+			PacketSnapshot { state: state.clone(), registry_status: RegistryStatus::Active };
+		let view = PacketStateView::from_snapshot(&packet, &snapshot);
 		assert_eq!(view.registry, registry);
+		assert_eq!(view.packet, packet);
 		assert_eq!(view.controller, controller);
 		assert_eq!(view.version, 3);
 		assert_eq!(view.status, PacketStatus::Active);

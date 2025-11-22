@@ -216,28 +216,32 @@ mod tests {
 	#[test]
 	fn registry_info_view_round_trip_fields() {
 		let info = ElementView::Raw(vec![1, 2, 3]);
+		let registry = Ss58Identifier::to_encoded([9u8; 32], 1, 1, 1).expect("identifier ok");
 		let maintainer = Ss58Identifier::to_encoded([0u8; 32], 1, 1, 1).expect("identifier ok");
-		let attributes = vec![RegistryAttributeSpec {
+		let attributes = vec![RegistryAttributeView {
 			key: b"id".to_vec(),
 			kind: ElementType::Raw,
 			optional: false,
 		}];
-		let token_spec = LookupSpec::Single(b"id".to_vec());
-		let lookup_specs = vec![LookupSpec::Combo(vec![b"id".to_vec(), b"name".to_vec()])];
+		let token_spec = vec![b"id".to_vec()];
+		let lookup_specs = vec![vec![b"id".to_vec(), b"name".to_vec()]];
 		let view = RegistryStateView {
-			info: info.clone(),
+			registry: registry.clone(),
 			maintainer: maintainer.clone(),
-			attributes: attributes.clone(),
-			token_spec,
-			lookup_specs: lookup_specs.clone(),
+			info: info.clone(),
 			kind: RegistryKind::Token,
 			status: RegistryStatus::Active,
+			attributes: attributes.clone(),
+			token_spec: token_spec.clone(),
+			lookup_specs: lookup_specs.clone(),
 		};
 		let encoded = view.encode();
-		let decoded = RegistryInfoView::decode(&mut &encoded[..]).expect("decode view");
+		let decoded = RegistryStateView::decode(&mut &encoded[..]).expect("decode view");
+		assert_eq!(decoded.registry, registry);
 		assert_eq!(decoded.info, info);
 		assert_eq!(decoded.maintainer, maintainer);
 		assert_eq!(decoded.attributes, attributes);
+		assert_eq!(decoded.token_spec, token_spec);
 		assert_eq!(decoded.lookup_specs, lookup_specs);
 		assert!(decoded.status.is_active());
 	}
