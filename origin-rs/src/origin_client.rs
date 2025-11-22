@@ -1,29 +1,23 @@
-//! Dynamic, runtime-upgrade-safe client for Origin/OriginHub chains.
-//!
-//! This sits alongside the existing static `Client` and uses Subxt's
-//! `DynamicConfig` to fetch metadata at runtime, assemble calls/storage
-//! lookups by name, and manage nonces with a high-throughput default.
+//! Dynamic, runtime-upgrade-safe client for Origin/OriginHub chains with a view-only surface.
 
-use crate::{error::Error, metadata, params};
-use futures::stream::StreamExt;
+use crate::{
+	client::nonce_manager::{NonceManager, NonceStrategy},
+	error::Error,
+	metadata, params,
+};
 use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
 use jsonrpsee_core::client::{async_client::PingConfig, Client as WsClient};
 use log::warn;
-use lru::LruCache;
 use scale_info::PortableRegistry;
 use scale_value::{scale as scale_value_scale, Value};
 use sp_core::hashing::blake2_256;
 use sp_runtime::traits::SaturatedConversion;
-use std::{collections::HashMap, num::NonZeroUsize, sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use subxt::{
-	backend::rpc::RpcClient, config::DefaultExtrinsicParamsBuilder, dynamic,
-	dynamic::DecodedValueThunk, storage::DynamicAddress, utils::AccountId32, Metadata,
-	OnlineClient,
+	backend::rpc::RpcClient, config::DefaultExtrinsicParamsBuilder, dynamic, utils::AccountId32,
+	Metadata, OnlineClient,
 };
-use tokio::{
-	sync::{mpsc, Mutex, RwLock, Semaphore},
-	time::sleep,
-};
+use tokio::{sync::{mpsc, RwLock, Semaphore}, time::sleep};
 use url::Url;
 
 fn spawn_nonce_resync_if_enabled(
@@ -38,20 +32,12 @@ fn spawn_nonce_resync_if_enabled(
 		let mut ticker = tokio::time::interval(period);
 		loop {
 			ticker.tick().await;
-			let accounts: Vec<AccountId32> =
-				nonces.cached.read().await.keys().cloned().map(AccountId32).collect();
+			let accounts: Vec<AccountId32> = nonces.accounts().await;
 			for account in accounts {
-				let _ = nonces.resync(&client, &account).await;
+				let _ = nonces.refresh(&client, &account).await;
 			}
 		}
 	}))
-}
-
-/// Nonce handling strategy for submissions.
-#[derive(Clone, Copy, Debug)]
-pub enum NonceStrategy {
-	RpcPerTx,
-	LocalCache,
 }
 
 fn expect_composite(value: Value) -> Result<scale_value::Composite<()>, Error> {
@@ -59,6 +45,11 @@ fn expect_composite(value: Value) -> Result<scale_value::Composite<()>, Error> {
 		scale_value::ValueDef::Composite(c) => Ok(c),
 		other => Err(Error::Params(format!("expected composite for view args, got {other:?}"))),
 	}
+}
+
+fn is_future_or_stale(err: &subxt::Error) -> bool {
+	let msg = err.to_string().to_lowercase();
+	msg.contains("future") || msg.contains("stale")
 }
 
 /// Lightweight dynamic event decoded from block subscriptions.
@@ -126,7 +117,6 @@ pub struct ClientConfig {
 	pub nonce_strategy: NonceStrategy,
 	pub max_in_flight_txs: usize,
 	pub submit_retry: SubmitRetryPolicy,
-	pub storage_cache_capacity: usize,
 	/// Optional periodic nonce resync interval for LocalCache strategy.
 	pub nonce_resync_interval: Option<Duration>,
 }
@@ -137,7 +127,6 @@ impl Default for ClientConfig {
 			nonce_strategy: NonceStrategy::LocalCache,
 			max_in_flight_txs: 1024,
 			submit_retry: SubmitRetryPolicy::default(),
-			storage_cache_capacity: 256,
 			nonce_resync_interval: None,
 		}
 	}
@@ -247,68 +236,6 @@ impl OriginClientBuilder {
 	}
 }
 
-/// Thread-safe nonce tracker (per account).
-#[derive(Debug)]
-pub struct NonceManager {
-	strategy: NonceStrategy,
-	cached: RwLock<HashMap<[u8; 32], u64>>,
-}
-
-impl NonceManager {
-	fn new(strategy: NonceStrategy) -> Self {
-		Self { strategy, cached: RwLock::new(HashMap::new()) }
-	}
-
-	pub async fn next_nonce(
-		&self,
-		client: &OnlineClient<params::config::OriginConfig>,
-		account: &AccountId32,
-	) -> Result<u64, Error> {
-		match self.strategy {
-			NonceStrategy::RpcPerTx => {
-				client.tx().account_nonce(account).await.map_err(Error::from)
-			},
-			NonceStrategy::LocalCache => {
-				let key = account.0;
-				// Fast path: try read lock first.
-				if let Some(nonce) = self.cached.read().await.get(&key).cloned() {
-					let mut guard = self.cached.write().await;
-					let entry = guard.entry(key).or_insert(nonce);
-					let next = *entry;
-					*entry = entry.saturating_add(1);
-					return Ok(next);
-				}
-
-				// Cache miss: fetch from chain once.
-				let fetched = client.tx().account_nonce(account).await.map_err(Error::from)?;
-				let mut guard = self.cached.write().await;
-				let entry = guard.entry(key).or_insert(fetched);
-				let next = *entry;
-				*entry = entry.saturating_add(1);
-				Ok(next)
-			},
-		}
-	}
-
-	/// Seed the cache for an account with a known nonce value.
-	pub async fn seed(&self, account: &AccountId32, nonce: u64) {
-		let key = account.0;
-		let mut guard = self.cached.write().await;
-		guard.insert(key, nonce);
-	}
-
-	/// Force-resync nonce from chain, replacing cached value.
-	pub async fn resync(
-		&self,
-		client: &OnlineClient<params::config::OriginConfig>,
-		account: &AccountId32,
-	) -> Result<u64, Error> {
-		let fresh = client.tx().account_nonce(account).await.map_err(Error::from)?;
-		self.seed(account, fresh).await;
-		Ok(fresh)
-	}
-}
-
 /// Cached lookups for pallets, calls, and storage to avoid repeated string matching.
 #[derive(Debug)]
 pub struct RuntimeLayout {
@@ -316,7 +243,6 @@ pub struct RuntimeLayout {
 	calls: RwLock<HashMap<(String, String), (u8, u8)>>,
 	views: RwLock<HashMap<(String, String), [u8; 32]>>,
 	view_output_types: RwLock<HashMap<(String, String), u32>>,
-	storage_value_types: RwLock<HashMap<(String, String), u32>>,
 	type_ids: RwLock<HashMap<Vec<String>, u32>>,
 	constants: RwLock<HashMap<(String, String), (Arc<Vec<u8>>, u32)>>,
 	registry: PortableRegistry,
@@ -330,7 +256,6 @@ impl RuntimeLayout {
 			calls: RwLock::new(HashMap::new()),
 			views: RwLock::new(HashMap::new()),
 			view_output_types: RwLock::new(HashMap::new()),
-			storage_value_types: RwLock::new(HashMap::new()),
 			type_ids: RwLock::new(HashMap::new()),
 			constants: RwLock::new(HashMap::new()),
 			registry,
@@ -355,35 +280,6 @@ impl RuntimeLayout {
 			.await
 			.insert((pallet.to_owned(), call.to_owned()), (pallet_idx, idx));
 		Ok((pallet_idx, idx))
-	}
-
-	pub async fn storage_value_type(&self, pallet: &str, entry: &str) -> Result<u32, Error> {
-		if let Some(hit) = self
-			.storage_value_types
-			.read()
-			.await
-			.get(&(pallet.into(), entry.into()))
-			.cloned()
-		{
-			return Ok(hit);
-		}
-
-		let pallet_meta = self
-			.metadata
-			.pallet_by_name(pallet)
-			.ok_or_else(|| Error::NotFound(format!("pallet '{pallet}' not found")))?;
-		let storage = pallet_meta
-			.storage()
-			.ok_or_else(|| Error::NotFound(format!("pallet '{pallet}' has no storage")))?;
-		let entry_meta = storage
-			.entry_by_name(entry)
-			.ok_or_else(|| Error::NotFound(format!("storage '{pallet}.{entry}' not found")))?;
-		let id = entry_meta.entry_type().value_ty();
-		self.storage_value_types
-			.write()
-			.await
-			.insert((pallet.to_owned(), entry.to_owned()), id);
-		Ok(id)
 	}
 
 	pub fn decode_as_type(
@@ -508,7 +404,6 @@ pub struct OriginClient {
 	nonces: Arc<NonceManager>,
 	config: ClientConfig,
 	in_flight: Arc<Semaphore>,
-	storage_cache: Arc<Mutex<LruCache<Vec<u8>, dynamic::DecodedValue>>>,
 }
 
 impl OriginClient {
@@ -527,12 +422,11 @@ impl OriginClient {
 		// OnlineClient has already fetched metadata via runtime API; cache it.
 		let metadata = Arc::new(metadata_snapshot);
 		let layout = Arc::new(RuntimeLayout::new(metadata.clone()));
-		let nonces = Arc::new(NonceManager::new(config.nonce_strategy));
+		let nonces = Arc::new(NonceManager::new(
+			config.nonce_strategy,
+			Duration::from_secs(30),
+		));
 		let in_flight = Arc::new(Semaphore::new(config.max_in_flight_txs));
-		let cache = LruCache::new(
-			NonZeroUsize::new(config.storage_cache_capacity)
-				.unwrap_or_else(|| NonZeroUsize::new(256).unwrap()),
-		);
 		spawn_nonce_resync_if_enabled(
 			config.nonce_resync_interval,
 			nonces.clone(),
@@ -549,7 +443,6 @@ impl OriginClient {
 			nonces,
 			config,
 			in_flight,
-			storage_cache: Arc::new(Mutex::new(cache)),
 		})
 	}
 
@@ -635,102 +528,6 @@ impl OriginClient {
 		});
 
 		Ok(EventStream { rx })
-	}
-
-	/// Fetch a storage item by name and decode with metadata type info.
-	pub async fn storage_value(
-		&self,
-		pallet: &str,
-		entry: &str,
-		keys: Vec<Value>,
-	) -> Result<Option<dynamic::DecodedValue>, Error> {
-		let address: DynamicAddress<Vec<Value>> = DynamicAddress::new(pallet, entry, keys);
-
-		// cache key: exact storage key bytes (root + hashed keys) for determinism.
-		let key_bytes =
-			subxt::ext::subxt_core::storage::get_address_bytes(&address, &self.metadata)
-				.map_err(|e| Error::Codec(e.to_string()))?;
-
-		if let Some(hit) = self.storage_cache.lock().await.get(&key_bytes).cloned() {
-			return Ok(Some(hit));
-		}
-
-		let raw: Option<DecodedValueThunk> = self
-			.inner
-			.storage()
-			.at_latest()
-			.await
-			.map_err(Error::from)?
-			.fetch(&address)
-			.await
-			.map_err(Error::from)?;
-
-		if let Some(thunk) = raw {
-			let val = thunk.to_value().map_err(|e| Error::Codec(e.to_string()))?;
-			self.storage_cache.lock().await.put(key_bytes, val.clone());
-			Ok(Some(val))
-		} else {
-			Ok(None)
-		}
-	}
-
-	/// Fetch storage and decode using a target type ID (looked up via metadata).
-	pub async fn storage_value_as_type(
-		&self,
-		pallet: &str,
-		entry: &str,
-		keys: Vec<Value>,
-	) -> Result<Option<dynamic::DecodedValue>, Error> {
-		let ty = self.layout.storage_value_type(pallet, entry).await?;
-		if let Some(decoded) = self.storage_value(pallet, entry, keys).await? {
-			let mut bytes = Vec::new();
-			scale_value_scale::encode_as_type(&decoded, ty, &self.layout.registry, &mut bytes)
-				.map_err(|e| Error::Codec(e.to_string()))?;
-			let decoded_typed = self.layout.decode_as_type(&bytes, ty)?;
-			return Ok(Some(decoded_typed));
-		}
-		Ok(None)
-	}
-
-	/// Fetch storage and decode into a target Rust type using a type path lookup.
-	pub async fn storage_value_as<T: scale_decode::DecodeAsType>(
-		&self,
-		pallet: &str,
-		entry: &str,
-		keys: Vec<Value>,
-		type_path: &[&str],
-	) -> Result<Option<T>, Error> {
-		let Some(decoded) = self.storage_value(pallet, entry, keys).await? else {
-			return Ok(None);
-		};
-		let mut bytes = Vec::new();
-		let id = self.layout.storage_value_type(pallet, entry).await?;
-		scale_value_scale::encode_as_type(&decoded, id, &self.layout.registry, &mut bytes)
-			.map_err(|e| Error::Codec(e.to_string()))?;
-		let typed = self.layout.decode_as_path::<T>(&bytes, type_path).await?;
-		Ok(Some(typed))
-	}
-
-	/// Fetch multiple storage values concurrently (best effort) and return decoded outputs.
-	pub async fn storage_values_batch(
-		&self,
-		pallet: &str,
-		entry: &str,
-		keys_list: Vec<Vec<Value>>,
-	) -> Result<Vec<Option<dynamic::DecodedValue>>, Error> {
-		let concurrency = 16usize;
-		let mut stream = futures::stream::iter(
-			keys_list
-				.into_iter()
-				.map(|keys| async move { self.storage_value(pallet, entry, keys).await }),
-		)
-		.buffer_unordered(concurrency);
-
-		let mut out = Vec::new();
-		while let Some(res) = stream.next().await {
-			out.push(res?);
-		}
-		Ok(out)
 	}
 
 	/// Decode a runtime constant into a dynamic value.
@@ -829,6 +626,16 @@ impl OriginClient {
 			.map_err(|e| Error::Codec(e.to_string()))
 	}
 
+	/// Access the high-level transaction pipeline helper.
+	pub fn transactions(&self) -> crate::client::TransactionClient {
+		crate::client::TransactionClient::new(self.clone())
+	}
+
+	/// Access the view-only helper surface.
+	pub fn views(&self) -> crate::client::ViewApi {
+		crate::client::ViewApi(self.clone())
+	}
+
 	/// Low-level dynamic call submission using dynamic metadata (args as `Value`s).
 	pub async fn submit_dynamic_call<S>(
 		&self,
@@ -850,20 +657,29 @@ impl OriginClient {
 		// Build dynamic call by name; Will be encoded using cached metadata.
 		let call = dynamic::tx(pallet, call, args);
 		let account_id = signer.account_id();
-		let nonce = self.nonces.next_nonce(&self.inner, &account_id).await?;
 
 		let mut attempts = 0usize;
 		let mut backoff = self.config.submit_retry.initial_backoff;
 		loop {
 			attempts += 1;
+			let nonce = self.nonces.allocate(&self.inner, &account_id).await?;
 			// Attach explicit nonce using Origin extrinsic params builder.
 			let params = params::build_origin_params(
 				DefaultExtrinsicParamsBuilder::<params::config::OriginConfig>::new().nonce(nonce),
 			);
 			match self.inner.tx().sign_and_submit_then_watch(&call, signer, params).await {
 				Ok(progress) => return Ok(progress),
+				Err(err) if is_future_or_stale(&err) => {
+					let _ = self.nonces.refresh(&self.inner, &account_id).await;
+					if attempts < self.config.submit_retry.attempts {
+						sleep(backoff).await;
+						backoff = backoff.saturating_mul(2);
+						continue;
+					}
+					return Err(Error::from(err));
+				},
 				Err(_err) if attempts < self.config.submit_retry.attempts => {
-					tokio::time::sleep(backoff).await;
+					sleep(backoff).await;
 					backoff = backoff.saturating_mul(2);
 				},
 				Err(err) => return Err(Error::from(err)),

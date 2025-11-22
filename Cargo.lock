@@ -3988,7 +3988,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d162beedaa69905488a8da94f5ac3edb4dd4788b732fadb7bd120b2625c1976"
 dependencies = [
  "data-encoding",
- "syn 2.0.110",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -8881,6 +8881,7 @@ name = "origin-rs"
 version = "0.9.9"
 dependencies = [
  "anyhow",
+ "async-trait",
  "base64 0.22.1",
  "bs58",
  "env_logger",
@@ -8890,7 +8891,6 @@ dependencies = [
  "jsonrpsee-client-transport",
  "jsonrpsee-core",
  "log",
- "lru",
  "origin-primitives",
  "parity-scale-codec",
  "scale-decode",
