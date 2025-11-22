@@ -20,14 +20,17 @@ pub enum MultiKeySigner {
 }
 
 impl MultiKeySigner {
+	#[allow(dead_code)]
 	pub fn from_sr25519(pair: sr25519::Pair) -> Self {
 		Self::Sr25519(pair)
 	}
 
+	#[allow(dead_code)]
 	pub fn from_ed25519(pair: ed25519::Pair) -> Self {
 		Self::Ed25519(pair)
 	}
 
+	#[allow(dead_code)]
 	pub fn from_ecdsa(pair: ecdsa::Pair) -> Self {
 		Self::Ecdsa(pair)
 	}
@@ -75,6 +78,7 @@ impl Signer for MultiKeySigner {
 pub struct Sr25519Signer(MultiKeySigner);
 
 impl Sr25519Signer {
+	#[allow(dead_code)]
 	pub fn from_seed(seed: &str) -> Result<Self, String> {
 		MultiKeySigner::from_seed(seed, "sr25519").map(Self)
 	}

@@ -8,7 +8,9 @@ use super::OriginConfig;
 #[derive(Clone)]
 pub struct Connection {
 	api: subxt::OnlineClient<OriginConfig>,
+	#[allow(dead_code)]
 	endpoint: String,
+	#[allow(dead_code)]
 	backoff: RetryPolicy,
 }
 
@@ -38,10 +40,12 @@ impl Connection {
 		&self.api
 	}
 
+	#[allow(dead_code)]
 	pub fn endpoint(&self) -> &str {
 		&self.endpoint
 	}
 
+	#[allow(dead_code)]
 	pub fn backoff(&self) -> &RetryPolicy {
 		&self.backoff
 	}

@@ -67,6 +67,26 @@ impl OriginClient {
 	pub fn events(&self) -> events::EventClient {
 		events::EventClient::new(self.connection.clone())
 	}
+
+	/// Token view helpers.
+	pub fn token(&self) -> view::TokenViews {
+		view::TokenViews { inner: self.view() }
+	}
+
+	/// Packet view helpers.
+	pub fn packet(&self) -> view::PacketViews {
+		view::PacketViews { inner: self.view() }
+	}
+
+	/// Registry view helpers.
+	pub fn registry(&self) -> view::RegistryViews {
+		view::RegistryViews { inner: self.view() }
+	}
+
+	/// Entity view helpers.
+	pub fn entity(&self) -> view::EntityViews {
+		view::EntityViews { inner: self.view() }
+	}
 }
 
 /// Shorthand alias.
