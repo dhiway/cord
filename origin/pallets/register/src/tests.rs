@@ -34,7 +34,8 @@ use core::{
 };
 use frame_support::{assert_noop, assert_ok, BoundedVec};
 use origin_primitives::{
-	packet::{Attribute, Element, ElementType},
+	attribute::{Attribute, Element},
+	element::ElementType,
 	registry::{RegistryKind, RegistryPermissions, RegistryStatus},
 	AccountId, Signature,
 };
@@ -144,6 +145,41 @@ fn authorization(account: AccountId) -> AuthorizationOf<Test> {
 	AuthorizationOf::<Test> { account, payload, signature }
 }
 
+fn forged_authorization(account: AccountId, signer: AccountId) -> AuthorizationOf<Test> {
+	let signer_pair = mock::ACCOUNT_KEYS
+		.with(|keys| keys.borrow().get(&signer).cloned())
+		.expect("signer key seeded");
+	bind_account(account.clone());
+	bind_account(signer.clone());
+	let id = VIEW_AUTH_COUNTER.fetch_add(1, Ordering::Relaxed);
+	let payload_text = format!("view-auth-forged-{id}");
+	let issued_at: u32 = frame_system::Pallet::<Test>::block_number().saturated_into::<u32>();
+	let nonce = payload_text.into_bytes();
+	let payload_vec = view_payload(&account, &nonce, issued_at);
+	let payload: AuthorizationPayloadOf<Test> =
+		payload_vec.clone().try_into().expect("payload within bounds");
+	let signature = Signature::from(signer_pair.sign(&payload_vec));
+	AuthorizationOf::<Test> { account, payload, signature }
+}
+
+fn mismatched_account_authorization(account: AccountId, signer: AccountId) -> AuthorizationOf<Test> {
+	let signer_pair = mock::ACCOUNT_KEYS
+		.with(|keys| keys.borrow().get(&signer).cloned())
+		.expect("signer key seeded");
+	bind_account(account.clone());
+	bind_account(signer.clone());
+	let id = VIEW_AUTH_COUNTER.fetch_add(1, Ordering::Relaxed);
+	let payload_text = format!("view-auth-mismatch-{id}");
+	let issued_at: u32 = frame_system::Pallet::<Test>::block_number().saturated_into::<u32>();
+	let nonce = payload_text.into_bytes();
+	let payload_vec = view_payload(&account, &nonce, issued_at);
+	let payload: AuthorizationPayloadOf<Test> =
+		payload_vec.clone().try_into().expect("payload within bounds");
+	let signature = Signature::from(signer_pair.sign(&payload_vec));
+	// Payload is bound to `account` but signed by `signer`, so account/signature mismatch.
+	AuthorizationOf::<Test> { account, payload, signature }
+}
+
 fn default_auth() -> AuthorizationOf<Test> {
 	authorization(account(0))
 }
@@ -220,16 +256,68 @@ fn registry_view_trait_does_not_require_authorization() {
 		let info =
 			<Pallet<Test> as RegistryView<Test>>::registry_info(&registry).expect("registry info");
 		assert_eq!(info.maintainer(), &maintainer_token);
-		let keys = <Pallet<Test> as RegistryView<Test>>::attribute_keys(&registry)
-			.expect("keys reachable");
-		assert_eq!(keys, vec![b"id".to_vec()]);
-		match <Pallet<Test> as RegistryView<Test>>::token_fingerprint(&registry)
-			.expect("token spec")
-		{
-			LookupSpec::Single(field) => assert_eq!(field.as_slice(), b"id"),
-			LookupSpec::Combo(_) => panic!("expected single lookup field"),
-		}
+	let keys = <Pallet<Test> as RegistryView<Test>>::attribute_keys(&registry)
+		.expect("keys reachable");
+	assert_eq!(keys, vec![b"id".to_vec()]);
+	match <Pallet<Test> as RegistryView<Test>>::token_specs(&registry).expect("token spec") {
+		LookupSpec::Single(field) => assert_eq!(field.as_slice(), b"id"),
+		LookupSpec::Combo(_) => panic!("expected single lookup field"),
+	}
 		assert!(<Pallet<Test> as RegistryView<Test>>::registry_active(&registry));
+	});
+}
+
+#[test]
+fn view_authorization_rejects_expired_payload() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(70),
+			attrs([(b"id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"id"]),
+			lookup_specs(&[&[b"id"]]),
+		);
+		let auth = authorization(account(70));
+		let now = frame_system::Pallet::<Test>::block_number();
+		let ttl = <Test as Config>::MaxAuthorizationTTL::get();
+		frame_system::Pallet::<Test>::set_block_number(now + u64::from(ttl) + 1);
+		assert!(matches!(
+			Pallet::<Test>::details(auth, registry.clone()),
+			Err(AuthorizationError::Expired)
+		));
+	});
+}
+
+#[test]
+fn view_authorization_rejects_invalid_signature() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(71),
+			attrs([(b"id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"id"]),
+			lookup_specs(&[&[b"id"]]),
+		);
+		let auth = forged_authorization(account(71), account(72));
+		assert!(matches!(
+			Pallet::<Test>::details(auth, registry.clone()),
+			Err(AuthorizationError::Unauthorized)
+		));
+	});
+}
+
+#[test]
+fn view_authorization_rejects_mismatched_account() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(72),
+			attrs([(b"id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"id"]),
+			lookup_specs(&[&[b"id"]]),
+		);
+		let auth = mismatched_account_authorization(account(99), account(72));
+		assert!(matches!(
+			Pallet::<Test>::details(auth, registry.clone()),
+			Err(AuthorizationError::Unauthorized)
+		));
 	});
 }
 
@@ -566,7 +654,7 @@ fn packet_lifecycle_tracks_versions() {
 			LookupIndex::<Test>::get(&updated_digest, &registry).expect("lookup pointer");
 		assert_eq!(
 			latest_anchor.pointer,
-			PacketPointer { rtoken: registry.clone(), ptoken: packet_id.clone(), version: 2 }
+			PacketPointer { registry: registry.clone(), packet: packet_id.clone(), version: 2 }
 		);
 
 		// Revoke, restore, and delete the packet.
@@ -975,8 +1063,8 @@ fn lookup_queries_return_latest_state() {
 		));
 
 		let anchor = LookupIndex::<Test>::get(&digest, &registry).expect("lookup anchor");
-		assert_eq!(anchor.pointer.ptoken, packet_id);
-		assert_eq!(anchor.pointer.rtoken, registry);
+	assert_eq!(anchor.pointer.packet, packet_id);
+	assert_eq!(anchor.pointer.registry, registry);
 		assert_eq!(anchor.pointer.version, 2);
 
 		let updated_snapshot =
@@ -1058,7 +1146,7 @@ fn packets_by_lookup_digest_returns_snapshots() {
 
 		let packet_id = Packets::<Test>::iter_keys().next().expect("packet stored");
 		let (digest, _reg, _anchor) = LookupIndex::<Test>::iter()
-			.find(|(_, reg, anchor)| reg == &registry && anchor.pointer.ptoken == packet_id)
+			.find(|(_, reg, anchor)| reg == &registry && anchor.pointer.packet == packet_id)
 			.expect("lookup entry");
 		let digest_bytes = digest.as_ref().to_vec();
 		let prefix_len = min(4, digest_bytes.len());
@@ -1119,15 +1207,15 @@ fn packet_snapshot_returns_snapshot() {
 			payload,
 		));
 		let packet_id = Packets::<Test>::iter_keys().next().expect("packet stored");
-		let snapshot = Pallet::<Test>::packet_snapshot(
-			default_auth(),
-			registry.clone(),
-			packet_id.clone(),
-			None,
-		)
-		.expect("packet snapshot");
-		assert_eq!(snapshot.state.version, 1);
-		assert_eq!(snapshot.registry_status, RegistryStatus::Active);
+	let snapshot = Pallet::<Test>::packet_snapshot(
+		default_auth(),
+		registry.clone(),
+		packet_id.clone(),
+		None,
+	)
+	.expect("packet snapshot");
+	assert_eq!(snapshot.snapshot.state.version, 1);
+	assert_eq!(snapshot.snapshot.registry_status, RegistryStatus::Active);
 	});
 }
 
@@ -1152,7 +1240,7 @@ fn registry_view_queries_increment_counter() {
 
 		let packet_id = Packets::<Test>::iter_keys().next().expect("packet stored");
 		let (digest, _registry, _anchor) = LookupIndex::<Test>::iter()
-			.find(|(_, reg, anchor)| reg == &registry && anchor.pointer.ptoken == packet_id)
+			.find(|(_, reg, anchor)| reg == &registry && anchor.pointer.packet == packet_id)
 			.expect("lookup entry");
 		let digest = digest.clone();
 

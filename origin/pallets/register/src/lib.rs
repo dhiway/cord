@@ -413,23 +413,23 @@ pub mod pallet {
 			let digest_seed = (registry_info.info.clone(), digest_material).encode();
 			let digest = T::Hashing::hash(&digest_seed);
 			let pallet_name = <Pallet<T> as PalletInfoAccess>::name();
-			let rtoken = T::Token::build(&digest.encode()[..], pallet_name)
+			let registry = T::Token::build(&digest.encode()[..], pallet_name)
 				.map_err(|_| Error::<T>::TokenCreationFailed)?;
 
-			Registries::<T>::try_mutate_exists(&rtoken, |slot| -> DispatchResult {
+			Registries::<T>::try_mutate_exists(&registry, |slot| -> DispatchResult {
 				ensure!(slot.is_none(), Error::<T>::RegistryAlreadyExists);
 				*slot = Some(registry_info);
 				Ok(())
 			})?;
 
 			RegistryDelegates::<T>::insert(
-				&rtoken,
+				&registry,
 				&maintainer,
 				RegistryPermissions::ADMIN | RegistryPermissions::VIEW,
 			);
-			Self::record_activity(&rtoken, digest, b"RegistryCreated")?;
+			Self::record_activity(&registry, digest, b"RegistryCreated")?;
 
-			Self::deposit_event(Event::RegistryCreated { registry: rtoken.clone(), maintainer });
+			Self::deposit_event(Event::RegistryCreated { registry: registry.clone(), maintainer });
 			Ok(())
 		}
 
@@ -630,7 +630,7 @@ pub mod pallet {
 		/// Create a packet entry under a registry.
 		#[pallet::call_index(7)]
 		#[pallet::weight(T::WeightInfo::create_packet(attributes.len() as u32))]
-		#[pallet::feeless_if(|origin: &OriginFor<T>, _rtoken: &Ss58Identifier, _attributes: &AttributePairsOf<T>| -> bool {
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _registry: &Ss58Identifier, _attributes: &AttributePairsOf<T>| -> bool {
 			Pallet::<T>::is_origin_feeless(origin)
 		})]
 		pub fn create_packet(
@@ -650,16 +650,16 @@ pub mod pallet {
 			let packet_attributes = packet::normalise_attributes::<T>(attributes)?;
 			packet::ensure_matches_schema::<T>(&registry_info, &packet_attributes)?;
 
-			let ptoken =
+			let packet_id =
 				packet::derive_packet_token::<T>(&registry, &registry_info, &packet_attributes)?;
-			ensure!(Packets::<T>::get(&ptoken).is_none(), Error::<T>::PacketAlreadyExists);
+			ensure!(Packets::<T>::get(&packet_id).is_none(), Error::<T>::PacketAlreadyExists);
 
 			let lookup_entries =
 				packet::prepare_lookup_keys::<T>(&registry, &registry_info, &packet_attributes)?;
 
 			for (digest, _) in lookup_entries.iter() {
 				if let Some(existing) = LookupIndex::<T>::get(digest, &registry) {
-					ensure!(existing.pointer.packet == ptoken, Error::<T>::LookupConflict);
+					ensure!(existing.pointer.packet == packet_id, Error::<T>::LookupConflict);
 					return Err(Error::<T>::PacketAlreadyExists.into());
 				}
 			}
@@ -667,7 +667,7 @@ pub mod pallet {
 			let version: u32 = 1;
 			let attributes_hash = packet::attributes_digest::<T>(&packet_attributes);
 			let pointer =
-				PacketPointer { registry: registry.clone(), packet: ptoken.clone(), version };
+				PacketPointer { registry: registry.clone(), packet: packet_id.clone(), version };
 			let state = PacketStateOf::<T> {
 				registry: registry.clone(),
 				controller: delegate.clone(),
@@ -677,9 +677,9 @@ pub mod pallet {
 				attributes: packet_attributes.clone(),
 			};
 
-			PacketStates::<T>::insert(&ptoken, version, state);
+			PacketStates::<T>::insert(&packet_id, version, state);
 			Packets::<T>::insert(
-				&ptoken,
+				&packet_id,
 				PacketMetadataOf::<T> {
 					registry: registry.clone(),
 					controller: delegate.clone(),
@@ -697,15 +697,15 @@ pub mod pallet {
 				);
 			}
 
-			packet::record_packet_event::<T>(&ptoken, b"PacketCreated")?;
-			Self::deposit_event(Event::PacketCreated { registry, packet: ptoken, delegate });
+			packet::record_packet_event::<T>(&packet_id, b"PacketCreated")?;
+			Self::deposit_event(Event::PacketCreated { registry, packet: packet_id, delegate });
 			Ok(())
 		}
 
 		/// Update an existing packet, bumping the version.
 		#[pallet::call_index(8)]
 		#[pallet::weight(T::WeightInfo::update_packet(attributes.len() as u32))]
-		#[pallet::feeless_if(|origin: &OriginFor<T>, _rtoken: &Ss58Identifier, _ptoken: &Ss58Identifier, _attributes: &AttributePairsOf<T>| -> bool {
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _registry: &Ss58Identifier, _packet: &Ss58Identifier, _attributes: &AttributePairsOf<T>| -> bool {
 			Pallet::<T>::is_origin_feeless(origin)
 		})]
 		pub fn update_packet(
@@ -783,7 +783,7 @@ pub mod pallet {
 		/// Revoke an active packet.
 		#[pallet::call_index(9)]
 		#[pallet::weight(T::WeightInfo::revoke_packet())]
-		#[pallet::feeless_if(|origin: &OriginFor<T>, _rtoken: &Ss58Identifier, _ptoken: &Ss58Identifier| -> bool {
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _registry: &Ss58Identifier, _packet: &Ss58Identifier| -> bool {
 			Pallet::<T>::is_origin_feeless(origin)
 		})]
 		pub fn revoke_packet(
@@ -852,7 +852,7 @@ pub mod pallet {
 		/// Restore a revoked packet to active state.
 		#[pallet::call_index(10)]
 		#[pallet::weight(T::WeightInfo::restore_packet())]
-		#[pallet::feeless_if(|origin: &OriginFor<T>, _rtoken: &Ss58Identifier, _ptoken: &Ss58Identifier| -> bool {
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _registry: &Ss58Identifier, _packet: &Ss58Identifier| -> bool {
 			Pallet::<T>::is_origin_feeless(origin)
 		})]
 		pub fn restore_packet(
@@ -921,7 +921,7 @@ pub mod pallet {
 		/// Mark a revoked packet as permanently removed.
 		#[pallet::call_index(11)]
 		#[pallet::weight(T::WeightInfo::remove_packet())]
-		#[pallet::feeless_if(|origin: &OriginFor<T>, _rtoken: &Ss58Identifier, _ptoken: &Ss58Identifier| -> bool {
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _registry: &Ss58Identifier, _packet: &Ss58Identifier| -> bool {
 			Pallet::<T>::is_origin_feeless(origin)
 		})]
 		pub fn remove_packet(
@@ -1568,15 +1568,15 @@ pub mod pallet {
 		}
 
 		fn refresh_lookup_entries(
-			rtoken: &Ss58Identifier,
+			registry: &Ss58Identifier,
 			registry_info: &RegistryInfoOf<T>,
 			previous: Option<&PacketAttributesOf<T>>,
 			current: &PacketAttributesOf<T>,
 			pointer: &PacketPointer,
 		) -> DispatchResult {
-			let new_entries = packet::prepare_lookup_keys::<T>(rtoken, registry_info, current)?;
+			let new_entries = packet::prepare_lookup_keys::<T>(registry, registry_info, current)?;
 			let mut old_entries: BTreeMap<_, _> = if let Some(prev) = previous {
-				packet::prepare_lookup_keys::<T>(rtoken, registry_info, prev)?
+				packet::prepare_lookup_keys::<T>(registry, registry_info, prev)?
 					.into_iter()
 					.collect()
 			} else {
@@ -1586,7 +1586,7 @@ pub mod pallet {
 			for (digest, spec_index) in new_entries {
 				if let Some(previous_spec) = old_entries.remove(&digest) {
 					ensure!(previous_spec == spec_index, Error::<T>::LookupConflict);
-					LookupIndex::<T>::try_mutate(&digest, rtoken, |slot| -> DispatchResult {
+					LookupIndex::<T>::try_mutate(&digest, registry, |slot| -> DispatchResult {
 						if let Some(anchor) = slot {
 							ensure!(anchor.spec == spec_index, Error::<T>::LookupConflict);
 							anchor.pointer = pointer.clone();
@@ -1599,7 +1599,7 @@ pub mod pallet {
 						Ok(())
 					})?;
 				} else {
-					LookupIndex::<T>::try_mutate(&digest, rtoken, |slot| -> DispatchResult {
+					LookupIndex::<T>::try_mutate(&digest, registry, |slot| -> DispatchResult {
 						if let Some(anchor) = slot {
 							ensure!(
 								anchor.pointer.packet == pointer.packet,
