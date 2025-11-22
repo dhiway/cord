@@ -1,0 +1,41 @@
+[package]
+name = "origin-sdk"
+description = "Dynamic Subxt-based Origin SDK for view-first queries and async extrinsics."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "origin_sdk"
+path = "src/lib.rs"
+
+[features]
+default = ["ws"]
+ws = ["subxt/jsonrpsee"]
+mock = []
+unstable-light-client = ["subxt/unstable-light-client"]
+
+[dependencies]
+anyhow = { workspace = true, optional = false }
+backoff = { workspace = true }
+codec = { workspace = true, features = ["std"] }
+futures = { workspace = true }
+origin-primitives = { path = "../origin/primitives" }
+serde = { workspace = true, features = ["derive", "std"] }
+serde_json = { workspace = true, features = ["std"] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "time"] }
+tracing = { workspace = true }
+subxt = { workspace = true, default-features = false, features = ["jsonrpsee", "native", "reconnecting-rpc-client"] }
+subxt-metadata = { workspace = true, optional = true }
+hex = { workspace = true }
+scale-value = { version = "0.18", default-features = false, features = ["serde"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }

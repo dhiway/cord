@@ -1,7 +1,8 @@
 //! Dynamic, runtime-upgrade-safe client for Origin/OriginHub chains with a view-only surface.
 
 use crate::{
-	client::nonce_manager::{NonceManager, NonceStrategy},
+	client::nonce::{NonceManager, NonceStrategy},
+	extrinsic::{BatchBuilder, ExtrinsicBuilder, MetaTxClient},
 	error::Error,
 	metadata, params,
 };
@@ -634,6 +635,21 @@ impl OriginClient {
 	/// Access the view-only helper surface.
 	pub fn views(&self) -> crate::client::ViewApi {
 		crate::client::ViewApi(self.clone())
+	}
+
+	/// Create a fluent extrinsic builder for the given pallet + call.
+	pub fn extrinsic(&self, pallet: &str, call: &str) -> ExtrinsicBuilder {
+		ExtrinsicBuilder::new(self.clone(), pallet, call)
+	}
+
+	/// Build a batch submission pipeline.
+	pub fn batch(&self) -> BatchBuilder {
+		BatchBuilder::new(self.clone())
+	}
+
+	/// Entry point for meta-transaction flows.
+	pub fn metatx(&self) -> MetaTxClient {
+		MetaTxClient::new(self.clone())
 	}
 
 	/// Low-level dynamic call submission using dynamic metadata (args as `Value`s).
