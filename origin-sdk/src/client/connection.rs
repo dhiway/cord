@@ -20,7 +20,13 @@ impl Connection {
 		auto_reconnect: bool,
 	) -> Result<Self, OriginSdkError> {
 		let _ = (timeout, auto_reconnect); // reserved for future logic
-		let api = subxt::OnlineClient::<OriginConfig>::from_url(endpoint.clone()).await?;
+		let api = backoff
+			.retry(|| {
+				let endpoint = endpoint.clone();
+				async move { subxt::OnlineClient::<OriginConfig>::from_url(endpoint.clone()).await }
+			})
+			.await
+			.map_err(|e| OriginSdkError::Connection(e.to_string()))?;
 		Ok(Self { api, endpoint, backoff })
 	}
 
@@ -39,6 +45,7 @@ impl Connection {
 	pub fn backoff(&self) -> &RetryPolicy {
 		&self.backoff
 	}
+
 }
 
 /// Fluent builder for `OriginClient`.
