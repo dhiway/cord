@@ -16,15 +16,15 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{AttributeFlags, Config, Error, RegistryInfoOf, RegistryStatus};
+use crate::{AttributeFlags, Config, Error, RegistryInfoOf};
 use alloc::{collections::BTreeMap, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use core::convert::TryInto;
-use frame_support::{dispatch::DispatchResult, ensure, traits::Get, BoundedVec};
+use frame_support::{dispatch::DispatchResult, ensure, BoundedVec};
 use origin_primitives::{
-	attribute::{Attribute, Attributes, AttributesError, Element, ElementType, ElementView},
+	attribute::{Attribute, Attributes, AttributesError, Element, ElementType},
 	identifier::Ss58Identifier,
-	packet::{PacketMetadata, PacketPointer, PacketState, PacketStatus},
+	packet::{PacketMetadata, PacketPointer, PacketSnapshot, PacketState},
 };
 use pallet_token::{EventBlock, EventTypeOf, Token};
 use scale_info::TypeInfo;
@@ -54,31 +54,6 @@ pub type AttributePairsOf<T> =
 pub struct LookupAnchor {
 	pub spec: u32,
 	pub pointer: PacketPointer,
-}
-
-#[derive(Encode, Decode, Clone, PartialEq, Eq, TypeInfo, RuntimeDebug, MaxEncodedLen)]
-#[scale_info(skip_type_params(MaxRawDataLength, MaxAdditionalAttributes,))]
-pub struct PacketSnapshot<
-	MaxRawDataLength: Get<u32>,
-	MaxAdditionalAttributes: Get<u32>,
-	Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode,
-> {
-	pub state: PacketState<MaxRawDataLength, MaxAdditionalAttributes, Hash>,
-	pub registry_status: RegistryStatus,
-}
-
-impl<
-		MaxRawDataLength: Get<u32>,
-		MaxAdditionalAttributes: Get<u32>,
-		Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode,
-	> PacketSnapshot<MaxRawDataLength, MaxAdditionalAttributes, Hash>
-{
-	pub fn from_state(
-		state: &PacketState<MaxRawDataLength, MaxAdditionalAttributes, Hash>,
-		registry_status: RegistryStatus,
-	) -> Self {
-		Self { state: state.clone(), registry_status }
-	}
 }
 
 pub fn ensure_entry_access<T: Config>(
@@ -217,19 +192,3 @@ pub type PacketSnapshotOf<T> = PacketSnapshot<
 	<T as Config>::MaxAdditionalAttributes,
 	<T as frame_system::Config>::Hash,
 >;
-
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
-pub struct PacketAttributeView {
-	pub key: Vec<u8>,
-	pub value: ElementView, // Decoded value
-}
-
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
-pub struct PacketStateView {
-	pub registry: Ss58Identifier,
-	pub packet: Ss58Identifier,
-	pub version: u32,
-	pub status: PacketStatus,
-	pub attributes_hash: Vec<u8>,
-	pub attributes: Vec<PacketAttributeView>,
-}

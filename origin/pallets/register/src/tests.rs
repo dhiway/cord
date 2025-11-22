@@ -1214,8 +1214,8 @@ fn packet_snapshot_returns_snapshot() {
 		None,
 	)
 	.expect("packet snapshot");
-	assert_eq!(snapshot.snapshot.state.version, 1);
-	assert_eq!(snapshot.snapshot.registry_status, RegistryStatus::Active);
+	assert_eq!(snapshot.version, 1);
+	assert_eq!(snapshot.registry_status, RegistryStatus::Active);
 	});
 }
 
@@ -1328,5 +1328,126 @@ fn query_count_view_returns_counter() {
 		)
 		.expect("query count view");
 		assert_eq!(count, 1);
+	});
+}
+
+#[test]
+fn set_delegate_permissions_records_roles() {
+	new_test_ext().execute_with(|| {
+		let (registry, maintainer_token) = create_registry(
+			account(150),
+			attrs([(b"id".as_ref(), ElementType::Raw, AttributeFlags::empty())]),
+			token_spec(&[b"id"]),
+			lookup_specs(&[&[b"id"]]),
+		);
+
+		let delegate_account = account(151);
+		let delegate_token = bind_account(delegate_account.clone());
+		let roles = vec![RegistryPermissions::ENTRY, RegistryPermissions::VIEW];
+
+		assert_ok!(Pallet::<Test>::set_delegate_permissions(
+			RuntimeOrigin::signed(account(150)),
+			registry.clone(),
+			delegate_account.clone(),
+			roles.clone()
+		));
+
+		let maintainer_perms =
+			RegistryDelegates::<Test>::get(&registry, maintainer_token).expect("maintainer perms");
+		assert!(maintainer_perms.has_admin());
+
+		let recorded =
+			RegistryDelegates::<Test>::get(&registry, delegate_token).expect("delegate recorded");
+		assert!(recorded.has_entry());
+		assert!(recorded.has_view());
+	});
+}
+
+#[test]
+fn packet_snapshot_by_token_rejects_deleted_packet() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(152),
+			attrs([(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"asset_id"]]),
+		);
+		let _delegate = bind_delegate(&registry, account(153));
+
+		let payload: AttributePairsOf<Test> =
+			BoundedVec::try_from(vec![(attr_key(b"asset_id"), value_u64(9))]).unwrap();
+		assert_ok!(Pallet::<Test>::create_packet(
+			RuntimeOrigin::signed(account(153)),
+			registry.clone(),
+			payload,
+		));
+		let packet_id = Packets::<Test>::iter_keys().next().unwrap();
+
+		assert_ok!(Pallet::<Test>::revoke_packet(
+			RuntimeOrigin::signed(account(153)),
+			registry.clone(),
+			packet_id.clone()
+		));
+		assert_ok!(Pallet::<Test>::remove_packet(
+			RuntimeOrigin::signed(account(153)),
+			registry.clone(),
+			packet_id.clone()
+		));
+
+		let result =
+			Pallet::<Test>::packet_snapshot_by_token(default_auth(), packet_id.clone(), None);
+		assert_eq!(result.unwrap_err(), AuthorizationError::InvalidInput);
+	});
+}
+
+#[test]
+fn overview_returns_registry_view() {
+	new_test_ext().execute_with(|| {
+		let (registry, maintainer) = create_registry(
+			account(160),
+			attrs([
+				(b"id".as_ref(), ElementType::U64, AttributeFlags::empty()),
+				(b"note".as_ref(), ElementType::Raw, AttributeFlags::OPTIONAL),
+			]),
+			token_spec(&[b"id"]),
+			lookup_specs(&[&[b"id"]]),
+		);
+		let view = Pallet::<Test>::overview(default_auth(), registry.clone()).expect("overview");
+		assert_eq!(view.registry, registry);
+		assert_eq!(view.maintainer, maintainer);
+		assert_eq!(view.attributes.len(), 2);
+		assert_eq!(view.token_spec, vec![b"id".to_vec()]);
+	});
+}
+
+#[test]
+fn lookup_snapshot_returns_snapshot_for_digest() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(170),
+			attrs([(b"id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"id"]),
+			lookup_specs(&[&[b"id"]]),
+		);
+		let _delegate = bind_delegate(&registry, account(171));
+
+		let payload: AttributePairsOf<Test> =
+			BoundedVec::try_from(vec![(attr_key(b"id"), value_u64(5))]).unwrap();
+		assert_ok!(Pallet::<Test>::create_packet(
+			RuntimeOrigin::signed(account(171)),
+			registry.clone(),
+			payload,
+		));
+
+		let (digest, _reg, _anchor) = LookupIndex::<Test>::iter()
+			.find(|(_, reg, _)| reg == &registry)
+			.expect("lookup entry exists");
+
+		let view =
+			Pallet::<Test>::lookup_snapshot(default_auth(), registry.clone(), digest.clone(), None)
+				.expect("lookup view");
+		assert_eq!(view.registry, registry);
+		assert_eq!(view.status, PacketStatus::Active);
+		assert_eq!(view.version, 1);
 	});
 }
