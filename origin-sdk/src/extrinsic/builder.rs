@@ -1,11 +1,11 @@
-use subxt::dynamic;
+use subxt::dynamic::Value;
 
 /// Structured call descriptor.
 #[derive(Clone, Debug)]
 pub struct DynamicCall {
 	pub pallet: String,
 	pub function: String,
-	pub args: Vec<dynamic::Value>,
+	pub args: Vec<Value>,
 }
 
 /// Fluent builder for dynamic extrinsics.
@@ -20,7 +20,7 @@ impl DynamicCallBuilder {
 		&self,
 		pallet: &str,
 		function: &str,
-		args: Vec<dynamic::Value>,
+		args: Vec<Value>,
 	) -> DynamicCall {
 		DynamicCall { pallet: pallet.into(), function: function.into(), args }
 	}

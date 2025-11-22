@@ -73,27 +73,15 @@ impl SubmitClient {
 
 	pub async fn batch_submit(
 		&self,
-		calls: Vec<dynamic::Value>,
-		signer: &dyn Signer,
+		_calls: Vec<dynamic::Value>,
+		_signer: &dyn Signer,
 	) -> Result<TxHandle, OriginSdkError> {
-		let adapter = SubxtSignerAdapter::new(signer);
-		let account = adapter.account_id();
-		let nonce = self.nonce.allocate(self.connection.online(), &account.0).await?;
-		let params = DefaultExtrinsicParamsBuilder::<OriginConfig>::new().nonce(nonce).build();
-		let payload = dynamic::tx("Utility", "batch_all", vec![dynamic::Value::from(calls)]);
-		let progress = self
-			.connection
-			.online()
-			.tx()
-			.sign_and_submit_then_watch(&payload, &adapter, params)
-			.await?;
-		let hash = progress.extrinsic_hash();
-		let _ = progress.wait_for_finalized_success().await?;
-		Ok(TxHandle { hash })
+		Err(OriginSdkError::Unimplemented("batch_submit".into()))
 	}
 }
 
 /// Adapter to plug the SDK `Signer` into Subxt transaction flows.
+#[derive(Clone)]
 struct SubxtSignerAdapter<'a> {
 	inner: &'a dyn Signer,
 }

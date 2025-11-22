@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use futures::StreamExt;
 use tokio::sync::mpsc;
 
 use crate::types::error::OriginSdkError;

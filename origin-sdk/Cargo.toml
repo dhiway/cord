@@ -36,6 +36,9 @@ subxt = { workspace = true, default-features = false, features = ["jsonrpsee", "
 subxt-metadata = { workspace = true, optional = true }
 hex = { workspace = true }
 scale-value = { version = "0.18", default-features = false, features = ["serde"] }
+sp-core = { workspace = true, features = ["std"] }
+scale-info = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 serde_json = { workspace = true }
