@@ -4,10 +4,12 @@ use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{ensure, traits::Get, BoundedVec, RuntimeDebugNoBound};
 pub use origin_primitives::registry::{RegistryKind, RegistryPermissions, RegistryStatus};
 use origin_primitives::{
+	attribute::{Attribute, Element, ElementType},
 	identifier::Ss58Identifier,
-	packet::{Attribute, Element, ElementType, PacketUpdateError},
+	packet::PacketUpdateError,
 };
 use scale_info::TypeInfo;
+use sp_runtime::RuntimeDebug;
 
 bitflags! {
 	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
@@ -317,4 +319,12 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 		}
 		Ok(())
 	}
+}
+
+/// Flattened registry state view: identifier + info + lookup specs.
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+pub struct RegistryStateView<Info, Specs> {
+	pub registry: Ss58Identifier,
+	pub info: Info,
+	pub lookup_specs: Specs,
 }
