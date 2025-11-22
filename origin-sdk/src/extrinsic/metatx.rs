@@ -11,12 +11,21 @@ pub struct MetaTxClient {
 }
 
 impl MetaTxClient {
-	pub(crate) fn new(connection: Arc<Connection>) -> Self {
-		Self { connection }
-	}
+pub(crate) fn new(connection: Arc<Connection>) -> Self {
+	Self { connection }
+}
 
-	pub fn wrap(&self, _call: DynamicCall) -> Result<DynamicCall, OriginSdkError> {
-		// TODO: construct meta-tx pallet call
-		Err(OriginSdkError::Unimplemented("meta-tx wrapper".into()))
-	}
+pub fn wrap(&self, call: DynamicCall) -> Result<DynamicCall, OriginSdkError> {
+	// Minimal placeholder: wrap original call into MetaTx::submit(pallet, call, args)
+	let wrapped = DynamicCall {
+		pallet: "MetaTx".into(),
+		function: "submit".into(),
+		args: vec![
+			subxt::dynamic::Value::from(call.pallet),
+			subxt::dynamic::Value::from(call.function),
+			subxt::dynamic::Value::from(call.args),
+		],
+	};
+	Ok(wrapped)
+}
 }
