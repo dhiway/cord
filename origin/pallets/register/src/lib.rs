@@ -44,15 +44,28 @@ use frame_support::{
 use frame_system::{ensure_root, pallet_prelude::*};
 use log as _;
 use origin_primitives::{
+	attribute::{Attribute, Element, ElementType},
+	authorization::{
+		ensure_authorization_ttl, extract_valid_until, Authorization as ViewAuthorization,
+		AuthorizationError,
+	},
 	identifier::Ss58Identifier,
-	packet::{Attribute, Element, ElementType, PacketUpdateError},
+	packet::{PacketPointer, PacketStatus, PacketUpdateError},
+	registry::{RegistryKind, RegistryPermissions, RegistryStatus},
 	Signature,
 };
+pub use packet::{
+	attributes_digest, AttributePairsOf, LookupDigestOf, PacketAttributesOf, PacketDataOf,
+	PacketMetadataOf, PacketSnapshotOf, PacketStateOf, PacketStateView,
+};
+use register::{
+	AttributeFlags, AttributeSpec, LookupSpec, RegistryFieldError, RegistryInfo, RegistryStateView,
+};
+
 pub use pallet::*;
 use pallet_entity::EntityLookup;
 use pallet_feeless::FeelessAccounts;
 use pallet_token::{EventBlock, EventTypeOf, Token};
-use register::{AttributeFlags, AttributeSpec, LookupSpec, RegistryFieldError, RegistryInfo};
 use sp_io as _;
 use sp_runtime::traits::{Hash, UniqueSaturatedInto};
 pub use weights::WeightInfo;
@@ -72,29 +85,20 @@ pub type AuthorizationPayloadOf<T> = BoundedVec<u8, <T as Config>::MaxAuthorizat
 
 /// Authorization details that must accompany every query request.
 pub type Authorization<T> =
-	CoreAuthorization<<T as frame_system::Config>::AccountId, AuthorizationPayloadOf<T>, Signature>;
+	ViewAuthorization<<T as frame_system::Config>::AccountId, AuthorizationPayloadOf<T>, Signature>;
 pub type AuthorizationOf<T> = Authorization<T>;
 
 /// Registry info type alias for storage.
 pub type RegistryInfoOf<T> =
 	RegistryInfo<<T as Config>::MaxRawDataLength, <T as Config>::MaxAdditionalAttributes>;
-
-use origin_primitives::{
-	authorization::{extract_valid_until, Authorization as CoreAuthorization},
-	packet::{PacketPointer, PacketStatus},
-	registry::{RegistryKind, RegistryPermissions, RegistryStatus},
-	view_api::{ensure_authorization_ttl, AuthorizationError},
-};
-pub use packet::{
-	attributes_digest, AttributePairsOf, LookupDigestOf, PacketAttributesOf, PacketDataOf,
-	PacketMetadataOf, PacketSnapshotOf, PacketStateOf,
-};
+pub type RegistryStateViewOf<T> = RegistryStateView<RegistryInfoOf<T>, LookupSpecListOf<T>>;
+pub type PacketStateViewOf<T> = PacketStateView<PacketSnapshotOf<T>>;
 
 pub trait RegistryView<T: Config> {
 	fn registry_info(registry_id: &Ss58Identifier) -> Option<RegistryInfoOf<T>>;
 	fn attribute_keys(registry_id: &Ss58Identifier) -> Option<Vec<Vec<u8>>>;
 	/// Keys (in order) that are hashed to derive the registry identifier token.
-	fn token_fingerprint(registry_id: &Ss58Identifier) -> Option<TokenSpecOf<T>>;
+	fn token_specs(registry_id: &Ss58Identifier) -> Option<TokenSpecOf<T>>;
 	/// Lookup specifications expressed using the canonical schema.
 	fn lookup_specs(registry_id: &Ss58Identifier) -> Option<LookupSpecListOf<T>>;
 	fn has_permissions(
@@ -631,40 +635,41 @@ pub mod pallet {
 		})]
 		pub fn create_packet(
 			origin: OriginFor<T>,
-			rtoken: Ss58Identifier,
+			registry: Ss58Identifier,
 			attributes: AttributePairsOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let delegate = Self::resolve_entity_token(&who)?;
 
 			let registry_info =
-				Registries::<T>::get(&rtoken).ok_or(Error::<T>::RegistryNotFound)?;
+				Registries::<T>::get(&registry).ok_or(Error::<T>::RegistryNotFound)?;
 			ensure!(!registry_info.is_deleted(), Error::<T>::RegistryDeleted);
 			ensure!(registry_info.is_active(), Error::<T>::RegistryInactive);
-			packet::ensure_entry_access::<T>(&rtoken, &registry_info, &delegate)?;
+			packet::ensure_entry_access::<T>(&registry, &registry_info, &delegate)?;
 
 			let packet_attributes = packet::normalise_attributes::<T>(attributes)?;
 			packet::ensure_matches_schema::<T>(&registry_info, &packet_attributes)?;
 
 			let ptoken =
-				packet::derive_packet_token::<T>(&rtoken, &registry_info, &packet_attributes)?;
+				packet::derive_packet_token::<T>(&registry, &registry_info, &packet_attributes)?;
 			ensure!(Packets::<T>::get(&ptoken).is_none(), Error::<T>::PacketAlreadyExists);
 
 			let lookup_entries =
-				packet::prepare_lookup_keys::<T>(&rtoken, &registry_info, &packet_attributes)?;
+				packet::prepare_lookup_keys::<T>(&registry, &registry_info, &packet_attributes)?;
 
 			for (digest, _) in lookup_entries.iter() {
-				if let Some(existing) = LookupIndex::<T>::get(digest, &rtoken) {
-					ensure!(existing.pointer.ptoken == ptoken, Error::<T>::LookupConflict);
+				if let Some(existing) = LookupIndex::<T>::get(digest, &registry) {
+					ensure!(existing.pointer.packet == ptoken, Error::<T>::LookupConflict);
 					return Err(Error::<T>::PacketAlreadyExists.into());
 				}
 			}
 
 			let version: u32 = 1;
 			let attributes_hash = packet::attributes_digest::<T>(&packet_attributes);
-			let pointer = PacketPointer { rtoken: rtoken.clone(), ptoken: ptoken.clone(), version };
+			let pointer =
+				PacketPointer { registry: registry.clone(), packet: ptoken.clone(), version };
 			let state = PacketStateOf::<T> {
-				registry: rtoken.clone(),
+				registry: registry.clone(),
 				controller: delegate.clone(),
 				status: PacketStatus::Active,
 				version,
@@ -676,7 +681,7 @@ pub mod pallet {
 			Packets::<T>::insert(
 				&ptoken,
 				PacketMetadataOf::<T> {
-					registry: rtoken.clone(),
+					registry: registry.clone(),
 					controller: delegate.clone(),
 					status: PacketStatus::Active,
 					latest_version: version,
@@ -687,17 +692,13 @@ pub mod pallet {
 			for (digest, spec) in lookup_entries {
 				LookupIndex::<T>::insert(
 					&digest,
-					&rtoken,
+					&registry,
 					packet::LookupAnchor { spec, pointer: pointer.clone() },
 				);
 			}
 
 			packet::record_packet_event::<T>(&ptoken, b"PacketCreated")?;
-			Self::deposit_event(Event::PacketCreated {
-				registry: rtoken,
-				packet: ptoken,
-				delegate,
-			});
+			Self::deposit_event(Event::PacketCreated { registry, packet: ptoken, delegate });
 			Ok(())
 		}
 
@@ -709,26 +710,26 @@ pub mod pallet {
 		})]
 		pub fn update_packet(
 			origin: OriginFor<T>,
-			rtoken: Ss58Identifier,
-			ptoken: Ss58Identifier,
+			registry: Ss58Identifier,
+			packet: Ss58Identifier,
 			attributes: AttributePairsOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let delegate = Self::resolve_entity_token(&who)?;
 
 			let registry_info =
-				Registries::<T>::get(&rtoken).ok_or(Error::<T>::RegistryNotFound)?;
+				Registries::<T>::get(&registry).ok_or(Error::<T>::RegistryNotFound)?;
 			ensure!(!registry_info.is_deleted(), Error::<T>::RegistryDeleted);
 			ensure!(registry_info.is_active(), Error::<T>::RegistryInactive);
-			packet::ensure_entry_access::<T>(&rtoken, &registry_info, &delegate)?;
+			packet::ensure_entry_access::<T>(&registry, &registry_info, &delegate)?;
 
-			let metadata = Packets::<T>::get(&ptoken).ok_or(Error::<T>::TokenNotFound)?;
-			ensure!(metadata.registry == rtoken, Error::<T>::TokenNotFound);
+			let metadata = Packets::<T>::get(&packet).ok_or(Error::<T>::TokenNotFound)?;
+			ensure!(metadata.registry == registry, Error::<T>::TokenNotFound);
 			ensure!(metadata.status != PacketStatus::Deleted, Error::<T>::PacketDeleted);
 			ensure!(metadata.status == PacketStatus::Active, Error::<T>::PacketRevoked);
 
 			let current_version = metadata.latest_version;
-			let current_state = PacketStates::<T>::get(&ptoken, current_version)
+			let current_state = PacketStates::<T>::get(&packet, current_version)
 				.ok_or(Error::<T>::TokenNotFound)?;
 
 			let update_set = packet::normalise_attributes::<T>(attributes)?;
@@ -736,16 +737,16 @@ pub mod pallet {
 			packet::apply_attribute_updates::<T>(&mut merged_attributes, &update_set)?;
 			packet::ensure_matches_schema::<T>(&registry_info, &merged_attributes)?;
 
-			Self::mark_latest_version_revoked(&ptoken, current_version)?;
+			Self::mark_latest_version_revoked(&packet, current_version)?;
 
 			let new_version = current_version.saturating_add(1);
 			let pointer = PacketPointer {
-				rtoken: rtoken.clone(),
-				ptoken: ptoken.clone(),
+				registry: registry.clone(),
+				packet: packet.clone(),
 				version: new_version,
 			};
 			Self::refresh_lookup_entries(
-				&rtoken,
+				&registry,
 				&registry_info,
 				Some(&current_state.attributes),
 				&merged_attributes,
@@ -754,7 +755,7 @@ pub mod pallet {
 
 			let new_hash = packet::attributes_digest::<T>(&merged_attributes);
 			let state = PacketStateOf::<T> {
-				registry: rtoken.clone(),
+				registry: registry.clone(),
 				controller: delegate.clone(),
 				status: PacketStatus::Active,
 				version: new_version,
@@ -762,11 +763,11 @@ pub mod pallet {
 				attributes: merged_attributes.clone(),
 			};
 
-			PacketStates::<T>::insert(&ptoken, new_version, state);
+			PacketStates::<T>::insert(&packet, new_version, state);
 			Packets::<T>::insert(
-				&ptoken,
+				&packet,
 				PacketMetadataOf::<T> {
-					registry: rtoken.clone(),
+					registry: registry.clone(),
 					controller: delegate.clone(),
 					status: PacketStatus::Active,
 					latest_version: new_version,
@@ -774,12 +775,8 @@ pub mod pallet {
 				},
 			);
 
-			packet::record_packet_event::<T>(&ptoken, b"PacketUpdated")?;
-			Self::deposit_event(Event::PacketUpdated {
-				registry: rtoken,
-				packet: ptoken,
-				delegate,
-			});
+			packet::record_packet_event::<T>(&packet, b"PacketUpdated")?;
+			Self::deposit_event(Event::PacketUpdated { registry, packet, delegate });
 			Ok(())
 		}
 
@@ -791,35 +788,35 @@ pub mod pallet {
 		})]
 		pub fn revoke_packet(
 			origin: OriginFor<T>,
-			rtoken: Ss58Identifier,
-			ptoken: Ss58Identifier,
+			registry: Ss58Identifier,
+			packet: Ss58Identifier,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let delegate = Self::resolve_entity_token(&who)?;
 
 			let registry_info =
-				Registries::<T>::get(&rtoken).ok_or(Error::<T>::RegistryNotFound)?;
+				Registries::<T>::get(&registry).ok_or(Error::<T>::RegistryNotFound)?;
 			ensure!(!registry_info.is_deleted(), Error::<T>::RegistryDeleted);
 			ensure!(registry_info.is_active(), Error::<T>::RegistryInactive);
-			packet::ensure_entry_access::<T>(&rtoken, &registry_info, &delegate)?;
+			packet::ensure_entry_access::<T>(&registry, &registry_info, &delegate)?;
 
-			let metadata = Packets::<T>::get(&ptoken).ok_or(Error::<T>::TokenNotFound)?;
-			ensure!(metadata.registry == rtoken, Error::<T>::TokenNotFound);
+			let metadata = Packets::<T>::get(&packet).ok_or(Error::<T>::TokenNotFound)?;
+			ensure!(metadata.registry == registry, Error::<T>::TokenNotFound);
 			ensure!(metadata.status != PacketStatus::Deleted, Error::<T>::PacketDeleted);
 			ensure!(metadata.status == PacketStatus::Active, Error::<T>::PacketRevoked);
 
-			let current_state = PacketStates::<T>::get(&ptoken, metadata.latest_version)
+			let current_state = PacketStates::<T>::get(&packet, metadata.latest_version)
 				.ok_or(Error::<T>::TokenNotFound)?;
 			let new_version = metadata.latest_version.saturating_add(1);
 			let pointer = PacketPointer {
-				rtoken: rtoken.clone(),
-				ptoken: ptoken.clone(),
+				registry: registry.clone(),
+				packet: packet.clone(),
 				version: new_version,
 			};
 
-			Self::mark_latest_version_revoked(&ptoken, metadata.latest_version)?;
+			Self::mark_latest_version_revoked(&packet, metadata.latest_version)?;
 			Self::refresh_lookup_entries(
-				&rtoken,
+				&registry,
 				&registry_info,
 				Some(&current_state.attributes),
 				&current_state.attributes,
@@ -827,7 +824,7 @@ pub mod pallet {
 			)?;
 
 			let state = PacketStateOf::<T> {
-				registry: rtoken.clone(),
+				registry: registry.clone(),
 				controller: delegate.clone(),
 				status: PacketStatus::Revoked,
 				version: new_version,
@@ -835,11 +832,11 @@ pub mod pallet {
 				attributes: current_state.attributes.clone(),
 			};
 
-			PacketStates::<T>::insert(&ptoken, new_version, state);
+			PacketStates::<T>::insert(&packet, new_version, state);
 			Packets::<T>::insert(
-				&ptoken,
+				&packet,
 				PacketMetadataOf::<T> {
-					registry: rtoken.clone(),
+					registry: registry.clone(),
 					controller: delegate.clone(),
 					status: PacketStatus::Revoked,
 					latest_version: new_version,
@@ -847,12 +844,8 @@ pub mod pallet {
 				},
 			);
 
-			packet::record_packet_event::<T>(&ptoken, b"PacketRevoked")?;
-			Self::deposit_event(Event::PacketRevoked {
-				registry: rtoken,
-				packet: ptoken,
-				delegate,
-			});
+			packet::record_packet_event::<T>(&packet, b"PacketRevoked")?;
+			Self::deposit_event(Event::PacketRevoked { registry, packet, delegate });
 			Ok(())
 		}
 
@@ -864,35 +857,35 @@ pub mod pallet {
 		})]
 		pub fn restore_packet(
 			origin: OriginFor<T>,
-			rtoken: Ss58Identifier,
-			ptoken: Ss58Identifier,
+			registry: Ss58Identifier,
+			packet: Ss58Identifier,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let delegate = Self::resolve_entity_token(&who)?;
 
 			let registry_info =
-				Registries::<T>::get(&rtoken).ok_or(Error::<T>::RegistryNotFound)?;
+				Registries::<T>::get(&registry).ok_or(Error::<T>::RegistryNotFound)?;
 			ensure!(!registry_info.is_deleted(), Error::<T>::RegistryDeleted);
 			ensure!(registry_info.is_active(), Error::<T>::RegistryInactive);
-			packet::ensure_entry_access::<T>(&rtoken, &registry_info, &delegate)?;
+			packet::ensure_entry_access::<T>(&registry, &registry_info, &delegate)?;
 
-			let metadata = Packets::<T>::get(&ptoken).ok_or(Error::<T>::TokenNotFound)?;
-			ensure!(metadata.registry == rtoken, Error::<T>::TokenNotFound);
+			let metadata = Packets::<T>::get(&packet).ok_or(Error::<T>::TokenNotFound)?;
+			ensure!(metadata.registry == registry, Error::<T>::TokenNotFound);
 			ensure!(metadata.status != PacketStatus::Deleted, Error::<T>::PacketDeleted);
 			ensure!(metadata.status == PacketStatus::Revoked, Error::<T>::PacketNotRevoked);
 
-			let current_state = PacketStates::<T>::get(&ptoken, metadata.latest_version)
+			let current_state = PacketStates::<T>::get(&packet, metadata.latest_version)
 				.ok_or(Error::<T>::TokenNotFound)?;
 			let new_version = metadata.latest_version.saturating_add(1);
 			let pointer = PacketPointer {
-				rtoken: rtoken.clone(),
-				ptoken: ptoken.clone(),
+				registry: registry.clone(),
+				packet: packet.clone(),
 				version: new_version,
 			};
 
-			Self::mark_latest_version_revoked(&ptoken, metadata.latest_version)?;
+			Self::mark_latest_version_revoked(&packet, metadata.latest_version)?;
 			Self::refresh_lookup_entries(
-				&rtoken,
+				&registry,
 				&registry_info,
 				Some(&current_state.attributes),
 				&current_state.attributes,
@@ -900,7 +893,7 @@ pub mod pallet {
 			)?;
 
 			let state = PacketStateOf::<T> {
-				registry: rtoken.clone(),
+				registry: registry.clone(),
 				controller: delegate.clone(),
 				status: PacketStatus::Active,
 				version: new_version,
@@ -908,11 +901,11 @@ pub mod pallet {
 				attributes: current_state.attributes.clone(),
 			};
 
-			PacketStates::<T>::insert(&ptoken, new_version, state);
+			PacketStates::<T>::insert(&packet, new_version, state);
 			Packets::<T>::insert(
-				&ptoken,
+				&packet,
 				PacketMetadataOf::<T> {
-					registry: rtoken.clone(),
+					registry: registry.clone(),
 					controller: delegate.clone(),
 					status: PacketStatus::Active,
 					latest_version: new_version,
@@ -920,12 +913,8 @@ pub mod pallet {
 				},
 			);
 
-			packet::record_packet_event::<T>(&ptoken, b"PacketRestored")?;
-			Self::deposit_event(Event::PacketRestored {
-				registry: rtoken,
-				packet: ptoken,
-				delegate,
-			});
+			packet::record_packet_event::<T>(&packet, b"PacketRestored")?;
+			Self::deposit_event(Event::PacketRestored { registry, packet, delegate });
 			Ok(())
 		}
 
@@ -937,36 +926,36 @@ pub mod pallet {
 		})]
 		pub fn remove_packet(
 			origin: OriginFor<T>,
-			rtoken: Ss58Identifier,
-			ptoken: Ss58Identifier,
+			registry: Ss58Identifier,
+			packet: Ss58Identifier,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let delegate = Self::resolve_entity_token(&who)?;
 
 			let registry_info =
-				Registries::<T>::get(&rtoken).ok_or(Error::<T>::RegistryNotFound)?;
+				Registries::<T>::get(&registry).ok_or(Error::<T>::RegistryNotFound)?;
 			ensure!(!registry_info.is_deleted(), Error::<T>::RegistryDeleted);
 			ensure!(registry_info.is_active(), Error::<T>::RegistryInactive);
-			packet::ensure_entry_access::<T>(&rtoken, &registry_info, &delegate)?;
+			packet::ensure_entry_access::<T>(&registry, &registry_info, &delegate)?;
 
-			let metadata = Packets::<T>::get(&ptoken).ok_or(Error::<T>::TokenNotFound)?;
-			ensure!(metadata.registry == rtoken, Error::<T>::TokenNotFound);
+			let metadata = Packets::<T>::get(&packet).ok_or(Error::<T>::TokenNotFound)?;
+			ensure!(metadata.registry == registry, Error::<T>::TokenNotFound);
 			ensure!(metadata.status != PacketStatus::Deleted, Error::<T>::PacketDeleted);
 			ensure!(metadata.status == PacketStatus::Revoked, Error::<T>::PacketNotRevoked);
 
-			let latest_state = PacketStates::<T>::get(&ptoken, metadata.latest_version)
+			let latest_state = PacketStates::<T>::get(&packet, metadata.latest_version)
 				.ok_or(Error::<T>::TokenNotFound)?;
 
 			let new_version = metadata.latest_version.saturating_add(1);
 			let pointer = PacketPointer {
-				rtoken: rtoken.clone(),
-				ptoken: ptoken.clone(),
+				registry: registry.clone(),
+				packet: packet.clone(),
 				version: new_version,
 			};
 
-			Self::mark_latest_version_revoked(&ptoken, metadata.latest_version)?;
+			Self::mark_latest_version_revoked(&packet, metadata.latest_version)?;
 			Self::refresh_lookup_entries(
-				&rtoken,
+				&registry,
 				&registry_info,
 				Some(&latest_state.attributes),
 				&latest_state.attributes,
@@ -974,7 +963,7 @@ pub mod pallet {
 			)?;
 
 			let state = PacketStateOf::<T> {
-				registry: rtoken.clone(),
+				registry: registry.clone(),
 				controller: delegate.clone(),
 				status: PacketStatus::Deleted,
 				version: new_version,
@@ -982,11 +971,11 @@ pub mod pallet {
 				attributes: latest_state.attributes.clone(),
 			};
 
-			PacketStates::<T>::insert(&ptoken, new_version, state);
+			PacketStates::<T>::insert(&packet, new_version, state);
 			Packets::<T>::insert(
-				&ptoken,
+				&packet,
 				PacketMetadataOf::<T> {
-					registry: rtoken.clone(),
+					registry: registry.clone(),
 					controller: delegate.clone(),
 					status: PacketStatus::Deleted,
 					latest_version: new_version,
@@ -994,12 +983,8 @@ pub mod pallet {
 				},
 			);
 
-			packet::record_packet_event::<T>(&ptoken, b"PacketRemoved")?;
-			Self::deposit_event(Event::PacketRemoved {
-				registry: rtoken,
-				packet: ptoken,
-				delegate,
-			});
+			packet::record_packet_event::<T>(&packet, b"PacketRemoved")?;
+			Self::deposit_event(Event::PacketRemoved { registry, packet, delegate });
 			Ok(())
 		}
 	}
@@ -1091,12 +1076,12 @@ pub mod pallet {
 		}
 
 		/// Returns the attribute keys composing the registry token material.
-		pub fn token_fingerprint(
+		pub fn token_specs(
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
 		) -> Result<TokenSpecOf<T>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
-			let spec = <Self as RegistryView<T>>::token_fingerprint(&registry)
+			let spec = <Self as RegistryView<T>>::token_specs(&registry)
 				.ok_or(AuthorizationError::NotFound)?;
 			Self::record_registry_query(&registry, &auth.account);
 			Ok(spec)
@@ -1104,32 +1089,31 @@ pub mod pallet {
 		/// Returns a packet state associated with the given packet identifier for the registry.
 		pub fn packet_snapshot(
 			auth: AuthorizationOf<T>,
-			rtoken: Ss58Identifier,
-			ptoken: Ss58Identifier,
+			registry: Ss58Identifier,
+			packet: Ss58Identifier,
 			version: Option<u32>,
-		) -> Result<PacketSnapshotOf<T>, AuthorizationError> {
+		) -> Result<PacketStateViewOf<T>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
-			let snapshot = <Self as RegistryView<T>>::packet_state(&ptoken, version)
-				.ok_or(AuthorizationError::NotFound)?;
-			if snapshot.state.registry != rtoken {
-				return Err(AuthorizationError::NotFound);
-			}
-			Self::record_registry_query(&rtoken, &auth.account);
-			Ok(snapshot)
+			Self::get_registry_state_view(&registry)?;
+			let snapshot = Self::get_packet_state_view(&registry, &packet, version)?;
+			Self::record_registry_query(&registry, &auth.account);
+			Ok(PacketStateViewOf::<T> { registry, packet, snapshot })
 		}
 
 		/// Returns packet metadata only (lightweight).
 		pub fn packet_metadata(
 			auth: AuthorizationOf<T>,
-			rtoken: Ss58Identifier,
-			ptoken: Ss58Identifier,
+			registry: Ss58Identifier,
+			packet: Ss58Identifier,
 		) -> Result<PacketMetadataOf<T>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
-			let metadata = Packets::<T>::get(&ptoken).ok_or(AuthorizationError::NotFound)?;
-			if metadata.registry != rtoken {
+			let _info = Self::get_registry_state_view(&registry)?;
+			let _snapshot = Self::get_packet_state_view(&registry, &packet, None)?;
+			let metadata = Packets::<T>::get(&packet).ok_or(AuthorizationError::NotFound)?;
+			if metadata.registry != registry {
 				return Err(AuthorizationError::NotFound);
 			}
-			Self::record_registry_query(&rtoken, &auth.account);
+			Self::record_registry_query(&registry, &auth.account);
 			Ok(metadata)
 		}
 
@@ -1137,14 +1121,13 @@ pub mod pallet {
 		pub fn overview(
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
-		) -> Result<(RegistryInfoOf<T>, LookupSpecListOf<T>), AuthorizationError> {
+		) -> Result<RegistryStateViewOf<T>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
-			let info = <Self as RegistryView<T>>::registry_info(&registry)
-				.ok_or(AuthorizationError::NotFound)?;
+			let info = Self::get_registry_state_view(&registry)?;
 			let specs = <Self as RegistryView<T>>::lookup_specs(&registry)
 				.ok_or(AuthorizationError::NotFound)?;
 			Self::record_registry_query(&registry, &auth.account);
-			Ok((info, specs))
+			Ok(RegistryStateViewOf::<T> { registry, info, lookup_specs: specs })
 		}
 
 		/// Returns a packet snapshot by token without requiring the registry identifier.
@@ -1152,46 +1135,84 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 			version: Option<u32>,
-		) -> Result<Option<PacketSnapshotOf<T>>, AuthorizationError> {
+		) -> Result<Option<PacketStateViewOf<T>>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
-			let snapshot = Self::packet_state_unchecked(&token, version);
-			if let Some(ref snapshot) = snapshot {
+			let snapshot_opt = Self::packet_state_unchecked(&token, version);
+
+			if let Some(snapshot) = snapshot_opt {
+				let info = Self::get_registry_state_view(&snapshot.state.registry)?;
+				if snapshot.state.status == PacketStatus::Deleted || info.is_deleted() {
+					return Err(AuthorizationError::InvalidInput);
+				}
 				Self::record_registry_query(&snapshot.state.registry, &auth.account);
+				return Ok(Some(PacketStateViewOf::<T> {
+					registry: snapshot.state.registry.clone(),
+					packet: token,
+					snapshot,
+				}));
 			}
-			Ok(snapshot)
+
+			Ok(None)
 		}
 
 		/// Resolves a packet state via a lookup digest.
 		pub fn lookup_snapshot(
 			auth: AuthorizationOf<T>,
-			rtoken: Ss58Identifier,
+			registry: Ss58Identifier,
 			digest: LookupDigestOf<T>,
 			version: Option<u32>,
-		) -> Result<PacketSnapshotOf<T>, AuthorizationError> {
+		) -> Result<PacketStateViewOf<T>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
-			let snapshot = <Self as RegistryView<T>>::lookup_state(&rtoken, &digest, version)
-				.ok_or(AuthorizationError::NotFound)?;
-			Self::record_registry_query(&rtoken, &auth.account);
-			Ok(snapshot)
+			Self::get_registry_state_view(&registry)?;
+			let anchor =
+				LookupIndex::<T>::get(&digest, &registry).ok_or(AuthorizationError::NotFound)?;
+			let packet = anchor.pointer.packet.clone();
+			let target_version = version.unwrap_or(anchor.pointer.version);
+
+			let snap = Self::get_packet_state_view(&registry, &packet, Some(target_version))?;
+			Self::record_registry_query(&registry, &auth.account);
+
+			Ok(PacketStateViewOf::<T> { registry, packet, snapshot: snap })
 		}
 
 		/// Returns packet snapshots matching the provided token prefix (or all when empty).
 		pub fn list_by_token(
 			auth: AuthorizationOf<T>,
-			token_prefix: Vec<u8>,
+			prefix: Vec<u8>,
 			version: Option<u32>,
 			cursor: Option<Ss58Identifier>,
 			limit: Option<u32>,
 		) -> Result<(Vec<PacketSnapshotOf<T>>, Option<Ss58Identifier>), AuthorizationError> {
 			Self::authorize_query(&auth)?;
+
 			let capped = limit.unwrap_or_else(|| T::MaxPacketListResults::get());
 			let limit = capped.min(T::MaxPacketListResults::get()).max(1);
-			let (snapshots, next_cursor) =
-				<Self as RegistryView<T>>::list_by_token(token_prefix, version, cursor, limit);
-			for snapshot in &snapshots {
-				Self::record_registry_query(&snapshot.state.registry, &auth.account);
+
+			let (snaps, next) =
+				<Self as RegistryView<T>>::list_by_token(prefix, version, cursor, limit);
+
+			// Filter out deleted packets and deleted registries.
+			let mut filtered = Vec::with_capacity(snaps.len());
+
+			for snap in snaps.into_iter() {
+				// Drop deleted packets early.
+				if snap.state.status == PacketStatus::Deleted {
+					continue;
+				}
+
+				let reg = &snap.state.registry;
+
+				// get_registry_state_view already checks that the registry exists
+				// and is not deleted. We don't need the value itself here.
+				if Self::get_registry_state_view(reg).is_err() {
+					continue;
+				}
+
+				Self::record_registry_query(reg, &auth.account);
+				filtered.push(snap);
 			}
-			Ok((snapshots, next_cursor))
+
+			Ok((filtered, next))
 		}
 
 		/// Returns packet snapshots for every registry entry matching the digest prefix.
@@ -1203,18 +1224,37 @@ pub mod pallet {
 			limit: Option<u32>,
 		) -> Result<(Vec<PacketSnapshotOf<T>>, Option<LookupDigestOf<T>>), AuthorizationError> {
 			Self::authorize_query(&auth)?;
+
 			let capped = limit.unwrap_or_else(|| T::MaxPacketListResults::get());
 			let limit = capped.min(T::MaxPacketListResults::get()).max(1);
-			let (snapshots, next_cursor) = <Self as RegistryView<T>>::packets_by_lookup_digest(
+
+			let (snaps, next) = <Self as RegistryView<T>>::packets_by_lookup_digest(
 				digest_prefix,
 				version,
 				cursor,
 				limit,
 			);
-			for snapshot in &snapshots {
-				Self::record_registry_query(&snapshot.state.registry, &auth.account);
+
+			let mut filtered = Vec::with_capacity(snaps.len());
+
+			for snap in snaps.into_iter() {
+				// Drop deleted packets.
+				if snap.state.status == PacketStatus::Deleted {
+					continue;
+				}
+
+				let reg = &snap.state.registry;
+
+				// Drop deleted or missing registries.
+				if Self::get_registry_state_view(reg).is_err() {
+					continue;
+				}
+
+				Self::record_registry_query(reg, &auth.account);
+				filtered.push(snap);
 			}
-			Ok((snapshots, next_cursor))
+
+			Ok((filtered, next))
 		}
 	}
 
@@ -1224,10 +1264,36 @@ pub mod pallet {
 			origin.caller().as_signed().map(T::Feeless::is_feeless).unwrap_or(false)
 		}
 
+		fn get_registry_state_view(
+			registry: &Ss58Identifier,
+		) -> Result<RegistryInfoOf<T>, AuthorizationError> {
+			let info = Registries::<T>::get(registry).ok_or(AuthorizationError::NotFound)?;
+			if info.is_deleted() {
+				return Err(AuthorizationError::InvalidInput);
+			}
+			Ok(info)
+		}
+
 		fn record_registry_query(registry: &Ss58Identifier, account: &T::AccountId) {
 			RegistryQueryCounts::<T>::mutate(registry, account.clone(), |count| {
 				*count = count.saturating_add(1);
 			});
+		}
+
+		fn get_packet_state_view(
+			registry: &Ss58Identifier,
+			packet: &Ss58Identifier,
+			version: Option<u32>,
+		) -> Result<PacketSnapshotOf<T>, AuthorizationError> {
+			let snapshot = <Self as RegistryView<T>>::packet_state(packet, version)
+				.ok_or(AuthorizationError::NotFound)?;
+			if &snapshot.state.registry != registry {
+				return Err(AuthorizationError::NotFound);
+			}
+			if snapshot.state.status == PacketStatus::Deleted {
+				return Err(AuthorizationError::InvalidInput);
+			}
+			Ok(snapshot)
 		}
 
 		fn authorize_query(
@@ -1293,7 +1359,7 @@ pub mod pallet {
 			Registries::<T>::get(registry).map(|info| info.attribute_keys())
 		}
 
-		fn token_fingerprint_unchecked(registry: &Ss58Identifier) -> Option<TokenSpecOf<T>> {
+		fn token_specs_unchecked(registry: &Ss58Identifier) -> Option<TokenSpecOf<T>> {
 			Registries::<T>::get(registry).map(|info| info.token_spec.clone())
 		}
 
@@ -1326,7 +1392,7 @@ pub mod pallet {
 		) -> Option<PacketSnapshotOf<T>> {
 			let anchor = LookupIndex::<T>::get(digest, registry)?;
 			let target_version = version.unwrap_or(anchor.pointer.version);
-			Self::snapshot_for(&anchor.pointer.ptoken, registry, Some(target_version), None)
+			Self::snapshot_for(&anchor.pointer.packet, registry, Some(target_version), None)
 		}
 
 		fn registry_active_unchecked(registry: &Ss58Identifier) -> bool {
@@ -1405,7 +1471,7 @@ pub mod pallet {
 				}
 				let target_version = version.unwrap_or(anchor.pointer.version);
 				if let Some(snapshot) = Self::snapshot_for(
-					&anchor.pointer.ptoken,
+					&anchor.pointer.packet,
 					&registry,
 					Some(target_version),
 					None,
@@ -1536,7 +1602,7 @@ pub mod pallet {
 					LookupIndex::<T>::try_mutate(&digest, rtoken, |slot| -> DispatchResult {
 						if let Some(anchor) = slot {
 							ensure!(
-								anchor.pointer.ptoken == pointer.ptoken,
+								anchor.pointer.packet == pointer.packet,
 								Error::<T>::LookupConflict
 							);
 							ensure!(anchor.spec == spec_index, Error::<T>::LookupConflict);
@@ -1573,8 +1639,8 @@ pub mod pallet {
 			Self::attribute_keys_unchecked(registry_id)
 		}
 
-		fn token_fingerprint(registry_id: &Ss58Identifier) -> Option<TokenSpecOf<T>> {
-			Self::token_fingerprint_unchecked(registry_id)
+		fn token_specs(registry_id: &Ss58Identifier) -> Option<TokenSpecOf<T>> {
+			Self::token_specs_unchecked(registry_id)
 		}
 
 		fn lookup_specs(registry_id: &Ss58Identifier) -> Option<LookupSpecListOf<T>> {

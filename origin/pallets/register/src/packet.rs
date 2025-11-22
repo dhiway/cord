@@ -22,11 +22,9 @@ use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use core::convert::TryInto;
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, BoundedVec};
 use origin_primitives::{
+	attribute::{Attribute, Attributes, AttributesError, Element, ElementType},
 	identifier::Ss58Identifier,
-	packet::{
-		Attribute, Attributes, AttributesError, Element, ElementType, PacketMetadata,
-		PacketPointer, PacketState,
-	},
+	packet::{PacketMetadata, PacketPointer, PacketState},
 };
 use pallet_token::{EventBlock, EventTypeOf, Token};
 use scale_info::TypeInfo;
@@ -219,3 +217,11 @@ pub type PacketSnapshotOf<T> = PacketSnapshot<
 	<T as Config>::MaxAdditionalAttributes,
 	<T as frame_system::Config>::Hash,
 >;
+
+/// Flattened packet state view: registry id + packet id + snapshot.
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+pub struct PacketStateView<Snap> {
+	pub registry: Ss58Identifier,
+	pub packet: Ss58Identifier,
+	pub snapshot: Snap,
+}
