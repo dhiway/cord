@@ -1,4 +1,4 @@
-use crate::{error::Result, params::config::OriginConfig};
+use crate::error::Result;
 
 /// Supported runtime "flavors" that the SDK can target.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -26,11 +26,6 @@ impl ChainFlavor {
 }
 
 /// Inspect the connected chain and infer the correct [`ChainFlavor`].
-pub async fn detect_flavor(api: &subxt::OnlineClient<OriginConfig>) -> Result<ChainFlavor> {
-	let metadata = api.metadata();
-	detect_flavor_from_metadata(&metadata)
-}
-
 /// Infer flavor from a metadata snapshot (no network calls).
 pub fn detect_flavor_from_metadata(metadata: &subxt::Metadata) -> Result<ChainFlavor> {
 	let has_register = metadata.pallet_by_name("Register").is_some();

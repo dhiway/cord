@@ -1,6 +1,5 @@
 pub(crate) mod connection;
 mod events;
-mod nonce;
 pub mod signer;
 pub mod submit;
 mod view;
@@ -11,10 +10,10 @@ use crate::extrinsic::builder::DynamicCallBuilder;
 use crate::extrinsic::metatx::MetaTxClient;
 use crate::types::error::OriginSdkError;
 use connection::{Connection, ConnectionBuilder};
-use nonce::NonceManager;
 use submit::SubmitClient;
 use view::ViewClient;
 
+pub use events::EventEnvelope;
 pub use signer::Signer;
 
 /// Default Subxt config used by the Origin SDK.
@@ -24,13 +23,16 @@ pub type OriginConfig = subxt::config::PolkadotConfig;
 #[derive(Clone)]
 pub struct OriginClient {
 	connection: Arc<Connection>,
-	nonce: Arc<NonceManager>,
+	signer: Arc<dyn Signer>,
 }
 
 impl OriginClient {
 	/// Connect to an endpoint with default retry/backoff policy.
-	pub async fn connect(endpoint: impl Into<String>) -> Result<Self, OriginSdkError> {
-		Self::builder().endpoint(endpoint).build().await
+	pub async fn connect(
+		endpoint: impl Into<String>,
+		signer: impl Signer + 'static,
+	) -> Result<Self, OriginSdkError> {
+		Self::builder().endpoint(endpoint).signer(signer).build().await
 	}
 
 	/// Build a client with custom policies.
@@ -45,17 +47,17 @@ impl OriginClient {
 
 	/// View-only calls (pallet view functions, no storage RPCs).
 	pub fn view(&self) -> ViewClient {
-		ViewClient::new(self.connection.clone())
+		ViewClient::new(self.connection.clone(), self.signer.clone())
 	}
 
 	/// Extrinsic submission with nonce queue + event-driven completion.
 	pub fn tx(&self) -> SubmitClient {
-		SubmitClient::new(self.connection.clone(), self.nonce.clone())
+		SubmitClient::new(self.connection.clone(), self.signer.clone())
 	}
 
 	/// Build meta-transaction flows.
 	pub fn metatx(&self) -> MetaTxClient {
-		MetaTxClient::new(self.connection.clone())
+		MetaTxClient::new(self.connection.clone(), self.signer.clone())
 	}
 
 	/// Dynamic call builder helper.
@@ -87,12 +89,17 @@ impl OriginClient {
 	pub fn entity(&self) -> view::EntityViews {
 		view::EntityViews { inner: self.view() }
 	}
+
+	/// Domain-scoped helpers (views + tx shortcuts).
+	pub fn domain(&self) -> crate::domain::Domain<'_> {
+		crate::domain::Domain::new(self)
+	}
 }
 
 /// Shorthand alias.
 pub type Client = OriginClient;
 
 /// Exported builder for user ergonomics.
-pub fn connect(endpoint: impl Into<String>) -> ConnectionBuilder {
-	ConnectionBuilder::default().endpoint(endpoint)
+pub fn connect(endpoint: impl Into<String>, signer: impl Signer + 'static) -> ConnectionBuilder {
+	ConnectionBuilder::default().endpoint(endpoint).signer(signer)
 }

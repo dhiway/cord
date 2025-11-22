@@ -1,8 +1,8 @@
 use std::{sync::Arc, time::Duration};
 
+use super::{OriginConfig, Signer};
 use crate::types::error::OriginSdkError;
 use crate::util::retry::RetryPolicy;
-use super::OriginConfig;
 
 /// Shared connection wrapper.
 #[derive(Clone)]
@@ -23,15 +23,16 @@ impl Connection {
 	) -> Result<Self, OriginSdkError> {
 		let _ = (timeout, auto_reconnect); // reserved for future logic
 		let api = backoff
-		.retry(|| {
-			let endpoint = endpoint.clone();
-			async move {
-				let client = subxt::OnlineClient::<OriginConfig>::from_url(endpoint.as_str()).await?;
-				Ok::<_, subxt::Error>(client)
-			}
-		})
-		.await
-		.map_err(|e| OriginSdkError::Connection(e.to_string()))?;
+			.retry(|| {
+				let endpoint = endpoint.clone();
+				async move {
+					let client =
+						subxt::OnlineClient::<OriginConfig>::from_url(endpoint.as_str()).await?;
+					Ok::<_, subxt::Error>(client)
+				}
+			})
+			.await
+			.map_err(|e| OriginSdkError::Connection(e.to_string()))?;
 		Ok(Self { api, endpoint, backoff })
 	}
 
@@ -52,7 +53,6 @@ impl Connection {
 	pub fn backoff(&self) -> &RetryPolicy {
 		&self.backoff
 	}
-
 }
 
 /// Fluent builder for `OriginClient`.
@@ -61,6 +61,7 @@ pub struct ConnectionBuilder {
 	backoff: RetryPolicy,
 	timeout: Duration,
 	auto_reconnect: bool,
+	signer: Option<Arc<dyn Signer>>,
 }
 
 impl Default for ConnectionBuilder {
@@ -70,6 +71,7 @@ impl Default for ConnectionBuilder {
 			backoff: RetryPolicy::default(),
 			timeout: Duration::from_secs(30),
 			auto_reconnect: true,
+			signer: None,
 		}
 	}
 }
@@ -95,12 +97,21 @@ impl ConnectionBuilder {
 		self
 	}
 
+	pub fn signer(mut self, signer: impl Signer + 'static) -> Self {
+		self.signer = Some(Arc::new(signer));
+		self
+	}
+
 	pub async fn build(self) -> Result<super::OriginClient, OriginSdkError> {
 		let endpoint = self
 			.endpoint
 			.ok_or_else(|| OriginSdkError::InvalidInput("endpoint is required".into()))?;
-		let connection = Connection::connect(endpoint, self.backoff, self.timeout, self.auto_reconnect).await?;
+		let signer = self
+			.signer
+			.ok_or_else(|| OriginSdkError::InvalidInput("signer is required".into()))?;
+		let connection =
+			Connection::connect(endpoint, self.backoff, self.timeout, self.auto_reconnect).await?;
 		let connection = Arc::new(connection);
-		let nonce = Arc::new(super::nonce::NonceManager::default());
-		Ok(super::OriginClient { connection, nonce })
-	}}
+		Ok(super::OriginClient { connection, signer })
+	}
+}

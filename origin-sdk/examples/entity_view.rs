@@ -1,33 +1,32 @@
+use origin_primitives::Ss58Identifier;
+use origin_sdk::client::signer::MultiKeySigner;
 use origin_sdk::OriginClient;
+use serde_json::Value as JsonValue;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-	let client = OriginClient::connect("ws://localhost:9944").await?;
-	let _entity: origin_sdk::types::EntityOverview = client
-		.view()
-		.entity()
-		.overview(
-			dummy_auth(),
-			origin_primitives::Ss58Identifier::try_from("5FLSigC9H8J9tDFkhiBSGAL7iFusJqSQuJtVUXwwc7G7R6nW").unwrap(),
-		)
-		.await?;
-	println!("entity overview fetched");
+	let label = load_label().unwrap_or_else(|_| "demo".into());
+
+	let signer = MultiKeySigner::from_seed("//Alice", "")?;
+	let client = OriginClient::connect("ws://localhost:9910", signer.clone()).await?;
+
+	let entity_id =
+		Ss58Identifier::try_from(String::from("5FLSigC9H8J9tDFkhiBSGAL7iFusJqSQuJtVUXwwc7G7R6nW"))
+			.map_err(|e| format!("{e:?}"))?;
+
+	let entity = client.view().entity().overview(entity_id).await?;
+	println!("Entity overview: {:?}", entity);
 	Ok(())
 }
 
-fn dummy_auth() -> origin_primitives::Authorization<
-	origin_primitives::AccountId,
-	Vec<u8>,
-	origin_primitives::Signature,
-> {
-	use codec::Encode;
-	let payload = b"auth".to_vec();
-	let signature = origin_primitives::Signature::from(origin_primitives::Signature::from(
-		sp_core::sr25519::Signature::from_raw([0u8; 64]),
-	));
-	origin_primitives::Authorization {
-		account: origin_primitives::AccountId::from(sp_core::sr25519::Public::from_raw([0u8; 32])),
-		payload,
-		signature,
-	}
+fn load_label() -> Result<String, Box<dyn std::error::Error>> {
+	let data = std::fs::read_to_string("origin-sdk/examples/sample_data/demo.json")?;
+	let v: JsonValue = serde_json::from_str(&data)?;
+	let label = v
+		.get("entity")
+		.and_then(|e| e.get("display"))
+		.and_then(|d| d.as_str())
+		.unwrap_or("demo")
+		.replace("{label}", "demo");
+	Ok(label)
 }

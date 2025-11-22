@@ -1,21 +1,22 @@
 use subxt::dynamic::{self, Value};
 
-use crate::types::error::OriginSdkError;
 use super::builder::DynamicCall;
+use crate::client::submit::SubmitClient;
+use crate::types::error::OriginSdkError;
 
 /// Collects multiple calls for atomic submission via Utility::batch/batch_all.
-#[derive(Default)]
 pub struct BatchBuilder {
 	calls: Vec<DynamicCall>,
 	all: bool,
+	client: SubmitClient,
 }
 
 impl BatchBuilder {
-	pub fn new() -> Self {
-		Self { calls: Vec::new(), all: true }
+	pub fn new(client: SubmitClient) -> Self {
+		Self { calls: Vec::new(), all: true, client }
 	}
 
-	pub fn push(mut self, call: DynamicCall) -> Self {
+	pub fn call(mut self, call: DynamicCall) -> Self {
 		self.calls.push(call);
 		self
 	}
@@ -30,8 +31,7 @@ impl BatchBuilder {
 		self
 	}
 
-	/// Build dynamic payload for Utility::batch or batch_all.
-	pub fn build(self) -> Result<dynamic::DefaultPayload<subxt::ext::scale_value::Composite<()>>, OriginSdkError> {
+	pub fn build(self) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
 		let calls: Vec<Value> = self
 			.calls
 			.into_iter()
@@ -39,5 +39,12 @@ impl BatchBuilder {
 			.collect();
 		let fn_name = if self.all { "batch_all" } else { "batch" };
 		Ok(dynamic::tx("Utility", fn_name, calls))
+	}
+
+	pub async fn submit_and_wait_finalized(
+		self,
+	) -> Result<crate::client::submit::TxOutcome, OriginSdkError> {
+		let handle = self.client.batch_submit(self.calls, self.all).await?;
+		handle.wait_in_block().await
 	}
 }

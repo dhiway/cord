@@ -1,27 +1,18 @@
-use origin_sdk::OriginClient;
+use origin_sdk::client::signer::MultiKeySigner;
+use origin_sdk::{extrinsic::builder::DynamicCallBuilder, OriginClient};
+use scale_value::Value;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-	let client = OriginClient::connect("ws://localhost:9944").await?;
-	let call = client.call().call("Packet", "issue", Vec::<subxt::dynamic::Value>::new());
-	let _ = client.tx().submit(
+	let signer = MultiKeySigner::from_seed("//Alice", "")?;
+	let client = OriginClient::connect("ws://localhost:9944", signer.clone()).await?;
+
+	let call = DynamicCallBuilder::new().call(
 		"Packet",
 		"issue",
-		Vec::<subxt::dynamic::Value>::new(),
-		&DummySigner {},
-	).await?;
-	println!("packet issue call prepared: {:?}", call);
+		vec![Value::from_bytes(b"demo-registry"), Value::from_bytes(b"demo-packet-body")],
+	);
+	let outcome = client.tx().submit(&call.pallet, &call.function, call.args).await?;
+	println!("Packet issue submitted: {:?}", outcome.hash);
 	Ok(())
-}
-
-struct DummySigner;
-
-impl origin_sdk::client::signer::Signer for DummySigner {
-	fn account_id(&self) -> subxt::utils::AccountId32 {
-		subxt::utils::AccountId32::new([0u8; 32])
-	}
-
-	fn sign(&self, _payload: &[u8]) -> subxt::utils::MultiSignature {
-		subxt::utils::MultiSignature::from(subxt::utils::sr25519::Signature::from_raw([0u8; 64]))
-	}
 }

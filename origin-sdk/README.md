@@ -11,7 +11,8 @@ use origin_sdk::OriginClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = OriginClient::connect("ws://localhost:9944").await?;
+    let signer = MultiKeySigner::from_seed("//Alice", "")?;
+    let client = OriginClient::connect("ws://localhost:9944", signer).await?;
     let _ = client.view().call::<origin_sdk::types::EntityStateView>("Entity", "overview", ()).await;
     Ok(())
 }

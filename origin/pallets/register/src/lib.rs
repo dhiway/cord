@@ -51,9 +51,7 @@ use origin_primitives::{
 		AuthorizationError,
 	},
 	identifier::Ss58Identifier,
-	packet::{
-		PacketPointer, PacketStateView, PacketStatus, PacketUpdateError,
-	},
+	packet::{PacketPointer, PacketStateView, PacketStatus, PacketUpdateError},
 	registry::{RegistryKind, RegistryPermissions, RegistryStateView, RegistryStatus},
 	Signature,
 };
