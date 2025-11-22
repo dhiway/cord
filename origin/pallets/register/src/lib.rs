@@ -27,8 +27,9 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-mod packet;
+pub mod packet;
 pub mod register;
+pub mod view;
 pub mod weights;
 
 extern crate alloc;
@@ -50,17 +51,17 @@ use origin_primitives::{
 		AuthorizationError,
 	},
 	identifier::Ss58Identifier,
-	packet::{PacketPointer, PacketStatus, PacketUpdateError},
-	registry::{RegistryKind, RegistryPermissions, RegistryStatus},
+	packet::{
+		PacketPointer, PacketStateView, PacketStatus, PacketUpdateError,
+	},
+	registry::{RegistryKind, RegistryPermissions, RegistryStateView, RegistryStatus},
 	Signature,
 };
 pub use packet::{
 	attributes_digest, AttributePairsOf, LookupDigestOf, PacketAttributesOf, PacketDataOf,
-	PacketMetadataOf, PacketSnapshotOf, PacketStateOf, PacketStateView,
+	PacketMetadataOf, PacketSnapshotOf, PacketStateOf,
 };
-use register::{
-	AttributeFlags, AttributeSpec, LookupSpec, RegistryFieldError, RegistryInfo, RegistryStateView,
-};
+use register::{AttributeFlags, AttributeSpec, LookupSpec, RegistryFieldError, RegistryInfo};
 
 pub use pallet::*;
 use pallet_entity::EntityLookup;
@@ -91,8 +92,6 @@ pub type AuthorizationOf<T> = Authorization<T>;
 /// Registry info type alias for storage.
 pub type RegistryInfoOf<T> =
 	RegistryInfo<<T as Config>::MaxRawDataLength, <T as Config>::MaxAdditionalAttributes>;
-pub type RegistryStateViewOf<T> = RegistryStateView<RegistryInfoOf<T>, LookupSpecListOf<T>>;
-pub type PacketStateViewOf<T> = PacketStateView<PacketSnapshotOf<T>>;
 
 pub trait RegistryView<T: Config> {
 	fn registry_info(registry_id: &Ss58Identifier) -> Option<RegistryInfoOf<T>>;
@@ -665,7 +664,7 @@ pub mod pallet {
 			}
 
 			let version: u32 = 1;
-			let attributes_hash = packet::attributes_digest::<T>(&packet_attributes);
+			let digest = packet::attributes_digest::<T>(&packet_attributes);
 			let pointer =
 				PacketPointer { registry: registry.clone(), packet: packet_id.clone(), version };
 			let state = PacketStateOf::<T> {
@@ -673,7 +672,7 @@ pub mod pallet {
 				controller: delegate.clone(),
 				status: PacketStatus::Active,
 				version,
-				attributes_hash: attributes_hash.clone(),
+				digest: digest.clone(),
 				attributes: packet_attributes.clone(),
 			};
 
@@ -685,7 +684,7 @@ pub mod pallet {
 					controller: delegate.clone(),
 					status: PacketStatus::Active,
 					latest_version: version,
-					attributes_hash: attributes_hash.clone(),
+					digest: digest.clone(),
 				},
 			);
 
@@ -753,13 +752,13 @@ pub mod pallet {
 				&pointer,
 			)?;
 
-			let new_hash = packet::attributes_digest::<T>(&merged_attributes);
+			let new_digest = packet::attributes_digest::<T>(&merged_attributes);
 			let state = PacketStateOf::<T> {
 				registry: registry.clone(),
 				controller: delegate.clone(),
 				status: PacketStatus::Active,
 				version: new_version,
-				attributes_hash: new_hash.clone(),
+				digest: new_digest.clone(),
 				attributes: merged_attributes.clone(),
 			};
 
@@ -771,7 +770,7 @@ pub mod pallet {
 					controller: delegate.clone(),
 					status: PacketStatus::Active,
 					latest_version: new_version,
-					attributes_hash: new_hash.clone(),
+					digest: new_digest.clone(),
 				},
 			);
 
@@ -828,7 +827,7 @@ pub mod pallet {
 				controller: delegate.clone(),
 				status: PacketStatus::Revoked,
 				version: new_version,
-				attributes_hash: current_state.attributes_hash.clone(),
+				digest: current_state.digest.clone(),
 				attributes: current_state.attributes.clone(),
 			};
 
@@ -840,7 +839,7 @@ pub mod pallet {
 					controller: delegate.clone(),
 					status: PacketStatus::Revoked,
 					latest_version: new_version,
-					attributes_hash: current_state.attributes_hash.clone(),
+					digest: current_state.digest.clone(),
 				},
 			);
 
@@ -897,7 +896,7 @@ pub mod pallet {
 				controller: delegate.clone(),
 				status: PacketStatus::Active,
 				version: new_version,
-				attributes_hash: current_state.attributes_hash.clone(),
+				digest: current_state.digest.clone(),
 				attributes: current_state.attributes.clone(),
 			};
 
@@ -909,7 +908,7 @@ pub mod pallet {
 					controller: delegate.clone(),
 					status: PacketStatus::Active,
 					latest_version: new_version,
-					attributes_hash: current_state.attributes_hash.clone(),
+					digest: current_state.digest.clone(),
 				},
 			);
 
@@ -967,7 +966,7 @@ pub mod pallet {
 				controller: delegate.clone(),
 				status: PacketStatus::Deleted,
 				version: new_version,
-				attributes_hash: latest_state.attributes_hash.clone(),
+				digest: latest_state.digest.clone(),
 				attributes: latest_state.attributes.clone(),
 			};
 
@@ -979,7 +978,7 @@ pub mod pallet {
 					controller: delegate.clone(),
 					status: PacketStatus::Deleted,
 					latest_version: new_version,
-					attributes_hash: latest_state.attributes_hash.clone(),
+					digest: latest_state.digest.clone(),
 				},
 			);
 
@@ -1092,12 +1091,12 @@ pub mod pallet {
 			registry: Ss58Identifier,
 			packet: Ss58Identifier,
 			version: Option<u32>,
-		) -> Result<PacketStateViewOf<T>, AuthorizationError> {
+		) -> Result<PacketStateView, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			Self::get_registry_state_view(&registry)?;
-			let snapshot = Self::get_packet_state_view(&registry, &packet, version)?;
+			let snapshot = Self::get_packet_snapshot(&registry, &packet, version)?;
 			Self::record_registry_query(&registry, &auth.account);
-			Ok(PacketStateViewOf::<T> { registry, packet, snapshot })
+			Ok(view::build_packet_state_view::<T>(&packet, &snapshot))
 		}
 
 		/// Returns packet metadata only (lightweight).
@@ -1108,7 +1107,7 @@ pub mod pallet {
 		) -> Result<PacketMetadataOf<T>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let _info = Self::get_registry_state_view(&registry)?;
-			let _snapshot = Self::get_packet_state_view(&registry, &packet, None)?;
+			let _snapshot = Self::get_packet_snapshot(&registry, &packet, None)?;
 			let metadata = Packets::<T>::get(&packet).ok_or(AuthorizationError::NotFound)?;
 			if metadata.registry != registry {
 				return Err(AuthorizationError::NotFound);
@@ -1121,13 +1120,12 @@ pub mod pallet {
 		pub fn overview(
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
-		) -> Result<RegistryStateViewOf<T>, AuthorizationError> {
+		) -> Result<RegistryStateView, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let info = Self::get_registry_state_view(&registry)?;
-			let specs = <Self as RegistryView<T>>::lookup_specs(&registry)
-				.ok_or(AuthorizationError::NotFound)?;
+			let view = view::build_registry_state_view::<T>(&registry, &info);
 			Self::record_registry_query(&registry, &auth.account);
-			Ok(RegistryStateViewOf::<T> { registry, info, lookup_specs: specs })
+			Ok(view)
 		}
 
 		/// Returns a packet snapshot by token without requiring the registry identifier.
@@ -1135,7 +1133,7 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 			version: Option<u32>,
-		) -> Result<Option<PacketStateViewOf<T>>, AuthorizationError> {
+		) -> Result<Option<PacketStateView>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let snapshot_opt = Self::packet_state_unchecked(&token, version);
 
@@ -1145,11 +1143,8 @@ pub mod pallet {
 					return Err(AuthorizationError::InvalidInput);
 				}
 				Self::record_registry_query(&snapshot.state.registry, &auth.account);
-				return Ok(Some(PacketStateViewOf::<T> {
-					registry: snapshot.state.registry.clone(),
-					packet: token,
-					snapshot,
-				}));
+				let view = view::build_packet_state_view::<T>(&token, &snapshot);
+				return Ok(Some(view));
 			}
 
 			Ok(None)
@@ -1161,7 +1156,7 @@ pub mod pallet {
 			registry: Ss58Identifier,
 			digest: LookupDigestOf<T>,
 			version: Option<u32>,
-		) -> Result<PacketStateViewOf<T>, AuthorizationError> {
+		) -> Result<PacketStateView, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			Self::get_registry_state_view(&registry)?;
 			let anchor =
@@ -1169,10 +1164,10 @@ pub mod pallet {
 			let packet = anchor.pointer.packet.clone();
 			let target_version = version.unwrap_or(anchor.pointer.version);
 
-			let snap = Self::get_packet_state_view(&registry, &packet, Some(target_version))?;
+			let snap = Self::get_packet_snapshot(&registry, &packet, Some(target_version))?;
 			Self::record_registry_query(&registry, &auth.account);
 
-			Ok(PacketStateViewOf::<T> { registry, packet, snapshot: snap })
+			Ok(view::build_packet_state_view::<T>(&packet, &snap))
 		}
 
 		/// Returns packet snapshots matching the provided token prefix (or all when empty).
@@ -1280,7 +1275,7 @@ pub mod pallet {
 			});
 		}
 
-		fn get_packet_state_view(
+		fn get_packet_snapshot(
 			registry: &Ss58Identifier,
 			packet: &Ss58Identifier,
 			version: Option<u32>,
@@ -1348,7 +1343,7 @@ pub mod pallet {
 				state
 			};
 			let registry_info = Registries::<T>::get(registry)?;
-			Some(PacketSnapshotOf::<T>::from_state(&state, registry_info.status()))
+			Some(PacketSnapshotOf::<T> { state, registry_status: registry_info.status() })
 		}
 
 		fn registry_info_unchecked(registry: &Ss58Identifier) -> Option<RegistryInfoOf<T>> {

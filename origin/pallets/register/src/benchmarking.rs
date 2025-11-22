@@ -8,7 +8,7 @@ use alloc::vec;
 use frame_benchmarking::{v2::*, BenchmarkError};
 use frame_support::{ensure, traits::PalletInfoAccess};
 use frame_system::RawOrigin;
-use origin_primitives::packet::ElementType;
+use origin_primitives::element::ElementType;
 use pallet_entity::EntityTokenOfAccount;
 use sp_runtime::traits::Hash;
 
