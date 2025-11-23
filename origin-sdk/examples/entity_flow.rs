@@ -7,10 +7,10 @@ use origin_sdk::client::Signer;
 use origin_sdk::domain::Domain;
 use origin_sdk::types::identifiers::{account_to_ss58, ss58_to_string};
 use origin_sdk::{OriginClient, OriginSdkError};
+use rand::distributions::Uniform;
 use rand::{distributions::Alphanumeric, Rng};
 use scale_value::{Composite, Primitive, Value, ValueDef};
 use subxt::utils::AccountId32;
-use rand::distributions::Uniform;
 
 #[tokio::main]
 async fn main() -> Result<(), OriginSdkError> {
@@ -58,6 +58,31 @@ async fn ensure_entity_and_nym(
 		existing, account, storage_link
 	);
 	println!("Existing entity link (if any): {:?}", existing.as_ref().map(ss58_to_string));
+	if let Some(id) = existing.clone() {
+		println!("Attempting overview for {:?}", id);
+		// Fetch raw dynamic value for debugging
+		match client
+			.view()
+			.call_bytes("Entity", "overview", vec![id.encode(), Option::<u32>::None.encode()])
+			.await
+		{
+			Ok(bytes) => {
+				let preview: Vec<String> =
+					bytes.iter().take(24).map(|b| format!("{:02x}", b)).collect();
+				println!(
+					"overview raw bytes (len={}): {}{}",
+					bytes.len(),
+					preview.join(" "),
+					if bytes.len() > 24 { " ..." } else { "" }
+				);
+			},
+			Err(e) => println!("overview raw fetch error: {e}"),
+		}
+		match client.view().entity().overview(id.clone()).await {
+			Ok(view) => println!("Overview decode ok: display={:?} {:?}", view.info.display, view),
+			Err(e) => println!("Overview decode error: {e}"),
+		}
+	}
 	let mut created = false;
 	let entity = if let Some(id) = existing {
 		id
@@ -215,6 +240,7 @@ async fn fetch_linked_entity(
 	// 1) Try view path first
 	if let Ok(link) = client.view().entity().account_token(account.clone()).await {
 		if let Some(id) = link.clone() {
+			println!("view account_token returned: {:?}", id);
 			if client.entity().overview(id.clone()).await.is_ok() {
 				return Ok(Some(id));
 			}
