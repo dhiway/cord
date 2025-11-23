@@ -35,7 +35,7 @@ async fn main() -> Result<(), OriginSdkError> {
 	let mut rng = thread_rng();
 	let label = format!("{}-{:04}", &account_ss58[..6], rng.gen_range(0..9999));
 
-	// 2) Ensure the account has an entity token (create if missing) and nym.
+	// 2) Ensure the account has an entity token (create if missing), attributes, and nym.
 	let ensure = ensure_entity_and_nym(&client, &domain, account.clone(), &demo, &label).await?;
 	let entity_id = ensure.entity;
 	let entity_id_str = ss58_to_string(&entity_id);
@@ -144,6 +144,30 @@ async fn ensure_entity_and_nym(
 		nym_set = true;
 	} else {
 		println!("Nym already set: {:?}", current_nym.as_ref().map(|n| String::from_utf8_lossy(n)));
+	}
+
+	// Add or rotate attributes based on template.
+	let overview = domain.entity().overview(entity.clone()).await?;
+	let existing_keys: std::collections::HashSet<Vec<u8>> = overview
+		.info
+		.attributes
+		.unwrap_or_default()
+		.into_iter()
+		.map(|a| a.key)
+		.collect();
+
+	let all_ops = build_attribute_ops(&demo.entity, label, Some(&entity), &account);
+	let (rotate_ops, add_ops): (Vec<_>, Vec<_>) = all_ops
+		.into_iter()
+		.partition(|(k, _)| existing_keys.contains(k));
+
+	if !add_ops.is_empty() {
+		let args = vec![attrs_to_value(&add_ops)];
+		let _ = submit_logged(client, "Entity", "add_attributes", args).await?;
+	}
+	if !rotate_ops.is_empty() {
+		let args = vec![attrs_to_value(&rotate_ops)];
+		let _ = submit_logged(client, "Entity", "rotate_attributes", args).await?;
 	}
 
 	Ok(EnsureResult { entity, created, nym_set })
@@ -288,24 +312,16 @@ fn element_from_str(s: &str) -> Value {
 	Value::variant("Raw", Composite::Unnamed(vec![Value::from_bytes(s.as_bytes())]))
 }
 
-fn build_attributes(
+fn build_attribute_ops(
 	tpl: &EntityTemplate,
 	label: &str,
 	entity_token_opt: Option<&Ss58Identifier>,
 	account: &AccountId32,
-) -> Value {
-	if tpl.attributes.is_empty() {
-		return Value::variant("None", Composite::Unnamed(vec![]));
-	}
-	let mut entries = Vec::new();
-	for attr in &tpl.attributes {
-		let key = render_attr_key(attr, label);
-		let ev = build_element(attr, label, entity_token_opt, account);
-		// BTreeMap encoded as Vec<(key, value)>
-		let pair = Value::unnamed_composite(vec![Value::from_bytes(key.as_bytes()), ev]);
-		entries.push(pair);
-	}
-	Value::variant("Some", Composite::Unnamed(vec![Value::from(entries)]))
+) -> Vec<(Vec<u8>, Value)> {
+	tpl.attributes
+		.iter()
+		.map(|attr| (render_attr_key(attr, label).into_bytes(), build_element(attr, label, entity_token_opt, account)))
+		.collect()
 }
 
 fn build_element(
@@ -368,6 +384,14 @@ fn build_element(
 
 fn v_u8(b: u8) -> Value {
 	Value::u128(b as u128)
+}
+
+fn attrs_to_value(entries: &[(Vec<u8>, Value)]) -> Value {
+	let pairs: Vec<Value> = entries
+		.iter()
+		.map(|(k, v)| Value::unnamed_composite(vec![Value::from_bytes(k), v.clone()]))
+		.collect();
+	Value::from(pairs)
 }
 fn random_label(prefix: &str) -> String {
 	let mut rng = rand::thread_rng();
