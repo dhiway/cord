@@ -4,8 +4,8 @@ use scale_value::Value;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-	let signer = MultiKeySigner::from_seed("//Alice", "")?;
-	let client = OriginClient::connect("ws://localhost:9944", signer.clone()).await?;
+	let signer = MultiKeySigner::from_seed("//Alice")?;
+	let client = OriginClient::connect("ws://localhost:9944").await?.with_signer(signer.clone());
 
 	let call1 = DynamicCallBuilder::new().call(
 		"Entity",
@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		],
 	);
 
-	let outcome = client.tx().batch().call(call1).call(call2).submit_and_wait_finalized().await?;
+	let outcome = client.tx()?.batch().call(call1).call(call2).submit_and_wait_finalized().await?;
 	println!("Batch submitted in block {:?} hash {:?}", outcome.block, outcome.hash);
 	Ok(())
 }

@@ -1,17 +1,14 @@
 use codec::Decode;
 use scale_info::TypeDef;
-use subxt::Metadata;
 use std::fs;
+use subxt::Metadata;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let path = "origin-rs/metadata/origin-hub.scale";
 	let bytes = fs::read(path)?;
 	let mut cursor: &[u8] = &bytes;
 	let metadata = Metadata::decode(&mut cursor)?;
-	let entity = metadata
-		.pallets()
-		.find(|p| p.name() == "Entity")
-		.expect("pallet Entity");
+	let entity = metadata.pallets().find(|p| p.name() == "Entity").expect("pallet Entity");
 	for vf in entity.view_functions() {
 		if vf.name() == "overview" {
 			println!("Entity::overview");

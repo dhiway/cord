@@ -3,17 +3,32 @@
 Dynamic Subxt SDK focused on view-only reads and async, event-driven extrinsics for Origin runtimes.
 
 ## Status
-Initial scaffold following the modernization plan (view-only API, dynamic calls, nonce queue, batch + meta-tx hooks). Implementations are stubbed and ready for iterative build-out.
+Async, view-first Subxt SDK with dynamic calls, signer-agnostic connection, nonce queue, batch + meta-tx helpers.
 
 ## Quickstart
 ```rust
 use origin_sdk::OriginClient;
+use origin_sdk::client::signer::MultiKeySigner;
+use origin_primitives::Ss58Identifier;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let signer = MultiKeySigner::from_seed("//Alice", "")?;
-    let client = OriginClient::connect("ws://localhost:9944", signer).await?;
-    let _ = client.view().call::<origin_sdk::types::EntityStateView>("Entity", "overview", ()).await;
+    let signer = MultiKeySigner::from_seed("//Alice")?;
+    let client = OriginClient::connect("ws://localhost:9944").await?.with_signer(signer);
+
+    let entity_id = Ss58Identifier::try_from("5FLSigC9H8J9tDFkhiBSGAL7iFusJqSQuJtVUXwwc7G7R6nW")?;
+
+    // Pure view call, no storage RPC
+    let entity = client.query().entity().overview(entity_id).await?;
+
+    // One-liner extrinsic
+    client
+        .query()
+        .entity()
+        .tx()
+        .submit_rotate_attribute(entity_id, b"email", scale_value::Value::from_bytes(b"a@b.c"))
+        .await?;
+
     Ok(())
 }
 ```
