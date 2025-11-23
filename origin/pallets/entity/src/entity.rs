@@ -26,11 +26,11 @@ use frame_support::{
 };
 use origin_primitives::{
 	attribute::{Attribute, AttributeValueView, Attributes, AttributesError, Element},
+	element::ElementView,
 	entity::{
 		AccountUnbindEntryView, AttributeHistoryEntryView, EntityInfoView, EntityStateView,
 		EventBlockView,
 	},
-	element::ElementView,
 	packet::{PacketInformationProvider, PacketUpdateError, PacketUpdateOp},
 };
 use scale_info::{build::Variants, Path, Type, TypeInfo};

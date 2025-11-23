@@ -53,11 +53,11 @@ use origin_primitives::{
 		ensure_authorization_ttl, extract_valid_until, Authorization as ViewAuthorization,
 		AuthorizationError,
 	},
+	element::ElementView,
 	entity::{
 		AccountUnbindEntryView, AttributeHistoryEntryView, EntityInfoView, EntityStateView,
 		EventBlockView,
 	},
-	element::ElementView,
 	identifier::Ss58Identifier,
 	packet::{PacketInformationProvider, PacketUpdateError, PacketUpdateOp},
 	Signature,
@@ -790,14 +790,15 @@ pub mod pallet {
 	where
 		T::AccountId: Clone + Into<AccountId32>,
 	{
+
 		/// Return the entity info
 		pub fn details(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
-		) -> Result<EntityInfoView, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_account_query(&auth)?;
 			let info = EntityInfoOf::<T>::get(&token).ok_or(AuthorizationError::NotFound)?;
-			Ok(Self::entity_info_view(&info))
+			Self::encode_ok(Self::entity_info_view(&info))
 		}
 
 		/// Resolve the entity token bound to the supplied account.
@@ -816,32 +817,35 @@ pub mod pallet {
 		pub fn linked_accounts(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
-		) -> Result<Vec<T::AccountId>, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_account_query(&auth)?;
-			Ok(LinkedAccounts::<T>::get(&token).into_inner())
+			Self::encode_ok(LinkedAccounts::<T>::get(&token).into_inner())
 		}
 
 		/// Controller account for the supplied entity token.
 		pub fn controller_account(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
-		) -> Result<T::AccountId, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_account_query(&auth)?;
-			ControllerAccountOf::<T>::get(&token).ok_or(AuthorizationError::NotFound)
+			let acct = ControllerAccountOf::<T>::get(&token).ok_or(AuthorizationError::NotFound)?;
+			Self::encode_ok(acct)
 		}
 
 		/// Historical unbind events (account + block) for this token.
 		pub fn account_history(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
-		) -> Result<Vec<AccountUnbindEntryView<T::AccountId>>, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_account_query(&auth)?;
-			Ok(AccountUnbindHistory::<T>::iter_prefix(&token)
-				.map(|(account, block)| AccountUnbindEntryView {
-					account,
-					block: EventBlockView { height: block.height, index: block.index },
-				})
-				.collect())
+			let entries: Vec<AccountUnbindEntryView<T::AccountId>> =
+				AccountUnbindHistory::<T>::iter_prefix(&token)
+					.map(|(account, block)| AccountUnbindEntryView {
+						account,
+						block: EventBlockView { height: block.height, index: block.index },
+					})
+					.collect();
+			Self::encode_ok(entries)
 		}
 
 		/// Entity nym (e.g. `foo.nym.org.in`) as raw bytes.
@@ -860,7 +864,7 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 			history_limit: Option<u32>,
-		) -> Result<EntityStateView<T::AccountId>, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_account_query(&auth)?;
 			let info = EntityInfoOf::<T>::get(&token).ok_or(AuthorizationError::NotFound)?;
 			let entity_info_view = Self::entity_info_view(&info);
@@ -888,7 +892,7 @@ pub mod pallet {
 			});
 			history.truncate(hist_len);
 
-			Ok(EntityStateView {
+			Self::encode_ok(EntityStateView {
 				info: entity_info_view,
 				nym,
 				linked_accounts: linked_accounts.into_inner(),
@@ -901,28 +905,28 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 			key: Attribute,
-		) -> Result<u64, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_account_query(&auth)?;
-			Ok(AttributeVersionOf::<T>::get(&token, key))
+			Self::encode_ok(AttributeVersionOf::<T>::get(&token, key))
 		}
 
 		/// All attribute versions as (key, version) pairs.
 		pub fn attribute_versions(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
-		) -> Result<Vec<(Vec<u8>, u64)>, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_account_query(&auth)?;
-			let entries = AttributeVersionOf::<T>::iter_prefix(&token)
+			let entries: Vec<(Vec<u8>, u64)> = AttributeVersionOf::<T>::iter_prefix(&token)
 				.map(|(attribute, version)| (attribute.into_inner(), version))
 				.collect();
-			Ok(entries)
+			Self::encode_ok(entries)
 		}
 
 		/// Full attribute history across all keys.
 		pub fn attribute_history(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
-		) -> Result<Vec<AttributeHistoryEntryView>, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_account_query(&auth)?;
 
 			let mut rows: Vec<AttributeHistoryEntryView> =
@@ -939,7 +943,7 @@ pub mod pallet {
 			rows.sort_by(|a, b| {
 				(b.block.height, b.block.index).cmp(&(a.block.height, a.block.index))
 			});
-			Ok(rows)
+			Self::encode_ok(rows)
 		}
 
 		/// History for a single attribute key.
@@ -947,7 +951,7 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 			key: Attribute,
-		) -> Result<Vec<AttributeHistoryEntryView>, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_account_query(&auth)?;
 			let key_bytes = key.into_inner();
 
@@ -965,7 +969,7 @@ pub mod pallet {
 			rows.sort_by(|a, b| {
 				(b.block.height, b.block.index).cmp(&(a.block.height, a.block.index))
 			});
-			Ok(rows)
+			Self::encode_ok(rows)
 		}
 
 		/// Single history entry for a specific key + version.
@@ -974,7 +978,7 @@ pub mod pallet {
 			token: Ss58Identifier,
 			key: Attribute,
 			version: u64,
-		) -> Result<AttributeHistoryEntryView, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_account_query(&auth)?;
 			let key_bytes = key.into_inner();
 
@@ -982,7 +986,7 @@ pub mod pallet {
 				crate::Pallet::<T>::attribute_history_entry_plain(&token, &key_bytes, version)
 					.ok_or(AuthorizationError::NotFound)?;
 
-			Ok(AttributeHistoryEntryView {
+			Self::encode_ok(AttributeHistoryEntryView {
 				key: key_bytes,
 				version,
 				old_value: old,
@@ -993,6 +997,11 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	#[inline]
+	fn encode_ok<V: Encode>(value: V) -> Result<Vec<u8>, AuthorizationError> {
+		Ok(value.encode())
+	}
+
 	/// Returns `true` if the supplied origin is signed by an approved feeless account.
 	pub fn is_origin_feeless(origin: &OriginFor<T>) -> bool {
 		origin.caller().as_signed().map(T::Feeless::is_feeless).unwrap_or(false)

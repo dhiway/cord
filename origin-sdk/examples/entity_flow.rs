@@ -1,21 +1,28 @@
 //! Entity flow demo: ensure an entity exists, set/rotate info, ensure nym, then print overview.
 use codec::{Decode, Encode};
-use origin_primitives::Ss58Identifier;
+use hex;
+use origin_primitives::{element::ElementView, Ss58Identifier};
 use origin_sdk::client::signer::MultiKeySigner;
 use origin_sdk::client::submit::TxOutcome;
 use origin_sdk::client::Signer;
 use origin_sdk::domain::Domain;
 use origin_sdk::types::identifiers::{account_to_ss58, ss58_to_string};
+use origin_sdk::types::EntityStateView;
 use origin_sdk::{OriginClient, OriginSdkError};
 use rand::distributions::Uniform;
+use rand::thread_rng;
 use rand::{distributions::Alphanumeric, Rng};
 use scale_value::{Composite, Primitive, Value, ValueDef};
+use serde::Deserialize;
+use sp_core::hashing::blake2_256;
+use std::fmt::Write;
+use std::fs;
 use subxt::utils::AccountId32;
 
 #[tokio::main]
 async fn main() -> Result<(), OriginSdkError> {
-	// 1) Simple client init with sr25519 signer.
-	let signer = MultiKeySigner::from_seed("//Bob", "")
+	// 1) Simple client init with sr25519 signer (Alice is funded on dev chains).
+	let signer = MultiKeySigner::from_seed("//Alice", "")
 		.map_err(|e| OriginSdkError::InvalidInput(e.to_string()))?;
 	let client = OriginClient::connect("ws://localhost:9910", signer.clone()).await?;
 	let domain = Domain::new(&client);
@@ -23,8 +30,13 @@ async fn main() -> Result<(), OriginSdkError> {
 	let account_ss58 = account_to_ss58(&account, 29);
 	println!("Using signer account: {:?} ({})", account, account_ss58);
 
+	// Load demo templates.
+	let demo = load_demo_templates("origin-sdk/examples/sample_data/demo.json")?;
+	let mut rng = thread_rng();
+	let label = format!("{}-{:04}", &account_ss58[..6], rng.gen_range(0..9999));
+
 	// 2) Ensure the account has an entity token (create if missing) and nym.
-	let ensure = ensure_entity_and_nym(&client, &domain, account.clone()).await?;
+	let ensure = ensure_entity_and_nym(&client, &domain, account.clone(), &demo, &label).await?;
 	let entity_id = ensure.entity;
 	let entity_id_str = ss58_to_string(&entity_id);
 	println!(
@@ -32,9 +44,10 @@ async fn main() -> Result<(), OriginSdkError> {
 		account_ss58, ensure.created, ensure.nym_set, entity_id_str
 	);
 
-	// 3) Fetch the latest overview via a pure view call (no storage RPCs).
-	let overview = domain.entity().overview(entity_id).await?;
-	println!("Entity overview: {:?}", overview);
+	// 3) Fetch the latest overview via a pure view call (no storage RPCs) and render nicely.
+	let overview = client.entity().overview(entity_id).await?;
+	println!("\n===== Entity Overview =====");
+	render_overview(&overview, &account_ss58);
 
 	Ok(())
 }
@@ -50,6 +63,8 @@ async fn ensure_entity_and_nym(
 	client: &OriginClient,
 	domain: &Domain<'_>,
 	account: AccountId32,
+	demo: &DemoData,
+	label: &str,
 ) -> Result<EnsureResult, OriginSdkError> {
 	let storage_link = fetch_linked_entity_storage(client, &account).await?;
 	let existing = fetch_linked_entity(client, &account).await?;
@@ -85,17 +100,14 @@ async fn ensure_entity_and_nym(
 	}
 	let mut created = false;
 	let entity = if let Some(id) = existing {
+		// Reuse existing; do not call set_info again.
 		id
 	} else {
-		let info = demo_entity_info();
+		let info = build_entity_info(demo, label, None, &account);
 		let call = client.call().call("Entity", "set_info", vec![info]);
-		match client
-			.tx()
-			.submit(&call.pallet, &call.function, call.args)
-			.await?
-			.wait_finalized()
-			.await
-		{
+		println!("Submitting set_info with args count {}", call.args.len());
+		log_call_bytes("Entity", "set_info", &call.args);
+		match submit_logged(client, &call.pallet, &call.function, call.args).await {
 			Ok(outcome) => {
 				created = true;
 				let token = extract_entity_token(&outcome)
@@ -123,19 +135,15 @@ async fn ensure_entity_and_nym(
 
 	// Ensure nym is set.
 	let current_nym = domain.entity().nym(entity.clone()).await?;
+	let current_nym = current_nym.filter(|n| !n.is_empty() && n != b"\x01\x01");
 	let mut nym_set = current_nym.is_some();
 	if current_nym.is_none() {
-		let prefix = random_nym_prefix();
+		let prefix = random_nym_prefix(label);
 		let outcome = submit_set_entity_nym_retry(domain, &prefix).await?;
 		println!("set_entity_nym finalized in block {:?}, hash {:?}", outcome.block, outcome.hash);
 		nym_set = true;
-	}
-
-	// Rotate attributes/info to demonstrate updates.
-	if created {
-		let rotated_info = demo_entity_info();
-		let outcome = domain.entity().tx().submit_set_info(rotated_info).await?;
-		println!("set_info finalized in block {:?}, hash {:?}", outcome.block, outcome.hash);
+	} else {
+		println!("Nym already set: {:?}", current_nym.as_ref().map(|n| String::from_utf8_lossy(n)));
 	}
 
 	Ok(EnsureResult { entity, created, nym_set })
@@ -162,19 +170,78 @@ async fn submit_set_entity_nym_retry(
 	}
 }
 
-/// Build a minimal EntityInfo payload using dynamic Value.
-fn demo_entity_info() -> Value {
-	let none = Value::variant("None", Composite::Unnamed(vec![]));
-	let raw =
-		|bytes: &[u8]| Value::variant("Raw", Composite::Unnamed(vec![Value::from_bytes(bytes)]));
-	let label = random_label("entity");
-	let email = format!("{}@example.com", label);
+/// Demo JSON templates
+#[derive(Debug, Deserialize)]
+struct DemoData {
+	entity: EntityTemplate,
+}
+
+#[derive(Debug, Deserialize)]
+struct EntityTemplate {
+	display: String,
+	web: String,
+	email: String,
+	attributes: Vec<AttrTemplate>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AttrTemplate {
+	key: String,
+	#[serde(rename = "type")]
+	kind: String,
+	template: Option<String>,
+	value: Option<serde_json::Value>,
+	source: Option<String>,
+}
+
+fn load_demo_templates(path: &str) -> Result<DemoData, OriginSdkError> {
+	let bytes =
+		fs::read(path).map_err(|e| OriginSdkError::InvalidInput(format!("read {path}: {e}")))?;
+	serde_json::from_slice(&bytes)
+		.map_err(|e| OriginSdkError::InvalidInput(format!("parse {path}: {e}")))
+}
+
+/// Build EntityInfo payload from templates, substituting {label}.
+fn build_entity_info(
+	demo: &DemoData,
+	label: &str,
+	entity_token_opt: Option<&Ss58Identifier>,
+	account: &AccountId32,
+) -> Value {
+	let tpl = &demo.entity;
 	Value::named_composite(vec![
-		("display".to_owned(), raw(label.as_bytes())),
-		("web".to_owned(), none.clone()),
-		("email".to_owned(), raw(email.as_bytes())),
-		("attributes".to_owned(), none),
+		("display".to_owned(), element_from_str(&tpl.display.replace("{label}", label))),
+		("web".to_owned(), element_from_str(&tpl.web.replace("{label}", label))),
+		("email".to_owned(), element_from_str(&tpl.email.replace("{label}", label))),
+		// For reliability keep attributes empty; toggle to build_attributes if needed.
+		("attributes".to_owned(), Value::variant("None", Composite::Unnamed(vec![]))),
 	])
+}
+
+fn render_attr_string(
+	attr: &AttrTemplate,
+	label: &str,
+	entity_token_opt: Option<&Ss58Identifier>,
+	account: &AccountId32,
+) -> String {
+	if let Some(tpl) = &attr.template {
+		let mut s = tpl.replace("{label}", label);
+		if s.contains("{entity}") {
+			if let Some(tok) = entity_token_opt {
+				s = s.replace("{entity}", &ss58_to_string(tok));
+			}
+		}
+		if s.contains("{account}") {
+			s = s.replace("{account}", &account_to_ss58(account, 29));
+		}
+		return s;
+	}
+	if let Some(val) = &attr.value {
+		if let Some(s) = val.as_str() {
+			return s.to_string();
+		}
+	}
+	format!("{label}-{}", random_label("attr"))
 }
 
 /// Extract the newly issued entity token from EntityInfoSet event fields.
@@ -213,6 +280,95 @@ fn value_to_ss58(value: &scale_value::Value) -> Option<Ss58Identifier> {
 	}
 }
 
+fn render_attr_key(attr: &AttrTemplate, label: &str) -> String {
+	attr.key.replace("{label}", label)
+}
+
+fn element_from_str(s: &str) -> Value {
+	Value::variant("Raw", Composite::Unnamed(vec![Value::from_bytes(s.as_bytes())]))
+}
+
+fn build_attributes(
+	tpl: &EntityTemplate,
+	label: &str,
+	entity_token_opt: Option<&Ss58Identifier>,
+	account: &AccountId32,
+) -> Value {
+	if tpl.attributes.is_empty() {
+		return Value::variant("None", Composite::Unnamed(vec![]));
+	}
+	let mut entries = Vec::new();
+	for attr in &tpl.attributes {
+		let key = render_attr_key(attr, label);
+		let ev = build_element(attr, label, entity_token_opt, account);
+		// BTreeMap encoded as Vec<(key, value)>
+		let pair = Value::unnamed_composite(vec![Value::from_bytes(key.as_bytes()), ev]);
+		entries.push(pair);
+	}
+	Value::variant("Some", Composite::Unnamed(vec![Value::from(entries)]))
+}
+
+fn build_element(
+	attr: &AttrTemplate,
+	label: &str,
+	entity_token_opt: Option<&Ss58Identifier>,
+	account: &AccountId32,
+) -> Value {
+	match attr.kind.as_str() {
+		"none" => Value::variant("None", Composite::Unnamed(vec![])),
+		"raw" => {
+			let s = render_attr_string(attr, label, entity_token_opt, account);
+			Value::variant("Raw", Composite::Unnamed(vec![Value::from_bytes(s.as_bytes())]))
+		},
+		"bool" => {
+			let v = attr.value.as_ref().and_then(|v| v.as_bool()).unwrap_or(true);
+			let b: u8 = if v { 1 } else { 0 };
+			Value::variant("Bool", Composite::Unnamed(vec![v_u8(b)]))
+		},
+		"u64" => {
+			let v = attr.value.as_ref().and_then(|v| v.as_u64()).unwrap_or(42);
+			let bytes = v.to_le_bytes();
+			let array_vals = bytes.iter().copied().map(v_u8).collect::<Vec<_>>();
+			Value::variant("U64", Composite::Unnamed(vec![Value::unnamed_composite(array_vals)]))
+		},
+		"u128" => {
+			let v_str = attr
+				.value
+				.as_ref()
+				.and_then(|v| v.as_str().map(|s| s.to_string()))
+				.unwrap_or_else(|| "1000".into());
+			let v: u128 = v_str.parse().unwrap_or(1000);
+			let bytes = v.to_le_bytes();
+			let array_vals = bytes.iter().copied().map(v_u8).collect::<Vec<_>>();
+			Value::variant("U128", Composite::Unnamed(vec![Value::unnamed_composite(array_vals)]))
+		},
+		"hash" => {
+			let s = render_attr_string(attr, label, entity_token_opt, account);
+			let digest = blake2_256(s.as_bytes());
+			let array_vals = digest.iter().copied().map(v_u8).collect::<Vec<_>>();
+			Value::variant("Hash", Composite::Unnamed(vec![Value::unnamed_composite(array_vals)]))
+		},
+		"token" => {
+			let source = attr.source.as_deref().unwrap_or("account");
+			let token_bytes = match source {
+				"entity" => entity_token_opt
+					.map(|t| t.as_ref().to_vec())
+					.unwrap_or_else(|| account.0.to_vec()),
+				_ => account.0.to_vec(),
+			};
+			Value::variant("Token", Composite::Unnamed(vec![Value::from_bytes(&token_bytes)]))
+		},
+		"cid" => {
+			let s = render_attr_string(attr, label, entity_token_opt, account);
+			Value::variant("CID", Composite::Unnamed(vec![Value::from_bytes(s.as_bytes())]))
+		},
+		_ => Value::variant("None", Composite::Unnamed(vec![])),
+	}
+}
+
+fn v_u8(b: u8) -> Value {
+	Value::u128(b as u128)
+}
 fn random_label(prefix: &str) -> String {
 	let mut rng = rand::thread_rng();
 	let suffix: String = (0..6).map(|_| rng.sample(Alphanumeric) as char).collect();
@@ -220,16 +376,67 @@ fn random_label(prefix: &str) -> String {
 }
 
 /// Generate a nym prefix that passes pallet validation: lowercase a-z0-9, no dots, length small.
-fn random_nym_prefix() -> String {
+fn random_nym_prefix(seed: &str) -> String {
 	let mut rng = rand::thread_rng();
 	let charset = b"abcdefghijklmnopqrstuvwxyz0123456789";
 	let dist = Uniform::from(0..charset.len());
-	let len = 8; // safe against MaxEntityNymLength once suffix is added
-	let mut s = String::with_capacity(len);
-	for _ in 0..len {
-		s.push(char::from(charset[rng.sample(dist)]));
+	// Pallet appends ".nym.org.in" (12 chars). MaxEntityNymLength is 32, so keep prefix <= 20.
+	// Allow up to 6 chars from seed + 8 random = 14 (safe).
+	let rand_len = 8usize;
+	let mut rand_part = String::with_capacity(rand_len);
+	for _ in 0..rand_len {
+		rand_part.push(char::from(charset[rng.sample(dist)]));
 	}
-	s
+	let seed_part: String = seed
+		.chars()
+		.filter(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+		.take(6)
+		.collect();
+	if seed_part.is_empty() {
+		rand_part
+	} else {
+		format!("{seed_part}{rand_part}")
+	}
+}
+
+async fn submit_logged(
+	client: &OriginClient,
+	pallet: &str,
+	function: &str,
+	args: Vec<scale_value::Value>,
+) -> Result<TxOutcome, OriginSdkError> {
+	log_call_bytes(pallet, function, &args);
+	let outcome = client.tx().submit(pallet, function, args).await?.wait_finalized().await;
+	if let Ok(ref out) = outcome {
+		println!("{}::{} finalized in block {:?}, hash {:?}", pallet, function, out.block, out.hash);
+	}
+	if let Err(ref e) = outcome {
+		println!("{}::{} failed: {}", pallet, function, e);
+	}
+	outcome
+}
+
+fn log_call_bytes(pallet: &str, function: &str, args: &[scale_value::Value]) {
+	let previews: Vec<_> = args
+		.iter()
+		.enumerate()
+		.map(|(i, v)| format!("#{} {:?}", i, v))
+		.collect();
+	println!("Call {}::{} args: {}", pallet, function, previews.join(" | "));
+}
+
+fn hex_preview(data: &[u8], n: usize) -> String {
+	let mut out = String::new();
+	for (i, b) in data.iter().take(n).enumerate() {
+		if i > 0 {
+			out.push(' ');
+		}
+		write!(&mut out, "{:02x}", b).ok();
+	}
+	if data.len() > n {
+		out.push_str(" ...");
+	}
+	out
 }
 
 /// Fetch account->entity link and verify it resolves via overview; otherwise fall back to storage.
@@ -295,4 +502,77 @@ async fn fetch_linked_entity_storage(
 		return Ok(Some(id));
 	}
 	Ok(None)
+}
+
+/// Pretty print the overview with a friendly CLI layout.
+fn render_overview(view: &EntityStateView, account_ss58: &str) {
+	let mut out = String::new();
+	writeln!(
+		&mut out,
+		"Owner: {}\nNym: {}\nLinked accounts: {}",
+		account_ss58,
+		view.nym
+			.as_ref()
+			.map(|n| String::from_utf8_lossy(n))
+			.unwrap_or_else(|| "-".into()),
+		view.linked_accounts.len()
+	)
+	.ok();
+
+	writeln!(&mut out, "\nInfo:").ok();
+	writeln!(
+		&mut out,
+		"  display : {}\n  web     : {}\n  email   : {}",
+		format_element(&view.info.display),
+		format_element(&view.info.web),
+		format_element(&view.info.email)
+	)
+	.ok();
+	if let Some(attrs) = &view.info.attributes {
+		if !attrs.is_empty() {
+			writeln!(&mut out, "  attributes:").ok();
+			for attr in attrs {
+				writeln!(
+					&mut out,
+					"    - {} = {}",
+					String::from_utf8_lossy(&attr.key),
+					format_element(&attr.value)
+				)
+				.ok();
+			}
+		}
+	}
+
+	if !view.history.is_empty() {
+		writeln!(&mut out, "\nRecent attribute history (latest {}):", view.history.len()).ok();
+		for h in &view.history {
+			writeln!(
+				&mut out,
+				"  • {}@v{} <- {} (block {}:{})",
+				String::from_utf8_lossy(&h.key),
+				h.version,
+				String::from_utf8_lossy(&h.old_value),
+				h.block.height,
+				h.block.index
+			)
+			.ok();
+		}
+	}
+
+	println!("{out}");
+}
+
+fn format_element(el: &ElementView) -> String {
+	match el {
+		ElementView::None => "-".into(),
+		ElementView::Raw(bytes) => {
+			String::from_utf8(bytes.clone()).unwrap_or_else(|_| hex::encode(bytes))
+		},
+		ElementView::Bool(b) => format!("{b}"),
+		ElementView::U64(v) => format!("{v}"),
+		ElementView::U128(v) => format!("{v}"),
+		ElementView::Hash(h) => format!("0x{}", hex::encode(h)),
+		ElementView::Token(t) => ss58_to_string(t),
+		ElementView::Cid(c) => String::from_utf8(c.clone()).unwrap_or_else(|_| hex::encode(c)),
+	}
 }

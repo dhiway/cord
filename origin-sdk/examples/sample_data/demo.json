@@ -2,11 +2,17 @@
   "entity": {
     "display": "CORD showcase for {label}",
     "web": "https://{label}.cord.dev/demo",
-    "email": "ops@cord.dev",
-    "attributes": {
-      "support": "support@cord.dev",
-      "website": "https://{label}.cord.dev"
-    }
+    "email": "ops@{label}.cord.dev",
+    "attributes": [
+      { "key": "hero", "type": "raw", "template": "Hello from {label}!" },
+      { "key": "published", "type": "bool", "value": true },
+      { "key": "score", "type": "u64", "value": 4242 },
+      { "key": "supply", "type": "u128", "value": "1000000000000" },
+      { "key": "fingerprint", "type": "hash", "template": "hash::{label}" },
+      { "key": "controller", "type": "token", "source": "account" },
+      { "key": "cid", "type": "cid", "template": "ipfs://demo/{label}" },
+      { "key": "notes", "type": "none" }
+    ]
   },
   "registry": {
     "info": "CORD registry for {label}",
