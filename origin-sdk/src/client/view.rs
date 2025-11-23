@@ -9,7 +9,6 @@ use crate::types::error::OriginSdkError;
 use crate::util::retry::RetryPolicy;
 use codec::{Decode, Encode};
 use origin_primitives::authorization::AuthorizationError;
-use scale_value::{Composite as SvComposite, Primitive as SvPrimitive, ValueDef};
 use sp_core::hashing::twox_128;
 use sp_runtime::traits::SaturatedConversion;
 use subxt::utils::AccountId32;
@@ -24,11 +23,11 @@ type Auth = origin_primitives::Authorization<
 #[derive(Clone)]
 pub struct ViewClient {
 	connection: Arc<Connection>,
-	signer: Arc<dyn Signer>,
+	signer: Option<Arc<dyn Signer>>,
 }
 
 impl ViewClient {
-	pub(crate) fn new(connection: Arc<Connection>, signer: Arc<dyn Signer>) -> Self {
+	pub(crate) fn new(connection: Arc<Connection>, signer: Option<Arc<dyn Signer>>) -> Self {
 		Self { connection, signer }
 	}
 
@@ -125,7 +124,6 @@ impl ViewClient {
 				async move {
 					let thunk = Self::call_value_inner(&connection, payload).await?;
 					let bytes = thunk.into_encoded();
-					println!("Result Bytes (if any): {:?}", bytes);
 					T::decode(&mut &bytes[..]).map_err(|e| OriginSdkError::Decode(e.to_string()))
 				}
 			})
@@ -203,197 +201,6 @@ impl ViewClient {
 		}
 	}
 
-	// /// Invoke a pallet view function dynamically and decode via metadata.
-	// pub async fn call<T: Decode>(
-	// 	&self,
-	// 	pallet: &str,
-	// 	function: &str,
-	// 	raw_args: Vec<Vec<u8>>,
-	// ) -> Result<T, OriginSdkError> {
-	// 	let backoff = RetryPolicy::default();
-	// 	let connection = self.connection.clone();
-	// 	let auth = self.auth_for(pallet, function).await?;
-	// 	backoff
-	// 		.retry(|| {
-	// 			let connection = connection.clone();
-	// 			let raw_args = raw_args.clone();
-	// 			let auth = auth.clone();
-	// 			async move {
-	// 				let metadata = connection.metadata();
-	// 				let pallet_meta = metadata.pallet_by_name(pallet).ok_or_else(|| {
-	// 					OriginSdkError::View(format!("pallet {pallet} not found"))
-	// 				})?;
-	// 				let vf =
-	// 					pallet_meta.view_functions().find(|vf| vf.name() == function).ok_or_else(
-	// 						|| OriginSdkError::View(format!("view {pallet}.{function} not found")),
-	// 					)?;
-	// 				let query_id = *vf.query_id();
-	// 				let inputs: Vec<_> = vf.inputs().collect();
-	// 				let mut args_with_auth = vec![auth.encode()];
-	// 				args_with_auth.extend(raw_args.clone());
-	// 				if inputs.len() != args_with_auth.len() {
-	// 					return Err(OriginSdkError::InvalidInput(format!(
-	// 						"expected {} args, got {}",
-	// 						inputs.len(),
-	// 						args_with_auth.len()
-	// 					)));
-	// 				}
-	// 				let mut values = Vec::with_capacity(args_with_auth.len());
-	// 				for (bytes, input) in args_with_auth.iter().cloned().zip(inputs) {
-	// 					let mut cursor = &bytes[..];
-	// 					let val = scale_value::scale::decode_as_type(
-	// 						&mut cursor,
-	// 						input.ty,
-	// 						metadata.types(),
-	// 					)
-	// 					.map_err(|e| OriginSdkError::Decode(e.to_string()))?;
-	// 					values.push(val.remove_context());
-	// 				}
-	// 				let args = scale_value::Composite::unnamed(values);
-	// 				let payload = subxt::dynamic::view_function_call(query_id, args);
-	// 				let thunk = Self::call_value_inner(&connection, payload).await?;
-	// 				let bytes = thunk.into_encoded();
-	// 				T::decode(&mut &bytes[..]).map_err(|e| OriginSdkError::Decode(e.to_string()))
-	// 			}
-	// 		})
-	// 		.await
-	// }
-
-	// async fn call_value_inner(
-	// 	connection: &Arc<Connection>,
-	// 	payload: subxt::view_functions::DefaultPayload<
-	// 		scale_value::Composite<()>,
-	// 		subxt::dynamic::DecodedValueThunk,
-	// 	>,
-	// ) -> Result<subxt::dynamic::DecodedValueThunk, OriginSdkError> {
-	// 	let api = connection
-	// 		.online()
-	// 		.view_functions()
-	// 		.at_latest()
-	// 		.await
-	// 		.map_err(|e| OriginSdkError::View(e.to_string()))?;
-	// 	api.call(payload).await.map_err(|e| OriginSdkError::View(e.to_string()))
-	// }
-
-	// /// Invoke and return raw DecodedValue (no further decode).
-	// pub async fn call_value(
-	// 	&self,
-	// 	pallet: &str,
-	// 	function: &str,
-	// 	raw_args: Vec<Vec<u8>>,
-	// ) -> Result<subxt::dynamic::DecodedValue, OriginSdkError> {
-	// 	let metadata = self.connection.metadata();
-	// 	let pallet_meta = metadata
-	// 		.pallet_by_name(pallet)
-	// 		.ok_or_else(|| OriginSdkError::View(format!("pallet {pallet} not found")))?;
-	// 	let vf = pallet_meta
-	// 		.view_functions()
-	// 		.find(|vf| vf.name() == function)
-	// 		.ok_or_else(|| OriginSdkError::View(format!("view {pallet}.{function} not found")))?;
-	// 	let query_id = *vf.query_id();
-	// 	let inputs: Vec<_> = vf.inputs().collect();
-	// 	let mut args_with_auth = vec![self.auth_for(pallet, function).await?.encode()];
-	// 	args_with_auth.extend(raw_args);
-	// 	if inputs.len() != args_with_auth.len() {
-	// 		return Err(OriginSdkError::InvalidInput(format!(
-	// 			"expected {} args, got {}",
-	// 			inputs.len(),
-	// 			args_with_auth.len()
-	// 		)));
-	// 	}
-	// 	let mut values = Vec::with_capacity(args_with_auth.len());
-	// 	for (bytes, input) in args_with_auth.into_iter().zip(inputs) {
-	// 		let mut cursor = &bytes[..];
-	// 		let val = scale_value::scale::decode_as_type(&mut cursor, input.ty, metadata.types())
-	// 			.map_err(|e| OriginSdkError::Decode(e.to_string()))?;
-	// 		values.push(val.remove_context());
-	// 	}
-	// 	let args = scale_value::Composite::unnamed(values);
-	// 	let payload = subxt::dynamic::view_function_call(query_id, args);
-	// 	let thunk = Self::call_value_inner(&self.connection, payload).await?;
-	// 	thunk.to_value().map_err(|e| OriginSdkError::Decode(e.to_string()))
-	// }
-
-	// /// Invoke a pallet view function and return the raw SCALE-encoded bytes.
-	// pub async fn call_bytes(
-	// 	&self,
-	// 	pallet: &str,
-	// 	function: &str,
-	// 	raw_args: Vec<Vec<u8>>,
-	// ) -> Result<Vec<u8>, OriginSdkError> {
-	// 	let metadata = self.connection.metadata();
-	// 	let pallet_meta = metadata
-	// 		.pallet_by_name(pallet)
-	// 		.ok_or_else(|| OriginSdkError::View(format!("pallet {pallet} not found")))?;
-	// 	let vf = pallet_meta
-	// 		.view_functions()
-	// 		.find(|vf| vf.name() == function)
-	// 		.ok_or_else(|| OriginSdkError::View(format!("view {pallet}.{function} not found")))?;
-	// 	let query_id = *vf.query_id();
-	// 	let inputs: Vec<_> = vf.inputs().collect();
-	// 	let mut args_with_auth = vec![self.auth_for(pallet, function).await?.encode()];
-	// 	args_with_auth.extend(raw_args);
-	// 	if inputs.len() != args_with_auth.len() {
-	// 		return Err(OriginSdkError::InvalidInput(format!(
-	// 			"expected {} args, got {}",
-	// 			inputs.len(),
-	// 			args_with_auth.len()
-	// 		)));
-	// 	}
-	// 	let mut values = Vec::with_capacity(args_with_auth.len());
-	// 	for (bytes, input) in args_with_auth.into_iter().zip(inputs) {
-	// 		let mut cursor = &bytes[..];
-	// 		let val = scale_value::scale::decode_as_type(&mut cursor, input.ty, metadata.types())
-	// 			.map_err(|e| OriginSdkError::Decode(e.to_string()))?;
-	// 		values.push(val.remove_context());
-	// 	}
-	// 	let args = scale_value::Composite::unnamed(values);
-	// 	let payload = subxt::dynamic::view_function_call(query_id, args);
-	// 	let thunk = Self::call_value_inner(&self.connection, payload).await?;
-	// 	Ok(thunk.into_encoded())
-	// }
-
-	// /// For views that return `Result<T, AuthorizationError>`.
-	// pub async fn call_auth_result<T: Decode>(
-	// 	&self,
-	// 	pallet: &str,
-	// 	function: &str,
-	// 	raw_args: Vec<Vec<u8>>,
-	// ) -> Result<T, OriginSdkError> {
-	// 	let res: Result<Result<T, AuthorizationError>, OriginSdkError> =
-	// 		self.call(pallet, function, raw_args).await;
-
-	// 	match res {
-	// 		Err(e) => Err(e), // transport / decode error
-
-	// 		Ok(Ok(v)) => Ok(v), // happy path
-
-	// 		Ok(Err(e)) => Err(OriginSdkError::View(format!("{pallet}.{function} err: {e:?}"))),
-	// 	}
-	// }
-
-	// /// For views that return `Result<Option<T>, AuthorizationError>`.
-	// pub async fn call_auth_option<T: Decode>(
-	// 	&self,
-	// 	pallet: &str,
-	// 	function: &str,
-	// 	raw_args: Vec<Vec<u8>>,
-	// ) -> Result<Option<T>, OriginSdkError> {
-	// 	let res: Result<Result<Option<T>, AuthorizationError>, OriginSdkError> =
-	// 		self.call(pallet, function, raw_args).await;
-
-	// 	match res {
-	// 		Err(e) => Err(e),
-
-	// 		Ok(Ok(Some(v))) => Ok(Some(v)),
-	// 		Ok(Ok(None)) => Ok(None),
-
-	// 		Ok(Err(AuthorizationError::NotFound)) => Ok(None),
-
-	// 		Ok(Err(e)) => Err(OriginSdkError::View(format!("{pallet}.{function} err: {e:?}"))),
-	// 	}
-	// }
-
 	/// Entity view helpers.
 	pub fn entity(&self) -> EntityViews {
 		EntityViews { inner: self.clone() }
@@ -407,6 +214,11 @@ impl ViewClient {
 	/// Packet view helpers.
 	pub fn packet(&self) -> PacketViews {
 		PacketViews { inner: self.clone() }
+	}
+
+	/// Token view helpers.
+	pub fn token(&self) -> TokenViews {
+		TokenViews { inner: self.clone() }
 	}
 }
 
@@ -541,10 +353,7 @@ impl EntityViews {
 		&self,
 		entity_id: origin_primitives::Ss58Identifier,
 	) -> Result<crate::types::EntityInfoView, OriginSdkError> {
-		let raw = self
-			.inner
-			.call_auth_raw("Entity", "details", vec![entity_id.encode()])
-			.await?;
+		let raw = self.inner.call_auth_raw("Entity", "details", vec![entity_id.encode()]).await?;
 
 		match crate::types::EntityInfoView::decode(&mut &raw[..]) {
 			Ok(v) => Ok(v),
@@ -593,6 +402,93 @@ impl EntityViews {
 			Err(e) => Err(OriginSdkError::View(format!("entity_nym err: {e:?}"))),
 		}
 	}
+
+	pub async fn linked_accounts(
+		&self,
+		entity_id: origin_primitives::Ss58Identifier,
+	) -> Result<Vec<subxt::utils::AccountId32>, OriginSdkError> {
+		self.inner
+			.call_auth_result("Entity", "linked_accounts", vec![entity_id.encode()])
+			.await
+	}
+
+	pub async fn controller_account(
+		&self,
+		entity_id: origin_primitives::Ss58Identifier,
+	) -> Result<subxt::utils::AccountId32, OriginSdkError> {
+		self.inner
+			.call_auth_result("Entity", "controller_account", vec![entity_id.encode()])
+			.await
+	}
+
+	pub async fn account_history(
+		&self,
+		entity_id: origin_primitives::Ss58Identifier,
+	) -> Result<
+		Vec<origin_primitives::entity::AccountUnbindEntryView<subxt::utils::AccountId32>>,
+		OriginSdkError,
+	> {
+		self.inner
+			.call_auth_result("Entity", "account_history", vec![entity_id.encode()])
+			.await
+	}
+
+	pub async fn attribute_version(
+		&self,
+		entity_id: origin_primitives::Ss58Identifier,
+		key: Vec<u8>,
+	) -> Result<u64, OriginSdkError> {
+		self.inner
+			.call_auth_result("Entity", "attribute_version", vec![entity_id.encode(), key.encode()])
+			.await
+	}
+
+	pub async fn attribute_versions(
+		&self,
+		entity_id: origin_primitives::Ss58Identifier,
+	) -> Result<Vec<(Vec<u8>, u64)>, OriginSdkError> {
+		self.inner
+			.call_auth_result("Entity", "attribute_versions", vec![entity_id.encode()])
+			.await
+	}
+
+	pub async fn attribute_history(
+		&self,
+		entity_id: origin_primitives::Ss58Identifier,
+	) -> Result<Vec<origin_primitives::AttributeHistoryEntryView>, OriginSdkError> {
+		self.inner
+			.call_auth_result("Entity", "attribute_history", vec![entity_id.encode()])
+			.await
+	}
+
+	pub async fn attribute_history_for_key(
+		&self,
+		entity_id: origin_primitives::Ss58Identifier,
+		key: Vec<u8>,
+	) -> Result<Vec<origin_primitives::AttributeHistoryEntryView>, OriginSdkError> {
+		self.inner
+			.call_auth_result(
+				"Entity",
+				"attribute_history_for_key",
+				vec![entity_id.encode(), key.encode()],
+			)
+			.await
+	}
+
+	pub async fn attribute_history_entry(
+		&self,
+		entity_id: origin_primitives::Ss58Identifier,
+		key: Vec<u8>,
+		version: u64,
+	) -> Result<origin_primitives::AttributeHistoryEntryView, OriginSdkError> {
+		self.inner
+			.call_auth_result(
+				"Entity",
+				"attribute_history_entry",
+				vec![entity_id.encode(), key.encode(), version.encode()],
+			)
+			.await
+	}
 }
 
 #[derive(Clone)]
@@ -607,6 +503,169 @@ impl RegistryViews {
 	) -> Result<crate::types::RegistryStateView, OriginSdkError> {
 		self.inner
 			.call_auth_result("Register", "details", vec![registry.encode()])
+			.await
+	}
+
+	pub async fn delegate_permissions(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		delegate: origin_primitives::Ss58Identifier,
+	) -> Result<origin_primitives::registry::RegistryPermissions, OriginSdkError> {
+		self.inner
+			.call_auth_result(
+				"Register",
+				"delegate_permissions",
+				vec![registry.encode(), delegate.encode()],
+			)
+			.await
+	}
+
+	pub async fn query_count(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		account: subxt::utils::AccountId32,
+	) -> Result<u32, OriginSdkError> {
+		self.inner
+			.call_auth_result("Register", "query_count", vec![registry.encode(), account.encode()])
+			.await
+	}
+
+	pub async fn lookup_specs(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+	) -> Result<Vec<origin_primitives::registry::LookupSpec>, OriginSdkError> {
+		self.inner
+			.call_auth_result("Register", "lookup_specs", vec![registry.encode()])
+			.await
+	}
+
+	pub async fn attribute(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		key: Vec<u8>,
+	) -> Result<(origin_primitives::element::ElementType, bool), OriginSdkError> {
+		self.inner
+			.call_auth_result("Register", "attribute", vec![registry.encode(), key.encode()])
+			.await
+	}
+
+	pub async fn attributes(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+	) -> Result<Vec<(Vec<u8>, origin_primitives::element::ElementType, bool)>, OriginSdkError> {
+		self.inner
+			.call_auth_result("Register", "attributes", vec![registry.encode()])
+			.await
+	}
+
+	pub async fn token_specs(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+	) -> Result<Vec<Vec<u8>>, OriginSdkError> {
+		self.inner
+			.call_auth_result("Register", "token_specs", vec![registry.encode()])
+			.await
+	}
+
+	pub async fn packet_snapshot(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		packet: origin_primitives::Ss58Identifier,
+		version: Option<u32>,
+	) -> Result<crate::types::PacketStateView, OriginSdkError> {
+		self.inner
+			.call_auth_result(
+				"Register",
+				"packet_snapshot",
+				vec![registry.encode(), packet.encode(), version.encode()],
+			)
+			.await
+	}
+
+	pub async fn packet_metadata(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		packet: origin_primitives::Ss58Identifier,
+	) -> Result<origin_primitives::packet::PacketMetadataView, OriginSdkError> {
+		self.inner
+			.call_auth_result(
+				"Register",
+				"packet_metadata",
+				vec![registry.encode(), packet.encode()],
+			)
+			.await
+	}
+
+	pub async fn overview(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+	) -> Result<crate::types::RegistryStateView, OriginSdkError> {
+		self.inner
+			.call_auth_result("Register", "overview", vec![registry.encode()])
+			.await
+	}
+
+	pub async fn packet_snapshot_by_token(
+		&self,
+		token: origin_primitives::Ss58Identifier,
+		version: Option<u32>,
+	) -> Result<Option<crate::types::PacketStateView>, OriginSdkError> {
+		self.inner
+			.call_auth_result(
+				"Register",
+				"packet_snapshot_by_token",
+				vec![token.encode(), version.encode()],
+			)
+			.await
+	}
+
+	pub async fn lookup_snapshot(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		digest: Vec<u8>,
+		version: Option<u32>,
+	) -> Result<crate::types::PacketStateView, OriginSdkError> {
+		self.inner
+			.call_auth_result(
+				"Register",
+				"lookup_snapshot",
+				vec![registry.encode(), digest.encode(), version.encode()],
+			)
+			.await
+	}
+
+	pub async fn list_by_token(
+		&self,
+		prefix: Vec<u8>,
+		version: Option<u32>,
+		cursor: Option<origin_primitives::Ss58Identifier>,
+		limit: Option<u32>,
+	) -> Result<
+		(Vec<crate::types::PacketStateView>, Option<origin_primitives::Ss58Identifier>),
+		OriginSdkError,
+	> {
+		self.inner
+			.call_auth_result(
+				"Register",
+				"list_by_token",
+				vec![prefix.encode(), version.encode(), cursor.encode(), limit.encode()],
+			)
+			.await
+	}
+
+	pub async fn list_by_digest(
+		&self,
+		digest_prefix: Vec<u8>,
+		version: Option<u32>,
+		cursor: Option<Vec<u8>>,
+		limit: Option<u32>,
+	) -> Result<(Vec<crate::types::PacketStateView>, Option<Vec<u8>>), OriginSdkError> {
+		self.inner
+			.call_auth_result(
+				"Register",
+				"list_by_digest",
+				vec![digest_prefix.encode(), version.encode(), cursor.encode(), limit.encode()],
+			)
 			.await
 	}
 }
@@ -679,10 +738,57 @@ impl TokenViews {
 			.call_auth_result("Token", "resolve_identifier", vec![token.encode()])
 			.await
 	}
+
+	pub async fn pallet_index_of(&self, name: Vec<u8>) -> Result<u16, OriginSdkError> {
+		self.inner
+			.call_auth_result("Token", "pallet_index_of", vec![name.encode()])
+			.await
+	}
+
+	pub async fn pallet_name(&self, index: u16) -> Result<Vec<u8>, OriginSdkError> {
+		self.inner.call_auth_result("Token", "pallet_name", vec![index.encode()]).await
+	}
+
+	pub async fn next_pallet_index(&self) -> Result<u16, OriginSdkError> {
+		self.inner.call_auth_result("Token", "next_pallet_index", vec![]).await
+	}
+
+	pub async fn genesis_network_id(&self) -> Result<u32, OriginSdkError> {
+		self.inner.call_auth_result("Token", "genesis_network_id", vec![]).await
+	}
+
+	pub async fn state_version(
+		&self,
+		token: origin_primitives::Ss58Identifier,
+	) -> Result<u32, OriginSdkError> {
+		self.inner
+			.call_auth_result("Token", "state_version", vec![token.encode()])
+			.await
+	}
+
+	pub async fn state_event(
+		&self,
+		token: origin_primitives::Ss58Identifier,
+		version: u32,
+	) -> Result<origin_primitives::token::TokenStateEventView<subxt::utils::H256>, OriginSdkError>
+	{
+		self.inner
+			.call_auth_result("Token", "state_event", vec![token.encode(), version.encode()])
+			.await
+	}
+
+	pub async fn resolve_pallet(&self, index: u16) -> Result<Vec<u8>, OriginSdkError> {
+		self.inner
+			.call_auth_result("Token", "resolve_pallet", vec![index.encode()])
+			.await
+	}
 }
 
 impl ViewClient {
 	async fn auth_for(&self, pallet: &str, function: &str) -> Result<Auth, OriginSdkError> {
+		let signer = self.signer.clone().ok_or_else(|| {
+			OriginSdkError::InvalidInput("signer is required for view calls".into())
+		})?;
 		let reference_block = self
 			.connection
 			.online()
@@ -692,9 +798,9 @@ impl ViewClient {
 			.map_err(|e| OriginSdkError::View(e.to_string()))?
 			.number()
 			.saturated_into::<u32>();
-		let account = self.signer.account_id();
+		let account = signer.account_id();
 		let payload = build_view_payload(&account, pallet, function, reference_block);
-		let signature = self.signer.sign_payload(&payload).await;
+		let signature = signer.sign_payload(&payload).await;
 		let account = origin_primitives::AccountId::from(account.0);
 		Ok(origin_primitives::Authorization { account, payload, signature })
 	}
@@ -739,134 +845,6 @@ fn build_view_payload(
 	payload.extend_from_slice(&account_bytes);
 	payload.extend_from_slice(&reference_block.to_le_bytes());
 	payload
-}
-
-#[allow(dead_code)]
-fn decode_result_ss58(
-	value: &subxt::dynamic::DecodedValue,
-) -> Option<origin_primitives::Ss58Identifier> {
-	if let ValueDef::Variant(v) = &value.value {
-		if v.name == "Ok" {
-			match &v.values {
-				SvComposite::Unnamed(vals) => vals.get(0).and_then(decode_ss58),
-				SvComposite::Named(vals) => vals.get(0).map(|(_, v)| v).and_then(decode_ss58),
-			}
-			.map(|id| return id);
-		}
-	}
-	None
-}
-
-#[allow(dead_code)]
-fn decode_ss58(value: &subxt::dynamic::DecodedValue) -> Option<origin_primitives::Ss58Identifier> {
-	match &value.value {
-		ValueDef::Primitive(SvPrimitive::String(s)) => {
-			origin_primitives::Ss58Identifier::try_from(s.clone()).ok()
-		},
-		ValueDef::Composite(SvComposite::Unnamed(vals)) => {
-			let mut bytes = Vec::with_capacity(vals.len());
-			for v in vals {
-				if let ValueDef::Primitive(SvPrimitive::U128(n)) = &v.value {
-					if *n <= 255 {
-						bytes.push(*n as u8);
-						continue;
-					}
-				}
-				return None;
-			}
-			origin_primitives::Ss58Identifier::try_from(bytes).ok()
-		},
-		_ => None,
-	}
-}
-
-fn decode_overview_dyn(dv: &subxt::dynamic::DecodedValue) -> Option<crate::types::EntityStateView> {
-	use crate::types::EntityStateView;
-
-	let obj = match &dv.value {
-		ValueDef::Composite(SvComposite::Named(fields)) => fields,
-		_ => return None,
-	};
-	let info_val = obj.iter().find(|(k, _)| k == "info")?.1.clone();
-	let info = decode_info_dyn(&info_val)?;
-	let nym = obj.iter().find(|(k, _)| k == "nym").and_then(|(_, v)| match &v.value {
-		ValueDef::Primitive(SvPrimitive::String(s)) => Some(s.as_bytes().to_vec()),
-		ValueDef::Primitive(SvPrimitive::U128(n)) if *n <= 255 => Some(vec![*n as u8]),
-		ValueDef::Composite(SvComposite::Unnamed(vals)) => bytes_from_values(vals),
-		_ => None,
-	});
-	let linked_accounts = Vec::new(); // skip for tolerance
-	let history = Vec::new(); // skip for tolerance
-	Some(EntityStateView { info, nym, linked_accounts, history })
-}
-
-fn decode_info_dyn(v: &subxt::dynamic::DecodedValue) -> Option<crate::types::EntityInfoView> {
-	use crate::types::entity::ElementView;
-	let fields = match &v.value {
-		ValueDef::Composite(SvComposite::Named(fields)) => fields,
-		_ => return None,
-	};
-	let f = |name: &str| {
-		fields
-			.iter()
-			.find(|(k, _)| k == name)
-			.and_then(|(_, v)| decode_element_dyn(v))
-			.unwrap_or(ElementView::Raw(Vec::new()))
-	};
-	Some(crate::types::EntityInfoView {
-		display: f("display"),
-		web: f("web"),
-		email: f("email"),
-		attributes: None,
-	})
-}
-
-fn decode_element_dyn(
-	v: &subxt::dynamic::DecodedValue,
-) -> Option<crate::types::entity::ElementView> {
-	use crate::types::entity::ElementView;
-	match &v.value {
-		ValueDef::Variant(var) => {
-			let arg0 = match &var.values {
-				SvComposite::Unnamed(vals) => vals.get(0),
-				SvComposite::Named(fields) => fields.get(0).map(|(_, v)| v),
-			};
-			match var.name.as_str() {
-				"None" => Some(ElementView::None),
-				"Raw" => arg0.and_then(|v| bytes_from_value(v)).map(ElementView::Raw),
-				"Bool" => arg0
-					.and_then(|v| match &v.value {
-						ValueDef::Primitive(SvPrimitive::Bool(b)) => Some(*b),
-						ValueDef::Primitive(SvPrimitive::U128(n)) => Some(*n != 0),
-						_ => None,
-					})
-					.map(ElementView::Bool),
-				"U64" => arg0
-					.and_then(|v| match &v.value {
-						ValueDef::Primitive(SvPrimitive::U128(n)) => Some(*n as u64),
-						_ => None,
-					})
-					.map(ElementView::U64),
-				"U128" => arg0
-					.and_then(|v| match &v.value {
-						ValueDef::Primitive(SvPrimitive::U128(n)) => Some(*n),
-						_ => None,
-					})
-					.map(ElementView::U128),
-				"Hash" => arg0
-					.and_then(bytes_from_value)
-					.and_then(|b| b.try_into().ok())
-					.map(ElementView::Hash),
-				"Token" => arg0.and_then(decode_ss58).map(ElementView::Token),
-				"CID" => arg0.and_then(bytes_from_value).map(ElementView::Cid),
-				_ => Some(ElementView::Raw(Vec::new())),
-			}
-		},
-		ValueDef::Primitive(SvPrimitive::String(s)) => {
-			Some(ElementView::Raw(s.clone().into_bytes()))
-		},
-		_ => None,
-	}
 }
 
 #[derive(codec::Decode)]
@@ -1125,27 +1103,4 @@ fn normalize_info(info: &mut crate::types::EntityInfoView) {
 			}
 		}
 	}
-}
-
-fn bytes_from_value(v: &subxt::dynamic::DecodedValue) -> Option<Vec<u8>> {
-	match &v.value {
-		ValueDef::Primitive(SvPrimitive::String(s)) => Some(s.as_bytes().to_vec()),
-		ValueDef::Composite(SvComposite::Unnamed(vals)) => bytes_from_values(vals),
-		ValueDef::Primitive(SvPrimitive::U128(n)) if *n <= 255 => Some(vec![*n as u8]),
-		_ => None,
-	}
-}
-
-fn bytes_from_values(vals: &[subxt::dynamic::DecodedValue]) -> Option<Vec<u8>> {
-	let mut out = Vec::with_capacity(vals.len());
-	for v in vals {
-		if let ValueDef::Primitive(SvPrimitive::U128(n)) = &v.value {
-			if *n <= 255 {
-				out.push(*n as u8);
-				continue;
-			}
-		}
-		return None;
-	}
-	Some(out)
 }

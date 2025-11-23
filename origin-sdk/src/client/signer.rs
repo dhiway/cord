@@ -35,9 +35,14 @@ impl MultiKeySigner {
 		Self::Ecdsa(pair)
 	}
 
+	/// Build from a secret URI seed using sr25519 by default.
+	pub fn from_seed(seed: &str) -> Result<Self, String> {
+		Self::from_seed_with_scheme(seed, None)
+	}
+
 	/// Build from a secret URI seed; `scheme` may be "sr25519", "ed25519", or "ecdsa".
-	pub fn from_seed(seed: &str, scheme: &str) -> Result<Self, String> {
-		let scheme = if scheme.is_empty() { "sr25519" } else { scheme };
+	pub fn from_seed_with_scheme(seed: &str, scheme: Option<&str>) -> Result<Self, String> {
+		let scheme = scheme.unwrap_or("sr25519");
 		match scheme {
 			"sr25519" => sr25519::Pair::from_string(seed, None)
 				.map(Self::Sr25519)
@@ -85,7 +90,7 @@ pub struct Sr25519Signer(MultiKeySigner);
 impl Sr25519Signer {
 	#[allow(dead_code)]
 	pub fn from_seed(seed: &str) -> Result<Self, String> {
-		MultiKeySigner::from_seed(seed, "sr25519").map(Self)
+		MultiKeySigner::from_seed(seed).map(Self)
 	}
 }
 

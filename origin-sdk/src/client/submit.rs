@@ -72,12 +72,12 @@ where
 #[derive(Clone)]
 pub struct SubmitClient {
 	connection: Arc<Connection>,
-	signer: Arc<dyn Signer>,
+	signer: Option<Arc<dyn Signer>>,
 	nonce: Arc<NonceManager>,
 }
 
 impl SubmitClient {
-	pub(crate) fn new(connection: Arc<Connection>, signer: Arc<dyn Signer>) -> Self {
+	pub(crate) fn new(connection: Arc<Connection>, signer: Option<Arc<dyn Signer>>) -> Self {
 		Self {
 			connection,
 			signer,
@@ -131,11 +131,14 @@ impl SubmitClient {
 		&self,
 		call: subxt::tx::DynamicPayload,
 	) -> Result<TxHandle, OriginSdkError> {
-		let account = self.signer.account_id();
+		let signer = self
+			.signer
+			.clone()
+			.ok_or_else(|| OriginSdkError::InvalidInput("signer is required for submit".into()))?;
+		let account = signer.account_id();
 		let (tx_in_block, rx_in_block) = oneshot::channel();
 		let (tx_finalized, rx_finalized) = oneshot::channel();
 		let connection = self.connection.clone();
-		let signer = self.signer.clone();
 		let adapter = SubxtSignerAdapter::new(signer.clone());
 
 		let progress = {
@@ -178,9 +181,7 @@ impl SubmitClient {
 						},
 						Some(Ok(_)) => continue,
 						Some(Err(e)) => return Err(OriginSdkError::Tx(e.to_string())),
-						None => {
-							return Err(OriginSdkError::Tx("transaction stream ended".into()))
-						},
+						None => return Err(OriginSdkError::Tx("transaction stream ended".into())),
 					}
 				}
 			}

@@ -5,8 +5,8 @@
 //! pallets.
 
 pub mod client;
-pub mod domain;
 pub mod extrinsic;
+pub mod query;
 pub mod types;
 pub mod util;
 
@@ -16,6 +16,6 @@ pub use types::error::OriginSdkError;
 /// Convenient re-exports for application crates.
 pub mod prelude {
 	pub use crate::client::OriginClient;
-	pub use crate::domain::Domain;
+	pub use crate::query::Query;
 	pub use crate::types::error::OriginSdkError;
 }

@@ -4,8 +4,8 @@ use scale_value::Value;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-	let signer = MultiKeySigner::from_seed("//Alice", "")?;
-	let client = OriginClient::connect("ws://localhost:9944", signer.clone()).await?;
+	let signer = MultiKeySigner::from_seed("//Alice")?;
+	let client = OriginClient::connect("ws://localhost:9944").await?.with_signer(signer.clone());
 
 	let call = DynamicCallBuilder::new().call(
 		"Entity",
@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		],
 	);
 
-	let tx = client.metatx().sign_and_submit(call).await?;
+	let tx = client.metatx()?.sign_and_submit(call).await?;
 	println!("Meta-tx submitted: {:?}", tx.hash);
 	Ok(())
 }

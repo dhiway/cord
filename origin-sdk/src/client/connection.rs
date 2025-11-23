@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use super::{OriginConfig, Signer};
+use super::OriginConfig;
 use crate::types::error::OriginSdkError;
 use crate::util::retry::RetryPolicy;
 
@@ -61,7 +61,6 @@ pub struct ConnectionBuilder {
 	backoff: RetryPolicy,
 	timeout: Duration,
 	auto_reconnect: bool,
-	signer: Option<Arc<dyn Signer>>,
 }
 
 impl Default for ConnectionBuilder {
@@ -71,7 +70,6 @@ impl Default for ConnectionBuilder {
 			backoff: RetryPolicy::default(),
 			timeout: Duration::from_secs(30),
 			auto_reconnect: true,
-			signer: None,
 		}
 	}
 }
@@ -97,21 +95,13 @@ impl ConnectionBuilder {
 		self
 	}
 
-	pub fn signer(mut self, signer: impl Signer + 'static) -> Self {
-		self.signer = Some(Arc::new(signer));
-		self
-	}
-
 	pub async fn build(self) -> Result<super::OriginClient, OriginSdkError> {
 		let endpoint = self
 			.endpoint
 			.ok_or_else(|| OriginSdkError::InvalidInput("endpoint is required".into()))?;
-		let signer = self
-			.signer
-			.ok_or_else(|| OriginSdkError::InvalidInput("signer is required".into()))?;
 		let connection =
 			Connection::connect(endpoint, self.backoff, self.timeout, self.auto_reconnect).await?;
 		let connection = Arc::new(connection);
-		Ok(super::OriginClient { connection, signer })
+		Ok(super::OriginClient { connection, signer: None })
 	}
 }
