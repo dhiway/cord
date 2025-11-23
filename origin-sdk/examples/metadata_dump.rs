@@ -1,3 +1,4 @@
+use codec::Decode;
 use scale_info::TypeDef;
 use subxt::Metadata;
 use std::fs;
@@ -7,20 +8,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let bytes = fs::read(path)?;
 	let mut cursor: &[u8] = &bytes;
 	let metadata = Metadata::decode(&mut cursor)?;
-	let entity = metadata.pallet("Entity").expect("pallet Entity");
+	let entity = metadata
+		.pallets()
+		.find(|p| p.name() == "Entity")
+		.expect("pallet Entity");
 	for vf in entity.view_functions() {
 		if vf.name() == "overview" {
 			println!("Entity::overview");
-			println!("  query_id: {}", vf.query_id());
-            println!("  inputs:");
-            for input in vf.inputs() {
-                println!("    {} -> type id {}", input.name(), input.ty.id);
-            }
-            println!("  output type id: {}", vf.output_ty().id);
-            dump_type(&metadata, vf.output_ty().id, 0);
-        }
-    }
-    Ok(())
+			println!("  query_id: {:?}", vf.query_id());
+			println!("  inputs:");
+			for input in vf.inputs() {
+				println!("    {} -> type id {}", input.name, input.ty);
+			}
+			println!("  output type id: {}", vf.output_ty());
+			dump_type(&metadata, vf.output_ty(), 0);
+		}
+	}
+	Ok(())
 }
 
 fn dump_type(metadata: &Metadata, ty: u32, indent: usize) {
@@ -30,35 +34,35 @@ fn dump_type(metadata: &Metadata, ty: u32, indent: usize) {
 	match &t.type_def {
 		TypeDef::Composite(comp) => {
 			for field in comp.fields() {
-				let name = field.name().unwrap_or("<unnamed>");
+				let name = field.name().map_or("<unnamed>", |v| v);
 				println!("{pad}  field {name}: {}", field.ty().id);
 				dump_type(metadata, field.ty().id, indent + 2);
 			}
-		}
+		},
 		TypeDef::Variant(var) => {
 			for v in var.variants() {
 				println!("{pad}  variant {} (index {}):", v.name(), v.index());
 				for f in v.fields() {
-					let name = f.name().unwrap_or("<unnamed>");
+					let name = f.name().map_or("<unnamed>", |v| v);
 					println!("{pad}    field {name}: {}", f.ty().id);
 					dump_type(metadata, f.ty().id, indent + 3);
 				}
 			}
-		}
+		},
 		TypeDef::Sequence(seq) => {
-			println!("{pad}  seq element: {}", seq.type_id());
-			dump_type(metadata, seq.type_id(), indent + 1);
-		}
+			println!("{pad}  seq element: {}", seq.type_param().id());
+			dump_type(metadata, seq.type_param().id(), indent + 1);
+		},
 		TypeDef::Array(arr) => {
-			println!("{pad}  array len {} elem {}", arr.len(), arr.type_id());
-			dump_type(metadata, arr.type_id(), indent + 1);
-		}
+			println!("{pad}  array len {} elem {}", arr.len(), arr.type_param().id());
+			dump_type(metadata, arr.type_param().id(), indent + 1);
+		},
 		TypeDef::Tuple(tup) => {
 			for (idx, id) in tup.fields().iter().enumerate() {
-				println!("{pad}  tuple[{idx}]: {id}");
-				dump_type(metadata, *id, indent + 1);
+				println!("{pad}  tuple[{idx}]: {}", id.id());
+				dump_type(metadata, id.id(), indent + 1);
 			}
-		}
-        _ => {}
-    }
+		},
+		_ => {},
+	}
 }

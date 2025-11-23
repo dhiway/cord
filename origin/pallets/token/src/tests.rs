@@ -376,8 +376,9 @@ fn state_views_roundtrip_with_authorization() {
 
 		let event = Pallet::<Test>::state_event(make_auth(b"state-event", &pair), token.clone(), 0)
 			.expect("state event view");
-		assert_eq!(event.action, action);
-		assert_eq!(event.seal, seal);
+		assert_eq!(event.action, action.to_vec());
+		assert_eq!(event.seal.height, seal.height);
+		assert_eq!(event.seal.index, seal.index);
 
 		let (batch, cursor) = Pallet::<Test>::timeline(
 			make_auth(b"state-events", &pair),
@@ -388,6 +389,8 @@ fn state_views_roundtrip_with_authorization() {
 		.expect("state events");
 		assert_eq!(batch.len(), 1);
 		assert_eq!(batch[0].digest, digest);
+		assert_eq!(batch[0].action, action.to_vec());
+		assert_eq!(batch[0].seal.height, seal.height);
 		assert!(cursor.is_none());
 	});
 }

@@ -38,11 +38,20 @@ pub use crate::registry::{
 	RegistryStatus,
 };
 
+pub mod entity;
+pub use crate::entity::{
+	AccountUnbindEntryView, AttributeHistoryEntryView, EntityInfoView, EntityOverview,
+	EntityStateView, EventBlockView,
+};
+
 pub mod authorization;
 pub use crate::authorization::{authorization_signature_hash, Authorization};
 
 pub mod identifier;
 pub use crate::identifier::Ss58Identifier;
+
+pub mod token;
+pub use crate::token::{TokenStateEventView, TokenTimelineView};
 
 use alloc::vec::Vec;
 use sp_runtime::{

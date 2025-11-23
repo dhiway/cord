@@ -366,13 +366,21 @@ impl<'a, MaxCap: Get<u32>> TryFrom<&'a [u8]> for Elum<MaxCap> {
 /// - `Token` as `Ss58Identifier`.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
 pub enum ElementView {
+	#[codec(index = 0)]
 	None,
+	#[codec(index = 1)]
 	Raw(Vec<u8>),
+	#[codec(index = 2)]
 	Bool(bool),
+	#[codec(index = 3)]
 	U64(u64),
+	#[codec(index = 4)]
 	U128(u128),
+	#[codec(index = 5)]
 	Hash([u8; 32]),
+	#[codec(index = 6)]
 	Token(Ss58Identifier),
+	#[codec(index = 7)]
 	Cid(Vec<u8>),
 }
 

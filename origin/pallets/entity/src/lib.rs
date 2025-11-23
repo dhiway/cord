@@ -45,16 +45,17 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::*;
 
-use crate::entity::{
-	AccountUnbindEntryView, AttributeHistoryEntryView, EntityField, EntityInfoView,
-	EntityStateView, EventBlockView,
-};
+use crate::entity::EntityField;
 use crate::signature::{verify_multisignature, SignatureVerificationError};
 use origin_primitives::{
 	attribute::{Attribute, AttributeValueView, Element},
 	authorization::{
 		ensure_authorization_ttl, extract_valid_until, Authorization as ViewAuthorization,
 		AuthorizationError,
+	},
+	entity::{
+		AccountUnbindEntryView, AttributeHistoryEntryView, EntityInfoView, EntityStateView,
+		EventBlockView,
 	},
 	element::ElementView,
 	identifier::Ss58Identifier,
@@ -803,12 +804,12 @@ pub mod pallet {
 		pub fn account_token(
 			auth: AuthorizationOf<T>,
 			account: T::AccountId,
-		) -> Result<Ss58Identifier, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_account_lookup(&auth, &account)?;
 			let token =
 				EntityTokenOfAccount::<T>::get(&account).ok_or(AuthorizationError::NotFound)?;
 			ensure!(EntityInfoOf::<T>::contains_key(&token), AuthorizationError::NotFound);
-			Ok(token)
+			Ok(token.as_bytes().to_vec())
 		}
 
 		/// All linked accounts for the supplied entity token.
