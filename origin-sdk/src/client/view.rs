@@ -248,88 +248,6 @@ impl EntityViews {
 		}
 	}
 
-	// pub async fn overview(
-	// 	&self,
-	// 	entity_id: origin_primitives::Ss58Identifier,
-	// ) -> Result<crate::types::EntityStateView, OriginSdkError> {
-	// 	match self
-	// 		.inner
-	// 		.call_auth_result(
-	// 			"Entity",
-	// 			"overview",
-	// 			vec![entity_id.encode(), Option::<u32>::None.encode()],
-	// 		)
-	// 		.await
-	// 	{
-	// 		Ok(v) => Ok(v),
-	// 		Err(OriginSdkError::Decode(_)) => {
-	// 			// Try dynamic decoding first.
-	// 			if let Ok(dv) = self
-	// 				.inner
-	// 				.call_value(
-	// 					"Entity",
-	// 					"overview",
-	// 					vec![entity_id.encode(), Option::<u32>::None.encode()],
-	// 				)
-	// 				.await
-	// 			{
-	// 				if let Some(v) = decode_overview_dyn(&dv) {
-	// 					return Ok(v);
-	// 				}
-	// 			}
-
-	// 			// As a final fallback, leniently decode legacy layouts that used raw bytes.
-	// 			let bytes = self
-	// 				.inner
-	// 				.call_bytes(
-	// 					"Entity",
-	// 					"overview",
-	// 					vec![entity_id.encode(), Option::<u32>::None.encode()],
-	// 				)
-	// 				.await?;
-	// 			lenient_decode_entity_state(bytes.as_slice())
-	// 				.ok_or_else(|| OriginSdkError::Decode("overview legacy decode failed".into()))
-	// 		},
-	// 		Err(e) => Err(e),
-	// 	}
-	// }
-
-	// pub async fn overview(
-	// 	&self,
-	// 	entity_id: origin_primitives::Ss58Identifier,
-	// ) -> Result<crate::types::EntityStateView, OriginSdkError> {
-	// 	let res: Result<Result<crate::types::EntityStateView, AuthorizationError>, OriginSdkError> =
-	// 		self.inner
-	// 			.call_auth_result(
-	// 				"Entity",
-	// 				"overview",
-	// 				vec![entity_id.encode(), Option::<u32>::None.encode()],
-	// 			)
-	// 			.await;
-	// self.inner
-	// 	.call("Entity", "overview", vec![entity_id.encode(), Option::<u32>::None.encode()])
-	// 	.await;
-	// match res {
-	// 	Ok(Ok(v)) => Ok(v),
-	// 	Ok(Err(e)) => Err(OriginSdkError::View(format!("overview err: {e:?}"))),
-	// 	Err(OriginSdkError::Decode(_)) => {
-	// 		// Fallback to dynamic decoding to tolerate ElementView variant drift.
-	// 		let dv = self
-	// 			.inner
-	// 			.call_value(
-	// 				"Entity",
-	// 				"overview",
-	// 				vec![entity_id.encode(), Option::<u32>::None.encode()],
-	// 			)
-	// 			.await?;
-	// 		decode_overview_dyn(&dv).ok_or_else(|| {
-	// 			OriginSdkError::Decode("overview fallback dynamic decode failed".into())
-	// 		})
-	// 	},
-	// 	Err(e) => Err(e),
-	// }
-	// }
-
 	pub async fn account_token(
 		&self,
 		account: subxt::utils::AccountId32,
@@ -361,33 +279,6 @@ impl EntityViews {
 				.ok_or_else(|| OriginSdkError::Decode("details decode failed".into())),
 		}
 	}
-
-	// pub async fn details(
-	// 	&self,
-	// 	entity_id: origin_primitives::Ss58Identifier,
-	// ) -> Result<crate::types::EntityInfoView, OriginSdkError> {
-	// 	match self
-	// 		.inner
-	// 		.call_auth_result("Entity", "details", vec![entity_id.encode()])
-	// 		.await
-	// 	{
-	// 		Ok(v) => Ok(v),
-	// 		Err(OriginSdkError::Decode(_)) => {
-	// 			if let Ok(dv) =
-	// 				self.inner.call_value("Entity", "details", vec![entity_id.encode()]).await
-	// 			{
-	// 				if let Some(v) = decode_info_dyn(&dv) {
-	// 					return Ok(v);
-	// 				}
-	// 			}
-	// 			let bytes =
-	// 				self.inner.call_bytes("Entity", "details", vec![entity_id.encode()]).await?;
-	// 			lenient_decode_entity_info(bytes.as_slice())
-	// 				.ok_or_else(|| OriginSdkError::Decode("details legacy decode failed".into()))
-	// 		},
-	// 		Err(e) => Err(e),
-	// 	}
-	// }
 
 	pub async fn nym(
 		&self,
