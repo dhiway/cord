@@ -5,7 +5,7 @@ use serde_json::Value as JsonValue;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-	let label = load_label().unwrap_or_else(|_| "demo".into());
+	let _label = load_label().unwrap_or_else(|_| "demo".into());
 
 	let signer = MultiKeySigner::from_seed("//Alice", "")?;
 	let client = OriginClient::connect("ws://localhost:9910", signer.clone()).await?;

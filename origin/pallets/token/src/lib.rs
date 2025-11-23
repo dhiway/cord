@@ -39,7 +39,9 @@ use origin_primitives::{
 		ensure_authorization_ttl, extract_valid_until, Authorization as CoreAuthorization,
 		AuthorizationError,
 	},
+	entity::EventBlockView,
 	identifier::{DecodedIdentifier, IdentifierError, Ss58Identifier},
+	token::{TokenStateEventView, TokenTimelineView},
 	Signature,
 };
 use scale_info::TypeInfo;
@@ -315,9 +317,11 @@ pub mod pallet {
 			auth: Authorization<T>,
 			token: Ss58Identifier,
 			version: u32,
-		) -> Result<StateEventOf<T>, AuthorizationError> {
+		) -> Result<TokenStateEventView<HashOf<T>>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
-			StateHistory::<T>::get(&token, version).ok_or(AuthorizationError::NotFound)
+			StateHistory::<T>::get(&token, version)
+				.map(|event| Self::state_event_view(&event))
+				.ok_or(AuthorizationError::NotFound)
 		}
 
 		pub fn timeline(
@@ -325,13 +329,14 @@ pub mod pallet {
 			token: Ss58Identifier,
 			start: Option<u32>,
 			limit: Option<u32>,
-		) -> Result<(TimelineEventsOf<T>, Option<u32>), AuthorizationError> {
+		) -> Result<TokenTimelineView<HashOf<T>>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let cap = T::MaxTimelineViewResults::get();
 			let def = T::DefaultTimelineViewResults::get();
 			let eff = limit.unwrap_or(def).max(1).min(cap);
 			let (events, next_cursor) = Self::timeline_entries(&token, start, eff);
-			Ok((events, next_cursor))
+			let view_events = events.iter().map(Self::state_event_view).collect();
+			Ok((view_events, next_cursor))
 		}
 
 		pub fn resolve_identifier(
@@ -468,6 +473,14 @@ where
 		}
 		let next_cursor = if index < upper { Some(index) } else { None };
 		(results, next_cursor)
+	}
+
+	fn state_event_view(event: &StateEventOf<T>) -> TokenStateEventView<HashOf<T>> {
+		TokenStateEventView {
+			action: event.action.to_vec(),
+			digest: event.digest.clone(),
+			seal: EventBlockView { height: event.seal.height, index: event.seal.index },
+		}
 	}
 
 	pub fn history(

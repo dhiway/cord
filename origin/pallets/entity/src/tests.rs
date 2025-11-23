@@ -775,9 +775,11 @@ mod view_tests {
 				sub.clone()
 			));
 
-			let resolved =
+			let resolved_bytes =
 				EntityPallet::<Test>::account_token(authorization(&owner), owner.clone())
 					.expect("account token view");
+			let resolved =
+				Ss58Identifier::try_from(resolved_bytes).expect("valid identifier bytes");
 			assert_eq!(resolved, token);
 
 			let listed =

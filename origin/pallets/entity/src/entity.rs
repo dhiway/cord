@@ -26,6 +26,10 @@ use frame_support::{
 };
 use origin_primitives::{
 	attribute::{Attribute, AttributeValueView, Attributes, AttributesError, Element},
+	entity::{
+		AccountUnbindEntryView, AttributeHistoryEntryView, EntityInfoView, EntityStateView,
+		EventBlockView,
+	},
 	element::ElementView,
 	packet::{PacketInformationProvider, PacketUpdateError, PacketUpdateOp},
 };
@@ -264,45 +268,4 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>> Default
 			attributes: None,
 		}
 	}
-}
-
-/// Minimal block reference for entity views.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
-pub struct EventBlockView {
-	pub height: u32,
-	pub index: u32,
-}
-
-/// History entry for a single attribute key/version.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
-pub struct AttributeHistoryEntryView {
-	pub key: Vec<u8>,
-	pub version: u64,
-	pub old_value: Vec<u8>,
-	pub block: EventBlockView,
-}
-
-/// Flattened entity info using ElementView and AttributeValueView.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
-pub struct EntityInfoView {
-	pub display: ElementView,
-	pub web: ElementView,
-	pub email: ElementView,
-	pub attributes: Option<Vec<AttributeValueView>>,
-}
-
-/// Composite overview of an entity.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
-pub struct EntityStateView<AccountId> {
-	pub info: EntityInfoView,
-	pub nym: Option<Vec<u8>>,
-	pub linked_accounts: Vec<AccountId>,
-	pub history: Vec<AttributeHistoryEntryView>,
-}
-
-/// Unbind entry for `account_history` view.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
-pub struct AccountUnbindEntryView<AccountId> {
-	pub account: AccountId,
-	pub block: EventBlockView,
 }
