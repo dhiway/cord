@@ -993,12 +993,12 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
 			delegate: Ss58Identifier,
-		) -> Result<RegistryPermissions, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let perms = RegistryDelegates::<T>::get(&registry, &delegate)
 				.ok_or(AuthorizationError::NotFound)?;
 			Self::record_registry_query(&registry, &auth.account);
-			Ok(perms)
+			Self::encode_ok(perms)
 		}
 
 		/// Returns the recorded query count for an account over a registry.
@@ -1006,23 +1006,23 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
 			account: T::AccountId,
-		) -> Result<u64, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let count = RegistryQueryCounts::<T>::get(&registry, account);
 			Self::record_registry_query(&registry, &auth.account);
-			Ok(count)
+			Self::encode_ok(count)
 		}
 
 		/// Returns the lookup specifications declared for the registry.
 		pub fn lookup_specs(
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
-		) -> Result<LookupSpecListOf<T>, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let specs = <Self as RegistryView<T>>::lookup_specs(&registry)
 				.ok_or(AuthorizationError::NotFound)?;
 			Self::record_registry_query(&registry, &auth.account);
-			Ok(specs)
+			Self::encode_ok(specs)
 		}
 
 		/// Returns the declared schema type of the provided attribute key.
@@ -1030,7 +1030,7 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
 			key: Vec<u8>,
-		) -> Result<(ElementType, bool), AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let key_bounded: Attribute =
 				key.try_into().map_err(|_| AuthorizationError::InvalidInput)?;
@@ -1040,48 +1040,49 @@ pub mod pallet {
 			let spec = registry_info
 				.attribute_spec(key_bounded.as_slice())
 				.ok_or(AuthorizationError::NotFound)?;
-			Ok((spec.kind, spec.flags.is_optional()))
+			Self::encode_ok((spec.kind, spec.flags.is_optional()))
 		}
 
 		/// Returns all attribute keys and their schema types.
 		pub fn attributes(
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
-		) -> Result<Vec<(Vec<u8>, ElementType, bool)>, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let registry_info =
 				Registries::<T>::get(&registry).ok_or(AuthorizationError::NotFound)?;
 			Self::record_registry_query(&registry, &auth.account);
-			let entries = registry_info
+			let entries: Vec<(Vec<u8>, ElementType, bool)> = registry_info
 				.attributes
 				.iter()
 				.map(|spec| (spec.key.to_vec(), spec.kind, spec.flags.is_optional()))
 				.collect();
-			Ok(entries)
+			Self::encode_ok(entries)
 		}
 
 		/// Returns registry metadata and schema information.
 		pub fn details(
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
-		) -> Result<RegistryInfoOf<T>, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let info = <Self as RegistryView<T>>::registry_info(&registry)
 				.ok_or(AuthorizationError::NotFound)?;
+			let view = view::build_registry_state_view::<T>(&registry, &info);
 			Self::record_registry_query(&registry, &auth.account);
-			Ok(info)
+			Self::encode_ok(view)
 		}
 
 		/// Returns the attribute keys composing the registry token material.
 		pub fn token_specs(
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
-		) -> Result<TokenSpecOf<T>, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let spec = <Self as RegistryView<T>>::token_specs(&registry)
 				.ok_or(AuthorizationError::NotFound)?;
 			Self::record_registry_query(&registry, &auth.account);
-			Ok(spec)
+			Self::encode_ok(spec)
 		}
 		/// Returns a packet state associated with the given packet identifier for the registry.
 		pub fn packet_snapshot(
@@ -1089,12 +1090,12 @@ pub mod pallet {
 			registry: Ss58Identifier,
 			packet: Ss58Identifier,
 			version: Option<u32>,
-		) -> Result<PacketStateView, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			Self::get_registry_state_view(&registry)?;
 			let snapshot = Self::get_packet_snapshot(&registry, &packet, version)?;
 			Self::record_registry_query(&registry, &auth.account);
-			Ok(view::build_packet_state_view::<T>(&packet, &snapshot))
+			Self::encode_ok(view::build_packet_state_view::<T>(&packet, &snapshot))
 		}
 
 		/// Returns packet metadata only (lightweight).
@@ -1102,7 +1103,7 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
 			packet: Ss58Identifier,
-		) -> Result<PacketMetadataOf<T>, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let _info = Self::get_registry_state_view(&registry)?;
 			let _snapshot = Self::get_packet_snapshot(&registry, &packet, None)?;
@@ -1111,19 +1112,19 @@ pub mod pallet {
 				return Err(AuthorizationError::NotFound);
 			}
 			Self::record_registry_query(&registry, &auth.account);
-			Ok(metadata)
+			Self::encode_ok(metadata)
 		}
 
 		/// Lightweight registry overview (info + lookup specs).
 		pub fn overview(
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
-		) -> Result<RegistryStateView, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let info = Self::get_registry_state_view(&registry)?;
 			let view = view::build_registry_state_view::<T>(&registry, &info);
 			Self::record_registry_query(&registry, &auth.account);
-			Ok(view)
+			Self::encode_ok(view)
 		}
 
 		/// Returns a packet snapshot by token without requiring the registry identifier.
@@ -1131,7 +1132,7 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 			version: Option<u32>,
-		) -> Result<Option<PacketStateView>, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let snapshot_opt = Self::packet_state_unchecked(&token, version);
 
@@ -1142,10 +1143,10 @@ pub mod pallet {
 				}
 				Self::record_registry_query(&snapshot.state.registry, &auth.account);
 				let view = view::build_packet_state_view::<T>(&token, &snapshot);
-				return Ok(Some(view));
+				return Self::encode_ok(Some(view));
 			}
 
-			Ok(None)
+			Self::encode_ok(None::<PacketStateView>)
 		}
 
 		/// Resolves a packet state via a lookup digest.
@@ -1154,7 +1155,7 @@ pub mod pallet {
 			registry: Ss58Identifier,
 			digest: LookupDigestOf<T>,
 			version: Option<u32>,
-		) -> Result<PacketStateView, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			Self::get_registry_state_view(&registry)?;
 			let anchor =
@@ -1165,7 +1166,7 @@ pub mod pallet {
 			let snap = Self::get_packet_snapshot(&registry, &packet, Some(target_version))?;
 			Self::record_registry_query(&registry, &auth.account);
 
-			Ok(view::build_packet_state_view::<T>(&packet, &snap))
+			Self::encode_ok(view::build_packet_state_view::<T>(&packet, &snap))
 		}
 
 		/// Returns packet snapshots matching the provided token prefix (or all when empty).
@@ -1175,7 +1176,7 @@ pub mod pallet {
 			version: Option<u32>,
 			cursor: Option<Ss58Identifier>,
 			limit: Option<u32>,
-		) -> Result<(Vec<PacketSnapshotOf<T>>, Option<Ss58Identifier>), AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 
 			let capped = limit.unwrap_or_else(|| T::MaxPacketListResults::get());
@@ -1205,7 +1206,7 @@ pub mod pallet {
 				filtered.push(snap);
 			}
 
-			Ok((filtered, next))
+			Self::encode_ok((filtered, next))
 		}
 
 		/// Returns packet snapshots for every registry entry matching the digest prefix.
@@ -1215,7 +1216,7 @@ pub mod pallet {
 			version: Option<u32>,
 			cursor: Option<LookupDigestOf<T>>,
 			limit: Option<u32>,
-		) -> Result<(Vec<PacketSnapshotOf<T>>, Option<LookupDigestOf<T>>), AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 
 			let capped = limit.unwrap_or_else(|| T::MaxPacketListResults::get());
@@ -1247,15 +1248,20 @@ pub mod pallet {
 				filtered.push(snap);
 			}
 
-			Ok((filtered, next))
+			Self::encode_ok((filtered, next))
 		}
 	}
 
-	impl<T: Config> Pallet<T> {
-		#[inline]
-		fn is_origin_feeless(origin: &OriginFor<T>) -> bool {
-			origin.caller().as_signed().map(T::Feeless::is_feeless).unwrap_or(false)
-		}
+impl<T: Config> Pallet<T> {
+	#[inline]
+	fn encode_ok<V: Encode>(value: V) -> Result<Vec<u8>, AuthorizationError> {
+		Ok(value.encode())
+	}
+
+	#[inline]
+	fn is_origin_feeless(origin: &OriginFor<T>) -> bool {
+		origin.caller().as_signed().map(T::Feeless::is_feeless).unwrap_or(false)
+	}
 
 		fn get_registry_state_view(
 			registry: &Ss58Identifier,

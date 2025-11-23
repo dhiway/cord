@@ -273,11 +273,12 @@ pub mod pallet {
 		pub fn pallet_index_of(
 			auth: Authorization<T>,
 			name: Vec<u8>,
-		) -> Result<u16, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let bounded: BoundedVec<u8, ConstU32<64>> =
 				name.try_into().map_err(|_| AuthorizationError::InvalidInput)?;
-			PalletIndex::<T>::get(&bounded).ok_or(AuthorizationError::NotFound)
+			let idx = PalletIndex::<T>::get(&bounded).ok_or(AuthorizationError::NotFound)?;
+			Self::encode_ok(idx)
 		}
 
 		/// Returns the pallet name bytes stored for an index.
@@ -292,24 +293,24 @@ pub mod pallet {
 		}
 
 		/// Returns the next pallet index counter.
-		pub fn next_pallet_index(auth: Authorization<T>) -> Result<u16, AuthorizationError> {
+		pub fn next_pallet_index(auth: Authorization<T>) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
-			Ok(NextPalletIndex::<T>::get())
+			Self::encode_ok(NextPalletIndex::<T>::get())
 		}
 
 		/// Returns the configured genesis network identifier.
-		pub fn genesis_network_id(auth: Authorization<T>) -> Result<u16, AuthorizationError> {
+		pub fn genesis_network_id(auth: Authorization<T>) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
-			Ok(GenesisNetworkId::<T>::get())
+			Self::encode_ok(GenesisNetworkId::<T>::get())
 		}
 
 		/// Returns the current state version counter for a token.
 		pub fn state_version(
 			auth: Authorization<T>,
 			token: Ss58Identifier,
-		) -> Result<u32, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
-			Ok(StateVersion::<T>::get(&token))
+			Self::encode_ok(StateVersion::<T>::get(&token))
 		}
 
 		/// Returns a specific state event for a token and version.
@@ -317,11 +318,12 @@ pub mod pallet {
 			auth: Authorization<T>,
 			token: Ss58Identifier,
 			version: u32,
-		) -> Result<TokenStateEventView<HashOf<T>>, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
-			StateHistory::<T>::get(&token, version)
+			let view = StateHistory::<T>::get(&token, version)
 				.map(|event| Self::state_event_view(&event))
-				.ok_or(AuthorizationError::NotFound)
+				.ok_or(AuthorizationError::NotFound)?;
+			Self::encode_ok(view)
 		}
 
 		pub fn timeline(
@@ -329,30 +331,30 @@ pub mod pallet {
 			token: Ss58Identifier,
 			start: Option<u32>,
 			limit: Option<u32>,
-		) -> Result<TokenTimelineView<HashOf<T>>, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
 			let cap = T::MaxTimelineViewResults::get();
 			let def = T::DefaultTimelineViewResults::get();
 			let eff = limit.unwrap_or(def).max(1).min(cap);
 			let (events, next_cursor) = Self::timeline_entries(&token, start, eff);
-			let view_events = events.iter().map(Self::state_event_view).collect();
-			Ok((view_events, next_cursor))
+			let view_events: Vec<_> = events.iter().map(Self::state_event_view).collect();
+			Self::encode_ok((view_events, next_cursor))
 		}
 
 		pub fn resolve_identifier(
 			auth: Authorization<T>,
 			token: Ss58Identifier,
-		) -> Result<DecodedIdentifier, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
-			Self::resolve_identifier_plain(&token)
+			Self::encode_ok(Self::resolve_identifier_plain(&token)?)
 		}
 
 		pub fn resolve_pallet(
 			auth: Authorization<T>,
 			index: u16,
-		) -> Result<String, AuthorizationError> {
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_query(&auth)?;
-			Self::resolve_pallet_plain(index)
+			Self::encode_ok(Self::resolve_pallet_plain(index)?)
 		}
 	}
 }
@@ -362,6 +364,11 @@ where
 	T::AccountId: Clone + Into<AccountId32>,
 	AccountId32: From<T::AccountId>,
 {
+	#[inline]
+	fn encode_ok<V: Encode>(value: V) -> Result<Vec<u8>, AuthorizationError> {
+		Ok(value.encode())
+	}
+
 	pub fn get_or_add_pallet_index(pallet_name: &str) -> Result<u16, Error<T>> {
 		let bounded_name: BoundedVec<u8, ConstU32<64>> = pallet_name
 			.as_bytes()
