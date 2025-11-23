@@ -81,6 +81,7 @@ impl<TBlock: Block> PrettyPrinter<TBlock> for DebugPrinter {
 /// Aggregated error for `Inspector` operations.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+	///
 	/// Could not decode Block or Extrinsic.
 	#[error(transparent)]
 	Codec(#[from] codec::Error),
