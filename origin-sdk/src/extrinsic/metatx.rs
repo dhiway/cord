@@ -1,11 +1,11 @@
 use super::builder::DynamicCall;
-use crate::client::connection::Connection;
-use crate::client::signer::Signer;
-use crate::types::error::OriginSdkError;
+use crate::{
+	client::{connection::Connection, signer::Signer},
+	types::error::OriginSdkError,
+};
 use sp_runtime::MultiSignature;
 use std::sync::Arc;
-use subxt::tx::Payload as _;
-use subxt::utils::AccountId32;
+use subxt::{tx::Payload as _, utils::AccountId32};
 
 /// Prepared meta-transaction payload ready for signing or relaying.
 #[derive(Clone, Debug)]

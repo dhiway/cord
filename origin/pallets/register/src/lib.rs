@@ -1252,16 +1252,16 @@ pub mod pallet {
 		}
 	}
 
-impl<T: Config> Pallet<T> {
-	#[inline]
-	fn encode_ok<V: Encode>(value: V) -> Result<Vec<u8>, AuthorizationError> {
-		Ok(value.encode())
-	}
+	impl<T: Config> Pallet<T> {
+		#[inline]
+		fn encode_ok<V: Encode>(value: V) -> Result<Vec<u8>, AuthorizationError> {
+			Ok(value.encode())
+		}
 
-	#[inline]
-	fn is_origin_feeless(origin: &OriginFor<T>) -> bool {
-		origin.caller().as_signed().map(T::Feeless::is_feeless).unwrap_or(false)
-	}
+		#[inline]
+		fn is_origin_feeless(origin: &OriginFor<T>) -> bool {
+			origin.caller().as_signed().map(T::Feeless::is_feeless).unwrap_or(false)
+		}
 
 		fn get_registry_state_view(
 			registry: &Ss58Identifier,

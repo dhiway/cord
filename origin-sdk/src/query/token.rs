@@ -1,6 +1,7 @@
-use crate::client::OriginClient;
-use crate::types::error::OriginSdkError;
-use crate::types::{TokenLookupView, TokenTimelineView};
+use crate::{
+	client::OriginClient,
+	types::{error::OriginSdkError, TokenLookupView, TokenTimelineView},
+};
 use origin_primitives::Ss58Identifier;
 
 pub struct TokenClient<'a> {
@@ -52,7 +53,8 @@ impl<'a> TokenClient<'a> {
 		&self,
 		token: Ss58Identifier,
 		version: u32,
-	) -> Result<origin_primitives::token::TokenStateEventView<subxt::utils::H256>, OriginSdkError> {
+	) -> Result<origin_primitives::token::TokenStateEventView<subxt::utils::H256>, OriginSdkError>
+	{
 		self.client.view()?.token().state_event(token, version).await
 	}
 

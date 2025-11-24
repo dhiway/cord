@@ -1,8 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use super::OriginConfig;
-use crate::types::error::OriginSdkError;
-use crate::util::retry::RetryPolicy;
+use crate::{types::error::OriginSdkError, util::retry::RetryPolicy};
 
 /// Shared connection wrapper.
 #[derive(Clone)]

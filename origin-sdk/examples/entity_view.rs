@@ -1,6 +1,5 @@
 use origin_primitives::Ss58Identifier;
-use origin_sdk::client::signer::MultiKeySigner;
-use origin_sdk::OriginClient;
+use origin_sdk::{client::signer::MultiKeySigner, OriginClient};
 use serde_json::Value as JsonValue;
 
 #[tokio::main]

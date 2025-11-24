@@ -1,8 +1,8 @@
-use crate::client::submit::TxOutcome;
-use crate::client::OriginClient;
-use crate::extrinsic::builder::DynamicCallBuilder;
-use crate::types::error::OriginSdkError;
-use crate::types::{EntityInfoView, EntityStateView};
+use crate::{
+	client::{submit::TxOutcome, OriginClient},
+	extrinsic::builder::DynamicCallBuilder,
+	types::{error::OriginSdkError, EntityInfoView, EntityStateView},
+};
 use origin_primitives::Ss58Identifier;
 use scale_value::Value;
 
@@ -15,7 +15,10 @@ impl<'a> EntityClient<'a> {
 		Self { client }
 	}
 
-	pub async fn overview(&self, entity: Ss58Identifier) -> Result<EntityStateView, OriginSdkError> {
+	pub async fn overview(
+		&self,
+		entity: Ss58Identifier,
+	) -> Result<EntityStateView, OriginSdkError> {
 		self.client.view()?.entity().overview(entity).await
 	}
 
@@ -48,8 +51,10 @@ impl<'a> EntityClient<'a> {
 	pub async fn account_history(
 		&self,
 		entity: Ss58Identifier,
-	) -> Result<Vec<origin_primitives::entity::AccountUnbindEntryView<subxt::utils::AccountId32>>, OriginSdkError>
-	{
+	) -> Result<
+		Vec<origin_primitives::entity::AccountUnbindEntryView<subxt::utils::AccountId32>>,
+		OriginSdkError,
+	> {
 		self.client.view()?.entity().account_history(entity).await
 	}
 
@@ -115,23 +120,41 @@ impl<'a> EntityTx<'a> {
 		)
 	}
 
-	pub fn rotate_attributes(&self, ops: Vec<(Vec<u8>, Value)>) -> crate::extrinsic::builder::DynamicCall {
+	pub fn rotate_attributes(
+		&self,
+		ops: Vec<(Vec<u8>, Value)>,
+	) -> crate::extrinsic::builder::DynamicCall {
 		let val = attrs_to_value(&ops);
 		DynamicCallBuilder::new().call("Entity", "rotate_attributes", vec![val])
 	}
 
-	pub fn add_attributes(&self, ops: Vec<(Vec<u8>, Value)>) -> crate::extrinsic::builder::DynamicCall {
+	pub fn add_attributes(
+		&self,
+		ops: Vec<(Vec<u8>, Value)>,
+	) -> crate::extrinsic::builder::DynamicCall {
 		let val = attrs_to_value(&ops);
 		DynamicCallBuilder::new().call("Entity", "add_attributes", vec![val])
 	}
 
-	pub fn remove_attribute(&self, key: impl AsRef<[u8]>) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call("Entity", "remove_attribute", vec![Value::from_bytes(key.as_ref())])
+	pub fn remove_attribute(
+		&self,
+		key: impl AsRef<[u8]>,
+	) -> crate::extrinsic::builder::DynamicCall {
+		DynamicCallBuilder::new().call(
+			"Entity",
+			"remove_attribute",
+			vec![Value::from_bytes(key.as_ref())],
+		)
 	}
 
 	pub async fn submit_set_info(&self, info: Value) -> Result<TxOutcome, OriginSdkError> {
 		let call = self.set_info(info);
-		self.client.tx()?.submit(&call.pallet, &call.function, call.args).await?.wait_in_block().await
+		self.client
+			.tx()?
+			.submit(&call.pallet, &call.function, call.args)
+			.await?
+			.wait_in_block()
+			.await
 	}
 
 	pub async fn submit_rotate_attribute(
@@ -141,26 +164,52 @@ impl<'a> EntityTx<'a> {
 		value: Value,
 	) -> Result<TxOutcome, OriginSdkError> {
 		let call = self.rotate_attribute(entity, key, value);
-		self.client.tx()?.submit(&call.pallet, &call.function, call.args).await?.wait_in_block().await
+		self.client
+			.tx()?
+			.submit(&call.pallet, &call.function, call.args)
+			.await?
+			.wait_in_block()
+			.await
 	}
 
 	pub fn set_entity_nym(&self, prefix: &str) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new()
-			.call("Entity", "set_entity_nym", vec![Value::from_bytes(prefix.as_bytes())])
+		DynamicCallBuilder::new().call(
+			"Entity",
+			"set_entity_nym",
+			vec![Value::from_bytes(prefix.as_bytes())],
+		)
 	}
 
 	pub async fn submit_set_entity_nym(&self, prefix: &str) -> Result<TxOutcome, OriginSdkError> {
 		let call = self.set_entity_nym(prefix);
-		self.client.tx()?.submit(&call.pallet, &call.function, call.args).await?.wait_in_block().await
+		self.client
+			.tx()?
+			.submit(&call.pallet, &call.function, call.args)
+			.await?
+			.wait_in_block()
+			.await
 	}
 
-	pub fn set_linked_account(&self, account: subxt::utils::AccountId32) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call("Entity", "set_linked_account", vec![Value::from_bytes(account.0)])
+	pub fn set_linked_account(
+		&self,
+		account: subxt::utils::AccountId32,
+	) -> crate::extrinsic::builder::DynamicCall {
+		DynamicCallBuilder::new().call(
+			"Entity",
+			"set_linked_account",
+			vec![Value::from_bytes(account.0)],
+		)
 	}
 
-	pub fn revoke_linked_account(&self, account: subxt::utils::AccountId32) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new()
-			.call("Entity", "revoke_linked_account", vec![Value::from_bytes(account.0)])
+	pub fn revoke_linked_account(
+		&self,
+		account: subxt::utils::AccountId32,
+	) -> crate::extrinsic::builder::DynamicCall {
+		DynamicCallBuilder::new().call(
+			"Entity",
+			"revoke_linked_account",
+			vec![Value::from_bytes(account.0)],
+		)
 	}
 
 	pub fn revoke_linked_account_for(
@@ -199,18 +248,37 @@ impl<'a> EntityTx<'a> {
 		)
 	}
 
-	pub fn clear_everything(&self, token: Ss58Identifier) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call("Entity", "clear_everything", vec![Value::from_bytes(token.as_ref())])
+	pub fn clear_everything(
+		&self,
+		token: Ss58Identifier,
+	) -> crate::extrinsic::builder::DynamicCall {
+		DynamicCallBuilder::new().call(
+			"Entity",
+			"clear_everything",
+			vec![Value::from_bytes(token.as_ref())],
+		)
 	}
 
-	pub fn clear_everything_for(&self, token: Ss58Identifier) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new()
-			.call("Entity", "clear_everything_for", vec![Value::from_bytes(token.as_ref())])
+	pub fn clear_everything_for(
+		&self,
+		token: Ss58Identifier,
+	) -> crate::extrinsic::builder::DynamicCall {
+		DynamicCallBuilder::new().call(
+			"Entity",
+			"clear_everything_for",
+			vec![Value::from_bytes(token.as_ref())],
+		)
 	}
 
-	pub fn remove_entity_nym(&self, token: Ss58Identifier) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new()
-			.call("Entity", "remove_entity_nym", vec![Value::from_bytes(token.as_ref())])
+	pub fn remove_entity_nym(
+		&self,
+		token: Ss58Identifier,
+	) -> crate::extrinsic::builder::DynamicCall {
+		DynamicCallBuilder::new().call(
+			"Entity",
+			"remove_entity_nym",
+			vec![Value::from_bytes(token.as_ref())],
+		)
 	}
 }
 

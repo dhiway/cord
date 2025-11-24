@@ -1,8 +1,7 @@
 use subxt::dynamic::{self, Value};
 
 use super::builder::DynamicCall;
-use crate::client::submit::SubmitClient;
-use crate::types::error::OriginSdkError;
+use crate::{client::submit::SubmitClient, types::error::OriginSdkError};
 
 /// Collects multiple calls for atomic submission via Utility::batch/batch_all.
 pub struct BatchBuilder {

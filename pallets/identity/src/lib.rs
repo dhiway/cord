@@ -546,16 +546,14 @@ pub mod pallet {
 			let item = (registrar_acc, Judgement::Requested);
 
 			match id.judgements.binary_search_by_key(&registrar, |x| x.0.clone()) {
-				Ok(i) => {
+				Ok(i) =>
 					if id.judgements[i].1.is_sticky() {
 						return Err(Error::<T>::StickyJudgement.into());
 					} else {
 						id.judgements[i] = item
-					}
-				},
-				Err(i) => {
-					id.judgements.try_insert(i, item).map_err(|_| Error::<T>::TooManyRegistrars)?
-				},
+					},
+				Err(i) =>
+					id.judgements.try_insert(i, item).map_err(|_| Error::<T>::TooManyRegistrars)?,
 			}
 
 			let judgements = id.judgements.len();
@@ -1141,11 +1139,10 @@ impl<T: Config> Pallet<T> {
 			.iter()
 			.fold((true, None), |(valid, last_char), &cur_char| {
 				(
-					valid
-						&& (cur_char.is_ascii_lowercase()
-							|| cur_char.is_ascii_digit()
-							|| cur_char == b'.')
-						&& !(last_char == Some(b'.') && cur_char == b'.'),
+					valid &&
+						(cur_char.is_ascii_lowercase() ||
+							cur_char.is_ascii_digit() ||
+							cur_char == b'.') && !(last_char == Some(b'.') && cur_char == b'.'),
 					Some(cur_char),
 				)
 			})

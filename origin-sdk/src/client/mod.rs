@@ -7,9 +7,10 @@ mod view;
 
 use std::sync::Arc;
 
-use crate::extrinsic::builder::DynamicCallBuilder;
-use crate::extrinsic::metatx::MetaTxClient;
-use crate::types::error::OriginSdkError;
+use crate::{
+	extrinsic::{builder::DynamicCallBuilder, metatx::MetaTxClient},
+	types::error::OriginSdkError,
+};
 use connection::{Connection, ConnectionBuilder};
 use submit::SubmitClient;
 use view::ViewClient;

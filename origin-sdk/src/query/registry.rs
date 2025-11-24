@@ -1,8 +1,8 @@
-use crate::client::submit::TxOutcome;
-use crate::client::OriginClient;
-use crate::extrinsic::builder::DynamicCallBuilder;
-use crate::types::error::OriginSdkError;
-use crate::types::RegistryStateView;
+use crate::{
+	client::{submit::TxOutcome, OriginClient},
+	extrinsic::builder::DynamicCallBuilder,
+	types::{error::OriginSdkError, RegistryStateView},
+};
 use origin_primitives::Ss58Identifier;
 use scale_value::Value;
 
@@ -15,7 +15,10 @@ impl<'a> RegistryClient<'a> {
 		Self { client }
 	}
 
-	pub async fn details(&self, registry: Ss58Identifier) -> Result<RegistryStateView, OriginSdkError> {
+	pub async fn details(
+		&self,
+		registry: Ss58Identifier,
+	) -> Result<RegistryStateView, OriginSdkError> {
 		self.client.view()?.registry().details(registry).await
 	}
 
@@ -85,7 +88,10 @@ impl<'a> RegistryClient<'a> {
 		self.client.view()?.registry().packet_snapshot(registry, packet, version).await
 	}
 
-	pub async fn overview(&self, registry: Ss58Identifier) -> Result<RegistryStateView, OriginSdkError> {
+	pub async fn overview(
+		&self,
+		registry: Ss58Identifier,
+	) -> Result<RegistryStateView, OriginSdkError> {
 		self.client.view()?.registry().overview(registry).await
 	}
 
@@ -113,7 +119,11 @@ impl<'a> RegistryClient<'a> {
 		cursor: Option<Ss58Identifier>,
 		limit: Option<u32>,
 	) -> Result<(Vec<crate::types::PacketStateView>, Option<Ss58Identifier>), OriginSdkError> {
-		self.client.view()?.registry().list_by_token(prefix, version, cursor, limit).await
+		self.client
+			.view()?
+			.registry()
+			.list_by_token(prefix, version, cursor, limit)
+			.await
 	}
 
 	pub async fn list_by_digest(
@@ -123,7 +133,11 @@ impl<'a> RegistryClient<'a> {
 		cursor: Option<Vec<u8>>,
 		limit: Option<u32>,
 	) -> Result<(Vec<crate::types::PacketStateView>, Option<Vec<u8>>), OriginSdkError> {
-		self.client.view()?.registry().list_by_digest(digest_prefix, version, cursor, limit).await
+		self.client
+			.view()?
+			.registry()
+			.list_by_digest(digest_prefix, version, cursor, limit)
+			.await
 	}
 }
 
@@ -132,7 +146,11 @@ pub struct RegistryTx<'a> {
 }
 
 impl<'a> RegistryTx<'a> {
-	pub fn create(&self, registry_id: &[u8], info: &[u8]) -> crate::extrinsic::builder::DynamicCall {
+	pub fn create(
+		&self,
+		registry_id: &[u8],
+		info: &[u8],
+	) -> crate::extrinsic::builder::DynamicCall {
 		DynamicCallBuilder::new().call(
 			"Register",
 			"create_registry",
@@ -146,7 +164,12 @@ impl<'a> RegistryTx<'a> {
 		info: &[u8],
 	) -> Result<TxOutcome, OriginSdkError> {
 		let call = self.create(registry_id, info);
-		self.client.tx()?.submit(&call.pallet, &call.function, call.args).await?.wait_in_block().await
+		self.client
+			.tx()?
+			.submit(&call.pallet, &call.function, call.args)
+			.await?
+			.wait_in_block()
+			.await
 	}
 
 	pub fn set_delegate_permissions(
@@ -157,10 +180,7 @@ impl<'a> RegistryTx<'a> {
 	) -> crate::extrinsic::builder::DynamicCall {
 		let delegate = Value::from_bytes(delegate_account.0);
 		let roles_val = Value::from(
-			roles
-				.into_iter()
-				.map(|r| Value::u128(r.bits() as u128))
-				.collect::<Vec<_>>(),
+			roles.into_iter().map(|r| Value::u128(r.bits() as u128)).collect::<Vec<_>>(),
 		);
 		DynamicCallBuilder::new().call(
 			"Register",
@@ -193,18 +213,36 @@ impl<'a> RegistryTx<'a> {
 		)
 	}
 
-	pub fn revoke_registry(&self, registry: Ss58Identifier) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new()
-			.call("Register", "revoke_registry", vec![Value::from_bytes(registry.as_ref())])
+	pub fn revoke_registry(
+		&self,
+		registry: Ss58Identifier,
+	) -> crate::extrinsic::builder::DynamicCall {
+		DynamicCallBuilder::new().call(
+			"Register",
+			"revoke_registry",
+			vec![Value::from_bytes(registry.as_ref())],
+		)
 	}
 
-	pub fn restore_registry(&self, registry: Ss58Identifier) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new()
-			.call("Register", "restore_registry", vec![Value::from_bytes(registry.as_ref())])
+	pub fn restore_registry(
+		&self,
+		registry: Ss58Identifier,
+	) -> crate::extrinsic::builder::DynamicCall {
+		DynamicCallBuilder::new().call(
+			"Register",
+			"restore_registry",
+			vec![Value::from_bytes(registry.as_ref())],
+		)
 	}
 
-	pub fn delete_registry(&self, registry: Ss58Identifier) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new()
-			.call("Register", "delete_registry", vec![Value::from_bytes(registry.as_ref())])
+	pub fn delete_registry(
+		&self,
+		registry: Ss58Identifier,
+	) -> crate::extrinsic::builder::DynamicCall {
+		DynamicCallBuilder::new().call(
+			"Register",
+			"delete_registry",
+			vec![Value::from_bytes(registry.as_ref())],
+		)
 	}
 }

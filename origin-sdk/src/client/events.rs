@@ -3,8 +3,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use super::connection::Connection;
-use crate::types::error::OriginSdkError;
-use crate::util::retry::RetryPolicy;
+use crate::{types::error::OriginSdkError, util::retry::RetryPolicy};
 
 /// Minimal dynamic event envelope.
 #[derive(Debug, Clone)]
