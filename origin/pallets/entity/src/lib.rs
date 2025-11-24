@@ -45,8 +45,10 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::*;
 
-use crate::entity::EntityField;
-use crate::signature::{verify_multisignature, SignatureVerificationError};
+use crate::{
+	entity::EntityField,
+	signature::{verify_multisignature, SignatureVerificationError},
+};
 use origin_primitives::{
 	attribute::{Attribute, AttributeValueView, Element},
 	authorization::{
@@ -790,7 +792,6 @@ pub mod pallet {
 	where
 		T::AccountId: Clone + Into<AccountId32>,
 	{
-
 		/// Return the entity info
 		pub fn details(
 			auth: AuthorizationOf<T>,

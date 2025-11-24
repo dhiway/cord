@@ -1,10 +1,16 @@
 use std::sync::Arc;
 
-use super::connection::Connection;
-use super::nonce::{NonceManager, NonceStrategy};
-use crate::client::signer::{Signer, SubxtSignerAdapter};
-use crate::client::OriginConfig;
-use crate::types::error::OriginSdkError;
+use super::{
+	connection::Connection,
+	nonce::{NonceManager, NonceStrategy},
+};
+use crate::{
+	client::{
+		signer::{Signer, SubxtSignerAdapter},
+		OriginConfig,
+	},
+	types::error::OriginSdkError,
+};
 use subxt::dynamic;
 use tokio::sync::{oneshot, Mutex};
 
@@ -50,12 +56,10 @@ where
 	for ev in events.iter() {
 		if let Ok(ev) = ev {
 			let fields = ev.field_values().map_or(Vec::new(), |comp| match comp {
-				scale_value::Composite::Named(v) => {
-					v.into_iter().map(|(_, val)| val.remove_context()).collect()
-				},
-				scale_value::Composite::Unnamed(v) => {
-					v.into_iter().map(|val| val.remove_context()).collect()
-				},
+				scale_value::Composite::Named(v) =>
+					v.into_iter().map(|(_, val)| val.remove_context()).collect(),
+				scale_value::Composite::Unnamed(v) =>
+					v.into_iter().map(|val| val.remove_context()).collect(),
 			});
 			envelopes.push(crate::client::events::EventEnvelope {
 				block,
@@ -76,6 +80,8 @@ pub struct SubmitClient {
 	nonce: Arc<NonceManager>,
 }
 
+const DEFAULT_TIP: u128 = 10u128;
+
 impl SubmitClient {
 	pub(crate) fn new(connection: Arc<Connection>, signer: Option<Arc<dyn Signer>>) -> Self {
 		Self {
@@ -95,8 +101,18 @@ impl SubmitClient {
 		call: &str,
 		args: Vec<dynamic::Value>,
 	) -> Result<TxHandle, OriginSdkError> {
+		self.submit_with_tip(pallet, call, args, DEFAULT_TIP).await
+	}
+
+	pub async fn submit_with_tip(
+		&self,
+		pallet: &str,
+		call: &str,
+		args: Vec<dynamic::Value>,
+		tip: u128,
+	) -> Result<TxHandle, OriginSdkError> {
 		let call = dynamic::tx(pallet, call, args);
-		self.submit_payload(call).await
+		self.submit_payload_with_tip(call, tip).await
 	}
 
 	pub async fn submit_and_watch(
@@ -131,6 +147,14 @@ impl SubmitClient {
 		&self,
 		call: subxt::tx::DynamicPayload,
 	) -> Result<TxHandle, OriginSdkError> {
+		self.submit_payload_with_tip(call, DEFAULT_TIP).await
+	}
+
+	pub(crate) async fn submit_payload_with_tip(
+		&self,
+		call: subxt::tx::DynamicPayload,
+		tip: u128,
+	) -> Result<TxHandle, OriginSdkError> {
 		let signer = self
 			.signer
 			.clone()
@@ -145,7 +169,7 @@ impl SubmitClient {
 			let nonce = self.nonce.allocate(connection.online(), &account).await?;
 			let params = subxt::config::DefaultExtrinsicParamsBuilder::<OriginConfig>::new()
 				.nonce(nonce)
-				.tip(1u128)
+				.tip(tip)
 				.build();
 			connection
 				.online()

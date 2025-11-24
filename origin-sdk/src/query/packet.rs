@@ -1,8 +1,8 @@
-use crate::client::submit::TxOutcome;
-use crate::client::OriginClient;
-use crate::extrinsic::builder::DynamicCallBuilder;
-use crate::types::error::OriginSdkError;
-use crate::types::PacketStateView;
+use crate::{
+	client::{submit::TxOutcome, OriginClient},
+	extrinsic::builder::DynamicCallBuilder,
+	types::{error::OriginSdkError, PacketStateView},
+};
 use origin_primitives::PacketPointer;
 use scale_value::Value;
 
@@ -33,7 +33,11 @@ pub struct PacketTx<'a> {
 }
 
 impl<'a> PacketTx<'a> {
-	pub fn issue(&self, registry: impl AsRef<[u8]>, body: impl AsRef<[u8]>) -> crate::extrinsic::builder::DynamicCall {
+	pub fn issue(
+		&self,
+		registry: impl AsRef<[u8]>,
+		body: impl AsRef<[u8]>,
+	) -> crate::extrinsic::builder::DynamicCall {
 		DynamicCallBuilder::new().call(
 			"Register",
 			"create_packet",
@@ -47,7 +51,12 @@ impl<'a> PacketTx<'a> {
 		body: impl AsRef<[u8]>,
 	) -> Result<TxOutcome, OriginSdkError> {
 		let call = self.issue(registry, body);
-		self.client.tx()?.submit(&call.pallet, &call.function, call.args).await?.wait_in_block().await
+		self.client
+			.tx()?
+			.submit(&call.pallet, &call.function, call.args)
+			.await?
+			.wait_in_block()
+			.await
 	}
 
 	pub fn update(
@@ -67,7 +76,11 @@ impl<'a> PacketTx<'a> {
 		)
 	}
 
-	pub fn revoke(&self, registry: impl AsRef<[u8]>, packet: impl AsRef<[u8]>) -> crate::extrinsic::builder::DynamicCall {
+	pub fn revoke(
+		&self,
+		registry: impl AsRef<[u8]>,
+		packet: impl AsRef<[u8]>,
+	) -> crate::extrinsic::builder::DynamicCall {
 		DynamicCallBuilder::new().call(
 			"Register",
 			"revoke_packet",
@@ -87,7 +100,11 @@ impl<'a> PacketTx<'a> {
 		)
 	}
 
-	pub fn remove(&self, registry: impl AsRef<[u8]>, packet: impl AsRef<[u8]>) -> crate::extrinsic::builder::DynamicCall {
+	pub fn remove(
+		&self,
+		registry: impl AsRef<[u8]>,
+		packet: impl AsRef<[u8]>,
+	) -> crate::extrinsic::builder::DynamicCall {
 		DynamicCallBuilder::new().call(
 			"Register",
 			"remove_packet",

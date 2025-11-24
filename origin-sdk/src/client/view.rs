@@ -3,10 +3,8 @@ use std::{
 	time::{SystemTime, UNIX_EPOCH},
 };
 
-use super::connection::Connection;
-use super::Signer;
-use crate::types::error::OriginSdkError;
-use crate::util::retry::RetryPolicy;
+use super::{connection::Connection, Signer};
+use crate::{types::error::OriginSdkError, util::retry::RetryPolicy};
 use codec::{Decode, Encode};
 use origin_primitives::authorization::AuthorizationError;
 use sp_core::hashing::twox_128;
@@ -87,7 +85,8 @@ impl ViewClient {
 		Ok((output_ty, subxt::dynamic::view_function_call(query_id, args)))
 	}
 
-	/// Call a view and decode it as `Result<Vec<u8>, AuthorizationError>`, returning the inner bytes.
+	/// Call a view and decode it as `Result<Vec<u8>, AuthorizationError>`, returning the inner
+	/// bytes.
 	pub async fn call_auth_raw(
 		&self,
 		pallet: &str,
@@ -942,8 +941,9 @@ fn strip_length_wrapped(raw: &[u8]) -> Option<&[u8]> {
 }
 
 fn parse_legacy_info(buf: &[u8]) -> Option<crate::types::EntityInfoView> {
-	// The payload we see is: length-wrapped body with fields separated by 0x00, each prefixed by small tags.
-	// We split on 0x00, drop empties, and take first = display, second = email, web = None.
+	// The payload we see is: length-wrapped body with fields separated by 0x00, each prefixed by
+	// small tags. We split on 0x00, drop empties, and take first = display, second = email, web =
+	// None.
 	let parts: Vec<Vec<u8>> =
 		buf.split(|b| *b == 0).filter(|s| !s.is_empty()).map(|s| s.to_vec()).collect();
 	if parts.is_empty() {
@@ -980,8 +980,8 @@ fn parse_legacy_info(buf: &[u8]) -> Option<crate::types::EntityInfoView> {
 
 fn normalize_info(info: &mut crate::types::EntityInfoView) {
 	// If display came back None but web carried the actual value, shift it.
-	if matches!(info.display, crate::types::entity::ElementView::None)
-		&& !matches!(info.web, crate::types::entity::ElementView::None)
+	if matches!(info.display, crate::types::entity::ElementView::None) &&
+		!matches!(info.web, crate::types::entity::ElementView::None)
 	{
 		info.display = core::mem::replace(&mut info.web, crate::types::entity::ElementView::None);
 	}

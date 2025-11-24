@@ -1,5 +1,6 @@
-use origin_sdk::client::signer::MultiKeySigner;
-use origin_sdk::{extrinsic::builder::DynamicCallBuilder, OriginClient};
+use origin_sdk::{
+	client::signer::MultiKeySigner, extrinsic::builder::DynamicCallBuilder, OriginClient,
+};
 use scale_value::Value;
 
 #[tokio::main]

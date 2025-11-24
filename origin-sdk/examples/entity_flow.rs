@@ -2,22 +2,22 @@
 use codec::{Decode, Encode};
 use hex;
 use origin_primitives::{element::ElementView, Ss58Identifier};
-use origin_sdk::client::signer::MultiKeySigner;
-use origin_sdk::client::submit::TxOutcome;
-use origin_sdk::client::Signer;
-use origin_sdk::query::Query;
-use origin_sdk::types::identifiers::{account_to_ss58, ss58_to_string};
-use origin_sdk::types::EntityStateView;
-use origin_sdk::{OriginClient, OriginSdkError};
-use rand::distributions::Uniform;
-use rand::thread_rng;
-use rand::{distributions::Alphanumeric, Rng};
+use origin_sdk::{
+	client::{signer::MultiKeySigner, submit::TxOutcome, Signer},
+	query::Query,
+	types::{
+		identifiers::{account_to_ss58, ss58_to_string},
+		EntityStateView,
+	},
+	OriginClient, OriginSdkError,
+};
+use rand::{
+	distributions::{Alphanumeric, Uniform},
+	thread_rng, Rng,
+};
 use scale_value::{Composite, Primitive, Value, ValueDef};
 use serde::Deserialize;
-use sp_core::hashing::blake2_256;
-use std::env;
-use std::fmt::Write;
-use std::fs;
+use std::{env, fmt::Write, fs};
 use subxt::utils::AccountId32;
 
 #[tokio::main]
@@ -41,9 +41,11 @@ async fn main() -> Result<(), OriginSdkError> {
 	let demo = load_demo_templates("origin-sdk/examples/sample_data/demo.json")?;
 	let mut rng = thread_rng();
 	let label = format!("{}-{:04}", &account_ss58[..6], rng.gen_range(0..9999));
+	let generated = GeneratedIds::new(&label);
 
 	// 2) Ensure the account has an entity token (create if missing), attributes, and nym.
-	let ensure = ensure_entity_and_nym(&client, &domain, account.clone(), &demo, &label).await?;
+	let ensure =
+		ensure_entity_and_nym(&client, &domain, account.clone(), &demo, &label, &generated).await?;
 	let entity_id = ensure.entity;
 	// let entity_id_str = ss58_to_string(&entity_id);
 	// println!(
@@ -65,6 +67,25 @@ struct EnsureResult {
 	nym_set: bool,
 }
 
+#[derive(Clone)]
+struct GeneratedIds {
+	did_key: String,
+	did_web: String,
+	did_cord: String,
+	public_key: String,
+}
+
+impl GeneratedIds {
+	fn new(label: &str) -> Self {
+		let did_key = format!("did:key:z{}", random_base58(46));
+		let did_cord = format!("did:cord:{}", random_base58(48));
+		let did_web =
+			format!("did:web:{}.example.org", sanitize_label_for_host(label).trim_matches('-'));
+		let public_key = format!("pk-{}", random_base58(48));
+		Self { did_key, did_web, did_cord, public_key }
+	}
+}
+
 /// Ensure an entity exists for the account, create + set nym if not, and rotate info once.
 async fn ensure_entity_and_nym(
 	client: &OriginClient,
@@ -72,36 +93,48 @@ async fn ensure_entity_and_nym(
 	account: AccountId32,
 	demo: &DemoData,
 	label: &str,
+	generated: &GeneratedIds,
 ) -> Result<EnsureResult, OriginSdkError> {
 	// let storage_link = fetch_linked_entity_storage(client, &account).await?;
 	let existing = fetch_linked_entity(client, &account).await?;
 
 	println!("\nℹ️ Entity found");
 
-		let mut created = false;
+	let mut created = false;
 	let entity = if let Some(id) = existing {
 		println!("  ↳ • Token  : {}", ss58_to_string(&id));
 		id
 	} else {
 		println!("🔄 Create Entity\n");
 		println!("ℹ️ Setting entity info");
-		let info = build_entity_info(demo, label);
-		let call = client.call().call("Entity", "set_info", vec![info]);
-		match submit_logged(client, &call.pallet, &call.function, call.args).await {
-			Ok(outcome) => {
-				created = true;
-				let token = extract_entity_token(&outcome)
-					.ok_or_else(|| OriginSdkError::View("EntityInfoSet event missing".into()))?;
-				println!("  ↳ • Token  : {}", ss58_to_string(&token));
-				fetch_linked_entity(client, &account).await?.unwrap_or(token)
-			},
-			Err(e) if format!("{e}").contains("AccountAlreadyLinked") => {
-				fetch_linked_entity(client, &account).await?.ok_or_else(|| {
-					OriginSdkError::View("account linked but token not retrievable".into())
-				})?
-			},
-			Err(e) => return Err(e),
+		let info = build_entity_info(demo, label, generated);
+		let outcome = submit_logged(client, "Entity", "set_info", vec![info]).await?;
+		created = true;
+		let token = extract_entity_token(&outcome)
+			.ok_or_else(|| OriginSdkError::View("EntityInfoSet event missing".into()))?;
+		println!("  ↳ • Token  : {}", ss58_to_string(&token));
+
+		// Batch follow-ups: add attributes and set nym in one extrinsic to avoid nonce/prio races.
+		let attrs = build_attribute_ops(&demo.entity, label, generated);
+		let prefix = random_nym_prefix(label);
+		let mut batch = client.tx()?.batch();
+		if !attrs.is_empty() {
+			batch = batch.call(client.call().call(
+				"Entity",
+				"add_attributes",
+				vec![attrs_to_value(&attrs)],
+			));
 		}
+		batch = batch.call(client.call().call(
+			"Entity",
+			"set_entity_nym",
+			vec![Value::from_bytes(prefix.as_bytes())],
+		));
+		let _ = batch.submit_and_wait_finalized().await?;
+		let new_nym = format!("{prefix}.nym.org.in"); // pallet appends suffix
+		println!("  ↳ • Nym    : {new_nym}");
+
+		fetch_linked_entity(client, &account).await?.unwrap_or(token)
 	};
 
 	// // Reconfirm linkage before nym operations.
@@ -136,9 +169,23 @@ async fn ensure_entity_and_nym(
 		.map(|a| a.key)
 		.collect();
 
-	let all_ops = build_attribute_ops(&demo.entity, label);
-	let (rotate_ops, add_ops): (Vec<_>, Vec<_>) =
-		all_ops.into_iter().partition(|(k, _)| existing_keys.contains(k));
+	let rotatable_keys: std::collections::HashSet<Vec<u8>> =
+		["did:key", "did:web", "did:cord", "public-key"]
+			.iter()
+			.map(|k| k.as_bytes().to_vec())
+			.collect();
+	let all_ops = build_attribute_ops(&demo.entity, label, generated);
+	let mut rotate_ops = Vec::new();
+	let mut add_ops = Vec::new();
+	for (key, val) in all_ops {
+		if existing_keys.contains(&key) {
+			if rotatable_keys.contains(&key) {
+				rotate_ops.push((key, val));
+			}
+		} else {
+			add_ops.push((key, val));
+		}
+	}
 
 	if !add_ops.is_empty() {
 		println!("Adding {} attribute(s): {}", add_ops.len(), key_list(&add_ops));
@@ -194,6 +241,7 @@ struct AttrTemplate {
 	key: String,
 	#[serde(rename = "type")]
 	kind: String,
+	generate: Option<String>,
 	template: Option<String>,
 	value: Option<serde_json::Value>,
 	source: Option<String>,
@@ -207,9 +255,9 @@ fn load_demo_templates(path: &str) -> Result<DemoData, OriginSdkError> {
 }
 
 /// Build EntityInfo payload from templates, substituting {label}.
-fn build_entity_info(demo: &DemoData, label: &str) -> Value {
+fn build_entity_info(demo: &DemoData, label: &str, generated: &GeneratedIds) -> Value {
 	let tpl = &demo.entity;
-	let attrs = build_attribute_ops(tpl, label);
+	let attrs = build_attribute_ops(tpl, label, generated);
 	let attrs_val = if attrs.is_empty() {
 		Value::variant("None", Composite::Unnamed(vec![]))
 	} else {
@@ -223,7 +271,10 @@ fn build_entity_info(demo: &DemoData, label: &str) -> Value {
 	])
 }
 
-fn render_attr_string(attr: &AttrTemplate, label: &str) -> String {
+fn render_attr_string(attr: &AttrTemplate, label: &str, generated: &GeneratedIds) -> String {
+	if let Some(gen) = generated_attr_string(attr, generated, label) {
+		return gen;
+	}
 	if let Some(tpl) = &attr.template {
 		let s = tpl.replace("{label}", label);
 		return s;
@@ -234,6 +285,27 @@ fn render_attr_string(attr: &AttrTemplate, label: &str) -> String {
 		}
 	}
 	format!("{label}-{}", random_label("attr"))
+}
+
+fn generated_attr_string(
+	attr: &AttrTemplate,
+	generated: &GeneratedIds,
+	label: &str,
+) -> Option<String> {
+	let tag = attr.generate.as_deref().or_else(|| match attr.key.as_str() {
+		"did:key" => Some("did_key"),
+		"did:web" => Some("did_web"),
+		"did:cord" => Some("did_cord"),
+		_ => None,
+	})?;
+	match tag {
+		"did_key" => Some(generated.did_key.clone()),
+		"did_web" => Some(generated.did_web.clone()),
+		"did_cord" => Some(generated.did_cord.clone()),
+		"public_key" => Some(generated.public_key.clone()),
+		other if other.starts_with("did:") => Some(random_did(other, label)),
+		_ => None,
+	}
 }
 
 /// Extract the newly issued entity token from EntityInfoSet event fields.
@@ -280,66 +352,32 @@ fn element_from_str(s: &str) -> Value {
 	Value::variant("Raw", Composite::Unnamed(vec![Value::from_bytes(s.as_bytes())]))
 }
 
-fn build_attribute_ops(tpl: &EntityTemplate, label: &str) -> Vec<(Vec<u8>, Value)> {
+fn build_attribute_ops(
+	tpl: &EntityTemplate,
+	label: &str,
+	generated: &GeneratedIds,
+) -> Vec<(Vec<u8>, Value)> {
 	tpl.attributes
 		.iter()
-		.map(|attr| (render_attr_key(attr, label).into_bytes(), build_element(attr, label)))
+		.map(|attr| {
+			(render_attr_key(attr, label).into_bytes(), build_element(attr, label, generated))
+		})
 		.collect()
 }
 
-fn build_element(attr: &AttrTemplate, label: &str) -> Value {
+fn build_element(attr: &AttrTemplate, label: &str, generated: &GeneratedIds) -> Value {
 	match attr.kind.as_str() {
 		"none" => Value::variant("None", Composite::Unnamed(vec![])),
-		"raw" => {
-			let s = render_attr_string(attr, label);
-			Value::variant("Raw", Composite::Unnamed(vec![Value::from_bytes(s.as_bytes())]))
-		},
 		"bool" => {
 			let v = attr.value.as_ref().and_then(|v| v.as_bool()).unwrap_or(true);
-			let b: u8 = if v { 1 } else { 0 };
-			Value::variant("Bool", Composite::Unnamed(vec![v_u8(b)]))
+			let b: u128 = if v { 1 } else { 0 };
+			Value::variant("Bool", Composite::Unnamed(vec![Value::u128(b)]))
 		},
-		"u64" => {
-			let v = attr.value.as_ref().and_then(|v| v.as_u64()).unwrap_or(42);
-			let bytes = v.to_le_bytes();
-			let array_vals = bytes.iter().copied().map(v_u8).collect::<Vec<_>>();
-			Value::variant("U64", Composite::Unnamed(vec![Value::unnamed_composite(array_vals)]))
+		_ => {
+			let s = render_attr_string(attr, label, generated);
+			Value::variant("Raw", Composite::Unnamed(vec![Value::from_bytes(s.as_bytes())]))
 		},
-		"u128" => {
-			let v_str = attr
-				.value
-				.as_ref()
-				.and_then(|v| v.as_str().map(|s| s.to_string()))
-				.unwrap_or_else(|| "1000".into());
-			let v: u128 = v_str.parse().unwrap_or(1000);
-			let bytes = v.to_le_bytes();
-			let array_vals = bytes.iter().copied().map(v_u8).collect::<Vec<_>>();
-			Value::variant("U128", Composite::Unnamed(vec![Value::unnamed_composite(array_vals)]))
-		},
-		"hash" => {
-			let s = render_attr_string(attr, label);
-			let digest = blake2_256(s.as_bytes());
-			let array_vals = digest.iter().copied().map(v_u8).collect::<Vec<_>>();
-			Value::variant("Hash", Composite::Unnamed(vec![Value::unnamed_composite(array_vals)]))
-		},
-		"token" => {
-			let source = attr.source.as_deref().unwrap_or("account");
-			let token_bytes = match source {
-				"entity" => label.as_bytes().to_vec(),
-				_ => label.as_bytes().to_vec(),
-			};
-			Value::variant("Token", Composite::Unnamed(vec![Value::from_bytes(&token_bytes)]))
-		},
-		"cid" => {
-			let s = render_attr_string(attr, label);
-			Value::variant("CID", Composite::Unnamed(vec![Value::from_bytes(s.as_bytes())]))
-		},
-		_ => Value::variant("None", Composite::Unnamed(vec![])),
 	}
-}
-
-fn v_u8(b: u8) -> Value {
-	Value::u128(b as u128)
 }
 
 fn attrs_to_value(entries: &[(Vec<u8>, Value)]) -> Value {
@@ -361,6 +399,33 @@ fn random_label(prefix: &str) -> String {
 	let mut rng = rand::thread_rng();
 	let suffix: String = (0..6).map(|_| rng.sample(Alphanumeric) as char).collect();
 	format!("{prefix}-{suffix}")
+}
+
+fn random_identifier(len: usize) -> String {
+	let mut rng = rand::thread_rng();
+	(0..len).map(|_| rng.sample(Alphanumeric) as char).collect()
+}
+
+fn random_base58(len: usize) -> String {
+	let charset = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+	let mut rng = rand::thread_rng();
+	(0..len)
+		.map(|_| {
+			let idx = rng.gen_range(0..charset.len());
+			char::from(charset[idx])
+		})
+		.collect()
+}
+
+fn random_did(method: &str, label: &str) -> String {
+	format!("{method}:{}-{}", sanitize_label_for_host(label), random_identifier(8).to_lowercase())
+}
+
+fn sanitize_label_for_host(label: &str) -> String {
+	label
+		.chars()
+		.map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
+		.collect::<String>()
 }
 
 /// Generate a nym prefix that passes pallet validation: lowercase a-z0-9, no dots, length small.
@@ -394,7 +459,25 @@ async fn submit_logged(
 	args: Vec<scale_value::Value>,
 ) -> Result<TxOutcome, OriginSdkError> {
 	log_call_bytes(pallet, function, &args);
-	let outcome = client.tx()?.submit(pallet, function, args).await?.wait_in_block().await;
+	let mut outcome = client
+		.tx()?
+		.submit_with_tip(pallet, function, args.clone(), 10)
+		.await?
+		.wait_in_block()
+		.await;
+	if let Err(ref e) = outcome {
+		let msg = format!("{e}");
+		if msg.contains("Priority is too low") || msg.contains("1014") {
+			tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+			outcome = client
+				.tx()?
+				.submit_with_tip(pallet, function, args.clone(), 30_000)
+				.await?
+				.wait_in_block()
+				.await;
+		}
+	}
+
 	if let Ok(ref out) = outcome {
 		println!("{}::{} in block {:?}, hash {:?}", pallet, function, out.block, out.hash);
 	}
@@ -414,13 +497,13 @@ async fn fetch_linked_entity(
 	account: &AccountId32,
 ) -> Result<Option<Ss58Identifier>, OriginSdkError> {
 	// 1) Try view path first
-		if let Ok(link) = client.view()?.entity().account_token(account.clone()).await {
-			if let Some(id) = link.clone() {
-				if client.view()?.entity().overview(id.clone()).await.is_ok() {
-					return Ok(Some(id));
-				}
+	if let Ok(link) = client.view()?.entity().account_token(account.clone()).await {
+		if let Some(id) = link.clone() {
+			if client.view()?.entity().overview(id.clone()).await.is_ok() {
+				return Ok(Some(id));
 			}
 		}
+	}
 
 	// 2) Fallback: storage path (which we know is correct)
 	let storage_link = fetch_linked_entity_storage(client, account).await?;
