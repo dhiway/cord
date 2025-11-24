@@ -3,10 +3,11 @@
 //! Dynamic-only client (no runtime codegen) with view-first reads and async
 //! extrinsic pipeline tuned for Origin pallets.
 
-pub mod config;
 pub mod client;
+pub mod config;
 pub mod extrinsic;
 pub mod query;
+pub mod schema;
 pub mod types;
 pub mod util;
 

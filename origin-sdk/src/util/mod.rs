@@ -1,7 +1,7 @@
+pub mod codec;
 pub mod hex;
 pub mod retry;
 pub mod ttl;
-pub mod codec;
 
 pub use hex::{decode_hex, encode_hex};
 pub use retry::RetryPolicy;

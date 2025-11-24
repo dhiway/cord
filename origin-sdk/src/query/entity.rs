@@ -1,11 +1,10 @@
 use crate::{
 	client::{signer::Signer, submit::TxOutcome, OriginClient},
 	extrinsic::builder::DynamicCallBuilder,
-	types::{error::OriginSdkError, EntityInfoView, EntityStateView},
+	types::{error::OriginSdkError, EntityInfoInput, EntityInfoView, EntityStateView},
 };
 use origin_primitives::Ss58Identifier;
 use scale_value::Value;
-use serde_json::Value as JsonValue;
 
 pub struct EntityClient<'a> {
 	client: &'a OriginClient,
@@ -30,8 +29,40 @@ impl<'a> EntityClient<'a> {
 		self.client.view()?.entity().overview(entity).await
 	}
 
+	/// Overview decoded then expanded to nested representation (attributes + info).
+	pub async fn overview_nested(
+		&self,
+		entity: Ss58Identifier,
+	) -> Result<crate::schema::entity::EntityNestedValue, OriginSdkError> {
+		let flat = self.overview(entity).await?;
+		let (nested, _, _) = crate::schema::entity::expand_entity_state(&flat);
+		Ok(nested)
+	}
+
+	pub async fn maybe_overview(
+		&self,
+		entity: Ss58Identifier,
+	) -> Result<Option<EntityStateView>, OriginSdkError> {
+		self.client.view()?.entity().maybe_overview(entity).await
+	}
+
 	pub async fn details(&self, entity: Ss58Identifier) -> Result<EntityInfoView, OriginSdkError> {
 		self.client.view()?.entity().details(entity).await
+	}
+
+	pub async fn details_nested(
+		&self,
+		entity: Ss58Identifier,
+	) -> Result<crate::schema::entity::EntityNestedValue, OriginSdkError> {
+		let flat = self.details(entity).await?;
+		Ok(crate::schema::entity::expand_entity(&flat))
+	}
+
+	pub async fn maybe_details(
+		&self,
+		entity: Ss58Identifier,
+	) -> Result<Option<EntityInfoView>, OriginSdkError> {
+		self.client.view()?.entity().maybe_details(entity).await
 	}
 
 	pub fn tx(&self) -> EntityTx<'a> {
@@ -123,8 +154,39 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		self.client.view_with(self.signer.clone()).entity().overview(entity).await
 	}
 
+	pub async fn overview_nested(
+		&self,
+		entity: Ss58Identifier,
+	) -> Result<crate::schema::entity::EntityNestedValue, OriginSdkError> {
+		let flat = self.overview(entity).await?;
+		let (nested, _, _) = crate::schema::entity::expand_entity_state(&flat);
+		Ok(nested)
+	}
+
+	pub async fn maybe_overview(
+		&self,
+		entity: Ss58Identifier,
+	) -> Result<Option<EntityStateView>, OriginSdkError> {
+		self.client.view_with(self.signer.clone()).entity().maybe_overview(entity).await
+	}
+
 	pub async fn details(&self, entity: Ss58Identifier) -> Result<EntityInfoView, OriginSdkError> {
 		self.client.view_with(self.signer.clone()).entity().details(entity).await
+	}
+
+	pub async fn details_nested(
+		&self,
+		entity: Ss58Identifier,
+	) -> Result<crate::schema::entity::EntityNestedValue, OriginSdkError> {
+		let flat = self.details(entity).await?;
+		Ok(crate::schema::entity::expand_entity(&flat))
+	}
+
+	pub async fn maybe_details(
+		&self,
+		entity: Ss58Identifier,
+	) -> Result<Option<EntityInfoView>, OriginSdkError> {
+		self.client.view_with(self.signer.clone()).entity().maybe_details(entity).await
 	}
 
 	pub fn tx(&self) -> EntityTxWithSigner<'a, S> {
@@ -139,14 +201,22 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		&self,
 		entity: Ss58Identifier,
 	) -> Result<Vec<subxt::utils::AccountId32>, OriginSdkError> {
-		self.client.view_with(self.signer.clone()).entity().linked_accounts(entity).await
+		self.client
+			.view_with(self.signer.clone())
+			.entity()
+			.linked_accounts(entity)
+			.await
 	}
 
 	pub async fn controller_account(
 		&self,
 		entity: Ss58Identifier,
 	) -> Result<subxt::utils::AccountId32, OriginSdkError> {
-		self.client.view_with(self.signer.clone()).entity().controller_account(entity).await
+		self.client
+			.view_with(self.signer.clone())
+			.entity()
+			.controller_account(entity)
+			.await
 	}
 
 	pub async fn account_history(
@@ -156,7 +226,11 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		Vec<origin_primitives::entity::AccountUnbindEntryView<subxt::utils::AccountId32>>,
 		OriginSdkError,
 	> {
-		self.client.view_with(self.signer.clone()).entity().account_history(entity).await
+		self.client
+			.view_with(self.signer.clone())
+			.entity()
+			.account_history(entity)
+			.await
 	}
 
 	pub async fn attribute_version(
@@ -164,21 +238,33 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		entity: Ss58Identifier,
 		key: Vec<u8>,
 	) -> Result<u64, OriginSdkError> {
-		self.client.view_with(self.signer.clone()).entity().attribute_version(entity, key).await
+		self.client
+			.view_with(self.signer.clone())
+			.entity()
+			.attribute_version(entity, key)
+			.await
 	}
 
 	pub async fn attribute_versions(
 		&self,
 		entity: Ss58Identifier,
 	) -> Result<Vec<(Vec<u8>, u64)>, OriginSdkError> {
-		self.client.view_with(self.signer.clone()).entity().attribute_versions(entity).await
+		self.client
+			.view_with(self.signer.clone())
+			.entity()
+			.attribute_versions(entity)
+			.await
 	}
 
 	pub async fn attribute_history(
 		&self,
 		entity: Ss58Identifier,
 	) -> Result<Vec<origin_primitives::AttributeHistoryEntryView>, OriginSdkError> {
-		self.client.view_with(self.signer.clone()).entity().attribute_history(entity).await
+		self.client
+			.view_with(self.signer.clone())
+			.entity()
+			.attribute_history(entity)
+			.await
 	}
 
 	pub async fn attribute_history_for_key(
@@ -212,232 +298,87 @@ pub struct EntityTx<'a> {
 }
 
 impl<'a> EntityTx<'a> {
-	pub fn set_info(&self, info: Value) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call("Entity", "set_info", vec![info])
-	}
-
-	pub fn rotate_attribute(
+	pub fn set_info_from_input(
 		&self,
-		entity: Ss58Identifier,
-		key: impl AsRef<[u8]>,
-		value: Value,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Entity",
-			"rotate_attribute",
-			vec![Value::from_bytes(entity.as_ref()), Value::from_bytes(key.as_ref()), value],
-		)
+		info: &EntityInfoInput,
+	) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
+		crate::extrinsic::calls::entity::set_info_from_struct(&self.client.metadata(), info)
 	}
 
-	pub fn rotate_attributes(
+	pub fn set_info_from_nested(
 		&self,
-		ops: Vec<(Vec<u8>, Value)>,
-	) -> crate::extrinsic::builder::DynamicCall {
-		let val = attrs_to_value(&ops);
-		DynamicCallBuilder::new().call("Entity", "rotate_attributes", vec![val])
+		nested: &crate::schema::entity::EntityNestedValue,
+	) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
+		let input = crate::schema::entity::to_entity_input(nested)?;
+		self.set_info_from_input(&input)
 	}
 
-	pub fn add_attributes(
+	pub async fn submit_set_info_from_input(
 		&self,
-		ops: Vec<(Vec<u8>, Value)>,
-	) -> crate::extrinsic::builder::DynamicCall {
-		let val = attrs_to_value(&ops);
-		DynamicCallBuilder::new().call("Entity", "add_attributes", vec![val])
-	}
-
-	pub fn remove_attribute(
-		&self,
-		key: impl AsRef<[u8]>,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Entity",
-			"remove_attribute",
-			vec![Value::from_bytes(key.as_ref())],
-		)
-	}
-
-	pub async fn submit_set_info(&self, info: Value) -> Result<TxOutcome, OriginSdkError> {
-		let call = self.set_info(info);
+		info: &EntityInfoInput,
+	) -> Result<TxOutcome, OriginSdkError> {
 		self.client
 			.tx()?
-			.submit(&call.pallet, &call.function, call.args)
+			.submit_payload(self.set_info_from_input(info)?)
 			.await?
 			.wait_in_block()
 			.await
 	}
 
-	pub async fn submit_rotate_attribute(
+	pub async fn submit_set_info_from_nested(
+		&self,
+		nested: &crate::schema::entity::EntityNestedValue,
+	) -> Result<TxOutcome, OriginSdkError> {
+		let payload = self.set_info_from_nested(nested)?;
+		self.client.tx()?.submit_payload(payload).await?.wait_in_block().await
+	}
+
+	pub async fn submit_rotate_attribute_from_view(
 		&self,
 		entity: Ss58Identifier,
 		key: impl AsRef<[u8]>,
-		value: Value,
+		value: origin_primitives::element::ElementView,
 	) -> Result<TxOutcome, OriginSdkError> {
-		let call = self.rotate_attribute(entity, key, value);
-		self.client
-			.tx()?
-			.submit(&call.pallet, &call.function, call.args)
-			.await?
-			.wait_in_block()
-			.await
-	}
-
-	/// Accept raw JSON attribute value, map to raw bytes for now (placeholder).
-	pub async fn submit_rotate_attribute_json(
-		&self,
-		entity: Ss58Identifier,
-		key: &str,
-		value: &JsonValue,
-	) -> Result<TxOutcome, OriginSdkError> {
-		let elem = crate::util::codec::element_value_from_json(
-			origin_primitives::element::ElementType::Raw,
-			value,
-		)?;
-		let call = DynamicCallBuilder::new().call(
-			"Entity",
-			"rotate_attribute",
-			vec![Value::from_bytes(entity.as_ref()), Value::from_bytes(key.as_bytes()), elem],
-		);
-		self.client
-			.tx()?
-			.submit(&call.pallet, &call.function, call.args)
-			.await?
-			.wait_in_block()
-			.await
-	}
-
-	/// Bulk rotate based on provided schema (key, type, optional) from views.
-	pub async fn submit_rotate_from_object(
-		&self,
-		entity: Ss58Identifier,
-		schema: &[(Vec<u8>, origin_primitives::element::ElementType, bool)],
-		obj: &JsonValue,
-	) -> Result<TxOutcome, OriginSdkError> {
-		let calls = crate::extrinsic::calls::entity::rotate_attributes_from_json(
+		let elem = crate::schema::entity::element_from_view(&value)?;
+		let payload = crate::extrinsic::calls::entity::rotate_attribute_from_element(
 			&self.client.metadata(),
 			entity,
-			schema,
-			obj,
+			key.as_ref(),
+			&elem,
 		)?;
-		// Convert DynamicPayloads into DynamicCalls to reuse batch builder.
-		let dyn_calls: Vec<_> = calls
-			.into_iter()
-			.map(|p| crate::extrinsic::builder::DynamicCall {
-				pallet: "Utility".into(), // actual pallet name embedded in payload, but batch expects Value; we wrap directly.
-				function: "batch".into(),
-				args: vec![p.into_value()],
-			})
-			.collect();
-		let handle = self.client.tx()?.batch().call_many(dyn_calls).submit_and_wait_finalized().await?;
-		Ok(handle)
+		self.client.tx()?.submit_payload(payload).await?.wait_in_block().await
 	}
 
-	pub fn set_entity_nym(&self, prefix: &str) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Entity",
-			"set_entity_nym",
-			vec![Value::from_bytes(prefix.as_bytes())],
-		)
-	}
-
-	pub async fn submit_set_entity_nym(&self, prefix: &str) -> Result<TxOutcome, OriginSdkError> {
-		let call = self.set_entity_nym(prefix);
-		self.client
-			.tx()?
-			.submit(&call.pallet, &call.function, call.args)
-			.await?
-			.wait_in_block()
-			.await
-	}
-
-	pub fn set_linked_account(
+	pub async fn submit_rotate_attributes_from_nested(
 		&self,
-		account: subxt::utils::AccountId32,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Entity",
-			"set_linked_account",
-			vec![Value::from_bytes(account.0)],
-		)
+		ops: &[(Vec<u8>, origin_primitives::element::ElementView)],
+	) -> Result<TxOutcome, OriginSdkError> {
+		let mut pairs = Vec::with_capacity(ops.len());
+		for (k, v) in ops {
+			let elem = crate::schema::entity::element_from_view(v)?;
+			pairs.push((k.clone(), elem));
+		}
+		let payload = crate::extrinsic::calls::entity::rotate_attributes_from_input(
+			&self.client.metadata(),
+			&pairs,
+		)?;
+		self.client.tx()?.submit_payload(payload).await?.wait_in_block().await
 	}
 
-	pub fn revoke_linked_account(
+	pub async fn submit_add_attributes_from_nested(
 		&self,
-		account: subxt::utils::AccountId32,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Entity",
-			"revoke_linked_account",
-			vec![Value::from_bytes(account.0)],
-		)
-	}
-
-	pub fn revoke_linked_account_for(
-		&self,
-		token: Ss58Identifier,
-		account: subxt::utils::AccountId32,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Entity",
-			"revoke_linked_account_for",
-			vec![Value::from_bytes(token.as_ref()), Value::from_bytes(account.0)],
-		)
-	}
-
-	pub fn rotate_controller(
-		&self,
-		token: Ss58Identifier,
-		new_controller: subxt::utils::AccountId32,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Entity",
-			"rotate_controller",
-			vec![Value::from_bytes(token.as_ref()), Value::from_bytes(new_controller.0)],
-		)
-	}
-
-	pub fn rotate_controller_for(
-		&self,
-		token: Ss58Identifier,
-		new_controller: subxt::utils::AccountId32,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Entity",
-			"rotate_controller_for",
-			vec![Value::from_bytes(token.as_ref()), Value::from_bytes(new_controller.0)],
-		)
-	}
-
-	pub fn clear_everything(
-		&self,
-		token: Ss58Identifier,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Entity",
-			"clear_everything",
-			vec![Value::from_bytes(token.as_ref())],
-		)
-	}
-
-	pub fn clear_everything_for(
-		&self,
-		token: Ss58Identifier,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Entity",
-			"clear_everything_for",
-			vec![Value::from_bytes(token.as_ref())],
-		)
-	}
-
-	pub fn remove_entity_nym(
-		&self,
-		token: Ss58Identifier,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Entity",
-			"remove_entity_nym",
-			vec![Value::from_bytes(token.as_ref())],
-		)
+		ops: &[(Vec<u8>, origin_primitives::element::ElementView)],
+	) -> Result<TxOutcome, OriginSdkError> {
+		let mut pairs = Vec::with_capacity(ops.len());
+		for (k, v) in ops {
+			let elem = crate::schema::entity::element_from_view(v)?;
+			pairs.push((k.clone(), elem));
+		}
+		let payload = crate::extrinsic::calls::entity::add_attributes_from_input(
+			&self.client.metadata(),
+			&pairs,
+		)?;
+		self.client.tx()?.submit_payload(payload).await?.wait_in_block().await
 	}
 }
 
@@ -451,6 +392,14 @@ impl<'a, S: Signer + Clone + 'static> EntityTxWithSigner<'a, S> {
 		DynamicCallBuilder::new().call("Entity", "set_info", vec![info])
 	}
 
+	/// Build set_info payload from typed input.
+	pub fn set_info_from_input(
+		&self,
+		info: &EntityInfoInput,
+	) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
+		crate::extrinsic::calls::entity::set_info_from_struct(&self.client.metadata(), info)
+	}
+
 	pub fn rotate_attribute(
 		&self,
 		entity: Ss58Identifier,
@@ -488,12 +437,30 @@ impl<'a, S: Signer + Clone + 'static> EntityTxWithSigner<'a, S> {
 			.wait_in_block()
 			.await
 	}
-}
 
-fn attrs_to_value(entries: &[(Vec<u8>, Value)]) -> Value {
-	let pairs: Vec<Value> = entries
-		.iter()
-		.map(|(k, v)| Value::unnamed_composite(vec![Value::from_bytes(k), v.clone()]))
-		.collect();
-	Value::from(pairs)
+	pub async fn submit_set_info_from_input(
+		&self,
+		info: &EntityInfoInput,
+	) -> Result<TxOutcome, OriginSdkError> {
+		self.client
+			.tx_with(self.signer.clone())
+			.submit_payload(self.set_info_from_input(info)?)
+			.await?
+			.wait_in_block()
+			.await
+	}
+
+	pub async fn submit_set_info_from_nested(
+		&self,
+		nested: &crate::schema::entity::EntityNestedValue,
+	) -> Result<TxOutcome, OriginSdkError> {
+		let input = crate::schema::entity::to_entity_input(nested)?;
+		let payload = self.set_info_from_input(&input)?;
+		self.client
+			.tx_with(self.signer.clone())
+			.submit_payload(payload)
+			.await?
+			.wait_in_block()
+			.await
+	}
 }

@@ -11,10 +11,10 @@ use crate::{
 	},
 	types::error::OriginSdkError,
 };
-use subxt::dynamic;
-use tokio::sync::{oneshot, Mutex};
 use std::collections::HashMap;
 use std::sync::Arc as StdArc;
+use subxt::dynamic;
+use tokio::sync::{oneshot, Mutex};
 
 /// Handle returned by submit operations.
 #[derive(Debug, Clone)]
@@ -58,10 +58,12 @@ where
 	for ev in events.iter() {
 		if let Ok(ev) = ev {
 			let fields = ev.field_values().map_or(Vec::new(), |comp| match comp {
-				scale_value::Composite::Named(v) =>
-					v.into_iter().map(|(_, val)| val.remove_context()).collect(),
-				scale_value::Composite::Unnamed(v) =>
-					v.into_iter().map(|val| val.remove_context()).collect(),
+				scale_value::Composite::Named(v) => {
+					v.into_iter().map(|(_, val)| val.remove_context()).collect()
+				},
+				scale_value::Composite::Unnamed(v) => {
+					v.into_iter().map(|val| val.remove_context()).collect()
+				},
 			});
 			envelopes.push(crate::client::events::EventEnvelope {
 				block,
@@ -166,7 +168,10 @@ impl SubmitClient {
 		let account = signer.account_id();
 		let lock = {
 			let mut guard = self.locks.lock().await;
-			guard.entry(account.clone()).or_insert_with(|| StdArc::new(Mutex::new(()))).clone()
+			guard
+				.entry(account.clone())
+				.or_insert_with(|| StdArc::new(Mutex::new(())))
+				.clone()
 		};
 		let _acct_guard = lock.lock().await;
 		let (tx_in_block, rx_in_block) = oneshot::channel();
@@ -181,7 +186,12 @@ impl SubmitClient {
 				.nonce(nonce)
 				.tip(tip)
 				.build();
-			match connection.online().tx().sign_and_submit_then_watch(&call, &adapter, params).await {
+			match connection
+				.online()
+				.tx()
+				.sign_and_submit_then_watch(&call, &adapter, params)
+				.await
+			{
 				Ok(p) => break p,
 				Err(e) if attempt == 0 && e.to_string().contains("Future") => {
 					// Refresh nonce and retry once on future nonce errors.

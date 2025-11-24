@@ -7,7 +7,7 @@
     "employees": { "type": "u64", "value": 42 },
     "valuation": { "type": "u128", "value": "1234500000000000000" },
     "fingerprint": { "type": "hash", "value": "2a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40414243444546474800" },
-    "parent": { "type": "token", "value": "5C8F41pKK9PXJ6A4ppfUT6asDkDw7py3AhtTx5xNUFDXL9Xb" },
+    "parent": { "type": "raw", "value": "parent-demo-token" },
     "cid-doc": { "type": "cid", "value": "bafybeigdyrztvpwqz6jdr7l7fyx6lm2uw2jg4ncbk3u7i7tprm2x5xnlkm" },
     "address": {
       "type": "raw",

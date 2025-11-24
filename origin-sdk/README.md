@@ -53,7 +53,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   - `cargo run -p origin-sdk --example demo_token -- --endpoint ws://localhost:9944 --token <ss58>`
 
 ## Next Steps
-- Fill view engine with pallet view calls (no storage RPC).
-- Wire nonce queue + submit-and-watch with event filters.
+- Fill view engine with pallet view calls (no storage RPC). **Done**
+- Wire nonce queue + submit-and-watch with event filters. **Exists in submit client**
 - Implement meta-tx wrapper for relayer flows.
 - Add integration tests against `./target/release/cord --dev`.
+
+## New typed surface (entity/register/token)
+- Nested ↔ flat helpers live in `schema::*`.
+- Typed extrinsic inputs live in `types::*_input`; call `tx().set_info_from_nested`, `tx().submit_create_from_nested`, `tx().submit_packet_from_nested`.
+- Views decode to pallet-aligned structs and can be expanded with `overview_nested` / `details_nested`.
