@@ -1,21 +1,20 @@
-use std::{
-	sync::Arc,
-	time::{SystemTime, UNIX_EPOCH},
-};
+use std::sync::Arc;
 
 use super::{connection::Connection, Signer};
-use crate::{types::error::OriginSdkError, util::retry::RetryPolicy};
+use crate::{
+	types::{auth, error::OriginSdkError},
+	util::retry::RetryPolicy,
+};
 use codec::{Decode, Encode};
 use origin_primitives::authorization::AuthorizationError;
-use sp_core::hashing::twox_128;
 use sp_runtime::traits::SaturatedConversion;
 use subxt::utils::AccountId32;
 
-type Auth = origin_primitives::Authorization<
-	origin_primitives::AccountId,
-	Vec<u8>,
-	origin_primitives::Signature,
->;
+	type Auth = origin_primitives::Authorization<
+		origin_primitives::AccountId,
+		Vec<u8>,
+		origin_primitives::Signature,
+	>;
 
 /// View (read) API limited to pallet view functions.
 #[derive(Clone)]
@@ -688,53 +687,8 @@ impl ViewClient {
 			.map_err(|e| OriginSdkError::View(e.to_string()))?
 			.number()
 			.saturated_into::<u32>();
-		let account = signer.account_id();
-		let payload = build_view_payload(&account, pallet, function, reference_block);
-		let signature = signer.sign_payload(&payload).await;
-		let account = origin_primitives::AccountId::from(account.0);
-		Ok(origin_primitives::Authorization { account, payload, signature })
+		Ok(auth::build_authorization(signer.as_ref(), pallet, function, reference_block).await)
 	}
-}
-
-/// Construct a view-authorization payload that matches the pallet-side expectations:
-///   payload = twox_128(nonce || pallet || "::" || function || account || reference_block)
-///           || account
-///           || reference_block
-/// The trailing `reference_block` (u32 LE) is required for TTL checks in the pallets.
-fn build_view_payload(
-	account: &subxt::utils::AccountId32,
-	pallet: &str,
-	function: &str,
-	reference_block: u32,
-) -> Vec<u8> {
-	let nonce = SystemTime::now()
-		.duration_since(UNIX_EPOCH)
-		.unwrap_or_default()
-		.as_nanos()
-		.to_le_bytes();
-	let account_bytes = account.encode();
-	let mut preimage = Vec::with_capacity(
-		nonce
-			.len()
-			.saturating_add(pallet.len())
-			.saturating_add(function.len())
-			.saturating_add(account_bytes.len())
-			.saturating_add(core::mem::size_of::<u32>())
-			.saturating_add(2),
-	);
-	preimage.extend_from_slice(&nonce);
-	preimage.extend_from_slice(pallet.as_bytes());
-	preimage.extend_from_slice(b"::");
-	preimage.extend_from_slice(function.as_bytes());
-	preimage.extend_from_slice(&account_bytes);
-	preimage.extend_from_slice(&reference_block.to_le_bytes());
-
-	let digest = twox_128(&preimage);
-	let mut payload = Vec::with_capacity(digest.len() + account_bytes.len() + 4);
-	payload.extend_from_slice(&digest);
-	payload.extend_from_slice(&account_bytes);
-	payload.extend_from_slice(&reference_block.to_le_bytes());
-	payload
 }
 
 #[derive(codec::Decode)]

@@ -40,7 +40,7 @@ impl NonceManager {
 	pub async fn allocate(
 		&self,
 		api: &subxt::OnlineClient<crate::client::OriginConfig>,
-		account: &subxt::utils::AccountId32,
+		account: &origin_primitives::AccountId,
 	) -> Result<u64, OriginSdkError> {
 		match self.strategy {
 			NonceStrategy::RpcPerTx => self.fetch(api, account).await,
@@ -51,10 +51,10 @@ impl NonceManager {
 	async fn allocate_cached(
 		&self,
 		api: &subxt::OnlineClient<crate::client::OriginConfig>,
-		account: &subxt::utils::AccountId32,
+		account: &origin_primitives::AccountId,
 	) -> Result<u64, OriginSdkError> {
 		let mut guard = self.state.lock().await;
-		let entry = guard.entry(account.0).or_insert_with(|| NonceState {
+		let entry = guard.entry(account.clone().into()).or_insert_with(|| NonceState {
 			next: 0,
 			last_refresh: Instant::now() - self.refresh_after,
 		});
@@ -73,7 +73,7 @@ impl NonceManager {
 	async fn fetch(
 		&self,
 		api: &subxt::OnlineClient<crate::client::OriginConfig>,
-		account: &subxt::utils::AccountId32,
+		account: &origin_primitives::AccountId,
 	) -> Result<u64, OriginSdkError> {
 		api.tx()
 			.account_nonce(account)

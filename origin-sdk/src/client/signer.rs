@@ -1,13 +1,12 @@
 use async_trait::async_trait;
 use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{traits::IdentifyAccount, MultiSignature, MultiSigner};
-use subxt::utils::{AccountId32, MultiSignature as SubxtMultiSignature};
 use tokio::task;
 
 /// Generic signing interface for Origin SDK (async to allow HSM/wallet flows).
 #[async_trait]
 pub trait Signer: Send + Sync + 'static {
-	fn account_id(&self) -> AccountId32;
+	fn account_id(&self) -> origin_primitives::AccountId;
 	async fn sign_payload(&self, payload: &[u8]) -> MultiSignature;
 }
 
@@ -68,10 +67,8 @@ impl MultiKeySigner {
 
 #[async_trait]
 impl Signer for MultiKeySigner {
-	fn account_id(&self) -> AccountId32 {
-		let account: sp_runtime::AccountId32 = self.multisigner().into_account();
-		let bytes: [u8; 32] = account.into();
-		AccountId32::from(bytes)
+	fn account_id(&self) -> origin_primitives::AccountId {
+		self.multisigner().into_account()
 	}
 
 	async fn sign_payload(&self, payload: &[u8]) -> MultiSignature {
@@ -96,7 +93,7 @@ impl Sr25519Signer {
 
 #[async_trait]
 impl Signer for Sr25519Signer {
-	fn account_id(&self) -> AccountId32 {
+	fn account_id(&self) -> origin_primitives::AccountId {
 		self.0.account_id()
 	}
 
@@ -118,20 +115,16 @@ impl SubxtSignerAdapter {
 }
 
 impl subxt::tx::Signer<crate::client::OriginConfig> for SubxtSignerAdapter {
-	fn account_id(&self) -> subxt::utils::AccountId32 {
+	fn account_id(&self) -> origin_primitives::AccountId {
 		self.inner.account_id()
 	}
 
-	fn sign(&self, payload: &[u8]) -> SubxtMultiSignature {
+	fn sign(&self, payload: &[u8]) -> MultiSignature {
 		let inner = self.inner.clone();
 		let sig = task::block_in_place(|| {
 			let handle = tokio::runtime::Handle::current();
 			handle.block_on(inner.sign_payload(payload))
 		});
-		match sig {
-			MultiSignature::Ed25519(s) => SubxtMultiSignature::Ed25519(s.0),
-			MultiSignature::Sr25519(s) => SubxtMultiSignature::Sr25519(s.0),
-			MultiSignature::Ecdsa(s) => SubxtMultiSignature::Ecdsa(s.0),
-		}
+		sig
 	}
 }

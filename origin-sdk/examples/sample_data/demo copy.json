@@ -1,0 +1,84 @@
+{
+  "entity": {
+    "display": "Entity {label} Technologies",
+    "web": "https://{label}.origin.dev/demo",
+    "email": "ops.{label}@origin.dev",
+    "attributes": [
+      {
+        "key": "legal_name",
+        "type": "raw",
+        "template": "{label} technologies Private Limited"
+      },
+      { "key": "cin", "type": "raw", "value": "U12345KA2010PTC012345" },
+      { "key": "lei", "type": "raw", "value": "5493001KJTIIGC8Y1R12" },
+      { "key": "dun", "type": "raw", "value": "123456789" },
+      {
+        "key": "active",
+        "type": "bool",
+        "value": true
+      },
+      {
+        "key": "did:web",
+        "type": "raw",
+        "value": "did:web:exampletech.com"
+      },
+      {
+        "key": "did:key",
+        "type": "raw",
+        "generate": "did_key"
+      },
+      {
+        "key": "did:cord",
+        "type": "raw",
+        "generate": "did_cord"
+      },
+      { "key": "public-key", "type": "raw", "generate": "public_key" }
+    ]
+  },
+  "registry": {
+    "info": "CORD registry for {label}",
+    "kind": "raw",
+    "attribute_schema": [
+      { "key": "record_id", "type": "raw" },
+      { "key": "controller", "type": "token" },
+      { "key": "payload_hash", "type": "hash" },
+      { "key": "payload_salt", "type": "raw" },
+      { "key": "expires_at", "type": "u64", "optional": true },
+      { "key": "notes", "type": "raw", "optional": true }
+    ],
+    "token_spec": { "type": "combo", "keys": ["record_id", "controller"] },
+    "lookup_specs": [
+      { "type": "combo", "keys": ["record_id", "controller"] },
+      { "type": "single", "key": "payload_hash" },
+      { "type": "single", "key": "payload_salt" }
+    ]
+  },
+  "packet": {
+    "attributes": [
+      {
+        "key": "record_id",
+        "value": { "type": "raw", "template": "{label}-packet" }
+      },
+      {
+        "key": "payload_hash",
+        "value": { "type": "hash", "template": "payload::{label}" }
+      },
+      {
+        "key": "controller",
+        "value": { "type": "token", "source": "entity" }
+      },
+      {
+        "key": "payload_salt",
+        "value": { "type": "salt", "template": "{label}" }
+      },
+      {
+        "key": "expires_at",
+        "value": { "type": "u64", "value": 1893456000 }
+      },
+      {
+        "key": "notes",
+        "value": { "type": "none" }
+      }
+    ]
+  }
+}

@@ -13,6 +13,8 @@ use crate::{
 };
 use subxt::dynamic;
 use tokio::sync::{oneshot, Mutex};
+use std::collections::HashMap;
+use std::sync::Arc as StdArc;
 
 /// Handle returned by submit operations.
 #[derive(Debug, Clone)]
@@ -78,6 +80,7 @@ pub struct SubmitClient {
 	connection: Arc<Connection>,
 	signer: Option<Arc<dyn Signer>>,
 	nonce: Arc<NonceManager>,
+	locks: StdArc<Mutex<HashMap<origin_primitives::AccountId, StdArc<Mutex<()>>>>>,
 }
 
 const DEFAULT_TIP: u128 = 10u128;
@@ -91,6 +94,7 @@ impl SubmitClient {
 				NonceStrategy::LocalCache,
 				std::time::Duration::from_secs(10),
 			)),
+			locks: StdArc::new(Mutex::new(HashMap::new())),
 		}
 	}
 
@@ -160,23 +164,32 @@ impl SubmitClient {
 			.clone()
 			.ok_or_else(|| OriginSdkError::InvalidInput("signer is required for submit".into()))?;
 		let account = signer.account_id();
+		let lock = {
+			let mut guard = self.locks.lock().await;
+			guard.entry(account.clone()).or_insert_with(|| StdArc::new(Mutex::new(()))).clone()
+		};
+		let _acct_guard = lock.lock().await;
 		let (tx_in_block, rx_in_block) = oneshot::channel();
 		let (tx_finalized, rx_finalized) = oneshot::channel();
 		let connection = self.connection.clone();
 		let adapter = SubxtSignerAdapter::new(signer.clone());
 
-		let progress = {
+		let mut attempt = 0;
+		let progress = loop {
 			let nonce = self.nonce.allocate(connection.online(), &account).await?;
 			let params = subxt::config::DefaultExtrinsicParamsBuilder::<OriginConfig>::new()
 				.nonce(nonce)
 				.tip(tip)
 				.build();
-			connection
-				.online()
-				.tx()
-				.sign_and_submit_then_watch(&call, &adapter, params)
-				.await
-				.map_err(|e| OriginSdkError::Tx(e.to_string()))?
+			match connection.online().tx().sign_and_submit_then_watch(&call, &adapter, params).await {
+				Ok(p) => break p,
+				Err(e) if attempt == 0 && e.to_string().contains("Future") => {
+					// Refresh nonce and retry once on future nonce errors.
+					attempt += 1;
+					continue;
+				},
+				Err(e) => return Err(OriginSdkError::Tx(e.to_string())),
+			}
 		};
 
 		let hash = progress.extrinsic_hash();

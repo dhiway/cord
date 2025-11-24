@@ -1,21 +1,29 @@
-use origin_sdk::{
-	client::signer::MultiKeySigner, extrinsic::builder::DynamicCallBuilder, OriginClient,
-};
-use scale_value::Value;
+use origin_sdk::{extrinsic::calls::registry, OriginClient};
+use origin_sdk::client::signer::MultiKeySigner;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	env_logger::init();
 	let signer = MultiKeySigner::from_seed("//Alice")?;
 	let client = OriginClient::connect("ws://localhost:9944").await?.with_signer(signer.clone());
 
-	// Demo args: registry id + info bytes; adjust to your chain schema.
-	let call = DynamicCallBuilder::new().call(
-		"Register",
-		"create",
-		vec![Value::from_bytes(b"demo-registry"), Value::from_bytes(b"demo-info")],
-	);
+	let schema = serde_json::json!({
+		"attributes": [
+			{ "key": "name", "kind": "Raw", "optional": false },
+			{ "key": "email", "kind": "Raw", "optional": true }
+		]
+	});
+	let config = serde_json::json!({ "version": 1 });
 
-	let tx = client.tx()?.submit(&call.pallet, &call.function, call.args).await?;
-	println!("Submitted registry create hash: {:?}", tx.hash);
+	let metadata = client.metadata();
+	let call = registry::create_from_structs(&metadata, b"registry-01", &schema, &config)?;
+
+	let outcome = client
+		.tx()?
+		.submit(&call.pallet, &call.function, call.args.clone())
+		.await?
+		.wait_finalized()
+		.await?;
+	println!("registry created in block {:?}", outcome.block);
 	Ok(())
 }
