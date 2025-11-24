@@ -8,6 +8,7 @@ mod view;
 use std::sync::Arc;
 
 use crate::{
+	config::OriginConfig,
 	extrinsic::{builder::DynamicCallBuilder, metatx::MetaTxClient},
 	types::error::OriginSdkError,
 };
@@ -17,9 +18,6 @@ use view::ViewClient;
 
 pub use events::EventEnvelope;
 pub use signer::Signer;
-
-/// Default Subxt config used by the Origin SDK.
-pub type OriginConfig = subxt::config::PolkadotConfig;
 
 /// High-level entrypoint to interact with Origin nodes.
 #[derive(Clone)]
@@ -70,6 +68,11 @@ impl OriginClient {
 		self.connection.online()
 	}
 
+	/// Runtime metadata snapshot (cheap handle).
+	pub fn metadata(&self) -> subxt::Metadata {
+		self.connection.metadata()
+	}
+
 	/// View-only calls (pallet view functions, no storage RPCs).
 	pub fn view(&self) -> Result<ViewClient, OriginSdkError> {
 		let signer = self.require_signer()?;
@@ -90,6 +93,14 @@ impl OriginClient {
 	/// Extrinsic submission with a one-off signer (does not alter client state).
 	pub fn tx_with(&self, signer: impl Signer + 'static) -> SubmitClient {
 		SubmitClient::new(self.connection.clone(), Some(Arc::new(signer)))
+	}
+	/// Batch builder using the configured signer.
+	pub fn batch(&self) -> Result<crate::extrinsic::batch::BatchBuilder, OriginSdkError> {
+		Ok(self.tx()?.batch())
+	}
+	/// Batch builder with an explicit signer.
+	pub fn batch_with(&self, signer: impl Signer + 'static) -> crate::extrinsic::batch::BatchBuilder {
+		self.tx_with(signer).batch()
 	}
 
 	/// Build meta-transaction flows.

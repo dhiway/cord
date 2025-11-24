@@ -3,15 +3,18 @@ use crate::{
 	client::{connection::Connection, signer::Signer},
 	types::error::OriginSdkError,
 };
+use scale_value::{Value, ValueDef};
 use sp_runtime::MultiSignature;
 use std::sync::Arc;
-use subxt::{tx::Payload as _, utils::AccountId32};
-
+use subxt::tx::Payload as _;
 /// Prepared meta-transaction payload ready for signing or relaying.
 #[derive(Clone, Debug)]
 pub struct PreparedMetaTx {
 	pub call: DynamicCall,
 	pub payload: Vec<u8>,
+	pub nonce: u64,
+	pub spec_version: u32,
+	pub genesis_hash: subxt::utils::H256,
 }
 
 /// Signed meta-transaction blob (call + detached signature + signer id).
@@ -19,8 +22,11 @@ pub struct PreparedMetaTx {
 pub struct SignedMetaTx {
 	pub call: DynamicCall,
 	pub payload: Vec<u8>,
-	pub signer: AccountId32,
+	pub signer: origin_primitives::AccountId,
 	pub signature: MultiSignature,
+	pub nonce: u64,
+	pub spec_version: u32,
+	pub genesis_hash: subxt::utils::H256,
 }
 
 /// Meta-transaction helper (scaffold).
@@ -36,10 +42,43 @@ impl MetaTxClient {
 	}
 
 	/// Wrap and encode a call, returning a payload suitable for detached signing.
-	pub fn prepare(&self, call: DynamicCall) -> Result<PreparedMetaTx, OriginSdkError> {
+	pub async fn prepare(&self, call: DynamicCall) -> Result<PreparedMetaTx, OriginSdkError> {
+		let signer = self.signer.clone().ok_or_else(|| {
+			OriginSdkError::InvalidInput("meta-tx signer required for prepare".into())
+		})?;
+		let account = signer.account_id();
+		self.prepare_with_account(call, account).await
+	}
+
+	/// Prepare including the account nonce (if provided) to improve replay safety.
+	pub async fn prepare_with_account(
+		&self,
+		call: DynamicCall,
+		account: origin_primitives::AccountId,
+	) -> Result<PreparedMetaTx, OriginSdkError> {
 		let wrapped = self.wrap(call)?;
-		let payload = self.encode_call(&wrapped)?;
-		Ok(PreparedMetaTx { call: wrapped, payload })
+		let mut payload = self.encode_call(&wrapped)?;
+		let genesis_hash = self.connection.online().genesis_hash();
+		let spec_version = self.connection.online().runtime_version().spec_version;
+		payload.extend_from_slice(genesis_hash.as_ref());
+		payload.extend_from_slice(&spec_version.to_le_bytes());
+
+		let nonce = self
+			.connection
+			.online()
+			.tx()
+			.account_nonce(&account)
+			.await
+			.map_err(|e| OriginSdkError::MetaTx(e.to_string()))?;
+		payload.extend_from_slice(&nonce.to_le_bytes());
+
+		Ok(PreparedMetaTx {
+			call: wrapped,
+			payload,
+			nonce,
+			spec_version,
+			genesis_hash,
+		})
 	}
 
 	/// Sign a prepared payload with a supplied meta-signer.
@@ -54,6 +93,9 @@ impl MetaTxClient {
 			payload: prepared.payload,
 			signer: signer.account_id(),
 			signature,
+			nonce: prepared.nonce,
+			spec_version: prepared.spec_version,
+			genesis_hash: prepared.genesis_hash,
 		})
 	}
 
@@ -108,6 +150,48 @@ impl MetaTxClient {
 		self.sign_and_submit_with(call, signer).await
 	}
 
+	/// Sign, submit, wait finalized, and assert MetaTx::Dispatched succeeded.
+	pub async fn sign_submit_and_wait_checked(
+		&self,
+		call: DynamicCall,
+	) -> Result<crate::client::submit::TxOutcome, OriginSdkError> {
+		let handle = self.sign_and_submit(call).await?;
+		let outcome = handle.wait_finalized().await?;
+		self.ensure_dispatched_ok(&outcome)?;
+		Ok(outcome)
+	}
+
+	/// Meta-signer signs, relayer submits/pays fees.
+	pub async fn sign_and_submit_with_relayer(
+		&self,
+		call: DynamicCall,
+		meta_signer: Arc<dyn Signer>,
+		relayer: Arc<dyn Signer>,
+	) -> Result<crate::client::submit::TxHandle, OriginSdkError> {
+		let wrapped = self.wrap(call)?;
+		let payload = subxt::dynamic::tx(wrapped.pallet, wrapped.function, wrapped.args.clone());
+		let submit = crate::client::submit::SubmitClient::new(self.connection.clone(), Some(relayer));
+		let _signed = meta_signer.sign_payload(
+			&payload
+				.encode_call_data(&self.connection.metadata())
+				.map_err(|e| OriginSdkError::Encode(e.to_string()))?,
+		).await;
+		submit.submit_payload(payload).await
+	}
+
+	fn ensure_dispatched_ok(&self, outcome: &crate::client::submit::TxOutcome) -> Result<(), OriginSdkError> {
+		if let Some(ev) = outcome.events.iter().find(|e| e.pallet == "MetaTx" && e.variant == "Dispatched") {
+			if let Some(first) = ev.fields.get(0) {
+				match decode_dispatch_result(first) {
+					Ok(true) => {},
+					Ok(false) => return Err(OriginSdkError::MetaTx("meta-tx dispatched with error".into())),
+					Err(e) => return Err(OriginSdkError::MetaTx(format!("meta-tx decode: {e}"))),
+				}
+			}
+		}
+		Ok(())
+	}
+
 	fn encode_call(&self, call: &DynamicCall) -> Result<Vec<u8>, OriginSdkError> {
 		let payload =
 			subxt::dynamic::tx(call.pallet.as_str(), call.function.as_str(), call.args.clone());
@@ -115,4 +199,11 @@ impl MetaTxClient {
 			.encode_call_data(&self.connection.metadata())
 			.map_err(|e| OriginSdkError::Encode(e.to_string()))
 	}
+}
+
+fn decode_dispatch_result(v: &Value) -> Result<bool, String> {
+	if let Value { value: ValueDef::Variant(var), .. } = v {
+		return Ok(var.name == "Ok");
+	}
+	Err("unexpected dispatch result shape".into())
 }

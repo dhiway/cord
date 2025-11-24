@@ -1,0 +1,72 @@
+{
+  "label": "demo",
+  "entity": {
+    "nym": "demo-entity",
+    "attributes": {
+      "display": { "type": "raw", "value": "Demo Entity Incorporated" },
+      "web": { "type": "raw", "value": "https://demo.entity" },
+      "email": { "type": "raw", "value": "hello@demo.entity" },
+      "active": { "type": "bool", "value": true },
+      "employees": { "type": "u64", "value": 120 },
+      "valuation": { "type": "u128", "value": "1500000000000000000" },
+      "fingerprint": { "type": "hash", "value": "2a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748" },
+      "parent": { "type": "token", "value": "5C8F41pKK9PXJ6A4ppfUT6asDkDw7py3AhtTx5xNUFDXL9Xb" },
+      "cid-doc": { "type": "cid", "value": "bafybeigdyrztvpwqz6jdr7l7fyx6lm2uw2jg4ncbk3u7i7tprm2x5xnlkm" },
+      "address": {
+        "type": "raw",
+        "value": {
+          "house": "221B",
+          "street": "Baker Street",
+          "city": "London",
+          "pincode": "NW1",
+          "phones": ["+44-20-1234-5678", "+44-20-8765-4321"]
+        }
+      }
+    }
+  },
+  "registry": {
+    "info": "Demo registry covering all Element variants",
+    "kind": "raw",
+    "attributes": [
+      { "key": "record_id", "type": "raw" },
+      { "key": "controller", "type": "token" },
+      { "key": "proof_hash", "type": "hash" },
+      { "key": "notes", "type": "raw", "optional": true },
+      { "key": "expires_at", "type": "u64", "optional": true },
+      { "key": "weight", "type": "u128", "optional": true },
+      { "key": "active", "type": "bool" },
+      { "key": "cid_doc", "type": "cid", "optional": true },
+      { "key": "address.house", "type": "raw" },
+      { "key": "address.street", "type": "raw" },
+      { "key": "address.city", "type": "raw" },
+      { "key": "address.pincode", "type": "raw" },
+      { "key": "address.phones", "type": "raw" }
+    ],
+    "token_spec": { "type": "combo", "keys": ["record_id", "controller"] },
+    "lookup_specs": [
+      { "type": "combo", "keys": ["record_id", "controller"] },
+      { "type": "single", "key": "proof_hash" },
+      { "type": "single", "key": "address.city" }
+    ]
+  },
+  "packet": {
+    "attributes": {
+      "record_id": { "type": "raw", "value": "demo-record-001" },
+      "controller": { "type": "token", "source": "entity" },
+      "proof_hash": { "type": "hash", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+      "notes": { "type": "raw", "value": "demo packet with nested address" },
+      "expires_at": { "type": "u64", "value": 1893456000 },
+      "weight": { "type": "u128", "value": "9999" },
+      "active": { "type": "bool", "value": true },
+      "cid_doc": { "type": "cid", "value": "bafybeigdyrztvpwqz6jdr7l7fyx6lm2uw2jg4ncbk3u7i7tprm2x5xnlkm" },
+      "address.house": { "type": "raw", "value": "221B" },
+      "address.street": { "type": "raw", "value": "Baker Street" },
+      "address.city": { "type": "raw", "value": "London" },
+      "address.pincode": { "type": "raw", "value": "NW1" },
+      "address.phones": {
+        "type": "raw",
+        "value": ["+44-20-1234-5678", "+44-20-8765-4321"]
+      }
+    }
+  }
+}

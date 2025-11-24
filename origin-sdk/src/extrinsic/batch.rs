@@ -20,6 +20,14 @@ impl BatchBuilder {
 		self
 	}
 
+	pub fn call_many<I>(mut self, calls: I) -> Self
+	where
+		I: IntoIterator<Item = DynamicCall>,
+	{
+		self.calls.extend(calls);
+		self
+	}
+
 	pub fn mode_batch(mut self) -> Self {
 		self.all = false;
 		self

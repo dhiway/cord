@@ -4,6 +4,7 @@ pub mod identifiers;
 pub mod packet;
 pub mod registry;
 pub mod token;
+pub mod auth;
 
 pub use entity::{
 	AttributeHistoryEntryView, EntityInfoView, EntityOverview, EntityStateView, EventBlockView,

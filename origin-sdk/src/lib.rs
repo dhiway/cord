@@ -1,9 +1,9 @@
 //! Origin SDK – dynamic Subxt client for Origin runtimes.
 //!
-//! This crate is currently scaffolding the async view/extrinsic pipeline; the
-//! modules are stubbed so we can iterate quickly without coupling to runtime
-//! pallets.
+//! Dynamic-only client (no runtime codegen) with view-first reads and async
+//! extrinsic pipeline tuned for Origin pallets.
 
+pub mod config;
 pub mod client;
 pub mod extrinsic;
 pub mod query;
@@ -15,5 +15,7 @@ pub use types::error::OriginSdkError;
 
 /// Convenient re-exports for application crates.
 pub mod prelude {
-	pub use crate::{client::OriginClient, query::Query, types::error::OriginSdkError};
+	pub use crate::{
+		client::OriginClient, config::OriginConfig, query::Query, types::error::OriginSdkError,
+	};
 }
