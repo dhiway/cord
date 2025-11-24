@@ -29,6 +29,14 @@ impl<'a> RegistryClient<'a> {
 		self.client.view()?.registry().details(registry).await
 	}
 
+	pub async fn details_nested(
+		&self,
+		registry: Ss58Identifier,
+	) -> Result<crate::schema::registry::RegistryNestedSchema, OriginSdkError> {
+		let flat = self.details(registry).await?;
+		Ok(crate::schema::registry::expand_registry(&flat))
+	}
+
 	pub fn tx(&self) -> RegistryTx<'a> {
 		RegistryTx { client: self.client }
 	}
@@ -102,6 +110,14 @@ impl<'a> RegistryClient<'a> {
 		self.client.view()?.registry().overview(registry).await
 	}
 
+	pub async fn overview_nested(
+		&self,
+		registry: Ss58Identifier,
+	) -> Result<crate::schema::registry::RegistryNestedSchema, OriginSdkError> {
+		let flat = self.overview(registry).await?;
+		Ok(crate::schema::registry::expand_registry(&flat))
+	}
+
 	pub async fn packet_snapshot_by_token(
 		&self,
 		token: Ss58Identifier,
@@ -125,7 +141,7 @@ impl<'a> RegistryClient<'a> {
 		version: Option<u32>,
 		cursor: Option<Ss58Identifier>,
 		limit: Option<u32>,
-	) -> Result<(Vec<crate::types::PacketStateView>, Option<Ss58Identifier>), OriginSdkError> {
+	) -> Result<(Vec<crate::types::PacketSnapshot>, Option<Ss58Identifier>), OriginSdkError> {
 		self.client
 			.view()?
 			.registry()
@@ -139,7 +155,7 @@ impl<'a> RegistryClient<'a> {
 		version: Option<u32>,
 		cursor: Option<Vec<u8>>,
 		limit: Option<u32>,
-	) -> Result<(Vec<crate::types::PacketStateView>, Option<Vec<u8>>), OriginSdkError> {
+	) -> Result<(Vec<crate::types::PacketSnapshot>, Option<Vec<u8>>), OriginSdkError> {
 		self.client
 			.view()?
 			.registry()
@@ -163,6 +179,14 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		registry: Ss58Identifier,
 	) -> Result<RegistryStateView, OriginSdkError> {
 		self.client.view_with(self.signer.clone()).registry().details(registry).await
+	}
+
+	pub async fn details_nested(
+		&self,
+		registry: Ss58Identifier,
+	) -> Result<crate::schema::registry::RegistryNestedSchema, OriginSdkError> {
+		let flat = self.details(registry).await?;
+		Ok(crate::schema::registry::expand_registry(&flat))
 	}
 
 	pub fn tx(&self) -> RegistryTxWithSigner<'a, S> {
@@ -197,7 +221,11 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		&self,
 		registry: Ss58Identifier,
 	) -> Result<Vec<origin_primitives::registry::LookupSpec>, OriginSdkError> {
-		self.client.view_with(self.signer.clone()).registry().lookup_specs(registry).await
+		self.client
+			.view_with(self.signer.clone())
+			.registry()
+			.lookup_specs(registry)
+			.await
 	}
 
 	pub async fn attribute(
@@ -205,7 +233,11 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		registry: Ss58Identifier,
 		key: Vec<u8>,
 	) -> Result<(origin_primitives::element::ElementType, bool), OriginSdkError> {
-		self.client.view_with(self.signer.clone()).registry().attribute(registry, key).await
+		self.client
+			.view_with(self.signer.clone())
+			.registry()
+			.attribute(registry, key)
+			.await
 	}
 
 	pub async fn attributes(
@@ -219,7 +251,11 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		&self,
 		registry: Ss58Identifier,
 	) -> Result<Vec<Vec<u8>>, OriginSdkError> {
-		self.client.view_with(self.signer.clone()).registry().token_specs(registry).await
+		self.client
+			.view_with(self.signer.clone())
+			.registry()
+			.token_specs(registry)
+			.await
 	}
 
 	pub async fn packet_metadata(
@@ -254,6 +290,14 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		self.client.view_with(self.signer.clone()).registry().overview(registry).await
 	}
 
+	pub async fn overview_nested(
+		&self,
+		registry: Ss58Identifier,
+	) -> Result<crate::schema::registry::RegistryNestedSchema, OriginSdkError> {
+		let flat = self.overview(registry).await?;
+		Ok(crate::schema::registry::expand_registry(&flat))
+	}
+
 	pub async fn packet_snapshot_by_token(
 		&self,
 		token: Ss58Identifier,
@@ -285,7 +329,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		version: Option<u32>,
 		cursor: Option<Ss58Identifier>,
 		limit: Option<u32>,
-	) -> Result<(Vec<crate::types::PacketStateView>, Option<Ss58Identifier>), OriginSdkError> {
+	) -> Result<(Vec<crate::types::PacketSnapshot>, Option<Ss58Identifier>), OriginSdkError> {
 		self.client
 			.view_with(self.signer.clone())
 			.registry()
@@ -299,7 +343,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		version: Option<u32>,
 		cursor: Option<Vec<u8>>,
 		limit: Option<u32>,
-	) -> Result<(Vec<crate::types::PacketStateView>, Option<Vec<u8>>), OriginSdkError> {
+	) -> Result<(Vec<crate::types::PacketSnapshot>, Option<Vec<u8>>), OriginSdkError> {
 		self.client
 			.view_with(self.signer.clone())
 			.registry()
@@ -441,6 +485,53 @@ impl<'a, S: Signer + Clone + 'static> RegistryTxWithSigner<'a, S> {
 		self.client
 			.tx_with(self.signer.clone())
 			.submit(&call.pallet, &call.function, call.args)
+			.await?
+			.wait_in_block()
+			.await
+	}
+
+	/// Create a registry from nested schema using SDK mirrors.
+	pub async fn submit_create_from_nested(
+		&self,
+		registry_id: &[u8],
+		nested: &crate::schema::registry::RegistryNestedSchema,
+	) -> Result<TxOutcome, OriginSdkError> {
+		let input = crate::schema::registry::to_create_input(nested)?;
+		let payload = crate::extrinsic::calls::registry::create_from_input(
+			&self.client.metadata(),
+			registry_id,
+			&input,
+		)?;
+		self.client
+			.tx_with(self.signer.clone())
+			.submit_payload(payload)
+			.await?
+			.wait_in_block()
+			.await
+	}
+
+	/// Issue a packet for a registry using nested packet values (validated against schema).
+	pub async fn submit_packet_from_nested(
+		&self,
+		registry: Ss58Identifier,
+		nested: &crate::schema::packet::PacketNestedValue,
+	) -> Result<TxOutcome, OriginSdkError> {
+		// fetch schema via view
+		let view = self
+			.client
+			.view_with(self.signer.clone())
+			.registry()
+			.details(registry.clone())
+			.await?;
+		let attrs = crate::schema::packet::validate_and_flatten(nested, &view.attributes)?;
+		let payload = crate::extrinsic::calls::packet::issue_from_input(
+			&self.client.metadata(),
+			registry,
+			&attrs,
+		)?;
+		self.client
+			.tx_with(self.signer.clone())
+			.submit_payload(payload)
 			.await?
 			.wait_in_block()
 			.await

@@ -99,7 +99,10 @@ impl OriginClient {
 		Ok(self.tx()?.batch())
 	}
 	/// Batch builder with an explicit signer.
-	pub fn batch_with(&self, signer: impl Signer + 'static) -> crate::extrinsic::batch::BatchBuilder {
+	pub fn batch_with(
+		&self,
+		signer: impl Signer + 'static,
+	) -> crate::extrinsic::batch::BatchBuilder {
 		self.tx_with(signer).batch()
 	}
 

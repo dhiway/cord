@@ -1,9 +1,9 @@
 //! Helpers to map user-friendly values to Origin Element encodings and back.
 
 use crate::types::error::OriginSdkError;
-use origin_primitives::{element::ElementType, ElementView};
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
+use origin_primitives::{element::ElementType, ElementView};
 use scale_value::{Composite, Value, ValueDef};
 
 /// Convert a serde_json value into a dynamic `Value` representing an Origin `Element` of the
@@ -26,9 +26,9 @@ pub fn element_value_from_json(
 			variant("Bool", Composite::unnamed(vec![Value::u128(b as u128)]))
 		},
 		ElementType::U64 => {
-			let n = json.as_u64().ok_or_else(|| {
-				OriginSdkError::InvalidInput(format!("expected u64, got {json}"))
-			})?;
+			let n = json
+				.as_u64()
+				.ok_or_else(|| OriginSdkError::InvalidInput(format!("expected u64, got {json}")))?;
 			variant("U64", Composite::unnamed(vec![Value::u128(n as u128)]))
 		},
 		ElementType::U128 => {

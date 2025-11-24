@@ -36,6 +36,13 @@ impl<'a> TokenClient<'a> {
 		self.client.view()?.token().resolve_identifier(token).await
 	}
 
+	pub async fn maybe_resolve_identifier(
+		&self,
+		token: Ss58Identifier,
+	) -> Result<Option<TokenLookupView>, OriginSdkError> {
+		self.client.view()?.token().maybe_resolve_identifier(token).await
+	}
+
 	pub async fn pallet_index_of(&self, name: Vec<u8>) -> Result<u16, OriginSdkError> {
 		self.client.view()?.token().pallet_index_of(name).await
 	}
@@ -65,6 +72,17 @@ impl<'a> TokenClient<'a> {
 		self.client.view()?.token().state_event(token, version).await
 	}
 
+	pub async fn maybe_state_event(
+		&self,
+		token: Ss58Identifier,
+		version: u32,
+	) -> Result<
+		Option<origin_primitives::token::TokenStateEventView<subxt::utils::H256>>,
+		OriginSdkError,
+	> {
+		self.client.view()?.token().maybe_state_event(token, version).await
+	}
+
 	pub async fn resolve_pallet(&self, index: u16) -> Result<Vec<u8>, OriginSdkError> {
 		self.client.view()?.token().resolve_pallet(index).await
 	}
@@ -86,14 +104,33 @@ impl<'a, S: Signer + Clone + 'static> TokenClientWithSigner<'a, S> {
 		start: Option<u32>,
 		limit: Option<u32>,
 	) -> Result<TokenTimelineView, OriginSdkError> {
-		self.client.view_with(self.signer.clone()).token().timeline(token, start, limit).await
+		self.client
+			.view_with(self.signer.clone())
+			.token()
+			.timeline(token, start, limit)
+			.await
 	}
 
 	pub async fn resolve_identifier(
 		&self,
 		token: Ss58Identifier,
 	) -> Result<TokenLookupView, OriginSdkError> {
-		self.client.view_with(self.signer.clone()).token().resolve_identifier(token).await
+		self.client
+			.view_with(self.signer.clone())
+			.token()
+			.resolve_identifier(token)
+			.await
+	}
+
+	pub async fn maybe_resolve_identifier(
+		&self,
+		token: Ss58Identifier,
+	) -> Result<Option<TokenLookupView>, OriginSdkError> {
+		self.client
+			.view_with(self.signer.clone())
+			.token()
+			.maybe_resolve_identifier(token)
+			.await
 	}
 
 	pub async fn pallet_index_of(&self, name: Vec<u8>) -> Result<u16, OriginSdkError> {
@@ -120,11 +157,28 @@ impl<'a, S: Signer + Clone + 'static> TokenClientWithSigner<'a, S> {
 		&self,
 		token: Ss58Identifier,
 		version: u32,
+	) -> Result<origin_primitives::token::TokenStateEventView<subxt::utils::H256>, OriginSdkError>
+	{
+		self.client
+			.view_with(self.signer.clone())
+			.token()
+			.state_event(token, version)
+			.await
+	}
+
+	pub async fn maybe_state_event(
+		&self,
+		token: Ss58Identifier,
+		version: u32,
 	) -> Result<
-		origin_primitives::token::TokenStateEventView<subxt::utils::H256>,
+		Option<origin_primitives::token::TokenStateEventView<subxt::utils::H256>>,
 		OriginSdkError,
 	> {
-		self.client.view_with(self.signer.clone()).token().state_event(token, version).await
+		self.client
+			.view_with(self.signer.clone())
+			.token()
+			.maybe_state_event(token, version)
+			.await
 	}
 
 	pub async fn resolve_pallet(&self, index: u16) -> Result<Vec<u8>, OriginSdkError> {

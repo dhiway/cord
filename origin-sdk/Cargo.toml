@@ -39,6 +39,7 @@ scale-value = { version = "0.18", default-features = false, features = ["serde"]
 sp-core = { workspace = true, features = ["std"] }
 scale-info = { workspace = true, features = ["std"] }
 sp-runtime = { workspace = true, features = ["std"] }
+frame-support = { workspace = true, features = ["std"] }
 async-trait = "0.1"
 base64 = "0.22"
 clap = { version = "4.5", features = ["derive"] }

@@ -8,13 +8,12 @@ use crate::{
 use codec::{Decode, Encode};
 use origin_primitives::authorization::AuthorizationError;
 use sp_runtime::traits::SaturatedConversion;
-use subxt::utils::AccountId32;
 
-	type Auth = origin_primitives::Authorization<
-		origin_primitives::AccountId,
-		Vec<u8>,
-		origin_primitives::Signature,
-	>;
+type Auth = origin_primitives::Authorization<
+	origin_primitives::AccountId,
+	Vec<u8>,
+	origin_primitives::Signature,
+>;
 
 /// View (read) API limited to pallet view functions.
 #[derive(Clone)]
@@ -161,6 +160,46 @@ impl ViewClient {
 		T::decode(&mut &raw[..]).map_err(|e| OriginSdkError::Decode(e.to_string()))
 	}
 
+	/// For views that return `Result<T, AuthorizationError>` but we want `Option<T>` on NotFound.
+	pub async fn call_auth_result_maybe<T: Decode>(
+		&self,
+		pallet: &str,
+		function: &str,
+		raw_args: Vec<Vec<u8>>,
+	) -> Result<Option<T>, OriginSdkError> {
+		let res: Result<Result<Vec<u8>, AuthorizationError>, OriginSdkError> =
+			self.call(pallet, function, raw_args).await;
+		match res {
+			Err(e) => Err(e),
+			Ok(Ok(raw)) => T::decode(&mut &raw[..])
+				.map(Some)
+				.map_err(|e| OriginSdkError::Decode(e.to_string())),
+			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
+			Ok(Err(e)) => Err(OriginSdkError::View(format!("{pallet}.{function} err: {e:?}"))),
+		}
+	}
+
+	/// For views that return `Result<Option<T>, AuthorizationError>` but T is already decoded.
+	pub async fn call_auth_option_decoded<T: Decode>(
+		&self,
+		pallet: &str,
+		function: &str,
+		raw_args: Vec<Vec<u8>>,
+	) -> Result<Option<T>, OriginSdkError> {
+		let res: Result<Result<Option<T>, AuthorizationError>, OriginSdkError> =
+			self.call(pallet, function, raw_args).await;
+
+		match res {
+			Err(e) => Err(e),
+
+			Ok(Ok(Some(v))) => Ok(Some(v)),
+			Ok(Ok(None)) => Ok(None),
+			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
+
+			Ok(Err(e)) => Err(OriginSdkError::View(format!("{pallet}.{function} err: {e:?}"))),
+		}
+	}
+
 	async fn call_value_inner(
 		connection: &Arc<Connection>,
 		payload: subxt::view_functions::DefaultPayload<
@@ -226,24 +265,31 @@ pub struct EntityViews {
 }
 
 impl EntityViews {
-	pub async fn overview(
+	/// Return `Ok(None)` when the entity is not found.
+	pub async fn maybe_overview(
 		&self,
 		entity_id: origin_primitives::Ss58Identifier,
-	) -> Result<crate::types::EntityStateView, OriginSdkError> {
-		let raw = self
-			.inner
-			.call_auth_raw(
+	) -> Result<Option<crate::types::EntityStateView>, OriginSdkError> {
+		self.inner
+			.call_auth_result_maybe::<crate::types::EntityStateView>(
 				"Entity",
 				"overview",
 				vec![entity_id.encode(), Option::<u32>::None.encode()],
 			)
-			.await?;
+			.await
+	}
 
-		match crate::types::EntityStateView::decode(&mut &raw[..]) {
-			Ok(v) => Ok(v),
-			Err(_) => lenient_decode_entity_state(&raw)
-				.ok_or_else(|| OriginSdkError::Decode("overview decode failed".into())),
-		}
+	pub async fn overview(
+		&self,
+		entity_id: origin_primitives::Ss58Identifier,
+	) -> Result<crate::types::EntityStateView, OriginSdkError> {
+		self.inner
+			.call_auth_result::<crate::types::EntityStateView>(
+				"Entity",
+				"overview",
+				vec![entity_id.encode(), Option::<u32>::None.encode()],
+			)
+			.await
 	}
 
 	pub async fn account_token(
@@ -269,13 +315,26 @@ impl EntityViews {
 		&self,
 		entity_id: origin_primitives::Ss58Identifier,
 	) -> Result<crate::types::EntityInfoView, OriginSdkError> {
-		let raw = self.inner.call_auth_raw("Entity", "details", vec![entity_id.encode()]).await?;
+		self.inner
+			.call_auth_result::<crate::types::EntityInfoView>(
+				"Entity",
+				"details",
+				vec![entity_id.encode()],
+			)
+			.await
+	}
 
-		match crate::types::EntityInfoView::decode(&mut &raw[..]) {
-			Ok(v) => Ok(v),
-			Err(_) => lenient_decode_entity_info(&raw)
-				.ok_or_else(|| OriginSdkError::Decode("details decode failed".into())),
-		}
+	pub async fn maybe_details(
+		&self,
+		entity_id: origin_primitives::Ss58Identifier,
+	) -> Result<Option<crate::types::EntityInfoView>, OriginSdkError> {
+		self.inner
+			.call_auth_result_maybe::<crate::types::EntityInfoView>(
+				"Entity",
+				"details",
+				vec![entity_id.encode()],
+			)
+			.await
 	}
 
 	pub async fn nym(
@@ -386,6 +445,118 @@ pub struct RegistryViews {
 }
 
 impl RegistryViews {
+	/// Return `Ok(None)` when the registry is not found.
+	pub async fn maybe_details(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+	) -> Result<Option<crate::types::RegistryStateView>, OriginSdkError> {
+		self.inner
+			.call_auth_result_maybe::<Vec<u8>>("Register", "details", vec![registry.encode()])
+			.await
+			.and_then(|opt| {
+				opt.map(|raw| {
+					crate::types::RegistryStateView::decode(&mut &raw[..])
+						.map_err(|e| OriginSdkError::Decode(e.to_string()))
+				})
+				.transpose()
+			})
+	}
+
+	pub async fn maybe_overview(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+	) -> Result<Option<crate::types::RegistryStateView>, OriginSdkError> {
+		self.inner
+			.call_auth_result_maybe::<Vec<u8>>("Register", "overview", vec![registry.encode()])
+			.await
+			.and_then(|opt| {
+				opt.map(|raw| {
+					crate::types::RegistryStateView::decode(&mut &raw[..])
+						.map_err(|e| OriginSdkError::Decode(e.to_string()))
+				})
+				.transpose()
+			})
+	}
+
+	pub async fn maybe_attribute(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		key: Vec<u8>,
+	) -> Result<Option<(origin_primitives::element::ElementType, bool)>, OriginSdkError> {
+		self.inner
+			.call_auth_result_maybe::<Vec<u8>>(
+				"Register",
+				"attribute",
+				vec![registry.encode(), key.encode()],
+			)
+			.await
+			.and_then(|opt| {
+				opt.map(|raw| {
+					<(origin_primitives::element::ElementType, bool)>::decode(&mut &raw[..])
+						.map_err(|e| OriginSdkError::Decode(e.to_string()))
+				})
+				.transpose()
+			})
+	}
+
+	pub async fn maybe_packet_metadata(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		packet: origin_primitives::Ss58Identifier,
+	) -> Result<Option<origin_primitives::packet::PacketMetadataView>, OriginSdkError> {
+		self.inner
+			.call_auth_option_decoded::<origin_primitives::packet::PacketMetadataView>(
+				"Register",
+				"packet_metadata",
+				vec![registry.encode(), packet.encode()],
+			)
+			.await
+	}
+
+	pub async fn maybe_packet_snapshot(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		packet: origin_primitives::Ss58Identifier,
+		version: Option<u32>,
+	) -> Result<Option<crate::types::PacketStateView>, OriginSdkError> {
+		self.inner
+			.call_auth_option_decoded::<crate::types::PacketStateView>(
+				"Register",
+				"packet_snapshot",
+				vec![registry.encode(), packet.encode(), version.encode()],
+			)
+			.await
+	}
+
+	pub async fn maybe_packet_snapshot_by_token(
+		&self,
+		token: origin_primitives::Ss58Identifier,
+		version: Option<u32>,
+	) -> Result<Option<crate::types::PacketStateView>, OriginSdkError> {
+		self.inner
+			.call_auth_option_decoded::<crate::types::PacketStateView>(
+				"Register",
+				"packet_snapshot_by_token",
+				vec![token.encode(), version.encode()],
+			)
+			.await
+	}
+
+	pub async fn maybe_lookup_snapshot(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		digest: Vec<u8>,
+		version: Option<u32>,
+	) -> Result<Option<crate::types::PacketStateView>, OriginSdkError> {
+		self.inner
+			.call_auth_option_decoded::<crate::types::PacketStateView>(
+				"Register",
+				"lookup_snapshot",
+				vec![registry.encode(), digest.encode(), version.encode()],
+			)
+			.await
+	}
+
 	pub async fn details(
 		&self,
 		registry: origin_primitives::Ss58Identifier,
@@ -499,13 +670,7 @@ impl RegistryViews {
 		token: origin_primitives::Ss58Identifier,
 		version: Option<u32>,
 	) -> Result<Option<crate::types::PacketStateView>, OriginSdkError> {
-		self.inner
-			.call_auth_result(
-				"Register",
-				"packet_snapshot_by_token",
-				vec![token.encode(), version.encode()],
-			)
-			.await
+		self.maybe_packet_snapshot_by_token(token, version).await
 	}
 
 	pub async fn lookup_snapshot(
@@ -530,7 +695,10 @@ impl RegistryViews {
 		cursor: Option<origin_primitives::Ss58Identifier>,
 		limit: Option<u32>,
 	) -> Result<
-		(Vec<crate::types::PacketStateView>, Option<origin_primitives::Ss58Identifier>),
+		(
+			Vec<crate::types::packet::PacketSnapshotInternal>,
+			Option<origin_primitives::Ss58Identifier>,
+		),
 		OriginSdkError,
 	> {
 		self.inner
@@ -548,7 +716,8 @@ impl RegistryViews {
 		version: Option<u32>,
 		cursor: Option<Vec<u8>>,
 		limit: Option<u32>,
-	) -> Result<(Vec<crate::types::PacketStateView>, Option<Vec<u8>>), OriginSdkError> {
+	) -> Result<(Vec<crate::types::packet::PacketSnapshotInternal>, Option<Vec<u8>>), OriginSdkError>
+	{
 		self.inner
 			.call_auth_result(
 				"Register",
@@ -572,12 +741,13 @@ impl PacketViews {
 		version: Option<u32>,
 	) -> Result<crate::types::PacketStateView, OriginSdkError> {
 		self.inner
-			.call_auth_result(
+			.call_auth_result::<Option<crate::types::PacketStateView>>(
 				"Register",
 				"packet_snapshot_by_token",
 				vec![packet.encode(), version.encode()],
 			)
-			.await
+			.await?
+			.ok_or_else(|| OriginSdkError::View("packet snapshot not found".into()))
 	}
 
 	/// Resolve a packet snapshot via lookup digest for a registry.
@@ -603,6 +773,39 @@ pub struct TokenViews {
 }
 
 impl TokenViews {
+	pub async fn maybe_state_event(
+		&self,
+		token: origin_primitives::Ss58Identifier,
+		version: u32,
+	) -> Result<
+		Option<origin_primitives::token::TokenStateEventView<subxt::utils::H256>>,
+		OriginSdkError,
+	> {
+		self.inner
+			.call_auth_option_decoded::<origin_primitives::token::TokenStateEventView<subxt::utils::H256>>(
+				"Token",
+				"state_event",
+				vec![token.encode(), version.encode()],
+			)
+			.await
+	}
+
+	pub async fn maybe_resolve_identifier(
+		&self,
+		token: origin_primitives::Ss58Identifier,
+	) -> Result<Option<crate::types::TokenLookupView>, OriginSdkError> {
+		self.inner
+			.call_auth_result_maybe::<Vec<u8>>("Token", "resolve_identifier", vec![token.encode()])
+			.await
+			.and_then(|opt| {
+				opt.map(|raw| {
+					crate::types::TokenLookupView::decode(&mut &raw[..])
+						.map_err(|e| OriginSdkError::Decode(e.to_string()))
+				})
+				.transpose()
+			})
+	}
+
 	pub async fn timeline(
 		&self,
 		token: origin_primitives::Ss58Identifier,
@@ -691,261 +894,4 @@ impl ViewClient {
 	}
 }
 
-#[derive(codec::Decode)]
-struct LegacyInfo {
-	display: Vec<u8>,
-	web: Vec<u8>,
-	email: Vec<u8>,
-	attributes: Option<Vec<origin_primitives::AttributeValueView>>,
-}
-
-#[derive(codec::Decode)]
-struct LegacyState {
-	info: LegacyInfo,
-	nym: Option<Vec<u8>>,
-	linked_accounts: Vec<AccountId32>,
-	history: Vec<origin_primitives::AttributeHistoryEntryView>,
-}
-
-fn lenient_decode_entity_info(input: &[u8]) -> Option<crate::types::EntityInfoView> {
-	// Preferred: decode as Result<EntityInfoView, AuthorizationError>.
-	let mut cursor = &input[..];
-	if let Ok(Ok(v)) =
-		Result::<crate::types::EntityInfoView, AuthorizationError>::decode(&mut cursor)
-	{
-		return Some(v);
-	}
-
-	// Legacy path 1: Result<Vec<u8>> wrapping an encoded EntityInfoView.
-	if let Ok(Result::<Vec<u8>, AuthorizationError>::Ok(raw)) =
-		codec::Decode::decode(&mut &input[..])
-	{
-		// If the vec is length-wrapped, strip and retry decode.
-		if let Some(inner) = strip_length_wrapped(&raw) {
-			let mut cur = inner;
-			if let Ok(v) = crate::types::EntityInfoView::decode(&mut cur) {
-				return Some(v);
-			}
-			if let Some(mut v) = parse_legacy_info(inner) {
-				normalize_info(&mut v);
-				return Some(v);
-			}
-		}
-
-		let mut cursor = &raw[..];
-		if let Ok(decoded) = crate::types::EntityInfoView::decode(&mut cursor) {
-			return Some(decoded);
-		}
-
-		// Heuristic parse: extract ASCII slices between nulls / control bytes.
-		let fields = ascii_segments(&raw);
-		if !fields.is_empty() {
-			let display = decode_loose_element(fields.get(0));
-			let web = decode_loose_element(fields.get(1));
-			let email_bytes = fields.get(2).cloned().unwrap_or_default();
-			return Some(crate::types::EntityInfoView {
-				display,
-				web,
-				email: if email_bytes.is_empty() {
-					crate::types::entity::ElementView::None
-				} else {
-					decode_loose_element(Some(&email_bytes))
-				},
-				attributes: None,
-			});
-		}
-	}
-
-	// Legacy path 2: old struct with raw bytes.
-	let inner: Result<Result<LegacyInfo, AuthorizationError>, codec::Error> =
-		codec::Decode::decode(&mut &input[..]);
-	let info = inner.ok()?.ok()?;
-	Some(crate::types::EntityInfoView {
-		display: crate::types::entity::ElementView::Raw(info.display),
-		web: crate::types::entity::ElementView::Raw(info.web),
-		email: crate::types::entity::ElementView::Raw(info.email),
-		attributes: info.attributes,
-	})
-}
-
-fn lenient_decode_entity_state(input: &[u8]) -> Option<crate::types::EntityStateView> {
-	// Preferred: decode as Result<EntityStateView, AuthorizationError>.
-	let mut cursor = &input[..];
-	if let Ok(Ok(v)) =
-		Result::<crate::types::EntityStateView, AuthorizationError>::decode(&mut cursor)
-	{
-		return Some(v);
-	}
-
-	// Legacy path 1: Result<Vec<u8>> wrapping an encoded EntityStateView.
-	if let Ok(Result::<Vec<u8>, AuthorizationError>::Ok(raw)) =
-		codec::Decode::decode(&mut &input[..])
-	{
-		if let Some(inner) = strip_length_wrapped(&raw) {
-			let mut cur = inner;
-			if let Ok(v) = crate::types::EntityStateView::decode(&mut cur) {
-				return Some(v);
-			}
-			if let Some(mut info) = parse_legacy_info(inner) {
-				normalize_info(&mut info);
-				return Some(crate::types::EntityStateView {
-					info,
-					nym: None,
-					linked_accounts: Vec::<AccountId32>::new(),
-					history: Vec::new(),
-				});
-			}
-		}
-
-		let mut cursor = &raw[..];
-		if let Ok(decoded) = crate::types::EntityStateView::decode(&mut cursor) {
-			return Some(decoded);
-		}
-
-		// Heuristic fallback: split on 0x00 separators into display / web segments.
-		let parts: Vec<Vec<u8>> = raw.split(|b| *b == 0u8).map(|s| s.to_vec()).collect();
-		if parts.len() >= 2 {
-			let strip_flag = |mut v: Vec<u8>| {
-				if let Some(first) = v.first() {
-					if *first <= 1 {
-						v.remove(0);
-					}
-				}
-				v
-			};
-			let display = strip_flag(parts[0].clone());
-			let web = strip_flag(parts[1].clone());
-			let info = crate::types::EntityInfoView {
-				display: crate::types::entity::ElementView::Raw(display),
-				web: crate::types::entity::ElementView::Raw(web),
-				email: crate::types::entity::ElementView::None,
-				attributes: None,
-			};
-			return Some(crate::types::EntityStateView {
-				info,
-				nym: None,
-				linked_accounts: Vec::<AccountId32>::new(),
-				history: Vec::new(),
-			});
-		}
-	}
-
-	// Legacy path 2: old struct with raw bytes.
-	let inner: Result<Result<LegacyState, AuthorizationError>, codec::Error> =
-		codec::Decode::decode(&mut &input[..]);
-	let state = inner.ok()?.ok()?;
-	let info = crate::types::EntityInfoView {
-		display: crate::types::entity::ElementView::Raw(state.info.display),
-		web: crate::types::entity::ElementView::Raw(state.info.web),
-		email: crate::types::entity::ElementView::Raw(state.info.email),
-		attributes: state.info.attributes,
-	};
-	Some(crate::types::EntityStateView {
-		info,
-		nym: state.nym,
-		linked_accounts: state.linked_accounts,
-		history: state.history,
-	})
-}
-
-fn ascii_segments(raw: &[u8]) -> Vec<Vec<u8>> {
-	raw.split(|b| *b == 0)
-		.filter_map(|s| {
-			let cleaned: Vec<u8> =
-				s.iter().copied().filter(|b| b.is_ascii_graphic() || *b == b' ').collect();
-			if cleaned.is_empty() {
-				None
-			} else {
-				Some(cleaned)
-			}
-		})
-		.collect()
-}
-
-fn decode_loose_element(bytes: Option<&Vec<u8>>) -> crate::types::entity::ElementView {
-	let Some(buf) = bytes else {
-		return crate::types::entity::ElementView::None;
-	};
-	if buf.is_empty() {
-		return crate::types::entity::ElementView::None;
-	}
-	// Try strict decode first (if the buffer is an encoded ElementView).
-	let mut cursor = &buf[..];
-	if let Ok(ev) = crate::types::entity::ElementView::decode(&mut cursor) {
-		return ev;
-	}
-	// If it looks like a compact length followed by data (starts with 0x41 or other),
-	// treat the whole buffer as raw bytes payload.
-	let raw = buf.clone();
-	// Try utf8 display for convenience
-	if let Ok(s) = core::str::from_utf8(&raw) {
-		return crate::types::entity::ElementView::Raw(s.as_bytes().to_vec());
-	}
-	crate::types::entity::ElementView::Raw(raw)
-}
-
-fn strip_length_wrapped(raw: &[u8]) -> Option<&[u8]> {
-	let mut cur = &raw[..];
-	if let Ok(len) = codec::Compact::<u32>::decode(&mut cur) {
-		if (cur.len() as u32) == len.0 {
-			return Some(cur);
-		}
-	}
-	None
-}
-
-fn parse_legacy_info(buf: &[u8]) -> Option<crate::types::EntityInfoView> {
-	// The payload we see is: length-wrapped body with fields separated by 0x00, each prefixed by
-	// small tags. We split on 0x00, drop empties, and take first = display, second = email, web =
-	// None.
-	let parts: Vec<Vec<u8>> =
-		buf.split(|b| *b == 0).filter(|s| !s.is_empty()).map(|s| s.to_vec()).collect();
-	if parts.is_empty() {
-		return None;
-	}
-	let clean = |mut v: Vec<u8>| -> Vec<u8> {
-		while let Some(b) = v.first() {
-			if *b <= 1 {
-				v.remove(0);
-				continue;
-			}
-			if !b.is_ascii_alphabetic() {
-				v.remove(0);
-				continue;
-			}
-			break;
-		}
-		v
-	};
-	let display = decode_loose_element(Some(&clean(parts.get(0).cloned().unwrap_or_default())));
-	let email_bytes = clean(parts.get(1).cloned().unwrap_or_default());
-	let email = if email_bytes.is_empty() {
-		crate::types::entity::ElementView::None
-	} else {
-		decode_loose_element(Some(&email_bytes))
-	};
-	let web = if parts.len() > 2 {
-		decode_loose_element(Some(&clean(parts[2].clone())))
-	} else {
-		crate::types::entity::ElementView::None
-	};
-	Some(crate::types::EntityInfoView { display, web, email, attributes: None })
-}
-
-fn normalize_info(info: &mut crate::types::EntityInfoView) {
-	// If display came back None but web carried the actual value, shift it.
-	if matches!(info.display, crate::types::entity::ElementView::None) &&
-		!matches!(info.web, crate::types::entity::ElementView::None)
-	{
-		info.display = core::mem::replace(&mut info.web, crate::types::entity::ElementView::None);
-	}
-	// If email is missing but web looks like an email address, move it.
-	if matches!(info.email, crate::types::entity::ElementView::None) {
-		if let crate::types::entity::ElementView::Raw(ref bytes) = info.web {
-			if bytes.contains(&b'@') {
-				info.email =
-					core::mem::replace(&mut info.web, crate::types::entity::ElementView::None);
-			}
-		}
-	}
-}
+// Legacy decoding helpers removed; SDK expects current pallet encodings only.

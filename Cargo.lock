@@ -9046,6 +9046,7 @@ dependencies = [
  "base64 0.22.1",
  "clap",
  "env_logger",
+ "frame-support",
  "futures",
  "hex",
  "origin-primitives",

@@ -72,13 +72,7 @@ impl MetaTxClient {
 			.map_err(|e| OriginSdkError::MetaTx(e.to_string()))?;
 		payload.extend_from_slice(&nonce.to_le_bytes());
 
-		Ok(PreparedMetaTx {
-			call: wrapped,
-			payload,
-			nonce,
-			spec_version,
-			genesis_hash,
-		})
+		Ok(PreparedMetaTx { call: wrapped, payload, nonce, spec_version, genesis_hash })
 	}
 
 	/// Sign a prepared payload with a supplied meta-signer.
@@ -170,21 +164,33 @@ impl MetaTxClient {
 	) -> Result<crate::client::submit::TxHandle, OriginSdkError> {
 		let wrapped = self.wrap(call)?;
 		let payload = subxt::dynamic::tx(wrapped.pallet, wrapped.function, wrapped.args.clone());
-		let submit = crate::client::submit::SubmitClient::new(self.connection.clone(), Some(relayer));
-		let _signed = meta_signer.sign_payload(
-			&payload
-				.encode_call_data(&self.connection.metadata())
-				.map_err(|e| OriginSdkError::Encode(e.to_string()))?,
-		).await;
+		let submit =
+			crate::client::submit::SubmitClient::new(self.connection.clone(), Some(relayer));
+		let _signed = meta_signer
+			.sign_payload(
+				&payload
+					.encode_call_data(&self.connection.metadata())
+					.map_err(|e| OriginSdkError::Encode(e.to_string()))?,
+			)
+			.await;
 		submit.submit_payload(payload).await
 	}
 
-	fn ensure_dispatched_ok(&self, outcome: &crate::client::submit::TxOutcome) -> Result<(), OriginSdkError> {
-		if let Some(ev) = outcome.events.iter().find(|e| e.pallet == "MetaTx" && e.variant == "Dispatched") {
+	fn ensure_dispatched_ok(
+		&self,
+		outcome: &crate::client::submit::TxOutcome,
+	) -> Result<(), OriginSdkError> {
+		if let Some(ev) = outcome
+			.events
+			.iter()
+			.find(|e| e.pallet == "MetaTx" && e.variant == "Dispatched")
+		{
 			if let Some(first) = ev.fields.get(0) {
 				match decode_dispatch_result(first) {
 					Ok(true) => {},
-					Ok(false) => return Err(OriginSdkError::MetaTx("meta-tx dispatched with error".into())),
+					Ok(false) => {
+						return Err(OriginSdkError::MetaTx("meta-tx dispatched with error".into()))
+					},
 					Err(e) => return Err(OriginSdkError::MetaTx(format!("meta-tx decode: {e}"))),
 				}
 			}
