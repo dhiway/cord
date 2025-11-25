@@ -19,12 +19,14 @@
 #[cfg(test)]
 use super::*;
 use crate::mock::{new_test_ext, Test};
-use codec::Encode;
+use codec::{Decode, Encode};
 use core::convert::TryInto;
 use frame_support::{assert_err, assert_ok};
 use sp_core::{sr25519, Pair, H256};
 use sp_io::hashing::twox_128;
 use sp_runtime::traits::UniqueSaturatedInto;
+
+type Hash = <Test as frame_system::Config>::Hash;
 
 fn current_block_u32() -> u32 {
 	frame_system::Pallet::<Test>::block_number().unique_saturated_into()
@@ -68,6 +70,10 @@ fn make_auth_with_reference_block(
 fn make_auth(payload: &[u8], pair: &sr25519::Pair) -> Authorization<Test> {
 	let reference_block = current_block_u32();
 	make_auth_with_reference_block(payload, pair, reference_block)
+}
+
+fn decode_view<T: Decode>(raw: Vec<u8>) -> T {
+	T::decode(&mut &raw[..]).expect("view decode should succeed")
 }
 
 /// Test that a valid pallet name can be stored and returns a consistent index.
@@ -208,9 +214,10 @@ fn timeline_requires_valid_authorization() {
 		let signer = sr25519::Pair::from_seed(&[42u8; 32]);
 		let reference_block = current_block_u32();
 		let auth = make_auth_with_reference_block(b"view-history", &signer, reference_block);
-		let (entries, next) =
+		let raw =
 			Pallet::<Test>::timeline(auth.clone(), token.clone(), Some(0), Some(10))
 				.expect("authorized timeline");
+		let (entries, next): (Vec<TokenStateEventView<Hash>>, Option<u32>) = decode_view(raw);
 		assert_eq!(entries.len(), 1);
 		assert_eq!(entries[0].digest, digest);
 		assert!(next.is_none());
@@ -243,8 +250,10 @@ fn resolve_identifier_requires_authorization() {
 		let signer = sr25519::Pair::from_seed(&[7u8; 32]);
 		let reference_block = current_block_u32();
 		let auth = make_auth_with_reference_block(b"resolve-id", &signer, reference_block);
-		let decoded = Pallet::<Test>::resolve_identifier(auth.clone(), token.clone())
-			.expect("authorized view should succeed");
+		let decoded_raw =
+			Pallet::<Test>::resolve_identifier(auth.clone(), token.clone())
+				.expect("authorized view should succeed");
+		let decoded: DecodedIdentifier = decode_view(decoded_raw);
 		assert_eq!(decoded.network, 300);
 		assert_eq!(decoded.pallet, 9);
 		assert_eq!(decoded.genesis, format!("0x{}", hex::encode(digest.clone())));
@@ -307,9 +316,10 @@ fn resolve_pallet_requires_authorization() {
 		let index = Pallet::<Test>::get_or_add_pallet_index(pallet_name).unwrap();
 		let reference_block = current_block_u32();
 		let auth = make_auth_with_reference_block(b"resolve-pallet", &signer, reference_block);
-		let name =
+		let name_raw =
 			Pallet::<Test>::resolve_pallet(auth.clone(), index).expect("authorized pallet query");
-		assert_eq!(name, pallet_name);
+		let name: BoundedVec<u8, ConstU32<64>> = decode_view(name_raw);
+		assert_eq!(core::str::from_utf8(&name).unwrap(), pallet_name);
 
 		let raw = Pallet::<Test>::resolve_pallet_plain(index).expect("helper");
 		assert_eq!(raw, pallet_name);
@@ -334,11 +344,13 @@ fn pallet_index_views_roundtrip() {
 			pallet_name.as_bytes().to_vec(),
 		)
 		.expect("pallet index view");
+		let fetched: u16 = decode_view(fetched);
 		assert_eq!(fetched, index);
 
 		let name_bytes =
 			Pallet::<Test>::pallet_name(make_auth(b"view-name", &pair), index).expect("name view");
-		assert_eq!(core::str::from_utf8(&name_bytes).unwrap(), pallet_name);
+		let name: BoundedVec<u8, ConstU32<64>> = decode_view(name_bytes);
+		assert_eq!(core::str::from_utf8(&name).unwrap(), pallet_name);
 	});
 }
 
@@ -349,12 +361,14 @@ fn network_metadata_views_return_values() {
 		NextPalletIndex::<Test>::put(9);
 		GenesisNetworkId::<Test>::put(4321);
 
-		let next =
+		let next_raw =
 			Pallet::<Test>::next_pallet_index(make_auth(b"next-index", &pair)).expect("next index");
+		let next: u16 = decode_view(next_raw);
 		assert_eq!(next, 9);
 
-		let nid =
+		let nid_raw =
 			Pallet::<Test>::genesis_network_id(make_auth(b"net-id", &pair)).expect("network id");
+		let nid: u16 = decode_view(nid_raw);
 		assert_eq!(nid, 4321);
 	});
 }
@@ -369,24 +383,29 @@ fn state_views_roundtrip_with_authorization() {
 		let seal = EventBlock { height: 10, index: 0 };
 		Pallet::<Test>::update_token_state(&token, digest, action.clone(), seal.clone()).unwrap();
 
-		let version =
+		let version_raw =
 			Pallet::<Test>::state_version(make_auth(b"state-version", &pair), token.clone())
 				.expect("state version view");
+		let version: u32 = decode_view(version_raw);
 		assert_eq!(version, 1);
 
-		let event = Pallet::<Test>::state_event(make_auth(b"state-event", &pair), token.clone(), 0)
-			.expect("state event view");
+		let event_raw =
+			Pallet::<Test>::state_event(make_auth(b"state-event", &pair), token.clone(), 0)
+				.expect("state event view");
+		let event: TokenStateEventView<Hash> = decode_view(event_raw);
 		assert_eq!(event.action, action.to_vec());
 		assert_eq!(event.seal.height, seal.height);
 		assert_eq!(event.seal.index, seal.index);
 
-		let (batch, cursor) = Pallet::<Test>::timeline(
+		let timeline_raw = Pallet::<Test>::timeline(
 			make_auth(b"state-events", &pair),
 			token.clone(),
 			Some(0),
 			Some(5),
 		)
 		.expect("state events");
+		let (batch, cursor): (Vec<TokenStateEventView<Hash>>, Option<u32>) =
+			decode_view(timeline_raw);
 		assert_eq!(batch.len(), 1);
 		assert_eq!(batch[0].digest, digest);
 		assert_eq!(batch[0].action, action.to_vec());

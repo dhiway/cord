@@ -41,7 +41,7 @@ use origin_primitives::{
 	},
 	entity::EventBlockView,
 	identifier::{DecodedIdentifier, IdentifierError, Ss58Identifier},
-	token::{TokenStateEventView, TokenTimelineView},
+	token::TokenStateEventView,
 	Signature,
 };
 use scale_info::TypeInfo;
@@ -282,15 +282,14 @@ pub mod pallet {
 		}
 
 		/// Returns the pallet name bytes stored for an index.
-		pub fn pallet_name(
-			auth: Authorization<T>,
-			index: u16,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			IndexToPallet::<T>::get(index)
-				.map(Into::into)
-				.ok_or(AuthorizationError::NotFound)
-		}
+	pub fn pallet_name(
+		auth: Authorization<T>,
+		index: u16,
+	) -> Result<Vec<u8>, AuthorizationError> {
+		Self::authorize_query(&auth)?;
+		let name = Self::resolve_pallet_plain(index)?;
+		Self::encode_ok(name)
+	}
 
 		/// Returns the next pallet index counter.
 		pub fn next_pallet_index(auth: Authorization<T>) -> Result<Vec<u8>, AuthorizationError> {

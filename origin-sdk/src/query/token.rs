@@ -47,7 +47,7 @@ impl<'a> TokenClient<'a> {
 		self.client.view()?.token().pallet_index_of(name).await
 	}
 
-	pub async fn pallet_name(&self, index: u16) -> Result<Vec<u8>, OriginSdkError> {
+	pub async fn pallet_name(&self, index: u16) -> Result<String, OriginSdkError> {
 		self.client.view()?.token().pallet_name(index).await
 	}
 
@@ -137,7 +137,7 @@ impl<'a, S: Signer + Clone + 'static> TokenClientWithSigner<'a, S> {
 		self.client.view_with(self.signer.clone()).token().pallet_index_of(name).await
 	}
 
-	pub async fn pallet_name(&self, index: u16) -> Result<Vec<u8>, OriginSdkError> {
+	pub async fn pallet_name(&self, index: u16) -> Result<String, OriginSdkError> {
 		self.client.view_with(self.signer.clone()).token().pallet_name(index).await
 	}
 

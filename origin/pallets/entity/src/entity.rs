@@ -18,23 +18,17 @@
 
 #![allow(clippy::too_many_lines)]
 
-use alloc::{vec, vec::Vec};
+use alloc::vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use enumflags2::{bitflags, BitFlag, BitFlags};
 use frame_support::{
 	ensure, traits::Get, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
 };
 use origin_primitives::{
-	attribute::{Attribute, AttributeValueView, Attributes, AttributesError, Element},
-	element::ElementView,
-	entity::{
-		AccountUnbindEntryView, AttributeHistoryEntryView, EntityInfoView, EntityStateView,
-		EventBlockView,
-	},
+	attribute::{Attribute, Attributes, AttributesError, Element},
 	packet::{PacketInformationProvider, PacketUpdateError, PacketUpdateOp},
 };
 use scale_info::{build::Variants, Path, Type, TypeInfo};
-use sp_runtime::RuntimeDebug;
 
 /// Each field corresponds to a field in the `EntityInfo` struct.
 #[bitflags]

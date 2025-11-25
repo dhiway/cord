@@ -33,7 +33,7 @@ pub mod view;
 pub mod weights;
 
 extern crate alloc;
-use alloc::{collections::BTreeMap, vec::Vec};
+use alloc::{collections::BTreeMap, vec, vec::Vec};
 use codec::Encode;
 use core::convert::TryInto;
 use frame_support::{
@@ -45,14 +45,17 @@ use frame_support::{
 use frame_system::{ensure_root, pallet_prelude::*};
 use log as _;
 use origin_primitives::{
-	attribute::{Attribute, Element, ElementType},
+	attribute::{Attribute, Element},
 	authorization::{
 		ensure_authorization_ttl, extract_valid_until, Authorization as ViewAuthorization,
 		AuthorizationError,
 	},
 	identifier::Ss58Identifier,
 	packet::{PacketPointer, PacketStateView, PacketStatus, PacketUpdateError},
-	registry::{RegistryKind, RegistryPermissions, RegistryStateView, RegistryStatus},
+	registry::{
+		LookupSpec as LookupSpecView, RegistryAttributeView, RegistryKind, RegistryPermissions,
+		RegistryStateView, RegistryStatus,
+	},
 	Signature,
 };
 pub use packet::{
@@ -1022,7 +1025,16 @@ pub mod pallet {
 			let specs = <Self as RegistryView<T>>::lookup_specs(&registry)
 				.ok_or(AuthorizationError::NotFound)?;
 			Self::record_registry_query(&registry, &auth.account);
-			Self::encode_ok(specs)
+			let view_specs: Vec<LookupSpecView> = specs
+				.into_iter()
+				.map(|spec| match spec {
+					LookupSpec::Single(attr) => LookupSpecView::Single(attr.into_inner()),
+					LookupSpec::Combo(list) => {
+						LookupSpecView::Combo(list.into_iter().map(|a| a.into_inner()).collect())
+					},
+				})
+				.collect();
+			Self::encode_ok(view_specs)
 		}
 
 		/// Returns the declared schema type of the provided attribute key.
@@ -1052,10 +1064,14 @@ pub mod pallet {
 			let registry_info =
 				Registries::<T>::get(&registry).ok_or(AuthorizationError::NotFound)?;
 			Self::record_registry_query(&registry, &auth.account);
-			let entries: Vec<(Vec<u8>, ElementType, bool)> = registry_info
+			let entries: Vec<RegistryAttributeView> = registry_info
 				.attributes
 				.iter()
-				.map(|spec| (spec.key.to_vec(), spec.kind, spec.flags.is_optional()))
+				.map(|spec| RegistryAttributeView {
+					key: spec.key.to_vec(),
+					kind: spec.kind,
+					optional: spec.flags.is_optional(),
+				})
 				.collect();
 			Self::encode_ok(entries)
 		}
@@ -1082,7 +1098,12 @@ pub mod pallet {
 			let spec = <Self as RegistryView<T>>::token_specs(&registry)
 				.ok_or(AuthorizationError::NotFound)?;
 			Self::record_registry_query(&registry, &auth.account);
-			Self::encode_ok(spec)
+			// Flatten LookupSpec into ordered attribute keys.
+			let keys: Vec<Vec<u8>> = match spec {
+				LookupSpec::Single(attr) => vec![attr.into_inner()],
+				LookupSpec::Combo(list) => list.into_iter().map(|a| a.into_inner()).collect(),
+			};
+			Self::encode_ok(keys)
 		}
 		/// Returns a packet state associated with the given packet identifier for the registry.
 		pub fn packet_snapshot(
@@ -1112,7 +1133,7 @@ pub mod pallet {
 				return Err(AuthorizationError::NotFound);
 			}
 			Self::record_registry_query(&registry, &auth.account);
-			Self::encode_ok(metadata)
+			Self::encode_ok(origin_primitives::packet::PacketMetadataView::from(&metadata))
 		}
 
 		/// Lightweight registry overview (info + lookup specs).
@@ -1206,7 +1227,12 @@ pub mod pallet {
 				filtered.push(snap);
 			}
 
-			Self::encode_ok((filtered, next))
+			let views: Vec<PacketStateView> = filtered
+				.into_iter()
+				.map(|snap| view::build_packet_state_view::<T>(&snap.state.registry, &snap))
+				.collect();
+
+			Self::encode_ok((views, next))
 		}
 
 		/// Returns packet snapshots for every registry entry matching the digest prefix.
@@ -1248,7 +1274,12 @@ pub mod pallet {
 				filtered.push(snap);
 			}
 
-			Self::encode_ok((filtered, next))
+			let views: Vec<PacketStateView> = filtered
+				.into_iter()
+				.map(|snap| view::build_packet_state_view::<T>(&snap.state.registry, &snap))
+				.collect();
+
+			Self::encode_ok((views, next))
 		}
 	}
 

@@ -30,15 +30,18 @@ pub struct EventBlockView {
 }
 
 /// History entry for a single attribute key/version.
+/// Returned by `Entity::overview`, `Entity::attribute_history`,
+/// `Entity::attribute_history_for_key`, and `Entity::attribute_history_entry`.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
 pub struct AttributeHistoryEntryView {
 	pub key: Vec<u8>,
 	pub version: u64,
-	pub old_value: Vec<u8>,
+	pub old_value: ElementView,
 	pub block: EventBlockView,
 }
 
-/// Flattened entity info using ElementView and AttributeValueView.
+/// Flattened entity info using `ElementView` and `AttributeValueView`.
+/// Returned by the `Entity::details` view.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
 pub struct EntityInfoView {
 	pub display: ElementView,
@@ -48,6 +51,7 @@ pub struct EntityInfoView {
 }
 
 /// Composite overview of an entity.
+/// Returned by the `Entity::overview` view.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
 pub struct EntityStateView<AccountId> {
 	pub info: EntityInfoView,
@@ -57,6 +61,7 @@ pub struct EntityStateView<AccountId> {
 }
 
 /// Slimmed down overview (info + nym).
+/// Returned by SDK helpers derived from `EntityStateView`.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
 pub struct EntityOverview {
 	pub info: EntityInfoView,
@@ -69,7 +74,7 @@ impl<AccountId> From<EntityStateView<AccountId>> for EntityOverview {
 	}
 }
 
-/// Unbind entry for `account_history` view.
+/// Unbind entry for the `Entity::account_history` view.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
 pub struct AccountUnbindEntryView<AccountId> {
 	pub account: AccountId,

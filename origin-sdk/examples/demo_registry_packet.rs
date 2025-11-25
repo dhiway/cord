@@ -208,7 +208,8 @@ fn json_to_view(
 	use origin_primitives::element::ElementView::*;
 	Ok(match kind {
 		origin_primitives::element::ElementType::None => None,
-		origin_primitives::element::ElementType::Raw => Raw(serde_json::to_vec(val)?),
+		origin_primitives::element::ElementType::Raw =>
+			Raw(serde_json::to_vec(val).map_err(|e| OriginSdkError::InvalidInput(e.to_string()))?),
 		origin_primitives::element::ElementType::Bool => Bool(val.as_bool().unwrap_or(false)),
 		origin_primitives::element::ElementType::U64 => U64(val.as_u64().unwrap_or_default()),
 		origin_primitives::element::ElementType::U128 => {
@@ -225,7 +226,8 @@ fn json_to_view(
 			Hash(arr)
 		},
 		origin_primitives::element::ElementType::Token => {
-			let s = val.as_str().unwrap_or(entity.to_string_lossy().as_ref());
+			let fallback = entity.to_string_lossy();
+			let s = val.as_str().unwrap_or(&fallback);
 			Token(
 				Ss58Identifier::try_from(s.to_string())
 					.map_err(|e| OriginSdkError::InvalidInput(format!("{e:?}")))?,

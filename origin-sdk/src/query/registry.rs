@@ -66,12 +66,12 @@ impl<'a> RegistryClient<'a> {
 		self.client.view()?.registry().attribute(registry, key).await
 	}
 
-	pub async fn attributes(
-		&self,
-		registry: Ss58Identifier,
-	) -> Result<Vec<(Vec<u8>, origin_primitives::element::ElementType, bool)>, OriginSdkError> {
-		self.client.view()?.registry().attributes(registry).await
-	}
+pub async fn attributes(
+	&self,
+	registry: Ss58Identifier,
+) -> Result<Vec<origin_primitives::registry::RegistryAttributeView>, OriginSdkError> {
+	self.client.view()?.registry().attributes(registry).await
+}
 
 	pub async fn token_specs(
 		&self,
@@ -135,7 +135,7 @@ impl<'a> RegistryClient<'a> {
 		version: Option<u32>,
 		cursor: Option<Ss58Identifier>,
 		limit: Option<u32>,
-	) -> Result<(Vec<crate::types::PacketSnapshot>, Option<Ss58Identifier>), OriginSdkError> {
+	) -> Result<(Vec<crate::types::PacketStateView>, Option<Ss58Identifier>), OriginSdkError> {
 		self.client
 			.view()?
 			.registry()
@@ -149,7 +149,7 @@ impl<'a> RegistryClient<'a> {
 		version: Option<u32>,
 		cursor: Option<Vec<u8>>,
 		limit: Option<u32>,
-	) -> Result<(Vec<crate::types::PacketSnapshot>, Option<Vec<u8>>), OriginSdkError> {
+	) -> Result<(Vec<crate::types::PacketStateView>, Option<Vec<u8>>), OriginSdkError> {
 		self.client
 			.view()?
 			.registry()
@@ -233,7 +233,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 	pub async fn attributes(
 		&self,
 		registry: Ss58Identifier,
-	) -> Result<Vec<(Vec<u8>, origin_primitives::element::ElementType, bool)>, OriginSdkError> {
+	) -> Result<Vec<origin_primitives::registry::RegistryAttributeView>, OriginSdkError> {
 		self.client.view_with(self.signer.clone()).registry().attributes(registry).await
 	}
 
@@ -319,7 +319,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		version: Option<u32>,
 		cursor: Option<Ss58Identifier>,
 		limit: Option<u32>,
-	) -> Result<(Vec<crate::types::PacketSnapshot>, Option<Ss58Identifier>), OriginSdkError> {
+	) -> Result<(Vec<crate::types::PacketStateView>, Option<Ss58Identifier>), OriginSdkError> {
 		self.client
 			.view_with(self.signer.clone())
 			.registry()
@@ -333,7 +333,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		version: Option<u32>,
 		cursor: Option<Vec<u8>>,
 		limit: Option<u32>,
-	) -> Result<(Vec<crate::types::PacketSnapshot>, Option<Vec<u8>>), OriginSdkError> {
+	) -> Result<(Vec<crate::types::PacketStateView>, Option<Vec<u8>>), OriginSdkError> {
 		self.client
 			.view_with(self.signer.clone())
 			.registry()

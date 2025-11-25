@@ -1,6 +1,5 @@
 use origin_sdk::schema::{entity, packet, registry};
 use proptest::prelude::*;
-use rand::seq::SliceRandom;
 
 #[test]
 fn entity_roundtrip_ordering_stable() {
@@ -27,11 +26,8 @@ fn entity_roundtrip_ordering_stable() {
 
 #[test]
 fn registry_roundtrip_sorts_keys() {
-	let mut nested = registry::RegistryNestedSchema {
-		registry: origin_primitives::Ss58Identifier::try_from(
-			"5C8F41pKK9PXJ6A4ppfUT6asDkDw7py3AhtTx5xNUFDXL9Xb".to_string(),
-		)
-		.unwrap(),
+	let nested = registry::RegistryNestedSchema {
+		registry: origin_primitives::Ss58Identifier::to_encoded(vec![1u8; 32], 29, 1, 0).unwrap(),
 		info: origin_primitives::element::ElementView::Raw(b"info".to_vec()),
 		kind: origin_primitives::registry::RegistryKind::Raw,
 		status: origin_primitives::registry::RegistryStatus::Active,
@@ -49,10 +45,7 @@ fn registry_roundtrip_sorts_keys() {
 		],
 		token_spec: vec![b"b".to_vec(), b"a".to_vec()],
 		lookup_specs: vec![vec![b"b".to_vec(), b"a".to_vec()]],
-		maintainer: origin_primitives::Ss58Identifier::try_from(
-			"5DAAnrj7VHTz5VgZ3mWZsGgfL7iD1su1Ji4VwWUvDdDhcqJZ".to_string(),
-		)
-		.unwrap(),
+		maintainer: origin_primitives::Ss58Identifier::to_encoded(vec![2u8; 32], 29, 1, 0).unwrap(),
 	};
 	let flat = registry::flatten_registry(&nested);
 	assert_eq!(flat.attributes[0].key, b"a");
@@ -80,7 +73,7 @@ fn packet_flatten_sorts_keys() {
 		],
 	};
 	let flat = packet::flatten_packet(&nested).expect("flatten");
-	assert_eq!(flat[0].0.as_ref(), b"a");
+	assert_eq!(flat[0].0.as_slice(), b"a");
 }
 
 proptest! {
@@ -111,14 +104,14 @@ proptest! {
 		}).collect::<Vec<_>>();
 
 		let nested = registry::RegistryNestedSchema {
-			registry: origin_primitives::Ss58Identifier::try_from("5C8F41pKK9PXJ6A4ppfUT6asDkDw7py3AhtTx5xNUFDXL9Xb".to_string()).unwrap(),
+			registry: origin_primitives::Ss58Identifier::to_encoded(vec![1u8; 32], 29, 1, 0).unwrap(),
 			info: origin_primitives::element::ElementView::Raw(b"info".to_vec()),
 			kind: origin_primitives::registry::RegistryKind::Raw,
 			status: origin_primitives::registry::RegistryStatus::Active,
 			attributes: attrs.clone(),
 			token_spec: vec![keys[0].clone()],
 			lookup_specs: vec![keys.clone()],
-			maintainer: origin_primitives::Ss58Identifier::try_from("5DAAnrj7VHTz5VgZ3mWZsGgfL7iD1su1Ji4VwWUvDdDhcqJZ".to_string()).unwrap(),
+			maintainer: origin_primitives::Ss58Identifier::to_encoded(vec![2u8; 32], 29, 1, 0).unwrap(),
 		};
 		let _ = registry::to_create_input(&nested).expect("valid schema");
 	}
