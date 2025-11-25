@@ -189,6 +189,8 @@ impl SubmitClient {
 
 		let mut attempt = 0;
 		let mut tip_eff = tip;
+		// Ensure cache starts from latest chain nonce for this session.
+		let _ = self.nonce.refresh(connection.online(), &account).await?;
 		let progress = loop {
 			let nonce = self.nonce.allocate(connection.online(), &account).await?;
 			let params = subxt::config::DefaultExtrinsicParamsBuilder::<OriginConfig>::new()

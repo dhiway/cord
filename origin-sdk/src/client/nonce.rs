@@ -48,6 +48,21 @@ impl NonceManager {
 		}
 	}
 
+	/// Refresh the cached nonce for an account to the latest on-chain value.
+	pub async fn refresh(
+		&self,
+		api: &subxt::OnlineClient<crate::client::OriginConfig>,
+		account: &origin_primitives::AccountId,
+	) -> Result<u64, OriginSdkError> {
+		let fresh = self.fetch(api, account).await?;
+		let mut guard = self.state.lock().await;
+		guard.insert(
+			account.clone().into(),
+			NonceState { next: fresh, last_refresh: Instant::now() },
+		);
+		Ok(fresh)
+	}
+
 	async fn allocate_cached(
 		&self,
 		api: &subxt::OnlineClient<crate::client::OriginConfig>,

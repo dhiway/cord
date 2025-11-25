@@ -17,9 +17,29 @@ use origin_sdk::{
 	schema::entity::{element_from_view, EntityNestedValue},
 	types::entity_input::ElementInput,
 };
+use rand::{distributions::Alphanumeric, rngs::OsRng, Rng, RngCore};
 use serde_json::Value as Json;
 use subxt::utils::AccountId32;
 use tokio::time::sleep;
+
+fn rand_tag(len: usize) -> String {
+	rand::thread_rng()
+		.sample_iter(&Alphanumeric)
+		.take(len)
+		.map(char::from)
+		.collect()
+}
+
+fn rand_phone() -> String {
+	let mut rng = rand::thread_rng();
+	format!("+1-555-{}-{:04}", rng.gen_range(100..999), rng.gen_range(0..10_000))
+}
+
+fn rand_hash32() -> [u8; 32] {
+	let mut h = [0u8; 32];
+	OsRng.fill_bytes(&mut h);
+	h
+}
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -54,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	if let Some(entity) = token_opt {
 		println!("✅ entity exists: {}", entity.to_string_lossy());
-		rotate_attributes(&client, &signer, &data, entity.clone(), args.meta).await?;
+		rotate_attributes(&client, &signer, &data, args.meta).await?;
 		show_overview(&client, &signer, entity).await?;
 		return Ok(());
 	}
@@ -95,6 +115,9 @@ fn build_nested(data: &Json) -> Result<EntityNestedValue, Box<dyn std::error::Er
 	);
 
 	let mut attrs: Vec<AttributeValueView> = Vec::new();
+	let mut rng = rand::thread_rng();
+
+	// Start with any provided attributes
 	if let Some(obj) = data.get("attributes").and_then(Json::as_object) {
 		for (k, v) in obj {
 			let ev = if v.is_object() {
@@ -105,6 +128,62 @@ fn build_nested(data: &Json) -> Result<EntityNestedValue, Box<dyn std::error::Er
 			attrs.push(AttributeValueView { key: k.as_bytes().to_vec(), value: ev });
 		}
 	}
+
+	// Ensure varied Element types with randomised values per run.
+	let rand_tag: String =
+		rand::thread_rng().sample_iter(&Alphanumeric).take(6).map(char::from).collect();
+
+	let rand_phone: String =
+		format!("+1-555-{}-{:04}", rng.gen_range(100..999), rng.gen_range(0..10_000));
+
+	// Remove any predefined keys we'll overwrite.
+	let overwrite_keys = [
+		b"did:web".to_vec(),
+		b"did:cord".to_vec(),
+		b"public-key".to_vec(),
+		b"telephone".to_vec(),
+		b"kyc".to_vec(),
+		b"email-verified".to_vec(),
+		b"login-count".to_vec(),
+	];
+	attrs.retain(|a| !overwrite_keys.contains(&a.key));
+
+	// did:web (Raw)
+	attrs.push(AttributeValueView {
+		key: b"did:web".to_vec(),
+		value: ElementView::Raw(format!("did:web:example.org:user:alice-{rand_tag}").into_bytes()),
+	});
+	// did:cord (Raw)
+	attrs.push(AttributeValueView {
+		key: b"did:cord".to_vec(),
+		value: ElementView::Raw(format!("did:cord:{}", rand_tag).into_bytes()),
+	});
+	// public-key (Raw with random suffix)
+	let mut pk_bytes = [0u8; 16];
+	OsRng.fill_bytes(&mut pk_bytes);
+	attrs.push(AttributeValueView {
+		key: b"public-key".to_vec(),
+		value: ElementView::Raw(format!("ed25519:{}", hex::encode(pk_bytes)).into_bytes()),
+	});
+	// telephone (Raw)
+	attrs.push(AttributeValueView {
+		key: b"telephone".to_vec(),
+		value: ElementView::Raw(rand_phone.into_bytes()),
+	});
+	// kyc (Hash)
+	let mut kyc_hash = [0u8; 32];
+	OsRng.fill_bytes(&mut kyc_hash);
+	attrs.push(AttributeValueView { key: b"kyc".to_vec(), value: ElementView::Hash(kyc_hash) });
+	// email-verified (Bool)
+	attrs.push(AttributeValueView {
+		key: b"email-verified".to_vec(),
+		value: ElementView::Bool(true),
+	});
+	// login-count (U64)
+	attrs.push(AttributeValueView {
+		key: b"login-count".to_vec(),
+		value: ElementView::U64(rng.gen_range(1_000u64..9_999u64)),
+	});
 
 	Ok(EntityNestedValue { display, web, email, attributes: Some(attrs) })
 }
@@ -186,14 +265,15 @@ async fn rotate_attributes(
 	client: &OriginClient,
 	signer: &MultiKeySigner,
 	data: &Json,
-	entity: Ss58Identifier,
 	use_meta: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
 	let keys: Vec<String> = data
 		.get("rotate_keys")
 		.and_then(Json::as_array)
 		.map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
-		.unwrap_or_else(|| vec!["public-key".into(), "did:cord".into(), "telephone".into()]);
+		.unwrap_or_else(|| {
+			vec!["public-key".into(), "did:cord".into(), "telephone".into(), "kyc".into()]
+		});
 
 	let attrs_obj = data.get("attributes").and_then(Json::as_object).ok_or("attributes missing")?;
 
@@ -201,17 +281,31 @@ async fn rotate_attributes(
 	let mut ops_views: Vec<(Vec<u8>, ElementView)> = Vec::new();
 	let mut ops_inputs: Vec<(Vec<u8>, ElementInput)> = Vec::new();
 	for key in keys {
-		if let Some(val) = attrs_obj.get(&key) {
-			let ev = if val.is_object() {
-				ElementView::Raw(serde_json::to_vec(val)?)
-			} else {
-				ElementView::Raw(val.as_str().unwrap_or_default().as_bytes().to_vec())
-			};
-			let elem: ElementInput = element_from_view(&ev)?;
-			calls.push((key.clone(), build_rotate_call(key.as_bytes(), &elem)));
-			ops_views.push((key.as_bytes().to_vec(), ev.clone()));
-			ops_inputs.push((key.as_bytes().to_vec(), elem));
-		}
+		let ev = match key.as_str() {
+			"public-key" => {
+				let mut pk_bytes = [0u8; 16];
+				OsRng.fill_bytes(&mut pk_bytes);
+				ElementView::Raw(format!("ed25519:{}", hex::encode(pk_bytes)).into_bytes())
+			},
+			"did:cord" => ElementView::Raw(format!("did:cord:{}", rand_tag(10)).into_bytes()),
+			"telephone" => ElementView::Raw(rand_phone().into_bytes()),
+			"kyc" => ElementView::Hash(rand_hash32()),
+			other => {
+				if let Some(val) = attrs_obj.get(other) {
+					if val.is_object() {
+						ElementView::Raw(serde_json::to_vec(val)?)
+					} else {
+						ElementView::Raw(val.as_str().unwrap_or_default().as_bytes().to_vec())
+					}
+				} else {
+					continue;
+				}
+			},
+		};
+		let elem: ElementInput = element_from_view(&ev)?;
+		calls.push((key.clone(), build_rotate_call(key.as_bytes(), &elem)));
+		ops_views.push((key.as_bytes().to_vec(), ev.clone()));
+		ops_inputs.push((key.as_bytes().to_vec(), elem));
 	}
 
 	if use_meta {
@@ -266,34 +360,43 @@ async fn show_overview(
 	signer: &MultiKeySigner,
 	entity: Ss58Identifier,
 ) -> Result<(), Box<dyn std::error::Error>> {
-	println!("📖 overview:");
+	println!("📖 Overview");
 	let overview = client.query().using(signer.clone()).entity().overview(entity.clone()).await?;
 	match overview {
 		Some(state) => {
-			println!(
-				"👤 display: {:?}, web: {:?}, email: {:?}",
-				state.info.display, state.info.web, state.info.email
-			);
-			println!(
-				"🏷️  nym: {:?}, linked_accounts: {}",
-				state.nym.as_ref().map(|b| String::from_utf8_lossy(b).to_string()),
-				state.linked_accounts.len()
-			);
-			if let Some(attrs) = state.info.attributes {
-				println!("🗝️  attributes:");
-				for a in attrs {
-					println!("  - {} = {:?}", String::from_utf8_lossy(&a.key), a.value);
-				}
+			println!("👤 Display : {}", fmt_element(&state.info.display));
+			println!("🌐 Web     : {}", fmt_element(&state.info.web));
+			println!("✉️  Email   : {}", fmt_element(&state.info.email));
+
+			let nym = state
+				.nym
+				.as_ref()
+				.map(|b| String::from_utf8_lossy(b).to_string())
+				.unwrap_or_else(|| "—".into());
+			println!("🏷️  Nym     : {}", nym);
+
+			println!("🔗 Linked  : {} account(s)", state.linked_accounts.len());
+			for (i, acc) in state.linked_accounts.iter().enumerate() {
+				println!("    [{}] {}", i + 1, acc);
 			}
-			println!("🕒 history (latest {}):", state.history.len());
+
+			if let Some(attrs) = state.info.attributes {
+				println!("🗝️  Attributes:");
+				for a in attrs {
+					let key = String::from_utf8_lossy(&a.key);
+					println!("    • {:<14} = {}", key, fmt_element(&a.value));
+				}
+			} else {
+				println!("🗝️  Attributes: none");
+			}
+
+			println!("🕒 Attribute history (latest {} shown):", state.history.len().min(5));
 			for h in state.history.iter().take(5) {
+				let key = String::from_utf8_lossy(&h.key);
+				let old = fmt_element(&h.old_value);
 				println!(
-					"  - key {:?} v{} block {}:{} old={:?}",
-					String::from_utf8_lossy(&h.key),
-					h.version,
-					h.block.height,
-					h.block.index,
-					h.old_value
+					"    • {key} v{} @{}:{}  prev={}",
+					h.version, h.block.height, h.block.index, old
 				);
 			}
 		},
@@ -301,4 +404,19 @@ async fn show_overview(
 	}
 	sleep(Duration::from_millis(300)).await;
 	Ok(())
+}
+
+fn fmt_element(ev: &ElementView) -> String {
+	match ev {
+		ElementView::None => "∅".into(),
+		ElementView::Raw(b) => {
+			String::from_utf8(b.clone()).unwrap_or_else(|_| format!("0x{}", hex::encode(b)))
+		},
+		ElementView::Bool(b) => format!("{b}"),
+		ElementView::U64(v) => format!("{v}"),
+		ElementView::U128(v) => format!("{v}"),
+		ElementView::Hash(h) => format!("0x{}", hex::encode(h)),
+		ElementView::Token(t) => t.to_string_lossy(),
+		ElementView::Cid(c) => format!("cid:{}", hex::encode(c)),
+	}
 }
