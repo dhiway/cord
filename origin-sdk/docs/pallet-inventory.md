@@ -1,4 +1,4 @@
-// Auto-generated November 25, 2025 (SDK sync point)
+// Auto-updated for typed views (November 25, 2025)
 // Source of truth: origin/pallets/{entity,register,token} + origin/primitives
 
 # Pallet Inventory (entity, register, token)
@@ -23,19 +23,26 @@ The table below lists the calls and view functions the SDK must mirror 1:1. Fiel
   - `set_entity_nym(prefix: Vec<u8>)`
   - `remove_entity_nym(token: Ss58Identifier)`
 
-- Views (all `Result<..., AuthorizationError>`)
-  - `details(token) -> Vec<u8>`
-  - `account_token(account) -> Vec<u8>`
-  - `linked_accounts(token) -> Vec<u8>`
-  - `controller_account(token) -> Vec<u8>`
-  - `account_history(token) -> Vec<AccountUnbindEntryView<AccountId>>`
-  - `entity_nym(token) -> Vec<u8>`
-  - `overview(token, history_limit: Option<u32>) -> EntityStateView<AccountId>`
-  - `attribute_version(token, key: Attribute) -> u64`
-  - `attribute_versions(token) -> Vec<(Vec<u8>, u64)>`
-  - `attribute_history(token) -> Vec<AttributeHistoryEntryView>`
-  - `attribute_history_for_key(token, key: Attribute) -> Vec<AttributeHistoryEntryView>`
-  - `attribute_history_entry(token, key: Attribute, version: u64) -> AttributeHistoryEntryView`
+- Views (typed, auth-maps to Option/bool/0)
+  - `details(token) -> Option<EntityInfoView>`
+  - `account_token(account) -> Option<Ss58Identifier>`
+  - `linked_accounts(token) -> Option<Vec<AccountId>>`
+  - `linked_account_count(token) -> u32` (0 on auth failure)
+  - `is_linked_account(token, account) -> bool`
+  - `controller_account(token) -> Option<AccountId>`
+  - `is_controller(token, account) -> bool`
+  - `account_history(token) -> Option<Vec<AccountUnbindEntryView<AccountId>>>`
+  - `has_nym(token) -> bool`
+  - `token_of_nym(nym: Vec<u8>) -> Option<Ss58Identifier>`
+  - `entity_nym(token) -> Option<Vec<u8>>`
+  - `overview(token, history_limit: Option<u32>) -> Option<EntityStateView<AccountId>>`
+  - `entity_attribute_keys(token) -> Option<Vec<Vec<u8>>>`
+  - `has_attribute(token, key) -> bool`
+  - `attribute_version(token, key: Attribute) -> Option<u64>`
+  - `attribute_versions(token) -> Option<Vec<(Vec<u8>, u64)>>`
+  - `attribute_history(token) -> Option<Vec<AttributeHistoryEntryView>>`
+  - `attribute_history_for_key(token, key: Attribute) -> Option<Vec<AttributeHistoryEntryView>>`
+  - `attribute_version_history(token, key: Attribute, version: u64) -> Option<AttributeHistoryEntryView>`
 
 - Core types
   - `EntityInfoView { display: ElementView, web: ElementView, email: ElementView, attributes: Option<Vec<AttributeValueView>> }`
@@ -60,21 +67,32 @@ The table below lists the calls and view functions the SDK must mirror 1:1. Fiel
   - `delete_packet(registry: Ss58Identifier, packet: Ss58Identifier)`
   - `set_packet_status(registry: Ss58Identifier, packet: Ss58Identifier, status: PacketStatus)`
 
-- Views (all `Result<..., AuthorizationError>`)
-  - `details(registry) -> RegistryStateView`
-  - `overview(registry) -> RegistryStateView`
-  - `delegate_permissions(registry, delegate) -> RegistryPermissions`
-  - `query_count(registry, account) -> u32`
-  - `lookup_specs(registry) -> Vec<LookupSpec>`
-  - `attribute(registry, key) -> (ElementType, bool)`
-  - `attributes(registry) -> Vec<(Vec<u8>, ElementType, bool)>`
-  - `token_specs(registry) -> Vec<Vec<u8>>`
-  - `packet_metadata(registry, packet) -> PacketMetadataView`
-  - `packet_snapshot(registry, packet, version: Option<u32>) -> PacketStateView`
-  - `packet_snapshot_by_token(token, version: Option<u32>) -> Option<PacketStateView>`
-  - `lookup_snapshot(registry, digest, version: Option<u32>) -> PacketStateView`
-  - `list_by_token(prefix: Vec<u8>, version: Option<u32>, cursor: Option<Ss58Identifier>, limit: Option<u32>) -> (Vec<PacketSnapshot>, Option<Ss58Identifier>)`
-  - `list_by_digest(prefix: Vec<u8>, version: Option<u32>, cursor: Option<Vec<u8>>, limit: Option<u32>) -> (Vec<PacketSnapshot>, Option<Vec<u8>>)`
+- Views (typed, auth-maps to Option/bool/0)
+  - `delegate_permissions(registry, delegate) -> Option<RegistryPermissions>`
+  - `lookup_specs(registry) -> Option<Vec<LookupSpecView>>`
+  - `registry_attributes(registry) -> Option<Vec<RegistryAttributeView>>`
+  - `registry_attribute(registry, key) -> Option<(ElementType, bool)>`
+  - `registry_details(registry) -> Option<RegistryStateView>`
+  - `registry_token_specs(registry) -> Option<Vec<Vec<u8>>>`
+  - `registry_exists(registry) -> bool`
+  - `registry_status(registry) -> Option<RegistryStatus>`
+  - `registry_attribute_keys(registry) -> Option<Vec<Vec<u8>>>`
+  - `registry_is_active / registry_is_revoked / registry_is_deleted -> bool`
+  - `registry_delegates(registry) -> Option<Vec<(Ss58Identifier, RegistryPermissions)>>`
+  - `has_registry_permissions(registry, delegate, required) -> bool`
+  - `is_delegate(registry, delegate) -> bool`
+  - `registry_maintainer(registry) -> Option<Ss58Identifier>`
+  - `query_count(registry, account) -> Option<u64>`
+  - `packet_state(registry, packet, version: Option<u32>) -> Option<PacketStateView>`
+  - `packet_metadata(registry, packet) -> Option<PacketMetadataView>`
+  - `packet_for_token(token, version: Option<u32>) -> Option<PacketStateView>`
+  - `packet_lookup_snapshot(registry, digest, version: Option<u32>) -> Option<PacketStateView>`
+  - `packets_by_digest(digest, offset: Option<u32>, limit: Option<u32>) -> Option<Vec<PacketPointer>>`
+  - `list_by_token(prefix: Vec<u8>, version: Option<u32>, cursor: Option<Ss58Identifier>, limit: Option<u32>) -> Option<(Vec<PacketStateView>, Option<Ss58Identifier>)>`
+  - `list_by_digest(prefix: Vec<u8>, version: Option<u32>, cursor: Option<Vec<u8>>, limit: Option<u32>) -> Option<(Vec<PacketStateView>, Option<Vec<u8>>)>`
+  - `packet_exists(registry, packet) -> bool`
+  - `packet_status(packet) -> Option<PacketStatus>`
+  - `packet_controller(packet) -> Option<Ss58Identifier>`
 
 - Core types
   - `RegistryStateView { registry, maintainer, info: ElementView, kind: RegistryKind, status: RegistryStatus, attributes: Vec<RegistryAttributeView>, token_spec: Vec<Vec<u8>>, lookup_specs: Vec<Vec<Vec<u8>>> }`
@@ -88,13 +106,15 @@ The table below lists the calls and view functions the SDK must mirror 1:1. Fiel
   - `rotate_attribute(token: Ss58Identifier, key: Vec<u8>, value: Vec<u8>)` (attribute updates)
   - pallet indices/resolution handled in runtime for identifier mapping
 
-- Views (all `Result<..., AuthorizationError>`)
-  - `timeline(token, start: Option<u32>, limit: Option<u32>) -> TokenTimelineView`
-  - `resolve_identifier(token) -> DecodedIdentifier`
-  - `state_event(token, version: u32) -> TokenStateEventView`
-  - `state_version(token) -> u32`
-  - `maybe_*` variants via `Result<Option<...>, AuthorizationError>` for state_event/resolution
-  - pallet index helpers: `pallet_index_of(name) -> u16`, `pallet_name(index) -> Vec<u8>`, `next_pallet_index() -> u16`, `genesis_network_id() -> u32`, `resolve_pallet(index) -> Vec<u8>`
+- Views (typed, auth-maps to Option/bool)
+  - `timeline(token, start: Option<u32>, limit: Option<u32>) -> Option<TokenTimelineView>`
+  - `resolve_identifier(token) -> Option<DecodedIdentifier>`
+  - `state_event(token, version: u32) -> Option<TokenStateEventView>`
+  - `state_version(token) -> Option<u32>`
+  - `latest_state_event(token) -> Option<TokenStateEventView>`
+  - `recent_timeline(token, limit: Option<u32>) -> Option<Vec<TokenStateEventView>>`
+  - `has_history(token) -> bool`
+  - pallet index helpers: `pallet_index_of(name) -> Option<u16>`, `pallet_name_view(index) -> Option<String>`, `next_pallet_index() -> Option<u16>`, `genesis_network_id() -> Option<u16>`, `resolve_pallet(index) -> Option<String>`
 
 - Core types
   - `TokenStateEventView<H256>`, `TokenTimelineView<H256>`, `DecodedIdentifier`

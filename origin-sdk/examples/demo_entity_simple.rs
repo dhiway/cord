@@ -56,7 +56,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		};
 
 	let overview = client.query().using(signer.clone()).entity().overview(entity_id).await?;
-	println!("Entity overview: {:?}", overview);
+	match overview {
+		Some(view) => println!("Entity overview: {:?}", view),
+		None => println!("Entity not found or authorization failed"),
+	}
 	Ok(())
 }
 

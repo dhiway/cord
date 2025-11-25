@@ -12,28 +12,25 @@ pub mod token;
 pub mod token_input;
 
 pub use entity::{
-	AttributeHistoryEntryView, EntityInfoView, EntityOverview, EntityStateView, EventBlockView,
+	AccountUnbindEntryViewSdk, AttributeHistoryEntryViewSdk, EntityInfoViewSdk, EntityOverviewSdk,
+	EntityStateViewSdk, EventBlockView,
 };
 pub use entity_input::EntityInfoInput;
 pub use error::OriginSdkError;
 pub use identifiers::{DecodedIdentifier, Ss58Identifier};
-pub use packet::{
-	PacketMetadataView, PacketPointer, PacketSnapshotInternal as PacketSnapshot, PacketStateView,
-	PacketStatus,
-};
+pub use packet::{PacketMetadataView, PacketPointer, PacketStateView, PacketStatus};
 pub use packet_input::{PacketAttributeInput, PacketAttributesInput, PacketElementInput};
-pub use registry::RegistryStateView;
-pub use registry_input::{RegistryAttributeInput, RegistryCreateInput, RegistryLookupInput};
-pub use token::{TokenLookupView, TokenTimelineView};
+pub use registry::{
+	LookupSpecViewSdk, PacketAttributeViewSdk, PacketMetadataViewSdk, PacketStateViewSdk,
+	RegistryAttributeViewSdk, RegistryPermissions, RegistryStateViewSdk, RegistryStatus,
+};
+pub use registry_input::{
+	DelegatePermissionsInput, RegistryAttributeInput, RegistryCreateInput, RegistryLookupInput,
+	RemoveDelegatePermissionsInput,
+};
+pub use token::{TokenEventBlockViewSdk, TokenLookupView, TokenStateEventViewSdk, TokenTimelineViewSdk};
 pub use token_input::TokenAttributeInput;
 pub type ViewValue = subxt::dynamic::DecodedValue;
 
 pub use core::{EntityToken, OriginAccountId, PacketId, RegistryId, TokenDecodedId, TokenId};
 pub type EntityNym = Vec<u8>;
-
-pub type EntityInfoViewSdk = EntityInfoView;
-pub type EntityStateViewSdk = EntityStateView;
-pub type EntityOverviewSdk = EntityOverview;
-pub type AccountUnbindEntryViewSdk =
-	origin_primitives::entity::AccountUnbindEntryView<OriginAccountId>;
-pub type AttributeHistoryEntryViewSdk = AttributeHistoryEntryView;

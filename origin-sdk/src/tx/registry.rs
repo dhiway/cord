@@ -42,30 +42,21 @@ impl<'a, S: Signer + Clone + 'static> RegistryTx<'a, S> {
 
 	pub fn set_delegate_permissions(
 		&self,
-		registry: Ss58Identifier,
-		delegate_account: subxt::utils::AccountId32,
-		roles: Vec<origin_primitives::registry::RegistryPermissions>,
-	) -> crate::extrinsic::builder::DynamicCall {
-		let delegate = Value::from_bytes(delegate_account.0);
-		let roles_val = Value::from(
-			roles.into_iter().map(|r| Value::u128(r.bits() as u128)).collect::<Vec<_>>(),
-		);
-		DynamicCallBuilder::new().call(
-			"Register",
-			"set_delegate_permissions",
-			vec![Value::from_bytes(registry.as_ref()), delegate, roles_val],
+		input: &crate::types::registry_input::DelegatePermissionsInput,
+	) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
+		crate::extrinsic::calls::registry::set_delegate_permissions_from_input(
+			&self.client.metadata(),
+			input,
 		)
 	}
 
 	pub fn remove_delegate_permissions(
 		&self,
-		registry: Ss58Identifier,
-		delegate: Ss58Identifier,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Register",
-			"remove_delegate_permissions",
-			vec![Value::from_bytes(registry.as_ref()), Value::from_bytes(delegate.as_ref())],
+		input: &crate::types::registry_input::RemoveDelegatePermissionsInput,
+	) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
+		crate::extrinsic::calls::registry::remove_delegate_permissions_from_input(
+			&self.client.metadata(),
+			input,
 		)
 	}
 
@@ -80,6 +71,26 @@ impl<'a, S: Signer + Clone + 'static> RegistryTx<'a, S> {
 			&self.client.metadata(),
 			registry.as_ref(),
 			&elem,
+		)?;
+		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+	}
+
+	pub async fn submit_set_delegate_permissions(
+		&self,
+		input: &crate::types::registry_input::DelegatePermissionsInput,
+	) -> Result<TxHandle, OriginSdkError> {
+		let payload =
+			crate::extrinsic::calls::registry::set_delegate_permissions_from_input(&self.client.metadata(), input)?;
+		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+	}
+
+	pub async fn submit_remove_delegate_permissions(
+		&self,
+		input: &crate::types::registry_input::RemoveDelegatePermissionsInput,
+	) -> Result<TxHandle, OriginSdkError> {
+		let payload = crate::extrinsic::calls::registry::remove_delegate_permissions_from_input(
+			&self.client.metadata(),
+			input,
 		)?;
 		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
 	}
@@ -131,10 +142,12 @@ impl<'a, S: Signer + Clone + 'static> RegistryTx<'a, S> {
 	) -> Result<TxHandle, OriginSdkError> {
 		let view = self
 			.client
-			.view_with(self.signer.clone())
+			.query()
+			.using(self.signer.clone())
 			.registry()
 			.attributes(registry.clone())
-			.await?;
+			.await?
+			.ok_or_else(|| OriginSdkError::View("registry schema not found".into()))?;
 		let attrs = crate::schema::packet::validate_and_flatten(nested, &view)?;
 		let payload = packet_calls::issue_from_input(&self.client.metadata(), registry, &attrs)?;
 		self.client.submit_with(self.signer.clone()).submit_payload(payload).await

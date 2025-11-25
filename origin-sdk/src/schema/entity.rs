@@ -1,12 +1,12 @@
 use crate::types::{
 	entity_input::{build_attributes, ElementInput, MaxRawDataLength},
 	error::OriginSdkError,
-	EntityInfoInput,
+	EntityInfoInput, EntityStateViewSdk, Ss58Identifier,
 };
 use core::convert::TryFrom;
 use origin_primitives::{
 	attribute::{Attribute, Element},
-	AttributeValueView, ElementView, EntityInfoView, EntityStateView, Ss58Identifier,
+	AttributeValueView, ElementView, EntityInfoView,
 };
 use std::collections::BTreeSet;
 
@@ -86,7 +86,7 @@ pub fn flatten_entity(nested: &EntityNestedValue) -> EntityFlatValue {
 
 /// Helper to expand full entity state (info + metadata).
 pub fn expand_entity_state(
-	state: &EntityStateView<subxt::utils::AccountId32>,
+	state: &EntityStateViewSdk,
 ) -> (EntityNestedValue, Option<Vec<AttributeValueView>>, Option<Ss58Identifier>) {
 	(
 		expand_entity(&state.info),

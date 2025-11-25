@@ -49,6 +49,11 @@ impl OriginClient {
 		crate::query::Query::new(self)
 	}
 
+	/// Low-level view caller (used internally by query layer).
+	pub fn view(&self) -> ViewClient {
+		ViewClient::new(self.connection.clone())
+	}
+
 	/// Tx helpers grouped by pallet; attach signer with `.using(&signer)`.
 	pub fn tx(&self) -> crate::tx::Tx<'_> {
 		crate::tx::Tx::new(self)
@@ -67,14 +72,6 @@ impl OriginClient {
 	/// Build meta-transaction flows (requires explicit signer later).
 	pub fn metatx(&self) -> MetaTxClient {
 		MetaTxClient::new(self.connection.clone(), None)
-	}
-
-	/// Internal helper: build a view client with a temporary signer.
-	pub(crate) fn view_with<S>(&self, signer: S) -> ViewClient
-	where
-		S: Signer + Clone + 'static,
-	{
-		ViewClient::new(self.connection.clone(), Arc::new(signer))
 	}
 
 	/// Internal helper: build a submit client with a temporary signer.

@@ -203,7 +203,7 @@ let token_id = Ss58Identifier::try_from(args.token.clone())?;
 let client = OriginClient::connect(&args.endpoint).await?;
 let domain = Query::new(&client);
 
-if let Ok(entity) = domain.entity().overview(token_id.clone()).await {
+if let Ok(Some(entity)) = domain.entity().overview(token_id.clone()).await {
     println!("Entity owner: {:?}", entity.linked_accounts.first());
 }
 ```
