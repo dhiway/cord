@@ -13,12 +13,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		Ss58Identifier::try_from(String::from("5FLSigC9H8J9tDFkhiBSGAL7iFusJqSQuJtVUXwwc7G7R6nW"))
 			.map_err(|e| format!("{e:?}"))?;
 
-	let entity = client
-		.query()
-		.using(signer)
-		.entity()
-		.overview(entity_id)
-		.await?;
+	let entity = client.query().using(signer).entity().overview(entity_id).await?;
 	match entity {
 		Some(v) => println!("Entity overview: {:?}", v),
 		None => println!("Entity not found or authorization failed"),

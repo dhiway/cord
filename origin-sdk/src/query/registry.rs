@@ -5,7 +5,6 @@ use crate::{
 		RegistryAttributeViewSdk, RegistryStateViewSdk, RegistryStatus,
 	},
 };
-use codec::Encode;
 use origin_primitives::{registry::RegistryPermissions, Ss58Identifier};
 
 type Auth = origin_primitives::Authorization<
@@ -37,9 +36,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		registry: Ss58Identifier,
 	) -> Result<Option<RegistryStateViewSdk>, OriginSdkError> {
 		let auth = self.auth("registry_details").await?;
-		self.view()
-			.call("Register", "registry_details", vec![auth.encode(), registry.encode()])
-			.await
+		self.view().call("Register", "registry_details", (auth, registry)).await
 	}
 
 	pub async fn details_nested(
@@ -57,11 +54,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 	) -> Result<Option<RegistryPermissions>, OriginSdkError> {
 		let auth = self.auth("delegate_permissions").await?;
 		self.view()
-			.call(
-				"Register",
-				"delegate_permissions",
-				vec![auth.encode(), registry.encode(), delegate.encode()],
-			)
+			.call("Register", "delegate_permissions", (auth, registry, delegate))
 			.await
 	}
 
@@ -71,13 +64,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		account: subxt::utils::AccountId32,
 	) -> Result<Option<u64>, OriginSdkError> {
 		let auth = self.auth("query_count").await?;
-		self.view()
-			.call(
-				"Register",
-				"query_count",
-				vec![auth.encode(), registry.encode(), account.encode()],
-			)
-			.await
+		self.view().call("Register", "query_count", (auth, registry, account)).await
 	}
 
 	pub async fn lookup_specs(
@@ -85,7 +72,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		registry: Ss58Identifier,
 	) -> Result<Option<Vec<LookupSpecViewSdk>>, OriginSdkError> {
 		let auth = self.auth("lookup_specs").await?;
-		self.view().call("Register", "lookup_specs", vec![auth.encode(), registry.encode()]).await
+		self.view().call("Register", "lookup_specs", (auth, registry)).await
 	}
 
 	pub async fn attribute(
@@ -94,9 +81,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		key: Vec<u8>,
 	) -> Result<Option<(origin_primitives::element::ElementType, bool)>, OriginSdkError> {
 		let auth = self.auth("registry_attribute").await?;
-		self.view()
-			.call("Register", "registry_attribute", vec![auth.encode(), registry.encode(), key.encode()])
-			.await
+		self.view().call("Register", "registry_attribute", (auth, registry, key)).await
 	}
 
 	pub async fn attributes(
@@ -104,9 +89,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		registry: Ss58Identifier,
 	) -> Result<Option<Vec<RegistryAttributeViewSdk>>, OriginSdkError> {
 		let auth = self.auth("registry_attributes").await?;
-		self.view()
-			.call("Register", "registry_attributes", vec![auth.encode(), registry.encode()])
-			.await
+		self.view().call("Register", "registry_attributes", (auth, registry)).await
 	}
 
 	pub async fn token_specs(
@@ -114,9 +97,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		registry: Ss58Identifier,
 	) -> Result<Option<Vec<Vec<u8>>>, OriginSdkError> {
 		let auth = self.auth("registry_token_specs").await?;
-		self.view()
-			.call("Register", "registry_token_specs", vec![auth.encode(), registry.encode()])
-			.await
+		self.view().call("Register", "registry_token_specs", (auth, registry)).await
 	}
 
 	pub async fn packet_metadata(
@@ -125,13 +106,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		packet: Ss58Identifier,
 	) -> Result<Option<PacketMetadataViewSdk>, OriginSdkError> {
 		let auth = self.auth("packet_metadata").await?;
-		self.view()
-			.call(
-				"Register",
-				"packet_metadata",
-				vec![auth.encode(), registry.encode(), packet.encode()],
-			)
-			.await
+		self.view().call("Register", "packet_metadata", (auth, registry, packet)).await
 	}
 
 	pub async fn packet_state(
@@ -141,11 +116,9 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		version: Option<u32>,
 	) -> Result<Option<PacketStateViewSdk>, OriginSdkError> {
 		let auth = self.auth("packet_state").await?;
-		self.view().call(
-			"Register",
-			"packet_state",
-			vec![auth.encode(), registry.encode(), packet.encode(), version.encode()],
-		).await
+		self.view()
+			.call("Register", "packet_state", (auth, registry, packet, version))
+			.await
 	}
 
 	pub async fn packet_for_token(
@@ -154,9 +127,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		version: Option<u32>,
 	) -> Result<Option<PacketStateViewSdk>, OriginSdkError> {
 		let auth = self.auth("packet_for_token").await?;
-		self.view()
-			.call("Register", "packet_for_token", vec![auth.encode(), token.encode(), version.encode()])
-			.await
+		self.view().call("Register", "packet_for_token", (auth, token, version)).await
 	}
 
 	pub async fn lookup_snapshot(
@@ -167,11 +138,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 	) -> Result<Option<PacketStateViewSdk>, OriginSdkError> {
 		let auth = self.auth("packet_lookup_snapshot").await?;
 		self.view()
-			.call(
-				"Register",
-				"packet_lookup_snapshot",
-				vec![auth.encode(), registry.encode(), digest.encode(), version.encode()],
-			)
+			.call("Register", "packet_lookup_snapshot", (auth, registry, digest, version))
 			.await
 	}
 
@@ -183,11 +150,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 	) -> Result<Option<Vec<origin_primitives::PacketPointer>>, OriginSdkError> {
 		let auth = self.auth("packets_by_digest").await?;
 		self.view()
-			.call(
-				"Register",
-				"packets_by_digest",
-				vec![auth.encode(), digest.encode(), offset.encode(), limit.encode()],
-			)
+			.call("Register", "packets_by_digest", (auth, digest, offset, limit))
 			.await
 	}
 
@@ -197,21 +160,13 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		version: Option<u32>,
 		cursor: Option<origin_primitives::Ss58Identifier>,
 		limit: Option<u32>,
-	) -> Result<Option<(Vec<PacketStateViewSdk>, Option<origin_primitives::Ss58Identifier>)>, OriginSdkError>
-	{
+	) -> Result<
+		Option<(Vec<PacketStateViewSdk>, Option<origin_primitives::Ss58Identifier>)>,
+		OriginSdkError,
+	> {
 		let auth = self.auth("list_by_token").await?;
 		self.view()
-			.call(
-				"Register",
-				"list_by_token",
-				vec![
-					auth.encode(),
-					prefix.encode(),
-					version.encode(),
-					cursor.encode(),
-					limit.encode(),
-				],
-			)
+			.call("Register", "list_by_token", (auth, prefix, version, cursor, limit))
 			.await
 	}
 
@@ -224,25 +179,13 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 	) -> Result<Option<(Vec<PacketStateViewSdk>, Option<Vec<u8>>)>, OriginSdkError> {
 		let auth = self.auth("list_by_digest").await?;
 		self.view()
-			.call(
-				"Register",
-				"list_by_digest",
-				vec![
-					auth.encode(),
-					digest_prefix.encode(),
-					version.encode(),
-					cursor.encode(),
-					limit.encode(),
-				],
-			)
+			.call("Register", "list_by_digest", (auth, digest_prefix, version, cursor, limit))
 			.await
 	}
 
 	pub async fn registry_exists(&self, registry: Ss58Identifier) -> Result<bool, OriginSdkError> {
 		let auth = self.auth("registry_exists").await?;
-		self.view()
-			.call("Register", "registry_exists", vec![auth.encode(), registry.encode()])
-			.await
+		self.view().call("Register", "registry_exists", (auth, registry)).await
 	}
 
 	pub async fn registry_status(
@@ -250,9 +193,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		registry: Ss58Identifier,
 	) -> Result<Option<RegistryStatus>, OriginSdkError> {
 		let auth = self.auth("registry_status").await?;
-		self.view()
-			.call("Register", "registry_status", vec![auth.encode(), registry.encode()])
-			.await
+		self.view().call("Register", "registry_status", (auth, registry)).await
 	}
 
 	pub async fn registry_attribute_keys(
@@ -260,9 +201,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		registry: Ss58Identifier,
 	) -> Result<Option<Vec<Vec<u8>>>, OriginSdkError> {
 		let auth = self.auth("registry_attribute_keys").await?;
-		self.view()
-			.call("Register", "registry_attribute_keys", vec![auth.encode(), registry.encode()])
-			.await
+		self.view().call("Register", "registry_attribute_keys", (auth, registry)).await
 	}
 
 	pub async fn registry_is_active(
@@ -270,9 +209,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		registry: Ss58Identifier,
 	) -> Result<bool, OriginSdkError> {
 		let auth = self.auth("registry_is_active").await?;
-		self.view()
-			.call("Register", "registry_is_active", vec![auth.encode(), registry.encode()])
-			.await
+		self.view().call("Register", "registry_is_active", (auth, registry)).await
 	}
 
 	pub async fn registry_is_revoked(
@@ -280,9 +217,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		registry: Ss58Identifier,
 	) -> Result<bool, OriginSdkError> {
 		let auth = self.auth("registry_is_revoked").await?;
-		self.view()
-			.call("Register", "registry_is_revoked", vec![auth.encode(), registry.encode()])
-			.await
+		self.view().call("Register", "registry_is_revoked", (auth, registry)).await
 	}
 
 	pub async fn registry_is_deleted(
@@ -290,9 +225,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		registry: Ss58Identifier,
 	) -> Result<bool, OriginSdkError> {
 		let auth = self.auth("registry_is_deleted").await?;
-		self.view()
-			.call("Register", "registry_is_deleted", vec![auth.encode(), registry.encode()])
-			.await
+		self.view().call("Register", "registry_is_deleted", (auth, registry)).await
 	}
 
 	pub async fn registry_delegates(
@@ -300,9 +233,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		registry: Ss58Identifier,
 	) -> Result<Option<Vec<(Ss58Identifier, RegistryPermissions)>>, OriginSdkError> {
 		let auth = self.auth("registry_delegates").await?;
-		self.view()
-			.call("Register", "registry_delegates", vec![auth.encode(), registry.encode()])
-			.await
+		self.view().call("Register", "registry_delegates", (auth, registry)).await
 	}
 
 	pub async fn has_registry_permissions(
@@ -313,11 +244,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 	) -> Result<bool, OriginSdkError> {
 		let auth = self.auth("has_registry_permissions").await?;
 		self.view()
-			.call(
-				"Register",
-				"has_registry_permissions",
-				vec![auth.encode(), registry.encode(), delegate.encode(), required.encode()],
-			)
+			.call("Register", "has_registry_permissions", (auth, registry, delegate, required))
 			.await
 	}
 
@@ -327,13 +254,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		delegate: Ss58Identifier,
 	) -> Result<bool, OriginSdkError> {
 		let auth = self.auth("is_delegate").await?;
-		self.view()
-			.call(
-				"Register",
-				"is_delegate",
-				vec![auth.encode(), registry.encode(), delegate.encode()],
-			)
-			.await
+		self.view().call("Register", "is_delegate", (auth, registry, delegate)).await
 	}
 
 	pub async fn registry_maintainer(
@@ -341,9 +262,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		registry: Ss58Identifier,
 	) -> Result<Option<Ss58Identifier>, OriginSdkError> {
 		let auth = self.auth("registry_maintainer").await?;
-		self.view()
-			.call("Register", "registry_maintainer", vec![auth.encode(), registry.encode()])
-			.await
+		self.view().call("Register", "registry_maintainer", (auth, registry)).await
 	}
 
 	pub async fn packet_exists(
@@ -352,9 +271,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		packet: Ss58Identifier,
 	) -> Result<bool, OriginSdkError> {
 		let auth = self.auth("packet_exists").await?;
-		self.view()
-			.call("Register", "packet_exists", vec![auth.encode(), registry.encode(), packet.encode()])
-			.await
+		self.view().call("Register", "packet_exists", (auth, registry, packet)).await
 	}
 
 	pub async fn packet_status(
@@ -362,9 +279,7 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		packet: Ss58Identifier,
 	) -> Result<Option<origin_primitives::packet::PacketStatus>, OriginSdkError> {
 		let auth = self.auth("packet_status").await?;
-		self.view()
-			.call("Register", "packet_status", vec![auth.encode(), packet.encode()])
-			.await
+		self.view().call("Register", "packet_status", (auth, packet)).await
 	}
 
 	pub async fn packet_controller(
@@ -372,8 +287,6 @@ impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
 		packet: Ss58Identifier,
 	) -> Result<Option<Ss58Identifier>, OriginSdkError> {
 		let auth = self.auth("packet_controller").await?;
-		self.view()
-			.call("Register", "packet_controller", vec![auth.encode(), packet.encode()])
-			.await
+		self.view().call("Register", "packet_controller", (auth, packet)).await
 	}
 }

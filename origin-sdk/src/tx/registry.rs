@@ -79,8 +79,10 @@ impl<'a, S: Signer + Clone + 'static> RegistryTx<'a, S> {
 		&self,
 		input: &crate::types::registry_input::DelegatePermissionsInput,
 	) -> Result<TxHandle, OriginSdkError> {
-		let payload =
-			crate::extrinsic::calls::registry::set_delegate_permissions_from_input(&self.client.metadata(), input)?;
+		let payload = crate::extrinsic::calls::registry::set_delegate_permissions_from_input(
+			&self.client.metadata(),
+			input,
+		)?;
 		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
 	}
 
@@ -99,24 +101,33 @@ impl<'a, S: Signer + Clone + 'static> RegistryTx<'a, S> {
 		&self,
 		registry: Ss58Identifier,
 	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new()
-			.call("Register", "revoke_registry", vec![Value::from_bytes(registry.as_ref())])
+		DynamicCallBuilder::new().call(
+			"Register",
+			"revoke_registry",
+			vec![Value::from_bytes(registry.as_ref())],
+		)
 	}
 
 	pub fn restore_registry(
 		&self,
 		registry: Ss58Identifier,
 	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new()
-			.call("Register", "restore_registry", vec![Value::from_bytes(registry.as_ref())])
+		DynamicCallBuilder::new().call(
+			"Register",
+			"restore_registry",
+			vec![Value::from_bytes(registry.as_ref())],
+		)
 	}
 
 	pub fn delete_registry(
 		&self,
 		registry: Ss58Identifier,
 	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new()
-			.call("Register", "delete_registry", vec![Value::from_bytes(registry.as_ref())])
+		DynamicCallBuilder::new().call(
+			"Register",
+			"delete_registry",
+			vec![Value::from_bytes(registry.as_ref())],
+		)
 	}
 
 	/// Create a registry from nested schema using SDK mirrors.

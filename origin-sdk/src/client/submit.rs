@@ -24,6 +24,18 @@ pub struct TxHandle {
 }
 
 impl TxHandle {
+	pub(crate) fn new(
+		hash: subxt::utils::H256,
+		in_block: oneshot::Receiver<Result<TxOutcome, OriginSdkError>>,
+		finalized: oneshot::Receiver<Result<TxOutcome, OriginSdkError>>,
+	) -> Self {
+		Self {
+			hash,
+			in_block: Arc::new(Mutex::new(Some(in_block))),
+			finalized: Arc::new(Mutex::new(Some(finalized))),
+		}
+	}
+
 	pub async fn wait_in_block(self) -> Result<TxOutcome, OriginSdkError> {
 		let mut rx = self.in_block.lock().await;
 		let recv = rx.take().ok_or_else(|| OriginSdkError::Tx("tx channel dropped".into()))?;
@@ -176,11 +188,12 @@ impl SubmitClient {
 		let adapter = SubxtSignerAdapter::new(signer.clone());
 
 		let mut attempt = 0;
+		let mut tip_eff = tip;
 		let progress = loop {
 			let nonce = self.nonce.allocate(connection.online(), &account).await?;
 			let params = subxt::config::DefaultExtrinsicParamsBuilder::<OriginConfig>::new()
 				.nonce(nonce)
-				.tip(tip)
+				.tip(tip_eff)
 				.build();
 			match connection
 				.online()
@@ -189,6 +202,12 @@ impl SubmitClient {
 				.await
 			{
 				Ok(p) => break p,
+				Err(e) if e.to_string().contains("Priority is too low") && attempt < 3 => {
+					// bump tip slightly and retry with fresh nonce
+					attempt += 1;
+					tip_eff = tip_eff.saturating_add(100 * attempt as u128);
+					continue;
+				},
 				Err(e) if attempt == 0 && e.to_string().contains("Future") => {
 					// Refresh nonce and retry once on future nonce errors.
 					attempt += 1;

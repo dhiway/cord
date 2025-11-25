@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use codec::{Decode, Encode};
+use frame_support::view_functions::ViewFunctionDispatchError;
 use sp_runtime::traits::SaturatedConversion;
 
 use super::{connection::Connection, signer::Signer};
 use crate::types::{auth, error::OriginSdkError};
-use scale_value::Composite;
 
 type Auth = origin_primitives::Authorization<
 	origin_primitives::AccountId,
@@ -24,59 +24,43 @@ impl ViewClient {
 		Self { connection }
 	}
 
-	/// Generic view invocation: caller is responsible for providing the exact arguments
-	/// (including Authorization when required). The result is decoded directly into `T`.
+	/// Generic view invocation: caller supplies the exact argument shape (including
+	/// Authorization when required). The call is sent through the runtime API without
+	/// metadata-driven shape guessing, and the response is decoded directly into `T`.
 	pub async fn call<T>(
 		&self,
 		pallet: &str,
 		function: &str,
-		args: Vec<Vec<u8>>,
+		args: impl Encode,
 	) -> Result<T, OriginSdkError>
 	where
 		T: Decode,
 	{
 		let metadata = self.connection.metadata();
-		let pallet_meta = metadata
+		let vf = metadata
 			.pallet_by_name(pallet)
-			.ok_or_else(|| OriginSdkError::View(format!("pallet {pallet} not found")))?;
-		let vf = pallet_meta
+			.ok_or_else(|| OriginSdkError::View(format!("pallet {pallet} not found")))?
 			.view_functions()
 			.find(|vf| vf.name() == function)
 			.ok_or_else(|| OriginSdkError::View(format!("view {pallet}.{function} not found")))?;
-
 		let query_id = *vf.query_id();
-		let inputs: Vec<_> = vf.inputs().collect();
-		if inputs.len() != args.len() {
-			return Err(OriginSdkError::InvalidInput(format!(
-				"expected {} args, got {}",
-				inputs.len(),
-				args.len()
-			)));
-		}
 
-		let mut values = Vec::with_capacity(args.len());
-		for (bytes, input) in args.into_iter().zip(inputs) {
-			let mut cursor = &bytes[..];
-			let val = scale_value::scale::decode_as_type(&mut cursor, input.ty, metadata.types())
-				.map_err(|e| OriginSdkError::Decode(e.to_string()))?;
-			values.push(val.remove_context());
-		}
+		let args_bytes = args.encode();
+		let params = (query_id, args_bytes).encode();
 
-		let comp = Composite::unnamed(values);
-		let payload = subxt::dynamic::view_function_call(query_id, comp);
-
-		let api = self
-			.connection
-			.online()
-			.view_functions()
-			.at_latest()
+		let api = self.connection.online().runtime_api();
+		let at = api.at_latest().await.map_err(|e| OriginSdkError::View(e.to_string()))?;
+		let raw = at
+			.call_raw("RuntimeViewFunction_execute_view_function", Some(&params))
 			.await
 			.map_err(|e| OriginSdkError::View(e.to_string()))?;
 
-		let thunk = api.call(payload).await.map_err(|e| OriginSdkError::View(e.to_string()))?;
-		let bytes = thunk.into_encoded();
+		let inner: Result<Vec<u8>, ViewFunctionDispatchError> = Decode::decode(&mut &*raw)
+			.map_err(|e| OriginSdkError::Decode(format!("{pallet}.{function} dispatch: {e}")))?;
 
-		T::decode(&mut &bytes[..])
+		let bytes = inner.map_err(|e| OriginSdkError::View(format!("{e:?}")))?;
+
+		T::decode(&mut &*bytes)
 			.map_err(|e| OriginSdkError::Decode(format!("{pallet}.{function} decode: {e}")))
 	}
 

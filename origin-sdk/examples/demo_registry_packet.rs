@@ -30,12 +30,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	env_logger::init();
 	let args = Args::parse();
 	let data_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(&args.data);
-let data: Json = serde_json::from_str(&fs::read_to_string(&data_path)?)?;
-let reg_data = data.get("registry").ok_or("registry missing")?;
-let pkt_data = data.get("packet").ok_or("packet missing")?;
+	let data: Json = serde_json::from_str(&fs::read_to_string(&data_path)?)?;
+	let reg_data = data.get("registry").ok_or("registry missing")?;
+	let pkt_data = data.get("packet").ok_or("packet missing")?;
 
-let signer = MultiKeySigner::from_seed(&args.seed)?;
-let client = OriginClient::connect(&args.endpoint).await?;
+	let signer = MultiKeySigner::from_seed(&args.seed)?;
+	let client = OriginClient::connect(&args.endpoint).await?;
 
 	// Resolve or create entity for controller
 	let entity_id = ensure_entity(&client, &signer, args.meta).await?;

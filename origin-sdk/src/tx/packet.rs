@@ -32,10 +32,8 @@ impl<'a, S: Signer + Clone + 'static> PacketTx<'a, S> {
 			.attributes(registry.clone())
 			.await?
 			.ok_or_else(|| OriginSdkError::View("registry schema not found".into()))?;
-		let schema_tuples: Vec<(Vec<u8>, origin_primitives::element::ElementType, bool)> = schema_view
-			.iter()
-			.map(|s| (s.key.clone(), s.kind, s.optional))
-			.collect();
+		let schema_tuples: Vec<(Vec<u8>, origin_primitives::element::ElementType, bool)> =
+			schema_view.iter().map(|s| (s.key.clone(), s.kind, s.optional)).collect();
 		let flat = crate::schema::packet::flatten_packet(nested)?;
 		validate_packet_against_schema(&flat, &schema_tuples)?;
 		let attr_bytes: Vec<(Vec<u8>, Vec<u8>)> =
@@ -208,11 +206,12 @@ pub fn validate_packet_against_schema(
 		match (found, optional) {
 			(Some((_, val)), _) => validate_element_type(kind, val)?,
 			(None, true) => {},
-			(None, false) =>
+			(None, false) => {
 				return Err(OriginSdkError::Schema(format!(
 					"missing required attribute '{}'",
 					String::from_utf8_lossy(key)
-				))),
+				)))
+			},
 		}
 	}
 	for (k, _) in body.iter() {

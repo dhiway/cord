@@ -3,6 +3,12 @@
 
 # Pallet Inventory (entity, register, token)
 
+SDK rules for these pallets:
+- Every view call is made through the runtime API (`runtime_api().at_latest().call`) with a SCALE-encoded argument list; no metadata-driven guessing or storage RPCs.
+- The first argument is always the Authorization payload built from (account, pallet, function, reference_block) and signed by the caller.
+- View returns are decoded directly into the primitive view structs listed below; auth failures and deleted records map to `None` / `false` / `0`.
+- Extrinsic builders must take typed SDK structs (schema transforms) rather than ad-hoc byte blobs.
+
 The table below lists the calls and view functions the SDK must mirror 1:1. Field order matches pallet definitions; optionality and wrappers are noted. All types are SCALE encoded.
 
 ## pallet-entity

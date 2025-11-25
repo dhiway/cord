@@ -3,7 +3,6 @@ use crate::{
 	schema,
 	types::{error::OriginSdkError, PacketStateViewSdk},
 };
-use codec::Encode;
 use origin_primitives::{PacketPointer, Ss58Identifier};
 
 type Auth = origin_primitives::Authorization<
@@ -38,11 +37,9 @@ impl<'a, S: Signer + Clone + 'static> PacketClientWithSigner<'a, S> {
 	) -> Result<Option<PacketStateViewSdk>, OriginSdkError> {
 		let auth = self.auth("packet_state").await?;
 		let version_arg = version.or(Some(pointer.version));
-		self.view().call(
-			"Register",
-			"packet_state",
-			vec![auth.encode(), pointer.registry.encode(), pointer.packet.encode(), version_arg.encode()],
-		).await
+		self.view()
+			.call("Register", "packet_state", (auth, pointer.registry, pointer.packet, version_arg))
+			.await
 	}
 
 	/// Resolve a packet snapshot via lookup digest for a registry.
@@ -54,11 +51,7 @@ impl<'a, S: Signer + Clone + 'static> PacketClientWithSigner<'a, S> {
 	) -> Result<Option<PacketStateViewSdk>, OriginSdkError> {
 		let auth = self.auth("packet_lookup_snapshot").await?;
 		self.view()
-			.call(
-				"Register",
-				"packet_lookup_snapshot",
-				vec![auth.encode(), registry.encode(), digest.encode(), version.encode()],
-			)
+			.call("Register", "packet_lookup_snapshot", (auth, registry, digest, version))
 			.await
 	}
 
