@@ -223,19 +223,25 @@ pub mod entity {
 		use origin_primitives::element::Elum::*;
 		match elem {
 			None => Value::variant("None", Composite::unnamed(vec![])),
-			Raw(bv) =>
-				Value::variant("Raw", Composite::unnamed(vec![Value::from_bytes(bv.to_vec())])),
+			Raw(bv) => {
+				Value::variant("Raw", Composite::unnamed(vec![Value::from_bytes(bv.to_vec())]))
+			},
 			Bool(b) => Value::variant("Bool", Composite::unnamed(vec![Value::u128(*b as u128)])),
-			U64(bytes) =>
-				Value::variant("U64", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())])),
-			U128(bytes) =>
-				Value::variant("U128", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())])),
-			Hash(bytes) =>
-				Value::variant("Hash", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())])),
-			Token(id) =>
-				Value::variant("Token", Composite::unnamed(vec![Value::from_bytes(id.as_ref())])),
-			CID(bv) =>
-				Value::variant("CID", Composite::unnamed(vec![Value::from_bytes(bv.to_vec())])),
+			U64(bytes) => {
+				Value::variant("U64", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())]))
+			},
+			U128(bytes) => {
+				Value::variant("U128", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())]))
+			},
+			Hash(bytes) => {
+				Value::variant("Hash", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())]))
+			},
+			Token(id) => {
+				Value::variant("Token", Composite::unnamed(vec![Value::from_bytes(id.as_ref())]))
+			},
+			CID(bv) => {
+				Value::variant("CID", Composite::unnamed(vec![Value::from_bytes(bv.to_vec())]))
+			},
 		}
 	}
 
@@ -471,26 +477,30 @@ pub mod packet {
 	) -> Result<(), OriginSdkError> {
 		match expected {
 			origin_primitives::element::ElementType::Raw => {
-				if !value.is_string() &&
-					!value.is_number() &&
-					!value.is_boolean() &&
-					!value.is_array()
+				if !value.is_string()
+					&& !value.is_number()
+					&& !value.is_boolean()
+					&& !value.is_array()
 				{
 					return Err(OriginSdkError::Schema(format!(
 						"{key}: expected raw/json, got {value}"
 					)));
 				}
 			},
-			origin_primitives::element::ElementType::Bool =>
+			origin_primitives::element::ElementType::Bool => {
 				if !value.is_boolean() {
 					return Err(OriginSdkError::Schema(format!(
 						"{key}: expected bool, got {value}"
 					)));
-				},
-			origin_primitives::element::ElementType::U64 =>
+				}
+			},
+			origin_primitives::element::ElementType::U64 => {
 				if !(value.is_u64() || value.is_i64()) {
-					return Err(OriginSdkError::Schema(format!("{key}: expected u64, got {value}")));
-				},
+					return Err(OriginSdkError::Schema(format!(
+						"{key}: expected u64, got {value}"
+					)));
+				}
+			},
 			origin_primitives::element::ElementType::U128 => {
 				if let Some(n) = value.as_u64() {
 					let _ = n; // always fits in u128
@@ -503,7 +513,7 @@ pub mod packet {
 					)));
 				}
 			},
-			origin_primitives::element::ElementType::Hash =>
+			origin_primitives::element::ElementType::Hash => {
 				if let Some(s) = value.as_str() {
 					if s.len() % 2 != 0 {
 						return Err(OriginSdkError::Schema(format!(
@@ -516,8 +526,9 @@ pub mod packet {
 					return Err(OriginSdkError::Schema(format!(
 						"{key}: expected hex string, got {value}"
 					)));
-				},
-			origin_primitives::element::ElementType::Token =>
+				}
+			},
+			origin_primitives::element::ElementType::Token => {
 				if let Some(s) = value.as_str() {
 					origin_primitives::Ss58Identifier::try_from(s.to_string()).map_err(|e| {
 						OriginSdkError::Schema(format!("{key}: invalid ss58: {e:?}"))
@@ -526,8 +537,9 @@ pub mod packet {
 					return Err(OriginSdkError::Schema(format!(
 						"{key}: expected ss58 string, got {value}"
 					)));
-				},
-			origin_primitives::element::ElementType::Cid =>
+				}
+			},
+			origin_primitives::element::ElementType::Cid => {
 				if let Some(s) = value.as_str() {
 					if s.len() < 8 || s.len() > 128 {
 						return Err(OriginSdkError::Schema(format!(
@@ -543,7 +555,8 @@ pub mod packet {
 					return Err(OriginSdkError::Schema(format!(
 						"{key}: expected CID string, got {value}"
 					)));
-				},
+				}
+			},
 			origin_primitives::element::ElementType::None => {},
 		}
 		Ok(())

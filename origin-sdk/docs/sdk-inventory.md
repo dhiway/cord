@@ -1,11 +1,12 @@
-// Auto-generated summary — November 24, 2025
+// Auto-generated summary — November 25, 2025
 // Current SDK surface mapped from origin-sdk/src (query + tx helpers + extrinsic builders).
 // Source of truth for pallets remains docs/pallet-inventory.md; use this file to spot gaps/duplication.
 
 # SDK Inventory (current)
 
 ## Query Facade (`src/query`)
-- `Query::entity()`, `registry()`, `packet()`, `token()`; `Query::using(signer)` mirrors the same with signer-bound variants.
+- Entry: `client.query().using(&signer)` (signer required for all view calls).
+- Pallet helpers: `.entity()`, `.registry()`, `.packet()`, `.token()` each return signer-bound clients.
 
 ### Entity (view-only helpers)
 - `overview(entity)` → `EntityStateView`
@@ -45,28 +46,29 @@
 - `state_event(token, version)` / `maybe_state_event(token, version)`
 
 ## Tx Facade (`src/tx`)
+- Entry: `client.tx().using(&signer)` (signer required). All helpers return `TxHandle`; caller chooses `wait_in_block()` / `wait_finalized()`.
 
-### EntityTx / EntityTxWithSigner
+### EntityTx
 - build + submit: `set_info_from_input`, `set_info_from_nested`
 - attribute ops: `submit_rotate_attribute_from_view`, `submit_rotate_attributes_from_nested`, `submit_add_attributes_from_nested`, `submit_remove_attribute`
 - account/controller ops: `submit_set_linked_account`, `submit_revoke_linked_account(force)`, `submit_rotate_controller(force)`
 - maintenance ops: `submit_clear_everything(force)`, `submit_set_entity_nym`, `submit_remove_entity_nym`
 
-### RegistryTx / RegistryTxWithSigner
+### RegistryTx
 - registry create: dynamic builder + `submit_create`, `submit_create_from_nested`
 - delegate perms: `set_delegate_permissions`, `remove_delegate_permissions`
 - lifecycle: `revoke_registry`, `restore_registry`, `delete_registry`
 - packet issuance helper: `submit_packet_from_nested` (with schema validation)
 - info updates: `submit_update_registry_info_from_view`
 
-### PacketTx / PacketTxWithSigner
+### PacketTx
 - issue: from nested (`submit_issue_from_nested`), raw bytes (`issue/submit_issue`), or JSON (`issue_from_raw`, signer variant)
 - update/revoke/restore/delete packet builders + submit helpers
 - `set_packet_status` builder + `submit_set_packet_status`
 - uses schema validation helper `validate_packet_against_schema`
 
-### TokenTx / TokenTxWithSigner
-- `submit_rotate_attribute(token, key, value_bytes)` (builder-backed)
+### TokenTx
+- `submit_rotate_attribute(token, key, value_bytes)` / `submit_rotate_attribute_view`
 
 ## Extrinsic Builders (`src/extrinsic/calls.rs`)
 
@@ -98,10 +100,10 @@
 - `rotate_attribute_call(token, key, value_bytes)`
 - `rotate_attribute_from_json(token, key, expected_kind, json_value)`
 
-## Known Gaps vs Pallet Inventory (docs/pallet-inventory.md)
-- Missing tx surfaces/builders for entity: `remove_attribute`, `add_attributes`, `set_linked_account`, `revoke_linked_account{,_for}`, `rotate_controller{,_for}`, `clear_everything{,_for}`, `set_entity_nym`, `remove_entity_nym`.
-- Missing tx surfaces/builders for register: `update_registry_info` is builder-only (no typed input); no builders for `set_packet_status`, `delete_packet` (only `remove_packet` alias), `restore_packet`, `revoke_packet` in typed form.
-- Missing token tx surface for `rotate_attribute`.
-- View ergonomics: only some maybe_* helpers; nested expand/flatten not consistently applied across pallets.
+## Alignment Notes (entity / register / token)
+- Views: all helpers call pallet `#[pallet::view_functions]` only; no storage RPC usage for these pallets.
+- Types: IDs are `Ss58Identifier`; accounts are `AccountId32`; view outputs use `origin_primitives` view structs.
+- Extrinsics: inputs constructed from explicit SDK structs and schema transforms (no ad-hoc SCALE building).
+- Tx flow: helpers return `TxHandle`; caller controls awaiting and concurrency; nonce handled by SDK queue.
 
 Use this inventory alongside the pallet inventory to drive the refactor plan (module split, type mirrors, schema transforms, and demo refresh).

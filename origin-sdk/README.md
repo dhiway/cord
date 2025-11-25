@@ -3,7 +3,7 @@
 Dynamic Subxt SDK focused on view-only reads and async, event-driven extrinsics for Origin runtimes.
 
 ## Status
-Async, view-first Subxt SDK with dynamic calls, signer-agnostic connection, nonce queue, batch + meta-tx helpers.
+Async, view-first Subxt SDK with dynamic calls, signer-agnostic connection (signers are passed per-call), nonce-less submit queue, batch + meta-tx helpers, and event-driven tx resolution.
 
 ## Quickstart
 ```rust
@@ -14,28 +14,32 @@ use origin_primitives::Ss58Identifier;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let signer = MultiKeySigner::from_seed("//Alice")?;
-    let client = OriginClient::connect("ws://localhost:9944").await?;
+    let client = OriginClient::connect("wss://origin.rpc").await?;
 
     let entity_id = Ss58Identifier::try_from("5FLSigC9H8J9tDFkhiBSGAL7iFusJqSQuJtVUXwwc7G7R6nW")?;
 
     // Pure view call, no storage RPC
     let entity = client.query().using(&signer).entity().overview(entity_id).await?;
 
-    // One-liner extrinsic
-    client
-        .query()
+    // Non-blocking extrinsic helper: returns TxHandle, caller decides when to await.
+    let handle = client
+        .tx()
         .using(&signer)
         .entity()
-        .tx()
-        .submit_rotate_attribute(entity_id, b"email", scale_value::Value::from_bytes(b"a@b.c"))
+        .submit_rotate_attribute_view(
+            entity_id,
+            b"email",
+            origin_primitives::element::ElementView::Raw(b"a@b.c".to_vec()),
+        )
         .await?;
+    let _inclusion = handle.wait_in_block().await?;
 
     Ok(())
 }
 ```
 
 ## Layout
-- `src/client`: connection, signers, nonce queue, submit/view/event facades.
+- `src/client`: connection, signers, nonce-less submit queue, submit/view/event facades.
 - `src/extrinsic`: dynamic builder, batch, meta-tx helpers.
 - `src/types`: view structs and errors built atop `origin-primitives`.
 - `src/util`: retry, codec, ttl, hex helpers.
@@ -54,11 +58,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Next Steps
 - Fill view engine with pallet view calls (no storage RPC). **Done**
-- Wire nonce queue + submit-and-watch with event filters. **Exists in submit client**
-- Implement meta-tx wrapper for relayer flows.
+- Wire nonce-less submit-and-watch with event-driven progress handles. **Done**
+- Implement meta-tx wrapper for relayer flows. **Available in `extrinsic::metatx`**
 - Add integration tests against `./target/release/cord --dev`.
 
 ## New typed surface (entity/register/token)
 - Nested ↔ flat helpers live in `schema::*`.
-- Typed extrinsic inputs live in `types::*_input`; call `tx().set_info_from_nested`, `tx().submit_create_from_nested`, `tx().submit_packet_from_nested`.
+- Typed extrinsic inputs live in `types::*_input`; call `tx().using(&signer).entity().submit_set_info_from_nested`, `tx().using(&signer).registry().submit_create_from_nested`, `tx().using(&signer).registry().submit_packet_from_nested`. All return `TxHandle` for caller-managed awaiting.
 - Views decode to pallet-aligned structs and can be expanded with `overview_nested` / `details_nested`.

@@ -21,22 +21,6 @@ impl<'a> Query<'a> {
 	{
 		QueryWithSigner { client: self.client, signer }
 	}
-
-	pub fn entity(&self) -> entity::EntityClient<'a> {
-		entity::EntityClient::new(self.client)
-	}
-
-	pub fn registry(&self) -> registry::RegistryClient<'a> {
-		registry::RegistryClient::new(self.client)
-	}
-
-	pub fn packet(&self) -> packet::PacketClient<'a> {
-		packet::PacketClient::new(self.client)
-	}
-
-	pub fn token(&self) -> token::TokenClient<'a> {
-		token::TokenClient::new(self.client)
-	}
 }
 
 /// Query facade with an attached signer for view authorization and tx shortcuts.

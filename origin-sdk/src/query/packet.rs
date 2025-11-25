@@ -1,43 +1,9 @@
 use crate::{
-	client::{signer::Signer, OriginClient},
+	client::{signer::Signer, OriginClient, ViewClient},
 	schema,
 	types::{error::OriginSdkError, PacketStateView},
 };
 use origin_primitives::PacketPointer;
-
-pub struct PacketClient<'a> {
-	client: &'a OriginClient,
-}
-
-impl<'a> PacketClient<'a> {
-	pub(crate) fn new(client: &'a OriginClient) -> Self {
-		Self { client }
-	}
-
-	pub fn using<S>(&self, signer: S) -> PacketClientWithSigner<'a, S>
-	where
-		S: Signer + Clone + 'static,
-	{
-		PacketClientWithSigner { client: self.client, signer }
-	}
-
-	pub async fn state(
-		&self,
-		packet: PacketPointer,
-		version: Option<u32>,
-	) -> Result<PacketStateView, OriginSdkError> {
-		self.client.view()?.packet().state(packet, version).await
-	}
-
-	pub async fn state_nested(
-		&self,
-		packet: PacketPointer,
-		version: Option<u32>,
-	) -> Result<schema::packet::PacketNestedValue, OriginSdkError> {
-		let flat = self.state(packet, version).await?;
-		Ok(schema::packet::expand_packet_view(&flat))
-	}
-}
 
 pub struct PacketClientWithSigner<'a, S: Signer + Clone + 'static> {
 	client: &'a OriginClient,
@@ -49,12 +15,27 @@ impl<'a, S: Signer + Clone + 'static> PacketClientWithSigner<'a, S> {
 		Self { client, signer }
 	}
 
+	fn view(&self) -> ViewClient {
+		self.client.view_with(self.signer.clone())
+	}
+
+	/// Packet snapshot by token (optionally at a specific version).
 	pub async fn state(
 		&self,
 		packet: PacketPointer,
 		version: Option<u32>,
 	) -> Result<PacketStateView, OriginSdkError> {
-		self.client.view_with(self.signer.clone()).packet().state(packet, version).await
+		self.view().packet().state(packet, version).await
+	}
+
+	/// Resolve a packet snapshot via lookup digest for a registry.
+	pub async fn lookup(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		digest: Vec<u8>,
+		version: Option<u32>,
+	) -> Result<PacketStateView, OriginSdkError> {
+		self.view().registry().lookup_snapshot(registry, digest, version).await
 	}
 
 	pub async fn state_nested(

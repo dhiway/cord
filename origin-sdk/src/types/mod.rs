@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod core;
 pub mod entity;
 pub mod entity_input;
 pub mod error;
@@ -27,8 +28,7 @@ pub use token::{TokenLookupView, TokenTimelineView};
 pub use token_input::TokenAttributeInput;
 pub type ViewValue = subxt::dynamic::DecodedValue;
 
-pub type OriginAccountId = subxt::utils::AccountId32;
-pub type EntityToken = Ss58Identifier;
+pub use core::{EntityToken, OriginAccountId, PacketId, RegistryId, TokenDecodedId, TokenId};
 pub type EntityNym = Vec<u8>;
 
 pub type EntityInfoViewSdk = EntityInfoView;

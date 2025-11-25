@@ -620,8 +620,9 @@ fn packet_lifecycle_tracks_versions() {
 		let packet_id = System::events()
 			.iter()
 			.find_map(|record| match &record.event {
-				RuntimeEvent::Register(crate::Event::PacketCreated { packet, .. }) =>
-					Some(packet.clone()),
+				RuntimeEvent::Register(crate::Event::PacketCreated { packet, .. }) => {
+					Some(packet.clone())
+				},
 				_ => None,
 			})
 			.expect("created token");
@@ -1437,8 +1438,9 @@ fn overview_returns_registry_view() {
 			token_spec(&[b"id"]),
 			lookup_specs(&[&[b"id"]]),
 		);
-		let view: RegistryStateView =
-			decode_view(Pallet::<Test>::overview(default_auth(), registry.clone()).expect("overview"));
+		let view: RegistryStateView = decode_view(
+			Pallet::<Test>::overview(default_auth(), registry.clone()).expect("overview"),
+		);
 		assert_eq!(view.registry, registry);
 		assert_eq!(view.maintainer, maintainer);
 		assert_eq!(view.attributes.len(), 2);

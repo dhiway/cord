@@ -800,33 +800,25 @@ pub mod pallet {
 		T::AccountId: Clone + Into<AccountId32>,
 	{
 		/// Return the entity info
-		pub fn details(
-			auth: AuthorizationOf<T>,
-			token: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_account_query(&auth)?;
-			let info = EntityInfoOf::<T>::get(&token).ok_or(AuthorizationError::NotFound)?;
-			Self::encode_ok(Self::entity_info_view(&info))
+		pub fn details(auth: AuthorizationOf<T>, token: Ss58Identifier) -> Option<EntityInfoView> {
+			Self::authorize_account_query(&auth).ok()?;
+			let info_packet = EntityInfoOf::<T>::get(&token)?;
+			Some(Self::entity_info_view(&info_packet))
 		}
 
 		/// Resolve the entity token bound to the supplied account.
 		pub fn account_token(
 			auth: AuthorizationOf<T>,
 			account: T::AccountId,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_account_lookup(&auth, &account)?;
-			let token =
-				EntityTokenOfAccount::<T>::get(&account).ok_or(AuthorizationError::NotFound)?;
-			ensure!(EntityInfoOf::<T>::contains_key(&token), AuthorizationError::NotFound);
-			Self::encode_ok(token)
+		) -> Option<Ss58Identifier> {
+			Self::authorize_account_query(&auth).ok()?;
+			let token = EntityTokenOfAccount::<T>::get(&account)?;
+			Some(token)
 		}
 
 		/// All linked accounts for the supplied entity token.
-		pub fn linked_accounts(
-			auth: AuthorizationOf<T>,
-			token: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_account_query(&auth)?;
+		pub fn linked_accounts(auth: AuthorizationOf<T>, token: Ss58Identifier) -> Option<Vec<u8>> {
+			Self::authorize_account_query(&auth).ok()?;
 			Self::encode_ok(LinkedAccounts::<T>::get(&token).into_inner())
 		}
 
@@ -1022,9 +1014,7 @@ impl<T: Config> Pallet<T> {
 		token: &Ss58Identifier,
 	) -> Vec<(Vec<u8>, u64, DataOf<T>, EventBlock)> {
 		AttributeHistoryOf::<T>::iter_prefix(token)
-			.map(|((key, version), (old, block))| {
-				(key.to_vec(), version, old, block)
-			})
+			.map(|((key, version), (old, block))| (key.to_vec(), version, old, block))
 			.collect()
 	}
 
@@ -1038,13 +1028,15 @@ impl<T: Config> Pallet<T> {
 			Err(_) => return Vec::new(),
 		};
 		AttributeHistoryOf::<T>::iter_prefix(token)
-			.filter_map(|((k, version), (old, block))| {
-				if k == key_attr {
-					Some((version, old, block))
-				} else {
-					None
-				}
-			})
+			.filter_map(
+				|((k, version), (old, block))| {
+					if k == key_attr {
+						Some((version, old, block))
+					} else {
+						None
+					}
+				},
+			)
 			.collect()
 	}
 
@@ -1055,8 +1047,7 @@ impl<T: Config> Pallet<T> {
 		version: u64,
 	) -> Option<(DataOf<T>, EventBlock)> {
 		let key_attr: Attribute = key.to_vec().try_into().ok()?;
-		AttributeHistoryOf::<T>::get(token, (key_attr, version))
-			.map(|(old, block)| (old, block))
+		AttributeHistoryOf::<T>::get(token, (key_attr, version)).map(|(old, block)| (old, block))
 	}
 
 	/// Flatten `EntityInfoPacket` into the pallet-local view.
@@ -1110,15 +1101,15 @@ impl<T: Config> Pallet<T> {
 		Self::check_authorization_signature(auth, &auth.account)
 	}
 
-	fn authorize_account_lookup(
-		auth: &AuthorizationOf<T>,
-		account: &T::AccountId,
-	) -> Result<(), AuthorizationError>
-	where
-		T::AccountId: Clone + Into<AccountId32>,
-	{
-		Self::check_authorization_signature(auth, account)
-	}
+	// fn authorize_account_lookup(
+	// 	auth: &AuthorizationOf<T>,
+	// 	account: &T::AccountId,
+	// ) -> Result<(), AuthorizationError>
+	// where
+	// 	T::AccountId: Clone + Into<AccountId32>,
+	// {
+	// 	Self::check_authorization_signature(auth, account)
+	// }
 
 	fn do_set_linked_account(token: &Ss58Identifier, account: &T::AccountId) -> DispatchResult {
 		ensure!(

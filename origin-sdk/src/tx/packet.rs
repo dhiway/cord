@@ -1,5 +1,5 @@
 use crate::{
-	client::{signer::Signer, submit::TxOutcome, OriginClient},
+	client::{signer::Signer, submit::TxHandle, OriginClient},
 	extrinsic::{builder::DynamicCallBuilder, calls::packet as packet_calls},
 	schema,
 	types::error::OriginSdkError,
@@ -8,181 +8,12 @@ use codec::Encode;
 use scale_value::Value;
 use serde_json::Value as JsonValue;
 
-pub struct PacketTx<'a> {
-	client: &'a OriginClient,
-}
-
-impl<'a> PacketTx<'a> {
-	pub(crate) fn new(client: &'a OriginClient) -> Self {
-		Self { client }
-	}
-
-	pub fn using<S>(&self, signer: S) -> PacketTxWithSigner<'a, S>
-	where
-		S: Signer + Clone + 'static,
-	{
-		PacketTxWithSigner::new(self.client, signer)
-	}
-
-	/// Issue a packet from nested attributes, validated against the registry schema view.
-	pub async fn submit_issue_from_nested(
-		&self,
-		registry: origin_primitives::Ss58Identifier,
-		nested: &schema::packet::PacketNestedValue,
-	) -> Result<TxOutcome, OriginSdkError> {
-		let schema_view = self.client.view()?.registry().attributes(registry.clone()).await?;
-		let schema_tuples: Vec<(Vec<u8>, origin_primitives::element::ElementType, bool)> =
-			schema_view.iter().map(|s| (s.key.clone(), s.kind, s.optional)).collect();
-		let flat = crate::schema::packet::flatten_packet(nested)?;
-		validate_packet_against_schema(&flat, &schema_tuples)?;
-		let attr_bytes: Vec<(Vec<u8>, Vec<u8>)> =
-			flat.into_iter().map(|(k, v)| (k, v.encode())).collect();
-		let payload =
-			packet_calls::issue_from_flat(&self.client.metadata(), registry, &attr_bytes)?;
-		self.client.tx()?.submit_payload(payload).await?.wait_in_block().await
-	}
-
-	pub fn issue(
-		&self,
-		registry: impl AsRef<[u8]>,
-		body: impl AsRef<[u8]>,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Register",
-			"create_packet",
-			vec![Value::from_bytes(registry.as_ref()), Value::from_bytes(body.as_ref())],
-		)
-	}
-
-	pub async fn submit_issue(
-		&self,
-		registry: impl AsRef<[u8]>,
-		body: impl AsRef<[u8]>,
-	) -> Result<TxOutcome, OriginSdkError> {
-		let call = self.issue(registry, body);
-		self.client
-			.tx()?
-			.submit(&call.pallet, &call.function, call.args)
-			.await?
-			.wait_in_block()
-			.await
-	}
-
-	pub fn update_packet(
-		&self,
-		registry: impl AsRef<[u8]>,
-		packet: impl AsRef<[u8]>,
-		attributes: Value,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Register",
-			"update_packet",
-			vec![
-				Value::from_bytes(registry.as_ref()),
-				Value::from_bytes(packet.as_ref()),
-				attributes,
-			],
-		)
-	}
-
-	pub fn revoke_packet(
-		&self,
-		registry: impl AsRef<[u8]>,
-		packet: impl AsRef<[u8]>,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Register",
-			"revoke_packet",
-			vec![Value::from_bytes(registry.as_ref()), Value::from_bytes(packet.as_ref())],
-		)
-	}
-
-	pub async fn submit_revoke_packet(
-		&self,
-		registry: origin_primitives::Ss58Identifier,
-		packet: origin_primitives::Ss58Identifier,
-	) -> Result<TxOutcome, OriginSdkError> {
-		let payload = packet_calls::revoke_call(&self.client.metadata(), registry, packet)?;
-		self.client.tx()?.submit_payload(payload).await?.wait_in_block().await
-	}
-
-	pub fn restore_packet(
-		&self,
-		registry: impl AsRef<[u8]>,
-		packet: impl AsRef<[u8]>,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Register",
-			"restore_packet",
-			vec![Value::from_bytes(registry.as_ref()), Value::from_bytes(packet.as_ref())],
-		)
-	}
-
-	pub async fn submit_restore_packet(
-		&self,
-		registry: origin_primitives::Ss58Identifier,
-		packet: origin_primitives::Ss58Identifier,
-	) -> Result<TxOutcome, OriginSdkError> {
-		let payload = packet_calls::restore_call(&self.client.metadata(), registry, packet)?;
-		self.client.tx()?.submit_payload(payload).await?.wait_in_block().await
-	}
-
-	pub fn delete_packet(
-		&self,
-		registry: impl AsRef<[u8]>,
-		packet: impl AsRef<[u8]>,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Register",
-			"delete_packet",
-			vec![Value::from_bytes(registry.as_ref()), Value::from_bytes(packet.as_ref())],
-		)
-	}
-
-	pub async fn submit_delete_packet(
-		&self,
-		registry: origin_primitives::Ss58Identifier,
-		packet: origin_primitives::Ss58Identifier,
-	) -> Result<TxOutcome, OriginSdkError> {
-		let payload = packet_calls::delete_call(&self.client.metadata(), registry, packet)?;
-		self.client.tx()?.submit_payload(payload).await?.wait_in_block().await
-	}
-
-	pub fn set_packet_status(
-		&self,
-		registry: impl AsRef<[u8]>,
-		packet: impl AsRef<[u8]>,
-		status: origin_primitives::packet::PacketStatus,
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Register",
-			"set_packet_status",
-			vec![
-				Value::from_bytes(registry.as_ref()),
-				Value::from_bytes(packet.as_ref()),
-				Value::from_bytes(&status.encode()),
-			],
-		)
-	}
-
-	pub async fn submit_set_packet_status(
-		&self,
-		registry: origin_primitives::Ss58Identifier,
-		packet: origin_primitives::Ss58Identifier,
-		status: origin_primitives::packet::PacketStatus,
-	) -> Result<TxOutcome, OriginSdkError> {
-		let payload =
-			packet_calls::set_status_call(&self.client.metadata(), registry, packet, status)?;
-		self.client.tx()?.submit_payload(payload).await?.wait_in_block().await
-	}
-}
-
-pub struct PacketTxWithSigner<'a, S: Signer + Clone + 'static> {
+pub struct PacketTx<'a, S: Signer + Clone + 'static> {
 	client: &'a OriginClient,
 	signer: S,
 }
 
-impl<'a, S: Signer + Clone + 'static> PacketTxWithSigner<'a, S> {
+impl<'a, S: Signer + Clone + 'static> PacketTx<'a, S> {
 	pub(crate) fn new(client: &'a OriginClient, signer: S) -> Self {
 		Self { client, signer }
 	}
@@ -192,7 +23,7 @@ impl<'a, S: Signer + Clone + 'static> PacketTxWithSigner<'a, S> {
 		&self,
 		registry: origin_primitives::Ss58Identifier,
 		nested: &schema::packet::PacketNestedValue,
-	) -> Result<TxOutcome, OriginSdkError> {
+	) -> Result<TxHandle, OriginSdkError> {
 		let schema_view = self
 			.client
 			.view_with(self.signer.clone())
@@ -207,12 +38,7 @@ impl<'a, S: Signer + Clone + 'static> PacketTxWithSigner<'a, S> {
 			flat.into_iter().map(|(k, v)| (k, v.encode())).collect();
 		let payload =
 			packet_calls::issue_from_flat(&self.client.metadata(), registry, &attr_bytes)?;
-		self.client
-			.tx_with(self.signer.clone())
-			.submit_payload(payload)
-			.await?
-			.wait_in_block()
-			.await
+		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
 	}
 
 	pub fn issue(
@@ -231,79 +57,11 @@ impl<'a, S: Signer + Clone + 'static> PacketTxWithSigner<'a, S> {
 		&self,
 		registry: impl AsRef<[u8]>,
 		body: impl AsRef<[u8]>,
-	) -> Result<TxOutcome, OriginSdkError> {
+	) -> Result<TxHandle, OriginSdkError> {
 		let call = self.issue(registry, body);
 		self.client
-			.tx_with(self.signer.clone())
+			.submit_with(self.signer.clone())
 			.submit(&call.pallet, &call.function, call.args)
-			.await?
-			.wait_in_block()
-			.await
-	}
-
-	/// Issue a packet from raw JSON, validating against registry schema via view.
-	pub async fn issue_from_raw(
-		&self,
-		registry: origin_primitives::Ss58Identifier,
-		body: JsonValue,
-	) -> Result<TxOutcome, OriginSdkError> {
-		let attr_triples = self
-			.client
-			.view_with(self.signer.clone())
-			.registry()
-			.attributes(registry.clone())
-			.await?;
-		let registry_view: Vec<origin_primitives::registry::RegistryAttributeView> = attr_triples;
-
-		let metadata = self.client.metadata();
-		let call = packet_calls::issue_call(&metadata, registry, &registry_view, &body)?;
-		self.client
-			.tx_with(self.signer.clone())
-			.submit_payload(call)
-			.await?
-			.wait_in_block()
-			.await
-	}
-
-	pub async fn submit_revoke_packet(
-		&self,
-		registry: origin_primitives::Ss58Identifier,
-		packet: origin_primitives::Ss58Identifier,
-	) -> Result<TxOutcome, OriginSdkError> {
-		let payload = packet_calls::revoke_call(&self.client.metadata(), registry, packet)?;
-		self.client
-			.tx_with(self.signer.clone())
-			.submit_payload(payload)
-			.await?
-			.wait_in_block()
-			.await
-	}
-
-	pub async fn submit_restore_packet(
-		&self,
-		registry: origin_primitives::Ss58Identifier,
-		packet: origin_primitives::Ss58Identifier,
-	) -> Result<TxOutcome, OriginSdkError> {
-		let payload = packet_calls::restore_call(&self.client.metadata(), registry, packet)?;
-		self.client
-			.tx_with(self.signer.clone())
-			.submit_payload(payload)
-			.await?
-			.wait_in_block()
-			.await
-	}
-
-	pub async fn submit_delete_packet(
-		&self,
-		registry: origin_primitives::Ss58Identifier,
-		packet: origin_primitives::Ss58Identifier,
-	) -> Result<TxOutcome, OriginSdkError> {
-		let payload = packet_calls::delete_call(&self.client.metadata(), registry, packet)?;
-		self.client
-			.tx_with(self.signer.clone())
-			.submit_payload(payload)
-			.await?
-			.wait_in_block()
 			.await
 	}
 
@@ -336,6 +94,15 @@ impl<'a, S: Signer + Clone + 'static> PacketTxWithSigner<'a, S> {
 		)
 	}
 
+	pub async fn submit_revoke_packet(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		packet: origin_primitives::Ss58Identifier,
+	) -> Result<TxHandle, OriginSdkError> {
+		let payload = packet_calls::revoke_call(&self.client.metadata(), registry, packet)?;
+		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+	}
+
 	pub fn restore_packet(
 		&self,
 		registry: impl AsRef<[u8]>,
@@ -348,6 +115,15 @@ impl<'a, S: Signer + Clone + 'static> PacketTxWithSigner<'a, S> {
 		)
 	}
 
+	pub async fn submit_restore_packet(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		packet: origin_primitives::Ss58Identifier,
+	) -> Result<TxHandle, OriginSdkError> {
+		let payload = packet_calls::restore_call(&self.client.metadata(), registry, packet)?;
+		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+	}
+
 	pub fn delete_packet(
 		&self,
 		registry: impl AsRef<[u8]>,
@@ -358,6 +134,15 @@ impl<'a, S: Signer + Clone + 'static> PacketTxWithSigner<'a, S> {
 			"delete_packet",
 			vec![Value::from_bytes(registry.as_ref()), Value::from_bytes(packet.as_ref())],
 		)
+	}
+
+	pub async fn submit_delete_packet(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		packet: origin_primitives::Ss58Identifier,
+	) -> Result<TxHandle, OriginSdkError> {
+		let payload = packet_calls::delete_call(&self.client.metadata(), registry, packet)?;
+		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
 	}
 
 	pub fn set_packet_status(
@@ -382,15 +167,29 @@ impl<'a, S: Signer + Clone + 'static> PacketTxWithSigner<'a, S> {
 		registry: origin_primitives::Ss58Identifier,
 		packet: origin_primitives::Ss58Identifier,
 		status: origin_primitives::packet::PacketStatus,
-	) -> Result<TxOutcome, OriginSdkError> {
+	) -> Result<TxHandle, OriginSdkError> {
 		let payload =
 			packet_calls::set_status_call(&self.client.metadata(), registry, packet, status)?;
-		self.client
-			.tx_with(self.signer.clone())
-			.submit_payload(payload)
-			.await?
-			.wait_in_block()
-			.await
+		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+	}
+
+	/// Issue a packet from raw JSON, validating against registry schema via view.
+	pub async fn issue_from_raw(
+		&self,
+		registry: origin_primitives::Ss58Identifier,
+		body: JsonValue,
+	) -> Result<TxHandle, OriginSdkError> {
+		let attr_triples = self
+			.client
+			.view_with(self.signer.clone())
+			.registry()
+			.attributes(registry.clone())
+			.await?;
+		let registry_view: Vec<origin_primitives::registry::RegistryAttributeView> = attr_triples;
+
+		let metadata = self.client.metadata();
+		let call = packet_calls::issue_call(&metadata, registry, &registry_view, &body)?;
+		self.client.submit_with(self.signer.clone()).submit_payload(call).await
 	}
 }
 
@@ -454,14 +253,6 @@ fn validate_element_type(
 			origin_primitives::element::ElementType::Raw,
 			origin_primitives::element::ElementView::Raw(_),
 		) => Ok(()),
-		(
-			origin_primitives::element::ElementType::None,
-			origin_primitives::element::ElementView::None,
-		) => Ok(()),
-		(_, origin_primitives::element::ElementView::Raw(_)) => Ok(()), // lenient fallback
-		(other, got) => Err(OriginSdkError::Schema(format!(
-			"type mismatch: expected {:?}, got {:?}",
-			other, got
-		))),
+		_ => Err(OriginSdkError::Schema("element type mismatch".into())),
 	}
 }

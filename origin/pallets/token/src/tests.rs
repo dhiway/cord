@@ -214,9 +214,8 @@ fn timeline_requires_valid_authorization() {
 		let signer = sr25519::Pair::from_seed(&[42u8; 32]);
 		let reference_block = current_block_u32();
 		let auth = make_auth_with_reference_block(b"view-history", &signer, reference_block);
-		let raw =
-			Pallet::<Test>::timeline(auth.clone(), token.clone(), Some(0), Some(10))
-				.expect("authorized timeline");
+		let raw = Pallet::<Test>::timeline(auth.clone(), token.clone(), Some(0), Some(10))
+			.expect("authorized timeline");
 		let (entries, next): (Vec<TokenStateEventView<Hash>>, Option<u32>) = decode_view(raw);
 		assert_eq!(entries.len(), 1);
 		assert_eq!(entries[0].digest, digest);
@@ -250,9 +249,8 @@ fn resolve_identifier_requires_authorization() {
 		let signer = sr25519::Pair::from_seed(&[7u8; 32]);
 		let reference_block = current_block_u32();
 		let auth = make_auth_with_reference_block(b"resolve-id", &signer, reference_block);
-		let decoded_raw =
-			Pallet::<Test>::resolve_identifier(auth.clone(), token.clone())
-				.expect("authorized view should succeed");
+		let decoded_raw = Pallet::<Test>::resolve_identifier(auth.clone(), token.clone())
+			.expect("authorized view should succeed");
 		let decoded: DecodedIdentifier = decode_view(decoded_raw);
 		assert_eq!(decoded.network, 300);
 		assert_eq!(decoded.pallet, 9);

@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
 use super::{connection::Connection, Signer};
-use crate::{
-	types::{self, auth, error::OriginSdkError},
-	util::retry::RetryPolicy,
-};
+use crate::types::{self, auth, error::OriginSdkError};
 use codec::{Decode, Encode};
 use origin_primitives::authorization::AuthorizationError;
 use sp_runtime::traits::SaturatedConversion;
@@ -19,11 +16,11 @@ type Auth = origin_primitives::Authorization<
 #[derive(Clone)]
 pub struct ViewClient {
 	connection: Arc<Connection>,
-	signer: Option<Arc<dyn Signer>>,
+	signer: Arc<dyn Signer>,
 }
 
 impl ViewClient {
-	pub(crate) fn new(connection: Arc<Connection>, signer: Option<Arc<dyn Signer>>) -> Self {
+	pub(crate) fn new(connection: Arc<Connection>, signer: Arc<dyn Signer>) -> Self {
 		Self { connection, signer }
 	}
 
@@ -83,9 +80,8 @@ impl ViewClient {
 		Ok((output_ty, subxt::dynamic::view_function_call(query_id, args)))
 	}
 
-	/// Call a view and decode it as `Result<Vec<u8>, AuthorizationError>`, returning the inner
-	/// bytes.
-	pub async fn call_auth_raw(
+	/// Call a view and return the raw encoded outer result bytes.
+	async fn call_view_raw_bytes(
 		&self,
 		pallet: &str,
 		function: &str,
@@ -93,40 +89,10 @@ impl ViewClient {
 	) -> Result<Vec<u8>, OriginSdkError> {
 		let (_output_ty, payload) = self.build_view_payload(pallet, function, raw_args).await?;
 		let thunk = Self::call_value_inner(&self.connection, payload).await?;
-		let bytes = thunk.into_encoded();
-
-		let res: Result<Vec<u8>, AuthorizationError> =
-			Decode::decode(&mut &bytes[..]).map_err(|e| OriginSdkError::Decode(e.to_string()))?;
-
-		match res {
-			Ok(raw) => Ok(raw),
-			Err(e) => Err(OriginSdkError::View(format!("{pallet}.{function} err: {e:?}"))),
-		}
+		Ok(thunk.into_encoded())
 	}
 
-	pub async fn call<T: Decode>(
-		&self,
-		pallet: &str,
-		function: &str,
-		raw_args: Vec<Vec<u8>>,
-	) -> Result<T, OriginSdkError> {
-		let backoff = RetryPolicy::default();
-		let connection = self.connection.clone();
-		let (_output_ty, payload) = self.build_view_payload(pallet, function, raw_args).await?;
-
-		backoff
-			.retry(|| {
-				let connection = connection.clone();
-				let payload = payload.clone();
-				async move {
-					let thunk = Self::call_value_inner(&connection, payload).await?;
-					let bytes = thunk.into_encoded();
-					T::decode(&mut &bytes[..]).map_err(|e| OriginSdkError::Decode(e.to_string()))
-				}
-			})
-			.await
-	}
-
+	#[allow(dead_code)]
 	pub async fn call_value(
 		&self,
 		pallet: &str,
@@ -138,6 +104,7 @@ impl ViewClient {
 		thunk.to_value().map_err(|e| OriginSdkError::Decode(e.to_string()))
 	}
 
+	#[allow(dead_code)]
 	pub async fn call_bytes(
 		&self,
 		pallet: &str,
@@ -149,54 +116,87 @@ impl ViewClient {
 		Ok(thunk.into_encoded())
 	}
 
-	/// For views that return `Result<T, AuthorizationError>`.
+	/// For views returning `Result<Vec<u8>, AuthorizationError>`; decode inner as `T`.
 	pub async fn call_auth_result<T: Decode>(
 		&self,
 		pallet: &str,
 		function: &str,
 		raw_args: Vec<Vec<u8>>,
 	) -> Result<T, OriginSdkError> {
-		let raw = self.call_auth_raw(pallet, function, raw_args).await?;
-		T::decode(&mut &raw[..]).map_err(|e| OriginSdkError::Decode(e.to_string()))
+		let bytes = self.call_view_raw_bytes(pallet, function, raw_args).await?;
+		let outer: Result<Vec<u8>, AuthorizationError> =
+			Decode::decode(&mut &bytes[..]).map_err(|e| {
+				OriginSdkError::Decode(format!("{pallet}.{function} outer decode: {e}"))
+			})?;
+		match outer {
+			Ok(inner) => T::decode(&mut &inner[..]).map_err(|e| {
+				OriginSdkError::Decode(format!("{pallet}.{function} inner decode: {e}"))
+			}),
+			Err(e) => Err(OriginSdkError::ViewAuth(e)),
+		}
 	}
 
-	/// For views that return `Result<T, AuthorizationError>` but we want `Option<T>` on NotFound.
+	/// Same as call_auth_result but maps NotFound -> Ok(None).
 	pub async fn call_auth_result_maybe<T: Decode>(
 		&self,
 		pallet: &str,
 		function: &str,
 		raw_args: Vec<Vec<u8>>,
 	) -> Result<Option<T>, OriginSdkError> {
-		let res: Result<Result<Vec<u8>, AuthorizationError>, OriginSdkError> =
-			self.call(pallet, function, raw_args).await;
-		match res {
-			Err(e) => Err(e),
-			Ok(Ok(raw)) => T::decode(&mut &raw[..])
-				.map(Some)
-				.map_err(|e| OriginSdkError::Decode(e.to_string())),
-			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
-			Ok(Err(e)) => Err(OriginSdkError::View(format!("{pallet}.{function} err: {e:?}"))),
+		let bytes = self.call_view_raw_bytes(pallet, function, raw_args).await?;
+		let outer: Result<Vec<u8>, AuthorizationError> =
+			Decode::decode(&mut &bytes[..]).map_err(|e| {
+				OriginSdkError::Decode(format!("{pallet}.{function} outer decode: {e}"))
+			})?;
+
+		println!("outer result is {:?}", outer);
+		match outer {
+			Err(AuthorizationError::NotFound) => Ok(None),
+			Err(e) => Err(OriginSdkError::ViewAuth(e)),
+			Ok(inner) => T::decode(&mut &inner[..]).map(Some).map_err(|e| {
+				OriginSdkError::Decode(format!("{pallet}.{function} inner decode: {e}"))
+			}),
 		}
 	}
 
-	/// For views that return `Result<Option<T>, AuthorizationError>` but T is already decoded.
+	/// For views returning `Result<Vec<u8>, AuthorizationError>` where inner is *raw bytes*.
+	pub async fn call_auth_result_maybe_raw(
+		&self,
+		pallet: &str,
+		function: &str,
+		raw_args: Vec<Vec<u8>>,
+	) -> Result<Option<Vec<u8>>, OriginSdkError> {
+		let bytes = self.call_view_raw_bytes(pallet, function, raw_args).await?;
+		let outer: Result<Vec<u8>, AuthorizationError> =
+			Decode::decode(&mut &bytes[..]).map_err(|e| {
+				OriginSdkError::Decode(format!("{pallet}.{function} outer decode: {e}"))
+			})?;
+
+		println!("{pallet}.{function} outer result is {:?}", outer);
+
+		match outer {
+			Err(AuthorizationError::NotFound) => Ok(None),
+			Err(e) => Err(OriginSdkError::ViewAuth(e)),
+			Ok(inner) => Ok(Some(inner)), // no inner T::decode here
+		}
+	}
+
+	/// For views returning `Result<Option<T>, AuthorizationError>` where T is already decoded.
 	pub async fn call_auth_option_decoded<T: Decode>(
 		&self,
 		pallet: &str,
 		function: &str,
 		raw_args: Vec<Vec<u8>>,
 	) -> Result<Option<T>, OriginSdkError> {
-		let res: Result<Result<Option<T>, AuthorizationError>, OriginSdkError> =
-			self.call(pallet, function, raw_args).await;
-
-		match res {
-			Err(e) => Err(e),
-
-			Ok(Ok(Some(v))) => Ok(Some(v)),
-			Ok(Ok(None)) => Ok(None),
-			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
-
-			Ok(Err(e)) => Err(OriginSdkError::View(format!("{pallet}.{function} err: {e:?}"))),
+		let bytes = self.call_view_raw_bytes(pallet, function, raw_args).await?;
+		let outer: Result<Option<T>, AuthorizationError> = Decode::decode(&mut &bytes[..])
+			.map_err(|e| {
+				OriginSdkError::Decode(format!("{pallet}.{function} outer decode: {e}"))
+			})?;
+		match outer {
+			Err(AuthorizationError::NotFound) => Ok(None),
+			Err(e) => Err(OriginSdkError::ViewAuth(e)),
+			Ok(opt) => Ok(opt),
 		}
 	}
 
@@ -215,27 +215,6 @@ impl ViewClient {
 			.map_err(|e| OriginSdkError::View(e.to_string()))?;
 
 		api.call(payload).await.map_err(|e| OriginSdkError::View(e.to_string()))
-	}
-
-	/// For views that return `Result<Option<T>, AuthorizationError>`.
-	pub async fn call_auth_option<T: Decode>(
-		&self,
-		pallet: &str,
-		function: &str,
-		raw_args: Vec<Vec<u8>>,
-	) -> Result<Option<T>, OriginSdkError> {
-		let res: Result<Result<Option<T>, AuthorizationError>, OriginSdkError> =
-			self.call(pallet, function, raw_args).await;
-
-		match res {
-			Err(e) => Err(e),
-
-			Ok(Ok(Some(v))) => Ok(Some(v)),
-			Ok(Ok(None)) => Ok(None),
-			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
-
-			Ok(Err(e)) => Err(OriginSdkError::View(format!("{pallet}.{function} err: {e:?}"))),
-		}
 	}
 
 	/// Entity view helpers.
@@ -292,25 +271,75 @@ impl EntityViews {
 			.await
 	}
 
+	/// Resolve the entity token linked to an account.
+	/// - Ok(None)    if no mapping exists (AuthorizationError::NotFound or sentinel [1,1])
+	/// - Ok(Some(..)) for a valid EntityToken
 	pub async fn account_token(
 		&self,
 		account: types::OriginAccountId,
 	) -> Result<Option<types::EntityToken>, OriginSdkError> {
-		self.inner
-			.call_auth_result_maybe::<types::EntityToken>(
-				"Entity",
-				"account_token",
-				vec![account.encode()],
-			)
-			.await
+		// 1. Get the raw SCALE bytes from the view
+		let bytes = self
+			.inner
+			.call_view_raw_bytes("Entity", "account_token", vec![account.encode()])
+			.await?;
+
+		// 2. Decode outer Result<Vec<u8>, AuthorizationError>
+		let outer: Result<Vec<u8>, AuthorizationError> =
+			Decode::decode(&mut &bytes[..]).map_err(|e| {
+				OriginSdkError::Decode(format!("Entity.account_token outer decode: {e}"))
+			})?;
+
+		println!("Entity.account_token outer result is {:?}", outer);
+
+		match outer {
+			// Standard "no mapping" case from the pallet
+			Err(AuthorizationError::NotFound) => Ok(None),
+
+			// For other auth errors, bubble up
+			Err(e) => Err(OriginSdkError::ViewAuth(e)),
+
+			Ok(inner) => {
+				// IMPORTANT: the inner Vec<u8> = [1,1] is a sentinel meaning "NotFound"
+				// in this older/quirky view design. Treat it as None, not as an identifier.
+				if inner == [1, 1] {
+					return Ok(None);
+				}
+
+				// Otherwise, interpret the inner bytes as a SS58 string and build EntityToken
+				match types::EntityToken::try_from(inner) {
+					Ok(id) => Ok(Some(id)),
+					Err(e) => Err(OriginSdkError::Decode(format!(
+						"Entity.account_token: invalid Ss58Identifier bytes: {e:?}"
+					))),
+				}
+			},
+		}
 	}
+
+	// pub async fn account_token(
+	// 	&self,
+	// 	account: types::OriginAccountId,
+	// ) -> Result<Option<types::EntityToken>, OriginSdkError> {
+	// 	self.inner
+	// 		.call_auth_result_maybe::<types::EntityToken>(
+	// 			"Entity",
+	// 			"account_token",
+	// 			vec![account.encode()],
+	// 		)
+	// 		.await
+	// }
 
 	pub async fn details(
 		&self,
 		entity_id: types::EntityToken,
 	) -> Result<types::EntityInfoViewSdk, OriginSdkError> {
 		self.inner
-			.call_auth_result::<types::EntityInfoViewSdk>("Entity", "details", vec![entity_id.encode()])
+			.call_auth_result::<types::EntityInfoViewSdk>(
+				"Entity",
+				"details",
+				vec![entity_id.encode()],
+			)
 			.await
 	}
 
@@ -432,6 +461,7 @@ pub struct RegistryViews {
 
 impl RegistryViews {
 	/// Return `Ok(None)` when the registry is not found.
+	#[allow(dead_code)]
 	pub async fn maybe_details(
 		&self,
 		registry: origin_primitives::Ss58Identifier,
@@ -445,6 +475,7 @@ impl RegistryViews {
 			.await
 	}
 
+	#[allow(dead_code)]
 	pub async fn maybe_overview(
 		&self,
 		registry: origin_primitives::Ss58Identifier,
@@ -458,6 +489,7 @@ impl RegistryViews {
 			.await
 	}
 
+	#[allow(dead_code)]
 	pub async fn maybe_attribute(
 		&self,
 		registry: origin_primitives::Ss58Identifier,
@@ -472,6 +504,7 @@ impl RegistryViews {
 			.await
 	}
 
+	#[allow(dead_code)]
 	pub async fn maybe_packet_metadata(
 		&self,
 		registry: origin_primitives::Ss58Identifier,
@@ -486,6 +519,7 @@ impl RegistryViews {
 			.await
 	}
 
+	#[allow(dead_code)]
 	pub async fn maybe_packet_snapshot(
 		&self,
 		registry: origin_primitives::Ss58Identifier,
@@ -515,6 +549,7 @@ impl RegistryViews {
 			.await
 	}
 
+	#[allow(dead_code)]
 	pub async fn maybe_lookup_snapshot(
 		&self,
 		registry: origin_primitives::Ss58Identifier,
@@ -668,10 +703,7 @@ impl RegistryViews {
 		cursor: Option<origin_primitives::Ss58Identifier>,
 		limit: Option<u32>,
 	) -> Result<
-		(
-			Vec<crate::types::PacketStateView>,
-			Option<origin_primitives::Ss58Identifier>,
-		),
+		(Vec<crate::types::PacketStateView>, Option<origin_primitives::Ss58Identifier>),
 		OriginSdkError,
 	> {
 		self.inner
@@ -689,8 +721,7 @@ impl RegistryViews {
 		version: Option<u32>,
 		cursor: Option<Vec<u8>>,
 		limit: Option<u32>,
-	) -> Result<(Vec<crate::types::PacketStateView>, Option<Vec<u8>>), OriginSdkError>
-	{
+	) -> Result<(Vec<crate::types::PacketStateView>, Option<Vec<u8>>), OriginSdkError> {
 		self.inner
 			.call_auth_result(
 				"Register",
@@ -724,6 +755,7 @@ impl PacketViews {
 	}
 
 	/// Resolve a packet snapshot via lookup digest for a registry.
+	#[allow(dead_code)]
 	pub async fn lookup(
 		&self,
 		registry: origin_primitives::Ss58Identifier,
@@ -851,9 +883,7 @@ impl TokenViews {
 
 impl ViewClient {
 	async fn auth_for(&self, pallet: &str, function: &str) -> Result<Auth, OriginSdkError> {
-		let signer = self.signer.clone().ok_or_else(|| {
-			OriginSdkError::InvalidInput("signer is required for view calls".into())
-		})?;
+		let signer = self.signer.clone();
 		let reference_block = self
 			.connection
 			.online()

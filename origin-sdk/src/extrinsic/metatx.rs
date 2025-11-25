@@ -128,8 +128,7 @@ impl MetaTxClient {
 	) -> Result<crate::client::submit::TxHandle, OriginSdkError> {
 		let wrapped = self.wrap(call)?;
 		let payload = subxt::dynamic::tx(wrapped.pallet, wrapped.function, wrapped.args);
-		let submit =
-			crate::client::submit::SubmitClient::new(self.connection.clone(), Some(signer));
+		let submit = crate::client::submit::SubmitClient::new(self.connection.clone(), signer);
 		submit.submit_payload(payload).await
 	}
 
@@ -164,8 +163,7 @@ impl MetaTxClient {
 	) -> Result<crate::client::submit::TxHandle, OriginSdkError> {
 		let wrapped = self.wrap(call)?;
 		let payload = subxt::dynamic::tx(wrapped.pallet, wrapped.function, wrapped.args.clone());
-		let submit =
-			crate::client::submit::SubmitClient::new(self.connection.clone(), Some(relayer));
+		let submit = crate::client::submit::SubmitClient::new(self.connection.clone(), relayer);
 		let _signed = meta_signer
 			.sign_payload(
 				&payload
@@ -188,8 +186,9 @@ impl MetaTxClient {
 			if let Some(first) = ev.fields.get(0) {
 				match decode_dispatch_result(first) {
 					Ok(true) => {},
-					Ok(false) =>
-						return Err(OriginSdkError::MetaTx("meta-tx dispatched with error".into())),
+					Ok(false) => {
+						return Err(OriginSdkError::MetaTx("meta-tx dispatched with error".into()))
+					},
 					Err(e) => return Err(OriginSdkError::MetaTx(format!("meta-tx decode: {e}"))),
 				}
 			}

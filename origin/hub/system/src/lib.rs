@@ -430,20 +430,20 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::Any => true,
 			ProxyType::NonTransfer => matches!(
 				c,
-				RuntimeCall::System(..) |
-					RuntimeCall::ParachainSystem(..) |
-					RuntimeCall::Timestamp(..) |
-					RuntimeCall::Indices(pallet_indices::Call::claim { .. }) |
-					RuntimeCall::Indices(pallet_indices::Call::free { .. }) |
-					RuntimeCall::Indices(pallet_indices::Call::freeze { .. }) |
-					RuntimeCall::Entity(..) |
-					RuntimeCall::Feeless(..) |
-					RuntimeCall::Register(..) |
-					RuntimeCall::Session(..) |
-					RuntimeCall::Utility(..) |
-					RuntimeCall::Proxy(..) |
-					RuntimeCall::Multisig(..) |
-					RuntimeCall::MessageQueue(..)
+				RuntimeCall::System(..)
+					| RuntimeCall::ParachainSystem(..)
+					| RuntimeCall::Timestamp(..)
+					| RuntimeCall::Indices(pallet_indices::Call::claim { .. })
+					| RuntimeCall::Indices(pallet_indices::Call::free { .. })
+					| RuntimeCall::Indices(pallet_indices::Call::freeze { .. })
+					| RuntimeCall::Entity(..)
+					| RuntimeCall::Feeless(..)
+					| RuntimeCall::Register(..)
+					| RuntimeCall::Session(..)
+					| RuntimeCall::Utility(..)
+					| RuntimeCall::Proxy(..)
+					| RuntimeCall::Multisig(..)
+					| RuntimeCall::MessageQueue(..)
 			),
 			ProxyType::CancelProxy => {
 				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))

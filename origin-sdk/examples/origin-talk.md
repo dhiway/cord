@@ -58,14 +58,19 @@ use origin_sdk::{OriginClient, extrinsic::builder::DynamicCallBuilder, client::s
 use scale_value::Value;
 
 let signer = MultiKeySigner::from_seed("//Alice")?;
-let client = OriginClient::connect("ws://localhost:9944").await?.with_signer(signer);
+let client = OriginClient::connect("ws://localhost:9944").await?;
 
 let call = DynamicCallBuilder::new().call(
     "Packet",
     "issue",
     vec![Value::from_bytes(b"demo-registry"), Value::from_bytes(b"demo-packet-body")],
 );
-let outcome = client.tx_api().entity().submit_set_info_from_nested(&nested).await?;
+let outcome = client
+    .tx()
+    .using(&signer)
+    .entity()
+    .submit_set_info_from_nested(&nested)
+    .await?;
 println!("Packet issued: {:?}", outcome.hash);
 ```
 
@@ -87,14 +92,19 @@ use origin_sdk::{OriginClient, client::signer::MultiKeySigner, extrinsic::builde
 use scale_value::Value;
 
 let signer = MultiKeySigner::from_seed("//Alice")?;
-let client = OriginClient::connect("ws://localhost:9944").await?.with_signer(signer);
+let client = OriginClient::connect("ws://localhost:9944").await?;
 
 let call = DynamicCallBuilder::new().call(
     "Register",
     "create",
     vec![Value::from_bytes(b"transcript-registry"), Value::from_bytes(b"v1 schema bytes")],
 );
-client.tx_api_with(signer).entity().submit_set_info_from_nested(&nested).await?;
+client
+    .tx()
+    .using(&signer)
+    .entity()
+    .submit_set_info_from_nested(&nested)
+    .await?;
 ```
 
 #### Sample registry schemas
@@ -190,7 +200,7 @@ use origin_primitives::Ss58Identifier;
 use origin_sdk::{OriginClient, query::Query, client::signer::MultiKeySigner};
 
 let token_id = Ss58Identifier::try_from(args.token.clone())?;
-let client = OriginClient::connect(&args.endpoint).await?.with_signer(MultiKeySigner::from_seed("//Alice")?);
+let client = OriginClient::connect(&args.endpoint).await?;
 let domain = Query::new(&client);
 
 if let Ok(entity) = domain.entity().overview(token_id.clone()).await {
