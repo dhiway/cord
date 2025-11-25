@@ -26,12 +26,16 @@ impl<'a, S: Signer + Clone + 'static> PacketTx<'a, S> {
 	) -> Result<TxHandle, OriginSdkError> {
 		let schema_view = self
 			.client
-			.view_with(self.signer.clone())
+			.query()
+			.using(self.signer.clone())
 			.registry()
 			.attributes(registry.clone())
-			.await?;
-		let schema_tuples: Vec<(Vec<u8>, origin_primitives::element::ElementType, bool)> =
-			schema_view.iter().map(|s| (s.key.clone(), s.kind, s.optional)).collect();
+			.await?
+			.ok_or_else(|| OriginSdkError::View("registry schema not found".into()))?;
+		let schema_tuples: Vec<(Vec<u8>, origin_primitives::element::ElementType, bool)> = schema_view
+			.iter()
+			.map(|s| (s.key.clone(), s.kind, s.optional))
+			.collect();
 		let flat = crate::schema::packet::flatten_packet(nested)?;
 		validate_packet_against_schema(&flat, &schema_tuples)?;
 		let attr_bytes: Vec<(Vec<u8>, Vec<u8>)> =
@@ -181,10 +185,12 @@ impl<'a, S: Signer + Clone + 'static> PacketTx<'a, S> {
 	) -> Result<TxHandle, OriginSdkError> {
 		let attr_triples = self
 			.client
-			.view_with(self.signer.clone())
+			.query()
+			.using(self.signer.clone())
 			.registry()
 			.attributes(registry.clone())
-			.await?;
+			.await?
+			.ok_or_else(|| OriginSdkError::View("registry schema not found".into()))?;
 		let registry_view: Vec<origin_primitives::registry::RegistryAttributeView> = attr_triples;
 
 		let metadata = self.client.metadata();

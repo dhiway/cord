@@ -10,6 +10,7 @@ use scale_info::TypeInfo;
 pub type MaxRawDataLength = ConstU32<4096>;
 pub type MaxAdditionalAttributes = ConstU32<32>;
 pub type RegistryInfoInput = Element<MaxRawDataLength>;
+pub type MaxDelegateRoles = ConstU32<16>;
 
 /// Mirror of pallet-register `AttributeSpec`.
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TypeInfo)]
@@ -34,4 +35,20 @@ pub struct RegistryCreateInput {
 	pub attributes: BoundedVec<RegistryAttributeInput, MaxAdditionalAttributes>,
 	pub token_spec: RegistryLookupInput,
 	pub lookup_specs: BoundedVec<RegistryLookupInput, MaxAdditionalAttributes>,
+}
+
+/// Input for granting delegate permissions (strongly typed).
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TypeInfo)]
+pub struct DelegatePermissionsInput {
+	pub registry: origin_primitives::Ss58Identifier,
+	pub delegate: subxt::utils::AccountId32,
+	/// Roles requested for the delegate.
+	pub roles: BoundedVec<origin_primitives::registry::RegistryPermissions, MaxDelegateRoles>,
+}
+
+/// Input for removing delegate permissions.
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TypeInfo)]
+pub struct RemoveDelegatePermissionsInput {
+	pub registry: origin_primitives::Ss58Identifier,
+	pub delegate: origin_primitives::Ss58Identifier,
 }

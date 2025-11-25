@@ -19,7 +19,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		.entity()
 		.overview(entity_id)
 		.await?;
-	println!("Entity overview: {:?}", entity);
+	match entity {
+		Some(v) => println!("Entity overview: {:?}", v),
+		None => println!("Entity not found or authorization failed"),
+	}
 	Ok(())
 }
 

@@ -1,10 +1,17 @@
 use crate::{
-	client::{signer::Signer, OriginClient, ViewClient},
+	client::{signer::Signer, OriginClient},
 	types::{
 		error::OriginSdkError, AccountUnbindEntryViewSdk, AttributeHistoryEntryViewSdk,
 		EntityInfoViewSdk, EntityNym, EntityStateViewSdk, EntityToken, OriginAccountId,
 	},
 };
+use codec::Encode;
+
+type Auth = origin_primitives::Authorization<
+	origin_primitives::AccountId,
+	Vec<u8>,
+	origin_primitives::Signature,
+>;
 
 pub struct EntityClientWithSigner<'a, S: Signer + Clone + 'static> {
 	client: &'a OriginClient,
@@ -16,15 +23,26 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		Self { client, signer }
 	}
 
-	fn view(&self) -> ViewClient {
-		self.client.view_with(self.signer.clone())
+	fn view(&self) -> crate::client::ViewClient {
+		self.client.view()
+	}
+
+	async fn auth(&self, function: &str) -> Result<Auth, OriginSdkError> {
+		self.view().authorization_for(&self.signer, "Entity", function).await
 	}
 
 	pub async fn overview(
 		&self,
 		entity: EntityToken,
-	) -> Result<EntityStateViewSdk, OriginSdkError> {
-		self.view().entity().overview(entity).await
+	) -> Result<Option<EntityStateViewSdk>, OriginSdkError> {
+		let auth = self.auth("overview").await?;
+		self.view()
+			.call(
+				"Entity",
+				"overview",
+				vec![auth.encode(), entity.encode(), Option::<u32>::None.encode()],
+			)
+			.await
 	}
 
 	/// Resolve the entity token linked to an account (Ok(None) if none).
@@ -32,98 +50,174 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		&self,
 		account: OriginAccountId,
 	) -> Result<Option<EntityToken>, OriginSdkError> {
-		self.view().entity().account_token(account).await
+		let auth = self.auth("account_token").await?;
+		self.view().call("Entity", "account_token", vec![auth.encode(), account.encode()]).await
 	}
 
 	/// Overview decoded then expanded to nested representation (attributes + info).
 	pub async fn overview_nested(
 		&self,
 		entity: EntityToken,
-	) -> Result<crate::schema::entity::EntityNestedValue, OriginSdkError> {
+	) -> Result<Option<crate::schema::entity::EntityNestedValue>, OriginSdkError> {
 		let flat = self.overview(entity).await?;
-		let (nested, _, _) = crate::schema::entity::expand_entity_state(&flat);
-		Ok(nested)
+		Ok(flat.map(|f| crate::schema::entity::expand_entity_state(&f).0))
 	}
 
-	pub async fn maybe_overview(
+	pub async fn details(
 		&self,
 		entity: EntityToken,
-	) -> Result<Option<EntityStateViewSdk>, OriginSdkError> {
-		self.view().entity().maybe_overview(entity).await
-	}
-
-	pub async fn details(&self, entity: EntityToken) -> Result<EntityInfoViewSdk, OriginSdkError> {
-		self.view().entity().details(entity).await
+	) -> Result<Option<EntityInfoViewSdk>, OriginSdkError> {
+		let auth = self.auth("details").await?;
+		self.view().call("Entity", "details", vec![auth.encode(), entity.encode()]).await
 	}
 
 	pub async fn details_nested(
 		&self,
 		entity: EntityToken,
-	) -> Result<crate::schema::entity::EntityNestedValue, OriginSdkError> {
+	) -> Result<Option<crate::schema::entity::EntityNestedValue>, OriginSdkError> {
 		let flat = self.details(entity).await?;
-		Ok(crate::schema::entity::expand_entity(&flat))
-	}
-
-	pub async fn maybe_details(
-		&self,
-		entity: EntityToken,
-	) -> Result<Option<EntityInfoViewSdk>, OriginSdkError> {
-		self.view().entity().maybe_details(entity).await
+		Ok(flat.map(|f| crate::schema::entity::expand_entity(&f)))
 	}
 
 	pub async fn nym(&self, entity: EntityToken) -> Result<Option<EntityNym>, OriginSdkError> {
-		self.view().entity().nym(entity).await
+		let auth = self.auth("entity_nym").await?;
+		self.view().call("Entity", "entity_nym", vec![auth.encode(), entity.encode()]).await
 	}
 
 	pub async fn linked_accounts(
 		&self,
 		entity: EntityToken,
-	) -> Result<Vec<OriginAccountId>, OriginSdkError> {
-		self.view().entity().linked_accounts(entity).await
+	) -> Result<Option<Vec<OriginAccountId>>, OriginSdkError> {
+		let auth = self.auth("linked_accounts").await?;
+		self.view().call("Entity", "linked_accounts", vec![auth.encode(), entity.encode()]).await
+	}
+
+	pub async fn linked_account_count(
+		&self,
+		entity: EntityToken,
+	) -> Result<u32, OriginSdkError> {
+		let auth = self.auth("linked_account_count").await?;
+		self.view()
+			.call("Entity", "linked_account_count", vec![auth.encode(), entity.encode()])
+			.await
 	}
 
 	pub async fn controller_account(
 		&self,
 		entity: EntityToken,
-	) -> Result<OriginAccountId, OriginSdkError> {
-		self.view().entity().controller_account(entity).await
+	) -> Result<Option<OriginAccountId>, OriginSdkError> {
+		let auth = self.auth("controller_account").await?;
+		self.view()
+			.call("Entity", "controller_account", vec![auth.encode(), entity.encode()])
+			.await
+	}
+
+	pub async fn is_controller(
+		&self,
+		entity: EntityToken,
+		account: OriginAccountId,
+	) -> Result<bool, OriginSdkError> {
+		let auth = self.auth("is_controller").await?;
+		self.view()
+			.call("Entity", "is_controller", vec![auth.encode(), entity.encode(), account.encode()])
+			.await
+	}
+
+	pub async fn is_linked_account(
+		&self,
+		entity: EntityToken,
+		account: OriginAccountId,
+	) -> Result<bool, OriginSdkError> {
+		let auth = self.auth("is_linked_account").await?;
+		self.view()
+			.call(
+				"Entity",
+				"is_linked_account",
+				vec![auth.encode(), entity.encode(), account.encode()],
+			)
+			.await
 	}
 
 	pub async fn account_history(
 		&self,
 		entity: EntityToken,
-	) -> Result<Vec<AccountUnbindEntryViewSdk>, OriginSdkError> {
-		self.view().entity().account_history(entity).await
+	) -> Result<Option<Vec<AccountUnbindEntryViewSdk>>, OriginSdkError> {
+		let auth = self.auth("account_history").await?;
+		self.view().call("Entity", "account_history", vec![auth.encode(), entity.encode()]).await
+	}
+
+	pub async fn has_nym(&self, entity: EntityToken) -> Result<bool, OriginSdkError> {
+		let auth = self.auth("has_nym").await?;
+		self.view().call("Entity", "has_nym", vec![auth.encode(), entity.encode()]).await
+	}
+
+	pub async fn token_of_nym(
+		&self,
+		nym: Vec<u8>,
+	) -> Result<Option<EntityToken>, OriginSdkError> {
+		let auth = self.auth("token_of_nym").await?;
+		self.view().call("Entity", "token_of_nym", vec![auth.encode(), nym.encode()]).await
 	}
 
 	pub async fn attribute_version(
 		&self,
 		entity: EntityToken,
 		key: Vec<u8>,
-	) -> Result<u64, OriginSdkError> {
-		self.view().entity().attribute_version(entity, key).await
+	) -> Result<Option<u64>, OriginSdkError> {
+		let auth = self.auth("attribute_version").await?;
+		self.view()
+			.call("Entity", "attribute_version", vec![auth.encode(), entity.encode(), key.encode()])
+			.await
+	}
+
+	pub async fn has_attribute(
+		&self,
+		entity: EntityToken,
+		key: Vec<u8>,
+	) -> Result<bool, OriginSdkError> {
+		let auth = self.auth("has_attribute").await?;
+		self.view()
+			.call(
+				"Entity",
+				"has_attribute",
+				vec![auth.encode(), entity.encode(), key.encode()],
+			)
+			.await
 	}
 
 	pub async fn attribute_versions(
 		&self,
 		entity: EntityToken,
-	) -> Result<Vec<(Vec<u8>, u64)>, OriginSdkError> {
-		self.view().entity().attribute_versions(entity).await
+	) -> Result<Option<Vec<(Vec<u8>, u64)>>, OriginSdkError> {
+		let auth = self.auth("attribute_versions").await?;
+		self.view()
+			.call("Entity", "attribute_versions", vec![auth.encode(), entity.encode()])
+			.await
 	}
 
 	pub async fn attribute_history(
 		&self,
 		entity: EntityToken,
-	) -> Result<Vec<AttributeHistoryEntryViewSdk>, OriginSdkError> {
-		self.view().entity().attribute_history(entity).await
+	) -> Result<Option<Vec<AttributeHistoryEntryViewSdk>>, OriginSdkError> {
+		let auth = self.auth("attribute_history").await?;
+		self.view()
+			.call("Entity", "attribute_history", vec![auth.encode(), entity.encode()])
+			.await
 	}
 
 	pub async fn attribute_history_for_key(
 		&self,
 		entity: EntityToken,
 		key: Vec<u8>,
-	) -> Result<Vec<AttributeHistoryEntryViewSdk>, OriginSdkError> {
-		self.view().entity().attribute_history_for_key(entity, key).await
+	) -> Result<Option<Vec<AttributeHistoryEntryViewSdk>>, OriginSdkError> {
+		let auth = self.auth("attribute_history_for_key").await?;
+		self.view()
+			.call(
+				"Entity",
+				"attribute_history_for_key",
+				vec![auth.encode(), entity.encode(), key.encode()],
+			)
+			.await
 	}
 
 	pub async fn attribute_history_entry(
@@ -131,7 +225,24 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		entity: EntityToken,
 		key: Vec<u8>,
 		version: u64,
-	) -> Result<AttributeHistoryEntryViewSdk, OriginSdkError> {
-		self.view().entity().attribute_history_entry(entity, key, version).await
+	) -> Result<Option<AttributeHistoryEntryViewSdk>, OriginSdkError> {
+		let auth = self.auth("attribute_version_history").await?;
+		self.view()
+			.call(
+				"Entity",
+				"attribute_version_history",
+				vec![auth.encode(), entity.encode(), key.encode(), version.encode()],
+			)
+			.await
+	}
+
+	pub async fn entity_attribute_keys(
+		&self,
+		entity: EntityToken,
+	) -> Result<Option<Vec<Vec<u8>>>, OriginSdkError> {
+		let auth = self.auth("entity_attribute_keys").await?;
+		self.view()
+			.call("Entity", "entity_attribute_keys", vec![auth.encode(), entity.encode()])
+			.await
 	}
 }

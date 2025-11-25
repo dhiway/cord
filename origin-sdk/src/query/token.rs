@@ -1,8 +1,15 @@
 use crate::{
-	client::{signer::Signer, OriginClient, ViewClient},
-	types::{error::OriginSdkError, TokenLookupView, TokenTimelineView},
+	client::{signer::Signer, OriginClient},
+	types::{error::OriginSdkError, TokenLookupView, TokenStateEventViewSdk, TokenTimelineViewSdk},
 };
+use codec::Encode;
 use origin_primitives::Ss58Identifier;
+
+type Auth = origin_primitives::Authorization<
+	origin_primitives::AccountId,
+	Vec<u8>,
+	origin_primitives::Signature,
+>;
 
 pub struct TokenClientWithSigner<'a, S: Signer + Clone + 'static> {
 	client: &'a OriginClient,
@@ -14,8 +21,12 @@ impl<'a, S: Signer + Clone + 'static> TokenClientWithSigner<'a, S> {
 		Self { client, signer }
 	}
 
-	fn view(&self) -> ViewClient {
-		self.client.view_with(self.signer.clone())
+	fn view(&self) -> crate::client::ViewClient {
+		self.client.view()
+	}
+
+	async fn auth(&self, function: &str) -> Result<Auth, OriginSdkError> {
+		self.view().authorization_for(&self.signer, "Token", function).await
 	}
 
 	pub async fn timeline(
@@ -23,65 +34,96 @@ impl<'a, S: Signer + Clone + 'static> TokenClientWithSigner<'a, S> {
 		token: Ss58Identifier,
 		start: Option<u32>,
 		limit: Option<u32>,
-	) -> Result<TokenTimelineView, OriginSdkError> {
-		self.view().token().timeline(token, start, limit).await
+	) -> Result<Option<TokenTimelineViewSdk>, OriginSdkError> {
+		let auth = self.auth("timeline").await?;
+		self.view()
+			.call(
+				"Token",
+				"timeline",
+				vec![auth.encode(), token.encode(), start.encode(), limit.encode()],
+			)
+			.await
 	}
 
 	pub async fn resolve_identifier(
 		&self,
 		token: Ss58Identifier,
-	) -> Result<TokenLookupView, OriginSdkError> {
-		self.view().token().resolve_identifier(token).await
+	) -> Result<Option<TokenLookupView>, OriginSdkError> {
+		let auth = self.auth("resolve_identifier").await?;
+		self.view().call("Token", "resolve_identifier", vec![auth.encode(), token.encode()]).await
 	}
 
-	pub async fn maybe_resolve_identifier(
+	pub async fn pallet_index_of(&self, name: Vec<u8>) -> Result<Option<u16>, OriginSdkError> {
+		let auth = self.auth("pallet_index_of").await?;
+		self.view().call("Token", "pallet_index_of", vec![auth.encode(), name.encode()]).await
+	}
+
+	pub async fn pallet_name(&self, index: u16) -> Result<Option<String>, OriginSdkError> {
+		let auth = self.auth("pallet_name_view").await?;
+		self.view().call("Token", "pallet_name_view", vec![auth.encode(), index.encode()]).await
+	}
+
+	pub async fn next_pallet_index(&self) -> Result<Option<u16>, OriginSdkError> {
+		let auth = self.auth("next_pallet_index").await?;
+		self.view().call("Token", "next_pallet_index", vec![auth.encode()]).await
+	}
+
+	pub async fn genesis_network_id(&self) -> Result<Option<u16>, OriginSdkError> {
+		let auth = self.auth("genesis_network_id").await?;
+		self.view().call("Token", "genesis_network_id", vec![auth.encode()]).await
+	}
+
+	pub async fn state_version(
 		&self,
 		token: Ss58Identifier,
-	) -> Result<Option<TokenLookupView>, OriginSdkError> {
-		self.view().token().maybe_resolve_identifier(token).await
-	}
-
-	pub async fn pallet_index_of(&self, name: Vec<u8>) -> Result<u16, OriginSdkError> {
-		self.view().token().pallet_index_of(name).await
-	}
-
-	pub async fn pallet_name(&self, index: u16) -> Result<String, OriginSdkError> {
-		self.view().token().pallet_name(index).await
-	}
-
-	pub async fn next_pallet_index(&self) -> Result<u16, OriginSdkError> {
-		self.view().token().next_pallet_index().await
-	}
-
-	pub async fn genesis_network_id(&self) -> Result<u32, OriginSdkError> {
-		self.view().token().genesis_network_id().await
-	}
-
-	pub async fn state_version(&self, token: Ss58Identifier) -> Result<u32, OriginSdkError> {
-		self.view().token().state_version(token).await
+	) -> Result<Option<u32>, OriginSdkError> {
+		let auth = self.auth("state_version").await?;
+		self.view().call("Token", "state_version", vec![auth.encode(), token.encode()]).await
 	}
 
 	pub async fn state_event(
 		&self,
 		token: Ss58Identifier,
 		version: u32,
-	) -> Result<origin_primitives::token::TokenStateEventView<subxt::utils::H256>, OriginSdkError>
-	{
-		self.view().token().state_event(token, version).await
+	) -> Result<Option<TokenStateEventViewSdk>, OriginSdkError> {
+		let auth = self.auth("state_event").await?;
+		self.view()
+			.call("Token", "state_event", vec![auth.encode(), token.encode(), version.encode()])
+			.await
 	}
 
-	pub async fn maybe_state_event(
+	pub async fn has_history(&self, token: Ss58Identifier) -> Result<bool, OriginSdkError> {
+		let auth = self.auth("has_history").await?;
+		self.view().call("Token", "has_history", vec![auth.encode(), token.encode()]).await
+	}
+
+	pub async fn latest_state_event(
 		&self,
 		token: Ss58Identifier,
-		version: u32,
-	) -> Result<
-		Option<origin_primitives::token::TokenStateEventView<subxt::utils::H256>>,
-		OriginSdkError,
-	> {
-		self.view().token().maybe_state_event(token, version).await
+	) -> Result<Option<TokenStateEventViewSdk>, OriginSdkError> {
+		let auth = self.auth("latest_state_event").await?;
+		self.view()
+			.call("Token", "latest_state_event", vec![auth.encode(), token.encode()])
+			.await
 	}
 
-	pub async fn resolve_pallet(&self, index: u16) -> Result<Vec<u8>, OriginSdkError> {
-		self.view().token().resolve_pallet(index).await
+	pub async fn recent_timeline(
+		&self,
+		token: Ss58Identifier,
+		limit: Option<u32>,
+	) -> Result<Option<Vec<TokenStateEventViewSdk>>, OriginSdkError> {
+		let auth = self.auth("recent_timeline").await?;
+		self.view()
+			.call(
+				"Token",
+				"recent_timeline",
+				vec![auth.encode(), token.encode(), limit.encode()],
+			)
+			.await
+	}
+
+	pub async fn resolve_pallet(&self, index: u16) -> Result<Option<String>, OriginSdkError> {
+		let auth = self.auth("resolve_pallet").await?;
+		self.view().call("Token", "resolve_pallet", vec![auth.encode(), index.encode()]).await
 	}
 }

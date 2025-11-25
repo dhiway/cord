@@ -9,41 +9,55 @@
 - Pallet helpers: `.entity()`, `.registry()`, `.packet()`, `.token()` each return signer-bound clients.
 
 ### Entity (view-only helpers)
-- `overview(entity)` → `EntityStateView`
-- `overview_nested(entity)` → expands to nested
-- `maybe_overview(entity)` → `Option<EntityStateView>`
-- `details(entity)` / `details_nested(entity)` / `maybe_details(entity)`
-- `nym(entity)`
-- `linked_accounts(entity)`
-- `controller_account(entity)`
-- `account_history(entity)`
-- `attribute_version(entity, key)` / `attribute_versions(entity)`
-- `attribute_history(entity)` / `attribute_history_for_key(entity, key)` / `attribute_history_entry(entity, key, version)`
+- `overview(entity)` → `Option<EntityStateView>`
+- `overview_nested(entity)` → expands to nested `Option<EntityNestedValue>`
+- `details(entity)` / `details_nested(entity)` → `Option<EntityInfoView>`
+- `account_token(account)` → `Option<Ss58Identifier>`
+- `linked_accounts(entity)` → `Option<Vec<AccountId32>>`
+- `linked_account_count(entity)` → `u32`
+- `controller_account(entity)` → `Option<AccountId32>`
+- `is_controller(entity, account)` / `is_linked_account(entity, account)` → `bool`
+- `account_history(entity)` → `Option<Vec<AccountUnbindEntryView>>`
+- `has_nym(entity)` / `token_of_nym(nym)` / `nym(entity)`
+- `entity_attribute_keys(entity)` → `Option<Vec<Vec<u8>>>`
+- `has_attribute(entity, key)` → `bool`
+- `attribute_version(entity, key)` → `Option<u64>`
+- `attribute_versions(entity)` → `Option<Vec<(Vec<u8>, u64)>>`
+- `attribute_history(entity)` / `attribute_history_for_key(entity, key)` → `Option<Vec<AttributeHistoryEntryView>>`
+- `attribute_history_entry(entity, key, version)` → `Option<AttributeHistoryEntryView>`
 
 ### Registry (view-only helpers)
-- `details(registry)` / `details_nested(registry)` / `maybe_details(registry)`
-- `overview(registry)` / `overview_nested(registry)` / `maybe_overview(registry)`
-- `delegate_permissions(registry, delegate)`
-- `query_count(registry, account)`
-- `lookup_specs(registry)`
-- `attribute(registry, key)` / `attributes(registry)` / `maybe_attribute(registry, key)`
-- `token_specs(registry)`
-- `packet_metadata(registry, packet)` / `maybe_packet_metadata(registry, packet)`
-- `packet_snapshot(registry, packet, version)` / `maybe_packet_snapshot(registry, packet, version)`
-- `packet_snapshot_by_token(token, version)`
-- `lookup_snapshot(registry, digest, version)`
-- `list_by_token(prefix, version, cursor, limit)`
-- `list_by_digest(prefix, version, cursor, limit)`
+- `details(registry)` / `details_nested(registry)` → `Option<RegistryStateView>`
+- `delegate_permissions(registry, delegate)` → `Option<RegistryPermissions>`
+- `query_count(registry, account)` → `Option<u64>`
+- `lookup_specs(registry)` → `Option<Vec<LookupSpecView>>`
+- `attribute(registry, key)` / `attributes(registry)` → `Option<(ElementType,bool)>` / `Option<Vec<RegistryAttributeView>>`
+- `token_specs(registry)` → `Option<Vec<Vec<u8>>>`
+- `packet_metadata(registry, packet)` → `Option<PacketMetadataView>`
+- `packet_state(registry, packet, version)` / `packet_for_token(token, version)` → `Option<PacketStateView>`
+- `packet_lookup_snapshot(registry, digest, version)` → `Option<PacketStateView>`
+- `packets_by_digest(digest, offset, limit)` → `Option<Vec<PacketPointer>>`
+- `list_by_token(prefix, version, cursor, limit)` → `Option<(Vec<PacketStateView>, Option<Ss58Identifier>)>`
+- `list_by_digest(prefix, version, cursor, limit)` → `Option<(Vec<PacketStateView>, Option<Vec<u8>>)>`
+- `registry_exists(registry)` → `bool`
+- `registry_status(registry)` / `registry_attribute_keys(registry)` → `Option<RegistryStatus>` / `Option<Vec<Vec<u8>>>`
+- `registry_is_active` / `registry_is_revoked` / `registry_is_deleted` → `bool`
+- `registry_delegates(registry)` → `Option<Vec<(Ss58Identifier, RegistryPermissions)>>`
+- `has_registry_permissions(registry, delegate, required)` / `is_delegate(registry, delegate)` → `bool`
+- `registry_maintainer(registry)` → `Option<Ss58Identifier>`
+- `packet_exists(registry, packet)` / `packet_status(packet)` / `packet_controller(packet)` → `bool` / `Option<PacketStatus>` / `Option<Ss58Identifier>`
 
 ### Packet (view-only helpers)
-- `state(packet_pointer, version)` / `state_nested(packet_pointer, version)`
+- `state(packet_pointer, version)` → `Option<PacketStateView>`
+- `state_nested(packet_pointer, version)` → `Option<PacketNestedValue>`
 
 ### Token (view-only helpers)
-- `timeline(token, start, limit)`
-- `resolve_identifier(token)` / `maybe_resolve_identifier(token)`
-- `pallet_index_of(name)` / `pallet_name(index)` / `next_pallet_index()` / `genesis_network_id()` / `resolve_pallet(index)`
-- `state_version(token)`
-- `state_event(token, version)` / `maybe_state_event(token, version)`
+- `timeline(token, start, limit)` → `Option<TokenTimelineView>`
+- `resolve_identifier(token)` → `Option<DecodedIdentifier>`
+- `pallet_index_of(name)` / `pallet_name_view(index)` / `next_pallet_index()` / `genesis_network_id()` / `resolve_pallet(index)` → `Option<_>`
+- `state_version(token)` → `Option<u32>`
+- `state_event(token, version)` / `latest_state_event(token)` / `recent_timeline(token, limit)` → `Option<TokenStateEventView>` / `Option<Vec<TokenStateEventView>>`
+- `has_history(token)` → `bool`
 
 ## Tx Facade (`src/tx`)
 - Entry: `client.tx().using(&signer)` (signer required). All helpers return `TxHandle`; caller chooses `wait_in_block()` / `wait_finalized()`.
@@ -56,7 +70,7 @@
 
 ### RegistryTx
 - registry create: dynamic builder + `submit_create`, `submit_create_from_nested`
-- delegate perms: `set_delegate_permissions`, `remove_delegate_permissions`
+- delegate perms: `set_delegate_permissions` / `submit_set_delegate_permissions` (typed `DelegatePermissionsInput`), `remove_delegate_permissions` / `submit_remove_delegate_permissions` (typed `RemoveDelegatePermissionsInput`)
 - lifecycle: `revoke_registry`, `restore_registry`, `delete_registry`
 - packet issuance helper: `submit_packet_from_nested` (with schema validation)
 - info updates: `submit_update_registry_info_from_view`

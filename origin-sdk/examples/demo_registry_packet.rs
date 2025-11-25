@@ -10,7 +10,6 @@ use origin_sdk::{
 	client::{signer::MultiKeySigner, Signer},
 	schema, OriginClient, OriginSdkError,
 };
-use scale_value::Value;
 use serde_json::Value as Json;
 use subxt::utils::AccountId32;
 
@@ -51,9 +50,12 @@ let client = OriginClient::connect(&args.endpoint).await?;
 			.await?;
 	println!("Packet issued, tx hash {:?}", pkt_hash);
 
-	// Fetch overview
-	let overview = client.query().using(signer.clone()).registry().overview(registry_id).await?;
-	println!("Registry overview: {:?}", overview);
+	// Fetch details
+	let details = client.query().using(signer.clone()).registry().details(registry_id).await?;
+	match details {
+		Some(view) => println!("Registry details: {:?}", view),
+		None => println!("Registry not found or authorization failed"),
+	}
 	Ok(())
 }
 
@@ -64,8 +66,12 @@ async fn ensure_entity(
 ) -> Result<Ss58Identifier, Box<dyn std::error::Error>> {
 	let account = signer.account_id();
 	let acct32 = AccountId32::from(<[u8; 32]>::from(account));
-	if let Some(id) =
-		client.query().using(signer.clone()).entity().account_token(acct32.clone()).await?
+	if let Some(id) = client
+		.query()
+		.using(signer.clone())
+		.entity()
+		.account_token(acct32.clone())
+		.await?
 	{
 		return Ok(id);
 	}
@@ -191,8 +197,9 @@ async fn issue_packet(
 		.registry()
 		.submit_packet_from_nested(registry.clone(), &nested)
 		.await?;
+	let hash = handle.hash;
 	handle.wait_in_block().await?;
-	Ok(handle.hash)
+	Ok(hash)
 }
 
 fn schema_to_views(

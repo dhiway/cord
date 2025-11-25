@@ -277,7 +277,12 @@ pub mod entity {
 
 pub mod registry {
 	use super::*;
-	use crate::types::RegistryCreateInput;
+	use crate::types::{
+		registry_input::{
+			DelegatePermissionsInput, RegistryCreateInput, RegistryInfoInput,
+			RemoveDelegatePermissionsInput,
+		},
+	};
 	use serde::Serialize;
 
 	/// Build `Register::create_registry` payload from pre-encoded schema/config blobs.
@@ -336,19 +341,53 @@ pub mod registry {
 	pub fn update_info_from_input(
 		_metadata: &Metadata,
 		registry: &[u8],
-		info: &crate::types::registry_input::RegistryInfoInput,
+		info: &RegistryInfoInput,
 	) -> Result<DynamicPayload, OriginSdkError> {
 		ensure_non_empty("registry", registry)?;
 		let args = vec![Value::from_bytes(registry), Value::from_bytes(&info.encode())];
 		Ok(dynamic::tx("Register", "update_registry_info", args))
 	}
+
+	/// Build `Register::set_delegate_permissions` from typed input.
+	pub fn set_delegate_permissions_from_input(
+		_metadata: &Metadata,
+		input: &DelegatePermissionsInput,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		if input.roles.is_empty() {
+			return Err(OriginSdkError::InvalidInput("roles cannot be empty".into()));
+		}
+		let roles_val = Value::from(
+			input
+				.roles
+				.iter()
+				.map(|r| Value::u128(r.bits() as u128))
+				.collect::<Vec<_>>(),
+		);
+		let args = vec![
+			Value::from_bytes(input.registry.as_ref()),
+			Value::from_bytes(input.delegate.0),
+			roles_val,
+		];
+		Ok(dynamic::tx("Register", "set_delegate_permissions", args))
+	}
+
+	/// Build `Register::remove_delegate_permissions` from typed input.
+	pub fn remove_delegate_permissions_from_input(
+		_metadata: &Metadata,
+		input: &RemoveDelegatePermissionsInput,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		let args = vec![
+			Value::from_bytes(input.registry.as_ref()),
+			Value::from_bytes(input.delegate.as_ref()),
+		];
+		Ok(dynamic::tx("Register", "remove_delegate_permissions", args))
+	}
 }
 
 pub mod packet {
 	use super::*;
-	use crate::types::{
-		packet::{MaxAdditionalAttributes, MaxRawDataLength, PacketElement},
-		packet_input::PacketAttributesInput,
+	use crate::types::packet_input::{
+		MaxAdditionalAttributes, MaxRawDataLength, PacketAttributesInput, PacketElementInput,
 	};
 	use frame_support::BoundedVec;
 	use origin_primitives::{
@@ -380,11 +419,11 @@ pub mod packet {
 		registry_id: Ss58Identifier,
 		attributes: &[(Vec<u8>, Vec<u8>)],
 	) -> Result<DynamicPayload, OriginSdkError> {
-		let mut bounded = BoundedVec::<(Attribute, PacketElement), MaxAdditionalAttributes>::new();
+		let mut bounded = BoundedVec::<(Attribute, PacketElementInput), MaxAdditionalAttributes>::new();
 		for (k, v_bytes) in attributes {
 			let key: Attribute = Attribute::try_from(k.clone())
 				.map_err(|_| OriginSdkError::InvalidInput("attribute key too long".into()))?;
-			let elem: PacketElement = codec::Decode::decode(&mut &v_bytes[..])
+			let elem: PacketElementInput = codec::Decode::decode(&mut &v_bytes[..])
 				.map_err(|e| OriginSdkError::Decode(format!("element decode: {e}")))?;
 			bounded
 				.try_push((key, elem))
@@ -565,8 +604,8 @@ pub mod packet {
 	fn build_packet_attributes(
 		registry_schema: &[RegistryAttributeView],
 		obj: &serde_json::Map<String, Json>,
-	) -> Result<BoundedVec<(Attribute, PacketElement), MaxAdditionalAttributes>, OriginSdkError> {
-		let mut out = BoundedVec::<(Attribute, PacketElement), MaxAdditionalAttributes>::new();
+	) -> Result<BoundedVec<(Attribute, PacketElementInput), MaxAdditionalAttributes>, OriginSdkError> {
+		let mut out = BoundedVec::<(Attribute, PacketElementInput), MaxAdditionalAttributes>::new();
 
 		for attr in registry_schema {
 			let key_str = String::from_utf8_lossy(&attr.key).to_string();
@@ -599,24 +638,27 @@ pub mod packet {
 		Ok(out)
 	}
 
-	fn element_from_json(kind: ElementType, value: &Json) -> Result<PacketElement, OriginSdkError> {
+	fn element_from_json(
+		kind: ElementType,
+		value: &Json,
+	) -> Result<PacketElementInput, OriginSdkError> {
 		use frame_support::BoundedVec;
 		match kind {
-			ElementType::None => Ok(PacketElement::None),
+			ElementType::None => Ok(PacketElementInput::None),
 			ElementType::Raw => {
 				let bytes = serde_json::to_vec(value)
 					.map_err(|e| OriginSdkError::InvalidInput(format!("raw encode: {e}")))?;
 				let bounded = BoundedVec::<u8, MaxRawDataLength>::try_from(bytes)
 					.map_err(|_| OriginSdkError::InvalidInput("raw too large".into()))?;
-				Ok(PacketElement::Raw(bounded))
+				Ok(PacketElementInput::Raw(bounded))
 			},
 			ElementType::Bool => value
 				.as_bool()
-				.map(|b| PacketElement::Bool(b as u8))
+				.map(|b| PacketElementInput::Bool(b as u8))
 				.ok_or_else(|| OriginSdkError::InvalidInput("expected bool".into())),
 			ElementType::U64 => value
 				.as_u64()
-				.map(|n| PacketElement::U64(n.to_le_bytes()))
+				.map(|n| PacketElementInput::U64(n.to_le_bytes()))
 				.ok_or_else(|| OriginSdkError::InvalidInput("expected u64".into())),
 			ElementType::U128 => {
 				let n = if let Some(u) = value.as_u64() {
@@ -627,7 +669,7 @@ pub mod packet {
 				} else {
 					return Err(OriginSdkError::InvalidInput("expected u128".into()));
 				};
-				Ok(PacketElement::U128(n.to_le_bytes()))
+				Ok(PacketElementInput::U128(n.to_le_bytes()))
 			},
 			ElementType::Hash => {
 				let s = value
@@ -640,7 +682,7 @@ pub mod packet {
 				}
 				let mut arr = [0u8; 32];
 				arr.copy_from_slice(&bytes);
-				Ok(PacketElement::Hash(arr))
+				Ok(PacketElementInput::Hash(arr))
 			},
 			ElementType::Token => {
 				let s = value
@@ -648,7 +690,7 @@ pub mod packet {
 					.ok_or_else(|| OriginSdkError::InvalidInput("expected ss58 string".into()))?;
 				let id = origin_primitives::Ss58Identifier::try_from(s.to_string())
 					.map_err(|e| OriginSdkError::InvalidInput(format!("ss58: {e:?}")))?;
-				Ok(PacketElement::Token(id))
+				Ok(PacketElementInput::Token(id))
 			},
 			ElementType::Cid => {
 				let s = value
@@ -656,7 +698,7 @@ pub mod packet {
 					.ok_or_else(|| OriginSdkError::InvalidInput("expected cid string".into()))?;
 				let bounded = BoundedVec::<u8, MaxRawDataLength>::try_from(s.as_bytes().to_vec())
 					.map_err(|_| OriginSdkError::InvalidInput("cid too large".into()))?;
-				Ok(PacketElement::CID(bounded))
+				Ok(PacketElementInput::CID(bounded))
 			},
 		}
 	}
