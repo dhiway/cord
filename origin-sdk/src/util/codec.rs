@@ -1,8 +1,7 @@
 //! Helpers to map user-friendly values to Origin Element encodings and back.
 
 use crate::types::error::OriginSdkError;
-use base64::engine::general_purpose::STANDARD as B64;
-use base64::Engine;
+use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use origin_primitives::{element::ElementType, ElementView};
 use scale_value::{Composite, Value, ValueDef};
 

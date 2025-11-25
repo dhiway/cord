@@ -1,7 +1,9 @@
-use crate::types::error::OriginSdkError;
-use crate::types::registry_input::{
-	MaxAdditionalAttributes, MaxRawDataLength, RegistryAttributeInput, RegistryCreateInput,
-	RegistryLookupInput,
+use crate::types::{
+	error::OriginSdkError,
+	registry_input::{
+		MaxAdditionalAttributes, MaxRawDataLength, RegistryAttributeInput, RegistryCreateInput,
+		RegistryLookupInput,
+	},
 };
 use codec::Encode;
 use frame_support::BoundedVec;
@@ -122,7 +124,9 @@ pub fn to_create_input(
 	})
 }
 
-fn element_from_view(ev: &ElementView) -> Result<Element<MaxRawDataLength>, OriginSdkError> {
+pub(crate) fn element_from_view(
+	ev: &ElementView,
+) -> Result<Element<MaxRawDataLength>, OriginSdkError> {
 	match ev {
 		ElementView::Raw(bytes) => Ok(Element::Raw(
 			BoundedVec::<u8, MaxRawDataLength>::try_from(bytes.clone())

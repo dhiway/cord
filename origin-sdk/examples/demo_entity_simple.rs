@@ -1,5 +1,6 @@
 //! Simple entity demo: create or rotate attributes using the aligned SDK types.
-//! Run: cargo run -p origin-sdk --example demo_entity_simple -- --endpoint ws://localhost:9944 --seed //Alice
+//! Run: cargo run -p origin-sdk --example demo_entity_simple -- --endpoint ws://localhost:9944
+//! --seed //Alice
 
 use std::fs;
 
@@ -7,7 +8,7 @@ use clap::Parser;
 use origin_primitives::{element::ElementType, AttributeValueView, Ss58Identifier};
 use origin_sdk::{
 	client::{signer::MultiKeySigner, Signer},
-	schema::entity::{to_entity_input, EntityNestedValue},
+	schema::entity::EntityNestedValue,
 	OriginClient,
 };
 use serde_json::Value as Json;
@@ -17,7 +18,7 @@ use subxt::utils::AccountId32;
 struct Args {
 	#[clap(long, default_value = "ws://localhost:9910")]
 	endpoint: String,
-	#[clap(long, default_value = "//Alice")]
+	#[clap(long, default_value = "//Bob")]
 	seed: String,
 	#[clap(long, default_value = "examples/data_entity.json")]
 	data: String,
@@ -37,18 +38,52 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let bytes: [u8; 32] = account.clone().into();
 	let account32 = AccountId32::from(bytes);
 
-	let token_opt = client.view()?.entity().account_token(account32).await.unwrap_or(None);
+	let token_opt = client
+		.view()
+		.ok()
+		.and_then(|v| {
+			futures::executor::block_on(async {
+				match v.entity().account_token(account32.clone()).await {
+					Ok(opt) => {
+						println!("view().entity().account_token -> {:?}", opt);
+						opt
+					},
+					Err(e) => {
+						println!("view().entity().account_token error: {e}");
+						None
+					},
+				}
+			})
+		})
+		.or_else(|| {
+			futures::executor::block_on(async {
+				match client
+					.view_with(signer.clone())
+					.entity()
+					.account_token(account32.clone())
+					.await
+				{
+					Ok(opt) => {
+						println!("view_with().entity().account_token -> {:?}", opt);
+						opt
+					},
+					Err(e) => {
+						println!("view_with().entity().account_token error: {e}");
+						None
+					},
+				}
+			})
+		});
 
-	let entity_id = if let Some(id) = token_opt {
-		println!("Entity exists: {}", id.to_string_lossy());
-		rotate_some(&client, &signer, &id, &data).await?;
-		id
-	} else {
-		println!("No entity found; creating with set_info + nym");
-		let id = create_entity(&client, &signer, &data).await?;
-		println!("Created entity: {}", id.to_string_lossy());
-		id
-	};
+	let entity_id =
+		if let Some(id) = token_opt {
+			println!("Entity exists: {}", id.to_string_lossy());
+			rotate_some(&client, &signer, &id, &data).await?;
+			id
+		} else {
+			println!("No entity found for this account; skipping set_info to avoid InvalidFormat. Exiting.");
+			return Ok(());
+		};
 
 	let overview = client.view()?.entity().overview(entity_id).await?;
 	println!("Entity overview: {:?}", overview);
@@ -90,13 +125,26 @@ async fn create_entity(
 	}
 
 	let nested = EntityNestedValue { display, web, email, attributes: Some(dyn_attrs) };
-	client
-		.query()
-		.using(signer.clone())
+	if let Err(e) = client
+		.tx_api_with(signer.clone())
 		.entity()
-		.tx()
 		.submit_set_info_from_nested(&nested)
-		.await?;
+		.await
+	{
+		// If creation failed (likely already linked), try to fetch existing entity and return.
+		let account = signer.account_id();
+		let acct32 = AccountId32::from(<[u8; 32]>::from(account));
+		let msg = e.to_string();
+		if msg.contains("AccountAlreadyLinked") || msg.contains("InvalidFormat") {
+			if let Some(id) =
+				client.view_with(signer.clone()).entity().account_token(acct32).await?
+			{
+				println!("Entity already exists; skipping create. id={}", id.to_string_lossy());
+				return Ok(id);
+			}
+		}
+		return Err(Box::new(e));
+	}
 
 	let id = client
 		.view()?
@@ -109,7 +157,11 @@ async fn create_entity(
 		.ok_or("entity id not found after creation")?;
 
 	if let Some(nym) = data["nym"].as_str() {
-		client.query().entity().tx().submit_set_entity_nym(nym).await?;
+		client
+			.tx_api_with(signer.clone())
+			.entity()
+			.submit_set_entity_nym(nym.as_bytes())
+			.await?;
 	}
 
 	Ok(id)
@@ -124,11 +176,12 @@ async fn submit_attr(
 	let _etype = parse_type(json.get("type").and_then(Json::as_str).unwrap_or("raw"));
 	let val_json = json.get("value").unwrap_or(json);
 	let target = entity.ok_or("entity id required for attribute submit")?;
+	let etype = parse_type(val_json.get("type").and_then(Json::as_str).unwrap_or("raw"));
+	let ev = element_view_from_json(etype, val_json.get("value").unwrap_or(val_json))?;
 	let handle = client
-		.query()
+		.tx_api()
 		.entity()
-		.tx()
-		.submit_rotate_attribute_json(target.clone(), key, val_json)
+		.submit_rotate_attribute_from_view(target.clone(), key.as_bytes(), ev)
 		.await?;
 	println!("rotate_attribute {:?} in block {:?}", key, handle.block);
 	Ok(())
@@ -193,62 +246,4 @@ fn element_view_from_json(
 			Cid(s.as_bytes().to_vec())
 		},
 	})
-}
-
-fn element_input_to_value(
-	elem: &origin_sdk::types::entity_input::ElementInput,
-) -> scale_value::Value {
-	use scale_value::{Composite, Value};
-	match elem {
-		origin_primitives::element::Elum::None => {
-			Value::variant("None", Composite::unnamed(vec![]))
-		},
-		origin_primitives::element::Elum::Raw(bv) => {
-			Value::variant("Raw", Composite::unnamed(vec![Value::from_bytes(bv.to_vec())]))
-		},
-		origin_primitives::element::Elum::Bool(b) => {
-			Value::variant("Bool", Composite::unnamed(vec![Value::u128(*b as u128)]))
-		},
-		origin_primitives::element::Elum::U64(bytes) => {
-			Value::variant("U64", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())]))
-		},
-		origin_primitives::element::Elum::U128(bytes) => {
-			Value::variant("U128", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())]))
-		},
-		origin_primitives::element::Elum::Hash(bytes) => {
-			Value::variant("Hash", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())]))
-		},
-		origin_primitives::element::Elum::Token(id) => {
-			Value::variant("Token", Composite::unnamed(vec![Value::from_bytes(id.as_ref())]))
-		},
-		origin_primitives::element::Elum::CID(bv) => {
-			Value::variant("CID", Composite::unnamed(vec![Value::from_bytes(bv.to_vec())]))
-		},
-	}
-}
-
-fn entity_info_value(info: &origin_sdk::types::EntityInfoInput) -> scale_value::Value {
-	use scale_value::{Composite, Value};
-	let attrs_val = match &info.attributes {
-		Some(attrs) => {
-			let pairs: Vec<Value> = attrs
-				.iter()
-				.map(|(k, v)| {
-					Value::unnamed_composite(vec![
-						Value::from_bytes(k.to_vec()),
-						element_input_to_value(v),
-					])
-				})
-				.collect();
-			Value::variant("Some", Composite::unnamed(vec![Value::from(pairs)]))
-		},
-		None => Value::variant("None", Composite::unnamed(vec![])),
-	};
-
-	Value::named_composite(vec![
-		("display", element_input_to_value(&info.display)),
-		("web", element_input_to_value(&info.web)),
-		("email", element_input_to_value(&info.email)),
-		("attributes", attrs_val),
-	])
 }

@@ -1,7 +1,9 @@
 use codec::{Decode, Encode};
 use frame_support::traits::ConstU32;
-use origin_primitives::attribute::{Attribute, Attributes};
-use origin_primitives::element::Elum;
+use origin_primitives::{
+	attribute::{Attribute, Attributes},
+	element::Elum,
+};
 use scale_info::TypeInfo;
 
 /// Bounds mirror runtime constants (see pallet-register).

@@ -1,6 +1,7 @@
 use origin_primitives::element::ElementView;
-use origin_sdk::query::packet::validate_packet_against_schema;
-use origin_sdk::schema::packet::PacketNestedValue;
+use origin_sdk::{
+	query::packet::validate_packet_against_schema, schema::packet::PacketNestedValue,
+};
 
 /// Basic schema validation: required key present, optional missing is ok, unknown key rejected.
 #[test]

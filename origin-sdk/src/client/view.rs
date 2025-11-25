@@ -296,18 +296,28 @@ impl EntityViews {
 		&self,
 		account: subxt::utils::AccountId32,
 	) -> Result<Option<origin_primitives::Ss58Identifier>, OriginSdkError> {
-		// Decode as Result<Vec<u8>, AuthorizationError> then convert to Ss58Identifier.
-		let res: Result<Result<Vec<u8>, AuthorizationError>, OriginSdkError> =
-			self.inner.call("Entity", "account_token", vec![account.encode()]).await;
+		let res: Option<Vec<u8>> = self
+			.inner
+			.call_auth_result_maybe::<Vec<u8>>("Entity", "account_token", vec![account.encode()])
+			.await?;
 
 		match res {
-			Err(e) => Err(e),
-			Ok(Ok(raw)) => match origin_primitives::Ss58Identifier::try_from(raw) {
-				Ok(id) => Ok(Some(id)),
-				Err(e) => Err(OriginSdkError::Decode(format!("{e:?}"))),
+			None => Ok(None),
+			Some(raw) => {
+				if let Ok(id) = origin_primitives::Ss58Identifier::try_from(raw.clone()) {
+					return Ok(Some(id));
+				}
+				if let Ok(id) = origin_primitives::Ss58Identifier::decode(&mut &raw[..]) {
+					return Ok(Some(id));
+				}
+				if let Ok(s) = String::from_utf8(raw.clone()) {
+					if let Ok(id) = origin_primitives::Ss58Identifier::try_from(s) {
+						return Ok(Some(id));
+					}
+				}
+				println!("account_token raw bytes hex=0x{}", hex::encode(&raw));
+				Err(OriginSdkError::Decode("account_token decode: unsupported format".into()))
 			},
-			Ok(Err(AuthorizationError::NotFound)) => Ok(None),
-			Ok(Err(e)) => Err(OriginSdkError::View(format!("account_token err: {e:?}"))),
 		}
 	}
 

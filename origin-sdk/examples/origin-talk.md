@@ -65,7 +65,7 @@ let call = DynamicCallBuilder::new().call(
     "issue",
     vec![Value::from_bytes(b"demo-registry"), Value::from_bytes(b"demo-packet-body")],
 );
-let outcome = client.tx()?.submit(&call.pallet, &call.function, call.args).await?;
+let outcome = client.tx_api().entity().submit_set_info_from_nested(&nested).await?;
 println!("Packet issued: {:?}", outcome.hash);
 ```
 
@@ -94,7 +94,7 @@ let call = DynamicCallBuilder::new().call(
     "create",
     vec![Value::from_bytes(b"transcript-registry"), Value::from_bytes(b"v1 schema bytes")],
 );
-client.tx()?.submit(&call.pallet, &call.function, call.args).await?;
+client.tx_api_with(signer).entity().submit_set_info_from_nested(&nested).await?;
 ```
 
 #### Sample registry schemas

@@ -24,10 +24,10 @@ The table below lists the calls and view functions the SDK must mirror 1:1. Fiel
   - `remove_entity_nym(token: Ss58Identifier)`
 
 - Views (all `Result<..., AuthorizationError>`)
-  - `details(token) -> EntityInfoView`
-  - `account_token(account) -> Ss58Identifier`
-  - `linked_accounts(token) -> Vec<AccountId>`
-  - `controller_account(token) -> AccountId`
+  - `details(token) -> Vec<u8>`
+  - `account_token(account) -> Vec<u8>`
+  - `linked_accounts(token) -> Vec<u8>`
+  - `controller_account(token) -> Vec<u8>`
   - `account_history(token) -> Vec<AccountUnbindEntryView<AccountId>>`
   - `entity_nym(token) -> Vec<u8>`
   - `overview(token, history_limit: Option<u32>) -> EntityStateView<AccountId>`

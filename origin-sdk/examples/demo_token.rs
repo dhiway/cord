@@ -1,5 +1,6 @@
 //! Token demo: resolve identifier and show timeline.
-//! cargo run -p origin-sdk --example demo_token -- --endpoint ws://localhost:9944 --token 5C8F... [--seed //Alice] [--meta]
+//! cargo run -p origin-sdk --example demo_token -- --endpoint ws://localhost:9944 --token 5C8F...
+//! [--seed //Alice] [--meta]
 
 use clap::Parser;
 use origin_sdk::{client::signer::MultiKeySigner, OriginClient};
