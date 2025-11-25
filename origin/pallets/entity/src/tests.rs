@@ -395,10 +395,7 @@ mod remove_attribute_tests {
 			let who = account(90);
 			let _ = init_with_display(who.clone(), b"preset");
 			assert_noop!(
-				Entity::remove_attribute(
-					RuntimeOrigin::signed(who.clone()),
-					attr_key(b"display")
-				),
+				Entity::remove_attribute(RuntimeOrigin::signed(who.clone()), attr_key(b"display")),
 				Error::<Test>::ReservedAttribute
 			);
 		});
@@ -733,8 +730,8 @@ mod view_tests {
 			));
 
 			let auth = authorization(&who);
-			let records_raw =
-				EntityPallet::<Test>::attribute_history(auth.clone(), token.clone()).expect("history");
+			let records_raw = EntityPallet::<Test>::attribute_history(auth.clone(), token.clone())
+				.expect("history");
 			let records: Vec<AttributeHistoryEntryView> = decode_view(records_raw);
 			assert_eq!(records.len(), 1);
 			assert_eq!(records[0].key, b"rot".to_vec());
@@ -765,8 +762,8 @@ mod view_tests {
 
 			let hist = EntityPallet::<Test>::attribute_history_plain(&token);
 			let auth = authorization(&who);
-			let entries_raw =
-				EntityPallet::<Test>::attribute_history(auth, token.clone()).expect("history entries");
+			let entries_raw = EntityPallet::<Test>::attribute_history(auth, token.clone())
+				.expect("history entries");
 			let entries: Vec<AttributeHistoryEntryView> = decode_view(entries_raw);
 			assert_eq!(entries.len(), hist.len());
 			assert_eq!(entries[0].key, hist[0].0);
@@ -780,7 +777,8 @@ mod view_tests {
 			let who = account(60);
 			let token = init_with_display(who.clone(), b"info-view");
 			let auth = authorization(&who);
-			let view_raw = EntityPallet::<Test>::details(auth, token.clone()).expect("entity details");
+			let view_raw =
+				EntityPallet::<Test>::details(auth, token.clone()).expect("entity details");
 			let view: EntityInfoView = decode_view(view_raw);
 			assert_eq!(view.display, ElementView::from(&plain_data(b"info-view")));
 		});
@@ -921,9 +919,8 @@ mod authorization_flow_tests {
 			let account: AccountId = signer.into_account();
 			let token = init_with_display(account.clone(), b"ed25519");
 			let auth = authorization_with_pair(&account, &pair, 1);
-			let controller_raw =
-				EntityPallet::<Test>::controller_account(auth, token.clone())
-					.expect("ed25519 signature should authorize");
+			let controller_raw = EntityPallet::<Test>::controller_account(auth, token.clone())
+				.expect("ed25519 signature should authorize");
 			let controller: ViewAccount32 = decode_view(controller_raw);
 			assert_eq!(controller, view_account(&account));
 		});

@@ -57,10 +57,12 @@ where
 	for ev in events.iter() {
 		if let Ok(ev) = ev {
 			let fields = ev.field_values().map_or(Vec::new(), |comp| match comp {
-				scale_value::Composite::Named(v) =>
-					v.into_iter().map(|(_, val)| val.remove_context()).collect(),
-				scale_value::Composite::Unnamed(v) =>
-					v.into_iter().map(|val| val.remove_context()).collect(),
+				scale_value::Composite::Named(v) => {
+					v.into_iter().map(|(_, val)| val.remove_context()).collect()
+				},
+				scale_value::Composite::Unnamed(v) => {
+					v.into_iter().map(|val| val.remove_context()).collect()
+				},
 			});
 			envelopes.push(crate::client::events::EventEnvelope {
 				block,
@@ -77,7 +79,7 @@ where
 #[derive(Clone)]
 pub struct SubmitClient {
 	connection: Arc<Connection>,
-	signer: Option<Arc<dyn Signer>>,
+	signer: Arc<dyn Signer>,
 	nonce: Arc<NonceManager>,
 	locks: StdArc<Mutex<HashMap<origin_primitives::AccountId, StdArc<Mutex<()>>>>>,
 }
@@ -85,7 +87,7 @@ pub struct SubmitClient {
 const DEFAULT_TIP: u128 = 10u128;
 
 impl SubmitClient {
-	pub(crate) fn new(connection: Arc<Connection>, signer: Option<Arc<dyn Signer>>) -> Self {
+	pub(crate) fn new(connection: Arc<Connection>, signer: Arc<dyn Signer>) -> Self {
 		Self {
 			connection,
 			signer,
@@ -158,10 +160,7 @@ impl SubmitClient {
 		call: subxt::tx::DynamicPayload,
 		tip: u128,
 	) -> Result<TxHandle, OriginSdkError> {
-		let signer = self
-			.signer
-			.clone()
-			.ok_or_else(|| OriginSdkError::InvalidInput("signer is required for submit".into()))?;
+		let signer = self.signer.clone();
 		let account = signer.account_id();
 		let lock = {
 			let mut guard = self.locks.lock().await;

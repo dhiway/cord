@@ -282,14 +282,14 @@ pub mod pallet {
 		}
 
 		/// Returns the pallet name bytes stored for an index.
-	pub fn pallet_name(
-		auth: Authorization<T>,
-		index: u16,
-	) -> Result<Vec<u8>, AuthorizationError> {
-		Self::authorize_query(&auth)?;
-		let name = Self::resolve_pallet_plain(index)?;
-		Self::encode_ok(name)
-	}
+		pub fn pallet_name(
+			auth: Authorization<T>,
+			index: u16,
+		) -> Result<Vec<u8>, AuthorizationError> {
+			Self::authorize_query(&auth)?;
+			let name = Self::resolve_pallet_plain(index)?;
+			Self::encode_ok(name)
+		}
 
 		/// Returns the next pallet index counter.
 		pub fn next_pallet_index(auth: Authorization<T>) -> Result<Vec<u8>, AuthorizationError> {

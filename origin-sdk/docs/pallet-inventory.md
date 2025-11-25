@@ -1,4 +1,4 @@
-// Auto-generated November 24, 2025 (SDK sync point)
+// Auto-generated November 25, 2025 (SDK sync point)
 // Source of truth: origin/pallets/{entity,register,token} + origin/primitives
 
 # Pallet Inventory (entity, register, token)

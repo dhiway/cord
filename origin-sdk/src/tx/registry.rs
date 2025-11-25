@@ -1,25 +1,19 @@
 use crate::{
-	client::{signer::Signer, submit::TxOutcome, OriginClient},
+	client::{signer::Signer, submit::TxHandle, OriginClient},
 	extrinsic::{builder::DynamicCallBuilder, calls::packet as packet_calls},
 	types::error::OriginSdkError,
 };
 use origin_primitives::Ss58Identifier;
 use scale_value::Value;
 
-pub struct RegistryTx<'a> {
+pub struct RegistryTx<'a, S: Signer + Clone + 'static> {
 	client: &'a OriginClient,
+	signer: S,
 }
 
-impl<'a> RegistryTx<'a> {
-	pub(crate) fn new(client: &'a OriginClient) -> Self {
-		Self { client }
-	}
-
-	pub fn using<S>(&self, signer: S) -> RegistryTxWithSigner<'a, S>
-	where
-		S: Signer + Clone + 'static,
-	{
-		RegistryTxWithSigner::new(self.client, signer)
+impl<'a, S: Signer + Clone + 'static> RegistryTx<'a, S> {
+	pub(crate) fn new(client: &'a OriginClient, signer: S) -> Self {
+		Self { client, signer }
 	}
 
 	pub fn create(
@@ -38,13 +32,11 @@ impl<'a> RegistryTx<'a> {
 		&self,
 		registry_id: &[u8],
 		info: &[u8],
-	) -> Result<TxOutcome, OriginSdkError> {
+	) -> Result<TxHandle, OriginSdkError> {
 		let call = self.create(registry_id, info);
 		self.client
-			.tx()?
+			.submit_with(self.signer.clone())
 			.submit(&call.pallet, &call.function, call.args)
-			.await?
-			.wait_in_block()
 			.await
 	}
 
@@ -77,101 +69,43 @@ impl<'a> RegistryTx<'a> {
 		)
 	}
 
-	pub fn update_registry_info(
-		&self,
-		registry: Ss58Identifier,
-		info: &[u8],
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Register",
-			"update_registry_info",
-			vec![Value::from_bytes(registry.as_ref()), Value::from_bytes(info)],
-		)
-	}
-
 	/// Typed update_registry_info using ElementView via schema helper.
 	pub async fn submit_update_registry_info_from_view(
 		&self,
 		registry: Ss58Identifier,
 		info: origin_primitives::element::ElementView,
-	) -> Result<TxOutcome, OriginSdkError> {
+	) -> Result<TxHandle, OriginSdkError> {
 		let elem = crate::schema::registry::element_from_view(&info)?;
 		let payload = crate::extrinsic::calls::registry::update_info_from_input(
 			&self.client.metadata(),
 			registry.as_ref(),
 			&elem,
 		)?;
-		self.client.tx()?.submit_payload(payload).await?.wait_in_block().await
+		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
 	}
 
 	pub fn revoke_registry(
 		&self,
 		registry: Ss58Identifier,
 	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Register",
-			"revoke_registry",
-			vec![Value::from_bytes(registry.as_ref())],
-		)
+		DynamicCallBuilder::new()
+			.call("Register", "revoke_registry", vec![Value::from_bytes(registry.as_ref())])
 	}
 
 	pub fn restore_registry(
 		&self,
 		registry: Ss58Identifier,
 	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Register",
-			"restore_registry",
-			vec![Value::from_bytes(registry.as_ref())],
-		)
+		DynamicCallBuilder::new()
+			.call("Register", "restore_registry", vec![Value::from_bytes(registry.as_ref())])
 	}
 
 	pub fn delete_registry(
 		&self,
 		registry: Ss58Identifier,
 	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Register",
-			"delete_registry",
-			vec![Value::from_bytes(registry.as_ref())],
-		)
-	}
-}
-
-pub struct RegistryTxWithSigner<'a, S: Signer + Clone + 'static> {
-	client: &'a OriginClient,
-	signer: S,
-}
-
-impl<'a, S: Signer + Clone + 'static> RegistryTxWithSigner<'a, S> {
-	pub(crate) fn new(client: &'a OriginClient, signer: S) -> Self {
-		Self { client, signer }
-	}
-
-	pub fn create(
-		&self,
-		registry_id: &[u8],
-		info: &[u8],
-	) -> crate::extrinsic::builder::DynamicCall {
-		DynamicCallBuilder::new().call(
-			"Register",
-			"create_registry",
-			vec![Value::from_bytes(registry_id), Value::from_bytes(info)],
-		)
-	}
-
-	pub async fn submit_create(
-		&self,
-		registry_id: &[u8],
-		info: &[u8],
-	) -> Result<TxOutcome, OriginSdkError> {
-		let call = self.create(registry_id, info);
-		self.client
-			.tx_with(self.signer.clone())
-			.submit(&call.pallet, &call.function, call.args)
-			.await?
-			.wait_in_block()
-			.await
+		DynamicCallBuilder::new()
+			.call("Register", "delete_registry", vec![Value::from_bytes(registry.as_ref())])
 	}
 
 	/// Create a registry from nested schema using SDK mirrors.
@@ -179,19 +113,14 @@ impl<'a, S: Signer + Clone + 'static> RegistryTxWithSigner<'a, S> {
 		&self,
 		registry_id: &[u8],
 		nested: &crate::schema::registry::RegistryNestedSchema,
-	) -> Result<TxOutcome, OriginSdkError> {
+	) -> Result<TxHandle, OriginSdkError> {
 		let input = crate::schema::registry::to_create_input(nested)?;
 		let payload = crate::extrinsic::calls::registry::create_from_input(
 			&self.client.metadata(),
 			registry_id,
 			&input,
 		)?;
-		self.client
-			.tx_with(self.signer.clone())
-			.submit_payload(payload)
-			.await?
-			.wait_in_block()
-			.await
+		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
 	}
 
 	/// Issue a packet for a registry using nested packet values (validated against schema).
@@ -199,40 +128,48 @@ impl<'a, S: Signer + Clone + 'static> RegistryTxWithSigner<'a, S> {
 		&self,
 		registry: Ss58Identifier,
 		nested: &crate::schema::packet::PacketNestedValue,
-	) -> Result<TxOutcome, OriginSdkError> {
-		// fetch schema via view
+	) -> Result<TxHandle, OriginSdkError> {
 		let view = self
 			.client
 			.view_with(self.signer.clone())
 			.registry()
-			.details(registry.clone())
+			.attributes(registry.clone())
 			.await?;
-		let attrs = crate::schema::packet::validate_and_flatten(nested, &view.attributes)?;
+		let attrs = crate::schema::packet::validate_and_flatten(nested, &view)?;
 		let payload = packet_calls::issue_from_input(&self.client.metadata(), registry, &attrs)?;
+		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+	}
+
+	pub async fn submit_revoke_registry(
+		&self,
+		registry: Ss58Identifier,
+	) -> Result<TxHandle, OriginSdkError> {
+		let call = self.revoke_registry(registry);
 		self.client
-			.tx_with(self.signer.clone())
-			.submit_payload(payload)
-			.await?
-			.wait_in_block()
+			.submit_with(self.signer.clone())
+			.submit(&call.pallet, &call.function, call.args)
 			.await
 	}
 
-	pub async fn submit_update_registry_info_from_view(
+	pub async fn submit_restore_registry(
 		&self,
 		registry: Ss58Identifier,
-		info: origin_primitives::element::ElementView,
-	) -> Result<TxOutcome, OriginSdkError> {
-		let elem = crate::schema::registry::element_from_view(&info)?;
-		let payload = crate::extrinsic::calls::registry::update_info_from_input(
-			&self.client.metadata(),
-			registry.as_ref(),
-			&elem,
-		)?;
+	) -> Result<TxHandle, OriginSdkError> {
+		let call = self.restore_registry(registry);
 		self.client
-			.tx_with(self.signer.clone())
-			.submit_payload(payload)
-			.await?
-			.wait_in_block()
+			.submit_with(self.signer.clone())
+			.submit(&call.pallet, &call.function, call.args)
+			.await
+	}
+
+	pub async fn submit_delete_registry(
+		&self,
+		registry: Ss58Identifier,
+	) -> Result<TxHandle, OriginSdkError> {
+		let call = self.delete_registry(registry);
+		self.client
+			.submit_with(self.signer.clone())
+			.submit(&call.pallet, &call.function, call.args)
 			.await
 	}
 }

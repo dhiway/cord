@@ -31,12 +31,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	env_logger::init();
 	let args = Args::parse();
 	let data_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(&args.data);
-	let data: Json = serde_json::from_str(&fs::read_to_string(&data_path)?)?;
-	let reg_data = data.get("registry").ok_or("registry missing")?;
-	let pkt_data = data.get("packet").ok_or("packet missing")?;
+let data: Json = serde_json::from_str(&fs::read_to_string(&data_path)?)?;
+let reg_data = data.get("registry").ok_or("registry missing")?;
+let pkt_data = data.get("packet").ok_or("packet missing")?;
 
-	let signer = MultiKeySigner::from_seed(&args.seed)?;
-	let client = OriginClient::connect(&args.endpoint).await?.with_signer(signer.clone());
+let signer = MultiKeySigner::from_seed(&args.seed)?;
+let client = OriginClient::connect(&args.endpoint).await?;
 
 	// Resolve or create entity for controller
 	let entity_id = ensure_entity(&client, &signer, args.meta).await?;
@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	println!("Packet issued, tx hash {:?}", pkt_hash);
 
 	// Fetch overview
-	let overview = client.view()?.registry().overview(registry_id).await?;
+	let overview = client.query().using(signer.clone()).registry().overview(registry_id).await?;
 	println!("Registry overview: {:?}", overview);
 	Ok(())
 }
@@ -64,7 +64,9 @@ async fn ensure_entity(
 ) -> Result<Ss58Identifier, Box<dyn std::error::Error>> {
 	let account = signer.account_id();
 	let acct32 = AccountId32::from(<[u8; 32]>::from(account));
-	if let Some(id) = client.view()?.entity().account_token(acct32.clone()).await? {
+	if let Some(id) =
+		client.query().using(signer.clone()).entity().account_token(acct32.clone()).await?
+	{
 		return Ok(id);
 	}
 	let nested = schema::entity::EntityNestedValue {
@@ -73,13 +75,16 @@ async fn ensure_entity(
 		email: origin_primitives::element::ElementView::None,
 		attributes: None,
 	};
-	client
-		.tx_api_with(signer.clone())
+	let handle = client
+		.tx()
+		.using(signer.clone())
 		.entity()
 		.submit_set_info_from_nested(&nested)
 		.await?;
+	handle.wait_in_block().await?;
 	let id = client
-		.view()?
+		.query()
+		.using(signer.clone())
 		.entity()
 		.account_token(acct32)
 		.await?
@@ -133,12 +138,13 @@ async fn create_registry(
 	};
 
 	let handle = client
-		.tx_api_with(signer.clone())
+		.tx()
+		.using(signer.clone())
 		.registry()
 		.submit_create_from_nested(b"demo-registry", &nested)
 		.await?;
-
-	let new_id = registry_id_from_events(&handle)?;
+	let outcome = handle.wait_in_block().await?;
+	let new_id = registry_id_from_events(&outcome)?;
 	Ok(new_id.unwrap_or(nested.registry.clone()))
 }
 
@@ -180,10 +186,12 @@ async fn issue_packet(
 	};
 
 	let handle = client
-		.tx_api_with(signer.clone())
+		.tx()
+		.using(signer.clone())
 		.registry()
 		.submit_packet_from_nested(registry.clone(), &nested)
 		.await?;
+	handle.wait_in_block().await?;
 	Ok(handle.hash)
 }
 
@@ -208,8 +216,9 @@ fn json_to_view(
 	use origin_primitives::element::ElementView::*;
 	Ok(match kind {
 		origin_primitives::element::ElementType::None => None,
-		origin_primitives::element::ElementType::Raw =>
-			Raw(serde_json::to_vec(val).map_err(|e| OriginSdkError::InvalidInput(e.to_string()))?),
+		origin_primitives::element::ElementType::Raw => {
+			Raw(serde_json::to_vec(val).map_err(|e| OriginSdkError::InvalidInput(e.to_string()))?)
+		},
 		origin_primitives::element::ElementType::Bool => Bool(val.as_bool().unwrap_or(false)),
 		origin_primitives::element::ElementType::U64 => U64(val.as_u64().unwrap_or_default()),
 		origin_primitives::element::ElementType::U128 => {

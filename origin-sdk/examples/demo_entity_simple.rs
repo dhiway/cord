@@ -32,48 +32,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let data: Json = serde_json::from_str(&fs::read_to_string(&data_path)?)?;
 
 	let signer = MultiKeySigner::from_seed(&args.seed)?;
-	let client = OriginClient::connect(&args.endpoint).await?.with_signer(signer.clone());
+	let client = OriginClient::connect(&args.endpoint).await?;
 
 	let account = signer.account_id();
 	let bytes: [u8; 32] = account.clone().into();
 	let account32 = AccountId32::from(bytes);
 
 	let token_opt = client
-		.view()
-		.ok()
-		.and_then(|v| {
-			futures::executor::block_on(async {
-				match v.entity().account_token(account32.clone()).await {
-					Ok(opt) => {
-						println!("view().entity().account_token -> {:?}", opt);
-						opt
-					},
-					Err(e) => {
-						println!("view().entity().account_token error: {e}");
-						None
-					},
-				}
-			})
-		})
-		.or_else(|| {
-			futures::executor::block_on(async {
-				match client
-					.view_with(signer.clone())
-					.entity()
-					.account_token(account32.clone())
-					.await
-				{
-					Ok(opt) => {
-						println!("view_with().entity().account_token -> {:?}", opt);
-						opt
-					},
-					Err(e) => {
-						println!("view_with().entity().account_token error: {e}");
-						None
-					},
-				}
-			})
-		});
+		.query()
+		.using(signer.clone())
+		.entity()
+		.account_token(account32.clone())
+		.await?;
 
 	let entity_id =
 		if let Some(id) = token_opt {
@@ -85,20 +55,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			return Ok(());
 		};
 
-	let overview = client.view()?.entity().overview(entity_id).await?;
+	let overview = client.query().using(signer.clone()).entity().overview(entity_id).await?;
 	println!("Entity overview: {:?}", overview);
 	Ok(())
 }
 
 async fn rotate_some(
 	client: &OriginClient,
-	_signer: &MultiKeySigner,
+	signer: &MultiKeySigner,
 	entity: &Ss58Identifier,
 	data: &Json,
 ) -> Result<(), Box<dyn std::error::Error>> {
 	let attrs = data["attributes"].as_object().ok_or("attributes missing")?;
 	for (k, v) in attrs.iter().take(3) {
-		submit_attr(client, Some(entity), k, v).await?;
+		submit_attr(client, signer, Some(entity), k, v).await?;
 	}
 	Ok(())
 }
@@ -126,7 +96,8 @@ async fn create_entity(
 
 	let nested = EntityNestedValue { display, web, email, attributes: Some(dyn_attrs) };
 	if let Err(e) = client
-		.tx_api_with(signer.clone())
+		.tx()
+		.using(signer.clone())
 		.entity()
 		.submit_set_info_from_nested(&nested)
 		.await
@@ -136,8 +107,12 @@ async fn create_entity(
 		let acct32 = AccountId32::from(<[u8; 32]>::from(account));
 		let msg = e.to_string();
 		if msg.contains("AccountAlreadyLinked") || msg.contains("InvalidFormat") {
-			if let Some(id) =
-				client.view_with(signer.clone()).entity().account_token(acct32).await?
+			if let Some(id) = client
+				.query()
+				.using(signer.clone())
+				.entity()
+				.account_token(acct32)
+				.await?
 			{
 				println!("Entity already exists; skipping create. id={}", id.to_string_lossy());
 				return Ok(id);
@@ -147,7 +122,8 @@ async fn create_entity(
 	}
 
 	let id = client
-		.view()?
+		.query()
+		.using(signer.clone())
 		.entity()
 		.account_token({
 			let b: [u8; 32] = signer.account_id().into();
@@ -158,7 +134,8 @@ async fn create_entity(
 
 	if let Some(nym) = data["nym"].as_str() {
 		client
-			.tx_api_with(signer.clone())
+			.tx()
+			.using(signer.clone())
 			.entity()
 			.submit_set_entity_nym(nym.as_bytes())
 			.await?;
@@ -169,6 +146,7 @@ async fn create_entity(
 
 async fn submit_attr(
 	client: &OriginClient,
+	signer: &MultiKeySigner,
 	entity: Option<&Ss58Identifier>,
 	key: &str,
 	json: &Json,
@@ -179,7 +157,8 @@ async fn submit_attr(
 	let etype = parse_type(val_json.get("type").and_then(Json::as_str).unwrap_or("raw"));
 	let ev = element_view_from_json(etype, val_json.get("value").unwrap_or(val_json))?;
 	let handle = client
-		.tx_api()
+		.tx()
+		.using(signer.clone())
 		.entity()
 		.submit_rotate_attribute_from_view(target.clone(), key.as_bytes(), ev)
 		.await?;

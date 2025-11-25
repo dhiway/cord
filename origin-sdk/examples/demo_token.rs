@@ -22,11 +22,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let token = origin_primitives::Ss58Identifier::try_from(args.token.clone())
 		.map_err(|e| format!("token parse: {e:?}"))?;
 	let signer = MultiKeySigner::from_seed(&args.seed)?;
-	let client = OriginClient::connect(&args.endpoint).await?.with_signer(signer);
+	let client = OriginClient::connect(&args.endpoint).await?;
 
-	let decoded = client.view()?.token().resolve_identifier(token.clone()).await?;
+	let decoded = client
+		.query()
+		.using(signer.clone())
+		.token()
+		.resolve_identifier(token.clone())
+		.await?;
 	println!("Decoded identifier: {:?}", decoded);
-	let timeline = client.view()?.token().timeline(token, None, Some(10)).await?;
+	let timeline = client
+		.query()
+		.using(signer)
+		.token()
+		.timeline(token, None, Some(10))
+		.await?;
 	println!("Token timeline: {:?}", timeline);
 	Ok(())
 }

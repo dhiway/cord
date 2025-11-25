@@ -101,6 +101,6 @@ impl ConnectionBuilder {
 		let connection =
 			Connection::connect(endpoint, self.backoff, self.timeout, self.auto_reconnect).await?;
 		let connection = Arc::new(connection);
-		Ok(super::OriginClient { connection, signer: None })
+		Ok(super::OriginClient { connection })
 	}
 }
