@@ -1,5 +1,4 @@
-use codec::Encode;
-use origin_primitives::{element::ElementView, AttributeValueView, EntityInfoView};
+use origin_primitives::{element::ElementView, AttributeValueView};
 use origin_sdk::schema::entity::to_entity_input;
 
 /// Ensure EntityInfoInput SCALE matches ElementView encoding expectations.

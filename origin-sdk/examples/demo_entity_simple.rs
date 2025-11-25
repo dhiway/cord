@@ -183,7 +183,7 @@ async fn submit_attr(
 		.entity()
 		.submit_rotate_attribute_from_view(target.clone(), key.as_bytes(), ev)
 		.await?;
-	println!("rotate_attribute {:?} in block {:?}", key, handle.block);
+	println!("rotate_attribute {:?} submitted hash {:?}", key, handle.hash);
 	Ok(())
 }
 

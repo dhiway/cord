@@ -23,7 +23,7 @@ use crate::{
 	signature::SignatureVerificationError, Error,
 };
 use alloc::format;
-use codec::Encode;
+use codec::{Decode, Encode};
 use core::sync::atomic::{AtomicU64, Ordering};
 use frame_support::{assert_noop, assert_ok};
 use origin_primitives::{
@@ -42,6 +42,15 @@ use sp_runtime::{
 /// Shortcut to wrap raw bytes into our `Data` type.
 fn plain_data(s: &[u8]) -> Element<MaxRawDataLength> {
 	Element::Raw(s.to_vec().try_into().unwrap())
+}
+
+/// Helper to build bounded attribute keys for tests.
+fn attr_key(s: &[u8]) -> Attribute {
+	s.to_vec().try_into().unwrap()
+}
+
+fn decode_view<T: Decode>(raw: Vec<u8>) -> T {
+	T::decode(&mut &raw[..]).expect("view decode should succeed")
 }
 
 /// Common init helper: register an identity with only `display` set.
@@ -194,7 +203,7 @@ mod add_attributes_tests {
 
 			assert_ok!(Entity::add_attributes(
 				RuntimeOrigin::signed(who.clone()),
-				vec![(b"foo".to_vec(), plain_data(b"v"))]
+				vec![(attr_key(b"foo"), plain_data(b"v"))]
 			));
 
 			let stored = EntityInfoOf::<Test>::get(&token).unwrap();
@@ -212,13 +221,13 @@ mod add_attributes_tests {
 			// first insertion
 			assert_ok!(Entity::add_attributes(
 				RuntimeOrigin::signed(who.clone()),
-				vec![(b"foo".to_vec(), plain_data(b"v1"))]
+				vec![(attr_key(b"foo"), plain_data(b"v1"))]
 			));
 			// duplicate
 			assert_noop!(
 				Entity::add_attributes(
 					RuntimeOrigin::signed(who.clone()),
-					vec![(b"foo".to_vec(), plain_data(b"v2"))]
+					vec![(attr_key(b"foo"), plain_data(b"v2"))]
 				),
 				Error::<Test>::AttributeExists
 			);
@@ -234,7 +243,7 @@ mod add_attributes_tests {
 			// fill to capacity
 			const ATTR_CAP: usize = 32;
 			for i in 0..ATTR_CAP {
-				let key = vec![i as u8];
+				let key = attr_key(&[i as u8]);
 				assert_ok!(Entity::add_attributes(
 					RuntimeOrigin::signed(who.clone()),
 					vec![(key.clone(), plain_data(b"v"))]
@@ -245,7 +254,7 @@ mod add_attributes_tests {
 			assert_noop!(
 				Entity::add_attributes(
 					RuntimeOrigin::signed(who.clone()),
-					vec![(b"overflow".to_vec(), plain_data(b"x"))]
+					vec![(attr_key(b"overflow"), plain_data(b"x"))]
 				),
 				Error::<Test>::TooManyAttributes
 			);
@@ -260,7 +269,7 @@ mod add_attributes_tests {
 			assert_noop!(
 				Entity::add_attributes(
 					RuntimeOrigin::signed(who.clone()),
-					vec![(b"foo".to_vec(), plain_data(b"v"))]
+					vec![(attr_key(b"foo"), plain_data(b"v"))]
 				),
 				Error::<Test>::AccountNotFound
 			);
@@ -278,21 +287,26 @@ mod rotate_attributes_tests {
 			let token = init_with_display(who.clone(), b"orig");
 			assert_ok!(Entity::add_attributes(
 				RuntimeOrigin::signed(who.clone()),
-				vec![(b"custom".to_vec(), plain_data(b"old"))]
+				vec![
+					(attr_key(b"custom"), plain_data(b"old")),
+					(attr_key(b"custom2"), plain_data(b"old2"))
+				]
 			));
 
 			let ops = vec![
-				(b"display".to_vec(), plain_data(b"new-display")),
-				(b"custom".to_vec(), plain_data(b"new-custom")),
+				(attr_key(b"custom"), plain_data(b"new-custom")),
+				(attr_key(b"custom2"), plain_data(b"new-custom2")),
 			];
 			assert_ok!(Entity::rotate_attributes(RuntimeOrigin::signed(who.clone()), ops));
 
 			let stored = EntityInfoOf::<Test>::get(&token).unwrap();
-			assert_eq!(stored.display, plain_data(b"new-display"));
 			let attrs = stored.attributes.unwrap();
 			assert!(attrs
 				.iter()
 				.any(|(k, v)| &k[..] == b"custom" && v == &plain_data(b"new-custom")));
+			assert!(attrs
+				.iter()
+				.any(|(k, v)| &k[..] == b"custom2" && v == &plain_data(b"new-custom2")));
 		});
 	}
 
@@ -301,7 +315,7 @@ mod rotate_attributes_tests {
 		new_test_ext().execute_with(|| {
 			let who = account(10);
 			let _ = init_with_display(who.clone(), b"orig");
-			let ops = vec![(b"missing".to_vec(), plain_data(b"v"))];
+			let ops = vec![(attr_key(b"missing"), plain_data(b"v"))];
 			assert_noop!(
 				Entity::rotate_attributes(RuntimeOrigin::signed(who.clone()), ops),
 				Error::<Test>::AttributeNotFound
@@ -315,8 +329,8 @@ mod rotate_attributes_tests {
 			let who = account(11);
 			let _ = init_with_display(who.clone(), b"orig");
 			let ops = vec![
-				(b"display".to_vec(), plain_data(b"first")),
-				(b"display".to_vec(), plain_data(b"second")),
+				(attr_key(b"dup"), plain_data(b"first")),
+				(attr_key(b"dup"), plain_data(b"second")),
 			];
 			assert_noop!(
 				Entity::rotate_attributes(RuntimeOrigin::signed(who), ops),
@@ -332,7 +346,7 @@ mod rotate_attributes_tests {
 			assert_noop!(
 				Entity::rotate_attributes(
 					RuntimeOrigin::signed(who.clone()),
-					vec![(b"display".to_vec(), plain_data(b"x"))]
+					vec![(attr_key(b"display"), plain_data(b"x"))]
 				),
 				Error::<Test>::AccountNotFound
 			);
@@ -351,11 +365,11 @@ mod remove_attribute_tests {
 
 			assert_ok!(Entity::add_attributes(
 				RuntimeOrigin::signed(who.clone()),
-				vec![(b"rm".to_vec(), plain_data(b"v"))]
+				vec![(attr_key(b"rm"), plain_data(b"v"))]
 			));
 			assert_ok!(Entity::remove_attribute(
 				RuntimeOrigin::signed(who.clone()),
-				b"rm".to_vec()
+				attr_key(b"rm")
 			));
 
 			let stored = EntityInfoOf::<Test>::get(&token).unwrap();
@@ -369,7 +383,7 @@ mod remove_attribute_tests {
 			let who = account(14);
 			let _ = init_with_display(who.clone(), b"x");
 			assert_noop!(
-				Entity::remove_attribute(RuntimeOrigin::signed(who.clone()), b"nope".to_vec()),
+				Entity::remove_attribute(RuntimeOrigin::signed(who.clone()), attr_key(b"nope")),
 				Error::<Test>::AttributeNotFound
 			);
 		});
@@ -381,7 +395,10 @@ mod remove_attribute_tests {
 			let who = account(90);
 			let _ = init_with_display(who.clone(), b"preset");
 			assert_noop!(
-				Entity::remove_attribute(RuntimeOrigin::signed(who.clone()), b"display".to_vec()),
+				Entity::remove_attribute(
+					RuntimeOrigin::signed(who.clone()),
+					attr_key(b"display")
+				),
 				Error::<Test>::ReservedAttribute
 			);
 		});
@@ -399,11 +416,11 @@ mod rotate_attribute_tests {
 
 			assert_ok!(Entity::add_attributes(
 				RuntimeOrigin::signed(who.clone()),
-				vec![(b"rot".to_vec(), plain_data(b"old"))]
+				vec![(attr_key(b"rot"), plain_data(b"old"))]
 			));
 			assert_ok!(Entity::rotate_attribute(
 				RuntimeOrigin::signed(who.clone()),
-				b"rot".to_vec(),
+				attr_key(b"rot"),
 				plain_data(b"new")
 			));
 
@@ -416,7 +433,7 @@ mod rotate_attribute_tests {
 			let hist = EntityPallet::<Test>::attribute_history_plain(&token);
 			assert!(!hist.is_empty());
 			assert_eq!(hist[0].0, b"rot".to_vec());
-			assert_eq!(hist[0].2, b"old".to_vec());
+			assert_eq!(hist[0].2, plain_data(b"old"));
 		});
 	}
 
@@ -428,7 +445,7 @@ mod rotate_attribute_tests {
 			assert_noop!(
 				Entity::rotate_attribute(
 					RuntimeOrigin::signed(who.clone()),
-					b"absent".to_vec(),
+					attr_key(b"absent"),
 					plain_data(b"v")
 				),
 				Error::<Test>::AttributeNotFound
@@ -475,8 +492,10 @@ mod linked_accounts_tests {
 			let linked = LinkedAccounts::<Test>::get(&token);
 			assert_eq!(linked.len(), 1);
 			assert_eq!(linked[0], owner.clone());
-			let view = EntityPallet::<Test>::linked_accounts(authorization(&owner), token.clone())
-				.expect("view");
+			let view_raw =
+				EntityPallet::<Test>::linked_accounts(authorization(&owner), token.clone())
+					.expect("view");
+			let view: Vec<ViewAccount32> = decode_view(view_raw);
 			assert_eq!(view, vec![view_account(&owner)]);
 		});
 	}
@@ -705,17 +724,18 @@ mod view_tests {
 			let token = init_with_display(who.clone(), b"h");
 			assert_ok!(Entity::add_attributes(
 				RuntimeOrigin::signed(who.clone()),
-				vec![(b"rot".to_vec(), plain_data(b"old"))]
+				vec![(attr_key(b"rot"), plain_data(b"old"))]
 			));
 			assert_ok!(Entity::rotate_attribute(
 				RuntimeOrigin::signed(who.clone()),
-				b"rot".to_vec(),
+				attr_key(b"rot"),
 				plain_data(b"new")
 			));
 
 			let auth = authorization(&who);
-			let records = EntityPallet::<Test>::attribute_history(auth.clone(), token.clone())
-				.expect("history");
+			let records_raw =
+				EntityPallet::<Test>::attribute_history(auth.clone(), token.clone()).expect("history");
+			let records: Vec<AttributeHistoryEntryView> = decode_view(records_raw);
 			assert_eq!(records.len(), 1);
 			assert_eq!(records[0].key, b"rot".to_vec());
 
@@ -735,18 +755,19 @@ mod view_tests {
 			let token = init_with_display(who.clone(), b"j");
 			assert_ok!(Entity::add_attributes(
 				RuntimeOrigin::signed(who.clone()),
-				vec![(b"rot".to_vec(), plain_data(b"old"))]
+				vec![(attr_key(b"rot"), plain_data(b"old"))]
 			));
 			assert_ok!(Entity::rotate_attribute(
 				RuntimeOrigin::signed(who.clone()),
-				b"rot".to_vec(),
+				attr_key(b"rot"),
 				plain_data(b"new"),
 			));
 
 			let hist = EntityPallet::<Test>::attribute_history_plain(&token);
 			let auth = authorization(&who);
-			let entries = EntityPallet::<Test>::attribute_history(auth, token.clone())
-				.expect("history entries");
+			let entries_raw =
+				EntityPallet::<Test>::attribute_history(auth, token.clone()).expect("history entries");
+			let entries: Vec<AttributeHistoryEntryView> = decode_view(entries_raw);
 			assert_eq!(entries.len(), hist.len());
 			assert_eq!(entries[0].key, hist[0].0);
 			assert_eq!(entries[0].version, hist[0].1);
@@ -759,7 +780,8 @@ mod view_tests {
 			let who = account(60);
 			let token = init_with_display(who.clone(), b"info-view");
 			let auth = authorization(&who);
-			let view = EntityPallet::<Test>::details(auth, token.clone()).expect("entity details");
+			let view_raw = EntityPallet::<Test>::details(auth, token.clone()).expect("entity details");
+			let view: EntityInfoView = decode_view(view_raw);
 			assert_eq!(view.display, ElementView::from(&plain_data(b"info-view")));
 		});
 	}
@@ -778,18 +800,19 @@ mod view_tests {
 			let resolved_bytes =
 				EntityPallet::<Test>::account_token(authorization(&owner), owner.clone())
 					.expect("account token view");
-			let resolved =
-				Ss58Identifier::try_from(resolved_bytes).expect("valid identifier bytes");
+			let resolved: Ss58Identifier = decode_view(resolved_bytes);
 			assert_eq!(resolved, token);
 
-			let listed =
+			let listed_raw =
 				EntityPallet::<Test>::linked_accounts(authorization(&owner), token.clone())
 					.expect("links");
+			let listed: Vec<ViewAccount32> = decode_view(listed_raw);
 			assert_eq!(listed, vec![view_account(&owner), view_account(&sub)]);
 
-			let controller =
+			let controller_raw =
 				EntityPallet::<Test>::controller_account(authorization(&owner), token.clone())
 					.expect("controller account");
+			let controller: ViewAccount32 = decode_view(controller_raw);
 			assert_eq!(controller, view_account(&owner));
 		});
 	}
@@ -805,27 +828,30 @@ mod view_tests {
 			));
 			assert_ok!(Entity::add_attributes(
 				RuntimeOrigin::signed(who.clone()),
-				vec![(b"rot".to_vec(), plain_data(b"old"))],
+				vec![(attr_key(b"rot"), plain_data(b"old"))],
 			));
 			assert_ok!(Entity::rotate_attribute(
 				RuntimeOrigin::signed(who.clone()),
-				b"rot".to_vec(),
+				attr_key(b"rot"),
 				plain_data(b"new"),
 			));
 
 			let name_bytes =
 				EntityPallet::<Test>::entity_nym(authorization(&who), token.clone()).expect("name");
-			assert!(core::str::from_utf8(&name_bytes).unwrap().ends_with(".nym.org.in"));
+			let decoded_name: Vec<u8> = decode_view(name_bytes);
+			assert!(core::str::from_utf8(&decoded_name).unwrap().ends_with(".nym.org.in"));
 
-			let attr: Attribute = b"rot".to_vec().try_into().unwrap();
-			let version =
+			let attr = attr_key(b"rot");
+			let version_raw =
 				EntityPallet::<Test>::attribute_version(authorization(&who), token.clone(), attr)
 					.expect("attribute version");
+			let version: u64 = decode_view(version_raw);
 			assert_eq!(version, 1);
 
-			let versions =
+			let versions_raw =
 				EntityPallet::<Test>::attribute_versions(authorization(&who), token.clone())
 					.expect("versions");
+			let versions: Vec<(Vec<u8>, u64)> = decode_view(versions_raw);
 			assert_eq!(versions, vec![(b"rot".to_vec(), 1)]);
 		});
 	}
@@ -845,6 +871,7 @@ mod view_tests {
 			let entries =
 				EntityPallet::<Test>::account_history(authorization(&next), token.clone())
 					.expect("history");
+			let entries: Vec<AccountUnbindEntryView<ViewAccount32>> = decode_view(entries);
 			assert_eq!(entries.len(), 1);
 			assert_eq!(entries[0].account, owner.into());
 			assert!(entries[0].block.height > 0);
@@ -894,8 +921,10 @@ mod authorization_flow_tests {
 			let account: AccountId = signer.into_account();
 			let token = init_with_display(account.clone(), b"ed25519");
 			let auth = authorization_with_pair(&account, &pair, 1);
-			let controller = EntityPallet::<Test>::controller_account(auth, token.clone())
-				.expect("ed25519 signature should authorize");
+			let controller_raw =
+				EntityPallet::<Test>::controller_account(auth, token.clone())
+					.expect("ed25519 signature should authorize");
+			let controller: ViewAccount32 = decode_view(controller_raw);
 			assert_eq!(controller, view_account(&account));
 		});
 	}

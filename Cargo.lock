@@ -9051,6 +9051,7 @@ dependencies = [
  "hex",
  "origin-primitives",
  "parity-scale-codec",
+ "proptest",
  "rand 0.8.5",
  "scale-info",
  "scale-value",

@@ -35,7 +35,6 @@ extern crate alloc;
 
 use alloc::{boxed::Box, collections::BTreeSet, fmt::Debug, vec::Vec};
 use codec::{Decode, Encode, EncodeLike};
-use core::convert::TryInto;
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
@@ -77,7 +76,7 @@ pub use weights::WeightInfo;
 pub type DataOf<T> = Element<<T as Config>::MaxRawDataLength>;
 pub type UpdateOpOf<T> = <<T as Config>::EntityInfoPacket as PacketInformationProvider>::UpdateOp;
 pub type EntityNym<T> = BoundedVec<u8, <T as Config>::MaxEntityNymLength>;
-pub type AttributeUpdateKeyOpOf<T> = (Vec<u8>, DataOf<T>);
+pub type AttributeUpdateKeyOpOf<T> = (Attribute, DataOf<T>);
 
 /// Authorization payload supplied for entity authorization requests.
 pub type AuthorizationPayloadOf<T> = BoundedVec<u8, <T as Config>::MaxAuthorizationLen>;
@@ -384,6 +383,13 @@ pub mod pallet {
 					);
 					seen.push(raw_key);
 				}
+
+				for (key, _) in attributes.iter() {
+					ensure!(
+						EntityField::from_bytes(key.as_ref()).is_none(),
+						Error::<T>::InvalidAttributeEntry
+					);
+				}
 			}
 
 			for reserved in [&b"display"[..], &b"web"[..], &b"email"[..]] {
@@ -432,18 +438,19 @@ pub mod pallet {
 			let controller = Self::lookup_controller_of(&token)?;
 			ensure!(who == controller, Error::<T>::BadOrigin);
 
-			let parsed: Vec<(Attribute, DataOf<T>)> = ops
-				.into_iter()
-				.map(|(raw_key, val)| {
-					let attr: Attribute =
-						raw_key.try_into().map_err(|_| Error::<T>::InvalidAttributeEntry)?;
-					Ok((attr, val))
-				})
-				.collect::<Result<_, Error<T>>>()?;
+			let parsed: Vec<(Attribute, DataOf<T>)> =
+				ops.iter().map(|(attr, val)| (attr.clone(), val.clone())).collect();
 			let mut seen = BTreeSet::new();
 			for (attr, _) in parsed.iter() {
 				let inserted = seen.insert(attr.clone().into_inner());
 				ensure!(inserted, Error::<T>::DuplicateAttributeKey);
+				ensure!(
+					EntityField::from_bytes(attr.as_slice()).is_none(),
+					Error::<T>::ReservedAttribute
+				);
+			}
+			for (_, val) in parsed.iter() {
+				val.validate().map_err(|_| Error::<T>::InvalidAttributeEntry)?;
 			}
 
 			with_transaction(|| {
@@ -480,25 +487,22 @@ pub mod pallet {
 			let token = Self::lookup_token_of(&who)?;
 			ensure!(who == Self::lookup_controller_of(&token)?, Error::<T>::BadOrigin);
 
-			let parsed: Vec<(Attribute, DataOf<T>)> = ops
-				.iter()
-				.map(|(raw_key, val)| {
-					let key: Attribute = raw_key
-						.clone()
-						.try_into()
-						.map_err(|_| Error::<T>::InvalidAttributeEntry)?;
-					Ok((key, val.clone()))
-				})
-				.collect::<Result<_, Error<T>>>()?;
+			let parsed: Vec<(Attribute, DataOf<T>)> =
+				ops.iter().map(|(key, val)| (key.clone(), val.clone())).collect();
 			let mut seen = BTreeSet::new();
 			for (attr, _) in parsed.iter() {
 				let inserted = seen.insert(attr.clone().into_inner());
 				ensure!(inserted, Error::<T>::DuplicateAttributeKey);
+				ensure!(
+					EntityField::from_bytes(attr.as_slice()).is_none(),
+					Error::<T>::ReservedAttribute
+				);
 			}
 
 			EntityInfoOf::<T>::try_mutate(&token, |maybe_info| -> DispatchResult {
 				let info = maybe_info.as_mut().ok_or(Error::<T>::TokenNotFound)?;
 				for (key, val) in parsed.iter() {
+					val.validate().map_err(|_| Error::<T>::InvalidAttributeEntry)?;
 					info.apply_update(&PacketUpdateOp::AddAttribute(key.clone(), val.clone()))
 						.map_err(|e| match e {
 							PacketUpdateError::AttributeExists => Error::<T>::AttributeExists,
@@ -520,16 +524,15 @@ pub mod pallet {
 
 		#[pallet::call_index(3)]
 		#[pallet::weight(T::WeightInfo::remove_attribute( key.len()  as u32))]
-		#[pallet::feeless_if(|origin: &OriginFor<T>, _key: &Vec<u8>| -> bool {
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _key: &Attribute| -> bool {
 			Pallet::<T>::is_origin_feeless(origin)
 		})]
-		pub fn remove_attribute(origin: OriginFor<T>, key: Vec<u8>) -> DispatchResult {
+		pub fn remove_attribute(origin: OriginFor<T>, key: Attribute) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let token = Self::lookup_token_of(&who)?;
 			ensure!(who == Self::lookup_controller_of(&token)?, Error::<T>::BadOrigin);
 
-			let attr: Attribute =
-				key.clone().try_into().map_err(|_| Error::<T>::InvalidAttributeEntry)?;
+			let attr = key.clone();
 			ensure!(
 				EntityField::from_bytes(attr.as_slice()).is_none(),
 				Error::<T>::ReservedAttribute
@@ -554,20 +557,24 @@ pub mod pallet {
 		/// version, then overwrite. Fails if the key is missing or invalid.
 		#[pallet::call_index(4)]
 		#[pallet::weight(T::WeightInfo::rotate_attribute( key.len() as u32 + val.as_ref().len() as u32))]
-		#[pallet::feeless_if(|origin: &OriginFor<T>, _key: &Vec<u8>, _val: &DataOf<T>| -> bool {
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _key: &Attribute, _val: &DataOf<T>| -> bool {
 			Pallet::<T>::is_origin_feeless(origin)
 		})]
 		pub fn rotate_attribute(
 			origin: OriginFor<T>,
-			key: Vec<u8>,
+			key: Attribute,
 			val: DataOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let token = Self::lookup_token_of(&who)?;
 			ensure!(who == Self::lookup_controller_of(&token)?, Error::<T>::BadOrigin);
 
-			let attr: Attribute =
-				key.clone().try_into().map_err(|_| Error::<T>::InvalidAttributeEntry)?;
+			let attr = key.clone();
+			ensure!(
+				EntityField::from_bytes(attr.as_slice()).is_none(),
+				Error::<T>::ReservedAttribute
+			);
+			val.validate().map_err(|_| Error::<T>::InvalidAttributeEntry)?;
 			Self::do_rotate_attribute(&token, &attr, &val)?;
 			Self::deposit_event(Event::EntityAttributeRotated { who, token, attr });
 
@@ -811,7 +818,7 @@ pub mod pallet {
 			let token =
 				EntityTokenOfAccount::<T>::get(&account).ok_or(AuthorizationError::NotFound)?;
 			ensure!(EntityInfoOf::<T>::contains_key(&token), AuthorizationError::NotFound);
-			Ok(token.as_bytes().to_vec())
+			Self::encode_ok(token)
 		}
 
 		/// All linked accounts for the supplied entity token.
@@ -857,6 +864,8 @@ pub mod pallet {
 			Self::authorize_account_query(&auth)?;
 			EntityNymOf::<T>::get(&token)
 				.map(|name| name.into_inner())
+				.map(Self::encode_ok)
+				.transpose()?
 				.ok_or(AuthorizationError::NotFound)
 		}
 
@@ -883,7 +892,7 @@ pub mod pallet {
 					.map(|(key, version, old, block)| AttributeHistoryEntryView {
 						key,
 						version,
-						old_value: old,
+						old_value: ElementView::from(&old),
 						block: EventBlockView { height: block.height, index: block.index },
 					})
 					.collect();
@@ -936,7 +945,7 @@ pub mod pallet {
 					.map(|(key, version, old, block)| AttributeHistoryEntryView {
 						key,
 						version,
-						old_value: old,
+						old_value: ElementView::from(&old),
 						block: EventBlockView { height: block.height, index: block.index },
 					})
 					.collect();
@@ -962,7 +971,7 @@ pub mod pallet {
 					.map(|(version, old, block)| AttributeHistoryEntryView {
 						key: key_bytes.clone(),
 						version,
-						old_value: old,
+						old_value: ElementView::from(&old),
 						block: EventBlockView { height: block.height, index: block.index },
 					})
 					.collect();
@@ -990,7 +999,7 @@ pub mod pallet {
 			Self::encode_ok(AttributeHistoryEntryView {
 				key: key_bytes,
 				version,
-				old_value: old,
+				old_value: ElementView::from(&old),
 				block: EventBlockView { height: block.height, index: block.index },
 			})
 		}
@@ -1011,10 +1020,10 @@ impl<T: Config> Pallet<T> {
 	/// Raw attribute history entries for all keys.
 	pub fn attribute_history_plain(
 		token: &Ss58Identifier,
-	) -> Vec<(Vec<u8>, u64, Vec<u8>, EventBlock)> {
+	) -> Vec<(Vec<u8>, u64, DataOf<T>, EventBlock)> {
 		AttributeHistoryOf::<T>::iter_prefix(token)
 			.map(|((key, version), (old, block))| {
-				(key.to_vec(), version, old.as_ref().to_vec(), block)
+				(key.to_vec(), version, old, block)
 			})
 			.collect()
 	}
@@ -1023,7 +1032,7 @@ impl<T: Config> Pallet<T> {
 	pub fn attribute_history_for_key_plain(
 		token: &Ss58Identifier,
 		key: &[u8],
-	) -> Vec<(u64, Vec<u8>, EventBlock)> {
+	) -> Vec<(u64, DataOf<T>, EventBlock)> {
 		let key_attr: Attribute = match key.to_vec().try_into() {
 			Ok(attr) => attr,
 			Err(_) => return Vec::new(),
@@ -1031,7 +1040,7 @@ impl<T: Config> Pallet<T> {
 		AttributeHistoryOf::<T>::iter_prefix(token)
 			.filter_map(|((k, version), (old, block))| {
 				if k == key_attr {
-					Some((version, old.as_ref().to_vec(), block))
+					Some((version, old, block))
 				} else {
 					None
 				}
@@ -1044,10 +1053,10 @@ impl<T: Config> Pallet<T> {
 		token: &Ss58Identifier,
 		key: &[u8],
 		version: u64,
-	) -> Option<(Vec<u8>, EventBlock)> {
+	) -> Option<(DataOf<T>, EventBlock)> {
 		let key_attr: Attribute = key.to_vec().try_into().ok()?;
 		AttributeHistoryOf::<T>::get(token, (key_attr, version))
-			.map(|(old, block)| (old.as_ref().to_vec(), block))
+			.map(|(old, block)| (old, block))
 	}
 
 	/// Flatten `EntityInfoPacket` into the pallet-local view.

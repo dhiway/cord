@@ -2,6 +2,7 @@
 
 use crate::types::error::OriginSdkError;
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
+use codec::Decode;
 use origin_primitives::{element::ElementType, ElementView};
 use scale_value::{Composite, Value, ValueDef};
 
@@ -94,4 +95,9 @@ pub fn element_view_to_json(ev: &ElementView) -> serde_json::Value {
 
 fn variant(name: &str, vals: Composite<()>) -> scale_value::Variant<()> {
 	scale_value::Variant { name: name.to_string(), values: vals }
+}
+
+/// Decode SCALE-encoded view bytes into a concrete type.
+pub fn decode_view<T: Decode>(bytes: &[u8]) -> Result<T, codec::Error> {
+	T::decode(&mut &*bytes)
 }

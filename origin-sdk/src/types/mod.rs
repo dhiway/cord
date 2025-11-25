@@ -26,3 +26,14 @@ pub use registry_input::{RegistryAttributeInput, RegistryCreateInput, RegistryLo
 pub use token::{TokenLookupView, TokenTimelineView};
 pub use token_input::TokenAttributeInput;
 pub type ViewValue = subxt::dynamic::DecodedValue;
+
+pub type OriginAccountId = subxt::utils::AccountId32;
+pub type EntityToken = Ss58Identifier;
+pub type EntityNym = Vec<u8>;
+
+pub type EntityInfoViewSdk = EntityInfoView;
+pub type EntityStateViewSdk = EntityStateView;
+pub type EntityOverviewSdk = EntityOverview;
+pub type AccountUnbindEntryViewSdk =
+	origin_primitives::entity::AccountUnbindEntryView<OriginAccountId>;
+pub type AttributeHistoryEntryViewSdk = AttributeHistoryEntryView;

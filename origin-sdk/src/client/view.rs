@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::{connection::Connection, Signer};
 use crate::{
-	types::{auth, error::OriginSdkError},
+	types::{self, auth, error::OriginSdkError},
 	util::retry::RetryPolicy,
 };
 use codec::{Decode, Encode};
@@ -268,10 +268,10 @@ impl EntityViews {
 	/// Return `Ok(None)` when the entity is not found.
 	pub async fn maybe_overview(
 		&self,
-		entity_id: origin_primitives::Ss58Identifier,
-	) -> Result<Option<crate::types::EntityStateView>, OriginSdkError> {
+		entity_id: types::EntityToken,
+	) -> Result<Option<types::EntityStateViewSdk>, OriginSdkError> {
 		self.inner
-			.call_auth_result_maybe::<crate::types::EntityStateView>(
+			.call_auth_result_maybe::<types::EntityStateViewSdk>(
 				"Entity",
 				"overview",
 				vec![entity_id.encode(), Option::<u32>::None.encode()],
@@ -281,10 +281,10 @@ impl EntityViews {
 
 	pub async fn overview(
 		&self,
-		entity_id: origin_primitives::Ss58Identifier,
-	) -> Result<crate::types::EntityStateView, OriginSdkError> {
+		entity_id: types::EntityToken,
+	) -> Result<types::EntityStateViewSdk, OriginSdkError> {
 		self.inner
-			.call_auth_result::<crate::types::EntityStateView>(
+			.call_auth_result::<types::EntityStateViewSdk>(
 				"Entity",
 				"overview",
 				vec![entity_id.encode(), Option::<u32>::None.encode()],
@@ -294,52 +294,32 @@ impl EntityViews {
 
 	pub async fn account_token(
 		&self,
-		account: subxt::utils::AccountId32,
-	) -> Result<Option<origin_primitives::Ss58Identifier>, OriginSdkError> {
-		let res: Option<Vec<u8>> = self
-			.inner
-			.call_auth_result_maybe::<Vec<u8>>("Entity", "account_token", vec![account.encode()])
-			.await?;
-
-		match res {
-			None => Ok(None),
-			Some(raw) => {
-				if let Ok(id) = origin_primitives::Ss58Identifier::try_from(raw.clone()) {
-					return Ok(Some(id));
-				}
-				if let Ok(id) = origin_primitives::Ss58Identifier::decode(&mut &raw[..]) {
-					return Ok(Some(id));
-				}
-				if let Ok(s) = String::from_utf8(raw.clone()) {
-					if let Ok(id) = origin_primitives::Ss58Identifier::try_from(s) {
-						return Ok(Some(id));
-					}
-				}
-				println!("account_token raw bytes hex=0x{}", hex::encode(&raw));
-				Err(OriginSdkError::Decode("account_token decode: unsupported format".into()))
-			},
-		}
+		account: types::OriginAccountId,
+	) -> Result<Option<types::EntityToken>, OriginSdkError> {
+		self.inner
+			.call_auth_result_maybe::<types::EntityToken>(
+				"Entity",
+				"account_token",
+				vec![account.encode()],
+			)
+			.await
 	}
 
 	pub async fn details(
 		&self,
-		entity_id: origin_primitives::Ss58Identifier,
-	) -> Result<crate::types::EntityInfoView, OriginSdkError> {
+		entity_id: types::EntityToken,
+	) -> Result<types::EntityInfoViewSdk, OriginSdkError> {
 		self.inner
-			.call_auth_result::<crate::types::EntityInfoView>(
-				"Entity",
-				"details",
-				vec![entity_id.encode()],
-			)
+			.call_auth_result::<types::EntityInfoViewSdk>("Entity", "details", vec![entity_id.encode()])
 			.await
 	}
 
 	pub async fn maybe_details(
 		&self,
-		entity_id: origin_primitives::Ss58Identifier,
-	) -> Result<Option<crate::types::EntityInfoView>, OriginSdkError> {
+		entity_id: types::EntityToken,
+	) -> Result<Option<types::EntityInfoViewSdk>, OriginSdkError> {
 		self.inner
-			.call_auth_result_maybe::<crate::types::EntityInfoView>(
+			.call_auth_result_maybe::<types::EntityInfoViewSdk>(
 				"Entity",
 				"details",
 				vec![entity_id.encode()],
@@ -349,22 +329,21 @@ impl EntityViews {
 
 	pub async fn nym(
 		&self,
-		entity_id: origin_primitives::Ss58Identifier,
-	) -> Result<Option<Vec<u8>>, OriginSdkError> {
-		let bytes = self.inner.call_bytes("Entity", "entity_nym", vec![entity_id.encode()]).await?;
-		let res: Result<Vec<u8>, AuthorizationError> =
-			Decode::decode(&mut &bytes[..]).map_err(|e| OriginSdkError::Decode(e.to_string()))?;
-		match res {
-			Ok(nym) => Ok(Some(nym)),
-			Err(AuthorizationError::NotFound) => Ok(None),
-			Err(e) => Err(OriginSdkError::View(format!("entity_nym err: {e:?}"))),
-		}
+		entity_id: types::EntityToken,
+	) -> Result<Option<types::EntityNym>, OriginSdkError> {
+		self.inner
+			.call_auth_result_maybe::<types::EntityNym>(
+				"Entity",
+				"entity_nym",
+				vec![entity_id.encode()],
+			)
+			.await
 	}
 
 	pub async fn linked_accounts(
 		&self,
-		entity_id: origin_primitives::Ss58Identifier,
-	) -> Result<Vec<subxt::utils::AccountId32>, OriginSdkError> {
+		entity_id: types::EntityToken,
+	) -> Result<Vec<types::OriginAccountId>, OriginSdkError> {
 		self.inner
 			.call_auth_result("Entity", "linked_accounts", vec![entity_id.encode()])
 			.await
@@ -372,8 +351,8 @@ impl EntityViews {
 
 	pub async fn controller_account(
 		&self,
-		entity_id: origin_primitives::Ss58Identifier,
-	) -> Result<subxt::utils::AccountId32, OriginSdkError> {
+		entity_id: types::EntityToken,
+	) -> Result<types::OriginAccountId, OriginSdkError> {
 		self.inner
 			.call_auth_result("Entity", "controller_account", vec![entity_id.encode()])
 			.await
@@ -381,11 +360,8 @@ impl EntityViews {
 
 	pub async fn account_history(
 		&self,
-		entity_id: origin_primitives::Ss58Identifier,
-	) -> Result<
-		Vec<origin_primitives::entity::AccountUnbindEntryView<subxt::utils::AccountId32>>,
-		OriginSdkError,
-	> {
+		entity_id: types::EntityToken,
+	) -> Result<Vec<types::AccountUnbindEntryViewSdk>, OriginSdkError> {
 		self.inner
 			.call_auth_result("Entity", "account_history", vec![entity_id.encode()])
 			.await
@@ -393,7 +369,7 @@ impl EntityViews {
 
 	pub async fn attribute_version(
 		&self,
-		entity_id: origin_primitives::Ss58Identifier,
+		entity_id: types::EntityToken,
 		key: Vec<u8>,
 	) -> Result<u64, OriginSdkError> {
 		self.inner
@@ -403,7 +379,7 @@ impl EntityViews {
 
 	pub async fn attribute_versions(
 		&self,
-		entity_id: origin_primitives::Ss58Identifier,
+		entity_id: types::EntityToken,
 	) -> Result<Vec<(Vec<u8>, u64)>, OriginSdkError> {
 		self.inner
 			.call_auth_result("Entity", "attribute_versions", vec![entity_id.encode()])
@@ -412,8 +388,8 @@ impl EntityViews {
 
 	pub async fn attribute_history(
 		&self,
-		entity_id: origin_primitives::Ss58Identifier,
-	) -> Result<Vec<origin_primitives::AttributeHistoryEntryView>, OriginSdkError> {
+		entity_id: types::EntityToken,
+	) -> Result<Vec<types::AttributeHistoryEntryViewSdk>, OriginSdkError> {
 		self.inner
 			.call_auth_result("Entity", "attribute_history", vec![entity_id.encode()])
 			.await
@@ -421,9 +397,9 @@ impl EntityViews {
 
 	pub async fn attribute_history_for_key(
 		&self,
-		entity_id: origin_primitives::Ss58Identifier,
+		entity_id: types::EntityToken,
 		key: Vec<u8>,
-	) -> Result<Vec<origin_primitives::AttributeHistoryEntryView>, OriginSdkError> {
+	) -> Result<Vec<types::AttributeHistoryEntryViewSdk>, OriginSdkError> {
 		self.inner
 			.call_auth_result(
 				"Entity",
@@ -435,10 +411,10 @@ impl EntityViews {
 
 	pub async fn attribute_history_entry(
 		&self,
-		entity_id: origin_primitives::Ss58Identifier,
+		entity_id: types::EntityToken,
 		key: Vec<u8>,
 		version: u64,
-	) -> Result<origin_primitives::AttributeHistoryEntryView, OriginSdkError> {
+	) -> Result<types::AttributeHistoryEntryViewSdk, OriginSdkError> {
 		self.inner
 			.call_auth_result(
 				"Entity",
@@ -461,15 +437,12 @@ impl RegistryViews {
 		registry: origin_primitives::Ss58Identifier,
 	) -> Result<Option<crate::types::RegistryStateView>, OriginSdkError> {
 		self.inner
-			.call_auth_result_maybe::<Vec<u8>>("Register", "details", vec![registry.encode()])
+			.call_auth_result_maybe::<crate::types::RegistryStateView>(
+				"Register",
+				"details",
+				vec![registry.encode()],
+			)
 			.await
-			.and_then(|opt| {
-				opt.map(|raw| {
-					crate::types::RegistryStateView::decode(&mut &raw[..])
-						.map_err(|e| OriginSdkError::Decode(e.to_string()))
-				})
-				.transpose()
-			})
 	}
 
 	pub async fn maybe_overview(
@@ -477,15 +450,12 @@ impl RegistryViews {
 		registry: origin_primitives::Ss58Identifier,
 	) -> Result<Option<crate::types::RegistryStateView>, OriginSdkError> {
 		self.inner
-			.call_auth_result_maybe::<Vec<u8>>("Register", "overview", vec![registry.encode()])
+			.call_auth_result_maybe::<crate::types::RegistryStateView>(
+				"Register",
+				"overview",
+				vec![registry.encode()],
+			)
 			.await
-			.and_then(|opt| {
-				opt.map(|raw| {
-					crate::types::RegistryStateView::decode(&mut &raw[..])
-						.map_err(|e| OriginSdkError::Decode(e.to_string()))
-				})
-				.transpose()
-			})
 	}
 
 	pub async fn maybe_attribute(
@@ -494,19 +464,12 @@ impl RegistryViews {
 		key: Vec<u8>,
 	) -> Result<Option<(origin_primitives::element::ElementType, bool)>, OriginSdkError> {
 		self.inner
-			.call_auth_result_maybe::<Vec<u8>>(
+			.call_auth_result_maybe::<(origin_primitives::element::ElementType, bool)>(
 				"Register",
 				"attribute",
 				vec![registry.encode(), key.encode()],
 			)
 			.await
-			.and_then(|opt| {
-				opt.map(|raw| {
-					<(origin_primitives::element::ElementType, bool)>::decode(&mut &raw[..])
-						.map_err(|e| OriginSdkError::Decode(e.to_string()))
-				})
-				.transpose()
-			})
 	}
 
 	pub async fn maybe_packet_metadata(
@@ -622,7 +585,7 @@ impl RegistryViews {
 	pub async fn attributes(
 		&self,
 		registry: origin_primitives::Ss58Identifier,
-	) -> Result<Vec<(Vec<u8>, origin_primitives::element::ElementType, bool)>, OriginSdkError> {
+	) -> Result<Vec<origin_primitives::registry::RegistryAttributeView>, OriginSdkError> {
 		self.inner
 			.call_auth_result("Register", "attributes", vec![registry.encode()])
 			.await
@@ -706,7 +669,7 @@ impl RegistryViews {
 		limit: Option<u32>,
 	) -> Result<
 		(
-			Vec<crate::types::packet::PacketSnapshotInternal>,
+			Vec<crate::types::PacketStateView>,
 			Option<origin_primitives::Ss58Identifier>,
 		),
 		OriginSdkError,
@@ -726,7 +689,7 @@ impl RegistryViews {
 		version: Option<u32>,
 		cursor: Option<Vec<u8>>,
 		limit: Option<u32>,
-	) -> Result<(Vec<crate::types::packet::PacketSnapshotInternal>, Option<Vec<u8>>), OriginSdkError>
+	) -> Result<(Vec<crate::types::PacketStateView>, Option<Vec<u8>>), OriginSdkError>
 	{
 		self.inner
 			.call_auth_result(
@@ -847,7 +810,7 @@ impl TokenViews {
 			.await
 	}
 
-	pub async fn pallet_name(&self, index: u16) -> Result<Vec<u8>, OriginSdkError> {
+	pub async fn pallet_name(&self, index: u16) -> Result<String, OriginSdkError> {
 		self.inner.call_auth_result("Token", "pallet_name", vec![index.encode()]).await
 	}
 

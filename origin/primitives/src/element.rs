@@ -165,6 +165,9 @@ impl<MaxCap: Get<u32>> Elum<MaxCap> {
 	}
 
 	/// Validate internal invariants (e.g., boolean payloads).
+	///
+	/// All `Element` instances persisted on-chain are expected to pass this
+	/// validation step in pallet logic and SDK helpers before storage or submission.
 	pub fn validate(&self) -> Result<(), codec::Error> {
 		match self {
 			Elum::Bool(flag) if *flag > 1 =>

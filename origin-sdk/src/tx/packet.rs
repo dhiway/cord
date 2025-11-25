@@ -31,8 +31,10 @@ impl<'a> PacketTx<'a> {
 		nested: &schema::packet::PacketNestedValue,
 	) -> Result<TxOutcome, OriginSdkError> {
 		let schema_view = self.client.view()?.registry().attributes(registry.clone()).await?;
+		let schema_tuples: Vec<(Vec<u8>, origin_primitives::element::ElementType, bool)> =
+			schema_view.iter().map(|s| (s.key.clone(), s.kind, s.optional)).collect();
 		let flat = crate::schema::packet::flatten_packet(nested)?;
-		validate_packet_against_schema(&flat, &schema_view)?;
+		validate_packet_against_schema(&flat, &schema_tuples)?;
 		let attr_bytes: Vec<(Vec<u8>, Vec<u8>)> =
 			flat.into_iter().map(|(k, v)| (k, v.encode())).collect();
 		let payload =
@@ -197,8 +199,10 @@ impl<'a, S: Signer + Clone + 'static> PacketTxWithSigner<'a, S> {
 			.registry()
 			.attributes(registry.clone())
 			.await?;
+		let schema_tuples: Vec<(Vec<u8>, origin_primitives::element::ElementType, bool)> =
+			schema_view.iter().map(|s| (s.key.clone(), s.kind, s.optional)).collect();
 		let flat = crate::schema::packet::flatten_packet(nested)?;
-		validate_packet_against_schema(&flat, &schema_view)?;
+		validate_packet_against_schema(&flat, &schema_tuples)?;
 		let attr_bytes: Vec<(Vec<u8>, Vec<u8>)> =
 			flat.into_iter().map(|(k, v)| (k, v.encode())).collect();
 		let payload =
@@ -249,14 +253,7 @@ impl<'a, S: Signer + Clone + 'static> PacketTxWithSigner<'a, S> {
 			.registry()
 			.attributes(registry.clone())
 			.await?;
-		let registry_view: Vec<origin_primitives::registry::RegistryAttributeView> = attr_triples
-			.into_iter()
-			.map(|(key, kind, optional)| origin_primitives::registry::RegistryAttributeView {
-				key,
-				kind,
-				optional,
-			})
-			.collect();
+		let registry_view: Vec<origin_primitives::registry::RegistryAttributeView> = attr_triples;
 
 		let metadata = self.client.metadata();
 		let call = packet_calls::issue_call(&metadata, registry, &registry_view, &body)?;
