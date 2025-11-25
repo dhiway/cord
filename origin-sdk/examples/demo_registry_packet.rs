@@ -1,5 +1,6 @@
 //! Registry + Packet demo using signer or meta-tx.
-//! cargo run -p origin-sdk --example demo_registry_packet -- --endpoint ws://localhost:9944 --seed //Alice [--meta]
+//! cargo run -p origin-sdk --example demo_registry_packet -- --endpoint ws://localhost:9944 --seed
+//! //Alice [--meta]
 
 use std::fs;
 
@@ -7,9 +8,7 @@ use clap::Parser;
 use origin_primitives::Ss58Identifier;
 use origin_sdk::{
 	client::{signer::MultiKeySigner, Signer},
-	extrinsic::builder::DynamicCall,
-	extrinsic::calls::packet,
-	OriginClient, OriginSdkError,
+	schema, OriginClient, OriginSdkError,
 };
 use scale_value::Value;
 use serde_json::Value as Json;
@@ -61,19 +60,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn ensure_entity(
 	client: &OriginClient,
 	signer: &MultiKeySigner,
-	meta: bool,
+	_meta: bool,
 ) -> Result<Ss58Identifier, Box<dyn std::error::Error>> {
 	let account = signer.account_id();
 	let acct32 = AccountId32::from(<[u8; 32]>::from(account));
 	if let Some(id) = client.view()?.entity().account_token(acct32.clone()).await? {
 		return Ok(id);
 	}
-	let call = DynamicCall {
-		pallet: "Entity".into(),
-		function: "set_info".into(),
-		args: vec![Value::from_bytes(b"demo-entity")],
+	let nested = schema::entity::EntityNestedValue {
+		display: origin_primitives::element::ElementView::Raw(b"demo-entity".to_vec()),
+		web: origin_primitives::element::ElementView::None,
+		email: origin_primitives::element::ElementView::None,
+		attributes: None,
 	};
-	submit_call(client, signer, meta, call).await?;
+	client
+		.tx_api_with(signer.clone())
+		.entity()
+		.submit_set_info_from_nested(&nested)
+		.await?;
 	let id = client
 		.view()?
 		.entity()
@@ -86,7 +90,7 @@ async fn ensure_entity(
 async fn create_registry(
 	client: &OriginClient,
 	signer: &MultiKeySigner,
-	meta: bool,
+	_meta: bool,
 	reg: &Json,
 	entity: &Ss58Identifier,
 ) -> Result<Ss58Identifier, Box<dyn std::error::Error>> {
@@ -129,10 +133,8 @@ async fn create_registry(
 	};
 
 	let handle = client
-		.query()
-		.using(signer.clone())
+		.tx_api_with(signer.clone())
 		.registry()
-		.tx()
 		.submit_create_from_nested(b"demo-registry", &nested)
 		.await?;
 
@@ -143,7 +145,7 @@ async fn create_registry(
 async fn issue_packet(
 	client: &OriginClient,
 	signer: &MultiKeySigner,
-	meta: bool,
+	_meta: bool,
 	reg: &Json,
 	pkt: &Json,
 	registry: &Ss58Identifier,
@@ -178,10 +180,8 @@ async fn issue_packet(
 	};
 
 	let handle = client
-		.query()
-		.using(signer.clone())
+		.tx_api_with(signer.clone())
 		.registry()
-		.tx()
 		.submit_packet_from_nested(registry.clone(), &nested)
 		.await?;
 	Ok(handle.hash)
@@ -236,27 +236,6 @@ fn json_to_view(
 			Cid(s.as_bytes().to_vec())
 		},
 	})
-}
-
-async fn submit_call(
-	client: &OriginClient,
-	signer: &MultiKeySigner,
-	meta: bool,
-	call: DynamicCall,
-) -> Result<origin_sdk::client::submit::TxOutcome, Box<dyn std::error::Error>> {
-	if meta {
-		let handle = client.metatx_with(signer.clone()).sign_submit_and_wait_checked(call).await?;
-		println!("meta-tx finalized {:?}", handle.block);
-		Ok(handle)
-	} else {
-		let handle = client
-			.tx_with(signer.clone())
-			.submit(&call.pallet, &call.function, call.args.clone())
-			.await?;
-		let outcome = handle.wait_finalized().await?;
-		println!("tx finalized {:?}", outcome.block);
-		Ok(outcome)
-	}
 }
 
 fn parse_type(s: &str) -> origin_primitives::element::ElementType {

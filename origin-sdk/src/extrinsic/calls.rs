@@ -20,10 +20,103 @@ fn ensure_non_empty(name: &str, bytes: &[u8]) -> Result<(), OriginSdkError> {
 
 pub mod entity {
 	use super::*;
-	use crate::types::EntityInfoInput;
-	use crate::util::codec::element_value_from_json;
+	use crate::{types::EntityInfoInput, util::codec::element_value_from_json};
 	use scale_value::{Composite, Value};
 	use serde_json::Value as Json;
+
+	/// Build `Entity::remove_attribute` dynamic payload.
+	pub fn remove_attribute_call(
+		_metadata: &Metadata,
+		token: Ss58Identifier,
+		key: &[u8],
+	) -> Result<DynamicPayload, OriginSdkError> {
+		ensure_non_empty("key", key)?;
+		let args = vec![Value::from_bytes(token.as_ref()), Value::from_bytes(key)];
+		Ok(dynamic::tx("Entity", "remove_attribute", args))
+	}
+
+	/// Build `Entity::set_linked_account`.
+	pub fn set_linked_account_call(
+		_metadata: &Metadata,
+		token: Ss58Identifier,
+		account: subxt::utils::AccountId32,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		let args = vec![Value::from_bytes(token.as_ref()), Value::from_bytes(account.0)];
+		Ok(dynamic::tx("Entity", "set_linked_account", args))
+	}
+
+	/// Build `Entity::revoke_linked_account` (self).
+	pub fn revoke_linked_account_call(
+		_metadata: &Metadata,
+		token: Ss58Identifier,
+		account: subxt::utils::AccountId32,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		let args = vec![Value::from_bytes(token.as_ref()), Value::from_bytes(account.0)];
+		Ok(dynamic::tx("Entity", "revoke_linked_account", args))
+	}
+
+	/// Build `Entity::revoke_linked_account_for` (force origin).
+	pub fn revoke_linked_account_for_call(
+		_metadata: &Metadata,
+		token: Ss58Identifier,
+		account: subxt::utils::AccountId32,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		let args = vec![Value::from_bytes(token.as_ref()), Value::from_bytes(account.0)];
+		Ok(dynamic::tx("Entity", "revoke_linked_account_for", args))
+	}
+
+	/// Build `Entity::rotate_controller`.
+	pub fn rotate_controller_call(
+		_metadata: &Metadata,
+		token: Ss58Identifier,
+		controller: subxt::utils::AccountId32,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		let args = vec![Value::from_bytes(token.as_ref()), Value::from_bytes(controller.0)];
+		Ok(dynamic::tx("Entity", "rotate_controller", args))
+	}
+
+	/// Build `Entity::rotate_controller_for` (force origin).
+	pub fn rotate_controller_for_call(
+		_metadata: &Metadata,
+		token: Ss58Identifier,
+		controller: subxt::utils::AccountId32,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		let args = vec![Value::from_bytes(token.as_ref()), Value::from_bytes(controller.0)];
+		Ok(dynamic::tx("Entity", "rotate_controller_for", args))
+	}
+
+	/// Build `Entity::clear_everything`.
+	pub fn clear_everything_call(
+		_metadata: &Metadata,
+		token: Ss58Identifier,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		Ok(dynamic::tx("Entity", "clear_everything", vec![Value::from_bytes(token.as_ref())]))
+	}
+
+	/// Build `Entity::clear_everything_for` (force origin).
+	pub fn clear_everything_for_call(
+		_metadata: &Metadata,
+		token: Ss58Identifier,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		Ok(dynamic::tx("Entity", "clear_everything_for", vec![Value::from_bytes(token.as_ref())]))
+	}
+
+	/// Build `Entity::set_entity_nym`.
+	pub fn set_entity_nym_call(
+		_metadata: &Metadata,
+		prefix: &[u8],
+	) -> Result<DynamicPayload, OriginSdkError> {
+		ensure_non_empty("prefix", prefix)?;
+		Ok(dynamic::tx("Entity", "set_entity_nym", vec![Value::from_bytes(prefix)]))
+	}
+
+	/// Build `Entity::remove_entity_nym`.
+	pub fn remove_entity_nym_call(
+		_metadata: &Metadata,
+		token: Ss58Identifier,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		Ok(dynamic::tx("Entity", "remove_entity_nym", vec![Value::from_bytes(token.as_ref())]))
+	}
 
 	/// Build `Entity::rotate_attribute` dynamic payload.
 	pub fn rotate_attribute_call(
@@ -130,25 +223,19 @@ pub mod entity {
 		use origin_primitives::element::Elum::*;
 		match elem {
 			None => Value::variant("None", Composite::unnamed(vec![])),
-			Raw(bv) => {
-				Value::variant("Raw", Composite::unnamed(vec![Value::from_bytes(bv.to_vec())]))
-			},
+			Raw(bv) =>
+				Value::variant("Raw", Composite::unnamed(vec![Value::from_bytes(bv.to_vec())])),
 			Bool(b) => Value::variant("Bool", Composite::unnamed(vec![Value::u128(*b as u128)])),
-			U64(bytes) => {
-				Value::variant("U64", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())]))
-			},
-			U128(bytes) => {
-				Value::variant("U128", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())]))
-			},
-			Hash(bytes) => {
-				Value::variant("Hash", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())]))
-			},
-			Token(id) => {
-				Value::variant("Token", Composite::unnamed(vec![Value::from_bytes(id.as_ref())]))
-			},
-			CID(bv) => {
-				Value::variant("CID", Composite::unnamed(vec![Value::from_bytes(bv.to_vec())]))
-			},
+			U64(bytes) =>
+				Value::variant("U64", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())])),
+			U128(bytes) =>
+				Value::variant("U128", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())])),
+			Hash(bytes) =>
+				Value::variant("Hash", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())])),
+			Token(id) =>
+				Value::variant("Token", Composite::unnamed(vec![Value::from_bytes(id.as_ref())])),
+			CID(bv) =>
+				Value::variant("CID", Composite::unnamed(vec![Value::from_bytes(bv.to_vec())])),
 		}
 	}
 
@@ -170,7 +257,8 @@ pub mod entity {
 		}
 	}
 
-	/// Build dynamic Value representing EntityInfoInput (struct order: display, web, email, attributes).
+	/// Build dynamic Value representing EntityInfoInput (struct order: display, web, email,
+	/// attributes).
 	fn entity_info_value(info: &EntityInfoInput) -> Value {
 		Value::unnamed_composite(vec![
 			element_to_value(&info.display),
@@ -237,19 +325,33 @@ pub mod registry {
 		];
 		Ok(dynamic::tx("Register", "create_registry", args))
 	}
+
+	/// Build `Register::update_registry_info` from typed Element input.
+	pub fn update_info_from_input(
+		_metadata: &Metadata,
+		registry: &[u8],
+		info: &crate::types::registry_input::RegistryInfoInput,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		ensure_non_empty("registry", registry)?;
+		let args = vec![Value::from_bytes(registry), Value::from_bytes(&info.encode())];
+		Ok(dynamic::tx("Register", "update_registry_info", args))
+	}
 }
 
 pub mod packet {
 	use super::*;
-	use crate::types::packet::{MaxAdditionalAttributes, MaxRawDataLength, PacketElement};
-	use crate::types::packet_input::PacketAttributesInput;
+	use crate::types::{
+		packet::{MaxAdditionalAttributes, MaxRawDataLength, PacketElement},
+		packet_input::PacketAttributesInput,
+	};
 	use frame_support::BoundedVec;
-	use origin_primitives::attribute::Attribute;
-	use origin_primitives::element::ElementType;
-	use origin_primitives::registry::RegistryAttributeView;
+	use origin_primitives::{
+		attribute::Attribute, element::ElementType, registry::RegistryAttributeView,
+	};
 	use serde_json::Value as Json;
 
-	/// Validate packet body shape against a registry schema (placeholder) and build `create_packet`.
+	/// Validate packet body shape against a registry schema (placeholder) and build
+	/// `create_packet`.
 	pub fn issue_call(
 		_metadata: &Metadata,
 		registry_id: Ss58Identifier,
@@ -298,6 +400,69 @@ pub mod packet {
 		Ok(dynamic::tx("Register", "create_packet", args))
 	}
 
+	/// Build `Register::update_packet` from typed attributes.
+	pub fn update_from_input(
+		_metadata: &Metadata,
+		registry_id: Ss58Identifier,
+		packet_id: Ss58Identifier,
+		attributes: &PacketAttributesInput,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		let args = vec![
+			Value::from_bytes(registry_id.as_ref()),
+			Value::from_bytes(packet_id.as_ref()),
+			Value::from_bytes(&attributes.encode()),
+		];
+		Ok(dynamic::tx("Register", "update_packet", args))
+	}
+
+	/// Build `Register::revoke_packet`.
+	pub fn revoke_call(
+		_metadata: &Metadata,
+		registry_id: Ss58Identifier,
+		packet_id: Ss58Identifier,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		let args =
+			vec![Value::from_bytes(registry_id.as_ref()), Value::from_bytes(packet_id.as_ref())];
+		Ok(dynamic::tx("Register", "revoke_packet", args))
+	}
+
+	/// Build `Register::restore_packet`.
+	pub fn restore_call(
+		_metadata: &Metadata,
+		registry_id: Ss58Identifier,
+		packet_id: Ss58Identifier,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		let args =
+			vec![Value::from_bytes(registry_id.as_ref()), Value::from_bytes(packet_id.as_ref())];
+		Ok(dynamic::tx("Register", "restore_packet", args))
+	}
+
+	/// Build `Register::delete_packet`.
+	pub fn delete_call(
+		_metadata: &Metadata,
+		registry_id: Ss58Identifier,
+		packet_id: Ss58Identifier,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		let args =
+			vec![Value::from_bytes(registry_id.as_ref()), Value::from_bytes(packet_id.as_ref())];
+		Ok(dynamic::tx("Register", "delete_packet", args))
+	}
+
+	/// Build `Register::set_packet_status`.
+	pub fn set_status_call(
+		_metadata: &Metadata,
+		registry_id: Ss58Identifier,
+		packet_id: Ss58Identifier,
+		status: origin_primitives::packet::PacketStatus,
+	) -> Result<DynamicPayload, OriginSdkError> {
+		let args = vec![
+			Value::from_bytes(registry_id.as_ref()),
+			Value::from_bytes(packet_id.as_ref()),
+			Value::from_bytes(&status.encode()),
+		];
+		Ok(dynamic::tx("Register", "set_packet_status", args))
+	}
+
 	/// Minimal type validation for JSON values against ElementType.
 	fn validate_element_type(
 		key: &str,
@@ -306,30 +471,26 @@ pub mod packet {
 	) -> Result<(), OriginSdkError> {
 		match expected {
 			origin_primitives::element::ElementType::Raw => {
-				if !value.is_string()
-					&& !value.is_number()
-					&& !value.is_boolean()
-					&& !value.is_array()
+				if !value.is_string() &&
+					!value.is_number() &&
+					!value.is_boolean() &&
+					!value.is_array()
 				{
 					return Err(OriginSdkError::Schema(format!(
 						"{key}: expected raw/json, got {value}"
 					)));
 				}
 			},
-			origin_primitives::element::ElementType::Bool => {
+			origin_primitives::element::ElementType::Bool =>
 				if !value.is_boolean() {
 					return Err(OriginSdkError::Schema(format!(
 						"{key}: expected bool, got {value}"
 					)));
-				}
-			},
-			origin_primitives::element::ElementType::U64 => {
+				},
+			origin_primitives::element::ElementType::U64 =>
 				if !(value.is_u64() || value.is_i64()) {
-					return Err(OriginSdkError::Schema(format!(
-						"{key}: expected u64, got {value}"
-					)));
-				}
-			},
+					return Err(OriginSdkError::Schema(format!("{key}: expected u64, got {value}")));
+				},
 			origin_primitives::element::ElementType::U128 => {
 				if let Some(n) = value.as_u64() {
 					let _ = n; // always fits in u128
@@ -342,7 +503,7 @@ pub mod packet {
 					)));
 				}
 			},
-			origin_primitives::element::ElementType::Hash => {
+			origin_primitives::element::ElementType::Hash =>
 				if let Some(s) = value.as_str() {
 					if s.len() % 2 != 0 {
 						return Err(OriginSdkError::Schema(format!(
@@ -355,9 +516,8 @@ pub mod packet {
 					return Err(OriginSdkError::Schema(format!(
 						"{key}: expected hex string, got {value}"
 					)));
-				}
-			},
-			origin_primitives::element::ElementType::Token => {
+				},
+			origin_primitives::element::ElementType::Token =>
 				if let Some(s) = value.as_str() {
 					origin_primitives::Ss58Identifier::try_from(s.to_string()).map_err(|e| {
 						OriginSdkError::Schema(format!("{key}: invalid ss58: {e:?}"))
@@ -366,9 +526,8 @@ pub mod packet {
 					return Err(OriginSdkError::Schema(format!(
 						"{key}: expected ss58 string, got {value}"
 					)));
-				}
-			},
-			origin_primitives::element::ElementType::Cid => {
+				},
+			origin_primitives::element::ElementType::Cid =>
 				if let Some(s) = value.as_str() {
 					if s.len() < 8 || s.len() > 128 {
 						return Err(OriginSdkError::Schema(format!(
@@ -384,8 +543,7 @@ pub mod packet {
 					return Err(OriginSdkError::Schema(format!(
 						"{key}: expected CID string, got {value}"
 					)));
-				}
-			},
+				},
 			origin_primitives::element::ElementType::None => {},
 		}
 		Ok(())

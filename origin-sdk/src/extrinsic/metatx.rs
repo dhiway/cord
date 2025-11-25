@@ -188,9 +188,8 @@ impl MetaTxClient {
 			if let Some(first) = ev.fields.get(0) {
 				match decode_dispatch_result(first) {
 					Ok(true) => {},
-					Ok(false) => {
-						return Err(OriginSdkError::MetaTx("meta-tx dispatched with error".into()))
-					},
+					Ok(false) =>
+						return Err(OriginSdkError::MetaTx("meta-tx dispatched with error".into())),
 					Err(e) => return Err(OriginSdkError::MetaTx(format!("meta-tx decode: {e}"))),
 				}
 			}

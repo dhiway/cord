@@ -122,6 +122,19 @@ impl OriginClient {
 		DynamicCallBuilder::new()
 	}
 
+	/// Typed tx facade grouped by pallet (does not replace `tx()` submit client).
+	pub fn tx_api(&self) -> crate::tx::Tx<'_> {
+		crate::tx::Tx::new(self)
+	}
+
+	/// Typed tx facade with an explicit signer (mirrors `tx_with`).
+	pub fn tx_api_with<S>(&self, signer: S) -> crate::tx::TxWithSigner<'_, S>
+	where
+		S: Signer + Clone + 'static,
+	{
+		crate::tx::TxWithSigner::new(self, signer)
+	}
+
 	/// Event subscription helpers.
 	pub fn events(&self) -> events::EventClient {
 		events::EventClient::new(self.connection.clone())

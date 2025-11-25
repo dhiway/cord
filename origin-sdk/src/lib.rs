@@ -8,6 +8,7 @@ pub mod config;
 pub mod extrinsic;
 pub mod query;
 pub mod schema;
+pub mod tx;
 pub mod types;
 pub mod util;
 
@@ -17,6 +18,7 @@ pub use types::error::OriginSdkError;
 /// Convenient re-exports for application crates.
 pub mod prelude {
 	pub use crate::{
-		client::OriginClient, config::OriginConfig, query::Query, types::error::OriginSdkError,
+		client::OriginClient, config::OriginConfig, query::Query, tx::Tx,
+		types::error::OriginSdkError,
 	};
 }

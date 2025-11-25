@@ -11,8 +11,7 @@ use crate::{
 	},
 	types::error::OriginSdkError,
 };
-use std::collections::HashMap;
-use std::sync::Arc as StdArc;
+use std::{collections::HashMap, sync::Arc as StdArc};
 use subxt::dynamic;
 use tokio::sync::{oneshot, Mutex};
 
@@ -58,12 +57,10 @@ where
 	for ev in events.iter() {
 		if let Ok(ev) = ev {
 			let fields = ev.field_values().map_or(Vec::new(), |comp| match comp {
-				scale_value::Composite::Named(v) => {
-					v.into_iter().map(|(_, val)| val.remove_context()).collect()
-				},
-				scale_value::Composite::Unnamed(v) => {
-					v.into_iter().map(|val| val.remove_context()).collect()
-				},
+				scale_value::Composite::Named(v) =>
+					v.into_iter().map(|(_, val)| val.remove_context()).collect(),
+				scale_value::Composite::Unnamed(v) =>
+					v.into_iter().map(|val| val.remove_context()).collect(),
 			});
 			envelopes.push(crate::client::events::EventEnvelope {
 				block,

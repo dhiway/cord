@@ -7,8 +7,10 @@ use origin_primitives::{
 	registry::RegistryAttributeView,
 };
 
-use crate::types::error::OriginSdkError;
-use crate::types::packet_input::{MaxRawDataLength, PacketAttributesInput, PacketElementInput};
+use crate::types::{
+	error::OriginSdkError,
+	packet_input::{MaxRawDataLength, PacketAttributesInput, PacketElementInput},
+};
 
 /// Developer-friendly nested packet representation (same shape as view).
 #[derive(Clone, Debug, PartialEq)]
@@ -65,12 +67,11 @@ pub fn validate_and_flatten(
 				out_vec.push((key, val));
 			},
 			(None, true) => {},
-			(None, false) => {
+			(None, false) =>
 				return Err(OriginSdkError::Schema(format!(
 					"missing required attribute '{}'",
 					String::from_utf8_lossy(key_bytes)
-				)))
-			},
+				))),
 		}
 	}
 

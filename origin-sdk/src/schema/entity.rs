@@ -1,6 +1,6 @@
-use crate::types::error::OriginSdkError;
 use crate::types::{
 	entity_input::{build_attributes, ElementInput, MaxRawDataLength},
+	error::OriginSdkError,
 	EntityInfoInput,
 };
 use core::convert::TryFrom;
