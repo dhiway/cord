@@ -3,7 +3,7 @@ pub mod packet;
 pub mod registry;
 pub mod token;
 
-use crate::client::{signer::Signer, OriginClient};
+use crate::client::{signer::OriginSigner, OriginClient};
 
 /// Unified query facade regrouped by pallet.
 pub struct Query<'a> {
@@ -15,34 +15,31 @@ impl<'a> Query<'a> {
 		Self { client }
 	}
 
-	pub fn using<S>(&self, signer: S) -> QueryWithSigner<'a, S>
-	where
-		S: Signer + Clone + 'static,
-	{
+	pub fn using(&self, signer: OriginSigner) -> QueryWithSigner<'a> {
 		QueryWithSigner { client: self.client, signer }
 	}
 }
 
 /// Query facade with an attached signer for view authorization and tx shortcuts.
-pub struct QueryWithSigner<'a, S: Signer + Clone + 'static> {
+pub struct QueryWithSigner<'a> {
 	client: &'a OriginClient,
-	signer: S,
+	signer: OriginSigner,
 }
 
-impl<'a, S: Signer + Clone + 'static> QueryWithSigner<'a, S> {
-	pub fn entity(&self) -> entity::EntityClientWithSigner<'a, S> {
+impl<'a> QueryWithSigner<'a> {
+	pub fn entity(&self) -> entity::EntityClientWithSigner<'a> {
 		entity::EntityClientWithSigner::new(self.client, self.signer.clone())
 	}
 
-	pub fn registry(&self) -> registry::RegistryClientWithSigner<'a, S> {
+	pub fn registry(&self) -> registry::RegistryClientWithSigner<'a> {
 		registry::RegistryClientWithSigner::new(self.client, self.signer.clone())
 	}
 
-	pub fn packet(&self) -> packet::PacketClientWithSigner<'a, S> {
+	pub fn packet(&self) -> packet::PacketClientWithSigner<'a> {
 		packet::PacketClientWithSigner::new(self.client, self.signer.clone())
 	}
 
-	pub fn token(&self) -> token::TokenClientWithSigner<'a, S> {
+	pub fn token(&self) -> token::TokenClientWithSigner<'a> {
 		token::TokenClientWithSigner::new(self.client, self.signer.clone())
 	}
 }

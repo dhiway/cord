@@ -1,3 +1,4 @@
+pub mod account;
 pub mod auth;
 pub mod core;
 pub mod entity;
@@ -11,6 +12,10 @@ pub mod registry_input;
 pub mod token;
 pub mod token_input;
 
+pub use account::{
+	account_id_from_subxt, account_id_to_ss58, account_id_to_ss58_subxt, origin_ss58_format,
+	ss58_to_account_id, AccountError, CryptoScheme, OriginAccount, OriginPair, ORIGIN_SS58_PREFIX,
+};
 pub use entity::{
 	AccountUnbindEntryViewSdk, AttributeHistoryEntryViewSdk, EntityInfoViewSdk, EntityOverviewSdk,
 	EntityStateViewSdk, EventBlockView,

@@ -3,6 +3,8 @@ use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{traits::IdentifyAccount, MultiSignature, MultiSigner};
 use tokio::task;
 
+use crate::types::{OriginAccount, OriginPair};
+
 /// Generic signing interface for Origin SDK (async to allow HSM/wallet flows).
 #[async_trait]
 pub trait Signer: Send + Sync + 'static {
@@ -53,6 +55,15 @@ impl MultiKeySigner {
 				.map(Self::Ecdsa)
 				.map_err(|e| format!("invalid seed: {e}")),
 			other => Err(format!("unsupported key scheme '{other}'")),
+		}
+	}
+
+	/// Build from an OriginAccount (covers all supported schemes).
+	pub fn from_origin_account(acc: &OriginAccount) -> Result<Self, String> {
+		match acc.pair() {
+			OriginPair::Sr25519(p) => Ok(Self::Sr25519(p.clone())),
+			OriginPair::Ed25519(p) => Ok(Self::Ed25519(p.clone())),
+			OriginPair::Ecdsa(p) => Ok(Self::Ecdsa(p.clone())),
 		}
 	}
 
@@ -126,5 +137,37 @@ impl subxt::tx::Signer<crate::client::OriginConfig> for SubxtSignerAdapter {
 			handle.block_on(inner.sign_payload(payload))
 		});
 		sig
+	}
+}
+
+/// Preferred signer for SDK users; wraps MultiKeySigner and is buildable from OriginAccount.
+#[derive(Clone)]
+pub struct OriginSigner(MultiKeySigner);
+
+impl OriginSigner {
+	pub fn from_account(acc: &OriginAccount) -> Result<Self, String> {
+		MultiKeySigner::from_origin_account(acc).map(Self)
+	}
+
+	pub fn account_id(&self) -> origin_primitives::AccountId {
+		self.0.account_id()
+	}
+}
+
+impl TryFrom<&OriginAccount> for OriginSigner {
+	type Error = String;
+	fn try_from(value: &OriginAccount) -> Result<Self, Self::Error> {
+		OriginSigner::from_account(value)
+	}
+}
+
+#[async_trait]
+impl Signer for OriginSigner {
+	fn account_id(&self) -> origin_primitives::AccountId {
+		self.0.account_id()
+	}
+
+	async fn sign_payload(&self, payload: &[u8]) -> MultiSignature {
+		self.0.sign_payload(payload).await
 	}
 }

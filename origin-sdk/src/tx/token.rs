@@ -1,18 +1,18 @@
 use crate::{
-	client::{signer::Signer, submit::TxHandle, OriginClient},
+	client::{signer::OriginSigner, submit::TxHandle, OriginClient},
 	extrinsic::calls::token,
 	types::{error::OriginSdkError, token_input::TokenAttributeInput},
 };
 use codec::Encode;
 use origin_primitives::Ss58Identifier;
 
-pub struct TokenTx<'a, S: Signer + Clone + 'static> {
+pub struct TokenTx<'a> {
 	client: &'a OriginClient,
-	signer: S,
+	signer: OriginSigner,
 }
 
-impl<'a, S: Signer + Clone + 'static> TokenTx<'a, S> {
-	pub(crate) fn new(client: &'a OriginClient, signer: S) -> Self {
+impl<'a> TokenTx<'a> {
+	pub(crate) fn new(client: &'a OriginClient, signer: OriginSigner) -> Self {
 		Self { client, signer }
 	}
 

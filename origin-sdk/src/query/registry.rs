@@ -1,5 +1,5 @@
 use crate::{
-	client::{signer::Signer, OriginClient},
+	client::{signer::OriginSigner, OriginClient},
 	types::{
 		error::OriginSdkError, LookupSpecViewSdk, PacketMetadataViewSdk, PacketStateViewSdk,
 		RegistryAttributeViewSdk, RegistryStateViewSdk, RegistryStatus,
@@ -13,13 +13,13 @@ type Auth = origin_primitives::Authorization<
 	origin_primitives::Signature,
 >;
 
-pub struct RegistryClientWithSigner<'a, S: Signer + Clone + 'static> {
+pub struct RegistryClientWithSigner<'a> {
 	client: &'a OriginClient,
-	signer: S,
+	signer: OriginSigner,
 }
 
-impl<'a, S: Signer + Clone + 'static> RegistryClientWithSigner<'a, S> {
-	pub(crate) fn new(client: &'a OriginClient, signer: S) -> Self {
+impl<'a> RegistryClientWithSigner<'a> {
+	pub(crate) fn new(client: &'a OriginClient, signer: OriginSigner) -> Self {
 		Self { client, signer }
 	}
 

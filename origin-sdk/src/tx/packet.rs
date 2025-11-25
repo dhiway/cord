@@ -1,5 +1,5 @@
 use crate::{
-	client::{signer::Signer, submit::TxHandle, OriginClient},
+	client::{signer::OriginSigner, submit::TxHandle, OriginClient},
 	extrinsic::{builder::DynamicCallBuilder, calls::packet as packet_calls},
 	schema,
 	types::error::OriginSdkError,
@@ -8,13 +8,13 @@ use codec::Encode;
 use scale_value::Value;
 use serde_json::Value as JsonValue;
 
-pub struct PacketTx<'a, S: Signer + Clone + 'static> {
+pub struct PacketTx<'a> {
 	client: &'a OriginClient,
-	signer: S,
+	signer: OriginSigner,
 }
 
-impl<'a, S: Signer + Clone + 'static> PacketTx<'a, S> {
-	pub(crate) fn new(client: &'a OriginClient, signer: S) -> Self {
+impl<'a> PacketTx<'a> {
+	pub(crate) fn new(client: &'a OriginClient, signer: OriginSigner) -> Self {
 		Self { client, signer }
 	}
 
