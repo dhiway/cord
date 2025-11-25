@@ -23,7 +23,7 @@ use crate::{Event as EntityEvent, Pallet as EntityPallet};
 use alloc::{vec, vec::Vec};
 use frame_benchmarking::{v2::*, BenchmarkError};
 use frame_system::{Pallet as System, RawOrigin};
-use origin_primitives::packet::Element;
+use origin_primitives::{attribute::Attribute, packet::Element};
 use pallet_token::Token;
 use sp_runtime::traits::Hash;
 
@@ -71,16 +71,18 @@ mod benchmarks {
 		.unwrap();
 		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 
-		// add a user attribute to rotate alongside a reserved key
+		// add user attributes to rotate
+		let k1: Attribute = b"custom".to_vec().try_into().unwrap();
+		let k2: Attribute = b"custom2".to_vec().try_into().unwrap();
 		EntityPallet::<T>::add_attributes(
 			RawOrigin::Signed(caller.clone()).into(),
-			vec![(b"custom".to_vec(), Element::None)],
+			vec![(k1.clone(), Element::None), (k2.clone(), Element::None)],
 		)
 		.unwrap();
 
 		let new_display = Element::Raw(b"disp".to_vec().try_into().unwrap());
 		let new_custom = Element::Raw(b"cust".to_vec().try_into().unwrap());
-		let ops = vec![(b"display".to_vec(), new_display), (b"custom".to_vec(), new_custom)];
+		let ops = vec![(k1.clone(), new_custom), (k2.clone(), new_display)];
 
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), ops.clone());
@@ -89,7 +91,7 @@ mod benchmarks {
 			EntityEvent::<T>::EntityAttributeRotated {
 				who: caller.clone(),
 				token,
-				attr: b"custom".to_vec().try_into().unwrap(),
+				attr: k1,
 			}
 			.into(),
 		);
@@ -107,7 +109,7 @@ mod benchmarks {
 		.unwrap();
 
 		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
-		let key = b"k".to_vec();
+		let key: Attribute = b"k".to_vec().try_into().unwrap();
 		let val = Element::Raw(b"v".to_vec().try_into().unwrap());
 
 		#[extrinsic_call]
@@ -133,12 +135,12 @@ mod benchmarks {
 		// add the attr first
 		EntityPallet::<T>::add_attributes(
 			RawOrigin::Signed(caller.clone()).into(),
-			vec![(b"x".to_vec(), Element::None)],
+			vec![(b"x".to_vec().try_into().unwrap(), Element::None)],
 		)
 		.unwrap();
 
 		#[extrinsic_call]
-		_(RawOrigin::Signed(caller.clone()), b"x".to_vec());
+		_(RawOrigin::Signed(caller.clone()), b"x".to_vec().try_into().unwrap());
 
 		assert_last_event::<T>(
 			EntityEvent::<T>::EntityAttributeRemoved {
@@ -165,13 +167,13 @@ mod benchmarks {
 		// add attribute so rotation can happen
 		EntityPallet::<T>::add_attributes(
 			RawOrigin::Signed(caller.clone()).into(),
-			vec![(b"r".to_vec(), Element::None)],
+			vec![(b"r".to_vec().try_into().unwrap(), Element::None)],
 		)
 		.unwrap();
 
 		let new_val = Element::Raw(b"z".to_vec().try_into().unwrap());
 		#[extrinsic_call]
-		_(RawOrigin::Signed(caller.clone()), b"r".to_vec(), new_val.clone());
+		_(RawOrigin::Signed(caller.clone()), b"r".to_vec().try_into().unwrap(), new_val.clone());
 
 		assert_last_event::<T>(
 			EntityEvent::<T>::EntityAttributeRotated {

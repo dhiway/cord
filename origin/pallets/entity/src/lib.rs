@@ -799,6 +799,21 @@ pub mod pallet {
 	where
 		T::AccountId: Clone + Into<AccountId32>,
 	{
+		/// Does an entity exist for the given token?
+		pub fn exists(auth: AuthorizationOf<T>, token: Ss58Identifier) -> bool {
+			if Self::authorize_account_query(&auth).is_err() {
+				return false;
+			}
+			EntityInfoOf::<T>::contains_key(&token)
+		}
+
+		/// Does an entity exist for this account?
+		pub fn exists_for_account(auth: AuthorizationOf<T>, account: T::AccountId) -> bool {
+			if Self::authorize_account_query(&auth).is_err() {
+				return false;
+			}
+			EntityTokenOfAccount::<T>::contains_key(&account)
+		}
 		/// Return the entity info
 		pub fn details(auth: AuthorizationOf<T>, token: Ss58Identifier) -> Option<EntityInfoView> {
 			Self::authorize_account_query(&auth).ok()?;
@@ -817,27 +832,63 @@ pub mod pallet {
 		}
 
 		/// All linked accounts for the supplied entity token.
-		pub fn linked_accounts(auth: AuthorizationOf<T>, token: Ss58Identifier) -> Option<Vec<u8>> {
+		pub fn linked_accounts(
+			auth: AuthorizationOf<T>,
+			token: Ss58Identifier,
+		) -> Option<Vec<T::AccountId>> {
 			Self::authorize_account_query(&auth).ok()?;
-			Self::encode_ok(LinkedAccounts::<T>::get(&token).into_inner())
+			let linked = LinkedAccounts::<T>::get(&token);
+			Some(linked.into_inner())
+		}
+
+		/// How many linked accounts does this entity token have? (0 on auth failure).
+		pub fn linked_account_count(auth: AuthorizationOf<T>, token: Ss58Identifier) -> u32 {
+			if Self::authorize_account_query(&auth).is_err() {
+				return 0;
+			}
+			LinkedAccounts::<T>::get(&token).len() as u32
+		}
+
+		/// Is this account linked to this entity token?
+		pub fn is_linked_account(
+			auth: AuthorizationOf<T>,
+			token: Ss58Identifier,
+			account: T::AccountId,
+		) -> bool {
+			if Self::authorize_account_query(&auth).is_err() {
+				return false;
+			}
+			LinkedAccounts::<T>::get(&token).iter().any(|a| a == &account)
+		}
+
+		/// Is this account the controller of this entity token?
+		pub fn is_controller(
+			auth: AuthorizationOf<T>,
+			token: Ss58Identifier,
+			account: T::AccountId,
+		) -> bool {
+			if Self::authorize_account_query(&auth).is_err() {
+				return false;
+			}
+			ControllerAccountOf::<T>::get(&token).map(|c| c == account).unwrap_or(false)
 		}
 
 		/// Controller account for the supplied entity token.
 		pub fn controller_account(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_account_query(&auth)?;
-			let acct = ControllerAccountOf::<T>::get(&token).ok_or(AuthorizationError::NotFound)?;
-			Self::encode_ok(acct)
+		) -> Option<T::AccountId> {
+			Self::authorize_account_query(&auth).ok()?;
+			ControllerAccountOf::<T>::get(&token)
 		}
 
 		/// Historical unbind events (account + block) for this token.
 		pub fn account_history(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_account_query(&auth)?;
+		) -> Option<Vec<AccountUnbindEntryView<T::AccountId>>> {
+			Self::authorize_account_query(&auth).ok()?;
+
 			let entries: Vec<AccountUnbindEntryView<T::AccountId>> =
 				AccountUnbindHistory::<T>::iter_prefix(&token)
 					.map(|(account, block)| AccountUnbindEntryView {
@@ -845,20 +896,32 @@ pub mod pallet {
 						block: EventBlockView { height: block.height, index: block.index },
 					})
 					.collect();
-			Self::encode_ok(entries)
+
+			Some(entries)
+		}
+
+		/// Does this token have an entity nym?
+		pub fn has_nym(auth: AuthorizationOf<T>, token: Ss58Identifier) -> bool {
+			if Self::authorize_account_query(&auth).is_err() {
+				return false;
+			}
+			EntityNymOf::<T>::contains_key(&token)
+		}
+
+		/// Reverse lookup: get the entity token for this nym (if any).
+		pub fn token_of_nym(
+			auth: AuthorizationOf<T>,
+			nym_bytes: Vec<u8>,
+		) -> Option<Ss58Identifier> {
+			Self::authorize_account_query(&auth).ok()?;
+			let nym: EntityNym<T> = nym_bytes.try_into().ok()?;
+			EntityNymIndex::<T>::get(&nym)
 		}
 
 		/// Entity nym (e.g. `foo.nym.org.in`) as raw bytes.
-		pub fn entity_nym(
-			auth: AuthorizationOf<T>,
-			token: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_account_query(&auth)?;
-			EntityNymOf::<T>::get(&token)
-				.map(|name| name.into_inner())
-				.map(Self::encode_ok)
-				.transpose()?
-				.ok_or(AuthorizationError::NotFound)
+		pub fn entity_nym(auth: AuthorizationOf<T>, token: Ss58Identifier) -> Option<Vec<u8>> {
+			Self::authorize_account_query(&auth).ok()?;
+			EntityNymOf::<T>::get(&token).map(|name| name.into_inner())
 		}
 
 		/// Composite overview: info, nym, linked accounts, and recent attribute history.
@@ -866,9 +929,11 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 			history_limit: Option<u32>,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_account_query(&auth)?;
-			let info = EntityInfoOf::<T>::get(&token).ok_or(AuthorizationError::NotFound)?;
+		) -> Option<EntityStateView<T::AccountId>> {
+			Self::authorize_account_query(&auth).ok()?;
+
+			// Require entity info to exist; if not, "no such entity" → None
+			let info = EntityInfoOf::<T>::get(&token)?;
 			let entity_info_view = Self::entity_info_view(&info);
 
 			let nym = EntityNymOf::<T>::get(&token).map(|n| n.into_inner());
@@ -894,7 +959,7 @@ pub mod pallet {
 			});
 			history.truncate(hist_len);
 
-			Self::encode_ok(EntityStateView {
+			Some(EntityStateView {
 				info: entity_info_view,
 				nym,
 				linked_accounts: linked_accounts.into_inner(),
@@ -902,34 +967,78 @@ pub mod pallet {
 			})
 		}
 
+		/// List all attribute keys currently set for this entity.
+		pub fn entity_attribute_keys(
+			auth: AuthorizationOf<T>,
+			token: Ss58Identifier,
+		) -> Option<Vec<Vec<u8>>> {
+			Self::authorize_account_query(&auth).ok()?;
+			let info = EntityInfoOf::<T>::get(&token)?;
+
+			let mut keys: Vec<Vec<u8>> = Vec::new();
+			for reserved in [&b"display"[..], &b"web"[..], &b"email"[..]] {
+				let val = info.get_key(reserved);
+				if !val.is_none() {
+					keys.push(reserved.to_vec());
+				}
+			}
+			if let Some(attrs) = info.attributes() {
+				for (k, _) in attrs.iter() {
+					keys.push(k.clone().into_inner());
+				}
+			}
+
+			Some(keys)
+		}
+
+		/// Does this entity currently have a non-empty value for the given attribute key?
+		pub fn has_attribute(
+			auth: AuthorizationOf<T>,
+			token: Ss58Identifier,
+			key: Attribute,
+		) -> bool {
+			if Self::authorize_account_query(&auth).is_err() {
+				return false;
+			}
+			// use the packet's get_key mechanism
+			if let Some(info) = EntityInfoOf::<T>::get(&token) {
+				let val = info.get_key(key.as_slice());
+				!val.is_none()
+			} else {
+				false
+			}
+		}
+
 		/// Current version counter for a specific attribute key.
 		pub fn attribute_version(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 			key: Attribute,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_account_query(&auth)?;
-			Self::encode_ok(AttributeVersionOf::<T>::get(&token, key))
+		) -> Option<u64> {
+			Self::authorize_account_query(&auth).ok()?;
+			Some(AttributeVersionOf::<T>::get(&token, key))
 		}
 
 		/// All attribute versions as (key, version) pairs.
 		pub fn attribute_versions(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_account_query(&auth)?;
+		) -> Option<Vec<(Vec<u8>, u64)>> {
+			Self::authorize_account_query(&auth).ok()?;
+
 			let entries: Vec<(Vec<u8>, u64)> = AttributeVersionOf::<T>::iter_prefix(&token)
 				.map(|(attribute, version)| (attribute.into_inner(), version))
 				.collect();
-			Self::encode_ok(entries)
+
+			Some(entries)
 		}
 
 		/// Full attribute history across all keys.
 		pub fn attribute_history(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_account_query(&auth)?;
+		) -> Option<Vec<AttributeHistoryEntryView>> {
+			Self::authorize_account_query(&auth).ok()?;
 
 			let mut rows: Vec<AttributeHistoryEntryView> =
 				crate::Pallet::<T>::attribute_history_plain(&token)
@@ -945,7 +1054,8 @@ pub mod pallet {
 			rows.sort_by(|a, b| {
 				(b.block.height, b.block.index).cmp(&(a.block.height, a.block.index))
 			});
-			Self::encode_ok(rows)
+
+			Some(rows)
 		}
 
 		/// History for a single attribute key.
@@ -953,8 +1063,9 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 			key: Attribute,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_account_query(&auth)?;
+		) -> Option<Vec<AttributeHistoryEntryView>> {
+			Self::authorize_account_query(&auth).ok()?;
+
 			let key_bytes = key.into_inner();
 
 			let mut rows: Vec<AttributeHistoryEntryView> =
@@ -971,24 +1082,25 @@ pub mod pallet {
 			rows.sort_by(|a, b| {
 				(b.block.height, b.block.index).cmp(&(a.block.height, a.block.index))
 			});
-			Self::encode_ok(rows)
+
+			Some(rows)
 		}
 
 		/// Single history entry for a specific key + version.
-		pub fn attribute_history_entry(
+		pub fn attribute_version_history(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 			key: Attribute,
 			version: u64,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_account_query(&auth)?;
+		) -> Option<AttributeHistoryEntryView> {
+			Self::authorize_account_query(&auth).ok()?;
+
 			let key_bytes = key.into_inner();
 
 			let (old, block) =
-				crate::Pallet::<T>::attribute_history_entry_plain(&token, &key_bytes, version)
-					.ok_or(AuthorizationError::NotFound)?;
+				crate::Pallet::<T>::attribute_history_entry_plain(&token, &key_bytes, version)?;
 
-			Self::encode_ok(AttributeHistoryEntryView {
+			Some(AttributeHistoryEntryView {
 				key: key_bytes,
 				version,
 				old_value: ElementView::from(&old),
@@ -999,11 +1111,6 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	#[inline]
-	fn encode_ok<V: Encode>(value: V) -> Result<Vec<u8>, AuthorizationError> {
-		Ok(value.encode())
-	}
-
 	/// Returns `true` if the supplied origin is signed by an approved feeless account.
 	pub fn is_origin_feeless(origin: &OriginFor<T>) -> bool {
 		origin.caller().as_signed().map(T::Feeless::is_feeless).unwrap_or(false)
@@ -1100,16 +1207,6 @@ impl<T: Config> Pallet<T> {
 	{
 		Self::check_authorization_signature(auth, &auth.account)
 	}
-
-	// fn authorize_account_lookup(
-	// 	auth: &AuthorizationOf<T>,
-	// 	account: &T::AccountId,
-	// ) -> Result<(), AuthorizationError>
-	// where
-	// 	T::AccountId: Clone + Into<AccountId32>,
-	// {
-	// 	Self::check_authorization_signature(auth, account)
-	// }
 
 	fn do_set_linked_account(token: &Ss58Identifier, account: &T::AccountId) -> DispatchResult {
 		ensure!(
