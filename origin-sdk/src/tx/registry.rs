@@ -1,18 +1,18 @@
 use crate::{
-	client::{signer::Signer, submit::TxHandle, OriginClient},
+	client::{signer::OriginSigner, submit::TxHandle, OriginClient},
 	extrinsic::{builder::DynamicCallBuilder, calls::packet as packet_calls},
 	types::error::OriginSdkError,
 };
 use origin_primitives::Ss58Identifier;
 use scale_value::Value;
 
-pub struct RegistryTx<'a, S: Signer + Clone + 'static> {
+pub struct RegistryTx<'a> {
 	client: &'a OriginClient,
-	signer: S,
+	signer: OriginSigner,
 }
 
-impl<'a, S: Signer + Clone + 'static> RegistryTx<'a, S> {
-	pub(crate) fn new(client: &'a OriginClient, signer: S) -> Self {
+impl<'a> RegistryTx<'a> {
+	pub(crate) fn new(client: &'a OriginClient, signer: OriginSigner) -> Self {
 		Self { client, signer }
 	}
 

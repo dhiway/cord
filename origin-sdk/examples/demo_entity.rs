@@ -12,13 +12,14 @@ use codec::Encode;
 use futures::future::join_all;
 use origin_primitives::{element::ElementView, AttributeValueView, Ss58Identifier};
 use origin_sdk::{
-	client::{signer::MultiKeySigner, OriginClient, Signer},
+	client::{signer::OriginSigner, OriginClient},
 	extrinsic::calls::entity::element_to_value,
 	schema::entity::{element_from_view, EntityNestedValue},
-	types::entity_input::ElementInput,
+	types::{entity_input::ElementInput, OriginAccount},
 };
 use rand::{distributions::Alphanumeric, rngs::OsRng, Rng, RngCore};
 use serde_json::Value as Json;
+use sp_core::{crypto::Ss58Codec, sr25519::Public};
 use subxt::utils::AccountId32;
 use tokio::time::sleep;
 
@@ -27,6 +28,7 @@ fn rand_tag(len: usize) -> String {
 		.sample_iter(&Alphanumeric)
 		.take(len)
 		.map(char::from)
+		.map(|c| c.to_ascii_lowercase())
 		.collect()
 }
 
@@ -41,11 +43,23 @@ fn rand_hash32() -> [u8; 32] {
 	h
 }
 
+fn rand_ss58_prefix29() -> String {
+	let mut pk = [0u8; 32];
+	OsRng.fill_bytes(&mut pk);
+	Public::from_raw(pk).to_ss58check_with_version(sp_core::crypto::Ss58AddressFormat::custom(29))
+}
+
+fn rand_public_key() -> String {
+	let mut pk = [0u8; 32];
+	OsRng.fill_bytes(&mut pk);
+	format!("sr25519:{}", hex::encode(pk))
+}
+
 #[derive(Parser, Debug)]
 struct Args {
 	#[clap(long, default_value = "ws://localhost:9910")]
 	endpoint: String,
-	#[clap(long, default_value = "//Bob")]
+	#[clap(long, default_value = "//Dave")]
 	seed: String,
 	#[clap(long, default_value = "examples/data_entity_demo.json")]
 	data: String,
@@ -59,14 +73,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	env_logger::init();
 	let args = Args::parse();
 
-	let signer = MultiKeySigner::from_seed(&args.seed)?;
+	let acct = OriginAccount::from_uri(&args.seed, None).map_err(|e| format!("{e:?}"))?;
+	let signer = OriginSigner::from_account(&acct).map_err(|e| format!("{e:?}"))?;
 	let client = OriginClient::connect(&args.endpoint).await?;
 	let data = load_profile(&args.data)?;
 
 	let account = signer.account_id();
 	let account32 = AccountId32::from(<[u8; 32]>::from(account.clone()));
 
-	println!("🔗 account: {}", account);
+	let account_fmt = origin_sdk::account_id_to_ss58(&account);
+	println!("🔗 account: {}", account_fmt);
 	println!("🔌 endpoint: {}", args.endpoint);
 	println!("🚦 mode: {}", if args.meta { "meta-tx" } else { "direct signer" });
 
@@ -83,7 +99,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	println!("ℹ️ creating entity with info + attrs + nym");
 	let nested = build_nested(&data)?;
 	let (entity, set_info_handle) = create_entity(&client, &signer, &nested, args.meta).await?;
-	show_progress("set_info", set_info_handle).await;
+	show_progress("set_info", set_info_handle.clone()).await;
+
+	// Ensure set_info is in-block before setting nym to avoid lookup race.
+	let _ = set_info_handle.clone().wait_in_block().await?;
 
 	let nym_handle = set_nym(&client, &signer, &data, args.meta).await?;
 	show_progress("set_entity_nym", nym_handle).await;
@@ -101,17 +120,27 @@ fn load_profile(path: &str) -> Result<Json, Box<dyn std::error::Error>> {
 }
 
 fn build_nested(data: &Json) -> Result<EntityNestedValue, Box<dyn std::error::Error>> {
+	let tag8 = rand_tag(8);
 	let display = ElementView::Raw(
-		data.get("display")
-			.and_then(Json::as_str)
-			.unwrap_or("Demo Entity")
-			.as_bytes()
-			.to_vec(),
+		format!("{} {}", data.get("display").and_then(Json::as_str).unwrap_or("Demo Entity"), tag8)
+			.into_bytes(),
 	);
-	let web =
-		ElementView::Raw(data.get("web").and_then(Json::as_str).unwrap_or("").as_bytes().to_vec());
+	let web = ElementView::Raw(
+		format!(
+			"{}/{}",
+			data.get("web").and_then(Json::as_str).unwrap_or("https://example.org"),
+			tag8
+		)
+		.into_bytes(),
+	);
 	let email = ElementView::Raw(
-		data.get("email").and_then(Json::as_str).unwrap_or("").as_bytes().to_vec(),
+		format!(
+			"{}+{}@{}",
+			data.get("email_user").and_then(Json::as_str).unwrap_or("hello"),
+			tag8,
+			data.get("email_domain").and_then(Json::as_str).unwrap_or("example.org")
+		)
+		.into_bytes(),
 	);
 
 	let mut attrs: Vec<AttributeValueView> = Vec::new();
@@ -130,11 +159,8 @@ fn build_nested(data: &Json) -> Result<EntityNestedValue, Box<dyn std::error::Er
 	}
 
 	// Ensure varied Element types with randomised values per run.
-	let rand_tag: String =
-		rand::thread_rng().sample_iter(&Alphanumeric).take(6).map(char::from).collect();
-
-	let rand_phone: String =
-		format!("+1-555-{}-{:04}", rng.gen_range(100..999), rng.gen_range(0..10_000));
+	let rand_tag: String = rand_tag(8);
+	let rand_phone: String = rand_phone();
 
 	// Remove any predefined keys we'll overwrite.
 	let overwrite_keys = [
@@ -156,14 +182,12 @@ fn build_nested(data: &Json) -> Result<EntityNestedValue, Box<dyn std::error::Er
 	// did:cord (Raw)
 	attrs.push(AttributeValueView {
 		key: b"did:cord".to_vec(),
-		value: ElementView::Raw(format!("did:cord:{}", rand_tag).into_bytes()),
+		value: ElementView::Raw(format!("did:cord:{}", rand_ss58_prefix29()).into_bytes()),
 	});
 	// public-key (Raw with random suffix)
-	let mut pk_bytes = [0u8; 16];
-	OsRng.fill_bytes(&mut pk_bytes);
 	attrs.push(AttributeValueView {
 		key: b"public-key".to_vec(),
-		value: ElementView::Raw(format!("ed25519:{}", hex::encode(pk_bytes)).into_bytes()),
+		value: ElementView::Raw(rand_public_key().into_bytes()),
 	});
 	// telephone (Raw)
 	attrs.push(AttributeValueView {
@@ -185,55 +209,59 @@ fn build_nested(data: &Json) -> Result<EntityNestedValue, Box<dyn std::error::Er
 		value: ElementView::U64(rng.gen_range(1_000u64..9_999u64)),
 	});
 
+	// memberships: array of strings (Raw JSON)
+	let memberships = serde_json::to_vec(&vec!["bronze", "silver", "gold"])?;
+	attrs.push(AttributeValueView {
+		key: b"memberships".to_vec(),
+		value: ElementView::Raw(memberships),
+	});
+
 	Ok(EntityNestedValue { display, web, email, attributes: Some(attrs) })
 }
 
 async fn create_entity(
 	client: &OriginClient,
-	signer: &MultiKeySigner,
+	signer: &OriginSigner,
 	nested: &EntityNestedValue,
 	use_meta: bool,
 ) -> Result<(Ss58Identifier, origin_sdk::client::submit::TxHandle), Box<dyn std::error::Error>> {
-	if use_meta {
+	let handle = if use_meta {
 		let info_input = origin_sdk::schema::entity::to_entity_input(nested)?;
 		let call = origin_sdk::extrinsic::builder::DynamicCallBuilder::new().call(
 			"Entity",
 			"set_info",
 			vec![subxt::dynamic::Value::from_bytes(info_input.encode())],
 		);
-		let handle = client.metatx().sign_and_submit(call).await?;
-		handle.clone().wait_in_block().await?;
-		let acct32 = AccountId32::from(<[u8; 32]>::from(signer.account_id()));
-		let entity = client
-			.query()
+		client.metatx().sign_and_submit(call).await?
+	} else {
+		client
+			.tx()
 			.using(signer.clone())
 			.entity()
-			.account_token(acct32)
+			.submit_set_info_from_nested(nested)
 			.await?
-			.ok_or("entity id not found after set_info")?;
-		return Ok((entity, handle));
-	}
+	};
 
-	let handle = client
-		.tx()
-		.using(signer.clone())
-		.entity()
-		.submit_set_info_from_nested(nested)
-		.await?;
+	// Ensure inclusion before querying for the new entity id.
+	handle.clone().wait_in_block().await?;
+
+	// Retry account_token a few times in case of propagation lag.
 	let acct32 = AccountId32::from(<[u8; 32]>::from(signer.account_id()));
-	let entity = client
-		.query()
-		.using(signer.clone())
-		.entity()
-		.account_token(acct32)
-		.await?
-		.ok_or("entity id not found after set_info")?;
+	let mut entity_opt = None;
+	for _ in 0..5 {
+		entity_opt = client.query().using(signer.clone()).entity().account_token(acct32).await?;
+		if entity_opt.is_some() {
+			break;
+		}
+		tokio::time::sleep(Duration::from_millis(200)).await;
+	}
+	let entity = entity_opt.ok_or("entity id not found after set_info")?;
 	Ok((entity, handle))
 }
 
 async fn set_nym(
 	client: &OriginClient,
-	signer: &MultiKeySigner,
+	signer: &OriginSigner,
 	data: &Json,
 	use_meta: bool,
 ) -> Result<origin_sdk::client::submit::TxHandle, Box<dyn std::error::Error>> {
@@ -263,7 +291,7 @@ async fn set_nym(
 
 async fn rotate_attributes(
 	client: &OriginClient,
-	signer: &MultiKeySigner,
+	signer: &OriginSigner,
 	data: &Json,
 	use_meta: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -282,12 +310,10 @@ async fn rotate_attributes(
 	let mut ops_inputs: Vec<(Vec<u8>, ElementInput)> = Vec::new();
 	for key in keys {
 		let ev = match key.as_str() {
-			"public-key" => {
-				let mut pk_bytes = [0u8; 16];
-				OsRng.fill_bytes(&mut pk_bytes);
-				ElementView::Raw(format!("ed25519:{}", hex::encode(pk_bytes)).into_bytes())
+			"public-key" => ElementView::Raw(rand_public_key().into_bytes()),
+			"did:cord" => {
+				ElementView::Raw(format!("did:cord:{}", rand_ss58_prefix29()).into_bytes())
 			},
-			"did:cord" => ElementView::Raw(format!("did:cord:{}", rand_tag(10)).into_bytes()),
 			"telephone" => ElementView::Raw(rand_phone().into_bytes()),
 			"kyc" => ElementView::Hash(rand_hash32()),
 			other => {
@@ -357,7 +383,7 @@ async fn show_progress(label: impl AsRef<str>, handle: origin_sdk::client::submi
 
 async fn show_overview(
 	client: &OriginClient,
-	signer: &MultiKeySigner,
+	signer: &OriginSigner,
 	entity: Ss58Identifier,
 ) -> Result<(), Box<dyn std::error::Error>> {
 	println!("📖 Overview");
@@ -377,7 +403,8 @@ async fn show_overview(
 
 			println!("🔗 Linked  : {} account(s)", state.linked_accounts.len());
 			for (i, acc) in state.linked_accounts.iter().enumerate() {
-				println!("    [{}] {}", i + 1, acc);
+				let acc_fmt = origin_sdk::account_id_to_ss58_subxt(acc);
+				println!("    [{}] {}", i + 1, acc_fmt);
 			}
 
 			if let Some(attrs) = state.info.attributes {

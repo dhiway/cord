@@ -12,8 +12,16 @@ pub mod tx;
 pub mod types;
 pub mod util;
 
+pub use client::signer::OriginSigner;
 pub use client::OriginClient;
-pub use types::error::OriginSdkError;
+pub use types::{
+	account::{
+		account_id_from_subxt, account_id_to_ss58, account_id_to_ss58_subxt, origin_ss58_format,
+		ss58_to_account_id, AccountError, CryptoScheme, OriginAccount, OriginPair,
+		ORIGIN_SS58_PREFIX,
+	},
+	error::OriginSdkError,
+};
 
 /// Convenient re-exports for application crates.
 pub mod prelude {

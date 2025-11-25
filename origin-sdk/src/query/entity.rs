@@ -1,5 +1,5 @@
 use crate::{
-	client::{signer::Signer, OriginClient},
+	client::{signer::OriginSigner, OriginClient},
 	types::{
 		error::OriginSdkError, AccountUnbindEntryViewSdk, AttributeHistoryEntryViewSdk,
 		EntityInfoViewSdk, EntityNym, EntityStateViewSdk, EntityToken, OriginAccountId,
@@ -12,13 +12,13 @@ type Auth = origin_primitives::Authorization<
 	origin_primitives::Signature,
 >;
 
-pub struct EntityClientWithSigner<'a, S: Signer + Clone + 'static> {
+pub struct EntityClientWithSigner<'a> {
 	client: &'a OriginClient,
-	signer: S,
+	signer: OriginSigner,
 }
 
-impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
-	pub(crate) fn new(client: &'a OriginClient, signer: S) -> Self {
+impl<'a> EntityClientWithSigner<'a> {
+	pub(crate) fn new(client: &'a OriginClient, signer: OriginSigner) -> Self {
 		Self { client, signer }
 	}
 

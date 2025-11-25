@@ -1,5 +1,5 @@
 use crate::{
-	client::{signer::Signer, OriginClient},
+	client::{signer::OriginSigner, OriginClient},
 	types::{error::OriginSdkError, TokenLookupView, TokenStateEventViewSdk, TokenTimelineViewSdk},
 };
 use origin_primitives::Ss58Identifier;
@@ -10,13 +10,13 @@ type Auth = origin_primitives::Authorization<
 	origin_primitives::Signature,
 >;
 
-pub struct TokenClientWithSigner<'a, S: Signer + Clone + 'static> {
+pub struct TokenClientWithSigner<'a> {
 	client: &'a OriginClient,
-	signer: S,
+	signer: OriginSigner,
 }
 
-impl<'a, S: Signer + Clone + 'static> TokenClientWithSigner<'a, S> {
-	pub(crate) fn new(client: &'a OriginClient, signer: S) -> Self {
+impl<'a> TokenClientWithSigner<'a> {
+	pub(crate) fn new(client: &'a OriginClient, signer: OriginSigner) -> Self {
 		Self { client, signer }
 	}
 

@@ -15,7 +15,7 @@ use crate::{
 use connection::{Connection, ConnectionBuilder};
 
 pub use events::EventEnvelope;
-pub use signer::Signer;
+pub use signer::{OriginSigner, Signer};
 
 /// High-level entrypoint to interact with Origin nodes.
 #[derive(Clone)]
@@ -72,6 +72,14 @@ impl OriginClient {
 	/// Build meta-transaction flows (requires explicit signer later).
 	pub fn metatx(&self) -> MetaTxClient {
 		MetaTxClient::new(self.connection.clone(), None)
+	}
+
+	/// Convenience: build an OriginSigner from an OriginAccount.
+	pub fn signer_from_account(
+		&self,
+		account: &crate::types::OriginAccount,
+	) -> Result<OriginSigner, String> {
+		signer::OriginSigner::from_account(account)
 	}
 
 	/// Internal helper: build a submit client with a temporary signer.

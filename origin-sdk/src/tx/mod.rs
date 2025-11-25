@@ -3,7 +3,7 @@ pub mod packet;
 pub mod registry;
 pub mod token;
 
-use crate::client::{signer::Signer, OriginClient};
+use crate::client::{signer::OriginSigner, OriginClient};
 
 /// High-level tx facade regrouped by pallet. Uses typed builders and schema transforms.
 pub struct Tx<'a> {
@@ -15,34 +15,31 @@ impl<'a> Tx<'a> {
 		Self { client }
 	}
 
-	pub fn using<S>(&self, signer: S) -> TxWithSigner<'a, S>
-	where
-		S: Signer + Clone + 'static,
-	{
+	pub fn using(&self, signer: OriginSigner) -> TxWithSigner<'a> {
 		TxWithSigner { client: self.client, signer }
 	}
 }
 
 /// Tx facade with signer bound for convenience.
-pub struct TxWithSigner<'a, S: Signer + Clone + 'static> {
+pub struct TxWithSigner<'a> {
 	client: &'a OriginClient,
-	signer: S,
+	signer: OriginSigner,
 }
 
-impl<'a, S: Signer + Clone + 'static> TxWithSigner<'a, S> {
-	pub fn entity(&self) -> entity::EntityTx<'a, S> {
+impl<'a> TxWithSigner<'a> {
+	pub fn entity(&self) -> entity::EntityTx<'a> {
 		entity::EntityTx::new(self.client, self.signer.clone())
 	}
 
-	pub fn registry(&self) -> registry::RegistryTx<'a, S> {
+	pub fn registry(&self) -> registry::RegistryTx<'a> {
 		registry::RegistryTx::new(self.client, self.signer.clone())
 	}
 
-	pub fn packet(&self) -> packet::PacketTx<'a, S> {
+	pub fn packet(&self) -> packet::PacketTx<'a> {
 		packet::PacketTx::new(self.client, self.signer.clone())
 	}
 
-	pub fn token(&self) -> token::TokenTx<'a, S> {
+	pub fn token(&self) -> token::TokenTx<'a> {
 		token::TokenTx::new(self.client, self.signer.clone())
 	}
 
