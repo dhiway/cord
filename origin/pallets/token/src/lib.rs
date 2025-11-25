@@ -270,46 +270,35 @@ pub mod pallet {
 		AccountId32: From<T::AccountId>,
 	{
 		/// Returns the pallet index previously assigned to the provided name.
-		pub fn pallet_index_of(
-			auth: Authorization<T>,
-			name: Vec<u8>,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			let bounded: BoundedVec<u8, ConstU32<64>> =
-				name.try_into().map_err(|_| AuthorizationError::InvalidInput)?;
-			let idx = PalletIndex::<T>::get(&bounded).ok_or(AuthorizationError::NotFound)?;
-			Self::encode_ok(idx)
+		pub fn pallet_index_of(auth: Authorization<T>, name: Vec<u8>) -> Option<u16> {
+			Self::authorize_query(&auth).ok()?;
+			let bounded: BoundedVec<u8, ConstU32<64>> = name.try_into().ok()?;
+			PalletIndex::<T>::get(&bounded)
 		}
 
-		/// Returns the pallet name bytes stored for an index.
-		pub fn pallet_name(
-			auth: Authorization<T>,
-			index: u16,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			let name = Self::resolve_pallet_plain(index)?;
-			Self::encode_ok(name)
-		}
+			/// Returns the pallet name string stored for an index.
+			/// Renamed to avoid clashing with generated types; kept for legacy callers.
+			pub fn pallet_name_view(auth: Authorization<T>, index: u16) -> Option<String> {
+				Self::authorize_query(&auth).ok()?;
+				Self::resolve_pallet_plain(index).ok()
+			}
 
 		/// Returns the next pallet index counter.
-		pub fn next_pallet_index(auth: Authorization<T>) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			Self::encode_ok(NextPalletIndex::<T>::get())
+		pub fn next_pallet_index(auth: Authorization<T>) -> Option<u16> {
+			Self::authorize_query(&auth).ok()?;
+			Some(NextPalletIndex::<T>::get())
 		}
 
 		/// Returns the configured genesis network identifier.
-		pub fn genesis_network_id(auth: Authorization<T>) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			Self::encode_ok(GenesisNetworkId::<T>::get())
+		pub fn genesis_network_id(auth: Authorization<T>) -> Option<u16> {
+			Self::authorize_query(&auth).ok()?;
+			Some(GenesisNetworkId::<T>::get())
 		}
 
 		/// Returns the current state version counter for a token.
-		pub fn state_version(
-			auth: Authorization<T>,
-			token: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			Self::encode_ok(StateVersion::<T>::get(&token))
+		pub fn state_version(auth: Authorization<T>, token: Ss58Identifier) -> Option<u32> {
+			Self::authorize_query(&auth).ok()?;
+			Some(StateVersion::<T>::get(&token))
 		}
 
 		/// Returns a specific state event for a token and version.
@@ -317,43 +306,82 @@ pub mod pallet {
 			auth: Authorization<T>,
 			token: Ss58Identifier,
 			version: u32,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			let view = StateHistory::<T>::get(&token, version)
-				.map(|event| Self::state_event_view(&event))
-				.ok_or(AuthorizationError::NotFound)?;
-			Self::encode_ok(view)
+		) -> Option<TokenStateEventView<HashOf<T>>> {
+			Self::authorize_query(&auth).ok()?;
+			let event = StateHistory::<T>::get(&token, version)?;
+			Some(Self::state_event_view(&event))
 		}
 
+		/// Returns a page of state events for a token, starting from an optional cursor.
 		pub fn timeline(
 			auth: Authorization<T>,
 			token: Ss58Identifier,
 			start: Option<u32>,
 			limit: Option<u32>,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
+		) -> Option<(Vec<TokenStateEventView<HashOf<T>>>, Option<u32>)> {
+			Self::authorize_query(&auth).ok()?;
+
 			let cap = T::MaxTimelineViewResults::get();
 			let def = T::DefaultTimelineViewResults::get();
 			let eff = limit.unwrap_or(def).max(1).min(cap);
+
 			let (events, next_cursor) = Self::timeline_entries(&token, start, eff);
 			let view_events: Vec<_> = events.iter().map(Self::state_event_view).collect();
-			Self::encode_ok((view_events, next_cursor))
+
+			Some((view_events, next_cursor))
 		}
 
+		/// Returns the decoded identifier components for the given token.
 		pub fn resolve_identifier(
 			auth: Authorization<T>,
 			token: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			Self::encode_ok(Self::resolve_identifier_plain(&token)?)
+		) -> Option<DecodedIdentifier> {
+			Self::authorize_query(&auth).ok()?;
+			Self::resolve_identifier_plain(&token).ok()
 		}
 
-		pub fn resolve_pallet(
+		/// Returns the pallet name for the given index.
+		pub fn resolve_pallet(auth: Authorization<T>, index: u16) -> Option<String> {
+			Self::authorize_query(&auth).ok()?;
+			Self::resolve_pallet_plain(index).ok()
+		}
+
+		/// Returns true if the token has at least one recorded state event.
+		pub fn has_history(auth: Authorization<T>, token: Ss58Identifier) -> bool {
+			if Self::authorize_query(&auth).is_err() {
+				return false;
+			}
+			// StateVersion starts at 0 and increments; >= 1 means we have at least one event
+			StateVersion::<T>::get(&token) > 0
+		}
+
+		/// Returns the latest state event for a token, if any.
+		pub fn latest_state_event(
 			auth: Authorization<T>,
-			index: u16,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			Self::encode_ok(Self::resolve_pallet_plain(index)?)
+			token: Ss58Identifier,
+		) -> Option<TokenStateEventView<HashOf<T>>> {
+			Self::authorize_query(&auth).ok()?;
+			let version = StateVersion::<T>::get(&token);
+			if version == 0 {
+				return None;
+			}
+			let last_idx = version.saturating_sub(1);
+			let event = StateHistory::<T>::get(&token, last_idx)?;
+			Some(Self::state_event_view(&event))
+		}
+
+		/// Returns up to `limit` most recent events starting at version 0.
+		pub fn recent_timeline(
+			auth: Authorization<T>,
+			token: Ss58Identifier,
+			limit: Option<u32>,
+		) -> Option<Vec<TokenStateEventView<HashOf<T>>>> {
+			Self::authorize_query(&auth).ok()?;
+			let cap = T::MaxTimelineViewResults::get();
+			let eff = limit.unwrap_or(cap).max(1).min(cap);
+			let (events, _next) = Self::timeline_entries(&token, Some(0), eff);
+			let views = events.iter().map(Self::state_event_view).collect();
+			Some(views)
 		}
 	}
 }
@@ -363,11 +391,6 @@ where
 	T::AccountId: Clone + Into<AccountId32>,
 	AccountId32: From<T::AccountId>,
 {
-	#[inline]
-	fn encode_ok<V: Encode>(value: V) -> Result<Vec<u8>, AuthorizationError> {
-		Ok(value.encode())
-	}
-
 	pub fn get_or_add_pallet_index(pallet_name: &str) -> Result<u16, Error<T>> {
 		let bounded_name: BoundedVec<u8, ConstU32<64>> = pallet_name
 			.as_bytes()
