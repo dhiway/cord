@@ -34,12 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		Some(id) => println!("Decoded identifier: {:?}", id),
 		None => println!("Token not found or unauthorized"),
 	}
-	let timeline = client
-		.query()
-		.using(signer)
-		.token()
-		.timeline(token, None, Some(10))
-		.await?;
+	let timeline = client.query().using(signer).token().timeline(token, None, Some(10)).await?;
 	match timeline {
 		Some(tl) => println!("Token timeline: {:?}", tl),
 		None => println!("No timeline available (not found or unauthorized)"),

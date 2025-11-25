@@ -5,7 +5,6 @@ use crate::{
 		EntityInfoViewSdk, EntityNym, EntityStateViewSdk, EntityToken, OriginAccountId,
 	},
 };
-use codec::Encode;
 
 type Auth = origin_primitives::Authorization<
 	origin_primitives::AccountId,
@@ -37,11 +36,7 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 	) -> Result<Option<EntityStateViewSdk>, OriginSdkError> {
 		let auth = self.auth("overview").await?;
 		self.view()
-			.call(
-				"Entity",
-				"overview",
-				vec![auth.encode(), entity.encode(), Option::<u32>::None.encode()],
-			)
+			.call("Entity", "overview", (auth, entity, Option::<u32>::None))
 			.await
 	}
 
@@ -51,7 +46,7 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		account: OriginAccountId,
 	) -> Result<Option<EntityToken>, OriginSdkError> {
 		let auth = self.auth("account_token").await?;
-		self.view().call("Entity", "account_token", vec![auth.encode(), account.encode()]).await
+		self.view().call("Entity", "account_token", (auth, account)).await
 	}
 
 	/// Overview decoded then expanded to nested representation (attributes + info).
@@ -68,7 +63,7 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		entity: EntityToken,
 	) -> Result<Option<EntityInfoViewSdk>, OriginSdkError> {
 		let auth = self.auth("details").await?;
-		self.view().call("Entity", "details", vec![auth.encode(), entity.encode()]).await
+		self.view().call("Entity", "details", (auth, entity)).await
 	}
 
 	pub async fn details_nested(
@@ -81,7 +76,7 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 
 	pub async fn nym(&self, entity: EntityToken) -> Result<Option<EntityNym>, OriginSdkError> {
 		let auth = self.auth("entity_nym").await?;
-		self.view().call("Entity", "entity_nym", vec![auth.encode(), entity.encode()]).await
+		self.view().call("Entity", "entity_nym", (auth, entity)).await
 	}
 
 	pub async fn linked_accounts(
@@ -89,17 +84,12 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		entity: EntityToken,
 	) -> Result<Option<Vec<OriginAccountId>>, OriginSdkError> {
 		let auth = self.auth("linked_accounts").await?;
-		self.view().call("Entity", "linked_accounts", vec![auth.encode(), entity.encode()]).await
+		self.view().call("Entity", "linked_accounts", (auth, entity)).await
 	}
 
-	pub async fn linked_account_count(
-		&self,
-		entity: EntityToken,
-	) -> Result<u32, OriginSdkError> {
+	pub async fn linked_account_count(&self, entity: EntityToken) -> Result<u32, OriginSdkError> {
 		let auth = self.auth("linked_account_count").await?;
-		self.view()
-			.call("Entity", "linked_account_count", vec![auth.encode(), entity.encode()])
-			.await
+		self.view().call("Entity", "linked_account_count", (auth, entity)).await
 	}
 
 	pub async fn controller_account(
@@ -107,9 +97,7 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		entity: EntityToken,
 	) -> Result<Option<OriginAccountId>, OriginSdkError> {
 		let auth = self.auth("controller_account").await?;
-		self.view()
-			.call("Entity", "controller_account", vec![auth.encode(), entity.encode()])
-			.await
+		self.view().call("Entity", "controller_account", (auth, entity)).await
 	}
 
 	pub async fn is_controller(
@@ -118,9 +106,7 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		account: OriginAccountId,
 	) -> Result<bool, OriginSdkError> {
 		let auth = self.auth("is_controller").await?;
-		self.view()
-			.call("Entity", "is_controller", vec![auth.encode(), entity.encode(), account.encode()])
-			.await
+		self.view().call("Entity", "is_controller", (auth, entity, account)).await
 	}
 
 	pub async fn is_linked_account(
@@ -129,13 +115,7 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		account: OriginAccountId,
 	) -> Result<bool, OriginSdkError> {
 		let auth = self.auth("is_linked_account").await?;
-		self.view()
-			.call(
-				"Entity",
-				"is_linked_account",
-				vec![auth.encode(), entity.encode(), account.encode()],
-			)
-			.await
+		self.view().call("Entity", "is_linked_account", (auth, entity, account)).await
 	}
 
 	pub async fn account_history(
@@ -143,20 +123,17 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		entity: EntityToken,
 	) -> Result<Option<Vec<AccountUnbindEntryViewSdk>>, OriginSdkError> {
 		let auth = self.auth("account_history").await?;
-		self.view().call("Entity", "account_history", vec![auth.encode(), entity.encode()]).await
+		self.view().call("Entity", "account_history", (auth, entity)).await
 	}
 
 	pub async fn has_nym(&self, entity: EntityToken) -> Result<bool, OriginSdkError> {
 		let auth = self.auth("has_nym").await?;
-		self.view().call("Entity", "has_nym", vec![auth.encode(), entity.encode()]).await
+		self.view().call("Entity", "has_nym", (auth, entity)).await
 	}
 
-	pub async fn token_of_nym(
-		&self,
-		nym: Vec<u8>,
-	) -> Result<Option<EntityToken>, OriginSdkError> {
+	pub async fn token_of_nym(&self, nym: Vec<u8>) -> Result<Option<EntityToken>, OriginSdkError> {
 		let auth = self.auth("token_of_nym").await?;
-		self.view().call("Entity", "token_of_nym", vec![auth.encode(), nym.encode()]).await
+		self.view().call("Entity", "token_of_nym", (auth, nym)).await
 	}
 
 	pub async fn attribute_version(
@@ -165,9 +142,7 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		key: Vec<u8>,
 	) -> Result<Option<u64>, OriginSdkError> {
 		let auth = self.auth("attribute_version").await?;
-		self.view()
-			.call("Entity", "attribute_version", vec![auth.encode(), entity.encode(), key.encode()])
-			.await
+		self.view().call("Entity", "attribute_version", (auth, entity, key)).await
 	}
 
 	pub async fn has_attribute(
@@ -176,13 +151,7 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		key: Vec<u8>,
 	) -> Result<bool, OriginSdkError> {
 		let auth = self.auth("has_attribute").await?;
-		self.view()
-			.call(
-				"Entity",
-				"has_attribute",
-				vec![auth.encode(), entity.encode(), key.encode()],
-			)
-			.await
+		self.view().call("Entity", "has_attribute", (auth, entity, key)).await
 	}
 
 	pub async fn attribute_versions(
@@ -190,9 +159,7 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		entity: EntityToken,
 	) -> Result<Option<Vec<(Vec<u8>, u64)>>, OriginSdkError> {
 		let auth = self.auth("attribute_versions").await?;
-		self.view()
-			.call("Entity", "attribute_versions", vec![auth.encode(), entity.encode()])
-			.await
+		self.view().call("Entity", "attribute_versions", (auth, entity)).await
 	}
 
 	pub async fn attribute_history(
@@ -200,9 +167,7 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		entity: EntityToken,
 	) -> Result<Option<Vec<AttributeHistoryEntryViewSdk>>, OriginSdkError> {
 		let auth = self.auth("attribute_history").await?;
-		self.view()
-			.call("Entity", "attribute_history", vec![auth.encode(), entity.encode()])
-			.await
+		self.view().call("Entity", "attribute_history", (auth, entity)).await
 	}
 
 	pub async fn attribute_history_for_key(
@@ -212,11 +177,7 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 	) -> Result<Option<Vec<AttributeHistoryEntryViewSdk>>, OriginSdkError> {
 		let auth = self.auth("attribute_history_for_key").await?;
 		self.view()
-			.call(
-				"Entity",
-				"attribute_history_for_key",
-				vec![auth.encode(), entity.encode(), key.encode()],
-			)
+			.call("Entity", "attribute_history_for_key", (auth, entity, key))
 			.await
 	}
 
@@ -228,11 +189,7 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 	) -> Result<Option<AttributeHistoryEntryViewSdk>, OriginSdkError> {
 		let auth = self.auth("attribute_version_history").await?;
 		self.view()
-			.call(
-				"Entity",
-				"attribute_version_history",
-				vec![auth.encode(), entity.encode(), key.encode(), version.encode()],
-			)
+			.call("Entity", "attribute_version_history", (auth, entity, key, version))
 			.await
 	}
 
@@ -241,8 +198,6 @@ impl<'a, S: Signer + Clone + 'static> EntityClientWithSigner<'a, S> {
 		entity: EntityToken,
 	) -> Result<Option<Vec<Vec<u8>>>, OriginSdkError> {
 		let auth = self.auth("entity_attribute_keys").await?;
-		self.view()
-			.call("Entity", "entity_attribute_keys", vec![auth.encode(), entity.encode()])
-			.await
+		self.view().call("Entity", "entity_attribute_keys", (auth, entity)).await
 	}
 }

@@ -49,14 +49,12 @@ impl<'a, S: Signer + Clone + 'static> EntityTx<'a, S> {
 
 	pub async fn submit_rotate_attribute_from_view(
 		&self,
-		entity: Ss58Identifier,
 		key: impl AsRef<[u8]>,
 		value: origin_primitives::element::ElementView,
 	) -> Result<TxHandle, OriginSdkError> {
 		let elem = crate::schema::entity::element_from_view(&value)?;
 		let payload = crate::extrinsic::calls::entity::rotate_attribute_from_element(
 			&self.client.metadata(),
-			entity,
 			key.as_ref(),
 			&elem,
 		)?;
@@ -95,27 +93,18 @@ impl<'a, S: Signer + Clone + 'static> EntityTx<'a, S> {
 		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
 	}
 
-	pub async fn submit_remove_attribute(
-		&self,
-		entity: Ss58Identifier,
-		key: &[u8],
-	) -> Result<TxHandle, OriginSdkError> {
-		let payload = crate::extrinsic::calls::entity::remove_attribute_call(
-			&self.client.metadata(),
-			entity,
-			key,
-		)?;
+	pub async fn submit_remove_attribute(&self, key: &[u8]) -> Result<TxHandle, OriginSdkError> {
+		let payload =
+			crate::extrinsic::calls::entity::remove_attribute_call(&self.client.metadata(), key)?;
 		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
 	}
 
 	pub async fn submit_set_linked_account(
 		&self,
-		entity: Ss58Identifier,
 		account: subxt::utils::AccountId32,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = crate::extrinsic::calls::entity::set_linked_account_call(
 			&self.client.metadata(),
-			entity,
 			account,
 		)?;
 		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
@@ -123,20 +112,21 @@ impl<'a, S: Signer + Clone + 'static> EntityTx<'a, S> {
 
 	pub async fn submit_revoke_linked_account(
 		&self,
-		entity: Ss58Identifier,
+		token_for_force: Option<Ss58Identifier>,
 		account: subxt::utils::AccountId32,
 		force: bool,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = if force {
 			crate::extrinsic::calls::entity::revoke_linked_account_for_call(
 				&self.client.metadata(),
-				entity,
+				token_for_force.ok_or_else(|| {
+					OriginSdkError::InvalidInput("token required for force revoke".into())
+				})?,
 				account,
 			)?
 		} else {
 			crate::extrinsic::calls::entity::revoke_linked_account_call(
 				&self.client.metadata(),
-				entity,
 				account,
 			)?
 		};
@@ -145,20 +135,23 @@ impl<'a, S: Signer + Clone + 'static> EntityTx<'a, S> {
 
 	pub async fn submit_rotate_controller(
 		&self,
-		entity: Ss58Identifier,
+		token_for_force: Option<Ss58Identifier>,
 		new_controller: subxt::utils::AccountId32,
 		force: bool,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = if force {
 			crate::extrinsic::calls::entity::rotate_controller_for_call(
 				&self.client.metadata(),
-				entity,
+				token_for_force.ok_or_else(|| {
+					OriginSdkError::InvalidInput(
+						"token required for force controller rotate".into(),
+					)
+				})?,
 				new_controller,
 			)?
 		} else {
 			crate::extrinsic::calls::entity::rotate_controller_call(
 				&self.client.metadata(),
-				entity,
 				new_controller,
 			)?
 		};
@@ -167,16 +160,18 @@ impl<'a, S: Signer + Clone + 'static> EntityTx<'a, S> {
 
 	pub async fn submit_clear_everything(
 		&self,
-		entity: Ss58Identifier,
+		token_for_force: Option<Ss58Identifier>,
 		force: bool,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = if force {
 			crate::extrinsic::calls::entity::clear_everything_for_call(
 				&self.client.metadata(),
-				entity,
+				token_for_force.ok_or_else(|| {
+					OriginSdkError::InvalidInput("token required for force clear_everything".into())
+				})?,
 			)?
 		} else {
-			crate::extrinsic::calls::entity::clear_everything_call(&self.client.metadata(), entity)?
+			crate::extrinsic::calls::entity::clear_everything_call(&self.client.metadata())?
 		};
 		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
 	}
@@ -205,14 +200,13 @@ impl<'a, S: Signer + Clone + 'static> EntityTx<'a, S> {
 
 	pub fn rotate_attribute(
 		&self,
-		entity: Ss58Identifier,
 		key: impl AsRef<[u8]>,
 		value: Value,
 	) -> crate::extrinsic::builder::DynamicCall {
 		DynamicCallBuilder::new().call(
 			"Entity",
 			"rotate_attribute",
-			vec![Value::from_bytes(entity.as_ref()), Value::from_bytes(key.as_ref()), value],
+			vec![Value::from_bytes(key.as_ref()), value],
 		)
 	}
 }

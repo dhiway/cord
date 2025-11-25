@@ -1,7 +1,10 @@
 use subxt::dynamic::{self, Value};
 
 use super::builder::DynamicCall;
-use crate::{client::submit::SubmitClient, types::error::OriginSdkError};
+use crate::{
+	client::submit::{SubmitClient, TxHandle},
+	types::error::OriginSdkError,
+};
 
 /// Collects multiple calls for atomic submission via Utility::batch/batch_all.
 pub struct BatchBuilder {
@@ -53,5 +56,10 @@ impl BatchBuilder {
 	) -> Result<crate::client::submit::TxOutcome, OriginSdkError> {
 		let handle = self.client.batch_submit(self.calls, self.all).await?;
 		handle.wait_finalized().await
+	}
+
+	/// Submit and return a non-blocking handle (preferred for async UX).
+	pub async fn submit(self) -> Result<TxHandle, OriginSdkError> {
+		self.client.batch_submit(self.calls, self.all).await
 	}
 }

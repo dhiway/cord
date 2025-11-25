@@ -28,7 +28,9 @@ pub use registry_input::{
 	DelegatePermissionsInput, RegistryAttributeInput, RegistryCreateInput, RegistryLookupInput,
 	RemoveDelegatePermissionsInput,
 };
-pub use token::{TokenEventBlockViewSdk, TokenLookupView, TokenStateEventViewSdk, TokenTimelineViewSdk};
+pub use token::{
+	TokenEventBlockViewSdk, TokenLookupView, TokenStateEventViewSdk, TokenTimelineViewSdk,
+};
 pub use token_input::TokenAttributeInput;
 pub type ViewValue = subxt::dynamic::DecodedValue;
 

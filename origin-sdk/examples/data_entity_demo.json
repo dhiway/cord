@@ -1,0 +1,18 @@
+{
+  "display": "Demo Entity",
+  "web": "https://example.org",
+  "email": "hello@example.org",
+  "nym": "demo.nym.cord",
+  "attributes": {
+    "did:web": "did:web:example.org:user:alice",
+    "did:cord": "did:cord:5C8FdemoCordId",
+    "public-key": "ed25519:demo-public-key-123",
+    "telephone": "+1-555-123-4567",
+    "address": {
+      "street": "1 Origin Way",
+      "city": "Cord City",
+      "country": "Wonderland"
+    }
+  },
+  "rotate_keys": ["public-key", "did:cord", "telephone"]
+}

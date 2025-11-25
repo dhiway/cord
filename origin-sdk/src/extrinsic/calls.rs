@@ -27,31 +27,28 @@ pub mod entity {
 	/// Build `Entity::remove_attribute` dynamic payload.
 	pub fn remove_attribute_call(
 		_metadata: &Metadata,
-		token: Ss58Identifier,
 		key: &[u8],
 	) -> Result<DynamicPayload, OriginSdkError> {
 		ensure_non_empty("key", key)?;
-		let args = vec![Value::from_bytes(token.as_ref()), Value::from_bytes(key)];
+		let args = vec![Value::from_bytes(key)];
 		Ok(dynamic::tx("Entity", "remove_attribute", args))
 	}
 
 	/// Build `Entity::set_linked_account`.
 	pub fn set_linked_account_call(
 		_metadata: &Metadata,
-		token: Ss58Identifier,
 		account: subxt::utils::AccountId32,
 	) -> Result<DynamicPayload, OriginSdkError> {
-		let args = vec![Value::from_bytes(token.as_ref()), Value::from_bytes(account.0)];
+		let args = vec![Value::from_bytes(account.0)];
 		Ok(dynamic::tx("Entity", "set_linked_account", args))
 	}
 
 	/// Build `Entity::revoke_linked_account` (self).
 	pub fn revoke_linked_account_call(
 		_metadata: &Metadata,
-		token: Ss58Identifier,
 		account: subxt::utils::AccountId32,
 	) -> Result<DynamicPayload, OriginSdkError> {
-		let args = vec![Value::from_bytes(token.as_ref()), Value::from_bytes(account.0)];
+		let args = vec![Value::from_bytes(account.0)];
 		Ok(dynamic::tx("Entity", "revoke_linked_account", args))
 	}
 
@@ -68,10 +65,9 @@ pub mod entity {
 	/// Build `Entity::rotate_controller`.
 	pub fn rotate_controller_call(
 		_metadata: &Metadata,
-		token: Ss58Identifier,
 		controller: subxt::utils::AccountId32,
 	) -> Result<DynamicPayload, OriginSdkError> {
-		let args = vec![Value::from_bytes(token.as_ref()), Value::from_bytes(controller.0)];
+		let args = vec![Value::from_bytes(controller.0)];
 		Ok(dynamic::tx("Entity", "rotate_controller", args))
 	}
 
@@ -86,11 +82,9 @@ pub mod entity {
 	}
 
 	/// Build `Entity::clear_everything`.
-	pub fn clear_everything_call(
-		_metadata: &Metadata,
-		token: Ss58Identifier,
-	) -> Result<DynamicPayload, OriginSdkError> {
-		Ok(dynamic::tx("Entity", "clear_everything", vec![Value::from_bytes(token.as_ref())]))
+	pub fn clear_everything_call(_metadata: &Metadata) -> Result<DynamicPayload, OriginSdkError> {
+		let args: Vec<Value> = Vec::new();
+		Ok(dynamic::tx("Entity", "clear_everything", args))
 	}
 
 	/// Build `Entity::clear_everything_for` (force origin).
@@ -121,29 +115,22 @@ pub mod entity {
 	/// Build `Entity::rotate_attribute` dynamic payload.
 	pub fn rotate_attribute_call(
 		_metadata: &Metadata,
-		token: Ss58Identifier,
 		key: &str,
 		raw_value: &str,
 	) -> Result<DynamicPayload, OriginSdkError> {
 		ensure_non_empty("key", key.as_bytes())?;
 		ensure_non_empty("value", raw_value.as_bytes())?;
-		let args = vec![
-			Value::from_bytes(token.as_ref()),
-			Value::from_bytes(key.as_bytes()),
-			Value::from_bytes(raw_value.as_bytes()),
-		];
+		let args = vec![Value::from_bytes(key.as_bytes()), Value::from_bytes(raw_value.as_bytes())];
 		Ok(dynamic::tx("Entity", "rotate_attribute", args))
 	}
 
 	/// Build `Entity::rotate_attribute` from typed ElementInput.
 	pub fn rotate_attribute_from_element(
 		_metadata: &Metadata,
-		token: Ss58Identifier,
 		key: &[u8],
 		val: &origin_primitives::element::Elum<crate::types::entity_input::MaxRawDataLength>,
 	) -> Result<DynamicPayload, OriginSdkError> {
-		let args =
-			vec![Value::from_bytes(token.as_ref()), Value::from_bytes(key), element_to_value(val)];
+		let args = vec![Value::from_bytes(key), element_to_value(val)];
 		Ok(dynamic::tx("Entity", "rotate_attribute", args))
 	}
 
@@ -155,8 +142,11 @@ pub mod entity {
 			origin_primitives::element::Elum<crate::types::entity_input::MaxRawDataLength>,
 		)],
 	) -> Result<DynamicPayload, OriginSdkError> {
-		let encoded = ops.encode();
-		let args = vec![Value::from_bytes(&encoded)];
+		let items: Vec<Value> = ops
+			.iter()
+			.map(|(k, v)| Value::unnamed_composite(vec![Value::from_bytes(k), element_to_value(v)]))
+			.collect();
+		let args = vec![Value::from(items)];
 		Ok(dynamic::tx("Entity", "rotate_attributes", args))
 	}
 
@@ -176,13 +166,12 @@ pub mod entity {
 	/// JSON helper: encode value as bytes (placeholder until Element builder is added).
 	pub fn rotate_attribute_from_json(
 		_metadata: &Metadata,
-		token: Ss58Identifier,
 		key: &str,
 		expected: origin_primitives::element::ElementType,
 		value: &Json,
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let elem = element_value_from_json(expected, value)?;
-		let args = vec![Value::from_bytes(token.as_ref()), Value::from_bytes(key.as_bytes()), elem];
+		let args = vec![Value::from_bytes(key.as_bytes()), elem];
 		Ok(dynamic::tx("Entity", "rotate_attribute", args))
 	}
 
@@ -226,7 +215,7 @@ pub mod entity {
 			Raw(bv) => {
 				Value::variant("Raw", Composite::unnamed(vec![Value::from_bytes(bv.to_vec())]))
 			},
-			Bool(b) => Value::variant("Bool", Composite::unnamed(vec![Value::u128(*b as u128)])),
+			Bool(b) => Value::variant("Bool", Composite::unnamed(vec![Value::from_bytes([*b])])),
 			U64(bytes) => {
 				Value::variant("U64", Composite::unnamed(vec![Value::from_bytes(bytes.to_vec())]))
 			},
@@ -277,11 +266,9 @@ pub mod entity {
 
 pub mod registry {
 	use super::*;
-	use crate::types::{
-		registry_input::{
-			DelegatePermissionsInput, RegistryCreateInput, RegistryInfoInput,
-			RemoveDelegatePermissionsInput,
-		},
+	use crate::types::registry_input::{
+		DelegatePermissionsInput, RegistryCreateInput, RegistryInfoInput,
+		RemoveDelegatePermissionsInput,
 	};
 	use serde::Serialize;
 
@@ -357,11 +344,7 @@ pub mod registry {
 			return Err(OriginSdkError::InvalidInput("roles cannot be empty".into()));
 		}
 		let roles_val = Value::from(
-			input
-				.roles
-				.iter()
-				.map(|r| Value::u128(r.bits() as u128))
-				.collect::<Vec<_>>(),
+			input.roles.iter().map(|r| Value::u128(r.bits() as u128)).collect::<Vec<_>>(),
 		);
 		let args = vec![
 			Value::from_bytes(input.registry.as_ref()),
@@ -419,7 +402,8 @@ pub mod packet {
 		registry_id: Ss58Identifier,
 		attributes: &[(Vec<u8>, Vec<u8>)],
 	) -> Result<DynamicPayload, OriginSdkError> {
-		let mut bounded = BoundedVec::<(Attribute, PacketElementInput), MaxAdditionalAttributes>::new();
+		let mut bounded =
+			BoundedVec::<(Attribute, PacketElementInput), MaxAdditionalAttributes>::new();
 		for (k, v_bytes) in attributes {
 			let key: Attribute = Attribute::try_from(k.clone())
 				.map_err(|_| OriginSdkError::InvalidInput("attribute key too long".into()))?;
@@ -604,7 +588,8 @@ pub mod packet {
 	fn build_packet_attributes(
 		registry_schema: &[RegistryAttributeView],
 		obj: &serde_json::Map<String, Json>,
-	) -> Result<BoundedVec<(Attribute, PacketElementInput), MaxAdditionalAttributes>, OriginSdkError> {
+	) -> Result<BoundedVec<(Attribute, PacketElementInput), MaxAdditionalAttributes>, OriginSdkError>
+	{
 		let mut out = BoundedVec::<(Attribute, PacketElementInput), MaxAdditionalAttributes>::new();
 
 		for attr in registry_schema {

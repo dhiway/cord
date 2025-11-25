@@ -1,9 +1,9 @@
 use crate::types::core::{PacketId, RegistryId};
+pub use origin_primitives::registry::{RegistryPermissions, RegistryStateView, RegistryStatus};
 use origin_primitives::{
 	packet::{PacketAttributeView, PacketMetadataView, PacketStateView},
 	registry::{LookupSpec, RegistryAttributeView},
 };
-pub use origin_primitives::registry::{RegistryPermissions, RegistryStateView, RegistryStatus};
 
 pub type RegistryStateViewSdk = RegistryStateView;
 pub type RegistryAttributeViewSdk = RegistryAttributeView;
