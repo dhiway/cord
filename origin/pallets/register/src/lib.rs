@@ -45,7 +45,7 @@ use frame_support::{
 use frame_system::{ensure_root, pallet_prelude::*};
 use log as _;
 use origin_primitives::{
-	attribute::{Attribute, Element},
+	attribute::{Attribute, Element, ElementType},
 	authorization::{
 		ensure_authorization_ttl, extract_valid_until, Authorization as ViewAuthorization,
 		AuthorizationError,
@@ -996,35 +996,21 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
 			delegate: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			let perms = RegistryDelegates::<T>::get(&registry, &delegate)
-				.ok_or(AuthorizationError::NotFound)?;
-			Self::record_registry_query(&registry, &auth.account);
-			Self::encode_ok(perms)
-		}
-
-		/// Returns the recorded query count for an account over a registry.
-		pub fn query_count(
-			auth: AuthorizationOf<T>,
-			registry: Ss58Identifier,
-			account: T::AccountId,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			let count = RegistryQueryCounts::<T>::get(&registry, account);
-			Self::record_registry_query(&registry, &auth.account);
-			Self::encode_ok(count)
+		) -> Option<RegistryPermissions> {
+			Self::authorize_query(&auth).ok()?;
+			Self::get_registry_state_view(&registry).ok()?;
+			let perms = RegistryDelegates::<T>::get(&registry, &delegate)?;
+			Some(perms)
 		}
 
 		/// Returns the lookup specifications declared for the registry.
 		pub fn lookup_specs(
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			let specs = <Self as RegistryView<T>>::lookup_specs(&registry)
-				.ok_or(AuthorizationError::NotFound)?;
-			Self::record_registry_query(&registry, &auth.account);
+		) -> Option<Vec<LookupSpecView>> {
+			Self::authorize_query(&auth).ok()?;
+			Self::get_registry_state_view(&registry).ok()?;
+			let specs = <Self as RegistryView<T>>::lookup_specs(&registry)?;
 			let view_specs: Vec<LookupSpecView> = specs
 				.into_iter()
 				.map(|spec| match spec {
@@ -1034,36 +1020,16 @@ pub mod pallet {
 					},
 				})
 				.collect();
-			Self::encode_ok(view_specs)
-		}
-
-		/// Returns the declared schema type of the provided attribute key.
-		pub fn attribute(
-			auth: AuthorizationOf<T>,
-			registry: Ss58Identifier,
-			key: Vec<u8>,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			let key_bounded: Attribute =
-				key.try_into().map_err(|_| AuthorizationError::InvalidInput)?;
-			let registry_info =
-				Registries::<T>::get(&registry).ok_or(AuthorizationError::NotFound)?;
-			Self::record_registry_query(&registry, &auth.account);
-			let spec = registry_info
-				.attribute_spec(key_bounded.as_slice())
-				.ok_or(AuthorizationError::NotFound)?;
-			Self::encode_ok((spec.kind, spec.flags.is_optional()))
+			Some(view_specs)
 		}
 
 		/// Returns all attribute keys and their schema types.
-		pub fn attributes(
+		pub fn registry_attributes(
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			let registry_info =
-				Registries::<T>::get(&registry).ok_or(AuthorizationError::NotFound)?;
-			Self::record_registry_query(&registry, &auth.account);
+		) -> Option<Vec<RegistryAttributeView>> {
+			Self::authorize_query(&auth).ok()?;
+			let registry_info = Self::get_registry_state_view(&registry).ok()?;
 			let entries: Vec<RegistryAttributeView> = registry_info
 				.attributes
 				.iter()
@@ -1073,50 +1039,173 @@ pub mod pallet {
 					optional: spec.flags.is_optional(),
 				})
 				.collect();
-			Self::encode_ok(entries)
+			Some(entries)
+		}
+
+		/// Returns the declared schema type of the provided attribute key.
+		pub fn registry_attribute(
+			auth: AuthorizationOf<T>,
+			registry: Ss58Identifier,
+			key: Vec<u8>,
+		) -> Option<(ElementType, bool)> {
+			Self::authorize_query(&auth).ok()?;
+			Self::get_registry_state_view(&registry).ok()?;
+			let key_bounded: Attribute = key.try_into().ok()?;
+			let registry_info = Registries::<T>::get(&registry)?;
+			let spec = registry_info.attribute_spec(key_bounded.as_slice())?;
+			Some((spec.kind, spec.flags.is_optional()))
 		}
 
 		/// Returns registry metadata and schema information.
-		pub fn details(
+		pub fn registry_details(
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			let info = <Self as RegistryView<T>>::registry_info(&registry)
-				.ok_or(AuthorizationError::NotFound)?;
+		) -> Option<RegistryStateView> {
+			Self::authorize_query(&auth).ok()?;
+			let info = Self::get_registry_state_view(&registry).ok()?;
 			let view = view::build_registry_state_view::<T>(&registry, &info);
-			Self::record_registry_query(&registry, &auth.account);
-			Self::encode_ok(view)
+			Some(view)
 		}
 
 		/// Returns the attribute keys composing the registry token material.
-		pub fn token_specs(
+		pub fn registry_token_specs(
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			let spec = <Self as RegistryView<T>>::token_specs(&registry)
-				.ok_or(AuthorizationError::NotFound)?;
-			Self::record_registry_query(&registry, &auth.account);
-			// Flatten LookupSpec into ordered attribute keys.
+		) -> Option<Vec<Vec<u8>>> {
+			Self::authorize_query(&auth).ok()?;
+			Self::get_registry_state_view(&registry).ok()?;
+			let spec = <Self as RegistryView<T>>::token_specs(&registry)?;
 			let keys: Vec<Vec<u8>> = match spec {
 				LookupSpec::Single(attr) => vec![attr.into_inner()],
 				LookupSpec::Combo(list) => list.into_iter().map(|a| a.into_inner()).collect(),
 			};
-			Self::encode_ok(keys)
+			Some(keys)
 		}
+
+		/// Does this registry exist (and is auth valid)?
+		pub fn registry_exists(auth: AuthorizationOf<T>, registry: Ss58Identifier) -> bool {
+			if Self::authorize_query(&auth).is_err() {
+				return false;
+			}
+			Registries::<T>::get(&registry).map_or(false, |info| !info.is_deleted())
+		}
+
+		/// Current status of the registry: Active/Revoked/Deleted.
+		pub fn registry_status(
+			auth: AuthorizationOf<T>,
+			registry: Ss58Identifier,
+		) -> Option<RegistryStatus> {
+			Self::authorize_query(&auth).ok()?;
+			let info = Registries::<T>::get(&registry)?;
+			Some(info.status())
+		}
+
+		/// All attribute keys defined in the registry schema.
+		pub fn registry_attribute_keys(
+			auth: AuthorizationOf<T>,
+			registry: Ss58Identifier,
+		) -> Option<Vec<Vec<u8>>> {
+			Self::authorize_query(&auth).ok()?;
+			let info = Self::get_registry_state_view(&registry).ok()?;
+			Some(info.attribute_keys())
+		}
+
+		/// Is this registry active?
+		pub fn registry_is_active(auth: AuthorizationOf<T>, registry: Ss58Identifier) -> bool {
+			if Self::authorize_query(&auth).is_err() {
+				return false;
+			}
+			Registries::<T>::get(&registry).map_or(false, |info| info.is_active())
+		}
+
+		/// Returns true if the registry exists and is marked Revoked.
+		pub fn registry_is_revoked(auth: AuthorizationOf<T>, registry: Ss58Identifier) -> bool {
+			if Self::authorize_query(&auth).is_err() {
+				return false;
+			}
+			let revoked = Registries::<T>::get(&registry).map_or(false, |info| info.is_revoked());
+			Self::record_registry_query(&registry, &auth.account);
+			revoked
+		}
+
+		/// Returns true if the registry exists and is marked Deleted.
+		pub fn registry_is_deleted(auth: AuthorizationOf<T>, registry: Ss58Identifier) -> bool {
+			if Self::authorize_query(&auth).is_err() {
+				return false;
+			}
+			let deleted = Registries::<T>::get(&registry).map_or(false, |info| info.is_deleted());
+			Self::record_registry_query(&registry, &auth.account);
+			deleted
+		}
+
+		/// List all delegates and their permissions for this registry.
+		pub fn registry_delegates(
+			auth: AuthorizationOf<T>,
+			registry: Ss58Identifier,
+		) -> Option<Vec<(Ss58Identifier, RegistryPermissions)>> {
+			Self::authorize_query(&auth).ok()?;
+			let _info = Registries::<T>::get(&registry)?; // ensure registry exists
+			let mut delegates = Vec::new();
+			for (delegate, perms) in RegistryDelegates::<T>::iter_prefix(&registry) {
+				delegates.push((delegate, perms));
+			}
+			Self::record_registry_query(&registry, &auth.account);
+			Some(delegates)
+		}
+
+		/// Check if a given delegate has at least the required permissions.
+		pub fn has_registry_permissions(
+			auth: AuthorizationOf<T>,
+			registry: Ss58Identifier,
+			delegate: Ss58Identifier,
+			required: RegistryPermissions,
+		) -> bool {
+			if Self::authorize_query(&auth).is_err() {
+				return false;
+			}
+			let perm = <Self as RegistryView<T>>::has_permissions(&registry, &delegate, required);
+			Self::record_registry_query(&registry, &auth.account);
+			perm
+		}
+
+		/// Is this entity a delegate for the registry (i.e., has any permissions)?
+		pub fn is_delegate(
+			auth: AuthorizationOf<T>,
+			registry: Ss58Identifier,
+			delegate: Ss58Identifier,
+		) -> bool {
+			if Self::authorize_query(&auth).is_err() {
+				return false;
+			}
+			let has_any = RegistryDelegates::<T>::get(&registry, &delegate)
+				.map(|perms| !perms.is_empty())
+				.unwrap_or(false);
+			Self::record_registry_query(&registry, &auth.account);
+			has_any
+		}
+
+		/// Return the maintainer (owner) token of a registry, if it exists.
+		/// None if auth fails or registry not found.
+		pub fn registry_maintainer(
+			auth: AuthorizationOf<T>,
+			registry: Ss58Identifier,
+		) -> Option<Ss58Identifier> {
+			Self::authorize_query(&auth).ok()?;
+			let info = Registries::<T>::get(&registry)?;
+			Some(info.maintainer().clone())
+		}
+
 		/// Returns a packet state associated with the given packet identifier for the registry.
-		pub fn packet_snapshot(
+		pub fn packet_state(
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
 			packet: Ss58Identifier,
 			version: Option<u32>,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			Self::get_registry_state_view(&registry)?;
-			let snapshot = Self::get_packet_snapshot(&registry, &packet, version)?;
-			Self::record_registry_query(&registry, &auth.account);
-			Self::encode_ok(view::build_packet_state_view::<T>(&packet, &snapshot))
+		) -> Option<PacketStateView> {
+			Self::authorize_query(&auth).ok()?;
+			Self::get_registry_state_view(&registry).ok()?;
+			let snapshot = Self::get_packet_snapshot(&registry, &packet, version).ok()?;
+			Some(view::build_packet_state_view::<T>(&packet, &snapshot))
 		}
 
 		/// Returns packet metadata only (lightweight).
@@ -1124,171 +1213,199 @@ pub mod pallet {
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
 			packet: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			let _info = Self::get_registry_state_view(&registry)?;
-			let _snapshot = Self::get_packet_snapshot(&registry, &packet, None)?;
-			let metadata = Packets::<T>::get(&packet).ok_or(AuthorizationError::NotFound)?;
+		) -> Option<origin_primitives::packet::PacketMetadataView> {
+			Self::authorize_query(&auth).ok()?;
+			// ensure registry exists & not deleted
+			let _info = Self::get_registry_state_view(&registry).ok()?;
+			let _snapshot = Self::get_packet_snapshot(&registry, &packet, None).ok()?;
+			let metadata = Packets::<T>::get(&packet)?;
 			if metadata.registry != registry {
-				return Err(AuthorizationError::NotFound);
+				return None;
 			}
-			Self::record_registry_query(&registry, &auth.account);
-			Self::encode_ok(origin_primitives::packet::PacketMetadataView::from(&metadata))
+			Some(origin_primitives::packet::PacketMetadataView::from(&metadata))
 		}
 
-		/// Lightweight registry overview (info + lookup specs).
-		pub fn overview(
-			auth: AuthorizationOf<T>,
-			registry: Ss58Identifier,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			let info = Self::get_registry_state_view(&registry)?;
-			let view = view::build_registry_state_view::<T>(&registry, &info);
-			Self::record_registry_query(&registry, &auth.account);
-			Self::encode_ok(view)
-		}
-
-		/// Returns a packet snapshot by token without requiring the registry identifier.
-		pub fn packet_snapshot_by_token(
+		/// Returns the packet state for the given token (optionally at a specific version).
+		pub fn packet_for_token(
 			auth: AuthorizationOf<T>,
 			token: Ss58Identifier,
 			version: Option<u32>,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			let snapshot_opt = Self::packet_state_unchecked(&token, version);
-
-			if let Some(snapshot) = snapshot_opt {
-				let info = Self::get_registry_state_view(&snapshot.state.registry)?;
-				if snapshot.state.status == PacketStatus::Deleted || info.is_deleted() {
-					return Err(AuthorizationError::InvalidInput);
-				}
-				Self::record_registry_query(&snapshot.state.registry, &auth.account);
-				let view = view::build_packet_state_view::<T>(&token, &snapshot);
-				return Self::encode_ok(Some(view));
+		) -> Option<PacketStateView> {
+			Self::authorize_query(&auth).ok()?;
+			let snapshot = Self::packet_state_unchecked(&token, version)?;
+			let info = Self::get_registry_state_view(&snapshot.state.registry).ok()?;
+			if snapshot.state.status == PacketStatus::Deleted || info.is_deleted() {
+				return None;
 			}
 
-			Self::encode_ok(None::<PacketStateView>)
+			Self::record_registry_query(&snapshot.state.registry, &auth.account);
+			Some(view::build_packet_state_view::<T>(&token, &snapshot))
 		}
 
 		/// Resolves a packet state via a lookup digest.
-		pub fn lookup_snapshot(
+		pub fn packet_lookup_snapshot(
 			auth: AuthorizationOf<T>,
 			registry: Ss58Identifier,
 			digest: LookupDigestOf<T>,
 			version: Option<u32>,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-			Self::get_registry_state_view(&registry)?;
-			let anchor =
-				LookupIndex::<T>::get(&digest, &registry).ok_or(AuthorizationError::NotFound)?;
+		) -> Option<PacketStateView> {
+			Self::authorize_query(&auth).ok()?;
+			Self::get_registry_state_view(&registry).ok()?;
+			let anchor = LookupIndex::<T>::get(&digest, &registry)?;
 			let packet = anchor.pointer.packet.clone();
 			let target_version = version.unwrap_or(anchor.pointer.version);
-
-			let snap = Self::get_packet_snapshot(&registry, &packet, Some(target_version))?;
-			Self::record_registry_query(&registry, &auth.account);
-
-			Self::encode_ok(view::build_packet_state_view::<T>(&packet, &snap))
+			let snap = Self::get_packet_snapshot(&registry, &packet, Some(target_version)).ok()?;
+			Some(view::build_packet_state_view::<T>(&packet, &snap))
 		}
 
-		/// Returns packet snapshots matching the provided token prefix (or all when empty).
-		pub fn list_by_token(
+		/// Returns packet pointers attached to the given lookup digest.
+		///
+		/// - `digest`: the exact lookup digest to resolve.
+		/// - `offset`: optional starting index (for paging); 0 by default.
+		/// - `limit`: max number of results to return; defaults to `MaxPacketListResults`.
+		pub fn packets_by_digest(
 			auth: AuthorizationOf<T>,
-			prefix: Vec<u8>,
-			version: Option<u32>,
-			cursor: Option<Ss58Identifier>,
+			digest: LookupDigestOf<T>,
+			offset: Option<u32>,
 			limit: Option<u32>,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
+		) -> Option<Vec<PacketPointer>> {
+			Self::authorize_query(&auth).ok()?;
+			let skip = offset.unwrap_or(0) as usize;
+			let max = limit.unwrap_or_else(|| T::MaxPacketListResults::get()) as usize;
+			let mut points: Vec<PacketPointer> = Vec::new();
 
-			let capped = limit.unwrap_or_else(|| T::MaxPacketListResults::get());
-			let limit = capped.min(T::MaxPacketListResults::get()).max(1);
-
-			let (snaps, next) =
-				<Self as RegistryView<T>>::list_by_token(prefix, version, cursor, limit);
-
-			// Filter out deleted packets and deleted registries.
-			let mut filtered = Vec::with_capacity(snaps.len());
-
-			for snap in snaps.into_iter() {
-				// Drop deleted packets early.
-				if snap.state.status == PacketStatus::Deleted {
+			for (idx, (_registry, anchor)) in LookupIndex::<T>::iter_prefix(&digest).enumerate() {
+				if idx < skip {
 					continue;
 				}
-
-				let reg = &snap.state.registry;
-
-				// get_registry_state_view already checks that the registry exists
-				// and is not deleted. We don't need the value itself here.
-				if Self::get_registry_state_view(reg).is_err() {
-					continue;
+				if points.len() >= max {
+					break;
 				}
 
-				Self::record_registry_query(reg, &auth.account);
-				filtered.push(snap);
+				let ptr = &anchor.pointer;
+				if let Some(meta) = Packets::<T>::get(&ptr.packet) {
+					if meta.status == PacketStatus::Deleted {
+						continue;
+					}
+					if let Some(info) = Registries::<T>::get(&ptr.registry) {
+						if info.is_deleted() {
+							continue;
+						}
+					} else {
+						continue;
+					}
+					points.push(ptr.clone());
+				}
+			}
+			Some(points)
 			}
 
-			let views: Vec<PacketStateView> = filtered
-				.into_iter()
-				.map(|snap| view::build_packet_state_view::<T>(&snap.state.registry, &snap))
-				.collect();
+			/// List packet snapshots by token prefix with cursor/limit.
+			pub fn list_by_token(
+				auth: AuthorizationOf<T>,
+				token_prefix: Vec<u8>,
+				version: Option<u32>,
+				cursor: Option<Ss58Identifier>,
+				limit: Option<u32>,
+			) -> Option<(Vec<PacketStateView>, Option<Ss58Identifier>)> {
+				Self::authorize_query(&auth).ok()?;
+				let capped = limit.unwrap_or_else(|| T::MaxPacketListResults::get());
+				let (snaps, next) =
+					Self::list_by_token_matches(token_prefix.as_slice(), version, cursor, capped);
+				let views =
+					snaps.into_iter().map(|snap| view::build_packet_state_view::<T>(&snap.state.registry, &snap)).collect();
+				Some((views, next))
+			}
 
-			Self::encode_ok((views, next))
+			/// List packet snapshots by lookup digest prefix with cursor/limit.
+			pub fn list_by_digest(
+				auth: AuthorizationOf<T>,
+				digest_prefix: Vec<u8>,
+				version: Option<u32>,
+				cursor: Option<LookupDigestOf<T>>,
+				limit: Option<u32>,
+			) -> Option<(Vec<PacketStateView>, Option<LookupDigestOf<T>>)> {
+				Self::authorize_query(&auth).ok()?;
+				let capped = limit.unwrap_or_else(|| T::MaxPacketListResults::get());
+				let (snaps, next) = Self::packets_by_lookup_digest_matches(
+					digest_prefix.as_slice(),
+					version,
+					cursor,
+					capped,
+				);
+				let views =
+					snaps.into_iter().map(|snap| view::build_packet_state_view::<T>(&snap.state.registry, &snap)).collect();
+				Some((views, next))
+			}
+
+			/// View how many times `account` queried this registry.
+			pub fn query_count(
+				auth: AuthorizationOf<T>,
+				registry: Ss58Identifier,
+				account: T::AccountId,
+			) -> Option<u64> {
+				Self::authorize_query(&auth).ok()?;
+				Self::get_registry_state_view(&registry).ok()?;
+				Some(RegistryQueryCounts::<T>::get(&registry, account))
+			}
+
+			/// Does a packet exist for this registry + token (and is it not deleted)?
+			pub fn packet_exists(
+				auth: AuthorizationOf<T>,
+				registry: Ss58Identifier,
+				packet: Ss58Identifier,
+		) -> bool {
+			if Self::authorize_query(&auth).is_err() {
+				return false;
+			}
+			if let Some(meta) = Packets::<T>::get(&packet) {
+				if meta.registry != registry || meta.status == PacketStatus::Deleted {
+					return false;
+				}
+				if let Some(info) = Registries::<T>::get(&registry) {
+					!info.is_deleted()
+				} else {
+					false
+				}
+			} else {
+				false
+			}
 		}
 
-		/// Returns packet snapshots for every registry entry matching the digest prefix.
-		pub fn list_by_digest(
+		/// Get the current status of a packet (Active/Revoked/Deleted).
+		pub fn packet_status(
 			auth: AuthorizationOf<T>,
-			digest_prefix: Vec<u8>,
-			version: Option<u32>,
-			cursor: Option<LookupDigestOf<T>>,
-			limit: Option<u32>,
-		) -> Result<Vec<u8>, AuthorizationError> {
-			Self::authorize_query(&auth)?;
-
-			let capped = limit.unwrap_or_else(|| T::MaxPacketListResults::get());
-			let limit = capped.min(T::MaxPacketListResults::get()).max(1);
-
-			let (snaps, next) = <Self as RegistryView<T>>::packets_by_lookup_digest(
-				digest_prefix,
-				version,
-				cursor,
-				limit,
-			);
-
-			let mut filtered = Vec::with_capacity(snaps.len());
-
-			for snap in snaps.into_iter() {
-				// Drop deleted packets.
-				if snap.state.status == PacketStatus::Deleted {
-					continue;
-				}
-
-				let reg = &snap.state.registry;
-
-				// Drop deleted or missing registries.
-				if Self::get_registry_state_view(reg).is_err() {
-					continue;
-				}
-
-				Self::record_registry_query(reg, &auth.account);
-				filtered.push(snap);
+			packet: Ss58Identifier,
+		) -> Option<PacketStatus> {
+			Self::authorize_query(&auth).ok()?;
+			let meta = Packets::<T>::get(&packet)?;
+			// Hide deleted packets or deleted registries
+			let info = Registries::<T>::get(&meta.registry)?;
+			if meta.status == PacketStatus::Deleted || info.is_deleted() {
+				return None;
 			}
+			Some(meta.status)
+		}
 
-			let views: Vec<PacketStateView> = filtered
-				.into_iter()
-				.map(|snap| view::build_packet_state_view::<T>(&snap.state.registry, &snap))
-				.collect();
-
-			Self::encode_ok((views, next))
+		/// Return the current controller (entity token) for a packet.
+		pub fn packet_controller(
+			auth: AuthorizationOf<T>,
+			packet: Ss58Identifier,
+		) -> Option<Ss58Identifier> {
+			Self::authorize_query(&auth).ok()?;
+			let meta = Packets::<T>::get(&packet)?;
+			if meta.status == PacketStatus::Deleted {
+				return None;
+			}
+			let info = Registries::<T>::get(&meta.registry)?;
+			if info.is_deleted() {
+				return None;
+			}
+			Some(meta.controller.clone())
 		}
 	}
 
 	impl<T: Config> Pallet<T> {
-		#[inline]
-		fn encode_ok<V: Encode>(value: V) -> Result<Vec<u8>, AuthorizationError> {
-			Ok(value.encode())
-		}
-
 		#[inline]
 		fn is_origin_feeless(origin: &OriginFor<T>) -> bool {
 			origin.caller().as_signed().map(T::Feeless::is_feeless).unwrap_or(false)

@@ -43,10 +43,6 @@ use sp_core::Pair;
 use sp_io::hashing::twox_128;
 use sp_runtime::traits::SaturatedConversion;
 
-fn decode_view<T: codec::Decode>(raw: Vec<u8>) -> T {
-	T::decode(&mut &raw[..]).expect("decode view")
-}
-
 static VIEW_AUTH_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn view_payload(account: &AccountId, nonce: &[u8], reference_block: u32) -> Vec<u8> {
@@ -126,7 +122,7 @@ fn registry_info_struct(registry: &Ss58Identifier) -> RegistryInfoOf<Test> {
 }
 
 fn registry_details(registry: &Ss58Identifier) -> RegistryStateView {
-	decode_view(Pallet::<Test>::details(default_auth(), registry.clone()).expect("details query"))
+	Pallet::<Test>::registry_details(default_auth(), registry.clone()).expect("details query")
 }
 
 fn packet_snapshot_struct(packet: &Ss58Identifier, version: Option<u32>) -> PacketSnapshotOf<Test> {
@@ -287,12 +283,9 @@ fn view_authorization_rejects_expired_payload() {
 		let now = frame_system::Pallet::<Test>::block_number();
 		let ttl = <Test as Config>::MaxAuthorizationTTL::get();
 		frame_system::Pallet::<Test>::set_block_number(now + u64::from(ttl) + 1);
-		assert!(matches!(
-			Pallet::<Test>::details(auth, registry.clone()),
-			Err(AuthorizationError::Expired)
-		));
-	});
-}
+			assert!(Pallet::<Test>::registry_details(auth, registry.clone()).is_none());
+		});
+	}
 
 #[test]
 fn view_authorization_rejects_invalid_signature() {
@@ -304,12 +297,9 @@ fn view_authorization_rejects_invalid_signature() {
 			lookup_specs(&[&[b"id"]]),
 		);
 		let auth = forged_authorization(account(71), account(72));
-		assert!(matches!(
-			Pallet::<Test>::details(auth, registry.clone()),
-			Err(AuthorizationError::Unauthorized)
-		));
-	});
-}
+			assert!(Pallet::<Test>::registry_details(auth, registry.clone()).is_none());
+		});
+	}
 
 #[test]
 fn view_authorization_rejects_mismatched_account() {
@@ -321,12 +311,9 @@ fn view_authorization_rejects_mismatched_account() {
 			lookup_specs(&[&[b"id"]]),
 		);
 		let auth = mismatched_account_authorization(account(99), account(72));
-		assert!(matches!(
-			Pallet::<Test>::details(auth, registry.clone()),
-			Err(AuthorizationError::Unauthorized)
-		));
-	});
-}
+			assert!(Pallet::<Test>::registry_details(auth, registry.clone()).is_none());
+		});
+	}
 
 #[test]
 fn create_registry_requires_lookup_specs() {
@@ -1088,11 +1075,11 @@ fn lookup_queries_return_latest_state() {
 #[test]
 fn list_by_token_prefix_returns_snapshots() {
 	new_test_ext().execute_with(|| {
-		let (registry, _) = create_registry(
-			account(90),
-			attrs([(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
-			token_spec(&[b"asset_id"]),
-			lookup_specs(&[&[b"asset_id"]]),
+	let (registry, _) = create_registry(
+		account(90),
+		attrs([(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+		token_spec(&[b"asset_id"]),
+		lookup_specs(&[&[b"asset_id"]]),
 		);
 		let _delegate = bind_delegate(&registry, account(91));
 		let payload: AttributePairsOf<Test> =
@@ -1109,30 +1096,15 @@ fn list_by_token_prefix_returns_snapshots() {
 		let prefix_len = min(4, token_bytes.len());
 		let token_prefix = token_bytes[..prefix_len].to_vec();
 
-		let (full_matches, next_cursor): (Vec<PacketStateView>, Option<Ss58Identifier>) =
-			decode_view(
-				Pallet::<Test>::list_by_token(
-					authorization(account(92)),
-					token_bytes,
-					None,
-					None,
-					None,
-				)
-				.expect("packet list"),
-			);
+		let (full_matches, next_cursor) =
+			Pallet::<Test>::list_by_token(default_auth(), token_bytes, None, None, None)
+				.expect("packet list");
 		assert!(full_matches.iter().any(|snapshot| snapshot.registry == registry));
 		assert!(next_cursor.is_none());
 
-		let (prefix_matches, _): (Vec<PacketStateView>, Option<Ss58Identifier>) = decode_view(
-			Pallet::<Test>::list_by_token(
-				authorization(account(93)),
-				token_prefix,
-				None,
-				None,
-				Some(5),
-			)
-			.expect("packet list"),
-		);
+		let (prefix_matches, _) =
+			Pallet::<Test>::list_by_token(default_auth(), token_prefix, None, None, Some(5))
+				.expect("packet list");
 		assert!(prefix_matches.iter().any(|snapshot| snapshot.registry == registry));
 	});
 }
@@ -1164,30 +1136,15 @@ fn packets_by_lookup_digest_returns_snapshots() {
 		let prefix_len = min(4, digest_bytes.len());
 		let digest_prefix = digest_bytes[..prefix_len].to_vec();
 
-		let (full_matches, next_cursor): (Vec<PacketStateView>, Option<LookupDigestOf<Test>>) =
-			decode_view(
-				Pallet::<Test>::list_by_digest(
-					authorization(account(96)),
-					digest_bytes,
-					None,
-					None,
-					None,
-				)
-				.expect("digest list"),
-			);
-		assert!(full_matches.iter().any(|snapshot| snapshot.registry == registry));
-		assert!(next_cursor.is_none());
+			let (full_matches, next_cursor) =
+				Pallet::<Test>::list_by_digest(default_auth(), digest_bytes, None, None, None)
+					.expect("digest list");
+			assert!(full_matches.iter().any(|snapshot| snapshot.registry == registry));
+			assert!(next_cursor.is_none());
 
-		let (prefix_matches, _): (Vec<PacketStateView>, Option<LookupDigestOf<Test>>) = decode_view(
-			Pallet::<Test>::list_by_digest(
-				authorization(account(97)),
-				digest_prefix,
-				None,
-				None,
-				Some(3),
-			)
-			.expect("digest list"),
-		);
+			let (prefix_matches, _) =
+				Pallet::<Test>::list_by_digest(default_auth(), digest_prefix, None, None, Some(3))
+					.expect("digest list");
 		assert!(prefix_matches.iter().any(|snapshot| snapshot.registry == registry));
 	});
 }
@@ -1224,15 +1181,9 @@ fn packet_snapshot_returns_snapshot() {
 			payload,
 		));
 		let packet_id = Packets::<Test>::iter_keys().next().expect("packet stored");
-		let snapshot: PacketStateView = decode_view(
-			Pallet::<Test>::packet_snapshot(
-				default_auth(),
-				registry.clone(),
-				packet_id.clone(),
-				None,
-			)
-			.expect("packet snapshot"),
-		);
+		let snapshot =
+			Pallet::<Test>::packet_state(default_auth(), registry.clone(), packet_id.clone(), None)
+				.expect("packet snapshot");
 		assert_eq!(snapshot.version, 1);
 		assert_eq!(snapshot.registry_status, RegistryStatus::Active);
 	});
@@ -1266,49 +1217,40 @@ fn registry_view_queries_increment_counter() {
 		let account = account(0);
 		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 0);
 
-		let _ = Pallet::<Test>::details(default_auth(), registry.clone()).expect("details");
-		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 1);
+		let _ = Pallet::<Test>::registry_details(default_auth(), registry.clone()).expect("details");
+		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 0);
 
-		let _ = Pallet::<Test>::packet_snapshot(
+		let _ = Pallet::<Test>::packet_state(
 			default_auth(),
 			registry.clone(),
 			packet_id.clone(),
 			None,
 		)
 		.expect("packet");
-		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 2);
+		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 0);
 
 		let _ =
-			Pallet::<Test>::lookup_snapshot(default_auth(), registry.clone(), digest.clone(), None)
+			Pallet::<Test>::packet_lookup_snapshot(default_auth(), registry.clone(), digest.clone(), None)
 				.expect("lookup packet");
-		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 3);
+		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 0);
 
 		let token_bytes = packet_id.as_ref().to_vec();
-		let (token_matches, _): (Vec<PacketStateView>, Option<Ss58Identifier>) = decode_view(
+		let (token_matches, _) =
 			Pallet::<Test>::list_by_token(default_auth(), token_bytes.clone(), None, None, None)
-				.expect("token matches"),
-		);
+				.expect("token matches");
 		assert!(!token_matches.is_empty());
-		assert_eq!(
-			RegistryQueryCounts::<Test>::get(&registry, account.clone()),
-			3 + token_matches.len() as u64
-		);
+		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 0);
 
-		let (digest_matches, _): (Vec<PacketStateView>, Option<LookupDigestOf<Test>>) = decode_view(
-			Pallet::<Test>::list_by_digest(
-				default_auth(),
-				digest.as_ref().to_vec(),
-				None,
-				None,
-				None,
-			)
-			.expect("digest matches"),
-		);
+		let (digest_matches, _) = Pallet::<Test>::list_by_digest(
+			default_auth(),
+			digest.as_ref().to_vec(),
+			None,
+			None,
+			None,
+		)
+		.expect("digest matches");
 		assert!(!digest_matches.is_empty());
-		assert_eq!(
-			RegistryQueryCounts::<Test>::get(&registry, account),
-			3 + token_matches.len() as u64 + digest_matches.len() as u64
-		);
+		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account), 0);
 	});
 }
 
@@ -1322,14 +1264,12 @@ fn delegate_permissions_view_returns_permissions() {
 			lookup_specs(&[&[b"asset_id"]]),
 		);
 		let delegate = bind_delegate(&registry, account(141));
-		let perms: RegistryPermissions = decode_view(
-			Pallet::<Test>::delegate_permissions(
-				authorization(account(142)),
-				registry.clone(),
-				delegate.clone(),
-			)
-			.expect("delegate view"),
-		);
+		let perms = Pallet::<Test>::delegate_permissions(
+			authorization(account(142)),
+			registry.clone(),
+			delegate.clone(),
+		)
+		.expect("delegate view");
 		assert_eq!(perms, RegistryPermissions::ENTRY | RegistryPermissions::VIEW);
 	});
 }
@@ -1344,16 +1284,12 @@ fn query_count_view_returns_counter() {
 			lookup_specs(&[&[b"asset_id"]]),
 		);
 		let viewer = account(0);
-		let _ = Pallet::<Test>::details(default_auth(), registry.clone()).expect("details");
-		let count: u32 = decode_view(
-			Pallet::<Test>::query_count(
-				authorization(account(144)),
-				registry.clone(),
-				viewer.clone(),
-			)
-			.expect("query count view"),
-		);
-		assert_eq!(count, 1);
+		let _ =
+			Pallet::<Test>::registry_details(default_auth(), registry.clone()).expect("details");
+		let count =
+			Pallet::<Test>::query_count(authorization(account(144)), registry.clone(), viewer.clone())
+				.expect("query count view");
+		assert_eq!(count, 0);
 	});
 }
 
@@ -1420,14 +1356,13 @@ fn packet_snapshot_by_token_rejects_deleted_packet() {
 			packet_id.clone()
 		));
 
-		let result =
-			Pallet::<Test>::packet_snapshot_by_token(default_auth(), packet_id.clone(), None);
-		assert_eq!(result.unwrap_err(), AuthorizationError::InvalidInput);
+		let result = Pallet::<Test>::packet_for_token(default_auth(), packet_id.clone(), None);
+		assert!(result.is_none());
 	});
 }
 
 #[test]
-fn overview_returns_registry_view() {
+fn registry_view_functions_cover_schema_and_status() {
 	new_test_ext().execute_with(|| {
 		let (registry, maintainer) = create_registry(
 			account(160),
@@ -1438,18 +1373,48 @@ fn overview_returns_registry_view() {
 			token_spec(&[b"id"]),
 			lookup_specs(&[&[b"id"]]),
 		);
-		let view: RegistryStateView = decode_view(
-			Pallet::<Test>::overview(default_auth(), registry.clone()).expect("overview"),
+		let auth = default_auth();
+
+		let attrs_view =
+			Pallet::<Test>::registry_attributes(auth.clone(), registry.clone()).expect("attributes");
+		assert_eq!(attrs_view.len(), 2);
+		let attr_type =
+			Pallet::<Test>::registry_attribute(auth.clone(), registry.clone(), b"id".to_vec())
+				.unwrap();
+		assert_eq!(attr_type.0, ElementType::U64);
+		assert!(!attr_type.1);
+
+		let token_keys =
+			Pallet::<Test>::registry_token_specs(auth.clone(), registry.clone()).unwrap();
+		assert_eq!(token_keys, vec![b"id".to_vec()]);
+
+		assert!(Pallet::<Test>::registry_exists(auth.clone(), registry.clone()));
+		assert!(Pallet::<Test>::registry_is_active(auth.clone(), registry.clone()));
+		assert_eq!(Pallet::<Test>::registry_status(auth.clone(), registry.clone()).unwrap(), RegistryStatus::Active);
+		let keys = Pallet::<Test>::registry_attribute_keys(auth.clone(), registry.clone()).unwrap();
+		assert_eq!(keys.len(), 2);
+		assert_eq!(
+			Pallet::<Test>::registry_maintainer(auth.clone(), registry.clone()).unwrap(),
+			maintainer
 		);
-		assert_eq!(view.registry, registry);
-		assert_eq!(view.maintainer, maintainer);
-		assert_eq!(view.attributes.len(), 2);
-		assert_eq!(view.token_spec, vec![b"id".to_vec()]);
+
+		// delegates listing and permission checks
+		let delegate = bind_delegate(&registry, account(161));
+		let delegates =
+			Pallet::<Test>::registry_delegates(auth.clone(), registry.clone()).expect("delegates");
+		assert!(delegates.iter().any(|(d, _)| d == &delegate));
+		assert!(Pallet::<Test>::has_registry_permissions(
+			auth.clone(),
+			registry.clone(),
+			delegate.clone(),
+			RegistryPermissions::ENTRY
+		));
+		assert!(Pallet::<Test>::is_delegate(auth.clone(), registry.clone(), delegate.clone()));
 	});
 }
 
 #[test]
-fn lookup_snapshot_returns_snapshot_for_digest() {
+fn packet_view_functions_cover_state_and_metadata() {
 	new_test_ext().execute_with(|| {
 		let (registry, _) = create_registry(
 			account(170),
@@ -1457,8 +1422,7 @@ fn lookup_snapshot_returns_snapshot_for_digest() {
 			token_spec(&[b"id"]),
 			lookup_specs(&[&[b"id"]]),
 		);
-		let _delegate = bind_delegate(&registry, account(171));
-
+		let delegate_token = bind_delegate(&registry, account(171));
 		let payload: AttributePairsOf<Test> =
 			BoundedVec::try_from(vec![(attr_key(b"id"), value_u64(5))]).unwrap();
 		assert_ok!(Pallet::<Test>::create_packet(
@@ -1466,17 +1430,47 @@ fn lookup_snapshot_returns_snapshot_for_digest() {
 			registry.clone(),
 			payload,
 		));
-
 		let (digest, _reg, _anchor) = LookupIndex::<Test>::iter()
 			.find(|(_, reg, _)| reg == &registry)
 			.expect("lookup entry exists");
+		let packet_id = Packets::<Test>::iter_keys().next().unwrap();
+		let auth = default_auth();
 
-		let view: PacketStateView = decode_view(
-			Pallet::<Test>::lookup_snapshot(default_auth(), registry.clone(), digest.clone(), None)
-				.expect("lookup view"),
+		let state =
+			Pallet::<Test>::packet_state(auth.clone(), registry.clone(), packet_id.clone(), None)
+				.unwrap();
+		assert_eq!(state.status, PacketStatus::Active);
+
+		let meta =
+			Pallet::<Test>::packet_metadata(auth.clone(), registry.clone(), packet_id.clone())
+				.unwrap();
+		assert_eq!(meta.controller, delegate_token);
+
+		let snap = Pallet::<Test>::packet_lookup_snapshot(
+			auth.clone(),
+			registry.clone(),
+			digest.clone(),
+			None,
+		)
+		.unwrap();
+		assert_eq!(snap.version, 1);
+
+		let by_token =
+			Pallet::<Test>::packet_for_token(auth.clone(), packet_id.clone(), None).unwrap();
+		assert_eq!(by_token.registry, registry);
+
+		let pointers =
+			Pallet::<Test>::packets_by_digest(auth.clone(), digest.clone(), None, Some(10)).unwrap();
+		assert_eq!(pointers.len(), 1);
+
+		assert!(Pallet::<Test>::packet_exists(auth.clone(), registry.clone(), packet_id.clone()));
+		assert_eq!(
+			Pallet::<Test>::packet_status(auth.clone(), packet_id.clone()).unwrap(),
+			PacketStatus::Active
 		);
-		assert_eq!(view.registry, registry);
-		assert_eq!(view.status, PacketStatus::Active);
-		assert_eq!(view.version, 1);
+		assert_eq!(
+			Pallet::<Test>::packet_controller(auth.clone(), packet_id.clone()).unwrap(),
+			delegate_token
+		);
 	});
 }

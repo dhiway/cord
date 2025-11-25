@@ -72,6 +72,53 @@ frame_benchmarking::benchmarks! {
 		assert!(Registries::<T>::iter_keys().next().is_some());
 	}
 
+	remove_delegate_permissions {
+		let caller: T::AccountId = whitelisted_caller();
+		let hash = T::Hashing::hash(&caller.encode());
+		let pallet_name = <Pallet<T> as PalletInfoAccess>::name();
+		let token = <T as pallet::Config>::Token::build(hash.as_ref(), pallet_name)
+			.map_err(|_| BenchmarkError::Stop("failed to build entity token"))?;
+		bind_entity::<T>(&caller, &token);
+
+		let mut attributes = AttributeSchemaListOf::<T>::default();
+		attributes
+			.try_push(AttributeSpec {
+				key: Attribute::try_from(b"key".to_vec()).unwrap(),
+				kind: ElementType::Raw,
+				flags: AttributeFlags::empty(),
+			})
+			.expect("attribute push");
+
+		let token_spec =
+			LookupSpec::Single(Attribute::try_from(b"key".to_vec()).expect("within key bound"));
+		let mut lookup_specs = LookupSpecListOf::<T>::default();
+		lookup_specs.try_push(token_spec.clone()).expect("lookup push");
+
+		Pallet::<T>::create_registry(
+			RawOrigin::Signed(caller.clone()).into(),
+			element_from_bytes::<T>(b"info"),
+			RegistryKind::Raw,
+			attributes,
+			token_spec,
+			lookup_specs,
+		)?;
+
+		let registry = Registries::<T>::iter_keys().next().ok_or(BenchmarkError::Stop("missing registry"))?;
+		let delegate: T::AccountId = frame_benchmarking::v2::account("deleg", 0, 0);
+		let delegate_hash = T::Hashing::hash(&delegate.encode());
+		let delegate_token = <T as pallet::Config>::Token::build(delegate_hash.as_ref(), pallet_name)
+			.map_err(|_| BenchmarkError::Stop("failed to build delegate token"))?;
+		bind_entity::<T>(&delegate, &delegate_token);
+		RegistryDelegates::<T>::insert(&registry, &delegate_token, RegistryPermissions::ENTRY | RegistryPermissions::VIEW);
+	}: _<T::RuntimeOrigin>(
+		RawOrigin::Signed(caller.clone()).into(),
+		registry.clone(),
+		delegate_token.clone()
+	)
+	verify {
+		assert!(RegistryDelegates::<T>::get(&registry, &delegate_token).is_none());
+	}
+
 	set_delegate_permissions {
 		let caller: T::AccountId = whitelisted_caller();
 		let hash = T::Hashing::hash(&caller.encode());
