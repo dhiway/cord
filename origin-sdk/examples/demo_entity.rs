@@ -59,7 +59,7 @@ fn rand_public_key() -> String {
 struct Args {
 	#[clap(long, default_value = "ws://localhost:9910")]
 	endpoint: String,
-	#[clap(long, default_value = "//Dave")]
+	#[clap(long, default_value = "//Alice")]
 	seed: String,
 	#[clap(long, default_value = "examples/data_entity_demo.json")]
 	data: String,
@@ -90,6 +90,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	if let Some(entity) = token_opt {
 		println!("✅ entity exists: {}", entity.to_string_lossy());
+		// Ensure nym is set; if missing, set it before rotations.
+		if let Some(state) =
+			client.query().using(signer.clone()).entity().overview(entity.clone()).await?
+		{
+			if state.nym.is_none() {
+				let nym_handle = set_nym(&client, &signer, &data, args.meta).await?;
+				show_progress("set_entity_nym", nym_handle).await;
+			}
+		}
 		rotate_attributes(&client, &signer, &data, args.meta).await?;
 		show_overview(&client, &signer, entity).await?;
 		return Ok(());
@@ -98,11 +107,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// Create path
 	println!("ℹ️ creating entity with info + attrs + nym");
 	let nested = build_nested(&data)?;
-	let (entity, set_info_handle) = create_entity(&client, &signer, &nested, args.meta).await?;
+	let set_info_handle = create_entity(&client, &signer, &nested, args.meta).await?;
 	show_progress("set_info", set_info_handle.clone()).await;
 
-	// Ensure set_info is in-block before setting nym to avoid lookup race.
-	let _ = set_info_handle.clone().wait_in_block().await?;
+	// Wait for finalization before follow-up queries / nym to avoid races.
+	set_info_handle.clone().wait_finalized().await?;
+
+	let entity = wait_for_entity_id(&client, &signer).await?;
 
 	let nym_handle = set_nym(&client, &signer, &data, args.meta).await?;
 	show_progress("set_entity_nym", nym_handle).await;
@@ -224,7 +235,7 @@ async fn create_entity(
 	signer: &OriginSigner,
 	nested: &EntityNestedValue,
 	use_meta: bool,
-) -> Result<(Ss58Identifier, origin_sdk::client::submit::TxHandle), Box<dyn std::error::Error>> {
+) -> Result<origin_sdk::client::submit::TxHandle, Box<dyn std::error::Error>> {
 	let handle = if use_meta {
 		let info_input = origin_sdk::schema::entity::to_entity_input(nested)?;
 		let call = origin_sdk::extrinsic::builder::DynamicCallBuilder::new().call(
@@ -242,21 +253,7 @@ async fn create_entity(
 			.await?
 	};
 
-	// Ensure inclusion before querying for the new entity id.
-	handle.clone().wait_in_block().await?;
-
-	// Retry account_token a few times in case of propagation lag.
-	let acct32 = AccountId32::from(<[u8; 32]>::from(signer.account_id()));
-	let mut entity_opt = None;
-	for _ in 0..5 {
-		entity_opt = client.query().using(signer.clone()).entity().account_token(acct32).await?;
-		if entity_opt.is_some() {
-			break;
-		}
-		tokio::time::sleep(Duration::from_millis(200)).await;
-	}
-	let entity = entity_opt.ok_or("entity id not found after set_info")?;
-	Ok((entity, handle))
+	Ok(handle)
 }
 
 async fn set_nym(
@@ -287,6 +284,22 @@ async fn set_nym(
 		.entity()
 		.submit_set_entity_nym(&nym_bytes)
 		.await?)
+}
+
+async fn wait_for_entity_id(
+	client: &OriginClient,
+	signer: &OriginSigner,
+) -> Result<Ss58Identifier, Box<dyn std::error::Error>> {
+	let acct32 = AccountId32::from(<[u8; 32]>::from(signer.account_id()));
+	for _ in 0..20 {
+		if let Some(entity) =
+			client.query().using(signer.clone()).entity().account_token(acct32.clone()).await?
+		{
+			return Ok(entity);
+		}
+		tokio::time::sleep(Duration::from_millis(500)).await;
+	}
+	Err("entity id not found after set_info".into())
 }
 
 async fn rotate_attributes(
@@ -417,8 +430,22 @@ async fn show_overview(
 				println!("🗝️  Attributes: none");
 			}
 
-			println!("🕒 Attribute history (latest {} shown):", state.history.len().min(5));
-			for h in state.history.iter().take(5) {
+			// Use overview history if present, otherwise fallback to dedicated history view.
+			let mut history = state.history.clone();
+			if history.is_empty() {
+				if let Some(h) = client
+					.query()
+					.using(signer.clone())
+					.entity()
+					.attribute_history(entity.clone())
+					.await?
+				{
+					history = h;
+				}
+			}
+
+			println!("🕒 Attribute history (latest {} shown):", history.len().min(5));
+			for h in history.iter().take(5) {
 				let key = String::from_utf8_lossy(&h.key);
 				let old = fmt_element(&h.old_value);
 				println!(

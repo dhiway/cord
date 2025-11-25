@@ -3,7 +3,11 @@
 //! [--seed //Alice] [--meta]
 
 use clap::Parser;
-use origin_sdk::{client::signer::MultiKeySigner, OriginClient};
+use origin_sdk::{
+	client::signer::OriginSigner,
+	types::OriginAccount,
+	OriginClient,
+};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -21,7 +25,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let args = Args::parse();
 	let token = origin_primitives::Ss58Identifier::try_from(args.token.clone())
 		.map_err(|e| format!("token parse: {e:?}"))?;
-	let signer = MultiKeySigner::from_seed(&args.seed)?;
+	let account = OriginAccount::from_uri(&args.seed, None)?;
+	let signer = OriginSigner::from_account(&account)?;
 	let client = OriginClient::connect(&args.endpoint).await?;
 
 	let decoded = client

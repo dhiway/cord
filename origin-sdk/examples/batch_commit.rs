@@ -1,12 +1,16 @@
 use origin_sdk::{
-	client::signer::MultiKeySigner, extrinsic::builder::DynamicCallBuilder, OriginClient,
+	client::signer::OriginSigner,
+	extrinsic::builder::DynamicCallBuilder,
+	types::OriginAccount,
+	OriginClient,
 };
 use scale_value::Value;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	env_logger::init();
-	let signer = MultiKeySigner::from_seed("//Alice")?;
+	let acct = OriginAccount::from_dev("//Alice")?;
+	let signer = OriginSigner::from_account(&acct)?;
 	let client = OriginClient::connect("ws://localhost:9944").await?;
 
 	let builder = DynamicCallBuilder::new();

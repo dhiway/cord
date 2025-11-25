@@ -47,12 +47,12 @@ fn dump_type(metadata: &Metadata, ty: u32, indent: usize) {
 			}
 		},
 		TypeDef::Sequence(seq) => {
-			println!("{pad}  seq element: {}", seq.type_param.id());
-			dump_type(metadata, seq.type_param.id(), indent + 1);
+			println!("{pad}  seq element: {}", seq.type_param.id);
+			dump_type(metadata, seq.type_param.id, indent + 1);
 		},
 		TypeDef::Array(arr) => {
-			println!("{pad}  array len {} elem {}", arr.len, arr.type_param.id());
-			dump_type(metadata, arr.type_param.id(), indent + 1);
+			println!("{pad}  array len {} elem {}", arr.len, arr.type_param.id);
+			dump_type(metadata, arr.type_param.id, indent + 1);
 		},
 		TypeDef::Tuple(tup) => {
 			for (idx, id) in tup.fields.iter().enumerate() {
