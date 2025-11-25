@@ -1,12 +1,13 @@
 use origin_primitives::Ss58Identifier;
-use origin_sdk::{client::signer::MultiKeySigner, OriginClient};
+use origin_sdk::{client::signer::OriginSigner, types::OriginAccount, OriginClient};
 use serde_json::Value as JsonValue;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let _label = load_label().unwrap_or_else(|_| "demo".into());
 
-	let signer = MultiKeySigner::from_seed("//Alice")?;
+	let account = OriginAccount::from_dev("//Alice")?;
+	let signer = OriginSigner::from_account(&account)?;
 	let client = OriginClient::connect("ws://localhost:9910").await?;
 
 	let entity_id =

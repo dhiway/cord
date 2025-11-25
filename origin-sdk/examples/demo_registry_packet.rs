@@ -7,8 +7,11 @@ use std::fs;
 use clap::Parser;
 use origin_primitives::Ss58Identifier;
 use origin_sdk::{
-	client::{signer::MultiKeySigner, Signer},
-	schema, OriginClient, OriginSdkError,
+	client::signer::OriginSigner,
+	schema,
+	types::OriginAccount,
+	OriginClient,
+	OriginSdkError,
 };
 use serde_json::Value as Json;
 use subxt::utils::AccountId32;
@@ -34,7 +37,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let reg_data = data.get("registry").ok_or("registry missing")?;
 	let pkt_data = data.get("packet").ok_or("packet missing")?;
 
-	let signer = MultiKeySigner::from_seed(&args.seed)?;
+	let account = OriginAccount::from_uri(&args.seed, None)?;
+	let signer = OriginSigner::from_account(&account)?;
 	let client = OriginClient::connect(&args.endpoint).await?;
 
 	// Resolve or create entity for controller
@@ -61,7 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn ensure_entity(
 	client: &OriginClient,
-	signer: &MultiKeySigner,
+	signer: &OriginSigner,
 	_meta: bool,
 ) -> Result<Ss58Identifier, Box<dyn std::error::Error>> {
 	let account = signer.account_id();
@@ -100,7 +104,7 @@ async fn ensure_entity(
 
 async fn create_registry(
 	client: &OriginClient,
-	signer: &MultiKeySigner,
+	signer: &OriginSigner,
 	_meta: bool,
 	reg: &Json,
 	entity: &Ss58Identifier,
@@ -156,7 +160,7 @@ async fn create_registry(
 
 async fn issue_packet(
 	client: &OriginClient,
-	signer: &MultiKeySigner,
+	signer: &OriginSigner,
 	_meta: bool,
 	reg: &Json,
 	pkt: &Json,

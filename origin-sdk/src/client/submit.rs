@@ -24,6 +24,7 @@ pub struct TxHandle {
 }
 
 impl TxHandle {
+	#[allow(dead_code)]
 	pub(crate) fn new(
 		hash: subxt::utils::H256,
 		in_block: oneshot::Receiver<Result<TxOutcome, OriginSdkError>>,
