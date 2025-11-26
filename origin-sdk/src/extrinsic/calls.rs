@@ -128,7 +128,7 @@ pub mod entity {
 	pub fn rotate_attribute_from_element(
 		_metadata: &Metadata,
 		key: &[u8],
-		val: &origin_primitives::element::Elum<crate::types::entity_input::MaxRawDataLength>,
+		val: &origin_primitives::element::Elum<crate::types::entity::MaxRawDataLength>,
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let args = vec![Value::from_bytes(key), element_to_value(val)];
 		Ok(dynamic::tx("Entity", "rotate_attribute", args))
@@ -139,7 +139,7 @@ pub mod entity {
 		_metadata: &Metadata,
 		ops: &[(
 			Vec<u8>,
-			origin_primitives::element::Elum<crate::types::entity_input::MaxRawDataLength>,
+			origin_primitives::element::Elum<crate::types::entity::MaxRawDataLength>,
 		)],
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let items: Vec<Value> = ops
@@ -155,7 +155,7 @@ pub mod entity {
 		_metadata: &Metadata,
 		ops: &[(
 			Vec<u8>,
-			origin_primitives::element::Elum<crate::types::entity_input::MaxRawDataLength>,
+			origin_primitives::element::Elum<crate::types::entity::MaxRawDataLength>,
 		)],
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let encoded = ops.encode();
@@ -207,7 +207,7 @@ pub mod entity {
 	}
 
 	pub fn element_to_value(
-		elem: &origin_primitives::element::Elum<crate::types::entity_input::MaxRawDataLength>,
+		elem: &origin_primitives::element::Elum<crate::types::entity::MaxRawDataLength>,
 	) -> Value {
 		use origin_primitives::element::Elum::*;
 		match elem {
@@ -234,7 +234,7 @@ pub mod entity {
 		}
 	}
 
-	fn attributes_to_value(attrs: &Option<crate::types::entity_input::AttributesInput>) -> Value {
+	fn attributes_to_value(attrs: &Option<crate::types::entity::AttributesInput>) -> Value {
 		match attrs {
 			None => Value::variant("None", Composite::unnamed(vec![])),
 			Some(list) => {
@@ -266,7 +266,7 @@ pub mod entity {
 
 pub mod registry {
 	use super::*;
-	use crate::types::registry_input::{
+	use crate::types::registry::{
 		DelegatePermissionsInput, RegistryCreateInput, RegistryInfoInput,
 		RemoveDelegatePermissionsInput,
 	};
@@ -726,7 +726,7 @@ pub mod token {
 		_metadata: &Metadata,
 		token: Ss58Identifier,
 		key: &[u8],
-		elem: &origin_primitives::element::Elum<crate::types::entity_input::MaxRawDataLength>,
+		elem: &origin_primitives::element::Elum<crate::types::entity::MaxRawDataLength>,
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let args = vec![
 			Value::from_bytes(token.as_ref()),

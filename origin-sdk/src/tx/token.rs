@@ -1,7 +1,7 @@
 use crate::{
 	extrinsic::calls::token,
 	tx::{handle::TxHandle, AccountTx},
-	types::{error::OriginSdkError, token_input::TokenAttributeInput},
+	types::{error::OriginSdkError, token::TokenAttributeInput},
 };
 use codec::Encode;
 use origin_primitives::Ss58Identifier;

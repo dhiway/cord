@@ -1,8 +1,8 @@
 pub(crate) mod connection;
 mod events;
 pub mod nonce;
+pub(crate) mod pipeline;
 pub mod signer;
-pub(crate) mod tx_pipeline;
 mod view;
 
 use std::sync::Arc;
@@ -14,7 +14,7 @@ use crate::{
 	types::error::OriginSdkError,
 };
 use connection::{Connection, ConnectionBuilder};
-use tx_pipeline::TxPipeline;
+use pipeline::TxPipeline;
 
 pub use events::EventEnvelope;
 pub use signer::{OriginSigner, Signer};

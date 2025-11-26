@@ -3,6 +3,7 @@ pub mod config;
 pub mod entity;
 pub mod handle;
 pub mod packet;
+pub mod params;
 pub mod registry;
 pub mod token;
 
@@ -12,12 +13,11 @@ use std::sync::Arc;
 
 use crate::{
 	client::{
-		tx_pipeline::{build_params_with_nonce, submit_with_params, AccountTxQueue, TxPipeline},
+		pipeline::{build_params_with_nonce, submit_with_params, AccountTxQueue, TxPipeline},
 		OriginClient, OriginSigner,
 	},
 	config::OriginConfig,
-	tx::config::{TxPipelineConfig, TxSubmitMode},
-	tx::handle::TxHandle,
+	tx::{config::{TxPipelineConfig, TxSubmitMode}, handle::TxHandle},
 	types::error::OriginSdkError,
 };
 

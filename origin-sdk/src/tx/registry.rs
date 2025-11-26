@@ -39,7 +39,7 @@ impl<'a> RegistryTx<'a> {
 
 	pub fn set_delegate_permissions(
 		&self,
-		input: &crate::types::registry_input::DelegatePermissionsInput,
+		input: &crate::types::registry::DelegatePermissionsInput,
 	) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
 		crate::extrinsic::calls::registry::set_delegate_permissions_from_input(
 			&self.account.client().metadata(),
@@ -49,7 +49,7 @@ impl<'a> RegistryTx<'a> {
 
 	pub fn remove_delegate_permissions(
 		&self,
-		input: &crate::types::registry_input::RemoveDelegatePermissionsInput,
+		input: &crate::types::registry::RemoveDelegatePermissionsInput,
 	) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
 		crate::extrinsic::calls::registry::remove_delegate_permissions_from_input(
 			&self.account.client().metadata(),
@@ -73,7 +73,7 @@ impl<'a> RegistryTx<'a> {
 
 	pub async fn submit_set_delegate_permissions(
 		&self,
-		input: &crate::types::registry_input::DelegatePermissionsInput,
+		input: &crate::types::registry::DelegatePermissionsInput,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = crate::extrinsic::calls::registry::set_delegate_permissions_from_input(
 			&self.account.client().metadata(),
@@ -84,7 +84,7 @@ impl<'a> RegistryTx<'a> {
 
 	pub async fn submit_remove_delegate_permissions(
 		&self,
-		input: &crate::types::registry_input::RemoveDelegatePermissionsInput,
+		input: &crate::types::registry::RemoveDelegatePermissionsInput,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = crate::extrinsic::calls::registry::remove_delegate_permissions_from_input(
 			&self.account.client().metadata(),

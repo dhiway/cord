@@ -139,7 +139,10 @@ impl MetaTxClient {
 			.account_nonce(&signer.account_id())
 			.await
 			.map_err(|e| OriginSdkError::Nonce(e.to_string()))?;
-		let params = subxt::config::DefaultExtrinsicParamsBuilder::new().nonce(nonce).build();
+		let params =
+			crate::tx::params::OriginExtrinsicParamsBuilder::<crate::config::OriginConfig>::new()
+				.nonce(nonce)
+				.build();
 		let adapter = SubxtSignerAdapter::new(signer.clone());
 		let progress = self
 			.connection
