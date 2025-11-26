@@ -211,9 +211,14 @@ impl SubmitClient {
 					tip_eff = tip_eff.saturating_add(100 * attempt as u128);
 					continue;
 				},
-				Err(e) if attempt == 0 && e.to_string().contains("Future") => {
-					// Refresh nonce and retry once on future nonce errors.
+				Err(e)
+					if attempt <= 1
+						&& (e.to_string().contains("Invalid Transaction")
+							|| e.to_string().contains("Future")) =>
+				{
+					// Likely stale/future nonce: refresh cache and retry once.
 					attempt += 1;
+					let _ = self.nonce.refresh(connection.online(), &account).await;
 					continue;
 				},
 				Err(e) => return Err(OriginSdkError::Tx(e.to_string())),

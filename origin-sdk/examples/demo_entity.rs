@@ -15,7 +15,7 @@ use origin_sdk::{
 	client::{signer::OriginSigner, OriginClient},
 	extrinsic::calls::entity::element_to_value,
 	schema::entity::{element_from_view, EntityNestedValue},
-	types::{entity_input::ElementInput, OriginAccount},
+	types::{account::CryptoScheme, entity_input::ElementInput, EntityStateViewSdk, OriginAccount},
 };
 use rand::{distributions::Alphanumeric, rngs::OsRng, Rng, RngCore};
 use serde_json::Value as Json;
@@ -34,7 +34,7 @@ fn rand_tag(len: usize) -> String {
 
 fn rand_phone() -> String {
 	let mut rng = rand::thread_rng();
-	format!("+1-555-{}-{:04}", rng.gen_range(100..999), rng.gen_range(0..10_000))
+	format!("+91-922-{}-{:04}", rng.gen_range(100..999), rng.gen_range(0..10_000))
 }
 
 fn rand_hash32() -> [u8; 32] {
@@ -53,6 +53,12 @@ fn rand_public_key() -> String {
 	let mut pk = [0u8; 32];
 	OsRng.fill_bytes(&mut pk);
 	format!("sr25519:{}", hex::encode(pk))
+}
+
+fn rand_account_id32_from_scheme(scheme: CryptoScheme) -> (OriginAccount, AccountId32) {
+	let (acct, _) = OriginAccount::generate_with_scheme(scheme);
+	let id = AccountId32::from(<[u8; 32]>::from(acct.account_id()));
+	(acct, id)
 }
 
 #[derive(Parser, Debug)]
@@ -90,36 +96,55 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	if let Some(entity) = token_opt {
 		println!("✅ entity exists: {}", entity.to_string_lossy());
-		// Ensure nym is set; if missing, set it before rotations.
-		if let Some(state) =
-			client.query().using(signer.clone()).entity().overview(entity.clone()).await?
-		{
-			if state.nym.is_none() {
-				let nym_handle = set_nym(&client, &signer, &data, args.meta).await?;
-				show_progress("set_entity_nym", nym_handle).await;
-			}
+		let mut scheme_map = std::collections::HashMap::new();
+		scheme_map.insert(account_fmt.clone(), "sr25519".to_string());
+
+		let state = client
+			.query()
+			.using(signer.clone())
+			.entity()
+			.overview(entity.clone())
+			.await?
+			.unwrap_or_else(|| EntityStateViewSdk {
+				info: origin_primitives::entity::EntityInfoView {
+					display: ElementView::None,
+					web: ElementView::None,
+					email: ElementView::None,
+					attributes: None,
+				},
+				nym: None,
+				linked_accounts: Vec::new(),
+				history: Vec::new(),
+			});
+
+		set_nym_if_missing(&client, &signer, &data, args.meta, state.nym.is_none()).await?;
+
+		let missing_links = 3usize.saturating_sub(state.linked_accounts.len());
+		if missing_links > 0 {
+			link_extra_accounts(&client, &signer, &mut scheme_map, missing_links).await?;
 		}
+
 		rotate_attributes(&client, &signer, &data, args.meta).await?;
-		show_overview(&client, &signer, entity).await?;
+		show_overview(&client, &signer, entity, Some(&scheme_map)).await?;
 		return Ok(());
 	}
 
-	// Create path
-	println!("ℹ️ creating entity with info + attrs + nym");
+	// Entity not found: only set info + attributes (no nym or linked accounts yet).
+	println!("ℹ️ creating entity with info + attrs");
 	let nested = build_nested(&data)?;
 	let set_info_handle = create_entity(&client, &signer, &nested, args.meta).await?;
 	show_progress("set_info", set_info_handle.clone()).await;
 
-	// Wait for finalization before follow-up queries / nym to avoid races.
+	// Wait for finalization before fetching the new entity id.
 	set_info_handle.clone().wait_finalized().await?;
 
 	let entity = wait_for_entity_id(&client, &signer).await?;
 
-	let nym_handle = set_nym(&client, &signer, &data, args.meta).await?;
-	show_progress("set_entity_nym", nym_handle).await;
+	let mut scheme_map = std::collections::HashMap::new();
+	scheme_map.insert(account_fmt.clone(), "sr25519".to_string());
 
 	println!("🎉 entity ready: {}", entity.to_string_lossy());
-	show_overview(&client, &signer, entity).await?;
+	show_overview(&client, &signer, entity, Some(&scheme_map)).await?;
 	Ok(())
 }
 
@@ -262,12 +287,15 @@ async fn set_nym(
 	data: &Json,
 	use_meta: bool,
 ) -> Result<origin_sdk::client::submit::TxHandle, Box<dyn std::error::Error>> {
-	let nym_bytes = data
-		.get("nym")
-		.and_then(Json::as_str)
-		.unwrap_or("demo.nym.cord")
-		.as_bytes()
-		.to_vec();
+	let suffix_owned: String;
+	let suffix = if let Some(s) = data.get("nym_suffix").and_then(Json::as_str) {
+		s
+	} else {
+		suffix_owned = rand_tag(6);
+		&suffix_owned
+	};
+	let nym = format!("demo.{}", suffix);
+	let nym_bytes = nym.as_bytes().to_vec();
 
 	if use_meta {
 		let call = origin_sdk::extrinsic::builder::DynamicCallBuilder::new().call(
@@ -286,20 +314,102 @@ async fn set_nym(
 		.await?)
 }
 
+async fn set_nym_if_missing(
+	client: &OriginClient,
+	signer: &OriginSigner,
+	data: &Json,
+	use_meta: bool,
+	missing: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+	if !missing {
+		return Ok(());
+	}
+	let attempt = set_nym(client, signer, data, use_meta).await;
+	match attempt {
+		Ok(handle) => {
+			show_progress("set_entity_nym", handle).await;
+			Ok(())
+		},
+		Err(e) => {
+			println!("⚠️  set_entity_nym failed (will retry once): {e}");
+			let retry = set_nym(client, signer, data, use_meta).await;
+			match retry {
+				Ok(h) => {
+					show_progress("set_entity_nym (retry)", h).await;
+					Ok(())
+				},
+				Err(e2) => {
+					println!("⚠️  set_entity_nym retry failed: {e2}");
+					Ok(()) // continue demo even if nym fails
+				},
+			}
+		},
+	}
+}
+
 async fn wait_for_entity_id(
 	client: &OriginClient,
 	signer: &OriginSigner,
 ) -> Result<Ss58Identifier, Box<dyn std::error::Error>> {
 	let acct32 = AccountId32::from(<[u8; 32]>::from(signer.account_id()));
 	for _ in 0..20 {
-		if let Some(entity) =
-			client.query().using(signer.clone()).entity().account_token(acct32.clone()).await?
+		if let Some(entity) = client
+			.query()
+			.using(signer.clone())
+			.entity()
+			.account_token(acct32.clone())
+			.await?
 		{
 			return Ok(entity);
 		}
 		tokio::time::sleep(Duration::from_millis(500)).await;
 	}
 	Err("entity id not found after set_info".into())
+}
+
+async fn link_extra_accounts(
+	client: &OriginClient,
+	signer: &OriginSigner,
+	scheme_map: &mut std::collections::HashMap<String, String>,
+	missing: usize,
+) -> Result<(), Box<dyn std::error::Error>> {
+	if missing == 0 {
+		return Ok(());
+	}
+
+	let mut tasks = Vec::new();
+
+	if missing >= 1 {
+		let (_ed_acct, ed_id) = rand_account_id32_from_scheme(CryptoScheme::Ed25519);
+		let ed_handle = client
+			.tx()
+			.using(signer.clone())
+			.entity()
+			.submit_set_linked_account(ed_id.clone())
+			.await?;
+		tasks.push(("link_ed25519", ed_handle));
+		let ed_ss58 = origin_sdk::account_id_to_ss58(&sp_core::crypto::AccountId32::from(ed_id.0));
+		scheme_map.insert(ed_ss58, "ed25519".into());
+	}
+
+	if missing >= 2 {
+		let (_ec_acct, ec_id) = rand_account_id32_from_scheme(CryptoScheme::Ecdsa);
+		let ec_handle = client
+			.tx()
+			.using(signer.clone())
+			.entity()
+			.submit_set_linked_account(ec_id.clone())
+			.await?;
+		tasks.push(("link_ecdsa", ec_handle));
+		let ec_ss58 = origin_sdk::account_id_to_ss58(&sp_core::crypto::AccountId32::from(ec_id.0));
+		scheme_map.insert(ec_ss58, "ecdsa".into());
+	}
+
+	for (label, handle) in tasks {
+		show_progress(label, handle).await;
+	}
+
+	Ok(())
 }
 
 async fn rotate_attributes(
@@ -387,10 +497,9 @@ async fn show_progress(label: impl AsRef<str>, handle: origin_sdk::client::submi
 	println!("⏳ watching {label} (hash {:?})", handle.hash);
 	let in_block = handle.clone().wait_in_block();
 	tokio::pin!(in_block);
-	if in_block.await.is_ok() {
-		println!("✅ {label} included");
-	} else {
-		println!("⚠️  {label} failed");
+	match in_block.await {
+		Ok(_) => println!("✅ {label} included"),
+		Err(e) => println!("⚠️  {label} failed: {e}"),
 	}
 }
 
@@ -398,6 +507,7 @@ async fn show_overview(
 	client: &OriginClient,
 	signer: &OriginSigner,
 	entity: Ss58Identifier,
+	schemes: Option<&std::collections::HashMap<String, String>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
 	println!("📖 Overview");
 	let overview = client.query().using(signer.clone()).entity().overview(entity.clone()).await?;
@@ -417,6 +527,12 @@ async fn show_overview(
 			println!("🔗 Linked  : {} account(s)", state.linked_accounts.len());
 			for (i, acc) in state.linked_accounts.iter().enumerate() {
 				let acc_fmt = origin_sdk::account_id_to_ss58_subxt(acc);
+				if let Some(map) = schemes {
+					if let Some(s) = map.get(&acc_fmt) {
+						println!("    [{}] {} ({})", i + 1, acc_fmt, s);
+						continue;
+					}
+				}
 				println!("    [{}] {}", i + 1, acc_fmt);
 			}
 
