@@ -239,14 +239,38 @@ fn validate_element_type(
 	actual: &origin_primitives::element::ElementView,
 ) -> Result<(), OriginSdkError> {
 	let ok = match (expected, actual) {
-		(origin_primitives::element::ElementType::None, origin_primitives::element::ElementView::None) => true,
-		(origin_primitives::element::ElementType::Raw, origin_primitives::element::ElementView::Raw(_)) => true,
-		(origin_primitives::element::ElementType::Bool, origin_primitives::element::ElementView::Bool(_)) => true,
-		(origin_primitives::element::ElementType::U64, origin_primitives::element::ElementView::U64(_)) => true,
-		(origin_primitives::element::ElementType::U128, origin_primitives::element::ElementView::U128(_)) => true,
-		(origin_primitives::element::ElementType::Hash, origin_primitives::element::ElementView::Hash(_)) => true,
-		(origin_primitives::element::ElementType::Token, origin_primitives::element::ElementView::Token(_)) => true,
-		(origin_primitives::element::ElementType::Cid, origin_primitives::element::ElementView::Cid(_)) => true,
+		(
+			origin_primitives::element::ElementType::None,
+			origin_primitives::element::ElementView::None,
+		) => true,
+		(
+			origin_primitives::element::ElementType::Raw,
+			origin_primitives::element::ElementView::Raw(_),
+		) => true,
+		(
+			origin_primitives::element::ElementType::Bool,
+			origin_primitives::element::ElementView::Bool(_),
+		) => true,
+		(
+			origin_primitives::element::ElementType::U64,
+			origin_primitives::element::ElementView::U64(_),
+		) => true,
+		(
+			origin_primitives::element::ElementType::U128,
+			origin_primitives::element::ElementView::U128(_),
+		) => true,
+		(
+			origin_primitives::element::ElementType::Hash,
+			origin_primitives::element::ElementView::Hash(_),
+		) => true,
+		(
+			origin_primitives::element::ElementType::Token,
+			origin_primitives::element::ElementView::Token(_),
+		) => true,
+		(
+			origin_primitives::element::ElementType::Cid,
+			origin_primitives::element::ElementView::Cid(_),
+		) => true,
 		_ => false,
 	};
 	if ok {

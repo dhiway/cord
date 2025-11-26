@@ -1,5 +1,5 @@
 use crate::types::{
-	entity_input::{build_attributes, ElementInput, MaxRawDataLength},
+	entity::{build_attributes, ElementInput, MaxRawDataLength},
 	error::OriginSdkError,
 	EntityInfoInput, EntityStateViewSdk, Ss58Identifier,
 };

@@ -107,7 +107,7 @@ impl ConnectionBuilder {
 			.ok_or_else(|| OriginSdkError::InvalidInput("endpoint is required".into()))?;
 		let connection =
 			Connection::connect(endpoint, self.backoff, self.timeout, self.auto_reconnect).await?;
-		let tx_pipeline = Arc::new(crate::client::tx_pipeline::TxPipeline::new(
+		let tx_pipeline = Arc::new(crate::client::pipeline::TxPipeline::new(
 			connection.online().clone(),
 			self.tx_cfg.clone(),
 		));

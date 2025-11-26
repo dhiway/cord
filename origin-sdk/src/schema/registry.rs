@@ -1,6 +1,6 @@
 use crate::types::{
 	error::OriginSdkError,
-	registry_input::{
+	registry::{
 		MaxAdditionalAttributes, MaxRawDataLength, RegistryAttributeInput, RegistryCreateInput,
 		RegistryLookupInput,
 	},

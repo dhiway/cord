@@ -15,7 +15,7 @@ use origin_sdk::{
 	client::{signer::OriginSigner, OriginClient},
 	extrinsic::calls::entity::element_to_value,
 	schema::entity::{element_from_view, EntityNestedValue},
-	types::{account::CryptoScheme, entity_input::ElementInput, EntityStateViewSdk, OriginAccount},
+	types::{account::CryptoScheme, entity::ElementInput, EntityStateViewSdk, OriginAccount},
 };
 use rand::{distributions::Alphanumeric, rngs::OsRng, Rng, RngCore};
 use serde_json::Value as Json;
