@@ -1,19 +1,18 @@
 use crate::{
-	client::{signer::OriginSigner, submit::TxHandle, OriginClient},
 	extrinsic::calls::token,
+	tx::{handle::TxHandle, AccountTx},
 	types::{error::OriginSdkError, token_input::TokenAttributeInput},
 };
 use codec::Encode;
 use origin_primitives::Ss58Identifier;
 
 pub struct TokenTx<'a> {
-	client: &'a OriginClient,
-	signer: OriginSigner,
+	account: &'a AccountTx,
 }
 
 impl<'a> TokenTx<'a> {
-	pub(crate) fn new(client: &'a OriginClient, signer: OriginSigner) -> Self {
-		Self { client, signer }
+	pub(crate) fn new(account: &'a AccountTx) -> Self {
+		Self { account }
 	}
 
 	/// Rotate a token attribute using raw bytes.
@@ -23,8 +22,9 @@ impl<'a> TokenTx<'a> {
 		key: &[u8],
 		value: &[u8],
 	) -> Result<TxHandle, OriginSdkError> {
-		let payload = token::rotate_attribute_call(&self.client.metadata(), token_id, key, value)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		let payload =
+			token::rotate_attribute_call(&self.account.client().metadata(), token_id, key, value)?;
+		self.account.submit(payload).await
 	}
 
 	/// Convenience: accept an ElementView and SCALE-encode to bytes.

@@ -82,6 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let acct = OriginAccount::from_uri(&args.seed, None).map_err(|e| format!("{e:?}"))?;
 	let signer = OriginSigner::from_account(&acct).map_err(|e| format!("{e:?}"))?;
 	let client = OriginClient::connect(&args.endpoint).await?;
+	let tx = client.tx().using(signer.clone());
 	let data = load_profile(&args.data)?;
 
 	let account = signer.account_id();
@@ -117,14 +118,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 				history: Vec::new(),
 			});
 
-		set_nym_if_missing(&client, &signer, &data, args.meta, state.nym.is_none()).await?;
+		set_nym_if_missing(&client, &tx, &data, args.meta, state.nym.is_none()).await?;
 
 		let missing_links = 3usize.saturating_sub(state.linked_accounts.len());
 		if missing_links > 0 {
-			link_extra_accounts(&client, &signer, &mut scheme_map, missing_links).await?;
+			link_extra_accounts(&client, &tx, &mut scheme_map, missing_links).await?;
 		}
 
-		rotate_attributes(&client, &signer, &data, args.meta).await?;
+		rotate_attributes(&client, &tx, &data, args.meta).await?;
 		show_overview(&client, &signer, entity, Some(&scheme_map)).await?;
 		return Ok(());
 	}
@@ -132,7 +133,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	// Entity not found: only set info + attributes (no nym or linked accounts yet).
 	println!("ℹ️ creating entity with info + attrs");
 	let nested = build_nested(&data)?;
-	let set_info_handle = create_entity(&client, &signer, &nested, args.meta).await?;
+	let set_info_handle = create_entity(&client, &tx, &nested, args.meta).await?;
 	show_progress("set_info", set_info_handle.clone()).await;
 
 	// Wait for finalization before fetching the new entity id.
@@ -257,10 +258,10 @@ fn build_nested(data: &Json) -> Result<EntityNestedValue, Box<dyn std::error::Er
 
 async fn create_entity(
 	client: &OriginClient,
-	signer: &OriginSigner,
+	tx: &origin_sdk::tx::AccountTx,
 	nested: &EntityNestedValue,
 	use_meta: bool,
-) -> Result<origin_sdk::client::submit::TxHandle, Box<dyn std::error::Error>> {
+) -> Result<origin_sdk::tx::handle::TxHandle, Box<dyn std::error::Error>> {
 	let handle = if use_meta {
 		let info_input = origin_sdk::schema::entity::to_entity_input(nested)?;
 		let call = origin_sdk::extrinsic::builder::DynamicCallBuilder::new().call(
@@ -270,12 +271,7 @@ async fn create_entity(
 		);
 		client.metatx().sign_and_submit(call).await?
 	} else {
-		client
-			.tx()
-			.using(signer.clone())
-			.entity()
-			.submit_set_info_from_nested(nested)
-			.await?
+		tx.entity().submit_set_info_from_nested(nested).await?
 	};
 
 	Ok(handle)
@@ -283,10 +279,10 @@ async fn create_entity(
 
 async fn set_nym(
 	client: &OriginClient,
-	signer: &OriginSigner,
+	tx: &origin_sdk::tx::AccountTx,
 	data: &Json,
 	use_meta: bool,
-) -> Result<origin_sdk::client::submit::TxHandle, Box<dyn std::error::Error>> {
+) -> Result<origin_sdk::tx::handle::TxHandle, Box<dyn std::error::Error>> {
 	let suffix_owned: String;
 	let suffix = if let Some(s) = data.get("nym_suffix").and_then(Json::as_str) {
 		s
@@ -306,17 +302,12 @@ async fn set_nym(
 		return Ok(client.metatx().sign_and_submit(call).await?);
 	}
 
-	Ok(client
-		.tx()
-		.using(signer.clone())
-		.entity()
-		.submit_set_entity_nym(&nym_bytes)
-		.await?)
+	Ok(tx.entity().submit_set_entity_nym(&nym_bytes).await?)
 }
 
 async fn set_nym_if_missing(
 	client: &OriginClient,
-	signer: &OriginSigner,
+	tx: &origin_sdk::tx::AccountTx,
 	data: &Json,
 	use_meta: bool,
 	missing: bool,
@@ -324,7 +315,7 @@ async fn set_nym_if_missing(
 	if !missing {
 		return Ok(());
 	}
-	let attempt = set_nym(client, signer, data, use_meta).await;
+	let attempt = set_nym(client, tx, data, use_meta).await;
 	match attempt {
 		Ok(handle) => {
 			show_progress("set_entity_nym", handle).await;
@@ -332,7 +323,7 @@ async fn set_nym_if_missing(
 		},
 		Err(e) => {
 			println!("⚠️  set_entity_nym failed (will retry once): {e}");
-			let retry = set_nym(client, signer, data, use_meta).await;
+			let retry = set_nym(client, tx, data, use_meta).await;
 			match retry {
 				Ok(h) => {
 					show_progress("set_entity_nym (retry)", h).await;
@@ -369,7 +360,7 @@ async fn wait_for_entity_id(
 
 async fn link_extra_accounts(
 	client: &OriginClient,
-	signer: &OriginSigner,
+	tx: &origin_sdk::tx::AccountTx,
 	scheme_map: &mut std::collections::HashMap<String, String>,
 	missing: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -381,12 +372,7 @@ async fn link_extra_accounts(
 
 	if missing >= 1 {
 		let (_ed_acct, ed_id) = rand_account_id32_from_scheme(CryptoScheme::Ed25519);
-		let ed_handle = client
-			.tx()
-			.using(signer.clone())
-			.entity()
-			.submit_set_linked_account(ed_id.clone())
-			.await?;
+		let ed_handle = tx.entity().submit_set_linked_account(ed_id.clone()).await?;
 		tasks.push(("link_ed25519", ed_handle));
 		let ed_ss58 = origin_sdk::account_id_to_ss58(&sp_core::crypto::AccountId32::from(ed_id.0));
 		scheme_map.insert(ed_ss58, "ed25519".into());
@@ -394,12 +380,7 @@ async fn link_extra_accounts(
 
 	if missing >= 2 {
 		let (_ec_acct, ec_id) = rand_account_id32_from_scheme(CryptoScheme::Ecdsa);
-		let ec_handle = client
-			.tx()
-			.using(signer.clone())
-			.entity()
-			.submit_set_linked_account(ec_id.clone())
-			.await?;
+		let ec_handle = tx.entity().submit_set_linked_account(ec_id.clone()).await?;
 		tasks.push(("link_ecdsa", ec_handle));
 		let ec_ss58 = origin_sdk::account_id_to_ss58(&sp_core::crypto::AccountId32::from(ec_id.0));
 		scheme_map.insert(ec_ss58, "ecdsa".into());
@@ -414,7 +395,7 @@ async fn link_extra_accounts(
 
 async fn rotate_attributes(
 	client: &OriginClient,
-	signer: &OriginSigner,
+	tx: &origin_sdk::tx::AccountTx,
 	data: &Json,
 	use_meta: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -470,12 +451,7 @@ async fn rotate_attributes(
 		progress.push(show_progress("rotate_attributes (meta)", h));
 		join_all(progress).await;
 	} else {
-		let handle = client
-			.tx()
-			.using(signer.clone())
-			.entity()
-			.submit_rotate_attributes_from_nested(&ops_views)
-			.await?;
+		let handle = tx.entity().submit_rotate_attributes_from_nested(&ops_views).await?;
 		show_progress("rotate_attributes", handle).await;
 	}
 	Ok(())
@@ -492,9 +468,9 @@ fn build_rotate_call(
 	)
 }
 
-async fn show_progress(label: impl AsRef<str>, handle: origin_sdk::client::submit::TxHandle) {
+async fn show_progress(label: impl AsRef<str>, handle: origin_sdk::tx::handle::TxHandle) {
 	let label = label.as_ref();
-	println!("⏳ watching {label} (hash {:?})", handle.hash);
+	println!("⏳ watching {label} (hash {:?})", handle.hash());
 	let in_block = handle.clone().wait_in_block();
 	tokio::pin!(in_block);
 	match in_block.await {

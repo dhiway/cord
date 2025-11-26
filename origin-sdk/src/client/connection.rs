@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use super::OriginConfig;
-use crate::{types::error::OriginSdkError, util::retry::RetryPolicy};
+use crate::{tx::config::TxPipelineConfig, types::error::OriginSdkError, util::retry::RetryPolicy};
 
 /// Shared connection wrapper.
 #[derive(Clone)]
@@ -60,6 +60,7 @@ pub struct ConnectionBuilder {
 	backoff: RetryPolicy,
 	timeout: Duration,
 	auto_reconnect: bool,
+	tx_cfg: TxPipelineConfig,
 }
 
 impl Default for ConnectionBuilder {
@@ -69,6 +70,7 @@ impl Default for ConnectionBuilder {
 			backoff: RetryPolicy::default(),
 			timeout: Duration::from_secs(30),
 			auto_reconnect: true,
+			tx_cfg: TxPipelineConfig::default(),
 		}
 	}
 }
@@ -94,13 +96,22 @@ impl ConnectionBuilder {
 		self
 	}
 
+	pub fn tx_config(mut self, cfg: TxPipelineConfig) -> Self {
+		self.tx_cfg = cfg;
+		self
+	}
+
 	pub async fn build(self) -> Result<super::OriginClient, OriginSdkError> {
 		let endpoint = self
 			.endpoint
 			.ok_or_else(|| OriginSdkError::InvalidInput("endpoint is required".into()))?;
 		let connection =
 			Connection::connect(endpoint, self.backoff, self.timeout, self.auto_reconnect).await?;
+		let tx_pipeline = Arc::new(crate::client::tx_pipeline::TxPipeline::new(
+			connection.online().clone(),
+			self.tx_cfg.clone(),
+		));
 		let connection = Arc::new(connection);
-		Ok(super::OriginClient { connection })
+		Ok(super::OriginClient { connection, tx_pipeline, tx_cfg: self.tx_cfg })
 	}
 }

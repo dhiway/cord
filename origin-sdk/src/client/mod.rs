@@ -2,7 +2,7 @@ pub(crate) mod connection;
 mod events;
 pub mod nonce;
 pub mod signer;
-pub mod submit;
+pub(crate) mod tx_pipeline;
 mod view;
 
 use std::sync::Arc;
@@ -10,9 +10,11 @@ use std::sync::Arc;
 use crate::{
 	config::OriginConfig,
 	extrinsic::{builder::DynamicCallBuilder, metatx::MetaTxClient},
+	tx::{config::TxPipelineConfig, TxClient},
 	types::error::OriginSdkError,
 };
 use connection::{Connection, ConnectionBuilder};
+use tx_pipeline::TxPipeline;
 
 pub use events::EventEnvelope;
 pub use signer::{OriginSigner, Signer};
@@ -21,6 +23,8 @@ pub use signer::{OriginSigner, Signer};
 #[derive(Clone)]
 pub struct OriginClient {
 	connection: Arc<Connection>,
+	tx_pipeline: Arc<TxPipeline>,
+	tx_cfg: TxPipelineConfig,
 }
 
 impl OriginClient {
@@ -54,9 +58,9 @@ impl OriginClient {
 		ViewClient::new(self.connection.clone())
 	}
 
-	/// Tx helpers grouped by pallet; attach signer with `.using(&signer)`.
-	pub fn tx(&self) -> crate::tx::Tx<'_> {
-		crate::tx::Tx::new(self)
+	/// Tx helpers grouped by pallet; attach signer with `.using(signer)`.
+	pub fn tx(&self) -> TxClient {
+		TxClient::new(self.clone(), self.tx_pipeline.clone())
 	}
 
 	/// Event subscription helpers.
@@ -82,12 +86,9 @@ impl OriginClient {
 		signer::OriginSigner::from_account(account)
 	}
 
-	/// Internal helper: build a submit client with a temporary signer.
-	pub(crate) fn submit_with<S>(&self, signer: S) -> SubmitClient
-	where
-		S: Signer + Clone + 'static,
-	{
-		SubmitClient::new(self.connection.clone(), Arc::new(signer))
+	/// Tx pipeline config in use.
+	pub fn tx_config(&self) -> &TxPipelineConfig {
+		&self.tx_cfg
 	}
 }
 
@@ -99,6 +100,4 @@ pub fn connect(endpoint: impl Into<String>) -> ConnectionBuilder {
 	ConnectionBuilder::default().endpoint(endpoint)
 }
 
-// Re-export submodules for internal use.
-pub(crate) use submit::SubmitClient;
 pub(crate) use view::ViewClient;

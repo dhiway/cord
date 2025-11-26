@@ -60,7 +60,7 @@
 - `has_history(token)` → `bool`
 
 ## Tx Facade (`src/tx`)
-- Entry: `client.tx().using(&signer)` (signer required). All helpers return `TxHandle`; caller chooses `wait_in_block()` / `wait_finalized()`.
+- Entry: `client.tx().using(signer)` (signer required). All helpers return `TxHandle`; caller chooses `wait_in_block()` / `wait_finalized()`.
 
 ### EntityTx
 - build + submit: `set_info_from_input`, `set_info_from_nested`

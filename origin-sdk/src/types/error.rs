@@ -17,6 +17,8 @@ pub enum OriginSdkError {
 	ViewAuth(AuthorizationError),
 	#[error("view error: {0}")]
 	View(String),
+	#[error("config error: {0}")]
+	Config(String),
 	#[error("transaction error: {0}")]
 	Tx(String),
 	#[error("nonce error: {0}")]

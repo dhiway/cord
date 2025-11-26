@@ -1,6 +1,10 @@
 use super::builder::DynamicCall;
 use crate::{
-	client::{connection::Connection, signer::Signer},
+	client::{
+		connection::Connection,
+		signer::{Signer, SubxtSignerAdapter},
+	},
+	tx::handle::{TxHandle, TxOutcome},
 	types::error::OriginSdkError,
 };
 use scale_value::{Value, ValueDef};
@@ -125,18 +129,30 @@ impl MetaTxClient {
 		&self,
 		call: DynamicCall,
 		signer: Arc<dyn Signer>,
-	) -> Result<crate::client::submit::TxHandle, OriginSdkError> {
+	) -> Result<TxHandle, OriginSdkError> {
 		let wrapped = self.wrap(call)?;
 		let payload = subxt::dynamic::tx(wrapped.pallet, wrapped.function, wrapped.args);
-		let submit = crate::client::submit::SubmitClient::new(self.connection.clone(), signer);
-		submit.submit_payload(payload).await
+		let nonce = self
+			.connection
+			.online()
+			.tx()
+			.account_nonce(&signer.account_id())
+			.await
+			.map_err(|e| OriginSdkError::Nonce(e.to_string()))?;
+		let params = subxt::config::DefaultExtrinsicParamsBuilder::new().nonce(nonce).build();
+		let adapter = SubxtSignerAdapter::new(signer.clone());
+		let progress = self
+			.connection
+			.online()
+			.tx()
+			.sign_and_submit_then_watch(&payload, &adapter, params)
+			.await
+			.map_err(|e| OriginSdkError::Tx(e.to_string()))?;
+		Ok(TxHandle::from_progress(progress))
 	}
 
 	/// Convenience: use the SDK signer to sign + submit locally.
-	pub async fn sign_and_submit(
-		&self,
-		call: DynamicCall,
-	) -> Result<crate::client::submit::TxHandle, OriginSdkError> {
+	pub async fn sign_and_submit(&self, call: DynamicCall) -> Result<TxHandle, OriginSdkError> {
 		let signer = self.signer.clone().ok_or_else(|| {
 			OriginSdkError::InvalidInput("signer is required for meta-tx submit".into())
 		})?;
@@ -147,7 +163,7 @@ impl MetaTxClient {
 	pub async fn sign_submit_and_wait_checked(
 		&self,
 		call: DynamicCall,
-	) -> Result<crate::client::submit::TxOutcome, OriginSdkError> {
+	) -> Result<TxOutcome, OriginSdkError> {
 		let handle = self.sign_and_submit(call).await?;
 		let outcome = handle.wait_finalized().await?;
 		self.ensure_dispatched_ok(&outcome)?;
@@ -160,10 +176,13 @@ impl MetaTxClient {
 		call: DynamicCall,
 		meta_signer: Arc<dyn Signer>,
 		relayer: Arc<dyn Signer>,
-	) -> Result<crate::client::submit::TxHandle, OriginSdkError> {
+	) -> Result<TxHandle, OriginSdkError> {
 		let wrapped = self.wrap(call)?;
-		let payload = subxt::dynamic::tx(wrapped.pallet, wrapped.function, wrapped.args.clone());
-		let submit = crate::client::submit::SubmitClient::new(self.connection.clone(), relayer);
+		let payload = subxt::dynamic::tx(
+			wrapped.pallet.as_str(),
+			wrapped.function.as_str(),
+			wrapped.args.clone(),
+		);
 		let _signed = meta_signer
 			.sign_payload(
 				&payload
@@ -171,13 +190,10 @@ impl MetaTxClient {
 					.map_err(|e| OriginSdkError::Encode(e.to_string()))?,
 			)
 			.await;
-		submit.submit_payload(payload).await
+		self.sign_and_submit_with(wrapped, relayer).await
 	}
 
-	fn ensure_dispatched_ok(
-		&self,
-		outcome: &crate::client::submit::TxOutcome,
-	) -> Result<(), OriginSdkError> {
+	fn ensure_dispatched_ok(&self, outcome: &TxOutcome) -> Result<(), OriginSdkError> {
 		if let Some(ev) = outcome
 			.events
 			.iter()
