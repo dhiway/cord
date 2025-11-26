@@ -1,19 +1,18 @@
 use crate::{
-	client::{signer::OriginSigner, submit::TxHandle, OriginClient},
 	extrinsic::{builder::DynamicCallBuilder, calls::packet as packet_calls},
+	tx::{handle::TxHandle, AccountTx},
 	types::error::OriginSdkError,
 };
 use origin_primitives::Ss58Identifier;
 use scale_value::Value;
 
 pub struct RegistryTx<'a> {
-	client: &'a OriginClient,
-	signer: OriginSigner,
+	account: &'a AccountTx,
 }
 
 impl<'a> RegistryTx<'a> {
-	pub(crate) fn new(client: &'a OriginClient, signer: OriginSigner) -> Self {
-		Self { client, signer }
+	pub(crate) fn new(account: &'a AccountTx) -> Self {
+		Self { account }
 	}
 
 	pub fn create(
@@ -34,10 +33,8 @@ impl<'a> RegistryTx<'a> {
 		info: &[u8],
 	) -> Result<TxHandle, OriginSdkError> {
 		let call = self.create(registry_id, info);
-		self.client
-			.submit_with(self.signer.clone())
-			.submit(&call.pallet, &call.function, call.args)
-			.await
+		let payload = subxt::dynamic::tx(call.pallet, call.function, call.args);
+		self.account.submit(payload).await
 	}
 
 	pub fn set_delegate_permissions(
@@ -45,7 +42,7 @@ impl<'a> RegistryTx<'a> {
 		input: &crate::types::registry_input::DelegatePermissionsInput,
 	) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
 		crate::extrinsic::calls::registry::set_delegate_permissions_from_input(
-			&self.client.metadata(),
+			&self.account.client().metadata(),
 			input,
 		)
 	}
@@ -55,12 +52,11 @@ impl<'a> RegistryTx<'a> {
 		input: &crate::types::registry_input::RemoveDelegatePermissionsInput,
 	) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
 		crate::extrinsic::calls::registry::remove_delegate_permissions_from_input(
-			&self.client.metadata(),
+			&self.account.client().metadata(),
 			input,
 		)
 	}
 
-	/// Typed update_registry_info using ElementView via schema helper.
 	pub async fn submit_update_registry_info_from_view(
 		&self,
 		registry: Ss58Identifier,
@@ -68,11 +64,11 @@ impl<'a> RegistryTx<'a> {
 	) -> Result<TxHandle, OriginSdkError> {
 		let elem = crate::schema::registry::element_from_view(&info)?;
 		let payload = crate::extrinsic::calls::registry::update_info_from_input(
-			&self.client.metadata(),
+			&self.account.client().metadata(),
 			registry.as_ref(),
 			&elem,
 		)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_set_delegate_permissions(
@@ -80,10 +76,10 @@ impl<'a> RegistryTx<'a> {
 		input: &crate::types::registry_input::DelegatePermissionsInput,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = crate::extrinsic::calls::registry::set_delegate_permissions_from_input(
-			&self.client.metadata(),
+			&self.account.client().metadata(),
 			input,
 		)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_remove_delegate_permissions(
@@ -91,10 +87,10 @@ impl<'a> RegistryTx<'a> {
 		input: &crate::types::registry_input::RemoveDelegatePermissionsInput,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = crate::extrinsic::calls::registry::remove_delegate_permissions_from_input(
-			&self.client.metadata(),
+			&self.account.client().metadata(),
 			input,
 		)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		self.account.submit(payload).await
 	}
 
 	pub fn revoke_registry(
@@ -130,7 +126,6 @@ impl<'a> RegistryTx<'a> {
 		)
 	}
 
-	/// Create a registry from nested schema using SDK mirrors.
 	pub async fn submit_create_from_nested(
 		&self,
 		registry_id: &[u8],
@@ -138,30 +133,31 @@ impl<'a> RegistryTx<'a> {
 	) -> Result<TxHandle, OriginSdkError> {
 		let input = crate::schema::registry::to_create_input(nested)?;
 		let payload = crate::extrinsic::calls::registry::create_from_input(
-			&self.client.metadata(),
+			&self.account.client().metadata(),
 			registry_id,
 			&input,
 		)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		self.account.submit(payload).await
 	}
 
-	/// Issue a packet for a registry using nested packet values (validated against schema).
 	pub async fn submit_packet_from_nested(
 		&self,
 		registry: Ss58Identifier,
 		nested: &crate::schema::packet::PacketNestedValue,
 	) -> Result<TxHandle, OriginSdkError> {
 		let view = self
-			.client
+			.account
+			.origin_client()
 			.query()
-			.using(self.signer.clone())
+			.using(self.account.signer().clone())
 			.registry()
 			.attributes(registry.clone())
 			.await?
 			.ok_or_else(|| OriginSdkError::View("registry schema not found".into()))?;
 		let attrs = crate::schema::packet::validate_and_flatten(nested, &view)?;
-		let payload = packet_calls::issue_from_input(&self.client.metadata(), registry, &attrs)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		let payload =
+			packet_calls::issue_from_input(&self.account.client().metadata(), registry, &attrs)?;
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_revoke_registry(
@@ -169,10 +165,8 @@ impl<'a> RegistryTx<'a> {
 		registry: Ss58Identifier,
 	) -> Result<TxHandle, OriginSdkError> {
 		let call = self.revoke_registry(registry);
-		self.client
-			.submit_with(self.signer.clone())
-			.submit(&call.pallet, &call.function, call.args)
-			.await
+		let payload = subxt::dynamic::tx(call.pallet, call.function, call.args);
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_restore_registry(
@@ -180,10 +174,8 @@ impl<'a> RegistryTx<'a> {
 		registry: Ss58Identifier,
 	) -> Result<TxHandle, OriginSdkError> {
 		let call = self.restore_registry(registry);
-		self.client
-			.submit_with(self.signer.clone())
-			.submit(&call.pallet, &call.function, call.args)
-			.await
+		let payload = subxt::dynamic::tx(call.pallet, call.function, call.args);
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_delete_registry(
@@ -191,9 +183,7 @@ impl<'a> RegistryTx<'a> {
 		registry: Ss58Identifier,
 	) -> Result<TxHandle, OriginSdkError> {
 		let call = self.delete_registry(registry);
-		self.client
-			.submit_with(self.signer.clone())
-			.submit(&call.pallet, &call.function, call.args)
-			.await
+		let payload = subxt::dynamic::tx(call.pallet, call.function, call.args);
+		self.account.submit(payload).await
 	}
 }

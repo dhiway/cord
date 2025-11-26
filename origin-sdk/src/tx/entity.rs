@@ -1,26 +1,28 @@
 use crate::{
-	client::{signer::OriginSigner, submit::TxHandle, OriginClient},
 	extrinsic::builder::DynamicCallBuilder,
+	tx::{handle::TxHandle, AccountTx},
 	types::{error::OriginSdkError, EntityInfoInput},
 };
 use origin_primitives::Ss58Identifier;
 use scale_value::Value;
 
 pub struct EntityTx<'a> {
-	client: &'a OriginClient,
-	signer: OriginSigner,
+	account: &'a AccountTx,
 }
 
 impl<'a> EntityTx<'a> {
-	pub(crate) fn new(client: &'a OriginClient, signer: OriginSigner) -> Self {
-		Self { client, signer }
+	pub(crate) fn new(account: &'a AccountTx) -> Self {
+		Self { account }
 	}
 
 	pub fn set_info_from_input(
 		&self,
 		info: &EntityInfoInput,
 	) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
-		crate::extrinsic::calls::entity::set_info_from_struct(&self.client.metadata(), info)
+		crate::extrinsic::calls::entity::set_info_from_struct(
+			&self.account.client().metadata(),
+			info,
+		)
 	}
 
 	pub fn set_info_from_nested(
@@ -36,7 +38,7 @@ impl<'a> EntityTx<'a> {
 		info: &EntityInfoInput,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = self.set_info_from_input(info)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_set_info_from_nested(
@@ -44,7 +46,7 @@ impl<'a> EntityTx<'a> {
 		nested: &crate::schema::entity::EntityNestedValue,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = self.set_info_from_nested(nested)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_rotate_attribute_from_view(
@@ -54,11 +56,11 @@ impl<'a> EntityTx<'a> {
 	) -> Result<TxHandle, OriginSdkError> {
 		let elem = crate::schema::entity::element_from_view(&value)?;
 		let payload = crate::extrinsic::calls::entity::rotate_attribute_from_element(
-			&self.client.metadata(),
+			&self.account.client().metadata(),
 			key.as_ref(),
 			&elem,
 		)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_rotate_attributes_from_nested(
@@ -71,10 +73,10 @@ impl<'a> EntityTx<'a> {
 			pairs.push((k.clone(), elem));
 		}
 		let payload = crate::extrinsic::calls::entity::rotate_attributes_from_input(
-			&self.client.metadata(),
+			&self.account.client().metadata(),
 			&pairs,
 		)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_add_attributes_from_nested(
@@ -87,16 +89,18 @@ impl<'a> EntityTx<'a> {
 			pairs.push((k.clone(), elem));
 		}
 		let payload = crate::extrinsic::calls::entity::add_attributes_from_input(
-			&self.client.metadata(),
+			&self.account.client().metadata(),
 			&pairs,
 		)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_remove_attribute(&self, key: &[u8]) -> Result<TxHandle, OriginSdkError> {
-		let payload =
-			crate::extrinsic::calls::entity::remove_attribute_call(&self.client.metadata(), key)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		let payload = crate::extrinsic::calls::entity::remove_attribute_call(
+			&self.account.client().metadata(),
+			key,
+		)?;
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_set_linked_account(
@@ -104,10 +108,10 @@ impl<'a> EntityTx<'a> {
 		account: subxt::utils::AccountId32,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = crate::extrinsic::calls::entity::set_linked_account_call(
-			&self.client.metadata(),
+			&self.account.client().metadata(),
 			account,
 		)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_revoke_linked_account(
@@ -118,7 +122,7 @@ impl<'a> EntityTx<'a> {
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = if force {
 			crate::extrinsic::calls::entity::revoke_linked_account_for_call(
-				&self.client.metadata(),
+				&self.account.client().metadata(),
 				token_for_force.ok_or_else(|| {
 					OriginSdkError::InvalidInput("token required for force revoke".into())
 				})?,
@@ -126,11 +130,11 @@ impl<'a> EntityTx<'a> {
 			)?
 		} else {
 			crate::extrinsic::calls::entity::revoke_linked_account_call(
-				&self.client.metadata(),
+				&self.account.client().metadata(),
 				account,
 			)?
 		};
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_rotate_controller(
@@ -141,7 +145,7 @@ impl<'a> EntityTx<'a> {
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = if force {
 			crate::extrinsic::calls::entity::rotate_controller_for_call(
-				&self.client.metadata(),
+				&self.account.client().metadata(),
 				token_for_force.ok_or_else(|| {
 					OriginSdkError::InvalidInput(
 						"token required for force controller rotate".into(),
@@ -151,11 +155,11 @@ impl<'a> EntityTx<'a> {
 			)?
 		} else {
 			crate::extrinsic::calls::entity::rotate_controller_call(
-				&self.client.metadata(),
+				&self.account.client().metadata(),
 				new_controller,
 			)?
 		};
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_clear_everything(
@@ -165,21 +169,25 @@ impl<'a> EntityTx<'a> {
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = if force {
 			crate::extrinsic::calls::entity::clear_everything_for_call(
-				&self.client.metadata(),
+				&self.account.client().metadata(),
 				token_for_force.ok_or_else(|| {
 					OriginSdkError::InvalidInput("token required for force clear_everything".into())
 				})?,
 			)?
 		} else {
-			crate::extrinsic::calls::entity::clear_everything_call(&self.client.metadata())?
+			crate::extrinsic::calls::entity::clear_everything_call(
+				&self.account.client().metadata(),
+			)?
 		};
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_set_entity_nym(&self, prefix: &[u8]) -> Result<TxHandle, OriginSdkError> {
-		let payload =
-			crate::extrinsic::calls::entity::set_entity_nym_call(&self.client.metadata(), prefix)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		let payload = crate::extrinsic::calls::entity::set_entity_nym_call(
+			&self.account.client().metadata(),
+			prefix,
+		)?;
+		self.account.submit(payload).await
 	}
 
 	pub async fn submit_remove_entity_nym(
@@ -187,10 +195,10 @@ impl<'a> EntityTx<'a> {
 		entity: Ss58Identifier,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = crate::extrinsic::calls::entity::remove_entity_nym_call(
-			&self.client.metadata(),
+			&self.account.client().metadata(),
 			entity,
 		)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		self.account.submit(payload).await
 	}
 
 	/// Dynamic builder escape hatch.

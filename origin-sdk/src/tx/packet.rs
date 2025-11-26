@@ -1,7 +1,7 @@
 use crate::{
-	client::{signer::OriginSigner, submit::TxHandle, OriginClient},
 	extrinsic::{builder::DynamicCallBuilder, calls::packet as packet_calls},
 	schema,
+	tx::{handle::TxHandle, AccountTx},
 	types::error::OriginSdkError,
 };
 use codec::Encode;
@@ -9,13 +9,12 @@ use scale_value::Value;
 use serde_json::Value as JsonValue;
 
 pub struct PacketTx<'a> {
-	client: &'a OriginClient,
-	signer: OriginSigner,
+	account: &'a AccountTx,
 }
 
 impl<'a> PacketTx<'a> {
-	pub(crate) fn new(client: &'a OriginClient, signer: OriginSigner) -> Self {
-		Self { client, signer }
+	pub(crate) fn new(account: &'a AccountTx) -> Self {
+		Self { account }
 	}
 
 	/// Issue a packet from nested attributes, validated against the registry schema view.
@@ -25,9 +24,10 @@ impl<'a> PacketTx<'a> {
 		nested: &schema::packet::PacketNestedValue,
 	) -> Result<TxHandle, OriginSdkError> {
 		let schema_view = self
-			.client
+			.account
+			.origin_client()
 			.query()
-			.using(self.signer.clone())
+			.using(self.account.signer().clone())
 			.registry()
 			.attributes(registry.clone())
 			.await?
@@ -38,9 +38,12 @@ impl<'a> PacketTx<'a> {
 		validate_packet_against_schema(&flat, &schema_tuples)?;
 		let attr_bytes: Vec<(Vec<u8>, Vec<u8>)> =
 			flat.into_iter().map(|(k, v)| (k, v.encode())).collect();
-		let payload =
-			packet_calls::issue_from_flat(&self.client.metadata(), registry, &attr_bytes)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		let payload = packet_calls::issue_from_flat(
+			&self.account.client().metadata(),
+			registry,
+			&attr_bytes,
+		)?;
+		self.account.submit(payload).await
 	}
 
 	pub fn issue(
@@ -61,10 +64,8 @@ impl<'a> PacketTx<'a> {
 		body: impl AsRef<[u8]>,
 	) -> Result<TxHandle, OriginSdkError> {
 		let call = self.issue(registry, body);
-		self.client
-			.submit_with(self.signer.clone())
-			.submit(&call.pallet, &call.function, call.args)
-			.await
+		let payload = subxt::dynamic::tx(call.pallet, call.function, call.args);
+		self.account.submit(payload).await
 	}
 
 	pub fn update_packet(
@@ -101,8 +102,9 @@ impl<'a> PacketTx<'a> {
 		registry: origin_primitives::Ss58Identifier,
 		packet: origin_primitives::Ss58Identifier,
 	) -> Result<TxHandle, OriginSdkError> {
-		let payload = packet_calls::revoke_call(&self.client.metadata(), registry, packet)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		let payload =
+			packet_calls::revoke_call(&self.account.client().metadata(), registry, packet)?;
+		self.account.submit(payload).await
 	}
 
 	pub fn restore_packet(
@@ -122,8 +124,9 @@ impl<'a> PacketTx<'a> {
 		registry: origin_primitives::Ss58Identifier,
 		packet: origin_primitives::Ss58Identifier,
 	) -> Result<TxHandle, OriginSdkError> {
-		let payload = packet_calls::restore_call(&self.client.metadata(), registry, packet)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		let payload =
+			packet_calls::restore_call(&self.account.client().metadata(), registry, packet)?;
+		self.account.submit(payload).await
 	}
 
 	pub fn delete_packet(
@@ -143,8 +146,9 @@ impl<'a> PacketTx<'a> {
 		registry: origin_primitives::Ss58Identifier,
 		packet: origin_primitives::Ss58Identifier,
 	) -> Result<TxHandle, OriginSdkError> {
-		let payload = packet_calls::delete_call(&self.client.metadata(), registry, packet)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		let payload =
+			packet_calls::delete_call(&self.account.client().metadata(), registry, packet)?;
+		self.account.submit(payload).await
 	}
 
 	pub fn set_packet_status(
@@ -170,9 +174,13 @@ impl<'a> PacketTx<'a> {
 		packet: origin_primitives::Ss58Identifier,
 		status: origin_primitives::packet::PacketStatus,
 	) -> Result<TxHandle, OriginSdkError> {
-		let payload =
-			packet_calls::set_status_call(&self.client.metadata(), registry, packet, status)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(payload).await
+		let payload = packet_calls::set_status_call(
+			&self.account.client().metadata(),
+			registry,
+			packet,
+			status,
+		)?;
+		self.account.submit(payload).await
 	}
 
 	/// Issue a packet from raw JSON, validating against registry schema via view.
@@ -182,18 +190,19 @@ impl<'a> PacketTx<'a> {
 		body: JsonValue,
 	) -> Result<TxHandle, OriginSdkError> {
 		let attr_triples = self
-			.client
+			.account
+			.origin_client()
 			.query()
-			.using(self.signer.clone())
+			.using(self.account.signer().clone())
 			.registry()
 			.attributes(registry.clone())
 			.await?
 			.ok_or_else(|| OriginSdkError::View("registry schema not found".into()))?;
 		let registry_view: Vec<origin_primitives::registry::RegistryAttributeView> = attr_triples;
 
-		let metadata = self.client.metadata();
+		let metadata = self.account.client().metadata();
 		let call = packet_calls::issue_call(&metadata, registry, &registry_view, &body)?;
-		self.client.submit_with(self.signer.clone()).submit_payload(call).await
+		self.account.submit(call).await
 	}
 }
 
@@ -227,37 +236,24 @@ pub fn validate_packet_against_schema(
 
 fn validate_element_type(
 	expected: &origin_primitives::element::ElementType,
-	val: &origin_primitives::element::ElementView,
+	actual: &origin_primitives::element::ElementView,
 ) -> Result<(), OriginSdkError> {
-	match (expected, val) {
-		(
-			origin_primitives::element::ElementType::Bool,
-			origin_primitives::element::ElementView::Bool(_),
-		) => Ok(()),
-		(
-			origin_primitives::element::ElementType::U64,
-			origin_primitives::element::ElementView::U64(_),
-		) => Ok(()),
-		(
-			origin_primitives::element::ElementType::U128,
-			origin_primitives::element::ElementView::U128(_),
-		) => Ok(()),
-		(
-			origin_primitives::element::ElementType::Hash,
-			origin_primitives::element::ElementView::Hash(_),
-		) => Ok(()),
-		(
-			origin_primitives::element::ElementType::Token,
-			origin_primitives::element::ElementView::Token(_),
-		) => Ok(()),
-		(
-			origin_primitives::element::ElementType::Cid,
-			origin_primitives::element::ElementView::Cid(_),
-		) => Ok(()),
-		(
-			origin_primitives::element::ElementType::Raw,
-			origin_primitives::element::ElementView::Raw(_),
-		) => Ok(()),
-		_ => Err(OriginSdkError::Schema("element type mismatch".into())),
+	let ok = match (expected, actual) {
+		(origin_primitives::element::ElementType::None, origin_primitives::element::ElementView::None) => true,
+		(origin_primitives::element::ElementType::Raw, origin_primitives::element::ElementView::Raw(_)) => true,
+		(origin_primitives::element::ElementType::Bool, origin_primitives::element::ElementView::Bool(_)) => true,
+		(origin_primitives::element::ElementType::U64, origin_primitives::element::ElementView::U64(_)) => true,
+		(origin_primitives::element::ElementType::U128, origin_primitives::element::ElementView::U128(_)) => true,
+		(origin_primitives::element::ElementType::Hash, origin_primitives::element::ElementView::Hash(_)) => true,
+		(origin_primitives::element::ElementType::Token, origin_primitives::element::ElementView::Token(_)) => true,
+		(origin_primitives::element::ElementType::Cid, origin_primitives::element::ElementView::Cid(_)) => true,
+		_ => false,
+	};
+	if ok {
+		return Ok(());
 	}
+	Err(OriginSdkError::Schema(format!(
+		"element type mismatch: expected {:?}, got {:?}",
+		expected, actual
+	)))
 }

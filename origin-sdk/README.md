@@ -64,5 +64,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## New typed surface (entity/register/token)
 - Nested ↔ flat helpers live in `schema::*`.
-- Typed extrinsic inputs live in `types::*_input`; call `tx().using(&signer).entity().submit_set_info_from_nested`, `tx().using(&signer).registry().submit_create_from_nested`, `tx().using(&signer).registry().submit_packet_from_nested`. All return `TxHandle` for caller-managed awaiting.
+- Typed extrinsic inputs live in `types::*_input`; call `tx().using(signer).entity().submit_set_info_from_nested`, `tx().using(signer).registry().submit_create_from_nested`, `tx().using(signer).registry().submit_packet_from_nested`. All return `TxHandle` for caller-managed awaiting.
 - Views decode to pallet-aligned structs and can be expanded with `overview_nested` / `details_nested`.
