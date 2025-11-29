@@ -764,8 +764,7 @@ mod view_tests {
 			let who = account(60);
 			let token = init_with_display(who.clone(), b"info-view");
 			let auth = authorization(&who);
-			let view =
-				EntityPallet::<Test>::details(auth, token.clone()).expect("entity details");
+			let view = EntityPallet::<Test>::details(auth, token.clone()).expect("entity details");
 			assert_eq!(view.display, ElementView::from(&plain_data(b"info-view")));
 		});
 	}
@@ -879,8 +878,8 @@ mod authorization_flow_tests {
 			let other = account(72);
 			let token = init_with_display(owner.clone(), b"lookup-mismatch");
 			let auth = authorization(&other);
-			// Authorization is only checked for validity, not whether it matches the queried account,
-			// so the call still succeeds and returns the owner's token.
+			// Authorization is only checked for validity, not whether it matches the queried
+			// account, so the call still succeeds and returns the owner's token.
 			let resolved = EntityPallet::<Test>::account_token(auth, owner.clone()).expect("token");
 			assert_eq!(resolved, token);
 			assert!(EntityInfoOf::<Test>::contains_key(&token));
@@ -943,18 +942,17 @@ mod view_coverage_tests {
 			let owner = account(82);
 			let sub = account(83);
 			let token = init_with_display(owner.clone(), b"links");
-			assert_ok!(Entity::set_linked_account(RuntimeOrigin::signed(owner.clone()), sub.clone()));
+			assert_ok!(Entity::set_linked_account(
+				RuntimeOrigin::signed(owner.clone()),
+				sub.clone()
+			));
 
 			let auth = authorization(&owner);
-			let count =
-				EntityPallet::<Test>::linked_account_count(auth.clone(), token.clone());
+			let count = EntityPallet::<Test>::linked_account_count(auth.clone(), token.clone());
 			assert_eq!(count, 2); // controller + sub
 
-			let is_linked = EntityPallet::<Test>::is_linked_account(
-				auth.clone(),
-				token.clone(),
-				sub.clone(),
-			);
+			let is_linked =
+				EntityPallet::<Test>::is_linked_account(auth.clone(), token.clone(), sub.clone());
 			assert!(is_linked);
 
 			let mut bad_auth = auth;

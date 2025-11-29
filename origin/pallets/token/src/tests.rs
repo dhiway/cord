@@ -173,7 +173,8 @@ fn recent_timeline_respects_limit_and_ordering() {
 			Pallet::<Test>::recent_timeline(auth.clone(), token.clone(), Some(3)).expect("recent");
 		let recent = recent_raw;
 		assert_eq!(recent.len(), 3);
-		// should be newest first from timeline_entries starting at 0? recent_timeline uses from 0 with limit, so order is chronological
+		// should be newest first from timeline_entries starting at 0? recent_timeline uses from 0
+		// with limit, so order is chronological
 		assert_eq!(recent[0].seal.height, 10);
 		assert_eq!(recent[2].seal.height, 12);
 	});

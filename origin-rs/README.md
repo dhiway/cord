@@ -1,144 +1,83 @@
-# origin-rs (Origin Rust Client)
+# Origin SDK (dynamic)
 
-`origin-rs`—also referred to as the **Origin Rust Client** or simply **oc**—is a lightweight SDK for composing Origin/CORD transactions and runtime view calls with [Subxt]. It ships with:
+Dynamic Subxt SDK focused on view-only reads and async, event-driven extrinsics for Origin runtimes.
 
-- A reconnecting `Client` that guards against metadata drift.
-- Multi-algorithm signing helpers (`sr25519` by default, `ed25519` optional).
-- Transaction utilities (`TxSubmitter`, `TxExecutor`, meta-transaction helpers).
-- Query facades for the entity, register, and token pallets.
-- Runnable demos that double as living documentation.
+## Status
+Async, view-first Subxt SDK with dynamic calls, signer-agnostic connection (signers are passed per-call), nonce-less submit queue, batch + meta-tx helpers, and event-driven tx resolution.
 
-[Subxt]: https://github.com/paritytech/subxt
-
----
-
-## Quick Start
-
-```bash
-# 1. Start a local dev node (new terminal)
-cargo run -p node/cli -- --dev --tmp
-
-# 2. Probe RPC connectivity
-cargo run -p origin-rs --example quickstart
-
-# 3. Run the entity demo in transaction mode
-cargo run -p origin-rs --example entity-demo
-
-# 4. View an existing entity snapshot (requires --token)
-cargo run -p origin-rs --example entity-demo -- \
-  --mode view --token <identifier>
-
-# 5. Use the unified state viewer (auto-detects entity/registry/packet)
-cargo run -p origin-rs --example state -- --token <identifier>
-```
-
-All demos accept `--node ws://…` and share the same `--mode` / `--flow` / `--display` / `--json` switches. See the [Demo Playbook](examples/README.md) for details.
-
----
-
-## Architecture Snapshot
-
-| Layer | Description |
-|-------|-------------|
-| `Client` | Reconnecting RPC client. Exposes `tx()`/`query()` builders and fetches the chain prefix + metadata hash. |
-| `tx::signer` | `Keypair` + `KeyAlgorithm` abstractions for dev, mnemonic, or secret-URI keys. Automatically emits the right `MultiSignature`. |
-| `tx::submitter` | `TxSubmitter` + `TxOptions` manage nonce reservation, retries, and structured progress logs. |
-| `tx::meta` | `MetaSigner`, `MetaTxOptions`, and `dispatch_call_with_meta` for relayed flows. |
-| `query::{entity,register,token}` | Strongly typed view helpers plus `AuthorizationBuilder` to sign view payloads. |
-| `demo::{util,entity}` | CLI/logging utilities shared by all examples. |
-
-Complete API notes and usage snippets live under [`docs/sdk/`](../docs/sdk/README.md).
-
----
-
-## Multi-Algorithm Signers
-
+## Quickstart
 ```rust
-use oc::tx::signer::{DevAccount, KeyAlgorithm, Keypair};
+use origin_sdk::OriginClient;
+use origin_sdk::client::signer::MultiKeySigner;
+use origin_primitives::Ss58Identifier;
 
-// Default: sr25519 dev Alice
-let signer = Keypair::dev(DevAccount::Alice);
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let signer = MultiKeySigner::from_seed("//Alice")?;
+    let client = OriginClient::connect("wss://origin.rpc").await?;
 
-// Explicit ed25519
-let ed = Keypair::dev_with(DevAccount::Alice, KeyAlgorithm::Ed25519);
+    let entity_id = Ss58Identifier::try_from("5FLSigC9H8J9tDFkhiBSGAL7iFusJqSQuJtVUXwwc7G7R6nW")?;
 
-// Secret URI or mnemonic-style inputs
-let custom = Keypair::from_secret_uri(KeyAlgorithm::Sr25519, "//Charlie//demo", None)?;
+    // Pure view call, no storage RPC
+    let entity = client.query().using(&signer).entity().overview(entity_id).await?;
+
+    // Non-blocking extrinsic helper: returns TxHandle, caller decides when to await.
+    let handle = client
+        .tx()
+        .using(&signer)
+        .entity()
+        .submit_rotate_attribute_view(
+            entity_id,
+            b"email",
+            origin_primitives::element::ElementView::Raw(b"a@b.c".to_vec()),
+        )
+        .await?;
+    let _inclusion = handle.wait_in_block().await?;
+
+    Ok(())
+}
 ```
 
-The SDK never asks you to pick a signature scheme per call. When you pass a `Keypair` into `TxSubmitter`, `TxExecutor`, or `AuthorizationBuilder`, the helper inspects the emitted `MultiSignature` bytes and infers the scheme automatically.
+## Layout
+- `src/client`: connection, signers, nonce-less submit queue, submit/view/event facades.
+- `src/extrinsic`: dynamic builder, batch, meta-tx helpers.
+- `src/types`: view structs and errors built atop `origin-primitives`.
+- `src/util`: retry, codec, ttl, hex helpers.
+- `examples/`: tiny end-to-end usage snippets.
+- `docs/`: element mapping cheatsheet.
 
----
+## Demos (run with cargo)
+- Entity create/rotate (signer or meta-tx):
+  - `cargo run -p origin-sdk --example demo_entity_simple -- --endpoint ws://localhost:9944 --seed //Alice [--meta]`
+  - Data: `examples/data_entity.json`
+- Registry + Packet end-to-end:
+  - `cargo run -p origin-sdk --example demo_registry_packet -- --endpoint ws://localhost:9944 --seed //Alice [--meta]`
+  - Data: `examples/data_registry_packet.json`
+- Token resolver:
+  - `cargo run -p origin-sdk --example demo_token -- --endpoint ws://localhost:9944 --token <ss58>`
 
-## Transaction Helpers
+## Next Steps
+- Fill view engine with pallet view calls (no storage RPC). **Done**
+- Wire nonce-less submit-and-watch with event-driven progress handles. **Done**
+- Implement meta-tx wrapper for relayer flows. **Available via `client.metatx()`**
+- Add integration tests against `./target/release/cord --dev`.
 
+## New typed surface (entity/register/token)
+- Nested ↔ flat helpers live in `schema::*`.
+- Typed extrinsic inputs live in `types::*_input`; call `tx().using(signer).entity().submit_set_info_from_nested`, `tx().using(signer).registry().submit_create_from_nested`, `tx().using(signer).registry().submit_packet_from_nested`. All return `TxHandle` for caller-managed awaiting.
+- Views decode to pallet-aligned structs and can be expanded with `overview_nested` / `details_nested`.
+
+## Meta-transactions (signer + relayer)
 ```rust
-use oc::{Client, ChainFlavor};
-use oc::tx::{TxSubmitter, TxOptions};
-use oc::tx::signer::{DevAccount, Keypair};
+let inner = origin_sdk::extrinsic::builder::DynamicCallBuilder::new()
+    .call("Entity", "set_info", vec![subxt::dynamic::Value::from_bytes(info.encode())]);
 
-let client = Client::connect("ws://127.0.0.1:9944", ChainFlavor::Auto).await?;
-let signer = Keypair::dev(DevAccount::Alice);
-let mut submitter = TxSubmitter::new(&client, &signer);
-let call = client.tx().entity_set_entity_nym("demo-nym").await?;
+// Alice signs the meta-tx offline
+let signed = client.metatx().using(alice_signer.clone()).prepare_and_sign(inner.clone()).await?;
+let blob = signed.encode(); // hand to relayer
 
-submitter
-    .submit_with_progress(call, "Set entity nym", |stage| println!("{stage:?}"))
-    .await?;
+// Bob (relayer) pays the fee and dispatches
+let signed_from_wire = origin_sdk::tx::meta::SignedMetaTx::decode(&mut &blob[..])?;
+let handle = client.metatx().using(bob_signer.clone()).submit_signed(signed_from_wire).await?;
+handle.wait_finalized().await?;
 ```
-
-For relayed flows, wrap the call via `client.tx().meta_dispatch(call, &meta_signer, MetaTxOptions::default())` and submit the returned payload with your relayer’s `TxSubmitter`.
-
----
-
-## Runtime Views
-
-1. Fetch the latest block height (e.g., `let reference_block = client.view_auth_reference_block().await?;`) and create an authorization with `demo::util::fresh_authorization(reference_block, &signer)` or `AuthorizationBuilder::generate_view_authorization(&keypair, &AuthorizationBuilder::default_context(), reference_block, None)`.
-2. Call a view facade:
-
-```rust
-let reference_block = client.view_auth_reference_block().await?;
-let auth = fresh_authorization(reference_block, &signer)?;
-let details = client
-    .query()
-    .entity()
-    .details(&auth, &token_identifier)
-    .await?;
-```
-
-Token timelines, register packet snapshots, and lookup specs follow the same pattern.
-
----
-
-## Demo Playbook
-
-- `entity-demo` – attribute rotation, timeline/history rendering, view mode.
-- `register-demo` – maintainer setup, registry mint, schema/lookup inspection.
-- `packet-demo` – entity + registry + delegate + packet snapshot with token timeline.
-- `state` – single-entry CLI that accepts any token, resolves what it represents, and invokes the right snapshot renderer (entity / registry / packet) with JSON or table output.
-- `quickstart` – RPC probe.
-- `inspect-view` – ad-hoc runtime view inspector.
-- `update-metadata` – writes the latest runtime metadata to `origin-rs/metadata/origin(.hub).scale` based on the connected chain flavor.
-- `xcm-token-transfer` – submits an XCM v5 `reserve_transfer_assets` from a hub parachain to a sibling (defaults to Alice on the source hub). Handy for smoke-testing multi-hub setups started via the updated zombienet config.
-
-See [examples/README.md](examples/README.md) for CLI usage and flow diagrams.
-
-### Refreshing Metadata
-
-```bash
-cargo run -p origin-rs --example update-metadata -- --node ws://127.0.0.1:9944
-```
-
-Commit the refreshed `origin-rs/metadata/origin.scale` (relay) or `origin-rs/metadata/origin-hub.scale` (hub) whenever the runtime changes so the dynamic client can reuse cached metadata offline.
-
----
-
-## Further Reading
-
-| Doc | Description |
-|-----|-------------|
-| [`docs/sdk/README.md`](../docs/sdk/README.md) | SDK docs index with per-module guides. |
-| [`examples/README.md`](examples/README.md) | Demo/reference CLI guide. |
-| `origin-rs/src/` | Source of truth for helpers and module implementations. |
-
-Happy building! Let us know if you need additional modules documented.

@@ -1,15 +1,118 @@
-pub mod connection;
-pub mod events;
+pub(crate) mod connection;
+mod events;
 pub mod nonce;
+pub(crate) mod pipeline;
 pub mod signer;
-pub mod submit;
-pub mod view;
+mod view;
 
-pub use connection::{Client, ConnectionConfig, RetryPolicy, DEFAULT_RPC_ENDPOINT};
-pub use events::{EventFilter, EventWatcher};
-pub use nonce::{NonceManager, NonceState, NonceStrategy};
-pub use signer::{
-	LocalSigner, MetaTxSigner, MultiKeySigner, OriginSigner, Sr25519Signer, SubxtSignerAdapter,
+use std::sync::Arc;
+
+use crate::{
+	config::OriginConfig,
+	extrinsic::{builder::DynamicCallBuilder, metatx::MetaTxClient},
+	tx::{config::TxPipelineConfig, TxClient},
+	types::error::OriginSdkError,
 };
-pub use submit::{BatchCall, TransactionClient};
-pub use view::ViewApi;
+use connection::{Connection, ConnectionBuilder};
+use pipeline::TxPipeline;
+
+pub use events::EventEnvelope;
+pub use signer::{OriginSigner, Signer};
+
+/// High-level entrypoint to interact with Origin nodes.
+#[derive(Clone)]
+pub struct OriginClient {
+	connection: Arc<Connection>,
+	tx_pipeline: Arc<TxPipeline>,
+	tx_cfg: TxPipelineConfig,
+}
+
+impl OriginClient {
+	/// Connect to an endpoint with default retry/backoff policy.
+	pub async fn connect(endpoint: impl Into<String>) -> Result<Self, OriginSdkError> {
+		Self::builder().endpoint(endpoint).build().await
+	}
+
+	/// Build a client with custom policies.
+	pub fn builder() -> ConnectionBuilder {
+		ConnectionBuilder::default()
+	}
+
+	/// Low-level access to Subxt online client.
+	pub fn online(&self) -> &subxt::OnlineClient<OriginConfig> {
+		self.connection.online()
+	}
+
+	/// Runtime metadata snapshot (cheap handle).
+	pub fn metadata(&self) -> subxt::Metadata {
+		self.connection.metadata()
+	}
+
+	/// Query helpers (views) grouped by pallet; attach signer with `.using(&signer)`.
+	pub fn query(&self) -> crate::query::Query<'_> {
+		crate::query::Query::new(self)
+	}
+
+	/// Low-level view caller (used internally by query layer).
+	pub fn view(&self) -> ViewClient {
+		ViewClient::new(self.connection.clone())
+	}
+
+	/// Tx helpers grouped by pallet; attach signer with `.using(signer)`.
+	pub fn tx(&self) -> TxClient {
+		TxClient::new(self.clone(), self.tx_pipeline.clone())
+	}
+
+	/// Event subscription helpers.
+	pub fn events(&self) -> events::EventClient {
+		events::EventClient::new(self.connection.clone())
+	}
+
+	/// Dynamic call builder helper.
+	pub fn call(&self) -> DynamicCallBuilder {
+		DynamicCallBuilder::new()
+	}
+
+	/// Meta-transaction flows (preferred camelCase entry).
+	pub fn meta_tx(&self) -> MetaTxClient {
+		self.metatx()
+	}
+
+	/// Build meta-transaction flows (requires explicit signer later).
+	pub fn metatx(&self) -> MetaTxClient {
+		MetaTxClient::new(self.connection.clone(), None)
+	}
+
+	/// Meta-transaction flows with attached signer (convenience alias).
+	pub fn meta_tx_with(&self, signer: OriginSigner) -> MetaTxClient {
+		self.metatx_with(signer)
+	}
+
+	/// Meta-transaction flows with an attached signer (meta key).
+	pub fn metatx_with(&self, signer: OriginSigner) -> MetaTxClient {
+		MetaTxClient::new(self.connection.clone(), Some(Arc::new(signer)))
+	}
+
+	/// Convenience: build an OriginSigner from an OriginAccount.
+	pub fn signer_from_account(
+		&self,
+		account: &crate::types::OriginAccount,
+	) -> Result<OriginSigner, String> {
+		signer::OriginSigner::from_account(account)
+	}
+
+	/// Tx pipeline config in use.
+	pub fn tx_config(&self) -> &TxPipelineConfig {
+		&self.tx_cfg
+	}
+}
+
+/// Shorthand alias.
+pub type Client = OriginClient;
+
+/// Exported builder for user ergonomics.
+pub fn connect(endpoint: impl Into<String>) -> ConnectionBuilder {
+	ConnectionBuilder::default().endpoint(endpoint)
+}
+
+pub(crate) use view::ViewClient;

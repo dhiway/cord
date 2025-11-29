@@ -1015,9 +1015,8 @@ pub mod pallet {
 				.into_iter()
 				.map(|spec| match spec {
 					LookupSpec::Single(attr) => LookupSpecView::Single(attr.into_inner()),
-					LookupSpec::Combo(list) => {
-						LookupSpecView::Combo(list.into_iter().map(|a| a.into_inner()).collect())
-					},
+					LookupSpec::Combo(list) =>
+						LookupSpecView::Combo(list.into_iter().map(|a| a.into_inner()).collect()),
 				})
 				.collect();
 			Some(view_specs)
@@ -1298,62 +1297,66 @@ pub mod pallet {
 				}
 			}
 			Some(points)
-			}
+		}
 
-			/// List packet snapshots by token prefix with cursor/limit.
-			pub fn list_by_token(
-				auth: AuthorizationOf<T>,
-				token_prefix: Vec<u8>,
-				version: Option<u32>,
-				cursor: Option<Ss58Identifier>,
-				limit: Option<u32>,
-			) -> Option<(Vec<PacketStateView>, Option<Ss58Identifier>)> {
-				Self::authorize_query(&auth).ok()?;
-				let capped = limit.unwrap_or_else(|| T::MaxPacketListResults::get());
-				let (snaps, next) =
-					Self::list_by_token_matches(token_prefix.as_slice(), version, cursor, capped);
-				let views =
-					snaps.into_iter().map(|snap| view::build_packet_state_view::<T>(&snap.state.registry, &snap)).collect();
-				Some((views, next))
-			}
+		/// List packet snapshots by token prefix with cursor/limit.
+		pub fn list_by_token(
+			auth: AuthorizationOf<T>,
+			token_prefix: Vec<u8>,
+			version: Option<u32>,
+			cursor: Option<Ss58Identifier>,
+			limit: Option<u32>,
+		) -> Option<(Vec<PacketStateView>, Option<Ss58Identifier>)> {
+			Self::authorize_query(&auth).ok()?;
+			let capped = limit.unwrap_or_else(|| T::MaxPacketListResults::get());
+			let (snaps, next) =
+				Self::list_by_token_matches(token_prefix.as_slice(), version, cursor, capped);
+			let views = snaps
+				.into_iter()
+				.map(|snap| view::build_packet_state_view::<T>(&snap.state.registry, &snap))
+				.collect();
+			Some((views, next))
+		}
 
-			/// List packet snapshots by lookup digest prefix with cursor/limit.
-			pub fn list_by_digest(
-				auth: AuthorizationOf<T>,
-				digest_prefix: Vec<u8>,
-				version: Option<u32>,
-				cursor: Option<LookupDigestOf<T>>,
-				limit: Option<u32>,
-			) -> Option<(Vec<PacketStateView>, Option<LookupDigestOf<T>>)> {
-				Self::authorize_query(&auth).ok()?;
-				let capped = limit.unwrap_or_else(|| T::MaxPacketListResults::get());
-				let (snaps, next) = Self::packets_by_lookup_digest_matches(
-					digest_prefix.as_slice(),
-					version,
-					cursor,
-					capped,
-				);
-				let views =
-					snaps.into_iter().map(|snap| view::build_packet_state_view::<T>(&snap.state.registry, &snap)).collect();
-				Some((views, next))
-			}
+		/// List packet snapshots by lookup digest prefix with cursor/limit.
+		pub fn list_by_digest(
+			auth: AuthorizationOf<T>,
+			digest_prefix: Vec<u8>,
+			version: Option<u32>,
+			cursor: Option<LookupDigestOf<T>>,
+			limit: Option<u32>,
+		) -> Option<(Vec<PacketStateView>, Option<LookupDigestOf<T>>)> {
+			Self::authorize_query(&auth).ok()?;
+			let capped = limit.unwrap_or_else(|| T::MaxPacketListResults::get());
+			let (snaps, next) = Self::packets_by_lookup_digest_matches(
+				digest_prefix.as_slice(),
+				version,
+				cursor,
+				capped,
+			);
+			let views = snaps
+				.into_iter()
+				.map(|snap| view::build_packet_state_view::<T>(&snap.state.registry, &snap))
+				.collect();
+			Some((views, next))
+		}
 
-			/// View how many times `account` queried this registry.
-			pub fn query_count(
-				auth: AuthorizationOf<T>,
-				registry: Ss58Identifier,
-				account: T::AccountId,
-			) -> Option<u64> {
-				Self::authorize_query(&auth).ok()?;
-				Self::get_registry_state_view(&registry).ok()?;
-				Some(RegistryQueryCounts::<T>::get(&registry, account))
-			}
+		/// View how many times `account` queried this registry.
+		pub fn query_count(
+			auth: AuthorizationOf<T>,
+			registry: Ss58Identifier,
+			account: T::AccountId,
+		) -> Option<u64> {
+			Self::authorize_query(&auth).ok()?;
+			Self::get_registry_state_view(&registry).ok()?;
+			Some(RegistryQueryCounts::<T>::get(&registry, account))
+		}
 
-			/// Does a packet exist for this registry + token (and is it not deleted)?
-			pub fn packet_exists(
-				auth: AuthorizationOf<T>,
-				registry: Ss58Identifier,
-				packet: Ss58Identifier,
+		/// Does a packet exist for this registry + token (and is it not deleted)?
+		pub fn packet_exists(
+			auth: AuthorizationOf<T>,
+			registry: Ss58Identifier,
+			packet: Ss58Identifier,
 		) -> bool {
 			if Self::authorize_query(&auth).is_err() {
 				return false;

@@ -23,6 +23,7 @@ use origin_hub_system_runtime::genesis_config_presets::{
 	system_origin_development_genesis, system_origin_local_testnet_genesis,
 };
 use origin_runtime_constants::system_parachain::{ORIGIN_HUB_IN_ID, ORIGIN_HUB_NA_ID};
+use polkadot_omni_node_lib::chain_spec::{GenericChainSpec, LoadSpec};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
@@ -39,13 +40,6 @@ pub struct Extensions {
 	/// Parachain identifier.
 	#[serde(alias = "paraId", alias = "ParaId")]
 	pub para_id: u32,
-}
-
-impl Extensions {
-	/// Extract [`Extensions`] from a chain spec if present.
-	pub fn try_get(chain_spec: &dyn sc_service::ChainSpec) -> Option<&Self> {
-		sc_chain_spec::get_extension(chain_spec.extensions())
-	}
 }
 
 const DEFAULT_PROTOCOL_ID: &str = "0hub";
@@ -138,4 +132,30 @@ pub fn system_genesis() -> ChainSpec {
 		ORIGIN_HUB_IN_ID,
 		system_origin_local_testnet_genesis(ParaId::from(ORIGIN_HUB_IN_ID)),
 	)
+}
+
+#[derive(Debug)]
+pub(crate) struct ChainSpecLoader;
+
+impl LoadSpec for ChainSpecLoader {
+	fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+		Ok(match id {
+			// -- System
+			"origin-system-dev" | "system-dev" => Box::new(system_development()),
+			"origin-system-local" | "system-local" => Box::new(system_local()),
+			"origin-system" | "system-genesis" | "system" => Box::new(system_genesis()),
+			"origin-system-na-dev" | "system-na-dev" => Box::new(system_development_na()),
+			"origin-system-na-local" | "system-na-local" => Box::new(system_local_na()),
+			// -- Fallback (generic chainspec)
+			"" => {
+				log::warn!(
+					"No ChainSpec.id specified, defaulting to the origin system development chain spec"
+				);
+				Box::new(system_development())
+			},
+
+			// -- Loading a specific spec from disk
+			path => Box::new(GenericChainSpec::from_json_file(path.into())?),
+		})
+	}
 }

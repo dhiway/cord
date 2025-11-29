@@ -170,9 +170,8 @@ impl<MaxCap: Get<u32>> Elum<MaxCap> {
 	/// validation step in pallet logic and SDK helpers before storage or submission.
 	pub fn validate(&self) -> Result<(), codec::Error> {
 		match self {
-			Elum::Bool(flag) if *flag > 1 => {
-				Err("Invalid boolean discriminant for Elum::Bool".into())
-			},
+			Elum::Bool(flag) if *flag > 1 =>
+				Err("Invalid boolean discriminant for Elum::Bool".into()),
 			_ => Ok(()),
 		}
 	}
