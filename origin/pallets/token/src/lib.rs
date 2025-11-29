@@ -276,12 +276,12 @@ pub mod pallet {
 			PalletIndex::<T>::get(&bounded)
 		}
 
-			/// Returns the pallet name string stored for an index.
-			/// Renamed to avoid clashing with generated types; kept for legacy callers.
-			pub fn pallet_name_view(auth: Authorization<T>, index: u16) -> Option<String> {
-				Self::authorize_query(&auth).ok()?;
-				Self::resolve_pallet_plain(index).ok()
-			}
+		/// Returns the pallet name string stored for an index.
+		/// Renamed to avoid clashing with generated types; kept for legacy callers.
+		pub fn pallet_name_view(auth: Authorization<T>, index: u16) -> Option<String> {
+			Self::authorize_query(&auth).ok()?;
+			Self::resolve_pallet_plain(index).ok()
+		}
 
 		/// Returns the next pallet index counter.
 		pub fn next_pallet_index(auth: Authorization<T>) -> Option<u16> {

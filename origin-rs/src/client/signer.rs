@@ -1,21 +1,18 @@
-use crate::params::config::OriginConfig;
 use async_trait::async_trait;
 use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{traits::IdentifyAccount, MultiSignature, MultiSigner};
-use subxt::{
-	tx::Signer as SubxtSigner,
-	utils::{AccountId32, MultiSignature as SubxtMultiSignature},
-};
+use tokio::task;
 
-/// Minimal signer abstraction that works for both on-chain extrinsics and off-chain
-/// meta-transaction payloads.
+use crate::types::{OriginAccount, OriginPair};
+
+/// Generic signing interface for Origin SDK (async to allow HSM/wallet flows).
 #[async_trait]
-pub trait OriginSigner: Send + Sync + Clone + 'static {
-	fn account_id(&self) -> AccountId32;
+pub trait Signer: Send + Sync + 'static {
+	fn account_id(&self) -> origin_primitives::AccountId;
 	async fn sign_payload(&self, payload: &[u8]) -> MultiSignature;
 }
 
-/// Multi-crypto signer that mirrors Substrate's `MultiSigner` (sr25519, ed25519, ecdsa).
+/// Multi-crypto signer covering sr25519, ed25519, and ecdsa.
 #[derive(Clone)]
 pub enum MultiKeySigner {
 	Sr25519(sr25519::Pair),
@@ -24,36 +21,49 @@ pub enum MultiKeySigner {
 }
 
 impl MultiKeySigner {
+	#[allow(dead_code)]
 	pub fn from_sr25519(pair: sr25519::Pair) -> Self {
 		Self::Sr25519(pair)
 	}
 
+	#[allow(dead_code)]
 	pub fn from_ed25519(pair: ed25519::Pair) -> Self {
 		Self::Ed25519(pair)
 	}
 
+	#[allow(dead_code)]
 	pub fn from_ecdsa(pair: ecdsa::Pair) -> Self {
 		Self::Ecdsa(pair)
 	}
 
-	pub fn from_seed(seed: &str, scheme: &str) -> Result<Self, crate::error::Error> {
-		let scheme = if scheme.is_empty() { "sr25519" } else { scheme };
+	/// Build from a secret URI seed using sr25519 by default.
+	pub fn from_seed(seed: &str) -> Result<Self, String> {
+		Self::from_seed_with_scheme(seed, None)
+	}
+
+	/// Build from a secret URI seed; `scheme` may be "sr25519", "ed25519", or "ecdsa".
+	pub fn from_seed_with_scheme(seed: &str, scheme: Option<&str>) -> Result<Self, String> {
+		let scheme = scheme.unwrap_or("sr25519");
 		match scheme {
-			"sr25519" => Ok(Self::from_sr25519(
-				sr25519::Pair::from_string(seed, None)
-					.map_err(|e| crate::error::Error::Signer(format!("invalid seed: {e}")))?,
-			)),
-			"ed25519" => Ok(Self::from_ed25519(
-				ed25519::Pair::from_string(seed, None)
-					.map_err(|e| crate::error::Error::Signer(format!("invalid seed: {e}")))?,
-			)),
-			"ecdsa" => Ok(Self::from_ecdsa(
-				ecdsa::Pair::from_string(seed, None)
-					.map_err(|e| crate::error::Error::Signer(format!("invalid seed: {e}")))?,
-			)),
-			other => Err(crate::error::Error::Signer(format!(
-				"unsupported key scheme '{other}', expected sr25519|ed25519|ecdsa"
-			))),
+			"sr25519" => sr25519::Pair::from_string(seed, None)
+				.map(Self::Sr25519)
+				.map_err(|e| format!("invalid seed: {e}")),
+			"ed25519" => ed25519::Pair::from_string(seed, None)
+				.map(Self::Ed25519)
+				.map_err(|e| format!("invalid seed: {e}")),
+			"ecdsa" => ecdsa::Pair::from_string(seed, None)
+				.map(Self::Ecdsa)
+				.map_err(|e| format!("invalid seed: {e}")),
+			other => Err(format!("unsupported key scheme '{other}'")),
+		}
+	}
+
+	/// Build from an OriginAccount (covers all supported schemes).
+	pub fn from_origin_account(acc: &OriginAccount) -> Result<Self, String> {
+		match acc.pair() {
+			OriginPair::Sr25519(p) => Ok(Self::Sr25519(p.clone())),
+			OriginPair::Ed25519(p) => Ok(Self::Ed25519(p.clone())),
+			OriginPair::Ecdsa(p) => Ok(Self::Ecdsa(p.clone())),
 		}
 	}
 
@@ -67,11 +77,9 @@ impl MultiKeySigner {
 }
 
 #[async_trait]
-impl OriginSigner for MultiKeySigner {
-	fn account_id(&self) -> AccountId32 {
-		let account: sp_runtime::AccountId32 = self.multisigner().into_account();
-		let bytes: [u8; 32] = *account.as_ref();
-		AccountId32::from(bytes)
+impl Signer for MultiKeySigner {
+	fn account_id(&self) -> origin_primitives::AccountId {
+		self.multisigner().into_account()
 	}
 
 	async fn sign_payload(&self, payload: &[u8]) -> MultiSignature {
@@ -83,91 +91,83 @@ impl OriginSigner for MultiKeySigner {
 	}
 }
 
-/// Simple sr25519 keypair-backed signer for local testing.
+/// Simple sr25519 signer convenience wrapper.
 #[derive(Clone)]
-pub struct LocalSigner {
-	pair: sr25519::Pair,
-}
+pub struct Sr25519Signer(MultiKeySigner);
 
-impl LocalSigner {
-	pub fn from_sr25519_pair(pair: sr25519::Pair) -> Self {
-		Self { pair }
-	}
-
-	pub fn from_seed(seed: &str) -> Result<Self, crate::error::Error> {
-		let pair = sr25519::Pair::from_string(seed, None)
-			.map_err(|e| crate::error::Error::Signer(format!("invalid seed: {e}")))?;
-		Ok(Self { pair })
+impl Sr25519Signer {
+	#[allow(dead_code)]
+	pub fn from_seed(seed: &str) -> Result<Self, String> {
+		MultiKeySigner::from_seed(seed).map(Self)
 	}
 }
 
 #[async_trait]
-impl OriginSigner for LocalSigner {
-	fn account_id(&self) -> AccountId32 {
-		AccountId32(self.pair.public().0)
+impl Signer for Sr25519Signer {
+	fn account_id(&self) -> origin_primitives::AccountId {
+		self.0.account_id()
 	}
 
 	async fn sign_payload(&self, payload: &[u8]) -> MultiSignature {
-		let sig = self.pair.sign(payload);
-		MultiSignature::from(sig)
+		self.0.sign_payload(payload).await
 	}
 }
 
-/// Explicit sr25519 signer wrapper (alias of LocalSigner for clarity).
-pub type Sr25519Signer = LocalSigner;
-
-/// Placeholder MetaTx signer; in a full implementation this can wrap DID/HSM signers.
+/// Adapter to plug async Signer into Subxt (blocking on current runtime).
 #[derive(Clone)]
-pub struct MetaTxSigner<S: OriginSigner> {
-	inner: S,
+pub struct SubxtSignerAdapter {
+	inner: std::sync::Arc<dyn Signer>,
 }
 
-impl<S: OriginSigner> MetaTxSigner<S> {
-	pub fn new(inner: S) -> Self {
+impl SubxtSignerAdapter {
+	pub fn new(inner: std::sync::Arc<dyn Signer>) -> Self {
 		Self { inner }
+	}
+}
+
+impl subxt::tx::Signer<crate::client::OriginConfig> for SubxtSignerAdapter {
+	fn account_id(&self) -> origin_primitives::AccountId {
+		self.inner.account_id()
+	}
+
+	fn sign(&self, payload: &[u8]) -> MultiSignature {
+		let inner = self.inner.clone();
+		let sig = task::block_in_place(|| {
+			let handle = tokio::runtime::Handle::current();
+			handle.block_on(inner.sign_payload(payload))
+		});
+		sig
+	}
+}
+
+/// Preferred signer for SDK users; wraps MultiKeySigner and is buildable from OriginAccount.
+#[derive(Clone)]
+pub struct OriginSigner(MultiKeySigner);
+
+impl OriginSigner {
+	pub fn from_account(acc: &OriginAccount) -> Result<Self, String> {
+		MultiKeySigner::from_origin_account(acc).map(Self)
+	}
+
+	pub fn account_id(&self) -> origin_primitives::AccountId {
+		self.0.account_id()
+	}
+}
+
+impl TryFrom<&OriginAccount> for OriginSigner {
+	type Error = String;
+	fn try_from(value: &OriginAccount) -> Result<Self, Self::Error> {
+		OriginSigner::from_account(value)
 	}
 }
 
 #[async_trait]
-impl<S: OriginSigner> OriginSigner for MetaTxSigner<S> {
-	fn account_id(&self) -> AccountId32 {
-		self.inner.account_id()
+impl Signer for OriginSigner {
+	fn account_id(&self) -> origin_primitives::AccountId {
+		self.0.account_id()
 	}
 
 	async fn sign_payload(&self, payload: &[u8]) -> MultiSignature {
-		self.inner.sign_payload(payload).await
-	}
-}
-
-/// Adapter to plug an [`OriginSigner`] into Subxt transaction flows.
-#[derive(Clone)]
-pub struct SubxtSignerAdapter<S: OriginSigner> {
-	inner: S,
-}
-
-impl<S: OriginSigner> SubxtSignerAdapter<S> {
-	pub fn new(inner: S) -> Self {
-		Self { inner }
-	}
-
-	pub fn into_inner(self) -> S {
-		self.inner
-	}
-}
-
-impl<S: OriginSigner> SubxtSigner<OriginConfig> for SubxtSignerAdapter<S> {
-	fn account_id(&self) -> AccountId32 {
-		self.inner.account_id()
-	}
-
-	fn sign(&self, payload: &[u8]) -> subxt::utils::MultiSignature {
-		// The async contract on OriginSigner lets us support HSMs/wallets later;
-		// for now we opportunistically block on the current runtime.
-		let handle = tokio::runtime::Handle::current();
-		match handle.block_on(self.inner.sign_payload(payload)) {
-			MultiSignature::Ed25519(sig) => SubxtMultiSignature::Ed25519(sig.0),
-			MultiSignature::Sr25519(sig) => SubxtMultiSignature::Sr25519(sig.0),
-			MultiSignature::Ecdsa(sig) => SubxtMultiSignature::Ecdsa(sig.0),
-		}
+		self.0.sign_payload(payload).await
 	}
 }

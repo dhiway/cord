@@ -60,8 +60,6 @@ sc-telemetry.workspace = true
 sc-telemetry.default-features = true
 sc-executor.workspace = true
 sc-executor.default-features = true
-origin-dev-runtime = { optional = true, workspace = true, default-features = true }
-origin-dev-runtime-constants = { optional = true, workspace = true, default-features = true }
 origin-runtime = { optional = true, workspace = true, default-features = true }
 origin-runtime-constants = { optional = true, workspace = true, default-features = true }
 
@@ -71,7 +69,7 @@ substrate-build-script-utils = { workspace = true, default-features = true }
 [features]
 default = ["cli", "db", "full-node", "origin-native"]
 db = ["polkadot-service/db"]
-metadata-hash = ["origin-dev-runtime/metadata-hash", "origin-runtime/metadata-hash"]
+metadata-hash = ["origin-runtime/metadata-hash"]
 service = ["dep:polkadot-service"]
 cli = [
 	"clap",
@@ -84,7 +82,6 @@ cli = [
 runtime-benchmarks = [
 	"frame-benchmarking-cli?/runtime-benchmarks",
 	"polkadot-node-metrics/runtime-benchmarks",
-	"origin-dev-runtime/runtime-benchmarks",
 	"origin-runtime/runtime-benchmarks",
 	"sc-service?/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
@@ -92,8 +89,6 @@ runtime-benchmarks = [
 full-node = ["polkadot-service/full-node"]
 origin-native = [
 	"frame-metadata-hash-extension",
-	"origin-dev-runtime",
-	"origin-dev-runtime-constants",
 	"origin-runtime",
 	"origin-runtime-constants",
 ]
@@ -101,13 +96,10 @@ try-runtime = [
 	"frame-system/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"runtime-parachains/try-runtime",
-	"origin-dev-runtime/try-runtime",
 	"origin-runtime/try-runtime",
 	"sp-runtime/try-runtime",
 ]
 fast-runtime = [
-	"origin-dev-runtime/fast-runtime",
-	"origin-dev-runtime-constants/fast-runtime",
 	"origin-runtime/fast-runtime",
 	"origin-runtime-constants/fast-runtime",
 ]
@@ -115,6 +107,5 @@ pyroscope = ["dep:pyroscope", "pyroscope_pprofrs"]
 malus = ["full-node"]
 runtime-metrics = [
 	"polkadot-node-metrics/runtime-metrics",
-	"origin-dev-runtime/runtime-metrics",
 	"origin-runtime/runtime-metrics",
 ]

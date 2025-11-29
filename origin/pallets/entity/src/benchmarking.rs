@@ -88,12 +88,8 @@ mod benchmarks {
 		_(RawOrigin::Signed(caller.clone()), ops.clone());
 
 		assert_last_event::<T>(
-			EntityEvent::<T>::EntityAttributeRotated {
-				who: caller.clone(),
-				token,
-				attr: k1,
-			}
-			.into(),
+			EntityEvent::<T>::EntityAttributeRotated { who: caller.clone(), token, attr: k1 }
+				.into(),
 		);
 		Ok(())
 	}

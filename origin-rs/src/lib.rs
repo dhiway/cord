@@ -1,33 +1,31 @@
-#![allow(missing_docs)]
-#![doc = include_str!("../README.md")]
-
-//! Origin SDK (view-only, dynamic Subxt).
+//! Origin SDK – dynamic Subxt client for Origin runtimes.
+//!
+//! Dynamic-only client (no runtime codegen) with view-first reads and async
+//! extrinsic pipeline tuned for Origin pallets.
 
 pub mod client;
 pub mod config;
-pub mod domain;
-pub mod error;
-pub mod events;
 pub mod extrinsic;
-mod flavors;
-pub mod metadata;
-pub mod origin_client;
-pub mod params;
+pub mod query;
+pub mod schema;
+pub mod tx;
 pub mod types;
 pub mod util;
 
-pub use client::{
-	BatchCall, Client, ConnectionConfig, EventFilter, EventWatcher, NonceManager, NonceState,
-	NonceStrategy, OriginSigner, RetryPolicy, SubxtSignerAdapter, TransactionClient, ViewApi,
-	DEFAULT_RPC_ENDPOINT,
+pub use client::{signer::OriginSigner, OriginClient};
+pub use types::{
+	account::{
+		account_id_from_subxt, account_id_to_ss58, account_id_to_ss58_subxt, origin_ss58_format,
+		ss58_to_account_id, AccountError, CryptoScheme, OriginAccount, OriginPair,
+		ORIGIN_SS58_PREFIX,
+	},
+	error::OriginSdkError,
 };
-pub use config::*;
-pub use domain::{EntityClient, PacketClient, RegistryClient, TokenClient};
-pub use error::Error;
-pub use extrinsic::{BatchBuilder, CallFactory, DynamicCall, ExtrinsicBuilder, MetaTxClient};
-pub use origin_client::{
-	ClientConfig as DynamicClientConfig, DynamicEvent, EventStream, OriginClient,
-	OriginClientBuilder, SubmitRetryPolicy, WsConfig,
-};
-pub use params::config::{OriginConfig, OriginHubConfig};
-pub use types::*;
+
+/// Convenient re-exports for application crates.
+pub mod prelude {
+	pub use crate::{
+		client::OriginClient, config::OriginConfig, query::Query, tx::Tx,
+		types::error::OriginSdkError,
+	};
+}

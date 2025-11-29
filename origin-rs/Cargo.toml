@@ -1,43 +1,51 @@
 [package]
 name = "origin-rs"
-version = "0.9.9"
-edition = "2021"
 description = "Origin SDK"
-license = "GPL-3.0-or-later"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
 
 [lib]
 name = "oc"
 path = "src/lib.rs"
 
 [features]
-default = ["dynamic-sdk"]
-dynamic-sdk = []
-unstable-light-client = []
+default = ["ws"]
+ws = ["subxt/jsonrpsee"]
+mock = []
+unstable-light-client = ["subxt/unstable-light-client"]
 
 [dependencies]
-anyhow = "1.0"
-base64 = "0.22"
-bs58 = { version = "0.5", default-features = false, features = ["alloc"] }
+anyhow = { workspace = true, optional = false }
+backoff = { workspace = true }
 codec = { workspace = true, features = ["std"] }
-origin-primitives = { path = "../origin/primitives" }
-futures = "0.3"
-getrandom = "0.2"
-hex = "0.4"
-log = "0.4"
-scale-info = { workspace = true, features = ["std"] }
-scale-value = { version = "0.18", features = ["serde", "__std"] }
+futures = { workspace = true }
+origin-primitives = { workspace = true, features = ["std"] }
 serde = { workspace = true, features = ["derive", "std"] }
-env_logger = "0.11"
 serde_json = { workspace = true, features = ["std"] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "time"] }
+tracing = { workspace = true }
+subxt = { workspace = true, default-features = false, features = ["jsonrpsee", "native", "reconnecting-rpc-client"] }
+subxt-metadata = { workspace = true, optional = true }
+hex = { workspace = true }
+scale-value = { version = "0.18", default-features = false, features = ["serde"] }
 sp-core = { workspace = true, features = ["std"] }
+scale-info = { workspace = true, features = ["std"] }
 sp-runtime = { workspace = true, features = ["std"] }
-scale-decode = { version = "0.16", default-features = false, features = ["derive"] }
-scale-type-resolver = { version = "0.2", features = ["scale-info"] }
+frame-support = { workspace = true, features = ["std"] }
 async-trait = "0.1"
-subxt = { version = "0.44", default-features = true, features = ["jsonrpsee", "native", "reconnecting-rpc-client"] }
-subxt-metadata = "0.44"
-thiserror = "1"
-tokio = { version = "1.40", features = ["macros", "rt-multi-thread", "sync"] }
-jsonrpsee-core = "0.24.10"
-jsonrpsee-client-transport = "0.24.10"
-url = "2.5"
+base64 = "0.22"
+clap = { version = "4.5", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+env_logger = "0.11"
+rand = "0.8"
+proptest = "1"
