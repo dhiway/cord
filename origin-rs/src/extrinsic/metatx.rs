@@ -14,10 +14,10 @@ use crate::{
 	},
 	types::error::OriginSdkError,
 };
-use tracing::debug;
 use scale_value::{Value, ValueDef};
 use std::sync::Arc;
 use subxt::{config::DefaultExtrinsicParamsBuilder, tx::Payload};
+use tracing::debug;
 
 /// Meta-transaction helper (signer + relayer flows).
 #[derive(Clone)]
@@ -82,7 +82,6 @@ impl MetaTxClient {
 		metadata_hash: Option<[u8; 32]>,
 	) -> Result<SignedMetaTx, OriginSdkError> {
 		let payload = self.dynamic_payload(&call);
-		let call_value = payload.clone().into_value();
 		let call_bytes = payload
 			.encode_call_data(&self.connection.metadata())
 			.map_err(|e| OriginSdkError::Encode(e.to_string()))?;
@@ -105,16 +104,15 @@ impl MetaTxClient {
 			sp_core::blake2_256(&sign_bytes),
 			call_bytes.len(),
 			bare_ext.implicit_bytes().len(),
-			bare_ext.metadata
+			bare_ext.metadata_hash
 		);
 		let signature = signer.sign_payload(&sign_bytes).await;
 
 		let meta_tx = assemble_meta_tx(
 			META_TX_VERSION,
 			&call_bytes,
-			call_value,
 			bare_ext,
-			&signer.account_id(),
+			&signer.account_identifier(),
 			&signature,
 		);
 

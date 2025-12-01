@@ -11,10 +11,16 @@ use clap::Parser;
 use codec::Encode;
 use futures::future::join_all;
 use origin_primitives::{element::ElementView, AttributeValueView, Ss58Identifier};
-use origin_sdk::{
+use oc as origin_sdk;
+use oc::{
 	client::{signer::OriginSigner, OriginClient},
+	extrinsic::builder::DynamicCallBuilder,
 	extrinsic::calls::entity::element_to_value,
 	schema::entity::{element_from_view, EntityNestedValue},
+	tx,
+	tx::meta,
+	tx::meta::META_TX_VERSION,
+	tx::handle,
 	types::{account::CryptoScheme, entity::ElementInput, EntityStateViewSdk, OriginAccount},
 };
 use rand::{distributions::Alphanumeric, rngs::OsRng, Rng, RngCore};
@@ -329,16 +335,16 @@ fn build_nested(data: &Json) -> Result<EntityNestedValue, Box<dyn std::error::Er
 
 async fn create_entity(
 	client: &OriginClient,
-	tx: &origin_sdk::tx::AccountTx,
+	tx: &tx::AccountTx,
 	nested: &EntityNestedValue,
 	use_meta: bool,
 	meta_signer: Option<&OriginSigner>,
 	meta_hash: Option<[u8; 32]>,
-) -> Result<origin_sdk::tx::handle::TxHandle, Box<dyn std::error::Error>> {
+) -> Result<handle::TxHandle, Box<dyn std::error::Error>> {
 	let handle = if use_meta {
 		let meta_signer = meta_signer.ok_or("meta signer missing")?;
 		let info_input = origin_sdk::schema::entity::to_entity_input(nested)?;
-		let call = origin_sdk::extrinsic::builder::DynamicCallBuilder::new().call(
+		let call = DynamicCallBuilder::new().call(
 			"Entity",
 			"set_info",
 			vec![entity_info_value(&info_input)],
@@ -354,22 +360,23 @@ async fn create_entity(
 		} else {
 			meta.prepare_and_sign_with(call.clone(), Arc::new(meta_signer.clone())).await?
 		};
-		let implicit = signed.wire.bare.implicit_bytes();
-		let call_bytes = call
-			.encode_call_data(&client.metadata())
-			.unwrap_or_else(|_| signed.wire.call.clone());
-		let preimage = origin_sdk::tx::meta::meta_tx_sign_payload(
-			origin_sdk::tx::meta::META_TX_VERSION,
-			&call_bytes,
-			&signed.wire.bare,
-		);
-		println!(
-			"meta-tx debug: implicit={} preimage_hash=0x{} call_bytes_len={}",
-			hex::encode(&implicit),
-			hex::encode(preimage),
-			call_bytes.len()
-		);
-		println!("meta-tx payload (hex): 0x{}", hex::encode(signed.wire.encode()));
+		if let Some(debug) = signed.debug() {
+			let implicit = debug.bare.implicit_bytes();
+			let call_bytes =
+				call.encode_call_data(&client.metadata()).unwrap_or_else(|_| debug.call.clone());
+			let preimage = meta::meta_tx_sign_payload(
+				meta::META_TX_VERSION,
+				&call_bytes,
+				&debug.bare,
+			);
+			println!(
+				"meta-tx debug: implicit={} preimage_hash=0x{} call_bytes_len={}",
+				hex::encode(&implicit),
+				hex::encode(preimage),
+				call_bytes.len()
+			);
+		}
+		println!("meta-tx payload (hex): 0x{}", hex::encode(signed.encode()));
 		meta.submit_signed(signed).await?
 	} else {
 		tx.entity().submit_set_info_from_nested(nested).await?
@@ -380,12 +387,12 @@ async fn create_entity(
 
 async fn set_nym(
 	client: &OriginClient,
-	tx: &origin_sdk::tx::AccountTx,
+	tx: &tx::AccountTx,
 	data: &Json,
 	use_meta: bool,
 	meta_signer: Option<&OriginSigner>,
 	meta_hash: Option<[u8; 32]>,
-) -> Result<origin_sdk::tx::handle::TxHandle, Box<dyn std::error::Error>> {
+) -> Result<handle::TxHandle, Box<dyn std::error::Error>> {
 	let suffix_owned: String;
 	let suffix = if let Some(s) = data.get("nym_suffix").and_then(Json::as_str) {
 		s
@@ -398,7 +405,7 @@ async fn set_nym(
 
 	if use_meta {
 		let meta_signer = meta_signer.ok_or("meta signer missing")?;
-		let call = origin_sdk::extrinsic::builder::DynamicCallBuilder::new().call(
+		let call = DynamicCallBuilder::new().call(
 			"Entity",
 			"set_entity_nym",
 			vec![subxt::dynamic::Value::from_bytes(nym_bytes)],
@@ -414,7 +421,7 @@ async fn set_nym(
 		} else {
 			meta.prepare_and_sign_with(call.clone(), Arc::new(meta_signer.clone())).await?
 		};
-		println!("meta-tx payload (hex): 0x{}", hex::encode(signed.wire.encode()));
+		println!("meta-tx payload (hex): 0x{}", hex::encode(signed.encode()));
 		return Ok(meta.submit_signed(signed).await?);
 	}
 
@@ -423,7 +430,7 @@ async fn set_nym(
 
 async fn set_nym_if_missing(
 	client: &OriginClient,
-	tx: &origin_sdk::tx::AccountTx,
+	tx: &tx::AccountTx,
 	data: &Json,
 	use_meta: bool,
 	meta_signer: Option<&OriginSigner>,
@@ -478,7 +485,7 @@ async fn wait_for_entity_id(
 
 async fn link_extra_accounts(
 	_client: &OriginClient,
-	tx: &origin_sdk::tx::AccountTx,
+	tx: &tx::AccountTx,
 	scheme_map: &mut std::collections::HashMap<String, String>,
 	missing: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -513,7 +520,7 @@ async fn link_extra_accounts(
 
 async fn rotate_attributes(
 	client: &OriginClient,
-	tx: &origin_sdk::tx::AccountTx,
+	tx: &tx::AccountTx,
 	data: &Json,
 	use_meta: bool,
 	meta_signer: Option<&OriginSigner>,
@@ -529,7 +536,7 @@ async fn rotate_attributes(
 
 	let attrs_obj = data.get("attributes").and_then(Json::as_object).ok_or("attributes missing")?;
 
-	let mut calls: Vec<(String, origin_sdk::extrinsic::builder::DynamicCall)> = Vec::new();
+	let mut calls: Vec<(String, oc::extrinsic::builder::DynamicCall)> = Vec::new();
 	let mut ops_views: Vec<(Vec<u8>, ElementView)> = Vec::new();
 	let mut ops_inputs: Vec<(Vec<u8>, ElementInput)> = Vec::new();
 	for key in keys {
@@ -561,7 +568,7 @@ async fn rotate_attributes(
 		let mut progress = Vec::new();
 		// Build a single rotate_attributes call (one arg: Vec<(Attribute, Element)>)
 		let encoded = ops_inputs.encode();
-		let call = origin_sdk::extrinsic::builder::DynamicCallBuilder::new().call(
+		let call = DynamicCallBuilder::new().call(
 			"Entity",
 			"rotate_attributes",
 			vec![subxt::dynamic::Value::from_bytes(encoded)],
@@ -590,15 +597,15 @@ async fn rotate_attributes(
 fn build_rotate_call(
 	key: &[u8],
 	elem: &ElementInput,
-) -> origin_sdk::extrinsic::builder::DynamicCall {
-	origin_sdk::extrinsic::builder::DynamicCallBuilder::new().call(
+) -> oc::extrinsic::builder::DynamicCall {
+	DynamicCallBuilder::new().call(
 		"Entity",
 		"rotate_attribute",
 		vec![subxt::dynamic::Value::from_bytes(key), element_to_value(elem)],
 	)
 }
 
-async fn show_progress(label: impl AsRef<str>, handle: origin_sdk::tx::handle::TxHandle) {
+async fn show_progress(label: impl AsRef<str>, handle: handle::TxHandle) {
 	let label = label.as_ref();
 	println!("⏳ watching {label} (hash {:?})", handle.hash());
 	let in_block = handle.clone().wait_in_block();

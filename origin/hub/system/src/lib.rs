@@ -671,7 +671,7 @@ impl pallet_register::Config for Runtime {
 	type MaxAuthorizationLen = MaxRegistryAuthorizationLen;
 	type MaxAuthorizationTTL = RegisterAuthorizationTTL;
 	type MaxPacketListResults = MaxPacketListResults;
-	type Feeless = ();
+	type Feeless = Feeless;
 	type WeightInfo = pallet_register::weights::SubstrateWeight<Self>;
 }
 
