@@ -45,7 +45,7 @@ impl pallet_entity::Config for Runtime {
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type EntityInfoPacket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
-	type Feeless = ();
+	type Feeless = Feeless;
 	type MaxEntityNymLength = MaxEntityNymLength;
 	type DefaultEntityOverviewHistory = DefaultEntityOverviewHistory;
 	type MaxEntityOverviewHistory = MaxEntityOverviewHistory;

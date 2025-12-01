@@ -9,6 +9,7 @@ use crate::types::{OriginAccount, OriginPair};
 #[async_trait]
 pub trait Signer: Send + Sync + 'static {
 	fn account_id(&self) -> origin_primitives::AccountId;
+	fn account_identifier(&self) -> MultiSigner;
 	async fn sign_payload(&self, payload: &[u8]) -> MultiSignature;
 }
 
@@ -82,6 +83,10 @@ impl Signer for MultiKeySigner {
 		self.multisigner().into_account()
 	}
 
+	fn account_identifier(&self) -> MultiSigner {
+		self.multisigner()
+	}
+
 	async fn sign_payload(&self, payload: &[u8]) -> MultiSignature {
 		match self {
 			Self::Sr25519(p) => MultiSignature::from(p.sign(payload)),
@@ -106,6 +111,10 @@ impl Sr25519Signer {
 impl Signer for Sr25519Signer {
 	fn account_id(&self) -> origin_primitives::AccountId {
 		self.0.account_id()
+	}
+
+	fn account_identifier(&self) -> MultiSigner {
+		self.0.account_identifier()
 	}
 
 	async fn sign_payload(&self, payload: &[u8]) -> MultiSignature {
@@ -165,6 +174,10 @@ impl TryFrom<&OriginAccount> for OriginSigner {
 impl Signer for OriginSigner {
 	fn account_id(&self) -> origin_primitives::AccountId {
 		self.0.account_id()
+	}
+
+	fn account_identifier(&self) -> MultiSigner {
+		self.0.account_identifier()
 	}
 
 	async fn sign_payload(&self, payload: &[u8]) -> MultiSignature {
