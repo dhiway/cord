@@ -131,7 +131,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: alloc::borrow::Cow::Borrowed("loom"),
 	impl_name: alloc::borrow::Cow::Borrowed("dhiway-cord"),
 	authoring_version: 0,
-	spec_version: 9900,
+	spec_version: 9901,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -430,6 +430,7 @@ impl pallet_assets::Config<Instance1> for Runtime {
 	type Holder = ();
 	type Freezer = ();
 	type Extra = ();
+	type ReserveData = ();
 	type CallbackHandle = ();
 	type WeightInfo = weights::pallet_assets::WeightInfo<Runtime>;
 	type RemoveItemsLimit = ConstU32<1000>;
@@ -458,6 +459,7 @@ impl pallet_assets::Config<Instance2> for Runtime {
 	type Holder = ();
 	type Freezer = ();
 	type Extra = ();
+	type ReserveData = ();
 	type WeightInfo = weights::pallet_assets::WeightInfo<Runtime>;
 	type RemoveItemsLimit = ConstU32<1000>;
 	type CallbackHandle = ();
@@ -1301,7 +1303,7 @@ impl_runtime_apis! {
 			VERSION
 		}
 
-		fn execute_block(block: Block) {
+		fn execute_block(block: sp_runtime::generic::LazyBlock<<Block as BlockT>::Header, <Block as BlockT>::Extrinsic>) {
 			Executive::execute_block(block);
 		}
 
@@ -1337,7 +1339,7 @@ impl_runtime_apis! {
 			data.create_extrinsics()
 		}
 
-		fn check_inherents(block: Block, data: InherentData) -> CheckInherentsResult {
+		fn check_inherents(block: sp_runtime::generic::LazyBlock<<Block as BlockT>::Header, <Block as BlockT>::Extrinsic>, data: InherentData) -> CheckInherentsResult {
 			data.check_extrinsics(&block)
 		}
 	}
@@ -1607,7 +1609,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	#[api_version(5)]
+	#[api_version(6)]
 	impl sp_consensus_beefy::BeefyApi<Block, BeefyId> for Runtime {
 		fn beefy_genesis() -> Option<BlockNumber> {
 			pallet_beefy::GenesisBlock::<Runtime>::get()
@@ -1666,17 +1668,6 @@ impl_runtime_apis! {
 				.map(|p| p.encode())
 				.map(sp_consensus_beefy::OpaqueKeyOwnershipProof::new)
 		}
-
-		fn generate_ancestry_proof(
-			prev_block_number: BlockNumber,
-			best_known_block_number: Option<BlockNumber>,
-		) -> Option<sp_runtime::OpaqueValue> {
-			use sp_consensus_beefy::AncestryHelper;
-
-			MmrLeaf::generate_proof(prev_block_number, best_known_block_number)
-				.map(|p| p.encode())
-				.map(sp_runtime::OpaqueValue::new)
-		}
 	}
 
 	impl pallet_mmr::primitives::MmrApi<
@@ -1690,6 +1681,13 @@ impl_runtime_apis! {
 
 		fn mmr_leaf_count() -> Result<mmr::LeafIndex, mmr::Error> {
 			Ok(pallet_mmr::NumberOfLeaves::<Runtime>::get())
+		}
+
+		fn generate_ancestry_proof(
+			block_number: BlockNumber,
+			best_known_block_number: Option<BlockNumber>,
+		) -> Result<pallet_mmr::AncestryProof<mmr::Hash>, mmr::Error> {
+			Mmr::generate_ancestry_proof(block_number, best_known_block_number)
 		}
 
 		fn generate_proof(

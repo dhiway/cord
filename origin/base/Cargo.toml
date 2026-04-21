@@ -34,7 +34,7 @@ polkadot-node-core-pvf-execute-worker = { workspace = true, default-features = t
 polkadot-node-core-pvf-prepare-worker = { workspace = true, default-features = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-tikv-jemallocator = { version = "0.5.0", features = [
+tikv-jemallocator = { version = "0.6.0", features = [
 	"unprefixed_malloc_on_supported_platforms",
 ] }
 

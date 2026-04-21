@@ -19,7 +19,7 @@ path = "src/lib.rs"
 default = ["ws"]
 ws = ["subxt/jsonrpsee"]
 mock = []
-unstable-light-client = ["subxt/unstable-light-client"]
+unstable-light-client = ["subxt/light-client"]
 
 [dependencies]
 anyhow = { workspace = true, optional = false }
