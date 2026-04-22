@@ -61,7 +61,7 @@ members = [
 	"origin-rs",
 ]
 
-default-members = ["node/cli", "origin/base", "origin/hub", "origin-rs" ]
+default-members = ["node/cli"]
 
 [workspace.lints.rust]
 suspicious_double_ref_op = { level = "allow", priority = 2 }

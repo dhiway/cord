@@ -24,7 +24,7 @@ use super::*;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{
 	traits::{ConstU32, Get},
-	BoundedVec, CloneNoBound, PartialEqNoBound, RuntimeDebugNoBound,
+	BoundedVec, CloneNoBound, DebugNoBound, PartialEqNoBound,
 };
 extern crate alloc;
 use alloc::{vec, vec::Vec};
@@ -268,7 +268,7 @@ pub trait IdentityInformationProvider:
 /// extra fields in a backwards compatible way through a specialized `Decode`
 /// impl.
 #[derive(
-	CloneNoBound, Encode, Eq, MaxEncodedLen, PartialEqNoBound, RuntimeDebugNoBound, TypeInfo,
+	CloneNoBound, DebugNoBound, Encode, Eq, MaxEncodedLen, PartialEqNoBound, TypeInfo,
 )]
 #[codec(mel_bound())]
 #[scale_info(skip_type_params(MaxJudgements))]

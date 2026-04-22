@@ -22,7 +22,7 @@ use alloc::vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use enumflags2::{bitflags, BitFlag, BitFlags};
 use frame_support::{
-	ensure, traits::Get, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
+	ensure, traits::Get, CloneNoBound, DebugNoBound, EqNoBound, PartialEqNoBound,
 };
 use origin_primitives::{
 	attribute::{Attribute, Attributes, AttributesError, Element},
@@ -38,7 +38,7 @@ use scale_info::{build::Variants, Path, Type, TypeInfo};
 	Copy,
 	PartialEq,
 	Eq,
-	RuntimeDebugNoBound,
+	Debug,
 	Encode,
 	Decode,
 	DecodeWithMemTracking,
@@ -92,13 +92,13 @@ fn map_attributes_error(err: AttributesError) -> PacketUpdateError {
 ///  - `MaxAdditionalAttributes`: max length of the `attributes` Vec
 #[derive(
 	CloneNoBound,
+	DebugNoBound,
 	Encode,
 	Decode,
 	DecodeWithMemTracking,
 	EqNoBound,
 	MaxEncodedLen,
 	PartialEqNoBound,
-	RuntimeDebugNoBound,
 	TypeInfo,
 )]
 #[codec(mel_bound())]
