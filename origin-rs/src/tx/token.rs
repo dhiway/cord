@@ -22,8 +22,12 @@ impl<'a> TokenTx<'a> {
 		key: &[u8],
 		value: &[u8],
 	) -> Result<TxHandle, OriginSdkError> {
-		let payload =
-			token::rotate_attribute_call(&self.account.client().metadata(), token_id, key, value)?;
+		let payload = token::rotate_attribute_call(
+			&self.account.origin_client().metadata(),
+			token_id,
+			key,
+			value,
+		)?;
 		self.account.submit(payload).await
 	}
 

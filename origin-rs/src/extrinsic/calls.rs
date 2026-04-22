@@ -8,7 +8,13 @@ use crate::types::error::OriginSdkError;
 use codec::Encode;
 use origin_primitives::Ss58Identifier;
 use scale_value::Value;
-use subxt::{dynamic, tx::DynamicPayload, Metadata};
+use subxt::Metadata;
+
+type DynamicPayload = crate::extrinsic::builder::DynamicTxPayload;
+
+fn tx(pallet: &str, function: &str, args: Vec<Value>) -> DynamicPayload {
+	subxt::dynamic::tx(pallet, function, scale_value::Composite::Unnamed(args))
+}
 
 /// Simple helper to assert raw bytes length > 0.
 fn ensure_non_empty(name: &str, bytes: &[u8]) -> Result<(), OriginSdkError> {
@@ -31,7 +37,7 @@ pub mod entity {
 	) -> Result<DynamicPayload, OriginSdkError> {
 		ensure_non_empty("key", key)?;
 		let args = vec![Value::from_bytes(key)];
-		Ok(dynamic::tx("Entity", "remove_attribute", args))
+		Ok(tx("Entity", "remove_attribute", args))
 	}
 
 	/// Build `Entity::set_linked_account`.
@@ -40,7 +46,7 @@ pub mod entity {
 		account: subxt::utils::AccountId32,
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let args = vec![Value::from_bytes(account.0)];
-		Ok(dynamic::tx("Entity", "set_linked_account", args))
+		Ok(tx("Entity", "set_linked_account", args))
 	}
 
 	/// Build `Entity::revoke_linked_account` (self).
@@ -49,7 +55,7 @@ pub mod entity {
 		account: subxt::utils::AccountId32,
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let args = vec![Value::from_bytes(account.0)];
-		Ok(dynamic::tx("Entity", "revoke_linked_account", args))
+		Ok(tx("Entity", "revoke_linked_account", args))
 	}
 
 	/// Build `Entity::revoke_linked_account_for` (force origin).
@@ -59,7 +65,7 @@ pub mod entity {
 		account: subxt::utils::AccountId32,
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let args = vec![Value::from_bytes(token.as_ref()), Value::from_bytes(account.0)];
-		Ok(dynamic::tx("Entity", "revoke_linked_account_for", args))
+		Ok(tx("Entity", "revoke_linked_account_for", args))
 	}
 
 	/// Build `Entity::rotate_controller`.
@@ -68,7 +74,7 @@ pub mod entity {
 		controller: subxt::utils::AccountId32,
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let args = vec![Value::from_bytes(controller.0)];
-		Ok(dynamic::tx("Entity", "rotate_controller", args))
+		Ok(tx("Entity", "rotate_controller", args))
 	}
 
 	/// Build `Entity::rotate_controller_for` (force origin).
@@ -78,13 +84,13 @@ pub mod entity {
 		controller: subxt::utils::AccountId32,
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let args = vec![Value::from_bytes(token.as_ref()), Value::from_bytes(controller.0)];
-		Ok(dynamic::tx("Entity", "rotate_controller_for", args))
+		Ok(tx("Entity", "rotate_controller_for", args))
 	}
 
 	/// Build `Entity::clear_everything`.
 	pub fn clear_everything_call(_metadata: &Metadata) -> Result<DynamicPayload, OriginSdkError> {
 		let args: Vec<Value> = Vec::new();
-		Ok(dynamic::tx("Entity", "clear_everything", args))
+		Ok(tx("Entity", "clear_everything", args))
 	}
 
 	/// Build `Entity::clear_everything_for` (force origin).
@@ -92,7 +98,7 @@ pub mod entity {
 		_metadata: &Metadata,
 		token: Ss58Identifier,
 	) -> Result<DynamicPayload, OriginSdkError> {
-		Ok(dynamic::tx("Entity", "clear_everything_for", vec![Value::from_bytes(token.as_ref())]))
+		Ok(tx("Entity", "clear_everything_for", vec![Value::from_bytes(token.as_ref())]))
 	}
 
 	/// Build `Entity::set_entity_nym`.
@@ -101,7 +107,7 @@ pub mod entity {
 		prefix: &[u8],
 	) -> Result<DynamicPayload, OriginSdkError> {
 		ensure_non_empty("prefix", prefix)?;
-		Ok(dynamic::tx("Entity", "set_entity_nym", vec![Value::from_bytes(prefix)]))
+		Ok(tx("Entity", "set_entity_nym", vec![Value::from_bytes(prefix)]))
 	}
 
 	/// Build `Entity::remove_entity_nym`.
@@ -109,7 +115,7 @@ pub mod entity {
 		_metadata: &Metadata,
 		token: Ss58Identifier,
 	) -> Result<DynamicPayload, OriginSdkError> {
-		Ok(dynamic::tx("Entity", "remove_entity_nym", vec![Value::from_bytes(token.as_ref())]))
+		Ok(tx("Entity", "remove_entity_nym", vec![Value::from_bytes(token.as_ref())]))
 	}
 
 	/// Build `Entity::rotate_attribute` dynamic payload.
@@ -121,7 +127,7 @@ pub mod entity {
 		ensure_non_empty("key", key.as_bytes())?;
 		ensure_non_empty("value", raw_value.as_bytes())?;
 		let args = vec![Value::from_bytes(key.as_bytes()), Value::from_bytes(raw_value.as_bytes())];
-		Ok(dynamic::tx("Entity", "rotate_attribute", args))
+		Ok(tx("Entity", "rotate_attribute", args))
 	}
 
 	/// Build `Entity::rotate_attribute` from typed ElementInput.
@@ -131,7 +137,7 @@ pub mod entity {
 		val: &origin_primitives::element::Elum<crate::types::entity::MaxRawDataLength>,
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let args = vec![Value::from_bytes(key), element_to_value(val)];
-		Ok(dynamic::tx("Entity", "rotate_attribute", args))
+		Ok(tx("Entity", "rotate_attribute", args))
 	}
 
 	/// Build `Entity::rotate_attributes` from typed pairs.
@@ -147,7 +153,7 @@ pub mod entity {
 			.map(|(k, v)| Value::unnamed_composite(vec![Value::from_bytes(k), element_to_value(v)]))
 			.collect();
 		let args = vec![Value::from(items)];
-		Ok(dynamic::tx("Entity", "rotate_attributes", args))
+		Ok(tx("Entity", "rotate_attributes", args))
 	}
 
 	/// Build `Entity::add_attributes` from typed pairs.
@@ -160,7 +166,7 @@ pub mod entity {
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let encoded = ops.encode();
 		let args = vec![Value::from_bytes(&encoded)];
-		Ok(dynamic::tx("Entity", "add_attributes", args))
+		Ok(tx("Entity", "add_attributes", args))
 	}
 
 	/// JSON helper: encode value as bytes (placeholder until Element builder is added).
@@ -172,7 +178,7 @@ pub mod entity {
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let elem = element_value_from_json(expected, value)?;
 		let args = vec![Value::from_bytes(key.as_bytes()), elem];
-		Ok(dynamic::tx("Entity", "rotate_attribute", args))
+		Ok(tx("Entity", "rotate_attribute", args))
 	}
 
 	/// Bulk helper: map a JSON object into multiple attribute updates.
@@ -191,7 +197,7 @@ pub mod entity {
 			if let Some(v) = map.get(&key_str) {
 				let elem = element_value_from_json(*kind, v)?;
 				let args = vec![Value::from_bytes(token.as_ref()), Value::from_bytes(k), elem];
-				calls.push(dynamic::tx("Entity", "rotate_attribute", args));
+				calls.push(tx("Entity", "rotate_attribute", args));
 			}
 		}
 		Ok(calls)
@@ -203,7 +209,7 @@ pub mod entity {
 		info: &EntityInfoInput,
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let args = vec![entity_info_value(info)];
-		Ok(dynamic::tx("Entity", "set_info", args))
+		Ok(tx("Entity", "set_info", args))
 	}
 
 	pub fn element_to_value(
@@ -279,7 +285,7 @@ pub mod registry {
 			Value::from_bytes(schema_raw),
 			Value::from_bytes(config_raw),
 		];
-		Ok(dynamic::tx("Register", "create_registry", args))
+		Ok(tx("Register", "create_registry", args))
 	}
 
 	/// Serialize arbitrary schema/config structures to JSON then bytes for submission.
@@ -315,7 +321,7 @@ pub mod registry {
 			Value::from_bytes(&input.token_spec.encode()),
 			Value::from_bytes(&input.lookup_specs.encode()),
 		];
-		Ok(dynamic::tx("Register", "create_registry", args))
+		Ok(tx("Register", "create_registry", args))
 	}
 
 	/// Build `Register::update_registry_info` from typed Element input.
@@ -326,7 +332,7 @@ pub mod registry {
 	) -> Result<DynamicPayload, OriginSdkError> {
 		ensure_non_empty("registry", registry)?;
 		let args = vec![Value::from_bytes(registry), Value::from_bytes(&info.encode())];
-		Ok(dynamic::tx("Register", "update_registry_info", args))
+		Ok(tx("Register", "update_registry_info", args))
 	}
 
 	/// Build `Register::set_delegate_permissions` from typed input.
@@ -345,7 +351,7 @@ pub mod registry {
 			Value::from_bytes(input.delegate.0),
 			roles_val,
 		];
-		Ok(dynamic::tx("Register", "set_delegate_permissions", args))
+		Ok(tx("Register", "set_delegate_permissions", args))
 	}
 
 	/// Build `Register::remove_delegate_permissions` from typed input.
@@ -357,7 +363,7 @@ pub mod registry {
 			Value::from_bytes(input.registry.as_ref()),
 			Value::from_bytes(input.delegate.as_ref()),
 		];
-		Ok(dynamic::tx("Register", "remove_delegate_permissions", args))
+		Ok(tx("Register", "remove_delegate_permissions", args))
 	}
 }
 
@@ -387,7 +393,7 @@ pub mod packet {
 		let entries = build_packet_attributes(registry_schema, obj)?;
 		let encoded = entries.encode();
 		let args = vec![Value::from_bytes(registry_id.as_ref()), Value::from_bytes(&encoded)];
-		Ok(dynamic::tx("Register", "create_packet", args))
+		Ok(tx("Register", "create_packet", args))
 	}
 
 	/// Build `Register::create_packet` from already-flattened attributes (key, Element bytes).
@@ -409,7 +415,7 @@ pub mod packet {
 		}
 		let args =
 			vec![Value::from_bytes(registry_id.as_ref()), Value::from_bytes(&bounded.encode())];
-		Ok(dynamic::tx("Register", "create_packet", args))
+		Ok(tx("Register", "create_packet", args))
 	}
 
 	/// Build `Register::create_packet` from typed packet attributes.
@@ -420,7 +426,7 @@ pub mod packet {
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let args =
 			vec![Value::from_bytes(registry_id.as_ref()), Value::from_bytes(&attributes.encode())];
-		Ok(dynamic::tx("Register", "create_packet", args))
+		Ok(tx("Register", "create_packet", args))
 	}
 
 	/// Build `Register::update_packet` from typed attributes.
@@ -435,7 +441,7 @@ pub mod packet {
 			Value::from_bytes(packet_id.as_ref()),
 			Value::from_bytes(&attributes.encode()),
 		];
-		Ok(dynamic::tx("Register", "update_packet", args))
+		Ok(tx("Register", "update_packet", args))
 	}
 
 	/// Build `Register::revoke_packet`.
@@ -446,7 +452,7 @@ pub mod packet {
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let args =
 			vec![Value::from_bytes(registry_id.as_ref()), Value::from_bytes(packet_id.as_ref())];
-		Ok(dynamic::tx("Register", "revoke_packet", args))
+		Ok(tx("Register", "revoke_packet", args))
 	}
 
 	/// Build `Register::restore_packet`.
@@ -457,7 +463,7 @@ pub mod packet {
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let args =
 			vec![Value::from_bytes(registry_id.as_ref()), Value::from_bytes(packet_id.as_ref())];
-		Ok(dynamic::tx("Register", "restore_packet", args))
+		Ok(tx("Register", "restore_packet", args))
 	}
 
 	/// Build `Register::delete_packet`.
@@ -468,7 +474,7 @@ pub mod packet {
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let args =
 			vec![Value::from_bytes(registry_id.as_ref()), Value::from_bytes(packet_id.as_ref())];
-		Ok(dynamic::tx("Register", "delete_packet", args))
+		Ok(tx("Register", "delete_packet", args))
 	}
 
 	/// Build `Register::set_packet_status`.
@@ -483,7 +489,7 @@ pub mod packet {
 			Value::from_bytes(packet_id.as_ref()),
 			Value::from_bytes(&status.encode()),
 		];
-		Ok(dynamic::tx("Register", "set_packet_status", args))
+		Ok(tx("Register", "set_packet_status", args))
 	}
 
 	/// Minimal type validation for JSON values against ElementType.
@@ -692,7 +698,7 @@ pub mod token {
 			Value::from_bytes(key),
 			Value::from_bytes(value),
 		];
-		Ok(dynamic::tx("Token", "rotate_attribute", args))
+		Ok(tx("Token", "rotate_attribute", args))
 	}
 
 	/// JSON helper: encode to bytes.
@@ -705,7 +711,7 @@ pub mod token {
 	) -> Result<DynamicPayload, OriginSdkError> {
 		let elem = element_value_from_json(expected, value)?;
 		let args = vec![Value::from_bytes(token.as_ref()), Value::from_bytes(key), elem];
-		Ok(dynamic::tx("Token", "rotate_attribute", args))
+		Ok(tx("Token", "rotate_attribute", args))
 	}
 
 	/// Build `Token::rotate_attribute` from typed Element view.
@@ -720,6 +726,6 @@ pub mod token {
 			Value::from_bytes(key),
 			super::entity::element_to_value(elem),
 		];
-		Ok(dynamic::tx("Token", "rotate_attribute", args))
+		Ok(tx("Token", "rotate_attribute", args))
 	}
 }

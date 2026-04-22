@@ -63,11 +63,11 @@ use sc_statement_store::Store as StatementStore;
 pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi};
 pub use sp_consensus::{Proposal, SelectChain};
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId;
-use sp_transaction_storage_proof::runtime_api::TransactionStorageApi;
 pub use sp_runtime::{
 	generic,
 	traits::{self as runtime_traits, BlakeTwo256, Block as BlockT, Header as HeaderT, NumberFor},
 };
+use sp_transaction_storage_proof::runtime_api::TransactionStorageApi;
 
 use futures::prelude::*;
 use sc_consensus_babe::{self, SlotProportion};

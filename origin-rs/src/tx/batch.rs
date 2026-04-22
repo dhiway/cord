@@ -1,7 +1,7 @@
-use subxt::dynamic::{self, Value};
+use subxt::dynamic::Value;
 
 use crate::{
-	extrinsic::builder::DynamicCall,
+	extrinsic::builder::{DynamicCall, DynamicTxPayload},
 	tx::{handle::TxHandle, AccountTx},
 	types::error::OriginSdkError,
 };
@@ -41,15 +41,11 @@ impl BatchBuilder {
 		self
 	}
 
-	fn build(&self) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
-		let calls: Vec<Value> = self
-			.calls
-			.iter()
-			.cloned()
-			.map(|c| dynamic::tx(c.pallet, c.function, c.args).into_value())
-			.collect();
+	fn build(&self) -> Result<DynamicTxPayload, OriginSdkError> {
+		let calls: Vec<Value> =
+			self.calls.iter().cloned().map(|c| c.to_payload().into_value()).collect();
 		let fn_name = if self.all { "batch_all" } else { "batch" };
-		Ok(dynamic::tx("Utility", fn_name, calls))
+		Ok(subxt::dynamic::tx("Utility", fn_name, scale_value::Composite::Unnamed(calls)))
 	}
 
 	pub async fn submit_and_wait_finalized(

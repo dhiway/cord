@@ -48,10 +48,15 @@ impl ViewClient {
 		let args_bytes = args.encode();
 		let params = (query_id, args_bytes).encode();
 
-		let api = self.connection.online().runtime_api();
-		let at = api.at_latest().await.map_err(|e| OriginSdkError::View(e.to_string()))?;
+		let at = self
+			.connection
+			.online()
+			.at_current_block()
+			.await
+			.map_err(|e| OriginSdkError::View(e.to_string()))?;
 		let raw = at
-			.call_raw("RuntimeViewFunction_execute_view_function", Some(&params))
+			.view_functions()
+			.call_raw(Some(&params))
 			.await
 			.map_err(|e| OriginSdkError::View(e.to_string()))?;
 
@@ -74,11 +79,10 @@ impl ViewClient {
 		let reference_block = self
 			.connection
 			.online()
-			.blocks()
-			.at_latest()
+			.at_current_block()
 			.await
 			.map_err(|e| OriginSdkError::View(e.to_string()))?
-			.number()
+			.block_number()
 			.saturated_into::<u32>();
 
 		Ok(auth::build_authorization(signer, pallet, function, reference_block).await)

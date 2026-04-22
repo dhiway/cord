@@ -169,6 +169,18 @@ pub struct RunCmd {
 	///  **Dangerous!** Do not touch unless explicitly advised to.
 	#[arg(long, hide = true)]
 	pub collator_protocol_hold_off: Option<u64>,
+
+	/// Collator reputation persist interval.
+	///
+	///  **Dangerous!** Do not touch unless explicitly advised to.
+	#[arg(long, hide = true)]
+	pub collator_reputation_persist_interval: u64,
+
+	/// Enable experimental collator protocol.
+	///
+	///  **Dangerous!** Do not touch unless explicitly advised to.
+	#[arg(long, hide = true)]
+	pub experimental_collator_protocol: bool,
 }
 
 #[allow(missing_docs)]

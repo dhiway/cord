@@ -37,15 +37,7 @@ pub struct RuntimeDispatchWeightInfo<Weight = frame_support::weights::Weight> {
 }
 
 #[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	PartialEq,
-	Eq,
-	Debug,
-	TypeInfo,
-	MaxEncodedLen,
+	Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen,
 )]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]

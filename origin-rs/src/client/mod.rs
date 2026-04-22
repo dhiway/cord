@@ -1,5 +1,5 @@
 pub(crate) mod connection;
-mod events;
+pub(crate) mod events;
 pub mod nonce;
 pub(crate) mod pipeline;
 pub mod signer;
@@ -44,7 +44,7 @@ impl OriginClient {
 	}
 
 	/// Runtime metadata snapshot (cheap handle).
-	pub fn metadata(&self) -> subxt::Metadata {
+	pub fn metadata(&self) -> subxt::metadata::ArcMetadata {
 		self.connection.metadata()
 	}
 

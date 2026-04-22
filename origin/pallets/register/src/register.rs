@@ -34,15 +34,7 @@ pub enum RegistryFieldError {
 }
 
 #[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	PartialEq,
-	Eq,
-	Debug,
-	TypeInfo,
-	MaxEncodedLen,
+	Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen,
 )]
 pub struct AttributeSpec {
 	pub key: Attribute,

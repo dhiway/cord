@@ -94,9 +94,9 @@ impl NonceManager {
 		client: &subxt::OnlineClient<OriginConfig>,
 		account: &origin_primitives::AccountId,
 	) -> Result<u64, OriginSdkError> {
-		client
-			.tx()
-			.account_nonce(account)
+		let tx = client.tx().await.map_err(|e| OriginSdkError::Nonce(e.to_string()))?;
+		let account_id = crate::config::account_id_to_subxt(account);
+		tx.account_nonce(&account_id)
 			.await
 			.map_err(|e| OriginSdkError::Nonce(e.to_string()))
 	}

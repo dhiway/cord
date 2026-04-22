@@ -39,9 +39,7 @@ pub enum Event<AccountId = ()> {
 	MembershipRenewRequest(AccountId),
 }
 
-#[derive(
-	Encode, Decode, Default, Clone, Copy, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen,
-)]
+#[derive(Encode, Decode, Default, Clone, Copy, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct MemberData<BlockNumber: Decode + Encode + TypeInfo> {

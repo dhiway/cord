@@ -30,15 +30,7 @@ use sp_runtime::Debug;
 
 /// Pointer linking an index entry to a specific registry/packet version.
 #[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	PartialEq,
-	Eq,
-	TypeInfo,
-	MaxEncodedLen,
-	Debug,
+	Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen, Debug,
 )]
 pub struct PacketPointer {
 	pub registry: Ss58Identifier,

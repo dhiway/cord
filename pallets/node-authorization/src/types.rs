@@ -20,15 +20,7 @@ use scale_info::TypeInfo;
 use sp_runtime::Debug;
 
 #[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	MaxEncodedLen,
-	Debug,
-	PartialEq,
-	Eq,
-	TypeInfo,
+	Encode, Decode, DecodeWithMemTracking, Clone, MaxEncodedLen, Debug, PartialEq, Eq, TypeInfo,
 )]
 pub struct NodeInfo<NodeIdOf, AccountIdOf> {
 	/// The Node

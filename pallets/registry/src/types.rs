@@ -87,15 +87,7 @@ pub enum Status {
 }
 
 #[derive(
-	Encode,
-	Decode,
-	Clone,
-	MaxEncodedLen,
-	Debug,
-	PartialEq,
-	Eq,
-	TypeInfo,
-	DecodeWithMemTracking,
+	Encode, Decode, Clone, MaxEncodedLen, Debug, PartialEq, Eq, TypeInfo, DecodeWithMemTracking,
 )]
 pub struct RegistryDetails<Hash, Status, DocIdOf, DocNodeIdOf> {
 	/// The identity of the account (profile) that created/ owns the registry.

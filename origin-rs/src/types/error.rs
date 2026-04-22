@@ -1,5 +1,4 @@
 use origin_primitives::authorization::AuthorizationError;
-use subxt::error::MetadataError;
 use thiserror::Error;
 
 /// Unified SDK error type.
@@ -48,12 +47,6 @@ impl From<subxt::ext::scale_decode::Error> for OriginSdkError {
 impl From<subxt::ext::scale_encode::Error> for OriginSdkError {
 	fn from(err: subxt::ext::scale_encode::Error) -> Self {
 		OriginSdkError::Encode(err.to_string())
-	}
-}
-
-impl From<MetadataError> for OriginSdkError {
-	fn from(err: MetadataError) -> Self {
-		OriginSdkError::Metadata(err.to_string())
 	}
 }
 

@@ -18,6 +18,7 @@ use crate::{
 		OriginClient, OriginSigner,
 	},
 	config::OriginConfig,
+	extrinsic::builder::DynamicTxPayload,
 	tx::{
 		config::{TxPipelineConfig, TxSubmitMode},
 		handle::TxHandle,
@@ -82,10 +83,7 @@ impl AccountTx {
 		Self { origin, client, queue, cfg, signer }
 	}
 
-	pub async fn submit(
-		&self,
-		call: subxt::tx::DynamicPayload,
-	) -> Result<TxHandle, OriginSdkError> {
+	pub async fn submit(&self, call: DynamicTxPayload) -> Result<TxHandle, OriginSdkError> {
 		match self.cfg.submit_mode {
 			TxSubmitMode::ManagedQueue | TxSubmitMode::ManagedQueueWithOverride =>
 				self.queue.enqueue(call, None).await,
@@ -95,7 +93,7 @@ impl AccountTx {
 
 	pub async fn submit_with_nonce(
 		&self,
-		call: subxt::tx::DynamicPayload,
+		call: DynamicTxPayload,
 		nonce: u64,
 	) -> Result<TxHandle, OriginSdkError> {
 		match self.cfg.submit_mode {
@@ -121,7 +119,7 @@ impl AccountTx {
 
 	pub async fn submit_immediate(
 		&self,
-		call: subxt::tx::DynamicPayload,
+		call: DynamicTxPayload,
 	) -> Result<TxHandle, OriginSdkError> {
 		let nonce = self.allocate_nonce().await?;
 		self.submit_immediate_with_nonce(call, nonce).await
@@ -129,7 +127,7 @@ impl AccountTx {
 
 	pub async fn submit_immediate_with_nonce(
 		&self,
-		call: subxt::tx::DynamicPayload,
+		call: DynamicTxPayload,
 		nonce: u64,
 	) -> Result<TxHandle, OriginSdkError> {
 		let params = build_params_with_nonce(&self.client, nonce).await?;
@@ -156,6 +154,7 @@ impl AccountTx {
 		BatchBuilder::new(self.clone())
 	}
 
+	#[allow(dead_code)]
 	pub(crate) fn client(&self) -> &subxt::OnlineClient<OriginConfig> {
 		&self.client
 	}

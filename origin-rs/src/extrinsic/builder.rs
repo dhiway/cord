@@ -1,4 +1,7 @@
-use subxt::{dynamic::Value, tx::Payload, Error, Metadata};
+use scale_value::Composite;
+use subxt::dynamic::Value;
+
+pub type DynamicTxPayload = subxt::tx::DynamicPayload<Composite<()>>;
 
 /// Structured call descriptor.
 #[derive(Clone, Debug)]
@@ -10,13 +13,12 @@ pub struct DynamicCall {
 
 impl DynamicCall {
 	/// Convert into a Subxt dynamic payload (re-usable across helpers).
-	pub fn to_payload(&self) -> subxt::tx::DynamicPayload {
-		subxt::dynamic::tx(self.pallet.as_str(), self.function.as_str(), self.args.clone())
-	}
-
-	/// Encode call bytes using runtime metadata (same as pallet_meta_tx mock).
-	pub fn encode_call_data(&self, metadata: &Metadata) -> Result<Vec<u8>, Error> {
-		self.to_payload().encode_call_data(metadata).map_err(Into::into)
+	pub fn to_payload(&self) -> DynamicTxPayload {
+		subxt::dynamic::tx(
+			self.pallet.as_str(),
+			self.function.as_str(),
+			Composite::Unnamed(self.args.clone()),
+		)
 	}
 }
 

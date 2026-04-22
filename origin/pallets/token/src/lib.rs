@@ -109,15 +109,7 @@ pub type Authorization<T> =
 
 /// ActivityRecord stores an update entry and the corresponding event stamp.
 #[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	PartialEq,
-	Eq,
-	TypeInfo,
-	MaxEncodedLen,
-	Debug,
+	Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen, Debug,
 )]
 pub struct StateEvent<Hash> {
 	pub action: EventTypeOf,

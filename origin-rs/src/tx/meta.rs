@@ -1,7 +1,7 @@
 use codec::{Compact, Decode, Encode, Output};
 use scale_value::{Composite, Value, ValueDef};
 use sp_runtime::{generic::ExtensionVersion, MultiSignature};
-use subxt::{config::transaction_extensions::VerifySignatureDetails, Metadata};
+use subxt::Metadata;
 
 use crate::{config::OriginConfig, types::error::OriginSdkError};
 
@@ -88,11 +88,11 @@ impl MetaTxBareExt {
 }
 
 /// Wire format shared between signer and relayer (call is SCALE-encoded bytes).
-#[derive(Encode, Decode)]
+#[derive(Clone, Encode, Decode)]
 pub struct SignedMetaTxWire {
 	pub call: Vec<u8>,
 	pub extension_version: ExtensionVersion,
-	pub verify: VerifySignatureDetails<OriginConfig>,
+	pub verify: raw_meta::VerifySignature,
 	pub bare: MetaTxBareExt,
 }
 
@@ -105,25 +105,6 @@ pub struct SignedMetaTx {
 impl Clone for SignedMetaTx {
 	fn clone(&self) -> Self {
 		Self { wire: self.wire.clone(), call_value: self.call_value.clone() }
-	}
-}
-
-impl Clone for SignedMetaTxWire {
-	fn clone(&self) -> Self {
-		let verify = match &self.verify {
-			VerifySignatureDetails::Signed { signature, account } =>
-				VerifySignatureDetails::Signed {
-					signature: signature.clone(),
-					account: account.clone(),
-				},
-			VerifySignatureDetails::Disabled => VerifySignatureDetails::Disabled,
-		};
-		Self {
-			call: self.call.clone(),
-			extension_version: self.extension_version,
-			verify,
-			bare: self.bare.clone(),
-		}
 	}
 }
 
@@ -151,12 +132,14 @@ pub async fn build_meta_tx_bare_ext(
 	nonce: u64,
 	metadata_hash: Option<[u8; 32]>,
 ) -> Result<MetaTxBareExt, OriginSdkError> {
-	let runtime_version = client.runtime_version();
+	let at = client.at_current_block().await.map_err(|e| OriginSdkError::Tx(e.to_string()))?;
+	let spec_version = at.spec_version();
+	let tx_version = at.transaction_version();
 	let genesis_hash = client.genesis_hash();
 
 	Ok(MetaTxBareExt {
-		spec_version: runtime_version.spec_version,
-		tx_version: runtime_version.transaction_version,
+		spec_version,
+		tx_version,
 		genesis_hash,
 		mortality: Mortality { era: sp_runtime::generic::Era::Immortal, hash: genesis_hash },
 		nonce: nonce as u32,
@@ -196,10 +179,8 @@ pub fn assemble_meta_tx(
 	signer: &origin_primitives::AccountId,
 	signature: &MultiSignature,
 ) -> SignedMetaTx {
-	let verify = VerifySignatureDetails::<OriginConfig>::Signed {
-		signature: signature.clone(),
-		account: signer.clone(),
-	};
+	let verify =
+		raw_meta::VerifySignature::Signed { signature: signature.clone(), account: signer.clone() };
 	let wire = SignedMetaTxWire {
 		call: call_bytes.to_vec(),
 		extension_version: meta_tx_version,
@@ -224,9 +205,7 @@ pub fn meta_tx_value_from_signed(
 		.map_err(|e| OriginSdkError::Decode(e.to_string()))?
 		.remove_context();
 	if !cursor.is_empty() {
-		return Err(OriginSdkError::Decode(
-			"meta-tx decode: bytes not fully consumed".into(),
-		));
+		return Err(OriginSdkError::Decode("meta-tx decode: bytes not fully consumed".into()));
 	}
 
 	// Validate by re-encoding as the MetaTx::dispatch argument type.
@@ -245,23 +224,25 @@ fn decode_call_value(metadata: &Metadata, call_bytes: &[u8]) -> Result<Value, Or
 }
 
 fn meta_tx_dispatch_arg_type(metadata: &Metadata) -> Result<u32, OriginSdkError> {
-	let pallet = metadata.pallet_by_name_err("MetaTx")?;
+	let pallet = metadata
+		.pallet_by_name("MetaTx")
+		.ok_or_else(|| OriginSdkError::Metadata("MetaTx pallet not found".into()))?;
 	let call = pallet
 		.call_variants()
 		.ok_or_else(|| OriginSdkError::Metadata("MetaTx pallet has no calls".into()))?
 		.iter()
-		.find(|c| c.name() == "dispatch")
+		.find(|c| c.name == "dispatch")
 		.ok_or_else(|| OriginSdkError::Metadata("MetaTx.dispatch not found".into()))?;
 	let param_ty = call
-		.fields()
+		.fields
 		.first()
 		.ok_or_else(|| OriginSdkError::Metadata("MetaTx.dispatch arg missing".into()))?
-		.ty()
-		.id();
+		.ty
+		.id;
 	Ok(param_ty)
 }
 
-
+#[allow(dead_code)]
 fn multi_signature_value(sig: &MultiSignature) -> Value {
 	use sp_runtime::MultiSignature::*;
 	match sig {
@@ -271,9 +252,12 @@ fn multi_signature_value(sig: &MultiSignature) -> Value {
 			Value::variant("Sr25519", Composite::Unnamed(vec![Value::from_bytes(s.0.to_vec())])),
 		Ecdsa(s) =>
 			Value::variant("Ecdsa", Composite::Unnamed(vec![Value::from_bytes(s.0.to_vec())])),
+		Eth(s) =>
+			Value::variant("Ecdsa", Composite::Unnamed(vec![Value::from_bytes(s.0.to_vec())])),
 	}
 }
 
+#[allow(dead_code)]
 fn mortality_value(era: &sp_runtime::generic::Era) -> Value {
 	match era {
 		sp_runtime::generic::Era::Immortal =>
@@ -285,6 +269,7 @@ fn mortality_value(era: &sp_runtime::generic::Era) -> Value {
 	}
 }
 
+#[allow(dead_code)]
 fn metadata_hash_value(mode: MetadataHashMode) -> Value {
 	match mode {
 		MetadataHashMode::Disabled => Value::variant("Disabled", Composite::Unnamed(vec![])),
@@ -292,6 +277,7 @@ fn metadata_hash_value(mode: MetadataHashMode) -> Value {
 	}
 }
 
+#[allow(dead_code)]
 fn unit_value() -> Value {
 	Value { value: ValueDef::Composite(Composite::Unnamed(vec![])), context: () }
 }
@@ -303,9 +289,9 @@ fn find_meta_tx_type(metadata: &Metadata) -> Result<scale_info::PortableType, Or
 		.iter()
 		.find(|ty| {
 			let segments = &ty.ty.path.segments;
-			segments.len() == 2
-				&& segments[0].as_str() == "pallet_meta_tx"
-				&& segments[1].as_str() == "MetaTx"
+			segments.len() == 2 &&
+				segments[0].as_str() == "pallet_meta_tx" &&
+				segments[1].as_str() == "MetaTx"
 		})
 		.cloned()
 		.ok_or_else(|| OriginSdkError::Metadata("pallet_meta_tx::MetaTx type not found".into()))
@@ -315,7 +301,7 @@ fn find_meta_tx_type(metadata: &Metadata) -> Result<scale_info::PortableType, Or
 mod raw_meta {
 	use super::*;
 
-	#[derive(Clone, Encode)]
+	#[derive(Clone, Encode, Decode)]
 	pub enum VerifySignature {
 		Signed { signature: MultiSignature, account: origin_primitives::AccountId },
 		Disabled,
@@ -357,11 +343,6 @@ mod raw_meta {
 
 fn encode_raw_meta_tx(signed: &SignedMetaTx) -> Vec<u8> {
 	use raw_meta::*;
-	let verify = match &signed.wire.verify {
-		VerifySignatureDetails::Signed { signature, account } =>
-			VerifySignature::Signed { signature: signature.clone(), account: account.clone() },
-		VerifySignatureDetails::Disabled => VerifySignature::Disabled,
-	};
 
 	let bare = &signed.wire.bare;
 	let md_mode = match bare.metadata {
@@ -370,21 +351,17 @@ fn encode_raw_meta_tx(signed: &SignedMetaTx) -> Vec<u8> {
 	};
 
 	let ext = (
-		verify,
+		signed.wire.verify.clone(),
 		MetaTxMarker(Default::default()),
 		CheckNonZeroSender(Default::default()),
 		CheckSpecVersion(Default::default()),
 		CheckTxVersion(Default::default()),
 		CheckGenesis(Default::default()),
-		CheckMortality(bare.mortality.era.clone()),
+		CheckMortality(bare.mortality.era),
 		CheckNonce(bare.nonce),
 		CheckMetadataHash { mode: md_mode },
 	);
 
-	let raw = (
-		RawCall(&signed.wire.call),
-		signed.wire.extension_version,
-		ext,
-	);
+	let raw = (RawCall(&signed.wire.call), signed.wire.extension_version, ext);
 	raw.encode()
 }

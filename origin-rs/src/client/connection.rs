@@ -7,6 +7,7 @@ use crate::{tx::config::TxPipelineConfig, types::error::OriginSdkError, util::re
 #[derive(Clone)]
 pub struct Connection {
 	api: subxt::OnlineClient<OriginConfig>,
+	metadata: subxt::metadata::ArcMetadata,
 	#[allow(dead_code)]
 	endpoint: String,
 	#[allow(dead_code)]
@@ -32,11 +33,18 @@ impl Connection {
 			})
 			.await
 			.map_err(|e| OriginSdkError::Connection(e.to_string()))?;
-		Ok(Self { api, endpoint, backoff })
+
+		let metadata = api
+			.at_current_block()
+			.await
+			.map_err(|e| OriginSdkError::Connection(e.to_string()))?
+			.metadata();
+
+		Ok(Self { api, metadata, endpoint, backoff })
 	}
 
-	pub fn metadata(&self) -> subxt::Metadata {
-		self.api.metadata()
+	pub fn metadata(&self) -> subxt::metadata::ArcMetadata {
+		self.metadata.clone()
 	}
 
 	pub fn online(&self) -> &subxt::OnlineClient<OriginConfig> {

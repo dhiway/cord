@@ -32,7 +32,7 @@ pub use token::{
 	MaxRawDataLength as TokenMaxRawDataLength, TokenAttributeInput, TokenElementInput,
 	TokenEventBlockViewSdk, TokenLookupView, TokenStateEventViewSdk, TokenTimelineViewSdk,
 };
-pub type ViewValue = subxt::dynamic::DecodedValue;
+pub type ViewValue = scale_value::Value<()>;
 
 pub use core::{EntityToken, OriginAccountId, PacketId, RegistryId, TokenDecodedId, TokenId};
 pub type EntityNym = Vec<u8>;
