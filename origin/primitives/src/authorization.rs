@@ -23,7 +23,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use core::fmt;
 use scale_info::TypeInfo;
 use sp_io::hashing::twox_128;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -96,7 +96,7 @@ where
 	}
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, Debug)]
 pub enum AuthorizationError {
 	Unauthorized,
 	NotFound,

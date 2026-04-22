@@ -22,18 +22,10 @@
 
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 #[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	PartialEq,
-	Eq,
-	RuntimeDebug,
-	MaxEncodedLen,
-	TypeInfo,
+	Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, Debug, MaxEncodedLen, TypeInfo,
 )]
 pub struct RegistryEntryDetails<RegistryEntryHashOf, StatusOf, ProfileIdOf, RegistryIdentifierOf> {
 	/// Type of Registry Entry Digest associated with the document.

@@ -21,9 +21,7 @@
 use alloc::vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use enumflags2::{bitflags, BitFlag, BitFlags};
-use frame_support::{
-	ensure, traits::Get, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
-};
+use frame_support::{ensure, traits::Get, CloneNoBound, DebugNoBound, EqNoBound, PartialEqNoBound};
 use origin_primitives::{
 	attribute::{Attribute, Attributes, AttributesError, Element},
 	packet::{PacketInformationProvider, PacketUpdateError, PacketUpdateOp},
@@ -34,15 +32,7 @@ use scale_info::{build::Variants, Path, Type, TypeInfo};
 #[bitflags]
 #[repr(u64)]
 #[derive(
-	Clone,
-	Copy,
-	PartialEq,
-	Eq,
-	RuntimeDebugNoBound,
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	MaxEncodedLen,
+	Clone, Copy, PartialEq, Eq, Debug, Encode, Decode, DecodeWithMemTracking, MaxEncodedLen,
 )]
 pub enum EntityField {
 	Display,
@@ -92,13 +82,13 @@ fn map_attributes_error(err: AttributesError) -> PacketUpdateError {
 ///  - `MaxAdditionalAttributes`: max length of the `attributes` Vec
 #[derive(
 	CloneNoBound,
+	DebugNoBound,
 	Encode,
 	Decode,
 	DecodeWithMemTracking,
 	EqNoBound,
 	MaxEncodedLen,
 	PartialEqNoBound,
-	RuntimeDebugNoBound,
 	TypeInfo,
 )]
 #[codec(mel_bound())]

@@ -54,7 +54,9 @@ sp_api::impl_runtime_apis! {
 			unimplemented!()
 		}
 
-		fn execute_block(_: Block) {
+		fn execute_block(
+			_: sp_runtime::generic::LazyBlock<<Block as BlockT>::Header, <Block as BlockT>::Extrinsic>,
+		) {
 			unimplemented!()
 		}
 
@@ -91,7 +93,7 @@ sp_api::impl_runtime_apis! {
 		}
 
 		fn check_inherents(
-			_: Block,
+			_: sp_runtime::generic::LazyBlock<<Block as BlockT>::Header, <Block as BlockT>::Extrinsic>,
 			_: sp_inherents::InherentData,
 		) -> sp_inherents::CheckInherentsResult {
 			unimplemented!()
@@ -110,15 +112,6 @@ sp_api::impl_runtime_apis! {
 
 	impl sp_offchain::OffchainWorkerApi<Block> for Runtime {
 		fn offchain_worker(_: &<Block as BlockT>::Header) {
-			unimplemented!()
-		}
-	}
-
-	impl sp_statement_store::runtime_api::ValidateStatement<Block> for Runtime {
-		fn validate_statement(
-			_: sp_statement_store::runtime_api::StatementSource,
-			_: sp_statement_store::Statement,
-		) -> Result<sp_statement_store::runtime_api::ValidStatement, sp_statement_store::runtime_api::InvalidStatement> {
 			unimplemented!()
 		}
 	}
@@ -167,13 +160,6 @@ sp_api::impl_runtime_apis! {
 		) -> Option<sp_consensus_beefy::OpaqueKeyOwnershipProof> {
 			unimplemented!()
 		}
-
-		fn generate_ancestry_proof(
-			_: BlockNumber,
-			_: Option<BlockNumber>,
-		) -> Option<sp_runtime::OpaqueValue> {
-			unimplemented!()
-		}
 	}
 
 	impl sp_mmr_primitives::MmrApi<Block, Hash, BlockNumber> for Runtime {
@@ -182,6 +168,13 @@ sp_api::impl_runtime_apis! {
 		}
 
 		fn mmr_leaf_count() -> Result<sp_mmr_primitives::LeafIndex, sp_mmr_primitives::Error> {
+			unimplemented!()
+		}
+
+		fn generate_ancestry_proof(
+			_: BlockNumber,
+			_: Option<BlockNumber>,
+		) -> Result<sp_mmr_primitives::AncestryProof<Hash>, sp_mmr_primitives::Error> {
 			unimplemented!()
 		}
 
@@ -274,7 +267,10 @@ sp_api::impl_runtime_apis! {
 	}
 
 	impl sp_session::SessionKeys<Block> for Runtime {
-		fn generate_session_keys(_: Option<Vec<u8>>) -> Vec<u8> {
+		fn generate_session_keys(
+			_: Vec<u8>,
+			_: Option<Vec<u8>>,
+		) -> sp_session::OpaqueGeneratedSessionKeys {
 			unimplemented!()
 		}
 

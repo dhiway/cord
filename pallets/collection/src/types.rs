@@ -19,7 +19,7 @@
 use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 bitflags! {
 	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -80,15 +80,7 @@ impl From<PermissionVariant> for Permissions {
 
 /// A simple status enum.
 #[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	MaxEncodedLen,
-	RuntimeDebug,
-	PartialEq,
-	Eq,
-	TypeInfo,
+	Encode, Decode, DecodeWithMemTracking, Clone, MaxEncodedLen, Debug, PartialEq, Eq, TypeInfo,
 )]
 pub enum Status {
 	Active,
@@ -97,15 +89,7 @@ pub enum Status {
 
 /// Details for a catalog.
 #[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	MaxEncodedLen,
-	RuntimeDebug,
-	PartialEq,
-	Eq,
-	TypeInfo,
+	Encode, Decode, DecodeWithMemTracking, Clone, MaxEncodedLen, Debug, PartialEq, Eq, TypeInfo,
 )]
 pub struct CollectionDetails<ProfileIdOf, Status> {
 	pub creator: ProfileIdOf,

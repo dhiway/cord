@@ -36,7 +36,7 @@
 use crate::*;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 /// `StatementDetails` holds the essential identifiers for a statement within
 /// the system. It is used to associate a statement with its content's hash, the
@@ -68,7 +68,7 @@ use sp_runtime::RuntimeDebug;
 	Decode,
 	Clone,
 	MaxEncodedLen,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	PartialOrd,
@@ -110,7 +110,7 @@ pub struct StatementDetails<StatementDigestOf, SchemaIdOf, SpaceIdOf> {
 	Decode,
 	Clone,
 	MaxEncodedLen,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	PartialOrd,
@@ -161,7 +161,7 @@ pub struct StatementEntryStatus<StatementCreatorOf, StatusOf> {
 	Decode,
 	Clone,
 	MaxEncodedLen,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	PartialOrd,
@@ -193,7 +193,7 @@ pub struct StatementPresentationDetails<
 /// Enum representing various file types that could be associated with a
 /// statement's presentation.
 #[derive(
-	Encode, Decode, Clone, Copy, PartialEq, Eq, RuntimeDebug, TypeInfo, DecodeWithMemTracking,
+	Encode, Decode, Clone, Copy, PartialEq, Eq, Debug, TypeInfo, DecodeWithMemTracking,
 )]
 pub enum PresentationTypeOf {
 	/// Represents any other file type not explicitly listed.

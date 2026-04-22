@@ -42,7 +42,7 @@ use frame_system::{self, ensure_root, ensure_signed, pallet_prelude::BlockNumber
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{Hash, Zero},
-	RuntimeDebug,
+	Debug,
 };
 
 #[derive(
@@ -51,7 +51,7 @@ use sp_runtime::{
 	DecodeWithMemTracking,
 	MaxEncodedLen,
 	TypeInfo,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	Clone,

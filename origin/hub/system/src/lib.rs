@@ -89,7 +89,7 @@ use sp_runtime::{
 	generic, impl_opaque_keys,
 	traits::{BlakeTwo256, Block as BlockT},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, MultiSignature, MultiSigner, RuntimeDebug,
+	ApplyExtrinsicResult, Debug, MultiSignature, MultiSigner,
 };
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
 #[cfg(feature = "std")]
@@ -409,7 +409,7 @@ parameter_types! {
 	Encode,
 	Decode,
 	DecodeWithMemTracking,
-	RuntimeDebug,
+	Debug,
 	MaxEncodedLen,
 	TypeInfo,
 )]
@@ -430,20 +430,20 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::Any => true,
 			ProxyType::NonTransfer => matches!(
 				c,
-				RuntimeCall::System(..)
-					| RuntimeCall::ParachainSystem(..)
-					| RuntimeCall::Timestamp(..)
-					| RuntimeCall::Indices(pallet_indices::Call::claim { .. })
-					| RuntimeCall::Indices(pallet_indices::Call::free { .. })
-					| RuntimeCall::Indices(pallet_indices::Call::freeze { .. })
-					| RuntimeCall::Entity(..)
-					| RuntimeCall::Feeless(..)
-					| RuntimeCall::Register(..)
-					| RuntimeCall::Session(..)
-					| RuntimeCall::Utility(..)
-					| RuntimeCall::Proxy(..)
-					| RuntimeCall::Multisig(..)
-					| RuntimeCall::MessageQueue(..)
+				RuntimeCall::System(..) |
+					RuntimeCall::ParachainSystem(..) |
+					RuntimeCall::Timestamp(..) |
+					RuntimeCall::Indices(pallet_indices::Call::claim { .. }) |
+					RuntimeCall::Indices(pallet_indices::Call::free { .. }) |
+					RuntimeCall::Indices(pallet_indices::Call::freeze { .. }) |
+					RuntimeCall::Entity(..) |
+					RuntimeCall::Feeless(..) |
+					RuntimeCall::Register(..) |
+					RuntimeCall::Session(..) |
+					RuntimeCall::Utility(..) |
+					RuntimeCall::Proxy(..) |
+					RuntimeCall::Multisig(..) |
+					RuntimeCall::MessageQueue(..)
 			),
 			ProxyType::CancelProxy => {
 				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))
@@ -1086,7 +1086,7 @@ impl_runtime_apis! {
 			VERSION
 		}
 
-		fn execute_block(block: Block) {
+		fn execute_block(block: sp_runtime::generic::LazyBlock<<Block as BlockT>::Header, <Block as BlockT>::Extrinsic>) {
 			Executive::execute_block(block)
 		}
 
@@ -1123,7 +1123,7 @@ impl_runtime_apis! {
 		}
 
 		fn check_inherents(
-			block: Block,
+			block: sp_runtime::generic::LazyBlock<<Block as BlockT>::Header, <Block as BlockT>::Extrinsic>,
 			data: sp_inherents::InherentData,
 		) -> sp_inherents::CheckInherentsResult {
 			data.check_extrinsics(&block)
@@ -1147,8 +1147,8 @@ impl_runtime_apis! {
 	}
 
 	impl sp_session::SessionKeys<Block> for Runtime {
-		fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
-			SessionKeys::generate(seed)
+		fn generate_session_keys(owner: Vec<u8>, seed: Option<Vec<u8>>) -> sp_session::OpaqueGeneratedSessionKeys {
+			SessionKeys::generate(&owner, seed).into()
 		}
 
 		fn decode_session_keys(
@@ -1273,8 +1273,14 @@ impl_runtime_apis! {
 			PolkadotXcm::query_xcm_weight(message)
 		}
 
-		fn query_delivery_fees(destination: VersionedLocation, message: VersionedXcm<()>) -> Result<VersionedAssets, XcmPaymentApiError> {
-			PolkadotXcm::query_delivery_fees(destination, message)
+		fn query_delivery_fees(
+			destination: VersionedLocation,
+			message: VersionedXcm<()>,
+			asset_id: VersionedAssetId,
+		) -> Result<VersionedAssets, XcmPaymentApiError> {
+			use crate::xcm_config::XcmConfig;
+			type AssetExchanger = <XcmConfig as xcm_executor::Config>::AssetExchanger;
+			PolkadotXcm::query_delivery_fees::<AssetExchanger>(destination, message, asset_id)
 		}
 	}
 
@@ -1284,7 +1290,7 @@ impl_runtime_apis! {
 		}
 
 		fn dry_run_xcm(origin_location: VersionedLocation, xcm: VersionedXcm<RuntimeCall>) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
-			PolkadotXcm::dry_run_xcm::<Runtime, xcm_config::XcmRouter, RuntimeCall, xcm_config::XcmConfig>(origin_location, xcm)
+			PolkadotXcm::dry_run_xcm::<xcm_config::XcmRouter>(origin_location, xcm)
 		}
 	}
 

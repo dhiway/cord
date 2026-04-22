@@ -18,7 +18,7 @@
 
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 #[derive(
 	Encode,
@@ -26,7 +26,7 @@ use sp_runtime::RuntimeDebug;
 	MaxEncodedLen,
 	DecodeWithMemTracking,
 	Clone,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	PartialOrd,
@@ -45,7 +45,7 @@ pub struct EntityDetails<EntityIdentifier> {
 	Decode,
 	DecodeWithMemTracking,
 	Clone,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	PartialOrd,
@@ -74,7 +74,7 @@ pub struct RatingInputEntry<EntityIdentifier, RatingProviderId, RatingTypeOf> {
 	DecodeWithMemTracking,
 	MaxEncodedLen,
 	Clone,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	TypeInfo,
@@ -90,7 +90,7 @@ pub enum RatingTypeOf {
 	DecodeWithMemTracking,
 	MaxEncodedLen,
 	Clone,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	TypeInfo,
@@ -112,7 +112,7 @@ impl RatingTypeOf {
 	DecodeWithMemTracking,
 	MaxEncodedLen,
 	Clone,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	PartialOrd,
@@ -154,7 +154,7 @@ pub struct RatingEntry<
 	DecodeWithMemTracking,
 	MaxEncodedLen,
 	Clone,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	PartialOrd,

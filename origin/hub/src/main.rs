@@ -37,10 +37,6 @@ pub const NODE_VERSION: &'static str = "0.9.9";
 struct CliConfig;
 
 impl CliConfigT for CliConfig {
-	fn impl_name() -> String {
-		"Dhiway Origin Hub".into()
-	}
-
 	fn impl_version() -> String {
 		let commit_hash = env!("SUBSTRATE_CLI_COMMIT_HASH");
 		format!("{}-{commit_hash}", NODE_VERSION)

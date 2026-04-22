@@ -1,7 +1,7 @@
 use alloc::{collections::BTreeSet, vec, vec::Vec};
 use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use frame_support::{ensure, traits::Get, BoundedVec, RuntimeDebugNoBound};
+use frame_support::{ensure, traits::Get, BoundedVec, DebugNoBound};
 pub use origin_primitives::registry::{RegistryKind, RegistryPermissions, RegistryStatus};
 use origin_primitives::{
 	attribute::{Attribute, Element, ElementType},
@@ -34,15 +34,7 @@ pub enum RegistryFieldError {
 }
 
 #[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	PartialEq,
-	Eq,
-	RuntimeDebugNoBound,
-	TypeInfo,
-	MaxEncodedLen,
+	Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen,
 )]
 pub struct AttributeSpec {
 	pub key: Attribute,
@@ -51,7 +43,7 @@ pub struct AttributeSpec {
 }
 
 /// Lookup specification describing how attribute keys are reused without duplicating values.
-#[derive(Encode, Decode, DecodeWithMemTracking, RuntimeDebugNoBound, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, DebugNoBound, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(MaxAdditionalAttributes))]
 pub enum LookupSpec<MaxAdditionalAttributes: Get<u32>> {
 	/// Single attribute key reused for token or lookup material.
@@ -118,7 +110,7 @@ impl<MaxAdditionalAttributes: Get<u32>> LookupSpec<MaxAdditionalAttributes> {
 	Clone,
 	PartialEq,
 	Eq,
-	RuntimeDebugNoBound,
+	DebugNoBound,
 	TypeInfo,
 	MaxEncodedLen,
 	DecodeWithMemTracking,

@@ -33,16 +33,15 @@ impl<'a> RegistryTx<'a> {
 		info: &[u8],
 	) -> Result<TxHandle, OriginSdkError> {
 		let call = self.create(registry_id, info);
-		let payload = subxt::dynamic::tx(call.pallet, call.function, call.args);
-		self.account.submit(payload).await
+		self.account.submit(call.to_payload()).await
 	}
 
 	pub fn set_delegate_permissions(
 		&self,
 		input: &crate::types::registry::DelegatePermissionsInput,
-	) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
+	) -> Result<crate::extrinsic::builder::DynamicTxPayload, OriginSdkError> {
 		crate::extrinsic::calls::registry::set_delegate_permissions_from_input(
-			&self.account.client().metadata(),
+			&self.account.origin_client().metadata(),
 			input,
 		)
 	}
@@ -50,9 +49,9 @@ impl<'a> RegistryTx<'a> {
 	pub fn remove_delegate_permissions(
 		&self,
 		input: &crate::types::registry::RemoveDelegatePermissionsInput,
-	) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
+	) -> Result<crate::extrinsic::builder::DynamicTxPayload, OriginSdkError> {
 		crate::extrinsic::calls::registry::remove_delegate_permissions_from_input(
-			&self.account.client().metadata(),
+			&self.account.origin_client().metadata(),
 			input,
 		)
 	}
@@ -64,7 +63,7 @@ impl<'a> RegistryTx<'a> {
 	) -> Result<TxHandle, OriginSdkError> {
 		let elem = crate::schema::registry::element_from_view(&info)?;
 		let payload = crate::extrinsic::calls::registry::update_info_from_input(
-			&self.account.client().metadata(),
+			&self.account.origin_client().metadata(),
 			registry.as_ref(),
 			&elem,
 		)?;
@@ -76,7 +75,7 @@ impl<'a> RegistryTx<'a> {
 		input: &crate::types::registry::DelegatePermissionsInput,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = crate::extrinsic::calls::registry::set_delegate_permissions_from_input(
-			&self.account.client().metadata(),
+			&self.account.origin_client().metadata(),
 			input,
 		)?;
 		self.account.submit(payload).await
@@ -87,7 +86,7 @@ impl<'a> RegistryTx<'a> {
 		input: &crate::types::registry::RemoveDelegatePermissionsInput,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = crate::extrinsic::calls::registry::remove_delegate_permissions_from_input(
-			&self.account.client().metadata(),
+			&self.account.origin_client().metadata(),
 			input,
 		)?;
 		self.account.submit(payload).await
@@ -133,7 +132,7 @@ impl<'a> RegistryTx<'a> {
 	) -> Result<TxHandle, OriginSdkError> {
 		let input = crate::schema::registry::to_create_input(nested)?;
 		let payload = crate::extrinsic::calls::registry::create_from_input(
-			&self.account.client().metadata(),
+			&self.account.origin_client().metadata(),
 			registry_id,
 			&input,
 		)?;
@@ -155,8 +154,11 @@ impl<'a> RegistryTx<'a> {
 			.await?
 			.ok_or_else(|| OriginSdkError::View("registry schema not found".into()))?;
 		let attrs = crate::schema::packet::validate_and_flatten(nested, &view)?;
-		let payload =
-			packet_calls::issue_from_input(&self.account.client().metadata(), registry, &attrs)?;
+		let payload = packet_calls::issue_from_input(
+			&self.account.origin_client().metadata(),
+			registry,
+			&attrs,
+		)?;
 		self.account.submit(payload).await
 	}
 
@@ -165,8 +167,7 @@ impl<'a> RegistryTx<'a> {
 		registry: Ss58Identifier,
 	) -> Result<TxHandle, OriginSdkError> {
 		let call = self.revoke_registry(registry);
-		let payload = subxt::dynamic::tx(call.pallet, call.function, call.args);
-		self.account.submit(payload).await
+		self.account.submit(call.to_payload()).await
 	}
 
 	pub async fn submit_restore_registry(
@@ -174,8 +175,7 @@ impl<'a> RegistryTx<'a> {
 		registry: Ss58Identifier,
 	) -> Result<TxHandle, OriginSdkError> {
 		let call = self.restore_registry(registry);
-		let payload = subxt::dynamic::tx(call.pallet, call.function, call.args);
-		self.account.submit(payload).await
+		self.account.submit(call.to_payload()).await
 	}
 
 	pub async fn submit_delete_registry(
@@ -183,7 +183,6 @@ impl<'a> RegistryTx<'a> {
 		registry: Ss58Identifier,
 	) -> Result<TxHandle, OriginSdkError> {
 		let call = self.delete_registry(registry);
-		let payload = subxt::dynamic::tx(call.pallet, call.function, call.args);
-		self.account.submit(payload).await
+		self.account.submit(call.to_payload()).await
 	}
 }

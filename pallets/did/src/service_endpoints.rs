@@ -22,7 +22,7 @@ use crate::{errors::InputError, Config};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{ensure, traits::Get, BoundedVec};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::SaturatedConversion, RuntimeDebug};
+use sp_runtime::{traits::SaturatedConversion, Debug};
 #[cfg(any(test, feature = "runtime-benchmarks"))]
 extern crate alloc;
 use alloc::str;
@@ -49,7 +49,7 @@ pub(crate) type ServiceEndpointUrlEntries<T> =
 	Clone,
 	Decode,
 	DecodeWithMemTracking,
-	RuntimeDebug,
+	Debug,
 	Encode,
 	PartialEq,
 	Eq,

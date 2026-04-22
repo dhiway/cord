@@ -3,7 +3,10 @@ use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{traits::IdentifyAccount, MultiSignature, MultiSigner};
 use tokio::task;
 
-use crate::types::{OriginAccount, OriginPair};
+use crate::{
+	config,
+	types::{OriginAccount, OriginPair},
+};
 
 /// Generic signing interface for Origin SDK (async to allow HSM/wallet flows).
 #[async_trait]
@@ -59,6 +62,7 @@ impl MultiKeySigner {
 	}
 
 	/// Build from an OriginAccount (covers all supported schemes).
+	#[allow(clippy::clone_on_copy)]
 	pub fn from_origin_account(acc: &OriginAccount) -> Result<Self, String> {
 		match acc.pair() {
 			OriginPair::Sr25519(p) => Ok(Self::Sr25519(p.clone())),
@@ -126,17 +130,17 @@ impl SubxtSignerAdapter {
 }
 
 impl subxt::tx::Signer<crate::client::OriginConfig> for SubxtSignerAdapter {
-	fn account_id(&self) -> origin_primitives::AccountId {
-		self.inner.account_id()
+	fn account_id(&self) -> <crate::client::OriginConfig as subxt::Config>::AccountId {
+		config::account_id_to_subxt(&self.inner.account_id())
 	}
 
-	fn sign(&self, payload: &[u8]) -> MultiSignature {
+	fn sign(&self, payload: &[u8]) -> <crate::client::OriginConfig as subxt::Config>::Signature {
 		let inner = self.inner.clone();
 		let sig = task::block_in_place(|| {
 			let handle = tokio::runtime::Handle::current();
 			handle.block_on(inner.sign_payload(payload))
 		});
-		sig
+		config::signature_to_subxt(&sig)
 	}
 }
 

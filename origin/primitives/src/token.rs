@@ -20,10 +20,10 @@ use crate::entity::EventBlockView;
 use alloc::vec::Vec;
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 /// View-friendly representation of a token state event.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub struct TokenStateEventView<Hash> {
 	pub action: Vec<u8>,
 	pub digest: Hash,

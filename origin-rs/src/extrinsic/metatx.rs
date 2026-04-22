@@ -5,6 +5,7 @@ use crate::{
 		signer::{Signer, SubxtSignerAdapter},
 	},
 	config::{build_origin_params, OriginConfig},
+	extrinsic::builder::DynamicTxPayload,
 	tx::{
 		handle::{TxHandle, TxOutcome},
 		meta::{
@@ -14,10 +15,10 @@ use crate::{
 	},
 	types::error::OriginSdkError,
 };
-use tracing::debug;
 use scale_value::{Value, ValueDef};
 use std::sync::Arc;
-use subxt::{config::DefaultExtrinsicParamsBuilder, tx::Payload};
+use subxt::config::DefaultExtrinsicParamsBuilder;
+use tracing::debug;
 
 /// Meta-transaction helper (signer + relayer flows).
 #[derive(Clone)]
@@ -83,16 +84,25 @@ impl MetaTxClient {
 	) -> Result<SignedMetaTx, OriginSdkError> {
 		let payload = self.dynamic_payload(&call);
 		let call_value = payload.clone().into_value();
-		let call_bytes = payload
-			.encode_call_data(&self.connection.metadata())
-			.map_err(|e| OriginSdkError::Encode(e.to_string()))?;
-
-		// Meta-signer nonce drives replay protection for the inner meta-tx.
-		let nonce = self
+		let tx = self
 			.connection
 			.online()
 			.tx()
-			.account_nonce(&signer.account_id())
+			.await
+			.map_err(|e| OriginSdkError::Tx(e.to_string()))?;
+		let call_bytes =
+			tx.call_data(&payload).map_err(|e| OriginSdkError::Encode(e.to_string()))?;
+
+		// Meta-signer nonce drives replay protection for the inner meta-tx.
+		let tx = self
+			.connection
+			.online()
+			.tx()
+			.await
+			.map_err(|e| OriginSdkError::Nonce(e.to_string()))?;
+		let signer_account = crate::config::account_id_to_subxt(&signer.account_id());
+		let nonce = tx
+			.account_nonce(&signer_account)
 			.await
 			.map_err(|e| OriginSdkError::Nonce(e.to_string()))?;
 
@@ -138,14 +148,21 @@ impl MetaTxClient {
 		let dispatch_call = subxt::dynamic::tx(
 			"MetaTx",
 			"dispatch",
-			vec![meta_tx_value_from_signed(&self.connection.metadata(), &signed)?],
+			scale_value::Composite::Unnamed(vec![meta_tx_value_from_signed(
+				&self.connection.metadata(),
+				&signed,
+			)?]),
 		);
 
-		let nonce = self
+		let mut tx = self
 			.connection
 			.online()
 			.tx()
-			.account_nonce(&relayer.account_id())
+			.await
+			.map_err(|e| OriginSdkError::Nonce(e.to_string()))?;
+		let relayer_account = crate::config::account_id_to_subxt(&relayer.account_id());
+		let nonce = tx
+			.account_nonce(&relayer_account)
 			.await
 			.map_err(|e| OriginSdkError::Nonce(e.to_string()))?;
 
@@ -153,10 +170,7 @@ impl MetaTxClient {
 			build_origin_params(DefaultExtrinsicParamsBuilder::<OriginConfig>::new().nonce(nonce));
 
 		let adapter = SubxtSignerAdapter::new(relayer);
-		let progress = self
-			.connection
-			.online()
-			.tx()
+		let progress = tx
 			.sign_and_submit_then_watch(&dispatch_call, &adapter, params)
 			.await
 			.map_err(|e| OriginSdkError::Tx(e.to_string()))?;
@@ -180,8 +194,12 @@ impl MetaTxClient {
 		Ok(outcome)
 	}
 
-	fn dynamic_payload(&self, call: &DynamicCall) -> subxt::tx::DynamicPayload {
-		subxt::dynamic::tx(call.pallet.as_str(), call.function.as_str(), call.args.clone())
+	fn dynamic_payload(&self, call: &DynamicCall) -> DynamicTxPayload {
+		subxt::dynamic::tx(
+			call.pallet.as_str(),
+			call.function.as_str(),
+			scale_value::Composite::Unnamed(call.args.clone()),
+		)
 	}
 
 	fn ensure_dispatched_ok(&self, outcome: &TxOutcome) -> Result<(), OriginSdkError> {

@@ -21,7 +21,7 @@ use crate::*;
 use codec::{CompactAs, Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use networks_registrar::CordAccountOf;
 use scale_info::TypeInfo;
-use sp_core::{RuntimeDebug, TypeId};
+use sp_core::{Debug, TypeId};
 
 /// Unique identifier of a network.
 #[derive(
@@ -37,7 +37,7 @@ use sp_core::{RuntimeDebug, TypeId};
 	Ord,
 	PartialEq,
 	PartialOrd,
-	RuntimeDebug,
+	Debug,
 	serde::Serialize,
 	serde::Deserialize,
 	TypeInfo,

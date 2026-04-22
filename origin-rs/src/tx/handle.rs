@@ -50,7 +50,10 @@ impl TxHandle {
 	}
 
 	pub(crate) fn from_progress(
-		progress: subxt::tx::TxProgress<OriginConfig, subxt::OnlineClient<OriginConfig>>,
+		progress: subxt::transactions::TransactionProgress<
+			OriginConfig,
+			subxt::client::OnlineClientAtBlockImpl<OriginConfig>,
+		>,
 	) -> Self {
 		let hash = progress.extrinsic_hash();
 		let (tx_in_block, rx_in_block) = oneshot::channel();
@@ -63,13 +66,13 @@ impl TxHandle {
 				let mut prog = progress;
 				loop {
 					match prog.next().await {
-						Some(Ok(subxt::tx::TxStatus::InBestBlock(inb))) => {
+						Some(Ok(subxt::transactions::TransactionStatus::InBestBlock(inb))) => {
 							let outcome = collect_outcome(hash, &inb).await?;
 							if let Some(sender) = send_in_block.take() {
 								let _ = sender.send(Ok(outcome));
 							}
 						},
-						Some(Ok(subxt::tx::TxStatus::InFinalizedBlock(inb))) => {
+						Some(Ok(subxt::transactions::TransactionStatus::InFinalizedBlock(inb))) => {
 							let outcome = collect_outcome(hash, &inb).await?;
 							if let Some(sender) = send_finalized.take() {
 								let _ = sender.send(Ok(outcome.clone()));
@@ -101,31 +104,34 @@ impl TxHandle {
 	}
 }
 
-async fn collect_outcome<C>(
+async fn collect_outcome(
 	hash: subxt::utils::H256,
-	status: &subxt::tx::TxInBlock<OriginConfig, C>,
-) -> Result<TxOutcome, OriginSdkError>
-where
-	C: subxt::client::OnlineClientT<OriginConfig>,
-{
+	status: &subxt::transactions::TransactionInBlock<
+		OriginConfig,
+		subxt::client::OnlineClientAtBlockImpl<OriginConfig>,
+	>,
+) -> Result<TxOutcome, OriginSdkError> {
 	let block = status.block_hash();
 	let events = status.wait_for_success().await.map_err(|e| OriginSdkError::Tx(e.to_string()))?;
+
+	let at = status.at().await.map_err(|e| OriginSdkError::Tx(e.to_string()))?;
+	let metadata = at.metadata_ref();
+
 	let mut envelopes = Vec::new();
-	for ev in events.iter() {
-		if let Ok(ev) = ev {
-			let fields = ev.field_values().map_or(Vec::new(), |comp| match comp {
-				scale_value::Composite::Named(v) =>
-					v.into_iter().map(|(_, val)| val.remove_context()).collect(),
-				scale_value::Composite::Unnamed(v) =>
-					v.into_iter().map(|val| val.remove_context()).collect(),
-			});
-			envelopes.push(EventEnvelope {
-				block,
-				pallet: ev.pallet_name().to_string(),
-				variant: ev.variant_name().to_string(),
-				fields,
-			});
-		}
+	for ev in events.iter().flatten() {
+		let fields = crate::client::events::decode_event_fields(
+			metadata,
+			ev.pallet_name(),
+			ev.event_name(),
+			ev.field_bytes(),
+		)
+		.unwrap_or_default();
+		envelopes.push(EventEnvelope {
+			block,
+			pallet: ev.pallet_name().to_string(),
+			variant: ev.event_name().to_string(),
+			fields,
+		});
 	}
 	Ok(TxOutcome { hash, block: Some(block), events: envelopes })
 }

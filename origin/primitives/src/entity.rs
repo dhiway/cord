@@ -20,10 +20,10 @@ use crate::{attribute::AttributeValueView, element::ElementView};
 use alloc::vec::Vec;
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 /// Minimal block reference for view responses.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub struct EventBlockView {
 	pub height: u32,
 	pub index: u32,
@@ -32,7 +32,7 @@ pub struct EventBlockView {
 /// History entry for a single attribute key/version.
 /// Returned by `Entity::overview`, `Entity::attribute_history`,
 /// `Entity::attribute_history_for_key`, and `Entity::attribute_history_entry`.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub struct AttributeHistoryEntryView {
 	pub key: Vec<u8>,
 	pub version: u64,
@@ -42,7 +42,7 @@ pub struct AttributeHistoryEntryView {
 
 /// Flattened entity info using `ElementView` and `AttributeValueView`.
 /// Returned by the `Entity::details` view.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub struct EntityInfoView {
 	pub display: ElementView,
 	pub web: ElementView,
@@ -52,7 +52,7 @@ pub struct EntityInfoView {
 
 /// Composite overview of an entity.
 /// Returned by the `Entity::overview` view.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub struct EntityStateView<AccountId> {
 	pub info: EntityInfoView,
 	pub nym: Option<Vec<u8>>,
@@ -62,7 +62,7 @@ pub struct EntityStateView<AccountId> {
 
 /// Slimmed down overview (info + nym).
 /// Returned by SDK helpers derived from `EntityStateView`.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub struct EntityOverview {
 	pub info: EntityInfoView,
 	pub nym: Option<Vec<u8>>,
@@ -75,7 +75,7 @@ impl<AccountId> From<EntityStateView<AccountId>> for EntityOverview {
 }
 
 /// Unbind entry for the `Entity::account_history` view.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub struct AccountUnbindEntryView<AccountId> {
 	pub account: AccountId,
 	pub block: EventBlockView,

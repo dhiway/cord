@@ -26,7 +26,7 @@ use alloc::vec::Vec;
 use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 bitflags! {
 	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen)]
@@ -82,7 +82,7 @@ impl RegistryPermissions {
 	Clone,
 	PartialEq,
 	Eq,
-	RuntimeDebug,
+	Debug,
 	TypeInfo,
 	MaxEncodedLen,
 	Default,
@@ -103,7 +103,7 @@ pub enum RegistryKind {
 	Copy,
 	PartialEq,
 	Eq,
-	RuntimeDebug,
+	Debug,
 	TypeInfo,
 	MaxEncodedLen,
 	Default,
@@ -129,7 +129,7 @@ impl RegistryStatus {
 	}
 }
 /// Specification for a single attribute in a registry schema.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub struct RegistryAttributeSpec {
 	/// Raw key bytes (e.g. "id", "name").
 	pub key: Vec<u8>,
@@ -140,14 +140,14 @@ pub struct RegistryAttributeSpec {
 }
 
 /// How a registry can be looked up (single key or composite keys).
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub enum LookupSpec {
 	Single(Vec<u8>),
 	Combo(Vec<Vec<u8>>),
 }
 
 /// View of a registry’s core metadata and schema,
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub struct RegistryStateView {
 	/// Registry identifier (Ss58Identifier)
 	pub registry: Ss58Identifier,
@@ -168,7 +168,7 @@ pub struct RegistryStateView {
 }
 
 /// Flattened view for a single registry attribute.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub struct RegistryAttributeView {
 	pub key: Vec<u8>,
 	pub kind: ElementType,

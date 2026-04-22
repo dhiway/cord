@@ -1,13 +1,13 @@
-use subxt::config::{DefaultExtrinsicParams, DefaultExtrinsicParamsBuilder, ExtrinsicParams};
+use subxt::config::{DefaultExtrinsicParamsBuilder, TransactionExtensions};
 
 use crate::config::OriginConfig;
 
-/// Origin SDK extrinsic params (type alias for now; centralized for future meta-tx tweaks).
-pub type OriginExtrinsicParams<T> = DefaultExtrinsicParams<T>;
+/// Origin SDK transaction extension tuple.
+pub type OriginExtrinsicParams<T> = crate::config::OriginTransactionExtensions<T>;
 
 /// Builder for Origin extrinsic params.
 pub type OriginExtrinsicParamsBuilder<T> = DefaultExtrinsicParamsBuilder<T>;
 
 /// Concrete params type used with `OriginConfig`.
 pub type OriginParams =
-	<OriginExtrinsicParams<OriginConfig> as ExtrinsicParams<OriginConfig>>::Params;
+	<OriginExtrinsicParams<OriginConfig> as TransactionExtensions<OriginConfig>>::Params;

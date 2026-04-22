@@ -39,7 +39,7 @@ impl<'a> PacketTx<'a> {
 		let attr_bytes: Vec<(Vec<u8>, Vec<u8>)> =
 			flat.into_iter().map(|(k, v)| (k, v.encode())).collect();
 		let payload = packet_calls::issue_from_flat(
-			&self.account.client().metadata(),
+			&self.account.origin_client().metadata(),
 			registry,
 			&attr_bytes,
 		)?;
@@ -64,8 +64,7 @@ impl<'a> PacketTx<'a> {
 		body: impl AsRef<[u8]>,
 	) -> Result<TxHandle, OriginSdkError> {
 		let call = self.issue(registry, body);
-		let payload = subxt::dynamic::tx(call.pallet, call.function, call.args);
-		self.account.submit(payload).await
+		self.account.submit(call.to_payload()).await
 	}
 
 	pub fn update_packet(
@@ -103,7 +102,7 @@ impl<'a> PacketTx<'a> {
 		packet: origin_primitives::Ss58Identifier,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload =
-			packet_calls::revoke_call(&self.account.client().metadata(), registry, packet)?;
+			packet_calls::revoke_call(&self.account.origin_client().metadata(), registry, packet)?;
 		self.account.submit(payload).await
 	}
 
@@ -125,7 +124,7 @@ impl<'a> PacketTx<'a> {
 		packet: origin_primitives::Ss58Identifier,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload =
-			packet_calls::restore_call(&self.account.client().metadata(), registry, packet)?;
+			packet_calls::restore_call(&self.account.origin_client().metadata(), registry, packet)?;
 		self.account.submit(payload).await
 	}
 
@@ -147,7 +146,7 @@ impl<'a> PacketTx<'a> {
 		packet: origin_primitives::Ss58Identifier,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload =
-			packet_calls::delete_call(&self.account.client().metadata(), registry, packet)?;
+			packet_calls::delete_call(&self.account.origin_client().metadata(), registry, packet)?;
 		self.account.submit(payload).await
 	}
 
@@ -175,7 +174,7 @@ impl<'a> PacketTx<'a> {
 		status: origin_primitives::packet::PacketStatus,
 	) -> Result<TxHandle, OriginSdkError> {
 		let payload = packet_calls::set_status_call(
-			&self.account.client().metadata(),
+			&self.account.origin_client().metadata(),
 			registry,
 			packet,
 			status,
@@ -200,7 +199,7 @@ impl<'a> PacketTx<'a> {
 			.ok_or_else(|| OriginSdkError::View("registry schema not found".into()))?;
 		let registry_view: Vec<origin_primitives::registry::RegistryAttributeView> = attr_triples;
 
-		let metadata = self.account.client().metadata();
+		let metadata = self.account.origin_client().metadata();
 		let call = packet_calls::issue_call(&metadata, registry, &registry_view, &body)?;
 		self.account.submit(call).await
 	}

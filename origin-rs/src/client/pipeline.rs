@@ -7,10 +7,11 @@ use crate::{
 		signer::{Signer, SubxtSignerAdapter},
 	},
 	config::{build_origin_params, OriginConfig},
+	extrinsic::builder::DynamicTxPayload,
 	tx::{config::TxPipelineConfig, handle::TxHandle},
 	types::error::OriginSdkError,
 };
-use subxt::config::{DefaultExtrinsicParamsBuilder, ExtrinsicParams};
+use subxt::config::{DefaultExtrinsicParamsBuilder, TransactionExtensions};
 
 pub(crate) struct TxPipeline {
 	client: subxt::OnlineClient<OriginConfig>,
@@ -25,11 +26,12 @@ pub struct AccountTxQueue {
 	signer: Arc<dyn Signer>,
 	sender: mpsc::Sender<TxJob>,
 	nonce_mgr: Arc<NonceManager>,
+	#[allow(dead_code)]
 	cfg: TxPipelineConfig,
 }
 
 struct TxJob {
-	call: subxt::tx::DynamicPayload,
+	call: DynamicTxPayload,
 	override_nonce: Option<u64>,
 	handle_tx: oneshot::Sender<Result<TxHandle, OriginSdkError>>,
 }
@@ -103,7 +105,7 @@ impl TxPipeline {
 impl AccountTxQueue {
 	pub async fn enqueue(
 		&self,
-		call: subxt::tx::DynamicPayload,
+		call: DynamicTxPayload,
 		override_nonce: Option<u64>,
 	) -> Result<TxHandle, OriginSdkError> {
 		let (tx, rx) = oneshot::channel();
@@ -190,7 +192,9 @@ pub(crate) async fn build_params_with_nonce(
 	client: &subxt::OnlineClient<OriginConfig>,
 	nonce: u64,
 ) -> Result<
-	<crate::config::OriginExtrinsicParams<OriginConfig> as ExtrinsicParams<OriginConfig>>::Params,
+	<crate::config::OriginTransactionExtensions<OriginConfig> as TransactionExtensions<
+		OriginConfig,
+	>>::Params,
 	OriginSdkError,
 > {
 	let _ = client; // reserved for mortal era computation if needed
@@ -202,12 +206,14 @@ pub(crate) async fn build_params_with_nonce(
 pub(crate) async fn submit_with_params(
 	client: &subxt::OnlineClient<OriginConfig>,
 	signer: Arc<dyn Signer>,
-	call: subxt::tx::DynamicPayload,
-	params: <crate::config::OriginExtrinsicParams<OriginConfig> as ExtrinsicParams<OriginConfig>>::Params,
+	call: DynamicTxPayload,
+	params: <crate::config::OriginTransactionExtensions<OriginConfig> as TransactionExtensions<
+		OriginConfig,
+	>>::Params,
 ) -> Result<TxHandle, OriginSdkError> {
 	let adapter = SubxtSignerAdapter::new(signer);
-	let signed = client
-		.tx()
+	let mut tx = client.tx().await.map_err(|e| OriginSdkError::Tx(e.to_string()))?;
+	let signed = tx
 		.create_signed(&call, &adapter, params)
 		.await
 		.map_err(|e| OriginSdkError::Tx(e.to_string()))?;

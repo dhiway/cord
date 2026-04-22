@@ -48,7 +48,7 @@ use scale_info::TypeInfo;
 use sp_core as _;
 use sp_runtime::{
 	traits::{BlockNumberProvider, UniqueSaturatedInto, Verify},
-	AccountId32, RuntimeDebug,
+	AccountId32, Debug,
 };
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -109,15 +109,7 @@ pub type Authorization<T> =
 
 /// ActivityRecord stores an update entry and the corresponding event stamp.
 #[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	PartialEq,
-	Eq,
-	TypeInfo,
-	MaxEncodedLen,
-	RuntimeDebug,
+	Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen, Debug,
 )]
 pub struct StateEvent<Hash> {
 	pub action: EventTypeOf,
