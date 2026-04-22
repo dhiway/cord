@@ -32,7 +32,7 @@ use scale_info::{
 	build::{Fields, Variants},
 	Path, Type, TypeInfo,
 };
-use sp_runtime::{traits::Member, RuntimeDebug};
+use sp_runtime::{traits::Member, Debug};
 
 use core::{fmt::Debug, iter::once};
 
@@ -43,7 +43,7 @@ pub type RegistrarIndex = u32;
 /// the data is greater than 32-bytes then it will be truncated when encoding.
 ///
 /// Can also be `None`.
-#[derive(Clone, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, DecodeWithMemTracking)]
+#[derive(Clone, Eq, PartialEq, Debug, MaxEncodedLen, DecodeWithMemTracking)]
 pub enum Data {
 	/// No data here.
 	None,
@@ -200,7 +200,7 @@ impl Default for Data {
 	DecodeWithMemTracking,
 	Eq,
 	PartialEq,
-	RuntimeDebug,
+	Debug,
 	MaxEncodedLen,
 	TypeInfo,
 )]
@@ -306,7 +306,7 @@ impl<
 	DecodeWithMemTracking,
 	Eq,
 	PartialEq,
-	RuntimeDebug,
+	Debug,
 	MaxEncodedLen,
 	TypeInfo,
 )]

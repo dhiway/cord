@@ -25,10 +25,10 @@ use crate::identifier::Ss58Identifier;
 use alloc::vec::Vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{
-	traits::Get, BoundedVec, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
+	traits::Get, BoundedVec, CloneNoBound, DebugNoBound, EqNoBound, PartialEqNoBound,
 };
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 #[cfg(test)]
 use alloc::vec;
@@ -62,7 +62,7 @@ const fn compact_len_u32(len: u32) -> usize {
 	DecodeWithMemTracking,
 	PartialEqNoBound,
 	EqNoBound,
-	RuntimeDebugNoBound,
+	DebugNoBound,
 	MaxEncodedLen,
 	TypeInfo,
 )]
@@ -106,7 +106,7 @@ pub enum Elum<MaxCap: Get<u32>> {
 	DecodeWithMemTracking,
 	MaxEncodedLen,
 	TypeInfo,
-	RuntimeDebug,
+	Debug,
 )]
 pub enum ElementType {
 	None,
@@ -366,7 +366,7 @@ impl<'a, MaxCap: Get<u32>> TryFrom<&'a [u8]> for Elum<MaxCap> {
 /// - `Bool`, `U64`, `U128` as native scalars,
 /// - `Hash` as `[u8; 32]`,
 /// - `Token` as `Ss58Identifier`.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub enum ElementView {
 	#[codec(index = 0)]
 	None,

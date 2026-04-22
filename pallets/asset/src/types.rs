@@ -18,7 +18,7 @@
 
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 use crate::AssetQtyOf;
 
@@ -29,7 +29,7 @@ pub type EntryHashOf<T> = <T as frame_system::Config>::Hash;
 	Decode,
 	DecodeWithMemTracking,
 	Clone,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	PartialOrd,
@@ -57,7 +57,7 @@ pub struct AssetInputEntry<AssetDescription, AssetTypeOf, AssetTag, AssetMeta> {
 	DecodeWithMemTracking,
 	MaxEncodedLen,
 	Clone,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	TypeInfo,
@@ -74,7 +74,7 @@ pub enum AssetTypeOf {
 	DecodeWithMemTracking,
 	MaxEncodedLen,
 	Clone,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	TypeInfo,
@@ -102,7 +102,7 @@ impl AssetStatusOf {
 	Decode,
 	DecodeWithMemTracking,
 	Clone,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	PartialOrd,
@@ -135,7 +135,7 @@ pub struct AssetEntry<
 	Decode,
 	DecodeWithMemTracking,
 	Clone,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	PartialOrd,
@@ -163,7 +163,7 @@ pub struct VCAssetEntry<AssetStatusOf, AssetCreatorOf, BlockNumber, EntryHashOf>
 	Decode,
 	DecodeWithMemTracking,
 	Clone,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	PartialOrd,
@@ -199,7 +199,7 @@ pub struct AssetDistributionEntry<
 	Decode,
 	DecodeWithMemTracking,
 	Clone,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	PartialOrd,
@@ -234,7 +234,7 @@ pub struct VCAssetDistributionEntry<
 	Decode,
 	DecodeWithMemTracking,
 	Clone,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	PartialOrd,
@@ -256,7 +256,7 @@ pub struct AssetIssuanceEntry<AssetIdOf, AssetCreatorOf> {
 	Decode,
 	DecodeWithMemTracking,
 	Clone,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	PartialOrd,

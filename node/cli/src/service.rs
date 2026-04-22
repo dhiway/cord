@@ -63,6 +63,7 @@ use sc_statement_store::Store as StatementStore;
 pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi};
 pub use sp_consensus::{Proposal, SelectChain};
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId;
+use sp_transaction_storage_proof::runtime_api::TransactionStorageApi;
 pub use sp_runtime::{
 	generic,
 	traits::{self as runtime_traits, BlakeTwo256, Block as BlockT, Header as HeaderT, NumberFor},
@@ -351,6 +352,7 @@ pub fn new_partial(
 			config,
 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 			executor,
+			vec![],
 		)?;
 
 	let client = Arc::new(client);
@@ -423,14 +425,15 @@ pub fn new_partial(
 		})?;
 
 	let import_setup = (block_import, grandpa_link, babe_link, beefy_voter_links);
+	let statement_store_config = sc_statement_store::Config::default();
 
 	let statement_store = sc_statement_store::Store::new_shared(
 		&config.data_path,
-		Default::default(),
+		statement_store_config,
 		client.clone(),
 		keystore_container.local_keystore(),
 		config.prometheus_registry(),
-		&task_manager.spawn_handle(),
+		Box::new(task_manager.spawn_handle()),
 	)
 	.map_err(|e| ServiceError::Other(format!("Statement store error: {:?}", e)))?;
 
@@ -651,6 +654,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 			client: client.clone(),
 			transaction_pool: transaction_pool.clone(),
 			spawn_handle: task_manager.spawn_handle(),
+			spawn_essential_handle: task_manager.spawn_essential_handle(),
 			import_queue,
 			block_announce_validator_builder: None,
 			warp_sync_config: Some(WarpSyncConfig::WithProvider(warp_sync)),
@@ -672,6 +676,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 		tx_handler_controller,
 		sync_service: sync_service.clone(),
 		telemetry: telemetry.as_mut(),
+		tracing_execute_block: None,
 	})?;
 
 	if let Some(hwbench) = hwbench {
@@ -734,6 +739,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 						sp_transaction_storage_proof::registration::new_data_provider(
 							&*client_clone,
 							&parent,
+							100800,
 						)?;
 
 					Ok((slot, timestamp, storage_proof))
@@ -890,6 +896,8 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 		statement_store.clone(),
 		prometheus_registry.as_ref(),
 		statement_protocol_executor,
+		sc_statement_store::Config::default().network_workers,
+		sc_statement_store::Config::default().rate_limit,
 	)?;
 	task_manager.spawn_handle().spawn(
 		"network-statement-handler",

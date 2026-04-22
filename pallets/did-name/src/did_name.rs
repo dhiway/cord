@@ -29,7 +29,7 @@ use alloc::vec::Vec;
 
 use sp_runtime::{
 	traits::{Debug, PhantomData},
-	RuntimeDebug,
+	Debug,
 };
 
 const NAME_SEPARATOR: u8 = b'@';
@@ -39,7 +39,7 @@ const NETWORK_SUFFIX: &[u8] = b"cord";
 ///
 /// It is bounded in size (inclusive range [MinLength, MaxLength]) and can only
 /// contain a subset of ASCII characters.
-#[derive(Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Debug, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T, MinLength, MaxLength))]
 #[codec(mel_bound())]
 pub struct AsciiDidName<T: Config>(

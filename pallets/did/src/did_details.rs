@@ -25,7 +25,7 @@ use frame_support::{
 	traits::Get,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 use crate::{
 	errors::{self, DidError, SignatureError, StorageError},
@@ -49,7 +49,7 @@ use sp_runtime::{
 	Clone,
 	Decode,
 	DecodeWithMemTracking,
-	RuntimeDebug,
+	Debug,
 	Encode,
 	Eq,
 	Ord,
@@ -139,7 +139,7 @@ impl<AccountId> From<ecdsa::Public> for DidVerificationKey<AccountId> {
 	Copy,
 	Decode,
 	DecodeWithMemTracking,
-	RuntimeDebug,
+	Debug,
 	Encode,
 	Eq,
 	Ord,
@@ -158,7 +158,7 @@ pub enum DidEncryptionKey {
 	Clone,
 	Decode,
 	DecodeWithMemTracking,
-	RuntimeDebug,
+	Debug,
 	Encode,
 	Eq,
 	Ord,
@@ -191,7 +191,7 @@ impl<AccountId> From<DidEncryptionKey> for DidPublicKey<AccountId> {
 #[derive(
 	Clone,
 	Copy,
-	RuntimeDebug,
+	Debug,
 	Decode,
 	DecodeWithMemTracking,
 	Encode,
@@ -212,7 +212,7 @@ pub enum DidVerificationKeyRelationship {
 }
 
 /// Types of signatures supported by this pallet.
-#[derive(Clone, Decode, DecodeWithMemTracking, RuntimeDebug, Encode, Eq, PartialEq, TypeInfo)]
+#[derive(Clone, Decode, DecodeWithMemTracking, Debug, Encode, Eq, PartialEq, TypeInfo)]
 pub enum DidSignature {
 	/// A Ed25519 signature.
 	Ed25519(ed25519::Signature),
@@ -313,7 +313,7 @@ impl<I: AsRef<[u8; 32]>, AccountId> DidVerifiableIdentifier<AccountId> for I {
 /// assertion keys a DID might control.
 #[derive(
 	Clone,
-	RuntimeDebug,
+	Debug,
 	Decode,
 	DecodeWithMemTracking,
 	Encode,
@@ -630,7 +630,7 @@ pub(crate) type DidPublicKeyMapOf<T> = BoundedBTreeMap<
 >;
 
 /// The details of a new DID to create.
-#[derive(Clone, RuntimeDebug, Decode, DecodeWithMemTracking, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, Debug, Decode, DecodeWithMemTracking, Encode, PartialEq, TypeInfo)]
 pub struct DidCreationDetails<DidIdentifier, AccountId, MaxNewKeyAgreementKeys, DidEndpoint>
 where
 	MaxNewKeyAgreementKeys: Get<u32> + Clone,
@@ -651,7 +651,7 @@ where
 
 /// Errors that might occur while deriving the authorization verification key
 /// relationship.
-#[derive(Clone, RuntimeDebug, Decode, DecodeWithMemTracking, Encode, Eq, PartialEq)]
+#[derive(Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, PartialEq)]
 pub enum RelationshipDeriveError {
 	/// The call is not callable by a did origin.
 	NotCallableByDid,
@@ -683,7 +683,7 @@ pub trait DeriveDidCallAuthorizationVerificationKeyRelationship {
 /// A DID operation that wraps other extrinsic calls, allowing those
 /// extrinsic to have a DID origin and perform DID-based authorization upon
 /// their invocation.
-#[derive(Clone, RuntimeDebug, Decode, DecodeWithMemTracking, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, Debug, Decode, DecodeWithMemTracking, Encode, PartialEq, TypeInfo)]
 
 pub struct DidAuthorizedCallOperation<DidIdentifier, DidCallable, BlockNumber, AccountId, TxCounter>
 {
@@ -703,7 +703,7 @@ pub struct DidAuthorizedCallOperation<DidIdentifier, DidCallable, BlockNumber, A
 ///
 /// It contains additional information about the type of DID key to used for
 /// authorization.
-#[derive(Clone, RuntimeDebug, PartialEq, TypeInfo)]
+#[derive(Clone, Debug, PartialEq, TypeInfo)]
 
 pub struct DidAuthorizedCallOperationWithVerificationRelationship<T: Config> {
 	/// The wrapped [DidAuthorizedCallOperation].

@@ -48,7 +48,7 @@ use scale_info::TypeInfo;
 use sp_core as _;
 use sp_runtime::{
 	traits::{BlockNumberProvider, UniqueSaturatedInto, Verify},
-	AccountId32, RuntimeDebug,
+	AccountId32, Debug,
 };
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -117,7 +117,7 @@ pub type Authorization<T> =
 	Eq,
 	TypeInfo,
 	MaxEncodedLen,
-	RuntimeDebug,
+	Debug,
 )]
 pub struct StateEvent<Hash> {
 	pub action: EventTypeOf,

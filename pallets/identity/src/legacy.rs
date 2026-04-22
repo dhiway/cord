@@ -25,7 +25,7 @@ use enumflags2::BitFlag;
 use enumflags2::{bitflags, BitFlags};
 use frame_support::{traits::Get, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound};
 use scale_info::{build::Variants, Path, Type, TypeInfo};
-use sp_runtime::{BoundedVec, RuntimeDebug};
+use sp_runtime::{BoundedVec, Debug};
 
 use crate::types::{Data, IdentityInformationProvider};
 
@@ -33,7 +33,7 @@ use crate::types::{Data, IdentityInformationProvider};
 /// corresponds to a field in the `IdentityInfo` struct.
 #[bitflags]
 #[repr(u64)]
-#[derive(Clone, Copy, PartialEq, Eq, RuntimeDebug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum IdentityField {
 	Display,
 	Legal,

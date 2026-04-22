@@ -24,7 +24,7 @@ extern crate alloc;
 use alloc::vec;
 use alloc::{str, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use frame_support::{ensure, sp_runtime::RuntimeDebug, traits::ConstU32, BoundedVec};
+use frame_support::{ensure, sp_runtime::Debug, traits::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
 
 /// CORD Identifier Prefix
@@ -120,7 +120,7 @@ const MAXIMUM_IDENTIFIER_LENGTH_U32: u32 = MAXIMUM_IDENTIFIER_LENGTH as u32;
 	PartialEq,
 	Ord,
 	PartialOrd,
-	RuntimeDebug,
+	Debug,
 	Encode,
 	Decode,
 	MaxEncodedLen,

@@ -24,9 +24,9 @@ use crate::{
 };
 use alloc::vec::Vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use frame_support::{traits::Get, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound};
+use frame_support::{traits::Get, CloneNoBound, DebugNoBound, EqNoBound, PartialEqNoBound};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 /// Pointer linking an index entry to a specific registry/packet version.
 #[derive(
@@ -38,7 +38,7 @@ use sp_runtime::RuntimeDebug;
 	Eq,
 	TypeInfo,
 	MaxEncodedLen,
-	RuntimeDebug,
+	Debug,
 )]
 pub struct PacketPointer {
 	pub registry: Ss58Identifier,
@@ -56,7 +56,7 @@ pub struct PacketPointer {
 	Eq,
 	TypeInfo,
 	MaxEncodedLen,
-	RuntimeDebug,
+	Debug,
 	Default,
 )]
 pub enum PacketStatus {
@@ -76,7 +76,7 @@ pub enum PacketStatus {
 	EqNoBound,
 	TypeInfo,
 	MaxEncodedLen,
-	RuntimeDebugNoBound,
+	DebugNoBound,
 )]
 #[scale_info(skip_type_params(Hash))]
 pub struct PacketMetadata<Hash>
@@ -100,7 +100,7 @@ where
 	EqNoBound,
 	TypeInfo,
 	MaxEncodedLen,
-	RuntimeDebugNoBound,
+	DebugNoBound,
 )]
 #[scale_info(skip_type_params(MaxRawDataLength, MaxAdditionalAttributes, Hash))]
 pub struct PacketState<
@@ -152,7 +152,7 @@ pub enum PacketUpdateError {
 	CloneNoBound,
 	PartialEqNoBound,
 	EqNoBound,
-	RuntimeDebugNoBound,
+	DebugNoBound,
 	MaxEncodedLen,
 	TypeInfo,
 )]
@@ -210,7 +210,7 @@ pub trait PacketInformationProvider {
 	fn all_fields() -> Self::FieldMask;
 }
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen, Debug)]
 #[scale_info(skip_type_params(MaxRaw, MaxAttrs, Hash))]
 pub struct PacketSnapshot<MaxRaw: Get<u32>, MaxAttrs: Get<u32>, Hash>
 where
@@ -220,14 +220,14 @@ where
 	pub registry_status: RegistryStatus,
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub struct PacketAttributeView {
 	pub key: Vec<u8>,
 	pub value: ElementView,
 }
 
 /// View-friendly representation of a packet’s state.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub struct PacketStateView {
 	pub registry: Ss58Identifier,
 	pub packet: Ss58Identifier,
@@ -276,7 +276,7 @@ impl PacketStateView {
 }
 
 /// View-friendly representation of packet metadata.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub struct PacketMetadataView {
 	pub registry: Ss58Identifier,
 	pub controller: Ss58Identifier,

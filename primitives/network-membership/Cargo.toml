@@ -19,6 +19,7 @@ codec = { features = ["derive", "max-encoded-len"], workspace = true }
 scale-info = { features = ["derive"], workspace = true }
 serde = { features = ["derive"], optional = true, workspace = true }
 
+sp-debug-derive = { workspace = true }
 sp-runtime = { workspace = true }
 
 [features]

@@ -20,7 +20,7 @@ use super::*;
 use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 bitflags! {
 	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
@@ -80,7 +80,7 @@ impl From<PermissionVariant> for Permissions {
 }
 
 /// A simple status enum.
-#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(Encode, Decode, Clone, MaxEncodedLen, Debug, PartialEq, Eq, TypeInfo)]
 pub enum Status {
 	Active,
 	Archived,
@@ -91,7 +91,7 @@ pub enum Status {
 	Decode,
 	Clone,
 	MaxEncodedLen,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	TypeInfo,

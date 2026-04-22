@@ -19,7 +19,7 @@
 
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 /// Struture to hold the Metadata of the associated Profile
 #[derive(
@@ -28,7 +28,7 @@ use sp_runtime::RuntimeDebug;
 	DecodeWithMemTracking,
 	Clone,
 	MaxEncodedLen,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	TypeInfo,

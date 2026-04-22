@@ -24,7 +24,7 @@
 use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 bitflags! {
 	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen)]
@@ -80,7 +80,7 @@ impl Default for Permissions {
 	DecodeWithMemTracking,
 	Clone,
 	MaxEncodedLen,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	TypeInfo,
@@ -112,7 +112,7 @@ pub struct RegistryDetails<RegistryCreatorOf, StatusOf, RegistryHashOf, NameSpac
 	DecodeWithMemTracking,
 	Clone,
 	MaxEncodedLen,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	TypeInfo,

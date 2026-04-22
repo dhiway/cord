@@ -568,4 +568,13 @@ impl<T: frame_system::Config> pallet_assets::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	fn migration_v2_foreign_asset_set_reserve_weight() -> Weight {
+		Weight::from_parts(10_145_000, 3675)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+	fn get_metadata() -> Weight {
+		Weight::from_parts(10_699_000, 3605)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+	}
 }

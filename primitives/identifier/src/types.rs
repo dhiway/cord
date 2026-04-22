@@ -19,12 +19,12 @@
 use crate::*;
 use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 /// A global index, formed as the extrinsic index within a block, together with
 /// that block's height.
 #[derive(
-	Copy, Clone, Eq, PartialEq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen,
+	Copy, Clone, Eq, PartialEq, Encode, Decode, Default, Debug, TypeInfo, MaxEncodedLen,
 )]
 pub struct Timepoint {
 	/// The height of the chain at the point in time.
@@ -34,7 +34,7 @@ pub struct Timepoint {
 }
 
 /// Identifier Event Entries
-#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(Encode, Decode, Clone, MaxEncodedLen, Debug, PartialEq, Eq, TypeInfo)]
 pub struct EventEntry<CallTypeOf> {
 	/// Identifier Type.
 	pub action: CallTypeOf,
@@ -43,7 +43,7 @@ pub struct EventEntry<CallTypeOf> {
 }
 
 /// Defining the possible actions that can be performed on a identifier.
-#[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, Copy, Debug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 #[repr(u8)]
 pub enum CallTypeOf {
 	Archive,
@@ -70,7 +70,7 @@ pub enum CallTypeOf {
 	Reinstate,
 }
 /// Defining the identifier target types.
-#[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, Copy, Debug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub enum IdentifierTypeOf {
 	Asset,
 	Auth,

@@ -24,7 +24,7 @@
 use crate::identifier::Ss58Identifier;
 use alloc::{vec, vec::Vec};
 use codec::{Compact, Decode, DecodeWithMemTracking, Encode, EncodeLike, MaxEncodedLen};
-use frame_support::{traits::Get, BoundedVec, CloneNoBound, RuntimeDebugNoBound};
+use frame_support::{traits::Get, BoundedVec, CloneNoBound, DebugNoBound};
 use scale_info::TypeInfo;
 
 /// The `Elum` enum supports the following variants:
@@ -34,7 +34,7 @@ use scale_info::TypeInfo;
 /// - Digest: A fixed 32-byte digest (e.g., computed using BlakeTwo256).
 /// - Doken: An embedded Ss58Identifier.
 /// - CID: A fixed 64-byte content identifier.
-#[derive(CloneNoBound, DecodeWithMemTracking, RuntimeDebugNoBound, MaxEncodedLen, TypeInfo)]
+#[derive(CloneNoBound, DecodeWithMemTracking, DebugNoBound, MaxEncodedLen, TypeInfo)]
 #[scale_info(skip_type_params(MaxCap))]
 pub enum Elum<MaxCap: Get<u32>> {
 	/// No data provided.

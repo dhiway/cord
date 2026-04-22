@@ -19,7 +19,7 @@
 use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 bitflags! {
 	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -85,7 +85,7 @@ impl From<PermissionVariant> for Permissions {
 	DecodeWithMemTracking,
 	Clone,
 	MaxEncodedLen,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	TypeInfo,
@@ -102,7 +102,7 @@ pub enum Status {
 	DecodeWithMemTracking,
 	Clone,
 	MaxEncodedLen,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	TypeInfo,
