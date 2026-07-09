@@ -1,14 +1,14 @@
 # Build pieces:
 #   cargo build -p origin-hub -p origin-hub-system-runtime --release
 # Launch network:
-#   zombienet -p native spawn testnet.toml
+#   zombienet -p native spawn zombienet/testnet.toml
 
 [settings]
 timeout = 300
 
 [relaychain]
 chain = "origin-local"
-default_command = "../target/release/origin"
+default_command = "target/release/origin"
 
 [[relaychain.nodes]]
 name = "alice"
@@ -50,7 +50,7 @@ chain = "origin-system-local"
 name = "hub-in-collator"
 rpc_port = 9910
 collator = true
-command = "../target/release/origin-hub"
+command = "target/release/origin-hub"
 args = ["--trie-cache-size=0", "--execution=wasm"]
 
 [[parachains]]
@@ -63,5 +63,5 @@ chain = "origin-system-na-local"
 name = "hub-na-collator"
 rpc_port = 9911
 collator = true
-command = "../target/release/origin-hub"
+command = "target/release/origin-hub"
 args = ["--trie-cache-size=0", "--execution=wasm"]
