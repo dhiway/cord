@@ -682,31 +682,6 @@ impl pallet_register::Config for Runtime {
 	type WeightInfo = pallet_register::weights::SubstrateWeight<Self>;
 }
 
-impl pallet_storage_roles::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-}
-
-parameter_types! {
-	pub const BlobStoreMaxAuthorizationLen: u32 = 256;
-	// User authorizations are intended to be short-lived and replay-protected.
-	pub const BlobStoreAuthorizationTTL: u32 = 14_400; // 1 day @ 6s blocks
-	pub const BlobStorePeriodLengthBlocks: BlockNumber = 432_000; // 30 days @ 6s blocks
-	pub const BlobStoreGracePeriods: u32 = 2; // 60 days @ 30-day periods
-	pub const BlobStoreMaxBlobsPerPeriod: u32 = 10_000;
-	pub const BlobStoreMaxRenewalsPerBlock: u32 = 200;
-}
-
-impl pallet_blob_store::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type MaxAuthorizationLen = BlobStoreMaxAuthorizationLen;
-	type MaxAuthorizationTTL = BlobStoreAuthorizationTTL;
-	type PeriodLengthBlocks = BlobStorePeriodLengthBlocks;
-	type GracePeriods = BlobStoreGracePeriods;
-	type MaxBlobsPerPeriod = BlobStoreMaxBlobsPerPeriod;
-	type MaxRenewalsPerBlock = BlobStoreMaxRenewalsPerBlock;
-}
-
 impl pallet_feeless::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_feeless::weights::SubstrateWeight<Runtime>;
@@ -777,8 +752,6 @@ construct_runtime!(
 		Register: pallet_register = 52,
 		Broker: pallet_broker = 53,
 		Feeless: pallet_feeless = 54,
-		StorageRoles: pallet_storage_roles = 55,
-		BlobStore: pallet_blob_store = 56,
 
 		// Utilities
 		MetaTx: pallet_meta_tx = 215,

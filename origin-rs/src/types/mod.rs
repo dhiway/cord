@@ -1,6 +1,5 @@
 pub mod account;
 pub mod auth;
-pub mod blob_store;
 pub mod core;
 pub mod entity;
 pub mod error;
@@ -14,7 +13,6 @@ pub use account::{
 	account_id_from_subxt, account_id_to_ss58, account_id_to_ss58_subxt, origin_ss58_format,
 	ss58_to_account_id, AccountError, CryptoScheme, OriginAccount, OriginPair, ORIGIN_SS58_PREFIX,
 };
-pub use blob_store::{build_register_blob_authorization, RegisterBlobAuthorization};
 pub use entity::{
 	build_attributes, AccountUnbindEntryViewSdk, AttributeHistoryEntryViewSdk,
 	AttributeUpdateInput, AttributesInput, ElementInput, EntityInfoInput, EntityInfoViewSdk,

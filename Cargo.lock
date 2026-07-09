@@ -2049,6 +2049,7 @@ dependencies = [
  "sp-statement-store",
  "sp-storage",
  "sp-transaction-pool",
+ "sp-transaction-storage-proof",
  "sp-version",
  "static_assertions",
  "substrate-wasm-builder",
@@ -2182,6 +2183,7 @@ dependencies = [
  "sp-statement-store",
  "sp-storage",
  "sp-transaction-pool",
+ "sp-transaction-storage-proof",
  "sp-version",
  "static_assertions",
  "substrate-wasm-builder",
@@ -8538,7 +8540,6 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
- "pallet-blob-store",
  "pallet-broker",
  "pallet-collator-selection",
  "pallet-entity",
@@ -8555,7 +8556,6 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-skip-feeless-payment",
- "pallet-storage-roles",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-token",
@@ -8821,23 +8821,6 @@ dependencies = [
  "sp-trie",
  "sp-weights",
  "staging-xcm-builder",
-]
-
-[[package]]
-name = "origin-storage-cli"
-version = "0.9.9"
-dependencies = [
- "anyhow",
- "clap",
- "hex",
- "origin-primitives",
- "origin-rs",
- "parity-scale-codec",
- "sp-core",
- "sp-crypto-hashing 0.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.24.0)",
- "tokio",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -9164,20 +9147,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-state-machine",
-]
-
-[[package]]
-name = "pallet-blob-store"
-version = "0.9.9"
-dependencies = [
- "frame-support",
- "frame-system",
- "origin-primitives",
- "pallet-storage-roles",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-runtime",
 ]
 
 [[package]]
@@ -10422,17 +10391,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-statement-store",
-]
-
-[[package]]
-name = "pallet-storage-roles"
-version = "0.9.9"
-dependencies = [
- "frame-support",
- "frame-system",
- "origin-primitives",
- "parity-scale-codec",
- "scale-info",
 ]
 
 [[package]]
