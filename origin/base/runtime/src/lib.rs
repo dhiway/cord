@@ -41,8 +41,8 @@ use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	parameter_types,
 	traits::{
-		ConstU32, Contains, Everything, Get, InstanceFilter, KeyOwnerProofSystem, PrivilegeCmp,
-		ProcessMessage, ProcessMessageError, VariantCountOf,
+		tokens::ConversionFromAssetBalance, ConstU32, Contains, Everything, Get, InstanceFilter,
+		KeyOwnerProofSystem, PrivilegeCmp, ProcessMessage, ProcessMessageError, VariantCountOf,
 	},
 	weights::{ConstantMultiplier, WeightMeter, WeightToFee as _},
 	PalletId,
@@ -70,7 +70,10 @@ use polkadot_primitives::{
 	ValidationCodeHash, ValidatorId, ValidatorIndex, PARACHAIN_KEY_TYPE_ID,
 };
 use polkadot_runtime_common::{
-	impl_runtime_weights, paras_registrar, paras_sudo_wrapper, prod_or_fast, slots, traits::OnSwap,
+	impl_runtime_weights,
+	impls::{LocatableAssetConverter, VersionedLocatableAsset},
+	paras_registrar, paras_sudo_wrapper, prod_or_fast, slots,
+	traits::OnSwap,
 	BlockHashCount, BlockLength, SlowAdjustingFeeUpdate,
 };
 use runtime_parachains::{
@@ -169,6 +172,34 @@ pub const BABE_GENESIS_EPOCH_CONFIG: babe_primitives::BabeEpochConfiguration =
 #[cfg(any(feature = "std", test))]
 pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
+}
+
+/// Native asset-rate converter for Origin system parachain fee calculations.
+pub struct AssetRateWithNative;
+
+impl ConversionFromAssetBalance<Balance, VersionedLocatableAsset, Balance> for AssetRateWithNative {
+	type Error = sp_runtime::DispatchError;
+
+	fn from_asset_balance(
+		balance: Balance,
+		asset_id: VersionedLocatableAsset,
+	) -> Result<Balance, Self::Error> {
+		use sp_runtime::traits::TryConvert;
+
+		let locatable = LocatableAssetConverter::try_convert(asset_id)
+			.map_err(|_| sp_runtime::DispatchError::Other("invalid asset"))?;
+		let is_native_system_para = locatable.asset_id.0 == Location::parent() &&
+			matches!(
+				locatable.location.unpack(),
+				(0, [Parachain(1000)]) | (0, [Parachain(1001)])
+			);
+
+		if is_native_system_para {
+			Ok(balance)
+		} else {
+			Err(sp_runtime::DispatchError::Other("not native system asset"))
+		}
+	}
 }
 
 /// Calls that can bypass the safe-mode pallet.

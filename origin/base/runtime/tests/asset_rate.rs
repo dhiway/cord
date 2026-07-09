@@ -19,37 +19,9 @@
 //! AssetRate pallet instance tests.
 
 use frame_support::traits::tokens::ConversionFromAssetBalance;
+use origin_runtime::AssetRateWithNative;
 use polkadot_runtime_common::impls::VersionedLocatableAsset;
 use xcm::prelude::*;
-
-struct AssetRateWithNative;
-
-impl ConversionFromAssetBalance<u128, VersionedLocatableAsset, u128> for AssetRateWithNative {
-	type Error = frame_support::sp_runtime::DispatchError;
-
-	fn from_asset_balance(
-		balance: u128,
-		asset_id: VersionedLocatableAsset,
-	) -> Result<u128, Self::Error> {
-		use polkadot_runtime_common::impls::LocatableAssetConverter;
-		use sp_runtime::traits::TryConvert;
-
-		let locatable = LocatableAssetConverter::try_convert(asset_id)
-			.map_err(|_| frame_support::sp_runtime::DispatchError::Other("invalid asset"))?;
-		let is_native_system_para = locatable.asset_id.0 == Location::parent() &&
-			matches!(
-				locatable.location.unpack(),
-				(0, [Parachain(1000)]) | (0, [Parachain(1001)])
-			);
-
-		if is_native_system_para {
-			Ok(balance)
-		} else {
-			Err(frame_support::sp_runtime::DispatchError::Other("not native system asset"))
-		}
-	}
-}
-
 #[test]
 fn native_asset_rate_works() {
 	sp_io::TestExternalities::default().execute_with(|| {

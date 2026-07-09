@@ -70,6 +70,7 @@ sp-statement-store = { workspace = true }
 sp-storage = { workspace = true }
 sp-version = { features = ["serde"], workspace = true }
 sp-transaction-pool = { workspace = true }
+sp-transaction-storage-proof = { workspace = true }
 sp-block-builder = { workspace = true }
 sp-genesis-builder = { workspace = true }
 
@@ -139,6 +140,7 @@ std = [
 	"sp-core/std",
 	"sp-api/std",
 	"sp-transaction-pool/std",
+	"sp-transaction-storage-proof/std",
 	"sp-block-builder/std",
 	"sp-offchain/std",
 	"frame-support/std",

@@ -29,9 +29,6 @@ members = [
 	"origin/pallets/entity",
 	"origin/pallets/register",
 	"origin/pallets/feeless",
-	"origin/pallets/storage-roles",
-	"origin/pallets/blob-store",
-	"origin/storage-cli",
 	"pallets/collection",
 	"pallets/doken",
 	"pallets/identity",
@@ -806,8 +803,6 @@ pallet-authorities = { path = 'origin/pallets/authorities', default-features = f
 pallet-register = { path = 'origin/pallets/register/', default-features = false }
 pallet-token = { path = "origin/pallets/token", default-features = false }
 pallet-entity = { path = "origin/pallets/entity", default-features = false }
-pallet-storage-roles = { path = "origin/pallets/storage-roles", default-features = false }
-pallet-blob-store = { path = "origin/pallets/blob-store", default-features = false }
 origin-primitives = { path = "origin/primitives", default-features = false }
 origin-node-cli = { path = "origin/base/cli", default-features = false }
 origin-runtime = { path = "origin/base/runtime" }

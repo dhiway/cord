@@ -39,8 +39,6 @@ pallet-broker = { workspace = true }
 pallet-entity = { workspace = true }
 pallet-register = { workspace = true }
 pallet-token = { workspace = true }
-pallet-storage-roles = { workspace = true }
-pallet-blob-store = { workspace = true }
 pallet-indices = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-sudo = { workspace = true }
@@ -137,8 +135,6 @@ std = [
 	"pallet-entity/std",
 	"pallet-register/std",
 	"pallet-token/std",
-	"pallet-storage-roles/std",
-	"pallet-blob-store/std",
 	"pallet-indices/std",
 	"pallet-scheduler/std",
 	"pallet-sudo/std",
@@ -206,8 +202,6 @@ runtime-benchmarks = [
 	"pallet-collator-selection/runtime-benchmarks",
 	"pallet-broker/runtime-benchmarks",
 	"pallet-entity/runtime-benchmarks",
-	"pallet-storage-roles/runtime-benchmarks",
-	"pallet-blob-store/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
 	"pallet-migrations/runtime-benchmarks",
 	"pallet-meta-tx/runtime-benchmarks",
@@ -250,8 +244,6 @@ try-runtime = [
 	"pallet-broker/try-runtime",
 	"pallet-entity/try-runtime",
 	"pallet-token/try-runtime",
-	"pallet-storage-roles/try-runtime",
-	"pallet-blob-store/try-runtime",
 	"pallet-meta-tx/try-runtime",
 	"pallet-message-queue/try-runtime",
 	"pallet-migrations/try-runtime",
