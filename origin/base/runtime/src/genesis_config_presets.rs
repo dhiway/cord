@@ -25,7 +25,9 @@ use babe_primitives::AuthorityId as BabeId;
 use beefy_primitives::ecdsa_crypto::AuthorityId as BeefyId;
 use origin_runtime_constants::currency::UNITS as ORU;
 use pallet_grandpa::AuthorityId as GrandpaId;
-use polkadot_primitives::{AccountPublic, AssignmentId, AsyncBackingParams};
+use polkadot_primitives::{
+	vstaging::SchedulerParams, AccountPublic, AssignmentId, AsyncBackingParams,
+};
 use runtime_parachains::configuration::HostConfiguration;
 use sp_core::{sr25519, Pair, Public};
 use sp_genesis_builder::PresetId;
@@ -106,7 +108,7 @@ fn default_parachains_host_configuration() -> HostConfiguration<polkadot_primiti
 		relay_vrf_modulo_samples: 2,
 		zeroth_delay_tranche_width: 0,
 		minimum_validation_upgrade_delay: 5,
-		scheduler_params: polkadot_primitives::SchedulerParams {
+		scheduler_params: SchedulerParams {
 			group_rotation_frequency: 20,
 			paras_availability_period: 4,
 			..Default::default()
@@ -118,6 +120,7 @@ fn default_parachains_host_configuration() -> HostConfiguration<polkadot_primiti
 			max_candidate_depth: 2,
 			allowed_ancestry_len: 2,
 		},
+		max_relay_parent_session_age: 0,
 		executor_params: Default::default(),
 		max_validators: None,
 		pvf_voting_ttl: 2,

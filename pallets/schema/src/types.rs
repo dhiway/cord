@@ -17,7 +17,6 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
 
 /// An on-chain schema details mapped to an identifier.
 #[derive(
@@ -25,7 +24,7 @@ use sp_runtime::RuntimeDebug;
 	Decode,
 	Clone,
 	MaxEncodedLen,
-	RuntimeDebug,
+	Debug,
 	PartialEq,
 	Eq,
 	TypeInfo,

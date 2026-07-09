@@ -24,7 +24,7 @@ use sc_cli::Result;
 use sc_client_api::UsageProvider;
 use sp_inherents::{InherentData, InherentDataProvider};
 use sp_keyring::Sr25519Keyring;
-use sp_runtime::{generic, OpaqueExtrinsic};
+use sp_runtime::OpaqueExtrinsic;
 
 use std::{sync::Arc, time::Duration};
 
@@ -355,9 +355,9 @@ fn weave_sign_call(
 	);
 
 	let signature = payload.using_encoded(|p| acc.sign(p));
-	generic::UncheckedExtrinsic::new_signed(
+	runtime::UncheckedExtrinsic::new_signed(
 		call,
-		<AccountId>::from(sp_runtime::AccountId32::from(acc.public())),
+		runtime::Address::Id(<AccountId>::from(sp_runtime::AccountId32::from(acc.public()))),
 		cord_primitives::Signature::Sr25519(signature),
 		extra,
 	)

@@ -78,6 +78,7 @@ use sc_network::{
 use sc_network_sync::{strategy::warp::WarpSyncConfig, SyncingService};
 use sc_transaction_pool::TransactionPoolHandle;
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
+use sp_transaction_storage_proof::runtime_api::TransactionStorageApi;
 
 pub use sp_runtime::{OpaqueExtrinsic, SaturatedConversion};
 
@@ -351,6 +352,7 @@ pub fn new_partial(
 			config,
 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 			executor,
+			vec![Arc::new(sc_consensus_grandpa::GrandpaPruningFilter)],
 		)?;
 
 	let client = Arc::new(client);
@@ -430,7 +432,7 @@ pub fn new_partial(
 		client.clone(),
 		keystore_container.local_keystore(),
 		config.prometheus_registry(),
-		&task_manager.spawn_handle(),
+		Box::new(task_manager.spawn_handle()),
 	)
 	.map_err(|e| ServiceError::Other(format!("Statement store error: {:?}", e)))?;
 
@@ -651,6 +653,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 			client: client.clone(),
 			transaction_pool: transaction_pool.clone(),
 			spawn_handle: task_manager.spawn_handle(),
+			spawn_essential_handle: task_manager.spawn_essential_handle(),
 			import_queue,
 			block_announce_validator_builder: None,
 			warp_sync_config: Some(WarpSyncConfig::WithProvider(warp_sync)),
@@ -672,6 +675,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 		tx_handler_controller,
 		sync_service: sync_service.clone(),
 		telemetry: telemetry.as_mut(),
+		tracing_execute_block: None,
 	})?;
 
 	if let Some(hwbench) = hwbench {
@@ -734,6 +738,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 						sp_transaction_storage_proof::registration::new_data_provider(
 							&*client_clone,
 							&parent,
+							client_clone.runtime_api().retention_period(parent).unwrap_or(100800),
 						)?;
 
 					Ok((slot, timestamp, storage_proof))
@@ -890,6 +895,8 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 		statement_store.clone(),
 		prometheus_registry.as_ref(),
 		statement_protocol_executor,
+		4,
+		100,
 	)?;
 	task_manager.spawn_handle().spawn(
 		"network-statement-handler",

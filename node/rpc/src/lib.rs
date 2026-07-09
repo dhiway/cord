@@ -39,6 +39,7 @@ use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
 use sp_consensus_beefy::AuthorityIdBound;
 use sp_keystore::KeystorePtr;
+use sp_statement_store as _;
 
 /// A type representing all RPC extensions.
 pub type RpcExtension = RpcModule<()>;
@@ -92,7 +93,7 @@ pub struct FullDeps<C, P, SC, B, AuthorityId: AuthorityIdBound> {
 	/// BEEFY specific dependencies.
 	pub beefy: BeefyDeps<AuthorityId>,
 	/// Shared statement store reference.
-	pub statement_store: Arc<dyn sp_statement_store::StatementStore>,
+	pub statement_store: Arc<dyn sc_rpc::statement::StatementStoreApi>,
 	/// The backend used by the node.
 	pub backend: Arc<B>,
 }
@@ -175,7 +176,7 @@ where
 	)?;
 	io.merge(
 		Grandpa::new(
-			subscription_executor,
+			subscription_executor.clone(),
 			shared_authority_set.clone(),
 			shared_voter_state,
 			justification_stream,
@@ -191,7 +192,8 @@ where
 
 	io.merge(StateMigration::new(client.clone(), backend).into_rpc())?;
 	io.merge(Dev::new(client).into_rpc())?;
-	let statement_store = sc_rpc::statement::StatementStore::new(statement_store).into_rpc();
+	let statement_store =
+		sc_rpc::statement::StatementStore::new(statement_store, subscription_executor).into_rpc();
 	io.merge(statement_store)?;
 
 	io.merge(

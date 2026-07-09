@@ -294,16 +294,7 @@ mod tests {
 	}
 
 	#[derive(
-		Copy,
-		Clone,
-		Eq,
-		PartialEq,
-		Ord,
-		PartialOrd,
-		Encode,
-		Decode,
-		DecodeWithMemTracking,
-		sp_runtime::RuntimeDebug,
+		Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, DecodeWithMemTracking, Debug,
 	)]
 	pub enum OldProxyType {
 		Any,

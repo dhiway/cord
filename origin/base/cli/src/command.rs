@@ -205,6 +205,8 @@ where
 				keep_finalized_for: cli.run.keep_finalized_for,
 				invulnerable_ah_collators,
 				collator_protocol_hold_off,
+				experimental_collator_protocol: false,
+				collator_reputation_persist_interval: None,
 			},
 		)
 		.map(|full| full.task_manager)?;

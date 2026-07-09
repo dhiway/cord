@@ -23,10 +23,9 @@ use alloc::vec::Vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{
 	traits::{ConstU32, Get},
-	BoundedVec, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
+	BoundedVec, CloneNoBound, DebugNoBound, EqNoBound, PartialEqNoBound,
 };
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
 
 /// The raw element type used throughout higher-level pallets.
 pub type Element<MaxRawDataLength> = Elum<MaxRawDataLength>;
@@ -55,7 +54,7 @@ impl AttributesError {
 
 /// Deterministic set of `(Attribute, Element)` pairs kept in lexicographic key order.
 #[derive(
-	Encode, CloneNoBound, PartialEqNoBound, EqNoBound, RuntimeDebugNoBound, MaxEncodedLen, TypeInfo,
+	Encode, CloneNoBound, PartialEqNoBound, EqNoBound, DebugNoBound, MaxEncodedLen, TypeInfo,
 )]
 #[scale_info(skip_type_params(MaxRawDataLength, MaxAdditionalAttributes))]
 pub struct Attributes<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>(
@@ -205,7 +204,7 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>> core::ops::D
 }
 
 /// View-friendly representation of a single attribute key/value pair.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Debug)]
 pub struct AttributeValueView {
 	pub key: Vec<u8>,
 	pub value: ElementView,

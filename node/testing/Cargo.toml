@@ -23,10 +23,17 @@ frame-system.default-features = true
 frame-system.workspace = true
 fs_extra = { workspace = true }
 futures = { workspace = true }
-cord-weave-runtime.workspace = true
+cord-weave-runtime = { workspace = true, features = ["std"] }
 cord-weave-runtime-constants.workspace = true
 log = { workspace = true, default-features = true }
-cord-node-cli.workspace = true
+cord-node-cli = { workspace = true, features = [
+	"cli",
+	"db",
+	"full-node",
+	"weave-native",
+	"braid-native",
+	"loom-native",
+] }
 cord-primitives.workspace = true
 pallet-asset-conversion-tx-payment.default-features = true
 pallet-asset-conversion-tx-payment.workspace = true

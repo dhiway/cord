@@ -94,8 +94,7 @@ impl pallet_session::SessionHandler<AccountId> for TestSessionHandler {
 		_changed: bool,
 		_validators: &[(AccountId, Ks)],
 		_queued_validators: &[(AccountId, Ks)],
-	) {
-	}
+	) {}
 	fn on_disabled(_validator_index: u32) {}
 	fn on_genesis_session<Ks: OpaqueKeys>(_validators: &[(AccountId, Ks)]) {}
 }

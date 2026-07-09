@@ -83,7 +83,7 @@ use sp_runtime::{
 /// Meta Transaction type.
 ///
 /// The data that is provided and signed by the signer and shared with the relayer.
-#[derive(Encode, Decode, PartialEq, Eq, TypeInfo, Clone, RuntimeDebug)]
+#[derive(Encode, Decode, PartialEq, Eq, TypeInfo, Clone, Debug)]
 pub struct MetaTx<Call, Extension> {
 	/// The target call to be executed on behalf of the signer.
 	call: Call,

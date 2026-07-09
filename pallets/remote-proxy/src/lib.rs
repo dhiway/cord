@@ -137,7 +137,7 @@ pub mod pallet {
 	use super::*;
 	use cumulus_pallet_parachain_system::OnSystemEvent;
 	use cumulus_primitives_core::PersistedValidationData;
-	use frame_support::{dispatch_context, pallet_prelude::*, traits::IsSubType};
+	use frame_support::{dispatch_context, pallet_prelude::*, traits::IsSubType, weights::Weight};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::{Dispatchable, StaticLookup, Zero};
 
@@ -229,6 +229,12 @@ pub mod pallet {
 		}
 
 		fn on_validation_code_applied() {}
+
+		fn on_relay_state_proof(
+			_: &cumulus_pallet_parachain_system::relay_state_snapshot::RelayChainStateProof,
+		) -> Weight {
+			Weight::zero()
+		}
 	}
 
 	#[pallet::error]

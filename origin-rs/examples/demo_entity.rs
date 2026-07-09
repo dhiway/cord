@@ -10,19 +10,16 @@ use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 use clap::Parser;
 use codec::Encode;
 use futures::future::join_all;
-use origin_primitives::{element::ElementView, AttributeValueView, Ss58Identifier};
-use oc as origin_sdk;
 use oc::{
+	self,
 	client::{signer::OriginSigner, OriginClient},
-	extrinsic::builder::DynamicCallBuilder,
-	extrinsic::calls::entity::element_to_value,
+	extrinsic::{builder::DynamicCallBuilder, calls::entity::element_to_value},
 	schema::entity::{element_from_view, EntityNestedValue},
 	tx,
-	tx::meta,
-	tx::meta::META_TX_VERSION,
-	tx::handle,
+	tx::{handle, meta},
 	types::{account::CryptoScheme, entity::ElementInput, EntityStateViewSdk, OriginAccount},
 };
+use origin_primitives::{element::ElementView, AttributeValueView, Ss58Identifier};
 use rand::{distributions::Alphanumeric, rngs::OsRng, Rng, RngCore};
 use scale_value::Composite;
 use serde_json::Value as Json;
@@ -62,7 +59,7 @@ fn rand_public_key() -> String {
 	format!("sr25519:{}", hex::encode(pk))
 }
 
-fn attributes_to_value(attrs: &Option<origin_sdk::types::entity::AttributesInput>) -> Value {
+fn attributes_to_value(attrs: &Option<oc::types::entity::AttributesInput>) -> Value {
 	match attrs {
 		None => Value::variant("None", Composite::unnamed(vec![])),
 		Some(list) => {
@@ -80,7 +77,7 @@ fn attributes_to_value(attrs: &Option<origin_sdk::types::entity::AttributesInput
 	}
 }
 
-fn entity_info_value(info: &origin_sdk::types::entity::EntityInfoInput) -> Value {
+fn entity_info_value(info: &oc::types::entity::EntityInfoInput) -> Value {
 	Value::unnamed_composite(vec![
 		element_to_value(&info.display),
 		element_to_value(&info.web),
@@ -141,7 +138,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		.map(|v| <[u8; 32]>::try_from(v.as_slice()).map_err(|_| "metadata hash must be 32 bytes"))
 		.transpose()?;
 
-	let account_fmt = origin_sdk::account_id_to_ss58(&account);
+	let account_fmt = oc::account_id_to_ss58(&account);
 	println!("🔗 account: {}", account_fmt);
 	println!("🔌 endpoint: {}", args.endpoint);
 	println!("🚦 mode: {}", if args.meta { "meta-tx" } else { "direct signer" });
@@ -343,7 +340,7 @@ async fn create_entity(
 ) -> Result<handle::TxHandle, Box<dyn std::error::Error>> {
 	let handle = if use_meta {
 		let meta_signer = meta_signer.ok_or("meta signer missing")?;
-		let info_input = origin_sdk::schema::entity::to_entity_input(nested)?;
+		let info_input = oc::schema::entity::to_entity_input(nested)?;
 		let call = DynamicCallBuilder::new().call(
 			"Entity",
 			"set_info",
@@ -364,11 +361,8 @@ async fn create_entity(
 			let implicit = debug.bare.implicit_bytes();
 			let call_bytes =
 				call.encode_call_data(&client.metadata()).unwrap_or_else(|_| debug.call.clone());
-			let preimage = meta::meta_tx_sign_payload(
-				meta::META_TX_VERSION,
-				&call_bytes,
-				&debug.bare,
-			);
+			let preimage =
+				meta::meta_tx_sign_payload(meta::META_TX_VERSION, &call_bytes, &debug.bare);
 			println!(
 				"meta-tx debug: implicit={} preimage_hash=0x{} call_bytes_len={}",
 				hex::encode(&implicit),
@@ -499,7 +493,7 @@ async fn link_extra_accounts(
 		let (_ed_acct, ed_id) = rand_account_id32_from_scheme(CryptoScheme::Ed25519);
 		let ed_handle = tx.entity().submit_set_linked_account(ed_id.clone()).await?;
 		tasks.push(("link_ed25519", ed_handle));
-		let ed_ss58 = origin_sdk::account_id_to_ss58(&sp_core::crypto::AccountId32::from(ed_id.0));
+		let ed_ss58 = oc::account_id_to_ss58(&sp_core::crypto::AccountId32::from(ed_id.0));
 		scheme_map.insert(ed_ss58, "ed25519".into());
 	}
 
@@ -507,7 +501,7 @@ async fn link_extra_accounts(
 		let (_ec_acct, ec_id) = rand_account_id32_from_scheme(CryptoScheme::Ecdsa);
 		let ec_handle = tx.entity().submit_set_linked_account(ec_id.clone()).await?;
 		tasks.push(("link_ecdsa", ec_handle));
-		let ec_ss58 = origin_sdk::account_id_to_ss58(&sp_core::crypto::AccountId32::from(ec_id.0));
+		let ec_ss58 = oc::account_id_to_ss58(&sp_core::crypto::AccountId32::from(ec_id.0));
 		scheme_map.insert(ec_ss58, "ecdsa".into());
 	}
 
@@ -594,10 +588,7 @@ async fn rotate_attributes(
 	Ok(())
 }
 
-fn build_rotate_call(
-	key: &[u8],
-	elem: &ElementInput,
-) -> oc::extrinsic::builder::DynamicCall {
+fn build_rotate_call(key: &[u8], elem: &ElementInput) -> oc::extrinsic::builder::DynamicCall {
 	DynamicCallBuilder::new().call(
 		"Entity",
 		"rotate_attribute",
@@ -639,7 +630,7 @@ async fn show_overview(
 
 			println!("🔗 Linked  : {} account(s)", state.linked_accounts.len());
 			for (i, acc) in state.linked_accounts.iter().enumerate() {
-				let acc_fmt = origin_sdk::account_id_to_ss58_subxt(acc);
+				let acc_fmt = oc::account_id_to_ss58_subxt(acc);
 				if let Some(map) = schemes {
 					if let Some(s) = map.get(&acc_fmt) {
 						println!("    [{}] {} ({})", i + 1, acc_fmt, s);

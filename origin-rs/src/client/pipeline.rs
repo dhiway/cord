@@ -25,7 +25,6 @@ pub struct AccountTxQueue {
 	signer: Arc<dyn Signer>,
 	sender: mpsc::Sender<TxJob>,
 	nonce_mgr: Arc<NonceManager>,
-	cfg: TxPipelineConfig,
 }
 
 struct TxJob {
@@ -73,7 +72,6 @@ impl TxPipeline {
 			signer: signer.clone(),
 			sender: tx,
 			nonce_mgr: self.nonce_mgr.clone(),
-			cfg: self.cfg.clone(),
 		};
 
 		AccountTxWorker {

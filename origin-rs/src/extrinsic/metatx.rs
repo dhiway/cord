@@ -101,7 +101,7 @@ impl MetaTxClient {
 		debug!(
 			target: "origin-sdk::meta-tx",
 			"meta-tx preimage blake2_256={:?} call_len={} implicit_len={} mode={:?}",
-			sp_core::blake2_256(&sign_bytes),
+			sp_crypto_hashing::blake2_256(&sign_bytes),
 			call_bytes.len(),
 			bare_ext.implicit_bytes().len(),
 			bare_ext.metadata_hash

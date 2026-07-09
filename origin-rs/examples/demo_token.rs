@@ -3,7 +3,7 @@
 //! [--seed //Alice] [--meta]
 
 use clap::Parser;
-use origin_sdk::{client::signer::OriginSigner, types::OriginAccount, OriginClient};
+use oc::{client::signer::OriginSigner, types::OriginAccount, OriginClient};
 
 #[derive(Parser, Debug)]
 struct Args {

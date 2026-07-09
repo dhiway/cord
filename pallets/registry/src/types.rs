@@ -20,7 +20,6 @@ use super::*;
 use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
 
 bitflags! {
 	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
@@ -80,22 +79,14 @@ impl From<PermissionVariant> for Permissions {
 }
 
 /// A simple status enum.
-#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(Encode, Decode, Clone, MaxEncodedLen, Debug, PartialEq, Eq, TypeInfo)]
 pub enum Status {
 	Active,
 	Archived,
 }
 
 #[derive(
-	Encode,
-	Decode,
-	Clone,
-	MaxEncodedLen,
-	RuntimeDebug,
-	PartialEq,
-	Eq,
-	TypeInfo,
-	DecodeWithMemTracking,
+	Encode, Decode, Clone, MaxEncodedLen, Debug, PartialEq, Eq, TypeInfo, DecodeWithMemTracking,
 )]
 pub struct RegistryDetails<Hash, Status, DocIdOf, DocNodeIdOf> {
 	/// The identity of the account (profile) that created/ owns the registry.

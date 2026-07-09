@@ -1,10 +1,10 @@
+use oc::schema::entity::to_entity_input;
 use origin_primitives::{element::ElementView, AttributeValueView};
-use origin_sdk::schema::entity::to_entity_input;
 
 /// Ensure EntityInfoInput SCALE matches ElementView encoding expectations.
 #[test]
 fn entity_info_input_matches_view_bytes() {
-	let nested = origin_sdk::schema::entity::EntityNestedValue {
+	let nested = oc::schema::entity::EntityNestedValue {
 		display: ElementView::Raw(b"display".to_vec()),
 		web: ElementView::Raw(b"web".to_vec()),
 		email: ElementView::Raw(b"mail".to_vec()),

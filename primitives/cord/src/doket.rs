@@ -20,7 +20,7 @@ use crate::element::Elum;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{
 	traits::{ConstU32, Get},
-	BoundedVec, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
+	BoundedVec, CloneNoBound, DebugNoBound, EqNoBound, PartialEqNoBound,
 };
 use scale_info::TypeInfo;
 
@@ -50,7 +50,7 @@ pub enum DoketUpdateError {
 	CloneNoBound,
 	PartialEqNoBound,
 	EqNoBound,
-	RuntimeDebugNoBound,
+	DebugNoBound,
 	MaxEncodedLen,
 	TypeInfo,
 )]

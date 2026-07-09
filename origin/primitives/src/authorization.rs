@@ -19,17 +19,16 @@
 // Common authorization structures shared by pallets.
 
 use alloc::vec::Vec;
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use core::fmt;
 use scale_info::TypeInfo;
 use sp_io::hashing::twox_128;
-use sp_runtime::RuntimeDebug;
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
 /// Shared authorization details for read-only query calls.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct Authorization<AccountId, Payload, Signature> {
 	pub account: AccountId,
@@ -96,7 +95,7 @@ where
 	}
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, Debug)]
 pub enum AuthorizationError {
 	Unauthorized,
 	NotFound,

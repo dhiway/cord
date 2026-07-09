@@ -62,7 +62,7 @@ impl OriginPair {
 			OriginPair::Ecdsa(p) => {
 				// For ECDSA we derive AccountId32 via Blake2-256 of the 33-byte pubkey, matching
 				// Substrate convention.
-				sp_core::blake2_256(&p.public().0)
+				sp_crypto_hashing::blake2_256(&p.public().0)
 			},
 		}
 	}

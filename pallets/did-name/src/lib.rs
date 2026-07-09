@@ -50,7 +50,7 @@ pub mod pallet {
 	extern crate alloc;
 	use alloc::vec::Vec;
 
-	use sp_runtime::traits::Debug;
+	use sp_runtime::traits::;
 
 	use cord_utilities::traits::CallSources;
 

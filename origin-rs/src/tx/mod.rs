@@ -1,10 +1,12 @@
 mod batch;
+pub mod blob_store;
 pub mod config;
 pub mod entity;
 pub mod handle;
 pub mod packet;
 pub mod params;
 pub mod registry;
+pub mod storage_roles;
 pub mod token;
 
 pub use batch::BatchBuilder;
@@ -150,6 +152,14 @@ impl AccountTx {
 
 	pub fn token(&self) -> token::TokenTx<'_> {
 		token::TokenTx::new(self)
+	}
+
+	pub fn storage_roles(&self) -> storage_roles::StorageRolesTx<'_> {
+		storage_roles::StorageRolesTx::new(self)
+	}
+
+	pub fn blob_store(&self) -> blob_store::BlobStoreTx<'_> {
+		blob_store::BlobStoreTx::new(self)
 	}
 
 	pub fn batch(&self) -> BatchBuilder {

@@ -75,7 +75,7 @@ pub mod pallet {
 		Clone,
 		PartialEq,
 		Eq,
-		RuntimeDebug,
+		Debug,
 		TypeInfo,
 		Default,
 		MaxEncodedLen,

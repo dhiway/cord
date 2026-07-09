@@ -2,9 +2,16 @@ use std::marker::PhantomData;
 
 use codec::{Decode, Encode, Input, Output};
 use scale_value::{scale, Value};
-use sp_core::{hashing::blake2_256, H256};
-use sp_runtime::{generic::{Era, ExtensionVersion}, MultiSignature, MultiSigner};
-use subxt::{tx::DynamicPayload, tx::Payload, Metadata, OnlineClient};
+use sp_core::H256;
+use sp_crypto_hashing::blake2_256;
+use sp_runtime::{
+	generic::{Era, ExtensionVersion},
+	MultiSignature, MultiSigner,
+};
+use subxt::{
+	tx::{DynamicPayload, Payload},
+	Metadata, OnlineClient,
+};
 
 use crate::{
 	client::{signer::Signer, Client},
@@ -170,18 +177,14 @@ pub async fn dispatch_call_with_meta<S: Signer>(
 	bare_extension.era = match opts.era {
 		MetaEra::Immortal => Era::Immortal,
 	};
-	let version = if opts.extension_version == 0 { META_TX_VERSION } else { opts.extension_version };
+	let version =
+		if opts.extension_version == 0 { META_TX_VERSION } else { opts.extension_version };
 
 	let preimage = meta_tx_sign_payload(version, &call_bytes, &bare_extension);
 	let signature: MultiSignature = meta_signer.sign_payload(&preimage).await;
 
-	let signed = assemble_meta_tx(
-		version,
-		&call_bytes,
-		bare_extension,
-		&meta_identifier,
-		&signature,
-	);
+	let signed =
+		assemble_meta_tx(version, &call_bytes, bare_extension, &meta_identifier, &signature);
 	let meta_value = meta_tx_value_from_signed(&metadata, &signed)?;
 	Ok(subxt::dynamic::tx("MetaTx", "dispatch", vec![meta_value]))
 }
@@ -193,8 +196,8 @@ pub async fn build_meta_tx_bare_ext(
 	metadata_hash: Option<[u8; 32]>,
 ) -> Result<BareExtension> {
 	let runtime_version = client.runtime_version();
-	let nonce_u32 =
-		u32::try_from(nonce).map_err(|_| OriginSdkError::InvalidInput("meta-tx nonce overflow".into()))?;
+	let nonce_u32 = u32::try_from(nonce)
+		.map_err(|_| OriginSdkError::InvalidInput("meta-tx nonce overflow".into()))?;
 
 	Ok(BareExtension {
 		era: Era::Immortal,
@@ -284,8 +287,8 @@ fn find_type(metadata: &Metadata, path: &[&str]) -> Option<scale_info::PortableT
 		.iter()
 		.find(|ty| {
 			let segments = &ty.ty.path.segments;
-			segments.len() == path.len()
-				&& segments.iter().map(|seg| seg.as_str()).zip(path.iter()).all(|(a, b)| a == *b)
+			segments.len() == path.len() &&
+				segments.iter().map(|seg| seg.as_str()).zip(path.iter()).all(|(a, b)| a == *b)
 		})
 		.cloned()
 }
