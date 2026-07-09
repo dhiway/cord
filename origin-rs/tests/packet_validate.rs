@@ -1,5 +1,5 @@
+use oc::{schema::packet::PacketNestedValue, tx::packet::validate_packet_against_schema};
 use origin_primitives::element::ElementView;
-use origin_sdk::{schema::packet::PacketNestedValue, tx::packet::validate_packet_against_schema};
 
 /// Basic schema validation: required key present, optional missing is ok, unknown key rejected.
 #[test]
@@ -10,7 +10,7 @@ fn packet_validation_basic() {
 			value: ElementView::Raw(b"123".to_vec()),
 		}],
 	};
-	let flat = origin_sdk::schema::packet::flatten_packet(&nested).expect("flatten");
+	let flat = oc::schema::packet::flatten_packet(&nested).expect("flatten");
 	let schema = vec![(b"id".to_vec(), origin_primitives::element::ElementType::Raw, false)];
 	let res = validate_packet_against_schema(&flat, &schema);
 	assert!(res.is_ok());

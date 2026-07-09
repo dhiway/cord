@@ -215,7 +215,7 @@ impl WsServer {
 							Some((ret, (receiver, buf)))
 						});
 
-						Box::pin(socket_packets.map(move |msg| (msg)))
+						Box::pin(socket_packets.map(move |msg| msg))
 					});
 				},
 
@@ -241,8 +241,7 @@ impl WsServer {
 					}
 				},
 
-				_ = self.rejected_sockets.select_next_some() => {
-				}
+				_ = self.rejected_sockets.select_next_some() => {}
 			}
 		}
 	}

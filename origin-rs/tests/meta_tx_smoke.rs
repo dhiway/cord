@@ -3,7 +3,7 @@
 //! `./target/release/cord --dev --tmp` and then:
 //! `cargo test -p origin-sdk meta_tx_roundtrip -- --ignored --nocapture`
 
-use origin_sdk::{
+use oc::{
 	client::{signer::MultiKeySigner, OriginClient},
 	extrinsic::builder::DynamicCallBuilder,
 };
@@ -34,7 +34,7 @@ async fn meta_tx_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
 
 	// Relayer decodes from wire bytes with runtime metadata.
 	let signed_for_relay =
-		origin_sdk::tx::meta::SignedMetaTx::decode_with_metadata(&client.metadata(), wire)?;
+		oc::tx::meta::SignedMetaTx::decode_with_metadata(&client.metadata(), wire)?;
 
 	// Bob pays and dispatches.
 	let handle = client.meta_tx().using(bob).submit_signed(signed_for_relay).await?;

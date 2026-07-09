@@ -54,7 +54,7 @@ sp_api::impl_runtime_apis! {
 			unimplemented!()
 		}
 
-		fn execute_block(_: Block) {
+		fn execute_block(_: <Block as BlockT>::LazyBlock) {
 			unimplemented!()
 		}
 
@@ -91,7 +91,7 @@ sp_api::impl_runtime_apis! {
 		}
 
 		fn check_inherents(
-			_: Block,
+			_: <Block as BlockT>::LazyBlock,
 			_: sp_inherents::InherentData,
 		) -> sp_inherents::CheckInherentsResult {
 			unimplemented!()
@@ -108,21 +108,26 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
+
+	impl sp_transaction_storage_proof::runtime_api::TransactionStorageApi<Block> for Runtime {
+		fn retention_period() -> BlockNumber {
+			100800
+		}
+
+		fn indexed_transactions(
+			_: BlockNumber,
+		) -> Vec<sp_transaction_storage_proof::IndexedTransactionInfo> {
+			Vec::new()
+		}
+	}
+
 	impl sp_offchain::OffchainWorkerApi<Block> for Runtime {
 		fn offchain_worker(_: &<Block as BlockT>::Header) {
 			unimplemented!()
 		}
 	}
 
-	impl sp_statement_store::runtime_api::ValidateStatement<Block> for Runtime {
-		fn validate_statement(
-			_: sp_statement_store::runtime_api::StatementSource,
-			_: sp_statement_store::Statement,
-		) -> Result<sp_statement_store::runtime_api::ValidStatement, sp_statement_store::runtime_api::InvalidStatement> {
-			unimplemented!()
-		}
-	}
-
+	#[api_version(6)]
 	impl sp_consensus_beefy::BeefyApi<Block, BeefyId> for Runtime {
 		fn beefy_genesis() -> Option<BlockNumber> {
 			unimplemented!()
@@ -168,14 +173,9 @@ sp_api::impl_runtime_apis! {
 			unimplemented!()
 		}
 
-		fn generate_ancestry_proof(
-			_: BlockNumber,
-			_: Option<BlockNumber>,
-		) -> Option<sp_runtime::OpaqueValue> {
-			unimplemented!()
-		}
 	}
 
+	#[api_version(3)]
 	impl sp_mmr_primitives::MmrApi<Block, Hash, BlockNumber> for Runtime {
 		fn mmr_root() -> Result<Hash, sp_mmr_primitives::Error> {
 			unimplemented!()
@@ -189,6 +189,13 @@ sp_api::impl_runtime_apis! {
 			_: Vec<BlockNumber>,
 			_: Option<BlockNumber>,
 		) -> Result<(Vec<sp_mmr_primitives::EncodableOpaqueLeaf>, sp_mmr_primitives::LeafProof<Hash>), sp_mmr_primitives::Error> {
+			unimplemented!()
+		}
+
+		fn generate_ancestry_proof(
+			_: BlockNumber,
+			_: Option<BlockNumber>,
+		) -> Result<sp_mmr_primitives::AncestryProof<Hash>, sp_mmr_primitives::Error> {
 			unimplemented!()
 		}
 
@@ -274,7 +281,10 @@ sp_api::impl_runtime_apis! {
 	}
 
 	impl sp_session::SessionKeys<Block> for Runtime {
-		fn generate_session_keys(_: Option<Vec<u8>>) -> Vec<u8> {
+		fn generate_session_keys(
+			_: Vec<u8>,
+			_: Option<Vec<u8>>,
+		) -> sp_session::OpaqueGeneratedSessionKeys {
 			unimplemented!()
 		}
 

@@ -23,7 +23,7 @@ use crate::{Event as EntityEvent, Pallet as EntityPallet};
 use alloc::{vec, vec::Vec};
 use frame_benchmarking::{v2::*, BenchmarkError};
 use frame_system::{Pallet as System, RawOrigin};
-use origin_primitives::{attribute::Attribute, packet::Element};
+use origin_primitives::attribute::{Attribute, Element};
 use pallet_token::Token;
 use sp_runtime::traits::Hash;
 

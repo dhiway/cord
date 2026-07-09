@@ -28,7 +28,7 @@ use origin_primitives::{
 };
 use pallet_token::{EventBlock, EventTypeOf, Token};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::Hash, DispatchError, RuntimeDebug};
+use sp_runtime::{traits::Hash, DispatchError};
 
 /// Type alias for packet payload elements bounded by `MaxRawDataLength`.
 pub type PacketDataOf<T> = Element<<T as Config>::MaxRawDataLength>;
@@ -41,15 +41,7 @@ pub type AttributePairsOf<T> =
 
 /// Lookup anchor capturing the spec index associated with a digest.
 #[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	PartialEq,
-	Eq,
-	TypeInfo,
-	MaxEncodedLen,
-	RuntimeDebug,
+	Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen, Debug,
 )]
 pub struct LookupAnchor {
 	pub spec: u32,

@@ -640,4 +640,22 @@ impl<T: frame_system::Config> pallet_broker::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
+
+	/// Storage: `Broker::PotentialRenewals` (r:1 w:1)
+	/// Proof: `Broker::PotentialRenewals` (`max_values`: None, `max_size`: Some(1233), added: 3708, mode: `MaxEncodedLen`)
+	fn remove_potential_renewal() -> Weight {
+		Weight::from_parts(19_216_000, 0)
+			.saturating_add(Weight::from_parts(0, 4698))
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
+
+	/// Storage: `Broker::Regions` (r:1 w:1)
+	/// Proof: `Broker::Regions` (`max_values`: None, `max_size`: Some(86), added: 2561, mode: `MaxEncodedLen`)
+	fn force_transfer() -> Weight {
+		Weight::from_parts(23_878_000, 0)
+			.saturating_add(Weight::from_parts(0, 3551))
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
 }

@@ -46,12 +46,13 @@ use core::marker::PhantomData;
 /// Weight functions for `pallet_meta_tx`.
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_meta_tx::WeightInfo for WeightInfo<T> {
-	fn bare_dispatch() -> Weight {
+	fn bare_dispatch(n: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
 		// Minimum execution time: 138_000_000 picoseconds.
-		Weight::from_parts(140_000_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
+		Weight::from_parts(14_244_923, 3997)
+			.saturating_add(Weight::from_parts(4_568, 0).saturating_mul(n.into()))
+			.saturating_add(T::DbWeight::get().reads(2_u64))
 	}
 }

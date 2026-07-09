@@ -17,18 +17,9 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
 
 #[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	MaxEncodedLen,
-	RuntimeDebug,
-	PartialEq,
-	Eq,
-	TypeInfo,
+	Encode, Decode, DecodeWithMemTracking, Clone, MaxEncodedLen, Debug, PartialEq, Eq, TypeInfo,
 )]
 pub struct NodeInfo<NodeIdOf, AccountIdOf> {
 	/// The Node

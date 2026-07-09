@@ -22,7 +22,7 @@
 #![warn(unused_crate_dependencies)]
 
 extern crate alloc;
-use alloc::{string::String, vec};
+use alloc::string::String;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::identifier::{DecodedIdentifier, IdentifierError, Ss58Identifier};
 use frame_support::{

@@ -58,7 +58,7 @@ use sp_application_crypto::Ss58Codec;
 use sp_keyring::Sr25519Keyring;
 
 use sp_application_crypto::{ecdsa, ed25519, sr25519, RuntimeAppPublic};
-use sp_core::{OpaqueMetadata, RuntimeDebug};
+use sp_core::{OpaqueMetadata};
 use sp_trie::{
 	trie_types::{TrieDBBuilder, TrieDBMutBuilderV1},
 	PrefixedMemoryDB, StorageProof,
@@ -143,7 +143,7 @@ pub fn native_version() -> NativeVersion {
 }
 
 /// Transfer data extracted from Extrinsic containing `Balances::transfer_allow_death`.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, Debug, TypeInfo)]
 pub struct TransferData {
 	pub from: AccountId,
 	pub to: AccountId,
@@ -255,7 +255,7 @@ pub type Executive = frame_executive::Executive<
 >;
 
 #[derive(
-	Copy, Clone, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo,
+	Copy, Clone, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, Debug, TypeInfo,
 )]
 pub struct CheckCordCall;
 
@@ -1082,7 +1082,7 @@ mod tests {
 		// than the heap.
 		let mut runtime_api = client.runtime_api();
 		// This is currently required to allocate the 1024k of memory as configured above.
-		runtime_api.set_call_context(CallContext::Onchain);
+		runtime_api.set_call_context(CallContext::Onchain { import: false });
 		let ret = runtime_api.vec_with_capacity(best_hash, 1048576);
 		assert!(ret.is_err());
 

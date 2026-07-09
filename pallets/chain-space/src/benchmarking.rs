@@ -243,7 +243,7 @@ benchmarks! {
 
 		 }: _<T::RuntimeOrigin>(origin, space_id.clone(), authorization_id )
 		 verify {
-			 assert_last_event::<T>(Event::Archive { space: space_id, authority: did, }.into());
+			 assert_last_event::<T>(Event::Archive { space: space_id, authority: did}.into());
 		 }
 
 		restore {
@@ -271,7 +271,7 @@ benchmarks! {
 
 		 }: _<T::RuntimeOrigin>(origin, space_id.clone(), authorization_id )
 		 verify {
-			 assert_last_event::<T>(Event::Restore { space: space_id, authority: did, }.into());
+			 assert_last_event::<T>(Event::Restore { space: space_id, authority: did}.into());
 		 }
 
 		update_transaction_capacity {

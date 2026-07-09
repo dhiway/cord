@@ -1,4 +1,4 @@
-use origin_sdk::schema::{entity, packet, registry};
+use oc::schema::{entity, packet, registry};
 use proptest::prelude::*;
 
 #[test]

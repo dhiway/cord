@@ -2,7 +2,7 @@
 
 use codec::Encode;
 use origin_primitives::{authorization::Authorization, AccountId};
-use sp_core::hashing::twox_128;
+use sp_crypto_hashing::twox_128;
 
 /// Default TTL anchor: use the reference block the node reports (latest).
 pub const DEFAULT_TTL_BLOCKS: u32 = 50;
