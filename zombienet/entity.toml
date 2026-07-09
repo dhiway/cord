@@ -1,12 +1,12 @@
 # To run the network, execute the following command:
-# zombienet -p native spawn entity.toml
+# zombienet -p native spawn zombienet/entity.toml
 
 [settings]
 timeout = 300
 
 [relaychain]
-chain = "origin-relay-local"
-default_command = "../target/release/cord-origin-relay"
+chain = "origin-local"
+default_command = "target/release/origin"
 
 [[relaychain.nodes]]
 name = "alice"
@@ -21,14 +21,14 @@ validator = true
 args = ["--trie-cache-size=0", "--disable-worker-version-check"]
 
 [[parachains]]
-id = 2004
+id = 1000
 addToGenesis = true
 cumulus_based = true
-chain = "origin-entity-local"
+chain = "origin-system-local"
 
 [parachains.collator]
-name = "coretime-collator01"
+name = "entity-collator01"
 rpc_port = 9920
 collator = true
-command = "../target/release/cord-origin"
+command = "target/release/origin-hub"
 args = ["--trie-cache-size=0", "--execution=wasm"]
