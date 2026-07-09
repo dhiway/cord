@@ -200,6 +200,9 @@ impl ConversionFromAssetBalance<Balance, VersionedLocatableAsset, Balance> for A
 			Err(sp_runtime::DispatchError::Other("not native system asset"))
 		}
 	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn ensure_successful(_asset_id: VersionedLocatableAsset) {}
 }
 
 /// Calls that can bypass the safe-mode pallet.
@@ -1279,12 +1282,11 @@ mod benches {
 		[runtime_parachains::coretime, Coretime]
 		[runtime_parachains::disputes, ParasDisputes]
 		[runtime_parachains::hrmp, Hrmp]
-		[runtime_parachains::disputes::slashing, ParasSlashing]
 		[runtime_parachains::inclusion, ParaInclusion]
 		[runtime_parachains::initializer, Initializer]
 		[runtime_parachains::paras_inherent, ParaInherent]
 		[runtime_parachains::paras, Paras]
-		[runtime_parachains::on_demand, OnDemand]
+		[runtime_parachains::on_demand, OnDemandAssignmentProvider]
 		[runtime_parachains::coretime, Coretime]
 		[pallet_balances, Balances]
 		[pallet_beefy_mmr, MmrLeaf]
@@ -1294,10 +1296,8 @@ mod benches {
 		[pallet_migrations, MultiBlockMigrations]
 		[pallet_mmr, Mmr]
 		[pallet_multisig, Multisig]
-		[pallet_offences, OffencesBench::<Runtime>]
 		[pallet_proxy, Proxy]
 		[pallet_scheduler, Scheduler]
-		[pallet_session, SessionBench::<Runtime>]
 		[frame_system, SystemBench::<Runtime>]
 		[frame_system_extensions, SystemExtensionsBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
@@ -1309,32 +1309,16 @@ mod benches {
 		[pallet_sudo, Sudo]
 	);
 
-	pub use frame_benchmarking::{BenchmarkBatch, BenchmarkError, BenchmarkList};
-	pub use frame_support::traits::{StorageInfoTrait, WhitelistedStorageKeys};
-	pub use sp_storage::TrackedStorageKey;
-	// Trying to add benchmarks directly to some pallets caused cyclic dependency issues.
-	// To get around that, we separated the benchmarks into its own crate.
-	pub use frame_benchmarking::baseline::Pallet as Baseline;
-	pub use frame_system_benchmarking::{
-		extensions::Pallet as SystemExtensionsBench, Pallet as SystemBench,
-	};
-	pub use pallet_election_provider_support_benchmarking::Pallet as ElectionProviderBench;
-	pub use pallet_nomination_pools_benchmarking::Pallet as NominationPoolsBench;
-	pub use pallet_offences_benchmarking::Pallet as OffencesBench;
-	pub use pallet_session_benchmarking::Pallet as SessionBench;
-	pub use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsicsBenchmark;
+	use frame_benchmarking::BenchmarkError;
 
+	use origin_runtime_constants::system_parachain::OriginHubInParaId;
 	use xcm_config::{
 		LocalCheckAccount, OriginHubInLocation, SovereignAccountOf, TokenLocation, XcmConfig,
 	};
 
-	impl pallet_session_benchmarking::Config for Runtime {}
-	impl pallet_offences_benchmarking::Config for Runtime {}
-	impl pallet_election_provider_support_benchmarking::Config for Runtime {}
 	impl frame_system_benchmarking::Config for Runtime {}
 	impl frame_benchmarking::baseline::Config for Runtime {}
-	impl pallet_nomination_pools_benchmarking::Config for Runtime {}
-	impl runtime_parachains::disputes::slashing::benchmarking::Config for Runtime {}
+	impl pallet_transaction_payment::BenchmarkConfig for Runtime {}
 
 	parameter_types! {
 		pub ExistentialDepositAsset: Option<Asset> = Some((
@@ -1414,13 +1398,16 @@ mod benches {
 		fn valid_destination() -> Result<Location, BenchmarkError> {
 			Ok(OriginHubInLocation::get())
 		}
-		fn worst_case_holding(_depositable_count: u32) -> Assets {
-			// Origin only knows about ORU
-			vec![Asset {
-				id: AssetId(TokenLocation::get()),
-				fun: Fungible(1_000_000_000_000 * UNITS),
-			}]
-			.into()
+		fn worst_case_holding(_depositable_count: u32) -> xcm_executor::AssetsInHolding {
+			use pallet_xcm_benchmarks::MockCredit;
+
+			// Origin only knows about ORU.
+			let mut holding = xcm_executor::AssetsInHolding::new();
+			holding.fungible.insert(
+				AssetId(TokenLocation::get()),
+				alloc::boxed::Box::new(MockCredit(1_000_000 * UNITS)),
+			);
+			holding
 		}
 	}
 
@@ -1485,8 +1472,11 @@ mod benches {
 			Ok((origin, ticket, assets))
 		}
 
-		fn fee_asset() -> Result<Asset, BenchmarkError> {
-			Ok(Asset { id: AssetId(TokenLocation::get()), fun: Fungible(1_000_000 * UNITS) })
+		fn worst_case_for_trader() -> Result<(Asset, WeightLimit), BenchmarkError> {
+			Ok((
+				Asset { id: AssetId(TokenLocation::get()), fun: Fungible(1_000_000 * UNITS) },
+				WeightLimit::Limited(Weight::from_parts(5000, 5000)),
+			))
 		}
 
 		fn unlockable_asset() -> Result<(Location, Location, Asset), BenchmarkError> {
@@ -2129,6 +2119,14 @@ sp_api::impl_runtime_apis! {
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
+			use frame_benchmarking::BenchmarkList;
+			use frame_benchmarking::baseline::Pallet as Baseline;
+			use frame_support::traits::StorageInfoTrait;
+			use frame_system_benchmarking::{
+				extensions::Pallet as SystemExtensionsBench, Pallet as SystemBench,
+			};
+			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsicsBenchmark;
+
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmarks!(list, extra);
 
@@ -2136,16 +2134,20 @@ sp_api::impl_runtime_apis! {
 			(list, storage_info)
 		}
 
+		#[allow(non_local_definitions)]
 		fn dispatch_benchmark(
-			config: frame_benchmarking::BenchmarkConfig
-		) -> Result<
-			Vec<frame_benchmarking::BenchmarkBatch>,
-			alloc::string::String,
-		> {
-			let mut whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
-			let treasury_key = frame_system::Account::<Runtime>::hashed_key_for(Treasury::account_id());
-			whitelist.push(treasury_key.to_vec().into());
+			config: frame_benchmarking::BenchmarkConfig,
+		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
+			use frame_benchmarking::BenchmarkBatch;
+			use frame_benchmarking::baseline::Pallet as Baseline;
+			use frame_support::traits::WhitelistedStorageKeys;
+			use frame_system_benchmarking::{
+				extensions::Pallet as SystemExtensionsBench, Pallet as SystemBench,
+			};
+			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsicsBenchmark;
+			use sp_storage::TrackedStorageKey;
 
+			let whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
 

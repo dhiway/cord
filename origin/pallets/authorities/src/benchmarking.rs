@@ -19,26 +19,33 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use crate::Config;
-use codec::Encode;
+use codec::{Decode, Encode};
 use frame_benchmarking::v2::*;
 use frame_support::traits::Get;
 use frame_system::RawOrigin;
-use sp_runtime::traits::Convert;
+use sp_runtime::traits::{Convert, TrailingZeroInput};
 
 use crate::pallet::{
 	self as pallet, Config as PalletConfig, LastActive, Pallet, PendingAdditions, PendingRemovals,
 	Registered,
 };
 
+fn benchmark_session_keys<T: pallet::Config>() -> T::Keys
+where
+	T::Keys: Decode,
+{
+	T::Keys::decode(&mut TrailingZeroInput::zeroes())
+		.expect("zero input is sufficient for benchmark session keys")
+}
+
 /// Stage session keys for an *account* by converting it into a ValidatorId.
-/// Requires `T::Keys: Default` for a dummy key payload.
 fn stage_keys_for_account<T: pallet::Config>(acc: &T::AccountId)
 where
-	T::Keys: Default,
+	T::Keys: Decode,
 {
 	if let Some(vid) = <T as pallet_session::Config>::ValidatorIdOf::convert(acc.clone()) {
 		if !pallet_session::NextKeys::<T>::contains_key(&vid) {
-			pallet_session::NextKeys::<T>::insert(vid, T::Keys::default());
+			pallet_session::NextKeys::<T>::insert(vid, benchmark_session_keys::<T>());
 		}
 	} else {
 		// in benches we assume the mock runtime maps AccountId -> ValidatorId
@@ -56,7 +63,7 @@ where
 fn fill_registered<T: pallet::Config>(n: u32, also_stage_keys: bool)
 where
 	T::ValidatorId: Clone + PartialEq + Encode,
-	T::Keys: Default,
+	T::Keys: Decode,
 {
 	Registered::<T>::mutate(|r| {
 		r.clear();
@@ -64,7 +71,10 @@ where
 			let vid = vid_at::<T>("reg", i);
 			if also_stage_keys {
 				if !pallet_session::NextKeys::<T>::contains_key(&vid) {
-					pallet_session::NextKeys::<T>::insert(vid.clone(), T::Keys::default());
+					pallet_session::NextKeys::<T>::insert(
+						vid.clone(),
+						benchmark_session_keys::<T>(),
+					);
 				}
 			}
 			if !r.contains(&vid) {
@@ -111,7 +121,8 @@ where
 	});
 }
 
-/// Fresh test externalities for benchmarks (use your mock’s helper).
+/// Fresh test externalities for benchmark tests.
+#[cfg(test)]
 fn bench_ext() -> sp_io::TestExternalities {
 	crate::mock::new_test_ext(8)
 }
@@ -121,7 +132,7 @@ fn bench_ext() -> sp_io::TestExternalities {
         T: PalletConfig + pallet_session::Config,
         T::ValidatorId: Clone + PartialEq + Encode,
         T::AccountId: Clone + PartialEq + Encode,
-        T::Keys: Default,
+        T::Keys: Decode,
 )]
 mod benches {
 	use super::*;
@@ -212,7 +223,10 @@ mod benches {
 			for i in 0..adds {
 				let vid = vid_at::<T>("add", i);
 				if !pallet_session::NextKeys::<T>::contains_key(&vid) {
-					pallet_session::NextKeys::<T>::insert(vid.clone(), T::Keys::default());
+					pallet_session::NextKeys::<T>::insert(
+						vid.clone(),
+						benchmark_session_keys::<T>(),
+					);
 				}
 				p.push(vid);
 			}

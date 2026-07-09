@@ -45,7 +45,7 @@ pub mod tests;
 pub mod weights;
 pub use weights::WeightInfo;
 
-#[cfg(all(feature = "std", feature = "runtime-benchmarks"))]
+#[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
 #[frame_support::pallet]
