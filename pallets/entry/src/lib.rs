@@ -244,7 +244,6 @@ pub mod pallet {
 		/// # Events
 		/// * `RegistryEntryCreated` - Emitted with `creator`, `registry_id`, `registry_entry_id`,
 		///   `creator_profile_id`.
-		/// ```
 		#[pallet::call_index(0)]
 		#[pallet::weight({0})]
 		pub fn create(
@@ -325,8 +324,6 @@ pub mod pallet {
 		/// # Events
 		/// * `RegistryEntryUpdated` - Emitted with `updater`, `registry_entry_id`,
 		///   `updater_profile_id`.
-		///
-		/// ```
 		#[pallet::call_index(1)]
 		#[pallet::weight({0})]
 		pub fn update(
@@ -393,8 +390,6 @@ pub mod pallet {
 		/// # Events
 		/// * `RegistryEntryRevoked` - Emitted with `updater`, `registry_entry_id`,
 		///   `updater_profile_id`.
-		///
-		/// ```
 		#[pallet::call_index(2)]
 		#[pallet::weight({0})]
 		pub fn revoke(
@@ -458,8 +453,6 @@ pub mod pallet {
 		/// # Events
 		/// * `RegistryEntryReinstated` - Emitted with `updater`, `registry_entry_id`,
 		///   `updater_profile_id`.
-		///
-		/// ```
 		#[pallet::call_index(3)]
 		#[pallet::weight({0})]
 		pub fn reinstate(
@@ -529,8 +522,6 @@ pub mod pallet {
 		/// # Events
 		/// * `RegistryEntryOwnershipUpdated` - Emitted with `updater`, `new_owner`,
 		///   `registry_entry_id`, `updater_profile_id`, `new_owner_profile_id`.
-		///
-		/// ```
 		#[pallet::call_index(4)]
 		#[pallet::weight({0})]
 		pub fn update_ownership(

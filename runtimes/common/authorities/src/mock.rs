@@ -18,14 +18,15 @@
 //
 use super::*;
 use crate::{self as cord_authority_membership};
-use frame_support::{derive_impl, parameter_types};
+use codec::Encode;
+use frame_support::{derive_impl, parameter_types, traits::ConstU64};
 use sp_state_machine::BasicExternalities;
 
 extern crate alloc;
 use alloc::collections::BTreeMap;
 
 use frame_system::{pallet_prelude::BlockNumberFor, EnsureRoot};
-use pallet_offences::{traits::OnOffenceHandler, SlashStrategy};
+use pallet_cord_offences::{traits::OnOffenceHandler, SlashStrategy};
 use pallet_session::ShouldEndSession;
 use sp_core::crypto::key_types::DUMMY;
 use sp_runtime::{
@@ -56,7 +57,9 @@ frame_support::construct_runtime!(
 	pub enum Test {
 		System: frame_system,
 		Session: pallet_session,
+		Balances: pallet_balances,
 		NetworkMembership: pallet_network_membership,
+		Historical: pallet_session::historical,
 		AuthorityMembership: cord_authority_membership,
 	}
 );
@@ -65,7 +68,28 @@ frame_support::construct_runtime!(
 impl frame_system::Config for Test {
 	type AccountId = u64;
 	type Block = Block;
-	type AccountData = ();
+	type AccountData = pallet_balances::AccountData<u64>;
+}
+
+parameter_types! {
+	pub const ExistentialDeposit: u64 = 1;
+}
+
+impl pallet_balances::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = u64;
+	type DustRemoval = ();
+	type ExistentialDeposit = ExistentialDeposit;
+	type AccountStore = System;
+	type WeightInfo = ();
+	type MaxLocks = ConstU32<50>;
+	type MaxReserves = ();
+	type ReserveIdentifier = [u8; 8];
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type RuntimeFreezeReason = ();
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type DoneSlashHandler = ();
 }
 
 pub struct TestSessionHandler;
@@ -101,7 +125,10 @@ impl pallet_session::Config for Test {
 	type SessionManager = AuthorityMembership;
 	type SessionHandler = TestSessionHandler;
 	type Keys = MockSessionKeys;
+	type DisablingStrategy = ();
 	type WeightInfo = ();
+	type Currency = Balances;
+	type KeyDeposit = ConstU64<0>;
 }
 
 parameter_types! {
@@ -124,6 +151,7 @@ impl sp_runtime::traits::Convert<AccountId, Option<()>> for FullIdentificationOf
 	}
 }
 impl pallet_session::historical::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type FullIdentification = ();
 	type FullIdentificationOf = FullIdentificationOfImpl;
 }
@@ -148,7 +176,6 @@ impl cord_authority_membership::Config for Test {
 	type AuthorityMembershipOrigin = EnsureRoot<u64>;
 	type RuntimeEvent = RuntimeEvent;
 	type MinAuthorities = ConstU32<1>;
-	type IsMember = TestIsNetworkMember;
 }
 
 parameter_types! {
@@ -162,6 +189,15 @@ parameter_types! {
 
 pub fn authorities() -> Vec<UintAuthorityId> {
 	Authorities::get().to_vec()
+}
+
+pub fn ownership_proof(account: u64, mut authority: UintAuthorityId) -> Vec<u8> {
+	use sp_application_crypto::RuntimeAppPublic;
+
+	let proof = authority
+		.generate_proof_of_possession(&account.encode())
+		.expect("UintAuthorityId generates proof-of-possession");
+	(proof,).encode()
 }
 
 // Build genesis storage according to the mock runtime.
@@ -184,7 +220,7 @@ pub fn new_test_ext(authorities_len: u64) -> sp_io::TestExternalities {
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
-	pallet_session::GenesisConfig::<Test> { keys }
+	pallet_session::GenesisConfig::<Test> { keys, non_authority_keys: Vec::new() }
 		.assimilate_storage(&mut t)
 		.unwrap();
 	let v = NextValidators::get().iter().map(|&i| (i, i)).collect();

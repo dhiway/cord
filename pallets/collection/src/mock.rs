@@ -29,8 +29,9 @@ type Block = system::mocking::MockBlock<Test>;
 frame_support::construct_runtime!(
 	pub enum Test {
 		System: system,
+		Identifier: pallet_doken,
+		Profile: pallet_profile,
 		Collection: pallet_collection,
-		Identifier: cord_uri,
 	}
 );
 
@@ -45,28 +46,37 @@ impl frame_system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 }
 
-pub struct DummyRegistry;
-impl cord_uri::RegistryIdentifierCheck for DummyRegistry {
-	fn ensure_active_registry(
-		_registry_id: &Ss58Identifier,
-	) -> frame_support::dispatch::DispatchResult {
-		Ok(())
-	}
+parameter_types! {
+	pub const MaxDataKeyLength: u8 = 128;
+	pub const MaxDataValueLength: u32 = 1 * 1024;
+}
+
+impl pallet_doken::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type BlockNumberProvider = frame_system::Pallet<Test>;
+}
+
+impl pallet_profile::Config for Test {
+	type MaxDataKeyLength = MaxDataKeyLength;
+	type MaxDataValueLength = MaxDataValueLength;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 }
 
 impl pallet_collection::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type Registry = DummyRegistry;
 	type WeightInfo = ();
-}
-
-impl cord_uri::Config for Test {
-	type BlockNumberProvider = frame_system::Pallet<Test>;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let t = system::GenesisConfig::<Test>::default().build_storage().unwrap();
 	let mut ext = sp_io::TestExternalities::new(t);
-	ext.execute_with(|| system::Pallet::<Test>::set_block_number(1));
+	ext.execute_with(|| {
+		system::Pallet::<Test>::set_block_number(1);
+		for account in 1..=3 {
+			pallet_profile::Pallet::<Test>::set_profile(RuntimeOrigin::signed(account), Vec::new())
+				.expect("test profile setup should work");
+		}
+	});
 	ext
 }

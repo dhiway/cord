@@ -235,6 +235,8 @@ fn remote_proxy_works() {
 				who: 1,
 				proxy_type: ProxyType::Any,
 				disambiguation_index: 0,
+				at: 1,
+				extrinsic_index: 0,
 			}
 			.into(),
 		);
@@ -316,6 +318,8 @@ fn remote_proxy_register_works() {
 				who: 1,
 				proxy_type: ProxyType::Any,
 				disambiguation_index: 0,
+				at: 1,
+				extrinsic_index: 0,
 			}
 			.into(),
 		);
@@ -438,6 +442,8 @@ fn remote_proxy_multiple_register_works() {
 				who: 1,
 				proxy_type: ProxyType::Any,
 				disambiguation_index: 0,
+				at: 1,
+				extrinsic_index: 0,
 			}
 			.into(),
 		);
@@ -451,6 +457,8 @@ fn remote_proxy_multiple_register_works() {
 				who: 1,
 				proxy_type: ProxyType::Any,
 				disambiguation_index: 1,
+				at: 1,
+				extrinsic_index: 0,
 			}
 			.into(),
 		);

@@ -37,7 +37,7 @@ fn non_root_cannot_add() {
 		let account = account(2);
 		assert_noop!(
 			Feeless::add_feeless_account(RuntimeOrigin::signed(account.clone()), account.clone()),
-			frame_support::error::BadOrigin
+			sp_runtime::traits::BadOrigin
 		);
 	});
 }

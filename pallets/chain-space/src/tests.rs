@@ -2,7 +2,8 @@ use super::*;
 use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
-use frame_support::{assert_err, assert_ok, error::BadOrigin};
+use frame_support::{assert_err, assert_ok};
+use sp_runtime::traits::BadOrigin;
 use frame_system::RawOrigin;
 use sp_runtime::{traits::Hash, AccountId32};
 
