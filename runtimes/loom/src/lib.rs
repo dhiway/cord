@@ -1738,11 +1738,11 @@ impl_runtime_apis! {
 	fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {
 			log::info!("try-runtime::on_runtime_upgrade cord.");
 			let weight = Executive::try_runtime_upgrade(checks).unwrap();
-			(weight, RuntimeBlockWeights::get().max_block)
+			(weight, BlockWeights::get().max_block)
 		}
 
 		fn execute_block(
-			block: Block,
+			block: <Block as BlockT>::LazyBlock,
 			state_root_check: bool,
 			signature_check: bool,
 			select: frame_try_runtime::TryStateSelect,
