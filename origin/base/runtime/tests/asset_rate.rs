@@ -19,9 +19,36 @@
 //! AssetRate pallet instance tests.
 
 use frame_support::traits::tokens::ConversionFromAssetBalance;
-use polkadot_runtime::AssetRateWithNative;
 use polkadot_runtime_common::impls::VersionedLocatableAsset;
 use xcm::prelude::*;
+
+struct AssetRateWithNative;
+
+impl ConversionFromAssetBalance<u128, VersionedLocatableAsset, u128> for AssetRateWithNative {
+	type Error = frame_support::sp_runtime::DispatchError;
+
+	fn from_asset_balance(
+		balance: u128,
+		asset_id: VersionedLocatableAsset,
+	) -> Result<u128, Self::Error> {
+		use polkadot_runtime_common::impls::LocatableAssetConverter;
+		use sp_runtime::traits::TryConvert;
+
+		let locatable = LocatableAssetConverter::try_convert(asset_id)
+			.map_err(|_| frame_support::sp_runtime::DispatchError::Other("invalid asset"))?;
+		let is_native_system_para = locatable.asset_id.0 == Location::parent() &&
+			matches!(
+				locatable.location.unpack(),
+				(0, [Parachain(1000)]) | (0, [Parachain(1001)])
+			);
+
+		if is_native_system_para {
+			Ok(balance)
+		} else {
+			Err(frame_support::sp_runtime::DispatchError::Other("not native system asset"))
+		}
+	}
+}
 
 #[test]
 fn native_asset_rate_works() {
@@ -55,7 +82,7 @@ fn native_asset_rate_works() {
 
 		// success: native asset on People as xcm v5 location
 		let native = VersionedLocatableAsset::V5 {
-			location: Location::new(0, [Parachain(2004)]),
+			location: Location::new(0, [Parachain(1001)]),
 			asset_id: Location::parent().into(),
 		};
 		let actual = AssetRateWithNative::from_asset_balance(100, native).unwrap();
@@ -63,7 +90,7 @@ fn native_asset_rate_works() {
 
 		// success: native asset on People as xcm v4 location
 		let native = VersionedLocatableAsset::V4 {
-			location: xcm::v4::Location::new(0, [xcm::v4::Junction::Parachain(2004)]),
+			location: xcm::v4::Location::new(0, [xcm::v4::Junction::Parachain(1001)]),
 			asset_id: xcm::v4::Location::parent().into(),
 		};
 		let actual = AssetRateWithNative::from_asset_balance(100, native).unwrap();
@@ -73,7 +100,7 @@ fn native_asset_rate_works() {
 		let native = VersionedLocatableAsset::V3 {
 			location: xcm::v3::Location::new(
 				0,
-				xcm::v3::Junctions::X1(xcm::v3::Junction::Parachain(2004)),
+				xcm::v3::Junctions::X1(xcm::v3::Junction::Parachain(1001)),
 			),
 			asset_id: xcm::v3::Location::parent().into(),
 		};

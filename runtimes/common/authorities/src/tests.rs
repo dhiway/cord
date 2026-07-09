@@ -117,7 +117,7 @@ fn test_add_and_remove_an_authority_member() {
 		assert_ok!(Session::set_keys(
 			RuntimeOrigin::signed(12),
 			UintAuthorityId(12).into(),
-			vec![]
+			ownership_proof(12, UintAuthorityId(12))
 		));
 		assert_ok!(AuthorityMembership::nominate(RuntimeOrigin::root(), 12));
 		assert_eq!(IncomingAuthorities::<Test>::get(), vec![12]);
@@ -153,7 +153,7 @@ fn test_go_online_with_a_removed_authority_member() {
 		assert_ok!(Session::set_keys(
 			RuntimeOrigin::signed(12),
 			UintAuthorityId(12).into(),
-			vec![]
+			ownership_proof(12, UintAuthorityId(12))
 		));
 		assert_ok!(AuthorityMembership::nominate(RuntimeOrigin::root(), 12));
 		assert_eq!(IncomingAuthorities::<Test>::get(), vec![12]);
@@ -183,11 +183,11 @@ fn test_offence_disconnect() {
 
 		on_offence(
 			&[OffenceDetails { offender: (9, ()), reporters: vec![] }],
-			pallet_offences::SlashStrategy::Disconnect,
+			pallet_cord_offences::SlashStrategy::Disconnect,
 		);
 		on_offence(
 			&[OffenceDetails { offender: (3, ()), reporters: vec![] }],
-			pallet_offences::SlashStrategy::Disconnect,
+			pallet_cord_offences::SlashStrategy::Disconnect,
 		);
 
 		// Verify state
@@ -210,8 +210,16 @@ fn test_offence_disconnect() {
 
 		// Member 2 and 3 should be allowed to set session keys and go online
 		run_to_block(25);
-		assert_ok!(Session::set_keys(RuntimeOrigin::signed(9), UintAuthorityId(9).into(), vec![]));
-		assert_ok!(Session::set_keys(RuntimeOrigin::signed(3), UintAuthorityId(3).into(), vec![]));
+		assert_ok!(Session::set_keys(
+			RuntimeOrigin::signed(9),
+			UintAuthorityId(9).into(),
+			ownership_proof(9, UintAuthorityId(9))
+		));
+		assert_ok!(Session::set_keys(
+			RuntimeOrigin::signed(3),
+			UintAuthorityId(3).into(),
+			ownership_proof(3, UintAuthorityId(3))
+		));
 
 		assert_ok!(AuthorityMembership::go_online(RuntimeOrigin::signed(9)),);
 		assert_ok!(AuthorityMembership::go_online(RuntimeOrigin::signed(3)),);
@@ -220,7 +228,7 @@ fn test_offence_disconnect() {
 		run_to_block(35);
 		on_offence(
 			&[OffenceDetails { offender: (3, ()), reporters: vec![] }],
-			pallet_offences::SlashStrategy::Disconnect,
+			pallet_cord_offences::SlashStrategy::Disconnect,
 		);
 
 		assert_eq!(IncomingAuthorities::<Test>::get(), EMPTY);
@@ -240,7 +248,7 @@ fn test_offence_black_list() {
 
 		on_offence(
 			&[OffenceDetails { offender: (9, ()), reporters: vec![] }],
-			pallet_offences::SlashStrategy::BlackList,
+			pallet_cord_offences::SlashStrategy::BlackList,
 		);
 
 		// Verify state
@@ -269,7 +277,7 @@ fn test_offence_black_list_prevent_from_going_online() {
 
 		on_offence(
 			&[OffenceDetails { offender: (9, ()), reporters: vec![] }],
-			pallet_offences::SlashStrategy::BlackList,
+			pallet_cord_offences::SlashStrategy::BlackList,
 		);
 
 		// Verify state
@@ -280,7 +288,11 @@ fn test_offence_black_list_prevent_from_going_online() {
 
 		// Member 3 should not be allowed to go online
 		run_to_block(25);
-		assert_ok!(Session::set_keys(RuntimeOrigin::signed(9), UintAuthorityId(9).into(), vec![]));
+		assert_ok!(Session::set_keys(
+			RuntimeOrigin::signed(9),
+			UintAuthorityId(9).into(),
+			ownership_proof(9, UintAuthorityId(9))
+		));
 		assert_err!(
 			AuthorityMembership::go_online(RuntimeOrigin::signed(9)),
 			Error::<Test>::MemberBlackListed

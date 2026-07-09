@@ -17,9 +17,10 @@
 
 use crate::{mock::*, Error, Event, MemberData, Members};
 
-use frame_support::{assert_err, assert_ok, error::BadOrigin};
+use frame_support::{assert_err, assert_ok};
 use frame_system::RawOrigin;
 use network_membership::MembersCount;
+use sp_runtime::traits::BadOrigin;
 
 #[test]
 fn test_genesis_build() {

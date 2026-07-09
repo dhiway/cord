@@ -32,6 +32,8 @@ sp-state-machine = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
+sp-application-crypto = { workspace = true }
+pallet-balances = { workspace = true }
 serde = { workspace = true }
 sp-io = { workspace = true }
 

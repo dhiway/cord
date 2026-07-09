@@ -21,7 +21,7 @@ use super::*;
 use crate::mock::*;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
-use sp_core::H256;
+use pallet_doken::Doken;
 
 /// Helper function to extract the collection identifier.
 fn get_collection_id() -> CollectionIdentifierOf {
@@ -36,9 +36,16 @@ fn create_collection() -> CollectionIdentifierOf {
 }
 
 /// Helper: Assign delegate permission (without admin) to a given account on a registry.
+
+fn registry_id(seed: u8) -> RegistryIdentifierOf {
+	<pallet_doken::Pallet<Test> as Doken<Test>>::build(&[seed; 32], "Registry")
+		.expect("test registry identifier should be valid")
+}
+
 fn set_delegate_permission(registry_id: &CollectionIdentifierOf, account: u64) {
 	let delegate_perms = Permissions::from_variants(&[PermissionVariant::Delegate]);
-	Delegates::<Test>::insert(registry_id, &account, delegate_perms);
+	let profile_id = pallet_profile::Pallet::<Test>::get_profile_id(&account).unwrap();
+	Delegates::<Test>::insert(registry_id, &profile_id, delegate_perms);
 }
 
 #[test]
@@ -48,7 +55,10 @@ fn create_collection_should_work() {
 		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		assert_eq!(Collections::<Test>::iter().count(), 1);
 		let collection_id = get_collection_id();
-		let perm = Delegates::<Test>::get(&collection_id, &creator);
+		let perm = Delegates::<Test>::get(
+			&collection_id,
+			&pallet_profile::Pallet::<Test>::get_profile_id(&creator).unwrap(),
+		);
 		assert!(perm.is_some());
 	});
 }
@@ -80,7 +90,10 @@ fn add_collection_delegate_should_work() {
 			delegate,
 			permission_variants
 		));
-		assert!(Delegates::<Test>::contains_key(&collection_id, &delegate));
+		assert!(Delegates::<Test>::contains_key(
+			&collection_id,
+			&pallet_profile::Pallet::<Test>::get_profile_id(&delegate).unwrap()
+		));
 	});
 }
 
@@ -126,7 +139,11 @@ fn remove_collection_delegate_should_work() {
 			collection_id.clone(),
 			delegate
 		));
-		assert!(Delegates::<Test>::get(&collection_id, &delegate).is_none());
+		assert!(Delegates::<Test>::get(
+			&collection_id,
+			&pallet_profile::Pallet::<Test>::get_profile_id(&delegate).unwrap()
+		)
+		.is_none());
 	});
 }
 
@@ -163,7 +180,10 @@ fn add_delegate_should_work_with_delegate_permission() {
 			new_delegate,
 			permission_variants
 		));
-		assert!(Delegates::<Test>::contains_key(&collection_id, &new_delegate));
+		assert!(Delegates::<Test>::contains_key(
+			&collection_id,
+			&pallet_profile::Pallet::<Test>::get_profile_id(&new_delegate).unwrap()
+		));
 	});
 }
 
@@ -225,8 +245,7 @@ fn add_registry_should_work() {
 		let creator: u64 = 1;
 		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
-		let registry_id: RegistryIdentifierOf =
-			H256::random().as_fixed_bytes().to_vec().try_into().unwrap();
+		let registry_id = registry_id(1);
 		assert_ok!(Collection::add_registry(
 			RawOrigin::Signed(creator).into(),
 			collection_id.clone(),
@@ -242,8 +261,7 @@ fn add_registry_should_fail_if_duplicate() {
 		let creator: u64 = 1;
 		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
-		let registry_id: RegistryIdentifierOf =
-			H256::random().as_fixed_bytes().to_vec().try_into().unwrap();
+		let registry_id = registry_id(2);
 		assert_ok!(Collection::add_registry(
 			RawOrigin::Signed(creator).into(),
 			collection_id.clone(),
@@ -266,8 +284,7 @@ fn remove_registry_should_work() {
 		let creator: u64 = 1;
 		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
-		let registry_id: RegistryIdentifierOf =
-			H256::random().as_fixed_bytes().to_vec().try_into().unwrap();
+		let registry_id = registry_id(3);
 		assert_ok!(Collection::add_registry(
 			RawOrigin::Signed(creator).into(),
 			collection_id.clone(),
@@ -288,8 +305,7 @@ fn remove_registry_should_fail_if_nonexistent() {
 		let creator: u64 = 1;
 		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
-		let registry_id: RegistryIdentifierOf =
-			H256::random().as_fixed_bytes().to_vec().try_into().unwrap();
+		let registry_id = registry_id(4);
 		assert_noop!(
 			Collection::remove_registry(
 				RawOrigin::Signed(creator).into(),
