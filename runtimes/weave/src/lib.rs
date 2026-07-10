@@ -708,8 +708,8 @@ impl Get<Option<BalancingConfig>> for OffchainRandomBalancing {
 			max => {
 				let seed = sp_io::offchain::random_seed();
 				let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
-					.expect("input is padded with zeroes; qed") %
-					max.saturating_add(1);
+					.expect("input is padded with zeroes; qed")
+					% max.saturating_add(1);
 				random as usize
 			},
 		};
@@ -1796,11 +1796,9 @@ pub mod migrations {
 		fn on_runtime_upgrade() -> frame_support::weights::Weight {
 			let reports_removed =
 				pallet_offences::Reports::<Runtime>::clear(u32::MAX, None).unique as u64;
-			let concurrent_removed = pallet_offences::ConcurrentReportsIndex::<Runtime>::clear(
-				u32::MAX,
-				None,
-			)
-			.unique as u64;
+			let concurrent_removed =
+				pallet_offences::ConcurrentReportsIndex::<Runtime>::clear(u32::MAX, None).unique
+					as u64;
 
 			log::info!(
 				target: super::LOG_TARGET,
@@ -1809,11 +1807,10 @@ pub mod migrations {
 				concurrent_removed,
 			);
 
-			<Runtime as frame_system::Config>::DbWeight::get()
-				.reads_writes(
-					reports_removed + concurrent_removed + 2,
-					reports_removed + concurrent_removed,
-				)
+			<Runtime as frame_system::Config>::DbWeight::get().reads_writes(
+				reports_removed + concurrent_removed + 2,
+				reports_removed + concurrent_removed,
+			)
 		}
 
 		#[cfg(feature = "try-runtime")]
@@ -1840,10 +1837,8 @@ pub mod migrations {
 	}
 
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = (
-		pallet_offences::migration::v1::MigrateToV1<Runtime>,
-		ClearLegacyOffenceReports,
-	);
+	pub type Unreleased =
+		(pallet_offences::migration::v1::MigrateToV1<Runtime>, ClearLegacyOffenceReports);
 }
 
 /// Executive: handles dispatch to the various modules.
