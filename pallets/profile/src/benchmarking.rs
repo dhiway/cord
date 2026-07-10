@@ -18,7 +18,7 @@
 
 use super::*;
 extern crate alloc;
-use alloc::vec;
+use alloc::{format, vec};
 
 use frame_benchmarking::{account, benchmarks};
 use frame_support::traits::Get;
