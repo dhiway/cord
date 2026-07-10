@@ -1272,7 +1272,6 @@ mod benches {
 		[pallet_collective, Council]
 		[pallet_contracts, Contracts]
 		[pallet_asset_conversion, AssetConversion]
-		[pallet_asset_conversion_tx_payment, AssetConversionTxPayment]
 		[pallet_transaction_payment, TransactionPayment]
 		[pallet_grandpa, Grandpa]
 		[pallet_session, SessionBench::<Runtime>]
@@ -1289,12 +1288,7 @@ mod benches {
 		[frame_system_extensions, SystemExtensionsBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
 		[pallet_treasury, Treasury]
-		[pallet_asset_rate, AssetRate]
-		[frame_system, SystemBench::<Runtime>]
-		[pallet_timestamp, Timestamp]
 		[pallet_utility, Utility]
-		[pallet_network_membership, NetworkMembership]
-		[pallet_sudo, Sudo]
 	);
 }
 
@@ -1771,6 +1765,14 @@ impl_runtime_apis! {
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
+			use frame_benchmarking::{baseline, BenchmarkList};
+			use frame_support::traits::StorageInfoTrait;
+
+			use baseline::Pallet as BaselineBench;
+			use frame_system_benchmarking::extensions::Pallet as SystemExtensionsBench;
+			use frame_system_benchmarking::Pallet as SystemBench;
+			use pallet_cord_session_benchmarking::Pallet as SessionBench;
+
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmarks!(list, extra);
 
@@ -1778,12 +1780,27 @@ impl_runtime_apis! {
 			(list, storage_info)
 		}
 
+		#[allow(non_local_definitions)]
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<
 			Vec<frame_benchmarking::BenchmarkBatch>,
 			alloc::string::String,
 		> {
+			use frame_benchmarking::{baseline, BenchmarkBatch};
+			use frame_support::traits::WhitelistedStorageKeys;
+			use sp_storage::TrackedStorageKey;
+
+			use baseline::Pallet as BaselineBench;
+			use frame_system_benchmarking::extensions::Pallet as SystemExtensionsBench;
+			use frame_system_benchmarking::Pallet as SystemBench;
+			use pallet_cord_session_benchmarking::Pallet as SessionBench;
+
+			impl pallet_cord_session_benchmarking::Config for Runtime {}
+			impl frame_system_benchmarking::Config for Runtime {}
+			impl pallet_transaction_payment::BenchmarkConfig for Runtime {}
+			impl baseline::Config for Runtime {}
+
 			let mut whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
 			let treasury_key = frame_system::Account::<Runtime>::hashed_key_for(Treasury::account_id());
 			whitelist.push(treasury_key.to_vec().into());
