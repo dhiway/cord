@@ -230,7 +230,6 @@ runtime-benchmarks = [
 	"pallet-cord-offences/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
 	"pallet-cord-session-benchmarking/runtime-benchmarks",
-	"pallet-session/try-runtime",
 	"pallet-remark/runtime-benchmarks",
 	"pallet-registry/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
