@@ -32,6 +32,14 @@ use frame_election_provider_support::{
 	bounds::ElectionBoundsBuilder, generate_solution_type, onchain, BalancingConfig,
 	SequentialPhragmen,
 };
+#[cfg(feature = "runtime-benchmarks")]
+use frame_support::traits::Currency;
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_asset_rate::AssetKindFactory;
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_treasury::ArgumentsFactory as PalletTreasuryArgumentsFactory;
+#[cfg(feature = "runtime-benchmarks")]
+use sp_core::crypto::FromEntropy;
 
 mod registry_entry_api;
 
@@ -237,7 +245,7 @@ impl AssetKindFactory<NativeOrWithId<u32>> for AssetRateArguments {
 #[cfg(feature = "runtime-benchmarks")]
 pub struct PalletTreasuryArguments;
 #[cfg(feature = "runtime-benchmarks")]
-impl ArgumentsFactory<NativeOrWithId<u32>, AccountId> for PalletTreasuryArguments {
+impl PalletTreasuryArgumentsFactory<NativeOrWithId<u32>, AccountId> for PalletTreasuryArguments {
 	fn create_asset_kind(seed: u32) -> NativeOrWithId<u32> {
 		if seed % 2 > 0 {
 			NativeOrWithId::Native
@@ -708,8 +716,8 @@ impl Get<Option<BalancingConfig>> for OffchainRandomBalancing {
 			max => {
 				let seed = sp_io::offchain::random_seed();
 				let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
-					.expect("input is padded with zeroes; qed")
-					% max.saturating_add(1);
+					.expect("input is padded with zeroes; qed") %
+					max.saturating_add(1);
 				random as usize
 			},
 		};
@@ -1785,6 +1793,7 @@ pub type Migrations = migrations::Unreleased;
 #[allow(deprecated, missing_docs)]
 pub mod migrations {
 	use super::Runtime;
+	#[cfg(feature = "try-runtime")]
 	use codec::Encode;
 	use frame_support::traits::OnRuntimeUpgrade;
 
@@ -1964,7 +1973,6 @@ mod benches {
 		[pallet_migrations, MultiBlockMigrations]
 		[pallet_mmr, Mmr]
 		[pallet_multisig, Multisig]
-		[pallet_nomination_pools, NominationPoolsBench::<Runtime>]
 		[pallet_offences, OffencesBench::<Runtime>]
 		[pallet_preimage, Preimage]
 		[pallet_remark, Remark]
@@ -2578,6 +2586,16 @@ impl_runtime_apis! {
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
+			use frame_benchmarking::{baseline, BenchmarkList};
+			use frame_support::traits::StorageInfoTrait;
+
+			use baseline::Pallet as BaselineBench;
+			use frame_system_benchmarking::extensions::Pallet as SystemExtensionsBench;
+			use frame_system_benchmarking::Pallet as SystemBench;
+			use pallet_election_provider_support_benchmarking::Pallet as EPSBench;
+			use pallet_offences_benchmarking::Pallet as OffencesBench;
+			use pallet_session_benchmarking::Pallet as SessionBench;
+
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmarks!(list, extra);
 
@@ -2585,12 +2603,36 @@ impl_runtime_apis! {
 			(list, storage_info)
 		}
 
+		#[allow(non_local_definitions)]
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<
 			Vec<frame_benchmarking::BenchmarkBatch>,
 			alloc::string::String,
 		> {
+			use frame_benchmarking::{baseline, BenchmarkBatch};
+			use frame_support::traits::WhitelistedStorageKeys;
+			use sp_storage::TrackedStorageKey;
+
+			use baseline::Pallet as BaselineBench;
+			use frame_system_benchmarking::extensions::Pallet as SystemExtensionsBench;
+			use frame_system_benchmarking::Pallet as SystemBench;
+			use pallet_election_provider_support_benchmarking::Pallet as EPSBench;
+			use pallet_offences_benchmarking::Pallet as OffencesBench;
+			use pallet_session_benchmarking::Pallet as SessionBench;
+
+			impl pallet_session_benchmarking::Config for Runtime {
+				fn generate_session_keys_and_proof(owner: Self::AccountId) -> (Self::Keys, Vec<u8>) {
+					let keys = SessionKeys::generate(&owner.encode(), None);
+					(keys.keys, keys.proof.encode())
+				}
+			}
+			impl pallet_offences_benchmarking::Config for Runtime {}
+			impl pallet_election_provider_support_benchmarking::Config for Runtime {}
+			impl frame_system_benchmarking::Config for Runtime {}
+			impl pallet_transaction_payment::BenchmarkConfig for Runtime {}
+			impl baseline::Config for Runtime {}
+
 			let mut whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
 			let treasury_key = frame_system::Account::<Runtime>::hashed_key_for(Treasury::account_id());
 			whitelist.push(treasury_key.to_vec().into());
