@@ -28,11 +28,14 @@ srtool --version
 ```
 
 `subwasm` should be installed from the upstream repository, not the placeholder crates.io
-package:
+package. `try-runtime-cli` is provided as the `try-runtime` binary and should be
+installed from the upstream CLI repository tag used by SDK v1.24-era tooling:
 
 ```bash
 cargo install --locked --git https://github.com/chevdor/subwasm
 cargo install --locked srtool-cli
+cargo install --locked --git https://github.com/paritytech/try-runtime-cli --tag v0.10.1
+try-runtime --version
 ```
 
 If the local shell exports `NO_COLOR=1`, run subwasm with `NO_COLOR` unset or set to a
@@ -70,9 +73,19 @@ First verify that the native runtimes compile with try-runtime enabled:
 cargo check -p cord-node-cli -p origin-node-cli -p origin-hub --locked --features try-runtime
 ```
 
-For releases with migrations, run `try-runtime-cli on-runtime-upgrade` against the
-new runtime Wasm and representative live or snapshot state before publishing. Keep
-the command output with the release artifacts.
+For releases with migrations, run `try-runtime on-runtime-upgrade` against the
+new runtime Wasm and representative live or snapshot state before publishing, for
+example:
+
+```bash
+try-runtime --runtime <new-runtime-try-runtime.wasm> on-runtime-upgrade \
+  --blocktime <blocktime-ms> live --uri <wss-or-ws-endpoint>
+
+try-runtime --runtime <new-runtime-try-runtime.wasm> on-runtime-upgrade \
+  --blocktime <blocktime-ms> snap --path <state-snapshot>
+```
+
+Keep the command output with the release artifacts.
 
 ### Release notes
 
