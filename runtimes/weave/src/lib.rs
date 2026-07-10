@@ -1784,8 +1784,66 @@ pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
 #[allow(deprecated, missing_docs)]
 pub mod migrations {
+	use super::Runtime;
+	use codec::Encode;
+	use frame_support::traits::OnRuntimeUpgrade;
+
+	/// Clear legacy offence report/index records that were written by older Weave runtimes and no
+	/// longer decode with the SDK v1.24 offences/session types. These records are only used for
+	/// duplicate offence-report tracking; clearing them avoids blocking the upgrade state decode.
+	pub struct ClearLegacyOffenceReports;
+	impl OnRuntimeUpgrade for ClearLegacyOffenceReports {
+		fn on_runtime_upgrade() -> frame_support::weights::Weight {
+			let reports_removed =
+				pallet_offences::Reports::<Runtime>::clear(u32::MAX, None).unique as u64;
+			let concurrent_removed = pallet_offences::ConcurrentReportsIndex::<Runtime>::clear(
+				u32::MAX,
+				None,
+			)
+			.unique as u64;
+
+			log::info!(
+				target: super::LOG_TARGET,
+				"cleared legacy offences storage: reports={}, concurrent_indexes={}",
+				reports_removed,
+				concurrent_removed,
+			);
+
+			<Runtime as frame_system::Config>::DbWeight::get()
+				.reads_writes(
+					reports_removed + concurrent_removed + 2,
+					reports_removed + concurrent_removed,
+				)
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn pre_upgrade() -> Result<alloc::vec::Vec<u8>, sp_runtime::TryRuntimeError> {
+			let reports = pallet_offences::Reports::<Runtime>::iter_keys().count() as u32;
+			let concurrent =
+				pallet_offences::ConcurrentReportsIndex::<Runtime>::iter_keys().count() as u32;
+
+			Ok((reports, concurrent).encode())
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade(_state: alloc::vec::Vec<u8>) -> Result<(), sp_runtime::TryRuntimeError> {
+			frame_support::ensure!(
+				pallet_offences::Reports::<Runtime>::iter_keys().next().is_none(),
+				"legacy offences reports must be cleared"
+			);
+			frame_support::ensure!(
+				pallet_offences::ConcurrentReportsIndex::<Runtime>::iter_keys().next().is_none(),
+				"legacy offences concurrent report indexes must be cleared"
+			);
+			Ok(())
+		}
+	}
+
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = ();
+	pub type Unreleased = (
+		pallet_offences::migration::v1::MigrateToV1<Runtime>,
+		ClearLegacyOffenceReports,
+	);
 }
 
 /// Executive: handles dispatch to the various modules.
