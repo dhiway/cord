@@ -15,7 +15,7 @@ The relay runtime sets `BrokerId = 1006`. Relay Coretime accepts its management 
 Origin root or the Orbis parachain origin. Orbis Broker administration uses `EnsureRoot`; no
 staking, bonding, elections, referenda, or councils participate.
 
-Origin Sudo directly assigns Orbis one permanent bootstrap core before Orbis begins authoring.
+Origin Sudo can atomically assign Orbis three bootstrap/test cores before Orbis begins authoring.
 After startup, Orbis Sudo reserves full-core schedules. Repeating a full-core `Task(para_id)`
 reservation assigns multiple distinct cores to the same parachain and enables elastic scaling.
 Broker sale rotation is configured with `limit_cores_offered = Some(0)`: lifecycle processing is

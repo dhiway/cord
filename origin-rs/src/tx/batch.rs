@@ -49,7 +49,9 @@ impl BatchBuilder {
 			.map(|c| dynamic::tx(c.pallet, c.function, c.args).into_value())
 			.collect();
 		let fn_name = if self.all { "batch_all" } else { "batch" };
-		Ok(dynamic::tx("Utility", fn_name, calls))
+		// Utility has one `calls: Vec<RuntimeCall>` argument. Passing each call as a top-level
+		// argument only happens to type-check locally; it cannot encode against runtime metadata.
+		Ok(dynamic::tx("Utility", fn_name, vec![Value::unnamed_composite(calls)]))
 	}
 
 	pub async fn submit_and_wait_finalized(

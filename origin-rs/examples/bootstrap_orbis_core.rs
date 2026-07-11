@@ -21,8 +21,8 @@ struct Args {
 	/// First relay core to assign.
 	#[clap(long, default_value_t = 0)]
 	first_core: u16,
-	/// Number of consecutive full cores to assign.
-	#[clap(long, default_value_t = 1)]
+	/// Number of consecutive full cores to assign atomically. Orbis targets three.
+	#[clap(long, default_value_t = 3)]
 	cores: u16,
 	/// Relay block at which the assignment starts; defaults to best block plus two.
 	#[clap(long)]
@@ -43,35 +43,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		return Err("--cores must be greater than zero".into());
 	}
 
-	let account = OriginAccount::from_uri(&args.seed, None).map_err(|error| format!("{error:?}"))?;
+	let account =
+		OriginAccount::from_uri(&args.seed, None).map_err(|error| format!("{error:?}"))?;
 	let signer = OriginSigner::from_account(&account).map_err(|error| format!("{error:?}"))?;
 	let client = OriginClient::connect(&args.endpoint).await?;
 	let best = client.online().blocks().at_latest().await?.number();
 	let begin = args.begin.unwrap_or(best.saturating_add(2));
 	let tx = client.tx().using(signer);
 
+	let mut assignments = Vec::with_capacity(args.cores.into());
+	let mut assigned_cores = Vec::with_capacity(args.cores.into());
 	for offset in 0..args.cores {
-		let core = args
-			.first_core
-			.checked_add(offset)
-			.ok_or("core index overflow")?;
-		let assign = subxt::dynamic::tx(
-			"Coretime",
-			"assign_core",
-			vec![
-				Value::u128(core.into()),
-				Value::u128(begin.into()),
-				full_core_assignment(args.para_id),
-				Value::variant("None", Composite::unnamed(vec![])),
-			],
+		let core = args.first_core.checked_add(offset).ok_or("core index overflow")?;
+		assignments.push(
+			subxt::dynamic::tx(
+				"Coretime",
+				"assign_core",
+				vec![
+					Value::u128(core.into()),
+					Value::u128(begin.into()),
+					full_core_assignment(args.para_id),
+					Value::variant("None", Composite::unnamed(vec![])),
+				],
+			)
+			.into_value(),
 		);
-		let sudo = subxt::dynamic::tx("Sudo", "sudo", vec![assign.into_value()]);
-		let outcome = tx.submit(sudo).await?.wait_finalized().await?;
-		println!(
-			"assigned core {core} to task {} from relay block {begin}; finalized in {:?}",
-			args.para_id, outcome.block
-		);
+		assigned_cores.push(core);
 	}
+
+	// A partial multi-core assignment leaves the parachain in a surprising intermediate state.
+	// Match the upstream Bulletin/storage operator flow by applying every Coretime call atomically
+	// under one Sudo dispatch.
+	let batch =
+		subxt::dynamic::tx("Utility", "batch_all", vec![Value::unnamed_composite(assignments)]);
+	let sudo = subxt::dynamic::tx("Sudo", "sudo", vec![batch.into_value()]);
+	let outcome = tx.submit(sudo).await?.wait_finalized().await?;
+	println!(
+		"assigned cores {assigned_cores:?} to task {} from relay block {begin}; finalized in {:?}",
+		args.para_id, outcome.block
+	);
 
 	Ok(())
 }

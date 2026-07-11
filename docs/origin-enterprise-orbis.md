@@ -13,7 +13,14 @@ referenda to manage validators:
 ## Elastic scaling
 
 The Origin host configuration enables Assignments V2, the elastic-scaling MVP, and candidate
-receipt V2/V3. Scheduler lookahead and async-backing depth are both set to three candidates.
+receipt V2/V3. Scheduler lookahead is three; async-backing candidate depth and ancestry length are
+six so the three-core authoring pipeline has enough relay history during handover and fork races.
+
+Origin keeps its six-second relay slot. Orbis uses a relay-parent offset of one, a target block rate
+of three, and unincluded-segment capacity twelve. With three assigned cores the slot-based node
+targets three Orbis blocks per Origin slot (an effective two-second block interval). The pinned SDK
+already carries versioned multi-block `ParachainBlockData` and node-side block-bundle validation, so
+this is enabled through runtime APIs rather than by copying an out-of-envelope SDK patch.
 
 Origin validators enable the experimental collator protocol by default. For an explicit mixed
 rollout it can be disabled with:
@@ -135,10 +142,11 @@ enabled; once retained data reaches its proof window, a block missing the expect
 
 ## Multi-core test topology
 
-`zombienet/testnet.toml` and `zombienet/testnet-fast500.toml` run two Sudo-selected Orbis
-invulnerables (`Alice` and `Bob`) with slot-based authoring. The relay test configuration exposes
-four schedulable cores with one validator per core; three are assigned to task `1006` through the
-bootstrap/Broker sequence below. A single-collator topology is not valid elastic-scaling evidence.
+`zombienet/testnet.toml` and `zombienet/testnet-elastic.toml` run two Sudo-selected Orbis
+invulnerables (`Alice` and `Bob`) with slot-based authoring. The relay test configuration uses six
+validators and exposes three schedulable cores with one validator per core; all three are assigned
+to task `1006` through the bootstrap/Broker sequence below. A single-collator topology is not valid
+elastic-scaling evidence.
 
 The 2.4-times acceptance campaign must compare one and three reservations with the same two
 collators, validator set, workload, state, warm-up, and duration. Run five interleaved repetitions
@@ -149,11 +157,11 @@ After launching the standard topology and submitting its bootstrap assignment, v
 Orbis best-block/finality progress plus the relay claim queue without external Python packages:
 
 ```text
-python3 zombienet/orbis_smoke.py --expected-cores 1
+python3 zombienet/orbis_smoke.py --expected-cores 3 --expected-block-rate 3
 ```
 
-The verifier waits through initial session activation, then requires both chains' best and
-finalized heights to advance during the measurement window. `--expected-cores 3` additionally
+The verifier waits through initial session activation, requires both chains' best and finalized
+heights to advance, checks Orbis's target-block-rate and relay-parent-offset runtime APIs, and
 requires task `1006` to appear on at least three distinct claim-queue cores.
 
 ## Core allocation
@@ -162,7 +170,7 @@ Orbis replaces Origin Hub as Origin's system-chain Coretime Broker. The relay ru
 parachain `1006` as its sole `BrokerId`; Orbis contains `pallet_broker` at SDK-required index `50`
 with Sudo/root administration.
 
-Origin Sudo must directly assign Orbis one permanent bootstrap core before starting Orbis. Once
+Origin Sudo may directly assign Orbis its three bootstrap/test cores before starting Orbis. Once
 Orbis is authoring, its Broker requests the required relay core count and sends assignments over
 privileged XCM. A full-core workload is `Task(para_id)` with all `57,600` parts. Reserving that
 workload multiple times assigns multiple cores to the same parachain; three reservations for task
@@ -172,12 +180,13 @@ For a development network, submit the Sudo bootstrap assignment from the reposit
 
 ```text
 cargo run -p origin-rs --example bootstrap_orbis_core -- \
-  --endpoint ws://127.0.0.1:9900 --first-core 0 --cores 1
+  --endpoint ws://127.0.0.1:9900 --first-core 0 --cores 3
 ```
 
-The example defaults the assignment start to the current best relay block plus two, waits for
-finalization, and can assign consecutive full cores for protocol testing. Assigning multiple cores
-with this relay-admin tool is an emergency/test override; it is not an Orbis Broker subscription.
+The example defaults the assignment start to the current best relay block plus two and submits all
+three `Coretime.assign_core` calls as one Sudo-wrapped `Utility.batch_all`, so a failure cannot leave
+a partial core set. It waits for finalization. Assigning multiple cores with this relay-admin tool
+is an emergency/test override; it is not an Orbis Broker subscription.
 
 Other enterprise parachains are registered by Origin Sudo and receive cores from Orbis Sudo using
 the same full-core reservations. Direct relay

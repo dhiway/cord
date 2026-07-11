@@ -33,6 +33,20 @@ use xcm_runtime_apis::conversions::LocationToAccountHelper;
 
 const ALICE: [u8; 32] = [1u8; 32];
 
+#[test]
+fn elastic_scaling_runtime_parameters_target_three_blocks_per_relay_slot() {
+	assert_eq!(crate::RELAY_PARENT_OFFSET, 1);
+	assert_eq!(crate::BLOCK_PROCESSING_VELOCITY, 3);
+	assert_eq!(crate::SLOT_DURATION, 6_000);
+	assert_eq!(crate::UNINCLUDED_SEGMENT_CAPACITY, 12);
+	assert_eq!(
+		<<Runtime as cumulus_pallet_parachain_system::Config>::RelayParentOffset as Get<u32>>::get(
+		),
+		1
+	);
+	assert!(<<Runtime as pallet_aura::Config>::AllowMultipleBlocksPerSlot as Get<bool>>::get());
+}
+
 fn decode_hex(input: &str) -> Vec<u8> {
 	let input = input.trim();
 	assert_eq!(input.len() % 2, 0);
@@ -171,21 +185,16 @@ fn identity_bound_contract_moves_assets_and_persists_its_audit() {
 			crate::ExistentialDeposit::get(),
 		);
 
-		let mut identity =
-			pallet_cord_identity::legacy::IdentityInfo::<crate::PeopleMaxAdditionalFields>::default(
-			);
+		let mut identity = pallet_cord_identity::legacy::IdentityInfo::<
+			crate::PeopleMaxAdditionalFields,
+		>::default();
 		identity.display =
 			pallet_cord_identity::Data::Raw(b"Alice Orbis".to_vec().try_into().unwrap());
-		assert_ok!(People::set_identity(
-			RuntimeOrigin::signed(owner.clone()),
-			Box::new(identity),
-		));
+		assert_ok!(People::set_identity(RuntimeOrigin::signed(owner.clone()), Box::new(identity),));
 		assert!(People::has_identity(&owner, 1));
 		let identity_commitment = sp_io::hashing::blake2_256(owner.as_ref());
 
-		let code = decode_hex(include_str!(
-			"../fixtures/build/IdentityAssetAudit.bin"
-		));
+		let code = decode_hex(include_str!("../fixtures/build/IdentityAssetAudit.bin"));
 		let instantiated = BareInstantiateBuilder::<Runtime>::bare_instantiate(
 			RuntimeOrigin::signed(owner.clone()),
 			Code::Upload(code),
@@ -196,9 +205,9 @@ fn identity_bound_contract_moves_assets_and_persists_its_audit() {
 		.build_and_unwrap_result();
 		assert!(!instantiated.result.did_revert());
 		let contract_addr = instantiated.addr;
-		let contract_account =
-			<pallet_revive::AccountId32Mapper<Runtime> as AddressMapper<Runtime>>::
-				to_fallback_account_id(&contract_addr);
+		let contract_account = <pallet_revive::AccountId32Mapper<Runtime> as AddressMapper<
+			Runtime,
+		>>::to_fallback_account_id(&contract_addr);
 
 		let asset_id = 7u32;
 		assert_ok!(Assets::create(
@@ -219,9 +228,9 @@ fn identity_bound_contract_moves_assets_and_persists_its_audit() {
 		let mut asset_addr = [0u8; 20];
 		asset_addr[..4].copy_from_slice(&asset_id.to_be_bytes());
 		asset_addr[16..18].copy_from_slice(&0x0120u16.to_be_bytes());
-		let recipient_addr =
-			<pallet_revive::AccountId32Mapper<Runtime> as AddressMapper<Runtime>>::
-				to_address(&recipient);
+		let recipient_addr = <pallet_revive::AccountId32Mapper<Runtime> as AddressMapper<
+			Runtime,
+		>>::to_address(&recipient);
 		let mut transfer =
 			sp_io::hashing::keccak_256(b"transferAndAudit(address,address,uint256,bytes32)")[..4]
 				.to_vec();
@@ -268,10 +277,7 @@ fn identity_bound_contract_moves_assets_and_persists_its_audit() {
 			who: owner,
 			scope,
 		};
-		assert_ok!(TransactionStorage::store(
-			RuntimeOrigin::from(authorized),
-			audit_record,
-		));
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::from(authorized), audit_record,));
 		assert!(TransactionStorage::contains_transaction(audit));
 		<TransactionStorage as Hooks<u32>>::on_finalize(1);
 		assert_eq!(TransactionStorage::transactions_at(1).unwrap()[0].content_hash, audit);
@@ -330,8 +336,7 @@ fn bulletin_storage_is_authorized_indexed_and_content_addressed() {
 
 #[test]
 fn bulletin_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm() {
-	type XcmSafeCalls =
-		<crate::xcm_config::XcmConfig as xcm_executor::Config>::SafeCallFilter;
+	type XcmSafeCalls = <crate::xcm_config::XcmConfig as xcm_executor::Config>::SafeCallFilter;
 	let store = RuntimeCall::TransactionStorage(pallet_bulletin_transaction_storage::Call::store {
 		data: b"audit".to_vec(),
 	});
@@ -472,26 +477,16 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			frame_metadata_hash_extension::CheckMetadataHash::new(false),
 		);
 		let implicit = bare.implicit().expect("test externalities provide implicit data");
-		let signature = (
-			META_EXTENSION_VERSION,
-			call.clone(),
-			bare.clone(),
-			implicit,
-		)
+		let signature = (META_EXTENSION_VERSION, call.clone(), bare.clone(), implicit)
 			.using_encoded(|payload| signing_pair.sign(&sp_io::hashing::blake2_256(payload)));
-		let verify =
-			pallet_verify_signature::VerifySignature::new_with_signature(
-				MultiSignature::Sr25519(signature),
-				claimed,
-			);
+		let verify = pallet_verify_signature::VerifySignature::new_with_signature(
+			MultiSignature::Sr25519(signature),
+			claimed,
+		);
 		let (marker, nonzero, spec, tx, genesis, mortality, nonce, storage, metadata) = bare;
 		let extension =
 			(verify, marker, nonzero, spec, tx, genesis, mortality, nonce, storage, metadata);
-		pallet_meta_tx::MetaTxFor::<Runtime>::new(
-			call,
-			META_EXTENSION_VERSION,
-			extension,
-		)
+		pallet_meta_tx::MetaTxFor::<Runtime>::new(call, META_EXTENSION_VERSION, extension)
 	}
 
 	sp_io::TestExternalities::new_empty().execute_with(|| {

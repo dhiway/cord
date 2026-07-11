@@ -1,10 +1,10 @@
-# Build (fast runtime for 500ms blocks):
-#   cargo build -p origin-orbis -p origin-orbis-runtime --release --features fast-runtime
+# Build the production-shaped 3-core elastic runtime:
+#   cargo build -p origin-orbis -p origin-orbis-runtime --release
 # Launch:
-#   zombienet -p native spawn zombienet/testnet-fast500.toml
+#   zombienet -p native spawn zombienet/testnet-elastic.toml
 # In a second terminal, assign cores and verify progress/finality:
-#   cargo run -p origin-rs --example bootstrap_orbis_core -- --endpoint ws://127.0.0.1:9801 --cores 1
-#   python3 zombienet/orbis_smoke.py --relay http://127.0.0.1:9801 --orbis http://127.0.0.1:9810
+#   cargo run -p origin-rs --example bootstrap_orbis_core -- --endpoint ws://127.0.0.1:9801 --cores 3
+#   python3 zombienet/orbis_smoke.py --relay http://127.0.0.1:9801 --orbis http://127.0.0.1:9810 --expected-cores 3 --expected-block-rate 3
 
 [settings]
 timeout = 300
@@ -14,12 +14,12 @@ chain = "origin-local"
 default_command = "target/release/origin"
 
 [relaychain.genesis.runtimeGenesis.patch.configuration.config.async_backing_params]
+allowed_ancestry_len = 6
 max_candidate_depth = 6
-allowed_ancestry_len = 2
 
 [relaychain.genesis.runtimeGenesis.patch.configuration.config.scheduler_params]
 max_validators_per_core = 1
-num_cores = 4
+num_cores = 3
 lookahead = 3
 
 [[relaychain.nodes]]
@@ -87,6 +87,7 @@ id = 1006
 addToGenesis = true
 cumulus_based = true
 chain = "orbis-local"
+num_cores = 3
 
 [[parachains.collators]]
 name = "orbis-alice"

@@ -67,12 +67,21 @@ def snapshot(relay, orbis):
     }
 
 
+def runtime_api_u32(url, method):
+    encoded = rpc(url, "state_call", [method, "0x"])
+    data = bytes.fromhex(encoded.removeprefix("0x"))
+    if len(data) != 4:
+        raise RuntimeError(f"{method} returned {len(data)} bytes, expected SCALE u32")
+    return int.from_bytes(data, "little")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--relay", default="http://127.0.0.1:9900")
     parser.add_argument("--orbis", default="http://127.0.0.1:9910")
     parser.add_argument("--para-id", type=int, default=1006)
-    parser.add_argument("--expected-cores", type=int, default=1)
+    parser.add_argument("--expected-cores", type=int, default=3)
+    parser.add_argument("--expected-block-rate", type=int, default=3)
     parser.add_argument("--wait", type=int, default=30)
     parser.add_argument("--startup-timeout", type=int, default=180)
     args = parser.parse_args()
@@ -82,6 +91,22 @@ def main():
     if relay_version["specName"] != "origin" or orbis_version["specName"] != "orbis":
         raise RuntimeError(
             f"unexpected runtimes: {relay_version['specName']}/{orbis_version['specName']}"
+        )
+
+    target_block_rate = runtime_api_u32(
+        args.orbis, "TargetBlockRate_target_block_rate"
+    )
+    relay_parent_offset = runtime_api_u32(
+        args.orbis, "RelayParentOffsetApi_relay_parent_offset"
+    )
+    if target_block_rate != args.expected_block_rate:
+        raise RuntimeError(
+            f"Orbis target block rate is {target_block_rate}, "
+            f"expected {args.expected_block_rate}"
+        )
+    if relay_parent_offset != 1:
+        raise RuntimeError(
+            f"Orbis relay-parent offset is {relay_parent_offset}, expected 1"
         )
 
     deadline = time.monotonic() + args.startup_timeout
@@ -116,6 +141,8 @@ def main():
                 "after": after,
                 "para_id": args.para_id,
                 "claim_queue_cores": assigned,
+                "target_block_rate": target_block_rate,
+                "relay_parent_offset": relay_parent_offset,
                 "relay_spec_version": relay_version["specVersion"],
                 "orbis_spec_version": orbis_version["specVersion"],
             },

@@ -124,8 +124,8 @@ fn default_parachains_host_configuration() -> HostConfiguration<polkadot_primiti
 				(1u8 << (FeatureIndex::CandidateReceiptV3 as usize)),
 		),
 		async_backing_params: AsyncBackingParams {
-			max_candidate_depth: 3,
-			allowed_ancestry_len: 2,
+			max_candidate_depth: 6,
+			allowed_ancestry_len: 6,
 		},
 		max_relay_parent_session_age: 0,
 		executor_params: Default::default(),
@@ -272,7 +272,8 @@ mod tests {
 		let config = default_parachains_host_configuration();
 
 		assert_eq!(config.scheduler_params.lookahead, 3);
-		assert_eq!(config.async_backing_params.max_candidate_depth, 3);
+		assert_eq!(config.async_backing_params.max_candidate_depth, 6);
+		assert_eq!(config.async_backing_params.allowed_ancestry_len, 6);
 		assert!(FeatureIndex::EnableAssignmentsV2.is_set(&config.node_features));
 		assert!(FeatureIndex::ElasticScalingMVP.is_set(&config.node_features));
 		assert!(FeatureIndex::CandidateReceiptV2.is_set(&config.node_features));

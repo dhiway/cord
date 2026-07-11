@@ -63,13 +63,7 @@ use origin_hub_system_runtime_constants::{
 	async_backing::{
 		AVERAGE_ON_INITIALIZE_RATIO, HOURS, MAXIMUM_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO,
 	},
-	origin::{
-		consensus::{
-			async_backing::UNINCLUDED_SEGMENT_CAPACITY, BLOCK_PROCESSING_VELOCITY,
-			RELAY_CHAIN_SLOT_DURATION_MILLIS,
-		},
-		currency::*,
-	},
+	origin::currency::*,
 };
 use origin_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
 use origin_runtime_constants::{currency::EXISTENTIAL_DEPOSIT, fee, time::DAYS};
@@ -116,6 +110,23 @@ use xcm_runtime_apis::{
 	fees::Error as XcmPaymentApiError,
 };
 
+/// Build one relay parent behind the relay-chain tip, avoiding relay fork races in the
+/// slot-based elastic authoring pipeline.
+const RELAY_PARENT_OFFSET: u32 = 1;
+
+/// Maximum Orbis blocks produced per six-second Origin relay slot. When three cores are assigned,
+/// the slot-based collator can build one collation per core (and bundle multiple blocks per
+/// collation where the node determines that is appropriate), targeting an effective two-second
+/// block interval.
+const BLOCK_PROCESSING_VELOCITY: u32 = 3;
+
+/// Capacity required for a three-core pipeline plus the one-block relay-parent offset.
+const UNINCLUDED_SEGMENT_CAPACITY: u32 = (3 + RELAY_PARENT_OFFSET) * BLOCK_PROCESSING_VELOCITY;
+
+/// Origin retains six-second relay-chain slots; Orbis obtains throughput from multiple cores and
+/// block bundles rather than changing relay consensus timing.
+const RELAY_CHAIN_SLOT_DURATION_MILLIS: u32 = 6_000;
+
 impl_opaque_keys! {
 	pub struct SessionKeys {
 		pub aura: Aura,
@@ -127,7 +138,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 8,
+	spec_version: 9,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -594,7 +605,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type CheckAssociatedRelayNumber = RelayNumberMonotonicallyIncreases;
 	type ConsensusHook = ConsensusHook;
 	type WeightInfo = weights::cumulus_pallet_parachain_system::WeightInfo<Runtime>;
-	type RelayParentOffset = ConstU32<0>;
+	type RelayParentOffset = ConstU32<RELAY_PARENT_OFFSET>;
 	type SchedulingSignatureVerifier = ();
 }
 
@@ -1330,7 +1341,7 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 
 	impl cumulus_primitives_core::RelayParentOffsetApi<Block> for Runtime {
 		fn relay_parent_offset() -> u32 {
-			0
+			RELAY_PARENT_OFFSET
 		}
 
 		fn max_claim_queue_offset() -> u8 {
@@ -1341,6 +1352,12 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 	impl cumulus_primitives_core::SchedulingV3EnabledApi<Block> for Runtime {
 		fn scheduling_v3_enabled() -> bool {
 			<Runtime as cumulus_pallet_parachain_system::Config>::SchedulingSignatureVerifier::V3_SCHEDULING_ENABLED
+		}
+	}
+
+	impl cumulus_primitives_core::TargetBlockRate<Block> for Runtime {
+		fn target_block_rate() -> u32 {
+			BLOCK_PROCESSING_VELOCITY
 		}
 	}
 
