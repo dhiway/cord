@@ -85,7 +85,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Sudo attestation and forced administration | enterprise adaptation | Present |
 | People Lite compatibility API and storage semantics | `indiv_pallet_people_lite` | Partial adapter; parity suite pending |
 | Storage initialization | `indiv_pallet_storage_initialization` | Gap |
-| Resources and chunk management | `indiv_pallet_resources`, `indiv_pallet_chunks_manager` | Gap |
+| Resources and chunk management | `indiv_pallet_resources`, `indiv_pallet_chunks_manager` | Chunk manager present at index 91 with Sudo-managed ring parameter hashes; Resources gap |
 | Members and notifications | members/subscriber/notifier pallets | Gap |
 | Coinage and airdrop | Individuality People | Gap; enterprise issuance policy required |
 | Honour, proof-of-ink, score and game | Individuality People application pallets | Gap |

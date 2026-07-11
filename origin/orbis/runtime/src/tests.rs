@@ -18,7 +18,7 @@
 
 use crate::{
 	xcm_config::LocationToAccountId, AssetConversion, AssetRate, AssetTxPayment, Assets,
-	AssetsFreezer, AssetsHolder, Balances, Broker, Entity, Feeless, ForeignAssets,
+	AssetsFreezer, AssetsHolder, Balances, Broker, ChunksManager, Entity, Feeless, ForeignAssets,
 	ForeignAssetsFreezer, HopPromotion, Nfts, People, PoolAssets, PoolAssetsFreezer, Revive,
 	Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage, Uniques,
 };
@@ -319,6 +319,33 @@ fn asset_fee_selector_is_preserved_inside_the_feeless_envelope() {
 }
 
 #[test]
+fn people_chunk_hashes_are_initialized_by_sudo_only() {
+	use indiv_pallet_chunks_manager::{ChunkPageHashes, RingExponent};
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		let hashes: frame_support::BoundedVec<
+			[u8; 32],
+			frame_support::traits::ConstU32<{ indiv_pallet_chunks_manager::MAX_PAGE_COUNT }>,
+		> = vec![[1u8; 32], [2u8; 32]].try_into().expect("two hashes are bounded");
+		assert_noop!(
+			ChunksManager::set_chunk_page_hashes(
+				RuntimeOrigin::signed(AccountId::from(ALICE)),
+				RingExponent::R2e9,
+				hashes.clone(),
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+		assert_ok!(ChunksManager::set_chunk_page_hashes(
+			RuntimeOrigin::root(),
+			RingExponent::R2e9,
+			hashes,
+		));
+		assert_eq!(ChunkPageHashes::<Runtime>::get(RingExponent::R2e9, 0), Some([1u8; 32]));
+		assert_eq!(ChunkPageHashes::<Runtime>::get(RingExponent::R2e9, 1), Some([2u8; 32]));
+	});
+}
+
+#[test]
 fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<<Runtime as pallet_revive::Config>::ChainId as Get<u64>>::get(), 420_001_006);
 	assert!(<<Runtime as pallet_revive::Config>::AllowEVMBytecode as Get<bool>>::get());
@@ -342,6 +369,7 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<TransactionStorage as PalletInfoAccess>::index(), 110);
 	assert_eq!(<crate::HopPromotion as PalletInfoAccess>::index(), 111);
 	assert_eq!(<crate::WeightReclaim as PalletInfoAccess>::index(), 4);
+	assert_eq!(<ChunksManager as PalletInfoAccess>::index(), 91);
 	assert_eq!(<<Runtime as pallet_broker::Config>::MaxReservedCores as Get<u32>>::get(), 50);
 }
 

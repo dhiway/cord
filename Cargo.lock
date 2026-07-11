@@ -770,6 +770,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "paste",
+ "rayon",
  "zeroize",
 ]
 
@@ -945,6 +946,7 @@ dependencies = [
  "educe",
  "fnv",
  "hashbrown 0.15.5",
+ "rayon",
 ]
 
 [[package]]
@@ -1167,6 +1169,7 @@ dependencies = [
  "ark-std 0.5.0",
  "digest 0.10.7",
  "generic-array 0.14.7",
+ "rayon",
  "sha2 0.10.9",
  "w3f-ring-proof",
  "zeroize",
@@ -7144,6 +7147,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "indiv-pallet-chunks-manager"
+version = "0.9.9"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "indiv-support",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "verifiable",
+]
+
+[[package]]
+name = "indiv-support"
+version = "0.9.9"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-asset-conversion",
+ "pallet-asset-conversion-tx-payment",
+ "pallet-asset-tx-payment",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-transaction-payment",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-statement-store",
+ "verifiable",
+]
+
+[[package]]
 name = "inout"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9540,6 +9579,8 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "hex-literal",
+ "indiv-pallet-chunks-manager",
+ "indiv-support",
  "log",
  "origin-hub-system-runtime-constants",
  "origin-primitives",
@@ -9617,6 +9658,7 @@ dependencies = [
  "staging-xcm-executor",
  "substrate-wasm-builder",
  "token-origin-hub-runtime-api",
+ "verifiable",
  "xcm-runtime-apis",
 ]
 
@@ -20122,6 +20164,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
+name = "verifiable"
+version = "0.5.0"
+source = "git+https://github.com/paritytech/verifiable?rev=93464a69a9aeb0db5d392aae5963ca1d8b5d6fa5#93464a69a9aeb0db5d392aae5963ca1d8b5d6fa5"
+dependencies = [
+ "ark-scale",
+ "ark-serialize 0.5.0",
+ "ark-vrf",
+ "bounded-collections",
+ "parity-scale-codec",
+ "scale-info",
+ "sha2 0.10.9",
+ "smallvec",
+ "spin 0.9.8",
+]
+
+[[package]]
 name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -20167,6 +20225,7 @@ dependencies = [
  "ark-serialize 0.5.0",
  "ark-std 0.5.0",
  "merlin",
+ "rayon",
 ]
 
 [[package]]
@@ -20182,6 +20241,7 @@ dependencies = [
  "ark-std 0.5.0",
  "getrandom_or_panic",
  "rand_core 0.6.4",
+ "rayon",
  "w3f-pcs",
 ]
 
@@ -20197,6 +20257,7 @@ dependencies = [
  "ark-serialize 0.5.0",
  "ark-std 0.5.0",
  "ark-transcript",
+ "rayon",
  "w3f-pcs",
  "w3f-plonk-common",
 ]

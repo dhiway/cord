@@ -105,6 +105,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 /// Runtime API definition for token.
 pub use token_origin_hub_runtime_api as token_api;
+use verifiable::{ring::bandersnatch::BandersnatchVrfVerifiable, GenerateVerifiable};
 
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 use xcm::{
@@ -147,7 +148,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 18,
+	spec_version: 19,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -1101,6 +1102,39 @@ impl pallet_orbis_people::Config for Runtime {
 }
 
 parameter_types! {
+	pub const PeopleChunkPageSize: u32 = 256;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct ChunksManagerBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl
+	indiv_pallet_chunks_manager::BenchmarkHelper<
+		<BandersnatchVrfVerifiable as GenerateVerifiable>::StaticChunk,
+	> for ChunksManagerBenchmarkHelper
+{
+	fn chunk_page() -> Vec<<BandersnatchVrfVerifiable as GenerateVerifiable>::StaticChunk> {
+		use indiv_support::genesis::ring_verifier_builder_params;
+		use verifiable::ring::RingDomainSize;
+
+		ring_verifier_builder_params(RingDomainSize::Domain11)
+			.into_iter()
+			.take(PeopleChunkPageSize::get() as usize)
+			.collect()
+	}
+}
+
+impl indiv_pallet_chunks_manager::Config for Runtime {
+	type WeightInfo = indiv_pallet_chunks_manager::weights::SubstrateWeight<Runtime>;
+	type Chunk = <BandersnatchVrfVerifiable as GenerateVerifiable>::StaticChunk;
+	type PageSize = PeopleChunkPageSize;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ChunksManagerBenchmarkHelper;
+}
+
+parameter_types! {
 	pub const BulletinMaxBlockTransactions: u32 = 128;
 	pub const BulletinMaxTransactionSize: u32 = 256 * 1024;
 	pub const BulletinMaxPermanentStorageSize: u64 = 16 * 1024 * 1024 * 1024;
@@ -1262,6 +1296,7 @@ construct_runtime!(
 
 		// People identity and lightweight aliases.
 		People: pallet_orbis_people = 90,
+		ChunksManager: indiv_pallet_chunks_manager = 91,
 
 		// Solidity and PolkaVM contracts.
 		Revive: pallet_revive = 100,
@@ -1514,6 +1549,7 @@ mod benches {
 		[pallet_bulletin_transaction_storage, TransactionStorage]
 		[pallet_bulletin_hop_promotion, HopPromotion]
 		[pallet_orbis_people, People]
+		[indiv_pallet_chunks_manager, ChunksManager]
 		[pallet_entity, Entity]
 		[pallet_message_queue, MessageQueue]
 		[pallet_meta_tx, MetaTx]

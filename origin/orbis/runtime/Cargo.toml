@@ -23,6 +23,9 @@ origin-primitives = { workspace = true }
 origin-runtime-constants = { workspace = true }
 origin-hub-system-runtime-constants = { workspace = true }
 token-origin-hub-runtime-api = { workspace = true }
+indiv-pallet-chunks-manager = { workspace = true }
+indiv-support = { workspace = true }
+verifiable = { workspace = true }
 
 # Substrate
 frame-benchmarking = { optional = true, workspace = true }
@@ -129,6 +132,9 @@ std = [
 	"origin-runtime-constants/std",
 	"origin-hub-system-runtime-constants/std",
 	"token-origin-hub-runtime-api/std",
+	"indiv-pallet-chunks-manager/std",
+	"indiv-support/std",
+	"verifiable/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
 	"cumulus-pallet-session-benchmarking/std",
@@ -223,6 +229,9 @@ std = [
 
 runtime-benchmarks = [
 	"assets-common/runtime-benchmarks",
+	"indiv-pallet-chunks-manager/runtime-benchmarks",
+	"indiv-support/runtime-benchmarks",
+	"indiv-support/genesis",
 	"origin-runtime-constants/runtime-benchmarks",
 	"origin-hub-system-runtime-constants/runtime-benchmarks",
 	"cumulus-pallet-parachain-system/runtime-benchmarks",
@@ -278,10 +287,13 @@ runtime-benchmarks = [
 	"xcm-executor/runtime-benchmarks",
 	"xcm-runtime-apis/runtime-benchmarks",
 	"xcm/runtime-benchmarks",
+	"verifiable/builder-params",
+	"verifiable/no-std-prover",
 ]
 
 try-runtime = [
 	"assets-common/try-runtime",
+	"indiv-pallet-chunks-manager/try-runtime",
 	"cumulus-pallet-aura-ext/try-runtime",
 	"cumulus-pallet-parachain-system/try-runtime",
 	"cumulus-pallet-weight-reclaim/try-runtime",
