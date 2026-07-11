@@ -330,16 +330,21 @@ fn bulletin_storage_is_authorized_indexed_and_content_addressed() {
 
 #[test]
 fn bulletin_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm() {
+	type XcmSafeCalls =
+		<crate::xcm_config::XcmConfig as xcm_executor::Config>::SafeCallFilter;
 	let store = RuntimeCall::TransactionStorage(pallet_bulletin_transaction_storage::Call::store {
 		data: b"audit".to_vec(),
 	});
 	assert!(crate::BulletinCallInspector::contains(&store));
+	assert!(!XcmSafeCalls::contains(&store));
 
 	let wrapped = RuntimeCall::Utility(pallet_utility::Call::batch { calls: vec![store] });
 	assert!(crate::BulletinCallInspector::contains(&wrapped));
+	assert!(!XcmSafeCalls::contains(&wrapped));
 
 	let ordinary = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
 	assert!(!crate::BulletinCallInspector::contains(&ordinary));
+	assert!(XcmSafeCalls::contains(&ordinary));
 }
 
 fn full_core_task(task: u32) -> Schedule {
