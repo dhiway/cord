@@ -48,8 +48,8 @@ use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	parameter_types,
 	traits::{
-		AsEnsureOriginWithArg, ConstBool, ConstU32, ConstU64, Contains, EitherOf, EitherOfDiverse,
-		Everything, InstanceFilter, PrivilegeCmp, TransformOrigin, VariantCountOf,
+		AsEnsureOriginWithArg, ConstBool, ConstU128, ConstU32, ConstU64, Contains, EitherOf,
+		EitherOfDiverse, Everything, InstanceFilter, PrivilegeCmp, TransformOrigin, VariantCountOf,
 	},
 	weights::{ConstantMultiplier, Weight},
 	PalletId,
@@ -67,7 +67,7 @@ use origin_hub_system_runtime_constants::{
 };
 use origin_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
 use origin_runtime_constants::{currency::EXISTENTIAL_DEPOSIT, fee, time::DAYS};
-use pallet_assets_precompiles::{InlineIdConfig, ERC20};
+use pallet_assets_precompiles::{ForeignIdConfig, InlineIdConfig, ERC20};
 use pallet_revive::evm::runtime::EthExtra;
 use pallet_token::Token as TokenTrait;
 use pallet_transaction_payment::FungibleAdapter;
@@ -138,7 +138,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 12,
+	spec_version: 13,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -372,12 +372,29 @@ parameter_types! {
 	pub const AssetsStringLimit: u32 = 50;
 	pub const AssetMetadataDepositBase: Balance = system_para_deposit(1, 68);
 	pub const AssetMetadataDepositPerByte: Balance = system_para_deposit(0, 1);
+	pub OrbisAssetAdmin: AccountId = AccountId::from([0xA5; 32]);
 }
 
 /// Local enterprise assets addressable by a compact `u32` identifier.
 pub type AssetsInstance = pallet_assets::Instance1;
 pub type AssetsFreezerInstance = pallet_assets_freezer::Instance1;
 pub type AssetsHolderInstance = pallet_assets_holder::Instance1;
+pub type ForeignAssetsInstance = pallet_assets::Instance2;
+pub type ForeignAssetsFreezerInstance = pallet_assets_freezer::Instance2;
+pub type PoolAssetsInstance = pallet_assets::Instance3;
+pub type PoolAssetsFreezerInstance = pallet_assets_freezer::Instance3;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct ForeignAssetsBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_assets::BenchmarkHelper<Location, ()> for ForeignAssetsBenchmarkHelper {
+	fn create_asset_id_parameter(id: u32) -> Location {
+		Location::new(1, [Parachain(id)])
+	}
+
+	fn create_reserve_id_parameter(_: u32) {}
+}
 
 impl pallet_assets::Config<AssetsInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -412,6 +429,72 @@ impl pallet_assets_freezer::Config<AssetsFreezerInstance> for Runtime {
 impl pallet_assets_holder::Config<AssetsHolderInstance> for Runtime {
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeEvent = RuntimeEvent;
+}
+
+impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type AssetId = Location;
+	type AssetIdParameter = Location;
+	type ReserveData = ();
+	type Currency = Balances;
+	type CreateOrigin = EnsureRootWithSuccess<AccountId, OrbisAssetAdmin>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type MetadataDepositBase = AssetMetadataDepositBase;
+	type MetadataDepositPerByte = AssetMetadataDepositPerByte;
+	type ApprovalDeposit = AssetApprovalDeposit;
+	type StringLimit = AssetsStringLimit;
+	type Holder = ();
+	type Freezer = ForeignAssetsFreezer;
+	type Extra = ();
+	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
+	type CallbackHandle = ();
+	type AssetAccountDeposit = AssetAccountDeposit;
+	type RemoveItemsLimit = ConstU32<1000>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ForeignAssetsBenchmarkHelper;
+}
+
+impl pallet_assets_freezer::Config<ForeignAssetsFreezerInstance> for Runtime {
+	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type RuntimeEvent = RuntimeEvent;
+}
+
+impl pallet_assets::Config<PoolAssetsInstance> for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type AssetId = u32;
+	type AssetIdParameter = u32;
+	type ReserveData = ();
+	type Currency = Balances;
+	type CreateOrigin = EnsureRootWithSuccess<AccountId, OrbisAssetAdmin>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = ConstU128<0>;
+	type MetadataDepositBase = ConstU128<0>;
+	type MetadataDepositPerByte = ConstU128<0>;
+	type ApprovalDeposit = ConstU128<0>;
+	type StringLimit = AssetsStringLimit;
+	type Holder = ();
+	type Freezer = PoolAssetsFreezer;
+	type Extra = ();
+	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
+	type CallbackHandle = ();
+	type AssetAccountDeposit = ConstU128<0>;
+	type RemoveItemsLimit = ConstU32<1000>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
+impl pallet_assets_freezer::Config<PoolAssetsFreezerInstance> for Runtime {
+	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type RuntimeEvent = RuntimeEvent;
+}
+
+impl pallet_assets_precompiles::ForeignAssetsConfig for Runtime {
+	type ForeignAssetId = Location;
+	#[cfg(feature = "runtime-benchmarks")]
+	type AssetsInstance = ForeignAssetsInstance;
 }
 
 impl pallet_assets_precompiles::PermitConfig for Runtime {
@@ -465,7 +548,11 @@ impl pallet_revive::Config for Runtime {
 	type DepositPerChildTrieItem = ReviveDepositPerChildTrieItem;
 	type DepositPerByte = ReviveDepositPerByte;
 	type WeightInfo = pallet_revive::weights::SubstrateWeight<Self>;
-	type Precompiles = (ERC20<Self, InlineIdConfig<0x120>, AssetsInstance>,);
+	type Precompiles = (
+		ERC20<Self, InlineIdConfig<0x120>, AssetsInstance>,
+		ERC20<Self, ForeignIdConfig<0x220, Self, ForeignAssetsInstance>, ForeignAssetsInstance>,
+		ERC20<Self, InlineIdConfig<0x320>, PoolAssetsInstance>,
+	);
 	type AddressMapper = pallet_revive::AccountId32Mapper<Self>;
 	type RuntimeMemory = ConstU32<{ 128 * 1024 * 1024 }>;
 	type PVFMemory = ConstU32<{ 512 * 1024 * 1024 }>;
@@ -984,6 +1071,10 @@ construct_runtime!(
 		Assets: pallet_assets::<Instance1> = 80,
 		AssetsFreezer: pallet_assets_freezer::<Instance1> = 81,
 		AssetsHolder: pallet_assets_holder::<Instance1> = 82,
+		ForeignAssets: pallet_assets::<Instance2> = 83,
+		PoolAssets: pallet_assets::<Instance3> = 84,
+		ForeignAssetsFreezer: pallet_assets_freezer::<Instance2> = 85,
+		PoolAssetsFreezer: pallet_assets_freezer::<Instance3> = 86,
 
 		// People identity and lightweight aliases.
 		People: pallet_cord_identity = 90,

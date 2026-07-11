@@ -18,8 +18,8 @@
 
 use crate::{
 	xcm_config::LocationToAccountId, Assets, AssetsFreezer, AssetsHolder, Balances, Broker, Entity,
-	Feeless, HopPromotion, People, Revive, Runtime, RuntimeCall, RuntimeOrigin, System,
-	TransactionStorage,
+	Feeless, ForeignAssets, ForeignAssetsFreezer, HopPromotion, People, PoolAssets,
+	PoolAssetsFreezer, Revive, Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage,
 };
 use frame_support::{
 	assert_noop, assert_ok,
@@ -131,12 +131,71 @@ fn enterprise_assets_support_native_holds_and_freezes() {
 }
 
 #[test]
+fn foreign_and_pool_assets_are_native_and_sudo_administered() {
+	use frame_support::traits::tokens::fungibles::freeze::Mutate;
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		let owner = AccountId::from(ALICE);
+		let beneficiary = AccountId::from([2u8; 32]);
+		let foreign_id = Location::parent();
+
+		assert_noop!(
+			ForeignAssets::create(
+				RuntimeOrigin::signed(owner.clone()),
+				foreign_id.clone(),
+				owner.clone().into(),
+				1,
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+		assert_ok!(ForeignAssets::force_create(
+			RuntimeOrigin::root(),
+			foreign_id.clone(),
+			owner.clone().into(),
+			true,
+			1,
+		));
+		assert_ok!(ForeignAssets::mint(
+			RuntimeOrigin::signed(owner.clone()),
+			foreign_id.clone(),
+			beneficiary.clone().into(),
+			500,
+		));
+		let freeze_reason =
+			crate::RuntimeFreezeReason::Revive(pallet_revive::FreezeReason::PGasMinBalance);
+		assert_ok!(
+			ForeignAssetsFreezer::set_freeze(foreign_id, &freeze_reason, &beneficiary, 300,)
+		);
+
+		assert_ok!(PoolAssets::force_create(
+			RuntimeOrigin::root(),
+			7,
+			owner.clone().into(),
+			true,
+			1,
+		));
+		assert_ok!(PoolAssets::mint(
+			RuntimeOrigin::signed(owner),
+			7,
+			beneficiary.clone().into(),
+			1_000,
+		));
+		assert_ok!(PoolAssetsFreezer::set_freeze(7, &freeze_reason, &beneficiary, 600,));
+		assert_eq!(PoolAssets::balance(7, beneficiary), 1_000);
+	});
+}
+
+#[test]
 fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<<Runtime as pallet_revive::Config>::ChainId as Get<u64>>::get(), 420_001_006);
 	assert!(<<Runtime as pallet_revive::Config>::AllowEVMBytecode as Get<bool>>::get());
 	assert_eq!(<Assets as PalletInfoAccess>::index(), 80);
 	assert_eq!(<AssetsFreezer as PalletInfoAccess>::index(), 81);
 	assert_eq!(<AssetsHolder as PalletInfoAccess>::index(), 82);
+	assert_eq!(<ForeignAssets as PalletInfoAccess>::index(), 83);
+	assert_eq!(<PoolAssets as PalletInfoAccess>::index(), 84);
+	assert_eq!(<ForeignAssetsFreezer as PalletInfoAccess>::index(), 85);
+	assert_eq!(<PoolAssetsFreezer as PalletInfoAccess>::index(), 86);
 	assert_eq!(<Revive as PalletInfoAccess>::index(), 100);
 	// The SDK relay Coretime pallet encodes callbacks to Broker at index 50.
 	assert_eq!(<Broker as PalletInfoAccess>::index(), 50);

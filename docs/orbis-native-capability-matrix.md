@@ -64,8 +64,8 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Fungible local assets | `pallet_assets` | Present at index 80 |
 | ERC-20 asset precompile | asset precompiles | Present and exercised from Solidity |
 | Solidity/PolkaVM contracts | `pallet_revive` | Present at index 100; deploy/call fixture tested |
-| Foreign assets | second `pallet_assets` instance | Gap |
-| Pool assets | third `pallet_assets` instance | Gap |
+| Foreign assets | second `pallet_assets` instance | Present at index 83 with Location IDs, root creation and freezer |
+| Pool assets | third `pallet_assets` instance | Present at index 84 with root creation and freezer |
 | Asset holder and freezer | `pallet_assets_holder`, `pallet_assets_freezer` | Present at indices 82/81 and exercised against local assets |
 | Asset conversion and pools | `pallet_asset_conversion` | Gap |
 | Asset-denominated fees | asset conversion/asset transaction payment | Gap |
@@ -123,8 +123,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 
 1. Replace remaining Orbis dependencies on mutable CORD application pallets with Orbis-owned
    upstream-aligned pallets under `origin/orbis/pallets/`; shared primitives may remain shared.
-2. Complete Asset Hub infrastructure: holder/freezer, foreign/pool assets, conversion, asset fees,
-   asset rates, NFTs and uniques.
+2. Complete Asset Hub infrastructure: conversion, asset fees, asset rates, NFTs and uniques.
 3. Decide and implement literal Individuality application-pallet parity for People-specific Game,
    Score, Honour, Resources, Coinage and related pallets without importing governance.
 4. Adapt Web3 Storage providers to Sudo-authorized, zero-stake enterprise providers; then add Drive
