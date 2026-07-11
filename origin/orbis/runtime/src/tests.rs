@@ -19,8 +19,8 @@
 use crate::{
 	xcm_config::LocationToAccountId, AssetConversion, AssetRate, AssetTxPayment, Assets,
 	AssetsFreezer, AssetsHolder, Balances, Broker, ChunksManager, Entity, Feeless, ForeignAssets,
-	ForeignAssetsFreezer, HopPromotion, Nfts, People, PoolAssets, PoolAssetsFreezer, Revive,
-	Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage, Uniques,
+	ForeignAssetsFreezer, HopPromotion, Members, Nfts, People, PoolAssets, PoolAssetsFreezer,
+	Revive, Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage, Uniques,
 };
 use codec::{Decode, Encode};
 use frame_support::{
@@ -346,6 +346,35 @@ fn people_chunk_hashes_are_initialized_by_sudo_only() {
 }
 
 #[test]
+fn people_membership_collections_are_native_and_sudo_managed() {
+	use indiv_pallet_members::{Collections, OnboardingSize};
+	use indiv_support::traits::{AppendOnlyMembers, RingExponent, RingMode};
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		let identifier = [7u8; 32];
+		assert_ok!(<Members as AppendOnlyMembers>::create_collection(
+			Location::here(),
+			&identifier,
+			5,
+			RingMode::AppendOnly,
+			RingExponent::R2e9,
+			None,
+		));
+		assert!(Collections::<Runtime>::contains_key(identifier));
+		assert_noop!(
+			Members::set_onboarding_size(
+				RuntimeOrigin::signed(AccountId::from(ALICE)),
+				identifier,
+				10,
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+		assert_ok!(Members::set_onboarding_size(RuntimeOrigin::root(), identifier, 10));
+		assert_eq!(OnboardingSize::<Runtime>::get(identifier), 10);
+	});
+}
+
+#[test]
 fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<<Runtime as pallet_revive::Config>::ChainId as Get<u64>>::get(), 420_001_006);
 	assert!(<<Runtime as pallet_revive::Config>::AllowEVMBytecode as Get<bool>>::get());
@@ -370,6 +399,7 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<crate::HopPromotion as PalletInfoAccess>::index(), 111);
 	assert_eq!(<crate::WeightReclaim as PalletInfoAccess>::index(), 4);
 	assert_eq!(<ChunksManager as PalletInfoAccess>::index(), 91);
+	assert_eq!(<Members as PalletInfoAccess>::index(), 92);
 	assert_eq!(<<Runtime as pallet_broker::Config>::MaxReservedCores as Get<u32>>::get(), 50);
 }
 

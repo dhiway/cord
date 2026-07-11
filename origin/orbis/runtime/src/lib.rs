@@ -148,7 +148,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 19,
+	spec_version: 20,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -1135,6 +1135,55 @@ impl indiv_pallet_chunks_manager::Config for Runtime {
 }
 
 parameter_types! {
+	pub const MembersFlexibleRingExponent: indiv_support::traits::RingExponent =
+		indiv_support::traits::RingExponent::R2e10;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct MembersBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl
+	indiv_pallet_members::BenchmarkHelper<
+		<BandersnatchVrfVerifiable as GenerateVerifiable>::StaticChunk,
+	> for MembersBenchmarkHelper
+{
+	fn initialize_chunks(
+		ring_size: indiv_support::traits::RingExponent,
+	) -> Vec<<BandersnatchVrfVerifiable as GenerateVerifiable>::StaticChunk> {
+		use indiv_support::genesis::ring_verifier_builder_params;
+		let domain = ring_size.try_into().expect("supported ring exponent has a domain");
+		ring_verifier_builder_params(domain)
+	}
+
+	fn set_time(now: core::time::Duration) {
+		pallet_timestamp::Now::<Runtime>::put(now.as_millis() as u64);
+	}
+
+	fn set_valid_time() {
+		pallet_timestamp::Now::<Runtime>::put(5_000);
+	}
+}
+
+impl indiv_pallet_members::Config for Runtime {
+	type WeightInfo = indiv_pallet_members::weights::SubstrateWeight<Runtime>;
+	type Clock = Timestamp;
+	type Crypto = BandersnatchVrfVerifiable;
+	type Location = Location;
+	type ChunksManager = ChunksManager;
+	type MaxCollections = ConstU32<100>;
+	type OnboardingQueuePageSize = ConstU32<255>;
+	type MaxFlexibleRingExponent = MembersFlexibleRingExponent;
+	type RingBuildingMemberLimit = ConstU32<100>;
+	type OldRootRetentionDuration = ConstU64<600>;
+	type OnRingRootChange = ();
+	type OffchainWorkerInterval = ConstU32<1>;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = MembersBenchmarkHelper;
+}
+
+parameter_types! {
 	pub const BulletinMaxBlockTransactions: u32 = 128;
 	pub const BulletinMaxTransactionSize: u32 = 256 * 1024;
 	pub const BulletinMaxPermanentStorageSize: u64 = 16 * 1024 * 1024 * 1024;
@@ -1297,6 +1346,7 @@ construct_runtime!(
 		// People identity and lightweight aliases.
 		People: pallet_orbis_people = 90,
 		ChunksManager: indiv_pallet_chunks_manager = 91,
+		Members: indiv_pallet_members = 92,
 
 		// Solidity and PolkaVM contracts.
 		Revive: pallet_revive = 100,
@@ -1550,6 +1600,7 @@ mod benches {
 		[pallet_bulletin_hop_promotion, HopPromotion]
 		[pallet_orbis_people, People]
 		[indiv_pallet_chunks_manager, ChunksManager]
+		[indiv_pallet_members, Members]
 		[pallet_entity, Entity]
 		[pallet_message_queue, MessageQueue]
 		[pallet_meta_tx, MetaTx]
