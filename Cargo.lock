@@ -9535,6 +9535,7 @@ dependencies = [
  "pallet-meta-tx",
  "pallet-migrations",
  "pallet-multisig",
+ "pallet-nfts",
  "pallet-proxy",
  "pallet-register",
  "pallet-remark",
@@ -9549,6 +9550,7 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-tx-pause",
+ "pallet-uniques",
  "pallet-utility",
  "pallet-verify-signature",
  "pallet-xcm",
@@ -11651,6 +11653,20 @@ dependencies = [
  "parity-scale-codec",
  "polkadot-sdk-frame",
  "scale-info",
+]
+
+[[package]]
+name = "pallet-uniques"
+version = "49.0.0"
+source = "git+https://github.com/dhiway/sdk?branch=release-v1.24.0#cc190ea83c590b6a14a6b9771ab02c81618dc118"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
 ]
 
 [[package]]

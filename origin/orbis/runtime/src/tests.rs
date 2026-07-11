@@ -18,8 +18,9 @@
 
 use crate::{
 	xcm_config::LocationToAccountId, Assets, AssetsFreezer, AssetsHolder, Balances, Broker, Entity,
-	Feeless, ForeignAssets, ForeignAssetsFreezer, HopPromotion, People, PoolAssets,
+	Feeless, ForeignAssets, ForeignAssetsFreezer, HopPromotion, Nfts, People, PoolAssets,
 	PoolAssetsFreezer, Revive, Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage,
+	Uniques,
 };
 use frame_support::{
 	assert_noop, assert_ok,
@@ -186,6 +187,45 @@ fn foreign_and_pool_assets_are_native_and_sudo_administered() {
 }
 
 #[test]
+fn native_unique_and_nft_collections_mint_items() {
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		let owner = AccountId::from(ALICE);
+		let beneficiary = AccountId::from([2u8; 32]);
+		<Balances as Mutate<AccountId>>::set_balance(&owner, 1_000_000_000_000_000);
+
+		assert_ok!(
+			Uniques::create(RuntimeOrigin::signed(owner.clone()), 10, owner.clone().into(),)
+		);
+		assert_ok!(Uniques::mint(
+			RuntimeOrigin::signed(owner.clone()),
+			10,
+			1,
+			beneficiary.clone().into(),
+		));
+		assert_eq!(Uniques::owner(10, 1), Some(beneficiary.clone()));
+
+		let config = pallet_nfts::CollectionConfig {
+			settings: pallet_nfts::CollectionSettings::all_enabled(),
+			max_supply: None,
+			mint_settings: Default::default(),
+		};
+		assert_ok!(Nfts::create(
+			RuntimeOrigin::signed(owner.clone()),
+			owner.clone().into(),
+			config,
+		));
+		assert_ok!(Nfts::mint(
+			RuntimeOrigin::signed(owner),
+			0,
+			1,
+			beneficiary.clone().into(),
+			None,
+		));
+		assert_eq!(Nfts::owner(0, 1), Some(beneficiary));
+	});
+}
+
+#[test]
 fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<<Runtime as pallet_revive::Config>::ChainId as Get<u64>>::get(), 420_001_006);
 	assert!(<<Runtime as pallet_revive::Config>::AllowEVMBytecode as Get<bool>>::get());
@@ -196,6 +236,8 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<PoolAssets as PalletInfoAccess>::index(), 84);
 	assert_eq!(<ForeignAssetsFreezer as PalletInfoAccess>::index(), 85);
 	assert_eq!(<PoolAssetsFreezer as PalletInfoAccess>::index(), 86);
+	assert_eq!(<Uniques as PalletInfoAccess>::index(), 87);
+	assert_eq!(<Nfts as PalletInfoAccess>::index(), 88);
 	assert_eq!(<Revive as PalletInfoAccess>::index(), 100);
 	// The SDK relay Coretime pallet encodes callbacks to Broker at index 50.
 	assert_eq!(<Broker as PalletInfoAccess>::index(), 50);

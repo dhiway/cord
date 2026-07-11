@@ -70,7 +70,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Asset conversion and pools | `pallet_asset_conversion` | Gap |
 | Asset-denominated fees | asset conversion/asset transaction payment | Gap |
 | Asset rates | `pallet_asset_rate` | Gap |
-| NFTs and uniques | `pallet_nfts`, `pallet_uniques` | Gap |
+| NFTs and uniques | `pallet_nfts`, `pallet_uniques` | Present at indices 88/87 with native collection and mint lifecycle tests |
 | PGAS/allowance integration | Individuality Asset Hub PGAS pallets | Gap; must remain compatible with meta-tx/feeless policy |
 | Alias accounts, DOTNS gateway and origin restriction | Individuality Asset Hub adapters | Gap |
 | Vesting and claims | Asset Hub | Policy gap: include without staking only if enterprise issuance requires them |
@@ -123,7 +123,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 
 1. Replace remaining Orbis dependencies on mutable CORD application pallets with Orbis-owned
    upstream-aligned pallets under `origin/orbis/pallets/`; shared primitives may remain shared.
-2. Complete Asset Hub infrastructure: conversion, asset fees, asset rates, NFTs and uniques.
+2. Complete Asset Hub infrastructure: conversion, asset fees and asset rates.
 3. Decide and implement literal Individuality application-pallet parity for People-specific Game,
    Score, Honour, Resources, Coinage and related pallets without importing governance.
 4. Adapt Web3 Storage providers to Sudo-authorized, zero-stake enterprise providers; then add Drive

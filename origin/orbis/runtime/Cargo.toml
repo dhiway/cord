@@ -61,12 +61,14 @@ pallet-remark = { workspace = true }
 pallet-message-queue = { workspace = true }
 pallet-migrations = { workspace = true }
 pallet-multisig = { workspace = true }
+pallet-nfts = { workspace = true }
 pallet-proxy = { workspace = true }
 pallet-session = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-utility = { workspace = true }
+pallet-uniques = { workspace = true }
 polkadot-primitives = { workspace = true }
 sp-api = { workspace = true }
 sp-block-builder = { workspace = true }
@@ -171,12 +173,14 @@ std = [
 	"pallet-message-queue/std",
 	"pallet-migrations/std",
 	"pallet-multisig/std",
+	"pallet-nfts/std",
 	"pallet-proxy/std",
 	"pallet-session/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
 	"pallet-utility/std",
+	"pallet-uniques/std",
 	"pallet-xcm-benchmarks?/std",
 	"pallet-xcm/std",
 	"parachain-info/std",
@@ -239,6 +243,7 @@ runtime-benchmarks = [
 	"pallet-migrations/runtime-benchmarks",
 	"pallet-meta-tx/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
+	"pallet-nfts/runtime-benchmarks",
 	"pallet-safe-mode/runtime-benchmarks",
 	"pallet-register/runtime-benchmarks",
 	"pallet-revive/runtime-benchmarks",
@@ -249,6 +254,7 @@ runtime-benchmarks = [
 	"pallet-tx-pause/runtime-benchmarks",
 	"pallet-verify-signature/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
+	"pallet-uniques/runtime-benchmarks",
 	"pallet-xcm-benchmarks/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
@@ -290,6 +296,7 @@ try-runtime = [
 	"pallet-message-queue/try-runtime",
 	"pallet-migrations/try-runtime",
 	"pallet-multisig/try-runtime",
+	"pallet-nfts/try-runtime",
 	"pallet-register/try-runtime",
 	"pallet-revive/try-runtime",
 	"pallet-proxy/try-runtime",
@@ -300,6 +307,7 @@ try-runtime = [
 	"pallet-verify-signature/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"pallet-utility/try-runtime",
+	"pallet-uniques/try-runtime",
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
 	"polkadot-runtime-common/try-runtime",

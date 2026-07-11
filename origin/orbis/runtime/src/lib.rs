@@ -68,6 +68,7 @@ use origin_hub_system_runtime_constants::{
 use origin_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
 use origin_runtime_constants::{currency::EXISTENTIAL_DEPOSIT, fee, time::DAYS};
 use pallet_assets_precompiles::{ForeignIdConfig, InlineIdConfig, ERC20};
+use pallet_nfts::PalletFeatures;
 use pallet_revive::evm::runtime::EthExtra;
 use pallet_token::Token as TokenTrait;
 use pallet_transaction_payment::FungibleAdapter;
@@ -84,7 +85,7 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	generic, impl_opaque_keys,
-	traits::{BlakeTwo256, Block as BlockT},
+	traits::{BlakeTwo256, Block as BlockT, Verify},
 	transaction_validity::{
 		TransactionLongevity, TransactionPriority, TransactionSource, TransactionValidity,
 	},
@@ -138,7 +139,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 13,
+	spec_version: 14,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -495,6 +496,75 @@ impl pallet_assets_precompiles::ForeignAssetsConfig for Runtime {
 	type ForeignAssetId = Location;
 	#[cfg(feature = "runtime-benchmarks")]
 	type AssetsInstance = ForeignAssetsInstance;
+}
+
+parameter_types! {
+	pub const UniquesCollectionDeposit: Balance = 10 * UNITS;
+	pub const UniquesItemDeposit: Balance = UNITS / 100;
+	pub const UniquesMetadataDepositBase: Balance = system_para_deposit(1, 129);
+	pub const UniquesAttributeDepositBase: Balance = system_para_deposit(1, 0);
+	pub const UniquesDepositPerByte: Balance = system_para_deposit(0, 1);
+}
+
+impl pallet_uniques::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type CollectionId = u32;
+	type ItemId = u32;
+	type Currency = Balances;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type CollectionDeposit = UniquesCollectionDeposit;
+	type ItemDeposit = UniquesItemDeposit;
+	type MetadataDepositBase = UniquesMetadataDepositBase;
+	type AttributeDepositBase = UniquesAttributeDepositBase;
+	type DepositPerByte = UniquesDepositPerByte;
+	type StringLimit = ConstU32<128>;
+	type KeyLimit = ConstU32<32>;
+	type ValueLimit = ConstU32<64>;
+	type WeightInfo = pallet_uniques::weights::SubstrateWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Helper = ();
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type Locker = ();
+}
+
+parameter_types! {
+	pub NftsFeatures: PalletFeatures = PalletFeatures::all_enabled();
+	pub const NftsMaxDeadlineDuration: BlockNumber = 12 * 30 * DAYS;
+	pub const NftsCollectionDeposit: Balance = UniquesCollectionDeposit::get();
+	pub const NftsItemDeposit: Balance = UniquesItemDeposit::get();
+	pub const NftsMetadataDepositBase: Balance = UniquesMetadataDepositBase::get();
+	pub const NftsAttributeDepositBase: Balance = UniquesAttributeDepositBase::get();
+	pub const NftsDepositPerByte: Balance = UniquesDepositPerByte::get();
+}
+
+impl pallet_nfts::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type CollectionId = u32;
+	type ItemId = u32;
+	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type Locker = ();
+	type CollectionDeposit = NftsCollectionDeposit;
+	type ItemDeposit = NftsItemDeposit;
+	type MetadataDepositBase = NftsMetadataDepositBase;
+	type AttributeDepositBase = NftsAttributeDepositBase;
+	type DepositPerByte = NftsDepositPerByte;
+	type StringLimit = ConstU32<256>;
+	type KeyLimit = ConstU32<64>;
+	type ValueLimit = ConstU32<256>;
+	type ApprovalsLimit = ConstU32<20>;
+	type ItemAttributesApprovalsLimit = ConstU32<30>;
+	type MaxTips = ConstU32<10>;
+	type MaxDeadlineDuration = NftsMaxDeadlineDuration;
+	type MaxAttributesPerCall = ConstU32<10>;
+	type Features = NftsFeatures;
+	type OffchainSignature = Signature;
+	type OffchainPublic = <Signature as Verify>::Signer;
+	type WeightInfo = pallet_nfts::weights::SubstrateWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Helper = ();
+	type BlockNumberProvider = RelaychainDataProvider<Runtime>;
 }
 
 impl pallet_assets_precompiles::PermitConfig for Runtime {
@@ -1075,6 +1145,8 @@ construct_runtime!(
 		PoolAssets: pallet_assets::<Instance3> = 84,
 		ForeignAssetsFreezer: pallet_assets_freezer::<Instance2> = 85,
 		PoolAssetsFreezer: pallet_assets_freezer::<Instance3> = 86,
+		Uniques: pallet_uniques = 87,
+		Nfts: pallet_nfts = 88,
 
 		// People identity and lightweight aliases.
 		People: pallet_cord_identity = 90,
