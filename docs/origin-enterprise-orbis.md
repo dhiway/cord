@@ -34,6 +34,20 @@ Orbis uses parachain ID `1006`. The Origin runtime exposes its XCM location and 
 teleports between Origin and Orbis. Registration remains an explicit Sudo operation so the Orbis
 genesis head and validation code are supplied from the exact Orbis build being deployed.
 
+The `origin-hub` container binary resolves both Origin Hub and Orbis runtimes. Development and
+local Orbis specs are selected with `--chain orbis-dev` and `--chain orbis-local`, respectively.
+For example, a local authority collator can be started with:
+
+```text
+origin-hub --chain orbis-local --collator --alice -- --chain origin-local
+```
+
+Orbis uses Aura with multiple blocks per slot and async backing. Collator membership is an
+enterprise operation: `CollatorSelection` accepts updates only from root, permissionless
+candidacy is disabled (`MaxCandidates = 0`), and the candidacy bond is zero. Sudo-managed
+invulnerables and their session keys therefore determine the active collator set without staking,
+elections, referenda, or councils.
+
 Direct relay `Coretime.assign_core` calls are useful for protocol validation. Enterprise core
 subscription lifecycle tests must separately exercise the Origin Hub Broker path for allocation,
 renewal, change, and release.

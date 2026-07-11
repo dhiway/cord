@@ -23,6 +23,7 @@ members = [
 	"origin/hub",
 	"origin/hub/constants",
 	"origin/hub/system",
+	"origin/orbis/runtime",
 	"origin/common",
 	"origin/pallets/authorities",
 	"origin/pallets/token",
@@ -811,6 +812,7 @@ origin-common = { path = "origin/common", default-features = false }
 origin-hub = { path = "origin/hub", default-features = false }
 origin-hub-system-runtime = { path = "origin/hub/system", default-features = false }
 origin-hub-system-runtime-constants = { path = "origin/hub/constants", default-features = false }
+origin-orbis-runtime = { path = "origin/orbis/runtime", default-features = false }
 token-origin-runtime-api = { path = "origin/runtime-api/token-origin-runtime-api", default-features = false }
 token-origin-hub-runtime-api = { path = "origin/runtime-api/token-origin-hub-runtime-api", default-features = false }
 

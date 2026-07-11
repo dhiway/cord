@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! CORD Origin container node.
+//! CORD Origin container node for Origin Hub and Orbis runtimes.
 
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
