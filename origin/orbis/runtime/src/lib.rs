@@ -138,7 +138,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 9,
+	spec_version: 10,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -319,6 +319,10 @@ impl pallet_timestamp::Config for Runtime {
 	type OnTimestampSet = Aura;
 	type MinimumPeriod = ConstU64<0>;
 	type WeightInfo = weights::pallet_timestamp::WeightInfo<Runtime>;
+}
+
+impl cumulus_pallet_weight_reclaim::Config for Runtime {
+	type WeightInfo = weights::cumulus_pallet_weight_reclaim::WeightInfo<Runtime>;
 }
 
 impl pallet_authorship::Config for Runtime {
@@ -919,6 +923,7 @@ construct_runtime!(
 		ParachainSystem: cumulus_pallet_parachain_system = 1,
 		Timestamp: pallet_timestamp = 2,
 		ParachainInfo: parachain_info = 3,
+		WeightReclaim: cumulus_pallet_weight_reclaim = 4,
 
 		// Monetary stuff.
 		Balances: pallet_balances = 10,
@@ -993,7 +998,7 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 
 /// The TransactionExtension to the basic transaction logic.
-pub type TxExtensions = (
+pub type InnerTxExtensions = (
 	frame_system::AuthorizeCall<Runtime>,
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
@@ -1013,6 +1018,12 @@ pub type TxExtensions = (
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 	pallet_revive::evm::tx_extension::SetOrigin<Runtime>,
 );
+
+/// Storage-proof and unused-execution-weight reclamation wrapped around every Orbis transaction.
+/// This is required by the Asset Hub and Bulletin execution model, especially when multiple
+/// blocks share a collation bundle.
+pub type TxExtensions =
+	cumulus_pallet_weight_reclaim::StorageWeightReclaim<Runtime, InnerTxExtensions>;
 
 /// Extensions applied when an Ethereum transaction is converted into an Orbis extrinsic.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -1102,6 +1113,7 @@ mod benches {
 		[pallet_tx_pause, TxPause]
 		[pallet_utility, Utility]
 		[pallet_verify_signature, VerifySignature]
+		[cumulus_pallet_weight_reclaim, WeightReclaim]
 
 		// Cumulus
 		[cumulus_pallet_parachain_system, ParachainSystem]

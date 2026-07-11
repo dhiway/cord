@@ -24,6 +24,8 @@
 
 use super::*;
 
+use alloc::vec;
+
 use crate::Pallet as Identity;
 use codec::Encode;
 use frame_benchmarking::{account, v2::*, whitelisted_caller, BenchmarkError};

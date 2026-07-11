@@ -101,6 +101,7 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<Entity as PalletInfoAccess>::index(), 53);
 	assert_eq!(<People as PalletInfoAccess>::index(), 90);
 	assert_eq!(<TransactionStorage as PalletInfoAccess>::index(), 110);
+	assert_eq!(<crate::WeightReclaim as PalletInfoAccess>::index(), 4);
 	assert_eq!(<<Runtime as pallet_broker::Config>::MaxReservedCores as Get<u32>>::get(), 50);
 }
 
