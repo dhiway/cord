@@ -2,6 +2,9 @@
 #   cargo build -p origin-orbis -p origin-orbis-runtime --release --features fast-runtime
 # Launch:
 #   zombienet -p native spawn zombienet/testnet-fast500.toml
+# In a second terminal, assign cores and verify progress/finality:
+#   cargo run -p origin-rs --example bootstrap_orbis_core -- --endpoint ws://127.0.0.1:9801 --cores 1
+#   python3 zombienet/orbis_smoke.py --relay http://127.0.0.1:9801 --orbis http://127.0.0.1:9810
 
 [settings]
 timeout = 300

@@ -2,6 +2,9 @@
 #   cargo build -p origin-orbis -p origin-orbis-runtime --release
 # Launch network:
 #   zombienet -p native spawn zombienet/testnet.toml
+# In a second terminal, assign the bootstrap core and verify progress/finality:
+#   cargo run -p origin-rs --example bootstrap_orbis_core -- --cores 1
+#   python3 zombienet/orbis_smoke.py --expected-cores 1
 
 [settings]
 timeout = 300

@@ -145,6 +145,17 @@ collators, validator set, workload, state, warm-up, and duration. Run five inter
 per core count, report median finalized successful calls per second and coefficient of variation,
 and reject a run set above 10% variation or 15 parachain blocks of steady-state finality lag.
 
+After launching the standard topology and submitting its bootstrap assignment, verify relay and
+Orbis best-block/finality progress plus the relay claim queue without external Python packages:
+
+```text
+python3 zombienet/orbis_smoke.py --expected-cores 1
+```
+
+The verifier waits through initial session activation, then requires both chains' best and
+finalized heights to advance during the measurement window. `--expected-cores 3` additionally
+requires task `1006` to appear on at least three distinct claim-queue cores.
+
 ## Core allocation
 
 Orbis replaces Origin Hub as Origin's system-chain Coretime Broker. The relay runtime authorizes
