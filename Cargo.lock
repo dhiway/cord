@@ -1953,6 +1953,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "bulletin-pallets-common"
+version = "0.1.0"
+dependencies = [
+ "pallet-proxy",
+ "pallet-sudo",
+ "pallet-utility",
+ "parity-scale-codec",
+ "polkadot-sdk-frame",
+ "scale-info",
+]
+
+[[package]]
 name = "bulletin-transaction-storage-primitives"
 version = "0.1.0"
 dependencies = [
@@ -9509,6 +9521,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-broker",
+ "pallet-bulletin-hop-promotion",
  "pallet-bulletin-transaction-storage",
  "pallet-bulletin-transaction-storage-runtime-api",
  "pallet-collator-selection",
@@ -9552,6 +9565,7 @@ dependencies = [
  "sp-consensus-aura",
  "sp-core",
  "sp-genesis-builder",
+ "sp-hop",
  "sp-inherents",
  "sp-io",
  "sp-offchain",
@@ -10131,6 +10145,25 @@ dependencies = [
  "sp-api",
  "sp-arithmetic",
  "sp-core",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-bulletin-hop-promotion"
+version = "0.1.0"
+dependencies = [
+ "bulletin-pallets-common",
+ "bulletin-transaction-storage-primitives",
+ "frame-support",
+ "frame-system",
+ "pallet-bulletin-transaction-storage",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "polkadot-sdk-frame",
+ "scale-info",
+ "sp-io",
+ "sp-keyring",
+ "sp-keystore",
  "sp-runtime",
 ]
 

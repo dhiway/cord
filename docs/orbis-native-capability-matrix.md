@@ -101,7 +101,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Storage transaction validation and anti-wrapper policy | Bulletin | Present in the Orbis transaction envelope |
 | Runtime authorization/query API | Bulletin | Present |
 | Proof inherent | Bulletin node/runtime | Runtime present; production node provider and retention-window E2E pending |
-| Hop promotion | `pallet_bulletin_hop_promotion` | Gap; next Bulletin-native pallet to vendor |
+| Hop promotion | `pallet_bulletin_hop_promotion` | Vendored under Orbis, present at index 111 with `sp_hop` runtime API |
 | Storage providers | Web3 Storage `pallet_storage_provider` | Gap; existing reference requires stake and must be adapted to Sudo authorization with no stake |
 | Drive registry | Web3 Storage `pallet_drive_registry` | Gap |
 | S3 registry | Web3 Storage `pallet_s3_registry` | Gap |
@@ -121,17 +121,16 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 
 ## Completion order
 
-1. Vendor and integrate Bulletin Hop Promotion and its runtime API/tests.
-2. Replace remaining Orbis dependencies on mutable CORD application pallets with Orbis-owned
+1. Replace remaining Orbis dependencies on mutable CORD application pallets with Orbis-owned
    upstream-aligned pallets under `origin/orbis/pallets/`; shared primitives may remain shared.
-3. Complete Asset Hub infrastructure: holder/freezer, foreign/pool assets, conversion, asset fees,
+2. Complete Asset Hub infrastructure: holder/freezer, foreign/pool assets, conversion, asset fees,
    asset rates, NFTs and uniques.
-4. Decide and implement literal Individuality application-pallet parity for People-specific Game,
+3. Decide and implement literal Individuality application-pallet parity for People-specific Game,
    Score, Honour, Resources, Coinage and related pallets without importing governance.
-5. Adapt Web3 Storage providers to Sudo-authorized, zero-stake enterprise providers; then add Drive
+4. Adapt Web3 Storage providers to Sudo-authorized, zero-stake enterprise providers; then add Drive
    and S3 registries and their node/runtime APIs.
-6. Generate Orbis-native weights for every retained pallet.
-7. Run Origin-Orbis XCM, Broker lifecycle, storage-proof retention and unified application E2E suites.
+5. Generate Orbis-native weights for every retained pallet.
+6. Run Origin-Orbis XCM, Broker lifecycle, storage-proof retention and unified application E2E suites.
 
 This ledger must be updated in the same commit that adds, excludes, or replaces a referenced
 capability.

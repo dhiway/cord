@@ -138,7 +138,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 10,
+	spec_version: 11,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -891,6 +891,16 @@ impl pallet_bulletin_transaction_storage::Config for Runtime {
 }
 
 parameter_types! {
+	/// Maximum clock skew accepted for a HOP submit signature: 48 hours in milliseconds.
+	pub const HopSubmitTimestampTolerance: u64 = 48 * 60 * 60 * 1_000;
+}
+
+impl pallet_bulletin_hop_promotion::Config for Runtime {
+	type SubmitTimestampTolerance = HopSubmitTimestampTolerance;
+	type WeightInfo = weights::pallet_bulletin_hop_promotion::WeightInfo<Runtime>;
+}
+
+parameter_types! {
 	pub MbmServiceWeight: Weight = Perbill::from_percent(80) * RuntimeBlockWeights::get().max_block;
 }
 
@@ -969,6 +979,7 @@ construct_runtime!(
 
 		// Bulletin durable transaction storage and proof accounting.
 		TransactionStorage: pallet_bulletin_transaction_storage = 110,
+		HopPromotion: pallet_bulletin_hop_promotion = 111,
 
 		// Utilities
 		MetaTx: pallet_meta_tx = 215,
@@ -1062,6 +1073,62 @@ impl EthExtra for EthExtraImpl {
 pub type UncheckedExtrinsic =
 	pallet_revive::evm::runtime::UncheckedExtrinsic<Address, Signature, EthExtraImpl>;
 
+impl<C> frame_system::offchain::CreateTransactionBase<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	type Extrinsic = UncheckedExtrinsic;
+	type RuntimeCall = RuntimeCall;
+}
+
+impl<C> frame_system::offchain::CreateBare<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	fn create_bare(call: RuntimeCall) -> UncheckedExtrinsic {
+		sp_runtime::generic::UncheckedExtrinsic::new_bare(call).into()
+	}
+}
+
+impl<C> frame_system::offchain::CreateTransaction<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	type Extension = TxExtensions;
+
+	fn create_transaction(call: RuntimeCall, extension: TxExtensions) -> UncheckedExtrinsic {
+		sp_runtime::generic::UncheckedExtrinsic::new_transaction(call, extension).into()
+	}
+}
+
+impl<C> frame_system::offchain::CreateAuthorizedTransaction<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	fn create_extension() -> Self::Extension {
+		(
+			frame_system::AuthorizeCall::<Runtime>::new(),
+			frame_system::CheckNonZeroSender::<Runtime>::new(),
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+			frame_system::CheckTxVersion::<Runtime>::new(),
+			frame_system::CheckGenesis::<Runtime>::new(),
+			frame_system::CheckMortality::<Runtime>::from(generic::Era::Immortal),
+			frame_system::CheckNonce::<Runtime>::from(0),
+			frame_system::CheckWeight::<Runtime>::new(),
+			pallet_feeless::ChargeOrSkipFeeless::from(
+				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0),
+			),
+			pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+				Runtime,
+				BulletinCallInspector,
+			>::default(),
+			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+			pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::default(),
+		)
+			.into()
+	}
+}
+
 pub type Migrations = migrations::Unreleased;
 /// Migrations to apply on runtime upgrade.
 #[allow(deprecated, missing_docs)]
@@ -1098,6 +1165,7 @@ mod benches {
 		[pallet_balances, Balances]
 		[pallet_broker, Broker]
 		[pallet_bulletin_transaction_storage, TransactionStorage]
+		[pallet_bulletin_hop_promotion, HopPromotion]
 		[pallet_cord_identity, People]
 		[pallet_entity, Entity]
 		[pallet_message_queue, MessageQueue]
@@ -1654,6 +1722,40 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 						.collect()
 				})
 				.unwrap_or_default()
+		}
+	}
+
+	impl sp_hop::HopRuntimeApi<Block, AccountId> for Runtime {
+		fn can_account_promote(who: AccountId, data_len: u32) -> bool {
+			HopPromotion::can_account_promote(&who, data_len)
+		}
+
+		fn create_promotion_extrinsic(
+			data: Vec<u8>,
+			signer: MultiSigner,
+			signature: MultiSignature,
+			submit_timestamp: u64,
+		) -> <Block as BlockT>::Extrinsic {
+			use frame_system::offchain::CreateAuthorizedTransaction;
+			<Runtime as CreateAuthorizedTransaction<
+				pallet_bulletin_hop_promotion::Call<Runtime>,
+			>>::create_authorized_transaction(
+				pallet_bulletin_hop_promotion::Call::<Runtime>::promote {
+					data,
+					signer,
+					signature,
+					submit_timestamp,
+				}
+				.into(),
+			)
+		}
+
+		fn max_promotion_size() -> u32 {
+			<Runtime as pallet_bulletin_transaction_storage::Config>::MaxTransactionSize::get()
+		}
+
+		fn is_promoted_on_chain(hash: [u8; 32]) -> bool {
+			HopPromotion::is_promoted_on_chain(hash)
 		}
 	}
 

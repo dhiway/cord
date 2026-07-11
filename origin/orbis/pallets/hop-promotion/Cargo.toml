@@ -1,0 +1,68 @@
+[package]
+name = "pallet-bulletin-hop-promotion"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license = "Apache-2.0"
+homepage.workspace = true
+repository.workspace = true
+description = "Pallet for promoting HOP pool data to permanent chain storage"
+readme = "README.md"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+pallet-bulletin-transaction-storage = { workspace = true }
+pallet-timestamp = { workspace = true }
+polkadot-sdk-frame = { workspace = true, default-features = false, features = [
+	"runtime",
+] }
+scale-info = { features = ["derive"], workspace = true }
+sp-io = { workspace = true }
+sp-runtime = { workspace = true }
+bulletin-transaction-storage-primitives = { workspace = true }
+
+[dev-dependencies]
+bulletin-pallets-common = { workspace = true, features = ["std"] }
+sp-keyring = { workspace = true, features = ["std"] }
+sp-keystore = { workspace = true, features = ["std"] }
+
+[features]
+default = ["std"]
+std = [
+	"bulletin-pallets-common/std",
+	"bulletin-transaction-storage-primitives/std",
+	"codec/std",
+	"frame-support/std",
+	"frame-system/std",
+	"pallet-bulletin-transaction-storage/std",
+	"pallet-timestamp/std",
+	"polkadot-sdk-frame/std",
+	"scale-info/std",
+	"sp-io/std",
+	"sp-keyring/std",
+	"sp-keystore/std",
+	"sp-runtime/std",
+]
+runtime-benchmarks = [
+	"bulletin-pallets-common/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"pallet-bulletin-transaction-storage/runtime-benchmarks",
+	"pallet-timestamp/runtime-benchmarks",
+	"polkadot-sdk-frame/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+]
+try-runtime = [
+	"bulletin-pallets-common/try-runtime",
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"pallet-bulletin-transaction-storage/try-runtime",
+	"pallet-timestamp/try-runtime",
+	"polkadot-sdk-frame/try-runtime",
+	"sp-runtime/try-runtime",
+]

@@ -17,8 +17,8 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	xcm_config::LocationToAccountId, Assets, Balances, Broker, Entity, Feeless, People, Revive,
-	Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage,
+	xcm_config::LocationToAccountId, Assets, Balances, Broker, Entity, Feeless, HopPromotion,
+	People, Revive, Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage,
 };
 use frame_support::{
 	assert_noop, assert_ok,
@@ -101,6 +101,7 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<Entity as PalletInfoAccess>::index(), 53);
 	assert_eq!(<People as PalletInfoAccess>::index(), 90);
 	assert_eq!(<TransactionStorage as PalletInfoAccess>::index(), 110);
+	assert_eq!(<crate::HopPromotion as PalletInfoAccess>::index(), 111);
 	assert_eq!(<crate::WeightReclaim as PalletInfoAccess>::index(), 4);
 	assert_eq!(<<Runtime as pallet_broker::Config>::MaxReservedCores as Get<u32>>::get(), 50);
 }
@@ -332,6 +333,42 @@ fn bulletin_storage_is_authorized_indexed_and_content_addressed() {
 		let indexed = TransactionStorage::transactions_at(1).unwrap();
 		assert_eq!(indexed.len(), 1);
 		assert_eq!(indexed[0].content_hash, content_hash);
+	});
+}
+
+#[test]
+fn hop_promotion_accepts_authorized_signed_submit_intent() {
+	use frame_support::traits::BuildGenesisConfig;
+	use sp_core::{sr25519, Pair};
+	use sp_runtime::{traits::IdentifyAccount, MultiSignature, MultiSigner};
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		System::set_block_number(1);
+		let now = 1_750_000_000_000u64;
+		pallet_timestamp::Now::<Runtime>::put(now);
+
+		let pair = sr25519::Pair::from_string("//Alice", None).unwrap();
+		let signer = MultiSigner::from(pair.public());
+		let account = signer.clone().into_account();
+		<Balances as Mutate<AccountId>>::set_balance(&account, 1_000_000_000_000);
+		assert_ok!(
+			TransactionStorage::authorize_account(RuntimeOrigin::root(), account, 1, 1_024,)
+		);
+
+		let data = b"orbis hop promotion".to_vec();
+		let hash = sp_io::hashing::blake2_256(&data);
+		let payload = pallet_bulletin_hop_promotion::signing_payload(&hash, now);
+		let signature = MultiSignature::Sr25519(pair.sign(&payload));
+		assert!(HopPromotion::authorize_promote(
+			sp_runtime::transaction_validity::TransactionSource::Local,
+			&signer,
+			&signature,
+			&now,
+			&data,
+		)
+		.is_ok());
+		assert!(!HopPromotion::is_promoted_on_chain(hash));
 	});
 }
 

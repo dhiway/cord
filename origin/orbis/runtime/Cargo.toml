@@ -38,6 +38,7 @@ pallet-assets = { workspace = true }
 pallet-assets-precompiles = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-broker = { workspace = true }
+pallet-bulletin-hop-promotion = { workspace = true }
 pallet-bulletin-transaction-storage = { workspace = true }
 pallet-bulletin-transaction-storage-runtime-api = { workspace = true }
 pallet-cord-identity = { workspace = true }
@@ -70,6 +71,7 @@ sp-block-builder = { workspace = true }
 sp-consensus-aura = { workspace = true }
 sp-core = { workspace = true }
 sp-genesis-builder = { workspace = true }
+sp-hop = { workspace = true }
 sp-inherents = { workspace = true }
 sp-offchain = { workspace = true }
 sp-runtime = { workspace = true }
@@ -143,6 +145,7 @@ std = [
 	"pallet-assets-precompiles/std",
 	"pallet-balances/std",
 	"pallet-broker/std",
+	"pallet-bulletin-hop-promotion/std",
 	"pallet-bulletin-transaction-storage/std",
 	"pallet-bulletin-transaction-storage-runtime-api/std",
 	"pallet-cord-identity/std",
@@ -185,6 +188,7 @@ std = [
 	"sp-consensus-aura/std",
 	"sp-core/std",
 	"sp-genesis-builder/std",
+	"sp-hop/std",
 	"sp-inherents/std",
 	"sp-offchain/std",
 	"sp-runtime/std",
@@ -218,6 +222,7 @@ runtime-benchmarks = [
 	"frame-system/experimental",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-broker/runtime-benchmarks",
+	"pallet-bulletin-hop-promotion/runtime-benchmarks",
 	"pallet-bulletin-transaction-storage/runtime-benchmarks",
 	"pallet-cord-identity/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
@@ -265,6 +270,7 @@ try-runtime = [
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
 	"pallet-broker/try-runtime",
+	"pallet-bulletin-hop-promotion/try-runtime",
 	"pallet-bulletin-transaction-storage/try-runtime",
 	"pallet-cord-identity/try-runtime",
 	"pallet-assets/try-runtime",

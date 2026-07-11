@@ -24,6 +24,7 @@ pub mod frame_system;
 pub mod frame_system_extensions;
 pub mod pallet_balances;
 pub mod pallet_broker;
+pub mod pallet_bulletin_hop_promotion;
 pub mod pallet_collator_selection;
 pub mod pallet_entity;
 pub mod pallet_indices;
