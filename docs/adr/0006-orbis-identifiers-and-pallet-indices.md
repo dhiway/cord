@@ -21,7 +21,8 @@ Runtime pallet indices are append-only within these bands:
 | `90` | People/People-Lite compatible identity and aliases |
 | `91..=99` | reserved People adapters |
 | `100..=109` | Revive and Solidity support |
-| `110..=129` | Bulletin durable storage and proof support |
+| `110` | Bulletin transaction storage and proof inherent |
+| `111..=129` | reserved Bulletin extensions |
 | `200..=239` | meta-tx, fee policy, safety controls |
 | `249` | migrations |
 | `255` | Sudo |

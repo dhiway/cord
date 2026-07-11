@@ -48,7 +48,7 @@ use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	parameter_types,
 	traits::{
-		AsEnsureOriginWithArg, ConstBool, ConstU32, ConstU64, Contains, EitherOfDiverse,
+		AsEnsureOriginWithArg, ConstBool, ConstU32, ConstU64, Contains, EitherOf, EitherOfDiverse,
 		Everything, InstanceFilter, PrivilegeCmp, TransformOrigin, VariantCountOf,
 	},
 	weights::{ConstantMultiplier, Weight},
@@ -91,7 +91,9 @@ pub use sp_runtime::BuildStorage;
 use sp_runtime::{
 	generic, impl_opaque_keys,
 	traits::{BlakeTwo256, Block as BlockT},
-	transaction_validity::{TransactionSource, TransactionValidity},
+	transaction_validity::{
+		TransactionLongevity, TransactionPriority, TransactionSource, TransactionValidity,
+	},
 	ApplyExtrinsicResult, FixedU128, MultiSignature, MultiSigner,
 };
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
@@ -125,7 +127,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 6,
+	spec_version: 7,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -721,6 +723,10 @@ pub type MetaTxExtension = (
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
+	pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
+		Runtime,
+		BulletinCallInspector,
+	>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
 
@@ -800,6 +806,76 @@ impl pallet_cord_identity::Config for Runtime {
 }
 
 parameter_types! {
+	pub const BulletinMaxBlockTransactions: u32 = 128;
+	pub const BulletinMaxTransactionSize: u32 = 256 * 1024;
+	pub const BulletinMaxPermanentStorageSize: u64 = 16 * 1024 * 1024 * 1024;
+	pub const BulletinAuthorizationPeriod: BlockNumber = 14 * DAYS;
+	pub const BulletinStoreRenewPriority: TransactionPriority = TransactionPriority::MAX / 4;
+	pub const BulletinStoreRenewLongevity: TransactionLongevity = DAYS as TransactionLongevity;
+	pub const BulletinCleanupPriority: TransactionPriority = TransactionPriority::MAX;
+	pub const BulletinCleanupLongevity: TransactionLongevity = DAYS as TransactionLongevity;
+}
+
+/// Recursively exposes Utility calls to Bulletin's authorization extension. Storage mutations are
+/// required to be direct extrinsics; wrapped mutations are rejected by the extension.
+#[derive(Clone, PartialEq, Eq, Default)]
+pub struct BulletinCallInspector;
+
+impl pallet_bulletin_transaction_storage::CallInspector<Runtime> for BulletinCallInspector {
+	fn inspect_wrapper(call: &RuntimeCall) -> Option<Vec<&RuntimeCall>> {
+		match call {
+			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) |
+			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) |
+			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) =>
+				Some(calls.iter().collect()),
+			RuntimeCall::Utility(pallet_utility::Call::as_derivative { call, .. }) |
+			RuntimeCall::Utility(pallet_utility::Call::dispatch_as { call, .. }) |
+			RuntimeCall::Utility(pallet_utility::Call::dispatch_as_fallible { call, .. }) |
+			RuntimeCall::Utility(pallet_utility::Call::with_weight { call, .. }) =>
+				Some(vec![call.as_ref()]),
+			_ => None,
+		}
+	}
+}
+
+impl Contains<RuntimeCall> for BulletinCallInspector {
+	fn contains(call: &RuntimeCall) -> bool {
+		<Self as pallet_bulletin_transaction_storage::CallInspector<Runtime>>::is_storage_mutating_call(
+			call, 0,
+		)
+	}
+}
+
+impl pallet_bulletin_transaction_storage::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type Currency = Balances;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type FeeDestination = ();
+	type WeightInfo = pallet_bulletin_transaction_storage::weights::SubstrateWeight<Runtime>;
+	type MaxBlockTransactions = BulletinMaxBlockTransactions;
+	type MaxTransactionSize = BulletinMaxTransactionSize;
+	type MaxPermanentStorageSize = BulletinMaxPermanentStorageSize;
+	type AuthorizationPeriod = BulletinAuthorizationPeriod;
+	type AuthorizerRegistrarOrigin = EnsureRoot<AccountId>;
+	type Authorizer = EitherOf<
+		pallet_bulletin_transaction_storage::AsAuthorizer<
+			EnsureRoot<AccountId>,
+			AccountId,
+			BlockNumber,
+		>,
+		pallet_bulletin_transaction_storage::EnsureAllowedAuthorizers<Runtime>,
+	>;
+	type StoreRenewPriority = BulletinStoreRenewPriority;
+	type StoreRenewLongevity = BulletinStoreRenewLongevity;
+	type RemoveExpiredAuthorizationPriority = BulletinCleanupPriority;
+	type RemoveExpiredAuthorizationLongevity = BulletinCleanupLongevity;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper =
+		pallet_bulletin_transaction_storage::benchmarking::DefaultCheckProofHelper;
+}
+
+parameter_types! {
 	pub MbmServiceWeight: Weight = Perbill::from_percent(80) * RuntimeBlockWeights::get().max_block;
 }
 
@@ -875,6 +951,9 @@ construct_runtime!(
 		// Solidity and PolkaVM contracts.
 		Revive: pallet_revive = 100,
 
+		// Bulletin durable transaction storage and proof accounting.
+		TransactionStorage: pallet_bulletin_transaction_storage = 110,
+
 		// Utilities
 		MetaTx: pallet_meta_tx = 215,
 		TxPause: pallet_tx_pause = 216,
@@ -916,6 +995,10 @@ pub type TxExtensions = (
 		Runtime,
 		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	>,
+	pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
+		Runtime,
+		BulletinCallInspector,
+	>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 	pallet_revive::evm::tx_extension::SetOrigin<Runtime>,
 );
@@ -942,6 +1025,10 @@ impl EthExtra for EthExtraImpl {
 			pallet_feeless::ChargeOrSkipFeeless::from(
 				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
 			),
+			pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+				Runtime,
+				BulletinCallInspector,
+			>::default(),
 			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
 			pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::new_from_eth_transaction(),
 		)
@@ -988,6 +1075,8 @@ mod benches {
 		[pallet_assets, Assets]
 		[pallet_balances, Balances]
 		[pallet_broker, Broker]
+		[pallet_bulletin_transaction_storage, TransactionStorage]
+		[pallet_cord_identity, People]
 		[pallet_entity, Entity]
 		[pallet_message_queue, MessageQueue]
 		[pallet_meta_tx, MetaTx]
@@ -1511,6 +1600,50 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 	impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
 		fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
 			ParachainSystem::collect_collation_info(header)
+		}
+	}
+
+	impl sp_transaction_storage_proof::runtime_api::TransactionStorageApi<Block> for Runtime {
+		fn retention_period() -> BlockNumber {
+			TransactionStorage::retention_period()
+		}
+
+		fn indexed_transactions(
+			block: BlockNumber,
+		) -> Vec<sp_transaction_storage_proof::IndexedTransactionInfo> {
+			TransactionStorage::transactions_at(block)
+				.map(|transactions| {
+					transactions
+						.into_iter()
+						.map(|transaction| sp_transaction_storage_proof::IndexedTransactionInfo {
+							content_hash: transaction.content_hash,
+							size: transaction.size,
+							hashing: transaction.hashing.into(),
+							cid_codec: transaction.cid_codec,
+							extrinsic_index: transaction.extrinsic_index,
+						})
+						.collect()
+				})
+				.unwrap_or_default()
+		}
+	}
+
+	impl pallet_bulletin_transaction_storage_runtime_api::BulletinTransactionStorageApi<Block, AccountId, BlockNumber> for Runtime {
+		fn account_authorization(
+			account: AccountId,
+		) -> Option<pallet_bulletin_transaction_storage_runtime_api::AccountAuthorization<BlockNumber>> {
+			TransactionStorage::account_authorization(account)
+		}
+
+		fn can_store(account: AccountId, data_len: u32) -> bool {
+			TransactionStorage::can_store(&account, data_len)
+		}
+
+		fn can_renew(
+			account: AccountId,
+			entry: pallet_bulletin_transaction_storage::TransactionRef<BlockNumber>,
+		) -> bool {
+			TransactionStorage::can_renew(&account, &entry)
 		}
 	}
 

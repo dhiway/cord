@@ -38,6 +38,8 @@ pallet-assets = { workspace = true }
 pallet-assets-precompiles = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-broker = { workspace = true }
+pallet-bulletin-transaction-storage = { workspace = true }
+pallet-bulletin-transaction-storage-runtime-api = { workspace = true }
 pallet-cord-identity = { workspace = true }
 pallet-entity = { workspace = true }
 pallet-register = { workspace = true }
@@ -74,6 +76,7 @@ sp-runtime = { workspace = true }
 sp-session = { workspace = true }
 sp-storage = { workspace = true }
 sp-transaction-pool = { workspace = true }
+sp-transaction-storage-proof = { workspace = true }
 sp-version = { workspace = true }
 
 # Polkadot
@@ -138,6 +141,8 @@ std = [
 	"pallet-assets-precompiles/std",
 	"pallet-balances/std",
 	"pallet-broker/std",
+	"pallet-bulletin-transaction-storage/std",
+	"pallet-bulletin-transaction-storage-runtime-api/std",
 	"pallet-cord-identity/std",
 	"pallet-collator-selection/std",
 	"pallet-entity/std",
@@ -184,6 +189,7 @@ std = [
 	"sp-session/std",
 	"sp-storage/std",
 	"sp-transaction-pool/std",
+	"sp-transaction-storage-proof/std",
 	"sp-version/std",
 	"substrate-wasm-builder",
 	"xcm-builder/std",
@@ -209,6 +215,7 @@ runtime-benchmarks = [
 	"frame-system/experimental",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-broker/runtime-benchmarks",
+	"pallet-bulletin-transaction-storage/runtime-benchmarks",
 	"pallet-cord-identity/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-assets-precompiles/runtime-benchmarks",
@@ -254,6 +261,7 @@ try-runtime = [
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
 	"pallet-broker/try-runtime",
+	"pallet-bulletin-transaction-storage/try-runtime",
 	"pallet-cord-identity/try-runtime",
 	"pallet-assets/try-runtime",
 	"pallet-assets-precompiles/try-runtime",

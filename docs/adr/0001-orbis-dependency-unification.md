@@ -19,10 +19,12 @@ Reviewed source snapshots are:
 | Individuality Community | `28b7d07dab05` | Apache-2.0 People/Asset Hub reference |
 | Polkadot Bulletin Chain | `b6c2827d2326` | GPL-3.0 storage reference |
 
-People and Bulletin functionality will be vendored or adapted into CORD-owned crates and changed
-to use `workspace = true` dependencies. Adding their upstream crates directly is prohibited because
-the reviewed snapshots resolve a different SDK generation. Any copied source retains its original
-license header and records its provenance.
+People behavior is adapted onto CORD's maintained identity pallet. Bulletin transaction-storage,
+primitives, and runtime-API sources are vendored under
+`origin/pallets/bulletin-transaction-storage` from revision `b6c2827d2326`; their manifests use
+CORD `workspace = true` dependencies. Adding upstream runtime crates directly remains prohibited
+because the reviewed snapshots resolve a different SDK generation. Copied source retains its
+original license header and provenance.
 
 ## Verification
 

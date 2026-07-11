@@ -18,12 +18,12 @@
 
 use crate::{
 	xcm_config::LocationToAccountId, Assets, Broker, Entity, Feeless, People, Revive, Runtime,
-	RuntimeCall, RuntimeOrigin, System,
+	RuntimeCall, RuntimeOrigin, System, TransactionStorage,
 };
 use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::CheckIfFeeless,
-	traits::{Get, PalletInfoAccess},
+	traits::{Contains, Get, Hooks, PalletInfoAccess},
 };
 use pallet_broker::{CoreAssignment, CoreMask, Reservations, Schedule, ScheduleItem};
 use polkadot_primitives::AccountId;
@@ -68,6 +68,7 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<Broker as PalletInfoAccess>::index(), 50);
 	assert_eq!(<Entity as PalletInfoAccess>::index(), 53);
 	assert_eq!(<People as PalletInfoAccess>::index(), 90);
+	assert_eq!(<TransactionStorage as PalletInfoAccess>::index(), 110);
 	assert_eq!(<<Runtime as pallet_broker::Config>::MaxReservedCores as Get<u32>>::get(), 50);
 }
 
@@ -90,6 +91,49 @@ fn people_identity_is_self_claimed_and_sudo_attested() {
 		);
 		assert_ok!(People::add_registrar(RuntimeOrigin::root(), registrar.into()));
 	});
+}
+
+#[test]
+fn bulletin_storage_is_authorized_indexed_and_content_addressed() {
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		System::set_block_number(1);
+		System::set_extrinsic_index(0);
+		let account = AccountId::from(ALICE);
+		let data = b"identity-bound audit record".to_vec();
+
+		assert_ok!(TransactionStorage::authorize_account(
+			RuntimeOrigin::root(),
+			account.clone(),
+			2,
+			1024,
+		));
+		let authorization = TransactionStorage::account_authorization(account.clone()).unwrap();
+		assert_eq!(authorization.transactions_allowance, 2);
+		assert_eq!(authorization.bytes_allowance, 1024);
+		assert!(TransactionStorage::can_store(&account, data.len() as u32));
+
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::root(), data.clone()));
+		let content_hash = sp_io::hashing::blake2_256(&data);
+		assert!(TransactionStorage::contains_transaction(content_hash));
+		<TransactionStorage as Hooks<u32>>::on_finalize(1);
+		let indexed = TransactionStorage::transactions_at(1).unwrap();
+		assert_eq!(indexed.len(), 1);
+		assert_eq!(indexed[0].content_hash, content_hash);
+	});
+}
+
+#[test]
+fn bulletin_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm() {
+	let store = RuntimeCall::TransactionStorage(pallet_bulletin_transaction_storage::Call::store {
+		data: b"audit".to_vec(),
+	});
+	assert!(crate::BulletinCallInspector::contains(&store));
+
+	let wrapped = RuntimeCall::Utility(pallet_utility::Call::batch { calls: vec![store] });
+	assert!(crate::BulletinCallInspector::contains(&wrapped));
+
+	let ordinary = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+	assert!(!crate::BulletinCallInspector::contains(&ordinary));
 }
 
 fn full_core_task(task: u32) -> Schedule {

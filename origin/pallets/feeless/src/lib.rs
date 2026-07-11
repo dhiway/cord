@@ -297,7 +297,9 @@ where
 	) -> ValidateResult<Self::Val, T::RuntimeCall> {
 		if call.is_feeless(&origin) {
 			if let Some(frame_system::RawOrigin::Signed(who)) = origin.caller().as_system_ref() {
-				return Ok((Default::default(), Skip(who.clone()), origin));
+				if Pallet::<T>::has_feeless_quota(who) {
+					return Ok((Default::default(), Skip(who.clone()), origin));
+				}
 			}
 		}
 

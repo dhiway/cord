@@ -17,14 +17,14 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	AccountId, AllPalletsWithSystem, Balances, Broker, CollatorSelection, ParachainInfo,
-	ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
+	AccountId, AllPalletsWithSystem, Balances, Broker, BulletinCallInspector, CollatorSelection,
+	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
 	TransactionByteFee, WeightToFee, XcmpQueue, MICRO,
 };
 use frame_support::{
 	pallet_prelude::PalletInfoAccess,
 	parameter_types,
-	traits::{ConstU32, Contains, Disabled, Equals, Everything, Nothing},
+	traits::{ConstU32, Contains, Disabled, Equals, Everything, EverythingBut, Nothing},
 };
 use frame_system::EnsureRoot;
 use origin_hub_system_runtime_constants::TREASURY_PALLET_ID;
@@ -244,7 +244,7 @@ impl xcm_executor::Config for XcmConfig {
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
-	type SafeCallFilter = Everything;
+	type SafeCallFilter = EverythingBut<BulletinCallInspector>;
 	type Aliasers = Aliasers;
 	type TransactionalProcessor = FrameTransactionalProcessor;
 	type HrmpNewChannelOpenRequestHandler = ();

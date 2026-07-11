@@ -1953,6 +1953,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "bulletin-transaction-storage-primitives"
+version = "0.1.0"
+dependencies = [
+ "cid",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-io",
+ "sp-transaction-storage-proof",
+ "tracing",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9471,6 +9483,8 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-broker",
+ "pallet-bulletin-transaction-storage",
+ "pallet-bulletin-transaction-storage-runtime-api",
  "pallet-collator-selection",
  "pallet-cord-identity",
  "pallet-entity",
@@ -9519,6 +9533,7 @@ dependencies = [
  "sp-session",
  "sp-storage",
  "sp-transaction-pool",
+ "sp-transaction-storage-proof",
  "sp-version",
  "staging-parachain-info",
  "staging-xcm",
@@ -10091,6 +10106,30 @@ dependencies = [
  "sp-arithmetic",
  "sp-core",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-bulletin-transaction-storage"
+version = "0.1.0"
+dependencies = [
+ "array-bytes 6.2.3",
+ "bulletin-transaction-storage-primitives",
+ "pallet-bulletin-transaction-storage-runtime-api",
+ "parity-scale-codec",
+ "polkadot-sdk-frame",
+ "scale-info",
+ "sp-transaction-storage-proof",
+ "tracing",
+]
+
+[[package]]
+name = "pallet-bulletin-transaction-storage-runtime-api"
+version = "0.1.0"
+dependencies = [
+ "bulletin-transaction-storage-primitives",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
 ]
 
 [[package]]

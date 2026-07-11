@@ -78,6 +78,24 @@ identity; no council, referendum, deposit, or stake is required for administrati
 Application authorization should require the configured registrar judgement when a verified
 person is needed; merely publishing self-claimed display data is not equivalent to an attestation.
 
+## Durable Bulletin storage
+
+`TransactionStorage` is at pallet index `110`. It is adapted from Polkadot Bulletin Chain revision
+`b6c2827d2326` onto CORD's SDK graph and provides bounded authorized storage, BLAKE2/CID content
+lookup, retention and renewal accounting, a permanent-storage cap, transaction indexing, proof
+inherents, and both the SDK transaction-storage API and Bulletin authorization query API.
+
+Sudo/root manages authorizers. An authorizer grants an account explicit transaction and byte
+allowances before signed `store` or `renew` calls are accepted. The transaction extension consumes
+the authorization before dispatch, so a failed call cannot reuse its allowance. Storage mutations
+must be direct extrinsics: Utility-wrapped mutations and XCM `Transact` storage mutations are
+rejected recursively. Root remains an emergency direct authorizer and storage origin.
+
+The initial development limits are 128 indexed transactions per block, 256 KiB per transaction,
+16 GiB total permanent storage, and 14 days for an authorization. These are safety limits, not
+production storage economics. The Orbis node must keep the transaction-storage inherent provider
+enabled; once retained data reaches its proof window, a block missing the expected proof is invalid.
+
 ## Core allocation
 
 Orbis replaces Origin Hub as Origin's system-chain Coretime Broker. The relay runtime authorizes
