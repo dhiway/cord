@@ -23,7 +23,8 @@ Runtime pallet indices are append-only within these bands:
 | `100..=109` | Revive and Solidity support |
 | `110` | Bulletin transaction storage and proof inherent |
 | `111..=129` | reserved Bulletin extensions |
-| `200..=239` | meta-tx, fee policy, safety controls |
+| `200..=214` | application asset and payment extensions (conversion 200) |
+| `215..=239` | meta-tx, fee policy, safety controls |
 | `249` | migrations |
 | `255` | Sudo |
 

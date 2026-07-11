@@ -9,6 +9,7 @@ version.workspace = true
 build = "build.rs"
 
 [dependencies]
+assets-common = { workspace = true }
 enumflags2 = { workspace = true }
 serde = { optional = true, features = ["derive"], workspace = true }
 codec = { features = ["derive", "max-encoded-len"], workspace = true }
@@ -39,6 +40,7 @@ pallet-assets-freezer = { workspace = true }
 pallet-assets-holder = { workspace = true }
 pallet-assets-precompiles = { workspace = true }
 pallet-asset-rate = { workspace = true }
+pallet-asset-conversion = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-broker = { workspace = true }
 pallet-bulletin-hop-promotion = { workspace = true }
@@ -120,6 +122,7 @@ substrate-wasm-builder = { optional = true, workspace = true }
 [features]
 default = ["std"]
 std = [
+	"assets-common/std",
 	"codec/std",
 	"origin-primitives/std",
 	"origin-runtime-constants/std",
@@ -151,6 +154,7 @@ std = [
 	"pallet-assets-holder/std",
 	"pallet-assets-precompiles/std",
 	"pallet-asset-rate/std",
+	"pallet-asset-conversion/std",
 	"pallet-balances/std",
 	"pallet-broker/std",
 	"pallet-bulletin-hop-promotion/std",
@@ -216,6 +220,7 @@ std = [
 
 
 runtime-benchmarks = [
+	"assets-common/runtime-benchmarks",
 	"origin-runtime-constants/runtime-benchmarks",
 	"origin-hub-system-runtime-constants/runtime-benchmarks",
 	"cumulus-pallet-parachain-system/runtime-benchmarks",
@@ -240,6 +245,7 @@ runtime-benchmarks = [
 	"pallet-assets-holder/runtime-benchmarks",
 	"pallet-assets-precompiles/runtime-benchmarks",
 	"pallet-asset-rate/runtime-benchmarks",
+	"pallet-asset-conversion/runtime-benchmarks",
 	"pallet-collator-selection/runtime-benchmarks",
 	"pallet-entity/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
@@ -272,6 +278,7 @@ runtime-benchmarks = [
 ]
 
 try-runtime = [
+	"assets-common/try-runtime",
 	"cumulus-pallet-aura-ext/try-runtime",
 	"cumulus-pallet-parachain-system/try-runtime",
 	"cumulus-pallet-weight-reclaim/try-runtime",
@@ -293,6 +300,7 @@ try-runtime = [
 	"pallet-assets-holder/try-runtime",
 	"pallet-assets-precompiles/try-runtime",
 	"pallet-asset-rate/try-runtime",
+	"pallet-asset-conversion/try-runtime",
 	"pallet-collator-selection/try-runtime",
 	"pallet-entity/try-runtime",
 	"pallet-token/try-runtime",

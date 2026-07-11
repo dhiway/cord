@@ -36,6 +36,10 @@ mod weights;
 pub mod xcm_config;
 
 use alloc::{borrow::Cow, string::String, vec, vec::Vec};
+use assets_common::{
+	local_and_foreign_assets::{LocalFromLeft, TargetFromLeft},
+	AssetIdForTrustBackedAssetsConvert,
+};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use core::{cmp::Ordering, convert::TryInto};
 use cumulus_pallet_parachain_system::{RelayNumberMonotonicallyIncreases, RelaychainDataProvider};
@@ -48,8 +52,9 @@ use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	parameter_types,
 	traits::{
-		AsEnsureOriginWithArg, ConstBool, ConstU128, ConstU32, ConstU64, Contains, EitherOf,
-		EitherOfDiverse, Everything, InstanceFilter, PrivilegeCmp, TransformOrigin, VariantCountOf,
+		fungible, fungibles, tokens::imbalance::ResolveAssetTo, AsEnsureOriginWithArg, ConstBool,
+		ConstU128, ConstU32, ConstU64, Contains, EitherOf, EitherOfDiverse, Everything,
+		InstanceFilter, PrivilegeCmp, TransformOrigin, VariantCountOf,
 	},
 	weights::{ConstantMultiplier, Weight},
 	PalletId,
@@ -139,7 +144,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 15,
+	spec_version: 16,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -384,6 +389,74 @@ pub type ForeignAssetsInstance = pallet_assets::Instance2;
 pub type ForeignAssetsFreezerInstance = pallet_assets_freezer::Instance2;
 pub type PoolAssetsInstance = pallet_assets::Instance3;
 pub type PoolAssetsFreezerInstance = pallet_assets_freezer::Instance3;
+
+parameter_types! {
+	pub TrustBackedAssetsPalletLocation: Location = Location::new(0, [PalletInstance(80)]);
+	pub const TrustBackedAssetsPalletIndex: u8 = 80;
+	pub AssetConversionFeeAccount: AccountId = AccountId::from([0xA6; 32]);
+	pub const AssetConversionPalletId: PalletId = PalletId(*b"py/ascon");
+	pub const PoolSetupFee: Balance = UNITS;
+	pub const LiquidityWithdrawalFee: Permill = Permill::zero();
+	pub const AssetConversionLpFee: Permill = Permill::from_perthousand(3);
+}
+
+/// Union of Orbis trust-backed and foreign assets, keyed by canonical XCM locations.
+pub type LocalAndForeignAssets = fungibles::UnionOf<
+	Assets,
+	ForeignAssets,
+	LocalFromLeft<
+		AssetIdForTrustBackedAssetsConvert<TrustBackedAssetsPalletLocation, Location>,
+		u32,
+		Location,
+	>,
+	Location,
+	AccountId,
+>;
+
+/// Native Origin balance plus every non-pool asset accepted by Orbis conversion pools.
+pub type NativeAndAssets = fungible::UnionOf<
+	Balances,
+	LocalAndForeignAssets,
+	TargetFromLeft<xcm_config::OrgnRelayLocation, Location>,
+	Location,
+	AccountId,
+>;
+
+pub type PoolIdToAccountId =
+	pallet_asset_conversion::AccountIdConverter<AssetConversionPalletId, (Location, Location)>;
+
+impl pallet_asset_conversion::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type HigherPrecisionBalance = sp_core::U256;
+	type AssetKind = Location;
+	type Assets = NativeAndAssets;
+	type PoolId = (Location, Location);
+	type PoolLocator = pallet_asset_conversion::WithFirstAsset<
+		xcm_config::OrgnRelayLocation,
+		AccountId,
+		Location,
+		PoolIdToAccountId,
+	>;
+	type PoolAssetId = u32;
+	type PoolAssets = PoolAssets;
+	type PoolSetupFee = PoolSetupFee;
+	type PoolSetupFeeAsset = xcm_config::OrgnRelayLocation;
+	type PoolSetupFeeTarget = ResolveAssetTo<AssetConversionFeeAccount, NativeAndAssets>;
+	type LiquidityWithdrawalFee = LiquidityWithdrawalFee;
+	type LPFee = AssetConversionLpFee;
+	type PalletId = AssetConversionPalletId;
+	type MaxSwapPathLength = ConstU32<4>;
+	type MintMinLiquidity = ConstU128<100>;
+	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = assets_common::benchmarks::AssetPairFactory<
+		xcm_config::OrgnRelayLocation,
+		parachain_info::Pallet<Runtime>,
+		TrustBackedAssetsPalletIndex,
+		Location,
+	>;
+}
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ForeignAssetsBenchmarkHelper;
@@ -1181,6 +1254,9 @@ construct_runtime!(
 		TransactionStorage: pallet_bulletin_transaction_storage = 110,
 		HopPromotion: pallet_bulletin_hop_promotion = 111,
 
+		// Application asset and payment extensions.
+		AssetConversion: pallet_asset_conversion = 200,
+
 		// Utilities
 		MetaTx: pallet_meta_tx = 215,
 		TxPause: pallet_tx_pause = 216,
@@ -1363,6 +1439,7 @@ mod benches {
 		[frame_system_extensions, SystemExtensionsBench::<Runtime>]
 		[pallet_assets, Assets]
 		[pallet_asset_rate, AssetRate]
+		[pallet_asset_conversion, AssetConversion]
 		[pallet_balances, Balances]
 		[pallet_broker, Broker]
 		[pallet_bulletin_transaction_storage, TransactionStorage]

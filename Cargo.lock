@@ -1298,6 +1298,34 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b34d609dfbaf33d6889b2b7106d3ca345eacad44200913df5ba02bfd31d2ba9"
 
 [[package]]
+name = "assets-common"
+version = "0.33.0"
+source = "git+https://github.com/dhiway/sdk?branch=release-v1.24.0#cc190ea83c590b6a14a6b9771ab02c81618dc118"
+dependencies = [
+ "cumulus-primitives-core",
+ "ethereum-standards",
+ "frame-support",
+ "frame-system",
+ "impl-trait-for-tuples",
+ "pallet-asset-conversion",
+ "pallet-assets",
+ "pallet-revive",
+ "pallet-revive-uapi",
+ "pallet-xcm",
+ "parachains-common",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-api",
+ "sp-core",
+ "sp-runtime",
+ "staging-xcm",
+ "staging-xcm-builder",
+ "staging-xcm-executor",
+ "tracing",
+]
+
+[[package]]
 name = "async-channel"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9492,6 +9520,7 @@ dependencies = [
 name = "origin-orbis-runtime"
 version = "0.9.9"
 dependencies = [
+ "assets-common",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-session-benchmarking",
@@ -9515,6 +9544,7 @@ dependencies = [
  "origin-hub-system-runtime-constants",
  "origin-primitives",
  "origin-runtime-constants",
+ "pallet-asset-conversion",
  "pallet-asset-rate",
  "pallet-assets",
  "pallet-assets-freezer",
