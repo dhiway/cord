@@ -66,7 +66,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Solidity/PolkaVM contracts | `pallet_revive` | Present at index 100; deploy/call fixture tested |
 | Foreign assets | second `pallet_assets` instance | Gap |
 | Pool assets | third `pallet_assets` instance | Gap |
-| Asset holder and freezer | `pallet_assets_holder`, `pallet_assets_freezer` | Gap |
+| Asset holder and freezer | `pallet_assets_holder`, `pallet_assets_freezer` | Present at indices 82/81 and exercised against local assets |
 | Asset conversion and pools | `pallet_asset_conversion` | Gap |
 | Asset-denominated fees | asset conversion/asset transaction payment | Gap |
 | Asset rates | `pallet_asset_rate` | Gap |

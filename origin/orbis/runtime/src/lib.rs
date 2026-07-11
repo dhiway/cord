@@ -138,7 +138,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 11,
+	spec_version: 12,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -376,6 +376,8 @@ parameter_types! {
 
 /// Local enterprise assets addressable by a compact `u32` identifier.
 pub type AssetsInstance = pallet_assets::Instance1;
+pub type AssetsFreezerInstance = pallet_assets_freezer::Instance1;
+pub type AssetsHolderInstance = pallet_assets_holder::Instance1;
 
 impl pallet_assets::Config<AssetsInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -391,8 +393,8 @@ impl pallet_assets::Config<AssetsInstance> for Runtime {
 	type MetadataDepositPerByte = AssetMetadataDepositPerByte;
 	type ApprovalDeposit = AssetApprovalDeposit;
 	type StringLimit = AssetsStringLimit;
-	type Holder = ();
-	type Freezer = ();
+	type Holder = AssetsHolder;
+	type Freezer = AssetsFreezer;
 	type Extra = ();
 	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
 	type CallbackHandle = pallet_assets::AutoIncAssetId<Runtime, AssetsInstance>;
@@ -400,6 +402,16 @@ impl pallet_assets::Config<AssetsInstance> for Runtime {
 	type RemoveItemsLimit = ConstU32<1000>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+}
+
+impl pallet_assets_freezer::Config<AssetsFreezerInstance> for Runtime {
+	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type RuntimeEvent = RuntimeEvent;
+}
+
+impl pallet_assets_holder::Config<AssetsHolderInstance> for Runtime {
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type RuntimeEvent = RuntimeEvent;
 }
 
 impl pallet_assets_precompiles::PermitConfig for Runtime {
@@ -970,6 +982,8 @@ construct_runtime!(
 
 		// Unified application assets.
 		Assets: pallet_assets::<Instance1> = 80,
+		AssetsFreezer: pallet_assets_freezer::<Instance1> = 81,
+		AssetsHolder: pallet_assets_holder::<Instance1> = 82,
 
 		// People identity and lightweight aliases.
 		People: pallet_cord_identity = 90,

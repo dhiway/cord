@@ -17,8 +17,9 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	xcm_config::LocationToAccountId, Assets, Balances, Broker, Entity, Feeless, HopPromotion,
-	People, Revive, Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage,
+	xcm_config::LocationToAccountId, Assets, AssetsFreezer, AssetsHolder, Balances, Broker, Entity,
+	Feeless, HopPromotion, People, Revive, Runtime, RuntimeCall, RuntimeOrigin, System,
+	TransactionStorage,
 };
 use frame_support::{
 	assert_noop, assert_ok,
@@ -91,10 +92,51 @@ fn enterprise_asset_can_be_created_and_managed() {
 }
 
 #[test]
+fn enterprise_assets_support_native_holds_and_freezes() {
+	use frame_support::traits::tokens::fungibles::{
+		freeze::{Inspect, Mutate},
+		UnbalancedHold,
+	};
+	use pallet_assets::BalanceOnHold;
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		let owner = AccountId::from(ALICE);
+		let beneficiary = AccountId::from([2u8; 32]);
+		let asset_id = 8u32;
+		assert_ok!(Assets::force_create(
+			RuntimeOrigin::root(),
+			asset_id.into(),
+			owner.clone().into(),
+			true,
+			1,
+		));
+		assert_ok!(Assets::mint(
+			RuntimeOrigin::signed(owner),
+			asset_id.into(),
+			beneficiary.clone().into(),
+			1_000,
+		));
+
+		let hold_reason = crate::RuntimeHoldReason::TransactionStorage(
+			pallet_bulletin_transaction_storage::HoldReason::StorageFeeHold,
+		);
+		assert_ok!(AssetsHolder::set_balance_on_hold(asset_id, &hold_reason, &beneficiary, 400,));
+		assert_eq!(AssetsHolder::balance_on_hold(asset_id, &beneficiary), Some(400));
+
+		let freeze_reason =
+			crate::RuntimeFreezeReason::Revive(pallet_revive::FreezeReason::PGasMinBalance);
+		assert_ok!(AssetsFreezer::set_freeze(asset_id, &freeze_reason, &beneficiary, 700,));
+		assert_eq!(AssetsFreezer::balance_frozen(asset_id, &freeze_reason, &beneficiary), 700);
+	});
+}
+
+#[test]
 fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<<Runtime as pallet_revive::Config>::ChainId as Get<u64>>::get(), 420_001_006);
 	assert!(<<Runtime as pallet_revive::Config>::AllowEVMBytecode as Get<bool>>::get());
 	assert_eq!(<Assets as PalletInfoAccess>::index(), 80);
+	assert_eq!(<AssetsFreezer as PalletInfoAccess>::index(), 81);
+	assert_eq!(<AssetsHolder as PalletInfoAccess>::index(), 82);
 	assert_eq!(<Revive as PalletInfoAccess>::index(), 100);
 	// The SDK relay Coretime pallet encodes callbacks to Broker at index 50.
 	assert_eq!(<Broker as PalletInfoAccess>::index(), 50);

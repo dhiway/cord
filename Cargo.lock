@@ -9516,6 +9516,8 @@ dependencies = [
  "origin-primitives",
  "origin-runtime-constants",
  "pallet-assets",
+ "pallet-assets-freezer",
+ "pallet-assets-holder",
  "pallet-assets-precompiles",
  "pallet-aura",
  "pallet-authorship",
@@ -9898,6 +9900,21 @@ dependencies = [
  "parity-scale-codec",
  "polkadot-sdk-frame",
  "scale-info",
+]
+
+[[package]]
+name = "pallet-assets-holder"
+version = "0.12.0"
+source = "git+https://github.com/dhiway/sdk?branch=release-v1.24.0#cc190ea83c590b6a14a6b9771ab02c81618dc118"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-assets",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
 ]
 
 [[package]]
