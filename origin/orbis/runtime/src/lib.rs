@@ -125,7 +125,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 4,
+	spec_version: 5,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -773,6 +773,7 @@ impl pallet_register::Config for Runtime {
 impl pallet_feeless::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_feeless::weights::SubstrateWeight<Runtime>;
+	type MaxFeelessTransactionsPerBlock = ConstU32<16>;
 }
 
 parameter_types! {
@@ -885,7 +886,7 @@ pub type TxExtensions = (
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_skip_feeless_payment::SkipCheckIfFeeless<
+	pallet_feeless::ChargeOrSkipFeeless<
 		Runtime,
 		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	>,
@@ -912,7 +913,7 @@ impl EthExtra for EthExtraImpl {
 			frame_system::CheckMortality::<Runtime>::from(generic::Era::Immortal),
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_skip_feeless_payment::SkipCheckIfFeeless::from(
+			pallet_feeless::ChargeOrSkipFeeless::from(
 				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
 			),
 			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),

@@ -71,8 +71,7 @@ This escape hatch is not valid for the Solidity fixture acceptance suite; that s
 
 Orbis replaces Origin Hub as Origin's system-chain Coretime Broker. The relay runtime authorizes
 parachain `1006` as its sole `BrokerId`; Orbis contains `pallet_broker` at SDK-required index `50`
-with
-Sudo/root administration.
+with Sudo/root administration.
 
 Origin Sudo must directly assign Orbis one permanent bootstrap core before starting Orbis. Once
 Orbis is authoring, its Broker requests the required relay core count and sends assignments over
@@ -106,3 +105,20 @@ Reservation indices are positional and can change after an earlier entry is remo
 must read `Broker.Reservations` immediately before an `unreserve`. Core-count changes are staged by
 Origin and become active across the relay session boundary; they do not require validator restart
 or staking operations.
+
+## Sponsored and fee-free transactions
+
+`MetaTx.dispatch` is a sponsored transaction: the inner signer authorizes the call and owns the
+inner nonce, while the outer signed relayer submits the extrinsic and pays ordinary transaction
+fees. The relayer does not inherit the inner signer's authority, and a stale nonce or invalid
+signature rejects the inner transaction.
+
+The separate zero-fee model is restricted to dispatchables explicitly annotated by Entity and
+Register. Root must first add the account to `Feeless`; each account may consume at most 16 such
+transactions per block. Orbis uses `ChargeOrSkipFeeless`, which consumes a quota unit during
+transaction preparation before skipping payment. Exhausted accounts return to normal fee handling
+during validation and cannot consume another skip during preparation.
+
+Utility batches, proxies, multisig calls, Revive calls, asset calls, and other unannotated outer
+calls are not fee-free even when they contain or dispatch an annotated call. This deny-by-default
+outer-call behavior prevents a batch from multiplying one quota unit into several operations.

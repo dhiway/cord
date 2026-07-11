@@ -17,10 +17,12 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	xcm_config::LocationToAccountId, Assets, Broker, Entity, Revive, Runtime, RuntimeOrigin,
+	xcm_config::LocationToAccountId, Assets, Broker, Entity, Feeless, Revive, Runtime, RuntimeCall,
+	RuntimeOrigin, System,
 };
 use frame_support::{
 	assert_noop, assert_ok,
+	dispatch::CheckIfFeeless,
 	traits::{Get, PalletInfoAccess},
 };
 use pallet_broker::{CoreAssignment, CoreMask, Reservations, Schedule, ScheduleItem};
@@ -110,6 +112,38 @@ fn broker_allocation_lifecycle_is_sudo_only() {
 		assert_ok!(Broker::reserve(RuntimeOrigin::root(), full_core_task(1006)));
 		assert_ok!(Broker::unreserve(RuntimeOrigin::root(), 0));
 		assert!(Reservations::<Runtime>::get().is_empty());
+	});
+}
+
+#[test]
+fn fee_free_policy_is_call_scoped_quota_bounded_and_not_batchable() {
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		System::set_block_number(1);
+		let account = AccountId::from(ALICE);
+		let origin = RuntimeOrigin::signed(account.clone());
+		assert_ok!(Feeless::add_feeless_account(RuntimeOrigin::root(), account.clone()));
+
+		let allowed = RuntimeCall::Entity(pallet_entity::Call::rotate_attributes { ops: vec![] });
+		assert!(allowed.is_feeless(&origin));
+
+		let wrapped =
+			RuntimeCall::Utility(pallet_utility::Call::batch { calls: vec![allowed.clone()] });
+		assert!(!wrapped.is_feeless(&origin));
+
+		let ordinary = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+			dest: AccountId::from([9u8; 32]).into(),
+			value: 1,
+		});
+		assert!(!ordinary.is_feeless(&origin));
+
+		for _ in 0..16 {
+			assert_ok!(Feeless::consume_feeless_quota(&account));
+		}
+		assert!(!allowed.is_feeless(&origin));
+		assert_noop!(
+			Feeless::consume_feeless_quota(&account),
+			pallet_feeless::Error::<Runtime>::QuotaExhausted
+		);
 	});
 }
 

@@ -124,7 +124,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("origin-hub"),
 	impl_name: Cow::Borrowed("dhiway-origin-hub"),
 	authoring_version: 1,
-	spec_version: 9902,
+	spec_version: 9903,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -685,6 +685,7 @@ impl pallet_register::Config for Runtime {
 impl pallet_feeless::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_feeless::weights::SubstrateWeight<Runtime>;
+	type MaxFeelessTransactionsPerBlock = ConstU32<16>;
 }
 
 parameter_types! {
@@ -790,7 +791,7 @@ pub type TxExtensions = (
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_skip_feeless_payment::SkipCheckIfFeeless<
+	pallet_feeless::ChargeOrSkipFeeless<
 		Runtime,
 		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	>,
