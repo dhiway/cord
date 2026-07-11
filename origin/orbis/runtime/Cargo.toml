@@ -38,6 +38,7 @@ pallet-assets = { workspace = true }
 pallet-assets-freezer = { workspace = true }
 pallet-assets-holder = { workspace = true }
 pallet-assets-precompiles = { workspace = true }
+pallet-asset-rate = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-broker = { workspace = true }
 pallet-bulletin-hop-promotion = { workspace = true }
@@ -149,6 +150,7 @@ std = [
 	"pallet-assets-freezer/std",
 	"pallet-assets-holder/std",
 	"pallet-assets-precompiles/std",
+	"pallet-asset-rate/std",
 	"pallet-balances/std",
 	"pallet-broker/std",
 	"pallet-bulletin-hop-promotion/std",
@@ -237,6 +239,7 @@ runtime-benchmarks = [
 	"pallet-assets-freezer/runtime-benchmarks",
 	"pallet-assets-holder/runtime-benchmarks",
 	"pallet-assets-precompiles/runtime-benchmarks",
+	"pallet-asset-rate/runtime-benchmarks",
 	"pallet-collator-selection/runtime-benchmarks",
 	"pallet-entity/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
@@ -289,6 +292,7 @@ try-runtime = [
 	"pallet-assets-freezer/try-runtime",
 	"pallet-assets-holder/try-runtime",
 	"pallet-assets-precompiles/try-runtime",
+	"pallet-asset-rate/try-runtime",
 	"pallet-collator-selection/try-runtime",
 	"pallet-entity/try-runtime",
 	"pallet-token/try-runtime",

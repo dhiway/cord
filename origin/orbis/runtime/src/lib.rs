@@ -139,7 +139,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 14,
+	spec_version: 15,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -490,6 +490,28 @@ impl pallet_assets::Config<PoolAssetsInstance> for Runtime {
 impl pallet_assets_freezer::Config<PoolAssetsFreezerInstance> for Runtime {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type RuntimeEvent = RuntimeEvent;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct AssetRateBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_asset_rate::AssetKindFactory<Location> for AssetRateBenchmarkHelper {
+	fn create_asset_kind(seed: u32) -> Location {
+		Location::new(0, [PalletInstance(80), GeneralIndex(seed.into())])
+	}
+}
+
+impl pallet_asset_rate::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = pallet_asset_rate::weights::SubstrateWeight<Runtime>;
+	type CreateOrigin = EnsureRoot<AccountId>;
+	type RemoveOrigin = EnsureRoot<AccountId>;
+	type UpdateOrigin = EnsureRoot<AccountId>;
+	type Currency = Balances;
+	type AssetKind = Location;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = AssetRateBenchmarkHelper;
 }
 
 impl pallet_assets_precompiles::ForeignAssetsConfig for Runtime {
@@ -1147,6 +1169,7 @@ construct_runtime!(
 		PoolAssetsFreezer: pallet_assets_freezer::<Instance3> = 86,
 		Uniques: pallet_uniques = 87,
 		Nfts: pallet_nfts = 88,
+		AssetRate: pallet_asset_rate = 89,
 
 		// People identity and lightweight aliases.
 		People: pallet_cord_identity = 90,
@@ -1339,6 +1362,7 @@ mod benches {
 		[frame_system, SystemBench::<Runtime>]
 		[frame_system_extensions, SystemExtensionsBench::<Runtime>]
 		[pallet_assets, Assets]
+		[pallet_asset_rate, AssetRate]
 		[pallet_balances, Balances]
 		[pallet_broker, Broker]
 		[pallet_bulletin_transaction_storage, TransactionStorage]

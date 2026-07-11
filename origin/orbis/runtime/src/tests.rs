@@ -17,10 +17,10 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	xcm_config::LocationToAccountId, Assets, AssetsFreezer, AssetsHolder, Balances, Broker, Entity,
-	Feeless, ForeignAssets, ForeignAssetsFreezer, HopPromotion, Nfts, People, PoolAssets,
-	PoolAssetsFreezer, Revive, Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage,
-	Uniques,
+	xcm_config::LocationToAccountId, AssetRate, Assets, AssetsFreezer, AssetsHolder, Balances,
+	Broker, Entity, Feeless, ForeignAssets, ForeignAssetsFreezer, HopPromotion, Nfts, People,
+	PoolAssets, PoolAssetsFreezer, Revive, Runtime, RuntimeCall, RuntimeOrigin, System,
+	TransactionStorage, Uniques,
 };
 use frame_support::{
 	assert_noop, assert_ok,
@@ -226,6 +226,36 @@ fn native_unique_and_nft_collections_mint_items() {
 }
 
 #[test]
+fn asset_rates_are_location_based_and_sudo_administered() {
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		let asset = Location::new(0, [PalletInstance(80), GeneralIndex(7)]);
+		let initial = sp_runtime::FixedU128::from_rational(3, 2);
+		let updated = sp_runtime::FixedU128::from_u32(2);
+
+		assert_noop!(
+			AssetRate::create(
+				RuntimeOrigin::signed(AccountId::from(ALICE)),
+				Box::new(asset.clone()),
+				initial,
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+		assert_ok!(AssetRate::create(RuntimeOrigin::root(), Box::new(asset.clone()), initial));
+		assert_eq!(
+			pallet_asset_rate::ConversionRateToNative::<Runtime>::get(&asset),
+			Some(initial)
+		);
+		assert_ok!(AssetRate::update(RuntimeOrigin::root(), Box::new(asset.clone()), updated));
+		assert_eq!(
+			pallet_asset_rate::ConversionRateToNative::<Runtime>::get(&asset),
+			Some(updated)
+		);
+		assert_ok!(AssetRate::remove(RuntimeOrigin::root(), Box::new(asset.clone())));
+		assert!(pallet_asset_rate::ConversionRateToNative::<Runtime>::get(&asset).is_none());
+	});
+}
+
+#[test]
 fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<<Runtime as pallet_revive::Config>::ChainId as Get<u64>>::get(), 420_001_006);
 	assert!(<<Runtime as pallet_revive::Config>::AllowEVMBytecode as Get<bool>>::get());
@@ -238,6 +268,7 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<PoolAssetsFreezer as PalletInfoAccess>::index(), 86);
 	assert_eq!(<Uniques as PalletInfoAccess>::index(), 87);
 	assert_eq!(<Nfts as PalletInfoAccess>::index(), 88);
+	assert_eq!(<AssetRate as PalletInfoAccess>::index(), 89);
 	assert_eq!(<Revive as PalletInfoAccess>::index(), 100);
 	// The SDK relay Coretime pallet encodes callbacks to Broker at index 50.
 	assert_eq!(<Broker as PalletInfoAccess>::index(), 50);

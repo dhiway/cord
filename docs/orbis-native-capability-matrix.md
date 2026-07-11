@@ -69,7 +69,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Asset holder and freezer | `pallet_assets_holder`, `pallet_assets_freezer` | Present at indices 82/81 and exercised against local assets |
 | Asset conversion and pools | `pallet_asset_conversion` | Gap |
 | Asset-denominated fees | asset conversion/asset transaction payment | Gap |
-| Asset rates | `pallet_asset_rate` | Gap |
+| Asset rates | `pallet_asset_rate` | Present at index 89 with Location-based, Sudo-managed rates |
 | NFTs and uniques | `pallet_nfts`, `pallet_uniques` | Present at indices 88/87 with native collection and mint lifecycle tests |
 | PGAS/allowance integration | Individuality Asset Hub PGAS pallets | Gap; must remain compatible with meta-tx/feeless policy |
 | Alias accounts, DOTNS gateway and origin restriction | Individuality Asset Hub adapters | Gap |

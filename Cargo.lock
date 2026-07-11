@@ -9515,6 +9515,7 @@ dependencies = [
  "origin-hub-system-runtime-constants",
  "origin-primitives",
  "origin-runtime-constants",
+ "pallet-asset-rate",
  "pallet-assets",
  "pallet-assets-freezer",
  "pallet-assets-holder",
