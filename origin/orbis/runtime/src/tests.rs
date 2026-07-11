@@ -149,6 +149,136 @@ fn solidity_evm_fixture_deploys_and_executes_through_revive() {
 }
 
 #[test]
+fn identity_bound_contract_moves_assets_and_persists_its_audit() {
+	use pallet_revive::{
+		test_utils::builder::{BareCallBuilder, BareInstantiateBuilder},
+		AddressMapper, Code, TransactionLimits,
+	};
+	let limits = || TransactionLimits::WeightAndDeposit {
+		weight_limit: frame_support::weights::Weight::from_parts(500_000_000_000, 10 * 1024 * 1024),
+		deposit_limit: 50_000_000_000_000_000,
+	};
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		System::set_block_number(1);
+		System::set_extrinsic_index(0);
+		let owner = pallet_revive::test_utils::ALICE;
+		let recipient = pallet_revive::test_utils::BOB;
+		<Balances as Mutate<AccountId>>::set_balance(&owner, 100_000_000_000_000_000);
+		<Balances as Mutate<AccountId>>::set_balance(&recipient, crate::ExistentialDeposit::get());
+		<Balances as Mutate<AccountId>>::set_balance(
+			&Revive::account_id(),
+			crate::ExistentialDeposit::get(),
+		);
+
+		let mut identity =
+			pallet_cord_identity::legacy::IdentityInfo::<crate::PeopleMaxAdditionalFields>::default(
+			);
+		identity.display =
+			pallet_cord_identity::Data::Raw(b"Alice Orbis".to_vec().try_into().unwrap());
+		assert_ok!(People::set_identity(
+			RuntimeOrigin::signed(owner.clone()),
+			Box::new(identity),
+		));
+		assert!(People::has_identity(&owner, 1));
+		let identity_commitment = sp_io::hashing::blake2_256(owner.as_ref());
+
+		let code = decode_hex(include_str!(
+			"../fixtures/build/IdentityAssetAudit.bin"
+		));
+		let instantiated = BareInstantiateBuilder::<Runtime>::bare_instantiate(
+			RuntimeOrigin::signed(owner.clone()),
+			Code::Upload(code),
+		)
+		.transaction_limits(limits())
+		.constructor_data(identity_commitment.to_vec())
+		.salt(Some([8u8; 32]))
+		.build_and_unwrap_result();
+		assert!(!instantiated.result.did_revert());
+		let contract_addr = instantiated.addr;
+		let contract_account =
+			<pallet_revive::AccountId32Mapper<Runtime> as AddressMapper<Runtime>>::
+				to_fallback_account_id(&contract_addr);
+
+		let asset_id = 7u32;
+		assert_ok!(Assets::create(
+			RuntimeOrigin::signed(owner.clone()),
+			asset_id.into(),
+			owner.clone().into(),
+			1,
+		));
+		assert_ok!(Assets::mint(
+			RuntimeOrigin::signed(owner.clone()),
+			asset_id.into(),
+			contract_account.clone().into(),
+			100,
+		));
+
+		let audit_record = b"alice:identity-asset-transfer:40".to_vec();
+		let audit = sp_io::hashing::blake2_256(&audit_record);
+		let mut asset_addr = [0u8; 20];
+		asset_addr[..4].copy_from_slice(&asset_id.to_be_bytes());
+		asset_addr[16..18].copy_from_slice(&0x0120u16.to_be_bytes());
+		let recipient_addr =
+			<pallet_revive::AccountId32Mapper<Runtime> as AddressMapper<Runtime>>::
+				to_address(&recipient);
+		let mut transfer =
+			sp_io::hashing::keccak_256(b"transferAndAudit(address,address,uint256,bytes32)")[..4]
+				.to_vec();
+		for address in [asset_addr, recipient_addr.0] {
+			transfer.extend_from_slice(&[0u8; 12]);
+			transfer.extend_from_slice(&address);
+		}
+		transfer.extend_from_slice(&[0u8; 31]);
+		transfer.push(40);
+		transfer.extend_from_slice(&audit);
+		let transferred = BareCallBuilder::<Runtime>::bare_call(
+			RuntimeOrigin::signed(owner.clone()),
+			contract_addr,
+		)
+		.transaction_limits(limits())
+		.data(transfer)
+		.build_and_unwrap_result();
+		assert!(!transferred.did_revert(), "contract call reverted: {transferred:?}");
+		assert_eq!(Assets::balance(asset_id, &contract_account), 60);
+		assert_eq!(Assets::balance(asset_id, &recipient), 40);
+
+		let last_audit = BareCallBuilder::<Runtime>::bare_call(
+			RuntimeOrigin::signed(owner.clone()),
+			contract_addr,
+		)
+		.transaction_limits(limits())
+		.data(sp_io::hashing::keccak_256(b"lastAudit()")[..4].to_vec())
+		.build_and_unwrap_result();
+		assert_eq!(last_audit.data, audit);
+
+		assert_ok!(TransactionStorage::authorize_account(
+			RuntimeOrigin::root(),
+			owner.clone(),
+			1,
+			1024,
+		));
+		let storage_call = pallet_bulletin_transaction_storage::Call::<Runtime>::store {
+			data: audit_record.clone(),
+		};
+		let (_, scope) = TransactionStorage::validate_signed(&owner, &storage_call).unwrap();
+		let scope = scope.expect("store calls carry their validated authorization scope");
+		assert_ok!(TransactionStorage::pre_dispatch_signed(&owner, &storage_call));
+		let authorized = pallet_bulletin_transaction_storage::Origin::<Runtime>::Authorized {
+			who: owner,
+			scope,
+		};
+		assert_ok!(TransactionStorage::store(
+			RuntimeOrigin::from(authorized),
+			audit_record,
+		));
+		assert!(TransactionStorage::contains_transaction(audit));
+		<TransactionStorage as Hooks<u32>>::on_finalize(1);
+		assert_eq!(TransactionStorage::transactions_at(1).unwrap()[0].content_hash, audit);
+	});
+}
+
+#[test]
 fn people_identity_is_self_claimed_and_sudo_attested() {
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		let account = AccountId::from(ALICE);

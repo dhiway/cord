@@ -10,4 +10,7 @@ solc \
 	--abi \
 	--overwrite \
 	-o "${fixture_dir}/build" \
-	"${fixture_dir}/Counter.sol"
+	"${fixture_dir}/Counter.sol" \
+	"${fixture_dir}/IdentityAssetAudit.sol"
+
+rm -f "${fixture_dir}/build/IERC20.abi" "${fixture_dir}/build/IERC20.bin"
