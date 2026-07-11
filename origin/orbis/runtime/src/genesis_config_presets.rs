@@ -20,7 +20,7 @@
 
 use crate::{
 	AccountId, Balance, BalancesConfig, CollatorSelectionConfig, ExistentialDeposit, ParaId,
-	ParachainInfoConfig, SessionConfig, SessionKeys, TokenConfig,
+	ParachainInfoConfig, Revive, SessionConfig, SessionKeys, TokenConfig,
 };
 use alloc::{vec, vec::Vec};
 use origin_hub_system_runtime_constants::genesis_presets::*;
@@ -46,14 +46,18 @@ fn orbis_staging_genesis(
 		token_network_id
 	);
 	// let development_accounts: Vec<AccountId> = endowed_accounts.clone();
+	let mut balances: Vec<(AccountId, Balance)> =
+		endowed_accounts.iter().cloned().map(|account| (account, endowment)).collect();
+	let revive_account = Revive::account_id();
+	if !balances.iter().any(|(account, _)| account == &revive_account) {
+		// Code-upload deposits are held on this account. It must exist before the first upload
+		// because `transfer_and_hold` cannot create a destination whose entire balance is held.
+		balances.push((revive_account, ORBIS_STAGING_ED));
+	}
 
 	serde_json::json!({
 		"balances": BalancesConfig {
-			balances: endowed_accounts
-				.iter()
-				.cloned()
-				.map(|acc| (acc, endowment))
-				.collect(),
+			balances,
 			dev_accounts: None,
 		},
 		"parachainInfo": ParachainInfoConfig {
@@ -162,6 +166,16 @@ mod tests {
 			),
 			0,
 			"permissionless collator candidacy must remain disabled"
+		);
+		let revive_account = serde_json::to_value(Revive::account_id()).unwrap();
+		assert!(
+			genesis
+				.pointer("/balances/balances")
+				.and_then(|value| value.as_array())
+				.expect("balances are present")
+				.iter()
+				.any(|entry| entry.get(0) == Some(&revive_account)),
+			"the Revive code-deposit account must exist at genesis"
 		);
 	}
 }

@@ -17,13 +17,13 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	xcm_config::LocationToAccountId, Assets, Broker, Entity, Feeless, People, Revive, Runtime,
-	RuntimeCall, RuntimeOrigin, System, TransactionStorage,
+	xcm_config::LocationToAccountId, Assets, Balances, Broker, Entity, Feeless, People, Revive,
+	Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage,
 };
 use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::CheckIfFeeless,
-	traits::{Contains, Get, Hooks, PalletInfoAccess},
+	traits::{fungible::Mutate, Contains, Get, Hooks, PalletInfoAccess},
 };
 use pallet_broker::{CoreAssignment, CoreMask, Reservations, Schedule, ScheduleItem};
 use polkadot_primitives::AccountId;
@@ -32,6 +32,24 @@ use xcm::prelude::*;
 use xcm_runtime_apis::conversions::LocationToAccountHelper;
 
 const ALICE: [u8; 32] = [1u8; 32];
+
+fn decode_hex(input: &str) -> Vec<u8> {
+	let input = input.trim();
+	assert_eq!(input.len() % 2, 0);
+	input
+		.as_bytes()
+		.chunks_exact(2)
+		.map(|pair| {
+			let digit = |byte: u8| match byte {
+				b'0'..=b'9' => byte - b'0',
+				b'a'..=b'f' => byte - b'a' + 10,
+				b'A'..=b'F' => byte - b'A' + 10,
+				_ => panic!("invalid fixture hex"),
+			};
+			(digit(pair[0]) << 4) | digit(pair[1])
+		})
+		.collect()
+}
 
 #[test]
 fn enterprise_asset_can_be_created_and_managed() {
@@ -70,6 +88,64 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<People as PalletInfoAccess>::index(), 90);
 	assert_eq!(<TransactionStorage as PalletInfoAccess>::index(), 110);
 	assert_eq!(<<Runtime as pallet_broker::Config>::MaxReservedCores as Get<u32>>::get(), 50);
+}
+
+#[test]
+fn solidity_evm_fixture_deploys_and_executes_through_revive() {
+	use pallet_revive::{
+		test_utils::builder::{BareCallBuilder, BareInstantiateBuilder},
+		Code, TransactionLimits,
+	};
+	let limits = || TransactionLimits::WeightAndDeposit {
+		weight_limit: frame_support::weights::Weight::from_parts(500_000_000_000, 10 * 1024 * 1024),
+		deposit_limit: 50_000_000_000_000_000,
+	};
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		System::set_block_number(1);
+		let account = pallet_revive::test_utils::ALICE;
+		let funded =
+			<Balances as Mutate<AccountId>>::set_balance(&account, 100_000_000_000_000_000);
+		assert_eq!(funded, 100_000_000_000_000_000);
+		assert_eq!(Balances::free_balance(&account), funded);
+		let revive_account = Revive::account_id();
+		<Balances as Mutate<AccountId>>::set_balance(
+			&revive_account,
+			crate::ExistentialDeposit::get(),
+		);
+		let code = decode_hex(include_str!("../fixtures/build/Counter.bin"));
+
+		let instantiate = BareInstantiateBuilder::<Runtime>::bare_instantiate(
+			RuntimeOrigin::signed(account.clone()),
+			Code::Upload(code),
+		)
+		.transaction_limits(limits())
+		.salt(Some([7u8; 32]))
+		.build();
+		let instantiated = instantiate.result.unwrap();
+		assert!(!instantiated.result.did_revert());
+		let contract_addr = instantiated.addr;
+
+		let increment = sp_io::hashing::keccak_256(b"increment()")[..4].to_vec();
+		let increment_result = BareCallBuilder::<Runtime>::bare_call(
+			RuntimeOrigin::signed(account.clone()),
+			contract_addr,
+		)
+		.transaction_limits(limits())
+		.data(increment)
+		.build_and_unwrap_result();
+		assert!(!increment_result.did_revert());
+
+		let value = sp_io::hashing::keccak_256(b"value()")[..4].to_vec();
+		let value_result =
+			BareCallBuilder::<Runtime>::bare_call(RuntimeOrigin::signed(account), contract_addr)
+				.transaction_limits(limits())
+				.data(value)
+				.build_and_unwrap_result();
+		assert!(!value_result.did_revert());
+		assert_eq!(value_result.data.len(), 32);
+		assert_eq!(value_result.data[31], 42);
+	});
 }
 
 #[test]
