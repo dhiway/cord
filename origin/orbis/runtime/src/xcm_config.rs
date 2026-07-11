@@ -17,11 +17,12 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	AccountId, AllPalletsWithSystem, Balances, CollatorSelection, ParachainInfo, ParachainSystem,
-	PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, TransactionByteFee,
-	WeightToFee, XcmpQueue, MICRO,
+	AccountId, AllPalletsWithSystem, Balances, Broker, CollatorSelection, ParachainInfo,
+	ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
+	TransactionByteFee, WeightToFee, XcmpQueue, MICRO,
 };
 use frame_support::{
+	pallet_prelude::PalletInfoAccess,
 	parameter_types,
 	traits::{ConstU32, Contains, Disabled, Equals, Everything, Nothing},
 };
@@ -40,11 +41,12 @@ use xcm_builder::{
 	AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses, AllowSubscriptionsFrom,
 	AllowTopLevelPaidExecutionFrom, DenyReserveTransferToRelayChain, DenyThenTry,
 	DescribeAllTerminal, DescribeFamily, DescribeTerminus, EnsureXcmOrigin,
-	FrameTransactionalProcessor, FungibleAdapter, HashedDescription, IsConcrete, ParentAsSuperuser,
-	ParentIsPreset, RelayChainAsNative, SendXcmFeeToAccount, SiblingParachainAsNative,
-	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
-	SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents,
-	WeightInfoBounds, WithComputedOrigin, WithUniqueTopic, XcmFeeManagerFromComponents,
+	FrameTransactionalProcessor, FungibleAdapter, HashedDescription, IsConcrete,
+	NonFungibleAdapter, ParentAsSuperuser, ParentIsPreset, RelayChainAsNative, SendXcmFeeToAccount,
+	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId,
+	UsingComponents, WeightInfoBounds, WithComputedOrigin, WithUniqueTopic,
+	XcmFeeManagerFromComponents,
 };
 use xcm_executor::{traits::ConvertLocation, XcmExecutor};
 
@@ -55,6 +57,8 @@ parameter_types! {
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 	pub UniversalLocation: InteriorLocation =
 		[GlobalConsensus(RelayNetwork::get().unwrap()), Parachain(ParachainInfo::parachain_id().into())].into();
+	pub BrokerPalletLocation: Location =
+		PalletInstance(<Broker as PalletInfoAccess>::index() as u8).into();
 	pub const MaxInstructions: u32 = 100;
 	pub const MaxAssetsIntoHolding: u32 = 64;
 	pub const GovernanceLocation: Location = Location::parent();
@@ -117,8 +121,17 @@ pub type FungibleTransactor = FungibleAdapter<
 	(),
 >;
 
+/// Means for transacting coretime regions on this chain.
+pub type RegionTransactor = NonFungibleAdapter<
+	Broker,
+	IsConcrete<BrokerPalletLocation>,
+	LocationToAccountId,
+	AccountId,
+	(),
+>;
+
 /// Umbrella transactors supported by the runtime.
-pub type AssetTransactors = FungibleTransactor;
+pub type AssetTransactors = (FungibleTransactor, RegionTransactor);
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with XCM's `Transact`.

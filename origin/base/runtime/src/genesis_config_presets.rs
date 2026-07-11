@@ -259,6 +259,8 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use frame_support::traits::Get;
+	use origin_runtime_constants::system_parachain::ORBIS_ID;
 
 	#[test]
 	fn default_parachains_host_configuration_is_consistent() {
@@ -287,5 +289,10 @@ mod tests {
 		assert!(genesis.get("staking").is_none());
 		assert!(genesis.get("referenda").is_none());
 		assert!(genesis.get("convictionVoting").is_none());
+	}
+
+	#[test]
+	fn orbis_is_the_only_authorized_coretime_broker() {
+		assert_eq!(<crate::BrokerId as Get<u32>>::get(), ORBIS_ID);
 	}
 }

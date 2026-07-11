@@ -9472,6 +9472,7 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
+ "pallet-broker",
  "pallet-collator-selection",
  "pallet-entity",
  "pallet-feeless",

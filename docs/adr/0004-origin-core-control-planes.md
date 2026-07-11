@@ -1,4 +1,4 @@
-# ADR 0004: Origin core assignment and subscription control planes
+# ADR 0004: Origin and Orbis core-allocation control planes
 
 - Status: accepted
 - Date: 2026-07-11
@@ -7,10 +7,19 @@
 
 Origin keeps two distinct Sudo-administered control planes:
 
-1. Relay `Coretime.assign_core` is the direct protocol-validation and emergency assignment path.
-2. Origin Hub `Broker` is the subscription lifecycle path for allocation, renewal, change, and
-   release.
+1. Relay `Coretime.assign_core` is the bootstrap, protocol-validation, and emergency override path.
+2. Orbis `Broker` is the sole normal lifecycle path for requesting cores and allocating,
+   renewing, changing, and releasing workloads for Orbis and other parachains.
 
-A direct relay assignment is not evidence that Broker subscription works. Orbis acceptance tests
-must exercise both paths and prove simultaneous assignment to three cores. Neither path requires
-staking, bonding, elections, referenda, or councils; enterprise Sudo/root is the authority.
+The relay runtime sets `BrokerId = 1006`. Relay Coretime accepts its management calls only from
+Origin root or the Orbis parachain origin. Orbis Broker administration uses `EnsureRoot`; no
+staking, bonding, elections, referenda, or councils participate.
+
+Origin Sudo directly assigns Orbis one permanent bootstrap core before Orbis begins authoring.
+After startup, Orbis Sudo reserves full-core schedules. Repeating a full-core `Task(para_id)`
+reservation assigns multiple distinct cores to the same parachain and enables elastic scaling.
+Public Broker sales remain unopened unless explicitly enabled in a later runtime.
+
+A direct relay assignment is not evidence that Broker lifecycle allocation works. Acceptance must
+exercise both the bootstrap override and Orbis-driven request, reservation, assignment, renewal,
+and release paths.

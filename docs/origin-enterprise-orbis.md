@@ -67,6 +67,19 @@ SKIP_WASM_BUILD=1 SKIP_PALLET_REVIVE_FIXTURES=1 \
 This escape hatch is not valid for the Solidity fixture acceptance suite; that suite must install
 `resolc`, compile the fixture, deploy it, and prove that a contract changes Orbis asset state.
 
-Direct relay `Coretime.assign_core` calls are useful for protocol validation. Enterprise core
-subscription lifecycle tests must separately exercise the Origin Hub Broker path for allocation,
-renewal, change, and release.
+## Core allocation
+
+Orbis replaces Origin Hub as Origin's system-chain Coretime Broker. The relay runtime authorizes
+parachain `1006` as its sole `BrokerId`; Orbis contains `pallet_broker` at index `53` with
+Sudo/root administration.
+
+Origin Sudo must directly assign Orbis one permanent bootstrap core before starting Orbis. Once
+Orbis is authoring, its Broker requests the required relay core count and sends assignments over
+privileged XCM. A full-core workload is `Task(para_id)` with all `57,600` parts. Reserving that
+workload multiple times assigns multiple cores to the same parachain; three reservations for task
+`1006` are the Orbis three-core elastic-scaling configuration.
+
+Other enterprise parachains are registered by Origin Sudo and receive cores from Orbis Sudo using
+the same full-core reservations. Public Broker sales are not started. Direct relay
+`Coretime.assign_core` remains only the bootstrap, test, and emergency override path. Acceptance
+must test bootstrap plus Orbis-driven request, assignment, renewal, and release.

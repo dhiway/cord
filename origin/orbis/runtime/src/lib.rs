@@ -25,6 +25,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 extern crate alloc;
 
+pub mod coretime;
 pub mod entity;
 // Genesis preset configurations.
 pub mod genesis_config_presets;
@@ -124,7 +125,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 2,
+	spec_version: 3,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -837,6 +838,7 @@ construct_runtime!(
 		Entity: pallet_entity = 50,
 		Token: pallet_token = 51,
 		Register: pallet_register = 52,
+		Broker: pallet_broker = 53,
 		Feeless: pallet_feeless = 54,
 
 		// Unified application assets.
@@ -957,6 +959,7 @@ mod benches {
 		[frame_system_extensions, SystemExtensionsBench::<Runtime>]
 		[pallet_assets, Assets]
 		[pallet_balances, Balances]
+		[pallet_broker, Broker]
 		[pallet_entity, Entity]
 		[pallet_message_queue, MessageQueue]
 		[pallet_meta_tx, MetaTx]

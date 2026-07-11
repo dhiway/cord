@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{xcm_config::LocationToAccountId, Assets, Revive, Runtime, RuntimeOrigin};
+use crate::{xcm_config::LocationToAccountId, Assets, Broker, Revive, Runtime, RuntimeOrigin};
 use frame_support::{
 	assert_ok,
 	traits::{Get, PalletInfoAccess},
@@ -59,6 +59,8 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert!(<<Runtime as pallet_revive::Config>::AllowEVMBytecode as Get<bool>>::get());
 	assert_eq!(<Assets as PalletInfoAccess>::index(), 80);
 	assert_eq!(<Revive as PalletInfoAccess>::index(), 100);
+	assert_eq!(<Broker as PalletInfoAccess>::index(), 53);
+	assert_eq!(<<Runtime as pallet_broker::Config>::MaxReservedCores as Get<u32>>::get(), 50);
 }
 
 #[test]

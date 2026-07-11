@@ -52,7 +52,7 @@ use origin_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
 use origin_runtime_constants::{
 	currency::*,
 	fee::*,
-	system_parachain::{coretime::TIMESLICE_PERIOD, ORIGIN_HUB_IN_ID},
+	system_parachain::{coretime::TIMESLICE_PERIOD, ORBIS_ID},
 	time::*,
 };
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
@@ -949,7 +949,8 @@ impl parachains_paras_inherent::Config for Runtime {
 impl parachains_scheduler::Config for Runtime {}
 
 parameter_types! {
-	pub const BrokerId: u32 = ORIGIN_HUB_IN_ID;
+	/// Orbis is Origin's sole system-chain Coretime Broker.
+	pub const BrokerId: u32 = ORBIS_ID;
 	pub const BrokerPalletId: PalletId = PalletId(*b"py/broke");
 	pub MaxXcmTransactWeight: Weight = Weight::from_parts(200_000_000, 20_000);
 }
