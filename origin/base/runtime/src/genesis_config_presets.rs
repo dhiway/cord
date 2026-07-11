@@ -259,7 +259,7 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use frame_support::traits::Get;
+	use frame_support::{assert_noop, assert_ok, traits::Get};
 	use origin_runtime_constants::system_parachain::ORBIS_ID;
 
 	#[test]
@@ -294,5 +294,28 @@ mod tests {
 	#[test]
 	fn orbis_is_the_only_authorized_coretime_broker() {
 		assert_eq!(<crate::BrokerId as Get<u32>>::get(), ORBIS_ID);
+	}
+
+	#[test]
+	fn non_orbis_parachain_cannot_manage_relay_core_count() {
+		sp_io::TestExternalities::new_empty().execute_with(|| {
+			let unauthorized = crate::RuntimeOrigin::from(
+				crate::parachains_origin::Origin::Parachain(2000u32.into()),
+			);
+			assert_noop!(
+				crate::Coretime::request_core_count(unauthorized, 3),
+				crate::coretime::Error::<crate::Runtime>::NotBroker
+			);
+		});
+	}
+
+	#[test]
+	fn orbis_parachain_can_request_relay_core_count() {
+		sp_io::TestExternalities::new_empty().execute_with(|| {
+			let orbis = crate::RuntimeOrigin::from(crate::parachains_origin::Origin::Parachain(
+				ORBIS_ID.into(),
+			));
+			assert_ok!(crate::Coretime::request_core_count(orbis, 3));
+		});
 	}
 }
