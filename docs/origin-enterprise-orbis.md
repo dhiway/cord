@@ -36,6 +36,18 @@ genesis head and validation code are supplied from the exact Orbis build being d
 
 The `origin-orbis` system-chain binary resolves only the Orbis runtime. Development and local
 Orbis specs are selected with `--chain orbis-dev` and `--chain orbis-local`, respectively.
+Build the production-shaped binary and materialize a raw development spec with:
+
+```text
+cargo build --release -p origin-orbis
+target/release/origin-orbis build-spec --chain orbis-dev --raw \
+  --disable-default-bootnode > orbis-dev-raw.json
+```
+
+The generated spec identifies relay chain `origin-dev`, parachain `1006`, and embeds the Orbis
+WASM runtime. The preset pre-funds Revive's code-deposit account with one existential deposit so
+the first Solidity code-upload hold has a valid destination.
+
 For example, a local authority collator can be started with:
 
 ```text
@@ -56,16 +68,41 @@ is at pallet index `100`, accepts Solidity/EVM bytecode, maps AccountId32 accoun
 and uses enterprise EVM chain ID `420001006`. The ERC-20 precompile prefix for Orbis assets is
 `0x0120`.
 
-Revive's benchmark fixtures require the `resolc` compiler. Compile-only benchmark validation may
-use the upstream-supported escape hatch:
+The committed compatibility fixtures use standard `solc` EVM output. Regenerate them with Solidity
+0.8.36 and execute the deployment suite with:
+
+```text
+origin/orbis/runtime/fixtures/build.sh
+cargo test -p origin-orbis-runtime \
+  solidity_evm_fixture_deploys_and_executes_through_revive --lib
+cargo test -p origin-orbis-runtime \
+  identity_bound_contract_moves_assets_and_persists_its_audit --lib
+```
+
+Revive's separate PolkaVM benchmark fixtures require the `resolc` compiler. Compile-only benchmark
+validation may use the upstream-supported escape hatch:
 
 ```text
 SKIP_WASM_BUILD=1 SKIP_PALLET_REVIVE_FIXTURES=1 \
   cargo check -p origin-orbis-runtime --features runtime-benchmarks
 ```
 
-This escape hatch is not valid for the Solidity fixture acceptance suite; that suite must install
-`resolc`, compile the fixture, deploy it, and prove that a contract changes Orbis asset state.
+The escape hatch does not validate PolkaVM fixture compilation. It also does not replace the
+standard-EVM compatibility tests above, which deploy and execute the committed `solc` output
+through Orbis's explicit `AllowEVMBytecode` envelope.
+
+### Unified identity-bound audit flow
+
+`IdentityAssetAudit.sol` is the headless application acceptance fixture. A single test proves the
+composed path rather than only testing pallets independently:
+
+1. the owner publishes a bounded People identity and derives an identity commitment;
+2. that owner deploys the Solidity contract with the commitment;
+3. an Orbis asset is minted to the contract's mapped AccountId32 account;
+4. the identity owner calls the contract, which transfers the asset through the `0x0120` ERC-20
+   precompile and commits an audit digest; and
+5. the same signed owner consumes a validated Bulletin authorization and persists the audit record,
+   whose content hash must equal the digest stored by the contract.
 
 ## People identity
 
