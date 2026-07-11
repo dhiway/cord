@@ -162,7 +162,9 @@ python3 zombienet/orbis_smoke.py --expected-cores 3 --expected-block-rate 3
 
 The verifier waits through initial session activation, requires both chains' best and finalized
 heights to advance, checks Orbis's target-block-rate and relay-parent-offset runtime APIs, and
-requires task `1006` to appear on at least three distinct claim-queue cores.
+requires task `1006` to appear on at least three distinct claim-queue cores. Its default short
+smoke gate also requires at least 2.4 Orbis best blocks per Origin best block during the measurement
+window; this is a protocol sanity check, not a replacement for the five-run workload benchmark.
 
 ## Core allocation
 

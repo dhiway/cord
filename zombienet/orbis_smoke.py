@@ -82,6 +82,7 @@ def main():
     parser.add_argument("--para-id", type=int, default=1006)
     parser.add_argument("--expected-cores", type=int, default=3)
     parser.add_argument("--expected-block-rate", type=int, default=3)
+    parser.add_argument("--minimum-block-ratio", type=float, default=2.4)
     parser.add_argument("--wait", type=int, default=30)
     parser.add_argument("--startup-timeout", type=int, default=180)
     args = parser.parse_args()
@@ -124,6 +125,16 @@ def main():
         if after[f"{chain}_finalized"] <= before[f"{chain}_finalized"]:
             raise RuntimeError(f"{chain} finality did not advance: {before} -> {after}")
 
+    relay_blocks = after["relay_best"] - before["relay_best"]
+    orbis_blocks = after["orbis_best"] - before["orbis_best"]
+    observed_block_ratio = orbis_blocks / relay_blocks
+    if observed_block_ratio < args.minimum_block_ratio:
+        raise RuntimeError(
+            f"Orbis produced only {observed_block_ratio:.2f} blocks per relay block "
+            f"({orbis_blocks}/{relay_blocks}), expected at least "
+            f"{args.minimum_block_ratio:.2f}"
+        )
+
     encoded = rpc(args.relay, "state_call", ["ParachainHost_claim_queue", "0x"])
     queue = decode_claim_queue(encoded)
     assigned = sorted(core for core, paras in queue.items() if args.para_id in paras)
@@ -143,6 +154,7 @@ def main():
                 "claim_queue_cores": assigned,
                 "target_block_rate": target_block_rate,
                 "relay_parent_offset": relay_parent_offset,
+                "observed_block_ratio": observed_block_ratio,
                 "relay_spec_version": relay_version["specVersion"],
                 "orbis_spec_version": orbis_version["specVersion"],
             },
