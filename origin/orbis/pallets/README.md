@@ -13,5 +13,5 @@ This directory contains pallets and runtime APIs owned by the Orbis system chain
 - Do not introduce staking or governance origins. Required administration must be explicitly
   mapped to Sudo/root and covered by origin tests.
 
-`transaction-storage/` is the first moved Orbis-owned upstream pallet. Its Cargo package names are
-unchanged so the relocation does not alter runtime metadata or downstream APIs.
+`people/`, `hop-promotion/`, and `transaction-storage/` are Orbis-owned compatibility forks. Their
+runtime pallet names and indices remain stable so physical ownership changes do not alter state.

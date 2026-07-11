@@ -426,11 +426,11 @@ fn identity_bound_contract_moves_assets_and_persists_its_audit() {
 			crate::ExistentialDeposit::get(),
 		);
 
-		let mut identity = pallet_cord_identity::legacy::IdentityInfo::<
+		let mut identity = pallet_orbis_people::legacy::IdentityInfo::<
 			crate::PeopleMaxAdditionalFields,
 		>::default();
 		identity.display =
-			pallet_cord_identity::Data::Raw(b"Alice Orbis".to_vec().try_into().unwrap());
+			pallet_orbis_people::Data::Raw(b"Alice Orbis".to_vec().try_into().unwrap());
 		assert_ok!(People::set_identity(RuntimeOrigin::signed(owner.clone()), Box::new(identity),));
 		assert!(People::has_identity(&owner, 1));
 		let identity_commitment = sp_io::hashing::blake2_256(owner.as_ref());
@@ -531,9 +531,9 @@ fn people_identity_is_self_claimed_and_sudo_attested() {
 		let account = AccountId::from(ALICE);
 		let registrar = AccountId::from([3u8; 32]);
 		let mut info =
-			pallet_cord_identity::legacy::IdentityInfo::<crate::PeopleMaxAdditionalFields>::default(
+			pallet_orbis_people::legacy::IdentityInfo::<crate::PeopleMaxAdditionalFields>::default(
 			);
-		info.display = pallet_cord_identity::Data::Raw(b"Alice".to_vec().try_into().unwrap());
+		info.display = pallet_orbis_people::Data::Raw(b"Alice".to_vec().try_into().unwrap());
 
 		assert_ok!(People::set_identity(RuntimeOrigin::signed(account.clone()), Box::new(info),));
 		assert!(People::has_identity(&account, 1));

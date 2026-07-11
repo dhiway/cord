@@ -47,7 +47,7 @@ pallet-broker = { workspace = true }
 pallet-bulletin-hop-promotion = { workspace = true }
 pallet-bulletin-transaction-storage = { workspace = true }
 pallet-bulletin-transaction-storage-runtime-api = { workspace = true }
-pallet-cord-identity = { workspace = true }
+pallet-orbis-people = { workspace = true }
 pallet-entity = { workspace = true }
 pallet-register = { workspace = true }
 pallet-revive = { workspace = true }
@@ -162,7 +162,7 @@ std = [
 	"pallet-bulletin-hop-promotion/std",
 	"pallet-bulletin-transaction-storage/std",
 	"pallet-bulletin-transaction-storage-runtime-api/std",
-	"pallet-cord-identity/std",
+	"pallet-orbis-people/std",
 	"pallet-collator-selection/std",
 	"pallet-entity/std",
 	"pallet-register/std",
@@ -241,7 +241,7 @@ runtime-benchmarks = [
 	"pallet-broker/runtime-benchmarks",
 	"pallet-bulletin-hop-promotion/runtime-benchmarks",
 	"pallet-bulletin-transaction-storage/runtime-benchmarks",
-	"pallet-cord-identity/runtime-benchmarks",
+	"pallet-orbis-people/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-assets-freezer/runtime-benchmarks",
 	"pallet-assets-holder/runtime-benchmarks",
@@ -297,7 +297,7 @@ try-runtime = [
 	"pallet-broker/try-runtime",
 	"pallet-bulletin-hop-promotion/try-runtime",
 	"pallet-bulletin-transaction-storage/try-runtime",
-	"pallet-cord-identity/try-runtime",
+	"pallet-orbis-people/try-runtime",
 	"pallet-assets/try-runtime",
 	"pallet-assets-freezer/try-runtime",
 	"pallet-assets-holder/try-runtime",

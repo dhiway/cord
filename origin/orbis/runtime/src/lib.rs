@@ -35,7 +35,9 @@ mod tests;
 mod weights;
 pub mod xcm_config;
 
-use alloc::{borrow::Cow, boxed::Box, string::String, vec, vec::Vec};
+#[cfg(feature = "runtime-benchmarks")]
+use alloc::boxed::Box;
+use alloc::{borrow::Cow, string::String, vec, vec::Vec};
 use assets_common::{
 	local_and_foreign_assets::{LocalFromLeft, TargetFromLeft},
 	AssetIdForTrustBackedAssetsConvert,
@@ -145,7 +147,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 17,
+	spec_version: 18,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -1083,11 +1085,10 @@ parameter_types! {
 
 /// SDK-compatible People/People-Lite slice: self-claimed identity plus Sudo-managed attestations
 /// and aliases, adapted onto CORD's maintained identity pallet to keep one FRAME dependency graph.
-impl pallet_cord_identity::Config for Runtime {
+impl pallet_orbis_people::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxSubAccounts = ConstU32<32>;
-	type IdentityInformation =
-		pallet_cord_identity::legacy::IdentityInfo<PeopleMaxAdditionalFields>;
+	type IdentityInformation = pallet_orbis_people::legacy::IdentityInfo<PeopleMaxAdditionalFields>;
 	type MaxRegistrars = PeopleMaxRegistrars;
 	type RegistrarOrigin = EnsureRoot<AccountId>;
 	type OffchainSignature = MultiSignature;
@@ -1096,7 +1097,7 @@ impl pallet_cord_identity::Config for Runtime {
 	type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
 	type MaxSuffixLength = ConstU32<16>;
 	type MaxUsernameLength = ConstU32<64>;
-	type WeightInfo = pallet_cord_identity::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = pallet_orbis_people::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -1260,7 +1261,7 @@ construct_runtime!(
 		AssetRate: pallet_asset_rate = 89,
 
 		// People identity and lightweight aliases.
-		People: pallet_cord_identity = 90,
+		People: pallet_orbis_people = 90,
 
 		// Solidity and PolkaVM contracts.
 		Revive: pallet_revive = 100,
@@ -1512,7 +1513,7 @@ mod benches {
 		[pallet_broker, Broker]
 		[pallet_bulletin_transaction_storage, TransactionStorage]
 		[pallet_bulletin_hop_promotion, HopPromotion]
-		[pallet_cord_identity, People]
+		[pallet_orbis_people, People]
 		[pallet_entity, Entity]
 		[pallet_message_queue, MessageQueue]
 		[pallet_meta_tx, MetaTx]

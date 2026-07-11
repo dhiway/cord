@@ -9559,7 +9559,6 @@ dependencies = [
  "pallet-bulletin-transaction-storage",
  "pallet-bulletin-transaction-storage-runtime-api",
  "pallet-collator-selection",
- "pallet-cord-identity",
  "pallet-entity",
  "pallet-feeless",
  "pallet-indices",
@@ -9568,6 +9567,7 @@ dependencies = [
  "pallet-migrations",
  "pallet-multisig",
  "pallet-nfts",
+ "pallet-orbis-people",
  "pallet-proxy",
  "pallet-register",
  "pallet-remark",
@@ -10962,6 +10962,22 @@ dependencies = [
  "scale-info",
  "sp-runtime",
  "sp-staking",
+]
+
+[[package]]
+name = "pallet-orbis-people"
+version = "0.9.9"
+dependencies = [
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
 ]
 
 [[package]]

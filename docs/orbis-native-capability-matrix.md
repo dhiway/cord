@@ -80,8 +80,8 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 
 | Capability/pallet | People reference | Orbis state |
 |---|---|---|
-| Identity records, registrars and judgements | People | Transitional CORD identity adapter at index 90; move to an Orbis-owned upstream-aligned crate |
-| Aliases, usernames and subaccounts | People/People Lite | Present through the identity adapter |
+| Identity records, registrars and judgements | People/FRAME Identity | Orbis-owned compatibility fork at index 90; root-managed registrar lifecycle present |
+| Aliases, usernames and subaccounts | People/People Lite | Present in the Orbis-owned People pallet |
 | Sudo attestation and forced administration | enterprise adaptation | Present |
 | People Lite compatibility API and storage semantics | `indiv_pallet_people_lite` | Partial adapter; parity suite pending |
 | Storage initialization | `indiv_pallet_storage_initialization` | Gap |
@@ -123,7 +123,9 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 
 1. Replace remaining Orbis dependencies on mutable CORD application pallets with Orbis-owned
    upstream-aligned pallets under `origin/orbis/pallets/`; shared primitives may remain shared.
-2. Complete Asset Hub infrastructure: conversion, asset fees and asset rates.
+   People identity is complete; Entity, Register, Token, Feeless, MetaTx and signature adapters remain.
+2. Complete remaining Asset Hub application adapters (PGAS/allowance, aliases and origin policy);
+   conversion, asset fees and rates are complete.
 3. Decide and implement literal Individuality application-pallet parity for People-specific Game,
    Score, Honour, Resources, Coinage and related pallets without importing governance.
 4. Adapt Web3 Storage providers to Sudo-authorized, zero-stake enterprise providers; then add Drive

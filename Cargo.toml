@@ -28,6 +28,7 @@ members = [
 	"origin/pallets/authorities",
 	"origin/orbis/pallets/common",
 	"origin/orbis/pallets/hop-promotion",
+	"origin/orbis/pallets/people",
 	"origin/orbis/pallets/transaction-storage",
 	"origin/orbis/pallets/transaction-storage/primitives",
 	"origin/orbis/pallets/transaction-storage/runtime-api",
@@ -800,6 +801,7 @@ pallet-remote-proxy = { path = 'pallets/remote-proxy/', default-features = false
 pallet-entry = { path = 'pallets/entry', default-features = false }
 pallet-runtime-upgrade = { path = 'pallets/runtime-upgrade', default-features = false }
 pallet-cord-identity = { path = 'pallets/identity', default-features = false }
+pallet-orbis-people = { path = 'origin/orbis/pallets/people', default-features = false }
 pallet-cord-offences = { path = 'pallets/offences', default-features = false }
 pallet-cord-node-authorization = { path = "pallets/node-authorization", default-features = false }
 pallet-network-score = { path = 'pallets/network-score', default-features = false }
