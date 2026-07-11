@@ -34,9 +34,12 @@ frame-system-rpc-runtime-api = { workspace = true }
 frame-try-runtime = { optional = true, workspace = true }
 pallet-aura = { workspace = true }
 pallet-authorship = { workspace = true }
+pallet-assets = { workspace = true }
+pallet-assets-precompiles = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-entity = { workspace = true }
 pallet-register = { workspace = true }
+pallet-revive = { workspace = true }
 pallet-token = { workspace = true }
 pallet-indices = { workspace = true }
 pallet-scheduler = { workspace = true }
@@ -96,6 +99,7 @@ parachains-common = { workspace = true }
 
 [dev-dependencies]
 parachains-runtimes-test-utils = { workspace = true }
+sp-io = { workspace = true }
 
 [build-dependencies]
 substrate-wasm-builder = { optional = true, workspace = true }
@@ -128,10 +132,13 @@ std = [
 	"log/std",
 	"pallet-aura/std",
 	"pallet-authorship/std",
+	"pallet-assets/std",
+	"pallet-assets-precompiles/std",
 	"pallet-balances/std",
 	"pallet-collator-selection/std",
 	"pallet-entity/std",
 	"pallet-register/std",
+	"pallet-revive/std",
 	"pallet-token/std",
 	"pallet-indices/std",
 	"pallet-scheduler/std",
@@ -197,6 +204,8 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"frame-system/experimental",
 	"pallet-balances/runtime-benchmarks",
+	"pallet-assets/runtime-benchmarks",
+	"pallet-assets-precompiles/runtime-benchmarks",
 	"pallet-collator-selection/runtime-benchmarks",
 	"pallet-entity/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
@@ -205,6 +214,7 @@ runtime-benchmarks = [
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-safe-mode/runtime-benchmarks",
 	"pallet-register/runtime-benchmarks",
+	"pallet-revive/runtime-benchmarks",
 	"pallet-proxy/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
@@ -237,6 +247,8 @@ try-runtime = [
 	"pallet-aura/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
+	"pallet-assets/try-runtime",
+	"pallet-assets-precompiles/try-runtime",
 	"pallet-collator-selection/try-runtime",
 	"pallet-entity/try-runtime",
 	"pallet-token/try-runtime",
@@ -245,6 +257,7 @@ try-runtime = [
 	"pallet-migrations/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-register/try-runtime",
+	"pallet-revive/try-runtime",
 	"pallet-proxy/try-runtime",
 	"pallet-safe-mode/try-runtime",
 	"pallet-session/try-runtime",

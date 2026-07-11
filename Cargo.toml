@@ -816,6 +816,11 @@ origin-orbis-runtime = { path = "origin/orbis/runtime", default-features = false
 token-origin-runtime-api = { path = "origin/runtime-api/token-origin-runtime-api", default-features = false }
 token-origin-hub-runtime-api = { path = "origin/runtime-api/token-origin-hub-runtime-api", default-features = false }
 
+[patch.crates-io]
+# Revive's std-only Subxt tooling requests the published crate. Keep it on the same Dhiway SDK
+# source as the runtime graph instead of compiling a second `sp-crypto-hashing` source.
+sp-crypto-hashing = { git = "https://github.com/dhiway/sdk", branch = "release-v1.24.0" }
+
 [profile.release]
 panic = 'unwind'
 opt-level = 3

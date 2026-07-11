@@ -48,6 +48,25 @@ candidacy is disabled (`MaxCandidates = 0`), and the candidacy bond is zero. Sud
 invulnerables and their session keys therefore determine the active collator set without staking,
 elections, referenda, or councils.
 
+## Assets and Solidity
+
+Orbis local assets use compact `u32` identifiers and pallet index `80`. Signed accounts may create
+assets by reserving the configured deposit; Sudo/root retains force-management authority. Revive
+is at pallet index `100`, accepts Solidity/EVM bytecode, maps AccountId32 accounts automatically,
+and uses enterprise EVM chain ID `420001006`. The ERC-20 precompile prefix for Orbis assets is
+`0x0120`.
+
+Revive's benchmark fixtures require the `resolc` compiler. Compile-only benchmark validation may
+use the upstream-supported escape hatch:
+
+```text
+SKIP_WASM_BUILD=1 SKIP_PALLET_REVIVE_FIXTURES=1 \
+  cargo check -p origin-orbis-runtime --features runtime-benchmarks
+```
+
+This escape hatch is not valid for the Solidity fixture acceptance suite; that suite must install
+`resolc`, compile the fixture, deploy it, and prove that a contract changes Orbis asset state.
+
 Direct relay `Coretime.assign_core` calls are useful for protocol validation. Enterprise core
 subscription lifecycle tests must separately exercise the Origin Hub Broker path for allocation,
 renewal, change, and release.

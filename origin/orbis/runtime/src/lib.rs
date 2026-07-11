@@ -47,15 +47,15 @@ use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	parameter_types,
 	traits::{
-		ConstBool, ConstU32, ConstU64, Contains, EitherOfDiverse, Everything, InstanceFilter,
-		PrivilegeCmp, TransformOrigin, VariantCountOf,
+		AsEnsureOriginWithArg, ConstBool, ConstU32, ConstU64, Contains, EitherOfDiverse,
+		Everything, InstanceFilter, PrivilegeCmp, TransformOrigin, VariantCountOf,
 	},
 	weights::{ConstantMultiplier, Weight},
 	PalletId,
 };
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot, EnsureRootWithSuccess,
+	EnsureRoot, EnsureRootWithSuccess, EnsureSigned,
 };
 pub use origin_hub_system_runtime_constants::async_backing::SLOT_DURATION;
 use origin_hub_system_runtime_constants::{
@@ -68,11 +68,12 @@ use origin_hub_system_runtime_constants::{
 			RELAY_CHAIN_SLOT_DURATION_MILLIS,
 		},
 		currency::*,
-		fee::WeightToFee,
 	},
 };
 use origin_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
 use origin_runtime_constants::{currency::EXISTENTIAL_DEPOSIT, fee, time::DAYS};
+use pallet_assets_precompiles::{InlineIdConfig, ERC20};
+use pallet_revive::evm::runtime::EthExtra;
 use pallet_token::Token as TokenTrait;
 use pallet_transaction_payment::FungibleAdapter;
 use pallet_tx_pause::RuntimeCallNameOf;
@@ -90,7 +91,7 @@ use sp_runtime::{
 	generic, impl_opaque_keys,
 	traits::{BlakeTwo256, Block as BlockT},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, MultiSignature, MultiSigner,
+	ApplyExtrinsicResult, FixedU128, MultiSignature, MultiSigner,
 };
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
 #[cfg(feature = "std")]
@@ -123,10 +124,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 1,
+	spec_version: 2,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 1,
+	transaction_version: 2,
 	system_version: 1,
 };
 
@@ -312,7 +313,7 @@ impl pallet_authorship::Config for Runtime {
 }
 
 parameter_types! {
-	pub const IndexDeposit: Balance =  EXISTENTIAL_DEPOSIT;
+	pub const IndexDeposit: Balance = EXISTENTIAL_DEPOSIT;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -347,9 +348,59 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-pub const TransactionByteFee: Balance = fee::TRANSACTION_BYTE_FEE;
+	pub const AssetDeposit: Balance = system_para_deposit(1, 64);
+	pub const AssetAccountDeposit: Balance = system_para_deposit(1, 16);
+	pub const AssetApprovalDeposit: Balance = EXISTENTIAL_DEPOSIT;
+	pub const AssetsStringLimit: u32 = 50;
+	pub const AssetMetadataDepositBase: Balance = system_para_deposit(1, 68);
+	pub const AssetMetadataDepositPerByte: Balance = system_para_deposit(0, 1);
+}
+
+/// Local enterprise assets addressable by a compact `u32` identifier.
+pub type AssetsInstance = pallet_assets::Instance1;
+
+impl pallet_assets::Config<AssetsInstance> for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type AssetId = u32;
+	type AssetIdParameter = codec::Compact<u32>;
+	type ReserveData = ();
+	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type MetadataDepositBase = AssetMetadataDepositBase;
+	type MetadataDepositPerByte = AssetMetadataDepositPerByte;
+	type ApprovalDeposit = AssetApprovalDeposit;
+	type StringLimit = AssetsStringLimit;
+	type Holder = ();
+	type Freezer = ();
+	type Extra = ();
+	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
+	type CallbackHandle = pallet_assets::AutoIncAssetId<Runtime, AssetsInstance>;
+	type AssetAccountDeposit = AssetAccountDeposit;
+	type RemoveItemsLimit = ConstU32<1000>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
+impl pallet_assets_precompiles::PermitConfig for Runtime {
+	type ChainId = <Runtime as pallet_revive::Config>::ChainId;
+	type WeightInfo = pallet_assets_precompiles::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const TransactionByteFee: Balance = fee::TRANSACTION_BYTE_FEE;
 	pub const OperationalFeeMultiplier: u8 = 5;
 }
+
+/// Revive-compatible mapping from Orbis execution weight to native fees.
+pub type WeightToFee = pallet_revive::evm::fees::BlockRatioFee<
+	MILLI,
+	{ 100 * ExtrinsicBaseWeight::get().ref_time() as u128 },
+	Runtime,
+	Balance,
+>;
 
 impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -363,6 +414,46 @@ impl pallet_transaction_payment::Config for Runtime {
 
 impl pallet_skip_feeless_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+}
+
+parameter_types! {
+	pub const ReviveDepositPerItem: Balance = system_para_deposit(1, 0);
+	pub const ReviveDepositPerChildTrieItem: Balance = system_para_deposit(1, 0) / 100;
+	pub const ReviveDepositPerByte: Balance = system_para_deposit(0, 1);
+	pub ReviveCodeHashLockupDepositPercent: Perbill = Perbill::from_percent(30);
+	pub const MaxEthExtrinsicWeight: FixedU128 = FixedU128::from_rational(9, 10);
+}
+
+impl pallet_revive::Config for Runtime {
+	type Time = Timestamp;
+	type Balance = Balance;
+	type Currency = Balances;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeOrigin = RuntimeOrigin;
+	type DepositPerItem = ReviveDepositPerItem;
+	type DepositPerChildTrieItem = ReviveDepositPerChildTrieItem;
+	type DepositPerByte = ReviveDepositPerByte;
+	type WeightInfo = pallet_revive::weights::SubstrateWeight<Self>;
+	type Precompiles = (ERC20<Self, InlineIdConfig<0x120>, AssetsInstance>,);
+	type AddressMapper = pallet_revive::AccountId32Mapper<Self>;
+	type RuntimeMemory = ConstU32<{ 128 * 1024 * 1024 }>;
+	type PVFMemory = ConstU32<{ 512 * 1024 * 1024 }>;
+	type AllowEVMBytecode = ConstBool<true>;
+	type UploadOrigin = EnsureSigned<Self::AccountId>;
+	type InstantiateOrigin = EnsureSigned<Self::AccountId>;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type CodeHashLockupDepositPercent = ReviveCodeHashLockupDepositPercent;
+	type ChainId = ConstU64<420_001_006>;
+	type NativeToEthRatio = ConstU32<100_000_000>;
+	type FindAuthor = <Runtime as pallet_authorship::Config>::FindAuthor;
+	type FeeInfo = pallet_revive::evm::fees::Info<Address, Signature, EthExtraImpl>;
+	type MaxEthExtrinsicWeight = MaxEthExtrinsicWeight;
+	type DebugEnabled = ConstBool<false>;
+	type AutoMap = ConstBool<true>;
+	type GasScale = ConstU32<100_000>;
+	type OnBurn = ();
+	type Deposit = ();
 }
 
 parameter_types! {
@@ -748,6 +839,12 @@ construct_runtime!(
 		Register: pallet_register = 52,
 		Feeless: pallet_feeless = 54,
 
+		// Unified application assets.
+		Assets: pallet_assets::<Instance1> = 80,
+
+		// Solidity and PolkaVM contracts.
+		Revive: pallet_revive = 100,
+
 		// Utilities
 		MetaTx: pallet_meta_tx = 215,
 		TxPause: pallet_tx_pause = 216,
@@ -790,11 +887,41 @@ pub type TxExtensions = (
 		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+	pallet_revive::evm::tx_extension::SetOrigin<Runtime>,
 );
+
+/// Extensions applied when an Ethereum transaction is converted into an Orbis extrinsic.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct EthExtraImpl;
+
+impl EthExtra for EthExtraImpl {
+	type Config = Runtime;
+	type ExtensionV0 = TxExtensions;
+	type ExtensionOtherVersions = sp_runtime::traits::InvalidVersion;
+
+	fn get_eth_extension(nonce: u32, tip: Balance) -> Self::ExtensionV0 {
+		(
+			frame_system::AuthorizeCall::<Runtime>::new(),
+			frame_system::CheckNonZeroSender::<Runtime>::new(),
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+			frame_system::CheckTxVersion::<Runtime>::new(),
+			frame_system::CheckGenesis::<Runtime>::new(),
+			frame_system::CheckMortality::<Runtime>::from(generic::Era::Immortal),
+			frame_system::CheckNonce::<Runtime>::from(nonce),
+			frame_system::CheckWeight::<Runtime>::new(),
+			pallet_skip_feeless_payment::SkipCheckIfFeeless::from(
+				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			),
+			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+			pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::new_from_eth_transaction(),
+		)
+			.into()
+	}
+}
 
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
-	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, TxExtensions>;
+	pallet_revive::evm::runtime::UncheckedExtrinsic<Address, Signature, EthExtraImpl>;
 
 pub type Migrations = migrations::Unreleased;
 /// Migrations to apply on runtime upgrade.
@@ -823,10 +950,12 @@ mod benches {
 	use origin_hub_system_runtime_constants::origin::locations::{
 		OriginHubLocation, OriginHubParaId,
 	};
+	use xcm::latest::Assets as XcmAssets;
 
 	frame_benchmarking::define_benchmarks!(
 		[frame_system, SystemBench::<Runtime>]
 		[frame_system_extensions, SystemExtensionsBench::<Runtime>]
+		[pallet_assets, Assets]
 		[pallet_balances, Balances]
 		[pallet_entity, Entity]
 		[pallet_message_queue, MessageQueue]
@@ -916,7 +1045,8 @@ mod benches {
 			None
 		}
 
-		fn set_up_complex_asset_transfer() -> Option<(Assets, u32, Location, Box<dyn FnOnce()>)> {
+		fn set_up_complex_asset_transfer() -> Option<(XcmAssets, u32, Location, Box<dyn FnOnce()>)>
+		{
 			// Only supports native token teleports to default Origin Hub parachain
 			let native_location = Parent.into();
 			let dest = OriginHubLocation::get();
@@ -996,7 +1126,7 @@ mod benches {
 			(0u64, Response::Version(Default::default()))
 		}
 
-		fn worst_case_asset_exchange() -> Result<(Assets, Assets), BenchmarkError> {
+		fn worst_case_asset_exchange() -> Result<(XcmAssets, XcmAssets), BenchmarkError> {
 			Err(BenchmarkError::Skip)
 		}
 
@@ -1015,9 +1145,9 @@ mod benches {
 			Ok(OrgnRelayLocation::get())
 		}
 
-		fn claimable_asset() -> Result<(Location, Location, Assets), BenchmarkError> {
+		fn claimable_asset() -> Result<(Location, Location, XcmAssets), BenchmarkError> {
 			let origin = OrgnRelayLocation::get();
-			let assets: Assets = (AssetId(OrgnRelayLocation::get()), 1_000 * UNITS).into();
+			let assets: XcmAssets = (AssetId(OrgnRelayLocation::get()), 1_000 * UNITS).into();
 			let ticket = Location::new(0, []);
 			Ok((origin, ticket, assets))
 		}
@@ -1062,7 +1192,12 @@ mod benches {
 #[cfg(feature = "runtime-benchmarks")]
 use benches::*;
 
-impl_runtime_apis! {
+pallet_revive::impl_runtime_apis_plus_revive_traits!(
+	Runtime,
+	Revive,
+	Executive,
+	EthExtraImpl,
+
 	impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
 		fn slot_duration() -> sp_consensus_aura::SlotDuration {
 			sp_consensus_aura::SlotDuration::from_millis(SLOT_DURATION)
@@ -1411,7 +1546,7 @@ impl_runtime_apis! {
 			Ok(batches)
 		}
 	}
-}
+);
 
 cumulus_pallet_parachain_system::register_validate_block! {
 	Runtime = Runtime,
@@ -1419,8 +1554,8 @@ cumulus_pallet_parachain_system::register_validate_block! {
 }
 
 #[test]
-fn test_ed_is_one_tenth_of_relay() {
+fn orbis_uses_origin_existential_deposit() {
 	let relay_ed = origin_runtime_constants::currency::EXISTENTIAL_DEPOSIT;
-	let people_ed = ExistentialDeposit::get();
-	assert_eq!(relay_ed / 10, people_ed);
+	let orbis_ed = ExistentialDeposit::get();
+	assert_eq!(relay_ed, orbis_ed);
 }

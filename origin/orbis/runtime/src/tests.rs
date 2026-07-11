@@ -16,13 +16,50 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::xcm_config::LocationToAccountId;
+use crate::{xcm_config::LocationToAccountId, Assets, Revive, Runtime, RuntimeOrigin};
+use frame_support::{
+	assert_ok,
+	traits::{Get, PalletInfoAccess},
+};
 use polkadot_primitives::AccountId;
 use sp_core::crypto::Ss58Codec;
 use xcm::prelude::*;
 use xcm_runtime_apis::conversions::LocationToAccountHelper;
 
 const ALICE: [u8; 32] = [1u8; 32];
+
+#[test]
+fn enterprise_asset_can_be_created_and_managed() {
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		let owner = AccountId::from(ALICE);
+		let beneficiary = AccountId::from([2u8; 32]);
+		let asset_id = 7u32;
+
+		assert_ok!(Assets::force_create(
+			RuntimeOrigin::root(),
+			asset_id.into(),
+			owner.clone().into(),
+			true,
+			1,
+		));
+		assert_ok!(Assets::mint(
+			RuntimeOrigin::signed(owner),
+			asset_id.into(),
+			beneficiary.clone().into(),
+			1_000,
+		));
+
+		assert_eq!(Assets::balance(asset_id, beneficiary), 1_000);
+	});
+}
+
+#[test]
+fn revive_uses_reserved_orbis_evm_chain_id() {
+	assert_eq!(<<Runtime as pallet_revive::Config>::ChainId as Get<u64>>::get(), 420_001_006);
+	assert!(<<Runtime as pallet_revive::Config>::AllowEVMBytecode as Get<bool>>::get());
+	assert_eq!(<Assets as PalletInfoAccess>::index(), 80);
+	assert_eq!(<Revive as PalletInfoAccess>::index(), 100);
+}
 
 #[test]
 fn location_conversion_works() {
@@ -126,7 +163,7 @@ fn location_conversion_works() {
 
 #[test]
 fn xcm_payment_api_works() {
-	use crate::{fee::WeightToFee, Block, Runtime, RuntimeCall, RuntimeOrigin};
+	use crate::{Block, Runtime, RuntimeCall, RuntimeOrigin, WeightToFee};
 	parachains_runtimes_test_utils::test_cases::xcm_payment_api_with_native_token_works::<
 		Runtime,
 		RuntimeCall,
