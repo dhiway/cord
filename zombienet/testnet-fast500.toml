@@ -85,9 +85,16 @@ addToGenesis = true
 cumulus_based = true
 chain = "orbis-local"
 
-[parachains.collator]
-name = "orbis-collator"
+[[parachains.collators]]
+name = "orbis-alice"
 rpc_port = 9810
 collator = true
 command = "target/release/origin-orbis"
-args = ["--execution=wasm", "--force-authoring"]
+args = ["--alice", "--execution=wasm", "--force-authoring", "--authoring=slot-based"]
+
+[[parachains.collators]]
+name = "orbis-bob"
+rpc_port = 9811
+collator = true
+command = "target/release/origin-orbis"
+args = ["--bob", "--execution=wasm", "--force-authoring", "--authoring=slot-based"]

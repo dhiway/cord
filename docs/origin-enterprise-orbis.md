@@ -96,6 +96,18 @@ The initial development limits are 128 indexed transactions per block, 256 KiB p
 production storage economics. The Orbis node must keep the transaction-storage inherent provider
 enabled; once retained data reaches its proof window, a block missing the expected proof is invalid.
 
+## Multi-core test topology
+
+`zombienet/testnet.toml` and `zombienet/testnet-fast500.toml` run two Sudo-selected Orbis
+invulnerables (`Alice` and `Bob`) with slot-based authoring. The relay test configuration exposes
+four schedulable cores with one validator per core; three are assigned to task `1006` through the
+bootstrap/Broker sequence below. A single-collator topology is not valid elastic-scaling evidence.
+
+The 2.4-times acceptance campaign must compare one and three reservations with the same two
+collators, validator set, workload, state, warm-up, and duration. Run five interleaved repetitions
+per core count, report median finalized successful calls per second and coefficient of variation,
+and reject a run set above 10% variation or 15 parachain blocks of steady-state finality lag.
+
 ## Core allocation
 
 Orbis replaces Origin Hub as Origin's system-chain Coretime Broker. The relay runtime authorizes

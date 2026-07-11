@@ -10,6 +10,11 @@ timeout = 300
 chain = "origin-local"
 default_command = "target/release/origin"
 
+[relaychain.genesis.runtimeGenesis.patch.configuration.config.scheduler_params]
+max_validators_per_core = 1
+num_cores = 4
+lookahead = 3
+
 [[relaychain.nodes]]
 name = "alice"
 rpc_port = 9900
@@ -46,9 +51,16 @@ addToGenesis = true
 cumulus_based = true
 chain = "orbis-local"
 
-[parachains.collator]
-name = "orbis-collator"
+[[parachains.collators]]
+name = "orbis-alice"
 rpc_port = 9910
 collator = true
 command = "target/release/origin-orbis"
-args = ["--trie-cache-size=0", "--execution=wasm"]
+args = ["--alice", "--trie-cache-size=0", "--execution=wasm", "--authoring=slot-based"]
+
+[[parachains.collators]]
+name = "orbis-bob"
+rpc_port = 9911
+collator = true
+command = "target/release/origin-orbis"
+args = ["--bob", "--trie-cache-size=0", "--execution=wasm", "--authoring=slot-based"]
