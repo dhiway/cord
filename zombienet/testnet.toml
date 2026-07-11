@@ -45,6 +45,16 @@ args = [
 	"--execution=wasm",
 ]
 
+[[relaychain.nodes]]
+name = "dave"
+rpc_port = 9903
+validator = true
+args = [
+	"--trie-cache-size=0",
+	"--disable-worker-version-check",
+	"--execution=wasm",
+]
+
 [[parachains]]
 id = 1006
 addToGenesis = true
