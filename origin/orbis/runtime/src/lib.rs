@@ -125,7 +125,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 3,
+	spec_version: 4,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -835,10 +835,11 @@ construct_runtime!(
 		Proxy: pallet_proxy = 42,
 
 		// The main stage.
-		Entity: pallet_entity = 50,
+		// The relay Coretime pallet encodes Broker callbacks with pallet index 50.
+		Broker: pallet_broker = 50,
 		Token: pallet_token = 51,
 		Register: pallet_register = 52,
-		Broker: pallet_broker = 53,
+		Entity: pallet_entity = 53,
 		Feeless: pallet_feeless = 54,
 
 		// Unified application assets.

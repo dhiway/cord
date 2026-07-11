@@ -70,7 +70,8 @@ This escape hatch is not valid for the Solidity fixture acceptance suite; that s
 ## Core allocation
 
 Orbis replaces Origin Hub as Origin's system-chain Coretime Broker. The relay runtime authorizes
-parachain `1006` as its sole `BrokerId`; Orbis contains `pallet_broker` at index `53` with
+parachain `1006` as its sole `BrokerId`; Orbis contains `pallet_broker` at SDK-required index `50`
+with
 Sudo/root administration.
 
 Origin Sudo must directly assign Orbis one permanent bootstrap core before starting Orbis. Once
@@ -80,6 +81,28 @@ workload multiple times assigns multiple cores to the same parachain; three rese
 `1006` are the Orbis three-core elastic-scaling configuration.
 
 Other enterprise parachains are registered by Origin Sudo and receive cores from Orbis Sudo using
-the same full-core reservations. Public Broker sales are not started. Direct relay
+the same full-core reservations. Direct relay
 `Coretime.assign_core` remains only the bootstrap, test, and emergency override path. Acceptance
 must test bootstrap plus Orbis-driven request, assignment, renewal, and release.
+
+### Enterprise allocation sequence
+
+1. Origin Sudo registers Orbis and calls relay `Coretime.assign_core` with one complete
+   `Task(1006)` assignment so Orbis can author its first blocks.
+2. Orbis Sudo configures Broker with `limit_cores_offered = Some(0)`. Broker rotations are active,
+   but no cores can be bought in a public sale.
+3. Orbis Sudo submits three `Broker.reserve` calls, each containing one `ScheduleItem` with
+   `mask = CoreMask::complete()` and `assignment = Task(1006)`.
+4. Orbis Sudo calls `Broker.start_sales(end_price, 0)`. The price is an inert development value:
+   with the offer limit at zero, the call starts lifecycle rotation and requests exactly the three
+   reserved cores rather than opening a market.
+5. After the Broker's two documented sale-period boundaries, it sends full-core assignments for
+   cores `0..2` to Origin. Origin accepts them only because the XCM parachain origin is `1006`.
+6. To allocate another registered parachain, Orbis Sudo reserves `Task(para_id)` and calls
+   `Broker.request_core_count` with the new total reservation/lease count. To release it, Sudo
+   calls `Broker.unreserve` with the reservation's current index and requests the reduced count.
+
+Reservation indices are positional and can change after an earlier entry is removed; operators
+must read `Broker.Reservations` immediately before an `unreserve`. Core-count changes are staged by
+Origin and become active across the relay session boundary; they do not require validator restart
+or staking operations.

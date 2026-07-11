@@ -18,7 +18,9 @@ staking, bonding, elections, referenda, or councils participate.
 Origin Sudo directly assigns Orbis one permanent bootstrap core before Orbis begins authoring.
 After startup, Orbis Sudo reserves full-core schedules. Repeating a full-core `Task(para_id)`
 reservation assigns multiple distinct cores to the same parachain and enables elastic scaling.
-Public Broker sales remain unopened unless explicitly enabled in a later runtime.
+Broker sale rotation is configured with `limit_cores_offered = Some(0)`: lifecycle processing is
+active, but public purchases have no offered cores. Enabling a non-zero public offer limit is a
+future runtime-policy decision.
 
 A direct relay assignment is not evidence that Broker lifecycle allocation works. Acceptance must
 exercise both the bootstrap override and Orbis-driven request, reservation, assignment, renewal,

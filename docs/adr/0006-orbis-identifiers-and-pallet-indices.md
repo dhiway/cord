@@ -15,7 +15,8 @@ Runtime pallet indices are append-only within these bands:
 |---:|---|
 | `0..=39` | system, consensus, payment, XCM |
 | `40..=49` | generic utilities |
-| `50..=79` | existing CORD entity/token/register functionality |
+| `50` | Coretime Broker (fixed by the relay's callback encoding) |
+| `51..=79` | existing CORD entity/token/register functionality |
 | `80..=89` | assets |
 | `90..=99` | People identity adapters and pallets |
 | `100..=109` | Revive and Solidity support |
@@ -26,3 +27,7 @@ Runtime pallet indices are append-only within these bands:
 
 Indices must never be reused after a released runtime. Assets, People, Revive, and Bulletin receive
 explicit indices and metadata snapshot tests before their first release.
+
+Broker index `50` is a protocol constraint, not a local layout preference: the SDK relay Coretime
+pallet encodes `notify_core_count`, `notify_revenue`, and reservation callbacks to pallet `50` on
+the configured broker chain. Orbis therefore places Entity at `53` before its first release.

@@ -16,11 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{xcm_config::LocationToAccountId, Assets, Broker, Revive, Runtime, RuntimeOrigin};
+use crate::{
+	xcm_config::LocationToAccountId, Assets, Broker, Entity, Revive, Runtime, RuntimeOrigin,
+};
 use frame_support::{
-	assert_ok,
+	assert_noop, assert_ok,
 	traits::{Get, PalletInfoAccess},
 };
+use pallet_broker::{CoreAssignment, CoreMask, Reservations, Schedule, ScheduleItem};
 use polkadot_primitives::AccountId;
 use sp_core::crypto::Ss58Codec;
 use xcm::prelude::*;
@@ -59,8 +62,55 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert!(<<Runtime as pallet_revive::Config>::AllowEVMBytecode as Get<bool>>::get());
 	assert_eq!(<Assets as PalletInfoAccess>::index(), 80);
 	assert_eq!(<Revive as PalletInfoAccess>::index(), 100);
-	assert_eq!(<Broker as PalletInfoAccess>::index(), 53);
+	// The SDK relay Coretime pallet encodes callbacks to Broker at index 50.
+	assert_eq!(<Broker as PalletInfoAccess>::index(), 50);
+	assert_eq!(<Entity as PalletInfoAccess>::index(), 53);
 	assert_eq!(<<Runtime as pallet_broker::Config>::MaxReservedCores as Get<u32>>::get(), 50);
+}
+
+fn full_core_task(task: u32) -> Schedule {
+	Schedule::truncate_from(vec![ScheduleItem {
+		mask: CoreMask::complete(),
+		assignment: CoreAssignment::Task(task),
+	}])
+}
+
+#[test]
+fn orbis_sudo_can_reserve_multiple_full_cores_for_one_parachain() {
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		let orbis = full_core_task(1006);
+		let another_para = full_core_task(2000);
+
+		for _ in 0..3 {
+			assert_ok!(Broker::reserve(RuntimeOrigin::root(), orbis.clone()));
+		}
+		assert_ok!(Broker::reserve(RuntimeOrigin::root(), another_para.clone()));
+
+		let reservations = Reservations::<Runtime>::get();
+		assert_eq!(reservations.len(), 4);
+		assert_eq!(reservations.iter().filter(|schedule| **schedule == orbis).count(), 3);
+		assert_eq!(reservations[3], another_para);
+	});
+}
+
+#[test]
+fn broker_allocation_lifecycle_is_sudo_only() {
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		let signed = RuntimeOrigin::signed(AccountId::from(ALICE));
+		assert_noop!(
+			Broker::reserve(signed.clone(), full_core_task(1006)),
+			sp_runtime::DispatchError::BadOrigin
+		);
+		assert_noop!(
+			Broker::request_core_count(signed.clone(), 3),
+			sp_runtime::DispatchError::BadOrigin
+		);
+		assert_noop!(Broker::unreserve(signed, 0), sp_runtime::DispatchError::BadOrigin);
+
+		assert_ok!(Broker::reserve(RuntimeOrigin::root(), full_core_task(1006)));
+		assert_ok!(Broker::unreserve(RuntimeOrigin::root(), 0));
+		assert!(Reservations::<Runtime>::get().is_empty());
+	});
 }
 
 #[test]
