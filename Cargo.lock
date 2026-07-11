@@ -9545,6 +9545,7 @@ dependencies = [
  "origin-primitives",
  "origin-runtime-constants",
  "pallet-asset-conversion",
+ "pallet-asset-conversion-tx-payment",
  "pallet-asset-rate",
  "pallet-assets",
  "pallet-assets-freezer",

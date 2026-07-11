@@ -17,11 +17,12 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	xcm_config::LocationToAccountId, AssetConversion, AssetRate, Assets, AssetsFreezer,
-	AssetsHolder, Balances, Broker, Entity, Feeless, ForeignAssets, ForeignAssetsFreezer,
-	HopPromotion, Nfts, People, PoolAssets, PoolAssetsFreezer, Revive, Runtime, RuntimeCall,
-	RuntimeOrigin, System, TransactionStorage, Uniques,
+	xcm_config::LocationToAccountId, AssetConversion, AssetRate, AssetTxPayment, Assets,
+	AssetsFreezer, AssetsHolder, Balances, Broker, Entity, Feeless, ForeignAssets,
+	ForeignAssetsFreezer, HopPromotion, Nfts, People, PoolAssets, PoolAssetsFreezer, Revive,
+	Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage, Uniques,
 };
+use codec::{Decode, Encode};
 use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::CheckIfFeeless,
@@ -305,6 +306,19 @@ fn native_asset_conversion_pool_supports_liquidity_and_swaps() {
 }
 
 #[test]
+fn asset_fee_selector_is_preserved_inside_the_feeless_envelope() {
+	type AssetCharge = pallet_asset_conversion_tx_payment::ChargeAssetTxPayment<Runtime>;
+	type WrappedCharge = pallet_feeless::ChargeOrSkipFeeless<Runtime, AssetCharge>;
+
+	let asset = Location::new(0, [PalletInstance(80), GeneralIndex(21)]);
+	let wrapped = WrappedCharge::from(AssetCharge::from(0, Some(asset)));
+	let encoded = wrapped.encode();
+	let decoded =
+		WrappedCharge::decode(&mut encoded.as_slice()).expect("asset fee extension decodes");
+	assert_eq!(decoded, wrapped);
+}
+
+#[test]
 fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<<Runtime as pallet_revive::Config>::ChainId as Get<u64>>::get(), 420_001_006);
 	assert!(<<Runtime as pallet_revive::Config>::AllowEVMBytecode as Get<bool>>::get());
@@ -319,6 +333,7 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<Nfts as PalletInfoAccess>::index(), 88);
 	assert_eq!(<AssetRate as PalletInfoAccess>::index(), 89);
 	assert_eq!(<AssetConversion as PalletInfoAccess>::index(), 200);
+	assert_eq!(<AssetTxPayment as PalletInfoAccess>::index(), 201);
 	assert_eq!(<Revive as PalletInfoAccess>::index(), 100);
 	// The SDK relay Coretime pallet encodes callbacks to Broker at index 50.
 	assert_eq!(<Broker as PalletInfoAccess>::index(), 50);

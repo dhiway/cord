@@ -35,7 +35,7 @@ mod tests;
 mod weights;
 pub mod xcm_config;
 
-use alloc::{borrow::Cow, string::String, vec, vec::Vec};
+use alloc::{borrow::Cow, boxed::Box, string::String, vec, vec::Vec};
 use assets_common::{
 	local_and_foreign_assets::{LocalFromLeft, TargetFromLeft},
 	AssetIdForTrustBackedAssetsConvert,
@@ -72,6 +72,7 @@ use origin_hub_system_runtime_constants::{
 };
 use origin_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
 use origin_runtime_constants::{currency::EXISTENTIAL_DEPOSIT, fee, time::DAYS};
+use pallet_asset_conversion_tx_payment::SwapAssetAdapter;
 use pallet_assets_precompiles::{ForeignIdConfig, InlineIdConfig, ERC20};
 use pallet_nfts::PalletFeatures;
 use pallet_revive::evm::runtime::EthExtra;
@@ -144,7 +145,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 16,
+	spec_version: 17,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -688,6 +689,20 @@ impl pallet_transaction_payment::Config for Runtime {
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
 	type WeightInfo = weights::pallet_transaction_payment::WeightInfo<Runtime>;
+}
+
+impl pallet_asset_conversion_tx_payment::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = Location;
+	type OnChargeAssetTransaction = SwapAssetAdapter<
+		xcm_config::OrgnRelayLocation,
+		NativeAndAssets,
+		AssetConversion,
+		ResolveAssetTo<AssetConversionFeeAccount, NativeAndAssets>,
+	>;
+	type WeightInfo = pallet_asset_conversion_tx_payment::weights::SubstrateWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = AssetConversionTxHelper;
 }
 
 impl pallet_skip_feeless_payment::Config for Runtime {
@@ -1256,6 +1271,7 @@ construct_runtime!(
 
 		// Application asset and payment extensions.
 		AssetConversion: pallet_asset_conversion = 200,
+		AssetTxPayment: pallet_asset_conversion_tx_payment = 201,
 
 		// Utilities
 		MetaTx: pallet_meta_tx = 215,
@@ -1296,7 +1312,7 @@ pub type InnerTxExtensions = (
 	frame_system::CheckWeight<Runtime>,
 	pallet_feeless::ChargeOrSkipFeeless<
 		Runtime,
-		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+		pallet_asset_conversion_tx_payment::ChargeAssetTxPayment<Runtime>,
 	>,
 	pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
 		Runtime,
@@ -1332,7 +1348,9 @@ impl EthExtra for EthExtraImpl {
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_feeless::ChargeOrSkipFeeless::from(
-				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(
+					tip, None,
+				),
 			),
 			pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
 				Runtime,
@@ -1392,7 +1410,7 @@ where
 			frame_system::CheckNonce::<Runtime>::from(0),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_feeless::ChargeOrSkipFeeless::from(
-				pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0),
+				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 			),
 			pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
 				Runtime,
@@ -1426,6 +1444,55 @@ pub type Executive = frame_executive::Executive<
 >;
 
 #[cfg(feature = "runtime-benchmarks")]
+pub struct AssetConversionTxHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_asset_conversion_tx_payment::BenchmarkHelperTrait<AccountId, Location, Location>
+	for AssetConversionTxHelper
+{
+	fn create_asset_id_parameter(seed: u32) -> (Location, Location) {
+		let asset =
+			Location::new(1, [Parachain(3_000), PalletInstance(80), GeneralIndex(seed.into())]);
+		(asset.clone(), asset)
+	}
+
+	fn setup_balances_and_pool(asset_id: Location, account: AccountId) {
+		use frame_support::{assert_ok, traits::fungibles::Mutate};
+
+		assert_ok!(ForeignAssets::force_create(
+			RuntimeOrigin::root(),
+			asset_id.clone(),
+			account.clone().into(),
+			true,
+			1,
+		));
+		<Balances as frame_support::traits::fungible::Mutate<AccountId>>::set_balance(
+			&account,
+			(u64::MAX as u128) * 100,
+		);
+		assert_ok!(ForeignAssets::mint_into(asset_id.clone(), &account, (u64::MAX as u128) * 100,));
+
+		let native = Box::new(xcm_config::OrgnRelayLocation::get());
+		let asset = Box::new(asset_id);
+		assert_ok!(AssetConversion::create_pool(
+			RuntimeOrigin::signed(account.clone()),
+			native.clone(),
+			asset.clone(),
+		));
+		assert_ok!(AssetConversion::add_liquidity(
+			RuntimeOrigin::signed(account.clone()),
+			native,
+			asset,
+			u64::MAX.into(),
+			u64::MAX.into(),
+			1,
+			1,
+			account,
+		));
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
 mod benches {
 	use super::*;
 	use alloc::boxed::Box;
@@ -1440,6 +1507,7 @@ mod benches {
 		[pallet_assets, Assets]
 		[pallet_asset_rate, AssetRate]
 		[pallet_asset_conversion, AssetConversion]
+		[pallet_asset_conversion_tx_payment, AssetTxPayment]
 		[pallet_balances, Balances]
 		[pallet_broker, Broker]
 		[pallet_bulletin_transaction_storage, TransactionStorage]
