@@ -26,9 +26,9 @@ members = [
 	"origin/orbis/runtime",
 	"origin/common",
 	"origin/pallets/authorities",
-	"origin/pallets/bulletin-transaction-storage",
-	"origin/pallets/bulletin-transaction-storage/primitives",
-	"origin/pallets/bulletin-transaction-storage/runtime-api",
+	"origin/orbis/pallets/transaction-storage",
+	"origin/orbis/pallets/transaction-storage/primitives",
+	"origin/orbis/pallets/transaction-storage/runtime-api",
 	"origin/pallets/token",
 	"origin/pallets/entity",
 	"origin/pallets/register",
@@ -152,7 +152,7 @@ blake2b_simd = { version = "1.0.2", default-features = false }
 blake3 = { version = "1.5" }
 bn = { package = "substrate-bn", version = "0.6", default-features = false }
 bounded-collections = { version = "0.3.2", default-features = false }
-bulletin-transaction-storage-primitives = { path = "origin/pallets/bulletin-transaction-storage/primitives", default-features = false }
+bulletin-transaction-storage-primitives = { path = "origin/orbis/pallets/transaction-storage/primitives", default-features = false }
 bounded-vec = { version = "0.7" }
 bs58 = { version = "0.5.1", default-features = false, features = ["alloc"] }
 build-helper = { version = "0.1.1" }
@@ -373,8 +373,8 @@ pallet-bridge-messages = { git = "https://github.com/dhiway/sdk", default-featur
 pallet-bridge-parachains = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-bridge-relayers = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-broker = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
-pallet-bulletin-transaction-storage = { path = "origin/pallets/bulletin-transaction-storage", default-features = false }
-pallet-bulletin-transaction-storage-runtime-api = { path = "origin/pallets/bulletin-transaction-storage/runtime-api", default-features = false }
+pallet-bulletin-transaction-storage = { path = "origin/orbis/pallets/transaction-storage", default-features = false }
+pallet-bulletin-transaction-storage-runtime-api = { path = "origin/orbis/pallets/transaction-storage/runtime-api", default-features = false }
 pallet-child-bounties = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-collator-selection = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-collective = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }

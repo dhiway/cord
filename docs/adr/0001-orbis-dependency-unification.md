@@ -21,7 +21,7 @@ Reviewed source snapshots are:
 
 People behavior is adapted onto CORD's maintained identity pallet. Bulletin transaction-storage,
 primitives, and runtime-API sources are vendored under
-`origin/pallets/bulletin-transaction-storage` from revision `b6c2827d2326`; their manifests use
+`origin/orbis/pallets/transaction-storage` from revision `b6c2827d2326`; their manifests use
 CORD `workspace = true` dependencies. Adding upstream runtime crates directly remains prohibited
 because the reviewed snapshots resolve a different SDK generation. Copied source retains its
 original license header and provenance.
