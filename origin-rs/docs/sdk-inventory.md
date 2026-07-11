@@ -15,7 +15,7 @@
 
 | Path | Responsibility | Highlights |
 | --- | --- | --- |
-| `src/config.rs` | Subxt config wrapper | `OriginConfig`, `build_origin_params`, extrinsic param builder aliases. |
+| `src/config.rs` | Subxt config wrapper | `OriginConfig`, `OrbisConfig`, compatibility-envelope builders for relay, Bulletin, and Revive extensions. |
 | `src/client/` | Connections, signers, queues, and facades | `OriginClient`, `ConnectionBuilder`, `ViewClient`, event streaming, meta-tx entrypoints. |
 | `src/query/` | View helpers grouped per pallet | `Query` facade plus entity/registry/packet/token clients requiring authorization. |
 | `src/tx/` | Tx pipeline + pallet-specific helpers | `TxClient`, `AccountTx`, per-pallet submitters, batch/meta helpers, nonce management. |
@@ -361,7 +361,7 @@
   - `demo_entity_simple` with optional `--meta` flag.
   - `demo_registry_packet` end-to-end issuance, uses `examples/data_registry_packet.json`.
   - `demo_token` resolver showcasing the token query module.
-- `origin-hub.scale` / `origin-hub.json` provide metadata snapshots for offline
+- `origin-hub.scale` / `origin-hub.json` are legacy metadata snapshots for offline
   tooling/testing.
 
 Use this document when expanding the SDK surface so that every new module,

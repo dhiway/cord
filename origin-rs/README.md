@@ -1,6 +1,12 @@
 # Origin SDK (dynamic)
 
-Dynamic Subxt SDK focused on view-only reads and async, event-driven extrinsics for Origin runtimes.
+Dynamic Subxt SDK focused on view-only reads and async, event-driven extrinsics for the Origin relay
+and Orbis system chain.
+
+`OriginClient` uses a compatibility-envelope transaction configuration: it discovers the relay's
+`WeightReclaim` and Orbis' `ValidateStorageCalls`/`EthSetOrigin` extensions from live metadata and
+encodes only those present. `config::OrbisConfig` and `config::OrbisClient` are also available for
+explicit low-level Subxt clients.
 
 ## Status
 Async, view-first Subxt SDK with dynamic calls, signer-agnostic connection (signers are passed per-call), nonce-less submit queue, batch + meta-tx helpers, and event-driven tx resolution.
