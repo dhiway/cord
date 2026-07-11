@@ -24,16 +24,16 @@ args = [ # run the relay in development mode
 ]
 
 [[parachains]]
-id = 1001
+id = 1006
 addToGenesis = true
 cumulus_based = true
-chain = "origin-system-na-local"
+chain = "orbis-local"
 
 [parachains.collator]
-name = "coretime-collator01"
+name = "orbis-coretime-collator"
 rpc_port = 9920
 collator = true
-command = "target/release/origin-hub"
+command = "target/release/origin-orbis"
 args = [
 	"--trie-cache-size=0",
 	"--execution=wasm",    # ensure using Wasm executor

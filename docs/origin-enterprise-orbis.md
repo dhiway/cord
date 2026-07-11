@@ -34,12 +34,12 @@ Orbis uses parachain ID `1006`. The Origin runtime exposes its XCM location and 
 teleports between Origin and Orbis. Registration remains an explicit Sudo operation so the Orbis
 genesis head and validation code are supplied from the exact Orbis build being deployed.
 
-The `origin-hub` container binary resolves both Origin Hub and Orbis runtimes. Development and
-local Orbis specs are selected with `--chain orbis-dev` and `--chain orbis-local`, respectively.
+The `origin-orbis` system-chain binary resolves only the Orbis runtime. Development and local
+Orbis specs are selected with `--chain orbis-dev` and `--chain orbis-local`, respectively.
 For example, a local authority collator can be started with:
 
 ```text
-origin-hub --chain orbis-local --collator --alice -- --chain origin-local
+origin-orbis --chain orbis-local --collator --alice -- --chain origin-local
 ```
 
 Orbis uses Aura with multiple blocks per slot and async backing. Collator membership is an

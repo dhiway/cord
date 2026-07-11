@@ -1,10 +1,10 @@
 [package]
-name = "origin-hub"
+name = "origin-orbis"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
 build = "build.rs"
-description = "Origin Hub"
+description = "Origin Orbis system-chain node"
 license.workspace = true
 repository.workspace = true
 publish = false
@@ -13,7 +13,7 @@ publish = false
 workspace = true
 
 [[bin]]
-name = "origin-hub"
+name = "origin-orbis"
 path = "src/main.rs"
 
 [dependencies]
@@ -24,10 +24,8 @@ serde = { features = ["derive"], workspace = true, default-features = true }
 serde_json = { workspace = true, default-features = true }
 
 #Local
-origin-hub-system-runtime = { default-features = true, workspace = true }
 origin-orbis-runtime = { default-features = true, workspace = true }
 origin-runtime-constants = { workspace = true, default-features = true }
-origin-hub-system-runtime-constants = { workspace = true, default-features = true }
 
 #Substrate, Cumulus, Polkadot
 cumulus-primitives-core = { workspace = true, default-features = true }
@@ -51,12 +49,10 @@ runtime-benchmarks = [
 	"parachains-common/runtime-benchmarks",
 	"polkadot-omni-node-lib/runtime-benchmarks",
 	"sc-service/runtime-benchmarks",
-	"origin-hub-system-runtime/runtime-benchmarks",
 	"origin-orbis-runtime/runtime-benchmarks",
 ]
 try-runtime = [
 	"polkadot-omni-node-lib/try-runtime",
-	"origin-hub-system-runtime/try-runtime",
 	"origin-orbis-runtime/try-runtime",
 ]
-fast-runtime = ["origin-hub-system-runtime/fast-runtime", "origin-orbis-runtime/fast-runtime"]
+fast-runtime = ["origin-orbis-runtime/fast-runtime"]

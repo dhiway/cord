@@ -1,5 +1,5 @@
 # Build (fast runtime for 500ms blocks):
-#   cargo build -p origin-hub -p origin-hub-system-runtime --release --features fast-runtime
+#   cargo build -p origin-orbis -p origin-orbis-runtime --release --features fast-runtime
 # Launch:
 #   zombienet -p native spawn zombienet/testnet-fast500.toml
 
@@ -80,27 +80,14 @@ args = [
 ]
 
 [[parachains]]
-id = 1000
+id = 1006
 addToGenesis = true
 cumulus_based = true
-chain = "origin-system-local"
+chain = "orbis-local"
 
 [parachains.collator]
-name = "hub-in-collator"
+name = "orbis-collator"
 rpc_port = 9810
 collator = true
-command = "target/release/origin-hub"
+command = "target/release/origin-orbis"
 args = ["--execution=wasm", "--force-authoring"]
-
-[[parachains]]
-id = 1001
-addToGenesis = true
-cumulus_based = true
-chain = "origin-system-na-local"
-
-[parachains.collator]
-name = "hub-na-collator"
-rpc_port = 9910
-collator = true
-command = "target/release/origin-hub"
-args = ["--trie-cache-size=0", "--execution=wasm"]

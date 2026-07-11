@@ -20,7 +20,7 @@ members = [
 	"origin/base",
 	"origin/base/cli",
 	"origin/base/runtime",
-	"origin/hub",
+	"origin/orbis/node",
 	"origin/hub/constants",
 	"origin/hub/system",
 	"origin/orbis/runtime",
@@ -62,7 +62,7 @@ members = [
 	"origin-rs",
 ]
 
-default-members = ["node/cli", "origin/base", "origin/hub", "origin-rs" ]
+default-members = ["node/cli", "origin/base", "origin/orbis/node", "origin-rs" ]
 
 [workspace.lints.rust]
 suspicious_double_ref_op = { level = "allow", priority = 2 }
@@ -809,7 +809,7 @@ origin-node-cli = { path = "origin/base/cli", default-features = false }
 origin-runtime = { path = "origin/base/runtime" }
 origin-runtime-constants = { path = "origin/base/runtime/constants", default-features = false }
 origin-common = { path = "origin/common", default-features = false }
-origin-hub = { path = "origin/hub", default-features = false }
+origin-orbis = { path = "origin/orbis/node", default-features = false }
 origin-hub-system-runtime = { path = "origin/hub/system", default-features = false }
 origin-hub-system-runtime-constants = { path = "origin/hub/constants", default-features = false }
 origin-orbis-runtime = { path = "origin/orbis/runtime", default-features = false }

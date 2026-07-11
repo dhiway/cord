@@ -9273,32 +9273,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "origin-hub"
-version = "0.9.9"
-dependencies = [
- "color-eyre",
- "cumulus-primitives-core",
- "hex-literal",
- "log",
- "origin-hub-system-runtime",
- "origin-hub-system-runtime-constants",
- "origin-orbis-runtime",
- "origin-runtime-constants",
- "parachains-common",
- "polkadot-omni-node-lib",
- "sc-chain-spec",
- "sc-cli",
- "sc-service",
- "serde",
- "serde_json",
- "sp-core",
- "sp-genesis-builder",
- "sp-keyring",
- "staging-xcm",
- "substrate-build-script-utils",
-]
-
-[[package]]
 name = "origin-hub-system-runtime"
 version = "0.9.9"
 dependencies = [
@@ -9439,6 +9413,30 @@ dependencies = [
  "sp-runtime",
  "substrate-build-script-utils",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "origin-orbis"
+version = "0.9.9"
+dependencies = [
+ "color-eyre",
+ "cumulus-primitives-core",
+ "hex-literal",
+ "log",
+ "origin-orbis-runtime",
+ "origin-runtime-constants",
+ "parachains-common",
+ "polkadot-omni-node-lib",
+ "sc-chain-spec",
+ "sc-cli",
+ "sc-service",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-genesis-builder",
+ "sp-keyring",
+ "staging-xcm",
+ "substrate-build-script-utils",
 ]
 
 [[package]]
