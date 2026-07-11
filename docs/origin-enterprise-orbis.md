@@ -67,6 +67,17 @@ SKIP_WASM_BUILD=1 SKIP_PALLET_REVIVE_FIXTURES=1 \
 This escape hatch is not valid for the Solidity fixture acceptance suite; that suite must install
 `resolc`, compile the fixture, deploy it, and prove that a contract changes Orbis asset state.
 
+## People identity
+
+Orbis exposes its SDK-compatible People/People-Lite slice as `People` at pallet index `90`. It is
+adapted onto CORD's maintained identity pallet rather than linking Individuality Community's older
+FRAME graph. Accounts may self-publish bounded identity information and manage lightweight aliases
+and subaccounts. Only Sudo/root can add registrars or username authorities and forcibly remove an
+identity; no council, referendum, deposit, or stake is required for administration.
+
+Application authorization should require the configured registrar judgement when a verified
+person is needed; merely publishing self-claimed display data is not equivalent to an attestation.
+
 ## Core allocation
 
 Orbis replaces Origin Hub as Origin's system-chain Coretime Broker. The relay runtime authorizes

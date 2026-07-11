@@ -17,8 +17,8 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	xcm_config::LocationToAccountId, Assets, Broker, Entity, Feeless, Revive, Runtime, RuntimeCall,
-	RuntimeOrigin, System,
+	xcm_config::LocationToAccountId, Assets, Broker, Entity, Feeless, People, Revive, Runtime,
+	RuntimeCall, RuntimeOrigin, System,
 };
 use frame_support::{
 	assert_noop, assert_ok,
@@ -67,7 +67,29 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	// The SDK relay Coretime pallet encodes callbacks to Broker at index 50.
 	assert_eq!(<Broker as PalletInfoAccess>::index(), 50);
 	assert_eq!(<Entity as PalletInfoAccess>::index(), 53);
+	assert_eq!(<People as PalletInfoAccess>::index(), 90);
 	assert_eq!(<<Runtime as pallet_broker::Config>::MaxReservedCores as Get<u32>>::get(), 50);
+}
+
+#[test]
+fn people_identity_is_self_claimed_and_sudo_attested() {
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		let account = AccountId::from(ALICE);
+		let registrar = AccountId::from([3u8; 32]);
+		let mut info =
+			pallet_cord_identity::legacy::IdentityInfo::<crate::PeopleMaxAdditionalFields>::default(
+			);
+		info.display = pallet_cord_identity::Data::Raw(b"Alice".to_vec().try_into().unwrap());
+
+		assert_ok!(People::set_identity(RuntimeOrigin::signed(account.clone()), Box::new(info),));
+		assert!(People::has_identity(&account, 1));
+
+		assert_noop!(
+			People::add_registrar(RuntimeOrigin::signed(account), registrar.clone().into()),
+			sp_runtime::DispatchError::BadOrigin
+		);
+		assert_ok!(People::add_registrar(RuntimeOrigin::root(), registrar.into()));
+	});
 }
 
 fn full_core_task(task: u32) -> Schedule {

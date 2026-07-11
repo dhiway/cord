@@ -9472,6 +9472,7 @@ dependencies = [
  "pallet-balances",
  "pallet-broker",
  "pallet-collator-selection",
+ "pallet-cord-identity",
  "pallet-entity",
  "pallet-feeless",
  "pallet-indices",

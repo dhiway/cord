@@ -1107,7 +1107,7 @@ impl<T: Config> Pallet<T> {
 		fields: <T::IdentityInformation as IdentityInformationProvider>::FieldsIdentifier,
 	) -> bool {
 		IdentityOf::<T>::get(who)
-			.map_or(false, |(registration, _username)| (registration.info.has_identity(fields)))
+			.map_or(false, |(registration, _username)| registration.info.has_identity(fields))
 	}
 	/// Validate that a username conforms to allowed characters/format.
 	///

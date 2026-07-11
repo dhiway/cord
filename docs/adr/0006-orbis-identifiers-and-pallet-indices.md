@@ -18,7 +18,8 @@ Runtime pallet indices are append-only within these bands:
 | `50` | Coretime Broker (fixed by the relay's callback encoding) |
 | `51..=79` | existing CORD entity/token/register functionality |
 | `80..=89` | assets |
-| `90..=99` | People identity adapters and pallets |
+| `90` | People/People-Lite compatible identity and aliases |
+| `91..=99` | reserved People adapters |
 | `100..=109` | Revive and Solidity support |
 | `110..=129` | Bulletin durable storage and proof support |
 | `200..=239` | meta-tx, fee policy, safety controls |

@@ -125,7 +125,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 5,
+	spec_version: 6,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -777,6 +777,29 @@ impl pallet_feeless::Config for Runtime {
 }
 
 parameter_types! {
+	pub const PeopleMaxAdditionalFields: u32 = 32;
+	pub const PeopleMaxRegistrars: u32 = 20;
+}
+
+/// SDK-compatible People/People-Lite slice: self-claimed identity plus Sudo-managed attestations
+/// and aliases, adapted onto CORD's maintained identity pallet to keep one FRAME dependency graph.
+impl pallet_cord_identity::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxSubAccounts = ConstU32<32>;
+	type IdentityInformation =
+		pallet_cord_identity::legacy::IdentityInfo<PeopleMaxAdditionalFields>;
+	type MaxRegistrars = PeopleMaxRegistrars;
+	type RegistrarOrigin = EnsureRoot<AccountId>;
+	type OffchainSignature = MultiSignature;
+	type SigningPublicKey = MultiSigner;
+	type UsernameAuthorityOrigin = EnsureRoot<AccountId>;
+	type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
+	type MaxSuffixLength = ConstU32<16>;
+	type MaxUsernameLength = ConstU32<64>;
+	type WeightInfo = pallet_cord_identity::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
 	pub MbmServiceWeight: Weight = Perbill::from_percent(80) * RuntimeBlockWeights::get().max_block;
 }
 
@@ -845,6 +868,9 @@ construct_runtime!(
 
 		// Unified application assets.
 		Assets: pallet_assets::<Instance1> = 80,
+
+		// People identity and lightweight aliases.
+		People: pallet_cord_identity = 90,
 
 		// Solidity and PolkaVM contracts.
 		Revive: pallet_revive = 100,
