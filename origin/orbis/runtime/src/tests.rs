@@ -425,6 +425,129 @@ fn fee_free_policy_is_call_scoped_quota_bounded_and_not_batchable() {
 }
 
 #[test]
+fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
+	use codec::Encode;
+	use frame_support::traits::BuildGenesisConfig;
+	use sp_core::{sr25519, Pair};
+	use sp_runtime::{
+		generic::Era,
+		traits::{Hash, IdentifyAccount, TransactionExtension},
+		MultiSignature, MultiSigner,
+	};
+	const META_EXTENSION_VERSION: u8 = 0;
+
+	type MetaBareExtension = (
+		pallet_meta_tx::MetaTxMarker<Runtime>,
+		frame_system::CheckNonZeroSender<Runtime>,
+		frame_system::CheckSpecVersion<Runtime>,
+		frame_system::CheckTxVersion<Runtime>,
+		frame_system::CheckGenesis<Runtime>,
+		frame_system::CheckMortality<Runtime>,
+		frame_system::CheckNonce<Runtime>,
+		pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
+			Runtime,
+			crate::BulletinCallInspector,
+		>,
+		frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+	);
+
+	fn account(pair: &sr25519::Pair) -> AccountId {
+		MultiSigner::from(pair.public()).into_account()
+	}
+
+	fn signed_meta_tx(
+		call: RuntimeCall,
+		claimed: AccountId,
+		signing_pair: &sr25519::Pair,
+	) -> pallet_meta_tx::MetaTxFor<Runtime> {
+		let bare: MetaBareExtension = (
+			pallet_meta_tx::MetaTxMarker::new(),
+			frame_system::CheckNonZeroSender::new(),
+			frame_system::CheckSpecVersion::new(),
+			frame_system::CheckTxVersion::new(),
+			frame_system::CheckGenesis::new(),
+			frame_system::CheckMortality::from(Era::Immortal),
+			frame_system::CheckNonce::from(System::account(&claimed).nonce),
+			Default::default(),
+			frame_metadata_hash_extension::CheckMetadataHash::new(false),
+		);
+		let implicit = bare.implicit().expect("test externalities provide implicit data");
+		let signature = (
+			META_EXTENSION_VERSION,
+			call.clone(),
+			bare.clone(),
+			implicit,
+		)
+			.using_encoded(|payload| signing_pair.sign(&sp_io::hashing::blake2_256(payload)));
+		let verify =
+			pallet_verify_signature::VerifySignature::new_with_signature(
+				MultiSignature::Sr25519(signature),
+				claimed,
+			);
+		let (marker, nonzero, spec, tx, genesis, mortality, nonce, storage, metadata) = bare;
+		let extension =
+			(verify, marker, nonzero, spec, tx, genesis, mortality, nonce, storage, metadata);
+		pallet_meta_tx::MetaTxFor::<Runtime>::new(
+			call,
+			META_EXTENSION_VERSION,
+			extension,
+		)
+	}
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		System::set_block_number(1);
+		let alice_pair = sr25519::Pair::from_string("//Alice", None).unwrap();
+		let bob_pair = sr25519::Pair::from_string("//Bob", None).unwrap();
+		let alice = account(&alice_pair);
+		let bob = account(&bob_pair);
+		let alice_balance =
+			<Balances as Mutate<AccountId>>::set_balance(&alice, crate::ExistentialDeposit::get());
+		let inner = RuntimeCall::System(frame_system::Call::remark_with_event {
+			remark: b"identity intent".to_vec(),
+		});
+
+		let meta = signed_meta_tx(inner.clone(), alice.clone(), &alice_pair);
+		let encoded_len = meta.encoded_size() as u32;
+		let outer = RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
+			meta_tx: Box::new(meta.clone()),
+			meta_tx_encoded_len: encoded_len,
+		});
+		assert!(
+			!outer.is_feeless(&RuntimeOrigin::signed(bob.clone())),
+			"the sponsor's outer meta transaction must follow ordinary fee accounting"
+		);
+		assert_ok!(crate::MetaTx::dispatch(
+			RuntimeOrigin::signed(bob.clone()),
+			Box::new(meta.clone()),
+			encoded_len,
+		));
+		System::assert_has_event(crate::RuntimeEvent::System(frame_system::Event::Remarked {
+			sender: alice.clone(),
+			hash: <Runtime as frame_system::Config>::Hashing::hash(b"identity intent"),
+		}));
+		assert_eq!(System::account_nonce(&alice), 1);
+		assert_eq!(Balances::free_balance(&alice), alice_balance);
+
+		assert_noop!(
+			crate::MetaTx::dispatch(
+				RuntimeOrigin::signed(bob.clone()),
+				Box::new(meta),
+				encoded_len,
+			),
+			pallet_meta_tx::Error::<Runtime>::Stale,
+		);
+
+		let forged = signed_meta_tx(inner, alice, &bob_pair);
+		let forged_len = forged.encoded_size() as u32;
+		assert_noop!(
+			crate::MetaTx::dispatch(RuntimeOrigin::signed(bob), Box::new(forged), forged_len),
+			pallet_meta_tx::Error::<Runtime>::BadProof,
+		);
+	});
+}
+
+#[test]
 fn location_conversion_works() {
 	let alice_32 = AccountId32 { network: None, id: AccountId::from(ALICE).into() };
 	let bob_20 = AccountKey20 { network: None, key: [123u8; 20] };
