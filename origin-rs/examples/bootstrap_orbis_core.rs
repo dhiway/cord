@@ -1,0 +1,77 @@
+//! Assign bootstrap execution cores to Orbis through Origin Sudo.
+//!
+//! Usage:
+//! `cargo run -p origin-rs --example bootstrap_orbis_core -- --endpoint ws://127.0.0.1:9900`
+
+use clap::Parser;
+use oc::{
+	client::{signer::OriginSigner, OriginClient},
+	types::OriginAccount,
+};
+use scale_value::{Composite, Value};
+
+#[derive(Debug, Parser)]
+struct Args {
+	#[clap(long, default_value = "ws://127.0.0.1:9900")]
+	endpoint: String,
+	#[clap(long, default_value = "//Alice")]
+	seed: String,
+	#[clap(long, default_value_t = 1006)]
+	para_id: u32,
+	/// First relay core to assign.
+	#[clap(long, default_value_t = 0)]
+	first_core: u16,
+	/// Number of consecutive full cores to assign.
+	#[clap(long, default_value_t = 1)]
+	cores: u16,
+	/// Relay block at which the assignment starts; defaults to best block plus two.
+	#[clap(long)]
+	begin: Option<u32>,
+}
+
+fn full_core_assignment(para_id: u32) -> Value<()> {
+	Value::unnamed_composite(vec![Value::unnamed_composite(vec![
+		Value::variant("Task", Composite::unnamed(vec![Value::u128(para_id.into())])),
+		Value::unnamed_composite(vec![Value::u128(57_600)]),
+	])])
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	let args = Args::parse();
+	if args.cores == 0 {
+		return Err("--cores must be greater than zero".into());
+	}
+
+	let account = OriginAccount::from_uri(&args.seed, None).map_err(|error| format!("{error:?}"))?;
+	let signer = OriginSigner::from_account(&account).map_err(|error| format!("{error:?}"))?;
+	let client = OriginClient::connect(&args.endpoint).await?;
+	let best = client.online().blocks().at_latest().await?.number();
+	let begin = args.begin.unwrap_or(best.saturating_add(2));
+	let tx = client.tx().using(signer);
+
+	for offset in 0..args.cores {
+		let core = args
+			.first_core
+			.checked_add(offset)
+			.ok_or("core index overflow")?;
+		let assign = subxt::dynamic::tx(
+			"Coretime",
+			"assign_core",
+			vec![
+				Value::u128(core.into()),
+				Value::u128(begin.into()),
+				full_core_assignment(args.para_id),
+				Value::variant("None", Composite::unnamed(vec![])),
+			],
+		);
+		let sudo = subxt::dynamic::tx("Sudo", "sudo", vec![assign.into_value()]);
+		let outcome = tx.submit(sudo).await?.wait_finalized().await?;
+		println!(
+			"assigned core {core} to task {} from relay block {begin}; finalized in {:?}",
+			args.para_id, outcome.block
+		);
+	}
+
+	Ok(())
+}

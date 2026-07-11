@@ -157,6 +157,17 @@ privileged XCM. A full-core workload is `Task(para_id)` with all `57,600` parts.
 workload multiple times assigns multiple cores to the same parachain; three reservations for task
 `1006` are the Orbis three-core elastic-scaling configuration.
 
+For a development network, submit the Sudo bootstrap assignment from the repository root:
+
+```text
+cargo run -p origin-rs --example bootstrap_orbis_core -- \
+  --endpoint ws://127.0.0.1:9900 --first-core 0 --cores 1
+```
+
+The example defaults the assignment start to the current best relay block plus two, waits for
+finalization, and can assign consecutive full cores for protocol testing. Assigning multiple cores
+with this relay-admin tool is an emergency/test override; it is not an Orbis Broker subscription.
+
 Other enterprise parachains are registered by Origin Sudo and receive cores from Orbis Sudo using
 the same full-core reservations. Direct relay
 `Coretime.assign_core` remains only the bootstrap, test, and emergency override path. Acceptance
