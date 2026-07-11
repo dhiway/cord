@@ -130,6 +130,8 @@ parameter_types! {
 	pub OrgnForOriginHubMe: (AssetFilter, Location) = (Orgn::get(), OriginHubMeLocation::get());
 	pub OriginHubAfLocation: Location = Parachain(ORIGIN_HUB_AF_ID).into_location();
 	pub OrgnForOriginHubAf: (AssetFilter, Location) = (Orgn::get(), OriginHubAfLocation::get());
+	pub OrbisLocation: Location = Parachain(ORBIS_ID).into_location();
+	pub OrgnForOrbis: (AssetFilter, Location) = (Orgn::get(), OrbisLocation::get());
 	pub const MaxAssetsIntoHolding: u32 = 64;
 }
 
@@ -140,6 +142,7 @@ pub type TrustedTeleporters = (
 	xcm_builder::Case<OrgnForOriginHubAp>,
 	xcm_builder::Case<OrgnForOriginHubMe>,
 	xcm_builder::Case<OrgnForOriginHubAf>,
+	xcm_builder::Case<OrgnForOrbis>,
 );
 
 pub struct OnlyParachains;

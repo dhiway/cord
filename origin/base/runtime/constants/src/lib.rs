@@ -120,6 +120,7 @@ pub mod system_parachain {
 		pub OriginHubAPParaId: ParaId = ORIGIN_HUB_AP_ID.into();
 		pub OriginHubMeParaId: ParaId = ORIGIN_HUB_ME_ID.into();
 		pub OriginHubAfParaId: ParaId = ORIGIN_HUB_AF_ID.into();
+		pub OrbisParaId: ParaId = ORBIS_ID.into();
 	}
 
 	/// Origin Hub parachain IDs.
@@ -129,6 +130,8 @@ pub mod system_parachain {
 	pub const ORIGIN_HUB_AP_ID: u32 = 1003;
 	pub const ORIGIN_HUB_ME_ID: u32 = 1004;
 	pub const ORIGIN_HUB_AF_ID: u32 = 1005;
+	/// Orbis enterprise application hub parachain ID.
+	pub const ORBIS_ID: u32 = 1006;
 
 	// System parachains from Polkadot point of view.
 	pub type SystemParachains = IsChildSystemParachain<ParaId>;

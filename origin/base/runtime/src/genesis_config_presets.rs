@@ -26,7 +26,8 @@ use beefy_primitives::ecdsa_crypto::AuthorityId as BeefyId;
 use origin_runtime_constants::currency::UNITS as ORU;
 use pallet_grandpa::AuthorityId as GrandpaId;
 use polkadot_primitives::{
-	vstaging::SchedulerParams, AccountPublic, AssignmentId, AsyncBackingParams,
+	node_features::FeatureIndex, vstaging::SchedulerParams, AccountPublic, AssignmentId,
+	AsyncBackingParams,
 };
 use runtime_parachains::configuration::HostConfiguration;
 use sp_core::{sr25519, Pair, Public};
@@ -111,13 +112,19 @@ fn default_parachains_host_configuration() -> HostConfiguration<polkadot_primiti
 		scheduler_params: SchedulerParams {
 			group_rotation_frequency: 20,
 			paras_availability_period: 4,
+			lookahead: 3,
 			..Default::default()
 		},
 		dispute_post_conclusion_acceptance_period: 100u32,
 		minimum_backing_votes: 1,
-		node_features: NodeFeatures::EMPTY,
+		node_features: NodeFeatures::from_element(
+			(1u8 << (FeatureIndex::EnableAssignmentsV2 as usize)) |
+				(1u8 << (FeatureIndex::ElasticScalingMVP as usize)) |
+				(1u8 << (FeatureIndex::CandidateReceiptV2 as usize)) |
+				(1u8 << (FeatureIndex::CandidateReceiptV3 as usize)),
+		),
 		async_backing_params: AsyncBackingParams {
-			max_candidate_depth: 2,
+			max_candidate_depth: 3,
 			allowed_ancestry_len: 2,
 		},
 		max_relay_parent_session_age: 0,
@@ -256,5 +263,29 @@ mod tests {
 	#[test]
 	fn default_parachains_host_configuration_is_consistent() {
 		default_parachains_host_configuration().panic_if_not_consistent();
+	}
+
+	#[test]
+	fn default_parachains_host_configuration_supports_elastic_scaling() {
+		let config = default_parachains_host_configuration();
+
+		assert_eq!(config.scheduler_params.lookahead, 3);
+		assert_eq!(config.async_backing_params.max_candidate_depth, 3);
+		assert!(FeatureIndex::EnableAssignmentsV2.is_set(&config.node_features));
+		assert!(FeatureIndex::ElasticScalingMVP.is_set(&config.node_features));
+		assert!(FeatureIndex::CandidateReceiptV2.is_set(&config.node_features));
+		assert!(FeatureIndex::CandidateReceiptV3.is_set(&config.node_features));
+	}
+
+	#[test]
+	fn enterprise_genesis_uses_sudo_managed_non_staking_authorities() {
+		let genesis = origin_staging_config_genesis();
+
+		assert!(genesis.get("sudo").is_some());
+		assert!(genesis.get("authorityManager").is_some());
+		assert!(genesis.get("session").is_some());
+		assert!(genesis.get("staking").is_none());
+		assert!(genesis.get("referenda").is_none());
+		assert!(genesis.get("convictionVoting").is_none());
 	}
 }

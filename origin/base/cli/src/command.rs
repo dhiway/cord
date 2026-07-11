@@ -167,6 +167,10 @@ where
 	// Parse collator protocol hold off value and get the list of the invlunerable collators.
 	let collator_protocol_hold_off = cli.run.collator_protocol_hold_off.map(Duration::from_millis);
 	let invulnerable_ah_collators = get_invulnerable_origin_collators();
+	let experimental_collator_protocol = cli.run.experimental_collator_protocol;
+	let collator_reputation_persist_interval = experimental_collator_protocol
+		.then(|| cli.run.collator_reputation_persist_interval.map(Duration::from_secs))
+		.flatten();
 
 	runner.run_node_until_exit(move |config| async move {
 		let hwbench = (!cli.run.no_hardware_benchmarks)
@@ -205,8 +209,8 @@ where
 				keep_finalized_for: cli.run.keep_finalized_for,
 				invulnerable_ah_collators,
 				collator_protocol_hold_off,
-				experimental_collator_protocol: false,
-				collator_reputation_persist_interval: None,
+				experimental_collator_protocol,
+				collator_reputation_persist_interval,
 			},
 		)
 		.map(|full| full.task_manager)?;
