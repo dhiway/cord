@@ -80,6 +80,7 @@ pub const EVIDENCE_MARKERS_V4: &[(&str, &str, &str)] = &[
 	("runtime-fixtures", "VECTOR-MUTATE-TX", "b05f355ab93243622f90cd6eac8d29cc1ef89d72ba4ccf19b2420a8fed637259"),
 	("runtime-fixtures", "VECTOR-PAID-TOKEN-KEY", "7cd42dd3630877c968da1bdd395026cf86929802664d29af13cef19c7cb454de"),
 	("runtime-fixtures", "VECTOR-SPEC26-NEGATIVE", "99e783312fec84b4f95ddcaa04e7865f3a83a84e6d0d1bd658750ea1e13236ed"),
+	("runtime-gate5", "GATE-5-EVIDENCE", "aa56d18cc8f257c4ff4af96cff9b1373516258a9c32a5804b6a468f42282e369"),
 	("runtime-inspector", "INGRESS-AS-DERIVATIVE", "8d0e9e164c029612daa3ca4feacda3890a18a49d201d12fa2c978198cab08374"),
 	("runtime-inspector", "INGRESS-AUTHORIZED", "8d0e9e164c029612daa3ca4feacda3890a18a49d201d12fa2c978198cab08374"),
 	("runtime-inspector", "INGRESS-DIRECT", "8d0e9e164c029612daa3ca4feacda3890a18a49d201d12fa2c978198cab08374"),

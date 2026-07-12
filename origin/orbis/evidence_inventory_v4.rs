@@ -5,7 +5,7 @@
 //! This module is `cfg(test)` only and is not linked into the production runtime.
 
 pub const MANIFEST_INVENTORY_V4_COUNT: usize = 645;
-pub const MANIFEST_INVENTORY_V4_BLAKE2_256: &str = "eb98d34165ab0e8e3727a3c8f88a30da899dfa7f85e88b60c6701b076733e659";
+pub const MANIFEST_INVENTORY_V4_BLAKE2_256: &str = "59f106807593fb0c6a0fbf041d1866b6196869d994655c14b4aa8659f5910114";
 pub const MANIFEST_INVENTORY_V4: &[(&str, &str, &str, &str)] = &[
 	("acceptance", "FEE-01", "pending", ""),
 	("acceptance", "FEE-02", "pending", ""),
@@ -463,7 +463,7 @@ pub const MANIFEST_INVENTORY_V4: &[(&str, &str, &str, &str)] = &[
 	("remediation_gate", "GATE-2-ACTIVE", "", "present"),
 	("remediation_gate", "GATE-3-BULLETIN-V7", "", "present"),
 	("remediation_gate", "GATE-4-SPEC28-TX7", "", "present"),
-	("remediation_gate", "GATE-5-EVIDENCE", "", "planned"),
+	("remediation_gate", "GATE-5-EVIDENCE", "", "present"),
 	("runtime_api", "API-AccountNonceApi-01", "present", ""),
 	("runtime_api", "API-AuraApi-01", "present", ""),
 	("runtime_api", "API-AuraApi-02", "present", ""),

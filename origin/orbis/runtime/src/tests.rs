@@ -369,7 +369,7 @@ fn completion_manifest_v4_evidence_is_exact_and_semantically_frozen() {
 			}
 		}
 	}
-	assert_eq!((present, planned), (114, 5));
+	assert_eq!((present, planned), (115, 4));
 	let contract = manifest["meta_contract"].as_array().unwrap();
 	for id in [
 		"META-EVIDENCE-COMPILED-ENABLED",
@@ -457,7 +457,7 @@ fn completion_manifest_v4_evidence_is_exact_and_semantically_frozen() {
 }
 
 #[test]
-fn completion_manifest_v4_plans_have_no_fake_implementation_evidence() {
+fn completion_manifest_v4_gate5_clear_is_exact_and_narrow() {
 	let manifest: toml::Value =
 		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml")).unwrap();
 	for row in manifest["provider_v8_contract"].as_array().unwrap() {
@@ -482,10 +482,51 @@ fn completion_manifest_v4_plans_have_no_fake_implementation_evidence() {
 		.iter()
 		.find(|row| row["id"].as_str() == Some("GATE-5-EVIDENCE"))
 		.unwrap();
-	assert_eq!(gate5["status"].as_str(), Some("planned"));
+	assert_eq!(gate5["status"].as_str(), Some("present"));
 	assert_eq!(gate5["dependency_ids"].as_str(), Some("ARCHITECT-CLEAR; CRITIC-CLEAR"));
-	assert_eq!(manifest["replanning"]["critic_status"].as_str(), Some("pending"));
-	assert_eq!(manifest["replanning"]["critic_evidence"].as_str(), Some(""));
+	assert_eq!(
+		manifest["replanning"]["architect_status"].as_str(),
+		Some("clear")
+	);
+	assert_eq!(
+		manifest["replanning"]["architect_evidence"].as_str(),
+		Some("docs/evidence/orbis-v4/architect-review-clear-1.md")
+	);
+	assert_eq!(manifest["replanning"]["critic_status"].as_str(), Some("clear"));
+	assert_eq!(
+		manifest["replanning"]["critic_evidence"].as_str(),
+		Some("docs/evidence/orbis-v4/critic-review-clear-1.md")
+	);
+	for field in [
+		"source_paths",
+		"source_symbol",
+		"test_or_command",
+		"expected_assertion",
+		"artifact_path",
+		"artifact_sha256",
+		"source_commit",
+		"expected_output",
+		"output_sha256",
+		"assertion_sha256",
+	] {
+		assert!(gate5[field].as_str().is_some_and(|value| !value.is_empty()), "Gate5.{field}");
+	}
+	let remaining_planned = [
+		"meta_contract",
+		"meta_router_variant",
+		"meta_vector",
+		"meta_ingress",
+		"bulletin_v7_rehearsal",
+		"bulletin_v7_contract",
+		"provider_v8_contract",
+		"remediation_gate",
+	]
+	.into_iter()
+	.flat_map(|table| manifest[table].as_array().unwrap())
+	.filter(|row| row["status"].as_str() == Some("planned"))
+	.count();
+	assert_eq!(remaining_planned, 4);
+	evidence_markers_v4::emit_evidence_markers_v4("runtime-gate5");
 }
 
 #[test]
