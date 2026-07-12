@@ -49,10 +49,11 @@ exemption only from the exact
 keeps its skip semantics after a wire round trip, while an arbitrary signed SCALE transaction
 cannot request the skip and continues through ordinary payment validation.
 
-Replacing a `NoPolicy` slot requires the same commit to:
+Changing an encoded policy slot requires the same commit to:
 
 - wire the extension at its reserved position on every applicable surface;
-- increment `transaction_version`;
+- increment `transaction_version` when its SCALE schema changes (a composition-only behavioral
+  transition increments `spec_version` instead);
 - update signing vectors and type assertions;
 - add direct and MetaTx positive and negative tests;
 - add Ethereum positive and negative tests when Revive can reach the capability, or prove that the
@@ -126,3 +127,68 @@ other future extensions exist. Remaining acceptance work is bound
 to the slices that implement it: positive custom-identity proof vectors on every reachable surface;
 protected-transfer signatures; `RestrictOrigin`; and the PGAS charging layer. Until those slices
 land, ADR 0008 freezes the intended contract and makes the present typed placeholders explicit.
+
+
+## Iteration-4 remediation boundary
+
+The historical `d75ff22a` runtime remains spec 26 / transaction 6. Gate 1 changes documentation
+and manifest tests only. The single later integration gate changes spec 26 to 27 while retaining
+transaction version 6; no earlier dormant-support or unregistered-migration commit may change the
+runtime metadata or optimized Wasm. Canonical positive direct and Meta literals are spec 27.
+Spec-26 literals are negative fixtures. Compatibility means the `d75` tuple schema and field order,
+not whole-byte equality across a spec-version transition.
+
+The exact Meta v6 alias at that integration boundary is:
+
+```text
+(VerifySignature, ConsumePaidMetaIngress, MetaTxMarker, CheckNonZeroSender,
+ CheckSpecVersion, CheckTxVersion, CheckGenesis, CheckMortality, CheckNonce,
+ MetaAccountBoundPoliciesV6, ValidateStorageCalls, CheckMetadataHash)
+```
+
+`IntentPreimageV6` commits with Blake2-256 over its SCALE encoding. Its ordered fields are the
+domain `orbis/meta-intent/v6`, extension version, genesis hash, spec version exactly 27,
+transaction version exactly 6, inner signer, call hash, mortality, nonce, policy-proofs hash,
+storage-extension hash and metadata-extension hash. Mutating any committed field invalidates the
+intent. Personhood routes exactly `PersonalAliasAccount`, `PersonalIdentityAccount` and
+`PersonalAliasAccountRevised`; People Lite routes exactly `LitePerson`, `LiteAliasAccount` and
+`LiteAliasAccountRevised`; Resources routes exactly `ClaimLongTermStorage`. Each route has a frozen
+`Val` and `Pre` state and binds its authority account to the verified inner signer before changing
+the dispatch origin.
+
+A direct Resources claim begins as `Signed(call.account_id)`. Its transaction signature authorizes
+the account-aware nonce and fee debit/refund; its Resources proof separately authorizes the custom
+identity origin. A bad signature, signer/call-account mismatch or `None` origin is rejected before
+nonce/payment side effects.
+
+Meta-tree inspection is allocation-free and bounded by the three manifest constants
+`MaxMetaEnvelopeDepth`, `MaxMetaEnvelopeCalls` and `MaxMetaEnvelopeBytes`. Transparent direct,
+Utility batch/batch-all/force-batch, Proxy proxy/proxy-announced and concrete Multisig
+as-multi/threshold-one ingress are the complete eligible set. Nested or multiple Meta envelopes,
+dispatch-as/derivative, Sudo, Scheduler/preimage, hash-only Multisig approval, XCM/sovereign,
+authorized/offchain, Revive/Ethereum, payerless and opaque ingress are denied or ineligible as
+enumerated by manifest v3. The BaseCallFilter remains a leaf defense rather than the sole envelope
+guard.
+
+The paid-ingress token is one-shot and key-bound. Outer preparation performs all fallible checks
+before writing it; `ConsumePaidMetaIngress` removes the exact token before dispatch.
+`MetaTokenMustBeEmpty`, `PostTransactions`, Executive finalization and try-state enforce an empty
+slot after every validation, preparation, dispatch, post-dispatch and bypass failure. Frozen weight
+ownership is paid scope `2R + 2W`, base leaf `1R`, consumer `1R + 1W`, plus the selected router
+variant and bounded inspection coefficients. Generated benchmarks must replace conservative values
+without changing that ownership.
+
+Bulletin V6-to-V7 is a separate two-phase repair registered only by the spec-27 integration. A
+read-only bounded preflight derives both `ResourceLinkByRef` and
+`ResourceLinkByContentHash` from authoritative links, validates duplicates/dangling ownership and
+derives row/link counters before any write. The infallible phase clears and rebuilds both maps,
+writes both counters, then writes storage version 7 last. With active, tombstone, authoritative
+link, old ref-index and old hash-index counts `A,T,L,I_ref,I_hash`, its exact database budget is
+`reads = A + T + L + I_ref + I_hash + 3L + 3` and
+`writes = I_ref + I_hash + 2L + 2 + 1`. The separate REF/HASH missing, partial, stale and duplicate
+rehearsals, simultaneous partial/bad-counter state, historical 4c/640 states, empty state and maximum
+valid state are mandatory. Invalid preflight performs zero writes and leaves storage V6.
+
+Provider composition is not folded into that repair. A later Bulletin V7-to-V8 migration appends
+`provider_ref: Option<ProviderAllocationId>`, backfills `None`, and preserves every existing ID,
+purpose, owner, counter, hash, Bulletin ref, paid-byte and expiry field.

@@ -98,7 +98,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Capability/pallet | Reference | Orbis state |
 |---|---|---|
 | Authorized durable storage | Bulletin TransactionStorage | Vendored and present at index 110 |
-| Person resource reservation and provenance | Orbis Resources/Bulletin V6 | Isolated capacity, exact `(block, transaction_index)` links, explicit storage actors, manual reserved renewal, deterministic expiry and tombstone audit are native; provider references remain Slice 10/V7 |
+| Person resource reservation and provenance | Orbis Resources/Bulletin V6 | Isolated capacity, exact `(block, transaction_index)` links, explicit storage actors, manual reserved renewal, deterministic expiry and tombstone audit are native; the independently bounded two-map/counter repair to V7 is frozen but not registered, and provider references remain the later Slice 10/V8 seam |
 | Content hash/CID lookup | Bulletin | Present and tested |
 | Retention, renewal and permanent accounting | Bulletin | Present and unit-tested |
 | Storage transaction validation and anti-wrapper policy | Bulletin | Present in the Orbis transaction envelope |
@@ -121,11 +121,31 @@ revision and cannot be copied verbatim until provenance is resolved.
 |---|---|---|
 | Coretime Broker | `pallet_broker` at protocol index 50 | Present |
 | Three-core reservations | complete `Task(para_id)` masks | Unit-tested; Broker-to-Origin E2E pending |
-| Sponsored transactions | MetaTx with user signature/nonce and sponsor payment | Present and abuse-tested |
+| Sponsored transactions | MetaTx with user signature/nonce and sponsor payment | Current d75 boundary is spec 26/tx 6; manifest v3 freezes the exact Verify→Consume spec-27/tx-6 remediation, seven account-bound router variants, literal vectors and one-shot paid token for the single later integration commit |
 | Controlled zero-fee calls | Feeless allowlist, per-account quota, deny-by-default wrappers | Present and abuse-tested |
 | Solidity actor preservation | Revive `SetOrigin` plus transaction envelope | Present |
 | Bulletin call validation | recursive storage-call inspector | Present |
 | Runtime upgrade safety | migrations, SafeMode and TxPause | Present; production try-runtime rehearsal pending |
+
+### Frozen remediation sequence
+
+1. Manifest v3, ADR and matrix plus semantic/table-driven tests only; runtime remains spec 26/tx 6.
+2. Dormant bounded-inspector, router, token/finalization and weight support, with d75 metadata and
+   optimized-Wasm equality.
+3. An unregistered two-phase Bulletin V6-to-V7 repair, still storage V6, with the same artifact
+   equality gate.
+4. One composed runtime commit activates the exact Verify→Consume alias, signed direct Resources
+   payer adapters, all seven router variants, bounded ingress and denial matrix, finalization,
+   Bulletin V7 migration and spec 27. Transaction version stays 6 and pallet indices do not move.
+5. Reproducible literal/vector, Executive, benchmark, migration and Wasm/native evidence is frozen
+   before further native capability slices begin.
+
+Bulletin V7 reconstructs both `ResourceLinkByRef` and `ResourceLinkByContentHash` independently from
+authoritative links and writes row/link counters before setting V7 last. REF and HASH missing,
+partial, stale and duplicate rehearsals cannot substitute for each other. Its frozen budget is
+`reads = A + T + L + I_ref + I_hash + 3L + 3` and
+`writes = I_ref + I_hash + 2L + 2 + 1`. A later V7-to-V8 provider migration appends optional
+provider allocation references as `None` while preserving all existing reservation and link fields.
 
 ## Completion order
 

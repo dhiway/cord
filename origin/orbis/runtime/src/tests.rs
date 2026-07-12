@@ -45,11 +45,11 @@ fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 	let manifest: toml::Value =
 		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml"))
 			.expect("the frozen completion manifest must be valid TOML");
-	assert_eq!(manifest["manifest_version"].as_integer(), Some(2));
-	assert_eq!(manifest["replanning"]["iteration"].as_integer(), Some(2));
+	assert_eq!(manifest["manifest_version"].as_integer(), Some(3));
+	assert_eq!(manifest["replanning"]["iteration"].as_integer(), Some(4));
 	assert_eq!(
 		manifest["replanning"]["decision"].as_str(),
-		Some("approved-resources-bulletin-two-phase-protocol")
+		Some("approved-verify-consume-bounded-remediation")
 	);
 	for (table, expected) in [
 		("source", 7),
@@ -76,6 +76,14 @@ fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 		("protocol_obligation", 10),
 		("protocol_dependency", 3),
 		("protocol_constant", 5),
+		("meta_contract", 38),
+		("meta_router_variant", 7),
+		("meta_vector", 18),
+		("meta_ingress", 20),
+		("bulletin_v7_rehearsal", 13),
+		("bulletin_v7_contract", 10),
+		("provider_v8_contract", 4),
+		("remediation_gate", 5),
 	] {
 		assert_eq!(manifest[table].as_array().map(Vec::len), Some(expected), "{table}");
 	}
@@ -108,6 +116,14 @@ fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 		"protocol_obligation",
 		"protocol_dependency",
 		"protocol_constant",
+		"meta_contract",
+		"meta_router_variant",
+		"meta_vector",
+		"meta_ingress",
+		"bulletin_v7_rehearsal",
+		"bulletin_v7_contract",
+		"provider_v8_contract",
+		"remediation_gate",
 	] {
 		let rows = manifest[table].as_array().unwrap();
 		let ids = rows.iter().map(|row| row["id"].as_str().unwrap()).collect::<BTreeSet<_>>();
@@ -266,6 +282,204 @@ fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 		assert!(row["legal_note"].as_str().is_some_and(|note| note.contains("SPDX")));
 	}
 	assert_eq!(manifest["migration_pipeline"][0]["state"].as_str(), Some("present-empty-pipeline"));
+}
+
+#[test]
+fn remediation_manifest_v3_is_exact_and_semantically_frozen() {
+	use std::collections::BTreeSet;
+
+	let manifest: toml::Value =
+		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml")).unwrap();
+	let tables = [
+		"meta_contract",
+		"meta_router_variant",
+		"meta_vector",
+		"meta_ingress",
+		"bulletin_v7_rehearsal",
+		"bulletin_v7_contract",
+		"provider_v8_contract",
+		"remediation_gate",
+	];
+	for table in tables {
+		for row in manifest[table].as_array().unwrap() {
+			let row_id = row["id"].as_str().unwrap();
+			for field in [
+				"id",
+				"source_paths",
+				"test_or_command",
+				"expected_assertion",
+				"artifact_path",
+				"artifact_sha256",
+				"source_commit",
+				"status",
+			] {
+				assert!(
+					row[field].as_str().is_some_and(|value| !value.is_empty()),
+					"{table}.{field}"
+				);
+			}
+			let artifact_path = format!("target/orbis-remediation/{row_id}.json");
+			assert_eq!(
+				row["artifact_path"].as_str(),
+				Some(artifact_path.as_str()),
+				"{table} artifact path"
+			);
+			assert_eq!(
+				row["artifact_sha256"].as_str(),
+				Some("0000000000000000000000000000000000000000000000000000000000000000"),
+				"Gate 1 has no execution artifact yet"
+			);
+			assert_eq!(
+				row["source_commit"].as_str(),
+				Some("d75ff22af02120daccdb5e017cfddc925e622ac5"),
+				"{table} source boundary"
+			);
+			assert_eq!(row["status"].as_str(), Some("planned"), "Gate 1 is not runtime evidence");
+		}
+	}
+
+	let ids = |table: &str| {
+		manifest[table]
+			.as_array()
+			.unwrap()
+			.iter()
+			.map(|row| row["id"].as_str().unwrap())
+			.collect::<Vec<_>>()
+	};
+	assert_eq!(
+		ids("meta_router_variant"),
+		[
+			"ROUTER-PERSON-ALIAS",
+			"ROUTER-PERSON-IDENTITY",
+			"ROUTER-PERSON-ALIAS-REVISED",
+			"ROUTER-LITE-PERSON",
+			"ROUTER-LITE-ALIAS",
+			"ROUTER-LITE-ALIAS-REVISED",
+			"ROUTER-RESOURCES-CLAIM",
+		]
+	);
+	assert_eq!(
+		ids("bulletin_v7_rehearsal"),
+		[
+			"REF-MISSING",
+			"REF-PARTIAL",
+			"REF-STALE",
+			"REF-DUPLICATE",
+			"HASH-MISSING",
+			"HASH-PARTIAL",
+			"HASH-STALE",
+			"HASH-DUPLICATE",
+			"BOTH-PARTIAL-BAD-COUNTER",
+			"EMPTY",
+			"HISTORICAL-4C",
+			"HISTORICAL-640",
+			"MAX-VALID",
+		]
+	);
+	assert_eq!(
+		ids("remediation_gate"),
+		[
+			"GATE-1-DOCS-V3",
+			"GATE-2-DORMANT",
+			"GATE-3-BULLETIN-DORMANT",
+			"GATE-4-SINGLE-INTEGRATION",
+			"GATE-5-EVIDENCE",
+		]
+	);
+	let ingress = manifest["meta_ingress"].as_array().unwrap();
+	let allowed = ingress
+		.iter()
+		.filter(|row| row["decision"].as_str() == Some("allowed"))
+		.map(|row| row["shape"].as_str().unwrap())
+		.collect::<BTreeSet<_>>();
+	assert_eq!(
+		allowed,
+		BTreeSet::from([
+			"direct leaf",
+			"Utility::batch",
+			"Utility::batch_all",
+			"Utility::force_batch",
+			"Proxy::proxy",
+			"Proxy::proxy_announced",
+			"Multisig::as_multi concrete call",
+			"Multisig::as_multi_threshold_1 concrete call",
+		])
+	);
+
+	let contract = manifest["meta_contract"].as_array().unwrap();
+	let value = |id: &str| {
+		contract.iter().find(|row| row["id"].as_str() == Some(id)).unwrap()["value"]
+			.as_str()
+			.unwrap()
+	};
+	assert_eq!(
+		value("META-COMPAT-SPEC"),
+		"canonical positive spec_version = 27; canonical spec-26 literal is negative"
+	);
+	assert_eq!(value("META-COMPAT-TX"), "transaction_version = 6");
+	assert_eq!(value("META-DIRECT-PAYER"), "Signed(call.account_id)");
+	assert_eq!(value("META-WEIGHT-PAID"), "PaidMetaScope = 2R + 2W");
+	assert_eq!(value("META-WEIGHT-BASE"), "Base leaf inspection = 1R");
+	assert_eq!(value("META-WEIGHT-CONSUME"), "ConsumePaidMetaIngress = 1R + 1W");
+	assert_eq!(
+		value("META-ALIAS-VERIFY-CONSUME"),
+		"(VerifySignature, ConsumePaidMetaIngress, MetaTxMarker, CheckNonZeroSender, CheckSpecVersion, CheckTxVersion, CheckGenesis, CheckMortality, CheckNonce, MetaAccountBoundPoliciesV6, ValidateStorageCalls, CheckMetadataHash)"
+	);
+	let bulletin = manifest["bulletin_v7_contract"].as_array().unwrap();
+	let bulletin_value = |id: &str| {
+		bulletin.iter().find(|row| row["id"].as_str() == Some(id)).unwrap()["value"]
+			.as_str()
+			.unwrap()
+	};
+	assert_eq!(bulletin_value("BUL-V7-READS"), "reads = A + T + L + I_ref + I_hash + 3L + 3");
+	assert_eq!(bulletin_value("BUL-V7-WRITES"), "writes = I_ref + I_hash + 2L + 2 + 1");
+
+	fn canonical_semantics(value: &toml::Value, output: &mut String) {
+		match value {
+			toml::Value::String(value) => {
+				output.push_str("s");
+				output.push_str(&value.len().to_string());
+				output.push(':');
+				output.push_str(value);
+			},
+			toml::Value::Integer(value) => output.push_str(&format!("i{value};")),
+			toml::Value::Float(value) => output.push_str(&format!("f{:016x};", value.to_bits())),
+			toml::Value::Boolean(value) => output.push_str(if *value { "b1;" } else { "b0;" }),
+			toml::Value::Datetime(value) => output.push_str(&format!("d{value};")),
+			toml::Value::Array(values) => {
+				output.push('[');
+				for value in values {
+					canonical_semantics(value, output);
+				}
+				output.push(']');
+			},
+			toml::Value::Table(values) => {
+				output.push('{');
+				let mut keys = values
+					.keys()
+					.filter(|key| {
+						!matches!(key.as_str(), "artifact_sha256" | "source_commit" | "status")
+					})
+					.collect::<Vec<_>>();
+				keys.sort();
+				for key in keys {
+					canonical_semantics(&toml::Value::String(key.clone()), output);
+					canonical_semantics(&values[key], output);
+				}
+				output.push('}');
+			},
+		}
+	}
+	let mut canonical = String::new();
+	for table in tables {
+		canonical.push_str(table);
+		canonical_semantics(&manifest[table], &mut canonical);
+	}
+	let hash = sp_io::hashing::blake2_256(canonical.as_bytes())
+		.iter()
+		.map(|byte| format!("{byte:02x}"))
+		.collect::<String>();
+	assert_eq!(hash, "6b289ebec91d0599dd9daff913dbe9fcd334d1fe2abfc830846e53748bebb793");
 }
 
 #[test]
