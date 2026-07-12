@@ -5,8 +5,9 @@
 //!
 //! This is deliberately feature-gated with the runtime benchmark harness, but it is not output
 //! from FRAME's benchmark generator. It records the bounded workload owned by each router route
-//! and checks that the weight selected by the production extension covers that workload. A future
-//! generated benchmark may replace the conservative coefficients without changing these cases.
+//! and checks that the weight selected by the production extension covers that workload. The
+//! current benchmark setup is intentionally included and conservative. Slice15 must separate setup
+//! from measured execution before generated extension weights replace these floors.
 
 use frame_support::weights::{RuntimeDbWeight, Weight};
 
@@ -14,9 +15,11 @@ use crate::weights::meta_v6;
 
 const BASE: u64 = 5_000_000;
 const CLASSIFIER: u64 = 750_000;
-const CRYPTO_VERIFY: u64 = 8_000_000;
+const CRYPTO_VERIFY: u64 = 35_850_000_000;
 const HASH_OP: u64 = 500_000;
 const PER_MEMBERSHIP_PROOF_BYTE: u64 = 10_000;
+pub const MAX_MEMBERSHIP_PROOF_BYTES: u64 = 1_267;
+pub const MAX_STORAGE_POV_BYTES: u64 = 5_137;
 
 /// The database and cryptographic workload exercised by a successful production route.
 ///
@@ -30,6 +33,7 @@ pub struct RouterCalibration {
 	pub crypto_verifications: u64,
 	pub hash_operations: u64,
 	pub membership_proof_bytes: u64,
+	pub storage_pov_bytes: u64,
 	pub declared: Weight,
 }
 
@@ -40,7 +44,8 @@ impl RouterCalibration {
 			.saturating_add(CRYPTO_VERIFY.saturating_mul(self.crypto_verifications))
 			.saturating_add(HASH_OP.saturating_mul(self.hash_operations))
 			.saturating_add(PER_MEMBERSHIP_PROOF_BYTE.saturating_mul(self.membership_proof_bytes));
-		Weight::from_parts(cpu, 0).saturating_add(db.reads_writes(self.reads, self.writes))
+		Weight::from_parts(cpu, self.storage_pov_bytes)
+			.saturating_add(db.reads_writes(self.reads, self.writes))
 	}
 
 	pub fn assert_declared_dominates(self, db: RuntimeDbWeight) {
@@ -62,6 +67,7 @@ pub fn router_calibrations(db: RuntimeDbWeight) -> [RouterCalibration; 7] {
 			crypto_verifications: 0,
 			hash_operations: 0,
 			membership_proof_bytes: 0,
+			storage_pov_bytes: 0,
 			declared: meta_v6::personal_alias(db),
 		},
 		RouterCalibration {
@@ -71,15 +77,17 @@ pub fn router_calibrations(db: RuntimeDbWeight) -> [RouterCalibration; 7] {
 			crypto_verifications: 0,
 			hash_operations: 0,
 			membership_proof_bytes: 0,
+			storage_pov_bytes: 0,
 			declared: meta_v6::personal_identity(db),
 		},
 		RouterCalibration {
 			name: "PersonalAliasAccountRevised",
 			reads: 5,
-			writes: 1,
+			writes: 2,
 			crypto_verifications: 1,
 			hash_operations: 2,
-			membership_proof_bytes: 32,
+			membership_proof_bytes: MAX_MEMBERSHIP_PROOF_BYTES,
+			storage_pov_bytes: MAX_STORAGE_POV_BYTES,
 			declared: meta_v6::personal_alias_revised(db),
 		},
 		RouterCalibration {
@@ -89,6 +97,7 @@ pub fn router_calibrations(db: RuntimeDbWeight) -> [RouterCalibration; 7] {
 			crypto_verifications: 0,
 			hash_operations: 0,
 			membership_proof_bytes: 0,
+			storage_pov_bytes: 0,
 			declared: meta_v6::lite_person(db),
 		},
 		RouterCalibration {
@@ -98,15 +107,17 @@ pub fn router_calibrations(db: RuntimeDbWeight) -> [RouterCalibration; 7] {
 			crypto_verifications: 0,
 			hash_operations: 0,
 			membership_proof_bytes: 0,
+			storage_pov_bytes: 0,
 			declared: meta_v6::lite_alias(db),
 		},
 		RouterCalibration {
 			name: "LiteAliasAccountRevised",
 			reads: 5,
-			writes: 1,
+			writes: 2,
 			crypto_verifications: 1,
 			hash_operations: 2,
-			membership_proof_bytes: 32,
+			membership_proof_bytes: MAX_MEMBERSHIP_PROOF_BYTES,
+			storage_pov_bytes: MAX_STORAGE_POV_BYTES,
 			declared: meta_v6::lite_alias_revised(db),
 		},
 		RouterCalibration {
@@ -115,7 +126,8 @@ pub fn router_calibrations(db: RuntimeDbWeight) -> [RouterCalibration; 7] {
 			writes: 0,
 			crypto_verifications: 1,
 			hash_operations: 3,
-			membership_proof_bytes: 32,
+			membership_proof_bytes: MAX_MEMBERSHIP_PROOF_BYTES,
+			storage_pov_bytes: MAX_STORAGE_POV_BYTES,
 			declared: meta_v6::resources_claim(db),
 		},
 	]
@@ -173,14 +185,14 @@ mod tests {
 		let db = calibration_db();
 		let routes = router_calibrations(db);
 		let revised: alloc::vec::Vec<_> =
-			routes.into_iter().filter(|route| route.writes == 1).collect();
+			routes.into_iter().filter(|route| route.writes == 2).collect();
 		assert_eq!(
 			revised.iter().map(|route| route.name).collect::<alloc::vec::Vec<_>>(),
 			["PersonalAliasAccountRevised", "LiteAliasAccountRevised"]
 		);
 		for route in revised {
 			route.assert_declared_dominates(db);
-			assert!(route.declared.all_gte(db.writes(1)));
+			assert!(route.declared.all_gte(db.writes(2)));
 		}
 
 		let max_envelope = meta_v6::paid_scope_max(db);
@@ -190,5 +202,40 @@ mod tests {
 		)
 		.saturating_add(db.reads_writes(2, 2));
 		assert!(max_envelope.all_gte(expected));
+	}
+
+	#[test]
+	fn gate4_production_crypto_totals_dominate_generated_proof_routes() {
+		type ResourcesWeight = <crate::Runtime as indiv_pallet_resources::Config>::WeightInfo;
+		type PeopleWeight = <crate::Runtime as indiv_pallet_people::Config>::WeightInfo;
+		type LiteWeight = <crate::Runtime as indiv_pallet_people_lite::Config>::WeightInfo;
+
+		let personal = <ResourcesWeight as indiv_pallet_resources::weights::WeightInfo>::
+			meta_policy_personal_alias_revised();
+		let personal_generated = <PeopleWeight as indiv_pallet_people::weights::WeightInfo>::
+			as_person_alias_with_account_revised();
+		assert!(personal.all_gte(personal_generated));
+
+		let lite = <ResourcesWeight as indiv_pallet_resources::weights::WeightInfo>::
+			meta_policy_lite_alias_revised();
+		let lite_generated = <LiteWeight as indiv_pallet_people_lite::weights::WeightInfo>::
+			as_lite_alias_with_account_revised_tx_ext();
+		assert!(lite.all_gte(lite_generated));
+
+		let resources_call = <ResourcesWeight as indiv_pallet_resources::weights::WeightInfo>::
+			claim_long_term_storage_tx_ext();
+		let resources_total = resources_call.saturating_add(
+			<ResourcesWeight as indiv_pallet_resources::weights::WeightInfo>::
+				meta_policy_resources_claim(),
+		);
+		assert!(resources_total.all_gte(resources_call));
+		assert_eq!(resources_total.proof_size(), MAX_STORAGE_POV_BYTES);
+
+		let malformed =
+			<ResourcesWeight as indiv_pallet_resources::weights::WeightInfo>::meta_policy_malformed(
+			);
+		for selected in [personal, lite, resources_total] {
+			assert!(malformed.all_gte(selected));
+		}
 	}
 }

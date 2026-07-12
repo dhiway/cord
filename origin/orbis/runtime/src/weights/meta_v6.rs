@@ -13,9 +13,13 @@ const PER_CALL: u64 = 500_000;
 const PER_DEPTH: u64 = 250_000;
 const PER_64_BYTES: u64 = 25_000;
 const MIRROR_DECODE_HASH: u64 = 4_000_000;
-const CRYPTO_VERIFY: u64 = 8_000_000;
+// Lower-bounded by the generated proof-bearing People route (35,843,592,000 ps). This is
+// intentionally conservative until Slice15 benchmarks the transaction extension in isolation.
+const CRYPTO_VERIFY: u64 = 35_850_000_000;
 const HASH_OP: u64 = 500_000;
 const PER_PROOF_BYTE: u64 = 10_000;
+const MAX_MEMBERSHIP_PROOF_BYTES: u64 = 1_267;
+const MAX_PROOF_POV: u64 = 5_137;
 const CLASSIFIER: u64 = 750_000;
 // Distinct route overheads preserve the measured control-flow differences even where two
 // routes happen to own the same number of database operations.
@@ -62,8 +66,11 @@ pub fn router(
 	hashes: u64,
 	proof_bytes: u64,
 ) -> Weight {
-	Weight::from_parts(router_ref_time(reads, writes, crypto, hashes, proof_bytes), 0)
-		.saturating_add(db.reads_writes(reads, writes))
+	Weight::from_parts(
+		router_ref_time(reads, writes, crypto, hashes, proof_bytes),
+		if crypto > 0 { MAX_PROOF_POV } else { 0 },
+	)
+	.saturating_add(db.reads_writes(reads, writes))
 }
 
 fn classified_router(
@@ -98,7 +105,7 @@ pub fn personal_identity(db: RuntimeDbWeight) -> Weight {
 }
 
 pub fn personal_alias_revised(db: RuntimeDbWeight) -> Weight {
-	classified_router(db, PERSONAL_ALIAS_REVISED_ROUTE, 5, 1, 1, 2, 32)
+	classified_router(db, PERSONAL_ALIAS_REVISED_ROUTE, 5, 2, 1, 2, MAX_MEMBERSHIP_PROOF_BYTES)
 }
 
 pub fn lite_person(db: RuntimeDbWeight) -> Weight {
@@ -110,11 +117,11 @@ pub fn lite_alias(db: RuntimeDbWeight) -> Weight {
 }
 
 pub fn lite_alias_revised(db: RuntimeDbWeight) -> Weight {
-	classified_router(db, LITE_ALIAS_REVISED_ROUTE, 5, 1, 1, 2, 32)
+	classified_router(db, LITE_ALIAS_REVISED_ROUTE, 5, 2, 1, 2, MAX_MEMBERSHIP_PROOF_BYTES)
 }
 
 pub fn resources_claim(db: RuntimeDbWeight) -> Weight {
-	classified_router(db, RESOURCES_CLAIM_ROUTE, 6, 0, 1, 3, 32)
+	classified_router(db, RESOURCES_CLAIM_ROUTE, 6, 0, 1, 3, MAX_MEMBERSHIP_PROOF_BYTES)
 }
 
 pub fn malformed_max(db: RuntimeDbWeight) -> Weight {

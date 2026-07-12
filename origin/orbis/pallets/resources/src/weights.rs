@@ -51,6 +51,12 @@
 use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
 use core::marker::PhantomData;
 
+// Temporary Gate4 floors for proof verification performed by the Meta transaction extension.
+// They intentionally live outside the generated section: Slice15 must benchmark the extension
+// separately and replace these values rather than folding benchmark setup into pallet weights.
+const META_CRYPTO_VERIFY_FLOOR: u64 = 35_850_000_000;
+const META_MAX_PROOF_POV: u64 = 5_137;
+
 /// Weight functions needed for `indiv_pallet_resources`.
 pub trait WeightInfo {
 	fn register_lite_person() -> Weight;
@@ -107,9 +113,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		Weight::from_parts(8_020_000, 3_687).saturating_add(T::DbWeight::get().reads(2))
 	}
 	fn meta_policy_personal_alias_revised() -> Weight {
-		Weight::from_parts(15_560_000, 5_137)
+		Weight::from_parts(META_CRYPTO_VERIFY_FLOOR.saturating_add(18_910_000), META_MAX_PROOF_POV)
 			.saturating_add(T::DbWeight::get().reads(5))
-			.saturating_add(T::DbWeight::get().writes(1))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
 	fn meta_policy_lite_person() -> Weight {
 		Weight::from_parts(7_940_000, 3_687).saturating_add(T::DbWeight::get().reads(1))
@@ -118,12 +124,13 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		Weight::from_parts(8_040_000, 4_147).saturating_add(T::DbWeight::get().reads(3))
 	}
 	fn meta_policy_lite_alias_revised() -> Weight {
-		Weight::from_parts(15_540_000, 5_137)
+		Weight::from_parts(META_CRYPTO_VERIFY_FLOOR.saturating_add(18_890_000), META_MAX_PROOF_POV)
 			.saturating_add(T::DbWeight::get().reads(5))
-			.saturating_add(T::DbWeight::get().writes(1))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
 	fn meta_policy_resources_claim() -> Weight {
-		Weight::from_parts(16_360_000, 5_137).saturating_add(T::DbWeight::get().reads(6))
+		// The included claim call already owns the generated 5,137-byte PoV contribution.
+		Weight::from_parts(16_360_000, 0).saturating_add(T::DbWeight::get().reads(6))
 	}
 	fn meta_policy_malformed() -> Weight {
 		Self::meta_policy_resources_claim()
@@ -630,11 +637,11 @@ impl WeightInfo for () {
 		Weight::from_parts(8_060_000, 4_147).saturating_add(RocksDbWeight::get().reads(3))
 	}
 	fn meta_policy_personal_identity() -> Weight { Weight::from_parts(8_020_000, 3_687).saturating_add(RocksDbWeight::get().reads(2)) }
-	fn meta_policy_personal_alias_revised() -> Weight { Weight::from_parts(15_560_000, 5_137).saturating_add(RocksDbWeight::get().reads(5)).saturating_add(RocksDbWeight::get().writes(1)) }
+	fn meta_policy_personal_alias_revised() -> Weight { Weight::from_parts(META_CRYPTO_VERIFY_FLOOR.saturating_add(18_910_000), META_MAX_PROOF_POV).saturating_add(RocksDbWeight::get().reads(5)).saturating_add(RocksDbWeight::get().writes(2)) }
 	fn meta_policy_lite_person() -> Weight { Weight::from_parts(7_940_000, 3_687).saturating_add(RocksDbWeight::get().reads(1)) }
 	fn meta_policy_lite_alias() -> Weight { Weight::from_parts(8_040_000, 4_147).saturating_add(RocksDbWeight::get().reads(3)) }
-	fn meta_policy_lite_alias_revised() -> Weight { Weight::from_parts(15_540_000, 5_137).saturating_add(RocksDbWeight::get().reads(5)).saturating_add(RocksDbWeight::get().writes(1)) }
-	fn meta_policy_resources_claim() -> Weight { Weight::from_parts(16_360_000, 5_137).saturating_add(RocksDbWeight::get().reads(6)) }
+	fn meta_policy_lite_alias_revised() -> Weight { Weight::from_parts(META_CRYPTO_VERIFY_FLOOR.saturating_add(18_890_000), META_MAX_PROOF_POV).saturating_add(RocksDbWeight::get().reads(5)).saturating_add(RocksDbWeight::get().writes(2)) }
+	fn meta_policy_resources_claim() -> Weight { Weight::from_parts(16_360_000, 0).saturating_add(RocksDbWeight::get().reads(6)) }
 	fn meta_policy_malformed() -> Weight { Self::meta_policy_resources_claim().max(Self::meta_policy_personal_alias_revised()).max(Self::meta_policy_lite_alias_revised()) }
 	fn meta_policy_mapping_miss() -> Weight { Weight::from_parts(5_750_000, 3_687).saturating_add(RocksDbWeight::get().reads(1)) }
 	fn meta_policy_revised_write() -> Weight { Self::meta_policy_personal_alias_revised().max(Self::meta_policy_lite_alias_revised()) }
