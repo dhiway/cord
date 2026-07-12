@@ -528,6 +528,46 @@ fn completion_manifest_v4_has_exactly_four_metadata_modes() {
 }
 
 #[test]
+fn completion_manifest_v4_source_inventory_covers_every_row() {
+	let manifest: toml::Value =
+		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml")).unwrap();
+	let mut identities = Vec::new();
+	for (table, value) in manifest.as_table().unwrap() {
+		let Some(rows) = value.as_array() else { continue };
+		for row in rows {
+			let id = ["id", "name", "package", "revision"]
+				.into_iter()
+				.find_map(|key| row.get(key).and_then(toml::Value::as_str))
+				.unwrap();
+			identities.push((
+				table.as_str(),
+				id,
+				row.get("state").and_then(toml::Value::as_str).unwrap_or(""),
+				row.get("status").and_then(toml::Value::as_str).unwrap_or(""),
+			));
+		}
+	}
+	identities.sort_unstable();
+	assert_eq!(
+		identities.as_slice(),
+		crate::evidence_inventory_v4::MANIFEST_INVENTORY_V4
+	);
+	assert_eq!(
+		identities.len(),
+		crate::evidence_inventory_v4::MANIFEST_INVENTORY_V4_COUNT
+	);
+	let canonical = identities
+		.iter()
+		.map(|(table, id, state, status)| format!("{table}\0{id}\0{state}\0{status}\n"))
+		.collect::<String>();
+	let digest = sp_io::hashing::blake2_256(canonical.as_bytes())
+		.iter()
+		.map(|byte| format!("{byte:02x}"))
+		.collect::<String>();
+	assert_eq!(digest, crate::evidence_inventory_v4::MANIFEST_INVENTORY_V4_BLAKE2_256);
+}
+
+#[test]
 fn resources_bulletin_iteration_two_manifest_is_exact() {
 	let manifest: toml::Value =
 		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml")).unwrap();

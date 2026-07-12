@@ -35,6 +35,9 @@ mod meta_v6_fixtures;
 #[cfg(test)]
 #[path = "../../evidence_markers_v4.rs"]
 mod evidence_markers_v4;
+#[cfg(test)]
+#[path = "../../evidence_inventory_v4.rs"]
+mod evidence_inventory_v4;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod meta_v6_weight_evidence;
 
