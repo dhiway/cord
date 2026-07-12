@@ -151,7 +151,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_version: 23,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 3,
+	transaction_version: 4,
 	system_version: 1,
 };
 
@@ -1011,9 +1011,155 @@ impl pallet_verify_signature::Config for Runtime {
 	type BenchmarkHelper = ();
 }
 
+/// Extensions which may change the logical Orbis actor or authorize a privileged call today.
+///
+/// Keep this alias nested in every full transaction surface. New policy extensions are added to
+/// the frozen slot map in ADR 0008 before they are added here.
+pub type OriginPolicyExtensions = (
+	indiv_pallet_people::extension::AsPerson<Runtime>,
+	indiv_pallet_people_lite::extension::PeopleLiteAuth<Runtime>,
+	frame_system::AuthorizeCall<Runtime>,
+);
+
+/// Payment policy that skips only after `AuthorizeCall` authenticates an authorized call.
+///
+/// No skip request is encoded. Consequently a wire transaction cannot request an exemption: the
+/// preceding policy tuple must first produce the exact `System::Authorized` origin.
+#[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq)]
+pub struct ExplicitPayment<T, S> {
+	inner: S,
+	#[codec(skip)]
+	_marker: core::marker::PhantomData<T>,
+}
+
+impl<T, S: TypeInfo + 'static> TypeInfo for ExplicitPayment<T, S> {
+	type Identity = S;
+
+	fn type_info() -> scale_info::Type {
+		S::type_info()
+	}
+}
+
+impl<T, S: core::fmt::Debug> core::fmt::Debug for ExplicitPayment<T, S> {
+	fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+		f.debug_tuple("ExplicitPayment").field(&self.inner).finish()
+	}
+}
+
+impl<T, S> From<S> for ExplicitPayment<T, S> {
+	fn from(inner: S) -> Self {
+		Self { inner, _marker: Default::default() }
+	}
+}
+
+/// Value passed between explicit-payment validation and preparation.
+pub enum ExplicitPaymentIntermediate<A> {
+	Apply(A),
+	Skip(Weight),
+}
+
+impl<T, S> sp_runtime::traits::TransactionExtension<T::RuntimeCall> for ExplicitPayment<T, S>
+where
+	T: frame_system::Config + Send + Sync,
+	T::RuntimeCall: sp_runtime::traits::Dispatchable,
+	T::RuntimeOrigin: sp_runtime::traits::AsTransactionAuthorizedOrigin,
+	S: sp_runtime::traits::TransactionExtension<T::RuntimeCall>,
+{
+	const IDENTIFIER: &'static str = S::IDENTIFIER;
+	type Implicit = S::Implicit;
+	type Val = ExplicitPaymentIntermediate<S::Val>;
+	type Pre = ExplicitPaymentIntermediate<S::Pre>;
+
+	fn metadata() -> Vec<sp_runtime::traits::TransactionExtensionMetadata> {
+		S::metadata()
+	}
+
+	fn implicit(
+		&self,
+	) -> Result<Self::Implicit, sp_runtime::transaction_validity::TransactionValidityError> {
+		self.inner.implicit()
+	}
+
+	fn weight(&self, call: &T::RuntimeCall) -> Weight {
+		self.inner.weight(call)
+	}
+
+	fn validate(
+		&self,
+		origin: T::RuntimeOrigin,
+		call: &T::RuntimeCall,
+		info: &sp_runtime::traits::DispatchInfoOf<T::RuntimeCall>,
+		len: usize,
+		implicit: Self::Implicit,
+		inherited_implication: &impl sp_runtime::traits::Implication,
+		source: TransactionSource,
+	) -> sp_runtime::traits::ValidateResult<Self::Val, T::RuntimeCall> {
+		use frame_support::traits::CallerTrait;
+
+		let is_authorized = matches!(
+			frame_support::traits::OriginTrait::caller(&origin).as_system_ref(),
+			Some(frame_system::RawOrigin::Authorized)
+		);
+		if is_authorized {
+			Ok((
+				Default::default(),
+				ExplicitPaymentIntermediate::Skip(self.inner.weight(call)),
+				origin,
+			))
+		} else {
+			self.inner
+				.validate(origin, call, info, len, implicit, inherited_implication, source)
+				.map(|(validity, val, origin)| {
+					(validity, ExplicitPaymentIntermediate::Apply(val), origin)
+				})
+		}
+	}
+
+	fn prepare(
+		self,
+		val: Self::Val,
+		origin: &T::RuntimeOrigin,
+		call: &T::RuntimeCall,
+		info: &sp_runtime::traits::DispatchInfoOf<T::RuntimeCall>,
+		len: usize,
+	) -> Result<Self::Pre, sp_runtime::transaction_validity::TransactionValidityError> {
+		match val {
+			ExplicitPaymentIntermediate::Apply(val) => self
+				.inner
+				.prepare(val, origin, call, info, len)
+				.map(ExplicitPaymentIntermediate::Apply),
+			ExplicitPaymentIntermediate::Skip(weight) =>
+				Ok(ExplicitPaymentIntermediate::Skip(weight)),
+		}
+	}
+
+	fn post_dispatch_details(
+		pre: Self::Pre,
+		info: &sp_runtime::traits::DispatchInfoOf<T::RuntimeCall>,
+		post_info: &sp_runtime::traits::PostDispatchInfoOf<T::RuntimeCall>,
+		len: usize,
+		result: &frame_support::dispatch::DispatchResult,
+	) -> Result<Weight, sp_runtime::transaction_validity::TransactionValidityError> {
+		match pre {
+			ExplicitPaymentIntermediate::Apply(pre) =>
+				S::post_dispatch_details(pre, info, post_info, len, result),
+			ExplicitPaymentIntermediate::Skip(weight) => Ok(weight),
+		}
+	}
+}
+
+fn default_origin_policy_extensions() -> OriginPolicyExtensions {
+	(
+		indiv_pallet_people::extension::AsPerson::<Runtime>::new(None),
+		indiv_pallet_people_lite::extension::PeopleLiteAuth::<Runtime>::new(None),
+		frame_system::AuthorizeCall::<Runtime>::new(),
+	)
+}
+
 pub type MetaTxExtension = (
 	pallet_verify_signature::VerifySignature<Runtime>,
 	pallet_meta_tx::MetaTxMarker<Runtime>,
+	OriginPolicyExtensions,
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
@@ -1580,12 +1726,14 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 
 /// The TransactionExtension to the basic transaction logic.
+pub type AssetPayment = pallet_feeless::ChargeOrSkipFeeless<
+	Runtime,
+	pallet_asset_conversion_tx_payment::ChargeAssetTxPayment<Runtime>,
+>;
+pub type PaymentPolicy = ExplicitPayment<Runtime, AssetPayment>;
+
 pub type InnerTxExtensions = (
-	(
-		indiv_pallet_people::extension::AsPerson<Runtime>,
-		indiv_pallet_people_lite::extension::PeopleLiteAuth<Runtime>,
-		frame_system::AuthorizeCall<Runtime>,
-	),
+	OriginPolicyExtensions,
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
@@ -1593,10 +1741,7 @@ pub type InnerTxExtensions = (
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_feeless::ChargeOrSkipFeeless<
-		Runtime,
-		pallet_asset_conversion_tx_payment::ChargeAssetTxPayment<Runtime>,
-	>,
+	PaymentPolicy,
 	pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
 		Runtime,
 		BulletinCallInspector,
@@ -1611,6 +1756,30 @@ pub type InnerTxExtensions = (
 pub type TxExtensions =
 	cumulus_pallet_weight_reclaim::StorageWeightReclaim<Runtime, InnerTxExtensions>;
 
+fn default_inner_tx_extensions(
+	nonce: u32,
+	payment: PaymentPolicy,
+	revive_origin: pallet_revive::evm::tx_extension::SetOrigin<Runtime>,
+) -> InnerTxExtensions {
+	(
+		default_origin_policy_extensions(),
+		frame_system::CheckNonZeroSender::<Runtime>::new(),
+		frame_system::CheckSpecVersion::<Runtime>::new(),
+		frame_system::CheckTxVersion::<Runtime>::new(),
+		frame_system::CheckGenesis::<Runtime>::new(),
+		frame_system::CheckMortality::<Runtime>::from(generic::Era::Immortal),
+		frame_system::CheckNonce::<Runtime>::from(nonce),
+		frame_system::CheckWeight::<Runtime>::new(),
+		payment,
+		pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+			Runtime,
+			BulletinCallInspector,
+		>::default(),
+		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+		revive_origin,
+	)
+}
+
 /// Extensions applied when an Ethereum transaction is converted into an Orbis extrinsic.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct EthExtraImpl;
@@ -1621,32 +1790,17 @@ impl EthExtra for EthExtraImpl {
 	type ExtensionOtherVersions = sp_runtime::traits::InvalidVersion;
 
 	fn get_eth_extension(nonce: u32, tip: Balance) -> Self::ExtensionV0 {
-		(
-			(
-				indiv_pallet_people::extension::AsPerson::<Runtime>::new(None),
-				indiv_pallet_people_lite::extension::PeopleLiteAuth::<Runtime>::new(None),
-				frame_system::AuthorizeCall::<Runtime>::new(),
-			),
-			frame_system::CheckNonZeroSender::<Runtime>::new(),
-			frame_system::CheckSpecVersion::<Runtime>::new(),
-			frame_system::CheckTxVersion::<Runtime>::new(),
-			frame_system::CheckGenesis::<Runtime>::new(),
-			frame_system::CheckMortality::<Runtime>::from(generic::Era::Immortal),
-			frame_system::CheckNonce::<Runtime>::from(nonce),
-			frame_system::CheckWeight::<Runtime>::new(),
+		default_inner_tx_extensions(
+			nonce,
 			pallet_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(
 					tip, None,
 				),
-			),
-			pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
-				Runtime,
-				BulletinCallInspector,
-			>::default(),
-			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+			)
+			.into(),
 			pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::new_from_eth_transaction(),
 		)
-			.into()
+		.into()
 	}
 }
 
@@ -1687,30 +1841,15 @@ where
 	RuntimeCall: From<C>,
 {
 	fn create_extension() -> Self::Extension {
-		(
-			(
-				indiv_pallet_people::extension::AsPerson::<Runtime>::new(None),
-				indiv_pallet_people_lite::extension::PeopleLiteAuth::<Runtime>::new(None),
-				frame_system::AuthorizeCall::<Runtime>::new(),
-			),
-			frame_system::CheckNonZeroSender::<Runtime>::new(),
-			frame_system::CheckSpecVersion::<Runtime>::new(),
-			frame_system::CheckTxVersion::<Runtime>::new(),
-			frame_system::CheckGenesis::<Runtime>::new(),
-			frame_system::CheckMortality::<Runtime>::from(generic::Era::Immortal),
-			frame_system::CheckNonce::<Runtime>::from(0),
-			frame_system::CheckWeight::<Runtime>::new(),
+		default_inner_tx_extensions(
+			0,
 			pallet_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
-			),
-			pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
-				Runtime,
-				BulletinCallInspector,
-			>::default(),
-			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+			)
+			.into(),
 			pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::default(),
 		)
-			.into()
+		.into()
 	}
 }
 

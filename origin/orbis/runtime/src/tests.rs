@@ -38,6 +38,243 @@ use xcm_runtime_apis::conversions::LocationToAccountHelper;
 
 const ALICE: [u8; 32] = [1u8; 32];
 
+/// Compile-time representation of ADR 0008's frozen policy slots. `NoPolicy` is deliberately not a
+/// transaction extension: an unimplemented slot cannot authorize a call or mutate an origin.
+mod transaction_policy_fixture {
+	use super::Runtime;
+	use core::marker::PhantomData;
+
+	pub struct NoPolicy<const SLOT: u8>;
+	pub struct Implemented<T>(PhantomData<T>);
+	pub struct EnvelopeSignature;
+
+	impl<const SLOT: u8> NoPolicy<SLOT> {
+		pub fn passthrough_origin<O>(origin: O) -> O {
+			origin
+		}
+	}
+
+	pub type FrozenPolicySlots = (
+		NoPolicy<0>, // AuthorizeValueTransfer
+		EnvelopeSignature,
+		indiv_pallet_people::extension::AsPerson<Runtime>,
+		NoPolicy<3>, // AsProofOfInkParticipant
+		NoPolicy<4>, // ScoreAsParticipant
+		NoPolicy<5>, // GameAsInvited
+		indiv_pallet_people_lite::extension::PeopleLiteAuth<Runtime>,
+		NoPolicy<7>,  // AsMember
+		NoPolicy<8>,  // AsCoinage
+		NoPolicy<9>,  // AsResources
+		NoPolicy<10>, // VoterAuth
+		frame_system::AuthorizeCall<Runtime>,
+		NoPolicy<12>, // AsPgas
+		NoPolicy<13>, // AsRingAlias
+		NoPolicy<14>, // AsDotnsGateway
+	);
+
+	pub type FrozenPayment = (
+		Implemented<crate::ExplicitPayment<Runtime, crate::AssetPayment>>,
+		Implemented<crate::AssetPayment>,
+		NoPolicy<16>, // ChargePGAS
+		Implemented<pallet_asset_conversion_tx_payment::ChargeAssetTxPayment<Runtime>>,
+	);
+
+	pub type FrozenPipeline = (
+		Implemented<crate::TxExtensions>, // outer StorageWeightReclaim
+		FrozenPolicySlots,
+		NoPolicy<15>, // RestrictOrigin
+		Implemented<(
+			frame_system::CheckNonZeroSender<Runtime>,
+			frame_system::CheckSpecVersion<Runtime>,
+			frame_system::CheckTxVersion<Runtime>,
+			frame_system::CheckGenesis<Runtime>,
+			frame_system::CheckMortality<Runtime>,
+			frame_system::CheckNonce<Runtime>,
+			frame_system::CheckWeight<Runtime>,
+		)>,
+		FrozenPayment,
+		Implemented<
+			pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
+				Runtime,
+				crate::BulletinCallInspector,
+			>,
+		>,
+		Implemented<frame_metadata_hash_extension::CheckMetadataHash<Runtime>>,
+		Implemented<pallet_revive::evm::tx_extension::SetOrigin<Runtime>>,
+	);
+}
+
+#[test]
+fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
+	use frame_system::offchain::{CreateAuthorizedTransaction, CreateTransaction};
+	use pallet_revive::evm::runtime::EthExtra;
+	use sp_runtime::traits::TransactionExtension;
+	use transaction_policy_fixture::*;
+	assert_eq!(crate::VERSION.transaction_version, 4);
+
+	fn assert_full_inner_projection(inner: crate::InnerTxExtensions) {
+		let (
+			policy,
+			_nonzero,
+			_spec,
+			_tx,
+			_genesis,
+			_mortality,
+			_nonce,
+			_weight,
+			_payment,
+			_bulletin,
+			_metadata,
+			_set_origin,
+		) = inner;
+		let (_as_person, _people_lite, _authorize_call) = policy;
+	}
+
+	fn assert_meta_projection(extension: crate::MetaTxExtension) {
+		let (
+			_verify,
+			_marker,
+			policy,
+			_nonzero,
+			_spec,
+			_tx,
+			_genesis,
+			_mortality,
+			_nonce,
+			_bulletin,
+			_metadata,
+		) = extension;
+		let (_as_person, _people_lite, _authorize_call) = policy;
+	}
+
+	let _: Option<FrozenPipeline> = None;
+	assert_eq!(core::mem::size_of::<NoPolicy<0>>(), 0);
+	assert_eq!(core::mem::size_of::<NoPolicy<15>>(), 0);
+	assert_eq!(core::mem::size_of::<NoPolicy<16>>(), 0);
+	let signed = RuntimeOrigin::signed(AccountId::from(ALICE));
+	assert!(frame_system::ensure_signed(NoPolicy::<0>::passthrough_origin(signed)).is_ok());
+	static_assertions::assert_type_eq_all!(
+		crate::OriginPolicyExtensions,
+		(
+			indiv_pallet_people::extension::AsPerson<Runtime>,
+			indiv_pallet_people_lite::extension::PeopleLiteAuth<Runtime>,
+			frame_system::AuthorizeCall<Runtime>,
+		),
+	);
+	static_assertions::assert_type_eq_all!(
+		crate::TxExtensions,
+		<Runtime as CreateTransaction<RuntimeCall>>::Extension,
+		<crate::EthExtraImpl as EthExtra>::ExtensionV0,
+	);
+	static_assertions::assert_type_eq_all!(
+		crate::MetaTxExtension,
+		<Runtime as pallet_meta_tx::Config>::Extension,
+	);
+
+	let ethereum = <crate::EthExtraImpl as EthExtra>::get_eth_extension(7, 11);
+	assert_full_inner_projection(ethereum.0);
+	let authorized: crate::TxExtensions =
+		<Runtime as CreateAuthorizedTransaction<RuntimeCall>>::create_extension();
+	let encoded_authorized_payment = authorized.0 .8.encode();
+	let decoded_network_payment =
+		crate::PaymentPolicy::decode(&mut &encoded_authorized_payment[..])
+			.expect("payment policy encoding remains compatible with its inner asset payment");
+	assert_eq!(decoded_network_payment, authorized.0 .8.clone());
+	assert_full_inner_projection(authorized.0);
+
+	let normal: crate::TxExtensions = crate::default_inner_tx_extensions(
+		3,
+		pallet_feeless::ChargeOrSkipFeeless::from(
+			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(5, None),
+		)
+		.into(),
+		Default::default(),
+	)
+	.into();
+	assert_full_inner_projection(normal.0);
+
+	let _actual_meta_projection: fn(crate::MetaTxExtension) = assert_meta_projection;
+
+	let normal_metadata = crate::TxExtensions::metadata()
+		.into_iter()
+		.map(|entry| entry.identifier)
+		.collect::<Vec<_>>();
+	assert_eq!(
+		normal_metadata,
+		vec![
+			"AsPerson",
+			"PeopleLiteAuth",
+			"AuthorizeCall",
+			"CheckNonZeroSender",
+			"CheckSpecVersion",
+			"CheckTxVersion",
+			"CheckGenesis",
+			"CheckMortality",
+			"CheckNonce",
+			"CheckWeight",
+			"ChargeAssetTxPayment",
+			"ValidateStorageCalls",
+			"CheckMetadataHash",
+			"EthSetOrigin",
+			"StorageWeightReclaim",
+		]
+	);
+	let meta_metadata = crate::MetaTxExtension::metadata()
+		.into_iter()
+		.map(|entry| entry.identifier)
+		.collect::<Vec<_>>();
+	assert_eq!(
+		meta_metadata,
+		vec![
+			"VerifyMultiSignature",
+			"MetaTxMarker",
+			"AsPerson",
+			"PeopleLiteAuth",
+			"AuthorizeCall",
+			"CheckNonZeroSender",
+			"CheckSpecVersion",
+			"CheckTxVersion",
+			"CheckGenesis",
+			"CheckMortality",
+			"CheckNonce",
+			"ValidateStorageCalls",
+			"CheckMetadataHash",
+		]
+	);
+}
+
+#[test]
+fn payment_skip_requires_authorized_origin_and_signed_origin_still_pays() {
+	use frame_support::dispatch::GetDispatchInfo;
+	use sp_runtime::traits::TransactionExtension;
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		System::set_block_number(1);
+		let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+		let info = call.get_dispatch_info();
+		let payment: crate::PaymentPolicy = pallet_feeless::ChargeOrSkipFeeless::from(
+			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
+		)
+		.into();
+		let implicit = payment.implicit().unwrap();
+		let result = payment.validate(
+			RuntimeOrigin::signed(AccountId::from(ALICE)),
+			&call,
+			&info,
+			call.encoded_size(),
+			implicit,
+			&sp_runtime::traits::TxBaseImplication((0u8, &call)),
+			sp_runtime::transaction_validity::TransactionSource::External,
+		);
+		assert!(matches!(
+			result,
+			Err(sp_runtime::transaction_validity::TransactionValidityError::Invalid(
+				sp_runtime::transaction_validity::InvalidTransaction::Payment,
+			))
+		));
+	});
+}
+
 #[test]
 fn elastic_scaling_runtime_parameters_target_three_blocks_per_relay_slot() {
 	assert_eq!(crate::RELAY_PARENT_OFFSET, 1);
@@ -786,6 +1023,96 @@ fn hop_promotion_accepts_authorized_signed_submit_intent() {
 }
 
 #[test]
+fn authorized_pipeline_retains_validation_and_explicitly_skips_payment_and_quota() {
+	use frame_support::{dispatch::GetDispatchInfo, traits::BuildGenesisConfig};
+	use frame_system::offchain::CreateAuthorizedTransaction;
+	use sp_core::{sr25519, Pair};
+	use sp_runtime::{
+		traits::{AsTransactionAuthorizedOrigin, IdentifyAccount, TransactionExtension},
+		MultiSignature, MultiSigner,
+	};
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		System::set_block_number(1);
+		System::set_extrinsic_index(0);
+		let now = 1_750_000_000_000u64;
+		pallet_timestamp::Now::<Runtime>::put(now);
+
+		let pair = sr25519::Pair::from_string("//Alice", None).unwrap();
+		let signer = MultiSigner::from(pair.public());
+		let account = signer.clone().into_account();
+		let initial_balance = 1_000_000_000_000;
+		<Balances as Mutate<AccountId>>::set_balance(&account, initial_balance);
+		assert_ok!(TransactionStorage::authorize_account(
+			RuntimeOrigin::root(),
+			account.clone(),
+			1,
+			1_024,
+		));
+
+		let data = b"authorized pipeline promotion".to_vec();
+		let hash = sp_io::hashing::blake2_256(&data);
+		let signature = MultiSignature::Sr25519(
+			pair.sign(&pallet_bulletin_hop_promotion::signing_payload(&hash, now)),
+		);
+		let call = RuntimeCall::HopPromotion(pallet_bulletin_hop_promotion::Call::promote {
+			signer: signer.clone(),
+			signature: signature.clone(),
+			submit_timestamp: now,
+			data: data.clone(),
+		});
+		let encoded =
+			<Runtime as CreateAuthorizedTransaction<RuntimeCall>>::create_authorized_transaction(
+				call.clone(),
+			)
+			.encode();
+		let decoded = crate::UncheckedExtrinsic::decode(&mut &encoded[..])
+			.expect("authorized extrinsic round trips through its wire encoding");
+		let decoded = decoded.0;
+		assert_eq!(decoded.function, call);
+		let extension = match decoded.preamble {
+			sp_runtime::generic::Preamble::General(sp_runtime::traits::ExtensionVariant::V0(
+				extension,
+			)) => extension,
+			_ => panic!("authorized calls use a version-zero general transaction"),
+		};
+		let call = decoded.function;
+		let info = call.get_dispatch_info();
+		let implicit = extension.implicit().unwrap();
+		let (_, val, origin) = extension
+			.validate(
+				RuntimeOrigin::none(),
+				&call,
+				&info,
+				call.encoded_size(),
+				implicit,
+				&sp_runtime::traits::TxBaseImplication((0u8, &call)),
+				sp_runtime::transaction_validity::TransactionSource::Local,
+			)
+			.expect("the annotated call and its Bulletin authorization are valid");
+		assert!(origin.is_transaction_authorized());
+		let pre = extension
+			.prepare(val, &origin, &call, &info, call.encoded_size())
+			.expect("authorized preparation explicitly skips payment");
+		assert_eq!(Balances::free_balance(&account), initial_balance);
+		assert_eq!(pallet_feeless::FeelessUsage::<Runtime>::get(&account), None);
+
+		assert_ok!(HopPromotion::promote(origin, signer, signature, now, data,));
+		assert!(TransactionStorage::contains_transaction(hash));
+		assert_ok!(crate::TxExtensions::post_dispatch_details(
+			pre,
+			&info,
+			&Default::default(),
+			call.encoded_size(),
+			&Ok(()),
+		));
+		assert_eq!(Balances::free_balance(&account), initial_balance);
+		assert_eq!(pallet_feeless::FeelessUsage::<Runtime>::get(&account), None);
+	});
+}
+
+#[test]
 fn bulletin_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm() {
 	type XcmSafeCalls = <crate::xcm_config::XcmConfig as xcm_executor::Config>::SafeCallFilter;
 	let store = RuntimeCall::TransactionStorage(pallet_bulletin_transaction_storage::Call::store {
@@ -881,9 +1208,154 @@ fn fee_free_policy_is_call_scoped_quota_bounded_and_not_batchable() {
 }
 
 #[test]
+fn normal_pipeline_charges_nonce_owner_refunds_failure_and_consumes_prepared_quota() {
+	use frame_support::{dispatch::GetDispatchInfo, traits::BuildGenesisConfig};
+	use sp_runtime::traits::{Dispatchable, TransactionExtension};
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		System::set_block_number(1);
+		let account = AccountId::from(ALICE);
+		let initial_balance = 1_000_000_000_000u128;
+		<Balances as Mutate<AccountId>>::set_balance(&account, initial_balance);
+
+		let call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+			dest: AccountId::from([9u8; 32]).into(),
+			value: initial_balance.saturating_mul(2),
+		});
+		let info = call.get_dispatch_info();
+		let extension = crate::default_inner_tx_extensions(
+			0,
+			pallet_feeless::ChargeOrSkipFeeless::from(
+				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
+			)
+			.into(),
+			Default::default(),
+		);
+		let implicit = extension.implicit().unwrap();
+		let (_, val, origin) = extension
+			.validate(
+				RuntimeOrigin::signed(account.clone()),
+				&call,
+				&info,
+				call.encoded_size(),
+				implicit,
+				&sp_runtime::traits::TxBaseImplication((0u8, &call)),
+				sp_runtime::transaction_validity::TransactionSource::External,
+			)
+			.unwrap();
+		assert_eq!(frame_system::ensure_signed(origin.clone()).unwrap(), account);
+		let pre = extension.prepare(val, &origin, &call, &info, call.encoded_size()).unwrap();
+		assert_eq!(System::account_nonce(&account), 1);
+		let after_withdrawal = Balances::free_balance(&account);
+		assert!(after_withdrawal < initial_balance);
+
+		let (post_info, dispatch_result) = match call.clone().dispatch(origin) {
+			Ok(post_info) => (post_info, Ok(())),
+			Err(error) => (error.post_info, Err(error.error)),
+		};
+		assert!(dispatch_result.is_err());
+		assert_ok!(crate::InnerTxExtensions::post_dispatch_details(
+			pre,
+			&info,
+			&post_info,
+			call.encoded_size(),
+			&dispatch_result,
+		));
+		assert!(Balances::free_balance(&account) >= after_withdrawal);
+		assert!(Balances::free_balance(&account) < initial_balance);
+		assert_eq!(System::account_nonce(&account), 1);
+
+		assert_ok!(Feeless::add_feeless_account(RuntimeOrigin::root(), account.clone()));
+		let feeless_call =
+			RuntimeCall::Entity(pallet_entity::Call::rotate_attributes { ops: vec![] });
+		let feeless_info = feeless_call.get_dispatch_info();
+		let extension = crate::default_inner_tx_extensions(
+			1,
+			pallet_feeless::ChargeOrSkipFeeless::from(
+				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
+			)
+			.into(),
+			Default::default(),
+		);
+		let implicit = extension.implicit().unwrap();
+		let (_, val, origin) = extension
+			.validate(
+				RuntimeOrigin::signed(account.clone()),
+				&feeless_call,
+				&feeless_info,
+				feeless_call.encoded_size(),
+				implicit,
+				&sp_runtime::traits::TxBaseImplication((0u8, &feeless_call)),
+				sp_runtime::transaction_validity::TransactionSource::External,
+			)
+			.unwrap();
+		let balance_before_feeless = Balances::free_balance(&account);
+		let _pre = extension
+			.prepare(val, &origin, &feeless_call, &feeless_info, feeless_call.encoded_size())
+			.unwrap();
+		assert_eq!(Balances::free_balance(&account), balance_before_feeless);
+		assert_eq!(pallet_feeless::FeelessUsage::<Runtime>::get(&account), Some((1, 1)));
+		assert_eq!(System::account_nonce(&account), 2);
+	});
+}
+
+#[test]
+fn ethereum_pipeline_uses_mapped_nonce_payer_and_only_terminal_revive_actor() {
+	use frame_support::{
+		dispatch::GetDispatchInfo,
+		traits::{BuildGenesisConfig, OriginTrait},
+	};
+	use pallet_revive::evm::runtime::EthExtra;
+	use sp_runtime::traits::TransactionExtension;
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		System::set_block_number(1);
+		let mapped = AccountId::from([7u8; 32]);
+		let initial_balance = 1_000_000_000_000u128;
+		<Balances as Mutate<AccountId>>::set_balance(&mapped, initial_balance);
+		let call = RuntimeCall::System(frame_system::Call::remark { remark: b"eth".to_vec() });
+		let info = call.get_dispatch_info();
+		let extension = <crate::EthExtraImpl as EthExtra>::get_eth_extension(0, 0).0;
+		let implicit = extension.implicit().unwrap();
+		let (_, val, origin) = extension
+			.validate(
+				RuntimeOrigin::signed(mapped.clone()),
+				&call,
+				&info,
+				call.encoded_size(),
+				implicit,
+				&sp_runtime::traits::TxBaseImplication((0u8, &call)),
+				sp_runtime::transaction_validity::TransactionSource::External,
+			)
+			.unwrap();
+		assert!(matches!(
+			origin.caller(),
+			crate::OriginCaller::Revive(pallet_revive::Origin::EthTransaction(who)) if who == &mapped
+		));
+		let pre = extension.prepare(val, &origin, &call, &info, call.encoded_size()).unwrap();
+		assert_eq!(System::account_nonce(&mapped), 1);
+		let after_withdrawal = Balances::free_balance(&mapped);
+		assert!(after_withdrawal < initial_balance);
+		assert_eq!(pallet_feeless::FeelessUsage::<Runtime>::get(&mapped), None);
+		let failed = Err(sp_runtime::DispatchError::BadOrigin);
+		assert_ok!(crate::InnerTxExtensions::post_dispatch_details(
+			pre,
+			&info,
+			&Default::default(),
+			call.encoded_size(),
+			&failed,
+		));
+		assert!(Balances::free_balance(&mapped) >= after_withdrawal);
+		assert!(Balances::free_balance(&mapped) < initial_balance);
+	});
+}
+
+#[test]
 fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 	use codec::Encode;
-	use frame_support::traits::BuildGenesisConfig;
+	use frame_support::{dispatch::GetDispatchInfo, traits::BuildGenesisConfig};
 	use sp_core::{sr25519, Pair};
 	use sp_runtime::{
 		generic::Era,
@@ -894,6 +1366,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 
 	type MetaBareExtension = (
 		pallet_meta_tx::MetaTxMarker<Runtime>,
+		crate::OriginPolicyExtensions,
 		frame_system::CheckNonZeroSender<Runtime>,
 		frame_system::CheckSpecVersion<Runtime>,
 		frame_system::CheckTxVersion<Runtime>,
@@ -918,6 +1391,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 	) -> pallet_meta_tx::MetaTxFor<Runtime> {
 		let bare: MetaBareExtension = (
 			pallet_meta_tx::MetaTxMarker::new(),
+			crate::default_origin_policy_extensions(),
 			frame_system::CheckNonZeroSender::new(),
 			frame_system::CheckSpecVersion::new(),
 			frame_system::CheckTxVersion::new(),
@@ -934,9 +1408,11 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			MultiSignature::Sr25519(signature),
 			claimed,
 		);
-		let (marker, nonzero, spec, tx, genesis, mortality, nonce, storage, metadata) = bare;
-		let extension =
-			(verify, marker, nonzero, spec, tx, genesis, mortality, nonce, storage, metadata);
+		let (marker, policy, nonzero, spec, tx, genesis, mortality, nonce, storage, metadata) =
+			bare;
+		let extension = (
+			verify, marker, policy, nonzero, spec, tx, genesis, mortality, nonce, storage, metadata,
+		);
 		pallet_meta_tx::MetaTxFor::<Runtime>::new(call, META_EXTENSION_VERSION, extension)
 	}
 
@@ -949,6 +1425,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		let bob = account(&bob_pair);
 		let alice_balance =
 			<Balances as Mutate<AccountId>>::set_balance(&alice, crate::ExistentialDeposit::get());
+		let bob_balance = <Balances as Mutate<AccountId>>::set_balance(&bob, 1_000_000_000_000);
 		let inner = RuntimeCall::System(frame_system::Call::remark_with_event {
 			remark: b"identity intent".to_vec(),
 		});
@@ -963,11 +1440,44 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			!outer.is_feeless(&RuntimeOrigin::signed(bob.clone())),
 			"the sponsor's outer meta transaction must follow ordinary fee accounting"
 		);
-		assert_ok!(crate::MetaTx::dispatch(
-			RuntimeOrigin::signed(bob.clone()),
-			Box::new(meta.clone()),
-			encoded_len,
+		let outer_info = outer.get_dispatch_info();
+		let outer_extension = crate::default_inner_tx_extensions(
+			0,
+			pallet_feeless::ChargeOrSkipFeeless::from(
+				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
+			)
+			.into(),
+			Default::default(),
+		);
+		let implicit = outer_extension.implicit().unwrap();
+		let (_, val, outer_origin) = outer_extension
+			.validate(
+				RuntimeOrigin::signed(bob.clone()),
+				&outer,
+				&outer_info,
+				outer.encoded_size(),
+				implicit,
+				&sp_runtime::traits::TxBaseImplication((0u8, &outer)),
+				sp_runtime::transaction_validity::TransactionSource::External,
+			)
+			.unwrap();
+		let pre = outer_extension
+			.prepare(val, &outer_origin, &outer, &outer_info, outer.encoded_size())
+			.unwrap();
+		let bob_after_withdrawal = Balances::free_balance(&bob);
+		assert!(bob_after_withdrawal < bob_balance);
+		assert_eq!(System::account_nonce(&bob), 1);
+		let post_info = crate::MetaTx::dispatch(outer_origin, Box::new(meta.clone()), encoded_len)
+			.expect("the signed inner intent dispatches");
+		assert_ok!(crate::InnerTxExtensions::post_dispatch_details(
+			pre,
+			&outer_info,
+			&post_info,
+			outer.encoded_size(),
+			&Ok(()),
 		));
+		assert!(Balances::free_balance(&bob) >= bob_after_withdrawal);
+		assert!(Balances::free_balance(&bob) < bob_balance);
 		System::assert_has_event(crate::RuntimeEvent::System(frame_system::Event::Remarked {
 			sender: alice.clone(),
 			hash: <Runtime as frame_system::Config>::Hashing::hash(b"identity intent"),

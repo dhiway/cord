@@ -9742,6 +9742,7 @@ dependencies = [
  "staging-xcm",
  "staging-xcm-builder",
  "staging-xcm-executor",
+ "static_assertions",
  "substrate-wasm-builder",
  "token-origin-hub-runtime-api",
  "verifiable",
