@@ -30,6 +30,8 @@ pub mod entity;
 // Genesis preset configurations.
 pub mod genesis_config_presets;
 mod meta_v6;
+#[cfg(feature = "runtime-benchmarks")]
+pub mod meta_v6_weight_evidence;
 
 #[cfg(test)]
 mod tests;
