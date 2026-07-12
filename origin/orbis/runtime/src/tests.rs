@@ -341,23 +341,37 @@ fn remediation_manifest_v3_is_exact_and_semantically_frozen() {
 					"{table}.{field}"
 				);
 			}
-			let artifact_path = format!("target/orbis-remediation/{row_id}.json");
-			assert_eq!(
-				row["artifact_path"].as_str(),
-				Some(artifact_path.as_str()),
-				"{table} artifact path"
-			);
-			assert_eq!(
-				row["artifact_sha256"].as_str(),
-				Some("0000000000000000000000000000000000000000000000000000000000000000"),
-				"Gate 1 has no execution artifact yet"
-			);
+			let status = row["status"].as_str().unwrap();
+			if status == "present" {
+				let artifact_path = row["artifact_path"].as_str().unwrap();
+				let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
+				assert!(repo_root.join(artifact_path).is_file(), "{table} artifact exists");
+				assert_ne!(
+					row["artifact_sha256"].as_str(),
+					Some("0000000000000000000000000000000000000000000000000000000000000000"),
+					"present evidence has a nonzero digest"
+				);
+			} else {
+				let artifact_path = format!("target/orbis-remediation/{row_id}.json");
+				assert_eq!(
+					row["artifact_path"].as_str(),
+					Some(artifact_path.as_str()),
+					"{table} artifact path"
+				);
+				assert_eq!(
+					row["artifact_sha256"].as_str(),
+					Some("0000000000000000000000000000000000000000000000000000000000000000"),
+					"pending evidence has a zero digest"
+				);
+			}
 			assert_eq!(
 				row["source_commit"].as_str(),
 				Some("d75ff22af02120daccdb5e017cfddc925e622ac5"),
 				"{table} source boundary"
 			);
-			let expected_status = if matches!(table, "meta_vector" | "provider_v8_contract") ||
+			let expected_status = if status == "present" {
+				"present"
+			} else if matches!(table, "meta_vector" | "provider_v8_contract") ||
 				(table == "remediation_gate" && row_id == "GATE-5-EVIDENCE")
 			{
 				"planned"
@@ -509,7 +523,7 @@ fn remediation_manifest_v3_is_exact_and_semantically_frozen() {
 		.iter()
 		.map(|byte| format!("{byte:02x}"))
 		.collect::<String>();
-	assert_eq!(hash, "6b289ebec91d0599dd9daff913dbe9fcd334d1fe2abfc830846e53748bebb793");
+	assert_eq!(hash, "0504b1852450ac073c1b52201099356dea4653a3b362fa7df9387862caec3f81");
 }
 
 #[test]
