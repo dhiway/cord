@@ -11,7 +11,7 @@
 
 use crate::{AccountId, Runtime, RuntimeCall};
 use codec::{DecodeAll, Encode};
-use frame_support::traits::{BuildGenesisConfig, SignedTransactionBuilder};
+use frame_support::traits::BuildGenesisConfig;
 use sp_core::{sr25519, Pair, H256};
 use sp_runtime::{
 	generic::{Era, SignedPayload},
@@ -21,30 +21,6 @@ use sp_runtime::{
 
 fn account(pair: &sr25519::Pair) -> AccountId {
 	MultiSigner::from(pair.public()).into_account()
-}
-
-fn direct_signed_extrinsic() -> crate::UncheckedExtrinsic {
-	let pair = sr25519::Pair::from_string("//Alice", None).unwrap();
-	let signer = account(&pair);
-	let call =
-		RuntimeCall::System(frame_system::Call::remark { remark: b"orbis-v6-direct".to_vec() });
-	let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
-		pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
-	)
-	.into();
-	let extension = crate::paid_tx_extensions(crate::default_inner_tx_extensions(
-		0,
-		payment,
-		Default::default(),
-	));
-	let payload = SignedPayload::new(call.clone(), extension.clone()).unwrap();
-	let signature = payload.using_encoded(|bytes| pair.sign(bytes));
-	<crate::UncheckedExtrinsic as SignedTransactionBuilder>::new_signed_transaction(
-		call,
-		signer.into(),
-		MultiSignature::Sr25519(signature),
-		extension,
-	)
 }
 
 type MetaBareExtension = (
