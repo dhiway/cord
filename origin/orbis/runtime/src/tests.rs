@@ -447,7 +447,7 @@ fn completion_manifest_v4_evidence_is_exact_and_semantically_frozen() {
 	assert_eq!(bulletin_value("BUL-V7-WRITES"), "writes = I_ref + I_hash + 2L + 2 + 1");
 	assert_eq!(
 		manifest["audited_runtime_commit"].as_str(),
-		Some("f88aa3faa6573582ca690fa3cace58b7f670aa88")
+		Some("db7ebaf6213f39bcda2edc578c1fce287f23b5a3")
 	);
 	crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-manifest");
 }
@@ -611,7 +611,7 @@ fn resources_bulletin_iteration_two_manifest_is_exact() {
 	let semantic_hash = sp_io::hashing::blake2_256(canonical.as_bytes());
 	let semantic_hash = semantic_hash.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
 	assert_eq!(
-		semantic_hash, "660517289724a1694c9d23d7b017a7366137aed5e3bc840ba7dad9480ca6f7d8",
+		semantic_hash, "35bf9d779f5d5b694fecf58035fcc91be1fce1b7a84d5edc20061ac264ed5abc",
 		"iteration-2 semantic rows changed; mutable state/evidence are deliberately excluded"
 	);
 
@@ -812,6 +812,14 @@ fn resources_bulletin_iteration_two_manifest_is_exact() {
 		ids("protocol_dependency"),
 		["DEP-Slice3-ProofOfInk", "DEP-Slice10-Provider", "DEP-Slice14-UnifiedApp"]
 	);
+	let provider_dependency = rows("protocol_dependency")
+		.into_iter()
+		.find(|row| row["id"].as_str() == Some("DEP-Slice10-Provider"))
+		.unwrap();
+	assert_eq!(
+		provider_dependency["requires"].as_str(),
+		Some("PMIG-Bulletin-V7-to-V8 provider_ref migration")
+	);
 
 	for (row, name) in rows("protocol_type").iter().zip([
 		"ReservationId",
@@ -959,7 +967,7 @@ fn resources_bulletin_iteration_two_manifest_is_exact() {
 	}
 	for (row, (owner, consumer, required)) in rows("protocol_dependency").iter().zip([
 		("slice-3", "slice-3", "ReservationPurpose::ProofOfInk"),
-		("slice-10", "slice-10", "V6-to-V7 provider_ref migration"),
+		("slice-10", "slice-10", "PMIG-Bulletin-V7-to-V8 provider_ref migration"),
 		("slice-14", "slice-14", "complete Resources reservation"),
 	]) {
 		assert_eq!(row["owner"].as_str(), Some(owner));

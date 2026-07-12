@@ -1,9 +1,9 @@
 exit=0
-command=CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::remediation_v3::tests::conservative_weights_freeze_formula_and_db_ownership -- --exact
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 63 filtered out; finished
-test tests::remediation_v3::tests::conservative_weights_freeze_formula_and_db_ownership ... ok
+command=CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::remediation_v3::tests::conservative_weights_freeze_formula_and_db_ownership -- --exact --nocapture
 assertion=META-WEIGHT-BASE:72955a710bc2bb2b0fcea0ee49e17d50bef4771d9938d918a06e0dcdd82eae3a
 assertion=META-WEIGHT-CONSUME:9671944b0a051c7bb47ee1533c9649e7876c51febdb0f20a48e1c22cd9cc4d99
 assertion=META-WEIGHT-MAX:43b15d2b2b0af866f01089a66a59fc3a57f4d23b16d56cce069b974c7cdf052d
 assertion=META-WEIGHT-PAID:322d6987bcd07a9efae9dd0fa773c7f1bf6361d4459721bc1ec1657c6a2f0712
 assertion=META-WEIGHT-ROUTER:786ab19253d4beb8e795f4b1bf3051745fd3a2db2d8fef68f518f4aa5de5cb53
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 63 filtered out; finished
+test tests::remediation_v3::tests::conservative_weights_freeze_formula_and_db_ownership ... ok

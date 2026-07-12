@@ -1,10 +1,10 @@
 exit=0
-command=CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::remediation_v3::tests::signed_direct_resources_payer_contract_is_account_aware -- --exact
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 63 filtered out; finished
-test tests::remediation_v3::tests::signed_direct_resources_payer_contract_is_account_aware ... ok
+command=CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::remediation_v3::tests::signed_direct_resources_payer_contract_is_account_aware -- --exact --nocapture
 assertion=META-DIRECT-BADSIG:eaa0f9c5db024e1758c755a5ea96365fe10697e83c59aeca0fd5e0ccf546a643
 assertion=META-DIRECT-MISMATCH:816c24dc98a1546f75b91d9cd1f17203a165df6478b7346ee5b6469ab03e97cb
 assertion=META-DIRECT-NONCE:2be0dfe34098bfd21a53e13e0006dab2c9fab5317e91dc7a12e4a4cfdee762a6
 assertion=META-DIRECT-NONE:e2f13e55f54a4639392b6650b5341d7823a2be6188b1e82cbde84c511c48a71a
 assertion=META-DIRECT-PAYER:9b15966a78a831d80be5b014de06d48d928728ed5108b6026c1e314db7165823
 assertion=META-DIRECT-PAYMENT:e5780cebdf411df817525a4e8a5fd8d309b6091b6cff36b46fab960376ce92af
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 63 filtered out; finished
+test tests::remediation_v3::tests::signed_direct_resources_payer_contract_is_account_aware ... ok
