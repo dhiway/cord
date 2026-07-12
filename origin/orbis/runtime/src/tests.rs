@@ -4623,3 +4623,55 @@ fn xcm_payment_api_works() {
 		WeightToFee,
 	>();
 }
+
+#[test]
+#[cfg(feature = "runtime-benchmarks")]
+fn native_benchmark_api_executes_all_meta_policy_targets() {
+	use frame_benchmarking::runtime_decl_for_benchmark::BenchmarkV2;
+	use frame_benchmarking::BenchmarkConfig;
+
+	let names = [
+		"meta_policy_personal_alias",
+		"meta_policy_personal_identity",
+		"meta_policy_personal_alias_revised",
+		"meta_policy_lite_person",
+		"meta_policy_lite_alias",
+		"meta_policy_lite_alias_revised",
+		"meta_policy_resources_claim",
+		"meta_policy_malformed",
+		"meta_policy_mapping_miss",
+		"meta_policy_revised_write",
+		"meta_policy_max_proof",
+		"meta_policy_envelope",
+	];
+	for name in names {
+		let state = sc_client_db::BenchmarkingState::<sp_runtime::traits::BlakeTwo256>::new(
+			Default::default(),
+			None,
+			false,
+			false,
+		)
+		.expect("benchmark state opens");
+		let mut overlay = Default::default();
+		let mut ext = sp_state_machine::Ext::new(&mut overlay, &state, None);
+		sp_externalities::set_and_run_with_externalities(&mut ext, || {
+			System::set_block_number(1);
+			let batches = Runtime::dispatch_benchmark(BenchmarkConfig {
+				pallet: b"indiv_pallet_resources".to_vec(),
+				instance: b"Resources".to_vec(),
+				benchmark: name.as_bytes().to_vec(),
+				selected_components: Vec::new(),
+				verify: true,
+				internal_repeats: 1,
+			})
+			.unwrap_or_else(|error| panic!("native {name} benchmark failed: {error}"));
+			assert_eq!(batches.len(), 1, "{name} must yield one native batch");
+			assert_eq!(batches[0].benchmark, name.as_bytes());
+			assert_eq!(batches[0].results.len(), 1);
+			assert!(
+				batches[0].results[0].components.is_empty(),
+				"fixed workload has no dimensions"
+			);
+		});
+	}
+}

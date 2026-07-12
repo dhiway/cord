@@ -1725,8 +1725,7 @@ impl indiv_pallet_resources::benchmarking::MetaPolicyBenchmarkHelper for Resourc
 	fn run(
 		scenario: indiv_pallet_resources::benchmarking::MetaPolicyBenchmarkScenario,
 	) -> Result<(), frame_benchmarking::BenchmarkError> {
-		crate::meta_v6::benchmark_policy_scenario(scenario);
-		Ok(())
+		crate::meta_v6::benchmark_policy_scenario(scenario)
 	}
 }
 

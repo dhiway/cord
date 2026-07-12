@@ -179,30 +179,119 @@ impl MetaAccountBoundPoliciesV6 {
 #[cfg(feature = "runtime-benchmarks")]
 pub fn benchmark_policy_scenario(
 	scenario: indiv_pallet_resources::benchmarking::MetaPolicyBenchmarkScenario,
-) {
+) -> Result<(), frame_benchmarking::BenchmarkError> {
 	use frame_support::dispatch::GetDispatchInfo;
 	use indiv_pallet_resources::benchmarking::MetaPolicyBenchmarkScenario as Scenario;
-	use sp_runtime::traits::{TrailingZeroInput, TransactionExtension};
+	use indiv_support::traits::{AppendOnlyMembers, RingMode};
+	use sp_runtime::{
+		traits::{TrailingZeroInput, TransactionExtension},
+		transaction_validity::{InvalidTransaction, TransactionSource, TransactionValidityError},
+	};
+	use verifiable::GenerateVerifiable;
 
-	fn proof<P: Decode>() -> P {
-		P::decode(&mut TrailingZeroInput::zeroes())
-			.expect("benchmark-only trailing-zero proof has the production SCALE shape")
+	type Crypto = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable;
+	type BenchmarkSecret = <Crypto as GenerateVerifiable>::Secret;
+	type BenchmarkCommitment = <Crypto as GenerateVerifiable>::Commitment;
+	fn stop(_: impl core::fmt::Debug) -> frame_benchmarking::BenchmarkError {
+		frame_benchmarking::BenchmarkError::Stop("production Meta benchmark workload failed")
 	}
-	fn max_proof<P: Decode>() -> P {
-		// Bandersnatch: 752-byte ring proof + one context-count byte + 16 * 32-byte
-		// outputs. SCALE adds the compact length prefix to these 1,265 payload bytes.
-		P::decode(&mut alloc::vec![0u8; 1_265].encode().as_slice())
-			.expect("the production maximum membership proof has a bounded SCALE shape")
+	fn install_ring(
+		identifier: [u8; 32],
+		seed: u8,
+	) -> Result<(BenchmarkSecret, BenchmarkCommitment, u32), frame_benchmarking::BenchmarkError> {
+		let exponent = crate::MembersFlexibleRingExponent::get();
+		let domain: verifiable::ring::RingDomainSize = exponent.try_into().map_err(stop)?;
+		let chunks = indiv_support::genesis::ring_verifier_builder_params::<
+			verifiable::ring::ark_vrf::suites::bandersnatch::BandersnatchSha512Ell2,
+		>(domain);
+		for (page_index, page) in
+			chunks.chunks(crate::PeopleChunkPageSize::get() as usize).enumerate()
+		{
+			let page: frame_support::BoundedVec<
+				indiv_pallet_chunks_manager::UncheckedChunk<Runtime>,
+				crate::PeopleChunkPageSize,
+			> = page
+				.iter()
+				.cloned()
+				.map(indiv_pallet_chunks_manager::UncheckedChunk::<Runtime>)
+				.collect::<Vec<_>>()
+				.try_into()
+				.map_err(stop)?;
+			indiv_pallet_chunks_manager::Chunks::<Runtime>::insert(
+				exponent,
+				page_index as u32,
+				page,
+			);
+		}
+		<Members as AppendOnlyMembers>::create_collection(
+			crate::Location::here(),
+			&identifier,
+			1,
+			RingMode::Flexible,
+			exponent,
+			None,
+		)
+		.map_err(stop)?;
+		let secret = Crypto::new_secret([seed; 32]);
+		let member = Crypto::member_from_secret(&secret);
+		<Members as AppendOnlyMembers>::add_members(&identifier, alloc::vec![member.clone()])
+			.map_err(stop)?;
+		Members::onboard_members_authorized(
+			frame_system::RawOrigin::Authorized.into(),
+			identifier,
+			0,
+			0,
+			Some(member.clone()),
+			0,
+		)
+		.map_err(stop)?;
+		Members::build_ring_authorized(
+			frame_system::RawOrigin::Authorized.into(),
+			identifier,
+			0,
+			exponent,
+			None,
+			1,
+			0,
+		)
+		.map_err(stop)?;
+		let revision = <Members as MembershipProver>::ring_revision(&identifier, 0)
+			.ok_or_else(|| stop("missing revision"))?;
+		let commitment = Crypto::open(
+			exponent.try_into().map_err(stop)?,
+			&member,
+			<Members as AppendOnlyMembers>::ring_members(&identifier, 0).into_iter(),
+		)
+		.map_err(stop)?;
+		Ok((secret, commitment, revision))
+	}
+	fn validate_prepare(
+		policy: MetaAccountBoundPoliciesV6,
+		signer: AccountId,
+		call: &RuntimeCall,
+	) -> Result<(), frame_benchmarking::BenchmarkError> {
+		let info = call.get_dispatch_info();
+		let implication = sp_runtime::traits::TxBaseImplication((0u8, call));
+		let implicit = policy.implicit().map_err(stop)?;
+		let (_, val, origin) = policy
+			.validate(
+				RuntimeOrigin::signed(signer),
+				call,
+				&info,
+				call.encoded_size(),
+				implicit,
+				&implication,
+				TransactionSource::External,
+			)
+			.map_err(stop)?;
+		policy.prepare(val, &origin, call, &info, call.encoded_size()).map_err(stop)?;
+		Ok(())
 	}
 
+	let signer = AccountId::decode(&mut TrailingZeroInput::zeroes()).map_err(stop)?;
 	let ordinary = RuntimeCall::System(frame_system::Call::remark { remark: Vec::new() });
-	let signer = AccountId::decode(&mut TrailingZeroInput::zeroes())
-		.expect("AccountId has a fixed benchmark representation");
-	let resources = RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage {
-		period: 0,
-		counter: 0,
-		account_id: signer,
-	});
+	let people_id = *indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER;
+	let lite_id = *indiv_pallet_people_lite::LITE_PEOPLE_MEMBER_IDENTIFIER;
 	let policies = match scenario {
 		Scenario::PersonalAlias | Scenario::MappingMiss => PolicyProofsV6 {
 			personhood: Some(MetaPersonhoodAuthV6::PersonalAliasAccount),
@@ -212,13 +301,70 @@ pub fn benchmark_policy_scenario(
 			personhood: Some(MetaPersonhoodAuthV6::PersonalIdentityAccount),
 			..Default::default()
 		},
-		Scenario::PersonalAliasRevised | Scenario::RevisedWrite => PolicyProofsV6 {
-			personhood: Some(MetaPersonhoodAuthV6::PersonalAliasAccountRevised(
-				proof(),
+		Scenario::PersonalAliasRevised | Scenario::RevisedWrite => {
+			let (secret, old_commitment, old_revision) = install_ring(people_id, 41)?;
+			let (_, alias) =
+				Crypto::create(old_commitment, &secret, &crate::ORBIS_PERSON_CONTEXT, &[0; 32])
+					.map_err(stop)?;
+			let old = RevisedContextualAlias {
+				revision: old_revision,
+				ring: 0,
+				ca: indiv_support::traits::ContextualAlias {
+					context: crate::ORBIS_PERSON_CONTEXT,
+					alias,
+				},
+			};
+			indiv_pallet_people::AccountToAlias::<Runtime>::insert(&signer, &old);
+			indiv_pallet_people::AliasToAccount::<Runtime>::insert(&old.ca, &signer);
+			let second = Crypto::member_from_secret(&Crypto::new_secret([42; 32]));
+			<Members as AppendOnlyMembers>::add_members(&people_id, alloc::vec![second.clone()])
+				.map_err(stop)?;
+			Members::onboard_members_authorized(
+				frame_system::RawOrigin::Authorized.into(),
+				people_id,
 				0,
-				crate::ORBIS_PERSON_CONTEXT,
-			)),
-			..Default::default()
+				1,
+				Some(second),
+				0,
+			)
+			.map_err(stop)?;
+			Members::build_ring_authorized(
+				frame_system::RawOrigin::Authorized.into(),
+				people_id,
+				0,
+				crate::MembersFlexibleRingExponent::get(),
+				Some(old_revision),
+				1,
+				1,
+			)
+			.map_err(stop)?;
+			let member = Crypto::member_from_secret(&secret);
+			let commitment = Crypto::open(
+				crate::MembersFlexibleRingExponent::get().try_into().map_err(stop)?,
+				&member,
+				<Members as AppendOnlyMembers>::ring_members(&people_id, 0).into_iter(),
+			)
+			.map_err(stop)?;
+			let implication = sp_runtime::traits::TxBaseImplication((0u8, &ordinary));
+			let msg = (
+				b"orbis/meta/v6/personhood/alias-revised",
+				&signer,
+				&signer,
+				&ordinary,
+				implication,
+			)
+				.using_encoded(sp_io::hashing::blake2_256);
+			let (proof, _) =
+				Crypto::create(commitment, &secret, &crate::ORBIS_PERSON_CONTEXT, &msg)
+					.map_err(stop)?;
+			PolicyProofsV6 {
+				personhood: Some(MetaPersonhoodAuthV6::PersonalAliasAccountRevised(
+					proof,
+					0,
+					crate::ORBIS_PERSON_CONTEXT,
+				)),
+				..Default::default()
+			}
 		},
 		Scenario::LitePerson => PolicyProofsV6 {
 			people_lite: Some(MetaPeopleLiteAuthV6::LitePerson),
@@ -228,31 +374,153 @@ pub fn benchmark_policy_scenario(
 			people_lite: Some(MetaPeopleLiteAuthV6::LiteAliasAccount),
 			..Default::default()
 		},
-		Scenario::LiteAliasRevised => PolicyProofsV6 {
-			people_lite: Some(MetaPeopleLiteAuthV6::LiteAliasAccountRevised(
-				proof(),
+		Scenario::LiteAliasRevised => {
+			let (secret, old_commitment, old_revision) = install_ring(lite_id, 51)?;
+			let context = *indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT;
+			let (_, alias) =
+				Crypto::create(old_commitment, &secret, &context, &[0; 32]).map_err(stop)?;
+			let old = RevisedContextualAlias {
+				revision: old_revision,
+				ring: 0,
+				ca: indiv_support::traits::ContextualAlias { context, alias },
+			};
+			indiv_pallet_people_lite::AccountToAlias::<Runtime>::insert(&signer, &old);
+			indiv_pallet_people_lite::AliasToAccount::<Runtime>::insert(&old.ca, &signer);
+			let second = Crypto::member_from_secret(&Crypto::new_secret([52; 32]));
+			<Members as AppendOnlyMembers>::add_members(&lite_id, alloc::vec![second.clone()])
+				.map_err(stop)?;
+			Members::onboard_members_authorized(
+				frame_system::RawOrigin::Authorized.into(),
+				lite_id,
 				0,
-				*indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT,
-			)),
-			..Default::default()
+				1,
+				Some(second),
+				0,
+			)
+			.map_err(stop)?;
+			Members::build_ring_authorized(
+				frame_system::RawOrigin::Authorized.into(),
+				lite_id,
+				0,
+				crate::MembersFlexibleRingExponent::get(),
+				Some(old_revision),
+				1,
+				1,
+			)
+			.map_err(stop)?;
+			let member = Crypto::member_from_secret(&secret);
+			let commitment = Crypto::open(
+				crate::MembersFlexibleRingExponent::get().try_into().map_err(stop)?,
+				&member,
+				<Members as AppendOnlyMembers>::ring_members(&lite_id, 0).into_iter(),
+			)
+			.map_err(stop)?;
+			let implication = sp_runtime::traits::TxBaseImplication((0u8, &ordinary));
+			let msg = (
+				b"orbis/meta/v6/people-lite/alias-revised",
+				&signer,
+				&signer,
+				&ordinary,
+				implication,
+			)
+				.using_encoded(sp_io::hashing::blake2_256);
+			let (proof, _) = Crypto::create(commitment, &secret, &context, &msg).map_err(stop)?;
+			PolicyProofsV6 {
+				people_lite: Some(MetaPeopleLiteAuthV6::LiteAliasAccountRevised(proof, 0, context)),
+				..Default::default()
+			}
 		},
-		Scenario::ResourcesClaim => PolicyProofsV6 {
-			resources: Some(MetaResourcesAuthV6::ClaimLongTermStorage(
-				proof(),
-				0,
-				0,
+		Scenario::ResourcesClaim | Scenario::MaxProof => {
+			pallet_timestamp::Now::<Runtime>::put(3 * 24 * 60 * 60 * 1_000u64);
+			let (secret, commitment, revision) = install_ring(people_id, 61)?;
+			let period = crate::Resources::long_term_storage_period_from_timestamp(
+				<crate::Timestamp as frame_support::traits::UnixTime>::now().as_secs(),
+			);
+			let call =
+				RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage {
+					period,
+					counter: 0,
+					account_id: signer.clone(),
+				});
+			let context = crate::Resources::long_term_storage_context(period, 0);
+			let implication = sp_runtime::traits::TxBaseImplication((0u8, &call));
+			let (_, alias) =
+				Crypto::create(commitment.clone(), &secret, &context, &[0; 32]).map_err(stop)?;
+			let bound = RevisedContextualAlias {
+				revision,
+				ring: 0,
+				ca: indiv_support::traits::ContextualAlias {
+					context: crate::ORBIS_PERSON_CONTEXT,
+					alias,
+				},
+			};
+			indiv_pallet_people::AccountToAlias::<Runtime>::insert(&signer, &bound);
+			indiv_pallet_people::AliasToAccount::<Runtime>::insert(&bound.ca, &signer);
+			let msg = (
+				RESOURCES_DOMAIN,
+				&signer,
+				&signer,
+				alias,
+				period,
+				0u8,
 				indiv_pallet_resources::types::MembershipCollection::People,
-			)),
-			..Default::default()
-		},
-		Scenario::MaxProof => PolicyProofsV6 {
-			resources: Some(MetaResourcesAuthV6::ClaimLongTermStorage(
-				max_proof(),
-				0,
-				0,
-				indiv_pallet_resources::types::MembershipCollection::People,
-			)),
-			..Default::default()
+				0u32,
+				revision,
+				context,
+				&call,
+				implication,
+			)
+				.using_encoded(sp_io::hashing::blake2_256);
+			let (proof, verified_alias) = if matches!(scenario, Scenario::MaxProof) {
+				let contexts = [&context[..]; 16];
+				let (proof, aliases) =
+					Crypto::create_multi_context(commitment, &secret, &contexts, &msg)
+						.map_err(stop)?;
+				if proof.encoded_size() < 1_265 {
+					return Err(stop("maximum proof was not generated"));
+				}
+				(proof, aliases[0])
+			} else {
+				Crypto::create(commitment, &secret, &context, &msg).map_err(stop)?
+			};
+			if verified_alias != alias {
+				return Err(stop("resource proof alias drift"));
+			}
+			let policy = MetaAccountBoundPoliciesV6::new(PolicyProofsV6 {
+				resources: Some(MetaResourcesAuthV6::ClaimLongTermStorage(
+					proof,
+					0,
+					revision,
+					indiv_pallet_resources::types::MembershipCollection::People,
+				)),
+				..Default::default()
+			});
+			if matches!(scenario, Scenario::MaxProof) {
+				let encoded = policy.encode();
+				if encoded.len() > MAX_META_ENCODED_BYTES {
+					return Err(stop("proof exceeds envelope bound"));
+				}
+				core::hint::black_box(encoded);
+				let info = call.get_dispatch_info();
+				let rejected = policy.validate(
+					RuntimeOrigin::signed(signer),
+					&call,
+					&info,
+					call.encoded_size(),
+					(),
+					&sp_runtime::traits::TxBaseImplication((0u8, &call)),
+					TransactionSource::External,
+				);
+				if !matches!(
+					rejected,
+					Err(TransactionValidityError::Invalid(InvalidTransaction::BadProof))
+				) {
+					return Err(stop("maximum multi-context proof was not rejected"));
+				}
+				return Ok(());
+			}
+			validate_prepare(policy, signer, &call)?;
+			return Ok(());
 		},
 		Scenario::Malformed => PolicyProofsV6 {
 			personhood: Some(MetaPersonhoodAuthV6::PersonalAliasAccount),
@@ -260,27 +528,177 @@ pub fn benchmark_policy_scenario(
 			resources: None,
 		},
 		Scenario::Envelope => {
-			let weight = crate::weights::meta_v6::paid_scope_max(
-				<Runtime as frame_system::Config>::DbWeight::get(),
+			let calls = (0..MAX_META_ENVELOPE_CALLS.saturating_sub(1))
+				.map(|_| ordinary.clone())
+				.collect();
+			let envelope = RuntimeCall::Utility(pallet_utility::Call::batch { calls });
+			let scope = PaidMetaScope::from(frame_system::CheckSpecVersion::<Runtime>::new());
+			let info = envelope.get_dispatch_info();
+			let implicit = scope.implicit().map_err(stop)?;
+			let (_, val, origin) = scope
+				.validate(
+					RuntimeOrigin::signed(signer.clone()),
+					&envelope,
+					&info,
+					envelope.encoded_size(),
+					implicit,
+					&sp_runtime::traits::TxBaseImplication((0u8, &envelope)),
+					TransactionSource::External,
+				)
+				.map_err(stop)?;
+			scope
+				.prepare(val, &origin, &envelope, &info, envelope.encoded_size())
+				.map_err(stop)?;
+			// Benchmark the production VerifySignature mirror decode as well as the bounded
+			// PaidMetaScope tree walk. Under `runtime-benchmarks` pallet-meta-tx substitutes its
+			// weightless extension, so the production tuple is intentionally inspected as its exact
+			// SCALE payload rather than wrapped in the benchmark-only RuntimeCall variant.
+			let mortality = frame_system::CheckMortality::<Runtime>::from(Era::Immortal);
+			let nonce = frame_system::CheckNonce::<Runtime>::from(0);
+			let policy = MetaAccountBoundPoliciesV6::default();
+			let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+				Runtime,
+				crate::BulletinCallInspector,
+			>::default();
+			let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
+			let preimage = IntentPreimageV6 {
+				domain: META_DOMAIN.to_vec(),
+				extension_version: 0,
+				genesis_hash: System::block_hash(0),
+				spec_version: crate::VERSION.spec_version,
+				transaction_version: crate::VERSION.transaction_version,
+				inner_signer: signer.clone(),
+				call_hash: hash_encoded(&ordinary),
+				mortality: Era::Immortal,
+				nonce: 0,
+				policy_proofs_hash: hash_encoded(&policy.0),
+				storage_extension_hash: hash_encoded(&storage),
+				metadata_extension_hash: hash_encoded(&metadata),
+			};
+			let verify = pallet_verify_signature::VerifySignature::new_with_signature(
+				sp_runtime::MultiSignature::Ed25519(sp_core::ed25519::Signature::from_raw([0; 64])),
+				signer,
 			);
-			core::hint::black_box(weight);
-			return
+			let extension: crate::MetaTxExtension = (
+				verify,
+				ConsumePaidMetaIngress(preimage),
+				pallet_meta_tx::MetaTxMarker::new(),
+				frame_system::CheckNonZeroSender::new(),
+				frame_system::CheckSpecVersion::new(),
+				frame_system::CheckTxVersion::new(),
+				frame_system::CheckGenesis::new(),
+				mortality,
+				nonce,
+				policy,
+				storage,
+				metadata,
+			);
+			let payload = (ordinary, 0u8, extension).encode();
+			decode_meta_payload(&payload).map_err(stop)?;
+			return Ok(());
 		},
 	};
-	let call = if matches!(scenario, Scenario::ResourcesClaim | Scenario::MaxProof) {
-		&resources
-	} else {
-		&ordinary
-	};
-	let policy = MetaAccountBoundPoliciesV6::new(policies);
-	// `weight` invokes the production classifier. Encode the complete production policy as part of
-	// the max-proof case so FRAME observes its real SCALE input size rather than a guessed
-	// constant.
-	if matches!(scenario, Scenario::MaxProof) {
-		core::hint::black_box(policy.encode());
+	if matches!(scenario, Scenario::Malformed) {
+		let policy = MetaAccountBoundPoliciesV6::new(policies);
+		let info = ordinary.get_dispatch_info();
+		let result = policy.validate(
+			RuntimeOrigin::signed(signer),
+			&ordinary,
+			&info,
+			ordinary.encoded_size(),
+			(),
+			&sp_runtime::traits::TxBaseImplication((0u8, &ordinary)),
+			TransactionSource::External,
+		);
+		if !matches!(result, Err(TransactionValidityError::Invalid(InvalidTransaction::Call))) {
+			return Err(stop("malformed accepted"));
+		}
+		return Ok(());
 	}
-	core::hint::black_box(policy.weight(call));
-	core::hint::black_box(call.get_dispatch_info());
+	if matches!(scenario, Scenario::MappingMiss) {
+		let policy = MetaAccountBoundPoliciesV6::new(policies);
+		let info = ordinary.get_dispatch_info();
+		let result = policy.validate(
+			RuntimeOrigin::signed(signer),
+			&ordinary,
+			&info,
+			ordinary.encoded_size(),
+			(),
+			&sp_runtime::traits::TxBaseImplication((0u8, &ordinary)),
+			TransactionSource::External,
+		);
+		if !matches!(result, Err(TransactionValidityError::Invalid(InvalidTransaction::BadSigner)))
+		{
+			return Err(stop("mapping miss accepted"));
+		}
+		return Ok(());
+	}
+	let call = &ordinary;
+	let policy = MetaAccountBoundPoliciesV6::new(policies);
+	// Populate the authoritative production mappings used by the four non-proof routes.
+	match scenario {
+		Scenario::PersonalAlias => {
+			let (secret, commitment, revision) = install_ring(people_id, 31)?;
+			let (_, alias) =
+				Crypto::create(commitment, &secret, &crate::ORBIS_PERSON_CONTEXT, &[0; 32])
+					.map_err(stop)?;
+			let bound = RevisedContextualAlias {
+				revision,
+				ring: 0,
+				ca: indiv_support::traits::ContextualAlias {
+					context: crate::ORBIS_PERSON_CONTEXT,
+					alias,
+				},
+			};
+			indiv_pallet_people::AccountToAlias::<Runtime>::insert(&signer, &bound);
+			indiv_pallet_people::AliasToAccount::<Runtime>::insert(&bound.ca, &signer);
+		},
+		Scenario::PersonalIdentity => {
+			let member = Crypto::member_from_secret(&Crypto::new_secret([32; 32]));
+			indiv_pallet_people::AccountToPersonalId::<Runtime>::insert(&signer, 0);
+			indiv_pallet_people::People::<Runtime>::insert(
+				0,
+				indiv_pallet_people::types::PersonRecord {
+					key: member,
+					account: Some(signer.clone()),
+				},
+			);
+		},
+		Scenario::LitePerson => {
+			let member = Crypto::member_from_secret(&Crypto::new_secret([33; 32]));
+			indiv_pallet_people_lite::LitePeople::<Runtime>::insert(
+				&signer,
+				indiv_pallet_people_lite::types::LitePersonInfo {
+					ring_vrf_key: member,
+					method: indiv_pallet_people_lite::types::RecognitionMethod::UniqueDevice(
+						signer.clone(),
+					),
+				},
+			);
+		},
+		Scenario::LiteAlias => {
+			let (secret, commitment, revision) = install_ring(lite_id, 34)?;
+			let context = *indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT;
+			let (_, alias) =
+				Crypto::create(commitment, &secret, &context, &[0; 32]).map_err(stop)?;
+			let bound = RevisedContextualAlias {
+				revision,
+				ring: 0,
+				ca: indiv_support::traits::ContextualAlias { context, alias },
+			};
+			indiv_pallet_people_lite::AccountToAlias::<Runtime>::insert(&signer, &bound);
+			indiv_pallet_people_lite::AliasToAccount::<Runtime>::insert(&bound.ca, &signer);
+		},
+		_ => {},
+	}
+	validate_prepare(policy, signer.clone(), call)?;
+	if matches!(scenario, Scenario::RevisedWrite)
+		&& !indiv_pallet_people::AccountToAlias::<Runtime>::get(&signer)
+			.is_some_and(|binding| binding.revision > 0)
+	{
+		return Err(stop("revised binding was not written"));
+	}
+	Ok(())
 }
 
 pub enum PolicyValV6 {
@@ -762,15 +1180,19 @@ impl Output for FixedOutput {
 }
 
 fn decode_meta_intent(call: &RuntimeCall) -> Result<H256, InvalidTransaction> {
-	use codec::DecodeAll;
 	let RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch { meta_tx, .. }) = call else {
 		return Err(InvalidTransaction::Call);
 	};
+	decode_meta_payload(&FixedOutput::encode(meta_tx)?.buf)
+}
+
+fn decode_meta_payload(payload: &[u8]) -> Result<H256, InvalidTransaction> {
+	use codec::DecodeAll;
 	let (inner_call, extension_version, extension): (
 		RuntimeCall,
 		ExtensionVersion,
 		crate::MetaTxExtension,
-	) = DecodeAll::decode_all(&mut FixedOutput::encode(meta_tx)?.buf.as_slice())
+	) = DecodeAll::decode_all(&mut payload.as_ref())
 		.map_err(|_| InvalidTransaction::BadProof)?;
 	let (
 		verify,

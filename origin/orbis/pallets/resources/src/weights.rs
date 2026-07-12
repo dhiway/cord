@@ -95,9 +95,11 @@ pub trait WeightInfo {
 /// Weights for `indiv_pallet_resources` using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	// The following Meta-policy entries are hosted here so the existing Resources benchmark target
-	// can generate them. Proof-size parts use the observed encoded membership-proof path and its
-	// conservative storage-PoV estimate (5,137 bytes), rather than a zero proof-size placeholder.
+	// Gate4 note: the following Meta-policy entries are hand-maintained conservative upper bounds,
+	// not output from the frame-omni command recorded in this file's generated header. They are
+	// hosted here only because Resources owns the benchmark targets. Their coefficients deliberately
+	// dominate the production workloads (including the 5,137-byte storage-PoV proof path) until a
+	// compatible native frame-omni run replaces this entire block with generated measurements.
 	fn meta_policy_personal_alias() -> Weight {
 		Weight::from_parts(8_060_000, 4_147).saturating_add(T::DbWeight::get().reads(3))
 	}

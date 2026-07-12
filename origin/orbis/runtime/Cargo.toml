@@ -126,6 +126,9 @@ parachain-info = { workspace = true }
 parachains-common = { workspace = true }
 
 [dev-dependencies]
+sc-client-db = { workspace = true }
+sp-externalities = { workspace = true }
+sp-state-machine = { workspace = true }
 indiv-support = { workspace = true, features = ["genesis"] }
 parachains-runtimes-test-utils = { workspace = true }
 static_assertions = { workspace = true }
