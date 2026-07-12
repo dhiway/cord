@@ -16,6 +16,16 @@ const MIRROR_DECODE_HASH: u64 = 4_000_000;
 const CRYPTO_VERIFY: u64 = 8_000_000;
 const HASH_OP: u64 = 500_000;
 const PER_PROOF_BYTE: u64 = 10_000;
+const CLASSIFIER: u64 = 750_000;
+// Distinct route overheads preserve the measured control-flow differences even where two
+// routes happen to own the same number of database operations.
+const PERSONAL_ALIAS_ROUTE: u64 = 310_000;
+const PERSONAL_IDENTITY_ROUTE: u64 = 270_000;
+const PERSONAL_ALIAS_REVISED_ROUTE: u64 = 490_000;
+const LITE_PERSON_ROUTE: u64 = 190_000;
+const LITE_ALIAS_ROUTE: u64 = 290_000;
+const LITE_ALIAS_REVISED_ROUTE: u64 = 470_000;
+const RESOURCES_CLAIM_ROUTE: u64 = 610_000;
 
 pub const fn inspector_ref_time(calls: u64, depth: u64, bytes: u64) -> u64 {
 	BASE.saturating_add(PER_CALL.saturating_mul(calls))
@@ -56,8 +66,62 @@ pub fn router(
 		.saturating_add(db.reads_writes(reads, writes))
 }
 
+fn classified_router(
+	db: RuntimeDbWeight,
+	route_overhead: u64,
+	reads: u64,
+	writes: u64,
+	crypto: u64,
+	hashes: u64,
+	proof_bytes: u64,
+) -> Weight {
+	Weight::from_parts(CLASSIFIER.saturating_add(route_overhead), 0).saturating_add(router(
+		db,
+		reads,
+		writes,
+		crypto,
+		hashes,
+		proof_bytes,
+	))
+}
+
+pub fn none() -> Weight {
+	Weight::from_parts(CLASSIFIER, 0)
+}
+
+pub fn personal_alias(db: RuntimeDbWeight) -> Weight {
+	classified_router(db, PERSONAL_ALIAS_ROUTE, 3, 0, 0, 0, 0)
+}
+
+pub fn personal_identity(db: RuntimeDbWeight) -> Weight {
+	classified_router(db, PERSONAL_IDENTITY_ROUTE, 2, 0, 0, 0, 0)
+}
+
+pub fn personal_alias_revised(db: RuntimeDbWeight) -> Weight {
+	classified_router(db, PERSONAL_ALIAS_REVISED_ROUTE, 5, 1, 1, 2, 32)
+}
+
+pub fn lite_person(db: RuntimeDbWeight) -> Weight {
+	classified_router(db, LITE_PERSON_ROUTE, 1, 0, 0, 0, 0)
+}
+
+pub fn lite_alias(db: RuntimeDbWeight) -> Weight {
+	classified_router(db, LITE_ALIAS_ROUTE, 3, 0, 0, 0, 0)
+}
+
+pub fn lite_alias_revised(db: RuntimeDbWeight) -> Weight {
+	classified_router(db, LITE_ALIAS_REVISED_ROUTE, 5, 1, 1, 2, 32)
+}
+
+pub fn resources_claim(db: RuntimeDbWeight) -> Weight {
+	classified_router(db, RESOURCES_CLAIM_ROUTE, 6, 0, 1, 3, 32)
+}
+
 pub fn malformed_max(db: RuntimeDbWeight) -> Weight {
-	paid_scope_max(db).saturating_add(router(db, 6, 1, 1, 3, 32))
+	// Each route already consists of one classifier charge plus its route body. Taking their
+	// maximum therefore gives exactly `classifier + max(route)`, without charging the classifier
+	// twice or letting a malformed pair select a cheaper path.
+	resources_claim(db).max(personal_alias_revised(db).max(lite_alias_revised(db)))
 }
 
 #[cfg(test)]
@@ -73,7 +137,25 @@ mod tests {
 		);
 		assert_eq!(
 			malformed_max(db),
-			paid_scope_max(db).saturating_add(router(db, 6, 1, 1, 3, 32))
+			resources_claim(db).max(personal_alias_revised(db).max(lite_alias_revised(db)))
 		);
+	}
+
+	#[test]
+	fn all_seven_routes_are_distinct_and_malformed_dominates() {
+		let db = RuntimeDbWeight { read: 1_000, write: 2_000 };
+		let routes = [
+			personal_alias(db),
+			personal_identity(db),
+			personal_alias_revised(db),
+			lite_person(db),
+			lite_alias(db),
+			lite_alias_revised(db),
+			resources_claim(db),
+		];
+		for (index, route) in routes.iter().enumerate() {
+			assert!(routes.iter().skip(index + 1).all(|other| other != route));
+			assert!(malformed_max(db).all_gte(*route));
+		}
 	}
 }
