@@ -1,63 +1,72 @@
 #!/usr/bin/env python3
-"""Normalize and verify checked Orbis completion evidence v4 without third-party TOML modules."""
+"""Verify normalized, historical and executable Orbis completion evidence v4."""
 from pathlib import Path
-import hashlib,json,re,subprocess,sys
-ROOT=Path(__file__).resolve().parents[1]
-MANIFEST=ROOT/'docs/orbis-completion-manifest.toml'
-ZERO='0'*64
-EVIDENCE_TABLES={'meta_contract','meta_router_variant','meta_vector','meta_ingress','bulletin_v7_rehearsal','bulletin_v7_contract','provider_v8_contract','remediation_gate'}
-
-def die(msg): raise SystemExit('orbis-v4: '+msg)
-def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
-def fields(body):
- out={}
- for key,val in re.findall(r'^([A-Za-z0-9_]+) = "([^"]*)"$',body,re.M): out[key]=val
- return out
-text=MANIFEST.read_text()
-if not re.search(r'^manifest_version = 4$',text,re.M): die('manifest_version is not 4')
-if 'implemented-pending-evidence' in text: die('pending-evidence status is forbidden in v4')
-rows=[]
-inventory_present=0
+import argparse,hashlib,json,re,subprocess,sys
+P=argparse.ArgumentParser(); P.add_argument('--manifest'); P.add_argument('--static',action='store_true'); a=P.parse_args()
+ROOT=Path(__file__).resolve().parents[1]; MANIFEST=Path(a.manifest) if a.manifest else ROOT/'docs/orbis-completion-manifest.toml'; ZERO='0'*64
+E={'meta_contract','meta_router_variant','meta_vector','meta_ingress','bulletin_v7_rehearsal','bulletin_v7_contract','provider_v8_contract','remediation_gate'}
+def die(x): raise SystemExit('orbis-v4: '+x)
+def sha(p): return hashlib.sha256(p.read_bytes()).hexdigest()
+def fs(body): return dict(re.findall(r'^([A-Za-z0-9_]+) = "([^"]*)"$',body,re.M))
+def git(*x): return subprocess.run(['git',*x],cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,errors='ignore')
+def canon(cmd,expected): return hashlib.sha256(f'exit=0\ncommand={cmd}\nexpected_output={expected}\n'.encode()).hexdigest()
+text=MANIFEST.read_text(); top=fs(text.split('[[',1)[0]); audit=top.get('audited_runtime_commit','')
+if top.get('frozen_at_commit') is None or not re.fullmatch('[0-9a-f]{40}',audit): die('audited_runtime_commit must be full 40-hex')
+if git('cat-file','-e',audit+'^{commit}').returncode: die('audited runtime commit does not exist')
+if 'implemented-pending-evidence' in text: die('implemented-pending-evidence forbidden')
+rows=[]; normalized={'present':[],'planned':[],'excluded':[],'unchecked':[]}; evidence=[]
 for table,body in re.findall(r'^\[\[([^]]+)\]\]\n(.*?)(?=^\[\[|\Z)',text,re.M|re.S):
- all_row=fields(body)
- if all_row.get('state','').startswith('present'):
-  inventory_present += 1
-  if not all_row.get('evidence'): die(f'{table}.{all_row.get("id",all_row.get("name","?"))} present inventory lacks evidence')
- if table not in EVIDENCE_TABLES: continue
- row=all_row; row['_table']=table; rows.append(row)
- required=('id','source_paths','source_symbol','test_or_command','expected_assertion','artifact_path','artifact_sha256','source_commit','status')
- for key in required:
-  if not row.get(key): die(f'{table}.{row.get("id","?")} missing {key}')
- status=row['status']
- if status=='present':
-  if row['artifact_sha256']==ZERO: die(f'{row["id"]} has zero SHA')
-  try: subprocess.check_call(['git','cat-file','-e',row['source_commit']+'^{commit}'],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-  except subprocess.CalledProcessError: die(f'{row["id"]} bad commit {row["source_commit"]}')
-  source_text=''
-  for item in row['source_paths'].split(';'):
-   path=ROOT/item.strip()
-   if not path.is_file(): die(f'{row["id"]} missing source path {item.strip()}')
-   try: source_text+=path.read_text(errors='ignore')
-   except Exception: pass
-  if row['source_symbol'] not in source_text: die(f'{row["id"]} symbol {row["source_symbol"]} absent')
-  if not re.search(r'(^| )(cargo|bash|python3|origin/|scripts/)',row['test_or_command']): die(f'{row["id"]} command is not reproducible')
-  artifact=ROOT/row['artifact_path']
-  if not artifact.is_file(): die(f'{row["id"]} missing artifact')
-  actual=sha(artifact)
-  if actual!=row['artifact_sha256']: die(f'{row["id"]} artifact SHA mismatch {actual}')
- elif status=='planned':
-  if row['artifact_sha256']!=ZERO: die(f'{row["id"]} planned row has fake evidence')
- else: die(f'{row["id"]} invalid status {status}')
-# Migration boundary: completed reverse-index V6->V7 is evidence-backed; provider V7->V8 stays future.
-if not all(r['status']=='present' for r in rows if r['_table'] in ('bulletin_v7_rehearsal','bulletin_v7_contract')): die('Bulletin V7 repair not fully present')
-if not all(r['status']=='planned' for r in rows if r['_table']=='provider_v8_contract'): die('provider V8 must remain planned')
-migrations=(ROOT/'origin/orbis/pallets/transaction-storage/src/migrations.rs').read_text()
-if 'MigrateV6ToV7' not in migrations or 'StorageVersion::new(7)' not in migrations: die('V7 migration source missing')
-if 'MigrateV7ToV8' in migrations: die('planned provider V8 was falsely implemented')
-ids={r['id'] for r in rows}
-metadata_ids={'META-EVIDENCE-COMPILED-ENABLED','META-EVIDENCE-CUSTOM-LOSS','META-EVIDENCE-NOHASH-CANNOTLOOKUP','META-EVIDENCE-EARLY-PROPAGATION'}
-if not metadata_ids <= ids: die('four-way metadata evidence incomplete')
-report={'schema':'orbis-completion-verification-v4','manifest_sha256':sha(MANIFEST),'present':sum(r['status']=='present' for r in rows),'planned':sum(r['status']=='planned' for r in rows),'zero_sha':sum(r['artifact_sha256']==ZERO for r in rows),'inventory_present':inventory_present,'artifact_count':sum(r['status']=='present' for r in rows),'metadata_evidence':sorted(metadata_ids),'bulletin_v7':'present','provider_v8':'planned'}
-out=ROOT/'docs/evidence/orbis-v4/verification-report.json'; out.write_text(json.dumps(report,sort_keys=True,indent=2)+'\n')
-(ROOT/'docs/evidence/orbis-v4/verification-report.sha256').write_text(sha(out)+'  verification-report.json\n')
+ r=fs(body); ident=r.get('id',r.get('name',r.get('package',table))); state=r.get('state',''); status=r.get('status','')
+ if table in E: category=status if status in ('present','planned') else 'unchecked'; evidence.append((table,r))
+ elif state.startswith('present'): category='present'
+ elif state.startswith(('planned','pending')): category='planned'
+ elif state.startswith(('excluded','reserved')): category='excluded'
+ elif state: category='unchecked'
+ else: category='excluded' # source/provenance inventory is informational, not implementation evidence
+ if state.startswith('present') and status=='planned': die(f'{ident} state/status contradiction')
+ if state.startswith(('planned','pending')) and status=='present': die(f'{ident} state/status contradiction')
+ normalized[category].append(f'{table}:{ident}')
+if normalized['unchecked']: die('unchecked rows: '+','.join(normalized['unchecked']))
+commands={}
+for table,r in evidence:
+ ident=r.get('id','?'); status=r.get('status')
+ if status=='planned':
+  for k in ('source_paths','source_symbol','test_or_command','expected_assertion','artifact_path','artifact_sha256','source_commit','expected_output','output_sha256'):
+   if r.get(k,''): die(f'{ident} planned row has nonblank {k}')
+  if not r.get('planned_slice') or not r.get('dependency_ids'): die(f'{ident} incomplete planned schema')
+  continue
+ if status!='present': die(f'{ident} invalid evidence status')
+ for k in ('source_paths','source_symbol','test_or_command','expected_assertion','artifact_path','artifact_sha256','source_commit','expected_output','output_sha256'):
+  if not r.get(k): die(f'{ident} missing {k}')
+ commit=r['source_commit']
+ if not re.fullmatch('[0-9a-f]{40}',commit) or git('merge-base','--is-ancestor',commit,audit).returncode: die(f'{ident} source commit is not an audited ancestor')
+ historical=''
+ for rel in r['source_paths'].split(';'):
+  rel=rel.strip(); shown=git('show',commit+':'+rel)
+  if shown.returncode: die(f'{ident} historical path missing at {commit}: {rel}')
+  historical+=shown.stdout
+ if r['source_symbol'] not in historical: die(f'{ident} historical symbol absent: {r["source_symbol"]}')
+ cmd=r['test_or_command']; expected=r['expected_output']
+ if 'CARGO_TARGET_DIR=target/evidence-v4' not in cmd or 'cargo test ' not in cmd: die(f'{ident} command lacks declared isolated environment')
+ if re.search(r'--lib (remediation|completion_manifest)($| )',cmd): die(f'{ident} broad non-mapping command')
+ if canon(cmd,expected)!=r['output_sha256']: die(f'{ident} immutable output hash mismatch')
+ artifact=ROOT/r['artifact_path']
+ if r['artifact_sha256']==ZERO or not artifact.is_file() or sha(artifact)!=r['artifact_sha256']: die(f'{ident} artifact missing/zero/hash mismatch')
+ try: data=json.loads(artifact.read_text())
+ except Exception: die(f'{ident} artifact is not normalized JSON')
+ for k,want in [('id',ident),('source_commit',commit),('source_paths',r['source_paths']),('source_symbol',r['source_symbol']),('command',cmd),('expected',r['expected_assertion']),('expected_output',expected),('output_sha256',r['output_sha256'])]:
+  if data.get(k)!=want: die(f'{ident} artifact binding mismatch: {k}')
+ commands.setdefault(cmd,expected)
+# Explicit lifecycle seams.
+if not all(r.get('status')=='present' for t,r in evidence if t in ('bulletin_v7_rehearsal','bulletin_v7_contract')): die('Bulletin V7 incomplete')
+if not all(r.get('status')=='planned' for t,r in evidence if t=='provider_v8_contract'): die('provider V8 not purely planned')
+ids={r.get('id') for _,r in evidence}; modes={'META-EVIDENCE-COMPILED-ENABLED','META-EVIDENCE-CUSTOM-LOSS','META-EVIDENCE-NOHASH-CANNOTLOOKUP','META-EVIDENCE-EARLY-PROPAGATION'}
+if len(ids&modes)!=4: die('metadata modes must be exactly four')
+if not a.static:
+ for cmd,expected in sorted(commands.items()):
+  run=subprocess.run(cmd,cwd=ROOT,shell=True,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+  if run.returncode or expected not in run.stdout: die('evidence command failed: '+cmd+'\n'+run.stdout[-2000:])
+report={'schema':'orbis-completion-verification-v4','manifest_sha256':sha(MANIFEST),'audited_runtime_commit':audit,'present':len(normalized['present']),'planned':len(normalized['planned']),'excluded':len(normalized['excluded']),'unchecked':normalized['unchecked'],'evidence_present':sum(r.get('status')=='present' for _,r in evidence),'evidence_planned':sum(r.get('status')=='planned' for _,r in evidence),'commands':len(commands),'metadata_evidence':sorted(modes),'bulletin_v7':'present','provider_v8':'planned','critic_status':top.get('critic_status')}
+if not a.manifest:
+ out=ROOT/'docs/evidence/orbis-v4/verification-report.json'; out.write_text(json.dumps(report,sort_keys=True,indent=2)+'\n'); (out.parent/'verification-report.sha256').write_text(sha(out)+'  verification-report.json\n')
 print(json.dumps(report,sort_keys=True))

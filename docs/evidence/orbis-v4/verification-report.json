@@ -1,17 +1,21 @@
 {
-  "artifact_count": 114,
+  "audited_runtime_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
   "bulletin_v7": "present",
-  "inventory_present": 316,
-  "manifest_sha256": "e450555d4621cb7316739c7c5ba36069004439a3abce87d91b0d87612b7d2dc6",
+  "commands": 11,
+  "critic_status": "pending",
+  "evidence_planned": 4,
+  "evidence_present": 115,
+  "excluded": 68,
+  "manifest_sha256": "8062a223cfd7171dcb70c97e7e6b72c40aee7a64e8dbc50d2361d12acd5a8891",
   "metadata_evidence": [
     "META-EVIDENCE-COMPILED-ENABLED",
     "META-EVIDENCE-CUSTOM-LOSS",
     "META-EVIDENCE-EARLY-PROPAGATION",
     "META-EVIDENCE-NOHASH-CANNOTLOOKUP"
   ],
-  "planned": 5,
-  "present": 114,
+  "planned": 145,
+  "present": 431,
   "provider_v8": "planned",
   "schema": "orbis-completion-verification-v4",
-  "zero_sha": 5
+  "unchecked": []
 }

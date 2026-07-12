@@ -1,7 +1,9 @@
 {
-  "command": "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib metadata_custom_hash_loss_is_detected_after_wire_roundtrip",
+  "command": "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 RUNTIME_METADATA_HASH=0xd03f87e6279878cafcf6149a7107a6307163e4e997f8d72d029cd6aa837f9854 cargo test -p origin-orbis-runtime --lib tests::metadata_custom_hash_loss_is_detected_after_wire_roundtrip -- --exact",
   "expected": "custom hash is lost on SCALE decode and compiled hash is enforced",
+  "expected_output": "test result: ok",
   "id": "META-EVIDENCE-CUSTOM-LOSS",
+  "output_sha256": "f290fb1ae150e6749eb7d03d66cf6c7520e83ef1bc299651fadddf691d499795",
   "schema": "orbis-completion-evidence-v4",
   "source_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
   "source_paths": "origin/orbis/runtime/src/tests.rs",

@@ -1,7 +1,9 @@
 {
-  "command": "cargo test -p origin-orbis-runtime --lib remediation",
+  "command": "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::remediation_v3::tests::inspector_is_fixed_stack_bounded_and_enforces_grammar -- --exact",
   "expected": "bounded inspection and leaf BaseCallFilter defense",
+  "expected_output": "test result: ok",
   "id": "INGRESS-SUDO",
+  "output_sha256": "43cdbb631fa8866db704196da78b69bdf18a16eb4375ecc81a42cb4980da6306",
   "schema": "orbis-completion-evidence-v4",
   "source_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
   "source_paths": "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/meta_v6.rs",

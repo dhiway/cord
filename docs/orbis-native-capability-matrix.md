@@ -129,17 +129,11 @@ revision and cannot be copied verbatim until provenance is resolved.
 
 ### Frozen remediation sequence
 
-1. Manifest v3, ADR and matrix plus semantic/table-driven tests only; runtime remains spec 26/tx 6.
-2. Dormant bounded-inspector, router, token/finalization and weight support, with d75 metadata and
-   optimized-Wasm equality.
-3. An unregistered two-phase Bulletin V6-to-V7 repair, still storage V6, with the same artifact
-   equality gate.
-4. **Integrated:** one composed runtime commit activates the exact Verify→Consume alias, signed
-   direct Resources payer adapters, all seven router variants, bounded ingress and denial matrix,
-   finalization, Bulletin V7 migration and spec 27. Transaction version stays 6 and pallet indices
-   do not move.
-5. Reproducible literal/vector, Executive, benchmark, migration and Wasm/native evidence is frozen
-   before further native capability slices begin.
+1. Historical spec-26/transaction-6 baseline and dormant support are retained only as compatibility evidence.
+2. The reverse-index Bulletin V6→V7 repair was integrated and is present; storage version 7 is current.
+3. The current runtime is spec 28 / transaction 7 with stable pallet indices and active Verify→Consume support.
+4. Manifest v4 freezes executable, hashed evidence before any later native capability slice begins.
+5. Provider composition is not implemented here: the provider-reference V7→V8 migration remains planned for Slice 10.
 
 Completed Bulletin V7 reconstructs both `ResourceLinkByRef` and `ResourceLinkByContentHash` independently from
 authoritative links and writes row/link counters before setting V7 last. REF and HASH missing,

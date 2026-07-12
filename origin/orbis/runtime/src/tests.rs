@@ -324,35 +324,48 @@ fn completion_manifest_v4_evidence_is_exact_and_semantically_frozen() {
 	let mut planned = 0;
 	for table in evidence_tables {
 		for row in manifest[table].as_array().unwrap() {
-			for field in [
-				"source_paths",
-				"source_symbol",
-				"test_or_command",
-				"expected_assertion",
-				"artifact_path",
-				"artifact_sha256",
-				"source_commit",
-				"status",
-			] {
-				assert!(
-					row[field].as_str().is_some_and(|value| !value.is_empty()),
-					"{table}.{field}"
-				);
-			}
 			match row["status"].as_str().unwrap() {
 				"present" => {
 					present += 1;
+					for field in [
+						"source_paths",
+						"source_symbol",
+						"test_or_command",
+						"expected_assertion",
+						"artifact_path",
+						"artifact_sha256",
+						"source_commit",
+						"expected_output",
+						"output_sha256",
+					] {
+						assert!(
+							row[field].as_str().is_some_and(|value| !value.is_empty()),
+							"{table}.{field}"
+						);
+					}
 					assert_ne!(row["artifact_sha256"].as_str().unwrap(), "0".repeat(64));
 				},
 				"planned" => {
 					planned += 1;
-					assert_eq!(row["artifact_sha256"].as_str().unwrap(), "0".repeat(64));
+					for field in [
+						"source_paths",
+						"source_symbol",
+						"test_or_command",
+						"expected_assertion",
+						"artifact_path",
+						"artifact_sha256",
+						"source_commit",
+					] {
+						assert_eq!(row[field].as_str(), Some(""), "{table}.{field}");
+					}
+					assert!(row["planned_slice"].as_str().is_some_and(|value| !value.is_empty()));
+					assert!(row["dependency_ids"].as_str().is_some_and(|value| !value.is_empty()));
 				},
 				status => panic!("invalid v4 evidence status {status}"),
 			}
 		}
 	}
-	assert_eq!((present, planned), (114, 5));
+	assert_eq!((present, planned), (115, 4));
 	let contract = manifest["meta_contract"].as_array().unwrap();
 	for id in [
 		"META-EVIDENCE-COMPILED-ENABLED",
@@ -436,7 +449,72 @@ fn completion_manifest_v4_evidence_is_exact_and_semantically_frozen() {
 		.iter()
 		.map(|byte| format!("{byte:02x}"))
 		.collect::<String>();
-	assert_eq!(digest, "e450555d4621cb7316739c7c5ba36069004439a3abce87d91b0d87612b7d2dc6");
+	assert_eq!(digest, "8062a223cfd7171dcb70c97e7e6b72c40aee7a64e8dbc50d2361d12acd5a8891");
+}
+
+#[test]
+fn completion_manifest_v4_plans_have_no_fake_implementation_evidence() {
+	let manifest: toml::Value =
+		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml")).unwrap();
+	for row in manifest["provider_v8_contract"].as_array().unwrap() {
+		assert_eq!(row["status"].as_str(), Some("planned"));
+		assert_eq!(row["planned_slice"].as_str(), Some("slice-10"));
+		assert_eq!(row["dependency_ids"].as_str(), Some("BUL-V7-COMMIT"));
+		for field in [
+			"source_paths",
+			"source_symbol",
+			"test_or_command",
+			"expected_assertion",
+			"artifact_path",
+			"artifact_sha256",
+			"source_commit",
+		] {
+			assert_eq!(row[field].as_str(), Some(""));
+		}
+	}
+}
+
+#[test]
+fn completion_manifest_v4_migration_lifecycle_is_not_conflated() {
+	let manifest: toml::Value =
+		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml")).unwrap();
+	assert!(manifest["bulletin_v7_contract"]
+		.as_array()
+		.unwrap()
+		.iter()
+		.all(|row| row["status"].as_str() == Some("present")
+			&& row["source_symbol"].as_str() == Some("MigrateV6ToV7")));
+	assert!(manifest["provider_v8_contract"]
+		.as_array()
+		.unwrap()
+		.iter()
+		.all(|row| row["status"].as_str() == Some("planned")));
+	assert_eq!(
+		<TransactionStorage as frame_support::traits::GetStorageVersion>::in_code_storage_version(),
+		frame_support::traits::StorageVersion::new(7)
+	);
+}
+
+#[test]
+fn completion_manifest_v4_has_exactly_four_metadata_modes() {
+	let manifest: toml::Value =
+		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml")).unwrap();
+	let modes = manifest["meta_contract"]
+		.as_array()
+		.unwrap()
+		.iter()
+		.filter(|row| row["kind"].as_str() == Some("metadata-evidence"))
+		.map(|row| row["id"].as_str().unwrap())
+		.collect::<std::collections::BTreeSet<_>>();
+	assert_eq!(
+		modes,
+		std::collections::BTreeSet::from([
+			"META-EVIDENCE-COMPILED-ENABLED",
+			"META-EVIDENCE-CUSTOM-LOSS",
+			"META-EVIDENCE-NOHASH-CANNOTLOOKUP",
+			"META-EVIDENCE-EARLY-PROPAGATION",
+		])
+	);
 }
 
 #[test]

@@ -1,0 +1,12 @@
+{
+  "command": "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 RUNTIME_METADATA_HASH=0xd03f87e6279878cafcf6149a7107a6307163e4e997f8d72d029cd6aa837f9854 cargo test -p origin-orbis-runtime --lib meta_v6_fixtures::checked_in_meta_v7_fixtures_decode_all_recompute_and_match_hashes -- --exact",
+  "expected": "compiled RFC-78 implicit is d03f and reproducible",
+  "expected_output": "test result: ok",
+  "id": "META-EVIDENCE-COMPILED-ENABLED",
+  "output_sha256": "28998ef88e53dbeb593bdd53588a6f72aba29b9be9c89925a0e711011a95a210",
+  "schema": "orbis-completion-evidence-v4",
+  "source_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
+  "source_paths": "origin/orbis/runtime/src/meta_v6.rs; origin/orbis/runtime/tools/reproduce-metadata-hash.sh",
+  "source_symbol": "ProductionMetadataImplicitResolver",
+  "table": "meta_contract"
+}

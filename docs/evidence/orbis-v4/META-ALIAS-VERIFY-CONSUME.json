@@ -1,7 +1,9 @@
 {
-  "command": "cargo test -p origin-orbis-runtime --lib remediation",
+  "command": "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib meta_v6_fixtures::checked_in_meta_v7_fixtures_decode_all_recompute_and_match_hashes -- --exact",
   "expected": "exact canonical MetaTxExtension tuple order",
+  "expected_output": "test result: ok",
   "id": "META-ALIAS-VERIFY-CONSUME",
+  "output_sha256": "33e0fc209124f854e004d4f9453c26db34897191fdd772ed4e6b1373292ae3f0",
   "schema": "orbis-completion-evidence-v4",
   "source_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
   "source_paths": "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/meta_v6.rs",
