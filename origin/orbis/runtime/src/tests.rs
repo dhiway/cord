@@ -33,6 +33,7 @@ use frame_support::{
 use pallet_broker::{CoreAssignment, CoreMask, Reservations, Schedule, ScheduleItem};
 use polkadot_primitives::AccountId;
 use sp_core::crypto::Ss58Codec;
+use sp_runtime::traits::AsSystemOriginSigner;
 use xcm::prelude::*;
 use xcm_runtime_apis::conversions::LocationToAccountHelper;
 
@@ -1450,6 +1451,29 @@ fn account_aware_resources_delegates_only_origin_payer() {
 			)
 			.expect("prepare uses the same validated payer");
 		assert_eq!(System::account_nonce(&payer), 1);
+
+		let none_call = RuntimeCall::System(frame_system::Call::remark { remark: vec![0] });
+		let none = indiv_pallet_resources::extension::AsResources::<Runtime>::new(None);
+		let (_, none_val, none_origin) = none
+			.validate(
+				RuntimeOrigin::signed(payer.clone()),
+				&none_call,
+				&none_call.get_dispatch_info(),
+				none_call.encoded_size(),
+				(),
+				&sp_runtime::traits::TxBaseImplication((0u8, &none_call)),
+				sp_runtime::transaction_validity::TransactionSource::External,
+			)
+			.expect("None Resources policy preserves an ordinary signed route");
+		none.prepare(
+			none_val,
+			&none_origin,
+			&none_call,
+			&none_call.get_dispatch_info(),
+			none_call.encoded_size(),
+		)
+		.expect("None Resources policy prepares without manufacturing a custom origin");
+		assert_eq!(none_origin.as_system_origin_signer(), Some(&payer));
 	});
 }
 
@@ -2831,7 +2855,7 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 		MultiSigner::from(pair.public()).into_account()
 	}
 
-	for reserve_before_dispatch in [true, false] {
+	for (reserve_before_dispatch, declared_nonce) in [(true, 0u32), (false, 0), (false, 2)] {
 		sp_io::TestExternalities::new_empty().execute_with(|| {
 			frame_system::GenesisConfig::<Runtime>::default().build();
 			System::set_block_number(1);
@@ -2953,7 +2977,9 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 				frame_system::CheckTxVersion::<Runtime>::new(),
 				frame_system::CheckGenesis::<Runtime>::new(),
 				frame_system::CheckMortality::<Runtime>::from(sp_runtime::generic::Era::Immortal),
-				crate::AccountAwareResources::from(frame_system::CheckNonce::<Runtime>::from(0)),
+				crate::AccountAwareResources::from(frame_system::CheckNonce::<Runtime>::from(
+					declared_nonce,
+				)),
 				frame_system::CheckWeight::<Runtime>::new(),
 				crate::AccountAwareResources::from(payment),
 				pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
@@ -3021,7 +3047,9 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 				frame_system::CheckTxVersion::<Runtime>::new(),
 				frame_system::CheckGenesis::<Runtime>::new(),
 				frame_system::CheckMortality::<Runtime>::from(sp_runtime::generic::Era::Immortal),
-				crate::AccountAwareResources::from(frame_system::CheckNonce::<Runtime>::from(0)),
+				crate::AccountAwareResources::from(frame_system::CheckNonce::<Runtime>::from(
+					declared_nonce,
+				)),
 				frame_system::CheckWeight::<Runtime>::new(),
 				crate::AccountAwareResources::from(payment),
 				pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
@@ -3049,9 +3077,6 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 					MultiSignature::Sr25519(signature),
 					tx_ext,
 				);
-			if std::env::var_os("ORBIS_CAPTURE_FIXTURES").is_some() {
-				std::fs::write("origin/orbis/runtime/fixtures/meta-v6/direct-signed-extrinsic.scale", extrinsic.encode()).unwrap();
-			}
 			let encoded_len = extrinsic.encoded_size() as u32;
 			let stale_extrinsic = extrinsic.clone();
 			let purpose = ReservationPurpose::Membership {
@@ -3085,6 +3110,20 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 			.is_err());
 			assert_eq!(System::account_nonce(&payer), 0);
 			let _ = <Balances as Mutate<AccountId>>::set_balance(&payer, initial_balance);
+			if declared_nonce > 0 {
+				let future = crate::Executive::validate_transaction(
+					sp_runtime::transaction_validity::TransactionSource::External,
+					extrinsic.clone(),
+					System::block_hash(0),
+				)
+				.expect("the pool retains a future nonce behind its dependency tag");
+				assert!(!future.requires.is_empty());
+				let in_block = crate::Executive::apply_extrinsic(extrinsic);
+				assert!(format!("{in_block:?}").contains("Future"));
+				assert_eq!(System::account_nonce(&payer), 0);
+				assert_eq!(Balances::free_balance(&payer), initial_balance);
+				return;
+			}
 			assert_ok!(crate::Executive::validate_transaction(
 				sp_runtime::transaction_validity::TransactionSource::External,
 				extrinsic.clone(),
@@ -4031,10 +4070,6 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 				..Default::default()
 			},
 		);
-		if std::env::var_os("ORBIS_CAPTURE_FIXTURES").is_some() {
-			let vector = crate::meta_v6::PolicyProofsV6 { personhood: Some(crate::meta_v6::MetaPersonhoodAuthV6::PersonalAliasAccountRevised(revised_person_proof.clone(), 0, crate::ORBIS_PERSON_CONTEXT)), ..Default::default() };
-			std::fs::write("origin/orbis/runtime/fixtures/meta-v6/proof-person-alias-revised.scale", vector.encode()).unwrap();
-		}
 		assert_ok!(apply_meta_through_executive(revised_person_meta, &bob, &bob_pair));
 		assert_eq!(System::account_nonce(&alice), inner_nonce + 1);
 		assert_eq!(System::account_nonce(&bob), sponsor_nonce + 1);
@@ -4237,10 +4272,6 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 				..Default::default()
 			},
 		);
-		if std::env::var_os("ORBIS_CAPTURE_FIXTURES").is_some() {
-			let vector = crate::meta_v6::PolicyProofsV6 { people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV6::LiteAliasAccountRevised(revised_lite_proof.clone(), 0, *indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT)), ..Default::default() };
-			std::fs::write("origin/orbis/runtime/fixtures/meta-v6/proof-lite-alias-revised.scale", vector.encode()).unwrap();
-		}
 		assert_ok!(apply_meta_through_executive(revised_lite_meta, &bob, &bob_pair));
 		assert_eq!(System::account_nonce(&alice), inner_nonce + 1);
 		assert_eq!(System::account_nonce(&bob), sponsor_nonce + 1);
@@ -4342,10 +4373,6 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 				..Default::default()
 			},
 		);
-		if std::env::var_os("ORBIS_CAPTURE_FIXTURES").is_some() {
-			let vector = crate::meta_v6::PolicyProofsV6 { resources: Some(crate::meta_v6::MetaResourcesAuthV6::ClaimLongTermStorage(resource_proof.clone(), 0, revised_person_revision, indiv_pallet_resources::types::MembershipCollection::People)), ..Default::default() };
-			std::fs::write("origin/orbis/runtime/fixtures/meta-v6/proof-resources-claim.scale", vector.encode()).unwrap();
-		}
 		assert_ok!(apply_meta_through_executive(resource_meta, &bob, &bob_pair));
 		assert_eq!(System::account_nonce(&alice), inner_nonce + 1);
 		assert_eq!(System::account_nonce(&bob), sponsor_nonce + 1);
