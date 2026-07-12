@@ -31,6 +31,9 @@ pub mod weights;
 
 pub mod migrations;
 #[cfg(test)]
+#[path = "../../../evidence_markers_v4.rs"]
+mod evidence_markers_v4;
+#[cfg(test)]
 mod mock;
 #[cfg(test)]
 mod tests;

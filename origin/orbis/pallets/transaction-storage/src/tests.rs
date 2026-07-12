@@ -669,6 +669,11 @@ fn migration_v5_to_v7_alias_repairs_historical_v6_state() {
 }
 
 #[test]
+fn migration_v6_to_v7_evidence_markers_are_source_owned() {
+	crate::evidence_markers_v4::emit_evidence_markers_v4("bulletin-v6-v7");
+}
+
+#[test]
 fn migration_v6_to_v7_repairs_ref_missing_partial_and_stale_fixtures() {
 	use bulletin_transaction_storage_primitives::BulletinRef;
 

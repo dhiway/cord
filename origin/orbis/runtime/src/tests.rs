@@ -449,6 +449,7 @@ fn completion_manifest_v4_evidence_is_exact_and_semantically_frozen() {
 		manifest["audited_runtime_commit"].as_str(),
 		Some("f88aa3faa6573582ca690fa3cace58b7f670aa88")
 	);
+	crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-manifest");
 }
 
 #[test]
@@ -4715,6 +4716,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		assert!(header.number > 0);
 		assert!(crate::meta_v6::token().is_none());
 	});
+	crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-sponsored");
 }
 
 #[test]
@@ -4994,4 +4996,5 @@ fn metadata_custom_hash_loss_is_detected_after_wire_roundtrip() {
 		&(extension.encode(), Some(other)).encode(),
 		&pair.public(),
 	));
+	crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-custom-hash");
 }
