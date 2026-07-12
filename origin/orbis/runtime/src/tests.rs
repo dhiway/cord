@@ -3099,11 +3099,14 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 #[cfg(not(feature = "runtime-benchmarks"))]
 fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 	use codec::Encode;
-	use frame_support::{dispatch::GetDispatchInfo, traits::BuildGenesisConfig};
+	use frame_support::{
+		dispatch::GetDispatchInfo,
+		traits::{BuildGenesisConfig, SignedTransactionBuilder},
+	};
 	use indiv_support::traits::{AppendOnlyMembers, MembershipProver, RingMode};
 	use sp_core::{sr25519, Pair};
 	use sp_runtime::{
-		generic::Era,
+		generic::{Era, SignedPayload},
 		traits::{IdentifyAccount, TransactionExtension},
 		MultiSignature, MultiSigner,
 	};
@@ -3135,15 +3138,11 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		call: RuntimeCall,
 		claimed: AccountId,
 		signing_pair: &sr25519::Pair,
-		resource_info: Option<crate::meta_v6::MetaResourcesAuthV6>,
+		proofs: crate::meta_v6::PolicyProofsV6,
 	) -> pallet_meta_tx::MetaTxFor<Runtime> {
 		let mortality = frame_system::CheckMortality::<Runtime>::from(Era::Immortal);
 		let nonce = frame_system::CheckNonce::<Runtime>::from(System::account(&claimed).nonce);
-		let policy =
-			crate::meta_v6::MetaAccountBoundPoliciesV6::new(crate::meta_v6::PolicyProofsV6 {
-				resources: resource_info,
-				..Default::default()
-			});
+		let policy = crate::meta_v6::MetaAccountBoundPoliciesV6::new(proofs);
 		let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
 			Runtime,
 			crate::BulletinCallInspector,
@@ -3207,6 +3206,42 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		pallet_meta_tx::MetaTxFor::<Runtime>::new(call, META_EXTENSION_VERSION, extension)
 	}
 
+	fn apply_meta_through_executive(
+		meta: pallet_meta_tx::MetaTxFor<Runtime>,
+		sponsor: &AccountId,
+		sponsor_pair: &sr25519::Pair,
+	) {
+		let meta_len = meta.encoded_size() as u32;
+		let call = RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
+			meta_tx: Box::new(meta),
+			meta_tx_encoded_len: meta_len,
+		});
+		let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
+		)
+		.into();
+		let extension = crate::paid_tx_extensions(crate::default_inner_tx_extensions(
+			System::account_nonce(sponsor),
+			payment,
+			Default::default(),
+		));
+		let payload = SignedPayload::new(call.clone(), extension.clone()).unwrap();
+		let signature = payload.using_encoded(|bytes| sponsor_pair.sign(bytes));
+		let extrinsic =
+			<crate::UncheckedExtrinsic as SignedTransactionBuilder>::new_signed_transaction(
+				call,
+				sponsor.clone().into(),
+				MultiSignature::Sr25519(signature),
+				extension,
+			);
+		assert_ok!(crate::Executive::validate_transaction(
+			sp_runtime::transaction_validity::TransactionSource::External,
+			extrinsic.clone(),
+			System::block_hash(0),
+		));
+		assert!(crate::Executive::apply_extrinsic(extrinsic).is_ok());
+	}
+
 	fn resource_meta_message(call: &RuntimeCall, signer: &AccountId) -> [u8; 32] {
 		let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
 			Runtime,
@@ -3227,13 +3262,17 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			panic!("resource transcript requires claim call")
 		};
 		let context = crate::Resources::long_term_storage_context(*period, *counter);
+		let bound = indiv_pallet_people::AccountToAlias::<Runtime>::get(signer)
+			.expect("resource signer has an authoritative People binding");
 		(
 			crate::meta_v6::RESOURCES_DOMAIN,
 			signer,
 			signer,
+			bound.ca.alias,
 			period,
 			counter,
 			indiv_pallet_resources::types::MembershipCollection::People,
+			bound.ring,
 			<Members as MembershipProver>::ring_revision(
 				&*indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER,
 				0,
@@ -3246,6 +3285,24 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			.using_encoded(sp_io::hashing::blake2_256)
 	}
 
+	fn revised_meta_message<const N: usize>(
+		domain: &'static [u8; N],
+		call: &RuntimeCall,
+		signer: &AccountId,
+	) -> [u8; 32] {
+		let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+			Runtime,
+			crate::BulletinCallInspector,
+		>::default();
+		let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
+		let inherited = sp_runtime::traits::ImplicationParts {
+			base: sp_runtime::traits::TxBaseImplication((META_EXTENSION_VERSION, call)),
+			explicit: (&storage, &metadata),
+			implicit: (storage.implicit().unwrap(), metadata.implicit().unwrap()),
+		};
+		(domain, signer, signer, call, inherited).using_encoded(sp_io::hashing::blake2_256)
+	}
+
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		frame_system::GenesisConfig::<Runtime>::default().build();
 		System::set_block_number(1);
@@ -3256,7 +3313,8 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		let alice_balance =
 			<Balances as Mutate<AccountId>>::set_balance(&alice, crate::ExistentialDeposit::get());
 		let bob_balance = <Balances as Mutate<AccountId>>::set_balance(&bob, 1_000_000_000_000);
-		pallet_timestamp::Now::<Runtime>::put(3 * 24 * 60 * 60 * 1_000u64);
+		pallet_aura::CurrentSlot::<Runtime>::put(polkadot_primitives::Slot::from(43_200u64));
+		assert_ok!(crate::Timestamp::set(RuntimeOrigin::none(), 3 * 24 * 60 * 60 * 1_000u64,));
 		let identifier = *indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER;
 		let domain: verifiable::ring::RingDomainSize =
 			crate::MembersFlexibleRingExponent::get().try_into().unwrap();
@@ -3332,15 +3390,14 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			account_id: alice.clone(),
 		});
 		let context = crate::Resources::long_term_storage_context(period, 0);
-		let message = resource_meta_message(&inner, &alice);
-		let (proof, resource_alias) =
+		let (_, resource_alias) =
 			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create(
 				commitment.clone(),
 				&member_secret,
 				&context,
-				&message,
+				&[0u8; 32],
 			)
-			.expect("the MetaTx Resources proof builds");
+			.expect("the MetaTx Resources alias builds");
 		let account_binding = indiv_support::traits::RevisedContextualAlias {
 			revision,
 			ring: 0,
@@ -3351,6 +3408,16 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		};
 		indiv_pallet_people::AccountToAlias::<Runtime>::insert(&alice, &account_binding);
 		indiv_pallet_people::AliasToAccount::<Runtime>::insert(&account_binding.ca, &alice);
+		let message = resource_meta_message(&inner, &alice);
+		let (proof, proof_alias) =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create(
+				commitment.clone(),
+				&member_secret,
+				&context,
+				&message,
+			)
+			.expect("the MetaTx Resources proof builds");
+		assert_eq!(proof_alias, resource_alias);
 		let resource_info = crate::meta_v6::MetaResourcesAuthV6::ClaimLongTermStorage(
 			proof,
 			0,
@@ -3358,7 +3425,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			indiv_pallet_resources::types::MembershipCollection::People,
 		);
 		let (invalid_proof, _) = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create(
-			commitment,
+			commitment.clone(),
 			&member_secret,
 			&context,
 			&[0u8; 32],
@@ -3368,12 +3435,15 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			inner.clone(),
 			alice.clone(),
 			&alice_pair,
-			Some(crate::meta_v6::MetaResourcesAuthV6::ClaimLongTermStorage(
-				invalid_proof,
-				0,
-				revision,
-				indiv_pallet_resources::types::MembershipCollection::People,
-			)),
+			crate::meta_v6::PolicyProofsV6 {
+				resources: Some(crate::meta_v6::MetaResourcesAuthV6::ClaimLongTermStorage(
+					invalid_proof,
+					0,
+					revision,
+					indiv_pallet_resources::types::MembershipCollection::People,
+				)),
+				..Default::default()
+			},
 		);
 		let (_, _, invalid_extension): (
 			RuntimeCall,
@@ -3403,8 +3473,15 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		assert!(crate::meta_v6::token().is_some());
 		crate::meta_v6::clear_token();
 
-		let meta =
-			signed_meta_tx(inner.clone(), alice.clone(), &alice_pair, Some(resource_info.clone()));
+		let meta = signed_meta_tx(
+			inner.clone(),
+			alice.clone(),
+			&alice_pair,
+			crate::meta_v6::PolicyProofsV6 {
+				resources: Some(resource_info.clone()),
+				..Default::default()
+			},
+		);
 		let (v5_call, v5_version, mut v5_extension): (
 			RuntimeCall,
 			sp_runtime::generic::ExtensionVersion,
@@ -3579,12 +3656,468 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			pallet_meta_tx::Error::<Runtime>::Invalid,
 		);
 
-		let forged = signed_meta_tx(inner, alice, &bob_pair, Some(resource_info));
+		indiv_pallet_people::AccountToPersonalId::<Runtime>::insert(&alice, 7u64);
+		indiv_pallet_people::People::<Runtime>::insert(
+			7u64,
+			indiv_pallet_people::types::PersonRecord {
+				key: member.clone(),
+				account: Some(alice.clone()),
+			},
+		);
+
+		let lite_identifier = *indiv_pallet_people_lite::LITE_PEOPLE_MEMBER_IDENTIFIER;
+		assert_ok!(<Members as AppendOnlyMembers>::create_collection(
+			Location::here(),
+			&lite_identifier,
+			1,
+			RingMode::Flexible,
+			crate::MembersFlexibleRingExponent::get(),
+			None,
+		));
+		let lite_secret =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::new_secret([93u8; 32]);
+		let lite_member =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::member_from_secret(
+				&lite_secret,
+			);
+		assert_ok!(<Members as AppendOnlyMembers>::add_members(
+			&lite_identifier,
+			vec![lite_member.clone()],
+		));
+		assert_ok!(Members::onboard_members_authorized(
+			frame_system::RawOrigin::Authorized.into(),
+			lite_identifier,
+			0,
+			0,
+			Some(lite_member.clone()),
+			0,
+		));
+		assert_ok!(Members::build_ring_authorized(
+			frame_system::RawOrigin::Authorized.into(),
+			lite_identifier,
+			0,
+			crate::MembersFlexibleRingExponent::get(),
+			None,
+			1,
+			0,
+		));
+		let lite_revision = <Members as MembershipProver>::ring_revision(&lite_identifier, 0)
+			.expect("the lite test ring has a revision");
+		indiv_pallet_people_lite::LitePeople::<Runtime>::insert(
+			&alice,
+			indiv_pallet_people_lite::types::LitePersonInfo {
+				ring_vrf_key: lite_member.clone(),
+				method: indiv_pallet_people_lite::types::RecognitionMethod::UniqueDevice(
+					alice.clone(),
+				),
+			},
+		);
+		let lite_binding = indiv_support::traits::RevisedContextualAlias {
+			revision: lite_revision,
+			ring: 0,
+			ca: indiv_support::traits::ContextualAlias {
+				context: *indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT,
+				alias: [94u8; 32],
+			},
+		};
+		indiv_pallet_people_lite::AccountToAlias::<Runtime>::insert(&alice, &lite_binding);
+		indiv_pallet_people_lite::AliasToAccount::<Runtime>::insert(&lite_binding.ca, &alice);
+
+		let account_routes = [
+			crate::meta_v6::PolicyProofsV6 {
+				personhood: Some(crate::meta_v6::MetaPersonhoodAuthV6::PersonalAliasAccount),
+				..Default::default()
+			},
+			crate::meta_v6::PolicyProofsV6 {
+				personhood: Some(crate::meta_v6::MetaPersonhoodAuthV6::PersonalIdentityAccount),
+				..Default::default()
+			},
+			crate::meta_v6::PolicyProofsV6 {
+				people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV6::LitePerson),
+				..Default::default()
+			},
+			crate::meta_v6::PolicyProofsV6 {
+				people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV6::LiteAliasAccount),
+				..Default::default()
+			},
+		];
+		for (route, proofs) in account_routes.into_iter().enumerate() {
+			let inner_nonce = System::account_nonce(&alice);
+			let sponsor_nonce = System::account_nonce(&bob);
+			let route_call =
+				RuntimeCall::System(frame_system::Call::remark { remark: vec![route as u8] });
+			let route_meta = signed_meta_tx(route_call, alice.clone(), &alice_pair, proofs);
+			apply_meta_through_executive(route_meta, &bob, &bob_pair);
+			assert_eq!(System::account_nonce(&alice), inner_nonce + 1);
+			assert_eq!(System::account_nonce(&bob), sponsor_nonce + 1);
+			assert!(crate::meta_v6::token().is_none());
+		}
+
+		let (_, person_alias) = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create(
+			commitment.clone(),
+			&member_secret,
+			&crate::ORBIS_PERSON_CONTEXT,
+			&[0u8; 32],
+		)
+		.expect("the old person alias builds");
+		let old_person_binding = indiv_support::traits::RevisedContextualAlias {
+			revision,
+			ring: 0,
+			ca: indiv_support::traits::ContextualAlias {
+				context: crate::ORBIS_PERSON_CONTEXT,
+				alias: person_alias,
+			},
+		};
+		indiv_pallet_people::AccountToAlias::<Runtime>::insert(&alice, &old_person_binding);
+		indiv_pallet_people::AliasToAccount::<Runtime>::insert(&old_person_binding.ca, &alice);
+		let second_secret =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::new_secret([95u8; 32]);
+		let second_member =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::member_from_secret(
+				&second_secret,
+			);
+		assert_ok!(<Members as AppendOnlyMembers>::add_members(
+			&identifier,
+			vec![second_member.clone()],
+		));
+		assert_ok!(Members::onboard_members_authorized(
+			frame_system::RawOrigin::Authorized.into(),
+			identifier,
+			0,
+			1,
+			Some(second_member),
+			0,
+		));
+		assert_ok!(Members::build_ring_authorized(
+			frame_system::RawOrigin::Authorized.into(),
+			identifier,
+			0,
+			crate::MembersFlexibleRingExponent::get(),
+			Some(revision),
+			1,
+			1,
+		));
+		let revised_person_revision = <Members as MembershipProver>::ring_revision(&identifier, 0)
+			.expect("the rebuilt person ring has a revision");
+		assert!(revised_person_revision > revision);
+		let revised_person_commitment =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::open(
+				capacity,
+				&member,
+				<Members as AppendOnlyMembers>::ring_members(&identifier, 0).into_iter(),
+			)
+			.expect("the rebuilt person ring opens");
+		let revised_person_call =
+			RuntimeCall::System(frame_system::Call::remark { remark: vec![4] });
+		let revised_person_message = revised_meta_message(
+			b"orbis/meta/v6/personhood/alias-revised",
+			&revised_person_call,
+			&alice,
+		);
+		let (revised_person_proof, revised_person_alias) =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create(
+				revised_person_commitment.clone(),
+				&member_secret,
+				&crate::ORBIS_PERSON_CONTEXT,
+				&revised_person_message,
+			)
+			.expect("the revised person proof builds");
+		assert_eq!(revised_person_alias, person_alias);
+		let verified_person = <Members as MembershipProver>::verify_membership(
+			&identifier,
+			&revised_person_proof,
+			0,
+			crate::ORBIS_PERSON_CONTEXT,
+			&revised_person_message,
+		)
+		.expect("the revised person proof verifies before Meta construction");
+		assert_eq!(verified_person.revision, revised_person_revision);
+		assert_eq!(verified_person.ca, old_person_binding.ca);
+		let inner_nonce = System::account_nonce(&alice);
+		let sponsor_nonce = System::account_nonce(&bob);
+		let revised_person_meta = signed_meta_tx(
+			revised_person_call.clone(),
+			alice.clone(),
+			&alice_pair,
+			crate::meta_v6::PolicyProofsV6 {
+				personhood: Some(
+					crate::meta_v6::MetaPersonhoodAuthV6::PersonalAliasAccountRevised(
+						revised_person_proof.clone(),
+						0,
+						crate::ORBIS_PERSON_CONTEXT,
+					),
+				),
+				..Default::default()
+			},
+		);
+		apply_meta_through_executive(revised_person_meta, &bob, &bob_pair);
+		assert_eq!(System::account_nonce(&alice), inner_nonce + 1);
+		assert_eq!(System::account_nonce(&bob), sponsor_nonce + 1);
+		assert_eq!(
+			indiv_pallet_people::AccountToAlias::<Runtime>::get(&alice)
+				.expect("the revised binding is stored")
+				.revision,
+			revised_person_revision,
+		);
+		let stale_revised_meta = signed_meta_tx(
+			revised_person_call,
+			alice.clone(),
+			&alice_pair,
+			crate::meta_v6::PolicyProofsV6 {
+				personhood: Some(
+					crate::meta_v6::MetaPersonhoodAuthV6::PersonalAliasAccountRevised(
+						revised_person_proof,
+						0,
+						crate::ORBIS_PERSON_CONTEXT,
+					),
+				),
+				..Default::default()
+			},
+		);
+		let (_, _, stale_extension): (
+			RuntimeCall,
+			sp_runtime::generic::ExtensionVersion,
+			crate::MetaTxExtension,
+		) = Decode::decode(&mut stale_revised_meta.encode().as_slice()).unwrap();
+		let (_, stale_consume, ..) = stale_extension;
+		crate::meta_v6::put_token(&crate::meta_v6::PaidMetaTokenV6 {
+			payer: bob.clone(),
+			intent_commitment: stale_consume.0.commitment(),
+			outer_nonce: System::account_nonce(&bob),
+			genesis_hash: System::block_hash(0),
+			spec_version: crate::VERSION.spec_version,
+			transaction_version: crate::VERSION.transaction_version,
+			consumed: false,
+		});
+		let stale_len = stale_revised_meta.encoded_size() as u32;
+		assert!(crate::MetaTx::dispatch(
+			RuntimeOrigin::signed(bob.clone()),
+			Box::new(stale_revised_meta),
+			stale_len,
+		)
+		.is_err());
+		assert_eq!(
+			indiv_pallet_people::AccountToAlias::<Runtime>::get(&alice)
+				.expect("stale revised proof cannot rewrite the binding")
+				.revision,
+			revised_person_revision,
+		);
+		crate::meta_v6::clear_token();
+
+		let lite_commitment = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::open(
+			capacity,
+			&lite_member,
+			<Members as AppendOnlyMembers>::ring_members(&lite_identifier, 0).into_iter(),
+		)
+		.expect("the old lite ring opens");
+		let (_, lite_alias) = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create(
+			lite_commitment,
+			&lite_secret,
+			&*indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT,
+			&[0u8; 32],
+		)
+		.expect("the old lite alias builds");
+		let old_lite_binding = indiv_support::traits::RevisedContextualAlias {
+			revision: lite_revision,
+			ring: 0,
+			ca: indiv_support::traits::ContextualAlias {
+				context: *indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT,
+				alias: lite_alias,
+			},
+		};
+		indiv_pallet_people_lite::AccountToAlias::<Runtime>::insert(&alice, &old_lite_binding);
+		indiv_pallet_people_lite::AliasToAccount::<Runtime>::insert(&old_lite_binding.ca, &alice);
+		let second_lite_secret =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::new_secret([96u8; 32]);
+		let second_lite_member =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::member_from_secret(
+				&second_lite_secret,
+			);
+		assert_ok!(<Members as AppendOnlyMembers>::add_members(
+			&lite_identifier,
+			vec![second_lite_member.clone()],
+		));
+		assert_ok!(Members::onboard_members_authorized(
+			frame_system::RawOrigin::Authorized.into(),
+			lite_identifier,
+			0,
+			1,
+			Some(second_lite_member),
+			0,
+		));
+		assert_ok!(Members::build_ring_authorized(
+			frame_system::RawOrigin::Authorized.into(),
+			lite_identifier,
+			0,
+			crate::MembersFlexibleRingExponent::get(),
+			Some(lite_revision),
+			1,
+			1,
+		));
+		let revised_lite_revision =
+			<Members as MembershipProver>::ring_revision(&lite_identifier, 0)
+				.expect("the rebuilt lite ring has a revision");
+		assert!(revised_lite_revision > lite_revision);
+		let revised_lite_commitment =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::open(
+				capacity,
+				&lite_member,
+				<Members as AppendOnlyMembers>::ring_members(&lite_identifier, 0).into_iter(),
+			)
+			.expect("the rebuilt lite ring opens");
+		let revised_lite_call = RuntimeCall::System(frame_system::Call::remark { remark: vec![5] });
+		let revised_lite_message = revised_meta_message(
+			b"orbis/meta/v6/people-lite/alias-revised",
+			&revised_lite_call,
+			&alice,
+		);
+		let (revised_lite_proof, revised_lite_alias) =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create(
+				revised_lite_commitment,
+				&lite_secret,
+				&*indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT,
+				&revised_lite_message,
+			)
+			.expect("the revised lite proof builds");
+		assert_eq!(revised_lite_alias, lite_alias);
+		let verified_lite = <Members as MembershipProver>::verify_membership(
+			&lite_identifier,
+			&revised_lite_proof,
+			0,
+			*indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT,
+			&revised_lite_message,
+		)
+		.expect("the revised lite proof verifies before Meta construction");
+		assert_eq!(verified_lite.revision, revised_lite_revision);
+		assert_eq!(verified_lite.ca, old_lite_binding.ca);
+		let inner_nonce = System::account_nonce(&alice);
+		let sponsor_nonce = System::account_nonce(&bob);
+		let revised_lite_meta = signed_meta_tx(
+			revised_lite_call,
+			alice.clone(),
+			&alice_pair,
+			crate::meta_v6::PolicyProofsV6 {
+				people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV6::LiteAliasAccountRevised(
+					revised_lite_proof,
+					0,
+					*indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT,
+				)),
+				..Default::default()
+			},
+		);
+		apply_meta_through_executive(revised_lite_meta, &bob, &bob_pair);
+		assert_eq!(System::account_nonce(&alice), inner_nonce + 1);
+		assert_eq!(System::account_nonce(&bob), sponsor_nonce + 1);
+		assert_eq!(
+			indiv_pallet_people_lite::AccountToAlias::<Runtime>::get(&alice)
+				.expect("the revised lite binding is stored")
+				.revision,
+			revised_lite_revision,
+		);
+
+		let resource_call =
+			RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage {
+				period,
+				counter: 1,
+				account_id: alice.clone(),
+			});
+		let resource_context = crate::Resources::long_term_storage_context(period, 1);
+		let (_, resource_alias) =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create(
+				revised_person_commitment.clone(),
+				&member_secret,
+				&resource_context,
+				&[0u8; 32],
+			)
+			.expect("the Executive Resources alias builds");
+		let resource_binding = indiv_support::traits::RevisedContextualAlias {
+			revision: revised_person_revision,
+			ring: 0,
+			ca: indiv_support::traits::ContextualAlias {
+				context: crate::ORBIS_PERSON_CONTEXT,
+				alias: resource_alias,
+			},
+		};
+		indiv_pallet_people::AccountToAlias::<Runtime>::insert(&alice, &resource_binding);
+		indiv_pallet_people::AliasToAccount::<Runtime>::insert(&resource_binding.ca, &alice);
+		let resource_message = resource_meta_message(&resource_call, &alice);
+		let (resource_proof, proof_alias) =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create(
+				revised_person_commitment,
+				&member_secret,
+				&resource_context,
+				&resource_message,
+			)
+			.expect("the Executive Resources route proof builds");
+		assert_eq!(proof_alias, resource_alias);
+		let inner_nonce = System::account_nonce(&alice);
+		let sponsor_nonce = System::account_nonce(&bob);
+		let resource_meta = signed_meta_tx(
+			resource_call,
+			alice.clone(),
+			&alice_pair,
+			crate::meta_v6::PolicyProofsV6 {
+				resources: Some(crate::meta_v6::MetaResourcesAuthV6::ClaimLongTermStorage(
+					resource_proof,
+					0,
+					revised_person_revision,
+					indiv_pallet_resources::types::MembershipCollection::People,
+				)),
+				..Default::default()
+			},
+		);
+		apply_meta_through_executive(resource_meta, &bob, &bob_pair);
+		assert_eq!(System::account_nonce(&alice), inner_nonce + 1);
+		assert_eq!(System::account_nonce(&bob), sponsor_nonce + 1);
+		assert!(crate::meta_v6::token().is_none());
+
+		let forged = signed_meta_tx(
+			inner,
+			alice,
+			&bob_pair,
+			crate::meta_v6::PolicyProofsV6 { resources: Some(resource_info), ..Default::default() },
+		);
 		let forged_len = forged.encoded_size() as u32;
 		assert_noop!(
 			crate::MetaTx::dispatch(RuntimeOrigin::signed(bob), Box::new(forged), forged_len),
 			pallet_meta_tx::Error::<Runtime>::BadProof,
 		);
+		cumulus_pallet_parachain_system::ValidationData::<Runtime>::put(
+			cumulus_primitives_core::PersistedValidationData {
+				parent_head: polkadot_parachain_primitives::primitives::HeadData(Vec::new()),
+				relay_parent_number: 1,
+				relay_parent_storage_root: Default::default(),
+				max_pov_size: 1_000_000,
+			},
+		);
+		cumulus_pallet_parachain_system::HostConfiguration::<Runtime>::put(
+			cumulus_primitives_core::AbridgedHostConfiguration {
+				max_code_size: 2 * 1024 * 1024,
+				max_head_data_size: 1024 * 1024,
+				max_upward_queue_count: 8,
+				max_upward_queue_size: 1024,
+				max_upward_message_size: 256,
+				max_upward_message_num_per_candidate: 5,
+				hrmp_max_message_num_per_candidate: 5,
+				validation_upgrade_cooldown: 6,
+				validation_upgrade_delay: 6,
+				async_backing_params: polkadot_primitives::AsyncBackingParams {
+					allowed_ancestry_len: 0,
+					max_candidate_depth: 0,
+				},
+			},
+		);
+		cumulus_pallet_parachain_system::RelevantMessagingState::<Runtime>::put(
+			cumulus_pallet_parachain_system::MessagingStateSnapshot {
+				dmq_mqc_head: Default::default(),
+				relay_dispatch_queue_remaining_capacity: Default::default(),
+				ingress_channels: Vec::new(),
+				egress_channels: Vec::new(),
+			},
+		);
+		let header = crate::Executive::finalize_block();
+		assert!(header.number > 0);
+		assert!(crate::meta_v6::token().is_none());
 	});
 }
 
