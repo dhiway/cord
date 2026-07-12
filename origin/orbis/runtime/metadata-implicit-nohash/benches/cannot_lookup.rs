@@ -3,10 +3,10 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 fn cannot_lookup(c: &mut Criterion) {
 	c.bench_function("metadata_implicit_cannot_lookup", |b| {
 		b.iter(|| {
-			let result = orbis_metadata_implicit_nohash::resolve();
+			let result = orbis_metadata_implicit_nohash::exercise().error;
 			assert_eq!(
 				black_box(result),
-				Err(sp_runtime::transaction_validity::UnknownTransaction::CannotLookup.into()),
+				sp_runtime::transaction_validity::UnknownTransaction::CannotLookup.into(),
 			);
 		})
 	});

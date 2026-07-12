@@ -1385,7 +1385,7 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 			"CheckGenesis",
 			"CheckMortality",
 			"CheckNonce",
-			"MetaAccountBoundPoliciesV7",
+			"MetaAccountBoundPoliciesV6",
 			"ValidateStorageCalls",
 			"CheckMetadataHash",
 		]
@@ -3252,7 +3252,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		frame_system::CheckGenesis<Runtime>,
 		frame_system::CheckMortality<Runtime>,
 		frame_system::CheckNonce<Runtime>,
-		crate::meta_v6::MetaAccountBoundPoliciesV7,
+		crate::meta_v6::MetaAccountBoundPoliciesV6,
 		pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
 			Runtime,
 			crate::BulletinCallInspector,
@@ -3268,16 +3268,33 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		call: RuntimeCall,
 		claimed: AccountId,
 		signing_pair: &sr25519::Pair,
-		proofs: crate::meta_v6::PolicyProofsV7,
+		proofs: crate::meta_v6::PolicyProofsV6,
+	) -> pallet_meta_tx::MetaTxFor<Runtime> {
+		signed_meta_tx_with_metadata(
+			call,
+			claimed,
+			signing_pair,
+			proofs,
+			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+			None,
+		)
+	}
+
+	fn signed_meta_tx_with_metadata(
+		call: RuntimeCall,
+		claimed: AccountId,
+		signing_pair: &sr25519::Pair,
+		proofs: crate::meta_v6::PolicyProofsV6,
+		metadata: frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+		metadata_implicit: Option<[u8; 32]>,
 	) -> pallet_meta_tx::MetaTxFor<Runtime> {
 		let mortality = frame_system::CheckMortality::<Runtime>::from(Era::Immortal);
 		let nonce = frame_system::CheckNonce::<Runtime>::from(System::account(&claimed).nonce);
-		let policy = crate::meta_v6::MetaAccountBoundPoliciesV7::new(proofs);
+		let policy = crate::meta_v6::MetaAccountBoundPoliciesV6::new(proofs);
 		let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
 			Runtime,
 			crate::BulletinCallInspector,
 		>::default();
-		let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
 		let preimage = crate::meta_v6::IntentPreimageV7 {
 			domain: crate::meta_v6::META_DOMAIN.to_vec(),
 			extension_version: META_EXTENSION_VERSION,
@@ -3295,9 +3312,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			metadata_extension_hash: sp_core::H256::from(sp_io::hashing::blake2_256(
 				&metadata.encode(),
 			)),
-			metadata_implicit:
-				bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&metadata)
-					.unwrap(),
+			metadata_implicit,
 		};
 		let bare: MetaBareExtension = (
 			crate::meta_v6::ConsumePaidMetaIngress(preimage),
@@ -3463,6 +3478,28 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		(domain, signer, signer, call, inherited).using_encoded(sp_io::hashing::blake2_256)
 	}
 
+	const COMPILED_METADATA_HASH: [u8; 32] = [0xabu8; 32];
+	#[derive(Clone, Copy, Eq, PartialEq)]
+	struct CompiledMetadataResolver;
+	impl crate::meta_v6::MetadataImplicitResolver for CompiledMetadataResolver {
+		fn resolve(
+			_: &frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+		) -> Result<Option<[u8; 32]>, sp_runtime::transaction_validity::TransactionValidityError>
+		{
+			Ok(Some(COMPILED_METADATA_HASH))
+		}
+	}
+	#[derive(Clone, Copy, Eq, PartialEq)]
+	struct WrongMetadataResolver;
+	impl crate::meta_v6::MetadataImplicitResolver for WrongMetadataResolver {
+		fn resolve(
+			_: &frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+		) -> Result<Option<[u8; 32]>, sp_runtime::transaction_validity::TransactionValidityError>
+		{
+			Ok(Some([0xacu8; 32]))
+		}
+	}
+
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		frame_system::GenesisConfig::<Runtime>::default().build();
 		System::set_block_number(1);
@@ -3470,6 +3507,72 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		let bob_pair = sr25519::Pair::from_string("//Bob", None).unwrap();
 		let alice = account(&alice_pair);
 		let bob = account(&bob_pair);
+		let metadata_inner = RuntimeCall::System(frame_system::Call::remark {
+			remark: b"metadata-implicit-v7".to_vec(),
+		});
+		let enabled_meta = signed_meta_tx_with_metadata(
+			metadata_inner,
+			alice.clone(),
+			&alice_pair,
+			Default::default(),
+			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new_with_custom_hash(
+				COMPILED_METADATA_HASH,
+			),
+			Some(COMPILED_METADATA_HASH),
+		);
+		let enabled_len = enabled_meta.encoded_size() as u32;
+		let enabled_outer = RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
+			meta_tx: Box::new(enabled_meta),
+			meta_tx_encoded_len: enabled_len,
+		});
+		let enabled_scope = crate::meta_v6::PaidMetaScope::<_, CompiledMetadataResolver>::from(
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+		);
+		let enabled_implicit = enabled_scope.implicit().unwrap();
+		assert!(enabled_scope
+			.validate(
+				RuntimeOrigin::signed(bob.clone()),
+				&enabled_outer,
+				&enabled_outer.get_dispatch_info(),
+				enabled_outer.encoded_size(),
+				enabled_implicit,
+				&sp_runtime::traits::TxBaseImplication((META_EXTENSION_VERSION, &enabled_outer)),
+				sp_runtime::transaction_validity::TransactionSource::External,
+			)
+			.is_ok());
+		let wrong_scope = crate::meta_v6::PaidMetaScope::<_, WrongMetadataResolver>::from(
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+		);
+		let wrong_implicit = wrong_scope.implicit().unwrap();
+		assert!(wrong_scope
+			.validate(
+				RuntimeOrigin::signed(bob.clone()),
+				&enabled_outer,
+				&enabled_outer.get_dispatch_info(),
+				enabled_outer.encoded_size(),
+				wrong_implicit,
+				&sp_runtime::traits::TxBaseImplication((META_EXTENSION_VERSION, &enabled_outer)),
+				sp_runtime::transaction_validity::TransactionSource::External,
+			)
+			.is_err());
+		let missing_scope = crate::meta_v6::PaidMetaScope::<_, CannotLookupMetadataResolver>::from(
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+		);
+		let missing_implicit = missing_scope.implicit().unwrap();
+		assert!(matches!(
+			missing_scope.validate(
+				RuntimeOrigin::signed(bob.clone()),
+				&enabled_outer,
+				&enabled_outer.get_dispatch_info(),
+				enabled_outer.encoded_size(),
+				missing_implicit,
+				&sp_runtime::traits::TxBaseImplication((META_EXTENSION_VERSION, &enabled_outer)),
+				sp_runtime::transaction_validity::TransactionSource::External,
+			),
+			Err(sp_runtime::transaction_validity::TransactionValidityError::Unknown(
+				sp_runtime::transaction_validity::UnknownTransaction::CannotLookup
+			))
+		));
 		let alice_balance =
 			<Balances as Mutate<AccountId>>::set_balance(&alice, crate::ExistentialDeposit::get());
 		let bob_balance = <Balances as Mutate<AccountId>>::set_balance(&bob, 100_000_000_000_000);
@@ -3578,7 +3681,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			)
 			.expect("the MetaTx Resources proof builds");
 		assert_eq!(proof_alias, resource_alias);
-		let resource_info = crate::meta_v6::MetaResourcesAuthV7::ClaimLongTermStorage(
+		let resource_info = crate::meta_v6::MetaResourcesAuthV6::ClaimLongTermStorage(
 			proof,
 			0,
 			revision,
@@ -3595,8 +3698,8 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			inner.clone(),
 			alice.clone(),
 			&alice_pair,
-			crate::meta_v6::PolicyProofsV7 {
-				resources: Some(crate::meta_v6::MetaResourcesAuthV7::ClaimLongTermStorage(
+			crate::meta_v6::PolicyProofsV6 {
+				resources: Some(crate::meta_v6::MetaResourcesAuthV6::ClaimLongTermStorage(
 					invalid_proof,
 					0,
 					revision,
@@ -3637,7 +3740,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			inner.clone(),
 			alice.clone(),
 			&alice_pair,
-			crate::meta_v6::PolicyProofsV7 {
+			crate::meta_v6::PolicyProofsV6 {
 				resources: Some(resource_info.clone()),
 				..Default::default()
 			},
@@ -3654,7 +3757,10 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			meta_tx: Box::new(v5_meta),
 			meta_tx_encoded_len: v5_len,
 		});
-		assert!(crate::meta_v6::inspect_paid_meta(&v5_outer, 0).is_err());
+		assert!(crate::meta_v6::inspect_paid_meta::<
+			crate::meta_v6::ProductionMetadataImplicitResolver,
+		>(&v5_outer, 0)
+		.is_err());
 		let (spec26_call, spec26_version, mut spec26_extension): (
 			RuntimeCall,
 			sp_runtime::generic::ExtensionVersion,
@@ -3667,7 +3773,9 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			spec26_extension,
 		);
 		let spec26_len = spec26_meta.encoded_size() as u32;
-		assert!(crate::meta_v6::inspect_paid_meta(
+		assert!(crate::meta_v6::inspect_paid_meta::<
+			crate::meta_v6::ProductionMetadataImplicitResolver,
+		>(
 			&RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
 				meta_tx: Box::new(spec26_meta),
 				meta_tx_encoded_len: spec26_len,
@@ -3725,7 +3833,11 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			call: Box::new(outer.clone()),
 		});
 		for allowed in [&outer, &utility_meta, &proxy_meta, &multisig_meta] {
-			assert!(crate::meta_v6::inspect_paid_meta(allowed, 0).unwrap().is_some());
+			assert!(crate::meta_v6::inspect_paid_meta::<
+				crate::meta_v6::ProductionMetadataImplicitResolver,
+			>(allowed, 0)
+			.unwrap()
+			.is_some());
 			assert!(
 				!<crate::xcm_config::OrbisXcmSafeCallFilter as Contains<RuntimeCall>>::contains(
 					allowed
@@ -3749,7 +3861,10 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			max_weight: frame_support::weights::Weight::from_parts(1, 0),
 		});
 		for denied in [&denied_sudo, &denied_scheduler] {
-			assert!(crate::meta_v6::inspect_paid_meta(denied, 0).is_err());
+			assert!(crate::meta_v6::inspect_paid_meta::<
+				crate::meta_v6::ProductionMetadataImplicitResolver,
+			>(denied, 0)
+			.is_err());
 		}
 		let denial_payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
 			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
@@ -3784,7 +3899,13 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			crate::RuntimeEvent::Sudo(pallet_sudo::Event::Sudid { sudo_result: Err(_) })
 		)));
 		assert!(crate::meta_v6::token().is_none());
-		assert_eq!(crate::meta_v6::inspect_paid_meta(&approval_only, 0), Ok(None));
+		assert_eq!(
+			crate::meta_v6::inspect_paid_meta::<crate::meta_v6::ProductionMetadataImplicitResolver>(
+				&approval_only,
+				0
+			),
+			Ok(None)
+		);
 		assert!(
 			!<crate::xcm_config::OrbisXcmSafeCallFilter as Contains<RuntimeCall>>::contains(
 				&approval_only
@@ -3918,22 +4039,22 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 
 		let account_routes = [
 			(
-				crate::meta_v6::PolicyProofsV7 {
-					personhood: Some(crate::meta_v6::MetaPersonhoodAuthV7::PersonalAliasAccount),
+				crate::meta_v6::PolicyProofsV6 {
+					personhood: Some(crate::meta_v6::MetaPersonhoodAuthV6::PersonalAliasAccount),
 					..Default::default()
 				},
 				RuntimeCall::Personhood(indiv_pallet_people::Call::unset_alias_account {}),
 			),
 			(
-				crate::meta_v6::PolicyProofsV7 {
-					personhood: Some(crate::meta_v6::MetaPersonhoodAuthV7::PersonalIdentityAccount),
+				crate::meta_v6::PolicyProofsV6 {
+					personhood: Some(crate::meta_v6::MetaPersonhoodAuthV6::PersonalIdentityAccount),
 					..Default::default()
 				},
 				RuntimeCall::Personhood(indiv_pallet_people::Call::unset_personal_id_account {}),
 			),
 			(
-				crate::meta_v6::PolicyProofsV7 {
-					people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV7::LitePerson),
+				crate::meta_v6::PolicyProofsV6 {
+					people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV6::LitePerson),
 					..Default::default()
 				},
 				RuntimeCall::PeopleLite(indiv_pallet_people_lite::Call::dispatch_as_signer {
@@ -3943,8 +4064,8 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 				}),
 			),
 			(
-				crate::meta_v6::PolicyProofsV7 {
-					people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV7::LiteAliasAccount),
+				crate::meta_v6::PolicyProofsV6 {
+					people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV6::LiteAliasAccount),
 					..Default::default()
 				},
 				RuntimeCall::PeopleLite(indiv_pallet_people_lite::Call::unset_alias_account {}),
@@ -4048,7 +4169,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 				call_valid_at: 1,
 			});
 		let revised_person_message = revised_meta_message(
-			b"orbis/meta/v7/personhood/alias-revised",
+			b"orbis/meta/v6/personhood/alias-revised",
 			&revised_person_call,
 			&alice,
 		);
@@ -4077,9 +4198,9 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			revised_person_call.clone(),
 			alice.clone(),
 			&alice_pair,
-			crate::meta_v6::PolicyProofsV7 {
+			crate::meta_v6::PolicyProofsV6 {
 				personhood: Some(
-					crate::meta_v6::MetaPersonhoodAuthV7::PersonalAliasAccountRevised(
+					crate::meta_v6::MetaPersonhoodAuthV6::PersonalAliasAccountRevised(
 						revised_person_proof.clone(),
 						0,
 						crate::ORBIS_PERSON_CONTEXT,
@@ -4105,7 +4226,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 				value: 1,
 			});
 		let revised_person_error_message = revised_meta_message(
-			b"orbis/meta/v7/personhood/alias-revised",
+			b"orbis/meta/v6/personhood/alias-revised",
 			&revised_person_error_call,
 			&alice,
 		);
@@ -4121,9 +4242,9 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			revised_person_error_call,
 			alice.clone(),
 			&alice_pair,
-			crate::meta_v6::PolicyProofsV7 {
+			crate::meta_v6::PolicyProofsV6 {
 				personhood: Some(
-					crate::meta_v6::MetaPersonhoodAuthV7::PersonalAliasAccountRevised(
+					crate::meta_v6::MetaPersonhoodAuthV6::PersonalAliasAccountRevised(
 						revised_person_error_proof,
 						0,
 						crate::ORBIS_PERSON_CONTEXT,
@@ -4143,9 +4264,9 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			revised_person_call,
 			alice.clone(),
 			&alice_pair,
-			crate::meta_v6::PolicyProofsV7 {
+			crate::meta_v6::PolicyProofsV6 {
 				personhood: Some(
-					crate::meta_v6::MetaPersonhoodAuthV7::PersonalAliasAccountRevised(
+					crate::meta_v6::MetaPersonhoodAuthV6::PersonalAliasAccountRevised(
 						revised_person_proof,
 						0,
 						crate::ORBIS_PERSON_CONTEXT,
@@ -4252,7 +4373,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 				valid_at_block: 1,
 			});
 		let revised_lite_message = revised_meta_message(
-			b"orbis/meta/v7/people-lite/alias-revised",
+			b"orbis/meta/v6/people-lite/alias-revised",
 			&revised_lite_call,
 			&alice,
 		);
@@ -4281,8 +4402,8 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			revised_lite_call,
 			alice.clone(),
 			&alice_pair,
-			crate::meta_v6::PolicyProofsV7 {
-				people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV7::LiteAliasAccountRevised(
+			crate::meta_v6::PolicyProofsV6 {
+				people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV6::LiteAliasAccountRevised(
 					revised_lite_proof,
 					0,
 					*indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT,
@@ -4307,7 +4428,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 				value: 1,
 			});
 		let revised_lite_error_message = revised_meta_message(
-			b"orbis/meta/v7/people-lite/alias-revised",
+			b"orbis/meta/v6/people-lite/alias-revised",
 			&revised_lite_error_call,
 			&alice,
 		);
@@ -4323,8 +4444,8 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			revised_lite_error_call,
 			alice.clone(),
 			&alice_pair,
-			crate::meta_v6::PolicyProofsV7 {
-				people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV7::LiteAliasAccountRevised(
+			crate::meta_v6::PolicyProofsV6 {
+				people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV6::LiteAliasAccountRevised(
 					revised_lite_error_proof,
 					0,
 					*indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT,
@@ -4381,8 +4502,8 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			resource_call,
 			alice.clone(),
 			&alice_pair,
-			crate::meta_v6::PolicyProofsV7 {
-				resources: Some(crate::meta_v6::MetaResourcesAuthV7::ClaimLongTermStorage(
+			crate::meta_v6::PolicyProofsV6 {
+				resources: Some(crate::meta_v6::MetaResourcesAuthV6::ClaimLongTermStorage(
 					resource_proof,
 					0,
 					revised_person_revision,
@@ -4450,8 +4571,8 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			resource_error_call,
 			alice.clone(),
 			&alice_pair,
-			crate::meta_v6::PolicyProofsV7 {
-				resources: Some(crate::meta_v6::MetaResourcesAuthV7::ClaimLongTermStorage(
+			crate::meta_v6::PolicyProofsV6 {
+				resources: Some(crate::meta_v6::MetaResourcesAuthV6::ClaimLongTermStorage(
 					resource_error_proof,
 					0,
 					revised_person_revision,
@@ -4470,7 +4591,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			inner,
 			alice,
 			&bob_pair,
-			crate::meta_v6::PolicyProofsV7 { resources: Some(resource_info), ..Default::default() },
+			crate::meta_v6::PolicyProofsV6 { resources: Some(resource_info), ..Default::default() },
 		);
 		let forged_len = forged.encoded_size() as u32;
 		assert_noop!(
@@ -4684,14 +4805,20 @@ struct CannotLookupMetadataResolver;
 
 impl crate::meta_v6::MetadataImplicitResolver for CannotLookupMetadataResolver {
 	fn resolve(
+		_: &frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 	) -> Result<Option<[u8; 32]>, sp_runtime::transaction_validity::TransactionValidityError> {
 		Err(sp_runtime::transaction_validity::UnknownTransaction::CannotLookup.into())
 	}
 }
 
 #[test]
-fn paid_meta_scope_propagates_injected_metadata_lookup_failure_before_core_implicit() {
+fn paid_meta_scope_implicit_is_wire_transparent_and_only_delegates_core() {
+	use codec::{DecodeAll, Encode};
+	use frame_support::traits::BuildGenesisConfig;
 	use sp_runtime::traits::TransactionExtension;
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		System::set_block_number(1);
 	let production = crate::paid_tx_extensions(crate::default_inner_tx_extensions(
 		0,
 		pallet_orbis_feeless::ChargeOrSkipFeeless::from(
@@ -4700,18 +4827,31 @@ fn paid_meta_scope_propagates_injected_metadata_lookup_failure_before_core_impli
 		.into(),
 		pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::default(),
 	));
-	let injected =
-		crate::meta_v6::PaidMetaScope::<_, CannotLookupMetadataResolver>::from(production.0);
-	assert_eq!(
-		injected.implicit(),
-		Err(sp_runtime::transaction_validity::UnknownTransaction::CannotLookup.into())
+	fn assert_production_default(_: &crate::TxExtensions) {}
+	assert_production_default(&production);
+	let injected = crate::meta_v6::PaidMetaScope::<_, CannotLookupMetadataResolver>::from(
+		production.0.clone(),
 	);
+	assert_eq!(injected.implicit(), production.implicit());
+	assert_eq!(injected.encode(), production.encode());
+	let decoded = crate::meta_v6::PaidMetaScope::<
+		crate::OuterCoreExtensions,
+		CannotLookupMetadataResolver,
+	>::decode_all(&mut injected.encode().as_slice())
+	.unwrap();
+	assert_eq!(decoded.encode(), production.encode());
+	assert_eq!(
+		<crate::meta_v6::PaidMetaScope<crate::OuterCoreExtensions, CannotLookupMetadataResolver> as scale_info::TypeInfo>::type_info(),
+		<crate::OuterCoreExtensions as scale_info::TypeInfo>::type_info(),
+	);
+	});
 }
 
 #[test]
 fn metadata_custom_hash_loss_is_detected_after_wire_roundtrip() {
 	use codec::{DecodeAll, Encode};
 	let custom = [0x6du8; 32];
+	let other = [0x7eu8; 32];
 	let extension =
 		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new_with_custom_hash(custom);
 	assert_eq!(
@@ -4724,7 +4864,29 @@ fn metadata_custom_hash_loss_is_detected_after_wire_roundtrip() {
 	.unwrap();
 	assert_eq!(decoded.encode(), extension.encode());
 	assert_eq!(
+		extension.encode(),
+		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new_with_custom_hash(other)
+			.encode(),
+	);
+	assert_eq!(
+		extension.encode(),
+		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(true).encode(),
+	);
+	assert_eq!(
 		bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&decoded),
 		Err(sp_runtime::transaction_validity::UnknownTransaction::CannotLookup.into()),
 	);
+	use sp_core::Pair;
+	let pair = sp_core::sr25519::Pair::from_string("//Alice", None).unwrap();
+	let signature = pair.sign(&(extension.encode(), Some(custom)).encode());
+	assert!(sp_core::sr25519::Pair::verify(
+		&signature,
+		&(extension.encode(), Some(custom)).encode(),
+		&pair.public(),
+	));
+	assert!(!sp_core::sr25519::Pair::verify(
+		&signature,
+		&(extension.encode(), Some(other)).encode(),
+		&pair.public(),
+	));
 }

@@ -21,6 +21,8 @@ use sp_runtime::{
 	MultiSignature, MultiSigner,
 };
 
+const CANONICAL_METADATA_IMPLICIT: [u8; 32] = [0x28; 32];
+
 fn account(pair: &sr25519::Pair) -> AccountId {
 	MultiSigner::from(pair.public()).into_account()
 }
@@ -34,7 +36,7 @@ type MetaBareExtension = (
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
-	crate::meta_v6::MetaAccountBoundPoliciesV7,
+	crate::meta_v6::MetaAccountBoundPoliciesV6,
 	pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
 		Runtime,
 		crate::BulletinCallInspector,
@@ -42,21 +44,23 @@ type MetaBareExtension = (
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
 
-fn meta_tuple(proofs: crate::meta_v6::PolicyProofsV7) -> pallet_meta_tx::MetaTxFor<Runtime> {
+fn meta_tuple(proofs: crate::meta_v6::PolicyProofsV6) -> pallet_meta_tx::MetaTxFor<Runtime> {
 	let pair = sr25519::Pair::from_string("//Alice", None).unwrap();
 	let signer = account(&pair);
 	let call =
 		RuntimeCall::System(frame_system::Call::remark { remark: b"orbis-v6-meta".to_vec() });
 	let mortality = frame_system::CheckMortality::<Runtime>::from(Era::Immortal);
 	let nonce = frame_system::CheckNonce::<Runtime>::from(0);
-	let policy = crate::meta_v6::MetaAccountBoundPoliciesV7::new(proofs);
+	let policy = crate::meta_v6::MetaAccountBoundPoliciesV6::new(proofs);
 	let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
 		Runtime,
 		crate::BulletinCallInspector,
 	>::default();
-	let metadata = crate::canonical_metadata_extension();
-	let metadata_implicit =
-		bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&metadata).unwrap();
+	let metadata =
+		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new_with_custom_hash(
+			CANONICAL_METADATA_IMPLICIT,
+		);
+	let metadata_implicit = Some(CANONICAL_METADATA_IMPLICIT);
 	let preimage = crate::meta_v6::IntentPreimageV7 {
 		domain: crate::meta_v6::META_DOMAIN.to_vec(),
 		extension_version: 0,
@@ -104,44 +108,44 @@ fn meta_tuple(proofs: crate::meta_v6::PolicyProofsV7) -> pallet_meta_tx::MetaTxF
 	)
 }
 
-fn policy_vectors() -> [crate::meta_v6::PolicyProofsV7; 7] {
+fn policy_vectors() -> [crate::meta_v6::PolicyProofsV6; 7] {
 	let empty_proof: indiv_pallet_people::types::ProofOf<Runtime> =
 		Vec::<u8>::new().try_into().unwrap();
 	[
-		crate::meta_v6::PolicyProofsV7 {
-			personhood: Some(crate::meta_v6::MetaPersonhoodAuthV7::PersonalAliasAccount),
+		crate::meta_v6::PolicyProofsV6 {
+			personhood: Some(crate::meta_v6::MetaPersonhoodAuthV6::PersonalAliasAccount),
 			..Default::default()
 		},
-		crate::meta_v6::PolicyProofsV7 {
-			personhood: Some(crate::meta_v6::MetaPersonhoodAuthV7::PersonalIdentityAccount),
+		crate::meta_v6::PolicyProofsV6 {
+			personhood: Some(crate::meta_v6::MetaPersonhoodAuthV6::PersonalIdentityAccount),
 			..Default::default()
 		},
-		crate::meta_v6::PolicyProofsV7 {
-			personhood: Some(crate::meta_v6::MetaPersonhoodAuthV7::PersonalAliasAccountRevised(
+		crate::meta_v6::PolicyProofsV6 {
+			personhood: Some(crate::meta_v6::MetaPersonhoodAuthV6::PersonalAliasAccountRevised(
 				empty_proof.clone(),
 				0,
 				[0x31; 32],
 			)),
 			..Default::default()
 		},
-		crate::meta_v6::PolicyProofsV7 {
-			people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV7::LitePerson),
+		crate::meta_v6::PolicyProofsV6 {
+			people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV6::LitePerson),
 			..Default::default()
 		},
-		crate::meta_v6::PolicyProofsV7 {
-			people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV7::LiteAliasAccount),
+		crate::meta_v6::PolicyProofsV6 {
+			people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV6::LiteAliasAccount),
 			..Default::default()
 		},
-		crate::meta_v6::PolicyProofsV7 {
-			people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV7::LiteAliasAccountRevised(
+		crate::meta_v6::PolicyProofsV6 {
+			people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV6::LiteAliasAccountRevised(
 				empty_proof.clone(),
 				0,
 				[0x32; 32],
 			)),
 			..Default::default()
 		},
-		crate::meta_v6::PolicyProofsV7 {
-			resources: Some(crate::meta_v6::MetaResourcesAuthV7::ClaimLongTermStorage(
+		crate::meta_v6::PolicyProofsV6 {
+			resources: Some(crate::meta_v6::MetaResourcesAuthV6::ClaimLongTermStorage(
 				empty_proof,
 				0,
 				1,
@@ -187,7 +191,7 @@ fn max_envelope_with(meta: pallet_meta_tx::MetaTxFor<Runtime>) -> RuntimeCall {
 	RuntimeCall::Utility(pallet_utility::Call::batch { calls })
 }
 
-fn mutations() -> [crate::meta_v6::IntentPreimageV7; 11] {
+fn mutations() -> [crate::meta_v6::IntentPreimageV7; 12] {
 	let base = canonical_intent();
 	let mut domain = base.clone();
 	domain.domain.push(0);
@@ -209,15 +213,98 @@ fn mutations() -> [crate::meta_v6::IntentPreimageV7; 11] {
 	policy.policy_proofs_hash = [4; 32].into();
 	let mut storage = base.clone();
 	storage.storage_extension_hash = [5; 32].into();
-	let mut metadata = base;
+	let mut metadata = base.clone();
 	metadata.metadata_extension_hash = [6; 32].into();
-	[domain, genesis, spec, tx, signer, call, mortality, nonce, policy, storage, metadata]
+	let mut metadata_implicit = base;
+	metadata_implicit.metadata_implicit = Some([7; 32]);
+	[
+		domain,
+		genesis,
+		spec,
+		tx,
+		signer,
+		call,
+		mortality,
+		nonce,
+		policy,
+		storage,
+		metadata,
+		metadata_implicit,
+	]
 }
 
 fn assert_fixture<T: DecodeAll + Encode + PartialEq + core::fmt::Debug>(bytes: &[u8], expected: T) {
 	let decoded = T::decode_all(&mut bytes.as_ref()).expect("fixture is exactly one SCALE value");
 	assert_eq!(decoded, expected);
 	assert_eq!(bytes, expected.encode());
+}
+
+#[test]
+fn checked_in_meta_v7_fixtures_decode_all_recompute_and_match_hashes() {
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		crate::System::set_block_number(1);
+		let intent = canonical_intent();
+		assert_fixture(include_bytes!("../fixtures/meta-v7/intent-preimage.scale"), intent.clone());
+		assert_eq!(
+			include_bytes!("../fixtures/meta-v7/intent-commitment.bin").as_slice(),
+			intent.commitment().as_bytes(),
+		);
+		let token = paid_token();
+		assert_fixture(include_bytes!("../fixtures/meta-v7/paid-token.scale"), token.clone());
+		assert_eq!(
+			include_bytes!("../fixtures/meta-v7/paid-token-key.bin").as_slice(),
+			token.key().as_bytes(),
+		);
+		let meta_bytes = include_bytes!("../fixtures/meta-v7/verify-consume-tuple.scale");
+		assert_eq!(meta_bytes.as_slice(), meta_tuple(Default::default()).encode());
+		let meta =
+			pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut meta_bytes.as_slice()).unwrap();
+		assert_eq!(meta_bytes.as_slice(), meta.encode());
+		let (_, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
+			DecodeAll::decode_all(&mut meta.encode().as_slice()).unwrap();
+		assert_eq!(extension.1 .0, intent);
+		assert_eq!(extension.1 .0.metadata_implicit, Some(CANONICAL_METADATA_IMPLICIT));
+		assert_fixture(
+			include_bytes!("../fixtures/meta-v7/max-envelope.scale"),
+			max_envelope_with(meta),
+		);
+		let mutation_bytes: [&[u8]; 12] = [
+			include_bytes!("../fixtures/meta-v7/mutate-domain.scale"),
+			include_bytes!("../fixtures/meta-v7/mutate-genesis.scale"),
+			include_bytes!("../fixtures/meta-v7/mutate-spec.scale"),
+			include_bytes!("../fixtures/meta-v7/mutate-transaction-version.scale"),
+			include_bytes!("../fixtures/meta-v7/mutate-signer.scale"),
+			include_bytes!("../fixtures/meta-v7/mutate-call-hash.scale"),
+			include_bytes!("../fixtures/meta-v7/mutate-mortality.scale"),
+			include_bytes!("../fixtures/meta-v7/mutate-nonce.scale"),
+			include_bytes!("../fixtures/meta-v7/mutate-policy-hash.scale"),
+			include_bytes!("../fixtures/meta-v7/mutate-storage-hash.scale"),
+			include_bytes!("../fixtures/meta-v7/mutate-metadata-hash.scale"),
+			include_bytes!("../fixtures/meta-v7/mutate-metadata-implicit.scale"),
+		];
+		for (bytes, mutation) in mutation_bytes.into_iter().zip(mutations()) {
+			assert_fixture(bytes, mutation);
+		}
+		assert_eq!(
+			include_bytes!("../fixtures/meta-v7/intent-preimage.scale").len(),
+			include_bytes!("../fixtures/meta-v6/intent-preimage.scale").len() + 33,
+		);
+		let manifest: serde_json::Value =
+			serde_json::from_str(include_str!("../fixtures/meta-v7/manifest.json")).unwrap();
+		assert_eq!(manifest["spec_version"], 28);
+		assert_eq!(manifest["transaction_version"], 7);
+		let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/meta-v7");
+		for row in manifest["files"].as_array().unwrap() {
+			let bytes = std::fs::read(dir.join(row["file"].as_str().unwrap())).unwrap();
+			assert_eq!(row["bytes"], bytes.len());
+			let hash = sp_io::hashing::sha2_256(&bytes)
+				.iter()
+				.map(|byte| format!("{byte:02x}"))
+				.collect::<String>();
+			assert_eq!(row["sha256"], hash);
+		}
+	});
 }
 
 #[test]
@@ -310,7 +397,7 @@ fn checked_in_meta_v6_fixtures_decode_all_and_recompute() {
 			paid_token().key().as_bytes()
 		);
 		let max = max_envelope_with(meta);
-		assert!(crate::meta_v6::inspect_paid_meta(&max, 0).unwrap().is_some());
+		assert!(crate::meta_v6::inspect_paid_meta::<crate::meta_v6::ProductionMetadataImplicitResolver>(&max, 0).unwrap().is_some());
 		assert_fixture(include_bytes!("../fixtures/meta-v6/max-envelope.scale"), max);
 		let proof_files: [&[u8]; 7] = [
 			include_bytes!("../fixtures/meta-v6/proof-person-alias.scale"),
@@ -323,13 +410,13 @@ fn checked_in_meta_v6_fixtures_decode_all_and_recompute() {
 		];
 		let expected = policy_vectors();
 		for (index, bytes) in proof_files.into_iter().enumerate() {
-			let decoded = crate::meta_v6::PolicyProofsV7::decode_all(&mut bytes.as_ref()).unwrap();
+			let decoded = crate::meta_v6::PolicyProofsV6::decode_all(&mut bytes.as_ref()).unwrap();
 			assert_eq!(bytes, decoded.encode());
 			match index {
 				0 | 1 | 3 | 4 => assert_eq!(decoded, expected[index]),
-				2 => assert!(matches!(decoded.personhood, Some(crate::meta_v6::MetaPersonhoodAuthV7::PersonalAliasAccountRevised(ref proof, ..)) if !proof.is_empty())),
-				5 => assert!(matches!(decoded.people_lite, Some(crate::meta_v6::MetaPeopleLiteAuthV7::LiteAliasAccountRevised(ref proof, ..)) if !proof.is_empty())),
-				6 => assert!(matches!(decoded.resources, Some(crate::meta_v6::MetaResourcesAuthV7::ClaimLongTermStorage(ref proof, ..)) if !proof.is_empty())),
+				2 => assert!(matches!(decoded.personhood, Some(crate::meta_v6::MetaPersonhoodAuthV6::PersonalAliasAccountRevised(ref proof, ..)) if !proof.is_empty())),
+				5 => assert!(matches!(decoded.people_lite, Some(crate::meta_v6::MetaPeopleLiteAuthV6::LiteAliasAccountRevised(ref proof, ..)) if !proof.is_empty())),
+				6 => assert!(matches!(decoded.resources, Some(crate::meta_v6::MetaResourcesAuthV6::ClaimLongTermStorage(ref proof, ..)) if !proof.is_empty())),
 				_ => unreachable!(),
 			}
 		}

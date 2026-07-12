@@ -1292,7 +1292,7 @@ pub type MetaTxExtension = (
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
-	meta_v6::MetaAccountBoundPoliciesV7,
+	meta_v6::MetaAccountBoundPoliciesV6,
 	pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
 		Runtime,
 		BulletinCallInspector,

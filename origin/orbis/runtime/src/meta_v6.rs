@@ -22,7 +22,7 @@ use sp_runtime::{
 
 pub const META_DOMAIN: &[u8] = b"orbis/meta-intent/v7";
 pub const PAID_META_DOMAIN: &[u8] = b"orbis/paid-meta/v7";
-pub const RESOURCES_DOMAIN: &[u8] = b"orbis/meta/v7/resources/long-term-storage";
+pub const RESOURCES_DOMAIN: &[u8] = b"orbis/meta/v6/resources/long-term-storage";
 pub const TOKEN_SLOT: &[u8] = b":orbis:paid-meta:v7";
 pub const META_POLICY_INVALIDITY: u8 = 239;
 
@@ -80,7 +80,7 @@ pub fn clear_token() {
 
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, Debug, TypeInfo)]
 #[allow(clippy::enum_variant_names)]
-pub enum MetaPersonhoodAuthV7 {
+pub enum MetaPersonhoodAuthV6 {
 	#[codec(index = 0)]
 	PersonalAliasAccount,
 	#[codec(index = 1)]
@@ -91,7 +91,7 @@ pub enum MetaPersonhoodAuthV7 {
 
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, Debug, TypeInfo)]
 #[allow(clippy::enum_variant_names)]
-pub enum MetaPeopleLiteAuthV7 {
+pub enum MetaPeopleLiteAuthV6 {
 	#[codec(index = 0)]
 	LitePerson,
 	#[codec(index = 1)]
@@ -101,7 +101,7 @@ pub enum MetaPeopleLiteAuthV7 {
 }
 
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, Debug, TypeInfo)]
-pub enum MetaResourcesAuthV7 {
+pub enum MetaResourcesAuthV6 {
 	#[codec(index = 0)]
 	ClaimLongTermStorage(
 		indiv_pallet_resources::types::ProofOf<Runtime>,
@@ -112,17 +112,17 @@ pub enum MetaResourcesAuthV7 {
 }
 
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, Debug, TypeInfo, Default)]
-pub struct PolicyProofsV7 {
-	pub personhood: Option<MetaPersonhoodAuthV7>,
-	pub people_lite: Option<MetaPeopleLiteAuthV7>,
-	pub resources: Option<MetaResourcesAuthV7>,
+pub struct PolicyProofsV6 {
+	pub personhood: Option<MetaPersonhoodAuthV6>,
+	pub people_lite: Option<MetaPeopleLiteAuthV6>,
+	pub resources: Option<MetaResourcesAuthV6>,
 }
 
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, Debug, TypeInfo, Default)]
-pub struct MetaAccountBoundPoliciesV7(pub PolicyProofsV7);
+pub struct MetaAccountBoundPoliciesV6(pub PolicyProofsV6);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum RouterRouteV7 {
+enum RouterRouteV6 {
 	None,
 	PersonalAlias,
 	PersonalIdentity,
@@ -133,13 +133,13 @@ enum RouterRouteV7 {
 	ResourcesClaim,
 }
 
-impl MetaAccountBoundPoliciesV7 {
-	pub fn new(proofs: PolicyProofsV7) -> Self {
+impl MetaAccountBoundPoliciesV6 {
+	pub fn new(proofs: PolicyProofsV6) -> Self {
 		Self(proofs)
 	}
 
 	/// Classify the call/proof pair before touching membership storage or verifying a proof.
-	fn classify(&self, call: &RuntimeCall) -> Result<RouterRouteV7, InvalidTransaction> {
+	fn classify(&self, call: &RuntimeCall) -> Result<RouterRouteV6, InvalidTransaction> {
 		if self.0.personhood.is_some() as u8 +
 			self.0.people_lite.is_some() as u8 +
 			self.0.resources.is_some() as u8 >
@@ -152,21 +152,21 @@ impl MetaAccountBoundPoliciesV7 {
 			RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage { .. })
 		);
 		match (&self.0.personhood, &self.0.people_lite, &self.0.resources) {
-			(None, None, Some(MetaResourcesAuthV7::ClaimLongTermStorage(..))) if resources_call =>
-				Ok(RouterRouteV7::ResourcesClaim),
+			(None, None, Some(MetaResourcesAuthV6::ClaimLongTermStorage(..))) if resources_call =>
+				Ok(RouterRouteV6::ResourcesClaim),
 			(_, _, _) if resources_call => Err(InvalidTransaction::Call),
-			(Some(MetaPersonhoodAuthV7::PersonalAliasAccount), None, None) =>
-				Ok(RouterRouteV7::PersonalAlias),
-			(Some(MetaPersonhoodAuthV7::PersonalIdentityAccount), None, None) =>
-				Ok(RouterRouteV7::PersonalIdentity),
-			(Some(MetaPersonhoodAuthV7::PersonalAliasAccountRevised(..)), None, None) =>
-				Ok(RouterRouteV7::PersonalAliasRevised),
-			(None, Some(MetaPeopleLiteAuthV7::LitePerson), None) => Ok(RouterRouteV7::LitePerson),
-			(None, Some(MetaPeopleLiteAuthV7::LiteAliasAccount), None) =>
-				Ok(RouterRouteV7::LiteAlias),
-			(None, Some(MetaPeopleLiteAuthV7::LiteAliasAccountRevised(..)), None) =>
-				Ok(RouterRouteV7::LiteAliasRevised),
-			(None, None, None) => Ok(RouterRouteV7::None),
+			(Some(MetaPersonhoodAuthV6::PersonalAliasAccount), None, None) =>
+				Ok(RouterRouteV6::PersonalAlias),
+			(Some(MetaPersonhoodAuthV6::PersonalIdentityAccount), None, None) =>
+				Ok(RouterRouteV6::PersonalIdentity),
+			(Some(MetaPersonhoodAuthV6::PersonalAliasAccountRevised(..)), None, None) =>
+				Ok(RouterRouteV6::PersonalAliasRevised),
+			(None, Some(MetaPeopleLiteAuthV6::LitePerson), None) => Ok(RouterRouteV6::LitePerson),
+			(None, Some(MetaPeopleLiteAuthV6::LiteAliasAccount), None) =>
+				Ok(RouterRouteV6::LiteAlias),
+			(None, Some(MetaPeopleLiteAuthV6::LiteAliasAccountRevised(..)), None) =>
+				Ok(RouterRouteV6::LiteAliasRevised),
+			(None, None, None) => Ok(RouterRouteV6::None),
 			_ => Err(InvalidTransaction::Call),
 		}
 	}
@@ -176,7 +176,7 @@ impl MetaAccountBoundPoliciesV7 {
 /// benchmarks. Dummy proof values are decoded only to reach the same production variant and are
 /// never accepted as authorization; proof verification itself is covered by the pallet's existing
 /// ring-proof benchmarks. Keeping this adapter here prevents a benchmark-only copy of the router
-/// from drifting from `MetaAccountBoundPoliciesV7`.
+/// from drifting from `MetaAccountBoundPoliciesV6`.
 #[cfg(feature = "runtime-benchmarks")]
 pub fn benchmark_policy_scenario(
 	scenario: indiv_pallet_resources::benchmarking::MetaPolicyBenchmarkScenario,
@@ -267,7 +267,7 @@ pub fn benchmark_policy_scenario(
 		Ok((secret, commitment, revision))
 	}
 	fn validate_prepare(
-		policy: MetaAccountBoundPoliciesV7,
+		policy: MetaAccountBoundPoliciesV6,
 		signer: AccountId,
 		call: &RuntimeCall,
 	) -> Result<(), frame_benchmarking::BenchmarkError> {
@@ -294,12 +294,12 @@ pub fn benchmark_policy_scenario(
 	let people_id = *indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER;
 	let lite_id = *indiv_pallet_people_lite::LITE_PEOPLE_MEMBER_IDENTIFIER;
 	let policies = match scenario {
-		Scenario::PersonalAlias | Scenario::MappingMiss => PolicyProofsV7 {
-			personhood: Some(MetaPersonhoodAuthV7::PersonalAliasAccount),
+		Scenario::PersonalAlias | Scenario::MappingMiss => PolicyProofsV6 {
+			personhood: Some(MetaPersonhoodAuthV6::PersonalAliasAccount),
 			..Default::default()
 		},
-		Scenario::PersonalIdentity => PolicyProofsV7 {
-			personhood: Some(MetaPersonhoodAuthV7::PersonalIdentityAccount),
+		Scenario::PersonalIdentity => PolicyProofsV6 {
+			personhood: Some(MetaPersonhoodAuthV6::PersonalIdentityAccount),
 			..Default::default()
 		},
 		Scenario::PersonalAliasRevised | Scenario::RevisedWrite => {
@@ -348,7 +348,7 @@ pub fn benchmark_policy_scenario(
 			.map_err(stop)?;
 			let implication = sp_runtime::traits::TxBaseImplication((0u8, &ordinary));
 			let msg = (
-				b"orbis/meta/v7/personhood/alias-revised",
+				b"orbis/meta/v6/personhood/alias-revised",
 				&signer,
 				&signer,
 				&ordinary,
@@ -358,8 +358,8 @@ pub fn benchmark_policy_scenario(
 			let (proof, _) =
 				Crypto::create(commitment, &secret, &crate::ORBIS_PERSON_CONTEXT, &msg)
 					.map_err(stop)?;
-			PolicyProofsV7 {
-				personhood: Some(MetaPersonhoodAuthV7::PersonalAliasAccountRevised(
+			PolicyProofsV6 {
+				personhood: Some(MetaPersonhoodAuthV6::PersonalAliasAccountRevised(
 					proof,
 					0,
 					crate::ORBIS_PERSON_CONTEXT,
@@ -367,12 +367,12 @@ pub fn benchmark_policy_scenario(
 				..Default::default()
 			}
 		},
-		Scenario::LitePerson => PolicyProofsV7 {
-			people_lite: Some(MetaPeopleLiteAuthV7::LitePerson),
+		Scenario::LitePerson => PolicyProofsV6 {
+			people_lite: Some(MetaPeopleLiteAuthV6::LitePerson),
 			..Default::default()
 		},
-		Scenario::LiteAlias => PolicyProofsV7 {
-			people_lite: Some(MetaPeopleLiteAuthV7::LiteAliasAccount),
+		Scenario::LiteAlias => PolicyProofsV6 {
+			people_lite: Some(MetaPeopleLiteAuthV6::LiteAliasAccount),
 			..Default::default()
 		},
 		Scenario::LiteAliasRevised => {
@@ -418,7 +418,7 @@ pub fn benchmark_policy_scenario(
 			.map_err(stop)?;
 			let implication = sp_runtime::traits::TxBaseImplication((0u8, &ordinary));
 			let msg = (
-				b"orbis/meta/v7/people-lite/alias-revised",
+				b"orbis/meta/v6/people-lite/alias-revised",
 				&signer,
 				&signer,
 				&ordinary,
@@ -426,8 +426,8 @@ pub fn benchmark_policy_scenario(
 			)
 				.using_encoded(sp_io::hashing::blake2_256);
 			let (proof, _) = Crypto::create(commitment, &secret, &context, &msg).map_err(stop)?;
-			PolicyProofsV7 {
-				people_lite: Some(MetaPeopleLiteAuthV7::LiteAliasAccountRevised(proof, 0, context)),
+			PolicyProofsV6 {
+				people_lite: Some(MetaPeopleLiteAuthV6::LiteAliasAccountRevised(proof, 0, context)),
 				..Default::default()
 			}
 		},
@@ -487,8 +487,8 @@ pub fn benchmark_policy_scenario(
 			if verified_alias != alias {
 				return Err(stop("resource proof alias drift"));
 			}
-			let policy = MetaAccountBoundPoliciesV7::new(PolicyProofsV7 {
-				resources: Some(MetaResourcesAuthV7::ClaimLongTermStorage(
+			let policy = MetaAccountBoundPoliciesV6::new(PolicyProofsV6 {
+				resources: Some(MetaResourcesAuthV6::ClaimLongTermStorage(
 					proof,
 					0,
 					revision,
@@ -523,9 +523,9 @@ pub fn benchmark_policy_scenario(
 			validate_prepare(policy, signer, &call)?;
 			return Ok(());
 		},
-		Scenario::Malformed => PolicyProofsV7 {
-			personhood: Some(MetaPersonhoodAuthV7::PersonalAliasAccount),
-			people_lite: Some(MetaPeopleLiteAuthV7::LitePerson),
+		Scenario::Malformed => PolicyProofsV6 {
+			personhood: Some(MetaPersonhoodAuthV6::PersonalAliasAccount),
+			people_lite: Some(MetaPeopleLiteAuthV6::LitePerson),
 			resources: None,
 		},
 		Scenario::Envelope => {
@@ -556,7 +556,7 @@ pub fn benchmark_policy_scenario(
 			// SCALE payload rather than wrapped in the benchmark-only RuntimeCall variant.
 			let mortality = frame_system::CheckMortality::<Runtime>::from(Era::Immortal);
 			let nonce = frame_system::CheckNonce::<Runtime>::from(0);
-			let policy = MetaAccountBoundPoliciesV7::default();
+			let policy = MetaAccountBoundPoliciesV6::default();
 			let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
 				Runtime,
 				crate::BulletinCallInspector,
@@ -599,12 +599,12 @@ pub fn benchmark_policy_scenario(
 				metadata,
 			);
 			let payload = (ordinary, 0u8, extension).encode();
-			decode_meta_payload(&payload).map_err(stop)?;
+			decode_meta_payload::<ProductionMetadataImplicitResolver>(&payload).map_err(stop)?;
 			return Ok(());
 		},
 	};
 	if matches!(scenario, Scenario::Malformed) {
-		let policy = MetaAccountBoundPoliciesV7::new(policies);
+		let policy = MetaAccountBoundPoliciesV6::new(policies);
 		let info = ordinary.get_dispatch_info();
 		let result = policy.validate(
 			RuntimeOrigin::signed(signer),
@@ -621,7 +621,7 @@ pub fn benchmark_policy_scenario(
 		return Ok(());
 	}
 	if matches!(scenario, Scenario::MappingMiss) {
-		let policy = MetaAccountBoundPoliciesV7::new(policies);
+		let policy = MetaAccountBoundPoliciesV6::new(policies);
 		let info = ordinary.get_dispatch_info();
 		let result = policy.validate(
 			RuntimeOrigin::signed(signer),
@@ -639,7 +639,7 @@ pub fn benchmark_policy_scenario(
 		return Ok(());
 	}
 	let call = &ordinary;
-	let policy = MetaAccountBoundPoliciesV7::new(policies);
+	let policy = MetaAccountBoundPoliciesV6::new(policies);
 	// Populate the authoritative production mappings used by the four non-proof routes.
 	match scenario {
 		Scenario::PersonalAlias => {
@@ -706,7 +706,7 @@ pub fn benchmark_policy_scenario(
 	Ok(())
 }
 
-pub enum PolicyValV7 {
+pub enum PolicyValV6 {
 	None,
 	PersonalAlias(AccountId),
 	PersonalIdentity(AccountId),
@@ -717,7 +717,7 @@ pub enum PolicyValV7 {
 	LiteRevision(AccountId, RevisedContextualAlias),
 }
 
-pub enum PolicyPreV7 {
+pub enum PolicyPreV6 {
 	None,
 	PersonalAlias(AccountId),
 	PersonalIdentity(AccountId),
@@ -728,11 +728,11 @@ pub enum PolicyPreV7 {
 	LiteRevision(AccountId, RevisionIndex),
 }
 
-impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV7 {
-	const IDENTIFIER: &'static str = "MetaAccountBoundPoliciesV7";
+impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
+	const IDENTIFIER: &'static str = "MetaAccountBoundPoliciesV6";
 	type Implicit = ();
-	type Val = PolicyValV7;
-	type Pre = PolicyPreV7;
+	type Val = PolicyValV6;
+	type Pre = PolicyPreV6;
 
 	fn weight(&self, call: &RuntimeCall) -> Weight {
 		use indiv_pallet_resources::weights::WeightInfo as _;
@@ -746,17 +746,17 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV7 {
 			Weight::zero()
 		};
 		let route_weight = match self.classify(call) {
-			Ok(RouterRouteV7::None) => crate::weights::meta_v6::none(),
-			Ok(RouterRouteV7::PersonalAlias) =>
+			Ok(RouterRouteV6::None) => crate::weights::meta_v6::none(),
+			Ok(RouterRouteV6::PersonalAlias) =>
 				<Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_personal_alias(),
-			Ok(RouterRouteV7::PersonalIdentity) => <Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_personal_identity(),
-			Ok(RouterRouteV7::PersonalAliasRevised) => <Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_personal_alias_revised(),
-			Ok(RouterRouteV7::LitePerson) =>
+			Ok(RouterRouteV6::PersonalIdentity) => <Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_personal_identity(),
+			Ok(RouterRouteV6::PersonalAliasRevised) => <Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_personal_alias_revised(),
+			Ok(RouterRouteV6::LitePerson) =>
 				<Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_lite_person(),
-			Ok(RouterRouteV7::LiteAlias) =>
+			Ok(RouterRouteV6::LiteAlias) =>
 				<Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_lite_alias(),
-			Ok(RouterRouteV7::LiteAliasRevised) => <Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_lite_alias_revised(),
-			Ok(RouterRouteV7::ResourcesClaim) => <Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_resources_claim(),
+			Ok(RouterRouteV6::LiteAliasRevised) => <Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_lite_alias_revised(),
+			Ok(RouterRouteV6::ResourcesClaim) => <Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_resources_claim(),
 			Err(_) => <Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_malformed(),
 		};
 		resources_weight.saturating_add(route_weight)
@@ -771,7 +771,7 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV7 {
 		_: (),
 		inherited: &impl Implication,
 		_source: TransactionSource,
-	) -> ValidateResult<PolicyValV7, RuntimeCall> {
+	) -> ValidateResult<PolicyValV6, RuntimeCall> {
 		// Route before doing any People/Lite lookup or proof verification.
 		let route = self.classify(call).map_err(TransactionValidityError::Invalid)?;
 		let signer =
@@ -779,12 +779,12 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV7 {
 		if let Some(personhood) = &self.0.personhood {
 			debug_assert!(matches!(
 				route,
-				RouterRouteV7::PersonalAlias |
-					RouterRouteV7::PersonalIdentity |
-					RouterRouteV7::PersonalAliasRevised
+				RouterRouteV6::PersonalAlias |
+					RouterRouteV6::PersonalIdentity |
+					RouterRouteV6::PersonalAliasRevised
 			));
 			let (local, value) = match personhood {
-				MetaPersonhoodAuthV7::PersonalAliasAccount => {
+				MetaPersonhoodAuthV6::PersonalAliasAccount => {
 					let bound = indiv_pallet_people::AccountToAlias::<Runtime>::get(&signer)
 						.ok_or(InvalidTransaction::BadSigner)?;
 					if !<Runtime as indiv_pallet_people::Config>::AccountContexts::contains(
@@ -800,10 +800,10 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV7 {
 					}
 					(
 						indiv_pallet_people::Origin::PersonalAlias(bound),
-						PolicyValV7::PersonalAlias(signer.clone()),
+						PolicyValV6::PersonalAlias(signer.clone()),
 					)
 				},
-				MetaPersonhoodAuthV7::PersonalIdentityAccount => {
+				MetaPersonhoodAuthV6::PersonalIdentityAccount => {
 					let id = indiv_pallet_people::AccountToPersonalId::<Runtime>::get(&signer)
 						.ok_or(InvalidTransaction::BadSigner)?;
 					if !indiv_pallet_people::People::<Runtime>::get(id)
@@ -813,14 +813,14 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV7 {
 					}
 					(
 						indiv_pallet_people::Origin::PersonalIdentity(id),
-						PolicyValV7::PersonalIdentity(signer.clone()),
+						PolicyValV6::PersonalIdentity(signer.clone()),
 					)
 				},
-				MetaPersonhoodAuthV7::PersonalAliasAccountRevised(proof, ring_index, context) => {
+				MetaPersonhoodAuthV6::PersonalAliasAccountRevised(proof, ring_index, context) => {
 					let old = indiv_pallet_people::AccountToAlias::<Runtime>::get(&signer)
 						.ok_or(InvalidTransaction::BadSigner)?;
 					let msg = (
-						b"orbis/meta/v7/personhood/alias-revised",
+						b"orbis/meta/v6/personhood/alias-revised",
 						&signer,
 						&signer,
 						call,
@@ -851,7 +851,7 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV7 {
 					}
 					(
 						indiv_pallet_people::Origin::PersonalAlias(revised.clone()),
-						PolicyValV7::PersonRevision(signer.clone(), revised),
+						PolicyValV6::PersonRevision(signer.clone(), revised),
 					)
 				},
 			};
@@ -861,21 +861,21 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV7 {
 		if let Some(lite) = &self.0.people_lite {
 			debug_assert!(matches!(
 				route,
-				RouterRouteV7::LitePerson |
-					RouterRouteV7::LiteAlias |
-					RouterRouteV7::LiteAliasRevised
+				RouterRouteV6::LitePerson |
+					RouterRouteV6::LiteAlias |
+					RouterRouteV6::LiteAliasRevised
 			));
 			let (local, value) = match lite {
-				MetaPeopleLiteAuthV7::LitePerson => {
+				MetaPeopleLiteAuthV6::LitePerson => {
 					if !indiv_pallet_people_lite::LitePeople::<Runtime>::contains_key(&signer) {
 						return Err(InvalidTransaction::BadSigner.into());
 					}
 					(
 						indiv_pallet_people_lite::Origin::LitePerson(signer.clone()),
-						PolicyValV7::LitePerson(signer.clone()),
+						PolicyValV6::LitePerson(signer.clone()),
 					)
 				},
-				MetaPeopleLiteAuthV7::LiteAliasAccount => {
+				MetaPeopleLiteAuthV6::LiteAliasAccount => {
 					let bound = indiv_pallet_people_lite::AccountToAlias::<Runtime>::get(&signer)
 						.ok_or(InvalidTransaction::BadSigner)?;
 					if indiv_pallet_people_lite::AliasToAccount::<Runtime>::get(&bound.ca) !=
@@ -889,17 +889,17 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV7 {
 					}
 					(
 						indiv_pallet_people_lite::Origin::LiteAlias(bound),
-						PolicyValV7::LiteAlias(signer.clone()),
+						PolicyValV6::LiteAlias(signer.clone()),
 					)
 				},
-				MetaPeopleLiteAuthV7::LiteAliasAccountRevised(proof, ring_index, context) => {
+				MetaPeopleLiteAuthV6::LiteAliasAccountRevised(proof, ring_index, context) => {
 					let old = indiv_pallet_people_lite::AccountToAlias::<Runtime>::get(&signer)
 						.ok_or(InvalidTransaction::BadSigner)?;
 					if *context != *indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT {
 						return Err(InvalidTransaction::Call.into());
 					}
 					let msg = (
-						b"orbis/meta/v7/people-lite/alias-revised",
+						b"orbis/meta/v6/people-lite/alias-revised",
 						&signer,
 						&signer,
 						call,
@@ -930,7 +930,7 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV7 {
 					}
 					(
 						indiv_pallet_people_lite::Origin::LiteAlias(revised.clone()),
-						PolicyValV7::LiteRevision(signer.clone(), revised),
+						PolicyValV6::LiteRevision(signer.clone(), revised),
 					)
 				},
 			};
@@ -949,7 +949,7 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV7 {
 				{
 					return Err(InvalidTransaction::BadSigner.into());
 				}
-				let Some(MetaResourcesAuthV7::ClaimLongTermStorage(
+				let Some(MetaResourcesAuthV6::ClaimLongTermStorage(
 					proof,
 					ring_index,
 					revision,
@@ -1034,40 +1034,40 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV7 {
 					ValidTransaction::with_tag_prefix("OrbisMetaResources")
 						.and_provides((period, alias))
 						.into(),
-					PolicyValV7::ResourcesClaim(signer, alias),
+					PolicyValV6::ResourcesClaim(signer, alias),
 					origin,
 				))
 			},
-			_ if self.0 == PolicyProofsV7::default() =>
-				Ok((ValidTransaction::default(), PolicyValV7::None, origin)),
+			_ if self.0 == PolicyProofsV6::default() =>
+				Ok((ValidTransaction::default(), PolicyValV6::None, origin)),
 			_ => Err(InvalidTransaction::Call.into()),
 		}
 	}
 
 	fn prepare(
 		self,
-		value: PolicyValV7,
+		value: PolicyValV6,
 		_: &RuntimeOrigin,
 		_: &RuntimeCall,
 		_: &DispatchInfoOf<RuntimeCall>,
 		_: usize,
-	) -> Result<PolicyPreV7, TransactionValidityError> {
+	) -> Result<PolicyPreV6, TransactionValidityError> {
 		Ok(match value {
-			PolicyValV7::PersonRevision(account, revised) => {
+			PolicyValV6::PersonRevision(account, revised) => {
 				indiv_pallet_people::AccountToAlias::<Runtime>::insert(&account, &revised);
-				PolicyPreV7::PersonRevision(account, revised.revision)
+				PolicyPreV6::PersonRevision(account, revised.revision)
 			},
-			PolicyValV7::LiteRevision(account, revised) => {
+			PolicyValV6::LiteRevision(account, revised) => {
 				indiv_pallet_people_lite::AccountToAlias::<Runtime>::insert(&account, &revised);
-				PolicyPreV7::LiteRevision(account, revised.revision)
+				PolicyPreV6::LiteRevision(account, revised.revision)
 			},
-			PolicyValV7::PersonalAlias(account) => PolicyPreV7::PersonalAlias(account),
-			PolicyValV7::PersonalIdentity(account) => PolicyPreV7::PersonalIdentity(account),
-			PolicyValV7::LitePerson(account) => PolicyPreV7::LitePerson(account),
-			PolicyValV7::LiteAlias(account) => PolicyPreV7::LiteAlias(account),
-			PolicyValV7::ResourcesClaim(account, alias) =>
-				PolicyPreV7::ResourcesClaim(account, alias),
-			PolicyValV7::None => PolicyPreV7::None,
+			PolicyValV6::PersonalAlias(account) => PolicyPreV6::PersonalAlias(account),
+			PolicyValV6::PersonalIdentity(account) => PolicyPreV6::PersonalIdentity(account),
+			PolicyValV6::LitePerson(account) => PolicyPreV6::LitePerson(account),
+			PolicyValV6::LiteAlias(account) => PolicyPreV6::LiteAlias(account),
+			PolicyValV6::ResourcesClaim(account, alias) =>
+				PolicyPreV6::ResourcesClaim(account, alias),
+			PolicyValV6::None => PolicyPreV6::None,
 		})
 	}
 }
@@ -1184,20 +1184,27 @@ impl Output for FixedOutput {
 	}
 }
 
-fn decode_meta_intent(call: &RuntimeCall) -> Result<H256, InvalidTransaction> {
+fn decode_meta_intent<R: MetadataImplicitResolver>(
+	call: &RuntimeCall,
+) -> Result<H256, TransactionValidityError> {
 	let RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch { meta_tx, .. }) = call else {
-		return Err(InvalidTransaction::Call);
+		return Err(InvalidTransaction::Call.into());
 	};
-	decode_meta_payload(&FixedOutput::encode(meta_tx)?.buf)
+	decode_meta_payload::<R>(
+		&FixedOutput::encode(meta_tx).map_err(TransactionValidityError::Invalid)?.buf,
+	)
 }
 
-fn decode_meta_payload(payload: &[u8]) -> Result<H256, InvalidTransaction> {
+fn decode_meta_payload<R: MetadataImplicitResolver>(
+	payload: &[u8],
+) -> Result<H256, TransactionValidityError> {
 	use codec::DecodeAll;
 	let (inner_call, extension_version, extension): (
 		RuntimeCall,
 		ExtensionVersion,
 		crate::MetaTxExtension,
-	) = DecodeAll::decode_all(&mut payload.as_ref()).map_err(|_| InvalidTransaction::BadProof)?;
+	) = DecodeAll::decode_all(&mut payload.as_ref())
+		.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::BadProof))?;
 	let (
 		verify,
 		consume,
@@ -1212,11 +1219,15 @@ fn decode_meta_payload(payload: &[u8]) -> Result<H256, InvalidTransaction> {
 		storage,
 		metadata,
 	) = extension;
-	let verify_mirror: VerifySignatureMirror =
-		DecodeAll::decode_all(&mut FixedOutput::encode(&verify)?.buf.as_slice())
-			.map_err(|_| InvalidTransaction::BadProof)?;
+	let verify_mirror: VerifySignatureMirror = DecodeAll::decode_all(
+		&mut FixedOutput::encode(&verify)
+			.map_err(TransactionValidityError::Invalid)?
+			.buf
+			.as_slice(),
+	)
+	.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::BadProof))?;
 	let VerifySignatureMirror::Signed { account, .. } = verify_mirror else {
-		return Err(InvalidTransaction::BadSigner);
+		return Err(InvalidTransaction::BadSigner.into());
 	};
 	let expected = IntentPreimageV7 {
 		domain: META_DOMAIN.to_vec(),
@@ -1231,48 +1242,46 @@ fn decode_meta_payload(payload: &[u8]) -> Result<H256, InvalidTransaction> {
 		policy_proofs_hash: hash_encoded(&policies.0),
 		storage_extension_hash: hash_encoded(&storage),
 		metadata_extension_hash: hash_encoded(&metadata),
-		metadata_implicit: bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(
-			&metadata,
-		)
-		.map_err(|_| InvalidTransaction::BadProof)?,
+		metadata_implicit: R::resolve(&metadata)?,
 	};
 	if consume.0 != expected ||
 		expected.spec_version != 28 ||
 		expected.transaction_version != 7 ||
 		matches!(inner_call, RuntimeCall::MetaTx(..))
 	{
-		return Err(InvalidTransaction::BadProof);
+		return Err(InvalidTransaction::BadProof.into());
 	}
 	Ok(expected.commitment())
 }
 
 pub const MAX_META_ENVELOPE_DEPTH: u32 = 4;
 pub const MAX_META_ENVELOPE_CALLS: u32 = 32;
-pub const MAX_META_ENCODED_BYTES: usize = 65_536;
+pub const MAX_META_ENCODED_BYTES: usize =
+	65_536 + crate::weights::meta_v6::METADATA_IMPLICIT_MAX_BYTES as usize;
 
 struct InspectionState {
 	visited: u32,
 	found: Option<H256>,
 }
 
-fn inspect_node(
+fn inspect_node<R: MetadataImplicitResolver>(
 	call: &RuntimeCall,
 	depth: u32,
 	cached_encoded_size: Option<usize>,
 	state: &mut InspectionState,
-) -> Result<(), InvalidTransaction> {
+) -> Result<(), TransactionValidityError> {
 	state.visited = state.visited.saturating_add(1);
 	if state.visited > MAX_META_ENVELOPE_CALLS || depth > MAX_META_ENVELOPE_DEPTH {
-		return Err(InvalidTransaction::ExhaustsResources);
+		return Err(InvalidTransaction::ExhaustsResources.into());
 	}
 	if matches!(call, RuntimeCall::MetaTx(..)) {
 		let encoded_size = cached_encoded_size.unwrap_or_else(|| call.encoded_size());
 		if encoded_size > MAX_META_ENCODED_BYTES {
-			return Err(InvalidTransaction::ExhaustsResources);
+			return Err(InvalidTransaction::ExhaustsResources.into());
 		}
-		let commitment = decode_meta_intent(call)?;
+		let commitment = decode_meta_intent::<R>(call)?;
 		if state.found.replace(commitment).is_some() {
-			return Err(InvalidTransaction::Call);
+			return Err(InvalidTransaction::Call.into());
 		}
 		return Ok(());
 	}
@@ -1297,55 +1306,53 @@ fn inspect_node(
 	};
 	if let Some(child) = denied_child {
 		let before = state.found;
-		inspect_node(child, depth.saturating_add(1), None, state)?;
-		return if state.found != before { Err(InvalidTransaction::Call) } else { Ok(()) };
+		inspect_node::<R>(child, depth.saturating_add(1), None, state)?;
+		return if state.found != before { Err(InvalidTransaction::Call.into()) } else { Ok(()) };
 	}
 	match call {
 		RuntimeCall::Utility(pallet_utility::Call::batch { calls }) |
 		RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) |
 		RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) =>
 			for child in calls {
-				inspect_node(child, depth.saturating_add(1), None, state)?;
+				inspect_node::<R>(child, depth.saturating_add(1), None, state)?;
 			},
 		RuntimeCall::Proxy(pallet_proxy::Call::proxy { call, .. }) |
 		RuntimeCall::Proxy(pallet_proxy::Call::proxy_announced { call, .. }) |
 		RuntimeCall::Multisig(pallet_multisig::Call::as_multi { call, .. }) |
 		RuntimeCall::Multisig(pallet_multisig::Call::as_multi_threshold_1 { call, .. }) =>
-			inspect_node(call, depth.saturating_add(1), None, state)?,
+			inspect_node::<R>(call, depth.saturating_add(1), None, state)?,
 		_ => {},
 	}
 	Ok(())
 }
 
-pub(crate) fn inspect_paid_meta(
+pub(crate) fn inspect_paid_meta<R: MetadataImplicitResolver>(
 	call: &RuntimeCall,
 	depth: u32,
-) -> Result<Option<H256>, InvalidTransaction> {
+) -> Result<Option<H256>, TransactionValidityError> {
 	let root_encoded_size = call.encoded_size();
 	if root_encoded_size > MAX_META_ENCODED_BYTES {
-		return Err(InvalidTransaction::ExhaustsResources);
+		return Err(InvalidTransaction::ExhaustsResources.into());
 	}
 	let mut state = InspectionState { visited: 0, found: None };
-	inspect_node(call, depth, Some(root_encoded_size), &mut state)?;
+	inspect_node::<R>(call, depth, Some(root_encoded_size), &mut state)?;
 	Ok(state.found)
 }
 
 pub trait MetadataImplicitResolver {
-	fn resolve() -> Result<Option<[u8; 32]>, TransactionValidityError>;
+	fn resolve(
+		metadata: &frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+	) -> Result<Option<[u8; 32]>, TransactionValidityError>;
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub struct ProductionMetadataImplicitResolver;
 
 impl MetadataImplicitResolver for ProductionMetadataImplicitResolver {
-	fn resolve() -> Result<Option<[u8; 32]>, TransactionValidityError> {
-		#[cfg(test)]
-		return Ok(None);
-		#[cfg(not(test))]
-		{
-			let metadata = crate::canonical_metadata_extension();
-			bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&metadata)
-		}
+	fn resolve(
+		metadata: &frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+	) -> Result<Option<[u8; 32]>, TransactionValidityError> {
+		bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(metadata)
 	}
 }
 
@@ -1405,7 +1412,6 @@ where
 	}
 
 	fn implicit(&self) -> Result<Self::Implicit, TransactionValidityError> {
-		R::resolve()?;
 		self.0.implicit()
 	}
 
@@ -1427,7 +1433,7 @@ where
 	) -> ValidateResult<Self::Val, RuntimeCall> {
 		let (valid, core, origin) =
 			self.0.validate(origin, call, info, len, implicit, inherited, source)?;
-		let intent = inspect_paid_meta(call, 0).map_err(TransactionValidityError::Invalid)?;
+		let intent = inspect_paid_meta::<R>(call, 0)?;
 		if intent.is_some() &&
 			matches!(origin.as_system_ref(), Some(frame_system::RawOrigin::Authorized))
 		{

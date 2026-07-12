@@ -7,7 +7,8 @@ use frame_support::weights::{RuntimeDbWeight, Weight};
 
 pub const MAX_CALLS: u64 = 32;
 pub const MAX_DEPTH: u64 = 4;
-pub const MAX_BYTES: u64 = 65_536;
+pub const METADATA_IMPLICIT_MAX_BYTES: u64 = 33;
+pub const MAX_BYTES: u64 = 65_536 + METADATA_IMPLICIT_MAX_BYTES;
 const BASE: u64 = 5_000_000;
 const PER_CALL: u64 = 500_000;
 const PER_DEPTH: u64 = 250_000;
@@ -140,7 +141,11 @@ mod tests {
 		let db = RuntimeDbWeight { read: 1_000, write: 2_000 };
 		assert_eq!(
 			paid_scope_max(db),
-			Weight::from_parts(inspector_ref_time(32, 4, 65_536) + 6_000, 0)
+			Weight::from_parts(inspector_ref_time(32, 4, MAX_BYTES) + 6_000, 0)
+		);
+		assert_eq!(
+			inspector_ref_time(32, 4, MAX_BYTES) - inspector_ref_time(32, 4, 65_536),
+			25_000,
 		);
 		assert_eq!(
 			malformed_max(db),

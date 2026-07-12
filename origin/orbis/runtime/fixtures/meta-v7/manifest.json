@@ -1,0 +1,98 @@
+{
+  "schema": "orbis-meta-intent-v7",
+  "spec_version": 28,
+  "transaction_version": 7,
+  "metadata_implicit": "0x2828282828282828282828282828282828282828282828282828282828282828",
+  "files": [
+    {
+      "file": "intent-commitment.bin",
+      "sha256": "6c08c0914a3b3e17ea9e91fc85bc7d594f6c3e27fc6426be0ce97b4ba724e390",
+      "bytes": 32
+    },
+    {
+      "file": "intent-preimage.scale",
+      "sha256": "b0e6ef75ed9245e2c2885d1620b6bde136eec2284de86f3b8c0e1d742980f186",
+      "bytes": 260
+    },
+    {
+      "file": "max-envelope.scale",
+      "sha256": "1ebef6a3d22c507ee5129f43d3e6fd82a502454bb517e6695b47c606e73b0873",
+      "bytes": 507
+    },
+    {
+      "file": "mutate-call-hash.scale",
+      "sha256": "4e5834a21ae02ae4b548bc6cde33ca479d648040280635d9befbc6feeaed8725",
+      "bytes": 260
+    },
+    {
+      "file": "mutate-domain.scale",
+      "sha256": "9be2c925ed632e43cf419eae062aa6988e09f8ad9c3ffcf58b680abc5095b4b0",
+      "bytes": 261
+    },
+    {
+      "file": "mutate-genesis.scale",
+      "sha256": "b6cef5fe98202f00a43d4acc9319a11fd9650d5c3cbc9395a6caff3aa70001ff",
+      "bytes": 260
+    },
+    {
+      "file": "mutate-metadata-hash.scale",
+      "sha256": "f379327a2e3d576b4f4b2386080ae9ca4052ca8b65908b1511f79b53b2789e30",
+      "bytes": 260
+    },
+    {
+      "file": "mutate-metadata-implicit.scale",
+      "sha256": "7ec6b3a794a82d46cba60ef61509e6cccfd1948ba9decf4dc3149c797f53ab8a",
+      "bytes": 260
+    },
+    {
+      "file": "mutate-mortality.scale",
+      "sha256": "64c7757ec52b6d20faccff9c1cad333e27b3eb5d2c898f5f48ae9794f1eb1882",
+      "bytes": 261
+    },
+    {
+      "file": "mutate-nonce.scale",
+      "sha256": "bd6ccae612a52ae7cde763adeac93840f32b768e53aab9705964e8aaa2aed9b8",
+      "bytes": 260
+    },
+    {
+      "file": "mutate-policy-hash.scale",
+      "sha256": "81523b44921e705144712244820c3da2719b0f8875624ab9c39d0678f8a94c37",
+      "bytes": 260
+    },
+    {
+      "file": "mutate-signer.scale",
+      "sha256": "7dd0193eb5201dd39ace49606621e24e1498f06df468d416e86fb06802802890",
+      "bytes": 260
+    },
+    {
+      "file": "mutate-spec.scale",
+      "sha256": "cca7cfc230d311b79b508cc6586ce5dea73855d4217323c12d7e76def0f30770",
+      "bytes": 260
+    },
+    {
+      "file": "mutate-storage-hash.scale",
+      "sha256": "0d7ffa278c756d6b3f8d146d99fae0d13d9169e2d820141bfee2c9e5d7847084",
+      "bytes": 260
+    },
+    {
+      "file": "mutate-transaction-version.scale",
+      "sha256": "5bc8b7682f338b8f47e5bf7e262c8e45b638a5fcecb1cbb52a5d8883e2461ce2",
+      "bytes": 260
+    },
+    {
+      "file": "paid-token-key.bin",
+      "sha256": "43664cdaee8af7ea51bbb4b377ebb4bc2b5b11f523ca5194a05db22ba25ff003",
+      "bytes": 32
+    },
+    {
+      "file": "paid-token.scale",
+      "sha256": "25c6832ab68d9c2e831b1865e1fa7a7f698e4ecf92ca6bc6e56de231299c80f5",
+      "bytes": 109
+    },
+    {
+      "file": "verify-consume-tuple.scale",
+      "sha256": "38f64677d9f81e2a618df473ecfacee6d93a320f98e31b7430fddebbfc397c97",
+      "bytes": 381
+    }
+  ]
+}
