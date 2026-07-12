@@ -1,8 +1,13 @@
 use crate::{AccountId, Members, Runtime, RuntimeCall, RuntimeOrigin, System};
 use alloc::vec::Vec;
 use codec::{Decode, DecodeWithMemTracking, Encode};
-use frame_support::{traits::OriginTrait, weights::Weight};
-use indiv_support::traits::{Context, MembershipProver, RevisionIndex, RingIndex};
+use frame_support::{
+	traits::{Contains, OriginTrait},
+	weights::Weight,
+};
+use indiv_support::traits::{
+	Context, MembershipProver, RevisedContextualAlias, RevisionIndex, RingIndex,
+};
 use scale_info::TypeInfo;
 use sp_core::H256;
 use sp_runtime::{
@@ -121,22 +126,40 @@ impl MetaAccountBoundPoliciesV6 {
 	}
 }
 
+pub enum PolicyValV6 {
+	None,
+	Applied,
+	PersonRevision(AccountId, RevisedContextualAlias),
+	LiteRevision(AccountId, RevisedContextualAlias),
+}
+
 impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 	const IDENTIFIER: &'static str = "MetaAccountBoundPoliciesV6";
 	type Implicit = ();
-	type Val = ();
+	type Val = PolicyValV6;
 	type Pre = ();
 
 	fn weight(&self, call: &RuntimeCall) -> Weight {
 		use indiv_pallet_resources::weights::WeightInfo as _;
+		let db = <Runtime as frame_system::Config>::DbWeight::get();
 		if matches!(
 			call,
 			RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage { .. })
 		) {
 			<Runtime as indiv_pallet_resources::Config>::WeightInfo::claim_long_term_storage_tx_ext(
 			)
+			.saturating_add(db.reads(5))
+			.saturating_add(Weight::from_parts(10_000_000, 0))
+		} else if matches!(
+			self.0.personhood,
+			Some(MetaPersonhoodAuthV6::PersonalAliasAccountRevised(..))
+		) || matches!(
+			self.0.people_lite,
+			Some(MetaPeopleLiteAuthV6::LiteAliasAccountRevised(..))
+		) {
+			db.reads_writes(3, 1).saturating_add(Weight::from_parts(12_000_000, 0))
 		} else {
-			<Runtime as frame_system::Config>::DbWeight::get().reads(1)
+			db.reads(2).saturating_add(Weight::from_parts(2_000_000, 0))
 		}
 	}
 
@@ -149,9 +172,137 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 		_: (),
 		inherited: &impl Implication,
 		_source: TransactionSource,
-	) -> ValidateResult<(), RuntimeCall> {
+	) -> ValidateResult<PolicyValV6, RuntimeCall> {
 		let signer =
 			origin.as_system_origin_signer().cloned().ok_or(InvalidTransaction::BadSigner)?;
+		if self.0.personhood.is_some() as u8 +
+			self.0.people_lite.is_some() as u8 +
+			self.0.resources.is_some() as u8 >
+			1
+		{
+			return Err(InvalidTransaction::Call.into());
+		}
+		if let Some(personhood) = &self.0.personhood {
+			if self.0.people_lite.is_some() || self.0.resources.is_some() {
+				return Err(InvalidTransaction::Call.into());
+			}
+			let (local, value) = match personhood {
+				MetaPersonhoodAuthV6::PersonalAliasAccount => {
+					let bound = indiv_pallet_people::AccountToAlias::<Runtime>::get(&signer)
+						.ok_or(InvalidTransaction::BadSigner)?;
+					if !<Runtime as indiv_pallet_people::Config>::AccountContexts::contains(
+						&bound.ca.context,
+					) || indiv_pallet_people::AliasToAccount::<Runtime>::get(&bound.ca) !=
+						Some(signer.clone()) ||
+						<Members as MembershipProver>::ring_revision(
+							&*indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER,
+							bound.ring,
+						) != Some(bound.revision)
+					{
+						return Err(InvalidTransaction::BadSigner.into());
+					}
+					(indiv_pallet_people::Origin::PersonalAlias(bound), PolicyValV6::Applied)
+				},
+				MetaPersonhoodAuthV6::PersonalIdentityAccount => {
+					let id = indiv_pallet_people::AccountToPersonalId::<Runtime>::get(&signer)
+						.ok_or(InvalidTransaction::BadSigner)?;
+					if !indiv_pallet_people::People::<Runtime>::get(id)
+						.is_some_and(|record| record.account == Some(signer.clone()))
+					{
+						return Err(InvalidTransaction::BadSigner.into());
+					}
+					(indiv_pallet_people::Origin::PersonalIdentity(id), PolicyValV6::Applied)
+				},
+				MetaPersonhoodAuthV6::PersonalAliasAccountRevised(proof, ring_index, context) => {
+					let old = indiv_pallet_people::AccountToAlias::<Runtime>::get(&signer)
+						.ok_or(InvalidTransaction::BadSigner)?;
+					let msg = (b"orbis/meta/v6/personhood/alias-revised", &signer, call, inherited)
+						.using_encoded(sp_io::hashing::blake2_256);
+					let revised = <Members as MembershipProver>::verify_membership(
+						&*indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER,
+						proof,
+						*ring_index,
+						*context,
+						&msg,
+					)
+					.map_err(|_| InvalidTransaction::BadProof)?;
+					if revised.ca.alias != old.ca.alias ||
+						revised.ca.context != old.ca.context ||
+						indiv_pallet_people::AliasToAccount::<Runtime>::get(&old.ca) !=
+							Some(signer.clone())
+					{
+						return Err(InvalidTransaction::BadSigner.into());
+					}
+					(
+						indiv_pallet_people::Origin::PersonalAlias(revised.clone()),
+						PolicyValV6::PersonRevision(signer.clone(), revised),
+					)
+				},
+			};
+			origin.set_caller_from(local);
+			return Ok((ValidTransaction::default(), value, origin));
+		}
+		if let Some(lite) = &self.0.people_lite {
+			if self.0.resources.is_some() {
+				return Err(InvalidTransaction::Call.into());
+			}
+			let (local, value) = match lite {
+				MetaPeopleLiteAuthV6::LitePerson => {
+					if !indiv_pallet_people_lite::LitePeople::<Runtime>::contains_key(&signer) {
+						return Err(InvalidTransaction::BadSigner.into());
+					}
+					(
+						indiv_pallet_people_lite::Origin::LitePerson(signer.clone()),
+						PolicyValV6::Applied,
+					)
+				},
+				MetaPeopleLiteAuthV6::LiteAliasAccount => {
+					let bound = indiv_pallet_people_lite::AccountToAlias::<Runtime>::get(&signer)
+						.ok_or(InvalidTransaction::BadSigner)?;
+					if indiv_pallet_people_lite::AliasToAccount::<Runtime>::get(&bound.ca) !=
+						Some(signer.clone()) ||
+						<Members as MembershipProver>::ring_revision(
+							&*indiv_pallet_people_lite::LITE_PEOPLE_MEMBER_IDENTIFIER,
+							bound.ring,
+						) != Some(bound.revision)
+					{
+						return Err(InvalidTransaction::BadSigner.into());
+					}
+					(indiv_pallet_people_lite::Origin::LiteAlias(bound), PolicyValV6::Applied)
+				},
+				MetaPeopleLiteAuthV6::LiteAliasAccountRevised(proof, ring_index, context) => {
+					let old = indiv_pallet_people_lite::AccountToAlias::<Runtime>::get(&signer)
+						.ok_or(InvalidTransaction::BadSigner)?;
+					if *context != *indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT {
+						return Err(InvalidTransaction::Call.into());
+					}
+					let msg =
+						(b"orbis/meta/v6/people-lite/alias-revised", &signer, call, inherited)
+							.using_encoded(sp_io::hashing::blake2_256);
+					let revised = <Members as MembershipProver>::verify_membership(
+						&*indiv_pallet_people_lite::LITE_PEOPLE_MEMBER_IDENTIFIER,
+						proof,
+						*ring_index,
+						*context,
+						&msg,
+					)
+					.map_err(|_| InvalidTransaction::BadProof)?;
+					if revised.ca.alias != old.ca.alias ||
+						revised.ca.context != old.ca.context ||
+						indiv_pallet_people_lite::AliasToAccount::<Runtime>::get(&old.ca) !=
+							Some(signer.clone())
+					{
+						return Err(InvalidTransaction::BadSigner.into());
+					}
+					(
+						indiv_pallet_people_lite::Origin::LiteAlias(revised.clone()),
+						PolicyValV6::LiteRevision(signer.clone(), revised),
+					)
+				},
+			};
+			origin.set_caller_from(local);
+			return Ok((ValidTransaction::default(), value, origin));
+		}
 		match call {
 			RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage {
 				period,
@@ -211,24 +362,31 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 					ValidTransaction::with_tag_prefix("OrbisMetaResources")
 						.and_provides((period, alias))
 						.into(),
-					(),
+					PolicyValV6::Applied,
 					origin,
 				))
 			},
 			_ if self.0 == PolicyProofsV6::default() =>
-				Ok((ValidTransaction::default(), (), origin)),
+				Ok((ValidTransaction::default(), PolicyValV6::None, origin)),
 			_ => Err(InvalidTransaction::Call.into()),
 		}
 	}
 
 	fn prepare(
 		self,
-		_: (),
+		value: PolicyValV6,
 		_: &RuntimeOrigin,
 		_: &RuntimeCall,
 		_: &DispatchInfoOf<RuntimeCall>,
 		_: usize,
 	) -> Result<(), TransactionValidityError> {
+		match value {
+			PolicyValV6::PersonRevision(account, revised) =>
+				indiv_pallet_people::AccountToAlias::<Runtime>::insert(account, revised),
+			PolicyValV6::LiteRevision(account, revised) =>
+				indiv_pallet_people_lite::AccountToAlias::<Runtime>::insert(account, revised),
+			PolicyValV6::None | PolicyValV6::Applied => {},
+		}
 		Ok(())
 	}
 }
@@ -292,6 +450,10 @@ impl TransactionExtension<RuntimeCall> for ConsumePaidMetaIngress {
 		_: &DispatchInfoOf<RuntimeCall>,
 		_: usize,
 	) -> Result<H256, TransactionValidityError> {
+		let current = token().ok_or(InvalidTransaction::BadSigner)?;
+		if current.key() != key || current.consumed {
+			return Err(InvalidTransaction::BadSigner.into());
+		}
 		clear_token();
 		Ok(key)
 	}
@@ -353,7 +515,7 @@ fn decode_meta_intent(call: &RuntimeCall) -> Result<H256, InvalidTransaction> {
 		metadata_extension_hash: hash_encoded(&metadata),
 	};
 	if consume.0 != expected ||
-		expected.spec_version != 26 ||
+		expected.spec_version != 27 ||
 		expected.transaction_version != 6 ||
 		matches!(inner_call, RuntimeCall::MetaTx(..))
 	{
@@ -362,18 +524,36 @@ fn decode_meta_intent(call: &RuntimeCall) -> Result<H256, InvalidTransaction> {
 	Ok(expected.commitment())
 }
 
-pub(crate) fn inspect_paid_meta(
+pub const MAX_META_ENVELOPE_DEPTH: u32 = 4;
+pub const MAX_META_ENVELOPE_CALLS: u32 = 32;
+pub const MAX_META_ENCODED_BYTES: usize = 65_536;
+
+struct InspectionState {
+	visited: u32,
+	found: Option<H256>,
+}
+
+fn inspect_node(
 	call: &RuntimeCall,
 	depth: u32,
-) -> Result<Option<H256>, InvalidTransaction> {
-	if depth >= pallet_bulletin_transaction_storage::MAX_WRAPPER_DEPTH {
+	state: &mut InspectionState,
+) -> Result<(), InvalidTransaction> {
+	state.visited = state.visited.saturating_add(1);
+	if state.visited > MAX_META_ENVELOPE_CALLS || depth > MAX_META_ENVELOPE_DEPTH {
 		return Err(InvalidTransaction::ExhaustsResources);
 	}
 	if matches!(call, RuntimeCall::MetaTx(..)) {
-		return decode_meta_intent(call).map(Some);
+		if call.encoded_size() > MAX_META_ENCODED_BYTES {
+			return Err(InvalidTransaction::ExhaustsResources);
+		}
+		let commitment = decode_meta_intent(call)?;
+		if state.found.replace(commitment).is_some() {
+			return Err(InvalidTransaction::Call);
+		}
+		return Ok(())
 	}
 	if matches!(call, RuntimeCall::Multisig(pallet_multisig::Call::approve_as_multi { .. })) {
-		return Err(InvalidTransaction::Call);
+		return Ok(())
 	}
 	let denied_child = match call {
 		RuntimeCall::Utility(pallet_utility::Call::dispatch_as { call, .. }) |
@@ -392,32 +572,37 @@ pub(crate) fn inspect_paid_meta(
 		_ => None,
 	};
 	if let Some(child) = denied_child {
-		return match inspect_paid_meta(child, depth + 1)? {
-			Some(_) => Err(InvalidTransaction::Call),
-			None => Ok(None),
-		};
+		let before = state.found;
+		inspect_node(child, depth.saturating_add(1), state)?;
+		return if state.found != before { Err(InvalidTransaction::Call) } else { Ok(()) }
 	}
-	let children: Option<Vec<&RuntimeCall>> = match call {
+	match call {
 		RuntimeCall::Utility(pallet_utility::Call::batch { calls }) |
 		RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) |
-		RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => Some(calls.iter().collect()),
+		RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) =>
+			for child in calls {
+				inspect_node(child, depth.saturating_add(1), state)?;
+			},
 		RuntimeCall::Proxy(pallet_proxy::Call::proxy { call, .. }) |
 		RuntimeCall::Proxy(pallet_proxy::Call::proxy_announced { call, .. }) |
 		RuntimeCall::Multisig(pallet_multisig::Call::as_multi { call, .. }) |
 		RuntimeCall::Multisig(pallet_multisig::Call::as_multi_threshold_1 { call, .. }) =>
-			Some(alloc::vec![call.as_ref()]),
-		_ => None,
-	};
-	let Some(children) = children else { return Ok(None) };
-	let mut found = None;
-	for child in children {
-		if let Some(commitment) = inspect_paid_meta(child, depth + 1)? {
-			if found.replace(commitment).is_some() {
-				return Err(InvalidTransaction::Call);
-			}
-		}
+			inspect_node(call, depth.saturating_add(1), state)?,
+		_ => {},
 	}
-	Ok(found)
+	Ok(())
+}
+
+pub(crate) fn inspect_paid_meta(
+	call: &RuntimeCall,
+	depth: u32,
+) -> Result<Option<H256>, InvalidTransaction> {
+	if call.encoded_size() > MAX_META_ENCODED_BYTES {
+		return Err(InvalidTransaction::ExhaustsResources)
+	}
+	let mut state = InspectionState { visited: 0, found: None };
+	inspect_node(call, depth, &mut state)?;
+	Ok(state.found)
 }
 
 #[derive(Clone, Eq, PartialEq, Encode, Decode, DecodeWithMemTracking)]
@@ -473,7 +658,7 @@ where
 		self.0
 			.weight(call)
 			.saturating_add(<Runtime as frame_system::Config>::DbWeight::get().reads_writes(2, 2))
-			.saturating_add(Weight::from_parts(3_000_000, 0))
+			.saturating_add(Weight::from_parts(52_000_000, 0))
 	}
 
 	fn validate(
@@ -489,6 +674,11 @@ where
 		let (valid, core, origin) =
 			self.0.validate(origin, call, info, len, implicit, inherited, source)?;
 		let intent = inspect_paid_meta(call, 0).map_err(TransactionValidityError::Invalid)?;
+		if intent.is_some() &&
+			matches!(origin.as_system_ref(), Some(frame_system::RawOrigin::Authorized))
+		{
+			return Err(InvalidTransaction::Call.into());
+		}
 		let scope = if let Some(commitment) = intent {
 			let payer =
 				origin.as_system_origin_signer().cloned().ok_or(InvalidTransaction::BadSigner)?;
@@ -556,5 +746,13 @@ impl frame_support::traits::Contains<RuntimeCall> for BaseFilter {
 				token.spec_version == crate::VERSION.spec_version &&
 				token.transaction_version == crate::VERSION.transaction_version
 		})
+	}
+}
+
+pub struct MetaTokenMustBeEmpty;
+
+impl frame_support::traits::PostTransactions for MetaTokenMustBeEmpty {
+	fn post_transactions() {
+		assert!(token().is_none(), "Orbis paid Meta token leaked past transaction execution");
 	}
 }

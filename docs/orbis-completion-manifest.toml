@@ -4306,7 +4306,7 @@ expected_assertion = "exact canonical MetaTxExtension tuple order"
 artifact_path = "target/orbis-remediation/META-ALIAS-VERIFY-CONSUME.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-COMPAT-SPEC"
@@ -4319,7 +4319,7 @@ expected_assertion = "one final integration changes spec 26 to 27"
 artifact_path = "target/orbis-remediation/META-COMPAT-SPEC.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-COMPAT-TX"
@@ -4332,7 +4332,7 @@ expected_assertion = "transaction version stays six"
 artifact_path = "target/orbis-remediation/META-COMPAT-TX.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-COMPAT-SCHEMA"
@@ -4345,7 +4345,7 @@ expected_assertion = "schema compatibility does not claim whole-byte identity"
 artifact_path = "target/orbis-remediation/META-COMPAT-SCHEMA.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-INTENT-DOMAIN"
@@ -4358,7 +4358,7 @@ expected_assertion = "orbis/meta-intent/v6"
 artifact_path = "target/orbis-remediation/META-INTENT-DOMAIN.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-INTENT-EXTENSION"
@@ -4371,7 +4371,7 @@ expected_assertion = "extension_version"
 artifact_path = "target/orbis-remediation/META-INTENT-EXTENSION.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-INTENT-GENESIS"
@@ -4384,7 +4384,7 @@ expected_assertion = "genesis_hash"
 artifact_path = "target/orbis-remediation/META-INTENT-GENESIS.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-INTENT-SPEC"
@@ -4397,7 +4397,7 @@ expected_assertion = "spec_version exactly 27"
 artifact_path = "target/orbis-remediation/META-INTENT-SPEC.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-INTENT-TX"
@@ -4410,7 +4410,7 @@ expected_assertion = "transaction_version exactly 6"
 artifact_path = "target/orbis-remediation/META-INTENT-TX.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-INTENT-SIGNER"
@@ -4423,7 +4423,7 @@ expected_assertion = "inner_signer"
 artifact_path = "target/orbis-remediation/META-INTENT-SIGNER.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-INTENT-CALL"
@@ -4436,7 +4436,7 @@ expected_assertion = "call_hash"
 artifact_path = "target/orbis-remediation/META-INTENT-CALL.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-INTENT-MORTALITY"
@@ -4449,7 +4449,7 @@ expected_assertion = "mortality"
 artifact_path = "target/orbis-remediation/META-INTENT-MORTALITY.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-INTENT-NONCE"
@@ -4462,7 +4462,7 @@ expected_assertion = "nonce"
 artifact_path = "target/orbis-remediation/META-INTENT-NONCE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-INTENT-POLICY"
@@ -4475,7 +4475,7 @@ expected_assertion = "policy_proofs_hash"
 artifact_path = "target/orbis-remediation/META-INTENT-POLICY.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-INTENT-STORAGE"
@@ -4488,7 +4488,7 @@ expected_assertion = "storage_extension_hash"
 artifact_path = "target/orbis-remediation/META-INTENT-STORAGE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-INTENT-METADATA"
@@ -4501,7 +4501,7 @@ expected_assertion = "metadata_extension_hash"
 artifact_path = "target/orbis-remediation/META-INTENT-METADATA.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-INTENT-COMMITMENT"
@@ -4513,7 +4513,7 @@ expected_assertion = "Blake2-256(SCALE(IntentPreimageV6))"
 artifact_path = "target/orbis-remediation/META-INTENT-COMMITMENT.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-DIRECT-PAYER"
@@ -4526,7 +4526,7 @@ expected_assertion = "signature authorizes direct Resources nonce and debit"
 artifact_path = "target/orbis-remediation/META-DIRECT-PAYER.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-DIRECT-BADSIG"
@@ -4538,7 +4538,7 @@ expected_assertion = "bad signature rejected"
 artifact_path = "target/orbis-remediation/META-DIRECT-BADSIG.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-DIRECT-MISMATCH"
@@ -4550,7 +4550,7 @@ expected_assertion = "signer != call.account_id rejected"
 artifact_path = "target/orbis-remediation/META-DIRECT-MISMATCH.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-DIRECT-NONE"
@@ -4562,7 +4562,7 @@ expected_assertion = "None origin rejected before nonce/payment"
 artifact_path = "target/orbis-remediation/META-DIRECT-NONE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-DIRECT-NONCE"
@@ -4574,7 +4574,7 @@ expected_assertion = "account-aware direct Resources nonce adapter"
 artifact_path = "target/orbis-remediation/META-DIRECT-NONCE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-DIRECT-PAYMENT"
@@ -4586,7 +4586,7 @@ expected_assertion = "account-aware direct Resources payment/refund adapter"
 artifact_path = "target/orbis-remediation/META-DIRECT-PAYMENT.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-BOUND-DEPTH"
@@ -4599,7 +4599,7 @@ expected_assertion = "finite compile-time maximum depth"
 artifact_path = "target/orbis-remediation/META-BOUND-DEPTH.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-BOUND-CALLS"
@@ -4612,7 +4612,7 @@ expected_assertion = "finite compile-time maximum calls"
 artifact_path = "target/orbis-remediation/META-BOUND-CALLS.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-BOUND-BYTES"
@@ -4625,7 +4625,7 @@ expected_assertion = "finite compile-time maximum encoded bytes"
 artifact_path = "target/orbis-remediation/META-BOUND-BYTES.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-INSPECTOR"
@@ -4637,7 +4637,7 @@ expected_assertion = "allocation-free bounded traversal"
 artifact_path = "target/orbis-remediation/META-INSPECTOR.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-WEIGHT-PAID"
@@ -4649,7 +4649,7 @@ expected_assertion = "PaidMetaScope = 2R + 2W"
 artifact_path = "target/orbis-remediation/META-WEIGHT-PAID.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-WEIGHT-BASE"
@@ -4661,7 +4661,7 @@ expected_assertion = "Base leaf inspection = 1R"
 artifact_path = "target/orbis-remediation/META-WEIGHT-BASE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-WEIGHT-CONSUME"
@@ -4673,7 +4673,7 @@ expected_assertion = "ConsumePaidMetaIngress = 1R + 1W"
 artifact_path = "target/orbis-remediation/META-WEIGHT-CONSUME.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-WEIGHT-ROUTER"
@@ -4685,7 +4685,7 @@ expected_assertion = "per-router-variant benchmark and conservative coefficient"
 artifact_path = "target/orbis-remediation/META-WEIGHT-ROUTER.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-WEIGHT-MAX"
@@ -4697,7 +4697,7 @@ expected_assertion = "max-envelope boundary benchmark"
 artifact_path = "target/orbis-remediation/META-WEIGHT-MAX.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-TOKEN-KEY"
@@ -4709,7 +4709,7 @@ expected_assertion = "paid token key commits signer, call hash, mortality, nonce
 artifact_path = "target/orbis-remediation/META-TOKEN-KEY.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-TOKEN-EMPTY"
@@ -4721,7 +4721,7 @@ expected_assertion = "MetaTokenMustBeEmpty"
 artifact_path = "target/orbis-remediation/META-TOKEN-EMPTY.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-TOKEN-ONE-SHOT"
@@ -4733,7 +4733,7 @@ expected_assertion = "ConsumePaidMetaIngress consumes exactly once"
 artifact_path = "target/orbis-remediation/META-TOKEN-ONE-SHOT.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-TOKEN-FINALIZE"
@@ -4745,7 +4745,7 @@ expected_assertion = "PostTransactions/Executive finalization clears and asserts
 artifact_path = "target/orbis-remediation/META-TOKEN-FINALIZE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-TOKEN-FAILURE"
@@ -4757,7 +4757,7 @@ expected_assertion = "cleanup on validation, prepare, dispatch and post-dispatch
 artifact_path = "target/orbis-remediation/META-TOKEN-FAILURE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_contract]]
 id = "META-TOKEN-KEYMATCH"
@@ -4769,7 +4769,7 @@ expected_assertion = "consumer requires exact producer token-key match"
 artifact_path = "target/orbis-remediation/META-TOKEN-KEYMATCH.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_router_variant]]
 id = "ROUTER-PERSON-ALIAS"
@@ -4784,7 +4784,7 @@ expected_assertion = "ROUTER-PERSON-ALIAS"
 artifact_path = "target/orbis-remediation/ROUTER-PERSON-ALIAS.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_router_variant]]
 id = "ROUTER-PERSON-IDENTITY"
@@ -4799,7 +4799,7 @@ expected_assertion = "ROUTER-PERSON-IDENTITY"
 artifact_path = "target/orbis-remediation/ROUTER-PERSON-IDENTITY.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_router_variant]]
 id = "ROUTER-PERSON-ALIAS-REVISED"
@@ -4814,7 +4814,7 @@ expected_assertion = "ROUTER-PERSON-ALIAS-REVISED"
 artifact_path = "target/orbis-remediation/ROUTER-PERSON-ALIAS-REVISED.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_router_variant]]
 id = "ROUTER-LITE-PERSON"
@@ -4829,7 +4829,7 @@ expected_assertion = "ROUTER-LITE-PERSON"
 artifact_path = "target/orbis-remediation/ROUTER-LITE-PERSON.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_router_variant]]
 id = "ROUTER-LITE-ALIAS"
@@ -4844,7 +4844,7 @@ expected_assertion = "ROUTER-LITE-ALIAS"
 artifact_path = "target/orbis-remediation/ROUTER-LITE-ALIAS.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_router_variant]]
 id = "ROUTER-LITE-ALIAS-REVISED"
@@ -4859,7 +4859,7 @@ expected_assertion = "ROUTER-LITE-ALIAS-REVISED"
 artifact_path = "target/orbis-remediation/ROUTER-LITE-ALIAS-REVISED.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_router_variant]]
 id = "ROUTER-RESOURCES-CLAIM"
@@ -4874,7 +4874,7 @@ expected_assertion = "ROUTER-RESOURCES-CLAIM"
 artifact_path = "target/orbis-remediation/ROUTER-RESOURCES-CLAIM.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_vector]]
 id = "VECTOR-DIRECT-BASELINE"
@@ -5121,7 +5121,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-DIRECT.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-UTILITY-BATCH"
@@ -5134,7 +5134,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-UTILITY-BATCH.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-UTILITY-BATCH-ALL"
@@ -5147,7 +5147,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-UTILITY-BATCH-ALL.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-UTILITY-FORCE-BATCH"
@@ -5160,7 +5160,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-UTILITY-FORCE-BATCH.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-PROXY"
@@ -5173,7 +5173,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-PROXY.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-PROXY-ANNOUNCED"
@@ -5186,7 +5186,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-PROXY-ANNOUNCED.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-MULTISIG-AS-MULTI"
@@ -5199,7 +5199,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-MULTISIG-AS-MULTI.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-MULTISIG-THRESHOLD1"
@@ -5212,7 +5212,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-MULTISIG-THRESHOLD1.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-NESTED"
@@ -5225,7 +5225,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-NESTED.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-MULTIPLE"
@@ -5238,7 +5238,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-MULTIPLE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-DISPATCH-AS"
@@ -5251,7 +5251,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-DISPATCH-AS.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-AS-DERIVATIVE"
@@ -5264,7 +5264,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-AS-DERIVATIVE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-SUDO"
@@ -5277,7 +5277,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-SUDO.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-SCHEDULER"
@@ -5290,7 +5290,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-SCHEDULER.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-MULTISIG-APPROVE"
@@ -5303,7 +5303,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-MULTISIG-APPROVE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-XCM"
@@ -5316,7 +5316,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-XCM.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-AUTHORIZED"
@@ -5329,7 +5329,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-AUTHORIZED.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-REVIVE"
@@ -5342,7 +5342,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-REVIVE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-PAYERLESS"
@@ -5355,7 +5355,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-PAYERLESS.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[meta_ingress]]
 id = "INGRESS-OPAQUE"
@@ -5368,7 +5368,7 @@ expected_assertion = "bounded inspection and leaf BaseCallFilter defense"
 artifact_path = "target/orbis-remediation/INGRESS-OPAQUE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_rehearsal]]
 id = "REF-MISSING"
@@ -5382,7 +5382,7 @@ expected_assertion = "invalid fixtures perform zero writes/version change; repai
 artifact_path = "target/orbis-remediation/REF-MISSING.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_rehearsal]]
 id = "REF-PARTIAL"
@@ -5396,7 +5396,7 @@ expected_assertion = "invalid fixtures perform zero writes/version change; repai
 artifact_path = "target/orbis-remediation/REF-PARTIAL.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_rehearsal]]
 id = "REF-STALE"
@@ -5410,7 +5410,7 @@ expected_assertion = "invalid fixtures perform zero writes/version change; repai
 artifact_path = "target/orbis-remediation/REF-STALE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_rehearsal]]
 id = "REF-DUPLICATE"
@@ -5424,7 +5424,7 @@ expected_assertion = "invalid fixtures perform zero writes/version change; repai
 artifact_path = "target/orbis-remediation/REF-DUPLICATE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_rehearsal]]
 id = "HASH-MISSING"
@@ -5438,7 +5438,7 @@ expected_assertion = "invalid fixtures perform zero writes/version change; repai
 artifact_path = "target/orbis-remediation/HASH-MISSING.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_rehearsal]]
 id = "HASH-PARTIAL"
@@ -5452,7 +5452,7 @@ expected_assertion = "invalid fixtures perform zero writes/version change; repai
 artifact_path = "target/orbis-remediation/HASH-PARTIAL.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_rehearsal]]
 id = "HASH-STALE"
@@ -5466,7 +5466,7 @@ expected_assertion = "invalid fixtures perform zero writes/version change; repai
 artifact_path = "target/orbis-remediation/HASH-STALE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_rehearsal]]
 id = "HASH-DUPLICATE"
@@ -5480,7 +5480,7 @@ expected_assertion = "invalid fixtures perform zero writes/version change; repai
 artifact_path = "target/orbis-remediation/HASH-DUPLICATE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_rehearsal]]
 id = "BOTH-PARTIAL-BAD-COUNTER"
@@ -5494,7 +5494,7 @@ expected_assertion = "invalid fixtures perform zero writes/version change; repai
 artifact_path = "target/orbis-remediation/BOTH-PARTIAL-BAD-COUNTER.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_rehearsal]]
 id = "EMPTY"
@@ -5508,7 +5508,7 @@ expected_assertion = "invalid fixtures perform zero writes/version change; repai
 artifact_path = "target/orbis-remediation/EMPTY.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_rehearsal]]
 id = "HISTORICAL-4C"
@@ -5522,7 +5522,7 @@ expected_assertion = "invalid fixtures perform zero writes/version change; repai
 artifact_path = "target/orbis-remediation/HISTORICAL-4C.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_rehearsal]]
 id = "HISTORICAL-640"
@@ -5536,7 +5536,7 @@ expected_assertion = "invalid fixtures perform zero writes/version change; repai
 artifact_path = "target/orbis-remediation/HISTORICAL-640.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_rehearsal]]
 id = "MAX-VALID"
@@ -5550,7 +5550,7 @@ expected_assertion = "invalid fixtures perform zero writes/version change; repai
 artifact_path = "target/orbis-remediation/MAX-VALID.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_contract]]
 id = "BUL-V7-BY-REF"
@@ -5562,7 +5562,7 @@ expected_assertion = "ByRef[link.bulletin_ref] == (reservation_id, content_hash)
 artifact_path = "target/orbis-remediation/BUL-V7-BY-REF.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_contract]]
 id = "BUL-V7-BY-HASH"
@@ -5574,7 +5574,7 @@ expected_assertion = "ByContentHash[content_hash] == reservation_id; every ByCon
 artifact_path = "target/orbis-remediation/BUL-V7-BY-HASH.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_contract]]
 id = "BUL-V7-ROW-COUNT"
@@ -5586,7 +5586,7 @@ expected_assertion = "ResourceReservationRowCount == active + tombstones <= MaxR
 artifact_path = "target/orbis-remediation/BUL-V7-ROW-COUNT.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_contract]]
 id = "BUL-V7-LINK-COUNT"
@@ -5598,7 +5598,7 @@ expected_assertion = "ResourceReservationLinkCount == links == ByRef == ByConten
 artifact_path = "target/orbis-remediation/BUL-V7-LINK-COUNT.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_contract]]
 id = "BUL-V7-READS"
@@ -5610,7 +5610,7 @@ expected_assertion = "reads = A + T + L + I_ref + I_hash + 3L + 3"
 artifact_path = "target/orbis-remediation/BUL-V7-READS.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_contract]]
 id = "BUL-V7-WRITES"
@@ -5622,7 +5622,7 @@ expected_assertion = "writes = I_ref + I_hash + 2L + 2 + 1"
 artifact_path = "target/orbis-remediation/BUL-V7-WRITES.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_contract]]
 id = "BUL-V7-PREFLIGHT"
@@ -5634,7 +5634,7 @@ expected_assertion = "bounded read-only validation completes before any write"
 artifact_path = "target/orbis-remediation/BUL-V7-PREFLIGHT.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_contract]]
 id = "BUL-V7-COMMIT"
@@ -5646,7 +5646,7 @@ expected_assertion = "infallible clear/rebuild, counter writes, storage version 
 artifact_path = "target/orbis-remediation/BUL-V7-COMMIT.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_contract]]
 id = "BUL-V7-PRESERVE"
@@ -5658,7 +5658,7 @@ expected_assertion = "byte-for-byte preserve reservation/link/accounting/expiry/
 artifact_path = "target/orbis-remediation/BUL-V7-PRESERVE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[bulletin_v7_contract]]
 id = "BUL-V7-TRY-STATE"
@@ -5670,7 +5670,7 @@ expected_assertion = "bidirectional reverse-map bijection and exact counters con
 artifact_path = "target/orbis-remediation/BUL-V7-TRY-STATE.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[provider_v8_contract]]
 id = "BUL-V8-FIELD"
@@ -5730,7 +5730,7 @@ expected_assertion = "docs/test source of truth only; runtime remains spec26 tx6
 artifact_path = "target/orbis-remediation/GATE-1-DOCS-V3.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[remediation_gate]]
 id = "GATE-2-DORMANT"
@@ -5742,7 +5742,7 @@ expected_assertion = "dormant bounded transaction support; preserve d75 metadata
 artifact_path = "target/orbis-remediation/GATE-2-DORMANT.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[remediation_gate]]
 id = "GATE-3-BULLETIN-DORMANT"
@@ -5754,7 +5754,7 @@ expected_assertion = "unregistered Bulletin V7 migration; storage remains V6"
 artifact_path = "target/orbis-remediation/GATE-3-BULLETIN-DORMANT.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[remediation_gate]]
 id = "GATE-4-SINGLE-INTEGRATION"
@@ -5766,7 +5766,7 @@ expected_assertion = "single composed runtime commit activates remediation, Bull
 artifact_path = "target/orbis-remediation/GATE-4-SINGLE-INTEGRATION.json"
 artifact_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 source_commit = "d75ff22af02120daccdb5e017cfddc925e622ac5"
-status = "planned"
+status = "implemented-pending-evidence"
 
 [[remediation_gate]]
 id = "GATE-5-EVIDENCE"

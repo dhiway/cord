@@ -42,6 +42,25 @@ mod remediation_v3;
 const ALICE: [u8; 32] = [1u8; 32];
 
 #[test]
+#[should_panic(expected = "Orbis paid Meta token leaked")]
+fn post_transactions_rejects_a_leaked_paid_meta_token() {
+	use frame_support::traits::PostTransactions;
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		crate::meta_v6::put_token(&crate::meta_v6::PaidMetaTokenV6 {
+			payer: AccountId::new([1; 32]),
+			intent_commitment: sp_core::H256::repeat_byte(2),
+			outer_nonce: 0,
+			genesis_hash: sp_core::H256::zero(),
+			spec_version: 27,
+			transaction_version: 6,
+			consumed: false,
+		});
+		crate::meta_v6::MetaTokenMustBeEmpty::post_transactions();
+	});
+}
+
+#[test]
 fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 	use std::collections::BTreeSet;
 
@@ -337,7 +356,14 @@ fn remediation_manifest_v3_is_exact_and_semantically_frozen() {
 				Some("d75ff22af02120daccdb5e017cfddc925e622ac5"),
 				"{table} source boundary"
 			);
-			assert_eq!(row["status"].as_str(), Some("planned"), "Gate 1 is not runtime evidence");
+			let expected_status = if matches!(table, "meta_vector" | "provider_v8_contract") ||
+				(table == "remediation_gate" && row_id == "GATE-5-EVIDENCE")
+			{
+				"planned"
+			} else {
+				"implemented-pending-evidence"
+			};
+			assert_eq!(row["status"].as_str(), Some(expected_status), "{table} Gate-4 state");
 		}
 	}
 
@@ -1026,7 +1052,7 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 	assert_eq!(pallet_orbis_entity::Pallet::<Runtime>::index(), 53);
 	assert_eq!(pallet_orbis_feeless::Pallet::<Runtime>::index(), 54);
 	assert_eq!(indiv_pallet_resources::Pallet::<Runtime>::index(), 96);
-	assert_eq!(crate::VERSION.spec_version, 26);
+	assert_eq!(crate::VERSION.spec_version, 27);
 	assert_eq!(crate::VERSION.transaction_version, 6);
 
 	assert_eq!(
@@ -1284,7 +1310,7 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 		<Runtime as CreateAuthorizedTransaction<RuntimeCall>>::create_extension();
 	let encoded_authorized_payment = authorized.0 .0 .8.encode();
 	let decoded_network_payment =
-		crate::PaymentPolicy::decode(&mut &encoded_authorized_payment[..])
+		crate::AccountAwarePayment::decode(&mut &encoded_authorized_payment[..])
 			.expect("payment policy encoding remains compatible with its inner asset payment");
 	assert_eq!(decoded_network_payment, authorized.0 .0 .8.clone());
 	assert_full_inner_projection(authorized.0 .0);
@@ -2996,6 +3022,26 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			meta_tx_encoded_len: v5_len,
 		});
 		assert!(crate::meta_v6::inspect_paid_meta(&v5_outer, 0).is_err());
+		let (spec26_call, spec26_version, mut spec26_extension): (
+			RuntimeCall,
+			sp_runtime::generic::ExtensionVersion,
+			crate::MetaTxExtension,
+		) = Decode::decode(&mut meta.encode().as_slice()).unwrap();
+		spec26_extension.1 .0.spec_version = 26;
+		let spec26_meta = pallet_meta_tx::MetaTxFor::<Runtime>::new(
+			spec26_call,
+			spec26_version,
+			spec26_extension,
+		);
+		let spec26_len = spec26_meta.encoded_size() as u32;
+		assert!(crate::meta_v6::inspect_paid_meta(
+			&RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
+				meta_tx: Box::new(spec26_meta),
+				meta_tx_encoded_len: spec26_len,
+			}),
+			0,
+		)
+		.is_err());
 		assert!(<(
 			RuntimeCall,
 			sp_runtime::generic::ExtensionVersion,
@@ -3024,6 +3070,12 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		});
 		for allowed in [&outer, &utility_meta, &proxy_meta, &multisig_meta] {
 			assert!(crate::meta_v6::inspect_paid_meta(allowed, 0).unwrap().is_some());
+			assert!(
+				!<crate::xcm_config::OrbisXcmSafeCallFilter as Contains<RuntimeCall>>::contains(
+					allowed
+				),
+				"XCM/sovereign ingress cannot carry a paid Meta envelope"
+			);
 		}
 		let denied_sudo =
 			RuntimeCall::Sudo(pallet_sudo::Call::sudo { call: Box::new(outer.clone()) });
@@ -3033,16 +3085,20 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			priority: 0,
 			call: Box::new(outer.clone()),
 		});
-		let denied_opaque = RuntimeCall::Multisig(pallet_multisig::Call::approve_as_multi {
+		let approval_only = RuntimeCall::Multisig(pallet_multisig::Call::approve_as_multi {
 			threshold: 2,
 			other_signatories: vec![alice.clone()],
 			maybe_timepoint: None,
 			call_hash: [0u8; 32],
 			max_weight: frame_support::weights::Weight::from_parts(1, 0),
 		});
-		for denied in [&denied_sudo, &denied_scheduler, &denied_opaque] {
+		for denied in [&denied_sudo, &denied_scheduler] {
 			assert!(crate::meta_v6::inspect_paid_meta(denied, 0).is_err());
 		}
+		assert_eq!(crate::meta_v6::inspect_paid_meta(&approval_only, 0), Ok(None));
+		assert!(<crate::xcm_config::OrbisXcmSafeCallFilter as Contains<RuntimeCall>>::contains(
+			&approval_only
+		));
 		assert!(
 			!outer.is_feeless(&RuntimeOrigin::signed(bob.clone())),
 			"the sponsor's outer meta transaction must follow ordinary fee accounting"

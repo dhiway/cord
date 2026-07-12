@@ -149,7 +149,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 26,
+	spec_version: 27,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 6,
@@ -277,6 +277,7 @@ impl frame_system::Config for Runtime {
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 	type MaxConsumers = ConstU32<256>;
 	type MultiBlockMigrator = MultiBlockMigrations;
+	type PostTransactions = meta_v6::MetaTokenMustBeEmpty;
 }
 
 parameter_types! {
@@ -1051,6 +1052,119 @@ impl<T, S: core::fmt::Debug> core::fmt::Debug for ExplicitPayment<T, S> {
 impl<T, S> From<S> for ExplicitPayment<T, S> {
 	fn from(inner: S) -> Self {
 		Self { inner, _marker: Default::default() }
+	}
+}
+
+/// Codec-transparent adapter preserving the signed nonce/payment owner after `AsResources`
+/// transforms the dispatch origin into a long-term-storage claim origin.
+#[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq)]
+pub struct AccountAwareResources<S>(S);
+
+impl<S: TypeInfo + 'static> TypeInfo for AccountAwareResources<S> {
+	type Identity = S;
+	fn type_info() -> scale_info::Type {
+		S::type_info()
+	}
+}
+
+impl<S: core::fmt::Debug> core::fmt::Debug for AccountAwareResources<S> {
+	fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+		self.0.fmt(f)
+	}
+}
+
+impl<S> From<S> for AccountAwareResources<S> {
+	fn from(value: S) -> Self {
+		Self(value)
+	}
+}
+
+pub struct AccountAwareVal<V> {
+	inner: V,
+	account: Option<AccountId>,
+}
+
+pub struct AccountAwarePre<P> {
+	inner: P,
+}
+
+impl<S> sp_runtime::traits::TransactionExtension<RuntimeCall> for AccountAwareResources<S>
+where
+	S: sp_runtime::traits::TransactionExtension<RuntimeCall>,
+{
+	const IDENTIFIER: &'static str = S::IDENTIFIER;
+	type Implicit = S::Implicit;
+	type Val = AccountAwareVal<S::Val>;
+	type Pre = AccountAwarePre<S::Pre>;
+
+	fn metadata() -> Vec<sp_runtime::traits::TransactionExtensionMetadata> {
+		S::metadata()
+	}
+
+	fn implicit(
+		&self,
+	) -> Result<Self::Implicit, sp_runtime::transaction_validity::TransactionValidityError> {
+		self.0.implicit()
+	}
+
+	fn weight(&self, call: &RuntimeCall) -> Weight {
+		self.0.weight(call)
+	}
+
+	fn validate(
+		&self,
+		origin: RuntimeOrigin,
+		call: &RuntimeCall,
+		info: &sp_runtime::traits::DispatchInfoOf<RuntimeCall>,
+		len: usize,
+		implicit: Self::Implicit,
+		inherited: &impl sp_runtime::traits::Implication,
+		source: TransactionSource,
+	) -> sp_runtime::traits::ValidateResult<Self::Val, RuntimeCall> {
+		let account = match (frame_support::traits::OriginTrait::caller(&origin), call) {
+			(
+				OriginCaller::Resources(indiv_pallet_resources::Origin::LongTermStorageClaim(..)),
+				RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage {
+					account_id,
+					..
+				}),
+			) => Some(account_id.clone()),
+			_ => None,
+		};
+		let delegated_origin = account
+			.clone()
+			.map(|account| frame_system::RawOrigin::Signed(account).into())
+			.unwrap_or_else(|| origin.clone());
+		self.0
+			.validate(delegated_origin, call, info, len, implicit, inherited, source)
+			.map(|(validity, inner, _)| (validity, AccountAwareVal { inner, account }, origin))
+	}
+
+	fn prepare(
+		self,
+		value: Self::Val,
+		origin: &RuntimeOrigin,
+		call: &RuntimeCall,
+		info: &sp_runtime::traits::DispatchInfoOf<RuntimeCall>,
+		len: usize,
+	) -> Result<Self::Pre, sp_runtime::transaction_validity::TransactionValidityError> {
+		let delegated_origin = value
+			.account
+			.map(|account| frame_system::RawOrigin::Signed(account).into())
+			.unwrap_or_else(|| origin.clone());
+		self.0
+			.prepare(value.inner, &delegated_origin, call, info, len)
+			.map(|inner| AccountAwarePre { inner })
+	}
+
+	fn post_dispatch_details(
+		pre: Self::Pre,
+		info: &sp_runtime::traits::DispatchInfoOf<RuntimeCall>,
+		post_info: &sp_runtime::traits::PostDispatchInfoOf<RuntimeCall>,
+		len: usize,
+		result: &frame_support::dispatch::DispatchResult,
+	) -> Result<Weight, sp_runtime::transaction_validity::TransactionValidityError> {
+		S::post_dispatch_details(pre.inner, info, post_info, len, result)
 	}
 }
 
@@ -1922,17 +2036,21 @@ pub type AssetPayment = pallet_orbis_feeless::ChargeOrSkipFeeless<
 	pallet_asset_conversion_tx_payment::ChargeAssetTxPayment<Runtime>,
 >;
 pub type PaymentPolicy = ExplicitPayment<Runtime, AssetPayment>;
+pub type AccountAwareCheckNonZero =
+	AccountAwareResources<frame_system::CheckNonZeroSender<Runtime>>;
+pub type AccountAwareCheckNonce = AccountAwareResources<frame_system::CheckNonce<Runtime>>;
+pub type AccountAwarePayment = AccountAwareResources<PaymentPolicy>;
 
 pub type InnerTxExtensions = (
 	OriginPolicyExtensions,
-	frame_system::CheckNonZeroSender<Runtime>,
+	AccountAwareCheckNonZero,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckMortality<Runtime>,
-	frame_system::CheckNonce<Runtime>,
+	AccountAwareCheckNonce,
 	frame_system::CheckWeight<Runtime>,
-	PaymentPolicy,
+	AccountAwarePayment,
 	pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
 		Runtime,
 		BulletinCallInspector,
@@ -1959,14 +2077,14 @@ fn default_inner_tx_extensions(
 ) -> InnerTxExtensions {
 	(
 		default_origin_policy_extensions(),
-		frame_system::CheckNonZeroSender::<Runtime>::new(),
+		frame_system::CheckNonZeroSender::<Runtime>::new().into(),
 		frame_system::CheckSpecVersion::<Runtime>::new(),
 		frame_system::CheckTxVersion::<Runtime>::new(),
 		frame_system::CheckGenesis::<Runtime>::new(),
 		frame_system::CheckMortality::<Runtime>::from(generic::Era::Immortal),
-		frame_system::CheckNonce::<Runtime>::from(nonce),
+		AccountAwareResources::from(frame_system::CheckNonce::<Runtime>::from(nonce)),
 		frame_system::CheckWeight::<Runtime>::new(),
-		payment,
+		payment.into(),
 		pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
 			Runtime,
 			BulletinCallInspector,
@@ -2053,7 +2171,7 @@ pub type Migrations = migrations::Unreleased;
 pub mod migrations {
 	/// Unreleased migrations. Add new ones here:
 	pub type Unreleased =
-		(pallet_bulletin_transaction_storage::migrations::v6::MigrateV5ToV6<super::Runtime>,);
+		(pallet_bulletin_transaction_storage::migrations::MigrateV5ToV7<super::Runtime>,);
 }
 
 /// MBM migrations to apply on runtime upgrade.

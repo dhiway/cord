@@ -131,10 +131,9 @@ land, ADR 0008 freezes the intended contract and makes the present typed placeho
 
 ## Iteration-4 remediation boundary
 
-The historical `d75ff22a` runtime remains spec 26 / transaction 6. Gate 1 changes documentation
-and manifest tests only. The single later integration gate changes spec 26 to 27 while retaining
-transaction version 6; no earlier dormant-support or unregistered-migration commit may change the
-runtime metadata or optimized Wasm. Canonical positive direct and Meta literals are spec 27.
+The historical `d75ff22a` runtime was spec 26 / transaction 6. Gate 4 now composes the
+remediation once at spec 27 while retaining transaction version 6. The preceding dormant-support
+and unregistered-migration commits preserved the historical runtime metadata and optimized Wasm. Canonical positive direct and Meta literals are spec 27.
 Spec-26 literals are negative fixtures. Compatibility means the `d75` tuple schema and field order,
 not whole-byte equality across a spec-version transition.
 
@@ -192,3 +191,13 @@ valid state are mandatory. Invalid preflight performs zero writes and leaves sto
 Provider composition is not folded into that repair. A later Bulletin V7-to-V8 migration appends
 `provider_ref: Option<ProviderAllocationId>`, backfills `None`, and preserves every existing ID,
 purpose, owner, counter, hash, Bulletin ref, paid-byte and expiry field.
+
+
+## Gate-4 integration status
+
+The spec-27 runtime now composes the Verify-to-Consume alias, signed and reciprocally bound direct
+Resources payer, account-aware nonzero/nonce/payment adapters, all seven account-bound Meta routes,
+bounded allocation-free ingress inspection, XCM/authorized denial, one-shot token finalization and
+the Bulletin V5-to-V7 composed migration. Bulletin declares storage V7 only at this boundary. Pallet
+indices and transaction version 6 are unchanged. Manifest rows remain
+`implemented-pending-evidence` until Gate 5 records reproducible artifacts and hashes.

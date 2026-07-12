@@ -528,6 +528,43 @@ fn migration_v5_to_v6_preserves_legacy_state_and_defaults_provenance() {
 	});
 }
 
+#[test]
+fn bulletin_declares_and_genesis_initializes_storage_v7() {
+	new_test_ext().execute_with(|| {
+		assert_eq!(TransactionStorage::current_storage_version(), StorageVersion::new(7));
+		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(7));
+	});
+}
+
+#[test]
+fn migration_v5_to_v7_composes_fresh_legacy_path_without_losing_transactions() {
+	use crate::migrations::MigrateV5ToV7;
+	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
+
+	new_test_ext().execute_with(|| {
+		StorageVersion::new(5).put::<TransactionStorage>();
+		System::set_block_number(1);
+		frame_system::Pallet::<Test>::set_extrinsic_index(0);
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), vec![42u8; 4]));
+		let legacy_ref = BulletinRef { block: 1, transaction_index: 0 };
+		super::StoredBy::<Test>::remove(legacy_ref);
+		let before = BlockTransactions::get();
+
+		<MigrateV5ToV7<Test> as OnRuntimeUpgrade>::on_runtime_upgrade();
+
+		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(7));
+		assert_eq!(BlockTransactions::get(), before);
+		assert_eq!(
+			TransactionStorage::stored_content_provenance(legacy_ref),
+			StorageActor::LegacyUnknown
+		);
+		assert_eq!(super::ResourceReservationRowCount::<Test>::get(), 0);
+		assert_eq!(super::ResourceReservationLinkCount::<Test>::get(), 0);
+		assert!(super::ResourceLinkByRef::<Test>::iter().next().is_none());
+		assert!(super::ResourceLinkByContentHash::<Test>::iter().next().is_none());
+	});
+}
+
 fn insert_v6_migration_link(
 	reservation_id: u64,
 	owner: u64,
@@ -612,6 +649,23 @@ fn assert_exact_repaired_indexes(expected_links: u32, expected_rows: u32) {
 	assert_eq!(super::ResourceReservationLinkCount::<Test>::get(), expected_links);
 	assert_eq!(super::ResourceReservationRowCount::<Test>::get(), expected_rows);
 	assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(7));
+}
+
+#[test]
+fn migration_v5_to_v7_alias_repairs_historical_v6_state() {
+	use crate::migrations::MigrateV5ToV7;
+	use bulletin_transaction_storage_primitives::BulletinRef;
+
+	new_test_ext().execute_with(|| {
+		StorageVersion::new(6).put::<TransactionStorage>();
+		let reference = BulletinRef { block: 10, transaction_index: 0 };
+		let hash = [1; 32];
+		insert_v6_migration_link(1, 11, hash, reference, true);
+		<MigrateV5ToV7<Test> as OnRuntimeUpgrade>::on_runtime_upgrade();
+		assert_eq!(super::ResourceLinkByRef::<Test>::get(reference), Some((1, hash)));
+		assert_eq!(super::ResourceLinkByContentHash::<Test>::get(hash), Some(1));
+		assert_exact_repaired_indexes(1, 1);
+	});
 }
 
 #[test]
@@ -2377,7 +2431,7 @@ fn migration_v1_version_updated() {
 	new_test_ext().execute_with(|| {
 		StorageVersion::new(0).put::<TransactionStorage>();
 		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(0));
-		assert_eq!(TransactionStorage::in_code_storage_version(), StorageVersion::new(6));
+		assert_eq!(TransactionStorage::in_code_storage_version(), StorageVersion::new(7));
 
 		crate::migrations::v1::MigrateV0ToV1::<Test>::on_runtime_upgrade();
 

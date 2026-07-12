@@ -2695,16 +2695,31 @@ mod long_term_storage {
 			let period =
 				Resources::long_term_storage_period_from_timestamp(TestClock::now().as_secs());
 
+			let claim_account = id_to_account(700);
 			let call = RuntimeCall::Resources(crate::Call::claim_long_term_storage {
 				period,
 				counter: 0,
-				account_id: id_to_account(700),
+				account_id: claim_account.clone(),
 			});
-			let msg = sp_runtime::traits::TxBaseImplication((extension_version, &call))
+			let inherited = sp_runtime::traits::TxBaseImplication((extension_version, &call));
+			let msg = (
+				b"orbis/direct/v6/resources/long-term-storage",
+				&claim_account,
+				&claim_account,
+				&call,
+				inherited,
+			)
 				.using_encoded(sp_io::hashing::blake2_256);
 			let context = Resources::long_term_storage_context(period, 0);
-			let (proof, _) = MockCrypto::create(commitment.clone(), &secret, &context, &msg)
+			let (proof, alias) = MockCrypto::create(commitment.clone(), &secret, &context, &msg)
 				.expect("proof should build");
+			let binding = indiv_support::traits::RevisedContextualAlias {
+				revision,
+				ring: 0,
+				ca: indiv_support::traits::ContextualAlias { context, alias },
+			};
+			indiv_pallet_people::AccountToAlias::<Test>::insert(&claim_account, &binding);
+			indiv_pallet_people::AliasToAccount::<Test>::insert(&binding.ca, &claim_account);
 			let extension = crate::extension::AsResources::<Test>::new(Some(
 				crate::extension::AsResourcesInfo::ClaimLongTermStorage(
 					proof,
@@ -2713,8 +2728,25 @@ mod long_term_storage {
 					MembershipCollection::People,
 				),
 			));
+			for rejected_origin in
+				[SystemOrigin::None.into(), SystemOrigin::Signed(id_to_account(799)).into()]
+			{
+				assert!(matches!(
+					extension.clone().validate_only(
+						rejected_origin,
+						&call,
+						&call.get_dispatch_info(),
+						call.encoded_size(),
+						TransactionSource::External,
+						extension_version,
+					),
+					Err(sp_runtime::transaction_validity::TransactionValidityError::Invalid(
+						InvalidTransaction::BadSigner
+					))
+				));
+			}
 			assert_ok!(extension.dispatch_transaction(
-				SystemOrigin::None.into(),
+				SystemOrigin::Signed(claim_account).into(),
 				call.clone(),
 				&call.get_dispatch_info(),
 				call.encoded_size(),
@@ -2732,7 +2764,16 @@ mod long_term_storage {
 				counter: 1,
 				account_id: id_to_account(702),
 			});
-			let wrong_msg = sp_runtime::traits::TxBaseImplication((extension_version, &wrong_call))
+			let invalid_account = id_to_account(701);
+			let wrong_inherited =
+				sp_runtime::traits::TxBaseImplication((extension_version, &wrong_call));
+			let wrong_msg = (
+				b"orbis/direct/v6/resources/long-term-storage",
+				&id_to_account(702),
+				&id_to_account(702),
+				&wrong_call,
+				wrong_inherited,
+			)
 				.using_encoded(sp_io::hashing::blake2_256);
 			let invalid_context = Resources::long_term_storage_context(period, 1);
 			let (invalid_proof, _) =
@@ -2748,7 +2789,7 @@ mod long_term_storage {
 			));
 			assert!(matches!(
 				invalid_extension.validate_only(
-					SystemOrigin::None.into(),
+					SystemOrigin::Signed(invalid_account).into(),
 					&invalid_call,
 					&invalid_call.get_dispatch_info(),
 					invalid_call.encoded_size(),
@@ -2765,7 +2806,16 @@ mod long_term_storage {
 				counter: 2,
 				account_id: id_to_account(703),
 			});
-			let stale_msg = sp_runtime::traits::TxBaseImplication((extension_version, &stale_call))
+			let stale_account = id_to_account(703);
+			let stale_inherited =
+				sp_runtime::traits::TxBaseImplication((extension_version, &stale_call));
+			let stale_msg = (
+				b"orbis/direct/v6/resources/long-term-storage",
+				&stale_account,
+				&stale_account,
+				&stale_call,
+				stale_inherited,
+			)
 				.using_encoded(sp_io::hashing::blake2_256);
 			let stale_context = Resources::long_term_storage_context(0, 2);
 			let (stale_proof, _) =
@@ -2781,7 +2831,7 @@ mod long_term_storage {
 			));
 			assert!(matches!(
 				stale_extension.validate_only(
-					SystemOrigin::None.into(),
+					SystemOrigin::Signed(stale_account).into(),
 					&stale_call,
 					&stale_call.get_dispatch_info(),
 					stale_call.encoded_size(),

@@ -174,7 +174,10 @@ impl<T: Config> AsResources<T> {
 	}
 }
 
-impl<T: Config> AsResources<T> {
+impl<T> AsResources<T>
+where
+	T: Config + indiv_pallet_people::Config + indiv_pallet_people_lite::Config,
+{
 	fn validate_friend_request(
 		origin: <T as frame_system::Config>::RuntimeOrigin,
 		call: &<T as frame_system::Config>::RuntimeCall,
@@ -217,9 +220,14 @@ impl<T: Config> AsResources<T> {
 			MembershipCollection::LitePeople => *LITE_PEOPLE_MEMBER_IDENTIFIER,
 		};
 
-		let validated_rev_ca =
-			T::MemberService::verify_membership(&identifier, proof, ring_index, context, &msg[..])
-				.map_err(|_| InvalidTransaction::BadProof)?;
+		let validated_rev_ca = <T as crate::Config>::MemberService::verify_membership(
+			&identifier,
+			proof,
+			ring_index,
+			context,
+			&msg[..],
+		)
+		.map_err(|_| InvalidTransaction::BadProof)?;
 
 		Pallet::<T>::validate_friend_request_registration(validated_rev_ca.ca.alias, account_id)
 			.map_err(|_| CustomValidity::FriendRequestRegistrationConflict)?;
@@ -274,9 +282,14 @@ impl<T: Config> AsResources<T> {
 		let context = Pallet::<T>::stmt_store_slot_context(*period, *seq);
 		let msg = inherited_implication.using_encoded(sp_io::hashing::blake2_256);
 
-		let validated_rev_ca =
-			T::MemberService::verify_membership(&identifier, proof, ring_index, context, &msg[..])
-				.map_err(|_| InvalidTransaction::BadProof)?;
+		let validated_rev_ca = <T as crate::Config>::MemberService::verify_membership(
+			&identifier,
+			proof,
+			ring_index,
+			context,
+			&msg[..],
+		)
+		.map_err(|_| InvalidTransaction::BadProof)?;
 
 		let alias = validated_rev_ca.ca.alias;
 		let period_key = indiv_support::utils::BigEndianU32::from(*period);
@@ -314,16 +327,17 @@ impl<T: Config> AsResources<T> {
 		revision: RevisionIndex,
 		collection: &MembershipCollection,
 	) -> ValidateResult<(), <T as frame_system::Config>::RuntimeCall> {
-		ensure!(
-			matches!(origin.as_system_ref(), Some(frame_system::RawOrigin::None)),
-			InvalidTransaction::BadSigner
-		);
+		let signer = match origin.as_system_ref() {
+			Some(frame_system::RawOrigin::Signed(signer)) => signer.clone(),
+			_ => return Err(InvalidTransaction::BadSigner.into()),
+		};
 
-		let Some(crate::Call::<T>::claim_long_term_storage { period, counter, account_id: _ }) =
+		let Some(crate::Call::<T>::claim_long_term_storage { period, counter, account_id }) =
 			call.is_sub_type()
 		else {
 			return Err(InvalidTransaction::Call.into());
 		};
+		ensure!(account_id == &signer, InvalidTransaction::BadSigner);
 
 		ensure!(
 			Pallet::<T>::is_accepted_long_term_storage_period(*period),
@@ -334,14 +348,21 @@ impl<T: Config> AsResources<T> {
 			CustomValidity::InvalidLongTermStorageCounter
 		);
 		let context = Pallet::<T>::long_term_storage_context(*period, *counter);
-		let msg = inherited_implication.using_encoded(sp_io::hashing::blake2_256);
+		let msg = (
+			b"orbis/direct/v6/resources/long-term-storage",
+			&signer,
+			account_id,
+			call,
+			inherited_implication,
+		)
+			.using_encoded(sp_io::hashing::blake2_256);
 
 		let identifier = match collection {
 			MembershipCollection::People => *PEOPLE_MEMBER_IDENTIFIER,
 			MembershipCollection::LitePeople => *LITE_PEOPLE_MEMBER_IDENTIFIER,
 		};
 
-		let validated_ca = T::MemberService::verify_membership_at_rev(
+		let validated_ca = <T as crate::Config>::MemberService::verify_membership_at_rev(
 			&identifier,
 			proof,
 			ring_index,
@@ -350,6 +371,24 @@ impl<T: Config> AsResources<T> {
 			&msg[..],
 		)
 		.map_err(|_| InvalidTransaction::BadProof)?;
+
+		let reciprocal = match collection {
+			MembershipCollection::People => {
+				let bound = indiv_pallet_people::AccountToAlias::<T>::get(&signer)
+					.ok_or(InvalidTransaction::BadSigner)?;
+				bound.ca.alias == validated_ca.alias &&
+					indiv_pallet_people::AliasToAccount::<T>::get(&bound.ca) ==
+						Some(signer.clone())
+			},
+			MembershipCollection::LitePeople => {
+				let bound = indiv_pallet_people_lite::AccountToAlias::<T>::get(&signer)
+					.ok_or(InvalidTransaction::BadSigner)?;
+				bound.ca.alias == validated_ca.alias &&
+					indiv_pallet_people_lite::AliasToAccount::<T>::get(&bound.ca) ==
+						Some(signer.clone())
+			},
+		};
+		ensure!(reciprocal, InvalidTransaction::BadSigner);
 
 		ensure!(
 			!crate::SpentLongTermStorageAliases::<T>::contains_key(
@@ -372,7 +411,10 @@ impl<T: Config> AsResources<T> {
 	}
 }
 
-impl<T: Config> TransactionExtension<<T as frame_system::Config>::RuntimeCall> for AsResources<T> {
+impl<T> TransactionExtension<<T as frame_system::Config>::RuntimeCall> for AsResources<T>
+where
+	T: Config + indiv_pallet_people::Config + indiv_pallet_people_lite::Config,
+{
 	const IDENTIFIER: &'static str = "AsResources";
 	type Implicit = ();
 	type Val = ();

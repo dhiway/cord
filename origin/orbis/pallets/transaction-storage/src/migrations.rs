@@ -519,9 +519,8 @@ pub mod v3 {
 
 				let mut iter = match cursor.as_ref() {
 					None => Transactions::<T>::iter_keys(),
-					Some(last) => {
-						Transactions::<T>::iter_keys_from(Transactions::<T>::hashed_key_for(last))
-					},
+					Some(last) =>
+						Transactions::<T>::iter_keys_from(Transactions::<T>::hashed_key_for(last)),
 				};
 
 				let Some(block_number) = iter.next() else {
@@ -707,9 +706,8 @@ pub mod v4 {
 
 				let mut iter = match cursor.as_ref() {
 					None => AutoRenewals::<T>::iter_keys(),
-					Some(last) => {
-						AutoRenewals::<T>::iter_keys_from(AutoRenewals::<T>::hashed_key_for(last))
-					},
+					Some(last) =>
+						AutoRenewals::<T>::iter_keys_from(AutoRenewals::<T>::hashed_key_for(last)),
 				};
 
 				let Some(content_hash) = iter.next() else {
@@ -1064,11 +1062,7 @@ pub mod v6 {
 	>;
 }
 
-/// Dormant V6 -> V7 repair for the reverse reservation-link indexes and their counters.
-///
-/// This migration is deliberately **not** registered by the runtime in this slice. The pallet's
-/// declared storage version remains V6 until the composed activation upgrade. The implementation
-/// is nevertheless complete so the activation commit only has to register this type.
+/// V6 -> V7 repair for the reverse reservation-link indexes and their counters.
 pub mod v7 {
 	use super::*;
 	use crate::pallet::{
@@ -1195,8 +1189,8 @@ pub mod v7 {
 				if transaction.content_hash != *hash || transaction.size != link.size {
 					return Err("v6->v7: link hash/size does not match transaction ref");
 				}
-				if StoredBy::<T>::get(link.bulletin_ref)
-					!= Some(StorageActor::Account(link.owner.clone()))
+				if StoredBy::<T>::get(link.bulletin_ref) !=
+					Some(StorageActor::Account(link.owner.clone()))
 				{
 					return Err("v6->v7: link provenance owner mismatch");
 				}
@@ -1244,8 +1238,8 @@ pub mod v7 {
 		#[cfg(any(test, feature = "try-runtime", feature = "runtime-benchmarks"))]
 		pub(crate) fn validate_repaired_state() -> Result<(), &'static str> {
 			let prepared = Self::preflight()?;
-			if ResourceReservationRowCount::<T>::get()
-				!= prepared.active.saturating_add(prepared.tombstones)
+			if ResourceReservationRowCount::<T>::get() !=
+				prepared.active.saturating_add(prepared.tombstones)
 			{
 				return Err("v6->v7: repaired row counter mismatch");
 			}
@@ -1255,8 +1249,8 @@ pub mod v7 {
 			if ResourceLinkByRef::<T>::iter().collect::<BTreeMap<_, _>>() != prepared.by_ref {
 				return Err("v6->v7: repaired ref index mismatch");
 			}
-			if ResourceLinkByContentHash::<T>::iter().collect::<BTreeMap<_, _>>()
-				!= prepared.by_hash
+			if ResourceLinkByContentHash::<T>::iter().collect::<BTreeMap<_, _>>() !=
+				prepared.by_hash
 			{
 				return Err("v6->v7: repaired hash index mismatch");
 			}
@@ -1309,8 +1303,8 @@ pub mod v7 {
 				polkadot_sdk_frame::deps::frame_system::Pallet::<T>::block_number(),
 			)?;
 			polkadot_sdk_frame::prelude::ensure!(
-				ResourceReservationRowCount::<T>::get() == active.saturating_add(tombstones)
-					&& ResourceReservationLinkCount::<T>::get() == links,
+				ResourceReservationRowCount::<T>::get() == active.saturating_add(tombstones) &&
+					ResourceReservationLinkCount::<T>::get() == links,
 				"v6->v7 post-upgrade cardinality mismatch"
 			);
 			Ok(())
@@ -1353,3 +1347,10 @@ pub mod v7 {
 		polkadot_sdk_frame::deps::sp_io::hashing::blake2_256(&bytes)
 	}
 }
+
+/// Complete Bulletin migration chain registered by the Orbis runtime.
+///
+/// A V5 chain first advances through the empty-ledger V6 initialization and then immediately
+/// repairs/initializes the V7 indexes and counters. V6 chains execute only the second element, and
+/// V7 chains take the version-gated no-op paths.
+pub type MigrateV5ToV7<T> = (v6::MigrateV5ToV6<T>, v7::MigrateV6ToV7<T>);

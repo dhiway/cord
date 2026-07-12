@@ -24,7 +24,7 @@ use crate::{
 use frame_support::{
 	pallet_prelude::PalletInfoAccess,
 	parameter_types,
-	traits::{ConstU32, Contains, Disabled, Equals, Everything, EverythingBut, Nothing},
+	traits::{ConstU32, Contains, Disabled, Equals, Everything, Nothing},
 };
 use frame_system::EnsureRoot;
 use origin_hub_system_runtime_constants::TREASURY_PALLET_ID;
@@ -211,6 +211,18 @@ pub type WaivedLocations = (
 pub type Aliasers = (AliasChildLocation, AliasOriginRootUsingFilter<OrgnRelayLocation, Everything>);
 
 pub struct XcmConfig;
+
+pub struct OrbisXcmSafeCallFilter;
+
+impl Contains<RuntimeCall> for OrbisXcmSafeCallFilter {
+	fn contains(call: &RuntimeCall) -> bool {
+		if matches!(call, RuntimeCall::Multisig(pallet_multisig::Call::approve_as_multi { .. })) {
+			return true;
+		}
+		!BulletinCallInspector::contains(call) &&
+			matches!(crate::meta_v6::inspect_paid_meta(call, 0), Ok(None))
+	}
+}
 impl xcm_executor::Config for XcmConfig {
 	type RuntimeCall = RuntimeCall;
 	type XcmSender = XcmRouter;
@@ -244,7 +256,7 @@ impl xcm_executor::Config for XcmConfig {
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
-	type SafeCallFilter = EverythingBut<BulletinCallInspector>;
+	type SafeCallFilter = OrbisXcmSafeCallFilter;
 	type Aliasers = Aliasers;
 	type TransactionalProcessor = FrameTransactionalProcessor;
 	type HrmpNewChannelOpenRequestHandler = ();
