@@ -12,7 +12,7 @@ transaction. Adding identity, feeless, storage, or application policy independen
 surfaces can create a signature, origin, nonce, or payment bypass. The order is therefore protocol
 surface, not an implementation detail.
 
-The runtime currently implements `AsPerson`, `PeopleLiteAuth`, `AuthorizeCall`, asset/native
+The runtime currently implements `AsPerson`, `PeopleLiteAuth`, `AsResources`, `AuthorizeCall`, asset/native
 payment with a feeless gate, recursive Bulletin call validation, metadata-hash validation, and
 Revive origin selection. Future policy names below reserve positions; they are not claims that the
 corresponding feature exists.
@@ -73,7 +73,7 @@ validated proof or account-bound nonce.
 ### Ethereum/Revive extrinsics
 
 The mapped Ethereum account owns the nonce and pays. Current policy constructors pass `None` to
-`AsPerson` and `PeopleLiteAuth`, so an Ethereum envelope cannot silently claim either custom
+`AsPerson`, `PeopleLiteAuth` and `AsResources`, so an Ethereum envelope cannot silently claim any custom
 origin. Terminal `SetOrigin::new_from_eth_transaction` establishes the Revive execution actor; it
 does not widen the earlier FRAME dispatch origin or bypass Bulletin and payment validation.
 
@@ -86,8 +86,8 @@ failure uses the payment extension's normal correction/refund behavior, while no
 prepared by validation follow FRAME transaction-validity semantics.
 
 The current MetaTx type contains `VerifySignature`, `MetaTxMarker`, the shared `AsPerson`,
-`PeopleLiteAuth`, and `AuthorizeCall` policy tuple, version/genesis/mortality/nonce, recursive
-Bulletin validation, and metadata validation. Transaction version 4 binds this expanded signed
+`PeopleLiteAuth`, `AsResources`, and `AuthorizeCall` policy tuple, version/genesis/mortality/nonce, recursive
+Bulletin validation, and metadata validation. Transaction version 5 binds the Resources-expanded signed
 intent. It intentionally has no second payment withdrawal, `CheckWeight`, storage-weight reclaim,
 or Revive `SetOrigin`: those belong to the outer sponsored extrinsic. `RestrictOrigin`,
 protected-transfer, PGAS, and the other reserved policy slots remain explicit future gaps.
@@ -122,7 +122,9 @@ consumption, plus outer-relayer nonce, payment and correction. The protected-tra
 placeholders are zero-sized passthrough-only fixture types and cannot enter a runtime extension
 tuple.
 
-P0 deliberately does not pretend that future extensions exist. Remaining acceptance work is bound
+The Resources slot is now concrete on normal and MetaTx surfaces, defaults to `None` for Ethereum
+and authorized construction, and precedes `AuthorizeCall`. P0 deliberately does not pretend that
+other future extensions exist. Remaining acceptance work is bound
 to the slices that implement it: positive custom-identity proof vectors on every reachable surface;
 protected-transfer signatures; `RestrictOrigin`; and the PGAS charging layer. Until those slices
 land, ADR 0008 freezes the intended contract and makes the present typed placeholders explicit.

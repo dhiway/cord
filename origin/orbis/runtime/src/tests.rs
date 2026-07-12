@@ -418,7 +418,7 @@ fn resources_bulletin_iteration_two_manifest_is_exact() {
 	);
 	for row in rows("protocol_storage") {
 		assert_eq!(row["owner"].as_str(), Some("slice-1"));
-		assert_eq!(row["state"].as_str(), Some("planned"));
+		assert_eq!(row["state"].as_str(), Some("present"));
 	}
 
 	assert_eq!(
@@ -646,7 +646,7 @@ fn resources_bulletin_iteration_two_manifest_is_exact() {
 	]) {
 		assert_eq!(row["target"].as_str(), Some(target));
 		assert_eq!(row["owner"].as_str(), Some("slice-1"));
-		assert_eq!(row["state"].as_str(), Some("planned"));
+		assert_eq!(row["state"].as_str(), Some("present"));
 	}
 	for (row, keyword) in rows("protocol_invariant").iter().zip([
 		"sum(active",
@@ -735,7 +735,8 @@ fn resources_bulletin_iteration_two_manifest_is_exact() {
 		.find(|row| row["id"].as_str() == Some("PAL-096"))
 		.unwrap();
 	assert_eq!(resources["index"].as_integer(), Some(96));
-	assert_eq!(resources["evidence"].as_str(), Some("slice-1"));
+	assert_eq!(resources["state"].as_str(), Some("present"));
+	assert_eq!(resources["evidence"].as_str(), Some("origin/orbis/runtime/src/lib.rs:index-96"));
 	let new_api = manifest["runtime_api"]
 		.as_array()
 		.unwrap()
@@ -768,8 +769,13 @@ fn resources_bulletin_iteration_two_manifest_is_exact() {
 		assert_eq!(row["id"].as_str(), Some(id));
 		assert_eq!(row["method"].as_str(), Some(signature));
 		assert_eq!(row["max_results"].as_integer(), Some(1));
-		assert_eq!(row["state"].as_str(), Some("planned"));
-		assert_eq!(row["evidence"].as_str(), Some("slice-1:iteration-2"));
+		assert_eq!(row["state"].as_str(), Some("present"));
+		assert_eq!(
+			row["evidence"].as_str(),
+			Some(
+				"1d6ca22b"
+			)
+		);
 	}
 }
 
@@ -802,8 +808,9 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 	assert_eq!(pallet_orbis_register::Pallet::<Runtime>::index(), 52);
 	assert_eq!(pallet_orbis_entity::Pallet::<Runtime>::index(), 53);
 	assert_eq!(pallet_orbis_feeless::Pallet::<Runtime>::index(), 54);
-	assert_eq!(crate::VERSION.spec_version, 24);
-	assert_eq!(crate::VERSION.transaction_version, 4);
+	assert_eq!(indiv_pallet_resources::Pallet::<Runtime>::index(), 96);
+	assert_eq!(crate::VERSION.spec_version, 25);
+	assert_eq!(crate::VERSION.transaction_version, 5);
 
 	assert_eq!(
 		call_variants::<pallet_orbis_register::Call<Runtime>>(),
@@ -852,6 +859,29 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 	assert_eq!(
 		call_variants::<pallet_orbis_feeless::Call<Runtime>>(),
 		vec![(0, "add_feeless_account".into()), (1, "remove_feeless_account".into())]
+	);
+	assert_eq!(
+		call_variants::<indiv_pallet_resources::Call<Runtime>>(),
+		[
+			(0, "register_lite_person"),
+			(1, "register_person"),
+			(2, "touch_person_authorization"),
+			(3, "remove_expired_username_reservation"),
+			(4, "update_identifier_key"),
+			(5, "set_username_reservation_duration"),
+			(7, "demote_auth_expired"),
+			(8, "set_friend_request_statement_account_for_sequence"),
+			(9, "clear_expired_friend_request_sequence"),
+			(10, "set_statement_store_account"),
+			(11, "clear_expired_stmt_store_allowances"),
+			(12, "claim_long_term_storage"),
+			(13, "clear_expired_long_term_storage_aliases"),
+			(15, "cancel_long_term_storage_reservation"),
+			(17, "expire_long_term_storage_reservations"),
+		]
+		.into_iter()
+		.map(|(index, name)| (index, name.into()))
+		.collect::<Vec<_>>()
 	);
 
 	assert_eq!(
@@ -920,9 +950,9 @@ mod transaction_policy_fixture {
 		NoPolicy<4>, // ScoreAsParticipant
 		NoPolicy<5>, // GameAsInvited
 		indiv_pallet_people_lite::extension::PeopleLiteAuth<Runtime>,
-		NoPolicy<7>,  // AsMember
-		NoPolicy<8>,  // AsCoinage
-		NoPolicy<9>,  // AsResources
+		NoPolicy<7>, // AsMember
+		NoPolicy<8>, // AsCoinage
+		indiv_pallet_resources::extension::AsResources<Runtime>,
 		NoPolicy<10>, // VoterAuth
 		frame_system::AuthorizeCall<Runtime>,
 		NoPolicy<12>, // AsPgas
@@ -968,7 +998,7 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 	use pallet_revive::evm::runtime::EthExtra;
 	use sp_runtime::traits::TransactionExtension;
 	use transaction_policy_fixture::*;
-	assert_eq!(crate::VERSION.transaction_version, 4);
+	assert_eq!(crate::VERSION.transaction_version, 5);
 
 	fn assert_full_inner_projection(inner: crate::InnerTxExtensions) {
 		let (
@@ -985,7 +1015,8 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 			_metadata,
 			_set_origin,
 		) = inner;
-		let (_as_person, _people_lite, _authorize_call) = policy;
+		let (_as_person, _people_lite, as_resources, _authorize_call) = policy;
+		assert_eq!(as_resources.encode(), [0], "default surfaces cannot claim Resources origin");
 	}
 
 	fn assert_meta_projection(extension: crate::MetaTxExtension) {
@@ -1002,7 +1033,7 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 			_bulletin,
 			_metadata,
 		) = extension;
-		let (_as_person, _people_lite, _authorize_call) = policy;
+		let (_as_person, _people_lite, _as_resources, _authorize_call) = policy;
 	}
 
 	let _: Option<FrozenPipeline> = None;
@@ -1016,6 +1047,7 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 		(
 			indiv_pallet_people::extension::AsPerson<Runtime>,
 			indiv_pallet_people_lite::extension::PeopleLiteAuth<Runtime>,
+			indiv_pallet_resources::extension::AsResources<Runtime>,
 			frame_system::AuthorizeCall<Runtime>,
 		),
 	);
@@ -1062,6 +1094,7 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 		vec![
 			"AsPerson",
 			"PeopleLiteAuth",
+			"AsResources",
 			"AuthorizeCall",
 			"CheckNonZeroSender",
 			"CheckSpecVersion",
@@ -1088,6 +1121,7 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 			"MetaTxMarker",
 			"AsPerson",
 			"PeopleLiteAuth",
+			"AsResources",
 			"AuthorizeCall",
 			"CheckNonZeroSender",
 			"CheckSpecVersion",
@@ -1099,6 +1133,90 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 			"CheckMetadataHash",
 		]
 	);
+}
+
+#[test]
+fn resources_people_and_lite_reservations_use_isolated_bulletin_capacity() {
+	use crate::{Resources, Timestamp};
+	use bulletin_transaction_storage_primitives::ResourceReservationView;
+	use indiv_pallet_resources::types::{MembershipCollection, ReservationPurpose};
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		System::set_block_number(1);
+		pallet_timestamp::Now::<Runtime>::put(3 * 24 * 60 * 60 * 1_000u64);
+		let owner = AccountId::from(ALICE);
+		let period = Resources::long_term_storage_period_from_timestamp(
+			<Timestamp as frame_support::traits::UnixTime>::now().as_secs(),
+		);
+		let people_alias = [7u8; 32];
+		let lite_alias = [8u8; 32];
+		assert_ok!(Resources::claim_long_term_storage(
+			indiv_pallet_resources::Origin::LongTermStorageClaim(
+				people_alias,
+				MembershipCollection::People,
+			)
+			.into(),
+			period,
+			0,
+			owner.clone(),
+		));
+		assert_ok!(Resources::claim_long_term_storage(
+			indiv_pallet_resources::Origin::LongTermStorageClaim(
+				lite_alias,
+				MembershipCollection::LitePeople,
+			)
+			.into(),
+			period,
+			0,
+			owner.clone(),
+		));
+
+		let ResourceReservationView::Active(people) =
+			TransactionStorage::resource_reservation(0).unwrap()
+		else {
+			panic!("people reservation must be active")
+		};
+		let ResourceReservationView::Active(lite) =
+			TransactionStorage::resource_reservation(1).unwrap()
+		else {
+			panic!("lite reservation must be active")
+		};
+		assert_eq!(people.owner, owner);
+		assert_eq!(people.bytes_remaining, 8 * 1024 * 1024);
+		assert_eq!(people.transactions_remaining, 100);
+		assert_eq!(lite.bytes_remaining, 4 * 1024 * 1024);
+		assert_eq!(lite.transactions_remaining, 10);
+		assert_eq!(
+			pallet_bulletin_transaction_storage::ReservedPermanentCapacity::<Runtime>::get(),
+			people.bytes_remaining + lite.bytes_remaining
+		);
+
+		let duplicate = ReservationPurpose::Membership {
+			period,
+			alias: people_alias,
+			counter: 0,
+			collection: MembershipCollection::People,
+		};
+		assert_eq!(
+			indiv_pallet_resources::StorageReservationByPurpose::<Runtime>::get(duplicate),
+			Some(0)
+		);
+		assert_noop!(
+			Resources::cancel_long_term_storage_reservation(
+				RuntimeOrigin::signed(AccountId::from([2u8; 32])),
+				0,
+			),
+			indiv_pallet_resources::Error::<Runtime>::NotReservationOwner
+		);
+		assert_ok!(Resources::cancel_long_term_storage_reservation(
+			RuntimeOrigin::signed(owner),
+			0,
+		));
+		assert!(matches!(
+			TransactionStorage::resource_reservation(0),
+			Some(ResourceReservationView::Tombstone(_))
+		));
+	});
 }
 
 #[test]
@@ -1982,6 +2100,18 @@ fn bulletin_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm() {
 	let wrapped = RuntimeCall::Utility(pallet_utility::Call::batch { calls: vec![store] });
 	assert!(crate::BulletinCallInspector::contains(&wrapped));
 	assert!(!XcmSafeCalls::contains(&wrapped));
+	let reserved_renew = RuntimeCall::TransactionStorage(
+		pallet_bulletin_transaction_storage::Call::renew_reserved {
+			reservation_id: 7,
+			content_hash: [9u8; 32],
+		},
+	);
+	assert!(crate::BulletinCallInspector::contains(&reserved_renew));
+	assert!(!XcmSafeCalls::contains(&reserved_renew));
+	let wrapped_reserved =
+		RuntimeCall::Utility(pallet_utility::Call::batch { calls: vec![reserved_renew] });
+	assert!(crate::BulletinCallInspector::contains(&wrapped_reserved));
+	assert!(!XcmSafeCalls::contains(&wrapped_reserved));
 
 	let ordinary = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
 	assert!(!crate::BulletinCallInspector::contains(&ordinary));
@@ -2166,7 +2296,7 @@ fn ethereum_pipeline_uses_mapped_nonce_payer_and_only_terminal_revive_actor() {
 		traits::{BuildGenesisConfig, OriginTrait},
 	};
 	use pallet_revive::evm::runtime::EthExtra;
-	use sp_runtime::traits::TransactionExtension;
+	use sp_runtime::traits::{Dispatchable, TransactionExtension};
 
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		frame_system::GenesisConfig::<Runtime>::default().build();
@@ -2208,6 +2338,35 @@ fn ethereum_pipeline_uses_mapped_nonce_payer_and_only_terminal_revive_actor() {
 		));
 		assert!(Balances::free_balance(&mapped) >= after_withdrawal);
 		assert!(Balances::free_balance(&mapped) < initial_balance);
+
+		let resource_call =
+			RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage {
+				period: 0,
+				counter: 0,
+				account_id: mapped.clone(),
+			});
+		let resource_info = resource_call.get_dispatch_info();
+		let eth_resource = <crate::EthExtraImpl as EthExtra>::get_eth_extension(1, 0).0;
+		let resource_implicit = eth_resource.implicit().unwrap();
+		let (_, _, resource_origin) = eth_resource
+			.validate(
+				RuntimeOrigin::signed(mapped.clone()),
+				&resource_call,
+				&resource_info,
+				resource_call.encoded_size(),
+				resource_implicit,
+				&sp_runtime::traits::TxBaseImplication((0u8, &resource_call)),
+				sp_runtime::transaction_validity::TransactionSource::External,
+			)
+			.unwrap();
+		assert!(matches!(
+			resource_origin.caller(),
+			crate::OriginCaller::Revive(pallet_revive::Origin::EthTransaction(who)) if who == &mapped
+		));
+		assert!(
+			resource_call.dispatch(resource_origin).is_err(),
+			"Ethereum cannot spoof Resources origin"
+		);
 	});
 }
 
@@ -2218,7 +2377,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 	use sp_core::{sr25519, Pair};
 	use sp_runtime::{
 		generic::Era,
-		traits::{Hash, IdentifyAccount, TransactionExtension},
+		traits::{IdentifyAccount, TransactionExtension},
 		MultiSignature, MultiSigner,
 	};
 	const META_EXTENSION_VERSION: u8 = 0;
@@ -2285,9 +2444,25 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		let alice_balance =
 			<Balances as Mutate<AccountId>>::set_balance(&alice, crate::ExistentialDeposit::get());
 		let bob_balance = <Balances as Mutate<AccountId>>::set_balance(&bob, 1_000_000_000_000);
-		let inner = RuntimeCall::System(frame_system::Call::remark_with_event {
-			remark: b"identity intent".to_vec(),
-		});
+		pallet_timestamp::Now::<Runtime>::put(3 * 24 * 60 * 60 * 1_000u64);
+		let period = crate::Resources::long_term_storage_period_from_timestamp(
+			<crate::Timestamp as frame_support::traits::UnixTime>::now().as_secs(),
+		);
+		assert_ok!(crate::Resources::claim_long_term_storage(
+			indiv_pallet_resources::Origin::LongTermStorageClaim(
+				[11u8; 32],
+				indiv_pallet_resources::types::MembershipCollection::People,
+			)
+			.into(),
+			period,
+			0,
+			alice.clone(),
+		));
+		let inner = RuntimeCall::Resources(
+			indiv_pallet_resources::Call::cancel_long_term_storage_reservation {
+				reservation_id: 0,
+			},
+		);
 
 		let meta = signed_meta_tx(inner.clone(), alice.clone(), &alice_pair);
 		let encoded_len = meta.encoded_size() as u32;
@@ -2337,10 +2512,10 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		));
 		assert!(Balances::free_balance(&bob) >= bob_after_withdrawal);
 		assert!(Balances::free_balance(&bob) < bob_balance);
-		System::assert_has_event(crate::RuntimeEvent::System(frame_system::Event::Remarked {
-			sender: alice.clone(),
-			hash: <Runtime as frame_system::Config>::Hashing::hash(b"identity intent"),
-		}));
+		assert!(matches!(
+			crate::TransactionStorage::resource_reservation(0),
+			Some(bulletin_transaction_storage_primitives::ResourceReservationView::Tombstone(_))
+		));
 		assert_eq!(System::account_nonce(&alice), 1);
 		assert_eq!(Balances::free_balance(&alice), alice_balance);
 

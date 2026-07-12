@@ -994,6 +994,40 @@ pub trait AllocateStorage<AccountId> {
 	fn refresh_allocation(who: &AccountId) -> DispatchResult;
 }
 
+/// Orbis two-phase isolated capacity backend. Implementations must be atomic at the FRAME storage
+/// boundary and must not charge permanent bytes until real content is committed.
+pub trait TwoPhaseStorage<AccountId, ReservationId, Purpose, BlockNumber> {
+	fn reserve(
+		id: ReservationId,
+		owner: &AccountId,
+		purpose: &Purpose,
+		bytes: u64,
+		transactions: u32,
+		expires_at: BlockNumber,
+	) -> DispatchResult;
+
+	fn cancel(owner: &AccountId, id: ReservationId) -> DispatchResult;
+
+	fn expire_due(
+		now: BlockNumber,
+		limit: u32,
+	) -> Result<alloc::vec::Vec<ReservationId>, sp_runtime::DispatchError>;
+}
+
+#[derive(
+	Clone, PartialEq, Eq, Debug, Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen,
+)]
+pub struct ClaimCleanupOutcome<ReservationId, Purpose> {
+	pub id: ReservationId,
+	pub removed: bool,
+	pub purpose: Option<Purpose>,
+}
+
+/// Infallible callback used by Bulletin when a tombstone becomes safe to prune.
+pub trait ResourceClaimLifecycle<ReservationId, Purpose> {
+	fn prune_claim(id: ReservationId) -> ClaimCleanupOutcome<ReservationId, Purpose>;
+}
+
 impl<A> AllocateStorage<A> for () {
 	fn allocate_storage(_: &A, _: u64, _: u32) -> DispatchResult {
 		Ok(())

@@ -148,10 +148,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 24,
+	spec_version: 25,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 4,
+	transaction_version: 5,
 	system_version: 1,
 };
 
@@ -1018,6 +1018,7 @@ impl pallet_verify_signature::Config for Runtime {
 pub type OriginPolicyExtensions = (
 	indiv_pallet_people::extension::AsPerson<Runtime>,
 	indiv_pallet_people_lite::extension::PeopleLiteAuth<Runtime>,
+	indiv_pallet_resources::extension::AsResources<Runtime>,
 	frame_system::AuthorizeCall<Runtime>,
 );
 
@@ -1152,6 +1153,7 @@ fn default_origin_policy_extensions() -> OriginPolicyExtensions {
 	(
 		indiv_pallet_people::extension::AsPerson::<Runtime>::new(None),
 		indiv_pallet_people_lite::extension::PeopleLiteAuth::<Runtime>::new(None),
+		indiv_pallet_resources::extension::AsResources::<Runtime>::new(None),
 		frame_system::AuthorizeCall::<Runtime>::new(),
 	)
 }
@@ -1465,7 +1467,7 @@ impl indiv_pallet_people_lite::Config for Runtime {
 	type LiteRingExponent = LitePeopleRingExponent;
 	type LiteOnboardingSize = LitePeopleOnboardingSize;
 	type AttestationSignature = MultiSignature;
-	type LiteConsumerRegistrar = ();
+	type LiteConsumerRegistrar = Resources;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 }
@@ -1520,9 +1522,116 @@ impl indiv_pallet_people::Config for Runtime {
 }
 
 parameter_types! {
+	pub const ResourcesMaxUsernameLength: u32 = 32;
+	pub const ResourcesMinUsernameLength: u32 = 6;
+	pub const ResourcesPersonAuthDuration: u32 = 2 * 24 * 60 * 60;
+	pub const ResourcesMinPersonAuthUpdateInterval: u32 = 24 * 60 * 60;
+	pub const ResourcesMaxReservationQueueLength: u32 = 10;
+	pub ResourcesAccountsApiAllowance: sp_statement_store::StatementAllowance =
+		sp_statement_store::StatementAllowance { max_size: 500 * 1024, max_count: 2 };
+	pub const ResourcesStmtStoreSlotsPerPeriod: u32 = 20;
+	pub const ResourcesLiteStmtStoreSlotsPerPeriod: u32 = 10;
+	pub const ResourcesStmtStoreCleanupLimit: u32 = 50;
+	pub const ResourcesStmtStoreReplacementCooldown: u32 = 60;
+	pub const ResourcesStmtStoreGraceWindow: u32 = 2 * 24 * 60 * 60;
+	pub ResourcesFriendRequestAllowance: sp_statement_store::StatementAllowance =
+		sp_statement_store::StatementAllowance { max_size: 10 * 1024, max_count: 1 };
+	pub const ResourcesFriendRequestSlotsPerPeriod: u8 = 16;
+	pub const ResourcesLiteFriendRequestSlotsPerPeriod: u8 = 8;
+	pub const ResourcesFriendRequestPeriodDuration: u32 = 24 * 60 * 60;
+	pub const ResourcesFriendRequestGraceWindow: u32 = 60 * 60;
+	pub const ResourcesFriendRequestRetentionDuration: u64 = 7 * 24 * 60 * 60;
+	pub ResourcesLitePersonStatementLimit: sp_statement_store::StatementAllowance =
+		sp_statement_store::StatementAllowance { max_size: 500 * 1024, max_count: 50 };
+	pub ResourcesPersonStatementLimit: sp_statement_store::StatementAllowance =
+		sp_statement_store::StatementAllowance { max_size: 1024 * 1024, max_count: 200 };
+	pub const ResourcesLongTermStoragePeriodDuration: u32 = 14 * 24 * 60 * 60;
+	pub const ResourcesLongTermStorageClaimsPerPeriod: u8 = 100;
+	pub const ResourcesLongTermStorageGraceWindow: u32 = 60 * 60;
+	pub ResourcesLongTermStorageAllowanceForPeople:
+		indiv_pallet_resources::types::LongTermStorageAllocation =
+		indiv_pallet_resources::types::LongTermStorageAllocation {
+			transactions: 100,
+			bytes: 8 * 1024 * 1024,
+		};
+	pub ResourcesLongTermStorageAllowanceForLitePeople:
+		indiv_pallet_resources::types::LongTermStorageAllocation =
+		indiv_pallet_resources::types::LongTermStorageAllocation {
+			transactions: 10,
+			bytes: 4 * 1024 * 1024,
+		};
+	pub const ResourcesLongTermStorageCleanupLimit: u32 = 50;
+	pub const ResourcesMaxReservations: u32 = 256;
+	pub const ResourcesStorageReservationDuration: BlockNumber = 14 * DAYS;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct ResourcesBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl indiv_pallet_resources::benchmarking::BenchmarkHelper<Runtime> for ResourcesBenchmarkHelper {
+	fn set_time(now: core::time::Duration) {
+		pallet_timestamp::Now::<Runtime>::put(now.as_millis() as u64);
+	}
+
+	fn sign_message(message: &[u8]) -> (AccountId, MultiSignature) {
+		use sp_core::Pair;
+		use sp_runtime::traits::IdentifyAccount;
+		let pair = sp_core::ed25519::Pair::from_seed(&[1u8; 32]);
+		(pair.public().into_account().into(), pair.sign(message).into())
+	}
+}
+
+impl indiv_pallet_resources::Config for Runtime {
+	type WeightInfo = indiv_pallet_resources::weights::SubstrateWeight<Runtime>;
+	type MemberService = Members;
+	type MaxUsernameLength = ResourcesMaxUsernameLength;
+	type MinUsernameLength = ResourcesMinUsernameLength;
+	type PersonAuthDuration = ResourcesPersonAuthDuration;
+	type MinPersonAuthUpdateInterval = ResourcesMinPersonAuthUpdateInterval;
+	type MaxReservationQueueLength = ResourcesMaxReservationQueueLength;
+	type AccountsApiAllowance = ResourcesAccountsApiAllowance;
+	type StmtStoreSlotsPerPeriod = ResourcesStmtStoreSlotsPerPeriod;
+	type LiteStmtStoreSlotsPerPeriod = ResourcesLiteStmtStoreSlotsPerPeriod;
+	type StmtStoreCleanupLimit = ResourcesStmtStoreCleanupLimit;
+	type StmtStoreReplacementCooldown = ResourcesStmtStoreReplacementCooldown;
+	type StmtStoreGraceWindow = ResourcesStmtStoreGraceWindow;
+	type FriendRequestAllowance = ResourcesFriendRequestAllowance;
+	type FriendRequestSlotsPerPeriod = ResourcesFriendRequestSlotsPerPeriod;
+	type LiteFriendRequestSlotsPerPeriod = ResourcesLiteFriendRequestSlotsPerPeriod;
+	type FriendRequestPeriodDuration = ResourcesFriendRequestPeriodDuration;
+	type FriendRequestGraceWindow = ResourcesFriendRequestGraceWindow;
+	type FriendRequestRetentionDuration = ResourcesFriendRequestRetentionDuration;
+	type OffchainWorkerInterval = ConstU32<1>;
+	type EnsurePerson = indiv_pallet_people::EnsurePersonalAliasInContext<Runtime>;
+	type EnsureLitePerson = indiv_pallet_people_lite::EnsureLitePerson<Runtime>;
+	type Clock = Timestamp;
+	type OffchainSignature = MultiSignature;
+	type LitePersonStatementLimit = ResourcesLitePersonStatementLimit;
+	type PersonStatementLimit = ResourcesPersonStatementLimit;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	type LongTermStoragePeriodDuration = ResourcesLongTermStoragePeriodDuration;
+	type LongTermStorageGraceWindow = ResourcesLongTermStorageGraceWindow;
+	type LongTermStorageClaimsPerPeriod = ResourcesLongTermStorageClaimsPerPeriod;
+	type LongTermStorageAllowanceForPeople = ResourcesLongTermStorageAllowanceForPeople;
+	type LongTermStorageAllowanceForLitePeople = ResourcesLongTermStorageAllowanceForLitePeople;
+	type LongTermStorageDataStore = TransactionStorage;
+	type LongTermStorageCleanupLimit = ResourcesLongTermStorageCleanupLimit;
+	type MaxReservations = ResourcesMaxReservations;
+	type StorageReservationDuration = ResourcesStorageReservationDuration;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ResourcesBenchmarkHelper;
+}
+
+parameter_types! {
 	pub const BulletinMaxBlockTransactions: u32 = 128;
 	pub const BulletinMaxTransactionSize: u32 = 256 * 1024;
 	pub const BulletinMaxPermanentStorageSize: u64 = 16 * 1024 * 1024 * 1024;
+	pub const BulletinMaxReservations: u32 = 256;
+	pub const BulletinMaxReservationExpiryBlocks: u32 = 256;
+	pub const BulletinMaxReservationsPerExpiryBlock: u32 = 256;
+	pub const BulletinMaxReservationLinks: u32 = 1024;
+	pub const BulletinTombstoneRetention: BlockNumber = 100;
 	pub const BulletinAuthorizationPeriod: BlockNumber = 14 * DAYS;
 	pub const BulletinStoreRenewPriority: TransactionPriority = TransactionPriority::MAX / 4;
 	pub const BulletinStoreRenewLongevity: TransactionLongevity = DAYS as TransactionLongevity;
@@ -1570,6 +1679,13 @@ impl pallet_bulletin_transaction_storage::Config for Runtime {
 	type MaxBlockTransactions = BulletinMaxBlockTransactions;
 	type MaxTransactionSize = BulletinMaxTransactionSize;
 	type MaxPermanentStorageSize = BulletinMaxPermanentStorageSize;
+	type MaxReservations = BulletinMaxReservations;
+	type MaxReservationExpiryBlocks = BulletinMaxReservationExpiryBlocks;
+	type MaxReservationsPerExpiryBlock = BulletinMaxReservationsPerExpiryBlock;
+	type MaxReservationLinks = BulletinMaxReservationLinks;
+	type TombstoneRetention = BulletinTombstoneRetention;
+	type ReservationPurpose = indiv_pallet_resources::types::ReservationPurpose;
+	type ResourceClaimLifecycle = Resources;
 	type AuthorizationPeriod = BulletinAuthorizationPeriod;
 	type AuthorizerRegistrarOrigin = EnsureRoot<AccountId>;
 	type Authorizer = EitherOf<
@@ -1686,6 +1802,7 @@ construct_runtime!(
 		MembersNotifier: indiv_pallet_members_notifier = 93,
 		PeopleLite: indiv_pallet_people_lite = 94,
 		Personhood: indiv_pallet_people = 95,
+		Resources: indiv_pallet_resources = 96,
 
 		// Solidity and PolkaVM contracts.
 		Revive: pallet_revive = 100,
@@ -1858,7 +1975,8 @@ pub type Migrations = migrations::Unreleased;
 #[allow(deprecated, missing_docs)]
 pub mod migrations {
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = ();
+	pub type Unreleased =
+		(pallet_bulletin_transaction_storage::migrations::v6::MigrateV5ToV6<super::Runtime>,);
 }
 
 /// MBM migrations to apply on runtime upgrade.
@@ -1871,6 +1989,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
+	Migrations,
 >;
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -1948,6 +2067,7 @@ mod benches {
 		[indiv_pallet_members_notifier, MembersNotifier]
 		[indiv_pallet_people_lite, PeopleLite]
 		[indiv_pallet_people, Personhood]
+		[indiv_pallet_resources, Resources]
 		[pallet_orbis_entity, Entity]
 		[pallet_message_queue, MessageQueue]
 		[pallet_meta_tx, MetaTx]
@@ -2556,6 +2676,35 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 			entry: pallet_bulletin_transaction_storage::TransactionRef<BlockNumber>,
 		) -> bool {
 			TransactionStorage::can_renew(&account, &entry)
+		}
+
+		fn stored_content_provenance(
+			reference: bulletin_transaction_storage_primitives::BulletinRef<BlockNumber>,
+		) -> bulletin_transaction_storage_primitives::StorageActor<AccountId> {
+			TransactionStorage::stored_content_provenance(reference)
+		}
+
+		fn resource_reservation(
+			reservation_id: bulletin_transaction_storage_primitives::ReservationId,
+		) -> Option<
+			bulletin_transaction_storage_primitives::ResourceReservationView<
+				AccountId,
+				BlockNumber,
+			>,
+		> {
+			TransactionStorage::resource_reservation(reservation_id)
+		}
+
+		fn resource_reservation_link(
+			reservation_id: bulletin_transaction_storage_primitives::ReservationId,
+			content_hash: bulletin_transaction_storage_primitives::ContentHash,
+		) -> Option<
+			bulletin_transaction_storage_primitives::ResourceReservationLink<
+				AccountId,
+				BlockNumber,
+			>,
+		> {
+			TransactionStorage::resource_reservation_link(reservation_id, content_hash)
 		}
 	}
 

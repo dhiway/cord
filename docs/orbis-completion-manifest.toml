@@ -1033,24 +1033,24 @@ id = "API-BulletinTransactionStorageApi-04"
 api = "BulletinTransactionStorageApi"
 method = "stored_content_provenance(reference: BulletinRef<BlockNumber>) -> StorageActor<AccountId>"
 max_results = 1
-state = "planned"
-evidence = "slice-1:iteration-2"
+state = "present"
+evidence = "1d6ca22b"
 
 [[runtime_api]]
 id = "API-BulletinTransactionStorageApi-05"
 api = "BulletinTransactionStorageApi"
 method = "resource_reservation(reservation_id: ReservationId) -> Option<ResourceReservationView<AccountId, BlockNumber>>"
 max_results = 1
-state = "planned"
-evidence = "slice-1:iteration-2"
+state = "present"
+evidence = "1d6ca22b"
 
 [[runtime_api]]
 id = "API-BulletinTransactionStorageApi-06"
 api = "BulletinTransactionStorageApi"
 method = "resource_reservation_link(reservation_id: ReservationId, content_hash: ContentHash) -> Option<ResourceReservationLink<AccountId, BlockNumber>>"
 max_results = 1
-state = "planned"
-evidence = "slice-1:iteration-2"
+state = "present"
+evidence = "1d6ca22b"
 
 [[runtime_api]]
 id = "API-GenesisBuilder-01"
@@ -2157,8 +2157,8 @@ index = 96
 package = "indiv-pallet-resources"
 source = "individuality-community"
 license = "Apache-2.0"
-state = "planned"
-evidence = "slice-1"
+state = "present"
+evidence = "origin/orbis/runtime/src/lib.rs:index-96"
 
 [[runtime_pallet]]
 id = "PAL-097"
@@ -2345,8 +2345,8 @@ evidence = "bounded completion slice"
 [[benchmark]]
 id = "BENCH-40"
 target = "indiv_pallet_resources"
-state = "planned"
-evidence = "bounded completion slice"
+state = "present"
+evidence = "origin/orbis/runtime/src/lib.rs:define_benchmarks"
 
 [[benchmark]]
 id = "BENCH-41"
@@ -2454,8 +2454,8 @@ evidence = "bounded completion slice"
 id = "MIG-indiv-pallet-resources"
 package = "indiv-pallet-resources"
 storage_version = 1
-state = "planned-initial-version"
-evidence = "slice-1:iteration-2 Resources V1"
+state = "present-initial-version"
+evidence = "origin/orbis/pallets/resources/src/lib.rs:StorageVersion(1)"
 
 [[migration]]
 id = "MIG-indiv-pallet-score"
@@ -3104,6 +3104,8 @@ name = "claim_long_term_storage"
 status = "modified-retained"
 owner = "slice-1"
 contract = "transactional reserve-before-alias-consume; rollback ID, purpose, reservation and alias on failure"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_call]]
 id = "CALL-Resources-14"
@@ -3113,6 +3115,8 @@ name = "reserved-unused"
 status = "reserved-unused"
 owner = "compatibility"
 contract = "must remain unoccupied"
+state = "reserved-unused"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_call]]
 id = "CALL-Resources-15"
@@ -3122,6 +3126,8 @@ name = "cancel_long_term_storage_reservation"
 status = "planned"
 owner = "slice-1"
 contract = "transactional owner-only cancellation by ReservationId"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_call]]
 id = "CALL-Resources-16"
@@ -3131,6 +3137,8 @@ name = "reserved-unused"
 status = "reserved-unused"
 owner = "compatibility"
 contract = "must remain unoccupied"
+state = "reserved-unused"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_call]]
 id = "CALL-Resources-17"
@@ -3140,6 +3148,8 @@ name = "expire_long_term_storage_reservations"
 status = "planned"
 owner = "slice-1"
 contract = "bounded transactional expiry then tombstone pruning; total outcomes <= limit"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_call]]
 id = "CALL-BulletinTransactionStorage-10"
@@ -3149,6 +3159,8 @@ name = "store_reserved"
 status = "planned"
 owner = "slice-1"
 contract = "signed logical reservation owner; real bytes/hash; isolated capacity; ordinary paid call"
+state = "present"
+evidence = "1d6ca22b"
 
 [[protocol_call]]
 id = "CALL-BulletinTransactionStorage-11"
@@ -3158,6 +3170,8 @@ name = "renew_reserved"
 status = "planned"
 owner = "slice-1"
 contract = "manual owner renewal of exact current reservation hash/ref; isolated capacity; ordinary paid call"
+state = "present"
+evidence = "1d6ca22b"
 
 [[protocol_storage]]
 id = "STORE-Resources-NextStorageReservationId"
@@ -3166,11 +3180,11 @@ version = 1
 name = "NextStorageReservationId"
 shape = "ReservationId"
 owner = "slice-1"
-state = "planned"
+state = "present"
 bound = "none"
 order = "not-applicable"
 contract = "checked monotonic Resources-only ID allocator; rollback on reserve failure"
-
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_storage]]
 id = "STORE-Resources-StorageClaims"
@@ -3180,10 +3194,10 @@ name = "StorageClaims"
 shape = "Map<ReservationId, { purpose: ReservationPurpose, owner: AccountId, created_at: BlockNumber }>"
 bound = "MaxReservations"
 owner = "slice-1"
-state = "planned"
+state = "present"
 order = "not-applicable"
 contract = "bounded audit claim retained through matching Bulletin tombstone lifecycle"
-
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_storage]]
 id = "STORE-Resources-StorageReservationByPurpose"
@@ -3193,10 +3207,10 @@ name = "StorageReservationByPurpose"
 shape = "Map<ReservationPurpose, ReservationId>"
 bound = "MaxReservations"
 owner = "slice-1"
-state = "planned"
+state = "present"
 order = "not-applicable"
 contract = "bounded purpose-to-ID uniqueness index removed synchronously with claim pruning"
-
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_storage]]
 id = "STORE-BulletinV6-StoredBy"
@@ -3205,11 +3219,11 @@ version = 6
 name = "StoredBy"
 shape = "Map<BulletinRef, StorageActor<AccountId>>"
 owner = "slice-1"
-state = "planned"
+state = "present"
 bound = "none"
 order = "not-applicable"
 contract = "explicit actor provenance keyed by exact BulletinRef and removed with retained transaction"
-
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_storage]]
 id = "STORE-BulletinV6-ResourceReservations"
@@ -3219,10 +3233,10 @@ name = "ResourceReservations"
 shape = "Map<ReservationId, ResourceReservation<AccountId, BlockNumber>>"
 bound = "MaxReservations"
 owner = "slice-1"
-state = "planned"
+state = "present"
 order = "not-applicable"
 contract = "Bulletin-exclusive active isolated capacity and status ledger"
-
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_storage]]
 id = "STORE-BulletinV6-ResourceReservationExpiryBlocks"
@@ -3233,9 +3247,9 @@ shape = "BoundedVec<BlockNumber>"
 order = "strictly-ascending-numeric"
 bound = "MaxReservationExpiryBlocks"
 owner = "slice-1"
-state = "planned"
+state = "present"
 contract = "bounded numeric due-block index; rejects insertion when full"
-
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_storage]]
 id = "STORE-BulletinV6-ResourceReservationExpiryBuckets"
@@ -3246,9 +3260,9 @@ shape = "Map<BlockNumber, BoundedVec<ReservationId>>"
 order = "strictly-ascending-numeric-per-bucket"
 bound = "MaxReservationsPerExpiryBlock"
 owner = "slice-1"
-state = "planned"
+state = "present"
 contract = "bounded numeric reservation index per due block; rejects insertion when full"
-
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_storage]]
 id = "STORE-BulletinV6-ResourceReservationExpiryCursor"
@@ -3257,11 +3271,11 @@ version = 6
 name = "ResourceReservationExpiryCursor"
 shape = "{ block: Option<BlockNumber>, offset: u32 }"
 owner = "slice-1"
-state = "planned"
+state = "present"
 bound = "none"
 order = "not-applicable"
 contract = "resumable lowest-due-block offset cursor"
-
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_storage]]
 id = "STORE-BulletinV6-ResourceReservationLinks"
@@ -3271,10 +3285,10 @@ name = "ResourceReservationLinks"
 shape = "DoubleMap<ReservationId, ContentHash, ResourceReservationLink<AccountId, BlockNumber>>"
 bound = "MaxReservationLinks"
 owner = "slice-1"
-state = "planned"
+state = "present"
 order = "not-applicable"
 contract = "current content hash/ref/owner/size link for reserved content"
-
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_storage]]
 id = "STORE-BulletinV6-ResourceLinkByRef"
@@ -3284,10 +3298,10 @@ name = "ResourceLinkByRef"
 shape = "Map<BulletinRef, (ReservationId, ContentHash)>"
 contract = "current ref only; renewal replaces old ref"
 owner = "slice-1"
-state = "planned"
+state = "present"
 bound = "none"
 order = "not-applicable"
-
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_storage]]
 id = "STORE-BulletinV6-ResourceReservationTombstones"
@@ -3297,10 +3311,10 @@ name = "ResourceReservationTombstones"
 shape = "Map<ReservationId, ResourceReservationTombstone<AccountId, BlockNumber>>"
 bound = "MaxReservations"
 owner = "slice-1"
-state = "planned"
+state = "present"
 order = "not-applicable"
 contract = "closed reservation audit row retained until no links and retention elapsed"
-
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_storage]]
 id = "STORE-BulletinV6-TombstonePruneQueue"
@@ -3311,9 +3325,9 @@ shape = "BoundedVec<ReservationId>"
 order = "strictly-ascending-numeric-unique"
 bound = "MaxReservations"
 owner = "slice-1"
-state = "planned"
+state = "present"
 contract = "non-droppable unique sorted tombstone work queue"
-
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_storage]]
 id = "STORE-BulletinV6-TombstonePruneCursor"
@@ -3323,10 +3337,10 @@ name = "TombstonePruneCursor"
 shape = "u32"
 contract = "round-robin; never drops ineligible or live-link entries"
 owner = "slice-1"
-state = "planned"
+state = "present"
 bound = "none"
 order = "not-applicable"
-
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_storage]]
 id = "STORE-BulletinV6-ReservedPermanentCapacity"
@@ -3336,10 +3350,10 @@ name = "ReservedPermanentCapacity"
 shape = "u64"
 contract = "sum(active.bytes_remaining)"
 owner = "slice-1"
-state = "planned"
+state = "present"
 bound = "none"
 order = "not-applicable"
-
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_type]]
 id = "TYPE-ReservationId"
@@ -3347,6 +3361,8 @@ name = "ReservationId"
 shape = "u64"
 contract = "checked monotonic allocation by Resources only; overflow is an error"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
 
 [[protocol_type]]
 id = "TYPE-ReservationPurpose"
@@ -3354,6 +3370,8 @@ name = "ReservationPurpose"
 shape = "Membership { period: u32, alias: Alias, counter: u8, collection: MembershipCollection } | ProofOfInk { candidate_hash: Hash, allocation_index: u32 }"
 contract = "bounded enum"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
 
 [[protocol_type]]
 id = "TYPE-TwoPhaseStorage"
@@ -3361,6 +3379,8 @@ name = "TwoPhaseStorage"
 shape = "reserve(id, owner, purpose, bytes, transactions, expires_at); cancel(owner, id); expire_due(now, limit)"
 contract = "Orbis-owned trait; no aggregate authorization or content-less permanent charge"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
 
 [[protocol_type]]
 id = "TYPE-BulletinRef"
@@ -3368,6 +3388,8 @@ name = "BulletinRef"
 shape = "(block_number: BlockNumber, transaction_index: u32)"
 contract = "transaction_index is position in that block's Transactions vector, never extrinsic index"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
 
 [[protocol_type]]
 id = "TYPE-StorageActor"
@@ -3375,6 +3397,8 @@ name = "StorageActor"
 shape = "Account(AccountId) | Root | Preimage(ContentHash) | AutoRenew(AccountId) | LegacyUnknown"
 contract = "every V6 position creator supplies an explicit actor; V5 absence reads LegacyUnknown"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
 
 [[protocol_type]]
 id = "TYPE-ResourceReservation"
@@ -3382,6 +3406,8 @@ name = "ResourceReservation"
 shape = "{ owner, purpose_digest, bytes_remaining, transactions_remaining, created_at, expires_at }"
 contract = "Bulletin-exclusive active capacity/status; V7 appends provider_ref: Option<ProviderAllocationId>"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
 
 [[protocol_type]]
 id = "TYPE-ResourceReservationLink"
@@ -3389,6 +3415,8 @@ name = "ResourceReservationLink"
 shape = "{ reservation_id, content_hash, bulletin_ref, owner, size, retention_boundary }"
 contract = "current exact ref/hash; V7 appends provider_ref: Option<ProviderAllocationId>"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
 
 [[protocol_type]]
 id = "TYPE-ResourceReservationTombstone"
@@ -3396,6 +3424,8 @@ name = "ResourceReservationTombstone"
 shape = "{ owner, purpose_digest, final_bytes_remaining, final_transactions_remaining, outcome, closed_at }"
 contract = "outcome is Cancelled | Expired | Exhausted"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
 
 [[protocol_type]]
 id = "TYPE-ResourceClaimLifecycle"
@@ -3403,6 +3433,8 @@ name = "ResourceClaimLifecycle"
 shape = "prune_claim(id: ReservationId) -> ClaimCleanupOutcome"
 contract = "typed infallible synchronous callback before Bulletin tombstone removal"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
 
 [[protocol_type]]
 id = "TYPE-ClaimCleanupOutcome"
@@ -3410,6 +3442,8 @@ name = "ClaimCleanupOutcome"
 shape = "{ id: ReservationId, removed: bool, purpose: Option<ReservationPurpose> }"
 contract = "missing/mismatch is emitted and fails try-state; never silently retained"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
 
 [[protocol_type]]
 id = "TYPE-ResourceReservationView"
@@ -3417,6 +3451,8 @@ name = "ResourceReservationView"
 shape = "Active(ResourceReservation) | Tombstone(ResourceReservationTombstone)"
 contract = "bounded tagged audit view until tombstone pruning"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
 
 [[protocol_type]]
 id = "TYPE-PreparedReservedStore"
@@ -3424,6 +3460,8 @@ name = "PreparedReservedStore"
 shape = "bounded preflight result containing owner, reservation delta, content hash, size and unique BulletinRef"
 contract = "all fallible checks completed before commit"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
 
 [[protocol_type]]
 id = "TYPE-PreparedReservedRenew"
@@ -3431,60 +3469,80 @@ name = "PreparedReservedRenew"
 shape = "bounded preflight result containing owner, reservation delta, source link and unique renewed BulletinRef"
 contract = "all fallible checks completed before commit"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
 
 [[protocol_internal]]
 id = "INTERNAL-prepare-reserved-store"
 name = "prepare_reserved_store"
 owner = "slice-1"
 contract = "read-only shared validation and dispatch preflight"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/individuality-support/src/traits/reality.rs"
 
 [[protocol_internal]]
 id = "INTERNAL-commit-reserved-store"
 name = "commit_reserved_store"
 owner = "slice-1"
 contract = "infallible FRAME writes; transaction_index::index last; no error after host call"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/individuality-support/src/traits/reality.rs"
 
 [[protocol_internal]]
 id = "INTERNAL-prepare-reserved-renew"
 name = "prepare_reserved_renew"
 owner = "slice-1"
 contract = "read-only shared validation and dispatch preflight"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/individuality-support/src/traits/reality.rs"
 
 [[protocol_internal]]
 id = "INTERNAL-commit-reserved-renew"
 name = "commit_reserved_renew"
 owner = "slice-1"
 contract = "infallible FRAME writes; transaction_index::renew last; no error after host call"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/individuality-support/src/traits/reality.rs"
 
 [[protocol_internal]]
 id = "INTERNAL-reserve-resource-capacity"
 name = "reserve_resource_capacity"
 owner = "slice-1"
 contract = "isolated reservation; checked global capacity conservation"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/individuality-support/src/traits/reality.rs"
 
 [[protocol_internal]]
 id = "INTERNAL-cancel-resource-capacity"
 name = "cancel_resource_capacity"
 owner = "slice-1"
 contract = "owner checked; releases unused capacity exactly once; creates tombstone"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/individuality-support/src/traits/reality.rs"
 
 [[protocol_internal]]
 id = "INTERNAL-expire-due-resource-capacity"
 name = "expire_due_resource_capacity"
 owner = "slice-1"
 contract = "lowest due numeric bucket first; bounded resumable cursor"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/individuality-support/src/traits/reality.rs"
 
 [[protocol_internal]]
 id = "INTERNAL-prune-resource-tombstones"
 name = "prune_resource_tombstones"
 owner = "slice-1"
 contract = "bounded non-droppable queue; invokes ResourceClaimLifecycle synchronously"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/individuality-support/src/traits/reality.rs"
 
 [[protocol_internal]]
 id = "INTERNAL-resource-claim-lifecycle"
 name = "ResourceClaimLifecycle::prune_claim"
 owner = "slice-1"
 contract = "typed infallible cleanup outcome before tombstone and queue removal"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/individuality-support/src/traits/reality.rs"
 
 [[protocol_view]]
 id = "VIEW-stored-content-provenance"
@@ -3496,7 +3554,8 @@ owner = "slice-1"
 signature = "stored_content_provenance(reference: BulletinRef<BlockNumber>) -> StorageActor<AccountId>"
 bound = "max_results=1"
 contract = "scalar exact-ref provenance; missing V5 row returns LegacyUnknown"
-
+state = "present"
+evidence = "1d6ca22b"
 
 [[protocol_view]]
 id = "VIEW-resource-reservation"
@@ -3508,7 +3567,8 @@ owner = "slice-1"
 signature = "resource_reservation(reservation_id: ReservationId) -> Option<ResourceReservationView<AccountId, BlockNumber>>"
 bound = "max_results=1"
 contract = "scalar tagged Active or Tombstone bounded audit view"
-
+state = "present"
+evidence = "1d6ca22b"
 
 [[protocol_view]]
 id = "VIEW-resource-reservation-link"
@@ -3520,7 +3580,8 @@ owner = "slice-1"
 signature = "resource_reservation_link(reservation_id: ReservationId, content_hash: ContentHash) -> Option<ResourceReservationLink<AccountId, BlockNumber>>"
 bound = "max_results=1"
 contract = "scalar current exact reservation/hash link or None"
-
+state = "present"
+evidence = "1d6ca22b"
 
 [[protocol_event]]
 id = "EVENT-Resources-LongTermStorageReserved"
@@ -3528,7 +3589,8 @@ pallet = "Resources"
 name = "LongTermStorageReserved"
 owner = "slice-1"
 contract = "emits checked ReservationId, owner, purpose and reserved capacity after atomic success"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_event]]
 id = "EVENT-Resources-LongTermStorageReservationCancelled"
@@ -3536,7 +3598,8 @@ pallet = "Resources"
 name = "LongTermStorageReservationCancelled"
 owner = "slice-1"
 contract = "emits owner cancellation and typed closure outcome"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_event]]
 id = "EVENT-Resources-LongTermStorageReservationExpired"
@@ -3544,7 +3607,8 @@ pallet = "Resources"
 name = "LongTermStorageReservationExpired"
 owner = "slice-1"
 contract = "emits bounded expiry outcome for the matching claim"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_event]]
 id = "EVENT-Bulletin-StoredContentProvenanceRecorded"
@@ -3552,7 +3616,8 @@ pallet = "BulletinTransactionStorage"
 name = "StoredContentProvenanceRecorded"
 owner = "slice-1"
 contract = "emits exact BulletinRef and explicit StorageActor for each V6 position"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_event]]
 id = "EVENT-Bulletin-ResourceCapacityReserved"
@@ -3560,7 +3625,8 @@ pallet = "BulletinTransactionStorage"
 name = "ResourceCapacityReserved"
 owner = "slice-1"
 contract = "emits isolated bytes/transaction reservation and expiry"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_event]]
 id = "EVENT-Bulletin-ReservedContentStored"
@@ -3568,7 +3634,8 @@ pallet = "BulletinTransactionStorage"
 name = "ReservedContentStored"
 owner = "slice-1"
 contract = "emits ReservationId, real ContentHash and exact BulletinRef"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_event]]
 id = "EVENT-Bulletin-ReservedContentRenewed"
@@ -3576,7 +3643,8 @@ pallet = "BulletinTransactionStorage"
 name = "ReservedContentRenewed"
 owner = "slice-1"
 contract = "emits ReservationId, ContentHash and unique renewed BulletinRef"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_event]]
 id = "EVENT-Bulletin-ResourceCapacityReleased"
@@ -3584,7 +3652,8 @@ pallet = "BulletinTransactionStorage"
 name = "ResourceCapacityReleased"
 owner = "slice-1"
 contract = "emits exactly-once unused capacity release and closure reason"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_event]]
 id = "EVENT-Bulletin-ResourceReservationExpired"
@@ -3592,7 +3661,8 @@ pallet = "BulletinTransactionStorage"
 name = "ResourceReservationExpired"
 owner = "slice-1"
 contract = "emits deterministic due-expiry closure and tombstone creation"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_event]]
 id = "EVENT-Bulletin-ResourceTombstonePruned"
@@ -3600,202 +3670,224 @@ pallet = "BulletinTransactionStorage"
 name = "ResourceTombstonePruned"
 contract = "carries typed ClaimCleanupOutcome"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-ReservationBackendFailed"
 name = "ReservationBackendFailed"
 owner = "slice-1"
 contract = "cross-pallet reserve/cancel/expiry transition failed before commit"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-ReservationIdOverflow"
 name = "ReservationIdOverflow"
 owner = "slice-1"
 contract = "checked NextStorageReservationId increment overflowed"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-ReservationNotFound"
 name = "ReservationNotFound"
 owner = "slice-1"
 contract = "ReservationId has no active or permitted tombstone record"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-NotReservationOwner"
 name = "NotReservationOwner"
 owner = "slice-1"
 contract = "logical signed actor differs from reservation owner"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-ClaimAlreadyReserved"
 name = "ClaimAlreadyReserved"
 owner = "slice-1"
 contract = "ReservationPurpose already maps to a live claim"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-ReservationNotActive"
 name = "ReservationNotActive"
 owner = "slice-1"
 contract = "reservation is closed, exhausted or otherwise inactive"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-ReservationExpired"
 name = "ReservationExpired"
 owner = "slice-1"
 contract = "current block is at or beyond reservation expiry"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-ContentNotFound"
 name = "ContentNotFound"
 owner = "slice-1"
 contract = "exact reservation content hash/ref cannot be resolved"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-ContentAlreadyLinked"
 name = "ContentAlreadyLinked"
 owner = "slice-1"
 contract = "reservation and content hash already have a current link"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-ContentTooLarge"
 name = "ContentTooLarge"
 owner = "slice-1"
 contract = "real content size exceeds isolated bytes_remaining"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-TransactionAllowanceExhausted"
 name = "TransactionAllowanceExhausted"
 owner = "slice-1"
 contract = "isolated transactions_remaining is zero"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-BytesAllowanceExhausted"
 name = "BytesAllowanceExhausted"
 owner = "slice-1"
 contract = "isolated bytes_remaining cannot cover the requested transition"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-StoredContentOwnerMismatch"
 name = "StoredContentOwnerMismatch"
 owner = "slice-1"
 contract = "current exact-ref StoredBy actor is not Account(reservation.owner)"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-LegacyContentUnrenewable"
 name = "LegacyContentUnrenewable"
 owner = "slice-1"
 contract = "LegacyUnknown V5 content cannot enter reserved renewal"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-BulletinRefHashMismatch"
 name = "BulletinRefHashMismatch"
 owner = "slice-1"
 contract = "exact BulletinRef does not contain the requested ContentHash"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-ExpiryBucketFull"
 name = "ExpiryBucketFull"
 owner = "slice-1"
 contract = "bounded numeric expiry bucket cannot accept another ReservationId"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-ExpiryBlockSetFull"
 name = "ExpiryBlockSetFull"
 owner = "slice-1"
 contract = "bounded distinct expiry-block set cannot accept another block"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
 id = "ERROR-CleanupLimitExceeded"
 name = "CleanupLimitExceeded"
 owner = "slice-1"
 contract = "requested expiry/prune work exceeds the configured bound"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_benchmark]]
 id = "PBENCH-Resources-claim-long-term-storage"
 target = "Resources::claim_long_term_storage"
 owner = "slice-1"
-state = "planned"
+state = "present"
 contract = "benchmark worst-case bounded semantics for Resources::claim_long_term_storage"
-
+evidence = "origin/orbis/pallets/resources/src/benchmarking.rs; origin/orbis/pallets/transaction-storage/src/benchmarking.rs"
 
 [[protocol_benchmark]]
 id = "PBENCH-Resources-cancel-long-term-storage-reservation"
 target = "Resources::cancel_long_term_storage_reservation"
 owner = "slice-1"
-state = "planned"
+state = "present"
 contract = "benchmark worst-case bounded semantics for Resources::cancel_long_term_storage_reservation"
-
+evidence = "origin/orbis/pallets/resources/src/benchmarking.rs; origin/orbis/pallets/transaction-storage/src/benchmarking.rs"
 
 [[protocol_benchmark]]
 id = "PBENCH-Resources-expire-long-term-storage-reservations"
 target = "Resources::expire_long_term_storage_reservations"
 contract = "worst due-expiry cursor plus remaining cross-pallet prune budget"
 owner = "slice-1"
-state = "planned"
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/benchmarking.rs; origin/orbis/pallets/transaction-storage/src/benchmarking.rs"
 
 [[protocol_benchmark]]
 id = "PBENCH-Bulletin-store-reserved"
 target = "BulletinTransactionStorage::store_reserved"
 owner = "slice-1"
-state = "planned"
+state = "present"
 contract = "benchmark worst-case bounded semantics for BulletinTransactionStorage::store_reserved"
-
+evidence = "1d6ca22b"
 
 [[protocol_benchmark]]
 id = "PBENCH-Bulletin-renew-reserved"
 target = "BulletinTransactionStorage::renew_reserved"
 owner = "slice-1"
-state = "planned"
+state = "present"
 contract = "benchmark worst-case bounded semantics for BulletinTransactionStorage::renew_reserved"
-
+evidence = "1d6ca22b"
 
 [[protocol_benchmark]]
 id = "PBENCH-Bulletin-provenance-actor-paths"
 target = "BulletinTransactionStorage::all_provenance_actor_paths"
 contract = "Account, Root, Preimage, AutoRenew, LegacyUnknown and reserved paths"
 owner = "slice-1"
-state = "planned"
+state = "present"
+evidence = "1d6ca22b"
 
 [[protocol_benchmark]]
 id = "PBENCH-Bulletin-worst-expiry-cursor"
 target = "BulletinTransactionStorage::expire_due_resource_capacity"
 owner = "slice-1"
-state = "planned"
+state = "present"
 contract = "benchmark worst-case bounded semantics for BulletinTransactionStorage::expire_due_resource_capacity"
-
+evidence = "1d6ca22b"
 
 [[protocol_benchmark]]
 id = "PBENCH-Bulletin-full-tombstone-scan"
 target = "BulletinTransactionStorage::prune_resource_tombstones"
 owner = "slice-1"
-state = "planned"
+state = "present"
 contract = "benchmark worst-case bounded semantics for BulletinTransactionStorage::prune_resource_tombstones"
-
+evidence = "1d6ca22b"
 
 [[protocol_benchmark]]
 id = "PBENCH-Bulletin-cross-pallet-prune"
 target = "BulletinTransactionStorage::ResourceClaimLifecycle"
 owner = "slice-1"
-state = "planned"
+state = "present"
 contract = "benchmark worst-case bounded semantics for BulletinTransactionStorage::ResourceClaimLifecycle"
-
+evidence = "1d6ca22b"
 
 [[protocol_migration]]
 id = "PMIG-Bulletin-V5-to-V6"
@@ -3803,9 +3895,10 @@ pallet = "BulletinTransactionStorage"
 from_version = 5
 to_version = 6
 owner = "slice-1"
-state = "planned"
+state = "present"
 pre_invariant = "snapshot all V5 Transactions, roots, latest-hash pointers, authorizations, AutoRenewals and PermanentStorageUsed"
 post_invariant = "all V5 snapshots byte-identical; StoredBy absence reads LegacyUnknown; ResourceReservations, expiry blocks/buckets/cursor, links/reverse links, tombstones/prune queue/cursor empty; ReservedPermanentCapacity == 0; sorted indices true; legacy refs rejected by renew_reserved"
+evidence = "1d6ca22b"
 
 [[protocol_migration]]
 id = "PMIG-Bulletin-V6-to-V7"
@@ -3821,261 +3914,325 @@ post_invariant = "same IDs, purposes, owners, counters, hashes, Bulletin refs, p
 id = "INV-capacity-sum"
 formula = "ReservedPermanentCapacity == sum(active ResourceReservations.bytes_remaining)"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs:do_try_state"
 
 [[protocol_invariant]]
 id = "INV-global-permanent-cap"
 formula = "PermanentStorageUsed + ReservedPermanentCapacity <= MaxPermanentStorageSize"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs:do_try_state"
 
 [[protocol_invariant]]
 id = "INV-active-tombstone-bound"
 formula = "count(active ResourceReservations) + count(ResourceReservationTombstones) <= MaxReservations"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs:do_try_state"
 
 [[protocol_invariant]]
 id = "INV-claim-bound"
 formula = "count(Resources.StorageClaims) <= MaxReservations"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs:do_try_state"
 
 [[protocol_invariant]]
 id = "INV-purpose-bijection"
 formula = "each StorageClaim has exactly one matching StorageReservationByPurpose entry until synchronous tombstone prune"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs:do_try_state"
 
 [[protocol_invariant]]
 id = "INV-expiry-order"
 formula = "ResourceReservationExpiryBlocks strictly ascending; each bucket strictly ascending unique ReservationId"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs:do_try_state"
 
 [[protocol_invariant]]
 id = "INV-prune-queue"
 formula = "each tombstone ID appears exactly once in sorted TombstonePruneQueue; skipped rows are retained for revisit"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs:do_try_state"
 
 [[protocol_invariant]]
 id = "INV-current-link-ref"
 formula = "ResourceLinkByRef maps only the current ResourceReservationLinks ref; renew replaces the reverse pointer"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs:do_try_state"
 
 [[protocol_invariant]]
 id = "INV-provenance-lifetime"
 formula = "StoredBy[BulletinRef] exists exactly while the matching TransactionInfo/proof-retention record exists; V5 absence means LegacyUnknown"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs:do_try_state"
 
 [[protocol_invariant]]
 id = "INV-isolated-consumption"
 formula = "store_reserved or renew_reserved consumes bytes and one transaction from only its ReservationId; no aggregate account authorization"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs:do_try_state"
 
 [[protocol_invariant]]
 id = "INV-overlap-accounting"
 formula = "manual renewal charges actual size again; old and new copies both count in PermanentStorageUsed until normal retention cleanup"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs:do_try_state"
 
 [[protocol_invariant]]
 id = "INV-host-boundary"
 formula = "all fallible checks and cross-pallet/provider preflights precede the host call; host index/renew is last; no fallible work follows"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs:do_try_state"
 
 [[protocol_acceptance]]
 id = "RES-BUL-01"
 scenario = "membership reserve then store_reserved with real bytes, hash, exact BulletinRef and bounded lookup"
 owner = "slice-1"
 contract = "membership reserve then store_reserved with real bytes, hash, exact BulletinRef and bounded lookup"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-02"
 scenario = "exact-ref owner and collision rejection, including identical bytes stored by another account"
 owner = "slice-1"
 contract = "exact-ref owner and collision rejection, including identical bytes stored by another account"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-03"
 scenario = "person and lite-person reservation isolation and quota enforcement"
 owner = "slice-1"
 contract = "person and lite-person reservation isolation and quota enforcement"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-04"
 scenario = "partial bytes and transaction consumption followed by independent exhaustion rejection"
 owner = "slice-1"
 contract = "partial bytes and transaction consumption followed by independent exhaustion rejection"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-05"
 scenario = "manual renew_reserved creates unique copy and overlapping permanent-byte accounting"
 owner = "slice-1"
 contract = "manual renew_reserved creates unique copy and overlapping permanent-byte accounting"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-06"
 scenario = "owner cancellation releases unused capacity once and preserves live linked content"
 owner = "slice-1"
 contract = "owner cancellation releases unused capacity once and preserves live linked content"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-07"
 scenario = "numeric expiry buckets and cursors resume deterministically before tombstone pruning"
 owner = "slice-1"
 contract = "numeric expiry buckets and cursors resume deterministically before tombstone pruning"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-08"
 scenario = "failure injection at every pre-host boundary rolls back ID, purpose, alias, capacity, links, host effect and provenance"
 owner = "slice-1"
 contract = "failure injection at every pre-host boundary rolls back ID, purpose, alias, capacity, links, host effect and provenance"
-
+state = "pending"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-09"
 scenario = "full expiry bucket and expiry-block set reject without partial state"
 owner = "slice-1"
 contract = "full expiry bucket and expiry-block set reject without partial state"
-
+state = "pending"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-10"
 scenario = "full active-plus-tombstone cap and saturated prune queue preserve no-drop invariant"
 owner = "slice-1"
 contract = "full active-plus-tombstone cap and saturated prune queue preserve no-drop invariant"
-
+state = "pending"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-11"
 scenario = "ResourceClaimLifecycle match and mismatch outcomes are emitted and enforced by try-state"
 owner = "slice-1"
 contract = "ResourceClaimLifecycle match and mismatch outcomes are emitted and enforced by try-state"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-12"
 scenario = "provenance insertion/removal for signed, root, preimage, force, auto-renew and reserved paths"
 owner = "slice-1"
 contract = "provenance insertion/removal for signed, root, preimage, force, auto-renew and reserved paths"
-
+state = "pending"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-13"
 scenario = "Bulletin V5-to-V6 migration satisfies exact pre/post equations and rejects legacy reserved renewal"
 owner = "slice-1"
 contract = "Bulletin V5-to-V6 migration satisfies exact pre/post equations and rejects legacy reserved renewal"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-14"
 scenario = "direct AsResources positive and invalid/expired proof negative paths"
 owner = "slice-1"
 contract = "direct AsResources positive and invalid/expired proof negative paths"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-15"
 scenario = "MetaTx AsResources positive and negative paths preserve inner owner/nonce and outer sponsor payment/refund"
 owner = "slice-1"
 contract = "MetaTx AsResources positive and negative paths preserve inner owner/nonce and outer sponsor payment/refund"
-
+state = "pending"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-16"
 scenario = "Utility, Proxy, Multisig, Scheduler, XCM, Revive and unvalidated MetaTx nesting reject reserved store/renew"
 owner = "slice-1"
 contract = "Utility, Proxy, Multisig, Scheduler, XCM, Revive and unvalidated MetaTx nesting reject reserved store/renew"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-17"
 scenario = "default Ethereum construction cannot spoof Resources custom origin"
 owner = "slice-1"
 contract = "default Ethereum construction cannot spoof Resources custom origin"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-18"
 scenario = "authorized/offchain transaction construction carries AsResources None and cannot forge reservation ownership"
 owner = "slice-1"
 contract = "authorized/offchain transaction construction carries AsResources None and cannot forge reservation ownership"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-19"
 scenario = "signed offchain payload, replacement cooldown, cleanup and person/lite quota exhaustion"
 owner = "slice-1"
 contract = "signed offchain payload, replacement cooldown, cleanup and person/lite quota exhaustion"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-20"
 scenario = "Bulletin calls 10/11 remain ordinary paid asset/native calls with nonce and failed-dispatch correction"
 owner = "slice-1"
 contract = "Bulletin calls 10/11 remain ordinary paid asset/native calls with nonce and failed-dispatch correction"
-
+state = "present"
+evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_obligation]]
 id = "P0-AsResources-slot"
 name = "AsResources replaces NoPolicy<9>"
 contract = "logical slot 9 on every applicable transaction surface"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_obligation]]
 id = "P0-AsResources-order"
 name = "OriginPolicyExtensions order"
 contract = "AsPerson, PeopleLiteAuth, AsResources, AuthorizeCall"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_obligation]]
 id = "P0-AsResources-defaults"
 name = "default constructor"
 contract = "AsResources::<Runtime>::new(None) for normal, Ethereum, MetaTx and authorized construction"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_obligation]]
 id = "P0-AsResources-version"
 name = "signed payload version"
 contract = "bump spec_version and transaction_version 4 -> 5 in Slice 1"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_obligation]]
 id = "P0-AsResources-metadata"
 name = "extension metadata"
 contract = "normal and MetaTx vectors place AsResources before AuthorizeCall"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_obligation]]
 id = "P0-AsResources-signing"
 name = "signing vectors"
 contract = "update positive and negative compatibility vectors for transaction version 5"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_obligation]]
 id = "P0-AsResources-direct-meta"
 name = "direct and MetaTx parity"
 contract = "positive and negative resource proof tests on both surfaces"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_obligation]]
 id = "P0-AsResources-ethereum"
 name = "Ethereum anti-spoof"
 contract = "prove default EthExtra construction cannot claim Resources origin"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_obligation]]
 id = "P0-AsResources-authorized"
 name = "authorized construction"
 contract = "authorized/offchain constructor defaults AsResources to None"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_obligation]]
 id = "P0-ReservedStorage-validation"
 name = "ValidateStorageCalls reserved variants"
 contract = "direct calls 10/11 classify ReservedStore/ReservedRenew; opaque/nested paths reject; calls are never feeless/PGAS"
 owner = "slice-1"
+state = "present"
+evidence = "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_dependency]]
 id = "DEP-Slice3-ProofOfInk"

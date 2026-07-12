@@ -18,12 +18,13 @@ mod reality;
 pub use crate::members_notifier_subscriber::{OnRingRootChange, RingRootOp, RingRootsProvider};
 pub use reality::{
 	AddOnlyPeopleTrait, Alias, AllocateStorage, AppendOnlyMembers, AppendOnlyMembersWeightInfo,
-	Callback, CleanUpAlias, CommunicationIdentifier, ConsumerRegistrar, Context, ContextualAlias,
-	CountedMembers, CurrentBlockRandomness, EvidenceHash, FlexibleMembers, Identifier,
-	IdentityData, InkSpec, Judgement, JudgementContext, MembershipMultiProver, MembershipProver,
-	PageIndex, PeopleTrait, PersonalId, PersonhoodLookup, PersonhoodProofRequest, RevisedAlias,
-	RevisedContextualAlias, RevisionIndex, RingExponent, RingIndex, RingMembersState, RingMode,
-	RingMutationMode, RingPosition, RingSize, RingStatus, Social, Statement, StatementOracle,
-	Truth, Username, CONTEXT_SIZE, PEOPLE_IDENTIFIER, PEOPLE_LITE_IDENTIFIER, RI_ZERO,
+	Callback, ClaimCleanupOutcome, CleanUpAlias, CommunicationIdentifier, ConsumerRegistrar,
+	Context, ContextualAlias, CountedMembers, CurrentBlockRandomness, EvidenceHash,
+	FlexibleMembers, Identifier, IdentityData, InkSpec, Judgement, JudgementContext,
+	MembershipMultiProver, MembershipProver, PageIndex, PeopleTrait, PersonalId, PersonhoodLookup,
+	PersonhoodProofRequest, ResourceClaimLifecycle, RevisedAlias, RevisedContextualAlias,
+	RevisionIndex, RingExponent, RingIndex, RingMembersState, RingMode, RingMutationMode,
+	RingPosition, RingSize, RingStatus, Social, Statement, StatementOracle, Truth, TwoPhaseStorage,
+	Username, CONTEXT_SIZE, PEOPLE_IDENTIFIER, PEOPLE_LITE_IDENTIFIER, RI_ZERO,
 };
 pub use verifiable::BatchProofItem;

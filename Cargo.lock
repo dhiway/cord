@@ -7244,6 +7244,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "indiv-pallet-resources"
+version = "0.9.9"
+dependencies = [
+ "bulletin-transaction-storage-primitives",
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-support",
+ "frame-system",
+ "indiv-pallet-chunks-manager",
+ "indiv-pallet-members",
+ "indiv-pallet-people",
+ "indiv-pallet-people-lite",
+ "indiv-support",
+ "log",
+ "parity-scale-codec",
+ "parking_lot 0.12.5",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-statement-store",
+ "verifiable",
+]
+
+[[package]]
 name = "indiv-support"
 version = "0.9.9"
 dependencies = [
@@ -9642,6 +9667,7 @@ name = "origin-orbis-runtime"
 version = "0.9.9"
 dependencies = [
  "assets-common",
+ "bulletin-transaction-storage-primitives",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-session-benchmarking",
@@ -9666,6 +9692,7 @@ dependencies = [
  "indiv-pallet-members-notifier",
  "indiv-pallet-people",
  "indiv-pallet-people-lite",
+ "indiv-pallet-resources",
  "indiv-support",
  "log",
  "origin-hub-system-runtime-constants",
@@ -9734,6 +9761,7 @@ dependencies = [
  "sp-offchain",
  "sp-runtime",
  "sp-session",
+ "sp-statement-store",
  "sp-storage",
  "sp-transaction-pool",
  "sp-transaction-storage-proof",
@@ -10353,7 +10381,9 @@ name = "pallet-bulletin-transaction-storage"
 version = "0.1.0"
 dependencies = [
  "array-bytes 6.2.3",
+ "bulletin-pallets-common",
  "bulletin-transaction-storage-primitives",
+ "indiv-support",
  "pallet-bulletin-transaction-storage-runtime-api",
  "parity-scale-codec",
  "polkadot-sdk-frame",
