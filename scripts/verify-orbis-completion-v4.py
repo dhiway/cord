@@ -19,6 +19,7 @@ def command_binding(cmd):
   ('checked_in_meta_v7_fixtures','runtime-fixtures','origin/orbis/runtime/src/meta_v6_fixtures.rs'),
   ('metadata_custom_hash_loss','runtime-custom-hash','origin/orbis/runtime/src/tests.rs'),
   ('sponsored_meta_tx_preserves','runtime-sponsored','origin/orbis/runtime/src/tests.rs'),
+  ('completion_manifest_v4_gate5_clear_is_exact_and_narrow','runtime-gate5','origin/orbis/runtime/src/tests.rs'),
   ('completion_manifest_v4_evidence','runtime-manifest','origin/orbis/runtime/src/tests.rs'),
   ('conservative_weights_freeze','runtime-weights','origin/orbis/runtime/src/remediation_v3.rs'),
   ('inspector_is_fixed_stack','runtime-inspector','origin/orbis/runtime/src/remediation_v3.rs'),
@@ -37,7 +38,7 @@ def canonical_output(cmd,out,code):
    lines.append(re.sub(r'; finished in [0-9.]+s','; finished',x))
  return 'exit='+str(code)+'\ncommand='+cmd+'\n'+'\n'.join(sorted(set(lines)))+'\n'
 text=MANIFEST.read_text(); top=fs(text.split('[[',1)[0]); audit=top.get('audited_runtime_commit',''); marker_commit=top.get('evidence_marker_commit','')
-if top.get('critic_status')!='pending' or top.get('critic_evidence')!='': die('Critic must remain explicitly pending')
+if top.get('architect_status')!='clear' or top.get('architect_evidence')!='docs/evidence/orbis-v4/architect-review-clear-1.md' or top.get('critic_status')!='clear' or top.get('critic_evidence')!='docs/evidence/orbis-v4/critic-review-clear-1.md': die('Architect and Critic CLEAR evidence must be exact')
 if not re.fullmatch('[0-9a-f]{40}',audit) or git('cat-file','-e',audit+'^{commit}').returncode: die('bad audited_runtime_commit')
 if not re.fullmatch('[0-9a-f]{40}',marker_commit) or git('cat-file','-e',marker_commit+'^{commit}').returncode: die('bad evidence_marker_commit')
 if git('merge-base','--is-ancestor',audit,marker_commit).returncode or git('merge-base','--is-ancestor',marker_commit,'HEAD').returncode: die('runtime baseline -> marker -> evidence commit ancestry/order violation')
@@ -88,7 +89,8 @@ for table,r in evidence:
   if not r.get(k): die(ident+' missing '+k)
  if assertion_hash(r['expected_assertion'])!=r['assertion_sha256']: die(ident+' assertion mismatch')
  commit=r['source_commit']
- if not re.fullmatch('[0-9a-f]{40}',commit) or git('merge-base','--is-ancestor',commit,audit).returncode: die(ident+' source commit not audited ancestor')
+ source_ceiling=marker_commit if ident=='GATE-5-EVIDENCE' else audit
+ if not re.fullmatch('[0-9a-f]{40}',commit) or git('merge-base','--is-ancestor',commit,source_ceiling).returncode: die(ident+' source commit not permitted evidence ancestor')
  historical=''
  for rel in r['source_paths'].split(';'):
   shown=git('show',commit+':'+rel.strip())
@@ -144,7 +146,8 @@ if dep.get('requires')!='PMIG-Bulletin-V7-to-V8 provider_ref migration' or pm['P
 for rel in ('docs/adr/0008-orbis-transaction-policy-pipeline.md','docs/orbis-native-capability-matrix.md'):
  d=(ROOT/rel).read_text()
  if 'PMIG-Bulletin-V6-to-V7' not in d or 'PMIG-Bulletin-V7-to-V8' not in d: die(rel+' migration IDs missing')
-if next(r for t,r in evidence if r['id']=='GATE-5-EVIDENCE')['status']!='planned': die('Gate5 falsely frozen')
+gate5=next(r for t,r in evidence if r['id']=='GATE-5-EVIDENCE')
+if gate5['status']!='present' or gate5.get('dependency_ids')!='ARCHITECT-CLEAR; CRITIC-CLEAR': die('Gate5 CLEAR closure is not exact')
 if not a.static:
  clean_env=os.environ.copy(); clean_env.pop('RUNTIME_METADATA_HASH',None)
  for cmd,rows in sorted(commands.items()):
@@ -154,7 +157,7 @@ if not a.static:
   if sorted(raw_markers)!=expected_markers: die('raw source marker mismatch: '+cmd)
   actual=canonical_output(cmd,run.stdout,run.returncode); h=hashlib.sha256(actual.encode()).hexdigest()
   if run.returncode or rows[0]['expected_output'] not in actual or h!=rows[0]['output_sha256']: die('actual output drift: '+cmd+'\n'+run.stdout[-1200:])
-report={'schema':'orbis-completion-verification-v4','manifest_sha256':sha(MANIFEST),'audited_runtime_commit':audit,'evidence_marker_commit':marker_commit,'manifest_inventory_count':len(actual_inventory),'manifest_inventory_blake2_256':inventory_digest,'present':len(normalized['present']),'planned':len(normalized['planned']),'excluded':len(normalized['excluded']),'unchecked':normalized['unchecked'],'ids_by_category':{k:sorted(v) for k,v in normalized.items()},'ids_by_table':{k:sorted(v) for k,v in sorted(by_table.items())},'row_count':len(all_rows),'evidence_present':sum(r['status']=='present' for _,r in evidence),'evidence_planned':sum(r['status']=='planned' for _,r in evidence),'commands':len(commands),'metadata_evidence':sorted(modes),'bulletin_v7':'present','provider_v8':'planned','critic_status':'pending'}
+report={'schema':'orbis-completion-verification-v4','manifest_sha256':sha(MANIFEST),'audited_runtime_commit':audit,'evidence_marker_commit':marker_commit,'manifest_inventory_count':len(actual_inventory),'manifest_inventory_blake2_256':inventory_digest,'present':len(normalized['present']),'planned':len(normalized['planned']),'excluded':len(normalized['excluded']),'unchecked':normalized['unchecked'],'ids_by_category':{k:sorted(v) for k,v in normalized.items()},'ids_by_table':{k:sorted(v) for k,v in sorted(by_table.items())},'row_count':len(all_rows),'evidence_present':sum(r['status']=='present' for _,r in evidence),'evidence_planned':sum(r['status']=='planned' for _,r in evidence),'commands':len(commands),'metadata_evidence':sorted(modes),'bulletin_v7':'present','provider_v8':'planned','architect_status':'clear','critic_status':'clear','gate5':'present'}
 if not a.manifest:
  out=ROOT/'docs/evidence/orbis-v4/verification-report.json'; sidecar=out.parent/'verification-report.sha256'; expected=json.dumps(report,sort_keys=True,indent=2)+'\n'
  required={MANIFEST,ROOT/'Cargo.lock',ROOT/registry_rel,ROOT/inventory_rel,equivalence_path,ROOT/'scripts/prove-orbis-marker-nonruntime.sh',ROOT/'scripts/verify-orbis-completion-v4.py',out,sidecar}

@@ -16,6 +16,12 @@ def reject(name,text,needle):
  if r.returncode==0 or needle not in r.stdout: raise SystemExit(f'{name} did not reject as {needle}: {r.stdout}')
 positive=run(BASE,True,False)
 if positive.returncode: raise SystemExit('full positive manifest failed under contaminated parent env: '+positive.stdout)
+reject('architect-clear-regression',BASE.replace('architect_status = "clear"','architect_status = "pending"',1),'Architect and Critic CLEAR evidence must be exact')
+reject('critic-clear-regression',BASE.replace('critic_status = "clear"','critic_status = "pending"',1),'Architect and Critic CLEAR evidence must be exact')
+gate_regression=re.sub(r'(\[\[remediation_gate\]\]\nid = "GATE-5-EVIDENCE".*?status = ")present(" )',r'\1planned\2',BASE,count=1,flags=re.S)
+if gate_regression==BASE:
+ gate_regression=re.sub(r'(\[\[remediation_gate\]\]\nid = "GATE-5-EVIDENCE".*?status = ")present("\n)',r'\1planned\2',BASE,count=1,flags=re.S)
+reject('gate5-present-regression',gate_regression,'source marker registry evidence ID set mismatch')
 reject('zero-sha',BASE.replace('artifact_sha256 = "','artifact_sha256 = "'+'0'*64+'#',1),'artifact')
 reject('missing-file',BASE.replace('artifact_path = "docs/evidence/orbis-v4/','artifact_path = "docs/evidence/orbis-v4/MISSING-',1),'artifact')
 reject('bad-commit',BASE.replace('source_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"','source_commit = "'+'f'*40+'"',1),'ancestor')

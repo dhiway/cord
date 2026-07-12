@@ -205,3 +205,11 @@ Metadata implicit evidence is split into compiled-enabled RFC-78 reproduction, c
 `PMIG-Bulletin-V6-to-V7` is the present Slice-1 reverse-index/counter repair and leaves storage at
 V7. `PMIG-Bulletin-V7-to-V8` is the distinct planned Slice-10 provider-reference migration. The
 provider plan depends on the completed V7 commit and must not be inferred from V7 storage.
+
+### Iteration-5 Gate 5 closure
+
+Independent Architect and Critic verdicts cleared only the Iteration-5 runtime/evidence freeze. Gate
+`GATE-5-EVIDENCE` moves from planned to present with source-emitted evidence; no other planned row
+changes. The reviewers explicitly did **not** clear the whole program: their reviewed pre-closure
+report contained 146 planned rows. Moving the gate itself leaves 145 normalized planned rows after
+closure, including all four provider V8 contracts and every previously planned capability row.

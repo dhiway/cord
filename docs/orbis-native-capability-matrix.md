@@ -165,3 +165,10 @@ Manifest v4 separates the completed Bulletin V6→V7 reverse-index repair from t
 
 Migration IDs are normative: present `PMIG-Bulletin-V6-to-V7` owns reverse-index/counter repair;
 planned `PMIG-Bulletin-V7-to-V8` owns provider-reference composition in Slice 10.
+
+## Iteration-5 evidence gate
+
+`GATE-5-EVIDENCE` is Present after independent Architect and Critic CLEAR verdicts and executable
+source-marker evidence. This is a narrow runtime/evidence freeze, not whole-program completion. The
+reviewed pre-closure state had 146 planned rows; only the Gate 5 row changed, leaving 145 planned
+rows and every planned capability unchanged.

@@ -1,12 +1,14 @@
 {
+  "architect_status": "clear",
   "audited_runtime_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
   "bulletin_v7": "present",
-  "commands": 11,
-  "critic_status": "pending",
-  "evidence_marker_commit": "42994a5c7bed9d0e13030a760b8dc541864b1aa5",
-  "evidence_planned": 5,
-  "evidence_present": 114,
+  "commands": 12,
+  "critic_status": "clear",
+  "evidence_marker_commit": "28a00e425d86092eddd08a7bfb10c09fa467450e",
+  "evidence_planned": 4,
+  "evidence_present": 115,
   "excluded": 68,
+  "gate5": "present",
   "ids_by_category": {
     "excluded": [
       "exclusion:EXC-bridges",
@@ -188,7 +190,6 @@
       "provider_v8_contract:BUL-V8-FIELD",
       "provider_v8_contract:BUL-V8-PRESERVE",
       "provider_v8_contract:BUL-V8-SEAM",
-      "remediation_gate:GATE-5-EVIDENCE",
       "runtime_api:API-DriveRegistryApi-01",
       "runtime_api:API-DriveRegistryApi-02",
       "runtime_api:API-DriveRegistryApi-03",
@@ -513,6 +514,7 @@
       "remediation_gate:GATE-2-ACTIVE",
       "remediation_gate:GATE-3-BULLETIN-V7",
       "remediation_gate:GATE-4-SPEC28-TX7",
+      "remediation_gate:GATE-5-EVIDENCE",
       "runtime_api:API-AccountNonceApi-01",
       "runtime_api:API-AuraApi-01",
       "runtime_api:API-AuraApi-02",
@@ -1372,17 +1374,17 @@
       "source:web3-storage"
     ]
   },
-  "manifest_inventory_blake2_256": "eb98d34165ab0e8e3727a3c8f88a30da899dfa7f85e88b60c6701b076733e659",
+  "manifest_inventory_blake2_256": "59f106807593fb0c6a0fbf041d1866b6196869d994655c14b4aa8659f5910114",
   "manifest_inventory_count": 645,
-  "manifest_sha256": "2146252f3028ca8473f9316c27878750a76766fbc38b3b352a80446e4fa0e60a",
+  "manifest_sha256": "2b006f8547c898083ca073e857ea6271070e18e81670627380d6a501d756fd12",
   "metadata_evidence": [
     "META-EVIDENCE-COMPILED-ENABLED",
     "META-EVIDENCE-CUSTOM-LOSS",
     "META-EVIDENCE-EARLY-PROPAGATION",
     "META-EVIDENCE-NOHASH-CANNOTLOOKUP"
   ],
-  "planned": 146,
-  "present": 431,
+  "planned": 145,
+  "present": 432,
   "provider_v8": "planned",
   "row_count": 645,
   "schema": "orbis-completion-verification-v4",

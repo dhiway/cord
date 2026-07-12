@@ -2,7 +2,7 @@ manifest_version = 4
 scope = "origin-orbis-enterprise-completion"
 frozen_at_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"
 audited_runtime_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"
-evidence_marker_commit = "42994a5c7bed9d0e13030a760b8dc541864b1aa5"
+evidence_marker_commit = "28a00e425d86092eddd08a7bfb10c09fa467450e"
 nonruntime_equivalence_evidence = "docs/evidence/orbis-v4/marker-nonruntime-equivalence.json"
 max_api_page_size = 100
 max_s3_bucket_name_bytes = 255
@@ -13,10 +13,11 @@ rule = "Adding or removing any row, method, service, scenario, or exclusion requ
 iteration = 5
 decision = "freeze-current-completion-evidence-v4"
 plan_evidence = "docs/adr/0008-orbis-transaction-policy-pipeline.md:Iteration-5-evidence-boundary"
-architect_evidence = "docs/evidence/orbis-v4/architect-review-block-3.md"
+architect_evidence = "docs/evidence/orbis-v4/architect-review-clear-1.md"
+architect_status = "clear"
 critic_block_evidence = "docs/evidence/orbis-v4/critic-review-block-1.md"
-critic_evidence = ""
-critic_status = "pending"
+critic_evidence = "docs/evidence/orbis-v4/critic-review-clear-1.md"
+critic_status = "clear"
 
 [[source]]
 id = "dhiway-sdk"
@@ -6243,19 +6244,20 @@ status = "present"
 [[remediation_gate]]
 id = "GATE-5-EVIDENCE"
 order = 5
-value = "evidence prepared; freeze awaits Architect and Critic clearance"
-source_paths = ""
-test_or_command = ""
-expected_output = ""
-output_sha256 = ""
-source_symbol = ""
-expected_assertion = ""
-artifact_path = ""
-artifact_sha256 = ""
-source_commit = ""
+value = "independent Architect and Critic CLEAR verdicts close only the Iteration-5 runtime/evidence freeze"
+source_paths = "origin/orbis/runtime/src/tests.rs; docs/evidence/orbis-v4/architect-review-clear-1.md; docs/evidence/orbis-v4/critic-review-clear-1.md; docs/orbis-completion-manifest.toml"
+test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::completion_manifest_v4_gate5_clear_is_exact_and_narrow -- --exact --nocapture"
+expected_output = "test result: ok"
+output_sha256 = "4d69d68d50339b6cfeb7b8a7f2a35a512c197c7d9e6d1c270cb23c20368b6807"
+source_symbol = "completion_manifest_v4_gate5_clear_is_exact_and_narrow"
+expected_assertion = "Gate5 exact reviews clear and freeze evidence is present without changing any non-gate planned row"
+assertion_sha256 = "aa56d18cc8f257c4ff4af96cff9b1373516258a9c32a5804b6a468f42282e369"
+artifact_path = "docs/evidence/orbis-v4/GATE-5-EVIDENCE.json"
+artifact_sha256 = "93c686d15402ac12a8d258ab72d37eba15af608116d3b302541899a1f8b4b069"
+source_commit = "28a00e425d86092eddd08a7bfb10c09fa467450e"
 planned_slice = "iteration-5-review"
 dependency_ids = "ARCHITECT-CLEAR; CRITIC-CLEAR"
-status = "planned"
+status = "present"
 
 [[meta_contract]]
 id = "META-EVIDENCE-COMPILED-ENABLED"
