@@ -149,18 +149,19 @@ mod tests {
 			assert!(malformed.all_gte(route.declared), "malformed weight missed {}", route.name);
 		}
 
-		// An absent account mapping exits after the first lookup. The selected route weight owns the
-		// complete success path, and therefore conservatively covers this mapping-miss rejection.
+		// An absent account mapping exits after the first lookup. The selected route weight owns
+		// the complete success path, and therefore conservatively covers this mapping-miss
+		// rejection.
 		let one_read_mapping_miss =
 			Weight::from_parts(BASE.saturating_add(CLASSIFIER), 0).saturating_add(db.reads(1));
 		for route in routes.into_iter().filter(|route| {
 			matches!(
 				route.name,
-				"PersonalAliasAccount"
-					| "PersonalIdentityAccount"
-					| "PersonalAliasAccountRevised"
-					| "LitePerson" | "LiteAliasAccount"
-					| "LiteAliasAccountRevised"
+				"PersonalAliasAccount" |
+					"PersonalIdentityAccount" |
+					"PersonalAliasAccountRevised" |
+					"LitePerson" | "LiteAliasAccount" |
+					"LiteAliasAccountRevised"
 			)
 		}) {
 			assert!(route.declared.all_gte(one_read_mapping_miss));
