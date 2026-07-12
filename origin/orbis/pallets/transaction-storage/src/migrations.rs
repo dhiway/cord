@@ -519,8 +519,9 @@ pub mod v3 {
 
 				let mut iter = match cursor.as_ref() {
 					None => Transactions::<T>::iter_keys(),
-					Some(last) =>
-						Transactions::<T>::iter_keys_from(Transactions::<T>::hashed_key_for(last)),
+					Some(last) => {
+						Transactions::<T>::iter_keys_from(Transactions::<T>::hashed_key_for(last))
+					},
 				};
 
 				let Some(block_number) = iter.next() else {
@@ -706,8 +707,9 @@ pub mod v4 {
 
 				let mut iter = match cursor.as_ref() {
 					None => AutoRenewals::<T>::iter_keys(),
-					Some(last) =>
-						AutoRenewals::<T>::iter_keys_from(AutoRenewals::<T>::hashed_key_for(last)),
+					Some(last) => {
+						AutoRenewals::<T>::iter_keys_from(AutoRenewals::<T>::hashed_key_for(last))
+					},
 				};
 
 				let Some(content_hash) = iter.next() else {
@@ -928,6 +930,135 @@ pub mod v5 {
 		4,
 		5,
 		VersionUncheckedMigrateV4ToV5<T>,
+		Pallet<T>,
+		<T as polkadot_sdk_frame::deps::frame_system::Config>::DbWeight,
+	>;
+}
+
+/// V5 → V6 migration. V6 adds only isolated Resources reservation ledgers and explicit
+/// provenance. Existing V5 rows are intentionally not rewritten: absence from `StoredBy` is the
+/// canonical `LegacyUnknown` representation.
+pub mod v6 {
+	use super::*;
+	use crate::pallet::Pallet;
+	#[cfg(feature = "try-runtime")]
+	use crate::pallet::{
+		AllowedAuthorizers, Authorizations, AutoRenewals, BlockTransactions, PermanentStorageUsed,
+		ReservedPermanentCapacity, ResourceLinkByRef, ResourceReservationExpiryBlocks,
+		ResourceReservationExpiryBuckets, ResourceReservationLinks, ResourceReservationTombstones,
+		ResourceReservations, StoredBy, TombstonePruneQueue, TransactionByContentHash,
+		Transactions,
+	};
+	#[cfg(feature = "try-runtime")]
+	use polkadot_sdk_frame::deps::frame_support::storage::StoragePrefixedMap;
+	use polkadot_sdk_frame::deps::frame_support::{
+		migrations::VersionedMigration, traits::UncheckedOnRuntimeUpgrade,
+	};
+
+	pub struct VersionUncheckedMigrateV5ToV6<T>(PhantomData<T>);
+
+	impl<T: Config> UncheckedOnRuntimeUpgrade for VersionUncheckedMigrateV5ToV6<T> {
+		fn on_runtime_upgrade() -> Weight {
+			tracing::info!(
+				target: LOG_TARGET,
+				"v5->v6 initialized empty isolated reservation and provenance ledgers"
+			);
+			T::DbWeight::get().reads(1)
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn pre_upgrade() -> Result<Vec<u8>, polkadot_sdk_frame::deps::sp_runtime::TryRuntimeError> {
+			let snapshot = (
+				prefix_digest(Transactions::<T>::final_prefix().to_vec()),
+				prefix_digest(TransactionByContentHash::<T>::final_prefix().to_vec()),
+				prefix_digest(Authorizations::<T>::final_prefix().to_vec()),
+				prefix_digest(AllowedAuthorizers::<T>::final_prefix().to_vec()),
+				prefix_digest(AutoRenewals::<T>::final_prefix().to_vec()),
+				BlockTransactions::<T>::get().encode(),
+				PermanentStorageUsed::<T>::get(),
+			);
+			Ok(snapshot.encode())
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade(
+			state: Vec<u8>,
+		) -> Result<(), polkadot_sdk_frame::deps::sp_runtime::TryRuntimeError> {
+			let before =
+				<([u8; 32], [u8; 32], [u8; 32], [u8; 32], [u8; 32], Vec<u8>, u64)>::decode(
+					&mut &state[..],
+				)
+				.map_err(|_| "v5->v6: invalid pre-upgrade snapshot")?;
+			let after = (
+				prefix_digest(Transactions::<T>::final_prefix().to_vec()),
+				prefix_digest(TransactionByContentHash::<T>::final_prefix().to_vec()),
+				prefix_digest(Authorizations::<T>::final_prefix().to_vec()),
+				prefix_digest(AllowedAuthorizers::<T>::final_prefix().to_vec()),
+				prefix_digest(AutoRenewals::<T>::final_prefix().to_vec()),
+				BlockTransactions::<T>::get().encode(),
+				PermanentStorageUsed::<T>::get(),
+			);
+			polkadot_sdk_frame::prelude::ensure!(before == after, "v5->v6 changed V5 state");
+			polkadot_sdk_frame::prelude::ensure!(
+				StoredBy::<T>::iter().next().is_none(),
+				"StoredBy must start empty"
+			);
+			polkadot_sdk_frame::prelude::ensure!(
+				ResourceReservations::<T>::iter().next().is_none(),
+				"reservations must start empty"
+			);
+			polkadot_sdk_frame::prelude::ensure!(
+				ResourceReservationExpiryBlocks::<T>::get().is_empty(),
+				"expiry blocks must start empty"
+			);
+			polkadot_sdk_frame::prelude::ensure!(
+				ResourceReservationExpiryBuckets::<T>::iter().next().is_none(),
+				"expiry buckets must start empty"
+			);
+			polkadot_sdk_frame::prelude::ensure!(
+				ResourceReservationLinks::<T>::iter().next().is_none(),
+				"links must start empty"
+			);
+			polkadot_sdk_frame::prelude::ensure!(
+				ResourceLinkByRef::<T>::iter().next().is_none(),
+				"reverse links must start empty"
+			);
+			polkadot_sdk_frame::prelude::ensure!(
+				ResourceReservationTombstones::<T>::iter().next().is_none(),
+				"tombstones must start empty"
+			);
+			polkadot_sdk_frame::prelude::ensure!(
+				TombstonePruneQueue::<T>::get().is_empty(),
+				"prune queue must start empty"
+			);
+			polkadot_sdk_frame::prelude::ensure!(
+				ReservedPermanentCapacity::<T>::get() == 0,
+				"reserved capacity must start at zero"
+			);
+			Ok(())
+		}
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn prefix_digest(prefix: Vec<u8>) -> [u8; 32] {
+		let mut cursor = prefix.clone();
+		let mut bytes = Vec::new();
+		while let Some(key) = polkadot_sdk_frame::deps::sp_io::storage::next_key(&cursor)
+			.filter(|key| key.starts_with(&prefix))
+		{
+			cursor = key.clone();
+			bytes.extend_from_slice(&key);
+			if let Some(value) = polkadot_sdk_frame::deps::sp_io::storage::get(&key) {
+				bytes.extend_from_slice(&value);
+			}
+		}
+		polkadot_sdk_frame::deps::sp_io::hashing::blake2_256(&bytes)
+	}
+
+	pub type MigrateV5ToV6<T> = VersionedMigration<
+		5,
+		6,
+		VersionUncheckedMigrateV5ToV6<T>,
 		Pallet<T>,
 		<T as polkadot_sdk_frame::deps::frame_system::Config>::DbWeight,
 	>;

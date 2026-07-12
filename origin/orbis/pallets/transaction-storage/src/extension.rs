@@ -68,7 +68,11 @@ where
 		if let Some(inner_call) = call.is_sub_type() {
 			return matches!(
 				inner_call,
-				Call::store { .. } | Call::store_with_cid_config { .. } | Call::force_renew { .. }
+				Call::store { .. }
+					| Call::store_with_cid_config { .. }
+					| Call::force_renew { .. }
+					| Call::store_reserved { .. }
+					| Call::renew_reserved { .. }
 			);
 		}
 		if depth >= MAX_WRAPPER_DEPTH {
@@ -204,10 +208,14 @@ where
 			return Weight::zero();
 		};
 		match inner_call {
-			Call::store { data, .. } | Call::store_with_cid_config { data, .. } =>
-				T::WeightInfo::validate_store(data.len() as u32),
-			Call::renew { .. } | Call::force_renew { .. } | Call::enable_auto_renew { .. } =>
-				T::WeightInfo::validate_renew(),
+			Call::store { data, .. } | Call::store_with_cid_config { data, .. } => {
+				T::WeightInfo::validate_store(data.len() as u32)
+			},
+			Call::store_reserved { data, .. } => T::WeightInfo::store_reserved(data.len() as u32),
+			Call::renew_reserved { .. } => T::WeightInfo::renew_reserved(),
+			Call::renew { .. } | Call::force_renew { .. } | Call::enable_auto_renew { .. } => {
+				T::WeightInfo::validate_renew()
+			},
 			_ => Weight::zero(),
 		}
 	}
@@ -318,8 +326,8 @@ impl BoostStrategy for ProportionalBoost {
 			0
 		} else {
 			let tx_rem = extent.transactions_allowance.saturating_sub(extent.transactions);
-			(ALLOWANCE_PRIORITY_BOOST as u128 * tx_rem as u128) /
-				extent.transactions_allowance as u128
+			(ALLOWANCE_PRIORITY_BOOST as u128 * tx_rem as u128)
+				/ extent.transactions_allowance as u128
 		};
 		bytes_share.min(tx_share) as u64
 	}

@@ -9,7 +9,10 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use bulletin_transaction_storage_primitives::TransactionRef;
+use bulletin_transaction_storage_primitives::{
+	BulletinRef, ContentHash, ReservationId, ResourceReservationLink, ResourceReservationView,
+	StorageActor, TransactionRef,
+};
 use codec::{Codec, Decode, Encode};
 use scale_info::TypeInfo;
 
@@ -53,5 +56,20 @@ sp_api::decl_runtime_apis! {
 		/// Returns `true` iff a `renew(entry)` call would currently pass transaction
 		/// validation for `account`.
 		fn can_renew(account: AccountId, entry: TransactionRef<BlockNumber>) -> bool;
+
+		/// Explicit actor for an exact retained position; missing V5 rows read as
+		/// `StorageActor::LegacyUnknown`.
+		fn stored_content_provenance(reference: BulletinRef<BlockNumber>) -> StorageActor<AccountId>;
+
+		/// Scalar active-or-tombstone reservation audit view.
+		fn resource_reservation(
+			reservation_id: ReservationId,
+		) -> Option<ResourceReservationView<AccountId, BlockNumber>>;
+
+		/// Current exact link for one reservation/content pair.
+		fn resource_reservation_link(
+			reservation_id: ReservationId,
+			content_hash: ContentHash,
+		) -> Option<ResourceReservationLink<AccountId, BlockNumber>>;
 	}
 }

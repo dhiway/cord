@@ -30,17 +30,22 @@ pub mod benchmarking;
 pub mod weights;
 
 pub mod migrations;
-// Upstream mock tests depend on Bulletin's separate runtime graph. Orbis exercises the adapted
-// pallet through runtime tests so this crate remains on CORD's single SDK graph.
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
 mod types;
 
 use alloc::vec::Vec;
 use bulletin_transaction_storage_primitives::{
 	cids::{calculate_cid, Cid, CidCodec, CidConfig, HashingAlgorithm, RAW_CODEC},
-	ContentHash,
+	BulletinRef, ContentHash, ReservationId, ResourceClosure, ResourceExpiryCursor,
+	ResourceReservation, ResourceReservationLink, ResourceReservationTombstone,
+	ResourceReservationView, StorageActor,
 };
 use codec::{Decode, Encode, MaxEncodedLen};
 use core::fmt::Debug;
+use indiv_support::traits::{ResourceClaimLifecycle, TwoPhaseStorage};
 use pallet_bulletin_transaction_storage_runtime_api::AccountAuthorization;
 use polkadot_sdk_frame::{
 	deps::*,
@@ -112,6 +117,35 @@ pub const CANNOT_DISABLE_PREPAID_AUTO_RENEWAL: InvalidTransaction = InvalidTrans
 /// can use this as a "raise the cap or coordinate another bulletin chain" trigger.
 pub const PERMANENT_STORAGE_NEAR_CAP_PERCENT: u64 = 80;
 
+struct PreparedReservedStore<AccountId, BlockNumber> {
+	owner: AccountId,
+	reservation: ResourceReservation<AccountId, BlockNumber>,
+	content_hash: ContentHash,
+	size: u32,
+	bulletin_ref: BulletinRef<BlockNumber>,
+}
+
+struct PreparedReservedRenew<AccountId, BlockNumber> {
+	owner: AccountId,
+	reservation: ResourceReservation<AccountId, BlockNumber>,
+	source: ResourceReservationLink<AccountId, BlockNumber>,
+	bulletin_ref: BulletinRef<BlockNumber>,
+}
+
+struct PreparedRenew<AccountId, BlockNumber> {
+	info: TransactionInfo,
+	content_hash: ContentHash,
+	extrinsic_index: u32,
+	bulletin_ref: BulletinRef<BlockNumber>,
+	actor: StorageActor<AccountId>,
+}
+
+#[cfg(test)]
+std::thread_local! {
+	static RENEW_HOST_OBSERVER: core::cell::RefCell<Option<alloc::boxed::Box<dyn FnMut()>>> =
+		const { core::cell::RefCell::new(None) };
+}
+
 pub use extension::{CallInspector, MAX_WRAPPER_DEPTH};
 
 #[polkadot_sdk_frame::pallet]
@@ -159,6 +193,25 @@ pub mod pallet {
 		/// all authorizations. Tracks chain-wide capacity for permanent data.
 		#[pallet::constant]
 		type MaxPermanentStorageSize: Get<u64>;
+		/// Maximum total number of active reservations and retained tombstones.
+		#[pallet::constant]
+		type MaxReservations: Get<u32>;
+		/// Maximum number of distinct blocks in the expiry index.
+		#[pallet::constant]
+		type MaxReservationExpiryBlocks: Get<u32>;
+		/// Maximum reservations sharing one expiry block.
+		#[pallet::constant]
+		type MaxReservationsPerExpiryBlock: Get<u32>;
+		/// Maximum live reservation/content links.
+		#[pallet::constant]
+		type MaxReservationLinks: Get<u32>;
+		/// Number of blocks a closed reservation remains queryable.
+		#[pallet::constant]
+		type TombstoneRetention: Get<BlockNumberFor<Self>>;
+		/// Bounded purpose supplied by the Resources claim allocator.
+		type ReservationPurpose: Parameter + MaxEncodedLen;
+		/// Synchronous Resources-side claim cleanup invoked before tombstone removal.
+		type ResourceClaimLifecycle: ResourceClaimLifecycle<ReservationId, Self::ReservationPurpose>;
 		/// Authorizations expire after this many blocks.
 		#[pallet::constant]
 		type AuthorizationPeriod: Get<BlockNumberFor<Self>>;
@@ -251,9 +304,25 @@ pub mod pallet {
 		/// `AllowedAuthorizers` budget cannot cover the requested
 		/// `transactions` / `bytes` (or `max_size`).
 		InsufficientAuthorizerBudget,
+		ReservationNotFound,
+		NotReservationOwner,
+		ReservationNotActive,
+		ReservationExpired,
+		ContentNotFound,
+		ContentAlreadyLinked,
+		ContentTooLarge,
+		TransactionAllowanceExhausted,
+		BytesAllowanceExhausted,
+		StoredContentOwnerMismatch,
+		LegacyContentUnrenewable,
+		BulletinRefHashMismatch,
+		ExpiryBucketFull,
+		ExpiryBlockSetFull,
+		CleanupLimitExceeded,
+		ReservationCapacityExceeded,
 	}
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(5);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(6);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
@@ -356,8 +425,18 @@ pub mod pallet {
 					// and schedule auto-renewals.
 					let mut pending = PendingAutoRenewals::<T>::get();
 					let mut renewed_sum: u64 = 0;
-					for tx_info in transactions.into_iter() {
+					for (transaction_index, tx_info) in transactions.into_iter().enumerate() {
 						let hash: ContentHash = tx_info.content_hash;
+						let bulletin_ref = BulletinRef {
+							block: obsolete,
+							transaction_index: transaction_index as u32,
+						};
+						StoredBy::<T>::remove(bulletin_ref);
+						if let Some((reservation_id, linked_hash)) =
+							ResourceLinkByRef::<T>::take(bulletin_ref)
+						{
+							ResourceReservationLinks::<T>::remove(reservation_id, linked_hash);
+						}
 
 						// Sum renewed sizes for the chain-wide permanent counter decrement.
 						if matches!(tx_info.kind, TransactionKind::Renew) {
@@ -501,8 +580,8 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::store(data.len() as u32))]
 		#[pallet::feeless_if(|origin: &OriginFor<T>, data: &Vec<u8>| -> bool { true })]
 		pub fn store(origin: OriginFor<T>, data: Vec<u8>) -> DispatchResult {
-			let _caller = Self::ensure_authorized(origin)?;
-			Self::do_store(data, HashingAlgorithm::Blake2b256, RAW_CODEC)
+			let caller = Self::ensure_authorized(origin)?;
+			Self::do_store_for(caller, data, HashingAlgorithm::Blake2b256, RAW_CODEC)
 		}
 
 		/// Index and store data off chain with an explicit CID configuration.
@@ -519,8 +598,39 @@ pub mod pallet {
 			cid: CidConfig,
 			data: Vec<u8>,
 		) -> DispatchResult {
-			let _caller = Self::ensure_authorized(origin)?;
-			Self::do_store(data, cid.hashing, cid.codec)
+			let caller = Self::ensure_authorized(origin)?;
+			Self::do_store_for(caller, data, cid.hashing, cid.codec)
+		}
+
+		/// Store real content against capacity isolated by a Resources reservation.
+		///
+		/// This is an ordinary paid signed call. `data` must remain the final encoded argument
+		/// because the transaction-index host indexes the trailing `data.len()` bytes.
+		#[pallet::call_index(10)]
+		#[pallet::weight(T::WeightInfo::store_reserved(data.len() as u32))]
+		pub fn store_reserved(
+			origin: OriginFor<T>,
+			reservation_id: ReservationId,
+			cid_config: CidConfig,
+			data: Vec<u8>,
+		) -> DispatchResult {
+			let owner = ensure_signed(origin)?;
+			Self::do_store_reserved(owner, reservation_id, cid_config, data)
+		}
+
+		/// Renew the exact current Bulletin copy linked to `content_hash`.
+		///
+		/// The old and new copies overlap in permanent-byte accounting until normal retention
+		/// cleanup removes the old position.
+		#[pallet::call_index(11)]
+		#[pallet::weight(T::WeightInfo::renew_reserved())]
+		pub fn renew_reserved(
+			origin: OriginFor<T>,
+			reservation_id: ReservationId,
+			content_hash: ContentHash,
+		) -> DispatchResult {
+			let owner = ensure_signed(origin)?;
+			Self::do_renew_reserved(owner, reservation_id, content_hash)
 		}
 
 		/// Schedule a **one-shot** auto-renewal of previously stored data. The renewal fires
@@ -581,7 +691,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			entry: TransactionRef<BlockNumberFor<T>>,
 		) -> DispatchResultWithPostInfo {
-			let _caller = Self::ensure_authorized(origin)?;
+			let caller = Self::ensure_authorized(origin)?;
 			let info = Self::resolve_transaction_ref(&entry)?;
 
 			// In the case of a regular unsigned transaction, this should have been checked by
@@ -590,7 +700,9 @@ pub mod pallet {
 			Self::ensure_data_size_ok(info.size as usize)?;
 
 			let content_hash = info.content_hash;
-			let new_index = Self::do_renew(info)?;
+			let charge_root = matches!(&caller, AuthorizedCaller::Root);
+			let actor = Self::actor_for_caller(caller, info.content_hash);
+			let new_index = Self::do_renew(info, actor, charge_root)?;
 			Self::deposit_event(Event::Renewed { index: new_index, content_hash });
 			Ok(().into())
 		}
@@ -1004,48 +1116,129 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Stored data under specified index.
-		Stored { index: u32, content_hash: ContentHash, cid: Option<Cid> },
+		Stored {
+			index: u32,
+			content_hash: ContentHash,
+			cid: Option<Cid>,
+		},
 		/// Renewed data under specified index.
-		Renewed { index: u32, content_hash: ContentHash },
+		Renewed {
+			index: u32,
+			content_hash: ContentHash,
+		},
 		/// Storage proof was successfully checked.
 		ProofChecked,
 		/// An account `who` was authorized to store `bytes` bytes in `transactions` boost-tier
 		/// transactions.
-		AccountAuthorized { who: T::AccountId, transactions: u32, bytes: u64 },
+		AccountAuthorized {
+			who: T::AccountId,
+			transactions: u32,
+			bytes: u64,
+		},
 		/// An authorization for account `who` was refreshed.
-		AccountAuthorizationRefreshed { who: T::AccountId },
+		AccountAuthorizationRefreshed {
+			who: T::AccountId,
+		},
 		/// Authorization was given for a preimage of `content_hash` (not exceeding `max_size`) to
 		/// be stored by anyone.
-		PreimageAuthorized { content_hash: ContentHash, max_size: u64 },
+		PreimageAuthorized {
+			content_hash: ContentHash,
+			max_size: u64,
+		},
 		/// An authorization for a preimage of `content_hash` was refreshed.
-		PreimageAuthorizationRefreshed { content_hash: ContentHash },
+		PreimageAuthorizationRefreshed {
+			content_hash: ContentHash,
+		},
 		/// An expired account authorization was removed.
-		ExpiredAccountAuthorizationRemoved { who: T::AccountId },
+		ExpiredAccountAuthorizationRemoved {
+			who: T::AccountId,
+		},
 		/// An expired preimage authorization was removed.
-		ExpiredPreimageAuthorizationRemoved { content_hash: ContentHash },
+		ExpiredPreimageAuthorizationRemoved {
+			content_hash: ContentHash,
+		},
 		/// An authorizer was added to the allowed list.
-		AuthorizerAdded { who: T::AccountId },
+		AuthorizerAdded {
+			who: T::AccountId,
+		},
 		/// An authorizer was removed from the allowed list by the manager.
-		AuthorizerRemoved { who: T::AccountId },
+		AuthorizerRemoved {
+			who: T::AccountId,
+		},
 		/// An authorizer was removed from the allowed list due to budget exhaustion.
-		ExhaustedAuthorizerRemoved { who: T::AccountId },
+		ExhaustedAuthorizerRemoved {
+			who: T::AccountId,
+		},
 		/// A renewal was enabled for `content_hash` by `who`.
-		RenewalEnabled { content_hash: ContentHash, who: T::AccountId, recurring: bool },
+		RenewalEnabled {
+			content_hash: ContentHash,
+			who: T::AccountId,
+			recurring: bool,
+		},
 		/// Auto-renewal disabled for `content_hash`. `who` is the registration's owner
 		/// (not the caller when Root issued the disable).
-		AutoRenewalDisabled { content_hash: ContentHash, who: T::AccountId },
+		AutoRenewalDisabled {
+			content_hash: ContentHash,
+			who: T::AccountId,
+		},
 		/// Data was automatically renewed at `index` with `content_hash` for `account`.
-		DataAutoRenewed { index: u32, content_hash: ContentHash, account: T::AccountId },
+		DataAutoRenewed {
+			index: u32,
+			content_hash: ContentHash,
+			account: T::AccountId,
+		},
 		/// Auto-renewal failed for `content_hash` (insufficient authorization for `account`).
-		AutoRenewalFailed { content_hash: ContentHash, account: T::AccountId },
+		AutoRenewalFailed {
+			content_hash: ContentHash,
+			account: T::AccountId,
+		},
 		/// `PermanentStorageUsed` changed (a `renew` bumped it, or the lazy drain
 		/// decremented it). Off-chain capacity-planning consumers can drive their dashboards
 		/// from these.
-		PermanentStorageUsedUpdated { used: u64 },
+		PermanentStorageUsedUpdated {
+			used: u64,
+		},
 		/// `PermanentStorageUsed` just crossed the [`PERMANENT_STORAGE_NEAR_CAP_PERCENT`]
 		/// threshold of `MaxPermanentStorageSize` on the rising edge. Emitted once per
 		/// crossing — no re-emission while still above the threshold.
-		PermanentStorageNearCap { used: u64, cap: u64 },
+		PermanentStorageNearCap {
+			used: u64,
+			cap: u64,
+		},
+		StoredContentProvenanceRecorded {
+			bulletin_ref: BulletinRef<BlockNumberFor<T>>,
+			actor: StorageActor<T::AccountId>,
+		},
+		ResourceCapacityReserved {
+			reservation_id: ReservationId,
+			owner: T::AccountId,
+			bytes: u64,
+			transactions: u32,
+			expires_at: BlockNumberFor<T>,
+		},
+		ReservedContentStored {
+			reservation_id: ReservationId,
+			content_hash: ContentHash,
+			bulletin_ref: BulletinRef<BlockNumberFor<T>>,
+		},
+		ReservedContentRenewed {
+			reservation_id: ReservationId,
+			content_hash: ContentHash,
+			bulletin_ref: BulletinRef<BlockNumberFor<T>>,
+		},
+		ResourceCapacityReleased {
+			reservation_id: ReservationId,
+			unused_bytes: u64,
+			unused_transactions: u32,
+			outcome: ResourceClosure,
+		},
+		ResourceReservationExpired {
+			reservation_id: ReservationId,
+		},
+		ResourceTombstonePruned {
+			reservation_id: ReservationId,
+			claim_removed: bool,
+		},
 	}
 
 	/// Authorizations, keyed by scope.
@@ -1127,6 +1320,82 @@ pub mod pallet {
 	/// `size` to the decrement.
 	#[pallet::storage]
 	pub type PermanentStorageUsed<T: Config> = StorageValue<_, u64, ValueQuery>;
+
+	/// Explicit V6 actor provenance for each retained transaction position.
+	#[pallet::storage]
+	pub type StoredBy<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		BulletinRef<BlockNumberFor<T>>,
+		StorageActor<T::AccountId>,
+		OptionQuery,
+	>;
+
+	#[pallet::storage]
+	pub type ResourceReservations<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		ReservationId,
+		ResourceReservation<T::AccountId, BlockNumberFor<T>>,
+		OptionQuery,
+	>;
+
+	#[pallet::storage]
+	pub type ResourceReservationExpiryBlocks<T: Config> =
+		StorageValue<_, BoundedVec<BlockNumberFor<T>, T::MaxReservationExpiryBlocks>, ValueQuery>;
+
+	#[pallet::storage]
+	pub type ResourceReservationExpiryBuckets<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		BlockNumberFor<T>,
+		BoundedVec<ReservationId, T::MaxReservationsPerExpiryBlock>,
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	pub type ResourceReservationExpiryCursor<T: Config> =
+		StorageValue<_, ResourceExpiryCursor<BlockNumberFor<T>>, ValueQuery>;
+
+	#[pallet::storage]
+	pub type ResourceReservationLinks<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		ReservationId,
+		Blake2_128Concat,
+		ContentHash,
+		ResourceReservationLink<T::AccountId, BlockNumberFor<T>>,
+		OptionQuery,
+	>;
+
+	#[pallet::storage]
+	pub type ResourceLinkByRef<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		BulletinRef<BlockNumberFor<T>>,
+		(ReservationId, ContentHash),
+		OptionQuery,
+	>;
+
+	#[pallet::storage]
+	pub type ResourceReservationTombstones<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		ReservationId,
+		ResourceReservationTombstone<T::AccountId, BlockNumberFor<T>>,
+		OptionQuery,
+	>;
+
+	#[pallet::storage]
+	pub type TombstonePruneQueue<T: Config> =
+		StorageValue<_, BoundedVec<ReservationId, T::MaxReservations>, ValueQuery>;
+
+	#[pallet::storage]
+	pub type TombstonePruneCursor<T: Config> = StorageValue<_, u32, ValueQuery>;
+
+	/// Sum of unused bytes across active isolated reservations.
+	#[pallet::storage]
+	pub type ReservedPermanentCapacity<T: Config> = StorageValue<_, u64, ValueQuery>;
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
@@ -1303,7 +1572,7 @@ pub mod pallet {
 		/// Drain [`PendingAutoRenewals`] and return the count drained.
 		///
 		/// Batches the [`BlockTransactions`] read/write across all `n` renewals by threading
-		/// an in-memory accumulator through repeated [`Self::do_renew_in_memory`] calls.
+		/// an in-memory accumulator through repeated prepared-renew transitions.
 		/// A naive `do_renew`-per-item loop would re-encode the full vec per iteration
 		/// (O(n²)), which a linear weight model underestimates by ~17% at saturation.
 		///
@@ -1315,7 +1584,7 @@ pub mod pallet {
 		///   renew quota (`bytes_permanent + size > bytes_allowance`) was exhausted, or the
 		///   chain-wide cap (`PermanentStorageUsed + size > MaxPermanentStorageSize`) would be
 		///   breached.
-		/// - [`Self::do_renew_in_memory`] returns `None` because the per-block transaction slot cap
+		/// - renewal preparation returns `None` because the per-block transaction slot cap
 		///   (`MaxBlockTransactions`) is reached.
 		///
 		/// On failure the data is **gone**: the same `on_initialize` that queued the
@@ -1345,104 +1614,146 @@ pub mod pallet {
 					return n_actual;
 				},
 			};
-			<BlockTransactions<T>>::mutate(|transactions| {
-				for (content_hash, tx_info, renewal_data) in pending.into_iter() {
-					// `paid = true` means the cycle was already charged at registration
-					// (the one-shot `renew` path and the first cycle after
-					// `enable_auto_renew`). All other recurring cycles charge here.
-					let was_paid = renewal_data.paid;
-					let scope = AuthorizationScope::Account(renewal_data.account.clone());
-					let charged = was_paid ||
-						Self::check_authorization(&scope, tx_info.size, true, true).is_ok();
-					let new_index = if charged {
-						Self::do_renew_in_memory(transactions, &tx_info, extrinsic_index)
-					} else {
-						None
-					};
+			let mut transactions = BlockTransactions::<T>::get();
+			let mut prepared = Vec::new();
+			let mut failures = Vec::new();
+			for (content_hash, tx_info, renewal_data) in pending.into_iter() {
+				// `paid = true` means the cycle was already charged at registration. All
+				// other recurring cycles charge before any host operation.
+				let was_paid = renewal_data.paid;
+				let scope = AuthorizationScope::Account(renewal_data.account.clone());
+				let charged =
+					was_paid || Self::check_authorization(&scope, tx_info.size, true, true).is_ok();
+				let maybe_prepared = charged
+					.then(|| {
+						Self::prepare_renew_in_memory(
+							&transactions,
+							&tx_info,
+							extrinsic_index,
+							StorageActor::AutoRenew(renewal_data.account.clone()),
+						)
+					})
+					.flatten();
 
-					if let Some(new_index) = new_index {
-						if !renewal_data.recurring {
-							// One-shot: registration is consumed.
-							AutoRenewals::<T>::remove(content_hash);
-						} else if was_paid {
-							// Recurring: consume the prepayment so subsequent cycles
-							// charge per-cycle, and unblock `disable_auto_renew` for the
-							// owner now that the prepaid renewal has been delivered.
-							// `mutate` (not `insert`) so a Root `disable_auto_renew`
-							// executed earlier in the same block — between the
-							// `on_initialize` queue and this inherent — is not silently
-							// re-armed by a fresh insert.
-							AutoRenewals::<T>::mutate(content_hash, |entry| {
-								if let Some(data) = entry {
-									data.paid = false;
-								}
-							});
-						}
-						Self::deposit_event(Event::DataAutoRenewed {
-							index: new_index,
-							content_hash,
-							account: renewal_data.account,
-						});
-					} else {
-						if charged {
-							// Reverse the chain-wide `PermanentStorageUsed` bump that
-							// `check_authorization` applied for this cycle. The per-account
-							// `bytes_permanent` / `transactions` increments are intentionally
-							// left burned: slot-cap rejection at inherent time is a chain-level
-							// pathological event (the inherent runs before any user extrinsics,
-							// and `len(pending) <= MaxBlockTransactions`), and reaching into the
-							// current `Authorizations` entry to refund would silently apply
-							// across auth roll-overs.
-							let size_u64: u64 = tx_info.size.into();
-							Self::update_permanent_storage_used(|used| {
-								used.saturating_sub(size_u64)
-							});
-						}
-						AutoRenewals::<T>::remove(content_hash);
-						Self::deposit_event(Event::AutoRenewalFailed {
-							content_hash,
-							account: renewal_data.account,
-						});
+				if let Some(item) = maybe_prepared {
+					Self::stage_prepared_renew(&mut transactions, &item);
+					prepared.push((item, renewal_data));
+				} else {
+					if charged {
+						// Reverse only the chain-wide bump. Per-account quota remains burned,
+						// preserving the historical slot-cap failure semantics.
+						let size_u64: u64 = tx_info.size.into();
+						Self::update_permanent_storage_used(|used| used.saturating_sub(size_u64));
 					}
+					failures.push((content_hash, renewal_data.account));
 				}
-			});
+			}
+
+			// Commit every FRAME mutation for the entire batch before the first host call.
+			if !prepared.is_empty() {
+				BlockTransactions::<T>::put(transactions);
+			}
+			for (item, renewal_data) in &prepared {
+				Self::commit_prepared_renew_metadata(item);
+				if !renewal_data.recurring {
+					AutoRenewals::<T>::remove(item.content_hash);
+				} else if renewal_data.paid {
+					// Do not re-arm a registration removed earlier in this block by Root.
+					AutoRenewals::<T>::mutate(item.content_hash, |entry| {
+						if let Some(data) = entry {
+							data.paid = false;
+						}
+					});
+				}
+			}
+			for (content_hash, _) in &failures {
+				AutoRenewals::<T>::remove(content_hash);
+			}
+
+			// Host operations form a final, non-fallible phase. After this begins, only
+			// events and the return value are produced.
+			for (item, _) in &prepared {
+				Self::invoke_renew_host(item.extrinsic_index, item.content_hash);
+			}
+			for (item, renewal_data) in prepared {
+				Self::deposit_event(Event::StoredContentProvenanceRecorded {
+					bulletin_ref: item.bulletin_ref,
+					actor: item.actor,
+				});
+				Self::deposit_event(Event::DataAutoRenewed {
+					index: item.bulletin_ref.transaction_index,
+					content_hash: item.content_hash,
+					account: renewal_data.account,
+				});
+			}
+			for (content_hash, account) in failures {
+				Self::deposit_event(Event::AutoRenewalFailed { content_hash, account });
+			}
 			n_actual
 		}
 
-		/// Push a `kind = Renew` entry onto the in-memory accumulator and update
-		/// [`TransactionByContentHash`]. Returns `None` at `MaxBlockTransactions`.
-		///
-		/// Called by:
-		/// - [`Self::do_renew`] for the single-renewal manual flow (`force_renew`).
-		/// - [`Self::do_process_auto_renewals`] in a loop, amortizing one [`BlockTransactions`]
-		///   read/write across all pending entries.
-		///
-		/// The hard-cap accounting (per-account `bytes_permanent`, chain-wide
-		/// [`PermanentStorageUsed`]) is performed by [`Self::check_authorization`] —
-		/// invoked by the extension's `pre_dispatch` for the manual flow and by
-		/// [`Self::do_process_auto_renewals`] for the auto flow before this is called.
-		fn do_renew_in_memory(
-			transactions: &mut BoundedVec<TransactionInfo, T::MaxBlockTransactions>,
+		fn prepare_renew_in_memory(
+			transactions: &BoundedVec<TransactionInfo, T::MaxBlockTransactions>,
 			info: &TransactionInfo,
 			extrinsic_index: u32,
-		) -> Option<u32> {
+			actor: StorageActor<T::AccountId>,
+		) -> Option<PreparedRenew<T::AccountId, BlockNumberFor<T>>> {
+			if transactions.len() >= T::MaxBlockTransactions::get() as usize {
+				return None;
+			}
 			let block_chunks =
 				TransactionInfo::total_chunks(transactions).saturating_add(num_chunks(info.size));
 			let new_index = transactions.len() as u32;
-			let new_info = TransactionInfo {
-				chunk_root: info.chunk_root,
-				size: info.size,
+			Some(PreparedRenew {
+				info: TransactionInfo {
+					chunk_root: info.chunk_root,
+					size: info.size,
+					content_hash: info.content_hash,
+					hashing: info.hashing,
+					cid_codec: info.cid_codec,
+					extrinsic_index,
+					block_chunks,
+					kind: TransactionKind::Renew,
+				},
 				content_hash: info.content_hash,
-				hashing: info.hashing,
-				cid_codec: info.cid_codec,
 				extrinsic_index,
-				block_chunks,
-				kind: TransactionKind::Renew,
-			};
-			transactions.try_push(new_info).ok()?;
-			sp_io::transaction_index::renew(extrinsic_index, info.content_hash);
-			TransactionByContentHash::<T>::insert(info.content_hash, (Self::now(), new_index));
-			Some(new_index)
+				bulletin_ref: BulletinRef { block: Self::now(), transaction_index: new_index },
+				actor,
+			})
+		}
+
+		fn stage_prepared_renew(
+			transactions: &mut BoundedVec<TransactionInfo, T::MaxBlockTransactions>,
+			prepared: &PreparedRenew<T::AccountId, BlockNumberFor<T>>,
+		) {
+			transactions
+				.try_push(prepared.info.clone())
+				.expect("prepared renewal reserves a bounded transaction slot");
+		}
+
+		fn commit_prepared_renew_metadata(
+			prepared: &PreparedRenew<T::AccountId, BlockNumberFor<T>>,
+		) {
+			TransactionByContentHash::<T>::insert(
+				prepared.content_hash,
+				(prepared.bulletin_ref.block, prepared.bulletin_ref.transaction_index),
+			);
+			StoredBy::<T>::insert(prepared.bulletin_ref, &prepared.actor);
+		}
+
+		fn invoke_renew_host(extrinsic_index: u32, content_hash: ContentHash) {
+			#[cfg(test)]
+			RENEW_HOST_OBSERVER.with(|observer| {
+				if let Some(callback) = observer.borrow_mut().as_mut() {
+					callback();
+				}
+			});
+			sp_io::transaction_index::renew(extrinsic_index, content_hash);
+		}
+
+		#[cfg(test)]
+		pub(crate) fn set_renew_host_observer(observer: Option<alloc::boxed::Box<dyn FnMut()>>) {
+			RENEW_HOST_OBSERVER.with(|slot| *slot.borrow_mut() = observer);
 		}
 	}
 
@@ -1515,6 +1826,24 @@ pub mod pallet {
 			hashing: HashingAlgorithm,
 			cid_codec: CidCodec,
 		) -> DispatchResult {
+			Self::do_store_with_actor(data, hashing, cid_codec, None)
+		}
+
+		fn do_store_for(
+			caller: AuthorizedCallerFor<T>,
+			data: Vec<u8>,
+			hashing: HashingAlgorithm,
+			cid_codec: CidCodec,
+		) -> DispatchResult {
+			Self::do_store_with_actor(data, hashing, cid_codec, Some(caller))
+		}
+
+		fn do_store_with_actor(
+			data: Vec<u8>,
+			hashing: HashingAlgorithm,
+			cid_codec: CidCodec,
+			caller: Option<AuthorizedCallerFor<T>>,
+		) -> DispatchResult {
 			let data_len = data.len() as u32;
 
 			// In the case of a regular unsigned transaction, this should have been checked by
@@ -1523,8 +1852,12 @@ pub mod pallet {
 			Self::ensure_data_size_ok(data_len as usize)?;
 
 			let cid_config = CidConfig { codec: cid_codec, hashing };
-			let cid =
-				calculate_cid(&data, cid_config).map_err(|_| Error::<T>::InvalidContentHash)?;
+			let cid = calculate_cid(&data, cid_config.clone())
+				.map_err(|_| Error::<T>::InvalidContentHash)?;
+			let actor = caller.map_or_else(
+				|| StorageActor::Preimage(cid.content_hash),
+				|caller| Self::actor_for_caller(caller, cid.content_hash),
+			);
 
 			// Chunk data and compute storage root
 			let chunks: Vec<_> = data.chunks(CHUNK_SIZE).map(|c| c.to_vec()).collect();
@@ -1543,10 +1876,10 @@ pub mod pallet {
 				root,
 				data_len,
 				cid.content_hash,
-				hashing,
-				cid_codec,
+				cid_config,
 				extrinsic_index,
 				TransactionKind::Store,
+				actor,
 			)?;
 			// Index after the runtime mutation — index ops aren't rolled back on dispatch error.
 			// Indexes the trailing `data_len` bytes of the extrinsic, so `data` must be the
@@ -1565,21 +1898,41 @@ pub mod pallet {
 		/// Single-renewal entry point for the [`force_renew`](Self::force_renew) and
 		/// [`enable_auto_renew`](Self::enable_auto_renew) dispatchables.
 		///
-		/// Wraps [`Self::do_renew_in_memory`] (the centralized renewal mechanics) with a
-		/// [`BlockTransactions`] read/write. Auto-renewals do not go through this wrapper
-		/// — [`Self::do_process_auto_renewals`] amortizes a single read/write across the
-		/// whole drain loop instead.
+		/// Prepares and commits the complete FRAME transition before invoking the renewal host.
 		///
 		/// Hard-cap accounting (per-account `bytes_permanent`, chain-wide
 		/// [`PermanentStorageUsed`]) is enforced by [`Self::check_authorization`] in the
 		/// extension's `pre_dispatch` before this runs.
-		fn do_renew(info: TransactionInfo) -> Result<u32, Error<T>> {
+		fn do_renew(
+			info: TransactionInfo,
+			actor: StorageActor<T::AccountId>,
+			charge_root: bool,
+		) -> Result<u32, Error<T>> {
 			let extrinsic_index =
 				<frame_system::Pallet<T>>::extrinsic_index().ok_or(Error::<T>::BadContext)?;
-			<BlockTransactions<T>>::try_mutate(|transactions| {
-				Self::do_renew_in_memory(transactions, &info, extrinsic_index)
-					.ok_or(Error::<T>::TooManyTransactions)
-			})
+			let mut transactions = BlockTransactions::<T>::get();
+			let prepared =
+				Self::prepare_renew_in_memory(&transactions, &info, extrinsic_index, actor)
+					.ok_or(Error::<T>::TooManyTransactions)?;
+			if charge_root {
+				ensure!(
+					Self::has_chain_permanent_capacity(u64::from(info.size)),
+					Error::<T>::ChainPermanentCapReached
+				);
+				Self::update_permanent_storage_used(|used| {
+					used.checked_add(u64::from(info.size))
+						.expect("root renewal capacity was checked")
+				});
+			}
+			Self::stage_prepared_renew(&mut transactions, &prepared);
+			BlockTransactions::<T>::put(transactions);
+			Self::commit_prepared_renew_metadata(&prepared);
+			Self::invoke_renew_host(prepared.extrinsic_index, prepared.content_hash);
+			Self::deposit_event(Event::StoredContentProvenanceRecorded {
+				bulletin_ref: prepared.bulletin_ref,
+				actor: prepared.actor,
+			});
+			Ok(prepared.bulletin_ref.transaction_index)
 		}
 
 		/// Append a new entry to [`BlockTransactions`] (with the cumulative `block_chunks`)
@@ -1590,10 +1943,10 @@ pub mod pallet {
 			chunk_root: <BlakeTwo256 as Hash>::Output,
 			size: u32,
 			content_hash: ContentHash,
-			hashing: HashingAlgorithm,
-			cid_codec: CidCodec,
+			cid_config: CidConfig,
 			extrinsic_index: u32,
 			kind: TransactionKind,
+			actor: StorageActor<T::AccountId>,
 		) -> Result<u32, Error<T>> {
 			let new_index = <BlockTransactions<T>>::try_mutate(|transactions| {
 				let block_chunks =
@@ -1604,8 +1957,8 @@ pub mod pallet {
 						chunk_root,
 						size,
 						content_hash,
-						hashing,
-						cid_codec,
+						hashing: cid_config.hashing,
+						cid_codec: cid_config.codec,
 						extrinsic_index,
 						block_chunks,
 						kind,
@@ -1614,7 +1967,591 @@ pub mod pallet {
 				Ok::<_, Error<T>>(new_index)
 			})?;
 			TransactionByContentHash::<T>::insert(content_hash, (Self::now(), new_index));
+			let bulletin_ref = BulletinRef { block: Self::now(), transaction_index: new_index };
+			StoredBy::<T>::insert(bulletin_ref, &actor);
+			Self::deposit_event(Event::StoredContentProvenanceRecorded { bulletin_ref, actor });
 			Ok(new_index)
+		}
+
+		/// Read-only validation shared by the transaction extension and dispatch.
+		pub fn prepare_reserved_store(
+			owner: &T::AccountId,
+			reservation_id: ReservationId,
+			cid_config: CidConfig,
+			data: &[u8],
+		) -> DispatchResult {
+			Self::prepare_reserved_store_inner(owner, reservation_id, cid_config, data).map(|_| ())
+		}
+
+		fn prepare_reserved_store_inner(
+			owner: &T::AccountId,
+			reservation_id: ReservationId,
+			cid_config: CidConfig,
+			data: &[u8],
+		) -> Result<PreparedReservedStore<T::AccountId, BlockNumberFor<T>>, DispatchError> {
+			Self::ensure_data_size_ok(data.len())?;
+			let size = u32::try_from(data.len()).map_err(|_| Error::<T>::ContentTooLarge)?;
+			let content_hash = calculate_cid(data, cid_config)
+				.map_err(|_| Error::<T>::InvalidContentHash)?
+				.content_hash;
+			let reservation = ResourceReservations::<T>::get(reservation_id)
+				.ok_or(Error::<T>::ReservationNotFound)?;
+			ensure!(reservation.owner == *owner, Error::<T>::NotReservationOwner);
+			ensure!(Self::now() < reservation.expires_at, Error::<T>::ReservationExpired);
+			ensure!(
+				reservation.transactions_remaining > 0,
+				Error::<T>::TransactionAllowanceExhausted
+			);
+			ensure!(
+				reservation.bytes_remaining >= u64::from(size),
+				Error::<T>::BytesAllowanceExhausted
+			);
+			ensure!(
+				!ResourceReservationLinks::<T>::contains_key(reservation_id, content_hash),
+				Error::<T>::ContentAlreadyLinked
+			);
+			ensure!(
+				!ResourceReservationLinks::<T>::iter_keys()
+					.any(|(_, linked_hash)| linked_hash == content_hash),
+				Error::<T>::ContentAlreadyLinked
+			);
+			if let Some((block, transaction_index)) =
+				TransactionByContentHash::<T>::get(content_hash)
+			{
+				match StoredBy::<T>::get(BulletinRef { block, transaction_index }) {
+					Some(StorageActor::Account(ref stored_owner)) if stored_owner == owner => {},
+					Some(StorageActor::LegacyUnknown) | None => {
+						return Err(Error::<T>::LegacyContentUnrenewable.into())
+					},
+					_ => return Err(Error::<T>::StoredContentOwnerMismatch.into()),
+				}
+			}
+			ensure!(
+				(ResourceReservationLinks::<T>::iter().count() as u32)
+					< T::MaxReservationLinks::get(),
+				Error::<T>::ReservationCapacityExceeded
+			);
+			let transactions = BlockTransactions::<T>::get();
+			ensure!(
+				(transactions.len() as u32) < T::MaxBlockTransactions::get(),
+				Error::<T>::TooManyTransactions
+			);
+			ensure!(frame_system::Pallet::<T>::extrinsic_index().is_some(), Error::<T>::BadContext);
+			Ok(PreparedReservedStore {
+				owner: owner.clone(),
+				reservation,
+				content_hash,
+				size,
+				bulletin_ref: BulletinRef {
+					block: Self::now(),
+					transaction_index: transactions.len() as u32,
+				},
+			})
+		}
+
+		fn do_store_reserved(
+			owner: T::AccountId,
+			reservation_id: ReservationId,
+			cid_config: CidConfig,
+			data: Vec<u8>,
+		) -> DispatchResult {
+			let prepared = Self::prepare_reserved_store_inner(
+				&owner,
+				reservation_id,
+				cid_config.clone(),
+				&data,
+			)?;
+			let chunks: Vec<_> = data.chunks(CHUNK_SIZE).map(|chunk| chunk.to_vec()).collect();
+			let root = sp_io::trie::blake2_256_ordered_root(chunks, sp_runtime::StateVersion::V1);
+			let extrinsic_index = frame_system::Pallet::<T>::extrinsic_index()
+				.expect("reserved-store preflight checked extrinsic context");
+			let new_reservation = Self::consume_reserved_capacity(
+				reservation_id,
+				prepared.reservation,
+				prepared.size,
+			)?;
+			let block_chunks = TransactionInfo::total_chunks(&BlockTransactions::<T>::get())
+				.saturating_add(num_chunks(prepared.size));
+			BlockTransactions::<T>::mutate(|transactions| {
+				transactions
+					.try_push(TransactionInfo {
+						chunk_root: root,
+						content_hash: prepared.content_hash,
+						hashing: cid_config.hashing,
+						cid_codec: cid_config.codec,
+						size: prepared.size,
+						extrinsic_index,
+						block_chunks,
+						kind: TransactionKind::Renew,
+					})
+					.expect("reserved-store preflight checked block capacity");
+			});
+			let link = ResourceReservationLink {
+				reservation_id,
+				content_hash: prepared.content_hash,
+				bulletin_ref: prepared.bulletin_ref,
+				owner: prepared.owner.clone(),
+				size: prepared.size,
+				retention_boundary: Self::now().saturating_add(Self::retention_period()),
+			};
+			ResourceReservationLinks::<T>::insert(reservation_id, prepared.content_hash, &link);
+			ResourceLinkByRef::<T>::insert(
+				prepared.bulletin_ref,
+				(reservation_id, prepared.content_hash),
+			);
+			TransactionByContentHash::<T>::insert(
+				prepared.content_hash,
+				(prepared.bulletin_ref.block, prepared.bulletin_ref.transaction_index),
+			);
+			let actor = StorageActor::Account(prepared.owner.clone());
+			StoredBy::<T>::insert(prepared.bulletin_ref, &actor);
+			Self::finish_reserved_consumption(reservation_id, new_reservation);
+			// Host operation is deliberately last: everything before this point was preflighted.
+			sp_io::transaction_index::index(extrinsic_index, prepared.size, prepared.content_hash);
+			Self::deposit_event(Event::StoredContentProvenanceRecorded {
+				bulletin_ref: prepared.bulletin_ref,
+				actor,
+			});
+			Self::deposit_event(Event::ReservedContentStored {
+				reservation_id,
+				content_hash: prepared.content_hash,
+				bulletin_ref: prepared.bulletin_ref,
+			});
+			Ok(())
+		}
+
+		/// Read-only validation shared by the transaction extension and dispatch.
+		pub fn prepare_reserved_renew(
+			owner: &T::AccountId,
+			reservation_id: ReservationId,
+			content_hash: ContentHash,
+		) -> DispatchResult {
+			Self::prepare_reserved_renew_inner(owner, reservation_id, content_hash).map(|_| ())
+		}
+
+		fn prepare_reserved_renew_inner(
+			owner: &T::AccountId,
+			reservation_id: ReservationId,
+			content_hash: ContentHash,
+		) -> Result<PreparedReservedRenew<T::AccountId, BlockNumberFor<T>>, DispatchError> {
+			let reservation = ResourceReservations::<T>::get(reservation_id)
+				.ok_or(Error::<T>::ReservationNotFound)?;
+			ensure!(reservation.owner == *owner, Error::<T>::NotReservationOwner);
+			ensure!(Self::now() < reservation.expires_at, Error::<T>::ReservationExpired);
+			let source = ResourceReservationLinks::<T>::get(reservation_id, content_hash)
+				.ok_or(Error::<T>::ContentNotFound)?;
+			ensure!(source.owner == *owner, Error::<T>::NotReservationOwner);
+			ensure!(
+				ResourceLinkByRef::<T>::get(source.bulletin_ref)
+					== Some((reservation_id, content_hash)),
+				Error::<T>::BulletinRefHashMismatch
+			);
+			match StoredBy::<T>::get(source.bulletin_ref) {
+				Some(StorageActor::Account(ref stored_owner)) if stored_owner == owner => {},
+				Some(StorageActor::LegacyUnknown) | None => {
+					return Err(Error::<T>::LegacyContentUnrenewable.into())
+				},
+				_ => return Err(Error::<T>::StoredContentOwnerMismatch.into()),
+			}
+			let info = Self::transaction_info(
+				source.bulletin_ref.block,
+				source.bulletin_ref.transaction_index,
+			)
+			.ok_or(Error::<T>::ContentNotFound)?;
+			ensure!(info.content_hash == content_hash, Error::<T>::BulletinRefHashMismatch);
+			ensure!(
+				reservation.transactions_remaining > 0,
+				Error::<T>::TransactionAllowanceExhausted
+			);
+			ensure!(
+				reservation.bytes_remaining >= u64::from(info.size),
+				Error::<T>::BytesAllowanceExhausted
+			);
+			let transactions = BlockTransactions::<T>::get();
+			ensure!(
+				(transactions.len() as u32) < T::MaxBlockTransactions::get(),
+				Error::<T>::TooManyTransactions
+			);
+			ensure!(frame_system::Pallet::<T>::extrinsic_index().is_some(), Error::<T>::BadContext);
+			Ok(PreparedReservedRenew {
+				owner: owner.clone(),
+				reservation,
+				source,
+				bulletin_ref: BulletinRef {
+					block: Self::now(),
+					transaction_index: transactions.len() as u32,
+				},
+			})
+		}
+
+		fn do_renew_reserved(
+			owner: T::AccountId,
+			reservation_id: ReservationId,
+			content_hash: ContentHash,
+		) -> DispatchResult {
+			let prepared =
+				Self::prepare_reserved_renew_inner(&owner, reservation_id, content_hash)?;
+			let info = Self::transaction_info(
+				prepared.source.bulletin_ref.block,
+				prepared.source.bulletin_ref.transaction_index,
+			)
+			.expect("reserved-renew preflight resolved source");
+			let extrinsic_index = frame_system::Pallet::<T>::extrinsic_index()
+				.expect("reserved-renew preflight checked extrinsic context");
+			let new_reservation =
+				Self::consume_reserved_capacity(reservation_id, prepared.reservation, info.size)?;
+			let block_chunks = TransactionInfo::total_chunks(&BlockTransactions::<T>::get())
+				.saturating_add(num_chunks(info.size));
+			BlockTransactions::<T>::mutate(|transactions| {
+				transactions
+					.try_push(TransactionInfo {
+						chunk_root: info.chunk_root,
+						content_hash,
+						hashing: info.hashing,
+						cid_codec: info.cid_codec,
+						size: info.size,
+						extrinsic_index,
+						block_chunks,
+						kind: TransactionKind::Renew,
+					})
+					.expect("reserved-renew preflight checked block capacity");
+			});
+			ResourceLinkByRef::<T>::remove(prepared.source.bulletin_ref);
+			let link = ResourceReservationLink {
+				bulletin_ref: prepared.bulletin_ref,
+				retention_boundary: Self::now().saturating_add(Self::retention_period()),
+				..prepared.source
+			};
+			ResourceReservationLinks::<T>::insert(reservation_id, content_hash, &link);
+			ResourceLinkByRef::<T>::insert(prepared.bulletin_ref, (reservation_id, content_hash));
+			TransactionByContentHash::<T>::insert(
+				content_hash,
+				(prepared.bulletin_ref.block, prepared.bulletin_ref.transaction_index),
+			);
+			let actor = StorageActor::Account(prepared.owner);
+			StoredBy::<T>::insert(prepared.bulletin_ref, &actor);
+			Self::finish_reserved_consumption(reservation_id, new_reservation);
+			Self::invoke_renew_host(extrinsic_index, content_hash);
+			Self::deposit_event(Event::StoredContentProvenanceRecorded {
+				bulletin_ref: prepared.bulletin_ref,
+				actor,
+			});
+			Self::deposit_event(Event::ReservedContentRenewed {
+				reservation_id,
+				content_hash,
+				bulletin_ref: prepared.bulletin_ref,
+			});
+			Ok(())
+		}
+
+		fn consume_reserved_capacity(
+			_reservation_id: ReservationId,
+			mut reservation: ResourceReservation<T::AccountId, BlockNumberFor<T>>,
+			size: u32,
+		) -> Result<ResourceReservation<T::AccountId, BlockNumberFor<T>>, DispatchError> {
+			reservation.bytes_remaining = reservation
+				.bytes_remaining
+				.checked_sub(u64::from(size))
+				.ok_or(Error::<T>::BytesAllowanceExhausted)?;
+			reservation.transactions_remaining = reservation
+				.transactions_remaining
+				.checked_sub(1)
+				.ok_or(Error::<T>::TransactionAllowanceExhausted)?;
+			ReservedPermanentCapacity::<T>::mutate(|reserved| {
+				*reserved = reserved.saturating_sub(u64::from(size))
+			});
+			Self::update_permanent_storage_used(|used| used.saturating_add(u64::from(size)));
+			Ok(reservation)
+		}
+
+		fn finish_reserved_consumption(
+			reservation_id: ReservationId,
+			reservation: ResourceReservation<T::AccountId, BlockNumberFor<T>>,
+		) {
+			if reservation.bytes_remaining == 0 || reservation.transactions_remaining == 0 {
+				Self::close_reservation(reservation_id, reservation, ResourceClosure::Exhausted);
+			} else {
+				ResourceReservations::<T>::insert(reservation_id, reservation);
+			}
+		}
+
+		pub(crate) fn reserve_resource_capacity(
+			reservation_id: ReservationId,
+			owner: &T::AccountId,
+			purpose: &T::ReservationPurpose,
+			bytes: u64,
+			transactions: u32,
+			expires_at: BlockNumberFor<T>,
+		) -> DispatchResult {
+			ensure!(bytes > 0, Error::<T>::BytesAllowanceExhausted);
+			ensure!(transactions > 0, Error::<T>::TransactionAllowanceExhausted);
+			ensure!(expires_at > Self::now(), Error::<T>::ReservationExpired);
+			ensure!(
+				!ResourceReservations::<T>::contains_key(reservation_id)
+					&& !ResourceReservationTombstones::<T>::contains_key(reservation_id),
+				Error::<T>::ContentAlreadyLinked
+			);
+			let total_rows = ResourceReservations::<T>::iter_keys()
+				.count()
+				.saturating_add(ResourceReservationTombstones::<T>::iter_keys().count());
+			ensure!(
+				total_rows < T::MaxReservations::get() as usize,
+				Error::<T>::ReservationCapacityExceeded
+			);
+			let total_capacity = PermanentStorageUsed::<T>::get()
+				.checked_add(ReservedPermanentCapacity::<T>::get())
+				.and_then(|used| used.checked_add(bytes))
+				.ok_or(Error::<T>::ReservationCapacityExceeded)?;
+			ensure!(
+				total_capacity <= T::MaxPermanentStorageSize::get(),
+				Error::<T>::ReservationCapacityExceeded
+			);
+
+			let mut blocks = ResourceReservationExpiryBlocks::<T>::get();
+			let mut bucket = ResourceReservationExpiryBuckets::<T>::get(expires_at);
+			let block_position = match blocks.binary_search(&expires_at) {
+				Ok(position) => position,
+				Err(position) => {
+					ensure!(
+						(blocks.len() as u32) < T::MaxReservationExpiryBlocks::get(),
+						Error::<T>::ExpiryBlockSetFull
+					);
+					position
+				},
+			};
+			ensure!(
+				(bucket.len() as u32) < T::MaxReservationsPerExpiryBlock::get(),
+				Error::<T>::ExpiryBucketFull
+			);
+			let reservation_position = bucket.binary_search(&reservation_id).unwrap_or_else(|p| p);
+			ensure!(
+				bucket.binary_search(&reservation_id).is_err(),
+				Error::<T>::ContentAlreadyLinked
+			);
+			if blocks.binary_search(&expires_at).is_err() {
+				blocks
+					.try_insert(block_position, expires_at)
+					.map_err(|_| Error::<T>::ExpiryBlockSetFull)?;
+			}
+			bucket
+				.try_insert(reservation_position, reservation_id)
+				.map_err(|_| Error::<T>::ExpiryBucketFull)?;
+
+			let purpose_digest = sp_io::hashing::blake2_256(&purpose.encode());
+			ResourceReservations::<T>::insert(
+				reservation_id,
+				ResourceReservation {
+					owner: owner.clone(),
+					purpose_digest,
+					bytes_remaining: bytes,
+					transactions_remaining: transactions,
+					created_at: Self::now(),
+					expires_at,
+				},
+			);
+			ResourceReservationExpiryBlocks::<T>::put(blocks);
+			ResourceReservationExpiryBuckets::<T>::insert(expires_at, bucket);
+			ReservedPermanentCapacity::<T>::mutate(|reserved| *reserved += bytes);
+			Self::deposit_event(Event::ResourceCapacityReserved {
+				reservation_id,
+				owner: owner.clone(),
+				bytes,
+				transactions,
+				expires_at,
+			});
+			Ok(())
+		}
+
+		pub(crate) fn cancel_resource_capacity(
+			owner: &T::AccountId,
+			reservation_id: ReservationId,
+		) -> DispatchResult {
+			let reservation = ResourceReservations::<T>::get(reservation_id)
+				.ok_or(Error::<T>::ReservationNotFound)?;
+			ensure!(reservation.owner == *owner, Error::<T>::NotReservationOwner);
+			Self::close_reservation(reservation_id, reservation, ResourceClosure::Cancelled);
+			Ok(())
+		}
+
+		fn close_reservation(
+			reservation_id: ReservationId,
+			reservation: ResourceReservation<T::AccountId, BlockNumberFor<T>>,
+			outcome: ResourceClosure,
+		) {
+			ResourceReservations::<T>::remove(reservation_id);
+			Self::remove_from_expiry_index(reservation.expires_at, reservation_id);
+			ReservedPermanentCapacity::<T>::mutate(|reserved| {
+				*reserved = reserved.saturating_sub(reservation.bytes_remaining)
+			});
+			ResourceReservationTombstones::<T>::insert(
+				reservation_id,
+				ResourceReservationTombstone {
+					owner: reservation.owner,
+					purpose_digest: reservation.purpose_digest,
+					final_bytes_remaining: reservation.bytes_remaining,
+					final_transactions_remaining: reservation.transactions_remaining,
+					outcome,
+					closed_at: Self::now(),
+				},
+			);
+			TombstonePruneQueue::<T>::mutate(|queue| {
+				if let Err(position) = queue.binary_search(&reservation_id) {
+					queue
+						.try_insert(position, reservation_id)
+						.expect("active plus tombstone cap guarantees prune-queue capacity");
+				}
+			});
+			Self::deposit_event(Event::ResourceCapacityReleased {
+				reservation_id,
+				unused_bytes: reservation.bytes_remaining,
+				unused_transactions: reservation.transactions_remaining,
+				outcome,
+			});
+		}
+
+		fn remove_from_expiry_index(expires_at: BlockNumberFor<T>, reservation_id: ReservationId) {
+			let mut bucket = ResourceReservationExpiryBuckets::<T>::get(expires_at);
+			if let Ok(position) = bucket.binary_search(&reservation_id) {
+				bucket.remove(position);
+			}
+			if bucket.is_empty() {
+				ResourceReservationExpiryBuckets::<T>::remove(expires_at);
+				ResourceReservationExpiryBlocks::<T>::mutate(|blocks| {
+					if let Ok(position) = blocks.binary_search(&expires_at) {
+						blocks.remove(position);
+					}
+				});
+			} else {
+				ResourceReservationExpiryBuckets::<T>::insert(expires_at, bucket);
+			}
+		}
+
+		pub(crate) fn expire_due_resource_capacity(
+			now: BlockNumberFor<T>,
+			limit: u32,
+		) -> Result<Vec<ReservationId>, DispatchError> {
+			ensure!(limit <= T::MaxReservations::get(), Error::<T>::CleanupLimitExceeded);
+			let mut expired = Vec::new();
+			while (expired.len() as u32) < limit {
+				let Some(due_block) = ResourceReservationExpiryBlocks::<T>::get().first().copied()
+				else {
+					break;
+				};
+				if due_block > now {
+					break;
+				}
+				let Some(reservation_id) =
+					ResourceReservationExpiryBuckets::<T>::get(due_block).first().copied()
+				else {
+					ResourceReservationExpiryBlocks::<T>::mutate(|blocks| {
+						if !blocks.is_empty() {
+							blocks.remove(0);
+						}
+					});
+					continue;
+				};
+				if let Some(reservation) = ResourceReservations::<T>::get(reservation_id) {
+					Self::close_reservation(reservation_id, reservation, ResourceClosure::Expired);
+					Self::deposit_event(Event::ResourceReservationExpired { reservation_id });
+					expired.push(reservation_id);
+				} else {
+					Self::remove_from_expiry_index(due_block, reservation_id);
+				}
+			}
+			let cursor = ResourceReservationExpiryBlocks::<T>::get().first().copied();
+			ResourceReservationExpiryCursor::<T>::put(ResourceExpiryCursor {
+				block: cursor,
+				offset: 0,
+			});
+			let remaining = limit.saturating_sub(expired.len() as u32);
+			Self::prune_resource_tombstones(now, remaining);
+			Ok(expired)
+		}
+
+		pub(crate) fn prune_resource_tombstones(now: BlockNumberFor<T>, limit: u32) -> u32 {
+			let mut pruned = 0u32;
+			let mut inspected = 0usize;
+			while pruned < limit {
+				let queue = TombstonePruneQueue::<T>::get();
+				if queue.is_empty() || inspected >= queue.len() {
+					break;
+				}
+				let position = (TombstonePruneCursor::<T>::get() as usize) % queue.len();
+				let reservation_id = queue[position];
+				let Some(tombstone) = ResourceReservationTombstones::<T>::get(reservation_id)
+				else {
+					TombstonePruneQueue::<T>::mutate(|items| {
+						if position < items.len() {
+							items.remove(position);
+						}
+					});
+					continue;
+				};
+				let eligible_at = tombstone.closed_at.saturating_add(T::TombstoneRetention::get());
+				let has_links =
+					ResourceReservationLinks::<T>::iter_prefix(reservation_id).next().is_some();
+				if now < eligible_at || has_links {
+					TombstonePruneCursor::<T>::put(((position + 1) % queue.len()) as u32);
+					inspected += 1;
+					continue;
+				}
+				let outcome = T::ResourceClaimLifecycle::prune_claim(reservation_id);
+				let purpose_matches = outcome.purpose.as_ref().is_some_and(|purpose| {
+					sp_io::hashing::blake2_256(&purpose.encode()) == tombstone.purpose_digest
+				});
+				Self::deposit_event(Event::ResourceTombstonePruned {
+					reservation_id,
+					claim_removed: outcome.removed && purpose_matches,
+				});
+				if outcome.id == reservation_id && outcome.removed && purpose_matches {
+					ResourceReservationTombstones::<T>::remove(reservation_id);
+					TombstonePruneQueue::<T>::mutate(|items| {
+						items.remove(position);
+					});
+					TombstonePruneCursor::<T>::put(0);
+					pruned += 1;
+					inspected = 0;
+				} else {
+					TombstonePruneCursor::<T>::put(((position + 1) % queue.len()) as u32);
+					inspected += 1;
+				}
+			}
+			pruned
+		}
+
+		pub fn stored_content_provenance(
+			reference: BulletinRef<BlockNumberFor<T>>,
+		) -> StorageActor<T::AccountId> {
+			StoredBy::<T>::get(reference).unwrap_or(StorageActor::LegacyUnknown)
+		}
+
+		pub fn resource_reservation(
+			reservation_id: ReservationId,
+		) -> Option<ResourceReservationView<T::AccountId, BlockNumberFor<T>>> {
+			ResourceReservations::<T>::get(reservation_id)
+				.map(ResourceReservationView::Active)
+				.or_else(|| {
+					ResourceReservationTombstones::<T>::get(reservation_id)
+						.map(ResourceReservationView::Tombstone)
+				})
+		}
+
+		pub fn resource_reservation_link(
+			reservation_id: ReservationId,
+			content_hash: ContentHash,
+		) -> Option<ResourceReservationLink<T::AccountId, BlockNumberFor<T>>> {
+			ResourceReservationLinks::<T>::get(reservation_id, content_hash)
+		}
+
+		fn actor_for_caller(
+			caller: AuthorizedCallerFor<T>,
+			content_hash: ContentHash,
+		) -> StorageActor<T::AccountId> {
+			match caller {
+				AuthorizedCaller::Signed { who, .. } => StorageActor::Account(who),
+				AuthorizedCaller::Root => StorageActor::Root,
+				AuthorizedCaller::Unsigned => StorageActor::Preimage(content_hash),
+			}
 		}
 
 		/// Current block number — local shorthand for `frame_system::Pallet::<T>::block_number()`.
@@ -1862,7 +2799,8 @@ pub mod pallet {
 		/// - the stored data's size is within `[1, MaxTransactionSize]`
 		/// - `who` has an unexpired authorization entry
 		/// - per-account hard cap: `bytes_permanent + size <= bytes_allowance`
-		/// - chain-wide hard cap: `PermanentStorageUsed + size <= MaxPermanentStorageSize`
+		/// - chain-wide hard cap: `PermanentStorageUsed + ReservedPermanentCapacity + size <=
+		///   MaxPermanentStorageSize`
 		pub fn can_renew(who: &T::AccountId, entry: &TransactionRef<BlockNumberFor<T>>) -> bool {
 			let Ok(info) = Self::resolve_transaction_ref(entry) else { return false };
 			if !Self::data_size_ok(info.size as usize) {
@@ -1879,8 +2817,14 @@ pub mod pallet {
 			if !auth.extent.has_permanent_capacity(size) {
 				return false;
 			}
-			PermanentStorageUsed::<T>::get().saturating_add(size) <=
-				T::MaxPermanentStorageSize::get()
+			Self::has_chain_permanent_capacity(size)
+		}
+
+		fn has_chain_permanent_capacity(size: u64) -> bool {
+			PermanentStorageUsed::<T>::get()
+				.checked_add(ReservedPermanentCapacity::<T>::get())
+				.and_then(|committed| committed.checked_add(size))
+				.is_some_and(|committed| committed <= T::MaxPermanentStorageSize::get())
 		}
 
 		/// Returns `true` if `who` has an authorization entry that has not yet expired,
@@ -1982,8 +2926,9 @@ pub mod pallet {
 		) -> Result<TransactionInfo, Error<T>> {
 			let (block, index) = match entry {
 				TransactionRef::Position { block, index } => (*block, *index),
-				TransactionRef::ContentHash(hash) =>
-					TransactionByContentHash::<T>::get(hash).ok_or(Error::<T>::RenewedNotFound)?,
+				TransactionRef::ContentHash(hash) => {
+					TransactionByContentHash::<T>::get(hash).ok_or(Error::<T>::RenewedNotFound)?
+				},
 			};
 			Self::transaction_info(block, index).ok_or(Error::<T>::RenewedNotFound)
 		}
@@ -2045,7 +2990,8 @@ pub mod pallet {
 		/// [`PERMANENT_ALLOWANCE_EXCEEDED`] if the per-account check fails
 		/// (`bytes_permanent + size > bytes_allowance`) or with
 		/// [`CHAIN_PERMANENT_CAP_REACHED`] if the chain-wide check fails
-		/// (`PermanentStorageUsed + size > MaxPermanentStorageSize`).
+		/// (`PermanentStorageUsed + ReservedPermanentCapacity + size >
+		/// MaxPermanentStorageSize`). Arithmetic overflow is rejection, never saturation.
 		///
 		/// If `consume` is `true` and the checks pass, increments either `bytes` (store) or
 		/// `bytes_permanent` (renew) by `size`, and `transactions` by 1 (all saturating).
@@ -2058,8 +3004,6 @@ pub mod pallet {
 			consume: bool,
 			is_renew: bool,
 		) -> Result<(), TransactionValidityError> {
-			let chain_used = PermanentStorageUsed::<T>::get();
-			let chain_cap = T::MaxPermanentStorageSize::get();
 			let size_u64: u64 = size.into();
 			let now = Self::now();
 
@@ -2077,7 +3021,7 @@ pub mod pallet {
 						return Err(PERMANENT_ALLOWANCE_EXCEEDED.into())
 					}
 					// Chain-wide hard cap.
-					if chain_used.saturating_add(size_u64) > chain_cap {
+					if !Self::has_chain_permanent_capacity(size_u64) {
 						return Err(CHAIN_PERMANENT_CAP_REACHED.into())
 					}
 				}
@@ -2250,6 +3194,33 @@ pub mod pallet {
 			TransactionValidityError,
 		> {
 			let (size, content_hash, is_renew) = match call {
+				Call::<T>::store_reserved { reservation_id, cid_config, data } => {
+					Self::prepare_reserved_store(who, *reservation_id, cid_config.clone(), data)
+						.map_err(|_| InvalidTransaction::Call)?;
+					let content_hash = cid_config.hashing.hash(data);
+					return Ok((
+						context.want_valid_transaction().then(|| {
+							ValidTransaction::with_tag_prefix("BulletinReservedStore")
+								.and_provides((*reservation_id, content_hash))
+								.longevity(T::StoreRenewLongevity::get())
+								.into()
+						}),
+						None,
+					));
+				},
+				Call::<T>::renew_reserved { reservation_id, content_hash } => {
+					Self::prepare_reserved_renew(who, *reservation_id, *content_hash)
+						.map_err(|_| InvalidTransaction::Call)?;
+					return Ok((
+						context.want_valid_transaction().then(|| {
+							ValidTransaction::with_tag_prefix("BulletinReservedRenew")
+								.and_provides((*reservation_id, *content_hash))
+								.longevity(T::StoreRenewLongevity::get())
+								.into()
+						}),
+						None,
+					));
+				},
 				Call::<T>::store { data } => {
 					let content_hash = sp_io::hashing::blake2_256(data);
 					(data.len(), content_hash, false)
@@ -2263,10 +3234,10 @@ pub mod pallet {
 						Self::resolve_transaction_ref(entry).map_err(|_| RENEWED_NOT_FOUND)?;
 					(info.size as usize, info.content_hash, true)
 				},
-				Call::<T>::authorize_account { .. } |
-				Call::<T>::authorize_preimage { .. } |
-				Call::<T>::refresh_account_authorization { .. } |
-				Call::<T>::refresh_preimage_authorization { .. } => {
+				Call::<T>::authorize_account { .. }
+				| Call::<T>::authorize_preimage { .. }
+				| Call::<T>::refresh_account_authorization { .. }
+				| Call::<T>::refresh_preimage_authorization { .. } => {
 					// Verify that the signer satisfies the Authorizer origin. Budget
 					// consumption (for `AllowedAuthorizers` signers on `authorize_*`)
 					// happens inside the dispatch body, not here.
@@ -2538,6 +3509,30 @@ pub mod pallet {
 	}
 }
 
+impl<T: Config>
+	TwoPhaseStorage<T::AccountId, ReservationId, T::ReservationPurpose, BlockNumberFor<T>>
+	for Pallet<T>
+{
+	fn reserve(
+		id: ReservationId,
+		owner: &T::AccountId,
+		purpose: &T::ReservationPurpose,
+		bytes: u64,
+		transactions: u32,
+		expires_at: BlockNumberFor<T>,
+	) -> DispatchResult {
+		Self::reserve_resource_capacity(id, owner, purpose, bytes, transactions, expires_at)
+	}
+
+	fn cancel(owner: &T::AccountId, id: ReservationId) -> DispatchResult {
+		Self::cancel_resource_capacity(owner, id)
+	}
+
+	fn expire_due(now: BlockNumberFor<T>, limit: u32) -> Result<Vec<ReservationId>, DispatchError> {
+		Self::expire_due_resource_capacity(now, limit)
+	}
+}
+
 pub mod extension;
 
 #[cfg(any(test, feature = "try-runtime"))]
@@ -2549,6 +3544,7 @@ impl<T: Config> Pallet<T> {
 		Self::check_no_stale_transactions(n)?;
 		Self::check_authorizations_integrity()?;
 		Self::check_permanent_storage_accounting(n)?;
+		Self::check_resource_reservation_integrity()?;
 		Ok(())
 	}
 
@@ -2641,6 +3637,90 @@ impl<T: Config> Pallet<T> {
 			"PermanentStorageUsed exceeds MaxPermanentStorageSize",
 		);
 
+		Ok(())
+	}
+
+	fn check_resource_reservation_integrity() -> Result<(), sp_runtime::TryRuntimeError> {
+		let active: Vec<_> = ResourceReservations::<T>::iter().collect();
+		let tombstones: Vec<_> = ResourceReservationTombstones::<T>::iter().collect();
+		ensure!(
+			active.len().saturating_add(tombstones.len()) <= T::MaxReservations::get() as usize,
+			"active plus tombstones exceeds MaxReservations"
+		);
+		let reserved_sum = active
+			.iter()
+			.fold(0u64, |sum, (_, reservation)| sum.saturating_add(reservation.bytes_remaining));
+		ensure!(
+			reserved_sum == ReservedPermanentCapacity::<T>::get(),
+			"ReservedPermanentCapacity does not equal active reservation sum"
+		);
+		ensure!(
+			PermanentStorageUsed::<T>::get().saturating_add(reserved_sum)
+				<= T::MaxPermanentStorageSize::get(),
+			"permanent used plus reserved capacity exceeds global cap"
+		);
+
+		let blocks = ResourceReservationExpiryBlocks::<T>::get();
+		ensure!(blocks.windows(2).all(|pair| pair[0] < pair[1]), "expiry blocks not sorted unique");
+		for block in blocks.iter() {
+			let bucket = ResourceReservationExpiryBuckets::<T>::get(block);
+			ensure!(!bucket.is_empty(), "expiry block has empty bucket");
+			ensure!(
+				bucket.windows(2).all(|pair| pair[0] < pair[1]),
+				"expiry bucket not sorted unique"
+			);
+			for id in bucket {
+				let reservation = ResourceReservations::<T>::get(id)
+					.ok_or("expiry bucket references missing active reservation")?;
+				ensure!(
+					reservation.expires_at == *block,
+					"reservation expiry does not match bucket"
+				);
+			}
+		}
+		for (id, reservation) in &active {
+			ensure!(
+				ResourceReservationExpiryBuckets::<T>::get(reservation.expires_at)
+					.binary_search(id)
+					.is_ok(),
+				"active reservation absent from expiry index"
+			);
+		}
+
+		let queue = TombstonePruneQueue::<T>::get();
+		ensure!(queue.windows(2).all(|pair| pair[0] < pair[1]), "prune queue not sorted unique");
+		ensure!(queue.len() == tombstones.len(), "prune queue/tombstone cardinality mismatch");
+		for (id, _) in &tombstones {
+			ensure!(queue.binary_search(id).is_ok(), "tombstone absent from prune queue");
+		}
+		ensure!(
+			ResourceReservationLinks::<T>::iter().count() <= T::MaxReservationLinks::get() as usize,
+			"reservation links exceeds MaxReservationLinks"
+		);
+		for (id, hash, link) in ResourceReservationLinks::<T>::iter() {
+			ensure!(id == link.reservation_id && hash == link.content_hash, "link key mismatch");
+			ensure!(
+				ResourceLinkByRef::<T>::get(link.bulletin_ref) == Some((id, hash)),
+				"link reverse pointer mismatch"
+			);
+		}
+		for (reference, (id, hash)) in ResourceLinkByRef::<T>::iter() {
+			ensure!(
+				ResourceReservationLinks::<T>::get(id, hash)
+					.is_some_and(|link| link.bulletin_ref == reference),
+				"reverse pointer has no matching link"
+			);
+		}
+		for (reference, _) in StoredBy::<T>::iter() {
+			ensure!(
+				Self::transaction_info(reference.block, reference.transaction_index).is_some()
+					|| (reference.block == Self::now()
+						&& BlockTransactions::<T>::get()
+							.get(reference.transaction_index as usize)
+							.is_some()),
+				"provenance points to missing transaction"
+			);
+		}
 		Ok(())
 	}
 }

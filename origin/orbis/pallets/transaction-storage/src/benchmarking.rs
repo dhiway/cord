@@ -36,6 +36,9 @@ pub trait BenchmarkHelper<T: Config> {
 	/// `MaxBlockTransactions` zero-filled transactions of `MaxTransactionSize` bytes,
 	/// built with `random_hash` as randomness.
 	fn encoded_check_proof(random_hash: &[u8]) -> Vec<u8>;
+
+	/// Deterministic bounded purpose used for Resources reservation benchmarks.
+	fn reservation_purpose() -> T::ReservationPurpose;
 }
 
 /// Default [`BenchmarkHelper`] for runtimes using [`DEFAULT_MAX_TRANSACTION_SIZE`] and
@@ -92,6 +95,11 @@ impl<T: Config> BenchmarkHelper<T> for DefaultCheckProofHelper {
 			"DefaultCheckProofHelper proof was built with [0u8; 32]"
 		);
 		array_bytes::hex2bytes_unchecked(DEFAULT_CHECK_PROOF)
+	}
+
+	fn reservation_purpose() -> T::ReservationPurpose {
+		T::ReservationPurpose::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
+			.expect("a benchmark ReservationPurpose must decode from trailing zeroes")
 	}
 }
 
@@ -192,6 +200,240 @@ mod benchmarks {
 		assert_last_event::<T>(
 			Event::RenewalEnabled { content_hash, who: caller, recurring: false }.into(),
 		);
+		Ok(())
+	}
+
+	#[benchmark]
+	fn store_reserved(
+		l: Linear<{ 1 }, { T::MaxTransactionSize::get() }>,
+	) -> Result<(), BenchmarkError> {
+		let caller: T::AccountId = whitelisted_caller();
+		let reservation_id: ReservationId = 1;
+		let purpose = T::BenchmarkHelper::reservation_purpose();
+		let expires_at = System::<T>::block_number().saturating_add(100u32.into());
+		TransactionStorage::<T>::reserve_resource_capacity(
+			reservation_id,
+			&caller,
+			&purpose,
+			l as u64,
+			1,
+			expires_at,
+		)?;
+		let data = vec![0u8; l as usize];
+		let cid_config = CidConfig { codec: RAW_CODEC, hashing: HashingAlgorithm::Blake2b256 };
+		let content_hash = cid_config.hashing.hash(&data);
+
+		#[extrinsic_call]
+		_(RawOrigin::Signed(caller), reservation_id, cid_config, data);
+
+		assert!(ResourceReservationLinks::<T>::contains_key(reservation_id, content_hash));
+		assert_last_event::<T>(
+			Event::ReservedContentStored {
+				reservation_id,
+				content_hash,
+				bulletin_ref: BulletinRef {
+					block: System::<T>::block_number(),
+					transaction_index: 0,
+				},
+			}
+			.into(),
+		);
+		Ok(())
+	}
+
+	#[benchmark]
+	fn renew_reserved() -> Result<(), BenchmarkError> {
+		let caller: T::AccountId = whitelisted_caller();
+		let reservation_id: ReservationId = 1;
+		let purpose = T::BenchmarkHelper::reservation_purpose();
+		let size = T::MaxTransactionSize::get();
+		let expires_at = System::<T>::block_number().saturating_add(100u32.into());
+		TransactionStorage::<T>::reserve_resource_capacity(
+			reservation_id,
+			&caller,
+			&purpose,
+			u64::from(size).saturating_mul(2),
+			2,
+			expires_at,
+		)?;
+		let data = vec![0u8; size as usize];
+		let cid_config = CidConfig { codec: RAW_CODEC, hashing: HashingAlgorithm::Blake2b256 };
+		let content_hash = cid_config.hashing.hash(&data);
+		TransactionStorage::<T>::store_reserved(
+			RawOrigin::Signed(caller.clone()).into(),
+			reservation_id,
+			cid_config,
+			data,
+		)?;
+		run_to_block::<T>(1u32.into());
+
+		#[extrinsic_call]
+		_(RawOrigin::Signed(caller), reservation_id, content_hash);
+
+		assert_last_event::<T>(
+			Event::ReservedContentRenewed {
+				reservation_id,
+				content_hash,
+				bulletin_ref: BulletinRef {
+					block: System::<T>::block_number(),
+					transaction_index: 0,
+				},
+			}
+			.into(),
+		);
+		Ok(())
+	}
+
+	#[benchmark]
+	fn all_provenance_actor_paths() -> Result<(), BenchmarkError> {
+		let caller: T::AccountId = whitelisted_caller();
+		let reserved_owner: T::AccountId = account("reserved-owner", 0, 0);
+		let initial_block = System::<T>::block_number();
+		let signed_data = vec![1u8];
+		let root_data = vec![2u8];
+		let preimage_data = vec![3u8];
+		let signed_hash = sp_io::hashing::blake2_256(&signed_data);
+		let preimage_hash = sp_io::hashing::blake2_256(&preimage_data);
+		let purpose = T::BenchmarkHelper::reservation_purpose();
+
+		#[block]
+		{
+			// Benchmark harnesses may start the measured block at one even when setup observed
+			// zero. Pin it so exact BulletinRef assertions and the two-block force/auto paths
+			// remain deterministic.
+			System::<T>::set_block_number(initial_block);
+			System::<T>::set_extrinsic_index(0);
+			let signed_origin: T::RuntimeOrigin = Origin::<T>::Authorized {
+				who: caller.clone(),
+				scope: AuthorizationScope::Account(caller.clone()),
+			}
+			.into();
+			TransactionStorage::<T>::store(signed_origin, signed_data)?;
+			System::<T>::set_extrinsic_index(1);
+			TransactionStorage::<T>::store(RawOrigin::Root.into(), root_data)?;
+			System::<T>::set_extrinsic_index(2);
+			TransactionStorage::<T>::store(RawOrigin::None.into(), preimage_data)?;
+
+			let historical = BlockTransactions::<T>::take();
+			Transactions::<T>::insert(initial_block, historical);
+			let renewed_block = initial_block.saturating_add(1u32.into());
+			System::<T>::set_block_number(renewed_block);
+
+			System::<T>::set_extrinsic_index(3);
+			let force_origin: T::RuntimeOrigin = Origin::<T>::Authorized {
+				who: caller.clone(),
+				scope: AuthorizationScope::Account(caller.clone()),
+			}
+			.into();
+			TransactionStorage::<T>::force_renew(
+				force_origin,
+				TransactionRef::Position { block: initial_block, index: 0 },
+			)?;
+
+			let auto_info = TransactionStorage::<T>::transaction_info(initial_block, 2)
+				.ok_or(BenchmarkError::Stop("missing auto-renew source"))?;
+			let renewal = RenewalData { account: caller.clone(), recurring: false, paid: true };
+			PendingAutoRenewals::<T>::put(
+				BoundedVec::<_, T::MaxBlockTransactions>::try_from(vec![(
+					preimage_hash,
+					auto_info,
+					renewal,
+				)])
+				.map_err(|_| BenchmarkError::Stop("pending renewal bound"))?,
+			);
+			System::<T>::set_extrinsic_index(4);
+			let _ = TransactionStorage::<T>::do_process_auto_renewals();
+
+			let expires_at = renewed_block.saturating_add(100u32.into());
+			TransactionStorage::<T>::reserve_resource_capacity(
+				1,
+				&reserved_owner,
+				&purpose,
+				1,
+				1,
+				expires_at,
+			)?;
+			System::<T>::set_extrinsic_index(5);
+			TransactionStorage::<T>::store_reserved(
+				RawOrigin::Signed(reserved_owner.clone()).into(),
+				1,
+				CidConfig { codec: RAW_CODEC, hashing: HashingAlgorithm::Blake2b256 },
+				vec![4u8],
+			)?;
+		}
+
+		assert_eq!(
+			StoredBy::<T>::get(BulletinRef { block: initial_block, transaction_index: 0 }),
+			Some(StorageActor::Account(caller.clone()))
+		);
+		assert_eq!(
+			StoredBy::<T>::get(BulletinRef { block: initial_block, transaction_index: 1 }),
+			Some(StorageActor::Root)
+		);
+		assert_eq!(
+			StoredBy::<T>::get(BulletinRef { block: initial_block, transaction_index: 2 }),
+			Some(StorageActor::Preimage(preimage_hash))
+		);
+		let renewed_block = initial_block.saturating_add(1u32.into());
+		assert_eq!(
+			StoredBy::<T>::get(BulletinRef { block: renewed_block, transaction_index: 0 }),
+			Some(StorageActor::Account(caller.clone()))
+		);
+		assert_eq!(
+			StoredBy::<T>::get(BulletinRef { block: renewed_block, transaction_index: 1 }),
+			Some(StorageActor::AutoRenew(caller))
+		);
+		assert_eq!(
+			StoredBy::<T>::get(BulletinRef { block: renewed_block, transaction_index: 2 }),
+			Some(StorageActor::Account(reserved_owner))
+		);
+		assert!(TransactionByContentHash::<T>::contains_key(signed_hash));
+		Ok(())
+	}
+
+	#[benchmark]
+	fn expire_due_resource_capacity() -> Result<(), BenchmarkError> {
+		let caller: T::AccountId = whitelisted_caller();
+		let purpose = T::BenchmarkHelper::reservation_purpose();
+		let now = System::<T>::block_number().saturating_add(1u32.into());
+		TransactionStorage::<T>::reserve_resource_capacity(1, &caller, &purpose, 1, 1, now)?;
+		System::<T>::set_block_number(now);
+
+		#[block]
+		{
+			let _ = TransactionStorage::<T>::expire_due_resource_capacity(now, 1)?;
+		}
+
+		assert!(ResourceReservationTombstones::<T>::contains_key(1));
+		Ok(())
+	}
+
+	#[benchmark]
+	fn prune_resource_tombstones() -> Result<(), BenchmarkError> {
+		let caller: T::AccountId = whitelisted_caller();
+		let purpose = T::BenchmarkHelper::reservation_purpose();
+		let expires_at = System::<T>::block_number().saturating_add(1u32.into());
+		for offset in 0..T::MaxReservations::get() {
+			let id = u64::from(offset).saturating_add(1);
+			TransactionStorage::<T>::reserve_resource_capacity(
+				id, &caller, &purpose, 1, 1, expires_at,
+			)?;
+			TransactionStorage::<T>::cancel_resource_capacity(&caller, id)?;
+		}
+		let now = System::<T>::block_number()
+			.saturating_add(T::TombstoneRetention::get())
+			.saturating_add(1u32.into());
+
+		#[block]
+		{
+			// This is the worst-case full scan: direct Bulletin setup has no matching Resources
+			// claim, so every synchronous cross-pallet callback reports a mismatch and every
+			// tombstone remains queued for a later repair/retry.
+			let _ =
+				TransactionStorage::<T>::prune_resource_tombstones(now, T::MaxReservations::get());
+		}
+
+		assert_eq!(TombstonePruneQueue::<T>::get().len(), T::MaxReservations::get() as usize);
 		Ok(())
 	}
 

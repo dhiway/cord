@@ -34,6 +34,8 @@ pub trait WeightInfo {
 	fn store(l: u32, ) -> Weight;
 	fn force_renew() -> Weight;
 	fn renew() -> Weight;
+	fn store_reserved(l: u32) -> Weight;
+	fn renew_reserved() -> Weight;
 	fn authorize_account() -> Weight;
 	fn add_authorizer() -> Weight;
 	fn remove_authorizer() -> Weight;
@@ -104,6 +106,16 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(Weight::from_parts(0, 47519))
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	fn store_reserved(l: u32) -> Weight {
+		Self::store(l)
+			.saturating_add(T::DbWeight::get().reads(12))
+			.saturating_add(T::DbWeight::get().writes(12))
+	}
+	fn renew_reserved() -> Weight {
+		Self::force_renew()
+			.saturating_add(T::DbWeight::get().reads(14))
+			.saturating_add(T::DbWeight::get().writes(13))
 	}
 	/// Storage: `TransactionStorage::Authorizations` (r:1 w:1)
 	/// Proof: `TransactionStorage::Authorizations` (`max_values`: None, `max_size`: Some(85), added: 2560, mode: `MaxEncodedLen`)
@@ -401,6 +413,16 @@ impl WeightInfo for () {
 			.saturating_add(Weight::from_parts(0, 47519))
 			.saturating_add(RocksDbWeight::get().reads(3))
 			.saturating_add(RocksDbWeight::get().writes(1))
+	}
+	fn store_reserved(l: u32) -> Weight {
+		Self::store(l)
+			.saturating_add(RocksDbWeight::get().reads(12))
+			.saturating_add(RocksDbWeight::get().writes(12))
+	}
+	fn renew_reserved() -> Weight {
+		Self::force_renew()
+			.saturating_add(RocksDbWeight::get().reads(14))
+			.saturating_add(RocksDbWeight::get().writes(13))
 	}
 	fn authorize_account() -> Weight {
 		Weight::from_parts(18_097_000, 0)

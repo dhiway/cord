@@ -36,7 +36,7 @@ use super::{
 };
 
 use crate::{migrations::v1::OldTransactionInfo, mock::RuntimeGenesisConfig};
-use bulletin_transaction_storage_primitives::cids::{CidConfig, HashingAlgorithm};
+use bulletin_transaction_storage_primitives::cids::{CidConfig, HashingAlgorithm, RAW_CODEC};
 use codec::Encode;
 use polkadot_sdk_frame::{
 	deps::frame_support::{
@@ -97,6 +97,511 @@ fn disable_auto_renew_via_extension(who: u64, content_hash: super::ContentHash) 
 	let origin: RuntimeOrigin =
 		Origin::<Test>::Authorized { who, scope: AuthorizationScope::Account(who) }.into();
 	TransactionStorage::disable_auto_renew(origin, content_hash)
+}
+
+#[test]
+fn reserved_store_and_renew_use_isolated_capacity_and_exact_refs() {
+	use bulletin_transaction_storage_primitives::{
+		BulletinRef, ResourceReservationView, StorageActor,
+	};
+	use indiv_support::traits::TwoPhaseStorage;
+
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+		frame_system::Pallet::<Test>::set_extrinsic_index(0);
+		assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::reserve(
+			1, &7, &1, 12, 2, 9,
+		));
+		let data = vec![1u8, 2, 3, 4];
+		let cid = CidConfig { codec: RAW_CODEC, hashing: HashingAlgorithm::Blake2b256 };
+		let content_hash = cid.hashing.hash(&data);
+		assert_ok!(TransactionStorage::store_reserved(RuntimeOrigin::signed(7), 1, cid, data,));
+		let first_ref = BulletinRef { block: 1, transaction_index: 0 };
+		assert_eq!(
+			TransactionStorage::stored_content_provenance(first_ref),
+			StorageActor::Account(7)
+		);
+		assert_eq!(super::ReservedPermanentCapacity::<Test>::get(), 8);
+		assert_eq!(PermanentStorageUsed::get(), 4);
+		match TransactionStorage::resource_reservation(1) {
+			Some(ResourceReservationView::Active(reservation)) => {
+				assert_eq!(reservation.bytes_remaining, 8);
+				assert_eq!(reservation.transactions_remaining, 1);
+			},
+			other => panic!("unexpected reservation view: {other:?}"),
+		}
+
+		TransactionStorage::on_finalize(1);
+		System::set_block_number(2);
+		frame_system::Pallet::<Test>::set_extrinsic_index(1);
+		assert_ok!(TransactionStorage::renew_reserved(RuntimeOrigin::signed(7), 1, content_hash,));
+		let second_ref = BulletinRef { block: 2, transaction_index: 0 };
+		assert_eq!(PermanentStorageUsed::get(), 8);
+		assert_eq!(super::ReservedPermanentCapacity::<Test>::get(), 0);
+		let link = TransactionStorage::resource_reservation_link(1, content_hash).unwrap();
+		assert_eq!(link.bulletin_ref, second_ref);
+		assert_eq!(super::ResourceLinkByRef::<Test>::get(first_ref), None);
+		assert_eq!(super::ResourceLinkByRef::<Test>::get(second_ref), Some((1, content_hash)));
+		assert!(matches!(
+			TransactionStorage::resource_reservation(1),
+			Some(ResourceReservationView::Tombstone(_))
+		));
+	});
+}
+
+#[test]
+fn reserved_owner_and_capacity_failures_leave_state_unchanged() {
+	use indiv_support::traits::TwoPhaseStorage;
+
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+		frame_system::Pallet::<Test>::set_extrinsic_index(0);
+		assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::reserve(
+			4, &7, &4, 3, 1, 9,
+		));
+		let before = TransactionStorage::resource_reservation(4);
+		assert_noop!(
+			TransactionStorage::store_reserved(
+				RuntimeOrigin::signed(8),
+				4,
+				CidConfig { codec: RAW_CODEC, hashing: HashingAlgorithm::Blake2b256 },
+				vec![1],
+			),
+			Error::NotReservationOwner
+		);
+		assert_noop!(
+			TransactionStorage::store_reserved(
+				RuntimeOrigin::signed(7),
+				4,
+				CidConfig { codec: RAW_CODEC, hashing: HashingAlgorithm::Blake2b256 },
+				vec![1, 2, 3, 4],
+			),
+			Error::BytesAllowanceExhausted
+		);
+		assert_eq!(TransactionStorage::resource_reservation(4), before);
+		assert_eq!(super::ReservedPermanentCapacity::<Test>::get(), 3);
+		assert_eq!(PermanentStorageUsed::get(), 0);
+		assert!(super::BlockTransactions::<Test>::get().is_empty());
+	});
+}
+
+#[test]
+fn reserved_capacity_blocks_manual_renew_and_runtime_api_prediction() {
+	use indiv_support::traits::TwoPhaseStorage;
+
+	new_test_ext().execute_with(|| {
+		run_to_block(1, || None);
+		let who = 1;
+		let data = vec![11u8; 1_500];
+		let hash = blake2_256(&data);
+		assert_ok!(TransactionStorage::authorize_account(RuntimeOrigin::root(), who, 10, 10_000));
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), data));
+		run_to_block(2, || None);
+
+		MaxPermanentStorageSize::set(&3_000);
+		assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::reserve(
+			40, &40, &40, 2_000, 1, 9,
+		));
+		let entry = TransactionRef::ContentHash(hash);
+		assert!(!TransactionStorage::can_renew(&who, &entry));
+		assert_noop!(
+			TransactionStorage::pre_dispatch_signed(&who, &Call::force_renew { entry }),
+			CHAIN_PERMANENT_CAP_REACHED
+		);
+		assert_eq!(PermanentStorageUsed::get(), 0);
+		assert_eq!(super::ReservedPermanentCapacity::<Test>::get(), 2_000);
+	});
+}
+
+#[test]
+fn reserved_capacity_blocks_unpaid_auto_renew_cycle() {
+	use indiv_support::traits::TwoPhaseStorage;
+
+	new_test_ext().execute_with(|| {
+		run_to_block(1, || None);
+		let who = 1;
+		let data = vec![12u8; 1_000];
+		let hash = blake2_256(&data);
+		assert_ok!(TransactionStorage::authorize_account(RuntimeOrigin::root(), who, 10, 10_000));
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), data));
+		run_to_block(2, || None);
+		let (block, index) = super::TransactionByContentHash::<Test>::get(hash).unwrap();
+		let info = TransactionStorage::transaction_info(block, index).unwrap();
+
+		MaxPermanentStorageSize::set(&3_500);
+		PermanentStorageUsed::put(1_000);
+		assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::reserve(
+			41, &41, &41, 2_000, 1, 9,
+		));
+		let renewal = super::RenewalData { account: who, recurring: true, paid: false };
+		AutoRenewals::insert(hash, &renewal);
+		PendingAutoRenewals::put(
+			BoundedVec::<_, ConstU32<{ DEFAULT_MAX_BLOCK_TRANSACTIONS }>>::try_from(vec![(
+				hash, info, renewal,
+			)])
+			.unwrap(),
+		);
+		frame_system::Pallet::<Test>::set_extrinsic_index(0);
+		assert_ok!(TransactionStorage::apply_block_inherents(RuntimeOrigin::none(), None));
+		assert!(!AutoRenewals::contains_key(hash));
+		assert!(BlockTransactions::get().is_empty());
+		assert_eq!(PermanentStorageUsed::get(), 1_000);
+		assert_eq!(super::ReservedPermanentCapacity::<Test>::get(), 2_000);
+		System::assert_has_event(RuntimeEvent::TransactionStorage(Event::AutoRenewalFailed {
+			content_hash: hash,
+			account: who,
+		}));
+	});
+}
+
+#[test]
+fn permanent_capacity_overflow_is_rejected_not_saturated() {
+	new_test_ext().execute_with(|| {
+		run_to_block(1, || None);
+		let who = 1;
+		let data = vec![13u8; 1];
+		let hash = blake2_256(&data);
+		assert_ok!(TransactionStorage::authorize_account(RuntimeOrigin::root(), who, 1, u64::MAX));
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), data));
+		run_to_block(2, || None);
+		MaxPermanentStorageSize::set(&u64::MAX);
+		PermanentStorageUsed::put(u64::MAX);
+		assert!(!TransactionStorage::can_renew(&who, &TransactionRef::ContentHash(hash)));
+		assert_noop!(
+			TransactionStorage::pre_dispatch_signed(
+				&who,
+				&Call::force_renew { entry: TransactionRef::ContentHash(hash) },
+			),
+			CHAIN_PERMANENT_CAP_REACHED
+		);
+	});
+}
+
+#[test]
+fn expiry_is_numeric_bounded_and_tombstone_pruning_is_no_drop() {
+	use bulletin_transaction_storage_primitives::{ResourceClosure, ResourceReservationView};
+	use indiv_support::traits::TwoPhaseStorage;
+
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+		assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::reserve(
+			9, &9, &9, 10, 1, 6,
+		));
+		assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::reserve(
+			3, &3, &3, 10, 1, 4,
+		));
+		assert_eq!(super::ResourceReservationExpiryBlocks::<Test>::get().to_vec(), vec![4, 6]);
+		let expired =
+			<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::expire_due(4, 1).unwrap();
+		assert_eq!(expired, vec![3]);
+		match TransactionStorage::resource_reservation(3) {
+			Some(ResourceReservationView::Tombstone(tombstone)) => {
+				assert_eq!(tombstone.outcome, ResourceClosure::Expired)
+			},
+			other => panic!("unexpected reservation view: {other:?}"),
+		}
+		assert!(super::TombstonePruneQueue::<Test>::get().contains(&3));
+
+		System::set_block_number(7);
+		let expired =
+			<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::expire_due(7, 2).unwrap();
+		assert_eq!(expired, vec![9]);
+		assert_eq!(TransactionStorage::resource_reservation(3), None);
+		assert!(super::TombstonePruneQueue::<Test>::get().contains(&9));
+	});
+}
+
+#[test]
+fn cancellation_releases_unused_capacity_once_but_preserves_live_link() {
+	use indiv_support::traits::TwoPhaseStorage;
+
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+		frame_system::Pallet::<Test>::set_extrinsic_index(0);
+		assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::reserve(
+			5, &5, &5, 10, 2, 9,
+		));
+		let data = vec![5u8; 4];
+		let hash = CidConfig { codec: RAW_CODEC, hashing: HashingAlgorithm::Blake2b256 }
+			.hashing
+			.hash(&data);
+		assert_ok!(TransactionStorage::store_reserved(
+			RuntimeOrigin::signed(5),
+			5,
+			CidConfig { codec: RAW_CODEC, hashing: HashingAlgorithm::Blake2b256 },
+			data,
+		));
+		assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::cancel(&5, 5));
+		assert_eq!(super::ReservedPermanentCapacity::<Test>::get(), 0);
+		assert!(TransactionStorage::resource_reservation_link(5, hash).is_some());
+		assert_noop!(
+			<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::cancel(&5, 5),
+			Error::ReservationNotFound
+		);
+		System::set_block_number(20);
+		assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::expire_due(20, 1));
+		assert!(TransactionStorage::resource_reservation(5).is_some());
+	});
+}
+
+#[test]
+fn migration_v5_to_v6_preserves_legacy_state_and_defaults_provenance() {
+	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
+
+	new_test_ext().execute_with(|| {
+		StorageVersion::new(5).put::<TransactionStorage>();
+		System::set_block_number(1);
+		frame_system::Pallet::<Test>::set_extrinsic_index(0);
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), vec![42u8; 4]));
+		let legacy_ref = BulletinRef { block: 1, transaction_index: 0 };
+		super::StoredBy::<Test>::remove(legacy_ref);
+		let before_transactions = super::BlockTransactions::<Test>::get();
+		let before_used = PermanentStorageUsed::get();
+		crate::migrations::v6::MigrateV5ToV6::<Test>::on_runtime_upgrade();
+		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(6));
+		assert_eq!(super::BlockTransactions::<Test>::get(), before_transactions);
+		assert_eq!(PermanentStorageUsed::get(), before_used);
+		assert_eq!(
+			TransactionStorage::stored_content_provenance(legacy_ref),
+			StorageActor::LegacyUnknown
+		);
+		assert!(super::ResourceReservations::<Test>::iter().next().is_none());
+		assert_eq!(super::ReservedPermanentCapacity::<Test>::get(), 0);
+	});
+}
+
+#[test]
+fn v6_records_explicit_account_root_and_preimage_provenance() {
+	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
+
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+		frame_system::Pallet::<Test>::set_extrinsic_index(0);
+		let signed_origin: RuntimeOrigin =
+			Origin::<Test>::Authorized { who: 7, scope: AuthorizationScope::Account(7) }.into();
+		assert_ok!(TransactionStorage::store(signed_origin, vec![1]));
+		frame_system::Pallet::<Test>::set_extrinsic_index(1);
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::root(), vec![2]));
+		frame_system::Pallet::<Test>::set_extrinsic_index(2);
+		let preimage = vec![3];
+		let preimage_hash = blake2_256(&preimage);
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), preimage));
+		assert_eq!(
+			TransactionStorage::stored_content_provenance(BulletinRef {
+				block: 1,
+				transaction_index: 0,
+			}),
+			StorageActor::Account(7)
+		);
+		assert_eq!(
+			TransactionStorage::stored_content_provenance(BulletinRef {
+				block: 1,
+				transaction_index: 1,
+			}),
+			StorageActor::Root
+		);
+		assert_eq!(
+			TransactionStorage::stored_content_provenance(BulletinRef {
+				block: 1,
+				transaction_index: 2,
+			}),
+			StorageActor::Preimage(preimage_hash)
+		);
+	});
+}
+
+#[test]
+fn force_renew_records_explicit_account_provenance() {
+	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
+
+	new_test_ext().execute_with(|| {
+		run_to_block(1, || None);
+		let who = 7;
+		let data = vec![21u8; 8];
+		let hash = blake2_256(&data);
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), data));
+		run_to_block(2, || None);
+		assert_ok!(TransactionStorage::authorize_account(RuntimeOrigin::root(), who, 2, 100));
+		let call = Call::force_renew { entry: TransactionRef::ContentHash(hash) };
+		assert_ok!(TransactionStorage::pre_dispatch_signed(&who, &call));
+		let origin: RuntimeOrigin =
+			Origin::<Test>::Authorized { who, scope: AuthorizationScope::Account(who) }.into();
+		let Call::force_renew { entry } = call else { unreachable!() };
+		assert_ok!(TransactionStorage::force_renew(origin, entry));
+		assert_eq!(
+			TransactionStorage::stored_content_provenance(BulletinRef {
+				block: 2,
+				transaction_index: 0,
+			}),
+			StorageActor::Account(who)
+		);
+	});
+}
+
+#[test]
+fn signed_force_renew_is_charged_once_and_commits_before_host_boundary() {
+	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
+
+	new_test_ext().execute_with(|| {
+		run_to_block(1, || None);
+		let who = 17;
+		let data = vec![31u8; 10];
+		let hash = blake2_256(&data);
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), data));
+		run_to_block(2, || None);
+		assert_ok!(TransactionStorage::authorize_account(RuntimeOrigin::root(), who, 2, 100));
+		let entry = TransactionRef::Position { block: 1, index: 0 };
+		let call = Call::force_renew { entry: entry.clone() };
+		assert_ok!(TransactionStorage::pre_dispatch_signed(&who, &call));
+		assert_eq!(PermanentStorageUsed::get(), 10);
+		TransactionStorage::set_renew_host_observer(Some(Box::new(move || {
+			let reference = BulletinRef { block: 2, transaction_index: 0 };
+			assert_eq!(BlockTransactions::get().len(), 1);
+			assert_eq!(super::TransactionByContentHash::<Test>::get(hash), Some((2, 0)));
+			assert_eq!(super::StoredBy::<Test>::get(reference), Some(StorageActor::Account(who)));
+		})));
+		let origin: RuntimeOrigin =
+			Origin::<Test>::Authorized { who, scope: AuthorizationScope::Account(who) }.into();
+		assert_ok!(TransactionStorage::force_renew(origin, entry));
+		TransactionStorage::set_renew_host_observer(None);
+		assert_eq!(PermanentStorageUsed::get(), 10, "dispatch must not double-charge extension");
+	});
+}
+
+#[test]
+fn root_force_renew_checks_reserved_capacity_and_charges_exactly_once() {
+	use indiv_support::traits::TwoPhaseStorage;
+
+	new_test_ext().execute_with(|| {
+		run_to_block(1, || None);
+		let data = vec![32u8; 10];
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), data));
+		run_to_block(2, || None);
+		MaxPermanentStorageSize::set(&30);
+		assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::reserve(
+			50, &50, &50, 20, 1, 9,
+		));
+		let entry = TransactionRef::Position { block: 1, index: 0 };
+		assert_ok!(TransactionStorage::force_renew(RuntimeOrigin::root(), entry.clone()));
+		assert_eq!(PermanentStorageUsed::get(), 10);
+		assert_eq!(super::ReservedPermanentCapacity::<Test>::get(), 20);
+		assert_noop!(
+			TransactionStorage::force_renew(RuntimeOrigin::root(), entry),
+			Error::ChainPermanentCapReached
+		);
+		assert_eq!(PermanentStorageUsed::get(), 10);
+		assert_eq!(BlockTransactions::get().len(), 1);
+	});
+}
+
+#[test]
+fn auto_renew_records_explicit_auto_actor_provenance() {
+	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
+
+	new_test_ext().execute_with(|| {
+		run_to_block(1, || None);
+		let who = 8;
+		let data = vec![22u8; 8];
+		let hash = blake2_256(&data);
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), data));
+		run_to_block(2, || None);
+		let (block, index) = super::TransactionByContentHash::<Test>::get(hash).unwrap();
+		let info = TransactionStorage::transaction_info(block, index).unwrap();
+		let renewal = super::RenewalData { account: who, recurring: false, paid: true };
+		AutoRenewals::insert(hash, &renewal);
+		PendingAutoRenewals::put(
+			BoundedVec::<_, ConstU32<{ DEFAULT_MAX_BLOCK_TRANSACTIONS }>>::try_from(vec![(
+				hash, info, renewal,
+			)])
+			.unwrap(),
+		);
+		frame_system::Pallet::<Test>::set_extrinsic_index(0);
+		assert_ok!(TransactionStorage::apply_block_inherents(RuntimeOrigin::none(), None));
+		assert_eq!(
+			TransactionStorage::stored_content_provenance(BulletinRef {
+				block: 2,
+				transaction_index: 0,
+			}),
+			StorageActor::AutoRenew(who)
+		);
+	});
+}
+
+#[test]
+fn auto_renew_batch_commits_all_frame_state_before_first_host_call() {
+	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
+
+	new_test_ext().execute_with(|| {
+		run_to_block(1, || None);
+		let first_data = vec![33u8; 4];
+		let second_data = vec![34u8; 4];
+		let first_hash = blake2_256(&first_data);
+		let second_hash = blake2_256(&second_data);
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), first_data));
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), second_data));
+		run_to_block(2, || None);
+		let first_info = TransactionStorage::transaction_info(1, 0).unwrap();
+		let second_info = TransactionStorage::transaction_info(1, 1).unwrap();
+		let first_renewal = super::RenewalData { account: 41, recurring: false, paid: true };
+		let second_renewal = super::RenewalData { account: 42, recurring: false, paid: true };
+		AutoRenewals::insert(first_hash, &first_renewal);
+		AutoRenewals::insert(second_hash, &second_renewal);
+		PendingAutoRenewals::put(
+			BoundedVec::<_, ConstU32<{ DEFAULT_MAX_BLOCK_TRANSACTIONS }>>::try_from(vec![
+				(first_hash, first_info, first_renewal),
+				(second_hash, second_info, second_renewal),
+			])
+			.unwrap(),
+		);
+		TransactionStorage::set_renew_host_observer(Some(Box::new(move || {
+			assert_eq!(BlockTransactions::get().len(), 2);
+			assert_eq!(
+				super::StoredBy::<Test>::get(BulletinRef { block: 2, transaction_index: 0 }),
+				Some(StorageActor::AutoRenew(41))
+			);
+			assert_eq!(
+				super::StoredBy::<Test>::get(BulletinRef { block: 2, transaction_index: 1 }),
+				Some(StorageActor::AutoRenew(42))
+			);
+			assert!(!AutoRenewals::contains_key(first_hash));
+			assert!(!AutoRenewals::contains_key(second_hash));
+		})));
+		frame_system::Pallet::<Test>::set_extrinsic_index(0);
+		assert_ok!(TransactionStorage::apply_block_inherents(RuntimeOrigin::none(), None));
+		TransactionStorage::set_renew_host_observer(None);
+	});
+}
+
+#[test]
+fn failed_renew_preflight_does_not_commit_state_or_provenance() {
+	new_test_ext().execute_with(|| {
+		run_to_block(1, || None);
+		let data = vec![23u8; 8];
+		let hash = blake2_256(&data);
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), data));
+		run_to_block(2, || None);
+		let source = TransactionStorage::transaction_info(1, 0).unwrap();
+		BlockTransactions::put(
+			BoundedVec::<_, ConstU32<{ DEFAULT_MAX_BLOCK_TRANSACTIONS }>>::try_from(vec![
+				source;
+				DEFAULT_MAX_BLOCK_TRANSACTIONS as usize
+			])
+			.unwrap(),
+		);
+		let before_transactions = BlockTransactions::get();
+		let before_latest = super::TransactionByContentHash::<Test>::get(hash);
+		let before_provenance: Vec<_> = super::StoredBy::<Test>::iter().collect();
+		frame_system::Pallet::<Test>::set_extrinsic_index(0);
+		let origin: RuntimeOrigin =
+			Origin::<Test>::Authorized { who: 7, scope: AuthorizationScope::Account(7) }.into();
+		assert_noop!(
+			TransactionStorage::force_renew(origin, TransactionRef::ContentHash(hash)),
+			Error::TooManyTransactions
+		);
+		assert_eq!(BlockTransactions::get(), before_transactions);
+		assert_eq!(super::TransactionByContentHash::<Test>::get(hash), before_latest);
+		assert_eq!(super::StoredBy::<Test>::iter().collect::<Vec<_>>(), before_provenance);
+	});
 }
 
 /// Sibling of `enable_auto_renew_via_extension` for `renew` (one-shot scheduler).
@@ -1426,7 +1931,7 @@ fn migration_v1_version_updated() {
 	new_test_ext().execute_with(|| {
 		StorageVersion::new(0).put::<TransactionStorage>();
 		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(0));
-		assert_eq!(TransactionStorage::in_code_storage_version(), StorageVersion::new(5));
+		assert_eq!(TransactionStorage::in_code_storage_version(), StorageVersion::new(6));
 
 		crate::migrations::v1::MigrateV0ToV1::<Test>::on_runtime_upgrade();
 
