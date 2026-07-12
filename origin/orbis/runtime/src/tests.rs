@@ -3021,6 +3021,15 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 			pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::default(),
 		));
 		let payload = SignedPayload::new(call.clone(), tx_ext.clone()).unwrap();
+		let bad_pair = sr25519::Pair::from_string("//Bob", None).unwrap();
+		let bad_signature = payload.using_encoded(|bytes| bad_pair.sign(bytes));
+		let bad_extrinsic =
+			<crate::UncheckedExtrinsic as SignedTransactionBuilder>::new_signed_transaction(
+				call.clone(),
+				payer.clone().into(),
+				MultiSignature::Sr25519(bad_signature),
+				tx_ext.clone(),
+			);
 		let signature = payload.using_encoded(|bytes| pair.sign(bytes));
 		let extrinsic =
 			<crate::UncheckedExtrinsic as SignedTransactionBuilder>::new_signed_transaction(
@@ -3039,6 +3048,15 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 		indiv_pallet_resources::StorageReservationByPurpose::<Runtime>::insert(&purpose, 99u64);
 
 		assert!(crate::meta_v6::token().is_none());
+		let balance_before_bad_signature = Balances::free_balance(&payer);
+		assert!(crate::Executive::validate_transaction(
+			sp_runtime::transaction_validity::TransactionSource::External,
+			bad_extrinsic,
+			System::block_hash(0),
+		)
+		.is_err());
+		assert_eq!(System::account_nonce(&payer), 0);
+		assert_eq!(Balances::free_balance(&payer), balance_before_bad_signature);
 		assert_ok!(crate::Executive::validate_transaction(
 			sp_runtime::transaction_validity::TransactionSource::External,
 			extrinsic.clone(),
