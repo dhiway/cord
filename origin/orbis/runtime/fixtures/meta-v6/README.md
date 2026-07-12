@@ -7,6 +7,7 @@ These checked-in binary files freeze the spec-27 transaction wire contract:
   `ConsumePaidMetaIngress` and the remaining inner extensions;
 - one `PolicyProofsV6` value for each of the seven router variants;
 - the intent preimage and commitment, paid-token key, and accepted 32-call/depth-4 envelope;
+- an immutable spec-26 negative intent (`spec26-negative.json` plus its raw SCALE `.bin`);
 - one independently encoded intent mutation for every signed field.
 
 `meta_v6_fixtures::checked_in_meta_v6_fixtures_decode_all_and_recompute` decodes complete SCALE

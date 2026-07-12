@@ -986,12 +986,30 @@ mod tests {
 			commitment.as_bytes(),
 			&pair.public(),
 		));
-		let spec26_bytes =
-			decode_hex::<{ CANONICAL_SPEC26_BYTES_HEX.len() / 2 }>(CANONICAL_SPEC26_BYTES_HEX);
+		let spec26_bytes = include_bytes!("../fixtures/meta-v6/spec26-negative.bin");
+		assert_eq!(
+			spec26_bytes.as_slice(),
+			decode_hex::<{ CANONICAL_SPEC26_BYTES_HEX.len() / 2 }>(CANONICAL_SPEC26_BYTES_HEX)
+		);
 		let spec26_literal =
 			IntentPreimageFixtureV6::decode_all(&mut spec26_bytes.as_slice()).unwrap();
+		assert_eq!(spec26_literal.domain, META_INTENT_DOMAIN_V6);
 		assert_eq!(spec26_literal.spec_version, 26);
+		assert_ne!(spec26_literal.spec_version, CANONICAL_SPEC_VERSION);
 		assert!(!spec26_literal.is_canonical_positive());
+		let evidence: serde_json::Value = serde_json::from_str(include_str!(
+			"../fixtures/meta-v6/spec26-negative.json"
+		))
+		.unwrap();
+		assert_eq!(evidence["id"], "VECTOR-SPEC26-NEGATIVE");
+		assert_eq!(evidence["immutable"], true);
+		assert_eq!(evidence["spec_version"], 26);
+		assert_eq!(evidence["domain"], "orbis/meta-intent/v6");
+		let binary_sha256 = sp_io::hashing::sha2_256(spec26_bytes)
+			.iter()
+			.map(|byte| format!("{byte:02x}"))
+			.collect::<String>();
+		assert_eq!(evidence["binary_sha256"], binary_sha256);
 		let decoded = IntentPreimageFixtureV6::decode_all(&mut bytes.as_slice()).unwrap();
 		assert_eq!(decoded, canonical_intent_fixture());
 		assert_eq!(decoded.commitment(), commitment);

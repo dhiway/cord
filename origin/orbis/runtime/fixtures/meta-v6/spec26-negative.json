@@ -1,0 +1,12 @@
+{
+  "id": "VECTOR-SPEC26-NEGATIVE",
+  "immutable": true,
+  "format": "parity-scale-codec",
+  "binary": "spec26-negative.bin",
+  "binary_sha256": "e744ea1de5b71480a54c6c489d8a8bdf9d7c6281c39f84f1112fc6faf28be8fc",
+  "decoded_type": "IntentPreimageFixtureV6",
+  "domain": "orbis/meta-intent/v6",
+  "spec_version": 26,
+  "transaction_version": 6,
+  "expected_rejection": "canonical spec-27 intent domain rejects spec-26 with BadProof"
+}

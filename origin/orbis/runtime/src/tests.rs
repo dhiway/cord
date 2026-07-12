@@ -523,7 +523,7 @@ fn remediation_manifest_v3_is_exact_and_semantically_frozen() {
 		.iter()
 		.map(|byte| format!("{byte:02x}"))
 		.collect::<String>();
-	assert_eq!(hash, "0504b1852450ac073c1b52201099356dea4653a3b362fa7df9387862caec3f81");
+	assert_eq!(hash, "47e0a570a3de291cd2e07d42dde5b84f6b6087ad754db2c77cfe742b1fa453d2");
 }
 
 #[test]
