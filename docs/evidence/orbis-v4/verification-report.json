@@ -3,7 +3,7 @@
   "bulletin_v7": "present",
   "commands": 11,
   "critic_status": "pending",
-  "evidence_marker_commit": "d89192f79c4979cc475d56ebb7bc84df2c4d4af6",
+  "evidence_marker_commit": "42994a5c7bed9d0e13030a760b8dc541864b1aa5",
   "evidence_planned": 5,
   "evidence_present": 114,
   "excluded": 68,
@@ -1374,7 +1374,7 @@
   },
   "manifest_inventory_blake2_256": "eb98d34165ab0e8e3727a3c8f88a30da899dfa7f85e88b60c6701b076733e659",
   "manifest_inventory_count": 645,
-  "manifest_sha256": "f07800b27d3f1c8b946bd4058095ecad79d02e687ba06273a7e0fd6fe427beee",
+  "manifest_sha256": "01831bc291189d906e796875b03c53cd9477e955d7626069e230cc19f319d1da",
   "metadata_evidence": [
     "META-EVIDENCE-COMPILED-ENABLED",
     "META-EVIDENCE-CUSTOM-LOSS",

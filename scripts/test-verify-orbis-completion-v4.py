@@ -69,6 +69,11 @@ added='''\n[[protocol_call]]\nid = "CALL-FORGED-ADDITION"\nstate = "planned"\n''
 reject('inventory-addition',BASE+added,'manifest inventory')
 reject('inventory-rename',BASE.replace('id = "CALL-Resources-12"','id = "CALL-Resources-12-RENAMED"',1),'manifest inventory')
 
+proof_target=Path('/tmp/orbis-v4-equivalence-target'); proof_target.mkdir(parents=True,exist_ok=True)
+(proof_target/'STALE-POISON').write_text('must be removed before both cold builds\n')
+proof_check=subprocess.run([str(ROOT/'scripts/prove-orbis-marker-nonruntime.sh'),'--check'],cwd=ROOT,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+if proof_check.returncode: raise SystemExit('cold Wasm proof --check or stale-target cleanup failed: '+proof_check.stdout)
+
 def production_cleanliness_cases():
  worktree=Path(tempfile.mkdtemp(prefix='orbis-v4-production-')); worktree.rmdir()
  subprocess.run(['git','worktree','add','--detach',str(worktree),'HEAD'],cwd=ROOT,check=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
@@ -78,13 +83,35 @@ def production_cleanliness_cases():
   clean=subprocess.run([str(verifier),'--static'],cwd=worktree,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
   after=subprocess.check_output(['git','status','--porcelain','--untracked-files=all'],cwd=worktree,text=True)
   if clean.returncode or before!=after: raise SystemExit('clean production verifier failed or mutated tracked worktree: '+clean.stdout)
-  manifest=worktree/'docs/orbis-completion-manifest.toml'; original=manifest.read_text(); manifest.write_text(original+'\n')
-  dirty=subprocess.run([str(verifier),'--static'],cwd=worktree,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-  if dirty.returncode==0 or 'untracked or dirty' not in dirty.stdout: raise SystemExit('dirty tracked production evidence was not rejected: '+dirty.stdout)
-  manifest.write_text(original)
+  output_log=next((worktree/'docs/evidence/orbis-v4/outputs').glob('*.log'))
+  dirty_matrix=[
+   worktree/'docs/orbis-completion-manifest.toml',
+   worktree/'origin/orbis/runtime/src/meta_v6.rs',
+   worktree/'origin/orbis/runtime/src/remediation_v3.rs',
+   worktree/'scripts/prove-orbis-marker-nonruntime.sh',
+   worktree/'docs/evidence/orbis-v4/marker-nonruntime-equivalence.json',
+   worktree/'origin/orbis/evidence_markers_v4.rs',
+   worktree/'origin/orbis/evidence_inventory_v4.rs',
+   worktree/'docs/evidence/orbis-v4/critic-review-block-1.md',
+   output_log,
+   worktree/'docs/evidence/orbis-v4/verification-report.json',
+   worktree/'docs/evidence/orbis-v4/verification-report.sha256',
+   worktree/'docs/evidence/orbis-v4/META-ALIAS-VERIFY-CONSUME.json',
+  ]
+  for path in dirty_matrix:
+   original=path.read_bytes(); path.write_bytes(original+b'\n')
+   dirty=subprocess.run([str(verifier),'--static'],cwd=worktree,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+   path.write_bytes(original)
+   if dirty.returncode==0: raise SystemExit('dirty production path was accepted: '+str(path))
   stray=worktree/'docs/evidence/orbis-v4/coherent-untracked-evidence.json'; stray.write_text('{"schema":"coherent-forgery"}\n')
   untracked=subprocess.run([str(verifier),'--static'],cwd=worktree,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
   if untracked.returncode==0 or 'contains untracked files' not in untracked.stdout: raise SystemExit('untracked production evidence was not rejected: '+untracked.stdout)
+  stray.unlink()
+  replacement=worktree/'docs/evidence/orbis-v4/critic-review-block-1.md'
+  subprocess.run(['git','rm','--cached','--',str(replacement.relative_to(worktree))],cwd=worktree,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+  replaced=subprocess.run([str(verifier),'--static'],cwd=worktree,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+  subprocess.run(['git','reset','HEAD','--',str(replacement.relative_to(worktree))],cwd=worktree,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+  if replaced.returncode==0: raise SystemExit('untracked replacement production evidence was accepted')
  finally:
   subprocess.run(['git','worktree','remove','--force',str(worktree)],cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 production_cleanliness_cases()

@@ -46,10 +46,12 @@ if not equivalence_rel or not equivalence_path.is_file(): die('missing marker no
 try: equivalence=json.loads(equivalence_path.read_text())
 except Exception: die('marker non-runtime equivalence proof is not JSON')
 diff_run=git('diff','--binary',audit,marker_commit,'--','origin/orbis'); changed=git('diff','--name-only',audit,marker_commit,'--','origin/orbis').stdout.splitlines()
-allowed_changed=['origin/orbis/evidence_inventory_v4.rs','origin/orbis/evidence_markers_v4.rs','origin/orbis/pallets/transaction-storage/src/lib.rs','origin/orbis/pallets/transaction-storage/src/tests.rs','origin/orbis/runtime/metadata-implicit-nohash/README.md','origin/orbis/runtime/metadata-implicit-nohash/src/lib.rs','origin/orbis/runtime/src/lib.rs','origin/orbis/runtime/src/meta_v6_fixtures.rs','origin/orbis/runtime/src/remediation_v3.rs','origin/orbis/runtime/src/tests.rs']
+allowed_changed=['origin/orbis/evidence_inventory_v4.rs','origin/orbis/evidence_markers_v4.rs','origin/orbis/pallets/transaction-storage/src/tests.rs','origin/orbis/runtime/metadata-implicit-nohash/README.md','origin/orbis/runtime/metadata-implicit-nohash/src/lib.rs','origin/orbis/runtime/src/meta_v6_fixtures.rs','origin/orbis/runtime/src/remediation_v3.rs','origin/orbis/runtime/src/tests.rs']
 if changed!=allowed_changed or equivalence.get('changed_paths')!=allowed_changed: die('marker commit source-diff policy violation')
 if equivalence.get('runtime_baseline_commit')!=audit or equivalence.get('evidence_marker_commit')!=marker_commit or equivalence.get('source_diff_sha256')!=hashlib.sha256(diff_run.stdout.encode()).hexdigest(): die('marker source-diff proof binding mismatch')
 if equivalence.get('cmp_exit_code')!=0 or equivalence.get('baseline_wasm_sha256')!=equivalence.get('marker_wasm_sha256') or not re.fullmatch('[0-9a-f]{64}',equivalence.get('baseline_wasm_sha256','')) or equivalence.get('wasm_size_bytes',0)<=0: die('marker compact runtime Wasm equivalence proof mismatch')
+base_lock=git('show',audit+':Cargo.lock').stdout.encode(); marker_lock=git('show',marker_commit+':Cargo.lock').stdout.encode()
+if equivalence.get('cargo_lock_sha256')!=hashlib.sha256(base_lock).hexdigest() or equivalence.get('marker_cargo_lock_sha256')!=hashlib.sha256(marker_lock).hexdigest() or equivalence.get('sdk_revision')!='cc190ea8' or equivalence.get('features')!='default' or equivalence.get('build_command')!='cargo +1.93.0 build --locked --frozen -p origin-orbis-runtime' or equivalence.get('cold_target_removed_before_each_build') is not True or 'CARGO_INCREMENTAL=0' not in equivalence.get('deterministic_env','') or 'RUNTIME_METADATA_HASH' not in equivalence.get('deterministic_env','') or not equivalence.get('toolchain','').startswith('rustc 1.93.0 '): die('marker cold-build reproducibility policy mismatch')
 registry_rel='origin/orbis/evidence_markers_v4.rs'; registry_current=(ROOT/registry_rel).read_text(); registry_at_marker=git('show',marker_commit+':'+registry_rel)
 if registry_at_marker.returncode or registry_at_marker.stdout!=registry_current: die('source marker registry is not bound at evidence marker commit/current source')
 registry={}
@@ -155,12 +157,17 @@ if not a.static:
 report={'schema':'orbis-completion-verification-v4','manifest_sha256':sha(MANIFEST),'audited_runtime_commit':audit,'evidence_marker_commit':marker_commit,'manifest_inventory_count':len(actual_inventory),'manifest_inventory_blake2_256':inventory_digest,'present':len(normalized['present']),'planned':len(normalized['planned']),'excluded':len(normalized['excluded']),'unchecked':normalized['unchecked'],'ids_by_category':{k:sorted(v) for k,v in normalized.items()},'ids_by_table':{k:sorted(v) for k,v in sorted(by_table.items())},'row_count':len(all_rows),'evidence_present':sum(r['status']=='present' for _,r in evidence),'evidence_planned':sum(r['status']=='planned' for _,r in evidence),'commands':len(commands),'metadata_evidence':sorted(modes),'bulletin_v7':'present','provider_v8':'planned','critic_status':'pending'}
 if not a.manifest:
  out=ROOT/'docs/evidence/orbis-v4/verification-report.json'; sidecar=out.parent/'verification-report.sha256'; expected=json.dumps(report,sort_keys=True,indent=2)+'\n'
- required={MANIFEST,ROOT/registry_rel,ROOT/inventory_rel,equivalence_path,ROOT/'scripts/prove-orbis-marker-nonruntime.sh',out,sidecar}
+ required={MANIFEST,ROOT/'Cargo.lock',ROOT/registry_rel,ROOT/inventory_rel,equivalence_path,ROOT/'scripts/prove-orbis-marker-nonruntime.sh',ROOT/'scripts/verify-orbis-completion-v4.py',out,sidecar}
  for _,r in evidence:
   if r.get('artifact_path'):
    artifact_path=ROOT/r['artifact_path']; required.add(artifact_path)
    output_path=json.loads(artifact_path.read_text()).get('output_artifact','')
    if output_path: required.add(ROOT/output_path)
+  if r.get('status')=='present':
+   for source_path in r.get('source_paths','').split(';'):
+    if source_path.strip(): required.add(ROOT/source_path.strip())
+   _,marker_source=command_binding(r['test_or_command']); required.add(ROOT/marker_source)
+ for source_path in allowed_changed: required.add(ROOT/source_path)
  for p in (ROOT/'docs/evidence/orbis-v4').glob('*review*.md'): required.add(p)
  for key in ('architect_evidence','critic_evidence'):
   if top.get(key): required.add(ROOT/top[key])
