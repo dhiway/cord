@@ -36,6 +36,9 @@ use sp_core::crypto::Ss58Codec;
 use xcm::prelude::*;
 use xcm_runtime_apis::conversions::LocationToAccountHelper;
 
+#[path = "remediation_v3.rs"]
+mod remediation_v3;
+
 const ALICE: [u8; 32] = [1u8; 32];
 
 #[test]
