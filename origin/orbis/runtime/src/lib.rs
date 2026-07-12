@@ -77,8 +77,8 @@ use origin_runtime_constants::{currency::EXISTENTIAL_DEPOSIT, fee, time::DAYS};
 use pallet_asset_conversion_tx_payment::SwapAssetAdapter;
 use pallet_assets_precompiles::{ForeignIdConfig, InlineIdConfig, ERC20};
 use pallet_nfts::PalletFeatures;
+use pallet_orbis_token::Token as TokenTrait;
 use pallet_revive::evm::runtime::EthExtra;
-use pallet_token::Token as TokenTrait;
 use pallet_transaction_payment::FungibleAdapter;
 use pallet_tx_pause::RuntimeCallNameOf;
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
@@ -148,7 +148,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 23,
+	spec_version: 24,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 4,
@@ -1189,7 +1189,7 @@ parameter_types! {
 	pub const TokenAuthorizationTTL: u32 = 30;
 }
 
-impl pallet_token::Config for Runtime {
+impl pallet_orbis_token::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 	type MaxAuthorizationLen = TokenMaxAuthorizationLen;
@@ -1206,7 +1206,7 @@ parameter_types! {
 	pub const MaxPacketListResults: u32 = 200;
 }
 
-impl pallet_register::Config for Runtime {
+impl pallet_orbis_register::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Token = Token;
 	type EntityLookup = Entity;
@@ -1216,12 +1216,12 @@ impl pallet_register::Config for Runtime {
 	type MaxAuthorizationTTL = RegisterAuthorizationTTL;
 	type MaxPacketListResults = MaxPacketListResults;
 	type Feeless = Feeless;
-	type WeightInfo = pallet_register::weights::SubstrateWeight<Self>;
+	type WeightInfo = pallet_orbis_register::weights::SubstrateWeight<Self>;
 }
 
-impl pallet_feeless::Config for Runtime {
+impl pallet_orbis_feeless::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_feeless::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = pallet_orbis_feeless::weights::SubstrateWeight<Runtime>;
 	type MaxFeelessTransactionsPerBlock = ConstU32<16>;
 }
 
@@ -1662,10 +1662,10 @@ construct_runtime!(
 		// The main stage.
 		// The relay Coretime pallet encodes Broker callbacks with pallet index 50.
 		Broker: pallet_broker = 50,
-		Token: pallet_token = 51,
-		Register: pallet_register = 52,
-		Entity: pallet_entity = 53,
-		Feeless: pallet_feeless = 54,
+		Token: pallet_orbis_token = 51,
+		Register: pallet_orbis_register = 52,
+		Entity: pallet_orbis_entity = 53,
+		Feeless: pallet_orbis_feeless = 54,
 
 		// Unified application assets.
 		Assets: pallet_assets::<Instance1> = 80,
@@ -1726,7 +1726,7 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 
 /// The TransactionExtension to the basic transaction logic.
-pub type AssetPayment = pallet_feeless::ChargeOrSkipFeeless<
+pub type AssetPayment = pallet_orbis_feeless::ChargeOrSkipFeeless<
 	Runtime,
 	pallet_asset_conversion_tx_payment::ChargeAssetTxPayment<Runtime>,
 >;
@@ -1792,7 +1792,7 @@ impl EthExtra for EthExtraImpl {
 	fn get_eth_extension(nonce: u32, tip: Balance) -> Self::ExtensionV0 {
 		default_inner_tx_extensions(
 			nonce,
-			pallet_feeless::ChargeOrSkipFeeless::from(
+			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(
 					tip, None,
 				),
@@ -1843,7 +1843,7 @@ where
 	fn create_extension() -> Self::Extension {
 		default_inner_tx_extensions(
 			0,
-			pallet_feeless::ChargeOrSkipFeeless::from(
+			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 			)
 			.into(),
@@ -1948,13 +1948,13 @@ mod benches {
 		[indiv_pallet_members_notifier, MembersNotifier]
 		[indiv_pallet_people_lite, PeopleLite]
 		[indiv_pallet_people, Personhood]
-		[pallet_entity, Entity]
+		[pallet_orbis_entity, Entity]
 		[pallet_message_queue, MessageQueue]
 		[pallet_meta_tx, MetaTx]
 		[pallet_migrations, MultiBlockMigrations]
 		[pallet_multisig, Multisig]
 		[pallet_proxy, Proxy]
-		[pallet_register, Register]
+		[pallet_orbis_register, Register]
 		[pallet_safe_mode, SafeMode]
 		[pallet_session, SessionBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
@@ -2370,7 +2370,7 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 	impl token_api::TokenOriginHubRuntimeApi<Block> for Runtime {
 		fn decode_token(token: Vec<u8>) -> Option<token_api::DecodedTokenApi> {
 			let ss58_id = Ss58Identifier::try_from(token).ok()?;
-			let decoded: DecodedIdentifier = <pallet_token::Pallet<Runtime> as TokenTrait<Runtime>>::resolve_token(&ss58_id).ok()?;
+			let decoded: DecodedIdentifier = <pallet_orbis_token::Pallet<Runtime> as TokenTrait<Runtime>>::resolve_token(&ss58_id).ok()?;
 			Some(token_api::DecodedTokenApi {
 				origin: decoded.origin,
 				network: decoded.network,
@@ -2398,10 +2398,10 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 			if Token::resolve_pallet_plain(decoded.pallet).is_err() {
 				return token_api::TokenStatusApi::PalletNotFound;
 			}
-			if !pallet_token::StateVersion::<Runtime>::contains_key(&ss58_id) {
+			if !pallet_orbis_token::StateVersion::<Runtime>::contains_key(&ss58_id) {
 				return token_api::TokenStatusApi::TokenNotFound;
 			}
-			let version = pallet_token::StateVersion::<Runtime>::get(&ss58_id);
+			let version = pallet_orbis_token::StateVersion::<Runtime>::get(&ss58_id);
 			let last_state = version.checked_sub(1);
 			token_api::TokenStatusApi::Found { last_state }
 		}

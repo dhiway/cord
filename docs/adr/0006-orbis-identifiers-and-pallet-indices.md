@@ -19,14 +19,66 @@ Runtime pallet indices are append-only within these bands:
 | `51..=79` | existing CORD entity/token/register functionality |
 | `80..=89` | assets (local 80-82, foreign 83/85, pool 84/86, uniques 87, NFTs 88, rates 89) |
 | `90` | People/People-Lite compatible identity and aliases |
-| `91..=99` | People adapters (chunks 91, members 92, notifier 93, People Lite 94, personhood 95; 96-99 reserved) |
-| `100..=109` | Revive and Solidity support |
+| `91..=109` | frozen Orbis identity/application map, including Revive at 100 |
 | `110` | Bulletin transaction storage and proof inherent |
-| `111..=129` | reserved Bulletin extensions |
+| `111..=124` | frozen Bulletin, payment-policy, storage-service and issuance map |
+| `125..=129` | reserved application extensions |
 | `200..=214` | application asset and payment extensions (conversion 200, asset payment 201) |
 | `215..=239` | meta-tx, fee policy, safety controls |
 | `249` | migrations |
 | `255` | Sudo |
+
+## Frozen completion map
+
+This map is the sole normative assignment source within the broad bands above.
+
+Manifest version 1 freezes the following previously reserved application indices. Adding,
+removing, or reassigning an entry requires Architect/Critic replanning, an ADR update, and a
+`docs/orbis-completion-manifest.toml` version increment.
+
+| Index | Pallet |
+|---:|---|
+| `51` | Orbis Token compatibility fork |
+| `52` | Orbis Register compatibility fork |
+| `53` | Orbis Entity compatibility fork |
+| `54` | Orbis Feeless compatibility fork |
+| `96` | Resources |
+| `97` | Score |
+| `98` | Game |
+| `99` | Honour |
+| `100` | Revive |
+| `101` | Proof of Ink |
+| `102` | Coinage |
+| `103` | Airdrop |
+| `104` | Storage Initialization |
+| `110` | Bulletin Transaction Storage |
+| `111` | Bulletin HOP Promotion |
+| `112` | PGAS |
+| `113` | PGAS Allowance |
+| `114` | Alias Accounts |
+| `115` | Origin Restriction |
+| `116` | DOTNS Gateway |
+| `120` | Storage Provider |
+| `121` | Drive Registry |
+| `122` | S3 Registry |
+| `123` | Vesting |
+| `124` | Claims |
+
+Indices `200+`, `249`, and `255` remain protocol/operations space and are unchanged.
+
+## Ownership and scope lock
+
+Token, Register, Entity, and Feeless are byte-compatible Orbis-owned packages below
+`origin/orbis/pallets/`; Origin and CORD retain their existing packages and consumers. Unmodified
+SDK pallets remain pinned dependencies rather than local forks. Modified Individuality, Bulletin,
+or Web3 Storage behavior belongs below `origin/orbis/pallets/` with source revision, license,
+adaptation notes, and upstream test provenance.
+
+Orbis retains only Sudo/root administration. Staking, nominations, elections, public governance,
+MobRule governance, redundant MembersSubscriber, production bridges/frontends, full Ethereum
+parity, tokenomics redesign, live migration, and production launch are excluded. The completion
+manifest is the finite pallet/API/node/benchmark/migration/E2E/exclusion ledger; unlisted Web3
+Storage code is not implicitly in scope.
 
 Indices must never be reused after a released runtime. Assets, People, Revive, and Bulletin receive
 explicit indices and metadata snapshot tests before their first release.

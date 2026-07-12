@@ -55,10 +55,10 @@ pallet-bulletin-hop-promotion = { workspace = true }
 pallet-bulletin-transaction-storage = { workspace = true }
 pallet-bulletin-transaction-storage-runtime-api = { workspace = true }
 pallet-orbis-people = { workspace = true }
-pallet-entity = { workspace = true }
-pallet-register = { workspace = true }
+pallet-orbis-entity = { workspace = true }
+pallet-orbis-register = { workspace = true }
 pallet-revive = { workspace = true }
-pallet-token = { workspace = true }
+pallet-orbis-token = { workspace = true }
 pallet-indices = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-sudo = { workspace = true }
@@ -66,7 +66,7 @@ pallet-safe-mode = { workspace = true }
 pallet-tx-pause = { workspace = true }
 pallet-meta-tx = { workspace = true }
 pallet-verify-signature = { workspace = true }
-pallet-feeless = { workspace = true }
+pallet-orbis-feeless = { workspace = true }
 pallet-skip-feeless-payment = { workspace = true }
 pallet-remark = { workspace = true }
 pallet-message-queue = { workspace = true }
@@ -124,6 +124,7 @@ parachains-common = { workspace = true }
 parachains-runtimes-test-utils = { workspace = true }
 sp-io = { workspace = true }
 static_assertions = { workspace = true }
+toml = { workspace = true }
 
 [build-dependencies]
 substrate-wasm-builder = { optional = true, workspace = true }
@@ -179,10 +180,10 @@ std = [
 	"pallet-bulletin-transaction-storage-runtime-api/std",
 	"pallet-orbis-people/std",
 	"pallet-collator-selection/std",
-	"pallet-entity/std",
-	"pallet-register/std",
+	"pallet-orbis-entity/std",
+	"pallet-orbis-register/std",
 	"pallet-revive/std",
-	"pallet-token/std",
+	"pallet-orbis-token/std",
 	"pallet-indices/std",
 	"pallet-scheduler/std",
 	"pallet-sudo/std",
@@ -190,7 +191,7 @@ std = [
 	"pallet-tx-pause/std",
 	"pallet-meta-tx/std",
 	"pallet-verify-signature/std",
-	"pallet-feeless/std",
+	"pallet-orbis-feeless/std",
 	"pallet-skip-feeless-payment/std",
 	"pallet-remark/std",
 	"pallet-message-queue/std",
@@ -272,14 +273,14 @@ runtime-benchmarks = [
 	"pallet-asset-conversion/runtime-benchmarks",
 	"pallet-asset-conversion-tx-payment/runtime-benchmarks",
 	"pallet-collator-selection/runtime-benchmarks",
-	"pallet-entity/runtime-benchmarks",
+	"pallet-orbis-entity/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
 	"pallet-migrations/runtime-benchmarks",
 	"pallet-meta-tx/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-nfts/runtime-benchmarks",
 	"pallet-safe-mode/runtime-benchmarks",
-	"pallet-register/runtime-benchmarks",
+	"pallet-orbis-register/runtime-benchmarks",
 	"pallet-revive/runtime-benchmarks",
 	"pallet-proxy/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
@@ -335,14 +336,14 @@ try-runtime = [
 	"pallet-asset-conversion/try-runtime",
 	"pallet-asset-conversion-tx-payment/try-runtime",
 	"pallet-collator-selection/try-runtime",
-	"pallet-entity/try-runtime",
-	"pallet-token/try-runtime",
+	"pallet-orbis-entity/try-runtime",
+	"pallet-orbis-token/try-runtime",
 	"pallet-meta-tx/try-runtime",
 	"pallet-message-queue/try-runtime",
 	"pallet-migrations/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-nfts/try-runtime",
-	"pallet-register/try-runtime",
+	"pallet-orbis-register/try-runtime",
 	"pallet-revive/try-runtime",
 	"pallet-proxy/try-runtime",
 	"pallet-safe-mode/try-runtime",

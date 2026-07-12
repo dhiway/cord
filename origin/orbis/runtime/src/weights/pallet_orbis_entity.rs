@@ -27,9 +27,9 @@ use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
 use core::marker::PhantomData;
 use frame_system::Config;
 
-/// Weights for `pallet_entity` using the Substrate node and recommended hardware.
+/// Weights for `pallet_orbis_entity` using the Substrate node and recommended hardware.
 pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_entity::WeightInfo for WeightInfo<T> {
+impl<T: frame_system::Config> pallet_orbis_entity::WeightInfo for WeightInfo<T> {
 	fn set_info(info_size: u32) -> Weight {
         // base + per-byte fee + DB ops
         Weight::from_parts(50_000_000, 0)                // base

@@ -9686,17 +9686,18 @@ dependencies = [
  "pallet-bulletin-transaction-storage",
  "pallet-bulletin-transaction-storage-runtime-api",
  "pallet-collator-selection",
- "pallet-entity",
- "pallet-feeless",
  "pallet-indices",
  "pallet-message-queue",
  "pallet-meta-tx",
  "pallet-migrations",
  "pallet-multisig",
  "pallet-nfts",
+ "pallet-orbis-entity",
+ "pallet-orbis-feeless",
  "pallet-orbis-people",
+ "pallet-orbis-register",
+ "pallet-orbis-token",
  "pallet-proxy",
- "pallet-register",
  "pallet-remark",
  "pallet-revive",
  "pallet-safe-mode",
@@ -9705,7 +9706,6 @@ dependencies = [
  "pallet-skip-feeless-payment",
  "pallet-sudo",
  "pallet-timestamp",
- "pallet-token",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-tx-pause",
@@ -9745,6 +9745,7 @@ dependencies = [
  "static_assertions",
  "substrate-wasm-builder",
  "token-origin-hub-runtime-api",
+ "toml 0.8.23",
  "verifiable",
  "xcm-runtime-apis",
 ]
@@ -11094,6 +11095,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-orbis-entity"
+version = "0.9.9"
+dependencies = [
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "origin-primitives",
+ "pallet-balances",
+ "pallet-orbis-feeless",
+ "pallet-orbis-token",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-orbis-feeless"
+version = "0.9.9"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-orbis-people"
 version = "0.9.9"
 dependencies = [
@@ -11106,6 +11143,42 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-keystore",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-orbis-register"
+version = "0.9.9"
+dependencies = [
+ "bitflags 1.3.2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "origin-primitives",
+ "pallet-orbis-entity",
+ "pallet-orbis-feeless",
+ "pallet-orbis-token",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-orbis-token"
+version = "0.9.9"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hex",
+ "origin-primitives",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
 ]
 

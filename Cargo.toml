@@ -27,6 +27,10 @@ members = [
 	"origin/common",
 	"origin/pallets/authorities",
 	"origin/orbis/pallets/common",
+	"origin/orbis/pallets/token",
+	"origin/orbis/pallets/feeless",
+	"origin/orbis/pallets/entity",
+	"origin/orbis/pallets/register",
 	"origin/orbis/pallets/hop-promotion",
 	"origin/orbis/pallets/individuality-support",
 	"origin/orbis/pallets/chunks-manager",
@@ -831,6 +835,10 @@ pallet-authorities = { path = 'origin/pallets/authorities', default-features = f
 pallet-register = { path = 'origin/pallets/register/', default-features = false }
 pallet-token = { path = "origin/pallets/token", default-features = false }
 pallet-entity = { path = "origin/pallets/entity", default-features = false }
+pallet-orbis-token = { path = "origin/orbis/pallets/token", default-features = false }
+pallet-orbis-feeless = { path = "origin/orbis/pallets/feeless", default-features = false }
+pallet-orbis-entity = { path = "origin/orbis/pallets/entity", default-features = false }
+pallet-orbis-register = { path = "origin/orbis/pallets/register", default-features = false }
 origin-primitives = { path = "origin/primitives", default-features = false }
 origin-node-cli = { path = "origin/base/cli", default-features = false }
 origin-runtime = { path = "origin/base/runtime" }

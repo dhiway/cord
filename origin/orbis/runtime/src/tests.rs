@@ -38,6 +38,326 @@ use xcm_runtime_apis::conversions::LocationToAccountHelper;
 
 const ALICE: [u8; 32] = [1u8; 32];
 
+#[test]
+fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
+	use std::collections::BTreeSet;
+
+	let manifest: toml::Value =
+		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml"))
+			.expect("the frozen completion manifest must be valid TOML");
+	assert_eq!(manifest["manifest_version"].as_integer(), Some(1));
+	for (table, expected) in [
+		("source", 7),
+		("runtime_pallet", 72),
+		("runtime_api", 106),
+		("benchmark", 57),
+		("migration", 22),
+		("migration_pipeline", 1),
+		("node_surface", 45),
+		("acceptance", 26),
+		("exclusion", 10),
+		("package_provenance", 41),
+	] {
+		assert_eq!(manifest[table].as_array().map(Vec::len), Some(expected), "{table}");
+	}
+	let pallets = manifest["runtime_pallet"].as_array().unwrap();
+	let indices = pallets
+		.iter()
+		.map(|row| row["index"].as_integer().unwrap())
+		.collect::<BTreeSet<_>>();
+	assert_eq!(indices.len(), pallets.len(), "pallet indices are unique");
+	for table in [
+		"source",
+		"runtime_pallet",
+		"runtime_api",
+		"benchmark",
+		"migration",
+		"node_surface",
+		"acceptance",
+		"exclusion",
+	] {
+		let rows = manifest[table].as_array().unwrap();
+		let ids = rows.iter().map(|row| row["id"].as_str().unwrap()).collect::<BTreeSet<_>>();
+		assert_eq!(ids.len(), rows.len(), "{table} ids are unique");
+	}
+	let filesystem = manifest["package_provenance"]
+		.as_array()
+		.unwrap()
+		.iter()
+		.find(|row| row["package"].as_str() == Some("file-system-primitives"))
+		.unwrap();
+	assert_eq!(filesystem["license"].as_str(), Some("UNDECLARED-REQUIRES-LEGAL-CLEARANCE"));
+
+	let provenance = manifest["package_provenance"].as_array().unwrap();
+	let provenance_packages = provenance
+		.iter()
+		.map(|row| row["package"].as_str().unwrap())
+		.collect::<BTreeSet<_>>();
+	assert_eq!(provenance_packages.len(), provenance.len(), "package provenance is unique");
+	for pallet in pallets {
+		let package = pallet["package"].as_str().unwrap();
+		let source = pallet["source"].as_str().unwrap();
+		if source != "dhiway-sdk" ||
+			matches!(package, "pallet-pgas-allowance" | "pallet-vesting" | "pallet-claims")
+		{
+			assert!(
+				provenance_packages.contains(package),
+				"retained local/adapted/planned package lacks provenance: {package}"
+			);
+		}
+	}
+	for (id, owner) in [
+		("PAL-114", "slice-8"),
+		("PAL-115", "slice-8"),
+		("PAL-116", "slice-8"),
+		("PAL-123", "slice-9"),
+		("PAL-124", "slice-9"),
+		("PAL-120", "slice-10"),
+		("PAL-121", "slice-11"),
+		("PAL-122", "slice-11"),
+	] {
+		let pallet = pallets.iter().find(|row| row["id"].as_str() == Some(id)).unwrap();
+		assert_eq!(pallet["evidence"].as_str(), Some(owner), "{id} owner");
+	}
+	let node_surfaces = manifest["node_surface"].as_array().unwrap();
+	for (owner, packages) in [
+		("slice-10", &["storage-primitives", "pallet-storage-provider"][..]),
+		(
+			"slice-11",
+			&[
+				"file-system-primitives",
+				"pallet-drive-registry",
+				"s3-primitives",
+				"pallet-s3-registry",
+			][..],
+		),
+		("slice-12", &["storage-client", "file-system-client", "s3-client"][..]),
+	] {
+		for package in packages {
+			let row = node_surfaces
+				.iter()
+				.find(|row| {
+					row["kind"].as_str() == Some("source-crate") &&
+						row["name"].as_str() == Some(*package)
+				})
+				.unwrap();
+			assert_eq!(row["owner"].as_str(), Some(owner), "{package} owner");
+			assert_eq!(row["evidence"].as_str(), Some(owner), "{package} evidence");
+		}
+	}
+	for row in node_surfaces.iter().filter(|row| {
+		matches!(
+			row["kind"].as_str(),
+			Some("provider-module" | "provider-http-method" | "retained-worker")
+		)
+	}) {
+		assert_eq!(row["owner"].as_str(), Some("slice-12"));
+		assert_eq!(row["evidence"].as_str(), Some("slice-12"));
+	}
+
+	let api_rows = manifest["runtime_api"].as_array().unwrap();
+	for api in ["StorageProviderApi", "DriveRegistryApi", "S3RegistryApi"] {
+		let rows = api_rows.iter().filter(|row| row["api"].as_str() == Some(api));
+		let mut count = 0;
+		for row in rows {
+			assert_eq!(row["evidence"].as_str(), Some("slice-12"), "{api} owner");
+			count += 1;
+		}
+		assert!(count > 0, "{api} must remain inventoried");
+	}
+	for row in api_rows {
+		let method = row["method"].as_str().unwrap();
+		let return_type = method.split_once("->").map(|(_, result)| result).unwrap_or("()");
+		let max_results = row["max_results"].as_integer().unwrap();
+		if return_type.contains("BoundedVec<") {
+			assert_eq!(max_results, 100, "bounded API cardinality: {method}");
+		} else if !return_type.contains("Vec<") {
+			assert_eq!(max_results, 1, "scalar API cardinality: {method}");
+		}
+	}
+
+	let revive = api_rows
+		.iter()
+		.filter(|row| row["api"].as_str() == Some("ReviveApi"))
+		.map(|row| row["method"].as_str().unwrap())
+		.collect::<Vec<_>>();
+	assert_eq!(
+		revive,
+		[
+			"eth_block() -> EthBlock",
+			"eth_block_hash(number: U256) -> Option<H256>",
+			"eth_receipt_data() -> Vec<ReceiptGasInfo>",
+			"block_gas_limit() -> U256",
+			"max_extrinsic_weight_in_gas() -> U256",
+			"balance(address: H160) -> U256",
+			"gas_price() -> U256",
+			"nonce(address: H160) -> Nonce",
+			"call(origin: AccountId, dest: H160, value: Balance, gas_limit: Option<Weight>, storage_deposit_limit: Option<Balance>, input_data: Vec<u8>) -> ContractResult<ExecReturnValue, Balance>",
+			"instantiate(origin: AccountId, value: Balance, gas_limit: Option<Weight>, storage_deposit_limit: Option<Balance>, code: Code, data: Vec<u8>, salt: Option<[u8; 32]>) -> ContractResult<InstantiateReturnValue, Balance>",
+			"eth_transact(tx: GenericTransaction) -> Result<EthTransactInfo<Balance>, EthTransactError>",
+			"eth_transact_with_config(tx: GenericTransaction, config: DryRunConfig<Moment>) -> Result<EthTransactInfo<Balance>, EthTransactError>",
+			"eth_estimate_gas(tx: GenericTransaction, config: DryRunConfig<Moment>) -> Result<U256, EthTransactError>",
+			"eth_pre_dispatch_weight(tx: Vec<u8>) -> Result<Weight, EthTransactError>",
+			"upload_code(origin: AccountId, code: Vec<u8>, storage_deposit_limit: Option<Balance>) -> CodeUploadResult<Balance>",
+			"get_storage(address: H160, key: [u8; 32]) -> GetStorageResult",
+			"get_storage_var_key(address: H160, key: Vec<u8>) -> GetStorageResult",
+			"trace_block(block: Block, config: TracerType) -> Vec<(u32, Trace)>",
+			"trace_tx(block: Block, tx_index: u32, config: TracerType) -> Option<Trace>",
+			"trace_call(tx: GenericTransaction, config: TracerType) -> Result<Trace, EthTransactError>",
+			"trace_call_with_config(tx: GenericTransaction, tracer_type: TracerType, config: TracingConfig) -> Result<Trace, EthTransactError>",
+			"block_author() -> H160",
+			"address(account_id: AccountId) -> H160",
+			"account_id(address: H160) -> AccountId",
+			"runtime_pallets_address() -> H160",
+			"code(address: H160) -> Vec<u8>",
+			"new_balance_with_dust(balance: U256) -> Result<(Balance, u32), BalanceConversionError>",
+		]
+	);
+	assert!(
+		manifest["node_surface"]
+			.as_array()
+			.unwrap()
+			.iter()
+			.any(|row| row["id"].as_str() == Some("NODE-bulletin-proof-provider") &&
+				row["state"].as_str() == Some("planned") &&
+				row["owner"].as_str() == Some("slice-12") &&
+				row["evidence"]
+					.as_str()
+					.is_some_and(|evidence| evidence.starts_with("slice-12:"))),
+		"Bulletin's node proof provider remains a truthful Slice 12 deliverable"
+	);
+	for package in ["pallet-orbis-entity", "pallet-orbis-feeless"] {
+		let row = provenance.iter().find(|row| row["package"].as_str() == Some(package)).unwrap();
+		assert_eq!(row["upstream_declared_license"].as_str(), Some("Apache-2.0"));
+		assert_eq!(row["fork_license"].as_str(), Some("GPL-3.0-or-later"));
+		assert!(row["legal_note"].as_str().is_some_and(|note| note.contains("SPDX")));
+	}
+	assert_eq!(manifest["migration_pipeline"][0]["state"].as_str(), Some("present-empty-pipeline"));
+}
+
+#[test]
+fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
+	use frame_support::traits::{PalletInfoAccess, StorageInfoTrait};
+	use scale_info::{TypeDef, TypeInfo};
+
+	fn call_variants<T: TypeInfo>() -> Vec<(u8, String)> {
+		let TypeDef::Variant(variants) = T::type_info().type_def else {
+			panic!("runtime call metadata must be a variant")
+		};
+		variants
+			.variants
+			.into_iter()
+			.map(|variant| (variant.index, variant.name.into()))
+			.collect()
+	}
+
+	fn storage_names<T: StorageInfoTrait>() -> Vec<String> {
+		T::storage_info()
+			.into_iter()
+			.map(|info| {
+				String::from_utf8(info.storage_name).expect("FRAME storage names are UTF-8")
+			})
+			.collect()
+	}
+
+	assert_eq!(pallet_orbis_token::Pallet::<Runtime>::index(), 51);
+	assert_eq!(pallet_orbis_register::Pallet::<Runtime>::index(), 52);
+	assert_eq!(pallet_orbis_entity::Pallet::<Runtime>::index(), 53);
+	assert_eq!(pallet_orbis_feeless::Pallet::<Runtime>::index(), 54);
+	assert_eq!(crate::VERSION.spec_version, 24);
+	assert_eq!(crate::VERSION.transaction_version, 4);
+
+	assert_eq!(
+		call_variants::<pallet_orbis_register::Call<Runtime>>(),
+		[
+			"create_registry",
+			"set_delegate_permissions",
+			"remove_delegate_permissions",
+			"update_registry_info",
+			"revoke_registry",
+			"restore_registry",
+			"delete_registry",
+			"create_packet",
+			"update_packet",
+			"revoke_packet",
+			"restore_packet",
+			"remove_packet",
+		]
+		.into_iter()
+		.enumerate()
+		.map(|(index, name)| (index as u8, name.into()))
+		.collect::<Vec<_>>()
+	);
+	assert_eq!(
+		call_variants::<pallet_orbis_entity::Call<Runtime>>(),
+		[
+			"set_info",
+			"rotate_attributes",
+			"add_attributes",
+			"remove_attribute",
+			"rotate_attribute",
+			"set_linked_account",
+			"revoke_linked_account",
+			"revoke_linked_account_for",
+			"rotate_controller",
+			"rotate_controller_for",
+			"clear_everything",
+			"clear_everything_for",
+			"set_entity_nym",
+			"remove_entity_nym",
+		]
+		.into_iter()
+		.enumerate()
+		.map(|(index, name)| (index as u8, name.into()))
+		.collect::<Vec<_>>()
+	);
+	assert_eq!(
+		call_variants::<pallet_orbis_feeless::Call<Runtime>>(),
+		vec![(0, "add_feeless_account".into()), (1, "remove_feeless_account".into())]
+	);
+
+	assert_eq!(
+		storage_names::<pallet_orbis_token::Pallet<Runtime>>(),
+		[
+			"PalletIndex",
+			"IndexToPallet",
+			"NextPalletIndex",
+			"GenesisNetworkId",
+			"StateHistory",
+			"StateVersion"
+		]
+	);
+	assert_eq!(
+		storage_names::<pallet_orbis_register::Pallet<Runtime>>(),
+		[
+			"Registries",
+			"RegistryDelegates",
+			"PacketStates",
+			"Packets",
+			"LookupIndex",
+			"RegistryQueryCounts"
+		]
+	);
+	assert_eq!(
+		storage_names::<pallet_orbis_entity::Pallet<Runtime>>(),
+		[
+			"EntityInfoOf",
+			"EntityTokenOfAccount",
+			"LinkedAccounts",
+			"ControllerAccountOf",
+			"AccountUnbindHistory",
+			"EntityNymOf",
+			"EntityNymIndex",
+			"AttributeVersionOf",
+			"AttributeHistoryOf"
+		]
+	);
+	assert_eq!(
+		storage_names::<pallet_orbis_feeless::Pallet<Runtime>>(),
+		["FeelessAccountStore", "FeelessUsage"]
+	);
+}
+
 /// Compile-time representation of ADR 0008's frozen policy slots. `NoPolicy` is deliberately not a
 /// transaction extension: an unimplemented slot cannot authorize a call or mutate an origin.
 mod transaction_policy_fixture {
@@ -184,7 +504,7 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 
 	let normal: crate::TxExtensions = crate::default_inner_tx_extensions(
 		3,
-		pallet_feeless::ChargeOrSkipFeeless::from(
+		pallet_orbis_feeless::ChargeOrSkipFeeless::from(
 			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(5, None),
 		)
 		.into(),
@@ -252,7 +572,7 @@ fn payment_skip_requires_authorized_origin_and_signed_origin_still_pays() {
 		System::set_block_number(1);
 		let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
 		let info = call.get_dispatch_info();
-		let payment: crate::PaymentPolicy = pallet_feeless::ChargeOrSkipFeeless::from(
+		let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
 			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 		)
 		.into();
@@ -547,7 +867,7 @@ fn native_asset_conversion_pool_supports_liquidity_and_swaps() {
 #[test]
 fn asset_fee_selector_is_preserved_inside_the_feeless_envelope() {
 	type AssetCharge = pallet_asset_conversion_tx_payment::ChargeAssetTxPayment<Runtime>;
-	type WrappedCharge = pallet_feeless::ChargeOrSkipFeeless<Runtime, AssetCharge>;
+	type WrappedCharge = pallet_orbis_feeless::ChargeOrSkipFeeless<Runtime, AssetCharge>;
 
 	let asset = Location::new(0, [PalletInstance(80), GeneralIndex(21)]);
 	let wrapped = WrappedCharge::from(AssetCharge::from(0, Some(asset)));
@@ -1096,7 +1416,7 @@ fn authorized_pipeline_retains_validation_and_explicitly_skips_payment_and_quota
 			.prepare(val, &origin, &call, &info, call.encoded_size())
 			.expect("authorized preparation explicitly skips payment");
 		assert_eq!(Balances::free_balance(&account), initial_balance);
-		assert_eq!(pallet_feeless::FeelessUsage::<Runtime>::get(&account), None);
+		assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&account), None);
 
 		assert_ok!(HopPromotion::promote(origin, signer, signature, now, data,));
 		assert!(TransactionStorage::contains_transaction(hash));
@@ -1108,7 +1428,7 @@ fn authorized_pipeline_retains_validation_and_explicitly_skips_payment_and_quota
 			&Ok(()),
 		));
 		assert_eq!(Balances::free_balance(&account), initial_balance);
-		assert_eq!(pallet_feeless::FeelessUsage::<Runtime>::get(&account), None);
+		assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&account), None);
 	});
 }
 
@@ -1183,7 +1503,8 @@ fn fee_free_policy_is_call_scoped_quota_bounded_and_not_batchable() {
 		let origin = RuntimeOrigin::signed(account.clone());
 		assert_ok!(Feeless::add_feeless_account(RuntimeOrigin::root(), account.clone()));
 
-		let allowed = RuntimeCall::Entity(pallet_entity::Call::rotate_attributes { ops: vec![] });
+		let allowed =
+			RuntimeCall::Entity(pallet_orbis_entity::Call::rotate_attributes { ops: vec![] });
 		assert!(allowed.is_feeless(&origin));
 
 		let wrapped =
@@ -1202,7 +1523,7 @@ fn fee_free_policy_is_call_scoped_quota_bounded_and_not_batchable() {
 		assert!(!allowed.is_feeless(&origin));
 		assert_noop!(
 			Feeless::consume_feeless_quota(&account),
-			pallet_feeless::Error::<Runtime>::QuotaExhausted
+			pallet_orbis_feeless::Error::<Runtime>::QuotaExhausted
 		);
 	});
 }
@@ -1226,7 +1547,7 @@ fn normal_pipeline_charges_nonce_owner_refunds_failure_and_consumes_prepared_quo
 		let info = call.get_dispatch_info();
 		let extension = crate::default_inner_tx_extensions(
 			0,
-			pallet_feeless::ChargeOrSkipFeeless::from(
+			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 			)
 			.into(),
@@ -1268,11 +1589,11 @@ fn normal_pipeline_charges_nonce_owner_refunds_failure_and_consumes_prepared_quo
 
 		assert_ok!(Feeless::add_feeless_account(RuntimeOrigin::root(), account.clone()));
 		let feeless_call =
-			RuntimeCall::Entity(pallet_entity::Call::rotate_attributes { ops: vec![] });
+			RuntimeCall::Entity(pallet_orbis_entity::Call::rotate_attributes { ops: vec![] });
 		let feeless_info = feeless_call.get_dispatch_info();
 		let extension = crate::default_inner_tx_extensions(
 			1,
-			pallet_feeless::ChargeOrSkipFeeless::from(
+			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 			)
 			.into(),
@@ -1295,7 +1616,7 @@ fn normal_pipeline_charges_nonce_owner_refunds_failure_and_consumes_prepared_quo
 			.prepare(val, &origin, &feeless_call, &feeless_info, feeless_call.encoded_size())
 			.unwrap();
 		assert_eq!(Balances::free_balance(&account), balance_before_feeless);
-		assert_eq!(pallet_feeless::FeelessUsage::<Runtime>::get(&account), Some((1, 1)));
+		assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&account), Some((1, 1)));
 		assert_eq!(System::account_nonce(&account), 2);
 	});
 }
@@ -1338,7 +1659,7 @@ fn ethereum_pipeline_uses_mapped_nonce_payer_and_only_terminal_revive_actor() {
 		assert_eq!(System::account_nonce(&mapped), 1);
 		let after_withdrawal = Balances::free_balance(&mapped);
 		assert!(after_withdrawal < initial_balance);
-		assert_eq!(pallet_feeless::FeelessUsage::<Runtime>::get(&mapped), None);
+		assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&mapped), None);
 		let failed = Err(sp_runtime::DispatchError::BadOrigin);
 		assert_ok!(crate::InnerTxExtensions::post_dispatch_details(
 			pre,
@@ -1443,7 +1764,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		let outer_info = outer.get_dispatch_info();
 		let outer_extension = crate::default_inner_tx_extensions(
 			0,
-			pallet_feeless::ChargeOrSkipFeeless::from(
+			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 			)
 			.into(),

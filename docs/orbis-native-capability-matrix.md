@@ -7,14 +7,14 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 
 ## Reference snapshots
 
-| Reference | Revision | Primary use |
-|---|---:|---|
-| Dhiway SDK / Polkadot SDK fork | `release-v1.24.0#cc190ea8` | FRAME, Cumulus, relay host, Assets, Revive, Broker and node interfaces |
-| Individuality Community | `28b7d07dab05` | `next-asset-hub-paseo` and `next-people-paseo` behavior |
-| Polkadot Bulletin Chain | `b6c2827d2326` | durable transaction storage, proof handling and hop promotion |
-| Paseo runtimes | `ac99ed6c1122` | relay/system-chain configuration and XCM |
-| Fellows runtimes | `477689fddba4` | system-chain production configuration |
-| Web3 Storage | `a32f83aae7a2` | provider, drive and S3 storage service behavior |
+| Reference | Revision | License | Primary use |
+|---|---:|---|---|
+| Dhiway SDK / Polkadot SDK fork | `release-v1.24.0#cc190ea8` | Apache-2.0 | FRAME, Cumulus, relay host, Assets, Revive, Broker and node interfaces |
+| Individuality Community | `28b7d07dab05` | Apache-2.0 | `next-asset-hub-paseo` and `next-people-paseo` behavior |
+| Polkadot Bulletin Chain | `b6c2827d2326` | Apache-2.0 | durable transaction storage, proof handling and hop promotion |
+| Paseo runtimes | `ac99ed6c1122` | GPL-3.0 | relay/system-chain configuration and XCM |
+| Fellows runtimes | `477689fddba4` | GPL-3.0 | system-chain production configuration |
+| Web3 Storage | `a32f83aae7a2` | Apache-2.0 except undeclared `file-system-primitives` | provider, drive and S3 storage service behavior; the undeclared crate requires legal clearance before copying |
 
 ## Ownership rules
 
@@ -55,6 +55,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Messaging | Asset Hub/People | XCMP, DMP, XCM, MessageQueue and safe-call filtering | Present; full native E2E pending |
 | Safety and operations | system chains | Scheduler, Utility, Multisig, Proxy, TxPause, SafeMode, migrations | Present |
 | Administration | enterprise policy | Sudo only | Present |
+| Origin application compatibility | CORD Origin | Orbis-owned Token 51, Register 52, Entity 53 and Feeless 54 packages | Present; call/storage metadata compatibility snapshotted |
 
 ## Assets and Revive
 
@@ -108,6 +109,11 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | S3 registry | Web3 Storage `pallet_s3_registry` | Gap |
 | Provider/drive/S3 runtime APIs and node services | Web3 Storage | Gap |
 
+The exact retained Web3 crates, provider modules, HTTP routes, workers, bounded runtime API
+signatures and pagination limits are frozen in manifest version 1. Anything else at that snapshot
+is excluded unless replanned. `file-system-primitives` has no declared license at the pinned
+revision and cannot be copied verbatim until provenance is resolved.
+
 ## Coretime, transactions, and policy
 
 | Capability | Native implementation | State |
@@ -122,9 +128,9 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 
 ## Completion order
 
-1. Replace remaining Orbis dependencies on mutable CORD application pallets with Orbis-owned
-   upstream-aligned pallets under `origin/orbis/pallets/`; shared primitives may remain shared.
-   People identity is complete; Entity, Register, Token, Feeless, MetaTx and signature adapters remain.
+1. Maintain the Orbis-owned Token, Register, Entity, Feeless and People packages under
+   `origin/orbis/pallets/`; shared primitives may remain shared. MetaTx and signature verification
+   remain pinned SDK dependencies because Orbis does not modify those pallets.
 2. Complete remaining Asset Hub application adapters (PGAS/allowance, aliases and origin policy);
    conversion, asset fees and rates are complete.
 3. Decide and implement literal Individuality application-pallet parity for People-specific Game,
