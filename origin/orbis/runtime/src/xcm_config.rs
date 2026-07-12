@@ -216,9 +216,6 @@ pub struct OrbisXcmSafeCallFilter;
 
 impl Contains<RuntimeCall> for OrbisXcmSafeCallFilter {
 	fn contains(call: &RuntimeCall) -> bool {
-		if matches!(call, RuntimeCall::Multisig(pallet_multisig::Call::approve_as_multi { .. })) {
-			return true;
-		}
 		!BulletinCallInspector::contains(call) &&
 			matches!(crate::meta_v6::inspect_paid_meta(call, 0), Ok(None))
 	}

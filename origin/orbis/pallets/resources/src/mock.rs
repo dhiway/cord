@@ -176,18 +176,20 @@ pub fn stmt_store_slot_origin(alias_id: u64) -> RuntimeOrigin {
 
 /// Helper to mock the Resources long-term storage claim origin for the people collection.
 pub fn lts_people_origin(alias_id: u64) -> RuntimeOrigin {
-	RuntimeOrigin::from(OriginCaller::Resources(crate::Origin::LongTermStorageClaim(
-		id_to_alias(alias_id),
-		crate::types::MembershipCollection::People,
-	)))
+	RuntimeOrigin::from(OriginCaller::Resources(crate::Origin::LongTermStorageClaim {
+		alias: id_to_alias(alias_id),
+		collection: crate::types::MembershipCollection::People,
+		payer: id_to_account(99),
+	}))
 }
 
 /// Helper to mock the Resources long-term storage claim origin for the lite-people collection.
 pub fn lts_lite_people_origin(alias_id: u64) -> RuntimeOrigin {
-	RuntimeOrigin::from(OriginCaller::Resources(crate::Origin::LongTermStorageClaim(
-		id_to_alias(alias_id),
-		crate::types::MembershipCollection::LitePeople,
-	)))
+	RuntimeOrigin::from(OriginCaller::Resources(crate::Origin::LongTermStorageClaim {
+		alias: id_to_alias(alias_id),
+		collection: crate::types::MembershipCollection::LitePeople,
+		payer: id_to_account(99),
+	}))
 }
 
 /// Helper to advance time (seconds)

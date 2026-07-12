@@ -2702,17 +2702,26 @@ mod long_term_storage {
 				account_id: claim_account.clone(),
 			});
 			let inherited = sp_runtime::traits::TxBaseImplication((extension_version, &call));
+			let context = Resources::long_term_storage_context(period, 0);
+			let (_, alias) = MockCrypto::create(commitment.clone(), &secret, &context, &[0u8; 32])
+				.expect("alias preimage should build");
 			let msg = (
-				b"orbis/direct/v6/resources/long-term-storage",
+				crate::extension::DIRECT_LONG_TERM_STORAGE_DOMAIN,
 				&claim_account,
 				&claim_account,
+				alias,
+				&MembershipCollection::People,
+				0u32,
+				revision,
+				context,
 				&call,
 				inherited,
 			)
 				.using_encoded(sp_io::hashing::blake2_256);
-			let context = Resources::long_term_storage_context(period, 0);
-			let (proof, alias) = MockCrypto::create(commitment.clone(), &secret, &context, &msg)
-				.expect("proof should build");
+			let (proof, proof_alias) =
+				MockCrypto::create(commitment.clone(), &secret, &context, &msg)
+					.expect("proof should build");
+			assert_eq!(proof_alias, alias);
 			let binding = indiv_support::traits::RevisedContextualAlias {
 				revision,
 				ring: 0,
@@ -2767,15 +2776,36 @@ mod long_term_storage {
 			let invalid_account = id_to_account(701);
 			let wrong_inherited =
 				sp_runtime::traits::TxBaseImplication((extension_version, &wrong_call));
+			let invalid_context = Resources::long_term_storage_context(period, 1);
+			let (_, invalid_alias) =
+				MockCrypto::create(commitment.clone(), &secret, &invalid_context, &[1u8; 32])
+					.expect("invalid alias preimage should build");
+			let invalid_binding = indiv_support::traits::RevisedContextualAlias {
+				revision,
+				ring: 0,
+				ca: indiv_support::traits::ContextualAlias {
+					context: invalid_context,
+					alias: invalid_alias,
+				},
+			};
+			indiv_pallet_people::AccountToAlias::<Test>::insert(&invalid_account, &invalid_binding);
+			indiv_pallet_people::AliasToAccount::<Test>::insert(
+				&invalid_binding.ca,
+				&invalid_account,
+			);
 			let wrong_msg = (
-				b"orbis/direct/v6/resources/long-term-storage",
+				crate::extension::DIRECT_LONG_TERM_STORAGE_DOMAIN,
 				&id_to_account(702),
 				&id_to_account(702),
+				invalid_alias,
+				&MembershipCollection::People,
+				0u32,
+				revision,
+				invalid_context,
 				&wrong_call,
 				wrong_inherited,
 			)
 				.using_encoded(sp_io::hashing::blake2_256);
-			let invalid_context = Resources::long_term_storage_context(period, 1);
 			let (invalid_proof, _) =
 				MockCrypto::create(commitment.clone(), &secret, &invalid_context, &wrong_msg)
 					.expect("invalid-vector proof should build");
@@ -2809,15 +2839,20 @@ mod long_term_storage {
 			let stale_account = id_to_account(703);
 			let stale_inherited =
 				sp_runtime::traits::TxBaseImplication((extension_version, &stale_call));
+			let stale_context = Resources::long_term_storage_context(0, 2);
 			let stale_msg = (
-				b"orbis/direct/v6/resources/long-term-storage",
+				crate::extension::DIRECT_LONG_TERM_STORAGE_DOMAIN,
 				&stale_account,
 				&stale_account,
+				id_to_alias(703),
+				&MembershipCollection::People,
+				0u32,
+				revision,
+				stale_context,
 				&stale_call,
 				stale_inherited,
 			)
 				.using_encoded(sp_io::hashing::blake2_256);
-			let stale_context = Resources::long_term_storage_context(0, 2);
 			let (stale_proof, _) =
 				MockCrypto::create(commitment, &secret, &stale_context, &stale_msg)
 					.expect("stale-vector proof should build");

@@ -9666,6 +9666,7 @@ dependencies = [
 name = "origin-orbis-runtime"
 version = "0.9.9"
 dependencies = [
+ "arrayvec 0.7.8",
  "assets-common",
  "bulletin-transaction-storage-primitives",
  "cumulus-pallet-aura-ext",

@@ -1236,8 +1236,9 @@ mod transaction_policy_fixture {
 }
 
 #[test]
+#[cfg(not(feature = "runtime-benchmarks"))]
 fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
-	use frame_system::offchain::{CreateAuthorizedTransaction, CreateTransaction};
+	use frame_system::offchain::CreateTransaction;
 	use pallet_revive::evm::runtime::EthExtra;
 	use sp_runtime::traits::TransactionExtension;
 	use transaction_policy_fixture::*;
@@ -1307,7 +1308,7 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 	let ethereum = <crate::EthExtraImpl as EthExtra>::get_eth_extension(7, 11);
 	assert_full_inner_projection(ethereum.0 .0);
 	let authorized: crate::TxExtensions =
-		<Runtime as CreateAuthorizedTransaction<RuntimeCall>>::create_extension();
+		<Runtime as frame_system::offchain::CreateAuthorizedTransaction<RuntimeCall>>::create_extension();
 	let encoded_authorized_payment = authorized.0 .0 .8.encode();
 	let decoded_network_payment =
 		crate::AccountAwarePayment::decode(&mut &encoded_authorized_payment[..])
@@ -1377,6 +1378,82 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 }
 
 #[test]
+fn account_aware_resources_delegates_only_origin_payer() {
+	use crate::Resources;
+	use frame_support::{dispatch::GetDispatchInfo, traits::BuildGenesisConfig};
+	use indiv_pallet_resources::types::MembershipCollection;
+	use sp_runtime::traits::TransactionExtension;
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		let payer = AccountId::from(ALICE);
+		let other = AccountId::from([2u8; 32]);
+		let _ =
+			<Balances as Mutate<AccountId>>::set_balance(&payer, crate::ExistentialDeposit::get());
+		let origin: RuntimeOrigin = indiv_pallet_resources::Origin::LongTermStorageClaim {
+			alias: [7u8; 32],
+			collection: MembershipCollection::People,
+			payer: payer.clone(),
+		}
+		.into();
+		let period = Resources::long_term_storage_period_from_timestamp(0);
+		let mismatch =
+			RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage {
+				period,
+				counter: 0,
+				account_id: other,
+			});
+		let ext = crate::AccountAwareResources::from(frame_system::CheckNonce::<Runtime>::from(0));
+		let implicit = ext.implicit().unwrap();
+		assert!(ext
+			.validate(
+				origin.clone(),
+				&mismatch,
+				&mismatch.get_dispatch_info(),
+				mismatch.encoded_size(),
+				implicit,
+				&sp_runtime::traits::TxBaseImplication((0u8, &mismatch)),
+				sp_runtime::transaction_validity::TransactionSource::External,
+			)
+			.is_err());
+
+		let matching =
+			RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage {
+				period,
+				counter: 0,
+				account_id: payer.clone(),
+			});
+		let ext = crate::AccountAwareResources::from(frame_system::CheckNonce::<Runtime>::from(0));
+		let implicit = ext.implicit().unwrap();
+		let (_, val, returned_origin) = ext
+			.validate(
+				origin.clone(),
+				&matching,
+				&matching.get_dispatch_info(),
+				matching.encoded_size(),
+				implicit,
+				&sp_runtime::traits::TxBaseImplication((0u8, &matching)),
+				sp_runtime::transaction_validity::TransactionSource::External,
+			)
+			.expect("origin payer should satisfy nonce validation");
+		assert_eq!(
+			frame_support::traits::OriginTrait::caller(&returned_origin),
+			frame_support::traits::OriginTrait::caller(&origin)
+		);
+		let _pre = ext
+			.prepare(
+				val,
+				&returned_origin,
+				&matching,
+				&matching.get_dispatch_info(),
+				matching.encoded_size(),
+			)
+			.expect("prepare uses the same validated payer");
+		assert_eq!(System::account_nonce(&payer), 1);
+	});
+}
+
+#[test]
 fn resources_people_and_lite_reservations_use_isolated_bulletin_capacity() {
 	use crate::{Resources, Timestamp};
 	use bulletin_transaction_storage_primitives::ResourceReservationView;
@@ -1392,20 +1469,22 @@ fn resources_people_and_lite_reservations_use_isolated_bulletin_capacity() {
 		let people_alias = [7u8; 32];
 		let lite_alias = [8u8; 32];
 		assert_ok!(Resources::claim_long_term_storage(
-			indiv_pallet_resources::Origin::LongTermStorageClaim(
-				people_alias,
-				MembershipCollection::People,
-			)
+			indiv_pallet_resources::Origin::LongTermStorageClaim {
+				alias: people_alias,
+				collection: MembershipCollection::People,
+				payer: owner.clone(),
+			}
 			.into(),
 			period,
 			0,
 			owner.clone(),
 		));
 		assert_ok!(Resources::claim_long_term_storage(
-			indiv_pallet_resources::Origin::LongTermStorageClaim(
-				lite_alias,
-				MembershipCollection::LitePeople,
-			)
+			indiv_pallet_resources::Origin::LongTermStorageClaim {
+				alias: lite_alias,
+				collection: MembershipCollection::LitePeople,
+				payer: owner.clone(),
+			}
 			.into(),
 			period,
 			0,
@@ -2242,7 +2321,6 @@ fn hop_promotion_accepts_authorized_signed_submit_intent() {
 #[test]
 fn authorized_pipeline_retains_validation_and_explicitly_skips_payment_and_quota() {
 	use frame_support::{dispatch::GetDispatchInfo, traits::BuildGenesisConfig};
-	use frame_system::offchain::CreateAuthorizedTransaction;
 	use sp_core::{sr25519, Pair};
 	use sp_runtime::{
 		traits::{AsTransactionAuthorizedOrigin, IdentifyAccount, TransactionExtension},
@@ -2279,11 +2357,10 @@ fn authorized_pipeline_retains_validation_and_explicitly_skips_payment_and_quota
 			submit_timestamp: now,
 			data: data.clone(),
 		});
-		let encoded =
-			<Runtime as CreateAuthorizedTransaction<RuntimeCall>>::create_authorized_transaction(
-				call.clone(),
-			)
-			.encode();
+		let encoded = <Runtime as frame_system::offchain::CreateAuthorizedTransaction<
+			RuntimeCall,
+		>>::create_authorized_transaction(call.clone())
+		.encode();
 		let decoded = crate::UncheckedExtrinsic::decode(&mut &encoded[..])
 			.expect("authorized extrinsic round trips through its wire encoding");
 		let decoded = decoded.0;
@@ -2330,6 +2407,7 @@ fn authorized_pipeline_retains_validation_and_explicitly_skips_payment_and_quota
 }
 
 #[test]
+#[cfg(not(feature = "runtime-benchmarks"))]
 fn bulletin_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm() {
 	use codec::Encode;
 	use frame_support::dispatch::GetDispatchInfo;
@@ -2736,6 +2814,289 @@ fn ethereum_pipeline_uses_mapped_nonce_payer_and_only_terminal_revive_actor() {
 }
 
 #[test]
+fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive() {
+	use codec::Encode;
+	use frame_support::traits::{BuildGenesisConfig, SignedTransactionBuilder};
+	use indiv_pallet_resources::types::{MembershipCollection, ReservationPurpose};
+	use indiv_support::traits::{AppendOnlyMembers, MembershipProver, RingMode};
+	use sp_core::{sr25519, Pair};
+	use sp_runtime::{
+		generic::SignedPayload,
+		traits::{IdentifyAccount, TransactionExtension},
+		MultiSignature, MultiSigner,
+	};
+	use verifiable::GenerateVerifiable;
+
+	fn account(pair: &sr25519::Pair) -> AccountId {
+		MultiSigner::from(pair.public()).into_account()
+	}
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		System::set_block_number(1);
+		System::set_extrinsic_index(0);
+		let pair = sr25519::Pair::from_string("//Alice", None).unwrap();
+		let payer = account(&pair);
+		let initial_balance = 1_000_000_000_000u128;
+		let _ = <Balances as Mutate<AccountId>>::set_balance(&payer, initial_balance);
+		pallet_aura::CurrentSlot::<Runtime>::put(polkadot_primitives::Slot::from(43_200u64));
+		assert_ok!(crate::Timestamp::set(RuntimeOrigin::none(), 3 * 24 * 60 * 60 * 1_000u64,));
+
+		let identifier = *indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER;
+		let domain: verifiable::ring::RingDomainSize =
+			crate::MembersFlexibleRingExponent::get().try_into().unwrap();
+		let chunks = indiv_support::genesis::ring_verifier_builder_params::<
+			verifiable::ring::ark_vrf::suites::bandersnatch::BandersnatchSha512Ell2,
+		>(domain);
+		for (page_index, page) in
+			chunks.chunks(crate::PeopleChunkPageSize::get() as usize).enumerate()
+		{
+			let page: frame_support::BoundedVec<
+				indiv_pallet_chunks_manager::UncheckedChunk<Runtime>,
+				crate::PeopleChunkPageSize,
+			> = page
+				.iter()
+				.cloned()
+				.map(indiv_pallet_chunks_manager::UncheckedChunk::<Runtime>)
+				.collect::<Vec<_>>()
+				.try_into()
+				.unwrap();
+			indiv_pallet_chunks_manager::Chunks::<Runtime>::insert(
+				crate::MembersFlexibleRingExponent::get(),
+				page_index as u32,
+				page,
+			);
+		}
+		assert_ok!(<Members as AppendOnlyMembers>::create_collection(
+			Location::here(),
+			&identifier,
+			1,
+			RingMode::Flexible,
+			crate::MembersFlexibleRingExponent::get(),
+			None,
+		));
+		let member_secret =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::new_secret([92u8; 32]);
+		let member = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::member_from_secret(
+			&member_secret,
+		);
+		assert_ok!(<Members as AppendOnlyMembers>::add_members(&identifier, vec![member.clone()]));
+		assert_ok!(Members::onboard_members_authorized(
+			frame_system::RawOrigin::Authorized.into(),
+			identifier,
+			0,
+			0,
+			Some(member.clone()),
+			0,
+		));
+		assert_ok!(Members::build_ring_authorized(
+			frame_system::RawOrigin::Authorized.into(),
+			identifier,
+			0,
+			crate::MembersFlexibleRingExponent::get(),
+			None,
+			1,
+			0,
+		));
+		let revision = <Members as MembershipProver>::ring_revision(&identifier, 0)
+			.expect("the direct Resources test ring has a revision");
+		let ring_members = <Members as AppendOnlyMembers>::ring_members(&identifier, 0);
+		let capacity = crate::MembersFlexibleRingExponent::get().try_into().unwrap();
+		let commitment = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::open(
+			capacity,
+			&member,
+			ring_members.into_iter(),
+		)
+		.expect("the one-member ring opens");
+
+		let period = crate::Resources::long_term_storage_period_from_timestamp(
+			<crate::Timestamp as frame_support::traits::UnixTime>::now().as_secs(),
+		);
+		let counter = 0u8;
+		let call = RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage {
+			period,
+			counter,
+			account_id: payer.clone(),
+		});
+		let context = crate::Resources::long_term_storage_context(period, counter);
+		let (_, alias) = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create(
+			commitment.clone(),
+			&member_secret,
+			&context,
+			&[0u8; 32],
+		)
+		.expect("direct Resources alias preimage builds");
+		let binding = indiv_support::traits::RevisedContextualAlias {
+			revision,
+			ring: 0,
+			ca: indiv_support::traits::ContextualAlias { context, alias },
+		};
+		indiv_pallet_people::AccountToAlias::<Runtime>::insert(&payer, &binding);
+		indiv_pallet_people::AliasToAccount::<Runtime>::insert(&binding.ca, &payer);
+
+		let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
+		)
+		.into();
+		let revive = pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::default();
+		let inner_tail = (
+			crate::AccountAwareResources::from(frame_system::CheckNonZeroSender::<Runtime>::new()),
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+			frame_system::CheckTxVersion::<Runtime>::new(),
+			frame_system::CheckGenesis::<Runtime>::new(),
+			frame_system::CheckMortality::<Runtime>::from(sp_runtime::generic::Era::Immortal),
+			crate::AccountAwareResources::from(frame_system::CheckNonce::<Runtime>::from(0)),
+			frame_system::CheckWeight::<Runtime>::new(),
+			crate::AccountAwareResources::from(payment),
+			pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+				Runtime,
+				crate::BulletinCallInspector,
+			>::default(),
+			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+			revive,
+		);
+		let origin_policy_tail = (frame_system::AuthorizeCall::<Runtime>::new(),);
+		let inner_tail_implicit = inner_tail.implicit().unwrap();
+		let origin_policy_tail_implicit = origin_policy_tail.implicit().unwrap();
+		let inherited = sp_runtime::traits::ImplicationParts {
+			base: sp_runtime::traits::TxBaseImplication((0u8, &call)),
+			explicit: (&origin_policy_tail, (&inner_tail, ())),
+			implicit: (&origin_policy_tail_implicit, (&inner_tail_implicit, ())),
+		};
+		let message = (
+			indiv_pallet_resources::extension::DIRECT_LONG_TERM_STORAGE_DOMAIN,
+			&payer,
+			&payer,
+			alias,
+			&MembershipCollection::People,
+			0u32,
+			revision,
+			context,
+			&call,
+			inherited,
+		)
+			.using_encoded(sp_io::hashing::blake2_256);
+		let (proof, proof_alias) =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create(
+				commitment,
+				&member_secret,
+				&context,
+				&message,
+			)
+			.expect("direct Resources proof builds against the exact inherited implication");
+		assert_eq!(proof_alias, alias);
+
+		let resources_extension = indiv_pallet_resources::extension::AsResources::<Runtime>::new(
+			Some(indiv_pallet_resources::extension::AsResourcesInfo::ClaimLongTermStorage(
+				proof,
+				0,
+				revision,
+				MembershipCollection::People,
+			)),
+		);
+		let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
+		)
+		.into();
+		let tx_ext = crate::paid_tx_extensions((
+			(
+				indiv_pallet_people::extension::AsPerson::<Runtime>::new(None),
+				indiv_pallet_people_lite::extension::PeopleLiteAuth::<Runtime>::new(None),
+				resources_extension,
+				frame_system::AuthorizeCall::<Runtime>::new(),
+			),
+			crate::AccountAwareResources::from(frame_system::CheckNonZeroSender::<Runtime>::new()),
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+			frame_system::CheckTxVersion::<Runtime>::new(),
+			frame_system::CheckGenesis::<Runtime>::new(),
+			frame_system::CheckMortality::<Runtime>::from(sp_runtime::generic::Era::Immortal),
+			crate::AccountAwareResources::from(frame_system::CheckNonce::<Runtime>::from(0)),
+			frame_system::CheckWeight::<Runtime>::new(),
+			crate::AccountAwareResources::from(payment),
+			pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+				Runtime,
+				crate::BulletinCallInspector,
+			>::default(),
+			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+			pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::default(),
+		));
+		let payload = SignedPayload::new(call.clone(), tx_ext.clone()).unwrap();
+		let signature = payload.using_encoded(|bytes| pair.sign(bytes));
+		let extrinsic =
+			<crate::UncheckedExtrinsic as SignedTransactionBuilder>::new_signed_transaction(
+				call.clone(),
+				payer.clone().into(),
+				MultiSignature::Sr25519(signature),
+				tx_ext,
+			);
+		let encoded_len = extrinsic.encoded_size() as u32;
+		let purpose = ReservationPurpose::Membership {
+			period,
+			alias,
+			counter,
+			collection: MembershipCollection::People,
+		};
+		indiv_pallet_resources::StorageReservationByPurpose::<Runtime>::insert(&purpose, 99u64);
+
+		assert!(crate::meta_v6::token().is_none());
+		assert_ok!(crate::Executive::validate_transaction(
+			sp_runtime::transaction_validity::TransactionSource::External,
+			extrinsic.clone(),
+			System::block_hash(0),
+		));
+		let balance_before_apply = Balances::free_balance(&payer);
+		let apply_result = crate::Executive::apply_extrinsic(extrinsic);
+		assert!(format!("{apply_result:?}").contains("ClaimAlreadyReserved"));
+		assert_eq!(System::account_nonce(&payer), 1);
+		let balance_after_apply = Balances::free_balance(&payer);
+		assert!(balance_after_apply < balance_before_apply);
+		assert!(balance_after_apply < initial_balance);
+		assert!(!indiv_pallet_resources::SpentLongTermStorageAliases::<Runtime>::contains_key(
+			indiv_support::utils::BigEndianU32::from(period),
+			alias,
+		));
+		assert!(crate::meta_v6::token().is_none());
+		cumulus_pallet_parachain_system::ValidationData::<Runtime>::put(
+			cumulus_primitives_core::PersistedValidationData {
+				parent_head: polkadot_parachain_primitives::primitives::HeadData(Vec::new()),
+				relay_parent_number: 1,
+				relay_parent_storage_root: Default::default(),
+				max_pov_size: 1_000_000,
+			},
+		);
+		cumulus_pallet_parachain_system::HostConfiguration::<Runtime>::put(
+			cumulus_primitives_core::AbridgedHostConfiguration {
+				max_code_size: 2 * 1024 * 1024,
+				max_head_data_size: 1024 * 1024,
+				max_upward_queue_count: 8,
+				max_upward_queue_size: 1024,
+				max_upward_message_size: 256,
+				max_upward_message_num_per_candidate: 5,
+				hrmp_max_message_num_per_candidate: 5,
+				validation_upgrade_cooldown: 6,
+				validation_upgrade_delay: 6,
+				async_backing_params: polkadot_primitives::AsyncBackingParams {
+					allowed_ancestry_len: 0,
+					max_candidate_depth: 0,
+				},
+			},
+		);
+		cumulus_pallet_parachain_system::RelevantMessagingState::<Runtime>::put(
+			cumulus_pallet_parachain_system::MessagingStateSnapshot {
+				dmq_mqc_head: Default::default(),
+				relay_dispatch_queue_remaining_capacity: Default::default(),
+				ingress_channels: Vec::new(),
+				egress_channels: Vec::new(),
+			},
+		);
+		let header = crate::Executive::finalize_block();
+		assert!(header.number > 0);
+		assert!(encoded_len > 0);
+	});
+}
+
+#[test]
+#[cfg(not(feature = "runtime-benchmarks"))]
 fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 	use codec::Encode;
 	use frame_support::{dispatch::GetDispatchInfo, traits::BuildGenesisConfig};
@@ -2857,7 +3218,31 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			explicit: (&storage, &metadata),
 			implicit: (storage.implicit().unwrap(), metadata.implicit().unwrap()),
 		};
-		(crate::meta_v6::RESOURCES_DOMAIN, signer, signer, call, inherited)
+		let RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage {
+			period,
+			counter,
+			..
+		}) = call
+		else {
+			panic!("resource transcript requires claim call")
+		};
+		let context = crate::Resources::long_term_storage_context(*period, *counter);
+		(
+			crate::meta_v6::RESOURCES_DOMAIN,
+			signer,
+			signer,
+			period,
+			counter,
+			indiv_pallet_resources::types::MembershipCollection::People,
+			<Members as MembershipProver>::ring_revision(
+				&*indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER,
+				0,
+			)
+			.unwrap(),
+			context,
+			call,
+			inherited,
+		)
 			.using_encoded(sp_io::hashing::blake2_256)
 	}
 
@@ -2948,13 +3333,24 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		});
 		let context = crate::Resources::long_term_storage_context(period, 0);
 		let message = resource_meta_message(&inner, &alice);
-		let (proof, _) = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create(
-			commitment.clone(),
-			&member_secret,
-			&context,
-			&message,
-		)
-		.expect("the MetaTx Resources proof builds");
+		let (proof, resource_alias) =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create(
+				commitment.clone(),
+				&member_secret,
+				&context,
+				&message,
+			)
+			.expect("the MetaTx Resources proof builds");
+		let account_binding = indiv_support::traits::RevisedContextualAlias {
+			revision,
+			ring: 0,
+			ca: indiv_support::traits::ContextualAlias {
+				context: crate::ORBIS_PERSON_CONTEXT,
+				alias: resource_alias,
+			},
+		};
+		indiv_pallet_people::AccountToAlias::<Runtime>::insert(&alice, &account_binding);
+		indiv_pallet_people::AliasToAccount::<Runtime>::insert(&account_binding.ca, &alice);
 		let resource_info = crate::meta_v6::MetaResourcesAuthV6::ClaimLongTermStorage(
 			proof,
 			0,
@@ -3053,6 +3449,29 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			meta_tx: Box::new(meta.clone()),
 			meta_tx_encoded_len: encoded_len,
 		});
+		let authorized_meta = <Runtime as frame_system::offchain::CreateAuthorizedTransaction<
+			RuntimeCall,
+		>>::create_authorized_transaction(outer.clone());
+		assert!(crate::Executive::validate_transaction(
+			sp_runtime::transaction_validity::TransactionSource::Local,
+			authorized_meta,
+			System::block_hash(0),
+		)
+		.is_err());
+		let authorized_defense =
+			crate::meta_v6::PaidMetaScope::from(frame_system::CheckSpecVersion::<Runtime>::new());
+		let authorized_implicit = authorized_defense.implicit().unwrap();
+		assert!(authorized_defense
+			.validate(
+				frame_system::RawOrigin::Authorized.into(),
+				&outer,
+				&outer.get_dispatch_info(),
+				outer.encoded_size(),
+				authorized_implicit,
+				&sp_runtime::traits::TxBaseImplication((META_EXTENSION_VERSION, &outer)),
+				sp_runtime::transaction_validity::TransactionSource::Local,
+			)
+			.is_err());
 		let utility_meta = RuntimeCall::Utility(pallet_utility::Call::batch {
 			calls: vec![
 				RuntimeCall::System(frame_system::Call::remark { remark: vec![] }),
@@ -3096,9 +3515,12 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			assert!(crate::meta_v6::inspect_paid_meta(denied, 0).is_err());
 		}
 		assert_eq!(crate::meta_v6::inspect_paid_meta(&approval_only, 0), Ok(None));
-		assert!(<crate::xcm_config::OrbisXcmSafeCallFilter as Contains<RuntimeCall>>::contains(
-			&approval_only
-		));
+		assert!(
+			!<crate::xcm_config::OrbisXcmSafeCallFilter as Contains<RuntimeCall>>::contains(
+				&approval_only
+			),
+			"XCM rejects opaque approval even though signed pool ingress remains ordinary paid",
+		);
 		assert!(
 			!outer.is_feeless(&RuntimeOrigin::signed(bob.clone())),
 			"the sponsor's outer meta transaction must follow ordinary fee accounting"

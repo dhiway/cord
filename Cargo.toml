@@ -142,7 +142,7 @@ ark-ed-on-bls12-381-bandersnatch-ext = { version = "0.4.1", default-features = f
 ark-scale = { version = "0.0.12", default-features = false }
 ark-vrf = { version = "0.1.0", default-features = false }
 array-bytes = { version = "6.2.2", default-features = false }
-arrayvec = { version = "0.7.4" }
+arrayvec = { version = "0.7.4", default-features = false }
 assert_cmd = { version = "2.0.14" }
 assert_matches = { version = "1.5.0" }
 asset-test-utils = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }

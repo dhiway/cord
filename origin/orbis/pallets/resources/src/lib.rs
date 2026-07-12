@@ -99,12 +99,12 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config:
 		frame_system::Config<
-			RuntimeOrigin: From<Origin>
+			RuntimeOrigin: From<Origin<Self>>
 			                   + From<<Self::RuntimeOrigin as OriginTrait>::PalletsOrigin>
 			                   + OriginTrait<
-				PalletsOrigin: From<Origin>
+				PalletsOrigin: From<Origin<Self>>
 				                   + TryInto<
-					Origin,
+					Origin<Self>,
 					Error = <Self::RuntimeOrigin as OriginTrait>::PalletsOrigin,
 				>,
 			>,
@@ -317,17 +317,27 @@ pub mod pallet {
 
 	#[pallet::origin]
 	#[derive(
-		Clone, PartialEq, Eq, Debug, Encode, Decode, MaxEncodedLen, TypeInfo, DecodeWithMemTracking,
+		CloneNoBound,
+		PartialEqNoBound,
+		EqNoBound,
+		DebugNoBound,
+		Encode,
+		Decode,
+		MaxEncodedLen,
+		TypeInfo,
+		DecodeWithMemTracking,
 	)]
-	pub enum Origin {
+	#[scale_info(skip_type_params(T))]
+	pub enum Origin<T: Config> {
 		/// A friend request alias origin, produced by the `AsResources` transaction extension.
 		FriendRequestAlias(Alias),
 		/// A statement store slot alias origin, produced by the `AsResources` transaction
 		/// extension after validating a ring-VRF proof for a specific slot context.
 		StmtStoreAlias(Alias),
 		/// A long-term storage claim origin, produced by the `AsResources` transaction extension.
-		/// Carries the anonymous alias and the collection used for proof verification.
-		LongTermStorageClaim(Alias, MembershipCollection),
+		/// Carries the anonymous alias, the collection used for proof verification, and the
+		/// validated signed extrinsic payer.
+		LongTermStorageClaim { alias: Alias, collection: MembershipCollection, payer: T::AccountId },
 	}
 
 	/// Accounts used to identify consumers mapped to their consumer information.
@@ -1106,9 +1116,9 @@ pub mod pallet {
 
 		/// Claim long-term storage on a remote chain using an anonymous membership proof.
 		///
-		/// The origin must be `Origin::LongTermStorageClaim(alias, collection)`, created by the
-		/// `AsResources` (`ClaimLongTermStorage(..)`) transaction extension after ring-VRF proof
-		/// validation.
+		/// The origin must be `Origin::LongTermStorageClaim { alias, collection, payer }`, created
+		/// by the `AsResources` (`ClaimLongTermStorage(..)`) transaction extension after ring-VRF
+		/// proof validation.
 		///
 		/// Parameters:
 		/// * `period`: the claiming period. Must be the current period or the previous one if
@@ -1125,7 +1135,8 @@ pub mod pallet {
 			counter: u8,
 			account_id: T::AccountId,
 		) -> DispatchResultWithPostInfo {
-			let (alias, collection) = Self::ensure_long_term_storage_claim(origin)?;
+			let (alias, collection, payer) = Self::ensure_long_term_storage_claim(origin)?;
+			ensure!(payer == account_id, DispatchError::BadOrigin);
 			ensure!(
 				StorageClaims::<T>::count() < T::MaxReservations::get(),
 				Error::<T>::ReservationBackendFailed
@@ -1380,9 +1391,10 @@ pub mod pallet {
 
 		fn ensure_long_term_storage_claim(
 			origin: OriginFor<T>,
-		) -> Result<(Alias, MembershipCollection), DispatchError> {
+		) -> Result<(Alias, MembershipCollection, T::AccountId), DispatchError> {
 			match origin.into_caller().try_into() {
-				Ok(Origin::LongTermStorageClaim(alias, collection)) => Ok((alias, collection)),
+				Ok(Origin::LongTermStorageClaim { alias, collection, payer }) =>
+					Ok((alias, collection, payer)),
 				_ => Err(DispatchError::BadOrigin),
 			}
 		}

@@ -1121,14 +1121,19 @@ where
 		inherited: &impl sp_runtime::traits::Implication,
 		source: TransactionSource,
 	) -> sp_runtime::traits::ValidateResult<Self::Val, RuntimeCall> {
-		let account = match (frame_support::traits::OriginTrait::caller(&origin), call) {
-			(
-				OriginCaller::Resources(indiv_pallet_resources::Origin::LongTermStorageClaim(..)),
+		let account = match frame_support::traits::OriginTrait::caller(&origin) {
+			OriginCaller::Resources(
+				indiv_pallet_resources::Origin::<Runtime>::LongTermStorageClaim { payer, .. },
+			) => match call {
 				RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage {
 					account_id,
 					..
-				}),
-			) => Some(account_id.clone()),
+				}) if account_id == payer => Some(payer.clone()),
+				_ =>
+					return Err(
+						sp_runtime::transaction_validity::InvalidTransaction::BadSigner.into()
+					),
+			},
 			_ => None,
 		};
 		let delegated_origin = account

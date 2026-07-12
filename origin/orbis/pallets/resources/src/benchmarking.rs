@@ -943,9 +943,12 @@ mod benches {
 		// `LongTermStorageAllocation` value forwarded to `T::LongTermStorageDataStore`,
 		// whose cost is metered by that implementor.
 		let collection = crate::types::MembershipCollection::People;
-		let origin = <T as frame_system::Config>::RuntimeOrigin::from(
-			crate::Origin::LongTermStorageClaim(alias, collection),
-		);
+		let origin =
+			<T as frame_system::Config>::RuntimeOrigin::from(crate::Origin::LongTermStorageClaim {
+				alias,
+				collection,
+				payer: account_id.clone(),
+			});
 
 		#[extrinsic_call]
 		_(origin, period, counter, account_id.clone());
@@ -976,10 +979,11 @@ mod benches {
 			Pallet::<T>::long_term_storage_period_from_timestamp(T::Clock::now().as_secs());
 		let owner: T::AccountId = whitelisted_caller();
 		let origin =
-			<T as frame_system::Config>::RuntimeOrigin::from(crate::Origin::LongTermStorageClaim(
-				[42u8; 32],
-				crate::types::MembershipCollection::People,
-			));
+			<T as frame_system::Config>::RuntimeOrigin::from(crate::Origin::LongTermStorageClaim {
+				alias: [42u8; 32],
+				collection: crate::types::MembershipCollection::People,
+				payer: owner.clone(),
+			});
 		Pallet::<T>::claim_long_term_storage(origin, period, 0, owner.clone())?;
 
 		#[extrinsic_call]
@@ -1004,10 +1008,11 @@ mod benches {
 			let mut alias = [42u8; 32];
 			alias[..4].copy_from_slice(&i.to_le_bytes());
 			let origin = <T as frame_system::Config>::RuntimeOrigin::from(
-				crate::Origin::LongTermStorageClaim(
+				crate::Origin::LongTermStorageClaim {
 					alias,
-					crate::types::MembershipCollection::LitePeople,
-				),
+					collection: crate::types::MembershipCollection::LitePeople,
+					payer: owner.clone(),
+				},
 			);
 			Pallet::<T>::claim_long_term_storage(origin, period, i as u8, owner.clone())?;
 		}
@@ -1105,13 +1110,14 @@ mod benches {
 		for i in 0..n {
 			let mut alias: Alias = [0u8; 32];
 			alias[..4].copy_from_slice(&i.to_le_bytes());
-			let origin = <T as frame_system::Config>::RuntimeOrigin::from(
-				crate::Origin::LongTermStorageClaim(
-					alias,
-					crate::types::MembershipCollection::People,
-				),
-			);
 			let acc: T::AccountId = account("lts", i, 0);
+			let origin = <T as frame_system::Config>::RuntimeOrigin::from(
+				crate::Origin::LongTermStorageClaim {
+					alias,
+					collection: crate::types::MembershipCollection::People,
+					payer: acc.clone(),
+				},
+			);
 			assert_ok!(Pallet::<T>::claim_long_term_storage(origin, past_period, 0, acc));
 		}
 

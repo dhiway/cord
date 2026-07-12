@@ -15,6 +15,11 @@ pub const META_INTENT_DOMAIN_V6: &[u8] = b"orbis/meta-intent/v6";
 pub const PAID_META_DOMAIN_V6: &[u8] = b"orbis/paid-meta/v6";
 pub const CANONICAL_SPEC_VERSION: u32 = 27;
 pub const CANONICAL_TRANSACTION_VERSION: u32 = 6;
+pub const CANONICAL_SPEC27_BYTES_HEX: &str = "506f726269732f6d6574612d696e74656e742f76360011111111111111111111111111111111111111111111111111111111111111111b00000006000000222222222222222222222222222222222222222222222222222222222222222233333333333333333333333333333333333333333333333333333333333333334000000000000000070000000000000009000000dd3b341114e3d7e79bf140f657d6f97fa774904b82abdde492d9f23d0bf4a99755555555555555555555555555555555555555555555555555555555555555556666666666666666666666666666666666666666666666666666666666666666";
+pub const CANONICAL_SPEC26_BYTES_HEX: &str = "506f726269732f6d6574612d696e74656e742f76360011111111111111111111111111111111111111111111111111111111111111111a00000006000000222222222222222222222222222222222222222222222222222222222222222233333333333333333333333333333333333333333333333333333333333333334000000000000000070000000000000009000000dd3b341114e3d7e79bf140f657d6f97fa774904b82abdde492d9f23d0bf4a99755555555555555555555555555555555555555555555555555555555555555556666666666666666666666666666666666666666666666666666666666666666";
+pub const CANONICAL_SPEC27_HASH_HEX: &str =
+	"16a0174f27925249c52d4d490eb00b1a03c539433cad78b152b59a71422e40cb";
+pub const CANONICAL_SPEC27_SIGNATURE_HEX: &str = "e665f7ff0b913df17e5e03dd70926df3f2519b531e9b61f870b5b7e317a254561549d07b02b42d599d224200967aec89b0eb5a7af34326fc48323eb04f5b2084";
 pub const MAX_META_ENVELOPE_DEPTH: u8 = 4;
 pub const MAX_META_ENVELOPE_CALLS: usize = 32;
 pub const MAX_META_ENCODED_BYTES: usize = 65_536;
@@ -956,6 +961,37 @@ mod tests {
 			]
 		);
 		let (bytes, commitment) = canonical_intent_vector();
+		let bytes_hex = bytes.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
+		let hash_hex = commitment
+			.as_bytes()
+			.iter()
+			.map(|byte| format!("{byte:02x}"))
+			.collect::<String>();
+		assert_eq!(bytes_hex, CANONICAL_SPEC27_BYTES_HEX);
+		assert_eq!(hash_hex, CANONICAL_SPEC27_HASH_HEX);
+		fn decode_hex<const N: usize>(hex: &str) -> [u8; N] {
+			assert_eq!(hex.len(), N * 2);
+			let mut out = [0u8; N];
+			for (index, byte) in out.iter_mut().enumerate() {
+				*byte = u8::from_str_radix(&hex[index * 2..index * 2 + 2], 16).unwrap();
+			}
+			out
+		}
+		use sp_core::Pair;
+		let pair = sp_core::sr25519::Pair::from_string("//Alice", None).unwrap();
+		let literal_signature =
+			sp_core::sr25519::Signature::from_raw(decode_hex(CANONICAL_SPEC27_SIGNATURE_HEX));
+		assert!(sp_core::sr25519::Pair::verify(
+			&literal_signature,
+			commitment.as_bytes(),
+			&pair.public(),
+		));
+		let spec26_bytes =
+			decode_hex::<{ CANONICAL_SPEC26_BYTES_HEX.len() / 2 }>(CANONICAL_SPEC26_BYTES_HEX);
+		let spec26_literal =
+			IntentPreimageFixtureV6::decode_all(&mut spec26_bytes.as_slice()).unwrap();
+		assert_eq!(spec26_literal.spec_version, 26);
+		assert!(!spec26_literal.is_canonical_positive());
 		let decoded = IntentPreimageFixtureV6::decode_all(&mut bytes.as_slice()).unwrap();
 		assert_eq!(decoded, canonical_intent_fixture());
 		assert_eq!(decoded.commitment(), commitment);

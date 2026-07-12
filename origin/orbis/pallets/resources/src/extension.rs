@@ -32,7 +32,7 @@ use frame_support::{
 };
 use indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER;
 use indiv_pallet_people_lite::LITE_PEOPLE_MEMBER_IDENTIFIER;
-use indiv_support::traits::{MembershipProver, RevisionIndex, RingIndex};
+use indiv_support::traits::{Alias, MembershipProver, RevisionIndex, RingIndex};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{DispatchInfoOf, TransactionExtension, ValidateResult},
@@ -79,6 +79,28 @@ impl From<CustomValidity> for TransactionValidityError {
 	fn from(e: CustomValidity) -> Self {
 		InvalidTransaction::Custom(e as u8).into()
 	}
+}
+
+/// Domain separator for signed, direct long-term storage claim proofs.
+pub const DIRECT_LONG_TERM_STORAGE_DOMAIN: &[u8] =
+	b"orbis/direct/resources/v6/long-term-storage/account-bound";
+
+/// Validation state passed from `validate` to `prepare`.
+pub enum AsResourcesVal<AccountId> {
+	Other,
+	Claim {
+		payer: AccountId,
+		alias: Alias,
+		collection: MembershipCollection,
+		revision: RevisionIndex,
+		call_hash: [u8; 32],
+	},
+}
+
+/// Preparation state retained until post-dispatch.
+pub enum AsResourcesPre<AccountId> {
+	Other,
+	Claim { payer: AccountId, alias: Alias },
 }
 
 /// Information required to dispatch the friend request registration call as an anonymous alias.
@@ -185,7 +207,7 @@ where
 		proof: &ProofOf<T>,
 		ring_index: RingIndex,
 		collection: &MembershipCollection,
-	) -> ValidateResult<(), <T as frame_system::Config>::RuntimeCall> {
+	) -> ValidateResult<AsResourcesVal<T::AccountId>, <T as frame_system::Config>::RuntimeCall> {
 		ensure!(
 			matches!(origin.as_system_ref(), Some(frame_system::RawOrigin::None)),
 			InvalidTransaction::BadSigner
@@ -245,7 +267,7 @@ where
 		let mut origin = origin;
 		origin.set_caller_from(local_origin);
 
-		Ok((validity.into(), (), origin))
+		Ok((validity.into(), AsResourcesVal::Other, origin))
 	}
 
 	fn validate_stmt_store_slot(
@@ -255,7 +277,7 @@ where
 		proof: &ProofOf<T>,
 		ring_index: RingIndex,
 		collection: &MembershipCollection,
-	) -> ValidateResult<(), <T as frame_system::Config>::RuntimeCall> {
+	) -> ValidateResult<AsResourcesVal<T::AccountId>, <T as frame_system::Config>::RuntimeCall> {
 		ensure!(
 			matches!(origin.as_system_ref(), Some(frame_system::RawOrigin::None)),
 			InvalidTransaction::BadSigner
@@ -315,7 +337,7 @@ where
 		let mut origin = origin;
 		origin.set_caller_from(local_origin);
 
-		Ok((validity.into(), (), origin))
+		Ok((validity.into(), AsResourcesVal::Other, origin))
 	}
 
 	fn validate_long_term_storage_claim(
@@ -326,7 +348,7 @@ where
 		ring_index: RingIndex,
 		revision: RevisionIndex,
 		collection: &MembershipCollection,
-	) -> ValidateResult<(), <T as frame_system::Config>::RuntimeCall> {
+	) -> ValidateResult<AsResourcesVal<T::AccountId>, <T as frame_system::Config>::RuntimeCall> {
 		let signer = match origin.as_system_ref() {
 			Some(frame_system::RawOrigin::Signed(signer)) => signer.clone(),
 			_ => return Err(InvalidTransaction::BadSigner.into()),
@@ -348,19 +370,34 @@ where
 			CustomValidity::InvalidLongTermStorageCounter
 		);
 		let context = Pallet::<T>::long_term_storage_context(*period, *counter);
-		let msg = (
-			b"orbis/direct/v6/resources/long-term-storage",
-			&signer,
-			account_id,
-			call,
-			inherited_implication,
-		)
-			.using_encoded(sp_io::hashing::blake2_256);
-
 		let identifier = match collection {
 			MembershipCollection::People => *PEOPLE_MEMBER_IDENTIFIER,
 			MembershipCollection::LitePeople => *LITE_PEOPLE_MEMBER_IDENTIFIER,
 		};
+
+		let bound = match collection {
+			MembershipCollection::People => indiv_pallet_people::AccountToAlias::<T>::get(&signer),
+			MembershipCollection::LitePeople =>
+				indiv_pallet_people_lite::AccountToAlias::<T>::get(&signer),
+		}
+		.ok_or(InvalidTransaction::BadSigner)?;
+		ensure!(bound.ring == ring_index, InvalidTransaction::BadSigner);
+		ensure!(bound.revision == revision, InvalidTransaction::BadSigner);
+		ensure!(bound.ca.context == context, InvalidTransaction::BadSigner);
+
+		let msg = (
+			DIRECT_LONG_TERM_STORAGE_DOMAIN,
+			&signer,
+			account_id,
+			bound.ca.alias,
+			collection,
+			ring_index,
+			revision,
+			context,
+			call,
+			inherited_implication,
+		)
+			.using_encoded(sp_io::hashing::blake2_256);
 
 		let validated_ca = <T as crate::Config>::MemberService::verify_membership_at_rev(
 			&identifier,
@@ -371,43 +408,48 @@ where
 			&msg[..],
 		)
 		.map_err(|_| InvalidTransaction::BadProof)?;
+		ensure!(validated_ca == bound.ca, InvalidTransaction::BadSigner);
 
 		let reciprocal = match collection {
-			MembershipCollection::People => {
-				let bound = indiv_pallet_people::AccountToAlias::<T>::get(&signer)
-					.ok_or(InvalidTransaction::BadSigner)?;
-				bound.ca.alias == validated_ca.alias &&
-					indiv_pallet_people::AliasToAccount::<T>::get(&bound.ca) ==
-						Some(signer.clone())
-			},
-			MembershipCollection::LitePeople => {
-				let bound = indiv_pallet_people_lite::AccountToAlias::<T>::get(&signer)
-					.ok_or(InvalidTransaction::BadSigner)?;
-				bound.ca.alias == validated_ca.alias &&
-					indiv_pallet_people_lite::AliasToAccount::<T>::get(&bound.ca) ==
-						Some(signer.clone())
-			},
+			MembershipCollection::People =>
+				indiv_pallet_people::AliasToAccount::<T>::get(&bound.ca) == Some(signer.clone()),
+			MembershipCollection::LitePeople =>
+				indiv_pallet_people_lite::AliasToAccount::<T>::get(&bound.ca) ==
+					Some(signer.clone()),
 		};
 		ensure!(reciprocal, InvalidTransaction::BadSigner);
 
 		ensure!(
 			!crate::SpentLongTermStorageAliases::<T>::contains_key(
 				indiv_support::utils::BigEndianU32::from(*period),
-				validated_ca.alias
+				bound.ca.alias
 			),
 			CustomValidity::LongTermStorageAliasAlreadySpent
 		);
 
-		let provides =
-			sp_io::hashing::twox_64(&("lts-claim", validated_ca.alias, context).encode());
+		let provides = sp_io::hashing::twox_64(&("lts-claim", bound.ca.alias, context).encode());
 		let validity =
 			ValidTransaction::with_tag_prefix("Res:LongTermStorage").and_provides(provides);
 
-		let local_origin = Origin::LongTermStorageClaim(validated_ca.alias, *collection);
+		let local_origin = Origin::LongTermStorageClaim {
+			alias: bound.ca.alias,
+			collection: *collection,
+			payer: signer.clone(),
+		};
 		let mut origin = origin;
 		origin.set_caller_from(local_origin);
 
-		Ok((validity.into(), (), origin))
+		Ok((
+			validity.into(),
+			AsResourcesVal::Claim {
+				payer: signer,
+				alias: bound.ca.alias,
+				collection: *collection,
+				revision,
+				call_hash: call.using_encoded(sp_io::hashing::blake2_256),
+			},
+			origin,
+		))
 	}
 }
 
@@ -417,8 +459,8 @@ where
 {
 	const IDENTIFIER: &'static str = "AsResources";
 	type Implicit = ();
-	type Val = ();
-	type Pre = ();
+	type Val = AsResourcesVal<T::AccountId>;
+	type Pre = AsResourcesPre<T::AccountId>;
 
 	fn weight(&self, _call: &<T as frame_system::Config>::RuntimeCall) -> Weight {
 		match self.0 {
@@ -492,7 +534,7 @@ where
 				*revision,
 				collection,
 			),
-			None => Ok((ValidTransaction::default(), (), origin)),
+			None => Ok((ValidTransaction::default(), AsResourcesVal::Other, origin)),
 		}
 	}
 
@@ -504,6 +546,9 @@ where
 		_info: &DispatchInfoOf<<T as frame_system::Config>::RuntimeCall>,
 		_len: usize,
 	) -> Result<Self::Pre, TransactionValidityError> {
-		Ok(())
+		Ok(match _val {
+			AsResourcesVal::Other => AsResourcesPre::Other,
+			AsResourcesVal::Claim { payer, alias, .. } => AsResourcesPre::Claim { payer, alias },
+		})
 	}
 }

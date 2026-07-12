@@ -9,6 +9,7 @@ version.workspace = true
 build = "build.rs"
 
 [dependencies]
+arrayvec = { workspace = true }
 assets-common = { workspace = true }
 enumflags2 = { workspace = true }
 serde = { optional = true, features = ["derive"], workspace = true }
