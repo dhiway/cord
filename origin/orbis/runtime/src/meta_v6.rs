@@ -148,13 +148,11 @@ impl MetaAccountBoundPoliciesV6 {
 		}
 		let resources_call = matches!(
 			call,
-			RuntimeCall::Resources(
-				indiv_pallet_resources::Call::claim_long_term_storage { .. }
-			)
+			RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage { .. })
 		);
 		match (&self.0.personhood, &self.0.people_lite, &self.0.resources) {
-			(None, None, Some(MetaResourcesAuthV6::ClaimLongTermStorage(..)))
-				if resources_call => Ok(RouterRouteV6::ResourcesClaim),
+			(None, None, Some(MetaResourcesAuthV6::ClaimLongTermStorage(..))) if resources_call =>
+				Ok(RouterRouteV6::ResourcesClaim),
 			(_, _, _) if resources_call => Err(InvalidTransaction::Call),
 			(Some(MetaPersonhoodAuthV6::PersonalAliasAccount), None, None) =>
 				Ok(RouterRouteV6::PersonalAlias),
@@ -162,8 +160,7 @@ impl MetaAccountBoundPoliciesV6 {
 				Ok(RouterRouteV6::PersonalIdentity),
 			(Some(MetaPersonhoodAuthV6::PersonalAliasAccountRevised(..)), None, None) =>
 				Ok(RouterRouteV6::PersonalAliasRevised),
-			(None, Some(MetaPeopleLiteAuthV6::LitePerson), None) =>
-				Ok(RouterRouteV6::LitePerson),
+			(None, Some(MetaPeopleLiteAuthV6::LitePerson), None) => Ok(RouterRouteV6::LitePerson),
 			(None, Some(MetaPeopleLiteAuthV6::LiteAliasAccount), None) =>
 				Ok(RouterRouteV6::LiteAlias),
 			(None, Some(MetaPeopleLiteAuthV6::LiteAliasAccountRevised(..)), None) =>
@@ -172,6 +169,118 @@ impl MetaAccountBoundPoliciesV6 {
 			_ => Err(InvalidTransaction::Call),
 		}
 	}
+}
+
+/// Execute the production policy classifier/weight selector for FRAME's Resources-hosted Meta
+/// benchmarks. Dummy proof values are decoded only to reach the same production variant and are
+/// never accepted as authorization; proof verification itself is covered by the pallet's existing
+/// ring-proof benchmarks. Keeping this adapter here prevents a benchmark-only copy of the router
+/// from drifting from `MetaAccountBoundPoliciesV6`.
+#[cfg(feature = "runtime-benchmarks")]
+pub fn benchmark_policy_scenario(
+	scenario: indiv_pallet_resources::benchmarking::MetaPolicyBenchmarkScenario,
+) {
+	use frame_support::dispatch::GetDispatchInfo;
+	use indiv_pallet_resources::benchmarking::MetaPolicyBenchmarkScenario as Scenario;
+	use sp_runtime::traits::{TrailingZeroInput, TransactionExtension};
+
+	fn proof<P: Decode>() -> P {
+		P::decode(&mut TrailingZeroInput::zeroes())
+			.expect("benchmark-only trailing-zero proof has the production SCALE shape")
+	}
+	fn max_proof<P: Decode>() -> P {
+		// Bandersnatch: 752-byte ring proof + one context-count byte + 16 * 32-byte
+		// outputs. SCALE adds the compact length prefix to these 1,265 payload bytes.
+		P::decode(&mut alloc::vec![0u8; 1_265].encode().as_slice())
+			.expect("the production maximum membership proof has a bounded SCALE shape")
+	}
+
+	let ordinary = RuntimeCall::System(frame_system::Call::remark { remark: Vec::new() });
+	let signer = AccountId::decode(&mut TrailingZeroInput::zeroes())
+		.expect("AccountId has a fixed benchmark representation");
+	let resources = RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage {
+		period: 0,
+		counter: 0,
+		account_id: signer,
+	});
+	let policies = match scenario {
+		Scenario::PersonalAlias | Scenario::MappingMiss => PolicyProofsV6 {
+			personhood: Some(MetaPersonhoodAuthV6::PersonalAliasAccount),
+			..Default::default()
+		},
+		Scenario::PersonalIdentity => PolicyProofsV6 {
+			personhood: Some(MetaPersonhoodAuthV6::PersonalIdentityAccount),
+			..Default::default()
+		},
+		Scenario::PersonalAliasRevised | Scenario::RevisedWrite => PolicyProofsV6 {
+			personhood: Some(MetaPersonhoodAuthV6::PersonalAliasAccountRevised(
+				proof(),
+				0,
+				crate::ORBIS_PERSON_CONTEXT,
+			)),
+			..Default::default()
+		},
+		Scenario::LitePerson => PolicyProofsV6 {
+			people_lite: Some(MetaPeopleLiteAuthV6::LitePerson),
+			..Default::default()
+		},
+		Scenario::LiteAlias => PolicyProofsV6 {
+			people_lite: Some(MetaPeopleLiteAuthV6::LiteAliasAccount),
+			..Default::default()
+		},
+		Scenario::LiteAliasRevised => PolicyProofsV6 {
+			people_lite: Some(MetaPeopleLiteAuthV6::LiteAliasAccountRevised(
+				proof(),
+				0,
+				*indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT,
+			)),
+			..Default::default()
+		},
+		Scenario::ResourcesClaim => PolicyProofsV6 {
+			resources: Some(MetaResourcesAuthV6::ClaimLongTermStorage(
+				proof(),
+				0,
+				0,
+				indiv_pallet_resources::types::MembershipCollection::People,
+			)),
+			..Default::default()
+		},
+		Scenario::MaxProof => PolicyProofsV6 {
+			resources: Some(MetaResourcesAuthV6::ClaimLongTermStorage(
+				max_proof(),
+				0,
+				0,
+				indiv_pallet_resources::types::MembershipCollection::People,
+			)),
+			..Default::default()
+		},
+		Scenario::Malformed => PolicyProofsV6 {
+			personhood: Some(MetaPersonhoodAuthV6::PersonalAliasAccount),
+			people_lite: Some(MetaPeopleLiteAuthV6::LitePerson),
+			resources: None,
+		},
+		Scenario::Envelope => {
+			let weight = crate::weights::meta_v6::paid_scope_max(
+				<Runtime as frame_system::Config>::DbWeight::get(),
+			);
+			core::hint::black_box(weight);
+			return
+		},
+	};
+	let call = if matches!(scenario, Scenario::ResourcesClaim | Scenario::MaxProof) {
+		&resources
+	} else {
+		&ordinary
+	};
+	let policy = MetaAccountBoundPoliciesV6::new(policies);
+	// `weight` invokes the production classifier. Encode the complete production policy as part of
+	// the max-proof case so FRAME observes its real SCALE input size rather than a guessed
+	// constant.
+	if matches!(scenario, Scenario::MaxProof) {
+		core::hint::black_box(policy.encode());
+	}
+	core::hint::black_box(policy.weight(call));
+	core::hint::black_box(call.get_dispatch_info());
 }
 
 pub enum PolicyValV6 {
@@ -204,7 +313,6 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 
 	fn weight(&self, call: &RuntimeCall) -> Weight {
 		use indiv_pallet_resources::weights::WeightInfo as _;
-		let db = <Runtime as frame_system::Config>::DbWeight::get();
 		let resources_weight = if matches!(
 			call,
 			RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage { .. })
@@ -216,18 +324,17 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 		};
 		let route_weight = match self.classify(call) {
 			Ok(RouterRouteV6::None) => crate::weights::meta_v6::none(),
-			Ok(RouterRouteV6::PersonalAlias) => crate::weights::meta_v6::personal_alias(db),
-			Ok(RouterRouteV6::PersonalIdentity) =>
-				crate::weights::meta_v6::personal_identity(db),
-			Ok(RouterRouteV6::PersonalAliasRevised) =>
-				crate::weights::meta_v6::personal_alias_revised(db),
-			Ok(RouterRouteV6::LitePerson) => crate::weights::meta_v6::lite_person(db),
-			Ok(RouterRouteV6::LiteAlias) => crate::weights::meta_v6::lite_alias(db),
-			Ok(RouterRouteV6::LiteAliasRevised) =>
-				crate::weights::meta_v6::lite_alias_revised(db),
-			Ok(RouterRouteV6::ResourcesClaim) =>
-				crate::weights::meta_v6::resources_claim(db),
-			Err(_) => crate::weights::meta_v6::malformed_max(db),
+			Ok(RouterRouteV6::PersonalAlias) =>
+				<Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_personal_alias(),
+			Ok(RouterRouteV6::PersonalIdentity) => <Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_personal_identity(),
+			Ok(RouterRouteV6::PersonalAliasRevised) => <Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_personal_alias_revised(),
+			Ok(RouterRouteV6::LitePerson) =>
+				<Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_lite_person(),
+			Ok(RouterRouteV6::LiteAlias) =>
+				<Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_lite_alias(),
+			Ok(RouterRouteV6::LiteAliasRevised) => <Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_lite_alias_revised(),
+			Ok(RouterRouteV6::ResourcesClaim) => <Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_resources_claim(),
+			Err(_) => <Runtime as indiv_pallet_resources::Config>::WeightInfo::meta_policy_malformed(),
 		};
 		resources_weight.saturating_add(route_weight)
 	}
@@ -479,14 +586,12 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 				}
 				let alias = bound.ca.alias;
 				let reciprocal = match collection {
-					indiv_pallet_resources::types::MembershipCollection::People => {
+					indiv_pallet_resources::types::MembershipCollection::People =>
 						indiv_pallet_people::AliasToAccount::<Runtime>::get(&bound.ca) ==
-								Some(signer.clone())
-					},
-					indiv_pallet_resources::types::MembershipCollection::LitePeople => {
+							Some(signer.clone()),
+					indiv_pallet_resources::types::MembershipCollection::LitePeople =>
 						indiv_pallet_people_lite::AliasToAccount::<Runtime>::get(&bound.ca) ==
-								Some(signer.clone())
-					},
+							Some(signer.clone()),
 				};
 				if !reciprocal {
 					return Err(InvalidTransaction::BadSigner.into());

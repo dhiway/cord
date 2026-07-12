@@ -1718,6 +1718,16 @@ impl indiv_pallet_resources::benchmarking::BenchmarkHelper<Runtime> for Resource
 	}
 }
 
+#[cfg(feature = "runtime-benchmarks")]
+impl indiv_pallet_resources::benchmarking::MetaPolicyBenchmarkHelper for ResourcesBenchmarkHelper {
+	fn run(
+		scenario: indiv_pallet_resources::benchmarking::MetaPolicyBenchmarkScenario,
+	) -> Result<(), frame_benchmarking::BenchmarkError> {
+		crate::meta_v6::benchmark_policy_scenario(scenario);
+		Ok(())
+	}
+}
+
 impl indiv_pallet_resources::Config for Runtime {
 	type WeightInfo = indiv_pallet_resources::weights::SubstrateWeight<Runtime>;
 	type MemberService = Members;
@@ -1757,6 +1767,8 @@ impl indiv_pallet_resources::Config for Runtime {
 	type StorageReservationDuration = ResourcesStorageReservationDuration;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ResourcesBenchmarkHelper;
+	#[cfg(feature = "runtime-benchmarks")]
+	type MetaPolicyBenchmarkHelper = ResourcesBenchmarkHelper;
 }
 
 parameter_types! {

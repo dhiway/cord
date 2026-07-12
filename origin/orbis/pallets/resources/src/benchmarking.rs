@@ -57,6 +57,41 @@ pub trait BenchmarkHelper<T: Config> {
 	fn sign_message(message: &[u8]) -> (T::AccountId, T::OffchainSignature);
 }
 
+/// Stable inputs used to benchmark a runtime's account-bound Meta policy router.
+///
+/// The router is runtime-owned (its call and signed-extension types are runtime specific), so the
+/// Resources benchmark target deliberately transports only this bounded scenario tag across the
+/// pallet/runtime boundary.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum MetaPolicyBenchmarkScenario {
+	PersonalAlias,
+	PersonalIdentity,
+	PersonalAliasRevised,
+	LitePerson,
+	LiteAlias,
+	LiteAliasRevised,
+	ResourcesClaim,
+	Malformed,
+	MappingMiss,
+	RevisedWrite,
+	MaxProof,
+	Envelope,
+}
+
+/// Runtime hook for the Meta policy benchmarks hosted by this pallet.
+pub trait MetaPolicyBenchmarkHelper {
+	fn run(scenario: MetaPolicyBenchmarkScenario) -> Result<(), BenchmarkError>;
+}
+
+/// A no-op fallback keeps generic/mocked Resources runtimes source compatible. Production
+/// runtimes that expose benchmark metadata must replace it with a helper that invokes their
+/// actual router.
+impl MetaPolicyBenchmarkHelper for () {
+	fn run(_: MetaPolicyBenchmarkScenario) -> Result<(), BenchmarkError> {
+		Ok(())
+	}
+}
+
 // --- Helpers
 
 fn assert_last_event<T: Config>(generic_event: <T as frame_system::Config>::RuntimeEvent) {
@@ -154,6 +189,128 @@ fn setup_lite_ring_with_one_member<
 )]
 mod benches {
 	use super::*;
+
+	#[benchmark]
+	fn meta_policy_personal_alias() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(
+				MetaPolicyBenchmarkScenario::PersonalAlias,
+			)?;
+		}
+		Ok(())
+	}
+
+	#[benchmark]
+	fn meta_policy_personal_identity() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(
+				MetaPolicyBenchmarkScenario::PersonalIdentity,
+			)?;
+		}
+		Ok(())
+	}
+
+	#[benchmark]
+	fn meta_policy_personal_alias_revised() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(
+				MetaPolicyBenchmarkScenario::PersonalAliasRevised,
+			)?;
+		}
+		Ok(())
+	}
+
+	#[benchmark]
+	fn meta_policy_lite_person() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(MetaPolicyBenchmarkScenario::LitePerson)?;
+		}
+		Ok(())
+	}
+
+	#[benchmark]
+	fn meta_policy_lite_alias() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(MetaPolicyBenchmarkScenario::LiteAlias)?;
+		}
+		Ok(())
+	}
+
+	#[benchmark]
+	fn meta_policy_lite_alias_revised() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(
+				MetaPolicyBenchmarkScenario::LiteAliasRevised,
+			)?;
+		}
+		Ok(())
+	}
+
+	#[benchmark]
+	fn meta_policy_resources_claim() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(
+				MetaPolicyBenchmarkScenario::ResourcesClaim,
+			)?;
+		}
+		Ok(())
+	}
+
+	#[benchmark]
+	fn meta_policy_malformed() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(MetaPolicyBenchmarkScenario::Malformed)?;
+		}
+		Ok(())
+	}
+
+	#[benchmark]
+	fn meta_policy_mapping_miss() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(
+				MetaPolicyBenchmarkScenario::MappingMiss,
+			)?;
+		}
+		Ok(())
+	}
+
+	#[benchmark]
+	fn meta_policy_revised_write() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(
+				MetaPolicyBenchmarkScenario::RevisedWrite,
+			)?;
+		}
+		Ok(())
+	}
+
+	#[benchmark]
+	fn meta_policy_max_proof() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(MetaPolicyBenchmarkScenario::MaxProof)?;
+		}
+		Ok(())
+	}
+
+	#[benchmark]
+	fn meta_policy_envelope() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(MetaPolicyBenchmarkScenario::Envelope)?;
+		}
+		Ok(())
+	}
 
 	#[benchmark]
 	fn register_lite_person() -> Result<(), BenchmarkError> {

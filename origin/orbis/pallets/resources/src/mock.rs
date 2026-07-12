@@ -583,6 +583,8 @@ impl Config for Test {
 	type StorageReservationDuration = ConstU64<100>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = BenchmarkHelper;
+	#[cfg(feature = "runtime-benchmarks")]
+	type MetaPolicyBenchmarkHelper = ();
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

@@ -313,6 +313,10 @@ pub mod pallet {
 		/// Benchmark helper trait.
 		#[cfg(feature = "runtime-benchmarks")]
 		type BenchmarkHelper: benchmarking::BenchmarkHelper<Self>;
+
+		/// Runtime-specific account-bound Meta policy benchmark adapter.
+		#[cfg(feature = "runtime-benchmarks")]
+		type MetaPolicyBenchmarkHelper: benchmarking::MetaPolicyBenchmarkHelper;
 	}
 
 	#[pallet::origin]

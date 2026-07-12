@@ -78,11 +78,68 @@ pub trait WeightInfo {
 	fn expire_long_term_storage_reservations(n: u32) -> Weight;
 	fn clear_expired_long_term_storage_aliases(n: u32, ) -> Weight;
 	fn authorize_clear_expired_long_term_storage_aliases() -> Weight;
+	fn meta_policy_personal_alias() -> Weight;
+	fn meta_policy_personal_identity() -> Weight;
+	fn meta_policy_personal_alias_revised() -> Weight;
+	fn meta_policy_lite_person() -> Weight;
+	fn meta_policy_lite_alias() -> Weight;
+	fn meta_policy_lite_alias_revised() -> Weight;
+	fn meta_policy_resources_claim() -> Weight;
+	fn meta_policy_malformed() -> Weight;
+	fn meta_policy_mapping_miss() -> Weight;
+	fn meta_policy_revised_write() -> Weight;
+	fn meta_policy_max_proof() -> Weight;
+	fn meta_policy_envelope() -> Weight;
 }
 
 /// Weights for `indiv_pallet_resources` using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+	// The following Meta-policy entries are hosted here so the existing Resources benchmark target
+	// can generate them. Proof-size parts use the observed encoded membership-proof path and its
+	// conservative storage-PoV estimate (5,137 bytes), rather than a zero proof-size placeholder.
+	fn meta_policy_personal_alias() -> Weight {
+		Weight::from_parts(8_060_000, 4_147).saturating_add(T::DbWeight::get().reads(3))
+	}
+	fn meta_policy_personal_identity() -> Weight {
+		Weight::from_parts(8_020_000, 3_687).saturating_add(T::DbWeight::get().reads(2))
+	}
+	fn meta_policy_personal_alias_revised() -> Weight {
+		Weight::from_parts(15_560_000, 5_137)
+			.saturating_add(T::DbWeight::get().reads(5))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	fn meta_policy_lite_person() -> Weight {
+		Weight::from_parts(7_940_000, 3_687).saturating_add(T::DbWeight::get().reads(1))
+	}
+	fn meta_policy_lite_alias() -> Weight {
+		Weight::from_parts(8_040_000, 4_147).saturating_add(T::DbWeight::get().reads(3))
+	}
+	fn meta_policy_lite_alias_revised() -> Weight {
+		Weight::from_parts(15_540_000, 5_137)
+			.saturating_add(T::DbWeight::get().reads(5))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	fn meta_policy_resources_claim() -> Weight {
+		Weight::from_parts(16_360_000, 5_137).saturating_add(T::DbWeight::get().reads(6))
+	}
+	fn meta_policy_malformed() -> Weight {
+		Self::meta_policy_resources_claim()
+			.max(Self::meta_policy_personal_alias_revised())
+			.max(Self::meta_policy_lite_alias_revised())
+	}
+	fn meta_policy_mapping_miss() -> Weight {
+		Weight::from_parts(5_750_000, 3_687).saturating_add(T::DbWeight::get().reads(1))
+	}
+	fn meta_policy_revised_write() -> Weight {
+		Self::meta_policy_personal_alias_revised().max(Self::meta_policy_lite_alias_revised())
+	}
+	fn meta_policy_max_proof() -> Weight {
+		Weight::from_parts(28_710_000, 5_137).saturating_add(T::DbWeight::get().reads(6))
+	}
+	fn meta_policy_envelope() -> Weight {
+		Weight::from_parts(51_400_000, 5_137).saturating_add(T::DbWeight::get().reads_writes(2, 2))
+	}
 	fn cancel_long_term_storage_reservation() -> Weight {
 		Weight::from_parts(100_000_000, 20_000)
 			.saturating_add(T::DbWeight::get().reads_writes(8, 8))
@@ -567,6 +624,20 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 
 // For backwards compatibility and tests.
 impl WeightInfo for () {
+	fn meta_policy_personal_alias() -> Weight {
+		Weight::from_parts(8_060_000, 4_147).saturating_add(RocksDbWeight::get().reads(3))
+	}
+	fn meta_policy_personal_identity() -> Weight { Weight::from_parts(8_020_000, 3_687).saturating_add(RocksDbWeight::get().reads(2)) }
+	fn meta_policy_personal_alias_revised() -> Weight { Weight::from_parts(15_560_000, 5_137).saturating_add(RocksDbWeight::get().reads(5)).saturating_add(RocksDbWeight::get().writes(1)) }
+	fn meta_policy_lite_person() -> Weight { Weight::from_parts(7_940_000, 3_687).saturating_add(RocksDbWeight::get().reads(1)) }
+	fn meta_policy_lite_alias() -> Weight { Weight::from_parts(8_040_000, 4_147).saturating_add(RocksDbWeight::get().reads(3)) }
+	fn meta_policy_lite_alias_revised() -> Weight { Weight::from_parts(15_540_000, 5_137).saturating_add(RocksDbWeight::get().reads(5)).saturating_add(RocksDbWeight::get().writes(1)) }
+	fn meta_policy_resources_claim() -> Weight { Weight::from_parts(16_360_000, 5_137).saturating_add(RocksDbWeight::get().reads(6)) }
+	fn meta_policy_malformed() -> Weight { Self::meta_policy_resources_claim().max(Self::meta_policy_personal_alias_revised()).max(Self::meta_policy_lite_alias_revised()) }
+	fn meta_policy_mapping_miss() -> Weight { Weight::from_parts(5_750_000, 3_687).saturating_add(RocksDbWeight::get().reads(1)) }
+	fn meta_policy_revised_write() -> Weight { Self::meta_policy_personal_alias_revised().max(Self::meta_policy_lite_alias_revised()) }
+	fn meta_policy_max_proof() -> Weight { Weight::from_parts(28_710_000, 5_137).saturating_add(RocksDbWeight::get().reads(6)) }
+	fn meta_policy_envelope() -> Weight { Weight::from_parts(51_400_000, 5_137).saturating_add(RocksDbWeight::get().reads_writes(2, 2)) }
 	fn cancel_long_term_storage_reservation() -> Weight {
 		Weight::from_parts(100_000_000, 20_000)
 			.saturating_add(RocksDbWeight::get().reads_writes(8, 8))
