@@ -1538,7 +1538,9 @@ fn score_normal_and_meta_signed_origins_share_active_participant_boundary() {
 				)
 				.unwrap()
 				.unwrap();
-			assert_eq!(System::account(account).nonce, 1);
+			// Score only validates its explicit policy nonce. The standard account-aware
+			// CheckNonce in the concrete transaction pipeline owns the sole increment.
+			assert_eq!(System::account(account).nonce, 0);
 		}
 
 		let suspended_key = AccountOrPerson::Account(meta_inner.clone());
@@ -1573,6 +1575,91 @@ fn score_normal_and_meta_signed_origins_share_active_participant_boundary() {
 			})
 			.is_err());
 		assert_eq!(System::account(&unknown).nonce, 0);
+	});
+}
+
+#[test]
+fn ethereum_and_authorized_origins_cannot_activate_native_score_or_honour_policies() {
+	use codec::DecodeAll;
+	use frame_support::{dispatch::GetDispatchInfo, traits::BuildGenesisConfig};
+	use sp_runtime::{
+		traits::{DispatchTransaction, Dispatchable},
+		transaction_validity::InvalidTransaction,
+	};
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		let account = AccountId::new([0x66; 32]);
+		let _ = <Balances as Mutate<AccountId>>::set_balance(&account, 100_000_000_000_000);
+		let score_call = RuntimeCall::Score(pallet_orbis_score::Call::cash_out {});
+		let score_extension = pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(Some(
+			pallet_orbis_score::ScoreAsParticipantData { nonce: 0 },
+		));
+		let honour_bytes = include_bytes!("../fixtures/meta-v8/honour-voter-meta.scale");
+		let (honour_call, _, meta_extension): (RuntimeCall, u8, crate::MetaTxExtension) =
+			DecodeAll::decode_all(&mut honour_bytes.as_slice()).unwrap();
+		let honour_extension = meta_extension.9 .2;
+
+		let before_root = sp_io::storage::root(sp_runtime::StateVersion::V1);
+		let before_balance = Balances::free_balance(&account);
+		let before_quota = pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&account);
+		for (name, origin) in [
+			(
+				"Ethereum",
+				RuntimeOrigin::from(pallet_revive::Origin::<Runtime>::EthTransaction(
+					account.clone(),
+				)),
+			),
+			("Authorized", RuntimeOrigin::from(frame_system::RawOrigin::Authorized)),
+		] {
+			assert_eq!(
+				score_extension
+					.clone()
+					.test_run(
+						origin.clone(),
+						&score_call,
+						&score_call.get_dispatch_info(),
+						0,
+						0,
+						|_| Ok(Default::default()),
+					)
+					.unwrap_err(),
+				InvalidTransaction::Call.into(),
+				"{name} must not activate Score Some"
+			);
+			assert_eq!(
+				honour_extension
+					.clone()
+					.test_run(
+						origin.clone(),
+						&honour_call,
+						&honour_call.get_dispatch_info(),
+						0,
+						0,
+						|_| Ok(Default::default()),
+					)
+					.unwrap_err(),
+				InvalidTransaction::BadSigner.into(),
+				"{name} must not activate Honour Some"
+			);
+			assert_eq!(
+				score_call.clone().dispatch(origin.clone()).unwrap_err().error,
+				pallet_orbis_score::Error::<Runtime>::BadOriginNotSignedNotAccountParticipant
+					.into()
+			);
+			assert_eq!(
+				honour_call.clone().dispatch(origin).unwrap_err().error,
+				sp_runtime::DispatchError::BadOrigin
+			);
+			assert_eq!(sp_io::storage::root(sp_runtime::StateVersion::V1), before_root);
+			assert_eq!(System::account_nonce(&account), 0);
+			assert_eq!(Balances::free_balance(&account), before_balance);
+			assert!(pallet_orbis_score::Participants::<Runtime>::iter().next().is_none());
+			assert!(pallet_orbis_honour::Votes::<Runtime>::iter().next().is_none());
+			assert!(pallet_orbis_honour::Tally::<Runtime>::iter().next().is_none());
+			assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&account), before_quota);
+			assert!(crate::meta_v6::token().is_none());
+		}
 	});
 }
 
@@ -3361,7 +3448,10 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 				frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
 				revive,
 			);
-			let origin_policy_tail = (frame_system::AuthorizeCall::<Runtime>::new(),);
+			let origin_policy_tail = (
+				pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None),
+				frame_system::AuthorizeCall::<Runtime>::new(),
+			);
 			let inner_tail_implicit = inner_tail.implicit().unwrap();
 			let origin_policy_tail_implicit = origin_policy_tail.implicit().unwrap();
 			let inherited = sp_runtime::traits::ImplicationParts {
@@ -4275,6 +4365,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			)
 			.unwrap();
 		let alice_balance_before_honour = Balances::free_balance(&alice);
+		let bob_balance_before_honour = Balances::free_balance(&bob);
 		let honour_meta = signed_meta_tx_with_native_policies(
 			honour_call,
 			alice.clone(),
@@ -4294,6 +4385,11 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		assert_eq!(System::account_nonce(&alice), 2);
 		assert_eq!(System::account_nonce(&bob), 2);
 		assert_eq!(Balances::free_balance(&alice), alice_balance_before_honour);
+		let bob_balance_after_honour = Balances::free_balance(&bob);
+		let sponsor_fee = bob_balance_before_honour
+			.checked_sub(bob_balance_after_honour)
+			.expect("the sponsor, not the inner Honour signer, owns the fee delta");
+		assert!(sponsor_fee > 0, "the paid Meta Honour outer transaction charges its sponsor");
 		assert!(pallet_orbis_honour::Votes::<Runtime>::iter().next().is_some());
 		assert!(crate::meta_v6::token().is_none());
 
@@ -4308,96 +4404,186 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			vote: direct_vote.clone(),
 			call_valid_from: now,
 		});
-		let direct_payment: crate::PaymentPolicy =
-			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
-				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
-			)
-			.into();
-		let direct_tail = (
-			crate::AccountAwareResources::from(frame_system::CheckNonZeroSender::<Runtime>::new()),
-			frame_system::CheckSpecVersion::<Runtime>::new(),
-			frame_system::CheckTxVersion::<Runtime>::new(),
-			frame_system::CheckGenesis::<Runtime>::new(),
-			frame_system::CheckMortality::<Runtime>::from(Era::Immortal),
-			crate::AccountAwareResources::from(frame_system::CheckNonce::<Runtime>::from(2)),
-			frame_system::CheckWeight::<Runtime>::new(),
-			crate::AccountAwareResources::from(direct_payment),
-			pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
-				Runtime,
-				crate::BulletinCallInspector,
-			>::default(),
-			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
-			pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::default(),
-		);
-		let policy_tail = (frame_system::AuthorizeCall::<Runtime>::new(),);
-		let direct_inherited = sp_runtime::traits::ImplicationParts {
-			base: sp_runtime::traits::TxBaseImplication((META_EXTENSION_VERSION, &direct_call)),
-			explicit: (&policy_tail, (&direct_tail, ())),
-			implicit: (policy_tail.implicit().unwrap(), (direct_tail.implicit().unwrap(), ())),
-		};
-		let direct_message = (&direct_inherited, &alice).using_encoded(sp_io::hashing::blake2_256);
-		let direct_contexts = direct_vote.get_contexts();
-		let direct_contexts: Vec<&[u8]> =
-			direct_contexts.iter().map(|context| &context[..]).collect();
-		let (direct_proof, _) =
-			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create_multi_context(
-				commitment.clone(),
-				&member_secret,
-				&direct_contexts,
-				&direct_message,
-			)
-			.unwrap();
-		let (
-			nonzero,
-			spec,
-			tx,
-			genesis,
-			mortality,
-			nonce,
-			weight,
-			payment,
-			storage,
-			metadata,
-			revive,
-		) = direct_tail;
-		let direct_extension = crate::paid_tx_extensions((
-			(
-				indiv_pallet_people::extension::AsPerson::<Runtime>::new(None),
-				pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(None),
-				indiv_pallet_people_lite::extension::PeopleLiteAuth::<Runtime>::new(None),
-				indiv_pallet_resources::extension::AsResources::<Runtime>::new(None),
-				pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(Some(
-					pallet_orbis_honour::extension::VoterAuthData {
-						account: alice.clone(),
-						proof: direct_proof,
-						ring_index: 0,
-						revision,
-					},
-				)),
-				frame_system::AuthorizeCall::<Runtime>::new(),
-			),
-			nonzero,
-			spec,
-			tx,
-			genesis,
-			mortality,
-			nonce,
-			weight,
-			payment,
-			storage,
-			metadata,
-			revive,
-		));
-		let direct_payload = SignedPayload::new(direct_call.clone(), direct_extension.clone()).unwrap();
-		let direct_signature = direct_payload.using_encoded(|bytes| alice_pair.sign(bytes));
-		let direct_xt =
-			<crate::UncheckedExtrinsic as SignedTransactionBuilder>::new_signed_transaction(
-				direct_call,
-				alice.clone().into(),
-				MultiSignature::Sr25519(direct_signature),
-				direct_extension,
-			);
 		let _ = <Balances as Mutate<AccountId>>::set_balance(&alice, 100_000_000_000_000);
+		let direct_payer_balance = Balances::free_balance(&alice);
+		let build_direct_honour =
+			|nonce_value: u32,
+			 claimed: AccountId,
+			 signer: AccountId,
+			 signing_pair: &sr25519::Pair,
+			 valid_proof: bool| {
+				let direct_payment: crate::PaymentPolicy =
+					pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+						pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(
+							0, None,
+						),
+					)
+					.into();
+				let direct_tail = (
+					crate::AccountAwareResources::from(
+						frame_system::CheckNonZeroSender::<Runtime>::new(),
+					),
+					frame_system::CheckSpecVersion::<Runtime>::new(),
+					frame_system::CheckTxVersion::<Runtime>::new(),
+					frame_system::CheckGenesis::<Runtime>::new(),
+					frame_system::CheckMortality::<Runtime>::from(Era::Immortal),
+					crate::AccountAwareResources::from(frame_system::CheckNonce::<Runtime>::from(
+						nonce_value,
+					)),
+					frame_system::CheckWeight::<Runtime>::new(),
+					crate::AccountAwareResources::from(direct_payment),
+					pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+						Runtime,
+						crate::BulletinCallInspector,
+					>::default(),
+					frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+					pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::default(),
+				);
+				let policy_tail = (frame_system::AuthorizeCall::<Runtime>::new(),);
+				let direct_inherited = sp_runtime::traits::ImplicationParts {
+					base: sp_runtime::traits::TxBaseImplication((
+						META_EXTENSION_VERSION,
+						&direct_call,
+					)),
+					explicit: (&policy_tail, (&direct_tail, ())),
+					implicit: (
+						policy_tail.implicit().unwrap(),
+						(direct_tail.implicit().unwrap(), ()),
+					),
+				};
+				let direct_message = if valid_proof {
+					(&direct_inherited, &claimed).using_encoded(sp_io::hashing::blake2_256)
+				} else {
+					[0u8; 32]
+				};
+				let direct_contexts = direct_vote.get_contexts();
+				let direct_contexts: Vec<&[u8]> =
+					direct_contexts.iter().map(|context| &context[..]).collect();
+				let (direct_proof, _) = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create_multi_context(
+					commitment.clone(),
+					&member_secret,
+					&direct_contexts,
+					&direct_message,
+				)
+				.unwrap();
+				let (
+					nonzero, spec, tx, genesis, mortality, nonce, weight, payment, storage,
+					metadata, revive,
+				) = direct_tail;
+				let direct_extension = crate::paid_tx_extensions((
+					(
+						indiv_pallet_people::extension::AsPerson::<Runtime>::new(None),
+						pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(None),
+						indiv_pallet_people_lite::extension::PeopleLiteAuth::<Runtime>::new(None),
+						indiv_pallet_resources::extension::AsResources::<Runtime>::new(None),
+						pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(Some(
+							pallet_orbis_honour::extension::VoterAuthData {
+								account: claimed,
+								proof: direct_proof,
+								ring_index: 0,
+								revision,
+							},
+						)),
+						frame_system::AuthorizeCall::<Runtime>::new(),
+					),
+					nonzero,
+					spec,
+					tx,
+					genesis,
+					mortality,
+					nonce,
+					weight,
+					payment,
+					storage,
+					metadata,
+					revive,
+				));
+				let payload = SignedPayload::new(direct_call.clone(), direct_extension.clone()).unwrap();
+				let signature = payload.using_encoded(|bytes| signing_pair.sign(bytes));
+				<crate::UncheckedExtrinsic as SignedTransactionBuilder>::new_signed_transaction(
+					direct_call.clone(),
+					signer.into(),
+					MultiSignature::Sr25519(signature),
+					direct_extension,
+				)
+			};
+
+		let direct_votes = pallet_orbis_honour::Votes::<Runtime>::iter().collect::<Vec<_>>().encode();
+		let direct_tally = pallet_orbis_honour::Tally::<Runtime>::iter().collect::<Vec<_>>().encode();
+		let alice_quota = pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&alice);
+		let bob_quota = pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&bob);
+		for (name, xt, expected) in [
+			(
+				"mismatched account",
+				build_direct_honour(2, alice.clone(), bob.clone(), &bob_pair, true),
+				sp_runtime::transaction_validity::InvalidTransaction::BadSigner,
+			),
+			(
+				"bad ring proof",
+				build_direct_honour(2, alice.clone(), alice.clone(), &alice_pair, false),
+				sp_runtime::transaction_validity::InvalidTransaction::BadProof,
+			),
+			(
+				"stale nonce",
+				build_direct_honour(1, alice.clone(), alice.clone(), &alice_pair, true),
+				sp_runtime::transaction_validity::InvalidTransaction::Stale,
+			),
+		] {
+			assert_eq!(
+				crate::Executive::validate_transaction(
+					sp_runtime::transaction_validity::TransactionSource::External,
+					xt,
+					System::block_hash(0),
+				),
+				Err(expected.into()),
+				"{name} must fail at its exact pipeline boundary"
+			);
+			assert_eq!(System::account_nonce(&alice), 2);
+			assert_eq!(System::account_nonce(&bob), 2);
+			assert_eq!(Balances::free_balance(&alice), direct_payer_balance);
+			assert_eq!(Balances::free_balance(&bob), bob_balance_after_honour);
+			assert_eq!(
+				pallet_orbis_honour::Votes::<Runtime>::iter().collect::<Vec<_>>().encode(),
+				direct_votes
+			);
+			assert_eq!(
+				pallet_orbis_honour::Tally::<Runtime>::iter().collect::<Vec<_>>().encode(),
+				direct_tally
+			);
+			assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&alice), alice_quota);
+			assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&bob), bob_quota);
+			assert!(crate::meta_v6::token().is_none());
+		}
+		// Pool validation admits a future standard CheckNonce with an explicit dependency. Block
+		// execution rejects it exactly as Future and must preserve all actor/business state.
+		let future_xt = build_direct_honour(3, alice.clone(), alice.clone(), &alice_pair, true);
+		assert!(crate::Executive::validate_transaction(
+			sp_runtime::transaction_validity::TransactionSource::External,
+			future_xt.clone(),
+			System::block_hash(0),
+		)
+		.is_ok());
+		assert_eq!(
+			crate::Executive::apply_extrinsic(future_xt),
+			Err(sp_runtime::transaction_validity::InvalidTransaction::Future.into())
+		);
+		assert_eq!(System::account_nonce(&alice), 2);
+		assert_eq!(System::account_nonce(&bob), 2);
+		assert_eq!(Balances::free_balance(&alice), direct_payer_balance);
+		assert_eq!(Balances::free_balance(&bob), bob_balance_after_honour);
+		assert_eq!(
+			pallet_orbis_honour::Votes::<Runtime>::iter().collect::<Vec<_>>().encode(),
+			direct_votes
+		);
+		assert_eq!(
+			pallet_orbis_honour::Tally::<Runtime>::iter().collect::<Vec<_>>().encode(),
+			direct_tally
+		);
+		assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&alice), alice_quota);
+		assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&bob), bob_quota);
+		assert!(crate::meta_v6::token().is_none());
+
+		let direct_xt = build_direct_honour(2, alice.clone(), alice.clone(), &alice_pair, true);
 		let direct_balance = Balances::free_balance(&alice);
 		assert_ok!(crate::Executive::validate_transaction(
 			sp_runtime::transaction_validity::TransactionSource::External,
@@ -5667,6 +5853,57 @@ fn full_unreleased_migration_rehearses_absent_native_prefixes_and_bulletin_v6() 
 	});
 }
 
+#[cfg(feature = "try-runtime")]
+fn assert_dirty_native_introduction_aborts_before_any_migration(dirty_score: bool) {
+	use frame_support::traits::{
+		GetStorageVersion, OnRuntimeUpgrade, PalletInfoAccess, StorageVersion,
+	};
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		if dirty_score {
+			pallet_orbis_score::ManagerAccount::<Runtime>::put(AccountId::new([0x77; 32]));
+		} else {
+			let prefix = sp_io::hashing::twox_128(crate::Honour::name().as_bytes());
+			let mut dirty = prefix.to_vec();
+			dirty.extend_from_slice(b"dirty-v0");
+			sp_io::storage::set(&dirty, b"must-survive");
+		}
+		pallet_bulletin_transaction_storage::RetentionPeriod::<Runtime>::put(100u32);
+		StorageVersion::new(6).put::<crate::TransactionStorage>();
+
+		let before_root = sp_io::storage::root(sp_runtime::StateVersion::V1);
+		let before_score_version = crate::Score::on_chain_storage_version();
+		let before_honour_version = crate::Honour::on_chain_storage_version();
+		let before_bulletin_version = crate::TransactionStorage::on_chain_storage_version();
+		let failure = std::panic::catch_unwind(|| {
+			<crate::Migrations as OnRuntimeUpgrade>::on_runtime_upgrade();
+		});
+		assert!(failure.is_err(), "dirty v0 native state must fail closed");
+
+		assert_eq!(sp_io::storage::root(sp_runtime::StateVersion::V1), before_root);
+		assert_eq!(crate::Score::on_chain_storage_version(), before_score_version);
+		assert_eq!(crate::Honour::on_chain_storage_version(), before_honour_version);
+		assert_eq!(crate::TransactionStorage::on_chain_storage_version(), before_bulletin_version);
+		assert_eq!(before_score_version, StorageVersion::new(0));
+		assert_eq!(before_honour_version, StorageVersion::new(0));
+		assert_eq!(before_bulletin_version, StorageVersion::new(6));
+		assert!(!pallet_orbis_score::PayoutAccount::<Runtime>::exists());
+		assert_eq!(pallet_bulletin_transaction_storage::RetentionPeriod::<Runtime>::get(), 100);
+	});
+}
+
+#[test]
+#[cfg(feature = "try-runtime")]
+fn full_unreleased_migration_dirty_score_v0_aborts_without_partial_progress() {
+	assert_dirty_native_introduction_aborts_before_any_migration(true);
+}
+
+#[test]
+#[cfg(feature = "try-runtime")]
+fn full_unreleased_migration_dirty_honour_v0_aborts_without_partial_progress() {
+	assert_dirty_native_introduction_aborts_before_any_migration(false);
+}
+
 #[derive(Clone, Copy, Eq, PartialEq)]
 struct CannotLookupMetadataResolver;
 
@@ -5753,9 +5990,9 @@ fn metadata_custom_hash_loss_is_detected_after_wire_roundtrip() {
 		assert_eq!(
 			decoded_implicit.unwrap(),
 			Some([
-				0xd0, 0x3f, 0x87, 0xe6, 0x27, 0x98, 0x78, 0xca, 0xfc, 0xf6, 0x14, 0x9a, 0x71, 0x07,
-				0xa6, 0x30, 0x71, 0x63, 0xe4, 0xe9, 0x97, 0xf8, 0xd7, 0x2d, 0x02, 0x9c, 0xd6, 0xaa,
-				0x83, 0x7f, 0x98, 0x54,
+				0x85, 0x19, 0x55, 0x76, 0x67, 0xf8, 0x7e, 0xb7, 0xee, 0x32, 0xcd, 0x10, 0x9d, 0x40,
+				0xac, 0xfd, 0x48, 0xd9, 0xc5, 0x3a, 0x7e, 0xd9, 0x15, 0xfe, 0x17, 0x33, 0xb0, 0x35,
+				0x73, 0xab, 0x9e, 0xf9,
 			]),
 		);
 	} else {

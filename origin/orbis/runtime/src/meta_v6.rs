@@ -1,5 +1,5 @@
 use crate::{AccountId, Members, Runtime, RuntimeCall, RuntimeOrigin, System};
-use alloc::{vec, vec::Vec};
+use alloc::vec::Vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, Output};
 use frame_support::{
 	traits::{Contains, OriginTrait},
@@ -366,10 +366,10 @@ pub fn benchmark_policy_scenario(
 			let outer = benchmark_outer(true)?;
 			let make = |padding: usize| {
 				RuntimeCall::Utility(pallet_utility::Call::batch {
-					calls: vec![
+					calls: alloc::vec![
 						outer.clone(),
 						RuntimeCall::System(frame_system::Call::remark {
-							remark: vec![0; padding],
+							remark: alloc::vec![0; padding],
 						}),
 					],
 				})

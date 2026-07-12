@@ -2340,8 +2340,74 @@ pub type Migrations = migrations::Unreleased;
 /// Migrations to apply on runtime upgrade.
 #[allow(deprecated, missing_docs)]
 pub mod migrations {
+	#[cfg(feature = "try-runtime")]
+	use codec::{Decode, Encode};
+	use frame_support::traits::{
+		GetStorageVersion, OnRuntimeUpgrade, PalletInfoAccess, StorageVersion,
+	};
+	#[cfg(feature = "try-runtime")]
+	use sp_runtime::TryRuntimeError;
+
+	/// Fail-closed guard for introducing Score and Honour.
+	///
+	/// The legacy state is valid only when both pallets are completely absent at v0. A v0 pallet
+	/// prefix containing any key is ambiguous legacy data, so the upgrade aborts before Score,
+	/// Honour, or Bulletin can write. Already-introduced v1 state is accepted for idempotence.
+	pub struct ScoreHonourIntroductionPreflight;
+
+	fn prefix_has_key<P: PalletInfoAccess>() -> bool {
+		let prefix = sp_io::hashing::twox_128(P::name().as_bytes());
+		sp_io::storage::next_key(&prefix).is_some_and(|key| key.starts_with(&prefix))
+	}
+
+	fn validate_preflight() -> Result<(StorageVersion, StorageVersion), &'static str> {
+		let score = super::Score::on_chain_storage_version();
+		let honour = super::Honour::on_chain_storage_version();
+		if score > StorageVersion::new(1) {
+			return Err("Score storage version is newer than the supported v1");
+		}
+		if honour > StorageVersion::new(1) {
+			return Err("Honour storage version is newer than the supported v1");
+		}
+		if score == StorageVersion::new(0) && prefix_has_key::<super::Score>() {
+			return Err("dirty v0 Score prefix: refusing partial Orbis introduction");
+		}
+		if honour == StorageVersion::new(0) && prefix_has_key::<super::Honour>() {
+			return Err("dirty v0 Honour prefix: refusing partial Orbis introduction");
+		}
+		Ok((score, honour))
+	}
+
+	impl OnRuntimeUpgrade for ScoreHonourIntroductionPreflight {
+		fn on_runtime_upgrade() -> frame_support::weights::Weight {
+			validate_preflight().unwrap_or_else(|reason| panic!("{reason}"));
+			<super::Runtime as frame_system::Config>::DbWeight::get().reads(4)
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn pre_upgrade() -> Result<alloc::vec::Vec<u8>, TryRuntimeError> {
+			validate_preflight().map(|state| state.encode()).map_err(Into::into)
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade(state: alloc::vec::Vec<u8>) -> Result<(), TryRuntimeError> {
+			let before: (StorageVersion, StorageVersion) = Decode::decode(&mut &state[..])
+				.map_err(|_| "invalid introduction preflight state")?;
+			frame_support::ensure!(
+				super::Score::on_chain_storage_version() == before.0,
+				"Score changed while introduction preflight executed"
+			);
+			frame_support::ensure!(
+				super::Honour::on_chain_storage_version() == before.1,
+				"Honour changed while introduction preflight executed"
+			);
+			Ok(())
+		}
+	}
+
 	/// Unreleased migrations. Add new ones here:
 	pub type Unreleased = (
+		ScoreHonourIntroductionPreflight,
 		pallet_orbis_score::migrations::IntroduceV1<super::Runtime>,
 		pallet_orbis_honour::migrations::IntroduceV1<super::Runtime>,
 		pallet_bulletin_transaction_storage::migrations::MigrateV5ToV7<super::Runtime>,
