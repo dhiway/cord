@@ -707,7 +707,11 @@ fn checked_in_meta_v7_fixtures_decode_all_recompute_and_match_hashes() {
 			assert_eq!(row["sha256"], hash);
 		}
 	});
-	crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-fixtures");
+	if option_env!("RUNTIME_METADATA_HASH").is_some() {
+		crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-fixtures-compiled");
+	} else {
+		crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-fixtures");
+	}
 }
 
 #[test]

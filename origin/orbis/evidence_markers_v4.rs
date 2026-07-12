@@ -41,7 +41,7 @@ pub const EVIDENCE_MARKERS_V4: &[(&str, &str, &str)] = &[
 	("runtime-fixtures", "META-COMPAT-SCHEMA", "ae710bcb0f3f541db842272bc879cfffeb70c4317f8846678e9052640fccc52d"),
 	("runtime-fixtures", "META-COMPAT-SPEC", "57ba5daba0b071b2763b071bb8fecca6e535b36d3d4b3b49cceb9fd717dee311"),
 	("runtime-fixtures", "META-COMPAT-TX", "bd8f66658d740abae5db01a67feccc0465950ee68ab9a82857bacb8b934d0ff0"),
-	("runtime-fixtures", "META-EVIDENCE-COMPILED-ENABLED", "05094cba8bb4500f9b528ceefa5708c10fb3a0df8d5e0cda22b75c0689341380"),
+	("runtime-fixtures-compiled", "META-EVIDENCE-COMPILED-ENABLED", "05094cba8bb4500f9b528ceefa5708c10fb3a0df8d5e0cda22b75c0689341380"),
 	("runtime-fixtures", "META-INTENT-CALL", "3ce05367ffbbbf606e94ee88865f2a6f79f73a0be98e1adc8518e3dc12b1132a"),
 	("runtime-fixtures", "META-INTENT-COMMITMENT", "4fd9f95a795e56df11d5fd40517e1777e2ad458fe2fbbdfb61c7dec37948d53b"),
 	("runtime-fixtures", "META-INTENT-DOMAIN", "b3bc1fee5d62aa51ed36cf6d058d4423238946e8ac03966ad842a5ace77d2bb0"),
