@@ -58,7 +58,7 @@ reject('fifth-metadata-mode',BASE+fifth,'manifest inventory')
 # Inventory coverage spans ordinary present/planned/excluded rows and independent table families.
 for name,pattern in [
  ('delete-present-call',r'\[\[protocol_call\]\]\nid = "CALL-Resources-12".*?(?=\[\[)'),
- ('delete-planned-provider',r'\[\[provider_v8_contract\]\]\nid = "PROVIDER-V8-PREFLIGHT".*?(?=\[\[)'),
+ ('delete-planned-provider',r'\[\[provider_v8_contract\]\]\nid = "BUL-V8-FIELD".*?(?=\[\[)'),
  ('delete-excluded-capability',r'\[\[exclusion\]\]\nid = "EXC-staking".*?(?=\[\[)'),
  ('delete-stateless-source',r'\[\[source\]\]\nid = "dhiway-sdk".*?(?=\[\[)'),
 ]:
@@ -88,4 +88,4 @@ def production_cleanliness_cases():
  finally:
   subprocess.run(['git','worktree','remove','--force',str(worktree)],cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 production_cleanliness_cases()
-print('23 adversarial verifier cases, production cleanliness controls, and full contaminated-parent positive passed')
+print('expanded adversarial verifier cases, production cleanliness controls, and full contaminated-parent positive passed')
