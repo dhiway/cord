@@ -21,7 +21,7 @@ reject('critic-clear-regression',BASE.replace('critic_status = "clear"','critic_
 gate_regression=re.sub(r'(\[\[remediation_gate\]\]\nid = "GATE-5-EVIDENCE".*?status = ")present(" )',r'\1planned\2',BASE,count=1,flags=re.S)
 if gate_regression==BASE:
  gate_regression=re.sub(r'(\[\[remediation_gate\]\]\nid = "GATE-5-EVIDENCE".*?status = ")present("\n)',r'\1planned\2',BASE,count=1,flags=re.S)
-reject('gate5-present-regression',gate_regression,'source marker registry evidence ID set mismatch')
+reject('gate5-present-regression',gate_regression,'planned row has nonblank')
 reject('zero-sha',BASE.replace('artifact_sha256 = "','artifact_sha256 = "'+'0'*64+'#',1),'artifact')
 reject('missing-file',BASE.replace('artifact_path = "docs/evidence/orbis-v4/','artifact_path = "docs/evidence/orbis-v4/MISSING-',1),'artifact')
 reject('bad-commit',BASE.replace('source_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"','source_commit = "'+'f'*40+'"',1),'ancestor')
