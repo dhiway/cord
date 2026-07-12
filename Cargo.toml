@@ -33,6 +33,7 @@ members = [
 	"origin/orbis/pallets/members",
 	"origin/orbis/pallets/members-notifier",
 	"origin/orbis/pallets/people",
+	"origin/orbis/pallets/people-lite",
 	"origin/orbis/pallets/transaction-storage",
 	"origin/orbis/pallets/transaction-storage/primitives",
 	"origin/orbis/pallets/transaction-storage/runtime-api",
@@ -806,6 +807,7 @@ pallet-entry = { path = 'pallets/entry', default-features = false }
 pallet-runtime-upgrade = { path = 'pallets/runtime-upgrade', default-features = false }
 pallet-cord-identity = { path = 'pallets/identity', default-features = false }
 pallet-orbis-people = { path = 'origin/orbis/pallets/people', default-features = false }
+indiv-pallet-people-lite = { path = 'origin/orbis/pallets/people-lite', default-features = false }
 indiv-support = { path = 'origin/orbis/pallets/individuality-support', default-features = false }
 indiv-pallet-chunks-manager = { path = 'origin/orbis/pallets/chunks-manager', default-features = false }
 indiv-pallet-members = { path = 'origin/orbis/pallets/members', default-features = false }

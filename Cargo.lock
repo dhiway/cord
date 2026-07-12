@@ -7205,6 +7205,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "indiv-pallet-people-lite"
+version = "0.9.9"
+dependencies = [
+ "ed25519-zebra",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "indiv-support",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "verifiable",
+]
+
+[[package]]
 name = "indiv-support"
 version = "0.9.9"
 dependencies = [
@@ -9625,6 +9644,7 @@ dependencies = [
  "indiv-pallet-chunks-manager",
  "indiv-pallet-members",
  "indiv-pallet-members-notifier",
+ "indiv-pallet-people-lite",
  "indiv-support",
  "log",
  "origin-hub-system-runtime-constants",

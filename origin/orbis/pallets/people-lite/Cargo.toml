@@ -1,0 +1,66 @@
+[package]
+name = "indiv-pallet-people-lite"
+description = "A pallet holding information for people without strong individuality verification"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { workspace = true, features = ["derive"] }
+log = { workspace = true }
+scale-info = { workspace = true, features = ["derive"] }
+frame-benchmarking = { workspace = true, optional = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+sp-runtime = { workspace = true }
+verifiable = { workspace = true }
+indiv-support = { workspace = true }
+ed25519-zebra = { workspace = true, optional = true }
+
+[dev-dependencies]
+pallet-balances = { workspace = true }
+verifiable = { workspace = true, features = ["mock"] }
+
+[features]
+default = ["std"]
+std = [
+	"codec/std",
+	"ed25519-zebra?/std",
+	"frame-benchmarking?/std",
+	"frame-support/std",
+	"frame-system/std",
+	"indiv-support/std",
+	"log/std",
+	"pallet-balances/std",
+	"scale-info/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-runtime/std",
+	"verifiable/std",
+]
+runtime-benchmarks = [
+	"ed25519-zebra",
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"indiv-support/runtime-benchmarks",
+	"pallet-balances/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"pallet-balances/try-runtime",
+	"sp-runtime/try-runtime",
+]

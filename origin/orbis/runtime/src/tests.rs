@@ -19,9 +19,9 @@
 use crate::{
 	xcm_config::LocationToAccountId, AssetConversion, AssetRate, AssetTxPayment, Assets,
 	AssetsFreezer, AssetsHolder, Balances, Broker, ChunksManager, Entity, Feeless, ForeignAssets,
-	ForeignAssetsFreezer, HopPromotion, Members, MembersNotifier, Nfts, People, PoolAssets,
-	PoolAssetsFreezer, Revive, Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage,
-	Uniques,
+	ForeignAssetsFreezer, HopPromotion, Members, MembersNotifier, Nfts, People, PeopleLite,
+	PoolAssets, PoolAssetsFreezer, Revive, Runtime, RuntimeCall, RuntimeOrigin, System,
+	TransactionStorage, Uniques,
 };
 use codec::{Decode, Encode};
 use cumulus_primitives_core::ParaId;
@@ -417,6 +417,46 @@ fn ring_root_changes_are_queued_and_subscriptions_are_sudo_managed() {
 }
 
 #[test]
+fn people_lite_initializes_native_membership_and_uses_sudo_allowances() {
+	use indiv_pallet_people_lite::{
+		AttestationAllowance, LitePeopleCollectionCreated, LITE_PEOPLE_MEMBER_IDENTIFIER,
+	};
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		System::set_block_number(1);
+		let verifier = AccountId::from([3u8; 32]);
+		let mut meter = frame_support::weights::WeightMeter::with_limit(
+			crate::RuntimeBlockWeights::get().max_block,
+		);
+		PeopleLite::on_poll(1, &mut meter);
+		assert!(LitePeopleCollectionCreated::<Runtime>::get());
+		assert!(indiv_pallet_members::Collections::<Runtime>::contains_key(
+			LITE_PEOPLE_MEMBER_IDENTIFIER,
+		));
+
+		assert_noop!(
+			PeopleLite::increase_attestation_allowance(
+				RuntimeOrigin::signed(verifier.clone()),
+				verifier.clone(),
+				5,
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+		assert_ok!(PeopleLite::increase_attestation_allowance(
+			RuntimeOrigin::root(),
+			verifier.clone(),
+			5,
+		));
+		assert_eq!(AttestationAllowance::<Runtime>::get(&verifier), 5);
+		assert_ok!(PeopleLite::clear_attestation_allowance(
+			RuntimeOrigin::root(),
+			verifier.clone(),
+		));
+		assert_eq!(AttestationAllowance::<Runtime>::get(&verifier), 0);
+	});
+}
+
+#[test]
 fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<<Runtime as pallet_revive::Config>::ChainId as Get<u64>>::get(), 420_001_006);
 	assert!(<<Runtime as pallet_revive::Config>::AllowEVMBytecode as Get<bool>>::get());
@@ -443,6 +483,7 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<ChunksManager as PalletInfoAccess>::index(), 91);
 	assert_eq!(<Members as PalletInfoAccess>::index(), 92);
 	assert_eq!(<MembersNotifier as PalletInfoAccess>::index(), 93);
+	assert_eq!(<PeopleLite as PalletInfoAccess>::index(), 94);
 	assert_eq!(<<Runtime as pallet_broker::Config>::MaxReservedCores as Get<u32>>::get(), 50);
 }
 

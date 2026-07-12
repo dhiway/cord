@@ -148,7 +148,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 21,
+	spec_version: 22,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -1305,6 +1305,26 @@ impl indiv_pallet_members_notifier::Config for Runtime {
 }
 
 parameter_types! {
+	pub LitePeopleCollectionOwner: Location = Location::new(0, [PalletInstance(94)]);
+	pub const LitePeopleRingExponent: indiv_support::traits::RingExponent =
+		indiv_support::traits::RingExponent::R2e9;
+	pub const LitePeopleOnboardingSize: u32 = 3;
+}
+
+impl indiv_pallet_people_lite::Config for Runtime {
+	type WeightInfo = indiv_pallet_people_lite::weights::SubstrateWeight<Runtime>;
+	type AttestationAllowanceManager = EnsureRoot<AccountId>;
+	type MemberService = Members;
+	type CollectionOwner = LitePeopleCollectionOwner;
+	type LiteRingExponent = LitePeopleRingExponent;
+	type LiteOnboardingSize = LitePeopleOnboardingSize;
+	type AttestationSignature = MultiSignature;
+	type LiteConsumerRegistrar = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
+parameter_types! {
 	pub const BulletinMaxBlockTransactions: u32 = 128;
 	pub const BulletinMaxTransactionSize: u32 = 256 * 1024;
 	pub const BulletinMaxPermanentStorageSize: u64 = 16 * 1024 * 1024 * 1024;
@@ -1469,6 +1489,7 @@ construct_runtime!(
 		ChunksManager: indiv_pallet_chunks_manager = 91,
 		Members: indiv_pallet_members = 92,
 		MembersNotifier: indiv_pallet_members_notifier = 93,
+		PeopleLite: indiv_pallet_people_lite = 94,
 
 		// Solidity and PolkaVM contracts.
 		Revive: pallet_revive = 100,
@@ -1510,7 +1531,10 @@ pub type BlockId = generic::BlockId<Block>;
 
 /// The TransactionExtension to the basic transaction logic.
 pub type InnerTxExtensions = (
-	frame_system::AuthorizeCall<Runtime>,
+	(
+		indiv_pallet_people_lite::extension::PeopleLiteAuth<Runtime>,
+		frame_system::AuthorizeCall<Runtime>,
+	),
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
@@ -1547,7 +1571,10 @@ impl EthExtra for EthExtraImpl {
 
 	fn get_eth_extension(nonce: u32, tip: Balance) -> Self::ExtensionV0 {
 		(
-			frame_system::AuthorizeCall::<Runtime>::new(),
+			(
+				indiv_pallet_people_lite::extension::PeopleLiteAuth::<Runtime>::new(None),
+				frame_system::AuthorizeCall::<Runtime>::new(),
+			),
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 			frame_system::CheckTxVersion::<Runtime>::new(),
@@ -1609,7 +1636,10 @@ where
 {
 	fn create_extension() -> Self::Extension {
 		(
-			frame_system::AuthorizeCall::<Runtime>::new(),
+			(
+				indiv_pallet_people_lite::extension::PeopleLiteAuth::<Runtime>::new(None),
+				frame_system::AuthorizeCall::<Runtime>::new(),
+			),
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 			frame_system::CheckTxVersion::<Runtime>::new(),
@@ -1724,6 +1754,7 @@ mod benches {
 		[indiv_pallet_chunks_manager, ChunksManager]
 		[indiv_pallet_members, Members]
 		[indiv_pallet_members_notifier, MembersNotifier]
+		[indiv_pallet_people_lite, PeopleLite]
 		[pallet_entity, Entity]
 		[pallet_message_queue, MessageQueue]
 		[pallet_meta_tx, MetaTx]
