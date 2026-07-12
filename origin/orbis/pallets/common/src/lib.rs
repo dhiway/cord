@@ -37,6 +37,26 @@ use polkadot_sdk_frame::{
 };
 use scale_info::TypeInfo;
 
+/// Resolve an RFC-78 metadata implicit through the extension's production implementation.
+///
+/// Keeping this tiny adapter in a no-std common crate lets runtimes and isolated no-hash tests use
+/// exactly the same resolution path without introducing a dependency on an Orbis runtime.
+pub fn resolve_metadata_implicit<Call, Extension>(
+	extension: &Extension,
+) -> Result<
+	Option<[u8; 32]>,
+	polkadot_sdk_frame::deps::sp_runtime::transaction_validity::TransactionValidityError,
+>
+where
+	Call: polkadot_sdk_frame::deps::sp_runtime::traits::Dispatchable,
+	Extension: polkadot_sdk_frame::deps::sp_runtime::traits::TransactionExtension<
+		Call,
+		Implicit = Option<[u8; 32]>,
+	>,
+{
+	polkadot_sdk_frame::deps::sp_runtime::traits::TransactionExtension::implicit(extension)
+}
+
 /// Fungible currency implementation that does not support any balance operations.
 /// Works only with zero balances.
 ///

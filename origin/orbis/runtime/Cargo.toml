@@ -11,6 +11,7 @@ build = "build.rs"
 [dependencies]
 arrayvec = { workspace = true }
 assets-common = { workspace = true }
+bulletin-pallets-common = { workspace = true }
 enumflags2 = { workspace = true }
 serde = { optional = true, features = ["derive"], workspace = true }
 codec = { features = ["derive", "max-encoded-len"], workspace = true }
@@ -141,6 +142,7 @@ substrate-wasm-builder = { optional = true, workspace = true }
 default = ["std"]
 std = [
 	"assets-common/std",
+	"bulletin-pallets-common/std",
 	"bulletin-transaction-storage-primitives/std",
 	"codec/std",
 	"origin-primitives/std",

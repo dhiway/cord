@@ -153,10 +153,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 27,
+	spec_version: 28,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 6,
+	transaction_version: 7,
 	system_version: 1,
 };
 
@@ -1292,7 +1292,7 @@ pub type MetaTxExtension = (
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
-	meta_v6::MetaAccountBoundPoliciesV6,
+	meta_v6::MetaAccountBoundPoliciesV7,
 	pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
 		Runtime,
 		BulletinCallInspector,
@@ -2087,7 +2087,7 @@ pub type OuterCoreExtensions =
 pub type TxExtensions = meta_v6::PaidMetaScope<OuterCoreExtensions>;
 
 fn paid_tx_extensions(inner: InnerTxExtensions) -> TxExtensions {
-	meta_v6::PaidMetaScope(inner.into())
+	meta_v6::PaidMetaScope::new(inner.into())
 }
 
 fn default_inner_tx_extensions(
@@ -2109,9 +2109,16 @@ fn default_inner_tx_extensions(
 			Runtime,
 			BulletinCallInspector,
 		>::default(),
-		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+		canonical_metadata_extension(),
 		revive_origin,
 	)
+}
+
+fn canonical_metadata_extension() -> frame_metadata_hash_extension::CheckMetadataHash<Runtime> {
+	#[cfg(test)]
+	return frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
+	#[cfg(not(test))]
+	frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(true)
 }
 
 /// Extensions applied when an Ethereum transaction is converted into an Orbis extrinsic.

@@ -24,6 +24,7 @@ members = [
 	"origin/hub/constants",
 	"origin/hub/system",
 	"origin/orbis/runtime",
+	"origin/orbis/runtime/metadata-implicit-nohash",
 	"origin/common",
 	"origin/pallets/authorities",
 	"origin/orbis/pallets/common",
