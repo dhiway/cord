@@ -33,6 +33,7 @@ use indiv_support::traits::{
 	AppendOnlyMembers, OnRingRootChange, RingExponent, RingIndex, RingMode, RingStatus,
 };
 use sp_runtime::traits::AppendZerosInput;
+#[cfg(feature = "std")]
 use verifiable::ring::{ark_vrf::suites::bandersnatch::BandersnatchSha512Ell2, StaticChunk};
 
 const RI_ZERO: RingIndex = 0;
@@ -42,6 +43,7 @@ const SEED: u32 = 0;
 const BENCH_IDENTIFIER: Identifier = [1u8; 32];
 
 type SecretOf<T> = <<T as Config>::Crypto as GenerateVerifiable>::Secret;
+#[cfg(feature = "std")]
 type BandersnatchChunk = StaticChunk<BandersnatchSha512Ell2>;
 
 /// Helper trait for benchmarking the members pallet.

@@ -31,6 +31,7 @@ members = [
 	"origin/orbis/pallets/individuality-support",
 	"origin/orbis/pallets/chunks-manager",
 	"origin/orbis/pallets/members",
+	"origin/orbis/pallets/members-notifier",
 	"origin/orbis/pallets/people",
 	"origin/orbis/pallets/transaction-storage",
 	"origin/orbis/pallets/transaction-storage/primitives",
@@ -808,6 +809,7 @@ pallet-orbis-people = { path = 'origin/orbis/pallets/people', default-features =
 indiv-support = { path = 'origin/orbis/pallets/individuality-support', default-features = false }
 indiv-pallet-chunks-manager = { path = 'origin/orbis/pallets/chunks-manager', default-features = false }
 indiv-pallet-members = { path = 'origin/orbis/pallets/members', default-features = false }
+indiv-pallet-members-notifier = { path = 'origin/orbis/pallets/members-notifier', default-features = false }
 pallet-cord-offences = { path = 'pallets/offences', default-features = false }
 pallet-cord-node-authorization = { path = "pallets/node-authorization", default-features = false }
 pallet-network-score = { path = 'pallets/network-score', default-features = false }

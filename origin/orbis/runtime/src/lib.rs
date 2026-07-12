@@ -148,7 +148,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 20,
+	spec_version: 21,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -1176,11 +1176,132 @@ impl indiv_pallet_members::Config for Runtime {
 	type MaxFlexibleRingExponent = MembersFlexibleRingExponent;
 	type RingBuildingMemberLimit = ConstU32<100>;
 	type OldRootRetentionDuration = ConstU64<600>;
-	type OnRingRootChange = ();
+	type OnRingRootChange = MembersNotifier;
 	type OffchainWorkerInterval = ConstU32<1>;
 	type ManagerOrigin = EnsureRoot<AccountId>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = MembersBenchmarkHelper;
+}
+
+/// Accept replay requests only from the sibling parachain whose subscription is being serviced.
+pub struct EnsureSiblingParachain;
+impl frame_support::traits::EnsureOrigin<RuntimeOrigin> for EnsureSiblingParachain {
+	type Success = ParaId;
+
+	fn try_origin(origin: RuntimeOrigin) -> Result<Self::Success, RuntimeOrigin> {
+		match origin.clone().into() {
+			Ok(cumulus_pallet_xcm::Origin::SiblingParachain(id)) => Ok(id),
+			_ => Err(origin),
+		}
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn try_successful_origin() -> Result<RuntimeOrigin, ()> {
+		Ok(cumulus_pallet_xcm::Origin::SiblingParachain(2_000u32.into()).into())
+	}
+}
+
+parameter_types! {
+	pub MembersNotifierRemoteWeight: Weight = Weight::from_parts(10_000, 0);
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct MembersNotifierBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl indiv_pallet_members_notifier::benchmarking::BenchmarkHelper<Runtime>
+	for MembersNotifierBenchmarkHelper
+{
+	fn init() {
+		use cumulus_pallet_parachain_system::RelevantMessagingState;
+		use cumulus_primitives_core::relay_chain::AbridgedHrmpChannel;
+
+		pallet_timestamp::Now::<Runtime>::put(120_000u64);
+		let max = <<Runtime as indiv_pallet_members_notifier::Config>::MaxSubscribers as frame_support::traits::Get<u32>>::get();
+		let channel = AbridgedHrmpChannel {
+			max_capacity: 1_000,
+			max_total_size: 1_000_000,
+			max_message_size: 100_000,
+			msg_count: 0,
+			total_size: 0,
+			mqc_head: None,
+		};
+		let mut egress_channels: Vec<_> = (0..max)
+			.chain(1_000..1_000 + max)
+			.map(|id| (ParaId::from(id), channel.clone()))
+			.collect();
+		egress_channels.sort_by_key(|(id, _)| *id);
+		egress_channels.dedup_by_key(|(id, _)| *id);
+		RelevantMessagingState::<Runtime>::put(
+			cumulus_pallet_parachain_system::relay_state_snapshot::MessagingStateSnapshot {
+				dmq_mqc_head: Default::default(),
+				relay_dispatch_queue_remaining_capacity: Default::default(),
+				ingress_channels: Vec::new(),
+				egress_channels,
+			},
+		);
+	}
+
+	fn setup_ring_roots(count: u32) {
+		use indiv_support::traits::Identifier;
+		use verifiable::ring::RingDomainSize;
+
+		let intermediate = BandersnatchVrfVerifiable::start_members(RingDomainSize::Domain11);
+		let root = BandersnatchVrfVerifiable::finish_members(intermediate.clone());
+		let max = <<Runtime as indiv_pallet_members_notifier::Config>::MaxCollections as frame_support::traits::Get<u32>>::get();
+		for collection in 0..max {
+			let mut identifier: Identifier = [0; 32];
+			identifier[..4].copy_from_slice(&collection.to_be_bytes());
+			for index in 0..count {
+				indiv_pallet_members::Root::<Runtime>::insert(
+					identifier,
+					index,
+					indiv_pallet_members::RingRoot::<Runtime> {
+						root: root.clone(),
+						revision: 0,
+						intermediate: intermediate.clone(),
+					},
+				);
+			}
+			indiv_pallet_members::CurrentRingIndex::<Runtime>::insert(
+				identifier,
+				count.saturating_sub(1),
+			);
+		}
+	}
+
+	fn set_max_message_size(size: u32) {
+		use cumulus_pallet_parachain_system::RelevantMessagingState;
+		let mut state =
+			RelevantMessagingState::<Runtime>::get().expect("notifier benchmark init ran");
+		for (_, channel) in state.egress_channels.iter_mut() {
+			channel.max_message_size = size;
+		}
+		RelevantMessagingState::<Runtime>::put(state);
+	}
+}
+
+impl indiv_pallet_members_notifier::Config for Runtime {
+	type WeightInfo = indiv_pallet_members_notifier::weights::SubstrateWeight<Runtime>;
+	type XcmRouter = xcm_config::XcmRouter;
+	type ManageOrigin = EnsureRoot<AccountId>;
+	type Crypto = BandersnatchVrfVerifiable;
+	type Clock = Timestamp;
+	type MaxSubscribers = ConstU32<10>;
+	type MaxUpdatesPerBatch = ConstU32<10>;
+	type MaxCollectionsPerSubscriber = ConstU32<3>;
+	type MaxCollections = ConstU32<100>;
+	type RingRootsProvider = Members;
+	type EnsureSubscriberOrigin = EnsureSiblingParachain;
+	type ChannelInfo = ParachainSystem;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = MembersNotifierBenchmarkHelper;
+	type UpdateTriggerBlocks = ConstU32<1>;
+	type UpdateTriggerThreshold = ConstU32<1>;
+	type RequestReplayRemoteWeight = MembersNotifierRemoteWeight;
+	type OffchainWorkerInterval = ConstU32<1>;
+	type StuckBatchTimeout = ConstU32<100>;
+	type ReplayCooldownSeconds = ConstU64<60>;
 }
 
 parameter_types! {
@@ -1347,6 +1468,7 @@ construct_runtime!(
 		People: pallet_orbis_people = 90,
 		ChunksManager: indiv_pallet_chunks_manager = 91,
 		Members: indiv_pallet_members = 92,
+		MembersNotifier: indiv_pallet_members_notifier = 93,
 
 		// Solidity and PolkaVM contracts.
 		Revive: pallet_revive = 100,
@@ -1601,6 +1723,7 @@ mod benches {
 		[pallet_orbis_people, People]
 		[indiv_pallet_chunks_manager, ChunksManager]
 		[indiv_pallet_members, Members]
+		[indiv_pallet_members_notifier, MembersNotifier]
 		[pallet_entity, Entity]
 		[pallet_message_queue, MessageQueue]
 		[pallet_meta_tx, MetaTx]

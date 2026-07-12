@@ -19,10 +19,12 @@
 use crate::{
 	xcm_config::LocationToAccountId, AssetConversion, AssetRate, AssetTxPayment, Assets,
 	AssetsFreezer, AssetsHolder, Balances, Broker, ChunksManager, Entity, Feeless, ForeignAssets,
-	ForeignAssetsFreezer, HopPromotion, Members, Nfts, People, PoolAssets, PoolAssetsFreezer,
-	Revive, Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage, Uniques,
+	ForeignAssetsFreezer, HopPromotion, Members, MembersNotifier, Nfts, People, PoolAssets,
+	PoolAssetsFreezer, Revive, Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage,
+	Uniques,
 };
 use codec::{Decode, Encode};
+use cumulus_primitives_core::ParaId;
 use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::CheckIfFeeless,
@@ -375,6 +377,46 @@ fn people_membership_collections_are_native_and_sudo_managed() {
 }
 
 #[test]
+fn ring_root_changes_are_queued_and_subscriptions_are_sudo_managed() {
+	use indiv_pallet_members_notifier::{PageState, PendingUpdates, Subscribers};
+	use indiv_support::traits::{OnRingRootChange, RingExponent, RingRootOp};
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		pallet_timestamp::Now::<Runtime>::put(1_000);
+		let identifier = [8u8; 32];
+		<MembersNotifier as OnRingRootChange<
+			indiv_pallet_members_notifier::MembersOf<Runtime>,
+		>>::on_ring_root_change(identifier, 3, RingRootOp::Deleted);
+		assert!(PendingUpdates::<Runtime>::contains_key((
+			PageState::<Runtime>::get().write_page,
+			identifier,
+			3,
+		)));
+
+		let collections: frame_support::BoundedVec<
+			([u8; 32], RingExponent),
+			frame_support::traits::ConstU32<3>,
+		> = vec![(identifier, RingExponent::R2e9)].try_into().unwrap();
+		assert_noop!(
+			MembersNotifier::subscribe(
+				RuntimeOrigin::signed(AccountId::from(ALICE)),
+				ParaId::from(2_000u32),
+				collections.clone(),
+				60,
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+		assert_ok!(MembersNotifier::subscribe(
+			RuntimeOrigin::root(),
+			ParaId::from(2_000u32),
+			collections,
+			60,
+		));
+		assert!(Subscribers::<Runtime>::contains_key(ParaId::from(2_000u32)));
+	});
+}
+
+#[test]
 fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<<Runtime as pallet_revive::Config>::ChainId as Get<u64>>::get(), 420_001_006);
 	assert!(<<Runtime as pallet_revive::Config>::AllowEVMBytecode as Get<bool>>::get());
@@ -400,6 +442,7 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<crate::WeightReclaim as PalletInfoAccess>::index(), 4);
 	assert_eq!(<ChunksManager as PalletInfoAccess>::index(), 91);
 	assert_eq!(<Members as PalletInfoAccess>::index(), 92);
+	assert_eq!(<MembersNotifier as PalletInfoAccess>::index(), 93);
 	assert_eq!(<<Runtime as pallet_broker::Config>::MaxReservedCores as Get<u32>>::get(), 50);
 }
 

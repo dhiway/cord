@@ -25,6 +25,7 @@ origin-hub-system-runtime-constants = { workspace = true }
 token-origin-hub-runtime-api = { workspace = true }
 indiv-pallet-chunks-manager = { workspace = true }
 indiv-pallet-members = { workspace = true }
+indiv-pallet-members-notifier = { workspace = true }
 indiv-support = { workspace = true }
 verifiable = { workspace = true }
 
@@ -135,6 +136,7 @@ std = [
 	"token-origin-hub-runtime-api/std",
 	"indiv-pallet-chunks-manager/std",
 	"indiv-pallet-members/std",
+	"indiv-pallet-members-notifier/std",
 	"indiv-support/std",
 	"verifiable/std",
 	"cumulus-pallet-aura-ext/std",
@@ -233,6 +235,7 @@ runtime-benchmarks = [
 	"assets-common/runtime-benchmarks",
 	"indiv-pallet-chunks-manager/runtime-benchmarks",
 	"indiv-pallet-members/runtime-benchmarks",
+	"indiv-pallet-members-notifier/runtime-benchmarks",
 	"indiv-support/runtime-benchmarks",
 	"indiv-support/genesis",
 	"origin-runtime-constants/runtime-benchmarks",
@@ -298,6 +301,7 @@ try-runtime = [
 	"assets-common/try-runtime",
 	"indiv-pallet-chunks-manager/try-runtime",
 	"indiv-pallet-members/try-runtime",
+	"indiv-pallet-members-notifier/try-runtime",
 	"cumulus-pallet-aura-ext/try-runtime",
 	"cumulus-pallet-parachain-system/try-runtime",
 	"cumulus-pallet-weight-reclaim/try-runtime",

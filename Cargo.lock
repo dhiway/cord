@@ -7182,6 +7182,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "indiv-pallet-members-notifier"
+version = "0.9.9"
+dependencies = [
+ "cumulus-primitives-core",
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-support",
+ "frame-system",
+ "indiv-support",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "parking_lot 0.12.5",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "staging-xcm",
+ "staging-xcm-executor",
+ "verifiable",
+]
+
+[[package]]
 name = "indiv-support"
 version = "0.9.9"
 dependencies = [
@@ -9601,6 +9624,7 @@ dependencies = [
  "hex-literal",
  "indiv-pallet-chunks-manager",
  "indiv-pallet-members",
+ "indiv-pallet-members-notifier",
  "indiv-support",
  "log",
  "origin-hub-system-runtime-constants",
