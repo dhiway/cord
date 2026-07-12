@@ -839,6 +839,76 @@ fn suspended_or_unknown_account_cannot_claim_participant_origin() {
 }
 
 #[test]
+fn suspended_and_unknown_participants_cannot_mutate_or_claim_score_state() {
+	new_test_ext().execute_with(|| {
+		let account = 42u64;
+		assert_ok!(PalletScore::onboard_for_recognition(&account));
+		let key = AccountOrPerson::Account(account);
+		Participants::<Test>::mutate(&key, |participant| {
+			let participant = participant.as_mut().unwrap();
+			participant.score = 10;
+			participant.credit = 5;
+			participant.recognition = Suspended(Default::default());
+		});
+		let before = Participants::<Test>::get(&key).unwrap();
+		let points_before = CurrentRoundPoints::<Test>::get();
+		let pot_before = Balances::total_balance(&PalletScore::score_pot_id());
+
+		assert_noop!(
+			PalletScore::set_attendance(&key, true, 7),
+			Error::<Test>::ParticipantSuspended
+		);
+		assert_noop!(
+			PalletScore::cash_out(RuntimeOrigin::signed(account)),
+			Error::<Test>::ParticipantSuspended
+		);
+		assert_noop!(
+			PalletScore::redeem_credit(RuntimeOrigin::signed(account), 77),
+			Error::<Test>::ParticipantSuspended
+		);
+		assert_eq!(Participants::<Test>::get(&key), Some(before));
+		assert_eq!(CurrentRoundPoints::<Test>::get(), points_before);
+		assert_eq!(Balances::total_balance(&PalletScore::score_pot_id()), pot_before);
+
+		let unknown = AccountOrPerson::Account(404);
+		assert_noop!(PalletScore::set_attendance(&unknown, true, 7), Error::<Test>::NoScore);
+		assert_noop!(PalletScore::cash_out(RuntimeOrigin::signed(404)), Error::<Test>::NoScore);
+		assert_noop!(
+			PalletScore::redeem_credit(RuntimeOrigin::signed(404), 77),
+			Error::<Test>::NoScore
+		);
+		assert!(!Participants::<Test>::contains_key(unknown));
+	});
+}
+
+#[test]
+fn payout_account_rotation_is_root_only_atomic_and_liability_safe() {
+	new_test_ext().execute_with(|| {
+		let old = PalletScore::score_pot_id();
+		assert_eq!(old, 500);
+		fund_score_pot(100);
+		let old_balance = Balances::total_balance(&old);
+		assert_noop!(
+			PalletScore::set_payout_account(RuntimeOrigin::signed(99), 501),
+			sp_runtime::DispatchError::BadOrigin
+		);
+
+		assert_ok!(PalletScore::schedule_payout_rounds(RuntimeOrigin::root(), 10, 1, 5));
+		assert_noop!(
+			PalletScore::set_payout_account(RuntimeOrigin::root(), 501),
+			Error::<Test>::PayoutAccountLiability
+		);
+		assert_eq!(PalletScore::score_pot_id(), old);
+		assert_ok!(PalletScore::remove_payout_schedule(RuntimeOrigin::root(), 0));
+
+		assert_ok!(PalletScore::set_payout_account(RuntimeOrigin::root(), 501));
+		assert_eq!(PalletScore::score_pot_id(), 501);
+		assert_eq!(Balances::total_balance(&old), 0);
+		assert_eq!(Balances::total_balance(&501), old_balance);
+	});
+}
+
+#[test]
 fn unit_test_set_attendance_to_at_least() {
 	let mut streak = Streak::Attended(5);
 	streak.set_attendance_to_at_least(3);
@@ -999,36 +1069,15 @@ fn recognition_flow() {
 		);
 
 		//
-		// 7) More attendance => back above threshold => still Suspended(id), requiring
-		//    re-registration to become active again.
-		//
-		while Participants::<Test>::get(&user_key).unwrap().score < personhood_threshold {
-			assert_ok!(PalletScore::start_attendance_report_session());
-			PalletScore::set_attendance(&user_key, true, 0).expect("Should succeed");
-			assert_ok!(PalletScore::end_attendance_report_session());
-			People::on_poll(System::block_number(), &mut WeightMeter::new());
-		}
-		let participant = Participants::<Test>::get(&user_key).unwrap();
-		match participant.recognition {
-			Recognition::Suspended(same_id) => assert_eq!(same_id, personal_id),
-			_ => panic!("Expected participant to remain suspended => Suspended(id)"),
-		}
-
-		//
-		// 8) User calls `register(None)` => transitions to Recognized(personal_id) again
-		//
-		assert_ok!(PalletScore::register(RuntimeOrigin::signed(user), None));
-		let participant = Participants::<Test>::get(&user_key).unwrap();
-		match participant.recognition {
-			Recognition::Recognized(same_id) => assert_eq!(same_id, personal_id),
-			_ => panic!("Expected participant recognized again"),
-		}
-		// Confirm People pallet => recognized again
-		let record = indiv_pallet_people::People::<Test>::get(personal_id).unwrap();
-		assert!(matches!(
-			Members::member_status(PEOPLE_MEMBER_IDENTIFIER, &record.key).unwrap(),
-			RingPosition::Onboarding { queue_page: 0, .. },
-		));
+		// 7) Suspension is a hard Score boundary: attendance cannot rebuild score or mutate state.
+		let before = Participants::<Test>::get(&user_key).unwrap();
+		assert_ok!(PalletScore::start_attendance_report_session());
+		assert_noop!(
+			PalletScore::set_attendance(&user_key, true, 0),
+			Error::<Test>::ParticipantSuspended
+		);
+		assert_ok!(PalletScore::end_attendance_report_session());
+		assert_eq!(Participants::<Test>::get(&user_key), Some(before));
 	});
 }
 
@@ -1711,29 +1760,15 @@ fn grace_ratio_window_three_full_cycle() {
 		// Score: started at 10, lost 1 then 2 then 3 => 4.
 		assert_eq!(p.score, 4);
 
-		// --- Recovery path ---
-
-		// Attend games to rebuild score back to threshold (10).
-		// Attendance streaks: +1 => 5, +2 => 7, +3 => 10.
-		attend(&who, true);
-		assert_eq!(Participants::<Test>::get(&who).unwrap().score, 5);
-		attend(&who, true);
-		assert_eq!(Participants::<Test>::get(&who).unwrap().score, 7);
-		attend(&who, true);
-		let p = Participants::<Test>::get(&who).unwrap();
-		assert!(matches!(p.recognition, Suspended(_)), "still Suspended — must re-register");
-		assert_eq!(p.score, 10);
-		assert!(p.reached_personhood, "reached_personhood restored once score >= threshold");
-
-		// --- Resume personhood ---
-
-		assert_ok!(PalletScore::register(RuntimeOrigin::signed(99), None));
-		let p = Participants::<Test>::get(&who).unwrap();
-		assert!(
-			matches!(p.recognition, Recognized(id) if id == personal_id),
-			"register(None) should resume personhood with same id"
+		// --- Terminal suspension boundary ---
+		let before = Participants::<Test>::get(&who).unwrap();
+		assert_ok!(PalletScore::start_attendance_report_session());
+		assert_noop!(
+			PalletScore::set_attendance(&who, true, 0),
+			Error::<Test>::ParticipantSuspended
 		);
-		assert!(p.reached_personhood);
+		assert_ok!(PalletScore::end_attendance_report_session());
+		assert_eq!(Participants::<Test>::get(&who), Some(before));
 	});
 }
 
@@ -1766,30 +1801,15 @@ fn grace_ratio_window_two_full_cycle() {
 		// Score: 14 - 2 => 12.
 		assert_eq!(p.score, 12);
 
-		// --- Recovery path ---
-
-		// Attend games to rebuild score back to threshold (15).
-		// Attendance streaks: +1 => 13, +2 => 15.
-		attend(&who, true);
-		let p = Participants::<Test>::get(&who).unwrap();
-		assert!(matches!(p.recognition, Suspended(_)), "still Suspended while rebuilding");
-		assert_eq!(p.score, 13);
-
-		attend(&who, true);
-		let p = Participants::<Test>::get(&who).unwrap();
-		assert!(matches!(p.recognition, Suspended(_)), "still Suspended — must re-register");
-		assert_eq!(p.score, 15);
-		assert!(p.reached_personhood);
-
-		// --- Resume personhood ---
-
-		assert_ok!(PalletScore::register(RuntimeOrigin::signed(99), None));
-		let p = Participants::<Test>::get(&who).unwrap();
-		assert!(
-			matches!(p.recognition, Recognized(id) if id == personal_id),
-			"register(None) should resume personhood with same ID"
+		// --- Terminal suspension boundary ---
+		let before = Participants::<Test>::get(&who).unwrap();
+		assert_ok!(PalletScore::start_attendance_report_session());
+		assert_noop!(
+			PalletScore::set_attendance(&who, true, 0),
+			Error::<Test>::ParticipantSuspended
 		);
-		assert!(p.reached_personhood);
+		assert_ok!(PalletScore::end_attendance_report_session());
+		assert_eq!(Participants::<Test>::get(&who), Some(before));
 	});
 }
 
@@ -1822,41 +1842,15 @@ fn grace_ratio_large_network_full_cycle() {
 		// Score: 20 - 2 => 18.
 		assert_eq!(p.score, 18);
 
-		// --- Recovery path ---
-
-		// Attend games to rebuild score back to threshold (21).
-		// Streaks: +1 => 19, +2 => 21.
-		attend(&who, true);
-		let p = Participants::<Test>::get(&who).unwrap();
-		assert!(matches!(p.recognition, Suspended(_)), "still Suspended while rebuilding");
-		assert_eq!(p.score, 19);
-
-		attend(&who, true);
-		let p = Participants::<Test>::get(&who).unwrap();
-		assert!(matches!(p.recognition, Suspended(_)), "still Suspended — must re-register");
-		assert_eq!(p.score, 21);
-		assert!(p.reached_personhood);
-
-		// --- Resume personhood ---
-
-		assert_ok!(PalletScore::register(RuntimeOrigin::signed(99), None));
-		let p = Participants::<Test>::get(&who).unwrap();
-		assert!(
-			matches!(p.recognition, Recognized(id) if id == personal_id),
-			"register(None) should resume personhood with same ID"
+		// --- Terminal suspension boundary ---
+		let before = Participants::<Test>::get(&who).unwrap();
+		assert_ok!(PalletScore::start_attendance_report_session());
+		assert_noop!(
+			PalletScore::set_attendance(&who, true, 0),
+			Error::<Test>::ParticipantSuspended
 		);
-
-		// --- Verify attending does not re-suspend ---
-
-		for i in 1..=5 {
-			attend(&who, true);
-			let p = Participants::<Test>::get(&who).unwrap();
-			assert!(
-				matches!(p.recognition, Recognized(_)),
-				"should remain Recognized after attendance {i}"
-			);
-			assert!(p.reached_personhood);
-		}
+		assert_ok!(PalletScore::end_attendance_report_session());
+		assert_eq!(Participants::<Test>::get(&who), Some(before));
 	});
 }
 

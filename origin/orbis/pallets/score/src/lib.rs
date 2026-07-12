@@ -23,6 +23,7 @@ extern crate alloc;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 mod extension;
+pub mod migrations;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -39,11 +40,11 @@ use codec::Encode;
 use frame_support::{
 	storage::with_storage_layer,
 	traits::{
-		fungible::{Inspect, Mutate, MutateHold},
+		fungible::{Inspect, InspectHold, Mutate, MutateHold},
 		tokens::{Precision, Preservation},
 		Defensive, EnsureOriginWithArg, OriginTrait,
 	},
-	transactional, PalletId,
+	transactional,
 };
 use frame_system::{
 	offchain::{CreateInherent, SubmitTransaction},
@@ -51,7 +52,7 @@ use frame_system::{
 };
 use indiv_support::traits::{AddOnlyPeopleTrait, Alias, Context, CountedMembers, PeopleTrait};
 use sp_runtime::{
-	traits::{AccountIdConversion, BadOrigin, Zero},
+	traits::{BadOrigin, Zero},
 	Saturating,
 };
 use types::Recognition::*;
@@ -83,7 +84,7 @@ pub mod pallet {
 	/// far in the future.
 	const CUSTOM_ERROR_FAR_FUTURE: u8 = 87;
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	pub(crate) const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
@@ -152,8 +153,8 @@ pub mod pallet {
 		/// Who to tell when we recognize or suspend personhood.
 		type People: PeopleTrait;
 
-		/// Account Identifier from which the internal Pot is generated.
-		type ScorePotId: Get<PalletId>;
+		/// Initial enterprise payout account. Root may rotate it only when liabilities are zero.
+		type PayoutAccountDefault: Get<Self::AccountId>;
 
 		/// Currency used for cash out payout.
 		type Currency: Inspect<Self::AccountId>
@@ -205,9 +206,9 @@ pub mod pallet {
 
 	#[pallet::extra_constants]
 	impl<T: Config> Pallet<T> {
-		/// Get a unique, inaccessible account ID from the `PotId`.
+		/// Current named payout account.
 		pub fn score_pot_id() -> T::AccountId {
-			T::ScorePotId::get().into_account_truncating()
+			PayoutAccount::<T>::get()
 		}
 
 		/// The context used for the proofs required to authenticate as a personal alias in score
@@ -325,14 +326,28 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type ManagerAccount<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
 
+	/// Named enterprise payout account used by every schedule, hold, and redemption path.
+	#[pallet::type_value]
+	pub fn DefaultPayoutAccount<T: Config>() -> T::AccountId {
+		T::PayoutAccountDefault::get()
+	}
+
+	#[pallet::storage]
+	pub type PayoutAccount<T: Config> =
+		StorageValue<_, T::AccountId, ValueQuery, DefaultPayoutAccount<T>>;
+
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
 		pub manager_account: Option<T::AccountId>,
+		pub payout_account: T::AccountId,
 	}
 
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self { manager_account: T::ManagerAccountDefault::get() }
+			Self {
+				manager_account: T::ManagerAccountDefault::get(),
+				payout_account: T::PayoutAccountDefault::get(),
+			}
 		}
 	}
 
@@ -342,6 +357,7 @@ pub mod pallet {
 			if let Some(manager) = &self.manager_account {
 				ManagerAccount::<T>::put(manager);
 			}
+			PayoutAccount::<T>::put(&self.payout_account);
 		}
 	}
 
@@ -399,6 +415,8 @@ pub mod pallet {
 		AbsenceGraceScheduleSet,
 		/// The named enterprise manager account has changed.
 		ManagerAccountSet { manager: Option<T::AccountId> },
+		/// The named payout account has changed after all prior funds were transferred.
+		PayoutAccountSet { old: T::AccountId, new: T::AccountId, transferred: BalanceOf<T> },
 	}
 
 	#[pallet::error]
@@ -411,6 +429,10 @@ pub mod pallet {
 		NoReward,
 		/// The person has no associated score.
 		NoScore,
+		/// A suspended participant cannot mutate Score state or claim Score value.
+		ParticipantSuspended,
+		/// Payout-account rotation is forbidden while any payout liability remains.
+		PayoutAccountLiability,
 		/// No payout schedule available.
 		NoSchedule,
 		/// Too many payout schedules already registered.
@@ -906,7 +928,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::cash_out())]
 		pub fn cash_out(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let who = AccountOrPerson::Account(Self::ensure_signed_or_participant(origin)?);
-			let mut score = Participants::<T>::get(&who).ok_or(Error::<T>::NoScore)?;
+			let mut score = Self::ensure_active_participant(&who)?;
 			ensure!(!score.has_ever_reached_personhood, Error::<T>::HasReachedPersonhood);
 			ensure!(!score.cashed_out, Error::<T>::CashOutCooldown);
 			let reduction = score.score.saturating_add(1) / 2;
@@ -935,7 +957,7 @@ pub mod pallet {
 			destination: T::AccountId,
 		) -> DispatchResultWithPostInfo {
 			let who = Self::ensure_signed_or_participant_or_person(origin)?;
-			let mut score = Participants::<T>::get(&who).ok_or(Error::<T>::NoScore)?;
+			let mut score = Self::ensure_active_participant(&who)?;
 
 			let pot = Self::score_pot_id();
 			if score.credit.is_zero() {
@@ -1098,9 +1120,54 @@ pub mod pallet {
 			Self::deposit_event(Event::ManagerAccountSet { manager });
 			Ok(Pays::No.into())
 		}
+
+		/// Rotate the named payout account after proving the old account has no liabilities.
+		#[pallet::call_index(11)]
+		#[pallet::weight(T::WeightInfo::set_payout_account())]
+		#[transactional]
+		pub fn set_payout_account(
+			origin: OriginFor<T>,
+			new: T::AccountId,
+		) -> DispatchResultWithPostInfo {
+			T::ManagerOrigin::ensure_origin(origin)?;
+			let old = PayoutAccount::<T>::get();
+			if old == new {
+				return Ok(Pays::No.into());
+			}
+			ensure!(RoundSchedules::<T>::get().is_empty(), Error::<T>::PayoutAccountLiability);
+			ensure!(RoundPlanning::<T>::get().is_none(), Error::<T>::PayoutAccountLiability);
+			ensure!(
+				RoundPayouts::<T>::iter_keys().next().is_none(),
+				Error::<T>::PayoutAccountLiability
+			);
+			ensure!(CurrentRoundPoints::<T>::get() == 0, Error::<T>::PayoutAccountLiability);
+			ensure!(
+				T::Currency::balance_on_hold(&HoldReason::Payout.into(), &old).is_zero()
+					&& T::Currency::balance_on_hold(&HoldReason::Credit.into(), &old).is_zero(),
+				Error::<T>::PayoutAccountLiability
+			);
+			let transferred = T::Currency::total_balance(&old);
+			if !transferred.is_zero() {
+				T::Currency::transfer(&old, &new, transferred, Preservation::Expendable)?;
+			}
+			PayoutAccount::<T>::put(&new);
+			Self::deposit_event(Event::PayoutAccountSet { old, new, transferred });
+			Ok(Pays::No.into())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
+		pub(crate) fn ensure_active_participant(
+			who: &AccountOrPerson<T::AccountId>,
+		) -> Result<Participant<BalanceOf<T>>, DispatchError> {
+			let participant = Participants::<T>::get(who).ok_or(Error::<T>::NoScore)?;
+			ensure!(
+				!matches!(participant.recognition, Suspended(_)),
+				Error::<T>::ParticipantSuspended
+			);
+			Ok(participant)
+		}
+
 		fn ensure_manager(origin: OriginFor<T>) -> DispatchResult {
 			match T::ManagerOrigin::try_origin(origin) {
 				Ok(_) => Ok(()),
@@ -1232,7 +1299,7 @@ pub mod pallet {
 			attended: bool,
 			game_index: u32,
 		) -> Result<Participant<BalanceOf<T>>, DispatchError> {
-			let mut score = Participants::<T>::get(who).ok_or(Error::<T>::NoScore)?;
+			let mut score = Self::ensure_active_participant(who)?;
 
 			let personhood_threshold = PersonhoodThreshold::<T>::get();
 

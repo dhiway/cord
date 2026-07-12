@@ -37,12 +37,12 @@ use sp_runtime::traits::AsSystemOriginSigner;
 use xcm::prelude::*;
 use xcm_runtime_apis::conversions::LocationToAccountHelper;
 
-#[path = "remediation_v3.rs"]
-mod remediation_v3;
-#[path = "../../evidence_markers_v4.rs"]
-mod evidence_markers_v4;
 #[path = "../../evidence_inventory_v4.rs"]
 mod evidence_inventory_v4;
+#[path = "../../evidence_markers_v4.rs"]
+mod evidence_markers_v4;
+#[path = "remediation_v3.rs"]
+mod remediation_v3;
 
 const ALICE: [u8; 32] = [1u8; 32];
 
@@ -484,10 +484,7 @@ fn completion_manifest_v4_gate5_clear_is_exact_and_narrow() {
 		.unwrap();
 	assert_eq!(gate5["status"].as_str(), Some("present"));
 	assert_eq!(gate5["dependency_ids"].as_str(), Some("ARCHITECT-CLEAR; CRITIC-CLEAR"));
-	assert_eq!(
-		manifest["replanning"]["architect_status"].as_str(),
-		Some("clear")
-	);
+	assert_eq!(manifest["replanning"]["architect_status"].as_str(), Some("clear"));
 	assert_eq!(
 		manifest["replanning"]["architect_evidence"].as_str(),
 		Some("docs/evidence/orbis-v4/architect-review-clear-1.md")
@@ -593,14 +590,8 @@ fn completion_manifest_v4_source_inventory_covers_every_row() {
 		}
 	}
 	identities.sort_unstable();
-	assert_eq!(
-		identities.as_slice(),
-		evidence_inventory_v4::MANIFEST_INVENTORY_V4
-	);
-	assert_eq!(
-		identities.len(),
-		evidence_inventory_v4::MANIFEST_INVENTORY_V4_COUNT
-	);
+	assert_eq!(identities.as_slice(), evidence_inventory_v4::MANIFEST_INVENTORY_V4);
+	assert_eq!(identities.len(), evidence_inventory_v4::MANIFEST_INVENTORY_V4_COUNT);
 	let canonical = identities
 		.iter()
 		.map(|(table, id, state, status)| format!("{table}\0{id}\0{state}\0{status}\n"))
@@ -1505,6 +1496,84 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 			"CheckMetadataHash",
 		]
 	);
+}
+
+#[test]
+fn score_normal_and_meta_signed_origins_share_active_participant_boundary() {
+	use frame_support::{
+		dispatch::GetDispatchInfo,
+		traits::{BuildGenesisConfig, OriginTrait},
+	};
+	use pallet_orbis_score::{AccountOrPerson, Recognition, ScoreAsParticipantData};
+	use sp_runtime::{traits::DispatchTransaction, transaction_validity::InvalidTransaction};
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		pallet_orbis_score::GenesisConfig::<Runtime>::default().build();
+		let normal = AccountId::new([0x31; 32]);
+		let meta_inner = AccountId::new([0x32; 32]);
+		for account in [&normal, &meta_inner] {
+			crate::Score::onboard_for_recognition(account).unwrap();
+		}
+		let call = RuntimeCall::Score(pallet_orbis_score::Call::cash_out {});
+		let info = call.get_dispatch_info();
+		for account in [&normal, &meta_inner] {
+			let extension = pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(Some(
+				ScoreAsParticipantData { nonce: 0 },
+			));
+			extension
+				.test_run(
+					RuntimeOrigin::signed(account.clone()),
+					&call,
+					&info,
+					0,
+					0,
+					|origin: RuntimeOrigin| {
+						assert!(matches!(
+							origin.into_caller().try_into(),
+							Ok(pallet_orbis_score::Origin::AccountParticipant(who)) if who == *account
+						));
+						Ok(Default::default())
+					},
+				)
+				.unwrap()
+				.unwrap();
+			assert_eq!(System::account(account).nonce, 1);
+		}
+
+		let suspended_key = AccountOrPerson::Account(meta_inner.clone());
+		pallet_orbis_score::Participants::<Runtime>::mutate(&suspended_key, |participant| {
+			participant.as_mut().unwrap().recognition = Recognition::Suspended(Default::default());
+		});
+		let before = pallet_orbis_score::Participants::<Runtime>::get(&suspended_key).unwrap();
+		let nonce_before = System::account(&meta_inner).nonce;
+		let extension =
+			pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(Some(ScoreAsParticipantData {
+				nonce: nonce_before,
+			}));
+		assert_eq!(
+			extension
+				.test_run(RuntimeOrigin::signed(meta_inner.clone()), &call, &info, 0, 0, |_| {
+					Ok(Default::default())
+				})
+				.unwrap_err(),
+			InvalidTransaction::Call.into()
+		);
+		assert_eq!(pallet_orbis_score::Participants::<Runtime>::get(&suspended_key), Some(before));
+		assert_eq!(System::account(&meta_inner).nonce, nonce_before);
+
+		let unknown = AccountId::new([0x33; 32]);
+		let extension =
+			pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(Some(ScoreAsParticipantData {
+				nonce: 0,
+			}));
+		assert!(extension
+			.test_run(RuntimeOrigin::signed(unknown.clone()), &call, &info, 0, 0, |_| {
+				Ok(Default::default())
+			})
+			.is_err());
+		assert_eq!(System::account(&unknown).nonce, 0);
+	});
 }
 
 #[test]
@@ -5008,6 +5077,57 @@ fn native_benchmark_api_executes_all_meta_policy_targets() {
 				batches[0].results[0].components.is_empty(),
 				"fixed workload has no dimensions"
 			);
+		});
+	}
+}
+
+#[test]
+#[cfg(feature = "runtime-benchmarks")]
+fn native_benchmark_api_discovers_and_executes_score_and_honour() {
+	use frame_benchmarking::{
+		runtime_decl_for_benchmark::BenchmarkV2, BenchmarkConfig, Benchmarking,
+	};
+
+	// Query these pallets directly: aggregate metadata also evaluates every registered pallet's
+	// component bounds, and upstream collator-selection underflows when this enterprise runtime
+	// deliberately configures zero invulnerables.
+	let score_metadata = pallet_orbis_score::Pallet::<Runtime>::benchmarks(false);
+	let honour_metadata = pallet_orbis_honour::Pallet::<Runtime>::benchmarks(false);
+	assert!(score_metadata.iter().any(|entry| entry.name == b"set_payout_account"));
+	assert!(score_metadata.iter().any(|entry| entry.name == b"as_participant_tx_ext"));
+	assert!(honour_metadata.iter().any(|entry| entry.name == b"extension_validate"));
+	for (pallet, instance, benchmark) in [
+		(b"pallet_orbis_score".as_slice(), b"Score".as_slice(), b"set_payout_account".as_slice()),
+		(
+			b"pallet_orbis_score".as_slice(),
+			b"Score".as_slice(),
+			b"as_participant_tx_ext".as_slice(),
+		),
+		(b"pallet_orbis_honour".as_slice(), b"Honour".as_slice(), b"extension_validate".as_slice()),
+	] {
+		let state = sc_client_db::BenchmarkingState::<sp_runtime::traits::BlakeTwo256>::new(
+			Default::default(),
+			None,
+			false,
+			false,
+		)
+		.unwrap();
+		let mut overlay = Default::default();
+		let mut ext = sp_state_machine::Ext::new(&mut overlay, &state, None);
+		sp_externalities::set_and_run_with_externalities(&mut ext, || {
+			System::set_block_number(1);
+			let batches = Runtime::dispatch_benchmark(BenchmarkConfig {
+				pallet: pallet.to_vec(),
+				instance: instance.to_vec(),
+				benchmark: benchmark.to_vec(),
+				selected_components: Vec::new(),
+				verify: true,
+				internal_repeats: 1,
+			})
+			.unwrap_or_else(|error| panic!("benchmark failed: {error}"));
+			assert_eq!(batches.len(), 1);
+			assert_eq!(batches[0].benchmark, benchmark);
+			assert_eq!(batches[0].results.len(), 1);
 		});
 	}
 }

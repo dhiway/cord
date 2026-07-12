@@ -146,6 +146,16 @@ The active MetaTx extension sequence is `VerifySignature`, `ConsumePaidMetaIngre
 sponsor can carry either explicit identity-bound application authorization inside the signed
 inner payload; `None` remains the deny-by-default encoding for both new slots.
 
+The four surfaces have an exact application contract. Normal Score calls require the signed
+account to be an active, non-suspended participant; normal Honour calls require a proof explicitly
+bound to that same signed account. MetaTx applies the same rules to the inner signer after
+`VerifySignature`; the outer sponsor remains the sole payer and nonce owner for the outer
+transaction, while the inner signer owns the inner nonce. Ethereum/Revive and authorized/offchain
+constructors deliberately encode both application slots as `None`, so they cannot manufacture a
+participant or voter origin; their ordinary mapped/authorized payer semantics are unchanged.
+Origin transformation never changes the account selected by the account-aware nonce or payment
+extensions, and failed validation occurs before nonce, fee, Score, Honour, or payout mutation.
+
 
 ## Iteration-5 evidence boundary
 

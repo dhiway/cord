@@ -1668,7 +1668,7 @@ impl indiv_pallet_people::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ScorePotId: PalletId = PalletId(*b"scorepot");
+	pub ScorePayoutAccountDefault: AccountId = AccountId::new([0x50; 32]);
 	pub ScoreCurrencyLocation: Location = Location::here();
 	pub ScoreManagerAccountDefault: Option<AccountId> = Some(AccountId::new([0x53; 32]));
 	pub const HonourPointFreezeDuration: pallet_orbis_honour::Seconds = 24 * 60 * 60;
@@ -1750,7 +1750,7 @@ impl pallet_orbis_honour::benchmarking::BenchmarkHelper<Runtime> for HonourBench
 impl pallet_orbis_score::Config for Runtime {
 	type WeightInfo = pallet_orbis_score::weights::SubstrateWeight<Runtime>;
 	type EnsurePerson = indiv_pallet_people::EnsurePersonalAliasInContext<Runtime>;
-	type ScorePotId = ScorePotId;
+	type PayoutAccountDefault = ScorePayoutAccountDefault;
 	type Currency = Balances;
 	type CurrencyLocationInfo = ScoreCurrencyLocation;
 	type ManagerOrigin = EnsureRoot<AccountId>;
@@ -2319,8 +2319,11 @@ pub type Migrations = migrations::Unreleased;
 #[allow(deprecated, missing_docs)]
 pub mod migrations {
 	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased =
-		(pallet_bulletin_transaction_storage::migrations::MigrateV5ToV7<super::Runtime>,);
+	pub type Unreleased = (
+		pallet_orbis_score::migrations::IntroduceV1<super::Runtime>,
+		pallet_orbis_honour::migrations::IntroduceV1<super::Runtime>,
+		pallet_bulletin_transaction_storage::migrations::MigrateV5ToV7<super::Runtime>,
+	);
 }
 
 /// MBM migrations to apply on runtime upgrade.
@@ -2412,6 +2415,8 @@ mod benches {
 		[indiv_pallet_people_lite, PeopleLite]
 		[indiv_pallet_people, Personhood]
 		[indiv_pallet_resources, Resources]
+		[pallet_orbis_score, Score]
+		[pallet_orbis_honour, Honour]
 		[pallet_orbis_entity, Entity]
 		[pallet_message_queue, MessageQueue]
 		[pallet_migrations, MultiBlockMigrations]

@@ -42,6 +42,8 @@ type RuntimeCallOf<T> = <T as frame_system::Config>::RuntimeCall;
 #[derive(Clone, Eq, PartialEq, Encode, Decode, TypeInfo, DecodeWithMemTracking, Debug)]
 #[scale_info(skip_type_params(T))]
 pub struct VoterAuthData<T: Config> {
+	/// Signed account that co-authorizes this anonymous ring vote.
+	pub account: T::AccountId,
 	pub proof: RingProofOf<T>,
 	/// Ring to validate the `proof` against.
 	pub ring_index: RingIndex,
@@ -104,15 +106,17 @@ impl<T: Config + Send + Sync> TransactionExtension<RuntimeCallOf<T>> for VoterAu
 		inherited_implication: &impl Encode,
 		_source: TransactionSource,
 	) -> ValidateResult<Self::Val, RuntimeCallOf<T>> {
-		let Some(VoterAuthData { proof, ring_index, revision }) = &self.0 else {
+		let Some(VoterAuthData { account, proof, ring_index, revision }) = &self.0 else {
 			return Ok((ValidTransaction::default(), (), origin));
 		};
 
-		// The origin must not have already been authorized by another extension.
-		ensure!(
-			matches!(origin.as_system_ref(), Some(frame_system::RawOrigin::None)),
-			InvalidTransaction::BadSigner
-		);
+		// Normal and Meta transactions must both be signed. VerifySignature establishes the inner
+		// signed origin for Meta before this extension; an arbitrary or mismatched signer cannot
+		// borrow an anonymous proof.
+		let Some(frame_system::RawOrigin::Signed(who)) = origin.as_system_ref() else {
+			return Err(InvalidTransaction::BadSigner.into());
+		};
+		ensure!(who == account, InvalidTransaction::BadSigner);
 
 		let Some(Call::<T>::bestow { vote, call_valid_from }) = call.is_sub_type() else {
 			return Err(InvalidTransaction::Call.into());
@@ -128,7 +132,7 @@ impl<T: Config + Send + Sync> TransactionExtension<RuntimeCallOf<T>> for VoterAu
 			return Err(InvalidTransaction::Stale.into());
 		}
 
-		let message = inherited_implication.using_encoded(sp_io::hashing::blake2_256);
+		let message = (inherited_implication, account).using_encoded(sp_io::hashing::blake2_256);
 
 		let aliases =
 			Pallet::<T>::validate_vote_proof(vote, &message, proof, *ring_index, *revision)

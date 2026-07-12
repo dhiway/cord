@@ -23,10 +23,11 @@ use sp_runtime::{
 	traits::{IdentifyAccount, TransactionExtension},
 	MultiSignature, MultiSigner,
 };
+use verifiable::ring::bandersnatch::BandersnatchVrfVerifiable;
 
 const CANONICAL_METADATA_IMPLICIT: [u8; 32] = [
-	0xf8, 0x30, 0xf0, 0x6b, 0x57, 0xd7, 0x0c, 0x57, 0xb7, 0x7c, 0xdb, 0xf0, 0xbe, 0xba, 0xa1, 0x06,
-	0xcc, 0xa7, 0x00, 0x12, 0x6d, 0xe9, 0xaf, 0x0e, 0x85, 0x0c, 0xd6, 0xc7, 0x5f, 0x42, 0x20, 0x5a,
+	0x7f, 0x76, 0x53, 0xcd, 0xd2, 0xe6, 0x1c, 0x38, 0xc1, 0x00, 0x9b, 0x05, 0x29, 0xc5, 0x6e, 0x6f,
+	0xeb, 0x95, 0xb3, 0x79, 0xb4, 0x98, 0xc6, 0x7d, 0x50, 0x2a, 0x21, 0xe9, 0x3c, 0x06, 0x0b, 0xc6,
 ];
 
 fn account(pair: &sr25519::Pair) -> AccountId {
@@ -51,10 +52,22 @@ type MetaBareExtension = (
 );
 
 fn meta_tuple(proofs: crate::meta_v6::PolicyProofsV6) -> pallet_meta_tx::MetaTxFor<Runtime> {
+	meta_tuple_for(
+		RuntimeCall::System(frame_system::Call::remark { remark: b"orbis-v6-meta".to_vec() }),
+		proofs,
+		None,
+		None,
+	)
+}
+
+fn meta_tuple_for(
+	call: RuntimeCall,
+	proofs: crate::meta_v6::PolicyProofsV6,
+	score: Option<pallet_orbis_score::ScoreAsParticipantData<u32>>,
+	honour: Option<pallet_orbis_honour::extension::VoterAuthData<Runtime>>,
+) -> pallet_meta_tx::MetaTxFor<Runtime> {
 	let pair = ed25519::Pair::from_seed(&[0x42; 32]);
 	let signer = MultiSigner::Ed25519(pair.public()).into_account();
-	let call =
-		RuntimeCall::System(frame_system::Call::remark { remark: b"orbis-v6-meta".to_vec() });
 	let mortality = frame_system::CheckMortality::<Runtime>::from(Era::Immortal);
 	let nonce = frame_system::CheckNonce::<Runtime>::from(0);
 	let policy = crate::meta_v6::MetaAccountBoundPoliciesV6::new(proofs);
@@ -91,9 +104,9 @@ fn meta_tuple(proofs: crate::meta_v6::PolicyProofsV6) -> pallet_meta_tx::MetaTxF
 		mortality,
 		nonce,
 		(
-			pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(None),
+			pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(score),
 			policy,
-			pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None),
+			pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(honour),
 		),
 		storage,
 		metadata,
@@ -148,6 +161,72 @@ fn meta_tuple(proofs: crate::meta_v6::PolicyProofsV6) -> pallet_meta_tx::MetaTxF
 			metadata,
 		),
 	)
+}
+
+fn honour_meta_tuples() -> (pallet_meta_tx::MetaTxFor<Runtime>, pallet_meta_tx::MetaTxFor<Runtime>)
+{
+	use verifiable::{ring::RingDomainSize, GenerateVerifiable};
+
+	let pair = ed25519::Pair::from_seed(&[0x42; 32]);
+	let account = MultiSigner::Ed25519(pair.public()).into_account();
+	let vote = pallet_orbis_honour::VoteData {
+		subject: [0x48; 32],
+		point: 7,
+		direction: pallet_orbis_honour::Direction::Honourable,
+	};
+	let call = RuntimeCall::Honour(pallet_orbis_honour::Call::bestow {
+		vote: vote.clone(),
+		call_valid_from: 0,
+	});
+	let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+		Runtime,
+		crate::BulletinCallInspector,
+	>::default();
+	let metadata =
+		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::decode_all(&mut &[1u8][..])
+			.unwrap();
+	// VoterAuth is last inside the nested identity tuple. Its inherited implication is the base
+	// Meta call followed by the outer Bulletin/metadata explicit and implicit suffixes.
+	let message =
+		(0u8, &call, &storage, &metadata, (), Some(CANONICAL_METADATA_IMPLICIT), &account)
+			.using_encoded(sp_io::hashing::blake2_256);
+
+	let domain = RingDomainSize::Domain16;
+	let secret = BandersnatchVrfVerifiable::new_secret([0x48; 32]);
+	let member = BandersnatchVrfVerifiable::member_from_secret(&secret);
+	let members = (0..255u8).map(|index| {
+		let secret = BandersnatchVrfVerifiable::new_secret([index; 32]);
+		BandersnatchVrfVerifiable::member_from_secret(&secret)
+	});
+	let commitment = BandersnatchVrfVerifiable::open(domain, &member, members).unwrap();
+	let contexts = vote.get_contexts();
+	let contexts: Vec<&[u8]> = contexts.iter().map(|context| &context[..]).collect();
+	let (proof, _) =
+		BandersnatchVrfVerifiable::create_multi_context(commitment, &secret, &contexts, &message)
+			.unwrap();
+	let valid = meta_tuple_for(
+		call.clone(),
+		Default::default(),
+		None,
+		Some(pallet_orbis_honour::extension::VoterAuthData {
+			account: account.clone(),
+			proof: proof.clone(),
+			ring_index: 0,
+			revision: 0,
+		}),
+	);
+	let mismatch = meta_tuple_for(
+		call,
+		Default::default(),
+		None,
+		Some(pallet_orbis_honour::extension::VoterAuthData {
+			account: AccountId::new([0x99; 32]),
+			proof,
+			ring_index: 0,
+			revision: 0,
+		}),
+	);
+	(valid, mismatch)
 }
 
 fn policy_vectors() -> [crate::meta_v6::PolicyProofsV6; 7] {
@@ -460,11 +539,28 @@ fn regenerate_meta_v8_fixtures() {
 		let intent = canonical_intent();
 		let token = paid_token();
 		let meta = meta_tuple(Default::default());
+		let score_meta = meta_tuple_for(
+			RuntimeCall::Score(pallet_orbis_score::Call::cash_out {}),
+			Default::default(),
+			Some(pallet_orbis_score::ScoreAsParticipantData { nonce: 0 }),
+			None,
+		);
+		let score_nonce_mismatch_meta = meta_tuple_for(
+			RuntimeCall::Score(pallet_orbis_score::Call::cash_out {}),
+			Default::default(),
+			Some(pallet_orbis_score::ScoreAsParticipantData { nonce: 1 }),
+			None,
+		);
+		let (honour_meta, honour_account_mismatch_meta) = honour_meta_tuples();
 		write("intent-preimage.scale", &intent.encode());
 		write("intent-commitment.bin", intent.commitment().as_bytes());
 		write("paid-token.scale", &token.encode());
 		write("paid-token-key.bin", token.key().as_bytes());
 		write("verify-consume-tuple.scale", &meta.encode());
+		write("score-participant-meta.scale", &score_meta.encode());
+		write("mutate-score-nonce-meta.scale", &score_nonce_mismatch_meta.encode());
+		write("honour-voter-meta.scale", &honour_meta.encode());
+		write("mutate-honour-account-meta.scale", &honour_account_mismatch_meta.encode());
 		write("max-envelope.scale", &max_envelope_with(meta.clone()).encode());
 		let mutation_names = [
 			"mutate-domain.scale",
@@ -596,6 +692,41 @@ fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
 		assert_eq!(extension.1 .0, intent);
 		assert_eq!(extension.1 .0.metadata_implicit, Some(CANONICAL_METADATA_IMPLICIT));
 		assert!(extension.1.weight(&inner_call).all_gte(crate::weights::meta_v6::v7_commitment_delta()));
+		let score_meta = include_bytes!("../fixtures/meta-v8/score-participant-meta.scale");
+		let (score_call, _, score_extension): (RuntimeCall, u8, crate::MetaTxExtension) =
+			DecodeAll::decode_all(&mut score_meta.as_slice()).unwrap();
+		assert!(matches!(score_call, RuntimeCall::Score(pallet_orbis_score::Call::cash_out {})));
+		assert_ne!(score_extension.9 .0.encode(), [0]);
+		let score_nonce_mismatch =
+			include_bytes!("../fixtures/meta-v8/mutate-score-nonce-meta.scale");
+		let (_, _, mismatch_extension): (RuntimeCall, u8, crate::MetaTxExtension) =
+			DecodeAll::decode_all(&mut score_nonce_mismatch.as_slice()).unwrap();
+		assert_ne!(score_extension.9 .0.encode(), mismatch_extension.9 .0.encode());
+
+		let honour_bytes = include_bytes!("../fixtures/meta-v8/honour-voter-meta.scale");
+		let (honour_call, _, honour_extension): (RuntimeCall, u8, crate::MetaTxExtension) =
+			DecodeAll::decode_all(&mut honour_bytes.as_slice()).unwrap();
+		let mismatch_bytes = include_bytes!("../fixtures/meta-v8/mutate-honour-account-meta.scale");
+		let (mismatch_call, _, mismatch_honour_extension):
+			(RuntimeCall, u8, crate::MetaTxExtension) =
+			DecodeAll::decode_all(&mut mismatch_bytes.as_slice()).unwrap();
+		assert_eq!(honour_call, mismatch_call);
+		assert!(verify_meta_signature(
+			pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut honour_bytes.as_slice()).unwrap()
+		));
+		assert!(verify_meta_signature(
+			pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut mismatch_bytes.as_slice()).unwrap()
+		));
+		// Ring proofs are randomized even for a deterministic secret. The two checked-in fixtures
+		// are generated as a pair, so assert that only the account field changes and the exact same
+		// proof/ring/revision suffix is retained. Both complete Meta envelopes remain signed.
+		let auth = honour_extension.9 .2.encode();
+		let mismatch_auth = mismatch_honour_extension.9 .2.encode();
+		assert_eq!(auth[0], 1);
+		assert_eq!(mismatch_auth[0], 1);
+		assert_ne!(&auth[1..33], &mismatch_auth[1..33]);
+		assert_eq!(&auth[33..], &mismatch_auth[33..]);
+		assert_ne!(honour_bytes.as_slice(), mismatch_bytes.as_slice());
 		let max = max_envelope_with(meta);
 		assert_fixture(include_bytes!("../fixtures/meta-v8/max-envelope.scale"), max.clone());
 		assert_eq!(max.encoded_size(), crate::meta_v6::MAX_META_ENCODED_BYTES);
@@ -729,7 +860,7 @@ fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
 		);
 		assert_eq!(
 			digest_hex(include_bytes!("../fixtures/meta-v8/intent-preimage.scale")),
-			"d3b8b4a76e47c54936dfc86ea4dbafd757edfb275005a422642137eb637e6afe"
+			"2e1da822b031480a683985032a4b837f8594a55a62a46c74f866bfbf3faf0849"
 		);
 		assert_eq!(crate::meta_v6::MAX_META_ENCODED_BYTES, 65_536);
 		assert_eq!(crate::meta_v6::MAX_META_PAYLOAD_BYTES, 65_503);
@@ -746,7 +877,23 @@ fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
 				.iter()
 				.filter(|row| row.get("expected_error").is_some())
 				.count(),
-			15,
+			17,
+		);
+		let expected_error = |file: &str| {
+			manifest["files"]
+				.as_array()
+				.unwrap()
+				.iter()
+				.find(|row| row["file"] == file)
+				.and_then(|row| row["expected_error"].as_str())
+		};
+		assert_eq!(
+			expected_error("mutate-score-nonce-meta.scale"),
+			Some("InvalidTransaction::Future")
+		);
+		assert_eq!(
+			expected_error("mutate-honour-account-meta.scale"),
+			Some("InvalidTransaction::BadSigner")
 		);
 		let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/meta-v8");
 		for row in manifest["files"].as_array().unwrap() {

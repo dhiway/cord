@@ -126,6 +126,7 @@ mod benches {
 	#[benchmark]
 	fn extension_validate() -> Result<(), BenchmarkError> {
 		T::BenchmarkHelper::set_time(BENCH_TIME);
+		let account: T::AccountId = whitelisted_caller();
 
 		let vote = VoteData { subject: [1; 32], point: 0, direction: Direction::Honourable };
 		let now = <T as Config>::Clock::now().as_secs();
@@ -134,12 +135,16 @@ mod benches {
 		let call: <T as frame_system::Config>::RuntimeCall = call.into();
 
 		let ext_version: ExtensionVersion = 0;
-		let message = (ext_version, &call).using_encoded(blake2_256);
+		let message = (ext_version, &call, &account).using_encoded(blake2_256);
 
 		let proof = T::BenchmarkHelper::seed_and_create_proof(&vote, &message);
 
-		let extension: VoterAuth<T> =
-			VoterAuth::new(Some(VoterAuthData { proof, ring_index: 0, revision: 0 }));
+		let extension: VoterAuth<T> = VoterAuth::new(Some(VoterAuthData {
+			account: account.clone(),
+			proof,
+			ring_index: 0,
+			revision: 0,
+		}));
 
 		let info = call.get_dispatch_info();
 		let len = call.encoded_size();
@@ -148,7 +153,9 @@ mod benches {
 		#[block]
 		{
 			extension
-				.test_run(RawOrigin::None.into(), &call, &info, len, 0, |_| Ok(post_info))
+				.test_run(RawOrigin::Signed(account).into(), &call, &info, len, 0, |_| {
+					Ok(post_info)
+				})
 				.unwrap()
 				.unwrap();
 		}

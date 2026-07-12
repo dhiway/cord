@@ -127,13 +127,14 @@ revision and cannot be copied verbatim until provenance is resolved.
 | Controlled zero-fee calls | Feeless allowlist, per-account quota, deny-by-default wrappers | Present and abuse-tested |
 | Solidity actor preservation | Revive `SetOrigin` plus transaction envelope | Present |
 | Bulletin call validation | recursive storage-call inspector | Present |
-| Runtime upgrade safety | migrations, SafeMode and TxPause | Present; production try-runtime rehearsal pending |
+| Runtime upgrade safety | migrations, SafeMode and TxPause | Present; Score/Honour v0→v1 introduction migrations model the committed pre-Slice-2 state as an exactly absent pallet prefix and have idempotence plus try-runtime pre/post coverage; production chain-state rehearsal remains pending |
 
 ### Frozen remediation sequence
 
 1. Historical spec-26/transaction-6 baseline and dormant support are retained only as compatibility evidence.
 2. The reverse-index Bulletin V6→V7 repair was integrated and is present; storage version 7 is current.
-3. The current runtime is spec 28 / transaction 7 with stable pallet indices and active Verify→Consume support.
+3. Historical evidence v4 freezes spec 28 / transaction 7; the current runtime is spec 29 /
+   transaction 8 with stable pallet indices and active Verify→Consume support.
 4. Manifest v4 freezes executable, hashed evidence before any later native capability slice begins.
 5. Provider composition is not implemented here: the provider-reference V7→V8 migration remains planned for Slice 10.
 

@@ -10,9 +10,18 @@ account. The manager is initialized in genesis. Orbis uses native balances and t
 `indiv_pallet_people` interface. No staking, treasury, elections, or public-governance dependency
 is introduced. Runtime index 97 and storage version 1 are protocol surfaces.
 
-The `ScoreAsParticipant` extension rejects unknown accounts and suspended identities. Suspension
-does not prevent the manager-driven attendance recovery lifecycle; it prevents the identity from
-claiming the privileged participant dispatch origin until recognition is restored.
+The `ScoreAsParticipant` extension and the pallet operation boundary both reject unknown accounts
+and suspended identities. Suspension is terminal for Score mutation until a separately planned
+administrative reinstatement exists: attendance, cash-out and redemption cannot change Score state
+or value while suspended.
+
+All payout holds, schedules and redemptions use the named `PayoutAccount` initialized in genesis.
+Root may rotate it only when schedules, rounds, points and holds are empty; any remaining free
+balance is transferred atomically to the replacement account. Named managers cannot rotate it.
+
+The v0→v1 introduction migration treats the committed pre-Slice-2 representation as an absent
+Score storage prefix, installs only the named defaults and storage version, and verifies exact key
+counts in try-runtime pre/post checks.
 
 Proof-of-Personhood scoring system that tracks participant attendance and manages personhood
 recognition.
@@ -36,9 +45,7 @@ graph LR
     B -- miss games --> G[Score decreases]
     G --> H[Misses in window exceed allowance]
     H --> I[Personhood suspended]
-    I -- attend game, reach score ≥ threshold --> J[register]
-    J --> K[Personhood restored]
-    K --> E
+	I --> L[No Score mutation or payout]
 ```
 
 ## Scoring
@@ -141,8 +148,6 @@ A participant's recognition status follows this state machine:
 stateDiagram-v2
     NotRecognized --> Recognized: register() when score ≥ threshold
     Recognized --> Suspended: misses in window > allowed
-    Suspended --> Recognized: register(), without providing a new key
-
     ExternallyRecognized: Onboarded via another DIM, exempt from absence penalties
 ```
 

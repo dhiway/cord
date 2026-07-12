@@ -438,6 +438,17 @@ mod benches {
 	}
 
 	#[benchmark]
+	fn set_payout_account() -> Result<(), BenchmarkError> {
+		let new: T::AccountId = whitelisted_caller();
+
+		#[extrinsic_call]
+		_(SystemOrigin::Root, new.clone());
+
+		assert_eq!(PayoutAccount::<T>::get(), new);
+		Ok(())
+	}
+
+	#[benchmark]
 	fn as_participant_tx_ext() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
 		Score::<T>::onboard_for_recognition(&caller)?;

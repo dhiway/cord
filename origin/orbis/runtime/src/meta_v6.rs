@@ -1,5 +1,5 @@
 use crate::{AccountId, Members, Runtime, RuntimeCall, RuntimeOrigin, System};
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, Output};
 use frame_support::{
 	traits::{Contains, OriginTrait},

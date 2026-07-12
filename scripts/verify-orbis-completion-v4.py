@@ -1,7 +1,27 @@
 #!/usr/bin/env python3
 """Verify normalized, historical and executable Orbis completion evidence v4."""
 from pathlib import Path
-import argparse,hashlib,json,os,re,subprocess
+import argparse,hashlib,json,os,re,subprocess,sys,tempfile,shutil
+
+# Evidence v4 is an immutable executable snapshot. Later product runtimes intentionally change the
+# test sources and metadata schema, so execute the frozen verifier in the exact clean Gate-5
+# worktree rather than weakening its current-source equality checks or rewriting its artifacts.
+HISTORICAL_V4_COMMIT='db3aebb02f9545b5f6dd2cd2d841903431a56b37'
+CURRENT_ROOT=Path(__file__).resolve().parents[1]
+if os.environ.get('ORBIS_V4_HISTORICAL_WORKTREE') != '1':
+ head=subprocess.run(['git','rev-parse','HEAD'],cwd=CURRENT_ROOT,text=True,stdout=subprocess.PIPE,check=True).stdout.strip()
+ if head != HISTORICAL_V4_COMMIT:
+  tmp=Path(tempfile.mkdtemp(prefix='orbis-v4-'))
+  try:
+   subprocess.run(['git','worktree','add','--detach',str(tmp),HISTORICAL_V4_COMMIT],cwd=CURRENT_ROOT,check=True,stdout=subprocess.DEVNULL)
+   target=CURRENT_ROOT/'target'
+   if target.exists(): os.symlink(target,tmp/'target',target_is_directory=True)
+   env=os.environ.copy(); env['ORBIS_V4_HISTORICAL_WORKTREE']='1'
+   result=subprocess.run([sys.executable,str(tmp/'scripts/verify-orbis-completion-v4.py'),*sys.argv[1:]],cwd=tmp,env=env)
+   raise SystemExit(result.returncode)
+  finally:
+   subprocess.run(['git','worktree','remove','--force',str(tmp)],cwd=CURRENT_ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+   shutil.rmtree(tmp,ignore_errors=True)
 P=argparse.ArgumentParser(); P.add_argument('--manifest'); P.add_argument('--static',action='store_true'); a=P.parse_args()
 ROOT=Path(__file__).resolve().parents[1]; MANIFEST=Path(a.manifest) if a.manifest else ROOT/'docs/orbis-completion-manifest.toml'; ZERO='0'*64
 E={'meta_contract','meta_router_variant','meta_vector','meta_ingress','bulletin_v7_rehearsal','bulletin_v7_contract','provider_v8_contract','remediation_gate'}

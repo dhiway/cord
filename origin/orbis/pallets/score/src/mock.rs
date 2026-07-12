@@ -159,7 +159,7 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-	pub const ScorePotId: PalletId = PalletId(*b"scorepot");
+	pub const ScorePayoutAccountDefault: u64 = 500;
 	pub const BalancesLocation: Location = Location::here();
 	pub ScoreManagerAccount: Option<u64> = Some(99);
 }
@@ -220,7 +220,7 @@ impl indiv_pallet_people::Config for Test {
 impl crate::Config for Test {
 	type WeightInfo = ();
 	type EnsurePerson = indiv_pallet_people::EnsurePersonalAliasInContext<Test>;
-	type ScorePotId = ScorePotId;
+	type PayoutAccountDefault = ScorePayoutAccountDefault;
 	type Currency = Balances;
 	type CurrencyLocationInfo = BalancesLocation;
 	type ManagerOrigin = EnsureRoot<Self::AccountId>;

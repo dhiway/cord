@@ -30,6 +30,8 @@
 
 extern crate alloc;
 
+pub mod migrations;
+
 #[cfg(test)]
 mod bench_helpers;
 #[cfg(test)]
@@ -64,7 +66,7 @@ pub mod pallet {
 	use sp_runtime::traits::{BadOrigin, Dispatchable};
 	use verifiable::GenerateVerifiable;
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	pub(crate) const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]

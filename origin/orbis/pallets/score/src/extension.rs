@@ -19,7 +19,7 @@
 use crate::*;
 use codec::{Decode, DecodeWithMemTracking, Encode};
 use core::fmt;
-use frame_support::{defensive, ensure, pallet_prelude::Weight};
+use frame_support::{defensive, pallet_prelude::Weight};
 use frame_system::{CheckNonce, ValidNonceInfo};
 use scale_info::TypeInfo;
 use sp_runtime::{
@@ -105,15 +105,8 @@ impl<T: Config> TransactionExtension<RuntimeCallOf<T>> for ScoreAsParticipant<T>
 				};
 
 				// We ensure it is an active participant.
-				let participant = Participants::<T>::get(AccountOrPerson::Account(who.clone()))
-					.ok_or(InvalidTransaction::Call)?;
-				// A suspended identity may continue through the attendance recovery flow, but it
-				// cannot claim the privileged participant transaction origin until personhood is
-				// active again.
-				ensure!(
-					!matches!(participant.recognition, Recognition::Suspended(_)),
-					InvalidTransaction::Call
-				);
+				Pallet::<T>::ensure_active_participant(&AccountOrPerson::Account(who.clone()))
+					.map_err(|_| InvalidTransaction::Call)?;
 
 				// Validate the nonce.
 				let ValidNonceInfo { requires, provides } =

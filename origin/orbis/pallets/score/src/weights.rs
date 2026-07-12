@@ -64,6 +64,7 @@ pub trait WeightInfo {
 	fn set_absence_grace_schedule() -> Weight;
 	fn set_personhood_threshold_schedule() -> Weight;
 	fn set_manager_account() -> Weight;
+	fn set_payout_account() -> Weight;
 	fn as_participant_tx_ext() -> Weight;
 }
 
@@ -250,8 +251,16 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 	fn set_manager_account() -> Weight {
-		Weight::from_parts(12_000_000, 3_553)
+		// Conservative root call bound: one bounded AccountId write plus event encoding.
+		Weight::from_parts(25_000_000, 3_553)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+	fn set_payout_account() -> Weight {
+		// Explicit conservative bound: schedules, planning, payouts, points, two holds and balance;
+		// worst-case account transfer plus named-account write.
+		Weight::from_parts(85_000_000, 8_192)
+			.saturating_add(T::DbWeight::get().reads(8_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
 	/// Storage: `Score::Participants` (r:1 w:0)
 	/// Proof: `Score::Participants` (`max_values`: None, `max_size`: Some(88), added: 2563, mode: `MaxEncodedLen`)
@@ -447,8 +456,14 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	fn set_manager_account() -> Weight {
-		Weight::from_parts(12_000_000, 3_553)
+		// Conservative root call bound: one bounded AccountId write plus event encoding.
+		Weight::from_parts(25_000_000, 3_553)
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn set_payout_account() -> Weight {
+		Weight::from_parts(85_000_000, 8_192)
+			.saturating_add(RocksDbWeight::get().reads(8_u64))
+			.saturating_add(RocksDbWeight::get().writes(3_u64))
 	}
 	/// Storage: `Score::Participants` (r:1 w:0)
 	/// Proof: `Score::Participants` (`max_values`: None, `max_size`: Some(88), added: 2563, mode: `MaxEncodedLen`)

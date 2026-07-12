@@ -216,6 +216,19 @@ fn events_deposited() {
 }
 
 #[test]
+fn arbitrary_signed_origin_cannot_bypass_voter_auth() {
+	new_test_ext().execute_with(|| {
+		let vote = VoteData { subject: subject(9), point: 0, direction: Direction::Honourable };
+		assert_noop!(
+			Pallet::<Test>::bestow(RuntimeOrigin::signed(1), vote.clone(), 0),
+			sp_runtime::DispatchError::BadOrigin
+		);
+		assert_eq!(read_score(9), SUBJECT_DEFAULT_SCORE);
+		assert!(Votes::<Test>::iter().next().is_none());
+	});
+}
+
+#[test]
 fn is_vote_frozen_works() {
 	new_test_ext().execute_with(|| {
 		const VOTER: u8 = 0;
@@ -303,36 +316,47 @@ fn tx_extension_checks_call_validity_time() {
 		let now = <Test as Config>::Clock::now().as_secs();
 		let vote = VoteData { subject: [1; 32], point: 0, direction: Direction::Honourable };
 
-		let call_bestow = |call_valid_from: Seconds| -> Result<(), TransactionValidityError> {
-			let call = Call::bestow { vote: vote.clone(), call_valid_from };
-			let call: <Test as frame_system::Config>::RuntimeCall = call.into();
-			let ext_version: ExtensionVersion = 0;
-			let message = (ext_version, &call).using_encoded(blake2_256);
-			let proof = prove_vote::<Test>(&vote, 0, &message);
+		let call_bestow =
+			|call_valid_from: Seconds, signer: u64| -> Result<(), TransactionValidityError> {
+				let call = Call::bestow { vote: vote.clone(), call_valid_from };
+				let call: <Test as frame_system::Config>::RuntimeCall = call.into();
+				let ext_version: ExtensionVersion = 0;
+				let message = (ext_version, &call, 1u64).using_encoded(blake2_256);
+				let proof = prove_vote::<Test>(&vote, 0, &message);
 
-			let extension: VoterAuth<Test> =
-				VoterAuth::new(Some(VoterAuthData { proof, ring_index: 0, revision: 0 }));
+				let extension: VoterAuth<Test> = VoterAuth::new(Some(VoterAuthData {
+					account: 1,
+					proof,
+					ring_index: 0,
+					revision: 0,
+				}));
 
-			let call: <Test as frame_system::Config>::RuntimeCall = call.into();
-			let info = call.get_dispatch_info();
-			let len = call.encoded_size();
-			let post_info = PostDispatchInfo::default();
+				let call: <Test as frame_system::Config>::RuntimeCall = call.into();
+				let info = call.get_dispatch_info();
+				let len = call.encoded_size();
+				let post_info = PostDispatchInfo::default();
 
-			extension
-				.test_run(RawOrigin::None.into(), &call, &info, len, 0, |_| Ok(post_info))?
-				.unwrap();
-			Ok(())
-		};
+				extension
+					.test_run(RawOrigin::Signed(signer).into(), &call, &info, len, 0, |_| {
+						Ok(post_info)
+					})?
+					.unwrap();
+				Ok(())
+			};
 
-		assert_ok!(call_bestow(now));
+		assert_ok!(call_bestow(now, 1));
+		assert_err!(
+			call_bestow(now, 2),
+			TransactionValidityError::Invalid(InvalidTransaction::BadSigner)
+		);
 
 		assert_err!(
-			call_bestow(now + 1),
+			call_bestow(now + 1, 1),
 			TransactionValidityError::Invalid(InvalidTransaction::Future)
 		);
 
 		assert_err!(
-			call_bestow(now - CallMortality::get()),
+			call_bestow(now - CallMortality::get(), 1),
 			TransactionValidityError::Invalid(InvalidTransaction::Stale)
 		);
 	});
@@ -358,15 +382,19 @@ fn tx_extension_rejects_frozen_point() {
 			let call: <Test as frame_system::Config>::RuntimeCall =
 				Call::bestow { vote: vote.clone(), call_valid_from: now }.into();
 			let ext_version: ExtensionVersion = 0;
-			let message = (ext_version, &call).using_encoded(blake2_256);
+			let message = (ext_version, &call, 1u64).using_encoded(blake2_256);
 			let proof = prove_vote::<Test>(&vote, VOTER, &message);
-			let extension =
-				VoterAuth::<Test>::new(Some(VoterAuthData { proof, ring_index: 0, revision: 0 }));
+			let extension = VoterAuth::<Test>::new(Some(VoterAuthData {
+				account: 1,
+				proof,
+				ring_index: 0,
+				revision: 0,
+			}));
 			let info = call.get_dispatch_info();
 			let len = call.encoded_size();
 
 			extension
-				.test_run(RawOrigin::None.into(), &call, &info, len, 0, |origin| {
+				.test_run(RawOrigin::Signed(1).into(), &call, &info, len, 0, |origin| {
 					call.clone().dispatch(origin)
 				})?
 				.expect("dispatch should succeed");
@@ -438,21 +466,22 @@ fn tx_extension_rejects_proof_with_tampered_call_valid_from() {
 		let proof_call = Call::bestow { vote: vote.clone(), call_valid_from: now };
 		let proof_call: <Test as frame_system::Config>::RuntimeCall = proof_call.into();
 		let ext_version: ExtensionVersion = 0;
-		let message = (ext_version, &proof_call).using_encoded(blake2_256);
+		let message = (ext_version, &proof_call, 1u64).using_encoded(blake2_256);
 		let proof = prove_vote::<Test>(&vote, 0, &message);
 
 		// Submit with a different `call_valid_from` (still inside the mortality window).
 		let submit_call = Call::bestow { vote: vote.clone(), call_valid_from: now - 1 };
 		let submit_call: <Test as frame_system::Config>::RuntimeCall = submit_call.into();
 		let extension: VoterAuth<Test> =
-			VoterAuth::new(Some(VoterAuthData { proof, ring_index: 0, revision: 0 }));
+			VoterAuth::new(Some(VoterAuthData { account: 1, proof, ring_index: 0, revision: 0 }));
 		let info = submit_call.get_dispatch_info();
 		let len = submit_call.encoded_size();
 		let post_info = PostDispatchInfo::default();
 
 		assert_err!(
-			extension
-				.test_run(RawOrigin::None.into(), &submit_call, &info, len, 0, |_| Ok(post_info)),
+			extension.test_run(RawOrigin::Signed(1).into(), &submit_call, &info, len, 0, |_| Ok(
+				post_info
+			)),
 			TransactionValidityError::Invalid(InvalidTransaction::BadProof)
 		);
 	});
@@ -472,20 +501,21 @@ fn tx_extension_rejects_proof_with_tampered_direction() {
 		let proof_call = Call::bestow { vote: vote_a.clone(), call_valid_from: now };
 		let proof_call: <Test as frame_system::Config>::RuntimeCall = proof_call.into();
 		let ext_version: ExtensionVersion = 0;
-		let message = (ext_version, &proof_call).using_encoded(blake2_256);
+		let message = (ext_version, &proof_call, 1u64).using_encoded(blake2_256);
 		let proof = prove_vote::<Test>(&vote_a, 0, &message);
 
 		let submit_call = Call::bestow { vote: vote_b, call_valid_from: now };
 		let submit_call: <Test as frame_system::Config>::RuntimeCall = submit_call.into();
 		let extension: VoterAuth<Test> =
-			VoterAuth::new(Some(VoterAuthData { proof, ring_index: 0, revision: 0 }));
+			VoterAuth::new(Some(VoterAuthData { account: 1, proof, ring_index: 0, revision: 0 }));
 		let info = submit_call.get_dispatch_info();
 		let len = submit_call.encoded_size();
 		let post_info = PostDispatchInfo::default();
 
 		assert_err!(
-			extension
-				.test_run(RawOrigin::None.into(), &submit_call, &info, len, 0, |_| Ok(post_info)),
+			extension.test_run(RawOrigin::Signed(1).into(), &submit_call, &info, len, 0, |_| Ok(
+				post_info
+			)),
 			TransactionValidityError::Invalid(InvalidTransaction::BadProof)
 		);
 	});
