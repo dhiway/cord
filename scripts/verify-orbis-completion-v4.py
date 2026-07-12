@@ -36,11 +36,22 @@ def canonical_output(cmd,out,code):
   if re.match(r'^(running [0-9]+ tests|test .* \.\.\. (ok|FAILED|ignored)|test result:|warning:|error:|assertion=[A-Za-z0-9_-]+:[0-9a-f]{64}$)',x):
    lines.append(re.sub(r'; finished in [0-9.]+s','; finished',x))
  return 'exit='+str(code)+'\ncommand='+cmd+'\n'+'\n'.join(sorted(set(lines)))+'\n'
-text=MANIFEST.read_text(); top=fs(text.split('[[',1)[0]); audit=top.get('audited_runtime_commit','')
+text=MANIFEST.read_text(); top=fs(text.split('[[',1)[0]); audit=top.get('audited_runtime_commit',''); marker_commit=top.get('evidence_marker_commit','')
 if top.get('critic_status')!='pending' or top.get('critic_evidence')!='': die('Critic must remain explicitly pending')
 if not re.fullmatch('[0-9a-f]{40}',audit) or git('cat-file','-e',audit+'^{commit}').returncode: die('bad audited_runtime_commit')
-registry_rel='origin/orbis/evidence_markers_v4.rs'; registry_current=(ROOT/registry_rel).read_text(); registry_at_audit=git('show',audit+':'+registry_rel)
-if registry_at_audit.returncode or registry_at_audit.stdout!=registry_current: die('source marker registry is not bound at audited commit/current source')
+if not re.fullmatch('[0-9a-f]{40}',marker_commit) or git('cat-file','-e',marker_commit+'^{commit}').returncode: die('bad evidence_marker_commit')
+if git('merge-base','--is-ancestor',audit,marker_commit).returncode or git('merge-base','--is-ancestor',marker_commit,'HEAD').returncode: die('runtime baseline -> marker -> evidence commit ancestry/order violation')
+equivalence_rel=top.get('nonruntime_equivalence_evidence',''); equivalence_path=ROOT/equivalence_rel
+if not equivalence_rel or not equivalence_path.is_file(): die('missing marker non-runtime equivalence proof')
+try: equivalence=json.loads(equivalence_path.read_text())
+except Exception: die('marker non-runtime equivalence proof is not JSON')
+diff_run=git('diff','--binary',audit,marker_commit,'--','origin/orbis'); changed=git('diff','--name-only',audit,marker_commit,'--','origin/orbis').stdout.splitlines()
+allowed_changed=['origin/orbis/evidence_inventory_v4.rs','origin/orbis/evidence_markers_v4.rs','origin/orbis/pallets/transaction-storage/src/lib.rs','origin/orbis/pallets/transaction-storage/src/tests.rs','origin/orbis/runtime/metadata-implicit-nohash/README.md','origin/orbis/runtime/metadata-implicit-nohash/src/lib.rs','origin/orbis/runtime/src/lib.rs','origin/orbis/runtime/src/meta_v6_fixtures.rs','origin/orbis/runtime/src/remediation_v3.rs','origin/orbis/runtime/src/tests.rs']
+if changed!=allowed_changed or equivalence.get('changed_paths')!=allowed_changed: die('marker commit source-diff policy violation')
+if equivalence.get('runtime_baseline_commit')!=audit or equivalence.get('evidence_marker_commit')!=marker_commit or equivalence.get('source_diff_sha256')!=hashlib.sha256(diff_run.stdout.encode()).hexdigest(): die('marker source-diff proof binding mismatch')
+if equivalence.get('cmp_exit_code')!=0 or equivalence.get('baseline_wasm_sha256')!=equivalence.get('marker_wasm_sha256') or not re.fullmatch('[0-9a-f]{64}',equivalence.get('baseline_wasm_sha256','')) or equivalence.get('wasm_size_bytes',0)<=0: die('marker compact runtime Wasm equivalence proof mismatch')
+registry_rel='origin/orbis/evidence_markers_v4.rs'; registry_current=(ROOT/registry_rel).read_text(); registry_at_marker=git('show',marker_commit+':'+registry_rel)
+if registry_at_marker.returncode or registry_at_marker.stdout!=registry_current: die('source marker registry is not bound at evidence marker commit/current source')
 registry={}
 for group,ident,digest in re.findall(r'\("([^"]+)", "([^"]+)", "([0-9a-f]{64})"\)',registry_current):
  if ident in registry: die('duplicate source marker registry identity '+ident)
@@ -87,7 +98,7 @@ for table,r in evidence:
  if re.search(r'--lib (remediation|completion_manifest)($| )',cmd): die(ident+' broad non-mapping command')
  if '--nocapture' not in cmd: die(ident+' command does not expose source markers')
  group,marker_source=command_binding(cmd)
- historical_marker_source=git('show',audit+':'+marker_source)
+ historical_marker_source=git('show',marker_commit+':'+marker_source)
  marker_call='emit_evidence_markers_v4("'+group+'")'
  if historical_marker_source.returncode or marker_call not in historical_marker_source.stdout or marker_call not in (ROOT/marker_source).read_text(): die(ident+' source marker emitter is not bound at audited/current test source')
  if registry.get(ident)!=(group,r['assertion_sha256']): die(ident+' source marker registry mismatch')
@@ -108,6 +119,14 @@ for table,r in evidence:
  commands.setdefault(cmd,[]).append(r)
 present_ids={r['id'] for _,r in evidence if r.get('status')=='present'}
 if set(registry)!=present_ids: die('source marker registry evidence ID set mismatch')
+# Exact source-owned inventory covers every manifest row, including stateless/excluded rows.
+inventory_rel='origin/orbis/evidence_inventory_v4.rs'; inventory_current=(ROOT/inventory_rel).read_text(); inventory_at_marker=git('show',marker_commit+':'+inventory_rel)
+if inventory_at_marker.returncode or inventory_at_marker.stdout!=inventory_current: die('manifest inventory is not bound at evidence marker commit/current source')
+inventory_rows=re.findall(r'\("([^"]*)", "([^"]*)", "([^"]*)", "([^"]*)"\)',inventory_current)
+count_match=re.search(r'MANIFEST_INVENTORY_V4_COUNT: usize = ([0-9]+);',inventory_current); digest_match=re.search(r'MANIFEST_INVENTORY_V4_BLAKE2_256: &str = "([0-9a-f]{64})";',inventory_current)
+actual_inventory=sorted((table,r.get('id',r.get('name',r.get('package',r.get('revision','')))),r.get('state',''),r.get('status','')) for table,r in all_rows)
+canonical_inventory=''.join('\0'.join(row)+'\n' for row in actual_inventory).encode(); inventory_digest=hashlib.blake2b(canonical_inventory,digest_size=32).hexdigest()
+if not count_match or not digest_match or int(count_match.group(1))!=len(actual_inventory) or digest_match.group(1)!=inventory_digest or sorted(inventory_rows)!=actual_inventory: die('source-owned manifest inventory count/digest/identity mismatch')
 # Exact metadata kind equality, not subset/intersection.
 modes={'META-EVIDENCE-COMPILED-ENABLED','META-EVIDENCE-CUSTOM-LOSS','META-EVIDENCE-NOHASH-CANNOTLOOKUP','META-EVIDENCE-EARLY-PROPAGATION'}
 actual_modes={r['id'] for t,r in evidence if t=='meta_contract' and r.get('kind')=='metadata-evidence'}
@@ -133,7 +152,25 @@ if not a.static:
   if sorted(raw_markers)!=expected_markers: die('raw source marker mismatch: '+cmd)
   actual=canonical_output(cmd,run.stdout,run.returncode); h=hashlib.sha256(actual.encode()).hexdigest()
   if run.returncode or rows[0]['expected_output'] not in actual or h!=rows[0]['output_sha256']: die('actual output drift: '+cmd+'\n'+run.stdout[-1200:])
-report={'schema':'orbis-completion-verification-v4','manifest_sha256':sha(MANIFEST),'audited_runtime_commit':audit,'present':len(normalized['present']),'planned':len(normalized['planned']),'excluded':len(normalized['excluded']),'unchecked':normalized['unchecked'],'ids_by_category':{k:sorted(v) for k,v in normalized.items()},'ids_by_table':{k:sorted(v) for k,v in sorted(by_table.items())},'row_count':len(all_rows),'evidence_present':sum(r['status']=='present' for _,r in evidence),'evidence_planned':sum(r['status']=='planned' for _,r in evidence),'commands':len(commands),'metadata_evidence':sorted(modes),'bulletin_v7':'present','provider_v8':'planned','critic_status':'pending'}
+report={'schema':'orbis-completion-verification-v4','manifest_sha256':sha(MANIFEST),'audited_runtime_commit':audit,'evidence_marker_commit':marker_commit,'manifest_inventory_count':len(actual_inventory),'manifest_inventory_blake2_256':inventory_digest,'present':len(normalized['present']),'planned':len(normalized['planned']),'excluded':len(normalized['excluded']),'unchecked':normalized['unchecked'],'ids_by_category':{k:sorted(v) for k,v in normalized.items()},'ids_by_table':{k:sorted(v) for k,v in sorted(by_table.items())},'row_count':len(all_rows),'evidence_present':sum(r['status']=='present' for _,r in evidence),'evidence_planned':sum(r['status']=='planned' for _,r in evidence),'commands':len(commands),'metadata_evidence':sorted(modes),'bulletin_v7':'present','provider_v8':'planned','critic_status':'pending'}
 if not a.manifest:
- out=ROOT/'docs/evidence/orbis-v4/verification-report.json'; out.write_text(json.dumps(report,sort_keys=True,indent=2)+'\n'); (out.parent/'verification-report.sha256').write_text(sha(out)+'  verification-report.json\n')
+ out=ROOT/'docs/evidence/orbis-v4/verification-report.json'; sidecar=out.parent/'verification-report.sha256'; expected=json.dumps(report,sort_keys=True,indent=2)+'\n'
+ required={MANIFEST,ROOT/registry_rel,ROOT/inventory_rel,equivalence_path,ROOT/'scripts/prove-orbis-marker-nonruntime.sh',out,sidecar}
+ for _,r in evidence:
+  if r.get('artifact_path'):
+   artifact_path=ROOT/r['artifact_path']; required.add(artifact_path)
+   output_path=json.loads(artifact_path.read_text()).get('output_artifact','')
+   if output_path: required.add(ROOT/output_path)
+ for p in (ROOT/'docs/evidence/orbis-v4').glob('*review*.md'): required.add(p)
+ for key in ('architect_evidence','critic_evidence'):
+  if top.get(key): required.add(ROOT/top[key])
+ for p in sorted(required):
+  try: rel=str(p.resolve().relative_to(ROOT.resolve()))
+  except ValueError: die('production evidence path escapes repository: '+str(p))
+  if git('ls-files','--error-unmatch','--',rel).returncode or git('diff','--quiet','HEAD','--',rel).returncode: die('production evidence is untracked or dirty: '+rel)
+ evidence_status=git('status','--porcelain','--untracked-files=all','--','docs/evidence/orbis-v4')
+ if evidence_status.stdout: die('production evidence directory is dirty or contains untracked files')
+ if not out.is_file() or out.read_text()!=expected: die('committed verification report drift')
+ expected_sidecar=hashlib.sha256(expected.encode()).hexdigest()+'  verification-report.json\n'
+ if not sidecar.is_file() or sidecar.read_text()!=expected_sidecar: die('committed verification report sidecar drift')
 print(json.dumps({k:v for k,v in report.items() if k not in ('ids_by_category','ids_by_table')},sort_keys=True))

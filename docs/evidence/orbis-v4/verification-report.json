@@ -1,8 +1,9 @@
 {
-  "audited_runtime_commit": "db7ebaf6213f39bcda2edc578c1fce287f23b5a3",
+  "audited_runtime_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
   "bulletin_v7": "present",
   "commands": 11,
   "critic_status": "pending",
+  "evidence_marker_commit": "d89192f79c4979cc475d56ebb7bc84df2c4d4af6",
   "evidence_planned": 5,
   "evidence_present": 114,
   "excluded": 68,
@@ -1371,7 +1372,9 @@
       "source:web3-storage"
     ]
   },
-  "manifest_sha256": "59abe2be3e232ab8012705007fe16f245be41f6426190ff2efa1afe385c0a97a",
+  "manifest_inventory_blake2_256": "eb98d34165ab0e8e3727a3c8f88a30da899dfa7f85e88b60c6701b076733e659",
+  "manifest_inventory_count": 645,
+  "manifest_sha256": "5d86e93594a3601c0d46ff64931d5ed07bbea75118b9f42bdef72cee1ea66823",
   "metadata_evidence": [
     "META-EVIDENCE-COMPILED-ENABLED",
     "META-EVIDENCE-CUSTOM-LOSS",

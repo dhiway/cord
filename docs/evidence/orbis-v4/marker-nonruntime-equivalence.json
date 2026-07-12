@@ -1,0 +1,26 @@
+{
+  "baseline_wasm_sha256": "1c7334f8e905f4503411f1558074d0ee3de3cec093368beb33750114763669d6",
+  "build_command": "fixed-path git archive of each commit; env -u RUNTIME_METADATA_HASH CARGO_TARGET_DIR=<repo>/target/evidence-v4 cargo build -p origin-orbis-runtime; sha256sum and cmp origin_orbis_runtime.wasm",
+  "changed_paths": [
+    "origin/orbis/evidence_inventory_v4.rs",
+    "origin/orbis/evidence_markers_v4.rs",
+    "origin/orbis/pallets/transaction-storage/src/lib.rs",
+    "origin/orbis/pallets/transaction-storage/src/tests.rs",
+    "origin/orbis/runtime/metadata-implicit-nohash/README.md",
+    "origin/orbis/runtime/metadata-implicit-nohash/src/lib.rs",
+    "origin/orbis/runtime/src/lib.rs",
+    "origin/orbis/runtime/src/meta_v6_fixtures.rs",
+    "origin/orbis/runtime/src/remediation_v3.rs",
+    "origin/orbis/runtime/src/tests.rs"
+  ],
+  "classification": "cfg(test)/evidence-only marker delta; production compact runtime Wasm byte-identical",
+  "cmp_exit_code": 0,
+  "evidence_marker_commit": "d89192f79c4979cc475d56ebb7bc84df2c4d4af6",
+  "marker_wasm_sha256": "1c7334f8e905f4503411f1558074d0ee3de3cec093368beb33750114763669d6",
+  "runtime_baseline_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
+  "schema": "orbis-marker-nonruntime-equivalence-v1",
+  "source_diff_sha256": "94f908357f8ef0ebdeec4f42f5bf60e501a54a8df84f4ad5d4250c0c0d6f8ba1",
+  "toolchain": "rustc 1.93.0 (254b59607 2026-01-19); cargo 1.93.0 (083ac5135 2025-12-15)",
+  "wasm_relative_output": "target/evidence-v4/debug/wbuild/origin-orbis-runtime/origin_orbis_runtime.wasm",
+  "wasm_size_bytes": 16456473
+}

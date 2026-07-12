@@ -50,9 +50,42 @@ def coherent_marker_forgery():
   Path(log.name).unlink(); Path(art.name).unlink()
 coherent_marker_forgery()
 reject('migration-conflation',BASE.replace('id = "PMIG-Bulletin-V6-to-V7"\npallet = "BulletinTransactionStorage"\nfrom_version = 6\nto_version = 7\nowner = "slice-1"','id = "PMIG-Bulletin-V6-to-V7"\npallet = "BulletinTransactionStorage"\nfrom_version = 6\nto_version = 7\nowner = "slice-10"',1),'migration conflated')
-reject('missing-migration-id',re.sub(r'\[\[protocol_migration\]\]\nid = "PMIG-Bulletin-V7-to-V8".*?(?=\[\[)', '',BASE,count=1,flags=re.S),'identity enumeration')
+reject('missing-migration-id',re.sub(r'\[\[protocol_migration\]\]\nid = "PMIG-Bulletin-V7-to-V8".*?(?=\[\[)', '',BASE,count=1,flags=re.S),'manifest inventory')
 reject('duplicate-id',BASE.replace('id = "PMIG-Bulletin-V7-to-V8"','id = "PMIG-Bulletin-V6-to-V7"',1),'duplicate normalized identity')
 reject('output-drift',BASE.replace('output_sha256 = "','output_sha256 = "'+'f'*64+'#',1),'artifact binding mismatch')
 fifth='''\n[[meta_contract]]\nid = "META-EVIDENCE-FIFTH"\nkind = "metadata-evidence"\nvalue = "forbidden fifth mode"\nsource_paths = ""\nsource_symbol = ""\ntest_or_command = ""\nexpected_assertion = ""\nartifact_path = ""\nartifact_sha256 = ""\nsource_commit = ""\nplanned_slice = "none"\ndependency_ids = "none"\nstatus = "planned"\n'''
-reject('fifth-metadata-mode',BASE+fifth,'metadata evidence ID set mismatch')
-print('16 adversarial verifier cases plus full contaminated-parent positive control passed')
+reject('fifth-metadata-mode',BASE+fifth,'manifest inventory')
+# Inventory coverage spans ordinary present/planned/excluded rows and independent table families.
+for name,pattern in [
+ ('delete-present-call',r'\[\[protocol_call\]\]\nid = "CALL-Resources-12".*?(?=\[\[)'),
+ ('delete-planned-provider',r'\[\[provider_v8_contract\]\]\nid = "PROVIDER-V8-PREFLIGHT".*?(?=\[\[)'),
+ ('delete-excluded-capability',r'\[\[exclusion\]\]\nid = "EXC-staking".*?(?=\[\[)'),
+ ('delete-stateless-source',r'\[\[source\]\]\nid = "dhiway-sdk".*?(?=\[\[)'),
+]:
+ mutated,n=re.subn(pattern,'',BASE,count=1,flags=re.S)
+ if n!=1: raise SystemExit(name+' fixture did not match')
+ reject(name,mutated,'manifest inventory')
+added='''\n[[protocol_call]]\nid = "CALL-FORGED-ADDITION"\nstate = "planned"\n'''
+reject('inventory-addition',BASE+added,'manifest inventory')
+reject('inventory-rename',BASE.replace('id = "CALL-Resources-12"','id = "CALL-Resources-12-RENAMED"',1),'manifest inventory')
+
+def production_cleanliness_cases():
+ worktree=Path(tempfile.mkdtemp(prefix='orbis-v4-production-')); worktree.rmdir()
+ subprocess.run(['git','worktree','add','--detach',str(worktree),'HEAD'],cwd=ROOT,check=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+ try:
+  verifier=worktree/'scripts/verify-orbis-completion-v4.py'
+  before=subprocess.check_output(['git','status','--porcelain','--untracked-files=all'],cwd=worktree,text=True)
+  clean=subprocess.run([str(verifier),'--static'],cwd=worktree,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+  after=subprocess.check_output(['git','status','--porcelain','--untracked-files=all'],cwd=worktree,text=True)
+  if clean.returncode or before!=after: raise SystemExit('clean production verifier failed or mutated tracked worktree: '+clean.stdout)
+  manifest=worktree/'docs/orbis-completion-manifest.toml'; original=manifest.read_text(); manifest.write_text(original+'\n')
+  dirty=subprocess.run([str(verifier),'--static'],cwd=worktree,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+  if dirty.returncode==0 or 'untracked or dirty' not in dirty.stdout: raise SystemExit('dirty tracked production evidence was not rejected: '+dirty.stdout)
+  manifest.write_text(original)
+  stray=worktree/'docs/evidence/orbis-v4/coherent-untracked-evidence.json'; stray.write_text('{"schema":"coherent-forgery"}\n')
+  untracked=subprocess.run([str(verifier),'--static'],cwd=worktree,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+  if untracked.returncode==0 or 'contains untracked files' not in untracked.stdout: raise SystemExit('untracked production evidence was not rejected: '+untracked.stdout)
+ finally:
+  subprocess.run(['git','worktree','remove','--force',str(worktree)],cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+production_cleanliness_cases()
+print('23 adversarial verifier cases, production cleanliness controls, and full contaminated-parent positive passed')
