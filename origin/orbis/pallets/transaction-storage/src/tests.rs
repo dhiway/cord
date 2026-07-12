@@ -23,8 +23,9 @@
 use super::{
 	extension::ValidateStorageCalls,
 	mock::{
-		new_test_ext, run_to_block, MaxPermanentStorageSize, RuntimeCall, RuntimeEvent,
-		RuntimeOrigin, StoreRenewPriority, System, Test, TransactionStorage,
+		new_test_ext, prune_claim_calls, reset_prune_claim_calls, run_to_block,
+		MaxPermanentStorageSize, RuntimeCall, RuntimeEvent, RuntimeOrigin, StoreRenewPriority,
+		System, Test, TransactionStorage,
 	},
 	pallet::Origin,
 	AllowedAuthorizers, AuthorizationExtent, AuthorizationOrigin, AuthorizationScope,
@@ -308,6 +309,163 @@ fn expiry_is_numeric_bounded_and_tombstone_pruning_is_no_drop() {
 		assert_eq!(expired, vec![9]);
 		assert_eq!(TransactionStorage::resource_reservation(3), None);
 		assert!(super::TombstonePruneQueue::<Test>::get().contains(&9));
+	});
+}
+
+#[test]
+fn tombstone_prune_limit_counts_inspections_not_successes() {
+	use indiv_support::traits::TwoPhaseStorage;
+
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+		for id in 1..=3 {
+			// The mock callback returns `purpose = id`; a different reservation purpose makes
+			// every eligible callback a mismatch and keeps every tombstone queued.
+			assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::reserve(
+				id,
+				&id,
+				&(100 + id as u32),
+				1,
+				1,
+				10,
+			));
+			assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::cancel(
+				&id, id,
+			));
+		}
+		System::set_block_number(4);
+		reset_prune_claim_calls();
+
+		assert_eq!(TransactionStorage::prune_resource_tombstones(4, 1), 0);
+		assert_eq!(prune_claim_calls(), 1);
+		assert_eq!(super::TombstonePruneCursor::<Test>::get(), 1);
+		assert_eq!(super::TombstonePruneQueue::<Test>::get().len(), 3);
+	});
+}
+
+#[test]
+fn tombstone_prune_saturates_requested_limit_to_bounded_queue() {
+	use indiv_support::traits::TwoPhaseStorage;
+
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+		for id in 1..=3 {
+			assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::reserve(
+				id,
+				&id,
+				&(100 + id as u32),
+				1,
+				1,
+				10,
+			));
+			assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::cancel(
+				&id, id,
+			));
+		}
+		System::set_block_number(4);
+		reset_prune_claim_calls();
+
+		assert_eq!(TransactionStorage::prune_resource_tombstones(4, u32::MAX), 0);
+		assert_eq!(prune_claim_calls(), 3);
+		assert_eq!(super::TombstonePruneQueue::<Test>::get().len(), 3);
+	});
+}
+
+#[test]
+fn ineligible_tombstone_scan_is_inspection_bounded_without_callback() {
+	use indiv_support::traits::TwoPhaseStorage;
+
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+		for id in 1..=3 {
+			assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::reserve(
+				id,
+				&id,
+				&(id as u32),
+				1,
+				1,
+				10,
+			));
+			assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::cancel(
+				&id, id,
+			));
+		}
+		reset_prune_claim_calls();
+
+		assert_eq!(TransactionStorage::prune_resource_tombstones(2, 1), 0);
+		assert_eq!(prune_claim_calls(), 0);
+		assert_eq!(super::TombstonePruneCursor::<Test>::get(), 1);
+	});
+}
+
+#[test]
+fn reservation_admission_counters_reject_saturated_values_without_scanning() {
+	use indiv_support::traits::TwoPhaseStorage;
+
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+		super::ResourceReservationRowCount::<Test>::put(u32::MAX);
+		assert_noop!(
+			<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::reserve(
+				1, &1, &1, 1, 1, 10,
+			),
+			Error::ReservationCapacityExceeded
+		);
+		assert_eq!(super::ResourceReservationRowCount::<Test>::get(), u32::MAX);
+
+		super::ResourceReservationRowCount::<Test>::put(0);
+		assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::reserve(
+			1, &1, &1, 10, 1, 10,
+		));
+		super::ResourceReservationLinkCount::<Test>::put(u32::MAX);
+		frame_system::Pallet::<Test>::set_extrinsic_index(0);
+		assert_noop!(
+			TransactionStorage::store_reserved(
+				RuntimeOrigin::signed(1),
+				1,
+				CidConfig { codec: RAW_CODEC, hashing: HashingAlgorithm::Blake2b256 },
+				vec![1],
+			),
+			Error::ReservationCapacityExceeded
+		);
+		assert_eq!(super::ResourceReservationLinkCount::<Test>::get(), u32::MAX);
+	});
+}
+
+#[test]
+fn content_hash_reverse_index_rejects_cross_reservation_duplicates() {
+	use indiv_support::traits::TwoPhaseStorage;
+
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+		for id in 1..=2 {
+			assert_ok!(<TransactionStorage as TwoPhaseStorage<u64, u64, u32, u64>>::reserve(
+				id,
+				&id,
+				&(id as u32),
+				10,
+				1,
+				10,
+			));
+		}
+		frame_system::Pallet::<Test>::set_extrinsic_index(0);
+		let cid = CidConfig { codec: RAW_CODEC, hashing: HashingAlgorithm::Blake2b256 };
+		let data = vec![7u8; 4];
+		let hash = cid.hashing.hash(&data);
+		assert_ok!(TransactionStorage::store_reserved(
+			RuntimeOrigin::signed(1),
+			1,
+			cid.clone(),
+			data.clone(),
+		));
+		assert_eq!(super::ResourceLinkByContentHash::<Test>::get(hash), Some(1));
+		assert_eq!(super::ResourceReservationLinkCount::<Test>::get(), 1);
+
+		assert_noop!(
+			TransactionStorage::store_reserved(RuntimeOrigin::signed(2), 2, cid, data),
+			Error::ContentAlreadyLinked
+		);
+		assert_eq!(super::ResourceReservationLinkCount::<Test>::get(), 1);
 	});
 }
 

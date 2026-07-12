@@ -438,6 +438,32 @@ mod benchmarks {
 	}
 
 	#[benchmark]
+	fn scan_ineligible_resource_tombstones() -> Result<(), BenchmarkError> {
+		let caller: T::AccountId = whitelisted_caller();
+		let purpose = T::BenchmarkHelper::reservation_purpose();
+		let expires_at = System::<T>::block_number().saturating_add(1u32.into());
+		for offset in 0..T::MaxReservations::get() {
+			let id = u64::from(offset).saturating_add(1);
+			TransactionStorage::<T>::reserve_resource_capacity(
+				id, &caller, &purpose, 1, 1, expires_at,
+			)?;
+			TransactionStorage::<T>::cancel_resource_capacity(&caller, id)?;
+		}
+		let now = System::<T>::block_number();
+
+		#[block]
+		{
+			// Every row is younger than TombstoneRetention. The requested limit therefore
+			// measures the worst-case full bounded scan without invoking the lifecycle callback.
+			let _ =
+				TransactionStorage::<T>::prune_resource_tombstones(now, T::MaxReservations::get());
+		}
+
+		assert_eq!(TombstonePruneQueue::<T>::get().len(), T::MaxReservations::get() as usize);
+		Ok(())
+	}
+
+	#[benchmark]
 	fn authorize_account() -> Result<(), BenchmarkError> {
 		let origin = T::Authorizer::try_successful_origin()
 			.map_err(|_| BenchmarkError::Stop("unable to compute origin"))?;

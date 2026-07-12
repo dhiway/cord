@@ -356,10 +356,13 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			// Standard Error: 11_242
 			.saturating_add(Weight::from_parts(10_958_277, 0).saturating_mul(n.into()))
 			.saturating_add(T::DbWeight::get().reads(6))
-			.saturating_add(T::DbWeight::get().reads((2_u64).saturating_mul(n.into())))
+			// Worst case: every expiring transaction owns a reservation link. Charge the
+			// reference, content-hash reverse index, and link-counter reads even when the
+			// benchmark fixture contains only ordinary Bulletin entries.
+			.saturating_add(T::DbWeight::get().reads((5_u64).saturating_mul(n.into())))
 			.saturating_add(T::DbWeight::get().writes(3))
-			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(n.into())))
-			.saturating_add(Weight::from_parts(0, 2557).saturating_mul(n.into()))
+			.saturating_add(T::DbWeight::get().writes((5_u64).saturating_mul(n.into())))
+			.saturating_add(Weight::from_parts(0, 11557).saturating_mul(n.into()))
 	}
 	/// Storage: `TransactionStorage::RetentionPeriod` (r:1 w:0)
 	/// Proof: `TransactionStorage::RetentionPeriod` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
@@ -517,10 +520,10 @@ impl WeightInfo for () {
 			.saturating_add(Weight::from_parts(0, 79311))
 			.saturating_add(Weight::from_parts(10_958_277, 0).saturating_mul(n.into()))
 			.saturating_add(RocksDbWeight::get().reads(6))
-			.saturating_add(RocksDbWeight::get().reads((2_u64).saturating_mul(n.into())))
+			.saturating_add(RocksDbWeight::get().reads((5_u64).saturating_mul(n.into())))
 			.saturating_add(RocksDbWeight::get().writes(3))
-			.saturating_add(RocksDbWeight::get().writes((1_u64).saturating_mul(n.into())))
-			.saturating_add(Weight::from_parts(0, 2557).saturating_mul(n.into()))
+			.saturating_add(RocksDbWeight::get().writes((5_u64).saturating_mul(n.into())))
+			.saturating_add(Weight::from_parts(0, 11557).saturating_mul(n.into()))
 	}
 	fn migrate_v2_to_v3_step() -> Weight {
 		Weight::from_parts(144_128_000, 0)

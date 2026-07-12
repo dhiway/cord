@@ -436,6 +436,14 @@ pub mod pallet {
 							ResourceLinkByRef::<T>::take(bulletin_ref)
 						{
 							ResourceReservationLinks::<T>::remove(reservation_id, linked_hash);
+							if ResourceLinkByContentHash::<T>::get(linked_hash)
+								== Some(reservation_id)
+							{
+								ResourceLinkByContentHash::<T>::remove(linked_hash);
+							}
+							ResourceReservationLinkCount::<T>::mutate(|count| {
+								*count = count.saturating_sub(1)
+							});
 						}
 
 						// Sum renewed sizes for the chain-wide permanent counter decrement.
@@ -1377,6 +1385,21 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// Exact reverse index used to reject a content hash linked by any reservation without a
+	/// global `ResourceReservationLinks` scan.
+	#[pallet::storage]
+	pub type ResourceLinkByContentHash<T: Config> =
+		StorageMap<_, Blake2_128Concat, ContentHash, ReservationId, OptionQuery>;
+
+	/// Number of active reservation links. Kept explicitly so admission is a constant-time read.
+	#[pallet::storage]
+	pub type ResourceReservationLinkCount<T: Config> = StorageValue<_, u32, ValueQuery>;
+
+	/// Number of active reservations plus retained tombstones. Active-to-tombstone transitions do
+	/// not change this value; successful tombstone pruning decrements it.
+	#[pallet::storage]
+	pub type ResourceReservationRowCount<T: Config> = StorageValue<_, u32, ValueQuery>;
+
 	#[pallet::storage]
 	pub type ResourceReservationTombstones<T: Config> = StorageMap<
 		_,
@@ -2011,8 +2034,7 @@ pub mod pallet {
 				Error::<T>::ContentAlreadyLinked
 			);
 			ensure!(
-				!ResourceReservationLinks::<T>::iter_keys()
-					.any(|(_, linked_hash)| linked_hash == content_hash),
+				!ResourceLinkByContentHash::<T>::contains_key(content_hash),
 				Error::<T>::ContentAlreadyLinked
 			);
 			if let Some((block, transaction_index)) =
@@ -2027,8 +2049,7 @@ pub mod pallet {
 				}
 			}
 			ensure!(
-				(ResourceReservationLinks::<T>::iter().count() as u32)
-					< T::MaxReservationLinks::get(),
+				ResourceReservationLinkCount::<T>::get() < T::MaxReservationLinks::get(),
 				Error::<T>::ReservationCapacityExceeded
 			);
 			let transactions = BlockTransactions::<T>::get();
@@ -2095,6 +2116,8 @@ pub mod pallet {
 				retention_boundary: Self::now().saturating_add(Self::retention_period()),
 			};
 			ResourceReservationLinks::<T>::insert(reservation_id, prepared.content_hash, &link);
+			ResourceLinkByContentHash::<T>::insert(prepared.content_hash, reservation_id);
+			ResourceReservationLinkCount::<T>::mutate(|count| *count = count.saturating_add(1));
 			ResourceLinkByRef::<T>::insert(
 				prepared.bulletin_ref,
 				(reservation_id, prepared.content_hash),
@@ -2140,6 +2163,10 @@ pub mod pallet {
 			ensure!(Self::now() < reservation.expires_at, Error::<T>::ReservationExpired);
 			let source = ResourceReservationLinks::<T>::get(reservation_id, content_hash)
 				.ok_or(Error::<T>::ContentNotFound)?;
+			ensure!(
+				ResourceLinkByContentHash::<T>::get(content_hash) == Some(reservation_id),
+				Error::<T>::BulletinRefHashMismatch
+			);
 			ensure!(source.owner == *owner, Error::<T>::NotReservationOwner);
 			ensure!(
 				ResourceLinkByRef::<T>::get(source.bulletin_ref)
@@ -2291,11 +2318,8 @@ pub mod pallet {
 					&& !ResourceReservationTombstones::<T>::contains_key(reservation_id),
 				Error::<T>::ContentAlreadyLinked
 			);
-			let total_rows = ResourceReservations::<T>::iter_keys()
-				.count()
-				.saturating_add(ResourceReservationTombstones::<T>::iter_keys().count());
 			ensure!(
-				total_rows < T::MaxReservations::get() as usize,
+				ResourceReservationRowCount::<T>::get() < T::MaxReservations::get(),
 				Error::<T>::ReservationCapacityExceeded
 			);
 			let total_capacity = PermanentStorageUsed::<T>::get()
@@ -2349,6 +2373,7 @@ pub mod pallet {
 					expires_at,
 				},
 			);
+			ResourceReservationRowCount::<T>::mutate(|count| *count = count.saturating_add(1));
 			ResourceReservationExpiryBlocks::<T>::put(blocks);
 			ResourceReservationExpiryBuckets::<T>::insert(expires_at, bucket);
 			ReservedPermanentCapacity::<T>::mutate(|reserved| *reserved += bytes);
@@ -2432,7 +2457,8 @@ pub mod pallet {
 		) -> Result<Vec<ReservationId>, DispatchError> {
 			ensure!(limit <= T::MaxReservations::get(), Error::<T>::CleanupLimitExceeded);
 			let mut expired = Vec::new();
-			while (expired.len() as u32) < limit {
+			let mut inspected = 0u32;
+			while inspected < limit {
 				let Some(due_block) = ResourceReservationExpiryBlocks::<T>::get().first().copied()
 				else {
 					break;
@@ -2440,6 +2466,7 @@ pub mod pallet {
 				if due_block > now {
 					break;
 				}
+				inspected = inspected.saturating_add(1);
 				let Some(reservation_id) =
 					ResourceReservationExpiryBuckets::<T>::get(due_block).first().copied()
 				else {
@@ -2463,21 +2490,25 @@ pub mod pallet {
 				block: cursor,
 				offset: 0,
 			});
-			let remaining = limit.saturating_sub(expired.len() as u32);
+			let remaining = limit.saturating_sub(inspected);
 			Self::prune_resource_tombstones(now, remaining);
 			Ok(expired)
 		}
 
 		pub(crate) fn prune_resource_tombstones(now: BlockNumberFor<T>, limit: u32) -> u32 {
 			let mut pruned = 0u32;
-			let mut inspected = 0usize;
-			while pruned < limit {
+			let mut inspected = 0u32;
+			let inspection_limit = limit
+				.min(T::MaxReservations::get())
+				.min(TombstonePruneQueue::<T>::get().len() as u32);
+			while inspected < inspection_limit {
 				let queue = TombstonePruneQueue::<T>::get();
-				if queue.is_empty() || inspected >= queue.len() {
+				if queue.is_empty() {
 					break;
 				}
 				let position = (TombstonePruneCursor::<T>::get() as usize) % queue.len();
 				let reservation_id = queue[position];
+				inspected = inspected.saturating_add(1);
 				let Some(tombstone) = ResourceReservationTombstones::<T>::get(reservation_id)
 				else {
 					TombstonePruneQueue::<T>::mutate(|items| {
@@ -2485,6 +2516,9 @@ pub mod pallet {
 							items.remove(position);
 						}
 					});
+					TombstonePruneCursor::<T>::put(
+						(position % queue.len().saturating_sub(1).max(1)) as u32,
+					);
 					continue;
 				};
 				let eligible_at = tombstone.closed_at.saturating_add(T::TombstoneRetention::get());
@@ -2492,7 +2526,6 @@ pub mod pallet {
 					ResourceReservationLinks::<T>::iter_prefix(reservation_id).next().is_some();
 				if now < eligible_at || has_links {
 					TombstonePruneCursor::<T>::put(((position + 1) % queue.len()) as u32);
-					inspected += 1;
 					continue;
 				}
 				let outcome = T::ResourceClaimLifecycle::prune_claim(reservation_id);
@@ -2509,11 +2542,12 @@ pub mod pallet {
 						items.remove(position);
 					});
 					TombstonePruneCursor::<T>::put(0);
+					ResourceReservationRowCount::<T>::mutate(|count| {
+						*count = count.saturating_sub(1)
+					});
 					pruned += 1;
-					inspected = 0;
 				} else {
 					TombstonePruneCursor::<T>::put(((position + 1) % queue.len()) as u32);
-					inspected += 1;
 				}
 			}
 			pruned
@@ -3647,6 +3681,11 @@ impl<T: Config> Pallet<T> {
 			active.len().saturating_add(tombstones.len()) <= T::MaxReservations::get() as usize,
 			"active plus tombstones exceeds MaxReservations"
 		);
+		ensure!(
+			ResourceReservationRowCount::<T>::get() as usize
+				== active.len().saturating_add(tombstones.len()),
+			"reservation row counter mismatch"
+		);
 		let reserved_sum = active
 			.iter()
 			.fold(0u64, |sum, (_, reservation)| sum.saturating_add(reservation.bytes_remaining));
@@ -3693,15 +3732,24 @@ impl<T: Config> Pallet<T> {
 		for (id, _) in &tombstones {
 			ensure!(queue.binary_search(id).is_ok(), "tombstone absent from prune queue");
 		}
+		let links: Vec<_> = ResourceReservationLinks::<T>::iter().collect();
 		ensure!(
-			ResourceReservationLinks::<T>::iter().count() <= T::MaxReservationLinks::get() as usize,
+			links.len() <= T::MaxReservationLinks::get() as usize,
 			"reservation links exceeds MaxReservationLinks"
 		);
-		for (id, hash, link) in ResourceReservationLinks::<T>::iter() {
+		ensure!(
+			ResourceReservationLinkCount::<T>::get() as usize == links.len(),
+			"reservation link counter mismatch"
+		);
+		for (id, hash, link) in links {
 			ensure!(id == link.reservation_id && hash == link.content_hash, "link key mismatch");
 			ensure!(
 				ResourceLinkByRef::<T>::get(link.bulletin_ref) == Some((id, hash)),
 				"link reverse pointer mismatch"
+			);
+			ensure!(
+				ResourceLinkByContentHash::<T>::get(hash) == Some(id),
+				"content-hash reverse pointer mismatch"
 			);
 		}
 		for (reference, (id, hash)) in ResourceLinkByRef::<T>::iter() {
@@ -3709,6 +3757,12 @@ impl<T: Config> Pallet<T> {
 				ResourceReservationLinks::<T>::get(id, hash)
 					.is_some_and(|link| link.bulletin_ref == reference),
 				"reverse pointer has no matching link"
+			);
+		}
+		for (hash, id) in ResourceLinkByContentHash::<T>::iter() {
+			ensure!(
+				ResourceReservationLinks::<T>::contains_key(id, hash),
+				"content-hash reverse pointer has no matching link"
 			);
 		}
 		for (reference, _) in StoredBy::<T>::iter() {

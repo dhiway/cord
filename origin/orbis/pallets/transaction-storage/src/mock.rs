@@ -82,8 +82,21 @@ parameter_types! {
 }
 
 pub struct TestClaimLifecycle;
+std::thread_local! {
+	static PRUNE_CLAIM_CALLS: core::cell::Cell<u32> = const { core::cell::Cell::new(0) };
+}
+
+pub fn reset_prune_claim_calls() {
+	PRUNE_CLAIM_CALLS.with(|calls| calls.set(0));
+}
+
+pub fn prune_claim_calls() -> u32 {
+	PRUNE_CLAIM_CALLS.with(core::cell::Cell::get)
+}
+
 impl ResourceClaimLifecycle<u64, u32> for TestClaimLifecycle {
 	fn prune_claim(id: u64) -> ClaimCleanupOutcome<u64, u32> {
+		PRUNE_CLAIM_CALLS.with(|calls| calls.set(calls.get().saturating_add(1)));
 		ClaimCleanupOutcome { id, removed: true, purpose: Some(id as u32) }
 	}
 }
