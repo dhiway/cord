@@ -20,6 +20,9 @@
 // does not block the SDK bump.
 #![allow(deprecated)]
 
+#[path = "../../../evidence_markers_v4.rs"]
+mod evidence_markers_v4;
+
 use super::{
 	extension::ValidateStorageCalls,
 	mock::{
@@ -670,7 +673,7 @@ fn migration_v5_to_v7_alias_repairs_historical_v6_state() {
 
 #[test]
 fn migration_v6_to_v7_evidence_markers_are_source_owned() {
-	crate::evidence_markers_v4::emit_evidence_markers_v4("bulletin-v6-v7");
+	evidence_markers_v4::emit_evidence_markers_v4("bulletin-v6-v7");
 }
 
 #[test]

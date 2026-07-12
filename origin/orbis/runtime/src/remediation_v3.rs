@@ -939,7 +939,7 @@ mod tests {
 		] {
 			assert_eq!(request.validate(), Err(error));
 		}
-		crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-direct-payer");
+		crate::tests::evidence_markers_v4::emit_evidence_markers_v4("runtime-direct-payer");
 	}
 
 	#[test]
@@ -1108,7 +1108,7 @@ mod tests {
 		too_many[0] = EnvelopeNode::wrapper(EnvelopeKind::UtilityBatch, 33, 1, 32);
 		too_many[32] = EnvelopeNode::leaf(EnvelopeKind::MetaLeaf, 1);
 		assert_eq!(inspect_envelope(&too_many), Err(InspectionError::CallCountExceeded));
-		crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-inspector");
+		crate::tests::evidence_markers_v4::emit_evidence_markers_v4("runtime-inspector");
 	}
 
 	#[test]
@@ -1158,7 +1158,7 @@ mod tests {
 			weights.malformed_classifier_and_router(),
 			weights.maximum_rejection() + max_router
 		);
-		crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-weights");
+		crate::tests::evidence_markers_v4::emit_evidence_markers_v4("runtime-weights");
 	}
 
 	#[test]
@@ -1183,6 +1183,6 @@ mod tests {
 		consumed.consumed = true;
 		let value = slot.prepare_outer(consumed).unwrap();
 		assert_eq!(slot.consume_inner(value), Err(TokenError::AlreadyConsumed));
-		crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-token");
+		crate::tests::evidence_markers_v4::emit_evidence_markers_v4("runtime-token");
 	}
 }

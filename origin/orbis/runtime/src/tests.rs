@@ -39,6 +39,10 @@ use xcm_runtime_apis::conversions::LocationToAccountHelper;
 
 #[path = "remediation_v3.rs"]
 mod remediation_v3;
+#[path = "../../evidence_markers_v4.rs"]
+mod evidence_markers_v4;
+#[path = "../../evidence_inventory_v4.rs"]
+mod evidence_inventory_v4;
 
 const ALICE: [u8; 32] = [1u8; 32];
 
@@ -449,7 +453,7 @@ fn completion_manifest_v4_evidence_is_exact_and_semantically_frozen() {
 		manifest["audited_runtime_commit"].as_str(),
 		Some("f88aa3faa6573582ca690fa3cace58b7f670aa88")
 	);
-	crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-manifest");
+	evidence_markers_v4::emit_evidence_markers_v4("runtime-manifest");
 }
 
 #[test]
@@ -550,11 +554,11 @@ fn completion_manifest_v4_source_inventory_covers_every_row() {
 	identities.sort_unstable();
 	assert_eq!(
 		identities.as_slice(),
-		crate::evidence_inventory_v4::MANIFEST_INVENTORY_V4
+		evidence_inventory_v4::MANIFEST_INVENTORY_V4
 	);
 	assert_eq!(
 		identities.len(),
-		crate::evidence_inventory_v4::MANIFEST_INVENTORY_V4_COUNT
+		evidence_inventory_v4::MANIFEST_INVENTORY_V4_COUNT
 	);
 	let canonical = identities
 		.iter()
@@ -564,7 +568,7 @@ fn completion_manifest_v4_source_inventory_covers_every_row() {
 		.iter()
 		.map(|byte| format!("{byte:02x}"))
 		.collect::<String>();
-	assert_eq!(digest, crate::evidence_inventory_v4::MANIFEST_INVENTORY_V4_BLAKE2_256);
+	assert_eq!(digest, evidence_inventory_v4::MANIFEST_INVENTORY_V4_BLAKE2_256);
 }
 
 #[test]
@@ -4764,7 +4768,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		assert!(header.number > 0);
 		assert!(crate::meta_v6::token().is_none());
 	});
-	crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-sponsored");
+	evidence_markers_v4::emit_evidence_markers_v4("runtime-sponsored");
 }
 
 #[test]
@@ -5044,5 +5048,5 @@ fn metadata_custom_hash_loss_is_detected_after_wire_roundtrip() {
 		&(extension.encode(), Some(other)).encode(),
 		&pair.public(),
 	));
-	crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-custom-hash");
+	evidence_markers_v4::emit_evidence_markers_v4("runtime-custom-hash");
 }
