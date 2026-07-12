@@ -1,9 +1,12 @@
 {
+  "assertion_sha256": "1413e029084388df25ceb5ad3f4c41b424a570a34d4044568cc06f9626878d3f",
   "command": "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::remediation_v3::tests::token_is_one_shot_key_bound_and_empty_at_finalization -- --exact",
   "expected": "cleanup on validation, prepare, dispatch and post-dispatch failure",
   "expected_output": "test result: ok",
   "id": "META-TOKEN-FAILURE",
-  "output_sha256": "a4a0e2961c36426614018cf53a34ab0157d34283cd3f1b87b65d8a67a5425a35",
+  "output_artifact": "docs/evidence/orbis-v4/outputs/50e14886c9283466cac54b7c2a8cce535e0fc800b4f6cab36cb00372d6064f54.log",
+  "output_artifact_sha256": "8b2fd02902b512793676dd5b3f951bd0417209dc1d9765dc4400d3d110203d20",
+  "output_sha256": "8b2fd02902b512793676dd5b3f951bd0417209dc1d9765dc4400d3d110203d20",
   "schema": "orbis-completion-evidence-v4",
   "source_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
   "source_paths": "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/meta_v6.rs",

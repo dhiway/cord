@@ -1,9 +1,12 @@
 {
+  "assertion_sha256": "521e9f1d9753b9e356e15af0e5e63f3b1c6d861e71967cbc0595e1a269031681",
   "command": "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib meta_v6_fixtures::checked_in_meta_v7_fixtures_decode_all_recompute_and_match_hashes -- --exact",
   "expected": "metadata extension hash mutation fails",
   "expected_output": "test result: ok",
   "id": "VECTOR-MUTATE-METADATA",
-  "output_sha256": "33e0fc209124f854e004d4f9453c26db34897191fdd772ed4e6b1373292ae3f0",
+  "output_artifact": "docs/evidence/orbis-v4/outputs/4d02d5be4c64d7a23b1778631046f8ee348bda16c26242cd00cadb4669728897.log",
+  "output_artifact_sha256": "ed6f594d4de028cc9730342093459eb8fa11d16ce4647350a214e1e0c83ac3cf",
+  "output_sha256": "ed6f594d4de028cc9730342093459eb8fa11d16ce4647350a214e1e0c83ac3cf",
   "schema": "orbis-completion-evidence-v4",
   "source_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
   "source_paths": "origin/orbis/runtime/src/meta_v6_fixtures.rs; origin/orbis/runtime/fixtures/meta-v7/mutate-metadata-hash.scale",

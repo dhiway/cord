@@ -1,9 +1,12 @@
 {
+  "assertion_sha256": "7d7ce510f67455811a4d34dec9840225e8c57519992687ba84088531219c7b3c",
   "command": "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::completion_manifest_v4_evidence_is_exact_and_semantically_frozen -- --exact",
   "expected": "runtime integration is spec28 transaction7 with stable pallet indices",
   "expected_output": "test result: ok",
   "id": "GATE-4-SPEC28-TX7",
-  "output_sha256": "5238308cd6894f2ea4b142e1359d94e46cd99b57c2205c1c404ef15b8e866240",
+  "output_artifact": "docs/evidence/orbis-v4/outputs/1f5ab4ad828a2c8c203f38934ba3a50a2e7f16d95d03d309bab2ebcae2af3144.log",
+  "output_artifact_sha256": "85a1cb7ed2d78f11fccba54f0944add503faa95795c7ac195afa24f0387a4d29",
+  "output_sha256": "85a1cb7ed2d78f11fccba54f0944add503faa95795c7ac195afa24f0387a4d29",
   "schema": "orbis-completion-evidence-v4",
   "source_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
   "source_paths": "docs/orbis-completion-manifest.toml; docs/adr/0008-orbis-transaction-policy-pipeline.md; docs/orbis-native-capability-matrix.md",

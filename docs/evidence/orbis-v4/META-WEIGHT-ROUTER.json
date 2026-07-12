@@ -1,9 +1,12 @@
 {
+  "assertion_sha256": "786ab19253d4beb8e795f4b1bf3051745fd3a2db2d8fef68f518f4aa5de5cb53",
   "command": "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::remediation_v3::tests::conservative_weights_freeze_formula_and_db_ownership -- --exact",
   "expected": "per-router-variant benchmark and conservative coefficient",
   "expected_output": "test result: ok",
   "id": "META-WEIGHT-ROUTER",
-  "output_sha256": "d34f8b0187f65ac5da7520da2fc2ba1d9f90f0524feb182119b0fb50e36d803e",
+  "output_artifact": "docs/evidence/orbis-v4/outputs/9765f2587e150adfbf529ecf2d39036bfa92d04e2d3b6badc861387a8c7e9b4b.log",
+  "output_artifact_sha256": "6a2a7d1de90d78131a261c91c72ea03a43d4ba4732b1844ff18fd56ac692458a",
+  "output_sha256": "6a2a7d1de90d78131a261c91c72ea03a43d4ba4732b1844ff18fd56ac692458a",
   "schema": "orbis-completion-evidence-v4",
   "source_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
   "source_paths": "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/meta_v6.rs",

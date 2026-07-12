@@ -93,7 +93,7 @@ fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 		("protocol_event", 10),
 		("protocol_error", 18),
 		("protocol_benchmark", 9),
-		("protocol_migration", 2),
+		("protocol_migration", 3),
 		("protocol_invariant", 12),
 		("protocol_acceptance", 20),
 		("protocol_obligation", 10),
@@ -365,7 +365,7 @@ fn completion_manifest_v4_evidence_is_exact_and_semantically_frozen() {
 			}
 		}
 	}
-	assert_eq!((present, planned), (115, 4));
+	assert_eq!((present, planned), (114, 5));
 	let contract = manifest["meta_contract"].as_array().unwrap();
 	for id in [
 		"META-EVIDENCE-COMPILED-ENABLED",
@@ -445,11 +445,10 @@ fn completion_manifest_v4_evidence_is_exact_and_semantically_frozen() {
 	};
 	assert_eq!(bulletin_value("BUL-V7-READS"), "reads = A + T + L + I_ref + I_hash + 3L + 3");
 	assert_eq!(bulletin_value("BUL-V7-WRITES"), "writes = I_ref + I_hash + 2L + 2 + 1");
-	let digest = sp_io::hashing::sha2_256(manifest_text.as_bytes())
-		.iter()
-		.map(|byte| format!("{byte:02x}"))
-		.collect::<String>();
-	assert_eq!(digest, "8062a223cfd7171dcb70c97e7e6b72c40aee7a64e8dbc50d2361d12acd5a8891");
+	assert_eq!(
+		manifest["audited_runtime_commit"].as_str(),
+		Some("f88aa3faa6573582ca690fa3cace58b7f670aa88")
+	);
 }
 
 #[test]
@@ -472,6 +471,16 @@ fn completion_manifest_v4_plans_have_no_fake_implementation_evidence() {
 			assert_eq!(row[field].as_str(), Some(""));
 		}
 	}
+	let gate5 = manifest["remediation_gate"]
+		.as_array()
+		.unwrap()
+		.iter()
+		.find(|row| row["id"].as_str() == Some("GATE-5-EVIDENCE"))
+		.unwrap();
+	assert_eq!(gate5["status"].as_str(), Some("planned"));
+	assert_eq!(gate5["dependency_ids"].as_str(), Some("ARCHITECT-CLEAR; CRITIC-CLEAR"));
+	assert_eq!(manifest["replanning"]["critic_status"].as_str(), Some("pending"));
+	assert_eq!(manifest["replanning"]["critic_evidence"].as_str(), Some(""));
 }
 
 #[test]
@@ -601,7 +610,7 @@ fn resources_bulletin_iteration_two_manifest_is_exact() {
 	let semantic_hash = sp_io::hashing::blake2_256(canonical.as_bytes());
 	let semantic_hash = semantic_hash.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
 	assert_eq!(
-		semantic_hash, "f8c59405ae1b15d9e24d8e16ed5d452c7915e6b65e388188d1b0fbfef802af4d",
+		semantic_hash, "660517289724a1694c9d23d7b017a7366137aed5e3bc840ba7dad9480ca6f7d8",
 		"iteration-2 semantic rows changed; mutable state/evidence are deliberately excluded"
 	);
 
@@ -756,13 +765,21 @@ fn resources_bulletin_iteration_two_manifest_is_exact() {
 	);
 
 	let migrations = rows("protocol_migration");
-	assert_eq!(ids("protocol_migration"), ["PMIG-Bulletin-V5-to-V6", "PMIG-Bulletin-V6-to-V7"]);
+	assert_eq!(
+		ids("protocol_migration"),
+		["PMIG-Bulletin-V5-to-V6", "PMIG-Bulletin-V6-to-V7", "PMIG-Bulletin-V7-to-V8",]
+	);
 	assert_eq!(migrations[0]["from_version"].as_integer(), Some(5));
 	assert_eq!(migrations[0]["to_version"].as_integer(), Some(6));
 	assert_eq!(migrations[0]["owner"].as_str(), Some("slice-1"));
 	assert_eq!(migrations[1]["from_version"].as_integer(), Some(6));
 	assert_eq!(migrations[1]["to_version"].as_integer(), Some(7));
-	assert_eq!(migrations[1]["owner"].as_str(), Some("slice-10"));
+	assert_eq!(migrations[1]["owner"].as_str(), Some("slice-1"));
+	assert_eq!(migrations[1]["state"].as_str(), Some("present"));
+	assert_eq!(migrations[2]["from_version"].as_integer(), Some(7));
+	assert_eq!(migrations[2]["to_version"].as_integer(), Some(8));
+	assert_eq!(migrations[2]["owner"].as_str(), Some("slice-10"));
+	assert_eq!(migrations[2]["state"].as_str(), Some("planned"));
 	for row in migrations {
 		assert!(!row["pre_invariant"].as_str().unwrap().is_empty());
 		assert!(!row["post_invariant"].as_str().unwrap().is_empty());

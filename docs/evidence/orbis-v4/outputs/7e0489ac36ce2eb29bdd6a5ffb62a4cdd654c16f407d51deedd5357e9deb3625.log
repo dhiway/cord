@@ -1,0 +1,5 @@
+exit=0
+command=CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 RUNTIME_METADATA_HASH=0xd03f87e6279878cafcf6149a7107a6307163e4e997f8d72d029cd6aa837f9854 cargo test -p origin-orbis-runtime --lib tests::metadata_custom_hash_loss_is_detected_after_wire_roundtrip -- --exact
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 63 filtered out; finished
+test tests::metadata_custom_hash_loss_is_detected_after_wire_roundtrip ... ok
+assertion=META-EVIDENCE-CUSTOM-LOSS:81476e46dc0ff6c57cf830d0b4cc451d2c986b06dd15a581ceb11cedfea1fab4

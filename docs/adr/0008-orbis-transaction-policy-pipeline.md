@@ -199,3 +199,9 @@ bounded allocation-free ingress inspection, XCM/authorized denial, one-shot toke
 the Bulletin V5-to-V7 composed migration. Bulletin declares storage V7 only at this boundary. Pallet indices remain unchanged. Manifest v4 records normalized checked artifacts and hashes; Bulletin V7 is present while provider V8 remains planned.
 
 Metadata implicit evidence is split into compiled-enabled RFC-78 reproduction, custom-hash wire-loss detection, isolated no-hash `CannotLookup`, and early propagation before token or business-state mutation.
+
+### Migration identity cross-check
+
+`PMIG-Bulletin-V6-to-V7` is the present Slice-1 reverse-index/counter repair and leaves storage at
+V7. `PMIG-Bulletin-V7-to-V8` is the distinct planned Slice-10 provider-reference migration. The
+provider plan depends on the completed V7 commit and must not be inferred from V7 storage.

@@ -1,0 +1,5 @@
+exit=0
+command=env -u RUNTIME_METADATA_HASH CARGO_TARGET_DIR=target/nohash cargo test --manifest-path origin/orbis/runtime/metadata-implicit-nohash/Cargo.toml --features runtime-benchmarks tests::enabled_metadata_without_compiled_hash_is_exact_cannot_lookup -- --exact
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished
+test tests::enabled_metadata_without_compiled_hash_is_exact_cannot_lookup ... ok
+assertion=META-EVIDENCE-NOHASH-CANNOTLOOKUP:67c3fb36c49b248f72146240dbf45366e8163ed5ce50ee70d608ade842dbd604

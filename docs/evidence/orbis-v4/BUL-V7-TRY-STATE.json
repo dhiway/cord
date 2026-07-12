@@ -1,9 +1,12 @@
 {
+  "assertion_sha256": "0ac4e2ed7f8f52c2955b31762166024ac77fcc40a19494cc33e932267b515845",
   "command": "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7",
   "expected": "bidirectional reverse-map bijection and exact counters continuously enforced",
   "expected_output": "test result: ok",
   "id": "BUL-V7-TRY-STATE",
-  "output_sha256": "f3f6ef51f0b272d7e5041d0301e65db3b013fa5ca418a3238a26980ab25295d9",
+  "output_artifact": "docs/evidence/orbis-v4/outputs/af2a090a94362983fce0cf88eb29874148e334cbbc3fd5ac4a38319229718dab.log",
+  "output_artifact_sha256": "34e44469fcffb918753466d8a34c89b343ee58ec04aa60997651c7eae3f1e25b",
+  "output_sha256": "34e44469fcffb918753466d8a34c89b343ee58ec04aa60997651c7eae3f1e25b",
   "schema": "orbis-completion-evidence-v4",
   "source_commit": "d6b0fd2f7a2f50808e68889b2255fa63935d41bc",
   "source_paths": "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/lib.rs",

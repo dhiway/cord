@@ -1,9 +1,12 @@
 {
+  "assertion_sha256": "8d0e9e164c029612daa3ca4feacda3890a18a49d201d12fa2c978198cab08374",
   "command": "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::remediation_v3::tests::inspector_is_fixed_stack_bounded_and_enforces_grammar -- --exact",
   "expected": "bounded inspection and leaf BaseCallFilter defense",
   "expected_output": "test result: ok",
   "id": "INGRESS-UTILITY-FORCE-BATCH",
-  "output_sha256": "43cdbb631fa8866db704196da78b69bdf18a16eb4375ecc81a42cb4980da6306",
+  "output_artifact": "docs/evidence/orbis-v4/outputs/cbdc3cafb1822ea5c482508b94e0cca03a62ba23c8914caaa00f1055978fa0eb.log",
+  "output_artifact_sha256": "ba1afe9193e7f3e303896da63d11185c0350fadbec5fe4422ab503d109ff82ee",
+  "output_sha256": "ba1afe9193e7f3e303896da63d11185c0350fadbec5fe4422ab503d109ff82ee",
   "schema": "orbis-completion-evidence-v4",
   "source_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
   "source_paths": "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/meta_v6.rs",

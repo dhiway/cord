@@ -162,3 +162,6 @@ capability.
 ## Evidence v4
 
 Manifest v4 separates the completed Bulletin V6→V7 reverse-index repair from the planned provider V7→V8 seam and freezes compiled-enabled, custom-loss, no-hash CannotLookup, and early-propagation metadata evidence.
+
+Migration IDs are normative: present `PMIG-Bulletin-V6-to-V7` owns reverse-index/counter repair;
+planned `PMIG-Bulletin-V7-to-V8` owns provider-reference composition in Slice 10.
