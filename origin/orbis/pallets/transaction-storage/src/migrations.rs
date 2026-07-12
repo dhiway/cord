@@ -1063,3 +1063,293 @@ pub mod v6 {
 		<T as polkadot_sdk_frame::deps::frame_system::Config>::DbWeight,
 	>;
 }
+
+/// Dormant V6 -> V7 repair for the reverse reservation-link indexes and their counters.
+///
+/// This migration is deliberately **not** registered by the runtime in this slice. The pallet's
+/// declared storage version remains V6 until the composed activation upgrade. The implementation
+/// is nevertheless complete so the activation commit only has to register this type.
+pub mod v7 {
+	use super::*;
+	use crate::pallet::{
+		Pallet, ResourceLinkByContentHash, ResourceLinkByRef, ResourceReservationLinkCount,
+		ResourceReservationLinks, ResourceReservationRowCount, ResourceReservationTombstones,
+		ResourceReservations, StoredBy, Transactions,
+	};
+	#[cfg(feature = "try-runtime")]
+	use crate::pallet::{
+		PermanentStorageUsed, ReservedPermanentCapacity, ResourceReservationExpiryBlocks,
+		ResourceReservationExpiryBuckets, ResourceReservationExpiryCursor, TombstonePruneCursor,
+		TombstonePruneQueue, TransactionByContentHash,
+	};
+	use alloc::collections::{BTreeMap, BTreeSet};
+	use bulletin_transaction_storage_primitives::{
+		BulletinRef, ContentHash, ReservationId, StorageActor,
+	};
+	#[cfg(feature = "try-runtime")]
+	use polkadot_sdk_frame::deps::frame_support::storage::StoragePrefixedMap;
+	use polkadot_sdk_frame::deps::frame_support::traits::{GetStorageVersion, StorageVersion};
+
+	const V6: StorageVersion = StorageVersion::new(6);
+	const V7: StorageVersion = StorageVersion::new(7);
+	/// Max-state CPU term measured by the `migrate_v6_to_v7_max_state` benchmark rehearsal and
+	/// rounded upward. Database operations are charged separately using configured maxima below.
+	pub const MAX_MIGRATION_CPU: Weight = Weight::from_parts(300_000_000_000, 0);
+
+	#[derive(Clone)]
+	pub(crate) struct PreparedRepair<BlockNumber> {
+		by_ref: BTreeMap<BulletinRef<BlockNumber>, (ReservationId, ContentHash)>,
+		by_hash: BTreeMap<ContentHash, ReservationId>,
+		old_ref_keys: Vec<BulletinRef<BlockNumber>>,
+		old_hash_keys: Vec<ContentHash>,
+		active: u32,
+		tombstones: u32,
+		links: u32,
+	}
+
+	pub struct MigrateV6ToV7<T>(PhantomData<T>);
+
+	impl<T: Config> MigrateV6ToV7<T> {
+		pub(crate) fn max_weight() -> Weight {
+			let max_rows = u64::from(T::MaxReservations::get());
+			let max_links = u64::from(T::MaxReservationLinks::get());
+			let reads = max_rows.saturating_add(max_links.saturating_mul(6)).saturating_add(3);
+			let writes = max_links.saturating_mul(4).saturating_add(3);
+			MAX_MIGRATION_CPU.saturating_add(T::DbWeight::get().reads_writes(reads, writes))
+		}
+
+		/// Complete bounded, read-only validation. No storage mutation is permitted in this phase.
+		pub(crate) fn preflight() -> Result<PreparedRepair<BlockNumberFor<T>>, &'static str> {
+			let max_rows = T::MaxReservations::get() as usize;
+			let max_links = T::MaxReservationLinks::get() as usize;
+
+			let active: Vec<_> = ResourceReservations::<T>::iter().take(max_rows + 1).collect();
+			if active.len() > max_rows {
+				return Err("v6->v7: active reservations exceed MaxReservations");
+			}
+			let tombstones: Vec<_> =
+				ResourceReservationTombstones::<T>::iter().take(max_rows + 1).collect();
+			if active.len().saturating_add(tombstones.len()) > max_rows {
+				return Err("v6->v7: active plus tombstones exceed MaxReservations");
+			}
+
+			let mut owners = BTreeMap::new();
+			let mut active_ids = BTreeSet::new();
+			for (id, reservation) in &active {
+				if owners.insert(*id, reservation.owner.clone()).is_some() {
+					return Err("v6->v7: duplicate active reservation id");
+				}
+				active_ids.insert(*id);
+			}
+			for (id, tombstone) in &tombstones {
+				if owners.insert(*id, tombstone.owner.clone()).is_some() {
+					return Err("v6->v7: reservation id is both active and tombstoned");
+				}
+			}
+
+			let links: Vec<_> = ResourceReservationLinks::<T>::iter().take(max_links + 1).collect();
+			if links.len() > max_links {
+				return Err("v6->v7: authoritative links exceed MaxReservationLinks");
+			}
+			let old_ref: Vec<_> = ResourceLinkByRef::<T>::iter().take(max_links + 1).collect();
+			if old_ref.len() > max_links {
+				return Err("v6->v7: old ref index exceeds MaxReservationLinks");
+			}
+			let old_hash: Vec<_> =
+				ResourceLinkByContentHash::<T>::iter().take(max_links + 1).collect();
+			if old_hash.len() > max_links {
+				return Err("v6->v7: old hash index exceeds MaxReservationLinks");
+			}
+
+			// The two stored counters are intentionally read but not trusted. Bad historical values
+			// are repairable and are overwritten only after every authoritative row validates.
+			let _old_row_count = ResourceReservationRowCount::<T>::get();
+			let _old_link_count = ResourceReservationLinkCount::<T>::get();
+
+			let mut by_ref = BTreeMap::new();
+			let mut by_hash = BTreeMap::new();
+			for (id, hash, link) in &links {
+				if *id != link.reservation_id || *hash != link.content_hash {
+					return Err("v6->v7: authoritative link key/value mismatch");
+				}
+				let expected_owner =
+					owners.get(id).ok_or("v6->v7: link has no active reservation or tombstone")?;
+
+				// Exactly one reservation/tombstone read per link, as frozen by the weight formula.
+				let stored_owner = if active_ids.contains(id) {
+					ResourceReservations::<T>::get(id).map(|row| row.owner)
+				} else {
+					ResourceReservationTombstones::<T>::get(id).map(|row| row.owner)
+				}
+				.ok_or("v6->v7: link reservation disappeared during preflight")?;
+				if stored_owner != *expected_owner || link.owner != *expected_owner {
+					return Err("v6->v7: link owner does not match reservation");
+				}
+
+				// Exactly one transaction/ref read and one provenance read per link.
+				let transaction = Transactions::<T>::get(link.bulletin_ref.block)
+					.and_then(|rows| {
+						rows.get(link.bulletin_ref.transaction_index as usize).cloned()
+					})
+					.ok_or("v6->v7: link points to a missing transaction")?;
+				if transaction.content_hash != *hash || transaction.size != link.size {
+					return Err("v6->v7: link hash/size does not match transaction ref");
+				}
+				if StoredBy::<T>::get(link.bulletin_ref)
+					!= Some(StorageActor::Account(link.owner.clone()))
+				{
+					return Err("v6->v7: link provenance owner mismatch");
+				}
+
+				if by_ref.insert(link.bulletin_ref, (*id, *hash)).is_some() {
+					return Err("v6->v7: duplicate authoritative Bulletin ref");
+				}
+				if by_hash.insert(*hash, *id).is_some() {
+					return Err("v6->v7: duplicate authoritative content hash");
+				}
+			}
+
+			Ok(PreparedRepair {
+				by_ref,
+				by_hash,
+				old_ref_keys: old_ref.into_iter().map(|(reference, _)| reference).collect(),
+				old_hash_keys: old_hash.into_iter().map(|(hash, _)| hash).collect(),
+				active: active.len() as u32,
+				tombstones: tombstones.len() as u32,
+				links: links.len() as u32,
+			})
+		}
+
+		fn commit(prepared: &PreparedRepair<BlockNumberFor<T>>) {
+			for reference in &prepared.old_ref_keys {
+				ResourceLinkByRef::<T>::remove(reference);
+			}
+			for hash in &prepared.old_hash_keys {
+				ResourceLinkByContentHash::<T>::remove(hash);
+			}
+			for (reference, target) in &prepared.by_ref {
+				ResourceLinkByRef::<T>::insert(reference, target);
+			}
+			for (hash, id) in &prepared.by_hash {
+				ResourceLinkByContentHash::<T>::insert(hash, id);
+			}
+			ResourceReservationRowCount::<T>::put(
+				prepared.active.saturating_add(prepared.tombstones),
+			);
+			ResourceReservationLinkCount::<T>::put(prepared.links);
+			// Version is deliberately the final write: no fallible work follows preflight.
+			V7.put::<Pallet<T>>();
+		}
+
+		#[cfg(any(test, feature = "try-runtime", feature = "runtime-benchmarks"))]
+		pub(crate) fn validate_repaired_state() -> Result<(), &'static str> {
+			let prepared = Self::preflight()?;
+			if ResourceReservationRowCount::<T>::get()
+				!= prepared.active.saturating_add(prepared.tombstones)
+			{
+				return Err("v6->v7: repaired row counter mismatch");
+			}
+			if ResourceReservationLinkCount::<T>::get() != prepared.links {
+				return Err("v6->v7: repaired link counter mismatch");
+			}
+			if ResourceLinkByRef::<T>::iter().collect::<BTreeMap<_, _>>() != prepared.by_ref {
+				return Err("v6->v7: repaired ref index mismatch");
+			}
+			if ResourceLinkByContentHash::<T>::iter().collect::<BTreeMap<_, _>>()
+				!= prepared.by_hash
+			{
+				return Err("v6->v7: repaired hash index mismatch");
+			}
+			Ok(())
+		}
+	}
+
+	impl<T: Config> OnRuntimeUpgrade for MigrateV6ToV7<T> {
+		fn on_runtime_upgrade() -> Weight {
+			if Pallet::<T>::on_chain_storage_version() != V6 {
+				return T::DbWeight::get().reads(1);
+			}
+			let prepared = Self::preflight().unwrap_or_else(|error| panic!("{error}"));
+			Self::commit(&prepared);
+			// Always reserve the configured-max budget. Charging observed row counts would make a
+			// historical sparse rehearsal underpay the same migration code at production maxima.
+			Self::max_weight()
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn pre_upgrade() -> Result<Vec<u8>, polkadot_sdk_frame::deps::sp_runtime::TryRuntimeError> {
+			polkadot_sdk_frame::prelude::ensure!(
+				Pallet::<T>::on_chain_storage_version() == V6,
+				"v6->v7 pre_upgrade requires storage V6"
+			);
+			let prepared = Self::preflight()
+				.map_err(polkadot_sdk_frame::deps::sp_runtime::DispatchError::Other)?;
+			Ok((preservation_digest::<T>(), prepared.active, prepared.tombstones, prepared.links)
+				.encode())
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade(
+			state: Vec<u8>,
+		) -> Result<(), polkadot_sdk_frame::deps::sp_runtime::TryRuntimeError> {
+			let (before, active, tombstones, links) =
+				<([u8; 32], u32, u32, u32)>::decode(&mut &state[..])
+					.map_err(|_| "v6->v7: invalid pre-upgrade snapshot")?;
+			polkadot_sdk_frame::prelude::ensure!(
+				Pallet::<T>::on_chain_storage_version() == V7,
+				"v6->v7: storage version was not written last"
+			);
+			polkadot_sdk_frame::prelude::ensure!(
+				preservation_digest::<T>() == before,
+				"v6->v7 changed authoritative/accounting/expiry/provenance state"
+			);
+			Self::validate_repaired_state()
+				.map_err(polkadot_sdk_frame::deps::sp_runtime::DispatchError::Other)?;
+			Pallet::<T>::do_try_state(
+				polkadot_sdk_frame::deps::frame_system::Pallet::<T>::block_number(),
+			)?;
+			polkadot_sdk_frame::prelude::ensure!(
+				ResourceReservationRowCount::<T>::get() == active.saturating_add(tombstones)
+					&& ResourceReservationLinkCount::<T>::get() == links,
+				"v6->v7 post-upgrade cardinality mismatch"
+			);
+			Ok(())
+		}
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn preservation_digest<T: Config>() -> [u8; 32] {
+		let values = (
+			prefix_digest(ResourceReservations::<T>::final_prefix()),
+			prefix_digest(ResourceReservationTombstones::<T>::final_prefix()),
+			prefix_digest(ResourceReservationLinks::<T>::final_prefix()),
+			prefix_digest(ResourceReservationExpiryBuckets::<T>::final_prefix()),
+			prefix_digest(StoredBy::<T>::final_prefix()),
+			prefix_digest(Transactions::<T>::final_prefix()),
+			prefix_digest(TransactionByContentHash::<T>::final_prefix()),
+			ResourceReservationExpiryBlocks::<T>::get().encode(),
+			ResourceReservationExpiryCursor::<T>::get().encode(),
+			TombstonePruneQueue::<T>::get().encode(),
+			TombstonePruneCursor::<T>::get(),
+			ReservedPermanentCapacity::<T>::get(),
+			PermanentStorageUsed::<T>::get(),
+		);
+		polkadot_sdk_frame::deps::sp_io::hashing::blake2_256(&values.encode())
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn prefix_digest(prefix: [u8; 32]) -> [u8; 32] {
+		let mut cursor = prefix.to_vec();
+		let mut bytes = Vec::new();
+		while let Some(key) = polkadot_sdk_frame::deps::sp_io::storage::next_key(&cursor)
+			.filter(|key| key.starts_with(&prefix))
+		{
+			cursor = key.clone();
+			bytes.extend_from_slice(&key);
+			if let Some(value) = polkadot_sdk_frame::deps::sp_io::storage::get(&key) {
+				bytes.extend_from_slice(&value);
+			}
+		}
+		polkadot_sdk_frame::deps::sp_io::hashing::blake2_256(&bytes)
+	}
+}

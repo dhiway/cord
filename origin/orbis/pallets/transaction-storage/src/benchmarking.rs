@@ -133,6 +133,80 @@ fn bench_budget<T: Config>() -> AuthorizerBudgetFor<T> {
 	}
 }
 
+fn seed_v7_single_link_rehearsal<T: Config>(
+	include_ref: bool,
+	include_hash: bool,
+) -> Result<(), BenchmarkError> {
+	use bulletin_transaction_storage_primitives::{
+		BulletinRef, ResourceReservation, ResourceReservationLink, StorageActor,
+	};
+	use polkadot_sdk_frame::deps::frame_support::traits::StorageVersion;
+
+	let owner: T::AccountId = whitelisted_caller();
+	let block: BlockNumberFor<T> = 1u32.into();
+	let expires_at: BlockNumberFor<T> = 10u32.into();
+	let content_hash = sp_io::hashing::blake2_256(b"v6-v7-rehearsal");
+	let reference = BulletinRef { block, transaction_index: 0 };
+	StorageVersion::new(6).put::<TransactionStorage<T>>();
+	System::<T>::set_block_number(block);
+	ResourceReservations::<T>::insert(
+		1,
+		ResourceReservation {
+			owner: owner.clone(),
+			purpose_digest: sp_io::hashing::blake2_256(&1u64.encode()),
+			bytes_remaining: 1,
+			transactions_remaining: 1,
+			created_at: block,
+			expires_at,
+		},
+	);
+	ResourceReservationExpiryBlocks::<T>::put(
+		BoundedVec::<BlockNumberFor<T>, T::MaxReservationExpiryBlocks>::try_from(vec![expires_at])
+			.map_err(|_| BenchmarkError::Stop("expiry block bound must admit one row"))?,
+	);
+	ResourceReservationExpiryBuckets::<T>::insert(
+		expires_at,
+		BoundedVec::<ReservationId, T::MaxReservationsPerExpiryBlock>::try_from(vec![1])
+			.map_err(|_| BenchmarkError::Stop("expiry bucket bound must admit one row"))?,
+	);
+	ReservedPermanentCapacity::<T>::put(1);
+	let info = TransactionInfo {
+		chunk_root: content_hash.into(),
+		content_hash,
+		hashing: bulletin_transaction_storage_primitives::cids::HashingAlgorithm::Blake2b256,
+		cid_codec: bulletin_transaction_storage_primitives::cids::RAW_CODEC,
+		size: 1,
+		extrinsic_index: 0,
+		block_chunks: num_chunks(1),
+		kind: TransactionKind::Store,
+	};
+	Transactions::<T>::insert(
+		block,
+		BoundedVec::<TransactionInfo, T::MaxBlockTransactions>::try_from(vec![info])
+			.map_err(|_| BenchmarkError::Stop("MaxBlockTransactions must admit one row"))?,
+	);
+	StoredBy::<T>::insert(reference, StorageActor::Account(owner.clone()));
+	ResourceReservationLinks::<T>::insert(
+		1,
+		content_hash,
+		ResourceReservationLink {
+			reservation_id: 1,
+			content_hash,
+			bulletin_ref: reference,
+			owner,
+			size: 1,
+			retention_boundary: expires_at,
+		},
+	);
+	if include_ref {
+		ResourceLinkByRef::<T>::insert(reference, (1, content_hash));
+	}
+	if include_hash {
+		ResourceLinkByContentHash::<T>::insert(content_hash, 1);
+	}
+	Ok(())
+}
+
 #[benchmarks(where
 	T: Send + Sync,
 	RuntimeCallOf<T>: IsSubType<Call<T>> + From<Call<T>> + Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
@@ -1093,6 +1167,165 @@ mod benchmarks {
 		assert_eq!(v4.account, caller);
 		assert!(v4.recurring);
 
+		Ok(())
+	}
+
+	#[benchmark]
+	fn migrate_v6_to_v7_empty() -> Result<(), BenchmarkError> {
+		use crate::migrations::v7::MigrateV6ToV7;
+		use polkadot_sdk_frame::deps::frame_support::traits::{
+			GetStorageVersion, OnRuntimeUpgrade, StorageVersion,
+		};
+		StorageVersion::new(6).put::<TransactionStorage<T>>();
+		let charged;
+
+		#[block]
+		{
+			charged = MigrateV6ToV7::<T>::on_runtime_upgrade();
+		}
+
+		assert_eq!(charged, MigrateV6ToV7::<T>::max_weight());
+		assert_eq!(TransactionStorage::<T>::on_chain_storage_version(), StorageVersion::new(7));
+		assert!(TransactionStorage::<T>::do_try_state(System::<T>::block_number()).is_ok());
+		Ok(())
+	}
+
+	#[benchmark]
+	fn migrate_v6_to_v7_historical_4c_missing() -> Result<(), BenchmarkError> {
+		use crate::migrations::v7::MigrateV6ToV7;
+		use polkadot_sdk_frame::deps::frame_support::traits::OnRuntimeUpgrade;
+		seed_v7_single_link_rehearsal::<T>(false, false)?;
+		let charged;
+
+		#[block]
+		{
+			charged = MigrateV6ToV7::<T>::on_runtime_upgrade();
+		}
+
+		assert_eq!(charged, MigrateV6ToV7::<T>::max_weight());
+		assert!(TransactionStorage::<T>::do_try_state(System::<T>::block_number()).is_ok());
+		Ok(())
+	}
+
+	#[benchmark]
+	fn migrate_v6_to_v7_historical_640_partial() -> Result<(), BenchmarkError> {
+		use crate::migrations::v7::MigrateV6ToV7;
+		use polkadot_sdk_frame::deps::frame_support::traits::OnRuntimeUpgrade;
+		seed_v7_single_link_rehearsal::<T>(true, false)?;
+		ResourceReservationRowCount::<T>::put(u32::MAX);
+		ResourceReservationLinkCount::<T>::put(u32::MAX);
+		let charged;
+
+		#[block]
+		{
+			charged = MigrateV6ToV7::<T>::on_runtime_upgrade();
+		}
+
+		assert_eq!(charged, MigrateV6ToV7::<T>::max_weight());
+		assert!(TransactionStorage::<T>::do_try_state(System::<T>::block_number()).is_ok());
+		Ok(())
+	}
+
+	/// Configured-maximum valid-state rehearsal for the dormant Bulletin V6 -> V7 repair.
+	#[benchmark]
+	fn migrate_v6_to_v7_max_state() -> Result<(), BenchmarkError> {
+		use crate::migrations::v7::MigrateV6ToV7;
+		use bulletin_transaction_storage_primitives::{
+			BulletinRef, ResourceReservation, ResourceReservationLink, StorageActor,
+		};
+		use polkadot_sdk_frame::deps::frame_support::traits::{
+			GetStorageVersion, OnRuntimeUpgrade, StorageVersion,
+		};
+
+		let owner: T::AccountId = whitelisted_caller();
+		let rows = T::MaxReservations::get();
+		let links = T::MaxReservationLinks::get();
+		if rows == 0 {
+			return Err(BenchmarkError::Stop("MaxReservations must be non-zero"));
+		}
+		StorageVersion::new(6).put::<TransactionStorage<T>>();
+		let now: BlockNumberFor<T> = links.saturating_add(1).into();
+		let expires_at: BlockNumberFor<T> = links.saturating_add(2).into();
+		let retention_period: BlockNumberFor<T> = links.saturating_add(2).into();
+		System::<T>::set_block_number(now);
+		RetentionPeriod::<T>::put(retention_period);
+		let mut reservation_ids = Vec::with_capacity(rows as usize);
+		for offset in 0..rows {
+			let id = u64::from(offset).saturating_add(1);
+			reservation_ids.push(id);
+			ResourceReservations::<T>::insert(
+				id,
+				ResourceReservation {
+					owner: owner.clone(),
+					purpose_digest: sp_io::hashing::blake2_256(&id.encode()),
+					bytes_remaining: 1,
+					transactions_remaining: 1,
+					created_at: 1u32.into(),
+					expires_at,
+				},
+			);
+		}
+		ResourceReservationExpiryBlocks::<T>::put(
+			BoundedVec::<BlockNumberFor<T>, T::MaxReservationExpiryBlocks>::try_from(vec![
+				expires_at,
+			])
+			.map_err(|_| BenchmarkError::Stop("expiry block bound must admit max fixture"))?,
+		);
+		ResourceReservationExpiryBuckets::<T>::insert(
+			expires_at,
+			BoundedVec::<ReservationId, T::MaxReservationsPerExpiryBlock>::try_from(
+				reservation_ids,
+			)
+			.map_err(|_| BenchmarkError::Stop("expiry bucket must admit MaxReservations"))?,
+		);
+		ReservedPermanentCapacity::<T>::put(u64::from(rows));
+		for offset in 0..links {
+			let id = u64::from(offset % rows).saturating_add(1);
+			let content_hash = sp_io::hashing::blake2_256(&offset.encode());
+			let block: BlockNumberFor<T> = offset.saturating_add(1).into();
+			let reference = BulletinRef { block, transaction_index: 0 };
+			let info = TransactionInfo {
+				chunk_root: content_hash.into(),
+				content_hash,
+				hashing:
+					bulletin_transaction_storage_primitives::cids::HashingAlgorithm::Blake2b256,
+				cid_codec: bulletin_transaction_storage_primitives::cids::RAW_CODEC,
+				size: 1,
+				extrinsic_index: 0,
+				block_chunks: num_chunks(1),
+				kind: TransactionKind::Store,
+			};
+			Transactions::<T>::insert(
+				block,
+				BoundedVec::<TransactionInfo, T::MaxBlockTransactions>::try_from(vec![info])
+					.map_err(|_| BenchmarkError::Stop("MaxBlockTransactions must be non-zero"))?,
+			);
+			StoredBy::<T>::insert(reference, StorageActor::Account(owner.clone()));
+			let link = ResourceReservationLink {
+				reservation_id: id,
+				content_hash,
+				bulletin_ref: reference,
+				owner: owner.clone(),
+				size: 1,
+				retention_boundary: expires_at,
+			};
+			ResourceReservationLinks::<T>::insert(id, content_hash, link);
+			ResourceLinkByRef::<T>::insert(reference, (id, content_hash));
+			ResourceLinkByContentHash::<T>::insert(content_hash, id);
+		}
+		ResourceReservationRowCount::<T>::put(0);
+		ResourceReservationLinkCount::<T>::put(0);
+
+		let charged;
+		#[block]
+		{
+			charged = MigrateV6ToV7::<T>::on_runtime_upgrade();
+		}
+
+		assert_eq!(charged, MigrateV6ToV7::<T>::max_weight());
+		assert_eq!(TransactionStorage::<T>::on_chain_storage_version(), StorageVersion::new(7));
+		assert!(MigrateV6ToV7::<T>::validate_repaired_state().is_ok());
+		assert!(TransactionStorage::<T>::do_try_state(System::<T>::block_number()).is_ok());
 		Ok(())
 	}
 

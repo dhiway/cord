@@ -528,6 +528,294 @@ fn migration_v5_to_v6_preserves_legacy_state_and_defaults_provenance() {
 	});
 }
 
+fn insert_v6_migration_link(
+	reservation_id: u64,
+	owner: u64,
+	content_hash: [u8; 32],
+	bulletin_ref: bulletin_transaction_storage_primitives::BulletinRef<u64>,
+	active: bool,
+) {
+	use bulletin_transaction_storage_primitives::{
+		ResourceClosure, ResourceReservation, ResourceReservationLink,
+		ResourceReservationTombstone, StorageActor,
+	};
+
+	if active {
+		super::ResourceReservations::<Test>::insert(
+			reservation_id,
+			ResourceReservation {
+				owner,
+				purpose_digest: [reservation_id as u8; 32],
+				bytes_remaining: 10,
+				transactions_remaining: 1,
+				created_at: 1,
+				expires_at: 100,
+			},
+		);
+	} else {
+		super::ResourceReservationTombstones::<Test>::insert(
+			reservation_id,
+			ResourceReservationTombstone {
+				owner,
+				purpose_digest: [reservation_id as u8; 32],
+				final_bytes_remaining: 0,
+				final_transactions_remaining: 0,
+				outcome: ResourceClosure::Exhausted,
+				closed_at: 1,
+			},
+		);
+	}
+	let info = TransactionInfo {
+		chunk_root: [reservation_id as u8; 32].into(),
+		content_hash,
+		hashing: HashingAlgorithm::Blake2b256,
+		cid_codec: RAW_CODEC,
+		size: 4,
+		extrinsic_index: 0,
+		block_chunks: num_chunks(4),
+		kind: TransactionKind::Store,
+	};
+	let mut rows = Transactions::get(bulletin_ref.block).unwrap_or_default();
+	while rows.len() <= bulletin_ref.transaction_index as usize {
+		rows.try_push(info.clone()).unwrap();
+	}
+	rows[bulletin_ref.transaction_index as usize] = info;
+	Transactions::insert(bulletin_ref.block, rows);
+	super::StoredBy::<Test>::insert(bulletin_ref, StorageActor::Account(owner));
+	super::ResourceReservationLinks::<Test>::insert(
+		reservation_id,
+		content_hash,
+		ResourceReservationLink {
+			reservation_id,
+			content_hash,
+			bulletin_ref,
+			owner,
+			size: 4,
+			retention_boundary: 100,
+		},
+	);
+}
+
+fn run_v6_to_v7_migration() -> Weight {
+	use crate::migrations::v7::MigrateV6ToV7;
+	<MigrateV6ToV7<Test> as OnRuntimeUpgrade>::on_runtime_upgrade()
+}
+
+fn expected_v6_to_v7_max_weight() -> Weight {
+	crate::migrations::v7::MAX_MIGRATION_CPU
+		.saturating_add(crate::mock::TestDbWeight::get().reads_writes(6_403, 4_099))
+}
+
+fn assert_exact_repaired_indexes(expected_links: u32, expected_rows: u32) {
+	use crate::migrations::v7::MigrateV6ToV7;
+	assert_ok!(MigrateV6ToV7::<Test>::validate_repaired_state());
+	assert_eq!(super::ResourceReservationLinkCount::<Test>::get(), expected_links);
+	assert_eq!(super::ResourceReservationRowCount::<Test>::get(), expected_rows);
+	assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(7));
+}
+
+#[test]
+fn migration_v6_to_v7_repairs_ref_missing_partial_and_stale_fixtures() {
+	use bulletin_transaction_storage_primitives::BulletinRef;
+
+	for fixture in 0..3 {
+		new_test_ext().execute_with(|| {
+			StorageVersion::new(6).put::<TransactionStorage>();
+			let reference = BulletinRef { block: 10, transaction_index: 0 };
+			let hash = [1; 32];
+			insert_v6_migration_link(1, 11, hash, reference, true);
+			if fixture == 1 {
+				super::ResourceLinkByRef::<Test>::insert(reference, (1, hash));
+			} else if fixture == 2 {
+				super::ResourceLinkByRef::<Test>::insert(
+					BulletinRef { block: 99, transaction_index: 3 },
+					(99, [99; 32]),
+				);
+			}
+			super::ResourceLinkByContentHash::<Test>::insert(hash, 1);
+			run_v6_to_v7_migration();
+			assert_eq!(super::ResourceLinkByRef::<Test>::get(reference), Some((1, hash)));
+			assert_exact_repaired_indexes(1, 1);
+		});
+	}
+}
+
+#[test]
+fn migration_v6_to_v7_repairs_hash_missing_partial_and_stale_fixtures() {
+	use bulletin_transaction_storage_primitives::BulletinRef;
+
+	for fixture in 0..3 {
+		new_test_ext().execute_with(|| {
+			StorageVersion::new(6).put::<TransactionStorage>();
+			let reference = BulletinRef { block: 10, transaction_index: 0 };
+			let hash = [1; 32];
+			insert_v6_migration_link(1, 11, hash, reference, true);
+			super::ResourceLinkByRef::<Test>::insert(reference, (1, hash));
+			if fixture == 1 {
+				super::ResourceLinkByContentHash::<Test>::insert(hash, 1);
+			} else if fixture == 2 {
+				super::ResourceLinkByContentHash::<Test>::insert([99; 32], 99);
+			}
+			run_v6_to_v7_migration();
+			assert_eq!(super::ResourceLinkByContentHash::<Test>::get(hash), Some(1));
+			assert_exact_repaired_indexes(1, 1);
+		});
+	}
+}
+
+#[test]
+fn migration_v6_to_v7_repairs_both_partial_bad_counters_and_historical_shapes() {
+	use bulletin_transaction_storage_primitives::BulletinRef;
+
+	for historical_shape in ["4c", "640", "combined"] {
+		new_test_ext().execute_with(|| {
+			StorageVersion::new(6).put::<TransactionStorage>();
+			let first_ref = BulletinRef { block: 10, transaction_index: 0 };
+			let second_ref = BulletinRef { block: 11, transaction_index: 0 };
+			insert_v6_migration_link(1, 11, [1; 32], first_ref, true);
+			insert_v6_migration_link(2, 22, [2; 32], second_ref, false);
+			if historical_shape != "4c" {
+				super::ResourceLinkByRef::<Test>::insert(first_ref, (1, [1; 32]));
+			}
+			if historical_shape == "combined" {
+				super::ResourceLinkByContentHash::<Test>::insert([2; 32], 2);
+			}
+			super::ResourceReservationRowCount::<Test>::put(u32::MAX);
+			super::ResourceReservationLinkCount::<Test>::put(u32::MAX);
+
+			run_v6_to_v7_migration();
+			assert_exact_repaired_indexes(2, 2);
+		});
+	}
+}
+
+#[test]
+fn migration_v6_to_v7_empty_fixture_sets_exact_zeroes_and_v7_last() {
+	new_test_ext().execute_with(|| {
+		StorageVersion::new(6).put::<TransactionStorage>();
+		super::ResourceReservationRowCount::<Test>::put(99);
+		super::ResourceReservationLinkCount::<Test>::put(99);
+		assert_eq!(run_v6_to_v7_migration(), expected_v6_to_v7_max_weight());
+		assert_exact_repaired_indexes(0, 0);
+	});
+}
+
+#[test]
+fn migration_v6_to_v7_rejects_duplicate_ref_without_any_write() {
+	use bulletin_transaction_storage_primitives::BulletinRef;
+
+	new_test_ext().execute_with(|| {
+		StorageVersion::new(6).put::<TransactionStorage>();
+		let reference = BulletinRef { block: 10, transaction_index: 0 };
+		let hash = [1; 32];
+		insert_v6_migration_link(1, 11, hash, reference, true);
+		insert_v6_migration_link(2, 22, hash, reference, true);
+		// Make provenance compatible with the second row too; duplicate ref detection remains the
+		// authoritative reason the state cannot be repaired without guessing a winner.
+		super::ResourceReservationLinks::<Test>::mutate(2, hash, |link| {
+			link.as_mut().unwrap().owner = 11
+		});
+		super::ResourceReservations::<Test>::mutate(2, |row| row.as_mut().unwrap().owner = 11);
+		super::StoredBy::<Test>::insert(
+			reference,
+			bulletin_transaction_storage_primitives::StorageActor::Account(11),
+		);
+		super::ResourceReservationRowCount::<Test>::put(41);
+		super::ResourceReservationLinkCount::<Test>::put(42);
+		let before_ref = super::ResourceLinkByRef::<Test>::iter().collect::<Vec<_>>();
+		let before_hash = super::ResourceLinkByContentHash::<Test>::iter().collect::<Vec<_>>();
+		let result = std::panic::catch_unwind(run_v6_to_v7_migration);
+		assert!(result.is_err());
+		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(6));
+		assert_eq!(super::ResourceReservationRowCount::<Test>::get(), 41);
+		assert_eq!(super::ResourceReservationLinkCount::<Test>::get(), 42);
+		assert_eq!(super::ResourceLinkByRef::<Test>::iter().collect::<Vec<_>>(), before_ref);
+		assert_eq!(
+			super::ResourceLinkByContentHash::<Test>::iter().collect::<Vec<_>>(),
+			before_hash
+		);
+	});
+}
+
+#[test]
+fn migration_v6_to_v7_rejects_duplicate_hash_without_any_write() {
+	use bulletin_transaction_storage_primitives::BulletinRef;
+
+	new_test_ext().execute_with(|| {
+		StorageVersion::new(6).put::<TransactionStorage>();
+		let hash = [1; 32];
+		insert_v6_migration_link(
+			1,
+			11,
+			hash,
+			BulletinRef { block: 10, transaction_index: 0 },
+			true,
+		);
+		insert_v6_migration_link(
+			2,
+			22,
+			hash,
+			BulletinRef { block: 11, transaction_index: 0 },
+			true,
+		);
+		super::ResourceReservationRowCount::<Test>::put(51);
+		super::ResourceReservationLinkCount::<Test>::put(52);
+		let result = std::panic::catch_unwind(run_v6_to_v7_migration);
+		assert!(result.is_err());
+		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(6));
+		assert_eq!(super::ResourceReservationRowCount::<Test>::get(), 51);
+		assert_eq!(super::ResourceReservationLinkCount::<Test>::get(), 52);
+		assert!(super::ResourceLinkByRef::<Test>::iter().next().is_none());
+		assert!(super::ResourceLinkByContentHash::<Test>::iter().next().is_none());
+	});
+}
+
+#[test]
+fn migration_v6_to_v7_small_state_still_charges_configured_max_weight() {
+	use bulletin_transaction_storage_primitives::BulletinRef;
+	new_test_ext().execute_with(|| {
+		StorageVersion::new(6).put::<TransactionStorage>();
+		let reference = BulletinRef { block: 10, transaction_index: 0 };
+		let hash = [1; 32];
+		insert_v6_migration_link(1, 11, hash, reference, true);
+		super::ResourceLinkByRef::<Test>::insert(reference, (1, hash));
+		super::ResourceLinkByContentHash::<Test>::insert(hash, 1);
+
+		assert_eq!(run_v6_to_v7_migration(), expected_v6_to_v7_max_weight());
+	});
+}
+
+#[cfg(feature = "try-runtime")]
+#[test]
+fn migration_v6_to_v7_try_runtime_pre_post_preserves_authoritative_state() {
+	use crate::migrations::v7::MigrateV6ToV7;
+	use bulletin_transaction_storage_primitives::BulletinRef;
+
+	new_test_ext().execute_with(|| {
+		StorageVersion::new(6).put::<TransactionStorage>();
+		System::set_block_number(10);
+		insert_v6_migration_link(
+			1,
+			11,
+			[1; 32],
+			BulletinRef { block: 10, transaction_index: 0 },
+			true,
+		);
+		super::ResourceReservationExpiryBlocks::<Test>::put(
+			BoundedVec::<u64, ConstU32<256>>::try_from(vec![100]).unwrap(),
+		);
+		super::ResourceReservationExpiryBuckets::<Test>::insert(
+			100,
+			BoundedVec::<u64, ConstU32<256>>::try_from(vec![1]).unwrap(),
+		);
+		super::ReservedPermanentCapacity::<Test>::put(10);
+		let snapshot = <MigrateV6ToV7<Test> as OnRuntimeUpgrade>::pre_upgrade().unwrap();
+		run_v6_to_v7_migration();
+		assert_ok!(<MigrateV6ToV7<Test> as OnRuntimeUpgrade>::post_upgrade(snapshot));
+		assert_ok!(TransactionStorage::do_try_state(System::block_number()));
+	});
+}
+
 #[test]
 fn v6_records_explicit_account_root_and_preimage_provenance() {
 	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
@@ -3723,6 +4011,7 @@ fn renew_rejects_unsigned_and_root_origin() {
 /// invokes the inherent, hiding this safeguard. This test bypasses the helper to confirm
 /// the assert actually fires when an auto-renewal is pending and the inherent is missing.
 #[test]
+#[cfg(not(feature = "try-runtime"))]
 #[should_panic(expected = "All pending auto-renewals must be processed by apply_block_inherents")]
 fn on_finalize_panics_when_inherent_missing() {
 	new_test_ext().execute_with(|| {

@@ -3569,7 +3569,7 @@ impl<T: Config>
 
 pub mod extension;
 
-#[cfg(any(test, feature = "try-runtime"))]
+#[cfg(any(test, feature = "try-runtime", feature = "runtime-benchmarks"))]
 #[allow(dead_code)]
 impl<T: Config> Pallet<T> {
 	pub(crate) fn do_try_state(n: BlockNumberFor<T>) -> Result<(), sp_runtime::TryRuntimeError> {
