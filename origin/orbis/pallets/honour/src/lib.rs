@@ -76,19 +76,20 @@ pub mod pallet {
 	#[derive(
 		Clone, PartialEq, Eq, Debug, Encode, Decode, MaxEncodedLen, TypeInfo, DecodeWithMemTracking,
 	)]
-	pub enum Origin {
-		Voter { aliases: VoteAliases },
+	#[scale_info(skip_type_params(T))]
+	pub enum Origin<T: Config> {
+		Voter { account: T::AccountId, aliases: VoteAliases },
 	}
 
 	#[pallet::config]
 	pub trait Config:
 		frame_system::Config<
-		RuntimeOrigin: From<Origin>
+		RuntimeOrigin: From<Origin<Self>>
 		                   + From<<Self::RuntimeOrigin as OriginTrait>::PalletsOrigin>
 		                   + OriginTrait<
-			PalletsOrigin: From<Origin>
+			PalletsOrigin: From<Origin<Self>>
 			                   + TryInto<
-				Origin,
+				Origin<Self>,
 				Error = <Self::RuntimeOrigin as OriginTrait>::PalletsOrigin,
 			>,
 		>,
@@ -213,7 +214,7 @@ pub mod pallet {
 			_call_valid_from: Seconds,
 		) -> DispatchResult {
 			let aliases = match origin.into_caller().try_into() {
-				Ok(Origin::Voter { aliases }) => aliases,
+				Ok(Origin::Voter { aliases, .. }) => aliases,
 				Err(_) => return Err(BadOrigin.into()),
 			};
 

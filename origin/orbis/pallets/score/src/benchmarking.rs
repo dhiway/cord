@@ -322,6 +322,7 @@ mod benches {
 		});
 		let pot = Score::<T>::score_pot_id();
 		let ed = T::Currency::minimum_balance();
+		T::Currency::mint_into(&destination, ed)?;
 		T::Currency::mint_into(&pot, credit_needed + ed)?;
 		T::Currency::hold(&HoldReason::Credit.into(), &pot, credit_needed)?;
 
@@ -440,11 +441,14 @@ mod benches {
 	#[benchmark]
 	fn set_payout_account() -> Result<(), BenchmarkError> {
 		let new: T::AccountId = whitelisted_caller();
+		let old = PayoutAccount::<T>::get();
+		T::Currency::mint_into(&old, T::Currency::minimum_balance() + 10u32.into())?;
 
 		#[extrinsic_call]
 		_(SystemOrigin::Root, new.clone());
 
 		assert_eq!(PayoutAccount::<T>::get(), new);
+		assert!(T::Currency::total_balance(&old).is_zero());
 		Ok(())
 	}
 

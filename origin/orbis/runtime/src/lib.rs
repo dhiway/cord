@@ -1061,10 +1061,10 @@ impl<T, S> From<S> for ExplicitPayment<T, S> {
 	}
 }
 
-/// Codec-transparent adapter preserving the signed nonce/payment owner after `AsResources`
-/// transforms the dispatch origin into a long-term-storage claim origin.
+/// Codec-transparent adapter preserving the signed nonce/payment owner after an identity policy
+/// transforms the dispatch origin into a Resources, Score, or Honour custom origin.
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq)]
-pub struct AccountAwareResources<S>(S);
+pub struct AccountAwareResources<S>(pub(crate) S);
 
 impl<S: TypeInfo + 'static> TypeInfo for AccountAwareResources<S> {
 	type Identity = S;
@@ -1140,6 +1140,28 @@ where
 						sp_runtime::transaction_validity::InvalidTransaction::BadSigner.into()
 					)
 				},
+			},
+			OriginCaller::Score(pallet_orbis_score::Origin::<Runtime>::AccountParticipant(
+				account,
+			)) => {
+				if matches!(call, RuntimeCall::Score(_)) {
+					Some(account.clone())
+				} else {
+					return Err(
+						sp_runtime::transaction_validity::InvalidTransaction::BadSigner.into()
+					);
+				}
+			},
+			OriginCaller::Honour(pallet_orbis_honour::Origin::<Runtime>::Voter {
+				account, ..
+			}) => {
+				if matches!(call, RuntimeCall::Honour(_)) {
+					Some(account.clone())
+				} else {
+					return Err(
+						sp_runtime::transaction_validity::InvalidTransaction::BadSigner.into()
+					);
+				}
 			},
 			_ => None,
 		};
@@ -2435,7 +2457,8 @@ mod benches {
 		// Cumulus
 		[cumulus_pallet_parachain_system, ParachainSystem]
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
-		[pallet_collator_selection, CollatorSelection]
+		// CollatorSelection has MaxCandidates=0 on this enterprise system chain, so its upstream
+		// benchmark component bound (`MaxCandidates - 1`) is undefined and is intentionally omitted.
 		// XCM
 		[pallet_xcm, PalletXcmExtrinsicsBenchmark::<Runtime>]
 		[pallet_xcm_benchmarks::fungible, XcmBalances]

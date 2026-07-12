@@ -3041,6 +3041,175 @@ fn ethereum_pipeline_uses_mapped_nonce_payer_and_only_terminal_revive_actor() {
 }
 
 #[test]
+fn direct_score_policy_executes_once_through_concrete_runtime_extensions() {
+	use frame_support::traits::{BuildGenesisConfig, SignedTransactionBuilder};
+	use sp_core::{sr25519, Pair};
+	use sp_runtime::{
+		generic::SignedPayload, traits::IdentifyAccount, MultiSignature, MultiSigner,
+	};
+
+	fn account(pair: &sr25519::Pair) -> AccountId {
+		MultiSigner::from(pair.public()).into_account()
+	}
+	fn extensions(standard_nonce: u32, score_nonce: u32) -> crate::TxExtensions {
+		let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
+		)
+		.into();
+		crate::paid_tx_extensions((
+			(
+				indiv_pallet_people::extension::AsPerson::<Runtime>::new(None),
+				pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(Some(
+					pallet_orbis_score::ScoreAsParticipantData { nonce: score_nonce },
+				)),
+				indiv_pallet_people_lite::extension::PeopleLiteAuth::<Runtime>::new(None),
+				indiv_pallet_resources::extension::AsResources::<Runtime>::new(None),
+				pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None),
+				frame_system::AuthorizeCall::<Runtime>::new(),
+			),
+			crate::AccountAwareResources::from(frame_system::CheckNonZeroSender::<Runtime>::new()),
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+			frame_system::CheckTxVersion::<Runtime>::new(),
+			frame_system::CheckGenesis::<Runtime>::new(),
+			frame_system::CheckMortality::<Runtime>::from(sp_runtime::generic::Era::Immortal),
+			crate::AccountAwareResources::from(frame_system::CheckNonce::<Runtime>::from(
+				standard_nonce,
+			)),
+			frame_system::CheckWeight::<Runtime>::new(),
+			crate::AccountAwareResources::from(payment),
+			Default::default(),
+			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+			Default::default(),
+		))
+	}
+	fn signed(
+		pair: &sr25519::Pair,
+		who: &AccountId,
+		call: RuntimeCall,
+		extension: crate::TxExtensions,
+	) -> crate::UncheckedExtrinsic {
+		let payload = SignedPayload::new(call.clone(), extension.clone()).unwrap();
+		let signature = payload.using_encoded(|bytes| pair.sign(bytes));
+		<crate::UncheckedExtrinsic as SignedTransactionBuilder>::new_signed_transaction(
+			call,
+			who.clone().into(),
+			MultiSignature::Sr25519(signature),
+			extension,
+		)
+	}
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		System::set_block_number(1);
+		System::set_extrinsic_index(0);
+		let pair = sr25519::Pair::from_string("//Alice", None).unwrap();
+		let who = account(&pair);
+		let initial = 100_000_000_000_000u128;
+		let _ = <Balances as Mutate<AccountId>>::set_balance(&who, initial);
+		assert_ok!(crate::Score::onboard_for_recognition(&who));
+		let key = pallet_orbis_score::AccountOrPerson::Account(who.clone());
+		pallet_orbis_score::Participants::<Runtime>::mutate(&key, |participant| {
+			participant.as_mut().unwrap().score = 10
+		});
+		let call = RuntimeCall::Score(pallet_orbis_score::Call::cash_out {});
+
+		for (standard, score, expected) in
+			[(0, 1, sp_runtime::transaction_validity::InvalidTransaction::Future)]
+		{
+			let before = pallet_orbis_score::Participants::<Runtime>::get(&key).unwrap();
+			let xt = signed(&pair, &who, call.clone(), extensions(standard, score));
+			assert_eq!(
+				crate::Executive::validate_transaction(
+					sp_runtime::transaction_validity::TransactionSource::External,
+					xt,
+					System::block_hash(0),
+				),
+				Err(expected.into())
+			);
+			assert_eq!(System::account_nonce(&who), 0);
+			assert_eq!(Balances::free_balance(&who), initial);
+			assert_eq!(pallet_orbis_score::Participants::<Runtime>::get(&key), Some(before));
+			assert!(crate::meta_v6::token().is_none());
+		}
+
+		let xt = signed(&pair, &who, call, extensions(0, 0));
+		assert_ok!(crate::Executive::validate_transaction(
+			sp_runtime::transaction_validity::TransactionSource::External,
+			xt.clone(),
+			System::block_hash(0),
+		));
+		assert_ok!(crate::Executive::apply_extrinsic(xt).unwrap());
+		assert_eq!(System::account_nonce(&who), 1, "Score and CheckNonce increment exactly once");
+		assert_eq!(Balances::free_balance(&who), initial, "Pays::No refunds the direct fee");
+		let participant = pallet_orbis_score::Participants::<Runtime>::get(&key).unwrap();
+		assert_eq!(participant.score, 5);
+		assert!(participant.cashed_out);
+		assert!(crate::meta_v6::token().is_none());
+		let balance = Balances::free_balance(&who);
+		let stale = signed(
+			&pair,
+			&who,
+			RuntimeCall::Score(pallet_orbis_score::Call::cash_out {}),
+			extensions(0, 0),
+		);
+		assert_eq!(
+			crate::Executive::validate_transaction(
+				sp_runtime::transaction_validity::TransactionSource::External,
+				stale,
+				System::block_hash(0),
+			),
+			Err(sp_runtime::transaction_validity::InvalidTransaction::Stale.into())
+		);
+		assert_eq!(System::account_nonce(&who), 1);
+		assert_eq!(Balances::free_balance(&who), balance);
+		assert_eq!(pallet_orbis_score::Participants::<Runtime>::get(&key), Some(participant));
+
+		pallet_orbis_score::Participants::<Runtime>::mutate(&key, |value| {
+			value.as_mut().unwrap().recognition = pallet_orbis_score::Recognition::Suspended(0)
+		});
+		let suspended_before = pallet_orbis_score::Participants::<Runtime>::get(&key);
+		let suspended = signed(
+			&pair,
+			&who,
+			RuntimeCall::Score(pallet_orbis_score::Call::cash_out {}),
+			extensions(1, 1),
+		);
+		assert_eq!(
+			crate::Executive::validate_transaction(
+				sp_runtime::transaction_validity::TransactionSource::External,
+				suspended,
+				System::block_hash(0),
+			),
+			Err(sp_runtime::transaction_validity::InvalidTransaction::Call.into())
+		);
+		assert_eq!(pallet_orbis_score::Participants::<Runtime>::get(&key), suspended_before);
+		assert_eq!(System::account_nonce(&who), 1);
+		assert_eq!(Balances::free_balance(&who), balance);
+
+		let unknown_pair = sr25519::Pair::from_string("//Charlie", None).unwrap();
+		let unknown = account(&unknown_pair);
+		let _ = <Balances as Mutate<AccountId>>::set_balance(&unknown, initial);
+		let unknown_xt = signed(
+			&unknown_pair,
+			&unknown,
+			RuntimeCall::Score(pallet_orbis_score::Call::cash_out {}),
+			extensions(0, 0),
+		);
+		assert_eq!(
+			crate::Executive::validate_transaction(
+				sp_runtime::transaction_validity::TransactionSource::External,
+				unknown_xt,
+				System::block_hash(0),
+			),
+			Err(sp_runtime::transaction_validity::InvalidTransaction::Call.into())
+		);
+		assert_eq!(System::account_nonce(&unknown), 0);
+		assert_eq!(Balances::free_balance(&unknown), initial);
+		assert!(crate::meta_v6::token().is_none());
+	});
+}
+
+#[test]
 fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive() {
 	use codec::Encode;
 	use frame_support::traits::{BuildGenesisConfig, SignedTransactionBuilder};
@@ -3558,6 +3727,96 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		pallet_meta_tx::MetaTxFor::<Runtime>::new(call, META_EXTENSION_VERSION, extension)
 	}
 
+	fn signed_meta_tx_with_native_policies(
+		call: RuntimeCall,
+		claimed: AccountId,
+		signing_pair: &sr25519::Pair,
+		proofs: crate::meta_v6::PolicyProofsV6,
+		metadata: frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+		metadata_implicit: Option<[u8; 32]>,
+		score: Option<pallet_orbis_score::ScoreAsParticipantData<u32>>,
+		honour: Option<pallet_orbis_honour::extension::VoterAuthData<Runtime>>,
+	) -> pallet_meta_tx::MetaTxFor<Runtime> {
+		let mortality = frame_system::CheckMortality::<Runtime>::from(Era::Immortal);
+		let nonce = frame_system::CheckNonce::<Runtime>::from(System::account(&claimed).nonce);
+		let policy = crate::meta_v6::MetaAccountBoundPoliciesV6::new(proofs);
+		let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+			Runtime,
+			crate::BulletinCallInspector,
+		>::default();
+		let preimage = crate::meta_v6::IntentPreimageV7 {
+			domain: crate::meta_v6::META_DOMAIN.to_vec(),
+			extension_version: META_EXTENSION_VERSION,
+			genesis_hash: System::block_hash(0),
+			spec_version: crate::VERSION.spec_version,
+			transaction_version: crate::VERSION.transaction_version,
+			inner_signer: claimed.clone(),
+			call_hash: sp_core::H256::from(sp_io::hashing::blake2_256(&call.encode())),
+			mortality: Era::Immortal,
+			nonce: System::account(&claimed).nonce,
+			policy_proofs_hash: sp_core::H256::from(sp_io::hashing::blake2_256(&policy.0.encode())),
+			storage_extension_hash: sp_core::H256::from(sp_io::hashing::blake2_256(
+				&storage.encode(),
+			)),
+			metadata_extension_hash: sp_core::H256::from(sp_io::hashing::blake2_256(
+				&metadata.encode(),
+			)),
+			metadata_implicit,
+		};
+		let bare: MetaBareExtension = (
+			crate::meta_v6::ConsumePaidMetaIngress(preimage),
+			pallet_meta_tx::MetaTxMarker::new(),
+			frame_system::CheckNonZeroSender::new(),
+			frame_system::CheckSpecVersion::new(),
+			frame_system::CheckTxVersion::new(),
+			frame_system::CheckGenesis::new(),
+			mortality,
+			nonce,
+			(
+				pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(score),
+				policy,
+				pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(honour),
+			),
+			storage,
+			metadata,
+		);
+		let implicit = bare.implicit().expect("test externalities provide implicit data");
+		let signature = (META_EXTENSION_VERSION, call.clone(), bare.clone(), implicit)
+			.using_encoded(|payload| signing_pair.sign(&sp_io::hashing::blake2_256(payload)));
+		let verify = pallet_verify_signature::VerifySignature::new_with_signature(
+			MultiSignature::Sr25519(signature),
+			claimed,
+		);
+		let (
+			consume,
+			marker,
+			nonzero,
+			spec,
+			tx,
+			genesis,
+			mortality,
+			nonce,
+			identity_policies,
+			storage,
+			metadata,
+		) = bare;
+		let extension = (
+			verify,
+			consume,
+			marker,
+			nonzero,
+			spec,
+			tx,
+			genesis,
+			mortality,
+			nonce,
+			identity_policies,
+			storage,
+			metadata,
+		);
+		pallet_meta_tx::MetaTxFor::<Runtime>::new(call, META_EXTENSION_VERSION, extension)
+	}
+
 	fn apply_meta_through_executive(
 		meta: pallet_meta_tx::MetaTxFor<Runtime>,
 		sponsor: &AccountId,
@@ -3572,6 +3831,29 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		let mut declared_info = inner_call.get_dispatch_info();
 		declared_info.extension_weight = inner_extension.weight(&inner_call);
 		let declared_inner_weight = declared_info.total_weight();
+		crate::meta_v6::put_token(&crate::meta_v6::PaidMetaTokenV7 {
+			payer: sponsor.clone(),
+			intent_commitment: inner_extension.1 .0.commitment(),
+			outer_nonce: System::account_nonce(sponsor),
+			genesis_hash: System::block_hash(0),
+			spec_version: crate::VERSION.spec_version,
+			transaction_version: crate::VERSION.transaction_version,
+			consumed: false,
+		});
+		let inner_implicit = inner_extension.implicit().unwrap();
+		let inner_validation = inner_extension.validate(
+			RuntimeOrigin::none(),
+			&inner_call,
+			&declared_info,
+			encoded_meta.len(),
+			inner_implicit,
+			&sp_runtime::traits::TxBaseImplication((0u8, &inner_call)),
+			sp_runtime::transaction_validity::TransactionSource::External,
+		);
+		crate::meta_v6::clear_token();
+		if let Err(error) = inner_validation {
+			panic!("inner Meta extension validation failed for {inner_call:?}: {error:?}");
+		}
 		let meta_len = meta.encoded_size() as u32;
 		let call = RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
 			meta_tx: Box::new(meta),
@@ -3628,10 +3910,14 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			crate::BulletinCallInspector,
 		>::default();
 		let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
+		let honour = pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None);
 		let inherited = sp_runtime::traits::ImplicationParts {
 			base: sp_runtime::traits::TxBaseImplication((META_EXTENSION_VERSION, call)),
-			explicit: (&storage, &metadata),
-			implicit: (storage.implicit().unwrap(), metadata.implicit().unwrap()),
+			explicit: (&honour, (&storage, &metadata)),
+			implicit: (
+				honour.implicit().unwrap(),
+				(storage.implicit().unwrap(), metadata.implicit().unwrap()),
+			),
 		};
 		let RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage {
 			period,
@@ -3675,10 +3961,14 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			crate::BulletinCallInspector,
 		>::default();
 		let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
+		let honour = pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None);
 		let inherited = sp_runtime::traits::ImplicationParts {
 			base: sp_runtime::traits::TxBaseImplication((META_EXTENSION_VERSION, call)),
-			explicit: (&storage, &metadata),
-			implicit: (storage.implicit().unwrap(), metadata.implicit().unwrap()),
+			explicit: (&honour, (&storage, &metadata)),
+			implicit: (
+				honour.implicit().unwrap(),
+				(storage.implicit().unwrap(), metadata.implicit().unwrap()),
+			),
 		};
 		(domain, signer, signer, call, inherited).using_encoded(sp_io::hashing::blake2_256)
 	}
@@ -3920,6 +4210,207 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			ring_members.into_iter(),
 		)
 		.expect("the one-member ring opens");
+
+		{
+		sp_io::storage::start_transaction();
+		// Execute the native Score policy through a paid outer Meta extrinsic. The inner account
+		// owns exactly one inner nonce and no fee; the sponsor owns the outer nonce/payment.
+		assert_ok!(crate::Score::onboard_for_recognition(&alice));
+		pallet_orbis_score::Participants::<Runtime>::mutate(
+			pallet_orbis_score::AccountOrPerson::Account(alice.clone()),
+			|participant| participant.as_mut().unwrap().score = 10,
+		);
+		let score_call = RuntimeCall::Score(pallet_orbis_score::Call::cash_out {});
+		let alice_balance_before_score = Balances::free_balance(&alice);
+		let bob_balance_before_score = Balances::free_balance(&bob);
+		let score_meta = signed_meta_tx_with_native_policies(
+			score_call,
+			alice.clone(),
+			&alice_pair,
+			Default::default(),
+			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+			None,
+			Some(pallet_orbis_score::ScoreAsParticipantData { nonce: 0 }),
+			None,
+		);
+		assert_ok!(apply_meta_through_executive(score_meta, &bob, &bob_pair));
+		assert_eq!(System::account_nonce(&alice), 1);
+		assert_eq!(System::account_nonce(&bob), 1);
+		assert_eq!(Balances::free_balance(&alice), alice_balance_before_score);
+		assert!(Balances::free_balance(&bob) < bob_balance_before_score);
+		let score = pallet_orbis_score::Participants::<Runtime>::get(
+			pallet_orbis_score::AccountOrPerson::Account(alice.clone()),
+		)
+		.unwrap();
+		assert_eq!(score.score, 5);
+		assert!(score.cashed_out);
+		assert!(crate::meta_v6::token().is_none());
+
+		// Execute the native Honour policy against the exact active runtime ring.
+		let now = <crate::Timestamp as frame_support::traits::UnixTime>::now().as_secs();
+		let vote = pallet_orbis_honour::VoteData {
+			subject: [0x71; 32],
+			point: 7,
+			direction: pallet_orbis_honour::Direction::Honourable,
+		};
+		let honour_call = RuntimeCall::Honour(pallet_orbis_honour::Call::bestow {
+			vote: vote.clone(),
+			call_valid_from: now,
+		});
+		let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+			Runtime,
+			crate::BulletinCallInspector,
+		>::default();
+		let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
+		let message = (META_EXTENSION_VERSION, &honour_call, &storage, &metadata, (), None::<[u8; 32]>, &alice)
+			.using_encoded(sp_io::hashing::blake2_256);
+		let contexts = vote.get_contexts();
+		let contexts: Vec<&[u8]> = contexts.iter().map(|context| &context[..]).collect();
+		let (honour_proof, _) =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create_multi_context(
+				commitment.clone(),
+				&member_secret,
+				&contexts,
+				&message,
+			)
+			.unwrap();
+		let alice_balance_before_honour = Balances::free_balance(&alice);
+		let honour_meta = signed_meta_tx_with_native_policies(
+			honour_call,
+			alice.clone(),
+			&alice_pair,
+			Default::default(),
+			metadata,
+			None,
+			None,
+			Some(pallet_orbis_honour::extension::VoterAuthData {
+				account: alice.clone(),
+				proof: honour_proof,
+				ring_index: 0,
+				revision,
+			}),
+		);
+		assert_ok!(apply_meta_through_executive(honour_meta, &bob, &bob_pair));
+		assert_eq!(System::account_nonce(&alice), 2);
+		assert_eq!(System::account_nonce(&bob), 2);
+		assert_eq!(Balances::free_balance(&alice), alice_balance_before_honour);
+		assert!(pallet_orbis_honour::Votes::<Runtime>::iter().next().is_some());
+		assert!(crate::meta_v6::token().is_none());
+
+		// The direct Honour surface exercises the account-aware nonce/payment adapter after
+		// VoterAuth has replaced Signed with the custom Voter origin.
+		let direct_vote = pallet_orbis_honour::VoteData {
+			subject: [0x72; 32],
+			point: 8,
+			direction: pallet_orbis_honour::Direction::Honourable,
+		};
+		let direct_call = RuntimeCall::Honour(pallet_orbis_honour::Call::bestow {
+			vote: direct_vote.clone(),
+			call_valid_from: now,
+		});
+		let direct_payment: crate::PaymentPolicy =
+			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
+			)
+			.into();
+		let direct_tail = (
+			crate::AccountAwareResources::from(frame_system::CheckNonZeroSender::<Runtime>::new()),
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+			frame_system::CheckTxVersion::<Runtime>::new(),
+			frame_system::CheckGenesis::<Runtime>::new(),
+			frame_system::CheckMortality::<Runtime>::from(Era::Immortal),
+			crate::AccountAwareResources::from(frame_system::CheckNonce::<Runtime>::from(2)),
+			frame_system::CheckWeight::<Runtime>::new(),
+			crate::AccountAwareResources::from(direct_payment),
+			pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+				Runtime,
+				crate::BulletinCallInspector,
+			>::default(),
+			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+			pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::default(),
+		);
+		let policy_tail = (frame_system::AuthorizeCall::<Runtime>::new(),);
+		let direct_inherited = sp_runtime::traits::ImplicationParts {
+			base: sp_runtime::traits::TxBaseImplication((META_EXTENSION_VERSION, &direct_call)),
+			explicit: (&policy_tail, (&direct_tail, ())),
+			implicit: (policy_tail.implicit().unwrap(), (direct_tail.implicit().unwrap(), ())),
+		};
+		let direct_message = (&direct_inherited, &alice).using_encoded(sp_io::hashing::blake2_256);
+		let direct_contexts = direct_vote.get_contexts();
+		let direct_contexts: Vec<&[u8]> =
+			direct_contexts.iter().map(|context| &context[..]).collect();
+		let (direct_proof, _) =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create_multi_context(
+				commitment.clone(),
+				&member_secret,
+				&direct_contexts,
+				&direct_message,
+			)
+			.unwrap();
+		let (
+			nonzero,
+			spec,
+			tx,
+			genesis,
+			mortality,
+			nonce,
+			weight,
+			payment,
+			storage,
+			metadata,
+			revive,
+		) = direct_tail;
+		let direct_extension = crate::paid_tx_extensions((
+			(
+				indiv_pallet_people::extension::AsPerson::<Runtime>::new(None),
+				pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(None),
+				indiv_pallet_people_lite::extension::PeopleLiteAuth::<Runtime>::new(None),
+				indiv_pallet_resources::extension::AsResources::<Runtime>::new(None),
+				pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(Some(
+					pallet_orbis_honour::extension::VoterAuthData {
+						account: alice.clone(),
+						proof: direct_proof,
+						ring_index: 0,
+						revision,
+					},
+				)),
+				frame_system::AuthorizeCall::<Runtime>::new(),
+			),
+			nonzero,
+			spec,
+			tx,
+			genesis,
+			mortality,
+			nonce,
+			weight,
+			payment,
+			storage,
+			metadata,
+			revive,
+		));
+		let direct_payload = SignedPayload::new(direct_call.clone(), direct_extension.clone()).unwrap();
+		let direct_signature = direct_payload.using_encoded(|bytes| alice_pair.sign(bytes));
+		let direct_xt =
+			<crate::UncheckedExtrinsic as SignedTransactionBuilder>::new_signed_transaction(
+				direct_call,
+				alice.clone().into(),
+				MultiSignature::Sr25519(direct_signature),
+				direct_extension,
+			);
+		let _ = <Balances as Mutate<AccountId>>::set_balance(&alice, 100_000_000_000_000);
+		let direct_balance = Balances::free_balance(&alice);
+		assert_ok!(crate::Executive::validate_transaction(
+			sp_runtime::transaction_validity::TransactionSource::External,
+			direct_xt.clone(),
+			System::block_hash(0),
+		));
+		assert_ok!(crate::Executive::apply_extrinsic(direct_xt).unwrap());
+		assert_eq!(System::account_nonce(&alice), 3);
+		assert!(Balances::free_balance(&alice) < direct_balance);
+		assert!(crate::meta_v6::token().is_none());
+		let _ = <Balances as Mutate<AccountId>>::set_balance(&alice, alice_balance);
+		sp_io::storage::rollback_transaction();
+		}
 		let period = crate::Resources::long_term_storage_period_from_timestamp(
 			<crate::Timestamp as frame_support::traits::UnixTime>::now().as_secs(),
 		);
@@ -4194,7 +4685,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		);
 		let outer_info = outer.get_dispatch_info();
 		let outer_extension = crate::paid_tx_extensions(crate::default_inner_tx_extensions(
-			0,
+			System::account_nonce(&bob),
 			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 			)
@@ -5130,6 +5621,50 @@ fn native_benchmark_api_discovers_and_executes_score_and_honour() {
 			assert_eq!(batches[0].results.len(), 1);
 		});
 	}
+}
+
+#[test]
+#[cfg(feature = "try-runtime")]
+fn full_unreleased_migration_rehearses_absent_native_prefixes_and_bulletin_v6() {
+	use frame_support::traits::{GetStorageVersion, OnRuntimeUpgrade, StorageVersion};
+
+	fn prefix_keys<P: PalletInfoAccess>() -> u32 {
+		let prefix = sp_io::hashing::twox_128(P::name().as_bytes());
+		let mut previous = prefix.to_vec();
+		let mut count = 0;
+		while let Some(key) =
+			sp_io::storage::next_key(&previous).filter(|key| key.starts_with(&prefix))
+		{
+			previous = key;
+			count += 1;
+		}
+		count
+	}
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		assert_eq!(prefix_keys::<crate::Score>(), 0);
+		assert_eq!(prefix_keys::<crate::Honour>(), 0);
+		pallet_bulletin_transaction_storage::RetentionPeriod::<Runtime>::put(100u32);
+		StorageVersion::new(6).put::<crate::TransactionStorage>();
+
+		<crate::Migrations as OnRuntimeUpgrade>::try_on_runtime_upgrade(true).unwrap();
+
+		assert_eq!(crate::Score::on_chain_storage_version(), StorageVersion::new(1));
+		assert_eq!(crate::Honour::on_chain_storage_version(), StorageVersion::new(1));
+		assert_eq!(crate::TransactionStorage::on_chain_storage_version(), StorageVersion::new(7));
+		assert_eq!(
+			pallet_orbis_score::ManagerAccount::<Runtime>::get(),
+			Some(AccountId::new([0x53; 32]))
+		);
+		assert_eq!(pallet_orbis_score::PayoutAccount::<Runtime>::get(), AccountId::new([0x50; 32]));
+		assert_eq!(prefix_keys::<crate::Score>(), 3);
+		assert_eq!(prefix_keys::<crate::Honour>(), 1);
+
+		let before = sp_io::storage::root(sp_runtime::StateVersion::V1);
+		<crate::Migrations as OnRuntimeUpgrade>::on_runtime_upgrade();
+		let after = sp_io::storage::root(sp_runtime::StateVersion::V1);
+		assert_eq!(after, before, "fresh/current full tuple must be byte-idempotent");
+	});
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]

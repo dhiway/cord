@@ -19,8 +19,7 @@
 use crate::*;
 use codec::{Decode, DecodeWithMemTracking, Encode};
 use core::fmt;
-use frame_support::{defensive, pallet_prelude::Weight};
-use frame_system::{CheckNonce, ValidNonceInfo};
+use frame_support::pallet_prelude::Weight;
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{DispatchInfoOf, TransactionExtension, ValidateResult},
@@ -108,10 +107,17 @@ impl<T: Config> TransactionExtension<RuntimeCallOf<T>> for ScoreAsParticipant<T>
 				Pallet::<T>::ensure_active_participant(&AccountOrPerson::Account(who.clone()))
 					.map_err(|_| InvalidTransaction::Call)?;
 
-				// Validate the nonce.
-				let ValidNonceInfo { requires, provides } =
-					CheckNonce::<T>::validate_nonce_for_account(who, nonce)?;
-				let validity = ValidTransaction { requires, provides, ..Default::default() };
+				// This policy nonce must exactly match the account nonce. The standard account-aware
+				// CheckNonce owns pool tags and the single increment; accepting dependency-style future
+				// nonces here would allow a transaction to satisfy its own policy requirement.
+				let current = frame_system::Pallet::<T>::account_nonce(who);
+				if nonce < current {
+					return Err(InvalidTransaction::Stale.into());
+				}
+				if nonce > current {
+					return Err(InvalidTransaction::Future.into());
+				}
+				let validity = ValidTransaction::default();
 
 				Ok((
 					validity,
@@ -131,20 +137,10 @@ impl<T: Config> TransactionExtension<RuntimeCallOf<T>> for ScoreAsParticipant<T>
 		_info: &DispatchInfoOf<RuntimeCallOf<T>>,
 		_len: usize,
 	) -> Result<Self::Pre, TransactionValidityError> {
+		// The account-aware standard CheckNonce in both direct and Meta pipelines owns the single
+		// nonce increment. Score validates its explicit nonce above, but must not increment twice.
 		match val {
-			ScoreAsParticipantVal::UseAsParticipant(account) => {
-				let Some(ScoreAsParticipantData { nonce }) = self.0 else {
-					// defensive, should already been checked in `validate`.
-					defensive!();
-					return Err(InvalidTransaction::Call.into());
-				};
-
-				// Prepare the nonce for the account.
-				CheckNonce::<T>::prepare_nonce_for_account(&account, nonce)?;
-
-				Ok(())
-			},
-			ScoreAsParticipantVal::None => Ok(()),
+			ScoreAsParticipantVal::UseAsParticipant(_) | ScoreAsParticipantVal::None => Ok(()),
 		}
 	}
 }

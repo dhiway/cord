@@ -150,7 +150,7 @@ impl<T: Config + Send + Sync> TransactionExtension<RuntimeCallOf<T>> for VoterAu
 			.and_provides(aliases.point_alias)
 			.into();
 
-		let local_origin = Origin::Voter { aliases };
+		let local_origin = Origin::Voter { account: account.clone(), aliases };
 		let mut origin = origin;
 		origin.set_caller_from(local_origin);
 

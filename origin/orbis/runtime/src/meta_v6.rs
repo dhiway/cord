@@ -987,8 +987,16 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 	) -> ValidateResult<PolicyValV6, RuntimeCall> {
 		// Route before doing any People/Lite lookup or proof verification.
 		let route = self.classify(call).map_err(TransactionValidityError::Invalid)?;
-		let signer =
-			origin.as_system_origin_signer().cloned().ok_or(InvalidTransaction::BadSigner)?;
+		let signer = origin
+			.as_system_origin_signer()
+			.cloned()
+			.or_else(|| match frame_support::traits::OriginTrait::caller(&origin) {
+				crate::OriginCaller::Score(
+					pallet_orbis_score::Origin::<Runtime>::AccountParticipant(account),
+				) => Some(account.clone()),
+				_ => None,
+			})
+			.ok_or(InvalidTransaction::BadSigner)?;
 		if let Some(personhood) = &self.0.personhood {
 			debug_assert!(matches!(
 				route,

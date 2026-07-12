@@ -18,6 +18,9 @@ or value while suspended.
 All payout holds, schedules and redemptions use the named `PayoutAccount` initialized in genesis.
 Root may rotate it only when schedules, rounds, points and holds are empty; any remaining free
 balance is transferred atomically to the replacement account. Named managers cannot rotate it.
+The runtime's `[0x50; 32]` value is the development enterprise payout account configured by chain
+genesis (and replaceable by root); it is a funding destination, not an assertion that the account
+is the Sudo key.
 
 The v0→v1 introduction migration treats the committed pre-Slice-2 representation as an absent
 Score storage prefix, installs only the named defaults and storage version, and verifies exact key

@@ -87,8 +87,10 @@ mod benches {
 
 		T::BenchmarkHelper::set_time(BENCH_TIME);
 		advance_to::<T>(2);
+		let account: T::AccountId = whitelisted_caller();
 
 		let origin: <T as frame_system::Config>::RuntimeOrigin = Origin::Voter {
+			account: account.clone(),
 			aliases: VoteAliases { subject_alias: SUBJECT_1_ALIAS, point_alias: POINT_ALIAS },
 		}
 		.into();
@@ -102,6 +104,7 @@ mod benches {
 		);
 
 		let origin: <T as frame_system::Config>::RuntimeOrigin = Origin::Voter {
+			account,
 			aliases: VoteAliases { subject_alias: SUBJECT_2_ALIAS, point_alias: POINT_ALIAS },
 		}
 		.into();

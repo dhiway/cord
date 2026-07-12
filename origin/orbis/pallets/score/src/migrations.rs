@@ -6,14 +6,17 @@ use alloc::vec::Vec;
 #[cfg(feature = "try-runtime")]
 use codec::{Decode, Encode};
 use core::marker::PhantomData;
-#[cfg(any(test, feature = "try-runtime"))]
-use frame_support::traits::PalletInfoAccess;
 use frame_support::{
-	traits::{Get, GetStorageVersion, OnRuntimeUpgrade, StorageVersion},
+	traits::{Get, GetStorageVersion, OnRuntimeUpgrade, PalletInfoAccess, StorageVersion},
 	weights::Weight,
 };
 
 pub struct IntroduceV1<T>(PhantomData<T>);
+
+fn prefix_has_key<T: Config>() -> bool {
+	let prefix = sp_io::hashing::twox_128(Pallet::<T>::name().as_bytes());
+	sp_io::storage::next_key(&prefix).is_some_and(|key| key.starts_with(&prefix))
+}
 
 #[cfg(any(test, feature = "try-runtime"))]
 fn prefix_key_count<T: Config>() -> u32 {
@@ -32,6 +35,9 @@ impl<T: Config> OnRuntimeUpgrade for IntroduceV1<T> {
 	fn on_runtime_upgrade() -> Weight {
 		if Pallet::<T>::on_chain_storage_version() != StorageVersion::new(0) {
 			return T::DbWeight::get().reads(1);
+		}
+		if prefix_has_key::<T>() {
+			return T::DbWeight::get().reads(2);
 		}
 		if let Some(manager) = T::ManagerAccountDefault::get() {
 			ManagerAccount::<T>::put(manager);
@@ -99,6 +105,17 @@ mod tests {
 			let before = prefix_key_count::<Test>();
 			IntroduceV1::<Test>::on_runtime_upgrade();
 			assert_eq!(prefix_key_count::<Test>(), before);
+		});
+	}
+
+	#[test]
+	fn dirty_v0_prefix_freezes_without_mutation() {
+		sp_io::TestExternalities::new_empty().execute_with(|| {
+			ManagerAccount::<Test>::put(7);
+			let before = sp_io::storage::root(sp_runtime::StateVersion::V1);
+			IntroduceV1::<Test>::on_runtime_upgrade();
+			assert_eq!(sp_io::storage::root(sp_runtime::StateVersion::V1), before);
+			assert_eq!(Pallet::<Test>::on_chain_storage_version(), StorageVersion::new(0));
 		});
 	}
 }

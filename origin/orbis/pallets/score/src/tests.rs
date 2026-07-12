@@ -21,6 +21,7 @@ use frame_support::{
 	pallet_prelude::BoundedVec,
 	traits::{
 		fungible::{Inspect, InspectHold, Mutate, MutateHold},
+		tokens::Precision,
 		Get, Hooks,
 	},
 	weights::WeightMeter,
@@ -794,8 +795,9 @@ fn participant_origin_can_cash_out_and_redeem_credit() {
 		let p = Participants::<Test>::get(&key).unwrap();
 		assert_eq!(p.credit, 50);
 
-		// 6) Now call `redeem_credit` from participant origin with the next nonce=1
-		let nonce1 = 1;
+		// 6) This pallet-only mock omits the standard CheckNonce that owns the increment in the
+		// runtime pipeline, so the explicit policy nonce remains the current account nonce (zero).
+		let nonce1 = 0;
 		let destination = 999u64;
 		let destination_balance_before = Balances::balance(&destination);
 		let call_redeem = RuntimeCall::PalletScore(crate::Call::redeem_credit { destination });
@@ -905,6 +907,65 @@ fn payout_account_rotation_is_root_only_atomic_and_liability_safe() {
 		assert_eq!(PalletScore::score_pot_id(), 501);
 		assert_eq!(Balances::total_balance(&old), 0);
 		assert_eq!(Balances::total_balance(&501), old_balance);
+	});
+}
+
+#[test]
+fn payout_account_rotation_watches_every_liability_and_conserves_funds() {
+	new_test_ext().execute_with(|| {
+		let old = PalletScore::score_pot_id();
+		fund_score_pot(100);
+		let assert_blocked = || {
+			assert_noop!(
+				PalletScore::set_payout_account(RuntimeOrigin::root(), 501),
+				Error::<Test>::PayoutAccountLiability
+			);
+			assert_eq!(PalletScore::score_pot_id(), old);
+		};
+
+		RoundPlanning::<Test>::put(RoundInfo { finish_at: 10, credit: 1 });
+		assert_blocked();
+		RoundPlanning::<Test>::kill();
+
+		RoundPayouts::<Test>::insert(
+			0,
+			RoundPayout { remaining_balance: 1, point_price: 1, remainder: 0, total_points: 1 },
+		);
+		assert_blocked();
+		RoundPayouts::<Test>::remove(0);
+
+		CurrentRoundPoints::<Test>::put(1);
+		assert_blocked();
+		CurrentRoundPoints::<Test>::put(0);
+
+		assert_ok!(Balances::hold(&HoldReason::Payout.into(), &old, 1));
+		assert_blocked();
+		assert_ok!(Balances::release(&HoldReason::Payout.into(), &old, 1, Precision::Exact));
+		assert_ok!(Balances::hold(&HoldReason::Credit.into(), &old, 1));
+		assert_blocked();
+		assert_ok!(Balances::release(&HoldReason::Credit.into(), &old, 1, Precision::Exact));
+
+		let events = System::events().len();
+		let old_balance = Balances::total_balance(&old);
+		assert_ok!(PalletScore::set_payout_account(RuntimeOrigin::root(), old));
+		assert_eq!(System::events().len(), events);
+		assert_eq!(Balances::total_balance(&old), old_balance);
+
+		assert_ok!(<Balances as frame_support::traits::ReservableCurrency<u64>>::reserve(&old, 10));
+		let issuance = Balances::total_issuance();
+		let before_old = Balances::total_balance(&old);
+		let before_new = Balances::total_balance(&501);
+		assert!(PalletScore::set_payout_account(RuntimeOrigin::root(), 501).is_err());
+		assert_eq!(PalletScore::score_pot_id(), old);
+		assert_eq!(Balances::total_balance(&old), before_old);
+		assert_eq!(Balances::total_balance(&501), before_new);
+		assert_eq!(Balances::total_issuance(), issuance);
+		let _ = <Balances as frame_support::traits::ReservableCurrency<u64>>::unreserve(&old, 10);
+
+		assert_ok!(PalletScore::set_payout_account(RuntimeOrigin::root(), 501));
+		assert_eq!(Balances::total_balance(&old), 0);
+		assert_eq!(Balances::total_balance(&501), before_old);
+		assert_eq!(Balances::total_issuance(), issuance);
 	});
 }
 

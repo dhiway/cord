@@ -62,8 +62,10 @@ fn make_vote(
 
 	let vote_data = VoteData { subject, point, direction };
 
-	let origin =
-		crate::Origin::Voter { aliases: crate::VoteAliases { subject_alias, point_alias } };
+	let origin = crate::Origin::Voter {
+		account: voter as u64,
+		aliases: crate::VoteAliases { subject_alias, point_alias },
+	};
 
 	(origin.into(), vote_data)
 }

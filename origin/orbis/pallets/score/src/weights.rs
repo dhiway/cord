@@ -52,6 +52,9 @@
 use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
 use core::marker::PhantomData;
 
+const SET_PAYOUT_MEASURED_REF_TIME: u64 = 25_000_000;
+const SET_PAYOUT_MARGIN: u64 = 2;
+
 /// Weight functions needed for `indiv_pallet_score`.
 pub trait WeightInfo {
 	fn schedule_payout_rounds() -> Weight;
@@ -256,10 +259,12 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	fn set_payout_account() -> Weight {
-		// Explicit conservative bound: schedules, planning, payouts, points, two holds and balance;
-		// worst-case account transfer plus named-account write.
-		Weight::from_parts(85_000_000, 8_192)
-			.saturating_add(T::DbWeight::get().reads(8_u64))
+		// Orbis Wasm benchmark (2026-07-13, 20 steps, 10 repeats).
+		// Measured proof: 379 bytes; estimated proof: 3676 bytes.
+		// Minimum execution time: 25_000_000 picoseconds. A mechanical 2x ref-time margin and
+		// worst-case three writes cover the non-zero transfer branch.
+		Weight::from_parts(SET_PAYOUT_MEASURED_REF_TIME.saturating_mul(SET_PAYOUT_MARGIN), 3_676)
+			.saturating_add(T::DbWeight::get().reads(7_u64))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
 	/// Storage: `Score::Participants` (r:1 w:0)
@@ -461,8 +466,8 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 	fn set_payout_account() -> Weight {
-		Weight::from_parts(85_000_000, 8_192)
-			.saturating_add(RocksDbWeight::get().reads(8_u64))
+		Weight::from_parts(SET_PAYOUT_MEASURED_REF_TIME.saturating_mul(SET_PAYOUT_MARGIN), 3_676)
+			.saturating_add(RocksDbWeight::get().reads(7_u64))
 			.saturating_add(RocksDbWeight::get().writes(3_u64))
 	}
 	/// Storage: `Score::Participants` (r:1 w:0)
@@ -474,5 +479,17 @@ impl WeightInfo for () {
 		// Minimum execution time: 13_263_000 picoseconds.
 		Weight::from_parts(13_781_000, 3553)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
+	}
+}
+
+#[cfg(test)]
+mod measured_margin_tests {
+	use super::*;
+
+	#[test]
+	fn payout_weight_is_mechanically_above_recorded_wasm_measurement() {
+		let weight = <() as WeightInfo>::set_payout_account();
+		assert!(weight.ref_time() >= SET_PAYOUT_MEASURED_REF_TIME * SET_PAYOUT_MARGIN);
+		assert!(weight.proof_size() >= 3_676);
 	}
 }

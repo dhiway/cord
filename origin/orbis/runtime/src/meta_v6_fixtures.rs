@@ -16,18 +16,18 @@ use crate::{AccountId, Runtime, RuntimeCall};
 mod evidence_markers_v4;
 use codec::{DecodeAll, Encode};
 use frame_support::dispatch::GetDispatchInfo;
-use frame_support::traits::BuildGenesisConfig;
+use frame_support::traits::{BuildGenesisConfig, SignedTransactionBuilder};
 use sp_core::{ed25519, sr25519, Pair, H256};
 use sp_runtime::{
 	generic::{Era, SignedPayload},
 	traits::{IdentifyAccount, TransactionExtension},
 	MultiSignature, MultiSigner,
 };
-use verifiable::ring::bandersnatch::BandersnatchVrfVerifiable;
+use verifiable::{ring::bandersnatch::BandersnatchVrfVerifiable, GenerateVerifiable};
 
 const CANONICAL_METADATA_IMPLICIT: [u8; 32] = [
-	0x7f, 0x76, 0x53, 0xcd, 0xd2, 0xe6, 0x1c, 0x38, 0xc1, 0x00, 0x9b, 0x05, 0x29, 0xc5, 0x6e, 0x6f,
-	0xeb, 0x95, 0xb3, 0x79, 0xb4, 0x98, 0xc6, 0x7d, 0x50, 0x2a, 0x21, 0xe9, 0x3c, 0x06, 0x0b, 0xc6,
+	0x85, 0x19, 0x55, 0x76, 0x67, 0xf8, 0x7e, 0xb7, 0xee, 0x32, 0xcd, 0x10, 0x9d, 0x40, 0xac, 0xfd,
+	0x48, 0xd9, 0xc5, 0x3a, 0x7e, 0xd9, 0x15, 0xfe, 0x17, 0x33, 0xb0, 0x35, 0x73, 0xab, 0x9e, 0xf9,
 ];
 
 fn account(pair: &sr25519::Pair) -> AccountId {
@@ -191,13 +191,10 @@ fn honour_meta_tuples() -> (pallet_meta_tx::MetaTxFor<Runtime>, pallet_meta_tx::
 		(0u8, &call, &storage, &metadata, (), Some(CANONICAL_METADATA_IMPLICIT), &account)
 			.using_encoded(sp_io::hashing::blake2_256);
 
-	let domain = RingDomainSize::Domain16;
+	let domain: RingDomainSize = crate::MembersFlexibleRingExponent::get().try_into().unwrap();
 	let secret = BandersnatchVrfVerifiable::new_secret([0x48; 32]);
 	let member = BandersnatchVrfVerifiable::member_from_secret(&secret);
-	let members = (0..255u8).map(|index| {
-		let secret = BandersnatchVrfVerifiable::new_secret([index; 32]);
-		BandersnatchVrfVerifiable::member_from_secret(&secret)
-	});
+	let members = core::iter::once(member.clone());
 	let commitment = BandersnatchVrfVerifiable::open(domain, &member, members).unwrap();
 	let contexts = vote.get_contexts();
 	let contexts: Vec<&[u8]> = contexts.iter().map(|context| &context[..]).collect();
@@ -525,6 +522,304 @@ fn assert_outer_fixture(bytes: &[u8], sponsored: bool) {
 			);
 		},
 	}
+}
+
+fn apply_checked_meta_fixture(
+	meta: pallet_meta_tx::MetaTxFor<Runtime>,
+	sponsor_pair: &sr25519::Pair,
+) -> frame_support::dispatch::DispatchResultWithPostInfo {
+	let sponsor = MultiSigner::from(sponsor_pair.public()).into_account();
+	let meta_len = meta.encoded_size() as u32;
+	let call = RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
+		meta_tx: Box::new(meta),
+		meta_tx_encoded_len: meta_len,
+	});
+	let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+		pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
+	)
+	.into();
+	let extension = crate::paid_tx_extensions(crate::default_inner_tx_extensions(
+		crate::System::account_nonce(&sponsor),
+		payment,
+		Default::default(),
+	));
+	let payload = SignedPayload::new(call.clone(), extension.clone()).unwrap();
+	let signature = payload.using_encoded(|bytes| sponsor_pair.sign(bytes));
+	let extrinsic = <crate::UncheckedExtrinsic as SignedTransactionBuilder>::new_signed_transaction(
+		call,
+		sponsor.into(),
+		MultiSignature::Sr25519(signature),
+		extension,
+	);
+	assert!(crate::Executive::validate_transaction(
+		sp_runtime::transaction_validity::TransactionSource::External,
+		extrinsic.clone(),
+		crate::System::block_hash(0),
+	)
+	.is_ok());
+	let outer_result = crate::Executive::apply_extrinsic(extrinsic).unwrap();
+	if let Err(error) = outer_result {
+		return Err(error.into());
+	}
+	crate::System::events()
+		.into_iter()
+		.rev()
+		.find_map(|record| match record.event {
+			crate::RuntimeEvent::MetaTx(pallet_meta_tx::Event::Dispatched { result }) => {
+				Some(result)
+			},
+			_ => None,
+		})
+		.unwrap()
+}
+
+#[test]
+fn checked_in_score_meta_fixture_executes_as_paid_outer_extrinsic() {
+	if option_env!("RUNTIME_METADATA_HASH").is_none() {
+		return;
+	}
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		crate::System::set_block_number(1);
+		crate::System::set_extrinsic_index(0);
+		let inner_pair = ed25519::Pair::from_seed(&[0x42; 32]);
+		let inner = MultiSigner::Ed25519(inner_pair.public()).into_account();
+		let sponsor_pair = sr25519::Pair::from_seed(&[0x24; 32]);
+		let sponsor = MultiSigner::from(sponsor_pair.public()).into_account();
+		let _ =
+			<crate::Balances as frame_support::traits::fungible::Mutate<AccountId>>::set_balance(
+				&sponsor,
+				100_000_000_000_000,
+			);
+		crate::Score::onboard_for_recognition(&inner).unwrap();
+		let key = pallet_orbis_score::AccountOrPerson::Account(inner.clone());
+		pallet_orbis_score::Participants::<Runtime>::mutate(&key, |participant| {
+			participant.as_mut().unwrap().score = 10
+		});
+		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(
+			&mut include_bytes!("../fixtures/meta-v8/score-participant-meta.scale").as_slice(),
+		)
+		.unwrap();
+		assert!(apply_checked_meta_fixture(meta, &sponsor_pair).is_ok());
+		assert_eq!(crate::System::account_nonce(&inner), 1);
+		assert_eq!(crate::System::account_nonce(&sponsor), 1);
+		assert_eq!(pallet_orbis_score::Participants::<Runtime>::get(&key).unwrap().score, 5);
+		assert!(crate::meta_v6::token().is_none());
+	});
+}
+
+#[test]
+fn checked_in_score_nonce_mutation_is_exact_future_without_inner_mutation() {
+	if option_env!("RUNTIME_METADATA_HASH").is_none() {
+		return;
+	}
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		crate::System::set_block_number(1);
+		crate::System::set_extrinsic_index(0);
+		let inner_pair = ed25519::Pair::from_seed(&[0x42; 32]);
+		let inner = MultiSigner::Ed25519(inner_pair.public()).into_account();
+		let sponsor_pair = sr25519::Pair::from_seed(&[0x24; 32]);
+		let sponsor = MultiSigner::from(sponsor_pair.public()).into_account();
+		let _ =
+			<crate::Balances as frame_support::traits::fungible::Mutate<AccountId>>::set_balance(
+				&sponsor,
+				100_000_000_000_000,
+			);
+		crate::Score::onboard_for_recognition(&inner).unwrap();
+		let key = pallet_orbis_score::AccountOrPerson::Account(inner.clone());
+		pallet_orbis_score::Participants::<Runtime>::mutate(&key, |participant| {
+			participant.as_mut().unwrap().score = 10
+		});
+		let before = pallet_orbis_score::Participants::<Runtime>::get(&key);
+		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(
+			&mut include_bytes!("../fixtures/meta-v8/mutate-score-nonce-meta.scale").as_slice(),
+		)
+		.unwrap();
+		assert_eq!(
+			apply_checked_meta_fixture(meta, &sponsor_pair),
+			Err(pallet_meta_tx::Error::<Runtime>::Future.into())
+		);
+		assert_eq!(crate::System::account_nonce(&inner), 0);
+		assert_eq!(crate::System::account_nonce(&sponsor), 1);
+		assert_eq!(pallet_orbis_score::Participants::<Runtime>::get(&key), before);
+		assert!(crate::meta_v6::token().is_none());
+	});
+}
+
+#[test]
+fn checked_in_honour_account_mutation_is_exact_bad_signer_and_executable() {
+	if option_env!("RUNTIME_METADATA_HASH").is_none() {
+		return;
+	}
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		crate::System::set_block_number(1);
+		crate::System::set_extrinsic_index(0);
+		let bytes = include_bytes!("../fixtures/meta-v8/mutate-honour-account-meta.scale");
+		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut bytes.as_slice()).unwrap();
+		let (call, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
+			DecodeAll::decode_all(&mut bytes.as_slice()).unwrap();
+		let info = call.get_dispatch_info();
+		let implicit = extension.implicit().unwrap();
+		let error = extension
+			.validate(
+				crate::RuntimeOrigin::none(),
+				&call,
+				&info,
+				bytes.len(),
+				implicit,
+				&sp_runtime::traits::TxBaseImplication((0u8, &call)),
+				sp_runtime::transaction_validity::TransactionSource::External,
+			)
+			.err()
+			.unwrap();
+		assert_eq!(error, sp_runtime::transaction_validity::InvalidTransaction::BadSigner.into());
+		let sponsor_pair = sr25519::Pair::from_seed(&[0x24; 32]);
+		let sponsor = MultiSigner::from(sponsor_pair.public()).into_account();
+		let _ =
+			<crate::Balances as frame_support::traits::fungible::Mutate<AccountId>>::set_balance(
+				&sponsor,
+				100_000_000_000_000,
+			);
+		assert_eq!(
+			apply_checked_meta_fixture(meta, &sponsor_pair),
+			Err(pallet_meta_tx::Error::<Runtime>::Invalid.into())
+		);
+		assert_eq!(crate::System::account_nonce(&sponsor), 1);
+		assert!(pallet_orbis_honour::Votes::<Runtime>::iter().next().is_none());
+		assert!(crate::meta_v6::token().is_none());
+	});
+}
+
+fn seed_checked_honour_ring() {
+	use indiv_support::traits::{AppendOnlyMembers, RingMode};
+	let identifier = *indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER;
+	let domain: verifiable::ring::RingDomainSize =
+		crate::MembersFlexibleRingExponent::get().try_into().unwrap();
+	let chunks = indiv_support::genesis::ring_verifier_builder_params::<
+		verifiable::ring::ark_vrf::suites::bandersnatch::BandersnatchSha512Ell2,
+	>(domain);
+	for (page_index, page) in chunks.chunks(crate::PeopleChunkPageSize::get() as usize).enumerate()
+	{
+		let page: frame_support::BoundedVec<
+			indiv_pallet_chunks_manager::UncheckedChunk<Runtime>,
+			crate::PeopleChunkPageSize,
+		> = page
+			.iter()
+			.cloned()
+			.map(indiv_pallet_chunks_manager::UncheckedChunk::<Runtime>)
+			.collect::<Vec<_>>()
+			.try_into()
+			.unwrap();
+		indiv_pallet_chunks_manager::Chunks::<Runtime>::insert(
+			crate::MembersFlexibleRingExponent::get(),
+			page_index as u32,
+			page,
+		);
+	}
+	<crate::Members as AppendOnlyMembers>::create_collection(
+		xcm::latest::Location::here(),
+		&identifier,
+		1,
+		RingMode::Flexible,
+		crate::MembersFlexibleRingExponent::get(),
+		None,
+	)
+	.unwrap();
+	let secret = BandersnatchVrfVerifiable::new_secret([0x48; 32]);
+	let member = BandersnatchVrfVerifiable::member_from_secret(&secret);
+	<crate::Members as AppendOnlyMembers>::add_members(&identifier, vec![member.clone()]).unwrap();
+	crate::Members::onboard_members_authorized(
+		frame_system::RawOrigin::Authorized.into(),
+		identifier,
+		0,
+		0,
+		Some(member),
+		0,
+	)
+	.unwrap();
+	crate::Members::build_ring_authorized(
+		frame_system::RawOrigin::Authorized.into(),
+		identifier,
+		0,
+		crate::MembersFlexibleRingExponent::get(),
+		None,
+		1,
+		0,
+	)
+	.unwrap();
+}
+
+#[test]
+fn checked_in_honour_meta_fixture_executes_against_exact_runtime_ring() {
+	if option_env!("RUNTIME_METADATA_HASH").is_none() {
+		return;
+	}
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		frame_system::GenesisConfig::<Runtime>::default().build();
+		crate::System::set_block_number(1);
+		crate::System::set_extrinsic_index(0);
+		seed_checked_honour_ring();
+		assert_eq!(
+			<crate::Members as indiv_support::traits::MembershipProver>::ring_revision(
+				&*indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER,
+				0,
+			),
+			Some(0),
+		);
+		let inner_pair = ed25519::Pair::from_seed(&[0x42; 32]);
+		let inner = MultiSigner::Ed25519(inner_pair.public()).into_account();
+		let sponsor_pair = sr25519::Pair::from_seed(&[0x24; 32]);
+		let sponsor = MultiSigner::from(sponsor_pair.public()).into_account();
+		// CheckNonce requires a live system account, but the inner Honour signer is not charged.
+		let inner_balance = crate::ExistentialDeposit::get();
+		let _ =
+			<crate::Balances as frame_support::traits::fungible::Mutate<AccountId>>::set_balance(
+				&inner,
+				inner_balance,
+			);
+		let _ =
+			<crate::Balances as frame_support::traits::fungible::Mutate<AccountId>>::set_balance(
+				&sponsor,
+				100_000_000_000_000,
+			);
+		let bytes = include_bytes!("../fixtures/meta-v8/honour-voter-meta.scale");
+		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut bytes.as_slice()).unwrap();
+		let (call, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
+			DecodeAll::decode_all(&mut bytes.as_slice()).unwrap();
+		let auth = extension.9 .2.encode();
+		let inner_bytes: &[u8] = inner.as_ref();
+		assert_eq!(&auth[1..33], inner_bytes);
+		crate::meta_v6::put_token(&crate::meta_v6::PaidMetaTokenV7 {
+			payer: sponsor.clone(),
+			intent_commitment: extension.1 .0.commitment(),
+			outer_nonce: 0,
+			genesis_hash: crate::System::block_hash(0),
+			spec_version: crate::VERSION.spec_version,
+			transaction_version: crate::VERSION.transaction_version,
+			consumed: false,
+		});
+		let implicit = extension.implicit().unwrap();
+		let validation = extension.validate(
+			crate::RuntimeOrigin::none(),
+			&call,
+			&call.get_dispatch_info(),
+			bytes.len(),
+			implicit,
+			&sp_runtime::traits::TxBaseImplication((0u8, &call)),
+			sp_runtime::transaction_validity::TransactionSource::External,
+		);
+		crate::meta_v6::clear_token();
+		assert!(validation.is_ok(), "checked Honour validation failed: {:?}", validation.err());
+		let result = apply_checked_meta_fixture(meta, &sponsor_pair);
+		assert!(result.is_ok(), "checked Honour dispatch failed: {result:?}");
+		assert_eq!(crate::System::account_nonce(&inner), 1);
+		assert_eq!(crate::System::account_nonce(&sponsor), 1);
+		assert_eq!(crate::Balances::free_balance(&inner), inner_balance);
+		assert!(pallet_orbis_honour::Votes::<Runtime>::iter().next().is_some());
+		assert!(crate::meta_v6::token().is_none());
+	});
 }
 
 #[test]
@@ -860,7 +1155,7 @@ fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
 		);
 		assert_eq!(
 			digest_hex(include_bytes!("../fixtures/meta-v8/intent-preimage.scale")),
-			"2e1da822b031480a683985032a4b837f8594a55a62a46c74f866bfbf3faf0849"
+			"e7a525f1e19329e1521c31f6b14185c56c80539cdb6c94e07fd2c067a9f777f4"
 		);
 		assert_eq!(crate::meta_v6::MAX_META_ENCODED_BYTES, 65_536);
 		assert_eq!(crate::meta_v6::MAX_META_PAYLOAD_BYTES, 65_503);
