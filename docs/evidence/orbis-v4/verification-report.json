@@ -1374,7 +1374,7 @@
   },
   "manifest_inventory_blake2_256": "eb98d34165ab0e8e3727a3c8f88a30da899dfa7f85e88b60c6701b076733e659",
   "manifest_inventory_count": 645,
-  "manifest_sha256": "01831bc291189d906e796875b03c53cd9477e955d7626069e230cc19f319d1da",
+  "manifest_sha256": "2146252f3028ca8473f9316c27878750a76766fbc38b3b352a80446e4fa0e60a",
   "metadata_evidence": [
     "META-EVIDENCE-COMPILED-ENABLED",
     "META-EVIDENCE-CUSTOM-LOSS",

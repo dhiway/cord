@@ -7,4 +7,3 @@ assertion=META-DIRECT-NONE:e2f13e55f54a4639392b6650b5341d7823a2be6188b1e82cbde84
 assertion=META-DIRECT-PAYER:9b15966a78a831d80be5b014de06d48d928728ed5108b6026c1e314db7165823
 assertion=META-DIRECT-PAYMENT:e5780cebdf411df817525a4e8a5fd8d309b6091b6cff36b46fab960376ce92af
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 64 filtered out; finished
-test tests::remediation_v3::tests::signed_direct_resources_payer_contract_is_account_aware ... ok

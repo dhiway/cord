@@ -33,7 +33,7 @@ def canonical_output(cmd,out,code):
  ansi=re.compile(r'\x1b\[[0-9;]*m'); lines=[]
  for raw in ansi.sub('',out).splitlines():
   x=raw.strip()
-  if re.match(r'^(running [0-9]+ tests|test .* \.\.\. (ok|FAILED|ignored)|test result:|warning:|error:|assertion=[A-Za-z0-9_-]+:[0-9a-f]{64}$)',x):
+  if re.match(r'^(running [0-9]+ tests|test result:|warning:|error:|assertion=[A-Za-z0-9_-]+:[0-9a-f]{64}$)',x):
    lines.append(re.sub(r'; finished in [0-9.]+s','; finished',x))
  return 'exit='+str(code)+'\ncommand='+cmd+'\n'+'\n'.join(sorted(set(lines)))+'\n'
 text=MANIFEST.read_text(); top=fs(text.split('[[',1)[0]); audit=top.get('audited_runtime_commit',''); marker_commit=top.get('evidence_marker_commit','')

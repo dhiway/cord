@@ -25,11 +25,3 @@ assertion=REF-PARTIAL:9b43720b084399b58142004ff44d360d715c76e07406650ab902522a87
 assertion=REF-STALE:9b43720b084399b58142004ff44d360d715c76e07406650ab902522a87f75329
 running 8 tests
 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 159 filtered out; finished
-test tests::migration_v6_to_v7_empty_fixture_sets_exact_zeroes_and_v7_last ... ok
-test tests::migration_v6_to_v7_evidence_markers_are_source_owned ... ok
-test tests::migration_v6_to_v7_rejects_duplicate_hash_without_any_write ... ok
-test tests::migration_v6_to_v7_rejects_duplicate_ref_without_any_write ... ok
-test tests::migration_v6_to_v7_repairs_both_partial_bad_counters_and_historical_shapes ... ok
-test tests::migration_v6_to_v7_repairs_hash_missing_partial_and_stale_fixtures ... ok
-test tests::migration_v6_to_v7_repairs_ref_missing_partial_and_stale_fixtures ... ok
-test tests::migration_v6_to_v7_small_state_still_charges_configured_max_weight ... ok
