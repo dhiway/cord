@@ -773,7 +773,7 @@ fn resources_bulletin_iteration_two_manifest_is_exact() {
 		assert_eq!(
 			row["evidence"].as_str(),
 			Some(
-				"1d6ca22b"
+				"6401424b"
 			)
 		);
 	}
@@ -809,8 +809,8 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 	assert_eq!(pallet_orbis_entity::Pallet::<Runtime>::index(), 53);
 	assert_eq!(pallet_orbis_feeless::Pallet::<Runtime>::index(), 54);
 	assert_eq!(indiv_pallet_resources::Pallet::<Runtime>::index(), 96);
-	assert_eq!(crate::VERSION.spec_version, 25);
-	assert_eq!(crate::VERSION.transaction_version, 5);
+	assert_eq!(crate::VERSION.spec_version, 26);
+	assert_eq!(crate::VERSION.transaction_version, 6);
 
 	assert_eq!(
 		call_variants::<pallet_orbis_register::Call<Runtime>>(),
@@ -998,7 +998,7 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 	use pallet_revive::evm::runtime::EthExtra;
 	use sp_runtime::traits::TransactionExtension;
 	use transaction_policy_fixture::*;
-	assert_eq!(crate::VERSION.transaction_version, 5);
+	assert_eq!(crate::VERSION.transaction_version, 6);
 
 	fn assert_full_inner_projection(inner: crate::InnerTxExtensions) {
 		let (
@@ -1022,18 +1022,18 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 	fn assert_meta_projection(extension: crate::MetaTxExtension) {
 		let (
 			_verify,
+			_consume,
 			_marker,
-			policy,
 			_nonzero,
 			_spec,
 			_tx,
 			_genesis,
 			_mortality,
 			_nonce,
+			_policy,
 			_bulletin,
 			_metadata,
 		) = extension;
-		let (_as_person, _people_lite, _as_resources, _authorize_call) = policy;
 	}
 
 	let _: Option<FrozenPipeline> = None;
@@ -1062,26 +1062,26 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 	);
 
 	let ethereum = <crate::EthExtraImpl as EthExtra>::get_eth_extension(7, 11);
-	assert_full_inner_projection(ethereum.0);
+	assert_full_inner_projection(ethereum.0 .0);
 	let authorized: crate::TxExtensions =
 		<Runtime as CreateAuthorizedTransaction<RuntimeCall>>::create_extension();
-	let encoded_authorized_payment = authorized.0 .8.encode();
+	let encoded_authorized_payment = authorized.0 .0 .8.encode();
 	let decoded_network_payment =
 		crate::PaymentPolicy::decode(&mut &encoded_authorized_payment[..])
 			.expect("payment policy encoding remains compatible with its inner asset payment");
-	assert_eq!(decoded_network_payment, authorized.0 .8.clone());
-	assert_full_inner_projection(authorized.0);
+	assert_eq!(decoded_network_payment, authorized.0 .0 .8.clone());
+	assert_full_inner_projection(authorized.0 .0);
 
-	let normal: crate::TxExtensions = crate::default_inner_tx_extensions(
-		3,
-		pallet_orbis_feeless::ChargeOrSkipFeeless::from(
-			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(5, None),
-		)
-		.into(),
-		Default::default(),
-	)
-	.into();
-	assert_full_inner_projection(normal.0);
+	let normal: crate::TxExtensions =
+		crate::paid_tx_extensions(crate::default_inner_tx_extensions(
+			3,
+			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(5, None),
+			)
+			.into(),
+			Default::default(),
+		));
+	assert_full_inner_projection(normal.0 .0);
 
 	let _actual_meta_projection: fn(crate::MetaTxExtension) = assert_meta_projection;
 
@@ -1118,17 +1118,15 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 		meta_metadata,
 		vec![
 			"VerifyMultiSignature",
+			"ConsumePaidMetaIngressV6",
 			"MetaTxMarker",
-			"AsPerson",
-			"PeopleLiteAuth",
-			"AsResources",
-			"AuthorizeCall",
 			"CheckNonZeroSender",
 			"CheckSpecVersion",
 			"CheckTxVersion",
 			"CheckGenesis",
 			"CheckMortality",
 			"CheckNonce",
+			"MetaAccountBoundPoliciesV6",
 			"ValidateStorageCalls",
 			"CheckMetadataHash",
 		]
@@ -2090,6 +2088,10 @@ fn authorized_pipeline_retains_validation_and_explicitly_skips_payment_and_quota
 
 #[test]
 fn bulletin_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm() {
+	use codec::Encode;
+	use frame_support::dispatch::GetDispatchInfo;
+	use sp_runtime::traits::TransactionExtension;
+
 	type XcmSafeCalls = <crate::xcm_config::XcmConfig as xcm_executor::Config>::SafeCallFilter;
 	let store = RuntimeCall::TransactionStorage(pallet_bulletin_transaction_storage::Call::store {
 		data: b"audit".to_vec(),
@@ -2112,6 +2114,126 @@ fn bulletin_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm() {
 		RuntimeCall::Utility(pallet_utility::Call::batch { calls: vec![reserved_renew] });
 	assert!(crate::BulletinCallInspector::contains(&wrapped_reserved));
 	assert!(!XcmSafeCalls::contains(&wrapped_reserved));
+
+	let reserved_store = RuntimeCall::TransactionStorage(
+		pallet_bulletin_transaction_storage::Call::store_reserved {
+			reservation_id: 7,
+			cid_config: bulletin_transaction_storage_primitives::cids::CidConfig {
+				codec: bulletin_transaction_storage_primitives::cids::RAW_CODEC,
+				hashing:
+					bulletin_transaction_storage_primitives::cids::HashingAlgorithm::Blake2b256,
+			},
+			data: b"reserved".to_vec(),
+		},
+	);
+	let proxy_any = RuntimeCall::Proxy(pallet_proxy::Call::proxy {
+		real: AccountId::from([2u8; 32]).into(),
+		force_proxy_type: Some(crate::ProxyType::Any),
+		call: Box::new(reserved_store.clone()),
+	});
+	let multisig = RuntimeCall::Multisig(pallet_multisig::Call::as_multi_threshold_1 {
+		other_signatories: vec![AccountId::from([2u8; 32])],
+		call: Box::new(reserved_store.clone()),
+	});
+	let opaque_multisig = RuntimeCall::Multisig(pallet_multisig::Call::approve_as_multi {
+		threshold: 2,
+		other_signatories: vec![AccountId::from([2u8; 32])],
+		maybe_timepoint: None,
+		call_hash: [3u8; 32],
+		max_weight: frame_support::weights::Weight::from_parts(1_000_000, 0),
+	});
+	let scheduled = RuntimeCall::Scheduler(pallet_scheduler::Call::schedule {
+		when: 2,
+		maybe_periodic: None,
+		priority: 0,
+		call: Box::new(reserved_store.clone()),
+	});
+	let revive = RuntimeCall::Revive(pallet_revive::Call::dispatch_as_fallback_account {
+		call: Box::new(reserved_store.clone()),
+	});
+	let meta_extension: crate::MetaTxExtension = (
+		pallet_verify_signature::VerifySignature::new_with_signature(
+			sp_runtime::MultiSignature::Sr25519(sp_core::sr25519::Signature::from_raw([0u8; 64])),
+			AccountId::from(ALICE),
+		),
+		crate::meta_v6::ConsumePaidMetaIngress(crate::meta_v6::IntentPreimageV6 {
+			domain: vec![],
+			extension_version: 0,
+			genesis_hash: Default::default(),
+			spec_version: 0,
+			transaction_version: 0,
+			inner_signer: AccountId::from(ALICE),
+			call_hash: Default::default(),
+			mortality: sp_runtime::generic::Era::Immortal,
+			nonce: 0,
+			policy_proofs_hash: Default::default(),
+			storage_extension_hash: Default::default(),
+			metadata_extension_hash: Default::default(),
+		}),
+		pallet_meta_tx::MetaTxMarker::new(),
+		frame_system::CheckNonZeroSender::new(),
+		frame_system::CheckSpecVersion::new(),
+		frame_system::CheckTxVersion::new(),
+		frame_system::CheckGenesis::new(),
+		frame_system::CheckMortality::from(sp_runtime::generic::Era::Immortal),
+		frame_system::CheckNonce::from(0),
+		Default::default(),
+		Default::default(),
+		frame_metadata_hash_extension::CheckMetadataHash::new(false),
+	);
+	let meta_tx = pallet_meta_tx::MetaTxFor::<Runtime>::new(reserved_store, 0, meta_extension);
+	let meta_encoded_len = meta_tx.encoded_size() as u32;
+	let meta = RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
+		meta_tx: Box::new(meta_tx),
+		meta_tx_encoded_len: meta_encoded_len,
+	});
+
+	for (name, call) in [
+		("proxy-any", proxy_any),
+		("multisig", multisig),
+		("multisig-opaque", opaque_multisig),
+		("scheduler", scheduled),
+		("meta-tx", meta),
+		("revive", revive),
+	] {
+		assert!(crate::BulletinCallInspector::contains(&call), "{name} bypassed inspection");
+		assert!(!XcmSafeCalls::contains(&call), "{name} bypassed the XCM safe filter");
+	}
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		let call = RuntimeCall::Proxy(pallet_proxy::Call::proxy {
+			real: AccountId::from([2u8; 32]).into(),
+			force_proxy_type: Some(crate::ProxyType::Any),
+			call: Box::new(RuntimeCall::TransactionStorage(
+				pallet_bulletin_transaction_storage::Call::store_reserved {
+					reservation_id: 7,
+					cid_config: bulletin_transaction_storage_primitives::cids::CidConfig {
+				codec: bulletin_transaction_storage_primitives::cids::RAW_CODEC,
+				hashing: bulletin_transaction_storage_primitives::cids::HashingAlgorithm::Blake2b256,
+			},
+					data: b"reserved".to_vec(),
+				},
+			)),
+		});
+		let extension = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+			Runtime,
+			crate::BulletinCallInspector,
+		>::default();
+		let info = call.get_dispatch_info();
+		let result = extension.validate(
+			RuntimeOrigin::signed(AccountId::from(ALICE)),
+			&call,
+			&info,
+			call.encoded_size(),
+			(),
+			&sp_runtime::traits::TxBaseImplication((0u8, &call)),
+			sp_runtime::transaction_validity::TransactionSource::External,
+		);
+		assert_eq!(
+			result.unwrap_err(),
+			sp_runtime::transaction_validity::InvalidTransaction::Call.into()
+		);
+	});
 
 	let ordinary = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
 	assert!(!crate::BulletinCallInspector::contains(&ordinary));
@@ -2306,7 +2428,7 @@ fn ethereum_pipeline_uses_mapped_nonce_payer_and_only_terminal_revive_actor() {
 		<Balances as Mutate<AccountId>>::set_balance(&mapped, initial_balance);
 		let call = RuntimeCall::System(frame_system::Call::remark { remark: b"eth".to_vec() });
 		let info = call.get_dispatch_info();
-		let extension = <crate::EthExtraImpl as EthExtra>::get_eth_extension(0, 0).0;
+		let extension = <crate::EthExtraImpl as EthExtra>::get_eth_extension(0, 0).0 .0;
 		let implicit = extension.implicit().unwrap();
 		let (_, val, origin) = extension
 			.validate(
@@ -2346,7 +2468,7 @@ fn ethereum_pipeline_uses_mapped_nonce_payer_and_only_terminal_revive_actor() {
 				account_id: mapped.clone(),
 			});
 		let resource_info = resource_call.get_dispatch_info();
-		let eth_resource = <crate::EthExtraImpl as EthExtra>::get_eth_extension(1, 0).0;
+		let eth_resource = <crate::EthExtraImpl as EthExtra>::get_eth_extension(1, 0).0 .0;
 		let resource_implicit = eth_resource.implicit().unwrap();
 		let (_, _, resource_origin) = eth_resource
 			.validate(
@@ -2374,23 +2496,26 @@ fn ethereum_pipeline_uses_mapped_nonce_payer_and_only_terminal_revive_actor() {
 fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 	use codec::Encode;
 	use frame_support::{dispatch::GetDispatchInfo, traits::BuildGenesisConfig};
+	use indiv_support::traits::{AppendOnlyMembers, MembershipProver, RingMode};
 	use sp_core::{sr25519, Pair};
 	use sp_runtime::{
 		generic::Era,
 		traits::{IdentifyAccount, TransactionExtension},
 		MultiSignature, MultiSigner,
 	};
+	use verifiable::GenerateVerifiable;
 	const META_EXTENSION_VERSION: u8 = 0;
 
 	type MetaBareExtension = (
+		crate::meta_v6::ConsumePaidMetaIngress,
 		pallet_meta_tx::MetaTxMarker<Runtime>,
-		crate::OriginPolicyExtensions,
 		frame_system::CheckNonZeroSender<Runtime>,
 		frame_system::CheckSpecVersion<Runtime>,
 		frame_system::CheckTxVersion<Runtime>,
 		frame_system::CheckGenesis<Runtime>,
 		frame_system::CheckMortality<Runtime>,
 		frame_system::CheckNonce<Runtime>,
+		crate::meta_v6::MetaAccountBoundPoliciesV6,
 		pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
 			Runtime,
 			crate::BulletinCallInspector,
@@ -2406,18 +2531,50 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		call: RuntimeCall,
 		claimed: AccountId,
 		signing_pair: &sr25519::Pair,
+		resource_info: Option<crate::meta_v6::MetaResourcesAuthV6>,
 	) -> pallet_meta_tx::MetaTxFor<Runtime> {
+		let mortality = frame_system::CheckMortality::<Runtime>::from(Era::Immortal);
+		let nonce = frame_system::CheckNonce::<Runtime>::from(System::account(&claimed).nonce);
+		let policy =
+			crate::meta_v6::MetaAccountBoundPoliciesV6::new(crate::meta_v6::PolicyProofsV6 {
+				resources: resource_info,
+				..Default::default()
+			});
+		let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+			Runtime,
+			crate::BulletinCallInspector,
+		>::default();
+		let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
+		let preimage = crate::meta_v6::IntentPreimageV6 {
+			domain: crate::meta_v6::META_DOMAIN.to_vec(),
+			extension_version: META_EXTENSION_VERSION,
+			genesis_hash: System::block_hash(0),
+			spec_version: crate::VERSION.spec_version,
+			transaction_version: crate::VERSION.transaction_version,
+			inner_signer: claimed.clone(),
+			call_hash: sp_core::H256::from(sp_io::hashing::blake2_256(&call.encode())),
+			mortality: Era::Immortal,
+			nonce: System::account(&claimed).nonce,
+			policy_proofs_hash: sp_core::H256::from(sp_io::hashing::blake2_256(&policy.0.encode())),
+			storage_extension_hash: sp_core::H256::from(sp_io::hashing::blake2_256(
+				&storage.encode(),
+			)),
+			metadata_extension_hash: sp_core::H256::from(sp_io::hashing::blake2_256(
+				&metadata.encode(),
+			)),
+		};
 		let bare: MetaBareExtension = (
+			crate::meta_v6::ConsumePaidMetaIngress(preimage),
 			pallet_meta_tx::MetaTxMarker::new(),
-			crate::default_origin_policy_extensions(),
 			frame_system::CheckNonZeroSender::new(),
 			frame_system::CheckSpecVersion::new(),
 			frame_system::CheckTxVersion::new(),
 			frame_system::CheckGenesis::new(),
-			frame_system::CheckMortality::from(Era::Immortal),
-			frame_system::CheckNonce::from(System::account(&claimed).nonce),
-			Default::default(),
-			frame_metadata_hash_extension::CheckMetadataHash::new(false),
+			mortality,
+			nonce,
+			policy,
+			storage,
+			metadata,
 		);
 		let implicit = bare.implicit().expect("test externalities provide implicit data");
 		let signature = (META_EXTENSION_VERSION, call.clone(), bare.clone(), implicit)
@@ -2426,12 +2583,39 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			MultiSignature::Sr25519(signature),
 			claimed,
 		);
-		let (marker, policy, nonzero, spec, tx, genesis, mortality, nonce, storage, metadata) =
-			bare;
+		let (
+			consume,
+			marker,
+			nonzero,
+			spec,
+			tx,
+			genesis,
+			mortality,
+			nonce,
+			policy,
+			storage,
+			metadata,
+		) = bare;
 		let extension = (
-			verify, marker, policy, nonzero, spec, tx, genesis, mortality, nonce, storage, metadata,
+			verify, consume, marker, nonzero, spec, tx, genesis, mortality, nonce, policy, storage,
+			metadata,
 		);
 		pallet_meta_tx::MetaTxFor::<Runtime>::new(call, META_EXTENSION_VERSION, extension)
+	}
+
+	fn resource_meta_message(call: &RuntimeCall, signer: &AccountId) -> [u8; 32] {
+		let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+			Runtime,
+			crate::BulletinCallInspector,
+		>::default();
+		let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
+		let inherited = sp_runtime::traits::ImplicationParts {
+			base: sp_runtime::traits::TxBaseImplication((META_EXTENSION_VERSION, call)),
+			explicit: (&storage, &metadata),
+			implicit: (storage.implicit().unwrap(), metadata.implicit().unwrap()),
+		};
+		(crate::meta_v6::RESOURCES_DOMAIN, signer, signer, call, inherited)
+			.using_encoded(sp_io::hashing::blake2_256)
 	}
 
 	sp_io::TestExternalities::new_empty().execute_with(|| {
@@ -2445,44 +2629,216 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			<Balances as Mutate<AccountId>>::set_balance(&alice, crate::ExistentialDeposit::get());
 		let bob_balance = <Balances as Mutate<AccountId>>::set_balance(&bob, 1_000_000_000_000);
 		pallet_timestamp::Now::<Runtime>::put(3 * 24 * 60 * 60 * 1_000u64);
+		let identifier = *indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER;
+		let domain: verifiable::ring::RingDomainSize =
+			crate::MembersFlexibleRingExponent::get().try_into().unwrap();
+		let chunks = indiv_support::genesis::ring_verifier_builder_params::<
+			verifiable::ring::ark_vrf::suites::bandersnatch::BandersnatchSha512Ell2,
+		>(domain);
+		for (page_index, page) in
+			chunks.chunks(crate::PeopleChunkPageSize::get() as usize).enumerate()
+		{
+			let page: frame_support::BoundedVec<
+				indiv_pallet_chunks_manager::UncheckedChunk<Runtime>,
+				crate::PeopleChunkPageSize,
+			> = page
+				.iter()
+				.cloned()
+				.map(indiv_pallet_chunks_manager::UncheckedChunk::<Runtime>)
+				.collect::<Vec<_>>()
+				.try_into()
+				.unwrap();
+			indiv_pallet_chunks_manager::Chunks::<Runtime>::insert(
+				crate::MembersFlexibleRingExponent::get(),
+				page_index as u32,
+				page,
+			);
+		}
+		assert_ok!(<Members as AppendOnlyMembers>::create_collection(
+			Location::here(),
+			&identifier,
+			1,
+			RingMode::Flexible,
+			crate::MembersFlexibleRingExponent::get(),
+			None,
+		));
+		let member_secret =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::new_secret([91u8; 32]);
+		let member = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::member_from_secret(
+			&member_secret,
+		);
+		assert_ok!(<Members as AppendOnlyMembers>::add_members(&identifier, vec![member.clone()],));
+		assert_ok!(Members::onboard_members_authorized(
+			frame_system::RawOrigin::Authorized.into(),
+			identifier,
+			0,
+			0,
+			Some(member.clone()),
+			0,
+		));
+		assert_ok!(Members::build_ring_authorized(
+			frame_system::RawOrigin::Authorized.into(),
+			identifier,
+			0,
+			crate::MembersFlexibleRingExponent::get(),
+			None,
+			1,
+			0,
+		));
+		let revision = <Members as MembershipProver>::ring_revision(&identifier, 0)
+			.expect("the test ring has a revision");
+		let ring_members = <Members as AppendOnlyMembers>::ring_members(&identifier, 0);
+		let capacity = crate::MembersFlexibleRingExponent::get().try_into().unwrap();
+		let commitment = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::open(
+			capacity,
+			&member,
+			ring_members.into_iter(),
+		)
+		.expect("the one-member ring opens");
 		let period = crate::Resources::long_term_storage_period_from_timestamp(
 			<crate::Timestamp as frame_support::traits::UnixTime>::now().as_secs(),
 		);
-		assert_ok!(crate::Resources::claim_long_term_storage(
-			indiv_pallet_resources::Origin::LongTermStorageClaim(
-				[11u8; 32],
-				indiv_pallet_resources::types::MembershipCollection::People,
-			)
-			.into(),
+		let inner = RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage {
 			period,
+			counter: 0,
+			account_id: alice.clone(),
+		});
+		let context = crate::Resources::long_term_storage_context(period, 0);
+		let message = resource_meta_message(&inner, &alice);
+		let (proof, _) = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create(
+			commitment.clone(),
+			&member_secret,
+			&context,
+			&message,
+		)
+		.expect("the MetaTx Resources proof builds");
+		let resource_info = crate::meta_v6::MetaResourcesAuthV6::ClaimLongTermStorage(
+			proof,
 			0,
-			alice.clone(),
-		));
-		let inner = RuntimeCall::Resources(
-			indiv_pallet_resources::Call::cancel_long_term_storage_reservation {
-				reservation_id: 0,
-			},
+			revision,
+			indiv_pallet_resources::types::MembershipCollection::People,
 		);
+		let (invalid_proof, _) = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::create(
+			commitment,
+			&member_secret,
+			&context,
+			&[0u8; 32],
+		)
+		.expect("the negative MetaTx Resources proof builds");
+		let invalid_meta = signed_meta_tx(
+			inner.clone(),
+			alice.clone(),
+			&alice_pair,
+			Some(crate::meta_v6::MetaResourcesAuthV6::ClaimLongTermStorage(
+				invalid_proof,
+				0,
+				revision,
+				indiv_pallet_resources::types::MembershipCollection::People,
+			)),
+		);
+		let (_, _, invalid_extension): (
+			RuntimeCall,
+			sp_runtime::generic::ExtensionVersion,
+			crate::MetaTxExtension,
+		) = Decode::decode(&mut invalid_meta.encode().as_slice()).unwrap();
+		let (_, invalid_consume, ..) = invalid_extension;
+		let invalid_token = crate::meta_v6::PaidMetaTokenV6 {
+			payer: bob.clone(),
+			intent_commitment: invalid_consume.0.commitment(),
+			outer_nonce: 0,
+			genesis_hash: System::block_hash(0),
+			spec_version: crate::VERSION.spec_version,
+			transaction_version: crate::VERSION.transaction_version,
+			consumed: false,
+		};
+		crate::meta_v6::put_token(&invalid_token);
+		let invalid_len = invalid_meta.encoded_size() as u32;
+		assert_noop!(
+			crate::MetaTx::dispatch(
+				RuntimeOrigin::signed(bob.clone()),
+				Box::new(invalid_meta),
+				invalid_len,
+			),
+			pallet_meta_tx::Error::<Runtime>::BadProof,
+		);
+		assert!(crate::meta_v6::token().is_some());
+		crate::meta_v6::clear_token();
 
-		let meta = signed_meta_tx(inner.clone(), alice.clone(), &alice_pair);
+		let meta =
+			signed_meta_tx(inner.clone(), alice.clone(), &alice_pair, Some(resource_info.clone()));
+		let (v5_call, v5_version, mut v5_extension): (
+			RuntimeCall,
+			sp_runtime::generic::ExtensionVersion,
+			crate::MetaTxExtension,
+		) = Decode::decode(&mut meta.encode().as_slice()).unwrap();
+		v5_extension.1 .0.transaction_version = 5;
+		let v5_meta = pallet_meta_tx::MetaTxFor::<Runtime>::new(v5_call, v5_version, v5_extension);
+		let v5_len = v5_meta.encoded_size() as u32;
+		let v5_outer = RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
+			meta_tx: Box::new(v5_meta),
+			meta_tx_encoded_len: v5_len,
+		});
+		assert!(crate::meta_v6::inspect_paid_meta(&v5_outer, 0).is_err());
+		assert!(<(
+			RuntimeCall,
+			sp_runtime::generic::ExtensionVersion,
+			crate::MetaTxExtension,
+		)>::decode(&mut meta.encode().as_slice())
+		.is_ok(), "SDK MetaTx encoding must match the Orbis inspection mirror");
 		let encoded_len = meta.encoded_size() as u32;
 		let outer = RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
 			meta_tx: Box::new(meta.clone()),
 			meta_tx_encoded_len: encoded_len,
 		});
+		let utility_meta = RuntimeCall::Utility(pallet_utility::Call::batch {
+			calls: vec![
+				RuntimeCall::System(frame_system::Call::remark { remark: vec![] }),
+				outer.clone(),
+			],
+		});
+		let proxy_meta = RuntimeCall::Proxy(pallet_proxy::Call::proxy {
+			real: alice.clone().into(),
+			force_proxy_type: Some(crate::ProxyType::Any),
+			call: Box::new(outer.clone()),
+		});
+		let multisig_meta = RuntimeCall::Multisig(pallet_multisig::Call::as_multi_threshold_1 {
+			other_signatories: vec![alice.clone()],
+			call: Box::new(outer.clone()),
+		});
+		for allowed in [&outer, &utility_meta, &proxy_meta, &multisig_meta] {
+			assert!(crate::meta_v6::inspect_paid_meta(allowed, 0).unwrap().is_some());
+		}
+		let denied_sudo =
+			RuntimeCall::Sudo(pallet_sudo::Call::sudo { call: Box::new(outer.clone()) });
+		let denied_scheduler = RuntimeCall::Scheduler(pallet_scheduler::Call::schedule {
+			when: 2,
+			maybe_periodic: None,
+			priority: 0,
+			call: Box::new(outer.clone()),
+		});
+		let denied_opaque = RuntimeCall::Multisig(pallet_multisig::Call::approve_as_multi {
+			threshold: 2,
+			other_signatories: vec![alice.clone()],
+			maybe_timepoint: None,
+			call_hash: [0u8; 32],
+			max_weight: frame_support::weights::Weight::from_parts(1, 0),
+		});
+		for denied in [&denied_sudo, &denied_scheduler, &denied_opaque] {
+			assert!(crate::meta_v6::inspect_paid_meta(denied, 0).is_err());
+		}
 		assert!(
 			!outer.is_feeless(&RuntimeOrigin::signed(bob.clone())),
 			"the sponsor's outer meta transaction must follow ordinary fee accounting"
 		);
 		let outer_info = outer.get_dispatch_info();
-		let outer_extension = crate::default_inner_tx_extensions(
+		let outer_extension = crate::paid_tx_extensions(crate::default_inner_tx_extensions(
 			0,
 			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 			)
 			.into(),
 			Default::default(),
-		);
+		));
 		let implicit = outer_extension.implicit().unwrap();
 		let (_, val, outer_origin) = outer_extension
 			.validate(
@@ -2503,7 +2859,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		assert_eq!(System::account_nonce(&bob), 1);
 		let post_info = crate::MetaTx::dispatch(outer_origin, Box::new(meta.clone()), encoded_len)
 			.expect("the signed inner intent dispatches");
-		assert_ok!(crate::InnerTxExtensions::post_dispatch_details(
+		assert_ok!(crate::TxExtensions::post_dispatch_details(
 			pre,
 			&outer_info,
 			&post_info,
@@ -2514,7 +2870,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		assert!(Balances::free_balance(&bob) < bob_balance);
 		assert!(matches!(
 			crate::TransactionStorage::resource_reservation(0),
-			Some(bulletin_transaction_storage_primitives::ResourceReservationView::Tombstone(_))
+			Some(bulletin_transaction_storage_primitives::ResourceReservationView::Active(_))
 		));
 		assert_eq!(System::account_nonce(&alice), 1);
 		assert_eq!(Balances::free_balance(&alice), alice_balance);
@@ -2525,10 +2881,10 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 				Box::new(meta),
 				encoded_len,
 			),
-			pallet_meta_tx::Error::<Runtime>::Stale,
+			pallet_meta_tx::Error::<Runtime>::Invalid,
 		);
 
-		let forged = signed_meta_tx(inner, alice, &bob_pair);
+		let forged = signed_meta_tx(inner, alice, &bob_pair, Some(resource_info));
 		let forged_len = forged.encoded_size() as u32;
 		assert_noop!(
 			crate::MetaTx::dispatch(RuntimeOrigin::signed(bob), Box::new(forged), forged_len),

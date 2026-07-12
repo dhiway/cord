@@ -87,7 +87,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Full ring-backed personhood | `indiv_pallet_people` | Native at index 95 with Sudo recognition, flexible membership and authenticated person origins |
 | People Lite compatibility API and storage semantics | `indiv_pallet_people_lite` | Native at index 94 with Members-backed aliases, Sudo allowances and transaction authentication |
 | Storage initialization | `indiv_pallet_storage_initialization` | Gap |
-| Resources and chunk management | `indiv_pallet_resources`, `indiv_pallet_chunks_manager` | Native Orbis Resources V1 present at index 96 with person/lite proof quotas, atomic isolated Bulletin reservations and Root management; Chunk Manager remains at 91 |
+| Resources and chunk management | `indiv_pallet_resources`, `indiv_pallet_chunks_manager` | Native Orbis Resources V1 present at index 96 with person/lite proof quotas, atomic isolated Bulletin reservations, account-bound paid MetaTx v6 claims and Root management; Chunk Manager remains at 91 |
 | Members and notifications | members/subscriber/notifier pallets | Ring Members 92 and Sudo-managed XCM Notifier 93 present; local subscriber excluded because native consumers bind Members directly (ADR 0007) |
 | Coinage and airdrop | Individuality People | Gap; enterprise issuance policy required |
 | Honour, proof-of-ink, score and game | Individuality People application pallets | Gap |

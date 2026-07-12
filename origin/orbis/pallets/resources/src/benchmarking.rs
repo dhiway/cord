@@ -992,27 +992,34 @@ mod benches {
 	}
 
 	#[benchmark]
-	fn expire_long_term_storage_reservations() -> Result<(), BenchmarkError> {
+	fn expire_long_term_storage_reservations(
+		n: Linear<1, { T::LongTermStorageCleanupLimit::get() }>,
+	) -> Result<(), BenchmarkError> {
 		let period_duration = T::LongTermStoragePeriodDuration::get() as u64;
 		<T as Config>::BenchmarkHelper::set_time(Duration::from_secs(period_duration + 100));
 		let period =
 			Pallet::<T>::long_term_storage_period_from_timestamp(T::Clock::now().as_secs());
 		let owner: T::AccountId = whitelisted_caller();
-		let origin =
-			<T as frame_system::Config>::RuntimeOrigin::from(crate::Origin::LongTermStorageClaim(
-				[42u8; 32],
-				crate::types::MembershipCollection::LitePeople,
-			));
-		Pallet::<T>::claim_long_term_storage(origin, period, 0, owner.clone())?;
+		for i in 0..n {
+			let mut alias = [42u8; 32];
+			alias[..4].copy_from_slice(&i.to_le_bytes());
+			let origin = <T as frame_system::Config>::RuntimeOrigin::from(
+				crate::Origin::LongTermStorageClaim(
+					alias,
+					crate::types::MembershipCollection::LitePeople,
+				),
+			);
+			Pallet::<T>::claim_long_term_storage(origin, period, i as u8, owner.clone())?;
+		}
 		frame_system::Pallet::<T>::set_block_number(
 			T::StorageReservationDuration::get().saturating_add(1u32.into()),
 		);
 
 		#[extrinsic_call]
-		_(SystemOrigin::Signed(owner), 1);
+		_(SystemOrigin::Signed(owner), n);
 
 		assert_last_event::<T>(
-			Event::LongTermStorageReservationExpired { reservation_id: 0 }.into(),
+			Event::LongTermStorageReservationExpired { reservation_id: u64::from(n - 1) }.into(),
 		);
 		Ok(())
 	}

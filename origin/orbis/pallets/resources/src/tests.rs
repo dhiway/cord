@@ -2665,6 +2665,137 @@ mod long_term_storage {
 	use indiv_support::utils::BigEndianU32;
 
 	#[test]
+	fn claim_extension_accepts_real_proof_and_rejects_invalid_or_expired_intents() {
+		new_test_ext().execute_with(|| {
+			let day_secs: u64 = 24 * 60 * 60;
+			set_time_sec(3 * day_secs + 100);
+			assert_ok!(Members::create_collection(
+				0,
+				indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER,
+				1,
+				indiv_pallet_members::RingMode::Flexible,
+				indiv_support::traits::RingExponent::R2e9,
+				None,
+			));
+			let secret = MockCrypto::new_secret([71u8; 32]);
+			let member = MockCrypto::member_from_secret(&secret);
+			assert_ok!(People::force_recognize_personhood(
+				RuntimeOrigin::root(),
+				vec![member.clone()],
+			));
+			advance_to_block(3);
+			set_time_sec(3 * day_secs + 100);
+			let revision = Members::ring_revision(indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER, 0)
+				.expect("recognized ring has a revision");
+			let ring_members =
+				Members::ring_members(indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER, 0);
+			let commitment = MockCrypto::open((), &member, ring_members.into_iter())
+				.expect("commitment should open");
+			let extension_version = 0u8;
+			let period =
+				Resources::long_term_storage_period_from_timestamp(TestClock::now().as_secs());
+
+			let call = RuntimeCall::Resources(crate::Call::claim_long_term_storage {
+				period,
+				counter: 0,
+				account_id: id_to_account(700),
+			});
+			let msg = sp_runtime::traits::TxBaseImplication((extension_version, &call))
+				.using_encoded(sp_io::hashing::blake2_256);
+			let context = Resources::long_term_storage_context(period, 0);
+			let (proof, _) = MockCrypto::create(commitment.clone(), &secret, &context, &msg)
+				.expect("proof should build");
+			let extension = crate::extension::AsResources::<Test>::new(Some(
+				crate::extension::AsResourcesInfo::ClaimLongTermStorage(
+					proof,
+					0,
+					revision,
+					MembershipCollection::People,
+				),
+			));
+			assert_ok!(extension.dispatch_transaction(
+				SystemOrigin::None.into(),
+				call.clone(),
+				&call.get_dispatch_info(),
+				call.encoded_size(),
+				extension_version,
+			));
+			assert_eq!(StorageClaims::<Test>::count(), 1);
+
+			let invalid_call = RuntimeCall::Resources(crate::Call::claim_long_term_storage {
+				period,
+				counter: 1,
+				account_id: id_to_account(701),
+			});
+			let wrong_call = RuntimeCall::Resources(crate::Call::claim_long_term_storage {
+				period,
+				counter: 1,
+				account_id: id_to_account(702),
+			});
+			let wrong_msg = sp_runtime::traits::TxBaseImplication((extension_version, &wrong_call))
+				.using_encoded(sp_io::hashing::blake2_256);
+			let invalid_context = Resources::long_term_storage_context(period, 1);
+			let (invalid_proof, _) =
+				MockCrypto::create(commitment.clone(), &secret, &invalid_context, &wrong_msg)
+					.expect("invalid-vector proof should build");
+			let invalid_extension = crate::extension::AsResources::<Test>::new(Some(
+				crate::extension::AsResourcesInfo::ClaimLongTermStorage(
+					invalid_proof,
+					0,
+					revision,
+					MembershipCollection::People,
+				),
+			));
+			assert!(matches!(
+				invalid_extension.validate_only(
+					SystemOrigin::None.into(),
+					&invalid_call,
+					&invalid_call.get_dispatch_info(),
+					invalid_call.encoded_size(),
+					TransactionSource::External,
+					extension_version,
+				),
+				Err(sp_runtime::transaction_validity::TransactionValidityError::Invalid(
+					InvalidTransaction::BadProof
+				))
+			));
+
+			let stale_call = RuntimeCall::Resources(crate::Call::claim_long_term_storage {
+				period: 0,
+				counter: 2,
+				account_id: id_to_account(703),
+			});
+			let stale_msg = sp_runtime::traits::TxBaseImplication((extension_version, &stale_call))
+				.using_encoded(sp_io::hashing::blake2_256);
+			let stale_context = Resources::long_term_storage_context(0, 2);
+			let (stale_proof, _) =
+				MockCrypto::create(commitment, &secret, &stale_context, &stale_msg)
+					.expect("stale-vector proof should build");
+			let stale_extension = crate::extension::AsResources::<Test>::new(Some(
+				crate::extension::AsResourcesInfo::ClaimLongTermStorage(
+					stale_proof,
+					0,
+					revision,
+					MembershipCollection::People,
+				),
+			));
+			assert!(matches!(
+				stale_extension.validate_only(
+					SystemOrigin::None.into(),
+					&stale_call,
+					&stale_call.get_dispatch_info(),
+					stale_call.encoded_size(),
+					TransactionSource::External,
+					extension_version,
+				),
+				Err(sp_runtime::transaction_validity::TransactionValidityError::Invalid(
+					InvalidTransaction::Custom(code)
+				)) if code == crate::extension::CustomValidity::InvalidLongTermStoragePeriod as u8
+			));
+		});
+	}
+
+	#[test]
 	fn claim_for_people_succeeds() {
 		new_test_ext().execute_with(|| {
 			System::set_block_number(1);

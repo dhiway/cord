@@ -91,6 +91,7 @@ sp-genesis-builder = { workspace = true }
 sp-hop = { workspace = true }
 sp-inherents = { workspace = true }
 sp-offchain = { workspace = true }
+sp-io = { workspace = true }
 sp-runtime = { workspace = true }
 sp-session = { workspace = true }
 sp-storage = { workspace = true }
@@ -124,8 +125,8 @@ parachain-info = { workspace = true }
 parachains-common = { workspace = true }
 
 [dev-dependencies]
+indiv-support = { workspace = true, features = ["genesis"] }
 parachains-runtimes-test-utils = { workspace = true }
-sp-io = { workspace = true }
 static_assertions = { workspace = true }
 toml = { workspace = true }
 
@@ -228,6 +229,7 @@ std = [
 	"sp-hop/std",
 	"sp-inherents/std",
 	"sp-offchain/std",
+	"sp-io/std",
 	"sp-runtime/std",
 	"sp-session/std",
 	"sp-storage/std",

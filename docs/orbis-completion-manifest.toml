@@ -1034,7 +1034,7 @@ api = "BulletinTransactionStorageApi"
 method = "stored_content_provenance(reference: BulletinRef<BlockNumber>) -> StorageActor<AccountId>"
 max_results = 1
 state = "present"
-evidence = "1d6ca22b"
+evidence = "6401424b"
 
 [[runtime_api]]
 id = "API-BulletinTransactionStorageApi-05"
@@ -1042,7 +1042,7 @@ api = "BulletinTransactionStorageApi"
 method = "resource_reservation(reservation_id: ReservationId) -> Option<ResourceReservationView<AccountId, BlockNumber>>"
 max_results = 1
 state = "present"
-evidence = "1d6ca22b"
+evidence = "6401424b"
 
 [[runtime_api]]
 id = "API-BulletinTransactionStorageApi-06"
@@ -1050,7 +1050,7 @@ api = "BulletinTransactionStorageApi"
 method = "resource_reservation_link(reservation_id: ReservationId, content_hash: ContentHash) -> Option<ResourceReservationLink<AccountId, BlockNumber>>"
 max_results = 1
 state = "present"
-evidence = "1d6ca22b"
+evidence = "6401424b"
 
 [[runtime_api]]
 id = "API-GenesisBuilder-01"
@@ -3160,7 +3160,7 @@ status = "planned"
 owner = "slice-1"
 contract = "signed logical reservation owner; real bytes/hash; isolated capacity; ordinary paid call"
 state = "present"
-evidence = "1d6ca22b"
+evidence = "6401424b"
 
 [[protocol_call]]
 id = "CALL-BulletinTransactionStorage-11"
@@ -3171,7 +3171,7 @@ status = "planned"
 owner = "slice-1"
 contract = "manual owner renewal of exact current reservation hash/ref; isolated capacity; ordinary paid call"
 state = "present"
-evidence = "1d6ca22b"
+evidence = "6401424b"
 
 [[protocol_storage]]
 id = "STORE-Resources-NextStorageReservationId"
@@ -3555,7 +3555,7 @@ signature = "stored_content_provenance(reference: BulletinRef<BlockNumber>) -> S
 bound = "max_results=1"
 contract = "scalar exact-ref provenance; missing V5 row returns LegacyUnknown"
 state = "present"
-evidence = "1d6ca22b"
+evidence = "6401424b"
 
 [[protocol_view]]
 id = "VIEW-resource-reservation"
@@ -3568,7 +3568,7 @@ signature = "resource_reservation(reservation_id: ReservationId) -> Option<Resou
 bound = "max_results=1"
 contract = "scalar tagged Active or Tombstone bounded audit view"
 state = "present"
-evidence = "1d6ca22b"
+evidence = "6401424b"
 
 [[protocol_view]]
 id = "VIEW-resource-reservation-link"
@@ -3581,7 +3581,7 @@ signature = "resource_reservation_link(reservation_id: ReservationId, content_ha
 bound = "max_results=1"
 contract = "scalar current exact reservation/hash link or None"
 state = "present"
-evidence = "1d6ca22b"
+evidence = "6401424b"
 
 [[protocol_event]]
 id = "EVENT-Resources-LongTermStorageReserved"
@@ -3847,7 +3847,7 @@ target = "BulletinTransactionStorage::store_reserved"
 owner = "slice-1"
 state = "present"
 contract = "benchmark worst-case bounded semantics for BulletinTransactionStorage::store_reserved"
-evidence = "1d6ca22b"
+evidence = "6401424b"
 
 [[protocol_benchmark]]
 id = "PBENCH-Bulletin-renew-reserved"
@@ -3855,7 +3855,7 @@ target = "BulletinTransactionStorage::renew_reserved"
 owner = "slice-1"
 state = "present"
 contract = "benchmark worst-case bounded semantics for BulletinTransactionStorage::renew_reserved"
-evidence = "1d6ca22b"
+evidence = "6401424b"
 
 [[protocol_benchmark]]
 id = "PBENCH-Bulletin-provenance-actor-paths"
@@ -3863,7 +3863,7 @@ target = "BulletinTransactionStorage::all_provenance_actor_paths"
 contract = "Account, Root, Preimage, AutoRenew, LegacyUnknown and reserved paths"
 owner = "slice-1"
 state = "present"
-evidence = "1d6ca22b"
+evidence = "6401424b"
 
 [[protocol_benchmark]]
 id = "PBENCH-Bulletin-worst-expiry-cursor"
@@ -3871,7 +3871,7 @@ target = "BulletinTransactionStorage::expire_due_resource_capacity"
 owner = "slice-1"
 state = "present"
 contract = "benchmark worst-case bounded semantics for BulletinTransactionStorage::expire_due_resource_capacity"
-evidence = "1d6ca22b"
+evidence = "6401424b"
 
 [[protocol_benchmark]]
 id = "PBENCH-Bulletin-full-tombstone-scan"
@@ -3879,7 +3879,7 @@ target = "BulletinTransactionStorage::prune_resource_tombstones"
 owner = "slice-1"
 state = "present"
 contract = "benchmark worst-case bounded semantics for BulletinTransactionStorage::prune_resource_tombstones"
-evidence = "1d6ca22b"
+evidence = "6401424b"
 
 [[protocol_benchmark]]
 id = "PBENCH-Bulletin-cross-pallet-prune"
@@ -3887,7 +3887,7 @@ target = "BulletinTransactionStorage::ResourceClaimLifecycle"
 owner = "slice-1"
 state = "present"
 contract = "benchmark worst-case bounded semantics for BulletinTransactionStorage::ResourceClaimLifecycle"
-evidence = "1d6ca22b"
+evidence = "6401424b"
 
 [[protocol_migration]]
 id = "PMIG-Bulletin-V5-to-V6"
@@ -3898,7 +3898,7 @@ owner = "slice-1"
 state = "present"
 pre_invariant = "snapshot all V5 Transactions, roots, latest-hash pointers, authorizations, AutoRenewals and PermanentStorageUsed"
 post_invariant = "all V5 snapshots byte-identical; StoredBy absence reads LegacyUnknown; ResourceReservations, expiry blocks/buckets/cursor, links/reverse links, tombstones/prune queue/cursor empty; ReservedPermanentCapacity == 0; sorted indices true; legacy refs rejected by renew_reserved"
-evidence = "1d6ca22b"
+evidence = "6401424b"
 
 [[protocol_migration]]
 id = "PMIG-Bulletin-V6-to-V7"
@@ -4055,24 +4055,24 @@ id = "RES-BUL-08"
 scenario = "failure injection at every pre-host boundary rolls back ID, purpose, alias, capacity, links, host effect and provenance"
 owner = "slice-1"
 contract = "failure injection at every pre-host boundary rolls back ID, purpose, alias, capacity, links, host effect and provenance"
-state = "pending"
-evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
+state = "present"
+evidence = "6401424b"
 
 [[protocol_acceptance]]
 id = "RES-BUL-09"
 scenario = "full expiry bucket and expiry-block set reject without partial state"
 owner = "slice-1"
 contract = "full expiry bucket and expiry-block set reject without partial state"
-state = "pending"
-evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
+state = "present"
+evidence = "6401424b"
 
 [[protocol_acceptance]]
 id = "RES-BUL-10"
 scenario = "full active-plus-tombstone cap and saturated prune queue preserve no-drop invariant"
 owner = "slice-1"
 contract = "full active-plus-tombstone cap and saturated prune queue preserve no-drop invariant"
-state = "pending"
-evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
+state = "present"
+evidence = "6401424b"
 
 [[protocol_acceptance]]
 id = "RES-BUL-11"
@@ -4087,8 +4087,8 @@ id = "RES-BUL-12"
 scenario = "provenance insertion/removal for signed, root, preimage, force, auto-renew and reserved paths"
 owner = "slice-1"
 contract = "provenance insertion/removal for signed, root, preimage, force, auto-renew and reserved paths"
-state = "pending"
-evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
+state = "present"
+evidence = "6401424b"
 
 [[protocol_acceptance]]
 id = "RES-BUL-13"
@@ -4111,8 +4111,8 @@ id = "RES-BUL-15"
 scenario = "MetaTx AsResources positive and negative paths preserve inner owner/nonce and outer sponsor payment/refund"
 owner = "slice-1"
 contract = "MetaTx AsResources positive and negative paths preserve inner owner/nonce and outer sponsor payment/refund"
-state = "pending"
-evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
+state = "present"
+evidence = "origin/orbis/runtime/src/meta_v6.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-16"

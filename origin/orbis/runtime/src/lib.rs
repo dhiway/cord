@@ -29,6 +29,7 @@ pub mod coretime;
 pub mod entity;
 // Genesis preset configurations.
 pub mod genesis_config_presets;
+mod meta_v6;
 
 #[cfg(test)]
 mod tests;
@@ -55,8 +56,8 @@ use frame_support::{
 	parameter_types,
 	traits::{
 		fungible, fungibles, tokens::imbalance::ResolveAssetTo, AsEnsureOriginWithArg, ConstBool,
-		ConstU128, ConstU32, ConstU64, Contains, EitherOf, EitherOfDiverse, Everything,
-		InstanceFilter, PrivilegeCmp, TransformOrigin, VariantCountOf,
+		ConstU128, ConstU32, ConstU64, Contains, EitherOf, EitherOfDiverse, InstanceFilter,
+		PrivilegeCmp, TransformOrigin, VariantCountOf,
 	},
 	weights::{ConstantMultiplier, Weight},
 	PalletId,
@@ -148,10 +149,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 25,
+	spec_version: 26,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 5,
+	transaction_version: 6,
 	system_version: 1,
 };
 
@@ -259,7 +260,7 @@ parameter_types! {
 
 #[derive_impl(frame_system::config_preludes::ParaChainDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Runtime {
-	type BaseCallFilter = Everything;
+	type BaseCallFilter = meta_v6::BaseFilter;
 	type BlockWeights = RuntimeBlockWeights;
 	type BlockLength = RuntimeBlockLength;
 	type AccountId = AccountId;
@@ -1160,14 +1161,15 @@ fn default_origin_policy_extensions() -> OriginPolicyExtensions {
 
 pub type MetaTxExtension = (
 	pallet_verify_signature::VerifySignature<Runtime>,
+	meta_v6::ConsumePaidMetaIngress,
 	pallet_meta_tx::MetaTxMarker<Runtime>,
-	OriginPolicyExtensions,
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
+	meta_v6::MetaAccountBoundPoliciesV6,
 	pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
 		Runtime,
 		BulletinCallInspector,
@@ -1175,8 +1177,19 @@ pub type MetaTxExtension = (
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
 
+pub struct OrbisMetaTxWeightInfo;
+
+impl pallet_meta_tx::WeightInfo for OrbisMetaTxWeightInfo {
+	fn bare_dispatch(n: u32) -> Weight {
+		<weights::pallet_meta_tx::WeightInfo<Runtime> as pallet_meta_tx::WeightInfo>::bare_dispatch(
+			n,
+		)
+		.saturating_add(RocksDbWeight::get().reads(1))
+	}
+}
+
 impl pallet_meta_tx::Config for Runtime {
-	type WeightInfo = weights::pallet_meta_tx::WeightInfo<Runtime>;
+	type WeightInfo = OrbisMetaTxWeightInfo;
 	type RuntimeEvent = RuntimeEvent;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type Extension = MetaTxExtension;
@@ -1575,10 +1588,12 @@ impl indiv_pallet_resources::benchmarking::BenchmarkHelper<Runtime> for Resource
 	}
 
 	fn sign_message(message: &[u8]) -> (AccountId, MultiSignature) {
-		use sp_core::Pair;
 		use sp_runtime::traits::IdentifyAccount;
-		let pair = sp_core::ed25519::Pair::from_seed(&[1u8; 32]);
-		(pair.public().into_account().into(), pair.sign(message).into())
+		const KEY_TYPE: sp_core::crypto::KeyTypeId = sp_core::crypto::KeyTypeId(*b"rsrc");
+		let public = sp_io::crypto::ed25519_generate(KEY_TYPE, None);
+		let signature = sp_io::crypto::ed25519_sign(KEY_TYPE, &public, message)
+			.expect("benchmark key was inserted immediately before signing");
+		(public.into_account().into(), signature.into())
 	}
 }
 
@@ -1644,6 +1659,47 @@ parameter_types! {
 #[derive(Clone, PartialEq, Eq, Default)]
 pub struct BulletinCallInspector;
 
+impl BulletinCallInspector {
+	fn is_opaque_dispatch_wrapper(call: &RuntimeCall) -> bool {
+		matches!(call, RuntimeCall::Multisig(pallet_multisig::Call::approve_as_multi { .. }))
+	}
+
+	fn contains_storage_mutation(call: &RuntimeCall, depth: u32) -> bool {
+		if matches!(
+			call,
+			RuntimeCall::TransactionStorage(
+				pallet_bulletin_transaction_storage::Call::store { .. } |
+					pallet_bulletin_transaction_storage::Call::store_with_cid_config { .. } |
+					pallet_bulletin_transaction_storage::Call::force_renew { .. } |
+					pallet_bulletin_transaction_storage::Call::store_reserved { .. } |
+					pallet_bulletin_transaction_storage::Call::renew_reserved { .. }
+			)
+		) {
+			return true;
+		}
+		if Self::is_opaque_dispatch_wrapper(call) ||
+			depth >= pallet_bulletin_transaction_storage::MAX_WRAPPER_DEPTH
+		{
+			return true;
+		}
+		if let RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch { meta_tx, .. }) = call {
+			let encoded = meta_tx.encode();
+			let Ok((inner, _, _)) =
+				<(RuntimeCall, sp_runtime::generic::ExtensionVersion, MetaTxExtension)>::decode(
+					&mut encoded.as_slice(),
+				)
+			else {
+				return true;
+			};
+			return Self::contains_storage_mutation(&inner, depth + 1);
+		}
+		<Self as pallet_bulletin_transaction_storage::CallInspector<Runtime>>::inspect_wrapper(call)
+			.is_some_and(|calls| {
+				calls.into_iter().any(|inner| Self::contains_storage_mutation(inner, depth + 1))
+			})
+	}
+}
+
 impl pallet_bulletin_transaction_storage::CallInspector<Runtime> for BulletinCallInspector {
 	fn inspect_wrapper(call: &RuntimeCall) -> Option<Vec<&RuntimeCall>> {
 		match call {
@@ -1656,8 +1712,26 @@ impl pallet_bulletin_transaction_storage::CallInspector<Runtime> for BulletinCal
 			RuntimeCall::Utility(pallet_utility::Call::dispatch_as_fallible { call, .. }) |
 			RuntimeCall::Utility(pallet_utility::Call::with_weight { call, .. }) =>
 				Some(vec![call.as_ref()]),
+			RuntimeCall::Proxy(pallet_proxy::Call::proxy { call, .. }) |
+			RuntimeCall::Proxy(pallet_proxy::Call::proxy_announced { call, .. }) |
+			RuntimeCall::Multisig(pallet_multisig::Call::as_multi_threshold_1 { call, .. }) |
+			RuntimeCall::Multisig(pallet_multisig::Call::as_multi { call, .. }) |
+			RuntimeCall::Scheduler(pallet_scheduler::Call::schedule { call, .. }) |
+			RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named { call, .. }) |
+			RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_after { call, .. }) |
+			RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named_after {
+				call, ..
+			}) |
+			RuntimeCall::Revive(pallet_revive::Call::eth_substrate_call { call, .. }) |
+			RuntimeCall::Revive(pallet_revive::Call::dispatch_as_fallback_account {
+				call, ..
+			}) => Some(vec![call.as_ref()]),
 			_ => None,
 		}
+	}
+
+	fn is_storage_mutating_call(call: &RuntimeCall, depth: u32) -> bool {
+		Self::contains_storage_mutation(call, depth)
 	}
 }
 
@@ -1870,8 +1944,13 @@ pub type InnerTxExtensions = (
 /// Storage-proof and unused-execution-weight reclamation wrapped around every Orbis transaction.
 /// This is required by the Asset Hub and Bulletin execution model, especially when multiple
 /// blocks share a collation bundle.
-pub type TxExtensions =
+pub type OuterCoreExtensions =
 	cumulus_pallet_weight_reclaim::StorageWeightReclaim<Runtime, InnerTxExtensions>;
+pub type TxExtensions = meta_v6::PaidMetaScope<OuterCoreExtensions>;
+
+fn paid_tx_extensions(inner: InnerTxExtensions) -> TxExtensions {
+	meta_v6::PaidMetaScope(inner.into())
+}
 
 fn default_inner_tx_extensions(
 	nonce: u32,
@@ -1907,7 +1986,7 @@ impl EthExtra for EthExtraImpl {
 	type ExtensionOtherVersions = sp_runtime::traits::InvalidVersion;
 
 	fn get_eth_extension(nonce: u32, tip: Balance) -> Self::ExtensionV0 {
-		default_inner_tx_extensions(
+		paid_tx_extensions(default_inner_tx_extensions(
 			nonce,
 			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(
@@ -1916,8 +1995,7 @@ impl EthExtra for EthExtraImpl {
 			)
 			.into(),
 			pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::new_from_eth_transaction(),
-		)
-		.into()
+		))
 	}
 }
 
@@ -1958,15 +2036,14 @@ where
 	RuntimeCall: From<C>,
 {
 	fn create_extension() -> Self::Extension {
-		default_inner_tx_extensions(
+		paid_tx_extensions(default_inner_tx_extensions(
 			0,
 			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 			)
 			.into(),
 			pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::default(),
-		)
-		.into()
+		))
 	}
 }
 

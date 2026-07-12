@@ -85,9 +85,7 @@ may be selected only by an explicit authorization carried by the signed inner in
 failure uses the payment extension's normal correction/refund behavior, while nonces and any quota
 prepared by validation follow FRAME transaction-validity semantics.
 
-The current MetaTx type contains `VerifySignature`, `MetaTxMarker`, the shared `AsPerson`,
-`PeopleLiteAuth`, `AsResources`, and `AuthorizeCall` policy tuple, version/genesis/mortality/nonce, recursive
-Bulletin validation, and metadata validation. Transaction version 5 binds the Resources-expanded signed
+The MetaTx v6 type contains `VerifySignature`, mandatory paid-ingress consumption, `MetaTxMarker`, signed system checks through nonce, the Orbis account-bound policy router, recursive Bulletin validation, and metadata validation. Resources Meta proofs bind the verified signer to the claim account before origin transformation. Transaction version 6 binds the account-bound Resources Meta policy and paid-ingress signed
 intent. It intentionally has no second payment withdrawal, `CheckWeight`, storage-weight reclaim,
 or Revive `SetOrigin`: those belong to the outer sponsored extrinsic. `RestrictOrigin`,
 protected-transfer, PGAS, and the other reserved policy slots remain explicit future gaps.
