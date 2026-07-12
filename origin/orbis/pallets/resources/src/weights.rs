@@ -96,6 +96,10 @@ pub trait WeightInfo {
 	fn meta_policy_revised_write() -> Weight;
 	fn meta_policy_max_proof() -> Weight;
 	fn meta_policy_envelope() -> Weight;
+	fn meta_policy_metadata_enabled() -> Weight;
+	fn meta_policy_metadata_disabled() -> Weight;
+	fn meta_policy_metadata_cannot_lookup() -> Weight;
+	fn meta_policy_metadata_max() -> Weight;
 }
 
 /// Weights for `indiv_pallet_resources` using the Substrate node and recommended hardware.
@@ -149,6 +153,10 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	fn meta_policy_envelope() -> Weight {
 		Weight::from_parts(51_400_000, 5_137).saturating_add(T::DbWeight::get().reads_writes(2, 2))
 	}
+	fn meta_policy_metadata_enabled() -> Weight { Weight::from_parts(25_000, 0) }
+	fn meta_policy_metadata_disabled() -> Weight { Weight::from_parts(25_000, 0) }
+	fn meta_policy_metadata_cannot_lookup() -> Weight { Weight::from_parts(25_000, 0) }
+	fn meta_policy_metadata_max() -> Weight { Weight::from_parts(25_000, 0) }
 	fn cancel_long_term_storage_reservation() -> Weight {
 		Weight::from_parts(100_000_000, 20_000)
 			.saturating_add(T::DbWeight::get().reads_writes(8, 8))
@@ -647,6 +655,10 @@ impl WeightInfo for () {
 	fn meta_policy_revised_write() -> Weight { Self::meta_policy_personal_alias_revised().max(Self::meta_policy_lite_alias_revised()) }
 	fn meta_policy_max_proof() -> Weight { Weight::from_parts(28_710_000, 5_137).saturating_add(RocksDbWeight::get().reads(6)) }
 	fn meta_policy_envelope() -> Weight { Weight::from_parts(51_400_000, 5_137).saturating_add(RocksDbWeight::get().reads_writes(2, 2)) }
+	fn meta_policy_metadata_enabled() -> Weight { Weight::from_parts(25_000, 0) }
+	fn meta_policy_metadata_disabled() -> Weight { Weight::from_parts(25_000, 0) }
+	fn meta_policy_metadata_cannot_lookup() -> Weight { Weight::from_parts(25_000, 0) }
+	fn meta_policy_metadata_max() -> Weight { Weight::from_parts(25_000, 0) }
 	fn cancel_long_term_storage_reservation() -> Weight {
 		Weight::from_parts(100_000_000, 20_000)
 			.saturating_add(RocksDbWeight::get().reads_writes(8, 8))

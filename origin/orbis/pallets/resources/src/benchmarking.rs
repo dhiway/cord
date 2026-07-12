@@ -76,6 +76,10 @@ pub enum MetaPolicyBenchmarkScenario {
 	RevisedWrite,
 	MaxProof,
 	Envelope,
+	MetadataEnabled,
+	MetadataDisabled,
+	MetadataCannotLookup,
+	MetadataMax,
 }
 
 /// Runtime hook for the Meta policy benchmarks hosted by this pallet.
@@ -313,6 +317,50 @@ mod benches {
 	}
 
 	#[benchmark]
+	fn meta_policy_metadata_enabled() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(
+				MetaPolicyBenchmarkScenario::MetadataEnabled,
+			)?;
+		}
+		Ok(())
+	}
+
+	#[benchmark]
+	fn meta_policy_metadata_disabled() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(
+				MetaPolicyBenchmarkScenario::MetadataDisabled,
+			)?;
+		}
+		Ok(())
+	}
+
+	#[benchmark]
+	fn meta_policy_metadata_cannot_lookup() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(
+				MetaPolicyBenchmarkScenario::MetadataCannotLookup,
+			)?;
+		}
+		Ok(())
+	}
+
+	#[benchmark]
+	fn meta_policy_metadata_max() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			<T as Config>::MetaPolicyBenchmarkHelper::run(
+				MetaPolicyBenchmarkScenario::MetadataMax,
+			)?;
+		}
+		Ok(())
+	}
+
+	#[benchmark]
 	fn register_lite_person() -> Result<(), BenchmarkError> {
 		let origin =
 			T::EnsureLitePerson::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?;
@@ -326,8 +374,8 @@ mod benches {
 
 		let max_len = T::MaxReservationQueueLength::get();
 		let prefill = max_len.saturating_sub(1);
-		let queue: BoundedVec<ReservationQueueEntryOf<T>, T::MaxReservationQueueLength> = (0..
-			prefill)
+		let queue: BoundedVec<ReservationQueueEntryOf<T>, T::MaxReservationQueueLength> = (0
+			..prefill)
 			.map(|i| {
 				let acc: T::AccountId = account("queue", i, 0);
 				ReservationOf::<T>::insert(&acc, &reserved);

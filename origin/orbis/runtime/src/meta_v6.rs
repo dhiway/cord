@@ -140,10 +140,10 @@ impl MetaAccountBoundPoliciesV6 {
 
 	/// Classify the call/proof pair before touching membership storage or verifying a proof.
 	fn classify(&self, call: &RuntimeCall) -> Result<RouterRouteV6, InvalidTransaction> {
-		if self.0.personhood.is_some() as u8 +
-			self.0.people_lite.is_some() as u8 +
-			self.0.resources.is_some() as u8 >
-			1
+		if self.0.personhood.is_some() as u8
+			+ self.0.people_lite.is_some() as u8
+			+ self.0.resources.is_some() as u8
+			> 1
 		{
 			return Err(InvalidTransaction::Call);
 		}
@@ -152,20 +152,26 @@ impl MetaAccountBoundPoliciesV6 {
 			RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage { .. })
 		);
 		match (&self.0.personhood, &self.0.people_lite, &self.0.resources) {
-			(None, None, Some(MetaResourcesAuthV6::ClaimLongTermStorage(..))) if resources_call =>
-				Ok(RouterRouteV6::ResourcesClaim),
+			(None, None, Some(MetaResourcesAuthV6::ClaimLongTermStorage(..))) if resources_call => {
+				Ok(RouterRouteV6::ResourcesClaim)
+			},
 			(_, _, _) if resources_call => Err(InvalidTransaction::Call),
-			(Some(MetaPersonhoodAuthV6::PersonalAliasAccount), None, None) =>
-				Ok(RouterRouteV6::PersonalAlias),
-			(Some(MetaPersonhoodAuthV6::PersonalIdentityAccount), None, None) =>
-				Ok(RouterRouteV6::PersonalIdentity),
-			(Some(MetaPersonhoodAuthV6::PersonalAliasAccountRevised(..)), None, None) =>
-				Ok(RouterRouteV6::PersonalAliasRevised),
+			(Some(MetaPersonhoodAuthV6::PersonalAliasAccount), None, None) => {
+				Ok(RouterRouteV6::PersonalAlias)
+			},
+			(Some(MetaPersonhoodAuthV6::PersonalIdentityAccount), None, None) => {
+				Ok(RouterRouteV6::PersonalIdentity)
+			},
+			(Some(MetaPersonhoodAuthV6::PersonalAliasAccountRevised(..)), None, None) => {
+				Ok(RouterRouteV6::PersonalAliasRevised)
+			},
 			(None, Some(MetaPeopleLiteAuthV6::LitePerson), None) => Ok(RouterRouteV6::LitePerson),
-			(None, Some(MetaPeopleLiteAuthV6::LiteAliasAccount), None) =>
-				Ok(RouterRouteV6::LiteAlias),
-			(None, Some(MetaPeopleLiteAuthV6::LiteAliasAccountRevised(..)), None) =>
-				Ok(RouterRouteV6::LiteAliasRevised),
+			(None, Some(MetaPeopleLiteAuthV6::LiteAliasAccount), None) => {
+				Ok(RouterRouteV6::LiteAlias)
+			},
+			(None, Some(MetaPeopleLiteAuthV6::LiteAliasAccountRevised(..)), None) => {
+				Ok(RouterRouteV6::LiteAliasRevised)
+			},
 			(None, None, None) => Ok(RouterRouteV6::None),
 			_ => Err(InvalidTransaction::Call),
 		}
@@ -195,6 +201,55 @@ pub fn benchmark_policy_scenario(
 	type BenchmarkCommitment = <Crypto as GenerateVerifiable>::Commitment;
 	fn stop(_: impl core::fmt::Debug) -> frame_benchmarking::BenchmarkError {
 		frame_benchmarking::BenchmarkError::Stop("production Meta benchmark workload failed")
+	}
+	struct MissingMetadata;
+	impl MetadataImplicitResolver for MissingMetadata {
+		fn resolve(
+			_: &frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+		) -> Result<Option<[u8; 32]>, TransactionValidityError> {
+			Err(sp_runtime::transaction_validity::UnknownTransaction::CannotLookup.into())
+		}
+	}
+	match scenario {
+		Scenario::MetadataEnabled => {
+			let metadata =
+				frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new_with_custom_hash(
+					[0xabu8; 32],
+				);
+			if bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&metadata)
+				.map_err(stop)?
+				!= Some([0xabu8; 32])
+			{
+				return Err(stop("enabled metadata implicit mismatch"));
+			}
+			return Ok(());
+		},
+		Scenario::MetadataDisabled => {
+			let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
+			if bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&metadata)
+				.map_err(stop)?
+				.is_some()
+			{
+				return Err(stop("disabled metadata unexpectedly resolved"));
+			}
+			return Ok(());
+		},
+		Scenario::MetadataCannotLookup => {
+			let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(true);
+			if MissingMetadata::resolve(&metadata).is_ok() {
+				return Err(stop("missing metadata unexpectedly resolved"));
+			}
+			return Ok(());
+		},
+		Scenario::MetadataMax => {
+			if Some([0xffu8; 32]).encode().len()
+				!= crate::weights::meta_v6::METADATA_IMPLICIT_MAX_BYTES as usize
+			{
+				return Err(stop("metadata implicit bound drifted"));
+			}
+			return Ok(());
+		},
+		_ => {},
 	}
 	fn install_ring(
 		identifier: [u8; 32],
@@ -602,6 +657,10 @@ pub fn benchmark_policy_scenario(
 			decode_meta_payload::<ProductionMetadataImplicitResolver>(&payload).map_err(stop)?;
 			return Ok(());
 		},
+		Scenario::MetadataEnabled
+		| Scenario::MetadataDisabled
+		| Scenario::MetadataCannotLookup
+		| Scenario::MetadataMax => unreachable!("metadata scenarios return before policy setup"),
 	};
 	if matches!(scenario, Scenario::Malformed) {
 		let policy = MetaAccountBoundPoliciesV6::new(policies);
@@ -697,8 +756,8 @@ pub fn benchmark_policy_scenario(
 		_ => {},
 	}
 	validate_prepare(policy, signer.clone(), call)?;
-	if matches!(scenario, Scenario::RevisedWrite) &&
-		!indiv_pallet_people::AccountToAlias::<Runtime>::get(&signer)
+	if matches!(scenario, Scenario::RevisedWrite)
+		&& !indiv_pallet_people::AccountToAlias::<Runtime>::get(&signer)
 			.is_some_and(|binding| binding.revision > 0)
 	{
 		return Err(stop("revised binding was not written"));
@@ -779,9 +838,9 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 		if let Some(personhood) = &self.0.personhood {
 			debug_assert!(matches!(
 				route,
-				RouterRouteV6::PersonalAlias |
-					RouterRouteV6::PersonalIdentity |
-					RouterRouteV6::PersonalAliasRevised
+				RouterRouteV6::PersonalAlias
+					| RouterRouteV6::PersonalIdentity
+					| RouterRouteV6::PersonalAliasRevised
 			));
 			let (local, value) = match personhood {
 				MetaPersonhoodAuthV6::PersonalAliasAccount => {
@@ -789,9 +848,9 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 						.ok_or(InvalidTransaction::BadSigner)?;
 					if !<Runtime as indiv_pallet_people::Config>::AccountContexts::contains(
 						&bound.ca.context,
-					) || indiv_pallet_people::AliasToAccount::<Runtime>::get(&bound.ca) !=
-						Some(signer.clone()) ||
-						<Members as MembershipProver>::ring_revision(
+					) || indiv_pallet_people::AliasToAccount::<Runtime>::get(&bound.ca)
+						!= Some(signer.clone())
+						|| <Members as MembershipProver>::ring_revision(
 							&*indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER,
 							bound.ring,
 						) != Some(bound.revision)
@@ -835,17 +894,17 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 						&msg,
 					)
 					.map_err(|_| InvalidTransaction::BadProof)?;
-					if revised.ca.alias != old.ca.alias ||
-						revised.ca.context != old.ca.context ||
-						revised.revision <= old.revision ||
-						revised.ring != old.ring ||
-						revised.ring != *ring_index ||
-						<Members as MembershipProver>::ring_revision(
+					if revised.ca.alias != old.ca.alias
+						|| revised.ca.context != old.ca.context
+						|| revised.revision <= old.revision
+						|| revised.ring != old.ring
+						|| revised.ring != *ring_index
+						|| <Members as MembershipProver>::ring_revision(
 							&*indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER,
 							revised.ring,
-						) != Some(revised.revision) ||
-						indiv_pallet_people::AliasToAccount::<Runtime>::get(&old.ca) !=
-							Some(signer.clone())
+						) != Some(revised.revision)
+						|| indiv_pallet_people::AliasToAccount::<Runtime>::get(&old.ca)
+							!= Some(signer.clone())
 					{
 						return Err(InvalidTransaction::BadSigner.into());
 					}
@@ -861,9 +920,9 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 		if let Some(lite) = &self.0.people_lite {
 			debug_assert!(matches!(
 				route,
-				RouterRouteV6::LitePerson |
-					RouterRouteV6::LiteAlias |
-					RouterRouteV6::LiteAliasRevised
+				RouterRouteV6::LitePerson
+					| RouterRouteV6::LiteAlias
+					| RouterRouteV6::LiteAliasRevised
 			));
 			let (local, value) = match lite {
 				MetaPeopleLiteAuthV6::LitePerson => {
@@ -878,9 +937,9 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 				MetaPeopleLiteAuthV6::LiteAliasAccount => {
 					let bound = indiv_pallet_people_lite::AccountToAlias::<Runtime>::get(&signer)
 						.ok_or(InvalidTransaction::BadSigner)?;
-					if indiv_pallet_people_lite::AliasToAccount::<Runtime>::get(&bound.ca) !=
-						Some(signer.clone()) ||
-						<Members as MembershipProver>::ring_revision(
+					if indiv_pallet_people_lite::AliasToAccount::<Runtime>::get(&bound.ca)
+						!= Some(signer.clone())
+						|| <Members as MembershipProver>::ring_revision(
 							&*indiv_pallet_people_lite::LITE_PEOPLE_MEMBER_IDENTIFIER,
 							bound.ring,
 						) != Some(bound.revision)
@@ -914,17 +973,17 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 						&msg,
 					)
 					.map_err(|_| InvalidTransaction::BadProof)?;
-					if revised.ca.alias != old.ca.alias ||
-						revised.ca.context != old.ca.context ||
-						revised.revision <= old.revision ||
-						revised.ring != old.ring ||
-						revised.ring != *ring_index ||
-						<Members as MembershipProver>::ring_revision(
+					if revised.ca.alias != old.ca.alias
+						|| revised.ca.context != old.ca.context
+						|| revised.revision <= old.revision
+						|| revised.ring != old.ring
+						|| revised.ring != *ring_index
+						|| <Members as MembershipProver>::ring_revision(
 							&*indiv_pallet_people_lite::LITE_PEOPLE_MEMBER_IDENTIFIER,
 							revised.ring,
-						) != Some(revised.revision) ||
-						indiv_pallet_people_lite::AliasToAccount::<Runtime>::get(&old.ca) !=
-							Some(signer.clone())
+						) != Some(revised.revision)
+						|| indiv_pallet_people_lite::AliasToAccount::<Runtime>::get(&old.ca)
+							!= Some(signer.clone())
 					{
 						return Err(InvalidTransaction::BadSigner.into());
 					}
@@ -943,9 +1002,9 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 				counter,
 				account_id,
 			}) => {
-				if account_id != &signer ||
-					self.0.personhood.is_some() ||
-					self.0.people_lite.is_some()
+				if account_id != &signer
+					|| self.0.personhood.is_some()
+					|| self.0.people_lite.is_some()
 				{
 					return Err(InvalidTransaction::BadSigner.into());
 				}
@@ -958,17 +1017,19 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 				else {
 					return Err(InvalidTransaction::Custom(META_POLICY_INVALIDITY).into());
 				};
-				if !crate::Resources::is_accepted_long_term_storage_period(*period) ||
-					*counter >= crate::ResourcesLongTermStorageClaimsPerPeriod::get()
+				if !crate::Resources::is_accepted_long_term_storage_period(*period)
+					|| *counter >= crate::ResourcesLongTermStorageClaimsPerPeriod::get()
 				{
 					return Err(InvalidTransaction::Custom(META_POLICY_INVALIDITY).into());
 				}
 				let context = crate::Resources::long_term_storage_context(*period, *counter);
 				let bound = match collection {
-					indiv_pallet_resources::types::MembershipCollection::People =>
-						indiv_pallet_people::AccountToAlias::<Runtime>::get(&signer),
-					indiv_pallet_resources::types::MembershipCollection::LitePeople =>
-						indiv_pallet_people_lite::AccountToAlias::<Runtime>::get(&signer),
+					indiv_pallet_resources::types::MembershipCollection::People => {
+						indiv_pallet_people::AccountToAlias::<Runtime>::get(&signer)
+					},
+					indiv_pallet_resources::types::MembershipCollection::LitePeople => {
+						indiv_pallet_people_lite::AccountToAlias::<Runtime>::get(&signer)
+					},
 				}
 				.ok_or(InvalidTransaction::BadSigner)?;
 				if bound.ring != *ring_index || bound.revision != *revision {
@@ -990,10 +1051,12 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 				)
 					.using_encoded(sp_io::hashing::blake2_256);
 				let identifier = match collection {
-					indiv_pallet_resources::types::MembershipCollection::People =>
-						*indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER,
-					indiv_pallet_resources::types::MembershipCollection::LitePeople =>
-						*indiv_pallet_people_lite::LITE_PEOPLE_MEMBER_IDENTIFIER,
+					indiv_pallet_resources::types::MembershipCollection::People => {
+						*indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER
+					},
+					indiv_pallet_resources::types::MembershipCollection::LitePeople => {
+						*indiv_pallet_people_lite::LITE_PEOPLE_MEMBER_IDENTIFIER
+					},
 				};
 				let validated = <Members as MembershipProver>::verify_membership_at_rev(
 					&identifier,
@@ -1009,12 +1072,14 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 				}
 				let alias = bound.ca.alias;
 				let reciprocal = match collection {
-					indiv_pallet_resources::types::MembershipCollection::People =>
-						indiv_pallet_people::AliasToAccount::<Runtime>::get(&bound.ca) ==
-							Some(signer.clone()),
-					indiv_pallet_resources::types::MembershipCollection::LitePeople =>
-						indiv_pallet_people_lite::AliasToAccount::<Runtime>::get(&bound.ca) ==
-							Some(signer.clone()),
+					indiv_pallet_resources::types::MembershipCollection::People => {
+						indiv_pallet_people::AliasToAccount::<Runtime>::get(&bound.ca)
+							== Some(signer.clone())
+					},
+					indiv_pallet_resources::types::MembershipCollection::LitePeople => {
+						indiv_pallet_people_lite::AliasToAccount::<Runtime>::get(&bound.ca)
+							== Some(signer.clone())
+					},
 				};
 				if !reciprocal {
 					return Err(InvalidTransaction::BadSigner.into());
@@ -1038,8 +1103,9 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 					origin,
 				))
 			},
-			_ if self.0 == PolicyProofsV6::default() =>
-				Ok((ValidTransaction::default(), PolicyValV6::None, origin)),
+			_ if self.0 == PolicyProofsV6::default() => {
+				Ok((ValidTransaction::default(), PolicyValV6::None, origin))
+			},
 			_ => Err(InvalidTransaction::Call.into()),
 		}
 	}
@@ -1065,8 +1131,9 @@ impl TransactionExtension<RuntimeCall> for MetaAccountBoundPoliciesV6 {
 			PolicyValV6::PersonalIdentity(account) => PolicyPreV6::PersonalIdentity(account),
 			PolicyValV6::LitePerson(account) => PolicyPreV6::LitePerson(account),
 			PolicyValV6::LiteAlias(account) => PolicyPreV6::LiteAlias(account),
-			PolicyValV6::ResourcesClaim(account, alias) =>
-				PolicyPreV6::ResourcesClaim(account, alias),
+			PolicyValV6::ResourcesClaim(account, alias) => {
+				PolicyPreV6::ResourcesClaim(account, alias)
+			},
 			PolicyValV6::None => PolicyPreV6::None,
 		})
 	}
@@ -1097,26 +1164,26 @@ impl TransactionExtension<RuntimeCall> for ConsumePaidMetaIngress {
 		_: &impl Implication,
 		_: TransactionSource,
 	) -> ValidateResult<H256, RuntimeCall> {
-		if origin.as_system_origin_signer() != Some(&self.0.inner_signer) ||
-			self.0.domain != META_DOMAIN
+		if origin.as_system_origin_signer() != Some(&self.0.inner_signer)
+			|| self.0.domain != META_DOMAIN
 		{
 			return Err(InvalidTransaction::BadSigner.into());
 		}
-		if self.0.call_hash != H256::from(sp_io::hashing::blake2_256(&call.encode())) ||
-			self.0.spec_version != crate::VERSION.spec_version ||
-			self.0.transaction_version != crate::VERSION.transaction_version ||
-			self.0.genesis_hash != System::block_hash(0)
+		if self.0.call_hash != H256::from(sp_io::hashing::blake2_256(&call.encode()))
+			|| self.0.spec_version != crate::VERSION.spec_version
+			|| self.0.transaction_version != crate::VERSION.transaction_version
+			|| self.0.genesis_hash != System::block_hash(0)
 		{
 			return Err(InvalidTransaction::BadProof.into());
 		}
 		let commitment = self.0.commitment();
 		let current = token().ok_or(InvalidTransaction::BadSigner)?;
-		if current.intent_commitment != commitment ||
-			current.consumed ||
-			current.payer == AccountId::new([0; 32]) ||
-			current.genesis_hash != System::block_hash(0) ||
-			current.spec_version != crate::VERSION.spec_version ||
-			current.transaction_version != crate::VERSION.transaction_version
+		if current.intent_commitment != commitment
+			|| current.consumed
+			|| current.payer == AccountId::new([0; 32])
+			|| current.genesis_hash != System::block_hash(0)
+			|| current.spec_version != crate::VERSION.spec_version
+			|| current.transaction_version != crate::VERSION.transaction_version
 		{
 			return Err(InvalidTransaction::BadSigner.into());
 		}
@@ -1244,10 +1311,10 @@ fn decode_meta_payload<R: MetadataImplicitResolver>(
 		metadata_extension_hash: hash_encoded(&metadata),
 		metadata_implicit: R::resolve(&metadata)?,
 	};
-	if consume.0 != expected ||
-		expected.spec_version != 28 ||
-		expected.transaction_version != 7 ||
-		matches!(inner_call, RuntimeCall::MetaTx(..))
+	if consume.0 != expected
+		|| expected.spec_version != 28
+		|| expected.transaction_version != 7
+		|| matches!(inner_call, RuntimeCall::MetaTx(..))
 	{
 		return Err(InvalidTransaction::BadProof.into());
 	}
@@ -1256,8 +1323,10 @@ fn decode_meta_payload<R: MetadataImplicitResolver>(
 
 pub const MAX_META_ENVELOPE_DEPTH: u32 = 4;
 pub const MAX_META_ENVELOPE_CALLS: u32 = 32;
-pub const MAX_META_ENCODED_BYTES: usize =
-	65_536 + crate::weights::meta_v6::METADATA_IMPLICIT_MAX_BYTES as usize;
+pub const MAX_META_ENCODED_BYTES: usize = 65_536;
+#[allow(dead_code)]
+pub const MAX_META_PAYLOAD_BYTES: usize =
+	MAX_META_ENCODED_BYTES - crate::weights::meta_v6::METADATA_IMPLICIT_MAX_BYTES as usize;
 
 struct InspectionState {
 	visited: u32,
@@ -1289,19 +1358,20 @@ fn inspect_node<R: MetadataImplicitResolver>(
 		return Ok(());
 	}
 	let denied_child = match call {
-		RuntimeCall::Utility(pallet_utility::Call::dispatch_as { call, .. }) |
-		RuntimeCall::Utility(pallet_utility::Call::dispatch_as_fallible { call, .. }) |
-		RuntimeCall::Utility(pallet_utility::Call::as_derivative { call, .. }) |
-		RuntimeCall::Scheduler(pallet_scheduler::Call::schedule { call, .. }) |
-		RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named { call, .. }) |
-		RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_after { call, .. }) |
-		RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named_after { call, .. }) |
-		RuntimeCall::Sudo(pallet_sudo::Call::sudo { call, .. }) |
-		RuntimeCall::Sudo(pallet_sudo::Call::sudo_unchecked_weight { call, .. }) |
-		RuntimeCall::Sudo(pallet_sudo::Call::sudo_as { call, .. }) |
-		RuntimeCall::Revive(pallet_revive::Call::eth_substrate_call { call, .. }) |
-		RuntimeCall::Revive(pallet_revive::Call::dispatch_as_fallback_account { call, .. }) =>
-			Some(call.as_ref()),
+		RuntimeCall::Utility(pallet_utility::Call::dispatch_as { call, .. })
+		| RuntimeCall::Utility(pallet_utility::Call::dispatch_as_fallible { call, .. })
+		| RuntimeCall::Utility(pallet_utility::Call::as_derivative { call, .. })
+		| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule { call, .. })
+		| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named { call, .. })
+		| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_after { call, .. })
+		| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named_after { call, .. })
+		| RuntimeCall::Sudo(pallet_sudo::Call::sudo { call, .. })
+		| RuntimeCall::Sudo(pallet_sudo::Call::sudo_unchecked_weight { call, .. })
+		| RuntimeCall::Sudo(pallet_sudo::Call::sudo_as { call, .. })
+		| RuntimeCall::Revive(pallet_revive::Call::eth_substrate_call { call, .. })
+		| RuntimeCall::Revive(pallet_revive::Call::dispatch_as_fallback_account { call, .. }) => {
+			Some(call.as_ref())
+		},
 		_ => None,
 	};
 	if let Some(child) = denied_child {
@@ -1310,17 +1380,19 @@ fn inspect_node<R: MetadataImplicitResolver>(
 		return if state.found != before { Err(InvalidTransaction::Call.into()) } else { Ok(()) };
 	}
 	match call {
-		RuntimeCall::Utility(pallet_utility::Call::batch { calls }) |
-		RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) |
-		RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) =>
+		RuntimeCall::Utility(pallet_utility::Call::batch { calls })
+		| RuntimeCall::Utility(pallet_utility::Call::batch_all { calls })
+		| RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => {
 			for child in calls {
 				inspect_node::<R>(child, depth.saturating_add(1), None, state)?;
+			}
+		},
+		RuntimeCall::Proxy(pallet_proxy::Call::proxy { call, .. })
+		| RuntimeCall::Proxy(pallet_proxy::Call::proxy_announced { call, .. })
+		| RuntimeCall::Multisig(pallet_multisig::Call::as_multi { call, .. })
+		| RuntimeCall::Multisig(pallet_multisig::Call::as_multi_threshold_1 { call, .. }) => {
+			inspect_node::<R>(call, depth.saturating_add(1), None, state)?
 			},
-		RuntimeCall::Proxy(pallet_proxy::Call::proxy { call, .. }) |
-		RuntimeCall::Proxy(pallet_proxy::Call::proxy_announced { call, .. }) |
-		RuntimeCall::Multisig(pallet_multisig::Call::as_multi { call, .. }) |
-		RuntimeCall::Multisig(pallet_multisig::Call::as_multi_threshold_1 { call, .. }) =>
-			inspect_node::<R>(call, depth.saturating_add(1), None, state)?,
 		_ => {},
 	}
 	Ok(())
@@ -1392,9 +1464,33 @@ pub struct ScopeVal<V> {
 	scope: Option<(AccountId, H256, u32)>,
 }
 
+#[cfg(test)]
+#[allow(dead_code)]
+impl<V> ScopeVal<V> {
+	pub(crate) fn core_count(&self) -> usize {
+		let _ = &self.core;
+		1
+	}
+	pub(crate) fn scope_count(&self) -> usize {
+		usize::from(self.scope.is_some())
+	}
+}
+
 pub struct ScopePre<P> {
 	core: P,
 	key: Option<H256>,
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+impl<P> ScopePre<P> {
+	pub(crate) fn core_count(&self) -> usize {
+		let _ = &self.core;
+		1
+	}
+	pub(crate) fn key_count(&self) -> usize {
+		usize::from(self.key.is_some())
+	}
 }
 
 impl<S, R> TransactionExtension<RuntimeCall> for PaidMetaScope<S, R>
@@ -1434,8 +1530,8 @@ where
 		let (valid, core, origin) =
 			self.0.validate(origin, call, info, len, implicit, inherited, source)?;
 		let intent = inspect_paid_meta::<R>(call, 0)?;
-		if intent.is_some() &&
-			matches!(origin.as_system_ref(), Some(frame_system::RawOrigin::Authorized))
+		if intent.is_some()
+			&& matches!(origin.as_system_ref(), Some(frame_system::RawOrigin::Authorized))
 		{
 			return Err(InvalidTransaction::Call.into());
 		}
@@ -1502,9 +1598,9 @@ impl frame_support::traits::Contains<RuntimeCall> for BaseFilter {
 			return true;
 		}
 		token().is_some_and(|token| {
-			!token.consumed &&
-				token.spec_version == crate::VERSION.spec_version &&
-				token.transaction_version == crate::VERSION.transaction_version
+			!token.consumed
+				&& token.spec_version == crate::VERSION.spec_version
+				&& token.transaction_version == crate::VERSION.transaction_version
 		})
 	}
 }

@@ -169,11 +169,11 @@ mod tests {
 		for route in routes.into_iter().filter(|route| {
 			matches!(
 				route.name,
-				"PersonalAliasAccount" |
-					"PersonalIdentityAccount" |
-					"PersonalAliasAccountRevised" |
-					"LitePerson" | "LiteAliasAccount" |
-					"LiteAliasAccountRevised"
+				"PersonalAliasAccount"
+					| "PersonalIdentityAccount"
+					| "PersonalAliasAccountRevised"
+					| "LitePerson" | "LiteAliasAccount"
+					| "LiteAliasAccountRevised"
 			)
 		}) {
 			assert!(route.declared.all_gte(one_read_mapping_miss));
@@ -197,7 +197,8 @@ mod tests {
 
 		let max_envelope = meta_v6::paid_scope_max(db);
 		let expected = Weight::from_parts(
-			meta_v6::inspector_ref_time(meta_v6::MAX_CALLS, meta_v6::MAX_DEPTH, meta_v6::MAX_BYTES),
+			meta_v6::inspector_ref_time(meta_v6::MAX_CALLS, meta_v6::MAX_DEPTH, meta_v6::MAX_BYTES)
+				+ meta_v6::METADATA_IMPLICIT_WEIGHT_DELTA,
 			0,
 		)
 		.saturating_add(db.reads_writes(2, 2));

@@ -169,8 +169,8 @@ fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 	for pallet in pallets {
 		let package = pallet["package"].as_str().unwrap();
 		let source = pallet["source"].as_str().unwrap();
-		if source != "dhiway-sdk" ||
-			matches!(package, "pallet-pgas-allowance" | "pallet-vesting" | "pallet-claims")
+		if source != "dhiway-sdk"
+			|| matches!(package, "pallet-pgas-allowance" | "pallet-vesting" | "pallet-claims")
 		{
 			assert!(
 				provenance_packages.contains(package),
@@ -209,8 +209,8 @@ fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 			let row = node_surfaces
 				.iter()
 				.find(|row| {
-					row["kind"].as_str() == Some("source-crate") &&
-						row["name"].as_str() == Some(*package)
+					row["kind"].as_str() == Some("source-crate")
+						&& row["name"].as_str() == Some(*package)
 				})
 				.unwrap();
 			assert_eq!(row["owner"].as_str(), Some(owner), "{package} owner");
@@ -286,16 +286,13 @@ fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 		]
 	);
 	assert!(
-		manifest["node_surface"]
-			.as_array()
-			.unwrap()
-			.iter()
-			.any(|row| row["id"].as_str() == Some("NODE-bulletin-proof-provider") &&
-				row["state"].as_str() == Some("planned") &&
-				row["owner"].as_str() == Some("slice-12") &&
-				row["evidence"]
-					.as_str()
-					.is_some_and(|evidence| evidence.starts_with("slice-12:"))),
+		manifest["node_surface"].as_array().unwrap().iter().any(|row| row["id"].as_str()
+			== Some("NODE-bulletin-proof-provider")
+			&& row["state"].as_str() == Some("planned")
+			&& row["owner"].as_str() == Some("slice-12")
+			&& row["evidence"]
+				.as_str()
+				.is_some_and(|evidence| evidence.starts_with("slice-12:"))),
 		"Bulletin's node proof provider remains a truthful Slice 12 deliverable"
 	);
 	for package in ["pallet-orbis-entity", "pallet-orbis-feeless"] {
@@ -371,8 +368,8 @@ fn remediation_manifest_v3_is_exact_and_semantically_frozen() {
 			);
 			let expected_status = if status == "present" {
 				"present"
-			} else if matches!(table, "meta_vector" | "provider_v8_contract") ||
-				(table == "remediation_gate" && row_id == "GATE-5-EVIDENCE")
+			} else if matches!(table, "meta_vector" | "provider_v8_contract")
+				|| (table == "remediation_gate" && row_id == "GATE-5-EVIDENCE")
 			{
 				"planned"
 			} else {
@@ -597,9 +594,9 @@ fn resources_bulletin_iteration_two_manifest_is_exact() {
 			matches!(
 				row["id"].as_str(),
 				Some(
-					"API-BulletinTransactionStorageApi-04" |
-						"API-BulletinTransactionStorageApi-05" |
-						"API-BulletinTransactionStorageApi-06"
+					"API-BulletinTransactionStorageApi-04"
+						| "API-BulletinTransactionStorageApi-05"
+						| "API-BulletinTransactionStorageApi-06"
 				)
 			)
 		})
@@ -1003,9 +1000,9 @@ fn resources_bulletin_iteration_two_manifest_is_exact() {
 			matches!(
 				row["id"].as_str(),
 				Some(
-					"API-BulletinTransactionStorageApi-04" |
-						"API-BulletinTransactionStorageApi-05" |
-						"API-BulletinTransactionStorageApi-06"
+					"API-BulletinTransactionStorageApi-04"
+						| "API-BulletinTransactionStorageApi-05"
+						| "API-BulletinTransactionStorageApi-06"
 				)
 			)
 		})
@@ -3403,8 +3400,9 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			.into_iter()
 			.rev()
 			.find_map(|record| match record.event {
-				crate::RuntimeEvent::MetaTx(pallet_meta_tx::Event::Dispatched { result }) =>
-					Some(result),
+				crate::RuntimeEvent::MetaTx(pallet_meta_tx::Event::Dispatched { result }) => {
+					Some(result)
+				},
 				_ => None,
 			})
 			.expect("MetaTx emits the inner dispatch result");
@@ -3529,7 +3527,21 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 		);
 		let enabled_implicit = enabled_scope.implicit().unwrap();
-		assert!(enabled_scope
+		let business_hash = || {
+			(
+					System::account(&bob).nonce,
+					Balances::free_balance(&bob),
+					<Balances as frame_support::traits::fungible::InspectHold<AccountId>>::
+						total_balance_on_hold(&bob),
+					Assets::balance(1, &bob),
+					<AssetsHolder as frame_support::traits::fungibles::InspectHold<AccountId>>::
+						total_balance_on_hold(1, &bob),
+				)
+					.using_encoded(sp_io::hashing::blake2_256)
+		};
+		let business_before = business_hash();
+		let token_before = crate::meta_v6::token();
+		let (_, enabled_val, enabled_origin) = enabled_scope
 			.validate(
 				RuntimeOrigin::signed(bob.clone()),
 				&enabled_outer,
@@ -3539,7 +3551,9 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 				&sp_runtime::traits::TxBaseImplication((META_EXTENSION_VERSION, &enabled_outer)),
 				sp_runtime::transaction_validity::TransactionSource::External,
 			)
-			.is_ok());
+			.unwrap();
+		assert_eq!(enabled_val.core_count(), 1);
+		assert_eq!(enabled_val.scope_count(), 1);
 		let wrong_scope = crate::meta_v6::PaidMetaScope::<_, WrongMetadataResolver>::from(
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 		);
@@ -3573,6 +3587,61 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 				sp_runtime::transaction_validity::UnknownTransaction::CannotLookup
 			))
 		));
+		assert_eq!(crate::meta_v6::token(), token_before);
+		assert_eq!(business_hash(), business_before);
+		let enabled_pre = enabled_scope
+			.prepare(
+				enabled_val,
+				&enabled_origin,
+				&enabled_outer,
+				&enabled_outer.get_dispatch_info(),
+				enabled_outer.encoded_size(),
+			)
+			.unwrap();
+		assert_eq!(enabled_pre.core_count(), 1);
+		assert_eq!(enabled_pre.key_count(), 1);
+		assert!(crate::meta_v6::token().is_some());
+		assert_eq!(business_hash(), business_before);
+		crate::meta_v6::clear_token();
+		let production_metadata =
+			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(true);
+		if let Ok(Some(compiled_hash)) =
+			<crate::meta_v6::ProductionMetadataImplicitResolver as crate::meta_v6::MetadataImplicitResolver>::resolve(&production_metadata)
+		{
+				let production_meta = signed_meta_tx_with_metadata(
+					RuntimeCall::System(frame_system::Call::remark {
+						remark: b"compiled-metadata-implicit-v7".to_vec(),
+					}),
+					alice.clone(),
+					&alice_pair,
+					Default::default(),
+					production_metadata,
+					Some(compiled_hash),
+				);
+				let production_len = production_meta.encoded_size() as u32;
+				let production_outer = RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
+					meta_tx: Box::new(production_meta),
+					meta_tx_encoded_len: production_len,
+				});
+				let production_scope = crate::meta_v6::PaidMetaScope::<_, crate::meta_v6::ProductionMetadataImplicitResolver>::from(
+					frame_system::CheckSpecVersion::<Runtime>::new(),
+				);
+				let implicit = production_scope.implicit().unwrap();
+				assert!(production_scope
+					.validate(
+						RuntimeOrigin::signed(bob.clone()),
+						&production_outer,
+						&production_outer.get_dispatch_info(),
+						production_outer.encoded_size(),
+						implicit,
+						&sp_runtime::traits::TxBaseImplication((
+							META_EXTENSION_VERSION,
+							&production_outer,
+						)),
+						sp_runtime::transaction_validity::TransactionSource::External,
+					)
+					.is_ok());
+		}
 		let alice_balance =
 			<Balances as Mutate<AccountId>>::set_balance(&alice, crate::ExistentialDeposit::get());
 		let bob_balance = <Balances as Mutate<AccountId>>::set_balance(&bob, 100_000_000_000_000);
@@ -3839,7 +3908,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			.unwrap()
 			.is_some());
 			assert!(
-				!<crate::xcm_config::OrbisXcmSafeCallFilter as Contains<RuntimeCall>>::contains(
+				!<crate::xcm_config::OrbisXcmSafeCallFilter as frame_support::traits::Contains<RuntimeCall>>::contains(
 					allowed
 				),
 				"XCM/sovereign ingress cannot carry a paid Meta envelope"
@@ -3907,7 +3976,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			Ok(None)
 		);
 		assert!(
-			!<crate::xcm_config::OrbisXcmSafeCallFilter as Contains<RuntimeCall>>::contains(
+			!<crate::xcm_config::OrbisXcmSafeCallFilter as frame_support::traits::Contains<RuntimeCall>>::contains(
 				&approval_only
 			),
 			"XCM rejects opaque approval even though signed pool ingress remains ordinary paid",
@@ -4767,6 +4836,10 @@ fn native_benchmark_api_executes_all_meta_policy_targets() {
 		"meta_policy_revised_write",
 		"meta_policy_max_proof",
 		"meta_policy_envelope",
+		"meta_policy_metadata_enabled",
+		"meta_policy_metadata_disabled",
+		"meta_policy_metadata_cannot_lookup",
+		"meta_policy_metadata_max",
 	];
 	for name in names {
 		let state = sc_client_db::BenchmarkingState::<sp_runtime::traits::BlakeTwo256>::new(
@@ -4872,10 +4945,23 @@ fn metadata_custom_hash_loss_is_detected_after_wire_roundtrip() {
 		extension.encode(),
 		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(true).encode(),
 	);
-	assert_eq!(
-		bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&decoded),
-		Err(sp_runtime::transaction_validity::UnknownTransaction::CannotLookup.into()),
-	);
+	let decoded_implicit =
+		bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&decoded);
+	if option_env!("RUNTIME_METADATA_HASH").is_some() {
+		assert_eq!(
+			decoded_implicit.unwrap(),
+			Some([
+				0xd0, 0x3f, 0x87, 0xe6, 0x27, 0x98, 0x78, 0xca, 0xfc, 0xf6, 0x14, 0x9a, 0x71, 0x07,
+				0xa6, 0x30, 0x71, 0x63, 0xe4, 0xe9, 0x97, 0xf8, 0xd7, 0x2d, 0x02, 0x9c, 0xd6, 0xaa,
+				0x83, 0x7f, 0x98, 0x54,
+			]),
+		);
+	} else {
+		assert_eq!(
+			decoded_implicit,
+			Err(sp_runtime::transaction_validity::UnknownTransaction::CannotLookup.into()),
+		);
+	}
 	use sp_core::Pair;
 	let pair = sp_core::sr25519::Pair::from_string("//Alice", None).unwrap();
 	let signature = pair.sign(&(extension.encode(), Some(custom)).encode());

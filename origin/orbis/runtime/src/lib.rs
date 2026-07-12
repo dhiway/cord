@@ -832,20 +832,20 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::Any => true,
 			ProxyType::NonTransfer => matches!(
 				c,
-				RuntimeCall::System(..) |
-					RuntimeCall::ParachainSystem(..) |
-					RuntimeCall::Timestamp(..) |
-					RuntimeCall::Indices(pallet_indices::Call::claim { .. }) |
-					RuntimeCall::Indices(pallet_indices::Call::free { .. }) |
-					RuntimeCall::Indices(pallet_indices::Call::freeze { .. }) |
-					RuntimeCall::Entity(..) |
-					RuntimeCall::Feeless(..) |
-					RuntimeCall::Register(..) |
-					RuntimeCall::Session(..) |
-					RuntimeCall::Utility(..) |
-					RuntimeCall::Proxy(..) |
-					RuntimeCall::Multisig(..) |
-					RuntimeCall::MessageQueue(..)
+				RuntimeCall::System(..)
+					| RuntimeCall::ParachainSystem(..)
+					| RuntimeCall::Timestamp(..)
+					| RuntimeCall::Indices(pallet_indices::Call::claim { .. })
+					| RuntimeCall::Indices(pallet_indices::Call::free { .. })
+					| RuntimeCall::Indices(pallet_indices::Call::freeze { .. })
+					| RuntimeCall::Entity(..)
+					| RuntimeCall::Feeless(..)
+					| RuntimeCall::Register(..)
+					| RuntimeCall::Session(..)
+					| RuntimeCall::Utility(..)
+					| RuntimeCall::Proxy(..)
+					| RuntimeCall::Multisig(..)
+					| RuntimeCall::MessageQueue(..)
 			),
 			ProxyType::CancelProxy => {
 				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))
@@ -1133,10 +1133,11 @@ where
 					account_id,
 					..
 				}) if account_id == payer => Some(payer.clone()),
-				_ =>
+				_ => {
 					return Err(
 						sp_runtime::transaction_validity::InvalidTransaction::BadSigner.into()
-					),
+					)
+				},
 			},
 			_ => None,
 		};
@@ -1253,8 +1254,9 @@ where
 				.inner
 				.prepare(val, origin, call, info, len)
 				.map(ExplicitPaymentIntermediate::Apply),
-			ExplicitPaymentIntermediate::Skip(weight) =>
-				Ok(ExplicitPaymentIntermediate::Skip(weight)),
+			ExplicitPaymentIntermediate::Skip(weight) => {
+				Ok(ExplicitPaymentIntermediate::Skip(weight))
+			},
 		}
 	}
 
@@ -1266,8 +1268,9 @@ where
 		result: &frame_support::dispatch::DispatchResult,
 	) -> Result<Weight, sp_runtime::transaction_validity::TransactionValidityError> {
 		match pre {
-			ExplicitPaymentIntermediate::Apply(pre) =>
-				S::post_dispatch_details(pre, info, post_info, len, result),
+			ExplicitPaymentIntermediate::Apply(pre) => {
+				S::post_dispatch_details(pre, info, post_info, len, result)
+			},
 			ExplicitPaymentIntermediate::Skip(weight) => Ok(weight),
 		}
 	}
@@ -1802,17 +1805,17 @@ impl BulletinCallInspector {
 		if matches!(
 			call,
 			RuntimeCall::TransactionStorage(
-				pallet_bulletin_transaction_storage::Call::store { .. } |
-					pallet_bulletin_transaction_storage::Call::store_with_cid_config { .. } |
-					pallet_bulletin_transaction_storage::Call::force_renew { .. } |
-					pallet_bulletin_transaction_storage::Call::store_reserved { .. } |
-					pallet_bulletin_transaction_storage::Call::renew_reserved { .. }
+				pallet_bulletin_transaction_storage::Call::store { .. }
+					| pallet_bulletin_transaction_storage::Call::store_with_cid_config { .. }
+					| pallet_bulletin_transaction_storage::Call::force_renew { .. }
+					| pallet_bulletin_transaction_storage::Call::store_reserved { .. }
+					| pallet_bulletin_transaction_storage::Call::renew_reserved { .. }
 			)
 		) {
 			return true;
 		}
-		if Self::is_opaque_dispatch_wrapper(call) ||
-			depth >= pallet_bulletin_transaction_storage::MAX_WRAPPER_DEPTH
+		if Self::is_opaque_dispatch_wrapper(call)
+			|| depth >= pallet_bulletin_transaction_storage::MAX_WRAPPER_DEPTH
 		{
 			return true;
 		}
@@ -1837,27 +1840,29 @@ impl BulletinCallInspector {
 impl pallet_bulletin_transaction_storage::CallInspector<Runtime> for BulletinCallInspector {
 	fn inspect_wrapper(call: &RuntimeCall) -> Option<Vec<&RuntimeCall>> {
 		match call {
-			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) |
-			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) |
-			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) =>
-				Some(calls.iter().collect()),
-			RuntimeCall::Utility(pallet_utility::Call::as_derivative { call, .. }) |
-			RuntimeCall::Utility(pallet_utility::Call::dispatch_as { call, .. }) |
-			RuntimeCall::Utility(pallet_utility::Call::dispatch_as_fallible { call, .. }) |
-			RuntimeCall::Utility(pallet_utility::Call::with_weight { call, .. }) =>
-				Some(vec![call.as_ref()]),
-			RuntimeCall::Proxy(pallet_proxy::Call::proxy { call, .. }) |
-			RuntimeCall::Proxy(pallet_proxy::Call::proxy_announced { call, .. }) |
-			RuntimeCall::Multisig(pallet_multisig::Call::as_multi_threshold_1 { call, .. }) |
-			RuntimeCall::Multisig(pallet_multisig::Call::as_multi { call, .. }) |
-			RuntimeCall::Scheduler(pallet_scheduler::Call::schedule { call, .. }) |
-			RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named { call, .. }) |
-			RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_after { call, .. }) |
-			RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named_after {
+			RuntimeCall::Utility(pallet_utility::Call::batch { calls })
+			| RuntimeCall::Utility(pallet_utility::Call::batch_all { calls })
+			| RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => {
+				Some(calls.iter().collect())
+			},
+			RuntimeCall::Utility(pallet_utility::Call::as_derivative { call, .. })
+			| RuntimeCall::Utility(pallet_utility::Call::dispatch_as { call, .. })
+			| RuntimeCall::Utility(pallet_utility::Call::dispatch_as_fallible { call, .. })
+			| RuntimeCall::Utility(pallet_utility::Call::with_weight { call, .. }) => {
+				Some(vec![call.as_ref()])
+			},
+			RuntimeCall::Proxy(pallet_proxy::Call::proxy { call, .. })
+			| RuntimeCall::Proxy(pallet_proxy::Call::proxy_announced { call, .. })
+			| RuntimeCall::Multisig(pallet_multisig::Call::as_multi_threshold_1 { call, .. })
+			| RuntimeCall::Multisig(pallet_multisig::Call::as_multi { call, .. })
+			| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule { call, .. })
+			| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named { call, .. })
+			| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_after { call, .. })
+			| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named_after {
 				call, ..
-			}) |
-			RuntimeCall::Revive(pallet_revive::Call::eth_substrate_call { call, .. }) |
-			RuntimeCall::Revive(pallet_revive::Call::dispatch_as_fallback_account {
+			})
+			| RuntimeCall::Revive(pallet_revive::Call::eth_substrate_call { call, .. })
+			| RuntimeCall::Revive(pallet_revive::Call::dispatch_as_fallback_account {
 				call, ..
 			}) => Some(vec![call.as_ref()]),
 			_ => None,
@@ -2116,7 +2121,9 @@ fn default_inner_tx_extensions(
 
 fn canonical_metadata_extension() -> frame_metadata_hash_extension::CheckMetadataHash<Runtime> {
 	#[cfg(test)]
-	return frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
+	return frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(
+		option_env!("RUNTIME_METADATA_HASH").is_some(),
+	);
 	#[cfg(not(test))]
 	frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(true)
 }
