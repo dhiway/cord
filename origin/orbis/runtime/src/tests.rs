@@ -20,7 +20,7 @@ use crate::{
 	xcm_config::LocationToAccountId, AssetConversion, AssetRate, AssetTxPayment, Assets,
 	AssetsFreezer, AssetsHolder, Balances, Broker, ChunksManager, Entity, Feeless, ForeignAssets,
 	ForeignAssetsFreezer, HopPromotion, Members, MembersNotifier, Nfts, People, PeopleLite,
-	PoolAssets, PoolAssetsFreezer, Revive, Runtime, RuntimeCall, RuntimeOrigin, System,
+	Personhood, PoolAssets, PoolAssetsFreezer, Revive, Runtime, RuntimeCall, RuntimeOrigin, System,
 	TransactionStorage, Uniques,
 };
 use codec::{Decode, Encode};
@@ -457,6 +457,37 @@ fn people_lite_initializes_native_membership_and_uses_sudo_allowances() {
 }
 
 #[test]
+fn full_personhood_collection_and_recognition_are_native_and_sudo_managed() {
+	use indiv_pallet_people::{PeopleCollectionCreated, PEOPLE_MEMBER_IDENTIFIER};
+	use verifiable::GenerateVerifiable;
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		System::set_block_number(1);
+		pallet_timestamp::Now::<Runtime>::put(1_000);
+		assert_ok!(Personhood::create_people_collection(
+			frame_system::Origin::<Runtime>::Authorized.into(),
+		));
+		assert!(PeopleCollectionCreated::<Runtime>::get());
+		assert!(indiv_pallet_members::Collections::<Runtime>::contains_key(
+			PEOPLE_MEMBER_IDENTIFIER,
+		));
+
+		let secret = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::new_secret([9; 32]);
+		let member =
+			verifiable::ring::bandersnatch::BandersnatchVrfVerifiable::member_from_secret(&secret);
+		assert_noop!(
+			Personhood::force_recognize_personhood(
+				RuntimeOrigin::signed(AccountId::from(ALICE)),
+				vec![member.clone()],
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+		assert_ok!(Personhood::force_recognize_personhood(RuntimeOrigin::root(), vec![member],));
+		assert!(indiv_pallet_people::People::<Runtime>::contains_key(0));
+	});
+}
+
+#[test]
 fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<<Runtime as pallet_revive::Config>::ChainId as Get<u64>>::get(), 420_001_006);
 	assert!(<<Runtime as pallet_revive::Config>::AllowEVMBytecode as Get<bool>>::get());
@@ -484,6 +515,7 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<Members as PalletInfoAccess>::index(), 92);
 	assert_eq!(<MembersNotifier as PalletInfoAccess>::index(), 93);
 	assert_eq!(<PeopleLite as PalletInfoAccess>::index(), 94);
+	assert_eq!(<Personhood as PalletInfoAccess>::index(), 95);
 	assert_eq!(<<Runtime as pallet_broker::Config>::MaxReservedCores as Get<u32>>::get(), 50);
 }
 

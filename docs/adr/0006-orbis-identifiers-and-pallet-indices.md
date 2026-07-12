@@ -19,7 +19,7 @@ Runtime pallet indices are append-only within these bands:
 | `51..=79` | existing CORD entity/token/register functionality |
 | `80..=89` | assets (local 80-82, foreign 83/85, pool 84/86, uniques 87, NFTs 88, rates 89) |
 | `90` | People/People-Lite compatible identity and aliases |
-| `91..=99` | People adapters (chunks 91, members 92, notifier 93, People Lite 94; 95-99 reserved) |
+| `91..=99` | People adapters (chunks 91, members 92, notifier 93, People Lite 94, personhood 95; 96-99 reserved) |
 | `100..=109` | Revive and Solidity support |
 | `110` | Bulletin transaction storage and proof inherent |
 | `111..=129` | reserved Bulletin extensions |

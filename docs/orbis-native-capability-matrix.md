@@ -83,6 +83,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Identity records, registrars and judgements | People/FRAME Identity | Orbis-owned compatibility fork at index 90; root-managed registrar lifecycle present |
 | Aliases, usernames and subaccounts | People/People Lite | Present in the Orbis-owned People pallet |
 | Sudo attestation and forced administration | enterprise adaptation | Present |
+| Full ring-backed personhood | `indiv_pallet_people` | Native at index 95 with Sudo recognition, flexible membership and authenticated person origins |
 | People Lite compatibility API and storage semantics | `indiv_pallet_people_lite` | Native at index 94 with Members-backed aliases, Sudo allowances and transaction authentication |
 | Storage initialization | `indiv_pallet_storage_initialization` | Gap |
 | Resources and chunk management | `indiv_pallet_resources`, `indiv_pallet_chunks_manager` | Chunk manager present at index 91 with Sudo-managed ring parameter hashes; Resources gap |

@@ -148,10 +148,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 22,
+	spec_version: 23,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 2,
+	transaction_version: 3,
 	system_version: 1,
 };
 
@@ -1324,6 +1324,55 @@ impl indiv_pallet_people_lite::Config for Runtime {
 	type BenchmarkHelper = ();
 }
 
+pub const ORBIS_PERSON_CONTEXT: indiv_support::traits::Context = [0x4f; 32];
+
+pub struct PersonhoodAccountContexts;
+impl Contains<indiv_support::traits::Context> for PersonhoodAccountContexts {
+	fn contains(context: &indiv_support::traits::Context) -> bool {
+		context == &ORBIS_PERSON_CONTEXT
+	}
+}
+
+parameter_types! {
+	pub PersonhoodCollectionOwner: Location = Location::new(0, [PalletInstance(95)]);
+	pub const PersonhoodStaleAliasCleanupInterval: BlockNumber = 10;
+	pub const PersonhoodSelfInclusionDelay: u64 = 3_600;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct PersonhoodBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl
+	indiv_pallet_people::BenchmarkHelper<
+		<BandersnatchVrfVerifiable as GenerateVerifiable>::StaticChunk,
+	> for PersonhoodBenchmarkHelper
+{
+	fn valid_account_context() -> indiv_support::traits::Context {
+		ORBIS_PERSON_CONTEXT
+	}
+
+	fn initialize_chunks() -> Vec<<BandersnatchVrfVerifiable as GenerateVerifiable>::StaticChunk> {
+		use indiv_support::genesis::ring_verifier_builder_params;
+		use verifiable::ring::RingDomainSize;
+		ring_verifier_builder_params(RingDomainSize::Domain11)
+	}
+}
+
+impl indiv_pallet_people::Config for Runtime {
+	type WeightInfo = indiv_pallet_people::weights::SubstrateWeight<Runtime>;
+	type MemberService = Members;
+	type RingExponent = MembersFlexibleRingExponent;
+	type CollectionOwner = PersonhoodCollectionOwner;
+	type AccountContexts = PersonhoodAccountContexts;
+	type OnboardingQueuePageSize = ConstU32<30>;
+	type StaleAliasCleanupInterval = PersonhoodStaleAliasCleanupInterval;
+	type SelfInclusionDelay = PersonhoodSelfInclusionDelay;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = PersonhoodBenchmarkHelper;
+}
+
 parameter_types! {
 	pub const BulletinMaxBlockTransactions: u32 = 128;
 	pub const BulletinMaxTransactionSize: u32 = 256 * 1024;
@@ -1490,6 +1539,7 @@ construct_runtime!(
 		Members: indiv_pallet_members = 92,
 		MembersNotifier: indiv_pallet_members_notifier = 93,
 		PeopleLite: indiv_pallet_people_lite = 94,
+		Personhood: indiv_pallet_people = 95,
 
 		// Solidity and PolkaVM contracts.
 		Revive: pallet_revive = 100,
@@ -1532,6 +1582,7 @@ pub type BlockId = generic::BlockId<Block>;
 /// The TransactionExtension to the basic transaction logic.
 pub type InnerTxExtensions = (
 	(
+		indiv_pallet_people::extension::AsPerson<Runtime>,
 		indiv_pallet_people_lite::extension::PeopleLiteAuth<Runtime>,
 		frame_system::AuthorizeCall<Runtime>,
 	),
@@ -1572,6 +1623,7 @@ impl EthExtra for EthExtraImpl {
 	fn get_eth_extension(nonce: u32, tip: Balance) -> Self::ExtensionV0 {
 		(
 			(
+				indiv_pallet_people::extension::AsPerson::<Runtime>::new(None),
 				indiv_pallet_people_lite::extension::PeopleLiteAuth::<Runtime>::new(None),
 				frame_system::AuthorizeCall::<Runtime>::new(),
 			),
@@ -1637,6 +1689,7 @@ where
 	fn create_extension() -> Self::Extension {
 		(
 			(
+				indiv_pallet_people::extension::AsPerson::<Runtime>::new(None),
 				indiv_pallet_people_lite::extension::PeopleLiteAuth::<Runtime>::new(None),
 				frame_system::AuthorizeCall::<Runtime>::new(),
 			),
@@ -1755,6 +1808,7 @@ mod benches {
 		[indiv_pallet_members, Members]
 		[indiv_pallet_members_notifier, MembersNotifier]
 		[indiv_pallet_people_lite, PeopleLite]
+		[indiv_pallet_people, Personhood]
 		[pallet_entity, Entity]
 		[pallet_message_queue, MessageQueue]
 		[pallet_meta_tx, MetaTx]

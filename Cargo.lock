@@ -7205,6 +7205,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "indiv-pallet-people"
+version = "0.9.9"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "indiv-pallet-chunks-manager",
+ "indiv-pallet-members",
+ "indiv-support",
+ "log",
+ "parity-scale-codec",
+ "parking_lot 0.12.5",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "verifiable",
+]
+
+[[package]]
 name = "indiv-pallet-people-lite"
 version = "0.9.9"
 dependencies = [
@@ -9644,6 +9664,7 @@ dependencies = [
  "indiv-pallet-chunks-manager",
  "indiv-pallet-members",
  "indiv-pallet-members-notifier",
+ "indiv-pallet-people",
  "indiv-pallet-people-lite",
  "indiv-support",
  "log",
