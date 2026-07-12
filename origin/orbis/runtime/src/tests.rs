@@ -447,7 +447,7 @@ fn completion_manifest_v4_evidence_is_exact_and_semantically_frozen() {
 	assert_eq!(bulletin_value("BUL-V7-WRITES"), "writes = I_ref + I_hash + 2L + 2 + 1");
 	assert_eq!(
 		manifest["audited_runtime_commit"].as_str(),
-		Some("db7ebaf6213f39bcda2edc578c1fce287f23b5a3")
+		Some("f88aa3faa6573582ca690fa3cace58b7f670aa88")
 	);
 	crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-manifest");
 }
