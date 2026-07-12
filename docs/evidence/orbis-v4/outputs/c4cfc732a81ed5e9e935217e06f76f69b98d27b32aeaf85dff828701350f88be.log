@@ -43,4 +43,4 @@ assertion=VECTOR-MUTATE-TX:b05f355ab93243622f90cd6eac8d29cc1ef89d72ba4ccf19b2420
 assertion=VECTOR-PAID-TOKEN-KEY:7cd42dd3630877c968da1bdd395026cf86929802664d29af13cef19c7cb454de
 assertion=VECTOR-SPEC26-NEGATIVE:99e783312fec84b4f95ddcaa04e7865f3a83a84e6d0d1bd658750ea1e13236ed
 test meta_v6_fixtures::checked_in_meta_v7_fixtures_decode_all_recompute_and_match_hashes ... ok
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 63 filtered out; finished
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 64 filtered out; finished

@@ -4,5 +4,5 @@ assertion=GATE-1-DOCS-V4:b881f9519884f03e1132999562f825925f4d0d218e1c4db90bb32fa
 assertion=GATE-2-ACTIVE:b5b72af6c3abfe44099a2ff1a36f91c79c494523b667c033f098179624c639a2
 assertion=GATE-3-BULLETIN-V7:9804f13b33773b677d3aa931369c94d3f90ab36a794cb3304ba5cfb621c7b99c
 assertion=GATE-4-SPEC28-TX7:7d7ce510f67455811a4d34dec9840225e8c57519992687ba84088531219c7b3c
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 63 filtered out; finished
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 64 filtered out; finished
 test tests::completion_manifest_v4_evidence_is_exact_and_semantically_frozen ... ok
