@@ -1,0 +1,17 @@
+{
+  "artifact_count": 114,
+  "bulletin_v7": "present",
+  "inventory_present": 316,
+  "manifest_sha256": "e450555d4621cb7316739c7c5ba36069004439a3abce87d91b0d87612b7d2dc6",
+  "metadata_evidence": [
+    "META-EVIDENCE-COMPILED-ENABLED",
+    "META-EVIDENCE-CUSTOM-LOSS",
+    "META-EVIDENCE-EARLY-PROPAGATION",
+    "META-EVIDENCE-NOHASH-CANNOTLOOKUP"
+  ],
+  "planned": 5,
+  "present": 114,
+  "provider_v8": "planned",
+  "schema": "orbis-completion-verification-v4",
+  "zero_sha": 5
+}

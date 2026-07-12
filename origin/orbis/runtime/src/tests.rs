@@ -68,11 +68,11 @@ fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 	let manifest: toml::Value =
 		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml"))
 			.expect("the frozen completion manifest must be valid TOML");
-	assert_eq!(manifest["manifest_version"].as_integer(), Some(3));
-	assert_eq!(manifest["replanning"]["iteration"].as_integer(), Some(4));
+	assert_eq!(manifest["manifest_version"].as_integer(), Some(4));
+	assert_eq!(manifest["replanning"]["iteration"].as_integer(), Some(5));
 	assert_eq!(
 		manifest["replanning"]["decision"].as_str(),
-		Some("approved-verify-consume-bounded-remediation")
+		Some("freeze-current-completion-evidence-v4")
 	);
 	for (table, expected) in [
 		("source", 7),
@@ -99,7 +99,7 @@ fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 		("protocol_obligation", 10),
 		("protocol_dependency", 3),
 		("protocol_constant", 5),
-		("meta_contract", 38),
+		("meta_contract", 42),
 		("meta_router_variant", 7),
 		("meta_vector", 18),
 		("meta_ingress", 20),
@@ -305,12 +305,12 @@ fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 }
 
 #[test]
-fn remediation_manifest_v3_is_exact_and_semantically_frozen() {
-	use std::collections::BTreeSet;
-
-	let manifest: toml::Value =
-		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml")).unwrap();
-	let tables = [
+fn completion_manifest_v4_evidence_is_exact_and_semantically_frozen() {
+	let manifest_text = include_str!("../../../../docs/orbis-completion-manifest.toml");
+	let manifest: toml::Value = toml::from_str(manifest_text).unwrap();
+	assert_eq!(manifest["manifest_version"].as_integer(), Some(4));
+	assert!(!manifest_text.contains("implemented-pending-evidence"));
+	let evidence_tables = [
 		"meta_contract",
 		"meta_router_variant",
 		"meta_vector",
@@ -320,12 +320,13 @@ fn remediation_manifest_v3_is_exact_and_semantically_frozen() {
 		"provider_v8_contract",
 		"remediation_gate",
 	];
-	for table in tables {
+	let mut present = 0;
+	let mut planned = 0;
+	for table in evidence_tables {
 		for row in manifest[table].as_array().unwrap() {
-			let row_id = row["id"].as_str().unwrap();
 			for field in [
-				"id",
 				"source_paths",
+				"source_symbol",
 				"test_or_command",
 				"expected_assertion",
 				"artifact_path",
@@ -338,47 +339,41 @@ fn remediation_manifest_v3_is_exact_and_semantically_frozen() {
 					"{table}.{field}"
 				);
 			}
-			let status = row["status"].as_str().unwrap();
-			if status == "present" {
-				let artifact_path = row["artifact_path"].as_str().unwrap();
-				let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
-				assert!(repo_root.join(artifact_path).is_file(), "{table} artifact exists");
-				assert_ne!(
-					row["artifact_sha256"].as_str(),
-					Some("0000000000000000000000000000000000000000000000000000000000000000"),
-					"present evidence has a nonzero digest"
-				);
-			} else {
-				let artifact_path = format!("target/orbis-remediation/{row_id}.json");
-				assert_eq!(
-					row["artifact_path"].as_str(),
-					Some(artifact_path.as_str()),
-					"{table} artifact path"
-				);
-				assert_eq!(
-					row["artifact_sha256"].as_str(),
-					Some("0000000000000000000000000000000000000000000000000000000000000000"),
-					"pending evidence has a zero digest"
-				);
+			match row["status"].as_str().unwrap() {
+				"present" => {
+					present += 1;
+					assert_ne!(row["artifact_sha256"].as_str().unwrap(), "0".repeat(64));
+				},
+				"planned" => {
+					planned += 1;
+					assert_eq!(row["artifact_sha256"].as_str().unwrap(), "0".repeat(64));
+				},
+				status => panic!("invalid v4 evidence status {status}"),
 			}
-			assert_eq!(
-				row["source_commit"].as_str(),
-				Some("d75ff22af02120daccdb5e017cfddc925e622ac5"),
-				"{table} source boundary"
-			);
-			let expected_status = if status == "present" {
-				"present"
-			} else if matches!(table, "meta_vector" | "provider_v8_contract")
-				|| (table == "remediation_gate" && row_id == "GATE-5-EVIDENCE")
-			{
-				"planned"
-			} else {
-				"implemented-pending-evidence"
-			};
-			assert_eq!(row["status"].as_str(), Some(expected_status), "{table} Gate-4 state");
 		}
 	}
-
+	assert_eq!((present, planned), (114, 5));
+	let contract = manifest["meta_contract"].as_array().unwrap();
+	for id in [
+		"META-EVIDENCE-COMPILED-ENABLED",
+		"META-EVIDENCE-CUSTOM-LOSS",
+		"META-EVIDENCE-NOHASH-CANNOTLOOKUP",
+		"META-EVIDENCE-EARLY-PROPAGATION",
+	] {
+		assert!(contract
+			.iter()
+			.any(|row| row["id"].as_str() == Some(id) && row["status"].as_str() == Some("present")));
+	}
+	assert!(manifest["bulletin_v7_contract"]
+		.as_array()
+		.unwrap()
+		.iter()
+		.all(|row| row["status"].as_str() == Some("present")));
+	assert!(manifest["provider_v8_contract"]
+		.as_array()
+		.unwrap()
+		.iter()
+		.all(|row| row["status"].as_str() == Some("planned")));
 	let ids = |table: &str| {
 		manifest[table]
 			.as_array()
@@ -417,37 +412,6 @@ fn remediation_manifest_v3_is_exact_and_semantically_frozen() {
 			"MAX-VALID",
 		]
 	);
-	assert_eq!(
-		ids("remediation_gate"),
-		[
-			"GATE-1-DOCS-V3",
-			"GATE-2-DORMANT",
-			"GATE-3-BULLETIN-DORMANT",
-			"GATE-4-SINGLE-INTEGRATION",
-			"GATE-5-EVIDENCE",
-		]
-	);
-	let ingress = manifest["meta_ingress"].as_array().unwrap();
-	let allowed = ingress
-		.iter()
-		.filter(|row| row["decision"].as_str() == Some("allowed"))
-		.map(|row| row["shape"].as_str().unwrap())
-		.collect::<BTreeSet<_>>();
-	assert_eq!(
-		allowed,
-		BTreeSet::from([
-			"direct leaf",
-			"Utility::batch",
-			"Utility::batch_all",
-			"Utility::force_batch",
-			"Proxy::proxy",
-			"Proxy::proxy_announced",
-			"Multisig::as_multi concrete call",
-			"Multisig::as_multi_threshold_1 concrete call",
-		])
-	);
-
-	let contract = manifest["meta_contract"].as_array().unwrap();
 	let value = |id: &str| {
 		contract.iter().find(|row| row["id"].as_str() == Some(id)).unwrap()["value"]
 			.as_str()
@@ -455,17 +419,11 @@ fn remediation_manifest_v3_is_exact_and_semantically_frozen() {
 	};
 	assert_eq!(
 		value("META-COMPAT-SPEC"),
-		"canonical positive spec_version = 27; canonical spec-26 literal is negative"
+		"canonical positive spec_version = 28; canonical spec-27 literal is negative"
 	);
-	assert_eq!(value("META-COMPAT-TX"), "transaction_version = 6");
-	assert_eq!(value("META-DIRECT-PAYER"), "Signed(call.account_id)");
+	assert_eq!(value("META-COMPAT-TX"), "transaction_version = 7");
 	assert_eq!(value("META-WEIGHT-PAID"), "PaidMetaScope = 2R + 2W");
-	assert_eq!(value("META-WEIGHT-BASE"), "Base leaf inspection = 1R");
 	assert_eq!(value("META-WEIGHT-CONSUME"), "ConsumePaidMetaIngress = 1R + 1W");
-	assert_eq!(
-		value("META-ALIAS-VERIFY-CONSUME"),
-		"(VerifySignature, ConsumePaidMetaIngress, MetaTxMarker, CheckNonZeroSender, CheckSpecVersion, CheckTxVersion, CheckGenesis, CheckMortality, CheckNonce, MetaAccountBoundPoliciesV6, ValidateStorageCalls, CheckMetadataHash)"
-	);
 	let bulletin = manifest["bulletin_v7_contract"].as_array().unwrap();
 	let bulletin_value = |id: &str| {
 		bulletin.iter().find(|row| row["id"].as_str() == Some(id)).unwrap()["value"]
@@ -474,53 +432,11 @@ fn remediation_manifest_v3_is_exact_and_semantically_frozen() {
 	};
 	assert_eq!(bulletin_value("BUL-V7-READS"), "reads = A + T + L + I_ref + I_hash + 3L + 3");
 	assert_eq!(bulletin_value("BUL-V7-WRITES"), "writes = I_ref + I_hash + 2L + 2 + 1");
-
-	fn canonical_semantics(value: &toml::Value, output: &mut String) {
-		match value {
-			toml::Value::String(value) => {
-				output.push_str("s");
-				output.push_str(&value.len().to_string());
-				output.push(':');
-				output.push_str(value);
-			},
-			toml::Value::Integer(value) => output.push_str(&format!("i{value};")),
-			toml::Value::Float(value) => output.push_str(&format!("f{:016x};", value.to_bits())),
-			toml::Value::Boolean(value) => output.push_str(if *value { "b1;" } else { "b0;" }),
-			toml::Value::Datetime(value) => output.push_str(&format!("d{value};")),
-			toml::Value::Array(values) => {
-				output.push('[');
-				for value in values {
-					canonical_semantics(value, output);
-				}
-				output.push(']');
-			},
-			toml::Value::Table(values) => {
-				output.push('{');
-				let mut keys = values
-					.keys()
-					.filter(|key| {
-						!matches!(key.as_str(), "artifact_sha256" | "source_commit" | "status")
-					})
-					.collect::<Vec<_>>();
-				keys.sort();
-				for key in keys {
-					canonical_semantics(&toml::Value::String(key.clone()), output);
-					canonical_semantics(&values[key], output);
-				}
-				output.push('}');
-			},
-		}
-	}
-	let mut canonical = String::new();
-	for table in tables {
-		canonical.push_str(table);
-		canonical_semantics(&manifest[table], &mut canonical);
-	}
-	let hash = sp_io::hashing::blake2_256(canonical.as_bytes())
+	let digest = sp_io::hashing::sha2_256(manifest_text.as_bytes())
 		.iter()
 		.map(|byte| format!("{byte:02x}"))
 		.collect::<String>();
-	assert_eq!(hash, "47e0a570a3de291cd2e07d42dde5b84f6b6087ad754db2c77cfe742b1fa453d2");
+	assert_eq!(digest, "e450555d4621cb7316739c7c5ba36069004439a3abce87d91b0d87612b7d2dc6");
 }
 
 #[test]

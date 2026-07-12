@@ -1,0 +1,10 @@
+{
+  "command": "cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7",
+  "expected": "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters",
+  "id": "MAX-VALID",
+  "schema": "orbis-completion-evidence-v4",
+  "source_commit": "d6b0fd2f7a2f50808e68889b2255fa63935d41bc",
+  "source_paths": "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/tests.rs",
+  "source_symbol": "MigrateV6ToV7",
+  "table": "bulletin_v7_rehearsal"
+}

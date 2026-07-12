@@ -1,0 +1,10 @@
+{
+  "command": "cargo test --manifest-path origin/orbis/runtime/metadata-implicit-nohash/Cargo.toml",
+  "expected": "isolated enabled metadata without compiled hash is exact CannotLookup",
+  "id": "META-EVIDENCE-NOHASH-CANNOTLOOKUP",
+  "schema": "orbis-completion-evidence-v4",
+  "source_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
+  "source_paths": "origin/orbis/runtime/metadata-implicit-nohash/src/lib.rs",
+  "source_symbol": "enabled_metadata_without_compiled_hash_is_exact_cannot_lookup",
+  "table": "meta_contract"
+}

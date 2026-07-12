@@ -121,7 +121,7 @@ revision and cannot be copied verbatim until provenance is resolved.
 |---|---|---|
 | Coretime Broker | `pallet_broker` at protocol index 50 | Present |
 | Three-core reservations | complete `Task(para_id)` masks | Unit-tested; Broker-to-Origin E2E pending |
-| Sponsored transactions | MetaTx with user signature/nonce and sponsor payment | Spec 27/tx 6 composes Verify→Consume, all seven account-bound router variants, bounded ingress, one-shot paid token/finalization and signed direct Resources payer adapters; reproducible literal evidence remains Gate 5 |
+| Sponsored transactions | MetaTx with user signature/nonce and sponsor payment | Spec 28/tx 7 composes Verify→Consume, all seven account-bound router variants, bounded ingress, one-shot paid token/finalization and signed direct Resources payer adapters; manifest v4 freezes reproducible literals, metadata-hash modes and exact error classes |
 | Controlled zero-fee calls | Feeless allowlist, per-account quota, deny-by-default wrappers | Present and abuse-tested |
 | Solidity actor preservation | Revive `SetOrigin` plus transaction envelope | Present |
 | Bulletin call validation | recursive storage-call inspector | Present |
@@ -141,7 +141,7 @@ revision and cannot be copied verbatim until provenance is resolved.
 5. Reproducible literal/vector, Executive, benchmark, migration and Wasm/native evidence is frozen
    before further native capability slices begin.
 
-Bulletin V7 reconstructs both `ResourceLinkByRef` and `ResourceLinkByContentHash` independently from
+Completed Bulletin V7 reconstructs both `ResourceLinkByRef` and `ResourceLinkByContentHash` independently from
 authoritative links and writes row/link counters before setting V7 last. REF and HASH missing,
 partial, stale and duplicate rehearsals cannot substitute for each other. Its frozen budget is
 `reads = A + T + L + I_ref + I_hash + 3L + 3` and
@@ -164,3 +164,7 @@ provider allocation references as `None` while preserving all existing reservati
 
 This ledger must be updated in the same commit that adds, excludes, or replaces a referenced
 capability.
+
+## Evidence v4
+
+Manifest v4 separates the completed Bulletin V6→V7 reverse-index repair from the planned provider V7→V8 seam and freezes compiled-enabled, custom-loss, no-hash CannotLookup, and early-propagation metadata evidence.
