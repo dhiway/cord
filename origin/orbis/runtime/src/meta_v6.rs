@@ -692,8 +692,8 @@ pub fn benchmark_policy_scenario(
 		_ => {},
 	}
 	validate_prepare(policy, signer.clone(), call)?;
-	if matches!(scenario, Scenario::RevisedWrite)
-		&& !indiv_pallet_people::AccountToAlias::<Runtime>::get(&signer)
+	if matches!(scenario, Scenario::RevisedWrite) &&
+		!indiv_pallet_people::AccountToAlias::<Runtime>::get(&signer)
 			.is_some_and(|binding| binding.revision > 0)
 	{
 		return Err(stop("revised binding was not written"));
@@ -1192,8 +1192,7 @@ fn decode_meta_payload(payload: &[u8]) -> Result<H256, InvalidTransaction> {
 		RuntimeCall,
 		ExtensionVersion,
 		crate::MetaTxExtension,
-	) = DecodeAll::decode_all(&mut payload.as_ref())
-		.map_err(|_| InvalidTransaction::BadProof)?;
+	) = DecodeAll::decode_all(&mut payload.as_ref()).map_err(|_| InvalidTransaction::BadProof)?;
 	let (
 		verify,
 		consume,

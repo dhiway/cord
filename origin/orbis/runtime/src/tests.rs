@@ -4627,8 +4627,7 @@ fn xcm_payment_api_works() {
 #[test]
 #[cfg(feature = "runtime-benchmarks")]
 fn native_benchmark_api_executes_all_meta_policy_targets() {
-	use frame_benchmarking::runtime_decl_for_benchmark::BenchmarkV2;
-	use frame_benchmarking::BenchmarkConfig;
+	use frame_benchmarking::{runtime_decl_for_benchmark::BenchmarkV2, BenchmarkConfig};
 
 	let names = [
 		"meta_policy_personal_alias",

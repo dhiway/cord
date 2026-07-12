@@ -997,10 +997,8 @@ mod tests {
 		assert_eq!(spec26_literal.spec_version, 26);
 		assert_ne!(spec26_literal.spec_version, CANONICAL_SPEC_VERSION);
 		assert!(!spec26_literal.is_canonical_positive());
-		let evidence: serde_json::Value = serde_json::from_str(include_str!(
-			"../fixtures/meta-v6/spec26-negative.json"
-		))
-		.unwrap();
+		let evidence: serde_json::Value =
+			serde_json::from_str(include_str!("../fixtures/meta-v6/spec26-negative.json")).unwrap();
 		assert_eq!(evidence["id"], "VECTOR-SPEC26-NEGATIVE");
 		assert_eq!(evidence["immutable"], true);
 		assert_eq!(evidence["spec_version"], 26);
