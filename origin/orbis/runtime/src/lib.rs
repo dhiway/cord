@@ -1317,10 +1317,7 @@ impl pallet_meta_tx::WeightInfo for OrbisMetaTxWeightInfo {
 impl pallet_meta_tx::Config for Runtime {
 	type WeightInfo = OrbisMetaTxWeightInfo;
 	type RuntimeEvent = RuntimeEvent;
-	#[cfg(not(feature = "runtime-benchmarks"))]
 	type Extension = MetaTxExtension;
-	#[cfg(feature = "runtime-benchmarks")]
-	type Extension = pallet_meta_tx::WeightlessExtension<Runtime>;
 }
 
 parameter_types! {
@@ -2299,7 +2296,6 @@ mod benches {
 		[indiv_pallet_resources, Resources]
 		[pallet_orbis_entity, Entity]
 		[pallet_message_queue, MessageQueue]
-		[pallet_meta_tx, MetaTx]
 		[pallet_migrations, MultiBlockMigrations]
 		[pallet_multisig, Multisig]
 		[pallet_proxy, Proxy]

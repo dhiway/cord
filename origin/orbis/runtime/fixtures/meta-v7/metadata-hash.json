@@ -7,6 +7,6 @@
   "token_symbol": "ORU",
   "decimals": 10,
   "metadata_hash": "0xd03f87e6279878cafcf6149a7107a6307163e4e997f8d72d029cd6aa837f9854",
-  "compact_wasm_sha256": "a8bc8a49796bcb28894443a650116b0ca151583dd99229a1fc948411add59109",
+  "compact_wasm_sha256": "2fe6a55b86c6b596c19867d5d416f25990dc1482931569bd428695966fea1843",
   "reproduce": "origin/orbis/runtime/tools/reproduce-metadata-hash.sh"
 }

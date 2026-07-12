@@ -4905,6 +4905,14 @@ fn paid_meta_scope_implicit_is_wire_transparent_and_only_delegates_core() {
 	let injected = crate::meta_v6::PaidMetaScope::<_, CannotLookupMetadataResolver>::from(
 		production.0.clone(),
 	);
+	let weight_call = RuntimeCall::System(frame_system::Call::remark { remark: Vec::new() });
+	assert!(injected
+		.weight(&weight_call)
+		.all_gte(crate::weights::meta_v6::metadata_outer_implicit()));
+	assert!(injected.weight(&weight_call).all_gte(
+		<<Runtime as indiv_pallet_resources::Config>::WeightInfo as
+			indiv_pallet_resources::weights::WeightInfo>::meta_policy_metadata_max(),
+	));
 	assert_eq!(injected.implicit(), production.implicit());
 	assert_eq!(injected.encode(), production.encode());
 	let decoded = crate::meta_v6::PaidMetaScope::<

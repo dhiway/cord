@@ -187,6 +187,7 @@ impl MetaAccountBoundPoliciesV6 {
 pub fn benchmark_policy_scenario(
 	scenario: indiv_pallet_resources::benchmarking::MetaPolicyBenchmarkScenario,
 ) -> Result<(), frame_benchmarking::BenchmarkError> {
+	use codec::DecodeAll;
 	use frame_support::dispatch::GetDispatchInfo;
 	use indiv_pallet_resources::benchmarking::MetaPolicyBenchmarkScenario as Scenario;
 	use indiv_support::traits::{AppendOnlyMembers, RingMode};
@@ -199,7 +200,8 @@ pub fn benchmark_policy_scenario(
 	type Crypto = verifiable::ring::bandersnatch::BandersnatchVrfVerifiable;
 	type BenchmarkSecret = <Crypto as GenerateVerifiable>::Secret;
 	type BenchmarkCommitment = <Crypto as GenerateVerifiable>::Commitment;
-	fn stop(_: impl core::fmt::Debug) -> frame_benchmarking::BenchmarkError {
+	fn stop(error: impl core::fmt::Debug) -> frame_benchmarking::BenchmarkError {
+		log::error!(target: "orbis-meta-benchmark", "{error:?}");
 		frame_benchmarking::BenchmarkError::Stop("production Meta benchmark workload failed")
 	}
 	struct MissingMetadata;
@@ -210,42 +212,179 @@ pub fn benchmark_policy_scenario(
 			Err(sp_runtime::transaction_validity::UnknownTransaction::CannotLookup.into())
 		}
 	}
+	#[derive(Clone, Copy, Eq, PartialEq)]
+	struct BenchmarkCompiledMetadata;
+	impl MetadataImplicitResolver for BenchmarkCompiledMetadata {
+		fn resolve(
+			metadata: &frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+		) -> Result<Option<[u8; 32]>, TransactionValidityError> {
+			if metadata.encode() == [0] {
+				Ok(None)
+			} else {
+				Ok(Some([0xd0; 32]))
+			}
+		}
+	}
+	fn benchmark_outer(enabled: bool) -> Result<RuntimeCall, frame_benchmarking::BenchmarkError> {
+		let bytes = include_bytes!("../fixtures/meta-v7/verify-consume-tuple.scale");
+		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut bytes.as_slice())
+			.map_err(stop)?;
+		let (call, version, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
+			DecodeAll::decode_all(&mut meta.encode().as_slice()).map_err(stop)?;
+		let (
+			verify,
+			mut consume,
+			marker,
+			nonzero,
+			spec,
+			tx,
+			genesis,
+			mortality,
+			nonce,
+			policy,
+			storage,
+			old_metadata,
+		) = extension;
+		let metadata = if enabled {
+			old_metadata
+		} else {
+			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::decode_all(&mut &[0u8][..])
+				.map_err(stop)?
+		};
+		let VerifySignatureMirror::Signed { account, .. } =
+			VerifySignatureMirror::decode_all(&mut verify.encode().as_slice()).map_err(stop)?
+		else {
+			return Err(stop("benchmark fixture signature disabled"));
+		};
+		consume.0.domain = META_DOMAIN.to_vec();
+		consume.0.extension_version = version;
+		consume.0.genesis_hash = System::block_hash(0);
+		consume.0.spec_version = crate::VERSION.spec_version;
+		consume.0.transaction_version = crate::VERSION.transaction_version;
+		consume.0.inner_signer = account;
+		consume.0.call_hash = hash_encoded(&call);
+		consume.0.mortality = mortality.0;
+		consume.0.nonce = nonce.0;
+		consume.0.policy_proofs_hash = hash_encoded(&policy.0);
+		consume.0.storage_extension_hash = hash_encoded(&storage);
+		consume.0.metadata_extension_hash = hash_encoded(&metadata);
+		consume.0.metadata_implicit = if enabled { Some([0xd0; 32]) } else { None };
+		let rebuilt = pallet_meta_tx::MetaTxFor::<Runtime>::new(
+			call,
+			version,
+			(
+				verify, consume, marker, nonzero, spec, tx, genesis, mortality, nonce, policy,
+				storage, metadata,
+			),
+		);
+		let len = rebuilt.encoded_size() as u32;
+		Ok(RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
+			meta_tx: alloc::boxed::Box::new(rebuilt),
+			meta_tx_encoded_len: len,
+		}))
+	}
+	fn consume_benchmark_token(
+		outer: &RuntimeCall,
+		commitment: H256,
+	) -> Result<(), frame_benchmarking::BenchmarkError> {
+		let RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch { meta_tx, .. }) = outer else {
+			return Err(stop("benchmark outer is not MetaTx"));
+		};
+		let (call, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
+			DecodeAll::decode_all(&mut meta_tx.encode().as_slice()).map_err(stop)?;
+		let consume = extension.1;
+		put_token(&PaidMetaTokenV7 {
+			payer: AccountId::new([9; 32]),
+			intent_commitment: commitment,
+			outer_nonce: 0,
+			genesis_hash: System::block_hash(0),
+			spec_version: crate::VERSION.spec_version,
+			transaction_version: crate::VERSION.transaction_version,
+			consumed: false,
+		});
+		let origin = RuntimeOrigin::signed(consume.0.inner_signer.clone());
+		let (_, key, origin) = consume
+			.validate(
+				origin,
+				&call,
+				&call.get_dispatch_info(),
+				call.encoded_size(),
+				(),
+				&sp_runtime::traits::TxBaseImplication((0u8, &call)),
+				TransactionSource::External,
+			)
+			.map_err(stop)?;
+		consume
+			.prepare(key, &origin, &call, &call.get_dispatch_info(), call.encoded_size())
+			.map_err(stop)?;
+		if token().is_some() {
+			return Err(stop("Consume did not clear exact benchmark token"));
+		}
+		Ok(())
+	}
 	match scenario {
 		Scenario::MetadataEnabled => {
-			let metadata =
-				frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new_with_custom_hash(
-					[0xabu8; 32],
-				);
-			if bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&metadata)
+			let outer = benchmark_outer(true)?;
+			let commitment = inspect_paid_meta::<BenchmarkCompiledMetadata>(&outer, 0)
 				.map_err(stop)?
-				!= Some([0xabu8; 32])
-			{
-				return Err(stop("enabled metadata implicit mismatch"));
-			}
+				.ok_or_else(|| stop("enabled Meta not inspected"))?;
+			consume_benchmark_token(&outer, commitment)?;
 			return Ok(());
 		},
 		Scenario::MetadataDisabled => {
-			let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
-			if bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&metadata)
+			let outer = benchmark_outer(false)?;
+			let commitment = inspect_paid_meta::<BenchmarkCompiledMetadata>(&outer, 0)
 				.map_err(stop)?
-				.is_some()
-			{
-				return Err(stop("disabled metadata unexpectedly resolved"));
-			}
+				.ok_or_else(|| stop("disabled Meta not inspected"))?;
+			consume_benchmark_token(&outer, commitment)?;
 			return Ok(());
 		},
 		Scenario::MetadataCannotLookup => {
-			let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(true);
-			if MissingMetadata::resolve(&metadata).is_ok() {
+			let outer = benchmark_outer(true)?;
+			if !matches!(
+				inspect_paid_meta::<MissingMetadata>(&outer, 0),
+				Err(TransactionValidityError::Unknown(
+					sp_runtime::transaction_validity::UnknownTransaction::CannotLookup
+				))
+			) {
 				return Err(stop("missing metadata unexpectedly resolved"));
 			}
 			return Ok(());
 		},
 		Scenario::MetadataMax => {
-			if Some([0xffu8; 32]).encode().len()
-				!= crate::weights::meta_v6::METADATA_IMPLICIT_MAX_BYTES as usize
-			{
-				return Err(stop("metadata implicit bound drifted"));
+			let outer = benchmark_outer(true)?;
+			let make = |padding: usize| {
+				RuntimeCall::Utility(pallet_utility::Call::batch {
+					calls: vec![
+						outer.clone(),
+						RuntimeCall::System(frame_system::Call::remark {
+							remark: vec![0; padding],
+						}),
+					],
+				})
+			};
+			let empty = make(0).encoded_size();
+			let target = MAX_META_ENCODED_BYTES.saturating_sub(empty);
+			let accepted = (target.saturating_sub(16)..=target.saturating_add(16))
+				.map(make)
+				.find(|call| call.encoded_size() == MAX_META_ENCODED_BYTES)
+				.ok_or_else(|| stop("could not build exact max envelope"))?;
+			inspect_paid_meta::<BenchmarkCompiledMetadata>(&accepted, 0)
+				.map_err(stop)?
+				.ok_or_else(|| stop("max envelope lost Meta"))?;
+			let RuntimeCall::Utility(pallet_utility::Call::batch { mut calls }) = accepted else {
+				unreachable!()
+			};
+			let RuntimeCall::System(frame_system::Call::remark { remark }) = &mut calls[1] else {
+				unreachable!()
+			};
+			remark.push(0);
+			let over = RuntimeCall::Utility(pallet_utility::Call::batch { calls });
+			if !matches!(
+				inspect_paid_meta::<BenchmarkCompiledMetadata>(&over, 0),
+				Err(TransactionValidityError::Invalid(InvalidTransaction::ExhaustsResources))
+			) {
+				return Err(stop("over-bound envelope was not rejected"));
 			}
 			return Ok(());
 		},
@@ -1152,6 +1291,7 @@ impl TransactionExtension<RuntimeCall> for ConsumePaidMetaIngress {
 		<Runtime as frame_system::Config>::DbWeight::get()
 			.reads_writes(1, 1)
 			.saturating_add(Weight::from_parts(2_000_000, 0))
+			.saturating_add(crate::weights::meta_v6::v7_commitment_delta())
 	}
 
 	fn validate(
@@ -1392,7 +1532,7 @@ fn inspect_node<R: MetadataImplicitResolver>(
 		| RuntimeCall::Multisig(pallet_multisig::Call::as_multi { call, .. })
 		| RuntimeCall::Multisig(pallet_multisig::Call::as_multi_threshold_1 { call, .. }) => {
 			inspect_node::<R>(call, depth.saturating_add(1), None, state)?
-			},
+		},
 		_ => {},
 	}
 	Ok(())
@@ -1512,9 +1652,15 @@ where
 	}
 
 	fn weight(&self, call: &RuntimeCall) -> Weight {
-		self.0.weight(call).saturating_add(crate::weights::meta_v6::paid_scope_max(
-			<Runtime as frame_system::Config>::DbWeight::get(),
-		))
+		let measured = <<Runtime as indiv_pallet_resources::Config>::WeightInfo as
+			indiv_pallet_resources::weights::WeightInfo>::meta_policy_metadata_max();
+		let metadata = measured.max(crate::weights::meta_v6::metadata_outer_implicit());
+		self.0
+			.weight(call)
+			.saturating_add(crate::weights::meta_v6::paid_scope_max(
+				<Runtime as frame_system::Config>::DbWeight::get(),
+			))
+			.saturating_add(metadata)
 	}
 
 	fn validate(

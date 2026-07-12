@@ -10,6 +10,7 @@ pub const MAX_DEPTH: u64 = 4;
 pub const METADATA_IMPLICIT_MAX_BYTES: u64 = 33;
 pub const MAX_BYTES: u64 = 65_536;
 pub const METADATA_IMPLICIT_WEIGHT_DELTA: u64 = 25_000;
+pub const V7_COMMITMENT_WEIGHT_DELTA: u64 = 525_000;
 const BASE: u64 = 5_000_000;
 const PER_CALL: u64 = 500_000;
 const PER_DEPTH: u64 = 250_000;
@@ -42,11 +43,21 @@ pub const fn inspector_ref_time(calls: u64, depth: u64, bytes: u64) -> u64 {
 
 pub fn paid_scope_max(db: RuntimeDbWeight) -> Weight {
 	Weight::from_parts(
-		inspector_ref_time(MAX_CALLS, MAX_DEPTH, MAX_BYTES)
-			.saturating_add(METADATA_IMPLICIT_WEIGHT_DELTA),
+		inspector_ref_time(MAX_CALLS, MAX_DEPTH, MAX_BYTES),
 		0,
 	)
-		.saturating_add(db.reads_writes(2, 2))
+	.saturating_add(db.reads_writes(2, 2))
+}
+
+/// Cost of decoding and hashing the 33-byte RFC-78 metadata implicit while inspecting an outer
+/// paid-meta envelope. Kept separate so the owner extension can prove it selected this charge.
+pub const fn metadata_outer_implicit() -> Weight {
+	Weight::from_parts(METADATA_IMPLICIT_WEIGHT_DELTA, 0)
+}
+
+/// Incremental v7 cost over v6: encode the `Option<[u8; 32]>` and include it in the intent hash.
+pub const fn v7_commitment_delta() -> Weight {
+	Weight::from_parts(V7_COMMITMENT_WEIGHT_DELTA, 0)
 }
 
 pub const fn router_ref_time(
@@ -147,12 +158,13 @@ mod tests {
 		assert_eq!(
 			paid_scope_max(db),
 			Weight::from_parts(
-				inspector_ref_time(32, 4, MAX_BYTES) + METADATA_IMPLICIT_WEIGHT_DELTA + 6_000,
+				inspector_ref_time(32, 4, MAX_BYTES) + 6_000,
 				0,
 			)
 		);
 		assert_eq!(MAX_BYTES, 65_536);
 		assert_eq!(METADATA_IMPLICIT_MAX_BYTES, 33);
+		assert!(v7_commitment_delta().ref_time() > METADATA_IMPLICIT_WEIGHT_DELTA);
 		assert_eq!(
 			malformed_max(db),
 			resources_claim(db).max(personal_alias_revised(db).max(lite_alias_revised(db)))

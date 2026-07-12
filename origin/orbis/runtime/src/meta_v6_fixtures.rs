@@ -13,6 +13,7 @@
 
 use crate::{AccountId, Runtime, RuntimeCall};
 use codec::{DecodeAll, Encode};
+use frame_support::dispatch::GetDispatchInfo;
 use frame_support::traits::BuildGenesisConfig;
 use sp_core::{ed25519, sr25519, Pair, H256};
 use sp_runtime::{
@@ -156,18 +157,64 @@ fn paid_token() -> crate::meta_v6::PaidMetaTokenV7 {
 
 fn max_envelope_with(meta: pallet_meta_tx::MetaTxFor<Runtime>) -> RuntimeCall {
 	let len = meta.encoded_size() as u32;
-	let mut nested = RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
+	let meta = RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
 		meta_tx: Box::new(meta),
 		meta_tx_encoded_len: len,
 	});
-	for _ in 0..3 {
-		nested = RuntimeCall::Utility(pallet_utility::Call::batch { calls: vec![nested] });
-	}
-	let mut calls = vec![nested];
-	for n in 0..27 {
-		calls.push(RuntimeCall::System(frame_system::Call::remark { remark: vec![n] }));
-	}
-	RuntimeCall::Utility(pallet_utility::Call::batch { calls })
+	let make = |padding: usize| {
+		RuntimeCall::Utility(pallet_utility::Call::batch {
+			calls: vec![
+				meta.clone(),
+				RuntimeCall::System(frame_system::Call::remark { remark: vec![0; padding] }),
+			],
+		})
+	};
+	let empty = make(0).encoded_size();
+	let target = crate::meta_v6::MAX_META_ENCODED_BYTES.saturating_sub(empty);
+	(target.saturating_sub(16)..=target.saturating_add(16))
+		.map(make)
+		.find(|call| call.encoded_size() == crate::meta_v6::MAX_META_ENCODED_BYTES)
+		.expect("an exact 65,536-byte SCALE envelope exists")
+}
+
+fn meta_with_intent(
+	meta: pallet_meta_tx::MetaTxFor<Runtime>,
+	intent: crate::meta_v6::IntentPreimageV7,
+) -> pallet_meta_tx::MetaTxFor<Runtime> {
+	let (call, version, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
+		DecodeAll::decode_all(&mut meta.encode().as_slice()).unwrap();
+	let (
+		verify,
+		_,
+		marker,
+		nonzero,
+		spec,
+		tx,
+		genesis,
+		mortality,
+		nonce,
+		policy,
+		storage,
+		metadata,
+	) = extension;
+	pallet_meta_tx::MetaTxFor::<Runtime>::new(
+		call,
+		version,
+		(
+			verify,
+			crate::meta_v6::ConsumePaidMetaIngress(intent),
+			marker,
+			nonzero,
+			spec,
+			tx,
+			genesis,
+			mortality,
+			nonce,
+			policy,
+			storage,
+			metadata,
+		),
+	)
 }
 
 fn mutations() -> [crate::meta_v6::IntentPreimageV7; 13] {
@@ -265,6 +312,63 @@ fn verify_meta_signature(meta: pallet_meta_tx::MetaTxFor<Runtime>) -> bool {
 	sp_runtime::traits::Verify::verify(&signature, digest.as_slice(), &account)
 }
 
+fn validate_meta_head(
+	meta: pallet_meta_tx::MetaTxFor<Runtime>,
+) -> Result<(), sp_runtime::transaction_validity::TransactionValidityError> {
+	let (call, version, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
+		DecodeAll::decode_all(&mut meta.encode().as_slice()).unwrap();
+	let (
+		verify,
+		consume,
+		marker,
+		nonzero,
+		spec,
+		tx,
+		genesis,
+		mortality,
+		nonce,
+		policy,
+		storage,
+		metadata,
+	) = extension;
+	let bare =
+		(consume, marker, nonzero, spec, tx, genesis, mortality, nonce, policy, storage, metadata);
+	let implicit = (
+		bare.0.implicit().unwrap(),
+		bare.1.implicit().unwrap(),
+		bare.2.implicit().unwrap(),
+		bare.3.implicit().unwrap(),
+		bare.4.implicit().unwrap(),
+		bare.5.implicit().unwrap(),
+		bare.6.implicit().unwrap(),
+		bare.7.implicit().unwrap(),
+		bare.8.implicit().unwrap(),
+		bare.9.implicit().unwrap(),
+		Some(CANONICAL_METADATA_IMPLICIT),
+	);
+	verify
+		.validate(
+			crate::RuntimeOrigin::none(),
+			&call,
+			&call.get_dispatch_info(),
+			call.encoded_size(),
+			(),
+			&sp_runtime::traits::TxBaseImplication((version, &call, &bare, &implicit)),
+			sp_runtime::transaction_validity::TransactionSource::External,
+		)
+		.map(|_| ())
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+struct FixtureMetadataResolver;
+impl crate::meta_v6::MetadataImplicitResolver for FixtureMetadataResolver {
+	fn resolve(
+		metadata: &frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+	) -> Result<Option<[u8; 32]>, sp_runtime::transaction_validity::TransactionValidityError> {
+		Ok(if metadata.encode() == [0] { None } else { Some(CANONICAL_METADATA_IMPLICIT) })
+	}
+}
+
 fn assert_outer_fixture(bytes: &[u8], sponsored: bool) {
 	let encoded = crate::UncheckedExtrinsic::decode_all(&mut bytes.as_ref()).unwrap();
 	assert_eq!(bytes, encoded.encode());
@@ -274,10 +378,13 @@ fn assert_outer_fixture(bytes: &[u8], sponsored: bool) {
 		panic!("v7 outer fixture must be signed")
 	};
 	let crate::MultiAddress::Id(signer) = address else { panic!("fixture uses AccountId") };
-	assert_eq!(matches!(transaction.function, RuntimeCall::MetaTx(..)), sponsored);
+	if sponsored {
+		assert!(matches!(transaction.function, RuntimeCall::MetaTx(..)));
+	} else {
+		assert!(matches!(transaction.function, RuntimeCall::Resources(..)));
+	}
 	match SignedPayload::new(transaction.function, extension) {
 		Ok(payload) => {
-			assert!(option_env!("RUNTIME_METADATA_HASH").is_some());
 			assert!(payload.using_encoded(|payload| {
 				sp_runtime::traits::Verify::verify(&signature, payload, &signer)
 			}));
@@ -326,7 +433,7 @@ fn regenerate_meta_v7_fixtures() {
 			"mutate-metadata-implicit-wrong.scale",
 		];
 		for (name, mutation) in mutation_names.into_iter().zip(mutations()) {
-			write(name, &mutation.encode());
+			write(name, &meta_with_intent(meta.clone(), mutation).encode());
 		}
 		let proof_names = [
 			"proof-person-alias-meta.scale",
@@ -382,16 +489,25 @@ fn regenerate_meta_v7_fixtures() {
 			)
 			.encode()
 		};
-		let direct_pair = ed25519::Pair::from_seed(&[0x44; 32]);
-		write(
-			"direct-signed-extrinsic.scale",
-			&sign_outer(
-				RuntimeCall::System(frame_system::Call::remark {
-					remark: b"orbis-v7-direct".to_vec(),
-				}),
-				&direct_pair,
-			),
-		);
+		let legacy_bytes = include_bytes!("../fixtures/meta-v6/direct-signed-extrinsic.scale");
+		let legacy = crate::UncheckedExtrinsic::decode_all(&mut legacy_bytes.as_slice()).unwrap().0;
+		let sp_runtime::generic::Preamble::Signed(_, _, extension) = legacy.preamble else {
+			panic!("legacy Resources fixture is signed")
+		};
+		assert!(matches!(legacy.function, RuntimeCall::Resources(..)));
+		let direct_pair = sr25519::Pair::from_string("//Alice", None).unwrap();
+		let payload = SignedPayload::new(legacy.function.clone(), extension.clone()).unwrap();
+		let signature = payload.using_encoded(|bytes| direct_pair.sign(bytes));
+		let signer = MultiSigner::Sr25519(direct_pair.public()).into_account();
+		let direct =
+			<crate::UncheckedExtrinsic as SignedTransactionBuilder>::new_signed_transaction(
+				legacy.function,
+				signer.into(),
+				MultiSignature::Sr25519(signature),
+				extension,
+			)
+			.encode();
+		write("direct-signed-extrinsic.scale", &direct);
 		let sponsored_pair = ed25519::Pair::from_seed(&[0x45; 32]);
 		let sponsored_call = RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
 			meta_tx: Box::new(meta.clone()),
@@ -423,13 +539,29 @@ fn checked_in_meta_v7_fixtures_decode_all_recompute_and_match_hashes() {
 		let meta =
 			pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut meta_bytes.as_slice()).unwrap();
 		assert_eq!(meta_bytes.as_slice(), meta.encode());
-		let (_, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
+		let (inner_call, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
 			DecodeAll::decode_all(&mut meta.encode().as_slice()).unwrap();
 		assert_eq!(extension.1 .0, intent);
 		assert_eq!(extension.1 .0.metadata_implicit, Some(CANONICAL_METADATA_IMPLICIT));
-		assert_fixture(
-			include_bytes!("../fixtures/meta-v7/max-envelope.scale"),
-			max_envelope_with(meta),
+		assert!(extension.1.weight(&inner_call).all_gte(crate::weights::meta_v6::v7_commitment_delta()));
+		let max = max_envelope_with(meta);
+		assert_fixture(include_bytes!("../fixtures/meta-v7/max-envelope.scale"), max.clone());
+		assert_eq!(max.encoded_size(), crate::meta_v6::MAX_META_ENCODED_BYTES);
+		assert!(crate::meta_v6::inspect_paid_meta::<FixtureMetadataResolver>(&max, 0)
+			.unwrap()
+			.is_some());
+		let RuntimeCall::Utility(pallet_utility::Call::batch { mut calls }) = max else {
+			unreachable!()
+		};
+		let RuntimeCall::System(frame_system::Call::remark { remark }) = &mut calls[1] else {
+			unreachable!()
+		};
+		remark.push(0);
+		let over = RuntimeCall::Utility(pallet_utility::Call::batch { calls });
+		assert_eq!(over.encoded_size(), crate::meta_v6::MAX_META_ENCODED_BYTES + 1);
+		assert_eq!(
+			crate::meta_v6::inspect_paid_meta::<FixtureMetadataResolver>(&over, 0),
+			Err(sp_runtime::transaction_validity::InvalidTransaction::ExhaustsResources.into()),
 		);
 		let mutation_bytes: [&[u8]; 13] = [
 			include_bytes!("../fixtures/meta-v7/mutate-domain.scale"),
@@ -447,7 +579,25 @@ fn checked_in_meta_v7_fixtures_decode_all_recompute_and_match_hashes() {
 			include_bytes!("../fixtures/meta-v7/mutate-metadata-implicit-wrong.scale"),
 		];
 		for (bytes, mutation) in mutation_bytes.into_iter().zip(mutations()) {
-			assert_fixture(bytes, mutation);
+			let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut bytes.as_ref()).unwrap();
+			assert_eq!(bytes, meta.encode());
+			let (_, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
+				DecodeAll::decode_all(&mut meta.encode().as_slice()).unwrap();
+			assert_eq!(extension.1 .0, mutation);
+			assert!(!verify_meta_signature(meta.clone()));
+			assert_eq!(
+				validate_meta_head(meta.clone()),
+				Err(sp_runtime::transaction_validity::InvalidTransaction::BadProof.into()),
+			);
+			let len = meta.encoded_size() as u32;
+			let outer = RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
+				meta_tx: Box::new(meta),
+				meta_tx_encoded_len: len,
+			});
+			assert_eq!(
+				crate::meta_v6::inspect_paid_meta::<FixtureMetadataResolver>(&outer, 0),
+				Err(sp_runtime::transaction_validity::InvalidTransaction::BadProof.into()),
+			);
 		}
 		assert!(mutations().into_iter().all(|mutation| mutation.commitment() != intent.commitment()));
 
@@ -484,10 +634,21 @@ fn checked_in_meta_v7_fixtures_decode_all_recompute_and_match_hashes() {
 			)
 			.unwrap(),
 		));
+		assert!(validate_meta_head(
+			pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(
+				&mut include_bytes!("../fixtures/meta-v7/verify-consume-tuple.scale").as_slice(),
+			)
+			.unwrap(),
+		)
+		.is_ok());
 		let wrong_signature = include_bytes!("../fixtures/meta-v7/mutate-wrong-signature.scale");
 		let wrong_signature =
 			pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut wrong_signature.as_slice()).unwrap();
-		assert!(!verify_meta_signature(wrong_signature));
+		assert!(!verify_meta_signature(wrong_signature.clone()));
+		assert_eq!(
+			validate_meta_head(wrong_signature),
+			Err(sp_runtime::transaction_validity::InvalidTransaction::BadProof.into()),
+		);
 		assert!(pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(
 			&mut include_bytes!("../fixtures/meta-v7/mutate-trailing-byte.scale").as_slice(),
 		)
@@ -504,12 +665,37 @@ fn checked_in_meta_v7_fixtures_decode_all_recompute_and_match_hashes() {
 			include_bytes!("../fixtures/meta-v7/intent-preimage.scale").len(),
 			include_bytes!("../fixtures/meta-v6/intent-preimage.scale").len() + 33,
 		);
+		let digest_hex = |bytes: &[u8]| {
+			sp_io::hashing::blake2_256(bytes)
+				.iter()
+				.map(|byte| format!("{byte:02x}"))
+				.collect::<String>()
+		};
+		assert_eq!(
+			digest_hex(include_bytes!("../fixtures/meta-v6/intent-preimage.scale")),
+			"cd3df5c81cfd15a2f2debef6b1ee310c67fb5eddcf5c8ae27a05089079edb189"
+		);
+		assert_eq!(
+			digest_hex(include_bytes!("../fixtures/meta-v7/intent-preimage.scale")),
+			"e09ac3492879f4d39082570f3e08b3bb7fd5312d21532c172f5c9bf61d6b4611"
+		);
 		assert_eq!(crate::meta_v6::MAX_META_ENCODED_BYTES, 65_536);
 		assert_eq!(crate::meta_v6::MAX_META_PAYLOAD_BYTES, 65_503);
 		let manifest: serde_json::Value =
 			serde_json::from_str(include_str!("../fixtures/meta-v7/manifest.json")).unwrap();
 		assert_eq!(manifest["spec_version"], 28);
 		assert_eq!(manifest["transaction_version"], 7);
+		assert_eq!(manifest["max_envelope_bytes"], 65_536);
+		assert_eq!(manifest["over_bound_error"], "InvalidTransaction::ExhaustsResources");
+		assert_eq!(
+			manifest["files"]
+				.as_array()
+				.unwrap()
+				.iter()
+				.filter(|row| row.get("expected_error").is_some())
+				.count(),
+			15,
+		);
 		let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/meta-v7");
 		for row in manifest["files"].as_array().unwrap() {
 			let bytes = std::fs::read(dir.join(row["file"].as_str().unwrap())).unwrap();

@@ -3,11 +3,13 @@
   "spec_version": 28,
   "transaction_version": 7,
   "metadata_implicit": "0xd03f87e6279878cafcf6149a7107a6307163e4e997f8d72d029cd6aa837f9854",
+  "max_envelope_bytes": 65536,
+  "over_bound_error": "InvalidTransaction::ExhaustsResources",
   "files": [
     {
       "file": "direct-signed-extrinsic.scale",
-      "sha256": "8dec43999756b1b6b66495f367ff190a7f0b8abcc038f18f2ae626669900c7f9",
-      "bytes": 127
+      "sha256": "fbb1f49590e3d0ca5b0ad36fc42b16a6ba3382ff7bf0e2f9bd9eef6feafc657a",
+      "bytes": 945
     },
     {
       "file": "intent-commitment.bin",
@@ -21,88 +23,103 @@
     },
     {
       "file": "max-envelope.scale",
-      "sha256": "5e8a20e06c5b3e491ace6d5e68f6590aa5cd5c0e42639e651f0486846a2155ac",
-      "bytes": 507
+      "sha256": "dff8c5be3a36425998071cee6d46be787488ab9917f2499cf32ba1c00c316148",
+      "bytes": 65536
     },
     {
       "file": "metadata-hash.json",
-      "sha256": "76e0117149b16249506571ab06b9a38151cf10ec55d36640327401b259781ff3",
+      "sha256": "0f99f9b6e9fdd98bb56a911b759db5db87842ad1e4a765fc03f842bca2ebda2a",
       "bytes": 478
     },
     {
       "file": "mutate-call-hash.scale",
-      "sha256": "d3b9f9d3b982c93ba962f371ee2d525a2542d6dfeb224999476f69f6736315f7",
-      "bytes": 260
+      "sha256": "21b4f7c0b3742a5b15a8f5f69e8aa82fa1c12390da178119a7d512d4f263a2e1",
+      "bytes": 381,
+      "expected_error": "InvalidTransaction::BadProof"
     },
     {
       "file": "mutate-domain.scale",
-      "sha256": "e25e2ac5f2a52b1ec473881cabc7d6b9ae79f7f3845f146c4678bf6234faf594",
-      "bytes": 261
+      "sha256": "54182fc2a67a6c00303c8ae9e488a9c596e3f569810c1f82dda69c88e752d10f",
+      "bytes": 382,
+      "expected_error": "InvalidTransaction::BadProof"
     },
     {
       "file": "mutate-genesis.scale",
-      "sha256": "801cda162437f2ea663ebd6bc56146c1e96aaa06ad31f98b9488be3e1075e1fd",
-      "bytes": 260
+      "sha256": "c6d31d98eae9f6d783d5b78d9fb238e0b007e73f01cce6c1bc4de3bca8f2692e",
+      "bytes": 381,
+      "expected_error": "InvalidTransaction::BadProof"
     },
     {
       "file": "mutate-metadata-hash.scale",
-      "sha256": "921f3857c28e4870bfd37c2c71f40db4c6eb2e67fa9c3805fb3cad5af2b2a5eb",
-      "bytes": 260
+      "sha256": "d11be909a4919cfb5e6a4818f518af2957aa7fcf153b3991d812a3e9ac5b3d84",
+      "bytes": 381,
+      "expected_error": "InvalidTransaction::BadProof"
     },
     {
       "file": "mutate-metadata-implicit-none.scale",
-      "sha256": "9d51d8246f4aa801240d17e9cf2b4fd9942aff82b9d653ee9b53070b968cc922",
-      "bytes": 228
+      "sha256": "0d3bb831ba969b7f28673d925149fb25a76a32498827718cc6350abb5cf7e01d",
+      "bytes": 349,
+      "expected_error": "InvalidTransaction::BadProof"
     },
     {
       "file": "mutate-metadata-implicit-wrong.scale",
-      "sha256": "255882ca4c6f4362a70fd1bf769c22ced711731bb857c9457d8e6fdf4b7383a1",
-      "bytes": 260
+      "sha256": "c6d72a2dabf32b84df11c3b39d23c2de46611c524dfab8f4f610361c3b02994a",
+      "bytes": 381,
+      "expected_error": "InvalidTransaction::BadProof"
     },
     {
       "file": "mutate-mortality.scale",
-      "sha256": "0a4b9aa6107615fff0b5a97edf1d2aaede9ffdcd9182aa09cc8b54dc109ce757",
-      "bytes": 261
+      "sha256": "083f9441a4cdb2e41f58db848e9d3036b884d521bac0135fed87097e9cb275fd",
+      "bytes": 382,
+      "expected_error": "InvalidTransaction::BadProof"
     },
     {
       "file": "mutate-nonce.scale",
-      "sha256": "c45fcfda2c71730e72e96bec81cf39c0faac2b2a8bf02edfdbf99bd0407e902e",
-      "bytes": 260
+      "sha256": "63fc8a1d23d581308cff6815973d800dedfc9c43515495d9fe08de24744d4c64",
+      "bytes": 381,
+      "expected_error": "InvalidTransaction::BadProof"
     },
     {
       "file": "mutate-policy-hash.scale",
-      "sha256": "7d7efbac8333b0407e1b1d383537d618f21b6e86e5c1521f303725f96a839189",
-      "bytes": 260
+      "sha256": "16b76c4496f92aad337329edcefafd14b6c965ca2fc155a2a983f323bc92383e",
+      "bytes": 381,
+      "expected_error": "InvalidTransaction::BadProof"
     },
     {
       "file": "mutate-signer.scale",
-      "sha256": "0cda4888d77844070b2d4027c5d2ea4fb89e8422fd044a64c4c0933c9a5056b0",
-      "bytes": 260
+      "sha256": "d7a9bc9bc776b7e63c8f6d8f4cb9c20865eb793f4a1c60c0e222e2750e59817b",
+      "bytes": 381,
+      "expected_error": "InvalidTransaction::BadProof"
     },
     {
       "file": "mutate-spec.scale",
-      "sha256": "9283e0f0227835a99003ae099475ce3212896a18359054eed4995d600ce2bffa",
-      "bytes": 260
+      "sha256": "794ad5c8a746e01094e002a4960b796b04b1118f4fd9476af241d0079fe1e490",
+      "bytes": 381,
+      "expected_error": "InvalidTransaction::BadProof"
     },
     {
       "file": "mutate-storage-hash.scale",
-      "sha256": "aae43a6d270e16286d4ff01b5b5d82299d083dc92a2a6f29455b12de5e9f10c2",
-      "bytes": 260
+      "sha256": "2ef6eff139919a6c38fdcc3f46c9071e1bae413567f394ebd933cd7cda1e6a1c",
+      "bytes": 381,
+      "expected_error": "InvalidTransaction::BadProof"
     },
     {
       "file": "mutate-trailing-byte.scale",
       "sha256": "e5964306eb061343cb66ed938feeaff59010d3b3790e6d6a62849e35a8874e02",
-      "bytes": 382
+      "bytes": 382,
+      "expected_error": "Codec::TrailingBytes"
     },
     {
       "file": "mutate-transaction-version.scale",
-      "sha256": "20ab1bf3f238cb1f84870bb2aba5603bced392a904885a8b44073b89a6700eac",
-      "bytes": 260
+      "sha256": "ccbfa091b1cdf5e2b163fac4abe1c9e11d0482b905c6509135c934be51cc2d91",
+      "bytes": 381,
+      "expected_error": "InvalidTransaction::BadProof"
     },
     {
       "file": "mutate-wrong-signature.scale",
       "sha256": "f8c0e92de99796a807a3ddfbd0e150aabc12b77fdf97ed348a87102680009529",
-      "bytes": 381
+      "bytes": 381,
+      "expected_error": "InvalidTransaction::BadProof"
     },
     {
       "file": "paid-token-key.bin",
