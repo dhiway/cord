@@ -13,6 +13,7 @@ This directory contains pallets and runtime APIs owned by the Orbis system chain
 - Do not introduce staking or governance origins. Required administration must be explicitly
   mapped to Sudo/root and covered by origin tests.
 
-`people/`, `people-lite/`, `personhood/`, `chunks-manager/`, `members/`, `members-notifier/`, `individuality-support/`,
-`hop-promotion/`, and `transaction-storage/` are Orbis-owned compatibility forks. Their runtime
+`people/`, `people-lite/`, `personhood/`, `chunks-manager/`, `members/`, `members-notifier/`,
+`individuality-support/`, `score/`, `honour/`, `hop-promotion/`, and `transaction-storage/` are
+Orbis-owned compatibility forks. Their runtime
 pallet names and indices remain stable so physical ownership changes do not alter state.

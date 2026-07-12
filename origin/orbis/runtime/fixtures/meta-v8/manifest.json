@@ -1,0 +1,180 @@
+{
+  "files": [
+    {
+      "bytes": 113,
+      "file": "direct-signed-extrinsic.scale",
+      "sha256": "d7643e8ce5267c68120eb06da852010e87b62c325716436e212d9c490902ee0b"
+    },
+    {
+      "bytes": 32,
+      "file": "intent-commitment.bin",
+      "sha256": "125134dfa77152e442798f173aff4725f9709c0f9cd9b45cd897848fc9a49dfe"
+    },
+    {
+      "bytes": 260,
+      "file": "intent-preimage.scale",
+      "sha256": "8b311f62184bbe6bfd729ebd0ebcda5df826485190f5298b39aa7561d0465c43"
+    },
+    {
+      "bytes": 65536,
+      "file": "max-envelope.scale",
+      "sha256": "5e1e18180f01438d1898ddae843f80b28f34f7f50a0c313c230bcd3bc54a64de"
+    },
+    {
+      "bytes": 478,
+      "file": "metadata-hash.json",
+      "sha256": "07bd5d68f0d4dee25203d952e9bd051cb670b5f03800a9a013d7f81141495a35"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-call-hash.scale",
+      "sha256": "fa4228c03990cbbc81daf492012ea2891ad47a60b671bcdaf5b0597f2b21b188"
+    },
+    {
+      "bytes": 384,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-domain.scale",
+      "sha256": "9b8fc9797e88162906ac4a52191425355fc5f76e48e51dcba91abe7d2b8ef558"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-genesis.scale",
+      "sha256": "3ac5b50184bb186a3943ed3a14125dc45422f3a95789c292acc09dc86cd296b1"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-metadata-hash.scale",
+      "sha256": "cb039ab06da405a358a113f481a2ecddd25ef0f03a74f72bf4a0d0e70cb11ab2"
+    },
+    {
+      "bytes": 351,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-metadata-implicit-none.scale",
+      "sha256": "8958cc06e3964aaded3b7f9755f75ff030f08aa1d5c054354b146a0ab81786fb"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-metadata-implicit-wrong.scale",
+      "sha256": "d6623a998443685158513146c809731feb6e9fe994fb157528032aacf9b2b69a"
+    },
+    {
+      "bytes": 384,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-mortality.scale",
+      "sha256": "9ef079de92b84c976008e4e805dbe2a16d3c603957ff24cddde4d0e42d5431d0"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-nonce.scale",
+      "sha256": "5c44f6622c9c01a393751d7599db035b70e5538fb3d0e5a52a441d45f1c493b3"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-policy-hash.scale",
+      "sha256": "e04cf680d5b7c289351a1a1730ff00406bef04fb7317bdcd8e24799e95fbb230"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-signer.scale",
+      "sha256": "2d42ea463954d3bf73afcb5fb4e450160167c4cfb6cc26795214b0dcf54e26ae"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-spec.scale",
+      "sha256": "582aa756fc6c6fc491e2bbf35b6c7db1411748070b5e06bfec035c5ac8966d36"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-storage-hash.scale",
+      "sha256": "03ebcc1c57f28a68bdc98488f3cbea5d3d535d6609b80d00b35e2a6648dce015"
+    },
+    {
+      "bytes": 384,
+      "expected_error": "Codec::TrailingBytes",
+      "file": "mutate-trailing-byte.scale",
+      "sha256": "17f64101941acf48b34e7cf34a62085c25ea3d4148b1398b7aa6aa3f3f330cce"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-transaction-version.scale",
+      "sha256": "e2a471eab376cdbf174cd1aba54b813c65df816bc65b92ac6600218388ccbaa0"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-wrong-signature.scale",
+      "sha256": "9b44ba076b3dca7aa3401f077cdf6ad339db1fcef8fbfe469c1b4f3dfc8dff15"
+    },
+    {
+      "bytes": 32,
+      "file": "paid-token-key.bin",
+      "sha256": "b09c89b9cf396cd7bf78ca05e2c2c2f538d6adc4b1d9977015aa7f04c3302396"
+    },
+    {
+      "bytes": 109,
+      "file": "paid-token.scale",
+      "sha256": "a588a67b3718f9f026941bcaa549d8c3626cb6ee864307e74947a84a5d6199ec"
+    },
+    {
+      "bytes": 384,
+      "file": "proof-lite-alias-meta.scale",
+      "sha256": "6bac713009d27f47b25a0f08c58fb11f04c42377e066c5d17e8cc7d3fc7c2617"
+    },
+    {
+      "bytes": 1207,
+      "file": "proof-lite-alias-revised-meta.scale",
+      "sha256": "d4544ac8b70c742c42dc432df4930986106a2cb60bd31c2e7f13205445b29c94"
+    },
+    {
+      "bytes": 384,
+      "file": "proof-lite-person-meta.scale",
+      "sha256": "b071141e2b946ec510c8ac2a0e8df550c1010410baf772375a7a1b3938e2a141"
+    },
+    {
+      "bytes": 384,
+      "file": "proof-person-alias-meta.scale",
+      "sha256": "b8ea06b3507ce4b4e641b585920f4bf4971eef32f297992189548aca139ba817"
+    },
+    {
+      "bytes": 1207,
+      "file": "proof-person-alias-revised-meta.scale",
+      "sha256": "d1ea79ef83705ee5111af641a2a3566edaa91490f3e9fc3c7b45500d2934a401"
+    },
+    {
+      "bytes": 384,
+      "file": "proof-person-identity-meta.scale",
+      "sha256": "fd66f19b0e0350e4e8cf6f0a3dbb7cf2dd43ead4591ada59a566b3f2e31eca40"
+    },
+    {
+      "bytes": 1180,
+      "file": "proof-resources-claim-meta.scale",
+      "sha256": "0859d45264b23c4481084054023d95b51f1b9c1a2fbfb24cfd66982c3eb55062"
+    },
+    {
+      "bytes": 500,
+      "file": "sponsored-outer-extrinsic.scale",
+      "sha256": "cb8f8831f726483c06da5665cff0421339363e1f0a457f9627f390e1ce1df6a5"
+    },
+    {
+      "bytes": 383,
+      "file": "verify-consume-tuple.scale",
+      "sha256": "eac6baf5ca791c991c9d6cd3fa422afe7ebc5dc20fbb2a1601b4b1b507cc43c9"
+    }
+  ],
+  "max_envelope_bytes": 65536,
+  "metadata_implicit": "0xf830f06b57d70c57b77cdbf0bebaa106cca700126de9af0e850cd6c75f42205a",
+  "over_bound_error": "InvalidTransaction::ExhaustsResources",
+  "schema": "orbis-meta-intent-v7",
+  "spec_version": 29,
+  "transaction_version": 8
+}

@@ -153,10 +153,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
-	spec_version: 28,
+	spec_version: 29,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 7,
+	transaction_version: 8,
 	system_version: 1,
 };
 
@@ -1023,8 +1023,10 @@ impl pallet_verify_signature::Config for Runtime {
 /// the frozen slot map in ADR 0008 before they are added here.
 pub type OriginPolicyExtensions = (
 	indiv_pallet_people::extension::AsPerson<Runtime>,
+	pallet_orbis_score::ScoreAsParticipant<Runtime>,
 	indiv_pallet_people_lite::extension::PeopleLiteAuth<Runtime>,
 	indiv_pallet_resources::extension::AsResources<Runtime>,
+	pallet_orbis_honour::extension::VoterAuth<Runtime>,
 	frame_system::AuthorizeCall<Runtime>,
 );
 
@@ -1279,11 +1281,19 @@ where
 fn default_origin_policy_extensions() -> OriginPolicyExtensions {
 	(
 		indiv_pallet_people::extension::AsPerson::<Runtime>::new(None),
+		pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(None),
 		indiv_pallet_people_lite::extension::PeopleLiteAuth::<Runtime>::new(None),
 		indiv_pallet_resources::extension::AsResources::<Runtime>::new(None),
+		pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None),
 		frame_system::AuthorizeCall::<Runtime>::new(),
 	)
 }
+
+pub type MetaIdentityBoundPolicies = (
+	pallet_orbis_score::ScoreAsParticipant<Runtime>,
+	meta_v6::MetaAccountBoundPoliciesV6,
+	pallet_orbis_honour::extension::VoterAuth<Runtime>,
+);
 
 pub type MetaTxExtension = (
 	pallet_verify_signature::VerifySignature<Runtime>,
@@ -1295,7 +1305,7 @@ pub type MetaTxExtension = (
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
-	meta_v6::MetaAccountBoundPoliciesV6,
+	MetaIdentityBoundPolicies,
 	pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
 		Runtime,
 		BulletinCallInspector,
@@ -1613,7 +1623,7 @@ pub const ORBIS_PERSON_CONTEXT: indiv_support::traits::Context = [0x4f; 32];
 pub struct PersonhoodAccountContexts;
 impl Contains<indiv_support::traits::Context> for PersonhoodAccountContexts {
 	fn contains(context: &indiv_support::traits::Context) -> bool {
-		context == &ORBIS_PERSON_CONTEXT
+		context == &ORBIS_PERSON_CONTEXT || context == &pallet_orbis_score::SCORE_CONTEXT
 	}
 }
 
@@ -1655,6 +1665,112 @@ impl indiv_pallet_people::Config for Runtime {
 	type ManagerOrigin = EnsureRoot<AccountId>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = PersonhoodBenchmarkHelper;
+}
+
+parameter_types! {
+	pub const ScorePotId: PalletId = PalletId(*b"scorepot");
+	pub ScoreCurrencyLocation: Location = Location::here();
+	pub ScoreManagerAccountDefault: Option<AccountId> = Some(AccountId::new([0x53; 32]));
+	pub const HonourPointFreezeDuration: pallet_orbis_honour::Seconds = 24 * 60 * 60;
+	pub const HonourCallMortality: pallet_orbis_honour::Seconds = 5 * 60;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct ScoreBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_orbis_score::benchmarking::BenchmarkHelper<Runtime> for ScoreBenchmarkHelper {
+	fn create_member(seed: u64) -> pallet_orbis_score::MemberOf<Runtime> {
+		let mut entropy = [0u8; 32];
+		entropy[..8].copy_from_slice(&seed.to_le_bytes());
+		let secret = BandersnatchVrfVerifiable::new_secret(entropy);
+		BandersnatchVrfVerifiable::member_from_secret(&secret)
+	}
+
+	fn setup_currency() {}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct HonourBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_orbis_honour::benchmarking::BenchmarkHelper<Runtime> for HonourBenchmarkHelper {
+	fn set_time(now: pallet_orbis_honour::Seconds) {
+		pallet_timestamp::Now::<Runtime>::put(now.saturating_mul(1_000));
+	}
+
+	fn seed_and_create_proof(
+		vote: &pallet_orbis_honour::VoteData,
+		message: &[u8],
+	) -> pallet_orbis_honour::RingProofOf<Runtime> {
+		use alloc::{vec, vec::Vec};
+		use indiv_support::traits::{AppendOnlyMembers, RingMode};
+		use verifiable::ring::RingDomainSize;
+
+		let ring_exponent = <Runtime as indiv_pallet_people::Config>::RingExponent::get();
+		let ring_index = 0;
+		Members::create_collection(
+			PersonhoodCollectionOwner::get(),
+			indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER,
+			1,
+			RingMode::Flexible,
+			ring_exponent,
+			None,
+		)
+		.expect("benchmark: people collection must be created");
+
+		let secret =
+			BandersnatchVrfVerifiable::new_secret(sp_io::hashing::twox_256(b"honour-bench-voter"));
+		let member = BandersnatchVrfVerifiable::member_from_secret(&secret);
+		Members::add_members(indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER, vec![member])
+			.expect("benchmark: ring member must be added");
+		Members::initialize_chunks(ring_exponent);
+		Members::onboard_all_and_build_ring(
+			indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER,
+			ring_index,
+		)
+		.expect("benchmark: people ring must be built");
+
+		let ring_members =
+			Members::ring_members(indiv_pallet_people::PEOPLE_MEMBER_IDENTIFIER, ring_index);
+		let domain: RingDomainSize =
+			ring_exponent.try_into().expect("people ring exponent maps to a domain size");
+		let commitment = BandersnatchVrfVerifiable::open(domain, &member, ring_members.into_iter())
+			.expect("benchmark: commitment must open");
+		let contexts = vote.get_contexts();
+		let contexts: Vec<&[u8]> = contexts.iter().map(|context| &context[..]).collect();
+		let (proof, _) = BandersnatchVrfVerifiable::create_multi_context(
+			commitment, &secret, &contexts, message,
+		)
+		.expect("benchmark: proof creation must succeed");
+		proof
+	}
+}
+
+impl pallet_orbis_score::Config for Runtime {
+	type WeightInfo = pallet_orbis_score::weights::SubstrateWeight<Runtime>;
+	type EnsurePerson = indiv_pallet_people::EnsurePersonalAliasInContext<Runtime>;
+	type ScorePotId = ScorePotId;
+	type Currency = Balances;
+	type CurrencyLocationInfo = ScoreCurrencyLocation;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	type ManagerAccountDefault = ScoreManagerAccountDefault;
+	type MaxPayoutRoundSchedules = ConstU32<10>;
+	type OffchainWorkInterval = ConstU32<2>;
+	type People = Personhood;
+	type Crypto = BandersnatchVrfVerifiable;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ScoreBenchmarkHelper;
+}
+
+impl pallet_orbis_honour::Config for Runtime {
+	type WeightInfo = pallet_orbis_honour::weights::SubstrateWeight<Runtime>;
+	type MemberService = Members;
+	type Clock = Timestamp;
+	type PointFreezeDuration = HonourPointFreezeDuration;
+	type CallMortality = HonourCallMortality;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = HonourBenchmarkHelper;
 }
 
 parameter_types! {
@@ -2013,6 +2129,8 @@ construct_runtime!(
 		PeopleLite: indiv_pallet_people_lite = 94,
 		Personhood: indiv_pallet_people = 95,
 		Resources: indiv_pallet_resources = 96,
+		Score: pallet_orbis_score = 97,
+		Honour: pallet_orbis_honour = 99,
 
 		// Solidity and PolkaVM contracts.
 		Revive: pallet_revive = 100,

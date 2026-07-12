@@ -12,7 +12,8 @@ transaction. Adding identity, feeless, storage, or application policy independen
 surfaces can create a signature, origin, nonce, or payment bypass. The order is therefore protocol
 surface, not an implementation detail.
 
-The runtime currently implements `AsPerson`, `PeopleLiteAuth`, `AsResources`, `AuthorizeCall`, asset/native
+The runtime currently implements `AsPerson`, `ScoreAsParticipant`, `PeopleLiteAuth`, `AsResources`,
+`VoterAuth`, `AuthorizeCall`, asset/native
 payment with a feeless gate, recursive Bulletin call validation, metadata-hash validation, and
 Revive origin selection. Future policy names below reserve positions; they are not claims that the
 corresponding feature exists.
@@ -127,6 +128,23 @@ other future extensions exist. Remaining acceptance work is bound
 to the slices that implement it: positive custom-identity proof vectors on every reachable surface;
 protected-transfer signatures; `RestrictOrigin`; and the PGAS charging layer. Until those slices
 land, ADR 0008 freezes the intended contract and makes the present typed placeholders explicit.
+
+### Spec-29 Score and Honour transition
+
+Spec 29 / transaction version 8 makes the reserved Score and Honour positions concrete.
+`ScoreAsParticipant` precedes the existing account-bound policy router and rejects both unknown
+accounts and suspended identities before nonce mutation. `VoterAuth` follows Resources and accepts
+only a fresh proof against the active Orbis Members ring. Both extensions encode `None` in default,
+Ethereum, and authorized constructors; this preserves deny-by-default semantics rather than
+implicitly manufacturing a custom origin. Meta v8 fixtures bind the new ordered schema and the
+current metadata hash. Manifest v4 and its spec-28/transaction-7 fixtures remain historical
+evidence and are not rewritten by this transition.
+
+The active MetaTx extension sequence is `VerifySignature`, `ConsumePaidMetaIngress`,
+`MetaTxMarker`, the system checks through `CheckNonce`, `ScoreAsParticipant`,
+`MetaAccountBoundPoliciesV6`, `VoterAuth`, Bulletin validation, and metadata validation. Thus a
+sponsor can carry either explicit identity-bound application authorization inside the signed
+inner payload; `None` remains the deny-by-default encoding for both new slots.
 
 
 ## Iteration-5 evidence boundary

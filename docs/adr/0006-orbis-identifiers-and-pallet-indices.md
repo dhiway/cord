@@ -83,6 +83,12 @@ Storage code is not implicitly in scope.
 Indices must never be reused after a released runtime. Assets, People, Revive, and Bulletin receive
 explicit indices and metadata snapshot tests before their first release.
 
+Score and Honour became native at indices 97 and 99 in spec 29. Both are Orbis-owned forks of
+Individuality Community `28b7d07dab05bbd05f6b664278b5c83841e212d3`, retain Apache-2.0
+provenance, and declare storage version 1. Score's enterprise manager is a named genesis-backed
+account rotatable only by root; manager calls accept that account or root. Honour binds directly
+to Orbis Members and Timestamp. Neither introduces staking, treasury, or governance origins.
+
 Broker index `50` is a protocol constraint, not a local layout preference: the SDK relay Coretime
 pallet encodes `notify_core_count`, `notify_revenue`, and reservation callbacks to pallet `50` on
 the configured broker chain. Orbis therefore places Entity at `53` before its first release.

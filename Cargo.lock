@@ -9737,8 +9737,10 @@ dependencies = [
  "pallet-nfts",
  "pallet-orbis-entity",
  "pallet-orbis-feeless",
+ "pallet-orbis-honour",
  "pallet-orbis-people",
  "pallet-orbis-register",
+ "pallet-orbis-score",
  "pallet-orbis-token",
  "pallet-proxy",
  "pallet-remark",
@@ -11180,6 +11182,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-orbis-honour"
+version = "0.9.9"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "indiv-support",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "verifiable",
+]
+
+[[package]]
 name = "pallet-orbis-people"
 version = "0.9.9"
 dependencies = [
@@ -11213,6 +11231,28 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-orbis-score"
+version = "0.9.9"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "indiv-pallet-chunks-manager",
+ "indiv-pallet-members",
+ "indiv-pallet-people",
+ "indiv-support",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "staging-xcm",
+ "verifiable",
 ]
 
 [[package]]

@@ -90,7 +90,9 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Resources and chunk management | `indiv_pallet_resources`, `indiv_pallet_chunks_manager` | Native Orbis Resources V1 present at index 96 with person/lite proof quotas, atomic isolated Bulletin reservations, account-bound paid MetaTx v6 claims and Root management; Chunk Manager remains at 91 |
 | Members and notifications | members/subscriber/notifier pallets | Ring Members 92 and Sudo-managed XCM Notifier 93 present; local subscriber excluded because native consumers bind Members directly (ADR 0007) |
 | Coinage and airdrop | Individuality People | Gap; enterprise issuance policy required |
-| Honour, proof-of-ink, score and game | Individuality People application pallets | Gap |
+| Score | Individuality People application pallet | Orbis-owned Apache-2.0 fork present at index 97; native Personhood/People integration, account-bound participant extension, Sudo-or-named-manager operations, conservative weights, benchmarks and upstream-derived tests |
+| Honour | Individuality People application pallet | Orbis-owned Apache-2.0 fork present at index 99; native Members ring proofs, Timestamp mortality/freeze policy, voter-auth extension, conservative weights, benchmarks and upstream-derived tests |
+| Proof-of-ink and game | Individuality People application pallets | Gap |
 | Mob rule | Individuality People | Excluded where it constitutes governance; non-governance behavior requires explicit adaptation |
 
 ## Bulletin and storage
@@ -121,7 +123,7 @@ revision and cannot be copied verbatim until provenance is resolved.
 |---|---|---|
 | Coretime Broker | `pallet_broker` at protocol index 50 | Present |
 | Three-core reservations | complete `Task(para_id)` masks | Unit-tested; Broker-to-Origin E2E pending |
-| Sponsored transactions | MetaTx with user signature/nonce and sponsor payment | Spec 28/tx 7 composes Verify→Consume, all seven account-bound router variants, bounded ingress, one-shot paid token/finalization and signed direct Resources payer adapters; manifest v4 freezes reproducible literals, metadata-hash modes and exact error classes |
+| Sponsored transactions | MetaTx with user signature/nonce and sponsor payment | Spec 29/tx 8 composes Score participant and Honour voter authentication with Verify→Consume, the account-bound router, bounded ingress, one-shot paid token/finalization and signed direct Resources payer adapters; manifest v4 remains the immutable spec-28/tx-7 historical evidence boundary and the v8 fixtures are the active compatibility envelope |
 | Controlled zero-fee calls | Feeless allowlist, per-account quota, deny-by-default wrappers | Present and abuse-tested |
 | Solidity actor preservation | Revive `SetOrigin` plus transaction envelope | Present |
 | Bulletin call validation | recursive storage-call inspector | Present |
@@ -149,8 +151,9 @@ provider allocation references as `None` while preserving all existing reservati
    remain pinned SDK dependencies because Orbis does not modify those pallets.
 2. Complete remaining Asset Hub application adapters (PGAS/allowance, aliases and origin policy);
    conversion, asset fees and rates are complete.
-3. Decide and implement literal Individuality application-pallet parity for People-specific Game,
-   Score, Honour, Resources, Coinage and related pallets without importing governance.
+3. Complete the remaining Individuality application-pallet parity for People-specific Game,
+   Proof of Ink, Coinage and related pallets without importing governance; Score and Honour are
+   native Orbis capabilities.
 4. Adapt Web3 Storage providers to Sudo-authorized, zero-stake enterprise providers; then add Drive
    and S3 registries and their node/runtime APIs.
 5. Generate Orbis-native weights for every retained pallet.

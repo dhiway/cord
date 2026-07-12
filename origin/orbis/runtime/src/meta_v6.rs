@@ -241,10 +241,11 @@ pub fn benchmark_policy_scenario(
 			genesis,
 			mortality,
 			nonce,
-			policy,
+			identity_policies,
 			storage,
 			old_metadata,
 		) = extension;
+		let (score, policy, honour) = identity_policies;
 		let metadata = if enabled {
 			old_metadata
 		} else {
@@ -273,8 +274,18 @@ pub fn benchmark_policy_scenario(
 			call,
 			version,
 			(
-				verify, consume, marker, nonzero, spec, tx, genesis, mortality, nonce, policy,
-				storage, metadata,
+				verify,
+				consume,
+				marker,
+				nonzero,
+				spec,
+				tx,
+				genesis,
+				mortality,
+				nonce,
+				(score, policy, honour),
+				storage,
+				metadata,
 			),
 		);
 		let len = rebuilt.encoded_size() as u32;
@@ -788,7 +799,11 @@ pub fn benchmark_policy_scenario(
 				frame_system::CheckGenesis::new(),
 				mortality,
 				nonce,
-				policy,
+				(
+					pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(None),
+					policy,
+					pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None),
+				),
 				storage,
 				metadata,
 			);
@@ -1422,10 +1437,11 @@ fn decode_meta_payload<R: MetadataImplicitResolver>(
 		_genesis,
 		mortality,
 		nonce,
-		policies,
+		identity_policies,
 		storage,
 		metadata,
 	) = extension;
+	let (_score, policies, _honour) = identity_policies;
 	let verify_mirror: VerifySignatureMirror = DecodeAll::decode_all(
 		&mut FixedOutput::encode(&verify)
 			.map_err(TransactionValidityError::Invalid)?
@@ -1452,8 +1468,8 @@ fn decode_meta_payload<R: MetadataImplicitResolver>(
 		metadata_implicit: R::resolve(&metadata)?,
 	};
 	if consume.0 != expected
-		|| expected.spec_version != 28
-		|| expected.transaction_version != 7
+		|| expected.spec_version != 29
+		|| expected.transaction_version != 8
 		|| matches!(inner_call, RuntimeCall::MetaTx(..))
 	{
 		return Err(InvalidTransaction::BadProof.into());

@@ -1169,8 +1169,10 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 	assert_eq!(pallet_orbis_entity::Pallet::<Runtime>::index(), 53);
 	assert_eq!(pallet_orbis_feeless::Pallet::<Runtime>::index(), 54);
 	assert_eq!(indiv_pallet_resources::Pallet::<Runtime>::index(), 96);
-	assert_eq!(crate::VERSION.spec_version, 28);
-	assert_eq!(crate::VERSION.transaction_version, 7);
+	assert_eq!(pallet_orbis_score::Pallet::<Runtime>::index(), 97);
+	assert_eq!(pallet_orbis_honour::Pallet::<Runtime>::index(), 99);
+	assert_eq!(crate::VERSION.spec_version, 29);
+	assert_eq!(crate::VERSION.transaction_version, 8);
 
 	assert_eq!(
 		call_variants::<pallet_orbis_register::Call<Runtime>>(),
@@ -1307,13 +1309,13 @@ mod transaction_policy_fixture {
 		EnvelopeSignature,
 		indiv_pallet_people::extension::AsPerson<Runtime>,
 		NoPolicy<3>, // AsProofOfInkParticipant
-		NoPolicy<4>, // ScoreAsParticipant
+		pallet_orbis_score::ScoreAsParticipant<Runtime>,
 		NoPolicy<5>, // GameAsInvited
 		indiv_pallet_people_lite::extension::PeopleLiteAuth<Runtime>,
 		NoPolicy<7>, // AsMember
 		NoPolicy<8>, // AsCoinage
 		indiv_pallet_resources::extension::AsResources<Runtime>,
-		NoPolicy<10>, // VoterAuth
+		pallet_orbis_honour::extension::VoterAuth<Runtime>,
 		frame_system::AuthorizeCall<Runtime>,
 		NoPolicy<12>, // AsPgas
 		NoPolicy<13>, // AsRingAlias
@@ -1359,7 +1361,7 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 	use pallet_revive::evm::runtime::EthExtra;
 	use sp_runtime::traits::TransactionExtension;
 	use transaction_policy_fixture::*;
-	assert_eq!(crate::VERSION.transaction_version, 7);
+	assert_eq!(crate::VERSION.transaction_version, 8);
 
 	fn assert_full_inner_projection(inner: crate::InnerTxExtensions) {
 		let (
@@ -1376,8 +1378,10 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 			_metadata,
 			_set_origin,
 		) = inner;
-		let (_as_person, _people_lite, as_resources, _authorize_call) = policy;
+		let (_as_person, score, _people_lite, as_resources, honour, _authorize_call) = policy;
 		assert_eq!(as_resources.encode(), [0], "default surfaces cannot claim Resources origin");
+		assert_eq!(score.encode(), [0], "default surfaces cannot claim Score participant origin");
+		assert_eq!(honour.encode(), [0], "default surfaces cannot claim Honour voter origin");
 	}
 
 	fn assert_meta_projection(extension: crate::MetaTxExtension) {
@@ -1391,10 +1395,13 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 			_genesis,
 			_mortality,
 			_nonce,
-			_policy,
+			identity_policies,
 			_bulletin,
 			_metadata,
 		) = extension;
+		let (score, _policy, honour) = identity_policies;
+		assert_eq!(score.encode(), [0], "MetaTx cannot claim Score without an explicit proof");
+		assert_eq!(honour.encode(), [0], "MetaTx cannot claim Honour without an explicit proof");
 	}
 
 	let _: Option<FrozenPipeline> = None;
@@ -1407,8 +1414,10 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 		crate::OriginPolicyExtensions,
 		(
 			indiv_pallet_people::extension::AsPerson<Runtime>,
+			pallet_orbis_score::ScoreAsParticipant<Runtime>,
 			indiv_pallet_people_lite::extension::PeopleLiteAuth<Runtime>,
 			indiv_pallet_resources::extension::AsResources<Runtime>,
+			pallet_orbis_honour::extension::VoterAuth<Runtime>,
 			frame_system::AuthorizeCall<Runtime>,
 		),
 	);
@@ -1454,8 +1463,10 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 		normal_metadata,
 		vec![
 			"AsPerson",
+			"ScoreAsParticipant",
 			"PeopleLiteAuth",
 			"AsResources",
+			"HonourAuth",
 			"AuthorizeCall",
 			"CheckNonZeroSender",
 			"CheckSpecVersion",
@@ -1487,7 +1498,9 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 			"CheckGenesis",
 			"CheckMortality",
 			"CheckNonce",
+			"ScoreAsParticipant",
 			"MetaAccountBoundPoliciesV6",
+			"HonourAuth",
 			"ValidateStorageCalls",
 			"CheckMetadataHash",
 		]
@@ -2639,7 +2652,11 @@ fn bulletin_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm() {
 		frame_system::CheckGenesis::new(),
 		frame_system::CheckMortality::from(sp_runtime::generic::Era::Immortal),
 		frame_system::CheckNonce::from(0),
-		Default::default(),
+		(
+			pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(None),
+			Default::default(),
+			pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None),
+		),
 		Default::default(),
 		frame_metadata_hash_extension::CheckMetadataHash::new(false),
 	);
@@ -3153,8 +3170,10 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 			let tx_ext = crate::paid_tx_extensions((
 				(
 					indiv_pallet_people::extension::AsPerson::<Runtime>::new(None),
+					pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(None),
 					indiv_pallet_people_lite::extension::PeopleLiteAuth::<Runtime>::new(None),
 					resources_extension,
+					pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None),
 					frame_system::AuthorizeCall::<Runtime>::new(),
 				),
 				crate::AccountAwareResources::from(
@@ -3354,7 +3373,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		frame_system::CheckGenesis<Runtime>,
 		frame_system::CheckMortality<Runtime>,
 		frame_system::CheckNonce<Runtime>,
-		crate::meta_v6::MetaAccountBoundPoliciesV6,
+		crate::MetaIdentityBoundPolicies,
 		pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
 			Runtime,
 			crate::BulletinCallInspector,
@@ -3425,7 +3444,11 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			frame_system::CheckGenesis::new(),
 			mortality,
 			nonce,
-			policy,
+			(
+				pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(None),
+				policy,
+				pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None),
+			),
 			storage,
 			metadata,
 		);
@@ -3445,12 +3468,22 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 			genesis,
 			mortality,
 			nonce,
-			policy,
+			identity_policies,
 			storage,
 			metadata,
 		) = bare;
 		let extension = (
-			verify, consume, marker, nonzero, spec, tx, genesis, mortality, nonce, policy, storage,
+			verify,
+			consume,
+			marker,
+			nonzero,
+			spec,
+			tx,
+			genesis,
+			mortality,
+			nonce,
+			identity_policies,
+			storage,
 			metadata,
 		);
 		pallet_meta_tx::MetaTxFor::<Runtime>::new(call, META_EXTENSION_VERSION, extension)

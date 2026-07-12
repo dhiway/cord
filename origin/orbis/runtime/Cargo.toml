@@ -32,6 +32,8 @@ indiv-pallet-members-notifier = { workspace = true }
 indiv-pallet-people-lite = { workspace = true }
 indiv-pallet-people = { workspace = true }
 indiv-pallet-resources = { workspace = true }
+pallet-orbis-score = { workspace = true }
+pallet-orbis-honour = { workspace = true }
 indiv-support = { workspace = true }
 verifiable = { workspace = true }
 
@@ -155,6 +157,8 @@ std = [
 	"indiv-pallet-people-lite/std",
 	"indiv-pallet-people/std",
 	"indiv-pallet-resources/std",
+	"pallet-orbis-score/std",
+	"pallet-orbis-honour/std",
 	"indiv-support/std",
 	"verifiable/std",
 	"cumulus-pallet-aura-ext/std",
@@ -259,6 +263,8 @@ runtime-benchmarks = [
 	"indiv-pallet-people-lite/runtime-benchmarks",
 	"indiv-pallet-people/runtime-benchmarks",
 	"indiv-pallet-resources/runtime-benchmarks",
+	"pallet-orbis-score/runtime-benchmarks",
+	"pallet-orbis-honour/runtime-benchmarks",
 	"indiv-support/runtime-benchmarks",
 	"indiv-support/genesis",
 	"origin-runtime-constants/runtime-benchmarks",
@@ -328,6 +334,8 @@ try-runtime = [
 	"indiv-pallet-people-lite/try-runtime",
 	"indiv-pallet-people/try-runtime",
 	"indiv-pallet-resources/try-runtime",
+	"pallet-orbis-score/try-runtime",
+	"pallet-orbis-honour/try-runtime",
 	"cumulus-pallet-aura-ext/try-runtime",
 	"cumulus-pallet-parachain-system/try-runtime",
 	"cumulus-pallet-weight-reclaim/try-runtime",
