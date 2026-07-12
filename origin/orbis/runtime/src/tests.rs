@@ -3049,6 +3049,9 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 					MultiSignature::Sr25519(signature),
 					tx_ext,
 				);
+			if std::env::var_os("ORBIS_CAPTURE_FIXTURES").is_some() {
+				std::fs::write("origin/orbis/runtime/fixtures/meta-v6/direct-signed-extrinsic.scale", extrinsic.encode()).unwrap();
+			}
 			let encoded_len = extrinsic.encoded_size() as u32;
 			let stale_extrinsic = extrinsic.clone();
 			let purpose = ReservationPurpose::Membership {
@@ -4028,6 +4031,10 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 				..Default::default()
 			},
 		);
+		if std::env::var_os("ORBIS_CAPTURE_FIXTURES").is_some() {
+			let vector = crate::meta_v6::PolicyProofsV6 { personhood: Some(crate::meta_v6::MetaPersonhoodAuthV6::PersonalAliasAccountRevised(revised_person_proof.clone(), 0, crate::ORBIS_PERSON_CONTEXT)), ..Default::default() };
+			std::fs::write("origin/orbis/runtime/fixtures/meta-v6/proof-person-alias-revised.scale", vector.encode()).unwrap();
+		}
 		assert_ok!(apply_meta_through_executive(revised_person_meta, &bob, &bob_pair));
 		assert_eq!(System::account_nonce(&alice), inner_nonce + 1);
 		assert_eq!(System::account_nonce(&bob), sponsor_nonce + 1);
@@ -4230,6 +4237,10 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 				..Default::default()
 			},
 		);
+		if std::env::var_os("ORBIS_CAPTURE_FIXTURES").is_some() {
+			let vector = crate::meta_v6::PolicyProofsV6 { people_lite: Some(crate::meta_v6::MetaPeopleLiteAuthV6::LiteAliasAccountRevised(revised_lite_proof.clone(), 0, *indiv_pallet_people_lite::LITE_PEOPLE_AUTH_CONTEXT)), ..Default::default() };
+			std::fs::write("origin/orbis/runtime/fixtures/meta-v6/proof-lite-alias-revised.scale", vector.encode()).unwrap();
+		}
 		assert_ok!(apply_meta_through_executive(revised_lite_meta, &bob, &bob_pair));
 		assert_eq!(System::account_nonce(&alice), inner_nonce + 1);
 		assert_eq!(System::account_nonce(&bob), sponsor_nonce + 1);
@@ -4331,6 +4342,10 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 				..Default::default()
 			},
 		);
+		if std::env::var_os("ORBIS_CAPTURE_FIXTURES").is_some() {
+			let vector = crate::meta_v6::PolicyProofsV6 { resources: Some(crate::meta_v6::MetaResourcesAuthV6::ClaimLongTermStorage(resource_proof.clone(), 0, revised_person_revision, indiv_pallet_resources::types::MembershipCollection::People)), ..Default::default() };
+			std::fs::write("origin/orbis/runtime/fixtures/meta-v6/proof-resources-claim.scale", vector.encode()).unwrap();
+		}
 		assert_ok!(apply_meta_through_executive(resource_meta, &bob, &bob_pair));
 		assert_eq!(System::account_nonce(&alice), inner_nonce + 1);
 		assert_eq!(System::account_nonce(&bob), sponsor_nonce + 1);
