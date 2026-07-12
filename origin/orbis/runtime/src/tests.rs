@@ -45,11 +45,16 @@ fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 	let manifest: toml::Value =
 		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml"))
 			.expect("the frozen completion manifest must be valid TOML");
-	assert_eq!(manifest["manifest_version"].as_integer(), Some(1));
+	assert_eq!(manifest["manifest_version"].as_integer(), Some(2));
+	assert_eq!(manifest["replanning"]["iteration"].as_integer(), Some(2));
+	assert_eq!(
+		manifest["replanning"]["decision"].as_str(),
+		Some("approved-resources-bulletin-two-phase-protocol")
+	);
 	for (table, expected) in [
 		("source", 7),
 		("runtime_pallet", 72),
-		("runtime_api", 106),
+		("runtime_api", 109),
 		("benchmark", 57),
 		("migration", 22),
 		("migration_pipeline", 1),
@@ -57,6 +62,20 @@ fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 		("acceptance", 26),
 		("exclusion", 10),
 		("package_provenance", 41),
+		("protocol_call", 7),
+		("protocol_storage", 14),
+		("protocol_type", 13),
+		("protocol_internal", 9),
+		("protocol_view", 3),
+		("protocol_event", 10),
+		("protocol_error", 18),
+		("protocol_benchmark", 9),
+		("protocol_migration", 2),
+		("protocol_invariant", 12),
+		("protocol_acceptance", 20),
+		("protocol_obligation", 10),
+		("protocol_dependency", 3),
+		("protocol_constant", 5),
 	] {
 		assert_eq!(manifest[table].as_array().map(Vec::len), Some(expected), "{table}");
 	}
@@ -75,6 +94,20 @@ fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 		"node_surface",
 		"acceptance",
 		"exclusion",
+		"protocol_call",
+		"protocol_storage",
+		"protocol_type",
+		"protocol_internal",
+		"protocol_view",
+		"protocol_event",
+		"protocol_error",
+		"protocol_benchmark",
+		"protocol_migration",
+		"protocol_invariant",
+		"protocol_acceptance",
+		"protocol_obligation",
+		"protocol_dependency",
+		"protocol_constant",
 	] {
 		let rows = manifest[table].as_array().unwrap();
 		let ids = rows.iter().map(|row| row["id"].as_str().unwrap()).collect::<BTreeSet<_>>();
@@ -233,6 +266,511 @@ fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
 		assert!(row["legal_note"].as_str().is_some_and(|note| note.contains("SPDX")));
 	}
 	assert_eq!(manifest["migration_pipeline"][0]["state"].as_str(), Some("present-empty-pipeline"));
+}
+
+#[test]
+fn resources_bulletin_iteration_two_manifest_is_exact() {
+	let manifest: toml::Value =
+		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml")).unwrap();
+	let rows = |table: &str| manifest[table].as_array().unwrap();
+	let ids =
+		|table: &str| rows(table).iter().map(|row| row["id"].as_str().unwrap()).collect::<Vec<_>>();
+
+	fn canonical_semantics(value: &toml::Value, output: &mut String) {
+		match value {
+			toml::Value::String(value) => {
+				output.push_str("s");
+				output.push_str(&value.len().to_string());
+				output.push(':');
+				output.push_str(value);
+			},
+			toml::Value::Integer(value) => output.push_str(&format!("i{value};")),
+			toml::Value::Float(value) => output.push_str(&format!("f{:016x};", value.to_bits())),
+			toml::Value::Boolean(value) => output.push_str(if *value { "b1;" } else { "b0;" }),
+			toml::Value::Datetime(value) => output.push_str(&format!("d{value};")),
+			toml::Value::Array(values) => {
+				output.push('[');
+				for value in values {
+					canonical_semantics(value, output);
+				}
+				output.push(']');
+			},
+			toml::Value::Table(values) => {
+				output.push('{');
+				let mut keys = values
+					.keys()
+					.filter(|key| !matches!(key.as_str(), "state" | "evidence"))
+					.collect::<Vec<_>>();
+				keys.sort();
+				for key in keys {
+					canonical_semantics(&toml::Value::String(key.clone()), output);
+					canonical_semantics(&values[key], output);
+				}
+				output.push('}');
+			},
+		}
+	}
+
+	let mut canonical = String::new();
+	for table in [
+		"protocol_call",
+		"protocol_storage",
+		"protocol_type",
+		"protocol_internal",
+		"protocol_view",
+		"protocol_event",
+		"protocol_error",
+		"protocol_benchmark",
+		"protocol_migration",
+		"protocol_invariant",
+		"protocol_acceptance",
+		"protocol_obligation",
+		"protocol_dependency",
+		"protocol_constant",
+	] {
+		canonical.push_str(table);
+		canonical_semantics(&manifest[table], &mut canonical);
+	}
+	let api_semantics = manifest["runtime_api"]
+		.as_array()
+		.unwrap()
+		.iter()
+		.filter(|row| {
+			matches!(
+				row["id"].as_str(),
+				Some(
+					"API-BulletinTransactionStorageApi-04" |
+						"API-BulletinTransactionStorageApi-05" |
+						"API-BulletinTransactionStorageApi-06"
+				)
+			)
+		})
+		.cloned()
+		.collect::<Vec<_>>();
+	canonical.push_str("runtime_api:ResourcesBulletinIteration2");
+	canonical_semantics(&toml::Value::Array(api_semantics), &mut canonical);
+	let semantic_hash = sp_io::hashing::blake2_256(canonical.as_bytes());
+	let semantic_hash = semantic_hash.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
+	assert_eq!(
+		semantic_hash, "f8c59405ae1b15d9e24d8e16ed5d452c7915e6b65e388188d1b0fbfef802af4d",
+		"iteration-2 semantic rows changed; mutable state/evidence are deliberately excluded"
+	);
+
+	assert_eq!(
+		ids("protocol_call"),
+		[
+			"CALL-Resources-12",
+			"CALL-Resources-14",
+			"CALL-Resources-15",
+			"CALL-Resources-16",
+			"CALL-Resources-17",
+			"CALL-BulletinTransactionStorage-10",
+			"CALL-BulletinTransactionStorage-11",
+		]
+	);
+	let calls = rows("protocol_call");
+	let call_shape = calls
+		.iter()
+		.map(|row| {
+			(
+				row["pallet"].as_str().unwrap(),
+				row["index"].as_integer().unwrap(),
+				row["name"].as_str().unwrap(),
+				row["owner"].as_str().unwrap(),
+			)
+		})
+		.collect::<Vec<_>>();
+	assert_eq!(
+		call_shape,
+		[
+			("Resources", 12, "claim_long_term_storage", "slice-1"),
+			("Resources", 14, "reserved-unused", "compatibility"),
+			("Resources", 15, "cancel_long_term_storage_reservation", "slice-1"),
+			("Resources", 16, "reserved-unused", "compatibility"),
+			("Resources", 17, "expire_long_term_storage_reservations", "slice-1"),
+			("BulletinTransactionStorage", 10, "store_reserved", "slice-1"),
+			("BulletinTransactionStorage", 11, "renew_reserved", "slice-1"),
+		]
+	);
+	assert!(calls
+		.iter()
+		.filter(|row| row["status"].as_str() == Some("reserved-unused"))
+		.all(|row| matches!(row["index"].as_integer(), Some(14 | 16))));
+
+	assert_eq!(
+		ids("protocol_storage"),
+		[
+			"STORE-Resources-NextStorageReservationId",
+			"STORE-Resources-StorageClaims",
+			"STORE-Resources-StorageReservationByPurpose",
+			"STORE-BulletinV6-StoredBy",
+			"STORE-BulletinV6-ResourceReservations",
+			"STORE-BulletinV6-ResourceReservationExpiryBlocks",
+			"STORE-BulletinV6-ResourceReservationExpiryBuckets",
+			"STORE-BulletinV6-ResourceReservationExpiryCursor",
+			"STORE-BulletinV6-ResourceReservationLinks",
+			"STORE-BulletinV6-ResourceLinkByRef",
+			"STORE-BulletinV6-ResourceReservationTombstones",
+			"STORE-BulletinV6-TombstonePruneQueue",
+			"STORE-BulletinV6-TombstonePruneCursor",
+			"STORE-BulletinV6-ReservedPermanentCapacity",
+		]
+	);
+	for row in rows("protocol_storage") {
+		assert_eq!(row["owner"].as_str(), Some("slice-1"));
+		assert_eq!(row["state"].as_str(), Some("planned"));
+	}
+
+	assert_eq!(
+		ids("protocol_type"),
+		[
+			"TYPE-ReservationId",
+			"TYPE-ReservationPurpose",
+			"TYPE-TwoPhaseStorage",
+			"TYPE-BulletinRef",
+			"TYPE-StorageActor",
+			"TYPE-ResourceReservation",
+			"TYPE-ResourceReservationLink",
+			"TYPE-ResourceReservationTombstone",
+			"TYPE-ResourceClaimLifecycle",
+			"TYPE-ClaimCleanupOutcome",
+			"TYPE-ResourceReservationView",
+			"TYPE-PreparedReservedStore",
+			"TYPE-PreparedReservedRenew",
+		]
+	);
+	assert_eq!(
+		ids("protocol_internal"),
+		[
+			"INTERNAL-prepare-reserved-store",
+			"INTERNAL-commit-reserved-store",
+			"INTERNAL-prepare-reserved-renew",
+			"INTERNAL-commit-reserved-renew",
+			"INTERNAL-reserve-resource-capacity",
+			"INTERNAL-cancel-resource-capacity",
+			"INTERNAL-expire-due-resource-capacity",
+			"INTERNAL-prune-resource-tombstones",
+			"INTERNAL-resource-claim-lifecycle",
+		]
+	);
+	assert_eq!(
+		ids("protocol_event"),
+		[
+			"EVENT-Resources-LongTermStorageReserved",
+			"EVENT-Resources-LongTermStorageReservationCancelled",
+			"EVENT-Resources-LongTermStorageReservationExpired",
+			"EVENT-Bulletin-StoredContentProvenanceRecorded",
+			"EVENT-Bulletin-ResourceCapacityReserved",
+			"EVENT-Bulletin-ReservedContentStored",
+			"EVENT-Bulletin-ReservedContentRenewed",
+			"EVENT-Bulletin-ResourceCapacityReleased",
+			"EVENT-Bulletin-ResourceReservationExpired",
+			"EVENT-Bulletin-ResourceTombstonePruned",
+		]
+	);
+	assert_eq!(
+		ids("protocol_error"),
+		[
+			"ERROR-ReservationBackendFailed",
+			"ERROR-ReservationIdOverflow",
+			"ERROR-ReservationNotFound",
+			"ERROR-NotReservationOwner",
+			"ERROR-ClaimAlreadyReserved",
+			"ERROR-ReservationNotActive",
+			"ERROR-ReservationExpired",
+			"ERROR-ContentNotFound",
+			"ERROR-ContentAlreadyLinked",
+			"ERROR-ContentTooLarge",
+			"ERROR-TransactionAllowanceExhausted",
+			"ERROR-BytesAllowanceExhausted",
+			"ERROR-StoredContentOwnerMismatch",
+			"ERROR-LegacyContentUnrenewable",
+			"ERROR-BulletinRefHashMismatch",
+			"ERROR-ExpiryBucketFull",
+			"ERROR-ExpiryBlockSetFull",
+			"ERROR-CleanupLimitExceeded",
+		]
+	);
+	assert_eq!(
+		ids("protocol_benchmark"),
+		[
+			"PBENCH-Resources-claim-long-term-storage",
+			"PBENCH-Resources-cancel-long-term-storage-reservation",
+			"PBENCH-Resources-expire-long-term-storage-reservations",
+			"PBENCH-Bulletin-store-reserved",
+			"PBENCH-Bulletin-renew-reserved",
+			"PBENCH-Bulletin-provenance-actor-paths",
+			"PBENCH-Bulletin-worst-expiry-cursor",
+			"PBENCH-Bulletin-full-tombstone-scan",
+			"PBENCH-Bulletin-cross-pallet-prune",
+		]
+	);
+
+	let migrations = rows("protocol_migration");
+	assert_eq!(ids("protocol_migration"), ["PMIG-Bulletin-V5-to-V6", "PMIG-Bulletin-V6-to-V7"]);
+	assert_eq!(migrations[0]["from_version"].as_integer(), Some(5));
+	assert_eq!(migrations[0]["to_version"].as_integer(), Some(6));
+	assert_eq!(migrations[0]["owner"].as_str(), Some("slice-1"));
+	assert_eq!(migrations[1]["from_version"].as_integer(), Some(6));
+	assert_eq!(migrations[1]["to_version"].as_integer(), Some(7));
+	assert_eq!(migrations[1]["owner"].as_str(), Some("slice-10"));
+	for row in migrations {
+		assert!(!row["pre_invariant"].as_str().unwrap().is_empty());
+		assert!(!row["post_invariant"].as_str().unwrap().is_empty());
+	}
+
+	assert_eq!(
+		ids("protocol_acceptance"),
+		(1..=20).map(|n| format!("RES-BUL-{n:02}")).collect::<Vec<_>>()
+	);
+	assert_eq!(
+		ids("protocol_obligation"),
+		[
+			"P0-AsResources-slot",
+			"P0-AsResources-order",
+			"P0-AsResources-defaults",
+			"P0-AsResources-version",
+			"P0-AsResources-metadata",
+			"P0-AsResources-signing",
+			"P0-AsResources-direct-meta",
+			"P0-AsResources-ethereum",
+			"P0-AsResources-authorized",
+			"P0-ReservedStorage-validation",
+		]
+	);
+	for row in rows("protocol_obligation") {
+		assert_eq!(row["owner"].as_str(), Some("slice-1"));
+	}
+	assert_eq!(
+		ids("protocol_dependency"),
+		["DEP-Slice3-ProofOfInk", "DEP-Slice10-Provider", "DEP-Slice14-UnifiedApp"]
+	);
+
+	for (row, name) in rows("protocol_type").iter().zip([
+		"ReservationId",
+		"ReservationPurpose",
+		"TwoPhaseStorage",
+		"BulletinRef",
+		"StorageActor",
+		"ResourceReservation",
+		"ResourceReservationLink",
+		"ResourceReservationTombstone",
+		"ResourceClaimLifecycle",
+		"ClaimCleanupOutcome",
+		"ResourceReservationView",
+		"PreparedReservedStore",
+		"PreparedReservedRenew",
+	]) {
+		assert_eq!(row["name"].as_str(), Some(name));
+		assert_eq!(row["owner"].as_str(), Some("slice-1"));
+		assert!(!row["shape"].as_str().unwrap().is_empty(), "{name} shape");
+		assert!(!row["contract"].as_str().unwrap().is_empty(), "{name} contract");
+	}
+	for (row, name) in rows("protocol_internal").iter().zip([
+		"prepare_reserved_store",
+		"commit_reserved_store",
+		"prepare_reserved_renew",
+		"commit_reserved_renew",
+		"reserve_resource_capacity",
+		"cancel_resource_capacity",
+		"expire_due_resource_capacity",
+		"prune_resource_tombstones",
+		"ResourceClaimLifecycle::prune_claim",
+	]) {
+		assert_eq!(row["name"].as_str(), Some(name));
+		assert_eq!(row["owner"].as_str(), Some("slice-1"));
+		assert!(!row["contract"].as_str().unwrap().is_empty(), "{name} contract");
+	}
+	for (row, (name, shape)) in rows("protocol_view").iter().zip([
+		("stored_content_provenance", "StorageActor<AccountId>"),
+		(
+			"resource_reservation",
+			"Option<Active(ResourceReservation) | Tombstone(ResourceReservationTombstone)>",
+		),
+		("resource_reservation_link", "Option<ResourceReservationLink>"),
+	]) {
+		assert_eq!(row["api"].as_str(), Some("BulletinTransactionStorageApi"));
+		assert_eq!(row["name"].as_str(), Some(name));
+		assert_eq!(row["shape"].as_str(), Some(shape));
+		assert_eq!(row["max_results"].as_integer(), Some(1));
+		assert_eq!(row["owner"].as_str(), Some("slice-1"));
+	}
+	for (row, name) in rows("protocol_event").iter().zip([
+		"LongTermStorageReserved",
+		"LongTermStorageReservationCancelled",
+		"LongTermStorageReservationExpired",
+		"StoredContentProvenanceRecorded",
+		"ResourceCapacityReserved",
+		"ReservedContentStored",
+		"ReservedContentRenewed",
+		"ResourceCapacityReleased",
+		"ResourceReservationExpired",
+		"ResourceTombstonePruned",
+	]) {
+		assert_eq!(row["name"].as_str(), Some(name));
+		assert_eq!(row["owner"].as_str(), Some("slice-1"));
+	}
+	for (row, name) in rows("protocol_error").iter().zip([
+		"ReservationBackendFailed",
+		"ReservationIdOverflow",
+		"ReservationNotFound",
+		"NotReservationOwner",
+		"ClaimAlreadyReserved",
+		"ReservationNotActive",
+		"ReservationExpired",
+		"ContentNotFound",
+		"ContentAlreadyLinked",
+		"ContentTooLarge",
+		"TransactionAllowanceExhausted",
+		"BytesAllowanceExhausted",
+		"StoredContentOwnerMismatch",
+		"LegacyContentUnrenewable",
+		"BulletinRefHashMismatch",
+		"ExpiryBucketFull",
+		"ExpiryBlockSetFull",
+		"CleanupLimitExceeded",
+	]) {
+		assert_eq!(row["name"].as_str(), Some(name));
+		assert_eq!(row["owner"].as_str(), Some("slice-1"));
+	}
+	for (row, target) in rows("protocol_benchmark").iter().zip([
+		"Resources::claim_long_term_storage",
+		"Resources::cancel_long_term_storage_reservation",
+		"Resources::expire_long_term_storage_reservations",
+		"BulletinTransactionStorage::store_reserved",
+		"BulletinTransactionStorage::renew_reserved",
+		"BulletinTransactionStorage::all_provenance_actor_paths",
+		"BulletinTransactionStorage::expire_due_resource_capacity",
+		"BulletinTransactionStorage::prune_resource_tombstones",
+		"BulletinTransactionStorage::ResourceClaimLifecycle",
+	]) {
+		assert_eq!(row["target"].as_str(), Some(target));
+		assert_eq!(row["owner"].as_str(), Some("slice-1"));
+		assert_eq!(row["state"].as_str(), Some("planned"));
+	}
+	for (row, keyword) in rows("protocol_invariant").iter().zip([
+		"sum(active",
+		"MaxPermanentStorageSize",
+		"MaxReservations",
+		"StorageClaims",
+		"StorageReservationByPurpose",
+		"strictly ascending",
+		"TombstonePruneQueue",
+		"current ResourceReservationLinks ref",
+		"StoredBy[BulletinRef]",
+		"only its ReservationId",
+		"both count in PermanentStorageUsed",
+		"host call",
+	]) {
+		assert_eq!(row["owner"].as_str(), Some("slice-1"));
+		assert!(row["formula"].as_str().unwrap().contains(keyword));
+	}
+	for (row, keyword) in rows("protocol_acceptance").iter().zip([
+		"reserve then store_reserved",
+		"owner and collision",
+		"person and lite-person",
+		"partial bytes",
+		"manual renew_reserved",
+		"owner cancellation",
+		"numeric expiry",
+		"failure injection",
+		"full expiry bucket",
+		"active-plus-tombstone",
+		"match and mismatch",
+		"signed, root, preimage",
+		"V5-to-V6",
+		"direct AsResources",
+		"MetaTx AsResources",
+		"Utility, Proxy, Multisig",
+		"Ethereum",
+		"authorized/offchain",
+		"person/lite quota exhaustion",
+		"ordinary paid",
+	]) {
+		assert_eq!(row["owner"].as_str(), Some("slice-1"));
+		assert!(row["scenario"].as_str().unwrap().contains(keyword));
+	}
+	for (row, (owner, consumer, required)) in rows("protocol_dependency").iter().zip([
+		("slice-3", "slice-3", "ReservationPurpose::ProofOfInk"),
+		("slice-10", "slice-10", "V6-to-V7 provider_ref migration"),
+		("slice-14", "slice-14", "complete Resources reservation"),
+	]) {
+		assert_eq!(row["owner"].as_str(), Some(owner));
+		assert_eq!(row["consumer"].as_str(), Some(consumer));
+		assert!(row["requires"].as_str().unwrap().contains(required));
+		assert!(!row["contract"].as_str().unwrap().is_empty());
+	}
+
+	let constants = rows("protocol_constant");
+	assert_eq!(
+		ids("protocol_constant"),
+		[
+			"CONST-MaxReservations",
+			"CONST-MaxReservationExpiryBlocks",
+			"CONST-MaxReservationsPerExpiryBlock",
+			"CONST-MaxReservationLinks",
+			"CONST-TombstoneRetention",
+		]
+	);
+	for (row, (name, value, unit)) in constants.iter().zip([
+		("MaxReservations", 256, "reservations"),
+		("MaxReservationExpiryBlocks", 256, "distinct-blocks"),
+		("MaxReservationsPerExpiryBlock", 256, "reservations-per-block"),
+		("MaxReservationLinks", 1024, "links"),
+		("TombstoneRetention", 100, "blocks"),
+	]) {
+		assert_eq!(row["name"].as_str(), Some(name));
+		assert_eq!(row["value"].as_integer(), Some(value));
+		assert_eq!(row["unit"].as_str(), Some(unit));
+		assert_eq!(row["owner"].as_str(), Some("slice-1"));
+		let policy = row["policy"].as_str().unwrap();
+		assert!(policy.contains("production tuning requires a runtime upgrade"));
+		assert!(policy.contains("replan"));
+	}
+
+	let resources = manifest["runtime_pallet"]
+		.as_array()
+		.unwrap()
+		.iter()
+		.find(|row| row["id"].as_str() == Some("PAL-096"))
+		.unwrap();
+	assert_eq!(resources["index"].as_integer(), Some(96));
+	assert_eq!(resources["evidence"].as_str(), Some("slice-1"));
+	let new_api = manifest["runtime_api"]
+		.as_array()
+		.unwrap()
+		.iter()
+		.filter(|row| {
+			matches!(
+				row["id"].as_str(),
+				Some(
+					"API-BulletinTransactionStorageApi-04" |
+						"API-BulletinTransactionStorageApi-05" |
+						"API-BulletinTransactionStorageApi-06"
+				)
+			)
+		})
+		.collect::<Vec<_>>();
+	for (row, (id, signature)) in new_api.iter().zip([
+		(
+			"API-BulletinTransactionStorageApi-04",
+			"stored_content_provenance(reference: BulletinRef<BlockNumber>) -> StorageActor<AccountId>",
+		),
+		(
+			"API-BulletinTransactionStorageApi-05",
+			"resource_reservation(reservation_id: ReservationId) -> Option<ResourceReservationView<AccountId, BlockNumber>>",
+		),
+		(
+			"API-BulletinTransactionStorageApi-06",
+			"resource_reservation_link(reservation_id: ReservationId, content_hash: ContentHash) -> Option<ResourceReservationLink<AccountId, BlockNumber>>",
+		),
+	]) {
+		assert_eq!(row["id"].as_str(), Some(id));
+		assert_eq!(row["method"].as_str(), Some(signature));
+		assert_eq!(row["max_results"].as_integer(), Some(1));
+		assert_eq!(row["state"].as_str(), Some("planned"));
+		assert_eq!(row["evidence"].as_str(), Some("slice-1:iteration-2"));
+	}
 }
 
 #[test]
