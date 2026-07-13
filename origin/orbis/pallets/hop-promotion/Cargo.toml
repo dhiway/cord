@@ -28,6 +28,7 @@ bulletin-transaction-storage-primitives = { workspace = true }
 
 [dev-dependencies]
 bulletin-pallets-common = { workspace = true, features = ["std"] }
+indiv-support = { workspace = true, features = ["std"] }
 sp-keyring = { workspace = true, features = ["std"] }
 sp-keystore = { workspace = true, features = ["std"] }
 

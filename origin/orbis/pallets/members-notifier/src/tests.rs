@@ -540,8 +540,9 @@ mod send_init_page {
 			let init_calls: Vec<(Identifier, RingExponent)> = calls
 				.into_iter()
 				.filter_map(|c| match c {
-					crate::pallet::SubscriberCall::InitializeRingRoots { ring_exponent, roots } =>
-						Some((roots.identifier, ring_exponent)),
+					crate::pallet::SubscriberCall::InitializeRingRoots { ring_exponent, roots } => {
+						Some((roots.identifier, ring_exponent))
+					},
 					_ => None,
 				})
 				.collect();
@@ -619,8 +620,9 @@ mod send_init_page {
 				.iter()
 				.filter_map(|(_, enc)| decode_subscriber_call(enc))
 				.filter_map(|c| match c {
-					crate::pallet::SubscriberCall::InitializeRingRoots { roots, .. } =>
-						Some((roots.identifier, roots.updates.len())),
+					crate::pallet::SubscriberCall::InitializeRingRoots { roots, .. } => {
+						Some((roots.identifier, roots.updates.len()))
+					},
 					_ => None,
 				})
 				.collect();
@@ -959,8 +961,9 @@ mod subscription {
 				.iter()
 				.filter_map(|(_, enc)| decode_subscriber_call(enc))
 				.find_map(|c| match c {
-					crate::pallet::SubscriberCall::InitializeRingRoots { ring_exponent, roots } =>
-						Some((roots.identifier, ring_exponent)),
+					crate::pallet::SubscriberCall::InitializeRingRoots { ring_exponent, roots } => {
+						Some((roots.identifier, ring_exponent))
+					},
 					_ => None,
 				})
 				.expect("init call must be forwarded");

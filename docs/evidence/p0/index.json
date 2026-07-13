@@ -1,0 +1,566 @@
+{
+  "alignment_rows": 207,
+  "approval_supersession": {
+    "candidate_plan_sha256": "86a985809b36bc4645715fd673cd84fd99c93f5b0ab5df1e0b121a57058afa75",
+    "reason": "canonical plan added an explicit CORD-only implementation and external-repository immutability boundary",
+    "status": "PENDING_INDEPENDENT_ARCHITECT",
+    "superseded_approval_path": "docs/evidence/p0/architect-approval.json",
+    "superseded_approval_sha256": "f35d428b92fb936052bebe76239103856a1f1aa57d50e38d27f0fa52e439d3d3",
+    "superseded_plan_sha256": "75e78cbbdfd94e7cd6442982d95e6c376288b13daf2fd4d36a98178cb8bd1bce",
+    "verdict": "PENDING"
+  },
+  "artifacts": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "4295a61782b9d74616a9aa2546e6c930dcc1d880a89948db6e846185d56de7ab"
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "7ad2d1894a91ea1954f33664a72174a223cc74fb2f86d9fa11331e0ddeafaacc"
+    },
+    {
+      "path": "docs/adr/0009-origin-orbis-operational-security.md",
+      "sha256": "69089246b07b0b432f7c7d04a2263c481034a0a395aef311e17cab0ea598022e"
+    },
+    {
+      "path": "docs/adr/0010-sdk-version-contract.md",
+      "sha256": "fc5fb065a291fb7e888ad79d234f67591314406c9877b00d7a82da2f149bcc30"
+    },
+    {
+      "path": "docs/adr/0011-identity-personhood-attestation-completion.md",
+      "sha256": "1981db83e57d5707a836ad91d2a7028e7ce3d9931ab3e42305e8294a929444c5"
+    },
+    {
+      "path": "docs/adr/0012-native-dotns.md",
+      "sha256": "47daeef60b422c0bb29f71e3eadbdaa61643b16a12d6757927f7c5253eec8906"
+    },
+    {
+      "path": "docs/adr/0013-storage-provider-completion.md",
+      "sha256": "bacb6d03a957f5dad63c970ca6563aa2951baa264e0ed73b5664d484bd7cee35"
+    },
+    {
+      "path": "docs/adr/0014-new-genesis-clean-break-native-cutover.md",
+      "sha256": "a863a8d2f634feb6313f6ffafb259ec4b9aa7dc70922ba95525d9dc6df34120a"
+    },
+    {
+      "path": "docs/adr/0015-performance-evidence.md",
+      "sha256": "cd8c83a15659a3af049463105a6e139bbcad043c61687b0a65badb834f2544f0"
+    },
+    {
+      "path": "docs/architecture/authority-contract.md",
+      "sha256": "267a576ffe0be1cb9fa6a7c1f52efcb8bf827048e815b6d5eb8d9af1f15163af"
+    },
+    {
+      "path": "docs/architecture/contract-to-native-migration.csv",
+      "sha256": "1e1064f21beed9cac840eb78dca100861c248540d9fc9feeaaec23030f2deadb"
+    },
+    {
+      "path": "docs/architecture/domains/README.md",
+      "sha256": "02dd9ae2793fbddb406854a599757f84b7676457df65506a6c279e159e146837"
+    },
+    {
+      "path": "docs/architecture/domains/dotns.md",
+      "sha256": "02fcb0f194c348486478b0022b0c2c57e04d6719b488fe8ef1106b89cd1638c1"
+    },
+    {
+      "path": "docs/architecture/domains/identity-personhood-attestation.md",
+      "sha256": "d2535bda8633d955822e06e4004bc17eb9c351307d43a6f24ccd554069e9e70f"
+    },
+    {
+      "path": "docs/architecture/domains/storage-provider-content.md",
+      "sha256": "67ca317c9d48eb5a209c735da54ea5926b107e66c064925cbf1b1a0e97a261df"
+    },
+    {
+      "path": "docs/architecture/identity-topology-contract.md",
+      "sha256": "0f4be3073f82900a4e4d50dd81af4e18b064a92735743634e17284a4a942190d"
+    },
+    {
+      "path": "docs/architecture/origin-orbis-runtime-alignment.csv",
+      "sha256": "42de0e90cf38bbe168bb9cd594359525fcbbaf8a2b77855b4706d75d7a35aaa8"
+    },
+    {
+      "path": "docs/evidence/orbis-v5/GATE-6-SLICE2-EVIDENCE.json",
+      "sha256": "c46dbb5b1d4d71c85dd1c66eb0e3b8e5d915aaedb375e9a13aacf6ac0a4ad320"
+    },
+    {
+      "path": "docs/evidence/orbis-v5/GATE-6-SLICE2-EVIDENCE.out",
+      "sha256": "7ba166f941f13b4b9847cff69a8a88087eb8256492c45e6352306a4673f1d7ab"
+    },
+    {
+      "path": "docs/evidence/orbis-v5/architect-evidence-review-clear.md",
+      "sha256": "3f9d4d65cfa5450362b145d89194b800b646ff33c50233c2c7e45cc2470f7d7c"
+    },
+    {
+      "path": "docs/evidence/orbis-v5/critic-evidence-review-clear.md",
+      "sha256": "addf3001d632820a1a46e360dc197974f7fe1bb0b3ebb60009c7e7dd30661d81"
+    },
+    {
+      "path": "docs/evidence/orbis-v5/verification-report.json",
+      "sha256": "97397057ffa668f1a1750d6fdeaaed979515bd42286d9d708a0cb2d87c9a57ad"
+    },
+    {
+      "path": "docs/evidence/orbis-v5/verification-report.sha256",
+      "sha256": "55aaf9fa753d041d3426162f5a998fd9bf88569a7731cfa31a6603c5e4b22e99"
+    },
+    {
+      "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
+      "sha256": "96cd0595fbc89fcd847ee58dd8427aa59bd008c8639b8f82d9bf4d6095b3b5ae"
+    },
+    {
+      "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.md",
+      "sha256": "5e34ada9d916b0deee244e28687cc56c35c36ac69be92a80d5b8794041c9e157"
+    },
+    {
+      "path": "docs/evidence/p0-contract-native/contract-census.report.json",
+      "sha256": "a2d3498f99e6718f076af16a2f90c2b8a6dbd77e8de4d99e6ede252f45de942e"
+    },
+    {
+      "path": "docs/evidence/p0-contract-native/evidence-index.json",
+      "sha256": "6bd16e62a17c22c0c6f82e4d5c3a19f17ae09e550ceb34da7e75d338667ad878"
+    },
+    {
+      "path": "docs/evidence/p0-contract-native/guidance-audit.json",
+      "sha256": "a6eef3c3a7c168788afe73843445e29a7fbc60009d953c921b3481c73c44eedb"
+    },
+    {
+      "path": "docs/evidence/p0-contract-native/native-cutover-allowlist.json",
+      "sha256": "faec33c7d19e4efe2470f9c3f83c51c8539a868f58919c37a8dd87f99ce960ec"
+    },
+    {
+      "path": "docs/evidence/p0-contract-native/native-cutover-cleanup.report.json",
+      "sha256": "3d8a23a1c81eebc43221f59b465f02af4496806075e3dd500575f1fcc54f95c8"
+    },
+    {
+      "path": "docs/evidence/p0-contract-native/reference-sbom-inputs.json",
+      "sha256": "0ba06bdf2149f1136b3420190260fea6e8f11ecc0763a4559da14b6dba03dcbc"
+    },
+    {
+      "path": "docs/evidence/p0-contract-native/repository-scope.report.json",
+      "sha256": "1dc86171c06d8adf7b0b602f11e6d35cbf5d16a34299b1efa6034ec869a5380f"
+    },
+    {
+      "path": "docs/evidence/p0-contract-native/semantic-review-readiness.json",
+      "sha256": "06b639cd8434f533f239f61a48939780d1de1f72b8d94abbb07f6cd13d0f134d"
+    },
+    {
+      "path": "docs/evidence/p0-contract-native/source-scope.report.json",
+      "sha256": "b7ef0e1e4cd1f1a5dc40aa9d83b3291dd7d4e3f51e48ebb9e1c957ad9edda1a1"
+    },
+    {
+      "path": "docs/evidence/p0/architect-approval.json",
+      "sha256": "f35d428b92fb936052bebe76239103856a1f1aa57d50e38d27f0fa52e439d3d3"
+    },
+    {
+      "path": "docs/evidence/p0/origin-orbis-baseline.md",
+      "sha256": "f80b07e2cdcfd1c78e8f9c5388bad003be35c21a4e8e3bff1c9a0649b5352f78"
+    },
+    {
+      "path": "docs/evidence/p0/validate-p0.py",
+      "sha256": "5c3d2b257863758579cfc32303d3bfdf3a96d3c189c5e4309aa99300afe8699c"
+    },
+    {
+      "path": "docs/evidence/p0/validate-runtime-alignment.py",
+      "sha256": "f84ac766353b229c45f5059ba8c667be8d13d2209472c1562973ba513d15a3bb"
+    },
+    {
+      "path": "docs/evidence/performance/README.md",
+      "sha256": "3f5699dee296f451e2ef3d3bf467db89e5f23120386cdddedb0bfae7d0c8bf7f"
+    },
+    {
+      "path": "docs/evidence/performance/benchmark-result.schema.json",
+      "sha256": "1d19bece31348c2fab3766de030c718e3b5477857656ddbb5ea48204419903bc"
+    },
+    {
+      "path": "docs/evidence/performance/service-slo-manifest.json",
+      "sha256": "87ba782e8102e02c1d790fbf57d942ed427adcff97f259aa6d9fa3676968d1c0"
+    },
+    {
+      "path": "docs/evidence/performance/service-slo-manifest.schema.json",
+      "sha256": "4f2124c1d0abf35b30e3992d310390e3ac390f9797352269d6d3253ff0169070"
+    },
+    {
+      "path": "docs/evidence/source-ledger.csv",
+      "sha256": "f9c936c97401e718e759823dfa65818508bdd9ad0e5309f5246fefee9f130638"
+    },
+    {
+      "path": "docs/evidence/verification/p0/RATIFICATION.md",
+      "sha256": "5bbf95e74bb339616cfdaec3d200e892335c0e745f07542fb2044a9d5d1b3414"
+    },
+    {
+      "path": "docs/evidence/verification/p0/contracts-report.json",
+      "sha256": "9c62cbd7bbfab7aa0336495733dac6ad670446fb9777e8c9eeaaa28b4834738e"
+    },
+    {
+      "path": "docs/evidence/verification/p0/index.json",
+      "sha256": "359251b08a4a541916ba91a27f3ed4c3e847b5852841541b5aa8959193107c15"
+    },
+    {
+      "path": "docs/evidence/verification/p0/p0-ratification.payload.json",
+      "sha256": "18a7fe95a300632121d0f448cb7bf3e1bc0e6776e254bc26bc1437a5f19c790a"
+    },
+    {
+      "path": "docs/evidence/verification/p0/ratification-envelope.json",
+      "sha256": "9cb61cae8182091d2fe59e8b05b20cba48ac4052b64fbc4e9c522202c4b8cfd7"
+    },
+    {
+      "path": "docs/evidence/verification/p0/test-report-contract.json",
+      "sha256": "f87faea31aa1f1a4b43cc5c72da87642dae89a23cbe4edaeba8469cb087fdead"
+    },
+    {
+      "path": "docs/evidence/verification/p0/validate_contracts.py",
+      "sha256": "3789ca2e1955d5a64b9362e69104169d80c0c03a44a52ccab85e285bf919eaa6"
+    },
+    {
+      "path": "docs/orbis-completion-manifest.toml",
+      "sha256": "f020eef505a7c50661fb1df44ac74fc5ba3601e9563a0c247ff9a830f4af2e89"
+    },
+    {
+      "path": "docs/orbis-native-capability-matrix.md",
+      "sha256": "6f593df3e7075d435b7313b58f6f72ade5a449032eb0706abaf69ef4de6ab3e9"
+    },
+    {
+      "path": "docs/sdk/README.md",
+      "sha256": "f1d5a7433ce1d02b8dff6fdb9ae8ead388013ca132d4cd243efbb91a4d1a9821"
+    },
+    {
+      "path": "docs/sdk/client.md",
+      "sha256": "244c114febb42b083dd2d57b0d0c201057f2e6b24a6a1b143760fbd8933e7bcf"
+    },
+    {
+      "path": "docs/sdk/compatibility-manifest.json",
+      "sha256": "09cb785558e519d5f6cdac5673e0e6589d0c175dc9d9f376c04251645e7b71dc"
+    },
+    {
+      "path": "docs/sdk/contract-to-native-map.json",
+      "sha256": "17481530a9c169d7ae42dc30889cf4587a5af89521693691d56e3b1a58ea8f17"
+    },
+    {
+      "path": "docs/sdk/demos.md",
+      "sha256": "9e0a9ba4dd84890e2a4600da6a51c230190648f245698e763c27bfae7227ef08"
+    },
+    {
+      "path": "docs/sdk/host/README.md",
+      "sha256": "bf73d6fd4dc453fbe30ae3b0c18f009db2f88065def0d7fc3c65fb9af3205e09"
+    },
+    {
+      "path": "docs/sdk/host/fake-host-scenarios.json",
+      "sha256": "f4ba07482dc056e003840a16fa5d75467b46d6ecd999052af5211518230fd08b"
+    },
+    {
+      "path": "docs/sdk/host/host-request.schema.json",
+      "sha256": "5d63703d666f8632151c6f95e4c09fec12c6d93b12ab5b8c252ed14e30cd42b8"
+    },
+    {
+      "path": "docs/sdk/native-contract.md",
+      "sha256": "0eacd05f6bc4ad93e3aeeda827d7a61959017b6477bfd8fc9b62edf449311a39"
+    },
+    {
+      "path": "docs/sdk/native-error.schema.json",
+      "sha256": "63beb84651fb926843ba0582108aba72fa6d7598bda6418ba3f6c843dcbe3bfd"
+    },
+    {
+      "path": "docs/sdk/native-lifecycle.schema.json",
+      "sha256": "92994ab80b2f1779612a44e7772820ed598b4162c9bc146cfc68dd162a14cc93"
+    },
+    {
+      "path": "docs/sdk/operations.md",
+      "sha256": "c32643d6f4492985aa5ce4d9e64aa0b16902cc1bc0da9e54bd1167cd07671ce2"
+    },
+    {
+      "path": "docs/sdk/signed-extension-manifest.json",
+      "sha256": "75244ec56bbfba577ce43cfecb0977d59c6c23266a515cbfc397935feda772a1"
+    },
+    {
+      "path": "docs/sdk/signers.md",
+      "sha256": "6d119735272150a68779b681573319274507da3a3b93c3e5ee373d7ca1372dd6"
+    },
+    {
+      "path": "docs/sdk/transactions.md",
+      "sha256": "bab23fffeec371a1a3266aa92f94c581d6d42250f5eff3f6138635a7d5760f36"
+    },
+    {
+      "path": "docs/sdk/vectors/transaction-policy-vector-registry.json",
+      "sha256": "6c4fe0ef638bccc5e141313a93b8b728510d2286b7ed67a958064de6de9ecd34"
+    },
+    {
+      "path": "docs/sdk/views.md",
+      "sha256": "7da21a6717708b54768e1c7a3ac31278da28a7f4ba4a0d3842753b91f22d3b21"
+    },
+    {
+      "path": "origin-rs/Cargo.toml",
+      "sha256": "ca74a179d15345850c4804e199ceec98b945c917992d8b1dac4f398a228c34a2"
+    },
+    {
+      "path": "origin-rs/src/lib.rs",
+      "sha256": "ac98780f410e940401cb8dcf8050dc6db0c061739cfd80d090c544dfe028fe83"
+    },
+    {
+      "path": "origin-rs/src/product_sdk/contract.rs",
+      "sha256": "96027dec740d4521d8542729f6130e2ca231f0630a67d4efb004e516f1048cd5"
+    },
+    {
+      "path": "origin-rs/src/product_sdk/eqc.rs",
+      "sha256": "9cea4509302eb77c5b17e54a2204119262d1aa3cd7579426f7928322dfe8857b"
+    },
+    {
+      "path": "origin-rs/src/product_sdk/host.rs",
+      "sha256": "dafed34e469d3ae169497615a4b263eeb996e59dcbb6dcc27703ecd7842e6ad5"
+    },
+    {
+      "path": "origin-rs/src/product_sdk/mod.rs",
+      "sha256": "3c3cc2655ccc83d4b7c89e0175a8c3e2687b3dd35369506d8756a42c27639663"
+    },
+    {
+      "path": "origin-rs/tests/product_sdk_p0.rs",
+      "sha256": "be5dd02374a3aef6ae5cbcbf140d06a00f12434246f2dd7b0c8b2a74010ea978"
+    },
+    {
+      "path": "origin/base/runtime/src/lib.rs",
+      "sha256": "fe0a1555a75b6f95887d31c7ef3d4b7d12ae832505be47bee2535b0e9d27eb7d"
+    },
+    {
+      "path": "origin/orbis/node/src/chain_spec.rs",
+      "sha256": "b67ec215a4ecea710357537ed304e7d228d3389eabd9eb80dc47dd5c329ae489"
+    },
+    {
+      "path": "origin/orbis/node/src/main.rs",
+      "sha256": "fb63575595d89fe1d566f0356799763070d58e642e95e9451955e53f36128166"
+    },
+    {
+      "path": "origin/orbis/runtime/src/lib.rs",
+      "sha256": "0b841cd59fbd09a0f39652169971c299c951c049f1f7199971f713d4f44bdbdc"
+    },
+    {
+      "path": "product-sdk/README.md",
+      "sha256": "284923703e37659be7608b7ccf981f1b07f6b64ad9288506ef1e7ae75a1281f9"
+    },
+    {
+      "path": "product-sdk/package-lock.json",
+      "sha256": "2786f5ec69f66b2f060447adf6d70f5a56391f1d412c57cd14a998010ced9fcb"
+    },
+    {
+      "path": "product-sdk/package.json",
+      "sha256": "d31116dbab7d624e0ce0f54c8bc1bf8383214c161433d8fe20624ecd92f20f15"
+    },
+    {
+      "path": "product-sdk/packages/core/src/contract.ts",
+      "sha256": "720ca9dcd2b2284103eb01e1771a7a5c8f19692a20b8b0e8f551cb1d445a82bc"
+    },
+    {
+      "path": "product-sdk/packages/core/src/ratification.ts",
+      "sha256": "a106e813fb5e15257a448043c232a9a88beb861c82a9cdf1b71a7cfd9b62c74b"
+    },
+    {
+      "path": "product-sdk/packages/descriptors/generated/orbis-descriptor.json",
+      "sha256": "fca1f56cdcc9d5ff50ab93733c03041ba0060882b94acde05ba9cede4378d1ff"
+    },
+    {
+      "path": "product-sdk/packages/descriptors/src/descriptor.ts",
+      "sha256": "d3b994ab9edb857775fdb5e4ebd1519b5705246b03bb7d0854af9a6e66998de9"
+    },
+    {
+      "path": "product-sdk/packages/eqc/src/validate.ts",
+      "sha256": "5b72900c0ad0688754b32755edb3b9765de81dd102ed204e24ba6b658a3606f8"
+    },
+    {
+      "path": "product-sdk/packages/host/src/fake-host.ts",
+      "sha256": "d56cd673b8ce435a2c43ea3baa2a318be09bb020b1004ab9383cc237bb2ac045"
+    },
+    {
+      "path": "product-sdk/tests/conformance/descriptor.test.ts",
+      "sha256": "6481058017819954fc1aaba779b0ac0c83fc91e022d4ee1f4c394266d70c226e"
+    },
+    {
+      "path": "product-sdk/tests/eqc/eqc.test.ts",
+      "sha256": "29f6e9768dd65f4c014ba58122da992519c3b06397ab7d9da28e7e4d46f88a9d"
+    },
+    {
+      "path": "product-sdk/tests/eqc/fixtures/C.schema-only.json",
+      "sha256": "ba13dfdb2924e7282ea33170fd67e60772de5df56acbdbd892a6ce60563a5177"
+    },
+    {
+      "path": "product-sdk/tests/eqc/fixtures/E.schema-only.json",
+      "sha256": "0c4fae12297955492c69abd857c8684b68cd4141df03772c6581719315cf6ac9"
+    },
+    {
+      "path": "product-sdk/tests/eqc/fixtures/Q.schema-only.json",
+      "sha256": "4ff6f6bb871d014b0dba3c61416669aaad9cd46bf778a5d9c2fc9a88b12caae9"
+    },
+    {
+      "path": "product-sdk/tests/host/fake-host.test.ts",
+      "sha256": "179f878ccb0fe2af4668d1bf894f1fd450df7b00b1bc813a97949237db3ee4f5"
+    },
+    {
+      "path": "product-sdk/tools/generate-descriptor.ts",
+      "sha256": "c705f9e5e6f43c79c0134a9cba30729ceb437da625b6471cee6f390b97b8e403"
+    },
+    {
+      "path": "product-sdk/tools/update-ratification.ts",
+      "sha256": "e2572d46355f31886fc637522ebad0cfcab7c4be8595061e6393411e548da04e"
+    },
+    {
+      "path": "product-sdk/tools/validate-eqc.ts",
+      "sha256": "7b66883386a1e88d01302270b8d8ec255fde80c431a5b282d692bffa374b42dd"
+    },
+    {
+      "path": "product-sdk/tools/validate-ratification.ts",
+      "sha256": "d276c36033d335f8c38fefd3bd25a1b320c0e444626c7a66eb2558d444a4839d"
+    },
+    {
+      "path": "scripts/generate-contract-native-census.py",
+      "sha256": "48a9b74f4ff3fc948523799d19118bbe77911f1ad7d32644f990dfe04c227434"
+    },
+    {
+      "path": "scripts/generate-p0-provenance.py",
+      "sha256": "abfdaa3c517232dad9092395cca1302c0e22049391fec1d75df222e33c05194b"
+    },
+    {
+      "path": "scripts/test-p0-provenance-scope.py",
+      "sha256": "823c3ad04d5fd6b75b15f35f941351645851e27bfdd072f979cf574496f19c34"
+    },
+    {
+      "path": "scripts/validate-contract-native-census.py",
+      "sha256": "8c2f3d39ecbb35f5b3946c892c0e56a70239ded970d2df3510dbe3cddbdf6b4d"
+    },
+    {
+      "path": "scripts/validate-p0-provenance.py",
+      "sha256": "d585b852b7ecbdf8738ba0e5b401669d9d34ef84177d08079afc5023aace8a70"
+    }
+  ],
+  "authority": {
+    "architecture_sdk_host_eqc_contracts": "docs/evidence/verification/p0/index.json",
+    "completion_manifest": "docs/orbis-completion-manifest.toml",
+    "contract_census_and_native_design": "docs/evidence/p0-contract-native/evidence-index.json",
+    "index": "docs/evidence/p0/index.json",
+    "runtime_alignment": "docs/architecture/origin-orbis-runtime-alignment.csv"
+  },
+  "blockers": {
+    "downstream_readiness_not_p0_design_ratification": [
+      {
+        "phases": "P1-P7",
+        "reason": "Runtime pallets, Product-SDK product surfaces, production host adapters, domain E2E, complete E/Q/C campaigns, cleanup final verdict and release evidence are implementation gates evaluated in their owning phases; their absence is not represented as a false P0 design-contract validation failure."
+      }
+    ],
+    "p0_executable_prerequisite": [],
+    "p0_ratification": [
+      {
+        "id": "P0-ARCHITECT",
+        "reason": "A separate independent Architect must review and hash-bind the CORD-only provenance scope, current plan, validators and blocked candidate index before P0 can be CLEAR."
+      }
+    ]
+  },
+  "branch": "sm-update-sub-0x63",
+  "contract_census_rows": 132,
+  "csv_artifacts": [
+    "docs/architecture/contract-to-native-migration.csv",
+    "docs/architecture/origin-orbis-runtime-alignment.csv",
+    "docs/evidence/source-ledger.csv"
+  ],
+  "guidance_files": 59,
+  "head": "439a1b62da11175129ad5390186230a64d569810",
+  "json_artifacts": [
+    "docs/evidence/orbis-v5/GATE-6-SLICE2-EVIDENCE.json",
+    "docs/evidence/orbis-v5/verification-report.json",
+    "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
+    "docs/evidence/p0-contract-native/contract-census.report.json",
+    "docs/evidence/p0-contract-native/evidence-index.json",
+    "docs/evidence/p0-contract-native/guidance-audit.json",
+    "docs/evidence/p0-contract-native/native-cutover-allowlist.json",
+    "docs/evidence/p0-contract-native/native-cutover-cleanup.report.json",
+    "docs/evidence/p0-contract-native/reference-sbom-inputs.json",
+    "docs/evidence/p0-contract-native/repository-scope.report.json",
+    "docs/evidence/p0-contract-native/semantic-review-readiness.json",
+    "docs/evidence/p0-contract-native/source-scope.report.json",
+    "docs/evidence/p0/architect-approval.json",
+    "docs/evidence/performance/benchmark-result.schema.json",
+    "docs/evidence/performance/service-slo-manifest.json",
+    "docs/evidence/performance/service-slo-manifest.schema.json",
+    "docs/evidence/verification/p0/contracts-report.json",
+    "docs/evidence/verification/p0/index.json",
+    "docs/evidence/verification/p0/p0-ratification.payload.json",
+    "docs/evidence/verification/p0/ratification-envelope.json",
+    "docs/evidence/verification/p0/test-report-contract.json",
+    "docs/sdk/compatibility-manifest.json",
+    "docs/sdk/contract-to-native-map.json",
+    "docs/sdk/host/fake-host-scenarios.json",
+    "docs/sdk/host/host-request.schema.json",
+    "docs/sdk/native-error.schema.json",
+    "docs/sdk/native-lifecycle.schema.json",
+    "docs/sdk/signed-extension-manifest.json",
+    "docs/sdk/vectors/transaction-policy-vector-registry.json",
+    "product-sdk/package-lock.json",
+    "product-sdk/package.json",
+    "product-sdk/packages/descriptors/generated/orbis-descriptor.json",
+    "product-sdk/tests/eqc/fixtures/C.schema-only.json",
+    "product-sdk/tests/eqc/fixtures/E.schema-only.json",
+    "product-sdk/tests/eqc/fixtures/Q.schema-only.json"
+  ],
+  "manifest": {
+    "evidence_architect_status": "clear",
+    "evidence_critic_status": "clear",
+    "evidence_phase": "closed",
+    "gate": "GATE-6-SLICE2-EVIDENCE",
+    "gate_status": "present",
+    "version": 5
+  },
+  "orbis_runtime": {
+    "block_processing_velocity": 3,
+    "para_id": 1006,
+    "relay_parent_offset": 1,
+    "spec_name": "orbis",
+    "spec_version": 29,
+    "transaction_version": 8,
+    "unincluded_segment_capacity": 12
+  },
+  "origin_runtime": {
+    "spec_name": "origin",
+    "spec_version": 9901,
+    "transaction_version": 2
+  },
+  "p0_target_ratification": {
+    "payload_sha256": "18a7fe95a300632121d0f448cb7bf3e1bc0e6776e254bc26bc1437a5f19c790a",
+    "production_activation_status": "BLOCKED",
+    "status": "RATIFIED",
+    "verified_roles": [
+      "architecture-owner",
+      "performance-owner",
+      "runtime-owner",
+      "sdk-owner",
+      "security-owner"
+    ]
+  },
+  "phase": "P0",
+  "phase_gate_claim": false,
+  "plan_sha256": "86a985809b36bc4645715fd673cd84fd99c93f5b0ab5df1e0b121a57058afa75",
+  "raw_documents": 89,
+  "schema_version": 2,
+  "scope": "p0-origin-orbis-foundation-authoritative-index",
+  "sdk_revision": "cc190ea83c590b6a14a6b9771ab02c81618dc118",
+  "semantic_design": {
+    "architect_approved_coverage_percent": 100.0,
+    "classification_coverage_percent": 100,
+    "status": "approved",
+    "unapproved_source_components": 0
+  },
+  "source_families": 29,
+  "source_ledger_rows": 91,
+  "source_scope": {
+    "covered_families": 29,
+    "required_families": 29,
+    "snapshot_mismatches": 0,
+    "status": "pass"
+  },
+  "status": "blocked",
+  "validation": {
+    "authoritative_command": "python3 docs/evidence/p0/validate-p0.py",
+    "authoritative_with_targeted_runtime_test": "python3 docs/evidence/p0/validate-p0.py --runtime-test",
+    "contract_census_command": "python3 scripts/validate-contract-native-census.py",
+    "contracts_command": "python3 docs/evidence/verification/p0/validate_contracts.py",
+    "meaning": "A zero exit validates an internally consistent candidate. The P0 foundation/design gate remains BLOCKED until a separate independent Architect hash-binds and approves the current plan and exact candidate bytes; production activation and P1-P7 remain downstream.",
+    "provenance_command": "python3 scripts/validate-p0-provenance.py",
+    "provenance_scope_command": "python3 scripts/validate-p0-provenance.py --workspace-root <workspace> --scope-only",
+    "runtime_alignment_command": "python3 docs/evidence/p0/validate-runtime-alignment.py",
+    "rust_sdk_p0_test": "cargo test --manifest-path origin-rs/Cargo.toml --test product_sdk_p0",
+    "targeted_runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "approval_manifest": {
+    "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
+    "required_reviewer_role": "architect",
+    "review_thread_id": "019f59bd-fa87-7571-837b-6a6a7ae51b2d",
+    "schema_version": 1,
+    "sha256": "96cd0595fbc89fcd847ee58dd8427aa59bd008c8639b8f82d9bf4d6095b3b5ae",
+    "verdict": "APPROVED"
+  },
+  "approval_note": "M3 is approved only by the hash-bound architect manifest; PENDING never counts as coverage.",
+  "approved_semantic_design_coverage_percent": 100.0,
+  "census_sha256": "1e1064f21beed9cac840eb78dca100861c248540d9fc9feeaaec23030f2deadb",
+  "classification_coverage_percent": 100,
+  "compatibility_facades": 0,
+  "component_counts": {
+    "contract": 29,
+    "deployment-fixture": 8,
+    "fixture": 58,
+    "interface": 31,
+    "library": 5,
+    "precompile-interface": 1
+  },
+  "criterion": "M2-M3",
+  "deployment_state_inputs": 0,
+  "disposition_counts": {
+    "adopt-semantic": 22,
+    "intentional-change": 33,
+    "not-applicable": 69,
+    "retired": 8
+  },
+  "file_symbol_disposition_alignment": "pass",
+  "fixture_vector_categories": {
+    "delegation": 37,
+    "deployment": 56,
+    "fuzz": 60,
+    "invariant": 237,
+    "invariant+role": 14,
+    "lifecycle": 33,
+    "positive-and-negative-lifecycle": 781,
+    "reentrant": 14,
+    "refund": 33,
+    "revert": 7,
+    "stress": 10
+  },
+  "fixture_vector_entries": 1282,
+  "incomplete_native_design_mappings": [],
+  "legacy_data_migrations": 0,
+  "missing_required_fixture_vector_markers": [],
+  "schema_version": 1,
+  "semantic_design_entries": 2780,
+  "semantic_design_map_sha256": "17481530a9c169d7ae42dc30889cf4587a5af89521693691d56e3b1a58ea8f17",
+  "source_components": 132,
+  "source_summary_audit": {
+    "method": "source-specific assertions for high-risk files; otherwise conservative declaration/state/role/token evidence with no inferred design claims",
+    "rows": 132,
+    "status": "pass"
+  },
+  "status": "pass",
+  "symbol_disposition_state_counts": {
+    "all": 122,
+    "mixed": 10
+  },
+  "unapproved_source_components": 0,
+  "unknown_source_components": []
+}

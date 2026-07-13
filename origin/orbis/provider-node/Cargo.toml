@@ -1,0 +1,36 @@
+[package]
+name = "origin-orbis-provider"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "Fail-closed native content provider companion for Origin Orbis"
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+base64 = { workspace = true, default-features = true }
+blake3 = { workspace = true }
+bytes = { workspace = true, default-features = true }
+clap = { workspace = true, features = ["derive"] }
+codec = { workspace = true, default-features = true }
+hex = { workspace = true, default-features = true }
+http-body-util = { workspace = true }
+hyper = { workspace = true, features = ["http1", "server"] }
+hyper-util = { workspace = true, features = ["tokio"] }
+jsonrpsee = { workspace = true, features = ["http-client"] }
+origin-rs = { path = "../../../origin-rs" }
+orbis-storage-runtime-api = { workspace = true, default-features = true }
+serde = { workspace = true, features = ["derive"], default-features = true }
+serde_json = { workspace = true, default-features = true }
+sp-core = { workspace = true, default-features = true }
+sp-crypto-hashing = { workspace = true, default-features = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["fs", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }

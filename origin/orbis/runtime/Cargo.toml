@@ -24,6 +24,7 @@ serde_json = { features = ["alloc"], workspace = true }
 origin-primitives = { workspace = true }
 origin-runtime-constants = { workspace = true }
 origin-hub-system-runtime-constants = { workspace = true }
+orbis-storage-runtime-api = { workspace = true }
 token-origin-hub-runtime-api = { workspace = true }
 bulletin-transaction-storage-primitives = { workspace = true }
 indiv-pallet-chunks-manager = { workspace = true }
@@ -57,9 +58,17 @@ pallet-asset-conversion = { workspace = true }
 pallet-asset-conversion-tx-payment = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-broker = { workspace = true }
+pallet-coretime-control = { workspace = true }
 pallet-bulletin-hop-promotion = { workspace = true }
 pallet-bulletin-transaction-storage = { workspace = true }
 pallet-bulletin-transaction-storage-runtime-api = { workspace = true }
+pallet-orbis-attestation = { workspace = true }
+pallet-orbis-attestation-runtime-api = { workspace = true }
+pallet-orbis-dotns = { workspace = true }
+pallet-orbis-dotns-runtime-api = { workspace = true }
+pallet-orbis-drive = { workspace = true }
+pallet-orbis-storage-provider = { workspace = true }
+pallet-orbis-s3 = { workspace = true }
 pallet-orbis-people = { workspace = true }
 pallet-orbis-entity = { workspace = true }
 pallet-orbis-register = { workspace = true }
@@ -129,6 +138,7 @@ parachain-info = { workspace = true }
 parachains-common = { workspace = true }
 
 [dev-dependencies]
+hex = { workspace = true }
 sc-client-db = { workspace = true }
 sp-externalities = { workspace = true }
 sp-state-machine = { workspace = true }
@@ -142,6 +152,8 @@ substrate-wasm-builder = { optional = true, workspace = true }
 
 [features]
 default = ["std"]
+# Evidence-only runtime upgrade candidate. Production builds do not enable this feature.
+p1-upgrade-candidate = []
 std = [
 	"assets-common/std",
 	"bulletin-pallets-common/std",
@@ -150,6 +162,7 @@ std = [
 	"origin-primitives/std",
 	"origin-runtime-constants/std",
 	"origin-hub-system-runtime-constants/std",
+	"orbis-storage-runtime-api/std",
 	"token-origin-hub-runtime-api/std",
 	"indiv-pallet-chunks-manager/std",
 	"indiv-pallet-members/std",
@@ -191,9 +204,17 @@ std = [
 	"pallet-asset-conversion-tx-payment/std",
 	"pallet-balances/std",
 	"pallet-broker/std",
+	"pallet-coretime-control/std",
 	"pallet-bulletin-hop-promotion/std",
 	"pallet-bulletin-transaction-storage/std",
 	"pallet-bulletin-transaction-storage-runtime-api/std",
+	"pallet-orbis-attestation/std",
+	"pallet-orbis-attestation-runtime-api/std",
+	"pallet-orbis-dotns/std",
+	"pallet-orbis-dotns-runtime-api/std",
+	"pallet-orbis-drive/std",
+	"pallet-orbis-storage-provider/std",
+	"pallet-orbis-s3/std",
 	"pallet-orbis-people/std",
 	"pallet-collator-selection/std",
 	"pallet-orbis-entity/std",
@@ -285,6 +306,11 @@ runtime-benchmarks = [
 	"pallet-broker/runtime-benchmarks",
 	"pallet-bulletin-hop-promotion/runtime-benchmarks",
 	"pallet-bulletin-transaction-storage/runtime-benchmarks",
+	"pallet-orbis-attestation/runtime-benchmarks",
+	"pallet-orbis-dotns/runtime-benchmarks",
+	"pallet-orbis-drive/runtime-benchmarks",
+	"pallet-orbis-storage-provider/runtime-benchmarks",
+	"pallet-orbis-s3/runtime-benchmarks",
 	"pallet-orbis-people/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-assets-freezer/runtime-benchmarks",
@@ -349,8 +375,14 @@ try-runtime = [
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
 	"pallet-broker/try-runtime",
+	"pallet-coretime-control/try-runtime",
 	"pallet-bulletin-hop-promotion/try-runtime",
 	"pallet-bulletin-transaction-storage/try-runtime",
+	"pallet-orbis-attestation/try-runtime",
+	"pallet-orbis-dotns/try-runtime",
+	"pallet-orbis-drive/try-runtime",
+	"pallet-orbis-storage-provider/try-runtime",
+	"pallet-orbis-s3/try-runtime",
 	"pallet-orbis-people/try-runtime",
 	"pallet-assets/try-runtime",
 	"pallet-assets-freezer/try-runtime",

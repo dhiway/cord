@@ -705,28 +705,6 @@ fn test_has_identity() {
 	});
 }
 #[test]
-fn reap_identity_works() {
-	new_test_ext().execute_with(|| {
-		let [_, _, _, _, ten, twenty, _, _] = accounts();
-		let ten_info = infoof_ten();
-		assert_ok!(Identity::set_identity(
-			RuntimeOrigin::signed(ten.clone()),
-			Box::new(ten_info.clone())
-		));
-		assert_ok!(Identity::set_subs(
-			RuntimeOrigin::signed(ten.clone()),
-			vec![(twenty.clone(), Data::Raw(vec![40; 1].try_into().unwrap()))]
-		));
-		// reap
-		assert_ok!(Identity::reap_identity(&ten));
-		// no identity or subs
-		assert!(IdentityOf::<Test>::get(ten.clone()).is_none());
-		assert!(SuperOf::<Test>::get(twenty).is_none());
-		// balance is unreserved
-	});
-}
-
-#[test]
 fn adding_and_removing_authorities_should_work() {
 	new_test_ext().execute_with(|| {
 		let [authority, _] = unfunded_accounts();

@@ -30,8 +30,6 @@
 
 extern crate alloc;
 
-pub mod migrations;
-
 #[cfg(test)]
 mod bench_helpers;
 #[cfg(test)]

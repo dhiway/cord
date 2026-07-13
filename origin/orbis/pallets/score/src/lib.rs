@@ -23,7 +23,6 @@ extern crate alloc;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 mod extension;
-pub mod migrations;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]

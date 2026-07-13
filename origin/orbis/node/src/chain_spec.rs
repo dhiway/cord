@@ -20,13 +20,15 @@
 
 use cumulus_primitives_core::ParaId;
 use origin_orbis_runtime::genesis_config_presets::{
-	orbis_development_genesis, orbis_local_testnet_genesis,
+	orbis_development_genesis, orbis_local_testnet_genesis, orbis_production_genesis,
 };
 use origin_runtime_constants::system_parachain::ORBIS_ID;
 use polkadot_omni_node_lib::chain_spec::{GenericChainSpec, LoadSpec};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
+use sp_core::crypto::UncheckedFrom;
+use std::{collections::BTreeSet, fs, path::Path};
 
 /// Specialized `ChainSpec` for the Orbis system chain.
 pub type ChainSpec = sc_service::GenericChainSpec<Extensions>;
@@ -94,6 +96,148 @@ pub fn orbis_local() -> ChainSpec {
 	)
 }
 
+/// Reviewed operator input used to construct a live Orbis chain spec.
+///
+/// Account and Aura identifiers are exact 32-byte `0x` hex values. The format intentionally does
+/// not accept development seed phrases or infer feeless accounts from endowments.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionGenesisInput {
+	/// Origin relay chain-spec identifier used by the live network.
+	pub relay_chain: String,
+	/// Network identifier stored by the Orbis Token pallet.
+	pub token_network_id: u16,
+	/// Governed root account; this should be a reviewed multisig/HSM-controlled account.
+	pub root_key: String,
+	/// Fixed permissioned collator accounts and their Aura session keys.
+	pub collators: Vec<ProductionCollator>,
+	/// Explicitly endowed accounts.
+	pub endowed_accounts: Vec<String>,
+	/// Explicitly feeless accounts. No implicit grant is made to endowed accounts.
+	#[serde(default)]
+	pub feeless_accounts: Vec<String>,
+}
+
+/// One production collator identity.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionCollator {
+	/// Collator account as exact 32-byte `0x` hex.
+	pub account_id: String,
+	/// Aura session key as exact 32-byte `0x` hex.
+	pub aura_id: String,
+}
+
+fn decode_hex32(value: &str, field: &str) -> Result<[u8; 32], String> {
+	let raw = value.strip_prefix("0x").ok_or_else(|| format!("{field} must be 0x-prefixed"))?;
+	let bytes = hex::decode(raw).map_err(|_| format!("{field} must be lowercase hexadecimal"))?;
+	if raw.bytes().any(|byte| byte.is_ascii_uppercase()) || bytes.len() != 32 {
+		return Err(format!("{field} must be exactly 32 lowercase-hex bytes"));
+	}
+	bytes.try_into().map_err(|_| format!("{field} must contain 32 bytes"))
+}
+
+fn account(value: &str, field: &str) -> Result<parachains_common::AccountId, String> {
+	Ok(parachains_common::AccountId::new(decode_hex32(value, field)?))
+}
+
+fn production_spec(input: ProductionGenesisInput) -> Result<ChainSpec, String> {
+	if input.relay_chain.is_empty()
+		|| input.relay_chain.contains("dev")
+		|| input.relay_chain.contains("local")
+	{
+		return Err(
+			"production relay_chain must be explicit and must not be a dev/local chain".into()
+		);
+	}
+	if input.collators.len() < 2 {
+		return Err("production Orbis requires at least two fixed collators".into());
+	}
+
+	let root_key = account(&input.root_key, "root_key")?;
+	let endowed_accounts = input
+		.endowed_accounts
+		.iter()
+		.enumerate()
+		.map(|(index, value)| account(value, &format!("endowed_accounts[{index}]")))
+		.collect::<Result<Vec<_>, _>>()?;
+	let feeless_accounts = input
+		.feeless_accounts
+		.iter()
+		.enumerate()
+		.map(|(index, value)| account(value, &format!("feeless_accounts[{index}]")))
+		.collect::<Result<Vec<_>, _>>()?;
+	let invulnerables = input
+		.collators
+		.iter()
+		.enumerate()
+		.map(|(index, item)| {
+			Ok((
+				account(&item.account_id, &format!("collators[{index}].account_id"))?,
+				parachains_common::AuraId::unchecked_from(decode_hex32(
+					&item.aura_id,
+					&format!("collators[{index}].aura_id"),
+				)?),
+			))
+		})
+		.collect::<Result<Vec<_>, String>>()?;
+
+	let unique_endowed = endowed_accounts.iter().cloned().collect::<BTreeSet<_>>();
+	let unique_feeless = feeless_accounts.iter().cloned().collect::<BTreeSet<_>>();
+	let unique_collators = invulnerables
+		.iter()
+		.map(|(account, _)| account.clone())
+		.collect::<BTreeSet<_>>();
+	let unique_aura = input.collators.iter().map(|item| &item.aura_id).collect::<BTreeSet<_>>();
+	if unique_endowed.len() != endowed_accounts.len()
+		|| unique_feeless.len() != feeless_accounts.len()
+		|| unique_collators.len() != invulnerables.len()
+		|| unique_aura.len() != invulnerables.len()
+	{
+		return Err("production identities must be unique within each role".into());
+	}
+	if !unique_endowed.contains(&root_key)
+		|| invulnerables.iter().any(|(account, _)| !unique_endowed.contains(account))
+		|| feeless_accounts.iter().any(|account| !unique_endowed.contains(account))
+	{
+		return Err("root, collator, and feeless accounts must be explicitly endowed".into());
+	}
+	let development_accounts = sp_keyring::Sr25519Keyring::well_known()
+		.map(parachains_common::AccountId::from)
+		.collect::<BTreeSet<_>>();
+	if development_accounts.contains(&root_key)
+		|| invulnerables.iter().any(|(account, _)| development_accounts.contains(account))
+		|| endowed_accounts.iter().any(|account| development_accounts.contains(account))
+	{
+		return Err("well-known development accounts are forbidden in production genesis".into());
+	}
+
+	let relay_chain = input.relay_chain.clone();
+	Ok(orbis_spec(
+		"Orbis",
+		"orbis",
+		ChainType::Live,
+		&relay_chain,
+		orbis_production_genesis(
+			invulnerables,
+			endowed_accounts,
+			feeless_accounts,
+			ParaId::from(ORBIS_ID),
+			input.token_network_id.into(),
+			root_key,
+		),
+	))
+}
+
+fn production_spec_from_file(path: &Path) -> Result<ChainSpec, String> {
+	let bytes = fs::read(path).map_err(|error| {
+		format!("failed to read production genesis input {}: {error}", path.display())
+	})?;
+	let input: ProductionGenesisInput = serde_json::from_slice(&bytes)
+		.map_err(|error| format!("invalid production genesis input {}: {error}", path.display()))?;
+	production_spec(input)
+}
+
 #[derive(Debug)]
 pub(crate) struct ChainSpecLoader;
 
@@ -102,7 +246,17 @@ impl LoadSpec for ChainSpecLoader {
 		Ok(match id {
 			// -- Orbis
 			"orbis-dev" => Box::new(orbis_development()),
-			"orbis-local" | "orbis" => Box::new(orbis_local()),
+			"orbis-local" => Box::new(orbis_local()),
+			"orbis" => return Err(
+				"the live Orbis spec is never inferred from development keys; use --chain orbis-production:<reviewed-input.json> or an approved raw chain-spec path".into(),
+			),
+			value if value.starts_with("orbis-production:") => {
+				let path = value.trim_start_matches("orbis-production:");
+				if path.is_empty() {
+					return Err("orbis-production requires a reviewed input JSON path".into());
+				}
+				Box::new(production_spec_from_file(Path::new(path))?)
+			},
 			// -- Fallback (generic chainspec)
 			"" => {
 				log::warn!(
@@ -138,5 +292,53 @@ mod tests {
 		assert_eq!(spec.id(), "orbis-local");
 		assert_eq!(spec.extensions().relay_chain, "origin-local");
 		assert_eq!(spec.extensions().para_id, ORBIS_ID);
+	}
+
+	fn hex_account(byte: u8) -> String {
+		format!("0x{}", hex::encode([byte; 32]))
+	}
+
+	fn production_input() -> ProductionGenesisInput {
+		ProductionGenesisInput {
+			relay_chain: "origin".into(),
+			token_network_id: ORBIS_ID as u16,
+			root_key: hex_account(0x41),
+			collators: vec![
+				ProductionCollator { account_id: hex_account(0x42), aura_id: hex_account(0x52) },
+				ProductionCollator { account_id: hex_account(0x43), aura_id: hex_account(0x53) },
+			],
+			endowed_accounts: vec![hex_account(0x41), hex_account(0x42), hex_account(0x43)],
+			feeless_accounts: vec![],
+		}
+	}
+
+	#[test]
+	fn live_alias_never_falls_back_to_local_development_genesis() {
+		let error = ChainSpecLoader.load_spec("orbis").unwrap_err();
+		assert!(error.contains("never inferred from development keys"));
+	}
+
+	#[test]
+	fn production_builder_requires_explicit_unique_non_development_authorities() {
+		let spec =
+			production_spec(production_input()).expect("reviewed explicit input is accepted");
+		assert_eq!(spec.id(), "orbis");
+		assert_eq!(spec.chain_type(), &ChainType::Live);
+		assert_eq!(spec.extensions().relay_chain, "origin");
+		assert_eq!(spec.extensions().para_id, ORBIS_ID);
+
+		let mut duplicate = production_input();
+		duplicate.collators[1].aura_id = duplicate.collators[0].aura_id.clone();
+		assert!(production_spec(duplicate).unwrap_err().contains("unique"));
+
+		let mut development = production_input();
+		development.root_key = format!(
+			"0x{}",
+			hex::encode(
+				<origin_orbis_runtime::AccountId>::from(sp_keyring::Sr25519Keyring::Alice).as_ref()
+			)
+		);
+		development.endowed_accounts[0] = development.root_key.clone();
+		assert!(production_spec(development).unwrap_err().contains("development accounts"));
 	}
 }

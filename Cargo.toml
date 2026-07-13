@@ -21,17 +21,27 @@ members = [
 	"origin/base/cli",
 	"origin/base/runtime",
 	"origin/orbis/node",
+	"origin/orbis/provider-node",
 	"origin/hub/constants",
 	"origin/hub/system",
 	"origin/orbis/runtime",
+	"origin/orbis/runtime-api/storage",
 	"origin/orbis/runtime/metadata-implicit-nohash",
 	"origin/common",
 	"origin/pallets/authorities",
+	"origin/pallets/coretime-control",
 	"origin/orbis/pallets/common",
+	"origin/orbis/pallets/attestation",
+	"origin/orbis/pallets/attestation/runtime-api",
+	"origin/orbis/pallets/dotns",
+	"origin/orbis/pallets/dotns/runtime-api",
 	"origin/orbis/pallets/token",
 	"origin/orbis/pallets/feeless",
 	"origin/orbis/pallets/entity",
 	"origin/orbis/pallets/register",
+	"origin/orbis/pallets/drive",
+	"origin/orbis/pallets/storage-provider",
+	"origin/orbis/pallets/s3",
 	"origin/orbis/pallets/hop-promotion",
 	"origin/orbis/pallets/individuality-support",
 	"origin/orbis/pallets/chunks-manager",
@@ -394,6 +404,13 @@ pallet-broker = { git = "https://github.com/dhiway/sdk", default-features = fals
 pallet-bulletin-hop-promotion = { path = "origin/orbis/pallets/hop-promotion", default-features = false }
 pallet-bulletin-transaction-storage = { path = "origin/orbis/pallets/transaction-storage", default-features = false }
 pallet-bulletin-transaction-storage-runtime-api = { path = "origin/orbis/pallets/transaction-storage/runtime-api", default-features = false }
+pallet-orbis-attestation = { path = "origin/orbis/pallets/attestation", default-features = false }
+pallet-orbis-attestation-runtime-api = { path = "origin/orbis/pallets/attestation/runtime-api", default-features = false }
+pallet-orbis-dotns = { path = "origin/orbis/pallets/dotns", default-features = false }
+pallet-orbis-dotns-runtime-api = { path = "origin/orbis/pallets/dotns/runtime-api", default-features = false }
+pallet-orbis-drive = { path = "origin/orbis/pallets/drive", default-features = false }
+pallet-orbis-storage-provider = { path = "origin/orbis/pallets/storage-provider", default-features = false }
+pallet-orbis-s3 = { path = "origin/orbis/pallets/s3", default-features = false }
 pallet-child-bounties = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-collator-selection = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-collective = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
@@ -839,6 +856,7 @@ pallet-profile = { path = "pallets/profile", default-features = false }
 # pallet-remote-proxy = { path = 'pallets/remote-proxy/', default-features = false }
 pallet-feeless = { path = "origin/pallets/feeless", default-features = false }
 pallet-authorities = { path = 'origin/pallets/authorities', default-features = false }
+pallet-coretime-control = { path = 'origin/pallets/coretime-control', default-features = false }
 pallet-register = { path = 'origin/pallets/register/', default-features = false }
 pallet-token = { path = "origin/pallets/token", default-features = false }
 pallet-entity = { path = "origin/pallets/entity", default-features = false }
@@ -855,6 +873,7 @@ origin-orbis = { path = "origin/orbis/node", default-features = false }
 origin-hub-system-runtime = { path = "origin/hub/system", default-features = false }
 origin-hub-system-runtime-constants = { path = "origin/hub/constants", default-features = false }
 origin-orbis-runtime = { path = "origin/orbis/runtime", default-features = false }
+orbis-storage-runtime-api = { path = "origin/orbis/runtime-api/storage", default-features = false }
 token-origin-runtime-api = { path = "origin/runtime-api/token-origin-runtime-api", default-features = false }
 token-origin-hub-runtime-api = { path = "origin/runtime-api/token-origin-hub-runtime-api", default-features = false }
 

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "scope": "schema-validation-only",
+  "campaign_executed": false,
+  "class": "E",
+  "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "runtime": {
+    "genesis_identity": "0x40519e2e0e894e9b68defd9df6697619116ea693d0864913c98b5c65cd4e511a",
+    "genesis_status": "unfinalized-p0-fixture-not-production-genesis",
+    "wasm_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "metadata_hash": "0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9",
+    "descriptor_contract_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "spec_version": 29,
+    "transaction_version": 8
+  },
+  "environment": {
+    "topology_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "origin_validators": 6,
+    "orbis_collators": 2,
+    "orbis_cores": 1,
+    "clock_offset_ms": 0,
+    "seed": 20260713,
+    "warmup_seconds": 0,
+    "measurement_seconds": 0,
+    "cooldown_seconds": 0
+  },
+  "raw_uri": "schema-only://no-network-campaign",
+  "raw_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "samples": 0,
+  "observations": {},
+  "verdict": {
+    "pass": false,
+    "failures": [
+      "schema-only-no-network-campaign"
+    ],
+    "bottleneck_attribution": [],
+    "recomputed": true
+  }
+}

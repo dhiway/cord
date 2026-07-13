@@ -55,6 +55,34 @@ The generated spec identifies relay chain `origin-dev`, parachain `1006`, and em
 WASM runtime. The preset pre-funds Revive's code-deposit account with one existential deposit so
 the first Solidity code-upload hold has a valid destination.
 
+### Clean production genesis
+
+The live aliases fail closed: `--chain origin`, `--chain origin-relay`, and `--chain orbis` never
+fall back to Alice/Bob or a local chain. Operators provide reviewed public launch material outside
+the repository and materialize raw specs explicitly:
+
+```text
+target/release/origin build-spec \
+  --chain origin-production:/secure/reviewed-origin-genesis.json --raw \
+  --disable-default-bootnode > origin-raw.json
+
+target/release/origin-orbis build-spec \
+  --chain orbis-production:/secure/reviewed-orbis-genesis.json --raw \
+  --disable-default-bootnode > orbis-raw.json
+```
+
+Origin input contains `root_key`, at least four `validators`, and `endowed_accounts`. Each
+validator supplies exact lowercase `0x` public values for `account_id`, BABE, GRANDPA, parachain
+validator, parachain assignment, authority-discovery and compressed BEEFY keys. Accounts and
+session keys must be unique, and root/validator accounts must be explicitly endowed.
+
+Orbis input contains the exact live Origin `relay_chain` id, `token_network_id`, `root_key`, at
+least two fixed collator account/Aura pairs, explicit endowments, and a separate explicit feeless
+list. Well-known development identities are rejected by both builders. Neither input accepts a
+checkpoint, contract deployment, legacy state, client-compatibility flag or migration source.
+Final production files and their genesis hashes remain operator approval artifacts and are not
+invented or checked in with placeholder authority keys.
+
 For example, a local authority collator can be started with:
 
 ```text
@@ -82,8 +110,6 @@ The committed compatibility fixtures use standard `solc` EVM output. Regenerate 
 origin/orbis/runtime/fixtures/build.sh
 cargo test -p origin-orbis-runtime \
   solidity_evm_fixture_deploys_and_executes_through_revive --lib
-cargo test -p origin-orbis-runtime \
-  identity_bound_contract_moves_assets_and_persists_its_audit --lib
 ```
 
 Revive's separate PolkaVM benchmark fixtures require the `resolc` compiler. Compile-only benchmark
@@ -98,18 +124,13 @@ The escape hatch does not validate PolkaVM fixture compilation. It also does not
 standard-EVM compatibility tests above, which deploy and execute the committed `solc` output
 through Orbis's explicit `AllowEVMBytecode` envelope.
 
-### Unified identity-bound audit flow
+### Unified native identity-bound audit flow
 
-`IdentityAssetAudit.sol` is the headless application acceptance fixture. A single test proves the
-composed path rather than only testing pallets independently:
-
-1. the owner publishes a bounded People identity and derives an identity commitment;
-2. that owner deploys the Solidity contract with the commitment;
-3. an Orbis asset is minted to the contract's mapped AccountId32 account;
-4. the identity owner calls the contract, which transfers the asset through the `0x0120` ERC-20
-   precompile and commits an audit digest; and
-5. the same signed owner consumes a validated Bulletin authorization and persists the audit record,
-   whose content hash must equal the digest stored by the contract.
+`native_identity_attestation_name_asset_and_storage_journey` proves the clean-break application
+path without a migrated-domain contract or ABI. It composes People identity, native Attestation,
+an Assets transfer, Bulletin content commitment, native DotNS resolution, Drive root reference and
+S3 object reference against the same audit digest. The unrelated `Counter.sol` fixture remains only
+to prove generic Revive application execution.
 
 ## People identity
 

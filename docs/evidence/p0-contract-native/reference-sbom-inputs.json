@@ -1,0 +1,1779 @@
+{
+  "approval_manifest": {
+    "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
+    "required_reviewer_role": "architect",
+    "review_thread_id": "019f59bd-fa87-7571-837b-6a6a7ae51b2d",
+    "schema_version": 1,
+    "sha256": "96cd0595fbc89fcd847ee58dd8427aa59bd008c8639b8f82d9bf4d6095b3b5ae",
+    "verdict": "APPROVED"
+  },
+  "schema_version": 1,
+  "sources": [
+    {
+      "commit": "223955deac7298d8b674ede3772c44f4d664d4db",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "attestation-protocol",
+      "reference_dependency_manifests": [
+        {
+          "path": "bun.lock",
+          "sha256": "e282912709045acf346c0c94964fd5e4f9333ebf7249b72cd116ff29c52d302f"
+        },
+        {
+          "path": "evm/.papi/descriptors/package.json",
+          "sha256": "94cbc680e25e2e177105b71eac4cceb3254f3a337af69e43f049d55b781de8ce"
+        },
+        {
+          "path": "evm/foundry.toml",
+          "sha256": "f84287bb58060164345974aac87812786f3ea51507062444148b0262460b2431"
+        },
+        {
+          "path": "evm/package.json",
+          "sha256": "69992d7b1000646d82805eabbfd5229964912719bc5b8222942b83042f1e5422"
+        },
+        {
+          "path": "package.json",
+          "sha256": "14598ad1803ea1a7f51e838ee70e233beea31175c8a745127796ee4c1b6a5cbf"
+        }
+      ],
+      "tree_hash": "e700c6e0c4d0092bb83a473a4dc42f73d0e57274"
+    },
+    {
+      "commit": "42b792571b335d447f3b20ba553a4f291c82e55d",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "bcts",
+      "reference_dependency_manifests": [
+        {
+          "path": "apps/playground/package.json",
+          "sha256": "6727586ddbcd420bf31ec8d304a80c0387b2c751b83722aa623898ea952d46e6"
+        },
+        {
+          "path": "package.json",
+          "sha256": "c269d533c9302406e58221d53ca0701c3fe36e75cc7cc18d4e5b611692b95ec2"
+        },
+        {
+          "path": "packages/components/package.json",
+          "sha256": "522c229747e3d039ee6125f9796892dcdf736802a2789f530ed5719d74187366"
+        },
+        {
+          "path": "packages/crypto/package.json",
+          "sha256": "bf559435ca1556f09bb75c76f002cf2d214d6ff4e193942034ea28157e2a9a34"
+        },
+        {
+          "path": "packages/dcbor/package.json",
+          "sha256": "6999c62d0a69c812ea87ce6c9b383e6cfa6cc25dc7218110d368869a8d253248"
+        },
+        {
+          "path": "packages/dcbor-parse/package.json",
+          "sha256": "7845907416a5596534009e8ab16e3d3f550d49c326d271aa4d6cb064e83fde8b"
+        },
+        {
+          "path": "packages/dcbor-pattern/package.json",
+          "sha256": "999c5d06ee6cc92972fcd99c7a297ba8ce83575932dcb90ccf012d44d17cf180"
+        },
+        {
+          "path": "packages/envelope/package.json",
+          "sha256": "87802fff95b700c981a5f1b7bcb2bd8a7ceeb581c33cc4ababe18302ad2ea3e0"
+        },
+        {
+          "path": "packages/envelope-pattern/package.json",
+          "sha256": "cf51d789d04d305f772bc82845df246e47a61bf0f41ae252194d3a6693199e73"
+        },
+        {
+          "path": "packages/frost-hubert/package.json",
+          "sha256": "8e0efc258c8fa14eac7be10a58d20db73b31dba759bf39e143c943dc3e4079fe"
+        },
+        {
+          "path": "packages/gstp/package.json",
+          "sha256": "5029c1d1d7e30dcca221247310fcd95e326e77a94a2c7f6663980cc80afeefb1"
+        },
+        {
+          "path": "packages/hubert/package.json",
+          "sha256": "390bb4de6719d6f6177b49b966f185f96be3dd9e9eb5dce172521dd98450c293"
+        },
+        {
+          "path": "packages/known-values/package.json",
+          "sha256": "b9fa23a9a16df1af278844a2c5835db9ea6da69259e8eb4ee2aff9062580578e"
+        },
+        {
+          "path": "packages/lifehash/package.json",
+          "sha256": "6e1b43eb4f3d1f1d4876de42cce2121623b39c047e9783840d8b973fec089060"
+        },
+        {
+          "path": "packages/multipart-ur/package.json",
+          "sha256": "3d3b5f68a874a4d3a99926e51ce78d884d32a4b5b6a26bdee04f1893c1502d65"
+        },
+        {
+          "path": "packages/provenance-mark/package.json",
+          "sha256": "fce8917aa13a78760c8a46e67024b78f685b5b816f37de7ee159779fed8578bb"
+        },
+        {
+          "path": "packages/rand/package.json",
+          "sha256": "228b8996af773a8b16cd7e41f50202e64c22c2744c19ba3de5bac9b341bea148"
+        },
+        {
+          "path": "packages/shamir/package.json",
+          "sha256": "ec8967351b1f2c892426d74a7ee6255ffb3a99397ed194ee0dc829ee7ba91b80"
+        },
+        {
+          "path": "packages/sskr/package.json",
+          "sha256": "fb14d271b6f22620aecdc262703a928b8fb0f168d4028cee6b813b3a26207e1e"
+        },
+        {
+          "path": "packages/tags/package.json",
+          "sha256": "b4188be1460e513ddb3b954c9c1f988f749dff72274d77be3f8dbf325a9ee4fe"
+        },
+        {
+          "path": "packages/uniform-resources/package.json",
+          "sha256": "3115e71ae73801aeaf134d59838bc3622610ae319f4e81b96f1702d9a862792c"
+        },
+        {
+          "path": "packages/xid/package.json",
+          "sha256": "33f9d5868bc593e48496fd7916d93dc40a9250e3bede3afddd9f339c65746e96"
+        },
+        {
+          "path": "shared/eslint/package.json",
+          "sha256": "6fe36aaa80e93cec900330f17e0465212967b697f41a9db4c9a823d51596f642"
+        },
+        {
+          "path": "shared/tsconfig/package.json",
+          "sha256": "3852026684d71484677ad5357c5630724eaa4c14cd1914db45aff21ac87bfa0e"
+        },
+        {
+          "path": "tools/dcbor-cli/package.json",
+          "sha256": "ec44163e9083b520b0828234488e18b1e1cf9e1a3b7fa088b087f26213c7d8aa"
+        },
+        {
+          "path": "tools/envelope-cli/package.json",
+          "sha256": "b636ca5f154a2ad886f8f655682d1d5752a48a8f86ab91900215dfad4b91111c"
+        },
+        {
+          "path": "tools/lifehash-cli/package.json",
+          "sha256": "29c761c99a8da3344da9c9d7040de414d269146a3cd14fd021bd3ed97355f45d"
+        },
+        {
+          "path": "tools/provenance-mark-cli/package.json",
+          "sha256": "73e328ca8893523037ee19721ae85e230222de12a4d7155fd170b1ec1eaca12f"
+        },
+        {
+          "path": "tools/seedtool-cli/package.json",
+          "sha256": "c78d7209e412b32bb56728f60d925b949966355806a62ad227401fea6a81ab52"
+        }
+      ],
+      "tree_hash": "af56cf5e99f632aaaa8d94e9037395558be0b406"
+    },
+    {
+      "commit": "1054df0f0e89f4686c2f8a484a3ed1502ea4e571",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "browse",
+      "reference_dependency_manifests": [
+        {
+          "path": "app/.papi/descriptors/package.json",
+          "sha256": "e1d0b6d7d3955259d7853b3eb6d2ef9dbf77cbc0e587599533f250e5634b89e1"
+        },
+        {
+          "path": "app/package.json",
+          "sha256": "6d51fb644b2a6b912e853785ff82a8b9cc6ca47ec5035eab26000148a2878613"
+        },
+        {
+          "path": "bun.lock",
+          "sha256": "64b5124b0756b869a510f12f01e84f9db9b10fc284c4bb5cbca944359ce2b36c"
+        },
+        {
+          "path": "evm/foundry.toml",
+          "sha256": "0e6ed96fb1f227b54efea185c277e21307cfc68d0eb5ea540d963923db1ef7e0"
+        },
+        {
+          "path": "evm/package.json",
+          "sha256": "99bd3397646c875854c0b3b081b2d5150f930d7decdeca22e9ca65ffabd1a832"
+        },
+        {
+          "path": "package.json",
+          "sha256": "25538836a93cebe2455c9c0b2116d7257a3ac6890f9630f2f87e481004f74a87"
+        },
+        {
+          "path": "packages/browse-sdk/package.json",
+          "sha256": "1c66cb424031b3d76937e17a07cc88a1f7592d10404cb2ab4cb55a4874517738"
+        }
+      ],
+      "tree_hash": "4f0f18bc055605593b9b3c955d94a6304b72812c"
+    },
+    {
+      "commit": "0dd3c507a7fda250468381b798fa1d41cf6fe97c",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "dotli-community",
+      "reference_dependency_manifests": [
+        {
+          "path": "apps/host/package.json",
+          "sha256": "13b1de4d1ff34e89529bc2cffefb574b577c5f2f6ad883fca0cb0a7b4b3db959"
+        },
+        {
+          "path": "apps/protocol/package.json",
+          "sha256": "08f33c3e103a7b124e7042f97b1117c0934890b27fa1d9e757da805c044f68bb"
+        },
+        {
+          "path": "apps/sandbox/package.json",
+          "sha256": "df0e0f557077ac84dc77abc23221bfb2452ffa3167c570c322e7575aeef3610e"
+        },
+        {
+          "path": "bun.lock",
+          "sha256": "e53641695230e0b0754a5e86c07e7f1b2ef00e3d672391cc7203144e06a268d7"
+        },
+        {
+          "path": "package.json",
+          "sha256": "193242b3438fbae98ad861a3ca1c06ab5cb4ddd526dbdd6db89e1b6f4707cc1a"
+        },
+        {
+          "path": "packages/auth/package.json",
+          "sha256": "4489e2fbedfc8243f99e95b568d9e83c08042b2b1b323f18ca02b2bdabc6c348"
+        },
+        {
+          "path": "packages/config/package.json",
+          "sha256": "87be1e7f797e71856146ba2e83656fd501359a26c05c575dae9e38ebf7833209"
+        },
+        {
+          "path": "packages/content/package.json",
+          "sha256": "885799bad7ca9ca98a3eeb6a7101cec5cd527e8aa416d8453623a3c4802d9054"
+        },
+        {
+          "path": "packages/eslint-config/package.json",
+          "sha256": "c365e1594c09615b1411bb4e45e1fbaf1db56245ea5ca4a6bda2224ad16f9a83"
+        },
+        {
+          "path": "packages/metrics/package.json",
+          "sha256": "ab407494b662edd2b0cb64cff370f047d5e6fd42edfbf4dd631d618df1776648"
+        },
+        {
+          "path": "packages/protocol/package.json",
+          "sha256": "07bc1e93f2d918eff6abc2dc84003d74ba2f6ced223bb80493429994a3aa0806"
+        },
+        {
+          "path": "packages/resolver/package.json",
+          "sha256": "04d2af2deefb0d8bad4c29a9dbf3149a7ed948d1164d6a516a6c6bf9e20ae8cd"
+        },
+        {
+          "path": "packages/sandbox-checker/package.json",
+          "sha256": "0008fce09e6e5404b2ef46a97aee69162a179023061583935f336e536f63b491"
+        },
+        {
+          "path": "packages/shared/package.json",
+          "sha256": "fb5e868702155b45630ba2810a1d2e879612607691f541de6e8aa366992ed162"
+        },
+        {
+          "path": "packages/storage/package.json",
+          "sha256": "df92012483d5fc6a03400019d0c3a99c4028f3879cd9ab1b3c2ccd8f4a475467"
+        },
+        {
+          "path": "packages/truapi-debug/package.json",
+          "sha256": "31fca7e61991681d2d2459c8ee107be99b4e5a356b0ad7d6bbc62ac75ee80ac9"
+        },
+        {
+          "path": "packages/typescript-config/package.json",
+          "sha256": "67a85dc8f0a72e2dc5ba13b3045e8ca75b6448d9aa51a4da8b467a1dcd085930"
+        },
+        {
+          "path": "packages/ui/package.json",
+          "sha256": "72c2d300f803bf0748e5b37299c9b445a5c36d0c610f462adb1197adfa1d0e4f"
+        }
+      ],
+      "tree_hash": "6910e73174f957b278fbce3b0a5eec573455d883"
+    },
+    {
+      "commit": "da06591bf7aeb5769f369db71a1d03e804e2b1fa",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "dotli-starter",
+      "reference_dependency_manifests": [
+        {
+          "path": "package.json",
+          "sha256": "5e343a0ae6865424af999c0a6593dd4cd6b5d100959cdd336c606ee0983d5767"
+        }
+      ],
+      "tree_hash": "edcaa40b4b52320829c067259ec910fcb7e784bc"
+    },
+    {
+      "commit": "05a91f7f3c8f1c2c3d2d4d333d77d9f64892bc0d",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "dotns",
+      "reference_dependency_manifests": [
+        {
+          "path": "bun.lock",
+          "sha256": "e4c513a428e8aa5a44b31285efb7f5b98cd6081f5cdcf3e38cba3b140d1525cb"
+        },
+        {
+          "path": "foundry.lock",
+          "sha256": "38b6d7dd9b0b85cc4019e3f0718935d1edee1c3689c00792538cfcb89f88ef17"
+        },
+        {
+          "path": "foundry.toml",
+          "sha256": "3fc8c8002fb46fd199fd54ba17a8e5ad1a3b6fefda44b1120bccaefb1b0a7372"
+        },
+        {
+          "path": "package.json",
+          "sha256": "181448c7a6368f8fc5713e1d8156f57205430e3b08670422785ed30449f04d17"
+        }
+      ],
+      "tree_hash": "9866cccb3e12f99d75383ccfba76d7f528673c9a"
+    },
+    {
+      "commit": "ff8199fe1b31c885048fcd0ba2b452315664df89",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "dotns-sdk",
+      "reference_dependency_manifests": [
+        {
+          "path": "bun.lock",
+          "sha256": "72af8c1020cdabdebf3ce6776d74a7eed0829e14fe63fe229eae8303352e722b"
+        },
+        {
+          "path": "package.json",
+          "sha256": "f4f48d2c2fe471a8edc0a9c9f9221ecec776702af4330ab364f5c683810c9ce8"
+        },
+        {
+          "path": "packages/cli/.papi/descriptors/package.json",
+          "sha256": "bf7be2597475d08a9efd4990bccf2f235b85e374c477ee97bdefe7b63c8179e2"
+        },
+        {
+          "path": "packages/cli/package.json",
+          "sha256": "e4a7afa4b63b88fc124435759bf36abe8d98e734aa438f60066a0ee0676059f4"
+        },
+        {
+          "path": "packages/ui/package.json",
+          "sha256": "f954edfca2c73292eda71ee5509e6298396040d7d5d84064ef41b1b53fc94696"
+        }
+      ],
+      "tree_hash": "5b917f0169d979276a745af8e4b8b041a8034144"
+    },
+    {
+      "commit": "477689fddba4475eca82ccf11edd339a09140aa3",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "fellowship-runtimes",
+      "reference_dependency_manifests": [
+        {
+          "path": "Cargo.lock",
+          "sha256": "fc4a97f55e971c59148314802760632c558d78bf1652a821b2d341055fbc3e59"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha256": "ea21a73cd04bd88aa0b6dcc5f82cb034810acc8550904e8a081398dcf2b1e3b0"
+        },
+        {
+          "path": "chain-spec-generator/Cargo.toml",
+          "sha256": "5698e2d13039eef2390b08e36769bd7b5bd49d1afcf4cf620c0207b4b95bd85e"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/assets/asset-hub-kusama/Cargo.toml",
+          "sha256": "2a86371cf393976dbd0b521063e7ac5548b2832182a9b0abba170d5c95417406"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/assets/asset-hub-polkadot/Cargo.toml",
+          "sha256": "8fa48ef686288a6a73338935a464467b7b353e215e9007b410a2bf8b781fd283"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/bridges/bridge-hub-kusama/Cargo.toml",
+          "sha256": "251e3b2e4c4c8b0743c903b4260512efa9db9c6679257f0c9b4dc35d86196bd1"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/bridges/bridge-hub-polkadot/Cargo.toml",
+          "sha256": "1a5f042525f613c32d6794c7636c7ea950c6e60c81fe54d250783f2d94650624"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/bulletin/bulletin-polkadot/Cargo.toml",
+          "sha256": "eca57f4f92e8bbbb72e1bd32148aabaf84d4c4d82040bf355c167ec5d7c1aecd"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/collectives/collectives-polkadot/Cargo.toml",
+          "sha256": "64166f63e789360189284055adb7a6391386a29e4e28dab2d53a242ac8b9342b"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/coretime/coretime-kusama/Cargo.toml",
+          "sha256": "ed1ead9dd0a459300ef41d061c2bc397640491d1073ba3a5116ae4ba303ed67a"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/coretime/coretime-polkadot/Cargo.toml",
+          "sha256": "7faedad0c67f0970467d745958d33b915e97fa23ba07a361a49fe894c8867e03"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/encointer/encointer-kusama/Cargo.toml",
+          "sha256": "62e6eaea2a2645f86db93215632c7fe48cbd5c76622fcf65a2895d75ae636327"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/people/people-kusama/Cargo.toml",
+          "sha256": "d9ed5685ec1890f9863e99c27b656296da7a24a7fb5f3970f45dc6db74f64a08"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/people/people-polkadot/Cargo.toml",
+          "sha256": "6e19002b51cad233f111a9f7e9622d673464813e5bd49f0565358735201fbf85"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/testing/penpal/Cargo.toml",
+          "sha256": "e2ec4d2b69d6d845d89f841293a2f0ed7d05af7869dda58f4834cfd0f6beeed6"
+        },
+        {
+          "path": "integration-tests/emulated/chains/relays/kusama/Cargo.toml",
+          "sha256": "792b795981657a0c4262be37657e0b286b39bafed7bdbf1d93be1e60cd8b1df3"
+        },
+        {
+          "path": "integration-tests/emulated/chains/relays/polkadot/Cargo.toml",
+          "sha256": "595dddcd5d8345d31b56d13db3da6d92b966d93ab403c6c9e8093138a16138dc"
+        },
+        {
+          "path": "integration-tests/emulated/helpers/Cargo.toml",
+          "sha256": "236b3ebc7b43d153ae843c953a835236b92fa00160772a6e806f10073f0eaf96"
+        },
+        {
+          "path": "integration-tests/emulated/networks/kusama-polkadot-system/Cargo.toml",
+          "sha256": "f5eec2e82f3d6a81c9a68d5552e351a398aa5bcc7d0e5fe18b1e0022525f118c"
+        },
+        {
+          "path": "integration-tests/emulated/networks/kusama-system/Cargo.toml",
+          "sha256": "bcefee80edf2e94b2b57a0479ff7b04f61dbb7ecd5be4510ae8f20f6233986c5"
+        },
+        {
+          "path": "integration-tests/emulated/networks/polkadot-system/Cargo.toml",
+          "sha256": "7ed8802ef8c6a3025efec483c0206392be8750645aa181ce4d3ac5b944fceaf1"
+        },
+        {
+          "path": "integration-tests/emulated/tests/assets/asset-hub-kusama/Cargo.toml",
+          "sha256": "c08ad518cd8aa2915c0ace03d4752ffc85edd5ce4008aec68697a3f474cfe821"
+        },
+        {
+          "path": "integration-tests/emulated/tests/assets/asset-hub-polkadot/Cargo.toml",
+          "sha256": "afa7d143db0e67750b9763561c00a1cdb3778e7f05aac2623ddae77f5b52a827"
+        },
+        {
+          "path": "integration-tests/emulated/tests/bridges/bridge-hub-kusama/Cargo.toml",
+          "sha256": "c846d28fe7e7b9a5a5f35af7abfa7cf03987ca604fffa1bb41e6f254182535ee"
+        },
+        {
+          "path": "integration-tests/emulated/tests/bridges/bridge-hub-polkadot/Cargo.toml",
+          "sha256": "48038d46de7bf428c42e3427b7661fd67a9297e80a94b65b199cb3bbd3d8af46"
+        },
+        {
+          "path": "integration-tests/emulated/tests/bulletin/bulletin-polkadot/Cargo.toml",
+          "sha256": "8cd23f853b5326fecedbab04b1f9567cc10a43eb8058bdd162d0bfa389466e41"
+        },
+        {
+          "path": "integration-tests/emulated/tests/collectives/collectives-polkadot/Cargo.toml",
+          "sha256": "054fd61b54485929951584bf402b2b760abc7b995e8292ea4c8f31973ddac916"
+        },
+        {
+          "path": "integration-tests/emulated/tests/coretime/coretime-kusama/Cargo.toml",
+          "sha256": "87a811f1768ac21b1d82f1842562cb5f3ed33f6959b19ec852450e8b7ea942b3"
+        },
+        {
+          "path": "integration-tests/emulated/tests/coretime/coretime-polkadot/Cargo.toml",
+          "sha256": "f7f05c7b26144b078979d4fdb00dd415f8602f280dc33c47c5592acec38e1b58"
+        },
+        {
+          "path": "integration-tests/emulated/tests/encointer/encointer-kusama/Cargo.toml",
+          "sha256": "847a3b4c03f20f8d79098a12cadf03078f20eca40083d0ed58578e085a0ceced"
+        },
+        {
+          "path": "integration-tests/emulated/tests/governance/kusama/Cargo.toml",
+          "sha256": "e1c2da0803dcf8505cbbe63fee0e2390c9ca60f65f9ba70ca5d429d6b9ec1013"
+        },
+        {
+          "path": "integration-tests/emulated/tests/governance/polkadot/Cargo.toml",
+          "sha256": "fa8cf020d852d24807a7f31bd6a65c5675eb29633baf3d0ecfdea9c310747a1d"
+        },
+        {
+          "path": "integration-tests/emulated/tests/people/people-kusama/Cargo.toml",
+          "sha256": "5d87f6d95ac2695eac9fc38b4567e6a4610e0feb41d4af08cbca4fe63ee32b82"
+        },
+        {
+          "path": "integration-tests/emulated/tests/people/people-polkadot/Cargo.toml",
+          "sha256": "dec85598c9d06bce7a8183cd3f93c9acfa8e613e77b2463ca8cc788f2b2611a0"
+        },
+        {
+          "path": "integration-tests/zombienet/Cargo.toml",
+          "sha256": "270566dc51e2ac0421dc9e74e9c15e807a1826719856e14d21178e32054a5cff"
+        },
+        {
+          "path": "pallets/ah-ops/Cargo.toml",
+          "sha256": "a8648f1c2dbf3c2c668d308aacd14496969e711dd71605265227db1360b548e4"
+        },
+        {
+          "path": "pallets/rc-migrator/Cargo.toml",
+          "sha256": "84db0a2a692c5a6e4833301bd3213fad2700e3a82fc51ccb0e7328f1713b29c1"
+        },
+        {
+          "path": "pallets/remote-proxy/Cargo.toml",
+          "sha256": "ff5b9e3f47aab157074a667dddb406648d2356da17c994a042c521f6f115181d"
+        },
+        {
+          "path": "relay/common/Cargo.toml",
+          "sha256": "46fdffa5c13c9c4311a9d70beab6918d5aa04dd56b0097b8a151e99d25e927f7"
+        },
+        {
+          "path": "relay/kusama/Cargo.toml",
+          "sha256": "9118d2052f9722be5d444fa7cab0f660a2ab39abe4a3d4e47ab2d55247013024"
+        },
+        {
+          "path": "relay/kusama/constants/Cargo.toml",
+          "sha256": "03b57b122f181f8f9bc300fbcef24f3270b0be26cf2339d523f7109aa6228db6"
+        },
+        {
+          "path": "relay/polkadot/Cargo.toml",
+          "sha256": "2884962ec4da733c5c842546107ccfc2b05ff2a7d28f17d48e4a3bf74874bfc3"
+        },
+        {
+          "path": "relay/polkadot/constants/Cargo.toml",
+          "sha256": "af0b4bda8600a431766d000462cd2d9902d38a7d4a2e7fe5cdc38c2b3ee4e5d6"
+        },
+        {
+          "path": "system-parachains/asset-hubs/asset-hub-kusama/Cargo.toml",
+          "sha256": "b95409e3880d2d0b71bd9a6d42fd7b076428eb615cf03e57a0a5dc992378b925"
+        },
+        {
+          "path": "system-parachains/asset-hubs/asset-hub-kusama/primitives/Cargo.toml",
+          "sha256": "cc30f669b383e17adedc7035767ae4ae5baa03f64355e8e335be6091712ebc88"
+        },
+        {
+          "path": "system-parachains/asset-hubs/asset-hub-polkadot/Cargo.toml",
+          "sha256": "65f842c9141e7533efe65f6a776ebc46f5d3cea5571297e86930575d5d310be3"
+        },
+        {
+          "path": "system-parachains/asset-hubs/asset-hub-polkadot/primitives/Cargo.toml",
+          "sha256": "07938638fe59eb41e305bb4f205888dc5ffebc71c6f35a12ac31d429a41da061"
+        },
+        {
+          "path": "system-parachains/bridge-hubs/bridge-hub-kusama/Cargo.toml",
+          "sha256": "5cd65832c111a517865fafc7b0567b54eded2471df33ee42318818a1ceef6f7c"
+        },
+        {
+          "path": "system-parachains/bridge-hubs/bridge-hub-kusama/primitives/Cargo.toml",
+          "sha256": "638d53de06303bc17d9c0cea854e19be424bdb1cc660b008bb83f9e170ca5358"
+        },
+        {
+          "path": "system-parachains/bridge-hubs/bridge-hub-polkadot/Cargo.toml",
+          "sha256": "2387082496ec5212146b52ca5ba66440fcfadfff796640018318b889bb3f076b"
+        },
+        {
+          "path": "system-parachains/bridge-hubs/bridge-hub-polkadot/primitives/Cargo.toml",
+          "sha256": "42c5f99b3361b97ff998dec1cf51788e9c658534cef0a5958219ed8004aea78c"
+        },
+        {
+          "path": "system-parachains/bulletin/bulletin-polkadot/Cargo.toml",
+          "sha256": "7d8d7ba89ba2c957ee4eb7589e72832924c26e8ca96f9205e10cb53c00a837db"
+        },
+        {
+          "path": "system-parachains/collectives/collectives-polkadot/Cargo.toml",
+          "sha256": "b223fa517648a8109ec0274c10aa7b2413e9f31b1516758c5ba4c64616e996e9"
+        },
+        {
+          "path": "system-parachains/collectives/collectives-polkadot/constants/Cargo.toml",
+          "sha256": "21c86f7f324924bfe58c3a9788d06d4717d6163b3f1fddc7944d43cf72ff0e21"
+        },
+        {
+          "path": "system-parachains/common/Cargo.toml",
+          "sha256": "8eed8cb04cebe87646b066e8295bdba1713afcb567107677a5d2b1a2ad3b0fba"
+        },
+        {
+          "path": "system-parachains/constants/Cargo.toml",
+          "sha256": "08939da040f12e9a195380952e1aa308db53d9c616d4ba3a69ef8a7589e3ef2a"
+        },
+        {
+          "path": "system-parachains/coretime/coretime-kusama/Cargo.toml",
+          "sha256": "55bc1a25821204999869100df87e1d7e8bc51926f3e69a4c8e16ce8df0caf0ca"
+        },
+        {
+          "path": "system-parachains/coretime/coretime-polkadot/Cargo.toml",
+          "sha256": "219adfb78cc834754b977666a98e8ec13a830b3ae11b6750e7faa9a3524c0281"
+        },
+        {
+          "path": "system-parachains/encointer/Cargo.toml",
+          "sha256": "e3301e8f5c4711d849dd5cd04a370e3b65ff887e2f377bfa35428f1a1ed102dd"
+        },
+        {
+          "path": "system-parachains/gluttons/glutton-kusama/Cargo.toml",
+          "sha256": "2fff363217c9d76c8c5306116e8b054a45e0e7dbb9af52bc4dc3e339a41562ef"
+        },
+        {
+          "path": "system-parachains/people/people-kusama/Cargo.toml",
+          "sha256": "0da15a26e163d69863bd6dafa5f25fe4aa72d99b3deee4ede9c60f677a411521"
+        },
+        {
+          "path": "system-parachains/people/people-polkadot/Cargo.toml",
+          "sha256": "39a410448fbc3944518b21b24024bb08c11fbee5f196a1aef9de2e1206a03a78"
+        }
+      ],
+      "tree_hash": "29bae844c6b69c81bb9654d4c4c8df331bc62027"
+    },
+    {
+      "commit": "28e8bdc0e6f2b2da01e5f82198329560c6366729",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "identity-backend-community",
+      "reference_dependency_manifests": [
+        {
+          "path": "apps/api-docs/package.json",
+          "sha256": "2ece66b142b138636afaa12c29943ea7effd4ddbfa764578c8061bca055582d1"
+        },
+        {
+          "path": "apps/backend-cli/package.json",
+          "sha256": "337560bd107c0cf0323d7f70c0429ac01e6eb87381860b31873f776da6bfc00f"
+        },
+        {
+          "path": "apps/e2e-people-startup-container/package.json",
+          "sha256": "4eb8c83fd5b3224910d88d11a85cdbbd4cd36b1221c49fd77923959f0a331996"
+        },
+        {
+          "path": "apps/identity-backend/package.json",
+          "sha256": "c801b90698af6691d9af8088d86779686ed77fae386f94df29c862afc10f13d5"
+        },
+        {
+          "path": "apps/identity-backend-e2e/package.json",
+          "sha256": "79618b31d43b86abdd8cb5ec7ea932417b7d1c4c688e2b98a06763c67e819f87"
+        },
+        {
+          "path": "apps/identity-backend-load-testing/package.json",
+          "sha256": "19d4e78f1fe3205633358e837183e5c035ac89a002814bdc1080017e817a1889"
+        },
+        {
+          "path": "package.json",
+          "sha256": "372d8acaac58fee4c507c0c87d9b239436472bf8493a323baf707fe59a4139d8"
+        },
+        {
+          "path": "packages/descriptors/.papi/descriptors/package.json",
+          "sha256": "2fa14969858b133aadbd4538e3e2c96c60cf6006979292a6e07bcfe517c43559"
+        },
+        {
+          "path": "packages/descriptors/package.json",
+          "sha256": "61b2363290fc1718ea28f40daf5cfbf7a941bd7b5e29acfdf482b41c4dea6112"
+        },
+        {
+          "path": "packages/lib/android-attest/package.json",
+          "sha256": "878df2577128ad9536c1e072d4cc7ca1825585e11c455802f52ec2c2321410fd"
+        },
+        {
+          "path": "packages/lib/app-attest/package.json",
+          "sha256": "08f9d8233bb9a4ff1f200799b05f35e3f4bc0348295181e6d114905c8e88cb12"
+        },
+        {
+          "path": "packages/lib/auth/package.json",
+          "sha256": "fd49ad1d4b28960baa27a1ca65bafdcd8940b416e1f6ac6820da24ae14c799fd"
+        },
+        {
+          "path": "packages/lib/crypto/package.json",
+          "sha256": "2c657a8305d160d04e0729a6bd13fa1ecfb24eaa568a1cfc218401cb01162318"
+        },
+        {
+          "path": "packages/lib/db/package.json",
+          "sha256": "ff7169b0e63ae31c6c81271e275d68fb4a240f139068a1f14e3f3b7e97d990c3"
+        },
+        {
+          "path": "packages/lib/dim-ticket/package.json",
+          "sha256": "6a7b66e5c767eea6bf22ca5198bc17654fd6feaa699d43352ff226cd189a2ae1"
+        },
+        {
+          "path": "packages/lib/effect-daemon-spec/package.json",
+          "sha256": "4858ccaee16e02b205cda9dac565472d94ff05632e33adb75be35e4b4b620e2a"
+        },
+        {
+          "path": "packages/lib/hono-auth/package.json",
+          "sha256": "b34c046abeef62cc99e29d2dea4719b4704ed969b4a3228c2d97df35ae4f14b3"
+        },
+        {
+          "path": "packages/lib/json-rpc/package.json",
+          "sha256": "4f0f297dcea15aa63a78c56261a9328b8d313b7799ea01eb789f4db3ee630887"
+        },
+        {
+          "path": "packages/lib/mobile-push-notifications/package.json",
+          "sha256": "5be355dc5f15c78b0b024672f29ea94497f76149e28b0deb40d59886619ba8e9"
+        },
+        {
+          "path": "packages/lib/observability/package.json",
+          "sha256": "c35ad4718f7d9ac0efc660c6729b7e053f7ec1c77135d8047cad50634c15cd3e"
+        },
+        {
+          "path": "packages/lib/people-lite-fixtures/package.json",
+          "sha256": "efb86a3cc89e326874dc8f848788ac9195af7e2df56b222a31d43aa7b9026e6d"
+        },
+        {
+          "path": "packages/lib/play-integrity/package.json",
+          "sha256": "75cdfd625d54bbe8edbae08fe654675795e4877f79d887d06f2f992bc001a89c"
+        },
+        {
+          "path": "packages/lib/rate-limit-sizing/package.json",
+          "sha256": "a893b51e2e7b75e4c6e5139a901f48c1c0ca03e0392b0a6812392098c238814d"
+        },
+        {
+          "path": "packages/lib/rx-effect/package.json",
+          "sha256": "a0454040fc82f7f4c42721ef2ad642afa325ca9386260a581e38ebb562c9cfe4"
+        },
+        {
+          "path": "packages/lib/schema-extensions/package.json",
+          "sha256": "773f794d7b37e247532575b1edb3a5a867f99de3edfdf251a06c824010a514f0"
+        },
+        {
+          "path": "packages/lib/sdk-statement/package.json",
+          "sha256": "c6216694367b8fe0c9d16b6b40fec265d2d9e3be5b4eb4664556d975460a786d"
+        },
+        {
+          "path": "packages/lib/statement-store/package.json",
+          "sha256": "e9ec0f21afb3a81444c73afce9590a1505229649954370972dd74337958ec04f"
+        },
+        {
+          "path": "packages/lib/substrate-schema/package.json",
+          "sha256": "84ec2d3082413d96508aadb924450640004ca255dfb500d771a7d2335eb34df7"
+        },
+        {
+          "path": "packages/lib/testing/package.json",
+          "sha256": "f0057ada3eace6cba9e8f37319fefe21fab197938b3d22eef06bba76ffe45445"
+        },
+        {
+          "path": "packages/lib/tx-events/package.json",
+          "sha256": "046f863dea8802707201df95a23ea8a95a6446a319717df86db1fdeef23f6036"
+        },
+        {
+          "path": "packages/tooling/effect-vitest-gherkin/package.json",
+          "sha256": "467f956feff9ebdd32e5d85af0ca060c45e74d6c729bd2e26158dc0f73bdf966"
+        },
+        {
+          "path": "packages/tooling/oxlint-config/package.json",
+          "sha256": "acd4d6ca8899f930df701dc19a8bea08323fb5d73218c6c5510bad51b1671bad"
+        },
+        {
+          "path": "packages/tooling/oxlint-plugin/package.json",
+          "sha256": "7cc029013ab843527793be9b64a0708b13a0108f7733bf4e90c0f8bfeaa11db7"
+        },
+        {
+          "path": "packages/tooling/stryker-plugins/package.json",
+          "sha256": "159d59dc53d4512d66b94364b5459094ae6df4e81799b760727cfb34dd3be3cf"
+        },
+        {
+          "path": "packages/tooling/vitest-config/package.json",
+          "sha256": "85c958b93e8102581d6770b72e306412734e1a277cf08c1b2cfa671861efe319"
+        }
+      ],
+      "tree_hash": "6ce28a64f06c6ace7895e8a5ca0bb77fd4f6537b"
+    },
+    {
+      "commit": "28b7d07dab05bbd05f6b664278b5c83841e212d3",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "individuality-community",
+      "reference_dependency_manifests": [
+        {
+          "path": "Cargo.lock",
+          "sha256": "a8d81a58457ff01c7afbb47bd6e39d71bcfff78559612e263682e4feb3029423"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha256": "cb438677b13ef140e54695c3d78bbbc9fcc6383bf35c5caed53519fd1e275a1c"
+        },
+        {
+          "path": "docs/examples/package.json",
+          "sha256": "389d281995ebdbeb890e4b86fb7f3365fe97c4b4d0473403f95f6e26516b320d"
+        },
+        {
+          "path": "e2e-tests/.papi/descriptors/package.json",
+          "sha256": "98fcf9e395698c0fd65b6bd81d5a99570d0e53d0ca388df0d7d4ebafcf7ac949"
+        },
+        {
+          "path": "e2e-tests/package.json",
+          "sha256": "2a25936e5c7acc75cd40e263921a8f7f7f8aa76dd0a7c708ab0958d42f0465ae"
+        },
+        {
+          "path": "integration-tests/Cargo.toml",
+          "sha256": "46774b72f4eeba9d0d23f4f67fafdb1d870d9d17f23658064404c29d42f68092"
+        },
+        {
+          "path": "pallets/airdrop/Cargo.toml",
+          "sha256": "2cc8aad1a73b39aafa3be2d69ed1379cb51d3378dd9ea780ed209ab40617b191"
+        },
+        {
+          "path": "pallets/alias-accounts/Cargo.toml",
+          "sha256": "4f6ecf64995669c670f28c45b9babab35f6a25b734a7dce9939e11abe63c2676"
+        },
+        {
+          "path": "pallets/chunks-manager/Cargo.toml",
+          "sha256": "222417eb51603fe1c4cc6b8c7d3e5cf8a845d9bd104e646e9ba45dd3b28176ae"
+        },
+        {
+          "path": "pallets/coinage/Cargo.toml",
+          "sha256": "8b20b3732194ced13548b6e63a69835e9b8ef9dd8648f136f0ddaa34e5a2b254"
+        },
+        {
+          "path": "pallets/dotns-gateway/Cargo.toml",
+          "sha256": "07c4ff66522151a360a6600795ec8f5bf8baf0a952da663e966f1b5a2fb386f3"
+        },
+        {
+          "path": "pallets/dummy-dim/Cargo.toml",
+          "sha256": "9c822001297cf432f7ff74354c23a12f0bbb61bb823b963d92ce5b5140cb7518"
+        },
+        {
+          "path": "pallets/game/Cargo.toml",
+          "sha256": "a53bb0a283a8410c429e089b38932360503245247c5366dfbc26f20ae5c50a87"
+        },
+        {
+          "path": "pallets/honour/Cargo.toml",
+          "sha256": "c18718361b39d06953f18512cdbd4927a06aab97af3f52fff705c45fe99edcce"
+        },
+        {
+          "path": "pallets/members/Cargo.toml",
+          "sha256": "cdf66884c768bd1a8806f21ddf941a1e17a5e2343d98effbf745594b22c426f9"
+        },
+        {
+          "path": "pallets/members-notifier/Cargo.toml",
+          "sha256": "130ef3679f5f69f1472c8284c6949f347bdb8d4c0bdfd932efee87349e5cc576"
+        },
+        {
+          "path": "pallets/members-subscriber/Cargo.toml",
+          "sha256": "5439f0364e6af09795a9fd4d4c09bd152c5a2834ece6657528a458c3ece9165f"
+        },
+        {
+          "path": "pallets/mob-rule/Cargo.toml",
+          "sha256": "4ade2590dedb67cd13c1c07b878b0a2888581e5797df25ad915f85c8a7aaac9c"
+        },
+        {
+          "path": "pallets/origin-restriction/Cargo.toml",
+          "sha256": "00c8184e12f912558f924415566e4f334cab42c0d795657ecd10e7eed5c69d87"
+        },
+        {
+          "path": "pallets/people-lite/Cargo.toml",
+          "sha256": "62ae58aa0aabdd1fbad203059c0b9f2534123b5be564953f87e75fa279d7f883"
+        },
+        {
+          "path": "pallets/people-multi/Cargo.toml",
+          "sha256": "112cf2abcf07fe3f9587f1ad04658afee3b1be1d07e3b264e265e2f678c47246"
+        },
+        {
+          "path": "pallets/pgas/Cargo.toml",
+          "sha256": "1df2b702ebce84b3e1c79cfbe049a5c1a872b54f929887cf2eb9168c095fdb98"
+        },
+        {
+          "path": "pallets/proof-of-ink/Cargo.toml",
+          "sha256": "5fb1fab29af7838676e68adddabcd238979c196de6e326d3e3a12f0723dcb63b"
+        },
+        {
+          "path": "pallets/resources/Cargo.toml",
+          "sha256": "557649743c665f1761703510f19bbbae2b9db1d5ae253a77236cf0e004b9f971"
+        },
+        {
+          "path": "pallets/score/Cargo.toml",
+          "sha256": "0873cdf27b1acfcfdef84173860100776ef0f03648e8f3f14d751c428658d5fe"
+        },
+        {
+          "path": "pallets/storage-initialization/Cargo.toml",
+          "sha256": "47b399e54946e15f5cee58b060c104ca54b7f6dfd383562015a270c91b604d64"
+        },
+        {
+          "path": "pallets/value-transfer-auth/Cargo.toml",
+          "sha256": "57fcf56f9a95c4bcffa405253b694c629a835013823a93ff56aaafb55def6f2c"
+        },
+        {
+          "path": "paseo-support/bp-asset-hub-paseo/Cargo.toml",
+          "sha256": "680d54423aa5c477e6c440890d65eae065811f6be36e78f0ace29160dc58025a"
+        },
+        {
+          "path": "paseo-support/bp-bridge-hub-paseo/Cargo.toml",
+          "sha256": "c6b63f5433fe4a57ac431bc498c9b34ec952932410b6d2afce53e3d6c70113dc"
+        },
+        {
+          "path": "paseo-support/collectives-polkadot-runtime-constants/Cargo.toml",
+          "sha256": "de66157f5765058fd5c74ba8a05a7374f95529613c4ddd1af1326c381fb4bca2"
+        },
+        {
+          "path": "paseo-support/paseo-runtime-constants/Cargo.toml",
+          "sha256": "1d9959f726e99b87390c55af595454b3a7f62ab90cf61c349b24cd4a19d162ae"
+        },
+        {
+          "path": "paseo-support/system-parachains-common/Cargo.toml",
+          "sha256": "3af0db5a64bf4bc8ed5276eba3a3ff8f1370efaa38f09969e494b33a34b4027a"
+        },
+        {
+          "path": "paseo-support/system-parachains-constants/Cargo.toml",
+          "sha256": "94e6c9e75f51f2901ee6eee8b846eb7dc339930aa2218af9272caaa262546931"
+        },
+        {
+          "path": "precompiles/personhood/Cargo.toml",
+          "sha256": "82e1d1bb45790f4f65d8e1c5e00ac3fbe60f9319bdc9c0016ec908e6ed23f4ce"
+        },
+        {
+          "path": "runtimes/next-asset-hub-paseo/Cargo.toml",
+          "sha256": "3197f73a6d754c912d1e9e587c2430f74305166c466c5289363dbfa9959344ce"
+        },
+        {
+          "path": "runtimes/next-people-paseo/Cargo.toml",
+          "sha256": "c67e3afe0f09f90f4262196a996eee2c3149b4f0dfb9adc164c026e7137251a3"
+        },
+        {
+          "path": "support/Cargo.toml",
+          "sha256": "04f11f6045679c003184e403c4a3cd6fcbd78be7b1c8e1b3364ea963278a7302"
+        }
+      ],
+      "tree_hash": "34562e54e7f52b211c31e1a872bdb199917824d5"
+    },
+    {
+      "commit": "79b7d9bc2aaf9e7ecbd60c7f6ddd31b76e8c0978",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "localdot-community",
+      "reference_dependency_manifests": [
+        {
+          "path": "apps/web/.papi/descriptors/package.json",
+          "sha256": "8703ebdf27819828fbb1f0217b06cb8c146d95457be6adf7dc1f5be1768b84b4"
+        },
+        {
+          "path": "apps/web/package.json",
+          "sha256": "3727c3bde8c359e889f787d1e5c18cff6d97aebd72e0b2fc9229037c2f2a77c7"
+        },
+        {
+          "path": "package.json",
+          "sha256": "3d9effbe98814e2a8d09fd0e114ea3b03fc1462acf70275aa76d8023b596b458"
+        },
+        {
+          "path": "packages/bulletin/.papi/descriptors/package.json",
+          "sha256": "da3ef1e5dc334f1d5a0528f0f9a988ed1e72cb852c9b753fd19085e29bae3853"
+        },
+        {
+          "path": "packages/bulletin/package.json",
+          "sha256": "facc12ed5e6b3a3b75232ec6f8ad46ce18a8b341c7e20e67c92094e8c546ef58"
+        },
+        {
+          "path": "packages/config/package.json",
+          "sha256": "2f20d133736d59a9a1d7a8ed03ef29ce0dfad6020c34ee2de8945e8cb835f86d"
+        },
+        {
+          "path": "packages/contracts/package.json",
+          "sha256": "2cb1b5358b30f75618ba03d80bf523020233f978f6ccee687bc1650d6f58516e"
+        },
+        {
+          "path": "packages/types/package.json",
+          "sha256": "4c08dd0a94ca0756f768a62bc294c7119e0d590ff8da5bf274f61ae8234b8418"
+        }
+      ],
+      "tree_hash": "0fa36343484f6c5f664ad0f32fa1e3fac349f99d"
+    },
+    {
+      "commit": "ac99ed6c1122b2d868595bcbf797bdd8acaf2928",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "paseo-runtimes",
+      "reference_dependency_manifests": [
+        {
+          "path": "Cargo.lock",
+          "sha256": "9e056d27b5e6ba0eb250f96de0c31e5a62960bf1bd231970fe4efc2bb018b5bf"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha256": "a91a3008b64a10db2819ce0f09aa164ffe9fcc8e2f8cb41dfb4afc37a59f6751"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/assets/asset-hub-paseo/Cargo.toml",
+          "sha256": "2b4b4768d768f09c6db116ab4e9ec33dd014b00f7436b0e495d1f50c0b4c0d18"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/bridges/bridge-hub-paseo/Cargo.toml",
+          "sha256": "13c560c5845b6927d2f4406d65f1545dcc997c3caa147bf7593af56a3de101b8"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/collectives/collectives-paseo/Cargo.toml",
+          "sha256": "c74be38bca73571a079dd819787d7751592c837a710ed4abe1080c2a2f2c19c6"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/coretime/coretime-paseo/Cargo.toml",
+          "sha256": "be8bfd6fc4616e37d9be2bf53c898d25b187ada4a10e9d46030be78503f04d37"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/people/people-paseo/Cargo.toml",
+          "sha256": "0af08c9ead577c448cd547292aec06dbea0bfb070e46bea2178200f14fd08d4e"
+        },
+        {
+          "path": "integration-tests/emulated/chains/parachains/testing/penpal/Cargo.toml",
+          "sha256": "4ba7e716151f4bb053adc80a13aef6c89dee767479572210e4ba29ac38a5fcd4"
+        },
+        {
+          "path": "integration-tests/emulated/chains/relays/paseo/Cargo.toml",
+          "sha256": "48025165c903f7a9830795c934b641ac9c27d1eb9723cb4bad84594b43666750"
+        },
+        {
+          "path": "integration-tests/emulated/helpers/Cargo.toml",
+          "sha256": "236b3ebc7b43d153ae843c953a835236b92fa00160772a6e806f10073f0eaf96"
+        },
+        {
+          "path": "integration-tests/emulated/networks/paseo-system/Cargo.toml",
+          "sha256": "480b1dd1e0a3f34facd74eec70f797b2623f6f8f36e36c3b4423ffe249167313"
+        },
+        {
+          "path": "integration-tests/emulated/tests/bridges/bridge-hub-paseo/Cargo.toml",
+          "sha256": "847a82da7c3c3fa61420721c00b236451ccc80ba3b0bf4413bcae66650399c8b"
+        },
+        {
+          "path": "integration-tests/emulated/tests/coretime/coretime-paseo/Cargo.toml",
+          "sha256": "65ce79b8b8d6d4e96eb72dc23b28ab9074124fa070b98702e9248cb86686f365"
+        },
+        {
+          "path": "integration-tests/emulated/tests/people/people-paseo/Cargo.toml",
+          "sha256": "15354f711541473bc1a4ab792ba4cbb021333c04dc603c7dc84ca1ef5fe7f90d"
+        },
+        {
+          "path": "relay/common/Cargo.toml",
+          "sha256": "46fdffa5c13c9c4311a9d70beab6918d5aa04dd56b0097b8a151e99d25e927f7"
+        },
+        {
+          "path": "relay/paseo/Cargo.toml",
+          "sha256": "17c30686909492de0cf085048ec09adff20be75e88379acf65d0b319f8be5134"
+        },
+        {
+          "path": "relay/paseo/constants/Cargo.toml",
+          "sha256": "1a0ee6d4f9db3e53b9ce8a073b8f63c4751747892bda5666b4eac93c49f46121"
+        },
+        {
+          "path": "substitute-relay/package.json",
+          "sha256": "912909485fadbdb9937ec26dfe34f8433a27755aaf5ffb533cb00c1a9482040d"
+        },
+        {
+          "path": "system-parachains/asset-hub-paseo/Cargo.toml",
+          "sha256": "9298bbd13f572c2bf1d23ae8b97265fb5958a818bdd455cf719773c16ee25a2a"
+        },
+        {
+          "path": "system-parachains/asset-hub-paseo/primitives/Cargo.toml",
+          "sha256": "e0ed6960ccd8fd4d33cdb7199b8b2f382ac4e0039e27f06186895eb454bb56c2"
+        },
+        {
+          "path": "system-parachains/bridge-hub-paseo/Cargo.toml",
+          "sha256": "b768216a259b8f8c181438ce21783d7e9c5100b160477eb68ad63919b8aacec8"
+        },
+        {
+          "path": "system-parachains/bridge-hub-paseo/primitives/Cargo.toml",
+          "sha256": "d8542b38f6c070e459061fbda8af50a1f9d8a4945a21f4a106aa56ebc94a9cd3"
+        },
+        {
+          "path": "system-parachains/bulletin-paseo/Cargo.toml",
+          "sha256": "915cba027cecaa8145e45f66df9e5e910273b298f10005766cb201da39ce2eb4"
+        },
+        {
+          "path": "system-parachains/collectives-paseo/Cargo.toml",
+          "sha256": "0aab61a1f1cbd2cdffc04bce90093dc871934f2a4808bc47f20186d6ecf9030a"
+        },
+        {
+          "path": "system-parachains/collectives-paseo/constants/Cargo.toml",
+          "sha256": "0af0cf9f2d4e480670f68b49cfd41c327031278c2fe751ca84695d8bad61ee75"
+        },
+        {
+          "path": "system-parachains/constants/Cargo.toml",
+          "sha256": "de107f0aa4ad28f70edaad48856c41ae9c314fd2b2cba689cf169cfa3e49adf3"
+        },
+        {
+          "path": "system-parachains/coretime-paseo/Cargo.toml",
+          "sha256": "413f237c72c999127201667cf4752bf0936a530846cca6485375fe38473e35b6"
+        },
+        {
+          "path": "system-parachains/people-paseo/Cargo.toml",
+          "sha256": "43e015d00d44bda66f50ab267526ae623dffe3ec17e9f658bf159b121d585fac"
+        }
+      ],
+      "tree_hash": "ca911ef084b6982d428319dc9feeb28569580767"
+    },
+    {
+      "commit": "92d7e03de68c6eb1cebb24d43a7b32fcb831b289",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "playground-app-community",
+      "reference_dependency_manifests": [
+        {
+          "path": ".papi/descriptors/package.json",
+          "sha256": "cf2729bd6c0d64e7aef2abe277b250cbc378588daa74ee4f575fa8d5a4ea43ce"
+        },
+        {
+          "path": "Cargo.lock",
+          "sha256": "9eb14b64bfcc3bb710021d8eeb8eada45cf085dbe882cb2cfbebe7bc678d6ece"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha256": "b21d980dbe96870df49311b72e80b654d5ac32483a9d145e81efeecc9b6d7384"
+        },
+        {
+          "path": "contracts/registry/Cargo.toml",
+          "sha256": "5ecd1d7fcfe1977d0ccbace46f06082c484971af217bb6ddd0f527a7396552f1"
+        },
+        {
+          "path": "package.json",
+          "sha256": "994c720258e882cb32d14faf987f67a1f09fdfd75b9ec588f5645236ae0401c4"
+        }
+      ],
+      "tree_hash": "c1fc5111ad247daffb825ed84a378fe443c544c6"
+    },
+    {
+      "commit": "cd959a00a084737eed3ec0808212ec8beeee13a0",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "polkadot-android-community",
+      "reference_dependency_manifests": [
+        {
+          "path": "bindings/airdrop-vrf/rust/Cargo.toml",
+          "sha256": "823007d6ea402cce2404d77d6292becb5cb3b311e6f88b8bf4220c1055374251"
+        },
+        {
+          "path": "bindings/bandersnatch-crypto/rust/Cargo.toml",
+          "sha256": "baa30efebb6c85657e875abe0ad361d3272731383b5d1c09130182594b51ef73"
+        },
+        {
+          "path": "bindings/hydra-dx-math/rust/Cargo.lock",
+          "sha256": "cf888463d73d3544ffc100ceba1e33628a166304c84b07edb2d15d38053f2812"
+        },
+        {
+          "path": "bindings/hydra-dx-math/rust/Cargo.toml",
+          "sha256": "e3d6b6d3f9a1e7943d61945a028517af929b3475da6ee06b9493889dfd697129"
+        },
+        {
+          "path": "feature/products/product-container/package.json",
+          "sha256": "61ee43546c65c4c347a7ddff565c4f84525e6999320a4c923a3482729f479a60"
+        },
+        {
+          "path": "feature/products/product-sample/.papi/descriptors/package.json",
+          "sha256": "9a674f134748c6e23b0094d1cf54a8275f3496875e9160c0c8d6a0ad9832d5b2"
+        },
+        {
+          "path": "feature/products/product-sample/package.json",
+          "sha256": "9cb7ce54ff23f9a9300edbfd0709189da84577f37e122132681cc958cce37675"
+        }
+      ],
+      "tree_hash": "4eb73a0ab6739405c1929913d4b8246b00ecc953"
+    },
+    {
+      "commit": "3247994e5dbea171dcc10fd88a15cc7473b1061c",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "polkadot-app-deploy",
+      "reference_dependency_manifests": [
+        {
+          "path": "package.json",
+          "sha256": "e20bf32351691de997bb5abb7c518c0ee20f4bea82de2b5626ab331ff83d01e8"
+        }
+      ],
+      "tree_hash": "394d0c1f8c8b6b8fb5ad32500af956f2b710f9a1"
+    },
+    {
+      "commit": "e81fdbd745b66c960f527eb57d5168c3c4ff01ef",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "polkadot-app-design-system",
+      "reference_dependency_manifests": [
+        {
+          "path": "package.json",
+          "sha256": "0ccb264abf8c8e589ec6113e418f9213982dca0e58fe76312337c10f7b2de0ee"
+        }
+      ],
+      "tree_hash": "4541a8acc949a928a8073ae748e3f40cd107b943"
+    },
+    {
+      "commit": "56d6c520ac9ac39c7c62e5162cb4fd0d75c4d256",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "polkadot-app-design-system-android",
+      "reference_dependency_manifests": [],
+      "tree_hash": "8b13f518c614f283a96fc0c2aa43c74da9abf4f5"
+    },
+    {
+      "commit": "6e5b2da49d753a1b5f137a4c836608f94967eeb0",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "polkadot-app-design-system-ios",
+      "reference_dependency_manifests": [],
+      "tree_hash": "dbd57a5178ab58d7ae73779c905b6dad97c791ef"
+    },
+    {
+      "commit": "e8f7847ccd562650f996252a181abdf5f954a843",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "polkadot-apps",
+      "reference_dependency_manifests": [
+        {
+          "path": "examples/bulletin-demo/package.json",
+          "sha256": "93b414dc4f6d255b149ebc0145be618ae61f8727c0310df7299753b72df742c5"
+        },
+        {
+          "path": "examples/chain-client-demo/package.json",
+          "sha256": "0ae6234117a5c446787fcb362b803179845254992467331b2f498d4d5006f210"
+        },
+        {
+          "path": "examples/contracts-demo/package.json",
+          "sha256": "c9712a06fe9a931ba7e7097fa9eb0c009dc8cc53912287db9080544d36dbe40c"
+        },
+        {
+          "path": "examples/host-demo/package.json",
+          "sha256": "ea551d29ef746b8c2fb10d39025e9328221d71d6f800e91554bf9faa419db0d0"
+        },
+        {
+          "path": "examples/keys-demo/package.json",
+          "sha256": "894b131e7b50c679d9c010e79a2ac937e701c14fe43e7e07b9a00fa8bdeb6c97"
+        },
+        {
+          "path": "examples/multi-chain-explorer/package.json",
+          "sha256": "4a8140e401f0bea07ca843c594f5d8fa4d8e258e373625497a00f550aca0cf6d"
+        },
+        {
+          "path": "examples/signer-demo/package.json",
+          "sha256": "7249f38c0e7f4d4873cdae8abfa9c2f56683f2152c52256113c6f6130e1e5d33"
+        },
+        {
+          "path": "examples/statement-store-demo/package.json",
+          "sha256": "19f7be3a569e6a09fb1f8d03fd03af52afd61d5519b9ee248eeddba0fbe8b892"
+        },
+        {
+          "path": "examples/storage-demo/package.json",
+          "sha256": "09167344c3be8fd2b15080f324ab7009a2c0678647b9db87089f4c59a38ace7f"
+        },
+        {
+          "path": "examples/t3rminal-lite/package.json",
+          "sha256": "3f1732b2eb4e3add41f8c1f5ecb53ea2fc2fdc22879b830cd093c825cb207aee"
+        },
+        {
+          "path": "examples/terminal-login/package.json",
+          "sha256": "2dcbfbb6efa883b63dbc2ac7f2d88a44115f2e9ea6544928f2f624665ba39c11"
+        },
+        {
+          "path": "examples/tx-demo/package.json",
+          "sha256": "c59cba8b8cffe764deb4d41d4e7eb1e01a2a48fd266bcdabc806f44b5904f99f"
+        },
+        {
+          "path": "package.json",
+          "sha256": "9c1a8ecaa0db8971ab553dbd3adb6ab412e85f7be5061edb5812ddbd389ad20b"
+        },
+        {
+          "path": "packages/address/package.json",
+          "sha256": "8c4112a727ced05b82d4d4162987d07e284e669472659b05a87524649827e4bd"
+        },
+        {
+          "path": "packages/bulletin/package.json",
+          "sha256": "15f433702437da5e7e305363603d227b5e7068a0d52756926134ccb5cf5eaf94"
+        },
+        {
+          "path": "packages/chain-client/package.json",
+          "sha256": "d5e3ba2b0cb10a37e941c74d53a97f5e12065de45975edc35b2c3970247ea105"
+        },
+        {
+          "path": "packages/contracts/package.json",
+          "sha256": "0c46cd6883ecad39a22c81be7392971d7e53927632077230908cdc25a96fec01"
+        },
+        {
+          "path": "packages/crypto/package.json",
+          "sha256": "567cefd1b8bfdb2d198f4ade79aedf58deef249477aa250e7faf3ea749cb7679"
+        },
+        {
+          "path": "packages/descriptors/chains/bulletin/generated/package.json",
+          "sha256": "4347d5e192d0a2ab3f52e1bbb39439ab7e44bfddd0790b8f2f168ab46507f276"
+        },
+        {
+          "path": "packages/descriptors/chains/bulletin/package.json",
+          "sha256": "bde040f29f465a58ce30c02bf8c860150d46d5c40386a279f32dce6b55d04077"
+        },
+        {
+          "path": "packages/descriptors/chains/individuality/generated/package.json",
+          "sha256": "ad9c498e674f449dbaed33b02c7219485ee684d3ba5a6acc29b6f3e506e7ea12"
+        },
+        {
+          "path": "packages/descriptors/chains/individuality/package.json",
+          "sha256": "b4480dba4527192a96b9758d6b639702ef6ea01e43223f0592408062632133cd"
+        },
+        {
+          "path": "packages/descriptors/chains/kusama-asset-hub/generated/package.json",
+          "sha256": "16dd71406e2a35ac222dae07428c82159217af212c3941eff2fe955d76b1e229"
+        },
+        {
+          "path": "packages/descriptors/chains/kusama-asset-hub/package.json",
+          "sha256": "4a58e7ea36ec636c36c99bddfd2d7039c6a3f8e49e66eaa4dce465dda35653bf"
+        },
+        {
+          "path": "packages/descriptors/chains/paseo-asset-hub/generated/package.json",
+          "sha256": "9910f9120633114607397e5e837ff52fff9282846472e2950814d0e28a718c6f"
+        },
+        {
+          "path": "packages/descriptors/chains/paseo-asset-hub/package.json",
+          "sha256": "0a3d77d2df12d0a6689847a92308c49bd04d25dbd28b79d2010c7103505c3263"
+        },
+        {
+          "path": "packages/descriptors/chains/polkadot-asset-hub/generated/package.json",
+          "sha256": "ecc87c22cff251c9c533dac2f6df035caae8afee44d81012111aa0ffea8ee6dd"
+        },
+        {
+          "path": "packages/descriptors/chains/polkadot-asset-hub/package.json",
+          "sha256": "1ed0ac21554e21bcf5f91e0a046697a1214ade7d2f95a0e3ea8e19de8a8a3252"
+        },
+        {
+          "path": "packages/descriptors/generated/package.json",
+          "sha256": "8dc91ad1c0488d9e5455979604590fddeaecfce5aa798775d6427596d942be72"
+        },
+        {
+          "path": "packages/descriptors/package.json",
+          "sha256": "b7c482b38fe601edcb07dd59016e1ab578f666132fc29c476f5aa472d062ee33"
+        },
+        {
+          "path": "packages/host/package.json",
+          "sha256": "f723d942d77bd6aaf49ca1375a7ed0167cc93f8589fc64cdf4ffbf8d00b71d5a"
+        },
+        {
+          "path": "packages/keys/package.json",
+          "sha256": "5ff0c04857c3930b534c99d4a7cfd95ad6b40dcfd76065fe7b2e54ad85a0bd6c"
+        },
+        {
+          "path": "packages/logger/package.json",
+          "sha256": "0d1f23368419e504cc3c2882b8ca82ee9742d706aac3cc209fe490e2147461ed"
+        },
+        {
+          "path": "packages/signer/package.json",
+          "sha256": "2955d656d7777138cc184e153b4ff18600fb2ad080eff4c99e37a5e5d749d4cd"
+        },
+        {
+          "path": "packages/statement-store/package.json",
+          "sha256": "7386222bb9a415ed1aeefd4073638b044aa0fbf8c208c55b5035fe5130678ea6"
+        },
+        {
+          "path": "packages/storage/package.json",
+          "sha256": "e25bc435bbb3bb702ee01551ea8f8167097746efb3df18fb9131e1a4c34eb430"
+        },
+        {
+          "path": "packages/terminal/package.json",
+          "sha256": "59a5f0a1ccd58e935dd8b66ad7f02d5d782ef9f2d03511c469dea9695c833584"
+        },
+        {
+          "path": "packages/tx/package.json",
+          "sha256": "36b0c67e3fdcc01ecc19a7425eb638632d8d06a733401837119ead0804d292ca"
+        },
+        {
+          "path": "packages/utils/package.json",
+          "sha256": "81f0dd6b97db7746b37456732a8847e860b5ea003766c7867791389d4fea5872"
+        }
+      ],
+      "tree_hash": "e563aa3eafa7ec0ad5cdc04126841d47fa0c5c8a"
+    },
+    {
+      "commit": "b6c2827d232669b525c0906cc20def0e5eb4676b",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "polkadot-bulletin-chain",
+      "reference_dependency_manifests": [
+        {
+          "path": "Cargo.lock",
+          "sha256": "e715c1d59c0c58390f7bb1ffa7f0b14a2d6acc6568b38283501b4fde509f90a7"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha256": "a0be2a77243f8cf237a41727f582fd61bc5454cfb7432f380cc070a23f4940cb"
+        },
+        {
+          "path": "console-ui/.papi/descriptors/package.json",
+          "sha256": "c1695dd72cfe8286b290a42568dbb38ebd688a7eaa648a59ad6bccaea538fa21"
+        },
+        {
+          "path": "console-ui/package.json",
+          "sha256": "2481d3d872377854acaeb823915aa1deeea2564cf5742953492726ed0a9b029f"
+        },
+        {
+          "path": "examples/package.json",
+          "sha256": "bb9878444d780e2b938b0428664fd7fa9be93f33fc91bb484a98d23033115435"
+        },
+        {
+          "path": "examples/rust/authorize-and-store/Cargo.lock",
+          "sha256": "fdfe436430abbe7f0da95c1ee7b8fbb59d9dda0236fe48af05828a92264c1d55"
+        },
+        {
+          "path": "examples/rust/authorize-and-store/Cargo.toml",
+          "sha256": "62ea0c693547db6f2ae09df9f2f4ac37dee15e7e905419bcb7ad75ea9c20a72a"
+        },
+        {
+          "path": "pallets/common/Cargo.toml",
+          "sha256": "1f4824e491e4f213860a0c4d53560144e3ba94f09fdd973b0a007fcb9d8dabcf"
+        },
+        {
+          "path": "pallets/hop-promotion/Cargo.toml",
+          "sha256": "ad631307fb8e8a51d51d53f2198b30a118fe14ea58bdd4e6999f89f53a1b8bef"
+        },
+        {
+          "path": "pallets/transaction-storage/Cargo.toml",
+          "sha256": "b5b00711a4d138b52f49ea8f5a8474460a2debbf5faa5b022d8f3a0360d35536"
+        },
+        {
+          "path": "pallets/transaction-storage/primitives/Cargo.toml",
+          "sha256": "7016912079ed4c5376df74c56b19225e2e22ec7308b7b76abe88a4a936ca44f4"
+        },
+        {
+          "path": "pallets/transaction-storage/runtime-api/Cargo.toml",
+          "sha256": "f6a6cf63feb158f8dba78f8d93a993d02ab5783abd8a8972ed40f87ecc936352"
+        },
+        {
+          "path": "runtimes/bulletin-paseo/Cargo.toml",
+          "sha256": "f06fb07cb4e3c2aa10c458299bf0c0dc95414cada675e174f03d8268e15c737e"
+        },
+        {
+          "path": "runtimes/bulletin-westend/Cargo.toml",
+          "sha256": "aeb55b6c2a32f27f57fc54a1f902c3dc06d02bada942f111d66ab6f1ab4be7e5"
+        },
+        {
+          "path": "runtimes/bulletin-westend/integration-tests/Cargo.toml",
+          "sha256": "2231f143ba3596b937e4e57fcfaa32e84f55b0931bbd76a4f7098aaf480d2fe7"
+        },
+        {
+          "path": "sdk/rust/Cargo.toml",
+          "sha256": "f0cfa20da16b6a33c979cd6a2b66cff7d6d9adac86477ce59f6bf0f87e5dc60b"
+        },
+        {
+          "path": "sdk/typescript/package.json",
+          "sha256": "8d0bc849da9faa61d81f189ac9f63b4d063fe54758bd3b799bd5b217ec918685"
+        },
+        {
+          "path": "stress-test/Cargo.toml",
+          "sha256": "a2fcbc42eb2cb0482833fbb884a0b8eaf36296dc8c53bae784f6a6cf4a90b3cc"
+        },
+        {
+          "path": "zombienet-sdk-tests/Cargo.toml",
+          "sha256": "abffa2c71728ed9b9cd2a86a553f1f3d340e206783cda30d607e47fa7a1afe61"
+        }
+      ],
+      "tree_hash": "1c3e72f2e2a4d4d8bf50b2c03235cf8c1d9897c8"
+    },
+    {
+      "commit": "e25e89f71d38f9eaff3e9fc3944af841e51d3bd8",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "polkadot-cli",
+      "reference_dependency_manifests": [
+        {
+          "path": "bun.lock",
+          "sha256": "5639b767eb750fef2694e43f31d795e5f147bdf21d84a9456bc8f8545bd24ede"
+        },
+        {
+          "path": "package.json",
+          "sha256": "7d500b661dbf7637b903b099b7230358f85bc57939f176bda38616392db72a12"
+        }
+      ],
+      "tree_hash": "65de0aae0be240efcf41089e6a2c06abfe889b91"
+    },
+    {
+      "commit": "2c76cb7e53af4ada12b3a6e31901fdc27c0cb4fd",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "polkadot-desktop-community",
+      "reference_dependency_manifests": [
+        {
+          "path": ".papi/descriptors/package.json",
+          "sha256": "daad913bb177965c8933061c791081d2e8325b62f84b1b66d73a4b5861e9590f"
+        },
+        {
+          "path": "package.json",
+          "sha256": "b497204ecd0e600d80110849eb5964203964e13010e0c00140547cd8174086b6"
+        }
+      ],
+      "tree_hash": "e04c2b9f872b80949226afd2b3d9b8a01c1a201e"
+    },
+    {
+      "commit": "51268d146910cd989e37a1d2286648c4af278854",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "polkadot-ios-community",
+      "reference_dependency_manifests": [
+        {
+          "path": "Packages/Products/product-container/package.json",
+          "sha256": "2004316bcf20618ec18f25b6496f04b3230757013788071f40a8f8ffc5e8bbc5"
+        }
+      ],
+      "tree_hash": "cb52df017caef4512a7cc5315e5071bb6d857d21"
+    },
+    {
+      "commit": "8fd5cfcbcb3b02519642be0c5ec82b8e2d6730c5",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "product-sdk",
+      "reference_dependency_manifests": [
+        {
+          "path": "docs/package.json",
+          "sha256": "42f690ea0e1fb1dfbd2c54b9f9007d26940820b7d4297f674cd3d41231d5b23d"
+        },
+        {
+          "path": "product-sdk/examples/chain-client-demo/package.json",
+          "sha256": "907f3d45fa981667e8fc7243dbd449ca0e4c3506f53fcd9da5c7927656e0e8ed"
+        },
+        {
+          "path": "product-sdk/examples/cloud-storage-demo/package.json",
+          "sha256": "09eff3e8365036eeb3c8db77e327ef0db85c55c35a263ddaabc51e7822a268a4"
+        },
+        {
+          "path": "product-sdk/examples/contracts-demo/package.json",
+          "sha256": "8c18bb611481aee50b3816aa0d05124390ca1cb414f868ab96c41237c87b427b"
+        },
+        {
+          "path": "product-sdk/examples/host-demo/package.json",
+          "sha256": "c6c5e3be74d4513103df7f0ef704d379bf61ee63be23adda9f485d59c2fbd367"
+        },
+        {
+          "path": "product-sdk/examples/keys-demo/package.json",
+          "sha256": "ffaf99af4c4d0a823440362b91cdd75dfcba37aac722e448bb9465bdcfecedd5"
+        },
+        {
+          "path": "product-sdk/examples/pvm-contracts-example/package.json",
+          "sha256": "07fc3f6d41ce7f2d3468ad7c11c64eeb2d2b5a9f1aff48050db61484e20a4cc7"
+        },
+        {
+          "path": "product-sdk/examples/signer-demo/package.json",
+          "sha256": "9ff9c344102200036aba94d7b29c266f9a6e9ff47ebac300a3cca52f518050a4"
+        },
+        {
+          "path": "product-sdk/examples/statement-store-demo/package.json",
+          "sha256": "c21bf1c3e47bbcac56a0fec70f6fe83096bc341309e0e1b7ea6ebc47c57b4301"
+        },
+        {
+          "path": "product-sdk/examples/storage-demo/package.json",
+          "sha256": "e6b6c637597f548254cf753529aa81d43151aef7a039589c9e823af16424ba34"
+        },
+        {
+          "path": "product-sdk/examples/tx-demo/package.json",
+          "sha256": "a5c1d4a92bf7e220bb230f1ec345c755573c8d4be7316ccd56798c7eb382123c"
+        },
+        {
+          "path": "product-sdk/package.json",
+          "sha256": "7dc9e82659057af6855685aa7b5afb7b39ad8b90490d9e0a09db6a47da7cf446"
+        },
+        {
+          "path": "product-sdk/packages/address/package.json",
+          "sha256": "7e8fc145ed961e5ace7430f3a9b8f18fe18ac434a8fb6f76d3253df8ddf28a1b"
+        },
+        {
+          "path": "product-sdk/packages/chain-client/package.json",
+          "sha256": "bdc5e6594b2da3011c936b0899dd6851c7874f76d19d25097e92fd219d028be1"
+        },
+        {
+          "path": "product-sdk/packages/cloud-storage/package.json",
+          "sha256": "aa06498512c0030b83d10de83bf97e80e347fc566db219fd8318163374e945e8"
+        },
+        {
+          "path": "product-sdk/packages/contracts/package.json",
+          "sha256": "349d160d9fe8561f9ccd7b006cc17129729237fad2f129be4ef3b0dfad5d5bd4"
+        },
+        {
+          "path": "product-sdk/packages/crypto/package.json",
+          "sha256": "8e397d3df520dd8643679398eff574c339f120e31a251bdaed8c4a32eae5c1c5"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/kusama-asset-hub/generated/package.json",
+          "sha256": "9cfbddddf530028e8ee491c0278c54ada11b7627d9fce91ae888d1a84d891f97"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/kusama-asset-hub/package.json",
+          "sha256": "002276f18792cd1685aafea10175ecae46a053a9e1e52f9a6f7b240f4a3ff7b8"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/paseo-asset-hub/generated/package.json",
+          "sha256": "66437793e9423ba231a719c309ac72ca326640a5a2bebaf20cf1ef801a968198"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/paseo-asset-hub/package.json",
+          "sha256": "2d85df7c0aa44d380deae0688f91a5b31b35b6fc0c2083f240e15eb546840dde"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/paseo-bulletin/generated/package.json",
+          "sha256": "85e3de5b75b7298b986f112a76ba6c00011a5a0576f255e59207cdd2a59ce386"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/paseo-bulletin/package.json",
+          "sha256": "413f76618ce370955618fa202ee6c31d52fd3019261963be2c02a139a4265d4e"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/paseo-individuality/generated/package.json",
+          "sha256": "80b1c2f83d1d5c75177189dfa4a3dd598c4f5c1996455093dcd32ba8b37bdfb4"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/paseo-individuality/package.json",
+          "sha256": "1215bf24df80398df9cc9d706bc8737e0be86724b0c80a09788b87d76c01e7d5"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/polkadot-asset-hub/generated/package.json",
+          "sha256": "18f581fe3f2f29fc4b63639724aead5117e36ca2c4b329a25f89d61d6d406760"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/polkadot-asset-hub/package.json",
+          "sha256": "0b118c5d7927ece60f60ff3d4612da197547c0d130d3c4d65e730725a28a7f3a"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/summit-asset-hub/generated/package.json",
+          "sha256": "66437793e9423ba231a719c309ac72ca326640a5a2bebaf20cf1ef801a968198"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/summit-asset-hub/package.json",
+          "sha256": "2866469e0859873a03e4df89320652f856a9bd8db7902c22de9666007e0922f8"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/summit-bulletin/generated/package.json",
+          "sha256": "85e3de5b75b7298b986f112a76ba6c00011a5a0576f255e59207cdd2a59ce386"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/summit-bulletin/package.json",
+          "sha256": "31046aec08221e6f162055780831142fec0f48418a41e29ea926a1ec23637021"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/summit-individuality/generated/package.json",
+          "sha256": "80b1c2f83d1d5c75177189dfa4a3dd598c4f5c1996455093dcd32ba8b37bdfb4"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/chains/summit-individuality/package.json",
+          "sha256": "bb3aa80147203f2bdfe620e7565162a44d25eda9042bd32f776839c9401b9f22"
+        },
+        {
+          "path": "product-sdk/packages/descriptors/package.json",
+          "sha256": "447f766dce2f1012e2de1fe8043eb6d37b21146210be64c771acf502ba133fa2"
+        },
+        {
+          "path": "product-sdk/packages/host/package.json",
+          "sha256": "1f2a30ee174dd29dbd2d0c0c22d3bc3ff1ada0f57418ec4e82274ed9a26ab25a"
+        },
+        {
+          "path": "product-sdk/packages/keys/package.json",
+          "sha256": "1493fe1b4abde850895e1df7722c408568e11c9600ab4082a703fd4b95bff495"
+        },
+        {
+          "path": "product-sdk/packages/local-storage/package.json",
+          "sha256": "9830d0f03fb215b78517b2e9ad8a9821255f7f7418a9d40f8257890b390468d5"
+        },
+        {
+          "path": "product-sdk/packages/logger/package.json",
+          "sha256": "f121439cc86bddd73d713d470216a3b3545f165a5dd172a7e3c1ebfd90b18575"
+        },
+        {
+          "path": "product-sdk/packages/sdk/package.json",
+          "sha256": "9514d548fb4fac674f454aeeb238d5b66750dac774e196b0c0d4d47874059647"
+        },
+        {
+          "path": "product-sdk/packages/signer/package.json",
+          "sha256": "1aaab4360ded456667145657d25240e8c92a2bb6377709d452bee42d6a75f899"
+        },
+        {
+          "path": "product-sdk/packages/statement-store/package.json",
+          "sha256": "a47fd88a7dc1f2a4f6739933b9739829fe96c46a38ad907738d65ae98661c1ac"
+        },
+        {
+          "path": "product-sdk/packages/terminal/package.json",
+          "sha256": "e2c5a30a3fff15c967e5b0fb824cadf54e5aa17b9436c28010e1ae016e13d7ef"
+        },
+        {
+          "path": "product-sdk/packages/tx/package.json",
+          "sha256": "cb1b4d89b388fb9e663a06998d78d949cfc87250d92e33c6ce6b31e29e774819"
+        },
+        {
+          "path": "product-sdk/packages/utils/package.json",
+          "sha256": "8f654a748e3db69ab3efdc480d6708d1cf59ee1e36b46d7ac750682a78495c79"
+        },
+        {
+          "path": "product-sdk/scripts/bench-consumer/package.json",
+          "sha256": "50903736cfe8cb7b8789da4034875025f120d6432ae40283987becf35f207b5d"
+        }
+      ],
+      "tree_hash": "ab3c2205b0ab89bf13b3ea0bc3ca3913ac1f6add"
+    },
+    {
+      "commit": "b1194b620b5b20ad468f4e87a1d3a50cf7e2eba0",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "statement-store-tools",
+      "reference_dependency_manifests": [
+        {
+          "path": "Cargo.lock",
+          "sha256": "656ab412114184c06ac6bc67d3f58ecb6159c798bdff0c66f94901b24584953e"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha256": "82c84abb96c6bfd0ad293c3ae48df069460e98ac5be94570da0deaf6cd6abfae"
+        }
+      ],
+      "tree_hash": "0e942a5b43fb13bd33655bd8916eb19246c2718a"
+    },
+    {
+      "commit": "2e91c006152aec659b31c7068b280fc50190c28f",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "truapi",
+      "reference_dependency_manifests": [
+        {
+          "path": "Cargo.lock",
+          "sha256": "0bcf73713e5f87f0533a6529503752b210f4ea060c8fcbb7a8f3e54abc9f6fdb"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha256": "01ef3ad263b22846dfbbfd6e29605b4f3b08b5bce05e230835a1a6819e738f5f"
+        },
+        {
+          "path": "explorer/package.json",
+          "sha256": "d0e82f790a60a0b2f056362a23fdeecb2b04c11dc51bcca02b537b48edeca6f5"
+        },
+        {
+          "path": "js/packages/truapi/package.json",
+          "sha256": "75292b7e6866eef9ffa50205139c758e0a248b412ca25f086d9c3896eaa8a2fc"
+        },
+        {
+          "path": "js/packages/truapi-host/package.json",
+          "sha256": "88db8a1c1835c767ad88116e3fef603b0b39fff80194514fd73839241b4dd979"
+        },
+        {
+          "path": "package.json",
+          "sha256": "7935403f6de8b19506656adeb5bf8d394fd8d46b19b7aeec8a1830cdc306b2e7"
+        },
+        {
+          "path": "playground/package.json",
+          "sha256": "ae5c38d366de2b4003389ead32f05ad4c64d7c12a138948109ce58c40341e637"
+        },
+        {
+          "path": "rust/crates/truapi/Cargo.toml",
+          "sha256": "a25540cf1c804ea005ee9ec82040a2bf3abf2273e6437ae9c5c5aa382fa823e9"
+        },
+        {
+          "path": "rust/crates/truapi-codegen/Cargo.toml",
+          "sha256": "c08edf4d547c7ab83ee5b71e869c10086ad89bf555803b332f0a00b99a1f7c88"
+        },
+        {
+          "path": "rust/crates/truapi-macros/Cargo.toml",
+          "sha256": "ff26fa22cb0d221a829bb27535e4bc4ea97a24e81012d22b3128bea558c873bd"
+        },
+        {
+          "path": "rust/crates/truapi-platform/Cargo.toml",
+          "sha256": "84ee8348d172cec82583da404d776ff654af7890a80a5a1f8d04c98ea35dcb96"
+        },
+        {
+          "path": "rust/crates/truapi-server/Cargo.toml",
+          "sha256": "bd783cd58dec2fa85fb64d08485cc7b7c4a078c597a900df349f044bdccfbfec"
+        }
+      ],
+      "tree_hash": "07ccbbad38fd2e01d57d46dfe7d0ac089047e50a"
+    },
+    {
+      "commit": "1f9f67524acce0d9c46dbbb566f84ce52757b114",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "verifiable",
+      "reference_dependency_manifests": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "01d0b56c7494e69206ef432d49a18ea3a170604ff1e7590cb160dd43425feb09"
+        }
+      ],
+      "tree_hash": "9278fc005ecc6f8e89dd3324c8ae0f8fe54e7295"
+    },
+    {
+      "commit": "eee3994d025f248ee7fd7c491839a3556277a4da",
+      "cord_build_graph_adoption": "none-reference-only",
+      "family": "verifiablejs",
+      "reference_dependency_manifests": [
+        {
+          "path": "package.json",
+          "sha256": "f6dbdfec012f189e3dc60a6074092241fba00864560446c1ed9143a28ee9ed53"
+        },
+        {
+          "path": "packages/verifiablejs/Cargo.lock",
+          "sha256": "8c05f122019055a38f0aa815d6094996a9530fb8c9828199403c25fad1c916d1"
+        },
+        {
+          "path": "packages/verifiablejs/Cargo.toml",
+          "sha256": "b20ca418be796e15a653e3971c9a1fd40bf6e538ec34a6e6716c66d2194f3fc8"
+        },
+        {
+          "path": "packages/verifiablejs/package.json",
+          "sha256": "f023cb6f53e115eaaae6cdccd145401d4dd558affd0706f36b6c3434e951e29b"
+        },
+        {
+          "path": "playground/bun/package.json",
+          "sha256": "b7b8ad53986d89e046d3e3577ea22317f2163efeba9cd89724dd303e3a3ea97f"
+        },
+        {
+          "path": "playground/vite/package.json",
+          "sha256": "21d9915fe031dd8022c1101b5b540401061070a0a299de6f64059535b0f1ff64"
+        }
+      ],
+      "tree_hash": "2d3005b1c0608a202155fd0d7a46db5b9c30252f"
+    },
+    {
+      "commit": "cc190ea83c590b6a14a6b9771ab02c81618dc118",
+      "cord_build_graph_adoption": "unchanged-upstream-release-v1.24.0-single-commit",
+      "family": "dhiway-sdk-current-dependency",
+      "reference_dependency_manifests": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "7ad2d1894a91ea1954f33664a72174a223cc74fb2f86d9fa11331e0ddeafaacc"
+        },
+        {
+          "path": "Cargo.lock",
+          "sha256": "4295a61782b9d74616a9aa2546e6c930dcc1d880a89948db6e846185d56de7ab"
+        }
+      ],
+      "tree_hash": "5995836d5492d173b7f2f11dc97d9c35d76da48e"
+    }
+  ]
+}

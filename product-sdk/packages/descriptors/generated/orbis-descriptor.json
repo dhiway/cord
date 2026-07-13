@@ -1,0 +1,1269 @@
+{
+  "contractVersion": 1,
+  "kind": "papi-bootstrap-descriptor-contract",
+  "runtime": {
+    "name": "orbis",
+    "paraId": 1006,
+    "specVersion": 29,
+    "transactionVersion": 8,
+    "metadataHash": "0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9"
+  },
+  "fixtureIdentity": {
+    "status": "unfinalized-p0-fixture-not-production-genesis",
+    "genesis_identity": "0x40519e2e0e894e9b68defd9df6697619116ea693d0864913c98b5c65cd4e511a",
+    "chain_spec_source": "origin/orbis/node/src/chain_spec.rs",
+    "chain_spec_source_sha256": "b67ec215a4ecea710357537ed304e7d228d3389eabd9eb80dc47dd5c329ae489"
+  },
+  "ratificationPayloadSha256": "2b029154ce67c4b2a5d6391937bc9b110193606f17bf068270f0198f6c3297cb",
+  "sources": {
+    "compatibility": {
+      "path": "docs/sdk/compatibility-manifest.json",
+      "sha256": "012386b732a4ab71ad6db86bec22f786fdab62cbe104955671071d8bc445b648"
+    },
+    "extensions": {
+      "path": "docs/sdk/signed-extension-manifest.json",
+      "sha256": "8c0a9cd67eac7c2ba329745aec7246ca893bd5286ed7590be5004af40b353c85"
+    },
+    "metadata": {
+      "path": "origin/orbis/runtime/fixtures/meta-v8/metadata-hash.json",
+      "sha256": "2dbf31989b7083a7ea08348a34820cb948d1c4405055bc78af38520b7e7347a8"
+    },
+    "vectors": {
+      "path": "origin/orbis/runtime/fixtures/meta-v8/manifest.json",
+      "sha256": "41c9b755a4ef769aabf8c0d49ce65a89623ca424cce7cb44c4a0a47e9e6948ac"
+    },
+    "chainSpec": {
+      "path": "origin/orbis/node/src/chain_spec.rs",
+      "sha256": "15c4e2c36c6bf247b2fdbfa4a1ed132018ca48fe9e01f9950f86f35094c1e501"
+    },
+    "nativeMethods": {
+      "path": "product-sdk/packages/descriptors/src/native-methods.ts",
+      "sha256": "4177d10dd61caf139f1a6bbe05a49fd2a3c90d18f49c8ec22a53d420630fd84a"
+    }
+  },
+  "signedExtensionSurfaces": {
+    "authorized": [
+      "AsPerson",
+      "ScoreAsParticipant",
+      "PeopleLiteAuth",
+      "AsResources",
+      "HonourAuth",
+      "AuthorizeCall",
+      "CheckNonZeroSender",
+      "CheckSpecVersion",
+      "CheckTxVersion",
+      "CheckGenesis",
+      "CheckMortality",
+      "CheckNonce",
+      "CheckWeight",
+      "ChargeAssetTxPayment",
+      "ValidateStorageCalls",
+      "CheckMetadataHash",
+      "EthSetOrigin",
+      "StorageWeightReclaim"
+    ],
+    "ethereum": [
+      "AsPerson",
+      "ScoreAsParticipant",
+      "PeopleLiteAuth",
+      "AsResources",
+      "HonourAuth",
+      "AuthorizeCall",
+      "CheckNonZeroSender",
+      "CheckSpecVersion",
+      "CheckTxVersion",
+      "CheckGenesis",
+      "CheckMortality",
+      "CheckNonce",
+      "CheckWeight",
+      "ChargeAssetTxPayment",
+      "ValidateStorageCalls",
+      "CheckMetadataHash",
+      "EthSetOrigin",
+      "StorageWeightReclaim"
+    ],
+    "meta_inner": [
+      "VerifyMultiSignature",
+      "ConsumePaidMetaIngressV7",
+      "MetaTxMarker",
+      "CheckNonZeroSender",
+      "CheckSpecVersion",
+      "CheckTxVersion",
+      "CheckGenesis",
+      "CheckMortality",
+      "CheckNonce",
+      "ScoreAsParticipant",
+      "MetaAccountBoundPoliciesV6",
+      "HonourAuth",
+      "ValidateStorageCalls",
+      "CheckMetadataHash"
+    ],
+    "normal": [
+      "AsPerson",
+      "ScoreAsParticipant",
+      "PeopleLiteAuth",
+      "AsResources",
+      "HonourAuth",
+      "AuthorizeCall",
+      "CheckNonZeroSender",
+      "CheckSpecVersion",
+      "CheckTxVersion",
+      "CheckGenesis",
+      "CheckMortality",
+      "CheckNonce",
+      "CheckWeight",
+      "ChargeAssetTxPayment",
+      "ValidateStorageCalls",
+      "CheckMetadataHash",
+      "EthSetOrigin",
+      "StorageWeightReclaim"
+    ]
+  },
+  "nativeHostContract": {
+    "version": 1,
+    "methodCount": 128,
+    "pageLimit": 100,
+    "payloadValidation": "closed-shape-plus-core-native-types-v1",
+    "methods": [
+      {
+        "capability": "identity",
+        "method": "read",
+        "finality": "finalized",
+        "payloadFields": [
+          "subject_id"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "read",
+        "finality": "finalized",
+        "payloadFields": [
+          "attestation_id"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "resolve",
+        "finality": "finalized",
+        "payloadFields": [
+          "name"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "read",
+        "finality": "finalized",
+        "payloadFields": [
+          "commitment"
+        ]
+      },
+      {
+        "capability": "content",
+        "method": "fetch",
+        "finality": "finalized",
+        "payloadFields": [
+          "cid"
+        ]
+      },
+      {
+        "capability": "assets",
+        "method": "balance",
+        "finality": "finalized",
+        "payloadFields": [
+          "asset_id",
+          "account"
+        ]
+      },
+      {
+        "capability": "transaction",
+        "method": "submit",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "operation_id",
+          "intent_id"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "schema_by_id",
+        "finality": "finalized",
+        "payloadFields": [
+          "schema"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "attestation_by_id",
+        "finality": "finalized",
+        "payloadFields": [
+          "attestation"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "attestation_live_status",
+        "finality": "finalized",
+        "payloadFields": [
+          "attestation"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "creator_schemas",
+        "finality": "finalized",
+        "payloadFields": [
+          "creator",
+          "cursor",
+          "limit"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "issuer_attestations",
+        "finality": "finalized",
+        "payloadFields": [
+          "issuer",
+          "cursor",
+          "limit"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "subject_schema_attestations",
+        "finality": "finalized",
+        "payloadFields": [
+          "subject_commitment",
+          "schema",
+          "cursor",
+          "limit"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "next_delegated_nonce",
+        "finality": "finalized",
+        "payloadFields": [
+          "issuer"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "create_schema",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "definition",
+          "authorized_issuers",
+          "revocable",
+          "unique",
+          "index_policy"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "set_schema_status",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "schema",
+          "status"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "issue",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "schema",
+          "subject_commitment",
+          "payload_commitment",
+          "status_commitment",
+          "parent",
+          "expiry",
+          "uniqueness_commitment",
+          "revocable"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "issue_delegated",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "intent",
+          "signature"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "issue_batch",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "items"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "revoke",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "attestation"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "set_emergency_pause",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "paused"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "force_schema_status",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "schema",
+          "status"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "force_revoke",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "attestation"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "revoke_delegated",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "intent",
+          "signature"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "issue_delegated_batch",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "items"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "revoke_batch",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "attestations"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "revoke_delegated_batch",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "items"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "name_by_id",
+        "finality": "finalized",
+        "payloadFields": [
+          "name"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "root_name_by_normalized_label",
+        "finality": "finalized",
+        "payloadFields": [
+          "label"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "owner_names",
+        "finality": "finalized",
+        "payloadFields": [
+          "owner",
+          "cursor",
+          "limit"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "resolve_address",
+        "finality": "finalized",
+        "payloadFields": [
+          "name"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "resolve_subject",
+        "finality": "finalized",
+        "payloadFields": [
+          "name"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "resolve_attestation",
+        "finality": "finalized",
+        "payloadFields": [
+          "name"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "resolve_content",
+        "finality": "finalized",
+        "payloadFields": [
+          "name"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "resolve_text",
+        "finality": "finalized",
+        "payloadFields": [
+          "name",
+          "key"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "primary_name",
+        "finality": "finalized",
+        "payloadFields": [
+          "owner"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "name_status",
+        "finality": "finalized",
+        "payloadFields": [
+          "name"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "commit",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "commitment"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "cancel_commitment",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "commitment"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "prune_expired_commitment",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "owner",
+          "commitment"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "register",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "parent",
+          "label",
+          "salt"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "renew",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name",
+          "additional_period"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "transfer",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name",
+          "new_owner"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "add_controller",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name",
+          "controller"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "remove_controller",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name",
+          "controller"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "set_address",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name",
+          "address"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "set_subject",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name",
+          "subject"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "set_attestation",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name",
+          "attestation"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "set_content",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name",
+          "content"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "set_text",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name",
+          "key",
+          "value"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "set_primary_name",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "release",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "remove_expired_name",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "reserve_name",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "parent",
+          "label",
+          "beneficiary",
+          "expires_at"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "clear_reservation",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "set_label_protection",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "label",
+          "protected"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "set_paused",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "paused"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "force_transfer",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name",
+          "new_owner"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "force_revoke",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "account_authorization",
+        "finality": "finalized",
+        "payloadFields": [
+          "account"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "can_store",
+        "finality": "finalized",
+        "payloadFields": [
+          "account",
+          "data_len"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "can_renew",
+        "finality": "finalized",
+        "payloadFields": [
+          "account",
+          "entry"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "stored_content_provenance",
+        "finality": "finalized",
+        "payloadFields": [
+          "reference"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "resource_reservation",
+        "finality": "finalized",
+        "payloadFields": [
+          "reservation_id"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "resource_reservation_link",
+        "finality": "finalized",
+        "payloadFields": [
+          "reservation_id",
+          "content_hash"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "resource_provider_ref",
+        "finality": "finalized",
+        "payloadFields": [
+          "reservation_id"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "store",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "content_base64"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "store_with_cid_config",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "cid_config",
+          "content_base64"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "store_reserved",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "reservation_id",
+          "cid_config",
+          "content_base64"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "renew_reserved",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "reservation_id",
+          "content_hash"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "attach_provider",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "reservation_id",
+          "provider_ref"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "renew",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "entry"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "force_renew",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "entry"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "enable_auto_renew",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "content_hash"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "disable_auto_renew",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "content_hash"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "provider_by_id",
+        "finality": "finalized",
+        "payloadFields": [
+          "provider"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "providers",
+        "finality": "finalized",
+        "payloadFields": [
+          "cursor",
+          "limit"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "agreement_by_id",
+        "finality": "finalized",
+        "payloadFields": [
+          "agreement_id"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "provider_agreements",
+        "finality": "finalized",
+        "payloadFields": [
+          "provider",
+          "cursor",
+          "limit"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "owner_agreements",
+        "finality": "finalized",
+        "payloadFields": [
+          "owner",
+          "cursor",
+          "limit"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "container_agreements",
+        "finality": "finalized",
+        "payloadFields": [
+          "container_ref",
+          "cursor",
+          "limit"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "agreement_nonce",
+        "finality": "finalized",
+        "payloadFields": [
+          "owner"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "challenge_by_id",
+        "finality": "finalized",
+        "payloadFields": [
+          "challenge_id"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "challenges_at",
+        "finality": "finalized",
+        "payloadFields": [
+          "block",
+          "cursor",
+          "limit"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "open_challenge_count",
+        "finality": "finalized",
+        "payloadFields": [
+          "agreement_id"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "can_accept_capacity",
+        "finality": "finalized",
+        "payloadFields": [
+          "provider",
+          "additional_bytes"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "provider_checkpoint",
+        "finality": "finalized",
+        "payloadFields": [
+          "provider"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "deletion_acknowledgement",
+        "finality": "finalized",
+        "payloadFields": [
+          "agreement_id"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "register_provider",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "provider",
+          "endpoint",
+          "service_key",
+          "capacity_bytes"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "update_provider",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "provider",
+          "endpoint",
+          "service_key",
+          "capacity_bytes"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "set_provider_status",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "provider",
+          "status"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "remove_provider",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "provider"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "heartbeat",
+        "finality": "submit-and-finalize",
+        "payloadFields": []
+      },
+      {
+        "capability": "storage",
+        "method": "propose_agreement",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "provider",
+          "container_ref",
+          "content_commitment",
+          "reservation_ref",
+          "bytes",
+          "expires_at"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "accept_agreement",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "agreement_id"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "cancel_agreement",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "agreement_id"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "issue_challenge",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "agreement_id",
+          "expected_commitment",
+          "due_at"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "submit_checkpoint",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "challenge_id",
+          "proof_commitment"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "timeout_challenge",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "challenge_id"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "request_renewal",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "agreement_id",
+          "expires_at"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "acknowledge_deletion",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "agreement_id",
+          "content_commitment",
+          "tombstone_root",
+          "proof_commitment"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "accept_renewal",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "agreement_id"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "expire_agreement",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "agreement_id"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "prune_agreement",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "agreement_id"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "drive_by_id",
+        "finality": "finalized",
+        "payloadFields": [
+          "drive_id"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "owner_drives",
+        "finality": "finalized",
+        "payloadFields": [
+          "owner",
+          "cursor",
+          "limit"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "drive_controllers",
+        "finality": "finalized",
+        "payloadFields": [
+          "drive_id",
+          "cursor",
+          "limit"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "next_drive_nonce",
+        "finality": "finalized",
+        "payloadFields": [
+          "owner"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "create_drive",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name",
+          "root_storage_ref"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "update_root",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "drive_id",
+          "expected_version",
+          "root_storage_ref"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "drive.set_controller",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "drive_id",
+          "controller",
+          "enabled"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "transfer_drive",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "drive_id",
+          "new_owner"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "archive_drive",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "drive_id"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "bucket_by_id",
+        "finality": "finalized",
+        "payloadFields": [
+          "bucket"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "bucket_by_name",
+        "finality": "finalized",
+        "payloadFields": [
+          "name"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "owner_buckets",
+        "finality": "finalized",
+        "payloadFields": [
+          "owner",
+          "cursor",
+          "limit"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "bucket_object_keys",
+        "finality": "finalized",
+        "payloadFields": [
+          "bucket",
+          "cursor",
+          "limit"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "object_by_key",
+        "finality": "finalized",
+        "payloadFields": [
+          "bucket",
+          "key"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "object_history",
+        "finality": "finalized",
+        "payloadFields": [
+          "bucket",
+          "key",
+          "cursor",
+          "limit"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "object_id",
+        "finality": "finalized",
+        "payloadFields": [
+          "bucket",
+          "key"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "create_bucket",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "name"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "s3.set_controller",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "bucket",
+          "expected_bucket_version",
+          "controller",
+          "enabled"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "transfer_bucket",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "bucket",
+          "expected_bucket_version",
+          "new_owner"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "set_archived",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "bucket",
+          "expected_bucket_version",
+          "archived"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "set_versioning",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "bucket",
+          "expected_bucket_version",
+          "enabled"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "put_object",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "bucket",
+          "key",
+          "content_hash",
+          "expected_object_version"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "delete_object",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "bucket",
+          "key",
+          "expected_object_version"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "delete_bucket",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "bucket",
+          "expected_bucket_version"
+        ]
+      }
+    ]
+  },
+  "productionPapiDescriptorGenerated": false
+}

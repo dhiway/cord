@@ -1015,8 +1015,9 @@ pub mod pallet {
 				.into_iter()
 				.map(|spec| match spec {
 					LookupSpec::Single(attr) => LookupSpecView::Single(attr.into_inner()),
-					LookupSpec::Combo(list) =>
-						LookupSpecView::Combo(list.into_iter().map(|a| a.into_inner()).collect()),
+					LookupSpec::Combo(list) => {
+						LookupSpecView::Combo(list.into_iter().map(|a| a.into_inner()).collect())
+					},
 				})
 				.collect();
 			Some(view_specs)

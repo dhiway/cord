@@ -1,0 +1,39 @@
+{
+  "schema": "cord.p1-control-broker-scenarios.v1",
+  "campaign_id": "origin-orbis-p1-control-broker-v1",
+  "para_id": 1006,
+  "pass_policy": "Every case must contain finalized, hash-bound positive and negative evidence. Missing, skipped, prepared, inconclusive and unsupported are failures.",
+  "phases": {
+    "control": [
+      {"id":"AC7-VALIDATOR-REMOVE","action":"remove Ferdie through AuthorityManager and cross a relay session","requires":["AuthorityManager.QueuedRemoval","AuthorityManager.Enacted","Session.NewSession","finalized validator set excludes Ferdie","relay finality advances"]},
+      {"id":"AC7-VALIDATOR-ADMIT","action":"re-admit staged-key Ferdie and cross a relay session","requires":["AuthorityManager.QueuedAdd","AuthorityManager.Enacted","Session.NewSession","finalized validator set includes Ferdie","block production continues"]},
+      {"id":"AC7-COLLATOR-REMOVE","action":"remove Orbis Bob from invulnerables and cross a fast-runtime session","requires":["CollatorSelection.NewInvulnerables","Session.NewSession","finalized validator set excludes Bob","Aura authorship continues"]},
+      {"id":"AC7-COLLATOR-ADMIT","action":"restore Orbis Bob and cross a fast-runtime session","requires":["CollatorSelection.NewInvulnerables","Session.NewSession","finalized validator set includes Bob","Aura authorship by restored set"]},
+      {"id":"AC7-KEY-ROTATION","action":"rotate a collator Aura key through author_rotateKeys plus Session.set_keys","requires":["old and new public keys differ","Session.NewSession","active Aura authorities contain new key and exclude old key","new key authors a finalized block"]},
+      {"id":"AC7-ORIGIN-UPGRADE","action":"Sudo a distinct hash-pinned Origin candidate Wasm","requires":["candidate hash differs from pre-state :code","System.CodeUpdated","specVersion transition","finalized post-upgrade block"]},
+      {"id":"AC7-ORBIS-UPGRADE","action":"Sudo a distinct hash-pinned Orbis fast-runtime candidate Wasm","requires":["candidate hash differs from pre-state :code","System.CodeUpdated","specVersion transition","fast-runtime session period retained","finalized post-upgrade block"]},
+      {"id":"AC7-TX-PAUSE-RECOVERY","action":"pause a non-whitelisted transfer, prove rejection, unpause and finalize it","requires":["TxPause.CallPaused","paused call rejected without state change","TxPause.CallUnpaused","same call succeeds"]},
+      {"id":"AC7-SAFE-MODE-RECOVERY","action":"force enter safe mode, prove blocked non-whitelisted call, force exit and recover","requires":["SafeMode.Entered","blocked call leaves state unchanged","SafeMode.Exited Force","same call succeeds"]},
+      {"id":"AC7-COMPROMISE-RECOVERY","action":"remove compromised authority/collator, rotate key, re-admit under new key","requires":["compromised key no longer active","session transition","replacement key active","finalized production and audit trail"]}
+    ],
+    "broker-pre-restart": [
+      {"id":"AC8-BOOTSTRAP","action":"Origin emergency bootstrap assign one full core to Task(1006)","requires":["Coretime assignment finalized","claim queue contains para 1006","Orbis finality advances"]},
+      {"id":"AC8-REQUEST","action":"Orbis requests three cores through CoretimeControl envelope","requires":["RequestSent with monotonic ID","Origin Accepted exactly once","terminal ReceiptRecorded","upstream core count requested"]},
+      {"id":"AC8-RESERVE","action":"reserve three complete Broker schedules for Task(1006)","requires":["three finalized reservations","all masks complete","all assignments Task(1006)"]},
+      {"id":"AC8-ASSIGN","action":"cross two sale boundaries and observe all reserved assignments","requires":["Broker rotation","Origin workplan/claim queue has three distinct cores","target rate 3 and offset 1"]},
+      {"id":"AC8-RENEW","action":"exercise the renewable Coretime path across its eligible boundary","requires":["renewal input owner/core read at finalized hash","renew succeeds","next-period assignment remains Task(1006)"]},
+      {"id":"AC8-RESIZE-DOWN","action":"request core count 3 to 1 and cross the provider session boundary","requires":["new request ID","Accepted/ReceiptRecorded","session transition","one distinct claim-queue core"]},
+      {"id":"AC8-RESIZE-UP","action":"request core count 1 to 3 and cross the provider session boundary","requires":["new request ID","Accepted/ReceiptRecorded","session transition","three distinct claim-queue cores"]},
+      {"id":"AC8-DELAYED","action":"delay a retained request/receipt, then retry","requires":["pending state observable before delivery","no false terminal receipt","eventual Accepted or Duplicate","exactly-once provider apply"]},
+      {"id":"AC8-DUPLICATE","action":"retry an already applied retained request","requires":["same request ID and count","Origin Duplicate","no second provider apply","terminal status not downgraded"]},
+      {"id":"AC8-OUT-OF-ORDER","action":"deliver a gap request before its predecessor, then recover in order","requires":["OutOfOrder receipt","provider state unchanged","predecessor Accepted","gap retry Accepted or Duplicate","no sequence hole"]},
+      {"id":"AC8-RECEIPT-REORDER","action":"deliver delayed negative receipt after terminal success","requires":["terminal Accepted/Duplicate preserved","late negative cannot downgrade","count remains bound to ID"]},
+      {"id":"AC8-SESSION","action":"prove staged provider count activates only across relay session","requires":["pre-session old scheduling state","Session.NewSession","post-session requested scheduling state","finality uninterrupted"]},
+      {"id":"AC8-RELEASE","action":"read reservation index at finalized hash, unreserve and request reduced count","requires":["Broker reservation removed","new monotonic request","Origin Accepted exactly once","released core absent after session"]}
+    ],
+    "broker-post-restart": [
+      {"id":"AC8-FULL-RESTART","action":"stop and restart all six relay validators and two Orbis collators on preserved bases","requires":["all eight processes replaced","relay and Orbis genesis unchanged","protocol/fork IDs unchanged","no unexpected peers","best and finalized heights advance from pre-restart"]},
+      {"id":"AC8-RESTART-RECOVERY","action":"retry retained terminal and recoverable requests after restart","requires":["request ledger persisted","duplicate stays idempotent","recoverable request reaches Accepted/Duplicate","provider and Orbis ledgers agree"]}
+    ]
+  }
+}

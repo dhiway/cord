@@ -22,9 +22,8 @@ The runtime's `[0x50; 32]` value is the development enterprise payout account co
 genesis (and replaceable by root); it is a funding destination, not an assertion that the account
 is the Sudo key.
 
-The v0→v1 introduction migration treats the committed pre-Slice-2 representation as an absent
-Score storage prefix, installs only the named defaults and storage version, and verifies exact key
-counts in try-runtime pre/post checks.
+Origin/Orbis starts directly with this storage-version-1 schema and its named genesis defaults. No
+v0 introduction migration, predecessor prefix inspection or legacy-state import remains.
 
 Proof-of-Personhood scoring system that tracks participant attendance and manages personhood
 recognition.

@@ -1,28 +1,27 @@
-manifest_version = 5
+manifest_version = 9
 scope = "origin-orbis-enterprise-completion"
-frozen_at_commit = "317a3a5b3dda0964958e08b94c683b1cc1b8e387"
-audited_runtime_commit = "317a3a5b3dda0964958e08b94c683b1cc1b8e387"
-evidence_marker_commit = "ce60319f85a13b29e143a4d15189616f38abe777"
-nonruntime_equivalence_evidence = "docs/evidence/orbis-v5/marker-nonruntime-equivalence.json"
-nonruntime_equivalence_sha256 = "94db0260998895bfdae61e74d7a639ff5c03c03bd68bd0ab3e87d925eaa53c92"
+implementation_branch = "sm-update-sub-0x63"
+current_state = "p2-p5-feature-implementation-present-p5-unratified"
+historical_baseline_manifest_version = 5
 max_api_page_size = 100
-max_s3_bucket_name_bytes = 255
+max_s3_bucket_name_bytes = 63
 max_s3_object_key_bytes = 1024
 
 [replanning]
-rule = "Adding or removing any row, method, service, scenario, or exclusion requires Architect/Critic approval and a manifest_version increment."
-iteration = 6
-decision = "slice2-v5-pending-evidence-review"
-plan_evidence = "docs/adr/0008-orbis-transaction-policy-pipeline.md:Slice-2-v5-evidence-transition"
-transition_architect_evidence = "docs/evidence/orbis-v5/architect-delta-approval.md"
-transition_architect_status = "clear"
-transition_critic_evidence = "docs/evidence/orbis-v5/critic-delta-approval.md"
-transition_critic_status = "clear"
-product_architect_evidence = "docs/evidence/orbis-v5/architect-product-clear.md"
-product_architect_status = "clear"
-product_critic_evidence = "docs/evidence/orbis-v5/critic-product-clear.md"
-product_critic_status = "clear"
-evidence_phase = "pending-review"
+rule = "Adding or removing any row, method, service, scenario, or exclusion requires independent review and a manifest_version increment."
+iteration = 9
+decision = "clean-genesis-native-feature-completion"
+plan_evidence = "docs/adr/0013-storage-provider-completion.md"
+transition_architect_evidence = ""
+transition_architect_status = "pending"
+transition_critic_evidence = ""
+transition_critic_status = "pending"
+product_architect_evidence = ""
+product_architect_status = "pending"
+product_critic_evidence = ""
+product_critic_status = "pending"
+evidence_phase = "implementation"
+pending_evidence_commit = ""
 evidence_architect_evidence = ""
 evidence_architect_status = "pending"
 evidence_critic_evidence = ""
@@ -1046,10 +1045,10 @@ evidence = "origin/orbis/runtime/src/lib.rs"
 [[runtime_api]]
 id = "API-BulletinTransactionStorageApi-04"
 api = "BulletinTransactionStorageApi"
-method = "stored_content_provenance(reference: BulletinRef<BlockNumber>) -> StorageActor<AccountId>"
+method = "stored_content_provenance(reference: BulletinRef<BlockNumber>) -> Option<StorageActor<AccountId>>"
 max_results = 1
 state = "present"
-evidence = "6401424b"
+evidence = "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-BulletinTransactionStorageApi-05"
@@ -1108,156 +1107,388 @@ state = "present"
 evidence = "origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
+id = "API-BulletinTransactionStorageApi-07"
+api = "BulletinTransactionStorageApi"
+method = "resource_provider_ref(reservation_id: ReservationId) -> Option<ProviderAllocationId>"
+max_results = 1
+state = "present"
+evidence = "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
 id = "API-StorageProviderApi-01"
 api = "StorageProviderApi"
-method = "provider_info(provider: AccountId) -> Option<ProviderInfoResponse>"
+method = "provider(provider: AccountId) -> Versioned<ProviderInfo<BlockNumber>>"
 max_results = 1
-state = "planned"
-evidence = "slice-12"
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-StorageProviderApi-02"
 api = "StorageProviderApi"
-method = "providers(cursor: Option<AccountId>, limit: u32) -> BoundedVec<(AccountId, ProviderInfoResponse), 100>"
+method = "providers(cursor: Option<u32>, limit: u32) -> Page<(AccountId, ProviderInfo<BlockNumber>)>"
 max_results = 100
-state = "planned"
-evidence = "slice-12"
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-StorageProviderApi-03"
 api = "StorageProviderApi"
-method = "bucket_info(bucket_id: BucketId) -> Option<BucketResponse>"
+method = "agreement(agreement_id: Hash) -> Versioned<AgreementInfo<AccountId, Hash, BlockNumber>>"
 max_results = 1
-state = "planned"
-evidence = "slice-12"
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-StorageProviderApi-04"
 api = "StorageProviderApi"
-method = "bucket_ids(cursor: Option<BucketId>, limit: u32) -> BoundedVec<BucketId, 100>"
+method = "provider_agreements(provider: AccountId, cursor: Option<u32>, limit: u32) -> Page<AgreementInfo<AccountId, Hash, BlockNumber>>"
 max_results = 100
-state = "planned"
-evidence = "slice-12"
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-StorageProviderApi-05"
 api = "StorageProviderApi"
-method = "bucket_providers(bucket_id: BucketId) -> BoundedVec<AccountId, 100>"
+method = "owner_agreements(owner: AccountId, cursor: Option<u32>, limit: u32) -> Page<AgreementInfo<AccountId, Hash, BlockNumber>>"
 max_results = 100
-state = "planned"
-evidence = "slice-12"
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-StorageProviderApi-06"
 api = "StorageProviderApi"
-method = "agreement_info(bucket_id: BucketId, provider: AccountId) -> Option<AgreementResponse>"
-max_results = 1
-state = "planned"
-evidence = "slice-12"
+method = "container_agreements(container: Hash, cursor: Option<u32>, limit: u32) -> Page<AgreementInfo<AccountId, Hash, BlockNumber>>"
+max_results = 100
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-StorageProviderApi-07"
 api = "StorageProviderApi"
-method = "bucket_agreements(bucket_id: BucketId, cursor: Option<AccountId>, limit: u32) -> BoundedVec<AgreementResponse, 100>"
-max_results = 100
-state = "planned"
-evidence = "slice-12"
+method = "agreement_nonce(owner: AccountId) -> u64"
+max_results = 1
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-StorageProviderApi-08"
 api = "StorageProviderApi"
-method = "provider_agreements(provider: AccountId, cursor: Option<BucketId>, limit: u32) -> BoundedVec<AgreementResponse, 100>"
-max_results = 100
-state = "planned"
-evidence = "slice-12"
+method = "challenge(challenge_id: Hash) -> Versioned<ChallengeInfo<AccountId, Hash, BlockNumber>>"
+max_results = 1
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-StorageProviderApi-09"
 api = "StorageProviderApi"
-method = "challenges_at(block: BlockNumber, cursor: Option<ChallengeId>, limit: u32) -> BoundedVec<ChallengeResponse, 100>"
+method = "challenges_at(block: BlockNumber, cursor: Option<u32>, limit: u32) -> Page<ChallengeInfo<AccountId, Hash, BlockNumber>>"
 max_results = 100
-state = "planned"
-evidence = "slice-12"
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-StorageProviderApi-10"
 api = "StorageProviderApi"
-method = "can_accept_capacity(provider: AccountId, additional_bytes: u64) -> bool"
+method = "open_challenge_count(agreement_id: Hash) -> u32"
 max_results = 1
-state = "planned"
-evidence = "slice-12"
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-StorageProviderApi-11"
 api = "StorageProviderApi"
-method = "find_matching_providers(requirements: StorageRequirements, limit: u32) -> BoundedVec<MatchedProvider, 100>"
-max_results = 100
-state = "planned"
-evidence = "slice-12"
+method = "can_accept_capacity(provider: AccountId, additional_bytes: u64) -> bool"
+max_results = 1
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-StorageProviderApi-12"
 api = "StorageProviderApi"
-method = "providers_with_capacity(bytes_needed: u64, cursor: Option<AccountId>, limit: u32) -> BoundedVec<(AccountId, ProviderInfoResponse), 100>"
-max_results = 100
-state = "planned"
-evidence = "slice-12"
-
-[[runtime_api]]
-id = "API-StorageProviderApi-13"
-api = "StorageProviderApi"
-method = "checkpoint(provider: AccountId) -> Option<CheckpointRecord>"
+method = "checkpoint(provider: AccountId) -> Versioned<CheckpointInfo<Hash, BlockNumber>>"
 max_results = 1
-state = "planned"
-evidence = "slice-12"
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-DriveRegistryApi-01"
 api = "DriveRegistryApi"
-method = "drive(drive: DriveId) -> Option<DriveRecord>"
+method = "drive(drive_id: Hash) -> Versioned<DriveInfo<AccountId, Hash, BlockNumber>>"
 max_results = 1
-state = "planned"
-evidence = "slice-12"
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-DriveRegistryApi-02"
 api = "DriveRegistryApi"
-method = "drives(owner: AccountId, cursor: Option<DriveId>, limit: u32) -> BoundedVec<DriveRecord, 100>"
+method = "drives(owner: AccountId, cursor: Option<u32>, limit: u32) -> Page<DriveInfo<AccountId, Hash, BlockNumber>>"
 max_results = 100
-state = "planned"
-evidence = "slice-12"
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-DriveRegistryApi-03"
 api = "DriveRegistryApi"
-method = "is_drive_owner(owner: AccountId, drive: DriveId) -> bool"
+method = "controllers(drive_id: Hash, cursor: Option<u32>, limit: u32) -> Page<AccountId>"
+max_results = 100
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-DriveRegistryApi-04"
+api = "DriveRegistryApi"
+method = "next_drive_nonce(owner: AccountId) -> u64"
 max_results = 1
-state = "planned"
-evidence = "slice-12"
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-DriveRegistryApi-05"
+api = "DriveRegistryApi"
+method = "is_drive_owner(owner: AccountId, drive_id: Hash) -> bool"
+max_results = 1
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-S3RegistryApi-01"
 api = "S3RegistryApi"
-method = "bucket_by_name(owner: AccountId, name: BoundedVec<u8, 255>) -> Option<BucketRecord>"
+method = "bucket(bucket_id: Hash) -> Versioned<BucketInfo<AccountId, Hash, BlockNumber>>"
 max_results = 1
-state = "planned"
-evidence = "slice-12"
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-S3RegistryApi-02"
 api = "S3RegistryApi"
-method = "is_bucket_owner(owner: AccountId, bucket: BucketId) -> bool"
+method = "bucket_by_name(name: Vec<u8>) -> Versioned<BucketInfo<AccountId, Hash, BlockNumber>>"
 max_results = 1
-state = "planned"
-evidence = "slice-12"
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-S3RegistryApi-03"
 api = "S3RegistryApi"
-method = "object(bucket: BucketId, key: BoundedVec<u8, 1024>) -> Option<ObjectRecord>"
+method = "buckets(owner: AccountId, cursor: Option<u32>, limit: u32) -> Page<BucketInfo<AccountId, Hash, BlockNumber>>"
+max_results = 100
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-S3RegistryApi-04"
+api = "S3RegistryApi"
+method = "is_bucket_owner(owner: AccountId, bucket_id: Hash) -> bool"
 max_results = 1
-state = "planned"
-evidence = "slice-12"
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-S3RegistryApi-05"
+api = "S3RegistryApi"
+method = "object(bucket_id: Hash, key: Vec<u8>) -> Versioned<ObjectInfo<AccountId, Hash, BlockNumber>>"
+max_results = 1
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-S3RegistryApi-06"
+api = "S3RegistryApi"
+method = "object_keys(bucket_id: Hash, cursor: Option<u32>, limit: u32) -> Page<Vec<u8>>"
+max_results = 100
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-S3RegistryApi-07"
+api = "S3RegistryApi"
+method = "object_history(bucket_id: Hash, key: Vec<u8>, cursor: Option<u32>, limit: u32) -> Page<ObjectVersionInfo<AccountId, BlockNumber>>"
+max_results = 100
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-S3RegistryApi-08"
+api = "S3RegistryApi"
+method = "object_id(bucket_id: Hash, key: Vec<u8>) -> Versioned<Hash>"
+max_results = 1
+state = "present"
+evidence = "origin/orbis/runtime-api/storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-AttestationApi-01"
+api = "AttestationApi"
+method = "schema_by_id(schema: Hash) -> Versioned<SchemaView>"
+max_results = 1
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-AttestationApi-02"
+api = "AttestationApi"
+method = "attestation_by_id(attestation: Hash) -> Versioned<AttestationView>"
+max_results = 1
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-AttestationApi-03"
+api = "AttestationApi"
+method = "attestation_live_status(attestation: Hash) -> AttestationLiveStatus"
+max_results = 1
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-AttestationApi-04"
+api = "AttestationApi"
+method = "creator_schemas(creator: AccountId, cursor: Option<u32>, limit: u32) -> IdPage<Hash>"
+max_results = 100
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-AttestationApi-05"
+api = "AttestationApi"
+method = "issuer_attestations(issuer: AccountId, cursor: Option<u32>, limit: u32) -> IdPage<Hash>"
+max_results = 100
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-AttestationApi-06"
+api = "AttestationApi"
+method = "subject_schema_attestations(subject_commitment: Hash, schema: Hash, cursor: Option<u32>, limit: u32) -> IdPage<Hash>"
+max_results = 100
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-AttestationApi-07"
+api = "AttestationApi"
+method = "next_delegated_nonce(issuer: AccountId) -> DelegatedNonce"
+max_results = 1
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-AttestationApi-08"
+api = "AttestationApi"
+method = "schema_count() -> RegistryCount"
+max_results = 1
+state = "present"
+evidence = "origin/orbis/pallets/attestation/runtime-api/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-AttestationApi-09"
+api = "AttestationApi"
+method = "attestation_count() -> RegistryCount"
+max_results = 1
+state = "present"
+evidence = "origin/orbis/pallets/attestation/runtime-api/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-AttestationApi-10"
+api = "AttestationApi"
+method = "next_issuance_nonce(issuer: AccountId) -> IssuanceNonce"
+max_results = 1
+state = "present"
+evidence = "origin/orbis/pallets/attestation/runtime-api/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-AttestationApi-11"
+api = "AttestationApi"
+method = "external_status(issuer: AccountId, status_commitment: Hash) -> Versioned<ExternalStatusView>"
+max_results = 1
+state = "present"
+evidence = "origin/orbis/pallets/attestation/runtime-api/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-DotnsApi-01"
+api = "DotnsApi"
+method = "name_by_id(name: Hash) -> Versioned<NameView>"
+max_results = 1
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-DotnsApi-02"
+api = "DotnsApi"
+method = "root_name_by_normalized_label(label: NormalizedLabel) -> Versioned<Hash>"
+max_results = 1
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-DotnsApi-03"
+api = "DotnsApi"
+method = "owner_names(owner: AccountId, cursor: Option<u32>, limit: u32) -> OwnerNamesPage<Hash>"
+max_results = 100
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-DotnsApi-04"
+api = "DotnsApi"
+method = "resolve_address(name: Hash) -> Versioned<Address>"
+max_results = 1
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-DotnsApi-05"
+api = "DotnsApi"
+method = "resolve_subject(name: Hash) -> Versioned<Hash>"
+max_results = 1
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-DotnsApi-06"
+api = "DotnsApi"
+method = "resolve_attestation(name: Hash) -> Versioned<Hash>"
+max_results = 1
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-DotnsApi-07"
+api = "DotnsApi"
+method = "resolve_content(name: Hash) -> Versioned<Hash>"
+max_results = 1
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-DotnsApi-08"
+api = "DotnsApi"
+method = "resolve_text(name: Hash, key: TextKey) -> Versioned<TextValue>"
+max_results = 1
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-DotnsApi-09"
+api = "DotnsApi"
+method = "primary_name(owner: AccountId) -> Versioned<Hash>"
+max_results = 1
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-DotnsApi-10"
+api = "DotnsApi"
+method = "name_status(name: Hash) -> NameStatus<BlockNumber>"
+max_results = 1
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-StorageProviderApi-13"
+api = "StorageProviderApi"
+method = "deletion_acknowledgement(agreement_id: Hash) -> Versioned<DeletionAcknowledgementInfo<Hash, BlockNumber>>"
+max_results = 1
+state = "present"
+evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
 
 [[benchmark]]
 id = "BENCH-01"
@@ -1944,9 +2175,9 @@ evidence = "origin/orbis/node/src/main.rs; polkadot-omni-node-lib default RPC"
 id = "NODE-bulletin-proof-provider"
 kind = "inherent-provider"
 name = "bulletin-proof-provider"
-state = "planned"
-owner = "slice-12"
-evidence = "slice-12: no local provider is wired yet"
+state = "present"
+owner = "orbis-omni-node"
+evidence = "pinned polkadot-omni-node-lib Aura service detects TransactionStorageApi and wires sp_transaction_storage_proof::registration::new_data_provider"
 
 [[acceptance]]
 id = "ORG-01"
@@ -2214,8 +2445,8 @@ index = 101
 package = "indiv-pallet-proof-of-ink"
 source = "individuality-community"
 license = "Apache-2.0"
-state = "planned"
-evidence = "slice-3"
+state = "excluded"
+evidence = "not admitted: Proof-of-Ink is outside enterprise launch scope"
 
 [[runtime_pallet]]
 id = "PAL-102"
@@ -2224,8 +2455,8 @@ index = 102
 package = "indiv-pallet-coinage"
 source = "individuality-community"
 license = "Apache-2.0"
-state = "planned"
-evidence = "slice-4"
+state = "excluded"
+evidence = "not admitted: Coinage/public token economics are outside launch scope"
 
 [[runtime_pallet]]
 id = "PAL-103"
@@ -2234,8 +2465,8 @@ index = 103
 package = "indiv-pallet-airdrop"
 source = "individuality-community"
 license = "Apache-2.0"
-state = "planned"
-evidence = "slice-4"
+state = "excluded"
+evidence = "not admitted: airdrop/public token economics are outside launch scope"
 
 [[runtime_pallet]]
 id = "PAL-104"
@@ -2244,8 +2475,18 @@ index = 104
 package = "indiv-pallet-storage-initialization"
 source = "individuality-community"
 license = "Apache-2.0"
-state = "planned"
-evidence = "slice-6"
+state = "excluded"
+evidence = "not admitted: no separate storage-initialization authority is required"
+
+[[runtime_pallet]]
+id = "PAL-105"
+name = "attestation"
+index = 105
+package = "pallet-orbis-attestation"
+source = "cord"
+license = "GPL-3.0-or-later"
+state = "present"
+evidence = "origin/orbis/pallets/attestation; origin/orbis/runtime/src/lib.rs:index-105"
 
 [[runtime_pallet]]
 id = "PAL-112"
@@ -2254,8 +2495,8 @@ index = 112
 package = "indiv-pallet-pgas"
 source = "individuality-community"
 license = "Apache-2.0"
-state = "planned"
-evidence = "slice-7"
+state = "excluded"
+evidence = "not admitted: PGAS is outside enterprise launch scope"
 
 [[runtime_pallet]]
 id = "PAL-113"
@@ -2264,8 +2505,8 @@ index = 113
 package = "pallet-pgas-allowance"
 source = "dhiway-sdk"
 license = "Apache-2.0"
-state = "planned"
-evidence = "slice-7"
+state = "excluded"
+evidence = "not admitted: PGAS allowance is outside enterprise launch scope"
 
 [[runtime_pallet]]
 id = "PAL-114"
@@ -2274,8 +2515,8 @@ index = 114
 package = "indiv-pallet-alias-accounts"
 source = "individuality-community"
 license = "Apache-2.0"
-state = "planned"
-evidence = "slice-8"
+state = "excluded"
+evidence = "not admitted: duplicate alias-account authority is prohibited"
 
 [[runtime_pallet]]
 id = "PAL-115"
@@ -2284,48 +2525,48 @@ index = 115
 package = "indiv-pallet-origin-restriction"
 source = "individuality-community"
 license = "Apache-2.0"
-state = "planned"
-evidence = "slice-8"
+state = "excluded"
+evidence = "not admitted: no duplicate origin-policy pallet is required"
 
 [[runtime_pallet]]
 id = "PAL-116"
-name = "dotns-gateway"
+name = "dotns"
 index = 116
-package = "indiv-pallet-dotns-gateway"
-source = "individuality-community"
-license = "Apache-2.0"
-state = "planned"
-evidence = "slice-8"
+package = "pallet-orbis-dotns"
+source = "cord"
+license = "GPL-3.0-or-later"
+state = "present"
+evidence = "origin/orbis/pallets/dotns; origin/orbis/runtime/src/lib.rs:index-116"
 
 [[runtime_pallet]]
 id = "PAL-120"
 name = "storage-provider"
 index = 120
-package = "pallet-storage-provider"
-source = "web3-storage"
-license = "Apache-2.0"
-state = "planned"
-evidence = "slice-10"
+package = "pallet-orbis-storage-provider"
+source = "cord"
+license = "GPL-3.0-or-later"
+state = "present"
+evidence = "origin/orbis/pallets/storage-provider; origin/orbis/runtime/src/lib.rs:index-120"
 
 [[runtime_pallet]]
 id = "PAL-121"
-name = "drive-registry"
+name = "drive"
 index = 121
-package = "pallet-drive-registry"
-source = "web3-storage"
-license = "Apache-2.0"
-state = "planned"
-evidence = "slice-11"
+package = "pallet-orbis-drive"
+source = "cord"
+license = "GPL-3.0-or-later"
+state = "present"
+evidence = "origin/orbis/pallets/drive; origin/orbis/runtime/src/lib.rs:index-121"
 
 [[runtime_pallet]]
 id = "PAL-122"
-name = "s3-registry"
+name = "s3"
 index = 122
-package = "pallet-s3-registry"
-source = "web3-storage"
-license = "Apache-2.0"
-state = "planned"
-evidence = "slice-11"
+package = "pallet-orbis-s3"
+source = "cord"
+license = "GPL-3.0-or-later"
+state = "present"
+evidence = "origin/orbis/pallets/s3; origin/orbis/runtime/src/lib.rs:index-122"
 
 [[runtime_pallet]]
 id = "PAL-123"
@@ -2334,8 +2575,8 @@ index = 123
 package = "pallet-vesting"
 source = "dhiway-sdk"
 license = "Apache-2.0"
-state = "planned"
-evidence = "slice-9"
+state = "excluded"
+evidence = "not admitted: vesting/public token economics are outside launch scope"
 
 [[runtime_pallet]]
 id = "PAL-124"
@@ -2344,8 +2585,8 @@ index = 124
 package = "pallet-claims"
 source = "dhiway-sdk"
 license = "UNRESOLVED-NOT-IN-PINNED-SDK"
-state = "planned"
-evidence = "slice-9"
+state = "excluded"
+evidence = "not admitted: claims/public token economics are outside launch scope"
 
 [[benchmark]]
 id = "BENCH-38"
@@ -2375,8 +2616,8 @@ evidence = "docs/benchmarks/orbis-score-2026-07-13.json"
 [[benchmark]]
 id = "BENCH-42"
 target = "indiv_pallet_game"
-state = "planned"
-evidence = "bounded completion slice"
+state = "excluded"
+evidence = "capability excluded from enterprise launch scope"
 
 [[benchmark]]
 id = "BENCH-43"
@@ -2388,86 +2629,86 @@ evidence = "origin/orbis/runtime/src/tests.rs:native_benchmark_api_discovers_and
 [[benchmark]]
 id = "BENCH-44"
 target = "indiv_pallet_proof_of_ink"
-state = "planned"
-evidence = "bounded completion slice"
+state = "excluded"
+evidence = "capability excluded from enterprise launch scope"
 
 [[benchmark]]
 id = "BENCH-45"
 target = "indiv_pallet_coinage"
-state = "planned"
-evidence = "bounded completion slice"
+state = "excluded"
+evidence = "capability excluded from enterprise launch scope"
 
 [[benchmark]]
 id = "BENCH-46"
 target = "indiv_pallet_airdrop"
-state = "planned"
-evidence = "bounded completion slice"
+state = "excluded"
+evidence = "capability excluded from enterprise launch scope"
 
 [[benchmark]]
 id = "BENCH-47"
 target = "indiv_pallet_storage_initialization"
-state = "planned"
-evidence = "bounded completion slice"
+state = "excluded"
+evidence = "capability excluded from enterprise launch scope"
 
 [[benchmark]]
 id = "BENCH-48"
 target = "indiv_pallet_pgas"
-state = "planned"
-evidence = "bounded completion slice"
+state = "excluded"
+evidence = "capability excluded from enterprise launch scope"
 
 [[benchmark]]
 id = "BENCH-49"
 target = "pallet_pgas_allowance"
-state = "planned"
-evidence = "bounded completion slice"
+state = "excluded"
+evidence = "capability excluded from enterprise launch scope"
 
 [[benchmark]]
 id = "BENCH-50"
 target = "indiv_pallet_alias_accounts"
-state = "planned"
-evidence = "bounded completion slice"
+state = "excluded"
+evidence = "capability excluded from enterprise launch scope"
 
 [[benchmark]]
 id = "BENCH-51"
 target = "indiv_pallet_origin_restriction"
-state = "planned"
-evidence = "bounded completion slice"
+state = "excluded"
+evidence = "capability excluded from enterprise launch scope"
 
 [[benchmark]]
 id = "BENCH-52"
 target = "indiv_pallet_dotns_gateway"
-state = "planned"
-evidence = "bounded completion slice"
+state = "excluded"
+evidence = "capability excluded from enterprise launch scope"
 
 [[benchmark]]
 id = "BENCH-53"
-target = "pallet_storage_provider"
-state = "planned"
-evidence = "bounded completion slice"
+target = "pallet_orbis_storage_provider"
+state = "present-conservative-p7-regeneration-required"
+evidence = "runtime benchmark wiring and nonzero conservative WeightInfo present; final generation is P7"
 
 [[benchmark]]
 id = "BENCH-54"
-target = "pallet_drive_registry"
-state = "planned"
-evidence = "bounded completion slice"
+target = "pallet_orbis_drive"
+state = "present-conservative-p7-regeneration-required"
+evidence = "runtime benchmark wiring and nonzero conservative WeightInfo present; final generation is P7"
 
 [[benchmark]]
 id = "BENCH-55"
-target = "pallet_s3_registry"
-state = "planned"
-evidence = "bounded completion slice"
+target = "pallet_orbis_s3"
+state = "present-conservative-p7-regeneration-required"
+evidence = "runtime benchmark wiring and nonzero conservative WeightInfo present; final generation is P7"
 
 [[benchmark]]
 id = "BENCH-56"
 target = "pallet_vesting"
-state = "planned"
-evidence = "bounded completion slice"
+state = "excluded"
+evidence = "capability excluded from enterprise launch scope"
 
 [[benchmark]]
 id = "BENCH-57"
 target = "pallet_claims"
-state = "planned"
-evidence = "bounded completion slice"
+state = "excluded"
+evidence = "capability excluded from enterprise launch scope"
 
 [[migration]]
 id = "MIG-indiv-pallet-resources"
@@ -2482,14 +2723,14 @@ package = "pallet-orbis-score"
 upstream_package = "indiv-pallet-score"
 storage_version = 1
 state = "present-initial-version"
-evidence = "origin/orbis/pallets/score/src/migrations.rs:IntroduceV1"
+evidence = "origin/orbis/pallets/score/src/lib.rs:STORAGE_VERSION"
 
 [[migration]]
 id = "MIG-indiv-pallet-game"
 package = "indiv-pallet-game"
 storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+state = "not-applicable-excluded"
+evidence = "capability excluded; no pallet or state exists at genesis"
 
 [[migration]]
 id = "MIG-pallet-orbis-honour"
@@ -2497,105 +2738,105 @@ package = "pallet-orbis-honour"
 upstream_package = "indiv-pallet-honour"
 storage_version = 1
 state = "present-initial-version"
-evidence = "origin/orbis/pallets/honour/src/migrations.rs:IntroduceV1"
+evidence = "origin/orbis/pallets/honour/src/lib.rs:STORAGE_VERSION"
 
 [[migration]]
 id = "MIG-indiv-pallet-proof-of-ink"
 package = "indiv-pallet-proof-of-ink"
 storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+state = "not-applicable-excluded"
+evidence = "capability excluded; no pallet or state exists at genesis"
 
 [[migration]]
 id = "MIG-indiv-pallet-coinage"
 package = "indiv-pallet-coinage"
 storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+state = "not-applicable-excluded"
+evidence = "capability excluded; no pallet or state exists at genesis"
 
 [[migration]]
 id = "MIG-indiv-pallet-airdrop"
 package = "indiv-pallet-airdrop"
 storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+state = "not-applicable-excluded"
+evidence = "capability excluded; no pallet or state exists at genesis"
 
 [[migration]]
 id = "MIG-indiv-pallet-storage-initialization"
 package = "indiv-pallet-storage-initialization"
 storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+state = "not-applicable-excluded"
+evidence = "capability excluded; no pallet or state exists at genesis"
 
 [[migration]]
 id = "MIG-indiv-pallet-pgas"
 package = "indiv-pallet-pgas"
 storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+state = "not-applicable-excluded"
+evidence = "capability excluded; no pallet or state exists at genesis"
 
 [[migration]]
 id = "MIG-pallet-pgas-allowance"
 package = "pallet-pgas-allowance"
 storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+state = "not-applicable-excluded"
+evidence = "capability excluded; no pallet or state exists at genesis"
 
 [[migration]]
 id = "MIG-indiv-pallet-alias-accounts"
 package = "indiv-pallet-alias-accounts"
 storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+state = "not-applicable-excluded"
+evidence = "capability excluded; no pallet or state exists at genesis"
 
 [[migration]]
 id = "MIG-indiv-pallet-origin-restriction"
 package = "indiv-pallet-origin-restriction"
 storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+state = "not-applicable-excluded"
+evidence = "capability excluded; no pallet or state exists at genesis"
 
 [[migration]]
-id = "MIG-indiv-pallet-dotns-gateway"
-package = "indiv-pallet-dotns-gateway"
-storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+id = "MIG-pallet-orbis-dotns"
+package = "pallet-orbis-dotns"
+storage_version = "1"
+state = "not-applicable-clean-genesis-current-schema"
+evidence = "origin/orbis/pallets/dotns/src/lib.rs:STORAGE_VERSION; no predecessor hook"
 
 [[migration]]
-id = "MIG-pallet-storage-provider"
-package = "pallet-storage-provider"
-storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+id = "MIG-pallet-orbis-storage-provider"
+package = "pallet-orbis-storage-provider"
+storage_version = "2"
+state = "not-applicable-clean-genesis-current-schema"
+evidence = "origin/orbis/pallets/storage-provider/src/lib.rs:STORAGE_VERSION; no predecessor hook"
 
 [[migration]]
-id = "MIG-pallet-drive-registry"
-package = "pallet-drive-registry"
-storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+id = "MIG-pallet-orbis-drive"
+package = "pallet-orbis-drive"
+storage_version = "1"
+state = "not-applicable-clean-genesis-current-schema"
+evidence = "origin/orbis/pallets/drive/src/lib.rs:STORAGE_VERSION; no predecessor hook"
 
 [[migration]]
-id = "MIG-pallet-s3-registry"
-package = "pallet-s3-registry"
-storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+id = "MIG-pallet-orbis-s3"
+package = "pallet-orbis-s3"
+storage_version = "1"
+state = "not-applicable-clean-genesis-current-schema"
+evidence = "origin/orbis/pallets/s3/src/lib.rs:STORAGE_VERSION; no predecessor hook"
 
 [[migration]]
 id = "MIG-pallet-vesting"
 package = "pallet-vesting"
 storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+state = "not-applicable-excluded"
+evidence = "capability excluded; no pallet or state exists at genesis"
 
 [[migration]]
 id = "MIG-pallet-claims"
 package = "pallet-claims"
 storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+state = "not-applicable-excluded"
+evidence = "capability excluded; no pallet or state exists at genesis"
 
 [[package_provenance]]
 package = "pallet-orbis-token"
@@ -3081,7 +3322,7 @@ evidence = "dhiway-sdk:cc190ea83c59:substrate/frame/revive/src/lib.rs"
 [[migration_pipeline]]
 id = "MIGPIPE-orbis-runtime"
 runtime = "origin-orbis-runtime"
-single_block = "Migrations = migrations::Unreleased; migrations::Unreleased = ()"
+single_block = "Migrations = ()"
 multi_block = "MbmMigrations = ()"
 state = "present-empty-pipeline"
 evidence = "origin/orbis/runtime/src/lib.rs"
@@ -3092,6 +3333,20 @@ version = "0.9.9"
 source_path = "origin/orbis/pallets/people"
 source = "cord-origin-baseline"
 license = "GPL-3.0-or-later"
+
+[[package_provenance]]
+package = "pallet-orbis-score"
+version = "0.9.9"
+source_path = "origin/orbis/pallets/score"
+source = "individuality-community"
+license = "Apache-2.0"
+
+[[package_provenance]]
+package = "pallet-orbis-honour"
+version = "0.9.9"
+source_path = "origin/orbis/pallets/honour"
+source = "individuality-community"
+license = "Apache-2.0"
 
 [[package_provenance]]
 package = "pallet-pgas-allowance"
@@ -3415,8 +3670,8 @@ evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/tr
 [[protocol_type]]
 id = "TYPE-StorageActor"
 name = "StorageActor"
-shape = "Account(AccountId) | Root | Preimage(ContentHash) | AutoRenew(AccountId) | LegacyUnknown"
-contract = "every V6 position creator supplies an explicit actor; V5 absence reads LegacyUnknown"
+shape = "Account(AccountId) | Root | Preimage(ContentHash) | AutoRenew(AccountId)"
+contract = "every retained current-network position records its explicit actor"
 owner = "slice-1"
 state = "present"
 evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
@@ -3569,14 +3824,14 @@ evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pa
 id = "VIEW-stored-content-provenance"
 api = "BulletinTransactionStorageApi"
 name = "stored_content_provenance"
-shape = "StorageActor<AccountId>"
+shape = "Option<StorageActor<AccountId>>"
 max_results = 1
 owner = "slice-1"
-signature = "stored_content_provenance(reference: BulletinRef<BlockNumber>) -> StorageActor<AccountId>"
+signature = "stored_content_provenance(reference: BulletinRef<BlockNumber>) -> Option<StorageActor<AccountId>>"
 bound = "max_results=1"
-contract = "scalar exact-ref provenance; missing V5 row returns LegacyUnknown"
+contract = "optional exact-ref provenance; a missing current-network row returns None"
 state = "present"
-evidence = "6401424b"
+evidence = "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[protocol_view]]
 id = "VIEW-resource-reservation"
@@ -3799,14 +4054,6 @@ state = "present"
 evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
 
 [[protocol_error]]
-id = "ERROR-LegacyContentUnrenewable"
-name = "LegacyContentUnrenewable"
-owner = "slice-1"
-contract = "LegacyUnknown V5 content cannot enter reserved renewal"
-state = "present"
-evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
-
-[[protocol_error]]
 id = "ERROR-BulletinRefHashMismatch"
 name = "BulletinRefHashMismatch"
 owner = "slice-1"
@@ -3881,7 +4128,7 @@ evidence = "6401424b"
 [[protocol_benchmark]]
 id = "PBENCH-Bulletin-provenance-actor-paths"
 target = "BulletinTransactionStorage::all_provenance_actor_paths"
-contract = "Account, Root, Preimage, AutoRenew, LegacyUnknown and reserved paths"
+contract = "Account, Root, Preimage, AutoRenew and reserved paths"
 owner = "slice-1"
 state = "present"
 evidence = "6401424b"
@@ -3909,42 +4156,6 @@ owner = "slice-1"
 state = "present"
 contract = "benchmark worst-case bounded semantics for BulletinTransactionStorage::ResourceClaimLifecycle"
 evidence = "6401424b"
-
-[[protocol_migration]]
-id = "PMIG-Bulletin-V5-to-V6"
-pallet = "BulletinTransactionStorage"
-from_version = 5
-to_version = 6
-owner = "slice-1"
-state = "present"
-pre_invariant = "snapshot all V5 Transactions, roots, latest-hash pointers, authorizations, AutoRenewals and PermanentStorageUsed"
-post_invariant = "all V5 snapshots byte-identical; StoredBy absence reads LegacyUnknown; ResourceReservations, expiry blocks/buckets/cursor, links/reverse links, tombstones/prune queue/cursor empty; ReservedPermanentCapacity == 0; sorted indices true; legacy refs rejected by renew_reserved"
-evidence = "6401424b"
-
-[[protocol_migration]]
-id = "PMIG-Bulletin-V6-to-V7"
-pallet = "BulletinTransactionStorage"
-from_version = 6
-to_version = 7
-owner = "slice-1"
-state = "present"
-pre_invariant = "storage V6 reservations and authoritative links may have missing, partial or stale ref/hash reverse indices and counters"
-post_invariant = "storage V7 has bijective ResourceLinkByRef and ResourceLinkByContentHash reverse indices, exact row/link counters, and byte-identical reservation/link fields"
-
-evidence = "59c264a78cd778ba93b4cd872be633bf1e07753b; d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-
-[[protocol_migration]]
-id = "PMIG-Bulletin-V7-to-V8"
-pallet = "BulletinTransactionStorage"
-from_version = 7
-to_version = 8
-owner = "slice-10"
-state = "planned"
-planned_slice = "slice-10"
-dependency_ids = "PMIG-Bulletin-V6-to-V7; BUL-V7-COMMIT"
-pre_invariant = "storage V7 reverse indices and counters are exact; provider_ref is absent"
-post_invariant = "provider_ref is appended and backfilled None without changing V7 IDs, purposes, owners, counters, hashes, refs, paid bytes or expiries"
-evidence = ""
 
 [[protocol_invariant]]
 id = "INV-capacity-sum"
@@ -4004,7 +4215,7 @@ evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs:do_try_state"
 
 [[protocol_invariant]]
 id = "INV-provenance-lifetime"
-formula = "StoredBy[BulletinRef] exists exactly while the matching TransactionInfo/proof-retention record exists; V5 absence means LegacyUnknown"
+formula = "StoredBy[BulletinRef] exists exactly while the matching current-network TransactionInfo/proof-retention record exists; absence returns None"
 owner = "slice-1"
 state = "present"
 evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs:do_try_state"
@@ -4125,14 +4336,6 @@ owner = "slice-1"
 contract = "provenance insertion/removal for signed, root, preimage, force, auto-renew and reserved paths"
 state = "present"
 evidence = "6401424b"
-
-[[protocol_acceptance]]
-id = "RES-BUL-13"
-scenario = "Bulletin V5-to-V6 migration satisfies exact pre/post equations and rejects legacy reserved renewal"
-owner = "slice-1"
-contract = "Bulletin V5-to-V6 migration satisfies exact pre/post equations and rejects legacy reserved renewal"
-state = "present"
-evidence = "origin/orbis/pallets/resources/src/tests.rs; origin/orbis/pallets/transaction-storage/src/tests.rs; origin/orbis/runtime/src/tests.rs"
 
 [[protocol_acceptance]]
 id = "RES-BUL-14"
@@ -4281,7 +4484,7 @@ contract = "Resources remains sole ID allocator; real content is permanently cha
 id = "DEP-Slice10-Provider"
 owner = "slice-10"
 consumer = "slice-10"
-requires = "PMIG-Bulletin-V7-to-V8 provider_ref migration"
+requires = "clean-genesis V8 provider-reference seam"
 contract = "backfill None with equality of IDs, purposes, owners, counters, hashes, refs, paid bytes and expiries"
 
 [[protocol_dependency]]
@@ -5738,396 +5941,82 @@ artifact_sha256 = "987bfe1eff95003a16404c2173e4f9488adeff0755323d254943303d13ae4
 source_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"
 status = "present"
 
-[[bulletin_v7_rehearsal]]
-id = "REF-MISSING"
-surface = "ResourceLinkByRef"
-fixture = "missing"
-invalid = false
-contract = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "9b43720b084399b58142004ff44d360d715c76e07406650ab902522a87f75329"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-artifact_path = "docs/evidence/orbis-v4/REF-MISSING.json"
-artifact_sha256 = "545bbf53b7dcb03a0fdd4fef4af62e5e89722ba3ae391ca8f22df2082a96b3a8"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_rehearsal]]
-id = "REF-PARTIAL"
-surface = "ResourceLinkByRef"
-fixture = "partial"
-invalid = false
-contract = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "9b43720b084399b58142004ff44d360d715c76e07406650ab902522a87f75329"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-artifact_path = "docs/evidence/orbis-v4/REF-PARTIAL.json"
-artifact_sha256 = "b2023c0c3e3f413d4b2aad9210817f646e7e9f6895eebabd5570167eb40a3922"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_rehearsal]]
-id = "REF-STALE"
-surface = "ResourceLinkByRef"
-fixture = "stale"
-invalid = false
-contract = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "9b43720b084399b58142004ff44d360d715c76e07406650ab902522a87f75329"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-artifact_path = "docs/evidence/orbis-v4/REF-STALE.json"
-artifact_sha256 = "0e0bda7d6032c1433ecc3810c987c5e6baaebbe6e6458c07545fb21f46a4f891"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_rehearsal]]
-id = "REF-DUPLICATE"
-surface = "ResourceLinkByRef"
-fixture = "duplicate"
-invalid = true
-contract = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "9b43720b084399b58142004ff44d360d715c76e07406650ab902522a87f75329"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-artifact_path = "docs/evidence/orbis-v4/REF-DUPLICATE.json"
-artifact_sha256 = "68558fe705e56a850290c4a0e61debeb2cef34e32e8ea00a0cef39241f581bcf"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_rehearsal]]
-id = "HASH-MISSING"
-surface = "ResourceLinkByContentHash"
-fixture = "missing"
-invalid = false
-contract = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "9b43720b084399b58142004ff44d360d715c76e07406650ab902522a87f75329"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-artifact_path = "docs/evidence/orbis-v4/HASH-MISSING.json"
-artifact_sha256 = "6235519e7b2306e16bc8f7493cd64db6fd581b820a38a986ee891e8643742027"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_rehearsal]]
-id = "HASH-PARTIAL"
-surface = "ResourceLinkByContentHash"
-fixture = "partial"
-invalid = false
-contract = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "9b43720b084399b58142004ff44d360d715c76e07406650ab902522a87f75329"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-artifact_path = "docs/evidence/orbis-v4/HASH-PARTIAL.json"
-artifact_sha256 = "0c26598f906dd5f1cb5aabf47752eb624a8b6ae9e3d2c5a51d4a875da078e6bf"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_rehearsal]]
-id = "HASH-STALE"
-surface = "ResourceLinkByContentHash"
-fixture = "stale"
-invalid = false
-contract = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "9b43720b084399b58142004ff44d360d715c76e07406650ab902522a87f75329"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-artifact_path = "docs/evidence/orbis-v4/HASH-STALE.json"
-artifact_sha256 = "b02ee8f0a9f0c34e937c45dfafd1b4e0eb6a9e0067d968b53c00bc50654f2012"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_rehearsal]]
-id = "HASH-DUPLICATE"
-surface = "ResourceLinkByContentHash"
-fixture = "duplicate"
-invalid = true
-contract = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "9b43720b084399b58142004ff44d360d715c76e07406650ab902522a87f75329"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-artifact_path = "docs/evidence/orbis-v4/HASH-DUPLICATE.json"
-artifact_sha256 = "03229745416c2473b73bb899211e0a380e3439fdb48559cf25e2d11467f7162b"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_rehearsal]]
-id = "BOTH-PARTIAL-BAD-COUNTER"
-surface = "both reverse maps"
-fixture = "simultaneous partial maps and incorrect counters"
-invalid = false
-contract = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "9b43720b084399b58142004ff44d360d715c76e07406650ab902522a87f75329"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-artifact_path = "docs/evidence/orbis-v4/BOTH-PARTIAL-BAD-COUNTER.json"
-artifact_sha256 = "ac0b046c1f3d955c8ec064e37312d1d64c671521a197d842fdec9f8a04579206"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_rehearsal]]
-id = "EMPTY"
-surface = "both reverse maps"
-fixture = "empty valid"
-invalid = false
-contract = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "9b43720b084399b58142004ff44d360d715c76e07406650ab902522a87f75329"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-artifact_path = "docs/evidence/orbis-v4/EMPTY.json"
-artifact_sha256 = "2041875cae33044ff49f9307902c236c33beae56c2072a06d4d77eab26428068"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_rehearsal]]
-id = "HISTORICAL-4C"
-surface = "both reverse maps"
-fixture = "4c-shaped missing index"
-invalid = false
-contract = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "9b43720b084399b58142004ff44d360d715c76e07406650ab902522a87f75329"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-artifact_path = "docs/evidence/orbis-v4/HISTORICAL-4C.json"
-artifact_sha256 = "810332278829ce58738b1ada42a4ec71069dcd17f2fbdb35b427e17e7cc69514"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_rehearsal]]
-id = "HISTORICAL-640"
-surface = "both reverse maps"
-fixture = "640-shaped partial index"
-invalid = false
-contract = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "9b43720b084399b58142004ff44d360d715c76e07406650ab902522a87f75329"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-artifact_path = "docs/evidence/orbis-v4/HISTORICAL-640.json"
-artifact_sha256 = "1be86a321ecccd56636febb927d6776694a708bc9bbce82d64acfee78e9b27ca"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_rehearsal]]
-id = "MAX-VALID"
-surface = "both reverse maps"
-fixture = "configured maximum valid state"
-invalid = false
-contract = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "9b43720b084399b58142004ff44d360d715c76e07406650ab902522a87f75329"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "invalid fixtures perform zero writes/version change; repairable fixtures rebuild exact maps and counters"
-artifact_path = "docs/evidence/orbis-v4/MAX-VALID.json"
-artifact_sha256 = "d0802f6532250d3dcfdb7678404af747f86fb71cb1b3d281440f72e1fbd39643"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_contract]]
-id = "BUL-V7-BY-REF"
+[[bulletin_v8_contract]]
+id = "BUL-V8-BY-REF"
 kind = "reverse-index"
 value = "ByRef[link.bulletin_ref] == (reservation_id, content_hash); every ByRef row has exactly one authoritative link"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
+source_paths = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
+test_or_command = "SKIP_WASM_BUILD=1 cargo test -p pallet-bulletin-transaction-storage --lib try_state -- --nocapture"
 expected_output = "test result: ok"
 output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
 assertion_sha256 = "bfec37aca7f46ee850deee290283d1d8507bc3321a8817a16e85c97b66b2c348"
-source_symbol = "MigrateV6ToV7"
+source_symbol = "Pallet::do_try_state"
 expected_assertion = "ByRef[link.bulletin_ref] == (reservation_id, content_hash); every ByRef row has exactly one authoritative link"
-artifact_path = "docs/evidence/orbis-v4/BUL-V7-BY-REF.json"
+artifact_path = "docs/evidence/orbis-v4/BUL-V8-BY-REF.json"
 artifact_sha256 = "1fd8e0fc1211dca6f4efd2afb81f19ff5aad01df59121699b97a71f282189f41"
 source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
 status = "present"
 
-[[bulletin_v7_contract]]
-id = "BUL-V7-BY-HASH"
+[[bulletin_v8_contract]]
+id = "BUL-V8-BY-HASH"
 kind = "reverse-index"
 value = "ByContentHash[content_hash] == reservation_id; every ByContentHash row has exactly one authoritative link"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
+source_paths = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
+test_or_command = "SKIP_WASM_BUILD=1 cargo test -p pallet-bulletin-transaction-storage --lib try_state -- --nocapture"
 expected_output = "test result: ok"
 output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
 assertion_sha256 = "73f506cf4ddd37b8514e97c501b333fbf541505180394f8c747efbdc8e894c5b"
-source_symbol = "MigrateV6ToV7"
+source_symbol = "Pallet::do_try_state"
 expected_assertion = "ByContentHash[content_hash] == reservation_id; every ByContentHash row has exactly one authoritative link"
-artifact_path = "docs/evidence/orbis-v4/BUL-V7-BY-HASH.json"
+artifact_path = "docs/evidence/orbis-v4/BUL-V8-BY-HASH.json"
 artifact_sha256 = "f8f3d2d155a21b1f6256b4b04543fcee2dcbfbdd4bd3df2787608a3c456a4600"
 source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
 status = "present"
 
-[[bulletin_v7_contract]]
-id = "BUL-V7-ROW-COUNT"
+[[bulletin_v8_contract]]
+id = "BUL-V8-ROW-COUNT"
 kind = "counter"
 value = "ResourceReservationRowCount == active + tombstones <= MaxReservations"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
+source_paths = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
+test_or_command = "SKIP_WASM_BUILD=1 cargo test -p pallet-bulletin-transaction-storage --lib try_state -- --nocapture"
 expected_output = "test result: ok"
 output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
 assertion_sha256 = "9531dd4ece1041a7e65700a86ab635e25cc7afa3b0e4fc95f5056a013781d318"
-source_symbol = "MigrateV6ToV7"
+source_symbol = "Pallet::do_try_state"
 expected_assertion = "ResourceReservationRowCount == active + tombstones <= MaxReservations"
-artifact_path = "docs/evidence/orbis-v4/BUL-V7-ROW-COUNT.json"
+artifact_path = "docs/evidence/orbis-v4/BUL-V8-ROW-COUNT.json"
 artifact_sha256 = "7cac98c7edde2c7f44460f952a4326a8c223946641ae587a5265e2a04063370e"
 source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
 status = "present"
 
-[[bulletin_v7_contract]]
-id = "BUL-V7-LINK-COUNT"
+[[bulletin_v8_contract]]
+id = "BUL-V8-LINK-COUNT"
 kind = "counter"
 value = "ResourceReservationLinkCount == links == ByRef == ByContentHash <= MaxLinks"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
+source_paths = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
+test_or_command = "SKIP_WASM_BUILD=1 cargo test -p pallet-bulletin-transaction-storage --lib try_state -- --nocapture"
 expected_output = "test result: ok"
 output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
 assertion_sha256 = "bfe1dd486bd33f09c4c9bfd9056fad6d4a41800baaa3aee4106b320ccde2d4e4"
-source_symbol = "MigrateV6ToV7"
+source_symbol = "Pallet::do_try_state"
 expected_assertion = "ResourceReservationLinkCount == links == ByRef == ByContentHash <= MaxLinks"
-artifact_path = "docs/evidence/orbis-v4/BUL-V7-LINK-COUNT.json"
+artifact_path = "docs/evidence/orbis-v4/BUL-V8-LINK-COUNT.json"
 artifact_sha256 = "8dbdb9e5482e1c4194d539a73d56ee45032c14043a72ed28cf25e622263e465c"
 source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
 status = "present"
 
-[[bulletin_v7_contract]]
-id = "BUL-V7-READS"
-kind = "weight-formula"
-value = "reads = A + T + L + I_ref + I_hash + 3L + 3"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "e382a8792eb6145d0a050d3fe1f2ce5c2dc0e2b2204244798d6df338711fee45"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "reads = A + T + L + I_ref + I_hash + 3L + 3"
-artifact_path = "docs/evidence/orbis-v4/BUL-V7-READS.json"
-artifact_sha256 = "c47ff0a60f92038ad7face92ddfabd38dfa12258525f70e56b2672755d4ac5bb"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_contract]]
-id = "BUL-V7-WRITES"
-kind = "weight-formula"
-value = "writes = I_ref + I_hash + 2L + 2 + 1"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "cbc595bf295644b4e08ee0d54964338f4dc62f19cd2d6e81ae93ab34c272ca2d"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "writes = I_ref + I_hash + 2L + 2 + 1"
-artifact_path = "docs/evidence/orbis-v4/BUL-V7-WRITES.json"
-artifact_sha256 = "d77871c4c8c03f09717b5e8b210dbd8c387442b8d47a1657993374e7e03fe17e"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_contract]]
-id = "BUL-V7-PREFLIGHT"
-kind = "phase"
-value = "bounded read-only validation completes before any write"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "e7bb166232a07846fb79294e72b70321a1339c2a2672568d15ffd28feabf15c9"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "bounded read-only validation completes before any write"
-artifact_path = "docs/evidence/orbis-v4/BUL-V7-PREFLIGHT.json"
-artifact_sha256 = "d2fd299c12e23fea68d19369aeddb8130d96baff0ada1b238aab7da1592710ec"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_contract]]
-id = "BUL-V7-COMMIT"
-kind = "phase"
-value = "infallible clear/rebuild, counter writes, storage version 7 last"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "a204e8c636dffdcec665a3eb23edb56b7efa4606082cb833f47bdab8bed657cb"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "infallible clear/rebuild, counter writes, storage version 7 last"
-artifact_path = "docs/evidence/orbis-v4/BUL-V7-COMMIT.json"
-artifact_sha256 = "c062e10794e26ed7b0e996ff7119cf0b194fe4a6da40a1cb1fbac1125a25a653"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_contract]]
-id = "BUL-V7-PRESERVE"
-kind = "preservation"
-value = "byte-for-byte preserve reservation/link/accounting/expiry/provenance fields"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
-assertion_sha256 = "afa25b5be98f33a9a2386161b0b22c4f13c121ad613b9fe72caf1d61f22fcdf4"
-source_symbol = "MigrateV6ToV7"
-expected_assertion = "byte-for-byte preserve reservation/link/accounting/expiry/provenance fields"
-artifact_path = "docs/evidence/orbis-v4/BUL-V7-PRESERVE.json"
-artifact_sha256 = "0871d16865c82a19264529770915c990f6377d6fcffebd9a6e8fb74d973a7cf4"
-source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
-status = "present"
-
-[[bulletin_v7_contract]]
-id = "BUL-V7-TRY-STATE"
+[[bulletin_v8_contract]]
+id = "BUL-V8-TRY-STATE"
 kind = "invariant"
 value = "bidirectional reverse-map bijection and exact counters continuously enforced"
-source_paths = "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/lib.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture"
+source_paths = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
+test_or_command = "SKIP_WASM_BUILD=1 cargo test -p pallet-bulletin-transaction-storage --lib try_state -- --nocapture"
 expected_output = "test result: ok"
 output_sha256 = "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b"
 assertion_sha256 = "0ac4e2ed7f8f52c2955b31762166024ac77fcc40a19494cc33e932267b515845"
-source_symbol = "MigrateV6ToV7"
+source_symbol = "Pallet::do_try_state"
 expected_assertion = "bidirectional reverse-map bijection and exact counters continuously enforced"
-artifact_path = "docs/evidence/orbis-v4/BUL-V7-TRY-STATE.json"
+artifact_path = "docs/evidence/orbis-v4/BUL-V8-TRY-STATE.json"
 artifact_sha256 = "e65eeba2b42998bd841e1020c323b5f09fee565afb8669892532b40a849c5f50"
 source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
 status = "present"
@@ -6135,304 +6024,25 @@ status = "present"
 [[provider_v8_contract]]
 id = "BUL-V8-FIELD"
 kind = "layout"
-value = "append provider_ref: Option<ProviderAllocationId>"
-source_paths = ""
+value = "clean-genesis ReservationProviderRef: ReservationId -> Option<ProviderAllocationId>"
+source_paths = "origin/orbis/pallets/transaction-storage/src/lib.rs"
 test_or_command = ""
 source_symbol = ""
 expected_assertion = ""
 artifact_path = ""
 artifact_sha256 = ""
 source_commit = ""
-planned_slice = "slice-10"
-dependency_ids = "BUL-V7-COMMIT"
-status = "planned"
-
-[[provider_v8_contract]]
-id = "BUL-V8-BACKFILL"
-kind = "migration"
-value = "V7 rows backfill provider_ref = None"
-source_paths = ""
-test_or_command = ""
-source_symbol = ""
-expected_assertion = ""
-artifact_path = ""
-artifact_sha256 = ""
-source_commit = ""
-planned_slice = "slice-10"
-dependency_ids = "BUL-V7-COMMIT"
-status = "planned"
-
-[[provider_v8_contract]]
-id = "BUL-V8-PRESERVE"
-kind = "preservation"
-value = "identical IDs, purposes, owners, counters, hashes, refs, paid bytes and expiries"
-source_paths = ""
-test_or_command = ""
-source_symbol = ""
-expected_assertion = ""
-artifact_path = ""
-artifact_sha256 = ""
-source_commit = ""
-planned_slice = "slice-10"
-dependency_ids = "BUL-V7-COMMIT"
-status = "planned"
+status = "present"
 
 [[provider_v8_contract]]
 id = "BUL-V8-SEAM"
 kind = "gate"
-value = "provider composition occurs only in later Slice 10 V7-to-V8 migration"
-source_paths = ""
+value = "provider composition is native from clean genesis through attach_provider and OrbisProviderAllocation"
+source_paths = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 test_or_command = ""
 source_symbol = ""
 expected_assertion = ""
 artifact_path = ""
 artifact_sha256 = ""
 source_commit = ""
-planned_slice = "slice-10"
-dependency_ids = "BUL-V7-COMMIT"
-status = "planned"
-
-[[remediation_gate]]
-id = "GATE-1-DOCS-V4"
-order = 1
-value = "manifest v4 is the checked evidence source of truth; runtime is spec28 tx7"
-source_paths = "docs/orbis-completion-manifest.toml; docs/adr/0008-orbis-transaction-policy-pipeline.md; docs/orbis-native-capability-matrix.md"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::completion_manifest_v4_evidence_is_exact_and_semantically_frozen -- --exact --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "4649539b12b7ab5dbe261037a4307533811dcfc73e1168e9319584ab4b77a3c1"
-assertion_sha256 = "b881f9519884f03e1132999562f825925f4d0d218e1c4db90bb32fabb8442350"
-source_symbol = "Orbis"
-expected_assertion = "manifest v4 is the checked evidence source of truth; runtime is spec28 tx7"
-artifact_path = "docs/evidence/orbis-v4/GATE-1-DOCS-V4.json"
-artifact_sha256 = "e7ec0557f40b2590303361b1e656459964a0d00b31772d1205098fb293e9dff0"
-source_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"
 status = "present"
-
-[[remediation_gate]]
-id = "GATE-2-ACTIVE"
-order = 2
-value = "bounded transaction support is active and evidence-backed"
-source_paths = "docs/orbis-completion-manifest.toml; docs/adr/0008-orbis-transaction-policy-pipeline.md; docs/orbis-native-capability-matrix.md"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::completion_manifest_v4_evidence_is_exact_and_semantically_frozen -- --exact --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "4649539b12b7ab5dbe261037a4307533811dcfc73e1168e9319584ab4b77a3c1"
-assertion_sha256 = "b5b72af6c3abfe44099a2ff1a36f91c79c494523b667c033f098179624c639a2"
-source_symbol = "Orbis"
-expected_assertion = "bounded transaction support is active and evidence-backed"
-artifact_path = "docs/evidence/orbis-v4/GATE-2-ACTIVE.json"
-artifact_sha256 = "d547d94ef87bb13a82754e48c14542d86e1b448da1a8437ea0d0bd7e081ff948"
-source_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"
-status = "present"
-
-[[remediation_gate]]
-id = "GATE-3-BULLETIN-V7"
-order = 3
-value = "Bulletin reverse-index repair is registered and storage version is 7"
-source_paths = "docs/orbis-completion-manifest.toml; docs/adr/0008-orbis-transaction-policy-pipeline.md; docs/orbis-native-capability-matrix.md"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::completion_manifest_v4_evidence_is_exact_and_semantically_frozen -- --exact --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "4649539b12b7ab5dbe261037a4307533811dcfc73e1168e9319584ab4b77a3c1"
-assertion_sha256 = "9804f13b33773b677d3aa931369c94d3f90ab36a794cb3304ba5cfb621c7b99c"
-source_symbol = "Orbis"
-expected_assertion = "Bulletin reverse-index repair is registered and storage version is 7"
-artifact_path = "docs/evidence/orbis-v4/GATE-3-BULLETIN-V7.json"
-artifact_sha256 = "d182560f91c004c3500c45c98eaa60e789e164b7e565e8e02fc04259603d6dbe"
-source_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"
-status = "present"
-
-[[remediation_gate]]
-id = "GATE-4-SPEC28-TX7"
-order = 4
-value = "runtime integration is spec28 transaction7 with stable pallet indices"
-source_paths = "docs/orbis-completion-manifest.toml; docs/adr/0008-orbis-transaction-policy-pipeline.md; docs/orbis-native-capability-matrix.md"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::completion_manifest_v4_evidence_is_exact_and_semantically_frozen -- --exact --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "4649539b12b7ab5dbe261037a4307533811dcfc73e1168e9319584ab4b77a3c1"
-assertion_sha256 = "7d7ce510f67455811a4d34dec9840225e8c57519992687ba84088531219c7b3c"
-source_symbol = "Orbis"
-expected_assertion = "runtime integration is spec28 transaction7 with stable pallet indices"
-artifact_path = "docs/evidence/orbis-v4/GATE-4-SPEC28-TX7.json"
-artifact_sha256 = "936a3ba42bac5ffb4e290409deb8bda387360b35a4896d089e04bf2827a8d2c4"
-source_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"
-status = "present"
-
-[[remediation_gate]]
-id = "GATE-5-EVIDENCE"
-order = 5
-value = "independent Architect and Critic CLEAR verdicts close only the Iteration-5 runtime/evidence freeze"
-source_paths = "origin/orbis/runtime/src/tests.rs; docs/evidence/orbis-v4/architect-review-clear-1.md; docs/evidence/orbis-v4/critic-review-clear-1.md; docs/orbis-completion-manifest.toml"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::completion_manifest_v4_gate5_clear_is_exact_and_narrow -- --exact --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "4d69d68d50339b6cfeb7b8a7f2a35a512c197c7d9e6d1c270cb23c20368b6807"
-source_symbol = "completion_manifest_v4_gate5_clear_is_exact_and_narrow"
-expected_assertion = "Gate5 exact reviews clear and freeze evidence is present without changing any non-gate planned row"
-assertion_sha256 = "aa56d18cc8f257c4ff4af96cff9b1373516258a9c32a5804b6a468f42282e369"
-artifact_path = "docs/evidence/orbis-v4/GATE-5-EVIDENCE.json"
-artifact_sha256 = "93c686d15402ac12a8d258ab72d37eba15af608116d3b302541899a1f8b4b069"
-source_commit = "28a00e425d86092eddd08a7bfb10c09fa467450e"
-planned_slice = "iteration-5-review"
-dependency_ids = "ARCHITECT-CLEAR; CRITIC-CLEAR"
-status = "present"
-
-[[meta_contract]]
-id = "META-EVIDENCE-COMPILED-ENABLED"
-kind = "metadata-evidence"
-value = "compiled RFC-78 implicit is d03f and reproducible"
-source_paths = "origin/orbis/runtime/src/meta_v6.rs; origin/orbis/runtime/tools/reproduce-metadata-hash.sh"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 RUNTIME_METADATA_HASH=0xd03f87e6279878cafcf6149a7107a6307163e4e997f8d72d029cd6aa837f9854 cargo test -p origin-orbis-runtime --lib meta_v6_fixtures::checked_in_meta_v7_fixtures_decode_all_recompute_and_match_hashes -- --exact --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "467217a4275a84d7338f9edf3eb8a054edeab8fb8bc7817265c55598f01cd22f"
-assertion_sha256 = "05094cba8bb4500f9b528ceefa5708c10fb3a0df8d5e0cda22b75c0689341380"
-source_symbol = "ProductionMetadataImplicitResolver"
-expected_assertion = "compiled RFC-78 implicit is d03f and reproducible"
-artifact_path = "docs/evidence/orbis-v4/META-EVIDENCE-COMPILED-ENABLED.json"
-artifact_sha256 = "ed3f8bf407503f9616ead4ff9d5908edf80adeda6bf1899d229aa83c9b5d331f"
-source_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"
-status = "present"
-
-[[meta_contract]]
-id = "META-EVIDENCE-CUSTOM-LOSS"
-kind = "metadata-evidence"
-value = "custom hash is lost on SCALE decode and compiled hash is enforced"
-source_paths = "origin/orbis/runtime/src/tests.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 RUNTIME_METADATA_HASH=0xd03f87e6279878cafcf6149a7107a6307163e4e997f8d72d029cd6aa837f9854 cargo test -p origin-orbis-runtime --lib tests::metadata_custom_hash_loss_is_detected_after_wire_roundtrip -- --exact --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "915d5601ca9aa274fe734f4ae8121bb0f70b22b19b9685111764887e5ae95b37"
-assertion_sha256 = "81476e46dc0ff6c57cf830d0b4cc451d2c986b06dd15a581ceb11cedfea1fab4"
-source_symbol = "metadata_custom_hash_loss_is_detected_after_wire_roundtrip"
-expected_assertion = "custom hash is lost on SCALE decode and compiled hash is enforced"
-artifact_path = "docs/evidence/orbis-v4/META-EVIDENCE-CUSTOM-LOSS.json"
-artifact_sha256 = "08bcc738a28569354614619b2d0452afdac6878ab426d0b6ae6b26bdad609ea0"
-source_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"
-status = "present"
-
-[[meta_contract]]
-id = "META-EVIDENCE-NOHASH-CANNOTLOOKUP"
-kind = "metadata-evidence"
-value = "isolated enabled metadata without compiled hash is exact CannotLookup"
-source_paths = "origin/orbis/runtime/metadata-implicit-nohash/src/lib.rs"
-test_or_command = "env -u RUNTIME_METADATA_HASH CARGO_TARGET_DIR=target/nohash cargo test --manifest-path origin/orbis/runtime/metadata-implicit-nohash/Cargo.toml --features runtime-benchmarks tests::enabled_metadata_without_compiled_hash_is_exact_cannot_lookup -- --exact --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "29c9ad10f23aba746eab85708ae7a8e64ad491d02d578869adb12c421970fd22"
-assertion_sha256 = "67c3fb36c49b248f72146240dbf45366e8163ed5ce50ee70d608ade842dbd604"
-source_symbol = "enabled_metadata_without_compiled_hash_is_exact_cannot_lookup"
-expected_assertion = "isolated enabled metadata without compiled hash is exact CannotLookup"
-artifact_path = "docs/evidence/orbis-v4/META-EVIDENCE-NOHASH-CANNOTLOOKUP.json"
-artifact_sha256 = "e63b47f004207dc90991a916657b4f8e85841001903c21fed2df1e31392f29b8"
-source_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"
-status = "present"
-
-[[meta_contract]]
-id = "META-EVIDENCE-EARLY-PROPAGATION"
-kind = "metadata-evidence"
-value = "CannotLookup propagates before token, nonce, native, asset or hold state changes"
-source_paths = "origin/orbis/runtime/src/tests.rs"
-test_or_command = "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 RUNTIME_METADATA_HASH=0xd03f87e6279878cafcf6149a7107a6307163e4e997f8d72d029cd6aa837f9854 cargo test -p origin-orbis-runtime --lib tests::sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery -- --exact --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "f701c532905cdb2e997cdd2ad3c350781f33b20f95ce0e3add2b6e542726649a"
-assertion_sha256 = "c6b8aa0a888fc0945b8b5d48a6d17c1aca7aee4924fefbe96a74384792ff72ad"
-source_symbol = "sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery"
-expected_assertion = "CannotLookup propagates before token, nonce, native, asset or hold state changes"
-artifact_path = "docs/evidence/orbis-v4/META-EVIDENCE-EARLY-PROPAGATION.json"
-artifact_sha256 = "3f6759a0ed679abba8dd5a06b5f6200de4d9ed6d3fb61390f15b01ddfc087420"
-source_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"
-status = "present"
-
-[[slice2_evidence]]
-id = "S2-SURFACES-01"
-value = "Concrete direct and paid Meta Score/Honour surfaces preserve actor, nonce, payment, quota, business state, and rejection invariants."
-kind = "slice2-executable"
-status = "present"
-source_paths = "origin/orbis/runtime/src/tests.rs"
-test_or_command = "RUNTIME_METADATA_HASH=0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime tests::slice2_v5_surfaces_evidence -- --exact --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "061418fe43d05df35b9ad4f83f931f574e76009407ef3e7d52139d9ebf37558c"
-source_symbol = "slice2_v5_surfaces_evidence"
-expected_assertion = "assertion=S2-SURFACES-01:b4c8410c960d0ecb7148d29871877a53efbcc9f46a59cbfd086dd01142d4ea84"
-assertion_sha256 = "b4c8410c960d0ecb7148d29871877a53efbcc9f46a59cbfd086dd01142d4ea84"
-artifact_path = "docs/evidence/orbis-v5/S2-SURFACES-01.json"
-artifact_sha256 = "5f8905d75b1faf9321d67ba60d884e79a61a42d51cb0311199fe51b2c56ad953"
-source_commit = "ce60319f85a13b29e143a4d15189616f38abe777"
-
-[[slice2_evidence]]
-id = "S2-FIXTURES-01"
-value = "Four checked compiled-metadata Score/Honour fixtures execute positive and exact mutation rejection paths."
-kind = "slice2-executable"
-status = "present"
-source_paths = "origin/orbis/runtime/src/meta_v6_fixtures.rs; origin/orbis/runtime/src/tests.rs"
-test_or_command = "RUNTIME_METADATA_HASH=0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime tests::slice2_v5_fixtures_evidence -- --exact --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "b79fd18b2dc8634bc49acdc6e66eb464d18ec56e8576fdd7051fe2ad30caa9a5"
-source_symbol = "slice2_v5_fixtures_evidence"
-expected_assertion = "assertion=S2-FIXTURES-01:e2f5cfadab8e085d4675c8af155a9ed66c8ed36829a5406aee27d5ea09009a9f"
-assertion_sha256 = "e2f5cfadab8e085d4675c8af155a9ed66c8ed36829a5406aee27d5ea09009a9f"
-artifact_path = "docs/evidence/orbis-v5/S2-FIXTURES-01.json"
-artifact_sha256 = "858ffcd582054c997fdb8e604ceabeca68f4e4009b51fb41ad84dd1f8f33eb84"
-source_commit = "ce60319f85a13b29e143a4d15189616f38abe777"
-
-[[slice2_evidence]]
-id = "S2-PAYOUT-01"
-value = "Payout-account rotation watches every liability and preserves atomic fund conservation."
-kind = "slice2-executable"
-status = "present"
-source_paths = "origin/orbis/pallets/score/src/tests.rs"
-test_or_command = "cargo test -p pallet-orbis-score tests::slice2_v5_payout_evidence -- --exact --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "6094b9aafb59f191fb5b9e327bf58acd1513cc2bb7a82fdea9653973d16adc71"
-source_symbol = "slice2_v5_payout_evidence"
-expected_assertion = "assertion=S2-PAYOUT-01:fdf76b39c2763e10e8c2d3ecbefbd7bd7c694e6db4a8058a4fb60c1a0e0b2c87"
-assertion_sha256 = "fdf76b39c2763e10e8c2d3ecbefbd7bd7c694e6db4a8058a4fb60c1a0e0b2c87"
-artifact_path = "docs/evidence/orbis-v5/S2-PAYOUT-01.json"
-artifact_sha256 = "029612efcc896733f11c3856673835fd1457ef1dda4de1cbbf4fb086f339df16"
-source_commit = "ce60319f85a13b29e143a4d15189616f38abe777"
-
-[[slice2_evidence]]
-id = "S2-BENCHMARK-01"
-value = "Runtime benchmarks register and execute Score/Honour and configured payout weight dominates the recorded Wasm measurement."
-kind = "slice2-executable"
-status = "present"
-source_paths = "origin/orbis/runtime/src/tests.rs; docs/benchmarks/orbis-score-2026-07-13.json; docs/benchmarks/orbis-score-2026-07-13.log"
-test_or_command = "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --features runtime-benchmarks tests::slice2_v5_benchmark_evidence -- --exact --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "ecb372ea9d77d134b7a7d3fb367aafff08e4f6c4cb5fb890b54e1abcc23a83f5"
-source_symbol = "slice2_v5_benchmark_evidence"
-expected_assertion = "assertion=S2-BENCHMARK-01:e93e5ae882881dfb17ef5dea15df7381785a169957ae1e780184db39d4b31564"
-assertion_sha256 = "e93e5ae882881dfb17ef5dea15df7381785a169957ae1e780184db39d4b31564"
-artifact_path = "docs/evidence/orbis-v5/S2-BENCHMARK-01.json"
-artifact_sha256 = "268aa87768af0bea2bf5c52d3b1c4f01f90c82ca0c00cfb601f1f6fb119a64a2"
-source_commit = "ce60319f85a13b29e143a4d15189616f38abe777"
-
-benchmark_main_json_sha256 = "e94a653962c8090715605a446f63a52ea4c6d46cb32db74403d37818d940c949"
-benchmark_main_log_sha256 = "7e4e3ea498300bff713be0e113bfc496463c4b4a5eb6883160f8f4af22e53605"
-benchmark_markdown_sha256 = "24250d818ce8c52614defdad294d5790647039ce8ba10c8e55034a028c94ff80"
-benchmark_watch_json_sha256 = "af7fefee097c870a397dfceeb98d417eb64257af625a8cfed0afff77a1089255"
-benchmark_watch_log_sha256 = "e0621d8affd41c0fa6728fdd38978d782a1a6cba95416dfefdb9a649eb43f36d"
-benchmark_compiled_wasm_sha256 = "7bb2b93783280dc512373b124ed1c9ed66eb3dbf434a1be9b4e9b2234df333ac"
-benchmark_measured_ref_time = "25000000"
-benchmark_measured_proof = "3676"
-benchmark_measured_reads = "7"
-benchmark_measured_writes = "1"
-benchmark_margin = "2"
-benchmark_configured_writes = "3"
-[[slice2_evidence]]
-id = "S2-MIGRATIONS-01"
-value = "Full migration tuple accepts clean/current state and fails closed without partial progress for dirty Score or Honour v0."
-kind = "slice2-executable"
-status = "present"
-source_paths = "origin/orbis/runtime/src/tests.rs; origin/orbis/runtime/MIGRATIONS.md"
-test_or_command = "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --features try-runtime tests::slice2_v5_migrations_evidence -- --exact --nocapture"
-expected_output = "test result: ok"
-output_sha256 = "ccd7f75d56188213b7b4b3bc9a7dbe22c1afc47dff983ad18c7be2a7f8c00a5b"
-source_symbol = "slice2_v5_migrations_evidence"
-expected_assertion = "assertion=S2-MIGRATIONS-01:7dcbc8e654a8d3c95243f6ba6181fe4f0a907fd7b055c323ba7b0fa9d9c245f7"
-assertion_sha256 = "7dcbc8e654a8d3c95243f6ba6181fe4f0a907fd7b055c323ba7b0fa9d9c245f7"
-artifact_path = "docs/evidence/orbis-v5/S2-MIGRATIONS-01.json"
-artifact_sha256 = "6206879d6f8a4eae52531804b6f44d8f53aac052faef25040db1f54d44cf60e7"
-source_commit = "ce60319f85a13b29e143a4d15189616f38abe777"
-
-[[remediation_gate]]
-id = "GATE-6-SLICE2-EVIDENCE"
-order = 6
-value = "independent evidence review of the bounded Slice 2 v5 transition"
-status = "pending"
-planned_slice = "slice2-evidence-review"

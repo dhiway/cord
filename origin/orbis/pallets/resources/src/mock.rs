@@ -412,8 +412,9 @@ impl frame_support::traits::EnsureOriginWithArg<RuntimeOrigin, Context> for Mock
 		_context: &Context,
 	) -> Result<Self::Success, RuntimeOrigin> {
 		match origin.caller() {
-			OriginCaller::People(indiv_pallet_people::Origin::PersonalAlias(contextual_alias)) =>
-				Ok(contextual_alias.ca.alias),
+			OriginCaller::People(indiv_pallet_people::Origin::PersonalAlias(contextual_alias)) => {
+				Ok(contextual_alias.ca.alias)
+			},
 			_ => Err(origin),
 		}
 	}
@@ -439,8 +440,9 @@ impl frame_support::traits::EnsureOrigin<RuntimeOrigin> for MockLitePerson {
 
 	fn try_origin(origin: RuntimeOrigin) -> Result<Self::Success, RuntimeOrigin> {
 		match origin.caller() {
-			OriginCaller::PeopleLite(indiv_pallet_people_lite::Origin::LitePerson(account)) =>
-				Ok(account.clone()),
+			OriginCaller::PeopleLite(indiv_pallet_people_lite::Origin::LitePerson(account)) => {
+				Ok(account.clone())
+			},
 			_ => Err(origin),
 		}
 	}

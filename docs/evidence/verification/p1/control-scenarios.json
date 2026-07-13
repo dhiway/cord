@@ -1,0 +1,77 @@
+{
+  "artifact_sha256": {
+    "control-authority-tests.out": "712ece3b7afa4625067d6b3e70be5155875e8abd12f2b0508349510b0c2d70c0",
+    "control-broker-runtime-tests.out": "da66d701415fbe6a3191e40cc46f80d1b56c545734458c2d16e3bdd8f1e0940e",
+    "control-live-observation.json": "d67f180e0d5fad8233471a51aaa2f325ef72a6cc0f8c59ae3b2441b3928f0645",
+    "control-origin-runtime-tests.out": "66b12d2210d8013da19edc8dfd10949eb24dc63b9553f7e7caa269aa92c5450d",
+    "control-process-faults.json": "70181a1c7bf637814f3c94184c77fa49c4232606a23aad71b697ec55e6c49c7a"
+  },
+  "blocked": [
+    {
+      "blocker": "P0 targets/client contracts are five-role ratified, but production activation remains false and the privileged finalized P1 lifecycle receipt set is incomplete",
+      "scenario": "P1-campaign-authorization"
+    },
+    {
+      "blocker": "p1_admin now encodes Session.set_keys and Sudo AuthorityManager calls, but the remove/rotate/re-add finalized receipt sequence has not run on the isolated topology",
+      "scenario": "origin-validator-admission-removal-session-rotation"
+    },
+    {
+      "blocker": "p1_admin now encodes Session.set_keys and Sudo CollatorSelection mutations, but Orbis Period=6*HOURS requires a long exclusive-host run to prove enacted rotation",
+      "scenario": "orbis-collator-admission-removal-session-rotation"
+    },
+    {
+      "blocker": "p1_admin safely proves unauthorized rejection plus root authorization/invalid-code rejection, but neither Origin nor Orbis finalized live receipts have been collected",
+      "scenario": "origin-and-orbis-runtime-upgrade-forward-fix"
+    },
+    {
+      "blocker": "p1_admin encodes pause, paused System.remark rejection, unpause and recovery, but finalized Origin/Orbis receipts are absent",
+      "scenario": "transaction-pause-resume"
+    },
+    {
+      "blocker": "the disposable dev-key rotate/set/remove/re-add recovery ceremony is implemented but not yet executed; this does not alter production custody policy",
+      "scenario": "operator-key-compromise-and-recovery"
+    },
+    {
+      "blocker": "the shared worktree was dirty and the launch-time Orbis binary was replaced during concurrent builds; rerun from a frozen commit and retain release artifacts",
+      "scenario": "clean-reproducible-live-rerun"
+    }
+  ],
+  "branch": "sm-update-sub-0x63",
+  "commands": [
+    "cargo test -p pallet-authorities --lib -- --nocapture",
+    "cargo test -p origin-runtime 'genesis_config_presets::tests::' --lib -- --nocapture",
+    "cargo test -p origin-orbis-runtime 'broker_' --lib -- --nocapture",
+    "cargo test -p origin-orbis-runtime orbis_sudo_can_reserve_multiple_full_cores_for_one_parachain --lib -- --nocapture",
+    "python3 scripts/test-p1-control-broker.py",
+    "python3 zombienet/p1_control_broker.py --relay http://127.0.0.1:11801 --orbis http://127.0.0.1:11810 --fault-hold 12 --progress-timeout 90 --fault orbis-collator-bob:11811:<pid>"
+  ],
+  "partial_evidence_not_gate_pass": true,
+  "passed": [
+    {
+      "evidence": "control-authority-tests.out",
+      "result": "PASS",
+      "scenario": "authority-manager-unit-contract",
+      "tests": 22
+    },
+    {
+      "evidence": "control-origin-runtime-tests.out",
+      "result": "PASS",
+      "scenario": "origin-broker-origin-and-elastic-host-contract",
+      "tests": 6
+    },
+    {
+      "evidence": "control-live-observation.json",
+      "result": "PASS",
+      "scenario": "single-collator-process-loss-and-recovery"
+    },
+    {
+      "evidence": "control-process-faults.json",
+      "result": "PASS",
+      "scenario": "single-validator-process-loss-and-recovery"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "P1 Origin/Orbis control scenarios",
+  "source_head": "439a1b62da11175129ad5390186230a64d569810",
+  "verdict": "BLOCKED"
+}

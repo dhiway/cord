@@ -18,10 +18,10 @@
 
 use crate::{
 	xcm_config::LocationToAccountId, AssetConversion, AssetRate, AssetTxPayment, Assets,
-	AssetsFreezer, AssetsHolder, Balances, Broker, ChunksManager, Entity, Feeless, ForeignAssets,
-	ForeignAssetsFreezer, HopPromotion, Members, MembersNotifier, Nfts, People, PeopleLite,
-	Personhood, PoolAssets, PoolAssetsFreezer, Revive, Runtime, RuntimeCall, RuntimeOrigin, System,
-	TransactionStorage, Uniques,
+	AssetsFreezer, AssetsHolder, Attestation, Balances, Broker, ChunksManager, Dotns, Drive,
+	Entity, Feeless, ForeignAssets, ForeignAssetsFreezer, HopPromotion, Members, MembersNotifier,
+	Nfts, People, PeopleLite, Period, Personhood, PoolAssets, PoolAssetsFreezer, Revive, Runtime,
+	RuntimeCall, RuntimeOrigin, System, TransactionStorage, Uniques, S3,
 };
 use codec::{Decode, Encode};
 use cumulus_primitives_core::ParaId;
@@ -31,21 +31,101 @@ use frame_support::{
 	traits::{fungible::Mutate, Contains, Get, Hooks, PalletInfoAccess},
 };
 use pallet_broker::{CoreAssignment, CoreMask, Reservations, Schedule, ScheduleItem};
+use pallet_orbis_attestation_runtime_api as attestation_api;
 use polkadot_primitives::AccountId;
 use sp_core::crypto::Ss58Codec;
 use sp_runtime::traits::AsSystemOriginSigner;
 use xcm::prelude::*;
 use xcm_runtime_apis::conversions::LocationToAccountHelper;
 
-#[path = "../../evidence_inventory_v4.rs"]
-mod evidence_inventory_v4;
-#[path = "../../evidence_inventory_v5.rs"]
-#[cfg(not(feature = "runtime-benchmarks"))]
-mod evidence_inventory_v5;
-#[path = "../../evidence_markers_v4.rs"]
-mod evidence_markers_v4;
-#[path = "../../evidence_markers_v5.rs"]
-mod evidence_markers_v5;
+#[test]
+fn attestation_page_zero_and_boundaries_are_explicit() {
+	let ids: Vec<sp_core::H256> = (0..=attestation_api::MAX_PAGE_SIZE)
+		.map(|value| sp_core::H256::from_low_u64_be(value as u64 + 1))
+		.collect();
+	let empty = crate::attestation_id_page(&ids, None, 0);
+	assert!(empty.items.is_empty());
+	assert_eq!(empty.next_cursor, None);
+	let bounded = crate::attestation_id_page(&ids, None, u32::MAX);
+	assert_eq!(bounded.items.len(), attestation_api::MAX_PAGE_SIZE as usize);
+	assert_eq!(bounded.next_cursor, Some(attestation_api::MAX_PAGE_SIZE));
+	let past_end = crate::attestation_id_page(&ids, Some(u32::MAX), 10);
+	assert!(past_end.items.is_empty());
+	assert_eq!(past_end.next_cursor, None);
+}
+
+#[test]
+fn runtime_signing_payloads_match_shared_sdk_vectors() {
+	let vectors: serde_json::Value = serde_json::from_str(include_str!(concat!(
+		env!("CARGO_MANIFEST_DIR"),
+		"/../../../docs/sdk/vectors/attestation-v1.json"
+	)))
+	.unwrap();
+	let issuer = AccountId::new([1; 32]);
+	let delegate = AccountId::new([2; 32]);
+	let issue = pallet_orbis_attestation::DelegatedIntent::<Runtime> {
+		genesis_hash: sp_core::H256::repeat_byte(0x11),
+		spec_version: 42,
+		action: pallet_orbis_attestation::DelegatedAction::Issue,
+		issuer: issuer.clone(),
+		delegate: delegate.clone(),
+		schema: sp_core::H256::repeat_byte(0x22),
+		subject_commitment: sp_core::H256::repeat_byte(0x33),
+		payload_commitment: sp_core::H256::repeat_byte(0x44),
+		status_commitment: sp_core::H256::repeat_byte(0x55),
+		parent: None,
+		expiry: Some(100),
+		uniqueness_commitment: Some(sp_core::H256::repeat_byte(0x66)),
+		revocable: true,
+		nonce: 7,
+		deadline: 90,
+	};
+	let revoke = pallet_orbis_attestation::DelegatedRevokeIntent::<Runtime> {
+		genesis_hash: sp_core::H256::repeat_byte(0x11),
+		spec_version: 42,
+		action: pallet_orbis_attestation::DelegatedAction::Revoke,
+		revoker: issuer,
+		delegate,
+		attestation: sp_core::H256::repeat_byte(0x77),
+		nonce: 8,
+		deadline: 91,
+	};
+	assert_eq!(
+		format!(
+			"0x{}",
+			hex::encode(pallet_orbis_attestation::delegated_signing_payload::<Runtime>(&issue))
+		),
+		vectors["signing"][0]["payload"].as_str().unwrap(),
+	);
+	assert_eq!(
+		format!(
+			"0x{}",
+			hex::encode(pallet_orbis_attestation::delegated_revoke_signing_payload::<Runtime>(
+				&revoke,
+			))
+		),
+		vectors["signing"][3]["payload"].as_str().unwrap(),
+	);
+}
+
+#[test]
+fn session_period_preserves_production_and_hash_bound_fast_profiles() {
+	#[cfg(feature = "fast-runtime")]
+	{
+		assert_eq!(Period::get(), 2 * origin_hub_system_runtime_constants::async_backing::MINUTES);
+		assert!(<<Runtime as pallet_coretime_control::Config>::TransportControlEnabled as Get<
+			bool,
+		>>::get());
+	}
+	#[cfg(not(feature = "fast-runtime"))]
+	{
+		assert_eq!(Period::get(), 6 * origin_hub_system_runtime_constants::async_backing::HOURS);
+		assert!(!<<Runtime as pallet_coretime_control::Config>::TransportControlEnabled as Get<
+			bool,
+		>>::get());
+	}
+}
+
 #[path = "remediation_v3.rs"]
 mod remediation_v3;
 
@@ -71,1067 +151,41 @@ fn post_transactions_rejects_a_leaked_paid_meta_token() {
 }
 
 #[test]
-fn completion_manifest_is_parseable_finite_and_uniquely_indexed() {
+fn completion_manifest_is_parseable_unique_and_clean_genesis() {
 	use std::collections::BTreeSet;
 
 	let manifest: toml::Value =
 		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml"))
-			.expect("the frozen completion manifest must be valid TOML");
-	assert_eq!(manifest["manifest_version"].as_integer(), Some(4));
-	assert_eq!(manifest["replanning"]["iteration"].as_integer(), Some(5));
-	assert_eq!(
-		manifest["replanning"]["decision"].as_str(),
-		Some("freeze-current-completion-evidence-v4")
-	);
-	for (table, expected) in [
-		("source", 7),
-		("runtime_pallet", 72),
-		("runtime_api", 109),
-		("benchmark", 57),
-		("migration", 22),
-		("migration_pipeline", 1),
-		("node_surface", 45),
-		("acceptance", 26),
-		("exclusion", 10),
-		("package_provenance", 41),
-		("protocol_call", 7),
-		("protocol_storage", 14),
-		("protocol_type", 13),
-		("protocol_internal", 9),
-		("protocol_view", 3),
-		("protocol_event", 10),
-		("protocol_error", 18),
-		("protocol_benchmark", 9),
-		("protocol_migration", 3),
-		("protocol_invariant", 12),
-		("protocol_acceptance", 20),
-		("protocol_obligation", 10),
-		("protocol_dependency", 3),
-		("protocol_constant", 5),
-		("meta_contract", 42),
-		("meta_router_variant", 7),
-		("meta_vector", 18),
-		("meta_ingress", 20),
-		("bulletin_v7_rehearsal", 13),
-		("bulletin_v7_contract", 10),
-		("provider_v8_contract", 4),
-		("remediation_gate", 5),
-	] {
-		assert_eq!(manifest[table].as_array().map(Vec::len), Some(expected), "{table}");
-	}
-	let pallets = manifest["runtime_pallet"].as_array().unwrap();
-	let indices = pallets
-		.iter()
-		.map(|row| row["index"].as_integer().unwrap())
-		.collect::<BTreeSet<_>>();
-	assert_eq!(indices.len(), pallets.len(), "pallet indices are unique");
-	for table in [
-		"source",
-		"runtime_pallet",
-		"runtime_api",
-		"benchmark",
-		"migration",
-		"node_surface",
-		"acceptance",
-		"exclusion",
-		"protocol_call",
-		"protocol_storage",
-		"protocol_type",
-		"protocol_internal",
-		"protocol_view",
-		"protocol_event",
-		"protocol_error",
-		"protocol_benchmark",
-		"protocol_migration",
-		"protocol_invariant",
-		"protocol_acceptance",
-		"protocol_obligation",
-		"protocol_dependency",
-		"protocol_constant",
-		"meta_contract",
-		"meta_router_variant",
-		"meta_vector",
-		"meta_ingress",
-		"bulletin_v7_rehearsal",
-		"bulletin_v7_contract",
-		"provider_v8_contract",
-		"remediation_gate",
-	] {
-		let rows = manifest[table].as_array().unwrap();
-		let ids = rows.iter().map(|row| row["id"].as_str().unwrap()).collect::<BTreeSet<_>>();
-		assert_eq!(ids.len(), rows.len(), "{table} ids are unique");
-	}
-	let filesystem = manifest["package_provenance"]
-		.as_array()
-		.unwrap()
-		.iter()
-		.find(|row| row["package"].as_str() == Some("file-system-primitives"))
-		.unwrap();
-	assert_eq!(filesystem["license"].as_str(), Some("UNDECLARED-REQUIRES-LEGAL-CLEARANCE"));
-
-	let provenance = manifest["package_provenance"].as_array().unwrap();
-	let provenance_packages = provenance
-		.iter()
-		.map(|row| row["package"].as_str().unwrap())
-		.collect::<BTreeSet<_>>();
-	assert_eq!(provenance_packages.len(), provenance.len(), "package provenance is unique");
-	for pallet in pallets {
-		let package = pallet["package"].as_str().unwrap();
-		let source = pallet["source"].as_str().unwrap();
-		if source != "dhiway-sdk"
-			|| matches!(package, "pallet-pgas-allowance" | "pallet-vesting" | "pallet-claims")
-		{
-			assert!(
-				provenance_packages.contains(package),
-				"retained local/adapted/planned package lacks provenance: {package}"
-			);
-		}
-	}
-	for (id, owner) in [
-		("PAL-114", "slice-8"),
-		("PAL-115", "slice-8"),
-		("PAL-116", "slice-8"),
-		("PAL-123", "slice-9"),
-		("PAL-124", "slice-9"),
-		("PAL-120", "slice-10"),
-		("PAL-121", "slice-11"),
-		("PAL-122", "slice-11"),
-	] {
-		let pallet = pallets.iter().find(|row| row["id"].as_str() == Some(id)).unwrap();
-		assert_eq!(pallet["evidence"].as_str(), Some(owner), "{id} owner");
-	}
-	let node_surfaces = manifest["node_surface"].as_array().unwrap();
-	for (owner, packages) in [
-		("slice-10", &["storage-primitives", "pallet-storage-provider"][..]),
-		(
-			"slice-11",
-			&[
-				"file-system-primitives",
-				"pallet-drive-registry",
-				"s3-primitives",
-				"pallet-s3-registry",
-			][..],
-		),
-		("slice-12", &["storage-client", "file-system-client", "s3-client"][..]),
-	] {
-		for package in packages {
-			let row = node_surfaces
-				.iter()
-				.find(|row| {
-					row["kind"].as_str() == Some("source-crate")
-						&& row["name"].as_str() == Some(*package)
-				})
-				.unwrap();
-			assert_eq!(row["owner"].as_str(), Some(owner), "{package} owner");
-			assert_eq!(row["evidence"].as_str(), Some(owner), "{package} evidence");
-		}
-	}
-	for row in node_surfaces.iter().filter(|row| {
-		matches!(
-			row["kind"].as_str(),
-			Some("provider-module" | "provider-http-method" | "retained-worker")
-		)
-	}) {
-		assert_eq!(row["owner"].as_str(), Some("slice-12"));
-		assert_eq!(row["evidence"].as_str(), Some("slice-12"));
-	}
-
-	let api_rows = manifest["runtime_api"].as_array().unwrap();
-	for api in ["StorageProviderApi", "DriveRegistryApi", "S3RegistryApi"] {
-		let rows = api_rows.iter().filter(|row| row["api"].as_str() == Some(api));
-		let mut count = 0;
-		for row in rows {
-			assert_eq!(row["evidence"].as_str(), Some("slice-12"), "{api} owner");
-			count += 1;
-		}
-		assert!(count > 0, "{api} must remain inventoried");
-	}
-	for row in api_rows {
-		let method = row["method"].as_str().unwrap();
-		let return_type = method.split_once("->").map(|(_, result)| result).unwrap_or("()");
-		let max_results = row["max_results"].as_integer().unwrap();
-		if return_type.contains("BoundedVec<") {
-			assert_eq!(max_results, 100, "bounded API cardinality: {method}");
-		} else if !return_type.contains("Vec<") {
-			assert_eq!(max_results, 1, "scalar API cardinality: {method}");
-		}
-	}
-
-	let revive = api_rows
-		.iter()
-		.filter(|row| row["api"].as_str() == Some("ReviveApi"))
-		.map(|row| row["method"].as_str().unwrap())
-		.collect::<Vec<_>>();
-	assert_eq!(
-		revive,
-		[
-			"eth_block() -> EthBlock",
-			"eth_block_hash(number: U256) -> Option<H256>",
-			"eth_receipt_data() -> Vec<ReceiptGasInfo>",
-			"block_gas_limit() -> U256",
-			"max_extrinsic_weight_in_gas() -> U256",
-			"balance(address: H160) -> U256",
-			"gas_price() -> U256",
-			"nonce(address: H160) -> Nonce",
-			"call(origin: AccountId, dest: H160, value: Balance, gas_limit: Option<Weight>, storage_deposit_limit: Option<Balance>, input_data: Vec<u8>) -> ContractResult<ExecReturnValue, Balance>",
-			"instantiate(origin: AccountId, value: Balance, gas_limit: Option<Weight>, storage_deposit_limit: Option<Balance>, code: Code, data: Vec<u8>, salt: Option<[u8; 32]>) -> ContractResult<InstantiateReturnValue, Balance>",
-			"eth_transact(tx: GenericTransaction) -> Result<EthTransactInfo<Balance>, EthTransactError>",
-			"eth_transact_with_config(tx: GenericTransaction, config: DryRunConfig<Moment>) -> Result<EthTransactInfo<Balance>, EthTransactError>",
-			"eth_estimate_gas(tx: GenericTransaction, config: DryRunConfig<Moment>) -> Result<U256, EthTransactError>",
-			"eth_pre_dispatch_weight(tx: Vec<u8>) -> Result<Weight, EthTransactError>",
-			"upload_code(origin: AccountId, code: Vec<u8>, storage_deposit_limit: Option<Balance>) -> CodeUploadResult<Balance>",
-			"get_storage(address: H160, key: [u8; 32]) -> GetStorageResult",
-			"get_storage_var_key(address: H160, key: Vec<u8>) -> GetStorageResult",
-			"trace_block(block: Block, config: TracerType) -> Vec<(u32, Trace)>",
-			"trace_tx(block: Block, tx_index: u32, config: TracerType) -> Option<Trace>",
-			"trace_call(tx: GenericTransaction, config: TracerType) -> Result<Trace, EthTransactError>",
-			"trace_call_with_config(tx: GenericTransaction, tracer_type: TracerType, config: TracingConfig) -> Result<Trace, EthTransactError>",
-			"block_author() -> H160",
-			"address(account_id: AccountId) -> H160",
-			"account_id(address: H160) -> AccountId",
-			"runtime_pallets_address() -> H160",
-			"code(address: H160) -> Vec<u8>",
-			"new_balance_with_dust(balance: U256) -> Result<(Balance, u32), BalanceConversionError>",
-		]
-	);
-	assert!(
-		manifest["node_surface"].as_array().unwrap().iter().any(|row| row["id"].as_str()
-			== Some("NODE-bulletin-proof-provider")
-			&& row["state"].as_str() == Some("planned")
-			&& row["owner"].as_str() == Some("slice-12")
-			&& row["evidence"]
-				.as_str()
-				.is_some_and(|evidence| evidence.starts_with("slice-12:"))),
-		"Bulletin's node proof provider remains a truthful Slice 12 deliverable"
-	);
-	for package in ["pallet-orbis-entity", "pallet-orbis-feeless"] {
-		let row = provenance.iter().find(|row| row["package"].as_str() == Some(package)).unwrap();
-		assert_eq!(row["upstream_declared_license"].as_str(), Some("Apache-2.0"));
-		assert_eq!(row["fork_license"].as_str(), Some("GPL-3.0-or-later"));
-		assert!(row["legal_note"].as_str().is_some_and(|note| note.contains("SPDX")));
-	}
-	assert_eq!(manifest["migration_pipeline"][0]["state"].as_str(), Some("present-empty-pipeline"));
-}
-
-#[test]
-fn completion_manifest_v4_evidence_is_exact_and_semantically_frozen() {
-	let manifest_text = include_str!("../../../../docs/orbis-completion-manifest.toml");
-	let manifest: toml::Value = toml::from_str(manifest_text).unwrap();
-	assert_eq!(manifest["manifest_version"].as_integer(), Some(4));
-	assert!(!manifest_text.contains("implemented-pending-evidence"));
-	let evidence_tables = [
-		"meta_contract",
-		"meta_router_variant",
-		"meta_vector",
-		"meta_ingress",
-		"bulletin_v7_rehearsal",
-		"bulletin_v7_contract",
-		"provider_v8_contract",
-		"remediation_gate",
-	];
-	let mut present = 0;
-	let mut planned = 0;
-	for table in evidence_tables {
-		for row in manifest[table].as_array().unwrap() {
-			match row["status"].as_str().unwrap() {
-				"present" => {
-					present += 1;
-					for field in [
-						"source_paths",
-						"source_symbol",
-						"test_or_command",
-						"expected_assertion",
-						"artifact_path",
-						"artifact_sha256",
-						"source_commit",
-						"expected_output",
-						"output_sha256",
-					] {
-						assert!(
-							row[field].as_str().is_some_and(|value| !value.is_empty()),
-							"{table}.{field}"
-						);
-					}
-					assert_ne!(row["artifact_sha256"].as_str().unwrap(), "0".repeat(64));
-				},
-				"planned" => {
-					planned += 1;
-					for field in [
-						"source_paths",
-						"source_symbol",
-						"test_or_command",
-						"expected_assertion",
-						"artifact_path",
-						"artifact_sha256",
-						"source_commit",
-					] {
-						assert_eq!(row[field].as_str(), Some(""), "{table}.{field}");
-					}
-					assert!(row["planned_slice"].as_str().is_some_and(|value| !value.is_empty()));
-					assert!(row["dependency_ids"].as_str().is_some_and(|value| !value.is_empty()));
-				},
-				status => panic!("invalid v4 evidence status {status}"),
-			}
-		}
-	}
-	assert_eq!((present, planned), (115, 4));
-	let contract = manifest["meta_contract"].as_array().unwrap();
-	for id in [
-		"META-EVIDENCE-COMPILED-ENABLED",
-		"META-EVIDENCE-CUSTOM-LOSS",
-		"META-EVIDENCE-NOHASH-CANNOTLOOKUP",
-		"META-EVIDENCE-EARLY-PROPAGATION",
-	] {
-		assert!(contract
-			.iter()
-			.any(|row| row["id"].as_str() == Some(id) && row["status"].as_str() == Some("present")));
-	}
-	assert!(manifest["bulletin_v7_contract"]
-		.as_array()
-		.unwrap()
-		.iter()
-		.all(|row| row["status"].as_str() == Some("present")));
-	assert!(manifest["provider_v8_contract"]
-		.as_array()
-		.unwrap()
-		.iter()
-		.all(|row| row["status"].as_str() == Some("planned")));
-	let ids = |table: &str| {
-		manifest[table]
-			.as_array()
-			.unwrap()
-			.iter()
-			.map(|row| row["id"].as_str().unwrap())
-			.collect::<Vec<_>>()
-	};
-	assert_eq!(
-		ids("meta_router_variant"),
-		[
-			"ROUTER-PERSON-ALIAS",
-			"ROUTER-PERSON-IDENTITY",
-			"ROUTER-PERSON-ALIAS-REVISED",
-			"ROUTER-LITE-PERSON",
-			"ROUTER-LITE-ALIAS",
-			"ROUTER-LITE-ALIAS-REVISED",
-			"ROUTER-RESOURCES-CLAIM",
-		]
-	);
-	assert_eq!(
-		ids("bulletin_v7_rehearsal"),
-		[
-			"REF-MISSING",
-			"REF-PARTIAL",
-			"REF-STALE",
-			"REF-DUPLICATE",
-			"HASH-MISSING",
-			"HASH-PARTIAL",
-			"HASH-STALE",
-			"HASH-DUPLICATE",
-			"BOTH-PARTIAL-BAD-COUNTER",
-			"EMPTY",
-			"HISTORICAL-4C",
-			"HISTORICAL-640",
-			"MAX-VALID",
-		]
-	);
-	let value = |id: &str| {
-		contract.iter().find(|row| row["id"].as_str() == Some(id)).unwrap()["value"]
-			.as_str()
-			.unwrap()
-	};
-	assert_eq!(
-		value("META-COMPAT-SPEC"),
-		"canonical positive spec_version = 28; canonical spec-27 literal is negative"
-	);
-	assert_eq!(value("META-COMPAT-TX"), "transaction_version = 7");
-	assert_eq!(value("META-WEIGHT-PAID"), "PaidMetaScope = 2R + 2W");
-	assert_eq!(value("META-WEIGHT-CONSUME"), "ConsumePaidMetaIngress = 1R + 1W");
-	let bulletin = manifest["bulletin_v7_contract"].as_array().unwrap();
-	let bulletin_value = |id: &str| {
-		bulletin.iter().find(|row| row["id"].as_str() == Some(id)).unwrap()["value"]
-			.as_str()
-			.unwrap()
-	};
-	assert_eq!(bulletin_value("BUL-V7-READS"), "reads = A + T + L + I_ref + I_hash + 3L + 3");
-	assert_eq!(bulletin_value("BUL-V7-WRITES"), "writes = I_ref + I_hash + 2L + 2 + 1");
-	assert_eq!(
-		manifest["audited_runtime_commit"].as_str(),
-		Some("f88aa3faa6573582ca690fa3cace58b7f670aa88")
-	);
-	evidence_markers_v4::emit_evidence_markers_v4("runtime-manifest");
-}
-
-#[test]
-fn completion_manifest_v4_gate5_clear_is_exact_and_narrow() {
-	let manifest: toml::Value =
-		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml")).unwrap();
-	for row in manifest["provider_v8_contract"].as_array().unwrap() {
-		assert_eq!(row["status"].as_str(), Some("planned"));
-		assert_eq!(row["planned_slice"].as_str(), Some("slice-10"));
-		assert_eq!(row["dependency_ids"].as_str(), Some("BUL-V7-COMMIT"));
-		for field in [
-			"source_paths",
-			"source_symbol",
-			"test_or_command",
-			"expected_assertion",
-			"artifact_path",
-			"artifact_sha256",
-			"source_commit",
-		] {
-			assert_eq!(row[field].as_str(), Some(""));
-		}
-	}
-	let gate5 = manifest["remediation_gate"]
-		.as_array()
-		.unwrap()
-		.iter()
-		.find(|row| row["id"].as_str() == Some("GATE-5-EVIDENCE"))
-		.unwrap();
-	assert_eq!(gate5["status"].as_str(), Some("present"));
-	assert_eq!(gate5["dependency_ids"].as_str(), Some("ARCHITECT-CLEAR; CRITIC-CLEAR"));
-	assert_eq!(manifest["replanning"]["architect_status"].as_str(), Some("clear"));
-	assert_eq!(
-		manifest["replanning"]["architect_evidence"].as_str(),
-		Some("docs/evidence/orbis-v4/architect-review-clear-1.md")
-	);
-	assert_eq!(manifest["replanning"]["critic_status"].as_str(), Some("clear"));
-	assert_eq!(
-		manifest["replanning"]["critic_evidence"].as_str(),
-		Some("docs/evidence/orbis-v4/critic-review-clear-1.md")
-	);
-	for field in [
-		"source_paths",
-		"source_symbol",
-		"test_or_command",
-		"expected_assertion",
-		"artifact_path",
-		"artifact_sha256",
-		"source_commit",
-		"expected_output",
-		"output_sha256",
-		"assertion_sha256",
-	] {
-		assert!(gate5[field].as_str().is_some_and(|value| !value.is_empty()), "Gate5.{field}");
-	}
-	let remaining_planned = [
-		"meta_contract",
-		"meta_router_variant",
-		"meta_vector",
-		"meta_ingress",
-		"bulletin_v7_rehearsal",
-		"bulletin_v7_contract",
-		"provider_v8_contract",
-		"remediation_gate",
-	]
-	.into_iter()
-	.flat_map(|table| manifest[table].as_array().unwrap())
-	.filter(|row| row["status"].as_str() == Some("planned"))
-	.count();
-	assert_eq!(remaining_planned, 4);
-	evidence_markers_v4::emit_evidence_markers_v4("runtime-gate5");
-}
-
-#[test]
-fn completion_manifest_v4_migration_lifecycle_is_not_conflated() {
-	let manifest: toml::Value =
-		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml")).unwrap();
-	assert!(manifest["bulletin_v7_contract"]
-		.as_array()
-		.unwrap()
-		.iter()
-		.all(|row| row["status"].as_str() == Some("present")
-			&& row["source_symbol"].as_str() == Some("MigrateV6ToV7")));
-	assert!(manifest["provider_v8_contract"]
-		.as_array()
-		.unwrap()
-		.iter()
-		.all(|row| row["status"].as_str() == Some("planned")));
-	assert_eq!(
-		<TransactionStorage as frame_support::traits::GetStorageVersion>::in_code_storage_version(),
-		frame_support::traits::StorageVersion::new(7)
-	);
-}
-
-#[test]
-fn completion_manifest_v4_has_exactly_four_metadata_modes() {
-	let manifest: toml::Value =
-		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml")).unwrap();
-	let modes = manifest["meta_contract"]
-		.as_array()
-		.unwrap()
-		.iter()
-		.filter(|row| row["kind"].as_str() == Some("metadata-evidence"))
-		.map(|row| row["id"].as_str().unwrap())
-		.collect::<std::collections::BTreeSet<_>>();
-	assert_eq!(
-		modes,
-		std::collections::BTreeSet::from([
-			"META-EVIDENCE-COMPILED-ENABLED",
-			"META-EVIDENCE-CUSTOM-LOSS",
-			"META-EVIDENCE-NOHASH-CANNOTLOOKUP",
-			"META-EVIDENCE-EARLY-PROPAGATION",
-		])
-	);
-}
-
-#[test]
-fn completion_manifest_v4_source_inventory_covers_every_row() {
-	let manifest: toml::Value =
-		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml")).unwrap();
-	let mut identities = Vec::new();
+			.expect("the current completion manifest must be valid TOML");
+	assert_eq!(manifest["manifest_version"].as_integer(), Some(7));
+	let mut identities = BTreeSet::new();
 	for (table, value) in manifest.as_table().unwrap() {
 		let Some(rows) = value.as_array() else { continue };
 		for row in rows {
 			let id = ["id", "name", "package", "revision"]
 				.into_iter()
 				.find_map(|key| row.get(key).and_then(toml::Value::as_str))
-				.unwrap();
-			identities.push((
-				table.as_str(),
-				id,
-				row.get("state").and_then(toml::Value::as_str).unwrap_or(""),
-				row.get("status").and_then(toml::Value::as_str).unwrap_or(""),
-			));
+				.expect("every manifest row has an identity");
+			assert!(identities.insert((table.as_str(), id)), "duplicate {table}:{id}");
 		}
 	}
-	identities.sort_unstable();
-	assert_eq!(identities.as_slice(), evidence_inventory_v4::MANIFEST_INVENTORY_V4);
-	assert_eq!(identities.len(), evidence_inventory_v4::MANIFEST_INVENTORY_V4_COUNT);
-	let canonical = identities
-		.iter()
-		.map(|(table, id, state, status)| format!("{table}\0{id}\0{state}\0{status}\n"))
-		.collect::<String>();
-	let digest = sp_io::hashing::blake2_256(canonical.as_bytes())
-		.iter()
-		.map(|byte| format!("{byte:02x}"))
-		.collect::<String>();
-	assert_eq!(digest, evidence_inventory_v4::MANIFEST_INVENTORY_V4_BLAKE2_256);
-}
-
-#[test]
-fn resources_bulletin_iteration_two_manifest_is_exact() {
-	let manifest: toml::Value =
-		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml")).unwrap();
-	let rows = |table: &str| manifest[table].as_array().unwrap();
-	let ids =
-		|table: &str| rows(table).iter().map(|row| row["id"].as_str().unwrap()).collect::<Vec<_>>();
-
-	fn canonical_semantics(value: &toml::Value, output: &mut String) {
-		match value {
-			toml::Value::String(value) => {
-				output.push_str("s");
-				output.push_str(&value.len().to_string());
-				output.push(':');
-				output.push_str(value);
-			},
-			toml::Value::Integer(value) => output.push_str(&format!("i{value};")),
-			toml::Value::Float(value) => output.push_str(&format!("f{:016x};", value.to_bits())),
-			toml::Value::Boolean(value) => output.push_str(if *value { "b1;" } else { "b0;" }),
-			toml::Value::Datetime(value) => output.push_str(&format!("d{value};")),
-			toml::Value::Array(values) => {
-				output.push('[');
-				for value in values {
-					canonical_semantics(value, output);
-				}
-				output.push(']');
-			},
-			toml::Value::Table(values) => {
-				output.push('{');
-				let mut keys = values
-					.keys()
-					.filter(|key| !matches!(key.as_str(), "state" | "evidence"))
-					.collect::<Vec<_>>();
-				keys.sort();
-				for key in keys {
-					canonical_semantics(&toml::Value::String(key.clone()), output);
-					canonical_semantics(&values[key], output);
-				}
-				output.push('}');
-			},
-		}
-	}
-
-	let mut canonical = String::new();
-	for table in [
-		"protocol_call",
-		"protocol_storage",
-		"protocol_type",
-		"protocol_internal",
-		"protocol_view",
-		"protocol_event",
-		"protocol_error",
-		"protocol_benchmark",
-		"protocol_migration",
-		"protocol_invariant",
-		"protocol_acceptance",
-		"protocol_obligation",
-		"protocol_dependency",
-		"protocol_constant",
-	] {
-		canonical.push_str(table);
-		canonical_semantics(&manifest[table], &mut canonical);
-	}
-	let api_semantics = manifest["runtime_api"]
+	assert!(manifest.get("protocol_migration").is_none());
+	assert!(manifest.get("bulletin_v7_rehearsal").is_none());
+	assert!(manifest.get("bulletin_v7_contract").is_none());
+	assert!(manifest["provider_v8_contract"]
 		.as_array()
 		.unwrap()
 		.iter()
-		.filter(|row| {
-			matches!(
-				row["id"].as_str(),
-				Some(
-					"API-BulletinTransactionStorageApi-04"
-						| "API-BulletinTransactionStorageApi-05"
-						| "API-BulletinTransactionStorageApi-06"
-				)
-			)
-		})
-		.cloned()
-		.collect::<Vec<_>>();
-	canonical.push_str("runtime_api:ResourcesBulletinIteration2");
-	canonical_semantics(&toml::Value::Array(api_semantics), &mut canonical);
-	let semantic_hash = sp_io::hashing::blake2_256(canonical.as_bytes());
-	let semantic_hash = semantic_hash.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
-	assert_eq!(
-		semantic_hash, "35bf9d779f5d5b694fecf58035fcc91be1fce1b7a84d5edc20061ac264ed5abc",
-		"iteration-2 semantic rows changed; mutable state/evidence are deliberately excluded"
-	);
-
-	assert_eq!(
-		ids("protocol_call"),
-		[
-			"CALL-Resources-12",
-			"CALL-Resources-14",
-			"CALL-Resources-15",
-			"CALL-Resources-16",
-			"CALL-Resources-17",
-			"CALL-BulletinTransactionStorage-10",
-			"CALL-BulletinTransactionStorage-11",
-		]
-	);
-	let calls = rows("protocol_call");
-	let call_shape = calls
-		.iter()
-		.map(|row| {
-			(
-				row["pallet"].as_str().unwrap(),
-				row["index"].as_integer().unwrap(),
-				row["name"].as_str().unwrap(),
-				row["owner"].as_str().unwrap(),
-			)
-		})
-		.collect::<Vec<_>>();
-	assert_eq!(
-		call_shape,
-		[
-			("Resources", 12, "claim_long_term_storage", "slice-1"),
-			("Resources", 14, "reserved-unused", "compatibility"),
-			("Resources", 15, "cancel_long_term_storage_reservation", "slice-1"),
-			("Resources", 16, "reserved-unused", "compatibility"),
-			("Resources", 17, "expire_long_term_storage_reservations", "slice-1"),
-			("BulletinTransactionStorage", 10, "store_reserved", "slice-1"),
-			("BulletinTransactionStorage", 11, "renew_reserved", "slice-1"),
-		]
-	);
-	assert!(calls
-		.iter()
-		.filter(|row| row["status"].as_str() == Some("reserved-unused"))
-		.all(|row| matches!(row["index"].as_integer(), Some(14 | 16))));
-
-	assert_eq!(
-		ids("protocol_storage"),
-		[
-			"STORE-Resources-NextStorageReservationId",
-			"STORE-Resources-StorageClaims",
-			"STORE-Resources-StorageReservationByPurpose",
-			"STORE-BulletinV6-StoredBy",
-			"STORE-BulletinV6-ResourceReservations",
-			"STORE-BulletinV6-ResourceReservationExpiryBlocks",
-			"STORE-BulletinV6-ResourceReservationExpiryBuckets",
-			"STORE-BulletinV6-ResourceReservationExpiryCursor",
-			"STORE-BulletinV6-ResourceReservationLinks",
-			"STORE-BulletinV6-ResourceLinkByRef",
-			"STORE-BulletinV6-ResourceReservationTombstones",
-			"STORE-BulletinV6-TombstonePruneQueue",
-			"STORE-BulletinV6-TombstonePruneCursor",
-			"STORE-BulletinV6-ReservedPermanentCapacity",
-		]
-	);
-	for row in rows("protocol_storage") {
-		assert_eq!(row["owner"].as_str(), Some("slice-1"));
-		assert_eq!(row["state"].as_str(), Some("present"));
-	}
-
-	assert_eq!(
-		ids("protocol_type"),
-		[
-			"TYPE-ReservationId",
-			"TYPE-ReservationPurpose",
-			"TYPE-TwoPhaseStorage",
-			"TYPE-BulletinRef",
-			"TYPE-StorageActor",
-			"TYPE-ResourceReservation",
-			"TYPE-ResourceReservationLink",
-			"TYPE-ResourceReservationTombstone",
-			"TYPE-ResourceClaimLifecycle",
-			"TYPE-ClaimCleanupOutcome",
-			"TYPE-ResourceReservationView",
-			"TYPE-PreparedReservedStore",
-			"TYPE-PreparedReservedRenew",
-		]
-	);
-	assert_eq!(
-		ids("protocol_internal"),
-		[
-			"INTERNAL-prepare-reserved-store",
-			"INTERNAL-commit-reserved-store",
-			"INTERNAL-prepare-reserved-renew",
-			"INTERNAL-commit-reserved-renew",
-			"INTERNAL-reserve-resource-capacity",
-			"INTERNAL-cancel-resource-capacity",
-			"INTERNAL-expire-due-resource-capacity",
-			"INTERNAL-prune-resource-tombstones",
-			"INTERNAL-resource-claim-lifecycle",
-		]
-	);
-	assert_eq!(
-		ids("protocol_event"),
-		[
-			"EVENT-Resources-LongTermStorageReserved",
-			"EVENT-Resources-LongTermStorageReservationCancelled",
-			"EVENT-Resources-LongTermStorageReservationExpired",
-			"EVENT-Bulletin-StoredContentProvenanceRecorded",
-			"EVENT-Bulletin-ResourceCapacityReserved",
-			"EVENT-Bulletin-ReservedContentStored",
-			"EVENT-Bulletin-ReservedContentRenewed",
-			"EVENT-Bulletin-ResourceCapacityReleased",
-			"EVENT-Bulletin-ResourceReservationExpired",
-			"EVENT-Bulletin-ResourceTombstonePruned",
-		]
-	);
-	assert_eq!(
-		ids("protocol_error"),
-		[
-			"ERROR-ReservationBackendFailed",
-			"ERROR-ReservationIdOverflow",
-			"ERROR-ReservationNotFound",
-			"ERROR-NotReservationOwner",
-			"ERROR-ClaimAlreadyReserved",
-			"ERROR-ReservationNotActive",
-			"ERROR-ReservationExpired",
-			"ERROR-ContentNotFound",
-			"ERROR-ContentAlreadyLinked",
-			"ERROR-ContentTooLarge",
-			"ERROR-TransactionAllowanceExhausted",
-			"ERROR-BytesAllowanceExhausted",
-			"ERROR-StoredContentOwnerMismatch",
-			"ERROR-LegacyContentUnrenewable",
-			"ERROR-BulletinRefHashMismatch",
-			"ERROR-ExpiryBucketFull",
-			"ERROR-ExpiryBlockSetFull",
-			"ERROR-CleanupLimitExceeded",
-		]
-	);
-	assert_eq!(
-		ids("protocol_benchmark"),
-		[
-			"PBENCH-Resources-claim-long-term-storage",
-			"PBENCH-Resources-cancel-long-term-storage-reservation",
-			"PBENCH-Resources-expire-long-term-storage-reservations",
-			"PBENCH-Bulletin-store-reserved",
-			"PBENCH-Bulletin-renew-reserved",
-			"PBENCH-Bulletin-provenance-actor-paths",
-			"PBENCH-Bulletin-worst-expiry-cursor",
-			"PBENCH-Bulletin-full-tombstone-scan",
-			"PBENCH-Bulletin-cross-pallet-prune",
-		]
-	);
-
-	let migrations = rows("protocol_migration");
-	assert_eq!(
-		ids("protocol_migration"),
-		["PMIG-Bulletin-V5-to-V6", "PMIG-Bulletin-V6-to-V7", "PMIG-Bulletin-V7-to-V8",]
-	);
-	assert_eq!(migrations[0]["from_version"].as_integer(), Some(5));
-	assert_eq!(migrations[0]["to_version"].as_integer(), Some(6));
-	assert_eq!(migrations[0]["owner"].as_str(), Some("slice-1"));
-	assert_eq!(migrations[1]["from_version"].as_integer(), Some(6));
-	assert_eq!(migrations[1]["to_version"].as_integer(), Some(7));
-	assert_eq!(migrations[1]["owner"].as_str(), Some("slice-1"));
-	assert_eq!(migrations[1]["state"].as_str(), Some("present"));
-	assert_eq!(migrations[2]["from_version"].as_integer(), Some(7));
-	assert_eq!(migrations[2]["to_version"].as_integer(), Some(8));
-	assert_eq!(migrations[2]["owner"].as_str(), Some("slice-10"));
-	assert_eq!(migrations[2]["state"].as_str(), Some("planned"));
-	for row in migrations {
-		assert!(!row["pre_invariant"].as_str().unwrap().is_empty());
-		assert!(!row["post_invariant"].as_str().unwrap().is_empty());
-	}
-
-	assert_eq!(
-		ids("protocol_acceptance"),
-		(1..=20).map(|n| format!("RES-BUL-{n:02}")).collect::<Vec<_>>()
-	);
-	assert_eq!(
-		ids("protocol_obligation"),
-		[
-			"P0-AsResources-slot",
-			"P0-AsResources-order",
-			"P0-AsResources-defaults",
-			"P0-AsResources-version",
-			"P0-AsResources-metadata",
-			"P0-AsResources-signing",
-			"P0-AsResources-direct-meta",
-			"P0-AsResources-ethereum",
-			"P0-AsResources-authorized",
-			"P0-ReservedStorage-validation",
-		]
-	);
-	for row in rows("protocol_obligation") {
-		assert_eq!(row["owner"].as_str(), Some("slice-1"));
-	}
-	assert_eq!(
-		ids("protocol_dependency"),
-		["DEP-Slice3-ProofOfInk", "DEP-Slice10-Provider", "DEP-Slice14-UnifiedApp"]
-	);
-	let provider_dependency = rows("protocol_dependency")
-		.into_iter()
-		.find(|row| row["id"].as_str() == Some("DEP-Slice10-Provider"))
-		.unwrap();
-	assert_eq!(
-		provider_dependency["requires"].as_str(),
-		Some("PMIG-Bulletin-V7-to-V8 provider_ref migration")
-	);
-
-	for (row, name) in rows("protocol_type").iter().zip([
-		"ReservationId",
-		"ReservationPurpose",
-		"TwoPhaseStorage",
-		"BulletinRef",
-		"StorageActor",
-		"ResourceReservation",
-		"ResourceReservationLink",
-		"ResourceReservationTombstone",
-		"ResourceClaimLifecycle",
-		"ClaimCleanupOutcome",
-		"ResourceReservationView",
-		"PreparedReservedStore",
-		"PreparedReservedRenew",
-	]) {
-		assert_eq!(row["name"].as_str(), Some(name));
-		assert_eq!(row["owner"].as_str(), Some("slice-1"));
-		assert!(!row["shape"].as_str().unwrap().is_empty(), "{name} shape");
-		assert!(!row["contract"].as_str().unwrap().is_empty(), "{name} contract");
-	}
-	for (row, name) in rows("protocol_internal").iter().zip([
-		"prepare_reserved_store",
-		"commit_reserved_store",
-		"prepare_reserved_renew",
-		"commit_reserved_renew",
-		"reserve_resource_capacity",
-		"cancel_resource_capacity",
-		"expire_due_resource_capacity",
-		"prune_resource_tombstones",
-		"ResourceClaimLifecycle::prune_claim",
-	]) {
-		assert_eq!(row["name"].as_str(), Some(name));
-		assert_eq!(row["owner"].as_str(), Some("slice-1"));
-		assert!(!row["contract"].as_str().unwrap().is_empty(), "{name} contract");
-	}
-	for (row, (name, shape)) in rows("protocol_view").iter().zip([
-		("stored_content_provenance", "StorageActor<AccountId>"),
-		(
-			"resource_reservation",
-			"Option<Active(ResourceReservation) | Tombstone(ResourceReservationTombstone)>",
-		),
-		("resource_reservation_link", "Option<ResourceReservationLink>"),
-	]) {
-		assert_eq!(row["api"].as_str(), Some("BulletinTransactionStorageApi"));
-		assert_eq!(row["name"].as_str(), Some(name));
-		assert_eq!(row["shape"].as_str(), Some(shape));
-		assert_eq!(row["max_results"].as_integer(), Some(1));
-		assert_eq!(row["owner"].as_str(), Some("slice-1"));
-	}
-	for (row, name) in rows("protocol_event").iter().zip([
-		"LongTermStorageReserved",
-		"LongTermStorageReservationCancelled",
-		"LongTermStorageReservationExpired",
-		"StoredContentProvenanceRecorded",
-		"ResourceCapacityReserved",
-		"ReservedContentStored",
-		"ReservedContentRenewed",
-		"ResourceCapacityReleased",
-		"ResourceReservationExpired",
-		"ResourceTombstonePruned",
-	]) {
-		assert_eq!(row["name"].as_str(), Some(name));
-		assert_eq!(row["owner"].as_str(), Some("slice-1"));
-	}
-	for (row, name) in rows("protocol_error").iter().zip([
-		"ReservationBackendFailed",
-		"ReservationIdOverflow",
-		"ReservationNotFound",
-		"NotReservationOwner",
-		"ClaimAlreadyReserved",
-		"ReservationNotActive",
-		"ReservationExpired",
-		"ContentNotFound",
-		"ContentAlreadyLinked",
-		"ContentTooLarge",
-		"TransactionAllowanceExhausted",
-		"BytesAllowanceExhausted",
-		"StoredContentOwnerMismatch",
+		.all(|row| row["status"].as_str() == Some("present")));
+	let text = include_str!("../../../../docs/orbis-completion-manifest.toml");
+	for stale in [
+		"PMIG-Bulletin",
+		"LegacyUnknown",
 		"LegacyContentUnrenewable",
-		"BulletinRefHashMismatch",
-		"ExpiryBucketFull",
-		"ExpiryBlockSetFull",
-		"CleanupLimitExceeded",
-	]) {
-		assert_eq!(row["name"].as_str(), Some(name));
-		assert_eq!(row["owner"].as_str(), Some("slice-1"));
-	}
-	for (row, target) in rows("protocol_benchmark").iter().zip([
-		"Resources::claim_long_term_storage",
-		"Resources::cancel_long_term_storage_reservation",
-		"Resources::expire_long_term_storage_reservations",
-		"BulletinTransactionStorage::store_reserved",
-		"BulletinTransactionStorage::renew_reserved",
-		"BulletinTransactionStorage::all_provenance_actor_paths",
-		"BulletinTransactionStorage::expire_due_resource_capacity",
-		"BulletinTransactionStorage::prune_resource_tombstones",
-		"BulletinTransactionStorage::ResourceClaimLifecycle",
-	]) {
-		assert_eq!(row["target"].as_str(), Some(target));
-		assert_eq!(row["owner"].as_str(), Some("slice-1"));
-		assert_eq!(row["state"].as_str(), Some("present"));
-	}
-	for (row, keyword) in rows("protocol_invariant").iter().zip([
-		"sum(active",
-		"MaxPermanentStorageSize",
-		"MaxReservations",
-		"StorageClaims",
-		"StorageReservationByPurpose",
-		"strictly ascending",
-		"TombstonePruneQueue",
-		"current ResourceReservationLinks ref",
-		"StoredBy[BulletinRef]",
-		"only its ReservationId",
-		"both count in PermanentStorageUsed",
-		"host call",
-	]) {
-		assert_eq!(row["owner"].as_str(), Some("slice-1"));
-		assert!(row["formula"].as_str().unwrap().contains(keyword));
-	}
-	for (row, keyword) in rows("protocol_acceptance").iter().zip([
-		"reserve then store_reserved",
-		"owner and collision",
-		"person and lite-person",
-		"partial bytes",
-		"manual renew_reserved",
-		"owner cancellation",
-		"numeric expiry",
-		"failure injection",
-		"full expiry bucket",
-		"active-plus-tombstone",
-		"match and mismatch",
-		"signed, root, preimage",
-		"V5-to-V6",
-		"direct AsResources",
-		"MetaTx AsResources",
-		"Utility, Proxy, Multisig",
-		"Ethereum",
-		"authorized/offchain",
-		"person/lite quota exhaustion",
-		"ordinary paid",
-	]) {
-		assert_eq!(row["owner"].as_str(), Some("slice-1"));
-		assert!(row["scenario"].as_str().unwrap().contains(keyword));
-	}
-	for (row, (owner, consumer, required)) in rows("protocol_dependency").iter().zip([
-		("slice-3", "slice-3", "ReservationPurpose::ProofOfInk"),
-		("slice-10", "slice-10", "PMIG-Bulletin-V7-to-V8 provider_ref migration"),
-		("slice-14", "slice-14", "complete Resources reservation"),
-	]) {
-		assert_eq!(row["owner"].as_str(), Some(owner));
-		assert_eq!(row["consumer"].as_str(), Some(consumer));
-		assert!(row["requires"].as_str().unwrap().contains(required));
-		assert!(!row["contract"].as_str().unwrap().is_empty());
-	}
-
-	let constants = rows("protocol_constant");
-	assert_eq!(
-		ids("protocol_constant"),
-		[
-			"CONST-MaxReservations",
-			"CONST-MaxReservationExpiryBlocks",
-			"CONST-MaxReservationsPerExpiryBlock",
-			"CONST-MaxReservationLinks",
-			"CONST-TombstoneRetention",
-		]
-	);
-	for (row, (name, value, unit)) in constants.iter().zip([
-		("MaxReservations", 256, "reservations"),
-		("MaxReservationExpiryBlocks", 256, "distinct-blocks"),
-		("MaxReservationsPerExpiryBlock", 256, "reservations-per-block"),
-		("MaxReservationLinks", 1024, "links"),
-		("TombstoneRetention", 100, "blocks"),
-	]) {
-		assert_eq!(row["name"].as_str(), Some(name));
-		assert_eq!(row["value"].as_integer(), Some(value));
-		assert_eq!(row["unit"].as_str(), Some(unit));
-		assert_eq!(row["owner"].as_str(), Some("slice-1"));
-		let policy = row["policy"].as_str().unwrap();
-		assert!(policy.contains("production tuning requires a runtime upgrade"));
-		assert!(policy.contains("replan"));
-	}
-
-	let resources = manifest["runtime_pallet"]
-		.as_array()
-		.unwrap()
-		.iter()
-		.find(|row| row["id"].as_str() == Some("PAL-096"))
-		.unwrap();
-	assert_eq!(resources["index"].as_integer(), Some(96));
-	assert_eq!(resources["state"].as_str(), Some("present"));
-	assert_eq!(resources["evidence"].as_str(), Some("origin/orbis/runtime/src/lib.rs:index-96"));
-	let new_api = manifest["runtime_api"]
-		.as_array()
-		.unwrap()
-		.iter()
-		.filter(|row| {
-			matches!(
-				row["id"].as_str(),
-				Some(
-					"API-BulletinTransactionStorageApi-04"
-						| "API-BulletinTransactionStorageApi-05"
-						| "API-BulletinTransactionStorageApi-06"
-				)
-			)
-		})
-		.collect::<Vec<_>>();
-	for (row, (id, signature)) in new_api.iter().zip([
-		(
-			"API-BulletinTransactionStorageApi-04",
-			"stored_content_provenance(reference: BulletinRef<BlockNumber>) -> StorageActor<AccountId>",
-		),
-		(
-			"API-BulletinTransactionStorageApi-05",
-			"resource_reservation(reservation_id: ReservationId) -> Option<ResourceReservationView<AccountId, BlockNumber>>",
-		),
-		(
-			"API-BulletinTransactionStorageApi-06",
-			"resource_reservation_link(reservation_id: ReservationId, content_hash: ContentHash) -> Option<ResourceReservationLink<AccountId, BlockNumber>>",
-		),
-	]) {
-		assert_eq!(row["id"].as_str(), Some(id));
-		assert_eq!(row["method"].as_str(), Some(signature));
-		assert_eq!(row["max_results"].as_integer(), Some(1));
-		assert_eq!(row["state"].as_str(), Some("present"));
-		assert_eq!(
-			row["evidence"].as_str(),
-			Some(
-				"6401424b"
-			)
-		);
+		"MigrateV6ToV7",
+		"provider_ref migration",
+	] {
+		assert!(!text.contains(stale), "stale clean-break manifest symbol: {stale}");
 	}
 }
 
@@ -2425,16 +1479,7 @@ fn solidity_evm_fixture_deploys_and_executes_through_revive() {
 }
 
 #[test]
-fn identity_bound_contract_moves_assets_and_persists_its_audit() {
-	use pallet_revive::{
-		test_utils::builder::{BareCallBuilder, BareInstantiateBuilder},
-		AddressMapper, Code, TransactionLimits,
-	};
-	let limits = || TransactionLimits::WeightAndDeposit {
-		weight_limit: frame_support::weights::Weight::from_parts(500_000_000_000, 10 * 1024 * 1024),
-		deposit_limit: 50_000_000_000_000_000,
-	};
-
+fn native_identity_attestation_name_asset_and_storage_journey() {
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		System::set_block_number(1);
 		System::set_extrinsic_index(0);
@@ -2442,34 +1487,15 @@ fn identity_bound_contract_moves_assets_and_persists_its_audit() {
 		let recipient = pallet_revive::test_utils::BOB;
 		<Balances as Mutate<AccountId>>::set_balance(&owner, 100_000_000_000_000_000);
 		<Balances as Mutate<AccountId>>::set_balance(&recipient, crate::ExistentialDeposit::get());
-		<Balances as Mutate<AccountId>>::set_balance(
-			&Revive::account_id(),
-			crate::ExistentialDeposit::get(),
-		);
 
-		let mut identity = pallet_orbis_people::legacy::IdentityInfo::<
+		let mut identity = pallet_orbis_people::identity_info::IdentityInfo::<
 			crate::PeopleMaxAdditionalFields,
 		>::default();
 		identity.display =
 			pallet_orbis_people::Data::Raw(b"Alice Orbis".to_vec().try_into().unwrap());
 		assert_ok!(People::set_identity(RuntimeOrigin::signed(owner.clone()), Box::new(identity),));
 		assert!(People::has_identity(&owner, 1));
-		let identity_commitment = sp_io::hashing::blake2_256(owner.as_ref());
-
-		let code = decode_hex(include_str!("../fixtures/build/IdentityAssetAudit.bin"));
-		let instantiated = BareInstantiateBuilder::<Runtime>::bare_instantiate(
-			RuntimeOrigin::signed(owner.clone()),
-			Code::Upload(code),
-		)
-		.transaction_limits(limits())
-		.constructor_data(identity_commitment.to_vec())
-		.salt(Some([8u8; 32]))
-		.build_and_unwrap_result();
-		assert!(!instantiated.result.did_revert());
-		let contract_addr = instantiated.addr;
-		let contract_account = <pallet_revive::AccountId32Mapper<Runtime> as AddressMapper<
-			Runtime,
-		>>::to_fallback_account_id(&contract_addr);
+		let identity_commitment = sp_core::H256::from(sp_io::hashing::blake2_256(owner.as_ref()));
 
 		let asset_id = 7u32;
 		assert_ok!(Assets::create(
@@ -2481,48 +1507,20 @@ fn identity_bound_contract_moves_assets_and_persists_its_audit() {
 		assert_ok!(Assets::mint(
 			RuntimeOrigin::signed(owner.clone()),
 			asset_id.into(),
-			contract_account.clone().into(),
+			owner.clone().into(),
 			100,
 		));
-
-		let audit_record = b"alice:identity-asset-transfer:40".to_vec();
-		let audit = sp_io::hashing::blake2_256(&audit_record);
-		let mut asset_addr = [0u8; 20];
-		asset_addr[..4].copy_from_slice(&asset_id.to_be_bytes());
-		asset_addr[16..18].copy_from_slice(&0x0120u16.to_be_bytes());
-		let recipient_addr = <pallet_revive::AccountId32Mapper<Runtime> as AddressMapper<
-			Runtime,
-		>>::to_address(&recipient);
-		let mut transfer =
-			sp_io::hashing::keccak_256(b"transferAndAudit(address,address,uint256,bytes32)")[..4]
-				.to_vec();
-		for address in [asset_addr, recipient_addr.0] {
-			transfer.extend_from_slice(&[0u8; 12]);
-			transfer.extend_from_slice(&address);
-		}
-		transfer.extend_from_slice(&[0u8; 31]);
-		transfer.push(40);
-		transfer.extend_from_slice(&audit);
-		let transferred = BareCallBuilder::<Runtime>::bare_call(
+		assert_ok!(Assets::transfer(
 			RuntimeOrigin::signed(owner.clone()),
-			contract_addr,
-		)
-		.transaction_limits(limits())
-		.data(transfer)
-		.build_and_unwrap_result();
-		assert!(!transferred.did_revert(), "contract call reverted: {transferred:?}");
-		assert_eq!(Assets::balance(asset_id, &contract_account), 60);
+			asset_id.into(),
+			recipient.clone().into(),
+			40,
+		));
+		assert_eq!(Assets::balance(asset_id, &owner), 60);
 		assert_eq!(Assets::balance(asset_id, &recipient), 40);
 
-		let last_audit = BareCallBuilder::<Runtime>::bare_call(
-			RuntimeOrigin::signed(owner.clone()),
-			contract_addr,
-		)
-		.transaction_limits(limits())
-		.data(sp_io::hashing::keccak_256(b"lastAudit()")[..4].to_vec())
-		.build_and_unwrap_result();
-		assert_eq!(last_audit.data, audit);
-
+		let audit_record = b"alice:native-identity-asset-transfer:40".to_vec();
+		let audit = sp_io::hashing::blake2_256(&audit_record);
 		assert_ok!(TransactionStorage::authorize_account(
 			RuntimeOrigin::root(),
 			owner.clone(),
@@ -2536,13 +1534,104 @@ fn identity_bound_contract_moves_assets_and_persists_its_audit() {
 		let scope = scope.expect("store calls carry their validated authorization scope");
 		assert_ok!(TransactionStorage::pre_dispatch_signed(&owner, &storage_call));
 		let authorized = pallet_bulletin_transaction_storage::Origin::<Runtime>::Authorized {
-			who: owner,
+			who: owner.clone(),
 			scope,
 		};
 		assert_ok!(TransactionStorage::store(RuntimeOrigin::from(authorized), audit_record,));
 		assert!(TransactionStorage::contains_transaction(audit));
 		<TransactionStorage as Hooks<u32>>::on_finalize(1);
 		assert_eq!(TransactionStorage::transactions_at(1).unwrap()[0].content_hash, audit);
+
+		let definition: pallet_orbis_attestation::SchemaDefinitionOf<Runtime> =
+			b"festival-pass-v1".to_vec().try_into().unwrap();
+		let definition_commitment =
+			sp_core::H256::from(sp_io::hashing::blake2_256(definition.as_slice()));
+		let issuers: pallet_orbis_attestation::AuthorizedIssuersOf<Runtime> =
+			vec![owner.clone()].try_into().unwrap();
+		assert_ok!(Attestation::create_schema(
+			RuntimeOrigin::signed(owner.clone()),
+			definition,
+			issuers,
+			true,
+			true,
+			pallet_orbis_attestation::IndexPolicy::IssuerAndSubjectSchema,
+		));
+		let schema = Attestation::schema_id(
+			&owner,
+			&definition_commitment,
+			true,
+			true,
+			pallet_orbis_attestation::IndexPolicy::IssuerAndSubjectSchema,
+		);
+		let input = pallet_orbis_attestation::AttestationInput::<Runtime> {
+			schema,
+			subject_commitment: identity_commitment,
+			payload_commitment: sp_core::H256::from(audit),
+			status_commitment: sp_core::H256::from_low_u64_be(1),
+			parent: None,
+			expiry: Some(100),
+			uniqueness_commitment: Some(sp_core::H256::from_low_u64_be(7)),
+			revocable: true,
+		};
+		let attestation = Attestation::attestation_id(&owner, &input, 0);
+		assert_ok!(Attestation::issue(RuntimeOrigin::signed(owner.clone()), input));
+		assert!(Attestation::is_live(attestation));
+
+		let label = Dotns::validate_label(b"alice".to_vec()).unwrap();
+		let salt: pallet_orbis_dotns::SaltOf<Runtime> = b"festival".to_vec().try_into().unwrap();
+		let commitment = Dotns::registration_commitment(&owner, None, &label, &salt);
+		assert_ok!(Dotns::commit(RuntimeOrigin::signed(owner.clone()), commitment));
+		System::set_block_number(3);
+		System::set_extrinsic_index(1);
+		assert_ok!(Dotns::register(
+			RuntimeOrigin::signed(owner.clone()),
+			None,
+			label.clone(),
+			salt,
+		));
+		let name = Dotns::derive_name_id(None, &label);
+		assert_ok!(Dotns::set_subject(
+			RuntimeOrigin::signed(owner.clone()),
+			name,
+			Some(identity_commitment),
+		));
+		assert_ok!(Dotns::set_attestation(
+			RuntimeOrigin::signed(owner.clone()),
+			name,
+			Some(attestation),
+		));
+		assert_ok!(Dotns::set_content(RuntimeOrigin::signed(owner.clone()), name, Some(audit),));
+
+		let drive_name: pallet_orbis_drive::DriveNameOf<Runtime> =
+			b"festival".to_vec().try_into().unwrap();
+		assert_ok!(Drive::create_drive(
+			RuntimeOrigin::signed(owner.clone()),
+			drive_name,
+			Some(audit),
+		));
+		let drive_id = pallet_orbis_drive::OwnerDrives::<Runtime>::get(&owner)[0];
+		assert_eq!(
+			pallet_orbis_drive::Drives::<Runtime>::get(drive_id).unwrap().root_storage_ref,
+			Some(audit)
+		);
+
+		let bucket_name: pallet_orbis_s3::BucketNameOf<Runtime> =
+			b"festival-audit".to_vec().try_into().unwrap();
+		let bucket = S3::bucket_id(&owner, &bucket_name);
+		assert_ok!(S3::create_bucket(RuntimeOrigin::signed(owner.clone()), bucket_name));
+		let key: pallet_orbis_s3::ObjectKeyOf<Runtime> =
+			b"audit/transfer".to_vec().try_into().unwrap();
+		assert_ok!(S3::put_object(
+			RuntimeOrigin::signed(owner.clone()),
+			bucket,
+			key.clone(),
+			audit,
+			None,
+		));
+		assert_eq!(
+			pallet_orbis_s3::Objects::<Runtime>::get(bucket, key).unwrap().content_hash,
+			Some(audit)
+		);
 	});
 }
 
@@ -2551,9 +1640,9 @@ fn people_identity_is_self_claimed_and_sudo_attested() {
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		let account = AccountId::from(ALICE);
 		let registrar = AccountId::from([3u8; 32]);
-		let mut info =
-			pallet_orbis_people::legacy::IdentityInfo::<crate::PeopleMaxAdditionalFields>::default(
-			);
+		let mut info = pallet_orbis_people::identity_info::IdentityInfo::<
+			crate::PeopleMaxAdditionalFields,
+		>::default();
 		info.display = pallet_orbis_people::Data::Raw(b"Alice".to_vec().try_into().unwrap());
 
 		assert_ok!(People::set_identity(RuntimeOrigin::signed(account.clone()), Box::new(info),));
@@ -5592,9 +4681,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 		assert!(header.number > 0);
 		assert!(crate::meta_v6::token().is_none());
 	});
-	if emit_v4 {
-		evidence_markers_v4::emit_evidence_markers_v4("runtime-sponsored");
-	}
+	if emit_v4 {}
 }
 
 #[test]
@@ -5821,101 +4908,6 @@ fn native_benchmark_api_discovers_and_executes_score_and_honour() {
 	}
 }
 
-#[test]
-#[cfg(feature = "try-runtime")]
-fn full_unreleased_migration_rehearses_absent_native_prefixes_and_bulletin_v6() {
-	use frame_support::traits::{GetStorageVersion, OnRuntimeUpgrade, StorageVersion};
-
-	fn prefix_keys<P: PalletInfoAccess>() -> u32 {
-		let prefix = sp_io::hashing::twox_128(P::name().as_bytes());
-		let mut previous = prefix.to_vec();
-		let mut count = 0;
-		while let Some(key) =
-			sp_io::storage::next_key(&previous).filter(|key| key.starts_with(&prefix))
-		{
-			previous = key;
-			count += 1;
-		}
-		count
-	}
-
-	sp_io::TestExternalities::new_empty().execute_with(|| {
-		assert_eq!(prefix_keys::<crate::Score>(), 0);
-		assert_eq!(prefix_keys::<crate::Honour>(), 0);
-		pallet_bulletin_transaction_storage::RetentionPeriod::<Runtime>::put(100u32);
-		StorageVersion::new(6).put::<crate::TransactionStorage>();
-
-		<crate::Migrations as OnRuntimeUpgrade>::try_on_runtime_upgrade(true).unwrap();
-
-		assert_eq!(crate::Score::on_chain_storage_version(), StorageVersion::new(1));
-		assert_eq!(crate::Honour::on_chain_storage_version(), StorageVersion::new(1));
-		assert_eq!(crate::TransactionStorage::on_chain_storage_version(), StorageVersion::new(7));
-		assert_eq!(
-			pallet_orbis_score::ManagerAccount::<Runtime>::get(),
-			Some(AccountId::new([0x53; 32]))
-		);
-		assert_eq!(pallet_orbis_score::PayoutAccount::<Runtime>::get(), AccountId::new([0x50; 32]));
-		assert_eq!(prefix_keys::<crate::Score>(), 3);
-		assert_eq!(prefix_keys::<crate::Honour>(), 1);
-
-		let before = sp_io::storage::root(sp_runtime::StateVersion::V1);
-		<crate::Migrations as OnRuntimeUpgrade>::on_runtime_upgrade();
-		let after = sp_io::storage::root(sp_runtime::StateVersion::V1);
-		assert_eq!(after, before, "fresh/current full tuple must be byte-idempotent");
-	});
-}
-
-#[cfg(feature = "try-runtime")]
-fn assert_dirty_native_introduction_aborts_before_any_migration(dirty_score: bool) {
-	use frame_support::traits::{
-		GetStorageVersion, OnRuntimeUpgrade, PalletInfoAccess, StorageVersion,
-	};
-
-	sp_io::TestExternalities::new_empty().execute_with(|| {
-		if dirty_score {
-			pallet_orbis_score::ManagerAccount::<Runtime>::put(AccountId::new([0x77; 32]));
-		} else {
-			let prefix = sp_io::hashing::twox_128(crate::Honour::name().as_bytes());
-			let mut dirty = prefix.to_vec();
-			dirty.extend_from_slice(b"dirty-v0");
-			sp_io::storage::set(&dirty, b"must-survive");
-		}
-		pallet_bulletin_transaction_storage::RetentionPeriod::<Runtime>::put(100u32);
-		StorageVersion::new(6).put::<crate::TransactionStorage>();
-
-		let before_root = sp_io::storage::root(sp_runtime::StateVersion::V1);
-		let before_score_version = crate::Score::on_chain_storage_version();
-		let before_honour_version = crate::Honour::on_chain_storage_version();
-		let before_bulletin_version = crate::TransactionStorage::on_chain_storage_version();
-		let failure = std::panic::catch_unwind(|| {
-			<crate::Migrations as OnRuntimeUpgrade>::on_runtime_upgrade();
-		});
-		assert!(failure.is_err(), "dirty v0 native state must fail closed");
-
-		assert_eq!(sp_io::storage::root(sp_runtime::StateVersion::V1), before_root);
-		assert_eq!(crate::Score::on_chain_storage_version(), before_score_version);
-		assert_eq!(crate::Honour::on_chain_storage_version(), before_honour_version);
-		assert_eq!(crate::TransactionStorage::on_chain_storage_version(), before_bulletin_version);
-		assert_eq!(before_score_version, StorageVersion::new(0));
-		assert_eq!(before_honour_version, StorageVersion::new(0));
-		assert_eq!(before_bulletin_version, StorageVersion::new(6));
-		assert!(!pallet_orbis_score::PayoutAccount::<Runtime>::exists());
-		assert_eq!(pallet_bulletin_transaction_storage::RetentionPeriod::<Runtime>::get(), 100);
-	});
-}
-
-#[test]
-#[cfg(feature = "try-runtime")]
-fn full_unreleased_migration_dirty_score_v0_aborts_without_partial_progress() {
-	assert_dirty_native_introduction_aborts_before_any_migration(true);
-}
-
-#[test]
-#[cfg(feature = "try-runtime")]
-fn full_unreleased_migration_dirty_honour_v0_aborts_without_partial_progress() {
-	assert_dirty_native_introduction_aborts_before_any_migration(false);
-}
-
 #[derive(Clone, Copy, Eq, PartialEq)]
 struct CannotLookupMetadataResolver;
 
@@ -6026,75 +5018,4 @@ fn metadata_custom_hash_loss_is_detected_after_wire_roundtrip() {
 		&(extension.encode(), Some(other)).encode(),
 		&pair.public(),
 	));
-	evidence_markers_v4::emit_evidence_markers_v4("runtime-custom-hash");
-}
-
-#[test]
-#[cfg(not(feature = "runtime-benchmarks"))]
-fn slice2_v5_surfaces_evidence() {
-	let pending = evidence_inventory_v5::MANIFEST_INVENTORY_V5_PENDING;
-	let closed = evidence_inventory_v5::MANIFEST_INVENTORY_V5_CLOSED;
-	assert_eq!(pending.len(), evidence_inventory_v5::MANIFEST_INVENTORY_V5_COUNT);
-	assert_eq!(closed.len(), evidence_inventory_v5::MANIFEST_INVENTORY_V5_COUNT);
-	let differences = pending
-		.iter()
-		.zip(closed)
-		.filter(|(left, right)| left != right)
-		.collect::<Vec<_>>();
-	assert_eq!(differences.len(), 1);
-	assert_eq!(differences[0].0 .1, "GATE-6-SLICE2-EVIDENCE");
-	assert_eq!(differences[0].0 .3, "pending");
-	assert_eq!(differences[0].1 .3, "present");
-	for (inventory, expected) in [
-		(pending, evidence_inventory_v5::MANIFEST_INVENTORY_V5_PENDING_BLAKE2_256),
-		(closed, evidence_inventory_v5::MANIFEST_INVENTORY_V5_CLOSED_BLAKE2_256),
-	] {
-		let canonical = inventory
-			.iter()
-			.map(|(table, id, state, status)| format!("{table}\0{id}\0{state}\0{status}\n"))
-			.collect::<String>();
-		let digest = sp_io::hashing::blake2_256(canonical.as_bytes())
-			.iter()
-			.map(|byte| format!("{byte:02x}"))
-			.collect::<String>();
-		assert_eq!(digest, expected);
-	}
-	score_normal_and_meta_signed_origins_share_active_participant_boundary();
-	direct_score_policy_executes_once_through_concrete_runtime_extensions();
-	ethereum_and_authorized_origins_cannot_activate_native_score_or_honour_policies();
-	sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(false);
-	evidence_markers_v5::emit_evidence_marker_v5("slice2-surfaces");
-}
-
-#[test]
-#[cfg(not(feature = "runtime-benchmarks"))]
-fn slice2_v5_fixtures_evidence() {
-	assert!(option_env!("RUNTIME_METADATA_HASH").is_some(), "compiled metadata hash required");
-	crate::meta_v6_fixtures::checked_in_score_meta_fixture_executes_as_paid_outer_extrinsic();
-	crate::meta_v6_fixtures::checked_in_score_nonce_mutation_is_exact_future_without_inner_mutation(
-	);
-	crate::meta_v6_fixtures::checked_in_honour_meta_fixture_executes_against_exact_runtime_ring();
-	crate::meta_v6_fixtures::checked_in_honour_account_mutation_is_exact_bad_signer_and_executable(
-	);
-	evidence_markers_v5::emit_evidence_marker_v5("slice2-fixtures");
-}
-
-#[test]
-#[cfg(feature = "runtime-benchmarks")]
-fn slice2_v5_benchmark_evidence() {
-	use pallet_orbis_score::weights::WeightInfo as _;
-	native_benchmark_api_discovers_and_executes_score_and_honour();
-	let configured = pallet_orbis_score::weights::SubstrateWeight::<Runtime>::set_payout_account();
-	let measured = frame_support::weights::Weight::from_parts(25_000_000, 3_676);
-	assert!(configured.all_gte(measured));
-	evidence_markers_v5::emit_evidence_marker_v5("slice2-benchmark");
-}
-
-#[test]
-#[cfg(feature = "try-runtime")]
-fn slice2_v5_migrations_evidence() {
-	full_unreleased_migration_rehearses_absent_native_prefixes_and_bulletin_v6();
-	full_unreleased_migration_dirty_score_v0_aborts_without_partial_progress();
-	full_unreleased_migration_dirty_honour_v0_aborts_without_partial_progress();
-	evidence_markers_v5::emit_evidence_marker_v5("slice2-migrations");
 }

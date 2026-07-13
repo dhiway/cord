@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cord.network/schemas/native-lifecycle-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "intent_id",
+    "state"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "intent_id": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 128
+    },
+    "state": {
+      "enum": [
+        "draft",
+        "authorized",
+        "submitted",
+        "included",
+        "finalized",
+        "rejected",
+        "expired",
+        "cancelled"
+      ]
+    },
+    "block_hash": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{64}$"
+    },
+    "extrinsic_hash": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{64}$"
+    },
+    "error": {
+      "$ref": "native-error-v1.json"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "included"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "block_hash"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "finalized"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "block_hash",
+          "extrinsic_hash"
+        ],
+        "not": {
+          "required": [
+            "error"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "rejected",
+              "expired",
+              "cancelled"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "error"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "cancelled"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "error": {
+            "allOf": [
+              {
+                "$ref": "native-error-v1.json"
+              },
+              {
+                "properties": {
+                  "code": {
+                    "const": "cancelled"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "draft",
+              "authorized"
+            ]
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "block_hash"
+              ]
+            },
+            {
+              "required": [
+                "extrinsic_hash"
+              ]
+            },
+            {
+              "required": [
+                "error"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

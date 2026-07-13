@@ -1,0 +1,83 @@
+# Generated only through run.py. Placeholders become hash-recorded raw specs.
+[settings]
+timeout = 900
+isolate_env = true
+
+[relaychain]
+chain = "__RELAY_SPEC__"
+default_command = "__ORIGIN_BINARY__"
+
+[[relaychain.nodes]]
+name = "alice"
+validator = true
+p2p_port = 11801
+rpc_port = 11802
+prometheus_port = 11803
+args = ["--alice", "--trie-cache-size=0", "--disable-worker-version-check", "--execution=wasm"]
+
+[[relaychain.nodes]]
+name = "bob"
+validator = true
+p2p_port = 11811
+rpc_port = 11812
+prometheus_port = 11813
+args = ["--bob", "--trie-cache-size=0", "--disable-worker-version-check", "--execution=wasm"]
+
+[[relaychain.nodes]]
+name = "charlie"
+validator = true
+p2p_port = 11821
+rpc_port = 11822
+prometheus_port = 11823
+args = ["--charlie", "--trie-cache-size=0", "--disable-worker-version-check", "--execution=wasm"]
+
+[[relaychain.nodes]]
+name = "dave"
+validator = true
+p2p_port = 11831
+rpc_port = 11832
+prometheus_port = 11833
+args = ["--dave", "--trie-cache-size=0", "--disable-worker-version-check", "--execution=wasm"]
+
+[[relaychain.nodes]]
+name = "eve"
+validator = true
+p2p_port = 11841
+rpc_port = 11842
+prometheus_port = 11843
+args = ["--eve", "--trie-cache-size=0", "--disable-worker-version-check", "--execution=wasm"]
+
+[[relaychain.nodes]]
+name = "ferdie"
+validator = true
+p2p_port = 11851
+rpc_port = 11852
+prometheus_port = 11853
+args = ["--ferdie", "--trie-cache-size=0", "--disable-worker-version-check", "--execution=wasm"]
+
+[[parachains]]
+id = 1006
+addToGenesis = true
+cumulus_based = true
+chain = "__ORBIS_SPEC__"
+num_cores = 3
+
+[[parachains.collators]]
+name = "orbis-alice"
+collator = true
+command = "__ORBIS_BINARY__"
+p2p_port = 11861
+rpc_port = 11862
+prometheus_port = 11863
+args = ["--alice", "--execution=wasm", "--force-authoring", "--authoring=slot-based"]
+relay_chain_args = ["--node-key", "0909090909090909090909090909090909090909090909090909090909090909", "--no-mdns"]
+
+[[parachains.collators]]
+name = "orbis-bob"
+collator = true
+command = "__ORBIS_BINARY__"
+p2p_port = 11871
+rpc_port = 11872
+prometheus_port = 11873
+args = ["--bob", "--execution=wasm", "--force-authoring", "--authoring=slot-based"]
+relay_chain_args = ["--node-key", "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a", "--no-mdns"]

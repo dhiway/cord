@@ -301,9 +301,9 @@ mod benches {
 		// The midpoint between "fits exactly 1 update" and "fits exactly 2"
 		// keeps max_per_xcm == 1 while leaving some room for
 		// router-injected framing (e.g. SetTopic added by WithUniqueTopic).
-		let payload_for_one_update = ((Pallet::<T>::xcm_message_max_size(1) +
-			Pallet::<T>::xcm_message_max_size(2)) /
-			2) as u32;
+		let payload_for_one_update = ((Pallet::<T>::xcm_message_max_size(1)
+			+ Pallet::<T>::xcm_message_max_size(2))
+			/ 2) as u32;
 		T::BenchmarkHelper::set_max_message_size(payload_for_one_update);
 
 		let sequence = 1u64;

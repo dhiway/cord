@@ -1,0 +1,172 @@
+export type NativeHostFinality = "finalized" | "submit-and-finalize";
+
+export interface NativeHostMethodContract {
+  readonly capability: "identity" | "attestation" | "dotns" | "storage" | "content" | "assets" | "transaction";
+  readonly method: string;
+  readonly finality: NativeHostFinality;
+  readonly payloadFields: readonly string[];
+}
+
+const method = (
+  capability: NativeHostMethodContract["capability"],
+  name: string,
+  finality: NativeHostFinality,
+  payloadFields: readonly string[],
+): NativeHostMethodContract => ({ capability, method: name, finality, payloadFields });
+const read = (capability: NativeHostMethodContract["capability"], name: string, fields: readonly string[]) =>
+  method(capability, name, "finalized", fields);
+const write = (capability: NativeHostMethodContract["capability"], name: string, fields: readonly string[]) =>
+  method(capability, name, "submit-and-finalize", fields);
+
+/**
+ * Frozen HostRequest v1 routing inventory.
+ *
+ * Payload value validation remains in `packages/core/src/contract.ts`; this inventory freezes the
+ * exact closed field set, capability, semantic method name, and finality route used to generate the
+ * public JSON schema and bootstrap descriptor.
+ */
+export const NATIVE_HOST_METHODS = [
+  read("identity", "read", ["subject_id"]),
+  read("attestation", "read", ["attestation_id"]),
+  read("dotns", "resolve", ["name"]),
+  read("storage", "read", ["commitment"]),
+  read("content", "fetch", ["cid"]),
+  read("assets", "balance", ["asset_id", "account"]),
+  write("transaction", "submit", ["operation_id", "intent_id"]),
+
+  read("attestation", "schema_by_id", ["schema"]),
+  read("attestation", "attestation_by_id", ["attestation"]),
+  read("attestation", "attestation_live_status", ["attestation"]),
+  read("attestation", "creator_schemas", ["creator", "cursor", "limit"]),
+  read("attestation", "issuer_attestations", ["issuer", "cursor", "limit"]),
+  read("attestation", "subject_schema_attestations", ["subject_commitment", "schema", "cursor", "limit"]),
+  read("attestation", "next_delegated_nonce", ["issuer"]),
+  read("attestation", "schema_count", []),
+  read("attestation", "attestation_count", []),
+  read("attestation", "next_issuance_nonce", ["issuer"]),
+  read("attestation", "external_status", ["issuer", "status_commitment"]),
+  write("attestation", "create_schema", ["definition", "authorized_issuers", "revocable", "unique", "index_policy"]),
+  write("attestation", "set_schema_status", ["schema", "status"]),
+  write("attestation", "issue", ["schema", "subject_commitment", "payload_commitment", "status_commitment", "parent", "expiry", "uniqueness_commitment", "revocable"]),
+  write("attestation", "issue_delegated", ["intent", "signature"]),
+  write("attestation", "issue_batch", ["items"]),
+  write("attestation", "revoke", ["attestation"]),
+  write("attestation", "set_emergency_pause", ["paused"]),
+  write("attestation", "force_schema_status", ["schema", "status"]),
+  write("attestation", "force_revoke", ["attestation"]),
+  write("attestation", "revoke_delegated", ["intent", "signature"]),
+  write("attestation", "issue_delegated_batch", ["items"]),
+  write("attestation", "revoke_batch", ["attestations"]),
+  write("attestation", "revoke_delegated_batch", ["items"]),
+  write("attestation", "revoke_external_status", ["status_commitment"]),
+  write("attestation", "revoke_external_status_batch", ["status_commitments"]),
+
+  read("dotns", "name_by_id", ["name"]),
+  read("dotns", "root_name_by_normalized_label", ["label"]),
+  read("dotns", "owner_names", ["owner", "cursor", "limit"]),
+  read("dotns", "resolve_address", ["name"]),
+  read("dotns", "resolve_subject", ["name"]),
+  read("dotns", "resolve_attestation", ["name"]),
+  read("dotns", "resolve_content", ["name"]),
+  read("dotns", "resolve_text", ["name", "key"]),
+  read("dotns", "primary_name", ["owner"]),
+  read("dotns", "name_status", ["name"]),
+  write("dotns", "commit", ["commitment"]),
+  write("dotns", "cancel_commitment", ["commitment"]),
+  write("dotns", "prune_expired_commitment", ["owner", "commitment"]),
+  write("dotns", "register", ["parent", "label", "salt"]),
+  write("dotns", "renew", ["name", "additional_period"]),
+  write("dotns", "transfer", ["name", "new_owner"]),
+  write("dotns", "add_controller", ["name", "controller"]),
+  write("dotns", "remove_controller", ["name", "controller"]),
+  write("dotns", "set_address", ["name", "address"]),
+  write("dotns", "set_subject", ["name", "subject"]),
+  write("dotns", "set_attestation", ["name", "attestation"]),
+  write("dotns", "set_content", ["name", "content"]),
+  write("dotns", "set_text", ["name", "key", "value"]),
+  write("dotns", "set_primary_name", ["name"]),
+  write("dotns", "release", ["name"]),
+  write("dotns", "remove_expired_name", ["name"]),
+  write("dotns", "reserve_name", ["parent", "label", "beneficiary", "expires_at"]),
+  write("dotns", "clear_reservation", ["name"]),
+  write("dotns", "set_label_protection", ["label", "protected"]),
+  write("dotns", "set_paused", ["paused"]),
+  write("dotns", "force_transfer", ["name", "new_owner"]),
+  write("dotns", "force_revoke", ["name"]),
+
+  read("storage", "account_authorization", ["account"]),
+  read("storage", "can_store", ["account", "data_len"]),
+  read("storage", "can_renew", ["account", "entry"]),
+  read("storage", "stored_content_provenance", ["reference"]),
+  read("storage", "resource_reservation", ["reservation_id"]),
+  read("storage", "resource_reservation_link", ["reservation_id", "content_hash"]),
+  read("storage", "resource_provider_ref", ["reservation_id"]),
+  write("storage", "store", ["content_base64"]),
+  write("storage", "store_with_cid_config", ["cid_config", "content_base64"]),
+  write("storage", "store_reserved", ["reservation_id", "cid_config", "content_base64"]),
+  write("storage", "renew_reserved", ["reservation_id", "content_hash"]),
+  write("storage", "attach_provider", ["reservation_id", "provider_ref"]),
+  write("storage", "renew", ["entry"]),
+  write("storage", "force_renew", ["entry"]),
+  write("storage", "enable_auto_renew", ["content_hash"]),
+  write("storage", "disable_auto_renew", ["content_hash"]),
+
+  read("storage", "provider_by_id", ["provider"]),
+  read("storage", "providers", ["cursor", "limit"]),
+  read("storage", "agreement_by_id", ["agreement_id"]),
+  read("storage", "provider_agreements", ["provider", "cursor", "limit"]),
+  read("storage", "owner_agreements", ["owner", "cursor", "limit"]),
+  read("storage", "container_agreements", ["container_ref", "cursor", "limit"]),
+  read("storage", "agreement_nonce", ["owner"]),
+  read("storage", "challenge_by_id", ["challenge_id"]),
+  read("storage", "challenges_at", ["block", "cursor", "limit"]),
+  read("storage", "open_challenge_count", ["agreement_id"]),
+  read("storage", "can_accept_capacity", ["provider", "additional_bytes"]),
+  read("storage", "provider_checkpoint", ["provider"]),
+  read("storage", "deletion_acknowledgement", ["agreement_id"]),
+  write("storage", "register_provider", ["provider", "endpoint", "service_key", "capacity_bytes"]),
+  write("storage", "update_provider", ["provider", "endpoint", "service_key", "capacity_bytes"]),
+  write("storage", "set_provider_status", ["provider", "status"]),
+  write("storage", "remove_provider", ["provider"]),
+  write("storage", "heartbeat", []),
+  write("storage", "propose_agreement", ["provider", "container_ref", "content_commitment", "reservation_ref", "bytes", "expires_at"]),
+  write("storage", "accept_agreement", ["agreement_id"]),
+  write("storage", "cancel_agreement", ["agreement_id"]),
+  write("storage", "issue_challenge", ["agreement_id", "expected_commitment", "due_at"]),
+  write("storage", "submit_checkpoint", ["challenge_id", "proof_commitment"]),
+  write("storage", "timeout_challenge", ["challenge_id"]),
+  write("storage", "request_renewal", ["agreement_id", "expires_at"]),
+  write("storage", "acknowledge_deletion", ["agreement_id", "content_commitment", "tombstone_root", "proof_commitment"]),
+  write("storage", "accept_renewal", ["agreement_id"]),
+  write("storage", "expire_agreement", ["agreement_id"]),
+  write("storage", "prune_agreement", ["agreement_id"]),
+
+  read("storage", "drive_by_id", ["drive_id"]),
+  read("storage", "owner_drives", ["owner", "cursor", "limit"]),
+  read("storage", "drive_controllers", ["drive_id", "cursor", "limit"]),
+  read("storage", "next_drive_nonce", ["owner"]),
+  write("storage", "create_drive", ["name", "root_storage_ref"]),
+  write("storage", "update_root", ["drive_id", "expected_version", "root_storage_ref"]),
+  write("storage", "drive.set_controller", ["drive_id", "controller", "enabled"]),
+  write("storage", "transfer_drive", ["drive_id", "new_owner"]),
+  write("storage", "archive_drive", ["drive_id"]),
+
+  read("storage", "bucket_by_id", ["bucket"]),
+  read("storage", "bucket_by_name", ["name"]),
+  read("storage", "owner_buckets", ["owner", "cursor", "limit"]),
+  read("storage", "bucket_object_keys", ["bucket", "cursor", "limit"]),
+  read("storage", "object_by_key", ["bucket", "key"]),
+  read("storage", "object_history", ["bucket", "key", "cursor", "limit"]),
+  read("storage", "object_id", ["bucket", "key"]),
+  write("storage", "create_bucket", ["name"]),
+  write("storage", "s3.set_controller", ["bucket", "expected_bucket_version", "controller", "enabled"]),
+  write("storage", "transfer_bucket", ["bucket", "expected_bucket_version", "new_owner"]),
+  write("storage", "set_archived", ["bucket", "expected_bucket_version", "archived"]),
+  write("storage", "set_versioning", ["bucket", "expected_bucket_version", "enabled"]),
+  write("storage", "put_object", ["bucket", "key", "content_hash", "expected_object_version"]),
+  write("storage", "delete_object", ["bucket", "key", "expected_object_version"]),
+  write("storage", "delete_bucket", ["bucket", "expected_bucket_version"]),
+] as const satisfies readonly NativeHostMethodContract[];
+
+const identities = NATIVE_HOST_METHODS.map(({ capability, method: name }) => `${capability}:${name}`);
+if (new Set(identities).size !== identities.length) throw new Error("duplicate native host method identity");

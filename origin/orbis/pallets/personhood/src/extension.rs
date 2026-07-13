@@ -147,20 +147,25 @@ impl<T: Config + Send + Sync> TransactionExtension<<T as frame_system::Config>::
 			// Extension is passthrough
 			None => Weight::zero(),
 			// Alias with existing account
-			Some(AsPersonInfo::AsPersonalAliasWithAccount(_)) =>
-				T::WeightInfo::as_person_alias_with_account(),
+			Some(AsPersonInfo::AsPersonalAliasWithAccount(_)) => {
+				T::WeightInfo::as_person_alias_with_account()
+			},
 			// Alias with proof
-			Some(AsPersonInfo::AsPersonalAliasWithProof(_, _, _)) =>
-				T::WeightInfo::as_person_alias_with_proof(),
+			Some(AsPersonInfo::AsPersonalAliasWithProof(_, _, _)) => {
+				T::WeightInfo::as_person_alias_with_proof()
+			},
 			// Personal Identity with proof
-			Some(AsPersonInfo::AsPersonalIdentityWithProof(_, _)) =>
-				T::WeightInfo::as_person_identity_with_proof(),
+			Some(AsPersonInfo::AsPersonalIdentityWithProof(_, _)) => {
+				T::WeightInfo::as_person_identity_with_proof()
+			},
 			// Personal Identity with existing account
-			Some(AsPersonInfo::AsPersonalIdentityWithAccount(_)) =>
-				T::WeightInfo::as_person_identity_with_account(),
+			Some(AsPersonInfo::AsPersonalIdentityWithAccount(_)) => {
+				T::WeightInfo::as_person_identity_with_account()
+			},
 			// Alias with account revised at the same time
-			Some(AsPersonInfo::AsPersonalAliasWithAccountRevised(..)) =>
-				T::WeightInfo::as_person_alias_with_account_revised(),
+			Some(AsPersonInfo::AsPersonalAliasWithAccountRevised(..)) => {
+				T::WeightInfo::as_person_alias_with_account_revised()
+			},
 		}
 	}
 
@@ -383,8 +388,9 @@ impl<T: Config + Send + Sync> TransactionExtension<<T as frame_system::Config>::
 		_len: usize,
 	) -> Result<Self::Pre, TransactionValidityError> {
 		match val {
-			Val::UsingAccount(who, nonce) =>
-				CheckNonce::<T>::prepare_nonce_for_account(&who, nonce)?,
+			Val::UsingAccount(who, nonce) => {
+				CheckNonce::<T>::prepare_nonce_for_account(&who, nonce)?
+			},
 			Val::UsingAccountWithRevisionUpdate(who, nonce, rev_ca) => {
 				// `AliasToAccount` doesn't need any changes because the key is an unrevised
 				// contextual alias, which remains constant in this operation, as checked above.

@@ -29,13 +29,14 @@ fn dump_type(metadata: &Metadata, ty: u32, indent: usize) {
 	let pad = "  ".repeat(indent);
 	println!("{pad}- id {ty} kind {:?}", t.type_def);
 	match &t.type_def {
-		TypeDef::Composite(comp) =>
+		TypeDef::Composite(comp) => {
 			for field in &comp.fields {
 				let name = field.name.as_deref().unwrap_or("<unnamed>");
 				println!("{pad}  field {name}: {}", field.ty.id);
 				dump_type(metadata, field.ty.id, indent + 2);
-			},
-		TypeDef::Variant(var) =>
+			}
+		},
+		TypeDef::Variant(var) => {
 			for v in &var.variants {
 				println!("{pad}  variant {} (index {}):", v.name, v.index);
 				for f in &v.fields {
@@ -43,7 +44,8 @@ fn dump_type(metadata: &Metadata, ty: u32, indent: usize) {
 					println!("{pad}    field {name}: {}", f.ty.id);
 					dump_type(metadata, f.ty.id, indent + 3);
 				}
-			},
+			}
+		},
 		TypeDef::Sequence(seq) => {
 			println!("{pad}  seq element: {}", seq.type_param.id);
 			dump_type(metadata, seq.type_param.id, indent + 1);
@@ -52,11 +54,12 @@ fn dump_type(metadata: &Metadata, ty: u32, indent: usize) {
 			println!("{pad}  array len {} elem {}", arr.len, arr.type_param.id);
 			dump_type(metadata, arr.type_param.id, indent + 1);
 		},
-		TypeDef::Tuple(tup) =>
+		TypeDef::Tuple(tup) => {
 			for (idx, id) in tup.fields.iter().enumerate() {
 				println!("{pad}  tuple[{idx}]: {}", id.id);
 				dump_type(metadata, id.id, indent + 1);
-			},
+			}
+		},
 		_ => {},
 	}
 }

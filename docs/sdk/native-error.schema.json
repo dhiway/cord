@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cord.network/schemas/native-error-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "code", "message", "retryable"],
+  "properties": {
+    "version": {"const": 1},
+    "code": {"enum": ["permission_denied", "permission_revoked", "consent_expired", "replay", "cancelled", "timeout", "unsupported_runtime", "metadata_mismatch", "descriptor_mismatch", "inconsistent_snapshot", "invalid_input", "not_authorized", "not_found", "expired", "conflict", "capacity_exceeded", "proof_invalid", "content_unavailable", "content_integrity", "unsupported_surface", "runtime_rejected"]},
+    "message": {"type": "string", "minLength": 1, "maxLength": 512},
+    "retryable": {"type": "boolean"},
+    "details": {"type": "object"}
+  }
+}

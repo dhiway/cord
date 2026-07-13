@@ -95,14 +95,14 @@ impl IngressShapeV3 {
 
 	pub const fn disposition(self) -> IngressDisposition {
 		match self {
-			Self::Direct |
-			Self::UtilityBatch |
-			Self::UtilityBatchAll |
-			Self::UtilityForceBatch |
-			Self::Proxy |
-			Self::ProxyAnnounced |
-			Self::MultisigAsMulti |
-			Self::MultisigThresholdOne => IngressDisposition::Allowed,
+			Self::Direct
+			| Self::UtilityBatch
+			| Self::UtilityBatchAll
+			| Self::UtilityForceBatch
+			| Self::Proxy
+			| Self::ProxyAnnounced
+			| Self::MultisigAsMulti
+			| Self::MultisigThresholdOne => IngressDisposition::Allowed,
 			Self::MultisigApprovalOnly => IngressDisposition::Ineligible,
 			_ => IngressDisposition::Denied,
 		}
@@ -248,10 +248,10 @@ impl SignedDirectResourcesPayerV3 {
 			return Err(DirectPayerError::SignerAccountMismatch);
 		}
 		let binding = self.authoritative_binding.ok_or(DirectPayerError::UnmappedAlias)?;
-		if binding.collection != self.claim_collection ||
-			binding.alias != self.derived_alias ||
-			binding.alias_to_account != signer ||
-			binding.account_to_alias != self.derived_alias
+		if binding.collection != self.claim_collection
+			|| binding.alias != self.derived_alias
+			|| binding.alias_to_account != signer
+			|| binding.account_to_alias != self.derived_alias
 		{
 			return Err(DirectPayerError::AuthoritativeMappingMismatch);
 		}
@@ -312,9 +312,9 @@ pub struct PolicyProofsMirrorV6 {
 
 impl PolicyProofsMirrorV6 {
 	pub fn populated_slots(&self) -> u8 {
-		self.personhood.is_some() as u8 +
-			self.people_lite.is_some() as u8 +
-			self.resources.is_some() as u8
+		self.personhood.is_some() as u8
+			+ self.people_lite.is_some() as u8
+			+ self.resources.is_some() as u8
 	}
 
 	pub fn single_variant(&self) -> Option<RouterVariantV6> {
@@ -322,20 +322,27 @@ impl PolicyProofsMirrorV6 {
 			return None;
 		}
 		match (self.personhood, self.people_lite, self.resources) {
-			(Some(MetaPersonhoodProofMirrorV6::PersonalAliasAccount), None, None) =>
-				Some(RouterVariantV6::PersonalAliasAccount),
-			(Some(MetaPersonhoodProofMirrorV6::PersonalIdentityAccount), None, None) =>
-				Some(RouterVariantV6::PersonalIdentityAccount),
-			(Some(MetaPersonhoodProofMirrorV6::PersonalAliasAccountRevised(_)), None, None) =>
-				Some(RouterVariantV6::PersonalAliasAccountRevised),
-			(None, Some(MetaPeopleLiteProofMirrorV6::LitePerson), None) =>
-				Some(RouterVariantV6::LitePerson),
-			(None, Some(MetaPeopleLiteProofMirrorV6::LiteAliasAccount), None) =>
-				Some(RouterVariantV6::LiteAliasAccount),
-			(None, Some(MetaPeopleLiteProofMirrorV6::LiteAliasAccountRevised(_)), None) =>
-				Some(RouterVariantV6::LiteAliasAccountRevised),
-			(None, None, Some(MetaResourcesProofMirrorV6::ClaimLongTermStorage { .. })) =>
-				Some(RouterVariantV6::ClaimLongTermStorage),
+			(Some(MetaPersonhoodProofMirrorV6::PersonalAliasAccount), None, None) => {
+				Some(RouterVariantV6::PersonalAliasAccount)
+			},
+			(Some(MetaPersonhoodProofMirrorV6::PersonalIdentityAccount), None, None) => {
+				Some(RouterVariantV6::PersonalIdentityAccount)
+			},
+			(Some(MetaPersonhoodProofMirrorV6::PersonalAliasAccountRevised(_)), None, None) => {
+				Some(RouterVariantV6::PersonalAliasAccountRevised)
+			},
+			(None, Some(MetaPeopleLiteProofMirrorV6::LitePerson), None) => {
+				Some(RouterVariantV6::LitePerson)
+			},
+			(None, Some(MetaPeopleLiteProofMirrorV6::LiteAliasAccount), None) => {
+				Some(RouterVariantV6::LiteAliasAccount)
+			},
+			(None, Some(MetaPeopleLiteProofMirrorV6::LiteAliasAccountRevised(_)), None) => {
+				Some(RouterVariantV6::LiteAliasAccountRevised)
+			},
+			(None, None, Some(MetaResourcesProofMirrorV6::ClaimLongTermStorage { .. })) => {
+				Some(RouterVariantV6::ClaimLongTermStorage)
+			},
 			_ => None,
 		}
 	}
@@ -402,9 +409,9 @@ impl IntentPreimageFixtureV6 {
 	}
 
 	pub fn is_canonical_positive(&self) -> bool {
-		self.domain == META_INTENT_DOMAIN_V6 &&
-			self.spec_version == CANONICAL_SPEC_VERSION &&
-			self.transaction_version == CANONICAL_TRANSACTION_VERSION
+		self.domain == META_INTENT_DOMAIN_V6
+			&& self.spec_version == CANONICAL_SPEC_VERSION
+			&& self.transaction_version == CANONICAL_TRANSACTION_VERSION
 	}
 }
 
@@ -450,12 +457,13 @@ impl EnvelopeKind {
 	const fn may_descend(self) -> bool {
 		matches!(
 			self,
-			Self::UtilityBatch |
-				Self::UtilityBatchAll |
-				Self::UtilityForceBatch |
-				Self::Proxy | Self::ProxyAnnounced |
-				Self::MultisigAsMulti |
-				Self::MultisigThresholdOne
+			Self::UtilityBatch
+				| Self::UtilityBatchAll
+				| Self::UtilityForceBatch
+				| Self::Proxy
+				| Self::ProxyAnnounced
+				| Self::MultisigAsMulti
+				| Self::MultisigThresholdOne
 		)
 	}
 }
@@ -566,8 +574,9 @@ pub fn inspect_envelope(nodes: &[EnvelopeNode]) -> Result<InspectionDecision, In
 		}
 	}
 	Ok(match meta_leaf {
-		Some(leaf_index) =>
-			InspectionDecision::EligibleMeta { leaf_index, visited_calls: visited as u8, max_depth },
+		Some(leaf_index) => {
+			InspectionDecision::EligibleMeta { leaf_index, visited_calls: visited as u8, max_depth }
+		},
 		None => InspectionDecision::NoMeta,
 	})
 }
@@ -791,10 +800,10 @@ impl PaidMetaTokenSlotV6 {
 		if token.consumed {
 			return Err(TokenError::AlreadyConsumed);
 		}
-		if token.key() != value.token_key ||
-			token.payer != value.payer ||
-			token.intent_commitment != value.intent_commitment ||
-			token.outer_nonce != value.outer_nonce
+		if token.key() != value.token_key
+			|| token.payer != value.payer
+			|| token.intent_commitment != value.intent_commitment
+			|| token.outer_nonce != value.outer_nonce
 		{
 			return Err(TokenError::KeyMismatch);
 		}
@@ -939,7 +948,6 @@ mod tests {
 		] {
 			assert_eq!(request.validate(), Err(error));
 		}
-		crate::tests::evidence_markers_v4::emit_evidence_markers_v4("runtime-direct-payer");
 	}
 
 	#[test]
@@ -1108,7 +1116,6 @@ mod tests {
 		too_many[0] = EnvelopeNode::wrapper(EnvelopeKind::UtilityBatch, 33, 1, 32);
 		too_many[32] = EnvelopeNode::leaf(EnvelopeKind::MetaLeaf, 1);
 		assert_eq!(inspect_envelope(&too_many), Err(InspectionError::CallCountExceeded));
-		crate::tests::evidence_markers_v4::emit_evidence_markers_v4("runtime-inspector");
 	}
 
 	#[test]
@@ -1158,7 +1165,6 @@ mod tests {
 			weights.malformed_classifier_and_router(),
 			weights.maximum_rejection() + max_router
 		);
-		crate::tests::evidence_markers_v4::emit_evidence_markers_v4("runtime-weights");
 	}
 
 	#[test]
@@ -1183,6 +1189,5 @@ mod tests {
 		consumed.consumed = true;
 		let value = slot.prepare_outer(consumed).unwrap();
 		assert_eq!(slot.consume_inner(value), Err(TokenError::AlreadyConsumed));
-		crate::tests::evidence_markers_v4::emit_evidence_markers_v4("runtime-token");
 	}
 }

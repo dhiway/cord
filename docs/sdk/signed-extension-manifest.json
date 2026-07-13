@@ -1,0 +1,125 @@
+{
+  "evidence": {
+    "adr": "docs/adr/0008-orbis-transaction-policy-pipeline.md",
+    "registry": "docs/sdk/vectors/transaction-policy-vector-registry.json",
+    "reused_vector_directory": "docs/evidence/orbis-v4",
+    "runtime_test": "origin/orbis/runtime/src/tests.rs:1454-1504"
+  },
+  "manifest_version": 1,
+  "policy": {
+    "new_encoded_slot": "requires transaction_version increment and vectors for every reachable surface",
+    "order_is_consensus_contract": true,
+    "reserved_unimplemented_slots": "must not be encoded or authorize/mutate origin",
+    "unknown_missing_or_reordered": "reject"
+  },
+  "ratification": {
+    "canonical_envelope": "docs/evidence/verification/p0/ratification-envelope.json",
+    "payload_sha256": "18a7fe95a300632121d0f448cb7bf3e1bc0e6776e254bc26bc1437a5f19c790a",
+    "p0_targets_status": "RATIFIED",
+    "production_activation_status": "BLOCKED"
+  },
+  "runtime": {
+    "source_sha256": "9615ca9f69bfe6c41b2b9131ee8f96a0e2723c6b6eb7887022e656d627ed2294",
+    "spec_name": "orbis",
+    "spec_version": 29,
+    "transaction_version": 8
+  },
+  "surfaces": {
+    "authorized": {
+      "actor": "System::Authorized only after AuthorizeCall",
+      "extensions": [
+        "AsPerson",
+        "ScoreAsParticipant",
+        "PeopleLiteAuth",
+        "AsResources",
+        "HonourAuth",
+        "AuthorizeCall",
+        "CheckNonZeroSender",
+        "CheckSpecVersion",
+        "CheckTxVersion",
+        "CheckGenesis",
+        "CheckMortality",
+        "CheckNonce",
+        "CheckWeight",
+        "ChargeAssetTxPayment",
+        "ValidateStorageCalls",
+        "CheckMetadataHash",
+        "EthSetOrigin",
+        "StorageWeightReclaim"
+      ],
+      "nonce": "documented zero construction nonce",
+      "payer": "none only when ExplicitPayment derives the authorized origin"
+    },
+    "ethereum": {
+      "actor": "mapped Ethereum account; custom identity policies default to None",
+      "extensions": [
+        "AsPerson",
+        "ScoreAsParticipant",
+        "PeopleLiteAuth",
+        "AsResources",
+        "HonourAuth",
+        "AuthorizeCall",
+        "CheckNonZeroSender",
+        "CheckSpecVersion",
+        "CheckTxVersion",
+        "CheckGenesis",
+        "CheckMortality",
+        "CheckNonce",
+        "CheckWeight",
+        "ChargeAssetTxPayment",
+        "ValidateStorageCalls",
+        "CheckMetadataHash",
+        "EthSetOrigin",
+        "StorageWeightReclaim"
+      ],
+      "nonce": "mapped account nonce",
+      "payer": "mapped Ethereum account"
+    },
+    "meta_inner": {
+      "actor": "verified inner signer or validated account-bound identity",
+      "extensions": [
+        "VerifyMultiSignature",
+        "ConsumePaidMetaIngressV7",
+        "MetaTxMarker",
+        "CheckNonZeroSender",
+        "CheckSpecVersion",
+        "CheckTxVersion",
+        "CheckGenesis",
+        "CheckMortality",
+        "CheckNonce",
+        "ScoreAsParticipant",
+        "MetaAccountBoundPoliciesV6",
+        "HonourAuth",
+        "ValidateStorageCalls",
+        "CheckMetadataHash"
+      ],
+      "nonce": "inner signer MetaTx nonce plus outer relayer system nonce",
+      "payer": "outer relayer only"
+    },
+    "normal": {
+      "actor": "signed account, unless a validated identity policy changes dispatch origin",
+      "extensions": [
+        "AsPerson",
+        "ScoreAsParticipant",
+        "PeopleLiteAuth",
+        "AsResources",
+        "HonourAuth",
+        "AuthorizeCall",
+        "CheckNonZeroSender",
+        "CheckSpecVersion",
+        "CheckTxVersion",
+        "CheckGenesis",
+        "CheckMortality",
+        "CheckNonce",
+        "CheckWeight",
+        "ChargeAssetTxPayment",
+        "ValidateStorageCalls",
+        "CheckMetadataHash",
+        "EthSetOrigin",
+        "StorageWeightReclaim"
+      ],
+      "nonce": "system account nonce",
+      "payer": "signed account or prepared explicit sponsor"
+    }
+  }
+}

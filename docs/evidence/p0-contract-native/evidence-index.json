@@ -1,0 +1,33 @@
+{
+  "artifacts": {
+    "docs/architecture/contract-to-native-migration.csv": "1e1064f21beed9cac840eb78dca100861c248540d9fc9feeaaec23030f2deadb",
+    "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json": "96cd0595fbc89fcd847ee58dd8427aa59bd008c8639b8f82d9bf4d6095b3b5ae",
+    "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.md": "5e34ada9d916b0deee244e28687cc56c35c36ac69be92a80d5b8794041c9e157",
+    "docs/evidence/p0-contract-native/contract-census.report.json": "a2d3498f99e6718f076af16a2f90c2b8a6dbd77e8de4d99e6ede252f45de942e",
+    "docs/evidence/p0-contract-native/guidance-audit.json": "a6eef3c3a7c168788afe73843445e29a7fbc60009d953c921b3481c73c44eedb",
+    "docs/evidence/p0-contract-native/native-cutover-allowlist.json": "faec33c7d19e4efe2470f9c3f83c51c8539a868f58919c37a8dd87f99ce960ec",
+    "docs/evidence/p0-contract-native/native-cutover-cleanup.report.json": "3d8a23a1c81eebc43221f59b465f02af4496806075e3dd500575f1fcc54f95c8",
+    "docs/evidence/p0-contract-native/reference-sbom-inputs.json": "0ba06bdf2149f1136b3420190260fea6e8f11ecc0763a4559da14b6dba03dcbc",
+    "docs/evidence/p0-contract-native/repository-scope.report.json": "1dc86171c06d8adf7b0b602f11e6d35cbf5d16a34299b1efa6034ec869a5380f",
+    "docs/evidence/p0-contract-native/semantic-review-readiness.json": "06b639cd8434f533f239f61a48939780d1de1f72b8d94abbb07f6cd13d0f134d",
+    "docs/evidence/p0-contract-native/source-scope.report.json": "b7ef0e1e4cd1f1a5dc40aa9d83b3291dd7d4e3f51e48ebb9e1c957ad9edda1a1",
+    "docs/evidence/source-ledger.csv": "f9c936c97401e718e759823dfa65818508bdd9ad0e5309f5246fefee9f130638",
+    "docs/sdk/contract-to-native-map.json": "17481530a9c169d7ae42dc30889cf4587a5af89521693691d56e3b1a58ea8f17"
+  },
+  "non_goals": [
+    "deployed-state import",
+    "address migration",
+    "ABI compatibility",
+    "legacy data migration"
+  ],
+  "phase": "P0",
+  "schema_version": 1,
+  "semantic_approval_manifest": {
+    "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
+    "required_reviewer_role": "architect",
+    "review_thread_id": "019f59bd-fa87-7571-837b-6a6a7ae51b2d",
+    "schema_version": 1,
+    "sha256": "96cd0595fbc89fcd847ee58dd8427aa59bd008c8639b8f82d9bf4d6095b3b5ae",
+    "verdict": "APPROVED"
+  }
+}

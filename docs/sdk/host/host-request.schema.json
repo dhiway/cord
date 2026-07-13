@@ -1,0 +1,4184 @@
+{
+  "$id": "https://cord.network/schemas/host-request-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "application_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    },
+    "capability": {
+      "enum": [
+        "identity",
+        "attestation",
+        "dotns",
+        "storage",
+        "content",
+        "assets",
+        "transaction"
+      ]
+    },
+    "consent": {
+      "additionalProperties": false,
+      "properties": {
+        "expires_at": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "nonce": {
+          "maxLength": 128,
+          "minLength": 16,
+          "type": "string"
+        },
+        "scope": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "scope",
+        "expires_at",
+        "nonce"
+      ],
+      "type": "object"
+    },
+    "finality": {
+      "enum": [
+        "finalized",
+        "submit-and-finalize"
+      ]
+    },
+    "method": {
+      "enum": [
+        "accept_agreement",
+        "accept_renewal",
+        "account_authorization",
+        "acknowledge_deletion",
+        "add_controller",
+        "agreement_by_id",
+        "agreement_nonce",
+        "archive_drive",
+        "attach_provider",
+        "attestation_by_id",
+        "attestation_live_status",
+        "balance",
+        "bucket_by_id",
+        "bucket_by_name",
+        "bucket_object_keys",
+        "can_accept_capacity",
+        "can_renew",
+        "can_store",
+        "cancel_agreement",
+        "cancel_commitment",
+        "challenge_by_id",
+        "challenges_at",
+        "clear_reservation",
+        "commit",
+        "container_agreements",
+        "create_bucket",
+        "create_drive",
+        "create_schema",
+        "creator_schemas",
+        "delete_bucket",
+        "delete_object",
+        "deletion_acknowledgement",
+        "disable_auto_renew",
+        "drive.set_controller",
+        "drive_by_id",
+        "drive_controllers",
+        "enable_auto_renew",
+        "expire_agreement",
+        "fetch",
+        "force_renew",
+        "force_revoke",
+        "force_schema_status",
+        "force_transfer",
+        "heartbeat",
+        "issue",
+        "issue_batch",
+        "issue_challenge",
+        "issue_delegated",
+        "issue_delegated_batch",
+        "issuer_attestations",
+        "name_by_id",
+        "name_status",
+        "next_delegated_nonce",
+        "next_drive_nonce",
+        "object_by_key",
+        "object_history",
+        "object_id",
+        "open_challenge_count",
+        "owner_agreements",
+        "owner_buckets",
+        "owner_drives",
+        "owner_names",
+        "primary_name",
+        "propose_agreement",
+        "provider_agreements",
+        "provider_by_id",
+        "provider_checkpoint",
+        "providers",
+        "prune_agreement",
+        "prune_expired_commitment",
+        "put_object",
+        "read",
+        "register",
+        "register_provider",
+        "release",
+        "remove_controller",
+        "remove_expired_name",
+        "remove_provider",
+        "renew",
+        "renew_reserved",
+        "request_renewal",
+        "reserve_name",
+        "resolve",
+        "resolve_address",
+        "resolve_attestation",
+        "resolve_content",
+        "resolve_subject",
+        "resolve_text",
+        "resource_provider_ref",
+        "resource_reservation",
+        "resource_reservation_link",
+        "revoke",
+        "revoke_batch",
+        "revoke_delegated",
+        "revoke_delegated_batch",
+        "root_name_by_normalized_label",
+        "s3.set_controller",
+        "schema_by_id",
+        "set_address",
+        "set_archived",
+        "set_attestation",
+        "set_content",
+        "set_emergency_pause",
+        "set_label_protection",
+        "set_paused",
+        "set_primary_name",
+        "set_provider_status",
+        "set_schema_status",
+        "set_subject",
+        "set_text",
+        "set_versioning",
+        "store",
+        "store_reserved",
+        "store_with_cid_config",
+        "stored_content_provenance",
+        "subject_schema_attestations",
+        "submit",
+        "submit_checkpoint",
+        "timeout_challenge",
+        "transfer",
+        "transfer_bucket",
+        "transfer_drive",
+        "update_provider",
+        "update_root"
+      ]
+    },
+    "network": {
+      "additionalProperties": false,
+      "properties": {
+        "genesis_hash": {
+          "const": "0x40519e2e0e894e9b68defd9df6697619116ea693d0864913c98b5c65cd4e511a"
+        },
+        "spec_version": {
+          "const": 29
+        },
+        "transaction_version": {
+          "const": 8
+        },
+        "metadata_hash": {
+          "const": "0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9"
+        },
+        "chain_spec_source_sha256": {
+          "const": "b67ec215a4ecea710357537ed304e7d228d3389eabd9eb80dc47dd5c329ae489"
+        },
+        "descriptor_contract_sha256": {
+          "const": "5e73eae0a92f765a08b4b72d5020bbbb04f9b79985c5f4276cc777385c706ba6"
+        }
+      },
+      "required": [
+        "genesis_hash",
+        "spec_version",
+        "transaction_version",
+        "metadata_hash",
+        "descriptor_contract_sha256",
+        "chain_spec_source_sha256"
+      ],
+      "type": "object"
+    },
+    "payload": {
+      "type": "object"
+    },
+    "request_id": {
+      "maxLength": 128,
+      "minLength": 16,
+      "type": "string"
+    },
+    "version": {
+      "const": 1
+    }
+  },
+  "required": [
+    "version",
+    "request_id",
+    "application_id",
+    "capability",
+    "method",
+    "network",
+    "finality",
+    "payload",
+    "consent"
+  ],
+  "title": "Orbis native host request",
+  "type": "object",
+  "oneOf": [
+    {
+      "properties": {
+        "capability": {
+          "const": "identity"
+        },
+        "method": {
+          "const": "read"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "subject_id"
+          ],
+          "properties": {
+            "subject_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "read"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "attestation_id"
+          ],
+          "properties": {
+            "attestation_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "resolve"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "read"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "commitment"
+          ],
+          "properties": {
+            "commitment": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "content"
+        },
+        "method": {
+          "const": "fetch"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cid"
+          ],
+          "properties": {
+            "cid": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "assets"
+        },
+        "method": {
+          "const": "balance"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "asset_id",
+            "account"
+          ],
+          "properties": {
+            "asset_id": {},
+            "account": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "transaction"
+        },
+        "method": {
+          "const": "submit"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation_id",
+            "intent_id"
+          ],
+          "properties": {
+            "operation_id": {},
+            "intent_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "schema_by_id"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema"
+          ],
+          "properties": {
+            "schema": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "attestation_by_id"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "attestation"
+          ],
+          "properties": {
+            "attestation": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "attestation_live_status"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "attestation"
+          ],
+          "properties": {
+            "attestation": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "creator_schemas"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "creator",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "creator": {},
+            "cursor": {},
+            "limit": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "issuer_attestations"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "issuer",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "issuer": {},
+            "cursor": {},
+            "limit": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "subject_schema_attestations"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "subject_commitment",
+            "schema",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "subject_commitment": {},
+            "schema": {},
+            "cursor": {},
+            "limit": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "next_delegated_nonce"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "issuer"
+          ],
+          "properties": {
+            "issuer": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "create_schema"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "definition",
+            "authorized_issuers",
+            "revocable",
+            "unique",
+            "index_policy"
+          ],
+          "properties": {
+            "definition": {},
+            "authorized_issuers": {},
+            "revocable": {},
+            "unique": {},
+            "index_policy": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "set_schema_status"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema",
+            "status"
+          ],
+          "properties": {
+            "schema": {},
+            "status": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "issue"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema",
+            "subject_commitment",
+            "payload_commitment",
+            "status_commitment",
+            "parent",
+            "expiry",
+            "uniqueness_commitment",
+            "revocable"
+          ],
+          "properties": {
+            "schema": {},
+            "subject_commitment": {},
+            "payload_commitment": {},
+            "status_commitment": {},
+            "parent": {},
+            "expiry": {},
+            "uniqueness_commitment": {},
+            "revocable": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "issue_delegated"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "intent",
+            "signature"
+          ],
+          "properties": {
+            "intent": {},
+            "signature": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "issue_batch"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "items"
+          ],
+          "properties": {
+            "items": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "revoke"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "attestation"
+          ],
+          "properties": {
+            "attestation": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "set_emergency_pause"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "paused"
+          ],
+          "properties": {
+            "paused": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "force_schema_status"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema",
+            "status"
+          ],
+          "properties": {
+            "schema": {},
+            "status": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "force_revoke"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "attestation"
+          ],
+          "properties": {
+            "attestation": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "revoke_delegated"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "intent",
+            "signature"
+          ],
+          "properties": {
+            "intent": {},
+            "signature": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "issue_delegated_batch"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "items"
+          ],
+          "properties": {
+            "items": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "revoke_batch"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "attestations"
+          ],
+          "properties": {
+            "attestations": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "revoke_delegated_batch"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "items"
+          ],
+          "properties": {
+            "items": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "name_by_id"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "root_name_by_normalized_label"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "label"
+          ],
+          "properties": {
+            "label": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "owner_names"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "owner",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "owner": {},
+            "cursor": {},
+            "limit": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "resolve_address"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "resolve_subject"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "resolve_attestation"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "resolve_content"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "resolve_text"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "key"
+          ],
+          "properties": {
+            "name": {},
+            "key": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "primary_name"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "owner"
+          ],
+          "properties": {
+            "owner": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "name_status"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "commit"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "commitment"
+          ],
+          "properties": {
+            "commitment": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "cancel_commitment"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "commitment"
+          ],
+          "properties": {
+            "commitment": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "prune_expired_commitment"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "owner",
+            "commitment"
+          ],
+          "properties": {
+            "owner": {},
+            "commitment": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "register"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "parent",
+            "label",
+            "salt"
+          ],
+          "properties": {
+            "parent": {},
+            "label": {},
+            "salt": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "renew"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "additional_period"
+          ],
+          "properties": {
+            "name": {},
+            "additional_period": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "transfer"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "new_owner"
+          ],
+          "properties": {
+            "name": {},
+            "new_owner": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "add_controller"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "controller"
+          ],
+          "properties": {
+            "name": {},
+            "controller": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "remove_controller"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "controller"
+          ],
+          "properties": {
+            "name": {},
+            "controller": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "set_address"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "address"
+          ],
+          "properties": {
+            "name": {},
+            "address": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "set_subject"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "subject"
+          ],
+          "properties": {
+            "name": {},
+            "subject": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "set_attestation"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "attestation"
+          ],
+          "properties": {
+            "name": {},
+            "attestation": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "set_content"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "content"
+          ],
+          "properties": {
+            "name": {},
+            "content": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "set_text"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "key",
+            "value"
+          ],
+          "properties": {
+            "name": {},
+            "key": {},
+            "value": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "set_primary_name"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "release"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "remove_expired_name"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "reserve_name"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "parent",
+            "label",
+            "beneficiary",
+            "expires_at"
+          ],
+          "properties": {
+            "parent": {},
+            "label": {},
+            "beneficiary": {},
+            "expires_at": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "clear_reservation"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "set_label_protection"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "label",
+            "protected"
+          ],
+          "properties": {
+            "label": {},
+            "protected": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "set_paused"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "paused"
+          ],
+          "properties": {
+            "paused": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "force_transfer"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "new_owner"
+          ],
+          "properties": {
+            "name": {},
+            "new_owner": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "force_revoke"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "account_authorization"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "account"
+          ],
+          "properties": {
+            "account": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "can_store"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "account",
+            "data_len"
+          ],
+          "properties": {
+            "account": {},
+            "data_len": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "can_renew"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "account",
+            "entry"
+          ],
+          "properties": {
+            "account": {},
+            "entry": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "stored_content_provenance"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reference"
+          ],
+          "properties": {
+            "reference": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "resource_reservation"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reservation_id"
+          ],
+          "properties": {
+            "reservation_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "resource_reservation_link"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reservation_id",
+            "content_hash"
+          ],
+          "properties": {
+            "reservation_id": {},
+            "content_hash": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "resource_provider_ref"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reservation_id"
+          ],
+          "properties": {
+            "reservation_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "store"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "content_base64"
+          ],
+          "properties": {
+            "content_base64": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "store_with_cid_config"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cid_config",
+            "content_base64"
+          ],
+          "properties": {
+            "cid_config": {},
+            "content_base64": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "store_reserved"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reservation_id",
+            "cid_config",
+            "content_base64"
+          ],
+          "properties": {
+            "reservation_id": {},
+            "cid_config": {},
+            "content_base64": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "renew_reserved"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reservation_id",
+            "content_hash"
+          ],
+          "properties": {
+            "reservation_id": {},
+            "content_hash": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "attach_provider"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reservation_id",
+            "provider_ref"
+          ],
+          "properties": {
+            "reservation_id": {},
+            "provider_ref": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "renew"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "entry"
+          ],
+          "properties": {
+            "entry": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "force_renew"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "entry"
+          ],
+          "properties": {
+            "entry": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "enable_auto_renew"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "content_hash"
+          ],
+          "properties": {
+            "content_hash": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "disable_auto_renew"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "content_hash"
+          ],
+          "properties": {
+            "content_hash": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "provider_by_id"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider"
+          ],
+          "properties": {
+            "provider": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "providers"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "cursor": {},
+            "limit": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "agreement_by_id"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agreement_id"
+          ],
+          "properties": {
+            "agreement_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "provider_agreements"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "provider": {},
+            "cursor": {},
+            "limit": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "owner_agreements"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "owner",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "owner": {},
+            "cursor": {},
+            "limit": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "container_agreements"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "container_ref",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "container_ref": {},
+            "cursor": {},
+            "limit": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "agreement_nonce"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "owner"
+          ],
+          "properties": {
+            "owner": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "challenge_by_id"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "challenge_id"
+          ],
+          "properties": {
+            "challenge_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "challenges_at"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "block",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "block": {},
+            "cursor": {},
+            "limit": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "open_challenge_count"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agreement_id"
+          ],
+          "properties": {
+            "agreement_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "can_accept_capacity"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider",
+            "additional_bytes"
+          ],
+          "properties": {
+            "provider": {},
+            "additional_bytes": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "provider_checkpoint"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider"
+          ],
+          "properties": {
+            "provider": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "deletion_acknowledgement"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agreement_id"
+          ],
+          "properties": {
+            "agreement_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "register_provider"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider",
+            "endpoint",
+            "service_key",
+            "capacity_bytes"
+          ],
+          "properties": {
+            "provider": {},
+            "endpoint": {},
+            "service_key": {},
+            "capacity_bytes": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "update_provider"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider",
+            "endpoint",
+            "service_key",
+            "capacity_bytes"
+          ],
+          "properties": {
+            "provider": {},
+            "endpoint": {},
+            "service_key": {},
+            "capacity_bytes": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "set_provider_status"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider",
+            "status"
+          ],
+          "properties": {
+            "provider": {},
+            "status": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "remove_provider"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider"
+          ],
+          "properties": {
+            "provider": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "heartbeat"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "propose_agreement"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider",
+            "container_ref",
+            "content_commitment",
+            "reservation_ref",
+            "bytes",
+            "expires_at"
+          ],
+          "properties": {
+            "provider": {},
+            "container_ref": {},
+            "content_commitment": {},
+            "reservation_ref": {},
+            "bytes": {},
+            "expires_at": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "accept_agreement"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agreement_id"
+          ],
+          "properties": {
+            "agreement_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "cancel_agreement"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agreement_id"
+          ],
+          "properties": {
+            "agreement_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "issue_challenge"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agreement_id",
+            "expected_commitment",
+            "due_at"
+          ],
+          "properties": {
+            "agreement_id": {},
+            "expected_commitment": {},
+            "due_at": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "submit_checkpoint"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "challenge_id",
+            "proof_commitment"
+          ],
+          "properties": {
+            "challenge_id": {},
+            "proof_commitment": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "timeout_challenge"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "challenge_id"
+          ],
+          "properties": {
+            "challenge_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "request_renewal"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agreement_id",
+            "expires_at"
+          ],
+          "properties": {
+            "agreement_id": {},
+            "expires_at": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "acknowledge_deletion"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agreement_id",
+            "content_commitment",
+            "tombstone_root",
+            "proof_commitment"
+          ],
+          "properties": {
+            "agreement_id": {},
+            "content_commitment": {},
+            "tombstone_root": {},
+            "proof_commitment": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "accept_renewal"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agreement_id"
+          ],
+          "properties": {
+            "agreement_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "expire_agreement"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agreement_id"
+          ],
+          "properties": {
+            "agreement_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "prune_agreement"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agreement_id"
+          ],
+          "properties": {
+            "agreement_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "drive_by_id"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "drive_id"
+          ],
+          "properties": {
+            "drive_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "owner_drives"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "owner",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "owner": {},
+            "cursor": {},
+            "limit": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "drive_controllers"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "drive_id",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "drive_id": {},
+            "cursor": {},
+            "limit": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "next_drive_nonce"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "owner"
+          ],
+          "properties": {
+            "owner": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "create_drive"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "root_storage_ref"
+          ],
+          "properties": {
+            "name": {},
+            "root_storage_ref": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "update_root"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "drive_id",
+            "expected_version",
+            "root_storage_ref"
+          ],
+          "properties": {
+            "drive_id": {},
+            "expected_version": {},
+            "root_storage_ref": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "drive.set_controller"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "drive_id",
+            "controller",
+            "enabled"
+          ],
+          "properties": {
+            "drive_id": {},
+            "controller": {},
+            "enabled": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "transfer_drive"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "drive_id",
+            "new_owner"
+          ],
+          "properties": {
+            "drive_id": {},
+            "new_owner": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "archive_drive"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "drive_id"
+          ],
+          "properties": {
+            "drive_id": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "bucket_by_id"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bucket"
+          ],
+          "properties": {
+            "bucket": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "bucket_by_name"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "owner_buckets"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "owner",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "owner": {},
+            "cursor": {},
+            "limit": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "bucket_object_keys"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bucket",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "bucket": {},
+            "cursor": {},
+            "limit": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "object_by_key"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bucket",
+            "key"
+          ],
+          "properties": {
+            "bucket": {},
+            "key": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "object_history"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bucket",
+            "key",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "bucket": {},
+            "key": {},
+            "cursor": {},
+            "limit": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "object_id"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bucket",
+            "key"
+          ],
+          "properties": {
+            "bucket": {},
+            "key": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "create_bucket"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "s3.set_controller"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bucket",
+            "expected_bucket_version",
+            "controller",
+            "enabled"
+          ],
+          "properties": {
+            "bucket": {},
+            "expected_bucket_version": {},
+            "controller": {},
+            "enabled": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "transfer_bucket"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bucket",
+            "expected_bucket_version",
+            "new_owner"
+          ],
+          "properties": {
+            "bucket": {},
+            "expected_bucket_version": {},
+            "new_owner": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "set_archived"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bucket",
+            "expected_bucket_version",
+            "archived"
+          ],
+          "properties": {
+            "bucket": {},
+            "expected_bucket_version": {},
+            "archived": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "set_versioning"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bucket",
+            "expected_bucket_version",
+            "enabled"
+          ],
+          "properties": {
+            "bucket": {},
+            "expected_bucket_version": {},
+            "enabled": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "put_object"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bucket",
+            "key",
+            "content_hash",
+            "expected_object_version"
+          ],
+          "properties": {
+            "bucket": {},
+            "key": {},
+            "content_hash": {},
+            "expected_object_version": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "delete_object"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bucket",
+            "key",
+            "expected_object_version"
+          ],
+          "properties": {
+            "bucket": {},
+            "key": {},
+            "expected_object_version": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "delete_bucket"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bucket",
+            "expected_bucket_version"
+          ],
+          "properties": {
+            "bucket": {},
+            "expected_bucket_version": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    }
+  ],
+  "$comment": "Payload field types and bounds are enforced by product-sdk/packages/core/src/contract.ts; this schema freezes exact closed shapes, semantic routes and finality."
+}

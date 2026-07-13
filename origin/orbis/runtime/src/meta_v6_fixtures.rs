@@ -12,11 +12,11 @@
 //! describing a wire format that the runtime does not actually use.
 
 use crate::{AccountId, Runtime, RuntimeCall};
-#[path = "../../evidence_markers_v4.rs"]
-mod evidence_markers_v4;
 use codec::{DecodeAll, Encode};
-use frame_support::dispatch::GetDispatchInfo;
-use frame_support::traits::{BuildGenesisConfig, SignedTransactionBuilder};
+use frame_support::{
+	dispatch::GetDispatchInfo,
+	traits::{BuildGenesisConfig, SignedTransactionBuilder},
+};
 use sp_core::{ed25519, sr25519, Pair, H256};
 use sp_runtime::{
 	generic::{Era, SignedPayload},
@@ -1202,9 +1202,7 @@ fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
 		}
 	});
 	if option_env!("RUNTIME_METADATA_HASH").is_some() {
-		evidence_markers_v4::emit_evidence_markers_v4("runtime-fixtures-compiled");
 	} else {
-		evidence_markers_v4::emit_evidence_markers_v4("runtime-fixtures");
 	}
 }
 

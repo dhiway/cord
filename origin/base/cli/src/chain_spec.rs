@@ -19,6 +19,7 @@
 use sc_chain_spec::{ChainSpecExtension, ChainType};
 use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 const ORIGIN_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
 const DEFAULT_PROTOCOL_ID: &str = "0rigin";
@@ -42,10 +43,6 @@ pub struct Extensions {
 
 /// Cord Origin chain spec, in case when we don't have the native runtime.
 pub type OriginChainSpec = sc_service::GenericChainSpec<Extensions>;
-
-// pub fn origin_config() -> Result<OriginChainSpec, String> {
-// 	OriginChainSpec::from_json_bytes(&include_bytes!("../chain-specs/tbd.json")[..])
-// }
 
 /// Returns the properties for the [`OriginChainSpec`].
 pub fn origin_chain_spec_properties() -> serde_json::map::Map<String, serde_json::Value> {
@@ -87,6 +84,165 @@ pub fn origin_local_config() -> Result<OriginChainSpec, String> {
 	.with_chain_type(ChainType::Local)
 	.with_genesis_config_patch(
 		origin_runtime::genesis_config_presets::origin_staging_config_genesis(),
+	)
+	.with_telemetry_endpoints(
+		TelemetryEndpoints::new(vec![(ORIGIN_TELEMETRY_URL.to_string(), 0)])
+			.expect("Origin telemetry url is valid; qed"),
+	)
+	.with_protocol_id(DEFAULT_PROTOCOL_ID)
+	.with_properties(origin_chain_spec_properties())
+	.build())
+}
+
+/// Reviewed public launch material for a live Origin relay chain.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OriginProductionGenesisInput {
+	/// Governed root account, encoded as an exact 32-byte `0x` hex value.
+	pub root_key: String,
+	/// Fixed initial validator accounts and public session keys.
+	pub validators: Vec<OriginProductionValidator>,
+	/// Explicitly endowed accounts; all root and validator accounts must be included.
+	pub endowed_accounts: Vec<String>,
+}
+
+/// Public account and session keys for one production validator.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OriginProductionValidator {
+	/// Validator account, encoded as exact 32-byte `0x` hex.
+	pub account_id: String,
+	/// BABE public key, encoded as exact 32-byte `0x` hex.
+	pub babe: String,
+	/// GRANDPA public key, encoded as exact 32-byte `0x` hex.
+	pub grandpa: String,
+	/// Parachain validator public key, encoded as exact 32-byte `0x` hex.
+	pub para_validator: String,
+	/// Parachain assignment public key, encoded as exact 32-byte `0x` hex.
+	pub para_assignment: String,
+	/// Authority-discovery public key, encoded as exact 32-byte `0x` hex.
+	pub authority_discovery: String,
+	/// Compressed BEEFY ECDSA public key, encoded as exact 33-byte `0x` hex.
+	pub beefy: String,
+}
+
+fn decode_hex<const N: usize>(value: &str, field: &str) -> Result<[u8; N], String> {
+	let raw = value.strip_prefix("0x").ok_or_else(|| format!("{field} must be 0x-prefixed"))?;
+	let bytes = hex::decode(raw).map_err(|_| format!("{field} must be lowercase hexadecimal"))?;
+	if raw.bytes().any(|byte| byte.is_ascii_uppercase()) || bytes.len() != N {
+		return Err(format!("{field} must be exactly {N} lowercase-hex bytes"));
+	}
+	bytes.try_into().map_err(|_| format!("{field} must contain {N} bytes"))
+}
+
+fn production_account(value: &str, field: &str) -> Result<polkadot_primitives::AccountId, String> {
+	Ok(polkadot_primitives::AccountId::new(decode_hex::<32>(value, field)?))
+}
+
+/// Construct a live Origin spec. Validation is deliberately fail-closed: production never derives
+/// seed keys or silently reuses the local staging authorities.
+pub fn origin_production_config(
+	input: OriginProductionGenesisInput,
+) -> Result<OriginChainSpec, String> {
+	if input.validators.len() < 4 {
+		return Err("production Origin requires at least four validators".into());
+	}
+
+	let root_key = production_account(&input.root_key, "root_key")?;
+	let endowed_accounts = input
+		.endowed_accounts
+		.iter()
+		.enumerate()
+		.map(|(index, value)| production_account(value, &format!("endowed_accounts[{index}]")))
+		.collect::<Result<Vec<_>, _>>()?;
+	let authorities = input
+		.validators
+		.iter()
+		.enumerate()
+		.map(|(index, validator)| {
+			let beefy = decode_hex::<33>(&validator.beefy, &format!("validators[{index}].beefy"))?;
+			if !matches!(beefy[0], 2 | 3) {
+				return Err(format!(
+					"validators[{index}].beefy must be a compressed ECDSA public key"
+				));
+			}
+			Ok(origin_runtime::genesis_config_presets::OriginProductionAuthority {
+				account_id: production_account(
+					&validator.account_id,
+					&format!("validators[{index}].account_id"),
+				)?,
+				babe: decode_hex::<32>(&validator.babe, &format!("validators[{index}].babe"))?,
+				grandpa: decode_hex::<32>(
+					&validator.grandpa,
+					&format!("validators[{index}].grandpa"),
+				)?,
+				para_validator: decode_hex::<32>(
+					&validator.para_validator,
+					&format!("validators[{index}].para_validator"),
+				)?,
+				para_assignment: decode_hex::<32>(
+					&validator.para_assignment,
+					&format!("validators[{index}].para_assignment"),
+				)?,
+				authority_discovery: decode_hex::<32>(
+					&validator.authority_discovery,
+					&format!("validators[{index}].authority_discovery"),
+				)?,
+				beefy,
+			})
+		})
+		.collect::<Result<Vec<_>, String>>()?;
+
+	let endowed = endowed_accounts.iter().cloned().collect::<BTreeSet<_>>();
+	let accounts = authorities
+		.iter()
+		.map(|authority| authority.account_id.clone())
+		.collect::<BTreeSet<_>>();
+	let session_keys = authorities
+		.iter()
+		.flat_map(|authority| {
+			[
+				authority.babe,
+				authority.grandpa,
+				authority.para_validator,
+				authority.para_assignment,
+				authority.authority_discovery,
+			]
+		})
+		.collect::<BTreeSet<_>>();
+	let beefy_keys = authorities.iter().map(|authority| authority.beefy).collect::<BTreeSet<_>>();
+	if endowed.len() != endowed_accounts.len()
+		|| accounts.len() != authorities.len()
+		|| session_keys.len() != authorities.len() * 5
+		|| beefy_keys.len() != authorities.len()
+	{
+		return Err("production accounts and session keys must be unique".into());
+	}
+	if !endowed.contains(&root_key) || accounts.iter().any(|account| !endowed.contains(account)) {
+		return Err("root and validator accounts must be explicitly endowed".into());
+	}
+	let development_accounts = sp_keyring::Sr25519Keyring::well_known()
+		.map(|key| polkadot_primitives::AccountId::from(key.public()))
+		.collect::<BTreeSet<polkadot_primitives::AccountId>>();
+	if development_accounts.contains(&root_key)
+		|| accounts.iter().any(|account| development_accounts.contains(account))
+	{
+		return Err("well-known development accounts are forbidden in production genesis".into());
+	}
+
+	Ok(OriginChainSpec::builder(
+		origin_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
+		Default::default(),
+	)
+	.with_name("Origin")
+	.with_id("origin")
+	.with_chain_type(ChainType::Live)
+	.with_genesis_config_patch(
+		origin_runtime::genesis_config_presets::origin_production_config_genesis(
+			authorities,
+			root_key,
+			endowed_accounts,
+		),
 	)
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(ORIGIN_TELEMETRY_URL.to_string(), 0)])

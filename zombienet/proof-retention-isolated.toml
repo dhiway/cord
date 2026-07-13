@@ -1,0 +1,98 @@
+# Disposable, production-shaped two-collator topology for transaction-storage
+# proof-retention fault testing.  Node names are deliberately unique because
+# Zombienet derives authority/session and libp2p node keys from them.  Combined
+# with the post-process script's protocol IDs this network cannot join the
+# normal origin-local/orbis-local development topology.
+# The generated parachain spec MUST have id `orbis-proof-isolated`. Zombienet starts only the
+# normal `origin-orbis` binary; the case driver may replace exactly one stopped collator with
+# `target/proof-campaign/release/origin-orbis-proof-campaign` after binding its discovered genesis
+# hash into the destructive command. The campaign binary is never a topology default.
+
+[settings]
+timeout = 300
+
+[relaychain]
+chain = "origin-local"
+default_command = "target/release/origin"
+chain_spec_path = "docs/evidence/p1/storage-proof/campaign/generated/origin-proof-isolated.json"
+
+# Origin's authority-manager genesis field is not one of Zombienet's standard
+# authority aliases.  Keep it synchronized with the accounts Zombienet derives
+# from the unique node names below; otherwise GRANDPA sees an empty authority
+# set because Session and AuthorityManager disagree.
+[relaychain.genesis.runtimeGenesis.patch.authorityManager]
+initialAuthorities = [
+  "5Dvv6uiP3SsnBUahki24YtzMJBRZN7Ws1S95Efb3LHMBXmJZ",
+  "5G3btU9guBPbSSHB3WBwAr2JiamUafy2Z2JBTJWV9E1EQY46",
+  "5CPtJwQzdzVtHsefUcm6jPWBqqeQefjxUiJUqRskKHToR29A",
+  "5CabDJjzUBpVe6MfdyomUrm6k9acUDT5FTpQc7ys3JfcCSTL",
+  "5HGuMd8Zd59rezuKi5ucWP1U2adEPB18ZsAxfdNfSWKcQ7XD",
+  "5CSyoyDcAr7DU1Sa3nMhs4LLX2kXZ7PgAt8M5DVwP94ctDki",
+]
+
+[relaychain.genesis.runtimeGenesis.patch.configuration.config.async_backing_params]
+allowed_ancestry_len = 6
+max_candidate_depth = 6
+
+[relaychain.genesis.runtimeGenesis.patch.configuration.config.scheduler_params]
+max_validators_per_core = 1
+num_cores = 1
+lookahead = 3
+
+[[relaychain.nodes]]
+name = "proof-relay-alice"
+rpc_port = 10801
+validator = true
+args = ["--trie-cache-size=0", "--disable-worker-version-check", "--execution=wasm"]
+
+[[relaychain.nodes]]
+name = "proof-relay-bob"
+rpc_port = 10802
+validator = true
+args = ["--trie-cache-size=0", "--disable-worker-version-check", "--execution=wasm"]
+
+[[relaychain.nodes]]
+name = "proof-relay-charlie"
+rpc_port = 10803
+validator = true
+args = ["--trie-cache-size=0", "--disable-worker-version-check", "--execution=wasm"]
+
+[[relaychain.nodes]]
+name = "proof-relay-dave"
+rpc_port = 10804
+validator = true
+args = ["--trie-cache-size=0", "--disable-worker-version-check", "--execution=wasm"]
+
+[[relaychain.nodes]]
+name = "proof-relay-eve"
+rpc_port = 10805
+validator = true
+args = ["--trie-cache-size=0", "--disable-worker-version-check", "--execution=wasm"]
+
+[[relaychain.nodes]]
+name = "proof-relay-fredie"
+rpc_port = 10806
+validator = true
+args = ["--trie-cache-size=0", "--disable-worker-version-check", "--execution=wasm"]
+
+[[parachains]]
+id = 1006
+addToGenesis = true
+cumulus_based = true
+chain = "orbis-local"
+chain_spec_path = "docs/evidence/p1/storage-proof/campaign/generated/orbis-proof-isolated.json"
+num_cores = 1
+
+[[parachains.collators]]
+name = "proof-orbis-alice"
+rpc_port = 10810
+collator = true
+command = "target/release/origin-orbis"
+args = ["--execution=wasm", "--force-authoring", "--authoring=slot-based"]
+
+[[parachains.collators]]
+name = "proof-orbis-bob"
+rpc_port = 10811
+collator = true
+command = "target/release/origin-orbis"
+args = ["--execution=wasm", "--force-authoring", "--authoring=slot-based"]

@@ -27,6 +27,10 @@ backoff = { workspace = true }
 codec = { workspace = true, features = ["std"] }
 futures = { workspace = true }
 origin-primitives = { workspace = true, features = ["std"] }
+pallet-bulletin-transaction-storage-runtime-api = { workspace = true, features = ["std"] }
+pallet-orbis-attestation-runtime-api = { workspace = true, features = ["std"] }
+pallet-orbis-dotns-runtime-api = { workspace = true, features = ["std"] }
+orbis-storage-runtime-api = { workspace = true, features = ["std"] }
 serde = { workspace = true, features = ["derive", "std"] }
 serde_json = { workspace = true, features = ["std"] }
 thiserror = { workspace = true }
@@ -36,6 +40,7 @@ subxt = { workspace = true, default-features = false, features = ["jsonrpsee", "
 subxt-metadata = { workspace = true, optional = true }
 hex = { workspace = true }
 scale-value = { version = "0.18", default-features = false, features = ["serde"] }
+scale-decode = { version = "0.16", features = ["derive"] }
 sp-core = { workspace = true, features = ["std"] }
 sp-crypto-hashing = { workspace = true, features = ["std"] }
 scale-info = { workspace = true, features = ["std"] }
@@ -48,5 +53,7 @@ clap = { version = "4.5", features = ["derive"] }
 [dev-dependencies]
 serde_json = { workspace = true }
 env_logger = "0.11"
+kvdb = { workspace = true }
+kvdb-rocksdb = { workspace = true }
 rand = "0.8"
 proptest = "1"

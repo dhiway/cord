@@ -10,16 +10,17 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use bulletin_transaction_storage_primitives::{
-	BulletinRef, ContentHash, ReservationId, ResourceReservationLink, ResourceReservationView,
-	StorageActor, TransactionRef,
+	BulletinRef, ContentHash, ProviderAllocationId, ReservationId, ResourceReservationLink,
+	ResourceReservationView, StorageActor, TransactionRef,
 };
 use codec::{Codec, Decode, Encode};
+use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
 
 /// Active-authorization summary for an account. Returned by
 /// [`BulletinTransactionStorageApi::account_authorization`] when the account
 /// has an unexpired authorization entry.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode, TypeInfo)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode, DecodeAsType, TypeInfo)]
 pub struct AccountAuthorization<BlockNumber> {
 	/// Block at which this account's authorization expires.
 	pub expires_at: BlockNumber,
@@ -36,6 +37,65 @@ pub struct AccountAuthorization<BlockNumber> {
 	pub transactions_allowance: u32,
 	/// Transactions already consumed by `store` and `renew` calls.
 	pub transactions_used: u32,
+}
+
+/// Metadata-aware client representation of an exact Bulletin position.
+#[derive(Clone, Copy, Debug, DecodeAsType, Eq, PartialEq)]
+pub struct ClientBulletinRef<BlockNumber> {
+	pub block: BlockNumber,
+	pub transaction_index: u32,
+}
+
+/// Metadata-aware client representation of content provenance.
+#[derive(Clone, Debug, DecodeAsType, Eq, PartialEq)]
+pub enum ClientStorageActor<AccountId> {
+	Account(AccountId),
+	Root,
+	Preimage([u8; 32]),
+	AutoRenew(AccountId),
+}
+
+#[derive(Clone, Copy, Debug, DecodeAsType, Eq, PartialEq)]
+pub enum ClientResourceClosure {
+	Cancelled,
+	Expired,
+	Exhausted,
+}
+
+#[derive(Clone, Debug, DecodeAsType, Eq, PartialEq)]
+pub struct ClientResourceReservation<AccountId, BlockNumber> {
+	pub owner: AccountId,
+	pub purpose_digest: [u8; 32],
+	pub bytes_remaining: u64,
+	pub transactions_remaining: u32,
+	pub created_at: BlockNumber,
+	pub expires_at: BlockNumber,
+}
+
+#[derive(Clone, Debug, DecodeAsType, Eq, PartialEq)]
+pub struct ClientResourceReservationTombstone<AccountId, BlockNumber> {
+	pub owner: AccountId,
+	pub purpose_digest: [u8; 32],
+	pub final_bytes_remaining: u64,
+	pub final_transactions_remaining: u32,
+	pub outcome: ClientResourceClosure,
+	pub closed_at: BlockNumber,
+}
+
+#[derive(Clone, Debug, DecodeAsType, Eq, PartialEq)]
+pub enum ClientResourceReservationView<AccountId, BlockNumber> {
+	Active(ClientResourceReservation<AccountId, BlockNumber>),
+	Tombstone(ClientResourceReservationTombstone<AccountId, BlockNumber>),
+}
+
+#[derive(Clone, Debug, DecodeAsType, Eq, PartialEq)]
+pub struct ClientResourceReservationLink<AccountId, BlockNumber> {
+	pub reservation_id: u64,
+	pub content_hash: [u8; 32],
+	pub bulletin_ref: ClientBulletinRef<BlockNumber>,
+	pub owner: AccountId,
+	pub size: u32,
+	pub retention_boundary: BlockNumber,
 }
 
 sp_api::decl_runtime_apis! {
@@ -57,9 +117,8 @@ sp_api::decl_runtime_apis! {
 		/// validation for `account`.
 		fn can_renew(account: AccountId, entry: TransactionRef<BlockNumber>) -> bool;
 
-		/// Explicit actor for an exact retained position; missing V5 rows read as
-		/// `StorageActor::LegacyUnknown`.
-		fn stored_content_provenance(reference: BulletinRef<BlockNumber>) -> StorageActor<AccountId>;
+		/// Explicit actor for an exact retained position, or `None` when the position is absent.
+		fn stored_content_provenance(reference: BulletinRef<BlockNumber>) -> Option<StorageActor<AccountId>>;
 
 		/// Scalar active-or-tombstone reservation audit view.
 		fn resource_reservation(
@@ -71,5 +130,10 @@ sp_api::decl_runtime_apis! {
 			reservation_id: ReservationId,
 			content_hash: ContentHash,
 		) -> Option<ResourceReservationLink<AccountId, BlockNumber>>;
+
+		/// Native provider agreement attached to this reservation, when present.
+		fn resource_provider_ref(
+			reservation_id: ReservationId,
+		) -> Option<ProviderAllocationId>;
 	}
 }

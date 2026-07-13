@@ -45,14 +45,13 @@ pub trait WeightInfo {
 	fn remove_expired_account_authorization() -> Weight;
 	fn remove_expired_preimage_authorization() -> Weight;
 	fn remove_exhausted_authorizer() -> Weight;
+	fn attach_provider() -> Weight;
 	fn validate_store(l: u32) -> Weight;
 	fn validate_renew() -> Weight;
 	fn enable_auto_renew() -> Weight;
 	fn disable_auto_renew() -> Weight;
 	fn apply_block_inherents(n: u32) -> Weight;
 	fn on_initialize_with_expiry(n: u32) -> Weight;
-	fn migrate_v2_to_v3_step() -> Weight;
-	fn migrate_v3_to_v4_step() -> Weight;
 }
 
 /// Weights for pallet_bulletin_transaction_storage using the Substrate node and recommended hardware.
@@ -364,35 +363,12 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes((5_u64).saturating_mul(n.into())))
 			.saturating_add(Weight::from_parts(0, 11557).saturating_mul(n.into()))
 	}
-	/// Storage: `TransactionStorage::RetentionPeriod` (r:1 w:0)
-	/// Proof: `TransactionStorage::RetentionPeriod` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `TransactionStorage::Transactions` (r:2 w:1)
-	/// Proof: `TransactionStorage::Transactions` (`max_values`: None, `max_size`: Some(44054), added: 46529, mode: `MaxEncodedLen`)
-	/// Storage: UNKNOWN KEY `0x0e7b504e5df47062be129a8958a7a1274e7b9012096b41c4eb3aaf947f6ea429` (r:0 w:1)
-	/// Proof: UNKNOWN KEY `0x0e7b504e5df47062be129a8958a7a1274e7b9012096b41c4eb3aaf947f6ea429` (r:0 w:1)
-	fn migrate_v2_to_v3_step() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `41812`
-		//  Estimated: `94048`
-		// Minimum execution time: 137_920_000 picoseconds.
-		Weight::from_parts(144_128_000, 0)
-			.saturating_add(Weight::from_parts(0, 94048))
-			.saturating_add(T::DbWeight::get().reads(3))
-			.saturating_add(T::DbWeight::get().writes(2))
-	}
-	/// Storage: `TransactionStorage::AutoRenewals` (r:2 w:1)
-	/// Proof: `TransactionStorage::AutoRenewals` (`max_values`: None, `max_size`: Some(82), added: 2557, mode: `MaxEncodedLen`)
-	/// Storage: UNKNOWN KEY `0x0e7b504e5df47062be129a8958a7a1274e7b9012096b41c4eb3aaf947f6ea429` (r:0 w:1)
-	/// Proof: UNKNOWN KEY `0x0e7b504e5df47062be129a8958a7a1274e7b9012096b41c4eb3aaf947f6ea429` (r:0 w:1)
-	fn migrate_v3_to_v4_step() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `394`
-		//  Estimated: `6104`
-		// Minimum execution time: 13_485_000 picoseconds.
-		Weight::from_parts(14_297_000, 0)
-			.saturating_add(Weight::from_parts(0, 6104))
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().writes(2))
+	fn attach_provider() -> Weight {
+		// Initial conservative bound; replaced by Orbis-generated P7 benchmark output.
+		Weight::from_parts(40_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 12_000))
+			.saturating_add(T::DbWeight::get().reads(5))
+			.saturating_add(T::DbWeight::get().writes(1))
 	}
 }
 
@@ -525,16 +501,10 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes((5_u64).saturating_mul(n.into())))
 			.saturating_add(Weight::from_parts(0, 11557).saturating_mul(n.into()))
 	}
-	fn migrate_v2_to_v3_step() -> Weight {
-		Weight::from_parts(144_128_000, 0)
-			.saturating_add(Weight::from_parts(0, 94048))
-			.saturating_add(RocksDbWeight::get().reads(3))
-			.saturating_add(RocksDbWeight::get().writes(2))
-	}
-	fn migrate_v3_to_v4_step() -> Weight {
-		Weight::from_parts(14_297_000, 0)
-			.saturating_add(Weight::from_parts(0, 6104))
-			.saturating_add(RocksDbWeight::get().reads(2))
-			.saturating_add(RocksDbWeight::get().writes(2))
+	fn attach_provider() -> Weight {
+		Weight::from_parts(40_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 12_000))
+			.saturating_add(RocksDbWeight::get().reads(5))
+			.saturating_add(RocksDbWeight::get().writes(1))
 	}
 }

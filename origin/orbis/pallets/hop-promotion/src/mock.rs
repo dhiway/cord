@@ -17,6 +17,7 @@
 
 use crate as pallet_bulletin_hop_promotion;
 use bulletin_pallets_common::NoCurrency;
+use indiv_support::traits::{ClaimCleanupOutcome, ResourceClaimLifecycle};
 use pallet_bulletin_transaction_storage::AsAuthorizer;
 use polkadot_sdk_frame::{
 	deps::{frame_support, frame_system},
@@ -89,6 +90,14 @@ pub const TEST_MAX_TRANSACTION_SIZE: u32 = 1024;
 /// 48 hours in milliseconds.
 pub const TEST_SUBMIT_TIMESTAMP_TOLERANCE_MS: u64 = 48 * 60 * 60 * 1000;
 
+pub struct TestClaimLifecycle;
+
+impl ResourceClaimLifecycle<u64, u32> for TestClaimLifecycle {
+	fn prune_claim(id: u64) -> ClaimCleanupOutcome<u64, u32> {
+		ClaimCleanupOutcome { id, removed: false, purpose: None }
+	}
+}
+
 parameter_types! {
 	pub const SubmitTimestampTolerance: u64 = TEST_SUBMIT_TIMESTAMP_TOLERANCE_MS;
 }
@@ -103,6 +112,13 @@ impl pallet_bulletin_transaction_storage::Config for Test {
 	type MaxBlockTransactions = ConstU32<512>;
 	type MaxTransactionSize = ConstU32<TEST_MAX_TRANSACTION_SIZE>;
 	type MaxPermanentStorageSize = ConstU64<{ u64::MAX }>;
+	type MaxReservations = ConstU32<256>;
+	type MaxReservationExpiryBlocks = ConstU32<256>;
+	type MaxReservationsPerExpiryBlock = ConstU32<256>;
+	type MaxReservationLinks = ConstU32<1024>;
+	type TombstoneRetention = ConstU64<2>;
+	type ReservationPurpose = u32;
+	type ResourceClaimLifecycle = TestClaimLifecycle;
 	type AuthorizationPeriod = AuthorizationPeriod;
 	type AuthorizerRegistrarOrigin = EnsureRoot<Self::AccountId>;
 	type Authorizer =

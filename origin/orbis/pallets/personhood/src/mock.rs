@@ -567,7 +567,7 @@ pub fn all_keys_in_ring(ring_index: RingIndex) -> Vec<<MockCrypto as GenerateVer
 	let ring_status =
 		indiv_pallet_members::RingKeysStatus::<Test>::get(PEOPLE_MEMBER_IDENTIFIER, ring_index);
 	if ring_status.total == 0 {
-		return vec![]
+		return vec![];
 	}
 	let members_page_size: u32 =
 		<Test as indiv_pallet_members::Config>::MaxFlexibleRingExponent::get().ring_capacity();

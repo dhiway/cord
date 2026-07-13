@@ -1,0 +1,272 @@
+{
+  "artifacts": [
+    {
+      "path": "docs/adr/0009-origin-orbis-operational-security.md",
+      "sha256": "69089246b07b0b432f7c7d04a2263c481034a0a395aef311e17cab0ea598022e"
+    },
+    {
+      "path": "docs/adr/0010-sdk-version-contract.md",
+      "sha256": "fc5fb065a291fb7e888ad79d234f67591314406c9877b00d7a82da2f149bcc30"
+    },
+    {
+      "path": "docs/adr/0011-identity-personhood-attestation-completion.md",
+      "sha256": "1981db83e57d5707a836ad91d2a7028e7ce3d9931ab3e42305e8294a929444c5"
+    },
+    {
+      "path": "docs/adr/0012-native-dotns.md",
+      "sha256": "47daeef60b422c0bb29f71e3eadbdaa61643b16a12d6757927f7c5253eec8906"
+    },
+    {
+      "path": "docs/adr/0013-storage-provider-completion.md",
+      "sha256": "bacb6d03a957f5dad63c970ca6563aa2951baa264e0ed73b5664d484bd7cee35"
+    },
+    {
+      "path": "docs/adr/0014-new-genesis-clean-break-native-cutover.md",
+      "sha256": "a863a8d2f634feb6313f6ffafb259ec4b9aa7dc70922ba95525d9dc6df34120a"
+    },
+    {
+      "path": "docs/adr/0015-performance-evidence.md",
+      "sha256": "cd8c83a15659a3af049463105a6e139bbcad043c61687b0a65badb834f2544f0"
+    },
+    {
+      "path": "docs/architecture/authority-contract.md",
+      "sha256": "267a576ffe0be1cb9fa6a7c1f52efcb8bf827048e815b6d5eb8d9af1f15163af"
+    },
+    {
+      "path": "docs/architecture/domains/README.md",
+      "sha256": "02dd9ae2793fbddb406854a599757f84b7676457df65506a6c279e159e146837"
+    },
+    {
+      "path": "docs/architecture/domains/dotns.md",
+      "sha256": "02fcb0f194c348486478b0022b0c2c57e04d6719b488fe8ef1106b89cd1638c1"
+    },
+    {
+      "path": "docs/architecture/domains/identity-personhood-attestation.md",
+      "sha256": "d2535bda8633d955822e06e4004bc17eb9c351307d43a6f24ccd554069e9e70f"
+    },
+    {
+      "path": "docs/architecture/domains/storage-provider-content.md",
+      "sha256": "67ca317c9d48eb5a209c735da54ea5926b107e66c064925cbf1b1a0e97a261df"
+    },
+    {
+      "path": "docs/architecture/identity-topology-contract.md",
+      "sha256": "0f4be3073f82900a4e4d50dd81af4e18b064a92735743634e17284a4a942190d"
+    },
+    {
+      "path": "docs/evidence/performance/README.md",
+      "sha256": "fb8357cf2536d1e93ac5b564296a2fc8cf410ff6a0a59c44bbc5fd9b28da1eba"
+    },
+    {
+      "path": "docs/evidence/performance/benchmark-result.schema.json",
+      "sha256": "1d19bece31348c2fab3766de030c718e3b5477857656ddbb5ea48204419903bc"
+    },
+    {
+      "path": "docs/evidence/performance/service-slo-manifest.json",
+      "sha256": "87ba782e8102e02c1d790fbf57d942ed427adcff97f259aa6d9fa3676968d1c0"
+    },
+    {
+      "path": "docs/evidence/performance/service-slo-manifest.schema.json",
+      "sha256": "4f2124c1d0abf35b30e3992d310390e3ac390f9797352269d6d3253ff0169070"
+    },
+    {
+      "path": "docs/evidence/verification/p0/RATIFICATION.md",
+      "sha256": "5bbf95e74bb339616cfdaec3d200e892335c0e745f07542fb2044a9d5d1b3414"
+    },
+    {
+      "path": "docs/evidence/verification/p0/contracts-report.json",
+      "sha256": "9c62cbd7bbfab7aa0336495733dac6ad670446fb9777e8c9eeaaa28b4834738e"
+    },
+    {
+      "path": "docs/evidence/verification/p0/p0-ratification.payload.json",
+      "sha256": "18a7fe95a300632121d0f448cb7bf3e1bc0e6776e254bc26bc1437a5f19c790a"
+    },
+    {
+      "path": "docs/evidence/verification/p0/ratification-envelope.json",
+      "sha256": "9cb61cae8182091d2fe59e8b05b20cba48ac4052b64fbc4e9c522202c4b8cfd7"
+    },
+    {
+      "path": "docs/evidence/verification/p0/test-report-contract.json",
+      "sha256": "f87faea31aa1f1a4b43cc5c72da87642dae89a23cbe4edaeba8469cb087fdead"
+    },
+    {
+      "path": "docs/evidence/verification/p0/validate_contracts.py",
+      "sha256": "3789ca2e1955d5a64b9362e69104169d80c0c03a44a52ccab85e285bf919eaa6"
+    },
+    {
+      "path": "docs/sdk/compatibility-manifest.json",
+      "sha256": "09cb785558e519d5f6cdac5673e0e6589d0c175dc9d9f376c04251645e7b71dc"
+    },
+    {
+      "path": "docs/sdk/host/README.md",
+      "sha256": "bf73d6fd4dc453fbe30ae3b0c18f009db2f88065def0d7fc3c65fb9af3205e09"
+    },
+    {
+      "path": "docs/sdk/host/fake-host-scenarios.json",
+      "sha256": "f4ba07482dc056e003840a16fa5d75467b46d6ecd999052af5211518230fd08b"
+    },
+    {
+      "path": "docs/sdk/host/host-request.schema.json",
+      "sha256": "5d63703d666f8632151c6f95e4c09fec12c6d93b12ab5b8c252ed14e30cd42b8"
+    },
+    {
+      "path": "docs/sdk/native-contract.md",
+      "sha256": "0eacd05f6bc4ad93e3aeeda827d7a61959017b6477bfd8fc9b62edf449311a39"
+    },
+    {
+      "path": "docs/sdk/native-error.schema.json",
+      "sha256": "63beb84651fb926843ba0582108aba72fa6d7598bda6418ba3f6c843dcbe3bfd"
+    },
+    {
+      "path": "docs/sdk/native-lifecycle.schema.json",
+      "sha256": "92994ab80b2f1779612a44e7772820ed598b4162c9bc146cfc68dd162a14cc93"
+    },
+    {
+      "path": "docs/sdk/signed-extension-manifest.json",
+      "sha256": "75244ec56bbfba577ce43cfecb0977d59c6c23266a515cbfc397935feda772a1"
+    },
+    {
+      "path": "docs/sdk/vectors/transaction-policy-vector-registry.json",
+      "sha256": "6c4fe0ef638bccc5e141313a93b8b728510d2286b7ed67a958064de6de9ecd34"
+    },
+    {
+      "path": "product-sdk/README.md",
+      "sha256": "284923703e37659be7608b7ccf981f1b07f6b64ad9288506ef1e7ae75a1281f9"
+    },
+    {
+      "path": "product-sdk/package-lock.json",
+      "sha256": "2786f5ec69f66b2f060447adf6d70f5a56391f1d412c57cd14a998010ced9fcb"
+    },
+    {
+      "path": "product-sdk/package.json",
+      "sha256": "d31116dbab7d624e0ce0f54c8bc1bf8383214c161433d8fe20624ecd92f20f15"
+    },
+    {
+      "path": "product-sdk/packages/core/src/contract.ts",
+      "sha256": "720ca9dcd2b2284103eb01e1771a7a5c8f19692a20b8b0e8f551cb1d445a82bc"
+    },
+    {
+      "path": "product-sdk/packages/core/src/ratification.ts",
+      "sha256": "a106e813fb5e15257a448043c232a9a88beb861c82a9cdf1b71a7cfd9b62c74b"
+    },
+    {
+      "path": "product-sdk/packages/descriptors/generated/orbis-descriptor.json",
+      "sha256": "fca1f56cdcc9d5ff50ab93733c03041ba0060882b94acde05ba9cede4378d1ff"
+    },
+    {
+      "path": "product-sdk/packages/descriptors/src/descriptor.ts",
+      "sha256": "d3b994ab9edb857775fdb5e4ebd1519b5705246b03bb7d0854af9a6e66998de9"
+    },
+    {
+      "path": "product-sdk/packages/eqc/src/validate.ts",
+      "sha256": "5b72900c0ad0688754b32755edb3b9765de81dd102ed204e24ba6b658a3606f8"
+    },
+    {
+      "path": "product-sdk/packages/host/src/fake-host.ts",
+      "sha256": "d56cd673b8ce435a2c43ea3baa2a318be09bb020b1004ab9383cc237bb2ac045"
+    },
+    {
+      "path": "product-sdk/tests/conformance/descriptor.test.ts",
+      "sha256": "6481058017819954fc1aaba779b0ac0c83fc91e022d4ee1f4c394266d70c226e"
+    },
+    {
+      "path": "product-sdk/tests/eqc/eqc.test.ts",
+      "sha256": "29f6e9768dd65f4c014ba58122da992519c3b06397ab7d9da28e7e4d46f88a9d"
+    },
+    {
+      "path": "product-sdk/tests/eqc/fixtures/C.schema-only.json",
+      "sha256": "ba13dfdb2924e7282ea33170fd67e60772de5df56acbdbd892a6ce60563a5177"
+    },
+    {
+      "path": "product-sdk/tests/eqc/fixtures/E.schema-only.json",
+      "sha256": "0c4fae12297955492c69abd857c8684b68cd4141df03772c6581719315cf6ac9"
+    },
+    {
+      "path": "product-sdk/tests/eqc/fixtures/Q.schema-only.json",
+      "sha256": "4ff6f6bb871d014b0dba3c61416669aaad9cd46bf778a5d9c2fc9a88b12caae9"
+    },
+    {
+      "path": "product-sdk/tests/host/fake-host.test.ts",
+      "sha256": "179f878ccb0fe2af4668d1bf894f1fd450df7b00b1bc813a97949237db3ee4f5"
+    },
+    {
+      "path": "product-sdk/tools/generate-descriptor.ts",
+      "sha256": "c705f9e5e6f43c79c0134a9cba30729ceb437da625b6471cee6f390b97b8e403"
+    },
+    {
+      "path": "product-sdk/tools/update-ratification.ts",
+      "sha256": "e2572d46355f31886fc637522ebad0cfcab7c4be8595061e6393411e548da04e"
+    },
+    {
+      "path": "product-sdk/tools/validate-eqc.ts",
+      "sha256": "7b66883386a1e88d01302270b8d8ec255fde80c431a5b282d692bffa374b42dd"
+    },
+    {
+      "path": "product-sdk/tools/validate-ratification.ts",
+      "sha256": "d276c36033d335f8c38fefd3bd25a1b320c0e444626c7a66eb2558d444a4839d"
+    }
+  ],
+  "blockers": [],
+  "branch": "sm-update-sub-0x63",
+  "commands": {
+    "architecture_sdk_host_eqc_contract_validator": {
+      "command": "python3 docs/evidence/verification/p0/validate_contracts.py --write-report",
+      "expected": "exit 0, contract_validation_pass=true; overall gate remains blocked until ratification/implementations",
+      "state": "executable"
+    },
+    "canonical_ratification": {
+      "command": "npm --prefix product-sdk run validate:ratification",
+      "expected": "zero exit; p0_targets_ratified=true, production_activation_ready=false, five detached signatures verify, payload hash 18a7fe95a300632121d0f448cb7bf3e1bc0e6776e254bc26bc1437a5f19c790a",
+      "state": "ratified-targets-production-blocked"
+    },
+    "eqc_campaign": {
+      "command": null,
+      "freeze_rule": "P1/P6 run signed, topology-bound network campaigns only after the P0 executable client and SLO ratification gates pass.",
+      "state": "downstream-not-run"
+    },
+    "eqc_client_validation": {
+      "command": "npm --prefix product-sdk run validate:eqc",
+      "expected": "zero exit; ratified=false and performance_claim=false until authorized signatures and network campaigns exist",
+      "state": "executable-schema-only"
+    },
+    "fake_host_conformance": {
+      "command": "npm --prefix product-sdk run test:host",
+      "expected": "zero exit; every registered hostile scenario has an executable typed outcome",
+      "state": "executable"
+    },
+    "orbis_extension_runtime": {
+      "command": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact",
+      "expected": "zero exit",
+      "observed": "1 passed, 0 failed",
+      "state": "executed"
+    },
+    "ratification_payload_update": {
+      "command": "npm --prefix product-sdk run update:ratification",
+      "expected": "with signatures: refuses payload regeneration/drift, verifies frozen bytes/signatures, and updates excluded projections from derived status",
+      "state": "signed-projection-only"
+    },
+    "rust_sdk": {
+      "command": "cargo test --manifest-path origin-rs/Cargo.toml",
+      "expected": "zero exit",
+      "state": "executable-not-run-by-this-lane"
+    },
+    "typescript_descriptor_conformance": {
+      "command": "npm --prefix product-sdk test",
+      "expected": "zero exit; descriptor drift, current vectors, host and E/Q/C schema/client pass",
+      "state": "executable"
+    }
+  },
+  "contract_validation": "pass",
+  "excluded_single_writer_files": [
+    "docs/orbis-completion-manifest.toml",
+    "docs/architecture/origin-orbis-runtime-alignment.csv",
+    "docs/architecture/contract-to-native-migration.csv",
+    "origin/orbis/runtime/src/lib.rs"
+  ],
+  "head": "439a1b62da11175129ad5390186230a64d569810",
+  "owner_lane": "p0_contracts_harness",
+  "phase": "P0",
+  "phase_gate_claim": false,
+  "schema_version": 1,
+  "scope": "architecture-sdk-host-eqc-contracts",
+  "status": "pass"
+}

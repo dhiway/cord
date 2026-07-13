@@ -39,6 +39,7 @@ sp-version = { workspace = true }
 sp-npos-elections = { workspace = true }
 
 pallet-authorities = { workspace = true }
+pallet-coretime-control = { workspace = true }
 pallet-authority-discovery = { workspace = true }
 pallet-authorship = { workspace = true }
 pallet-babe = { workspace = true }
@@ -120,6 +121,8 @@ substrate-wasm-builder = { workspace = true, optional = true }
 default = ["std"]
 no_std = []
 only-staking = []
+# Evidence-only runtime upgrade candidate. Production builds do not enable this feature.
+p1-upgrade-candidate = []
 std = [
 	"authority-discovery-primitives/std",
 	"babe-primitives/std",
@@ -128,6 +131,7 @@ std = [
 	"codec/std",
 	"cord-primitives/std",
 	"pallet-authorities/std",
+	"pallet-coretime-control/std",
 	"origin-runtime-constants/std",
 	"frame-benchmarking?/std",
 	"frame-executive/std",
@@ -262,6 +266,7 @@ try-runtime = [
 	"frame-try-runtime",
 	"frame-try-runtime/try-runtime",
 	"pallet-authorities/try-runtime",
+	"pallet-coretime-control/try-runtime",
 	"pallet-authority-discovery/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-babe/try-runtime",

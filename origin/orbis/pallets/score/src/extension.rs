@@ -107,9 +107,10 @@ impl<T: Config> TransactionExtension<RuntimeCallOf<T>> for ScoreAsParticipant<T>
 				Pallet::<T>::ensure_active_participant(&AccountOrPerson::Account(who.clone()))
 					.map_err(|_| InvalidTransaction::Call)?;
 
-				// This policy nonce must exactly match the account nonce. The standard account-aware
-				// CheckNonce owns pool tags and the single increment; accepting dependency-style future
-				// nonces here would allow a transaction to satisfy its own policy requirement.
+				// This policy nonce must exactly match the account nonce. The standard
+				// account-aware CheckNonce owns pool tags and the single increment; accepting
+				// dependency-style future nonces here would allow a transaction to satisfy its
+				// own policy requirement.
 				let current = frame_system::Pallet::<T>::account_nonce(who);
 				if nonce < current {
 					return Err(InvalidTransaction::Stale.into());

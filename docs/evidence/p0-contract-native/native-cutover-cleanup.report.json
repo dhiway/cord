@@ -1,0 +1,28 @@
+{
+  "allowlist_sha256": "8468c57270549bcb48d9f94d010b26042c7e14378035d56ecc9f417fd0dde692",
+  "approval_manifest": {
+    "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
+    "required_reviewer_role": "architect",
+    "review_thread_id": "019f59bd-fa87-7571-837b-6a6a7ae51b2d",
+    "schema_version": 1,
+    "sha256": "96cd0595fbc89fcd847ee58dd8427aa59bd008c8639b8f82d9bf4d6095b3b5ae",
+    "verdict": "APPROVED"
+  },
+  "baseline_source_components": 132,
+  "criterion": "M9",
+  "dead_product_paths": 0,
+  "deprecated_facades": 0,
+  "final_required_verdict": {
+    "dead_product_paths": 0,
+    "deprecated_facades": 0,
+    "migrated_domain_callable_contracts": 0,
+    "status": "pass",
+    "unowned_survivors": 0
+  },
+  "known_survivors": [],
+  "migrated_domain_callable_contracts": 0,
+  "note": "Native cutover pass: migrated-domain callable fixtures and product paths are absent; generic unrelated Revive remains allowlisted.",
+  "schema_version": 1,
+  "status": "pass",
+  "unowned_survivors": 0
+}

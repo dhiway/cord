@@ -6,6 +6,8 @@
 pub mod client;
 pub mod config;
 pub mod extrinsic;
+pub mod p1_campaign;
+pub mod product_sdk;
 pub mod query;
 pub mod schema;
 pub mod tx;

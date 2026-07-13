@@ -1,0 +1,23 @@
+{
+  "approval_document_path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.md",
+  "branch": "sm-update-sub-0x63",
+  "census_payload_sha256": "15b4c7d96409d14aca265eaa3298ccf2262d18929f68017aee7e4d04026f5325",
+  "design_payload_sha256": "94163962bf74571f756319a4cb91582abbe86e0fe602bf86ae4b5ae0cc6c55cf",
+  "manifest_id": "origin-orbis-p0-semantic-dispositions-v1",
+  "required_reviewer_role": "architect",
+  "review_thread_id": "019f59bd-fa87-7571-837b-6a6a7ae51b2d",
+  "reviewed_at": "2026-07-13T04:42:09Z",
+  "reviewer_role": "architect",
+  "schema_version": 1,
+  "scope_exclusions": [
+    "no implementation approval",
+    "no runtime-code approval",
+    "no backward compatibility",
+    "no legacy-data migration",
+    "no deployment-state import"
+  ],
+  "semantic_design_entries": 2780,
+  "source_components": 132,
+  "source_head": "439a1b62da11175129ad5390186230a64d569810",
+  "verdict": "APPROVED"
+}

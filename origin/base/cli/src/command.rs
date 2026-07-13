@@ -96,12 +96,22 @@ impl SubstrateCli for Cli {
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		Ok(match id {
-			// // -- Origin
-			// "origin" | "origin-relay" => Box::new(GenericChainSpec::from_json_bytes(
-			// 	&include_bytes!("../../chain-specs/tbd.json")[..],
-			// )?),
 			"dev" | "origin-dev" => Box::new(chain_spec::origin_development_config()?),
 			"local" | "origin-local" => Box::new(chain_spec::origin_local_config()?),
+			"origin" | "origin-relay" => return Err(
+				"the live Origin spec is never inferred from development keys; use --chain origin-production:<reviewed-input.json> or an approved raw chain-spec path".into(),
+			),
+			value if value.starts_with("origin-production:") => {
+				let path = value.trim_start_matches("origin-production:");
+				if path.is_empty() {
+					return Err("origin-production requires a reviewed input JSON path".into());
+				}
+				let bytes = std::fs::read(path)
+					.map_err(|error| format!("failed to read production genesis input {path}: {error}"))?;
+				let input = serde_json::from_slice(&bytes)
+					.map_err(|error| format!("invalid production genesis input {path}: {error}"))?;
+				Box::new(chain_spec::origin_production_config(input)?)
+			},
 			path => {
 				let path = std::path::PathBuf::from(path);
 

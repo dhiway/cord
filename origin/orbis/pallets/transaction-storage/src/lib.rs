@@ -29,7 +29,6 @@ extern crate alloc;
 pub mod benchmarking;
 pub mod weights;
 
-pub mod migrations;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -61,9 +60,26 @@ use sp_transaction_storage_proof::{
 };
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
+pub use bulletin_transaction_storage_primitives::ProviderAllocationId;
 pub use pallet::*;
 pub use types::*;
 pub use weights::WeightInfo;
+
+/// Validates a native provider agreement before it is attached to an isolated reservation.
+pub trait ProviderAllocationValidator<AccountId> {
+	fn valid(
+		reservation_id: ReservationId,
+		allocation: &ProviderAllocationId,
+		owner: &AccountId,
+		bytes: u64,
+	) -> bool;
+}
+
+impl<AccountId> ProviderAllocationValidator<AccountId> for () {
+	fn valid(_: ReservationId, _: &ProviderAllocationId, _: &AccountId, _: u64) -> bool {
+		false
+	}
+}
 
 const LOG_TARGET: &str = "runtime::transaction-storage";
 
@@ -212,6 +228,8 @@ pub mod pallet {
 		type ReservationPurpose: Parameter + MaxEncodedLen;
 		/// Synchronous Resources-side claim cleanup invoked before tombstone removal.
 		type ResourceClaimLifecycle: ResourceClaimLifecycle<ReservationId, Self::ReservationPurpose>;
+		/// Native storage-provider agreement validator for isolated reservations.
+		type ProviderAllocation: ProviderAllocationValidator<Self::AccountId>;
 		/// Authorizations expire after this many blocks.
 		#[pallet::constant]
 		type AuthorizationPeriod: Get<BlockNumberFor<Self>>;
@@ -314,15 +332,17 @@ pub mod pallet {
 		TransactionAllowanceExhausted,
 		BytesAllowanceExhausted,
 		StoredContentOwnerMismatch,
-		LegacyContentUnrenewable,
 		BulletinRefHashMismatch,
 		ExpiryBucketFull,
 		ExpiryBlockSetFull,
 		CleanupLimitExceeded,
 		ReservationCapacityExceeded,
+		InvalidProviderAllocation,
+		ProviderAlreadyAttached,
+		ReservationAlreadyUsed,
 	}
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(7);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(8);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
@@ -400,16 +420,6 @@ pub mod pallet {
 		/// runtime should exercise it from a test.
 		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
 			let mut weight = Weight::zero();
-
-			// Run v0→v1 migration if it hasn't been applied yet.
-			// This handles the case where `codeSubstitutes` loaded the fix runtime
-			// without triggering `on_runtime_upgrade` (spec_version unchanged).
-			// Safe alongside the regular `MigrateV0ToV1` wired in Executive: both
-			// check `on_chain_storage_version() < 1`, so whichever runs first bumps
-			// the version and the other becomes a no-op.
-			// TODO: Remove once all chains have been migrated past v1 — after that
-			// this is just a redundant storage read per block.
-			weight.saturating_accrue(migrations::v1::maybe_migrate_v0_to_v1::<T>());
 
 			// Drop obsolete roots and decrement the chain-wide permanent counter for any
 			// renewed bytes that just aged out. The proof for `obsolete` will be checked
@@ -1118,6 +1128,41 @@ pub mod pallet {
 			Self::deposit_event(Event::ExhaustedAuthorizerRemoved { who });
 			Ok(())
 		}
+
+		/// Attach one active native storage-provider agreement before a reservation is used.
+		#[pallet::call_index(18)]
+		#[pallet::weight(T::WeightInfo::attach_provider())]
+		pub fn attach_provider(
+			origin: OriginFor<T>,
+			reservation_id: ReservationId,
+			provider_ref: ProviderAllocationId,
+		) -> DispatchResult {
+			let owner = ensure_signed(origin)?;
+			let reservation = ResourceReservations::<T>::get(reservation_id)
+				.ok_or(Error::<T>::ReservationNotFound)?;
+			ensure!(reservation.owner == owner, Error::<T>::NotReservationOwner);
+			ensure!(Self::now() < reservation.expires_at, Error::<T>::ReservationExpired);
+			ensure!(
+				!ReservationProviderRef::<T>::contains_key(reservation_id),
+				Error::<T>::ProviderAlreadyAttached
+			);
+			ensure!(
+				ResourceReservationLinks::<T>::iter_prefix(reservation_id).next().is_none(),
+				Error::<T>::ReservationAlreadyUsed
+			);
+			ensure!(
+				T::ProviderAllocation::valid(
+					reservation_id,
+					&provider_ref,
+					&owner,
+					reservation.bytes_remaining,
+				),
+				Error::<T>::InvalidProviderAllocation
+			);
+			ReservationProviderRef::<T>::insert(reservation_id, provider_ref);
+			Self::deposit_event(Event::ResourceProviderAttached { reservation_id, provider_ref });
+			Ok(())
+		}
 	}
 
 	#[pallet::event]
@@ -1224,6 +1269,10 @@ pub mod pallet {
 			transactions: u32,
 			expires_at: BlockNumberFor<T>,
 		},
+		ResourceProviderAttached {
+			reservation_id: ReservationId,
+			provider_ref: ProviderAllocationId,
+		},
 		ReservedContentStored {
 			reservation_id: ReservationId,
 			content_hash: ContentHash,
@@ -1329,7 +1378,7 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type PermanentStorageUsed<T: Config> = StorageValue<_, u64, ValueQuery>;
 
-	/// Explicit V6 actor provenance for each retained transaction position.
+	/// Current actor provenance for each retained transaction position.
 	#[pallet::storage]
 	pub type StoredBy<T: Config> = StorageMap<
 		_,
@@ -1347,6 +1396,11 @@ pub mod pallet {
 		ResourceReservation<T::AccountId, BlockNumberFor<T>>,
 		OptionQuery,
 	>;
+
+	/// Optional native provider agreement for an isolated reservation.
+	#[pallet::storage]
+	pub type ReservationProviderRef<T: Config> =
+		StorageMap<_, Blake2_128Concat, ReservationId, ProviderAllocationId, OptionQuery>;
 
 	#[pallet::storage]
 	pub type ResourceReservationExpiryBlocks<T: Config> =
@@ -1542,7 +1596,7 @@ pub mod pallet {
 	}
 
 	// `ValidateUnsigned` is deprecated upstream (will be removed after April 2027) in favour of
-	// `#[pallet::authorize]` + `frame_system::AuthorizeCall`. Migration is tracked separately;
+	// `#[pallet::authorize]` + `frame_system::AuthorizeCall`. That API refactor is tracked separately;
 	// silence the deprecation here so `-D warnings` in CI does not block the SDK bump.
 	#[allow(deprecated)]
 	#[pallet::validate_unsigned]
@@ -1579,9 +1633,7 @@ pub mod pallet {
 			let period = Self::retention_period();
 			let target_number = number.saturating_sub(period);
 			ensure!(!target_number.is_zero(), Error::<T>::UnexpectedProof);
-			// Shape-tolerant: `transactions_at` falls back to the v2 layout while the
-			// v2→v3 multi-block migration is still in flight, so historical entries
-			// that have not yet been rewritten can still be proof-verified.
+			// Clean-genesis networks store only the current `TransactionInfo` layout.
 			let transactions =
 				Self::transactions_at(target_number).ok_or(Error::<T>::MissingStateData)?;
 
@@ -2042,9 +2094,6 @@ pub mod pallet {
 			{
 				match StoredBy::<T>::get(BulletinRef { block, transaction_index }) {
 					Some(StorageActor::Account(ref stored_owner)) if stored_owner == owner => {},
-					Some(StorageActor::LegacyUnknown) | None => {
-						return Err(Error::<T>::LegacyContentUnrenewable.into())
-					},
 					_ => return Err(Error::<T>::StoredContentOwnerMismatch.into()),
 				}
 			}
@@ -2175,9 +2224,6 @@ pub mod pallet {
 			);
 			match StoredBy::<T>::get(source.bulletin_ref) {
 				Some(StorageActor::Account(ref stored_owner)) if stored_owner == owner => {},
-				Some(StorageActor::LegacyUnknown) | None => {
-					return Err(Error::<T>::LegacyContentUnrenewable.into())
-				},
 				_ => return Err(Error::<T>::StoredContentOwnerMismatch.into()),
 			}
 			let info = Self::transaction_info(
@@ -2538,6 +2584,7 @@ pub mod pallet {
 				});
 				if outcome.id == reservation_id && outcome.removed && purpose_matches {
 					ResourceReservationTombstones::<T>::remove(reservation_id);
+					ReservationProviderRef::<T>::remove(reservation_id);
 					TombstonePruneQueue::<T>::mutate(|items| {
 						items.remove(position);
 					});
@@ -2555,8 +2602,8 @@ pub mod pallet {
 
 		pub fn stored_content_provenance(
 			reference: BulletinRef<BlockNumberFor<T>>,
-		) -> StorageActor<T::AccountId> {
-			StoredBy::<T>::get(reference).unwrap_or(StorageActor::LegacyUnknown)
+		) -> Option<StorageActor<T::AccountId>> {
+			StoredBy::<T>::get(reference)
 		}
 
 		pub fn resource_reservation(
@@ -2575,6 +2622,12 @@ pub mod pallet {
 			content_hash: ContentHash,
 		) -> Option<ResourceReservationLink<T::AccountId, BlockNumberFor<T>>> {
 			ResourceReservationLinks::<T>::get(reservation_id, content_hash)
+		}
+
+		pub fn resource_provider_ref(
+			reservation_id: ReservationId,
+		) -> Option<ProviderAllocationId> {
+			ReservationProviderRef::<T>::get(reservation_id)
 		}
 
 		fn actor_for_caller(
@@ -2968,40 +3021,10 @@ pub mod pallet {
 		}
 
 		/// All transactions stored at the given block, in the current `TransactionInfo` layout.
-		///
-		/// Shape-tolerant against entries that are still in the pre-v3 layout.
 		pub fn transactions_at(
 			block: BlockNumberFor<T>,
 		) -> Option<BoundedVec<TransactionInfo, T::MaxBlockTransactions>> {
-			let raw = sp_io::storage::get(&Transactions::<T>::hashed_key_for(block))?;
-
-			if let Ok(v3) =
-				BoundedVec::<TransactionInfo, T::MaxBlockTransactions>::decode(&mut &raw[..])
-			{
-				return Some(v3);
-			}
-
-			let v2 = BoundedVec::<
-				crate::migrations::v3::V2TransactionInfo,
-				T::MaxBlockTransactions,
-			>::decode(&mut &raw[..])
-			.ok()?;
-
-			let materialized: Vec<TransactionInfo> = v2
-				.into_iter()
-				.map(|tx| TransactionInfo {
-					chunk_root: tx.chunk_root,
-					content_hash: tx.content_hash,
-					hashing: tx.hashing,
-					cid_codec: tx.cid_codec,
-					size: tx.size,
-					extrinsic_index: u32::MAX,
-					block_chunks: tx.block_chunks,
-					kind: TransactionKind::Store,
-				})
-				.collect();
-
-			BoundedVec::<TransactionInfo, T::MaxBlockTransactions>::try_from(materialized).ok()
+			Transactions::<T>::get(block)
 		}
 
 		/// Returns `true` if no more store/renew transactions can be included in the current

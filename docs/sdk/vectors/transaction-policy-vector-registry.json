@@ -1,0 +1,265 @@
+{
+  "current_vector_status": "P0 hash/outcome registry complete for existing spec-29/tx-8 runtime fixtures and construction tests; production PAPI call encoders remain pending by domain",
+  "policy": "This registry proves byte/hash/outcome binding of existing runtime fixtures only. It does not claim that the P0 bootstrap descriptor is a production PAPI descriptor or that every future domain call is encoded.",
+  "registry_version": 1,
+  "required_current_vectors": [
+    {
+      "id": "normal-direct-positive",
+      "evidence": [
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/direct-signed-extrinsic.scale",
+          "sha256": "3c7409802e5eb1098b537c6038601fab7d1f9a77e4e836e35c56d6612849f73d",
+          "expected_outcome": "valid"
+        }
+      ],
+      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+    },
+    {
+      "id": "normal-bad-metadata",
+      "evidence": [
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-metadata-hash.scale",
+          "sha256": "28ea14e3bb5543ef32c782395be83238748cfdbeb366c0b182dc037061ecac69",
+          "expected_outcome": "InvalidTransaction::BadProof"
+        }
+      ],
+      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+    },
+    {
+      "id": "normal-bad-version",
+      "evidence": [
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-spec.scale",
+          "sha256": "d83d5922059c87d7c44878a44bf5ba8f4d5ca724f861cfd4c5d8682241878f34",
+          "expected_outcome": "InvalidTransaction::BadProof"
+        },
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-transaction-version.scale",
+          "sha256": "07d69ddd2e1eef63373e2c9ba13334fc1d0f28432bfd8216d4ebe039289146c9",
+          "expected_outcome": "InvalidTransaction::BadProof"
+        }
+      ],
+      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+    },
+    {
+      "id": "ethereum-no-custom-origin",
+      "evidence": [],
+      "expected_outcome": "constructed extension projection only; no standalone SCALE fixture",
+      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+    },
+    {
+      "id": "authorized-unforgeable-skip",
+      "evidence": [],
+      "expected_outcome": "constructed extension projection only; no standalone SCALE fixture",
+      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+    },
+    {
+      "id": "meta-positive",
+      "evidence": [
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/sponsored-outer-extrinsic.scale",
+          "sha256": "8cba0f2c8357d746747752ec986ab42bb51e179acc63340cd52bba7a932f040e",
+          "expected_outcome": "valid"
+        },
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/intent-preimage.scale",
+          "sha256": "912dfee0b6efe850f1d81ca70a78e7d133a18fa95fa30cdb4f2d5627c2ce9ecd",
+          "expected_outcome": "valid"
+        }
+      ],
+      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+    },
+    {
+      "id": "meta-replay",
+      "evidence": [
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-score-nonce-meta.scale",
+          "sha256": "512a534ad44948642f4bb4befd2d017c20a88f39fbe4f3826e6455e3446db3a9",
+          "expected_outcome": "InvalidTransaction::Future"
+        }
+      ],
+      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+    },
+    {
+      "id": "meta-bad-signature",
+      "evidence": [
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-wrong-signature.scale",
+          "sha256": "c0022038c9527f6ff0652f9c61e67c8f69857c43d1c637e9f4418de84b345ec2",
+          "expected_outcome": "InvalidTransaction::BadProof"
+        }
+      ],
+      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+    },
+    {
+      "id": "every-extension-slot-mutation",
+      "evidence": [
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-call-hash.scale",
+          "sha256": "ba38b6f770d32750e4615bf7bfc4710dfd7099c568e5634cd21273ade0d30525",
+          "expected_outcome": "InvalidTransaction::BadProof"
+        },
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-domain.scale",
+          "sha256": "1a278c7241eef36634caf06b17df544f0462bdfc02a888536bf597adfbbf4cb6",
+          "expected_outcome": "InvalidTransaction::BadProof"
+        },
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-genesis.scale",
+          "sha256": "8069582d1e9c668f7c80b5d7048b6d430683021f4efd2c087396ab183a2593f8",
+          "expected_outcome": "InvalidTransaction::BadProof"
+        },
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-metadata-hash.scale",
+          "sha256": "28ea14e3bb5543ef32c782395be83238748cfdbeb366c0b182dc037061ecac69",
+          "expected_outcome": "InvalidTransaction::BadProof"
+        },
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-mortality.scale",
+          "sha256": "138eaecff0d76ad7e468ff180faef68a8804c09820a9d8096ca1954bcf7cacd7",
+          "expected_outcome": "InvalidTransaction::BadProof"
+        },
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-nonce.scale",
+          "sha256": "b327f75cf64a43264e4be199a5a60c7f150a9c3bcffb0a0fc2e03b5d10b1a788",
+          "expected_outcome": "InvalidTransaction::BadProof"
+        },
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-policy-hash.scale",
+          "sha256": "044f9bce741e8d0b0f8ec03dc4f10862db10912c72a2b136df154b34ead384e1",
+          "expected_outcome": "InvalidTransaction::BadProof"
+        },
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-signer.scale",
+          "sha256": "fb4fef5ec5eb7df45590996315558c1b5ae86d1612e10c7c9dbc6c938112ab15",
+          "expected_outcome": "InvalidTransaction::BadProof"
+        },
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-storage-hash.scale",
+          "sha256": "e8e6e848d6f674b0d355781100f54ad6ad5ab230a05b3f622124533da31419bb",
+          "expected_outcome": "InvalidTransaction::BadProof"
+        },
+        {
+          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-transaction-version.scale",
+          "sha256": "07d69ddd2e1eef63373e2c9ba13334fc1d0f28432bfd8216d4ebe039289146c9",
+          "expected_outcome": "InvalidTransaction::BadProof"
+        }
+      ],
+      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+    }
+  ],
+  "reused_semantic_vectors": [
+    {
+      "class": "positive",
+      "id": "VECTOR-DIRECT-BASELINE",
+      "path": "docs/evidence/orbis-v4/VECTOR-DIRECT-BASELINE.json",
+      "sha256": "ede34295dbf923b7eac1cc8e9853d408945783df58de8f2c1decb72b2a988ea7"
+    },
+    {
+      "class": "positive",
+      "id": "VECTOR-INTENT-COMMITMENT",
+      "path": "docs/evidence/orbis-v4/VECTOR-INTENT-COMMITMENT.json",
+      "sha256": "6e8dcbd536c42192e48ae757bdc20ec72c705efe8a905023b3108e9fd9a4f9f8"
+    },
+    {
+      "class": "positive",
+      "id": "VECTOR-INTENT-PREIMAGE",
+      "path": "docs/evidence/orbis-v4/VECTOR-INTENT-PREIMAGE.json",
+      "sha256": "da9b895161c566e586d3a3aff2145e249c1bacd2e34925d2f44c8a554ec14114"
+    },
+    {
+      "class": "positive",
+      "id": "VECTOR-MAX-ENVELOPE",
+      "path": "docs/evidence/orbis-v4/VECTOR-MAX-ENVELOPE.json",
+      "sha256": "9287a2ed6d7d2a52a32fce54eed2a745a501fcf04f88b56f7469ebe05074dab7"
+    },
+    {
+      "class": "positive",
+      "id": "VECTOR-META-CANONICAL",
+      "path": "docs/evidence/orbis-v4/VECTOR-META-CANONICAL.json",
+      "sha256": "d84905befba12026ecbf632ba562fc65eff36334ad59c80d61c427ec0fbf47f0"
+    },
+    {
+      "class": "negative",
+      "id": "VECTOR-MUTATE-CALL",
+      "path": "docs/evidence/orbis-v4/VECTOR-MUTATE-CALL.json",
+      "sha256": "846c9cd4a09e7af9150afc40de7673a9a5eecfdc99f9e7bf6e44cc0f040be841"
+    },
+    {
+      "class": "negative",
+      "id": "VECTOR-MUTATE-DOMAIN",
+      "path": "docs/evidence/orbis-v4/VECTOR-MUTATE-DOMAIN.json",
+      "sha256": "d6d2353bac08dc0f87433778e83ab764504ab78b44c0b4f8eb6774201cd61acd"
+    },
+    {
+      "class": "negative",
+      "id": "VECTOR-MUTATE-GENESIS",
+      "path": "docs/evidence/orbis-v4/VECTOR-MUTATE-GENESIS.json",
+      "sha256": "8c1752936d4977b46884ff1da944c6374f1df52c68462c78022d901167f7c613"
+    },
+    {
+      "class": "negative",
+      "id": "VECTOR-MUTATE-METADATA",
+      "path": "docs/evidence/orbis-v4/VECTOR-MUTATE-METADATA.json",
+      "sha256": "f4de7045bf174d2c02abd59287db11d6b8d3987b6ab6079e90cbd367e30de2b5"
+    },
+    {
+      "class": "negative",
+      "id": "VECTOR-MUTATE-MORTALITY",
+      "path": "docs/evidence/orbis-v4/VECTOR-MUTATE-MORTALITY.json",
+      "sha256": "0ddccac38920998d24c7688afa6aff8087c5867cd6dadfa98b8db5607c280a52"
+    },
+    {
+      "class": "negative",
+      "id": "VECTOR-MUTATE-NONCE",
+      "path": "docs/evidence/orbis-v4/VECTOR-MUTATE-NONCE.json",
+      "sha256": "6a176ce655e5cb6e5bcb07c26d82eb0fb1bcd6e94c3b479235a165793da783a5"
+    },
+    {
+      "class": "negative",
+      "id": "VECTOR-MUTATE-POLICY",
+      "path": "docs/evidence/orbis-v4/VECTOR-MUTATE-POLICY.json",
+      "sha256": "9f39505886b4124f982b5189633c5ad047d0f95c626f052783c4dc3a973bada7"
+    },
+    {
+      "class": "negative",
+      "id": "VECTOR-MUTATE-SIGNER",
+      "path": "docs/evidence/orbis-v4/VECTOR-MUTATE-SIGNER.json",
+      "sha256": "b44d12e8adca0558c20a0fef7d8131ba11a8df22069ebba275a1d439b8c76a20"
+    },
+    {
+      "class": "negative",
+      "id": "VECTOR-MUTATE-SPEC",
+      "path": "docs/evidence/orbis-v4/VECTOR-MUTATE-SPEC.json",
+      "sha256": "5a5eb9579bca9e3510606a200860f4c91dddfa5f9f8c29c4e0b1f9ba6ac7e3e5"
+    },
+    {
+      "class": "negative",
+      "id": "VECTOR-MUTATE-STORAGE",
+      "path": "docs/evidence/orbis-v4/VECTOR-MUTATE-STORAGE.json",
+      "sha256": "b6e0e0a3396b2fe21ff435225ae79ec52bbd0d89a0e1c9438459d7282575d4c6"
+    },
+    {
+      "class": "negative",
+      "id": "VECTOR-MUTATE-TX",
+      "path": "docs/evidence/orbis-v4/VECTOR-MUTATE-TX.json",
+      "sha256": "7690685de0b87ca5fe565e63da3bf66d3d053ec3a8be16b4324e27368ed876db"
+    },
+    {
+      "class": "positive",
+      "id": "VECTOR-PAID-TOKEN-KEY",
+      "path": "docs/evidence/orbis-v4/VECTOR-PAID-TOKEN-KEY.json",
+      "sha256": "81c06c9620934558a6097604ec75a3ad120c78845d7dca509611aabdc8317be7"
+    },
+    {
+      "class": "negative",
+      "id": "VECTOR-SPEC26-NEGATIVE",
+      "path": "docs/evidence/orbis-v4/VECTOR-SPEC26-NEGATIVE.json",
+      "sha256": "152173437e7b7a922bf04adeecb2f6e993b837c44bfef356d0f63943e0f8a881"
+    }
+  ],
+  "runtime": {
+    "spec_version": 29,
+    "transaction_version": 8
+  }
+}

@@ -16,12 +16,9 @@
 //! Tests for transaction-storage pallet.
 
 // Tests still call the deprecated `ValidateUnsigned::{validate_unsigned, pre_dispatch}` directly.
-// Migration to `#[pallet::authorize]` is tracked separately; silence here so `-D warnings` in CI
+// The `#[pallet::authorize]` API refactor is tracked separately; silence here so `-D warnings` in CI
 // does not block the SDK bump.
 #![allow(deprecated)]
-
-#[path = "../../../evidence_markers_v4.rs"]
-mod evidence_markers_v4;
 
 use super::{
 	extension::ValidateStorageCalls,
@@ -39,13 +36,13 @@ use super::{
 	PERMANENT_STORAGE_NEAR_CAP_PERCENT,
 };
 
-use crate::{migrations::v1::OldTransactionInfo, mock::RuntimeGenesisConfig};
+use crate::mock::RuntimeGenesisConfig;
 use bulletin_transaction_storage_primitives::cids::{CidConfig, HashingAlgorithm, RAW_CODEC};
 use codec::Encode;
 use polkadot_sdk_frame::{
 	deps::frame_support::{
 		storage::unhashed,
-		traits::{GetStorageVersion, Hooks, OnRuntimeUpgrade},
+		traits::{GetStorageVersion, Hooks},
 		BoundedVec,
 	},
 	hashing::blake2_256,
@@ -123,7 +120,7 @@ fn reserved_store_and_renew_use_isolated_capacity_and_exact_refs() {
 		let first_ref = BulletinRef { block: 1, transaction_index: 0 };
 		assert_eq!(
 			TransactionStorage::stored_content_provenance(first_ref),
-			StorageActor::Account(7)
+			Some(StorageActor::Account(7))
 		);
 		assert_eq!(super::ReservedPermanentCapacity::<Test>::get(), 8);
 		assert_eq!(PermanentStorageUsed::get(), 4);
@@ -506,380 +503,24 @@ fn cancellation_releases_unused_capacity_once_but_preserves_live_link() {
 }
 
 #[test]
-fn migration_v5_to_v6_preserves_legacy_state_and_defaults_provenance() {
-	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
+fn bulletin_clean_genesis_initializes_current_v8_state() {
+	use bulletin_transaction_storage_primitives::BulletinRef;
 
 	new_test_ext().execute_with(|| {
-		StorageVersion::new(5).put::<TransactionStorage>();
-		System::set_block_number(1);
-		frame_system::Pallet::<Test>::set_extrinsic_index(0);
-		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), vec![42u8; 4]));
-		let legacy_ref = BulletinRef { block: 1, transaction_index: 0 };
-		super::StoredBy::<Test>::remove(legacy_ref);
-		let before_transactions = super::BlockTransactions::<Test>::get();
-		let before_used = PermanentStorageUsed::get();
-		crate::migrations::v6::MigrateV5ToV6::<Test>::on_runtime_upgrade();
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(6));
-		assert_eq!(super::BlockTransactions::<Test>::get(), before_transactions);
-		assert_eq!(PermanentStorageUsed::get(), before_used);
+		assert_eq!(TransactionStorage::current_storage_version(), StorageVersion::new(8));
+		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(8));
 		assert_eq!(
-			TransactionStorage::stored_content_provenance(legacy_ref),
-			StorageActor::LegacyUnknown
-		);
-		assert!(super::ResourceReservations::<Test>::iter().next().is_none());
-		assert_eq!(super::ReservedPermanentCapacity::<Test>::get(), 0);
-	});
-}
-
-#[test]
-fn bulletin_declares_and_genesis_initializes_storage_v7() {
-	new_test_ext().execute_with(|| {
-		assert_eq!(TransactionStorage::current_storage_version(), StorageVersion::new(7));
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(7));
-	});
-}
-
-#[test]
-fn migration_v5_to_v7_composes_fresh_legacy_path_without_losing_transactions() {
-	use crate::migrations::MigrateV5ToV7;
-	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
-
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(5).put::<TransactionStorage>();
-		System::set_block_number(1);
-		frame_system::Pallet::<Test>::set_extrinsic_index(0);
-		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), vec![42u8; 4]));
-		let legacy_ref = BulletinRef { block: 1, transaction_index: 0 };
-		super::StoredBy::<Test>::remove(legacy_ref);
-		let before = BlockTransactions::get();
-
-		<MigrateV5ToV7<Test> as OnRuntimeUpgrade>::on_runtime_upgrade();
-
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(7));
-		assert_eq!(BlockTransactions::get(), before);
-		assert_eq!(
-			TransactionStorage::stored_content_provenance(legacy_ref),
-			StorageActor::LegacyUnknown
-		);
-		assert_eq!(super::ResourceReservationRowCount::<Test>::get(), 0);
-		assert_eq!(super::ResourceReservationLinkCount::<Test>::get(), 0);
-		assert!(super::ResourceLinkByRef::<Test>::iter().next().is_none());
-		assert!(super::ResourceLinkByContentHash::<Test>::iter().next().is_none());
-	});
-}
-
-fn insert_v6_migration_link(
-	reservation_id: u64,
-	owner: u64,
-	content_hash: [u8; 32],
-	bulletin_ref: bulletin_transaction_storage_primitives::BulletinRef<u64>,
-	active: bool,
-) {
-	use bulletin_transaction_storage_primitives::{
-		ResourceClosure, ResourceReservation, ResourceReservationLink,
-		ResourceReservationTombstone, StorageActor,
-	};
-
-	if active {
-		super::ResourceReservations::<Test>::insert(
-			reservation_id,
-			ResourceReservation {
-				owner,
-				purpose_digest: [reservation_id as u8; 32],
-				bytes_remaining: 10,
-				transactions_remaining: 1,
-				created_at: 1,
-				expires_at: 100,
-			},
-		);
-	} else {
-		super::ResourceReservationTombstones::<Test>::insert(
-			reservation_id,
-			ResourceReservationTombstone {
-				owner,
-				purpose_digest: [reservation_id as u8; 32],
-				final_bytes_remaining: 0,
-				final_transactions_remaining: 0,
-				outcome: ResourceClosure::Exhausted,
-				closed_at: 1,
-			},
-		);
-	}
-	let info = TransactionInfo {
-		chunk_root: [reservation_id as u8; 32].into(),
-		content_hash,
-		hashing: HashingAlgorithm::Blake2b256,
-		cid_codec: RAW_CODEC,
-		size: 4,
-		extrinsic_index: 0,
-		block_chunks: num_chunks(4),
-		kind: TransactionKind::Store,
-	};
-	let mut rows = Transactions::get(bulletin_ref.block).unwrap_or_default();
-	while rows.len() <= bulletin_ref.transaction_index as usize {
-		rows.try_push(info.clone()).unwrap();
-	}
-	rows[bulletin_ref.transaction_index as usize] = info;
-	Transactions::insert(bulletin_ref.block, rows);
-	super::StoredBy::<Test>::insert(bulletin_ref, StorageActor::Account(owner));
-	super::ResourceReservationLinks::<Test>::insert(
-		reservation_id,
-		content_hash,
-		ResourceReservationLink {
-			reservation_id,
-			content_hash,
-			bulletin_ref,
-			owner,
-			size: 4,
-			retention_boundary: 100,
-		},
-	);
-}
-
-fn run_v6_to_v7_migration() -> Weight {
-	use crate::migrations::v7::MigrateV6ToV7;
-	<MigrateV6ToV7<Test> as OnRuntimeUpgrade>::on_runtime_upgrade()
-}
-
-fn expected_v6_to_v7_max_weight() -> Weight {
-	crate::migrations::v7::MAX_MIGRATION_CPU
-		.saturating_add(crate::mock::TestDbWeight::get().reads_writes(6_403, 4_099))
-}
-
-fn assert_exact_repaired_indexes(expected_links: u32, expected_rows: u32) {
-	use crate::migrations::v7::MigrateV6ToV7;
-	assert_ok!(MigrateV6ToV7::<Test>::validate_repaired_state());
-	assert_eq!(super::ResourceReservationLinkCount::<Test>::get(), expected_links);
-	assert_eq!(super::ResourceReservationRowCount::<Test>::get(), expected_rows);
-	assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(7));
-}
-
-#[test]
-fn migration_v5_to_v7_alias_repairs_historical_v6_state() {
-	use crate::migrations::MigrateV5ToV7;
-	use bulletin_transaction_storage_primitives::BulletinRef;
-
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(6).put::<TransactionStorage>();
-		let reference = BulletinRef { block: 10, transaction_index: 0 };
-		let hash = [1; 32];
-		insert_v6_migration_link(1, 11, hash, reference, true);
-		<MigrateV5ToV7<Test> as OnRuntimeUpgrade>::on_runtime_upgrade();
-		assert_eq!(super::ResourceLinkByRef::<Test>::get(reference), Some((1, hash)));
-		assert_eq!(super::ResourceLinkByContentHash::<Test>::get(hash), Some(1));
-		assert_exact_repaired_indexes(1, 1);
-	});
-}
-
-#[test]
-fn migration_v6_to_v7_evidence_markers_are_source_owned() {
-	evidence_markers_v4::emit_evidence_markers_v4("bulletin-v6-v7");
-}
-
-#[test]
-fn migration_v6_to_v7_repairs_ref_missing_partial_and_stale_fixtures() {
-	use bulletin_transaction_storage_primitives::BulletinRef;
-
-	for fixture in 0..3 {
-		new_test_ext().execute_with(|| {
-			StorageVersion::new(6).put::<TransactionStorage>();
-			let reference = BulletinRef { block: 10, transaction_index: 0 };
-			let hash = [1; 32];
-			insert_v6_migration_link(1, 11, hash, reference, true);
-			if fixture == 1 {
-				super::ResourceLinkByRef::<Test>::insert(reference, (1, hash));
-			} else if fixture == 2 {
-				super::ResourceLinkByRef::<Test>::insert(
-					BulletinRef { block: 99, transaction_index: 3 },
-					(99, [99; 32]),
-				);
-			}
-			super::ResourceLinkByContentHash::<Test>::insert(hash, 1);
-			run_v6_to_v7_migration();
-			assert_eq!(super::ResourceLinkByRef::<Test>::get(reference), Some((1, hash)));
-			assert_exact_repaired_indexes(1, 1);
-		});
-	}
-}
-
-#[test]
-fn migration_v6_to_v7_repairs_hash_missing_partial_and_stale_fixtures() {
-	use bulletin_transaction_storage_primitives::BulletinRef;
-
-	for fixture in 0..3 {
-		new_test_ext().execute_with(|| {
-			StorageVersion::new(6).put::<TransactionStorage>();
-			let reference = BulletinRef { block: 10, transaction_index: 0 };
-			let hash = [1; 32];
-			insert_v6_migration_link(1, 11, hash, reference, true);
-			super::ResourceLinkByRef::<Test>::insert(reference, (1, hash));
-			if fixture == 1 {
-				super::ResourceLinkByContentHash::<Test>::insert(hash, 1);
-			} else if fixture == 2 {
-				super::ResourceLinkByContentHash::<Test>::insert([99; 32], 99);
-			}
-			run_v6_to_v7_migration();
-			assert_eq!(super::ResourceLinkByContentHash::<Test>::get(hash), Some(1));
-			assert_exact_repaired_indexes(1, 1);
-		});
-	}
-}
-
-#[test]
-fn migration_v6_to_v7_repairs_both_partial_bad_counters_and_historical_shapes() {
-	use bulletin_transaction_storage_primitives::BulletinRef;
-
-	for historical_shape in ["4c", "640", "combined"] {
-		new_test_ext().execute_with(|| {
-			StorageVersion::new(6).put::<TransactionStorage>();
-			let first_ref = BulletinRef { block: 10, transaction_index: 0 };
-			let second_ref = BulletinRef { block: 11, transaction_index: 0 };
-			insert_v6_migration_link(1, 11, [1; 32], first_ref, true);
-			insert_v6_migration_link(2, 22, [2; 32], second_ref, false);
-			if historical_shape != "4c" {
-				super::ResourceLinkByRef::<Test>::insert(first_ref, (1, [1; 32]));
-			}
-			if historical_shape == "combined" {
-				super::ResourceLinkByContentHash::<Test>::insert([2; 32], 2);
-			}
-			super::ResourceReservationRowCount::<Test>::put(u32::MAX);
-			super::ResourceReservationLinkCount::<Test>::put(u32::MAX);
-
-			run_v6_to_v7_migration();
-			assert_exact_repaired_indexes(2, 2);
-		});
-	}
-}
-
-#[test]
-fn migration_v6_to_v7_empty_fixture_sets_exact_zeroes_and_v7_last() {
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(6).put::<TransactionStorage>();
-		super::ResourceReservationRowCount::<Test>::put(99);
-		super::ResourceReservationLinkCount::<Test>::put(99);
-		assert_eq!(run_v6_to_v7_migration(), expected_v6_to_v7_max_weight());
-		assert_exact_repaired_indexes(0, 0);
-	});
-}
-
-#[test]
-fn migration_v6_to_v7_rejects_duplicate_ref_without_any_write() {
-	use bulletin_transaction_storage_primitives::BulletinRef;
-
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(6).put::<TransactionStorage>();
-		let reference = BulletinRef { block: 10, transaction_index: 0 };
-		let hash = [1; 32];
-		insert_v6_migration_link(1, 11, hash, reference, true);
-		insert_v6_migration_link(2, 22, hash, reference, true);
-		// Make provenance compatible with the second row too; duplicate ref detection remains the
-		// authoritative reason the state cannot be repaired without guessing a winner.
-		super::ResourceReservationLinks::<Test>::mutate(2, hash, |link| {
-			link.as_mut().unwrap().owner = 11
-		});
-		super::ResourceReservations::<Test>::mutate(2, |row| row.as_mut().unwrap().owner = 11);
-		super::StoredBy::<Test>::insert(
-			reference,
-			bulletin_transaction_storage_primitives::StorageActor::Account(11),
-		);
-		super::ResourceReservationRowCount::<Test>::put(41);
-		super::ResourceReservationLinkCount::<Test>::put(42);
-		let before_ref = super::ResourceLinkByRef::<Test>::iter().collect::<Vec<_>>();
-		let before_hash = super::ResourceLinkByContentHash::<Test>::iter().collect::<Vec<_>>();
-		let result = std::panic::catch_unwind(run_v6_to_v7_migration);
-		assert!(result.is_err());
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(6));
-		assert_eq!(super::ResourceReservationRowCount::<Test>::get(), 41);
-		assert_eq!(super::ResourceReservationLinkCount::<Test>::get(), 42);
-		assert_eq!(super::ResourceLinkByRef::<Test>::iter().collect::<Vec<_>>(), before_ref);
-		assert_eq!(
-			super::ResourceLinkByContentHash::<Test>::iter().collect::<Vec<_>>(),
-			before_hash
+			TransactionStorage::stored_content_provenance(BulletinRef {
+				block: 1,
+				transaction_index: 0,
+			}),
+			None,
 		);
 	});
 }
 
 #[test]
-fn migration_v6_to_v7_rejects_duplicate_hash_without_any_write() {
-	use bulletin_transaction_storage_primitives::BulletinRef;
-
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(6).put::<TransactionStorage>();
-		let hash = [1; 32];
-		insert_v6_migration_link(
-			1,
-			11,
-			hash,
-			BulletinRef { block: 10, transaction_index: 0 },
-			true,
-		);
-		insert_v6_migration_link(
-			2,
-			22,
-			hash,
-			BulletinRef { block: 11, transaction_index: 0 },
-			true,
-		);
-		super::ResourceReservationRowCount::<Test>::put(51);
-		super::ResourceReservationLinkCount::<Test>::put(52);
-		let result = std::panic::catch_unwind(run_v6_to_v7_migration);
-		assert!(result.is_err());
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(6));
-		assert_eq!(super::ResourceReservationRowCount::<Test>::get(), 51);
-		assert_eq!(super::ResourceReservationLinkCount::<Test>::get(), 52);
-		assert!(super::ResourceLinkByRef::<Test>::iter().next().is_none());
-		assert!(super::ResourceLinkByContentHash::<Test>::iter().next().is_none());
-	});
-}
-
-#[test]
-fn migration_v6_to_v7_small_state_still_charges_configured_max_weight() {
-	use bulletin_transaction_storage_primitives::BulletinRef;
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(6).put::<TransactionStorage>();
-		let reference = BulletinRef { block: 10, transaction_index: 0 };
-		let hash = [1; 32];
-		insert_v6_migration_link(1, 11, hash, reference, true);
-		super::ResourceLinkByRef::<Test>::insert(reference, (1, hash));
-		super::ResourceLinkByContentHash::<Test>::insert(hash, 1);
-
-		assert_eq!(run_v6_to_v7_migration(), expected_v6_to_v7_max_weight());
-	});
-}
-
-#[cfg(feature = "try-runtime")]
-#[test]
-fn migration_v6_to_v7_try_runtime_pre_post_preserves_authoritative_state() {
-	use crate::migrations::v7::MigrateV6ToV7;
-	use bulletin_transaction_storage_primitives::BulletinRef;
-
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(6).put::<TransactionStorage>();
-		System::set_block_number(10);
-		insert_v6_migration_link(
-			1,
-			11,
-			[1; 32],
-			BulletinRef { block: 10, transaction_index: 0 },
-			true,
-		);
-		super::ResourceReservationExpiryBlocks::<Test>::put(
-			BoundedVec::<u64, ConstU32<256>>::try_from(vec![100]).unwrap(),
-		);
-		super::ResourceReservationExpiryBuckets::<Test>::insert(
-			100,
-			BoundedVec::<u64, ConstU32<256>>::try_from(vec![1]).unwrap(),
-		);
-		super::ReservedPermanentCapacity::<Test>::put(10);
-		let snapshot = <MigrateV6ToV7<Test> as OnRuntimeUpgrade>::pre_upgrade().unwrap();
-		run_v6_to_v7_migration();
-		assert_ok!(<MigrateV6ToV7<Test> as OnRuntimeUpgrade>::post_upgrade(snapshot));
-		assert_ok!(TransactionStorage::do_try_state(System::block_number()));
-	});
-}
-
-#[test]
-fn v6_records_explicit_account_root_and_preimage_provenance() {
+fn records_explicit_account_root_and_preimage_provenance() {
 	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
 
 	new_test_ext().execute_with(|| {
@@ -899,21 +540,21 @@ fn v6_records_explicit_account_root_and_preimage_provenance() {
 				block: 1,
 				transaction_index: 0,
 			}),
-			StorageActor::Account(7)
+			Some(StorageActor::Account(7))
 		);
 		assert_eq!(
 			TransactionStorage::stored_content_provenance(BulletinRef {
 				block: 1,
 				transaction_index: 1,
 			}),
-			StorageActor::Root
+			Some(StorageActor::Root)
 		);
 		assert_eq!(
 			TransactionStorage::stored_content_provenance(BulletinRef {
 				block: 1,
 				transaction_index: 2,
 			}),
-			StorageActor::Preimage(preimage_hash)
+			Some(StorageActor::Preimage(preimage_hash))
 		);
 	});
 }
@@ -941,7 +582,7 @@ fn force_renew_records_explicit_account_provenance() {
 				block: 2,
 				transaction_index: 0,
 			}),
-			StorageActor::Account(who)
+			Some(StorageActor::Account(who))
 		);
 	});
 }
@@ -1030,7 +671,7 @@ fn auto_renew_records_explicit_auto_actor_provenance() {
 				block: 2,
 				transaction_index: 0,
 			}),
-			StorageActor::AutoRenew(who)
+			Some(StorageActor::AutoRenew(who))
 		);
 	});
 }
@@ -1285,51 +926,72 @@ fn checks_proof() {
 	});
 }
 
+/// A block whose retention target contains indexed transactions is invalid unless the
+/// transaction-storage inherent checks a proof in that same block.  This deliberately bypasses
+/// the mock's normal inherent hook so the `on_finalize` fail-closed invariant is exercised.
 #[test]
-fn checks_proof_with_v2_shaped_transactions_entry() {
-	use crate::migrations::v3::V2TransactionInfo;
-
+#[cfg(not(feature = "try-runtime"))]
+#[should_panic(expected = "Storage proof must be checked once in the block")]
+fn missing_required_proof_panics_at_finalize() {
 	new_test_ext().execute_with(|| {
-		let data = vec![0u8; 2000];
+		run_to_block(1, || None);
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), vec![7u8; 2_000]));
+		run_to_block(10, || None);
 
+		// Block 11 targets Transactions[1].  No inherent/proof is applied before finalization.
+		init_block(11);
+		assert!(Transactions::contains_key(1));
+		<TransactionStorage as polkadot_sdk_frame::traits::Hooks<u64>>::on_finalize(11);
+	});
+}
+
+#[test]
+fn duplicate_proof_is_rejected_without_clearing_first_success() {
+	new_test_ext().execute_with(|| {
+		let data = vec![8u8; 2_000];
 		run_to_block(1, || None);
 		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), data.clone()));
-		run_to_block(2, || None);
-
-		// Rewrite the freshly-written v3 entry at block 1 into the old v2 shape to
-		// simulate the MBM window where historical `Transactions` entries have not yet
-		// been rewritten by `MigrateV2ToV3`, while `check_proof` still executes every block.
-		let txs_v3 = Transactions::get(1).expect("block 1 entry stored in v3 shape");
-		let txs_v2: Vec<V2TransactionInfo> = txs_v3
-			.into_iter()
-			.map(|tx| V2TransactionInfo {
-				chunk_root: tx.chunk_root,
-				content_hash: tx.content_hash,
-				hashing: tx.hashing,
-				cid_codec: tx.cid_codec,
-				size: tx.size,
-				block_chunks: tx.block_chunks,
-			})
-			.collect();
-		let bounded: BoundedVec<V2TransactionInfo, ConstU32<DEFAULT_MAX_BLOCK_TRANSACTIONS>> =
-			txs_v2.try_into().expect("within bounds");
-		unhashed::put_raw(&Transactions::hashed_key_for(1u64), &bounded.encode());
-
-		// Direct decode as the live v3 type now fails.
-		assert!(Transactions::get(1).is_none());
-
 		run_to_block(11, || None);
+
 		let parent_hash = System::parent_hash();
 		let proof = build_proof(parent_hash.as_ref(), vec![data]).unwrap().unwrap();
-
 		assert_ok!(TransactionStorage::apply_block_inherents(
 			RuntimeOrigin::none(),
-			Some(proof),
+			Some(proof.clone()),
 		));
-		assert!(
-			<super::ProofChecked<Test>>::get(),
-			"apply_block_inherents proof step should succeed by using transactions_at() on the v2-shaped entry",
+		assert!(super::ProofChecked::<Test>::get());
+		assert_noop!(
+			TransactionStorage::apply_block_inherents(RuntimeOrigin::none(), Some(proof)),
+			Error::DoubleCheck,
 		);
+		assert!(super::ProofChecked::<Test>::get(), "duplicate failure must not undo success");
+	});
+}
+
+#[test]
+fn late_proof_cannot_resurrect_pruned_retention_state() {
+	new_test_ext().execute_with(|| {
+		let data = vec![9u8; 2_000];
+		run_to_block(1, || None);
+		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), data.clone()));
+		run_to_block(11, || None);
+
+		let parent_hash = System::parent_hash();
+		let proof = build_proof(parent_hash.as_ref(), vec![data]).unwrap().unwrap();
+		assert_ok!(TransactionStorage::apply_block_inherents(
+			RuntimeOrigin::none(),
+			Some(proof.clone()),
+		));
+
+		// Finalize block 11 and initialize block 12. `on_initialize(12)` prunes
+		// Transactions[1], while the new proof target is Transactions[2] (which is absent).
+		run_to_block(12, || None);
+		assert!(!Transactions::contains_key(1));
+		assert_noop!(
+			TransactionStorage::apply_block_inherents(RuntimeOrigin::none(), Some(proof)),
+			Error::MissingStateData,
+		);
+		assert!(!super::ProofChecked::<Test>::get());
 	});
 }
 
@@ -2298,196 +1960,6 @@ fn validate_signed_account_authorization_has_provides_tag() {
 		);
 	});
 }
-
-// ---- Migration tests ----
-
-/// Write old-format `OldTransactionInfo` entries as raw bytes into the `Transactions`
-/// storage slot for `block_num`. Uses synthetic field values — the migration re-encodes
-/// fields 1:1 without validating chunk roots or content hashes.
-fn insert_old_format_transactions(block_num: u64, count: u32) {
-	use polkadot_sdk_frame::deps::sp_runtime::traits::{BlakeTwo256, Hash};
-
-	let old_txs: Vec<OldTransactionInfo> = (0..count)
-		.map(|i| OldTransactionInfo {
-			chunk_root: BlakeTwo256::hash(&[i as u8]),
-			content_hash: BlakeTwo256::hash(&[i as u8 + 100]),
-			size: 2000,
-			block_chunks: (i + 1) * 8,
-		})
-		.collect();
-	let bounded: BoundedVec<OldTransactionInfo, ConstU32<DEFAULT_MAX_BLOCK_TRANSACTIONS>> =
-		old_txs.try_into().expect("within bounds");
-	let key = Transactions::hashed_key_for(block_num);
-	unhashed::put_raw(&key, &bounded.encode());
-}
-
-#[test]
-fn migration_v1_old_entries_only() {
-	new_test_ext().execute_with(|| {
-		// Simulate pre-migration state: on-chain version 0
-		StorageVersion::new(0).put::<TransactionStorage>();
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(0));
-
-		// Insert old-format entries at blocks 1, 2, 3
-		insert_old_format_transactions(1, 2);
-		insert_old_format_transactions(2, 1);
-		insert_old_format_transactions(3, 3);
-
-		// Can't decode with new type
-		assert!(Transactions::get(1).is_none());
-		assert!(Transactions::get(2).is_none());
-		assert!(Transactions::get(3).is_none());
-
-		// But raw bytes exist
-		assert!(Transactions::contains_key(1));
-		assert!(Transactions::contains_key(2));
-		assert!(Transactions::contains_key(3));
-
-		// Chain v0→v1 → v1→v2 → v2→v3 to bring entries to the current layout:
-		// v1→v2 stamps `kind = Store` and `extrinsic_index = u32::MAX`; v2→v3 then
-		// observes the final layout and is a version-bump no-op for these entries.
-		crate::migrations::v1::MigrateV0ToV1::<Test>::on_runtime_upgrade();
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(1));
-		crate::migrations::v2::MigrateV1ToV2::<Test>::on_runtime_upgrade();
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(2));
-		drive_v2_to_v3_migration();
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(3));
-
-		let txs1 = Transactions::get(1).expect("should decode after v0→v3 chain");
-		assert_eq!(txs1.len(), 2);
-		for tx in txs1.iter() {
-			assert_eq!(tx.hashing, HashingAlgorithm::Blake2b256);
-			assert_eq!(tx.cid_codec, 0x55);
-			assert_eq!(tx.size, 2000);
-			assert_eq!(tx.kind, TransactionKind::Store, "pre-v2 entries default to Store");
-			assert_eq!(tx.extrinsic_index, u32::MAX);
-		}
-
-		let txs2 = Transactions::get(2).expect("should decode");
-		assert_eq!(txs2.len(), 1);
-
-		let txs3 = Transactions::get(3).expect("should decode");
-		assert_eq!(txs3.len(), 3);
-	});
-}
-
-#[test]
-fn migration_v1_new_entries_only() {
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(0).put::<TransactionStorage>();
-		run_to_block(1, || None);
-
-		// Store via normal (new-format) code path
-		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), vec![0u8; 2000]));
-		run_to_block(2, || None);
-
-		let original = Transactions::get(1).expect("should decode");
-		assert_eq!(original.len(), 1);
-
-		// Run migration
-		crate::migrations::v1::MigrateV0ToV1::<Test>::on_runtime_upgrade();
-
-		// Entry unchanged
-		let after = Transactions::get(1).expect("should decode");
-		assert_eq!(original, after);
-	});
-}
-
-#[test]
-fn migration_v1_mixed_entries() {
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(0).put::<TransactionStorage>();
-
-		// Old-format entry at block 5
-		insert_old_format_transactions(5, 2);
-		assert!(Transactions::get(5).is_none());
-
-		// New-format entry at block 10
-		run_to_block(10, || None);
-		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), vec![42u8; 500]));
-		run_to_block(11, || None);
-		let new_entry_before = Transactions::get(10).expect("new format decodes");
-
-		// Chain v0→v1 → v1→v2 → v2→v3 so all entries (old and new) reach the current
-		// `TransactionInfo` layout (kind + extrinsic_index sentinels).
-		crate::migrations::v1::MigrateV0ToV1::<Test>::on_runtime_upgrade();
-		crate::migrations::v2::MigrateV1ToV2::<Test>::on_runtime_upgrade();
-		drive_v2_to_v3_migration();
-
-		// Old entry transformed all the way to current layout — decodable as `TransactionInfo`.
-		let old_entry_after = Transactions::get(5).expect("should decode after v0→v3 chain");
-		assert_eq!(old_entry_after.len(), 2);
-		for tx in old_entry_after.iter() {
-			assert_eq!(tx.kind, TransactionKind::Store);
-			assert_eq!(tx.extrinsic_index, u32::MAX);
-		}
-
-		// New entry was already in v1 layout (it was just stored); v1→v2 tail-extended it
-		// with `kind = Store`. Field-by-field equality with the pre-migration v1 entry
-		// won't hold (the kind field is new), but the original fields must round-trip.
-		let new_entry_after = Transactions::get(10).expect("still decodes");
-		assert_eq!(new_entry_after.len(), new_entry_before.len());
-		assert_eq!(new_entry_after[0].chunk_root, new_entry_before[0].chunk_root);
-		assert_eq!(new_entry_after[0].content_hash, new_entry_before[0].content_hash);
-		assert_eq!(new_entry_after[0].size, new_entry_before[0].size);
-		assert_eq!(new_entry_after[0].kind, TransactionKind::Store);
-	});
-}
-
-#[test]
-fn migration_v1_version_updated() {
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(0).put::<TransactionStorage>();
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(0));
-		assert_eq!(TransactionStorage::in_code_storage_version(), StorageVersion::new(7));
-
-		crate::migrations::v1::MigrateV0ToV1::<Test>::on_runtime_upgrade();
-
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(1));
-	});
-}
-
-#[test]
-fn migration_v1_idempotent() {
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(0).put::<TransactionStorage>();
-		insert_old_format_transactions(1, 1);
-
-		// First run: migrates old entries to v1 format
-		crate::migrations::v1::MigrateV0ToV1::<Test>::on_runtime_upgrade();
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(1));
-		// v1 format is not decodable as v2 TransactionInfo, but raw bytes exist
-		let key = Transactions::hashed_key_for(1u64);
-		let raw_after_first = unhashed::get_raw(&key).expect("raw bytes exist");
-
-		// Second run: noop (version already 1)
-		crate::migrations::v1::MigrateV0ToV1::<Test>::on_runtime_upgrade();
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(1));
-		let raw_after_second = unhashed::get_raw(&key).expect("raw bytes still exist");
-
-		assert_eq!(raw_after_first, raw_after_second);
-	});
-}
-
-#[test]
-fn migration_v1_empty_storage() {
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(0).put::<TransactionStorage>();
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(0));
-
-		// No Transactions entries exist
-		assert_eq!(Transactions::iter().count(), 0);
-
-		// Run migration
-		crate::migrations::v1::MigrateV0ToV1::<Test>::on_runtime_upgrade();
-
-		// Version updated, no entries created
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(1));
-		assert_eq!(Transactions::iter().count(), 0);
-	});
-}
-
-// ---- try_state tests ----
 
 #[test]
 fn try_state_passes_on_empty_storage() {
@@ -4536,137 +4008,6 @@ fn renew_rejects_when_per_account_allowance_exceeded() {
 	});
 }
 
-// ---- v1 → v2 multi-block migration tests ----
-
-/// Drive the v1→v2 stepped migration to completion against the test externalities.
-fn drive_v2_to_v3_migration() {
-	use crate::migrations::v3::MigrateV2ToV3;
-	use polkadot_sdk_frame::deps::frame_support::{
-		migrations::SteppedMigration, weights::WeightMeter,
-	};
-
-	let mut meter = WeightMeter::new();
-	let mut cursor: Option<<MigrateV2ToV3<Test> as SteppedMigration>::Cursor> = None;
-	loop {
-		cursor = MigrateV2ToV3::<Test>::step(cursor, &mut meter).expect("MBM step must not fail");
-		if cursor.is_none() {
-			break;
-		}
-	}
-}
-
-/// Insert a `BoundedVec<V2TransactionInfo, _>` raw blob under
-/// `Transactions::hashed_key_for(block)`. `count` items are produced with synthetic field values.
-fn insert_v2_format_transactions(block: u64, count: u32) {
-	use crate::migrations::v3::V2TransactionInfo;
-	use polkadot_sdk_frame::deps::sp_runtime::traits::{BlakeTwo256, Hash};
-
-	let v2_txs: Vec<V2TransactionInfo> = (0..count)
-		.map(|i| V2TransactionInfo {
-			chunk_root: BlakeTwo256::hash(&[i as u8]),
-			content_hash: BlakeTwo256::hash(&[i as u8 + 100]).into(),
-			hashing: HashingAlgorithm::Blake2b256,
-			cid_codec: 0x55,
-			size: 2000,
-			block_chunks: (i + 1) * 8,
-		})
-		.collect();
-	let bounded: BoundedVec<V2TransactionInfo, ConstU32<DEFAULT_MAX_BLOCK_TRANSACTIONS>> =
-		v2_txs.try_into().expect("within bounds");
-	let key = Transactions::hashed_key_for(block);
-	unhashed::put_raw(&key, &bounded.encode());
-}
-
-#[test]
-fn migrate_v2_to_v3_sets_sentinel_for_existing_entries() {
-	use crate::migrations::v3::MigrateV2ToV3;
-	use polkadot_sdk_frame::deps::frame_support::{
-		migrations::SteppedMigration, weights::WeightMeter,
-	};
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(2).put::<TransactionStorage>();
-		insert_v2_format_transactions(1, 3);
-
-		let mut meter = WeightMeter::new();
-		let mut cursor: Option<<MigrateV2ToV3<Test> as SteppedMigration>::Cursor> = None;
-		loop {
-			cursor = MigrateV2ToV3::<Test>::step(cursor, &mut meter).expect("step should not fail");
-			if cursor.is_none() {
-				break;
-			}
-		}
-
-		let txs = Transactions::get(1).expect("entry decodes as v2 after migration");
-		assert_eq!(txs.len(), 3);
-		for tx in txs.iter() {
-			assert_eq!(tx.extrinsic_index, u32::MAX);
-			assert_eq!(tx.size, 2000);
-			assert_eq!(tx.hashing, HashingAlgorithm::Blake2b256);
-			assert_eq!(tx.cid_codec, 0x55);
-		}
-
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(3));
-	});
-}
-
-#[test]
-fn migrate_v2_to_v3_resumes_across_steps() {
-	use crate::{migrations::v3::MigrateV2ToV3, weights::WeightInfo};
-	use polkadot_sdk_frame::deps::frame_support::{
-		migrations::SteppedMigration, weights::WeightMeter,
-	};
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(2).put::<TransactionStorage>();
-		for block in 1..=20u64 {
-			insert_v2_format_transactions(block, 1);
-		}
-
-		let per_entry_weight = <Test as crate::Config>::WeightInfo::migrate_v2_to_v3_step();
-		let mut total_steps = 0u32;
-		let mut cursor: Option<<MigrateV2ToV3<Test> as SteppedMigration>::Cursor> = None;
-		loop {
-			let mut meter = WeightMeter::with_limit(per_entry_weight.saturating_mul(5));
-			cursor = MigrateV2ToV3::<Test>::step(cursor, &mut meter).expect("step should not fail");
-			total_steps += 1;
-			if cursor.is_none() {
-				break;
-			}
-			assert!(total_steps < 100, "migration must converge");
-		}
-		assert!(total_steps >= 2, "expected ≥2 step calls; got {total_steps}");
-
-		for block in 1..=20u64 {
-			let txs = Transactions::get(block).expect("entry decodes as v2");
-			assert_eq!(txs.len(), 1);
-			assert_eq!(txs[0].extrinsic_index, u32::MAX);
-		}
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(3));
-	});
-}
-
-#[test]
-fn migrate_v2_to_v3_insufficient_weight_returns_err() {
-	use crate::migrations::v3::MigrateV2ToV3;
-	use polkadot_sdk_frame::deps::frame_support::{
-		migrations::{SteppedMigration, SteppedMigrationError},
-		weights::WeightMeter,
-	};
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(2).put::<TransactionStorage>();
-		insert_v2_format_transactions(1, 1);
-
-		let mut meter = WeightMeter::with_limit(Weight::zero());
-		let res = MigrateV2ToV3::<Test>::step(None, &mut meter);
-		assert!(
-			matches!(res, Err(SteppedMigrationError::InsufficientWeight { .. })),
-			"expected InsufficientWeight, got {res:?}",
-		);
-	});
-}
-
-/// `renew` rejects with [`CHAIN_PERMANENT_CAP_REACHED`] when the chain-wide hard cap is
-/// reached: `PermanentStorageUsed + size > MaxPermanentStorageSize`. Per-account state
-/// must remain untouched.
 #[test]
 fn renew_rejects_when_chain_wide_cap_reached() {
 	new_test_ext().execute_with(|| {
@@ -4971,264 +4312,6 @@ fn permanent_storage_near_cap_fires_on_rising_edge_only() {
 		assert_eq!(PERMANENT_STORAGE_NEAR_CAP_PERCENT, 80);
 	});
 }
-
-#[cfg(feature = "try-runtime")]
-#[test]
-fn migrate_v2_to_v3_post_upgrade_allows_pruned_entries() {
-	use crate::migrations::v3::MigrateV2ToV3;
-	use polkadot_sdk_frame::deps::frame_support::migrations::SteppedMigration;
-
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(2).put::<TransactionStorage>();
-		insert_v2_format_transactions(1, 1);
-		insert_v2_format_transactions(2, 1);
-		insert_v2_format_transactions(3, 1);
-
-		let state = MigrateV2ToV3::<Test>::pre_upgrade().expect("pre_upgrade succeeds");
-
-		Transactions::remove(2u64);
-		drive_v2_to_v3_migration();
-
-		MigrateV2ToV3::<Test>::post_upgrade(state).expect("pruned entries are allowed");
-	});
-}
-
-#[test]
-fn migrate_v2_to_v3_skips_already_v3_entries() {
-	use crate::migrations::v3::MigrateV2ToV3;
-	use polkadot_sdk_frame::deps::{
-		frame_support::{migrations::SteppedMigration, weights::WeightMeter},
-		sp_runtime::traits::{BlakeTwo256, Hash},
-	};
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(2).put::<TransactionStorage>();
-
-		// Block 1: pre-migration v1 layout.
-		insert_v2_format_transactions(1, 1);
-		// Block 2: already-v2 layout, written by current code paths.
-		let v2_tx = TransactionInfo {
-			chunk_root: BlakeTwo256::hash(&[42]),
-			content_hash: BlakeTwo256::hash(&[43]).into(),
-			hashing: HashingAlgorithm::Blake2b256,
-			cid_codec: 0x55,
-			size: 999,
-			extrinsic_index: 7, // distinct from u32::MAX so we can detect corruption
-			block_chunks: 4,
-			kind: TransactionKind::Store,
-		};
-		let v2_bounded: BoundedVec<TransactionInfo, ConstU32<DEFAULT_MAX_BLOCK_TRANSACTIONS>> =
-			vec![v2_tx.clone()].try_into().unwrap();
-		Transactions::insert(2u64, v2_bounded);
-
-		// Drive migration to completion.
-		let mut meter = WeightMeter::new();
-		let mut cursor: Option<<MigrateV2ToV3<Test> as SteppedMigration>::Cursor> = None;
-		loop {
-			cursor = MigrateV2ToV3::<Test>::step(cursor, &mut meter).expect("step should not fail");
-			if cursor.is_none() {
-				break;
-			}
-		}
-
-		// Block 1: migrated v1 → v2 with sentinel.
-		let txs1 = Transactions::get(1).expect("decodes as v2");
-		assert_eq!(txs1[0].extrinsic_index, u32::MAX);
-
-		// Block 2: untouched — original `extrinsic_index = 7` preserved.
-		let txs2 = Transactions::get(2).expect("decodes as v2");
-		assert_eq!(txs2[0].extrinsic_index, 7);
-		assert_eq!(txs2[0].size, 999);
-
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(3));
-	});
-}
-
-/// `post_upgrade` must accept pre-existing v4 entries (e.g. prepaid `paid=true`) that `step`
-/// leaves untouched. Regression for the summit migration check.
-#[cfg(feature = "try-runtime")]
-#[test]
-fn migrate_v3_to_v4_post_upgrade_allows_preexisting_v4_paid_entries() {
-	use crate::migrations::v4::{MigrateV3ToV4, V3AutoRenewalData};
-	use polkadot_sdk_frame::deps::frame_support::{
-		migrations::SteppedMigration, weights::WeightMeter,
-	};
-
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(3).put::<TransactionStorage>();
-
-		// A genuine v3 entry (just `{ account }`), written raw at the AutoRenewals key.
-		let v3_hash: super::ContentHash = [1u8; 32];
-		unhashed::put(&AutoRenewals::hashed_key_for(v3_hash), &V3AutoRenewalData { account: 1u64 });
-
-		// A pre-existing v4 entry with `paid=true` — the case that broke on summit.
-		let v4_hash: super::ContentHash = [2u8; 32];
-		AutoRenewals::insert(
-			v4_hash,
-			super::RenewalData { account: 2u64, recurring: true, paid: true },
-		);
-
-		let state = MigrateV3ToV4::<Test>::pre_upgrade().expect("pre_upgrade succeeds");
-
-		let mut meter = WeightMeter::new();
-		let mut cursor: Option<<MigrateV3ToV4<Test> as SteppedMigration>::Cursor> = None;
-		loop {
-			cursor = MigrateV3ToV4::<Test>::step(cursor, &mut meter).expect("step should not fail");
-			if cursor.is_none() {
-				break;
-			}
-		}
-
-		MigrateV3ToV4::<Test>::post_upgrade(state).expect("pre-existing v4 entries are allowed");
-
-		let migrated = AutoRenewals::get(v3_hash).expect("v3 entry migrated");
-		assert!(migrated.recurring && !migrated.paid);
-		let preexisting = AutoRenewals::get(v4_hash).expect("v4 entry preserved");
-		assert!(preexisting.paid, "pre-existing v4 paid=true entry must be left untouched");
-
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(4));
-	});
-}
-
-/// Re-running `step` against state already at/beyond v4 must not downgrade the storage version.
-#[test]
-fn migrate_v3_to_v4_does_not_downgrade_storage_version() {
-	use crate::migrations::v4::MigrateV3ToV4;
-	use polkadot_sdk_frame::deps::frame_support::{
-		migrations::SteppedMigration, weights::WeightMeter,
-	};
-
-	new_test_ext().execute_with(|| {
-		// Chain is already at v5 (e.g. summit), with a v4-format entry present.
-		StorageVersion::new(5).put::<TransactionStorage>();
-		AutoRenewals::insert(
-			[2u8; 32] as super::ContentHash,
-			super::RenewalData { account: 2u64, recurring: true, paid: true },
-		);
-
-		let mut meter = WeightMeter::new();
-		let mut cursor: Option<<MigrateV3ToV4<Test> as SteppedMigration>::Cursor> = None;
-		loop {
-			cursor = MigrateV3ToV4::<Test>::step(cursor, &mut meter).expect("step should not fail");
-			if cursor.is_none() {
-				break;
-			}
-		}
-
-		assert_eq!(
-			TransactionStorage::on_chain_storage_version(),
-			StorageVersion::new(5),
-			"migration must not downgrade the storage version",
-		);
-	});
-}
-
-/// Stale `Transactions[block]` leftovers (block < current - RetentionPeriod) — e.g. from
-/// a chain whose `RetentionPeriod` was previously longer — must be pruned by the v2→v3
-/// migration rather than carried forward, otherwise `try_state` rejects them.
-#[test]
-fn migrate_v2_to_v3_prunes_stale_entries() {
-	new_test_ext().execute_with(|| {
-		StorageVersion::new(2).put::<TransactionStorage>();
-		// Default `RetentionPeriod` in mock is 10. Run to block 50 so blocks 1..=39 are
-		// "stale" (block < 50 - 10 = 40) and blocks 40..=50 are still in retention.
-		System::set_block_number(50);
-
-		insert_v2_format_transactions(1, 1); // stale
-		insert_v2_format_transactions(20, 1); // stale
-		insert_v2_format_transactions(40, 1); // in retention
-		insert_v2_format_transactions(45, 1); // in retention
-
-		drive_v2_to_v3_migration();
-
-		assert!(Transactions::get(1).is_none(), "stale entry must be pruned");
-		assert!(Transactions::get(20).is_none(), "stale entry must be pruned");
-		assert!(Transactions::get(40).is_some(), "in-retention entry must be migrated");
-		assert!(Transactions::get(45).is_some(), "in-retention entry must be migrated");
-		assert_eq!(Transactions::get(40).unwrap()[0].extrinsic_index, u32::MAX);
-
-		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(3));
-
-		// `do_try_state` must accept the post-migration state (no stale entries left).
-		assert_ok!(TransactionStorage::do_try_state(System::block_number()));
-	});
-}
-
-#[test]
-fn transactions_at_decodes_v2_entry_with_sentinel() {
-	new_test_ext().execute_with(|| {
-		insert_v2_format_transactions(5, 2);
-
-		// Direct `Transactions::get` cannot decode v2-shape bytes as the live (v3) layout.
-		assert!(Transactions::get(5).is_none());
-
-		let txs = TransactionStorage::transactions_at(5)
-			.expect("v2 entries decode through transactions_at");
-		assert_eq!(txs.len(), 2);
-		for tx in txs.iter() {
-			assert_eq!(tx.extrinsic_index, u32::MAX);
-			assert_eq!(tx.size, 2000);
-		}
-
-		// The on-chain storage MUST be untouched: read-only API path does not write.
-		assert!(Transactions::get(5).is_none());
-	});
-}
-
-#[test]
-fn transactions_at_handles_mixed_v2_and_v3_entries() {
-	use polkadot_sdk_frame::deps::sp_runtime::traits::{BlakeTwo256, Hash};
-	new_test_ext().execute_with(|| {
-		// Block 1: pre-migration v2-shape (no `extrinsic_index`).
-		insert_v2_format_transactions(1, 2);
-		assert!(Transactions::get(1).is_none(), "v2 bytes do not decode as v3");
-
-		// Block 2: live v3-shape entry — written by current code paths.
-		let v3_tx = TransactionInfo {
-			chunk_root: BlakeTwo256::hash(&[42]),
-			content_hash: BlakeTwo256::hash(&[43]).into(),
-			hashing: HashingAlgorithm::Blake2b256,
-			cid_codec: 0x55,
-			size: 999,
-			extrinsic_index: 7,
-			block_chunks: 4,
-			kind: TransactionKind::Store,
-		};
-		let v3_bounded: BoundedVec<TransactionInfo, ConstU32<DEFAULT_MAX_BLOCK_TRANSACTIONS>> =
-			vec![v3_tx.clone()].try_into().unwrap();
-		Transactions::insert(2u64, v3_bounded);
-
-		// Empty: a block with no entry returns None.
-		assert!(TransactionStorage::transactions_at(99).is_none());
-
-		// Slow path: v2 entry promoted to v3 with sentinel.
-		let txs1 = TransactionStorage::transactions_at(1).expect("v2 entry decodes");
-		assert_eq!(txs1.len(), 2);
-		for tx in txs1.iter() {
-			assert_eq!(tx.extrinsic_index, u32::MAX);
-			assert_eq!(tx.size, 2000);
-		}
-
-		// Fast path: v3 entry returned verbatim, real `extrinsic_index` preserved.
-		let txs2 = TransactionStorage::transactions_at(2).expect("v3 entry decodes");
-		assert_eq!(txs2.len(), 1);
-		assert_eq!(txs2[0].extrinsic_index, 7);
-		assert_eq!(txs2[0].size, 999);
-
-		// Read-only contract: storage shapes are unchanged after the read.
-		assert!(Transactions::get(1).is_none(), "v2 entry must remain v2-shape on disk");
-		assert_eq!(
-			Transactions::get(2)
-				.expect("v3 entry still decodes")
-				.into_iter()
-				.next()
-				.unwrap(),
-			v3_tx,
-			"v3 entry must be byte-identical pre/post read",
-		);
-	});
-}
-
-// ---- Authorizer budget tests ----
 
 #[test]
 fn remove_exhausted_authorizer_removes_zero_budget_entries() {

@@ -77,21 +77,28 @@ def runtime_api_u32(url, method):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--relay", default="http://127.0.0.1:9900")
-    parser.add_argument("--orbis", default="http://127.0.0.1:9910")
+    parser.add_argument("--relay", default="http://127.0.0.1:9801")
+    parser.add_argument("--orbis", default="http://127.0.0.1:9810")
     parser.add_argument("--para-id", type=int, default=1006)
     parser.add_argument("--expected-cores", type=int, default=3)
     parser.add_argument("--expected-block-rate", type=int, default=3)
-    parser.add_argument("--minimum-block-ratio", type=float, default=2.4)
+    parser.add_argument("--minimum-finalized-block-ratio", type=float, default=2.4)
     parser.add_argument("--wait", type=int, default=30)
     parser.add_argument("--startup-timeout", type=int, default=180)
     args = parser.parse_args()
+    if args.wait < 1 or args.startup_timeout < 1:
+        parser.error("--wait and --startup-timeout must be positive")
 
     relay_version = rpc(args.relay, "state_getRuntimeVersion")
     orbis_version = rpc(args.orbis, "state_getRuntimeVersion")
     if relay_version["specName"] != "origin" or orbis_version["specName"] != "orbis":
         raise RuntimeError(
             f"unexpected runtimes: {relay_version['specName']}/{orbis_version['specName']}"
+        )
+    if orbis_version["specVersion"] != 29 or orbis_version["transactionVersion"] != 8:
+        raise RuntimeError(
+            "unexpected Orbis runtime identity: "
+            f"spec={orbis_version['specVersion']} tx={orbis_version['transactionVersion']}"
         )
 
     target_block_rate = runtime_api_u32(
@@ -125,14 +132,16 @@ def main():
         if after[f"{chain}_finalized"] <= before[f"{chain}_finalized"]:
             raise RuntimeError(f"{chain} finality did not advance: {before} -> {after}")
 
-    relay_blocks = after["relay_best"] - before["relay_best"]
-    orbis_blocks = after["orbis_best"] - before["orbis_best"]
+    relay_blocks = after["relay_finalized"] - before["relay_finalized"]
+    orbis_blocks = after["orbis_finalized"] - before["orbis_finalized"]
+    if relay_blocks <= 0:
+        raise RuntimeError(f"relay finalized no blocks during measurement: {before} -> {after}")
     observed_block_ratio = orbis_blocks / relay_blocks
-    if observed_block_ratio < args.minimum_block_ratio:
+    if observed_block_ratio < args.minimum_finalized_block_ratio:
         raise RuntimeError(
-            f"Orbis produced only {observed_block_ratio:.2f} blocks per relay block "
+            f"Orbis finalized only {observed_block_ratio:.2f} blocks per relay finalized block "
             f"({orbis_blocks}/{relay_blocks}), expected at least "
-            f"{args.minimum_block_ratio:.2f}"
+            f"{args.minimum_finalized_block_ratio:.2f}"
         )
 
     encoded = rpc(args.relay, "state_call", ["ParachainHost_claim_queue", "0x"])
@@ -154,7 +163,13 @@ def main():
                 "claim_queue_cores": assigned,
                 "target_block_rate": target_block_rate,
                 "relay_parent_offset": relay_parent_offset,
-                "observed_block_ratio": observed_block_ratio,
+                "observed_finalized_block_ratio": observed_block_ratio,
+                "measurement_seconds": args.wait,
+                "orbis_finalized_blocks_per_second": orbis_blocks / args.wait,
+                "max_orbis_finality_lag_blocks": max(
+                    before["orbis_best"] - before["orbis_finalized"],
+                    after["orbis_best"] - after["orbis_finalized"],
+                ),
                 "relay_spec_version": relay_version["specVersion"],
                 "orbis_spec_version": orbis_version["specVersion"],
             },

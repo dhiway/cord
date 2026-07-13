@@ -25,6 +25,7 @@ use codec::{Decode, Encode};
 use cumulus_pallet_parachain_system::RelaychainDataProvider;
 use cumulus_primitives_core::relay_chain;
 use frame_support::{
+	dispatch::DispatchResult,
 	parameter_types,
 	traits::{
 		fungible::{Balanced, Credit, Inspect},
@@ -42,7 +43,10 @@ use pallet_broker::{
 	CoreAssignment, CoreIndex, CoretimeInterface, PartsOf57600, RCBlockNumberOf, TaskId,
 };
 use parachains_common::{AccountId, Balance};
-use sp_runtime::traits::{AccountIdConversion, MaybeConvert};
+use sp_runtime::{
+	traits::{AccountIdConversion, MaybeConvert},
+	DispatchError,
+};
 use xcm::latest::prelude::*;
 use xcm_executor::traits::{ConvertLocation, TransactAsset};
 
@@ -53,13 +57,19 @@ use xcm_executor::traits::{ConvertLocation, TransactAsset};
 enum RelayRuntimePallets {
 	#[codec(index = 74)]
 	Coretime(CoretimeProviderCalls),
+	#[codec(index = 221)]
+	CoretimeControl(CoretimeControlProviderCalls),
+}
+
+#[derive(Encode, Decode)]
+enum CoretimeControlProviderCalls {
+	#[codec(index = 1)]
+	SubmitRequest(pallet_coretime_control::RequestId, pallet_coretime_control::CoreCount),
 }
 
 /// Call encoding for the calls needed from the relay coretime pallet.
 #[derive(Encode, Decode)]
 enum CoretimeProviderCalls {
-	#[codec(index = 1)]
-	RequestCoreCount(CoreIndex),
 	#[codec(index = 2)]
 	RequestRevenueInfoAt(relay_chain::BlockNumber),
 	#[codec(index = 3)]
@@ -141,22 +151,16 @@ parameter_types! {
 /// from the parachain context. That is, the parachain provides a market (broker) for the sale of
 /// coretime, but assumes a `CoretimeProvider` (i.e. a Relay Chain) to actually provide cores.
 pub struct CoretimeAllocator;
-impl CoretimeInterface for CoretimeAllocator {
-	type AccountId = AccountId;
-	type Balance = Balance;
-	type RelayChainBlockNumberProvider = RelaychainDataProvider<Runtime>;
 
-	fn request_core_count(count: CoreIndex) {
-		use crate::coretime::CoretimeProviderCalls::RequestCoreCount;
-		let request_core_count_call = RelayRuntimePallets::Coretime(RequestCoreCount(count));
-
-		// Weight for `request_core_count` from Kusama runtime benchmarks:
-		// `ref_time`, `proof_size`, reads, writes
-		// 9_670_000, 1640, 3, 1
-		// Add 30% to each component with a healthy round up.
-		let call_weight =
-			Weight::from_parts(250 * WEIGHT_REF_TIME_PER_MICROS, 3 * WEIGHT_PROOF_SIZE_PER_KB);
-
+pub struct CoretimeControlRequestSender;
+impl pallet_coretime_control::SendRequest for CoretimeControlRequestSender {
+	fn send(
+		id: pallet_coretime_control::RequestId,
+		count: pallet_coretime_control::CoreCount,
+	) -> DispatchResult {
+		let call = RelayRuntimePallets::CoretimeControl(
+			CoretimeControlProviderCalls::SubmitRequest(id, count),
+		);
 		let message = Xcm(vec![
 			Instruction::UnpaidExecution {
 				weight_limit: WeightLimit::Unlimited,
@@ -164,20 +168,30 @@ impl CoretimeInterface for CoretimeAllocator {
 			},
 			Instruction::Transact {
 				origin_kind: OriginKind::Native,
-				fallback_max_weight: Some(call_weight),
-				call: request_core_count_call.encode().into(),
+				fallback_max_weight: Some(Weight::from_parts(
+					250 * WEIGHT_REF_TIME_PER_MICROS,
+					3 * WEIGHT_PROOF_SIZE_PER_KB,
+				)),
+				call: call.encode().into(),
 			},
 		]);
+		PolkadotXcm::send_xcm(Here, Location::parent(), message)
+			.map(|_| ())
+			.map_err(|_| DispatchError::Other("coretime-control request XCM enqueue failed"))
+	}
+}
 
-		match PolkadotXcm::send_xcm(Here, Location::parent(), message) {
-			Ok(_) => log::debug!(
-				target: "runtime::coretime",
-				"Request to update schedulable cores sent successfully."
-			),
-			Err(e) => log::error!(
-				target: "runtime::coretime",
-				"Failed to send request to update schedulable cores: {e:?}"
-			),
+impl CoretimeInterface for CoretimeAllocator {
+	type AccountId = AccountId;
+	type Balance = Balance;
+	type RelayChainBlockNumberProvider = RelaychainDataProvider<Runtime>;
+
+	fn request_core_count(count: CoreIndex) {
+		if let Err(error) = crate::CoretimeControl::send_request(count) {
+			log::error!(
+				target: "runtime::coretime-control",
+				"Failed to persist/enqueue core-count request: {error:?}"
+			);
 		}
 	}
 
@@ -357,4 +371,40 @@ impl pallet_broker::Config for Runtime {
 	type MaxAutoRenewals = ConstU32<100>;
 	type PriceAdapter = pallet_broker::MinimumPrice<Balance, MinimumEndPrice>;
 	type MinimumCreditPurchase = MinimumCreditPurchase;
+}
+
+impl pallet_coretime_control::Config for Runtime {
+	type RequestOrigin = EnsureRoot<AccountId>;
+	type BrokerOrigin = frame_support::traits::NeverEnsureOrigin<()>;
+	// Origin sends receipts with Parent Superuser; ParentAsSuperuser maps this to Root.
+	type ReceiptOrigin = EnsureRoot<AccountId>;
+	type TransportControlOrigin = EnsureRoot<AccountId>;
+	type TransportControlEnabled =
+		frame_support::traits::ConstBool<{ cfg!(feature = "fast-runtime") }>;
+	type RequestSender = CoretimeControlRequestSender;
+	type RequestApplier = ();
+	type ReceiptSender = ();
+	type MaxTrackedRequests = ConstU32<256>;
+	type WeightInfo = pallet_coretime_control::SubstrateWeight<Runtime>;
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn request_targets_stable_origin_pallet_and_call_indices() {
+		let call =
+			RelayRuntimePallets::CoretimeControl(CoretimeControlProviderCalls::SubmitRequest(7, 3));
+		assert_eq!(&call.encode()[..2], &[221, 1]);
+		let hold = crate::RuntimeCall::CoretimeControl(
+			pallet_coretime_control::Call::set_transport_hold { held: true },
+		);
+		let release =
+			crate::RuntimeCall::CoretimeControl(pallet_coretime_control::Call::release_held {
+				id: 7,
+			});
+		assert_eq!(&hold.encode()[..2], &[221, 4]);
+		assert_eq!(&release.encode()[..2], &[221, 5]);
+	}
 }

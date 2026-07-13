@@ -1,0 +1,286 @@
+{
+  "cord_destinations": [
+    "Cargo.lock",
+    "Cargo.toml"
+  ],
+  "cord_repository": {
+    "branch": "sm-update-sub-0x63",
+    "head": "439a1b62da11175129ad5390186230a64d569810",
+    "path": "."
+  },
+  "empty_status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "external_modified": 0,
+  "external_repository_count": 33,
+  "note": "All source checkouts are immutable inputs. The pinned SDK object is read from the clean workspace:sdk object database; no Cargo checkout is mutated.",
+  "reference_only_destination": "not-applicable-reference-only",
+  "repositories": [
+    {
+      "head": "223955deac7298d8b674ede3772c44f4d664d4db",
+      "locator": "workspace:.omx/cache/attestation-protocol",
+      "modified": false,
+      "repository": "https://github.com/paritytech/attestation-protocol.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "e700c6e0c4d0092bb83a473a4dc42f73d0e57274"
+    },
+    {
+      "head": "42b792571b335d447f3b20ba553a4f291c82e55d",
+      "locator": "workspace:.omx/cache/bcts",
+      "modified": false,
+      "repository": "https://github.com/paritytech/bcts.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "af56cf5e99f632aaaa8d94e9037395558be0b406"
+    },
+    {
+      "head": "1054df0f0e89f4686c2f8a484a3ed1502ea4e571",
+      "locator": "workspace:.omx/cache/browse",
+      "modified": false,
+      "repository": "https://github.com/paritytech/browse.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "4f0f18bc055605593b9b3c955d94a6304b72812c"
+    },
+    {
+      "head": "0dd3c507a7fda250468381b798fa1d41cf6fe97c",
+      "locator": "workspace:.omx/cache/dotli-community",
+      "modified": false,
+      "repository": "https://github.com/paritytech/dotli-community.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "6910e73174f957b278fbce3b0a5eec573455d883"
+    },
+    {
+      "head": "da06591bf7aeb5769f369db71a1d03e804e2b1fa",
+      "locator": "workspace:.omx/cache/dotli-starter",
+      "modified": false,
+      "repository": "https://github.com/paritytech/dotli-starter.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "edcaa40b4b52320829c067259ec910fcb7e784bc"
+    },
+    {
+      "head": "05a91f7f3c8f1c2c3d2d4d333d77d9f64892bc0d",
+      "locator": "workspace:.omx/cache/dotns",
+      "modified": false,
+      "repository": "https://github.com/paritytech/dotns.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "9866cccb3e12f99d75383ccfba76d7f528673c9a"
+    },
+    {
+      "head": "ff8199fe1b31c885048fcd0ba2b452315664df89",
+      "locator": "workspace:.omx/cache/dotns-sdk",
+      "modified": false,
+      "repository": "https://github.com/paritytech/dotns-sdk.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "5b917f0169d979276a745af8e4b8b041a8034144"
+    },
+    {
+      "head": "477689fddba4475eca82ccf11edd339a09140aa3",
+      "locator": "workspace:.omx/cache/fellowship-runtimes",
+      "modified": false,
+      "repository": "https://github.com/polkadot-fellows/runtimes.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "29bae844c6b69c81bb9654d4c4c8df331bc62027"
+    },
+    {
+      "head": "28e8bdc0e6f2b2da01e5f82198329560c6366729",
+      "locator": "workspace:.omx/cache/identity-backend-community",
+      "modified": false,
+      "repository": "https://github.com/paritytech/identity-backend-community.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "6ce28a64f06c6ace7895e8a5ca0bb77fd4f6537b"
+    },
+    {
+      "head": "28b7d07dab05bbd05f6b664278b5c83841e212d3",
+      "locator": "workspace:.omx/cache/individuality-community",
+      "modified": false,
+      "repository": "https://github.com/paritytech/individuality-community.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "34562e54e7f52b211c31e1a872bdb199917824d5"
+    },
+    {
+      "head": "79b7d9bc2aaf9e7ecbd60c7f6ddd31b76e8c0978",
+      "locator": "workspace:.omx/cache/localdot-community",
+      "modified": false,
+      "repository": "https://github.com/paritytech/localdot-community.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "0fa36343484f6c5f664ad0f32fa1e3fac349f99d"
+    },
+    {
+      "head": "ac99ed6c1122b2d868595bcbf797bdd8acaf2928",
+      "locator": "workspace:.omx/cache/paseo-runtimes",
+      "modified": false,
+      "repository": "https://github.com/paseo-network/runtimes.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "ca911ef084b6982d428319dc9feeb28569580767"
+    },
+    {
+      "head": "92d7e03de68c6eb1cebb24d43a7b32fcb831b289",
+      "locator": "workspace:.omx/cache/playground-app-community",
+      "modified": false,
+      "repository": "https://github.com/paritytech/playground-app-community.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "c1fc5111ad247daffb825ed84a378fe443c544c6"
+    },
+    {
+      "head": "cd959a00a084737eed3ec0808212ec8beeee13a0",
+      "locator": "workspace:.omx/cache/polkadot-android-community",
+      "modified": false,
+      "repository": "https://github.com/paritytech/polkadot-android-community.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "4eb73a0ab6739405c1929913d4b8246b00ecc953"
+    },
+    {
+      "head": "3247994e5dbea171dcc10fd88a15cc7473b1061c",
+      "locator": "workspace:.omx/cache/polkadot-app-deploy",
+      "modified": false,
+      "repository": "https://github.com/paritytech/polkadot-app-deploy.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "394d0c1f8c8b6b8fb5ad32500af956f2b710f9a1"
+    },
+    {
+      "head": "e81fdbd745b66c960f527eb57d5168c3c4ff01ef",
+      "locator": "workspace:.omx/cache/polkadot-app-design-system",
+      "modified": false,
+      "repository": "https://github.com/paritytech/polkadot-app-design-system.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "4541a8acc949a928a8073ae748e3f40cd107b943"
+    },
+    {
+      "head": "56d6c520ac9ac39c7c62e5162cb4fd0d75c4d256",
+      "locator": "workspace:.omx/cache/polkadot-app-design-system-android",
+      "modified": false,
+      "repository": "https://github.com/paritytech/polkadot-app-design-system-android.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "8b13f518c614f283a96fc0c2aa43c74da9abf4f5"
+    },
+    {
+      "head": "6e5b2da49d753a1b5f137a4c836608f94967eeb0",
+      "locator": "workspace:.omx/cache/polkadot-app-design-system-ios",
+      "modified": false,
+      "repository": "https://github.com/paritytech/polkadot-app-design-system-ios.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "dbd57a5178ab58d7ae73779c905b6dad97c791ef"
+    },
+    {
+      "head": "e8f7847ccd562650f996252a181abdf5f954a843",
+      "locator": "workspace:.omx/cache/polkadot-apps",
+      "modified": false,
+      "repository": "https://github.com/paritytech/polkadot-apps.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "e563aa3eafa7ec0ad5cdc04126841d47fa0c5c8a"
+    },
+    {
+      "head": "b6c2827d232669b525c0906cc20def0e5eb4676b",
+      "locator": "workspace:.omx/cache/polkadot-bulletin-chain",
+      "modified": false,
+      "repository": "https://github.com/paritytech/polkadot-bulletin-chain.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "1c3e72f2e2a4d4d8bf50b2c03235cf8c1d9897c8"
+    },
+    {
+      "head": "e25e89f71d38f9eaff3e9fc3944af841e51d3bd8",
+      "locator": "workspace:.omx/cache/polkadot-cli",
+      "modified": false,
+      "repository": "https://github.com/paritytech/polkadot-cli.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "65de0aae0be240efcf41089e6a2c06abfe889b91"
+    },
+    {
+      "head": "2c76cb7e53af4ada12b3a6e31901fdc27c0cb4fd",
+      "locator": "workspace:.omx/cache/polkadot-desktop-community",
+      "modified": false,
+      "repository": "https://github.com/paritytech/polkadot-desktop-community.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "e04c2b9f872b80949226afd2b3d9b8a01c1a201e"
+    },
+    {
+      "head": "51268d146910cd989e37a1d2286648c4af278854",
+      "locator": "workspace:.omx/cache/polkadot-ios-community",
+      "modified": false,
+      "repository": "https://github.com/paritytech/polkadot-ios-community.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "cb52df017caef4512a7cc5315e5071bb6d857d21"
+    },
+    {
+      "head": "8fd5cfcbcb3b02519642be0c5ec82b8e2d6730c5",
+      "locator": "workspace:.omx/cache/product-sdk",
+      "modified": false,
+      "repository": "https://github.com/paritytech/product-sdk.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "ab3c2205b0ab89bf13b3ea0bc3ca3913ac1f6add"
+    },
+    {
+      "head": "b1194b620b5b20ad468f4e87a1d3a50cf7e2eba0",
+      "locator": "workspace:.omx/cache/statement-store-tools",
+      "modified": false,
+      "repository": "https://github.com/paritytech/statement-store-tools.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "0e942a5b43fb13bd33655bd8916eb19246c2718a"
+    },
+    {
+      "head": "2e91c006152aec659b31c7068b280fc50190c28f",
+      "locator": "workspace:.omx/cache/truapi",
+      "modified": false,
+      "repository": "https://github.com/paritytech/truapi.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "07ccbbad38fd2e01d57d46dfe7d0ac089047e50a"
+    },
+    {
+      "head": "1f9f67524acce0d9c46dbbb566f84ce52757b114",
+      "locator": "workspace:.omx/cache/verifiable",
+      "modified": false,
+      "repository": "https://github.com/paritytech/verifiable.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "9278fc005ecc6f8e89dd3324c8ae0f8fe54e7295"
+    },
+    {
+      "head": "eee3994d025f248ee7fd7c491839a3556277a4da",
+      "locator": "workspace:.omx/cache/verifiablejs",
+      "modified": false,
+      "repository": "https://github.com/paritytech/verifiablejs.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "2d3005b1c0608a202155fd0d7a46db5b9c30252f"
+    },
+    {
+      "head": "28b7d07dab05bbd05f6b664278b5c83841e212d3",
+      "locator": "workspace:individuality-community",
+      "modified": false,
+      "repository": "https://github.com/paritytech/individuality-community.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "34562e54e7f52b211c31e1a872bdb199917824d5"
+    },
+    {
+      "head": "b6c2827d232669b525c0906cc20def0e5eb4676b",
+      "locator": "workspace:polkadot-bulletin-chain",
+      "modified": false,
+      "repository": "https://github.com/paritytech/polkadot-bulletin-chain.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "1c3e72f2e2a4d4d8bf50b2c03235cf8c1d9897c8"
+    },
+    {
+      "head": "477689fddba4475eca82ccf11edd339a09140aa3",
+      "locator": "workspace:runtimes",
+      "modified": false,
+      "repository": "https://github.com/polkadot-fellows/runtimes.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "29bae844c6b69c81bb9654d4c4c8df331bc62027"
+    },
+    {
+      "head": "ac99ed6c1122b2d868595bcbf797bdd8acaf2928",
+      "locator": "workspace:runtimes-paseo",
+      "modified": false,
+      "repository": "https://github.com/paseo-network/runtimes.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "ca911ef084b6982d428319dc9feeb28569580767"
+    },
+    {
+      "head": "55e62434c4b87d15ee74d36853dcb6e8fef49710",
+      "locator": "workspace:sdk",
+      "modified": false,
+      "repository": "https://github.com/dhiway/sdk.git",
+      "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree_hash": "02da70396adc97ce828c01316a5a3d506a8fc6a0"
+    }
+  ],
+  "schema_version": 1,
+  "status": "pass",
+  "status_command": "git status --porcelain=v1 -z --untracked-files=all",
+  "workspace_input_identity": "cord-2026-1.0.x"
+}

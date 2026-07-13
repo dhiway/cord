@@ -184,6 +184,19 @@ pub type Barrier = TrailingSetTopicAsId<(
 pub type WaivedLocations = (SystemParachains, Equals<RootLocation>, LocalPlurality);
 
 pub struct XcmConfig;
+
+/// The clean-break control plane rejects the legacy bare Broker core-count XCM. Para 1006 must
+/// use `CoretimeControl::submit_request`; all other Coretime calls retain their existing path.
+pub struct OriginXcmSafeCallFilter;
+impl Contains<RuntimeCall> for OriginXcmSafeCallFilter {
+	fn contains(call: &RuntimeCall) -> bool {
+		!matches!(
+			call,
+			RuntimeCall::Coretime(runtime_parachains::coretime::Call::request_core_count { .. })
+		)
+	}
+}
+
 impl xcm_executor::Config for XcmConfig {
 	type RuntimeCall = RuntimeCall;
 	type XcmSender = XcmRouter;
@@ -213,7 +226,7 @@ impl xcm_executor::Config for XcmConfig {
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
-	type SafeCallFilter = Everything;
+	type SafeCallFilter = OriginXcmSafeCallFilter;
 	type Aliasers = Nothing;
 	type TransactionalProcessor = FrameTransactionalProcessor;
 	type HrmpNewChannelOpenRequestHandler = ();

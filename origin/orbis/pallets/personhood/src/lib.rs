@@ -839,9 +839,9 @@ pub mod pallet {
 		}
 
 		fn renew_id_reservation(personal_id: PersonalId) -> Result<(), DispatchError> {
-			if NextPersonalId::<T>::get() <= personal_id ||
-				People::<T>::contains_key(personal_id) ||
-				ReservedPersonalId::<T>::contains_key(personal_id)
+			if NextPersonalId::<T>::get() <= personal_id
+				|| People::<T>::contains_key(personal_id)
+				|| ReservedPersonalId::<T>::contains_key(personal_id)
 			{
 				return Err(Error::<T>::PersonalIdReservationCannotRenew.into());
 			}
@@ -1198,8 +1198,9 @@ pub mod pallet {
 
 		fn try_origin(o: OriginFor<T>, arg: &Context) -> Result<Self::Success, OriginFor<T>> {
 			match ensure_revised_personal_alias(o.clone().into_caller()) {
-				Ok(ca) if &ca.ca.context == arg =>
-					Ok(RevisedAlias { revision: ca.revision, ring: ca.ring, alias: ca.ca.alias }),
+				Ok(ca) if &ca.ca.context == arg => {
+					Ok(RevisedAlias { revision: ca.revision, ring: ca.ring, alias: ca.ca.alias })
+				},
 				_ => Err(o),
 			}
 		}

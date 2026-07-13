@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "client_policy": {
+    "composite_read": "one_finalized_hash_or_versioned_atomic_snapshot",
+    "descriptor_hash_mismatch": "reject",
+    "metadata_hash_mismatch": "reject",
+    "migrated_domain_abi_fallback": false,
+    "raw_scale_in_product_api": false,
+    "unknown_spec": "reject",
+    "unknown_transaction_version": "reject"
+  },
+  "manifest_version": 1,
+  "network": {
+    "name": "Orbis",
+    "orbis_spec_version": 29,
+    "orbis_transaction_version": 8,
+    "origin_spec_version": 9901,
+    "origin_transaction_version": 2,
+    "para_id": 1006,
+    "protocol_id": "orbis"
+  },
+  "ratification": {
+    "canonical_envelope": "docs/evidence/verification/p0/ratification-envelope.json",
+    "payload_sha256": "18a7fe95a300632121d0f448cb7bf3e1bc0e6776e254bc26bc1437a5f19c790a",
+    "p0_targets_status": "RATIFIED",
+    "production_activation_status": "BLOCKED"
+  },
+  "runtime_source": {
+    "branch": "sm-update-sub-0x63",
+    "cargo_lock_sha256": "bc0185bf82c32a5617da3cb389eb9db82cb2a2829d09de54785c1474737e3be2",
+    "commit": "439a1b62da11175129ad5390186230a64d569810",
+    "runtime_source_sha256": "9615ca9f69bfe6c41b2b9131ee8f96a0e2723c6b6eb7887022e656d627ed2294",
+    "sdk_branch": "release-v1.24.0",
+    "sdk_commit": "cc190ea83c590b6a14a6b9771ab02c81618dc118"
+  },
+  "supported": {
+    "rust": {
+      "package": "origin-rs",
+      "spec_versions": [
+        29
+      ],
+      "transaction_versions": [
+        8
+      ],
+      "state": "target-pending-exact-runtime-identity-guard"
+    },
+    "typescript": {
+      "package": "product-sdk",
+      "spec_versions": [
+        29
+      ],
+      "state": "p0-executable-foundation; production PAPI domain descriptors pending",
+      "transaction_versions": [
+        8
+      ]
+    }
+  },
+  "transition_policy": {
+    "encoded_extension_or_call_change": "increment transaction_version, regenerate all vectors and clients",
+    "spec_only": "regenerate metadata/descriptors and run Rust/TS drift plus E2E",
+    "unsupported": "fail closed"
+  }
+}

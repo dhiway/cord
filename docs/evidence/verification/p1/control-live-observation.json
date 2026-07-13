@@ -1,0 +1,93 @@
+{
+  "claim_queue_cores": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "faults": [
+    {
+      "after_recovery": {
+        "orbis_best": 316,
+        "orbis_finalized": 304,
+        "relay_best": 158,
+        "relay_finalized": 156
+      },
+      "before": {
+        "orbis_best": 310,
+        "orbis_finalized": 295,
+        "relay_best": 155,
+        "relay_finalized": 153
+      },
+      "during_fault": {
+        "orbis_best": 313,
+        "orbis_finalized": 301,
+        "relay_best": 157,
+        "relay_finalized": 155
+      },
+      "elapsed_seconds": 15.05,
+      "hold_seconds": 12,
+      "pid": 19244,
+      "progress_after_recovery": true,
+      "progress_during_fault": true,
+      "role": "orbis-collator-bob",
+      "rpc_port": 9811,
+      "signal": "SIGSTOP/SIGCONT"
+    }
+  ],
+  "orbis": {
+    "endpoint": "http://127.0.0.1:9810",
+    "genesis_hash": "0xa98fd2e533a338a9d764dcf1303e5b2a6061d2df881b2dd1f8007a92505aa794",
+    "health": {
+      "isSyncing": false,
+      "peers": 1,
+      "shouldHavePeers": false
+    },
+    "relay_parent_offset": 1,
+    "spec_name": "orbis",
+    "spec_version": 29,
+    "target_block_rate": 3,
+    "transaction_version": 8
+  },
+  "p1_gate_verdict": "BLOCKED",
+  "para_id": 1006,
+  "progress": {
+    "after": {
+      "orbis_best": 310,
+      "orbis_finalized": 295,
+      "relay_best": 155,
+      "relay_finalized": 153
+    },
+    "before": {
+      "orbis_best": 307,
+      "orbis_finalized": 292,
+      "relay_best": 154,
+      "relay_finalized": 152
+    }
+  },
+  "reason": "Live progress, runtime identity, Broker-origin claim queue and reversible process-loss checks do not prove privileged lifecycle mutations.",
+  "relay": {
+    "endpoint": "http://127.0.0.1:9801",
+    "genesis_hash": "0x51145a67d45992d0166c04ee518172207a69a35a33bfc355f55397e7f9307d96",
+    "health": {
+      "isSyncing": false,
+      "peers": 7,
+      "shouldHavePeers": false
+    },
+    "spec_name": "origin",
+    "spec_version": 9901
+  },
+  "schema_version": 1,
+  "scope": "p1-control-broker-observation-and-reversible-process-faults",
+  "scope_verdict": "PASS",
+  "unexecuted_privileged_scenarios": [
+    "origin-validator-admission-removal-session-rotation",
+    "orbis-collator-admission-removal-session-rotation",
+    "origin-and-orbis-runtime-upgrade-forward-fix",
+    "transaction-pause-resume",
+    "operator-key-compromise-and-recovery",
+    "broker-request-reserve-assign-renew-resize-release",
+    "broker-delayed-and-duplicate-xcm",
+    "broker-session-boundary-and-full-node-restart"
+  ]
+}

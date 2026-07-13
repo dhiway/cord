@@ -784,13 +784,14 @@ pub mod pallet {
 					lite_identity_proof,
 					username,
 				),
-				PersonalUsernameChoice::Reservation(reservation) =>
+				PersonalUsernameChoice::Reservation(reservation) => {
 					Self::register_person_reservation(
 						origin,
 						linked_lite_identity,
 						lite_identity_proof,
 						reservation,
-					),
+					)
+				},
 			}
 		}
 
@@ -1397,8 +1398,9 @@ pub mod pallet {
 			origin: OriginFor<T>,
 		) -> Result<(Alias, MembershipCollection, T::AccountId), DispatchError> {
 			match origin.into_caller().try_into() {
-				Ok(Origin::LongTermStorageClaim { alias, collection, payer }) =>
-					Ok((alias, collection, payer)),
+				Ok(Origin::LongTermStorageClaim { alias, collection, payer }) => {
+					Ok((alias, collection, payer))
+				},
 				_ => Err(DispatchError::BadOrigin),
 			}
 		}
@@ -1427,10 +1429,12 @@ pub mod pallet {
 		/// Weight of `register_person` dispatched to the correct branch.
 		fn register_person_weight(username_choice: &PersonalUsernameChoice) -> Weight {
 			match username_choice {
-				PersonalUsernameChoice::Standalone(_) =>
-					T::WeightInfo::register_person_standalone(),
-				PersonalUsernameChoice::Reservation(_) =>
-					T::WeightInfo::register_person_reservation(),
+				PersonalUsernameChoice::Standalone(_) => {
+					T::WeightInfo::register_person_standalone()
+				},
+				PersonalUsernameChoice::Reservation(_) => {
+					T::WeightInfo::register_person_reservation()
+				},
 			}
 		}
 
@@ -1900,8 +1904,8 @@ pub mod pallet {
 				queue.iter().position(|e| e.account == *account).ok_or(Error::<T>::NotInQueue)?;
 			let now = T::Clock::now();
 			ensure!(
-				now.as_secs() >
-					queue[pos].joined_at.saturating_add(UsernameReservationDuration::<T>::get()),
+				now.as_secs()
+					> queue[pos].joined_at.saturating_add(UsernameReservationDuration::<T>::get()),
 				Error::<T>::ReservationFresh
 			);
 			Ok(pos)

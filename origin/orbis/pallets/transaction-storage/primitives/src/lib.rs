@@ -30,6 +30,9 @@ pub type ContentHash = [u8; 32];
 /// Identifier allocated by the Resources pallet for an isolated storage reservation.
 pub type ReservationId = u64;
 
+/// Native storage-provider agreement attached to an isolated reservation.
+pub type ProviderAllocationId = [u8; 32];
+
 /// Exact position of a transaction in the Bulletin retention ledger.
 ///
 /// `transaction_index` is the position in the block's `Transactions` vector. It is deliberately
@@ -70,7 +73,6 @@ pub enum StorageActor<AccountId> {
 	Root,
 	Preimage(ContentHash),
 	AutoRenew(AccountId),
-	LegacyUnknown,
 }
 
 /// Active, isolated storage capacity owned by one Resources claim.

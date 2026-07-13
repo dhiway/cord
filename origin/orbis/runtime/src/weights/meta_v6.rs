@@ -18,20 +18,32 @@ const PER_64_BYTES: u64 = 25_000;
 const MIRROR_DECODE_HASH: u64 = 4_000_000;
 // Lower-bounded by the generated proof-bearing People route (35,843,592,000 ps). This is
 // intentionally conservative until Slice15 benchmarks the transaction extension in isolation.
+#[cfg(test)]
 const CRYPTO_VERIFY: u64 = 35_850_000_000;
+#[cfg(test)]
 const HASH_OP: u64 = 500_000;
+#[cfg(test)]
 const PER_PROOF_BYTE: u64 = 10_000;
+#[cfg(test)]
 const MAX_MEMBERSHIP_PROOF_BYTES: u64 = 1_267;
+#[cfg(test)]
 const MAX_PROOF_POV: u64 = 5_137;
 const CLASSIFIER: u64 = 750_000;
 // Distinct route overheads preserve the measured control-flow differences even where two
 // routes happen to own the same number of database operations.
+#[cfg(test)]
 const PERSONAL_ALIAS_ROUTE: u64 = 310_000;
+#[cfg(test)]
 const PERSONAL_IDENTITY_ROUTE: u64 = 270_000;
+#[cfg(test)]
 const PERSONAL_ALIAS_REVISED_ROUTE: u64 = 490_000;
+#[cfg(test)]
 const LITE_PERSON_ROUTE: u64 = 190_000;
+#[cfg(test)]
 const LITE_ALIAS_ROUTE: u64 = 290_000;
+#[cfg(test)]
 const LITE_ALIAS_REVISED_ROUTE: u64 = 470_000;
+#[cfg(test)]
 const RESOURCES_CLAIM_ROUTE: u64 = 610_000;
 
 pub const fn inspector_ref_time(calls: u64, depth: u64, bytes: u64) -> u64 {
@@ -42,11 +54,8 @@ pub const fn inspector_ref_time(calls: u64, depth: u64, bytes: u64) -> u64 {
 }
 
 pub fn paid_scope_max(db: RuntimeDbWeight) -> Weight {
-	Weight::from_parts(
-		inspector_ref_time(MAX_CALLS, MAX_DEPTH, MAX_BYTES),
-		0,
-	)
-	.saturating_add(db.reads_writes(2, 2))
+	Weight::from_parts(inspector_ref_time(MAX_CALLS, MAX_DEPTH, MAX_BYTES), 0)
+		.saturating_add(db.reads_writes(2, 2))
 }
 
 /// Cost of decoding and hashing the 33-byte RFC-78 metadata implicit while inspecting an outer
@@ -60,6 +69,7 @@ pub const fn v7_commitment_delta() -> Weight {
 	Weight::from_parts(V7_COMMITMENT_WEIGHT_DELTA, 0)
 }
 
+#[cfg(test)]
 pub const fn router_ref_time(
 	reads: u64,
 	writes: u64,
@@ -75,6 +85,7 @@ pub const fn router_ref_time(
 		.saturating_add(writes.saturating_mul(0))
 }
 
+#[cfg(test)]
 pub fn router(
 	db: RuntimeDbWeight,
 	reads: u64,
@@ -90,6 +101,7 @@ pub fn router(
 	.saturating_add(db.reads_writes(reads, writes))
 }
 
+#[cfg(test)]
 fn classified_router(
 	db: RuntimeDbWeight,
 	route_overhead: u64,
@@ -113,34 +125,42 @@ pub fn none() -> Weight {
 	Weight::from_parts(CLASSIFIER, 0)
 }
 
+#[cfg(test)]
 pub fn personal_alias(db: RuntimeDbWeight) -> Weight {
 	classified_router(db, PERSONAL_ALIAS_ROUTE, 3, 0, 0, 0, 0)
 }
 
+#[cfg(test)]
 pub fn personal_identity(db: RuntimeDbWeight) -> Weight {
 	classified_router(db, PERSONAL_IDENTITY_ROUTE, 2, 0, 0, 0, 0)
 }
 
+#[cfg(test)]
 pub fn personal_alias_revised(db: RuntimeDbWeight) -> Weight {
 	classified_router(db, PERSONAL_ALIAS_REVISED_ROUTE, 5, 2, 1, 2, MAX_MEMBERSHIP_PROOF_BYTES)
 }
 
+#[cfg(test)]
 pub fn lite_person(db: RuntimeDbWeight) -> Weight {
 	classified_router(db, LITE_PERSON_ROUTE, 1, 0, 0, 0, 0)
 }
 
+#[cfg(test)]
 pub fn lite_alias(db: RuntimeDbWeight) -> Weight {
 	classified_router(db, LITE_ALIAS_ROUTE, 3, 0, 0, 0, 0)
 }
 
+#[cfg(test)]
 pub fn lite_alias_revised(db: RuntimeDbWeight) -> Weight {
 	classified_router(db, LITE_ALIAS_REVISED_ROUTE, 5, 2, 1, 2, MAX_MEMBERSHIP_PROOF_BYTES)
 }
 
+#[cfg(test)]
 pub fn resources_claim(db: RuntimeDbWeight) -> Weight {
 	classified_router(db, RESOURCES_CLAIM_ROUTE, 6, 0, 1, 3, MAX_MEMBERSHIP_PROOF_BYTES)
 }
 
+#[cfg(test)]
 pub fn malformed_max(db: RuntimeDbWeight) -> Weight {
 	// Each route already consists of one classifier charge plus its route body. Taking their
 	// maximum therefore gives exactly `classifier + max(route)`, without charging the classifier
@@ -157,10 +177,7 @@ mod tests {
 		let db = RuntimeDbWeight { read: 1_000, write: 2_000 };
 		assert_eq!(
 			paid_scope_max(db),
-			Weight::from_parts(
-				inspector_ref_time(32, 4, MAX_BYTES) + 6_000,
-				0,
-			)
+			Weight::from_parts(inspector_ref_time(32, 4, MAX_BYTES) + 6_000, 0,)
 		);
 		assert_eq!(MAX_BYTES, 65_536);
 		assert_eq!(METADATA_IMPLICIT_MAX_BYTES, 33);

@@ -17,6 +17,5 @@ member cannot construct a valid proof against the active People ring. Honour has
 treasury, elections, or public governance dependency. Runtime index 99 and storage version 1 are
 protocol surfaces.
 
-The v0→v1 introduction migration treats the committed pre-Slice-2 representation as an absent
-Honour storage prefix and verifies that only the storage-version key is introduced in try-runtime
-pre/post checks.
+Origin/Orbis starts directly with this storage-version-1 schema. No v0 introduction migration,
+predecessor prefix inspection or legacy-state import remains in the pallet.

@@ -2,7 +2,7 @@
 set -euo pipefail
 # Pinned to dhiway/sdk release-v1.24.0 cc190ea8 substrate-wasm-builder metadata_hash:
 # execute first-pass Wasm Metadata_metadata_at_version(15) and Core_version, extract System SS58,
-# then RFC-78 merkleized_metadata with symbol ORU and 10 decimals.
+# then RFC-78 merkleized_metadata with the chain-spec symbol ORGN and 10 decimals.
 root="$(git rev-parse --show-toplevel)"
 target="${CARGO_TARGET_DIR:-$root/target/orbis-metadata}"
 log="$(mktemp)"

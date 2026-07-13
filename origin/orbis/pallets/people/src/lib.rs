@@ -81,7 +81,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod benchmarking;
-pub mod legacy;
+pub mod identity_info;
 
 #[cfg(test)]
 mod tests;
@@ -92,7 +92,6 @@ extern crate alloc;
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::types::{AuthorityPropertiesOf, Suffix, Username};
-use codec::Encode;
 use frame_support::{
 	ensure,
 	pallet_prelude::{DispatchError, DispatchResult},
@@ -546,14 +545,16 @@ pub mod pallet {
 			let item = (registrar_acc, Judgement::Requested);
 
 			match id.judgements.binary_search_by_key(&registrar, |x| x.0.clone()) {
-				Ok(i) =>
+				Ok(i) => {
 					if id.judgements[i].1.is_sticky() {
 						return Err(Error::<T>::StickyJudgement.into());
 					} else {
 						id.judgements[i] = item
-					},
-				Err(i) =>
-					id.judgements.try_insert(i, item).map_err(|_| Error::<T>::TooManyRegistrars)?,
+					}
+				},
+				Err(i) => {
+					id.judgements.try_insert(i, item).map_err(|_| Error::<T>::TooManyRegistrars)?
+				},
 			}
 
 			let judgements = id.judgements.len();
@@ -1139,10 +1140,11 @@ impl<T: Config> Pallet<T> {
 			.iter()
 			.fold((true, None), |(valid, last_char), &cur_char| {
 				(
-					valid &&
-						(cur_char.is_ascii_lowercase() ||
-							cur_char.is_ascii_digit() ||
-							cur_char == b'.') && !(last_char == Some(b'.') && cur_char == b'.'),
+					valid
+						&& (cur_char.is_ascii_lowercase()
+							|| cur_char.is_ascii_digit()
+							|| cur_char == b'.')
+						&& !(last_char == Some(b'.') && cur_char == b'.'),
 					Some(cur_char),
 				)
 			})
@@ -1222,35 +1224,6 @@ impl<T: Config> Pallet<T> {
 		let expiration = now.saturating_add(T::PendingUsernameExpiration::get());
 		PendingUsernames::<T>::insert(&username, (who.clone(), expiration));
 		Self::deposit_event(Event::UsernameQueued { who: who.clone(), username, expiration });
-	}
-
-	/// Reap an identity, clearing associated storage items and refunding any deposits. This
-	/// function is very similar to (a) `clear_identity`, but called on a `target` account instead
-	/// of self; and (b) `kill_identity`, but without imposing a slash.
-	///
-	/// Parameters:
-	/// - `target`: The account for which to reap identity state.
-	///
-	/// Return type is a tuple of the number of registrars, `IdentityInfo` bytes, and sub accounts,
-	/// respectively.
-	///
-	/// NOTE: This function is here temporarily for migration of Identity info from the Polkadot
-	/// Relay Chain into a system parachain. It will be removed after the migration.
-	pub fn reap_identity(who: &T::AccountId) -> Result<(u32, u32, u32), DispatchError> {
-		// `take` any storage items keyed by `target`
-		// identity
-		let (id, _maybe_username) = <IdentityOf<T>>::take(&who).ok_or(Error::<T>::NoIdentity)?;
-		let registrars = id.judgements.len() as u32;
-		let encoded_byte_size = id.info.encoded_size() as u32;
-
-		// subs
-		let sub_ids = <SubsOf<T>>::take(&who);
-		let actual_subs = sub_ids.len() as u32;
-		for sub in sub_ids.iter() {
-			<SuperOf<T>>::remove(sub);
-		}
-
-		Ok((registrars, encoded_byte_size, actual_subs))
 	}
 
 	/// Set an identity with zero deposit. Used for benchmarking and XCM emulator tests that involve

@@ -40,9 +40,33 @@ pub type OriginExtrinsicParams<T> = AnyOf<
 /// Legacy Hub alias retained for source compatibility; new clients should use Orbis.
 pub type OriginHubExtrinsicParams<T> = OriginExtrinsicParams<T>;
 
-/// Signed extensions exposed by Orbis. Quota-aware payment remains metadata-compatible with
-/// `ChargeTransactionPayment`; Bulletin validation and Revive origin mapping are zero-byte fields.
-pub type OrbisExtrinsicParams<T> = OriginExtrinsicParams<T>;
+/// Signed extensions exposed by Orbis. The five actor-policy extensions encode an unused
+/// `Option::None` selector and must be named here, in runtime order, so Subxt matches live
+/// metadata. Quota-aware payment remains metadata-compatible with `ChargeAssetTxPayment`; Bulletin
+/// validation and Revive origin mapping are also zero-byte fields.
+pub type OrbisExtrinsicParams<T> = AnyOf<
+	T,
+	(
+		custom::AsPerson<T>,
+		custom::ScoreAsParticipant<T>,
+		custom::PeopleLiteAuth<T>,
+		custom::AsResources<T>,
+		custom::VoterAuth<T>,
+		custom::AuthorizeCall<T>,
+		custom::CheckNonZeroSender<T>,
+		transaction_extensions::CheckSpecVersion,
+		transaction_extensions::CheckTxVersion,
+		transaction_extensions::CheckGenesis<T>,
+		transaction_extensions::CheckMortality<T>,
+		transaction_extensions::CheckNonce,
+		custom::CheckWeight<T>,
+		transaction_extensions::ChargeAssetTxPayment<T>,
+		custom::ValidateStorageCalls<T>,
+		transaction_extensions::CheckMetadataHash,
+		custom::ReviveSetOrigin<T>,
+		custom::WeightReclaim<T>,
+	),
+>;
 
 /// Chain config bound to Origin primitives.
 #[derive(Debug, Clone, Copy, Default)]
@@ -161,11 +185,16 @@ pub fn build_orbis_params<C: Config<ExtrinsicParams = OrbisExtrinsicParams<C>>>(
 		nonce_params,
 		genesis_params,
 		mortality_params,
+		charge_asset_params,
 		_,
-		charge_tx_params,
 		metadata_params,
 	) = builder.build();
 	(
+		(),
+		(),
+		(),
+		(),
+		(),
 		(),
 		(),
 		spec_params,
@@ -174,7 +203,7 @@ pub fn build_orbis_params<C: Config<ExtrinsicParams = OrbisExtrinsicParams<C>>>(
 		mortality_params,
 		nonce_params,
 		(),
-		charge_tx_params,
+		charge_asset_params,
 		(),
 		metadata_params,
 		(),
@@ -189,6 +218,45 @@ pub type OrbisClient = subxt::OnlineClient<OrbisConfig>;
 
 mod custom {
 	use super::*;
+
+	macro_rules! empty_extension {
+		($name:ident, $identifier:literal) => {
+			pub struct $name<T: Config>(PhantomData<T>);
+
+			impl<T: Config> ExtrinsicParams<T> for $name<T> {
+				type Params = ();
+
+				fn new(
+					_client: &ClientState<T>,
+					_params: Self::Params,
+				) -> Result<Self, ExtrinsicParamsError> {
+					Ok(Self(PhantomData))
+				}
+			}
+
+			impl<T: Config> ExtrinsicParamsEncoder for $name<T> {
+				fn encode_value_to(&self, v: &mut Vec<u8>) {
+					// Runtime constructors use `new(None)`. SCALE encodes that unused policy
+					// selection as the single-byte Option::None discriminant.
+					v.push(0);
+				}
+			}
+
+			impl<T: Config> TransactionExtension<T> for $name<T> {
+				type Decoded = Option<()>;
+
+				fn matches(identifier: &str, _type_id: u32, _types: &PortableRegistry) -> bool {
+					identifier == $identifier
+				}
+			}
+		};
+	}
+
+	empty_extension!(AsPerson, "AsPerson");
+	empty_extension!(ScoreAsParticipant, "ScoreAsParticipant");
+	empty_extension!(PeopleLiteAuth, "PeopleLiteAuth");
+	empty_extension!(AsResources, "AsResources");
+	empty_extension!(VoterAuth, "HonourAuth");
 
 	pub struct AuthorizeCall<T: Config>(PhantomData<T>);
 

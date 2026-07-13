@@ -287,8 +287,8 @@ fn find_type(metadata: &Metadata, path: &[&str]) -> Option<scale_info::PortableT
 		.iter()
 		.find(|ty| {
 			let segments = &ty.ty.path.segments;
-			segments.len() == path.len() &&
-				segments.iter().map(|seg| seg.as_str()).zip(path.iter()).all(|(a, b)| a == *b)
+			segments.len() == path.len()
+				&& segments.iter().map(|seg| seg.as_str()).zip(path.iter()).all(|(a, b)| a == *b)
 		})
 		.cloned()
 }

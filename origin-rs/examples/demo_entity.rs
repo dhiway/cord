@@ -536,11 +536,12 @@ async fn rotate_attributes(
 	for key in keys {
 		let ev = match key.as_str() {
 			"public-key" => ElementView::Raw(rand_public_key().into_bytes()),
-			"did:cord" =>
-				ElementView::Raw(format!("did:cord:{}", rand_ss58_prefix29()).into_bytes()),
+			"did:cord" => {
+				ElementView::Raw(format!("did:cord:{}", rand_ss58_prefix29()).into_bytes())
+			},
 			"telephone" => ElementView::Raw(rand_phone().into_bytes()),
 			"kyc" => ElementView::Hash(rand_hash32()),
-			other =>
+			other => {
 				if let Some(val) = attrs_obj.get(other) {
 					if val.is_object() {
 						ElementView::Raw(serde_json::to_vec(val)?)
@@ -549,7 +550,8 @@ async fn rotate_attributes(
 					}
 				} else {
 					continue;
-				},
+				}
+			},
 		};
 		let elem: ElementInput = element_from_view(&ev)?;
 		calls.push((key.clone(), build_rotate_call(key.as_bytes(), &elem)));
@@ -683,8 +685,9 @@ async fn show_overview(
 fn fmt_element(ev: &ElementView) -> String {
 	match ev {
 		ElementView::None => "∅".into(),
-		ElementView::Raw(b) =>
-			String::from_utf8(b.clone()).unwrap_or_else(|_| format!("0x{}", hex::encode(b))),
+		ElementView::Raw(b) => {
+			String::from_utf8(b.clone()).unwrap_or_else(|_| format!("0x{}", hex::encode(b)))
+		},
 		ElementView::Bool(b) => format!("{b}"),
 		ElementView::U64(v) => format!("{v}"),
 		ElementView::U128(v) => format!("{v}"),

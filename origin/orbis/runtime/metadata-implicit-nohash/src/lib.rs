@@ -4,8 +4,6 @@ use frame_support::derive_impl;
 use sp_runtime::traits::{Hash, TransactionExtension};
 
 #[cfg(test)]
-#[path = "../../../evidence_markers_v4.rs"]
-mod evidence_markers_v4;
 
 pub type Block = frame_system::mocking::MockBlock<NoHashRuntime>;
 
@@ -55,6 +53,5 @@ mod tests {
 		);
 		assert_eq!(artifact.weight, frame_support::weights::Weight::zero());
 		assert_ne!(artifact.state, [0; 32]);
-		crate::evidence_markers_v4::emit_evidence_markers_v4("runtime-nohash");
 	}
 }

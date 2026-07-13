@@ -491,8 +491,8 @@ mod benches {
 		assert!(RingKeys::<T>::get((&identifier, RI_ZERO, 0u32)).len() < (ring_size / 2) as usize);
 		assert!(RingKeys::<T>::get((&identifier, 1u32, 0u32)).len() < (ring_size / 2) as usize);
 
-		let keys_left_len = RingKeys::<T>::get((&identifier, RI_ZERO, 0u32)).len() +
-			RingKeys::<T>::get((&identifier, 1u32, 0u32)).len();
+		let keys_left_len = RingKeys::<T>::get((&identifier, RI_ZERO, 0u32)).len()
+			+ RingKeys::<T>::get((&identifier, 1u32, 0u32)).len();
 
 		// The current ring has to have a higher index than the ones being merged
 		CurrentRingIndex::<T>::insert(identifier, 14);

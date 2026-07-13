@@ -30,7 +30,7 @@ use polkadot_primitives::{
 	AsyncBackingParams,
 };
 use runtime_parachains::configuration::HostConfiguration;
-use sp_core::{sr25519, Pair, Public};
+use sp_core::{crypto::UncheckedFrom, sr25519, Pair, Public};
 use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
 use sp_runtime::traits::IdentifyAccount;
@@ -118,10 +118,10 @@ fn default_parachains_host_configuration() -> HostConfiguration<polkadot_primiti
 		dispute_post_conclusion_acceptance_period: 100u32,
 		minimum_backing_votes: 1,
 		node_features: NodeFeatures::from_element(
-			(1u8 << (FeatureIndex::EnableAssignmentsV2 as usize)) |
-				(1u8 << (FeatureIndex::ElasticScalingMVP as usize)) |
-				(1u8 << (FeatureIndex::CandidateReceiptV2 as usize)) |
-				(1u8 << (FeatureIndex::CandidateReceiptV3 as usize)),
+			(1u8 << (FeatureIndex::EnableAssignmentsV2 as usize))
+				| (1u8 << (FeatureIndex::ElasticScalingMVP as usize))
+				| (1u8 << (FeatureIndex::CandidateReceiptV2 as usize))
+				| (1u8 << (FeatureIndex::CandidateReceiptV3 as usize)),
 		),
 		async_backing_params: AsyncBackingParams {
 			max_candidate_depth: 6,
@@ -193,6 +193,52 @@ fn origin_staging_genesis(
 	})
 }
 
+/// Exact public identities used to construct one production Origin validator.
+///
+/// The launch tool accepts public keys only. Secret seeds and well-known development identities
+/// are deliberately not derived by the runtime.
+#[derive(Clone)]
+pub struct OriginProductionAuthority {
+	/// Validator account used by authority management and session ownership.
+	pub account_id: AccountId,
+	/// BABE public session key.
+	pub babe: [u8; 32],
+	/// GRANDPA public session key.
+	pub grandpa: [u8; 32],
+	/// Parachain validation public session key.
+	pub para_validator: [u8; 32],
+	/// Parachain assignment public session key.
+	pub para_assignment: [u8; 32],
+	/// Authority-discovery public session key.
+	pub authority_discovery: [u8; 32],
+	/// Compressed BEEFY ECDSA public session key.
+	pub beefy: [u8; 33],
+}
+
+/// Build a clean Origin production genesis from reviewed public launch identities.
+pub fn origin_production_config_genesis(
+	initial_authorities: Vec<OriginProductionAuthority>,
+	root_key: AccountId,
+	endowed_accounts: Vec<AccountId>,
+) -> serde_json::Value {
+	let authorities = initial_authorities
+		.into_iter()
+		.map(|authority| {
+			(
+				authority.account_id.clone(),
+				authority.account_id,
+				BabeId::unchecked_from(authority.babe),
+				GrandpaId::unchecked_from(authority.grandpa),
+				ValidatorId::unchecked_from(authority.para_validator),
+				AssignmentId::unchecked_from(authority.para_assignment),
+				AuthorityDiscoveryId::unchecked_from(authority.authority_discovery),
+				BeefyId::from(sp_core::ecdsa::Public::from_raw(authority.beefy)),
+			)
+		})
+		.collect();
+	origin_staging_genesis(authorities, root_key, Some(endowed_accounts))
+}
+
 fn origin_session_keys(
 	babe: BabeId,
 	grandpa: GrandpaId,
@@ -218,13 +264,6 @@ pub fn origin_staging_config_genesis() -> serde_json::Value {
 		None,
 	)
 }
-// pub fn origin_staging_config_genesis() -> serde_json::Value {
-// 	origin_staging_genesis(
-// 		vec![get_authority_keys_from_seed("Alice"), get_authority_keys_from_seed("Bob")],
-// 		get_account_id_from_seed::<sr25519::Public>("Alice"),
-// 		None,
-// 	)
-// }
 
 pub fn origin_development_config_genesis() -> serde_json::Value {
 	origin_staging_genesis(

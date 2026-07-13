@@ -61,8 +61,9 @@ impl<R: Clone> RingRootOp<&R> {
 	/// Converts from `RingRootOp<&R>` to `RingRootOp<R>` by cloning the root.
 	pub fn cloned(&self) -> RingRootOp<R> {
 		match self {
-			RingRootOp::Built { revision, root } =>
-				RingRootOp::Built { revision: *revision, root: (*root).clone() },
+			RingRootOp::Built { revision, root } => {
+				RingRootOp::Built { revision: *revision, root: (*root).clone() }
+			},
 			RingRootOp::Deleted => RingRootOp::Deleted,
 		}
 	}

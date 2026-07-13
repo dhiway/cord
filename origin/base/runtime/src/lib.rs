@@ -41,7 +41,7 @@ use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	parameter_types,
 	traits::{
-		tokens::ConversionFromAssetBalance, ConstU32, Contains, Everything, Get, InstanceFilter,
+		tokens::ConversionFromAssetBalance, ConstU32, Contains, Get, InstanceFilter,
 		KeyOwnerProofSystem, PrivilegeCmp, ProcessMessage, ProcessMessageError, VariantCountOf,
 	},
 	weights::{ConstantMultiplier, WeightMeter, WeightToFee as _},
@@ -149,12 +149,28 @@ pub const LOG_TARGET: &str = "runtime::origin";
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 /// Runtime version (Origin).
+#[cfg(not(feature = "p1-upgrade-candidate"))]
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: alloc::borrow::Cow::Borrowed("origin"),
 	impl_name: alloc::borrow::Cow::Borrowed("dhiway-origin"),
 	authoring_version: 0,
 	spec_version: 9901,
+	impl_version: 0,
+	apis: RUNTIME_API_VERSIONS,
+	transaction_version: 2,
+	system_version: 1,
+};
+
+/// Evidence-only upgrade candidate. The production runtime remains at spec version 9901 unless
+/// `p1-upgrade-candidate` is explicitly enabled in an isolated build.
+#[cfg(feature = "p1-upgrade-candidate")]
+#[sp_version::runtime_version]
+pub const VERSION: RuntimeVersion = RuntimeVersion {
+	spec_name: alloc::borrow::Cow::Borrowed("origin"),
+	impl_name: alloc::borrow::Cow::Borrowed("dhiway-origin"),
+	authoring_version: 0,
+	spec_version: 9902,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -188,8 +204,8 @@ impl ConversionFromAssetBalance<Balance, VersionedLocatableAsset, Balance> for A
 
 		let locatable = LocatableAssetConverter::try_convert(asset_id)
 			.map_err(|_| sp_runtime::DispatchError::Other("invalid asset"))?;
-		let is_native_system_para = locatable.asset_id.0 == Location::parent() &&
-			matches!(
+		let is_native_system_para = locatable.asset_id.0 == Location::parent()
+			&& matches!(
 				locatable.location.unpack(),
 				(0, [Parachain(1000)]) | (0, [Parachain(1001)])
 			);
@@ -277,9 +293,18 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 29;
 }
 
+/// Deny the legacy bare Broker core-count dispatch. The stack-owned control envelope invokes the
+/// upstream pallet internally only after authenticating para 1006 and assigning a request ID.
+pub struct OriginBaseCallFilter;
+impl Contains<RuntimeCall> for OriginBaseCallFilter {
+	fn contains(call: &RuntimeCall) -> bool {
+		!matches!(call, RuntimeCall::Coretime(coretime::Call::request_core_count { .. }))
+	}
+}
+
 #[derive_impl(frame_system::config_preludes::RelayChainDefaultConfig)]
 impl frame_system::Config for Runtime {
-	type BaseCallFilter = Everything;
+	type BaseCallFilter = OriginBaseCallFilter;
 	type BlockWeights = BlockWeights;
 	type BlockLength = BlockLength;
 	type DbWeight = RocksDbWeight;
@@ -978,6 +1003,118 @@ impl coretime::Config for Runtime {
 	type MaxXcmTransactWeight = MaxXcmTransactWeight;
 }
 
+/// Only Orbis para 1006 may drive the stack-owned replay envelope. The upstream Coretime pallet
+/// remains independently restricted to the same BrokerId.
+pub struct EnsureOrbisBroker;
+impl frame_support::traits::EnsureOrigin<RuntimeOrigin> for EnsureOrbisBroker {
+	type Success = ();
+
+	fn try_origin(origin: RuntimeOrigin) -> Result<Self::Success, RuntimeOrigin> {
+		match <RuntimeOrigin as Into<Result<parachains_origin::Origin, RuntimeOrigin>>>::into(
+			origin.clone(),
+		) {
+			Ok(parachains_origin::Origin::Parachain(id)) if id == ORBIS_ID.into() => Ok(()),
+			_ => Err(origin),
+		}
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn try_successful_origin() -> Result<RuntimeOrigin, ()> {
+		Ok(RuntimeOrigin::from(parachains_origin::Origin::Parachain(ORBIS_ID.into())))
+	}
+}
+
+pub struct ApplyBrokerCoreCount;
+impl pallet_coretime_control::ApplyRequest for ApplyBrokerCoreCount {
+	fn apply(count: pallet_coretime_control::CoreCount) -> frame_support::dispatch::DispatchResult {
+		Coretime::request_core_count(RuntimeOrigin::root(), count)
+	}
+}
+
+#[derive(Encode)]
+enum OrbisCoretimeControlCall {
+	#[codec(index = 2)]
+	Acknowledge(
+		pallet_coretime_control::RequestId,
+		pallet_coretime_control::CoreCount,
+		pallet_coretime_control::ReceiptStatus,
+	),
+}
+
+#[derive(Encode)]
+enum OrbisRuntimeCall {
+	#[codec(index = 221)]
+	CoretimeControl(OrbisCoretimeControlCall),
+}
+
+pub struct SendBrokerReceipt;
+impl pallet_coretime_control::SendReceipt for SendBrokerReceipt {
+	fn send(receipt: pallet_coretime_control::RequestReceipt) {
+		let call = OrbisRuntimeCall::CoretimeControl(OrbisCoretimeControlCall::Acknowledge(
+			receipt.id,
+			receipt.count,
+			receipt.status,
+		));
+		let message = Xcm(vec![
+			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
+			Transact {
+				origin_kind: OriginKind::Superuser,
+				fallback_max_weight: Some(MaxXcmTransactWeight::get()),
+				call: call.encode().into(),
+			},
+		]);
+		if let Err(error) = xcm::latest::send_xcm::<xcm_config::XcmRouter>(
+			Location::new(0, [Parachain(ORBIS_ID)]),
+			message,
+		) {
+			log::error!(target: "runtime::coretime-control", "failed to send receipt: {error:?}");
+		}
+	}
+}
+
+impl pallet_coretime_control::Config for Runtime {
+	type RequestOrigin = frame_support::traits::NeverEnsureOrigin<()>;
+	type BrokerOrigin = EnsureOrbisBroker;
+	type ReceiptOrigin = frame_support::traits::NeverEnsureOrigin<()>;
+	type TransportControlOrigin = frame_support::traits::NeverEnsureOrigin<()>;
+	type TransportControlEnabled = frame_support::traits::ConstBool<false>;
+	type RequestSender = ();
+	type RequestApplier = ApplyBrokerCoreCount;
+	type ReceiptSender = SendBrokerReceipt;
+	type MaxTrackedRequests = ConstU32<256>;
+	type WeightInfo = pallet_coretime_control::SubstrateWeight<Runtime>;
+}
+
+#[cfg(test)]
+mod coretime_control_encoding_tests {
+	use super::*;
+
+	#[test]
+	fn receipt_targets_stable_orbis_pallet_and_call_indices() {
+		let call = OrbisRuntimeCall::CoretimeControl(OrbisCoretimeControlCall::Acknowledge(
+			7,
+			3,
+			pallet_coretime_control::ReceiptStatus::Accepted,
+		));
+		assert_eq!(&call.encode()[..2], &[221, 2]);
+	}
+
+	#[test]
+	fn xcm_rejects_legacy_bare_core_count_but_accepts_control_envelope() {
+		let legacy = RuntimeCall::Coretime(coretime::Call::request_core_count { count: 3 });
+		assert!(!xcm_config::OriginXcmSafeCallFilter::contains(&legacy));
+		assert!(!OriginBaseCallFilter::contains(&legacy));
+
+		let envelope =
+			RuntimeCall::CoretimeControl(pallet_coretime_control::Call::submit_request {
+				id: 7,
+				count: 3,
+			});
+		assert!(xcm_config::OriginXcmSafeCallFilter::contains(&envelope));
+		assert!(OriginBaseCallFilter::contains(&envelope));
+	}
+}
+
 parameter_types! {
 	pub const OnDemandTrafficDefaultValue: FixedU128 = FixedU128::from_u32(1);
 	pub const MaxHistoricalRevenue: BlockNumber = 2 * TIMESLICE_PERIOD;
@@ -1202,6 +1339,7 @@ construct_runtime! {
 		// RuntimeUpgrade: pallet_runtime_upgrade = 218,
 		VerifySignature: pallet_verify_signature = 219,
 		// Remark: pallet_remark = 220,
+		CoretimeControl: pallet_coretime_control = 221,
 
 		// Migrations pallet
 		MultiBlockMigrations: pallet_migrations = 249,

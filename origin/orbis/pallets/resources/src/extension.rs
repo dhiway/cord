@@ -226,8 +226,9 @@ where
 
 		match collection {
 			MembershipCollection::People => Pallet::<T>::validate_friend_request_seq(reference.seq),
-			MembershipCollection::LitePeople =>
-				Pallet::<T>::validate_lite_friend_request_seq(reference.seq),
+			MembershipCollection::LitePeople => {
+				Pallet::<T>::validate_lite_friend_request_seq(reference.seq)
+			},
 		}
 		.map_err(|_| CustomValidity::InvalidFriendRequestSequence)?;
 
@@ -294,10 +295,12 @@ where
 		ensure!(*period == current_period, CustomValidity::InvalidStmtStorePeriod);
 
 		let (identifier, seq_limit) = match collection {
-			MembershipCollection::People =>
-				(*PEOPLE_MEMBER_IDENTIFIER, T::StmtStoreSlotsPerPeriod::get()),
-			MembershipCollection::LitePeople =>
-				(*LITE_PEOPLE_MEMBER_IDENTIFIER, T::LiteStmtStoreSlotsPerPeriod::get()),
+			MembershipCollection::People => {
+				(*PEOPLE_MEMBER_IDENTIFIER, T::StmtStoreSlotsPerPeriod::get())
+			},
+			MembershipCollection::LitePeople => {
+				(*LITE_PEOPLE_MEMBER_IDENTIFIER, T::LiteStmtStoreSlotsPerPeriod::get())
+			},
 		};
 		ensure!(*seq < seq_limit, CustomValidity::InvalidStmtStoreSequence);
 
@@ -377,8 +380,9 @@ where
 
 		let bound = match collection {
 			MembershipCollection::People => indiv_pallet_people::AccountToAlias::<T>::get(&signer),
-			MembershipCollection::LitePeople =>
-				indiv_pallet_people_lite::AccountToAlias::<T>::get(&signer),
+			MembershipCollection::LitePeople => {
+				indiv_pallet_people_lite::AccountToAlias::<T>::get(&signer)
+			},
 		}
 		.ok_or(InvalidTransaction::BadSigner)?;
 		ensure!(bound.ring == ring_index, InvalidTransaction::BadSigner);
@@ -411,11 +415,13 @@ where
 		ensure!(validated_ca == bound.ca, InvalidTransaction::BadSigner);
 
 		let reciprocal = match collection {
-			MembershipCollection::People =>
-				indiv_pallet_people::AliasToAccount::<T>::get(&bound.ca) == Some(signer.clone()),
-			MembershipCollection::LitePeople =>
-				indiv_pallet_people_lite::AliasToAccount::<T>::get(&bound.ca) ==
-					Some(signer.clone()),
+			MembershipCollection::People => {
+				indiv_pallet_people::AliasToAccount::<T>::get(&bound.ca) == Some(signer.clone())
+			},
+			MembershipCollection::LitePeople => {
+				indiv_pallet_people_lite::AliasToAccount::<T>::get(&bound.ca)
+					== Some(signer.clone())
+			},
 		};
 		ensure!(reciprocal, InvalidTransaction::BadSigner);
 
@@ -464,14 +470,18 @@ where
 
 	fn weight(&self, _call: &<T as frame_system::Config>::RuntimeCall) -> Weight {
 		match self.0 {
-			Some(AsResourcesInfo::RegisterFriendRequestWithProof(..)) =>
-				<T as Config>::WeightInfo::as_register_with_proof_tx_ext(),
-			Some(AsResourcesInfo::RegisterFriendRequestForCollection(..)) =>
-				<T as Config>::WeightInfo::as_register_for_collection_tx_ext(),
-			Some(AsResourcesInfo::RegisterStatementStoreAllowance(..)) =>
-				<T as Config>::WeightInfo::as_stmt_store_allowance_tx_ext(),
-			Some(AsResourcesInfo::ClaimLongTermStorage(..)) =>
-				<T as Config>::WeightInfo::claim_long_term_storage_tx_ext(),
+			Some(AsResourcesInfo::RegisterFriendRequestWithProof(..)) => {
+				<T as Config>::WeightInfo::as_register_with_proof_tx_ext()
+			},
+			Some(AsResourcesInfo::RegisterFriendRequestForCollection(..)) => {
+				<T as Config>::WeightInfo::as_register_for_collection_tx_ext()
+			},
+			Some(AsResourcesInfo::RegisterStatementStoreAllowance(..)) => {
+				<T as Config>::WeightInfo::as_stmt_store_allowance_tx_ext()
+			},
+			Some(AsResourcesInfo::ClaimLongTermStorage(..)) => {
+				<T as Config>::WeightInfo::claim_long_term_storage_tx_ext()
+			},
 			None => Weight::zero(),
 		}
 	}
@@ -487,7 +497,7 @@ where
 		_source: TransactionSource,
 	) -> ValidateResult<Self::Val, <T as frame_system::Config>::RuntimeCall> {
 		match &self.0 {
-			Some(AsResourcesInfo::RegisterFriendRequestWithProof(proof, ring_index)) =>
+			Some(AsResourcesInfo::RegisterFriendRequestWithProof(proof, ring_index)) => {
 				Self::validate_friend_request(
 					origin,
 					call,
@@ -495,7 +505,8 @@ where
 					proof,
 					*ring_index,
 					&MembershipCollection::People,
-				),
+				)
+			},
 			Some(AsResourcesInfo::RegisterFriendRequestForCollection(
 				proof,
 				ring_index,

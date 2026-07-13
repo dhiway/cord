@@ -67,9 +67,9 @@ impl RegistryPermissions {
 	}
 
 	pub fn has_view(self) -> bool {
-		self.contains(RegistryPermissions::VIEW) ||
-			self.contains(RegistryPermissions::ENTRY) ||
-			self.contains(RegistryPermissions::ADMIN)
+		self.contains(RegistryPermissions::VIEW)
+			|| self.contains(RegistryPermissions::ENTRY)
+			|| self.contains(RegistryPermissions::ADMIN)
 	}
 }
 

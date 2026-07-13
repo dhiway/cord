@@ -148,9 +148,9 @@ impl AccountTxWorker {
 			match self.submit_once(job).await {
 				Ok(h) => return Ok(h),
 				Err(e)
-					if !self.cfg.retry_on_stale_nonce ||
-						!self.is_stale_nonce_error(&e) ||
-						attempts >= self.cfg.max_retry_attempts =>
+					if !self.cfg.retry_on_stale_nonce
+						|| !self.is_stale_nonce_error(&e)
+						|| attempts >= self.cfg.max_retry_attempts =>
 				{
 					return Err(e);
 				},
@@ -175,10 +175,11 @@ impl AccountTxWorker {
 
 	fn is_stale_nonce_error(&self, err: &OriginSdkError) -> bool {
 		match err {
-			OriginSdkError::Tx(msg) | OriginSdkError::Nonce(msg) =>
-				msg.contains("Invalid Transaction") ||
-					msg.contains("Future") ||
-					msg.contains("Priority is too low"),
+			OriginSdkError::Tx(msg) | OriginSdkError::Nonce(msg) => {
+				msg.contains("Invalid Transaction")
+					|| msg.contains("Future")
+					|| msg.contains("Priority is too low")
+			},
 			_ => false,
 		}
 	}

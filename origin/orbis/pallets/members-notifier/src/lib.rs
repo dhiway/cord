@@ -462,8 +462,8 @@ pub mod pallet {
 
 			let next = T::RingRootsProvider::next_ring_index(identifier);
 			ensure!(
-				ring_root_indices.windows(2).all(|w| w[0] < w[1]) &&
-					ring_root_indices.last().is_none_or(|&last| last < next),
+				ring_root_indices.windows(2).all(|w| w[0] < w[1])
+					&& ring_root_indices.last().is_none_or(|&last| last < next),
 				Error::<T>::InvalidRingIndex
 			);
 
@@ -835,8 +835,8 @@ pub mod pallet {
 			if let Some(ref current_batch) = current_batch {
 				if current_batch.remaining_subscribers > 0 {
 					for (para_id, info) in Subscribers::<T>::iter() {
-						if !SubscribersWithCurrentBatch::<T>::contains_key(para_id) &&
-							info.last_init_sequence < current_batch.sequence
+						if !SubscribersWithCurrentBatch::<T>::contains_key(para_id)
+							&& info.last_init_sequence < current_batch.sequence
 						{
 							let call = Call::send_batch {
 								para_id,
@@ -849,8 +849,8 @@ pub mod pallet {
 				}
 
 				// Abandoning stuck batch if timed out.
-				if block_number.saturating_sub(current_batch.sealed_at) >=
-					T::StuckBatchTimeout::get()
+				if block_number.saturating_sub(current_batch.sealed_at)
+					>= T::StuckBatchTimeout::get()
 				{
 					let call = Call::abandon_stuck_batch { discriminator };
 					Self::submit_authorized_transaction(call, block_number);
@@ -1313,8 +1313,8 @@ pub mod pallet {
 						s.after_ring_index = last_returned_index;
 					}
 				});
-			} else if (state.current_collection_index as usize) <
-				total_collections.saturating_sub(1)
+			} else if (state.current_collection_index as usize)
+				< total_collections.saturating_sub(1)
 			{
 				PendingInit::<T>::mutate(para_id, |maybe_state| {
 					if let Some(s) = maybe_state {
@@ -1346,9 +1346,9 @@ pub mod pallet {
 			}
 
 			let current_block = frame_system::Pallet::<T>::block_number();
-			current_block.saturating_sub(page_state.last_update_block) >=
-				T::UpdateTriggerBlocks::get() ||
-				count >= T::UpdateTriggerThreshold::get()
+			current_block.saturating_sub(page_state.last_update_block)
+				>= T::UpdateTriggerBlocks::get()
+				|| count >= T::UpdateTriggerThreshold::get()
 		}
 
 		/// Checks if there is pending work for the offchain worker.

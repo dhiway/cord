@@ -607,8 +607,9 @@ fn packet_lifecycle_tracks_versions() {
 		let packet_id = System::events()
 			.iter()
 			.find_map(|record| match &record.event {
-				RuntimeEvent::Register(crate::Event::PacketCreated { packet, .. }) =>
-					Some(packet.clone()),
+				RuntimeEvent::Register(crate::Event::PacketCreated { packet, .. }) => {
+					Some(packet.clone())
+				},
 				_ => None,
 			})
 			.expect("created token");

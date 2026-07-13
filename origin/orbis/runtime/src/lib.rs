@@ -33,7 +33,8 @@ mod meta_v6;
 #[cfg(all(test, not(feature = "runtime-benchmarks")))]
 mod meta_v6_fixtures;
 #[cfg(feature = "runtime-benchmarks")]
-pub mod meta_v6_weight_evidence;
+#[cfg(test)]
+mod meta_v6_weight_evidence;
 
 #[cfg(test)]
 mod tests;
@@ -70,10 +71,11 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureRootWithSuccess, EnsureSigned,
 };
+pub use orbis_storage_runtime_api as storage_api;
 pub use origin_hub_system_runtime_constants::async_backing::SLOT_DURATION;
 use origin_hub_system_runtime_constants::{
 	async_backing::{
-		AVERAGE_ON_INITIALIZE_RATIO, HOURS, MAXIMUM_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO,
+		AVERAGE_ON_INITIALIZE_RATIO, HOURS, MAXIMUM_BLOCK_WEIGHT, MINUTES, NORMAL_DISPATCH_RATIO,
 	},
 	origin::currency::*,
 };
@@ -82,6 +84,8 @@ use origin_runtime_constants::{currency::EXISTENTIAL_DEPOSIT, fee, time::DAYS};
 use pallet_asset_conversion_tx_payment::SwapAssetAdapter;
 use pallet_assets_precompiles::{ForeignIdConfig, InlineIdConfig, ERC20};
 use pallet_nfts::PalletFeatures;
+pub use pallet_orbis_attestation_runtime_api as attestation_api;
+pub use pallet_orbis_dotns_runtime_api as dotns_api;
 use pallet_orbis_token::Token as TokenTrait;
 use pallet_revive::evm::runtime::EthExtra;
 use pallet_transaction_payment::FungibleAdapter;
@@ -148,12 +152,28 @@ impl_opaque_keys! {
 	}
 }
 
+#[cfg(not(feature = "p1-upgrade-candidate"))]
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("orbis"),
 	impl_name: Cow::Borrowed("dhiway-orbis"),
 	authoring_version: 1,
 	spec_version: 29,
+	impl_version: 0,
+	apis: RUNTIME_API_VERSIONS,
+	transaction_version: 8,
+	system_version: 1,
+};
+
+/// Evidence-only fast-runtime upgrade candidate. The production runtime remains at spec version
+/// 29 unless `p1-upgrade-candidate` is explicitly enabled in an isolated build.
+#[cfg(feature = "p1-upgrade-candidate")]
+#[sp_version::runtime_version]
+pub const VERSION: RuntimeVersion = RuntimeVersion {
+	spec_name: Cow::Borrowed("orbis"),
+	impl_name: Cow::Borrowed("dhiway-orbis"),
+	authoring_version: 1,
+	spec_version: 30,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 8,
@@ -960,7 +980,9 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 }
 
 parameter_types! {
-	pub const Period: u32 = 6 * HOURS;
+	/// Production remains six hours. The existing `fast-runtime` artifact is an explicit,
+	/// hash-bound test profile and rotates quickly enough to prove collator enactment.
+	pub const Period: u32 = if cfg!(feature = "fast-runtime") { 2 * MINUTES } else { 6 * HOURS };
 	pub const Offset: u32 = 0;
 }
 
@@ -1405,7 +1427,8 @@ parameter_types! {
 impl pallet_orbis_people::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxSubAccounts = ConstU32<32>;
-	type IdentityInformation = pallet_orbis_people::legacy::IdentityInfo<PeopleMaxAdditionalFields>;
+	type IdentityInformation =
+		pallet_orbis_people::identity_info::IdentityInfo<PeopleMaxAdditionalFields>;
 	type MaxRegistrars = PeopleMaxRegistrars;
 	type RegistrarOrigin = EnsureRoot<AccountId>;
 	type OffchainSignature = MultiSignature;
@@ -2034,6 +2057,7 @@ impl pallet_bulletin_transaction_storage::Config for Runtime {
 	type TombstoneRetention = BulletinTombstoneRetention;
 	type ReservationPurpose = indiv_pallet_resources::types::ReservationPurpose;
 	type ResourceClaimLifecycle = Resources;
+	type ProviderAllocation = OrbisProviderAllocation;
 	type AuthorizationPeriod = BulletinAuthorizationPeriod;
 	type AuthorizerRegistrarOrigin = EnsureRoot<AccountId>;
 	type Authorizer = EitherOf<
@@ -2051,6 +2075,71 @@ impl pallet_bulletin_transaction_storage::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper =
 		pallet_bulletin_transaction_storage::benchmarking::DefaultCheckProofHelper;
+}
+
+/// Validates that a reservation references an active native provider agreement owned by its
+/// caller and large enough for the reservation's remaining capacity.
+pub struct OrbisProviderAllocation;
+
+impl pallet_bulletin_transaction_storage::ProviderAllocationValidator<AccountId>
+	for OrbisProviderAllocation
+{
+	fn valid(
+		reservation_id: bulletin_transaction_storage_primitives::ReservationId,
+		allocation: &[u8; 32],
+		owner: &AccountId,
+		bytes: u64,
+	) -> bool {
+		let agreement_id = Hash::from(*allocation);
+		let now = System::block_number();
+		pallet_orbis_storage_provider::Agreements::<Runtime>::get(agreement_id).is_some_and(
+			|agreement| {
+				agreement.owner == *owner
+					&& agreement.reservation_ref == Some(reservation_id)
+					&& agreement.status == pallet_orbis_storage_provider::AgreementStatus::Active
+					&& agreement.bytes >= bytes
+					&& now < agreement.expires_at
+					&& pallet_orbis_storage_provider::Providers::<Runtime>::get(&agreement.provider)
+						.is_some_and(|provider| {
+							provider.status == pallet_orbis_storage_provider::ProviderStatus::Active
+						})
+			},
+		)
+	}
+}
+
+/// Validates resource-backed proposals against one exact live Bulletin reservation.
+pub struct OrbisReservationValidator;
+
+impl pallet_orbis_storage_provider::ReservationValidator<AccountId, Hash, BlockNumber>
+	for OrbisReservationValidator
+{
+	fn valid(
+		reservation_id: u64,
+		owner: &AccountId,
+		_content_commitment: &Hash,
+		bytes: u64,
+		expires_at: BlockNumber,
+		require_unattached: bool,
+	) -> bool {
+		let now = System::block_number();
+		pallet_bulletin_transaction_storage::ResourceReservations::<Runtime>::get(reservation_id)
+			.is_some_and(|reservation| {
+				reservation.owner == *owner
+					&& (if require_unattached {
+						reservation.bytes_remaining == bytes
+					} else {
+						reservation.bytes_remaining <= bytes
+					})
+					&& reservation.transactions_remaining > 0
+					&& now < reservation.expires_at
+					&& expires_at <= reservation.expires_at
+					&& (!require_unattached
+						|| !pallet_bulletin_transaction_storage::ReservationProviderRef::<Runtime>::contains_key(
+							reservation_id,
+						))
+			})
+	}
 }
 
 parameter_types! {
@@ -2085,6 +2174,169 @@ impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type WeightInfo = weights::pallet_sudo::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+	pub const AttestationMaxSchemaDefinitionLen: u32 = 16 * 1024;
+	pub const AttestationMaxAuthorizedIssuers: u32 = 64;
+	pub const AttestationMaxSchemasPerCreator: u32 = 256;
+	pub const AttestationMaxAttestationsPerIndex: u32 = 1_024;
+	pub const AttestationMaxBatchSize: u32 = 64;
+	pub const AttestationMaxBatchEncodedLen: u32 = 256 * 1024;
+}
+
+impl pallet_orbis_attestation::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Signer = MultiSigner;
+	type Signature = MultiSignature;
+	type AdminOrigin = EnsureRoot<AccountId>;
+	type MaxSchemaDefinitionLen = AttestationMaxSchemaDefinitionLen;
+	type MaxAuthorizedIssuers = AttestationMaxAuthorizedIssuers;
+	type MaxSchemasPerCreator = AttestationMaxSchemasPerCreator;
+	type MaxAttestationsPerIndex = AttestationMaxAttestationsPerIndex;
+	type MaxBatchSize = AttestationMaxBatchSize;
+	type MaxBatchEncodedLen = AttestationMaxBatchEncodedLen;
+	type WeightInfo = pallet_orbis_attestation::weights::SubstrateWeight<Runtime>;
+}
+
+/// Keeps Drive/S3 metadata as references into the one canonical Bulletin content ledger.
+pub struct OrbisStorageLedger;
+
+impl pallet_orbis_drive::StorageReferenceValidator for OrbisStorageLedger {
+	fn contains(content_hash: &pallet_orbis_drive::ContentHash) -> bool {
+		TransactionStorage::contains_transaction(*content_hash)
+	}
+}
+
+impl pallet_orbis_s3::ContentHashValidator for OrbisStorageLedger {
+	fn exists(content_hash: &pallet_orbis_s3::ContentHash) -> bool {
+		TransactionStorage::contains_transaction(*content_hash)
+	}
+}
+
+impl pallet_orbis_dotns::ContentReferenceValidator<[u8; 32]> for OrbisStorageLedger {
+	fn contains(content_hash: &[u8; 32]) -> bool {
+		TransactionStorage::contains_transaction(*content_hash)
+	}
+}
+
+/// DotNS keeps canonical identifiers only; the attestation pallet remains the single source of
+/// truth for subject presence and attestation liveness.
+pub struct OrbisAttestationRegistry;
+
+impl pallet_orbis_dotns::SubjectReferenceValidator<Hash> for OrbisAttestationRegistry {
+	fn contains(subject: &Hash) -> bool {
+		pallet_orbis_attestation::Pallet::<Runtime>::is_subject_known(*subject)
+	}
+}
+
+impl pallet_orbis_dotns::AttestationReferenceValidator<Hash> for OrbisAttestationRegistry {
+	fn is_live(attestation: &Hash) -> bool {
+		pallet_orbis_attestation::Pallet::<Runtime>::is_live(*attestation)
+	}
+}
+
+parameter_types! {
+	pub const DriveMaxNameBytes: u32 = 128;
+	pub const DriveMaxPerOwner: u32 = 256;
+	pub const DriveMaxControllers: u32 = 32;
+}
+
+impl pallet_orbis_drive::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type StorageLedger = OrbisStorageLedger;
+	type MaxDriveNameBytes = DriveMaxNameBytes;
+	type MaxDrivesPerOwner = DriveMaxPerOwner;
+	type MaxControllersPerDrive = DriveMaxControllers;
+	type WeightInfo = pallet_orbis_drive::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const DotnsMaxLabelLength: u32 = 63;
+	pub const DotnsMaxSaltLength: u32 = 64;
+	pub const DotnsMaxAddressLength: u32 = 128;
+	pub const DotnsMaxTextKeyLength: u32 = 32;
+	pub const DotnsMaxTextValueLength: u32 = 256;
+	pub const DotnsMaxTextRecords: u32 = 32;
+	pub const DotnsMaxControllers: u32 = 32;
+	pub const DotnsMaxNamesPerOwner: u32 = 256;
+	pub const DotnsMaxChildrenPerName: u32 = 256;
+	pub const DotnsMaxRootNames: u32 = 10_000;
+	pub const DotnsMaxNameDepth: u32 = 16;
+	pub const DotnsMaxCommitmentsPerAccount: u32 = 32;
+	pub const DotnsMinCommitmentAge: BlockNumber = 2;
+	pub const DotnsMaxCommitmentAge: BlockNumber = 600;
+	pub const DotnsRegistrationPeriod: BlockNumber = 365 * DAYS;
+	pub const DotnsMaxRenewalPeriod: BlockNumber = 365 * DAYS;
+}
+
+impl pallet_orbis_dotns::Config for Runtime {
+	type AdminOrigin = EnsureRoot<AccountId>;
+	type SubjectId = Hash;
+	type SubjectReferenceValidator = OrbisAttestationRegistry;
+	type AttestationId = Hash;
+	type AttestationReferenceValidator = OrbisAttestationRegistry;
+	type ContentCommitment = [u8; 32];
+	type ContentReferenceValidator = OrbisStorageLedger;
+	type MaxLabelLength = DotnsMaxLabelLength;
+	type MaxSaltLength = DotnsMaxSaltLength;
+	type MaxAddressLength = DotnsMaxAddressLength;
+	type MaxTextKeyLength = DotnsMaxTextKeyLength;
+	type MaxTextValueLength = DotnsMaxTextValueLength;
+	type MaxTextRecords = DotnsMaxTextRecords;
+	type MaxControllers = DotnsMaxControllers;
+	type MaxNamesPerOwner = DotnsMaxNamesPerOwner;
+	type MaxChildrenPerName = DotnsMaxChildrenPerName;
+	type MaxRootNames = DotnsMaxRootNames;
+	type MaxNameDepth = DotnsMaxNameDepth;
+	type MaxCommitmentsPerAccount = DotnsMaxCommitmentsPerAccount;
+	type MinCommitmentAge = DotnsMinCommitmentAge;
+	type MaxCommitmentAge = DotnsMaxCommitmentAge;
+	type RegistrationPeriod = DotnsRegistrationPeriod;
+	type MaxRenewalPeriod = DotnsMaxRenewalPeriod;
+	type WeightInfo = pallet_orbis_dotns::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const S3MaxBucketNameLen: u32 = 63;
+	pub const S3MaxObjectKeyLen: u32 = 1_024;
+	pub const S3MaxControllers: u32 = 32;
+	pub const S3MaxBucketsPerOwner: u32 = 256;
+	pub const S3MaxObjectsPerBucket: u32 = 10_000;
+	pub const S3MaxObjectVersions: u32 = 64;
+}
+
+impl pallet_orbis_s3::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type ContentValidator = OrbisStorageLedger;
+	type MaxBucketNameLen = S3MaxBucketNameLen;
+	type MaxObjectKeyLen = S3MaxObjectKeyLen;
+	type MaxControllers = S3MaxControllers;
+	type MaxBucketsPerOwner = S3MaxBucketsPerOwner;
+	type MaxObjectsPerBucket = S3MaxObjectsPerBucket;
+	type MaxObjectVersions = S3MaxObjectVersions;
+	type WeightInfo = pallet_orbis_s3::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const ProviderMaxEndpointBytes: u32 = 512;
+	pub const ProviderMaxServiceKeyBytes: u32 = 128;
+	pub const ProviderMaxAgreements: u32 = 1_024;
+	pub const ProviderMaxChallengesPerBlock: u32 = 256;
+}
+
+impl pallet_orbis_storage_provider::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AdminOrigin = EnsureRoot<AccountId>;
+	type MaxEndpointBytes = ProviderMaxEndpointBytes;
+	type MaxServiceKeyBytes = ProviderMaxServiceKeyBytes;
+	type MaxProviders = ConstU32<1_024>;
+	type MaxProviderAgreements = ProviderMaxAgreements;
+	type MaxOwnerAgreements = ProviderMaxAgreements;
+	type MaxContainerAgreements = ProviderMaxAgreements;
+	type MaxChallengesPerBlock = ProviderMaxChallengesPerBlock;
+	type ReservationValidator = OrbisReservationValidator;
+	type WeightInfo = pallet_orbis_storage_provider::weights::SubstrateWeight<Runtime>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -2153,6 +2405,7 @@ construct_runtime!(
 		Resources: indiv_pallet_resources = 96,
 		Score: pallet_orbis_score = 97,
 		Honour: pallet_orbis_honour = 99,
+		Attestation: pallet_orbis_attestation = 105,
 
 		// Solidity and PolkaVM contracts.
 		Revive: pallet_revive = 100,
@@ -2160,6 +2413,10 @@ construct_runtime!(
 		// Bulletin durable transaction storage and proof accounting.
 		TransactionStorage: pallet_bulletin_transaction_storage = 110,
 		HopPromotion: pallet_bulletin_hop_promotion = 111,
+		Dotns: pallet_orbis_dotns = 116,
+		StorageProvider: pallet_orbis_storage_provider = 120,
+		Drive: pallet_orbis_drive = 121,
+		S3: pallet_orbis_s3 = 122,
 
 		// Application asset and payment extensions.
 		AssetConversion: pallet_asset_conversion = 200,
@@ -2171,6 +2428,7 @@ construct_runtime!(
 		SafeMode: pallet_safe_mode = 217,
 		VerifySignature: pallet_verify_signature = 219,
 		// Remark: pallet_remark = 220,
+		CoretimeControl: pallet_coretime_control = 221,
 
 		// Migrations pallet
 		MultiBlockMigrations: pallet_migrations = 249,
@@ -2336,83 +2594,8 @@ where
 	}
 }
 
-pub type Migrations = migrations::Unreleased;
-/// Migrations to apply on runtime upgrade.
-#[allow(deprecated, missing_docs)]
-pub mod migrations {
-	#[cfg(feature = "try-runtime")]
-	use codec::{Decode, Encode};
-	use frame_support::traits::{
-		GetStorageVersion, OnRuntimeUpgrade, PalletInfoAccess, StorageVersion,
-	};
-	#[cfg(feature = "try-runtime")]
-	use sp_runtime::TryRuntimeError;
-
-	/// Fail-closed guard for introducing Score and Honour.
-	///
-	/// The legacy state is valid only when both pallets are completely absent at v0. A v0 pallet
-	/// prefix containing any key is ambiguous legacy data, so the upgrade aborts before Score,
-	/// Honour, or Bulletin can write. Already-introduced v1 state is accepted for idempotence.
-	pub struct ScoreHonourIntroductionPreflight;
-
-	fn prefix_has_key<P: PalletInfoAccess>() -> bool {
-		let prefix = sp_io::hashing::twox_128(P::name().as_bytes());
-		sp_io::storage::next_key(&prefix).is_some_and(|key| key.starts_with(&prefix))
-	}
-
-	fn validate_preflight() -> Result<(StorageVersion, StorageVersion), &'static str> {
-		let score = super::Score::on_chain_storage_version();
-		let honour = super::Honour::on_chain_storage_version();
-		if score > StorageVersion::new(1) {
-			return Err("Score storage version is newer than the supported v1");
-		}
-		if honour > StorageVersion::new(1) {
-			return Err("Honour storage version is newer than the supported v1");
-		}
-		if score == StorageVersion::new(0) && prefix_has_key::<super::Score>() {
-			return Err("dirty v0 Score prefix: refusing partial Orbis introduction");
-		}
-		if honour == StorageVersion::new(0) && prefix_has_key::<super::Honour>() {
-			return Err("dirty v0 Honour prefix: refusing partial Orbis introduction");
-		}
-		Ok((score, honour))
-	}
-
-	impl OnRuntimeUpgrade for ScoreHonourIntroductionPreflight {
-		fn on_runtime_upgrade() -> frame_support::weights::Weight {
-			validate_preflight().unwrap_or_else(|reason| panic!("{reason}"));
-			<super::Runtime as frame_system::Config>::DbWeight::get().reads(4)
-		}
-
-		#[cfg(feature = "try-runtime")]
-		fn pre_upgrade() -> Result<alloc::vec::Vec<u8>, TryRuntimeError> {
-			validate_preflight().map(|state| state.encode()).map_err(Into::into)
-		}
-
-		#[cfg(feature = "try-runtime")]
-		fn post_upgrade(state: alloc::vec::Vec<u8>) -> Result<(), TryRuntimeError> {
-			let before: (StorageVersion, StorageVersion) = Decode::decode(&mut &state[..])
-				.map_err(|_| "invalid introduction preflight state")?;
-			frame_support::ensure!(
-				super::Score::on_chain_storage_version() == before.0,
-				"Score changed while introduction preflight executed"
-			);
-			frame_support::ensure!(
-				super::Honour::on_chain_storage_version() == before.1,
-				"Honour changed while introduction preflight executed"
-			);
-			Ok(())
-		}
-	}
-
-	/// Unreleased migrations. Add new ones here:
-	pub type Unreleased = (
-		ScoreHonourIntroductionPreflight,
-		pallet_orbis_score::migrations::IntroduceV1<super::Runtime>,
-		pallet_orbis_honour::migrations::IntroduceV1<super::Runtime>,
-		pallet_bulletin_transaction_storage::migrations::MigrateV5ToV7<super::Runtime>,
-	);
-}
+/// Origin and Orbis launch from a clean genesis; no predecessor state is migrated.
+pub type Migrations = ();
 
 /// MBM migrations to apply on runtime upgrade.
 pub type MbmMigrations = ();
@@ -2741,6 +2924,169 @@ mod benches {
 #[cfg(feature = "runtime-benchmarks")]
 use benches::*;
 
+fn provider_api_info(
+	record: pallet_orbis_storage_provider::ProviderRecordOf<Runtime>,
+) -> storage_api::ProviderInfo<BlockNumber> {
+	storage_api::ProviderInfo {
+		endpoint: record.endpoint.to_vec(),
+		service_key: record.service_key.to_vec(),
+		capacity_bytes: record.capacity_bytes,
+		allocated_bytes: record.allocated_bytes,
+		pending_bytes: record.pending_bytes,
+		status: match record.status {
+			pallet_orbis_storage_provider::ProviderStatus::Active => {
+				storage_api::ProviderStatus::Active
+			},
+			pallet_orbis_storage_provider::ProviderStatus::Suspended => {
+				storage_api::ProviderStatus::Suspended
+			},
+		},
+		last_heartbeat: record.last_heartbeat,
+		reputation: record.reputation,
+	}
+}
+
+fn agreement_api_info(
+	agreement_id: Hash,
+	record: pallet_orbis_storage_provider::AgreementRecordOf<Runtime>,
+) -> storage_api::AgreementInfo<AccountId, Hash, BlockNumber> {
+	storage_api::AgreementInfo {
+		agreement_id,
+		owner: record.owner,
+		provider: record.provider,
+		container_ref: record.container_ref,
+		content_commitment: record.content_commitment,
+		reservation_ref: record.reservation_ref,
+		bytes: record.bytes,
+		created_at: record.created_at,
+		expires_at: record.expires_at,
+		pending_expiry: record.pending_expiry,
+		status: match record.status {
+			pallet_orbis_storage_provider::AgreementStatus::Proposed => {
+				storage_api::AgreementStatus::Proposed
+			},
+			pallet_orbis_storage_provider::AgreementStatus::Active => {
+				storage_api::AgreementStatus::Active
+			},
+			pallet_orbis_storage_provider::AgreementStatus::Cancelled => {
+				storage_api::AgreementStatus::Cancelled
+			},
+			pallet_orbis_storage_provider::AgreementStatus::Expired => {
+				storage_api::AgreementStatus::Expired
+			},
+		},
+	}
+}
+
+fn challenge_api_info(
+	challenge_id: Hash,
+	record: pallet_orbis_storage_provider::ChallengeRecordOf<Runtime>,
+) -> storage_api::ChallengeInfo<AccountId, Hash, BlockNumber> {
+	storage_api::ChallengeInfo {
+		challenge_id,
+		provider: record.provider,
+		agreement_id: record.agreement_id,
+		expected_commitment: record.expected_commitment,
+		due_at: record.due_at,
+		proof_commitment: record.proof_commitment,
+		status: match record.status {
+			pallet_orbis_storage_provider::ChallengeStatus::Open => {
+				storage_api::ChallengeStatus::Open
+			},
+			pallet_orbis_storage_provider::ChallengeStatus::Proved => {
+				storage_api::ChallengeStatus::Proved
+			},
+			pallet_orbis_storage_provider::ChallengeStatus::TimedOut => {
+				storage_api::ChallengeStatus::TimedOut
+			},
+		},
+	}
+}
+
+fn drive_api_info(
+	drive_id: Hash,
+	record: pallet_orbis_drive::DriveRecordOf<Runtime>,
+) -> storage_api::DriveInfo<AccountId, Hash, BlockNumber> {
+	storage_api::DriveInfo {
+		drive_id,
+		owner: record.owner,
+		name: record.name.to_vec(),
+		root_storage_ref: record.root_storage_ref,
+		version: record.version,
+		status: match record.status {
+			pallet_orbis_drive::DriveStatus::Active => storage_api::ContainerStatus::Active,
+			pallet_orbis_drive::DriveStatus::Archived => storage_api::ContainerStatus::Archived,
+		},
+		created_at: record.created_at,
+		updated_at: record.updated_at,
+		controllers: pallet_orbis_drive::DriveControllers::<Runtime>::get(drive_id).to_vec(),
+	}
+}
+
+fn bucket_api_info(
+	bucket_id: Hash,
+	record: pallet_orbis_s3::BucketRecord<Runtime>,
+) -> storage_api::BucketInfo<AccountId, Hash, BlockNumber> {
+	storage_api::BucketInfo {
+		bucket_id,
+		name: record.name.to_vec(),
+		owner: record.owner,
+		controllers: record.controllers.to_vec(),
+		status: match record.status {
+			pallet_orbis_s3::BucketStatus::Active => storage_api::ContainerStatus::Active,
+			pallet_orbis_s3::BucketStatus::Archived => storage_api::ContainerStatus::Archived,
+			pallet_orbis_s3::BucketStatus::Deleted => storage_api::ContainerStatus::Deleted,
+		},
+		versioning_enabled: record.versioning_enabled,
+		version: record.version,
+		live_objects: record.live_objects,
+		created_at: record.created_at,
+		updated_at: record.updated_at,
+	}
+}
+
+fn object_api_info(
+	bucket_id: Hash,
+	key: Vec<u8>,
+	record: pallet_orbis_s3::ObjectRecord<Runtime>,
+) -> storage_api::ObjectInfo<AccountId, Hash, BlockNumber> {
+	storage_api::ObjectInfo {
+		object_id: record.object_id,
+		bucket_id,
+		key,
+		content_hash: record.content_hash,
+		version: record.version,
+		deleted: record.deleted,
+		updated_by: record.updated_by,
+		updated_at: record.updated_at,
+	}
+}
+
+fn api_page_bounds(len: usize, cursor: Option<u32>, limit: u32) -> (usize, usize, Option<u32>) {
+	let start = (cursor.unwrap_or(0) as usize).min(len);
+	let end = start
+		.saturating_add(limit.clamp(1, storage_api::MAX_PAGE_SIZE) as usize)
+		.min(len);
+	(start, end, (end < len).then_some(end as u32))
+}
+
+fn attestation_id_page(
+	ids: &[Hash],
+	cursor: Option<u32>,
+	limit: u32,
+) -> attestation_api::IdPage<Hash> {
+	if limit == 0 {
+		return attestation_api::IdPage::new(Default::default(), None);
+	}
+	let start = (cursor.unwrap_or(0) as usize).min(ids.len());
+	let end = start
+		.saturating_add(limit.min(attestation_api::MAX_PAGE_SIZE) as usize)
+		.min(ids.len());
+	let items = ids[start..end].to_vec().try_into().unwrap_or_default();
+	let next = (end < ids.len() && end > start).then_some(end as u32);
+	attestation_api::IdPage::new(items, next)
+}
+
 pallet_revive::impl_runtime_apis_plus_revive_traits!(
 	Runtime,
 	Revive,
@@ -2964,6 +3310,583 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 		}
 	}
 
+	impl attestation_api::AttestationApi<Block, AccountId, BlockNumber, Hash> for Runtime {
+		fn schema_by_id(
+			schema: Hash,
+		) -> attestation_api::Versioned<attestation_api::SchemaView<AccountId, BlockNumber, Hash>> {
+			let value = pallet_orbis_attestation::Schemas::<Runtime>::get(schema).and_then(|record| {
+				Some(attestation_api::SchemaView {
+					schema,
+					creator: record.creator,
+					definition: record.definition.to_vec().try_into().ok()?,
+					definition_commitment: record.definition_commitment,
+					status: match record.status {
+						pallet_orbis_attestation::SchemaStatus::Active =>
+							attestation_api::SchemaStatus::Active,
+						pallet_orbis_attestation::SchemaStatus::Paused =>
+							attestation_api::SchemaStatus::Paused,
+						pallet_orbis_attestation::SchemaStatus::Retired =>
+							attestation_api::SchemaStatus::Retired,
+					},
+					revocable: record.revocable,
+					unique: record.unique,
+					index_policy: match record.index_policy {
+						pallet_orbis_attestation::IndexPolicy::None =>
+							attestation_api::IndexPolicy::None,
+						pallet_orbis_attestation::IndexPolicy::Issuer =>
+							attestation_api::IndexPolicy::Issuer,
+						pallet_orbis_attestation::IndexPolicy::SubjectAndSchema =>
+							attestation_api::IndexPolicy::SubjectAndSchema,
+						pallet_orbis_attestation::IndexPolicy::IssuerAndSubjectSchema =>
+							attestation_api::IndexPolicy::IssuerAndSubjectSchema,
+					},
+					authorized_issuers: record.authorized_issuers.to_vec().try_into().ok()?,
+					created_at: record.created_at,
+				})
+			});
+			attestation_api::Versioned::new(value)
+		}
+
+		fn attestation_by_id(
+			attestation: Hash,
+		) -> attestation_api::Versioned<attestation_api::AttestationView<AccountId, BlockNumber, Hash>> {
+			attestation_api::Versioned::new(
+				pallet_orbis_attestation::Attestations::<Runtime>::get(attestation).map(|record| {
+					attestation_api::AttestationView {
+						attestation,
+						issuer: record.issuer,
+						schema: record.schema,
+						subject_commitment: record.subject_commitment,
+						payload_commitment: record.payload_commitment,
+						status_commitment: record.status_commitment,
+						parent: record.parent,
+						expiry: record.expiry,
+						uniqueness_commitment: record.uniqueness_commitment,
+						revocable: record.revocable,
+						issuance_nonce: record.issuance_nonce,
+						issued_at: record.issued_at,
+						revoked_at: record.revoked_at,
+						revoked_by: record.revoked_by,
+					}
+				}),
+			)
+		}
+
+		fn attestation_live_status(
+			attestation: Hash,
+		) -> attestation_api::AttestationLiveStatus<BlockNumber> {
+			let now = System::block_number();
+			match pallet_orbis_attestation::Attestations::<Runtime>::get(attestation) {
+				Some(record) => {
+					let live = pallet_orbis_attestation::Pallet::<Runtime>::is_live(attestation);
+					attestation_api::AttestationLiveStatus::new(
+						true,
+						live,
+						now,
+						record.expiry,
+						record.revoked_at,
+					)
+				},
+				None => attestation_api::AttestationLiveStatus::new(false, false, now, None, None),
+			}
+		}
+
+		fn creator_schemas(
+			creator: AccountId,
+			cursor: Option<u32>,
+			limit: u32,
+		) -> attestation_api::IdPage<Hash> {
+			let ids = pallet_orbis_attestation::CreatorSchemas::<Runtime>::get(creator);
+			attestation_id_page(ids.as_slice(), cursor, limit)
+		}
+
+		fn issuer_attestations(
+			issuer: AccountId,
+			cursor: Option<u32>,
+			limit: u32,
+		) -> attestation_api::IdPage<Hash> {
+			let ids = pallet_orbis_attestation::IssuerAttestations::<Runtime>::get(issuer);
+			attestation_id_page(ids.as_slice(), cursor, limit)
+		}
+
+		fn subject_schema_attestations(
+			subject_commitment: Hash,
+			schema: Hash,
+			cursor: Option<u32>,
+			limit: u32,
+		) -> attestation_api::IdPage<Hash> {
+			let ids = pallet_orbis_attestation::SubjectSchemaAttestations::<Runtime>::get(
+				schema,
+				subject_commitment,
+			);
+			attestation_id_page(ids.as_slice(), cursor, limit)
+		}
+
+		fn next_delegated_nonce(issuer: AccountId) -> attestation_api::DelegatedNonce {
+			attestation_api::DelegatedNonce::new(
+				pallet_orbis_attestation::NextDelegatedNonce::<Runtime>::get(issuer),
+			)
+		}
+
+		fn schema_count() -> attestation_api::RegistryCount {
+			attestation_api::RegistryCount::new(
+				pallet_orbis_attestation::SchemaCount::<Runtime>::get(),
+			)
+		}
+
+		fn attestation_count() -> attestation_api::RegistryCount {
+			attestation_api::RegistryCount::new(
+				pallet_orbis_attestation::AttestationCount::<Runtime>::get(),
+			)
+		}
+
+		fn next_issuance_nonce(issuer: AccountId) -> attestation_api::IssuanceNonce {
+			attestation_api::IssuanceNonce::new(
+				pallet_orbis_attestation::NextIssuerAttestationNonce::<Runtime>::get(issuer),
+			)
+		}
+
+		fn external_status(
+			issuer: AccountId,
+			status_commitment: Hash,
+		) -> attestation_api::Versioned<
+			attestation_api::ExternalStatusView<AccountId, BlockNumber, Hash>,
+		> {
+			let key = pallet_orbis_attestation::Pallet::<Runtime>::external_status_key(
+				&issuer,
+				status_commitment,
+			);
+			attestation_api::Versioned::new(
+				pallet_orbis_attestation::ExternalStatuses::<Runtime>::get(key).map(|record| {
+					attestation_api::ExternalStatusView {
+						key,
+						issuer: record.issuer,
+						status_commitment: record.status_commitment,
+						revoked_at: record.revoked_at,
+					}
+				}),
+			)
+		}
+	}
+
+	impl dotns_api::DotnsApi<Block, AccountId, BlockNumber, Hash, Hash, Hash, [u8; 32]>
+		for Runtime
+	{
+		fn name_by_id(name: Hash) -> dotns_api::Versioned<dotns_api::NameView<AccountId, BlockNumber, Hash>> {
+			let value = pallet_orbis_dotns::Names::<Runtime>::get(name).and_then(|record| {
+				let label = record.label.to_vec().try_into().ok()?;
+				Some(dotns_api::NameView {
+					name,
+					parent: record.parent,
+					label,
+					owner: record.owner,
+					expires_at: record.expires_at,
+					depth: record.depth,
+				})
+			});
+			dotns_api::Versioned::new(value)
+		}
+
+		fn root_name_by_normalized_label(label: dotns_api::NormalizedLabel) -> dotns_api::Versioned<Hash> {
+			let value = Dotns::validate_label(label.to_vec()).ok().and_then(|label| {
+				let name = Dotns::derive_name_id(None, &label);
+				pallet_orbis_dotns::Names::<Runtime>::contains_key(name).then_some(name)
+			});
+			dotns_api::Versioned::new(value)
+		}
+
+		fn owner_names(
+			owner: AccountId,
+			cursor: Option<u32>,
+			limit: u32,
+		) -> dotns_api::OwnerNamesPage<Hash> {
+			let all = pallet_orbis_dotns::OwnerNames::<Runtime>::get(owner);
+			let start = cursor.unwrap_or(0) as usize;
+			let take = limit.clamp(1, dotns_api::MAX_OWNER_NAMES_PAGE_SIZE) as usize;
+			let end = start.saturating_add(take).min(all.len());
+			let values = if start < all.len() { all[start..end].to_vec() } else { Vec::new() };
+			let names = values.try_into().unwrap_or_default();
+			let next_cursor = (end < all.len()).then_some(end as u32);
+			dotns_api::OwnerNamesPage::new(names, next_cursor)
+		}
+
+		fn resolve_address(name: Hash) -> dotns_api::Versioned<dotns_api::Address> {
+			let value = Dotns::is_name_active(name)
+				.then(|| pallet_orbis_dotns::Names::<Runtime>::get(name))
+				.flatten()
+				.and_then(|record| record.address)
+				.and_then(|address| address.to_vec().try_into().ok());
+			dotns_api::Versioned::new(value)
+		}
+
+		fn resolve_subject(name: Hash) -> dotns_api::Versioned<Hash> {
+			let value = Dotns::is_name_active(name)
+				.then(|| pallet_orbis_dotns::Names::<Runtime>::get(name))
+				.flatten()
+				.and_then(|record| record.subject);
+			dotns_api::Versioned::new(value)
+		}
+
+		fn resolve_attestation(name: Hash) -> dotns_api::Versioned<Hash> {
+			let value = Dotns::is_name_active(name)
+				.then(|| pallet_orbis_dotns::Names::<Runtime>::get(name))
+				.flatten()
+				.and_then(|record| record.attestation);
+			dotns_api::Versioned::new(value)
+		}
+
+		fn resolve_content(name: Hash) -> dotns_api::Versioned<[u8; 32]> {
+			let value = Dotns::is_name_active(name)
+				.then(|| pallet_orbis_dotns::Names::<Runtime>::get(name))
+				.flatten()
+				.and_then(|record| record.content);
+			dotns_api::Versioned::new(value)
+		}
+
+		fn resolve_text(name: Hash, key: dotns_api::TextKey) -> dotns_api::Versioned<dotns_api::TextValue> {
+			let value = if Dotns::is_name_active(name) {
+				pallet_orbis_dotns::TextKeyOf::<Runtime>::try_from(key.to_vec())
+					.ok()
+					.and_then(|key| pallet_orbis_dotns::TextRecords::<Runtime>::get(name, key))
+					.and_then(|value| value.to_vec().try_into().ok())
+			} else {
+				None
+			};
+			dotns_api::Versioned::new(value)
+		}
+
+		fn primary_name(owner: AccountId) -> dotns_api::Versioned<Hash> {
+			dotns_api::Versioned::new(Dotns::primary_name(&owner))
+		}
+
+		fn name_status(name: Hash) -> dotns_api::NameStatus<BlockNumber> {
+			match pallet_orbis_dotns::Names::<Runtime>::get(name) {
+				Some(record) => dotns_api::NameStatus {
+					version: dotns_api::RESPONSE_VERSION,
+					exists: true,
+					active: Dotns::is_name_active(name),
+					expires_at: Some(record.expires_at),
+				},
+				None => dotns_api::NameStatus {
+					version: dotns_api::RESPONSE_VERSION,
+					exists: false,
+					active: false,
+					expires_at: None,
+				},
+			}
+		}
+	}
+
+	impl storage_api::StorageProviderApi<Block, AccountId, Hash, BlockNumber> for Runtime {
+		fn provider(provider: AccountId) -> storage_api::Versioned<storage_api::ProviderInfo<BlockNumber>> {
+			storage_api::Versioned::new(
+				pallet_orbis_storage_provider::Providers::<Runtime>::get(provider)
+					.map(provider_api_info),
+			)
+		}
+
+		fn providers(
+			cursor: Option<u32>,
+			limit: u32,
+		) -> storage_api::Page<(AccountId, storage_api::ProviderInfo<BlockNumber>)> {
+			let ids = pallet_orbis_storage_provider::ProviderIds::<Runtime>::get();
+			let (start, end, next) = api_page_bounds(ids.len(), cursor, limit);
+			let items = ids[start..end]
+				.iter()
+				.filter_map(|id| {
+					pallet_orbis_storage_provider::Providers::<Runtime>::get(id)
+						.map(|record| (id.clone(), provider_api_info(record)))
+				})
+				.collect();
+			storage_api::Page::new(items, next)
+		}
+
+		fn agreement(
+			agreement_id: Hash,
+		) -> storage_api::Versioned<storage_api::AgreementInfo<AccountId, Hash, BlockNumber>> {
+			storage_api::Versioned::new(
+				pallet_orbis_storage_provider::Agreements::<Runtime>::get(agreement_id)
+					.map(|record| agreement_api_info(agreement_id, record)),
+			)
+		}
+
+		fn provider_agreements(
+			provider: AccountId,
+			cursor: Option<u32>,
+			limit: u32,
+		) -> storage_api::Page<storage_api::AgreementInfo<AccountId, Hash, BlockNumber>> {
+			let ids = pallet_orbis_storage_provider::ProviderAgreements::<Runtime>::get(provider);
+			let (start, end, next) = api_page_bounds(ids.len(), cursor, limit);
+			let items = ids[start..end]
+				.iter()
+				.filter_map(|id| {
+					pallet_orbis_storage_provider::Agreements::<Runtime>::get(id)
+						.map(|record| agreement_api_info(*id, record))
+				})
+				.collect();
+			storage_api::Page::new(items, next)
+		}
+
+		fn owner_agreements(
+			owner: AccountId,
+			cursor: Option<u32>,
+			limit: u32,
+		) -> storage_api::Page<storage_api::AgreementInfo<AccountId, Hash, BlockNumber>> {
+			let ids = pallet_orbis_storage_provider::OwnerAgreements::<Runtime>::get(owner);
+			let (start, end, next) = api_page_bounds(ids.len(), cursor, limit);
+			let items = ids[start..end]
+				.iter()
+				.filter_map(|id| {
+					pallet_orbis_storage_provider::Agreements::<Runtime>::get(id)
+						.map(|record| agreement_api_info(*id, record))
+				})
+				.collect();
+			storage_api::Page::new(items, next)
+		}
+
+		fn container_agreements(
+			container: Hash,
+			cursor: Option<u32>,
+			limit: u32,
+		) -> storage_api::Page<storage_api::AgreementInfo<AccountId, Hash, BlockNumber>> {
+			let ids = pallet_orbis_storage_provider::ContainerAgreements::<Runtime>::get(container);
+			let (start, end, next) = api_page_bounds(ids.len(), cursor, limit);
+			let items = ids[start..end]
+				.iter()
+				.filter_map(|id| {
+					pallet_orbis_storage_provider::Agreements::<Runtime>::get(id)
+						.map(|record| agreement_api_info(*id, record))
+				})
+				.collect();
+			storage_api::Page::new(items, next)
+		}
+
+		fn agreement_nonce(owner: AccountId) -> u64 {
+			pallet_orbis_storage_provider::AgreementNonce::<Runtime>::get(owner)
+		}
+
+		fn challenge(
+			challenge_id: Hash,
+		) -> storage_api::Versioned<storage_api::ChallengeInfo<AccountId, Hash, BlockNumber>> {
+			storage_api::Versioned::new(
+				pallet_orbis_storage_provider::Challenges::<Runtime>::get(challenge_id)
+					.map(|record| challenge_api_info(challenge_id, record)),
+			)
+		}
+
+		fn challenges_at(
+			block: BlockNumber,
+			cursor: Option<u32>,
+			limit: u32,
+		) -> storage_api::Page<storage_api::ChallengeInfo<AccountId, Hash, BlockNumber>> {
+			let ids = pallet_orbis_storage_provider::ChallengesDue::<Runtime>::get(block);
+			let (start, end, next) = api_page_bounds(ids.len(), cursor, limit);
+			let items = ids[start..end]
+				.iter()
+				.filter_map(|id| {
+					pallet_orbis_storage_provider::Challenges::<Runtime>::get(id)
+						.map(|record| challenge_api_info(*id, record))
+				})
+				.collect();
+			storage_api::Page::new(items, next)
+		}
+
+		fn open_challenge_count(agreement_id: Hash) -> u32 {
+			pallet_orbis_storage_provider::OpenChallengeCount::<Runtime>::get(agreement_id)
+		}
+
+		fn can_accept_capacity(provider: AccountId, additional_bytes: u64) -> bool {
+			pallet_orbis_storage_provider::Providers::<Runtime>::get(provider).is_some_and(|record| {
+				record.status == pallet_orbis_storage_provider::ProviderStatus::Active &&
+					record.capacity_bytes.saturating_sub(
+						record.allocated_bytes.saturating_add(record.pending_bytes),
+					) >= additional_bytes
+			})
+		}
+
+		fn checkpoint(
+			provider: AccountId,
+		) -> storage_api::Versioned<storage_api::CheckpointInfo<Hash, BlockNumber>> {
+			storage_api::Versioned::new(
+				pallet_orbis_storage_provider::ProviderCheckpoint::<Runtime>::get(provider).map(
+					|record| storage_api::CheckpointInfo {
+						challenge_id: record.challenge_id,
+						proof_commitment: record.proof_commitment,
+						recorded_at: record.recorded_at,
+					},
+				),
+			)
+		}
+
+		fn deletion_acknowledgement(
+			agreement_id: Hash,
+		) -> storage_api::Versioned<
+			storage_api::DeletionAcknowledgementInfo<Hash, BlockNumber>,
+		> {
+			storage_api::Versioned::new(
+				pallet_orbis_storage_provider::DeletionAcknowledgements::<Runtime>::get(
+					agreement_id,
+				)
+				.map(|record| storage_api::DeletionAcknowledgementInfo {
+					content_commitment: record.content_commitment,
+					tombstone_root: record.tombstone_root,
+					proof_commitment: record.proof_commitment,
+					acknowledged_at: record.acknowledged_at,
+				}),
+			)
+		}
+	}
+
+	impl storage_api::DriveRegistryApi<Block, AccountId, Hash, BlockNumber> for Runtime {
+		fn drive(
+			drive_id: Hash,
+		) -> storage_api::Versioned<storage_api::DriveInfo<AccountId, Hash, BlockNumber>> {
+			storage_api::Versioned::new(
+				pallet_orbis_drive::Drives::<Runtime>::get(drive_id)
+					.map(|record| drive_api_info(drive_id, record)),
+			)
+		}
+
+		fn drives(
+			owner: AccountId,
+			cursor: Option<u32>,
+			limit: u32,
+		) -> storage_api::Page<storage_api::DriveInfo<AccountId, Hash, BlockNumber>> {
+			let ids = pallet_orbis_drive::OwnerDrives::<Runtime>::get(owner);
+			let (start, end, next) = api_page_bounds(ids.len(), cursor, limit);
+			let items = ids[start..end]
+				.iter()
+				.filter_map(|id| {
+					pallet_orbis_drive::Drives::<Runtime>::get(id)
+						.map(|record| drive_api_info(*id, record))
+				})
+				.collect();
+			storage_api::Page::new(items, next)
+		}
+
+		fn controllers(
+			drive_id: Hash,
+			cursor: Option<u32>,
+			limit: u32,
+		) -> storage_api::Page<AccountId> {
+			let controllers = pallet_orbis_drive::DriveControllers::<Runtime>::get(drive_id);
+			let (start, end, next) = api_page_bounds(controllers.len(), cursor, limit);
+			storage_api::Page::new(controllers[start..end].to_vec(), next)
+		}
+
+		fn next_drive_nonce(owner: AccountId) -> u64 {
+			pallet_orbis_drive::DriveNonce::<Runtime>::get(owner)
+		}
+
+		fn is_drive_owner(owner: AccountId, drive_id: Hash) -> bool {
+			pallet_orbis_drive::Drives::<Runtime>::get(drive_id)
+				.is_some_and(|record| record.owner == owner)
+		}
+	}
+
+	impl storage_api::S3RegistryApi<Block, AccountId, Hash, BlockNumber> for Runtime {
+		fn bucket(
+			bucket_id: Hash,
+		) -> storage_api::Versioned<storage_api::BucketInfo<AccountId, Hash, BlockNumber>> {
+			storage_api::Versioned::new(
+				pallet_orbis_s3::Buckets::<Runtime>::get(bucket_id)
+					.map(|record| bucket_api_info(bucket_id, record)),
+			)
+		}
+
+		fn bucket_by_name(
+			name: Vec<u8>,
+		) -> storage_api::Versioned<storage_api::BucketInfo<AccountId, Hash, BlockNumber>> {
+			let value = pallet_orbis_s3::BucketNameOf::<Runtime>::try_from(name)
+				.ok()
+				.and_then(pallet_orbis_s3::BucketByName::<Runtime>::get)
+				.and_then(|bucket_id| {
+					pallet_orbis_s3::Buckets::<Runtime>::get(bucket_id)
+						.map(|record| bucket_api_info(bucket_id, record))
+				});
+			storage_api::Versioned::new(value)
+		}
+
+		fn buckets(
+			owner: AccountId,
+			cursor: Option<u32>,
+			limit: u32,
+		) -> storage_api::Page<storage_api::BucketInfo<AccountId, Hash, BlockNumber>> {
+			let ids = pallet_orbis_s3::OwnerBuckets::<Runtime>::get(owner);
+			let (start, end, next) = api_page_bounds(ids.len(), cursor, limit);
+			let items = ids[start..end]
+				.iter()
+				.filter_map(|id| {
+					pallet_orbis_s3::Buckets::<Runtime>::get(id)
+						.map(|record| bucket_api_info(*id, record))
+				})
+				.collect();
+			storage_api::Page::new(items, next)
+		}
+
+		fn is_bucket_owner(owner: AccountId, bucket_id: Hash) -> bool {
+			pallet_orbis_s3::Buckets::<Runtime>::get(bucket_id)
+				.is_some_and(|record| record.owner == owner)
+		}
+
+		fn object(
+			bucket_id: Hash,
+			key: Vec<u8>,
+		) -> storage_api::Versioned<storage_api::ObjectInfo<AccountId, Hash, BlockNumber>> {
+			let value = pallet_orbis_s3::ObjectKeyOf::<Runtime>::try_from(key)
+				.ok()
+				.and_then(|key| {
+					pallet_orbis_s3::Objects::<Runtime>::get(bucket_id, &key)
+						.map(|record| object_api_info(bucket_id, key.to_vec(), record))
+				});
+			storage_api::Versioned::new(value)
+		}
+
+		fn object_keys(
+			bucket_id: Hash,
+			cursor: Option<u32>,
+			limit: u32,
+		) -> storage_api::Page<Vec<u8>> {
+			let keys = pallet_orbis_s3::BucketObjectKeys::<Runtime>::get(bucket_id);
+			let (start, end, next) = api_page_bounds(keys.len(), cursor, limit);
+			storage_api::Page::new(
+				keys[start..end].iter().map(|key| key.to_vec()).collect(),
+				next,
+			)
+		}
+
+		fn object_history(
+			bucket_id: Hash,
+			key: Vec<u8>,
+			cursor: Option<u32>,
+			limit: u32,
+		) -> storage_api::Page<storage_api::ObjectVersionInfo<AccountId, BlockNumber>> {
+			let Some(key) = pallet_orbis_s3::ObjectKeyOf::<Runtime>::try_from(key).ok() else {
+				return storage_api::Page::new(Vec::new(), None)
+			};
+			let history = pallet_orbis_s3::ObjectHistory::<Runtime>::get(bucket_id, key);
+			let (start, end, next) = api_page_bounds(history.len(), cursor, limit);
+			let items = history[start..end]
+				.iter()
+				.map(|version| storage_api::ObjectVersionInfo {
+					content_hash: version.content_hash,
+					version: version.version,
+					deleted: version.deleted,
+					updated_by: version.updated_by.clone(),
+					updated_at: version.updated_at,
+				})
+				.collect();
+			storage_api::Page::new(items, next)
+		}
+
+		fn object_id(bucket_id: Hash, key: Vec<u8>) -> storage_api::Versioned<Hash> {
+			let value = pallet_orbis_s3::ObjectKeyOf::<Runtime>::try_from(key)
+				.ok()
+				.map(|key| S3::object_id(bucket_id, &key));
+			storage_api::Versioned::new(value)
+		}
+	}
+
 	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
 			let acceptable_assets = vec![AssetId(xcm_config::OrgnRelayLocation::get())];
@@ -3117,7 +4040,7 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 
 		fn stored_content_provenance(
 			reference: bulletin_transaction_storage_primitives::BulletinRef<BlockNumber>,
-		) -> bulletin_transaction_storage_primitives::StorageActor<AccountId> {
+		) -> Option<bulletin_transaction_storage_primitives::StorageActor<AccountId>> {
 			TransactionStorage::stored_content_provenance(reference)
 		}
 
@@ -3142,6 +4065,12 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 			>,
 		> {
 			TransactionStorage::resource_reservation_link(reservation_id, content_hash)
+		}
+
+		fn resource_provider_ref(
+			reservation_id: bulletin_transaction_storage_primitives::ReservationId,
+		) -> Option<bulletin_transaction_storage_primitives::ProviderAllocationId> {
+			TransactionStorage::resource_provider_ref(reservation_id)
 		}
 	}
 

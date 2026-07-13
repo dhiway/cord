@@ -53,7 +53,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Bundled-block accounting | Asset Hub/Bulletin/SDK | `WeightReclaim` plus outer `StorageWeightReclaim` transaction extension | Present |
 | Elastic authoring | Bulletin/SDK | target rate 3, relay-parent offset 1, capacity 12, slot-based node | Present and native-smoke tested |
 | Messaging | Asset Hub/People | XCMP, DMP, XCM, MessageQueue and safe-call filtering | Present; full native E2E pending |
-| Safety and operations | system chains | Scheduler, Utility, Multisig, Proxy, TxPause, SafeMode, migrations | Present |
+| Safety and operations | system chains | Scheduler, Utility, Multisig, Proxy, TxPause, SafeMode and the generic future-upgrade migration framework | Present; no predecessor-state migration is wired at the new genesis |
 | Administration | enterprise policy | Sudo only | Present |
 | Origin application compatibility | CORD Origin | Orbis-owned Token 51, Register 52, Entity 53 and Feeless 54 packages | Present; call/storage metadata compatibility snapshotted |
 
@@ -92,25 +92,35 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Coinage and airdrop | Individuality People | Gap; enterprise issuance policy required |
 | Score | Individuality People application pallet | Orbis-owned Apache-2.0 fork present at index 97; native Personhood/People integration, account-bound participant extension, Sudo-or-named-manager operations, conservative weights, benchmarks and upstream-derived tests |
 | Honour | Individuality People application pallet | Orbis-owned Apache-2.0 fork present at index 99; native Members ring proofs, Timestamp mortality/freeze policy, voter-auth extension, conservative weights, benchmarks and upstream-derived tests |
-| Proof-of-ink and game | Individuality People application pallets | Gap |
+| Native attestation/schema registry | Attestation Protocol semantics | Present at index 105 with delegated/batched/expiring/revocable issuance and finalized runtime APIs |
+| Proof-of-ink and game | Individuality People application pallets | Gap; not admitted to the enterprise-first launch scope |
 | Mob rule | Individuality People | Excluded where it constitutes governance; non-governance behavior requires explicit adaptation |
+
+## Native naming
+
+| Capability | Reference semantics | Orbis state |
+|---|---|---|
+| DotNS ownership and lifecycle | DotNS contracts/SDK | Native bounded pallet at index 116 with commit/reveal registration, renewal, transfer, controllers, reservations and root administration |
+| Address/subject/attestation/content/text resolution | DotNS resolvers | Native records reference canonical identities, attestations and TransactionStorage commitments; no contract registry or ABI facade |
+| Label policy | DotNS normalization semantics | Deterministic ASCII policy v1 exposed through the runtime API; non-ASCII and reserved forms fail closed |
+| Rust/TypeScript access | DotNS SDK patterns | CORD-owned typed clients and exact finalized-hash runtime API surface; no changes to the reference DotNS repositories |
 
 ## Bulletin and storage
 
 | Capability/pallet | Reference | Orbis state |
 |---|---|---|
 | Authorized durable storage | Bulletin TransactionStorage | Vendored and present at index 110 |
-| Person resource reservation and provenance | Orbis Resources/Bulletin V6 | Isolated capacity, exact `(block, transaction_index)` links, explicit storage actors, manual reserved renewal, deterministic expiry and tombstone audit are native; the independently bounded two-map/counter repair is registered and native at V7, while provider references remain the later Slice 10/V8 seam |
+| Person resource reservation and provenance | Orbis Resources/Bulletin semantics | Clean-genesis TransactionStorage V8: isolated capacity, exact `(block, transaction_index)` links, explicit current-network actors, manual reserved renewal, deterministic expiry/tombstone audit and optional native provider agreement references |
 | Content hash/CID lookup | Bulletin | Present and tested |
 | Retention, renewal and permanent accounting | Bulletin | Present and unit-tested |
 | Storage transaction validation and anti-wrapper policy | Bulletin | Present in the Orbis transaction envelope |
 | Runtime authorization/query API | Bulletin | Present |
-| Proof inherent | Bulletin node/runtime | Runtime present; production node provider and retention-window E2E pending |
+| Proof inherent | Bulletin node/runtime | Runtime present; production retention-window E2E is deferred to P7 after feature completeness |
 | Hop promotion | `pallet_bulletin_hop_promotion` | Vendored under Orbis, present at index 111 with `sp_hop` runtime API |
-| Storage providers | Web3 Storage `pallet_storage_provider` | Gap; existing reference requires stake and must be adapted to Sudo authorization with no stake |
-| Drive registry | Web3 Storage `pallet_drive_registry` | Gap |
-| S3 registry | Web3 Storage `pallet_s3_registry` | Gap |
-| Provider/drive/S3 runtime APIs and node services | Web3 Storage | Gap |
+| Storage providers | Web3 Storage semantics | Native CORD pallet present at index 120; Sudo-authorized, zero-stake provider lifecycle, agreements, challenges and checkpoints |
+| Drive registry | Web3 Storage semantics | Native bounded CORD pallet present at index 121 |
+| S3 registry | Web3 Storage semantics | Native bounded CORD pallet present at index 122 |
+| Provider/drive/S3 runtime APIs and node services | CORD-owned implementation | Versioned finalized-state runtime APIs and the `origin-orbis-provider` companion/outbox consumer are present; deployment hardening and live-network evidence remain P7 work |
 
 The exact retained Web3 crates, provider modules, HTTP routes, workers, bounded runtime API
 signatures and pagination limits are frozen in manifest version 1. Anything else at that snapshot
@@ -127,48 +137,38 @@ revision and cannot be copied verbatim until provenance is resolved.
 | Controlled zero-fee calls | Feeless allowlist, per-account quota, deny-by-default wrappers | Present and abuse-tested |
 | Solidity actor preservation | Revive `SetOrigin` plus transaction envelope | Present |
 | Bulletin call validation | recursive storage-call inspector | Present |
-| Runtime upgrade safety | migrations, SafeMode and TxPause | Present; Score/Honour v0→v1 introduction migrations model the committed pre-Slice-2 state as an exactly absent pallet prefix and have idempotence plus try-runtime pre/post coverage; production chain-state rehearsal remains pending |
+| Runtime upgrade safety | generic future migrations, SafeMode and TxPause | New genesis starts directly at current pallet storage versions with `Migrations = ()`; only future post-genesis schema changes may add forward migrations |
 
-### Frozen remediation sequence
+### Clean-genesis feature sequence
 
-1. Historical spec-26/transaction-6 baseline and dormant support are retained only as compatibility evidence.
-2. The reverse-index Bulletin V6→V7 repair was integrated and is present; storage version 7 is current.
-3. Historical evidence v4 freezes spec 28 / transaction 7; the current runtime is spec 29 /
-   transaction 8 with stable pallet indices and active Verify→Consume support.
-4. Manifest v4 freezes executable, hashed evidence before any later native capability slice begins.
-5. Provider composition is not implemented here: the provider-reference V7→V8 migration remains planned for Slice 10.
-
-Completed Bulletin V7 reconstructs both `ResourceLinkByRef` and `ResourceLinkByContentHash` independently from
-authoritative links and writes row/link counters before setting V7 last. REF and HASH missing,
-partial, stale and duplicate rehearsals cannot substitute for each other. Its frozen budget is
-`reads = A + T + L + I_ref + I_hash + 3L + 3` and
-`writes = I_ref + I_hash + 2L + 2 + 1`. A later V7-to-V8 provider migration appends optional
-provider allocation references as `None` while preserving all existing reservation and link fields.
+1. TransactionStorage starts directly at storage version 8; no V0-V7 migration, backfill, tolerant legacy decode or `LegacyUnknown` provenance is part of the network.
+2. `ReservationProviderRef` and `attach_provider` are native current-schema capabilities validated against active Provider agreements.
+3. Provider 120, Drive 121 and S3 122 plus their versioned runtime APIs are composed from genesis.
+4. Historical manifest-v4/V5 migration evidence remains non-buildable provenance only and is not a current launch obligation.
+5. Broad proof-retention, recovery and performance campaigns run only after the provider node and both CORD-owned SDKs are feature complete.
 
 ## Completion order
 
 1. Maintain the Orbis-owned Token, Register, Entity, Feeless and People packages under
    `origin/orbis/pallets/`; shared primitives may remain shared. MetaTx and signature verification
    remain pinned SDK dependencies because Orbis does not modify those pallets.
-2. Complete remaining Asset Hub application adapters (PGAS/allowance, aliases and origin policy);
-   conversion, asset fees and rates are complete.
-3. Complete the remaining Individuality application-pallet parity for People-specific Game,
-   Proof of Ink, Coinage and related pallets without importing governance; Score and Honour are
-   native Orbis capabilities.
-4. Adapt Web3 Storage providers to Sudo-authorized, zero-stake enterprise providers; then add Drive
-   and S3 registries and their node/runtime APIs.
-5. Generate Orbis-native weights for every retained pallet.
-6. Run Origin-Orbis XCM, Broker lifecycle, storage-proof retention and unified application E2E suites.
+2. Keep PGAS/allowance aliases and public Asset Hub adapters excluded unless a later ADR admits
+   them; conversion, asset fees and rates are the retained asset scope.
+3. Keep Game, Proof of Ink, Coinage and other non-admitted Individuality applications excluded;
+   Score and Honour are the native enterprise launch scope.
+4. Maintain the delivered CORD-owned provider companion process and exact-finalized Provider,
+   Drive and S3 Rust/TypeScript SDK surfaces.
+5. Replace conservative nonzero weights with final benchmark-generated weights after the accepted
+   P6 source diff.
+6. Run Origin-Orbis XCM, Broker lifecycle, storage-proof retention and unified application E2E
+   suites in P6/P7, after the native stack is feature complete.
 
 This ledger must be updated in the same commit that adds, excludes, or replaces a referenced
 capability.
 
 ## Evidence v4
 
-Manifest v4 separates the completed Bulletin V6→V7 reverse-index repair from the planned provider V7→V8 seam and freezes compiled-enabled, custom-loss, no-hash CannotLookup, and early-propagation metadata evidence.
-
-Migration IDs are normative: present `PMIG-Bulletin-V6-to-V7` owns reverse-index/counter repair;
-planned `PMIG-Bulletin-V7-to-V8` owns provider-reference composition in Slice 10.
+Manifest v4 is immutable historical evidence for predecessor development iterations. Its migration rows and IDs are not normative for the new Origin/Orbis genesis and are not imported into the current runtime or launch manifest.
 
 ## Iteration-5 evidence gate
 
@@ -176,3 +176,19 @@ planned `PMIG-Bulletin-V7-to-V8` owns provider-reference composition in Slice 10
 source-marker evidence. This is a narrow runtime/evidence freeze, not whole-program completion. The
 reviewed pre-closure state had 146 planned rows; only the Gate 5 row changed, leaving 145 planned
 rows and every planned capability unchanged.
+
+## P0 runtime-alignment reconciliation (`sm-update-sub-0x63`)
+
+The machine-readable inventory for the current branch is
+`docs/architecture/origin-orbis-runtime-alignment.csv`; its capture report and fail-closed validator
+are under `docs/evidence/p0/`. The ledger inventories the exact Origin/Orbis pallet indices, runtime
+APIs, Orbis transaction-extension order, node/CLI/RPC and Rust/TypeScript SDK disposition without
+changing this matrix's capability decisions.
+
+The reconciliation records the independently reviewed historical Slice-2 evidence closure. Current
+manifest v7 tracks clean-genesis native feature implementation and is deliberately marked
+unratified. Historical v5 closure proves only its original bounded claims; it does not ratify the
+new provider/runtime/SDK surface or claim production readiness. There is no legacy data
+migration, Solidity-ABI compatibility or old-network cutover requirement: migrated domains start
+native at new genesis, and superseded contract-era code is deleted under the native-cutover cleanup
+gate.

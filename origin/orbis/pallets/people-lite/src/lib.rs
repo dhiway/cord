@@ -410,8 +410,8 @@ pub mod pallet {
 			let current_block = frame_system::Pallet::<T>::block_number();
 			let block_tolerance = Self::account_setup_block_tolerance();
 			ensure!(
-				valid_at_block <= current_block &&
-					current_block <= valid_at_block.saturating_add(block_tolerance),
+				valid_at_block <= current_block
+					&& current_block <= valid_at_block.saturating_add(block_tolerance),
 				Error::<T>::CallBlockOutOfRange
 			);
 			ensure!(
@@ -617,8 +617,9 @@ pub mod pallet {
 
 		fn try_origin(o: OriginFor<T>, arg: &Context) -> Result<Self::Success, OriginFor<T>> {
 			match o.clone().into_caller().try_into() {
-				Ok(Origin::LiteAlias(rev_ca)) if &rev_ca.ca.context == arg =>
-					Ok((rev_ca.ca.alias, *PEOPLE_LITE_IDENTIFIER)),
+				Ok(Origin::LiteAlias(rev_ca)) if &rev_ca.ca.context == arg => {
+					Ok((rev_ca.ca.alias, *PEOPLE_LITE_IDENTIFIER))
+				},
 				_ => Err(o),
 			}
 		}

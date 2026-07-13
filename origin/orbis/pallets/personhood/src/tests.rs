@@ -1529,8 +1529,8 @@ fn dispatch_tx_as_alias_while_updating_revision() {
 		// with the other ring.
 		let new_members_from_ring1_count =
 			RingExponent::R2e9.ring_capacity() - ring1_suspensions.len() as u32;
-		let number_of_builds_required = new_members_from_ring1_count / ring_building_batch_size +
-			if !new_members_from_ring1_count.is_multiple_of(ring_building_batch_size) {
+		let number_of_builds_required = new_members_from_ring1_count / ring_building_batch_size
+			+ if !new_members_from_ring1_count.is_multiple_of(ring_building_batch_size) {
 				1
 			} else {
 				0

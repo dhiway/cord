@@ -1,0 +1,360 @@
+import {
+  ERROR_CODES,
+  ProductSdkError,
+  type ErrorCode,
+  type JsonObject,
+  type JsonValue,
+} from "../../core/src/contract.ts";
+import type {
+  HostDependencies,
+  HostRoute,
+  HostTransportResult,
+  SignedRequest,
+} from "./fake-host.ts";
+
+export { ORBIS_NETWORK_BINDING } from "../../descriptors/generated/orbis-network-binding.ts";
+
+export interface TypedFinalizedBlock {
+  readonly hash: string;
+}
+
+/** Runtime identity decoded by the typed client at one exact block hash. */
+export interface TypedRuntimeIdentity {
+  readonly genesis_hash: string;
+  readonly spec_version: number;
+  readonly transaction_version: number;
+  readonly metadata_hash: string;
+}
+
+/**
+ * Minimal PAPI-like client boundary required by the product host.
+ *
+ * Implementations are expected to be descriptor generated. No raw storage key,
+ * SCALE byte, pallet index, call index, or RPC `state_call` escape hatch is
+ * accepted by this interface.
+ */
+export interface TypedPapiClient {
+  getFinalizedBlock(signal: AbortSignal): Promise<TypedFinalizedBlock>;
+  getRuntimeIdentityAt(hash: string, signal: AbortSignal): Promise<TypedRuntimeIdentity>;
+}
+
+export interface TypedChainSigner {
+  readonly accountId: string;
+}
+
+export interface TypedReadContext<Client extends TypedPapiClient> {
+  readonly client: Client;
+  readonly at: string;
+  readonly signal: AbortSignal;
+  /** Signature over the already validated host request, for audit/policy bindings. */
+  readonly authorizationSignature: string;
+}
+
+export interface TypedTransactionContext<Client extends TypedPapiClient> {
+  readonly client: Client;
+  /** Finalized block whose metadata/runtime identity authorized construction. */
+  readonly at: string;
+  readonly authorizationSignature: string;
+}
+
+export type TypedTransactionStatus =
+  | { readonly type: "broadcasted" }
+  | { readonly type: "included"; readonly blockHash: string; readonly extrinsicHash?: string }
+  | { readonly type: "finalized"; readonly blockHash: string; readonly extrinsicHash: string }
+  | { readonly type: "rejected"; readonly error: TypedClientFailure };
+
+/** A descriptor-generated transaction; its implementation owns encoding. */
+export interface TypedPapiTransaction<Signer extends TypedChainSigner> {
+  signSubmitAndWatch(
+    signer: Signer,
+    options: { readonly signal: AbortSignal },
+  ): AsyncIterable<TypedTransactionStatus>;
+}
+
+export interface TypedClientFailure {
+  readonly code?: ErrorCode | "dispatch_error" | "invalid" | "dropped" | "usurped" | "network";
+  readonly message: string;
+  readonly retryable?: boolean;
+  readonly details?: JsonObject;
+}
+
+export interface TypedFinalizedReadRoute<Client extends TypedPapiClient> {
+  readonly finality: "finalized";
+  query(payload: JsonObject, context: TypedReadContext<Client>): Promise<JsonValue>;
+}
+
+export interface TypedSubmitRoute<
+  Client extends TypedPapiClient,
+  Signer extends TypedChainSigner,
+> {
+  readonly finality: "submit-and-finalize";
+  /** Build through generated metadata descriptors, never pallet/call indices. */
+  transaction(
+    payload: JsonObject,
+    context: TypedTransactionContext<Client>,
+  ): TypedPapiTransaction<Signer>;
+}
+
+export type TypedNetworkRoute<
+  Client extends TypedPapiClient,
+  Signer extends TypedChainSigner,
+> = TypedFinalizedReadRoute<Client> | TypedSubmitRoute<Client, Signer>;
+
+export type TypedNetworkRoutes<
+  Client extends TypedPapiClient,
+  Signer extends TypedChainSigner,
+> = Readonly<Record<string, TypedNetworkRoute<Client, Signer>>>;
+
+export interface NetworkBindingContract {
+  readonly genesis_hash: string;
+  readonly spec_version: number;
+  readonly transaction_version: number;
+  readonly metadata_hash: string;
+  readonly descriptor_contract_sha256: string;
+  readonly chain_spec_source_sha256: string;
+}
+
+export interface TypedNetworkHostOptions<
+  Client extends TypedPapiClient,
+  Signer extends TypedChainSigner,
+> {
+  readonly client: Client;
+  readonly signer: Signer;
+  /** Generated descriptor/network binding supplied by the CORD build. */
+  readonly binding: NetworkBindingContract;
+  /** Keys are exact `capability:method` host routes. */
+  readonly routes: TypedNetworkRoutes<Client, Signer>;
+}
+
+const HASH_32 = /^0x[0-9a-f]{64}$/i;
+const SHA_256 = /^[0-9a-f]{64}$/i;
+
+function assertHash(value: string, label: string): void {
+  if (!HASH_32.test(value)) throw new ProductSdkError("invalid_input", `${label} must be a 32-byte hash`);
+}
+
+function assertBindingShape(binding: NetworkBindingContract): void {
+  assertHash(binding.genesis_hash, "binding genesis_hash");
+  assertHash(binding.metadata_hash, "binding metadata_hash");
+  if (!SHA_256.test(binding.descriptor_contract_sha256))
+    throw new ProductSdkError("invalid_input", "binding descriptor digest must be SHA-256");
+  if (!SHA_256.test(binding.chain_spec_source_sha256))
+    throw new ProductSdkError("invalid_input", "binding chain-spec digest must be SHA-256");
+  if (!Number.isSafeInteger(binding.spec_version) || binding.spec_version < 0 ||
+      !Number.isSafeInteger(binding.transaction_version) || binding.transaction_version < 0)
+    throw new ProductSdkError("invalid_input", "binding runtime versions must be non-negative integers");
+}
+
+function equalBinding(actual: NetworkBindingContract, expected: NetworkBindingContract): void {
+  if (actual.genesis_hash !== expected.genesis_hash)
+    throw new ProductSdkError("unsupported_runtime", "genesis hash does not match the configured network");
+  if (actual.spec_version !== expected.spec_version ||
+      actual.transaction_version !== expected.transaction_version)
+    throw new ProductSdkError(
+      "unsupported_runtime",
+      `runtime ${actual.spec_version}/${actual.transaction_version} does not match the configured network`,
+    );
+  if (actual.metadata_hash !== expected.metadata_hash)
+    throw new ProductSdkError("metadata_mismatch", "metadata hash does not match the generated descriptor");
+  if (actual.descriptor_contract_sha256 !== expected.descriptor_contract_sha256)
+    throw new ProductSdkError("descriptor_mismatch", "descriptor contract digest mismatch");
+  if (actual.chain_spec_source_sha256 !== expected.chain_spec_source_sha256)
+    throw new ProductSdkError("unsupported_runtime", "chain-spec source digest mismatch");
+}
+
+function equalObservedRuntime(
+  observed: TypedRuntimeIdentity,
+  expected: NetworkBindingContract,
+): void {
+  if (observed.genesis_hash !== expected.genesis_hash)
+    throw new ProductSdkError("unsupported_runtime", "typed client is connected to another genesis");
+  if (observed.spec_version !== expected.spec_version ||
+      observed.transaction_version !== expected.transaction_version)
+    throw new ProductSdkError(
+      "unsupported_runtime",
+      `typed client observed runtime ${observed.spec_version}/${observed.transaction_version}`,
+    );
+  if (observed.metadata_hash !== expected.metadata_hash)
+    throw new ProductSdkError("metadata_mismatch", "typed client observed a different metadata hash");
+}
+
+function assertJsonValue(value: unknown, path = "response"): asserts value is JsonValue {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new ProductSdkError("runtime_rejected", `${path} is not JSON-safe`);
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((child, index) => assertJsonValue(child, `${path}[${index}]`));
+    return;
+  }
+  if (value && typeof value === "object") {
+    for (const [key, child] of Object.entries(value)) assertJsonValue(child, `${path}.${key}`);
+    return;
+  }
+  throw new ProductSdkError("runtime_rejected", `${path} is not JSON-safe`);
+}
+
+function cancelled(): ProductSdkError {
+  return new ProductSdkError("cancelled", "network operation cancelled");
+}
+
+function throwIfAborted(signal: AbortSignal): void {
+  if (signal.aborted) throw cancelled();
+}
+
+async function abortable<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
+  throwIfAborted(signal);
+  let onAbort!: () => void;
+  const aborted = new Promise<never>((_, reject) => {
+    onAbort = () => reject(cancelled());
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+  try {
+    return await Promise.race([operation, aborted]);
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+  }
+}
+
+function routeFor<Client extends TypedPapiClient, Signer extends TypedChainSigner>(
+  routes: TypedNetworkRoutes<Client, Signer>,
+  request: SignedRequest["request"],
+): TypedNetworkRoute<Client, Signer> {
+  const route = routes[`${request.capability}:${request.method}`];
+  if (!route)
+    throw new ProductSdkError(
+      "unsupported_surface",
+      `typed network adapter has no route for ${request.capability}.${request.method}`,
+    );
+  if (route.finality !== request.finality)
+    throw new ProductSdkError("invalid_input", "typed route finality does not match the request");
+  return route;
+}
+
+function mapFailure(error: unknown): ProductSdkError {
+  if (error instanceof ProductSdkError) return error;
+  if (error && typeof error === "object") {
+    const failure = error as Partial<TypedClientFailure>;
+    const message = typeof failure.message === "string" && failure.message
+      ? failure.message.slice(0, 512)
+      : "typed client rejected the operation";
+    const details = failure.details && typeof failure.details === "object" ? failure.details : {};
+    if (failure.code && ERROR_CODES.includes(failure.code as ErrorCode))
+      return new ProductSdkError(
+        failure.code as ErrorCode,
+        message,
+        failure.retryable ?? failure.code === "timeout",
+        details,
+      );
+    if (["invalid", "dropped", "usurped", "dispatch_error"].includes(String(failure.code)))
+      return new ProductSdkError("runtime_rejected", message, false, details);
+    if (failure.code === "network") return new ProductSdkError("timeout", message, true, details);
+  }
+  return new ProductSdkError("runtime_rejected", "typed client failed without a recognized error");
+}
+
+async function finalizedContext<Client extends TypedPapiClient>(
+  client: Client,
+  expected: NetworkBindingContract,
+  signal: AbortSignal,
+): Promise<string> {
+  const finalized = await abortable(client.getFinalizedBlock(signal), signal);
+  assertHash(finalized.hash, "finalized block hash");
+  const observed = await abortable(client.getRuntimeIdentityAt(finalized.hash, signal), signal);
+  equalObservedRuntime(observed, expected);
+  return finalized.hash;
+}
+
+/**
+ * Build production network routes for `FakeHost` (the permission/consent host).
+ * Reads execute at one captured finalized hash. Submissions are constructed by a
+ * generated typed route and resolve only on a typed finalized status.
+ */
+export function createTypedNetworkHostRoutes<
+  Client extends TypedPapiClient,
+  Signer extends TypedChainSigner,
+>(options: TypedNetworkHostOptions<Client, Signer>): Pick<HostDependencies, "finalizedRead" | "submitAndFinalize"> {
+  assertBindingShape(options.binding);
+
+  const validateRequestBinding = (signed: SignedRequest): void => {
+    equalBinding(signed.request.network, options.binding);
+  };
+
+  const finalizedRead: HostRoute = async (signed, signal): Promise<HostTransportResult> => {
+    try {
+      validateRequestBinding(signed);
+      const route = routeFor(options.routes, signed.request);
+      if (route.finality !== "finalized")
+        throw new ProductSdkError("invalid_input", "submit route used for finalized read");
+      const at = await finalizedContext(options.client, options.binding, signal);
+      const response = await abortable(
+        route.query(signed.request.payload, {
+          client: options.client,
+          at,
+          signal,
+          authorizationSignature: signed.signature,
+        }),
+        signal,
+      );
+      assertJsonValue(response);
+      return { finalizedHash: at, response };
+    } catch (error) {
+      throw mapFailure(error);
+    }
+  };
+
+  const submitAndFinalize: HostRoute = async (signed, signal): Promise<HostTransportResult> => {
+    let iterator: AsyncIterator<TypedTransactionStatus> | undefined;
+    try {
+      validateRequestBinding(signed);
+      const route = routeFor(options.routes, signed.request);
+      if (route.finality !== "submit-and-finalize")
+        throw new ProductSdkError("invalid_input", "read route used for submission");
+      const at = await finalizedContext(options.client, options.binding, signal);
+      const transaction = route.transaction(signed.request.payload, {
+        client: options.client,
+        at,
+        authorizationSignature: signed.signature,
+      });
+      const statuses = transaction.signSubmitAndWatch(options.signer, { signal });
+      iterator = statuses[Symbol.asyncIterator]();
+      while (true) {
+        const next = await abortable(iterator.next(), signal);
+        if (next.done)
+          throw new ProductSdkError("runtime_rejected", "transaction stream ended before finalization");
+        const status = next.value;
+        if (status.type === "rejected") throw status.error;
+        if (status.type !== "finalized") continue;
+        assertHash(status.blockHash, "finalized transaction block hash");
+        assertHash(status.extrinsicHash, "finalized extrinsic hash");
+        const observed = await abortable(
+          options.client.getRuntimeIdentityAt(status.blockHash, signal),
+          signal,
+        );
+        equalObservedRuntime(observed, options.binding);
+        return {
+          finalizedHash: status.blockHash,
+          extrinsicHash: status.extrinsicHash,
+          lifecycle: {
+            version: 1,
+            intent_id: signed.request.request_id,
+            state: "finalized",
+            block_hash: status.blockHash,
+            extrinsic_hash: status.extrinsicHash,
+          },
+        };
+      }
+    } catch (error) {
+      throw mapFailure(error);
+    } finally {
+      try {
+        await iterator?.return?.();
+      } catch {
+        // A transport close error must not replace the typed terminal outcome.
+      }
+    }
+  };
+
+  return { finalizedRead, submitAndFinalize };
+}

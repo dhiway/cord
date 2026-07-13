@@ -216,8 +216,8 @@ pub struct OrbisXcmSafeCallFilter;
 
 impl Contains<RuntimeCall> for OrbisXcmSafeCallFilter {
 	fn contains(call: &RuntimeCall) -> bool {
-		!BulletinCallInspector::contains(call) &&
-			matches!(
+		!BulletinCallInspector::contains(call)
+			&& matches!(
 				crate::meta_v6::inspect_paid_meta::<
 					crate::meta_v6::ProductionMetadataImplicitResolver,
 				>(call, 0),

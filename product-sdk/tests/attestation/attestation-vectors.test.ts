@@ -1,0 +1,65 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import test from "node:test";
+import {
+  SUPPORTED_DELEGATED_SIGNATURE_SCHEMES,
+  attestationEventOutcome,
+  attestationEventSubscription,
+  delegatedIssueSigningPayload,
+  delegatedRevokeSigningPayload,
+  signingPayloadHex,
+  type AttestationEvent,
+  type AttestationOutcome,
+  type DelegatedIssueIntent,
+  type DelegatedRevokeIntent,
+} from "../../src/attestation.ts";
+import type { BlockHash } from "../../src/types.ts";
+
+const vectors = JSON.parse(
+  readFileSync(resolve(import.meta.dirname, "../../../docs/sdk/vectors/attestation-v1.json"), "utf8"),
+) as {
+  signing: Array<{
+    scheme: string;
+    kind: "issue" | "revoke";
+    intent?: unknown;
+    same_as?: string;
+    payload: string;
+  }>;
+  events: Array<{ runtime_event: AttestationEvent; semantic_outcome: AttestationOutcome }>;
+};
+
+test("Rust and TypeScript share canonical delegated signing payloads for every scheme", () => {
+  assert.deepEqual(
+    [...new Set(vectors.signing.map(({ scheme }) => scheme))].sort(),
+    [...SUPPORTED_DELEGATED_SIGNATURE_SCHEMES].sort(),
+  );
+  const canonical = new Map<string, unknown>();
+  for (const vector of vectors.signing) {
+    if (vector.intent) canonical.set(vector.kind, vector.intent);
+    const intent = vector.intent ?? canonical.get(vector.kind);
+    assert.ok(intent, `missing canonical ${vector.kind} intent`);
+    const payload =
+      vector.kind === "issue"
+        ? delegatedIssueSigningPayload(intent as DelegatedIssueIntent)
+        : delegatedRevokeSigningPayload(intent as DelegatedRevokeIntent);
+    assert.equal(signingPayloadHex(payload), vector.payload, `${vector.scheme}:${vector.kind}`);
+  }
+});
+
+test("native attestation events map to stable finalized semantic outcomes", () => {
+  for (const vector of vectors.events) {
+    assert.deepEqual(attestationEventOutcome(vector.runtime_event), vector.semantic_outcome);
+  }
+  assert.deepEqual(
+    attestationEventSubscription(`0x${"11".repeat(32)}` as BlockHash, [
+      "attestation_issued",
+      "attestation_revoked",
+    ]),
+    {
+      finality: "finalized",
+      from_finalized_block: `0x${"11".repeat(32)}`,
+      kinds: ["attestation_issued", "attestation_revoked"],
+    },
+  );
+});

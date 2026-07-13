@@ -115,14 +115,18 @@ impl<T: Config> TransactionExtension<RuntimeCallOf<T>> for PeopleLiteAuth<T> {
 
 	fn weight(&self, _call: &RuntimeCallOf<T>) -> Weight {
 		match self.0 {
-			Some(PeopleLiteAuthData::AsLitePerson(..)) =>
-				<T as Config>::WeightInfo::as_lite_person_tx_ext(),
-			Some(PeopleLiteAuthData::AsLiteAliasWithAccount(..)) =>
-				<T as Config>::WeightInfo::as_lite_alias_with_account_tx_ext(),
-			Some(PeopleLiteAuthData::AsLiteAliasWithProof(..)) =>
-				<T as Config>::WeightInfo::as_lite_alias_with_proof_tx_ext(),
-			Some(PeopleLiteAuthData::AsLiteAliasWithAccountRevised(..)) =>
-				<T as Config>::WeightInfo::as_lite_alias_with_account_revised_tx_ext(),
+			Some(PeopleLiteAuthData::AsLitePerson(..)) => {
+				<T as Config>::WeightInfo::as_lite_person_tx_ext()
+			},
+			Some(PeopleLiteAuthData::AsLiteAliasWithAccount(..)) => {
+				<T as Config>::WeightInfo::as_lite_alias_with_account_tx_ext()
+			},
+			Some(PeopleLiteAuthData::AsLiteAliasWithProof(..)) => {
+				<T as Config>::WeightInfo::as_lite_alias_with_proof_tx_ext()
+			},
+			Some(PeopleLiteAuthData::AsLiteAliasWithAccountRevised(..)) => {
+				<T as Config>::WeightInfo::as_lite_alias_with_account_revised_tx_ext()
+			},
 			None => Weight::zero(),
 		}
 	}
@@ -246,8 +250,8 @@ impl<T: Config> TransactionExtension<RuntimeCallOf<T>> for PeopleLiteAuth<T> {
 					&msg[..],
 				)
 				.map_err(|_| CustomError::InvalidProof)?;
-				if validated_rev_ca.ca.alias != old_rev_ca.ca.alias ||
-					validated_rev_ca.ca.context != old_rev_ca.ca.context
+				if validated_rev_ca.ca.alias != old_rev_ca.ca.alias
+					|| validated_rev_ca.ca.context != old_rev_ca.ca.context
 				{
 					return Err(CustomError::AliasMismatch.into());
 				}
@@ -276,8 +280,8 @@ impl<T: Config> TransactionExtension<RuntimeCallOf<T>> for PeopleLiteAuth<T> {
 		_len: usize,
 	) -> Result<Self::Pre, TransactionValidityError> {
 		match val {
-			PeopleLiteAuthVal::AsLitePerson(account, nonce) |
-			PeopleLiteAuthVal::AsLiteAliasWithAccount(account, nonce) => {
+			PeopleLiteAuthVal::AsLitePerson(account, nonce)
+			| PeopleLiteAuthVal::AsLiteAliasWithAccount(account, nonce) => {
 				CheckNonce::<T>::prepare_nonce_for_account(&account, nonce)?;
 				Ok(())
 			},

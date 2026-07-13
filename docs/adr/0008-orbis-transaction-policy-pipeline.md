@@ -157,7 +157,20 @@ Origin transformation never changes the account selected by the account-aware no
 extensions, and failed validation occurs before nonce, fee, Score, Honour, or payout mutation.
 
 
-## Iteration-5 evidence boundary
+## Clean-genesis boundary
+
+The Origin/Orbis network defined by this repository is a new network. It starts directly with the
+current transaction-policy tuple and TransactionStorage schema V8. The runtime deliberately wires
+`Migrations = ()`: it does not execute a V5-to-V7 or V7-to-V8 Bulletin migration, import a
+predecessor state, decode a legacy storage form, backfill provider references, or expose a
+compatibility facade. A future post-launch schema change must introduce its own forward migration
+and storage-version evidence when that change is designed.
+
+The remainder of this ADR records historical Iteration-5 evidence used to derive the policy
+pipeline. It is non-normative for genesis construction and must not be interpreted as executable
+migration or launch work.
+
+## Historical Iteration-5 evidence boundary
 
 The historical `d75ff22a` runtime was spec 26 / transaction 6. The current runtime composes the
 remediation at spec 28 and transaction version 7. The preceding dormant-support
@@ -203,7 +216,7 @@ ownership is paid scope `2R + 2W`, base leaf `1R`, consumer `1R + 1W`, plus the 
 variant and bounded inspection coefficients. Generated benchmarks must replace conservative values
 without changing that ownership.
 
-Bulletin V6-to-V7 is a separate two-phase repair registered by the completed integration. A
+The predecessor development iteration modelled Bulletin V6-to-V7 as a separate two-phase repair. A
 read-only bounded preflight derives both `ResourceLinkByRef` and
 `ResourceLinkByContentHash` from authoritative links, validates duplicates/dangling ownership and
 derives row/link counters before any write. The infallible phase clears and rebuilds both maps,
@@ -214,12 +227,12 @@ link, old ref-index and old hash-index counts `A,T,L,I_ref,I_hash`, its exact da
 rehearsals, simultaneous partial/bad-counter state, historical 4c/640 states, empty state and maximum
 valid state are mandatory. Invalid preflight performs zero writes and leaves storage V6.
 
-Provider composition is not folded into that repair. A later Bulletin V7-to-V8 migration appends
-`provider_ref: Option<ProviderAllocationId>`, backfills `None`, and preserves every existing ID,
-purpose, owner, counter, hash, Bulletin ref, paid-byte and expiry field.
+That historical repair did not include provider composition. The current clean-genesis runtime
+instead declares V8 directly and stores the optional provider reference in its canonical schema;
+there is no V7-to-V8 backfill or predecessor-state preservation requirement.
 
 
-## Evidence-v4 completion status
+## Historical evidence-v4 completion status
 
 The spec-28/transaction-7 runtime composes the Verify-to-Consume alias, signed and reciprocally bound direct
 Resources payer, account-aware nonzero/nonce/payment adapters, all seven account-bound Meta routes,
@@ -228,11 +241,11 @@ the Bulletin V5-to-V7 composed migration. Bulletin declares storage V7 only at t
 
 Metadata implicit evidence is split into compiled-enabled RFC-78 reproduction, custom-hash wire-loss detection, isolated no-hash `CannotLookup`, and early propagation before token or business-state mutation.
 
-### Migration identity cross-check
+### Historical migration identity cross-check
 
-`PMIG-Bulletin-V6-to-V7` is the present Slice-1 reverse-index/counter repair and leaves storage at
-V7. `PMIG-Bulletin-V7-to-V8` is the distinct planned Slice-10 provider-reference migration. The
-provider plan depends on the completed V7 commit and must not be inferred from V7 storage.
+`PMIG-Bulletin-V6-to-V7` and `PMIG-Bulletin-V7-to-V8` identify predecessor-development evidence
+only. Neither is registered by the current runtime. Provider references are part of the canonical
+V8 genesis schema and do not depend on a completed V7 migration.
 
 ### Iteration-5 Gate 5 closure
 

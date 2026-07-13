@@ -9443,6 +9443,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "orbis-storage-runtime-api"
+version = "0.9.9"
+dependencies = [
+ "parity-scale-codec",
+ "scale-decode",
+ "scale-info",
+ "sp-api",
+]
+
+[[package]]
 name = "orchestra"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9619,6 +9629,7 @@ dependencies = [
  "frame-metadata-hash-extension",
  "frame-system",
  "futures",
+ "hex",
  "log",
  "origin-runtime",
  "origin-runtime-constants",
@@ -9656,24 +9667,82 @@ dependencies = [
 name = "origin-orbis"
 version = "0.9.9"
 dependencies = [
+ "clap",
  "color-eyre",
+ "cumulus-client-bootnodes",
+ "cumulus-client-cli",
+ "cumulus-client-collator",
+ "cumulus-client-consensus-aura",
+ "cumulus-client-consensus-common",
+ "cumulus-client-service",
  "cumulus-primitives-core",
+ "cumulus-relay-chain-interface",
+ "futures",
+ "hex",
  "hex-literal",
+ "jsonrpsee",
  "log",
  "origin-orbis-runtime",
  "origin-runtime-constants",
  "parachains-common",
+ "parity-scale-codec",
+ "polkadot-cli",
  "polkadot-omni-node-lib",
+ "sc-basic-authorship",
+ "sc-block-builder",
  "sc-chain-spec",
  "sc-cli",
+ "sc-client-api",
+ "sc-consensus",
+ "sc-executor",
+ "sc-network",
  "sc-service",
+ "sc-telemetry",
+ "sc-transaction-pool",
+ "serde",
+ "serde_json",
+ "sp-api",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-genesis-builder",
+ "sp-inherents",
+ "sp-keyring",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-timestamp",
+ "sp-transaction-storage-proof",
+ "staging-xcm",
+ "substrate-build-script-utils",
+ "substrate-prometheus-endpoint",
+]
+
+[[package]]
+name = "origin-orbis-provider"
+version = "0.9.9"
+dependencies = [
+ "async-trait",
+ "base64 0.21.7",
+ "blake3",
+ "bytes",
+ "clap",
+ "hex",
+ "http-body-util",
+ "hyper 1.10.1",
+ "hyper-util",
+ "jsonrpsee",
+ "orbis-storage-runtime-api",
+ "origin-rs",
+ "parity-scale-codec",
  "serde",
  "serde_json",
  "sp-core",
- "sp-genesis-builder",
- "sp-keyring",
- "staging-xcm",
- "substrate-build-script-utils",
+ "sp-crypto-hashing",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
 ]
 
 [[package]]
@@ -9702,6 +9771,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
+ "hex",
  "hex-literal",
  "indiv-pallet-chunks-manager",
  "indiv-pallet-members",
@@ -9711,6 +9781,7 @@ dependencies = [
  "indiv-pallet-resources",
  "indiv-support",
  "log",
+ "orbis-storage-runtime-api",
  "origin-hub-system-runtime-constants",
  "origin-primitives",
  "origin-runtime-constants",
@@ -9729,18 +9800,26 @@ dependencies = [
  "pallet-bulletin-transaction-storage",
  "pallet-bulletin-transaction-storage-runtime-api",
  "pallet-collator-selection",
+ "pallet-coretime-control",
  "pallet-indices",
  "pallet-message-queue",
  "pallet-meta-tx",
  "pallet-migrations",
  "pallet-multisig",
  "pallet-nfts",
+ "pallet-orbis-attestation",
+ "pallet-orbis-attestation-runtime-api",
+ "pallet-orbis-dotns",
+ "pallet-orbis-dotns-runtime-api",
+ "pallet-orbis-drive",
  "pallet-orbis-entity",
  "pallet-orbis-feeless",
  "pallet-orbis-honour",
  "pallet-orbis-people",
  "pallet-orbis-register",
+ "pallet-orbis-s3",
  "pallet-orbis-score",
+ "pallet-orbis-storage-provider",
  "pallet-orbis-token",
  "pallet-proxy",
  "pallet-remark",
@@ -9833,10 +9912,17 @@ dependencies = [
  "frame-support",
  "futures",
  "hex",
+ "kvdb",
+ "kvdb-rocksdb",
+ "orbis-storage-runtime-api",
  "origin-primitives",
+ "pallet-bulletin-transaction-storage-runtime-api",
+ "pallet-orbis-attestation-runtime-api",
+ "pallet-orbis-dotns-runtime-api",
  "parity-scale-codec",
  "proptest",
  "rand 0.8.6",
+ "scale-decode",
  "scale-info",
  "scale-value",
  "serde",
@@ -9880,6 +9966,7 @@ dependencies = [
  "pallet-beefy",
  "pallet-beefy-mmr",
  "pallet-broker",
+ "pallet-coretime-control",
  "pallet-grandpa",
  "pallet-im-online",
  "pallet-indices",
@@ -10386,6 +10473,7 @@ dependencies = [
  "bulletin-transaction-storage-primitives",
  "frame-support",
  "frame-system",
+ "indiv-support",
  "pallet-bulletin-transaction-storage",
  "pallet-timestamp",
  "parity-scale-codec",
@@ -10419,6 +10507,7 @@ version = "0.1.0"
 dependencies = [
  "bulletin-transaction-storage-primitives",
  "parity-scale-codec",
+ "scale-decode",
  "scale-info",
  "sp-api",
 ]
@@ -10619,6 +10708,18 @@ dependencies = [
  "frame-system",
  "pallet-session",
  "parity-scale-codec",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-coretime-control"
+version = "0.9.9"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-io",
  "sp-runtime",
 ]
 
@@ -11146,6 +11247,66 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-orbis-attestation"
+version = "0.9.9"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keyring",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-orbis-attestation-runtime-api"
+version = "0.9.9"
+dependencies = [
+ "bounded-collections",
+ "parity-scale-codec",
+ "scale-decode",
+ "scale-info",
+ "sp-api",
+]
+
+[[package]]
+name = "pallet-orbis-dotns"
+version = "0.9.9"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-orbis-dotns-runtime-api"
+version = "0.9.9"
+dependencies = [
+ "bounded-collections",
+ "parity-scale-codec",
+ "scale-decode",
+ "scale-info",
+ "sp-api",
+]
+
+[[package]]
+name = "pallet-orbis-drive"
+version = "0.9.9"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-orbis-entity"
 version = "0.9.9"
 dependencies = [
@@ -11234,6 +11395,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-orbis-s3"
+version = "0.9.9"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-orbis-score"
 version = "0.9.9"
 dependencies = [
@@ -11253,6 +11427,17 @@ dependencies = [
  "sp-runtime",
  "staging-xcm",
  "verifiable",
+]
+
+[[package]]
+name = "pallet-orbis-storage-provider"
+version = "0.9.9"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
 ]
 
 [[package]]

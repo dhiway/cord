@@ -23,6 +23,7 @@ clap = { features = ["derive"], optional = true, workspace = true }
 log = { workspace = true, default-features = true }
 thiserror = { workspace = true }
 futures = { workspace = true }
+hex = { workspace = true, default-features = true }
 pyroscope = { optional = true, workspace = true }
 pyroscope_pprofrs = { optional = true, workspace = true }
 polkadot-primitives = { workspace = true, default-features = true }

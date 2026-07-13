@@ -1,0 +1,39 @@
+{
+  "name": "@cord-network/product-sdk-workspace",
+  "version": "0.0.0-p0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./attestation": "./src/attestation.ts",
+    "./content": "./src/content.ts",
+    "./dotns": "./src/dotns.ts",
+    "./drive": "./src/drive.ts",
+    "./errors": "./src/errors.ts",
+    "./host": "./src/host.ts",
+    "./network-host": "./packages/host/src/network-host.ts",
+    "./attestation-events": "./packages/host/src/attestation-events.ts",
+    "./network-binding": "./packages/descriptors/generated/orbis-network-binding.ts",
+    "./provider": "./src/provider.ts",
+    "./s3": "./src/s3.ts",
+    "./storage": "./src/storage.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "check:domains": "node --experimental-strip-types --input-type=module -e \"import('./src/index.ts')\"",
+    "generate:descriptors": "node --experimental-strip-types tools/generate-descriptor.ts",
+    "check:descriptors": "node --experimental-strip-types tools/generate-descriptor.ts --check",
+    "test:conformance": "node --experimental-strip-types --test tests/conformance/*.test.ts",
+    "test:content": "node --experimental-strip-types --test tests/content/*.test.ts",
+    "test:host": "node --experimental-strip-types --test tests/host/*.test.ts",
+    "test:network-host": "node --experimental-strip-types --test tests/host/network-host.test.ts",
+    "validate:eqc": "node --experimental-strip-types tools/validate-eqc.ts",
+    "validate:ratification": "node --experimental-strip-types tools/validate-ratification.ts",
+    "update:ratification": "node --experimental-strip-types tools/update-ratification.ts",
+    "test:eqc": "node --experimental-strip-types --test tests/eqc/*.test.ts",
+    "test": "npm run check:descriptors && npm run validate:ratification && npm run test:conformance && npm run test:content && npm run test:host && npm run validate:eqc && npm run test:eqc"
+  }
+}

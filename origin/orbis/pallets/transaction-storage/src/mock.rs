@@ -118,6 +118,7 @@ impl pallet_bulletin_transaction_storage::Config for Test {
 	type TombstoneRetention = ConstU64<2>;
 	type ReservationPurpose = u32;
 	type ResourceClaimLifecycle = TestClaimLifecycle;
+	type ProviderAllocation = ();
 	type AuthorizationPeriod = AuthorizationPeriod;
 	type AuthorizerRegistrarOrigin = EnsureRoot<Self::AccountId>;
 	type Authorizer = EitherOf<

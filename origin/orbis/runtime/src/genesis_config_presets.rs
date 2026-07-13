@@ -32,9 +32,10 @@ const ORBIS_STAGING_ED: Balance = ExistentialDeposit::get();
 /// Default para-id used when no explicit override is supplied.
 const DEFAULT_ORBIS_PARA_ID: u32 = ORBIS_ID;
 
-fn orbis_staging_genesis(
+fn orbis_genesis(
 	invulnerables: Vec<(AccountId, parachains_common::AuraId)>,
 	endowed_accounts: Vec<AccountId>,
+	feeless_accounts: Vec<AccountId>,
 	id: ParaId,
 	token_network_id: u32,
 	root_key: AccountId,
@@ -91,7 +92,7 @@ fn orbis_staging_genesis(
 			..Default::default()
 		},
 		"feeless": {
-			"feelessAccounts": endowed_accounts
+			"feelessAccounts": feeless_accounts
 				.iter()
 				.cloned()
 				.collect::<Vec<_>>(),
@@ -107,12 +108,43 @@ fn orbis_staging_genesis(
 
 pub fn orbis_local_testnet_genesis(para_id: ParaId) -> serde_json::Value {
 	let root_key = get_account_id_from_seed::<sr25519::Public>("Alice");
+	let endowed_accounts = testnet_accounts();
 
-	orbis_staging_genesis(invulnerables(), testnet_accounts(), para_id, para_id.into(), root_key)
+	orbis_genesis(
+		invulnerables(),
+		endowed_accounts.clone(),
+		endowed_accounts,
+		para_id,
+		para_id.into(),
+		root_key,
+	)
 }
 
 pub fn orbis_development_genesis(para_id: ParaId) -> serde_json::Value {
 	orbis_local_testnet_genesis(para_id)
+}
+
+/// Build a clean production genesis from explicitly supplied launch identities.
+///
+/// Unlike the development presets this function never derives Alice/Bob keys and never grants
+/// feeless status to every endowed account. Launch tooling must provide the reviewed collator,
+/// endowment, feeless and root-key sets explicitly.
+pub fn orbis_production_genesis(
+	invulnerables: Vec<(AccountId, parachains_common::AuraId)>,
+	endowed_accounts: Vec<AccountId>,
+	feeless_accounts: Vec<AccountId>,
+	para_id: ParaId,
+	token_network_id: u32,
+	root_key: AccountId,
+) -> serde_json::Value {
+	orbis_genesis(
+		invulnerables,
+		endowed_accounts,
+		feeless_accounts,
+		para_id,
+		token_network_id,
+		root_key,
+	)
 }
 
 /// Provides the names of the predefined genesis configs for this runtime.
@@ -126,10 +158,12 @@ pub fn preset_names() -> Vec<PresetId> {
 /// Provides the JSON representation of predefined genesis config for given `id`.
 pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
 	let patch = match id.as_ref() {
-		sp_genesis_builder::DEV_RUNTIME_PRESET =>
-			orbis_development_genesis(DEFAULT_ORBIS_PARA_ID.into()),
-		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET =>
-			orbis_local_testnet_genesis(DEFAULT_ORBIS_PARA_ID.into()),
+		sp_genesis_builder::DEV_RUNTIME_PRESET => {
+			orbis_development_genesis(DEFAULT_ORBIS_PARA_ID.into())
+		},
+		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => {
+			orbis_local_testnet_genesis(DEFAULT_ORBIS_PARA_ID.into())
+		},
 		_ => return None,
 	};
 	Some(
@@ -176,6 +210,31 @@ mod tests {
 				.iter()
 				.any(|entry| entry.get(0) == Some(&revive_account)),
 			"the Revive code-deposit account must exist at genesis"
+		);
+	}
+
+	#[test]
+	fn production_genesis_uses_only_explicit_launch_identities() {
+		let root = AccountId::new([0x41; 32]);
+		let collator = AccountId::new([0x42; 32]);
+		let aura = parachains_common::AuraId::from(sp_core::sr25519::Public::from_raw([0x52; 32]));
+		let genesis = orbis_production_genesis(
+			vec![(collator.clone(), aura)],
+			vec![root.clone(), collator.clone()],
+			vec![],
+			ORBIS_ID.into(),
+			ORBIS_ID,
+			root.clone(),
+		);
+
+		assert_eq!(genesis.pointer("/sudo/key"), Some(&serde_json::to_value(root).unwrap()));
+		assert!(genesis
+			.pointer("/feeless/feelessAccounts")
+			.and_then(|value| value.as_array())
+			.is_some_and(Vec::is_empty));
+		assert_eq!(
+			genesis.pointer("/collatorSelection/invulnerables/0").cloned(),
+			Some(serde_json::to_value(collator).unwrap())
 		);
 	}
 }

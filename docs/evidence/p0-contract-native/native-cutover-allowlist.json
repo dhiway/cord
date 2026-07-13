@@ -1,0 +1,44 @@
+{
+  "approval_manifest": {
+    "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
+    "required_reviewer_role": "architect",
+    "review_thread_id": "019f59bd-fa87-7571-837b-6a6a7ae51b2d",
+    "schema_version": 1,
+    "sha256": "96cd0595fbc89fcd847ee58dd8427aa59bd008c8639b8f82d9bf4d6095b3b5ae",
+    "verdict": "APPROVED"
+  },
+  "entries": [
+    {
+      "artifact": "origin/orbis/runtime pallet_revive composition",
+      "dependency_path": "origin/orbis/runtime/src/lib.rs::Revive",
+      "exclusions": "No migrated-domain contract, ABI, address, proxy, adapter or SDK facade is allowlisted.",
+      "owner": "orbis-runtime-owner",
+      "test_evidence": "origin/orbis/runtime/src/tests.rs",
+      "unrelated_live_use": "generic non-migrated application execution"
+    },
+    {
+      "artifact": "origin/orbis/runtime/fixtures/Counter.sol and generated test bytecode",
+      "dependency_path": "origin/orbis/runtime/src/tests.rs pallet-revive fixture tests",
+      "exclusions": "Every migrated-domain semantic fixture is excluded.",
+      "owner": "orbis-runtime-owner",
+      "test_evidence": "origin/orbis/runtime/fixtures/README.md",
+      "unrelated_live_use": "minimal generic pallet-revive execution test"
+    }
+  ],
+  "forbidden_justifications": [
+    "backward-compatibility",
+    "legacy-data",
+    "future-migration",
+    "speculative-reuse"
+  ],
+  "migrated_domains": [
+    "attestation",
+    "identity",
+    "personhood",
+    "individuality",
+    "dotns",
+    "storage"
+  ],
+  "policy": "Only unrelated, currently owned and tested Revive use may survive. Compatibility, legacy data, future migration and speculative reuse never qualify.",
+  "schema_version": 1
+}
