@@ -704,8 +704,6 @@ pub trait ConsumerRegistrar<AccountId> {
 	fn register_lite_consumer(
 		account: AccountId,
 		identifier_key: CommunicationIdentifier,
-		username: Username,
-		reserved_username: Option<Username>,
 	) -> Result<(), Self::Error>;
 }
 
@@ -715,8 +713,6 @@ impl<Account> ConsumerRegistrar<Account> for () {
 	fn register_lite_consumer(
 		_account: Account,
 		_identifier_key: CommunicationIdentifier,
-		_username: Username,
-		_reserved_username: Option<Username>,
 	) -> Result<(), Self::Error> {
 		Ok(())
 	}

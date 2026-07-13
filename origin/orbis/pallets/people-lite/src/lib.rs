@@ -33,7 +33,7 @@ use frame_support::{
 use indiv_support::traits::{
 	Alias, AppendOnlyMembers, CommunicationIdentifier, ConsumerRegistrar, Context, ContextualAlias,
 	CountedMembers, Identifier, MembershipProver, RevisedContextualAlias, RingExponent, RingMode,
-	Username, PEOPLE_LITE_IDENTIFIER,
+	PEOPLE_LITE_IDENTIFIER,
 };
 use sp_runtime::{
 	traits::{Dispatchable, IdentifyAccount, Verify},
@@ -505,8 +505,6 @@ pub mod pallet {
 		/// - the user's account
 		/// - the verifier's account
 		/// - the user's identifier_key
-		/// - the user's chosen username, without the `.` separator and any following digits
-		/// - the user's chosen reserved_username, as an `Option`
 		///
 		/// For more information about the signing payload, check
 		/// [types::LiteConsumerRegistrationParams::signing_payload].
@@ -520,13 +518,8 @@ pub mod pallet {
 				Error::<T>::InvalidAttestationSignature,
 			);
 			let account = params.account.clone();
-			T::LiteConsumerRegistrar::register_lite_consumer(
-				params.account,
-				params.identifier_key,
-				params.username,
-				params.reserved_username,
-			)
-			.map_err(|e| e.into())?;
+			T::LiteConsumerRegistrar::register_lite_consumer(params.account, params.identifier_key)
+				.map_err(|e| e.into())?;
 			Self::deposit_event(Event::ConsumerRegistered { account });
 			Ok(())
 		}

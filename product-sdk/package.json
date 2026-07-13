@@ -20,7 +20,8 @@
     "./provider": "./src/provider.ts",
     "./s3": "./src/s3.ts",
     "./storage": "./src/storage.ts",
-    "./types": "./src/types.ts"
+    "./types": "./src/types.ts",
+    "./dotns-events": "./packages/host/src/dotns-events.ts"
   },
   "scripts": {
     "check:domains": "node --experimental-strip-types --input-type=module -e \"import('./src/index.ts')\"",

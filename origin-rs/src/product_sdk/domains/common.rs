@@ -71,7 +71,6 @@ macro_rules! hash_type {
 hash_type!(SchemaId);
 hash_type!(AttestationId);
 hash_type!(NameId);
-hash_type!(SubjectId);
 hash_type!(SubjectCommitment);
 hash_type!(PayloadCommitment);
 hash_type!(StatusCommitment);
@@ -88,6 +87,30 @@ hash_type!(ProviderReference);
 hash_type!(DriveId);
 hash_type!(BucketId);
 hash_type!(ObjectId);
+
+/// Canonical native Entity identifier referenced by DotNS.
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[serde(transparent)]
+pub struct SubjectId(String);
+
+impl SubjectId {
+	pub fn new(value: impl Into<String>) -> DomainResult<Self> {
+		let value = value.into();
+		origin_primitives::identifier::Ss58Identifier::try_from(value.clone())
+			.map_err(|_| invalid("invalid native Entity SubjectId"))?;
+		Ok(Self(value))
+	}
+
+	pub fn as_str(&self) -> &str {
+		&self.0
+	}
+}
+
+impl Validate for SubjectId {
+	fn validate(&self) -> DomainResult<()> {
+		Self::new(self.0.clone()).map(|_| ())
+	}
+}
 
 /// Bulletin transaction-storage reservation identifier.
 ///

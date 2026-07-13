@@ -47,8 +47,6 @@ pub enum CustomValidity {
 	InvalidFriendRequestPeriod = 220,
 	/// The friend request sequence is above the collection-specific slot limit.
 	InvalidFriendRequestSequence = 221,
-	/// The requested expired username reservation is not removable.
-	InvalidExpiredUsernameReservationRemoval = 222,
 	/// The requested demotion is not currently valid.
 	InvalidPersonDemotion = 223,
 	/// The requested friend request cleanup is not currently valid.

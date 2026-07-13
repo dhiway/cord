@@ -352,23 +352,12 @@ mod benches {
 
 		let (account, _) = T::BenchmarkHelper::sign_message(b"mock");
 		let identifier_key: CommunicationIdentifier = [0u8; 65];
-		let username = Username::try_from(b"validusername.12".to_vec()).unwrap();
-		let reserved_username = Some(Username::try_from(b"reservedusername".to_vec()).unwrap());
-
-		let separator_idx = username.iter().position(|b| *b == b'.').unwrap();
-		let msg =
-			(&account, &attester, &identifier_key, &username[..separator_idx], &reserved_username)
-				.encode();
+		let msg = (&account, &attester, &identifier_key).encode();
 		let (_, signature) = T::BenchmarkHelper::sign_message(&msg[..]);
 
 		let registered_account = account.clone();
-		let params = crate::types::LiteConsumerRegistrationParams {
-			signature,
-			account,
-			identifier_key,
-			username,
-			reserved_username,
-		};
+		let params =
+			crate::types::LiteConsumerRegistrationParams { signature, account, identifier_key };
 
 		#[block]
 		{

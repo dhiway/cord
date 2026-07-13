@@ -60,6 +60,7 @@ const blockNumber = decimalU64;
 const u32 = integer(0, 0xffff_ffff);
 const pageFields = { cursor: nullable(u32), limit: integer(0, 100) };
 const label = string({ min: 1, maxBytes: 63, pattern: /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/ });
+const subjectId = string({ min: 38, maxBytes: 64, pattern: /^[1-9A-HJ-NP-Za-km-z]+$/ });
 
 const attestationInput = {
   schema: hash32,
@@ -183,9 +184,11 @@ write("attestation", "revoke_external_status_batch", {
 });
 
 // Native DotNS runtime API and pallet calls.
+read("dotns", "label_policy_version", {});
 read("dotns", "name_by_id", { name: hash32 });
 read("dotns", "root_name_by_normalized_label", { label });
 read("dotns", "owner_names", { owner: account, ...pageFields });
+read("dotns", "controllers", { name: hash32 });
 for (const method of ["resolve_address", "resolve_subject", "resolve_attestation", "resolve_content", "name_status"])
   read("dotns", method, { name: hash32 });
 read("dotns", "resolve_text", { name: hash32, key: string({ min: 1, maxBytes: 32 }) });
@@ -199,13 +202,13 @@ write("dotns", "transfer", { name: hash32, new_owner: account });
 write("dotns", "add_controller", { name: hash32, controller: account });
 write("dotns", "remove_controller", { name: hash32, controller: account });
 write("dotns", "set_address", { name: hash32, address: nullable(string({ min: 1, maxBytes: 128 })) });
-write("dotns", "set_subject", { name: hash32, subject: nullable(hash32) });
+write("dotns", "set_subject", { name: hash32, subject: nullable(subjectId) });
 write("dotns", "set_attestation", { name: hash32, attestation: nullable(hash32) });
 write("dotns", "set_content", { name: hash32, content: nullable(hash32) });
 write("dotns", "set_text", {
   name: hash32,
   key: string({ min: 1, maxBytes: 32 }),
-  value: nullable(string({ maxBytes: 256 })),
+  value: nullable(string({ min: 1, maxBytes: 256 })),
 });
 write("dotns", "set_primary_name", { name: nullable(hash32) });
 write("dotns", "release", { name: hash32 });
@@ -221,6 +224,7 @@ write("dotns", "set_label_protection", { label, protected: boolean });
 write("dotns", "set_paused", { paused: boolean });
 write("dotns", "force_transfer", { name: hash32, new_owner: account });
 write("dotns", "force_revoke", { name: hash32 });
+write("dotns", "set_registrar", { registrar: account, enabled: boolean });
 
 // Bulletin storage runtime API and native calls.
 read("storage", "account_authorization", { account });

@@ -23,6 +23,8 @@ pub const RESPONSE_VERSION: u16 = 1;
 pub const LABEL_POLICY_VERSION: u16 = 1;
 /// Maximum number of names returned by one owner query.
 pub const MAX_OWNER_NAMES_PAGE_SIZE: u32 = 100;
+/// Maximum number of controllers returned for one name.
+pub const MAX_CONTROLLERS: u32 = 32;
 
 pub const MAX_LABEL_LENGTH: u32 = 63;
 pub const MAX_ADDRESS_LENGTH: u32 = 128;
@@ -39,6 +41,8 @@ pub type TextKey = BoundedVec<u8, ConstU32<MAX_TEXT_KEY_LENGTH>>;
 pub type TextValue = BoundedVec<u8, ConstU32<MAX_TEXT_VALUE_LENGTH>>;
 /// A bounded page of canonical name identifiers.
 pub type OwnerNameItems<NameId> = BoundedVec<NameId, ConstU32<MAX_OWNER_NAMES_PAGE_SIZE>>;
+/// Bounded controller view for a canonical name.
+pub type ControllerItems<AccountId> = BoundedVec<AccountId, ConstU32<MAX_CONTROLLERS>>;
 
 /// A versioned optional result.
 ///
@@ -153,6 +157,9 @@ sp_api::decl_runtime_apis! {
 		AttestationId: Codec,
 		ContentCommitment: Codec,
 	{
+		/// Return the consensus label-policy version used by registration and lookup.
+		fn label_policy_version() -> u16;
+
 		/// Return stable metadata for a stored name, including expired names not yet cleaned up.
 		fn name_by_id(
 			name: NameId,
@@ -173,13 +180,17 @@ sp_api::decl_runtime_apis! {
 			limit: u32,
 		) -> OwnerNamesPage<NameId>;
 
+		/// Return the bounded controller accounts for an active or stored name.
+		fn controllers(name: NameId) -> Versioned<ControllerItems<AccountId>>;
+
 		/// Resolve the opaque address of an active name.
 		fn resolve_address(name: NameId) -> Versioned<Address>;
 
 		/// Resolve the canonical identity/personhood subject of an active name.
 		fn resolve_subject(name: NameId) -> Versioned<SubjectId>;
 
-		/// Resolve the canonical attestation identifier of an active name.
+		/// Resolve the canonical attestation identifier of an active name, returning `None` when
+		/// the linked attestation is missing, revoked, expired, or belongs to an inactive schema.
 		fn resolve_attestation(name: NameId) -> Versioned<AttestationId>;
 
 		/// Resolve the canonical storage content commitment of an active name.

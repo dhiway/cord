@@ -21,7 +21,6 @@ extern crate alloc;
 pub mod fungibles;
 #[cfg(feature = "genesis")]
 pub mod genesis;
-pub mod labels;
 pub mod members_notifier_subscriber;
 pub mod pgas;
 pub mod traits;

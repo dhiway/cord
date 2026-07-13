@@ -64,6 +64,21 @@ fn commit_reveal_binds_owner_and_age() {
 }
 
 #[test]
+fn register_rejects_empty_salt_even_when_a_commitment_exists() {
+	new_test_ext().execute_with(|| {
+		let label = label(b"alice");
+		let empty = salt(b"");
+		let commitment = Dotns::registration_commitment(&1, None, &label, &empty);
+		assert_ok!(Dotns::commit(RuntimeOrigin::signed(1), commitment));
+		run_to(3);
+		assert_noop!(
+			Dotns::register(RuntimeOrigin::signed(1), None, label, empty),
+			Error::<Test>::InvalidSalt
+		);
+	});
+}
+
+#[test]
 fn subname_requires_parent_authority_and_is_expiry_bounded() {
 	new_test_ext().execute_with(|| {
 		let parent = commit_and_register(1, None, b"alice");
@@ -161,4 +176,68 @@ fn reservations_protection_and_pause_fail_closed() {
 		assert_ok!(Dotns::set_paused(RuntimeOrigin::root(), false));
 		System::assert_last_event(Event::<Test>::PauseSet { paused: false }.into());
 	});
+}
+
+#[test]
+fn genesis_reservations_and_scoped_registrar_governance_are_enforced() {
+	new_test_ext_with_dotns(vec![2], vec![(label(b"system"), Some(1))]).execute_with(|| {
+		let reserved_label = label(b"system");
+		let registration_salt = salt(b"secret");
+		let attacker_commitment =
+			Dotns::registration_commitment(&3, None, &reserved_label, &registration_salt);
+		assert_ok!(Dotns::commit(RuntimeOrigin::signed(3), attacker_commitment));
+		run_to(3);
+		assert_noop!(
+			Dotns::register(
+				RuntimeOrigin::signed(3),
+				None,
+				reserved_label.clone(),
+				registration_salt.clone()
+			),
+			Error::<Test>::ReservedName
+		);
+
+		let owner_commitment =
+			Dotns::registration_commitment(&1, None, &reserved_label, &registration_salt);
+		assert_ok!(Dotns::commit(RuntimeOrigin::signed(1), owner_commitment));
+		run_to(5);
+		assert_ok!(Dotns::register(
+			RuntimeOrigin::signed(1),
+			None,
+			reserved_label,
+			registration_salt,
+		));
+
+		assert_noop!(
+			Dotns::reserve_name(RuntimeOrigin::signed(3), None, label(b"corp"), None, None),
+			Error::<Test>::NotRegistrar
+		);
+		assert_ok!(Dotns::reserve_name(
+			RuntimeOrigin::signed(2),
+			None,
+			label(b"corp"),
+			Some(1),
+			None,
+		));
+		assert_ok!(Dotns::set_registrar(RuntimeOrigin::root(), 2, false));
+		assert_noop!(
+			Dotns::set_label_protection(RuntimeOrigin::signed(2), label(b"blocked"), true),
+			Error::<Test>::NotRegistrar
+		);
+	});
+}
+
+#[test]
+fn genesis_rejects_invalid_or_duplicate_reservation_labels() {
+	assert!(std::panic::catch_unwind(|| {
+		new_test_ext_with_dotns(Vec::new(), vec![(label(b"Alice"), None)]);
+	})
+	.is_err());
+	assert!(std::panic::catch_unwind(|| {
+		new_test_ext_with_dotns(
+			Vec::new(),
+			vec![(label(b"system"), None), (label(b"system"), Some(1))],
+		);
+	})
+	.is_err());
 }

@@ -89,10 +89,6 @@ pub struct StmtStoreAllowanceEntry<T: Config> {
 pub struct ConsumerInfo {
 	/// An opaque key type which will be used in E2E encrypted communication between consumers.
 	pub identifier_key: CommunicationIdentifier,
-	/// The username associated with the consumer if they are a full person.
-	pub full_username: Option<Username>,
-	/// The username associated with this consumer's lite person identity.
-	pub lite_username: Username,
 	/// The credibility of a consumer.
 	pub credibility: Credibility,
 }
@@ -109,32 +105,6 @@ pub enum Credibility {
 	/// this consumer using the person authentication.
 	Person { alias: Alias, last_update: u64, demoted: bool },
 }
-
-/// The username configuration for a full person's registration.
-#[derive(
-	Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen,
-)]
-pub enum PersonalUsernameChoice {
-	/// Use a new username.
-	Standalone(Username),
-	/// Use the reserved username of the submitter.
-	Reservation(Username),
-}
-
-/// An entry in the username reservation queue. The queue is ordered: index 0 is the active
-/// holder who may claim the username, while subsequent entries are waiters promoted in order.
-#[derive(
-	Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen,
-)]
-pub struct ReservationQueueEntry<Account> {
-	/// The account that holds this position in the reservation queue.
-	pub account: Account,
-	/// The time the account joined the queue, used to determine reservation expiry.
-	pub joined_at: u64,
-}
-
-/// [`ReservationQueueEntry`] bound to the runtime's `AccountId`.
-pub type ReservationQueueEntryOf<T> = ReservationQueueEntry<<T as frame_system::Config>::AccountId>;
 
 /// Selects which member collection to verify a ring-VRF proof against.
 ///

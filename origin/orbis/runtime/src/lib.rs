@@ -1819,11 +1819,8 @@ impl pallet_orbis_honour::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ResourcesMaxUsernameLength: u32 = 32;
-	pub const ResourcesMinUsernameLength: u32 = 6;
 	pub const ResourcesPersonAuthDuration: u32 = 2 * 24 * 60 * 60;
 	pub const ResourcesMinPersonAuthUpdateInterval: u32 = 24 * 60 * 60;
-	pub const ResourcesMaxReservationQueueLength: u32 = 10;
 	pub ResourcesAccountsApiAllowance: sp_statement_store::StatementAllowance =
 		sp_statement_store::StatementAllowance { max_size: 500 * 1024, max_count: 2 };
 	pub const ResourcesStmtStoreSlotsPerPeriod: u32 = 20;
@@ -1893,11 +1890,8 @@ impl indiv_pallet_resources::benchmarking::MetaPolicyBenchmarkHelper for Resourc
 impl indiv_pallet_resources::Config for Runtime {
 	type WeightInfo = indiv_pallet_resources::weights::SubstrateWeight<Runtime>;
 	type MemberService = Members;
-	type MaxUsernameLength = ResourcesMaxUsernameLength;
-	type MinUsernameLength = ResourcesMinUsernameLength;
 	type PersonAuthDuration = ResourcesPersonAuthDuration;
 	type MinPersonAuthUpdateInterval = ResourcesMinPersonAuthUpdateInterval;
-	type MaxReservationQueueLength = ResourcesMaxReservationQueueLength;
 	type AccountsApiAllowance = ResourcesAccountsApiAllowance;
 	type StmtStoreSlotsPerPeriod = ResourcesStmtStoreSlotsPerPeriod;
 	type LiteStmtStoreSlotsPerPeriod = ResourcesLiteStmtStoreSlotsPerPeriod;
@@ -1917,7 +1911,6 @@ impl indiv_pallet_resources::Config for Runtime {
 	type OffchainSignature = MultiSignature;
 	type LitePersonStatementLimit = ResourcesLitePersonStatementLimit;
 	type PersonStatementLimit = ResourcesPersonStatementLimit;
-	type ManagerOrigin = EnsureRoot<AccountId>;
 	type LongTermStoragePeriodDuration = ResourcesLongTermStoragePeriodDuration;
 	type LongTermStorageGraceWindow = ResourcesLongTermStorageGraceWindow;
 	type LongTermStorageClaimsPerPeriod = ResourcesLongTermStorageClaimsPerPeriod;
@@ -2220,15 +2213,17 @@ impl pallet_orbis_dotns::ContentReferenceValidator<[u8; 32]> for OrbisStorageLed
 	}
 }
 
-/// DotNS keeps canonical identifiers only; the attestation pallet remains the single source of
-/// truth for subject presence and attestation liveness.
-pub struct OrbisAttestationRegistry;
+/// DotNS keeps canonical identifiers only; Entity remains the sole subject authority.
+pub struct OrbisIdentityRegistry;
 
-impl pallet_orbis_dotns::SubjectReferenceValidator<Hash> for OrbisAttestationRegistry {
-	fn contains(subject: &Hash) -> bool {
-		pallet_orbis_attestation::Pallet::<Runtime>::is_subject_known(*subject)
+impl pallet_orbis_dotns::SubjectReferenceValidator<Ss58Identifier> for OrbisIdentityRegistry {
+	fn contains(subject: &Ss58Identifier) -> bool {
+		pallet_orbis_entity::EntityInfoOf::<Runtime>::contains_key(subject)
 	}
 }
+
+/// Attestation remains the sole authority for opaque attestation liveness.
+pub struct OrbisAttestationRegistry;
 
 impl pallet_orbis_dotns::AttestationReferenceValidator<Hash> for OrbisAttestationRegistry {
 	fn is_live(attestation: &Hash) -> bool {
@@ -2259,6 +2254,8 @@ parameter_types! {
 	pub const DotnsMaxTextValueLength: u32 = 256;
 	pub const DotnsMaxTextRecords: u32 = 32;
 	pub const DotnsMaxControllers: u32 = 32;
+	pub const DotnsMaxRegistrars: u32 = 16;
+	pub const DotnsMaxBootstrapReservations: u32 = 64;
 	pub const DotnsMaxNamesPerOwner: u32 = 256;
 	pub const DotnsMaxChildrenPerName: u32 = 256;
 	pub const DotnsMaxRootNames: u32 = 10_000;
@@ -2271,9 +2268,9 @@ parameter_types! {
 }
 
 impl pallet_orbis_dotns::Config for Runtime {
-	type AdminOrigin = EnsureRoot<AccountId>;
-	type SubjectId = Hash;
-	type SubjectReferenceValidator = OrbisAttestationRegistry;
+	type AdminOrigin = entity::IdentityAdminOrigin;
+	type SubjectId = Ss58Identifier;
+	type SubjectReferenceValidator = OrbisIdentityRegistry;
 	type AttestationId = Hash;
 	type AttestationReferenceValidator = OrbisAttestationRegistry;
 	type ContentCommitment = [u8; 32];
@@ -2285,6 +2282,8 @@ impl pallet_orbis_dotns::Config for Runtime {
 	type MaxTextValueLength = DotnsMaxTextValueLength;
 	type MaxTextRecords = DotnsMaxTextRecords;
 	type MaxControllers = DotnsMaxControllers;
+	type MaxRegistrars = DotnsMaxRegistrars;
+	type MaxBootstrapReservations = DotnsMaxBootstrapReservations;
 	type MaxNamesPerOwner = DotnsMaxNamesPerOwner;
 	type MaxChildrenPerName = DotnsMaxChildrenPerName;
 	type MaxRootNames = DotnsMaxRootNames;
@@ -3469,9 +3468,13 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 		}
 	}
 
-	impl dotns_api::DotnsApi<Block, AccountId, BlockNumber, Hash, Hash, Hash, [u8; 32]>
+	impl dotns_api::DotnsApi<Block, AccountId, BlockNumber, Hash, Ss58Identifier, Hash, [u8; 32]>
 		for Runtime
 	{
+		fn label_policy_version() -> u16 {
+			Dotns::label_policy_version()
+		}
+
 		fn name_by_id(name: Hash) -> dotns_api::Versioned<dotns_api::NameView<AccountId, BlockNumber, Hash>> {
 			let value = pallet_orbis_dotns::Names::<Runtime>::get(name).and_then(|record| {
 				let label = record.label.to_vec().try_into().ok()?;
@@ -3501,13 +3504,26 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 			limit: u32,
 		) -> dotns_api::OwnerNamesPage<Hash> {
 			let all = pallet_orbis_dotns::OwnerNames::<Runtime>::get(owner);
+			if limit == 0 {
+				return dotns_api::OwnerNamesPage::new(Default::default(), None);
+			}
 			let start = cursor.unwrap_or(0) as usize;
-			let take = limit.clamp(1, dotns_api::MAX_OWNER_NAMES_PAGE_SIZE) as usize;
+			let take = limit.min(dotns_api::MAX_OWNER_NAMES_PAGE_SIZE) as usize;
 			let end = start.saturating_add(take).min(all.len());
 			let values = if start < all.len() { all[start..end].to_vec() } else { Vec::new() };
 			let names = values.try_into().unwrap_or_default();
 			let next_cursor = (end < all.len()).then_some(end as u32);
 			dotns_api::OwnerNamesPage::new(names, next_cursor)
+		}
+
+		fn controllers(name: Hash) -> dotns_api::Versioned<dotns_api::ControllerItems<AccountId>> {
+			let value = pallet_orbis_dotns::Names::<Runtime>::contains_key(name).then(|| {
+				pallet_orbis_dotns::Controllers::<Runtime>::get(name)
+					.to_vec()
+					.try_into()
+					.expect("runtime controller bound is within API controller bound")
+			});
+			dotns_api::Versioned::new(value)
 		}
 
 		fn resolve_address(name: Hash) -> dotns_api::Versioned<dotns_api::Address> {
@@ -3519,7 +3535,7 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 			dotns_api::Versioned::new(value)
 		}
 
-		fn resolve_subject(name: Hash) -> dotns_api::Versioned<Hash> {
+		fn resolve_subject(name: Hash) -> dotns_api::Versioned<Ss58Identifier> {
 			let value = Dotns::is_name_active(name)
 				.then(|| pallet_orbis_dotns::Names::<Runtime>::get(name))
 				.flatten()
@@ -3531,7 +3547,8 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 			let value = Dotns::is_name_active(name)
 				.then(|| pallet_orbis_dotns::Names::<Runtime>::get(name))
 				.flatten()
-				.and_then(|record| record.attestation);
+				.and_then(|record| record.attestation)
+				.filter(|attestation| Attestation::is_live(*attestation));
 			dotns_api::Versioned::new(value)
 		}
 

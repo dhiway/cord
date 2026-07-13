@@ -1,4 +1,4 @@
-manifest_version = 9
+manifest_version = 11
 scope = "origin-orbis-enterprise-completion"
 implementation_branch = "sm-update-sub-0x63"
 current_state = "p2-p5-feature-implementation-present-p5-unratified"
@@ -9,7 +9,7 @@ max_s3_object_key_bytes = 1024
 
 [replanning]
 rule = "Adding or removing any row, method, service, scenario, or exclusion requires independent review and a manifest_version increment."
-iteration = 9
+iteration = 11
 decision = "clean-genesis-native-feature-completion"
 plan_evidence = "docs/adr/0013-storage-provider-completion.md"
 transition_architect_evidence = ""
@@ -1481,6 +1481,22 @@ method = "name_status(name: Hash) -> NameStatus<BlockNumber>"
 max_results = 1
 state = "present"
 evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-DotnsApi-11"
+api = "DotnsApi"
+method = "label_policy_version() -> u16"
+max_results = 1
+state = "present"
+evidence = "origin/orbis/pallets/dotns/runtime-api/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+
+[[runtime_api]]
+id = "API-DotnsApi-12"
+api = "DotnsApi"
+method = "controllers(name: Hash) -> Versioned<ControllerItems<AccountId>>"
+max_results = 32
+state = "present"
+evidence = "origin/orbis/pallets/dotns/runtime-api/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-StorageProviderApi-13"

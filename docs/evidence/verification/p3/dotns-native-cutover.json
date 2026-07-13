@@ -1,0 +1,27 @@
+{
+  "backward_compatibility": false,
+  "clean_genesis": true,
+  "data_migration": false,
+  "dotns_is_sole_dns_name_registry_authority": true,
+  "files_scanned": 870,
+  "generated_at": "2026-07-13T19:32:51.546523+00:00",
+  "legacy_dotns_contract_survivors": [],
+  "provenance_only_allowlist": [
+    "docs/evidence/p0-contract-native/**",
+    "docs/sdk/contract-to-native-map.json",
+    "docs/adr/**"
+  ],
+  "scanned_roots": [
+    "origin/orbis",
+    "origin-rs",
+    "product-sdk",
+    "node",
+    "runtimes",
+    "pallets"
+  ],
+  "schema_version": 1,
+  "scope": "CORD repository executable runtime/node/Rust SDK/TypeScript SDK sources only",
+  "secondary_namespace_authority_violations": [],
+  "status": "PASS",
+  "survivor_count": 0
+}

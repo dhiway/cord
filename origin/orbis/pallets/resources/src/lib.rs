@@ -14,17 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Resources.
+//! Personhood resource allowances and anonymous resource claims.
 //!
-//! # Deprecated: username management
-//!
-//! The username-related state and extrinsics in this pallet
-//! (`register_lite_person`, `register_person`, `remove_expired_username_reservation`,
-//! `set_username_reservation_duration`, plus the `UsernameReservationQueue` /
-//! `UsernameReservationDuration` storage items) are being superseded by the
-//! `pallets/dotns-gateway` pallet, which manages usernames through the dotNS
-//! smart contract. New integrations should prefer `dotns_gateway::reserve_name`
-//! / `dotns_gateway::register_name` for username registration.
+//! Namespace ownership is intentionally absent: native DotNS is the sole owner of name
+//! registration, reservation, and resolution for the clean-break Orbis network.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -47,22 +40,20 @@ pub use weights::WeightInfo;
 
 use frame_support::{
 	dispatch::DispatchResultWithPostInfo,
-	traits::{DefensiveOption, EnsureOriginWithArg, IsSubType, OriginTrait, UnixTime},
+	traits::{EnsureOriginWithArg, IsSubType, OriginTrait, UnixTime},
 };
 use frame_system::offchain::{CreateAuthorizedTransaction, SubmitTransaction};
 use indiv_support::{
-	labels::is_lite_person_label,
 	traits::{
 		Alias, AppendOnlyMembers, ClaimCleanupOutcome, CommunicationIdentifier, ConsumerRegistrar,
-		Context, MembershipProver, ResourceClaimLifecycle, RingExponent, TwoPhaseStorage, Username,
+		Context, MembershipProver, ResourceClaimLifecycle, RingExponent, TwoPhaseStorage,
 	},
 	utils::BigEndianU32,
 };
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use types::{
 	ConsumerInfo, Credibility, FriendRequestReference, LongTermStorageAllocation,
-	MembershipCollection, PersonalUsernameChoice, ReservationId, ReservationPurpose,
-	ReservationQueueEntryOf, StmtStoreAllowanceEntry, StorageClaim,
+	MembershipCollection, ReservationId, ReservationPurpose, StmtStoreAllowanceEntry, StorageClaim,
 };
 use verifiable::GenerateVerifiable;
 
@@ -131,14 +122,6 @@ pub mod pallet {
 				>,
 			>;
 
-		/// The maximum length of a username, including any potential trailing digits.
-		#[pallet::constant]
-		type MaxUsernameLength: Get<u32>;
-
-		/// The minimum length of a username.
-		#[pallet::constant]
-		type MinUsernameLength: Get<u32>;
-
 		/// The duration of time, in seconds, for which a person's authorization is valid. After
 		/// this period elapses, people will no longer be considered active, but their resource
 		/// allowances should default to the same values used for lite people.
@@ -149,10 +132,6 @@ pub mod pallet {
 		/// authorization.
 		#[pallet::constant]
 		type MinPersonAuthUpdateInterval: Get<u32>;
-
-		/// Maximum number of accounts that can queue for a single reserved username.
-		#[pallet::constant]
-		type MaxReservationQueueLength: Get<u32>;
 
 		/// The Statement Store allowance for the accounts API.
 		#[pallet::constant]
@@ -243,8 +222,6 @@ pub mod pallet {
 		type EnsureLitePerson: EnsureOrigin<OriginFor<Self>, Success = Self::AccountId>;
 
 		/// The origin allowed to perform privileged management operations on this pallet.
-		type ManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
 		/// The source of time.
 		type Clock: UnixTime;
 
@@ -418,42 +395,10 @@ pub mod pallet {
 	pub type StorageReservationByPurpose<T: Config> =
 		StorageMap<_, Blake2_128Concat, ReservationPurpose, ReservationId, OptionQuery>;
 
-	/// Reverse lookup from `username` to the `AccountId` that has registered it. The `owner` value
-	/// should be a key in the `Consumers` map. There can be at most 2 usernames pointing to the
-	/// same `owner`:
-	/// - username associated with a consumer's lite person identity - this will always be present;
-	/// - optionally another username associated with the consumer's full person identity, if
-	///   applicable.
-	#[pallet::storage]
-	pub type UsernameOwnerOf<T: Config> =
-		StorageMap<_, Blake2_128Concat, Username, T::AccountId, OptionQuery>;
-
 	/// Reverse lookup from registered aliases to the `AccountId` used to register as a consumer.
 	#[pallet::storage]
 	pub type AccountOfAlias<T: Config> =
 		StorageMap<_, Blake2_128Concat, Alias, T::AccountId, OptionQuery>;
-
-	/// The amount of time for which a username reservation is valid, in seconds. After this
-	/// time period elapses, the reservation can be voided.
-	#[pallet::storage]
-	pub type UsernameReservationDuration<T: Config> = StorageValue<_, u64, ValueQuery>;
-
-	/// Map from a reserved `username` to a queue of `ReservationQueueEntry` items, each holding an
-	/// account and the timestamp when it joined. Old reservations can be removed from storage.
-	#[pallet::storage]
-	pub type UsernameReservationQueue<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		Username,
-		BoundedVec<ReservationQueueEntryOf<T>, T::MaxReservationQueueLength>,
-		OptionQuery,
-	>;
-
-	/// Reverse lookup from an account to the username it has reserved. Each account can have at
-	/// most one active reservation at a time.
-	#[pallet::storage]
-	pub type ReservationOf<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, Username, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -482,18 +427,9 @@ pub mod pallet {
 		PersonAuthorizationTouched {
 			account: T::AccountId,
 		},
-		/// An expired username reservation was removed.
-		ExpiredUsernameReservationRemoved {
-			username: Username,
-			account: T::AccountId,
-		},
 		/// A consumer's identifier key was updated.
 		IdentifierKeyUpdated {
 			account: T::AccountId,
-		},
-		/// The username reservation duration was set.
-		UsernameReservationDurationSet {
-			duration: u64,
 		},
 		/// An anonymous statement store allowance was granted.
 		StmtStoreAllowanceSet {
@@ -537,10 +473,6 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Username does not fit the requirements.
-		InvalidUsername,
-		/// Username is already taken.
-		UsernameTaken,
 		/// Consumer is already registered.
 		AlreadyRegistered,
 		/// Provided proof of ownership is invalid.
@@ -551,14 +483,6 @@ pub mod pallet {
 		NotFullPerson,
 		/// Attempted to update person authorization too early.
 		TouchNotReady,
-		/// Reservation is not active.
-		NoReservation,
-		/// The linked lite identity is not the active holder of the reservation.
-		NotReservationHolder,
-		/// The username in the reservation request is already taken.
-		UsernameReservationTaken,
-		/// The reservation has not expired.
-		ReservationFresh,
 		/// There is no lite consumer to be linked.
 		NoLinkedIdentity,
 		/// The lite consumer is already linked to a full person consumer.
@@ -567,12 +491,6 @@ pub mod pallet {
 		PersonAuthNotExpired,
 		/// The person has already been demoted.
 		AlreadyDemoted,
-		/// Queue for this username is full.
-		QueueFull,
-		/// Account is not in the queue for this username.
-		NotInQueue,
-		/// Account already has a reservation for another username.
-		AlreadyHasReservation,
 		/// Friend request sequence is invalid for the consumer.
 		InvalidFriendRequestSequence,
 		/// Friend request period is not the current period.
@@ -746,17 +664,10 @@ pub mod pallet {
 		pub fn register_lite_person(
 			origin: OriginFor<T>,
 			identifier_key: CommunicationIdentifier,
-			username: Username,
-			reserved_username: Option<Username>,
 		) -> DispatchResultWithPostInfo {
 			// Ensure this is a lite person.
 			let lite_person_account = T::EnsureLitePerson::ensure_origin(origin)?;
-			Self::register_lite_consumer_inner(
-				lite_person_account,
-				identifier_key,
-				username,
-				reserved_username,
-			)?;
+			Self::register_lite_consumer_inner(lite_person_account, identifier_key)?;
 			Ok(Pays::No.into())
 		}
 
@@ -766,33 +677,16 @@ pub mod pallet {
 		/// full person consumer. In order to prove they hold the lite identity they want to link,
 		/// users must provide a `lite_identity_proof` signature, created by signing the alias bytes
 		/// using their lite consumer account.
-		///
-		/// The consumer can choose if they want to have a new username or use an existing
-		/// reservation made in the name of the lite consumer who will be linked.
 		#[pallet::call_index(1)]
-		#[pallet::weight(Pallet::<T>::register_person_weight(username_choice))]
+		#[pallet::weight(<T as Config>::WeightInfo::register_person())]
 		pub fn register_person(
 			origin: OriginFor<T>,
 			linked_lite_identity: T::AccountId,
 			lite_identity_proof: T::OffchainSignature,
-			username_choice: PersonalUsernameChoice,
 		) -> DispatchResultWithPostInfo {
-			match username_choice {
-				PersonalUsernameChoice::Standalone(username) => Self::register_person_standalone(
-					origin,
-					linked_lite_identity,
-					lite_identity_proof,
-					username,
-				),
-				PersonalUsernameChoice::Reservation(reservation) => {
-					Self::register_person_reservation(
-						origin,
-						linked_lite_identity,
-						lite_identity_proof,
-						reservation,
-					)
-				},
-			}
+			let alias = T::EnsurePerson::ensure_origin(origin, &RESOURCES_CONTEXT)?;
+			ensure!(!AccountOfAlias::<T>::contains_key(alias), Error::<T>::AlreadyRegistered);
+			Self::register_person_inner(alias, &linked_lite_identity, &lite_identity_proof)
 		}
 
 		/// Update a person's authorization by ensuring they can still authenticate as people.
@@ -839,41 +733,6 @@ pub mod pallet {
 			Ok(Pays::No.into())
 		}
 
-		/// Remove an expired entry from a username reservation queue. The target entry is
-		/// identified by `account` and can be at any position in the queue.
-		/// Each call removes exactly one entry, so it must be called repeatedly to
-		/// clear multiple expired reservations.
-		///
-		/// This is a permissionless call; the origin must be authorized. The `account`
-		/// parameter is also used for transaction pool deduplication, allowing parallel
-		/// submissions that target different expired entries in the same queue.
-		#[pallet::call_index(3)]
-		#[pallet::authorize(|_source, username, account| {
-			Self::validate_reservation_expiry(username, account)
-				.map_err(|_| crate::extension::CustomValidity::InvalidExpiredUsernameReservationRemoval)?;
-			ValidTransaction::with_tag_prefix("PersonhoodResourcesRemoveExpiredReservation")
-				.and_provides(account)
-				.propagate(true)
-				.build().map(|valid_tx| (valid_tx, Weight::zero()))
-		})]
-		#[pallet::weight_of_authorize(<T as Config>::WeightInfo::validate_reservation_expiry())]
-		#[pallet::weight(<T as Config>::WeightInfo::remove_expired_username_reservation())]
-		pub fn remove_expired_username_reservation(
-			origin: OriginFor<T>,
-			username: Username,
-			account: T::AccountId,
-		) -> DispatchResultWithPostInfo {
-			ensure_authorized(origin)?;
-			let queue =
-				UsernameReservationQueue::<T>::get(&username).ok_or(Error::<T>::NoReservation)?;
-			let pos =
-				queue.iter().position(|e| e.account == account).ok_or(Error::<T>::NotInQueue)?;
-			Self::remove_username_reservation(&username, pos)?;
-
-			Self::deposit_event(Event::ExpiredUsernameReservationRemoved { username, account });
-			Ok(Pays::No.into())
-		}
-
 		/// Update the communication identifier key of a consumer.
 		///
 		/// The origin must be the account registered for that consumer, regardless of their
@@ -889,21 +748,6 @@ pub mod pallet {
 			consumer_info.identifier_key = identifier_key;
 			Consumers::<T>::insert(&who, consumer_info);
 			Self::deposit_event(Event::IdentifierKeyUpdated { account: who });
-			Ok(())
-		}
-
-		/// Set the duration for which a username reservation is valid, in seconds.
-		///
-		/// The origin must be root.
-		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_username_reservation_duration())]
-		pub fn set_username_reservation_duration(
-			origin: OriginFor<T>,
-			duration: u64,
-		) -> DispatchResult {
-			T::ManagerOrigin::ensure_origin_or_root(origin)?;
-			UsernameReservationDuration::<T>::put(duration);
-			Self::deposit_event(Event::UsernameReservationDurationSet { duration });
 			Ok(())
 		}
 
@@ -1426,97 +1270,11 @@ pub mod pallet {
 			.map(|valid_tx| (valid_tx, Weight::zero()))
 		}
 
-		/// Weight of `register_person` dispatched to the correct branch.
-		fn register_person_weight(username_choice: &PersonalUsernameChoice) -> Weight {
-			match username_choice {
-				PersonalUsernameChoice::Standalone(_) => {
-					T::WeightInfo::register_person_standalone()
-				},
-				PersonalUsernameChoice::Reservation(_) => {
-					T::WeightInfo::register_person_reservation()
-				},
-			}
-		}
-
-		/// Register a proven person as a consumer using a new standalone username.
-		///
-		/// If the linked lite identity has a pending username reservation, it will be
-		/// automatically left.
-		pub(crate) fn register_person_standalone(
-			origin: OriginFor<T>,
-			linked_lite_identity: T::AccountId,
-			lite_identity_proof: T::OffchainSignature,
-			username: Username,
-		) -> DispatchResultWithPostInfo {
-			let alias = T::EnsurePerson::ensure_origin(origin, &RESOURCES_CONTEXT)?;
-			ensure!(!AccountOfAlias::<T>::contains_key(alias), Error::<T>::AlreadyRegistered);
-
-			// Validate the username, including that it is not already taken.
-			ensure!(!UsernameOwnerOf::<T>::contains_key(&username), Error::<T>::UsernameTaken);
-			ensure!(
-				!UsernameReservationQueue::<T>::contains_key(&username),
-				Error::<T>::UsernameTaken
-			);
-			// If the lite identity has a pending username reservation, auto-leave it.
-			if let Some(reservation) = ReservationOf::<T>::get(&linked_lite_identity) {
-				let queue = UsernameReservationQueue::<T>::get(&reservation)
-					.ok_or(Error::<T>::NotInQueue)?;
-				let pos = queue
-					.iter()
-					.position(|e| e.account == linked_lite_identity)
-					.ok_or(Error::<T>::NotInQueue)?;
-				Self::remove_username_reservation(&reservation, pos)?;
-			}
-
-			Self::validate_username(&username, true)?;
-			Self::register_person_inner(
-				alias,
-				&linked_lite_identity,
-				&lite_identity_proof,
-				username,
-			)
-		}
-
-		/// Register a proven person as a consumer using a previously reserved username.
-		///
-		/// The linked lite identity must be the active holder (front of queue) of the reserved
-		/// username. Claiming consumes the entire reservation queue.
-		pub(crate) fn register_person_reservation(
-			origin: OriginFor<T>,
-			linked_lite_identity: T::AccountId,
-			lite_identity_proof: T::OffchainSignature,
-			reserved_username: Username,
-		) -> DispatchResultWithPostInfo {
-			let alias = T::EnsurePerson::ensure_origin(origin, &RESOURCES_CONTEXT)?;
-			ensure!(!AccountOfAlias::<T>::contains_key(alias), Error::<T>::AlreadyRegistered);
-
-			let queue = UsernameReservationQueue::<T>::get(&reserved_username)
-				.ok_or(Error::<T>::NoReservation)?;
-			let front = queue.first().ok_or(Error::<T>::NoReservation)?;
-
-			// Check that the lite person which will be linked with this full person was the
-			// one who reserved this username.
-			ensure!(front.account == linked_lite_identity, Error::<T>::NotReservationHolder);
-			// Clean up the entire queue and all ReservationOf entries.
-			for entry in queue.iter() {
-				ReservationOf::<T>::remove(&entry.account);
-			}
-			UsernameReservationQueue::<T>::remove(&reserved_username);
-
-			Self::register_person_inner(
-				alias,
-				&linked_lite_identity,
-				&lite_identity_proof,
-				reserved_username,
-			)
-		}
-
-		/// Common logic shared by `register_person_standalone` and `register_person_reservation`.
+		/// Upgrade an existing lite consumer after proving control of its account.
 		fn register_person_inner(
 			alias: Alias,
 			linked_lite_identity: &T::AccountId,
 			lite_identity_proof: &T::OffchainSignature,
-			username: Username,
 		) -> DispatchResultWithPostInfo {
 			// Verify proof of ownership of the linked lite person.
 			ensure!(
@@ -1526,10 +1284,10 @@ pub mod pallet {
 			// Ensure the linked lite person was not already linked to another full person.
 			let mut linked_consumer_info =
 				Consumers::<T>::get(linked_lite_identity).ok_or(Error::<T>::NoLinkedIdentity)?;
-			ensure!(linked_consumer_info.full_username.is_none(), Error::<T>::AlreadyLinked);
-
-			// Update the linked lite consumer's record with the full person username.
-			linked_consumer_info.full_username = Some(username.clone());
+			ensure!(
+				matches!(linked_consumer_info.credibility, Credibility::Lite),
+				Error::<T>::AlreadyLinked
+			);
 			// Update the linked lite consumer's record with the full person credibility. From this
 			// moment onward, this consumer will be registered as a full person through this
 			// upgrade.
@@ -1537,8 +1295,6 @@ pub mod pallet {
 			linked_consumer_info.credibility =
 				Credibility::Person { alias, last_update: now, demoted: false };
 
-			// Add the username to the list.
-			UsernameOwnerOf::<T>::insert(&username, linked_lite_identity);
 			// Mark the alias as used.
 			AccountOfAlias::<T>::insert(alias, linked_lite_identity);
 
@@ -1799,44 +1555,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Ensure a username is valid depending on the owner's credibility.
-		pub fn validate_username(username: &Username, person: bool) -> Result<(), Error<T>> {
-			// Ensure the username is available.
-			if person {
-				// People can choose any username of minimum length `MinUsernameLength`, as long as
-				// it's lowercase alphanumeric.
-				ensure!(
-					username.len() >= T::MinUsernameLength::get() as usize,
-					Error::<T>::InvalidUsername
-				);
-				ensure!(
-					username.iter().all(|byte| byte.is_ascii_lowercase()),
-					Error::<T>::InvalidUsername
-				);
-			} else {
-				// Usernames for lite people must follow a pattern of at least `MinUsernameLength`
-				// lowercase letters, followed by at least `MIN_LITE_USERNAME_DIGITS` digits.
-				let username_bytes = username.as_slice();
-				ensure!(is_lite_person_label(username_bytes), Error::<T>::InvalidUsername);
-				// `is_lite_person_label` guarantees a single `.`.
-				let separator_index = username_bytes
-					.iter()
-					.position(|byte| *byte == b'.')
-					.ok_or(Error::<T>::InvalidUsername)?;
-				// Letter part must be at least `MinUsernameLength` characters long.
-				ensure!(
-					separator_index as u32 >= T::MinUsernameLength::get(),
-					Error::<T>::InvalidUsername
-				);
-				// Stem must be lowercase ASCII letters only
-				ensure!(
-					username_bytes[..separator_index].iter().all(|byte| byte.is_ascii_lowercase()),
-					Error::<T>::InvalidUsername
-				);
-			}
-			Ok(())
-		}
-
 		/// Register a lite consumer using the provided information.
 		///
 		/// IMPORTANT
@@ -1847,41 +1565,13 @@ pub mod pallet {
 		pub fn register_lite_consumer_inner(
 			account: T::AccountId,
 			identifier_key: CommunicationIdentifier,
-			username: Username,
-			reserved_username: Option<Username>,
 		) -> Result<(), Error<T>> {
 			// Must not already be registered.
 			ensure!(!Consumers::<T>::contains_key(&account), Error::<T>::AlreadyRegistered);
-			// Validate the username, including that it is not already taken.
-			ensure!(!UsernameOwnerOf::<T>::contains_key(&username), Error::<T>::UsernameTaken);
-			Self::validate_username(&username, false)?;
-			if let Some(reserved_username) = reserved_username {
-				ensure!(reserved_username != username, Error::<T>::InvalidUsername);
-				// Already-owned usernames cannot be reserved.
-				ensure!(
-					!UsernameOwnerOf::<T>::contains_key(&reserved_username),
-					Error::<T>::UsernameReservationTaken
-				);
-				// Each account can only have one reservation at a time.
-				ensure!(
-					!ReservationOf::<T>::contains_key(&account),
-					Error::<T>::AlreadyHasReservation
-				);
-				Self::validate_username(&reserved_username, true)?;
-				// Add to the reservation queue (front = active holder).
-				Self::push_username_reservation(&account, &reserved_username)?;
-			}
-			// Add the username to the list.
-			UsernameOwnerOf::<T>::insert(&username, &account);
 			// Set the consumer's record.
 			Consumers::<T>::insert(
 				&account,
-				ConsumerInfo {
-					identifier_key,
-					full_username: None,
-					lite_username: username,
-					credibility: Credibility::Lite,
-				},
+				ConsumerInfo { identifier_key, credibility: Credibility::Lite },
 			);
 			frame_system::Pallet::<T>::inc_sufficients(&account);
 
@@ -1890,25 +1580,6 @@ pub mod pallet {
 
 			Self::deposit_event(Event::LitePersonRegistered { account });
 			Ok(())
-		}
-
-		/// Validate that `account` is in the reservation queue for `username` and that its
-		/// entry has expired. Returns the position of the entry in the queue.
-		pub(crate) fn validate_reservation_expiry(
-			username: &Username,
-			account: &T::AccountId,
-		) -> Result<usize, Error<T>> {
-			let queue =
-				UsernameReservationQueue::<T>::get(username).ok_or(Error::<T>::NoReservation)?;
-			let pos =
-				queue.iter().position(|e| e.account == *account).ok_or(Error::<T>::NotInQueue)?;
-			let now = T::Clock::now();
-			ensure!(
-				now.as_secs()
-					> queue[pos].joined_at.saturating_add(UsernameReservationDuration::<T>::get()),
-				Error::<T>::ReservationFresh
-			);
-			Ok(pos)
 		}
 
 		fn validate_demotion(account: &T::AccountId) -> Result<ConsumerInfo, Error<T>> {
@@ -1924,41 +1595,6 @@ pub mod pallet {
 			ensure!(!demoted, Error::<T>::AlreadyDemoted);
 			Ok(consumer_info)
 		}
-
-		/// Push an account into the reservation queue for a username and record the reverse lookup.
-		fn push_username_reservation(
-			account: &T::AccountId,
-			username: &Username,
-		) -> Result<(), Error<T>> {
-			UsernameReservationQueue::<T>::try_mutate(username, |queue| -> Result<(), Error<T>> {
-				let vec = queue.get_or_insert_with(BoundedVec::default);
-				vec.try_push(ReservationQueueEntryOf::<T> {
-					account: account.clone(),
-					joined_at: T::Clock::now().as_secs(),
-				})
-				.map_err(|_| Error::<T>::QueueFull)?;
-				Ok(())
-			})?;
-			ReservationOf::<T>::insert(account, username);
-			Ok(())
-		}
-
-		/// Remove the entry at `pos` from the reservation queue for `username`, clean up
-		/// its `ReservationOf` reverse lookup, and clear the queue entirely when it
-		/// becomes empty. When the active holder (position 0) is removed the next entry
-		/// naturally becomes the new front
-		fn remove_username_reservation(username: &Username, pos: usize) -> Result<(), Error<T>> {
-			UsernameReservationQueue::<T>::try_mutate(username, |queue| -> Result<(), Error<T>> {
-				let vec = queue.as_mut().ok_or(Error::<T>::NotInQueue)?;
-				vec.get(pos).defensive_ok_or(Error::<T>::NotInQueue)?;
-				let entry = vec.remove(pos);
-				ReservationOf::<T>::remove(&entry.account);
-				if vec.is_empty() {
-					*queue = None;
-				}
-				Ok(())
-			})
-		}
 	}
 
 	impl<T: Config> ConsumerRegistrar<T::AccountId> for Pallet<T> {
@@ -1967,10 +1603,8 @@ pub mod pallet {
 		fn register_lite_consumer(
 			account: T::AccountId,
 			identifier_key: CommunicationIdentifier,
-			username: Username,
-			reserved_username: Option<Username>,
 		) -> Result<(), Error<T>> {
-			Self::register_lite_consumer_inner(account, identifier_key, username, reserved_username)
+			Self::register_lite_consumer_inner(account, identifier_key)
 		}
 	}
 }

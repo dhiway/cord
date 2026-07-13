@@ -67,6 +67,8 @@ impl pallet_orbis_dotns::Config for Test {
 	type MaxTextValueLength = ConstU32<256>;
 	type MaxTextRecords = ConstU32<8>;
 	type MaxControllers = ConstU32<4>;
+	type MaxRegistrars = ConstU32<2>;
+	type MaxBootstrapReservations = ConstU32<4>;
 	type MaxNamesPerOwner = ConstU32<16>;
 	type MaxChildrenPerName = ConstU32<16>;
 	type MaxRootNames = ConstU32<32>;
@@ -80,7 +82,17 @@ impl pallet_orbis_dotns::Config for Test {
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let storage = RuntimeGenesisConfig { system: Default::default() }
+	new_test_ext_with_dotns(Vec::new(), Vec::new())
+}
+
+pub fn new_test_ext_with_dotns(
+	registrars: Vec<u64>,
+	root_reservations: Vec<(pallet_orbis_dotns::LabelOf<Test>, Option<u64>)>,
+) -> sp_io::TestExternalities {
+	let storage = RuntimeGenesisConfig {
+		system: Default::default(),
+		dotns: pallet_orbis_dotns::GenesisConfig { registrars, root_reservations },
+	}
 		.build_storage()
 		.expect("test genesis builds");
 	let mut ext: sp_io::TestExternalities = storage.into();

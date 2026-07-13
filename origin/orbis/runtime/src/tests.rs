@@ -278,9 +278,7 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 			(0, "register_lite_person"),
 			(1, "register_person"),
 			(2, "touch_person_authorization"),
-			(3, "remove_expired_username_reservation"),
 			(4, "update_identifier_key"),
-			(5, "set_username_reservation_duration"),
 			(7, "demote_auth_expired"),
 			(8, "set_friend_request_statement_account_for_sequence"),
 			(9, "clear_expired_friend_request_sequence"),
@@ -1495,7 +1493,17 @@ fn native_identity_attestation_name_asset_and_storage_journey() {
 			pallet_orbis_people::Data::Raw(b"Alice Orbis".to_vec().try_into().unwrap());
 		assert_ok!(People::set_identity(RuntimeOrigin::signed(owner.clone()), Box::new(identity),));
 		assert!(People::has_identity(&owner, 1));
-		let identity_commitment = sp_core::H256::from(sp_io::hashing::blake2_256(owner.as_ref()));
+		let mut entity_info = pallet_orbis_entity::entity::EntityInfo::<
+			crate::entity::MaxRawDataLength,
+			crate::entity::MaxAdditionalAttributes,
+		>::default();
+		entity_info.display =
+			origin_primitives::Element::Raw(b"Alice Orbis".to_vec().try_into().unwrap());
+		assert_ok!(Entity::set_info(RuntimeOrigin::signed(owner.clone()), Box::new(entity_info),));
+		let subject_id = pallet_orbis_entity::EntityTokenOfAccount::<Runtime>::get(&owner)
+			.expect("Entity is the canonical SubjectId authority");
+		let identity_commitment =
+			sp_core::H256::from(sp_io::hashing::blake2_256(subject_id.as_ref()));
 
 		let asset_id = 7u32;
 		assert_ok!(Assets::create(
@@ -1593,7 +1601,7 @@ fn native_identity_attestation_name_asset_and_storage_journey() {
 		assert_ok!(Dotns::set_subject(
 			RuntimeOrigin::signed(owner.clone()),
 			name,
-			Some(identity_commitment),
+			Some(subject_id),
 		));
 		assert_ok!(Dotns::set_attestation(
 			RuntimeOrigin::signed(owner.clone()),
@@ -1632,6 +1640,124 @@ fn native_identity_attestation_name_asset_and_storage_journey() {
 			pallet_orbis_s3::Objects::<Runtime>::get(bucket, key).unwrap().content_hash,
 			Some(audit)
 		);
+	});
+}
+
+#[test]
+fn dotns_subjects_follow_entity_authority_not_opaque_attestation_subjects() {
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		System::set_block_number(1);
+		let owner = pallet_revive::test_utils::ALICE;
+		let mut entity_info = pallet_orbis_entity::entity::EntityInfo::<
+			crate::entity::MaxRawDataLength,
+			crate::entity::MaxAdditionalAttributes,
+		>::default();
+		entity_info.display =
+			origin_primitives::Element::Raw(b"Canonical subject".to_vec().try_into().unwrap());
+		assert_ok!(Entity::set_info(RuntimeOrigin::signed(owner.clone()), Box::new(entity_info),));
+		let identity_subject = pallet_orbis_entity::EntityTokenOfAccount::<Runtime>::get(&owner)
+			.expect("identity subject exists without an attestation");
+
+		let label = Dotns::validate_label(b"identity".to_vec()).unwrap();
+		let salt: pallet_orbis_dotns::SaltOf<Runtime> = b"subject".to_vec().try_into().unwrap();
+		let commitment = Dotns::registration_commitment(&owner, None, &label, &salt);
+		assert_ok!(Dotns::commit(RuntimeOrigin::signed(owner.clone()), commitment));
+		System::set_block_number(3);
+		assert_ok!(Dotns::register(
+			RuntimeOrigin::signed(owner.clone()),
+			None,
+			label.clone(),
+			salt,
+		));
+		let name = Dotns::derive_name_id(None, &label);
+		assert_ok!(Dotns::set_subject(
+			RuntimeOrigin::signed(owner.clone()),
+			name,
+			Some(identity_subject),
+		));
+
+		let opaque_only =
+			origin_primitives::identifier::Ss58Identifier::to_encoded([7u8; 32], 1006, 53, 1)
+				.unwrap();
+		let opaque_commitment =
+			sp_core::H256::from(sp_io::hashing::blake2_256(opaque_only.as_ref()));
+		pallet_orbis_attestation::KnownSubjects::<Runtime>::insert(opaque_commitment, ());
+		assert_noop!(
+			Dotns::set_subject(RuntimeOrigin::signed(owner), name, Some(opaque_only),),
+			pallet_orbis_dotns::Error::<Runtime>::InvalidSubjectReference
+		);
+	});
+}
+
+#[test]
+fn dotns_attestation_resolution_fails_closed_after_revocation_and_expiry() {
+	use pallet_orbis_dotns_runtime_api::runtime_decl_for_dotns_api::DotnsApiV1;
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		System::set_block_number(1);
+		let owner = pallet_revive::test_utils::ALICE;
+		let definition: pallet_orbis_attestation::SchemaDefinitionOf<Runtime> =
+			b"dotns-live-link-v1".to_vec().try_into().unwrap();
+		let definition_commitment =
+			sp_core::H256::from(sp_io::hashing::blake2_256(definition.as_slice()));
+		let issuers: pallet_orbis_attestation::AuthorizedIssuersOf<Runtime> =
+			vec![owner.clone()].try_into().unwrap();
+		assert_ok!(Attestation::create_schema(
+			RuntimeOrigin::signed(owner.clone()),
+			definition,
+			issuers,
+			true,
+			false,
+			pallet_orbis_attestation::IndexPolicy::None,
+		));
+		let schema = Attestation::schema_id(
+			&owner,
+			&definition_commitment,
+			true,
+			false,
+			pallet_orbis_attestation::IndexPolicy::None,
+		);
+		let input = |nonce: u64, expiry| pallet_orbis_attestation::AttestationInput::<Runtime> {
+			schema,
+			subject_commitment: sp_core::H256::from_low_u64_be(1),
+			payload_commitment: sp_core::H256::from_low_u64_be(nonce),
+			status_commitment: sp_core::H256::from_low_u64_be(nonce + 10),
+			parent: None,
+			expiry,
+			uniqueness_commitment: None,
+			revocable: true,
+		};
+		let first_input = input(1, None);
+		let first = Attestation::attestation_id(&owner, &first_input, 0);
+		assert_ok!(Attestation::issue(RuntimeOrigin::signed(owner.clone()), first_input));
+
+		let label = Dotns::validate_label(b"live-link".to_vec()).unwrap();
+		let salt: pallet_orbis_dotns::SaltOf<Runtime> = b"link-salt".to_vec().try_into().unwrap();
+		let commitment = Dotns::registration_commitment(&owner, None, &label, &salt);
+		assert_ok!(Dotns::commit(RuntimeOrigin::signed(owner.clone()), commitment));
+		System::set_block_number(3);
+		assert_ok!(Dotns::register(
+			RuntimeOrigin::signed(owner.clone()),
+			None,
+			label.clone(),
+			salt,
+		));
+		let name = Dotns::derive_name_id(None, &label);
+		assert_ok!(
+			Dotns::set_attestation(RuntimeOrigin::signed(owner.clone()), name, Some(first),)
+		);
+		assert_eq!(Runtime::resolve_attestation(name).value, Some(first));
+
+		assert_ok!(Attestation::revoke(RuntimeOrigin::signed(owner.clone()), first));
+		assert_eq!(Runtime::resolve_attestation(name).value, None);
+
+		let expiring_input = input(2, Some(5));
+		let expiring = Attestation::attestation_id(&owner, &expiring_input, 1);
+		assert_ok!(Attestation::issue(RuntimeOrigin::signed(owner.clone()), expiring_input));
+		assert_ok!(Dotns::set_attestation(RuntimeOrigin::signed(owner), name, Some(expiring),));
+		assert_eq!(Runtime::resolve_attestation(name).value, Some(expiring));
+		System::set_block_number(5);
+		assert_eq!(Runtime::resolve_attestation(name).value, None);
 	});
 }
 

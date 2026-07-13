@@ -1,17 +1,25 @@
+use std::collections::HashSet;
+
+use codec::Encode;
 use serde::{Deserialize, Serialize};
+use sp_crypto_hashing::blake2_256;
 
 use super::common::{
 	ensure_bytes, invalid, AccountId, AttestationId, BlockNumber, ContentCommitment, DomainResult,
-	FinalizedPage, FinalizedQuery, FinalizedValue, NameId, PageRequest, RegistrationCommitment,
-	SubjectId, SubmitAndFinalize, Validate,
+	FinalizedPage, FinalizedQuery, FinalizedValue, Hash32, NameId, PageRequest,
+	RegistrationCommitment, SubjectId, SubmitAndFinalize, Validate,
 };
 
 pub const LABEL_POLICY_VERSION: u16 = 1;
+pub const ATTESTATION_RESOLUTION_POLICY: &str =
+	"live-only: missing, revoked, expired, or inactive-schema attestations resolve to null";
 pub const MAX_LABEL_BYTES: usize = 63;
 pub const MAX_SALT_BYTES: usize = 64;
 pub const MAX_ADDRESS_BYTES: usize = 128;
 pub const MAX_TEXT_KEY_BYTES: usize = 32;
 pub const MAX_TEXT_VALUE_BYTES: usize = 256;
+pub const NAME_ID_DOMAIN: &[u8] = b"cord:orbis:dotns:name:v1";
+pub const COMMITMENT_DOMAIN: &[u8] = b"cord:orbis:dotns:commitment:v1";
 
 pub type DotnsRead = FinalizedQuery<DotnsQuery>;
 pub type DotnsWrite = SubmitAndFinalize<DotnsCommand>;
@@ -49,6 +57,47 @@ impl Validate for Label {
 	}
 }
 
+fn hash_bytes(value: &Hash32) -> DomainResult<[u8; 32]> {
+	let bytes = hex::decode(&value.as_str()[2..]).map_err(|_| invalid("invalid 32-byte hash"))?;
+	bytes.try_into().map_err(|_| invalid("invalid 32-byte hash"))
+}
+
+/// Derive the exact pallet `NameId` from the finalized network identity, parent, and label.
+pub fn derive_name_id(
+	genesis_hash: &Hash32,
+	parent: Option<&NameId>,
+	label: &Label,
+) -> DomainResult<NameId> {
+	genesis_hash.validate()?;
+	label.validate()?;
+	let genesis = hash_bytes(genesis_hash)?;
+	let parent = parent.map(|value| hash_bytes(value.as_hash())).transpose()?;
+	Ok(NameId(Hash32::from_bytes(blake2_256(
+		&(NAME_ID_DOMAIN, genesis, parent, label.as_str().as_bytes()).encode(),
+	))))
+}
+
+/// Derive the exact commit/reveal commitment accepted by the native DotNS pallet.
+pub fn registration_commitment(
+	genesis_hash: &Hash32,
+	owner: &AccountId,
+	parent: Option<&NameId>,
+	label: &Label,
+	salt: &Salt,
+) -> DomainResult<RegistrationCommitment> {
+	use crate::types::account::ss58_to_account_id;
+
+	owner.validate()?;
+	salt.validate()?;
+	let name = hash_bytes(derive_name_id(genesis_hash, parent, label)?.as_hash())?;
+	let genesis = hash_bytes(genesis_hash)?;
+	let owner = ss58_to_account_id(owner.as_str())
+		.map_err(|_| invalid("DotNS commitment owner must be a valid SS58 AccountId32"))?;
+	Ok(RegistrationCommitment(Hash32::from_bytes(blake2_256(
+		&(COMMITMENT_DOMAIN, genesis, owner, name, salt.as_bytes()).encode(),
+	))))
+}
+
 macro_rules! bounded_bytes {
 	($name:ident, $min:expr, $max:expr, $field:literal) => {
 		#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -74,7 +123,7 @@ macro_rules! bounded_bytes {
 	};
 }
 
-bounded_bytes!(Salt, 0, MAX_SALT_BYTES, "DotNS salt");
+bounded_bytes!(Salt, 1, MAX_SALT_BYTES, "DotNS salt");
 bounded_bytes!(Address, 1, MAX_ADDRESS_BYTES, "DotNS address");
 bounded_bytes!(TextKey, 1, MAX_TEXT_KEY_BYTES, "DotNS text key");
 bounded_bytes!(TextValue, 1, MAX_TEXT_VALUE_BYTES, "DotNS text value");
@@ -98,12 +147,293 @@ pub struct NameStatus {
 	pub expires_at: Option<BlockNumber>,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DotnsEventKind {
+	CommitmentStored,
+	CommitmentRemoved,
+	NameRegistered,
+	NameRenewed,
+	NameTransferred,
+	NameReleased,
+	ExpiredNameRemoved,
+	ControllerAdded,
+	ControllerRemoved,
+	AddressSet,
+	SubjectSet,
+	AttestationSet,
+	ContentSet,
+	TextSet,
+	PrimaryNameSet,
+	NameReserved,
+	ReservationCleared,
+	LabelProtectionSet,
+	PauseSet,
+	EmergencyNameRevoked,
+	RegistrarSet,
+}
+
+/// Stable, transport-neutral decoding target for every native DotNS event.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(tag = "event", content = "data", rename_all = "snake_case")]
+pub enum DotnsEvent {
+	CommitmentStored {
+		owner: AccountId,
+		commitment: RegistrationCommitment,
+		at: BlockNumber,
+	},
+	CommitmentRemoved {
+		owner: AccountId,
+		commitment: RegistrationCommitment,
+	},
+	NameRegistered {
+		name: NameId,
+		parent: Option<NameId>,
+		label: Label,
+		owner: AccountId,
+		expires_at: BlockNumber,
+	},
+	NameRenewed {
+		name: NameId,
+		expires_at: BlockNumber,
+	},
+	NameTransferred {
+		name: NameId,
+		from: AccountId,
+		to: AccountId,
+	},
+	NameReleased {
+		name: NameId,
+		owner: AccountId,
+	},
+	ExpiredNameRemoved {
+		name: NameId,
+	},
+	ControllerAdded {
+		name: NameId,
+		controller: AccountId,
+	},
+	ControllerRemoved {
+		name: NameId,
+		controller: AccountId,
+	},
+	AddressSet {
+		name: NameId,
+		present: bool,
+	},
+	SubjectSet {
+		name: NameId,
+		present: bool,
+	},
+	AttestationSet {
+		name: NameId,
+		present: bool,
+	},
+	ContentSet {
+		name: NameId,
+		present: bool,
+	},
+	TextSet {
+		name: NameId,
+		key: TextKey,
+		present: bool,
+	},
+	PrimaryNameSet {
+		owner: AccountId,
+		name: Option<NameId>,
+	},
+	NameReserved {
+		name: NameId,
+		beneficiary: Option<AccountId>,
+		expires_at: Option<BlockNumber>,
+	},
+	ReservationCleared {
+		name: NameId,
+	},
+	LabelProtectionSet {
+		label: Label,
+		protected: bool,
+	},
+	PauseSet {
+		paused: bool,
+	},
+	EmergencyNameRevoked {
+		name: NameId,
+	},
+	RegistrarSet {
+		registrar: AccountId,
+		enabled: bool,
+	},
+}
+
+/// Stable application outcome derived from one finalized DotNS event.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(tag = "outcome", content = "data", rename_all = "snake_case")]
+pub enum DotnsOutcome {
+	CommitmentStored { commitment: RegistrationCommitment },
+	CommitmentRemoved { commitment: RegistrationCommitment },
+	NameRegistered { name: NameId },
+	NameRenewed { name: NameId, expires_at: BlockNumber },
+	NameTransferred { name: NameId, owner: AccountId },
+	NameReleased { name: NameId },
+	ExpiredNameRemoved { name: NameId },
+	ControllerAdded { name: NameId, controller: AccountId },
+	ControllerRemoved { name: NameId, controller: AccountId },
+	AddressSet { name: NameId, present: bool },
+	SubjectSet { name: NameId, present: bool },
+	AttestationSet { name: NameId, present: bool },
+	ContentSet { name: NameId, present: bool },
+	TextSet { name: NameId, key: TextKey, present: bool },
+	PrimaryNameSet { owner: AccountId, name: Option<NameId> },
+	NameReserved { name: NameId },
+	ReservationCleared { name: NameId },
+	LabelProtectionSet { label: Label, protected: bool },
+	PauseSet { paused: bool },
+	EmergencyNameRevoked { name: NameId },
+	RegistrarSet { registrar: AccountId, enabled: bool },
+}
+
+impl DotnsEvent {
+	pub const fn kind(&self) -> DotnsEventKind {
+		match self {
+			Self::CommitmentStored { .. } => DotnsEventKind::CommitmentStored,
+			Self::CommitmentRemoved { .. } => DotnsEventKind::CommitmentRemoved,
+			Self::NameRegistered { .. } => DotnsEventKind::NameRegistered,
+			Self::NameRenewed { .. } => DotnsEventKind::NameRenewed,
+			Self::NameTransferred { .. } => DotnsEventKind::NameTransferred,
+			Self::NameReleased { .. } => DotnsEventKind::NameReleased,
+			Self::ExpiredNameRemoved { .. } => DotnsEventKind::ExpiredNameRemoved,
+			Self::ControllerAdded { .. } => DotnsEventKind::ControllerAdded,
+			Self::ControllerRemoved { .. } => DotnsEventKind::ControllerRemoved,
+			Self::AddressSet { .. } => DotnsEventKind::AddressSet,
+			Self::SubjectSet { .. } => DotnsEventKind::SubjectSet,
+			Self::AttestationSet { .. } => DotnsEventKind::AttestationSet,
+			Self::ContentSet { .. } => DotnsEventKind::ContentSet,
+			Self::TextSet { .. } => DotnsEventKind::TextSet,
+			Self::PrimaryNameSet { .. } => DotnsEventKind::PrimaryNameSet,
+			Self::NameReserved { .. } => DotnsEventKind::NameReserved,
+			Self::ReservationCleared { .. } => DotnsEventKind::ReservationCleared,
+			Self::LabelProtectionSet { .. } => DotnsEventKind::LabelProtectionSet,
+			Self::PauseSet { .. } => DotnsEventKind::PauseSet,
+			Self::EmergencyNameRevoked { .. } => DotnsEventKind::EmergencyNameRevoked,
+			Self::RegistrarSet { .. } => DotnsEventKind::RegistrarSet,
+		}
+	}
+
+	pub fn outcome(&self) -> DotnsOutcome {
+		match self {
+			Self::CommitmentStored { commitment, .. } => {
+				DotnsOutcome::CommitmentStored { commitment: commitment.clone() }
+			},
+			Self::CommitmentRemoved { commitment, .. } => {
+				DotnsOutcome::CommitmentRemoved { commitment: commitment.clone() }
+			},
+			Self::NameRegistered { name, .. } => {
+				DotnsOutcome::NameRegistered { name: name.clone() }
+			},
+			Self::NameRenewed { name, expires_at } => {
+				DotnsOutcome::NameRenewed { name: name.clone(), expires_at: *expires_at }
+			},
+			Self::NameTransferred { name, to, .. } => {
+				DotnsOutcome::NameTransferred { name: name.clone(), owner: to.clone() }
+			},
+			Self::NameReleased { name, .. } => DotnsOutcome::NameReleased { name: name.clone() },
+			Self::ExpiredNameRemoved { name } => {
+				DotnsOutcome::ExpiredNameRemoved { name: name.clone() }
+			},
+			Self::ControllerAdded { name, controller } => {
+				DotnsOutcome::ControllerAdded { name: name.clone(), controller: controller.clone() }
+			},
+			Self::ControllerRemoved { name, controller } => DotnsOutcome::ControllerRemoved {
+				name: name.clone(),
+				controller: controller.clone(),
+			},
+			Self::AddressSet { name, present } => {
+				DotnsOutcome::AddressSet { name: name.clone(), present: *present }
+			},
+			Self::SubjectSet { name, present } => {
+				DotnsOutcome::SubjectSet { name: name.clone(), present: *present }
+			},
+			Self::AttestationSet { name, present } => {
+				DotnsOutcome::AttestationSet { name: name.clone(), present: *present }
+			},
+			Self::ContentSet { name, present } => {
+				DotnsOutcome::ContentSet { name: name.clone(), present: *present }
+			},
+			Self::TextSet { name, key, present } => {
+				DotnsOutcome::TextSet { name: name.clone(), key: key.clone(), present: *present }
+			},
+			Self::PrimaryNameSet { owner, name } => {
+				DotnsOutcome::PrimaryNameSet { owner: owner.clone(), name: name.clone() }
+			},
+			Self::NameReserved { name, .. } => DotnsOutcome::NameReserved { name: name.clone() },
+			Self::ReservationCleared { name } => {
+				DotnsOutcome::ReservationCleared { name: name.clone() }
+			},
+			Self::LabelProtectionSet { label, protected } => {
+				DotnsOutcome::LabelProtectionSet { label: label.clone(), protected: *protected }
+			},
+			Self::PauseSet { paused } => DotnsOutcome::PauseSet { paused: *paused },
+			Self::EmergencyNameRevoked { name } => {
+				DotnsOutcome::EmergencyNameRevoked { name: name.clone() }
+			},
+			Self::RegistrarSet { registrar, enabled } => {
+				DotnsOutcome::RegistrarSet { registrar: registrar.clone(), enabled: *enabled }
+			},
+		}
+	}
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct FinalizedDotnsEvent {
+	pub finalized_block_hash: Hash32,
+	pub event_index: u32,
+	pub event: DotnsEvent,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct FinalizedDotnsOutcome {
+	pub event: FinalizedDotnsEvent,
+	pub outcome: DotnsOutcome,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DotnsEventSubscription {
+	pub finality: DotnsSubscriptionFinality,
+	pub from_finalized_block: Hash32,
+	pub kinds: Vec<DotnsEventKind>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DotnsSubscriptionFinality {
+	Finalized,
+}
+
+impl DotnsEventSubscription {
+	pub fn new(from_finalized_block: Hash32, kinds: Vec<DotnsEventKind>) -> DomainResult<Self> {
+		from_finalized_block.validate()?;
+		if kinds.is_empty()
+			|| kinds.len() > 21
+			|| kinds.iter().collect::<HashSet<_>>().len() != kinds.len()
+		{
+			return Err(invalid("DotNS event subscription requires 1-21 unique kinds"));
+		}
+		Ok(Self { finality: DotnsSubscriptionFinality::Finalized, from_finalized_block, kinds })
+	}
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "response", content = "result", rename_all = "snake_case")]
 pub enum DotnsResponse {
+	LabelPolicyVersion(FinalizedValue<u16>),
 	Name(FinalizedValue<NameView>),
 	NameId(FinalizedValue<NameId>),
 	Names(FinalizedPage<NameId>),
+	Controllers(FinalizedValue<Vec<AccountId>>),
 	Address(FinalizedValue<Address>),
 	Subject(FinalizedValue<SubjectId>),
 	Attestation(FinalizedValue<AttestationId>),
@@ -115,9 +445,11 @@ pub enum DotnsResponse {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "query", content = "arguments", rename_all = "snake_case")]
 pub enum DotnsQuery {
+	LabelPolicyVersion,
 	NameById { name: NameId },
 	RootByLabel { label: Label },
 	OwnerNames { owner: AccountId, page: PageRequest },
+	Controllers { name: NameId },
 	ResolveAddress { name: NameId },
 	ResolveSubject { name: NameId },
 	ResolveAttestation { name: NameId },
@@ -130,7 +462,9 @@ pub enum DotnsQuery {
 impl Validate for DotnsQuery {
 	fn validate(&self) -> DomainResult<()> {
 		match self {
+			Self::LabelPolicyVersion => Ok(()),
 			Self::NameById { name }
+			| Self::Controllers { name }
 			| Self::ResolveAddress { name }
 			| Self::ResolveSubject { name }
 			| Self::ResolveAttestation { name }
@@ -237,6 +571,10 @@ pub enum DotnsCommand {
 	ForceRevoke {
 		name: NameId,
 	},
+	SetRegistrar {
+		registrar: AccountId,
+		enabled: bool,
+	},
 }
 
 impl DotnsCommand {
@@ -318,7 +656,107 @@ impl Validate for DotnsCommand {
 				beneficiary.as_ref().map_or(Ok(()), Validate::validate)
 			},
 			Self::SetLabelProtection { label, .. } => label.validate(),
+			Self::SetRegistrar { registrar, .. } => registrar.validate(),
 			Self::SetPaused { .. } => Ok(()),
 		}
+	}
+}
+
+#[cfg(test)]
+mod canonical_vector_tests {
+	use super::*;
+
+	#[derive(Deserialize)]
+	struct DerivationVector {
+		genesis_hash: String,
+		parent: Option<String>,
+		label: String,
+		name_id: String,
+	}
+	#[derive(Deserialize)]
+	struct CommitmentVector {
+		genesis_hash: String,
+		owner: String,
+		parent: Option<String>,
+		label: String,
+		salt: String,
+		name_id: String,
+		commitment: String,
+	}
+	#[derive(Deserialize)]
+	struct Vectors {
+		label_policy_version: u16,
+		attestation_resolution_policy: String,
+		valid_labels: Vec<String>,
+		invalid_labels: Vec<String>,
+		derivations: Vec<DerivationVector>,
+		commitments: Vec<CommitmentVector>,
+		event_kinds: Vec<String>,
+	}
+
+	#[test]
+	fn shared_vectors_match_label_name_commitment_and_event_contracts() {
+		let vectors: Vectors =
+			serde_json::from_str(include_str!("../../../../docs/sdk/vectors/dotns-v1.json"))
+				.unwrap();
+		assert_eq!(vectors.label_policy_version, LABEL_POLICY_VERSION);
+		assert_eq!(vectors.attestation_resolution_policy, ATTESTATION_RESOLUTION_POLICY);
+		for label in vectors.valid_labels {
+			Label::new(label).unwrap();
+		}
+		for label in vectors.invalid_labels {
+			assert!(Label::new(label).is_err());
+		}
+		for vector in vectors.derivations {
+			let genesis = Hash32::new(vector.genesis_hash).unwrap();
+			let parent = vector.parent.map(NameId::new).transpose().unwrap();
+			let label = Label::new(vector.label).unwrap();
+			assert_eq!(
+				derive_name_id(&genesis, parent.as_ref(), &label).unwrap(),
+				NameId::new(vector.name_id).unwrap()
+			);
+		}
+		for vector in vectors.commitments {
+			let genesis = Hash32::new(vector.genesis_hash).unwrap();
+			let owner = AccountId::new(vector.owner).unwrap();
+			let parent = vector.parent.map(NameId::new).transpose().unwrap();
+			let label = Label::new(vector.label).unwrap();
+			let salt = Salt::new(vector.salt.into_bytes()).unwrap();
+			assert_eq!(
+				derive_name_id(&genesis, parent.as_ref(), &label).unwrap(),
+				NameId::new(vector.name_id).unwrap()
+			);
+			assert_eq!(
+				registration_commitment(&genesis, &owner, parent.as_ref(), &label, &salt).unwrap(),
+				RegistrationCommitment::new(vector.commitment).unwrap()
+			);
+		}
+		let actual: Vec<String> = [
+			DotnsEventKind::CommitmentStored,
+			DotnsEventKind::CommitmentRemoved,
+			DotnsEventKind::NameRegistered,
+			DotnsEventKind::NameRenewed,
+			DotnsEventKind::NameTransferred,
+			DotnsEventKind::NameReleased,
+			DotnsEventKind::ExpiredNameRemoved,
+			DotnsEventKind::ControllerAdded,
+			DotnsEventKind::ControllerRemoved,
+			DotnsEventKind::AddressSet,
+			DotnsEventKind::SubjectSet,
+			DotnsEventKind::AttestationSet,
+			DotnsEventKind::ContentSet,
+			DotnsEventKind::TextSet,
+			DotnsEventKind::PrimaryNameSet,
+			DotnsEventKind::NameReserved,
+			DotnsEventKind::ReservationCleared,
+			DotnsEventKind::LabelProtectionSet,
+			DotnsEventKind::PauseSet,
+			DotnsEventKind::EmergencyNameRevoked,
+			DotnsEventKind::RegistrarSet,
+		]
+		.into_iter()
+		.map(|kind| serde_json::to_value(kind).unwrap().as_str().unwrap().to_owned())
+		.collect();
+		assert_eq!(actual, vectors.event_kinds);
 	}
 }

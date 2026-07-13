@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "label_policy_version": 1,
+  "attestation_resolution_policy": "live-only: missing, revoked, expired, or inactive-schema attestations resolve to null",
+  "valid_labels": [
+    "a",
+    "alice",
+    "alice-1",
+    "0"
+  ],
+  "invalid_labels": [
+    "",
+    "Alice",
+    "-alice",
+    "alice-",
+    "alice_name",
+    "\u2603"
+  ],
+  "derivations": [
+    {
+      "genesis_hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+      "parent": null,
+      "label": "alice",
+      "name_id": "0x3b30143f3602d40a2bf8df269be4e0e6534be1117f9508f5670abf6fdcae9cf7"
+    },
+    {
+      "genesis_hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+      "parent": "0x3b30143f3602d40a2bf8df269be4e0e6534be1117f9508f5670abf6fdcae9cf7",
+      "label": "app",
+      "name_id": "0x73d78633f8b98c0ff93925731d75a752810123611c5c522ec177fb4b092f7aa3"
+    }
+  ],
+  "commitments": [
+    {
+      "genesis_hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+      "owner": "3trSqr2ErU2GA8YAzj1YmXfRkg4L4PrMbptvhKTxgv2zdXGL",
+      "parent": null,
+      "label": "alice",
+      "salt": "secret-01",
+      "name_id": "0x3b30143f3602d40a2bf8df269be4e0e6534be1117f9508f5670abf6fdcae9cf7",
+      "commitment": "0x54ec8299f0ba63af520d5338daba37934e23a8f4b76eba3011e4339e35f38915"
+    }
+  ],
+  "event_kinds": [
+    "commitment_stored",
+    "commitment_removed",
+    "name_registered",
+    "name_renewed",
+    "name_transferred",
+    "name_released",
+    "expired_name_removed",
+    "controller_added",
+    "controller_removed",
+    "address_set",
+    "subject_set",
+    "attestation_set",
+    "content_set",
+    "text_set",
+    "primary_name_set",
+    "name_reserved",
+    "reservation_cleared",
+    "label_protection_set",
+    "pause_set",
+    "emergency_name_revoked",
+    "registrar_set"
+  ]
+}

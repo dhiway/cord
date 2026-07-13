@@ -155,6 +155,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxControllers: Get<u32>;
 		#[pallet::constant]
+		type MaxRegistrars: Get<u32>;
+		#[pallet::constant]
+		type MaxBootstrapReservations: Get<u32>;
+		#[pallet::constant]
 		type MaxNamesPerOwner: Get<u32>;
 		#[pallet::constant]
 		type MaxChildrenPerName: Get<u32>;
@@ -209,6 +213,27 @@ pub mod pallet {
 		BoundedVec<T::AccountId, T::MaxControllers>,
 		ValueQuery,
 	>;
+
+	/// Accounts delegated only the bounded reservation/protection administration surface.
+	#[pallet::storage]
+	#[pallet::getter(fn registrars)]
+	pub type Registrars<T: Config> =
+		StorageValue<_, BoundedVec<T::AccountId, T::MaxRegistrars>, ValueQuery>;
+
+	/// Genesis-only root-label reservations keyed by exact label-policy-v1 bytes.
+	#[pallet::storage]
+	#[pallet::getter(fn bootstrap_reservation)]
+	pub type BootstrapReservations<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		LabelOf<T>,
+		Reservation<T::AccountId, BlockNumberFor<T>>,
+		OptionQuery,
+	>;
+
+	#[pallet::storage]
+	pub type BootstrapReservationLabels<T: Config> =
+		StorageValue<_, BoundedVec<LabelOf<T>, T::MaxBootstrapReservations>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn names_by_owner)]
@@ -281,6 +306,41 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn paused)]
 	pub type Paused<T: Config> = StorageValue<_, bool, ValueQuery>;
+
+	#[derive(frame_support::DefaultNoBound)]
+	#[pallet::genesis_config]
+	pub struct GenesisConfig<T: Config> {
+		pub registrars: Vec<T::AccountId>,
+		pub root_reservations: Vec<(LabelOf<T>, Option<T::AccountId>)>,
+	}
+
+	#[pallet::genesis_build]
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+		fn build(&self) {
+			let mut registrars = BoundedVec::<T::AccountId, T::MaxRegistrars>::default();
+			for registrar in &self.registrars {
+				assert!(!registrars.contains(registrar), "duplicate DotNS genesis registrar");
+				registrars
+					.try_push(registrar.clone())
+					.expect("DotNS genesis registrars exceed MaxRegistrars");
+			}
+			Registrars::<T>::put(registrars);
+
+			let mut labels = BoundedVec::<LabelOf<T>, T::MaxBootstrapReservations>::default();
+			for (label, beneficiary) in &self.root_reservations {
+				assert!(Pallet::<T>::ensure_valid_label(label).is_ok(), "invalid DotNS genesis label");
+				assert!(!labels.contains(label), "duplicate DotNS genesis reservation");
+				labels
+					.try_push(label.clone())
+					.expect("DotNS genesis reservations exceed MaxBootstrapReservations");
+				BootstrapReservations::<T>::insert(
+					label,
+					Reservation { beneficiary: beneficiary.clone(), expires_at: None },
+				);
+			}
+			BootstrapReservationLabels::<T>::put(labels);
+		}
+	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -368,6 +428,10 @@ pub mod pallet {
 		EmergencyNameRevoked {
 			name: T::Hash,
 		},
+		RegistrarSet {
+			registrar: T::AccountId,
+			enabled: bool,
+		},
 	}
 
 	#[pallet::error]
@@ -405,6 +469,10 @@ pub mod pallet {
 		InvalidContentReference,
 		TooManyTextRecords,
 		PrimaryNameInvalid,
+		InvalidSalt,
+		NotRegistrar,
+		TooManyRegistrars,
+		RegistrarNotFound,
 	}
 
 	#[pallet::call]
@@ -487,6 +555,7 @@ pub mod pallet {
 			let owner = ensure_signed(origin)?;
 			Self::ensure_running()?;
 			Self::ensure_valid_label(&label)?;
+			ensure!(!salt.is_empty(), Error::<T>::InvalidSalt);
 			let now = frame_system::Pallet::<T>::block_number();
 			let commitment = Self::registration_commitment(&owner, parent, &label, &salt);
 			let created_at =
@@ -517,6 +586,7 @@ pub mod pallet {
 				(depth, Some(parent_record.expires_at))
 			} else {
 				ensure!(!ProtectedLabels::<T>::contains_key(&label), Error::<T>::ProtectedLabel);
+				Self::ensure_bootstrap_reservation_allows(&label, &owner)?;
 				ensure!(
 					replacing || RootNames::<T>::get().len() < T::MaxRootNames::get() as usize,
 					Error::<T>::TooManyRootNames
@@ -866,7 +936,7 @@ pub mod pallet {
 			beneficiary: Option<T::AccountId>,
 			expires_at: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
-			T::AdminOrigin::ensure_origin(origin)?;
+			Self::ensure_registrar_or_admin(origin)?;
 			Self::ensure_valid_label(&label)?;
 			let now = frame_system::Pallet::<T>::block_number();
 			if let Some(expiry) = expires_at {
@@ -890,7 +960,7 @@ pub mod pallet {
 		#[pallet::call_index(17)]
 		#[pallet::weight(T::WeightInfo::reservation())]
 		pub fn clear_reservation(origin: OriginFor<T>, name: T::Hash) -> DispatchResult {
-			T::AdminOrigin::ensure_origin(origin)?;
+			Self::ensure_registrar_or_admin(origin)?;
 			Reservations::<T>::remove(name);
 			Self::deposit_event(Event::ReservationCleared { name });
 			Ok(())
@@ -903,7 +973,7 @@ pub mod pallet {
 			label: LabelOf<T>,
 			protected: bool,
 		) -> DispatchResult {
-			T::AdminOrigin::ensure_origin(origin)?;
+			Self::ensure_registrar_or_admin(origin)?;
 			Self::ensure_valid_label(&label)?;
 			if protected {
 				ProtectedLabels::<T>::insert(&label, ());
@@ -966,9 +1036,56 @@ pub mod pallet {
 			Self::deposit_event(Event::EmergencyNameRevoked { name });
 			Ok(())
 		}
+
+		/// Governed delegation for the reservation/protection surface only.
+		#[pallet::call_index(22)]
+		#[pallet::weight(T::WeightInfo::reservation())]
+		pub fn set_registrar(
+			origin: OriginFor<T>,
+			registrar: T::AccountId,
+			enabled: bool,
+		) -> DispatchResult {
+			T::AdminOrigin::ensure_origin(origin)?;
+			Registrars::<T>::try_mutate(|registrars| -> DispatchResult {
+				match (registrars.iter().position(|candidate| candidate == &registrar), enabled) {
+					(None, true) => registrars
+						.try_push(registrar.clone())
+						.map_err(|_| Error::<T>::TooManyRegistrars)?,
+					(Some(index), false) => {
+						registrars.swap_remove(index);
+					},
+					(Some(_), true) => return Ok(()),
+					(None, false) => return Err(Error::<T>::RegistrarNotFound.into()),
+				}
+				Ok(())
+			})?;
+			Self::deposit_event(Event::RegistrarSet { registrar, enabled });
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
+		fn ensure_registrar_or_admin(origin: OriginFor<T>) -> DispatchResult {
+			match T::AdminOrigin::try_origin(origin) {
+				Ok(_) => Ok(()),
+				Err(origin) => {
+					let who = ensure_signed(origin)?;
+					ensure!(Registrars::<T>::get().contains(&who), Error::<T>::NotRegistrar);
+					Ok(())
+				},
+			}
+		}
+
+		fn ensure_bootstrap_reservation_allows(
+			label: &LabelOf<T>,
+			owner: &T::AccountId,
+		) -> DispatchResult {
+			if let Some(reservation) = BootstrapReservations::<T>::get(label) {
+				ensure!(reservation.beneficiary.as_ref() == Some(owner), Error::<T>::ReservedName);
+			}
+			Ok(())
+		}
+
 		pub fn label_policy_version() -> u16 {
 			LABEL_POLICY_VERSION
 		}

@@ -556,13 +556,46 @@ fn is_privileged_attestation(command: &AttestationCommand) -> bool {
 fn is_privileged_dotns(command: &DotnsCommand) -> bool {
 	matches!(
 		command,
-		DotnsCommand::ReserveName { .. }
-			| DotnsCommand::ClearReservation { .. }
-			| DotnsCommand::SetLabelProtection { .. }
-			| DotnsCommand::SetPaused { .. }
+		DotnsCommand::SetPaused { .. }
 			| DotnsCommand::ForceTransfer { .. }
 			| DotnsCommand::ForceRevoke { .. }
+			| DotnsCommand::SetRegistrar { .. }
 	)
+}
+
+#[cfg(test)]
+mod dotns_origin_tests {
+	use super::*;
+	use crate::product_sdk::domains::dotns::Label;
+
+	fn name() -> crate::product_sdk::domains::common::NameId {
+		crate::product_sdk::domains::common::NameId::new(format!("0x{}", "11".repeat(32)))
+			.expect("valid name ID")
+	}
+
+	#[test]
+	fn dotns_commands_follow_the_runtime_origin_contract() {
+		let registrar = AccountId::new("registrar").expect("valid account DTO");
+		assert!(is_privileged_dotns(&DotnsCommand::SetRegistrar {
+			registrar: registrar.clone(),
+			enabled: true,
+		}));
+
+		// These calls accept either IdentityAdminOrigin or a signed scoped registrar in the
+		// runtime. The routine product command must preserve the signed registrar route;
+		// administrative emergency dispatch remains available through governance tooling.
+		assert!(!is_privileged_dotns(&DotnsCommand::ReserveName {
+			parent: None,
+			label: Label::new("system").expect("valid label"),
+			beneficiary: Some(registrar),
+			expires_at: None,
+		}));
+		assert!(!is_privileged_dotns(&DotnsCommand::ClearReservation { name: name() }));
+		assert!(!is_privileged_dotns(&DotnsCommand::SetLabelProtection {
+			label: Label::new("system").expect("valid label"),
+			protected: true,
+		}));
+	}
 }
 
 fn is_privileged_storage_provider(command: &StorageProviderCommand) -> bool {
@@ -708,7 +741,7 @@ pub fn prepare_dotns_command(command: &DotnsCommand) -> DomainResult<DynamicPayl
 			"set_subject",
 			vec![
 				hash_value(name.as_hash())?,
-				option_hash(subject.as_ref().map(|id| id.as_hash()))?,
+				option_value(subject.as_ref().map(|id| Value::from_bytes(id.as_str().as_bytes()))),
 			],
 		),
 		DotnsCommand::SetAttestation { name, attestation } => (
@@ -761,6 +794,9 @@ pub fn prepare_dotns_command(command: &DotnsCommand) -> DomainResult<DynamicPayl
 			("force_transfer", vec![hash_value(name.as_hash())?, account_value(new_owner)?])
 		},
 		DotnsCommand::ForceRevoke { name } => ("force_revoke", vec![hash_value(name.as_hash())?]),
+		DotnsCommand::SetRegistrar { registrar, enabled } => {
+			("set_registrar", vec![account_value(registrar)?, Value::bool(*enabled)])
+		},
 	};
 	Ok(subxt::dynamic::tx("Dotns", call, args))
 }

@@ -19,8 +19,8 @@
 //! Genesis config presets for the Orbis enterprise runtime
 
 use crate::{
-	AccountId, Balance, BalancesConfig, CollatorSelectionConfig, ExistentialDeposit, ParaId,
-	ParachainInfoConfig, Revive, SessionConfig, SessionKeys, TokenConfig,
+	AccountId, Balance, BalancesConfig, CollatorSelectionConfig, DotnsConfig, ExistentialDeposit,
+	ParaId, ParachainInfoConfig, Revive, SessionConfig, SessionKeys, TokenConfig,
 };
 use alloc::{vec, vec::Vec};
 use origin_hub_system_runtime_constants::genesis_presets::*;
@@ -50,6 +50,11 @@ fn orbis_genesis(
 	let mut balances: Vec<(AccountId, Balance)> =
 		endowed_accounts.iter().cloned().map(|account| (account, endowment)).collect();
 	let revive_account = Revive::account_id();
+	let dotns_registrar = root_key.clone();
+	let dotns_root_reservations = [b"origin".as_slice(), b"orbis", b"system"]
+		.into_iter()
+		.map(|label| (label.to_vec().try_into().expect("bootstrap DotNS label is bounded"), None))
+		.collect();
 	if !balances.iter().any(|(account, _)| account == &revive_account) {
 		// Code-upload deposits are held on this account. It must exist before the first upload
 		// because `transfer_and_hold` cannot create a destination whose entire balance is held.
@@ -68,6 +73,10 @@ fn orbis_genesis(
 		"token": TokenConfig {
 			network_id: token_network_id as u16,
 			..Default::default()
+		},
+		"dotns": DotnsConfig {
+			registrars: vec![dotns_registrar],
+			root_reservations: dotns_root_reservations,
 		},
 		"collatorSelection": CollatorSelectionConfig {
 			invulnerables: invulnerables

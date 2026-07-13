@@ -1,6 +1,6 @@
 # ADR 0012: Native DotNS
 
-- Status: proposed
+- Status: accepted and implemented (P3)
 - Date: 2026-07-13
 - Extends: ADRs 0001-0008
 
@@ -15,6 +15,10 @@ Implement bounded native ownership, registry, registrar/controllers, forward/rev
 R1 uses ASCII-only labels: lowercase ASCII letters, digits and internal hyphen; reject leading/trailing hyphen, controls, zero-width, reserved forms, empty labels and non-ASCII. Publish `label_policy_version=1`. Unicode requires a future ADR pinning exact UTS-46/non-transitional, Unicode data, NFC, `no_std` footprint, weights and confusable vectors. A policy upgrade cannot reinterpret an owned name.
 
 Scope roles as FRAME origins. Utility may supply batching. Tokenized/ERC-721 ownership, pricing/escrow/refunds, PoP roles, Create3/protocol registries and multicall are separately dispositioned; none is automatic parity.
+
+DotNS is the sole DNS/name-registry authority. People display aliases remain the separate P2
+identity-alias feature: they label identity presentation and do not register, reserve, resolve, or
+confer ownership of a DotNS name.
 
 ## Drivers
 
@@ -40,10 +44,23 @@ Origin and Orbis start from a new genesis. No legacy state import, Solidity ABI/
 
 Rust/runtime/TS label corpus equality; hostile capture/front-run/escalation/race/spoof/bounds/XCM tests; finalized-hash resolver APIs; generated weights.
 
+P3 ratification evidence:
+
+- `origin/orbis/pallets/dotns`, the Orbis `DotnsApi`, and both product SDK bindings implement the
+  bounded native surface and shared `docs/sdk/vectors/dotns-v1.json` contract.
+- Runtime integration proves canonical Entity subject authority and live-only attestation
+  resolution, including revocation and expiry failure-closed behavior.
+- `scripts/validate-dotns-contract-map.py` makes the per-symbol JSON map normative and rejects
+  conflicting or generic CSV targets.
+- `scripts/verify-dotns-native-cutover.py` rejects legacy contract survivors and any secondary
+  DNS/name-registry ownership or reservation authority. It does not prohibit People display
+  aliases, which are non-DNS identity metadata.
+
 ## Reversal
 
 Before activation remove DotNS pallets. After activation use forward fixes and explicit label-policy transitions; never fall back to contract reads.
 
 ## Follow-ups
 
-Complete source semantic dispositions, index assignment, APIs, pricing decision and P3 implementation.
+Production benchmark regeneration and broad readiness QA remain release-stage work; they do not
+reopen the native authority or clean-break decisions ratified here.

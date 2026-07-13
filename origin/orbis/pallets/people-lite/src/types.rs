@@ -64,29 +64,13 @@ pub struct LiteConsumerRegistrationParams<AccountId, Signature> {
 	pub account: AccountId,
 	/// The identifier key of the user.
 	pub identifier_key: CommunicationIdentifier,
-	/// The user's chosen username.
-	pub username: Username,
-	/// The user's chosen reserved username, if applicable.
-	pub reserved_username: Option<Username>,
 }
 
 impl<AccountId: Encode, Signature: Encode> LiteConsumerRegistrationParams<AccountId, Signature> {
 	/// Creates a payload to be signed by the user for a consumer registration request.
 	///
-	/// The signing payload will not contain the `.` separator and the following digits of the
-	/// username, as they can be chosen by the attester after the user settles on the primary alpha
-	/// part of the username.
 	pub fn signing_payload(&self, verifier: &AccountId) -> alloc::vec::Vec<u8> {
-		let separator_idx =
-			self.username.iter().position(|b| *b == b'.').unwrap_or(self.username.len());
-		(
-			&self.account,
-			verifier,
-			&self.identifier_key,
-			&self.username[..separator_idx],
-			&self.reserved_username,
-		)
-			.encode()
+		(&self.account, verifier, &self.identifier_key).encode()
 	}
 }
 

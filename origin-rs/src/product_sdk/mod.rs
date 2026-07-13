@@ -7,6 +7,7 @@
 pub mod attestation_events;
 pub mod contract;
 pub mod domains;
+pub mod dotns_events;
 pub mod eqc;
 pub mod host;
 pub mod orbis_reads;
@@ -18,6 +19,7 @@ pub use contract::{
 	Consent, DescriptorContract, Finality, HostMethod, HostRequest, NativeError, NativeErrorCode,
 	NativeLifecycle, NativeLifecycleState, NetworkIdentity,
 };
+pub use dotns_events::OrbisDotnsEventSubscription;
 pub use eqc::{validate_eqc_result, validate_slo_manifest, EqcClass, EqcResult, SloManifest};
 pub use host::{FakeHost, HostSigner, HostTransport, SignedRequest, TerminalObserver};
 pub use orbis_reads::OrbisFinalizedReadBinding;

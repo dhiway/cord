@@ -61,9 +61,11 @@ export const NATIVE_HOST_METHODS = [
   write("attestation", "revoke_external_status", ["status_commitment"]),
   write("attestation", "revoke_external_status_batch", ["status_commitments"]),
 
+  read("dotns", "label_policy_version", []),
   read("dotns", "name_by_id", ["name"]),
   read("dotns", "root_name_by_normalized_label", ["label"]),
   read("dotns", "owner_names", ["owner", "cursor", "limit"]),
+  read("dotns", "controllers", ["name"]),
   read("dotns", "resolve_address", ["name"]),
   read("dotns", "resolve_subject", ["name"]),
   read("dotns", "resolve_attestation", ["name"]),
@@ -93,6 +95,7 @@ export const NATIVE_HOST_METHODS = [
   write("dotns", "set_paused", ["paused"]),
   write("dotns", "force_transfer", ["name", "new_owner"]),
   write("dotns", "force_revoke", ["name"]),
+  write("dotns", "set_registrar", ["registrar", "enabled"]),
 
   read("storage", "account_authorization", ["account"]),
   read("storage", "can_store", ["account", "data_len"]),

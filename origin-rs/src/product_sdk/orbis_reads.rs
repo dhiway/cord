@@ -59,6 +59,7 @@ use crate::{
 type RuntimeAccountId = subxt::utils::AccountId32;
 type RuntimeHash = subxt::utils::H256;
 type RuntimeBlockNumber = u32;
+type RuntimeSubjectId = origin_primitives::identifier::Ss58Identifier;
 
 /// Concrete metadata-aware read binding for Orbis.
 #[derive(Clone)]
@@ -378,6 +379,15 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 		read.validate()?;
 		let hash = &read.finalized_block_hash;
 		match &read.query {
+			DotnsQuery::LabelPolicyVersion => {
+				let response: u16 =
+					self.call_at(hash, "DotnsApi", "label_policy_version", Vec::new()).await?;
+				Ok(DotnsResponse::LabelPolicyVersion(finalized_value(
+					hash,
+					dotns_api::RESPONSE_VERSION,
+					Some(response),
+				)?))
+			},
 			DotnsQuery::NameById { name } => {
 				type Wire = dotns_api::Versioned<
 					dotns_api::ClientNameView<RuntimeAccountId, RuntimeBlockNumber, RuntimeHash>,
@@ -417,6 +427,19 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 					response.next_cursor,
 				)?))
 			},
+			DotnsQuery::Controllers { name } => {
+				let response: dotns_api::Versioned<Vec<RuntimeAccountId>> = self
+					.call_at(hash, "DotnsApi", "controllers", vec![hash_arg(name.as_hash())?])
+					.await?;
+				Ok(DotnsResponse::Controllers(finalized_value(
+					hash,
+					response.version,
+					response
+						.value
+						.map(|items| items.iter().map(account_id).collect())
+						.transpose()?,
+				)?))
+			},
 			DotnsQuery::ResolveAddress { name } => {
 				let response: dotns_api::Versioned<Vec<u8>> = self
 					.call_at(hash, "DotnsApi", "resolve_address", vec![hash_arg(name.as_hash())?])
@@ -428,13 +451,13 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 				)?))
 			},
 			DotnsQuery::ResolveSubject { name } => {
-				let response: dotns_api::Versioned<RuntimeHash> = self
+				let response: dotns_api::Versioned<RuntimeSubjectId> = self
 					.call_at(hash, "DotnsApi", "resolve_subject", vec![hash_arg(name.as_hash())?])
 					.await?;
 				Ok(DotnsResponse::Subject(finalized_value(
 					hash,
 					response.version,
-					response.value.map(subject_id),
+					response.value.map(subject_id).transpose()?,
 				)?))
 			},
 			DotnsQuery::ResolveAttestation { name } => {
@@ -1469,8 +1492,8 @@ fn name_id(hash: RuntimeHash) -> NameId {
 	NameId(domain_hash(hash))
 }
 
-fn subject_id(hash: RuntimeHash) -> SubjectId {
-	SubjectId(domain_hash(hash))
+fn subject_id(identifier: RuntimeSubjectId) -> DomainResult<SubjectId> {
+	SubjectId::new(identifier.to_string_lossy())
 }
 
 fn content_id(hash: [u8; 32]) -> ContentCommitment {

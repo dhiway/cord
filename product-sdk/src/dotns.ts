@@ -3,6 +3,7 @@ import {
   page,
   type AccountId,
   type AttestationId,
+  type BlockHash,
   type BlockNumber,
   type ContentCommitment,
   type NameId,
@@ -11,9 +12,10 @@ import {
   type RegistrationSalt,
   type SubjectId,
   type Versioned,
-  nativeText,
+  nativeHash,
 } from "./types.ts";
 import { invalidDomainInput } from "./errors.ts";
+import { digestContent } from "./content.ts";
 
 declare const dotnsType: unique symbol;
 export type NormalizedLabel = string & { readonly [dotnsType]: "NormalizedLabel" };
@@ -22,6 +24,69 @@ export type TextKey = string & { readonly [dotnsType]: "TextKey" };
 export type TextValue = string & { readonly [dotnsType]: "TextValue" };
 
 const utf8 = new TextEncoder();
+const NAME_ID_DOMAIN = "cord:orbis:dotns:name:v1";
+const COMMITMENT_DOMAIN = "cord:orbis:dotns:commitment:v1";
+const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+export const ATTESTATION_RESOLUTION_POLICY =
+  "live-only: missing, revoked, expired, or inactive-schema attestations resolve to null" as const;
+
+function concatBytes(...parts: readonly Uint8Array[]): Uint8Array {
+  const output = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
+  let offset = 0;
+  for (const part of parts) { output.set(part, offset); offset += part.length; }
+  return output;
+}
+function compactLength(value: number): Uint8Array {
+  if (value < 64) return Uint8Array.of(value << 2);
+  if (value < 16_384) { const encoded = (value << 2) | 1; return Uint8Array.of(encoded, encoded >>> 8); }
+  invalidDomainInput("dotns", "canonical_encoding", "bounded byte length exceeds SCALE compact range");
+}
+function scaleBytes(value: Uint8Array): Uint8Array { return concatBytes(compactLength(value.length), value); }
+function hashBytes(value: string, field: string): Uint8Array {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(value)) invalidDomainInput("dotns", "canonical_encoding", `${field} must be a 32-byte hash`);
+  return Uint8Array.from(value.slice(2).match(/../g)!.map((pair) => Number.parseInt(pair, 16)));
+}
+function ss58AccountBytes(value: string): Uint8Array {
+  let integer = 0n;
+  for (const character of value) {
+    const digit = BASE58_ALPHABET.indexOf(character);
+    if (digit < 0) invalidDomainInput("dotns", "registration_commitment", "owner must be an SS58 account");
+    integer = integer * 58n + BigInt(digit);
+  }
+  const decoded: number[] = [];
+  while (integer > 0n) { decoded.push(Number(integer & 0xffn)); integer >>= 8n; }
+  decoded.reverse();
+  for (const character of value) { if (character !== "1") break; decoded.unshift(0); }
+  const bytes = Uint8Array.from(decoded);
+  if (bytes.length < 35 || bytes[0]! >= 128) invalidDomainInput("dotns", "registration_commitment", "owner must encode AccountId32");
+  const prefixLength = (bytes[0]! & 0x40) === 0 ? 1 : 2;
+  if (bytes.length !== prefixLength + 34) invalidDomainInput("dotns", "registration_commitment", "owner must encode AccountId32");
+  return bytes.slice(prefixLength, prefixLength + 32);
+}
+function hashHex(value: Uint8Array): string { return `0x${Array.from(digestContent("blake2b-256", value), (byte) => byte.toString(16).padStart(2, "0")).join("")}`; }
+
+/** Exact native pallet name identifier derivation. */
+export function deriveNameId(genesisHash: BlockHash, parent: NameId | null, label: NormalizedLabel): NameId {
+  const encoded = concatBytes(
+    scaleBytes(utf8.encode(NAME_ID_DOMAIN)), hashBytes(genesisHash, "genesis_hash"),
+    parent === null ? Uint8Array.of(0) : concatBytes(Uint8Array.of(1), hashBytes(parent, "parent")),
+    scaleBytes(utf8.encode(normalizedLabel(label))),
+  );
+  return nativeHash<"NameId">(hashHex(encoded), "name_id") as NameId;
+}
+
+/** Exact native commit/reveal commitment derivation. */
+export function deriveRegistrationCommitment(
+  genesisHash: BlockHash, owner: AccountId, parent: NameId | null,
+  label: NormalizedLabel, salt: RegistrationSalt,
+): RegistrationCommitment {
+  const name = deriveNameId(genesisHash, parent, label);
+  const encoded = concatBytes(
+    scaleBytes(utf8.encode(COMMITMENT_DOMAIN)), hashBytes(genesisHash, "genesis_hash"),
+    ss58AccountBytes(owner), hashBytes(name, "name"), scaleBytes(utf8.encode(registrationSalt(salt))),
+  );
+  return nativeHash<"RegistrationCommitment">(hashHex(encoded), "registration_commitment") as RegistrationCommitment;
+}
 
 export function normalizedLabel(value: string): NormalizedLabel {
   if (value.length > 63 || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(value)) {
@@ -31,7 +96,11 @@ export function normalizedLabel(value: string): NormalizedLabel {
 }
 
 export function registrationSalt(value: string): RegistrationSalt {
-  return nativeText<"RegistrationSalt">(value, "registration salt", 64);
+	const bytes = utf8.encode(value).length;
+	if (bytes < 1 || bytes > 64) {
+		invalidDomainInput("dotns", "registration_salt", "registration salt must contain 1-64 UTF-8 bytes");
+	}
+	return value as RegistrationSalt;
 }
 
 export function dotnsAddress(value: string): DotnsAddress {
@@ -49,8 +118,9 @@ export function textKey(value: string): TextKey {
 }
 
 export function textValue(value: string): TextValue {
-  if (utf8.encode(value).length > 256) {
-    invalidDomainInput("dotns", "text_value", "text value must contain at most 256 UTF-8 bytes");
+	const bytes = utf8.encode(value).length;
+	if (bytes < 1 || bytes > 256) {
+		invalidDomainInput("dotns", "text_value", "text value must contain 1-256 UTF-8 bytes");
   }
   return value as TextValue;
 }
@@ -77,7 +147,86 @@ export interface OwnerNamesPage {
   readonly next_cursor: number | null;
 }
 
+export const DOTNS_EVENT_KINDS = [
+  "commitment_stored", "commitment_removed", "name_registered", "name_renewed",
+  "name_transferred", "name_released", "expired_name_removed", "controller_added",
+  "controller_removed", "address_set", "subject_set", "attestation_set", "content_set",
+  "text_set", "primary_name_set", "name_reserved", "reservation_cleared",
+  "label_protection_set", "pause_set", "emergency_name_revoked",
+  "registrar_set",
+] as const;
+export type DotnsEventKind = (typeof DOTNS_EVENT_KINDS)[number];
+
+export type DotnsEvent =
+  | { readonly event: "commitment_stored"; readonly data: { readonly owner: AccountId; readonly commitment: RegistrationCommitment; readonly at: BlockNumber } }
+  | { readonly event: "commitment_removed"; readonly data: { readonly owner: AccountId; readonly commitment: RegistrationCommitment } }
+  | { readonly event: "name_registered"; readonly data: { readonly name: NameId; readonly parent: NameId | null; readonly label: NormalizedLabel; readonly owner: AccountId; readonly expires_at: BlockNumber } }
+  | { readonly event: "name_renewed"; readonly data: { readonly name: NameId; readonly expires_at: BlockNumber } }
+  | { readonly event: "name_transferred"; readonly data: { readonly name: NameId; readonly from: AccountId; readonly to: AccountId } }
+  | { readonly event: "name_released"; readonly data: { readonly name: NameId; readonly owner: AccountId } }
+  | { readonly event: "expired_name_removed"; readonly data: { readonly name: NameId } }
+  | { readonly event: "controller_added"; readonly data: { readonly name: NameId; readonly controller: AccountId } }
+  | { readonly event: "controller_removed"; readonly data: { readonly name: NameId; readonly controller: AccountId } }
+  | { readonly event: "address_set"; readonly data: { readonly name: NameId; readonly present: boolean } }
+  | { readonly event: "subject_set"; readonly data: { readonly name: NameId; readonly present: boolean } }
+  | { readonly event: "attestation_set"; readonly data: { readonly name: NameId; readonly present: boolean } }
+  | { readonly event: "content_set"; readonly data: { readonly name: NameId; readonly present: boolean } }
+  | { readonly event: "text_set"; readonly data: { readonly name: NameId; readonly key: TextKey; readonly present: boolean } }
+  | { readonly event: "primary_name_set"; readonly data: { readonly owner: AccountId; readonly name: NameId | null } }
+  | { readonly event: "name_reserved"; readonly data: { readonly name: NameId; readonly beneficiary: AccountId | null; readonly expires_at: BlockNumber | null } }
+  | { readonly event: "reservation_cleared"; readonly data: { readonly name: NameId } }
+  | { readonly event: "label_protection_set"; readonly data: { readonly label: NormalizedLabel; readonly protected: boolean } }
+  | { readonly event: "pause_set"; readonly data: { readonly paused: boolean } }
+  | { readonly event: "emergency_name_revoked"; readonly data: { readonly name: NameId } }
+  | { readonly event: "registrar_set"; readonly data: { readonly registrar: AccountId; readonly enabled: boolean } };
+
+export type DotnsOutcome = { readonly outcome: DotnsEventKind; readonly data: Readonly<Record<string, unknown>> };
+
+export interface FinalizedDotnsEvent {
+  readonly finalized_block_hash: BlockHash;
+  readonly event_index: number;
+  readonly event: DotnsEvent;
+}
+
+export interface DotnsEventSubscription {
+  readonly finality: "finalized";
+  readonly from_finalized_block: BlockHash;
+  readonly kinds: readonly DotnsEventKind[];
+}
+
+export function dotnsEventOutcome(event: DotnsEvent): DotnsOutcome {
+  switch (event.event) {
+    case "commitment_stored": case "commitment_removed": return { outcome: event.event, data: { commitment: event.data.commitment } };
+    case "name_transferred": return { outcome: event.event, data: { name: event.data.name, owner: event.data.to } };
+    case "name_renewed": return { outcome: event.event, data: { name: event.data.name, expires_at: event.data.expires_at } };
+    case "controller_added": case "controller_removed": return { outcome: event.event, data: { name: event.data.name, controller: event.data.controller } };
+    case "address_set": case "subject_set": case "attestation_set": case "content_set": return { outcome: event.event, data: { name: event.data.name, present: event.data.present } };
+    case "text_set": return { outcome: event.event, data: { name: event.data.name, key: event.data.key, present: event.data.present } };
+    case "primary_name_set": return { outcome: event.event, data: { owner: event.data.owner, name: event.data.name } };
+    case "label_protection_set": return { outcome: event.event, data: { label: event.data.label, protected: event.data.protected } };
+    case "pause_set": return { outcome: event.event, data: { paused: event.data.paused } };
+    case "registrar_set": return { outcome: event.event, data: { registrar: event.data.registrar, enabled: event.data.enabled } };
+    default: return { outcome: event.event, data: { name: event.data.name } };
+  }
+}
+
+export function dotnsEventSubscription(
+  from_finalized_block: BlockHash,
+  kinds: readonly DotnsEventKind[],
+): DotnsEventSubscription {
+  nativeHash(from_finalized_block, "from_finalized_block");
+  if (kinds.length < 1 || kinds.length > 21 || new Set(kinds).size !== kinds.length ||
+      kinds.some((kind) => !DOTNS_EVENT_KINDS.includes(kind))) {
+    invalidDomainInput("dotns", "subscribe_events", "subscription requires 1-21 unique DotNS event kinds");
+  }
+  return { finality: "finalized", from_finalized_block, kinds };
+}
+
 export const dotns = {
+	labelPolicyVersion(context: RequestContext) {
+		return finalizedRead("dotns", context, "dotns", "label_policy_version", {});
+	},
+
   nameById(context: RequestContext, name: NameId) {
     return finalizedRead("dotns", context, "dotns", "name_by_id", { name });
   },
@@ -88,6 +237,10 @@ export const dotns = {
 
   ownerNames(context: RequestContext, owner: AccountId, input?: PageInput) {
     return finalizedRead("dotns", context, "dotns", "owner_names", { owner, ...page(input) });
+  },
+
+  controllers(context: RequestContext, name: NameId) {
+    return finalizedRead("dotns", context, "dotns", "controllers", { name });
   },
 
   resolveAddress(context: RequestContext, name: NameId) {
@@ -230,6 +383,10 @@ export const dotns = {
 
   forceRevoke(context: RequestContext, name: NameId) {
     return submitAndFinalize("dotns", context, "dotns", "force_revoke", { name });
+  },
+
+  setRegistrar(context: RequestContext, registrar: AccountId, enabled: boolean) {
+    return submitAndFinalize("dotns", context, "dotns", "set_registrar", { registrar, enabled });
   },
 } as const;
 
