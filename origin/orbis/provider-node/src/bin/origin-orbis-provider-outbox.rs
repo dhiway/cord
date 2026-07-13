@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let receipts = cli
 		.receipts
 		.clone()
-		.unwrap_or_else(|| cli.outbox.with_extension("receipts-v1.jsonl"));
+		.unwrap_or_else(|| cli.outbox.with_extension("receipts-v3.jsonl"));
 	let suri = std::env::var(&cli.signer_suri_env).map_err(|_| {
 		format!("{} must contain the provider account secret URI", cli.signer_suri_env)
 	})?;
@@ -94,11 +94,7 @@ async fn consume(
 	transport: &OrbisDomainTransport,
 ) -> Result<(), Box<dyn std::error::Error>> {
 	let mut completed = completed_keys(receipts).await?;
-	let contents = match tokio::fs::read_to_string(outbox).await {
-		Ok(contents) => contents,
-		Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-		Err(error) => return Err(error.into()),
-	};
+	let Some(contents) = read_complete_jsonl_snapshot(outbox).await? else { return Ok(()) };
 	for (line_number, line) in contents.lines().enumerate() {
 		if line.trim().is_empty() {
 			continue;
@@ -124,6 +120,22 @@ async fn consume(
 		completed.insert(receipt.key);
 	}
 	Ok(())
+}
+
+async fn read_complete_jsonl_snapshot(
+	path: &Path,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+	let bytes = match tokio::fs::read(path).await {
+		Ok(bytes) => bytes,
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+		Err(error) => return Err(error.into()),
+	};
+	let complete_len = if bytes.ends_with(b"\n") {
+		bytes.len()
+	} else {
+		bytes.iter().rposition(|byte| *byte == b'\n').map_or(0, |index| index + 1)
+	};
+	Ok(Some(String::from_utf8(bytes[..complete_len].to_vec())?))
 }
 
 fn command(
@@ -153,10 +165,34 @@ fn command(
 					.map_err(native_error)?,
 					tombstone_root: ProofCommitment::new(canonical_hash(request.tombstone_root)?)
 						.map_err(native_error)?,
-					proof_commitment: ProofCommitment::new(canonical_hash(
-						request.proof_commitment,
-					)?)
-					.map_err(native_error)?,
+					root_sequence: request.root_sequence,
+					leaf_index: request.leaf_index,
+					leaf_count: request.leaf_count,
+					inclusion_proof: request
+						.inclusion_proof
+						.into_iter()
+						.map(|hash| -> Result<_, Box<dyn std::error::Error>> {
+							let hash = canonical_hash(hash)?;
+							Ok(ProofCommitment::new(hash).map_err(native_error)?)
+						})
+						.collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?,
+				},
+			))
+		},
+		ProviderSubmission::ProviderRoot(request) => {
+			let key = format!("provider-root-{}", request.sequence);
+			let appended_leaves = request
+				.appended_leaves
+				.into_iter()
+				.map(|hash| -> Result<_, Box<dyn std::error::Error>> {
+					Ok(ProofCommitment::new(canonical_hash(hash)?).map_err(native_error)?)
+				})
+				.collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
+			Ok((
+				key,
+				StorageProviderCommand::CommitProviderRoot {
+					sequence: request.sequence,
+					appended_leaves,
 				},
 			))
 		},
@@ -172,6 +208,7 @@ fn canonical_hash(value: String) -> Result<String, Box<dyn std::error::Error>> {
 }
 
 async fn completed_keys(path: &Path) -> Result<BTreeSet<String>, Box<dyn std::error::Error>> {
+	repair_incomplete_jsonl_tail(path).await?;
 	let contents = match tokio::fs::read_to_string(path).await {
 		Ok(contents) => contents,
 		Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeSet::new()),
@@ -192,17 +229,133 @@ async fn append_receipt(
 	path: &Path,
 	receipt: &FinalizedReceipt,
 ) -> Result<(), Box<dyn std::error::Error>> {
+	append_receipt_with_parent_sync(path, receipt, |parent| async move {
+		tokio::fs::File::open(parent).await?.sync_all().await?;
+		Ok::<(), Box<dyn std::error::Error>>(())
+	})
+	.await
+}
+
+async fn append_receipt_with_parent_sync<F, Fut>(
+	path: &Path,
+	receipt: &FinalizedReceipt,
+	sync_parent: F,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+	F: FnOnce(PathBuf) -> Fut,
+	Fut: std::future::Future<Output = Result<(), Box<dyn std::error::Error>>>,
+{
 	if let Some(parent) = path.parent() {
 		tokio::fs::create_dir_all(parent).await?;
 	}
+	repair_incomplete_jsonl_tail(path).await?;
 	let mut encoded = serde_json::to_vec(receipt)?;
 	encoded.push(b'\n');
 	let mut file = tokio::fs::OpenOptions::new().create(true).append(true).open(path).await?;
 	file.write_all(&encoded).await?;
 	file.sync_data().await?;
+	let parent = path
+		.parent()
+		.filter(|parent| !parent.as_os_str().is_empty())
+		.unwrap_or_else(|| Path::new("."));
+	sync_parent(parent.to_path_buf()).await
+}
+
+async fn repair_incomplete_jsonl_tail(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+	let bytes = match tokio::fs::read(path).await {
+		Ok(bytes) => bytes,
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+		Err(error) => return Err(error.into()),
+	};
+	if bytes.is_empty() || bytes.ends_with(b"\n") {
+		return Ok(());
+	}
+	let keep = bytes.iter().rposition(|byte| *byte == b'\n').map_or(0, |index| index + 1);
+	let file = tokio::fs::OpenOptions::new().write(true).open(path).await?;
+	file.set_len(keep as u64).await?;
+	file.sync_all().await?;
 	Ok(())
 }
 
 fn native_error(error: impl std::fmt::Display) -> OriginSdkError {
 	OriginSdkError::InvalidInput(error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	fn receipt(key: &str) -> FinalizedReceipt {
+		FinalizedReceipt {
+			key: key.into(),
+			block_hash: format!("0x{}", "01".repeat(32)),
+			extrinsic_hash: format!("0x{}", "02".repeat(32)),
+		}
+	}
+
+	#[tokio::test]
+	async fn torn_receipt_after_finality_is_repaired_then_retry_and_later_work_continue() {
+		let temp = tempfile::tempdir().unwrap();
+		let path = temp.path().join("receipts-v3.jsonl");
+		append_receipt(&path, &receipt("provider-root-1")).await.unwrap();
+		let mut file = tokio::fs::OpenOptions::new().append(true).open(&path).await.unwrap();
+		file.write_all(b"{\"key\":\"provider-root-2\"").await.unwrap();
+		file.sync_all().await.unwrap();
+		drop(file);
+
+		let completed = completed_keys(&path).await.unwrap();
+		assert_eq!(completed, BTreeSet::from(["provider-root-1".to_string()]));
+		append_receipt(&path, &receipt("provider-root-2")).await.unwrap();
+		append_receipt(&path, &receipt("provider-root-3")).await.unwrap();
+		assert_eq!(
+			completed_keys(&path).await.unwrap(),
+			BTreeSet::from([
+				"provider-root-1".to_string(),
+				"provider-root-2".to_string(),
+				"provider-root-3".to_string(),
+			]),
+		);
+	}
+
+	#[tokio::test]
+	async fn malformed_complete_receipt_fails_closed() {
+		let temp = tempfile::tempdir().unwrap();
+		let path = temp.path().join("receipts-v3.jsonl");
+		tokio::fs::write(&path, b"not-json\n").await.unwrap();
+		assert!(completed_keys(&path).await.is_err());
+	}
+
+	#[tokio::test]
+	async fn receipt_never_reports_completion_before_parent_directory_sync() {
+		let temp = tempfile::tempdir().unwrap();
+		let path = temp.path().join("receipts-v3.jsonl");
+		let result =
+			append_receipt_with_parent_sync(&path, &receipt("provider-root-1"), |_| async {
+				Err::<(), Box<dyn std::error::Error>>(
+					"injected receipt parent directory sync failure".into(),
+				)
+			})
+			.await;
+		assert_eq!(
+			result.unwrap_err().to_string(),
+			"injected receipt parent directory sync failure"
+		);
+		assert!(tokio::fs::read(&path).await.unwrap().ends_with(b"\n"));
+	}
+
+	#[tokio::test]
+	async fn live_outbox_snapshot_ignores_partial_tail_without_truncating_producer() {
+		let temp = tempfile::tempdir().unwrap();
+		let path = temp.path().join("provider-submissions-v3.jsonl");
+		tokio::fs::write(&path, b"{\"first\":1}\n{\"second\":").await.unwrap();
+		assert_eq!(read_complete_jsonl_snapshot(&path).await.unwrap().unwrap(), "{\"first\":1}\n");
+		assert_eq!(tokio::fs::read(&path).await.unwrap(), b"{\"first\":1}\n{\"second\":");
+		let mut file = tokio::fs::OpenOptions::new().append(true).open(&path).await.unwrap();
+		file.write_all(b"2}\n").await.unwrap();
+		file.sync_all().await.unwrap();
+		assert_eq!(
+			read_complete_jsonl_snapshot(&path).await.unwrap().unwrap(),
+			"{\"first\":1}\n{\"second\":2}\n"
+		);
+	}
 }

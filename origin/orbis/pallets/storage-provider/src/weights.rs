@@ -25,6 +25,7 @@ pub trait WeightInfo {
 	fn expire_agreement() -> Weight;
 	fn prune_agreement() -> Weight;
 	fn acknowledge_deletion() -> Weight;
+	fn commit_provider_root(leaves: u32) -> Weight;
 }
 
 impl WeightInfo for () {
@@ -74,7 +75,11 @@ impl WeightInfo for () {
 		Weight::from_parts(40_000_000, 12_000)
 	}
 	fn acknowledge_deletion() -> Weight {
-		Weight::from_parts(30_000_000, 9_000)
+		Weight::from_parts(55_000_000, 12_000)
+	}
+	fn commit_provider_root(leaves: u32) -> Weight {
+		Weight::from_parts(25_000_000, 7_000)
+			.saturating_add(Weight::from_parts(3_000_000, 512).saturating_mul(leaves.into()))
 	}
 }
 
@@ -127,7 +132,11 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		w::<T>(40_000_000, 12_000, 7, 7)
 	}
 	fn acknowledge_deletion() -> Weight {
-		w::<T>(30_000_000, 9_000, 4, 3)
+		w::<T>(55_000_000, 12_000, 5, 3)
+	}
+	fn commit_provider_root(leaves: u32) -> Weight {
+		w::<T>(25_000_000, 7_000, 2, 1)
+			.saturating_add(Weight::from_parts(3_000_000, 512).saturating_mul(leaves.into()))
 	}
 }
 

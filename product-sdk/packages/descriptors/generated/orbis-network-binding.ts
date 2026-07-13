@@ -4,6 +4,6 @@ export const ORBIS_NETWORK_BINDING = {
   "spec_version": 29,
   "transaction_version": 8,
   "metadata_hash": "0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9",
-  "descriptor_contract_sha256": "5e73eae0a92f765a08b4b72d5020bbbb04f9b79985c5f4276cc777385c706ba6",
+  "descriptor_contract_sha256": "cad151efaf44b1839b3797c6159bf204395cb9a0c9c335d32fa1c390bf0c57b1",
   "chain_spec_source_sha256": "b67ec215a4ecea710357537ed304e7d228d3389eabd9eb80dc47dd5c329ae489"
 } as const;

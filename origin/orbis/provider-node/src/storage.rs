@@ -12,11 +12,13 @@ use std::{
 	time::{SystemTime, UNIX_EPOCH},
 };
 
+use codec::Encode;
 use serde::{Deserialize, Serialize};
+use sp_core::{crypto::AccountId32, H256};
 
 use crate::{merkle, AgreementAuthorization, PROTOCOL_VERSION};
 
-const INDEX_FILE: &str = "provider-index-v1.json";
+const INDEX_FILE: &str = "provider-index-v4.json";
 const BLOBS_DIR: &str = "blobs";
 const MAX_BUCKET_BYTES: usize = 255;
 const MAX_KEY_BYTES: usize = 1024;
@@ -108,6 +110,30 @@ pub struct PendingDeletion {
 	pub authorized_at: String,
 	/// Provider root immediately after appending the tombstone leaf.
 	pub tombstone_root: String,
+	/// Canonical tombstone leaf appended by the corresponding provider-root submission.
+	pub tombstone_leaf: String,
+	/// Monotonic provider root sequence (equal to the covered leaf count).
+	pub root_sequence: u64,
+	/// Index of the canonical deletion leaf.
+	pub leaf_index: u64,
+	/// Total leaves covered by `tombstone_root`.
+	pub leaf_count: u64,
+	/// Bounded leaf-to-root sibling hashes for duplicate-last Merkle verification.
+	pub inclusion_proof: Vec<String>,
+}
+
+/// Crash-recoverable append-only root update retained until it is durably queued.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PendingRootSubmission {
+	/// Exact next provider root sequence.
+	pub sequence: u64,
+	/// Exact leaf values appended by this update (one per local atomic transition).
+	pub appended_leaves: Vec<String>,
+	/// Locally derived root used to audit the finalized runtime result.
+	pub expected_root: String,
+	/// Locally derived leaf count used to audit the finalized runtime result.
+	pub expected_leaf_count: u64,
 }
 
 /// Bounded provider statistics.
@@ -125,6 +151,17 @@ pub struct ProviderStats {
 	pub available_bytes: u64,
 	/// Append-only proof root.
 	pub root: String,
+	/// Exact append-log leaf count covered by `root`.
+	pub proof_leaf_count: u64,
+}
+
+/// One authenticated root observation from the append log.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct RootObservation {
+	/// Canonical root hash.
+	pub root: String,
+	/// Exact append-log leaf count covered by the root.
+	pub leaf_count: u64,
 }
 
 /// Signed append-only provider root used by checkpoint and replica surfaces.
@@ -166,6 +203,11 @@ struct PersistedState {
 	capacity_bytes: u64,
 	records: BTreeMap<String, ContentRecord>,
 	leaf_hashes: Vec<String>,
+	root_frontier: Vec<Option<String>>,
+	root_history: Vec<String>,
+	root_index: BTreeMap<String, u64>,
+	root_sequence: u64,
+	pending_roots: BTreeMap<u64, PendingRootSubmission>,
 	pending_deletions: BTreeMap<String, PendingDeletion>,
 	#[serde(default)]
 	checkpoints: Vec<SignedCheckpoint>,
@@ -240,6 +282,11 @@ impl DiskStore {
 				capacity_bytes,
 				records: BTreeMap::new(),
 				leaf_hashes: Vec::new(),
+				root_frontier: Vec::new(),
+				root_history: Vec::new(),
+				root_index: BTreeMap::new(),
+				root_sequence: 0,
+				pending_roots: BTreeMap::new(),
 				pending_deletions: BTreeMap::new(),
 				checkpoints: Vec::new(),
 			}
@@ -331,7 +378,9 @@ impl DiskStore {
 		};
 		let leaf = record_leaf(&record, false)?;
 		write_atomic(&self.root.join(BLOBS_DIR).join(&commitment), &input.bytes)?;
-		next.leaf_hashes.push(hex::encode(leaf));
+		let encoded_leaf = hex::encode(leaf);
+		next.leaf_hashes.push(encoded_leaf.clone());
+		journal_root_append(&mut next, encoded_leaf)?;
 		next.records.insert(commitment, record.clone());
 		if let Err(error) = persist_state(&self.root, &next) {
 			let _ = fs::remove_file(self.root.join(BLOBS_DIR).join(&record.commitment));
@@ -404,14 +453,38 @@ impl DiskStore {
 		next_record.deleted = true;
 		next_record.tombstone_leaf_index = Some(next.leaf_hashes.len() as u64);
 		let result = next_record.clone();
-		let tombstone = record_leaf(&result, true)?;
-		next.leaf_hashes.push(hex::encode(tombstone));
-		let tombstone_root = hex::encode(merkle::root(&decode_leaves(&next)?));
+		let tombstone = deletion_leaf(&result, &next.profile.provider)?;
+		let encoded_tombstone = hex::encode(tombstone);
+		next.leaf_hashes.push(encoded_tombstone.clone());
+		let root_update = journal_root_append(&mut next, encoded_tombstone.clone())?;
+		let leaves = decode_leaves(&next)?;
+		let leaf_index = result
+			.tombstone_leaf_index
+			.expect("tombstone index was assigned before hashing");
+		let leaf_count = leaves.len() as u64;
+		let tombstone_root = hex::encode(merkle::root(&leaves));
+		let inclusion_proof = merkle::proof(&leaves, leaf_index as usize)
+			.ok_or_else(|| StoreError::Io("tombstone proof index is invalid".into()))?
+			.into_iter()
+			.map(hex::encode)
+			.collect();
+		debug_assert!(merkle::verify(
+			tombstone,
+			leaf_index as usize,
+			leaf_count as usize,
+			&merkle::proof(&leaves, leaf_index as usize).expect("index was checked"),
+			merkle::root(&leaves),
+		));
 		let pending = PendingDeletion {
 			commitment: normalized.clone(),
 			agreement_id: authorization.agreement_id.clone(),
 			authorized_at: authorization.finalized_hash.clone(),
 			tombstone_root,
+			tombstone_leaf: encoded_tombstone,
+			root_sequence: root_update.sequence,
+			leaf_index,
+			leaf_count,
+			inclusion_proof,
 		};
 		next.pending_deletions.insert(normalized, pending.clone());
 		persist_state(&self.root, &next)?;
@@ -441,6 +514,24 @@ impl DiskStore {
 	/// Return deletion journal entries which must be re-enqueued after a crash.
 	pub fn pending_deletions(&self) -> Result<Vec<PendingDeletion>, StoreError> {
 		Ok(self.read_state()?.pending_deletions.values().cloned().collect())
+	}
+
+	/// Return root append journal entries in exact sequence order.
+	pub fn pending_root_submissions(&self) -> Result<Vec<PendingRootSubmission>, StoreError> {
+		Ok(self.read_state()?.pending_roots.values().cloned().collect())
+	}
+
+	/// Remove a root journal entry only after it has been durably appended to the outbox.
+	pub fn complete_root_submission(&self, sequence: u64) -> Result<(), StoreError> {
+		let mut state = self.write_state()?;
+		if !state.pending_roots.contains_key(&sequence) {
+			return Ok(());
+		}
+		let mut next = state.clone();
+		next.pending_roots.remove(&sequence);
+		persist_state(&self.root, &next)?;
+		*state = next;
+		Ok(())
 	}
 
 	/// List live records in one bucket with bounded pagination.
@@ -473,7 +564,6 @@ impl DiskStore {
 	/// Return storage statistics and the current proof root.
 	pub fn stats(&self) -> Result<ProviderStats, StoreError> {
 		let state = self.read_state()?;
-		let leaves = decode_leaves(&state)?;
 		let stored_bytes = stored_bytes(&state);
 		Ok(ProviderStats {
 			live_objects: state.records.values().filter(|record| !record.deleted).count() as u64,
@@ -481,8 +571,16 @@ impl DiskStore {
 			stored_bytes,
 			capacity_bytes: state.capacity_bytes,
 			available_bytes: state.capacity_bytes.saturating_sub(stored_bytes),
-			root: hex::encode(merkle::root(&leaves)),
+			root: current_root(&state)?,
+			proof_leaf_count: state.leaf_hashes.len() as u64,
 		})
+	}
+
+	/// Resolve an exact historical append-log root without requiring equality with the current root.
+	pub fn root_observation(&self, root: &str) -> Result<RootObservation, StoreError> {
+		let normalized = normalize_hash(root)?;
+		let state = self.read_state()?;
+		root_observation(&state, &normalized)
 	}
 
 	/// Return a Merkle inclusion proof for a content record.
@@ -544,11 +642,11 @@ impl DiskStore {
 	/// Persist a signed checkpoint if it advances the covered leaf count or root.
 	pub fn append_checkpoint(&self, checkpoint: SignedCheckpoint) -> Result<(), StoreError> {
 		let mut state = self.write_state()?;
-		if checkpoint.leaves != state.leaf_hashes.len() as u64 {
-			return Err(StoreError::Invalid("checkpoint leaf count is not current".into()));
-		}
-		if checkpoint.root != hex::encode(merkle::root(&decode_leaves(&state)?)) {
-			return Err(StoreError::Invalid("checkpoint root is not current".into()));
+		let observation = root_observation(&state, &normalize_hash(&checkpoint.root)?)?;
+		if checkpoint.leaves != observation.leaf_count {
+			return Err(StoreError::Invalid(
+				"checkpoint leaf count does not match root history".into(),
+			));
 		}
 		if state
 			.checkpoints
@@ -583,6 +681,25 @@ impl DiskStore {
 
 	fn verify_index(&self) -> Result<(), StoreError> {
 		let state = self.read_state()?;
+		if state.root_sequence != state.leaf_hashes.len() as u64 {
+			return Err(StoreError::Io("root sequence and proof-leaf counts differ".into()));
+		}
+		let leaves = decode_leaves(&state)?;
+		let (frontier, history) = merkle::accumulate(&leaves)
+			.ok_or_else(|| StoreError::Io("proof frontier reconstruction failed".into()))?;
+		if encode_frontier(&frontier) != state.root_frontier
+			|| history.iter().map(hex::encode).collect::<Vec<_>>() != state.root_history
+		{
+			return Err(StoreError::Io("persisted proof frontier/history is invalid".into()));
+		}
+		let expected_index: BTreeMap<_, _> = history
+			.iter()
+			.enumerate()
+			.map(|(index, root)| (hex::encode(root), index as u64 + 1))
+			.collect();
+		if state.root_index != expected_index {
+			return Err(StoreError::Io("persisted proof root index is invalid".into()));
+		}
 		let tombstones = state.records.values().filter(|record| record.deleted).count();
 		if state.records.len().saturating_add(tombstones) != state.leaf_hashes.len() {
 			return Err(StoreError::Io("record and proof-leaf counts differ".into()));
@@ -602,7 +719,7 @@ impl DiskStore {
 				let actual = state.leaf_hashes.get(index as usize).ok_or_else(|| {
 					StoreError::Io("tombstone leaf index is outside the proof log".into())
 				})?;
-				if hex::encode(record_leaf(record, true)?) != *actual {
+				if hex::encode(deletion_leaf(record, &state.profile.provider)?) != *actual {
 					return Err(StoreError::Io("record tombstone leaf mismatch".into()));
 				}
 			}
@@ -614,6 +731,30 @@ impl DiskStore {
 				.ok_or_else(|| StoreError::Io("pending deletion has no content record".into()))?;
 			if !record.deleted || record.agreement_id != pending.agreement_id {
 				return Err(StoreError::Io("pending deletion does not match tombstone".into()));
+			}
+			if let Some(root) = state.pending_roots.get(&pending.root_sequence) {
+				if root.appended_leaves != vec![pending.tombstone_leaf.clone()] {
+					return Err(StoreError::Io(
+						"pending deletion root append does not match tombstone".into(),
+					));
+				}
+			}
+		}
+		for (sequence, pending) in &state.pending_roots {
+			if *sequence != pending.sequence
+				|| pending.appended_leaves.len() != 1
+				|| pending.expected_leaf_count == 0
+				|| pending.expected_leaf_count > state.leaf_hashes.len() as u64
+			{
+				return Err(StoreError::Io("pending provider root journal is invalid".into()));
+			}
+			let index = pending.expected_leaf_count as usize - 1;
+			if state.leaf_hashes[index] != pending.appended_leaves[0]
+				|| state.root_history.get(index) != Some(&pending.expected_root)
+			{
+				return Err(StoreError::Io(
+					"pending provider root journal does not match proof log".into(),
+				));
 			}
 		}
 		Ok(())
@@ -666,6 +807,30 @@ fn record_leaf(record: &ContentRecord, deleted: bool) -> Result<[u8; 32], StoreE
 	.map_err(io_error)
 }
 
+/// Canonical runtime-verifiable deletion leaf. No local locator or wall-clock field participates.
+fn deletion_leaf(record: &ContentRecord, provider: &str) -> Result<[u8; 32], StoreError> {
+	let agreement = decode_h256(&record.agreement_id)?;
+	let content = decode_h256(&record.commitment)?;
+	let raw = hex::decode(provider.trim_start_matches("0x"))
+		.map_err(|_| StoreError::Invalid("provider is not hex".into()))?;
+	let provider = AccountId32::new(
+		raw.try_into()
+			.map_err(|_| StoreError::Invalid("provider must be exactly 32 bytes".into()))?,
+	);
+	Ok(sp_crypto_hashing::blake2_256(
+		&(b"orbis/provider-deletion-leaf/v1", agreement, content, &provider, 0u64).encode(),
+	))
+}
+
+fn decode_h256(value: &str) -> Result<H256, StoreError> {
+	let raw = hex::decode(value.trim_start_matches("0x"))
+		.map_err(|_| StoreError::Invalid("hash is not hex".into()))?;
+	let raw: [u8; 32] = raw
+		.try_into()
+		.map_err(|_| StoreError::Invalid("hash must be exactly 32 bytes".into()))?;
+	Ok(H256::from(raw))
+}
+
 fn validate_locator(bucket: Option<&str>, key: Option<&str>) -> Result<(), StoreError> {
 	if bucket.is_some_and(|value| value.is_empty() || value.len() > MAX_BUCKET_BYTES) {
 		return Err(StoreError::Invalid("bucket length is outside 1..=255".into()));
@@ -687,14 +852,86 @@ fn normalize_hash(value: &str) -> Result<String, StoreError> {
 }
 
 fn decode_leaves(state: &PersistedState) -> Result<Vec<[u8; 32]>, StoreError> {
+	decode_leaves_prefix(state, state.leaf_hashes.len())
+}
+
+fn decode_leaves_prefix(state: &PersistedState, len: usize) -> Result<Vec<[u8; 32]>, StoreError> {
 	state
 		.leaf_hashes
 		.iter()
+		.take(len)
 		.map(|value| {
 			let raw = hex::decode(value).map_err(io_error)?;
 			raw.try_into().map_err(|_| StoreError::Io("proof leaf is not 32 bytes".into()))
 		})
 		.collect()
+}
+
+fn journal_root_append(
+	state: &mut PersistedState,
+	leaf: String,
+) -> Result<PendingRootSubmission, StoreError> {
+	let leaf_count = state.leaf_hashes.len() as u64;
+	let node = decode_leaf(&leaf)?;
+	let mut frontier = decode_frontier(&state.root_frontier)?;
+	if !merkle::append_frontier(&mut frontier, leaf_count.saturating_sub(1), node) {
+		return Err(StoreError::Io("persisted proof frontier cannot append leaf".into()));
+	}
+	let root = merkle::frontier_root(&frontier, leaf_count)
+		.ok_or_else(|| StoreError::Io("proof frontier cannot derive root".into()))?;
+	state.root_frontier = encode_frontier(&frontier);
+	let encoded_root = hex::encode(root);
+	state.root_history.push(encoded_root.clone());
+	state.root_index.insert(encoded_root, leaf_count);
+	state.root_sequence = state
+		.root_sequence
+		.checked_add(1)
+		.ok_or_else(|| StoreError::Invalid("provider root sequence overflow".into()))?;
+	let pending = PendingRootSubmission {
+		sequence: state.root_sequence,
+		appended_leaves: vec![leaf],
+		expected_root: hex::encode(root),
+		expected_leaf_count: leaf_count,
+	};
+	state.pending_roots.insert(pending.sequence, pending.clone());
+	Ok(pending)
+}
+
+fn decode_leaf(value: &str) -> Result<[u8; 32], StoreError> {
+	let raw = hex::decode(value).map_err(io_error)?;
+	raw.try_into().map_err(|_| StoreError::Io("proof leaf is not 32 bytes".into()))
+}
+
+fn decode_frontier(values: &[Option<String>]) -> Result<Vec<Option<[u8; 32]>>, StoreError> {
+	values
+		.iter()
+		.map(|value| value.as_deref().map(decode_leaf).transpose())
+		.collect()
+}
+
+fn encode_frontier(values: &[Option<[u8; 32]>]) -> Vec<Option<String>> {
+	values.iter().map(|value| value.map(hex::encode)).collect()
+}
+
+fn current_root(state: &PersistedState) -> Result<String, StoreError> {
+	state
+		.root_history
+		.last()
+		.cloned()
+		.or_else(|| Some(hex::encode(merkle::root(&[]))))
+		.ok_or_else(|| StoreError::Io("proof root is unavailable".into()))
+}
+
+fn root_observation(state: &PersistedState, root: &str) -> Result<RootObservation, StoreError> {
+	if state.leaf_hashes.is_empty() && root == hex::encode(merkle::root(&[])) {
+		return Ok(RootObservation { root: root.to_owned(), leaf_count: 0 });
+	}
+	let leaf_count = state
+		.root_index
+		.get(root)
+		.copied()
+		.ok_or_else(|| StoreError::Invalid("root is not present in append history".into()))?;
+	Ok(RootObservation { root: root.to_owned(), leaf_count })
 }
 
 fn stored_bytes(state: &PersistedState) -> u64 {
@@ -792,5 +1029,27 @@ mod tests {
 		reopened.complete_delete(&record.commitment).unwrap();
 		assert!(reopened.pending_deletions().unwrap().is_empty());
 		assert!(!temp.path().join(BLOBS_DIR).join(&record.commitment).exists());
+	}
+
+	#[test]
+	fn canonical_deletion_vector_matches_runtime_scale_contract() {
+		let record = ContentRecord {
+			commitment: "02".repeat(32),
+			agreement_id: format!("0x{}", "01".repeat(32)),
+			container_ref: format!("0x{}", "04".repeat(32)),
+			authorized_at: format!("0x{}", "05".repeat(32)),
+			expires_at: 10,
+			bucket: None,
+			key: None,
+			bytes: 1,
+			leaf_index: 0,
+			tombstone_leaf_index: Some(1),
+			created_unix_ms: 0,
+			deleted: true,
+		};
+		assert_eq!(
+			hex::encode(deletion_leaf(&record, &"07".repeat(32)).unwrap()),
+			"0ff8e8e8049774a562cf153e0361c2efa34a0f3c888ca4f9e4efaa7f510e11f4",
+		);
 	}
 }

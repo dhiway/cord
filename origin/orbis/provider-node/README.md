@@ -10,7 +10,7 @@ one exact finalized hash that:
 - the agreement is active, unexpired, belongs to the provider, and matches the exact byte length;
 - the agreement content commitment equals `blake2b-256(raw_content_bytes)`.
 
-Protocol v1 uses the 32-byte raw Blake2b-256 digest in JSON and runtime calls. A CID-facing adapter
+Protocol v4 uses the 32-byte raw Blake2b-256 digest in JSON and runtime calls. A CID-facing adapter
 must declare a CID multicodec/multihash configuration whose digest is that exact Blake2b-256 value;
 this service does not silently translate SHA-256, Blake3, UnixFS, or DAG commitments.
 
@@ -21,7 +21,7 @@ reads `StorageProviderApi::{provider,agreement,challenges_at}` using `state_call
 `chain_getFinalizedHead`. Proof duties and deletion acknowledgements are written to an fsynced,
 typed JSONL outbox. The included `origin-orbis-provider-outbox` process consumes that seam through
 the existing `origin-rs` Orbis metadata-derived signer/nonce/finality pipeline and submits native
-`StorageProvider::{submit_checkpoint,acknowledge_deletion}` calls. It records an fsynced finalized
+`StorageProvider::{submit_checkpoint,commit_provider_root,acknowledge_deletion}` calls. It records an fsynced finalized
 block/extrinsic receipt before treating an idempotency key as complete. Neither process embeds a
 pallet/call index, signed extension, nonce, governance key, or raw SCALE payload.
 
@@ -32,7 +32,7 @@ the bearer token. TLS and external client identity are expected at the deploymen
 
 ## HTTP surfaces
 
-The bounded v1 routes are:
+The bounded v4 routes are:
 
 - operations: `GET /health`, `GET /info`, `GET /stats`, `GET /node`, `PUT /node`;
 - content: `POST /exists`, `POST /commit`, `GET /read`, `GET /commitment`, `POST /delete`;
@@ -45,11 +45,12 @@ The bounded v1 routes are:
 `POST /delete` is fail-closed: the same finalized provider and agreement checks run again and the
 agreement must already be finalized as `Cancelled` or `Expired`. The local agreement string is
 never sufficient authorization. The store first atomically appends a tombstone leaf and a pending
-deletion journal entry. It then fsyncs
-`acknowledge_deletion(agreement, content_commitment, tombstone_root, proof_commitment)` to the
-outbox before removing bytes. The proof commitment domain-separates and binds the agreement,
-content commitment, provider account, and tombstone root. The runtime recomputes that binding and
-prevents agreement pruning until the provider-signed acknowledgement finalizes.
+deletion journal entry. It journals the exact tombstone leaf, then fsyncs a provider-root append followed by
+`acknowledge_deletion(agreement, content_commitment, root_sequence, root, leaf_index, leaf_count,
+inclusion_proof)` to the outbox before removing bytes. All pending root journal entries are flushed in ascending sequence under one shared mutation/outbox lock; a deletion root and acknowledgement are queued as one ordering unit. The runtime folds the exact leaf through its bounded frontier, derives root/count, and requires the root transaction to
+finalize first, rejects sequence/leaf-count rollback, derives the canonical tombstone leaf from the
+agreement, content and provider, and verifies the bounded duplicate-last Merkle proof. Agreement
+pruning remains blocked until the provider-signed acknowledgement finalizes.
 
 ## Persistence and workers
 
@@ -66,15 +67,17 @@ The process runs three coordinators:
 2. challenge responder rescans the finalized runtime's next 128 due-block indices while advancing
    its safe cursor only to finalized height, verifies the challenged root locally, and fsyncs a
    domain-separated proof bound to challenge, agreement, content, provider and root;
-3. replica coordinator continuously verifies the local index/root/peak state.
+3. replica coordinator continuously verifies the local index/root/frontier/history state. Open challenges resolve their snapshotted root from the append history and sign that exact root and leaf count; unknown roots fail closed.
 
 Run the consumer with the provider account secret URI in `ORBIS_PROVIDER_ACCOUNT_SURI`:
 
 ```text
 origin-orbis-provider-outbox \
   --orbis-rpc ws://127.0.0.1:9944 \
-  --outbox /var/lib/orbis-provider/provider-submissions-v1.jsonl
+  --outbox /var/lib/orbis-provider/provider-submissions-v3.jsonl
 ```
 
 Peer discovery, remote replica transport, TLS termination, and Prometheus deployment wiring are
 operational integrations rather than hidden in-process defaults.
+
+JSONL producer and receipt journals repair only an incomplete final non-newline tail before retry. Malformed complete or non-final records fail closed; append and receipt writes are fsynced.

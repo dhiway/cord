@@ -26,8 +26,8 @@ use sp_core::{sr25519, Pair as _};
 use tokio::net::TcpListener;
 
 use crate::{
-	workers::deletion_submission, ChainAuthority, CheckpointSubmitter, CommitInput, DiskStore,
-	NodeProfile, SignedCheckpoint, StoreError, PROTOCOL_VERSION,
+	workers::flush_pending_submissions, ChainAuthority, CheckpointSubmitter, CommitInput,
+	DiskStore, NodeProfile, RootObservation, SignedCheckpoint, StoreError, PROTOCOL_VERSION,
 };
 
 type Body = Full<Bytes>;
@@ -51,6 +51,7 @@ pub struct ProviderService<A: ChainAuthority> {
 	authority: Arc<A>,
 	service_key: sr25519::Pair,
 	outbox: Arc<dyn CheckpointSubmitter>,
+	root_outbox_lock: tokio::sync::Mutex<()>,
 	started_unix_ms: u64,
 }
 
@@ -62,7 +63,14 @@ impl<A: ChainAuthority> ProviderService<A> {
 		service_key: sr25519::Pair,
 		outbox: Arc<dyn CheckpointSubmitter>,
 	) -> Self {
-		Self { store, authority, service_key, outbox, started_unix_ms: now_ms() }
+		Self {
+			store,
+			authority,
+			service_key,
+			outbox,
+			root_outbox_lock: tokio::sync::Mutex::new(()),
+			started_unix_ms: now_ms(),
+		}
 	}
 
 	/// Access the local store for worker orchestration.
@@ -79,19 +87,30 @@ impl<A: ChainAuthority> ProviderService<A> {
 		&self.outbox
 	}
 
+	pub(crate) fn root_outbox_lock(&self) -> &tokio::sync::Mutex<()> {
+		&self.root_outbox_lock
+	}
+
 	/// Produce and persist a signed current-root checkpoint.
 	pub fn sign_checkpoint(&self) -> Result<SignedCheckpoint, StoreError> {
 		let stats = self.store.stats()?;
+		self.sign_root_checkpoint(RootObservation {
+			root: stats.root,
+			leaf_count: stats.proof_leaf_count,
+		})
+	}
+
+	pub(crate) fn sign_root_checkpoint(
+		&self,
+		observation: RootObservation,
+	) -> Result<SignedCheckpoint, StoreError> {
 		let created_unix_ms = now_ms();
-		let payload = checkpoint_payload(
-			&stats.root,
-			stats.live_objects + stats.deleted_objects,
-			created_unix_ms,
-		);
+		let payload =
+			checkpoint_payload(&observation.root, observation.leaf_count, created_unix_ms);
 		let signature = self.service_key.sign(&payload);
 		let checkpoint = SignedCheckpoint {
-			root: stats.root,
-			leaves: stats.live_objects + stats.deleted_objects,
+			root: observation.root,
+			leaves: observation.leaf_count,
 			created_unix_ms,
 			signature: hex::encode(signature.0),
 		};
@@ -200,6 +219,10 @@ async fn handle<A: ChainAuthority>(
 				.authorize_commit(agreement_id, commitment, bytes.len() as u64)
 				.await
 				.map_err(|error| ApiError::forbidden(error.to_string()))?;
+			let _root_order = service.root_outbox_lock.lock().await;
+			flush_pending_submissions(&service.store, service.outbox.as_ref())
+				.await
+				.map_err(ApiError::internal)?;
 			let record = service.store.commit(CommitInput {
 				commitment,
 				authorization,
@@ -207,6 +230,9 @@ async fn handle<A: ChainAuthority>(
 				key: body.key,
 				bytes,
 			})?;
+			flush_pending_submissions(&service.store, service.outbox.as_ref())
+				.await
+				.map_err(ApiError::internal)?;
 			json(StatusCode::CREATED, &record)
 		},
 		(Method::GET, "/read") => {
@@ -260,6 +286,10 @@ async fn handle<A: ChainAuthority>(
 				return Err(ApiError::forbidden("agreement does not own commitment"));
 			}
 			if existing.deleted {
+				let _root_order = service.root_outbox_lock.lock().await;
+				flush_pending_submissions(&service.store, service.outbox.as_ref())
+					.await
+					.map_err(ApiError::internal)?;
 				return json(StatusCode::OK, &existing);
 			}
 			let authorization = service
@@ -267,23 +297,18 @@ async fn handle<A: ChainAuthority>(
 				.authorize_delete(agreement_id, commitment)
 				.await
 				.map_err(|error| ApiError::forbidden(error.to_string()))?;
-			let (deleted, pending) =
+			let _root_order = service.root_outbox_lock.lock().await;
+			flush_pending_submissions(&service.store, service.outbox.as_ref())
+				.await
+				.map_err(ApiError::internal)?;
+			let (deleted, _pending) =
 				service.store.prepare_delete(&body.commitment, &authorization)?;
 			// Persist a signed observation too, but the runtime proof binds the exact tombstone
 			// root captured atomically in the pending-deletion journal.
 			let _checkpoint = service.sign_checkpoint()?;
-			let provider = service.store.profile()?.provider;
-			service
-				.outbox
-				.submit_deletion(deletion_submission(&pending, &provider).map_err(|message| {
-					ApiError { status: StatusCode::INTERNAL_SERVER_ERROR, message }
-				})?)
+			flush_pending_submissions(&service.store, service.outbox.as_ref())
 				.await
-				.map_err(|message| ApiError {
-					status: StatusCode::INTERNAL_SERVER_ERROR,
-					message,
-				})?;
-			service.store.complete_delete(&pending.commitment)?;
+				.map_err(ApiError::internal)?;
 			json(StatusCode::OK, &deleted)
 		},
 		(Method::GET, "/mmr_peaks") => json(
@@ -370,6 +395,9 @@ struct ApiError {
 	message: String,
 }
 impl ApiError {
+	fn internal(message: impl Into<String>) -> Self {
+		Self { status: StatusCode::INTERNAL_SERVER_ERROR, message: message.into() }
+	}
 	fn bad_request(message: impl Into<String>) -> Self {
 		Self { status: StatusCode::BAD_REQUEST, message: message.into() }
 	}

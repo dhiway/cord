@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "description": "Canonical Orbis provider deletion leaf and duplicate-last inclusion proof",
+  "hashing": "blake2b-256",
+  "scale_tuple_encoding": "fixed byte-array domains and values are concatenated; deletion_nonce is little-endian u64",
+  "input": {
+    "agreement_id": "0x0101010101010101010101010101010101010101010101010101010101010101",
+    "content_commitment": "0x0202020202020202020202020202020202020202020202020202020202020202",
+    "provider_account_id32": "0x0707070707070707070707070707070707070707070707070707070707070707",
+    "deletion_nonce": "0",
+    "leaf_index": "1",
+    "leaf_count": "3"
+  },
+  "expected": {
+    "tombstone_leaf": "0x0ff8e8e8049774a562cf153e0361c2efa34a0f3c888ca4f9e4efaa7f510e11f4",
+    "inclusion_proof": [
+      "0x0303030303030303030303030303030303030303030303030303030303030303",
+      "0xe46ebd52737a629ca8958e63d1ef0bdc792ec989e76a902cba05fcdc499d6552"
+    ],
+    "tombstone_root": "0xf684650c8e9b1f07a65b8d81eca91ac2a89731ca70803d80a6601e797d3fc1db",
+    "proof_depth": 2
+  },
+  "negative_mutations": [
+    "wrong_provider",
+    "wrong_content",
+    "wrong_agreement",
+    "wrong_index",
+    "wrong_count",
+    "wrong_root",
+    "tampered_sibling",
+    "root_rollback",
+    "ack_before_root",
+    "ack_replay",
+    "empty_append_batch",
+    "skipped_root_sequence",
+    "same_sequence_different_append",
+    "modified_prior_frontier"
+  ],
+  "append_only_accumulator": {
+    "call": "StorageProvider.commit_provider_root(sequence, appended_leaves)",
+    "sequence_1": {
+      "appended_leaves": [
+        "0x0303030303030303030303030303030303030303030303030303030303030303",
+        "0x0ff8e8e8049774a562cf153e0361c2efa34a0f3c888ca4f9e4efaa7f510e11f4",
+        "0x0505050505050505050505050505050505050505050505050505050505050505"
+      ],
+      "expected_leaf_count": "3",
+      "expected_root": "0xf684650c8e9b1f07a65b8d81eca91ac2a89731ca70803d80a6601e797d3fc1db"
+    },
+    "sequence_2": {
+      "appended_leaves": [
+        "0x0606060606060606060606060606060606060606060606060606060606060606"
+      ],
+      "expected_leaf_count": "4",
+      "expected_root": "0x5cbeac51c0ab9a014fa671e7f4fc53f3126d55e103db7230351567af0f324d80"
+    },
+    "replay_rule": "only the same sequence and identical appended_leaves are idempotent",
+    "runtime_derived": [
+      "root",
+      "leaf_count"
+    ],
+    "historical_root_policy": "each accepted prefix root maps to its exact leaf count and remains challenge-addressable"
+  },
+  "provider_protocol_version": 4
+}

@@ -70,7 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		service_key: format!("0x{}", hex::encode(service_key.public().0)),
 		region: cli.region,
 	};
-	let outbox_path = cli.data_path.join("provider-submissions-v1.jsonl");
+	let outbox_path = cli.data_path.join("provider-submissions-v3.jsonl");
 	let store = Arc::new(DiskStore::open(&cli.data_path, profile, cli.capacity_bytes)?);
 	let authority = Arc::new(FinalizedRuntimeAuthority::connect(
 		&cli.orbis_rpc,

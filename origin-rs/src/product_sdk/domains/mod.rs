@@ -10,6 +10,7 @@ pub mod dotns;
 pub mod drive;
 pub mod s3;
 pub mod storage;
+pub mod storage_events;
 pub mod storage_provider;
 
 pub use common::{

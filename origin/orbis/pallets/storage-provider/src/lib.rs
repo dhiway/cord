@@ -13,6 +13,11 @@ pub mod weights;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
+
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
@@ -123,16 +128,36 @@ pub struct CheckpointRecord<Hash, BlockNumber> {
 	pub recorded_at: BlockNumber,
 }
 
-/// Provider-signed evidence that content for a terminal agreement was deleted.
+/// Latest provider-authenticated append-only Merkle root.
 ///
-/// The agreement itself remains the source of the assigned provider and content commitment. This
-/// record deliberately stores only the deletion evidence needed to gate pruning.
+/// Both counters are monotonic. `sequence` orders signed submissions while `leaf_count` prevents a
+/// provider from rolling its evidence log back to an older (or shorter) tree.
 #[derive(
 	Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, MaxEncodedLen, PartialEq, TypeInfo,
 )]
-pub struct DeletionAcknowledgementRecord<Hash, BlockNumber> {
+pub struct ProviderRootRecord<Hash, BlockNumber, Frontier> {
+	pub sequence: u64,
+	pub root: Hash,
+	pub leaf_count: u64,
+	pub frontier: Frontier,
+	pub last_append_commitment: Hash,
+	pub committed_at: BlockNumber,
+}
+
+/// Provider-signed evidence that content for a terminal agreement was deleted.
+///
+/// This fixed-size provider-bound audit tombstone survives agreement pruning. Retaining it makes
+/// finalized durable-outbox replays exactly idempotent without retaining the larger agreement.
+#[derive(
+	Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, MaxEncodedLen, PartialEq, TypeInfo,
+)]
+pub struct DeletionAcknowledgementRecord<AccountId, Hash, BlockNumber> {
+	pub provider: AccountId,
 	pub content_commitment: Hash,
 	pub tombstone_root: Hash,
+	pub root_sequence: u64,
+	pub leaf_index: u64,
+	pub leaf_count: u64,
 	pub proof_commitment: Hash,
 	pub acknowledged_at: BlockNumber,
 }
@@ -163,7 +188,7 @@ pub mod pallet {
 	use sp_runtime::traits::Hash as HashT;
 
 	// Origin and Orbis launch directly on this clean schema. There is no legacy migration path.
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(5);
 
 	pub type EndpointOf<T> = BoundedVec<u8, <T as Config>::MaxEndpointBytes>;
 	pub type ServiceKeyOf<T> = BoundedVec<u8, <T as Config>::MaxServiceKeyBytes>;
@@ -179,6 +204,8 @@ pub mod pallet {
 		<T as frame_system::Config>::Hash,
 		BlockNumberFor<T>,
 	>;
+	pub type ProviderFrontierOf<T> =
+		BoundedVec<Option<<T as frame_system::Config>::Hash>, <T as Config>::MaxProviderRootDepth>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -199,6 +226,15 @@ pub mod pallet {
 		type MaxContainerAgreements: Get<u32>;
 		#[pallet::constant]
 		type MaxChallengesPerBlock: Get<u32>;
+		/// Maximum sibling hashes accepted in a deletion inclusion proof.
+		#[pallet::constant]
+		type MaxDeletionProofDepth: Get<u32>;
+		/// Maximum binary frontier levels retained for each provider append-only log.
+		#[pallet::constant]
+		type MaxProviderRootDepth: Get<u32>;
+		/// Maximum leaves whose exact values may be appended in one verified root update.
+		#[pallet::constant]
+		type MaxRootAppendBatch: Get<u32>;
 		type ReservationValidator: ReservationValidator<
 			Self::AccountId,
 			Self::Hash,
@@ -298,13 +334,23 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-	/// Provider-signed deletion evidence keyed by the agreement it protects from early pruning.
+	/// Current append-only evidence root authenticated by each provider account.
+	#[pallet::storage]
+	pub type ProviderRoots<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		ProviderRootRecord<T::Hash, BlockNumberFor<T>, ProviderFrontierOf<T>>,
+		OptionQuery,
+	>;
+
+	/// Fixed-size provider-signed replay/audit tombstone retained after agreement pruning.
 	#[pallet::storage]
 	pub type DeletionAcknowledgements<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
 		T::Hash,
-		DeletionAcknowledgementRecord<T::Hash, BlockNumberFor<T>>,
+		DeletionAcknowledgementRecord<T::AccountId, T::Hash, BlockNumberFor<T>>,
 		OptionQuery,
 	>;
 
@@ -364,6 +410,12 @@ pub mod pallet {
 			challenge_id: T::Hash,
 			proof_commitment: T::Hash,
 		},
+		ProviderRootCommitted {
+			provider: T::AccountId,
+			sequence: u64,
+			root: T::Hash,
+			leaf_count: u64,
+		},
 		ChallengeTimedOut {
 			challenge_id: T::Hash,
 			provider: T::AccountId,
@@ -373,6 +425,9 @@ pub mod pallet {
 			provider: T::AccountId,
 			content_commitment: T::Hash,
 			tombstone_root: T::Hash,
+			root_sequence: u64,
+			leaf_index: u64,
+			leaf_count: u64,
 			proof_commitment: T::Hash,
 		},
 	}
@@ -410,6 +465,15 @@ pub mod pallet {
 		ContentCommitmentMismatch,
 		ReservationInvalid,
 		ReservationAlreadyAllocated,
+		InvalidRootSequence,
+		InvalidLeafCount,
+		ProviderRootNotFound,
+		ProviderRootMismatch,
+		InvalidProofDepth,
+		InvalidInclusionProof,
+		InvalidProviderFrontier,
+		RootAppendBatchEmpty,
+		RootLeafCountOverflow,
 	}
 
 	#[pallet::call]
@@ -737,6 +801,9 @@ pub mod pallet {
 			let agreement =
 				Agreements::<T>::get(agreement_id).ok_or(Error::<T>::AgreementNotFound)?;
 			ensure!(agreement.status == AgreementStatus::Active, Error::<T>::AgreementNotActive);
+			let committed = ProviderRoots::<T>::get(&agreement.provider)
+				.ok_or(Error::<T>::ProviderRootNotFound)?;
+			ensure!(committed.root == expected_commitment, Error::<T>::ProviderRootMismatch);
 			let challenge_id = T::Hashing::hash_of(&(
 				b"orbis/provider-challenge/v1",
 				agreement_id,
@@ -775,20 +842,36 @@ pub mod pallet {
 		) -> DispatchResult {
 			let provider = ensure_signed(origin)?;
 			let now = frame_system::Pallet::<T>::block_number();
-			Challenges::<T>::try_mutate(challenge_id, |maybe| -> DispatchResult {
-				let challenge = maybe.as_mut().ok_or(Error::<T>::ChallengeNotFound)?;
-				ensure!(challenge.provider == provider, Error::<T>::NotAgreementParty);
-				ensure!(challenge.status == ChallengeStatus::Open, Error::<T>::ChallengeNotOpen);
-				ensure!(now <= challenge.due_at, Error::<T>::ChallengeExpired);
-				ensure!(
-					Self::expected_challenge_proof(challenge_id, challenge)
-						.is_some_and(|expected| proof_commitment == expected),
-					Error::<T>::InvalidProofCommitment
-				);
-				challenge.proof_commitment = Some(proof_commitment);
-				challenge.status = ChallengeStatus::Proved;
-				Ok(())
-			})?;
+			let newly_proved = Challenges::<T>::try_mutate(
+				challenge_id,
+				|maybe| -> Result<bool, DispatchError> {
+					let challenge = maybe.as_mut().ok_or(Error::<T>::ChallengeNotFound)?;
+					ensure!(challenge.provider == provider, Error::<T>::NotAgreementParty);
+					if challenge.status == ChallengeStatus::Proved {
+						ensure!(
+							challenge.proof_commitment == Some(proof_commitment),
+							Error::<T>::InvalidProofCommitment
+						);
+						return Ok(false);
+					}
+					ensure!(
+						challenge.status == ChallengeStatus::Open,
+						Error::<T>::ChallengeNotOpen
+					);
+					ensure!(now <= challenge.due_at, Error::<T>::ChallengeExpired);
+					ensure!(
+						Self::expected_challenge_proof(challenge_id, challenge)
+							.is_some_and(|expected| proof_commitment == expected),
+						Error::<T>::InvalidProofCommitment
+					);
+					challenge.proof_commitment = Some(proof_commitment);
+					challenge.status = ChallengeStatus::Proved;
+					Ok(true)
+				},
+			)?;
+			if !newly_proved {
+				return Ok(());
+			}
 			if let Some(challenge) = Challenges::<T>::get(challenge_id) {
 				OpenChallengeCount::<T>::mutate(challenge.agreement_id, |count| {
 					*count = count.saturating_sub(1)
@@ -987,7 +1070,7 @@ pub mod pallet {
 			}
 			Agreements::<T>::remove(agreement_id);
 			OpenChallengeCount::<T>::remove(agreement_id);
-			DeletionAcknowledgements::<T>::remove(agreement_id);
+			// Retain the compact provider-bound acknowledgement as permanent replay/audit evidence.
 			ActivatedAgreements::<T>::remove(agreement_id);
 			Self::deposit_event(Event::AgreementPruned { agreement_id });
 			Ok(())
@@ -995,10 +1078,10 @@ pub mod pallet {
 
 		/// Acknowledge off-chain content deletion for a terminal agreement.
 		///
-		/// `ensure_signed` binds the evidence to the agreement's assigned provider. Repeating the
-		/// content commitment prevents an acknowledgement for one object from being replayed
-		/// against a different agreement. A provider may additionally anchor its local deletion
-		/// proof commitment without placing proof bytes on chain.
+		/// The bounded proof must include the canonical deletion leaf in the provider's currently
+		/// committed append-only root. The canonical leaf is derived entirely from on-chain fields:
+		/// `(domain, agreement, content, provider, deletion_nonce)`. A clean network has one
+		/// deletion transition per agreement, hence nonce zero.
 		#[pallet::call_index(15)]
 		#[pallet::weight(T::WeightInfo::acknowledge_deletion())]
 		pub fn acknowledge_deletion(
@@ -1006,9 +1089,36 @@ pub mod pallet {
 			agreement_id: T::Hash,
 			content_commitment: T::Hash,
 			tombstone_root: T::Hash,
-			proof_commitment: T::Hash,
+			root_sequence: u64,
+			leaf_index: u64,
+			leaf_count: u64,
+			inclusion_proof: BoundedVec<T::Hash, T::MaxDeletionProofDepth>,
 		) -> DispatchResult {
 			let provider = ensure_signed(origin)?;
+			let proof_commitment = T::Hashing::hash_of(&(
+				b"orbis/provider-deletion-proof/v2",
+				agreement_id,
+				content_commitment,
+				&provider,
+				root_sequence,
+				tombstone_root,
+				leaf_index,
+				leaf_count,
+				&inclusion_proof,
+			));
+			if let Some(existing) = DeletionAcknowledgements::<T>::get(agreement_id) {
+				ensure!(existing.provider == provider, Error::<T>::NotAgreementParty);
+				ensure!(
+					existing.content_commitment == content_commitment
+						&& existing.tombstone_root == tombstone_root
+						&& existing.root_sequence == root_sequence
+						&& existing.leaf_index == leaf_index
+						&& existing.leaf_count == leaf_count
+						&& existing.proof_commitment == proof_commitment,
+					Error::<T>::DeletionAlreadyAcknowledged
+				);
+				return Ok(());
+			}
 			let agreement =
 				Agreements::<T>::get(agreement_id).ok_or(Error::<T>::AgreementNotFound)?;
 			ensure!(agreement.provider == provider, Error::<T>::NotAgreementParty);
@@ -1024,24 +1134,42 @@ pub mod pallet {
 				agreement.content_commitment == content_commitment,
 				Error::<T>::ContentCommitmentMismatch
 			);
+			let committed =
+				ProviderRoots::<T>::get(&provider).ok_or(Error::<T>::ProviderRootNotFound)?;
 			ensure!(
-				!DeletionAcknowledgements::<T>::contains_key(agreement_id),
-				Error::<T>::DeletionAlreadyAcknowledged
+				committed.sequence == root_sequence
+					&& committed.root == tombstone_root
+					&& committed.leaf_count == leaf_count,
+				Error::<T>::ProviderRootMismatch
 			);
-			let expected = T::Hashing::hash_of(&(
-				b"orbis/provider-deletion-proof/v1",
+			ensure!(leaf_index < leaf_count, Error::<T>::InvalidLeafCount);
+			ensure!(
+				inclusion_proof.len() == Self::proof_depth(leaf_count),
+				Error::<T>::InvalidProofDepth
+			);
+			let deletion_nonce = 0u64;
+			let tombstone_leaf = T::Hashing::hash_of(&(
+				b"orbis/provider-deletion-leaf/v1",
 				agreement_id,
 				content_commitment,
 				&provider,
-				tombstone_root,
+				deletion_nonce,
 			));
-			ensure!(proof_commitment == expected, Error::<T>::InvalidProofCommitment);
+			ensure!(
+				Self::verify_inclusion(tombstone_leaf, leaf_index, leaf_count, &inclusion_proof,)
+					== Some(tombstone_root),
+				Error::<T>::InvalidInclusionProof
+			);
 			let acknowledged_at = frame_system::Pallet::<T>::block_number();
 			DeletionAcknowledgements::<T>::insert(
 				agreement_id,
 				DeletionAcknowledgementRecord {
+					provider: provider.clone(),
 					content_commitment,
 					tombstone_root,
+					root_sequence,
+					leaf_index,
+					leaf_count,
 					proof_commitment,
 					acknowledged_at,
 				},
@@ -1051,13 +1179,165 @@ pub mod pallet {
 				provider,
 				content_commitment,
 				tombstone_root,
+				root_sequence,
+				leaf_index,
+				leaf_count,
 				proof_commitment,
+			});
+			Ok(())
+		}
+
+		/// Commit the provider's latest append-only Merkle root before any acknowledgement may use
+		/// it.
+		#[pallet::call_index(16)]
+		#[pallet::weight(T::WeightInfo::commit_provider_root(appended_leaves.len() as u32))]
+		pub fn commit_provider_root(
+			origin: OriginFor<T>,
+			sequence: u64,
+			appended_leaves: BoundedVec<T::Hash, T::MaxRootAppendBatch>,
+		) -> DispatchResult {
+			let provider = ensure_signed(origin)?;
+			let record = Providers::<T>::get(&provider).ok_or(Error::<T>::ProviderNotFound)?;
+			ensure!(record.status == ProviderStatus::Active, Error::<T>::ProviderNotActive);
+			ensure!(!appended_leaves.is_empty(), Error::<T>::RootAppendBatchEmpty);
+			let append_commitment = T::Hashing::hash_of(&(
+				b"orbis/provider-root-append/v1",
+				sequence,
+				&appended_leaves,
+			));
+			let previous = ProviderRoots::<T>::get(&provider);
+			if let Some(previous) = &previous {
+				if previous.sequence == sequence
+					&& previous.last_append_commitment == append_commitment
+				{
+					return Ok(());
+				}
+				let expected_sequence =
+					previous.sequence.checked_add(1).ok_or(Error::<T>::RootLeafCountOverflow)?;
+				ensure!(sequence == expected_sequence, Error::<T>::InvalidRootSequence);
+			} else {
+				ensure!(sequence == 1, Error::<T>::InvalidRootSequence);
+			}
+			let mut frontier =
+				previous.as_ref().map(|root| root.frontier.clone()).unwrap_or_default();
+			let mut leaf_count = previous.as_ref().map(|root| root.leaf_count).unwrap_or(0);
+			for leaf in appended_leaves {
+				Self::append_frontier(&mut frontier, leaf_count, leaf)?;
+				leaf_count = leaf_count.checked_add(1).ok_or(Error::<T>::RootLeafCountOverflow)?;
+			}
+			let root = Self::frontier_root(&frontier, leaf_count)
+				.ok_or(Error::<T>::InvalidProviderFrontier)?;
+			let committed_at = frame_system::Pallet::<T>::block_number();
+			ProviderRoots::<T>::insert(
+				&provider,
+				ProviderRootRecord {
+					sequence,
+					root,
+					leaf_count,
+					frontier,
+					last_append_commitment: append_commitment,
+					committed_at,
+				},
+			);
+			Self::deposit_event(Event::ProviderRootCommitted {
+				provider,
+				sequence,
+				root,
+				leaf_count,
 			});
 			Ok(())
 		}
 	}
 
 	impl<T: Config> Pallet<T> {
+		fn append_frontier(
+			frontier: &mut ProviderFrontierOf<T>,
+			leaf_count: u64,
+			mut node: T::Hash,
+		) -> DispatchResult {
+			let mut level = 0usize;
+			let mut occupied = leaf_count;
+			while occupied & 1 == 1 {
+				let left = frontier
+					.get_mut(level)
+					.and_then(Option::take)
+					.ok_or(Error::<T>::InvalidProviderFrontier)?;
+				node = T::Hashing::hash_of(&(b"orbis/provider-node/v2", left, node));
+				level = level.saturating_add(1);
+				occupied >>= 1;
+			}
+			while frontier.len() <= level {
+				frontier.try_push(None).map_err(|_| Error::<T>::RootLeafCountOverflow)?;
+			}
+			ensure!(frontier[level].is_none(), Error::<T>::InvalidProviderFrontier);
+			frontier[level] = Some(node);
+			Ok(())
+		}
+
+		fn frontier_root(frontier: &ProviderFrontierOf<T>, leaf_count: u64) -> Option<T::Hash> {
+			if leaf_count == 0 {
+				return None;
+			}
+			for (level, peak) in frontier.iter().enumerate() {
+				let occupied = leaf_count.checked_shr(level as u32).unwrap_or(0) & 1 == 1;
+				if peak.is_some() != occupied {
+					return None;
+				}
+			}
+			if leaf_count.checked_shr(frontier.len() as u32).unwrap_or(0) != 0 {
+				return None;
+			}
+			let mut current: Option<(T::Hash, usize)> = None;
+			for (level, peak) in frontier.iter().enumerate() {
+				let Some(peak) = peak else { continue };
+				current = Some(match current {
+					None => (*peak, level),
+					Some((mut right, mut right_level)) => {
+						while right_level < level {
+							right = T::Hashing::hash_of(&(b"orbis/provider-node/v2", right, right));
+							right_level = right_level.saturating_add(1);
+						}
+						(
+							T::Hashing::hash_of(&(b"orbis/provider-node/v2", peak, right)),
+							level.saturating_add(1),
+						)
+					},
+				});
+			}
+			current.map(|(root, _)| root)
+		}
+
+		fn proof_depth(mut leaf_count: u64) -> usize {
+			let mut depth = 0usize;
+			while leaf_count > 1 {
+				leaf_count = leaf_count.saturating_add(1) / 2;
+				depth = depth.saturating_add(1);
+			}
+			depth
+		}
+
+		/// Reconstruct a duplicate-last binary Merkle root from a leaf-to-root sibling path.
+		fn verify_inclusion(
+			mut node: T::Hash,
+			mut index: u64,
+			mut leaf_count: u64,
+			proof: &[T::Hash],
+		) -> Option<T::Hash> {
+			for sibling in proof {
+				if index % 2 == 0 && index.saturating_add(1) >= leaf_count && *sibling != node {
+					return None;
+				}
+				node = if index % 2 == 0 {
+					T::Hashing::hash_of(&(b"orbis/provider-node/v2", node, sibling))
+				} else {
+					T::Hashing::hash_of(&(b"orbis/provider-node/v2", sibling, node))
+				};
+				index /= 2;
+				leaf_count = leaf_count.saturating_add(1) / 2;
+			}
+			Some(node)
+		}
+
 		/// Domain-separated challenge proof expected by the runtime. The challenge's
 		/// `expected_commitment` is the provider root committed by the issuing authority.
 		pub fn expected_challenge_proof(

@@ -8,3 +8,5 @@ export * from "./provider.ts";
 export * from "./s3.ts";
 export * from "./storage.ts";
 export * from "./types.ts";
+
+export * from "./storage-events.ts";

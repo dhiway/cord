@@ -34,11 +34,11 @@
     },
     "chainSpec": {
       "path": "origin/orbis/node/src/chain_spec.rs",
-      "sha256": "15c4e2c36c6bf247b2fdbfa4a1ed132018ca48fe9e01f9950f86f35094c1e501"
+      "sha256": "26db4507b7c8f04b35151e41effd140537be48ae11f4e8a90957e3f4556e7016"
     },
     "nativeMethods": {
       "path": "product-sdk/packages/descriptors/src/native-methods.ts",
-      "sha256": "4177d10dd61caf139f1a6bbe05a49fd2a3c90d18f49c8ec22a53d420630fd84a"
+      "sha256": "c613c19bafb76e7f0ee7ad7d1d4da05c268c2aa595a3fbdfee405c60ba0ef50a"
     }
   },
   "signedExtensionSurfaces": {
@@ -121,7 +121,7 @@
   },
   "nativeHostContract": {
     "version": 1,
-    "methodCount": 128,
+    "methodCount": 139,
     "pageLimit": 100,
     "payloadValidation": "closed-shape-plus-core-native-types-v1",
     "methods": [
@@ -248,6 +248,35 @@
       },
       {
         "capability": "attestation",
+        "method": "schema_count",
+        "finality": "finalized",
+        "payloadFields": []
+      },
+      {
+        "capability": "attestation",
+        "method": "attestation_count",
+        "finality": "finalized",
+        "payloadFields": []
+      },
+      {
+        "capability": "attestation",
+        "method": "next_issuance_nonce",
+        "finality": "finalized",
+        "payloadFields": [
+          "issuer"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "external_status",
+        "finality": "finalized",
+        "payloadFields": [
+          "issuer",
+          "status_commitment"
+        ]
+      },
+      {
+        "capability": "attestation",
         "method": "create_schema",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -366,6 +395,28 @@
         ]
       },
       {
+        "capability": "attestation",
+        "method": "revoke_external_status",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "status_commitment"
+        ]
+      },
+      {
+        "capability": "attestation",
+        "method": "revoke_external_status_batch",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "status_commitments"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "label_policy_version",
+        "finality": "finalized",
+        "payloadFields": []
+      },
+      {
         "capability": "dotns",
         "method": "name_by_id",
         "finality": "finalized",
@@ -389,6 +440,14 @@
           "owner",
           "cursor",
           "limit"
+        ]
+      },
+      {
+        "capability": "dotns",
+        "method": "controllers",
+        "finality": "finalized",
+        "payloadFields": [
+          "name"
         ]
       },
       {
@@ -643,6 +702,15 @@
         ]
       },
       {
+        "capability": "dotns",
+        "method": "set_registrar",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "registrar",
+          "enabled"
+        ]
+      },
+      {
         "capability": "storage",
         "method": "account_authorization",
         "finality": "finalized",
@@ -886,6 +954,14 @@
       },
       {
         "capability": "storage",
+        "method": "provider_root",
+        "finality": "finalized",
+        "payloadFields": [
+          "provider"
+        ]
+      },
+      {
+        "capability": "storage",
         "method": "deletion_acknowledgement",
         "finality": "finalized",
         "payloadFields": [
@@ -1010,7 +1086,19 @@
           "agreement_id",
           "content_commitment",
           "tombstone_root",
-          "proof_commitment"
+          "root_sequence",
+          "leaf_index",
+          "leaf_count",
+          "inclusion_proof"
+        ]
+      },
+      {
+        "capability": "storage",
+        "method": "commit_provider_root",
+        "finality": "submit-and-finalize",
+        "payloadFields": [
+          "sequence",
+          "appended_leaves"
         ]
       },
       {

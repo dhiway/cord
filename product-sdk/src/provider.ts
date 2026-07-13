@@ -82,9 +82,20 @@ export interface ProviderCheckpoint {
   readonly recorded_at: BlockNumber;
 }
 
+export interface ProviderRootView {
+  readonly sequence: DecimalU64;
+  readonly root: ContentCommitment;
+  readonly leaf_count: DecimalU64;
+  readonly committed_at: BlockNumber;
+}
+
 export interface DeletionAcknowledgementView {
+  readonly provider: ProviderId;
   readonly content_commitment: ContentCommitment;
   readonly tombstone_root: ContentCommitment;
+  readonly root_sequence: DecimalU64;
+  readonly leaf_index: DecimalU64;
+  readonly leaf_count: DecimalU64;
   readonly proof_commitment: ContentCommitment;
   readonly acknowledged_at: BlockNumber;
 }
@@ -151,6 +162,10 @@ export const provider = {
 
   providerCheckpoint(context: RequestContext, provider: ProviderId) {
     return finalizedRead("provider", context, "storage", "provider_checkpoint", { provider });
+  },
+
+  providerRoot(context: RequestContext, provider: ProviderId) {
+    return finalizedRead("provider", context, "storage", "provider_root", { provider });
   },
 
   deletionAcknowledgement(context: RequestContext, agreement_id: AgreementId) {
@@ -275,13 +290,30 @@ export const provider = {
     agreement_id: AgreementId,
     content_commitment: ContentCommitment,
     tombstone_root: ContentCommitment,
-    proof_commitment: ContentCommitment,
+    root_sequence: DecimalU64,
+    leaf_index: DecimalU64,
+    leaf_count: DecimalU64,
+    inclusion_proof: readonly ContentCommitment[],
   ) {
     return submitAndFinalize("provider", context, "storage", "acknowledge_deletion", {
       agreement_id,
       content_commitment,
       tombstone_root,
-      proof_commitment,
+      root_sequence,
+      leaf_index,
+      leaf_count,
+      inclusion_proof: [...inclusion_proof],
+    });
+  },
+
+  commitProviderRoot(
+    context: RequestContext,
+    sequence: DecimalU64,
+    appended_leaves: readonly ContentCommitment[],
+  ) {
+    return submitAndFinalize("provider", context, "storage", "commit_provider_root", {
+      sequence,
+      appended_leaves: [...appended_leaves],
     });
   },
 } as const;

@@ -22,13 +22,13 @@ pub use chain::{
 	FinalizedRuntimeAuthority,
 };
 pub use storage::{
-	ChunkProof, CommitInput, ContentRecord, DiskStore, NodeProfile, PendingDeletion, ProviderStats,
-	SignedCheckpoint, StoreError,
+	ChunkProof, CommitInput, ContentRecord, DiskStore, NodeProfile, PendingDeletion,
+	PendingRootSubmission, ProviderStats, RootObservation, SignedCheckpoint, StoreError,
 };
 pub use workers::{
 	run_workers, CheckpointSubmission, CheckpointSubmitter, ContentDeletionSubmission,
-	JsonlCheckpointOutbox, ProviderSubmission, WorkerConfig,
+	JsonlCheckpointOutbox, ProviderRootSubmission, ProviderSubmission, WorkerConfig,
 };
 
 /// Protocol version shared by persisted records and HTTP responses.
-pub const PROTOCOL_VERSION: u16 = 1;
+pub const PROTOCOL_VERSION: u16 = 4;

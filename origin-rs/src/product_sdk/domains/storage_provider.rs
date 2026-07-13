@@ -8,6 +8,8 @@ use super::common::{
 
 pub const MAX_ENDPOINT_BYTES: usize = 512;
 pub const MAX_SERVICE_KEY_BYTES: usize = 128;
+pub const MAX_DELETION_PROOF_DEPTH: usize = 64;
+pub const MAX_ROOT_APPEND_BATCH: usize = 256;
 
 pub type StorageProviderRead = FinalizedQuery<StorageProviderQuery>;
 pub type StorageProviderWrite = SubmitAndFinalize<StorageProviderCommand>;
@@ -130,9 +132,22 @@ pub struct CheckpointView {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
+pub struct ProviderRootView {
+	pub sequence: u64,
+	pub root: ProofCommitment,
+	pub leaf_count: u64,
+	pub committed_at: BlockNumber,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct DeletionAcknowledgementView {
+	pub provider: AccountId,
 	pub content_commitment: ContentCommitment,
 	pub tombstone_root: ProofCommitment,
+	pub root_sequence: u64,
+	pub leaf_index: u64,
+	pub leaf_count: u64,
 	pub proof_commitment: ProofCommitment,
 	pub acknowledged_at: BlockNumber,
 }
@@ -150,6 +165,7 @@ pub enum StorageProviderResponse {
 	OpenChallengeCount(super::common::FinalizedValue<u32>),
 	CanAcceptCapacity(super::common::FinalizedValue<bool>),
 	Checkpoint(super::common::FinalizedValue<CheckpointView>),
+	ProviderRoot(super::common::FinalizedValue<ProviderRootView>),
 	DeletionAcknowledgement(super::common::FinalizedValue<DeletionAcknowledgementView>),
 	ResourceProviderRef(super::common::FinalizedValue<ProviderReference>),
 }
@@ -198,6 +214,9 @@ pub enum StorageProviderQuery {
 	ProviderCheckpoint {
 		provider: AccountId,
 	},
+	ProviderRoot {
+		provider: AccountId,
+	},
 	DeletionAcknowledgement {
 		agreement: AgreementId,
 	},
@@ -212,7 +231,8 @@ impl Validate for StorageProviderQuery {
 		match self {
 			Self::ProviderById { provider }
 			| Self::AgreementNonce { owner: provider }
-			| Self::ProviderCheckpoint { provider } => provider.validate(),
+			| Self::ProviderCheckpoint { provider }
+			| Self::ProviderRoot { provider } => provider.validate(),
 			Self::CanAcceptCapacity { provider, additional_bytes } => {
 				let _ = additional_bytes;
 				provider.validate()
@@ -306,7 +326,14 @@ pub enum StorageProviderCommand {
 		agreement: AgreementId,
 		content_commitment: ContentCommitment,
 		tombstone_root: ProofCommitment,
-		proof_commitment: ProofCommitment,
+		root_sequence: u64,
+		leaf_index: u64,
+		leaf_count: u64,
+		inclusion_proof: Vec<ProofCommitment>,
+	},
+	CommitProviderRoot {
+		sequence: u64,
+		appended_leaves: Vec<ProofCommitment>,
 	},
 	/// Exact TransactionStorage `attach_provider(reservation_id, provider_ref)` call.
 	AttachProvider {
@@ -375,12 +402,32 @@ impl Validate for StorageProviderCommand {
 				agreement,
 				content_commitment,
 				tombstone_root,
-				proof_commitment,
+				root_sequence,
+				leaf_index,
+				leaf_count,
+				inclusion_proof,
 			} => {
 				agreement.validate()?;
 				content_commitment.validate()?;
 				tombstone_root.validate()?;
-				proof_commitment.validate()
+				if *root_sequence == 0 || *leaf_count == 0 || *leaf_index >= *leaf_count {
+					return Err(invalid("deletion root sequence/count/index is invalid"));
+				}
+				if inclusion_proof.len() > MAX_DELETION_PROOF_DEPTH {
+					return Err(invalid("deletion proof exceeds maximum depth"));
+				}
+				inclusion_proof.iter().try_for_each(Validate::validate)
+			},
+			Self::CommitProviderRoot { sequence, appended_leaves } => {
+				if *sequence == 0 || appended_leaves.is_empty() {
+					return Err(invalid(
+						"provider root sequence and append batch must be non-zero",
+					));
+				}
+				if appended_leaves.len() > MAX_ROOT_APPEND_BATCH {
+					return Err(invalid("provider root append batch exceeds maximum size"));
+				}
+				appended_leaves.iter().try_for_each(Validate::validate)
 			},
 			Self::IssueChallenge { agreement, expected_commitment, .. } => {
 				agreement.validate()?;

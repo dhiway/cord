@@ -44,8 +44,8 @@ use super::{
 		},
 		storage_provider::{
 			AgreementStatus, AgreementView, ChallengeStatus, ChallengeView, CheckpointView,
-			DeletionAcknowledgementView, Endpoint, ProviderStatus, ProviderView, ServiceKey,
-			StorageProviderQuery, StorageProviderRead, StorageProviderResponse,
+			DeletionAcknowledgementView, Endpoint, ProviderRootView, ProviderStatus, ProviderView,
+			ServiceKey, StorageProviderQuery, StorageProviderRead, StorageProviderResponse,
 		},
 	},
 	transport::{FinalizedReadBinding, OrbisNativeClient},
@@ -806,9 +806,35 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 					response.value.map(checkpoint_view),
 				)?))
 			},
+			StorageProviderQuery::ProviderRoot { provider } => {
+				let response: storage_api::Versioned<
+					storage_api::ProviderRootInfo<RuntimeHash, RuntimeBlockNumber>,
+				> = self
+					.call_at(
+						hash,
+						"StorageProviderApi",
+						"provider_root",
+						vec![account_arg(provider)?],
+					)
+					.await?;
+				Ok(StorageProviderResponse::ProviderRoot(finalized_value(
+					hash,
+					response.version,
+					response.value.map(|info| ProviderRootView {
+						sequence: info.sequence,
+						root: ProofCommitment(domain_hash(info.root)),
+						leaf_count: info.leaf_count,
+						committed_at: info.committed_at,
+					}),
+				)?))
+			},
 			StorageProviderQuery::DeletionAcknowledgement { agreement } => {
 				let response: storage_api::Versioned<
-					storage_api::DeletionAcknowledgementInfo<RuntimeHash, RuntimeBlockNumber>,
+					storage_api::DeletionAcknowledgementInfo<
+						RuntimeAccountId,
+						RuntimeHash,
+						RuntimeBlockNumber,
+					>,
 				> = self
 					.call_at(
 						hash,
@@ -820,7 +846,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 				Ok(StorageProviderResponse::DeletionAcknowledgement(finalized_value(
 					hash,
 					response.version,
-					response.value.map(deletion_acknowledgement_view),
+					response.value.map(deletion_acknowledgement_view).transpose()?,
 				)?))
 			},
 			StorageProviderQuery::ResourceProviderRef { reservation_id } => {
@@ -1285,14 +1311,22 @@ fn checkpoint_view(
 }
 
 fn deletion_acknowledgement_view(
-	info: storage_api::DeletionAcknowledgementInfo<RuntimeHash, RuntimeBlockNumber>,
-) -> DeletionAcknowledgementView {
-	DeletionAcknowledgementView {
+	info: storage_api::DeletionAcknowledgementInfo<
+		RuntimeAccountId,
+		RuntimeHash,
+		RuntimeBlockNumber,
+	>,
+) -> DomainResult<DeletionAcknowledgementView> {
+	Ok(DeletionAcknowledgementView {
+		provider: account_id(&info.provider)?,
 		content_commitment: ContentCommitment(domain_hash(info.content_commitment)),
 		tombstone_root: ProofCommitment(domain_hash(info.tombstone_root)),
+		root_sequence: info.root_sequence,
+		leaf_index: info.leaf_index,
+		leaf_count: info.leaf_count,
 		proof_commitment: ProofCommitment(domain_hash(info.proof_commitment)),
 		acknowledged_at: info.acknowledged_at,
-	}
+	})
 }
 
 fn drive_view(

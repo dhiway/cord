@@ -15,7 +15,7 @@ use codec::{Codec, Decode, Encode};
 use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
 
-pub const RESPONSE_VERSION: u16 = 2;
+pub const RESPONSE_VERSION: u16 = 4;
 pub const MAX_PAGE_SIZE: u32 = 100;
 
 #[derive(Clone, Copy, Debug, Decode, DecodeAsType, Encode, Eq, PartialEq, TypeInfo)]
@@ -117,9 +117,21 @@ pub struct CheckpointInfo<Hash, BlockNumber> {
 }
 
 #[derive(Clone, Debug, Decode, DecodeAsType, Encode, Eq, PartialEq, TypeInfo)]
-pub struct DeletionAcknowledgementInfo<Hash, BlockNumber> {
+pub struct ProviderRootInfo<Hash, BlockNumber> {
+	pub sequence: u64,
+	pub root: Hash,
+	pub leaf_count: u64,
+	pub committed_at: BlockNumber,
+}
+
+#[derive(Clone, Debug, Decode, DecodeAsType, Encode, Eq, PartialEq, TypeInfo)]
+pub struct DeletionAcknowledgementInfo<AccountId, Hash, BlockNumber> {
+	pub provider: AccountId,
 	pub content_commitment: Hash,
 	pub tombstone_root: Hash,
+	pub root_sequence: u64,
+	pub leaf_index: u64,
+	pub leaf_count: u64,
 	pub proof_commitment: Hash,
 	pub acknowledged_at: BlockNumber,
 }
@@ -173,7 +185,7 @@ pub struct ObjectVersionInfo<AccountId, BlockNumber> {
 }
 
 sp_api::decl_runtime_apis! {
-	#[api_version(2)]
+	#[api_version(4)]
 	pub trait StorageProviderApi<AccountId, Hash, BlockNumber>
 	where
 		AccountId: Codec,
@@ -192,7 +204,8 @@ sp_api::decl_runtime_apis! {
 		fn open_challenge_count(agreement_id: Hash) -> u32;
 		fn can_accept_capacity(provider: AccountId, additional_bytes: u64) -> bool;
 		fn checkpoint(provider: AccountId) -> Versioned<CheckpointInfo<Hash, BlockNumber>>;
-		fn deletion_acknowledgement(agreement_id: Hash) -> Versioned<DeletionAcknowledgementInfo<Hash, BlockNumber>>;
+		fn provider_root(provider: AccountId) -> Versioned<ProviderRootInfo<Hash, BlockNumber>>;
+		fn deletion_acknowledgement(agreement_id: Hash) -> Versioned<DeletionAcknowledgementInfo<AccountId, Hash, BlockNumber>>;
 	}
 
 	#[api_version(1)]

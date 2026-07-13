@@ -910,7 +910,10 @@ pub fn prepare_storage_provider_command(
 			agreement,
 			content_commitment,
 			tombstone_root,
-			proof_commitment,
+			root_sequence,
+			leaf_index,
+			leaf_count,
+			inclusion_proof,
 		} => (
 			"StorageProvider",
 			"acknowledge_deletion",
@@ -918,7 +921,28 @@ pub fn prepare_storage_provider_command(
 				hash_value(agreement.as_hash())?,
 				hash_value(content_commitment.as_hash())?,
 				hash_value(tombstone_root.as_hash())?,
-				hash_value(proof_commitment.as_hash())?,
+				Value::u128(*root_sequence as u128),
+				Value::u128(*leaf_index as u128),
+				Value::u128(*leaf_count as u128),
+				Value::unnamed_composite(
+					inclusion_proof
+						.iter()
+						.map(|hash| hash_value(hash.as_hash()))
+						.collect::<DomainResult<Vec<_>>>()?,
+				),
+			],
+		),
+		StorageProviderCommand::CommitProviderRoot { sequence, appended_leaves } => (
+			"StorageProvider",
+			"commit_provider_root",
+			vec![
+				Value::u128(*sequence as u128),
+				Value::unnamed_composite(
+					appended_leaves
+						.iter()
+						.map(|hash| hash_value(hash.as_hash()))
+						.collect::<DomainResult<Vec<_>>>()?,
+				),
 			],
 		),
 		StorageProviderCommand::AttachProvider { reservation_id, provider_ref } => (

@@ -264,6 +264,7 @@ read("storage", "challenges_at", { block: blockNumber, ...pageFields });
 read("storage", "open_challenge_count", { agreement_id: hash32 });
 read("storage", "can_accept_capacity", { provider: account, additional_bytes: decimalU64 });
 read("storage", "provider_checkpoint", { provider: account });
+read("storage", "provider_root", { provider: account });
 read("storage", "deletion_acknowledgement", { agreement_id: hash32 });
 const providerFields = {
   provider: account,
@@ -301,7 +302,14 @@ write("storage", "acknowledge_deletion", {
   agreement_id: hash32,
   content_commitment: hash32,
   tombstone_root: hash32,
-  proof_commitment: hash32,
+  root_sequence: decimalU64,
+  leaf_index: decimalU64,
+  leaf_count: decimalU64,
+  inclusion_proof: array(hash32, 0, 64),
+});
+write("storage", "commit_provider_root", {
+  sequence: decimalU64,
+  appended_leaves: array(hash32, 1, 256),
 });
 
 // Drive finalized views and pallet calls.

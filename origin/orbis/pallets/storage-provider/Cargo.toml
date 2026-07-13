@@ -18,6 +18,10 @@ frame-support = { workspace = true }
 frame-system = { workspace = true }
 sp-runtime = { workspace = true }
 
+[dev-dependencies]
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+
 [features]
 default = ["std"]
 std = [
@@ -26,6 +30,8 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"sp-runtime/std",
+	"sp-core/std",
+	"sp-io/std",
 ]
 runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",

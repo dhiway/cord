@@ -65,6 +65,7 @@
         "archive_drive",
         "attach_provider",
         "attestation_by_id",
+        "attestation_count",
         "attestation_live_status",
         "balance",
         "bucket_by_id",
@@ -79,7 +80,9 @@
         "challenges_at",
         "clear_reservation",
         "commit",
+        "commit_provider_root",
         "container_agreements",
+        "controllers",
         "create_bucket",
         "create_drive",
         "create_schema",
@@ -93,6 +96,7 @@
         "drive_controllers",
         "enable_auto_renew",
         "expire_agreement",
+        "external_status",
         "fetch",
         "force_renew",
         "force_revoke",
@@ -105,10 +109,12 @@
         "issue_delegated",
         "issue_delegated_batch",
         "issuer_attestations",
+        "label_policy_version",
         "name_by_id",
         "name_status",
         "next_delegated_nonce",
         "next_drive_nonce",
+        "next_issuance_nonce",
         "object_by_key",
         "object_history",
         "object_id",
@@ -122,6 +128,7 @@
         "provider_agreements",
         "provider_by_id",
         "provider_checkpoint",
+        "provider_root",
         "providers",
         "prune_agreement",
         "prune_expired_commitment",
@@ -150,9 +157,12 @@
         "revoke_batch",
         "revoke_delegated",
         "revoke_delegated_batch",
+        "revoke_external_status",
+        "revoke_external_status_batch",
         "root_name_by_normalized_label",
         "s3.set_controller",
         "schema_by_id",
+        "schema_count",
         "set_address",
         "set_archived",
         "set_attestation",
@@ -162,6 +172,7 @@
         "set_paused",
         "set_primary_name",
         "set_provider_status",
+        "set_registrar",
         "set_schema_status",
         "set_subject",
         "set_text",
@@ -200,7 +211,7 @@
           "const": "b67ec215a4ecea710357537ed304e7d228d3389eabd9eb80dc47dd5c329ae489"
         },
         "descriptor_contract_sha256": {
-          "const": "5e73eae0a92f765a08b4b72d5020bbbb04f9b79985c5f4276cc777385c706ba6"
+          "const": "cad151efaf44b1839b3797c6159bf204395cb9a0c9c335d32fa1c390bf0c57b1"
         }
       },
       "required": [
@@ -669,6 +680,116 @@
           "const": "attestation"
         },
         "method": {
+          "const": "schema_count"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "attestation_count"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "next_issuance_nonce"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "issuer"
+          ],
+          "properties": {
+            "issuer": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "external_status"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "issuer",
+            "status_commitment"
+          ],
+          "properties": {
+            "issuer": {},
+            "status_commitment": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
           "const": "create_schema"
         },
         "finality": {
@@ -1073,6 +1194,89 @@
     {
       "properties": {
         "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "revoke_external_status"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status_commitment"
+          ],
+          "properties": {
+            "status_commitment": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "attestation"
+        },
+        "method": {
+          "const": "revoke_external_status_batch"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status_commitments"
+          ],
+          "properties": {
+            "status_commitments": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "label_policy_version"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
           "const": "dotns"
         },
         "method": {
@@ -1151,6 +1355,35 @@
             "owner": {},
             "cursor": {},
             "limit": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "controllers"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {}
           }
         }
       },
@@ -2043,6 +2276,37 @@
     {
       "properties": {
         "capability": {
+          "const": "dotns"
+        },
+        "method": {
+          "const": "set_registrar"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "registrar",
+            "enabled"
+          ],
+          "properties": {
+            "registrar": {},
+            "enabled": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
           "const": "storage"
         },
         "method": {
@@ -2894,6 +3158,35 @@
           "const": "storage"
         },
         "method": {
+          "const": "provider_root"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider"
+          ],
+          "properties": {
+            "provider": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
           "const": "deletion_acknowledgement"
         },
         "finality": {
@@ -3311,13 +3604,50 @@
             "agreement_id",
             "content_commitment",
             "tombstone_root",
-            "proof_commitment"
+            "root_sequence",
+            "leaf_index",
+            "leaf_count",
+            "inclusion_proof"
           ],
           "properties": {
             "agreement_id": {},
             "content_commitment": {},
             "tombstone_root": {},
-            "proof_commitment": {}
+            "root_sequence": {},
+            "leaf_index": {},
+            "leaf_count": {},
+            "inclusion_proof": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "storage"
+        },
+        "method": {
+          "const": "commit_provider_root"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sequence",
+            "appended_leaves"
+          ],
+          "properties": {
+            "sequence": {},
+            "appended_leaves": {}
           }
         }
       },

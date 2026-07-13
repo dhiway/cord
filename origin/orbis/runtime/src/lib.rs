@@ -2322,6 +2322,9 @@ parameter_types! {
 	pub const ProviderMaxServiceKeyBytes: u32 = 128;
 	pub const ProviderMaxAgreements: u32 = 1_024;
 	pub const ProviderMaxChallengesPerBlock: u32 = 256;
+	pub const ProviderMaxDeletionProofDepth: u32 = 64;
+	pub const ProviderMaxRootDepth: u32 = 64;
+	pub const ProviderMaxRootAppendBatch: u32 = 256;
 }
 
 impl pallet_orbis_storage_provider::Config for Runtime {
@@ -2334,6 +2337,9 @@ impl pallet_orbis_storage_provider::Config for Runtime {
 	type MaxOwnerAgreements = ProviderMaxAgreements;
 	type MaxContainerAgreements = ProviderMaxAgreements;
 	type MaxChallengesPerBlock = ProviderMaxChallengesPerBlock;
+	type MaxDeletionProofDepth = ProviderMaxDeletionProofDepth;
+	type MaxProviderRootDepth = ProviderMaxRootDepth;
+	type MaxRootAppendBatch = ProviderMaxRootAppendBatch;
 	type ReservationValidator = OrbisReservationValidator;
 	type WeightInfo = pallet_orbis_storage_provider::weights::SubstrateWeight<Runtime>;
 }
@@ -3735,18 +3741,37 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 			)
 		}
 
+		fn provider_root(
+			provider: AccountId,
+		) -> storage_api::Versioned<storage_api::ProviderRootInfo<Hash, BlockNumber>> {
+			storage_api::Versioned::new(
+				pallet_orbis_storage_provider::ProviderRoots::<Runtime>::get(provider).map(
+					|record| storage_api::ProviderRootInfo {
+						sequence: record.sequence,
+						root: record.root,
+						leaf_count: record.leaf_count,
+						committed_at: record.committed_at,
+					},
+				),
+			)
+		}
+
 		fn deletion_acknowledgement(
 			agreement_id: Hash,
 		) -> storage_api::Versioned<
-			storage_api::DeletionAcknowledgementInfo<Hash, BlockNumber>,
+			storage_api::DeletionAcknowledgementInfo<AccountId, Hash, BlockNumber>,
 		> {
 			storage_api::Versioned::new(
 				pallet_orbis_storage_provider::DeletionAcknowledgements::<Runtime>::get(
 					agreement_id,
 				)
 				.map(|record| storage_api::DeletionAcknowledgementInfo {
+					provider: record.provider,
 					content_commitment: record.content_commitment,
 					tombstone_root: record.tombstone_root,
+					root_sequence: record.root_sequence,
+					leaf_index: record.leaf_index,
+					leaf_count: record.leaf_count,
 					proof_commitment: record.proof_commitment,
 					acknowledged_at: record.acknowledged_at,
 				}),
