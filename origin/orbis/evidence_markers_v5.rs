@@ -3,49 +3,31 @@
 
 //! Test-only Slice 2 v5 evidence registry. Gate 6 is reserved, never emitted while pending.
 
-pub const EVIDENCE_MARKERS_V5: &[(&str, &str, &str)] = &[
-	(
-		"slice2-surfaces",
-		"S2-SURFACES-01",
-		"1b41d987f8802a8deab44f53bde3e557721a6e178100ebe67034966fc6118214",
-	),
-	(
-		"slice2-fixtures",
-		"S2-FIXTURES-01",
-		"038dacc96a878fb4c9d461d0a53006479031b43658b40fac76a982e56c1a9b8f",
-	),
-	(
-		"slice2-payout",
-		"S2-PAYOUT-01",
-		"1f1be67bd9978efc827ede24ec4ae039185f4ae78d9860aa5f712d4f86b35a93",
-	),
-	(
-		"slice2-benchmark",
-		"S2-BENCHMARK-01",
-		"2beaf4e53e181a95b167ca162bc4b4b758fbe466c832c70dc42b9d132e79d461",
-	),
-	(
-		"slice2-migrations",
-		"S2-MIGRATIONS-01",
-		"86a06bce962c5f7c7b88b83c5f17607ee63e25bb23ab4f05e1359989f053faec",
-	),
-	(
-		"slice2-gate6",
-		"GATE-6-SLICE2-EVIDENCE",
-		"473b3bad0f24383e1df54b80bae4148766565f4a034acb14de41ded1be3f6856",
-	),
+pub const EVIDENCE_MARKERS_V5: &[(&str, &str, &str, &str)] = &[
+	("slice2-surfaces", "S2-SURFACES-01", "Concrete direct and paid Meta Score/Honour surfaces preserve actor, nonce, payment, quota, business state, and rejection invariants.", "b4c8410c960d0ecb7148d29871877a53efbcc9f46a59cbfd086dd01142d4ea84"),
+	("slice2-fixtures", "S2-FIXTURES-01", "Four checked compiled-metadata Score/Honour fixtures execute positive and exact mutation rejection paths.", "e2f5cfadab8e085d4675c8af155a9ed66c8ed36829a5406aee27d5ea09009a9f"),
+	("slice2-payout", "S2-PAYOUT-01", "Payout-account rotation watches every liability and preserves atomic fund conservation.", "fdf76b39c2763e10e8c2d3ecbefbd7bd7c694e6db4a8058a4fb60c1a0e0b2c87"),
+	("slice2-benchmark", "S2-BENCHMARK-01", "Runtime benchmarks register and execute Score/Honour and configured payout weight dominates the recorded Wasm measurement.", "e93e5ae882881dfb17ef5dea15df7381785a169957ae1e780184db39d4b31564"),
+	("slice2-migrations", "S2-MIGRATIONS-01", "Full migration tuple accepts clean/current state and fails closed without partial progress for dirty Score or Honour v0.", "7dcbc8e654a8d3c95243f6ba6181fe4f0a907fd7b055c323ba7b0fa9d9c245f7"),
+	("slice2-gate6", "GATE-6-SLICE2-EVIDENCE", "Independent Architect and Critic evidence reviews clear the bounded Slice 2 v5 evidence transition.", "9476759094595e6986b4b66233eda648252df74d6826c0cdee304b4c1e994deb"),
 ];
 
-pub const RESERVED_GATE6_V5: (&str, &str, &str) = EVIDENCE_MARKERS_V5[5];
+pub const RESERVED_GATE6_V5: (&str, &str, &str, &str) = EVIDENCE_MARKERS_V5[5];
 
 pub fn emit_evidence_marker_v5(group: &str) {
 	assert_ne!(group, RESERVED_GATE6_V5.0, "Gate 6 remains pending review");
-	let mut emitted = 0usize;
-	for &(marker_group, id, digest) in &EVIDENCE_MARKERS_V5[..5] {
-		if marker_group == group {
-			println!("assertion={id}:{digest}");
-			emitted += 1;
-		}
-	}
-	assert_eq!(emitted, 1, "each Slice 2 evidence command owns exactly one marker");
+	let matches = EVIDENCE_MARKERS_V5[..5]
+		.iter()
+		.filter(|row| row.0 == group)
+		.collect::<alloc::vec::Vec<_>>();
+	assert_eq!(matches.len(), 1, "each Slice 2 evidence command owns exactly one marker");
+	let (_, id, contract, digest) = *matches[0];
+	assert_eq!(
+		sp_io::hashing::sha2_256(contract.as_bytes())
+			.iter()
+			.map(|byte| alloc::format!("{byte:02x}"))
+			.collect::<alloc::string::String>(),
+		digest
+	);
+	println!("assertion={id}:{digest}");
 }

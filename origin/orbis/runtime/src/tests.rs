@@ -3679,9 +3679,8 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 	}
 }
 
-#[test]
 #[cfg(not(feature = "runtime-benchmarks"))]
-fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
+fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4: bool) {
 	use codec::Encode;
 	use frame_support::{
 		dispatch::GetDispatchInfo,
@@ -5593,7 +5592,15 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
 		assert!(header.number > 0);
 		assert!(crate::meta_v6::token().is_none());
 	});
-	evidence_markers_v4::emit_evidence_markers_v4("runtime-sponsored");
+	if emit_v4 {
+		evidence_markers_v4::emit_evidence_markers_v4("runtime-sponsored");
+	}
+}
+
+#[test]
+#[cfg(not(feature = "runtime-benchmarks"))]
+fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery() {
+	sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(true);
 }
 
 #[test]
@@ -6055,7 +6062,7 @@ fn slice2_v5_surfaces_evidence() {
 	score_normal_and_meta_signed_origins_share_active_participant_boundary();
 	direct_score_policy_executes_once_through_concrete_runtime_extensions();
 	ethereum_and_authorized_origins_cannot_activate_native_score_or_honour_policies();
-	sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery();
+	sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(false);
 	evidence_markers_v5::emit_evidence_marker_v5("slice2-surfaces");
 }
 
