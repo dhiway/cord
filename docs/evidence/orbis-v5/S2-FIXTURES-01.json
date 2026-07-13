@@ -1,15 +1,19 @@
 {
-  "assertion_sha256": "038dacc96a878fb4c9d461d0a53006479031b43658b40fac76a982e56c1a9b8f",
-  "command": "RUNTIME_METADATA_HASH=0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime tests::slice2_v5_fixtures_evidence -- --exact --nocapture",
-  "expected": "assertion=S2-FIXTURES-01:038dacc96a878fb4c9d461d0a53006479031b43658b40fac76a982e56c1a9b8f",
-  "expected_assertion": "assertion=S2-FIXTURES-01:038dacc96a878fb4c9d461d0a53006479031b43658b40fac76a982e56c1a9b8f",
-  "expected_output": "test result: ok",
-  "id": "S2-FIXTURES-01",
+  "manifest_fields": {
+    "artifact_path": "docs/evidence/orbis-v5/S2-FIXTURES-01.json",
+    "assertion_sha256": "e2f5cfadab8e085d4675c8af155a9ed66c8ed36829a5406aee27d5ea09009a9f",
+    "expected_assertion": "assertion=S2-FIXTURES-01:e2f5cfadab8e085d4675c8af155a9ed66c8ed36829a5406aee27d5ea09009a9f",
+    "expected_output": "test result: ok",
+    "id": "S2-FIXTURES-01",
+    "kind": "slice2-executable",
+    "source_commit": "ce60319f85a13b29e143a4d15189616f38abe777",
+    "source_paths": "origin/orbis/runtime/src/meta_v6_fixtures.rs; origin/orbis/runtime/src/tests.rs",
+    "source_symbol": "slice2_v5_fixtures_evidence",
+    "status": "present",
+    "test_or_command": "RUNTIME_METADATA_HASH=0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime tests::slice2_v5_fixtures_evidence -- --exact --nocapture",
+    "value": "Four checked compiled-metadata Score/Honour fixtures execute positive and exact mutation rejection paths."
+  },
   "output_artifact": "docs/evidence/orbis-v5/S2-FIXTURES-01.out",
-  "output_artifact_sha256": "d583fb965935051b56dbca6eb482ebdec25a70e045b847e5ee518a2bfa5b4a50",
-  "output_sha256": "d583fb965935051b56dbca6eb482ebdec25a70e045b847e5ee518a2bfa5b4a50",
-  "source_commit": "755b3681983d90ca79c1eb7083f3a904370d10d3",
-  "source_paths": "origin/orbis/runtime/src/meta_v6_fixtures.rs; origin/orbis/runtime/src/tests.rs",
-  "source_symbol": "slice2_v5_fixtures_evidence",
-  "test_or_command": "RUNTIME_METADATA_HASH=0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime tests::slice2_v5_fixtures_evidence -- --exact --nocapture"
+  "output_artifact_sha256": "b79fd18b2dc8634bc49acdc6e66eb464d18ec56e8576fdd7051fe2ad30caa9a5",
+  "schema": "orbis-v5-evidence-artifact-v2"
 }

@@ -1,5 +1,4 @@
 exit=0
 command=RUNTIME_METADATA_HASH=0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime tests::slice2_v5_surfaces_evidence -- --exact --nocapture
-assertion=META-EVIDENCE-EARLY-PROPAGATION:c6b8aa0a888fc0945b8b5d48a6d17c1aca7aee4924fefbe96a74384792ff72ad
-assertion=S2-SURFACES-01:1b41d987f8802a8deab44f53bde3e557721a6e178100ebe67034966fc6118214
+assertion=S2-SURFACES-01:b4c8410c960d0ecb7148d29871877a53efbcc9f46a59cbfd086dd01142d4ea84
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 73 filtered out; finished
