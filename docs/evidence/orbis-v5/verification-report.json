@@ -1,0 +1,22 @@
+{
+  "audited_runtime_commit": "317a3a5b3dda0964958e08b94c683b1cc1b8e387",
+  "closed_inventory_blake2_256": "f50cdf08758babdbda088b0a67b6800f48ececcc67f5ad386856882ba3737e2a",
+  "cold_wasm_sha256": "19d05f5950278bbd3810219b67b36419a2c4369efcb86213166828258d1dc96c",
+  "cold_wasm_size_bytes": 16760580,
+  "commands": 5,
+  "evidence_architect_status": "pending",
+  "evidence_critic_status": "pending",
+  "evidence_marker_commit": "755b3681983d90ca79c1eb7083f3a904370d10d3",
+  "excluded": 68,
+  "gate6": "pending",
+  "manifest_sha256": "14f87ee0dea5cc9cc76ad0fa1c1c3bbcdaede8df9b0d9333c5ab8a29fa40d7d4",
+  "pending_inventory_blake2_256": "52ebd01bec5788984764d073cadd3dc5076a50f97587d2a4683752ad7e5a191e",
+  "phase": "pending-review",
+  "planned": 140,
+  "present": 443,
+  "row_count": 651,
+  "schema": "orbis-completion-verification-v5",
+  "slice2_evidence_present": 5,
+  "transition_architect_status": "clear",
+  "transition_critic_status": "clear"
+}

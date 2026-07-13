@@ -1,23 +1,31 @@
-manifest_version = 4
+manifest_version = 5
 scope = "origin-orbis-enterprise-completion"
-frozen_at_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"
-audited_runtime_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"
-evidence_marker_commit = "28a00e425d86092eddd08a7bfb10c09fa467450e"
-nonruntime_equivalence_evidence = "docs/evidence/orbis-v4/marker-nonruntime-equivalence.json"
+frozen_at_commit = "317a3a5b3dda0964958e08b94c683b1cc1b8e387"
+audited_runtime_commit = "317a3a5b3dda0964958e08b94c683b1cc1b8e387"
+evidence_marker_commit = "755b3681983d90ca79c1eb7083f3a904370d10d3"
+nonruntime_equivalence_evidence = "docs/evidence/orbis-v5/marker-nonruntime-equivalence.json"
 max_api_page_size = 100
 max_s3_bucket_name_bytes = 255
 max_s3_object_key_bytes = 1024
 
 [replanning]
 rule = "Adding or removing any row, method, service, scenario, or exclusion requires Architect/Critic approval and a manifest_version increment."
-iteration = 5
-decision = "freeze-current-completion-evidence-v4"
-plan_evidence = "docs/adr/0008-orbis-transaction-policy-pipeline.md:Iteration-5-evidence-boundary"
-architect_evidence = "docs/evidence/orbis-v4/architect-review-clear-1.md"
-architect_status = "clear"
-critic_block_evidence = "docs/evidence/orbis-v4/critic-review-block-1.md"
-critic_evidence = "docs/evidence/orbis-v4/critic-review-clear-1.md"
-critic_status = "clear"
+iteration = 6
+decision = "slice2-v5-pending-evidence-review"
+plan_evidence = "docs/adr/0008-orbis-transaction-policy-pipeline.md:Slice-2-v5-evidence-transition"
+transition_architect_evidence = "docs/evidence/orbis-v5/architect-delta-approval.md"
+transition_architect_status = "clear"
+transition_critic_evidence = "docs/evidence/orbis-v5/critic-delta-approval.md"
+transition_critic_status = "clear"
+product_architect_evidence = "docs/evidence/orbis-v5/architect-product-clear.md"
+product_architect_status = "clear"
+product_critic_evidence = "docs/evidence/orbis-v5/critic-product-clear.md"
+product_critic_status = "clear"
+evidence_phase = "pending-review"
+evidence_architect_evidence = ""
+evidence_architect_status = "pending"
+evidence_critic_evidence = ""
+evidence_critic_status = "pending"
 
 [[source]]
 id = "dhiway-sdk"
@@ -2170,11 +2178,12 @@ evidence = "origin/orbis/runtime/src/lib.rs:index-96"
 id = "PAL-097"
 name = "score"
 index = 97
-package = "indiv-pallet-score"
+package = "pallet-orbis-score"
+upstream_package = "indiv-pallet-score"
 source = "individuality-community"
 license = "Apache-2.0"
-state = "planned"
-evidence = "slice-2"
+state = "present"
+evidence = "origin/orbis/runtime/src/lib.rs:index-97"
 
 [[runtime_pallet]]
 id = "PAL-098"
@@ -2190,11 +2199,12 @@ evidence = "slice-5"
 id = "PAL-099"
 name = "honour"
 index = 99
-package = "indiv-pallet-honour"
+package = "pallet-orbis-honour"
+upstream_package = "indiv-pallet-honour"
 source = "individuality-community"
 license = "Apache-2.0"
-state = "planned"
-evidence = "slice-2"
+state = "present"
+evidence = "origin/orbis/runtime/src/lib.rs:index-99"
 
 [[runtime_pallet]]
 id = "PAL-101"
@@ -2356,9 +2366,10 @@ evidence = "origin/orbis/runtime/src/lib.rs:define_benchmarks"
 
 [[benchmark]]
 id = "BENCH-41"
-target = "indiv_pallet_score"
-state = "planned"
-evidence = "bounded completion slice"
+target = "pallet_orbis_score"
+upstream_target = "indiv_pallet_score"
+state = "present"
+evidence = "docs/benchmarks/orbis-score-2026-07-13.json"
 
 [[benchmark]]
 id = "BENCH-42"
@@ -2368,9 +2379,10 @@ evidence = "bounded completion slice"
 
 [[benchmark]]
 id = "BENCH-43"
-target = "indiv_pallet_honour"
-state = "planned"
-evidence = "bounded completion slice"
+target = "pallet_orbis_honour"
+upstream_target = "indiv_pallet_honour"
+state = "present"
+evidence = "origin/orbis/runtime/src/tests.rs:native_benchmark_api_discovers_and_executes_score_and_honour"
 
 [[benchmark]]
 id = "BENCH-44"
@@ -2464,11 +2476,12 @@ state = "present-initial-version"
 evidence = "origin/orbis/pallets/resources/src/lib.rs:StorageVersion(1)"
 
 [[migration]]
-id = "MIG-indiv-pallet-score"
-package = "indiv-pallet-score"
-storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+id = "MIG-pallet-orbis-score"
+package = "pallet-orbis-score"
+upstream_package = "indiv-pallet-score"
+storage_version = 1
+state = "present-initial-version"
+evidence = "origin/orbis/pallets/score/src/migrations.rs:IntroduceV1"
 
 [[migration]]
 id = "MIG-indiv-pallet-game"
@@ -2478,11 +2491,12 @@ state = "planned-initial-version"
 evidence = "bounded completion slice"
 
 [[migration]]
-id = "MIG-indiv-pallet-honour"
-package = "indiv-pallet-honour"
-storage_version = 0
-state = "planned-initial-version"
-evidence = "bounded completion slice"
+id = "MIG-pallet-orbis-honour"
+package = "pallet-orbis-honour"
+upstream_package = "indiv-pallet-honour"
+storage_version = 1
+state = "present-initial-version"
+evidence = "origin/orbis/pallets/honour/src/migrations.rs:IntroduceV1"
 
 [[migration]]
 id = "MIG-indiv-pallet-proof-of-ink"
@@ -6322,3 +6336,85 @@ artifact_path = "docs/evidence/orbis-v4/META-EVIDENCE-EARLY-PROPAGATION.json"
 artifact_sha256 = "3f6759a0ed679abba8dd5a06b5f6200de4d9ed6d3fb61390f15b01ddfc087420"
 source_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"
 status = "present"
+
+[[slice2_evidence]]
+id = "S2-SURFACES-01"
+kind = "slice2-executable"
+status = "present"
+source_paths = "origin/orbis/runtime/src/tests.rs"
+test_or_command = "RUNTIME_METADATA_HASH=0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime tests::slice2_v5_surfaces_evidence -- --exact --nocapture"
+expected_output = "test result: ok"
+output_sha256 = "4cac1113f0c43fda8e34c358862666440cb6ff0cef63de03215f5cfcf527d69c"
+source_symbol = "slice2_v5_surfaces_evidence"
+expected_assertion = "assertion=S2-SURFACES-01:1b41d987f8802a8deab44f53bde3e557721a6e178100ebe67034966fc6118214"
+assertion_sha256 = "1b41d987f8802a8deab44f53bde3e557721a6e178100ebe67034966fc6118214"
+artifact_path = "docs/evidence/orbis-v5/S2-SURFACES-01.json"
+artifact_sha256 = "ea58bd09af76935aed3613ccf158c58fbdd88c74c2c732e5c93596b622558408"
+source_commit = "755b3681983d90ca79c1eb7083f3a904370d10d3"
+
+[[slice2_evidence]]
+id = "S2-FIXTURES-01"
+kind = "slice2-executable"
+status = "present"
+source_paths = "origin/orbis/runtime/src/meta_v6_fixtures.rs; origin/orbis/runtime/src/tests.rs"
+test_or_command = "RUNTIME_METADATA_HASH=0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime tests::slice2_v5_fixtures_evidence -- --exact --nocapture"
+expected_output = "test result: ok"
+output_sha256 = "d583fb965935051b56dbca6eb482ebdec25a70e045b847e5ee518a2bfa5b4a50"
+source_symbol = "slice2_v5_fixtures_evidence"
+expected_assertion = "assertion=S2-FIXTURES-01:038dacc96a878fb4c9d461d0a53006479031b43658b40fac76a982e56c1a9b8f"
+assertion_sha256 = "038dacc96a878fb4c9d461d0a53006479031b43658b40fac76a982e56c1a9b8f"
+artifact_path = "docs/evidence/orbis-v5/S2-FIXTURES-01.json"
+artifact_sha256 = "a3f51f596635f118120c80d225b49133a6a7940e7c350288abf84ad14137f7d5"
+source_commit = "755b3681983d90ca79c1eb7083f3a904370d10d3"
+
+[[slice2_evidence]]
+id = "S2-PAYOUT-01"
+kind = "slice2-executable"
+status = "present"
+source_paths = "origin/orbis/pallets/score/src/tests.rs"
+test_or_command = "cargo test -p pallet-orbis-score tests::slice2_v5_payout_evidence -- --exact --nocapture"
+expected_output = "test result: ok"
+output_sha256 = "6fbcb5988f021037e2803caca330a0630acdf17b0b834558a854cb91565a1441"
+source_symbol = "slice2_v5_payout_evidence"
+expected_assertion = "assertion=S2-PAYOUT-01:1f1be67bd9978efc827ede24ec4ae039185f4ae78d9860aa5f712d4f86b35a93"
+assertion_sha256 = "1f1be67bd9978efc827ede24ec4ae039185f4ae78d9860aa5f712d4f86b35a93"
+artifact_path = "docs/evidence/orbis-v5/S2-PAYOUT-01.json"
+artifact_sha256 = "421027a2a505075ae4b514f288bd9e260064fb51555ed93fadd2baff181efbc7"
+source_commit = "755b3681983d90ca79c1eb7083f3a904370d10d3"
+
+[[slice2_evidence]]
+id = "S2-BENCHMARK-01"
+kind = "slice2-executable"
+status = "present"
+source_paths = "origin/orbis/runtime/src/tests.rs; docs/benchmarks/orbis-score-2026-07-13.json; docs/benchmarks/orbis-score-2026-07-13.log"
+test_or_command = "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --features runtime-benchmarks tests::slice2_v5_benchmark_evidence -- --exact --nocapture"
+expected_output = "test result: ok"
+output_sha256 = "5988c8f7be204103feee5b5e2f5b3b9b87d475434af4995d45d2cbd77c6bb69b"
+source_symbol = "slice2_v5_benchmark_evidence"
+expected_assertion = "assertion=S2-BENCHMARK-01:2beaf4e53e181a95b167ca162bc4b4b758fbe466c832c70dc42b9d132e79d461"
+assertion_sha256 = "2beaf4e53e181a95b167ca162bc4b4b758fbe466c832c70dc42b9d132e79d461"
+artifact_path = "docs/evidence/orbis-v5/S2-BENCHMARK-01.json"
+artifact_sha256 = "a2ce5888ee9d5f13a910986c066f8fbb1672b16539c3525920f1490557fbd68f"
+source_commit = "755b3681983d90ca79c1eb7083f3a904370d10d3"
+
+[[slice2_evidence]]
+id = "S2-MIGRATIONS-01"
+kind = "slice2-executable"
+status = "present"
+source_paths = "origin/orbis/runtime/src/tests.rs; origin/orbis/runtime/MIGRATIONS.md"
+test_or_command = "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --features try-runtime tests::slice2_v5_migrations_evidence -- --exact --nocapture"
+expected_output = "test result: ok"
+output_sha256 = "9c4e1b8da54e026915fe92bcb9feca0917fdfed558f7192d13d2fd2a38ac0ab3"
+source_symbol = "slice2_v5_migrations_evidence"
+expected_assertion = "assertion=S2-MIGRATIONS-01:86a06bce962c5f7c7b88b83c5f17607ee63e25bb23ab4f05e1359989f053faec"
+assertion_sha256 = "86a06bce962c5f7c7b88b83c5f17607ee63e25bb23ab4f05e1359989f053faec"
+artifact_path = "docs/evidence/orbis-v5/S2-MIGRATIONS-01.json"
+artifact_sha256 = "0de7b2b0a9b3c45206c54b36192151fd55671e5437caa6e7306668290c970f60"
+source_commit = "755b3681983d90ca79c1eb7083f3a904370d10d3"
+
+[[remediation_gate]]
+id = "GATE-6-SLICE2-EVIDENCE"
+order = 6
+value = "independent evidence review of the bounded Slice 2 v5 transition"
+status = "pending"
+planned_slice = "slice2-evidence-review"

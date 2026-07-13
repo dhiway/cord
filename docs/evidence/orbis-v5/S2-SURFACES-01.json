@@ -1,0 +1,15 @@
+{
+  "assertion_sha256": "1b41d987f8802a8deab44f53bde3e557721a6e178100ebe67034966fc6118214",
+  "command": "RUNTIME_METADATA_HASH=0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime tests::slice2_v5_surfaces_evidence -- --exact --nocapture",
+  "expected": "assertion=S2-SURFACES-01:1b41d987f8802a8deab44f53bde3e557721a6e178100ebe67034966fc6118214",
+  "expected_assertion": "assertion=S2-SURFACES-01:1b41d987f8802a8deab44f53bde3e557721a6e178100ebe67034966fc6118214",
+  "expected_output": "test result: ok",
+  "id": "S2-SURFACES-01",
+  "output_artifact": "docs/evidence/orbis-v5/S2-SURFACES-01.out",
+  "output_artifact_sha256": "4cac1113f0c43fda8e34c358862666440cb6ff0cef63de03215f5cfcf527d69c",
+  "output_sha256": "4cac1113f0c43fda8e34c358862666440cb6ff0cef63de03215f5cfcf527d69c",
+  "source_commit": "755b3681983d90ca79c1eb7083f3a904370d10d3",
+  "source_paths": "origin/orbis/runtime/src/tests.rs",
+  "source_symbol": "slice2_v5_surfaces_evidence",
+  "test_or_command": "RUNTIME_METADATA_HASH=0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime tests::slice2_v5_surfaces_evidence -- --exact --nocapture"
+}

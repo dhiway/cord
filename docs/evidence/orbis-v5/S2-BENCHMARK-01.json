@@ -1,0 +1,15 @@
+{
+  "assertion_sha256": "2beaf4e53e181a95b167ca162bc4b4b758fbe466c832c70dc42b9d132e79d461",
+  "command": "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --features runtime-benchmarks tests::slice2_v5_benchmark_evidence -- --exact --nocapture",
+  "expected": "assertion=S2-BENCHMARK-01:2beaf4e53e181a95b167ca162bc4b4b758fbe466c832c70dc42b9d132e79d461",
+  "expected_assertion": "assertion=S2-BENCHMARK-01:2beaf4e53e181a95b167ca162bc4b4b758fbe466c832c70dc42b9d132e79d461",
+  "expected_output": "test result: ok",
+  "id": "S2-BENCHMARK-01",
+  "output_artifact": "docs/evidence/orbis-v5/S2-BENCHMARK-01.out",
+  "output_artifact_sha256": "5988c8f7be204103feee5b5e2f5b3b9b87d475434af4995d45d2cbd77c6bb69b",
+  "output_sha256": "5988c8f7be204103feee5b5e2f5b3b9b87d475434af4995d45d2cbd77c6bb69b",
+  "source_commit": "755b3681983d90ca79c1eb7083f3a904370d10d3",
+  "source_paths": "origin/orbis/runtime/src/tests.rs; docs/benchmarks/orbis-score-2026-07-13.json; docs/benchmarks/orbis-score-2026-07-13.log",
+  "source_symbol": "slice2_v5_benchmark_evidence",
+  "test_or_command": "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --features runtime-benchmarks tests::slice2_v5_benchmark_evidence -- --exact --nocapture"
+}

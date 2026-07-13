@@ -1,0 +1,15 @@
+{
+  "assertion_sha256": "1f1be67bd9978efc827ede24ec4ae039185f4ae78d9860aa5f712d4f86b35a93",
+  "command": "cargo test -p pallet-orbis-score tests::slice2_v5_payout_evidence -- --exact --nocapture",
+  "expected": "assertion=S2-PAYOUT-01:1f1be67bd9978efc827ede24ec4ae039185f4ae78d9860aa5f712d4f86b35a93",
+  "expected_assertion": "assertion=S2-PAYOUT-01:1f1be67bd9978efc827ede24ec4ae039185f4ae78d9860aa5f712d4f86b35a93",
+  "expected_output": "test result: ok",
+  "id": "S2-PAYOUT-01",
+  "output_artifact": "docs/evidence/orbis-v5/S2-PAYOUT-01.out",
+  "output_artifact_sha256": "6fbcb5988f021037e2803caca330a0630acdf17b0b834558a854cb91565a1441",
+  "output_sha256": "6fbcb5988f021037e2803caca330a0630acdf17b0b834558a854cb91565a1441",
+  "source_commit": "755b3681983d90ca79c1eb7083f3a904370d10d3",
+  "source_paths": "origin/orbis/pallets/score/src/tests.rs",
+  "source_symbol": "slice2_v5_payout_evidence",
+  "test_or_command": "cargo test -p pallet-orbis-score tests::slice2_v5_payout_evidence -- --exact --nocapture"
+}
