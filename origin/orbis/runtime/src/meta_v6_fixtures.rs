@@ -574,7 +574,7 @@ fn apply_checked_meta_fixture(
 }
 
 #[test]
-fn checked_in_score_meta_fixture_executes_as_paid_outer_extrinsic() {
+pub(crate) fn checked_in_score_meta_fixture_executes_as_paid_outer_extrinsic() {
 	if option_env!("RUNTIME_METADATA_HASH").is_none() {
 		return;
 	}
@@ -609,7 +609,7 @@ fn checked_in_score_meta_fixture_executes_as_paid_outer_extrinsic() {
 }
 
 #[test]
-fn checked_in_score_nonce_mutation_is_exact_future_without_inner_mutation() {
+pub(crate) fn checked_in_score_nonce_mutation_is_exact_future_without_inner_mutation() {
 	if option_env!("RUNTIME_METADATA_HASH").is_none() {
 		return;
 	}
@@ -648,7 +648,7 @@ fn checked_in_score_nonce_mutation_is_exact_future_without_inner_mutation() {
 }
 
 #[test]
-fn checked_in_honour_account_mutation_is_exact_bad_signer_and_executable() {
+pub(crate) fn checked_in_honour_account_mutation_is_exact_bad_signer_and_executable() {
 	if option_env!("RUNTIME_METADATA_HASH").is_none() {
 		return;
 	}
@@ -752,7 +752,7 @@ fn seed_checked_honour_ring() {
 }
 
 #[test]
-fn checked_in_honour_meta_fixture_executes_against_exact_runtime_ring() {
+pub(crate) fn checked_in_honour_meta_fixture_executes_against_exact_runtime_ring() {
 	if option_env!("RUNTIME_METADATA_HASH").is_none() {
 		return;
 	}

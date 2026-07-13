@@ -15,6 +15,8 @@
 // limitations under the License.
 
 use crate::{mock::*, types::Recognition::*, *};
+#[path = "../../../evidence_markers_v5.rs"]
+mod evidence_markers_v5;
 use codec::Encode;
 use frame_support::{
 	assert_noop, assert_ok,
@@ -2804,4 +2806,10 @@ fn named_manager_rotates_under_root_and_unauthorized_accounts_fail() {
 			sp_runtime::DispatchError::BadOrigin,
 		);
 	});
+}
+
+#[test]
+fn slice2_v5_payout_evidence() {
+	payout_account_rotation_watches_every_liability_and_conserves_funds();
+	evidence_markers_v5::emit_evidence_marker_v5("slice2-payout");
 }

@@ -39,8 +39,13 @@ use xcm_runtime_apis::conversions::LocationToAccountHelper;
 
 #[path = "../../evidence_inventory_v4.rs"]
 mod evidence_inventory_v4;
+#[path = "../../evidence_inventory_v5.rs"]
+#[cfg(not(feature = "runtime-benchmarks"))]
+mod evidence_inventory_v5;
 #[path = "../../evidence_markers_v4.rs"]
 mod evidence_markers_v4;
+#[path = "../../evidence_markers_v5.rs"]
+mod evidence_markers_v5;
 #[path = "remediation_v3.rs"]
 mod remediation_v3;
 
@@ -6015,4 +6020,74 @@ fn metadata_custom_hash_loss_is_detected_after_wire_roundtrip() {
 		&pair.public(),
 	));
 	evidence_markers_v4::emit_evidence_markers_v4("runtime-custom-hash");
+}
+
+#[test]
+#[cfg(not(feature = "runtime-benchmarks"))]
+fn slice2_v5_surfaces_evidence() {
+	let pending = evidence_inventory_v5::MANIFEST_INVENTORY_V5_PENDING;
+	let closed = evidence_inventory_v5::MANIFEST_INVENTORY_V5_CLOSED;
+	assert_eq!(pending.len(), evidence_inventory_v5::MANIFEST_INVENTORY_V5_COUNT);
+	assert_eq!(closed.len(), evidence_inventory_v5::MANIFEST_INVENTORY_V5_COUNT);
+	let differences = pending
+		.iter()
+		.zip(closed)
+		.filter(|(left, right)| left != right)
+		.collect::<Vec<_>>();
+	assert_eq!(differences.len(), 1);
+	assert_eq!(differences[0].0 .1, "GATE-6-SLICE2-EVIDENCE");
+	assert_eq!(differences[0].0 .3, "pending");
+	assert_eq!(differences[0].1 .3, "present");
+	for (inventory, expected) in [
+		(pending, evidence_inventory_v5::MANIFEST_INVENTORY_V5_PENDING_BLAKE2_256),
+		(closed, evidence_inventory_v5::MANIFEST_INVENTORY_V5_CLOSED_BLAKE2_256),
+	] {
+		let canonical = inventory
+			.iter()
+			.map(|(table, id, state, status)| format!("{table}\0{id}\0{state}\0{status}\n"))
+			.collect::<String>();
+		let digest = sp_io::hashing::blake2_256(canonical.as_bytes())
+			.iter()
+			.map(|byte| format!("{byte:02x}"))
+			.collect::<String>();
+		assert_eq!(digest, expected);
+	}
+	score_normal_and_meta_signed_origins_share_active_participant_boundary();
+	direct_score_policy_executes_once_through_concrete_runtime_extensions();
+	ethereum_and_authorized_origins_cannot_activate_native_score_or_honour_policies();
+	sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery();
+	evidence_markers_v5::emit_evidence_marker_v5("slice2-surfaces");
+}
+
+#[test]
+#[cfg(not(feature = "runtime-benchmarks"))]
+fn slice2_v5_fixtures_evidence() {
+	assert!(option_env!("RUNTIME_METADATA_HASH").is_some(), "compiled metadata hash required");
+	crate::meta_v6_fixtures::checked_in_score_meta_fixture_executes_as_paid_outer_extrinsic();
+	crate::meta_v6_fixtures::checked_in_score_nonce_mutation_is_exact_future_without_inner_mutation(
+	);
+	crate::meta_v6_fixtures::checked_in_honour_meta_fixture_executes_against_exact_runtime_ring();
+	crate::meta_v6_fixtures::checked_in_honour_account_mutation_is_exact_bad_signer_and_executable(
+	);
+	evidence_markers_v5::emit_evidence_marker_v5("slice2-fixtures");
+}
+
+#[test]
+#[cfg(feature = "runtime-benchmarks")]
+fn slice2_v5_benchmark_evidence() {
+	use pallet_orbis_score::weights::WeightInfo as _;
+	native_benchmark_api_discovers_and_executes_score_and_honour();
+	let configured = pallet_orbis_score::weights::SubstrateWeight::<Runtime>::set_payout_account();
+	let measured = frame_support::weights::Weight::from_parts(25_000_000, 3_676);
+	assert!(configured.all_gte(measured));
+	evidence_markers_v5::emit_evidence_marker_v5("slice2-benchmark");
+}
+
+#[test]
+#[cfg(feature = "try-runtime")]
+fn slice2_v5_migrations_evidence() {
+	full_unreleased_migration_rehearses_absent_native_prefixes_and_bulletin_v6();
+	full_unreleased_migration_dirty_score_v0_aborts_without_partial_progress();
+	full_unreleased_migration_dirty_honour_v0_aborts_without_partial_progress();
+	evidence_markers_v5::emit_evidence_marker_v5("slice2-migrations");
 }
