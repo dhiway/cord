@@ -2,7 +2,7 @@
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 BASE=317a3a5b3dda0964958e08b94c683b1cc1b8e387
-MARKER=755b3681983d90ca79c1eb7083f3a904370d10d3
+MARKER=ce60319f85a13b29e143a4d15189616f38abe777
 FIXED=/tmp/orbis-v5-slice2-equivalence-fixed
 TARGET=/tmp/orbis-v5-slice2-equivalence-target
 OUT=/tmp/orbis-v5-slice2-equivalence-output
@@ -47,15 +47,32 @@ b=(out/'baseline.wasm').read_bytes(); m=(out/'marker.wasm').read_bytes()
 if b!=m: raise SystemExit('cold A/marker compact runtime Wasm mismatch')
 diff=git('diff','--name-only',base,marker,text=True).splitlines()
 allowed=[
+ 'docs/evidence/orbis-v5/S2-BENCHMARK-01.json',
+ 'docs/evidence/orbis-v5/S2-BENCHMARK-01.out',
+ 'docs/evidence/orbis-v5/S2-FIXTURES-01.json',
+ 'docs/evidence/orbis-v5/S2-FIXTURES-01.out',
+ 'docs/evidence/orbis-v5/S2-MIGRATIONS-01.json',
+ 'docs/evidence/orbis-v5/S2-MIGRATIONS-01.out',
+ 'docs/evidence/orbis-v5/S2-PAYOUT-01.json',
+ 'docs/evidence/orbis-v5/S2-PAYOUT-01.out',
+ 'docs/evidence/orbis-v5/S2-SURFACES-01.json',
+ 'docs/evidence/orbis-v5/S2-SURFACES-01.out',
  'docs/evidence/orbis-v5/architect-delta-approval.md',
  'docs/evidence/orbis-v5/architect-product-clear.md',
  'docs/evidence/orbis-v5/critic-delta-approval.md',
  'docs/evidence/orbis-v5/critic-product-clear.md',
+ 'docs/evidence/orbis-v5/marker-nonruntime-equivalence.json',
+ 'docs/evidence/orbis-v5/verification-report.json',
+ 'docs/evidence/orbis-v5/verification-report.sha256',
+ 'docs/orbis-completion-manifest.toml',
  'origin/orbis/evidence_inventory_v5.rs',
  'origin/orbis/evidence_markers_v5.rs',
  'origin/orbis/pallets/score/src/tests.rs',
  'origin/orbis/runtime/src/meta_v6_fixtures.rs',
  'origin/orbis/runtime/src/tests.rs',
+ 'scripts/prove-orbis-slice2-v5-nonruntime.sh',
+ 'scripts/test-verify-orbis-completion-v5.py',
+ 'scripts/verify-orbis-completion-v5.py',
 ]
 if diff!=allowed: raise SystemExit('unexpected A-to-marker source diff: '+repr(diff))
 actual={
