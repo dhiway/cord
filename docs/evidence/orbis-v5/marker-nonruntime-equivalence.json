@@ -1,0 +1,33 @@
+{
+  "baseline_wasm_sha256": "19d05f5950278bbd3810219b67b36419a2c4369efcb86213166828258d1dc96c",
+  "build_command": "cargo +1.93.0 build --locked --frozen -p origin-orbis-runtime",
+  "cargo_lock_equal": true,
+  "cargo_lock_sha256": "bc0185bf82c32a5617da3cb389eb9db82cb2a2829d09de54785c1474737e3be2",
+  "cmp_exit_code": 0,
+  "cold_target_removed_before_each_build": true,
+  "deterministic_env": "env -u RUNTIME_METADATA_HASH; CARGO_INCREMENTAL=0; SOURCE_DATE_EPOCH=0; TZ=UTC; LC_ALL=C",
+  "evidence_marker_commit": "755b3681983d90ca79c1eb7083f3a904370d10d3",
+  "exclusive_lock_path": "/tmp/orbis-v5-slice2-equivalence.lock",
+  "features": "default",
+  "marker_cargo_lock_sha256": "bc0185bf82c32a5617da3cb389eb9db82cb2a2829d09de54785c1474737e3be2",
+  "marker_wasm_sha256": "19d05f5950278bbd3810219b67b36419a2c4369efcb86213166828258d1dc96c",
+  "poison_control_removed": true,
+  "runtime_baseline_commit": "317a3a5b3dda0964958e08b94c683b1cc1b8e387",
+  "same_source_path": "/tmp/orbis-v5-slice2-equivalence-fixed",
+  "same_target_path": "/tmp/orbis-v5-slice2-equivalence-target",
+  "schema": "orbis-slice2-v5-cold-equivalence-v1",
+  "source_diff": [
+    "docs/evidence/orbis-v5/architect-delta-approval.md",
+    "docs/evidence/orbis-v5/architect-product-clear.md",
+    "docs/evidence/orbis-v5/critic-delta-approval.md",
+    "docs/evidence/orbis-v5/critic-product-clear.md",
+    "origin/orbis/evidence_inventory_v5.rs",
+    "origin/orbis/evidence_markers_v5.rs",
+    "origin/orbis/pallets/score/src/tests.rs",
+    "origin/orbis/runtime/src/meta_v6_fixtures.rs",
+    "origin/orbis/runtime/src/tests.rs"
+  ],
+  "source_diff_sha256": "29ecb200d17cd4053c618ac920b5d8550597a727640cdc6aab02731cb420d3ac",
+  "toolchain": "rustc 1.93.0 (254b59607 2026-01-19); cargo 1.93.0 (083ac5135 2025-12-15)",
+  "wasm_size_bytes": 16760580
+}
