@@ -560,12 +560,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	if matches!(&args.action, Action::Inspect) {
 		let metadata = client.metadata();
 		let max_block_transactions = u32::decode(&mut metadata_constant(
-			metadata,
+			&metadata,
 			"TransactionStorage",
 			"MaxBlockTransactions",
 		)?)?;
 		let max_transaction_size = u32::decode(&mut metadata_constant(
-			metadata,
+			&metadata,
 			"TransactionStorage",
 			"MaxTransactionSize",
 		)?)?;
@@ -578,11 +578,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			max_transaction_size,
 			block_length_scale: format!(
 				"0x{}",
-				hex::encode(metadata_constant(metadata, "System", "BlockLength")?)
+				hex::encode(metadata_constant(&metadata, "System", "BlockLength")?)
 			),
 			block_weights_scale: format!(
 				"0x{}",
-				hex::encode(metadata_constant(metadata, "System", "BlockWeights")?)
+				hex::encode(metadata_constant(&metadata, "System", "BlockWeights")?)
 			),
 		};
 		println!("{}", serde_json::to_string_pretty(&output)?);
