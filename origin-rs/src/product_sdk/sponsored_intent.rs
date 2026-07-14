@@ -14,7 +14,7 @@ use crate::{
 		domains::{
 			attestation::AttestationCommand, dotns::DotnsCommand, drive::DriveCommand,
 			identity_personhood::IdentityPersonhoodCommand, s3::S3Command, storage::StorageCommand,
-			storage_provider::StorageProviderCommand,
+			storage_provider::StorageProviderCommand, BlockNumber, Validate,
 		},
 		prepare_attestation_command, prepare_dotns_command, prepare_drive_command,
 		prepare_identity_personhood_command, prepare_s3_command, prepare_storage_command,
@@ -22,7 +22,7 @@ use crate::{
 	},
 	tx::meta::{
 		meta_tx_value_from_signed, prepare_sponsored_intent as prepare_wire, SponsoredIntent,
-		SponsoredIntentBindings,
+		SponsoredIntentBindings, MAX_META_ENCODED_BYTES,
 	},
 	types::error::OriginSdkError,
 };
@@ -43,7 +43,26 @@ pub enum SponsoredNativeTarget {
 }
 
 impl SponsoredNativeTarget {
-	fn into_payload(self) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
+	fn validate_at(&self, current_block: BlockNumber) -> Result<(), OriginSdkError> {
+		let result = match self {
+			Self::IdentityPersonhood(command) => command.validate(),
+			Self::Attestation(command) => command.validate_at(current_block),
+			Self::Dotns(command) => command.validate_at(current_block),
+			Self::Storage(command) => command.validate(),
+			Self::StorageProvider(command) => command.validate_at(current_block),
+			Self::Drive(command) => command.validate(),
+			Self::S3(command) => command.validate(),
+		};
+		result.map_err(|error| OriginSdkError::InvalidInput(error.to_string()))
+	}
+
+	fn into_payload(
+		self,
+		current_block: BlockNumber,
+	) -> Result<subxt::tx::DynamicPayload, OriginSdkError> {
+		// Several domain encoders only construct metadata values. Validate the closed command
+		// before any payload is prepared so sponsored dispatch cannot bypass domain invariants.
+		self.validate_at(current_block)?;
 		let payload = match self {
 			Self::IdentityPersonhood(command) => prepare_identity_personhood_command(&command),
 			Self::Attestation(command) => prepare_attestation_command(&command),
@@ -55,6 +74,56 @@ impl SponsoredNativeTarget {
 		};
 		payload.map_err(|error| OriginSdkError::InvalidInput(error.to_string()))
 	}
+}
+
+/// Exact finite validity window accepted by the sponsored product operation.
+///
+/// The window must be representable without SCALE `Era` quantization changing either endpoint.
+/// `valid_from` is also required to be the finalized block used during preparation, which gives
+/// the SDK the exact block hash required by `CheckMortality`'s signed implicit.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SponsoredMortality {
+	pub valid_from: BlockNumber,
+	pub valid_until: BlockNumber,
+}
+
+impl SponsoredMortality {
+	fn era(self) -> Result<sp_runtime::generic::Era, OriginSdkError> {
+		let period = self.valid_until.checked_sub(self.valid_from).ok_or_else(|| {
+			OriginSdkError::InvalidInput(
+				"sponsored mortality valid_until must be after valid_from".into(),
+			)
+		})?;
+		if period == 0 {
+			return Err(OriginSdkError::InvalidInput(
+				"sponsored mortality valid_until must be after valid_from".into(),
+			));
+		}
+		if !(4..=65_536).contains(&period) || !period.is_power_of_two() {
+			return Err(OriginSdkError::InvalidInput(
+				"sponsored mortality period must be a power of two from 4 through 65536 blocks"
+					.into(),
+			));
+		}
+		let era = sp_runtime::generic::Era::mortal(period.into(), self.valid_from.into());
+		if era.birth(self.valid_from.into()) != u64::from(self.valid_from) ||
+			era.death(self.valid_from.into()) != u64::from(self.valid_until)
+		{
+			return Err(OriginSdkError::InvalidInput(
+				"sponsored mortality window is not exactly representable as a mortal era".into(),
+			));
+		}
+		Ok(era)
+	}
+}
+
+/// Typed Rust preparation request matching the product SDK's explicit nonce, mortality, and
+/// closed native target. The participant account is supplied by the participant signer.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SponsoredIntentRequest {
+	pub nonce: u32,
+	pub mortality: SponsoredMortality,
+	pub target: SponsoredNativeTarget,
 }
 
 /// Finalized evidence for a sponsored intent whose inner dispatch returned `Ok`.
@@ -69,34 +138,53 @@ pub struct SponsoredIntentOutcome {
 
 /// Bind a dynamic product call to current Orbis state and sign it as `participant`.
 ///
-/// `metadata_hash` is the RFC-78 hash for the connected runtime and is mandatory. All other
-/// bindings are captured from the connected client. The operation uses an immortal era, whose
-/// mortality implicit is the genesis hash.
+/// `metadata_hash` is the RFC-78 hash for the connected runtime and is mandatory. The explicit
+/// nonce and finite mortality window mirror the typed product request. Preparation is anchored to
+/// the current finalized block so the mortal era's signed block-hash implicit is unambiguous.
 pub async fn prepare_sponsored_intent(
 	client: &OrbisNativeClient,
-	target: SponsoredNativeTarget,
+	request: SponsoredIntentRequest,
 	participant: &OriginSigner,
 	metadata_hash: [u8; 32],
 ) -> Result<SponsoredIntent, OriginSdkError> {
 	let online = client.online();
-	let call = target.into_payload()?;
+	let SponsoredIntentRequest { nonce, mortality, target } = request;
+	let finalized = online
+		.blocks()
+		.at_latest()
+		.await
+		.map_err(|error| OriginSdkError::Tx(error.to_string()))?;
+	if finalized.number() != mortality.valid_from {
+		return Err(OriginSdkError::InvalidInput(format!(
+			"sponsored mortality valid_from {} is not the current finalized block {}",
+			mortality.valid_from,
+			finalized.number()
+		)));
+	}
+	let era = mortality.era()?;
+	let call = target.into_payload(mortality.valid_from)?;
 	let call_bytes = call
 		.encode_call_data(&online.metadata())
 		.map_err(|error| OriginSdkError::Encode(error.to_string()))?;
-	let nonce = online
-		.tx()
+	let live_nonce = finalized
 		.account_nonce(&participant.account_id())
 		.await
 		.map_err(|error| OriginSdkError::Nonce(error.to_string()))?;
-	let nonce = u32::try_from(nonce)
+	let live_nonce = u32::try_from(live_nonce)
 		.map_err(|_| OriginSdkError::InvalidInput("participant nonce exceeds u32".into()))?;
+	if nonce != live_nonce {
+		return Err(OriginSdkError::InvalidInput(format!(
+			"sponsored intent nonce {nonce} does not match finalized participant nonce {live_nonce}"
+		)));
+	}
 	let version = online.runtime_version();
 	let bindings = SponsoredIntentBindings {
 		nonce,
-		era: sp_runtime::generic::Era::Immortal,
+		era,
 		spec_version: version.spec_version,
 		transaction_version: version.transaction_version,
 		genesis_hash: sp_core::H256(online.genesis_hash().0),
+		mortality_hash: sp_core::H256(finalized.hash().0),
 		metadata_hash: Some(metadata_hash),
 	};
 	prepare_wire(&online.metadata(), &call_bytes, participant, bindings).await
@@ -118,6 +206,11 @@ pub async fn submit_sponsored_intent(
 	}
 
 	let online = client.online();
+	if intent.encoded_meta_tx().len() > MAX_META_ENCODED_BYTES {
+		return Err(OriginSdkError::InvalidInput(format!(
+			"sponsored MetaTx exceeds runtime limit of {MAX_META_ENCODED_BYTES} bytes"
+		)));
+	}
 	let encoded_len = u32::try_from(intent.encoded_meta_tx().len())
 		.map_err(|_| OriginSdkError::InvalidInput("sponsored MetaTx exceeds u32 length".into()))?;
 	let dispatch = subxt::dynamic::tx(
@@ -195,6 +288,7 @@ fn decode_dispatched_result<T>(result: &Value<T>) -> Result<(), OriginSdkError> 
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::product_sdk::domains::DriveId;
 	use scale_value::Composite;
 
 	fn dispatched(name: &str) -> Composite<()> {
@@ -208,5 +302,27 @@ mod tests {
 		let err = dispatched("Err");
 		assert!(decode_dispatched_result(err.values().next().unwrap()).is_err());
 		assert!(decode_dispatched_result(&Value::u128(0)).is_err());
+	}
+
+	#[test]
+	fn mortality_window_must_survive_era_quantization_exactly() {
+		let mortality = SponsoredMortality { valid_from: 100, valid_until: 164 };
+		let era = mortality.era().expect("64-block mortal era");
+		assert!(!era.is_immortal());
+		assert_eq!(era.birth(100), 100);
+		assert_eq!(era.death(100), 164);
+		assert!(SponsoredMortality { valid_from: 100, valid_until: 100 }.era().is_err());
+		assert!(SponsoredMortality { valid_from: 100, valid_until: 165 }.era().is_err());
+	}
+
+	#[test]
+	fn sponsored_target_validation_precedes_payload_preparation() {
+		let drive = DriveId::new(format!("0x{}", "11".repeat(32))).expect("drive id");
+		let target = SponsoredNativeTarget::Drive(DriveCommand::UpdateRoot {
+			drive,
+			expected_version: 0,
+			root_storage_ref: None,
+		});
+		assert!(target.into_payload(1).is_err());
 	}
 }

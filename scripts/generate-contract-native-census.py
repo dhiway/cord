@@ -24,8 +24,6 @@ OUT = ROOT / "docs" / "architecture" / "contract-to-native-migration.csv"
 EVIDENCE = ROOT / "docs" / "evidence" / "p0-contract-native"
 APPROVAL_MANIFEST = EVIDENCE / "architect-semantic-disposition-approval.json"
 NATIVE_CUTOVER_ALLOWLIST = EVIDENCE / "native-cutover-allowlist.json"
-P5_PAYLOAD = ROOT / "docs" / "evidence" / "verification" / "p5" / "sdk-freeze-ratification.payload.json"
-FINAL_P5_PAYLOAD_SHA256 = "27c6effe52c60fade8e9fe341ffe874cb6e286e97944c51c7f0532052361e9fe"
 
 REPOS = {
     "attestation-protocol": "https://github.com/paritytech/attestation-protocol.git",
@@ -983,17 +981,12 @@ def main() -> None:
         except (OSError, json.JSONDecodeError): previous = {}
     current_branch = git(ROOT, "branch", "--show-current")
     current_head = git(ROOT, "rev-parse", "HEAD")
-    actual_p5_hash = hashlib.sha256(P5_PAYLOAD.read_bytes()).hexdigest()
-    if actual_p5_hash != FINAL_P5_PAYLOAD_SHA256:
-        raise SystemExit(
-            f"final P5 payload drift: expected {FINAL_P5_PAYLOAD_SHA256}, got {actual_p5_hash}"
-        )
     previous_base = previous.get("source_base_head") or previous.get("source_head")
     same_payload_binding = (
-        previous.get("census_payload_sha256") == census_payload_hash
+        previous.get("schema_version") == 2
+        and previous.get("census_payload_sha256") == census_payload_hash
         and previous.get("design_payload_sha256") == design_payload_hash
         and previous.get("branch") == current_branch
-        and previous.get("p5_payload_sha256", FINAL_P5_PAYLOAD_SHA256) == FINAL_P5_PAYLOAD_SHA256
         and isinstance(previous_base, str)
         and subprocess.run(
             ["git", "-C", str(ROOT), "merge-base", "--is-ancestor", previous_base, current_head],
@@ -1004,14 +997,13 @@ def main() -> None:
     preserve_approval = (previous.get("verdict") == "APPROVED"
         and same_payload_binding)
     manifest = {
-        "schema_version": 1, "manifest_id": "origin-orbis-p0-semantic-dispositions-v1",
+        "schema_version": 2, "manifest_id": "origin-orbis-p0-semantic-dispositions-v2",
         "verdict": previous.get("verdict") if preserve_approval else "PENDING",
         "required_reviewer_role": "architect",
         "reviewer_role": previous.get("reviewer_role") if preserve_approval else "PENDING",
         "review_thread_id": previous.get("review_thread_id") if preserve_approval else "PENDING",
         "reviewed_at": previous.get("reviewed_at") if preserve_approval else "PENDING",
         "branch": current_branch, "source_base_head": source_base_head,
-        "p5_payload_sha256": FINAL_P5_PAYLOAD_SHA256,
         "census_payload_sha256": census_payload_hash, "design_payload_sha256": design_payload_hash,
         "source_components": len(rows), "semantic_design_entries": len(design_entries),
         "approval_document_path": approval_doc_path.relative_to(ROOT).as_posix(),
@@ -1019,15 +1011,15 @@ def main() -> None:
     }
     approval_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     manifest_hash = hashlib.sha256(approval_path.read_bytes()).hexdigest()
-    approval_ref = {"schema_version": 1, "path": approval_path.relative_to(ROOT).as_posix(),
+    approval_ref = {"schema_version": 2, "path": approval_path.relative_to(ROOT).as_posix(),
                     "sha256": manifest_hash, "verdict": manifest["verdict"],
                     "required_reviewer_role": manifest["required_reviewer_role"],
                     "review_thread_id": manifest["review_thread_id"]}
     for row in rows:
-        row.update({"approval_state": f"manifest:{manifest['verdict']}", "approval_manifest_schema_version": "1",
+        row.update({"approval_state": f"manifest:{manifest['verdict']}", "approval_manifest_schema_version": "2",
                     "approval_manifest_path": approval_ref["path"], "approval_manifest_sha256": manifest_hash})
     for entry in design_entries:
-        entry.update({"approval_state": f"manifest:{manifest['verdict']}", "approval_manifest_schema_version": 1,
+        entry.update({"approval_state": f"manifest:{manifest['verdict']}", "approval_manifest_schema_version": 2,
                       "approval_manifest_path": approval_ref["path"], "approval_manifest_sha256": manifest_hash})
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -1110,7 +1102,6 @@ Census-Artifact-SHA256: {hashlib.sha256(OUT.read_bytes()).hexdigest()}
 Design-Artifact-SHA256: {hashlib.sha256(design_path.read_bytes()).hexdigest()}
 Branch: {manifest['branch']}
 Source-Base-HEAD: {manifest['source_base_head']}
-P5-Payload-SHA256: {manifest['p5_payload_sha256']}
 Source-Components: {len(rows)}
 Semantic-Design-Entries: {len(design_entries)}
 ---

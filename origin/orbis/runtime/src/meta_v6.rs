@@ -1344,6 +1344,7 @@ impl TransactionExtension<RuntimeCall> for ConsumePaidMetaIngress {
 		if current.intent_commitment != commitment
 			|| current.consumed
 			|| current.payer == AccountId::new([0; 32])
+			|| current.payer == self.0.inner_signer
 			|| current.genesis_hash != System::block_hash(0)
 			|| current.spec_version != crate::VERSION.spec_version
 			|| current.transaction_version != crate::VERSION.transaction_version
@@ -1416,18 +1417,55 @@ impl Output for FixedOutput {
 
 fn decode_meta_intent<R: MetadataImplicitResolver>(
 	call: &RuntimeCall,
-) -> Result<H256, TransactionValidityError> {
-	let RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch { meta_tx, .. }) = call else {
+) -> Result<DecodedMetaIntent, TransactionValidityError> {
+	let RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
+		meta_tx,
+		meta_tx_encoded_len,
+	}) = call
+	else {
 		return Err(InvalidTransaction::Call.into());
 	};
+	let actual_len = meta_tx.encoded_size();
+	validate_meta_encoded_len(actual_len, *meta_tx_encoded_len)
+		.map_err(TransactionValidityError::Invalid)?;
 	decode_meta_payload::<R>(
 		&FixedOutput::encode(meta_tx).map_err(TransactionValidityError::Invalid)?.buf,
 	)
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DecodedMetaIntent {
+	commitment: H256,
+	participant: AccountId,
+}
+
+fn validate_meta_encoded_len(
+	actual: usize,
+	declared: u32,
+) -> Result<(), InvalidTransaction> {
+	if actual > MAX_META_ENCODED_BYTES {
+		return Err(InvalidTransaction::ExhaustsResources);
+	}
+	if actual != declared as usize {
+		return Err(InvalidTransaction::BadProof);
+	}
+	Ok(())
+}
+
+fn ensure_distinct_sponsor(
+	participant: &AccountId,
+	sponsor: &AccountId,
+) -> Result<(), InvalidTransaction> {
+	if participant == sponsor {
+		Err(InvalidTransaction::BadSigner)
+	} else {
+		Ok(())
+	}
+}
+
 fn decode_meta_payload<R: MetadataImplicitResolver>(
 	payload: &[u8],
-) -> Result<H256, TransactionValidityError> {
+) -> Result<DecodedMetaIntent, TransactionValidityError> {
 	use codec::DecodeAll;
 	let (inner_call, extension_version, extension): (
 		RuntimeCall,
@@ -1466,7 +1504,7 @@ fn decode_meta_payload<R: MetadataImplicitResolver>(
 		genesis_hash: System::block_hash(0),
 		spec_version: crate::VERSION.spec_version,
 		transaction_version: crate::VERSION.transaction_version,
-		inner_signer: account,
+		inner_signer: account.clone(),
 		call_hash: hash_encoded(&inner_call),
 		mortality: mortality.0,
 		nonce: nonce.0,
@@ -1482,7 +1520,7 @@ fn decode_meta_payload<R: MetadataImplicitResolver>(
 	{
 		return Err(InvalidTransaction::BadProof.into());
 	}
-	Ok(expected.commitment())
+	Ok(DecodedMetaIntent { commitment: expected.commitment(), participant: account })
 }
 
 pub const MAX_META_ENVELOPE_DEPTH: u32 = 4;
@@ -1494,7 +1532,7 @@ pub const MAX_META_PAYLOAD_BYTES: usize =
 
 struct InspectionState {
 	visited: u32,
-	found: Option<H256>,
+	found: Option<DecodedMetaIntent>,
 }
 
 fn inspect_node<R: MetadataImplicitResolver>(
@@ -1512,8 +1550,8 @@ fn inspect_node<R: MetadataImplicitResolver>(
 		if encoded_size > MAX_META_ENCODED_BYTES {
 			return Err(InvalidTransaction::ExhaustsResources.into());
 		}
-		let commitment = decode_meta_intent::<R>(call)?;
-		if state.found.replace(commitment).is_some() {
+		let intent = decode_meta_intent::<R>(call)?;
+		if state.found.replace(intent).is_some() {
 			return Err(InvalidTransaction::Call.into());
 		}
 		return Ok(());
@@ -1539,7 +1577,7 @@ fn inspect_node<R: MetadataImplicitResolver>(
 		_ => None,
 	};
 	if let Some(child) = denied_child {
-		let before = state.found;
+		let before = state.found.clone();
 		inspect_node::<R>(child, depth.saturating_add(1), None, state)?;
 		return if state.found != before { Err(InvalidTransaction::Call.into()) } else { Ok(()) };
 	}
@@ -1566,6 +1604,13 @@ pub(crate) fn inspect_paid_meta<R: MetadataImplicitResolver>(
 	call: &RuntimeCall,
 	depth: u32,
 ) -> Result<Option<H256>, TransactionValidityError> {
+	Ok(inspect_paid_meta_participant::<R>(call, depth)?.map(|intent| intent.commitment))
+}
+
+fn inspect_paid_meta_participant<R: MetadataImplicitResolver>(
+	call: &RuntimeCall,
+	depth: u32,
+) -> Result<Option<DecodedMetaIntent>, TransactionValidityError> {
 	let root_encoded_size = call.encoded_size();
 	if root_encoded_size > MAX_META_ENCODED_BYTES {
 		return Err(InvalidTransaction::ExhaustsResources.into());
@@ -1699,16 +1744,24 @@ where
 	) -> ValidateResult<Self::Val, RuntimeCall> {
 		let (valid, core, origin) =
 			self.0.validate(origin, call, info, len, implicit, inherited, source)?;
-		let intent = inspect_paid_meta::<R>(call, 0)?;
+		let intent = inspect_paid_meta_participant::<R>(call, 0)?;
 		if intent.is_some()
 			&& matches!(origin.as_system_ref(), Some(frame_system::RawOrigin::Authorized))
 		{
 			return Err(InvalidTransaction::Call.into());
 		}
-		let scope = if let Some(commitment) = intent {
+		let scope = if let Some(intent) = intent {
 			let payer =
 				origin.as_system_origin_signer().cloned().ok_or(InvalidTransaction::BadSigner)?;
-			Some((payer.clone(), commitment, frame_system::Account::<Runtime>::get(&payer).nonce))
+			// Participant authorizes the inner call; a distinct outer signer sponsors it. Keep this
+			// consensus-enforced even if a client bypasses the product SDK.
+			ensure_distinct_sponsor(&intent.participant, &payer)
+				.map_err(TransactionValidityError::Invalid)?;
+			Some((
+				payer.clone(),
+				intent.commitment,
+				frame_system::Account::<Runtime>::get(&payer).nonce,
+			))
 		} else {
 			None
 		};
@@ -1780,5 +1833,34 @@ pub struct MetaTokenMustBeEmpty;
 impl frame_support::traits::PostTransactions for MetaTokenMustBeEmpty {
 	fn post_transactions() {
 		assert!(token().is_none(), "Orbis paid Meta token leaked past transaction execution");
+	}
+}
+
+#[cfg(test)]
+mod sponsored_security_tests {
+	use super::*;
+
+	#[test]
+	fn encoded_meta_length_is_exact_and_bounded() {
+		assert_eq!(
+			validate_meta_encoded_len(MAX_META_ENCODED_BYTES, MAX_META_ENCODED_BYTES as u32),
+			Ok(()),
+		);
+		assert_eq!(validate_meta_encoded_len(10, 11), Err(InvalidTransaction::BadProof));
+		assert_eq!(
+			validate_meta_encoded_len(MAX_META_ENCODED_BYTES + 1, u32::MAX),
+			Err(InvalidTransaction::ExhaustsResources),
+		);
+	}
+
+	#[test]
+	fn participant_cannot_be_its_own_sponsor() {
+		let participant = AccountId::new([1; 32]);
+		let sponsor = AccountId::new([2; 32]);
+		assert_eq!(
+			ensure_distinct_sponsor(&participant, &participant),
+			Err(InvalidTransaction::BadSigner),
+		);
+		assert_eq!(ensure_distinct_sponsor(&participant, &sponsor), Ok(()));
 	}
 }

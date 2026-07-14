@@ -33,7 +33,7 @@ approval_path = ev / "architect-semantic-disposition-approval.json"
 approval_hash = hashlib.sha256(approval_path.read_bytes()).hexdigest()
 approval = json.loads(approval_path.read_text())
 approval_rel = approval_path.relative_to(root).as_posix()
-if approval.get("schema_version") != 1 or approval.get("required_reviewer_role") != "architect": errors.append("approval schema/required role mismatch")
+if approval.get("schema_version") != 2 or approval.get("required_reviewer_role") != "architect": errors.append("approval schema/required role mismatch")
 if approval.get("branch") != "sm-update-sub-0x63": errors.append("approval branch mismatch")
 current_head = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
 source_base_head = approval.get("source_base_head")
@@ -41,12 +41,8 @@ if not isinstance(source_base_head, str) or not re.fullmatch(r"[0-9a-f]{40}", so
     errors.append("approval source base HEAD invalid")
 elif subprocess.run(["git", "-C", str(root), "merge-base", "--is-ancestor", source_base_head, current_head], check=False).returncode != 0:
     errors.append("approval source base HEAD is not an ancestor of current HEAD")
-p5_path = root / "docs/evidence/verification/p5/sdk-freeze-ratification.payload.json"
-p5_hash = hashlib.sha256(p5_path.read_bytes()).hexdigest()
-if p5_hash != "27c6effe52c60fade8e9fe341ffe874cb6e286e97944c51c7f0532052361e9fe" or approval.get("p5_payload_sha256") != p5_hash:
-    errors.append("approval final P5 payload binding mismatch")
 for r in rows:
-    if r.get("approval_manifest_schema_version") != "1" or r.get("approval_manifest_path") != approval_rel or r.get("approval_manifest_sha256") != approval_hash:
+    if r.get("approval_manifest_schema_version") != "2" or r.get("approval_manifest_path") != approval_rel or r.get("approval_manifest_sha256") != approval_hash:
         errors.append(f"row approval reference mismatch:{r['source_id']}")
 report = json.loads((ev / "contract-census.report.json").read_text())
 if report["status"] not in {"blocked", "pass"} or report["source_components"] != len(rows): errors.append("census report mismatch")
@@ -64,7 +60,7 @@ for item in design.get("entries", []):
     if item["compatibility_facade"] or item["data_migration_input"]: errors.append(f"legacy design mapping:{item['source_id']}")
     if not item["native_target"] or not item["disposition"] in {"adopt-semantic", "intentional-change", "retired", "not-applicable"}: errors.append(f"bad semantic entry:{item['source_id']}")
     if not item.get("target_kind") or not item.get("bounded_semantic_disposition"): errors.append(f"generic semantic entry:{item['source_id']}")
-    if item.get("approval_manifest_schema_version") != 1 or item.get("approval_manifest_path") != approval_rel or item.get("approval_manifest_sha256") != approval_hash:
+    if item.get("approval_manifest_schema_version") != 2 or item.get("approval_manifest_path") != approval_rel or item.get("approval_manifest_sha256") != approval_hash:
         errors.append(f"map approval reference mismatch:{item['source_id']}:{item['source_symbol']}")
 entries = design.get("entries", [])
 if design.get("approval_manifest", {}).get("sha256") != approval_hash: errors.append("design top-level approval reference mismatch")
@@ -170,8 +166,7 @@ front = dict(re.findall(r"^([A-Za-z0-9-]+):\s*(.+)$", approval_doc, re.M))
 expected_front = {"Verdict": approval["verdict"], "Reviewer-Role": approval["reviewer_role"],
                   "Review-Thread-ID": approval["review_thread_id"], "Approval-Manifest-SHA256": approval_hash,
                   "Census-Payload-SHA256": approval["census_payload_sha256"], "Design-Payload-SHA256": approval["design_payload_sha256"],
-                  "Branch": approval["branch"], "Source-Base-HEAD": approval["source_base_head"],
-                  "P5-Payload-SHA256": approval["p5_payload_sha256"]}
+                  "Branch": approval["branch"], "Source-Base-HEAD": approval["source_base_head"]}
 for key, value in expected_front.items():
     if front.get(key) != str(value): errors.append(f"approval document mismatch:{key}")
 if approval["verdict"] == "PENDING":

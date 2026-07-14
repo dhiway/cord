@@ -16,6 +16,8 @@ export { ORBIS_CANDIDATE_NETWORK_BINDING, ORBIS_NETWORK_BINDING } from "../../de
 
 export interface TypedFinalizedBlock {
   readonly hash: string;
+  /** Canonical decimal `u32` block number paired with `hash`. */
+  readonly number: string;
 }
 
 /** Runtime identity decoded by the typed client at one exact block hash. */
@@ -51,6 +53,7 @@ export interface TypedFinalizedEvent {
 export interface TypedReadContext<Client extends TypedPapiClient> {
   readonly client: Client;
   readonly at: string;
+  readonly atNumber: string;
   readonly signal: AbortSignal;
   /** Signature over the already validated host request, for audit/policy bindings. */
   readonly authorizationSignature: string;
@@ -60,6 +63,7 @@ export interface TypedTransactionContext<Client extends TypedPapiClient> {
   readonly client: Client;
   /** Finalized block whose metadata/runtime identity authorized construction. */
   readonly at: string;
+  readonly atNumber: string;
   readonly authorizationSignature: string;
 }
 
@@ -172,9 +176,15 @@ export interface TypedNetworkHostOptions<
 
 const HASH_32 = /^0x[0-9a-f]{64}$/i;
 const SHA_256 = /^[0-9a-f]{64}$/i;
+const DECIMAL_U32 = /^(0|[1-9][0-9]{0,9})$/;
 
 function assertHash(value: string, label: string): void {
   if (!HASH_32.test(value)) throw new ProductSdkError("invalid_input", `${label} must be a 32-byte hash`);
+}
+
+function assertBlockNumber(value: string, label: string): void {
+  if (!DECIMAL_U32.test(value) || BigInt(value) > 0xffff_ffffn)
+    throw new ProductSdkError("invalid_input", `${label} must be a canonical u32 decimal string`);
 }
 
 function assertBindingShape(binding: NetworkBindingContract): void {
@@ -339,12 +349,22 @@ async function finalizedContext<Client extends TypedPapiClient>(
   client: Client,
   expected: NetworkBindingContract,
   signal: AbortSignal,
-): Promise<string> {
+): Promise<TypedFinalizedBlock> {
   const finalized = await abortable(client.getFinalizedBlock(signal), signal);
   assertHash(finalized.hash, "finalized block hash");
+  assertBlockNumber(finalized.number, "finalized block number");
   const observed = await abortable(client.getRuntimeIdentityAt(finalized.hash, signal), signal);
   equalObservedRuntime(observed, expected);
-  return finalized.hash;
+  return finalized;
+}
+function assertSponsoredPreparationAnchor(payload: JsonObject, finalized: TypedFinalizedBlock): void {
+  const mortality = payload.mortality as JsonObject;
+  if (mortality.valid_from !== finalized.number) {
+    throw new ProductSdkError(
+      "invalid_input",
+      "sponsored mortality valid_from must equal the finalized preparation block number",
+    );
+  }
 }
 
 /**
@@ -368,22 +388,25 @@ export function createTypedNetworkHostRoutes<
       const route = routeFor(options.routes, signed.request);
       if (route.finality !== "finalized")
         throw new ProductSdkError("invalid_input", "submit route used for finalized read");
-      const at = await finalizedContext(options.client, options.binding, signal);
+      const finalized = await finalizedContext(options.client, options.binding, signal);
+      const isSponsoredPreparation = signed.request.capability === "transaction"
+        && signed.request.method === "prepare_sponsored_intent";
+      if (isSponsoredPreparation) assertSponsoredPreparationAnchor(signed.request.payload, finalized);
       const response = await abortable(
         route.query(signed.request.payload, {
           client: options.client,
-          at,
+          at: finalized.hash,
+          atNumber: finalized.number,
           signal,
           authorizationSignature: signed.signature,
         }),
         signal,
       );
       assertJsonValue(response);
-      if (signed.request.capability === "transaction"
-        && signed.request.method === "prepare_sponsored_intent") {
+      if (isSponsoredPreparation) {
         validatePreparedSponsoredIntent(response, signed.request.payload, options.binding);
       }
-      return { finalizedHash: at, response };
+      return { finalizedHash: finalized.hash, response };
     } catch (error) {
       throw mapFailure(error);
     }
@@ -404,10 +427,11 @@ export function createTypedNetworkHostRoutes<
         if (sponsoredEnvelope.participant === options.signer.accountId)
           throw new ProductSdkError("invalid_input", "participant and outer sponsor signer must be distinct");
       }
-      const at = await finalizedContext(options.client, options.binding, signal);
+      const finalized = await finalizedContext(options.client, options.binding, signal);
       const transaction = route.transaction(signed.request.payload, {
         client: options.client,
-        at,
+        at: finalized.hash,
+        atNumber: finalized.number,
         authorizationSignature: signed.signature,
       });
       const statuses = transaction.signSubmitAndWatch(options.signer, { signal });

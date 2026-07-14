@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { NATIVE_HOST_METHODS } from "../packages/descriptors/src/native-methods.ts";
@@ -423,6 +424,21 @@ const tsHarness = testCaseBlock("product-sdk/tests/conformance/native-route-harn
 if (!rustHarness.includes("host.execute(request)") || !tsHarness.includes("await host.execute(request)")) fail("native route harnesses do not execute requests");
 if (!rustHarness.includes("instantiate_native_route(route)") || !rustHarness.includes("validate_and_prepare()")) fail("Rust route harness does not exercise canonical typed factories");
 if (!tsHarness.includes("NATIVE_RUNTIME_ROUTE_REGISTRY[scope]")) fail("TypeScript route harness does not invoke the direct callable registry");
+const rustHarnessRun = spawnSync("cargo", [
+  "test", "-p", "origin-rs", "--test", "product_sdk_native",
+  "every_authoritative_native_route_constructs_validates_and_dispatches_in_rust",
+  "--locked", "--", "--exact",
+], { cwd: root, encoding: "utf8" });
+if (rustHarnessRun.status !== 0) {
+  fail(`Rust authoritative route harness failed:\n${rustHarnessRun.stdout}${rustHarnessRun.stderr}`);
+}
+const tsHarnessRun = spawnSync(process.execPath, [
+  "--experimental-strip-types", "--test",
+  "product-sdk/tests/conformance/native-route-harness.test.ts",
+], { cwd: root, encoding: "utf8" });
+if (tsHarnessRun.status !== 0) {
+  fail(`TypeScript authoritative route harness failed:\n${tsHarnessRun.stdout}${tsHarnessRun.stderr}`);
+}
 const forbidden = /(?:^|[_-])(raw[_-]?scale|scale[_-]?(?:bytes|payload)|abi|contract[_-]?address|revive|pallet[_-]?index|call[_-]?index)(?:$|[_-])/i;
 const exposedTokens = NATIVE_HOST_METHODS.flatMap(({ capability, method, payloadFields }) => [capability, method, ...payloadFields]);
 const forbiddenTokens = exposedTokens.filter((token) => forbidden.test(token));

@@ -2,14 +2,14 @@
   "approval_manifest": {
     "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
     "required_reviewer_role": "architect",
-    "review_thread_id": "019f5c3c-0569-7ca2-ba2a-1df7f15827ab",
-    "schema_version": 1,
-    "sha256": "41d0ca41a959207b98dcb5bf8b98ffe9321b15e2ccab3bea7adda187e04930ed",
-    "verdict": "APPROVED"
+    "review_thread_id": "PENDING",
+    "schema_version": 2,
+    "sha256": "74c809af88b04e042738edcfd53836a17d73df0813566201a23b18e809c36829",
+    "verdict": "PENDING"
   },
   "approval_note": "M3 is approved only by the hash-bound architect manifest; PENDING never counts as coverage.",
-  "approved_semantic_design_coverage_percent": 100.0,
-  "census_sha256": "1228fe71f3193d0e6d99e24a45305cc0f548ecafb4bb27febd8e1cf9edc00dff",
+  "approved_semantic_design_coverage_percent": 0.0,
+  "census_sha256": "91bb809c5bd96007109de9b4c162bc07b35a8cb85ac18b53b7defd26e9eda584",
   "classification_coverage_percent": 100,
   "compatibility_facades": 0,
   "component_counts": {
@@ -77,18 +77,18 @@
   "missing_required_fixture_vector_markers": [],
   "schema_version": 1,
   "semantic_design_entries": 2780,
-  "semantic_design_map_sha256": "c6be6342ea095cc5d4f16b9f399305c93bed0e75bebbb5f87c08a894b4205234",
+  "semantic_design_map_sha256": "66cf4b4ed996d46fc6162656debe184545e2eec5cfc64d40df7400413835d196",
   "source_components": 132,
   "source_summary_audit": {
     "method": "source-specific assertions for high-risk files; otherwise conservative declaration/state/role/token evidence with no inferred design claims",
     "rows": 132,
     "status": "pass"
   },
-  "status": "pass",
+  "status": "blocked",
   "symbol_disposition_state_counts": {
     "all": 110,
     "mixed": 22
   },
-  "unapproved_source_components": 0,
+  "unapproved_source_components": 132,
   "unknown_source_components": []
 }

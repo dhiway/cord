@@ -9118,7 +9118,8 @@ export const NATIVE_ROUTE_CONTRACT = {
           "name": "nonce",
           "schema": {
             "type": "string",
-            "pattern": "^(0|[1-9][0-9]{0,19})$"
+            "pattern": "^(0|[1-9][0-9]{0,9})$",
+            "maxDecimal": "4294967295"
           }
         },
         {
@@ -9133,11 +9134,13 @@ export const NATIVE_ROUTE_CONTRACT = {
             "properties": {
               "valid_from": {
                 "type": "string",
-                "pattern": "^(0|[1-9][0-9]{0,19})$"
+                "pattern": "^(0|[1-9][0-9]{0,9})$",
+                "maxDecimal": "4294967295"
               },
               "valid_until": {
                 "type": "string",
-                "pattern": "^(0|[1-9][0-9]{0,19})$"
+                "pattern": "^(0|[1-9][0-9]{0,9})$",
+                "maxDecimal": "4294967295"
               }
             }
           }
@@ -13654,18 +13657,16 @@ export const NATIVE_ROUTE_CONTRACT = {
         "inventory": "sdk-host-operation-and-canonical-sdk-typed-factory;no-runtime-api-or-pallet-call"
       },
       "canonical_arguments": [
+        "participant-account",
+        "1",
         {
-          "participant": "participant-account",
-          "nonce": "1",
-          "mortality": {
-            "valid_from": "1",
-            "valid_until": "65"
-          },
-          "target": {
-            "capability": "identity",
-            "method": "clear_identity",
-            "payload": {}
-          }
+          "valid_from": "1",
+          "valid_until": "65"
+        },
+        {
+          "capability": "identity",
+          "method": "clear_identity",
+          "payload": {}
         }
       ]
     },
@@ -13736,7 +13737,8 @@ export const NATIVE_ROUTE_CONTRACT = {
                   },
                   "nonce": {
                     "type": "string",
-                    "pattern": "^(0|[1-9][0-9]{0,19})$"
+                    "pattern": "^(0|[1-9][0-9]{0,9})$",
+                    "maxDecimal": "4294967295"
                   },
                   "mortality": {
                     "type": "object",
@@ -13748,11 +13750,13 @@ export const NATIVE_ROUTE_CONTRACT = {
                     "properties": {
                       "valid_from": {
                         "type": "string",
-                        "pattern": "^(0|[1-9][0-9]{0,19})$"
+                        "pattern": "^(0|[1-9][0-9]{0,9})$",
+                        "maxDecimal": "4294967295"
                       },
                       "valid_until": {
                         "type": "string",
-                        "pattern": "^(0|[1-9][0-9]{0,19})$"
+                        "pattern": "^(0|[1-9][0-9]{0,9})$",
+                        "maxDecimal": "4294967295"
                       }
                     }
                   },
@@ -18241,32 +18245,59 @@ export const NATIVE_ROUTE_CONTRACT = {
                 }
               },
               "participant_signature": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "scheme",
-                  "value"
-                ],
-                "properties": {
-                  "scheme": {
-                    "oneOf": [
-                      {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "scheme",
+                      "value"
+                    ],
+                    "properties": {
+                      "scheme": {
                         "const": "sr25519"
                       },
-                      {
+                      "value": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{128}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "scheme",
+                      "value"
+                    ],
+                    "properties": {
+                      "scheme": {
                         "const": "ed25519"
                       },
-                      {
-                        "const": "ecdsa"
+                      "value": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{128}$"
                       }
-                    ]
+                    }
                   },
-                  "value": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "scheme",
+                      "value"
+                    ],
+                    "properties": {
+                      "scheme": {
+                        "const": "ecdsa"
+                      },
+                      "value": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{130}$"
+                      }
+                    }
                   }
-                }
+                ]
               }
             }
           }
@@ -18297,7 +18328,7 @@ export const NATIVE_ROUTE_CONTRACT = {
           },
           "participant_signature": {
             "scheme": "sr25519",
-            "value": "sample-signature"
+            "value": "0x33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333"
           }
         }
       },
@@ -18349,7 +18380,7 @@ export const NATIVE_ROUTE_CONTRACT = {
           },
           "participant_signature": {
             "scheme": "sr25519",
-            "value": "sample-signature"
+            "value": "0x33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333"
           }
         }
       ]

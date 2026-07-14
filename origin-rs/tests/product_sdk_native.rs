@@ -206,7 +206,8 @@ async fn every_authoritative_native_route_constructs_validates_and_dispatches_in
 	let contract: Value =
 		serde_json::from_str(&load("docs/sdk/native-route-contract.json")).unwrap();
 	let routes = contract["routes"].as_array().unwrap();
-	assert_eq!(routes.len(), 132);
+	assert_eq!(contract["route_count"].as_u64(), Some(routes.len() as u64));
+	assert_eq!(routes.len(), 143);
 	let selected = Arc::new(Mutex::new(Vec::new()));
 	let host = FakeHost::new(
 		Arc::new(|| 1_000),
@@ -215,8 +216,12 @@ async fn every_authoritative_native_route_constructs_validates_and_dispatches_in
 		Arc::new(RecordingObserver::default()),
 	);
 	for (index, route) in routes.iter().enumerate() {
-		instantiate_native_route(route).unwrap().validate_and_prepare().unwrap();
 		let scope = route["id"].as_str().unwrap();
+		let binding = instantiate_native_route(route)
+			.unwrap_or_else(|error| panic!("{scope} did not construct: {error:?}"));
+		binding
+			.validate_and_prepare()
+			.unwrap_or_else(|error| panic!("{scope} did not validate: {error:?}"));
 		host.grant("route-harness", &[scope]).unwrap();
 		let consent = Consent {
 			scope: vec![scope.into()],
@@ -295,6 +300,17 @@ fn recursive_contract_abi_scale_and_address_surfaces_are_rejected() {
 		);
 	}
 	assert_no_contract_surface(&json!({"account_address":"5Alice"}), "payload").unwrap();
+	assert_no_contract_surface(
+		&json!({"target":{"capability":"identity", "method":"clear_identity", "payload":{}}}),
+		"payload",
+	)
+	.unwrap();
+	assert_eq!(
+		assert_no_contract_surface(&json!({"contract_abi": []}), "payload")
+			.unwrap_err()
+			.code,
+		NativeErrorCode::UnsupportedSurface
+	);
 }
 
 #[test]

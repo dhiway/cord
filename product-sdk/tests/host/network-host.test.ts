@@ -17,6 +17,7 @@ const EXTRINSIC_HASH = `0x${"33".repeat(32)}`;
 class DeterministicTypedClient implements TypedPapiClient {
   readonly runtimeIdentityCalls: string[] = [];
   finalizedHash = INITIAL_HASH;
+  finalizedNumber = "100";
   identity: TypedRuntimeIdentity = {
     genesis_hash: ORBIS_NETWORK_BINDING.genesis_hash,
     spec_version: ORBIS_NETWORK_BINDING.spec_version,
@@ -24,8 +25,8 @@ class DeterministicTypedClient implements TypedPapiClient {
     metadata_hash: ORBIS_NETWORK_BINDING.metadata_hash,
   };
 
-  async getFinalizedBlock(): Promise<{ hash: string }> {
-    return { hash: this.finalizedHash };
+  async getFinalizedBlock(): Promise<{ hash: string; number: string }> {
+    return { hash: this.finalizedHash, number: this.finalizedNumber };
   }
 
   async getRuntimeIdentityAt(hash: string): Promise<TypedRuntimeIdentity> {
@@ -81,8 +82,8 @@ test("typed adapter executes a read at one exact finalized hash", async () => {
   const routes = {
     "attestation:attestation_live_status": {
       finality: "finalized",
-      async query(payload: JsonObject, context: { at: string }) {
-        queriedAt.push(context.at);
+      async query(payload: JsonObject, context: { at: string; atNumber: string }) {
+        queriedAt.push(`${context.at}@${context.atNumber}`);
         return { attestation: payload.attestation, active: true };
       },
     },
@@ -95,7 +96,7 @@ test("typed adapter executes a read at one exact finalized hash", async () => {
   const result = await host.execute(authorize(host, request()));
   assert.equal(result.finalizedHash, INITIAL_HASH);
   assert.deepEqual(result.response, { attestation: `0x${"44".repeat(32)}`, active: true });
-  assert.deepEqual(queriedAt, [INITIAL_HASH]);
+  assert.deepEqual(queriedAt, [`${INITIAL_HASH}@100`]);
   assert.deepEqual(client.runtimeIdentityCalls, [INITIAL_HASH]);
 });
 
@@ -106,8 +107,8 @@ test("metadata-derived submission resolves only after typed finalization evidenc
   const routes = {
     "dotns:commit": {
       finality: "submit-and-finalize",
-      transaction(_payload: JsonObject, context: { at: string }) {
-        constructedAt.push(context.at);
+      transaction(_payload: JsonObject, context: { at: string; atNumber: string }) {
+        constructedAt.push(`${context.at}@${context.atNumber}`);
         return {
           async *signSubmitAndWatch(signer: typeof chainSigner) {
             signedBy.push(signer.accountId);
@@ -133,7 +134,7 @@ test("metadata-derived submission resolves only after typed finalization evidenc
   });
   const result = await host.execute(authorize(host, submission));
 
-  assert.deepEqual(constructedAt, [INITIAL_HASH]);
+  assert.deepEqual(constructedAt, [`${INITIAL_HASH}@100`]);
   assert.deepEqual(signedBy, [chainSigner.accountId]);
   assert.equal(result.finalizedHash, FINAL_HASH);
   assert.equal(result.extrinsicHash, EXTRINSIC_HASH);

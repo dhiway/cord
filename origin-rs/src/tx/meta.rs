@@ -23,6 +23,8 @@ use crate::{
 pub const META_TX_VERSION: ExtensionVersion = 0;
 const META_TAG: [u8; 8] = *b"_meta_tx";
 const SPONSORED_INTENT_DOMAIN: &[u8] = b"orbis/meta-intent/v7";
+/// Maximum encoded inner MetaTx accepted by the Orbis runtime.
+pub const MAX_META_ENCODED_BYTES: usize = 65_536;
 
 type Result<T> = std::result::Result<T, OriginSdkError>;
 
@@ -102,6 +104,8 @@ pub struct SponsoredIntentBindings {
 	pub spec_version: u32,
 	pub transaction_version: u32,
 	pub genesis_hash: H256,
+	/// Hash of the mortal era birth block committed by `CheckMortality`.
+	pub mortality_hash: H256,
 	pub metadata_hash: Option<[u8; 32]>,
 }
 
@@ -148,9 +152,9 @@ pub(crate) async fn prepare_sponsored_intent<S: Signer + ?Sized>(
 	participant: &S,
 	bindings: SponsoredIntentBindings,
 ) -> Result<SponsoredIntent> {
-	if !bindings.era.is_immortal() {
+	if bindings.era.is_immortal() {
 		return Err(OriginSdkError::InvalidInput(
-			"sponsored intents currently require an immortal era".into(),
+			"sponsored intents require a finite mortal era".into(),
 		));
 	}
 
@@ -199,7 +203,7 @@ pub(crate) async fn prepare_sponsored_intent<S: Signer + ?Sized>(
 		spec_version: bindings.spec_version,
 		transaction_version: bindings.transaction_version,
 		genesis_hash: bindings.genesis_hash,
-		mortality_hash: bindings.genesis_hash,
+		mortality_hash: bindings.mortality_hash,
 		nonce: (),
 		identity_policies: ((), (), ()),
 		storage: (),
@@ -220,6 +224,7 @@ pub(crate) async fn prepare_sponsored_intent<S: Signer + ?Sized>(
 		},
 	}
 	.encode();
+	ensure_meta_encoded_len(raw.len())?;
 	decode_meta_value(metadata, &raw)?;
 
 	Ok(SponsoredIntent {
@@ -258,6 +263,7 @@ impl SignedMetaTx {
 	/// Decode a wire blob into `SignedMetaTx`, validating shape against metadata.
 	pub fn decode_with_metadata(metadata: &Metadata, bytes: impl AsRef<[u8]>) -> Result<Self> {
 		let raw = bytes.as_ref().to_vec();
+		ensure_meta_encoded_len(raw.len())?;
 		decode_meta_value(metadata, &raw)?;
 		Ok(Self::from_parts(raw, META_TX_VERSION, None))
 	}
@@ -326,8 +332,10 @@ pub async fn dispatch_call_with_meta<S: Signer>(
 
 	let signed =
 		assemble_meta_tx(version, &call_bytes, bare_extension, &meta_identifier, &signature);
+	let encoded_len = u32::try_from(signed.raw().len())
+		.map_err(|_| OriginSdkError::InvalidInput("meta-tx exceeds u32 length".into()))?;
 	let meta_value = meta_tx_value_from_signed(&metadata, &signed)?;
-	Ok(subxt::dynamic::tx("MetaTx", "dispatch", vec![meta_value]))
+	Ok(subxt::dynamic::tx("MetaTx", "dispatch", vec![meta_value, Value::u128(encoded_len.into())]))
 }
 
 /// Build a bare meta-tx extension using on-chain runtime information.
@@ -391,7 +399,17 @@ pub fn assemble_meta_tx(
 
 /// Convert a signed meta transaction to a dynamic value using runtime metadata.
 pub fn meta_tx_value_from_signed(metadata: &Metadata, signed: &SignedMetaTx) -> Result<Value> {
+	ensure_meta_encoded_len(signed.raw().len())?;
 	decode_meta_value(metadata, signed.raw())
+}
+
+fn ensure_meta_encoded_len(len: usize) -> Result<()> {
+	if len > MAX_META_ENCODED_BYTES {
+		return Err(OriginSdkError::InvalidInput(format!(
+			"encoded MetaTx exceeds runtime limit of {MAX_META_ENCODED_BYTES} bytes"
+		)));
+	}
+	Ok(())
 }
 
 /// Build the signing preimage used by pallet-meta-tx tests and runtime.
@@ -734,5 +752,11 @@ mod sponsored_tests {
 		}
 		.encode();
 		assert_eq!(signed[0], 1);
+	}
+
+	#[test]
+	fn encoded_meta_limit_matches_runtime_boundary() {
+		assert!(ensure_meta_encoded_len(MAX_META_ENCODED_BYTES).is_ok());
+		assert!(ensure_meta_encoded_len(MAX_META_ENCODED_BYTES + 1).is_err());
 	}
 }

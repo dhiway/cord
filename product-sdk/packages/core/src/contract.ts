@@ -35,7 +35,7 @@ export function assertNoContractSurface(value: JsonValue, path = "payload"): voi
 export type MethodFinality = "finalized" | "submit-and-finalize";
 
 type Rule =
-  | { kind: "string"; min?: number; max?: number; maxBytes?: number; pattern?: RegExp }
+  | { kind: "string"; min?: number; max?: number; maxBytes?: number; pattern?: RegExp; maxDecimal?: bigint }
   | { kind: "number"; integer?: boolean; min?: number; max?: number }
   | { kind: "boolean" }
   | { kind: "null" }
@@ -60,6 +60,11 @@ const literal = (value: string): Rule => ({ kind: "literal", value });
 const hash32 = string({ pattern: /^0x[0-9a-f]{64}$/i });
 const account = string({ min: 1, max: 128 });
 const decimalU64 = string({ pattern: /^(0|[1-9][0-9]{0,19})$/ });
+const decimalU32 = string({ pattern: /^(0|[1-9][0-9]{0,9})$/, maxDecimal: 0xffff_ffffn });
+const sponsoredBlockNumber = string({
+  pattern: /^(0|[1-9][0-9]{0,9})$/,
+  maxDecimal: 0xffff_ffffn,
+});
 const blockNumber = decimalU64;
 const u32 = integer(0, 0xffff_ffff);
 const pageFields = { cursor: nullable(u32), limit: integer(0, 100) };
@@ -409,7 +414,10 @@ write("storage", "delete_object", {
 write("storage", "delete_bucket", { bucket: hash32, expected_bucket_version: decimalU64 });
 
 // Typed sponsored transaction host contract. The v8 transport owns all SCALE construction.
-const sponsoredMortality = object({ valid_from: blockNumber, valid_until: blockNumber });
+const sponsoredMortality = object({
+  valid_from: sponsoredBlockNumber,
+  valid_until: sponsoredBlockNumber,
+});
 const sponsoredEnvelopeFields = {
   version: integer(1, 1),
   signing_domain: literal("orbis/meta-intent/v7"),
@@ -418,7 +426,7 @@ const sponsoredEnvelopeFields = {
   transaction_version: u32,
   metadata_hash: hash32,
   participant: account,
-  nonce: decimalU64,
+  nonce: decimalU32,
   mortality: sponsoredMortality,
   target: nativeWriteTarget,
   signing_payload_hash: hash32,
@@ -426,17 +434,27 @@ const sponsoredEnvelopeFields = {
 };
 read("transaction", "prepare_sponsored_intent", {
   participant: account,
-  nonce: decimalU64,
+  nonce: decimalU32,
   mortality: sponsoredMortality,
   target: nativeWriteTarget,
 });
 write("transaction", "submit_sponsored_intent", {
   signed_intent: object({
     envelope: object(sponsoredEnvelopeFields),
-    participant_signature: object({
-      scheme: oneOf(literal("sr25519"), literal("ed25519"), literal("ecdsa")),
-      value: string({ min: 1, max: 2048 }),
-    }),
+    participant_signature: oneOf(
+      object({
+        scheme: literal("sr25519"),
+        value: string({ pattern: /^0x[0-9a-f]{128}$/ }),
+      }),
+      object({
+        scheme: literal("ed25519"),
+        value: string({ pattern: /^0x[0-9a-f]{128}$/ }),
+      }),
+      object({
+        scheme: literal("ecdsa"),
+        value: string({ pattern: /^0x[0-9a-f]{130}$/ }),
+      }),
+    ),
   }),
 });
 
@@ -452,7 +470,8 @@ function validateRule(value: JsonValue | undefined, rule: Rule, path: string): v
       if ((rule.min !== undefined && value.length < rule.min) ||
           (rule.max !== undefined && value.length > rule.max) ||
           (rule.maxBytes !== undefined && bytes > rule.maxBytes) ||
-          (rule.pattern && !rule.pattern.test(value))) invalid(path);
+          (rule.pattern && !rule.pattern.test(value)) ||
+          (rule.maxDecimal !== undefined && BigInt(value) > rule.maxDecimal)) invalid(path);
       return;
     }
     case "number":
@@ -516,7 +535,12 @@ export function assertMethodPayload(capability: string, method: string, payload:
       ? (payload.signed_intent as JsonObject).envelope as JsonObject
       : payload;
     const mortality = input.mortality as JsonObject;
-    if (BigInt(String(mortality.valid_until)) <= BigInt(String(mortality.valid_from)))
+    const validFrom = BigInt(String(mortality.valid_from));
+    const validUntil = BigInt(String(mortality.valid_until));
+    const period = validUntil - validFrom;
+    const quantizeFactor = period > 4_096n ? period >> 12n : 1n;
+    if (period < 4n || period > 65_536n || (period & (period - 1n)) !== 0n
+      || validFrom % quantizeFactor !== 0n)
       invalid("payload.mortality.valid_until");
     if (method === "submit_sponsored_intent") {
       if (input.genesis_hash !== ORBIS_NETWORK_BINDING.genesis_hash
@@ -584,7 +608,7 @@ export function canonicalMethodPayload(capability: string, method: string): Json
           signing_payload_hash: `0x${"22".repeat(32)}`,
           intent_id: `0x${"11".repeat(32)}`,
         },
-        participant_signature: { scheme: "sr25519", value: "sample-signature" },
+        participant_signature: { scheme: "sr25519", value: `0x${"33".repeat(64)}` },
       },
     };
   }
@@ -595,7 +619,7 @@ export function canonicalMethodPayload(capability: string, method: string): Json
 
 function ruleSchema(rule: Rule): JsonObject {
   switch (rule.kind) {
-    case "string": return { type: "string", ...(rule.min === undefined ? {} : { minLength: rule.min }), ...(rule.max === undefined ? {} : { maxLength: rule.max }), ...(rule.maxBytes === undefined ? {} : { maxUtf8Bytes: rule.maxBytes }), ...(rule.pattern ? { pattern: rule.pattern.source } : {}) };
+    case "string": return { type: "string", ...(rule.min === undefined ? {} : { minLength: rule.min }), ...(rule.max === undefined ? {} : { maxLength: rule.max }), ...(rule.maxBytes === undefined ? {} : { maxUtf8Bytes: rule.maxBytes }), ...(rule.pattern ? { pattern: rule.pattern.source } : {}), ...(rule.maxDecimal === undefined ? {} : { maxDecimal: rule.maxDecimal.toString() }) };
     case "number": return { type: rule.integer ? "integer" : "number", ...(rule.min === undefined ? {} : { minimum: rule.min }), ...(rule.max === undefined ? {} : { maximum: rule.max }) };
     case "boolean": return { type: "boolean" };
     case "null": return { type: "null" };

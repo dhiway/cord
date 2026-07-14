@@ -1,14 +1,59 @@
 import { finalizedRead, submitAndFinalize, type RequestContext } from "./host.ts";
 import type { JsonObject } from "./errors.ts";
 import type { AccountId, BlockNumber, Hash32 } from "./types.ts";
+import type { attestation } from "./attestation.ts";
+import type { dotns } from "./dotns.ts";
+import type { drive } from "./drive.ts";
+import type { identity } from "./identity.ts";
+import type { provider } from "./provider.ts";
+import type { s3 } from "./s3.ts";
+import type { storage } from "./storage.ts";
 
-export type SponsorableCapability = "identity" | "attestation" | "dotns" | "storage";
+type NativeRouteFactory =
+  | typeof attestation[keyof typeof attestation]
+  | typeof dotns[keyof typeof dotns]
+  | typeof drive[keyof typeof drive]
+  | typeof identity[keyof typeof identity]
+  | typeof provider[keyof typeof provider]
+  | typeof s3[keyof typeof s3]
+  | typeof storage[keyof typeof storage];
 
-/** A closed, typed native route. No call bytes, SCALE, indices, or ABI are exposed. */
-export interface SponsoredNativeTarget {
-  readonly capability: SponsorableCapability;
-  readonly method: string;
-  readonly payload: JsonObject;
+type NativeRouteRequestOf<Factory> = Factory extends (...args: never[]) => infer Request
+  ? Request
+  : never;
+type NativeRouteRequest = NativeRouteRequestOf<NativeRouteFactory>;
+
+type SponsoredTargetFromRequest<Request> = Request extends {
+  readonly finality: "submit-and-finalize";
+  readonly capability: infer Capability extends string;
+  readonly method: infer Method extends string;
+  readonly payload: infer Payload extends JsonObject;
+}
+  ? {
+      readonly capability: Capability;
+      readonly method: Method;
+      readonly payload: Payload;
+    }
+  : never;
+
+/**
+ * Every sponsorable target is derived from an exported native write factory.
+ * This keeps capability, method, and payload correlated at compile time and
+ * leaves no stringly-typed SCALE, pallet/call index, or ABI escape hatch.
+ */
+export type SponsoredNativeTarget = SponsoredTargetFromRequest<NativeRouteRequest>;
+export type SponsorableCapability = SponsoredNativeTarget["capability"];
+
+declare const sponsoredNonceType: unique symbol;
+/** Canonical decimal representation of the runtime's `u32` participant nonce. */
+export type SponsoredNonce = string & { readonly [sponsoredNonceType]: "SponsoredNonceU32" };
+
+export function sponsoredNonce(value: string | number): SponsoredNonce {
+  const text = String(value);
+  if (!/^(0|[1-9][0-9]{0,9})$/.test(text) || BigInt(text) > 0xffff_ffffn) {
+    throw new TypeError("sponsored nonce must be a canonical unsigned 32-bit decimal string");
+  }
+  return text as SponsoredNonce;
 }
 
 export interface SponsoredMortality {
@@ -18,7 +63,7 @@ export interface SponsoredMortality {
 
 export interface PrepareSponsoredIntentInput {
   readonly participant: AccountId;
-  readonly nonce: string;
+  readonly nonce: SponsoredNonce;
   readonly mortality: SponsoredMortality;
   readonly target: SponsoredNativeTarget;
 }
@@ -38,11 +83,22 @@ export interface SponsoredIntentEnvelope extends PrepareSponsoredIntentInput {
 }
 
 export type ParticipantSignatureScheme = "sr25519" | "ed25519" | "ecdsa";
-export interface ParticipantSignature {
-  readonly scheme: ParticipantSignatureScheme;
-  /** Signature over the exact active-wire `envelope.signing_payload_hash`. */
-  readonly value: string;
-}
+export type ParticipantSignature =
+  | {
+      readonly scheme: "sr25519";
+      /** Lowercase 0x-prefixed 64-byte signature over `envelope.signing_payload_hash`. */
+      readonly value: string;
+    }
+  | {
+      readonly scheme: "ed25519";
+      /** Lowercase 0x-prefixed 64-byte signature over `envelope.signing_payload_hash`. */
+      readonly value: string;
+    }
+  | {
+      readonly scheme: "ecdsa";
+      /** Lowercase 0x-prefixed 65-byte signature over `envelope.signing_payload_hash`. */
+      readonly value: string;
+    };
 
 /** Participant signs the inner intent; the host transport's chain signer is the outer sponsor. */
 export interface SignedSponsoredIntent {
@@ -60,17 +116,17 @@ export interface SponsoredDispatchOutcome {
   readonly inner_result: "Ok";
 }
 
+function cloneTarget<Target extends SponsoredNativeTarget>(target: Target): Target {
+  return { ...target, payload: { ...target.payload } };
+}
+
 export const sponsoredTransaction = {
   prepareSponsoredIntent(context: RequestContext, input: PrepareSponsoredIntentInput) {
     return finalizedRead("transaction", context, "transaction", "prepare_sponsored_intent", {
       participant: input.participant,
       nonce: input.nonce,
       mortality: { ...input.mortality },
-      target: {
-        capability: input.target.capability,
-        method: input.target.method,
-        payload: { ...input.target.payload },
-      },
+      target: cloneTarget(input.target),
     });
   },
 
@@ -80,11 +136,7 @@ export const sponsoredTransaction = {
         envelope: {
           ...signed_intent.envelope,
           mortality: { ...signed_intent.envelope.mortality },
-          target: {
-            capability: signed_intent.envelope.target.capability,
-            method: signed_intent.envelope.target.method,
-            payload: { ...signed_intent.envelope.target.payload },
-          },
+          target: cloneTarget(signed_intent.envelope.target),
         },
         participant_signature: { ...signed_intent.participant_signature },
       },

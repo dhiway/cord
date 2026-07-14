@@ -34,7 +34,7 @@ use super::{
 		drive::{DriveName, DriveQuery, DriveRead, DriveResponse, DriveStatus, DriveView},
 		identity_personhood::{
 			AttestationAllowanceView, IdentityPersonhoodQuery, IdentityPersonhoodRead,
-			IdentityPersonhoodResponse, IdentityStatusView, PersonhoodStatusView,
+			IdentityPersonhoodResponse, IdentityStatusView, PersonalId, PersonhoodStatusView,
 		},
 		s3::{
 			BucketName, BucketStatus, BucketView, ObjectKey, ObjectVersionView, ObjectView,
@@ -252,7 +252,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 					hash,
 					response.version,
 					Some(PersonhoodStatusView {
-						full_personal_id: value.full_personal_id,
+						full_personal_id: value.full_personal_id.map(PersonalId::from_u64),
 						full_recognized: value.full_recognized,
 						lite_recognized: value.lite_recognized,
 					}),

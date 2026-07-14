@@ -1,15 +1,14 @@
 ---
-Verdict: APPROVED
-Reviewer-Role: architect
-Review-Thread-ID: 019f5c3c-0569-7ca2-ba2a-1df7f15827ab
-Approval-Manifest-SHA256: 41d0ca41a959207b98dcb5bf8b98ffe9321b15e2ccab3bea7adda187e04930ed
+Verdict: PENDING
+Reviewer-Role: PENDING
+Review-Thread-ID: PENDING
+Approval-Manifest-SHA256: 74c809af88b04e042738edcfd53836a17d73df0813566201a23b18e809c36829
 Census-Payload-SHA256: 27295261921f4699ab57bfa46928f82f3c461d708db5575f6701bb7d49368f9d
 Design-Payload-SHA256: 2d1638fa6c0f7b1273161d932fba710989db4a3fdc289947ff8347909fec54f5
-Census-Artifact-SHA256: 1228fe71f3193d0e6d99e24a45305cc0f548ecafb4bb27febd8e1cf9edc00dff
-Design-Artifact-SHA256: c6be6342ea095cc5d4f16b9f399305c93bed0e75bebbb5f87c08a894b4205234
+Census-Artifact-SHA256: 91bb809c5bd96007109de9b4c162bc07b35a8cb85ac18b53b7defd26e9eda584
+Design-Artifact-SHA256: 66cf4b4ed996d46fc6162656debe184545e2eec5cfc64d40df7400413835d196
 Branch: sm-update-sub-0x63
-Source-Base-HEAD: 30650914a4a9b39393fd9bcf6de7119016cfc60b
-P5-Payload-SHA256: 27c6effe52c60fade8e9fe341ffe874cb6e286e97944c51c7f0532052361e9fe
+Source-Base-HEAD: be57cdac316d76ac17a8c91a4265d08c76b7ef93
 Source-Components: 132
 Semantic-Design-Entries: 2780
 ---

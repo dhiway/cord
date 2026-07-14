@@ -32,7 +32,7 @@ pub use orbis_reads::OrbisFinalizedReadBinding;
 pub use route_registry::{instantiate_native_route, NativeRouteBinding};
 pub use sponsored_intent::{
 	prepare_sponsored_intent, submit_sponsored_intent, SponsoredIntentOutcome,
-	SponsoredNativeTarget,
+	SponsoredIntentRequest, SponsoredMortality, SponsoredNativeTarget,
 };
 pub use storage_events::OrbisStorageEventSubscription;
 pub use transport::{

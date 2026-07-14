@@ -22,12 +22,24 @@ import {
   type TypedSponsoredIntentTransport,
 } from "../../packages/host/src/network-host.ts";
 import { identity, type IdentityInfo } from "../../src/identity.ts";
-import { sponsoredTransaction, type SignedSponsoredIntent } from "../../src/sponsored-transaction.ts";
+import {
+  sponsoredNonce,
+  sponsoredTransaction,
+  type SignedSponsoredIntent,
+  type SponsoredNativeTarget,
+} from "../../src/sponsored-transaction.ts";
 
 const HASH = (byte: string) => `0x${byte.repeat(64)}`;
 const PARTICIPANT = "participant-account" as any;
 const SPONSOR = "sponsor-account" as any;
 const REGISTRAR = "registrar-account" as any;
+type AssertFalse<Value extends false> = Value;
+type _SponsoredMethodIsClosed = AssertFalse<string extends SponsoredNativeTarget["method"] ? true : false>;
+type _InventedTargetIsRejected = AssertFalse<{
+  capability: "identity";
+  method: "invented";
+  payload: {};
+} extends SponsoredNativeTarget ? true : false>;
 const identityInfo: IdentityInfo = {
   display: { kind: "raw", value: "Festival Participant" },
   legal: { kind: "none" },
@@ -62,9 +74,9 @@ const envelope = {
   transaction_version: ORBIS_NETWORK_BINDING.transaction_version,
   metadata_hash: ORBIS_NETWORK_BINDING.metadata_hash,
   participant: PARTICIPANT,
-  nonce: "7",
+  nonce: sponsoredNonce(7),
   mortality: { valid_from: "100" as any, valid_until: "164" as any },
-  target: { capability: "identity" as const, method: "clear_identity", payload: {} },
+  target: { capability: "identity", method: "clear_identity", payload: {} } as const,
   signing_payload_hash: HASH("3") as any,
   intent_id: HASH("2") as any,
 };
@@ -163,12 +175,69 @@ test("sponsored factories carry typed targets and participant signatures without
     ...prepare.payload,
     mortality: { valid_from: "100", valid_until: "100" },
   })), "invalid_input");
+  assert.equal(code(() => assertMethodPayload("transaction", "prepare_sponsored_intent", {
+    ...prepare.payload,
+    nonce: "4294967296",
+  })), "invalid_input");
+  assert.equal(code(() => assertMethodPayload("transaction", "prepare_sponsored_intent", {
+    ...prepare.payload,
+    nonce: "07",
+  })), "invalid_input");
+  assert.equal(code(() => assertMethodPayload("transaction", "prepare_sponsored_intent", {
+    ...prepare.payload,
+    mortality: { valid_from: "100", valid_until: "165" },
+  })), "invalid_input");
+  assert.equal(code(() => assertMethodPayload("transaction", "prepare_sponsored_intent", {
+    ...prepare.payload,
+    mortality: { valid_from: "101", valid_until: "8293" },
+  })), "invalid_input");
+  assert.equal(code(() => assertMethodPayload("transaction", "prepare_sponsored_intent", {
+    ...prepare.payload,
+    mortality: { valid_from: "100", valid_until: "102" },
+  })), "invalid_input");
+  assert.equal(code(() => assertMethodPayload("transaction", "prepare_sponsored_intent", {
+    ...prepare.payload,
+    mortality: { valid_from: "100", valid_until: "131172" },
+  })), "invalid_input");
+  assert.doesNotThrow(() => assertMethodPayload("transaction", "prepare_sponsored_intent", {
+    ...prepare.payload,
+    mortality: { valid_from: "112", valid_until: "65648" },
+  }));
+
+  const signedPayload = submit.payload.signed_intent as any;
+  for (const participant_signature of [
+    { scheme: "sr25519", value: `0x${"33".repeat(63)}` },
+    { scheme: "ed25519", value: `0x${"AA".repeat(64)}` },
+    { scheme: "ecdsa", value: `0x${"33".repeat(64)}` },
+    { scheme: "sr25519", value: `0x${"33".repeat(65)}` },
+  ]) {
+    assert.equal(code(() => assertMethodPayload("transaction", "submit_sponsored_intent", {
+      signed_intent: { ...signedPayload, participant_signature },
+    })), "invalid_input");
+  }
+  for (const participant_signature of [
+    { scheme: "sr25519", value: `0x${"33".repeat(64)}` },
+    { scheme: "ed25519", value: `0x${"44".repeat(64)}` },
+    { scheme: "ecdsa", value: `0x${"55".repeat(65)}` },
+  ]) {
+    assert.doesNotThrow(() => assertMethodPayload("transaction", "submit_sponsored_intent", {
+      signed_intent: { ...signedPayload, participant_signature },
+    }));
+  }
   for (const method of ["prepare_sponsored_intent", "submit_sponsored_intent"]) {
     const canonical = canonicalMethodPayload("transaction", method);
     assertMethodPayload("transaction", method, canonical);
     const schema = methodPayloadSchema("transaction", method) as any;
     assert.equal(schema.additionalProperties, false);
     assert.equal(JSON.stringify(schema).match(/raw.?scale|pallet_index|call_index|contract_abi/i), null);
+  }
+});
+
+test("sponsored nonce constructor accepts only canonical u32 decimal values", () => {
+  assert.equal(sponsoredNonce("0"), "0");
+  assert.equal(sponsoredNonce("4294967295"), "4294967295");
+  for (const invalid of ["-1", "01", "4294967296", "1.0", Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.throws(() => sponsoredNonce(invalid), TypeError);
   }
 });
 
@@ -179,7 +248,7 @@ class Client implements TypedPapiClient {
     transaction_version: ORBIS_NETWORK_BINDING.transaction_version,
     metadata_hash: ORBIS_NETWORK_BINDING.metadata_hash,
   };
-  async getFinalizedBlock() { return { hash: HASH("a") }; }
+  async getFinalizedBlock() { return { hash: HASH("a"), number: "100" }; }
   async getRuntimeIdentityAt() { return this.identity; }
 }
 
@@ -282,4 +351,46 @@ test("typed sponsored boundary requires distinct outer sponsor and MetaTx::Dispa
     { request: submit, signature: "host-authorization" },
     new AbortController().signal,
   )), "invalid_input");
+});
+
+test("typed sponsored preparation is anchored to the exact finalized block number", async () => {
+  const client = new Client();
+  let prepareCalls = 0;
+  const transport: TypedSponsoredIntentTransport<Client, { accountId: string }> = {
+    async prepare(payload) {
+      prepareCalls++;
+      return {
+        version: 1,
+        signing_domain: "orbis/meta-intent/v7",
+        genesis_hash: ORBIS_NETWORK_BINDING.genesis_hash,
+        spec_version: ORBIS_NETWORK_BINDING.spec_version,
+        transaction_version: ORBIS_NETWORK_BINDING.transaction_version,
+        metadata_hash: ORBIS_NETWORK_BINDING.metadata_hash,
+        ...payload,
+        signing_payload_hash: envelope.signing_payload_hash,
+        intent_id: envelope.intent_id,
+      } as any;
+    },
+    submit() { return transaction([]); },
+  };
+  const dependencies = createTypedNetworkHostRoutes({
+    client,
+    signer: { accountId: SPONSOR },
+    binding: ORBIS_NETWORK_BINDING,
+    routes: createTypedSponsoredIntentRoutes(transport),
+  });
+  const stale = sponsoredTransaction.prepareSponsoredIntent(
+    context("transaction:prepare_sponsored_intent"),
+    {
+      participant: PARTICIPANT,
+      nonce: sponsoredNonce(7),
+      mortality: { valid_from: "99" as any, valid_until: "163" as any },
+      target: envelope.target,
+    },
+  ) as unknown as HostRequest;
+  assert.equal(await asyncCode(dependencies.finalizedRead!(
+    { request: stale, signature: "host-authorization" },
+    new AbortController().signal,
+  )), "invalid_input");
+  assert.equal(prepareCalls, 0);
 });

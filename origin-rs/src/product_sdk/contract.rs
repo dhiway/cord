@@ -420,7 +420,7 @@ pub fn assert_no_contract_surface(value: &Value, path: &str) -> Result<(), Nativ
 				let forbidden = normalized == "scale"
 					|| normalized == "rawscale"
 					|| normalized == "scalebytes"
-					|| normalized.contains("abi")
+					|| (normalized.contains("abi") && normalized != "capability")
 					|| (normalized.contains("contract")
 						&& (normalized.contains("address")
 							|| normalized.contains("addr")

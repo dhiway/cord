@@ -17,7 +17,7 @@ pub type IdentityPersonhoodRead = FinalizedQuery<IdentityPersonhoodQuery>;
 pub type IdentityPersonhoodWrite = SubmitAndFinalize<IdentityPersonhoodCommand>;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(tag = "query", rename_all = "snake_case")]
+#[serde(tag = "query", content = "arguments", rename_all = "snake_case")]
 pub enum IdentityPersonhoodQuery {
 	IdentityStatus { account: AccountId },
 	PersonhoodStatus { account: AccountId },
@@ -50,9 +50,49 @@ pub struct IdentityStatusView {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PersonhoodStatusView {
-	pub full_personal_id: Option<u64>,
+	pub full_personal_id: Option<PersonalId>,
 	pub full_recognized: bool,
 	pub lite_recognized: bool,
+}
+
+/// Canonical decimal-string projection of the runtime's `u64` personal identifier.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(transparent)]
+pub struct PersonalId(String);
+
+impl<'de> Deserialize<'de> for PersonalId {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: serde::Deserializer<'de>,
+	{
+		let value = String::deserialize(deserializer)?;
+		Self::new(value).map_err(|_| serde::de::Error::custom("invalid canonical personal ID"))
+	}
+}
+
+impl PersonalId {
+	pub fn from_u64(value: u64) -> Self {
+		Self(value.to_string())
+	}
+
+	pub fn new(value: impl Into<String>) -> DomainResult<Self> {
+		let value = value.into();
+		let parsed = value.parse::<u64>().map_err(|_| invalid("invalid decimal personal ID"))?;
+		if parsed.to_string() != value {
+			return Err(invalid("personal ID must be a canonical decimal u64 string"));
+		}
+		Ok(Self(value))
+	}
+
+	pub fn as_str(&self) -> &str {
+		&self.0
+	}
+}
+
+impl Validate for PersonalId {
+	fn validate(&self) -> DomainResult<()> {
+		Self::new(self.0.clone()).map(|_| ())
+	}
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -186,7 +226,7 @@ impl Validate for RingVrfSignature {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(tag = "command", rename_all = "snake_case")]
+#[serde(tag = "command", content = "arguments", rename_all = "snake_case")]
 pub enum IdentityPersonhoodCommand {
 	SetIdentity {
 		info: IdentityInfo,
@@ -234,5 +274,31 @@ impl Validate for IdentityPersonhoodCommand {
 				proof_of_ownership.validate()
 			},
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn personal_id_uses_the_exact_typescript_decimal_string_shape() {
+		let value = PersonhoodStatusView {
+			full_personal_id: Some(PersonalId::from_u64(u64::MAX)),
+			full_recognized: true,
+			lite_recognized: false,
+		};
+		assert_eq!(
+			serde_json::to_value(&value).unwrap(),
+			serde_json::json!({
+				"full_personal_id": "18446744073709551615",
+				"full_recognized": true,
+				"lite_recognized": false,
+			})
+		);
+		assert!(PersonalId::new("18446744073709551615").is_ok());
+		assert!(PersonalId::new("01").is_err());
+		assert!(PersonalId::new("18446744073709551616").is_err());
+		assert!(serde_json::from_str::<PersonalId>(r#""01""#).is_err());
 	}
 }

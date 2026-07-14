@@ -41,6 +41,7 @@ export interface HostRequest<
   Capability extends NativeCapability = NativeCapability,
   Method extends string = string,
   Payload extends JsonObject = JsonObject,
+  Finality extends HostFinality = HostFinality,
 > {
   readonly version: 1;
   readonly request_id: string;
@@ -48,7 +49,7 @@ export interface HostRequest<
   readonly capability: Capability;
   readonly method: Method;
   readonly network: NetworkBinding;
-  readonly finality: HostFinality;
+  readonly finality: Finality;
   readonly payload: Payload;
   readonly consent: {
     readonly scope: ConsentScope[];
@@ -112,14 +113,15 @@ function request<
   Capability extends NativeCapability,
   Method extends string,
   Payload extends JsonObject,
+  Finality extends HostFinality,
 >(
   domain: NativeDomain,
   context: RequestContext,
   capability: Capability,
   method: Method,
-  finality: HostFinality,
+  finality: Finality,
   payload: Payload,
-): HostRequest<Capability, Method, Payload> {
+): HostRequest<Capability, Method, Payload, Finality> {
   const operation = `${capability}.${method}`;
   const requiredScope = `${capability}:${method}` as ConsentScope;
   if (!context.consent.scopes.includes(requiredScope)) {
@@ -170,7 +172,7 @@ export function finalizedRead<
   capability: Capability,
   method: Method,
   payload: Payload,
-): HostRequest<Capability, Method, Payload> {
+): HostRequest<Capability, Method, Payload, "finalized"> {
   return request(domain, context, capability, method, "finalized", payload);
 }
 
@@ -184,6 +186,6 @@ export function submitAndFinalize<
   capability: Capability,
   method: Method,
   payload: Payload,
-): HostRequest<Capability, Method, Payload> {
+): HostRequest<Capability, Method, Payload, "submit-and-finalize"> {
   return request(domain, context, capability, method, "submit-and-finalize", payload);
 }

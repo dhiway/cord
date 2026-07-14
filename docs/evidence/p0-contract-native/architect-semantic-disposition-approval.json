@@ -3,13 +3,12 @@
   "branch": "sm-update-sub-0x63",
   "census_payload_sha256": "27295261921f4699ab57bfa46928f82f3c461d708db5575f6701bb7d49368f9d",
   "design_payload_sha256": "2d1638fa6c0f7b1273161d932fba710989db4a3fdc289947ff8347909fec54f5",
-  "manifest_id": "origin-orbis-p0-semantic-dispositions-v1",
-  "p5_payload_sha256": "27c6effe52c60fade8e9fe341ffe874cb6e286e97944c51c7f0532052361e9fe",
+  "manifest_id": "origin-orbis-p0-semantic-dispositions-v2",
   "required_reviewer_role": "architect",
-  "review_thread_id": "019f5c3c-0569-7ca2-ba2a-1df7f15827ab",
-  "reviewed_at": "2026-07-14T02:22:57Z",
-  "reviewer_role": "architect",
-  "schema_version": 1,
+  "review_thread_id": "PENDING",
+  "reviewed_at": "PENDING",
+  "reviewer_role": "PENDING",
+  "schema_version": 2,
   "scope_exclusions": [
     "no implementation approval",
     "no runtime-code approval",
@@ -18,7 +17,7 @@
     "no deployment-state import"
   ],
   "semantic_design_entries": 2780,
-  "source_base_head": "30650914a4a9b39393fd9bcf6de7119016cfc60b",
+  "source_base_head": "be57cdac316d76ac17a8c91a4265d08c76b7ef93",
   "source_components": 132,
-  "verdict": "APPROVED"
+  "verdict": "PENDING"
 }
