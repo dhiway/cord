@@ -24,7 +24,7 @@ import {
   type TypedFinalizedEventBlock,
   type TypedFinalizedEventSource,
 } from "../../packages/host/src/attestation-events.ts";
-import { attestationEventSubscription } from "../../src/attestation.ts";
+import { attestationEventSubscription } from "@cord-network/origin-sdk-attestation";
 import type { BlockHash } from "../../src/types.ts";
 
 const ANCHOR = `0x${"11".repeat(32)}` as BlockHash;

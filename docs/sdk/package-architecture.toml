@@ -10,9 +10,9 @@ manifest = "product-sdk/package.json"
 package = "@cord-network/product-sdk-workspace"
 version = "0.9.9"
 private = true
-publishable_packages = 10
-export_count = 19
-exports = [".", "./attestation", "./content", "./names", "./drive", "./errors", "./host", "./network-host", "./attestation-events", "./network-binding", "./provider", "./s3", "./storage", "./sponsored-transaction", "./types", "./names-events", "./storage-events", "./storage-native-events", "./version"]
+publishable_packages = 11
+export_count = 18
+exports = [".", "./content", "./names", "./drive", "./errors", "./host", "./network-host", "./attestation-events", "./network-binding", "./provider", "./s3", "./storage", "./sponsored-transaction", "./types", "./names-events", "./storage-events", "./storage-native-events", "./version"]
 limitations = ["root-raw-typescript-exports", "root-private-monolith-still-present", "tier-b-and-tier-c-incomplete"]
 
 [reference]
@@ -97,8 +97,8 @@ dependencies = ["@cord-network/origin-sdk-chain-client", "@cord-network/origin-s
 name = "@cord-network/origin-sdk-attestation"
 tier = "B"
 owner = "sdk-domains"
-state = "planned"
-dependencies = ["@cord-network/origin-sdk-chain-client", "@cord-network/origin-sdk-tx"]
+state = "present"
+dependencies = ["@cord-network/origin-sdk-chain-client", "@cord-network/origin-sdk-descriptors", "@cord-network/origin-sdk-errors", "@cord-network/origin-sdk-result", "@cord-network/origin-sdk-tx", "@cord-network/origin-sdk-identity"]
 
 [[package]]
 name = "@cord-network/origin-sdk-names"

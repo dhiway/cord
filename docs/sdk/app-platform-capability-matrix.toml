@@ -77,9 +77,9 @@ journey = "Festival and enterprise issuers create and revoke attestations"
 runtime_owner = "Attestation pallet and runtime API"
 sdk_owner = "origin-sdk-attestation"
 host_owner = "Issuer signing approval"
-state = "runtime-present-sdk-partial"
+state = "runtime-present-sdk-present"
 contract_policy = "forbidden-native-authority"
-evidence = "origin/orbis/pallets/attestation/src/lib.rs; product-sdk/src/attestation.ts"
+evidence = "origin/orbis/pallets/attestation/src/lib.rs; product-sdk/packages/origin-sdk-attestation/src/index.ts"
 
 [[capability]]
 id = "names"

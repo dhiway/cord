@@ -31,7 +31,7 @@ import {
   type AttestationOutcome,
   type DelegatedIssueIntent,
   type DelegatedRevokeIntent,
-} from "../../src/attestation.ts";
+} from "@cord-network/origin-sdk-attestation";
 import type { BlockHash } from "../../src/types.ts";
 
 const vectors = JSON.parse(

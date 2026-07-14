@@ -26,7 +26,7 @@ import {
   type FinalizedAttestationEvent,
   type IndexPolicy,
   type SchemaStatus,
-} from "../../../src/attestation.ts";
+} from "@cord-network/origin-sdk-attestation";
 import type {
   AccountId,
   AttestationId,

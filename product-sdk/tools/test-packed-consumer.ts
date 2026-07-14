@@ -23,7 +23,7 @@ import { spawnSync } from "node:child_process";
 
 const sdkRoot = resolve(import.meta.dirname, "..");
 const consumer = mkdtempSync(resolve(tmpdir(), "cord-origin-sdk-consumer-"));
-const packages = ["result", "errors", "descriptors", "host", "chain-client", "signer", "tx", "identity", "personhood", "resources"];
+const packages = ["result", "errors", "descriptors", "host", "chain-client", "signer", "tx", "identity", "personhood", "resources", "attestation"];
 const run = (command: string, args: string[], cwd = consumer): string => {
   const result = spawnSync(command, args, { cwd, encoding: "utf8" });
   if (result.status !== 0) {

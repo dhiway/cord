@@ -20,7 +20,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ORBIS_CANDIDATE_NETWORK_BINDING } from "../../packages/descriptors/generated/orbis-network-binding.ts";
 import { FakeHost, type HostRequest } from "../../packages/host/src/fake-host.ts";
-import { attestation } from "../../src/attestation.ts";
+import { attestationHostRoutes } from "../../packages/descriptors/src/attestation-host-routes.ts";
 import { page, type AccountId, type StatusCommitment } from "../../src/types.ts";
 
 const ISSUER = "5GrwvaEF5zXb26Fz9rcQpDWSGJ7c9ZkZ7E3hV8VJtPp8wQnZ" as AccountId;
@@ -42,15 +42,15 @@ function context(scope: string, index: number) {
 test("new attestation methods have exact payload and finality contracts", async () => {
 	assert.deepEqual(page({ limit: 0 }), { cursor: null, limit: 0 });
 	const requests = [
-		attestation.schemaCount(context("attestation:schema_count", 1)),
-		attestation.attestationCount(context("attestation:attestation_count", 2)),
-		attestation.nextIssuanceNonce(context("attestation:next_issuance_nonce", 3), ISSUER),
-		attestation.externalStatus(context("attestation:external_status", 4), ISSUER, STATUS),
-		attestation.revokeExternalStatus(
+		attestationHostRoutes.schemaCount(context("attestation:schema_count", 1)),
+		attestationHostRoutes.attestationCount(context("attestation:attestation_count", 2)),
+		attestationHostRoutes.nextIssuanceNonce(context("attestation:next_issuance_nonce", 3), ISSUER),
+		attestationHostRoutes.externalStatus(context("attestation:external_status", 4), ISSUER, STATUS),
+		attestationHostRoutes.revokeExternalStatus(
 			context("attestation:revoke_external_status", 5),
 			STATUS,
 		),
-		attestation.revokeExternalStatusBatch(
+		attestationHostRoutes.revokeExternalStatusBatch(
 			context("attestation:revoke_external_status_batch", 6),
 			[STATUS],
 		),

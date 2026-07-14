@@ -19,7 +19,7 @@
 import { finalizedRead, submitAndFinalize, type RequestContext } from "./host.ts";
 import type { JsonObject } from "./errors.ts";
 import type { AccountId, BlockNumber, Hash32 } from "./types.ts";
-import type { attestation } from "./attestation.ts";
+import type { attestationHostRoutes } from "../packages/descriptors/src/attestation-host-routes.ts";
 import type { names } from "./names.ts";
 import type { drive } from "./drive.ts";
 import type { identityHostRoutes, personhoodHostRoutes } from "../packages/descriptors/src/identity-host-routes.ts";
@@ -28,7 +28,7 @@ import type { s3 } from "./s3.ts";
 import type { storage } from "./storage.ts";
 
 type NativeRouteFactory =
-  | typeof attestation[keyof typeof attestation]
+  | typeof attestationHostRoutes[keyof typeof attestationHostRoutes]
   | typeof names[keyof typeof names]
   | typeof drive[keyof typeof drive]
   | typeof identityHostRoutes[keyof typeof identityHostRoutes]

@@ -11,7 +11,6 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./attestation": "./src/attestation.ts",
     "./content": "./src/content.ts",
     "./names": "./src/names.ts",
     "./drive": "./src/drive.ts",
