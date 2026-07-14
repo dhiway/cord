@@ -20,7 +20,7 @@ import { finalizedRead, submitAndFinalize, type RequestContext } from "./host.ts
 import type { JsonObject } from "./errors.ts";
 import type { AccountId, BlockNumber, Hash32 } from "./types.ts";
 import type { attestationHostRoutes } from "../packages/descriptors/src/attestation-host-routes.ts";
-import type { names } from "./names.ts";
+import type { namesHostRoutes } from "../packages/descriptors/src/names-host-routes.ts";
 import type { drive } from "./drive.ts";
 import type { identityHostRoutes, personhoodHostRoutes } from "../packages/descriptors/src/identity-host-routes.ts";
 import type { provider } from "./provider.ts";
@@ -29,7 +29,7 @@ import type { storage } from "./storage.ts";
 
 type NativeRouteFactory =
   | typeof attestationHostRoutes[keyof typeof attestationHostRoutes]
-  | typeof names[keyof typeof names]
+  | typeof namesHostRoutes[keyof typeof namesHostRoutes]
   | typeof drive[keyof typeof drive]
   | typeof identityHostRoutes[keyof typeof identityHostRoutes]
   | typeof personhoodHostRoutes[keyof typeof personhoodHostRoutes]

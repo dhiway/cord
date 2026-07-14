@@ -43,7 +43,7 @@ import {
   type TypedRuntimeIdentity,
   type TypedTransactionStatus,
 } from "../../packages/host/src/network-host.ts";
-import { normalizedLabel, registrationSalt, textKey, textValue } from "../../src/names.ts";
+import { normalizedLabel, registrationSalt, textKey, textValue } from "@cord-network/origin-sdk-names";
 
 const APP_ID = "festival-p6-reference";
 const FINALIZED_HASH = `0x${"a1".repeat(32)}`;

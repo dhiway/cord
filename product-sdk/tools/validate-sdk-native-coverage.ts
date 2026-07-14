@@ -354,7 +354,7 @@ for (const binding of m5Bindings.bindings) {
       || !new RegExp(`impl\\s+${surface.rust.declaration}\\s*\\{[\\s\\S]*?pub\\s+fn\\s+${surface.rust.constructor}\\s*\\(`).test(rustValidation)) {
       fail(`missing exact Rust label validation surface ${keyOf(binding.key)}`);
     }
-    equal(surface.typescript.path, "product-sdk/src/names.ts", `M5 label TypeScript path ${keyOf(binding.key)}`);
+    equal(surface.typescript.path, "product-sdk/packages/origin-sdk-names/src/index.ts", `M5 label TypeScript path ${keyOf(binding.key)}`);
     if (!new RegExp(`export\\s+function\\s+${surface.typescript.function}\\s*\\(`).test(read(surface.typescript.path))) {
       fail(`missing exact TypeScript label validation surface ${keyOf(binding.key)}`);
     }

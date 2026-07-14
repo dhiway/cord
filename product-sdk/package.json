@@ -12,7 +12,6 @@
   "exports": {
     ".": "./src/index.ts",
     "./content": "./src/content.ts",
-    "./names": "./src/names.ts",
     "./drive": "./src/drive.ts",
     "./errors": "./src/errors.ts",
     "./host": "./src/host.ts",

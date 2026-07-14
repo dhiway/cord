@@ -375,7 +375,7 @@
           "constructor": "new"
         },
         "typescript": {
-          "path": "product-sdk/src/names.ts",
+          "path": "product-sdk/packages/origin-sdk-names/src/index.ts",
           "function": "normalizedLabel"
         },
         "vectors": {
@@ -428,7 +428,7 @@
           "constructor": "new"
         },
         "typescript": {
-          "path": "product-sdk/src/names.ts",
+          "path": "product-sdk/packages/origin-sdk-names/src/index.ts",
           "function": "normalizedLabel"
         },
         "vectors": {

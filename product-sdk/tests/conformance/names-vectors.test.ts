@@ -23,8 +23,8 @@ import test from "node:test";
 import {
   ATTESTATION_RESOLUTION_POLICY, NAMES_EVENT_KINDS, deriveNameId, deriveRegistrationCommitment,
   normalizedLabel, registrationSalt,
-} from "../../src/names.ts";
-import type { AccountId, BlockHash, NameId } from "../../src/types.ts";
+} from "@cord-network/origin-sdk-names";
+import type { AccountId, BlockHash, NameId } from "@cord-network/origin-sdk-names";
 
 interface Vectors {
   readonly label_policy_version: number;

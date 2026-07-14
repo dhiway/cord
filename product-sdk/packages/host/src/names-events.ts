@@ -27,10 +27,12 @@ import {
   type NamesEventSubscription,
   type NamesOutcome,
   type FinalizedNamesEvent,
-} from "../../../src/names.ts";
-import type {
-  AccountId, BlockHash, BlockNumber, NameId, RegistrationCommitment,
-} from "../../../src/types.ts";
+  type AccountId,
+  type BlockHash,
+  type BlockNumber,
+  type NameId,
+  type RegistrationCommitment,
+} from "@cord-network/origin-sdk-names";
 
 export interface FinalizedNamesOutcome { readonly event: FinalizedNamesEvent; readonly outcome: NamesOutcome }
 const HASH = /^0x[0-9a-f]{64}$/i;

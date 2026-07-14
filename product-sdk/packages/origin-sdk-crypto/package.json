@@ -1,0 +1,18 @@
+{
+  "name": "@cord-network/origin-sdk-crypto",
+  "version": "0.1.0",
+  "description": "Portable cryptographic primitives used by the Origin SDK",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "sideEffects": false,
+  "files": ["dist", "README.md"],
+  "exports": {".": {"types": "./dist/index.d.ts", "import": "./dist/index.js"}},
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit && node --experimental-strip-types --test tests/*.test.ts"
+  },
+  "cord": {"bundleBudgetBytes": 300000}
+}

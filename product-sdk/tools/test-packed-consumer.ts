@@ -23,7 +23,7 @@ import { spawnSync } from "node:child_process";
 
 const sdkRoot = resolve(import.meta.dirname, "..");
 const consumer = mkdtempSync(resolve(tmpdir(), "cord-origin-sdk-consumer-"));
-const packages = ["result", "errors", "descriptors", "host", "chain-client", "signer", "tx", "identity", "personhood", "resources", "attestation"];
+const packages = ["result", "errors", "descriptors", "host", "chain-client", "signer", "tx", "identity", "personhood", "resources", "attestation", "crypto", "names"];
 const run = (command: string, args: string[], cwd = consumer): string => {
   const result = spawnSync(command, args, { cwd, encoding: "utf8" });
   if (result.status !== 0) {
@@ -56,7 +56,10 @@ import { createFakeHost } from "@cord-network/origin-sdk-host/testing";
 import { createHostSigner } from "@cord-network/origin-sdk-signer";
 import { submitAndFinalize } from "@cord-network/origin-sdk-tx";
 import { accountId, createIdentityClient } from "@cord-network/origin-sdk-identity";
+import { blake2b256 } from "@cord-network/origin-sdk-crypto";
+import { normalizedLabel } from "@cord-network/origin-sdk-names";
 const hash = "0x" + "11".repeat(32), txHash = "0x" + "22".repeat(32);
+if (blake2b256(new Uint8Array()).length !== 32 || normalizedLabel("packed-app") !== "packed-app") throw new Error("packed crypto/names surface failed");
 const identity = {
   genesis_hash: COMMONS_NETWORK_BINDING.genesis_hash,
   spec_version: COMMONS_NETWORK_BINDING.spec_version,

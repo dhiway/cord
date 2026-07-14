@@ -16,15 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-export * from "./content.ts";
-export * from "./drive.ts";
-export * from "./errors.ts";
-export * from "./host.ts";
-export * from "./provider.ts";
-export * from "./s3.ts";
-export * from "./storage.ts";
-export * from "./sponsored-transaction.ts";
-export * from "./types.ts";
-export * from "./version.ts";
+import assert from "node:assert/strict";
+import test from "node:test";
+import { blake2b256 } from "../src/index.ts";
 
-export * from "./storage-events.ts";
+const hex = (value: Uint8Array) => Array.from(value, (byte) => byte.toString(16).padStart(2, "0")).join("");
+test("Blake2b-256 matches canonical empty and abc vectors", () => {
+  assert.equal(hex(blake2b256(new Uint8Array())), "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8");
+  assert.equal(hex(blake2b256(new TextEncoder().encode("abc"))), "bddd813c634239723171ef3fee98579b94964e3bb1cb3e427262c8c068d52319");
+});

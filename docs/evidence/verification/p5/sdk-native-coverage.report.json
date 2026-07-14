@@ -95,7 +95,7 @@
   "inputs": {
     "version_matrix_sha256": "1442b5b8301b0a6756b0aec64227504db8578502311b978e41b3e2fe693120a9",
     "coverage_map_sha256": "0f1ea8783001f2f2798c5b073a9afd55bc8bf69cf2d2fe2dc10324c2763b39e5",
-    "m5_sdk_bindings_sha256": "d3fea95b87e20a43f7cb903045205b708956219da358fc2114aa7c48d712c5b8",
+    "m5_sdk_bindings_sha256": "78b7a46616e60a0171c652814a70426cbf8fef1aebfee94bae3341a612178e08",
     "route_contract_sha256": "2f19961bbf42a91a4c0335657b0ca73bc2dfa889e86f83fe7f72bdf1582397d0",
     "rust_route_harness_sha256": "5b2c01e7cbbb38c7f5bfc0e60663971c6848751641e0413523ea13f9fa86097a",
     "typescript_route_harness_sha256": "3032fb23e01d46abf33e18e361f33f0131564d89c726ce8d303f941172085566",

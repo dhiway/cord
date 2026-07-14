@@ -88,9 +88,9 @@ journey = "Applications bind human-readable names to identities and content"
 runtime_owner = "Names pallet and runtime API"
 sdk_owner = "origin-sdk-names"
 host_owner = "Owner and controller signing approval"
-state = "runtime-present-sdk-partial"
+state = "runtime-sdk-present-host-integration-pending"
 contract_policy = "forbidden-native-authority"
-evidence = "origin/orbis/pallets/names/src/lib.rs; product-sdk/src/names.ts"
+evidence = "origin/orbis/pallets/names/src/lib.rs; product-sdk/packages/origin-sdk-names/src/index.ts"
 
 [[capability]]
 id = "app-resolution"
@@ -154,9 +154,9 @@ journey = "Web and backend consumers share portable validation and error handlin
 runtime_owner = "none"
 sdk_owner = "Tier A and Tier C leaf packages"
 host_owner = "none except secure key custody"
-state = "sdk-gap"
+state = "result-errors-and-crypto-present-other-utilities-pending"
 contract_policy = "not-applicable"
-evidence = "docs/sdk/package-architecture.toml"
+evidence = "docs/sdk/package-architecture.toml; product-sdk/packages/origin-sdk-crypto/src/index.ts"
 
 [[capability]]
 id = "app-contracts"

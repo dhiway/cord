@@ -20,8 +20,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { decodeNamesEvent, subscribeNamesEvents, type FinalizedNamesOutcome } from "../../packages/host/src/names-events.ts";
 import type { TypedFinalizedEvent, TypedFinalizedEventSource } from "../../packages/host/src/attestation-events.ts";
-import { NAMES_EVENT_KINDS, namesEventSubscription } from "../../src/names.ts";
-import type { BlockHash } from "../../src/types.ts";
+import { NAMES_EVENT_KINDS, namesEventSubscription } from "@cord-network/origin-sdk-names";
+import type { BlockHash } from "@cord-network/origin-sdk-names";
 
 const anchor = `0x${"11".repeat(32)}` as BlockHash;
 const finalized = `0x${"22".repeat(32)}`;

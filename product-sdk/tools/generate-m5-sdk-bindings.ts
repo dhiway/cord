@@ -79,7 +79,7 @@ const bindings = adopted.map((entry: any) => {
   if (bindingKind === "label-validation-surface") {
     binding.validation_surfaces = {
       rust: { path: "origin-rs/src/product_sdk/domains/names.rs", declaration: "Label", constructor: "new" },
-      typescript: { path: "product-sdk/src/names.ts", function: "normalizedLabel" },
+      typescript: { path: "product-sdk/packages/origin-sdk-names/src/index.ts", function: "normalizedLabel" },
       vectors: { path: vectorPath, sha256: sha256(vectorPath) },
       cases: {
         rust: { path: "origin-rs/src/product_sdk/domains/names.rs", case: "shared_vectors_match_label_name_commitment_and_event_contracts" },
