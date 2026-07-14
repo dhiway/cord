@@ -39,7 +39,7 @@
       "sha256": "8c0a9cd67eac7c2ba329745aec7246ca893bd5286ed7590be5004af40b353c85"
     },
     "metadata": {
-      "path": "origin/orbis/runtime/fixtures/meta-v8/metadata-hash.json",
+      "path": "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json",
       "sha256": "23355f674c0e0108c8e9a80e75fa6050d16acae92304f06327587636be689c28"
     },
     "vectors": {

@@ -16,7 +16,7 @@ const P5_ENVELOPE: &[u8] =
 const P5_PAYLOAD: &[u8] =
 	include_bytes!("../../docs/evidence/verification/p5/sdk-freeze-ratification.payload.json");
 const METADATA_IDENTITY: &[u8] =
-	include_bytes!("../orbis/runtime/fixtures/meta-v8/metadata-hash.json");
+	include_bytes!("../orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json");
 
 const REQUIRED_ROLES: [&str; 5] =
 	["runtime-owner", "sdk-owner", "security-owner", "performance-owner", "architecture-owner"];

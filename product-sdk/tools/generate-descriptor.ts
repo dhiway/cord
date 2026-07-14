@@ -10,7 +10,7 @@ const rel = {
   compatibility: "docs/sdk/compatibility-manifest.json",
   versionMatrix: "docs/sdk/native-version-matrix.json",
   extensions: "docs/sdk/signed-extension-manifest.json",
-  metadata: "origin/orbis/runtime/fixtures/meta-v8/metadata-hash.json",
+  metadata: "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json",
   vectors: "docs/sdk/vectors/native-sdk-v1.json",
   genesisIdentity: "docs/genesis/orbis-candidate-genesis-identity.json",
   chainSpec: "origin/orbis/node/src/chain_spec.rs",

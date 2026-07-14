@@ -475,7 +475,7 @@ fn enterprise_sponsored_meta_boundaries_reject_exhaustion_and_version_drift() {
 		// This checked-in fixture is produced by the runtime fixture generator from the actual
 		// UncheckedExtrinsic and MetaTxExtension types. With an unfunded sponsor the ordinary paid
 		// outer envelope must be rejected before it can subsidize the inner actor.
-		let bytes = include_bytes!("../fixtures/meta-v8/sponsored-outer-extrinsic.scale");
+		let bytes = include_bytes!("../vectors/transaction-policy-v8/sponsored-outer-extrinsic.scale");
 		let extrinsic = crate::UncheckedExtrinsic::decode_all(&mut bytes.as_slice()).unwrap();
 		let outer = extrinsic.0.function;
 		assert!(matches!(outer, RuntimeCall::MetaTx(..)));
@@ -506,7 +506,7 @@ fn enterprise_sponsored_meta_boundaries_reject_exhaustion_and_version_drift() {
 		// The mutated fixture changes only the signed spec-version intent field. Inspection of the
 		// real runtime Meta envelope fails closed rather than silently accepting version drift.
 		let drifted = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(
-			&mut include_bytes!("../fixtures/meta-v8/mutate-spec.scale").as_slice(),
+			&mut include_bytes!("../vectors/transaction-policy-v8/mutate-spec.scale").as_slice(),
 		)
 		.unwrap();
 		let drifted_len = drifted.encoded_size() as u32;

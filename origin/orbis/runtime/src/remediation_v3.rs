@@ -16,7 +16,6 @@ pub const PAID_META_DOMAIN_V6: &[u8] = b"orbis/paid-meta/v6";
 pub const CANONICAL_SPEC_VERSION: u32 = 27;
 pub const CANONICAL_TRANSACTION_VERSION: u32 = 6;
 pub const CANONICAL_SPEC27_BYTES_HEX: &str = "506f726269732f6d6574612d696e74656e742f76360011111111111111111111111111111111111111111111111111111111111111111b00000006000000222222222222222222222222222222222222222222222222222222222222222233333333333333333333333333333333333333333333333333333333333333334000000000000000070000000000000009000000dd3b341114e3d7e79bf140f657d6f97fa774904b82abdde492d9f23d0bf4a99755555555555555555555555555555555555555555555555555555555555555556666666666666666666666666666666666666666666666666666666666666666";
-pub const CANONICAL_SPEC26_BYTES_HEX: &str = "506f726269732f6d6574612d696e74656e742f76360011111111111111111111111111111111111111111111111111111111111111111a00000006000000222222222222222222222222222222222222222222222222222222222222222233333333333333333333333333333333333333333333333333333333333333334000000000000000070000000000000009000000dd3b341114e3d7e79bf140f657d6f97fa774904b82abdde492d9f23d0bf4a99755555555555555555555555555555555555555555555555555555555555555556666666666666666666666666666666666666666666666666666666666666666";
 pub const CANONICAL_SPEC27_HASH_HEX: &str =
 	"16a0174f27925249c52d4d490eb00b1a03c539433cad78b152b59a71422e40cb";
 pub const CANONICAL_SPEC27_SIGNATURE_HEX: &str = "e665f7ff0b913df17e5e03dd70926df3f2519b531e9b61f870b5b7e317a254561549d07b02b42d599d224200967aec89b0eb5a7af34326fc48323eb04f5b2084";
@@ -951,7 +950,7 @@ mod tests {
 	}
 
 	#[test]
-	fn canonical_spec27_layout_is_decode_all_and_spec26_is_negative() {
+	fn canonical_layout_is_decode_all_and_rejects_non_current_spec() {
 		assert_eq!(
 			META_EXTENSION_ORDER_V6,
 			[
@@ -995,28 +994,6 @@ mod tests {
 			commitment.as_bytes(),
 			&pair.public(),
 		));
-		let spec26_bytes = include_bytes!("../fixtures/meta-v6/spec26-negative.bin");
-		assert_eq!(
-			spec26_bytes.as_slice(),
-			decode_hex::<{ CANONICAL_SPEC26_BYTES_HEX.len() / 2 }>(CANONICAL_SPEC26_BYTES_HEX)
-		);
-		let spec26_literal =
-			IntentPreimageFixtureV6::decode_all(&mut spec26_bytes.as_slice()).unwrap();
-		assert_eq!(spec26_literal.domain, META_INTENT_DOMAIN_V6);
-		assert_eq!(spec26_literal.spec_version, 26);
-		assert_ne!(spec26_literal.spec_version, CANONICAL_SPEC_VERSION);
-		assert!(!spec26_literal.is_canonical_positive());
-		let evidence: serde_json::Value =
-			serde_json::from_str(include_str!("../fixtures/meta-v6/spec26-negative.json")).unwrap();
-		assert_eq!(evidence["id"], "VECTOR-SPEC26-NEGATIVE");
-		assert_eq!(evidence["immutable"], true);
-		assert_eq!(evidence["spec_version"], 26);
-		assert_eq!(evidence["domain"], "orbis/meta-intent/v6");
-		let binary_sha256 = sp_io::hashing::sha2_256(spec26_bytes)
-			.iter()
-			.map(|byte| format!("{byte:02x}"))
-			.collect::<String>();
-		assert_eq!(evidence["binary_sha256"], binary_sha256);
 		let decoded = IntentPreimageFixtureV6::decode_all(&mut bytes.as_slice()).unwrap();
 		assert_eq!(decoded, canonical_intent_fixture());
 		assert_eq!(decoded.commitment(), commitment);

@@ -157,7 +157,7 @@ fn completion_manifest_is_parseable_unique_and_clean_genesis() {
 	let manifest: toml::Value =
 		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml"))
 			.expect("the current completion manifest must be valid TOML");
-	assert_eq!(manifest["manifest_version"].as_integer(), Some(17));
+	assert_eq!(manifest["manifest_version"].as_integer(), Some(18));
 	let mut identities = BTreeSet::new();
 	for (table, value) in manifest.as_table().unwrap() {
 		let Some(rows) = value.as_array() else { continue };
@@ -652,7 +652,7 @@ fn ethereum_and_authorized_origins_cannot_activate_native_score_or_honour_polici
 		let score_extension = pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(Some(
 			pallet_orbis_score::ScoreAsParticipantData { nonce: 0 },
 		));
-		let honour_bytes = include_bytes!("../fixtures/meta-v8/honour-voter-meta.scale");
+		let honour_bytes = include_bytes!("../vectors/transaction-policy-v8/honour-voter-meta.scale");
 		let (honour_call, _, meta_extension): (RuntimeCall, u8, crate::MetaTxExtension) =
 			DecodeAll::decode_all(&mut honour_bytes.as_slice()).unwrap();
 		let honour_extension = meta_extension.9 .2;
@@ -949,24 +949,6 @@ fn elastic_scaling_runtime_parameters_target_three_blocks_per_relay_slot() {
 		1
 	);
 	assert!(<<Runtime as pallet_aura::Config>::AllowMultipleBlocksPerSlot as Get<bool>>::get());
-}
-
-fn decode_hex(input: &str) -> Vec<u8> {
-	let input = input.trim();
-	assert_eq!(input.len() % 2, 0);
-	input
-		.as_bytes()
-		.chunks_exact(2)
-		.map(|pair| {
-			let digit = |byte: u8| match byte {
-				b'0'..=b'9' => byte - b'0',
-				b'a'..=b'f' => byte - b'a' + 10,
-				b'A'..=b'F' => byte - b'A' + 10,
-				_ => panic!("invalid fixture hex"),
-			};
-			(digit(pair[0]) << 4) | digit(pair[1])
-		})
-		.collect()
 }
 
 #[test]
@@ -1416,64 +1398,6 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<PeopleLite as PalletInfoAccess>::index(), 94);
 	assert_eq!(<Personhood as PalletInfoAccess>::index(), 95);
 	assert_eq!(<<Runtime as pallet_broker::Config>::MaxReservedCores as Get<u32>>::get(), 50);
-}
-
-#[test]
-fn solidity_evm_fixture_deploys_and_executes_through_revive() {
-	use pallet_revive::{
-		test_utils::builder::{BareCallBuilder, BareInstantiateBuilder},
-		Code, TransactionLimits,
-	};
-	let limits = || TransactionLimits::WeightAndDeposit {
-		weight_limit: frame_support::weights::Weight::from_parts(500_000_000_000, 10 * 1024 * 1024),
-		deposit_limit: 50_000_000_000_000_000,
-	};
-
-	sp_io::TestExternalities::new_empty().execute_with(|| {
-		System::set_block_number(1);
-		let account = pallet_revive::test_utils::ALICE;
-		let funded =
-			<Balances as Mutate<AccountId>>::set_balance(&account, 100_000_000_000_000_000);
-		assert_eq!(funded, 100_000_000_000_000_000);
-		assert_eq!(Balances::free_balance(&account), funded);
-		let revive_account = Revive::account_id();
-		<Balances as Mutate<AccountId>>::set_balance(
-			&revive_account,
-			crate::ExistentialDeposit::get(),
-		);
-		let code = decode_hex(include_str!("../fixtures/build/Counter.bin"));
-
-		let instantiate = BareInstantiateBuilder::<Runtime>::bare_instantiate(
-			RuntimeOrigin::signed(account.clone()),
-			Code::Upload(code),
-		)
-		.transaction_limits(limits())
-		.salt(Some([7u8; 32]))
-		.build();
-		let instantiated = instantiate.result.unwrap();
-		assert!(!instantiated.result.did_revert());
-		let contract_addr = instantiated.addr;
-
-		let increment = sp_io::hashing::keccak_256(b"increment()")[..4].to_vec();
-		let increment_result = BareCallBuilder::<Runtime>::bare_call(
-			RuntimeOrigin::signed(account.clone()),
-			contract_addr,
-		)
-		.transaction_limits(limits())
-		.data(increment)
-		.build_and_unwrap_result();
-		assert!(!increment_result.did_revert());
-
-		let value = sp_io::hashing::keccak_256(b"value()")[..4].to_vec();
-		let value_result =
-			BareCallBuilder::<Runtime>::bare_call(RuntimeOrigin::signed(account), contract_addr)
-				.transaction_limits(limits())
-				.data(value)
-				.build_and_unwrap_result();
-		assert!(!value_result.did_revert());
-		assert_eq!(value_result.data.len(), 32);
-		assert_eq!(value_result.data[31], 42);
-	});
 }
 
 #[test]

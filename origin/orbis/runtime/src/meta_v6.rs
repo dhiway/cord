@@ -226,7 +226,7 @@ pub fn benchmark_policy_scenario(
 		}
 	}
 	fn benchmark_outer(enabled: bool) -> Result<RuntimeCall, frame_benchmarking::BenchmarkError> {
-		let bytes = include_bytes!("../fixtures/meta-v7/verify-consume-tuple.scale");
+		let bytes = include_bytes!("../vectors/transaction-policy-v8/verify-consume-tuple.scale");
 		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut bytes.as_slice())
 			.map_err(stop)?;
 		let (call, version, extension): (RuntimeCall, u8, crate::MetaTxExtension) =

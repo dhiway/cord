@@ -723,7 +723,7 @@ mod sponsored_tests {
 	#[test]
 	fn current_intent_preimage_fixture_matches_wire_shape() {
 		let fixture =
-			include_bytes!("../../../origin/orbis/runtime/fixtures/meta-v8/intent-preimage.scale");
+			include_bytes!("../../../origin/orbis/runtime/vectors/transaction-policy-v8/intent-preimage.scale");
 		let mut cursor = &fixture[..];
 		let decoded = raw::IntentPreimageV7::decode(&mut cursor).expect("current intent fixture");
 		assert!(cursor.is_empty());

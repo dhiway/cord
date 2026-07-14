@@ -18,7 +18,7 @@ RUNBOOK = ROOT / "docs/runbooks/origin-orbis-clean-genesis-launch.md"
 EVIDENCE = ROOT / "docs/evidence/p5"
 IDENTITY = ROOT / "docs/genesis/orbis-candidate-genesis-identity.json"
 LAUNCH_APPROVAL = ROOT / "docs/genesis/origin-orbis-production-launch-approval.json"
-METADATA_HASH = ROOT / "origin/orbis/runtime/fixtures/meta-v8/metadata-hash.json"
+METADATA_HASH = ROOT / "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json"
 COMMAND_LOG: list[dict] = []
 
 MASK64 = (1 << 64) - 1

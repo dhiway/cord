@@ -1,5 +1,5 @@
 {
-  "allowlist_sha256": "18639375b324d4130da06d498c103249f673658a614b40ed42125990001586da",
+  "allowlist_sha256": "eea7b8e3c2982c65dea81a5457a3b76abede1d778ac6d6bda5a5505e790c470e",
   "approval_manifest": {
     "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
     "required_reviewer_role": "architect",

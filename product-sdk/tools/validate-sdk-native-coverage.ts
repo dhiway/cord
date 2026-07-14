@@ -91,8 +91,8 @@ const parsePalletCallItems = (source: string, path: string): Map<string, number>
 const matrix = json("docs/sdk/native-version-matrix.json");
 const metadata = json(matrix.networks.orbis.metadata_source);
 const candidateGenesis = json(matrix.networks.orbis.candidate_genesis_identity_source);
-const vectorBaselineManifest = json("origin/orbis/runtime/fixtures/meta-v8/manifest.json");
-const vectorBaselineMetadata = json("origin/orbis/runtime/fixtures/meta-v8/metadata-hash-vector-baseline.json");
+const vectorBaselineManifest = json("origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json");
+const vectorBaselineMetadata = json("origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash-vector-baseline.json");
 const vectors = json(matrix.semantic_vectors);
 const coverage = json(matrix.coverage_map);
 const m5Bindings = json("docs/sdk/m5-sdk-bindings.json");
@@ -147,7 +147,7 @@ equal(vectorBaselineManifest.current_runtime_vectors_regenerated, false, "signed
 equal(vectorBaselineManifest.metadata_record, "metadata-hash-vector-baseline.json", "signed-payload metadata record");
 equal(vectorBaselineManifest.current_runtime_metadata_record, "metadata-hash.json", "current metadata record");
 equal(vectorBaselineManifest.metadata_implicit, vectorBaselineMetadata.metadata_hash, "signed-payload baseline metadata");
-const baselineConstant = read("origin/orbis/runtime/src/meta_v6_fixtures.rs").match(/const VECTOR_BASELINE_METADATA_IMPLICIT:[^=]+=\s*\[([\s\S]*?)\];/)?.[1];
+const baselineConstant = read("origin/orbis/runtime/src/transaction_policy_vectors.rs").match(/const VECTOR_BASELINE_METADATA_IMPLICIT:[^=]+=\s*\[([\s\S]*?)\];/)?.[1];
 if (!baselineConstant) fail("missing historical vector metadata constant");
 const baselineConstantHex = `0x${[...baselineConstant.matchAll(/0x([0-9a-f]{2})/g)].map((match) => match[1]).join("")}`;
 equal(baselineConstantHex, vectorBaselineManifest.metadata_implicit, "runtime vector baseline constant");

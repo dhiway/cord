@@ -3,14 +3,11 @@
 // Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#![allow(dead_code)]
-
-//! Checked-in SCALE vectors for the Orbis v6 signed and sponsored transaction pipelines.
+//! Checked-in SCALE conformance vectors for the current Commons signed and sponsored transaction
+//! pipeline.
 //!
-//! These are deliberately binary fixtures. The tests decode every file with `DecodeAll` and
-//! independently rebuild it from the runtime types, preventing a text fixture from silently
-//! describing a wire format that the runtime does not actually use. The metadata implicit is a
-//! historical vector baseline, not the current runtime metadata identity.
+//! The tests decode every vector with `DecodeAll` and independently rebuild it from runtime types,
+//! preventing a text description from drifting away from the wire format.
 
 use crate::{AccountId, Runtime, RuntimeCall};
 use codec::{DecodeAll, Encode};
@@ -30,10 +27,6 @@ const VECTOR_BASELINE_METADATA_IMPLICIT: [u8; 32] = [
 	0x85, 0x19, 0x55, 0x76, 0x67, 0xf8, 0x7e, 0xb7, 0xee, 0x32, 0xcd, 0x10, 0x9d, 0x40, 0xac, 0xfd,
 	0x48, 0xd9, 0xc5, 0x3a, 0x7e, 0xd9, 0x15, 0xfe, 0x17, 0x33, 0xb0, 0x35, 0x73, 0xab, 0x9e, 0xf9,
 ];
-
-fn account(pair: &sr25519::Pair) -> AccountId {
-	MultiSigner::from(pair.public()).into_account()
-}
 
 type MetaBareExtension = (
 	crate::meta_v6::ConsumePaidMetaIngress,
@@ -229,15 +222,20 @@ fn honour_meta_tuples() -> (pallet_meta_tx::MetaTxFor<Runtime>, pallet_meta_tx::
 
 fn policy_vectors() -> [crate::meta_v6::PolicyProofsV6; 7] {
 	[
-		include_bytes!("../fixtures/meta-v6/proof-person-alias.scale").as_slice(),
-		include_bytes!("../fixtures/meta-v6/proof-person-identity.scale").as_slice(),
-		include_bytes!("../fixtures/meta-v6/proof-person-alias-revised.scale").as_slice(),
-		include_bytes!("../fixtures/meta-v6/proof-lite-person.scale").as_slice(),
-		include_bytes!("../fixtures/meta-v6/proof-lite-alias.scale").as_slice(),
-		include_bytes!("../fixtures/meta-v6/proof-lite-alias-revised.scale").as_slice(),
-		include_bytes!("../fixtures/meta-v6/proof-resources-claim.scale").as_slice(),
+		include_bytes!("../vectors/transaction-policy-v8/proof-person-alias-meta.scale").as_slice(),
+		include_bytes!("../vectors/transaction-policy-v8/proof-person-identity-meta.scale").as_slice(),
+		include_bytes!("../vectors/transaction-policy-v8/proof-person-alias-revised-meta.scale").as_slice(),
+		include_bytes!("../vectors/transaction-policy-v8/proof-lite-person-meta.scale").as_slice(),
+		include_bytes!("../vectors/transaction-policy-v8/proof-lite-alias-meta.scale").as_slice(),
+		include_bytes!("../vectors/transaction-policy-v8/proof-lite-alias-revised-meta.scale").as_slice(),
+		include_bytes!("../vectors/transaction-policy-v8/proof-resources-claim-meta.scale").as_slice(),
 	]
-	.map(|mut bytes| crate::meta_v6::PolicyProofsV6::decode_all(&mut bytes).unwrap())
+	.map(|mut bytes| {
+		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut bytes).unwrap();
+		let (_, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
+			DecodeAll::decode_all(&mut meta.encode().as_slice()).unwrap();
+		extension.9 .1 .0
+	})
 }
 
 fn canonical_intent() -> crate::meta_v6::IntentPreimageV7 {
@@ -598,7 +596,7 @@ pub(crate) fn checked_in_score_meta_fixture_executes_as_paid_outer_extrinsic() {
 			participant.as_mut().unwrap().score = 10
 		});
 		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(
-			&mut include_bytes!("../fixtures/meta-v8/score-participant-meta.scale").as_slice(),
+			&mut include_bytes!("../vectors/transaction-policy-v8/score-participant-meta.scale").as_slice(),
 		)
 		.unwrap();
 		assert!(apply_checked_meta_fixture(meta, &sponsor_pair).is_ok());
@@ -634,7 +632,7 @@ pub(crate) fn checked_in_score_nonce_mutation_is_exact_future_without_inner_muta
 		});
 		let before = pallet_orbis_score::Participants::<Runtime>::get(&key);
 		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(
-			&mut include_bytes!("../fixtures/meta-v8/mutate-score-nonce-meta.scale").as_slice(),
+			&mut include_bytes!("../vectors/transaction-policy-v8/mutate-score-nonce-meta.scale").as_slice(),
 		)
 		.unwrap();
 		assert_eq!(
@@ -657,7 +655,7 @@ pub(crate) fn checked_in_honour_account_mutation_is_exact_bad_signer_and_executa
 		frame_system::GenesisConfig::<Runtime>::default().build();
 		crate::System::set_block_number(1);
 		crate::System::set_extrinsic_index(0);
-		let bytes = include_bytes!("../fixtures/meta-v8/mutate-honour-account-meta.scale");
+		let bytes = include_bytes!("../vectors/transaction-policy-v8/mutate-honour-account-meta.scale");
 		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut bytes.as_slice()).unwrap();
 		let (call, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
 			DecodeAll::decode_all(&mut bytes.as_slice()).unwrap();
@@ -785,7 +783,7 @@ pub(crate) fn checked_in_honour_meta_fixture_executes_against_exact_runtime_ring
 				&sponsor,
 				100_000_000_000_000,
 			);
-		let bytes = include_bytes!("../fixtures/meta-v8/honour-voter-meta.scale");
+		let bytes = include_bytes!("../vectors/transaction-policy-v8/honour-voter-meta.scale");
 		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut bytes.as_slice()).unwrap();
 		let (call, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
 			DecodeAll::decode_all(&mut bytes.as_slice()).unwrap();
@@ -830,7 +828,7 @@ fn regenerate_meta_v8_fixtures() {
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		frame_system::GenesisConfig::<Runtime>::default().build();
 		crate::System::set_block_number(1);
-		let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/meta-v8");
+		let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("vectors/transaction-policy-v8");
 		let write = |name: &str, bytes: &[u8]| std::fs::write(dir.join(name), bytes).unwrap();
 		let intent = canonical_intent();
 		let token = paid_token();
@@ -962,23 +960,23 @@ fn regenerate_meta_v8_fixtures() {
 }
 
 #[test]
-fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
+fn checked_in_current_transaction_policy_vectors_decode_all_recompute_and_match_hashes() {
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		frame_system::GenesisConfig::<Runtime>::default().build();
 		crate::System::set_block_number(1);
 		let intent = canonical_intent();
-		assert_fixture(include_bytes!("../fixtures/meta-v8/intent-preimage.scale"), intent.clone());
+		assert_fixture(include_bytes!("../vectors/transaction-policy-v8/intent-preimage.scale"), intent.clone());
 		assert_eq!(
-			include_bytes!("../fixtures/meta-v8/intent-commitment.bin").as_slice(),
+			include_bytes!("../vectors/transaction-policy-v8/intent-commitment.bin").as_slice(),
 			intent.commitment().as_bytes(),
 		);
 		let token = paid_token();
-		assert_fixture(include_bytes!("../fixtures/meta-v8/paid-token.scale"), token.clone());
+		assert_fixture(include_bytes!("../vectors/transaction-policy-v8/paid-token.scale"), token.clone());
 		assert_eq!(
-			include_bytes!("../fixtures/meta-v8/paid-token-key.bin").as_slice(),
+			include_bytes!("../vectors/transaction-policy-v8/paid-token-key.bin").as_slice(),
 			token.key().as_bytes(),
 		);
-		let meta_bytes = include_bytes!("../fixtures/meta-v8/verify-consume-tuple.scale");
+		let meta_bytes = include_bytes!("../vectors/transaction-policy-v8/verify-consume-tuple.scale");
 		assert_eq!(meta_bytes.as_slice(), meta_tuple(Default::default()).encode());
 		let meta =
 			pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut meta_bytes.as_slice()).unwrap();
@@ -988,21 +986,21 @@ fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
 		assert_eq!(extension.1 .0, intent);
 		assert_eq!(extension.1 .0.metadata_implicit, Some(VECTOR_BASELINE_METADATA_IMPLICIT));
 		assert!(extension.1.weight(&inner_call).all_gte(crate::weights::meta_v6::v7_commitment_delta()));
-		let score_meta = include_bytes!("../fixtures/meta-v8/score-participant-meta.scale");
+		let score_meta = include_bytes!("../vectors/transaction-policy-v8/score-participant-meta.scale");
 		let (score_call, _, score_extension): (RuntimeCall, u8, crate::MetaTxExtension) =
 			DecodeAll::decode_all(&mut score_meta.as_slice()).unwrap();
 		assert!(matches!(score_call, RuntimeCall::Score(pallet_orbis_score::Call::cash_out {})));
 		assert_ne!(score_extension.9 .0.encode(), [0]);
 		let score_nonce_mismatch =
-			include_bytes!("../fixtures/meta-v8/mutate-score-nonce-meta.scale");
+			include_bytes!("../vectors/transaction-policy-v8/mutate-score-nonce-meta.scale");
 		let (_, _, mismatch_extension): (RuntimeCall, u8, crate::MetaTxExtension) =
 			DecodeAll::decode_all(&mut score_nonce_mismatch.as_slice()).unwrap();
 		assert_ne!(score_extension.9 .0.encode(), mismatch_extension.9 .0.encode());
 
-		let honour_bytes = include_bytes!("../fixtures/meta-v8/honour-voter-meta.scale");
+		let honour_bytes = include_bytes!("../vectors/transaction-policy-v8/honour-voter-meta.scale");
 		let (honour_call, _, honour_extension): (RuntimeCall, u8, crate::MetaTxExtension) =
 			DecodeAll::decode_all(&mut honour_bytes.as_slice()).unwrap();
-		let mismatch_bytes = include_bytes!("../fixtures/meta-v8/mutate-honour-account-meta.scale");
+		let mismatch_bytes = include_bytes!("../vectors/transaction-policy-v8/mutate-honour-account-meta.scale");
 		let (mismatch_call, _, mismatch_honour_extension):
 			(RuntimeCall, u8, crate::MetaTxExtension) =
 			DecodeAll::decode_all(&mut mismatch_bytes.as_slice()).unwrap();
@@ -1024,7 +1022,7 @@ fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
 		assert_eq!(&auth[33..], &mismatch_auth[33..]);
 		assert_ne!(honour_bytes.as_slice(), mismatch_bytes.as_slice());
 		let max = max_envelope_with(meta);
-		assert_fixture(include_bytes!("../fixtures/meta-v8/max-envelope.scale"), max.clone());
+		assert_fixture(include_bytes!("../vectors/transaction-policy-v8/max-envelope.scale"), max.clone());
 		assert_eq!(max.encoded_size(), crate::meta_v6::MAX_META_ENCODED_BYTES);
 		assert!(crate::meta_v6::inspect_paid_meta::<FixtureMetadataResolver>(&max, 0)
 			.unwrap()
@@ -1043,19 +1041,19 @@ fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
 			Err(sp_runtime::transaction_validity::InvalidTransaction::ExhaustsResources.into()),
 		);
 		let mutation_bytes: [&[u8]; 13] = [
-			include_bytes!("../fixtures/meta-v8/mutate-domain.scale"),
-			include_bytes!("../fixtures/meta-v8/mutate-genesis.scale"),
-			include_bytes!("../fixtures/meta-v8/mutate-spec.scale"),
-			include_bytes!("../fixtures/meta-v8/mutate-transaction-version.scale"),
-			include_bytes!("../fixtures/meta-v8/mutate-signer.scale"),
-			include_bytes!("../fixtures/meta-v8/mutate-call-hash.scale"),
-			include_bytes!("../fixtures/meta-v8/mutate-mortality.scale"),
-			include_bytes!("../fixtures/meta-v8/mutate-nonce.scale"),
-			include_bytes!("../fixtures/meta-v8/mutate-policy-hash.scale"),
-			include_bytes!("../fixtures/meta-v8/mutate-storage-hash.scale"),
-			include_bytes!("../fixtures/meta-v8/mutate-metadata-hash.scale"),
-			include_bytes!("../fixtures/meta-v8/mutate-metadata-implicit-none.scale"),
-			include_bytes!("../fixtures/meta-v8/mutate-metadata-implicit-wrong.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/mutate-domain.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/mutate-genesis.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/mutate-spec.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/mutate-transaction-version.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/mutate-signer.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/mutate-call-hash.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/mutate-mortality.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/mutate-nonce.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/mutate-policy-hash.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/mutate-storage-hash.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/mutate-metadata-hash.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/mutate-metadata-implicit-none.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/mutate-metadata-implicit-wrong.scale"),
 		];
 		for (bytes, mutation) in mutation_bytes.into_iter().zip(mutations()) {
 			let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut bytes.as_ref()).unwrap();
@@ -1081,13 +1079,13 @@ fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
 		assert!(mutations().into_iter().all(|mutation| mutation.commitment() != intent.commitment()));
 
 		let proof_bytes: [&[u8]; 7] = [
-			include_bytes!("../fixtures/meta-v8/proof-person-alias-meta.scale"),
-			include_bytes!("../fixtures/meta-v8/proof-person-identity-meta.scale"),
-			include_bytes!("../fixtures/meta-v8/proof-person-alias-revised-meta.scale"),
-			include_bytes!("../fixtures/meta-v8/proof-lite-person-meta.scale"),
-			include_bytes!("../fixtures/meta-v8/proof-lite-alias-meta.scale"),
-			include_bytes!("../fixtures/meta-v8/proof-lite-alias-revised-meta.scale"),
-			include_bytes!("../fixtures/meta-v8/proof-resources-claim-meta.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/proof-person-alias-meta.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/proof-person-identity-meta.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/proof-person-alias-revised-meta.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/proof-lite-person-meta.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/proof-lite-alias-meta.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/proof-lite-alias-revised-meta.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/proof-resources-claim-meta.scale"),
 		];
 		for (index, (bytes, expected)) in
 			proof_bytes.into_iter().zip(policy_vectors()).enumerate()
@@ -1109,18 +1107,18 @@ fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
 
 		assert!(verify_meta_signature(
 			pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(
-				&mut include_bytes!("../fixtures/meta-v8/verify-consume-tuple.scale").as_slice(),
+				&mut include_bytes!("../vectors/transaction-policy-v8/verify-consume-tuple.scale").as_slice(),
 			)
 			.unwrap(),
 		));
 		assert!(validate_meta_head(
 			pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(
-				&mut include_bytes!("../fixtures/meta-v8/verify-consume-tuple.scale").as_slice(),
+				&mut include_bytes!("../vectors/transaction-policy-v8/verify-consume-tuple.scale").as_slice(),
 			)
 			.unwrap(),
 		)
 		.is_ok());
-		let wrong_signature = include_bytes!("../fixtures/meta-v8/mutate-wrong-signature.scale");
+		let wrong_signature = include_bytes!("../vectors/transaction-policy-v8/mutate-wrong-signature.scale");
 		let wrong_signature =
 			pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut wrong_signature.as_slice()).unwrap();
 		assert!(!verify_meta_signature(wrong_signature.clone()));
@@ -1129,39 +1127,21 @@ fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
 			Err(sp_runtime::transaction_validity::InvalidTransaction::BadProof.into()),
 		);
 		assert!(pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(
-			&mut include_bytes!("../fixtures/meta-v8/mutate-trailing-byte.scale").as_slice(),
+			&mut include_bytes!("../vectors/transaction-policy-v8/mutate-trailing-byte.scale").as_slice(),
 		)
 		.is_err());
 		assert_outer_fixture(
-			include_bytes!("../fixtures/meta-v8/direct-signed-extrinsic.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/direct-signed-extrinsic.scale"),
 			false,
 		);
 		assert_outer_fixture(
-			include_bytes!("../fixtures/meta-v8/sponsored-outer-extrinsic.scale"),
+			include_bytes!("../vectors/transaction-policy-v8/sponsored-outer-extrinsic.scale"),
 			true,
-		);
-		assert_eq!(
-			include_bytes!("../fixtures/meta-v8/intent-preimage.scale").len(),
-			include_bytes!("../fixtures/meta-v6/intent-preimage.scale").len() + 33,
-		);
-		let digest_hex = |bytes: &[u8]| {
-			sp_io::hashing::blake2_256(bytes)
-				.iter()
-				.map(|byte| format!("{byte:02x}"))
-				.collect::<String>()
-		};
-		assert_eq!(
-			digest_hex(include_bytes!("../fixtures/meta-v6/intent-preimage.scale")),
-			"cd3df5c81cfd15a2f2debef6b1ee310c67fb5eddcf5c8ae27a05089079edb189"
-		);
-		assert_eq!(
-			digest_hex(include_bytes!("../fixtures/meta-v8/intent-preimage.scale")),
-			"e7a525f1e19329e1521c31f6b14185c56c80539cdb6c94e07fd2c067a9f777f4"
 		);
 		assert_eq!(crate::meta_v6::MAX_META_ENCODED_BYTES, 65_536);
 		assert_eq!(crate::meta_v6::MAX_META_PAYLOAD_BYTES, 65_503);
 		let manifest: serde_json::Value =
-			serde_json::from_str(include_str!("../fixtures/meta-v8/manifest.json")).unwrap();
+			serde_json::from_str(include_str!("../vectors/transaction-policy-v8/manifest.json")).unwrap();
 		assert_eq!(manifest["spec_version"], 29);
 		assert_eq!(manifest["transaction_version"], 8);
 		assert_eq!(manifest["max_envelope_bytes"], 65_536);
@@ -1191,7 +1171,7 @@ fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
 			expected_error("mutate-honour-account-meta.scale"),
 			Some("InvalidTransaction::BadSigner")
 		);
-		let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/meta-v8");
+		let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("vectors/transaction-policy-v8");
 		for row in manifest["files"].as_array().unwrap() {
 			let bytes = std::fs::read(dir.join(row["file"].as_str().unwrap())).unwrap();
 			assert_eq!(row["bytes"], bytes.len());
@@ -1205,18 +1185,4 @@ fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
 	if option_env!("RUNTIME_METADATA_HASH").is_some() {
 	} else {
 	}
-}
-
-#[test]
-fn checked_in_meta_v6_and_v7_fixtures_are_rejected_after_v8_transition() {
-	for bytes in [
-		include_bytes!("../fixtures/meta-v6/direct-signed-extrinsic.scale").as_slice(),
-		include_bytes!("../fixtures/meta-v7/direct-signed-extrinsic.scale").as_slice(),
-	] {
-		assert!(crate::UncheckedExtrinsic::decode_all(&mut bytes.as_ref()).is_err());
-	}
-	let v7 = include_bytes!("../fixtures/meta-v7/verify-consume-tuple.scale");
-	assert!(pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut v7.as_slice()).is_err());
-	let v6 = include_bytes!("../fixtures/meta-v6/verify-consume-tuple.scale");
-	assert!(pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut v6.as_slice()).is_err());
 }

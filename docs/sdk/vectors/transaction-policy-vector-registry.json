@@ -7,7 +7,7 @@
       "id": "normal-direct-positive",
       "evidence": [
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/direct-signed-extrinsic.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/direct-signed-extrinsic.scale",
           "sha256": "3c7409802e5eb1098b537c6038601fab7d1f9a77e4e836e35c56d6612849f73d",
           "expected_outcome": "valid"
         }
@@ -18,7 +18,7 @@
       "id": "normal-bad-metadata",
       "evidence": [
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-metadata-hash.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/mutate-metadata-hash.scale",
           "sha256": "28ea14e3bb5543ef32c782395be83238748cfdbeb366c0b182dc037061ecac69",
           "expected_outcome": "InvalidTransaction::BadProof"
         }
@@ -29,12 +29,12 @@
       "id": "normal-bad-version",
       "evidence": [
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-spec.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/mutate-spec.scale",
           "sha256": "d83d5922059c87d7c44878a44bf5ba8f4d5ca724f861cfd4c5d8682241878f34",
           "expected_outcome": "InvalidTransaction::BadProof"
         },
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-transaction-version.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/mutate-transaction-version.scale",
           "sha256": "07d69ddd2e1eef63373e2c9ba13334fc1d0f28432bfd8216d4ebe039289146c9",
           "expected_outcome": "InvalidTransaction::BadProof"
         }
@@ -57,12 +57,12 @@
       "id": "meta-positive",
       "evidence": [
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/sponsored-outer-extrinsic.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/sponsored-outer-extrinsic.scale",
           "sha256": "8cba0f2c8357d746747752ec986ab42bb51e179acc63340cd52bba7a932f040e",
           "expected_outcome": "valid"
         },
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/intent-preimage.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/intent-preimage.scale",
           "sha256": "912dfee0b6efe850f1d81ca70a78e7d133a18fa95fa30cdb4f2d5627c2ce9ecd",
           "expected_outcome": "valid"
         }
@@ -73,7 +73,7 @@
       "id": "meta-replay",
       "evidence": [
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-score-nonce-meta.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/mutate-score-nonce-meta.scale",
           "sha256": "512a534ad44948642f4bb4befd2d017c20a88f39fbe4f3826e6455e3446db3a9",
           "expected_outcome": "InvalidTransaction::Future"
         }
@@ -84,7 +84,7 @@
       "id": "meta-bad-signature",
       "evidence": [
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-wrong-signature.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/mutate-wrong-signature.scale",
           "sha256": "c0022038c9527f6ff0652f9c61e67c8f69857c43d1c637e9f4418de84b345ec2",
           "expected_outcome": "InvalidTransaction::BadProof"
         }
@@ -95,52 +95,52 @@
       "id": "every-extension-slot-mutation",
       "evidence": [
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-call-hash.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/mutate-call-hash.scale",
           "sha256": "ba38b6f770d32750e4615bf7bfc4710dfd7099c568e5634cd21273ade0d30525",
           "expected_outcome": "InvalidTransaction::BadProof"
         },
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-domain.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/mutate-domain.scale",
           "sha256": "1a278c7241eef36634caf06b17df544f0462bdfc02a888536bf597adfbbf4cb6",
           "expected_outcome": "InvalidTransaction::BadProof"
         },
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-genesis.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/mutate-genesis.scale",
           "sha256": "8069582d1e9c668f7c80b5d7048b6d430683021f4efd2c087396ab183a2593f8",
           "expected_outcome": "InvalidTransaction::BadProof"
         },
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-metadata-hash.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/mutate-metadata-hash.scale",
           "sha256": "28ea14e3bb5543ef32c782395be83238748cfdbeb366c0b182dc037061ecac69",
           "expected_outcome": "InvalidTransaction::BadProof"
         },
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-mortality.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/mutate-mortality.scale",
           "sha256": "138eaecff0d76ad7e468ff180faef68a8804c09820a9d8096ca1954bcf7cacd7",
           "expected_outcome": "InvalidTransaction::BadProof"
         },
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-nonce.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/mutate-nonce.scale",
           "sha256": "b327f75cf64a43264e4be199a5a60c7f150a9c3bcffb0a0fc2e03b5d10b1a788",
           "expected_outcome": "InvalidTransaction::BadProof"
         },
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-policy-hash.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/mutate-policy-hash.scale",
           "sha256": "044f9bce741e8d0b0f8ec03dc4f10862db10912c72a2b136df154b34ead384e1",
           "expected_outcome": "InvalidTransaction::BadProof"
         },
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-signer.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/mutate-signer.scale",
           "sha256": "fb4fef5ec5eb7df45590996315558c1b5ae86d1612e10c7c9dbc6c938112ab15",
           "expected_outcome": "InvalidTransaction::BadProof"
         },
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-storage-hash.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/mutate-storage-hash.scale",
           "sha256": "e8e6e848d6f674b0d355781100f54ad6ad5ab230a05b3f622124533da31419bb",
           "expected_outcome": "InvalidTransaction::BadProof"
         },
         {
-          "path": "origin/orbis/runtime/fixtures/meta-v8/mutate-transaction-version.scale",
+          "path": "origin/orbis/runtime/vectors/transaction-policy-v8/mutate-transaction-version.scale",
           "sha256": "07d69ddd2e1eef63373e2c9ba13334fc1d0f28432bfd8216d4ebe039289146c9",
           "expected_outcome": "InvalidTransaction::BadProof"
         }

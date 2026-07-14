@@ -108,22 +108,13 @@ candidacy is disabled (`MaxCandidates = 0`), and the candidacy bond is zero. Sud
 invulnerables and their session keys therefore determine the active collator set without staking,
 elections, referenda, or councils.
 
-## Assets and Solidity
+## Assets and Revive
 
 Orbis local assets use compact `u32` identifiers and pallet index `80`. Signed accounts may create
 assets by reserving the configured deposit; Sudo/root retains force-management authority. Revive
 is at pallet index `100`, accepts Solidity/EVM bytecode, maps AccountId32 accounts automatically,
 and uses enterprise EVM chain ID `420001006`. The ERC-20 precompile prefix for Orbis assets is
 `0x0120`.
-
-The committed compatibility fixtures use standard `solc` EVM output. Regenerate them with Solidity
-0.8.36 and execute the deployment suite with:
-
-```text
-origin/orbis/runtime/fixtures/build.sh
-cargo test -p origin-commons-runtime \
-  solidity_evm_fixture_deploys_and_executes_through_revive --lib
-```
 
 Revive's separate PolkaVM benchmark fixtures require the `resolc` compiler. Compile-only benchmark
 validation may use the upstream-supported escape hatch:
@@ -133,17 +124,16 @@ SKIP_WASM_BUILD=1 SKIP_PALLET_REVIVE_FIXTURES=1 \
   cargo check -p origin-commons-runtime --features runtime-benchmarks
 ```
 
-The escape hatch does not validate PolkaVM fixture compilation. It also does not replace the
-standard-EVM compatibility tests above, which deploy and execute the committed `solc` output
-through Orbis's explicit `AllowEVMBytecode` envelope.
+The CORD tree does not ship contract bytecode fixtures. Revive remains generic infrastructure for
+explicit future applications; all Origin/Orbis platform capabilities use pallets and runtime APIs.
 
 ### Unified native identity-bound audit flow
 
 `native_identity_attestation_name_asset_and_storage_journey` proves the clean-break application
 path without a migrated-domain contract or ABI. It composes People identity, native Attestation,
-an Assets transfer, Bulletin content commitment, native DotNS resolution, Drive root reference and
-S3 object reference against the same audit digest. The unrelated `Counter.sol` fixture remains only
-to prove generic Revive application execution.
+an Assets transfer, native storage commitment, Orbis Names resolution, Drive root reference and S3
+object reference against the same audit digest. No migrated-domain contract or duplicate authority
+is retained.
 
 ## People identity
 

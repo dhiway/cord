@@ -7,110 +7,7 @@
     "sha256": "c930a5eb5a3abc07fa73862c7a017d499931b764a91a34a8c2bd96d1ab70cc6a",
     "verdict": "APPROVED"
   },
-  "entries": [
-    {
-      "artifact_evidence": [
-        {
-          "artifact": "Cargo.toml",
-          "evidence_path": "Cargo.toml",
-          "symbols": [
-            "pallet-revive ="
-          ]
-        },
-        {
-          "artifact": "origin/orbis/runtime/Cargo.toml",
-          "evidence_path": "origin/orbis/runtime/Cargo.toml",
-          "symbols": [
-            "pallet-revive = { workspace = true }"
-          ]
-        },
-        {
-          "artifact": "origin/orbis/runtime/src/lib.rs",
-          "evidence_path": "origin/orbis/runtime/src/lib.rs",
-          "symbols": [
-            "Revive: pallet_revive = 100"
-          ]
-        },
-        {
-          "artifact": "origin/orbis/runtime/src/tests.rs",
-          "evidence_path": "origin/orbis/runtime/src/tests.rs",
-          "symbols": [
-            "solidity_evm_fixture_deploys_and_executes_through_revive",
-            "BareInstantiateBuilder::<Runtime>::bare_instantiate"
-          ]
-        }
-      ],
-      "artifacts": [
-        "Cargo.toml",
-        "origin/orbis/runtime/Cargo.toml",
-        "origin/orbis/runtime/src/lib.rs",
-        "origin/orbis/runtime/src/tests.rs"
-      ],
-      "dependency_path": "Cargo.toml pallet-revive -> origin/orbis/runtime/Cargo.toml -> origin/orbis/runtime/src/lib.rs::Revive",
-      "exclusions": "No migrated-domain contract, ABI, address, proxy, adapter or SDK facade is allowlisted.",
-      "id": "orbis-generic-asset-application-runtime",
-      "owner": "orbis-runtime-owner",
-      "test_evidence": {
-        "command": "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime solidity_evm_fixture_deploys_and_executes_through_revive --lib",
-        "path": "origin/orbis/runtime/src/tests.rs",
-        "symbols": [
-          "solidity_evm_fixture_deploys_and_executes_through_revive",
-          "ethereum_pipeline_uses_mapped_nonce_payer_and_only_terminal_revive_actor"
-        ]
-      },
-      "unrelated_live_use": "generic asset-application execution and EVM transaction-policy ingress at Orbis pallet index 100; no migrated domain uses this surface"
-    },
-    {
-      "artifact_evidence": [
-        {
-          "artifact": "origin/orbis/runtime/fixtures/Counter.sol",
-          "evidence_path": "origin/orbis/runtime/fixtures/build.sh",
-          "symbols": [
-            "Counter.sol"
-          ]
-        },
-        {
-          "artifact": "origin/orbis/runtime/fixtures/README.md",
-          "evidence_path": "origin/orbis/runtime/fixtures/README.md",
-          "symbols": [
-            "solidity_evm_fixture_deploys_and_executes_through_revive"
-          ]
-        },
-        {
-          "artifact": "origin/orbis/runtime/fixtures/build.sh",
-          "evidence_path": "origin/orbis/runtime/fixtures/README.md",
-          "symbols": [
-            "./build.sh"
-          ]
-        },
-        {
-          "artifact": "origin/orbis/runtime/fixtures/build/Counter.bin",
-          "evidence_path": "origin/orbis/runtime/src/tests.rs",
-          "symbols": [
-            "fixtures/build/Counter.bin"
-          ]
-        }
-      ],
-      "artifacts": [
-        "origin/orbis/runtime/fixtures/Counter.sol",
-        "origin/orbis/runtime/fixtures/README.md",
-        "origin/orbis/runtime/fixtures/build.sh",
-        "origin/orbis/runtime/fixtures/build/Counter.bin"
-      ],
-      "dependency_path": "origin/orbis/runtime/src/tests.rs pallet-revive fixture tests",
-      "exclusions": "Every migrated-domain semantic fixture is excluded.",
-      "id": "orbis-generic-counter-fixture",
-      "owner": "orbis-runtime-owner",
-      "test_evidence": {
-        "command": "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime solidity_evm_fixture_deploys_and_executes_through_revive --lib",
-        "path": "origin/orbis/runtime/src/tests.rs",
-        "symbols": [
-          "solidity_evm_fixture_deploys_and_executes_through_revive"
-        ]
-      },
-      "unrelated_live_use": "minimal generic non-domain application used only to prove retained pallet-revive execution"
-    }
-  ],
+  "entries": [],
   "forbidden_justifications": [
     "backward-compatibility",
     "legacy-data",
@@ -122,9 +19,9 @@
     "identity",
     "personhood",
     "individuality",
-    "dotns",
+    "orbis-names",
     "storage"
   ],
-  "policy": "Only unrelated, currently owned and tested Revive use may survive. Compatibility, legacy data, future migration and speculative reuse never qualify.",
-  "schema_version": 2
+  "policy": "Origin/Orbis platform capabilities are pallet-native. No contract, ABI, address, proxy, adapter, compatibility fixture, or speculative Revive application is allowlisted.",
+  "schema_version": 3
 }

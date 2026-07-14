@@ -31,7 +31,7 @@ pub mod entity;
 pub mod genesis_config_presets;
 mod meta_v6;
 #[cfg(all(test, not(feature = "runtime-benchmarks")))]
-mod meta_v6_fixtures;
+mod transaction_policy_vectors;
 #[cfg(feature = "runtime-benchmarks")]
 #[cfg(test)]
 mod meta_v6_weight_evidence;
