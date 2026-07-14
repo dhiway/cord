@@ -1,10 +1,10 @@
 [package]
-name = "pallet-entity"
-description = "Entity management pallet"
+name = "pallet-origin-entity"
+description = "Origin stack entity management pallet."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-license = "Apache-2.0"
+license = "GPL-3.0-or-later"
 homepage.workspace = true
 repository.workspace = true
 
@@ -22,8 +22,8 @@ scale-info = { features = ["derive", "serde"], workspace = true }
 frame-benchmarking = { optional = true, workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
-pallet-feeless = { workspace = true }
-pallet-token = { workspace = true }
+pallet-origin-feeless = { workspace = true }
+pallet-origin-token = { workspace = true }
 sp-runtime = { workspace = true }
 
 [dev-dependencies]
@@ -42,8 +42,8 @@ std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
-	"pallet-feeless/std",
-	"pallet-token/std",
+	"pallet-origin-feeless/std",
+	"pallet-origin-token/std",
 	"scale-info/std",
 	"sp-io/std",
 	"sp-keystore/std",

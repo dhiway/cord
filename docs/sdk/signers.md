@@ -17,7 +17,7 @@ let delegate = Keypair::dev_with(DevAccount::Bob, KeyAlgorithm::Ed25519);
 let custom = Keypair::from_secret_uri(KeyAlgorithm::Sr25519, "//Charlie//demo", None)?;
 ```
 
-`Keypair` implements `subxt::tx::Signer<OriginConfig>` / `Signer<OriginHubConfig>` (and `Signer<PolkadotConfig>`), so you can pass it to any Subxt builder or SDK helper without manual conversions.
+`Keypair` implements `subxt::tx::Signer<OriginConfig>` (and `Signer<PolkadotConfig>`), so you can pass it to any Subxt builder or SDK helper without manual conversions.
 
 ## Account & Signature Introspection
 

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "scope": "schema-validation-only",
+  "campaign_executed": false,
+  "class": "C",
+  "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "runtime": {
+    "genesis_identity": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
+    "genesis_status": "deterministic-clean-break-candidate-not-production-approved",
+    "wasm_sha256": "558727456824d1f06928148ffead8cee5d58a63bf9109d0334a061f30c35db0f",
+    "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+    "descriptor_contract_sha256": "b621cf318308ca2ab46c16ec319be263b151f349ca48852770351cace952ad2b",
+    "spec_version": 29,
+    "transaction_version": 8
+  },
+  "environment": {
+    "topology_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "origin_validators": 6,
+    "orbis_collators": 2,
+    "orbis_cores": 1,
+    "clock_offset_ms": 0,
+    "seed": 20260713,
+    "warmup_seconds": 0,
+    "measurement_seconds": 0,
+    "cooldown_seconds": 0
+  },
+  "raw_uri": "schema-only://no-network-campaign",
+  "raw_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "samples": 0,
+  "observations": {},
+  "verdict": {
+    "pass": false,
+    "failures": [
+      "schema-only-no-network-campaign"
+    ],
+    "bottleneck_attribution": [],
+    "recomputed": true
+  }
+}

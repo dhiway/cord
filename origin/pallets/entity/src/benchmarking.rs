@@ -24,7 +24,7 @@ use alloc::{vec, vec::Vec};
 use frame_benchmarking::{v2::*, BenchmarkError};
 use frame_system::{Pallet as System, RawOrigin};
 use origin_primitives::attribute::{Attribute, Element};
-use pallet_token::Token;
+use pallet_origin_token::Token;
 use sp_runtime::traits::Hash;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {

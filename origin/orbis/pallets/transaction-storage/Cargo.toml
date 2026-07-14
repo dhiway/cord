@@ -1,0 +1,51 @@
+[package]
+name = "pallet-orbis-transaction-storage"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license = "Apache-2.0"
+homepage.workspace = true
+repository.workspace = true
+description = "Native transaction storage for Orbis Commons."
+readme = "README.md"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+array-bytes = { optional = true, workspace = true }
+codec = { workspace = true }
+scale-info = { features = ["derive"], workspace = true }
+tracing = { workspace = true }
+orbis-transaction-storage-primitives = { workspace = true }
+pallet-orbis-transaction-storage-runtime-api = { workspace = true }
+indiv-support = { workspace = true }
+
+polkadot-sdk-frame = { workspace = true, default-features = false, features = [
+	"runtime",
+] }
+sp-transaction-storage-proof = { workspace = true, default-features = false }
+
+[dev-dependencies]
+orbis-pallets-common = { workspace = true, features = ["std"] }
+
+
+[features]
+default = ["std"]
+runtime-benchmarks = [
+	"array-bytes",
+	"polkadot-sdk-frame/runtime-benchmarks",
+]
+std = [
+	"orbis-transaction-storage-primitives/std",
+	"codec/std",
+	"pallet-orbis-transaction-storage-runtime-api/std",
+	"indiv-support/std",
+	"polkadot-sdk-frame/std",
+	"scale-info/std",
+	"sp-transaction-storage-proof/std",
+	"tracing/std",
+]
+try-runtime = [
+	"polkadot-sdk-frame/try-runtime",
+]

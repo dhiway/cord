@@ -1,0 +1,79 @@
+Pallet: "pallet_orbis_score", Extrinsic: "redeem_credit", Lowest values: [], Highest values: [], Steps: 20, Repeat: 10
+Raw Storage Info
+========
+Storage: `Score::Participants` (r:1 w:1)
+Proof: `Score::Participants` (`max_values`: None, `max_size`: Some(92), added: 2567, mode: `MaxEncodedLen`)
+Storage: `Score::PayoutAccount` (r:1 w:0)
+Proof: `Score::PayoutAccount` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+Storage: `System::Account` (r:2 w:2)
+Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+Storage: `Balances::Holds` (r:1 w:1)
+Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(211), added: 2686, mode: `MaxEncodedLen`)
+
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=       91
+              µs
+
+Reads = 5
+Writes = 4
+Recorded proof Size = 632
+
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=       91
+              µs
+
+Reads = 5
+Writes = 4
+Recorded proof Size = 632
+
+Pallet: "pallet_orbis_score", Extrinsic: "set_payout_account", Lowest values: [], Highest values: [], Steps: 20, Repeat: 10
+Raw Storage Info
+========
+Storage: `Score::PayoutAccount` (r:1 w:1)
+Proof: `Score::PayoutAccount` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+Storage: `Score::RoundSchedules` (r:1 w:0)
+Proof: `Score::RoundSchedules` (`max_values`: Some(1), `max_size`: Some(241), added: 736, mode: `MaxEncodedLen`)
+Storage: `Score::RoundPlanning` (r:1 w:0)
+Proof: `Score::RoundPlanning` (`max_values`: Some(1), `max_size`: Some(20), added: 515, mode: `MaxEncodedLen`)
+Storage: `Score::RoundPayouts` (r:1 w:0)
+Proof: `Score::RoundPayouts` (`max_values`: None, `max_size`: Some(72), added: 2547, mode: `MaxEncodedLen`)
+Storage: `Score::CurrentRoundPoints` (r:1 w:0)
+Proof: `Score::CurrentRoundPoints` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+Storage: `Balances::Holds` (r:1 w:0)
+Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(211), added: 2686, mode: `MaxEncodedLen`)
+Storage: `System::Account` (r:1 w:0)
+Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=       25
+              µs
+
+Reads = 7
+Writes = 1
+Recorded proof Size = 379
+
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=       25
+              µs
+
+Reads = 7
+Writes = 1
+Recorded proof Size = 379
+
+Created file: "/tmp/orbis-score-watch-measured.rs"

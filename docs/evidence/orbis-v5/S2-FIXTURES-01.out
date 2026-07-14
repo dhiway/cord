@@ -1,0 +1,4 @@
+exit=0
+command=RUNTIME_METADATA_HASH=0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime tests::slice2_v5_fixtures_evidence -- --exact --nocapture
+assertion=S2-FIXTURES-01:e2f5cfadab8e085d4675c8af155a9ed66c8ed36829a5406aee27d5ea09009a9f
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 73 filtered out; finished

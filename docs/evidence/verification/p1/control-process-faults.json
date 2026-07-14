@@ -1,0 +1,64 @@
+{
+  "status": "ok",
+  "scenario": "single-validator-and-single-collator-process-loss-recovery",
+  "fault_hold_seconds": 24,
+  "progress_timeout_seconds": 90,
+  "faults": [
+    {
+      "role": "orbis-collator-bob",
+      "rpc_port": 9811,
+      "pid": 19244,
+      "signal": "SIGSTOP/SIGCONT",
+      "before": {
+        "relay_best": 74,
+        "relay_finalized": 71,
+        "orbis_best": 113,
+        "orbis_finalized": 99
+      },
+      "during_fault": {
+        "relay_best": 78,
+        "relay_finalized": 75,
+        "orbis_best": 119,
+        "orbis_finalized": 111
+      },
+      "after_recovery": {
+        "relay_best": 79,
+        "relay_finalized": 76,
+        "orbis_best": 122,
+        "orbis_finalized": 113
+      },
+      "fault_progress_latency_seconds": 0.01,
+      "recovery_progress_latency_seconds": 6.128,
+      "progress_during_fault": true,
+      "progress_after_recovery": true
+    },
+    {
+      "role": "origin-validator-fredie",
+      "rpc_port": 9806,
+      "pid": 18460,
+      "signal": "SIGSTOP/SIGCONT",
+      "before": {
+        "relay_best": 79,
+        "relay_finalized": 76,
+        "orbis_best": 123,
+        "orbis_finalized": 113
+      },
+      "during_fault": {
+        "relay_best": 82,
+        "relay_finalized": 80,
+        "orbis_best": 128,
+        "orbis_finalized": 119
+      },
+      "after_recovery": {
+        "relay_best": 87,
+        "relay_finalized": 84,
+        "orbis_best": 132,
+        "orbis_finalized": 122
+      },
+      "fault_progress_latency_seconds": 0.004,
+      "recovery_progress_latency_seconds": 30.179,
+      "progress_during_fault": true,
+      "progress_after_recovery": true
+    }
+  ]
+}

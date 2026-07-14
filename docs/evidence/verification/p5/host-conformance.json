@@ -1,0 +1,17 @@
+{
+  "checks": {
+    "host_owned_active_expiring_consent": true,
+    "native_only_reference_app": true,
+    "revoke_cancel_and_caller_transport": "static-only",
+    "scoped_permissions": true
+  },
+  "commands": [],
+  "criterion": "AC23",
+  "errors": [],
+  "inputs": {
+    "descriptor_sha256": "856f84f87d2bb735234c659836d3c7d9e8f045ff2ba9dbb2090bbdb9df2eda72",
+    "reference_app_manifest_sha256": "baa24097f26e2a47cd7bce917073e986089df6e491ebd2b1407de03c2944962e"
+  },
+  "schema": "cord.host-conformance-report.v1",
+  "status": "pass"
+}

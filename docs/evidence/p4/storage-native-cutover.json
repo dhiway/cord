@@ -1,0 +1,24 @@
+{
+  "schema": "cord.storage-native-cutover.v1",
+  "scope": "P4-storage-provider-content",
+  "status": "pass",
+  "checks": {
+    "runtime_indexes": [
+      110,
+      111,
+      120,
+      121,
+      122
+    ],
+    "provider_schema": 5,
+    "provider_node_protocol": 4,
+    "storage_provider_api": 4,
+    "manifest_provider_routes_present": 21,
+    "typed_native_event_variants": 30,
+    "transaction_storage_product_outcome": "submit-and-finalize-plus-exact-finalized-api",
+    "hop_promotion": "internal-via-transaction-storage-stored",
+    "contract_abi_address_survivors": 0,
+    "duplicate_onchain_content_ledgers": 0
+  },
+  "errors": []
+}

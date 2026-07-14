@@ -19,6 +19,8 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 //
 
+#[cfg(feature = "runtime-benchmarks")]
+use alloc::vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 #[cfg(feature = "runtime-benchmarks")]
 use enumflags2::BitFlag;

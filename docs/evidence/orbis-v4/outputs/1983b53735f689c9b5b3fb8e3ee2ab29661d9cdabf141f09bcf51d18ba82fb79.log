@@ -1,0 +1,4 @@
+exit=0
+command=CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 RUNTIME_METADATA_HASH=0xd03f87e6279878cafcf6149a7107a6307163e4e997f8d72d029cd6aa837f9854 cargo test -p origin-orbis-runtime --lib tests::sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery -- --exact --nocapture
+assertion=META-EVIDENCE-EARLY-PROPAGATION:c6b8aa0a888fc0945b8b5d48a6d17c1aca7aee4924fefbe96a74384792ff72ad
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 64 filtered out; finished

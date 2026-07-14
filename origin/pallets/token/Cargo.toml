@@ -1,6 +1,6 @@
 [package]
-name = 'pallet-token'
-description = 'CORD Data Token Manager.'
+name = "pallet-origin-token"
+description = "Origin stack data token manager."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

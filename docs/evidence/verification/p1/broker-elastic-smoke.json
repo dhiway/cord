@@ -1,0 +1,27 @@
+{
+  "status": "ok",
+  "before": {
+    "relay_best": 31,
+    "relay_finalized": 28,
+    "orbis_best": 20,
+    "orbis_finalized": 3
+  },
+  "after": {
+    "relay_best": 36,
+    "relay_finalized": 33,
+    "orbis_best": 35,
+    "orbis_finalized": 18
+  },
+  "para_id": 1006,
+  "claim_queue_cores": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "target_block_rate": 3,
+  "relay_parent_offset": 1,
+  "observed_block_ratio": 3.0,
+  "relay_spec_version": 9901,
+  "orbis_spec_version": 29
+}

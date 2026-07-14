@@ -1,0 +1,39 @@
+{
+  "checks": {
+    "clean_break": true,
+    "execution": {
+      "status": "not-executed"
+    },
+    "incident_runbooks": 10,
+    "monitoring_alerts": 10,
+    "outbox_required_cli_flags": [
+      "--outbox"
+    ],
+    "provider_required_cli_flags": [
+      "--capacity-bytes",
+      "--data-path",
+      "--provider",
+      "--public-endpoint"
+    ],
+    "registration_and_provider_steps": 8
+  },
+  "errors": [],
+  "inputs": {
+    "bootstrap_manifest_sha256": "f45cd1e4e324d42440b004fcadc304f982f6ffcfe5711955f0088b151839adec",
+    "incident_runbook_sha256": "3b1eb86d4ccf9e46c1e86878423b69b437001fdc0d2ca59c39f62e295c284e71",
+    "monitoring_manifest_sha256": "a356eb35492e4bada4861ca737a1a3a6e42ced0235d6730659b596800edc951e",
+    "provider_main_sha256": "cd77321b8c52f26282aec764057b1f4b1b4777153cf3a1a28616a3f1c37f576a",
+    "provider_outbox_main_sha256": "f99fb862e72ba478cc90645f0267fa16e1a8eecf42c22bbf8d753399bf76f527"
+  },
+  "live_chain_scope": {
+    "not_claimed": [
+      "provider registration finality",
+      "provider_by_id finalized match",
+      "provider heartbeat finality",
+      "outbox finalized receipt journal"
+    ],
+    "status": "deferred-to-p6-live-chain"
+  },
+  "schema": "cord.operator-bootstrap-report.v1",
+  "status": "static-contract-pass-execution-not-run"
+}

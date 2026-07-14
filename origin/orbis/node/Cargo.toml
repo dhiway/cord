@@ -1,0 +1,134 @@
+[package]
+name = "origin-omni-node"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+build = "build.rs"
+description = "Origin Orbis system-chain node"
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "origin-omni-node"
+path = "src/main.rs"
+
+[[bin]]
+name = "origin-omni-proof-campaign"
+path = "src/bin/origin-omni-proof-campaign.rs"
+required-features = ["proof-campaign"]
+
+[dependencies]
+color-eyre = { workspace = true }
+hex-literal = { workspace = true, default-features = true }
+hex = { workspace = true, default-features = true }
+base64 = { workspace = true, default-features = true }
+sha2 = { workspace = true, default-features = true }
+chrono = { workspace = true, default-features = true }
+log = { workspace = true, default-features = true }
+serde = { features = ["derive"], workspace = true, default-features = true }
+serde_json = { workspace = true, default-features = true }
+
+# The proof campaign is deliberately isolated from the production binary.  Every dependency in
+# this section is optional and is only linked by `origin-omni-proof-campaign`.
+clap = { workspace = true, optional = true }
+codec = { workspace = true, default-features = true, optional = true }
+cumulus-client-cli = { workspace = true, default-features = true, optional = true }
+cumulus-client-bootnodes = { workspace = true, default-features = true, optional = true }
+cumulus-client-collator = { workspace = true, default-features = true, optional = true }
+cumulus-client-consensus-aura = { workspace = true, default-features = true, optional = true }
+cumulus-client-consensus-common = { workspace = true, default-features = true, optional = true }
+cumulus-client-service = { workspace = true, default-features = true, optional = true }
+cumulus-relay-chain-interface = { workspace = true, default-features = true, optional = true }
+futures = { workspace = true, optional = true }
+jsonrpsee = { workspace = true, optional = true }
+polkadot-cli = { workspace = true, default-features = true, optional = true }
+prometheus-endpoint = { workspace = true, default-features = true, optional = true }
+sc-basic-authorship = { workspace = true, default-features = true, optional = true }
+sc-block-builder = { workspace = true, default-features = true, optional = true }
+sc-client-api = { workspace = true, default-features = true, optional = true }
+sc-consensus = { workspace = true, default-features = true, optional = true }
+sc-executor = { workspace = true, default-features = true, optional = true }
+sc-network = { workspace = true, default-features = true, optional = true }
+sc-telemetry = { workspace = true, default-features = true, optional = true }
+sc-transaction-pool = { workspace = true, default-features = true, optional = true }
+sp-api = { workspace = true, default-features = true, optional = true }
+sp-block-builder = { workspace = true, default-features = true, optional = true }
+sp-blockchain = { workspace = true, default-features = true, optional = true }
+sp-consensus = { workspace = true, default-features = true, optional = true }
+sp-consensus-aura = { workspace = true, default-features = true, optional = true }
+sp-inherents = { workspace = true, default-features = true, optional = true }
+sp-keystore = { workspace = true, default-features = true, optional = true }
+sp-runtime = { workspace = true, default-features = true, optional = true }
+sp-timestamp = { workspace = true, default-features = true, optional = true }
+sp-transaction-storage-proof = { workspace = true, default-features = true, optional = true }
+
+#Local
+origin-commons-runtime = { default-features = true, workspace = true }
+origin-runtime-constants = { workspace = true, default-features = true }
+
+#Substrate, Cumulus, Polkadot
+cumulus-primitives-core = { workspace = true, default-features = true }
+polkadot-omni-node-lib = { workspace = true }
+parachains-common = { workspace = true, default-features = true }
+sc-chain-spec = { workspace = true, default-features = true }
+sc-cli = { workspace = true, default-features = true }
+sc-service = { workspace = true, default-features = true }
+sp-core = { workspace = true, default-features = true }
+sp-genesis-builder = { workspace = true, default-features = true }
+sp-keyring = { workspace = true, default-features = true }
+xcm = { workspace = true, default-features = true }
+
+[build-dependencies]
+substrate-build-script-utils = { workspace = true, default-features = true }
+
+[features]
+default = []
+proof-campaign = [
+	"dep:clap",
+	"dep:codec",
+	"dep:cumulus-client-cli",
+	"dep:cumulus-client-bootnodes",
+	"dep:cumulus-client-collator",
+	"dep:cumulus-client-consensus-aura",
+	"dep:cumulus-client-consensus-common",
+	"dep:cumulus-client-service",
+	"dep:cumulus-relay-chain-interface",
+	"dep:futures",
+	"dep:jsonrpsee",
+	"dep:polkadot-cli",
+	"dep:prometheus-endpoint",
+	"dep:sc-basic-authorship",
+	"dep:sc-block-builder",
+	"dep:sc-client-api",
+	"dep:sc-consensus",
+	"dep:sc-executor",
+	"dep:sc-network",
+	"dep:sc-telemetry",
+	"dep:sc-transaction-pool",
+	"dep:sp-api",
+	"dep:sp-block-builder",
+	"dep:sp-blockchain",
+	"dep:sp-consensus",
+	"dep:sp-consensus-aura",
+	"dep:sp-inherents",
+	"dep:sp-keystore",
+	"dep:sp-runtime",
+	"dep:sp-timestamp",
+	"dep:sp-transaction-storage-proof",
+]
+runtime-benchmarks = [
+	"cumulus-primitives-core/runtime-benchmarks",
+	"parachains-common/runtime-benchmarks",
+	"polkadot-omni-node-lib/runtime-benchmarks",
+	"sc-service/runtime-benchmarks",
+	"origin-commons-runtime/runtime-benchmarks",
+]
+try-runtime = [
+	"polkadot-omni-node-lib/try-runtime",
+	"origin-commons-runtime/try-runtime",
+]
+fast-runtime = ["origin-commons-runtime/fast-runtime"]

@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! The CORD Origin runtime. This can be compiled with `#[no_std]`, ready for Wasm.
+//! The Origin Foundation runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
@@ -41,7 +41,7 @@ use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	parameter_types,
 	traits::{
-		tokens::ConversionFromAssetBalance, ConstU32, Contains, Everything, Get, InstanceFilter,
+		tokens::ConversionFromAssetBalance, ConstU32, Contains, Get, InstanceFilter,
 		KeyOwnerProofSystem, PrivilegeCmp, ProcessMessage, ProcessMessageError, VariantCountOf,
 	},
 	weights::{ConstantMultiplier, WeightMeter, WeightToFee as _},
@@ -52,12 +52,12 @@ use origin_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
 use origin_runtime_constants::{
 	currency::*,
 	fee::*,
-	system_parachain::{coretime::TIMESLICE_PERIOD, ORIGIN_HUB_IN_ID},
+	system_parachain::{coretime::TIMESLICE_PERIOD, ORBIS_ID},
 	time::*,
 };
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
 use pallet_session::historical as session_historical;
-use pallet_token::Token as _;
+use pallet_origin_token::Token as _;
 use pallet_transaction_payment::{FeeDetails, FungibleAdapter, RuntimeDispatchInfo};
 use pallet_tx_pause::RuntimeCallNameOf;
 use polkadot_primitives::{
@@ -149,12 +149,28 @@ pub const LOG_TARGET: &str = "runtime::origin";
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 /// Runtime version (Origin).
+#[cfg(not(feature = "p1-upgrade-candidate"))]
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: alloc::borrow::Cow::Borrowed("origin"),
-	impl_name: alloc::borrow::Cow::Borrowed("dhiway-origin"),
+	spec_name: alloc::borrow::Cow::Borrowed("foundation"),
+	impl_name: alloc::borrow::Cow::Borrowed("origin-foundation"),
 	authoring_version: 0,
 	spec_version: 9901,
+	impl_version: 0,
+	apis: RUNTIME_API_VERSIONS,
+	transaction_version: 2,
+	system_version: 1,
+};
+
+/// Evidence-only upgrade candidate. The production runtime remains at spec version 9901 unless
+/// `p1-upgrade-candidate` is explicitly enabled in an isolated build.
+#[cfg(feature = "p1-upgrade-candidate")]
+#[sp_version::runtime_version]
+pub const VERSION: RuntimeVersion = RuntimeVersion {
+	spec_name: alloc::borrow::Cow::Borrowed("foundation"),
+	impl_name: alloc::borrow::Cow::Borrowed("origin-foundation"),
+	authoring_version: 0,
+	spec_version: 9902,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -188,8 +204,8 @@ impl ConversionFromAssetBalance<Balance, VersionedLocatableAsset, Balance> for A
 
 		let locatable = LocatableAssetConverter::try_convert(asset_id)
 			.map_err(|_| sp_runtime::DispatchError::Other("invalid asset"))?;
-		let is_native_system_para = locatable.asset_id.0 == Location::parent() &&
-			matches!(
+		let is_native_system_para = locatable.asset_id.0 == Location::parent()
+			&& matches!(
 				locatable.location.unpack(),
 				(0, [Parachain(1000)]) | (0, [Parachain(1001)])
 			);
@@ -277,9 +293,18 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 29;
 }
 
+/// Deny the legacy bare Broker core-count dispatch. The stack-owned control envelope invokes the
+/// upstream pallet internally only after authenticating para 1006 and assigning a request ID.
+pub struct OriginBaseCallFilter;
+impl Contains<RuntimeCall> for OriginBaseCallFilter {
+	fn contains(call: &RuntimeCall) -> bool {
+		!matches!(call, RuntimeCall::Coretime(coretime::Call::request_core_count { .. }))
+	}
+}
+
 #[derive_impl(frame_system::config_preludes::RelayChainDefaultConfig)]
 impl frame_system::Config for Runtime {
-	type BaseCallFilter = Everything;
+	type BaseCallFilter = OriginBaseCallFilter;
 	type BlockWeights = BlockWeights;
 	type BlockLength = BlockLength;
 	type DbWeight = RocksDbWeight;
@@ -949,7 +974,8 @@ impl parachains_paras_inherent::Config for Runtime {
 impl parachains_scheduler::Config for Runtime {}
 
 parameter_types! {
-	pub const BrokerId: u32 = ORIGIN_HUB_IN_ID;
+	/// Orbis is Origin's sole system-chain Coretime Broker.
+	pub const BrokerId: u32 = ORBIS_ID;
 	pub const BrokerPalletId: PalletId = PalletId(*b"py/broke");
 	pub MaxXcmTransactWeight: Weight = Weight::from_parts(200_000_000, 20_000);
 }
@@ -975,6 +1001,118 @@ impl coretime::Config for Runtime {
 		<Runtime as frame_system::Config>::AccountId,
 	>;
 	type MaxXcmTransactWeight = MaxXcmTransactWeight;
+}
+
+/// Only Orbis para 1006 may drive the stack-owned replay envelope. The upstream Coretime pallet
+/// remains independently restricted to the same BrokerId.
+pub struct EnsureOrbisBroker;
+impl frame_support::traits::EnsureOrigin<RuntimeOrigin> for EnsureOrbisBroker {
+	type Success = ();
+
+	fn try_origin(origin: RuntimeOrigin) -> Result<Self::Success, RuntimeOrigin> {
+		match <RuntimeOrigin as Into<Result<parachains_origin::Origin, RuntimeOrigin>>>::into(
+			origin.clone(),
+		) {
+			Ok(parachains_origin::Origin::Parachain(id)) if id == ORBIS_ID.into() => Ok(()),
+			_ => Err(origin),
+		}
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn try_successful_origin() -> Result<RuntimeOrigin, ()> {
+		Ok(RuntimeOrigin::from(parachains_origin::Origin::Parachain(ORBIS_ID.into())))
+	}
+}
+
+pub struct ApplyBrokerCoreCount;
+impl pallet_coretime_control::ApplyRequest for ApplyBrokerCoreCount {
+	fn apply(count: pallet_coretime_control::CoreCount) -> frame_support::dispatch::DispatchResult {
+		Coretime::request_core_count(RuntimeOrigin::root(), count)
+	}
+}
+
+#[derive(Encode)]
+enum OrbisCoretimeControlCall {
+	#[codec(index = 2)]
+	Acknowledge(
+		pallet_coretime_control::RequestId,
+		pallet_coretime_control::CoreCount,
+		pallet_coretime_control::ReceiptStatus,
+	),
+}
+
+#[derive(Encode)]
+enum OrbisRuntimeCall {
+	#[codec(index = 221)]
+	CoretimeControl(OrbisCoretimeControlCall),
+}
+
+pub struct SendBrokerReceipt;
+impl pallet_coretime_control::SendReceipt for SendBrokerReceipt {
+	fn send(receipt: pallet_coretime_control::RequestReceipt) {
+		let call = OrbisRuntimeCall::CoretimeControl(OrbisCoretimeControlCall::Acknowledge(
+			receipt.id,
+			receipt.count,
+			receipt.status,
+		));
+		let message = Xcm(vec![
+			UnpaidExecution { weight_limit: WeightLimit::Unlimited, check_origin: None },
+			Transact {
+				origin_kind: OriginKind::Superuser,
+				fallback_max_weight: Some(MaxXcmTransactWeight::get()),
+				call: call.encode().into(),
+			},
+		]);
+		if let Err(error) = xcm::latest::send_xcm::<xcm_config::XcmRouter>(
+			Location::new(0, [Parachain(ORBIS_ID)]),
+			message,
+		) {
+			log::error!(target: "runtime::coretime-control", "failed to send receipt: {error:?}");
+		}
+	}
+}
+
+impl pallet_coretime_control::Config for Runtime {
+	type RequestOrigin = frame_support::traits::NeverEnsureOrigin<()>;
+	type BrokerOrigin = EnsureOrbisBroker;
+	type ReceiptOrigin = frame_support::traits::NeverEnsureOrigin<()>;
+	type TransportControlOrigin = frame_support::traits::NeverEnsureOrigin<()>;
+	type TransportControlEnabled = frame_support::traits::ConstBool<false>;
+	type RequestSender = ();
+	type RequestApplier = ApplyBrokerCoreCount;
+	type ReceiptSender = SendBrokerReceipt;
+	type MaxTrackedRequests = ConstU32<256>;
+	type WeightInfo = pallet_coretime_control::SubstrateWeight<Runtime>;
+}
+
+#[cfg(test)]
+mod coretime_control_encoding_tests {
+	use super::*;
+
+	#[test]
+	fn receipt_targets_stable_orbis_pallet_and_call_indices() {
+		let call = OrbisRuntimeCall::CoretimeControl(OrbisCoretimeControlCall::Acknowledge(
+			7,
+			3,
+			pallet_coretime_control::ReceiptStatus::Accepted,
+		));
+		assert_eq!(&call.encode()[..2], &[221, 2]);
+	}
+
+	#[test]
+	fn xcm_rejects_legacy_bare_core_count_but_accepts_control_envelope() {
+		let legacy = RuntimeCall::Coretime(coretime::Call::request_core_count { count: 3 });
+		assert!(!xcm_config::OriginXcmSafeCallFilter::contains(&legacy));
+		assert!(!OriginBaseCallFilter::contains(&legacy));
+
+		let envelope =
+			RuntimeCall::CoretimeControl(pallet_coretime_control::Call::submit_request {
+				id: 7,
+				count: 3,
+			});
+		assert!(xcm_config::OriginXcmSafeCallFilter::contains(&envelope));
+		assert!(OriginBaseCallFilter::contains(&envelope));
+	}
 }
 
 parameter_types! {
@@ -1075,7 +1213,7 @@ parameter_types! {
 	pub const TokenAuthorizationTTL: u32 = 30;
 }
 
-impl pallet_token::Config for Runtime {
+impl pallet_origin_token::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 	type MaxAuthorizationLen = TokenMaxAuthorizationLen;
@@ -1185,7 +1323,7 @@ construct_runtime! {
 		MessageQueue: pallet_message_queue = 100,
 
 		// Token
-		Token: pallet_token = 102,
+		Token: pallet_origin_token = 102,
 
 		// BEEFY Bridges support.
 		Beefy: pallet_beefy = 200,
@@ -1201,6 +1339,7 @@ construct_runtime! {
 		// RuntimeUpgrade: pallet_runtime_upgrade = 218,
 		VerifySignature: pallet_verify_signature = 219,
 		// Remark: pallet_remark = 220,
+		CoretimeControl: pallet_coretime_control = 221,
 
 		// Migrations pallet
 		MultiBlockMigrations: pallet_migrations = 249,
@@ -1290,6 +1429,7 @@ mod benches {
 		[runtime_parachains::coretime, Coretime]
 		[pallet_balances, Balances]
 		[pallet_beefy_mmr, MmrLeaf]
+		[pallet_coretime_control, CoretimeControl]
 		[frame_benchmarking::baseline, Baseline::<Runtime>]
 		[pallet_indices, Indices]
 		[pallet_message_queue, MessageQueue]
@@ -1311,9 +1451,9 @@ mod benches {
 
 	use frame_benchmarking::BenchmarkError;
 
-	use origin_runtime_constants::system_parachain::OriginHubInParaId;
+	use origin_runtime_constants::system_parachain::OrbisParaId;
 	use xcm_config::{
-		LocalCheckAccount, OriginHubInLocation, SovereignAccountOf, TokenLocation, XcmConfig,
+		LocalCheckAccount, OrbisLocation, SovereignAccountOf, TokenLocation, XcmConfig,
 	};
 
 	impl frame_system_benchmarking::Config for Runtime {}
@@ -1334,7 +1474,7 @@ mod benches {
 				XcmConfig,
 				ExistentialDepositAsset,
 				xcm_config::PriceForChildParachainDelivery,
-				OriginHubInParaId,
+				OrbisParaId,
 				Dmp,
 			>,
 			polkadot_runtime_common::xcm_sender::ToParachainDeliveryHelper<
@@ -1347,14 +1487,14 @@ mod benches {
 		);
 
 		fn reachable_dest() -> Option<Location> {
-			Some(OriginHubInLocation::get())
+			Some(OrbisLocation::get())
 		}
 
 		fn teleportable_asset_and_dest() -> Option<(Asset, Location)> {
 			// Relay/native token can be teleported to/from AH.
 			Some((
 				Asset { fun: Fungible(ExistentialDeposit::get()), id: AssetId(Here.into()) },
-				OriginHubInLocation::get(),
+				OrbisLocation::get(),
 			))
 		}
 
@@ -1373,7 +1513,7 @@ mod benches {
 			// benchmarking as it's slightly heavier.
 			// Relay/native token can be teleported to/from AH.
 			let native_location = Here.into();
-			let dest = OriginHubInLocation::get();
+			let dest = OrbisLocation::get();
 			pallet_xcm::benchmarking::helpers::native_teleport_as_asset_transfer::<Runtime>(
 				native_location,
 				dest,
@@ -1392,11 +1532,11 @@ mod benches {
 			XcmConfig,
 			ExistentialDepositAsset,
 			xcm_config::PriceForChildParachainDelivery,
-			OriginHubInParaId,
+			OrbisParaId,
 			Dmp,
 		>;
 		fn valid_destination() -> Result<Location, BenchmarkError> {
-			Ok(OriginHubInLocation::get())
+			Ok(OrbisLocation::get())
 		}
 		fn worst_case_holding(_depositable_count: u32) -> xcm_executor::AssetsInHolding {
 			use pallet_xcm_benchmarks::MockCredit;
@@ -1413,7 +1553,7 @@ mod benches {
 
 	parameter_types! {
 		pub TrustedTeleporter: Option<(Location, Asset)> = Some((
-			OriginHubInLocation::get(),
+			OrbisLocation::get(),
 			Asset { id: AssetId(TokenLocation::get()), fun: Fungible(UNITS) }
 		));
 		pub const TrustedReserve: Option<(Location, Asset)> = None;
@@ -1456,17 +1596,17 @@ mod benches {
 
 		fn transact_origin_and_runtime_call() -> Result<(Location, RuntimeCall), BenchmarkError> {
 			Ok((
-				OriginHubInLocation::get(),
+				OrbisLocation::get(),
 				frame_system::Call::remark_with_event { remark: vec![] }.into(),
 			))
 		}
 
 		fn subscribe_origin() -> Result<Location, BenchmarkError> {
-			Ok(OriginHubInLocation::get())
+			Ok(OrbisLocation::get())
 		}
 
 		fn claimable_asset() -> Result<(Location, Location, Assets), BenchmarkError> {
-			let origin = OriginHubInLocation::get();
+			let origin = OrbisLocation::get();
 			let assets: Assets = (AssetId(TokenLocation::get()), 1_000 * UNITS).into();
 			let ticket = Location { parents: 0, interior: Here };
 			Ok((origin, ticket, assets))

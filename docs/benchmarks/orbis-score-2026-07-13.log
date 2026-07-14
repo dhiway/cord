@@ -1,0 +1,428 @@
+Pallet: "pallet_orbis_score", Extrinsic: "schedule_payout_rounds", Lowest values: [], Highest values: [], Steps: 20, Repeat: 10
+Raw Storage Info
+========
+Storage: `Score::PayoutAccount` (r:1 w:0)
+Proof: `Score::PayoutAccount` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+Storage: `System::Account` (r:1 w:1)
+Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+Storage: `Balances::Holds` (r:1 w:1)
+Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(211), added: 2686, mode: `MaxEncodedLen`)
+Storage: `Score::RoundSchedules` (r:1 w:1)
+Proof: `Score::RoundSchedules` (`max_values`: Some(1), `max_size`: Some(241), added: 736, mode: `MaxEncodedLen`)
+
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=       59
+              µs
+
+Reads = 4
+Writes = 3
+Recorded proof Size = 612
+
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=       59
+              µs
+
+Reads = 4
+Writes = 3
+Recorded proof Size = 612
+
+Pallet: "pallet_orbis_score", Extrinsic: "remove_payout_schedule", Lowest values: [], Highest values: [], Steps: 20, Repeat: 10
+Raw Storage Info
+========
+Storage: `Score::PayoutAccount` (r:1 w:0)
+Proof: `Score::PayoutAccount` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+Storage: `Score::RoundSchedules` (r:1 w:1)
+Proof: `Score::RoundSchedules` (`max_values`: Some(1), `max_size`: Some(241), added: 736, mode: `MaxEncodedLen`)
+Storage: `System::Account` (r:1 w:1)
+Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+Storage: `Balances::Holds` (r:1 w:1)
+Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(211), added: 2686, mode: `MaxEncodedLen`)
+
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=       52
+              µs
+
+Reads = 4
+Writes = 3
+Recorded proof Size = 691
+
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=       52
+              µs
+
+Reads = 4
+Writes = 3
+Recorded proof Size = 691
+
+Pallet: "pallet_orbis_score", Extrinsic: "transition_round", Lowest values: [], Highest values: [], Steps: 20, Repeat: 10
+Raw Storage Info
+========
+Storage: `Score::CurrentRoundIndex` (r:1 w:1)
+Proof: `Score::CurrentRoundIndex` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+Storage: `Score::RoundPlanning` (r:1 w:1)
+Proof: `Score::RoundPlanning` (`max_values`: Some(1), `max_size`: Some(20), added: 515, mode: `MaxEncodedLen`)
+Storage: `Score::RoundSchedules` (r:1 w:1)
+Proof: `Score::RoundSchedules` (`max_values`: Some(1), `max_size`: Some(241), added: 736, mode: `MaxEncodedLen`)
+Storage: `Score::CurrentRoundPoints` (r:1 w:1)
+Proof: `Score::CurrentRoundPoints` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+Storage: `Score::RoundPayouts` (r:0 w:1)
+Proof: `Score::RoundPayouts` (`max_values`: None, `max_size`: Some(72), added: 2547, mode: `MaxEncodedLen`)
+
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=       22
+              µs
+
+Reads = 4
+Writes = 5
+Recorded proof Size = 540
+
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=       22
+              µs
+
+Reads = 4
+Writes = 5
+Recorded proof Size = 540
+
+Pallet: "pallet_orbis_score", Extrinsic: "operate_payout_round", Lowest values: [], Highest values: [], Steps: 20, Repeat: 10
+Raw Storage Info
+========
+Storage: `Score::RoundPayouts` (r:1 w:1)
+Proof: `Score::RoundPayouts` (`max_values`: None, `max_size`: Some(72), added: 2547, mode: `MaxEncodedLen`)
+Storage: `Score::RoundsPointsForParticipant` (r:10001 w:10000)
+Proof: `Score::RoundsPointsForParticipant` (`max_values`: None, `max_size`: Some(73), added: 2548, mode: `MaxEncodedLen`)
+Storage: `Score::Participants` (r:10000 w:10000)
+Proof: `Score::Participants` (`max_values`: None, `max_size`: Some(92), added: 2567, mode: `MaxEncodedLen`)
+Storage: `Score::PayoutAccount` (r:1 w:0)
+Proof: `Score::PayoutAccount` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+Storage: `System::Account` (r:1 w:1)
+Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+Storage: `Balances::Holds` (r:1 w:1)
+Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(211), added: 2686, mode: `MaxEncodedLen`)
+
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=        0
+    + l    11.98
+              µs
+
+Reads = 5 + (2 * l)
+Writes = 3 + (2 * l)
+Recorded proof Size = 2416 + (143 * l)
+
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Data points distribution:
+    l   mean µs  sigma µs       %
+    1     114.6     0.471    0.4%
+  527      5760     28.19    0.4%
+ 1053     11570      31.9    0.2%
+ 1579     17440       281    1.6%
+ 2106     23470     66.35    0.2%
+ 2632     29300     106.1    0.3%
+ 3158     35020     139.9    0.3%
+ 3684     44260      1434    3.2%
+ 4211     48750     737.2    1.5%
+ 4737     54540     509.3    0.9%
+ 5263     60120     133.6    0.2%
+ 5789     66190     197.1    0.2%
+ 6316     72900     361.1    0.4%
+ 6842     80280     365.4    0.4%
+ 7368     89410      1356    1.5%
+ 7894     96070     836.3    0.8%
+ 8421     99090     247.3    0.2%
+ 8947    106600      1338    1.2%
+ 9473    113200     584.6    0.5%
+10000    119500     760.5    0.6%
+
+Quality and confidence:
+param     error
+l         0.026
+
+Model:
+Time ~=      114
+    + l     11.8
+              µs
+
+Reads = 5 + (2 * l)
+Writes = 3 + (2 * l)
+Recorded proof Size = 2327 + (144 * l)
+
+Pallet: "pallet_orbis_score", Extrinsic: "cash_out", Lowest values: [], Highest values: [], Steps: 20, Repeat: 10
+Raw Storage Info
+========
+Storage: `Score::Participants` (r:1 w:1)
+Proof: `Score::Participants` (`max_values`: None, `max_size`: Some(92), added: 2567, mode: `MaxEncodedLen`)
+Storage: `Score::CurrentRoundIndex` (r:1 w:0)
+Proof: `Score::CurrentRoundIndex` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+Storage: `Score::CurrentRoundPoints` (r:1 w:1)
+Proof: `Score::CurrentRoundPoints` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+Storage: `Score::RoundsPointsForParticipant` (r:1 w:1)
+Proof: `Score::RoundsPointsForParticipant` (`max_values`: None, `max_size`: Some(73), added: 2548, mode: `MaxEncodedLen`)
+
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=       19
+              µs
+
+Reads = 4
+Writes = 3
+Recorded proof Size = 315
+
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=       19
+              µs
+
+Reads = 4
+Writes = 3
+Recorded proof Size = 315
+
+Pallet: "pallet_orbis_score", Extrinsic: "register", Lowest values: [], Highest values: [], Steps: 20, Repeat: 10
+Raw Storage Info
+========
+Storage: `Score::Participants` (r:1 w:1)
+Proof: `Score::Participants` (`max_values`: None, `max_size`: Some(92), added: 2567, mode: `MaxEncodedLen`)
+Storage: `Personhood::NextPersonalId` (r:1 w:1)
+Proof: `Personhood::NextPersonalId` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
+Storage: `Personhood::Keys` (r:1 w:1)
+Proof: `Personhood::Keys` (`max_values`: None, `max_size`: Some(56), added: 2531, mode: `MaxEncodedLen`)
+Storage: `Members::Collections` (r:1 w:0)
+Proof: `Members::Collections` (`max_values`: None, `max_size`: Some(646), added: 3121, mode: `MaxEncodedLen`)
+Storage: `Members::Members` (r:1 w:1)
+Proof: `Members::Members` (`max_values`: None, `max_size`: Some(93), added: 2568, mode: `MaxEncodedLen`)
+Storage: `Members::QueuePageIndices` (r:1 w:1)
+Proof: `Members::QueuePageIndices` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
+Storage: `Members::OnboardingQueue` (r:1 w:1)
+Proof: `Members::OnboardingQueue` (`max_values`: None, `max_size`: Some(8206), added: 10681, mode: `MaxEncodedLen`)
+Storage: `Timestamp::Now` (r:1 w:0)
+Proof: `Timestamp::Now` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
+Storage: `Personhood::CounterForKeys` (r:1 w:1)
+Proof: `Personhood::CounterForKeys` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+Storage: `Personhood::People` (r:0 w:1)
+Proof: `Personhood::People` (`max_values`: None, `max_size`: Some(89), added: 2564, mode: `MaxEncodedLen`)
+Storage: `Personhood::ReservedPersonalId` (r:0 w:1)
+Proof: `Personhood::ReservedPersonalId` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
+
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=     1436
+              µs
+
+Reads = 9
+Writes = 9
+Recorded proof Size = 741
+
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=     1436
+              µs
+
+Reads = 9
+Writes = 9
+Recorded proof Size = 741
+
+Pallet: "pallet_orbis_score", Extrinsic: "set_absence_grace_schedule", Lowest values: [], Highest values: [], Steps: 20, Repeat: 10
+Raw Storage Info
+========
+Storage: `Score::AbsenceGraceSchedule` (r:0 w:1)
+Proof: `Score::AbsenceGraceSchedule` (`max_values`: Some(1), `max_size`: Some(49), added: 544, mode: `MaxEncodedLen`)
+
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=        6
+              µs
+
+Reads = 0
+Writes = 1
+Recorded proof Size = 0
+
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=        6
+              µs
+
+Reads = 0
+Writes = 1
+Recorded proof Size = 0
+
+Pallet: "pallet_orbis_score", Extrinsic: "set_personhood_threshold_schedule", Lowest values: [], Highest values: [], Steps: 20, Repeat: 10
+Raw Storage Info
+========
+Storage: `Score::PersonhoodThresholdSchedule` (r:0 w:1)
+Proof: `Score::PersonhoodThresholdSchedule` (`max_values`: Some(1), `max_size`: Some(129), added: 624, mode: `MaxEncodedLen`)
+
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=        6
+              µs
+
+Reads = 0
+Writes = 1
+Recorded proof Size = 0
+
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=        6
+              µs
+
+Reads = 0
+Writes = 1
+Recorded proof Size = 0
+
+Pallet: "pallet_orbis_score", Extrinsic: "set_manager_account", Lowest values: [], Highest values: [], Steps: 20, Repeat: 10
+Raw Storage Info
+========
+Storage: `Score::ManagerAccount` (r:0 w:1)
+Proof: `Score::ManagerAccount` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=        6
+              µs
+
+Reads = 0
+Writes = 1
+Recorded proof Size = 0
+
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=        6
+              µs
+
+Reads = 0
+Writes = 1
+Recorded proof Size = 0
+
+Pallet: "pallet_orbis_score", Extrinsic: "set_payout_account", Lowest values: [], Highest values: [], Steps: 20, Repeat: 10
+Raw Storage Info
+========
+Storage: `Score::PayoutAccount` (r:1 w:1)
+Proof: `Score::PayoutAccount` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+Storage: `Score::RoundSchedules` (r:1 w:0)
+Proof: `Score::RoundSchedules` (`max_values`: Some(1), `max_size`: Some(241), added: 736, mode: `MaxEncodedLen`)
+Storage: `Score::RoundPlanning` (r:1 w:0)
+Proof: `Score::RoundPlanning` (`max_values`: Some(1), `max_size`: Some(20), added: 515, mode: `MaxEncodedLen`)
+Storage: `Score::RoundPayouts` (r:1 w:0)
+Proof: `Score::RoundPayouts` (`max_values`: None, `max_size`: Some(72), added: 2547, mode: `MaxEncodedLen`)
+Storage: `Score::CurrentRoundPoints` (r:1 w:0)
+Proof: `Score::CurrentRoundPoints` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+Storage: `Balances::Holds` (r:1 w:0)
+Proof: `Balances::Holds` (`max_values`: None, `max_size`: Some(211), added: 2686, mode: `MaxEncodedLen`)
+Storage: `System::Account` (r:1 w:0)
+Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=       23
+              µs
+
+Reads = 7
+Writes = 1
+Recorded proof Size = 379
+
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=       23
+              µs
+
+Reads = 7
+Writes = 1
+Recorded proof Size = 379
+
+Pallet: "pallet_orbis_score", Extrinsic: "as_participant_tx_ext", Lowest values: [], Highest values: [], Steps: 20, Repeat: 10
+Raw Storage Info
+========
+Storage: `Score::Participants` (r:1 w:0)
+Proof: `Score::Participants` (`max_values`: None, `max_size`: Some(92), added: 2567, mode: `MaxEncodedLen`)
+
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=        9
+              µs
+
+Reads = 1
+Writes = 0
+Recorded proof Size = 315
+
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=        9
+              µs
+
+Reads = 1
+Writes = 0
+Recorded proof Size = 315
+
+Created file: "/tmp/orbis-score-measured.rs"

@@ -26,7 +26,7 @@ use pallet_doken::Doken;
 
 fn setup_profile<T: Config>(account: &T::AccountId) -> Result<ProfileIdOf, &'static str> {
 	if let Ok(profile_id) = pallet_profile::Pallet::<T>::get_profile_id(account) {
-		return Ok(profile_id)
+		return Ok(profile_id);
 	}
 
 	pallet_profile::Pallet::<T>::set_profile(RawOrigin::Signed(account.clone()).into(), Vec::new())

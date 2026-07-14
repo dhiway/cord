@@ -1,0 +1,27 @@
+{
+  "approval_manifest": {
+    "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
+    "required_reviewer_role": "architect",
+    "review_thread_id": "a034f498-1a09-5509-95ff-c0c93cc8406a",
+    "schema_version": 2,
+    "sha256": "c930a5eb5a3abc07fa73862c7a017d499931b764a91a34a8c2bd96d1ab70cc6a",
+    "verdict": "APPROVED"
+  },
+  "entries": [],
+  "forbidden_justifications": [
+    "backward-compatibility",
+    "legacy-data",
+    "future-migration",
+    "speculative-reuse"
+  ],
+  "migrated_domains": [
+    "attestation",
+    "identity",
+    "personhood",
+    "individuality",
+    "names",
+    "storage"
+  ],
+  "policy": "Origin/Orbis platform capabilities are pallet-native. No contract, ABI, address, proxy, adapter, compatibility fixture, or speculative Revive application is allowlisted.",
+  "schema_version": 3
+}

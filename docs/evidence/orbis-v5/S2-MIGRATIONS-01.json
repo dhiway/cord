@@ -1,0 +1,19 @@
+{
+  "manifest_fields": {
+    "artifact_path": "docs/evidence/orbis-v5/S2-MIGRATIONS-01.json",
+    "assertion_sha256": "7dcbc8e654a8d3c95243f6ba6181fe4f0a907fd7b055c323ba7b0fa9d9c245f7",
+    "expected_assertion": "assertion=S2-MIGRATIONS-01:7dcbc8e654a8d3c95243f6ba6181fe4f0a907fd7b055c323ba7b0fa9d9c245f7",
+    "expected_output": "test result: ok",
+    "id": "S2-MIGRATIONS-01",
+    "kind": "slice2-executable",
+    "source_commit": "ce60319f85a13b29e143a4d15189616f38abe777",
+    "source_paths": "origin/orbis/runtime/src/tests.rs; origin/orbis/runtime/MIGRATIONS.md",
+    "source_symbol": "slice2_v5_migrations_evidence",
+    "status": "present",
+    "test_or_command": "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --features try-runtime tests::slice2_v5_migrations_evidence -- --exact --nocapture",
+    "value": "Full migration tuple accepts clean/current state and fails closed without partial progress for dirty Score or Honour v0."
+  },
+  "output_artifact": "docs/evidence/orbis-v5/S2-MIGRATIONS-01.out",
+  "output_artifact_sha256": "ccd7f75d56188213b7b4b3bc9a7dbe22c1afc47dff983ad18c7be2a7f8c00a5b",
+  "schema": "orbis-v5-evidence-artifact-v2"
+}

@@ -1,0 +1,95 @@
+{
+  "artifacts": {
+    "broker-elastic-smoke.json": "7f2648aab6a9e4b4a766f0a7a9f39af9b1e26e7256c35f460401f4f181bd359e",
+    "control-broker-runtime-tests.out": "da66d701415fbe6a3191e40cc46f80d1b56c545734458c2d16e3bdd8f1e0940e",
+    "control-live-observation.json": "d67f180e0d5fad8233471a51aaa2f325ef72a6cc0f8c59ae3b2441b3928f0645"
+  },
+  "blocked": [
+    {
+      "blocker": "P0 targets/client contracts are five-role ratified, but the complete finalized Broker/XCM lifecycle receipt set is absent",
+      "scenario": "P1-campaign-authorization"
+    },
+    {
+      "blocker": "p1_admin encodes Broker configure/reserve/request/start/purchase/renew/assign, but no complete finalized sale/timeslice/XCM receipt sequence has run",
+      "scenario": "Broker-request-reserve-assign-renew-resize-release-over-XCM"
+    },
+    {
+      "blocker": "requires controllable message-queue fault injection and decoded Broker/Coretime event assertions; current Zombienet harness exposes neither",
+      "scenario": "delayed-and-duplicate-XCM"
+    },
+    {
+      "blocker": "persistent base-path restart and reconciliation are automated in p1_control_broker.py but remain unexecuted on the isolated topology",
+      "scenario": "session-boundary-and-full-node-restart"
+    },
+    {
+      "blocker": "requires an active Broker sale/region with potential renewal state, not direct relay bootstrap assignment",
+      "scenario": "renewal"
+    },
+    {
+      "blocker": "launch-time Orbis binary hash was recorded as 638803d2... but the shared path was concurrently replaced and the launch artifact was not retained",
+      "scenario": "clean-reproducible-live-rerun"
+    }
+  ],
+  "branch": "sm-update-sub-0x63",
+  "partial_evidence_not_gate_pass": true,
+  "passed": [
+    {
+      "evidence": "control-origin-runtime-tests.out",
+      "result": "PASS",
+      "scenario": "relay-restricts-BrokerId-to-para1006"
+    },
+    {
+      "evidence": "control-broker-runtime-tests.out",
+      "result": "PASS",
+      "scenario": "Broker-reserve-unreserve-is-root-only-and-multiple-full-core-reservations-compose"
+    },
+    {
+      "command": "cargo run -p origin-rs --example bootstrap_orbis_core -- --endpoint ws://127.0.0.1:9801 --cores 3",
+      "extrinsic_index": 3,
+      "finalized_block_hash": "0xdbdc57250b297fe0ce17aa2a2dcfc1e1a23a35d8103774dc903dba975861ba34",
+      "finalized_block_number": 4,
+      "result": "PASS",
+      "scenario": "Sudo-Utility.batch_all-bootstrap-assigns-cores-0-2-to-task1006"
+    },
+    {
+      "evidence": "broker-elastic-smoke.json",
+      "minimum_required_cores": 3,
+      "observed_block_ratio": 3.0,
+      "observed_claim_queue_cores": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "result": "PASS",
+      "scenario": "claim-queue-and-elastic-authoring-after-bootstrap"
+    },
+    {
+      "evidence": "control-live-observation.json",
+      "result": "PASS",
+      "scenario": "single-collator-process-loss-and-recovery"
+    }
+  ],
+  "runtime_binaries": {
+    "target/release/origin": {
+      "launch_sha256": "46e221342930522ade4dc1a6b41793f4b60812b307e33971b9f33c20ddc76f4c",
+      "retained": true
+    },
+    "target/release/origin-orbis": {
+      "current_path_sha256_after_concurrent_rebuild": "e1d5557e255bcad6cb068324c51d7baa586f645bacfd7eb6781419551b7ab2f5",
+      "launch_sha256": "638803d2f2dbffdfd0b292548efa1ed33aeace02e60db792a58ee89c02e1c92f",
+      "retained": false
+    }
+  },
+  "schema_version": 1,
+  "scope": "P1 Broker50 to Origin Coretime para1006 E2E",
+  "source_head": "439a1b62da11175129ad5390186230a64d569810",
+  "topology": {
+    "configured_cores": 3,
+    "orbis_collators": 2,
+    "origin_validators": 6,
+    "para_id": 1006,
+    "topology_sha256": "d8929744ce44f2ba39075bbb8259a5dfe4249f6b0acfe68f3f8e34ce3f4ca2db"
+  },
+  "verdict": "BLOCKED"
+}

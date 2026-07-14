@@ -26,10 +26,11 @@ use beefy_primitives::ecdsa_crypto::AuthorityId as BeefyId;
 use origin_runtime_constants::currency::UNITS as ORU;
 use pallet_grandpa::AuthorityId as GrandpaId;
 use polkadot_primitives::{
-	vstaging::SchedulerParams, AccountPublic, AssignmentId, AsyncBackingParams,
+	node_features::FeatureIndex, vstaging::SchedulerParams, AccountPublic, AssignmentId,
+	AsyncBackingParams,
 };
 use runtime_parachains::configuration::HostConfiguration;
-use sp_core::{sr25519, Pair, Public};
+use sp_core::{crypto::UncheckedFrom, sr25519, Pair, Public};
 use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
 use sp_runtime::traits::IdentifyAccount;
@@ -111,14 +112,20 @@ fn default_parachains_host_configuration() -> HostConfiguration<polkadot_primiti
 		scheduler_params: SchedulerParams {
 			group_rotation_frequency: 20,
 			paras_availability_period: 4,
+			lookahead: 3,
 			..Default::default()
 		},
 		dispute_post_conclusion_acceptance_period: 100u32,
 		minimum_backing_votes: 1,
-		node_features: NodeFeatures::EMPTY,
+		node_features: NodeFeatures::from_element(
+			(1u8 << (FeatureIndex::EnableAssignmentsV2 as usize))
+				| (1u8 << (FeatureIndex::ElasticScalingMVP as usize))
+				| (1u8 << (FeatureIndex::CandidateReceiptV2 as usize))
+				| (1u8 << (FeatureIndex::CandidateReceiptV3 as usize)),
+		),
 		async_backing_params: AsyncBackingParams {
-			max_candidate_depth: 2,
-			allowed_ancestry_len: 2,
+			max_candidate_depth: 6,
+			allowed_ancestry_len: 6,
 		},
 		max_relay_parent_session_age: 0,
 		executor_params: Default::default(),
@@ -186,6 +193,52 @@ fn origin_staging_genesis(
 	})
 }
 
+/// Exact public identities used to construct one production Origin validator.
+///
+/// The launch tool accepts public keys only. Secret seeds and well-known development identities
+/// are deliberately not derived by the runtime.
+#[derive(Clone)]
+pub struct OriginProductionAuthority {
+	/// Validator account used by authority management and session ownership.
+	pub account_id: AccountId,
+	/// BABE public session key.
+	pub babe: [u8; 32],
+	/// GRANDPA public session key.
+	pub grandpa: [u8; 32],
+	/// Parachain validation public session key.
+	pub para_validator: [u8; 32],
+	/// Parachain assignment public session key.
+	pub para_assignment: [u8; 32],
+	/// Authority-discovery public session key.
+	pub authority_discovery: [u8; 32],
+	/// Compressed BEEFY ECDSA public session key.
+	pub beefy: [u8; 33],
+}
+
+/// Build a clean Origin production genesis from reviewed public launch identities.
+pub fn origin_production_config_genesis(
+	initial_authorities: Vec<OriginProductionAuthority>,
+	root_key: AccountId,
+	endowed_accounts: Vec<AccountId>,
+) -> serde_json::Value {
+	let authorities = initial_authorities
+		.into_iter()
+		.map(|authority| {
+			(
+				authority.account_id.clone(),
+				authority.account_id,
+				BabeId::unchecked_from(authority.babe),
+				GrandpaId::unchecked_from(authority.grandpa),
+				ValidatorId::unchecked_from(authority.para_validator),
+				AssignmentId::unchecked_from(authority.para_assignment),
+				AuthorityDiscoveryId::unchecked_from(authority.authority_discovery),
+				BeefyId::from(sp_core::ecdsa::Public::from_raw(authority.beefy)),
+			)
+		})
+		.collect();
+	origin_staging_genesis(authorities, root_key, Some(endowed_accounts))
+}
+
 fn origin_session_keys(
 	babe: BabeId,
 	grandpa: GrandpaId,
@@ -211,13 +264,6 @@ pub fn origin_staging_config_genesis() -> serde_json::Value {
 		None,
 	)
 }
-// pub fn origin_staging_config_genesis() -> serde_json::Value {
-// 	origin_staging_genesis(
-// 		vec![get_authority_keys_from_seed("Alice"), get_authority_keys_from_seed("Bob")],
-// 		get_account_id_from_seed::<sr25519::Public>("Alice"),
-// 		None,
-// 	)
-// }
 
 pub fn origin_development_config_genesis() -> serde_json::Value {
 	origin_staging_genesis(
@@ -252,9 +298,100 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use frame_support::{assert_noop, assert_ok, traits::Get};
+	use origin_runtime_constants::system_parachain::ORBIS_ID;
 
 	#[test]
 	fn default_parachains_host_configuration_is_consistent() {
 		default_parachains_host_configuration().panic_if_not_consistent();
+	}
+
+	#[test]
+	fn default_parachains_host_configuration_supports_elastic_scaling() {
+		let config = default_parachains_host_configuration();
+
+		assert_eq!(config.scheduler_params.lookahead, 3);
+		assert_eq!(config.async_backing_params.max_candidate_depth, 6);
+		assert_eq!(config.async_backing_params.allowed_ancestry_len, 6);
+		assert!(FeatureIndex::EnableAssignmentsV2.is_set(&config.node_features));
+		assert!(FeatureIndex::ElasticScalingMVP.is_set(&config.node_features));
+		assert!(FeatureIndex::CandidateReceiptV2.is_set(&config.node_features));
+		assert!(FeatureIndex::CandidateReceiptV3.is_set(&config.node_features));
+	}
+
+	#[test]
+	fn enterprise_genesis_uses_sudo_managed_non_staking_authorities() {
+		let genesis = origin_staging_config_genesis();
+
+		assert!(genesis.get("sudo").is_some());
+		assert!(genesis.get("authorityManager").is_some());
+		assert!(genesis.get("session").is_some());
+		assert!(genesis.get("staking").is_none());
+		assert!(genesis.get("referenda").is_none());
+		assert!(genesis.get("convictionVoting").is_none());
+	}
+
+	#[test]
+	fn production_genesis_has_only_native_bootstrap_state() {
+		let root = AccountId::new([0x40; 32]);
+		let authority = OriginProductionAuthority {
+			account_id: AccountId::new([0x41; 32]),
+			babe: [0x51; 32],
+			grandpa: [0x61; 32],
+			para_validator: [0x71; 32],
+			para_assignment: [0x81; 32],
+			authority_discovery: [0x91; 32],
+			beefy: [[0x02].as_slice(), [0xa1; 32].as_slice()]
+				.concat()
+				.try_into()
+				.expect("33-byte compressed public key"),
+		};
+		let genesis = origin_production_config_genesis(
+			vec![authority],
+			root.clone(),
+			vec![root, AccountId::new([0x41; 32])],
+		);
+
+		assert_eq!(
+			genesis
+				.as_object()
+				.expect("genesis patch is an object")
+				.keys()
+				.cloned()
+				.collect::<alloc::collections::BTreeSet<_>>(),
+			["authorityManager", "babe", "balances", "configuration", "session", "sudo"]
+				.into_iter()
+				.map(str::to_owned)
+				.collect(),
+			"Origin starts with authority and relay-system bootstrap state only"
+		);
+	}
+
+	#[test]
+	fn orbis_is_the_only_authorized_coretime_broker() {
+		assert_eq!(<crate::BrokerId as Get<u32>>::get(), ORBIS_ID);
+	}
+
+	#[test]
+	fn non_orbis_parachain_cannot_manage_relay_core_count() {
+		sp_io::TestExternalities::new_empty().execute_with(|| {
+			let unauthorized = crate::RuntimeOrigin::from(
+				crate::parachains_origin::Origin::Parachain(2000u32.into()),
+			);
+			assert_noop!(
+				crate::Coretime::request_core_count(unauthorized, 3),
+				crate::coretime::Error::<crate::Runtime>::NotBroker
+			);
+		});
+	}
+
+	#[test]
+	fn orbis_parachain_can_request_relay_core_count() {
+		sp_io::TestExternalities::new_empty().execute_with(|| {
+			let orbis = crate::RuntimeOrigin::from(crate::parachains_origin::Origin::Parachain(
+				ORBIS_ID.into(),
+			));
+			assert_ok!(crate::Coretime::request_core_count(orbis, 3));
+		});
 	}
 }

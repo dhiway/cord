@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use origin_runtime::xcm_config::SovereignAccountOf;
+use origin_foundation_runtime::xcm_config::SovereignAccountOf;
 use polkadot_primitives::AccountId;
 use sp_core::crypto::Ss58Codec;
 use xcm::prelude::*;

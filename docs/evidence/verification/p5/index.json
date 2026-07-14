@@ -1,0 +1,57 @@
+{
+  "artifacts": [
+    {
+      "bytes": 5213,
+      "path": "docs/evidence/verification/p5/feature-completeness.report.json",
+      "sha256": "f578627e7b545dc258039a1b63a5364dac6f9c200c9cab1a642d1510b85c9b82"
+    },
+    {
+      "bytes": 537,
+      "path": "docs/evidence/verification/p5/host-conformance.json",
+      "sha256": "0b0e7aa6b5efd085ae0b95b2f6a0290705c89b8c6de4381fa67f04b4785990ab"
+    },
+    {
+      "bytes": 1294,
+      "path": "docs/evidence/verification/p5/operator-bootstrap.report.json",
+      "sha256": "e83cb4fb9d1c2e661f4a619e75bd3e56cb8f2aab607f3bd6147431e45ab206a0"
+    },
+    {
+      "bytes": 378,
+      "path": "docs/evidence/verification/p5/revive-boundary.report.json",
+      "sha256": "5eddb67e355e1cf78040c203e4be54d56218971a09a434d7bb0d5e5c02b1a420"
+    },
+    {
+      "bytes": 1248,
+      "path": "docs/evidence/verification/p5/native-cutover-cleanup.report.json",
+      "sha256": "a737f2a202d81d129b0bd79de0df405840c8bcb9bd53c184addab50c098c30f4"
+    },
+    {
+      "bytes": 515,
+      "path": "docs/evidence/verification/p5/native-launch-verdict.json",
+      "sha256": "98302b309b2a907f88df2c4d5974135faa1525f26b6d03303193422b86d3f98a"
+    },
+    {
+      "bytes": 16,
+      "path": "docs/evidence/verification/p5/raw/host-conformance.log",
+      "sha256": "f33be1d02339616c782affdc287745d8dd05b4dcdcc3f03ce6dd2888ee173c69"
+    },
+    {
+      "bytes": 6900,
+      "path": "docs/evidence/verification/p5/raw/m9-cleanup.log",
+      "sha256": "0e0c10228d129f2287dac81e5b4bbc3b462eb060528db6810a1c6340f3deac05"
+    },
+    {
+      "bytes": 16,
+      "path": "docs/evidence/verification/p5/raw/operator-executable.log",
+      "sha256": "f33be1d02339616c782affdc287745d8dd05b4dcdcc3f03ce6dd2888ee173c69"
+    },
+    {
+      "bytes": 16,
+      "path": "docs/evidence/verification/p5/raw/revive-retained-evidence.log",
+      "sha256": "f33be1d02339616c782affdc287745d8dd05b4dcdcc3f03ce6dd2888ee173c69"
+    }
+  ],
+  "command": "python3 scripts/validate-p5-native-launch.py --static-only",
+  "mode": "static-only",
+  "schema": "cord.p5-native-launch-evidence-index.v1"
+}

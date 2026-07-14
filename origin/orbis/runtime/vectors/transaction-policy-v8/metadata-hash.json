@@ -1,0 +1,12 @@
+{
+  "algorithm": "RFC-78 merkleized_metadata V15 via substrate-wasm-builder",
+  "compact_wasm_sha256": "558727456824d1f06928148ffead8cee5d58a63bf9109d0334a061f30c35db0f",
+  "decimals": 10,
+  "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+  "reproduce": "origin/orbis/runtime/tools/reproduce-metadata-hash.sh",
+  "runtime": "orbis",
+  "sdk_revision": "cc190ea8",
+  "spec_version": 29,
+  "token_symbol": "ORU",
+  "transaction_version": 8
+}

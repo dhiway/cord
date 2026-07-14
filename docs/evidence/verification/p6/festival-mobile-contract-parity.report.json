@@ -1,0 +1,118 @@
+{
+  "schema": "cord.festival-mobile-contract-parity-report.v1",
+  "status": "PASS",
+  "journey_acceptance": true,
+  "p6_acceptance": false,
+  "scope": "ios-android-contract-harness-only",
+  "platforms": {
+    "ios": {
+      "schema": "cord.festival-platform-contract-parity-report.v1",
+      "status": "PASS",
+      "journey_acceptance": true,
+      "p6_acceptance": false,
+      "scope": "ios-android-contract-harness-only",
+      "platform": "ios",
+      "vector_count": 14,
+      "request_contract_parity": true,
+      "consent_contract_parity": true,
+      "network_contract_parity": true,
+      "error_contract_parity": true,
+      "event_contract_parity": true,
+      "vector_routes_present_in_registry": true,
+      "host_harness_outcome_parity": true,
+      "qualification": "Parity covers the sealed host envelope, native identity/personhood, and sponsored MetaTx routes through deterministic contract harnesses; it is not a production mobile implementation or live-network claim.",
+      "production_evidence_deferred": [
+        "Live-chain execution and production-finality observation.",
+        "Final E/Q/C SLO and storage-headroom campaigns.",
+        "Production Swift or Kotlin rewrites are explicit non-goals."
+      ],
+      "sealed_route_evidence": {
+        "capabilities": [
+          "attestation",
+          "dotns",
+          "identity",
+          "storage",
+          "transaction"
+        ],
+        "identity_personhood_routes": 9,
+        "personhood_routes": 1,
+        "sponsorship_or_metatx_routes": 2
+      },
+      "inputs": {
+        "manifest_sha256": "1029023624b8ac444f8a1f55629865d7e4c2ce5f334e96889076fd616f4407a1",
+        "vectors_sha256": "4421458f8f836d729edb8bb576b898cced0f39c219a9511d9de7a60580cb2c9e",
+        "host_request_schema_sha256": "5245eb7801980a65b377cf5748409805913f5ee3e6c6c5763a5a3626cf3a75b2",
+        "native_error_schema_sha256": "63beb84651fb926843ba0582108aba72fa6d7598bda6418ba3f6c843dcbe3bfd",
+        "native_route_contract_sha256": "5821b5f7205abb360a535bd6cf84eaf50b2b1cab51f3422c7d3104b4442c73e6"
+      },
+      "native_only": {
+        "raw_scale": false,
+        "contract_abi": false,
+        "pallet_indices": false,
+        "call_indices": false
+      },
+      "deferred": {
+        "live_chain": true,
+        "production_finality": true,
+        "slo": true,
+        "production_mobile_rewrite": true
+      }
+    },
+    "android": {
+      "schema": "cord.festival-platform-contract-parity-report.v1",
+      "status": "PASS",
+      "journey_acceptance": true,
+      "p6_acceptance": false,
+      "scope": "ios-android-contract-harness-only",
+      "platform": "android",
+      "vector_count": 14,
+      "request_contract_parity": true,
+      "consent_contract_parity": true,
+      "network_contract_parity": true,
+      "error_contract_parity": true,
+      "event_contract_parity": true,
+      "vector_routes_present_in_registry": true,
+      "host_harness_outcome_parity": true,
+      "qualification": "Parity covers the sealed host envelope, native identity/personhood, and sponsored MetaTx routes through deterministic contract harnesses; it is not a production mobile implementation or live-network claim.",
+      "production_evidence_deferred": [
+        "Live-chain execution and production-finality observation.",
+        "Final E/Q/C SLO and storage-headroom campaigns.",
+        "Production Swift or Kotlin rewrites are explicit non-goals."
+      ],
+      "sealed_route_evidence": {
+        "capabilities": [
+          "attestation",
+          "dotns",
+          "identity",
+          "storage",
+          "transaction"
+        ],
+        "identity_personhood_routes": 9,
+        "personhood_routes": 1,
+        "sponsorship_or_metatx_routes": 2
+      },
+      "inputs": {
+        "manifest_sha256": "cbfadc283e8bedcd6d5b6cf062c79a074f5fca9c9bed58dc78c1288b7eebf63a",
+        "vectors_sha256": "4421458f8f836d729edb8bb576b898cced0f39c219a9511d9de7a60580cb2c9e",
+        "host_request_schema_sha256": "5245eb7801980a65b377cf5748409805913f5ee3e6c6c5763a5a3626cf3a75b2",
+        "native_error_schema_sha256": "63beb84651fb926843ba0582108aba72fa6d7598bda6418ba3f6c843dcbe3bfd",
+        "native_route_contract_sha256": "5821b5f7205abb360a535bd6cf84eaf50b2b1cab51f3422c7d3104b4442c73e6"
+      },
+      "native_only": {
+        "raw_scale": false,
+        "contract_abi": false,
+        "pallet_indices": false,
+        "call_indices": false
+      },
+      "deferred": {
+        "live_chain": true,
+        "production_finality": true,
+        "slo": true,
+        "production_mobile_rewrite": true
+      }
+    }
+  },
+  "vector_count": 14,
+  "host_harness_outcome_parity": true,
+  "qualification": "iOS and Android each execute the same sealed native-route vectors independently; these CORD-owned contract harnesses are not production Swift or Kotlin applications."
+}

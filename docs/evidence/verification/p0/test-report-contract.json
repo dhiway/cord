@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "scope": "p0-product-sdk-contract-validation",
+  "commands": [
+    "npm --prefix product-sdk run check:descriptors",
+    "npm --prefix product-sdk run validate:ratification",
+    "npm --prefix product-sdk run test:conformance",
+    "npm --prefix product-sdk run test:host",
+    "npm --prefix product-sdk run validate:eqc",
+    "npm --prefix product-sdk run test:eqc"
+  ],
+  "required_claims": {
+    "performance_claim": false,
+    "production_activation_claim": false,
+    "p0_targets_status_is_derived": true,
+    "contract_validation_exit_zero_does_not_open_gate": true
+  }
+}

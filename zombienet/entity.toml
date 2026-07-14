@@ -21,14 +21,14 @@ validator = true
 args = ["--trie-cache-size=0", "--disable-worker-version-check"]
 
 [[parachains]]
-id = 1000
+id = 1006
 addToGenesis = true
 cumulus_based = true
-chain = "origin-system-local"
+chain = "orbis-local"
 
 [parachains.collator]
-name = "entity-collator01"
+name = "orbis-entity-collator"
 rpc_port = 9920
 collator = true
-command = "target/release/origin-hub"
+command = "target/release/origin-omni-node"
 args = ["--trie-cache-size=0", "--execution=wasm"]

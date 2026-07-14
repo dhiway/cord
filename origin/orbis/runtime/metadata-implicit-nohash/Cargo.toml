@@ -1,0 +1,27 @@
+[package]
+name = "orbis-metadata-implicit-nohash"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+default = ["std"]
+std = []
+runtime-benchmarks = []
+
+[dependencies]
+orbis-pallets-common = { workspace = true, features = ["std"] }
+codec = { workspace = true, features = ["derive", "std"] }
+frame-metadata-hash-extension = { workspace = true, features = ["std"] }
+frame-support = { workspace = true, features = ["std"] }
+frame-system = { workspace = true, features = ["std"] }
+scale-info = { workspace = true, features = ["derive", "std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "cannot_lookup"
+harness = false

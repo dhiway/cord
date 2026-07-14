@@ -87,8 +87,9 @@ impl AccountTx {
 		call: subxt::tx::DynamicPayload,
 	) -> Result<TxHandle, OriginSdkError> {
 		match self.cfg.submit_mode {
-			TxSubmitMode::ManagedQueue | TxSubmitMode::ManagedQueueWithOverride =>
-				self.queue.enqueue(call, None).await,
+			TxSubmitMode::ManagedQueue | TxSubmitMode::ManagedQueueWithOverride => {
+				self.queue.enqueue(call, None).await
+			},
 			TxSubmitMode::Manual => self.submit_immediate(call).await,
 		}
 	}

@@ -1,5 +1,5 @@
 [package]
-name = "origin-runtime"
+name = "origin-foundation-runtime"
 build = "build.rs"
 repository.workspace = true
 version.workspace = true
@@ -39,6 +39,7 @@ sp-version = { workspace = true }
 sp-npos-elections = { workspace = true }
 
 pallet-authorities = { workspace = true }
+pallet-coretime-control = { workspace = true }
 pallet-authority-discovery = { workspace = true }
 pallet-authorship = { workspace = true }
 pallet-babe = { workspace = true }
@@ -51,7 +52,7 @@ pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 frame-executive = { workspace = true }
 frame-metadata-hash-extension = { workspace = true }
 pallet-grandpa = { workspace = true }
-pallet-token = { workspace = true }
+pallet-origin-token = { workspace = true }
 pallet-im-online = { workspace = true }
 pallet-indices = { workspace = true }
 pallet-message-queue = { workspace = true }
@@ -120,6 +121,8 @@ substrate-wasm-builder = { workspace = true, optional = true }
 default = ["std"]
 no_std = []
 only-staking = []
+# Evidence-only runtime upgrade candidate. Production builds do not enable this feature.
+p1-upgrade-candidate = []
 std = [
 	"authority-discovery-primitives/std",
 	"babe-primitives/std",
@@ -128,6 +131,7 @@ std = [
 	"codec/std",
 	"cord-primitives/std",
 	"pallet-authorities/std",
+	"pallet-coretime-control/std",
 	"origin-runtime-constants/std",
 	"frame-benchmarking?/std",
 	"frame-executive/std",
@@ -147,7 +151,7 @@ std = [
 	"pallet-beefy/std",
 	"pallet-broker/std",
 	"pallet-grandpa/std",
-	"pallet-token/std",
+	"pallet-origin-token/std",
 	"pallet-im-online/std",
 	"pallet-indices/std",
 	"pallet-message-queue/std",
@@ -220,6 +224,7 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-beefy-mmr/runtime-benchmarks",
 	"pallet-broker/runtime-benchmarks",
+	"pallet-coretime-control/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
 	"pallet-indices/runtime-benchmarks",
@@ -262,6 +267,7 @@ try-runtime = [
 	"frame-try-runtime",
 	"frame-try-runtime/try-runtime",
 	"pallet-authorities/try-runtime",
+	"pallet-coretime-control/try-runtime",
 	"pallet-authority-discovery/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-babe/try-runtime",
@@ -270,7 +276,7 @@ try-runtime = [
 	"pallet-beefy/try-runtime",
 	"pallet-broker/try-runtime",
 	"pallet-grandpa/try-runtime",
-	"pallet-token/try-runtime",
+	"pallet-origin-token/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-indices/try-runtime",
 	"pallet-message-queue/try-runtime",

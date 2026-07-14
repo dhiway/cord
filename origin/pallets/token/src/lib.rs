@@ -268,8 +268,8 @@ pub mod pallet {
 			PalletIndex::<T>::get(&bounded)
 		}
 
-		/// Returns the pallet name string stored for an index.
-		/// Renamed to avoid clashing with generated types; kept for legacy callers.
+		/// Returns the pallet name string stored for an index. The distinct method name avoids
+		/// clashing with generated view-function types.
 		pub fn pallet_name_view(auth: Authorization<T>, index: u16) -> Option<String> {
 			Self::authorize_query(&auth).ok()?;
 			Self::resolve_pallet_plain(index).ok()

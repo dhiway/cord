@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "status": "BLOCKED",
+  "source_head": "439a1b62da11175129ad5390186230a64d569810",
+  "gaps": [
+    {
+      "scenario": "duplicate-Broker-Coretime-XCM-rejection",
+      "evidence": [
+        "pallet_broker::do_request_core_count invokes T::Coretime::request_core_count and unconditionally emits CoreCountRequested",
+        "origin/orbis/runtime/src/coretime.rs sends a bare UnpaidExecution+Transact XCM with no application request ID, nonce or receipt correlation",
+        "relay Coretime::request_core_count accepts the Broker origin and overwrites the pending scheduler core count without duplicate detection"
+      ],
+      "impact": "an identical replay is idempotent for the stored count but cannot be proven rejected; Broker success also does not prove XCM enqueue/delivery",
+      "required_remediation": "define a stack-owned request/receipt envelope or replay ledger around Broker-to-Coretime commands, with monotonic request IDs and duplicate/delayed receipt events; do not fork the upstream primitive",
+      "must_not_claim": "duplicate_rejected"
+    },
+    {
+      "scenario": "Orbis-collator-enacted-session-rotation",
+      "evidence": [
+        "origin/orbis/runtime/src/lib.rs sets Period = 6 * HOURS",
+        "Orbis Session ShouldEndSession and NextSessionRotation both use PeriodicSessions<Period, Offset>",
+        "Session exposes no root force-rotate dispatchable"
+      ],
+      "impact": "set_invulnerables and set_keys can be finalized quickly, but active collator enactment requires the full six-hour production-shaped period",
+      "required_remediation": "run an exclusive six-hour evidence campaign or introduce a test-only runtime/profile with an explicitly hash-bound shorter session period; do not infer enactment from staged storage",
+      "must_not_claim": "orbis_collator_session_enacted"
+    }
+  ]
+}

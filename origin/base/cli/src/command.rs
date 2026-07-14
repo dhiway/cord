@@ -96,17 +96,37 @@ impl SubstrateCli for Cli {
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		Ok(match id {
-			// // -- Origin
-			// "origin" | "origin-relay" => Box::new(GenericChainSpec::from_json_bytes(
-			// 	&include_bytes!("../../chain-specs/tbd.json")[..],
-			// )?),
 			"dev" | "origin-dev" => Box::new(chain_spec::origin_development_config()?),
 			"local" | "origin-local" => Box::new(chain_spec::origin_local_config()?),
-			path => {
-				let path = std::path::PathBuf::from(path);
+			"origin" | "origin-relay" => return Err(
+					"the live Origin spec is never inferred; use origin-candidate:<input.json> for deterministic evidence or origin-production:<input.json> after launch approval".into(),
+				),
+				value if value.starts_with("origin-candidate:") => {
+					let path = value.trim_start_matches("origin-candidate:");
+					if path.is_empty() {
+						return Err("origin-candidate requires an input JSON path".into());
+					}
+					let bytes = std::fs::read(path)
+						.map_err(|error| format!("failed to read candidate genesis input {path}: {error}"))?;
+					let input = serde_json::from_slice(&bytes)
+						.map_err(|error| format!("invalid candidate genesis input {path}: {error}"))?;
+					Box::new(chain_spec::origin_candidate_config(input)?)
+				},
+				value if value.starts_with("origin-production:") => {
+				let path = value.trim_start_matches("origin-production:");
+				if path.is_empty() {
+					return Err("origin-production requires a reviewed input JSON path".into());
+				}
+				let bytes = std::fs::read(path)
+					.map_err(|error| format!("failed to read production genesis input {path}: {error}"))?;
+				let input = serde_json::from_slice(&bytes)
+					.map_err(|error| format!("invalid production genesis input {path}: {error}"))?;
+					Box::new(chain_spec::origin_production_config(input, &bytes)?)
+				},
+				path => {
+					let path = std::path::PathBuf::from(path);
 
-				let chain_spec_from_path =
-					Box::new(polkadot_service::GenericChainSpec::from_json_file(path.clone())?)
+					let chain_spec_from_path = Box::new(chain_spec::origin_spec_from_json_file(path)?)
 						as Box<dyn polkadot_service::ChainSpec>;
 
 				chain_spec_from_path
@@ -167,6 +187,10 @@ where
 	// Parse collator protocol hold off value and get the list of the invlunerable collators.
 	let collator_protocol_hold_off = cli.run.collator_protocol_hold_off.map(Duration::from_millis);
 	let invulnerable_ah_collators = get_invulnerable_origin_collators();
+	let experimental_collator_protocol = cli.run.experimental_collator_protocol;
+	let collator_reputation_persist_interval = experimental_collator_protocol
+		.then(|| cli.run.collator_reputation_persist_interval.map(Duration::from_secs))
+		.flatten();
 
 	runner.run_node_until_exit(move |config| async move {
 		let hwbench = (!cli.run.no_hardware_benchmarks)
@@ -205,8 +229,8 @@ where
 				keep_finalized_for: cli.run.keep_finalized_for,
 				invulnerable_ah_collators,
 				collator_protocol_hold_off,
-				experimental_collator_protocol: false,
-				collator_reputation_persist_interval: None,
+				experimental_collator_protocol,
+				collator_reputation_persist_interval,
 			},
 		)
 		.map(|full| full.task_manager)?;

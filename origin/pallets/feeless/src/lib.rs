@@ -28,20 +28,64 @@ pub mod mock;
 mod tests;
 pub mod weights;
 
+use codec::{Decode, DecodeWithMemTracking, Encode};
 use core::marker::PhantomData;
-use frame_support::traits::{CallerTrait, OriginTrait, StorageVersion};
-use frame_system::pallet_prelude::OriginFor;
+use frame_support::{
+	dispatch::{CheckIfFeeless, DispatchResult},
+	ensure,
+	pallet_prelude::TransactionSource,
+	traits::{CallerTrait, Get, OriginTrait, StorageVersion},
+	weights::Weight,
+};
+use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
+use scale_info::{StaticTypeInfo, TypeInfo};
+use sp_runtime::{
+	traits::{
+		DispatchInfoOf, DispatchOriginOf, Implication, PostDispatchInfoOf, TransactionExtension,
+		ValidateResult,
+	},
+	transaction_validity::{InvalidTransaction, TransactionValidityError},
+};
 use sp_std::vec::Vec;
 
 pub use weights::WeightInfo;
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 /// Trait that allows other pallets to query whether an account is whitelisted for feeless
 /// transactions.
 pub trait FeelessAccounts<AccountId> {
 	/// Returns `true` if the provided account should be treated as feeless.
 	fn is_feeless(account: &AccountId) -> bool;
+}
+
+/// Whether the wrapped payment extension is applied or one fee-free quota unit is consumed.
+pub enum PaymentIntermediate<Applied, AccountId> {
+	Apply(Applied),
+	Skip(AccountId),
+}
+
+/// Payment extension that only skips fees after atomically consuming an account quota unit.
+#[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq)]
+pub struct ChargeOrSkipFeeless<T, S>(pub S, PhantomData<T>);
+
+impl<T, S: StaticTypeInfo> TypeInfo for ChargeOrSkipFeeless<T, S> {
+	type Identity = S;
+	fn type_info() -> scale_info::Type {
+		S::type_info()
+	}
+}
+
+impl<T, S: Encode> core::fmt::Debug for ChargeOrSkipFeeless<T, S> {
+	fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+		write!(f, "ChargeOrSkipFeeless<{:?}>", self.0.encode())
+	}
+}
+
+impl<T, S> From<S> for ChargeOrSkipFeeless<T, S> {
+	fn from(extension: S) -> Self {
+		Self(extension, PhantomData)
+	}
 }
 
 impl<AccountId> FeelessAccounts<AccountId> for () {
@@ -65,6 +109,10 @@ pub mod pallet {
 
 		/// Weight information for extrinsics.
 		type WeightInfo: WeightInfo;
+
+		/// Maximum number of allowlisted fee-free transactions an account may consume in one block.
+		#[pallet::constant]
+		type MaxFeelessTransactionsPerBlock: Get<u32>;
 	}
 
 	#[pallet::pallet]
@@ -75,6 +123,11 @@ pub mod pallet {
 	#[pallet::getter(fn accounts)]
 	pub type FeelessAccountStore<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, (), OptionQuery>;
+
+	/// Per-account fee-free usage in the current block.
+	#[pallet::storage]
+	pub type FeelessUsage<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, (BlockNumberFor<T>, u32), OptionQuery>;
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
@@ -106,6 +159,8 @@ pub mod pallet {
 		FeelessAccountAdded { account: T::AccountId },
 		/// Account was removed from the feeless allow list.
 		FeelessAccountRemoved { account: T::AccountId },
+		/// A fee was skipped after consuming one quota unit.
+		FeeSkipped { account: T::AccountId },
 	}
 
 	#[pallet::error]
@@ -114,6 +169,8 @@ pub mod pallet {
 		AccountAlreadyFeeless,
 		/// Account is not marked as feeless.
 		AccountNotFeeless,
+		/// Account exhausted its fee-free allowance for the current block.
+		QuotaExhausted,
 	}
 
 	#[pallet::call]
@@ -145,6 +202,7 @@ pub mod pallet {
 				FeelessAccountStore::<T>::take(&account).is_some(),
 				Error::<T>::AccountNotFeeless
 			);
+			FeelessUsage::<T>::remove(&account);
 
 			Self::deposit_event(Event::FeelessAccountRemoved { account });
 			Ok(())
@@ -165,10 +223,129 @@ impl<T: Config> Pallet<T> {
 			_ => false,
 		}
 	}
+
+	/// Returns true when an allowlisted account still has fee-free capacity this block.
+	pub fn has_feeless_quota(account: &T::AccountId) -> bool {
+		if !Self::is_feeless_account(account) {
+			return false;
+		}
+		let now = frame_system::Pallet::<T>::block_number();
+		let used = FeelessUsage::<T>::get(account)
+			.filter(|(block, _)| *block == now)
+			.map(|(_, used)| used)
+			.unwrap_or_default();
+		used < T::MaxFeelessTransactionsPerBlock::get()
+	}
+
+	/// Atomically consumes one fee-free unit for an allowlisted account.
+	pub fn consume_feeless_quota(account: &T::AccountId) -> DispatchResult {
+		ensure!(Self::is_feeless_account(account), Error::<T>::AccountNotFeeless);
+		let now = frame_system::Pallet::<T>::block_number();
+		FeelessUsage::<T>::try_mutate(account, |usage| {
+			let used = usage
+				.as_ref()
+				.filter(|(block, _)| *block == now)
+				.map(|(_, used)| *used)
+				.unwrap_or_default();
+			ensure!(used < T::MaxFeelessTransactionsPerBlock::get(), Error::<T>::QuotaExhausted);
+			*usage = Some((now, used.saturating_add(1)));
+			Ok(())
+		})
+	}
 }
 
 impl<T: Config> FeelessAccounts<T::AccountId> for Pallet<T> {
 	fn is_feeless(account: &T::AccountId) -> bool {
-		Self::is_feeless_account(account)
+		Self::has_feeless_quota(account)
+	}
+}
+
+use PaymentIntermediate::{Apply, Skip};
+
+impl<T: Config + Send + Sync, S: TransactionExtension<T::RuntimeCall>>
+	TransactionExtension<T::RuntimeCall> for ChargeOrSkipFeeless<T, S>
+where
+	T::RuntimeCall: CheckIfFeeless<Origin = OriginFor<T>>,
+{
+	// Preserve the wrapped payment extension's public metadata contract.
+	const IDENTIFIER: &'static str = S::IDENTIFIER;
+	type Implicit = S::Implicit;
+	type Val = PaymentIntermediate<S::Val, T::AccountId>;
+	type Pre = PaymentIntermediate<S::Pre, T::AccountId>;
+
+	fn metadata() -> Vec<sp_runtime::traits::TransactionExtensionMetadata> {
+		S::metadata()
+	}
+
+	fn implicit(&self) -> Result<Self::Implicit, TransactionValidityError> {
+		self.0.implicit()
+	}
+
+	fn weight(&self, call: &T::RuntimeCall) -> Weight {
+		self.0.weight(call)
+	}
+
+	fn validate(
+		&self,
+		origin: DispatchOriginOf<T::RuntimeCall>,
+		call: &T::RuntimeCall,
+		info: &DispatchInfoOf<T::RuntimeCall>,
+		len: usize,
+		self_implicit: S::Implicit,
+		inherited_implication: &impl Implication,
+		source: TransactionSource,
+	) -> ValidateResult<Self::Val, T::RuntimeCall> {
+		if call.is_feeless(&origin) {
+			if let Some(frame_system::RawOrigin::Signed(who)) = origin.caller().as_system_ref() {
+				if Pallet::<T>::has_feeless_quota(who) {
+					return Ok((Default::default(), Skip(who.clone()), origin));
+				}
+			}
+		}
+
+		let (validity, val, origin) = self.0.validate(
+			origin,
+			call,
+			info,
+			len,
+			self_implicit,
+			inherited_implication,
+			source,
+		)?;
+		Ok((validity, Apply(val), origin))
+	}
+
+	fn prepare(
+		self,
+		val: Self::Val,
+		origin: &DispatchOriginOf<T::RuntimeCall>,
+		call: &T::RuntimeCall,
+		info: &DispatchInfoOf<T::RuntimeCall>,
+		len: usize,
+	) -> Result<Self::Pre, TransactionValidityError> {
+		match val {
+			Apply(val) => self.0.prepare(val, origin, call, info, len).map(Apply),
+			Skip(who) => {
+				Pallet::<T>::consume_feeless_quota(&who)
+					.map_err(|_| InvalidTransaction::ExhaustsResources)?;
+				Ok(Skip(who))
+			},
+		}
+	}
+
+	fn post_dispatch_details(
+		pre: Self::Pre,
+		info: &DispatchInfoOf<T::RuntimeCall>,
+		post_info: &PostDispatchInfoOf<T::RuntimeCall>,
+		len: usize,
+		result: &DispatchResult,
+	) -> Result<Weight, TransactionValidityError> {
+		match pre {
+			Apply(pre) => S::post_dispatch_details(pre, info, post_info, len, result),
+			Skip(account) => {
+				Pallet::<T>::deposit_event(Event::<T>::FeeSkipped { account });
+				Ok(Weight::zero())
+			},
+		}
 	}
 }

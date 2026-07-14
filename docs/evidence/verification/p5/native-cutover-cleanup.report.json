@@ -1,0 +1,37 @@
+{
+  "allowlist_sha256": "b244a09b509cd8c868a84fd0fdddaed8ba3a047539d116eda55ec01b07459efd",
+  "criterion": "M9",
+  "dead_product_paths": 0,
+  "deprecated_facades": 0,
+  "errors": [],
+  "inventory": {
+    "archived_or_generated_contract_artifacts": [],
+    "contract_build_ci_config_paths": [],
+    "generator_reproducibility": {
+      "after_sha256": "b244a09b509cd8c868a84fd0fdddaed8ba3a047539d116eda55ec01b07459efd",
+      "before_sha256": "b244a09b509cd8c868a84fd0fdddaed8ba3a047539d116eda55ec01b07459efd",
+      "byte_identical": true,
+      "command": "python3 scripts/generate-contract-native-census.py --check-native-cutover",
+      "exit_code": 0,
+      "status": "pass"
+    },
+    "migrated_contract_content_paths": [],
+    "repository_files_scanned": 3508,
+    "retained_contract_artifacts": [],
+    "retained_revive_entries": 0,
+    "retained_revive_test_evidence": {},
+    "surfaces": {
+      "build_ci_config_generated": 182,
+      "cargo_package_manifests": 101,
+      "docs": 2393,
+      "mobile": 0,
+      "rust": 768,
+      "solidity_abi": 0,
+      "typescript_javascript": 56
+    }
+  },
+  "migrated_domain_callable_contracts": 0,
+  "schema": "cord.native-cutover-cleanup-report.v1",
+  "status": "pass",
+  "unowned_survivors": 0
+}

@@ -1,6 +1,6 @@
 [package]
 name = "origin-common"
-description = "Shared runtime building blocks for Origin runtimes."
+description = "Shared runtime building blocks for the Foundation and Commons runtimes."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

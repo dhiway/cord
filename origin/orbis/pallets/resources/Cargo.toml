@@ -1,0 +1,83 @@
+[package]
+name = "indiv-pallet-resources"
+description = "A pallet for common people resource management and allocation"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license = "Apache-2.0"
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { workspace = true, features = ["derive"] }
+scale-info = { workspace = true, features = ["derive"] }
+frame-benchmarking = { workspace = true, optional = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+log = { workspace = true }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+sp-runtime = { workspace = true }
+sp-statement-store = { workspace = true }
+verifiable = { workspace = true }
+indiv-support = { workspace = true }
+indiv-pallet-people = { workspace = true }
+indiv-pallet-people-lite = { workspace = true }
+orbis-transaction-storage-primitives = { workspace = true }
+
+[dev-dependencies]
+indiv-pallet-chunks-manager = { workspace = true }
+indiv-pallet-members = { workspace = true }
+verifiable = { workspace = true, features = ["mock"] }
+parking_lot = { workspace = true }
+frame-executive = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+	"codec/std",
+	"orbis-transaction-storage-primitives/std",
+	"frame-benchmarking?/std",
+	"frame-executive/std",
+	"frame-support/std",
+	"frame-system/std",
+	"indiv-pallet-chunks-manager/std",
+	"indiv-pallet-members/std",
+	"indiv-pallet-people-lite/std",
+	"indiv-pallet-people/std",
+	"indiv-support/std",
+	"log/std",
+	"scale-info/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-runtime/std",
+	"sp-statement-store/std",
+	"verifiable/std",
+]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"indiv-pallet-chunks-manager/runtime-benchmarks",
+	"indiv-pallet-members/runtime-benchmarks",
+	"indiv-pallet-people-lite/runtime-benchmarks",
+	"indiv-pallet-people/runtime-benchmarks",
+	"indiv-support/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+]
+try-runtime = [
+	"frame-executive/try-runtime",
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"indiv-pallet-chunks-manager/try-runtime",
+	"indiv-pallet-members/try-runtime",
+	"indiv-pallet-people-lite/try-runtime",
+	"indiv-pallet-people/try-runtime",
+	"sp-runtime/try-runtime",
+]

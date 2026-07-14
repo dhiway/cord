@@ -16,19 +16,45 @@ members = [
 	"node/testing",
 	"origin/primitives",
 	"origin/runtime-api/token-origin-runtime-api",
-	"origin/runtime-api/token-origin-hub-runtime-api",
 	"origin/base",
 	"origin/base/cli",
 	"origin/base/runtime",
-	"origin/hub",
-	"origin/hub/constants",
-	"origin/hub/system",
+	"origin/orbis/node",
+	"origin/orbis/provider-node",
+	"origin/orbis/runtime",
+	"origin/orbis/runtime-api/storage",
+	"origin/orbis/runtime-api/token",
+	"origin/orbis/runtime/constants",
+	"origin/orbis/runtime/metadata-implicit-nohash",
 	"origin/common",
 	"origin/pallets/authorities",
+	"origin/pallets/coretime-control",
+	"origin/orbis/pallets/common",
+	"origin/orbis/pallets/attestation",
+	"origin/orbis/pallets/attestation/runtime-api",
+	"origin/orbis/pallets/names",
+	"origin/orbis/pallets/names/runtime-api",
 	"origin/pallets/token",
+	"origin/pallets/feeless",
 	"origin/pallets/entity",
 	"origin/pallets/register",
-	"origin/pallets/feeless",
+	"origin/orbis/pallets/drive",
+	"origin/orbis/pallets/storage-provider",
+	"origin/orbis/pallets/s3",
+	"origin/orbis/pallets/hop-promotion",
+	"origin/orbis/pallets/individuality-support",
+	"origin/orbis/pallets/chunks-manager",
+	"origin/orbis/pallets/members",
+	"origin/orbis/pallets/members-notifier",
+	"origin/orbis/pallets/people",
+	"origin/orbis/pallets/people-lite",
+	"origin/orbis/pallets/personhood",
+	"origin/orbis/pallets/resources",
+	"origin/orbis/pallets/score",
+	"origin/orbis/pallets/honour",
+	"origin/orbis/pallets/transaction-storage",
+	"origin/orbis/pallets/transaction-storage/primitives",
+	"origin/orbis/pallets/transaction-storage/runtime-api",
 	"pallets/collection",
 	"pallets/doken",
 	"pallets/identity",
@@ -61,7 +87,7 @@ members = [
 	"origin-rs",
 ]
 
-default-members = ["node/cli", "origin/base", "origin/hub", "origin-rs" ]
+default-members = ["node/cli", "origin/base", "origin/orbis/node", "origin-rs" ]
 
 [workspace.lints.rust]
 suspicious_double_ref_op = { level = "allow", priority = 2 }
@@ -104,7 +130,6 @@ zero-prefixed-literal = { level = "allow", priority = 2 }            # 00_1000_0
 Inflector = { version = "0.11.4" }
 aes-gcm = { version = "0.10" }
 ahash = { version = "0.8.2" }
-alloy-core = { version = "1.1.0", default-features = false }
 always-assert = { version = "0.1" }
 anyhow = { version = "1.0.81", default-features = false }
 approx = { version = "0.5.1" }
@@ -124,7 +149,7 @@ ark-ed-on-bls12-381-bandersnatch-ext = { version = "0.4.1", default-features = f
 ark-scale = { version = "0.0.12", default-features = false }
 ark-vrf = { version = "0.1.0", default-features = false }
 array-bytes = { version = "6.2.2", default-features = false }
-arrayvec = { version = "0.7.4" }
+arrayvec = { version = "0.7.4", default-features = false }
 assert_cmd = { version = "2.0.14" }
 assert_matches = { version = "1.5.0" }
 asset-test-utils = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
@@ -148,6 +173,8 @@ blake2b_simd = { version = "1.0.2", default-features = false }
 blake3 = { version = "1.5" }
 bn = { package = "substrate-bn", version = "0.6", default-features = false }
 bounded-collections = { version = "0.3.2", default-features = false }
+orbis-pallets-common = { path = "origin/orbis/pallets/common", default-features = false }
+orbis-transaction-storage-primitives = { path = "origin/orbis/pallets/transaction-storage/primitives", default-features = false }
 bounded-vec = { version = "0.7" }
 bs58 = { version = "0.5.1", default-features = false, features = ["alloc"] }
 build-helper = { version = "0.1.1" }
@@ -159,7 +186,7 @@ cfg-expr = { version = "0.15.5" }
 cfg-if = { version = "1.0" }
 chain-spec-builder = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0", package = "staging-chain-spec-builder" }
 chrono = { version = "0.4.31" }
-cid = { version = "0.9.0" }
+cid = { version = "0.11.1", default-features = false }
 clap = { version = "4.5.13" }
 clap_complete = { version = "4.5.13" }
 cmd_lib = { version = "1.9.5" }
@@ -175,6 +202,7 @@ cpu-time = { version = "1.0.0" }
 criterion = { version = "0.5.1", default-features = false }
 cumulus-pallet-aura-ext = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 cumulus-pallet-parachain-system = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
+cumulus-pallet-weight-reclaim = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 cumulus-pallet-session-benchmarking = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 cumulus-pallet-xcm = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 cumulus-pallet-xcmp-queue = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
@@ -367,6 +395,17 @@ pallet-bridge-messages = { git = "https://github.com/dhiway/sdk", default-featur
 pallet-bridge-parachains = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-bridge-relayers = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-broker = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
+pallet-orbis-hop-promotion = { path = "origin/orbis/pallets/hop-promotion", default-features = false }
+pallet-orbis-transaction-storage = { path = "origin/orbis/pallets/transaction-storage", default-features = false }
+pallet-orbis-transaction-storage-runtime-api = { path = "origin/orbis/pallets/transaction-storage/runtime-api", default-features = false }
+pallet-orbis-attestation = { path = "origin/orbis/pallets/attestation", default-features = false }
+pallet-orbis-attestation-runtime-api = { path = "origin/orbis/pallets/attestation/runtime-api", default-features = false }
+pallet-orbis-names = { path = "origin/orbis/pallets/names", default-features = false }
+pallet-orbis-names-runtime-api = { path = "origin/orbis/pallets/names/runtime-api", default-features = false }
+orbis-identity-personhood-runtime-api = { path = "origin/orbis/runtime-api/identity-personhood", default-features = false }
+pallet-orbis-drive = { path = "origin/orbis/pallets/drive", default-features = false }
+pallet-orbis-storage-provider = { path = "origin/orbis/pallets/storage-provider", default-features = false }
+pallet-orbis-s3 = { path = "origin/orbis/pallets/s3", default-features = false }
 pallet-child-bounties = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-collator-selection = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-collective = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
@@ -419,10 +458,6 @@ pallet-recovery = { git = "https://github.com/dhiway/sdk", default-features = fa
 pallet-referenda = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-remark = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-revive = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
-pallet-revive-eth-rpc = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
-pallet-revive-fixtures = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
-pallet-revive-proc-macro = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
-pallet-revive-uapi = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-root-offences = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-root-testing = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-safe-mode = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
@@ -482,6 +517,7 @@ polkadot-service = { git = "https://github.com/dhiway/sdk", default-features = f
 polkadot-parachain-primitives = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 polkadot-primitives = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 polkadot-runtime-common = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
+polkadot-sdk-frame = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 polkavm = { version = "0.26.0", default-features = false }
 polkavm-derive = "0.26.0"
 polkavm-linker = "0.26.0"
@@ -642,6 +678,7 @@ sp-database = { git = "https://github.com/dhiway/sdk", default-features = false,
 sp-debug-derive = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 sp-externalities = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 sp-genesis-builder = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
+sp-hop = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 sp-inherents = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 sp-io = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 sp-keyring = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
@@ -734,7 +771,7 @@ twox-hash = { version = "1.6.3", default-features = false }
 txtesttool = { version = "0.6.0", package = "substrate-txtesttool" }
 unsigned-varint = { version = "0.7.2" }
 url = { version = "2.5.4" }
-verifiable = { version = "0.1", default-features = false }
+verifiable = { git = "https://github.com/paritytech/verifiable", rev = "93464a69a9aeb0db5d392aae5963ca1d8b5d6fa5", default-features = false }
 void = { version = "1.0.2" }
 w3f-bls = { version = "0.1.9", default-features = false }
 wait-timeout = { version = "0.2" }
@@ -786,6 +823,16 @@ pallet-remote-proxy = { path = 'pallets/remote-proxy/', default-features = false
 pallet-entry = { path = 'pallets/entry', default-features = false }
 pallet-runtime-upgrade = { path = 'pallets/runtime-upgrade', default-features = false }
 pallet-cord-identity = { path = 'pallets/identity', default-features = false }
+pallet-orbis-people = { path = 'origin/orbis/pallets/people', default-features = false }
+indiv-pallet-people-lite = { path = 'origin/orbis/pallets/people-lite', default-features = false }
+indiv-pallet-people = { path = 'origin/orbis/pallets/personhood', default-features = false }
+indiv-support = { path = 'origin/orbis/pallets/individuality-support', default-features = false }
+indiv-pallet-chunks-manager = { path = 'origin/orbis/pallets/chunks-manager', default-features = false }
+indiv-pallet-members = { path = 'origin/orbis/pallets/members', default-features = false }
+indiv-pallet-members-notifier = { path = 'origin/orbis/pallets/members-notifier', default-features = false }
+indiv-pallet-resources = { path = 'origin/orbis/pallets/resources', default-features = false }
+pallet-orbis-score = { path = 'origin/orbis/pallets/score', default-features = false }
+pallet-orbis-honour = { path = 'origin/orbis/pallets/honour', default-features = false }
 pallet-cord-offences = { path = 'pallets/offences', default-features = false }
 pallet-cord-node-authorization = { path = "pallets/node-authorization", default-features = false }
 pallet-network-score = { path = 'pallets/network-score', default-features = false }
@@ -798,21 +845,28 @@ pallet-schema-accounts = { path = "pallets/schema-accounts", default-features = 
 pallet-namespace = { path = 'pallets/namespace', default-features = false }
 pallet-profile = { path = "pallets/profile", default-features = false }
 # pallet-remote-proxy = { path = 'pallets/remote-proxy/', default-features = false }
-pallet-feeless = { path = "origin/pallets/feeless", default-features = false }
+pallet-origin-feeless = { path = "origin/pallets/feeless", default-features = false }
+pallet-origin-token = { path = "origin/pallets/token", default-features = false }
+pallet-origin-register = { path = "origin/pallets/register", default-features = false }
+pallet-origin-entity = { path = "origin/pallets/entity", default-features = false }
+origin-commons-runtime-constants = { path = "origin/orbis/runtime/constants", default-features = false }
+token-origin-commons-runtime-api = { path = "origin/orbis/runtime-api/token", default-features = false }
 pallet-authorities = { path = 'origin/pallets/authorities', default-features = false }
-pallet-register = { path = 'origin/pallets/register/', default-features = false }
-pallet-token = { path = "origin/pallets/token", default-features = false }
-pallet-entity = { path = "origin/pallets/entity", default-features = false }
+pallet-coretime-control = { path = 'origin/pallets/coretime-control', default-features = false }
 origin-primitives = { path = "origin/primitives", default-features = false }
 origin-node-cli = { path = "origin/base/cli", default-features = false }
-origin-runtime = { path = "origin/base/runtime" }
+origin-foundation-runtime = { path = "origin/base/runtime" }
 origin-runtime-constants = { path = "origin/base/runtime/constants", default-features = false }
 origin-common = { path = "origin/common", default-features = false }
-origin-hub = { path = "origin/hub", default-features = false }
-origin-hub-system-runtime = { path = "origin/hub/system", default-features = false }
-origin-hub-system-runtime-constants = { path = "origin/hub/constants", default-features = false }
+origin-omni-node = { path = "origin/orbis/node", default-features = false }
+origin-commons-runtime = { path = "origin/orbis/runtime", default-features = false }
+orbis-storage-runtime-api = { path = "origin/orbis/runtime-api/storage", default-features = false }
 token-origin-runtime-api = { path = "origin/runtime-api/token-origin-runtime-api", default-features = false }
-token-origin-hub-runtime-api = { path = "origin/runtime-api/token-origin-hub-runtime-api", default-features = false }
+
+[patch.crates-io]
+# Revive's std-only Subxt tooling requests the published crate. Keep it on the same Dhiway SDK
+# source as the runtime graph instead of compiling a second `sp-crypto-hashing` source.
+sp-crypto-hashing = { git = "https://github.com/dhiway/sdk", branch = "release-v1.24.0" }
 
 [profile.release]
 panic = 'unwind'

@@ -1,0 +1,69 @@
+[package]
+name = "indiv-pallet-people"
+description = "Personhood-tracking pallet"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { workspace = true, features = ["derive"] }
+frame-benchmarking = { workspace = true, optional = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+scale-info = { workspace = true, features = ["derive"] }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+sp-runtime = { workspace = true }
+verifiable = { workspace = true }
+indiv-support = { workspace = true }
+log = { workspace = true }
+
+[dev-dependencies]
+indiv-pallet-chunks-manager = { workspace = true }
+indiv-pallet-members = { workspace = true }
+parking_lot = { workspace = true }
+verifiable = { workspace = true, features = ["mock"] }
+
+[features]
+default = ["std"]
+std = [
+	"codec/std",
+	"frame-benchmarking?/std",
+	"frame-support/std",
+	"frame-system/std",
+	"indiv-pallet-chunks-manager/std",
+	"indiv-pallet-members/std",
+	"indiv-support/std",
+	"log/std",
+	"scale-info/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-runtime/std",
+	"verifiable/std",
+]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"indiv-pallet-chunks-manager/runtime-benchmarks",
+	"indiv-pallet-members/runtime-benchmarks",
+	"indiv-support/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"verifiable/no-std-prover",
+]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"indiv-pallet-chunks-manager/try-runtime",
+	"indiv-pallet-members/try-runtime",
+	"sp-runtime/try-runtime",
+]

@@ -32,20 +32,22 @@ pub struct SubstrateWeight<T>(PhantomData<T>);
 
 impl<T: Config> WeightInfo for SubstrateWeight<T> {
 	fn add_feeless_account() -> Weight {
-		Weight::from_parts(12_000_000, 0).saturating_add(T::DbWeight::get().reads_writes(1, 1))
+		Weight::from_parts(12_000_000, 4_000).saturating_add(T::DbWeight::get().reads_writes(1, 1))
 	}
 
 	fn remove_feeless_account() -> Weight {
-		Weight::from_parts(11_000_000, 0).saturating_add(T::DbWeight::get().reads_writes(1, 1))
+		Weight::from_parts(15_000_000, 4_000).saturating_add(T::DbWeight::get().reads_writes(1, 2))
 	}
 }
 
 impl WeightInfo for () {
 	fn add_feeless_account() -> Weight {
-		Weight::from_parts(12_000_000, 0).saturating_add(RocksDbWeight::get().reads_writes(1, 1))
+		Weight::from_parts(12_000_000, 4_000)
+			.saturating_add(RocksDbWeight::get().reads_writes(1, 1))
 	}
 
 	fn remove_feeless_account() -> Weight {
-		Weight::from_parts(11_000_000, 0).saturating_add(RocksDbWeight::get().reads_writes(1, 1))
+		Weight::from_parts(15_000_000, 4_000)
+			.saturating_add(RocksDbWeight::get().reads_writes(1, 2))
 	}
 }

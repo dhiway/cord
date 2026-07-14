@@ -118,29 +118,12 @@ pub type XcmRouter = WithUniqueTopic<(
 
 parameter_types! {
 	pub const Orgn: AssetFilter = Wild(AllOf { fun: WildFungible, id: AssetId(TokenLocation::get()) });
-	pub OriginHubInLocation: Location = Parachain(ORIGIN_HUB_IN_ID).into_location();
-	pub OrgnForOriginHubIn: (AssetFilter, Location) = (Orgn::get(), OriginHubInLocation::get());
-	pub OriginHubNaLocation: Location = Parachain(ORIGIN_HUB_NA_ID).into_location();
-	pub OrgnForOriginHubNa: (AssetFilter, Location) = (Orgn::get(), OriginHubNaLocation::get());
-	pub OriginHubEuLocation: Location = Parachain(ORIGIN_HUB_EU_ID).into_location();
-	pub OrgnForOriginHubEu: (AssetFilter, Location) = (Orgn::get(), OriginHubEuLocation::get());
-	pub OriginHubApLocation: Location = Parachain(ORIGIN_HUB_AP_ID).into_location();
-	pub OrgnForOriginHubAp: (AssetFilter, Location) = (Orgn::get(), OriginHubApLocation::get());
-	pub OriginHubMeLocation: Location = Parachain(ORIGIN_HUB_ME_ID).into_location();
-	pub OrgnForOriginHubMe: (AssetFilter, Location) = (Orgn::get(), OriginHubMeLocation::get());
-	pub OriginHubAfLocation: Location = Parachain(ORIGIN_HUB_AF_ID).into_location();
-	pub OrgnForOriginHubAf: (AssetFilter, Location) = (Orgn::get(), OriginHubAfLocation::get());
+	pub OrbisLocation: Location = Parachain(ORBIS_ID).into_location();
+	pub OrgnForOrbis: (AssetFilter, Location) = (Orgn::get(), OrbisLocation::get());
 	pub const MaxAssetsIntoHolding: u32 = 64;
 }
 
-pub type TrustedTeleporters = (
-	xcm_builder::Case<OrgnForOriginHubIn>,
-	xcm_builder::Case<OrgnForOriginHubNa>,
-	xcm_builder::Case<OrgnForOriginHubEu>,
-	xcm_builder::Case<OrgnForOriginHubAp>,
-	xcm_builder::Case<OrgnForOriginHubMe>,
-	xcm_builder::Case<OrgnForOriginHubAf>,
-);
+pub type TrustedTeleporters = xcm_builder::Case<OrgnForOrbis>;
 
 pub struct OnlyParachains;
 impl Contains<Location> for OnlyParachains {
@@ -181,6 +164,19 @@ pub type Barrier = TrailingSetTopicAsId<(
 pub type WaivedLocations = (SystemParachains, Equals<RootLocation>, LocalPlurality);
 
 pub struct XcmConfig;
+
+/// The clean-break control plane rejects the legacy bare Broker core-count XCM. Para 1006 must
+/// use `CoretimeControl::submit_request`; all other Coretime calls retain their existing path.
+pub struct OriginXcmSafeCallFilter;
+impl Contains<RuntimeCall> for OriginXcmSafeCallFilter {
+	fn contains(call: &RuntimeCall) -> bool {
+		!matches!(
+			call,
+			RuntimeCall::Coretime(runtime_parachains::coretime::Call::request_core_count { .. })
+		)
+	}
+}
+
 impl xcm_executor::Config for XcmConfig {
 	type RuntimeCall = RuntimeCall;
 	type XcmSender = XcmRouter;
@@ -210,7 +206,7 @@ impl xcm_executor::Config for XcmConfig {
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
-	type SafeCallFilter = Everything;
+	type SafeCallFilter = OriginXcmSafeCallFilter;
 	type Aliasers = Nothing;
 	type TransactionalProcessor = FrameTransactionalProcessor;
 	type HrmpNewChannelOpenRequestHandler = ();

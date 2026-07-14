@@ -42,6 +42,7 @@ impl frame_system::Config for Test {
 impl pallet_feeless::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
+	type MaxFeelessTransactionsPerBlock = frame_support::traits::ConstU32<2>;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

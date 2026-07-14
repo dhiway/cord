@@ -1,0 +1,514 @@
+{
+  "activation_state": "candidate-pending",
+  "approval_status": "PENDING",
+  "candidate_only": true,
+  "chain": {
+    "id": "orbis-candidate",
+    "para_id": 1006,
+    "relay_chain": "origin-candidate"
+  },
+  "clean_break_scan": {
+    "forbidden_identifier_findings": [],
+    "old_network_dependency_findings": [],
+    "source_files": {
+      "origin/base/cli/src/chain_spec.rs": "2f08d82e25206c1e8e111445efbe8b2b8ea143b19736bc36e58a16f53dff5bc5",
+      "origin/base/runtime/src/genesis_config_presets.rs": "fb982962cfad5a45166b1d3698db704b6a0068717e6decb524df1ba9571d4daf",
+      "origin/orbis/node/src/chain_spec.rs": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
+      "origin/orbis/runtime/src/genesis_config_presets.rs": "7d0fa97f7a01190b5618376fb92b99d608f08e5a79ae37db42326998346be958"
+    }
+  },
+  "derivation": {
+    "command": "python3 scripts/validate_origin_orbis_genesis.py --origin-node target/release/origin --orbis-node target/release/origin-omni-node --compact-wasm target/orbis-metadata/release/wbuild/origin-commons-runtime/origin_commons_runtime.compact.wasm --write-evidence",
+    "deterministic_build_count": 2,
+    "header_encoding": "SCALE sp_runtime::generic::Header<BlockNumber=u32, BlakeTwo256>",
+    "header_hash_algorithm": "Blake2b-256 over exact SCALE genesis header bytes",
+    "state_root_offset": "bytes[33:65] after 32-byte parent hash and compact-encoded block zero"
+  },
+  "environment": {
+    "build_profile": "release; metadata compact Wasm uses on-chain-release-build",
+    "cargo": "cargo 1.93.0 (083ac5135 2025-12-15)",
+    "machine": "arm64",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "python": "3.9.6",
+    "rustc": "rustc 1.93.0 (254b59607 2026-01-19)"
+  },
+  "genesis": {
+    "header_hash": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
+    "raw_chain_spec_sha256": "73b858fe5af97caf6f69b76194f8fdd405fe9df288e37c874fe71e0eb4b66a35",
+    "raw_storage_sha256": "a3f8452a5b2f1952ac47885fdafd1738d523690d0315d58505fb462f0d122e80",
+    "state_root": "0x3455b0234339e9f97fbdf926721267226782dffaffd382f3f1e9f472099615e1"
+  },
+  "production_activation": false,
+  "production_activation_ready": false,
+  "raw_storage_verification": {
+    "decoded_bootstrap_state": {
+      "collator_invulnerables": [
+        "0x4545454545454545454545454545454545454545454545454545454545454545",
+        "0x4646464646464646464646464646464646464646464646464646464646464646"
+      ],
+      "names_registrars": [
+        "0x4747474747474747474747474747474747474747474747474747474747474747"
+      ],
+      "names_root_reservations": [
+        "orbis",
+        "origin",
+        "system"
+      ],
+      "feeless_non_default_keys": [],
+      "parachain_id": 1006,
+      "session_validators": [
+        "0x4545454545454545454545454545454545454545454545454545454545454545",
+        "0x4646464646464646464646464646464646464646464646464646464646464646"
+      ],
+      "sudo_root": "0x4747474747474747474747474747474747474747474747474747474747474747",
+      "token_network_id": 1006
+    },
+    "decoded_prefix_counts": {
+      "AssetConversion": 1,
+      "AssetRate": 1,
+      "AssetTxPayment": 1,
+      "Assets": 1,
+      "AssetsFreezer": 1,
+      "AssetsHolder": 1,
+      "Attestation": 1,
+      "Aura": 2,
+      "AuraExt": 2,
+      "Authorship": 1,
+      "Balances": 2,
+      "Broker": 1,
+      "ChunksManager": 1,
+      "CollatorSelection": 4,
+      "CoretimeControl": 1,
+      "CumulusXcm": 1,
+      "Names": 6,
+      "Drive": 1,
+      "Entity": 1,
+      "Feeless": 1,
+      "ForeignAssets": 1,
+      "ForeignAssetsFreezer": 1,
+      "Honour": 1,
+      "HopPromotion": 1,
+      "Indices": 1,
+      "Members": 1,
+      "MembersNotifier": 1,
+      "MessageQueue": 1,
+      "MetaTx": 1,
+      "MultiBlockMigrations": 1,
+      "Multisig": 1,
+      "Nfts": 1,
+      "ParachainInfo": 2,
+      "ParachainSystem": 1,
+      "People": 1,
+      "PeopleLite": 1,
+      "Personhood": 1,
+      "PolkadotXcm": 2,
+      "PoolAssets": 1,
+      "PoolAssetsFreezer": 1,
+      "Proxy": 1,
+      "Register": 1,
+      "Resources": 1,
+      "Revive": 4,
+      "S3": 1,
+      "SafeMode": 1,
+      "Scheduler": 1,
+      "Score": 3,
+      "Session": 7,
+      "SkipFeelessPayment": 1,
+      "StorageProvider": 1,
+      "Sudo": 2,
+      "System": 12,
+      "Timestamp": 1,
+      "Token": 2,
+      "TransactionPayment": 3,
+      "TransactionStorage": 4,
+      "TxPause": 1,
+      "Uniques": 1,
+      "Utility": 1,
+      "VerifySignature": 1,
+      "WeightReclaim": 1,
+      "XcmpQueue": 1,
+      "well-known": 3
+    },
+    "decoded_storage_item_counts": {
+      "AssetConversion": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "AssetRate": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "AssetTxPayment": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Assets": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "AssetsFreezer": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "AssetsHolder": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Attestation": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Aura": {
+        ":__STORAGE_VERSION__:": 1,
+        "Authorities": 1
+      },
+      "AuraExt": {
+        ":__STORAGE_VERSION__:": 1,
+        "Authorities": 1
+      },
+      "Authorship": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Balances": {
+        ":__STORAGE_VERSION__:": 1,
+        "TotalIssuance": 1
+      },
+      "Broker": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "ChunksManager": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "CollatorSelection": {
+        ":__STORAGE_VERSION__:": 1,
+        "CandidacyBond": 1,
+        "DesiredCandidates": 1,
+        "Invulnerables": 1
+      },
+      "CoretimeControl": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "CumulusXcm": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Names": {
+        ":__STORAGE_VERSION__:": 1,
+        "BootstrapReservationLabels": 1,
+        "BootstrapReservations": 3,
+        "Registrars": 1
+      },
+      "Drive": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Entity": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Feeless": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "ForeignAssets": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "ForeignAssetsFreezer": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Honour": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "HopPromotion": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Indices": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Members": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "MembersNotifier": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "MessageQueue": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "MetaTx": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "MultiBlockMigrations": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Multisig": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Nfts": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "ParachainInfo": {
+        ":__STORAGE_VERSION__:": 1,
+        "ParachainId": 1
+      },
+      "ParachainSystem": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "People": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "PeopleLite": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Personhood": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "PolkadotXcm": {
+        ":__STORAGE_VERSION__:": 1,
+        "SafeXcmVersion": 1
+      },
+      "PoolAssets": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "PoolAssetsFreezer": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Proxy": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Register": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Resources": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Revive": {
+        ":__STORAGE_VERSION__:": 1,
+        "BlockHash": 1,
+        "EthereumBlock": 1,
+        "ReceiptInfoData": 1
+      },
+      "S3": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "SafeMode": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Scheduler": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Score": {
+        ":__STORAGE_VERSION__:": 1,
+        "ManagerAccount": 1,
+        "PayoutAccount": 1
+      },
+      "Session": {
+        ":__STORAGE_VERSION__:": 1,
+        "KeyOwner": 2,
+        "NextKeys": 2,
+        "QueuedKeys": 1,
+        "Validators": 1
+      },
+      "SkipFeelessPayment": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "StorageProvider": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Sudo": {
+        ":__STORAGE_VERSION__:": 1,
+        "Key": 1
+      },
+      "System": {
+        ":__STORAGE_VERSION__:": 1,
+        "Account": 5,
+        "BlockHash": 1,
+        "BlockWeight": 1,
+        "LastRuntimeUpgrade": 1,
+        "ParentHash": 1,
+        "UpgradedToTripleRefCount": 1,
+        "UpgradedToU32RefCount": 1
+      },
+      "Timestamp": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Token": {
+        ":__STORAGE_VERSION__:": 1,
+        "GenesisNetworkId": 1
+      },
+      "TransactionPayment": {
+        ":__STORAGE_VERSION__:": 1,
+        "NextFeeMultiplier": 1,
+        "StorageVersion": 1
+      },
+      "TransactionStorage": {
+        ":__STORAGE_VERSION__:": 1,
+        "ByteFee": 1,
+        "EntryFee": 1,
+        "RetentionPeriod": 1
+      },
+      "TxPause": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Uniques": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "Utility": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "VerifySignature": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "WeightReclaim": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "XcmpQueue": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "well-known": {
+        ":c": 1,
+        ":code": 1,
+        ":extrinsic_index": 1
+      }
+    },
+    "empty_domain_prefix_checks": {
+      "Attestation": {
+        "declared_absent_storage": {},
+        "decoded_default_configuration": {},
+        "keys": [
+          "0x6310fed47319b658f9b8b2504e0d72ec4e7b9012096b41c4eb3aaf947f6ea429"
+        ],
+        "unexpected_domain_records": []
+      },
+      "ChunksManager": {
+        "declared_absent_storage": {},
+        "decoded_default_configuration": {},
+        "keys": [
+          "0xa475b26aa3756ae57c77fc209c384b0c4e7b9012096b41c4eb3aaf947f6ea429"
+        ],
+        "unexpected_domain_records": []
+      },
+      "Drive": {
+        "declared_absent_storage": {},
+        "decoded_default_configuration": {},
+        "keys": [
+          "0x70fbbc829d3a946b46dc6c3db5d5be654e7b9012096b41c4eb3aaf947f6ea429"
+        ],
+        "unexpected_domain_records": []
+      },
+      "Entity": {
+        "declared_absent_storage": {},
+        "decoded_default_configuration": {},
+        "keys": [
+          "0xfb66d8dbca3b6f9825aa96cda5ff0efc4e7b9012096b41c4eb3aaf947f6ea429"
+        ],
+        "unexpected_domain_records": []
+      },
+      "Members": {
+        "declared_absent_storage": {},
+        "decoded_default_configuration": {},
+        "keys": [
+          "0xba7fb8745735dc3be2a2c61a72c39e784e7b9012096b41c4eb3aaf947f6ea429"
+        ],
+        "unexpected_domain_records": []
+      },
+      "MembersNotifier": {
+        "declared_absent_storage": {},
+        "decoded_default_configuration": {},
+        "keys": [
+          "0xeed2209ef3b09989cb5b7851e02457544e7b9012096b41c4eb3aaf947f6ea429"
+        ],
+        "unexpected_domain_records": []
+      },
+      "People": {
+        "declared_absent_storage": {},
+        "decoded_default_configuration": {},
+        "keys": [
+          "0x43b4b15ea5f08d8e3af42ba6b1f2e2b84e7b9012096b41c4eb3aaf947f6ea429"
+        ],
+        "unexpected_domain_records": []
+      },
+      "PeopleLite": {
+        "declared_absent_storage": {},
+        "decoded_default_configuration": {},
+        "keys": [
+          "0x276fc15f94f88f19ef554a8ff43748554e7b9012096b41c4eb3aaf947f6ea429"
+        ],
+        "unexpected_domain_records": []
+      },
+      "Personhood": {
+        "declared_absent_storage": {},
+        "decoded_default_configuration": {},
+        "keys": [
+          "0xa156eef2b625bdda56f74ab6218134ee4e7b9012096b41c4eb3aaf947f6ea429"
+        ],
+        "unexpected_domain_records": []
+      },
+      "Resources": {
+        "declared_absent_storage": {},
+        "decoded_default_configuration": {},
+        "keys": [
+          "0x2111e0df19de9563b58301e5f7e007434e7b9012096b41c4eb3aaf947f6ea429"
+        ],
+        "unexpected_domain_records": []
+      },
+      "S3": {
+        "declared_absent_storage": {},
+        "decoded_default_configuration": {},
+        "keys": [
+          "0xcd436ac4896ec33e6f9fedcde795b32e4e7b9012096b41c4eb3aaf947f6ea429"
+        ],
+        "unexpected_domain_records": []
+      },
+      "StorageProvider": {
+        "declared_absent_storage": {},
+        "decoded_default_configuration": {},
+        "keys": [
+          "0x6b04285766f7bf3ee383be9dd97627324e7b9012096b41c4eb3aaf947f6ea429"
+        ],
+        "unexpected_domain_records": []
+      },
+      "TransactionStorage": {
+        "declared_absent_storage": {
+          "AllowedAuthorizers": true,
+          "Authorizations": true,
+          "ReservationProviderRef": true,
+          "ResourceReservationLinks": true,
+          "ResourceReservationTombstones": true,
+          "ResourceReservations": true
+        },
+        "decoded_default_configuration": {
+          "ByteFee": 10,
+          "EntryFee": 1000,
+          "RetentionPeriod": 201600
+        },
+        "keys": [
+          "0x0e7b504e5df47062be129a8958a7a1271689c014e0a5b9a8ca8aafdff753c41c",
+          "0x0e7b504e5df47062be129a8958a7a1274e7b9012096b41c4eb3aaf947f6ea429",
+          "0x0e7b504e5df47062be129a8958a7a1278d69b77f53c8c31f3b84d472fdb7de2b",
+          "0x0e7b504e5df47062be129a8958a7a127fb88d072992a4a52ce055d9181748f1f"
+        ],
+        "unexpected_domain_records": []
+      }
+    },
+    "top_key_count": 108,
+    "unapproved_storage_items": [],
+    "unknown_prefixes": []
+  },
+  "runtime": {
+    "compact_wasm_path": "target/orbis-metadata/release/wbuild/origin-commons-runtime/origin_commons_runtime.compact.wasm",
+    "compact_wasm_sha256": "558727456824d1f06928148ffead8cee5d58a63bf9109d0334a061f30c35db0f",
+    "embedded_code_sha256": "0351d4e8628bdc72485860928ad21a2c58b9d27e7ba3314d89edf416ec217fd0",
+    "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+    "metadata_hash_manifest": "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json",
+    "metadata_hash_manifest_canonical_sha256": "bc56519b9d3eca07230f9aef41552abc2f69a0e0a9f152921016c15ab13bf6c4",
+    "metadata_hash_manifest_sha256": "23355f674c0e0108c8e9a80e75fa6050d16acae92304f06327587636be689c28",
+    "node_binary_path": "target/release/origin-omni-node",
+    "node_binary_sha256": "85683b1019ea7a5cbcca49dac089cedc0ac6676bc08bd4194efeedb190cf7f95",
+    "spec_version": 29,
+    "transaction_version": 8
+  },
+  "schema_version": 1,
+  "scope": "orbis-deterministic-candidate-genesis",
+  "source": {
+    "chain_spec_path": "origin/orbis/node/src/chain_spec.rs",
+    "chain_spec_sha256": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
+    "git_branch": "sm-update-sub-0x63",
+    "git_revision": "3e2c120041753cd5b75839a001c22ed2c5ec4e62",
+    "source_file_sha256": {
+      "origin/base/cli/src/chain_spec.rs": "2f08d82e25206c1e8e111445efbe8b2b8ea143b19736bc36e58a16f53dff5bc5",
+      "origin/base/runtime/src/genesis_config_presets.rs": "fb982962cfad5a45166b1d3698db704b6a0068717e6decb524df1ba9571d4daf",
+      "origin/orbis/node/src/chain_spec.rs": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
+      "origin/orbis/runtime/src/genesis_config_presets.rs": "7d0fa97f7a01190b5618376fb92b99d608f08e5a79ae37db42326998346be958"
+    },
+    "worktree_clean": false
+  }
+}

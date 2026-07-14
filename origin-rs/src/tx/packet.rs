@@ -215,11 +215,12 @@ pub fn validate_packet_against_schema(
 		match (found, optional) {
 			(Some((_, val)), _) => validate_element_type(kind, val)?,
 			(None, true) => {},
-			(None, false) =>
+			(None, false) => {
 				return Err(OriginSdkError::Schema(format!(
 					"missing required attribute '{}'",
 					String::from_utf8_lossy(key)
-				))),
+				)))
+			},
 		}
 	}
 	for (k, _) in body.iter() {

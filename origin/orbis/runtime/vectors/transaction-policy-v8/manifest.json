@@ -1,0 +1,207 @@
+{
+  "files": [
+    {
+      "bytes": 113,
+      "file": "direct-signed-extrinsic.scale",
+      "sha256": "3c7409802e5eb1098b537c6038601fab7d1f9a77e4e836e35c56d6612849f73d"
+    },
+    {
+      "bytes": 1270,
+      "file": "honour-voter-meta.scale",
+      "sha256": "3f0e44499cd446c8dfc22b26a366fa6b06a0d2bf2a998f20d390aa12e546c02e"
+    },
+    {
+      "bytes": 32,
+      "file": "intent-commitment.bin",
+      "sha256": "13ccb3264dfd39300b93c6825e3cc3c5a8af34b446542b941eae5b2f4014b391"
+    },
+    {
+      "bytes": 260,
+      "file": "intent-preimage.scale",
+      "sha256": "912dfee0b6efe850f1d81ca70a78e7d133a18fa95fa30cdb4f2d5627c2ce9ecd"
+    },
+    {
+      "bytes": 65536,
+      "file": "max-envelope.scale",
+      "sha256": "da37bbac882761802c65f7763ef4e0bd2864c4569776fcba04986f43562f38d5"
+    },
+    {
+      "bytes": 478,
+      "file": "metadata-hash-vector-baseline.json",
+      "sha256": "2dbf31989b7083a7ea08348a34820cb948d1c4405055bc78af38520b7e7347a8"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-call-hash.scale",
+      "sha256": "ba38b6f770d32750e4615bf7bfc4710dfd7099c568e5634cd21273ade0d30525"
+    },
+    {
+      "bytes": 384,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-domain.scale",
+      "sha256": "1a278c7241eef36634caf06b17df544f0462bdfc02a888536bf597adfbbf4cb6"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-genesis.scale",
+      "sha256": "8069582d1e9c668f7c80b5d7048b6d430683021f4efd2c087396ab183a2593f8"
+    },
+    {
+      "bytes": 1270,
+      "expected_error": "InvalidTransaction::BadSigner",
+      "file": "mutate-honour-account-meta.scale",
+      "sha256": "31c1e6424f137d5c45ba2c2e9a757439a683289d58adefda1efe0eb5d5b96a6d"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-metadata-hash.scale",
+      "sha256": "28ea14e3bb5543ef32c782395be83238748cfdbeb366c0b182dc037061ecac69"
+    },
+    {
+      "bytes": 351,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-metadata-implicit-none.scale",
+      "sha256": "21dc5a96311120b73424d4ec4310d33eb5efe59472cac9def4a369a888fd11d5"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-metadata-implicit-wrong.scale",
+      "sha256": "15885dd1d27c7cc0b3b74776cb25f7fbc99cdd4477354374d5c0aec94a1571ef"
+    },
+    {
+      "bytes": 384,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-mortality.scale",
+      "sha256": "138eaecff0d76ad7e468ff180faef68a8804c09820a9d8096ca1954bcf7cacd7"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-nonce.scale",
+      "sha256": "b327f75cf64a43264e4be199a5a60c7f150a9c3bcffb0a0fc2e03b5d10b1a788"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-policy-hash.scale",
+      "sha256": "044f9bce741e8d0b0f8ec03dc4f10862db10912c72a2b136df154b34ead384e1"
+    },
+    {
+      "bytes": 373,
+      "expected_error": "InvalidTransaction::Future",
+      "file": "mutate-score-nonce-meta.scale",
+      "sha256": "512a534ad44948642f4bb4befd2d017c20a88f39fbe4f3826e6455e3446db3a9"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-signer.scale",
+      "sha256": "fb4fef5ec5eb7df45590996315558c1b5ae86d1612e10c7c9dbc6c938112ab15"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-spec.scale",
+      "sha256": "d83d5922059c87d7c44878a44bf5ba8f4d5ca724f861cfd4c5d8682241878f34"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-storage-hash.scale",
+      "sha256": "e8e6e848d6f674b0d355781100f54ad6ad5ab230a05b3f622124533da31419bb"
+    },
+    {
+      "bytes": 384,
+      "expected_error": "Codec::TrailingBytes",
+      "file": "mutate-trailing-byte.scale",
+      "sha256": "9835ee34b7acb659f48dfa8b20206691c1b80c73ee9c61863b99c1d767afe062"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-transaction-version.scale",
+      "sha256": "07d69ddd2e1eef63373e2c9ba13334fc1d0f28432bfd8216d4ebe039289146c9"
+    },
+    {
+      "bytes": 383,
+      "expected_error": "InvalidTransaction::BadProof",
+      "file": "mutate-wrong-signature.scale",
+      "sha256": "c0022038c9527f6ff0652f9c61e67c8f69857c43d1c637e9f4418de84b345ec2"
+    },
+    {
+      "bytes": 32,
+      "file": "paid-token-key.bin",
+      "sha256": "3e1dbd31fb664d2d47e5743de7249ffefb3c31107f34e7dd4569553792345a70"
+    },
+    {
+      "bytes": 109,
+      "file": "paid-token.scale",
+      "sha256": "f064524bf1609ab6304873b3bc761fe59a40cb40b4c7b250914f98794a500c92"
+    },
+    {
+      "bytes": 384,
+      "file": "proof-lite-alias-meta.scale",
+      "sha256": "65d37013daf702a572fb66f066d4ca80014e3bdcb28159e0efea547efd170dd2"
+    },
+    {
+      "bytes": 1207,
+      "file": "proof-lite-alias-revised-meta.scale",
+      "sha256": "3b3ad868da889c634f9da1abc28b4e645f7e4a0a9ff64e25361babcd57287f79"
+    },
+    {
+      "bytes": 384,
+      "file": "proof-lite-person-meta.scale",
+      "sha256": "4400a03db3f688ab584727c1bca7b5c0bf1ce073107f4025ce9be8a8ae59e9df"
+    },
+    {
+      "bytes": 384,
+      "file": "proof-person-alias-meta.scale",
+      "sha256": "f55916327104155aeb49038511d0410753cc6a4b2d6240e0f301adf892c5f349"
+    },
+    {
+      "bytes": 1207,
+      "file": "proof-person-alias-revised-meta.scale",
+      "sha256": "f8d9382136ad18d441f8f0c8aaecf8a40cfaeb052db36a92053c91530181a903"
+    },
+    {
+      "bytes": 384,
+      "file": "proof-person-identity-meta.scale",
+      "sha256": "399c39973c8a6273067574314201948c103a958a1f1470d9e959137f19ee43fb"
+    },
+    {
+      "bytes": 1180,
+      "file": "proof-resources-claim-meta.scale",
+      "sha256": "f547d2b631cd86d32022eec4a783dabe114041edeb7c00f0f0b39386dc051d23"
+    },
+    {
+      "bytes": 373,
+      "file": "score-participant-meta.scale",
+      "sha256": "bf57014828f7ffed19b8fae999ecae071020b060d379492c8b3b26f95cb3c0a4"
+    },
+    {
+      "bytes": 500,
+      "file": "sponsored-outer-extrinsic.scale",
+      "sha256": "8cba0f2c8357d746747752ec986ab42bb51e179acc63340cd52bba7a932f040e"
+    },
+    {
+      "bytes": 383,
+      "file": "verify-consume-tuple.scale",
+      "sha256": "f68f4cedb9368ddc577c3b987e2cc689e1bd2822feb91d52ecb20e5f0719047d"
+    }
+  ],
+  "max_envelope_bytes": 65536,
+  "metadata_implicit": "0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9",
+  "over_bound_error": "InvalidTransaction::ExhaustsResources",
+  "schema": "orbis-meta-intent-v7",
+  "spec_version": 29,
+  "transaction_version": 8,
+  "fixture_status": "historical-signed-payload-vector-baseline",
+  "metadata_record": "metadata-hash-vector-baseline.json",
+  "current_runtime_metadata_record": "metadata-hash.json",
+  "current_runtime_vectors_regenerated": false,
+  "usage": "negative and construction regression vectors only; never current SDK/runtime identity"
+}

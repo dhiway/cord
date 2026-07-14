@@ -1,0 +1,14 @@
+{
+  "checks": {
+    "migrated_domain_abi_surfaces": 0,
+    "migrated_domain_deployments": 0,
+    "migrated_domain_runtime_calls": 0,
+    "migrated_domain_sdk_or_app_methods": 0,
+    "retained_revive_test_evidence": {},
+    "strict_retained_revive_allowlist_entries": 0
+  },
+  "criterion": "M7",
+  "errors": [],
+  "schema": "cord.revive-boundary-report.v1",
+  "status": "pass"
+}

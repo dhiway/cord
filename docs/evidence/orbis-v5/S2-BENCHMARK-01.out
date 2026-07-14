@@ -1,0 +1,4 @@
+exit=0
+command=SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --features runtime-benchmarks tests::slice2_v5_benchmark_evidence -- --exact --nocapture
+assertion=S2-BENCHMARK-01:e93e5ae882881dfb17ef5dea15df7381785a169957ae1e780184db39d4b31564
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 68 filtered out; finished

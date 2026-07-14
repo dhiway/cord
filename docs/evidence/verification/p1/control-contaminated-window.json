@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "status": "REJECTED",
+  "counted_as_evidence": false,
+  "window": {
+    "start": "2026-07-13T11:52:00+05:30",
+    "end": "2026-07-13T11:53:59+05:30"
+  },
+  "topology": {
+    "rpc_ports": [11801, 11802, 11803, 11804, 11805, 11806, 11810, 11811],
+    "configuration_sha256": "ec57edb276824fc6c88b3bc1e2a49e0a366dae01bc0a92dbdc408627d684cb28",
+    "isolation_defect": "ports differed, but relay genesis/protocol/authority identities did not"
+  },
+  "rejection_reasons": [
+    "relay peer count exceeded the six-validator topology",
+    "BABE/GRANDPA equivocation logs were observed",
+    "collator embedded relay services reported cross-topology consensus failures"
+  ],
+  "containment": [
+    "the topology was torn down immediately",
+    "the performance lane was notified to invalidate overlapping samples",
+    "no observation, fault, Broker or threshold verdict uses this window",
+    "future same-host runs require distinct genesis, isolate_env protocol/fork IDs and campaign-specific node keys"
+  ]
+}

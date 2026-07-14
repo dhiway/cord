@@ -1,0 +1,78 @@
+{
+  "approval_manifest": {
+    "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
+    "required_reviewer_role": "architect",
+    "review_thread_id": "a034f498-1a09-5509-95ff-c0c93cc8406a",
+    "schema_version": 2,
+    "sha256": "c930a5eb5a3abc07fa73862c7a017d499931b764a91a34a8c2bd96d1ab70cc6a",
+    "verdict": "APPROVED"
+  },
+  "approval_status": "APPROVED",
+  "census_sha256": "3f5adcc5f15e64f94e277096177d3c748a04b0ab6037768d708b3a9d72693698",
+  "design_map_sha256": "0f1ea8783001f2f2798c5b073a9afd55bc8bf69cf2d2fe2dc10324c2763b39e5",
+  "issues": [
+    {
+      "issue": "RootGatewayDispatcher",
+      "resolution": "retired native RuntimeOrigin replaces forwarding",
+      "retired_entries": 5
+    },
+    {
+      "issue": "protocol-address registry",
+      "resolution": "registry/address keys retired; namespace/context/role constants split",
+      "retired_entries": 17
+    },
+    {
+      "entries": 47,
+      "issue": "StoreFactory",
+      "resolution": "bounded owner records preserved; beacon/deployment/upgrade retired"
+    },
+    {
+      "entries": 1929,
+      "issue": "DotNS policy split",
+      "resolution": "ownership, economics, commitment, whitelist and proxy decisions carry separate gates"
+    },
+    {
+      "issue": "Browse Publisher",
+      "reference_entries": 46,
+      "resolution": "reference-only/unadmitted; no Attestation or invented pallet"
+    },
+    {
+      "issue": "ZKPassport",
+      "resolution": "permissionless self-trust and linkable/reusable metadata retired",
+      "retired_entries": 20
+    },
+    {
+      "entries": 14,
+      "issue": "Individuality",
+      "resolution": "context unlinkability and caller/action/nonce/mortality replay binding explicit"
+    },
+    {
+      "entries": 318,
+      "issue": "Attestation split",
+      "resolution": "timestamp retired; external status privacy-gated; callbacks retired; indexes atomic; batches bounded; Blake2 ID explicit"
+    },
+    {
+      "issue": "hostile/lifecycle vectors",
+      "missing_markers": [],
+      "resolution": "all fixture/deployment declarations ported as native evidence vectors",
+      "vector_entries": 1569
+    },
+    {
+      "issue": "false storage symbols",
+      "resolution": "locals and mapping key/value names excluded; exact state-set assertions enabled"
+    },
+    {
+      "issue": "file-row truth",
+      "mixed_rows": 25,
+      "resolution": "file rows equal their sole symbol disposition or use intentional-change with explicit mixed state"
+    },
+    {
+      "audited_rows": 132,
+      "issue": "file-summary truth",
+      "resolution": "all rows use source-factual summaries; high-risk classes have exact validator assertions; design remains in disposition fields/map"
+    }
+  ],
+  "parser": "conservative contract-depth declaration parser; struct fields distinct from contract state; cache source-set equality enforced",
+  "schema_version": 1,
+  "status": "approved"
+}

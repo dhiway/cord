@@ -114,21 +114,11 @@ pub mod system_parachain {
 	use xcm_builder::IsChildSystemParachain;
 
 	parameter_types! {
-		pub OriginHubInParaId: ParaId = ORIGIN_HUB_IN_ID.into();
-		pub OriginHubNaParaId: ParaId = ORIGIN_HUB_NA_ID.into();
-		pub OriginHubEuParaId: ParaId = ORIGIN_HUB_EU_ID.into();
-		pub OriginHubAPParaId: ParaId = ORIGIN_HUB_AP_ID.into();
-		pub OriginHubMeParaId: ParaId = ORIGIN_HUB_ME_ID.into();
-		pub OriginHubAfParaId: ParaId = ORIGIN_HUB_AF_ID.into();
+		pub OrbisParaId: ParaId = ORBIS_ID.into();
 	}
 
-	/// Origin Hub parachain IDs.
-	pub const ORIGIN_HUB_IN_ID: u32 = 1000;
-	pub const ORIGIN_HUB_NA_ID: u32 = 1001;
-	pub const ORIGIN_HUB_EU_ID: u32 = 1002;
-	pub const ORIGIN_HUB_AP_ID: u32 = 1003;
-	pub const ORIGIN_HUB_ME_ID: u32 = 1004;
-	pub const ORIGIN_HUB_AF_ID: u32 = 1005;
+	/// Orbis Commons enterprise application parachain ID.
+	pub const ORBIS_ID: u32 = 1006;
 
 	// System parachains from Polkadot point of view.
 	pub type SystemParachains = IsChildSystemParachain<ParaId>;

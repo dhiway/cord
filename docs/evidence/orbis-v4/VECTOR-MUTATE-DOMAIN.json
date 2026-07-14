@@ -1,0 +1,15 @@
+{
+  "assertion_sha256": "4881ff040e09af2460119f0120f30c70862261416f827a90ab25f39e12c1c3d3",
+  "command": "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib meta_v6_fixtures::checked_in_meta_v7_fixtures_decode_all_recompute_and_match_hashes -- --exact --nocapture",
+  "expected": "domain mutation fails BadProof",
+  "expected_output": "test result: ok",
+  "id": "VECTOR-MUTATE-DOMAIN",
+  "output_artifact": "docs/evidence/orbis-v4/outputs/c4cfc732a81ed5e9e935217e06f76f69b98d27b32aeaf85dff828701350f88be.log",
+  "output_artifact_sha256": "94578d188a590b63325f3429a5c4447dc8ebed199ba7f006ff5a54eb369b996c",
+  "output_sha256": "94578d188a590b63325f3429a5c4447dc8ebed199ba7f006ff5a54eb369b996c",
+  "schema": "orbis-completion-evidence-v4",
+  "source_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
+  "source_paths": "origin/orbis/runtime/src/meta_v6_fixtures.rs; origin/orbis/runtime/fixtures/meta-v7/mutate-domain.scale",
+  "source_symbol": "meta_tuple",
+  "table": "meta_vector"
+}

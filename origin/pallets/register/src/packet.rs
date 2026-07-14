@@ -26,7 +26,7 @@ use origin_primitives::{
 	identifier::Ss58Identifier,
 	packet::{PacketMetadata, PacketPointer, PacketSnapshot, PacketState},
 };
-use pallet_token::{EventBlock, EventTypeOf, Token};
+use pallet_origin_token::{EventBlock, EventTypeOf, Token};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::Hash, DispatchError};
 

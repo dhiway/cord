@@ -194,7 +194,7 @@ fn packet_value(
 			let hash: [u8; 32] = bytes.try_into().map_err(|_| "hash value must be 32 bytes")?;
 			Ok(ElementView::Hash(hash))
 		},
-		"token" =>
+		"token" => {
 			if spec["source"].as_str() == Some("entity") {
 				Ok(ElementView::Token(controller.clone()))
 			} else {
@@ -203,9 +203,11 @@ fn packet_value(
 					std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("{e:?}"))
 				})?;
 				Ok(ElementView::Token(token))
-			},
-		"cid" =>
-			Ok(ElementView::Cid(spec["value"].as_str().unwrap_or_default().as_bytes().to_vec())),
+			}
+		},
+		"cid" => {
+			Ok(ElementView::Cid(spec["value"].as_str().unwrap_or_default().as_bytes().to_vec()))
+		},
 		_ => Ok(ElementView::Raw(raw_bytes(&spec["value"]))),
 	}
 }

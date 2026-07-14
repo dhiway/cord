@@ -1,0 +1,15 @@
+{
+  "assertion_sha256": "73f506cf4ddd37b8514e97c501b333fbf541505180394f8c747efbdc8e894c5b",
+  "command": "CARGO_TARGET_DIR=target/evidence-v4 cargo test -p pallet-bulletin-transaction-storage migration_v6_to_v7 -- --nocapture",
+  "expected": "ByContentHash[content_hash] == reservation_id; every ByContentHash row has exactly one authoritative link",
+  "expected_output": "test result: ok",
+  "id": "BUL-V7-BY-HASH",
+  "output_artifact": "docs/evidence/orbis-v4/outputs/69fa11c6849cf65d18d3401e4b9caaaa80f2eae021ca1de7eb582df0d9639fc2.log",
+  "output_artifact_sha256": "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b",
+  "output_sha256": "c1eb56223fc37b21996c833c32f931f63d2f6a34cfec6e8c0e7c84b15158978b",
+  "schema": "orbis-completion-evidence-v4",
+  "source_commit": "d6b0fd2f7a2f50808e68889b2255fa63935d41bc",
+  "source_paths": "origin/orbis/pallets/transaction-storage/src/migrations.rs; origin/orbis/pallets/transaction-storage/src/lib.rs",
+  "source_symbol": "MigrateV6ToV7",
+  "table": "bulletin_v7_contract"
+}

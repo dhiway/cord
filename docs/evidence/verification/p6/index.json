@@ -1,0 +1,147 @@
+{
+  "artifacts": [
+    {
+      "bytes": 1478,
+      "path": "docs/evidence/verification/p6/enterprise-journey.report.json",
+      "sha256": "a12826212945f07155d39f34d7e9c759f7300ac72abfbc61de68856a9b2a566d"
+    },
+    {
+      "bytes": 14746,
+      "path": "docs/evidence/verification/p6/festival-journey.report.json",
+      "sha256": "c425e54a34e63b63a4eda2145ac230212419e86ad71bf6e6333c91742ba07799"
+    },
+    {
+      "bytes": 1971,
+      "path": "docs/evidence/verification/p6/festival-ios-contract-parity.report.json",
+      "sha256": "8d927ec43db2857cc698a3c990188127f1ab625961b4fd9711a5cd5d6d67d240"
+    },
+    {
+      "bytes": 1975,
+      "path": "docs/evidence/verification/p6/festival-android-contract-parity.report.json",
+      "sha256": "ec0330282595b22d1a648480782981ddc75542e4653ee8965ffa956a326e4c8e"
+    },
+    {
+      "bytes": 4849,
+      "path": "docs/evidence/verification/p6/festival-mobile-contract-parity.report.json",
+      "sha256": "4f0e7ea63d6bfda2ae0ea65bad8b3952e5c174eb0236cc9667cce3721ab9508c"
+    },
+    {
+      "bytes": 1618,
+      "path": "docs/evidence/verification/p6/journeys.json",
+      "sha256": "be9a8e8c69d04f47bdc9e82b2dd9dd13dbd759cadccd1071b04ea13680ced13e"
+    },
+    {
+      "bytes": 528,
+      "path": "docs/evidence/verification/p6/raw/enterprise-content-failover.log",
+      "sha256": "2e1c91348451516c1ee7471820cd297dbe05da3cb7346e9b386e95228cebf259"
+    },
+    {
+      "bytes": 569,
+      "path": "docs/evidence/verification/p6/raw/enterprise-lifecycle.log",
+      "sha256": "a8f7460b248468488d657a3367677a9fff343d0fdd9fe67b6f451c4e72053a67"
+    },
+    {
+      "bytes": 908,
+      "path": "docs/evidence/verification/p6/raw/enterprise-provider-read-reopen.log",
+      "sha256": "3e963c2945d57a0bfec43f7467b1972bc2c687e8f946b593d3e3899fddfcf512"
+    },
+    {
+      "bytes": 545,
+      "path": "docs/evidence/verification/p6/raw/enterprise-sponsored-boundaries.log",
+      "sha256": "594e16897940a99d770b33c605f9afd275374c437addc6b3cf2e3d9613f55a3b"
+    },
+    {
+      "bytes": 231,
+      "path": "docs/evidence/verification/p6/raw/festival-android-contract-report.log",
+      "sha256": "467038b24b3eb7e121f236444d0828004f40bc41db24b09fa89ead147f9a30a9"
+    },
+    {
+      "bytes": 689,
+      "path": "docs/evidence/verification/p6/raw/festival-contract-tests.log",
+      "sha256": "f13c50a7a7f083be8a5998aa2da8807ef18fd878f5eb4632d8ac64c7e4769254"
+    },
+    {
+      "bytes": 223,
+      "path": "docs/evidence/verification/p6/raw/festival-ios-contract-report.log",
+      "sha256": "6967d767412b7d7bbd5e3b86552170dba971c6692b7a34ee736c8446b3aafac0"
+    },
+    {
+      "bytes": 229,
+      "path": "docs/evidence/verification/p6/raw/festival-mobile-report.log",
+      "sha256": "6ffdeb5d44b9049ebdb85d25123919c94a7e177e3f3b0e18d7239aeaf3076559"
+    },
+    {
+      "bytes": 198,
+      "path": "docs/evidence/verification/p6/raw/festival-report.log",
+      "sha256": "4b8db0710a870adc8c0ebb34d1af4bc1319891f6503fffd61e49105c14d7add7"
+    }
+  ],
+  "command": "python3 scripts/validate-p6-journeys.py",
+  "inputs": [
+    {
+      "path": "scripts/validate-p6-journeys.py",
+      "sha256": "1dfe07864c609e40a3c752ffc065e11f58857c4ee0380cc435426e9b6f34d31b"
+    },
+    {
+      "path": "origin/orbis/runtime/src/lib.rs",
+      "sha256": "9c0725827f48c3edfe84130c60bf0fe448e3b7c80ab5bb60ff78ca6fb421fb3c"
+    },
+    {
+      "path": "origin/orbis/runtime/src/enterprise_journey.rs",
+      "sha256": "6a28217d907a9567db88d19f019b6fcff1c830ce624cea2e52f3f123446bd087"
+    },
+    {
+      "path": "origin/orbis/provider-node/src/storage.rs",
+      "sha256": "98b4756f3135d389e426d1c5d99baacbc2c0f07d315af0c094ebc51e33d89be1"
+    },
+    {
+      "path": "product-sdk/examples/festival/journey.ts",
+      "sha256": "48f3b6d84efb3d2a806bcdb923b5d1da5f579a5cc68e511bce77068775c12a73"
+    },
+    {
+      "path": "product-sdk/examples/festival/journey.test.ts",
+      "sha256": "9966b53591d2341904908f98ca1e0e86d4a66d6effaf62f3a1849602e4751587"
+    },
+    {
+      "path": "product-sdk/examples/festival/mobile-contract-harness.ts",
+      "sha256": "73dbe83b5fccbd1b5ba6f13b3a4c0bbf10907c4c9be8ea0fb7b246dc86f5e55b"
+    },
+    {
+      "path": "product-sdk/examples/festival/ios-contract-harness.ts",
+      "sha256": "d9bdfd9b861faf5a9eca4508adf20ea7c3cd78d8e1947b23fd8d8add1a945d45"
+    },
+    {
+      "path": "product-sdk/examples/festival/android-contract-harness.ts",
+      "sha256": "7ee3c16185d51e390d465215d1a4d63d707241750e75f3a819583f9e0b8f9e8f"
+    },
+    {
+      "path": "product-sdk/examples/festival/mobile-contract-vectors.json",
+      "sha256": "4421458f8f836d729edb8bb576b898cced0f39c219a9511d9de7a60580cb2c9e"
+    },
+    {
+      "path": "product-sdk/examples/festival/ios-contract-harness.manifest.json",
+      "sha256": "1029023624b8ac444f8a1f55629865d7e4c2ce5f334e96889076fd616f4407a1"
+    },
+    {
+      "path": "product-sdk/examples/festival/android-contract-harness.manifest.json",
+      "sha256": "cbfadc283e8bedcd6d5b6cf062c79a074f5fca9c9bed58dc78c1288b7eebf63a"
+    },
+    {
+      "path": "product-sdk/examples/festival/p6-journey.manifest.json",
+      "sha256": "41e24b5e673c6e35773e34894cec163c2df2a325eedff2238f7655567b082395"
+    },
+    {
+      "path": "docs/sdk/native-route-contract.json",
+      "sha256": "5821b5f7205abb360a535bd6cf84eaf50b2b1cab51f3422c7d3104b4442c73e6"
+    },
+    {
+      "path": "product-sdk/tests/content/content.test.ts",
+      "sha256": "3ddca6f4c64cd23bb4ce694cf1db8e34f40cae568e590eb58bfe9cb33790b3d9"
+    }
+  ],
+  "journey_acceptance": true,
+  "p6_acceptance": false,
+  "schema": "cord.p6-journey-evidence-index.v1",
+  "status": "PASS",
+  "stop_condition": "journeys are feature-complete; production/SLO gates remain deferred"
+}

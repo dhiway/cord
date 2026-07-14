@@ -6,6 +6,8 @@
 pub mod client;
 pub mod config;
 pub mod extrinsic;
+pub mod p1_campaign;
+pub mod product_sdk;
 pub mod query;
 pub mod schema;
 pub mod tx;
@@ -25,7 +27,10 @@ pub use types::{
 /// Convenient re-exports for application crates.
 pub mod prelude {
 	pub use crate::{
-		client::OriginClient, config::OriginConfig, query::Query, tx::Tx,
+		client::OriginClient,
+		config::{OrbisConfig, OriginConfig},
+		query::Query,
+		tx::Tx,
 		types::error::OriginSdkError,
 	};
 }

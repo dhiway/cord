@@ -169,6 +169,17 @@ pub struct RunCmd {
 	///  **Dangerous!** Do not touch unless explicitly advised to.
 	#[arg(long, hide = true)]
 	pub collator_protocol_hold_off: Option<u64>,
+
+	/// Enable the collator protocol required by slot-based elastic-scaling parachains.
+	///
+	/// Origin enterprise networks enable this by default so validators can serve Orbis V3
+	/// candidates. It can be disabled explicitly while testing a mixed-protocol rollout.
+	#[arg(long, default_value = "true", action = ArgAction::Set)]
+	pub experimental_collator_protocol: bool,
+
+	/// Collator reputation persistence interval in seconds.
+	#[arg(long, requires = "validator")]
+	pub collator_reputation_persist_interval: Option<u64>,
 }
 
 #[allow(missing_docs)]
@@ -182,4 +193,24 @@ pub struct Cli {
 
 	#[clap(flatten)]
 	pub storage_monitor: sc_storage_monitor::StorageMonitorParams,
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn elastic_collator_protocol_is_enabled_by_default() {
+		let cli = Cli::try_parse_from(["origin"]).expect("default CLI is valid");
+
+		assert!(cli.run.experimental_collator_protocol);
+	}
+
+	#[test]
+	fn elastic_collator_protocol_can_be_disabled_for_mixed_rollouts() {
+		let cli = Cli::try_parse_from(["origin", "--experimental-collator-protocol=false"])
+			.expect("explicit protocol override is valid");
+
+		assert!(!cli.run.experimental_collator_protocol);
+	}
 }

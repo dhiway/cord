@@ -1,7 +1,10 @@
 # Build pieces:
-#   cargo build -p origin-hub -p origin-hub-system-runtime --release
+#   cargo build -p origin-omni-node -p origin-commons-runtime --release
 # Launch network:
 #   zombienet -p native spawn zombienet/testnet.toml
+# In a second terminal, atomically assign all three Orbis cores and verify progress/finality:
+#   cargo run -p origin-rs --example bootstrap_orbis_core -- --cores 3
+#   python3 zombienet/orbis_smoke.py --expected-cores 3 --expected-block-rate 3
 
 [settings]
 timeout = 300
@@ -9,6 +12,15 @@ timeout = 300
 [relaychain]
 chain = "origin-local"
 default_command = "target/release/origin"
+
+[relaychain.genesis.runtimeGenesis.patch.configuration.config.async_backing_params]
+allowed_ancestry_len = 6
+max_candidate_depth = 6
+
+[relaychain.genesis.runtimeGenesis.patch.configuration.config.scheduler_params]
+max_validators_per_core = 1
+num_cores = 3
+lookahead = 3
 
 [[relaychain.nodes]]
 name = "alice"
@@ -40,28 +52,53 @@ args = [
 	"--execution=wasm",
 ]
 
+[[relaychain.nodes]]
+name = "dave"
+rpc_port = 9903
+validator = true
+args = [
+	"--trie-cache-size=0",
+	"--disable-worker-version-check",
+	"--execution=wasm",
+]
+
+[[relaychain.nodes]]
+name = "eve"
+rpc_port = 9904
+validator = true
+args = [
+	"--trie-cache-size=0",
+	"--disable-worker-version-check",
+	"--execution=wasm",
+]
+
+[[relaychain.nodes]]
+name = "fredie"
+rpc_port = 9905
+validator = true
+args = [
+	"--trie-cache-size=0",
+	"--disable-worker-version-check",
+	"--execution=wasm",
+]
+
 [[parachains]]
-id = 1000
+id = 1006
 addToGenesis = true
 cumulus_based = true
-chain = "origin-system-local"
+chain = "orbis-local"
+num_cores = 3
 
-[parachains.collator]
-name = "hub-in-collator"
+[[parachains.collators]]
+name = "orbis-alice"
 rpc_port = 9910
 collator = true
-command = "target/release/origin-hub"
-args = ["--trie-cache-size=0", "--execution=wasm"]
+command = "target/release/origin-omni-node"
+args = ["--alice", "--trie-cache-size=0", "--execution=wasm", "--authoring=slot-based"]
 
-[[parachains]]
-id = 1001
-addToGenesis = true
-cumulus_based = true
-chain = "origin-system-na-local"
-
-[parachains.collator]
-name = "hub-na-collator"
+[[parachains.collators]]
+name = "orbis-bob"
 rpc_port = 9911
 collator = true
-command = "target/release/origin-hub"
-args = ["--trie-cache-size=0", "--execution=wasm"]
+command = "target/release/origin-omni-node"
+args = ["--bob", "--trie-cache-size=0", "--execution=wasm", "--authoring=slot-based"]

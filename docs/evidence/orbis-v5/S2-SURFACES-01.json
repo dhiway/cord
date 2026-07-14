@@ -1,0 +1,19 @@
+{
+  "manifest_fields": {
+    "artifact_path": "docs/evidence/orbis-v5/S2-SURFACES-01.json",
+    "assertion_sha256": "b4c8410c960d0ecb7148d29871877a53efbcc9f46a59cbfd086dd01142d4ea84",
+    "expected_assertion": "assertion=S2-SURFACES-01:b4c8410c960d0ecb7148d29871877a53efbcc9f46a59cbfd086dd01142d4ea84",
+    "expected_output": "test result: ok",
+    "id": "S2-SURFACES-01",
+    "kind": "slice2-executable",
+    "source_commit": "ce60319f85a13b29e143a4d15189616f38abe777",
+    "source_paths": "origin/orbis/runtime/src/tests.rs",
+    "source_symbol": "slice2_v5_surfaces_evidence",
+    "status": "present",
+    "test_or_command": "RUNTIME_METADATA_HASH=0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime tests::slice2_v5_surfaces_evidence -- --exact --nocapture",
+    "value": "Concrete direct and paid Meta Score/Honour surfaces preserve actor, nonce, payment, quota, business state, and rejection invariants."
+  },
+  "output_artifact": "docs/evidence/orbis-v5/S2-SURFACES-01.out",
+  "output_artifact_sha256": "061418fe43d05df35b9ad4f83f931f574e76009407ef3e7d52139d9ebf37558c",
+  "schema": "orbis-v5-evidence-artifact-v2"
+}

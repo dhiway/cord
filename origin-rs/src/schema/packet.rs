@@ -67,11 +67,12 @@ pub fn validate_and_flatten(
 				out_vec.push((key, val));
 			},
 			(None, true) => {},
-			(None, false) =>
+			(None, false) => {
 				return Err(OriginSdkError::Schema(format!(
 					"missing required attribute '{}'",
 					String::from_utf8_lossy(key_bytes)
-				))),
+				)))
+			},
 		}
 	}
 

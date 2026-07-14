@@ -17,7 +17,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
-use crate::{self as pallet_entity, entity::EntityInfo};
+use crate::{self as pallet_origin_entity, entity::EntityInfo};
 use alloc::collections::BTreeMap;
 use core::cell::RefCell;
 use frame_support::{derive_impl, parameter_types};
@@ -38,8 +38,8 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system,
 		Balances: pallet_balances,
-		Entity: pallet_entity,
-		Token: pallet_token
+		Entity: pallet_origin_entity,
+		Token: pallet_origin_token
 	}
 );
 
@@ -77,7 +77,7 @@ thread_local! {
 		RefCell::new(BTreeMap::new());
 }
 
-impl pallet_entity::Config for Test {
+impl pallet_origin_entity::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Token = Token;
 	type MaxLinkedAccounts = MaxLinkedAccounts;
@@ -94,7 +94,7 @@ impl pallet_entity::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_token::Config for Test {
+impl pallet_origin_token::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 	type MaxAuthorizationLen = MaxTokenAuthorizationLen;

@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "scope": "origin-orbis-new-network-clean-genesis",
+  "candidate_status": "deterministic-fixture-only-not-production-approved",
+  "activation_state": "candidate-pending",
+  "production_activation": false,
+  "production_activation_ready": false,
+  "production_launch_approval": "docs/genesis/origin-orbis-production-launch-approval.json",
+  "inputs": {
+    "origin": "docs/genesis/origin-launch-input.candidate.json",
+    "orbis": "docs/genesis/orbis-launch-input.candidate.json"
+  },
+  "authority_policy": {
+    "origin_minimum_validators": 4,
+    "orbis_fixed_para_id": 1006,
+    "orbis_fixed_token_network_id": 1006,
+    "orbis_minimum_collators": 2,
+    "governance_and_block_authority_accounts_separated": true,
+    "origin_and_orbis_authority_planes_separated": true,
+    "well_known_development_accounts_forbidden": true,
+    "all_authority_accounts_explicitly_endowed": true,
+    "production_approval_required": true
+  },
+  "bootstrap_state": {
+    "orbis_names_registrar": "governed-root",
+    "orbis_names_root_reservations": [
+      "origin",
+      "orbis",
+      "system"
+    ],
+    "orbis_feeless_accounts": [],
+    "orbis_permissionless_collator_candidates": 0,
+    "default_empty_domains": [
+      "attestation",
+      "did",
+      "individuality",
+      "network-membership",
+      "personhood",
+      "resources",
+      "statement",
+      "storage-agreements",
+      "storage-drive",
+      "storage-provider",
+      "storage-reservations"
+    ],
+    "default_empty_pallet_prefixes": [
+      "Attestation",
+      "ChunksManager",
+      "Drive",
+      "Entity",
+      "Members",
+      "MembersNotifier",
+      "People",
+      "PeopleLite",
+      "Personhood",
+      "Resources",
+      "S3",
+      "StorageProvider",
+      "TransactionStorage"
+    ],
+    "default_configuration_storage": {
+      "TransactionStorage": {
+        "ByteFee": {
+          "scale_type": "u128",
+          "value": 10
+        },
+        "EntryFee": {
+          "scale_type": "u128",
+          "value": 1000
+        },
+        "RetentionPeriod": {
+          "scale_type": "u32",
+          "value": 201600
+        }
+      }
+    },
+    "must_remain_absent_storage": {
+      "TransactionStorage": [
+        "AllowedAuthorizers",
+        "Authorizations",
+        "ResourceReservations",
+        "ReservationProviderRef",
+        "ResourceReservationLinks",
+        "ResourceReservationTombstones"
+      ]
+    },
+    "approved_non_default_storage_items": {
+      "Aura": ["Authorities"],
+      "AuraExt": ["Authorities"],
+      "Balances": ["TotalIssuance"],
+      "CollatorSelection": ["CandidacyBond", "DesiredCandidates", "Invulnerables"],
+      "Names": ["BootstrapReservationLabels", "BootstrapReservations", "Registrars"],
+      "ParachainInfo": ["ParachainId"],
+      "PolkadotXcm": ["SafeXcmVersion"],
+      "Revive": ["BlockHash", "EthereumBlock", "ReceiptInfoData"],
+      "Score": ["ManagerAccount", "PayoutAccount"],
+      "Session": ["KeyOwner", "NextKeys", "QueuedKeys", "Validators"],
+      "Sudo": ["Key"],
+      "System": ["Account", "BlockHash", "BlockWeight", "LastRuntimeUpgrade", "ParentHash", "UpgradedToTripleRefCount", "UpgradedToU32RefCount"],
+      "Token": ["GenesisNetworkId"],
+      "TransactionPayment": ["NextFeeMultiplier", "StorageVersion"],
+      "TransactionStorage": ["ByteFee", "EntryFee", "RetentionPeriod"]
+    },
+    "approved_well_known_storage_keys": [
+      ":c",
+      ":code",
+      ":extrinsic_index",
+      ":heappages"
+    ]
+  },
+  "clean_break": {
+    "legacy_checkpoint": false,
+    "legacy_export": false,
+    "legacy_import": false,
+    "legacy_state_transform": false,
+    "legacy_client_compatibility": false,
+    "old_network_dependency": false,
+    "pre_launch_recovery": "regenerate-chain-spec",
+    "post_launch_recovery": "storage-versioned-forward-runtime-upgrade"
+  },
+  "approval": {
+    "required_roles": [
+      "runtime-owner",
+      "sdk-owner",
+      "security-owner",
+      "performance-owner",
+      "architecture-owner"
+    ],
+    "status": "PENDING",
+    "approved_input_sha256": null,
+    "approved_origin_raw_storage_sha256": null,
+    "approved_orbis_genesis_state_root": null
+  }
+}

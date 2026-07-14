@@ -1,0 +1,22 @@
+[package]
+name = "orbis-storage-runtime-api"
+description = "Bounded native Provider, Drive and S3 runtime APIs for Orbis"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+codec = { features = ["derive"], workspace = true }
+scale-decode = { version = "0.16", default-features = false, features = ["derive"] }
+scale-info = { features = ["derive"], workspace = true }
+sp-api = { workspace = true }
+
+[features]
+default = ["std"]
+std = ["codec/std", "scale-info/std", "sp-api/std"]

@@ -134,7 +134,13 @@ impl SubxtSignerAdapter {
 	}
 }
 
-impl subxt::tx::Signer<crate::client::OriginConfig> for SubxtSignerAdapter {
+impl<C> subxt::tx::Signer<C> for SubxtSignerAdapter
+where
+	C: subxt::Config<
+		AccountId = origin_primitives::AccountId,
+		Signature = origin_primitives::Signature,
+	>,
+{
 	fn account_id(&self) -> origin_primitives::AccountId {
 		self.inner.account_id()
 	}

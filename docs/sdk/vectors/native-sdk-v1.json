@@ -1,0 +1,47 @@
+{
+  "schema": "cord.native-sdk-semantic-vectors.v1",
+  "contract_version": 1,
+  "description": "Cross-language semantic vectors for the first supported clean-break native Origin/Orbis SDK contract. These are domain semantics, not raw extrinsic bytes or contract ABI fixtures.",
+  "runtime": {
+    "network": "orbis",
+    "spec_version": 29,
+    "transaction_version": 8,
+    "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391"
+  },
+  "vectors": [
+    {
+      "domain": "attestation",
+      "path": "docs/sdk/vectors/attestation-v1.json",
+      "sha256": "40b91520308ec9864e4533c1f90d367c254af872054fc599ed058e2695d14e31",
+      "validated_by": [
+        "origin-rs",
+        "product-sdk"
+      ]
+    },
+    {
+      "domain": "names",
+      "path": "docs/sdk/vectors/names-v1.json",
+      "sha256": "1a543ac96e7212854fb6e2105e8b0d1c947a19a65fe3f0d50f91fbe0b77bd700",
+      "validated_by": [
+        "origin-rs",
+        "product-sdk"
+      ]
+    },
+    {
+      "domain": "storage_provider",
+      "path": "docs/sdk/vectors/storage-provider-deletion-v1.json",
+      "sha256": "83181b0efee4197e6c10f6c629025b32dc88c0ab696c918ca9147342bfe279f8",
+      "validated_by": [
+        "origin-rs",
+        "product-sdk"
+      ]
+    }
+  ],
+  "forbidden_reference_surfaces": [
+    "raw-scale",
+    "contract-abi",
+    "migrated-domain-revive",
+    "pallet-index",
+    "call-index"
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "defaults": {
+    "cancel_propagates": true,
+    "deny_stale_or_replayed_consent": true,
+    "deny_unknown_capability": true,
+    "no_migrated_domain_abi": true,
+    "no_raw_scale_product_api": true,
+    "pin_finalized_hash": true
+  },
+  "host_authority": "The host owns permission, consent, signer and transport. Runtime metadata/runtime APIs own chain semantics.",
+  "implementation_status": "P5 native method freeze generated and pending real ratifier signatures; production desktop/iOS/Android adapters and journeys remain activation work",
+  "scenarios": [
+    {
+      "expect": "success",
+      "id": "allow-scoped-read"
+    },
+    {
+      "expect": "unsupported_surface",
+      "id": "deny-unknown-capability"
+    },
+    {
+      "expect": "permission_denied",
+      "id": "deny-scope-escalation"
+    },
+    {
+      "expect": "permission_denied",
+      "id": "deny-missing-host-consent"
+    },
+    {
+      "expect": "permission_denied",
+      "id": "deny-caller-self-authorized-consent"
+    },
+    {
+      "expect": "permission_revoked",
+      "id": "deny-revoked-consent"
+    },
+    {
+      "expect": "consent_expired",
+      "id": "deny-expired-consent"
+    },
+    {
+      "expect": "replay",
+      "id": "deny-replayed-nonce"
+    },
+    {
+      "expect": "permission_revoked",
+      "id": "revoke-before-sign"
+    },
+    {
+      "expect": "cancelled and no later callback",
+      "id": "cancel-in-flight"
+    },
+    {
+      "expect": "timeout",
+      "id": "transport-timeout"
+    },
+    {
+      "expect": "unsupported_runtime",
+      "id": "metadata-drift"
+    },
+    {
+      "expect": "inconsistent_snapshot",
+      "id": "composite-cross-hash"
+    },
+    {
+      "expect": "unsupported_surface",
+      "id": "contract-abi-request"
+    }
+  ],
+  "suite_version": 1
+}

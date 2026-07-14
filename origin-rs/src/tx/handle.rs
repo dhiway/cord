@@ -114,10 +114,12 @@ where
 	for ev in events.iter() {
 		if let Ok(ev) = ev {
 			let fields = ev.field_values().map_or(Vec::new(), |comp| match comp {
-				scale_value::Composite::Named(v) =>
-					v.into_iter().map(|(_, val)| val.remove_context()).collect(),
-				scale_value::Composite::Unnamed(v) =>
-					v.into_iter().map(|val| val.remove_context()).collect(),
+				scale_value::Composite::Named(v) => {
+					v.into_iter().map(|(_, val)| val.remove_context()).collect()
+				},
+				scale_value::Composite::Unnamed(v) => {
+					v.into_iter().map(|val| val.remove_context()).collect()
+				},
 			});
 			envelopes.push(EventEnvelope {
 				block,

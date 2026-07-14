@@ -1,0 +1,15 @@
+{
+  "assertion_sha256": "c6b8aa0a888fc0945b8b5d48a6d17c1aca7aee4924fefbe96a74384792ff72ad",
+  "command": "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 RUNTIME_METADATA_HASH=0xd03f87e6279878cafcf6149a7107a6307163e4e997f8d72d029cd6aa837f9854 cargo test -p origin-orbis-runtime --lib tests::sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery -- --exact --nocapture",
+  "expected": "CannotLookup propagates before token, nonce, native, asset or hold state changes",
+  "expected_output": "test result: ok",
+  "id": "META-EVIDENCE-EARLY-PROPAGATION",
+  "output_artifact": "docs/evidence/orbis-v4/outputs/1983b53735f689c9b5b3fb8e3ee2ab29661d9cdabf141f09bcf51d18ba82fb79.log",
+  "output_artifact_sha256": "f701c532905cdb2e997cdd2ad3c350781f33b20f95ce0e3add2b6e542726649a",
+  "output_sha256": "f701c532905cdb2e997cdd2ad3c350781f33b20f95ce0e3add2b6e542726649a",
+  "schema": "orbis-completion-evidence-v4",
+  "source_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
+  "source_paths": "origin/orbis/runtime/src/tests.rs",
+  "source_symbol": "sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery",
+  "table": "meta_contract"
+}

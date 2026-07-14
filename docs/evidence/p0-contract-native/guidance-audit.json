@@ -1,0 +1,489 @@
+{
+  "actual_count": 59,
+  "approval_manifest": {
+    "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
+    "required_reviewer_role": "architect",
+    "review_thread_id": "a034f498-1a09-5509-95ff-c0c93cc8406a",
+    "schema_version": 2,
+    "sha256": "c930a5eb5a3abc07fa73862c7a017d499931b764a91a34a8c2bd96d1ab70cc6a",
+    "verdict": "APPROVED"
+  },
+  "entries": [
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-09-browse-agent-guidance.md",
+      "raw_sha256": "d1ec3152b0e3fa2fde8b9f1cce3b571ff6c78ed6d337745fc925ebf607933fff",
+      "repository": "browse",
+      "source_path": "browse/.agents/skills/preact-best-practices/SKILL.md",
+      "source_sha256": "b542fdb825f05a0cd27b0856d8e7559e943b016af79154bc78149760fcda4fc7"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-09-browse-agent-guidance.md",
+      "raw_sha256": "d1ec3152b0e3fa2fde8b9f1cce3b571ff6c78ed6d337745fc925ebf607933fff",
+      "repository": "browse",
+      "source_path": "browse/.agents/skills/review-pr/SKILL.md",
+      "source_sha256": "93c462fc00c429c4e5298e1eab0d88d54d80b51c27ea20ad8b7795217682bcdb"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-11-localdot-community-agent-guidance.md",
+      "raw_sha256": "27a78f0e6b48ac9c874a948f9c367ea7fcb047c4039e4665951bd68484044766",
+      "repository": "localdot-community",
+      "source_path": "localdot-community/.claude/skills/deploy-contracts/SKILL.md",
+      "source_sha256": "5204993e1a61eac893fe8d0efbdb315d61fa20d25efa0f7a26908570038f6c96"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-11-localdot-community-agent-guidance.md",
+      "raw_sha256": "27a78f0e6b48ac9c874a948f9c367ea7fcb047c4039e4665951bd68484044766",
+      "repository": "localdot-community",
+      "source_path": "localdot-community/.claude/skills/deploy-frontend/SKILL.md",
+      "source_sha256": "2d897efe8dc63af4a27944619edcceb03f79f00b4a2472cae4b36898c5fd331d"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-11-localdot-community-agent-guidance.md",
+      "raw_sha256": "27a78f0e6b48ac9c874a948f9c367ea7fcb047c4039e4665951bd68484044766",
+      "repository": "localdot-community",
+      "source_path": "localdot-community/.claude/skills/dotli/SKILL.md",
+      "source_sha256": "548477a2f5e2e890c61c1446c5c2a7c54f1b58c28101325a31708ca644ff798a"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-11-localdot-community-agent-guidance.md",
+      "raw_sha256": "27a78f0e6b48ac9c874a948f9c367ea7fcb047c4039e4665951bd68484044766",
+      "repository": "localdot-community",
+      "source_path": "localdot-community/.claude/skills/foundry-testing/SKILL.md",
+      "source_sha256": "14a481100e57fdf7d5db52f26e2720e472077224592a624a5ecf5122de462ac8"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-11-localdot-community-agent-guidance.md",
+      "raw_sha256": "27a78f0e6b48ac9c874a948f9c367ea7fcb047c4039e4665951bd68484044766",
+      "repository": "localdot-community",
+      "source_path": "localdot-community/CLAUDE.md",
+      "source_sha256": "4b17bd9bc877b8923ea62a2ddb544e69c86c93cbc5da9783fe631fed2f46f032"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-18-playground-app-community-agent-guidance.md",
+      "raw_sha256": "791cb9e662e66972b8ffc3db560fdff6433c40a51a77c33a05b03a135ccc463f",
+      "repository": "playground-app-community",
+      "source_path": "playground-app-community/CLAUDE.md",
+      "source_sha256": "9cdd43f95f56bd71095ad89fd89d92e50824def67ae245334b7b466850e84540"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-10-polkadot-android-community-agent-guidance.md",
+      "raw_sha256": "52bac24dccddd0e2e71c998d1d59d8ab91e5fd4f63fce2798ee632c781a67ff1",
+      "repository": "polkadot-android-community",
+      "source_path": "polkadot-android-community/.claude/plugins/polkadotapp-workflows/skills/architect/SKILL.md",
+      "source_sha256": "9a9876dba55bfefa85f777cf1b4b484683bb7f305a509595d6a961a90c894dac"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-10-polkadot-android-community-agent-guidance.md",
+      "raw_sha256": "52bac24dccddd0e2e71c998d1d59d8ab91e5fd4f63fce2798ee632c781a67ff1",
+      "repository": "polkadot-android-community",
+      "source_path": "polkadot-android-community/.claude/plugins/polkadotapp-workflows/skills/commit-message/SKILL.md",
+      "source_sha256": "b6ef0f46c240ccd13489075bc95ed40a0e6d5bd4fe63f5a7465738a59e7ca839"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-10-polkadot-android-community-agent-guidance.md",
+      "raw_sha256": "52bac24dccddd0e2e71c998d1d59d8ab91e5fd4f63fce2798ee632c781a67ff1",
+      "repository": "polkadot-android-community",
+      "source_path": "polkadot-android-community/.claude/plugins/polkadotapp-workflows/skills/implementer/SKILL.md",
+      "source_sha256": "4afefc0d6dfb554ba4caf363936f5ae3f769a948f0caa15be0eee86308882d89"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-10-polkadot-android-community-agent-guidance.md",
+      "raw_sha256": "52bac24dccddd0e2e71c998d1d59d8ab91e5fd4f63fce2798ee632c781a67ff1",
+      "repository": "polkadot-android-community",
+      "source_path": "polkadot-android-community/.claude/plugins/polkadotapp-workflows/skills/reviewer/SKILL.md",
+      "source_sha256": "1b4c019fa26c0c03fe3638646de90ab585595371fd0aedfa5b937c3d0906d1a4"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-10-polkadot-android-community-agent-guidance.md",
+      "raw_sha256": "52bac24dccddd0e2e71c998d1d59d8ab91e5fd4f63fce2798ee632c781a67ff1",
+      "repository": "polkadot-android-community",
+      "source_path": "polkadot-android-community/CLAUDE.md",
+      "source_sha256": "b280b7caa184a9b84b16bf1bc43b13da63175f1a9df6800ce1546eb49620c9dd"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-05-06-polkadot-apps-agent-guidance.md",
+      "raw_sha256": "a4a3f4bf2e070be48597bc5195762c99889e94f2a12a59f4cc3060e56f46b8b3",
+      "repository": "polkadot-apps",
+      "source_path": "polkadot-apps/CLAUDE.md",
+      "source_sha256": "14003df4a0c0edb3feb1a0e66202d0bebf97d7b8616599a63e44db3d6effe045"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-05-06-polkadot-apps-agent-guidance.md",
+      "raw_sha256": "a4a3f4bf2e070be48597bc5195762c99889e94f2a12a59f4cc3060e56f46b8b3",
+      "repository": "polkadot-apps",
+      "source_path": "polkadot-apps/skills/polkadot-app-builder/SKILL.md",
+      "source_sha256": "677af340907f9f3f038da67042f7e9919cc734ccea0a3ce068a3b26b39548ad0"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-05-06-polkadot-apps-agent-guidance.md",
+      "raw_sha256": "a4a3f4bf2e070be48597bc5195762c99889e94f2a12a59f4cc3060e56f46b8b3",
+      "repository": "polkadot-apps",
+      "source_path": "polkadot-apps/skills/polkadot-bulletin/SKILL.md",
+      "source_sha256": "e956ec5be2ca5cc6530eeeb121cb0fa0f4e90a4f35d49a30104d47da44bf73f2"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-05-06-polkadot-apps-agent-guidance.md",
+      "raw_sha256": "a4a3f4bf2e070be48597bc5195762c99889e94f2a12a59f4cc3060e56f46b8b3",
+      "repository": "polkadot-apps",
+      "source_path": "polkadot-apps/skills/polkadot-chain-connection/SKILL.md",
+      "source_sha256": "714187a0dac9c887b2b4aa4882ceae703e414db285b4dd4844162bf65d9e0e85"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-05-06-polkadot-apps-agent-guidance.md",
+      "raw_sha256": "a4a3f4bf2e070be48597bc5195762c99889e94f2a12a59f4cc3060e56f46b8b3",
+      "repository": "polkadot-apps",
+      "source_path": "polkadot-apps/skills/polkadot-contracts/SKILL.md",
+      "source_sha256": "018b701030bc68bf74909de178ef2ee9feb3554990eb9c9664d2cd127fb2e541"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-05-06-polkadot-apps-agent-guidance.md",
+      "raw_sha256": "a4a3f4bf2e070be48597bc5195762c99889e94f2a12a59f4cc3060e56f46b8b3",
+      "repository": "polkadot-apps",
+      "source_path": "polkadot-apps/skills/polkadot-statement-store/SKILL.md",
+      "source_sha256": "a53e0b1a01199e1385097de0cc143d51de124b7b9ea476d4bc7cc61184a324f7"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-05-06-polkadot-apps-agent-guidance.md",
+      "raw_sha256": "a4a3f4bf2e070be48597bc5195762c99889e94f2a12a59f4cc3060e56f46b8b3",
+      "repository": "polkadot-apps",
+      "source_path": "polkadot-apps/skills/polkadot-transactions/SKILL.md",
+      "source_sha256": "7e43444f938f64cb82d86967aee455e3394b38012a9b24441d105cc4397d707d"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-05-06-polkadot-apps-agent-guidance.md",
+      "raw_sha256": "a4a3f4bf2e070be48597bc5195762c99889e94f2a12a59f4cc3060e56f46b8b3",
+      "repository": "polkadot-apps",
+      "source_path": "polkadot-apps/skills/polkadot-utilities/SKILL.md",
+      "source_sha256": "52c8566d1767c5f4254bef7b00f0e1b692c64ced8c5159fafed435e9e926ae71"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-08-polkadot-bulletin-chain-agent-guidance.md",
+      "raw_sha256": "2a0a06d142b75452e58a51da2a0bfbede4129a0c0822624e0041b0acae94ddc0",
+      "repository": "polkadot-bulletin-chain",
+      "source_path": "polkadot-bulletin-chain/.claude/skills/build-ui/SKILL.md",
+      "source_sha256": "31bb880e9b510d6b19db9b0be53ef13251b58e90e99a5dceeb1eade98d09a916"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-08-polkadot-bulletin-chain-agent-guidance.md",
+      "raw_sha256": "2a0a06d142b75452e58a51da2a0bfbede4129a0c0822624e0041b0acae94ddc0",
+      "repository": "polkadot-bulletin-chain",
+      "source_path": "polkadot-bulletin-chain/.claude/skills/format/SKILL.md",
+      "source_sha256": "33c980537476f3c674f04c8ec7833755f2aa82697b05d72fe04a351daf203b3e"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-08-polkadot-bulletin-chain-agent-guidance.md",
+      "raw_sha256": "2a0a06d142b75452e58a51da2a0bfbede4129a0c0822624e0041b0acae94ddc0",
+      "repository": "polkadot-bulletin-chain",
+      "source_path": "polkadot-bulletin-chain/.claude/skills/release/skill.md",
+      "source_sha256": "25252e0c0fc9452e4c26998623a892fd514ae3baae1055e9f49170da4095b99d"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-08-polkadot-bulletin-chain-agent-guidance.md",
+      "raw_sha256": "2a0a06d142b75452e58a51da2a0bfbede4129a0c0822624e0041b0acae94ddc0",
+      "repository": "polkadot-bulletin-chain",
+      "source_path": "polkadot-bulletin-chain/.claude/skills/review/SKILL.md",
+      "source_sha256": "9e17cc3a6dc06a1c3760530c7eb5e210e9c429e747b4abfa902d2c81cf0b9a91"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-08-polkadot-bulletin-chain-agent-guidance.md",
+      "raw_sha256": "2a0a06d142b75452e58a51da2a0bfbede4129a0c0822624e0041b0acae94ddc0",
+      "repository": "polkadot-bulletin-chain",
+      "source_path": "polkadot-bulletin-chain/.claude/skills/update-sdk-docs/SKILL.md",
+      "source_sha256": "c8f2f14f552991833278279d834ba43c2fee1706a6167400a1fa7fc6267fb75b"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-08-polkadot-bulletin-chain-agent-guidance.md",
+      "raw_sha256": "2a0a06d142b75452e58a51da2a0bfbede4129a0c0822624e0041b0acae94ddc0",
+      "repository": "polkadot-bulletin-chain",
+      "source_path": "polkadot-bulletin-chain/CLAUDE.md",
+      "source_sha256": "e444faed64c7c24002ecf86fd15a41fc9aac4390a6c3db50d3a59461ca7274a8"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-10-polkadot-cli-agent-guidance.md",
+      "raw_sha256": "5cabf167c0fb2ffc4585ad8d3031dd23a7fcf88904837d59d011fe0916ca0afe",
+      "repository": "polkadot-cli",
+      "source_path": "polkadot-cli/CLAUDE.md",
+      "source_sha256": "d2a17c0be7103e630bc8955d900380397935043b17a9a4d734989871431a6e5a"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-10-polkadot-cli-agent-guidance.md",
+      "raw_sha256": "5cabf167c0fb2ffc4585ad8d3031dd23a7fcf88904837d59d011fe0916ca0afe",
+      "repository": "polkadot-cli",
+      "source_path": "polkadot-cli/dot-cli/SKILL.md",
+      "source_sha256": "d3efc2f8cb65f2ad4c6d08f809d89d90b7a577428e2e1a635fe6d16a6f25b530"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-18-polkadot-desktop-community-agent-guidance.md",
+      "raw_sha256": "5a05dd97148b9821281276a8b64780b64a472a9139209227c87a373605c438b0",
+      "repository": "polkadot-desktop-community",
+      "source_path": "polkadot-desktop-community/.claude/skills/architecture/SKILL.md",
+      "source_sha256": "8d898ac657fccccaf0c6c8bed70ddabaa0416839ac893036dcf4b3d46ed647c7"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-18-polkadot-desktop-community-agent-guidance.md",
+      "raw_sha256": "5a05dd97148b9821281276a8b64780b64a472a9139209227c87a373605c438b0",
+      "repository": "polkadot-desktop-community",
+      "source_path": "polkadot-desktop-community/.claude/skills/check-dependency-capabilities/SKILL.md",
+      "source_sha256": "62e5c4d5e55c2ed3264a1a0d43dd2f3e10d2bf6dc4f1a41a16ed4bf592f71e25"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-18-polkadot-desktop-community-agent-guidance.md",
+      "raw_sha256": "5a05dd97148b9821281276a8b64780b64a472a9139209227c87a373605c438b0",
+      "repository": "polkadot-desktop-community",
+      "source_path": "polkadot-desktop-community/.claude/skills/code-placement/SKILL.md",
+      "source_sha256": "07268661988a1749488ad626bf7c73e32605d8e0dd30c19d15cc89de19404420"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-18-polkadot-desktop-community-agent-guidance.md",
+      "raw_sha256": "5a05dd97148b9821281276a8b64780b64a472a9139209227c87a373605c438b0",
+      "repository": "polkadot-desktop-community",
+      "source_path": "polkadot-desktop-community/.claude/skills/domain-development/SKILL.md",
+      "source_sha256": "3590a9c57dac12df71ee7ab51fbab9f3510f3ea965abf8c061b1bd9b4be83283"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-18-polkadot-desktop-community-agent-guidance.md",
+      "raw_sha256": "5a05dd97148b9821281276a8b64780b64a472a9139209227c87a373605c438b0",
+      "repository": "polkadot-desktop-community",
+      "source_path": "polkadot-desktop-community/.claude/skills/feature-development/SKILL.md",
+      "source_sha256": "c03a6366dc251750366716629244cd291a47609c18623dc66bfaf63dc1877d78"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-18-polkadot-desktop-community-agent-guidance.md",
+      "raw_sha256": "5a05dd97148b9821281276a8b64780b64a472a9139209227c87a373605c438b0",
+      "repository": "polkadot-desktop-community",
+      "source_path": "polkadot-desktop-community/.claude/skills/react-best-practices/SKILL.md",
+      "source_sha256": "b011a7d7f5f658a5b38f58ffadc3b217e7dd5a07ba5a834f4bb95361ce3a1859"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-18-polkadot-desktop-community-agent-guidance.md",
+      "raw_sha256": "5a05dd97148b9821281276a8b64780b64a472a9139209227c87a373605c438b0",
+      "repository": "polkadot-desktop-community",
+      "source_path": "polkadot-desktop-community/.claude/skills/reviewer/SKILL.md",
+      "source_sha256": "119c9c585c5716839c52ee647dc87fcd7cc171e9eedacccf18e6eaf568ff1f22"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-18-polkadot-desktop-community-agent-guidance.md",
+      "raw_sha256": "5a05dd97148b9821281276a8b64780b64a472a9139209227c87a373605c438b0",
+      "repository": "polkadot-desktop-community",
+      "source_path": "polkadot-desktop-community/CLAUDE.md",
+      "source_sha256": "060b6ca4fd43cab2eb31e923601c1b09737c0011e464ac759ca044af467521c4"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-18-polkadot-desktop-community-agent-guidance.md",
+      "raw_sha256": "5a05dd97148b9821281276a8b64780b64a472a9139209227c87a373605c438b0",
+      "repository": "polkadot-desktop-community",
+      "source_path": "polkadot-desktop-community/e2e/CLAUDE.md",
+      "source_sha256": "19cb90cf8419c2fc5987f7280ad51e466d3344563fc5f9583210186f6009a580"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-06-10-polkadot-ios-community-agent-guidance.md",
+      "raw_sha256": "ad0fe3f66d30761de822ed6ebe5a961afc4e62b290e11666850e38b92d5e69d0",
+      "repository": "polkadot-ios-community",
+      "source_path": "polkadot-ios-community/CLAUDE.md",
+      "source_sha256": "81bdb6f0563a145c83b14b048a2f5a3a1a84133acd6114b58d9a404a714ed992"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-09-product-sdk-agent-guidance.md",
+      "raw_sha256": "abd2d37339ada3cc332648168080c2612dfaa91a6c517679ac3639544cdb1d52",
+      "repository": "product-sdk",
+      "source_path": "product-sdk/CLAUDE.md",
+      "source_sha256": "b174c1707ca117e53b8dbc1ea45839a24ab5160d1bb399342e8b96137f7b4fb5"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-09-product-sdk-agent-guidance.md",
+      "raw_sha256": "abd2d37339ada3cc332648168080c2612dfaa91a6c517679ac3639544cdb1d52",
+      "repository": "product-sdk",
+      "source_path": "product-sdk/product-sdk/skills/migrating-to-product-sdk/SKILL.md",
+      "source_sha256": "e90c4787f87aaf7edd8fa14b301f6a431997b3e21b9675ce2fdb24d0658d8a1f"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-09-product-sdk-agent-guidance.md",
+      "raw_sha256": "abd2d37339ada3cc332648168080c2612dfaa91a6c517679ac3639544cdb1d52",
+      "repository": "product-sdk",
+      "source_path": "product-sdk/product-sdk/skills/product-sdk-app-builder/SKILL.md",
+      "source_sha256": "f035b250b1eb1cc4dcce21553709341219d2ecc161a534d99ebda26edc425c10"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-09-product-sdk-agent-guidance.md",
+      "raw_sha256": "abd2d37339ada3cc332648168080c2612dfaa91a6c517679ac3639544cdb1d52",
+      "repository": "product-sdk",
+      "source_path": "product-sdk/product-sdk/skills/product-sdk-chain-connection/SKILL.md",
+      "source_sha256": "2f1b252d7b358f41dc58b0f65f342f9fa7df41cdf051c2b9af79707d765618f9"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-09-product-sdk-agent-guidance.md",
+      "raw_sha256": "abd2d37339ada3cc332648168080c2612dfaa91a6c517679ac3639544cdb1d52",
+      "repository": "product-sdk",
+      "source_path": "product-sdk/product-sdk/skills/product-sdk-cloud-storage/SKILL.md",
+      "source_sha256": "33774fc2609036534b21a152baa688d8b914260ba66ca192f8d2fbaae14a2668"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-09-product-sdk-agent-guidance.md",
+      "raw_sha256": "abd2d37339ada3cc332648168080c2612dfaa91a6c517679ac3639544cdb1d52",
+      "repository": "product-sdk",
+      "source_path": "product-sdk/product-sdk/skills/product-sdk-contracts/SKILL.md",
+      "source_sha256": "c95b6e9bcfc7a1f4a5c7222761b34d4021e683140a01709181a6770024472323"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-09-product-sdk-agent-guidance.md",
+      "raw_sha256": "abd2d37339ada3cc332648168080c2612dfaa91a6c517679ac3639544cdb1d52",
+      "repository": "product-sdk",
+      "source_path": "product-sdk/product-sdk/skills/product-sdk-statement-store/SKILL.md",
+      "source_sha256": "60eaa1b72e30023493fce00c85b85163ffd91767176565ed29edac07eda6ebdf"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-09-product-sdk-agent-guidance.md",
+      "raw_sha256": "abd2d37339ada3cc332648168080c2612dfaa91a6c517679ac3639544cdb1d52",
+      "repository": "product-sdk",
+      "source_path": "product-sdk/product-sdk/skills/product-sdk-transactions/SKILL.md",
+      "source_sha256": "b25f65e760af6351f7e2dabc4886d74fbd15e256659c97f852075b638bd88663"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-09-product-sdk-agent-guidance.md",
+      "raw_sha256": "abd2d37339ada3cc332648168080c2612dfaa91a6c517679ac3639544cdb1d52",
+      "repository": "product-sdk",
+      "source_path": "product-sdk/product-sdk/skills/product-sdk-utilities/SKILL.md",
+      "source_sha256": "5c550d2affc9aa782f206e0a941cb17fdd16a1be32db2405fbb58565ce4c3045"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-10-truapi-agent-guidance.md",
+      "raw_sha256": "c0b2045060b536d5f69ef1aff4d20d6bbf996b85ccd573abe6a77d4956eccdf6",
+      "repository": "truapi",
+      "source_path": "truapi/.claude/skills/e2e-dotli/SKILL.md",
+      "source_sha256": "3c6136fe076423c06f2b92021f146bd9c8b9b10406ac06a5966fa4ef446ae0aa"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-10-truapi-agent-guidance.md",
+      "raw_sha256": "c0b2045060b536d5f69ef1aff4d20d6bbf996b85ccd573abe6a77d4956eccdf6",
+      "repository": "truapi",
+      "source_path": "truapi/.claude/skills/playground-checks/SKILL.md",
+      "source_sha256": "4c56590db95907a02939a76978a788835fa0132c5465fbdc31faadcd63120a80"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-10-truapi-agent-guidance.md",
+      "raw_sha256": "c0b2045060b536d5f69ef1aff4d20d6bbf996b85ccd573abe6a77d4956eccdf6",
+      "repository": "truapi",
+      "source_path": "truapi/.claude/skills/playground-local-stack/SKILL.md",
+      "source_sha256": "2df856f8c6a4cfc2f6f475c8b8f64e7a52fc28cb901c286d1a1e5aa77927f759"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-10-truapi-agent-guidance.md",
+      "raw_sha256": "c0b2045060b536d5f69ef1aff4d20d6bbf996b85ccd573abe6a77d4956eccdf6",
+      "repository": "truapi",
+      "source_path": "truapi/.claude/skills/refresh-playground-snapshot/SKILL.md",
+      "source_sha256": "5e49551676d6935c46e956e1da60052f150972847db1949930a44857d8be7dd1"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-10-truapi-agent-guidance.md",
+      "raw_sha256": "c0b2045060b536d5f69ef1aff4d20d6bbf996b85ccd573abe6a77d4956eccdf6",
+      "repository": "truapi",
+      "source_path": "truapi/.claude/skills/regen-codegen/SKILL.md",
+      "source_sha256": "29dc9d755c5b78a189b605ece151e71397e727529fbab86a0c3520d10733ee23"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-10-truapi-agent-guidance.md",
+      "raw_sha256": "c0b2045060b536d5f69ef1aff4d20d6bbf996b85ccd573abe6a77d4956eccdf6",
+      "repository": "truapi",
+      "source_path": "truapi/.claude/skills/rfc/SKILL.md",
+      "source_sha256": "4105cea050723dc549ee79a8e6ab1a030a924015b4bc032955fd63652d3173a5"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-10-truapi-agent-guidance.md",
+      "raw_sha256": "c0b2045060b536d5f69ef1aff4d20d6bbf996b85ccd573abe6a77d4956eccdf6",
+      "repository": "truapi",
+      "source_path": "truapi/.claude/skills/rust-checks/SKILL.md",
+      "source_sha256": "601fee7ace5e26e613349684e0f9a5ae046e77cdadc4b97a4fb5e2980f14f128"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-10-truapi-agent-guidance.md",
+      "raw_sha256": "c0b2045060b536d5f69ef1aff4d20d6bbf996b85ccd573abe6a77d4956eccdf6",
+      "repository": "truapi",
+      "source_path": "truapi/.claude/skills/truapi-definition-of-done/SKILL.md",
+      "source_sha256": "5d0b620985ae0c9d36704c527f51fa645bfb6fa0db871d6a103a0b89adcbe6fe"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-10-truapi-agent-guidance.md",
+      "raw_sha256": "c0b2045060b536d5f69ef1aff4d20d6bbf996b85ccd573abe6a77d4956eccdf6",
+      "repository": "truapi",
+      "source_path": "truapi/.claude/skills/ts-client-checks/SKILL.md",
+      "source_sha256": "10682ee98a87e9630e030bc525f2c89e6969e4b8c4cb21516bdead81a2128a54"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-10-truapi-agent-guidance.md",
+      "raw_sha256": "c0b2045060b536d5f69ef1aff4d20d6bbf996b85ccd573abe6a77d4956eccdf6",
+      "repository": "truapi",
+      "source_path": "truapi/CLAUDE.md",
+      "source_sha256": "3fd5ab4c849bd54411143d581dc1c2132760d39d11948d7200644bde00a7cde1"
+    },
+    {
+      "disposition": "applicable rules must be mapped before adopting code; raw evidence wins conflicts",
+      "literal_raw_path": "raw/repository-guidance/2026-07-10-truapi-agent-guidance.md",
+      "raw_sha256": "c0b2045060b536d5f69ef1aff4d20d6bbf996b85ccd573abe6a77d4956eccdf6",
+      "repository": "truapi",
+      "source_path": "truapi/playground/CLAUDE.md",
+      "source_sha256": "9574b7dbca3d661440d18e8ca3de295b787b75c613b0e9b08c60b47051588d2f"
+    }
+  ],
+  "expected_count": 59,
+  "schema_version": 1,
+  "status": "pass",
+  "unmapped": []
+}

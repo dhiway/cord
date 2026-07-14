@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{mock::*, Error, Event};
+use crate::{mock::*, Error, Event, FeelessAccounts};
 use frame_support::{assert_noop, assert_ok};
 use sp_runtime::BuildStorage;
 
@@ -74,5 +74,34 @@ fn genesis_config_inserts_unique_accounts() {
 	ext.execute_with(|| {
 		assert!(Feeless::is_feeless_account(&account(5)));
 		assert!(Feeless::is_feeless_account(&account(6)));
+	});
+}
+
+#[test]
+fn quota_is_bounded_and_resets_each_block() {
+	new_test_ext().execute_with(|| {
+		let account = account(7);
+		assert_ok!(Feeless::add_feeless_account(RuntimeOrigin::root(), account.clone()));
+
+		assert!(<Feeless as FeelessAccounts<_>>::is_feeless(&account));
+		assert_ok!(Feeless::consume_feeless_quota(&account));
+		assert_ok!(Feeless::consume_feeless_quota(&account));
+		assert!(!<Feeless as FeelessAccounts<_>>::is_feeless(&account));
+		assert_noop!(Feeless::consume_feeless_quota(&account), Error::<Test>::QuotaExhausted);
+
+		System::set_block_number(2);
+		assert!(<Feeless as FeelessAccounts<_>>::is_feeless(&account));
+		assert_ok!(Feeless::consume_feeless_quota(&account));
+	});
+}
+
+#[test]
+fn removing_an_account_clears_its_usage() {
+	new_test_ext().execute_with(|| {
+		let account = account(8);
+		assert_ok!(Feeless::add_feeless_account(RuntimeOrigin::root(), account.clone()));
+		assert_ok!(Feeless::consume_feeless_quota(&account));
+		assert_ok!(Feeless::remove_feeless_account(RuntimeOrigin::root(), account.clone()));
+		assert!(crate::FeelessUsage::<Test>::get(account).is_none());
 	});
 }

@@ -1,0 +1,33 @@
+{
+  "schema": "cord.reference-app.v1",
+  "application_id": "festival-reference",
+  "owner": "orbis-reference-app-owner",
+  "network_binding": "packages/descriptors/generated/orbis-network-binding.ts",
+  "native_sdk_entrypoint": "@cord-network/product-sdk-workspace",
+  "host_permissions": [
+    { "capability": "attestation", "method": "attestation_live_status", "finality": "finalized" },
+    { "capability": "names", "method": "resolve_subject", "finality": "finalized" },
+    { "capability": "names", "method": "commit", "finality": "submit-and-finalize" },
+    { "capability": "storage", "method": "provider_by_id", "finality": "finalized" },
+    { "capability": "storage", "method": "provider_checkpoint", "finality": "finalized" }
+  ],
+  "consent": {
+    "explicit": true,
+    "expiring": true,
+    "revocable": true,
+    "single_use_nonce": true
+  },
+  "transport": {
+    "finalized_reads_only": true,
+    "submit_and_finalize_only": true,
+    "cancellation_required": true,
+    "runtime_identity_fail_closed": true
+  },
+  "native_cutover": {
+    "migrated_domain_contract_calls": [],
+    "deployment_addresses": [],
+    "generated_contract_bindings": [],
+    "raw_runtime_encoding": false,
+    "pallet_or_call_indices": false
+  }
+}
