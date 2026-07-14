@@ -11,16 +11,16 @@
       "para_id": 1006,
       "spec_version": 29,
       "transaction_version": 8,
-      "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391"
+      "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45"
     },
     "fixture_identity": {
       "status": "deterministic-clean-break-candidate-not-production-approved",
-      "genesis_identity": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
+      "genesis_identity": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
       "chain_spec_source": "origin/orbis/node/src/chain_spec.rs",
-      "chain_spec_source_sha256": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
-      "genesis_state_root": "0x3455b0234339e9f97fbdf926721267226782dffaffd382f3f1e9f472099615e1",
+      "chain_spec_source_sha256": "60e38b74de9c0ccdedfe9c1fa2ea4bdb0346739ba2fef5e7a5ad328c0920b451",
+      "genesis_state_root": "0xe778ef91e9e1419f77a17a687245fc903335ecdb8dd3cf450df86637d529a53c",
       "candidate_identity_source": "docs/genesis/orbis-candidate-genesis-identity.json",
-      "candidate_identity_sha256": "2a7a8d5b8fce4fc2dd15729c3e414d6d68e82ef9a21e12c382b5676d3530ed68"
+      "candidate_identity_sha256": "bfac0f6c85fac491cc9aa6fb0ff03ab1581db78c7901d094c8a9843e898c9e0d"
     },
     "production_activation": {
       "final_genesis_status": "PENDING",
@@ -114,11 +114,11 @@
     "contract_digests": {
       "compatibility": {
         "path": "docs/sdk/compatibility-manifest.json",
-        "canonical_sha256": "3d1c6b48e7da5fa26aca01089bc84d6c22613922eb55858d049e0471d258f7f0"
+        "canonical_sha256": "62bf7d6bd620c63ee4571f1b4c74de483bde1499e47c2df29ed2d3ea8f34c102"
       },
       "version_matrix": {
         "path": "docs/sdk/native-version-matrix.json",
-        "canonical_sha256": "192d0261f64e2d5eb1f2d7464fb7acc0c9e11a63637ef5d37dd3346c42d54930"
+        "canonical_sha256": "3e98b876a2adfdfb322d95cfc797ccf90606fe9d997fb266c83505973a2a775d"
       },
       "coverage_map": {
         "path": "docs/sdk/contract-to-native-map.json",
@@ -134,7 +134,7 @@
       },
       "host": {
         "path": "docs/sdk/host/host-request.schema.json",
-        "canonical_sha256": "b547b92dbe0bb80e78a19d7fd67bfc513ae0292b9676660c503ef4f4601e82b1"
+        "canonical_sha256": "baeb4cae9c1b7d05aee7f06549a1886bffcbd35e178c15e1a599decd42523492"
       },
       "error": {
         "path": "docs/sdk/native-error.schema.json",
@@ -150,11 +150,11 @@
       },
       "native_vectors": {
         "path": "docs/sdk/vectors/native-sdk-v1.json",
-        "canonical_sha256": "f8811088defece259fa9173a60e6538ce4f50019666178e0904f16faed3e6dcc"
+        "canonical_sha256": "38b207c4ef07f05a277ebc46c305570a4ea00e91c284e7c40b371b17a4e2a8dc"
       },
       "descriptor": {
         "path": "product-sdk/packages/descriptors/generated/orbis-descriptor.json",
-        "canonical_sha256": "4ee02519fdc85f299fc3c0f431bb9ba8bffc43f6e3b6868e617a08e01aca8eb4"
+        "canonical_sha256": "3677f5054782a0ff35fe65637ef4da918395247058168b35ec4044af5a32c0f8"
       },
       "test_report": {
         "path": "docs/evidence/verification/p0/test-report-contract.json",
@@ -162,7 +162,7 @@
       }
     }
   },
-  "payload_sha256": "c04fdfe471cc307c028ef4e99e627517ab48e5afe92ac6e6fbbee84bda06bc6d",
+  "payload_sha256": "68d367d5a5a76390b1f80c88b075714f4ad730e0843edcd748ea8ce87785513c",
   "signatures": [],
   "derived_status": {
     "p0_targets_ratified": false,

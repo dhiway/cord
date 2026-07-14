@@ -20,7 +20,7 @@
       "para_id": 1006,
       "spec_version": 29,
       "transaction_version": 8,
-      "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391"
+      "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45"
     }
   },
   "sdk": {
@@ -93,12 +93,12 @@
     "pallet_or_call_indices": false
   },
   "inputs": {
-    "version_matrix_sha256": "e288fe3f10ca7dab28d19258d0709e86af372a8c576f1a3f2ab96c05f49d68b0",
+    "version_matrix_sha256": "1442b5b8301b0a6756b0aec64227504db8578502311b978e41b3e2fe693120a9",
     "coverage_map_sha256": "0f1ea8783001f2f2798c5b073a9afd55bc8bf69cf2d2fe2dc10324c2763b39e5",
-    "m5_sdk_bindings_sha256": "c1309c80f2100c95b22e7655bf0bb358c9f3b96a6d030bae852308be98aa563c",
-    "route_contract_sha256": "d3bfe5cbf0fb1570b6097da22b53c1352e7aa57fa72effb3f4d5d3f8b2bb12fd",
+    "m5_sdk_bindings_sha256": "d3fea95b87e20a43f7cb903045205b708956219da358fc2114aa7c48d712c5b8",
+    "route_contract_sha256": "2f19961bbf42a91a4c0335657b0ca73bc2dfa889e86f83fe7f72bdf1582397d0",
     "rust_route_harness_sha256": "5b2c01e7cbbb38c7f5bfc0e60663971c6848751641e0413523ea13f9fa86097a",
     "typescript_route_harness_sha256": "3032fb23e01d46abf33e18e361f33f0131564d89c726ce8d303f941172085566",
-    "descriptor_sha256": "26fce60e52372d35a64ccdf51eb4734721854c591b5ef902b9ee239e8ecd86ce"
+    "descriptor_sha256": "62b0c9621c410dd3fbb919848306ea6601841fe83235a807af3cda61554cc729"
   }
 }

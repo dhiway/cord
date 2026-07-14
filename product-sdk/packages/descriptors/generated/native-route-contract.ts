@@ -24,7 +24,7 @@ export const NATIVE_ROUTE_CONTRACT = {
     "runtime": "orbis",
     "spec_version": 29,
     "transaction_version": 8,
-    "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+    "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
     "activation_state": "candidate-pending",
     "production_activation_ready": false
   },
@@ -67,7 +67,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -117,7 +117,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -161,7 +161,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -959,7 +959,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 1
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1008,7 +1008,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 3
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": []
@@ -1049,7 +1049,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 4
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1092,7 +1092,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 5
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1166,7 +1166,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 8
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1289,7 +1289,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 2
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1340,7 +1340,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1383,7 +1383,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1426,7 +1426,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1495,7 +1495,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1568,7 +1568,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1648,7 +1648,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1697,7 +1697,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1730,7 +1730,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": []
@@ -1761,7 +1761,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": []
@@ -1803,7 +1803,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1855,7 +1855,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1948,7 +1948,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 0
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2011,7 +2011,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 1
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2130,7 +2130,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 2
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2307,7 +2307,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 3
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2446,7 +2446,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 4
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2499,7 +2499,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 5
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2540,7 +2540,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 6
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2599,7 +2599,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 7
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2642,7 +2642,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 8
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2748,7 +2748,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 9
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2942,7 +2942,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 10
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3013,7 +3013,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 11
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3137,7 +3137,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 12
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3193,7 +3193,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 13
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3243,7 +3243,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 14
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3278,7 +3278,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": []
@@ -3319,7 +3319,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3364,7 +3364,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3433,7 +3433,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3480,7 +3480,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3523,7 +3523,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3566,7 +3566,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3609,7 +3609,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3652,7 +3652,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3704,7 +3704,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3749,7 +3749,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3792,7 +3792,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3834,7 +3834,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 0
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3876,7 +3876,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 1
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3927,7 +3927,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 2
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3996,7 +3996,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 3
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4048,7 +4048,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 4
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4100,7 +4100,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 5
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4152,7 +4152,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 6
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4204,7 +4204,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 7
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4263,7 +4263,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 8
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4323,7 +4323,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 9
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4381,7 +4381,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 10
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4439,7 +4439,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 11
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4507,7 +4507,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 12
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4558,7 +4558,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 13
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4600,7 +4600,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 14
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4642,7 +4642,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 15
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4732,7 +4732,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 16
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4777,7 +4777,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 17
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4828,7 +4828,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 18
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4870,7 +4870,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 19
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4921,7 +4921,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 20
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4964,7 +4964,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 21
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5014,7 +5014,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 22
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5059,7 +5059,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5112,7 +5112,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5209,7 +5209,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5275,7 +5275,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5321,7 +5321,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5372,7 +5372,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5416,7 +5416,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5459,7 +5459,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 0
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5536,7 +5536,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 9
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5625,7 +5625,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 10
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5680,7 +5680,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 11
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5731,7 +5731,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 18
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5818,7 +5818,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 1
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5908,7 +5908,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 2
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5954,7 +5954,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 12
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5996,7 +5996,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 13
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6040,7 +6040,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6100,7 +6100,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6146,7 +6146,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6215,7 +6215,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6288,7 +6288,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6360,7 +6360,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6408,7 +6408,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6451,7 +6451,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6519,7 +6519,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6566,7 +6566,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6618,7 +6618,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6663,7 +6663,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6707,7 +6707,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6750,7 +6750,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6819,7 +6819,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 0
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6891,7 +6891,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 1
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6951,7 +6951,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 2
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6995,7 +6995,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 3
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7027,7 +7027,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 4
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": []
@@ -7115,7 +7115,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 5
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7164,7 +7164,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 6
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7206,7 +7206,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 7
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7264,7 +7264,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 8
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7316,7 +7316,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 9
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7359,7 +7359,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 10
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7409,7 +7409,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 11
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7505,7 +7505,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 15
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7568,7 +7568,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 16
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7613,7 +7613,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 12
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7655,7 +7655,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 13
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7697,7 +7697,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 14
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7740,7 +7740,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7809,7 +7809,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7881,7 +7881,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7929,7 +7929,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7987,7 +7987,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 0
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8053,7 +8053,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 1
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8113,7 +8113,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 2
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8166,7 +8166,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 3
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8209,7 +8209,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 4
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8252,7 +8252,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8297,7 +8297,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8366,7 +8366,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8438,7 +8438,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8494,7 +8494,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8572,7 +8572,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8629,7 +8629,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8674,7 +8674,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 0
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8740,7 +8740,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 1
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8802,7 +8802,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 2
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8861,7 +8861,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 3
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8920,7 +8920,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 4
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8996,7 +8996,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 5
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -9058,7 +9058,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 6
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -9110,7 +9110,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 7
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -13671,7 +13671,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "prepare_sponsored_intent"
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "sdk-host-operation-and-canonical-sdk-typed-factory;no-runtime-api-or-pallet-call"
       },
       "canonical_arguments": [
@@ -18328,10 +18328,10 @@ export const NATIVE_ROUTE_CONTRACT = {
           "envelope": {
             "version": 1,
             "signing_domain": "orbis/meta-intent/v7",
-            "genesis_hash": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
+            "genesis_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
             "spec_version": 29,
             "transaction_version": 8,
-            "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+            "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
             "participant": "participant-account",
             "nonce": "1",
             "mortality": {
@@ -18372,7 +18372,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "call_index": 0
       },
       "metadata_binding": {
-        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -18380,10 +18380,10 @@ export const NATIVE_ROUTE_CONTRACT = {
           "envelope": {
             "version": 1,
             "signing_domain": "orbis/meta-intent/v7",
-            "genesis_hash": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
+            "genesis_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
             "spec_version": 29,
             "transaction_version": 8,
-            "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+            "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
             "participant": "participant-account",
             "nonce": "1",
             "mortality": {

@@ -419,6 +419,10 @@ def command_version(command: list[str]) -> str:
     return subprocess.run(command, cwd=ROOT, check=True, stdout=subprocess.PIPE, text=True).stdout.strip()
 
 
+def repository_path(path: Path) -> str:
+    return str(path.resolve().relative_to(ROOT))
+
+
 def build_evidence(
     origin_node: Path,
     orbis_node: Path,
@@ -493,7 +497,14 @@ def build_evidence(
             "raw_storage_sha256": sha256(canonical(orbis_raw["genesis"]["raw"])),
         },
         "derivation": {
-            "command": "python3 scripts/validate_origin_orbis_genesis.py --origin-node target/release/origin --orbis-node target/release/origin-omni-node --compact-wasm target/orbis-metadata/release/wbuild/origin-commons-runtime/origin_commons_runtime.compact.wasm --write-evidence",
+            "command": (
+                "python3 scripts/validate_origin_orbis_genesis.py "
+                f"--origin-node {repository_path(origin_node)} "
+                f"--orbis-node {repository_path(orbis_node)} "
+                f"--compact-wasm {repository_path(compact_wasm)} "
+                f"--metadata-hash-manifest {repository_path(metadata_hash_path)} "
+                "--write-evidence"
+            ),
             "header_encoding": "SCALE sp_runtime::generic::Header<BlockNumber=u32, BlakeTwo256>",
             "header_hash_algorithm": "Blake2b-256 over exact SCALE genesis header bytes",
             "state_root_offset": "bytes[33:65] after 32-byte parent hash and compact-encoded block zero",

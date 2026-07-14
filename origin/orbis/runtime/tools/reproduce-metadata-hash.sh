@@ -28,6 +28,11 @@ trap 'rm -f "$log"' EXIT
 SKIP_PALLET_REVIVE_FIXTURES=1 CARGO_TARGET_DIR="$target" \
   cargo build -p origin-commons-runtime --release --features on-chain-release-build -vv \
   2>&1 | tee "$log" >&2
-hash="$(grep -o 'RUNTIME_METADATA_HASH=[^ ]*' "$log" | tail -1 | cut -d= -f2 | tr -d "'\"")"
+hash="$(grep -o 'RUNTIME_METADATA_HASH=[^ ]*' "$log" | tail -1 | cut -d= -f2 | tr -d "'\"" || true)"
+if [[ -z "$hash" ]]; then
+  hash="$(grep -h -o 'RUNTIME_METADATA_HASH=[^ ]*' \
+    "$target"/release/build/origin-commons-runtime-*/output 2>/dev/null \
+    | tail -1 | cut -d= -f2 | tr -d "'\"" || true)"
+fi
 test -n "$hash"
 printf '%s\n' "$hash"

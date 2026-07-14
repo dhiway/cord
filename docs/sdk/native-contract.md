@@ -4,7 +4,7 @@
 clean-break Origin and Orbis network. Origin is the relay and deterministic control plane at
 spec/transaction `9901/2`; Orbis is the native application parachain at para `1006`,
 spec/transaction `29/8`. The Orbis metadata identity is
-`0xa11fc57c…d391`, reproduced from the current runtime Wasm with
+`0x50c8958f…dc45`, reproduced from the current runtime Wasm with
 `origin/orbis/runtime/tools/reproduce-metadata-hash.sh`.
 
 `origin-rs` and `product-sdk` both publish release `0.9.9` and freeze those values in executable
@@ -14,8 +14,8 @@ matrix against the runtime sources, both SDK exports, the generated descriptor, 
 `sdk-native-coverage.report.json`.
 
 The fail-closed network identity is the exact deterministic candidate genesis header
-`0x657de1aa…e173`, bound through `docs/genesis/orbis-candidate-genesis-identity.json` at artifact
-SHA-256 `04d596cc…e3bf`. Its frozen activation state is `candidate-pending` with
+`0x2584c9d4…70fc`, bound through `docs/genesis/orbis-candidate-genesis-identity.json` at artifact
+SHA-256 `bfac0f6c…c9e0`. Its frozen activation state is `candidate-pending` with
 `production_activation_ready=false`. Rust callers must explicitly choose
 `NetworkIdentity::orbis_candidate()` and TypeScript callers must explicitly choose
 `ORBIS_CANDIDATE_NETWORK_BINDING`. Production access rejects this identity until a checked-in,

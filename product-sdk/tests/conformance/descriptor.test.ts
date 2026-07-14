@@ -21,16 +21,16 @@ import { readFileSync } from "node:fs"; import { resolve } from "node:path"; imp
 import { assertMethodPayload, assertRuntimeIdentity, ProductSdkError, validateLifecycle } from "../../packages/core/src/contract.ts";
 import { canonicalJson, canonicalSha256, contractDigest, ratificationStatus, REQUIRED_ROLES } from "../../packages/core/src/ratification.ts";
 const repo=resolve(import.meta.dirname,"../../.."); const load=(p:string)=>JSON.parse(readFileSync(resolve(repo,p),"utf8"));
-const descriptor=load("product-sdk/packages/descriptors/generated/orbis-descriptor.json"), vectors=load("origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json");
+const descriptor=load("product-sdk/packages/descriptors/generated/orbis-descriptor.json"), metadataIdentity=load("docs/sdk/metadata/commons-v29.json"), vectors=load("origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json");
 test("descriptor binds the P5 native SDK freeze to the exact fixture and runtime versions",()=>{
  assert.equal(descriptor.kind,"cord-native-host-contract-manifest");assert.equal(descriptor.release,"origin-orbis-native-v1");assert.equal(descriptor.firstSupportedNativeSdk,true);
  assert.equal(descriptor.descriptorProvenance.methodInventory,"authoritative-typed-native-route-contract");
- assert.equal(descriptor.runtime.metadataHash,"0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391");
+ assert.equal(descriptor.runtime.metadataHash,"0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45");
  assert.deepEqual([descriptor.runtime.paraId,descriptor.runtime.specVersion,descriptor.runtime.transactionVersion],[1006,29,8]);
- assert.equal(descriptor.fixtureIdentity.genesis_identity,"0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173");
+ assert.equal(descriptor.fixtureIdentity.genesis_identity,"0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc");
  assert.deepEqual(descriptor.networkActivation,{state:"candidate-pending",productionActivationReady:false,source:"docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"});
  assert.equal(descriptor.fixtureIdentity.status,"deterministic-clean-break-candidate-not-production-approved"); assert.equal(descriptor.productionPapiDescriptorGenerated,true);
- const papi=load("product-sdk/packages/descriptors/generated/commons-papi-manifest.json");assert.equal(papi.schema,"cord.commons-papi-descriptor.v1");assert.deepEqual(papi.generator,{package:"polkadot-api",version:"2.1.6"});assert.equal(papi.entry,"commons");assert.equal(papi.metadata.runtime_rfc78_hash,descriptor.runtime.metadataHash);assert.equal(papi.metadata.scale_sha256,"521b65c4393e065885d94af7e403bea359b71b67f7715763a70d984cd272348b");assert.ok(papi.output.length>0);assert.ok(papi.output.every((item:any)=>item.bytes>0&&/^[0-9a-f]{64}$/.test(item.sha256)));
+ const papi=load("product-sdk/packages/descriptors/generated/commons-papi-manifest.json");assert.equal(papi.schema,"cord.commons-papi-descriptor.v1");assert.deepEqual(papi.generator,{package:"polkadot-api",version:"2.1.6"});assert.equal(papi.entry,"commons");assert.equal(papi.metadata.runtime_rfc78_hash,descriptor.runtime.metadataHash);assert.equal(papi.metadata.scale_sha256,metadataIdentity.scale_sha256);assert.ok(papi.output.length>0);assert.ok(papi.output.every((item:any)=>item.bytes>0&&/^[0-9a-f]{64}$/.test(item.sha256)));
 });
 test("host schema exactly freezes every descriptor native method and closed payload shape",()=>{
  const schema=load("docs/sdk/host/host-request.schema.json"),methods=descriptor.nativeHostContract.methods;

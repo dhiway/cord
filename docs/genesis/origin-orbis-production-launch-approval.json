@@ -1,7 +1,10 @@
 {
-  "schema_version": 1,
+  "blocker": "Production launch requires FINAL genesis identities, bounded deterministic finalization/launch epochs, and five valid timestamped role signatures. The checked-in candidate is intentionally rejected by production loaders.",
   "canonicalization": "RFC8785-compatible sorted-key JSON over payload; canonical bytes are checked in separately",
-  "signature_algorithm": "Ed25519",
+  "derived_status": {
+    "activation_state": "candidate-pending",
+    "production_activation_ready": false
+  },
   "payload": {
     "activation_state": "candidate-pending",
     "approval_policy": {
@@ -88,6 +91,13 @@
         "architecture-owner"
       ]
     },
+    "approval_timing": {
+      "envelope_finalized_at": null,
+      "launch_epoch": null,
+      "launch_not_after": null,
+      "max_launch_window_seconds": 86400,
+      "max_signature_age_seconds": 604800
+    },
     "authority_planes": {
       "orbis": [
         "0x4545454545454545454545454545454545454545454545454545454545454545",
@@ -129,19 +139,20 @@
       ]
     },
     "campaign_authorized": false,
+    "chain_spec_source_sha256": "60e38b74de9c0ccdedfe9c1fa2ea4bdb0346739ba2fef5e7a5ad328c0920b451",
     "chain_spec_sources": {
       "orbis": {
         "path": "origin/orbis/node/src/chain_spec.rs",
-        "sha256": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb"
+        "sha256": "60e38b74de9c0ccdedfe9c1fa2ea4bdb0346739ba2fef5e7a5ad328c0920b451"
       },
       "origin": {
         "path": "origin/base/cli/src/chain_spec.rs",
-        "sha256": "2f08d82e25206c1e8e111445efbe8b2b8ea143b19736bc36e58a16f53dff5bc5"
+        "sha256": "b2484294f75e0eae31e5844885670f2df33aedbb371e6f9f5869ed9001c239ca"
       }
     },
     "final_genesis_hash": null,
     "final_genesis_status": "PENDING",
-    "genesis_header_hash": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
+    "genesis_header_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
     "genesis_inputs": {
       "orbis": {
         "path": "docs/genesis/orbis-launch-input.candidate.json",
@@ -152,26 +163,15 @@
         "sha256": "1c06217926387e973354ec88c92df2d6d88e023e839b287782baff6dde646e57"
       }
     },
-    "genesis_state_root": "0x3455b0234339e9f97fbdf926721267226782dffaffd382f3f1e9f472099615e1",
-    "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+    "genesis_state_root": "0xe778ef91e9e1419f77a17a687245fc903335ecdb8dd3cf450df86637d529a53c",
+    "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
     "network_launch_approval": false,
-    "p5_payload_sha256": "a9455ca6983aa55ae9c6baff2330051f9f51bb8273066d00b16fdd76fa436315",
+    "p5_payload_sha256": "68d367d5a5a76390b1f80c88b075714f4ad730e0843edcd748ea8ce87785513c",
     "production_activation": false,
-    "scope": "origin-orbis-clean-break-production-launch",
-    "chain_spec_source_sha256": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
-    "approval_timing": {
-      "envelope_finalized_at": null,
-      "launch_epoch": null,
-      "launch_not_after": null,
-      "max_signature_age_seconds": 604800,
-      "max_launch_window_seconds": 86400
-    }
+    "scope": "origin-orbis-clean-break-production-launch"
   },
-  "payload_sha256": "1f1ef1b07db2aa7e727049b4b1d366fba69fbf9bd63a232ed82a0bb2378c8276",
-  "signatures": [],
-  "derived_status": {
-    "activation_state": "candidate-pending",
-    "production_activation_ready": false
-  },
-  "blocker": "Production launch requires FINAL genesis identities, bounded deterministic finalization/launch epochs, and five valid timestamped role signatures. The checked-in candidate is intentionally rejected by production loaders."
+  "payload_sha256": "662f05ed9800757c219345423859ea02a353ddb4449d1172fa33bcc62b9d3556",
+  "schema_version": 1,
+  "signature_algorithm": "Ed25519",
+  "signatures": []
 }

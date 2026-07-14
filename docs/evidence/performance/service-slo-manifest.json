@@ -101,7 +101,7 @@
   },
   "ratification": {
     "canonical_envelope": "docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json",
-    "payload_sha256": "c04fdfe471cc307c028ef4e99e627517ab48e5afe92ac6e6fbbee84bda06bc6d",
+    "payload_sha256": "68d367d5a5a76390b1f80c88b075714f4ad730e0843edcd748ea8ce87785513c",
     "sdk_freeze_status": "PENDING",
     "production_activation_status": "BLOCKED"
   },

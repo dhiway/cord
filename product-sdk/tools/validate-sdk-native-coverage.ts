@@ -134,7 +134,7 @@ const orbisRuntime = read(matrix.networks.orbis.runtime_source);
 const workspaceVersion = read("Cargo.toml").match(/^version\s*=\s*"([^"]+)"/m)?.[1];
 
 equal(matrix.schema, "cord.native-sdk-version-matrix.v1", "matrix schema");
-equal(matrix.branch, "sm-update-sub-0x63", "matrix branch");
+equal(matrix.branch, "sm-update-sub-0x65", "matrix branch");
 equal(matrix.clean_break.new_network, true, "clean-break new network");
 for (const field of ["backward_compatibility", "data_migration", "legacy_client", "contract_compatibility_facade"])
   equal(matrix.clean_break[field], false, `clean-break ${field}`);
@@ -148,7 +148,7 @@ equal(firstVersion(orbisRuntime, "transaction_version"), matrix.networks.orbis.t
 equal(matrix.networks.origin.activation_state, "candidate-pending", "Origin candidate activation state");
 equal(matrix.networks.origin.production_activation_ready, false, "Origin candidate production gate");
 equal(metadata.metadata_hash, matrix.networks.orbis.metadata_hash, "Orbis metadata hash");
-equal(metadata.compact_wasm_sha256, "558727456824d1f06928148ffead8cee5d58a63bf9109d0334a061f30c35db0f", "Orbis compact Wasm");
+equal(metadata.compact_wasm_sha256, "19662465cef9ea3cde0c7c10865cc9e68cf3afb723e6184de8a0029de82b1f2e", "Orbis compact Wasm");
 equal(sha256(matrix.networks.orbis.candidate_genesis_identity_source), matrix.networks.orbis.candidate_genesis_identity_sha256, "candidate genesis artifact");
 equal(candidateGenesis.genesis.header_hash, matrix.networks.orbis.candidate_genesis_header_hash, "candidate genesis header");
 equal(candidateGenesis.genesis.state_root, matrix.networks.orbis.candidate_genesis_state_root, "candidate genesis state root");

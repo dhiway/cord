@@ -73,7 +73,7 @@ def validate() -> tuple[dict, list[str]]:
         if not condition:
             errors.append(message)
 
-    require(git("branch", "--show-current") == "sm-update-sub-0x63", "wrong branch")
+    require(git("branch", "--show-current") == "sm-update-sub-0x65", "wrong branch")
     lock = (ROOT / "Cargo.lock").read_text()
     sdk_revisions = set(
         re.findall(

@@ -6,7 +6,7 @@
     "network": "orbis",
     "spec_version": 29,
     "transaction_version": 8,
-    "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391"
+    "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45"
   },
   "vectors": [
     {

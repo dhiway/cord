@@ -12,7 +12,7 @@
   "compact_wasm_path": "target/orbis-metadata/release/wbuild/origin-commons-runtime/origin_commons_runtime.compact.wasm",
   "compact_wasm_sha256": "19662465cef9ea3cde0c7c10865cc9e68cf3afb723e6184de8a0029de82b1f2e",
   "runtime_code_blake2_256": "0x0e33fb52b93a0f7d6a36ade11b76444f32a605a0fa143e728e46864dd0aeefbb",
-  "genesis_identity": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
+  "genesis_identity": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
   "extract": "NO_COLOR=true subwasm metadata --format scale --output product-sdk/packages/descriptors/.papi/metadata/commons.scale target/orbis-metadata/release/wbuild/origin-commons-runtime/origin_commons_runtime.compact.wasm",
   "generator": "polkadot-api@2.1.6"
 }

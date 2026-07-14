@@ -4,27 +4,27 @@
     {
       "acceptance_criteria": "AC21",
       "path": "docs/evidence/p5/genesis-verdict.json",
-      "sha256": "84fcae9656304a896b73664c42f08118568b5b15ea85e984644b9492393b1b85"
+      "sha256": "4317af43106bd9528779ed7e82bcaaa9a0fbd64e7e679cdb0d09de40fcd191f6"
     },
     {
       "acceptance_criteria": "AC22",
       "path": "docs/evidence/p5/launch-upgrade.json",
-      "sha256": "2ec8a24ae6f3a3a477fabeacd2388d264f2388e140da93d7d703641f446a49f5"
+      "sha256": "68052eeb3b91c39ba2e01540ecfb851396208c0c5aea96594f53d8bb73a5614d"
     },
     {
       "acceptance_criteria": "M6",
       "path": "docs/evidence/p5/clean-genesis.report.json",
-      "sha256": "ac1b9c8159142699b0bb6eca089848e1a41da735931ab352b1ec36eb5149d25b"
+      "sha256": "c3ed61960c834b0f9780e6c826f349bc6e45c5f888d4fec5b5c7332c4327f9a8"
     },
     {
       "acceptance_criteria": "AC21/M6",
       "path": "docs/genesis/orbis-candidate-genesis-identity.json",
-      "sha256": "04d596ccb995cf9aa1527a43d7013a99d45d5e6d8f8aa050444bc54aa5bae3bf"
+      "sha256": "bfac0f6c85fac491cc9aa6fb0ff03ab1581db78c7901d094c8a9843e898c9e0d"
     },
     {
       "acceptance_criteria": "AC21/M6",
       "path": "docs/evidence/p5/genesis-validator.raw.log",
-      "sha256": "5c18bc772cf04d384367f091c463c00f698ea0ece295abf897578a5dc8b6de4f"
+      "sha256": "30a13500d9342238c0d4d5dcd3b480a8d697811384bae142bccdb64431461600"
     }
   ],
   "production_activation": false,
