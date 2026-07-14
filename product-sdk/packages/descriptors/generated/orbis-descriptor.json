@@ -12,27 +12,27 @@
   },
   "fixtureIdentity": {
     "status": "deterministic-clean-break-candidate-not-production-approved",
-    "genesis_identity": "0x98cd55908bb19c4006abf021ccb7be2ece52c8edca8149f739145836ccbfce03",
+    "genesis_identity": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
     "chain_spec_source": "origin/orbis/node/src/chain_spec.rs",
     "chain_spec_source_sha256": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
-    "genesis_state_root": "0x1d1ebb75fa374a0dac0a934663c724abddb67b7f41b729431e953655783e0390",
+    "genesis_state_root": "0x3455b0234339e9f97fbdf926721267226782dffaffd382f3f1e9f472099615e1",
     "candidate_identity_source": "docs/genesis/orbis-candidate-genesis-identity.json",
-    "candidate_identity_sha256": "d1c9f8ba39a4af9bf618bcde2e832396d6a60addd0fad0cb24797866e8edc4ec"
+    "candidate_identity_sha256": "04d596ccb995cf9aa1527a43d7013a99d45d5e6d8f8aa050444bc54aa5bae3bf"
   },
   "networkActivation": {
     "state": "candidate-pending",
     "productionActivationReady": false,
     "source": "docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"
   },
-  "ratificationPayloadSha256": "7616683dc759fd687d562ccb475d0ea329735d4a231abfb4880ef0df5ebdbb2e",
+  "ratificationPayloadSha256": "a9455ca6983aa55ae9c6baff2330051f9f51bb8273066d00b16fdd76fa436315",
   "sources": {
     "compatibility": {
       "path": "docs/sdk/compatibility-manifest.json",
-      "sha256": "623a12b925051870944f3d252ca8844c5f489c5df11462c7c00d1230202e6c7d"
+      "sha256": "67f014cb3e3d329637ca9eba65f5eaa11653f10ffc922c82605080932d99cdda"
     },
     "versionMatrix": {
       "path": "docs/sdk/native-version-matrix.json",
-      "sha256": "7a4147d4e66f96240d78f53865a3c21ab56988f0a07df4b70a82be6861613e1e"
+      "sha256": "93f41f07b3f1c4d466eea30878e9f573902f0c9bb175970ecded899a61a18f02"
     },
     "extensions": {
       "path": "docs/sdk/signed-extension-manifest.json",
@@ -40,7 +40,7 @@
     },
     "metadata": {
       "path": "origin/orbis/runtime/fixtures/meta-v8/metadata-hash.json",
-      "sha256": "5a031b2cd2b47d21e883127e51412e037942276e4d8605c7f23c572a69658658"
+      "sha256": "23355f674c0e0108c8e9a80e75fa6050d16acae92304f06327587636be689c28"
     },
     "vectors": {
       "path": "docs/sdk/vectors/native-sdk-v1.json",
@@ -48,7 +48,7 @@
     },
     "genesisIdentity": {
       "path": "docs/genesis/orbis-candidate-genesis-identity.json",
-      "sha256": "d1c9f8ba39a4af9bf618bcde2e832396d6a60addd0fad0cb24797866e8edc4ec"
+      "sha256": "04d596ccb995cf9aa1527a43d7013a99d45d5e6d8f8aa050444bc54aa5bae3bf"
     },
     "chainSpec": {
       "path": "origin/orbis/node/src/chain_spec.rs",
@@ -56,7 +56,7 @@
     },
     "nativeRouteContract": {
       "path": "docs/sdk/native-route-contract.json",
-      "sha256": "f99d2ade1b8e5fc508b92e1fe43b86e549301dfa7f5f4250a4d312568fb69a40"
+      "sha256": "5821b5f7205abb360a535bd6cf84eaf50b2b1cab51f3422c7d3104b4442c73e6"
     }
   },
   "signedExtensionSurfaces": {

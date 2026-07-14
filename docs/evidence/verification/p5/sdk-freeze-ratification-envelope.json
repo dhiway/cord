@@ -15,12 +15,12 @@
     },
     "fixture_identity": {
       "status": "deterministic-clean-break-candidate-not-production-approved",
-      "genesis_identity": "0x98cd55908bb19c4006abf021ccb7be2ece52c8edca8149f739145836ccbfce03",
+      "genesis_identity": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
       "chain_spec_source": "origin/orbis/node/src/chain_spec.rs",
       "chain_spec_source_sha256": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
-      "genesis_state_root": "0x1d1ebb75fa374a0dac0a934663c724abddb67b7f41b729431e953655783e0390",
+      "genesis_state_root": "0x3455b0234339e9f97fbdf926721267226782dffaffd382f3f1e9f472099615e1",
       "candidate_identity_source": "docs/genesis/orbis-candidate-genesis-identity.json",
-      "candidate_identity_sha256": "d1c9f8ba39a4af9bf618bcde2e832396d6a60addd0fad0cb24797866e8edc4ec"
+      "candidate_identity_sha256": "04d596ccb995cf9aa1527a43d7013a99d45d5e6d8f8aa050444bc54aa5bae3bf"
     },
     "production_activation": {
       "final_genesis_status": "PENDING",
@@ -114,15 +114,15 @@
     "contract_digests": {
       "compatibility": {
         "path": "docs/sdk/compatibility-manifest.json",
-        "canonical_sha256": "623a12b925051870944f3d252ca8844c5f489c5df11462c7c00d1230202e6c7d"
+        "canonical_sha256": "67f014cb3e3d329637ca9eba65f5eaa11653f10ffc922c82605080932d99cdda"
       },
       "version_matrix": {
         "path": "docs/sdk/native-version-matrix.json",
-        "canonical_sha256": "8fe1cfa5bc4f2eec758cc5f7f3fc84ffe740c8327a329d1adca5d58144a2914e"
+        "canonical_sha256": "733685567baab26195bae7ee096d61ac300b9b989d87eeecfab9a1b48ef03091"
       },
       "coverage_map": {
         "path": "docs/sdk/contract-to-native-map.json",
-        "canonical_sha256": "e20a16676aabe47bc6e77e7a61724de3817720f0ee5229b8a2bb38c74dbe83b0"
+        "canonical_sha256": "b1bdbf9142ab11309161b552f2a9ca88136bbd67e49f93cf3e26e47c733581a1"
       },
       "extensions": {
         "path": "docs/sdk/signed-extension-manifest.json",
@@ -134,7 +134,7 @@
       },
       "host": {
         "path": "docs/sdk/host/host-request.schema.json",
-        "canonical_sha256": "f5800065382f7766c30391488f2e27a15042262fbdba4cddfc535b9f625b2fe3"
+        "canonical_sha256": "a01535f2a78f548366be4b92b37141933ec18b6b85ec0de162c85e0cf3034b81"
       },
       "error": {
         "path": "docs/sdk/native-error.schema.json",
@@ -154,7 +154,7 @@
       },
       "descriptor": {
         "path": "product-sdk/packages/descriptors/generated/orbis-descriptor.json",
-        "canonical_sha256": "a5396e4bed4b65b3be95fcb9e531ca5e5e7300e55b831a6cbb185dfe893e9816"
+        "canonical_sha256": "b621cf318308ca2ab46c16ec319be263b151f349ca48852770351cace952ad2b"
       },
       "test_report": {
         "path": "docs/evidence/verification/p0/test-report-contract.json",
@@ -162,7 +162,7 @@
       }
     }
   },
-  "payload_sha256": "7616683dc759fd687d562ccb475d0ea329735d4a231abfb4880ef0df5ebdbb2e",
+  "payload_sha256": "a9455ca6983aa55ae9c6baff2330051f9f51bb8273066d00b16fdd76fa436315",
   "signatures": [],
   "derived_status": {
     "p0_targets_ratified": false,

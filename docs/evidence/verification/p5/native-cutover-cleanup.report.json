@@ -1,5 +1,5 @@
 {
-  "allowlist_sha256": "ef182c87d15e8012755e83cd5f1952cd6365573ed0c1de99a1e4ded1ae3c5572",
+  "allowlist_sha256": "82dd9bde525e034671e561fb7de012e82aeea85c14ceb97aeb4c7dd002be6457",
   "criterion": "M9",
   "dead_product_paths": 0,
   "deprecated_facades": 0,
@@ -8,8 +8,8 @@
     "archived_or_generated_contract_artifacts": [],
     "contract_build_ci_config_paths": [],
     "generator_reproducibility": {
-      "after_sha256": "ef182c87d15e8012755e83cd5f1952cd6365573ed0c1de99a1e4ded1ae3c5572",
-      "before_sha256": "ef182c87d15e8012755e83cd5f1952cd6365573ed0c1de99a1e4ded1ae3c5572",
+      "after_sha256": "82dd9bde525e034671e561fb7de012e82aeea85c14ceb97aeb4c7dd002be6457",
+      "before_sha256": "82dd9bde525e034671e561fb7de012e82aeea85c14ceb97aeb4c7dd002be6457",
       "byte_identical": true,
       "command": "python3 scripts/generate-contract-native-census.py --native-cutover-only",
       "exit_code": 0,
@@ -29,7 +29,7 @@
           "orbis-generic-counter-fixture"
         ],
         "exit_code": 0,
-        "output_sha256": "17cc60d736361b23708652aca33b7bcffcbd64e0993ea2bb658758fef116804d",
+        "output_sha256": "7339358e96cc8564e919fe9941e0f06d90fa3a1f7e23e1a01a9ac54a18f08e09",
         "path": "origin/orbis/runtime/src/tests.rs",
         "status": "pass"
       }

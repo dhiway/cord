@@ -14,8 +14,8 @@ matrix against the runtime sources, both SDK exports, the generated descriptor, 
 `sdk-native-coverage.report.json`.
 
 The fail-closed network identity is the exact deterministic candidate genesis header
-`0x98cd5590…ce03`, bound through `docs/genesis/orbis-candidate-genesis-identity.json` at artifact
-SHA-256 `d1c9f8ba…c4ec`. Its frozen activation state is `candidate-pending` with
+`0x657de1aa…e173`, bound through `docs/genesis/orbis-candidate-genesis-identity.json` at artifact
+SHA-256 `04d596cc…e3bf`. Its frozen activation state is `candidate-pending` with
 `production_activation_ready=false`. Rust callers must explicitly choose
 `NetworkIdentity::orbis_candidate()` and TypeScript callers must explicitly choose
 `ORBIS_CANDIDATE_NETWORK_BINDING`. Production access rejects this identity until a checked-in,

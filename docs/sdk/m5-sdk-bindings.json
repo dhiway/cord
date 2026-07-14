@@ -5,18 +5,18 @@
   "inputs": {
     "design_map": {
       "path": "docs/sdk/contract-to-native-map.json",
-      "sha256": "c6be6342ea095cc5d4f16b9f399305c93bed0e75bebbb5f87c08a894b4205234"
+      "sha256": "65c09ed39b02c227a3402e8b8ef40474c438203e5c5f0f73b0cedf32a6ef35f9"
     },
     "route_contract": {
       "path": "docs/sdk/native-route-contract.json",
-      "sha256": "f99d2ade1b8e5fc508b92e1fe43b86e549301dfa7f5f4250a4d312568fb69a40"
+      "sha256": "5821b5f7205abb360a535bd6cf84eaf50b2b1cab51f3422c7d3104b4442c73e6"
     },
     "approval_manifest": {
       "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
       "required_reviewer_role": "architect",
-      "review_thread_id": "019f5c3c-0569-7ca2-ba2a-1df7f15827ab",
-      "schema_version": 1,
-      "sha256": "41d0ca41a959207b98dcb5bf8b98ffe9321b15e2ccab3bea7adda187e04930ed",
+      "review_thread_id": "b2c4692d-d095-40bc-9bab-5c7e053b0e14",
+      "schema_version": 2,
+      "sha256": "639d9b868973e0020d58f98cba06e6adc18a1b691208b1d6d32dac6b52aeb594",
       "verdict": "APPROVED"
     }
   },

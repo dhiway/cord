@@ -18,9 +18,9 @@
     "origin_transaction_version": 2,
     "para_id": 1006,
     "protocol_id": "orbis",
-    "orbis_candidate_genesis_header_hash": "0x98cd55908bb19c4006abf021ccb7be2ece52c8edca8149f739145836ccbfce03",
+    "orbis_candidate_genesis_header_hash": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
     "orbis_candidate_genesis_identity_source": "docs/genesis/orbis-candidate-genesis-identity.json",
-    "orbis_candidate_genesis_identity_sha256": "d1c9f8ba39a4af9bf618bcde2e832396d6a60addd0fad0cb24797866e8edc4ec"
+    "orbis_candidate_genesis_identity_sha256": "04d596ccb995cf9aa1527a43d7013a99d45d5e6d8f8aa050444bc54aa5bae3bf"
   },
   "ratification": {
     "canonical_envelope": "docs/evidence/verification/p0/ratification-envelope.json",
@@ -33,7 +33,7 @@
   "runtime_source": {
     "branch": "sm-update-sub-0x63",
     "cargo_lock_sha256": "2f26a9400f7635c99b8859ad497a415d2e5e302da283f42999256004e26d7fa0",
-    "commit": "485b4580654cc31661749f357000d3c891349b11",
+    "commit": "3e2c120041753cd5b75839a001c22ed2c5ec4e62",
     "runtime_source_sha256": "edd4668ea38c82afd0b829f8996a47274855d64bbd0941effffc710b416d79c0",
     "sdk_branch": "release-v1.24.0",
     "sdk_commit": "cc190ea83c590b6a14a6b9771ab02c81618dc118"

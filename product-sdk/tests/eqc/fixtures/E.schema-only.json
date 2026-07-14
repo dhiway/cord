@@ -5,11 +5,11 @@
   "class": "E",
   "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "runtime": {
-    "genesis_identity": "0x98cd55908bb19c4006abf021ccb7be2ece52c8edca8149f739145836ccbfce03",
+    "genesis_identity": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
     "genesis_status": "deterministic-clean-break-candidate-not-production-approved",
-    "wasm_sha256": "fb1d44f5950e7affa1b3a628fd29e5610d840e34476d7eb9cb52bf80b8c5a7da",
+    "wasm_sha256": "558727456824d1f06928148ffead8cee5d58a63bf9109d0334a061f30c35db0f",
     "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
-    "descriptor_contract_sha256": "a5396e4bed4b65b3be95fcb9e531ca5e5e7300e55b831a6cbb185dfe893e9816",
+    "descriptor_contract_sha256": "b621cf318308ca2ab46c16ec319be263b151f349ca48852770351cace952ad2b",
     "spec_version": 29,
     "transaction_version": 8
   },

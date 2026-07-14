@@ -5,9 +5,9 @@
   "design_payload_sha256": "2d1638fa6c0f7b1273161d932fba710989db4a3fdc289947ff8347909fec54f5",
   "manifest_id": "origin-orbis-p0-semantic-dispositions-v2",
   "required_reviewer_role": "architect",
-  "review_thread_id": "PENDING",
-  "reviewed_at": "PENDING",
-  "reviewer_role": "PENDING",
+  "review_thread_id": "b2c4692d-d095-40bc-9bab-5c7e053b0e14",
+  "reviewed_at": "2026-07-14T05:00:11Z",
+  "reviewer_role": "architect",
   "schema_version": 2,
   "scope_exclusions": [
     "no implementation approval",
@@ -19,5 +19,5 @@
   "semantic_design_entries": 2780,
   "source_base_head": "be57cdac316d76ac17a8c91a4265d08c76b7ef93",
   "source_components": 132,
-  "verdict": "PENDING"
+  "verdict": "APPROVED"
 }

@@ -141,7 +141,7 @@
     },
     "final_genesis_hash": null,
     "final_genesis_status": "PENDING",
-    "genesis_header_hash": "0x98cd55908bb19c4006abf021ccb7be2ece52c8edca8149f739145836ccbfce03",
+    "genesis_header_hash": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
     "genesis_inputs": {
       "orbis": {
         "path": "docs/genesis/orbis-launch-input.candidate.json",
@@ -152,10 +152,10 @@
         "sha256": "1c06217926387e973354ec88c92df2d6d88e023e839b287782baff6dde646e57"
       }
     },
-    "genesis_state_root": "0x1d1ebb75fa374a0dac0a934663c724abddb67b7f41b729431e953655783e0390",
+    "genesis_state_root": "0x3455b0234339e9f97fbdf926721267226782dffaffd382f3f1e9f472099615e1",
     "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
     "network_launch_approval": false,
-    "p5_payload_sha256": "7616683dc759fd687d562ccb475d0ea329735d4a231abfb4880ef0df5ebdbb2e",
+    "p5_payload_sha256": "a9455ca6983aa55ae9c6baff2330051f9f51bb8273066d00b16fdd76fa436315",
     "production_activation": false,
     "scope": "origin-orbis-clean-break-production-launch",
     "chain_spec_source_sha256": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
@@ -167,7 +167,7 @@
       "max_launch_window_seconds": 86400
     }
   },
-  "payload_sha256": "7b0a926f79881799fa475b90bfafdd840954116783593635c48445cc9aec4937",
+  "payload_sha256": "1f1ef1b07db2aa7e727049b4b1d366fba69fbf9bd63a232ed82a0bb2378c8276",
   "signatures": [],
   "derived_status": {
     "activation_state": "candidate-pending",

@@ -9,7 +9,7 @@ test("descriptor binds the P5 native SDK freeze to the exact fixture and runtime
  assert.equal(descriptor.descriptorProvenance.methodInventory,"authoritative-typed-native-route-contract");
  assert.equal(descriptor.runtime.metadataHash,"0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391");
  assert.deepEqual([descriptor.runtime.paraId,descriptor.runtime.specVersion,descriptor.runtime.transactionVersion],[1006,29,8]);
- assert.equal(descriptor.fixtureIdentity.genesis_identity,"0x98cd55908bb19c4006abf021ccb7be2ece52c8edca8149f739145836ccbfce03");
+ assert.equal(descriptor.fixtureIdentity.genesis_identity,"0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173");
  assert.deepEqual(descriptor.networkActivation,{state:"candidate-pending",productionActivationReady:false,source:"docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"});
  assert.equal(descriptor.fixtureIdentity.status,"deterministic-clean-break-candidate-not-production-approved"); assert.equal(descriptor.productionPapiDescriptorGenerated,false);
 });

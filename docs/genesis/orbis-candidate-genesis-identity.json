@@ -33,10 +33,10 @@
     "rustc": "rustc 1.93.0 (254b59607 2026-01-19)"
   },
   "genesis": {
-    "header_hash": "0x98cd55908bb19c4006abf021ccb7be2ece52c8edca8149f739145836ccbfce03",
-    "raw_chain_spec_sha256": "1ce238429f42b0ba55182ea7f91f49cf9da47261dbfdfabba5b99ae2e8e04600",
-    "raw_storage_sha256": "d00dd27f4b3d51ed07a096d749a3b3c05fc17914dd395d41aaeaa4717c990592",
-    "state_root": "0x1d1ebb75fa374a0dac0a934663c724abddb67b7f41b729431e953655783e0390"
+    "header_hash": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
+    "raw_chain_spec_sha256": "73b858fe5af97caf6f69b76194f8fdd405fe9df288e37c874fe71e0eb4b66a35",
+    "raw_storage_sha256": "a3f8452a5b2f1952ac47885fdafd1738d523690d0315d58505fb462f0d122e80",
+    "state_root": "0x3455b0234339e9f97fbdf926721267226782dffaffd382f3f1e9f472099615e1"
   },
   "production_activation": false,
   "production_activation_ready": false,
@@ -485,14 +485,14 @@
   },
   "runtime": {
     "compact_wasm_path": "target/orbis-metadata/release/wbuild/origin-orbis-runtime/origin_orbis_runtime.compact.wasm",
-    "compact_wasm_sha256": "fb1d44f5950e7affa1b3a628fd29e5610d840e34476d7eb9cb52bf80b8c5a7da",
-    "embedded_code_sha256": "4fa5842aebda97764151c80df66e4999cc276d94dd8f93051f00982146e61624",
+    "compact_wasm_sha256": "558727456824d1f06928148ffead8cee5d58a63bf9109d0334a061f30c35db0f",
+    "embedded_code_sha256": "0351d4e8628bdc72485860928ad21a2c58b9d27e7ba3314d89edf416ec217fd0",
     "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
     "metadata_hash_manifest": "origin/orbis/runtime/fixtures/meta-v8/metadata-hash.json",
-    "metadata_hash_manifest_canonical_sha256": "c3c368abda2f9ad66d56014280a366a8546623991e09a4091766674cfba1d42f",
-    "metadata_hash_manifest_sha256": "5a031b2cd2b47d21e883127e51412e037942276e4d8605c7f23c572a69658658",
+    "metadata_hash_manifest_canonical_sha256": "bc56519b9d3eca07230f9aef41552abc2f69a0e0a9f152921016c15ab13bf6c4",
+    "metadata_hash_manifest_sha256": "23355f674c0e0108c8e9a80e75fa6050d16acae92304f06327587636be689c28",
     "node_binary_path": "target/release/origin-orbis",
-    "node_binary_sha256": "70e325483cfe0a83358e10ea0ac96d288d9fea93b3be38dcbddf77250e1ca90b",
+    "node_binary_sha256": "85683b1019ea7a5cbcca49dac089cedc0ac6676bc08bd4194efeedb190cf7f95",
     "spec_version": 29,
     "transaction_version": 8
   },
@@ -502,7 +502,7 @@
     "chain_spec_path": "origin/orbis/node/src/chain_spec.rs",
     "chain_spec_sha256": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
     "git_branch": "sm-update-sub-0x63",
-    "git_revision": "485b4580654cc31661749f357000d3c891349b11",
+    "git_revision": "3e2c120041753cd5b75839a001c22ed2c5ec4e62",
     "source_file_sha256": {
       "origin/base/cli/src/chain_spec.rs": "2f08d82e25206c1e8e111445efbe8b2b8ea143b19736bc36e58a16f53dff5bc5",
       "origin/base/runtime/src/genesis_config_presets.rs": "fb982962cfad5a45166b1d3698db704b6a0068717e6decb524df1ba9571d4daf",

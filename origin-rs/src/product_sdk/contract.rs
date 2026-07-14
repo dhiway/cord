@@ -10,11 +10,11 @@ pub use super::version::{
 
 pub use super::version::ORBIS_CANDIDATE_GENESIS_HEADER_HASH;
 pub const ORBIS_DESCRIPTOR_CONTRACT_SHA256: &str =
-	"a5396e4bed4b65b3be95fcb9e531ca5e5e7300e55b831a6cbb185dfe893e9816";
+	"b621cf318308ca2ab46c16ec319be263b151f349ca48852770351cace952ad2b";
 pub const ORBIS_CHAIN_SPEC_SOURCE_SHA256: &str =
 	"7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb";
 pub const NATIVE_SDK_RATIFICATION_PAYLOAD_SHA256: &str =
-	"7616683dc759fd687d562ccb475d0ea329735d4a231abfb4880ef0df5ebdbb2e";
+	"a9455ca6983aa55ae9c6baff2330051f9f51bb8273066d00b16fdd76fa436315";
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]

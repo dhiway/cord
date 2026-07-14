@@ -1,12 +1,12 @@
 ---
-Verdict: PENDING
-Reviewer-Role: PENDING
-Review-Thread-ID: PENDING
-Approval-Manifest-SHA256: 74c809af88b04e042738edcfd53836a17d73df0813566201a23b18e809c36829
+Verdict: APPROVED
+Reviewer-Role: architect
+Review-Thread-ID: b2c4692d-d095-40bc-9bab-5c7e053b0e14
+Approval-Manifest-SHA256: 639d9b868973e0020d58f98cba06e6adc18a1b691208b1d6d32dac6b52aeb594
 Census-Payload-SHA256: 27295261921f4699ab57bfa46928f82f3c461d708db5575f6701bb7d49368f9d
 Design-Payload-SHA256: 2d1638fa6c0f7b1273161d932fba710989db4a3fdc289947ff8347909fec54f5
-Census-Artifact-SHA256: 91bb809c5bd96007109de9b4c162bc07b35a8cb85ac18b53b7defd26e9eda584
-Design-Artifact-SHA256: 66cf4b4ed996d46fc6162656debe184545e2eec5cfc64d40df7400413835d196
+Census-Artifact-SHA256: ac5d7bcea10a61c809809609af6d4c9d958e69d2f02edb04d5be600329c76ae8
+Design-Artifact-SHA256: 65c09ed39b02c227a3402e8b8ef40474c438203e5c5f0f73b0cedf32a6ef35f9
 Branch: sm-update-sub-0x63
 Source-Base-HEAD: be57cdac316d76ac17a8c91a4265d08c76b7ef93
 Source-Components: 132

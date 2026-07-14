@@ -3,10 +3,10 @@
   "approval_manifest": {
     "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
     "required_reviewer_role": "architect",
-    "review_thread_id": "PENDING",
+    "review_thread_id": "b2c4692d-d095-40bc-9bab-5c7e053b0e14",
     "schema_version": 2,
-    "sha256": "74c809af88b04e042738edcfd53836a17d73df0813566201a23b18e809c36829",
-    "verdict": "PENDING"
+    "sha256": "639d9b868973e0020d58f98cba06e6adc18a1b691208b1d6d32dac6b52aeb594",
+    "verdict": "APPROVED"
   },
   "entries": [
     {

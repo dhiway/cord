@@ -4,9 +4,9 @@
   "approval": {
     "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
     "required_reviewer_role": "architect",
-    "review_thread_id": "019f5c3c-0569-7ca2-ba2a-1df7f15827ab",
-    "schema_version": 1,
-    "sha256": "41d0ca41a959207b98dcb5bf8b98ffe9321b15e2ccab3bea7adda187e04930ed",
+    "review_thread_id": "b2c4692d-d095-40bc-9bab-5c7e053b0e14",
+    "schema_version": 2,
+    "sha256": "639d9b868973e0020d58f98cba06e6adc18a1b691208b1d6d32dac6b52aeb594",
     "verdict": "APPROVED"
   },
   "release": "origin-orbis-native-v1",
@@ -93,12 +93,12 @@
     "pallet_or_call_indices": false
   },
   "inputs": {
-    "version_matrix_sha256": "7a4147d4e66f96240d78f53865a3c21ab56988f0a07df4b70a82be6861613e1e",
-    "coverage_map_sha256": "c6be6342ea095cc5d4f16b9f399305c93bed0e75bebbb5f87c08a894b4205234",
-    "m5_sdk_bindings_sha256": "2616a62807ff7f8d9ef1740f7cd0ba723052d983e5f2edaeb8bcc931126e414f",
-    "route_contract_sha256": "f99d2ade1b8e5fc508b92e1fe43b86e549301dfa7f5f4250a4d312568fb69a40",
-    "rust_route_harness_sha256": "4c6ab6fddb152f964c17c0571511f189a40ae03ca77947a6c501e73124af5d18",
+    "version_matrix_sha256": "93f41f07b3f1c4d466eea30878e9f573902f0c9bb175970ecded899a61a18f02",
+    "coverage_map_sha256": "65c09ed39b02c227a3402e8b8ef40474c438203e5c5f0f73b0cedf32a6ef35f9",
+    "m5_sdk_bindings_sha256": "9d3d02830076883e819443fd2ba5ae623679a1e80c42e690f733f7ea3314cb77",
+    "route_contract_sha256": "5821b5f7205abb360a535bd6cf84eaf50b2b1cab51f3422c7d3104b4442c73e6",
+    "rust_route_harness_sha256": "74c7828f0a70877fb138256d39818d93a6c818c9651450add511f8634a498119",
     "typescript_route_harness_sha256": "1542c5b4d6e7d4ca520faa27c525babcfa09c9a44cb22b821642aaf233070e7e",
-    "descriptor_sha256": "f9f4c26249f581d0bdf043ce0edb93cddce1c4fafbc1e372c71bd2535d909780"
+    "descriptor_sha256": "891943a2626ee808994cb0b072f7bbdefa599c745535351b40f72dead7517aca"
   }
 }

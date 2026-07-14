@@ -13,10 +13,10 @@ The first supported clean-break Rust and TypeScript SDK contract is frozen by:
   Rust and TypeScript harnesses.
 
 `sdk-freeze-ratification-envelope.json` binds those contracts with canonical payload SHA-256
-`7616683dc759fd687d562ccb475d0ea329735d4a231abfb4880ef0df5ebdbb2e`.
+`a9455ca6983aa55ae9c6baff2330051f9f51bb8273066d00b16fdd76fa436315`.
 It is deliberately unsigned: all five approval slots remain pending and production activation is
 blocked. The contract is bound to deterministic candidate header
-`0x98cd5590…ce03` and identity artifact SHA-256 `d1c9f8ba…c4ec`; this candidate is not
+`0x657de1aa…e173` and identity artifact SHA-256 `04d596cc…e3bf`; this candidate is not
 production-approved genesis. SDK network contracts freeze it as `candidate-pending` with
 `production_activation_ready=false`; development requires explicit candidate opt-in and production
 mode rejects it.

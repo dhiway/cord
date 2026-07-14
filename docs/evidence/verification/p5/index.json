@@ -3,7 +3,7 @@
     {
       "bytes": 911,
       "path": "docs/evidence/verification/p5/host-conformance.json",
-      "sha256": "bbc4a25f121f67e7f1b83d2d60f891d89a1747110501be124bb569c83c4512f6"
+      "sha256": "9368956ab3bb245463ce850ee35f4b0b5a65282817e5f7703e791b3a9bf8d405"
     },
     {
       "bytes": 1547,
@@ -13,12 +13,12 @@
     {
       "bytes": 840,
       "path": "docs/evidence/verification/p5/revive-boundary.report.json",
-      "sha256": "76c98cadb9be7f174ba7098b429ac53ea4b7bd7b869c6c939a403f8034e969da"
+      "sha256": "53844291ef6040b52ee706d3caec195a1ae651b97e63910d4efb282ed7869069"
     },
     {
       "bytes": 1821,
       "path": "docs/evidence/verification/p5/native-cutover-cleanup.report.json",
-      "sha256": "76d55e33be23b31f11a09122ce013937f6b3474f59c3e12d102208cafcd2207d"
+      "sha256": "375552e08516c2f2beda0ce473f2fe18f7fc551126a3eacf5c10f057ba2defff"
     },
     {
       "bytes": 400,
@@ -26,24 +26,24 @@
       "sha256": "600ab768a750d7d6782b9dbff973f49406131a1e35cf1f3c5316cce4e8c15fbd"
     },
     {
-      "bytes": 6012,
+      "bytes": 6007,
       "path": "docs/evidence/verification/p5/raw/host-conformance.log",
-      "sha256": "c6de77bb494a48f62cddbce033a2e0c11ff5a552bd453bc2b0c171efe45f499d"
+      "sha256": "cb91a6a656181b51b732f614b9d1a934bfaa3a4cfb834ffc4954f339a963261d"
     },
     {
       "bytes": 2165,
       "path": "docs/evidence/verification/p5/raw/m9-cleanup.log",
-      "sha256": "3afa3c3787c747eeb11df6e80091ae02c625995f924b0e545036601fc2fbb888"
+      "sha256": "5214d59a97ac6b4c9543035d491d4f987d2addf1cc2ba3675c6cd83d46e46cb2"
     },
     {
-      "bytes": 5674,
+      "bytes": 4728,
       "path": "docs/evidence/verification/p5/raw/operator-executable.log",
-      "sha256": "40e8e6f1fdf901a84a410ef08f42ea6a13363317a741c0ad919fcaea285f3aa5"
+      "sha256": "7a6c525264671a8f83c461824e418f123c2f84ec2caf7088b2211007cc2dd221"
     },
     {
-      "bytes": 579,
+      "bytes": 465,
       "path": "docs/evidence/verification/p5/raw/revive-retained-evidence.log",
-      "sha256": "dcfe914d9abd6f8d87930049a40fb2aeab264a1582798406935ddba8ab723208"
+      "sha256": "c55759be76a9c6b303ee9634010774b24e6377636401acc202bb1eacf4b15330"
     }
   ],
   "command": "python3 scripts/validate-p5-native-launch.py",

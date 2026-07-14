@@ -14,151 +14,151 @@ TAP version 13
 # Subtest: new attestation methods have exact payload and finality contracts
 ok 1 - new attestation methods have exact payload and finality contracts
   ---
-  duration_ms: 6.016
+  duration_ms: 4.346583
   type: 'test'
   ...
 # Subtest: finalized Host stream decodes and filters native Attestation events
 ok 2 - finalized Host stream decodes and filters native Attestation events
   ---
-  duration_ms: 2.458875
+  duration_ms: 1.53425
   type: 'test'
   ...
 # Subtest: finalized Host stream decodes every native Attestation event variant
 ok 3 - finalized Host stream decodes every native Attestation event variant
   ---
-  duration_ms: 0.624834
+  duration_ms: 0.346083
   type: 'test'
   ...
 # Subtest: all native DotNS methods have exact finality and executable Host routes
 ok 4 - all native DotNS methods have exact finality and executable Host routes
   ---
-  duration_ms: 11.277917
+  duration_ms: 4.855041
   type: 'test'
   ...
 # Subtest: finalized Host stream decodes every native DotNS event and its stable outcome
 ok 5 - finalized Host stream decodes every native DotNS event and its stable outcome
   ---
-  duration_ms: 3.414667
+  duration_ms: 2.95625
   type: 'test'
   ...
 # Subtest: descriptor-shaped DotNS bytes reject invalid UTF-8
 ok 6 - descriptor-shaped DotNS bytes reject invalid UTF-8
   ---
-  duration_ms: 0.489916
+  duration_ms: 0.28875
   type: 'test'
   ...
 # Subtest: finalized Host stream ignores non-DotNS and filters by requested kind
 ok 7 - finalized Host stream ignores non-DotNS and filters by requested kind
   ---
-  duration_ms: 0.623833
+  duration_ms: 0.37825
   type: 'test'
   ...
 # Subtest: registered hostile suite executes typed outcomes
 ok 8 - registered hostile suite executes typed outcomes
   ---
-  duration_ms: 7.395458
+  duration_ms: 3.787
   type: 'test'
   ...
 # Subtest: host-owned consent rejects missing and revoked records
 ok 9 - host-owned consent rejects missing and revoked records
   ---
-  duration_ms: 0.366292
+  duration_ms: 0.176792
   type: 'test'
   ...
 # Subtest: grant and consent issuance reject unknown exact scopes with Rust parity
 ok 10 - grant and consent issuance reject unknown exact scopes with Rust parity
   ---
-  duration_ms: 0.440792
+  duration_ms: 0.217292
   type: 'test'
   ...
 # Subtest: deferred cancellation wins once and late transport cannot callback
 ok 11 - deferred cancellation wins once and late transport cannot callback
   ---
-  duration_ms: 6.49675
+  duration_ms: 2.578959
   type: 'test'
   ...
 # Subtest: revocation is checked before signer and between signer and transport
 ok 12 - revocation is checked before signer and between signer and transport
   ---
-  duration_ms: 3.228291
+  duration_ms: 3.997416
   type: 'test'
   ...
 # Subtest: candidate network requires explicit opt-in and production mode rejects PENDING activation
 ok 13 - candidate network requires explicit opt-in and production mode rejects PENDING activation
   ---
-  duration_ms: 0.461875
+  duration_ms: 0.314041
   type: 'test'
   ...
 # Subtest: every thrown error serializes to native-error-v1 shape
 ok 14 - every thrown error serializes to native-error-v1 shape
   ---
-  duration_ms: 0.796708
+  duration_ms: 0.373875
   type: 'test'
   ...
 # Subtest: host JSON contract is method-discriminated, recursively closed and exactly runtime-bound
 ok 15 - host JSON contract is method-discriminated, recursively closed and exactly runtime-bound
   ---
-  duration_ms: 1.952667
+  duration_ms: 0.856333
   type: 'test'
   ...
 # Subtest: duplicate and concurrent request IDs fail before a second signer or transport
 ok 16 - duplicate and concurrent request IDs fail before a second signer or transport
   ---
-  duration_ms: 3.529917
+  duration_ms: 2.2325
   type: 'test'
   ...
 # Subtest: manual Draft-2020-12 boundary rejects malformed fields
 ok 17 - manual Draft-2020-12 boundary rejects malformed fields
   ---
-  duration_ms: 1.10975
+  duration_ms: 1.880542
   type: 'test'
   ...
 # Subtest: typed adapter executes a read at one exact finalized hash
 ok 18 - typed adapter executes a read at one exact finalized hash
   ---
-  duration_ms: 4.299042
+  duration_ms: 2.284375
   type: 'test'
   ...
 # Subtest: metadata-derived submission resolves only after typed finalization evidence
 ok 19 - metadata-derived submission resolves only after typed finalization evidence
   ---
-  duration_ms: 1.616208
+  duration_ms: 1.150375
   type: 'test'
   ...
 # Subtest: runtime drift fails closed before a typed read executes
 ok 20 - runtime drift fails closed before a typed read executes
   ---
-  duration_ms: 0.724875
+  duration_ms: 0.444875
   type: 'test'
   ...
 # Subtest: host cancellation aborts and closes an in-flight typed transaction stream
 ok 21 - host cancellation aborts and closes an in-flight typed transaction stream
   ---
-  duration_ms: 7.804292
+  duration_ms: 3.764041
   type: 'test'
   ...
 # Subtest: typed client failures map to the stable product error vocabulary
 ok 22 - typed client failures map to the stable product error vocabulary
   ---
-  duration_ms: 0.781083
+  duration_ms: 0.479375
   type: 'test'
   ...
 # Subtest: every provider Drive and S3 event decodes to one stable kind
 ok 23 - every provider Drive and S3 event decodes to one stable kind
   ---
-  duration_ms: 2.809709
+  duration_ms: 1.538625
   type: 'test'
   ...
 # Subtest: fake finalized source filters kinds and emits deterministic outcomes
 ok 24 - fake finalized source filters kinds and emits deterministic outcomes
   ---
-  duration_ms: 1.705083
+  duration_ms: 1.01725
   type: 'test'
   ...
 # Subtest: shared provider deletion vector survives TS descriptor decoding exactly
 ok 25 - shared provider deletion vector survives TS descriptor decoding exactly
   ---
-  duration_ms: 1.32725
+  duration_ms: 1.058833
   type: 'test'
   ...
 1..25
@@ -169,4 +169,4 @@ ok 25 - shared provider deletion vector survives TS descriptor decoding exactly
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 392.184417
+# duration_ms 267.686917

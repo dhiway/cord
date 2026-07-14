@@ -37,11 +37,11 @@
         "origin-rs",
         "product-sdk"
       ],
-      "candidate_genesis_header_hash": "0x98cd55908bb19c4006abf021ccb7be2ece52c8edca8149f739145836ccbfce03",
-      "candidate_genesis_state_root": "0x1d1ebb75fa374a0dac0a934663c724abddb67b7f41b729431e953655783e0390",
+      "candidate_genesis_header_hash": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
+      "candidate_genesis_state_root": "0x3455b0234339e9f97fbdf926721267226782dffaffd382f3f1e9f472099615e1",
       "candidate_genesis_identity_source": "docs/genesis/orbis-candidate-genesis-identity.json",
-      "candidate_genesis_identity_sha256": "d1c9f8ba39a4af9bf618bcde2e832396d6a60addd0fad0cb24797866e8edc4ec",
-      "compact_wasm_sha256": "fb1d44f5950e7affa1b3a628fd29e5610d840e34476d7eb9cb52bf80b8c5a7da",
+      "candidate_genesis_identity_sha256": "04d596ccb995cf9aa1527a43d7013a99d45d5e6d8f8aa050444bc54aa5bae3bf",
+      "compact_wasm_sha256": "558727456824d1f06928148ffead8cee5d58a63bf9109d0334a061f30c35db0f",
       "activation_state": "candidate-pending",
       "production_activation_ready": false
     }
