@@ -1,0 +1,38 @@
+{
+  "name": "@cord-network/origin-sdk-descriptors",
+  "version": "0.1.0",
+  "description": "Generated Commons metadata descriptors and fail-closed network bindings",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./commons": {
+      "types": "./dist/commons/index.d.ts",
+      "import": "./dist/commons/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "node --experimental-strip-types ../../tools/generate-papi-descriptor.ts --check && tsc -p tsconfig.json && node --experimental-strip-types tools/copy-papi.ts",
+    "check": "tsc -p tsconfig.json --noEmit && node --experimental-strip-types --test tests/*.test.ts && node --experimental-strip-types ../../tools/generate-papi-descriptor.ts --check"
+  },
+  "dependencies": {
+    "@cord-network/origin-sdk-errors": "0.1.0"
+  },
+  "peerDependencies": {
+    "polkadot-api": "2.1.6"
+  },
+  "cord": {
+    "bundleBudgetBytes": 3000000
+  }
+}

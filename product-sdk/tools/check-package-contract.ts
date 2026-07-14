@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
 const packagesRoot = resolve(import.meta.dirname, "../packages");
@@ -51,6 +51,15 @@ for (const path of manifests) {
   if (!manifest.scripts?.build || !manifest.scripts?.check)
     fail(`${manifest.name} lacks build/check scripts`);
   if (!existsSync(resolve(path, "../README.md"))) fail(`${manifest.name} lacks a README`);
+  const dist = resolve(path, "../dist");
+  if (!existsSync(dist)) fail(`${manifest.name} has not been built`);
+  const bytes = (directory: string): number => readdirSync(directory, { withFileTypes: true })
+    .reduce((total, entry) => total + (entry.isDirectory()
+      ? bytes(resolve(directory, entry.name))
+      : statSync(resolve(directory, entry.name)).size), 0);
+  const budget = manifest.cord?.bundleBudgetBytes;
+  if (typeof budget === "number" && bytes(dist) > budget)
+    fail(`${manifest.name} exceeds its ${budget}-byte distribution budget`);
 }
 
 process.stdout.write(`PASS package distribution contract: packages=${manifests.length}\n`);
