@@ -10,10 +10,10 @@ manifest = "product-sdk/package.json"
 package = "@cord-network/product-sdk-workspace"
 version = "0.9.9"
 private = true
-publishable_packages = 3
+publishable_packages = 7
 export_count = 20
 exports = [".", "./attestation", "./content", "./names", "./drive", "./errors", "./host", "./identity", "./network-host", "./attestation-events", "./network-binding", "./provider", "./s3", "./storage", "./sponsored-transaction", "./types", "./names-events", "./storage-events", "./storage-native-events", "./version"]
-limitations = ["root-raw-typescript-exports", "root-private-monolith-still-present", "tier-a-incomplete"]
+limitations = ["root-raw-typescript-exports", "root-private-monolith-still-present", "tier-b-and-tier-c-incomplete"]
 
 [reference]
 repository = "paritytech/product-sdk"
@@ -48,28 +48,28 @@ dependencies = ["@cord-network/origin-sdk-errors"]
 name = "@cord-network/origin-sdk-host"
 tier = "A"
 owner = "sdk-host"
-state = "planned"
+state = "present"
 dependencies = ["@cord-network/origin-sdk-result", "@cord-network/origin-sdk-errors"]
 
 [[package]]
 name = "@cord-network/origin-sdk-chain-client"
 tier = "A"
 owner = "sdk-transport"
-state = "planned"
+state = "present"
 dependencies = ["@cord-network/origin-sdk-result", "@cord-network/origin-sdk-errors", "@cord-network/origin-sdk-descriptors"]
 
 [[package]]
 name = "@cord-network/origin-sdk-signer"
 tier = "A"
 owner = "sdk-transport"
-state = "planned"
+state = "present"
 dependencies = ["@cord-network/origin-sdk-result", "@cord-network/origin-sdk-errors", "@cord-network/origin-sdk-host"]
 
 [[package]]
 name = "@cord-network/origin-sdk-tx"
 tier = "A"
 owner = "sdk-transport"
-state = "planned"
+state = "present"
 dependencies = ["@cord-network/origin-sdk-result", "@cord-network/origin-sdk-errors", "@cord-network/origin-sdk-descriptors", "@cord-network/origin-sdk-chain-client", "@cord-network/origin-sdk-signer"]
 
 [[package]]

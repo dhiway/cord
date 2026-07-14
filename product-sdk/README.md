@@ -1,8 +1,17 @@
 # CORD Product SDK — native SDK v1
 
+## Publishable Origin SDK packages
+
+The Tier A package floor is available as side-effect-free ESM with declarations:
+`origin-sdk-result`, `origin-sdk-errors`, `origin-sdk-descriptors`, `origin-sdk-chain-client`,
+`origin-sdk-host`, `origin-sdk-signer`, and `origin-sdk-tx` under the `@cord-network` scope.
+`npm run test:packed` builds and installs only their tarballs into a clean consumer, then proves a
+runtime-bound finalized read and a host-approved finalized transaction. The private root exports
+remain temporary inputs for Tier B extraction and are not publication targets.
+
 This workspace is the first supported transport-neutral TypeScript SDK for the
-clean-break Origin/Orbis stack. It freezes the Origin `9901/2` and Orbis
-`29/8` version matrix, current Orbis metadata, typed descriptor contract, and
+clean-break Foundation/Commons stack. It freezes the Foundation `9901/2` and Commons
+`29/8` version matrix, current Commons metadata, typed descriptor contract, and
 cross-language native semantic vectors.
 
 It is deliberately **not** a production mobile rewrite, a performance result,
