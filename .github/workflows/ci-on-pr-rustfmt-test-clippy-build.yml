@@ -26,6 +26,9 @@ jobs:
       - name: canonical source headers
         run: python3 scripts/check-source-headers.py
 
+      - name: Commons SDK platform contract
+        run: python3 scripts/check-sdk-platform-contract.py
+
       - name: install dependencies
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
 

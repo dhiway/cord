@@ -1,0 +1,181 @@
+schema_version = 1
+network = "Foundation/Commons"
+unknown_rows = 0
+native_authority = "Commons runtime pallets and runtime APIs"
+production_ready = false
+
+[[capability]]
+id = "typed-chain"
+requirement = "Typed connection, finalized reads, subscriptions, and network drift rejection"
+journey = "Both Festival and enterprise applications read one finalized Commons snapshot"
+runtime_owner = "Commons metadata and runtime APIs"
+sdk_owner = "origin-sdk-descriptors and origin-sdk-chain-client"
+host_owner = "Endpoint selection and reconnect policy"
+state = "runtime-present-sdk-gap"
+contract_policy = "forbidden"
+evidence = "docs/sdk/native-route-contract.json; product-sdk/packages/descriptors/generated/orbis-descriptor.json"
+
+[[capability]]
+id = "transactions"
+requirement = "Construct, batch, submit, watch, cancel, sponsor, and decode transactions"
+journey = "Submit sponsored check-in and enterprise writes with finalized outcomes"
+runtime_owner = "FRAME calls, Utility, fees, MetaTx"
+sdk_owner = "origin-sdk-tx, origin-sdk-signer, and sponsored transaction helpers"
+host_owner = "Per-transaction approval"
+state = "runtime-present-sdk-partial"
+contract_policy = "forbidden"
+evidence = "docs/sdk/native-route-contract.json; product-sdk/src/sponsored-transaction.ts"
+
+[[capability]]
+id = "host-wallet"
+requirement = "Accounts, product identity, permissions, signing consent, and cancellation"
+journey = "Hosted app connects an account without choosing an RPC endpoint"
+runtime_owner = "Signed and sponsored transaction verification only"
+sdk_owner = "origin-sdk-host and origin-sdk-signer"
+host_owner = "Authoritative consent, accounts, signing, and endpoint policy"
+state = "sdk-partial-host-gap"
+contract_policy = "forbidden"
+evidence = "product-sdk/src/host.ts; product-sdk/packages/host/src/network-host.ts"
+
+[[capability]]
+id = "local-storage"
+requirement = "Application-namespaced local storage"
+journey = "Hosted app persists settings without leaking across product identities"
+runtime_owner = "none"
+sdk_owner = "origin-sdk-local-storage and createApp"
+host_owner = "Namespaced device storage"
+state = "sdk-gap"
+contract_policy = "forbidden"
+evidence = "docs/sdk/package-architecture.toml"
+
+[[capability]]
+id = "identity"
+requirement = "Identity aliases, registrars, and judgements"
+journey = "Enterprise organization and user identities are resolved at finality"
+runtime_owner = "People pallet and identity runtime APIs"
+sdk_owner = "origin-sdk-identity"
+host_owner = "Account selection and disclosure consent"
+state = "runtime-present-sdk-partial"
+contract_policy = "forbidden-native-authority"
+evidence = "origin/orbis/runtime/src/lib.rs; product-sdk/src/identity.ts"
+
+[[capability]]
+id = "personhood-resources"
+requirement = "Personhood, memberships, resource claims, and statement allowances"
+journey = "Festival proves eligibility and obtains bounded messaging resources"
+runtime_owner = "Personhood, Members, PeopleLite, and Resources pallets"
+sdk_owner = "origin-sdk-personhood and origin-sdk-resources"
+host_owner = "Proof and disclosure consent"
+state = "runtime-present-sdk-gap"
+contract_policy = "forbidden-native-authority"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+
+[[capability]]
+id = "attestation"
+requirement = "Schemas, issuance, delegation, revocation, expiry, and events"
+journey = "Festival and enterprise issuers create and revoke attestations"
+runtime_owner = "Attestation pallet and runtime API"
+sdk_owner = "origin-sdk-attestation"
+host_owner = "Issuer signing approval"
+state = "runtime-present-sdk-partial"
+contract_policy = "forbidden-native-authority"
+evidence = "origin/orbis/pallets/attestation/src/lib.rs; product-sdk/src/attestation.ts"
+
+[[capability]]
+id = "names"
+requirement = "Register, renew, transfer, control, resolve records, and primary names"
+journey = "Applications bind human-readable names to identities and content"
+runtime_owner = "Names pallet and runtime API"
+sdk_owner = "origin-sdk-names"
+host_owner = "Owner and controller signing approval"
+state = "runtime-present-sdk-partial"
+contract_policy = "forbidden-native-authority"
+evidence = "origin/orbis/pallets/names/src/lib.rs; product-sdk/src/names.ts"
+
+[[capability]]
+id = "app-resolution"
+requirement = "Publish, resolve, verify, and launch a versioned application manifest"
+journey = "A static app is launched from a Commons name and content commitment"
+runtime_owner = "Names owns the manifest commitment; storage owns content commitments"
+sdk_owner = "origin-sdk-apps"
+host_owner = "Fetch transport, sandbox, and requested device permissions"
+state = "native-primitives-present-sdk-gap"
+contract_policy = "deployment-contract-forbidden"
+evidence = "docs/adr/0019-app-discovery-and-publication.md"
+
+[[capability]]
+id = "app-discovery"
+requirement = "Opt-in publication, retraction, search, and ranking"
+journey = "Users discover published applications without changing ownership authority"
+runtime_owner = "Names remains ownership authority; no additional runtime state in P0"
+sdk_owner = "origin-sdk-apps index schema and client"
+host_owner = "Search UI and policy"
+state = "off-chain-index-selected-sdk-gap"
+contract_policy = "registry-contract-forbidden"
+evidence = "docs/adr/0019-app-discovery-and-publication.md"
+
+[[capability]]
+id = "cloud-storage"
+requirement = "CID integrity, durable storage, provider agreements, Drive, and S3 metadata"
+journey = "Applications upload, renew, fetch, and delegate content"
+runtime_owner = "TransactionStorage, StorageProvider, Drive, and S3 pallets"
+sdk_owner = "origin-sdk-cloud-storage"
+host_owner = "Preimages, transport, and secret material"
+state = "runtime-present-sdk-partial"
+contract_policy = "forbidden-native-authority"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs; product-sdk/src/storage.ts"
+
+[[capability]]
+id = "statement-store"
+requirement = "Allowance acquisition, submit, query, subscription, persistence, and propagation"
+journey = "Festival sends bounded notifications and reconnects to subscriptions"
+runtime_owner = "Resources allowance policy and statement-store host functions"
+sdk_owner = "origin-sdk-statement-store and origin-sdk-resources"
+host_owner = "Statement transport and subscriptions"
+state = "runtime-and-node-opt-in-present-sdk-gap"
+contract_policy = "forbidden"
+evidence = "docs/sdk/statement-store-audit.md"
+
+[[capability]]
+id = "assets-payments"
+requirement = "Balances, assets, NFTs, fees, and payment helpers"
+journey = "Enterprise application issues an asset and records a payment"
+runtime_owner = "Balances, Assets, Uniques/NFTs, conversion, and asset fee pallets"
+sdk_owner = "origin-sdk-assets"
+host_owner = "Payment approval"
+state = "runtime-present-sdk-gap"
+contract_policy = "native-assets-must-not-use-contracts"
+evidence = "origin/orbis/runtime/src/lib.rs"
+
+[[capability]]
+id = "pure-utilities"
+requirement = "Result, errors, keys, address, crypto, logging, and utilities"
+journey = "Web and backend consumers share portable validation and error handling"
+runtime_owner = "none"
+sdk_owner = "Tier A and Tier C leaf packages"
+host_owner = "none except secure key custody"
+state = "sdk-gap"
+contract_policy = "not-applicable"
+evidence = "docs/sdk/package-architecture.toml"
+
+[[capability]]
+id = "app-contracts"
+requirement = "Optional application-owned programmable logic"
+journey = "An application explicitly deploys independent business logic"
+runtime_owner = "Revive execution only"
+sdk_owner = "origin-sdk-contracts optional leaf"
+host_owner = "Deployment and call approval"
+state = "runtime-present-sdk-gap"
+contract_policy = "allowed-only-for-app-specific-non-authoritative-state"
+evidence = "docs/adr/0018-native-first-sdk-and-contract-boundary.md"
+
+[[capability]]
+id = "device-capabilities"
+requirement = "Camera, NFC, Bluetooth, location, biometrics, and external URLs"
+journey = "Mobile applications request device access through the host"
+runtime_owner = "none"
+sdk_owner = "origin-sdk-host TrUAPI adapter"
+host_owner = "Authoritative device permission and implementation"
+state = "host-sdk-gap"
+contract_policy = "forbidden"
+evidence = "docs/adr/0018-native-first-sdk-and-contract-boundary.md"

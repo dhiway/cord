@@ -71,7 +71,7 @@ activation envelope derives `production-approved`.
 
 `packages/descriptors/generated/orbis-descriptor.json` is a deterministic
 native host contract manifest bound to the checked-in runtime metadata-hash
-record and SDK manifests. Its 132-method inventory is generated from
+record and SDK manifests. Its 143-method inventory is generated from
 `docs/sdk/native-route-contract.json`; Rust and TypeScript execute every canonical route sample.
 The inventory is not generated from PAPI or a decoded current metadata blob. It binds the canonical P5 signing-payload hash while
 the signing payload binds a canonical descriptor-contract digest that excludes

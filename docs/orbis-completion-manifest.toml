@@ -1,7 +1,7 @@
-manifest_version = 21
+manifest_version = 22
 scope = "origin-orbis-enterprise-completion"
-implementation_branch = "sm-update-sub-0x63"
-current_state = "p2-p6-native-feature-implementation-present-production-validation-deferred"
+implementation_branch = "sm-update-sub-0x65"
+current_state = "runtime-native-features-present-sdk-app-platform-p0-frozen-production-validation-deferred"
 historical_baseline_manifest_version = 5
 max_api_page_size = 100
 max_s3_bucket_name_bytes = 63
@@ -9,9 +9,9 @@ max_s3_object_key_bytes = 1024
 
 [replanning]
 rule = "Adding or removing any row, method, service, scenario, or exclusion requires independent review and a manifest_version increment."
-iteration = 21
-decision = "foundation-commons-node-ownership-cleanup"
-plan_evidence = "docs/adr/0017-native-feature-source-of-truth.md"
+iteration = 22
+decision = "foundation-commons-sdk-app-platform-freeze"
+plan_evidence = "docs/adr/0018-native-first-sdk-and-contract-boundary.md"
 transition_architect_evidence = ""
 transition_architect_status = "pending"
 transition_critic_evidence = ""
