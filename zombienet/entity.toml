@@ -30,5 +30,5 @@ chain = "orbis-local"
 name = "orbis-entity-collator"
 rpc_port = 9920
 collator = true
-command = "target/release/origin-orbis"
+command = "target/release/origin-omni-node"
 args = ["--trie-cache-size=0", "--execution=wasm"]

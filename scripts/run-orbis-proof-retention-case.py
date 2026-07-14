@@ -696,8 +696,8 @@ class ProcessManager:
 			["ps", "-ww", "-p", str(pid), "-o", "command="], text=True
 		).strip()
 		command = shlex.split(command_text)
-		if not command or "origin-orbis" not in Path(command[0]).name:
-			raise CampaignError(f"PID {pid} is not origin-orbis: {command_text}")
+		if not command or "origin-omni-node" not in Path(command[0]).name:
+			raise CampaignError(f"PID {pid} is not origin-omni-node: {command_text}")
 		if int(option_value(command, "--rpc-port")) != port:
 			raise CampaignError(f"PID {pid} command/RPC mismatch on {port}")
 		base_path = Path(option_value(command, "--base-path")).resolve()
@@ -944,9 +944,9 @@ class CaseRunner:
 
 	def binary(self, name: str) -> Path:
 		paths = {
-			"origin_orbis": self.repo / "target/release/origin-orbis",
+			"origin_orbis": self.repo / "target/release/origin-omni-node",
 			"proof_campaign_origin_orbis": (
-				self.repo / "target/proof-campaign/release/origin-orbis-proof-campaign"
+				self.repo / "target/proof-campaign/release/origin-omni-proof-campaign"
 			),
 			"signed_fault_tool": self.repo / "target/debug/examples/orbis_storage_proof_fault",
 			"indexed_db_probe_tool": self.repo / "target/debug/examples/orbis_storage_index_fault",

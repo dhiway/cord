@@ -64,7 +64,7 @@ sc-telemetry.workspace = true
 sc-telemetry.default-features = true
 sc-executor.workspace = true
 sc-executor.default-features = true
-origin-runtime = { optional = true, workspace = true, default-features = true }
+origin-foundation-runtime = { optional = true, workspace = true, default-features = true }
 origin-runtime-constants = { optional = true, workspace = true, default-features = true }
 
 [build-dependencies]
@@ -73,7 +73,7 @@ substrate-build-script-utils = { workspace = true, default-features = true }
 [features]
 default = ["cli", "db", "full-node", "origin-native"]
 db = ["polkadot-service/db"]
-metadata-hash = ["origin-runtime/metadata-hash"]
+metadata-hash = ["origin-foundation-runtime/metadata-hash"]
 service = ["dep:polkadot-service"]
 cli = [
 	"clap",
@@ -86,30 +86,30 @@ cli = [
 runtime-benchmarks = [
 	"frame-benchmarking-cli?/runtime-benchmarks",
 	"polkadot-node-metrics/runtime-benchmarks",
-	"origin-runtime/runtime-benchmarks",
+	"origin-foundation-runtime/runtime-benchmarks",
 	"sc-service?/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 ]
 full-node = ["polkadot-service/full-node"]
 origin-native = [
 	"frame-metadata-hash-extension",
-	"origin-runtime",
+	"origin-foundation-runtime",
 	"origin-runtime-constants",
 ]
 try-runtime = [
 	"frame-system/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"runtime-parachains/try-runtime",
-	"origin-runtime/try-runtime",
+	"origin-foundation-runtime/try-runtime",
 	"sp-runtime/try-runtime",
 ]
 fast-runtime = [
-	"origin-runtime/fast-runtime",
+	"origin-foundation-runtime/fast-runtime",
 	"origin-runtime-constants/fast-runtime",
 ]
 pyroscope = ["dep:pyroscope", "pyroscope_pprofrs"]
 malus = ["full-node"]
 runtime-metrics = [
 	"polkadot-node-metrics/runtime-metrics",
-	"origin-runtime/runtime-metrics",
+	"origin-foundation-runtime/runtime-metrics",
 ]

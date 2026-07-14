@@ -1,5 +1,5 @@
 [package]
-name = "origin-runtime"
+name = "origin-foundation-runtime"
 build = "build.rs"
 repository.workspace = true
 version.workspace = true

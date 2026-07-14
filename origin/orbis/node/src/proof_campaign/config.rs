@@ -85,7 +85,7 @@ impl Campaign {
 }
 
 #[derive(Debug, Parser)]
-#[command(name = "origin-orbis-proof-campaign", propagate_version = true)]
+#[command(name = "origin-omni-proof-campaign", propagate_version = true)]
 pub struct Cli {
 	#[command(flatten)]
 	pub run: cumulus_client_cli::RunCmd,

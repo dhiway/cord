@@ -100,7 +100,7 @@ def native_cutover_allowlist(approval_ref: dict[str, object]) -> dict[str, objec
                     "solidity_evm_fixture_deploys_and_executes_through_revive",
                     "ethereum_pipeline_uses_mapped_nonce_payer_and_only_terminal_revive_actor",
                 ],
-                "command": "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime solidity_evm_fixture_deploys_and_executes_through_revive --lib",
+                "command": "SKIP_WASM_BUILD=1 cargo test -p origin-commons-runtime solidity_evm_fixture_deploys_and_executes_through_revive --lib",
             },
             "exclusions": "No migrated-domain contract, ABI, address, proxy, adapter or SDK facade is allowlisted.",
         }, {
@@ -134,7 +134,7 @@ def native_cutover_allowlist(approval_ref: dict[str, object]) -> dict[str, objec
             "test_evidence": {
                 "path": "origin/orbis/runtime/src/tests.rs",
                 "symbols": ["solidity_evm_fixture_deploys_and_executes_through_revive"],
-                "command": "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime solidity_evm_fixture_deploys_and_executes_through_revive --lib",
+                "command": "SKIP_WASM_BUILD=1 cargo test -p origin-commons-runtime solidity_evm_fixture_deploys_and_executes_through_revive --lib",
             },
             "exclusions": "Every migrated-domain semantic fixture is excluded.",
         }],

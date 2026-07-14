@@ -862,13 +862,13 @@ pallet-orbis-entity = { path = "origin/orbis/pallets/entity", default-features =
 pallet-orbis-register = { path = "origin/orbis/pallets/register", default-features = false }
 origin-primitives = { path = "origin/primitives", default-features = false }
 origin-node-cli = { path = "origin/base/cli", default-features = false }
-origin-runtime = { path = "origin/base/runtime" }
+origin-foundation-runtime = { path = "origin/base/runtime" }
 origin-runtime-constants = { path = "origin/base/runtime/constants", default-features = false }
 origin-common = { path = "origin/common", default-features = false }
-origin-orbis = { path = "origin/orbis/node", default-features = false }
+origin-omni-node = { path = "origin/orbis/node", default-features = false }
 origin-hub-system-runtime = { path = "origin/hub/system", default-features = false }
 origin-hub-system-runtime-constants = { path = "origin/hub/constants", default-features = false }
-origin-orbis-runtime = { path = "origin/orbis/runtime", default-features = false }
+origin-commons-runtime = { path = "origin/orbis/runtime", default-features = false }
 orbis-storage-runtime-api = { path = "origin/orbis/runtime-api/storage", default-features = false }
 token-origin-runtime-api = { path = "origin/runtime-api/token-origin-runtime-api", default-features = false }
 token-origin-hub-runtime-api = { path = "origin/runtime-api/token-origin-hub-runtime-api", default-features = false }

@@ -53,8 +53,8 @@ locally, for example:
 srtool build --engine docker --package cord-braid-runtime --runtime-dir runtimes/braid .
 srtool build --engine docker --package cord-loom-runtime --runtime-dir runtimes/loom .
 srtool build --engine docker --package cord-weave-runtime --runtime-dir runtimes/weave .
-srtool build --engine docker --package origin-runtime --runtime-dir origin/base/runtime .
-srtool build --engine docker --package origin-orbis-runtime --runtime-dir origin/orbis/runtime .
+srtool build --engine docker --package origin-foundation-runtime --runtime-dir origin/base/runtime .
+srtool build --engine docker --package origin-commons-runtime --runtime-dir origin/orbis/runtime .
 ```
 
 Attach the srtool JSON, compact/compressed Wasm artifacts, and subwasm `info`,
@@ -70,7 +70,7 @@ subcommand.
 First verify that the native runtimes compile with try-runtime enabled:
 
 ```bash
-cargo check -p cord-node-cli -p origin-node-cli -p origin-orbis --locked --features try-runtime
+cargo check -p cord-node-cli -p origin-node-cli -p origin-omni-node --locked --features try-runtime
 ```
 
 For releases with migrations, run `try-runtime on-runtime-upgrade` against the

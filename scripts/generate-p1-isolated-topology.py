@@ -53,7 +53,7 @@ def generate(repo, output, seed):
     required = (
         "[settings]\ntimeout = 300",
         'default_command = "target/release/origin"',
-        'command = "target/release/origin-orbis"',
+        'command = "target/release/origin-omni-node"',
         'name = "alice"\nrpc_port = 9801',
     )
     for marker in required:
@@ -70,7 +70,7 @@ def generate(repo, output, seed):
     origin_wrapper = output / "origin-wrapper.sh"
     orbis_wrapper = output / "orbis-wrapper.sh"
     origin_wrapper.write_text(wrapper(repo / "target/release/origin", NODES, key_dir))
-    orbis_wrapper.write_text(wrapper(repo / "target/release/origin-orbis", COLLATORS, key_dir))
+    orbis_wrapper.write_text(wrapper(repo / "target/release/origin-omni-node", COLLATORS, key_dir))
     origin_wrapper.chmod(0o700)
     orbis_wrapper.chmod(0o700)
 
@@ -83,7 +83,7 @@ def generate(repo, output, seed):
         1,
     )
     text = text.replace('default_command = "target/release/origin"', f'default_command = "{origin_wrapper}"', 1)
-    text = text.replace('command = "target/release/origin-orbis"', f'command = "{orbis_wrapper}"')
+    text = text.replace('command = "target/release/origin-omni-node"', f'command = "{orbis_wrapper}"')
     topology = output / "testnet.toml"
     topology.write_text(text)
 

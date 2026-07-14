@@ -1,9 +1,9 @@
 # Orbis Score Wasm benchmark evidence — 2026-07-13
 
-This evidence was produced with the registered `origin-orbis` node/runtime benchmark CLI. It is
+This evidence was produced with the registered `origin-omni-node` node/runtime benchmark CLI. It is
 not a completion-manifest transition.
 
-- Node: `origin-orbis 0.9.9-ee159750e87`
+- Node: `origin-omni-node 0.9.9-ee159750e87`
 - Toolchain: `rustc 1.93.0 (254b59607 2026-01-19)`, `cargo 1.93.0`
 - Chain: `orbis-dev`
 - Execution: compiled Wasm
@@ -16,9 +16,9 @@ not a completion-manifest transition.
 Reproduction:
 
 ```sh
-SKIP_PALLET_REVIVE_FIXTURES=1 cargo build -p origin-orbis --release --features runtime-benchmarks
+SKIP_PALLET_REVIVE_FIXTURES=1 cargo build -p origin-omni-node --release --features runtime-benchmarks
 
-target/release/origin-orbis benchmark pallet \
+target/release/origin-omni-node benchmark pallet \
   --chain orbis-dev --pallet pallet_orbis_score --extrinsic '*' \
   --exclude-extrinsics pallet_orbis_score::redeem_credit \
   --steps 20 --repeat 10 --min-duration 0 \
@@ -26,7 +26,7 @@ target/release/origin-orbis benchmark pallet \
   --output /tmp/orbis-score-measured.rs \
   --json-file docs/benchmarks/orbis-score-2026-07-13.json
 
-target/release/origin-orbis benchmark pallet \
+target/release/origin-omni-node benchmark pallet \
   --chain orbis-dev --pallet pallet_orbis_score \
   --extrinsic 'redeem_credit,set_payout_account' \
   --steps 20 --repeat 10 --min-duration 0 \

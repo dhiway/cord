@@ -156,8 +156,8 @@ def production_campaign_evidence(
 	else:
 		binary_paths = {
 			"origin": ROOT / "target/release/origin",
-			"origin_orbis": ROOT / "target/release/origin-orbis",
-			"proof_fault_origin_orbis": ROOT / "target/proof-fault/release/origin-orbis",
+			"origin_orbis": ROOT / "target/release/origin-omni-node",
+			"proof_fault_origin_orbis": ROOT / "target/proof-fault/release/origin-omni-node",
 			"bootstrap_orbis_core": ROOT / "target/debug/examples/bootstrap_orbis_core",
 			"signed_fault_tool": ROOT / "target/debug/examples/orbis_storage_proof_fault",
 			"indexed_db_fault_tool": ROOT / "target/debug/examples/orbis_storage_index_fault",
@@ -735,7 +735,7 @@ def build_verdict() -> dict[str, Any]:
 		{
 			"name": "origin_orbis_node_build",
 			"status": "pass" if node_build_passed else "fail",
-			"command": "cargo check -p origin-orbis",
+			"command": "cargo check -p origin-omni-node",
 			"log": relative_repo_path(node_build_log),
 			"log_sha256": sha256(node_build_log),
 		}
@@ -778,7 +778,7 @@ def build_verdict() -> dict[str, Any]:
 		},
 		"node_build_evidence": {
 			"status": "pass" if node_build_passed else "fail",
-			"command": "cargo check -p origin-orbis",
+			"command": "cargo check -p origin-omni-node",
 			"log": "docs/evidence/p1/storage-proof/origin-orbis-check.out",
 			"log_sha256": sha256(
 				ROOT / "docs/evidence/p1/storage-proof/origin-orbis-check.out"

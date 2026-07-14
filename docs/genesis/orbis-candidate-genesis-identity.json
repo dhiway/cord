@@ -18,7 +18,7 @@
     }
   },
   "derivation": {
-    "command": "python3 scripts/validate_origin_orbis_genesis.py --origin-node target/release/origin --orbis-node target/release/origin-orbis --compact-wasm target/orbis-metadata/release/wbuild/origin-orbis-runtime/origin_orbis_runtime.compact.wasm --write-evidence",
+    "command": "python3 scripts/validate_origin_orbis_genesis.py --origin-node target/release/origin --orbis-node target/release/origin-omni-node --compact-wasm target/orbis-metadata/release/wbuild/origin-commons-runtime/origin_commons_runtime.compact.wasm --write-evidence",
     "deterministic_build_count": 2,
     "header_encoding": "SCALE sp_runtime::generic::Header<BlockNumber=u32, BlakeTwo256>",
     "header_hash_algorithm": "Blake2b-256 over exact SCALE genesis header bytes",
@@ -484,14 +484,14 @@
     "unknown_prefixes": []
   },
   "runtime": {
-    "compact_wasm_path": "target/orbis-metadata/release/wbuild/origin-orbis-runtime/origin_orbis_runtime.compact.wasm",
+    "compact_wasm_path": "target/orbis-metadata/release/wbuild/origin-commons-runtime/origin_commons_runtime.compact.wasm",
     "compact_wasm_sha256": "558727456824d1f06928148ffead8cee5d58a63bf9109d0334a061f30c35db0f",
     "embedded_code_sha256": "0351d4e8628bdc72485860928ad21a2c58b9d27e7ba3314d89edf416ec217fd0",
     "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
     "metadata_hash_manifest": "origin/orbis/runtime/fixtures/meta-v8/metadata-hash.json",
     "metadata_hash_manifest_canonical_sha256": "bc56519b9d3eca07230f9aef41552abc2f69a0e0a9f152921016c15ab13bf6c4",
     "metadata_hash_manifest_sha256": "23355f674c0e0108c8e9a80e75fa6050d16acae92304f06327587636be689c28",
-    "node_binary_path": "target/release/origin-orbis",
+    "node_binary_path": "target/release/origin-omni-node",
     "node_binary_sha256": "85683b1019ea7a5cbcca49dac089cedc0ac6676bc08bd4194efeedb190cf7f95",
     "spec_version": 29,
     "transaction_version": 8

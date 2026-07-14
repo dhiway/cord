@@ -75,14 +75,14 @@ pub fn origin_chain_spec_properties() -> serde_json::map::Map<String, serde_json
 /// Origin Relay development config (single validator )
 pub fn origin_development_config() -> Result<OriginChainSpec, String> {
 	Ok(OriginChainSpec::builder(
-		origin_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
+		origin_foundation_runtime::WASM_BINARY.ok_or("Origin Foundation WASM not available")?,
 		Default::default(),
 	)
-	.with_name("Origin Development")
+	.with_name("Origin Foundation Development")
 	.with_id("origin_dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(
-		origin_runtime::genesis_config_presets::origin_development_config_genesis(),
+		origin_foundation_runtime::genesis_config_presets::origin_development_config_genesis(),
 	)
 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
 	.with_properties(origin_chain_spec_properties())
@@ -92,14 +92,14 @@ pub fn origin_development_config() -> Result<OriginChainSpec, String> {
 /// Origin Relay local/staging config (multi-validator )
 pub fn origin_local_config() -> Result<OriginChainSpec, String> {
 	Ok(OriginChainSpec::builder(
-		origin_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
+		origin_foundation_runtime::WASM_BINARY.ok_or("Origin Foundation WASM not available")?,
 		Default::default(),
 	)
-	.with_name("Origin Local")
+	.with_name("Origin Foundation Local")
 	.with_id("origin_local")
 	.with_chain_type(ChainType::Local)
 	.with_genesis_config_patch(
-		origin_runtime::genesis_config_presets::origin_staging_config_genesis(),
+		origin_foundation_runtime::genesis_config_presets::origin_staging_config_genesis(),
 	)
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(ORIGIN_TELEMETRY_URL.to_string(), 0)])
@@ -185,7 +185,7 @@ fn origin_reviewed_config(
 					"validators[{index}].beefy must be a compressed ECDSA public key"
 				));
 			}
-			Ok(origin_runtime::genesis_config_presets::OriginProductionAuthority {
+			Ok(origin_foundation_runtime::genesis_config_presets::OriginProductionAuthority {
 				account_id: production_account(
 					&validator.account_id,
 					&format!("validators[{index}].account_id"),
@@ -253,14 +253,14 @@ fn origin_reviewed_config(
 	}
 
 	Ok(OriginChainSpec::builder(
-		origin_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
+		origin_foundation_runtime::WASM_BINARY.ok_or("Origin Foundation WASM not available")?,
 		Default::default(),
 	)
 	.with_name(name)
 	.with_id(id)
 	.with_chain_type(chain_type)
 	.with_genesis_config_patch(
-		origin_runtime::genesis_config_presets::origin_production_config_genesis(
+		origin_foundation_runtime::genesis_config_presets::origin_production_config_genesis(
 			authorities,
 			root_key,
 			endowed_accounts,

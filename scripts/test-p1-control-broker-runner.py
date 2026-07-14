@@ -69,7 +69,7 @@ class GenesisDerivationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             captured = root / "captured"
-            binary = root / "origin-orbis"
+            binary = root / "origin-omni-node"
             binary.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$CAPTURED"\n')
             binary.chmod(0o755)
             wrapper = RUNNER.write_orbis_command_wrapper(root / "wrapper", binary)
@@ -159,7 +159,7 @@ class GenesisDerivationTests(unittest.TestCase):
                 'origin = "__ORIGIN_BINARY__"\nbinary = "__ORBIS_BINARY__"\n'
             )
             rendered = RUNNER.render_topology(
-                template, relay, orbis, specs, "/sealed/origin", "/sealed/origin-orbis"
+                template, relay, orbis, specs, "/sealed/origin", "/sealed/origin-omni-node"
             )
 
             self.assertIn('relay = "relay.raw.json"', rendered)
@@ -246,7 +246,7 @@ class GenesisDerivationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             log = pathlib.Path(directory) / "orbis.log"
             with mock.patch.object(RUNNER.subprocess, "run", side_effect=fake_run):
-                observed = RUNNER.parachain_genesis_hash("origin-orbis", "orbis.json", log)
+                observed = RUNNER.parachain_genesis_hash("origin-omni-node", "orbis.json", log)
 
         expected = "0x" + hashlib.blake2b(header, digest_size=32).hexdigest()
         self.assertEqual(observed, expected)

@@ -106,7 +106,7 @@ def preflight(args) -> tuple[list[str], dict]:
 		blockers.append(f"wrong branch: {inputs['branch']!r}; expected sm-update-sub-0x63")
 	binaries = {
 		"origin": Path(args.origin_binary).resolve() if args.origin_binary else ROOT / "target/release/origin",
-		"origin-orbis": ROOT / "target/release/origin-orbis",
+		"origin-orbis": ROOT / "target/release/origin-omni-node",
 	}
 	for name, binary in binaries.items():
 		if not binary.is_file():
@@ -328,7 +328,7 @@ def assert_frozen_inputs(inputs: dict) -> None:
 		"bootstrap_binary_sha256": ROOT / "target/release/examples/bootstrap_orbis_core",
 		"slo_sha256": SLO,
 		"origin_binary_sha256": Path(inputs["origin_binary_path"]),
-		"origin-orbis_binary_sha256": ROOT / "target/release/origin-orbis",
+		"origin-orbis_binary_sha256": ROOT / "target/release/origin-omni-node",
 		"workload_driver_binary_sha256": ROOT / "target/release/examples/orbis_elastic_workload",
 		"workload_driver_source_sha256": ROOT / "origin-rs/examples/orbis_elastic_workload.rs",
 		"topology_sha256": CONFIG,

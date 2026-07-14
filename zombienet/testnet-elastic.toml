@@ -1,5 +1,5 @@
 # Build the production-shaped 3-core elastic runtime:
-#   cargo build -p origin-orbis -p origin-orbis-runtime --release
+#   cargo build -p origin-omni-node -p origin-commons-runtime --release
 # Launch:
 #   zombienet -p native spawn zombienet/testnet-elastic.toml
 # In a second terminal, assign cores and verify progress/finality:
@@ -93,12 +93,12 @@ num_cores = 3
 name = "orbis-alice"
 rpc_port = 9810
 collator = true
-command = "target/release/origin-orbis"
+command = "target/release/origin-omni-node"
 args = ["--alice", "--execution=wasm", "--force-authoring", "--authoring=slot-based"]
 
 [[parachains.collators]]
 name = "orbis-bob"
 rpc_port = 9811
 collator = true
-command = "target/release/origin-orbis"
+command = "target/release/origin-omni-node"
 args = ["--bob", "--execution=wasm", "--force-authoring", "--authoring=slot-based"]

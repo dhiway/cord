@@ -46,7 +46,7 @@ def main()->int:
  forbidden=re.compile(r'contract_address|contractAddress|deploymentAddress|\.sol\b|reviveContract',re.I)
  for path in active_paths:
   require(not forbidden.search(text(path)),f'stale contract/address surface in {path}',errors)
- alignment=ROOT/'docs/architecture/origin-orbis-runtime-alignment.csv'
+ alignment=ROOT/'docs/architecture/origin-foundation-commons-runtime-alignment.csv'
  rows=list(csv.DictReader(alignment.open(newline='')));by_id={r['id']:r for r in rows}
  require(by_id.get('NODE-PROVIDER-SERVICES',{}).get('index_or_version')=='v4','alignment provider node is not v4',errors)
  require('frontier-verified append-only' in by_id.get('GAP-PROVIDER',{}).get('disposition',''),'alignment root-proof disposition missing',errors)

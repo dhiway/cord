@@ -1,5 +1,5 @@
 [package]
-name = "origin-orbis"
+name = "origin-omni-node"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -13,12 +13,12 @@ publish = false
 workspace = true
 
 [[bin]]
-name = "origin-orbis"
+name = "origin-omni-node"
 path = "src/main.rs"
 
 [[bin]]
-name = "origin-orbis-proof-campaign"
-path = "src/bin/origin-orbis-proof-campaign.rs"
+name = "origin-omni-proof-campaign"
+path = "src/bin/origin-omni-proof-campaign.rs"
 required-features = ["proof-campaign"]
 
 [dependencies]
@@ -33,7 +33,7 @@ serde = { features = ["derive"], workspace = true, default-features = true }
 serde_json = { workspace = true, default-features = true }
 
 # The proof campaign is deliberately isolated from the production binary.  Every dependency in
-# this section is optional and is only linked by `origin-orbis-proof-campaign`.
+# this section is optional and is only linked by `origin-omni-proof-campaign`.
 clap = { workspace = true, optional = true }
 codec = { workspace = true, default-features = true, optional = true }
 cumulus-client-cli = { workspace = true, default-features = true, optional = true }
@@ -67,7 +67,7 @@ sp-timestamp = { workspace = true, default-features = true, optional = true }
 sp-transaction-storage-proof = { workspace = true, default-features = true, optional = true }
 
 #Local
-origin-orbis-runtime = { default-features = true, workspace = true }
+origin-commons-runtime = { default-features = true, workspace = true }
 origin-runtime-constants = { workspace = true, default-features = true }
 
 #Substrate, Cumulus, Polkadot
@@ -125,10 +125,10 @@ runtime-benchmarks = [
 	"parachains-common/runtime-benchmarks",
 	"polkadot-omni-node-lib/runtime-benchmarks",
 	"sc-service/runtime-benchmarks",
-	"origin-orbis-runtime/runtime-benchmarks",
+	"origin-commons-runtime/runtime-benchmarks",
 ]
 try-runtime = [
 	"polkadot-omni-node-lib/try-runtime",
-	"origin-orbis-runtime/try-runtime",
+	"origin-commons-runtime/try-runtime",
 ]
-fast-runtime = ["origin-orbis-runtime/fast-runtime"]
+fast-runtime = ["origin-commons-runtime/fast-runtime"]

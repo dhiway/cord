@@ -28,7 +28,7 @@ CAMPAIGN = load("run-orbis-proof-retention-campaign.py")
 
 
 BASE_COMMAND = [
-	"target/release/origin-orbis",
+	"target/release/origin-omni-node",
 	"--name",
 	"proof-orbis-alice",
 	"--node-key",
@@ -96,13 +96,13 @@ class DriverStaticTests(unittest.TestCase):
 		genesis = "0x" + "ab" * 32
 		command = DRIVER.proof_campaign_command(
 			BASE_COMMAND,
-			Path("target/proof-campaign/release/origin-orbis-proof-campaign"),
+			Path("target/proof-campaign/release/origin-omni-proof-campaign"),
 			"Duplicate",
 			73,
 			genesis,
 		)
 		para, relay = DRIVER.split_command(command)
-		self.assertEqual(para[0], "target/proof-campaign/release/origin-orbis-proof-campaign")
+		self.assertEqual(para[0], "target/proof-campaign/release/origin-omni-proof-campaign")
 		self.assertEqual(DRIVER.option_value(para, "--proof-campaign-mode"), "Duplicate")
 		self.assertEqual(DRIVER.option_value(para, "--proof-campaign-target-block"), "73")
 		self.assertEqual(
@@ -120,7 +120,7 @@ class DriverStaticTests(unittest.TestCase):
 		self.assertNotIn("--proof-campaign-expected-genesis-hash", clean)
 
 	def test_campaign_command_rejects_missing_guardrails(self):
-		binary = Path("target/proof-campaign/release/origin-orbis-proof-campaign")
+		binary = Path("target/proof-campaign/release/origin-omni-proof-campaign")
 		for mode, target, genesis in (
 			("late", 73, "0x" + "11" * 32),
 			("Missing", 0, "0x" + "11" * 32),
@@ -154,7 +154,7 @@ class DriverStaticTests(unittest.TestCase):
 		partitioned = DRIVER.partition_command(BASE_COMMAND)
 		self.assertIn("--reserved-only", DRIVER.split_command(partitioned)[0])
 		observer = DRIVER.observer_command(
-			BASE_COMMAND, Path("/repo/origin-orbis"), Path("/tmp/fresh"), "fresh", 10812, 30812
+			BASE_COMMAND, Path("/repo/origin-omni-node"), Path("/tmp/fresh"), "fresh", 10812, 30812
 		)
 		para, relay = DRIVER.split_command(observer)
 		self.assertNotIn("--collator", para)

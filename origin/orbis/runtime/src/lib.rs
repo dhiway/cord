@@ -158,8 +158,8 @@ impl_opaque_keys! {
 #[cfg(not(feature = "p1-upgrade-candidate"))]
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: Cow::Borrowed("orbis"),
-	impl_name: Cow::Borrowed("dhiway-orbis"),
+	spec_name: Cow::Borrowed("commons"),
+	impl_name: Cow::Borrowed("origin-commons"),
 	authoring_version: 1,
 	spec_version: 29,
 	impl_version: 0,
@@ -173,8 +173,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 #[cfg(feature = "p1-upgrade-candidate")]
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: Cow::Borrowed("orbis"),
-	impl_name: Cow::Borrowed("dhiway-orbis"),
+	spec_name: Cow::Borrowed("commons"),
+	impl_name: Cow::Borrowed("origin-commons"),
 	authoring_version: 1,
 	spec_version: 30,
 	impl_version: 0,

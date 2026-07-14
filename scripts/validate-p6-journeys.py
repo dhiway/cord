@@ -59,7 +59,7 @@ def main() -> None:
     run(
         "enterprise-lifecycle",
         [
-            "cargo", "test", "-p", "origin-orbis-runtime", lifecycle,
+            "cargo", "test", "-p", "origin-commons-runtime", lifecycle,
             "--lib", "--locked", "--", "--exact",
         ],
         environment,
@@ -67,7 +67,7 @@ def main() -> None:
     run(
         "enterprise-sponsored-boundaries",
         [
-            "cargo", "test", "-p", "origin-orbis-runtime", sponsored,
+            "cargo", "test", "-p", "origin-commons-runtime", sponsored,
             "--lib", "--locked", "--", "--exact",
         ],
         environment,
@@ -145,7 +145,7 @@ def main() -> None:
         "status": "PASS",
         "journey_acceptance": True,
         "p6_acceptance": False,
-        "runtime": "origin-orbis-runtime",
+        "runtime": "origin-commons-runtime",
         "source": "origin/orbis/runtime/src/enterprise_journey.rs",
         "assertions": {
             "identity_judgement": "native People registrar judgement",

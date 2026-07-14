@@ -1,5 +1,5 @@
 # Build pieces:
-#   cargo build -p origin-orbis -p origin-orbis-runtime --release
+#   cargo build -p origin-omni-node -p origin-commons-runtime --release
 # Launch network:
 #   zombienet -p native spawn zombienet/testnet.toml
 # In a second terminal, atomically assign all three Orbis cores and verify progress/finality:
@@ -93,12 +93,12 @@ num_cores = 3
 name = "orbis-alice"
 rpc_port = 9910
 collator = true
-command = "target/release/origin-orbis"
+command = "target/release/origin-omni-node"
 args = ["--alice", "--trie-cache-size=0", "--execution=wasm", "--authoring=slot-based"]
 
 [[parachains.collators]]
 name = "orbis-bob"
 rpc_port = 9911
 collator = true
-command = "target/release/origin-orbis"
+command = "target/release/origin-omni-node"
 args = ["--bob", "--trie-cache-size=0", "--execution=wasm", "--authoring=slot-based"]

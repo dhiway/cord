@@ -14,7 +14,7 @@ driver above:
 ```sh
 python3 zombienet/p1-control-broker/run.py \
   --origin-binary /absolute/path/to/origin \
-  --orbis-binary /absolute/path/to/fast-profile/origin-orbis \
+  --orbis-binary /absolute/path/to/fast-profile/origin-omni-node \
   --driver "$PWD/target/release/examples/p1_live_driver" \
   --origin-upgrade-wasm /absolute/path/to/distinct/origin_runtime.compact.compressed.wasm \
   --orbis-upgrade-wasm /absolute/path/to/distinct/fast/orbis_runtime.compact.compressed.wasm

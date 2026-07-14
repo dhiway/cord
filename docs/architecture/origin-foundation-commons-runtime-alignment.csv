@@ -184,7 +184,7 @@ ORBIS-EXT-11,transaction-extension,AccountAwarePayment,Orbis,present,11,payment/
 ORBIS-EXT-12,transaction-extension,ValidateStorageCalls,Orbis,present,12,recursive Bulletin policy,origin/orbis/runtime/src/lib.rs:2195-2245,retain; any encoding change bumps tx version,
 ORBIS-EXT-13,transaction-extension,CheckMetadataHash,Orbis,present,13,metadata binding,origin/orbis/runtime/src/lib.rs:2195-2245,retain; any encoding change bumps tx version,
 ORBIS-EXT-14,transaction-extension,SetOrigin,Orbis,present,14,Revive execution actor,origin/orbis/runtime/src/lib.rs:2195-2245,retain; any encoding change bumps tx version,
-NODE-ORBIS-BINARY,node,origin-orbis binary,Orbis node,present,0.9.9,polkadot-omni-node-lib DefaultRuntimeResolver,origin/orbis/node/src/main.rs,retain,
+NODE-ORBIS-BINARY,node,origin-omni-node binary,Orbis node,present,0.9.9,polkadot-omni-node-lib DefaultRuntimeResolver,origin/orbis/node/src/main.rs,retain,
 NODE-ORBIS-CHAINSPEC,cli,orbis-dev/orbis-local/custom JSON chain specs,Orbis node,present,para=1006,ChainSpecLoader,origin/orbis/node/src/chain_spec.rs,retain,
 NODE-ORBIS-RPC,rpc,standard omni-node RPC plus runtime APIs,Orbis node,present,SDK-defined,polkadot-omni-node-lib,origin/orbis/node/src/main.rs,retain; custom provider RPC remains gap,
 NODE-PROOF-PROVIDER,node,production transaction-storage proof provider,Orbis node,present,SDK-v1.24 TransactionStorageApi v2; omni accepts v>=1,polkadot_omni_node_lib Aura provider registration,origin/orbis/node/src/main.rs;origin/orbis/runtime/src/lib.rs;Cargo.lock,retain SDK-owned provider composition; prove retention in P7,
@@ -211,9 +211,9 @@ GAP-S3,delivered-capability,S3 registry/API,Orbis,present,122,pallet_orbis_s3,or
 GAP-XCM-E2E,planned-capability,Broker-to-Origin and XCM production E2E,Orbis,gap,,not present/complete,docs/orbis-native-capability-matrix.md,validate,P1/P7 blocker
 GAP-PROOF-E2E,planned-capability,proof retention production E2E,Orbis,gap,,not present/complete,docs/orbis-native-capability-matrix.md,validate,P1/P4 blocker
 GAP-WEIGHTS,planned-capability,Orbis-native generated weights for every retained pallet,Orbis,gap,,not present/complete,docs/orbis-native-capability-matrix.md,generate after final diff,P7 blocker
-EX-STAKING,exclusion,staking/nomination/elections,Origin/Orbis,excluded,,policy,docs/orbis-native-capability-matrix.md;docs/architecture/origin-orbis-runtime-alignment.csv,keep excluded,
-EX-PUBLIC-GOV,exclusion,public governance/treasury,Origin/Orbis,excluded,,policy,docs/orbis-native-capability-matrix.md;docs/architecture/origin-orbis-runtime-alignment.csv,keep excluded,
-EX-LEGACY,exclusion,legacy data/client migration,Origin/Orbis,excluded,,policy,docs/orbis-native-capability-matrix.md;docs/architecture/origin-orbis-runtime-alignment.csv,keep excluded,
-EX-ABI,exclusion,Solidity ABI compatibility for migrated domains,Origin/Orbis,excluded,,policy,docs/orbis-native-capability-matrix.md;docs/architecture/origin-orbis-runtime-alignment.csv,keep excluded,
+EX-STAKING,exclusion,staking/nomination/elections,Origin/Orbis,excluded,,policy,docs/orbis-native-capability-matrix.md;docs/architecture/origin-foundation-commons-runtime-alignment.csv,keep excluded,
+EX-PUBLIC-GOV,exclusion,public governance/treasury,Origin/Orbis,excluded,,policy,docs/orbis-native-capability-matrix.md;docs/architecture/origin-foundation-commons-runtime-alignment.csv,keep excluded,
+EX-LEGACY,exclusion,legacy data/client migration,Origin/Orbis,excluded,,policy,docs/orbis-native-capability-matrix.md;docs/architecture/origin-foundation-commons-runtime-alignment.csv,keep excluded,
+EX-ABI,exclusion,Solidity ABI compatibility for migrated domains,Origin/Orbis,excluded,,policy,docs/orbis-native-capability-matrix.md;docs/architecture/origin-foundation-commons-runtime-alignment.csv,keep excluded,
 MANIFEST-V5,evidence,historical completion manifest,Orbis,present,version=5;evidence_phase=closed,immutable Slice-2 v5 evidence with independent Architect and Critic clearance,docs/evidence/orbis-v5/GATE-6-SLICE2-EVIDENCE.json,retain as historical evidence only,
 MANIFEST-CURRENT,evidence,current completion manifest,Origin/Orbis,present,version=17;activation=candidate-pending,clean-break native feature source of truth,docs/orbis-completion-manifest.toml;docs/adr/0017-native-feature-source-of-truth.md,candidate only; P1/P6/P7 validation and approvals remain blocking,P5/P7 approval required

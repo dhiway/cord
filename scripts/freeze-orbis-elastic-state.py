@@ -24,9 +24,9 @@ def output(command):
 
 def main():
 	origin = ROOT / "target/release/origin"
-	orbis = ROOT / "target/release/origin-orbis"
+	orbis = ROOT / "target/release/origin-omni-node"
 	if not origin.is_file() or not orbis.is_file():
-		raise SystemExit("build current release origin/origin-orbis binaries first")
+		raise SystemExit("build current release origin/origin-omni-node binaries first")
 	origin_command = [str(origin), "build-spec", "--chain", "origin-local", "--raw"]
 	orbis_command = [str(orbis), "build-spec", "--chain", "orbis-local", "--raw"]
 	origin_raw = output(origin_command)
@@ -48,7 +48,7 @@ def main():
 		},
 		"raw_genesis": {
 			"origin": {"command": "target/release/origin build-spec --chain origin-local --raw", "sha256": sha_bytes(origin_raw)},
-			"orbis": {"command": "target/release/origin-orbis build-spec --chain orbis-local --raw", "sha256": sha_bytes(orbis_raw)},
+			"orbis": {"command": "target/release/origin-omni-node build-spec --chain orbis-local --raw", "sha256": sha_bytes(orbis_raw)},
 		},
 	}
 	OUT.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")

@@ -181,7 +181,7 @@ rows and every planned capability unchanged.
 ## P0 runtime-alignment reconciliation (`sm-update-sub-0x63`)
 
 The machine-readable inventory for the current branch is
-`docs/architecture/origin-orbis-runtime-alignment.csv`; its capture report and fail-closed validator
+`docs/architecture/origin-foundation-commons-runtime-alignment.csv`; its capture report and fail-closed validator
 are under `docs/evidence/p0/`. The ledger inventories the exact Origin/Orbis pallet indices, runtime
 APIs, Orbis transaction-extension order, node/CLI/RPC and Rust/TypeScript SDK disposition without
 changing this matrix's capability decisions.

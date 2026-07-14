@@ -10,7 +10,7 @@ mkdir -p "$out"
 	| "$repo_root/scripts/isolate-proof-chainspec.py" \
 	> "$out/origin-proof-isolated.json"
 
-"$repo_root/target/release/origin-orbis" build-spec \
+"$repo_root/target/release/origin-omni-node" build-spec \
 	--chain orbis-local --disable-default-bootnode \
 	| "$repo_root/scripts/isolate-proof-chainspec.py" \
 	> "$out/orbis-proof-isolated.json"

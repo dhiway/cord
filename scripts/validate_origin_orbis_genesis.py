@@ -380,7 +380,7 @@ def source_and_dependency_scan() -> dict:
             if token in content:
                 source_findings.append({"path": str(path.relative_to(ROOT)), "token": token})
     metadata = json.loads(run(["cargo", "metadata", "--no-deps", "--format-version", "1"]))
-    scoped = {"origin", "origin-node-cli", "origin-runtime", "origin-orbis", "origin-orbis-runtime"}
+    scoped = {"origin", "origin-node-cli", "origin-foundation-runtime", "origin-omni-node", "origin-commons-runtime"}
     dependency_findings = []
     for package in metadata["packages"]:
         if package["name"] not in scoped:
@@ -475,7 +475,7 @@ def build_evidence(
             "raw_storage_sha256": sha256(canonical(orbis_raw["genesis"]["raw"])),
         },
         "derivation": {
-            "command": "python3 scripts/validate_origin_orbis_genesis.py --origin-node target/release/origin --orbis-node target/release/origin-orbis --compact-wasm target/orbis-metadata/release/wbuild/origin-orbis-runtime/origin_orbis_runtime.compact.wasm --write-evidence",
+            "command": "python3 scripts/validate_origin_orbis_genesis.py --origin-node target/release/origin --orbis-node target/release/origin-omni-node --compact-wasm target/orbis-metadata/release/wbuild/origin-commons-runtime/origin_commons_runtime.compact.wasm --write-evidence",
             "header_encoding": "SCALE sp_runtime::generic::Header<BlockNumber=u32, BlakeTwo256>",
             "header_hash_algorithm": "Blake2b-256 over exact SCALE genesis header bytes",
             "state_root_offset": "bytes[33:65] after 32-byte parent hash and compact-encoded block zero",

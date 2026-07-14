@@ -156,10 +156,10 @@ def validate_feature_completeness(execute: bool) -> tuple[dict, str, list[str]]:
              "runtime-benchmarks", "--locked"],
             ["cargo", "test", "-p", "pallet-orbis-feeless", "--features",
              "runtime-benchmarks", "--locked"],
-            ["env", "SKIP_WASM_BUILD=1", "cargo", "check", "-p", "origin-runtime",
+            ["env", "SKIP_WASM_BUILD=1", "cargo", "check", "-p", "origin-foundation-runtime",
              "--features", "runtime-benchmarks", "--locked"],
             ["env", "SKIP_PALLET_REVIVE_FIXTURES=1", "cargo", "check", "-p",
-             "origin-orbis-runtime", "--features", "runtime-benchmarks", "--locked"],
+             "origin-commons-runtime", "--features", "runtime-benchmarks", "--locked"],
         ]
         for build_command in commands:
             build_code, _ = recorded_run("m9-cleanup", build_command, timeout=900)

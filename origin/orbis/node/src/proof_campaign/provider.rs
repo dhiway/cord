@@ -6,7 +6,7 @@ use std::{
 	},
 };
 
-use origin_orbis_runtime::Block;
+use origin_commons_runtime::Block;
 use sc_client_api::HeaderBackend;
 use sp_api::ProvideRuntimeApi;
 use sp_inherents::InherentDataProvider as _;

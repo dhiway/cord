@@ -12,7 +12,7 @@
           "expected_outcome": "valid"
         }
       ],
-      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+      "runtime_test": "cargo test -p origin-commons-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
     },
     {
       "id": "normal-bad-metadata",
@@ -23,7 +23,7 @@
           "expected_outcome": "InvalidTransaction::BadProof"
         }
       ],
-      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+      "runtime_test": "cargo test -p origin-commons-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
     },
     {
       "id": "normal-bad-version",
@@ -39,19 +39,19 @@
           "expected_outcome": "InvalidTransaction::BadProof"
         }
       ],
-      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+      "runtime_test": "cargo test -p origin-commons-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
     },
     {
       "id": "ethereum-no-custom-origin",
       "evidence": [],
       "expected_outcome": "constructed extension projection only; no standalone SCALE fixture",
-      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+      "runtime_test": "cargo test -p origin-commons-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
     },
     {
       "id": "authorized-unforgeable-skip",
       "evidence": [],
       "expected_outcome": "constructed extension projection only; no standalone SCALE fixture",
-      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+      "runtime_test": "cargo test -p origin-commons-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
     },
     {
       "id": "meta-positive",
@@ -67,7 +67,7 @@
           "expected_outcome": "valid"
         }
       ],
-      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+      "runtime_test": "cargo test -p origin-commons-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
     },
     {
       "id": "meta-replay",
@@ -78,7 +78,7 @@
           "expected_outcome": "InvalidTransaction::Future"
         }
       ],
-      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+      "runtime_test": "cargo test -p origin-commons-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
     },
     {
       "id": "meta-bad-signature",
@@ -89,7 +89,7 @@
           "expected_outcome": "InvalidTransaction::BadProof"
         }
       ],
-      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+      "runtime_test": "cargo test -p origin-commons-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
     },
     {
       "id": "every-extension-slot-mutation",
@@ -145,7 +145,7 @@
           "expected_outcome": "InvalidTransaction::BadProof"
         }
       ],
-      "runtime_test": "cargo test -p origin-orbis-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
+      "runtime_test": "cargo test -p origin-commons-runtime tests::transaction_policy_construction_surfaces_share_the_frozen_slots -- --exact"
     }
   ],
   "reused_semantic_vectors": [

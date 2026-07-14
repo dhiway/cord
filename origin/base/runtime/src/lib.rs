@@ -152,8 +152,8 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 #[cfg(not(feature = "p1-upgrade-candidate"))]
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: alloc::borrow::Cow::Borrowed("origin"),
-	impl_name: alloc::borrow::Cow::Borrowed("dhiway-origin"),
+	spec_name: alloc::borrow::Cow::Borrowed("foundation"),
+	impl_name: alloc::borrow::Cow::Borrowed("origin-foundation"),
 	authoring_version: 0,
 	spec_version: 9901,
 	impl_version: 0,
@@ -167,8 +167,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 #[cfg(feature = "p1-upgrade-candidate")]
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: alloc::borrow::Cow::Borrowed("origin"),
-	impl_name: alloc::borrow::Cow::Borrowed("dhiway-origin"),
+	spec_name: alloc::borrow::Cow::Borrowed("foundation"),
+	impl_name: alloc::borrow::Cow::Borrowed("origin-foundation"),
 	authoring_version: 0,
 	spec_version: 9902,
 	impl_version: 0,

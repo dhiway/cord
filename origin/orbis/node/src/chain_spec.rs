@@ -16,10 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! Chain specification helpers for the Orbis system chain.
+//! Chain specification helpers for the Orbis Commons system chain.
 
 use cumulus_primitives_core::ParaId;
-use origin_orbis_runtime::genesis_config_presets::{
+use origin_commons_runtime::genesis_config_presets::{
 	orbis_development_genesis, orbis_local_testnet_genesis, orbis_production_genesis,
 };
 use origin_runtime_constants::system_parachain::ORBIS_ID;
@@ -65,7 +65,7 @@ fn orbis_spec(
 	genesis_patch: serde_json::Value,
 ) -> ChainSpec {
 	ChainSpec::builder(
-		origin_orbis_runtime::WASM_BINARY.expect("Orbis WASM binary was not built"),
+		origin_commons_runtime::WASM_BINARY.expect("Orbis Commons WASM binary was not built"),
 		Extensions { relay_chain: relay_chain.into(), para_id: ORBIS_ID },
 	)
 	.with_name(name)
@@ -77,10 +77,10 @@ fn orbis_spec(
 	.build()
 }
 
-/// Orbis development network.
+/// Orbis Commons development network.
 pub fn orbis_development() -> ChainSpec {
 	orbis_spec(
-		"Orbis Development",
+		"Orbis Commons Development",
 		"orbis-dev",
 		ChainType::Development,
 		"origin-dev",
@@ -88,10 +88,10 @@ pub fn orbis_development() -> ChainSpec {
 	)
 }
 
-/// Orbis local network.
+/// Orbis Commons local network.
 pub fn orbis_local() -> ChainSpec {
 	orbis_spec(
-		"Orbis Local",
+		"Orbis Commons Local",
 		"orbis-local",
 		ChainType::Local,
 		"origin-local",
@@ -385,7 +385,7 @@ mod tests {
 		development.root_key = format!(
 			"0x{}",
 			hex::encode(
-				<origin_orbis_runtime::AccountId>::from(sp_keyring::Sr25519Keyring::Alice).as_ref()
+				<origin_commons_runtime::AccountId>::from(sp_keyring::Sr25519Keyring::Alice).as_ref()
 			)
 		);
 		development.endowed_accounts[0] = development.root_key.clone();

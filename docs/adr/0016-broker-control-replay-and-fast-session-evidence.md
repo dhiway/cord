@@ -81,8 +81,8 @@ Example evidence build:
 
 ```sh
 CARGO_TARGET_DIR=target/p1-fast \
-  cargo build -p origin-orbis --release --features fast-runtime
-sha256sum target/p1-fast/release/origin-orbis
+  cargo build -p origin-omni-node --release --features fast-runtime
+sha256sum target/p1-fast/release/origin-omni-node
 ```
 
 The control campaign must still prove `CollatorSelection.NewInvulnerables`, `Session.NewSession`,

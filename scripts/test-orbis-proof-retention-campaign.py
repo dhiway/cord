@@ -83,7 +83,7 @@ class ProofCampaignContractTests(unittest.TestCase):
 				"chain_id": "orbis-proof-isolated",
 				"genesis_hash": "0x" + "aa" * 32,
 				"armed_command": [
-					"/repo/target/proof-campaign/release/origin-orbis-proof-campaign",
+					"/repo/target/proof-campaign/release/origin-omni-proof-campaign",
 					"--proof-campaign-mode", "Stale",
 					"--proof-campaign-target-block", "12",
 					"--proof-campaign-expected-chain-id", "orbis-proof-isolated",

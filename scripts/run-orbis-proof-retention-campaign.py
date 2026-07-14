@@ -4,7 +4,7 @@
 The default mode is offline readiness validation. `--execute` owns the 108xx
 topology, but only after an explicit destructive acknowledgement and a case
 driver are supplied. Four semantic faults use the separate CORD-only
-`origin-orbis-proof-campaign` binary; the production binary remains the topology
+`origin-omni-proof-campaign` binary; the production binary remains the topology
 default. The driver is invoked once per manifest case as
 
   DRIVER --case CASE --context CONTEXT.json --output RESULT.json
@@ -109,9 +109,9 @@ def static_readiness(manifest: dict[str, object]) -> dict[str, object]:
 	required = {
 		"zombienet": shutil.which("zombienet"),
 		"origin": ROOT / "target/release/origin",
-		"origin_orbis": ROOT / "target/release/origin-orbis",
+		"origin_orbis": ROOT / "target/release/origin-omni-node",
 		"proof_campaign_origin_orbis": (
-			ROOT / "target/proof-campaign/release/origin-orbis-proof-campaign"
+			ROOT / "target/proof-campaign/release/origin-omni-proof-campaign"
 		),
 		"bootstrap": ROOT / "target/debug/examples/bootstrap_orbis_core",
 		"signed_fault_tool": ROOT / "target/debug/examples/orbis_storage_proof_fault",
@@ -191,7 +191,7 @@ def validate_proof_campaign_fault(case_id: str, fault: dict[str, object], mode: 
 		errors.append(f"{case_id}: exact campaign command is absent")
 	else:
 		para = command[: command.index("--")] if "--" in command else command
-		if Path(para[0]).name != "origin-orbis-proof-campaign":
+		if Path(para[0]).name != "origin-omni-proof-campaign":
 			errors.append(f"{case_id}: fault did not use the separate campaign binary")
 		for option, value in (
 			("--proof-campaign-mode", mode),
@@ -551,8 +551,8 @@ def topology_node_identity(port: int) -> dict[str, object]:
 		["ps", "-ww", "-p", str(pids[0]), "-o", "command="], text=True
 	).strip()
 	command = shlex.split(command_text)
-	if not command or "origin-orbis" not in Path(command[0]).name:
-		raise RuntimeError(f"listener {port} is not origin-orbis: {command_text}")
+	if not command or "origin-omni-node" not in Path(command[0]).name:
+		raise RuntimeError(f"listener {port} is not origin-omni-node: {command_text}")
 	def required_option(option: str) -> str:
 		for index, value in enumerate(command):
 			if value == option and index + 1 < len(command):
@@ -712,9 +712,9 @@ def execute(args: argparse.Namespace, manifest: dict[str, object]) -> dict[str, 
 		raise RuntimeError(f"refusing non-canonical case driver: {driver_executable}")
 	binary_paths = {
 		"origin": ROOT / "target/release/origin",
-		"origin_orbis": ROOT / "target/release/origin-orbis",
+		"origin_orbis": ROOT / "target/release/origin-omni-node",
 		"proof_campaign_origin_orbis": (
-			ROOT / "target/proof-campaign/release/origin-orbis-proof-campaign"
+			ROOT / "target/proof-campaign/release/origin-omni-proof-campaign"
 		),
 		"bootstrap_orbis_core": ROOT / "target/debug/examples/bootstrap_orbis_core",
 		"signed_fault_tool": ROOT / "target/debug/examples/orbis_storage_proof_fault",

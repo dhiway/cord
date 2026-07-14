@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORT = ROOT / "docs/evidence/verification/p5/feature-completeness.report.json"
-ALIGNMENT = ROOT / "docs/architecture/origin-orbis-runtime-alignment.csv"
+ALIGNMENT = ROOT / "docs/architecture/origin-foundation-commons-runtime-alignment.csv"
 MANIFEST = ROOT / "docs/orbis-completion-manifest.toml"
 CENSUS = ROOT / "docs/architecture/contract-to-native-migration.csv"
 GENESIS = ROOT / "docs/genesis/origin-orbis-clean-genesis-manifest.json"
@@ -390,7 +390,7 @@ def validate() -> tuple[dict, list[str]]:
     inputs = [
         "Cargo.lock",
         "docs/adr/0017-native-feature-source-of-truth.md",
-        "docs/architecture/origin-orbis-runtime-alignment.csv",
+        "docs/architecture/origin-foundation-commons-runtime-alignment.csv",
         "docs/architecture/contract-to-native-migration.csv",
         "docs/evidence/p0-contract-native/repository-scope.report.json",
         "docs/evidence/source-ledger.csv",

@@ -14,7 +14,7 @@ use cumulus_client_service::{
 use cumulus_primitives_core::{relay_chain::CollatorPair, GetParachainInfo, ParaId};
 use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
 use futures::StreamExt;
-use origin_orbis_runtime::{Block, RuntimeApi};
+use origin_commons_runtime::{Block, RuntimeApi};
 use prometheus_endpoint::Registry;
 use sc_client_api::BlockchainEvents;
 use sc_consensus::ImportQueue;

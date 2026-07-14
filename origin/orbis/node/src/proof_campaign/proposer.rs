@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use codec::Encode;
 use futures::{future::BoxFuture, FutureExt};
-use origin_orbis_runtime::{Block, RuntimeCall};
+use origin_commons_runtime::{Block, RuntimeCall};
 use sc_block_builder::BlockBuilderBuilder;
 use sp_blockchain::{ApplyExtrinsicFailed, Error as BlockchainError};
 use sp_consensus::{Environment, Proposal, ProposeArgs, Proposer};
@@ -209,7 +209,7 @@ fn probe_duplicate(
 /// Runtime-specific identification: Orbis pallet index 110, call index 14, and SCALE `Some`.
 /// The concrete `RuntimeCall` match prevents these bytes from being interpreted against another
 /// runtime; the byte checks then avoid a direct node dependency on the pallet implementation.
-fn is_orbis_proof_inherent(extrinsic: &origin_orbis_runtime::UncheckedExtrinsic) -> bool {
+fn is_orbis_proof_inherent(extrinsic: &origin_commons_runtime::UncheckedExtrinsic) -> bool {
 	if !matches!(extrinsic.call(), RuntimeCall::TransactionStorage(_)) {
 		return false;
 	}

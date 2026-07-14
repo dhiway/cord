@@ -28,6 +28,6 @@ original license header and provenance.
 
 ## Verification
 
-`cargo tree -p origin-orbis-runtime -d --depth 0` contains ordinary ecosystem duplicates but no
+`cargo tree -p origin-commons-runtime -d --depth 0` contains ordinary ecosystem duplicates but no
 duplicate `frame-*`, `sp-*`, or `cumulus-*` roots. `frame-support 48.0.0`, `sp-runtime 48.0.0`, and
 `cumulus-pallet-parachain-system 0.29.0` all resolve from Dhiway SDK `release-v1.24.0#cc190ea8`.

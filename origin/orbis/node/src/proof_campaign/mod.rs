@@ -1,7 +1,7 @@
 //! Disposable, feature-gated Orbis proof-retention fault campaign.
 //!
 //! This module is compiled only for the dedicated campaign binary.  It is intentionally not
-//! reachable from the production `origin-orbis` entry point.
+//! reachable from the production `origin-omni-node` entry point.
 
 pub mod config;
 pub mod proposer;

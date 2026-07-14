@@ -4,8 +4,8 @@
 # with the post-process script's protocol IDs this network cannot join the
 # normal origin-local/orbis-local development topology.
 # The generated parachain spec MUST have id `orbis-proof-isolated`. Zombienet starts only the
-# normal `origin-orbis` binary; the case driver may replace exactly one stopped collator with
-# `target/proof-campaign/release/origin-orbis-proof-campaign` after binding its discovered genesis
+# normal `origin-omni-node` binary; the case driver may replace exactly one stopped collator with
+# `target/proof-campaign/release/origin-omni-proof-campaign` after binding its discovered genesis
 # hash into the destructive command. The campaign binary is never a topology default.
 
 [settings]
@@ -87,12 +87,12 @@ num_cores = 1
 name = "proof-orbis-alice"
 rpc_port = 10810
 collator = true
-command = "target/release/origin-orbis"
+command = "target/release/origin-omni-node"
 args = ["--execution=wasm", "--force-authoring", "--authoring=slot-based"]
 
 [[parachains.collators]]
 name = "proof-orbis-bob"
 rpc_port = 10811
 collator = true
-command = "target/release/origin-orbis"
+command = "target/release/origin-omni-node"
 args = ["--execution=wasm", "--force-authoring", "--authoring=slot-based"]

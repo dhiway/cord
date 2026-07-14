@@ -41,13 +41,13 @@ Orbis uses parachain ID `1006`. The Origin runtime exposes its XCM location and 
 teleports between Origin and Orbis. Registration remains an explicit Sudo operation so the Orbis
 genesis head and validation code are supplied from the exact Orbis build being deployed.
 
-The `origin-orbis` system-chain binary resolves only the Orbis runtime. Development and local
+The `origin-omni-node` system-chain binary resolves only the Orbis runtime. Development and local
 Orbis specs are selected with `--chain orbis-dev` and `--chain orbis-local`, respectively.
 Build the production-shaped binary and materialize a raw development spec with:
 
 ```text
-cargo build --release -p origin-orbis
-target/release/origin-orbis build-spec --chain orbis-dev --raw \
+cargo build --release -p origin-omni-node
+target/release/origin-omni-node build-spec --chain orbis-dev --raw \
   --disable-default-bootnode > orbis-dev-raw.json
 ```
 
@@ -66,7 +66,7 @@ target/release/origin build-spec \
   --chain origin-candidate:docs/genesis/origin-launch-input.candidate.json --raw \
   --disable-default-bootnode > origin-candidate-raw.json
 
-target/release/origin-orbis build-spec \
+target/release/origin-omni-node build-spec \
   --chain orbis-candidate:docs/genesis/orbis-launch-input.candidate.json --raw \
   --disable-default-bootnode > orbis-candidate-raw.json
 ```
@@ -78,7 +78,7 @@ target/release/origin build-spec \
   --chain origin-production:/secure/reviewed-origin-genesis.json --raw \
   --disable-default-bootnode > origin-raw.json
 
-target/release/origin-orbis build-spec \
+target/release/origin-omni-node build-spec \
   --chain orbis-production:/secure/reviewed-orbis-genesis.json --raw \
   --disable-default-bootnode > orbis-raw.json
 ```
@@ -99,7 +99,7 @@ or promoted from the checked-in placeholder authority keys.
 For example, a local authority collator can be started with:
 
 ```text
-origin-orbis --chain orbis-local --collator --alice -- --chain origin-local
+origin-omni-node --chain orbis-local --collator --alice -- --chain origin-local
 ```
 
 Orbis uses Aura with multiple blocks per slot and async backing. Collator membership is an
@@ -121,7 +121,7 @@ The committed compatibility fixtures use standard `solc` EVM output. Regenerate 
 
 ```text
 origin/orbis/runtime/fixtures/build.sh
-cargo test -p origin-orbis-runtime \
+cargo test -p origin-commons-runtime \
   solidity_evm_fixture_deploys_and_executes_through_revive --lib
 ```
 
@@ -130,7 +130,7 @@ validation may use the upstream-supported escape hatch:
 
 ```text
 SKIP_WASM_BUILD=1 SKIP_PALLET_REVIVE_FIXTURES=1 \
-  cargo check -p origin-orbis-runtime --features runtime-benchmarks
+  cargo check -p origin-commons-runtime --features runtime-benchmarks
 ```
 
 The escape hatch does not validate PolkaVM fixture compilation. It also does not replace the
