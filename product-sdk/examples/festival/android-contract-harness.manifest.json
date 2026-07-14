@@ -1,0 +1,68 @@
+{
+  "schema": "cord.mobile-contract-harness.v1",
+  "platform": "android",
+  "implementation_scope": "contract-vectors-only",
+  "production_rewrite": false,
+  "vectors": "mobile-contract-vectors.json",
+  "request_model": "HostRequestV1",
+  "consent_model": "HostOwnedConsentV1",
+  "network_model": "OrbisNetworkBindingV1",
+  "error_model": "NativeErrorV1",
+  "event_model": "FinalizedNativeEventV1",
+  "required_request_fields": [
+    "version",
+    "request_id",
+    "application_id",
+    "capability",
+    "method",
+    "network",
+    "finality",
+    "payload",
+    "consent"
+  ],
+  "required_consent_fields": [
+    "scope",
+    "expires_at",
+    "nonce"
+  ],
+  "required_error_fields": [
+    "version",
+    "code",
+    "message",
+    "retryable",
+    "details"
+  ],
+  "required_event_fields": [
+    "finalized_block_hash",
+    "event_index",
+    "event"
+  ],
+  "transport_policy": "typed-native-routes-only",
+  "raw_scale": false,
+  "contract_abi": false,
+  "pallet_or_call_indices": false,
+  "closure_status": "FEATURE_COMPLETE_PRODUCTION_EVIDENCE_DEFERRED",
+  "p6_acceptance": false,
+  "required_network_fields": [
+    "genesis_hash",
+    "spec_version",
+    "transaction_version",
+    "metadata_hash",
+    "descriptor_contract_sha256",
+    "chain_spec_source_sha256",
+    "activation_state",
+    "production_activation_ready",
+    "access_mode"
+  ],
+  "supported_native_routes": {
+    "identity_personhood": 9,
+    "personhood_status": 1,
+    "sponsored_transaction": 2
+  },
+  "deferred_production_evidence": [
+    "live_chain",
+    "production_finality",
+    "final_EQC_SLO",
+    "production_mobile_rewrite_non_goal"
+  ]
+}

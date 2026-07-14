@@ -37,6 +37,8 @@ mod meta_v6_fixtures;
 mod meta_v6_weight_evidence;
 
 #[cfg(test)]
+mod enterprise_journey;
+#[cfg(test)]
 mod tests;
 mod weights;
 pub mod xcm_config;

@@ -1,0 +1,29 @@
+{
+  "assertions": {
+    "application_storage": "native Drive and S3 records bind the verified content hash",
+    "attestation": "native schema, issue, live check, revoke and deny",
+    "content": "Bulletin commitment, provenance and finalized transaction lookup",
+    "identity_judgement": "native People registrar judgement",
+    "name": "native DotNS commit, register and attestation/content resolution",
+    "provider": "inactive provider rejection, explicit active-provider selection, agreement renewal and checkpoint proof",
+    "sponsorship": "paid MetaTx rejects sponsor exhaustion and signed version drift",
+    "subject": "native Entity subject identifier"
+  },
+  "journey_acceptance": true,
+  "native_only": {
+    "contract_abi": false,
+    "legacy_state": false,
+    "migrated_domain_revive": false,
+    "raw_scale_product_api": false
+  },
+  "p6_acceptance": false,
+  "production_evidence_deferred": [
+    "Provider-node byte retrieval and automatic failover require a live candidate topology.",
+    "Final E/Q/C SLO and storage-headroom campaigns run after deterministic journey closure.",
+    "Production launch approval remains unsigned and blocked."
+  ],
+  "runtime": "origin-orbis-runtime",
+  "schema": "cord.enterprise-journey-report.v1",
+  "source": "origin/orbis/runtime/src/enterprise_journey.rs",
+  "status": "PASS"
+}

@@ -1,0 +1,73 @@
+{
+  "schema": "cord.festival-journey.v1",
+  "application_id": "festival-p6-reference",
+  "scope": "contract-harness-only",
+  "network_binding": "packages/descriptors/generated/orbis-network-binding.ts",
+  "route_registry": "packages/descriptors/src/runtime-route-registry.ts",
+  "host_transport": "packages/host/src/network-host.ts",
+  "signer_boundaries": {
+    "participant_authorization": "host request consent authorization",
+    "participant_inner_intent_signer": "participant signs the active MetaTx v7 intent",
+    "self_chain_signer": "participant submits .dot operations",
+    "remote_sponsor_chain_signer": "distinct sponsor submits the outer MetaTx dispatch"
+  },
+  "permissions": {
+    "self_host": [
+      "identity:personhood_status",
+      "dotns:root_name_by_normalized_label",
+      "dotns:commit",
+      "dotns:register",
+      "dotns:resolve_attestation",
+      "transaction:prepare_sponsored_intent"
+    ],
+    "sponsor_host": [
+      "attestation:attestation_live_status",
+      "attestation:revoke",
+      "transaction:submit_sponsored_intent"
+    ]
+  },
+  "required_journey": [
+    "scoped_permission",
+    "self_remote_signer_boundary",
+    "credential_evidence",
+    "dot_flow",
+    "sponsored_check_in",
+    "offline_reconnect_replay",
+    "cancel_reconnect_replay",
+    "revoke_and_deny"
+  ],
+  "required_injections": [
+    "permission_denial",
+    "cancellation",
+    "sponsor_exhaustion",
+    "version_drift",
+    "offline",
+    "reconnect",
+    "replay",
+    "revocation"
+  ],
+  "forbidden_surfaces": {
+    "raw_scale": false,
+    "contract_abi": false,
+    "pallet_indices": false,
+    "call_indices": false,
+    "external_repository_edits": false,
+    "production_mobile_rewrite": false
+  },
+  "deferred_production_evidence": [
+    "live_chain_execution",
+    "production_finality_observation",
+    "latency_slo",
+    "throughput_slo",
+    "mobile_ui_or_wallet_integration"
+  ],
+  "closure_status": "FEATURE_COMPLETE_PRODUCTION_EVIDENCE_DEFERRED",
+  "p6_acceptance": false,
+  "journey_acceptance": true,
+  "deferred_p6_gate": [
+    "enterprise journey integration",
+    "final mixed E/Q/C campaign and storage headroom",
+    "clean-developer failure diagnosis",
+    "independent P6 verification"
+  ]
+}

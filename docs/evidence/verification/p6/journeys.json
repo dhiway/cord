@@ -1,0 +1,35 @@
+{
+  "enterprise": {
+    "report": "docs/evidence/verification/p6/enterprise-journey.report.json",
+    "sha256": "73d1fdc8a3fea7961bf5ae7fc2284be827dbd0ca24111554f0a26275f13a5e50"
+  },
+  "festival": {
+    "report": "docs/evidence/verification/p6/festival-journey.report.json",
+    "sha256": "b35256da786cbd05062fa7ec67bbfed71ba0f1b7cdd83d39e9adaca9ea8fb885"
+  },
+  "journey_acceptance": true,
+  "mobile_contract_parity": {
+    "report": "docs/evidence/verification/p6/festival-mobile-contract-parity.report.json",
+    "sha256": "741d0f52df6f774daa21b6ceadb3be2f0a01422399fc0216844b939241fd72cd"
+  },
+  "p6_acceptance": false,
+  "production_app_claim": false,
+  "remaining_p6_gates": [
+    "final mixed E/Q/C campaign and storage/resource headroom",
+    "clean-developer diagnosis of at least three injected failures",
+    "independent P6 verification and adoption acceptance"
+  ],
+  "required_failures": [
+    "permission_denial",
+    "cancellation",
+    "sponsor_exhaustion",
+    "version_drift",
+    "provider_unavailable",
+    "offline",
+    "reconnect",
+    "replay",
+    "revocation"
+  ],
+  "schema": "cord.p6-journeys.v1",
+  "status": "PASS"
+}

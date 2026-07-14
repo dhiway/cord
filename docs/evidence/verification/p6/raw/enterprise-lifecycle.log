@@ -1,0 +1,36 @@
+$ cargo test -p origin-orbis-runtime enterprise_journey::enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail_closed --lib --locked -- --exact
+exit=0
+   Compiling indiv-support v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/individuality-support)
+   Compiling origin-primitives v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/primitives)
+   Compiling pallet-remote-proxy v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/pallets/remote-proxy)
+   Compiling bulletin-pallets-common v0.1.0 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/common)
+   Compiling pallet-orbis-people v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/people)
+   Compiling pallet-orbis-storage-provider v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/storage-provider)
+   Compiling pallet-orbis-dotns v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/dotns)
+   Compiling pallet-orbis-attestation v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/attestation)
+   Compiling pallet-orbis-s3 v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/s3)
+   Compiling pallet-coretime-control v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/pallets/coretime-control)
+   Compiling pallet-orbis-token v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/token)
+   Compiling origin-common v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/common)
+   Compiling indiv-pallet-people v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/personhood)
+   Compiling pallet-bulletin-transaction-storage v0.1.0 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/transaction-storage)
+   Compiling indiv-pallet-chunks-manager v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/chunks-manager)
+   Compiling indiv-pallet-people-lite v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/people-lite)
+   Compiling pallet-orbis-honour v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/honour)
+   Compiling indiv-pallet-members-notifier v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/members-notifier)
+   Compiling origin-runtime-constants v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/base/runtime/constants)
+   Compiling pallet-orbis-entity v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/entity)
+   Compiling origin-hub-system-runtime-constants v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/hub/constants)
+   Compiling indiv-pallet-members v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/members)
+   Compiling indiv-pallet-resources v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/resources)
+   Compiling pallet-orbis-score v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/score)
+   Compiling pallet-bulletin-hop-promotion v0.1.0 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/hop-promotion)
+   Compiling pallet-orbis-register v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/pallets/register)
+   Compiling origin-orbis-runtime v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.74s
+     Running unittests src/lib.rs (target/debug/deps/origin_orbis_runtime-ad4cb5c1f6a3d5b5)
+
+running 1 test
+test enterprise_journey::enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail_closed ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 77 filtered out; finished in 0.01s
