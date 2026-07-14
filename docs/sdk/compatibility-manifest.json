@@ -9,7 +9,7 @@
     "unknown_spec": "reject",
     "unknown_transaction_version": "reject"
   },
-  "manifest_version": 1,
+  "manifest_version": 2,
   "network": {
     "name": "Orbis",
     "orbis_spec_version": 29,
@@ -17,19 +17,24 @@
     "origin_spec_version": 9901,
     "origin_transaction_version": 2,
     "para_id": 1006,
-    "protocol_id": "orbis"
+    "protocol_id": "orbis",
+    "orbis_candidate_genesis_header_hash": "0x066f97db4ab6a5e5d44ee66c3b469f82d178817650fa6f52634ea2ebead6c6e3",
+    "orbis_candidate_genesis_identity_source": "docs/genesis/orbis-candidate-genesis-identity.json",
+    "orbis_candidate_genesis_identity_sha256": "8b4986d5d6c7b4e92a29b53424bedb75303dbd80c77137f996d40ae334a4b59f"
   },
   "ratification": {
     "canonical_envelope": "docs/evidence/verification/p0/ratification-envelope.json",
     "payload_sha256": "18a7fe95a300632121d0f448cb7bf3e1bc0e6776e254bc26bc1437a5f19c790a",
     "p0_targets_status": "RATIFIED",
-    "production_activation_status": "BLOCKED"
+    "production_activation_status": "BLOCKED",
+    "native_sdk_envelope": "docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json",
+    "native_sdk_status": "PENDING_SIGNATURES"
   },
   "runtime_source": {
     "branch": "sm-update-sub-0x63",
-    "cargo_lock_sha256": "bc0185bf82c32a5617da3cb389eb9db82cb2a2829d09de54785c1474737e3be2",
-    "commit": "439a1b62da11175129ad5390186230a64d569810",
-    "runtime_source_sha256": "9615ca9f69bfe6c41b2b9131ee8f96a0e2723c6b6eb7887022e656d627ed2294",
+    "cargo_lock_sha256": "1d1686530bb2efb9f2672c1589fa727c6f29ef0f48b8984aa33dee89148cab51",
+    "commit": "30650914a4a9b39393fd9bcf6de7119016cfc60b",
+    "runtime_source_sha256": "1b8f338d9e0b82a1249f67a240be8d120c66e35ba11cb2dab1d244735393b3eb",
     "sdk_branch": "release-v1.24.0",
     "sdk_commit": "cc190ea83c590b6a14a6b9771ab02c81618dc118"
   },
@@ -42,22 +47,33 @@
       "transaction_versions": [
         8
       ],
-      "state": "target-pending-exact-runtime-identity-guard"
+      "state": "first-supported-native-v1; exact runtime, metadata and descriptor identity required",
+      "sdk_version": "0.9.9"
     },
     "typescript": {
       "package": "product-sdk",
       "spec_versions": [
         29
       ],
-      "state": "p0-executable-foundation; production PAPI domain descriptors pending",
+      "state": "first-supported-native-v1; metadata-derived typed domain routes required",
       "transaction_versions": [
         8
-      ]
+      ],
+      "sdk_version": "0.9.9"
     }
   },
   "transition_policy": {
     "encoded_extension_or_call_change": "increment transaction_version, regenerate all vectors and clients",
     "spec_only": "regenerate metadata/descriptors and run Rust/TS drift plus E2E",
     "unsupported": "fail closed"
+  },
+  "native_version_matrix": "docs/sdk/native-version-matrix.json",
+  "semantic_vectors": "docs/sdk/vectors/native-sdk-v1.json",
+  "clean_break": {
+    "new_network": true,
+    "backward_compatibility": false,
+    "data_migration": false,
+    "legacy_client": false,
+    "contract_compatibility_facade": false
   }
 }

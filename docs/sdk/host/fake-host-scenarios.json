@@ -19,8 +19,20 @@
       "id": "deny-unknown-capability"
     },
     {
-      "expect": "unsupported_surface",
+      "expect": "permission_denied",
       "id": "deny-scope-escalation"
+    },
+    {
+      "expect": "permission_denied",
+      "id": "deny-missing-host-consent"
+    },
+    {
+      "expect": "permission_denied",
+      "id": "deny-caller-self-authorized-consent"
+    },
+    {
+      "expect": "permission_revoked",
+      "id": "deny-revoked-consent"
     },
     {
       "expect": "consent_expired",

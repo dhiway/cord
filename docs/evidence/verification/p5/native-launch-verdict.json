@@ -1,0 +1,17 @@
+{
+  "criteria": {
+    "AC23": "pass",
+    "M7": "pass",
+    "M9": "pass",
+    "operator_bootstrap": "local-executable-pass-live-chain-deferred"
+  },
+  "errors": [],
+  "reports": [
+    "host-conformance.json",
+    "operator-bootstrap.report.json",
+    "revive-boundary.report.json",
+    "native-cutover-cleanup.report.json"
+  ],
+  "schema": "cord.p5-native-launch-validation.v1",
+  "status": "pass"
+}

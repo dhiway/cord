@@ -24,11 +24,14 @@ use origin_orbis_runtime::genesis_config_presets::{
 };
 use origin_runtime_constants::system_parachain::ORBIS_ID;
 use polkadot_omni_node_lib::chain_spec::{GenericChainSpec, LoadSpec};
-use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
+use sc_chain_spec::{ChainSpec as _, ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
 use sp_core::crypto::UncheckedFrom;
 use std::{collections::BTreeSet, fs, path::Path};
+
+#[path = "../../../common/launch_authorization.rs"]
+mod launch_authorization;
 
 /// Specialized `ChainSpec` for the Orbis system chain.
 pub type ChainSpec = sc_service::GenericChainSpec<Extensions>;
@@ -141,14 +144,20 @@ fn account(value: &str, field: &str) -> Result<parachains_common::AccountId, Str
 	Ok(parachains_common::AccountId::new(decode_hex32(value, field)?))
 }
 
-fn production_spec(input: ProductionGenesisInput) -> Result<ChainSpec, String> {
-	if input.relay_chain.is_empty()
-		|| input.relay_chain.contains("dev")
-		|| input.relay_chain.contains("local")
-	{
-		return Err(
-			"production relay_chain must be explicit and must not be a dev/local chain".into()
-		);
+fn reviewed_spec(
+	input: ProductionGenesisInput,
+	name: &str,
+	id: &str,
+	chain_type: ChainType,
+	relay_chain_id: &str,
+) -> Result<ChainSpec, String> {
+	if input.relay_chain != "origin" {
+		return Err("production Orbis must target the live Origin chain id `origin`".into());
+	}
+	if input.token_network_id != ORBIS_ID as u16 {
+		return Err(format!(
+			"production Orbis token_network_id must equal parachain id {ORBIS_ID}"
+		));
 	}
 	if input.collators.len() < 2 {
 		return Err("production Orbis requires at least two fixed collators".into());
@@ -202,6 +211,9 @@ fn production_spec(input: ProductionGenesisInput) -> Result<ChainSpec, String> {
 	{
 		return Err("root, collator, and feeless accounts must be explicitly endowed".into());
 	}
+	if unique_collators.contains(&root_key) {
+		return Err("production root and collator authority accounts must be separated".into());
+	}
 	let development_accounts = sp_keyring::Sr25519Keyring::well_known()
 		.map(parachains_common::AccountId::from)
 		.collect::<BTreeSet<_>>();
@@ -212,12 +224,11 @@ fn production_spec(input: ProductionGenesisInput) -> Result<ChainSpec, String> {
 		return Err("well-known development accounts are forbidden in production genesis".into());
 	}
 
-	let relay_chain = input.relay_chain.clone();
 	Ok(orbis_spec(
-		"Orbis",
-		"orbis",
-		ChainType::Live,
-		&relay_chain,
+		name,
+		id,
+		chain_type,
+		relay_chain_id,
 		orbis_production_genesis(
 			invulnerables,
 			endowed_accounts,
@@ -229,13 +240,38 @@ fn production_spec(input: ProductionGenesisInput) -> Result<ChainSpec, String> {
 	))
 }
 
+fn candidate_spec(input: ProductionGenesisInput) -> Result<ChainSpec, String> {
+	reviewed_spec(input, "Orbis Candidate", "orbis-candidate", ChainType::Local, "origin-candidate")
+}
+
+fn production_spec(
+	input: ProductionGenesisInput,
+	exact_input_bytes: &[u8],
+) -> Result<ChainSpec, String> {
+	launch_authorization::authorize_production(
+		launch_authorization::LaunchChain::Orbis,
+		exact_input_bytes,
+		include_bytes!("chain_spec.rs"),
+	)?;
+	reviewed_spec(input, "Orbis", "orbis", ChainType::Live, "origin")
+}
+
+fn candidate_spec_from_file(path: &Path) -> Result<ChainSpec, String> {
+	let bytes = fs::read(path).map_err(|error| {
+		format!("failed to read candidate genesis input {}: {error}", path.display())
+	})?;
+	let input: ProductionGenesisInput = serde_json::from_slice(&bytes)
+		.map_err(|error| format!("invalid candidate genesis input {}: {error}", path.display()))?;
+	candidate_spec(input)
+}
+
 fn production_spec_from_file(path: &Path) -> Result<ChainSpec, String> {
 	let bytes = fs::read(path).map_err(|error| {
 		format!("failed to read production genesis input {}: {error}", path.display())
 	})?;
 	let input: ProductionGenesisInput = serde_json::from_slice(&bytes)
 		.map_err(|error| format!("invalid production genesis input {}: {error}", path.display()))?;
-	production_spec(input)
+	production_spec(input, &bytes)
 }
 
 #[derive(Debug)]
@@ -247,9 +283,16 @@ impl LoadSpec for ChainSpecLoader {
 			// -- Orbis
 			"orbis-dev" => Box::new(orbis_development()),
 			"orbis-local" => Box::new(orbis_local()),
-			"orbis" => return Err(
-				"the live Orbis spec is never inferred from development keys; use --chain orbis-production:<reviewed-input.json> or an approved raw chain-spec path".into(),
-			),
+				"orbis" => return Err(
+					"the live Orbis spec is never inferred; use orbis-candidate:<input.json> for deterministic evidence or orbis-production:<input.json> after launch approval".into(),
+				),
+				value if value.starts_with("orbis-candidate:") => {
+					let path = value.trim_start_matches("orbis-candidate:");
+					if path.is_empty() {
+						return Err("orbis-candidate requires an input JSON path".into());
+					}
+					Box::new(candidate_spec_from_file(Path::new(path))?)
+				},
 			value if value.starts_with("orbis-production:") => {
 				let path = value.trim_start_matches("orbis-production:");
 				if path.is_empty() {
@@ -266,7 +309,15 @@ impl LoadSpec for ChainSpecLoader {
 			},
 
 			// -- Loading a specific spec from disk
-			path => Box::new(GenericChainSpec::from_json_file(path.into())?),
+				path => {
+					let spec = GenericChainSpec::from_json_file(path.into())?;
+					if spec.chain_type() == ChainType::Live {
+						return Err(format!(
+							"refusing Live Orbis chain spec from bare path {path}; use orbis-production:<input.json> so launch authorization cannot be bypassed"
+						));
+					}
+					Box::new(spec)
+				},
 		})
 	}
 }
@@ -315,21 +366,20 @@ mod tests {
 	#[test]
 	fn live_alias_never_falls_back_to_local_development_genesis() {
 		let error = ChainSpecLoader.load_spec("orbis").unwrap_err();
-		assert!(error.contains("never inferred from development keys"));
+		assert!(error.contains("never inferred"));
 	}
 
 	#[test]
-	fn production_builder_requires_explicit_unique_non_development_authorities() {
-		let spec =
-			production_spec(production_input()).expect("reviewed explicit input is accepted");
-		assert_eq!(spec.id(), "orbis");
-		assert_eq!(spec.chain_type(), &ChainType::Live);
-		assert_eq!(spec.extensions().relay_chain, "origin");
+	fn candidate_builder_is_non_live_and_requires_explicit_unique_non_development_authorities() {
+		let spec = candidate_spec(production_input()).expect("reviewed explicit input is accepted");
+		assert_eq!(spec.id(), "orbis-candidate");
+		assert_eq!(spec.chain_type(), ChainType::Local);
+		assert_eq!(spec.extensions().relay_chain, "origin-candidate");
 		assert_eq!(spec.extensions().para_id, ORBIS_ID);
 
 		let mut duplicate = production_input();
 		duplicate.collators[1].aura_id = duplicate.collators[0].aura_id.clone();
-		assert!(production_spec(duplicate).unwrap_err().contains("unique"));
+		assert!(candidate_spec(duplicate).unwrap_err().contains("unique"));
 
 		let mut development = production_input();
 		development.root_key = format!(
@@ -339,6 +389,56 @@ mod tests {
 			)
 		);
 		development.endowed_accounts[0] = development.root_key.clone();
-		assert!(production_spec(development).unwrap_err().contains("development accounts"));
+		assert!(candidate_spec(development).unwrap_err().contains("development accounts"));
+
+		let mut wrong_relay = production_input();
+		wrong_relay.relay_chain = "another-live-relay".into();
+		assert!(candidate_spec(wrong_relay).unwrap_err().contains("live Origin"));
+
+		let mut wrong_network = production_input();
+		wrong_network.token_network_id = 29;
+		assert!(candidate_spec(wrong_network).unwrap_err().contains("parachain id"));
+
+		let mut combined_authority = production_input();
+		combined_authority.root_key = combined_authority.collators[0].account_id.clone();
+		combined_authority.endowed_accounts.remove(0);
+		assert!(candidate_spec(combined_authority).unwrap_err().contains("separated"));
+	}
+
+	#[test]
+	fn candidate_chain_spec_storage_is_deterministic() {
+		let first = candidate_spec(production_input())
+			.expect("candidate input is valid")
+			.build_storage()
+			.expect("candidate genesis builds");
+		let second = candidate_spec(production_input())
+			.expect("candidate input is valid")
+			.build_storage()
+			.expect("candidate genesis builds");
+
+		assert_eq!(first.top, second.top);
+		assert_eq!(first.children_default, second.children_default);
+	}
+
+	#[test]
+	fn unsigned_pending_candidate_cannot_build_a_live_spec() {
+		let bytes = serde_json::to_vec(&production_input()).unwrap();
+		let input = serde_json::from_slice(&bytes).unwrap();
+		let error = production_spec(input, &bytes).unwrap_err();
+		assert!(error.contains("activation_state is not production-approved"));
+	}
+
+	#[test]
+	fn bare_live_json_cannot_bypass_production_authorization() {
+		let candidate = candidate_spec(production_input()).unwrap();
+		let mut json: serde_json::Value =
+			serde_json::from_str(&candidate.as_json(false).unwrap()).unwrap();
+		json["chainType"] = serde_json::json!("Live");
+		let path =
+			std::env::temp_dir().join(format!("orbis-live-bypass-{}.json", std::process::id()));
+		std::fs::write(&path, serde_json::to_vec(&json).unwrap()).unwrap();
+		let error = ChainSpecLoader.load_spec(path.to_str().unwrap()).unwrap_err();
+		let _ = std::fs::remove_file(path);
+		assert!(error.contains("refusing Live Orbis chain spec"));
 	}
 }

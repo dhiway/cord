@@ -99,9 +99,20 @@ impl SubstrateCli for Cli {
 			"dev" | "origin-dev" => Box::new(chain_spec::origin_development_config()?),
 			"local" | "origin-local" => Box::new(chain_spec::origin_local_config()?),
 			"origin" | "origin-relay" => return Err(
-				"the live Origin spec is never inferred from development keys; use --chain origin-production:<reviewed-input.json> or an approved raw chain-spec path".into(),
-			),
-			value if value.starts_with("origin-production:") => {
+					"the live Origin spec is never inferred; use origin-candidate:<input.json> for deterministic evidence or origin-production:<input.json> after launch approval".into(),
+				),
+				value if value.starts_with("origin-candidate:") => {
+					let path = value.trim_start_matches("origin-candidate:");
+					if path.is_empty() {
+						return Err("origin-candidate requires an input JSON path".into());
+					}
+					let bytes = std::fs::read(path)
+						.map_err(|error| format!("failed to read candidate genesis input {path}: {error}"))?;
+					let input = serde_json::from_slice(&bytes)
+						.map_err(|error| format!("invalid candidate genesis input {path}: {error}"))?;
+					Box::new(chain_spec::origin_candidate_config(input)?)
+				},
+				value if value.starts_with("origin-production:") => {
 				let path = value.trim_start_matches("origin-production:");
 				if path.is_empty() {
 					return Err("origin-production requires a reviewed input JSON path".into());
@@ -110,13 +121,12 @@ impl SubstrateCli for Cli {
 					.map_err(|error| format!("failed to read production genesis input {path}: {error}"))?;
 				let input = serde_json::from_slice(&bytes)
 					.map_err(|error| format!("invalid production genesis input {path}: {error}"))?;
-				Box::new(chain_spec::origin_production_config(input)?)
-			},
-			path => {
-				let path = std::path::PathBuf::from(path);
+					Box::new(chain_spec::origin_production_config(input, &bytes)?)
+				},
+				path => {
+					let path = std::path::PathBuf::from(path);
 
-				let chain_spec_from_path =
-					Box::new(polkadot_service::GenericChainSpec::from_json_file(path.clone())?)
+					let chain_spec_from_path = Box::new(chain_spec::origin_spec_from_json_file(path)?)
 						as Box<dyn polkadot_service::ChainSpec>;
 
 				chain_spec_from_path

@@ -1,11 +1,48 @@
 # Native SDK contract
 
-Runtime metadata plus versioned runtime APIs are the exact chain truth. The executable P0 TypeScript foundation is in `product-sdk/`; `npm --prefix product-sdk test` validates the bootstrap descriptor, runtime fixtures, host boundary and E/Q/C contracts. The generated bootstrap descriptor is explicitly **not** a production PAPI domain descriptor.
+`native-version-matrix.json` is the canonical first-supported SDK/runtime contract for the
+clean-break Origin and Orbis network. Origin is the relay and deterministic control plane at
+spec/transaction `9901/2`; Orbis is the native application parachain at para `1006`,
+spec/transaction `29/8`. The Orbis metadata identity is
+`0xa11fc57c…d391`, reproduced from the current runtime Wasm with
+`origin/orbis/runtime/tools/reproduce-metadata-hash.sh`.
 
-The P0 TypeScript client is bound fail-closed to Orbis para 1006, spec 29, transaction 8, metadata hash `0x851955…9ef9`, the checked-in chain-spec source hash, descriptor-contract digest, and the explicitly unfinalized P0 fixture identity. The Rust client is a target only until it implements the same exact runtime-identity guard. The canonical envelope separates P0-target ratification from production activation: five external Ed25519 roles may ratify targets before final genesis, while production remains blocked on a later final-genesis/campaign payload. Empty, malformed, duplicate-role, unregistered, expired, revoked or invalid signatures never approve it.
+`origin-rs` and `product-sdk` both publish release `0.9.9` and freeze those values in executable
+source. The matrix also freezes each adopted runtime API, pallet storage schema, DotNS label policy,
+and provider protocol version. `npm --prefix product-sdk run validate:sdk-freeze` verifies the
+matrix against the runtime sources, both SDK exports, the generated descriptor, and
+`sdk-native-coverage.report.json`.
 
-Every product method uses a method-discriminated, closed payload. Recursive key normalization rejects SCALE, ABI, deployment/contract address and Revive-contract aliases at any depth; applications receive neither raw pallet indices nor a contract compatibility facade. Host permission, consent, signing and transport remain host-owned. Revocation is checked before and after signing, cancellation races deferred work and emits one terminal outcome, and composite reads use one finalized hash.
+The fail-closed network identity is the exact deterministic candidate genesis header
+`0x066f97db…c6e3`, bound through `docs/genesis/orbis-candidate-genesis-identity.json` at artifact
+SHA-256 `824b76b9…6b2b`. Its frozen activation state is `candidate-pending` with
+`production_activation_ready=false`. Rust callers must explicitly choose
+`NetworkIdentity::orbis_candidate()` and TypeScript callers must explicitly choose
+`ORBIS_CANDIDATE_NETWORK_BINDING`. Production access rejects this identity until a checked-in,
+cryptographically verified activation envelope derives `production-approved`; the current unsigned
+P5 envelope does not satisfy that gate.
 
-Every failure serializes as `native-error-v1.json`; lifecycle output follows `native-lifecycle-v1.json`. Retries preserve the intent ID. Rust/Subxt and future production TypeScript/PAPI domain clients must share identifiers, lifecycle transitions, exact current vector outcomes and finalized-hash semantics.
+The generated `cord-native-host-contract-manifest` is the supported typed host contract. Its
+132 methods are projected from `native-route-contract.json`, the authoritative route inventory.
+Each entry binds ordered parameters, result/finality, Rust query or command variant, TypeScript
+callable, runtime API or pallet call, and the pallet/call indices used by current dispatch tables.
+Rust and TypeScript harnesses execute all 132 canonical request samples. The contract is bound to
+the reproduced RFC-78 metadata hash, but it is not a generated PAPI or decoded-metadata descriptor;
+no current decoded metadata blob is available or checked in. Payload schemas therefore assert only
+the current product-sdk core validation contract and canonical Rust/TypeScript typed-factory
+coverage; they do not claim decoded runtime argument signatures. Product methods use exact, closed
+payload shapes and Subxt metadata-resolved transports. Raw SCALE, pallet/call indices, migrated
+domain Revive calls, contract ABIs, and contract-address aliases are not reference SDK surfaces.
 
-E/Q/C P0 execution validates targets, schema closure, topology/runtime identity and threshold recomputation only. It reports `performance_claim=false`. Network campaigns and any performance verdict remain prohibited until ratification and their P1/P6 gates.
+The contract-to-native map is design coverage only, never a compatibility facade. Its 356 adopted
+semantic/design rows are not 356 executable tests: 150 name direct SDK route operations, 31 name
+exact error-trigger route sets, 9 name exact event-observation route sets, and 166 are explicitly
+non-route type, field, invariant, version, or helper contracts. Executable coverage is reported
+separately as 132 distinct Rust and TypeScript route cases. Retired and
+not-applicable source symbols stay explicit in the census, but no legacy client, contract facade,
+backward-compatibility layer, or data-migration path is shipped. This is a new network.
+
+The P5 ratification envelope binds the matrix, coverage map, native semantic vectors, descriptor,
+host schema, and existing policy contracts. It is intentionally unsigned and the candidate genesis
+is explicitly not production-approved. Production activation remains blocked until fresh owner signatures and a
+separate final-genesis campaign; this SDK freeze does not claim production readiness.

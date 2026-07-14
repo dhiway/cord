@@ -1,0 +1,108 @@
+{
+  "schema": "cord.origin-orbis-operator-bootstrap.v1",
+  "network": {
+    "origin_spec_version": 9901,
+    "orbis_spec_version": 29,
+    "orbis_transaction_version": 8,
+    "orbis_para_id": 1006,
+    "product_network_binding": "product-sdk/packages/descriptors/generated/orbis-network-binding.ts"
+  },
+  "clean_break": {
+    "legacy_state_import": false,
+    "contract_deployments": false,
+    "deployment_address_restore": false,
+    "dual_write": false,
+    "compatibility_facade": false
+  },
+  "required_roles": [
+    "orbis-runtime-owner",
+    "domain-registrar-owner",
+    "attestation-issuer-owner",
+    "storage-authority-owner",
+    "provider-operator",
+    "incident-commander"
+  ],
+  "steps": [
+    {
+      "id": "verify-runtime-binding",
+      "actor": "orbis-runtime-owner",
+      "kind": "finalized-read",
+      "surface": "typed-network-host",
+      "method": "system.version-and-metadata",
+      "approval": "two-person",
+      "success": "genesis/spec/transaction/metadata/descriptor/chain-spec hashes equal the generated binding"
+    },
+    {
+      "id": "register-dotns-registrar",
+      "actor": "domain-registrar-owner",
+      "kind": "submit-and-finalize",
+      "surface": "native-sdk",
+      "capability": "dotns",
+      "method": "set_registrar",
+      "approval": "domain-multisig",
+      "success": "finalized DotNS registrar query returns enabled for the exact account"
+    },
+    {
+      "id": "register-attestation-schema",
+      "actor": "attestation-issuer-owner",
+      "kind": "submit-and-finalize",
+      "surface": "native-sdk",
+      "capability": "attestation",
+      "method": "create_schema",
+      "approval": "issuer-multisig",
+      "success": "schema_by_id at the finalizing block returns the approved definition and issuer set"
+    },
+    {
+      "id": "authorize-storage-account",
+      "actor": "storage-authority-owner",
+      "kind": "submit-and-finalize",
+      "surface": "native-runtime",
+      "method": "TransactionStorage.authorize_account",
+      "approval": "storage-authority-multisig",
+      "success": "account_authorization at the finalizing block matches bounded bytes, transactions and expiry"
+    },
+    {
+      "id": "register-provider",
+      "actor": "storage-authority-owner",
+      "kind": "submit-and-finalize",
+      "surface": "native-sdk",
+      "capability": "storage",
+      "method": "register_provider",
+      "approval": "storage-authority-multisig",
+      "success": "provider_by_id at the finalizing block matches provider account, endpoint, sr25519 service key and capacity"
+    },
+    {
+      "id": "start-provider-service",
+      "actor": "provider-operator",
+      "kind": "process",
+      "surface": "origin-orbis-provider",
+      "command": "origin-orbis-provider --orbis-rpc ${ORBIS_RPC} --provider ${PROVIDER_ACCOUNT} --public-endpoint ${PROVIDER_PUBLIC_ENDPOINT} --data-path ${PROVIDER_DATA_PATH} --capacity-bytes ${PROVIDER_CAPACITY_BYTES} --listen ${PROVIDER_LISTEN}",
+      "secret_environment": ["ORBIS_PROVIDER_BEARER_TOKEN", "ORBIS_PROVIDER_SERVICE_SURI"],
+      "success": "authenticated /info and /stats bind the configured account/key and a single finalized runtime identity"
+    },
+    {
+      "id": "start-provider-finality-consumer",
+      "actor": "provider-operator",
+      "kind": "process",
+      "surface": "origin-orbis-provider-outbox",
+      "command": "origin-orbis-provider-outbox --orbis-rpc ${ORBIS_RPC_WS} --outbox ${PROVIDER_DATA_PATH}/provider-submissions-v3.jsonl",
+      "secret_environment": ["ORBIS_PROVIDER_ACCOUNT_SURI"],
+      "success": "provider-submissions-v3 entries receive fsynced receipts-v3 finality records in order"
+    },
+    {
+      "id": "prove-provider-readiness",
+      "actor": "provider-operator",
+      "kind": "finalized-read",
+      "surface": "native-sdk",
+      "capability": "storage",
+      "method": "provider_checkpoint",
+      "approval": "operator",
+      "success": "heartbeat, checkpoint, root and local replica status are current with no open overdue challenge"
+    }
+  ],
+  "failure_policy": {
+    "before_genesis": "fix inputs and regenerate; never transform or import an old state",
+    "after_genesis": "pause the native role/capability, preserve audit evidence and apply a normal forward runtime fix",
+    "forbidden": ["legacy import", "contract fallback", "dual write", "deployment address restore"]
+  }
+}

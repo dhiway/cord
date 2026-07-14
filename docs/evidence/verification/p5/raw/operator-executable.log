@@ -1,0 +1,97 @@
+## $ cargo check -p origin-orbis-provider --bins --locked [exit=0]
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.88s
+
+## $ cargo build -p origin-orbis-provider --bins --locked [exit=0]
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.70s
+
+## $ /Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/target/debug/origin-orbis-provider --help [exit=0]
+Native Orbis content-provider service
+
+Usage: origin-orbis-provider [OPTIONS] --provider <PROVIDER> --public-endpoint <PUBLIC_ENDPOINT> --data-path <DATA_PATH> --capacity-bytes <CAPACITY_BYTES>
+
+Options:
+      --orbis-rpc <ORBIS_RPC>
+          Orbis HTTP JSON-RPC endpoint. Every commit is checked at finalized head [default: http://127.0.0.1:9933]
+      --provider <PROVIDER>
+          Provider AccountId32 as 0x-prefixed hex
+      --public-endpoint <PUBLIC_ENDPOINT>
+          Public provider HTTP endpoint recorded on Orbis
+      --data-path <DATA_PATH>
+          Filesystem root for blobs and the crash-safe index
+      --capacity-bytes <CAPACITY_BYTES>
+          Local storage capacity. Must match the operator-approved provider record
+      --listen <LISTEN>
+          HTTP listener [default: 127.0.0.1:8080]
+      --region <REGION>
+          Optional provider region label
+      --bearer-token-env <BEARER_TOKEN_ENV>
+          Environment variable containing the bearer token. The token is never persisted [default: ORBIS_PROVIDER_BEARER_TOKEN]
+      --service-key-env <SERVICE_KEY_ENV>
+          Environment variable containing the sr25519 secret URI for the registered service key [default: ORBIS_PROVIDER_SERVICE_SURI]
+      --max-content-bytes <MAX_CONTENT_BYTES>
+          Maximum decoded content bytes per commit [default: 16777216]
+      --checkpoint-seconds <CHECKPOINT_SECONDS>
+          Signed checkpoint interval in seconds [default: 60]
+  -h, --help
+          Print help
+
+## $ /Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/target/debug/origin-orbis-provider-outbox --help [exit=0]
+Submit native provider outbox calls and wait for Orbis finality
+
+Usage: origin-orbis-provider-outbox [OPTIONS] --outbox <OUTBOX>
+
+Options:
+      --orbis-rpc <ORBIS_RPC>
+          Orbis WebSocket RPC endpoint [default: ws://127.0.0.1:9944]
+      --outbox <OUTBOX>
+          Provider JSONL outbox emitted by origin-orbis-provider
+      --receipts <RECEIPTS>
+          Fsynced finalized receipt journal. Defaults beside the outbox
+      --signer-suri-env <SIGNER_SURI_ENV>
+          Environment variable containing the provider account secret URI [default: ORBIS_PROVIDER_ACCOUNT_SURI]
+      --once
+          Process existing work once and exit instead of polling
+      --poll-seconds <POLL_SECONDS>
+          Poll interval when not using `--once` [default: 3]
+  -h, --help
+          Print help
+
+## local provider HTTP readiness
+{
+  "health": {
+    "status": "ok",
+    "version": 4
+  },
+  "info": {
+    "profile": {
+      "endpoint": "http://127.0.0.1:58810",
+      "provider": "0x4545454545454545454545454545454545454545454545454545454545454545",
+      "region": null,
+      "service_key": "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
+    },
+    "service_key": "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d",
+    "started_unix_ms": 1783995902995,
+    "version": 4
+  },
+  "replica_sync_status": {
+    "peaks": [],
+    "root": "46d2b8197bf6adcd52d127375c330648ae09cabc835f78d00d2ff6aef44d6b5c",
+    "status": "ready"
+  },
+  "stats": {
+    "available_bytes": 1048576,
+    "capacity_bytes": 1048576,
+    "deleted_objects": 0,
+    "live_objects": 0,
+    "proof_leaf_count": 0,
+    "root": "46d2b8197bf6adcd52d127375c330648ae09cabc835f78d00d2ff6aef44d6b5c",
+    "stored_bytes": 0
+  }
+}
+
+## $ /Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/target/debug/origin-orbis-provider --orbis-rpc http://127.0.0.1:9 --provider 0x4545454545454545454545454545454545454545454545454545454545454545 --public-endpoint http://127.0.0.1:58810 --data-path /var/folders/ww/gtrj_81s6hj7p_6bd0b3qgb00000gn/T/cord-p5-provider-gd19xb56/data --capacity-bytes 1048576 --listen 127.0.0.1:58810 --checkpoint-seconds 3600 [exit=0; secrets supplied by environment]
+origin-orbis-provider listening on 127.0.0.1:58810
+challenge responder finalized scan failed: Orbis RPC failed: client error (Connect)
+
+## $ /Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/target/debug/origin-orbis-provider-outbox --once --orbis-rpc ws://127.0.0.1:9 --outbox /var/folders/ww/gtrj_81s6hj7p_6bd0b3qgb00000gn/T/cord-p5-provider-gd19xb56/data/provider-submissions-v3.jsonl [exit=1]
+Error: InvalidInput("ContentUnavailable: RPC error: RPC error: client error: RPC error: client error: Error when opening the TCP socket: Connection refused (os error 61)")

@@ -245,5 +245,38 @@ mod tests {
 			genesis.pointer("/collatorSelection/invulnerables/0").cloned(),
 			Some(serde_json::to_value(collator).unwrap())
 		);
+		assert_eq!(
+			genesis.pointer("/dotns/registrars/0"),
+			genesis.pointer("/sudo/key"),
+			"the governed root is the only bootstrap registrar"
+		);
+		let reservations = genesis
+			.pointer("/dotns/rootReservations")
+			.and_then(serde_json::Value::as_array)
+			.expect("root reservations are explicit");
+		assert_eq!(reservations.len(), 3);
+		assert_eq!(
+			genesis
+				.as_object()
+				.expect("genesis patch is an object")
+				.keys()
+				.cloned()
+				.collect::<alloc::collections::BTreeSet<_>>(),
+			[
+				"balances",
+				"collatorSelection",
+				"dotns",
+				"feeless",
+				"parachainInfo",
+				"polkadotXcm",
+				"session",
+				"sudo",
+				"token",
+			]
+			.into_iter()
+			.map(str::to_owned)
+			.collect(),
+			"all other native domains start from their empty/default genesis state"
+		);
 	}
 }

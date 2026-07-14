@@ -1,0 +1,33 @@
+{
+  "candidate_only": true,
+  "entries": [
+    {
+      "acceptance_criteria": "AC21",
+      "path": "docs/evidence/p5/genesis-verdict.json",
+      "sha256": "75c7464e76deb30cacb80eda69cf45661fe3e41218b3819344591b57111227cf"
+    },
+    {
+      "acceptance_criteria": "AC22",
+      "path": "docs/evidence/p5/launch-upgrade.json",
+      "sha256": "eb4e67e3e230045be40a68da0d28bf0778adfc65c9c45cc72ffcb5ac0bb708f1"
+    },
+    {
+      "acceptance_criteria": "M6",
+      "path": "docs/evidence/p5/clean-genesis.report.json",
+      "sha256": "375e8b6c1cb8d15328a65abdd31cb7842d41ea2cafb36e8709e91f89ff866558"
+    },
+    {
+      "acceptance_criteria": "AC21/M6",
+      "path": "docs/genesis/orbis-candidate-genesis-identity.json",
+      "sha256": "8b4986d5d6c7b4e92a29b53424bedb75303dbd80c77137f996d40ae334a4b59f"
+    },
+    {
+      "acceptance_criteria": "AC21/M6",
+      "path": "docs/evidence/p5/genesis-validator.raw.log",
+      "sha256": "8f22c7c76a349008eeb8a1a362853f36dee477979f66f77ec6235b3dfdd1cfdb"
+    }
+  ],
+  "production_activation": false,
+  "schema_version": 1,
+  "scope": "origin-orbis-new-network-clean-genesis"
+}

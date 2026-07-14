@@ -9623,7 +9623,9 @@ dependencies = [
 name = "origin-node-cli"
 version = "0.9.9"
 dependencies = [
+ "base64 0.21.7",
  "cfg-if",
+ "chrono",
  "clap",
  "frame-benchmarking-cli",
  "frame-metadata-hash-extension",
@@ -9654,6 +9656,7 @@ dependencies = [
  "sc-tracing",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "sp-core",
  "sp-io",
  "sp-keyring",
@@ -9667,6 +9670,8 @@ dependencies = [
 name = "origin-orbis"
 version = "0.9.9"
 dependencies = [
+ "base64 0.21.7",
+ "chrono",
  "clap",
  "color-eyre",
  "cumulus-client-bootnodes",
@@ -9701,6 +9706,7 @@ dependencies = [
  "sc-transaction-pool",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "sp-api",
  "sp-block-builder",
  "sp-blockchain",

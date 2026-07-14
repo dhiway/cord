@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ORBIS_NETWORK_BINDING } from "../../packages/descriptors/generated/orbis-network-binding.ts";
+import { ORBIS_CANDIDATE_NETWORK_BINDING } from "../../packages/descriptors/generated/orbis-network-binding.ts";
 import { FakeHost, type HostRequest } from "../../packages/host/src/fake-host.ts";
 import { attestation } from "../../src/attestation.ts";
 import { page, type AccountId, type StatusCommitment } from "../../src/types.ts";
@@ -12,7 +12,7 @@ function context(scope: string, index: number) {
 	return {
 		request_id: `attestation-contract-${String(index).padStart(4, "0")}`,
 		application_id: "festival",
-		network: ORBIS_NETWORK_BINDING,
+		network: ORBIS_CANDIDATE_NETWORK_BINDING,
 		consent: {
 			scopes: [scope],
 			expires_at: 2_000,
@@ -73,8 +73,12 @@ test("new attestation methods have exact payload and finality contracts", async 
 			return { finalizedHash: `0x${"bb".repeat(32)}` };
 		},
 	});
-	host.grant("festival", ["attestation"]);
-	for (const request of requests) await host.execute(request as HostRequest);
+	host.grant("festival", requests.map(({ method }) => `attestation:${method}`));
+	for (const request of requests) {
+		const hostRequest = request as HostRequest;
+		host.issueConsent(hostRequest.application_id, hostRequest.consent);
+		await host.execute(hostRequest);
+	}
 	assert.deepEqual(routed, [
 		"read:schema_count",
 		"read:attestation_count",

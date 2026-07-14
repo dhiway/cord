@@ -25,6 +25,9 @@ required-features = ["proof-campaign"]
 color-eyre = { workspace = true }
 hex-literal = { workspace = true, default-features = true }
 hex = { workspace = true, default-features = true }
+base64 = { workspace = true, default-features = true }
+sha2 = { workspace = true, default-features = true }
+chrono = { workspace = true, default-features = true }
 log = { workspace = true, default-features = true }
 serde = { features = ["derive"], workspace = true, default-features = true }
 serde_json = { workspace = true, default-features = true }

@@ -1,12 +1,13 @@
 {
   "approval_document_path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.md",
   "branch": "sm-update-sub-0x63",
-  "census_payload_sha256": "15b4c7d96409d14aca265eaa3298ccf2262d18929f68017aee7e4d04026f5325",
-  "design_payload_sha256": "94163962bf74571f756319a4cb91582abbe86e0fe602bf86ae4b5ae0cc6c55cf",
+  "census_payload_sha256": "27295261921f4699ab57bfa46928f82f3c461d708db5575f6701bb7d49368f9d",
+  "design_payload_sha256": "2d1638fa6c0f7b1273161d932fba710989db4a3fdc289947ff8347909fec54f5",
   "manifest_id": "origin-orbis-p0-semantic-dispositions-v1",
+  "p5_payload_sha256": "27c6effe52c60fade8e9fe341ffe874cb6e286e97944c51c7f0532052361e9fe",
   "required_reviewer_role": "architect",
-  "review_thread_id": "019f59bd-fa87-7571-837b-6a6a7ae51b2d",
-  "reviewed_at": "2026-07-13T04:42:09Z",
+  "review_thread_id": "019f5c3c-0569-7ca2-ba2a-1df7f15827ab",
+  "reviewed_at": "2026-07-14T02:22:57Z",
   "reviewer_role": "architect",
   "schema_version": 1,
   "scope_exclusions": [
@@ -17,7 +18,7 @@
     "no deployment-state import"
   ],
   "semantic_design_entries": 2780,
+  "source_base_head": "30650914a4a9b39393fd9bcf6de7119016cfc60b",
   "source_components": 132,
-  "source_head": "439a1b62da11175129ad5390186230a64d569810",
   "verdict": "APPROVED"
 }

@@ -1,0 +1,51 @@
+{
+  "allowlist_sha256": "ef182c87d15e8012755e83cd5f1952cd6365573ed0c1de99a1e4ded1ae3c5572",
+  "criterion": "M9",
+  "dead_product_paths": 0,
+  "deprecated_facades": 0,
+  "errors": [],
+  "inventory": {
+    "archived_or_generated_contract_artifacts": [],
+    "contract_build_ci_config_paths": [],
+    "generator_reproducibility": {
+      "after_sha256": "ef182c87d15e8012755e83cd5f1952cd6365573ed0c1de99a1e4ded1ae3c5572",
+      "before_sha256": "ef182c87d15e8012755e83cd5f1952cd6365573ed0c1de99a1e4ded1ae3c5572",
+      "byte_identical": true,
+      "command": "python3 scripts/generate-contract-native-census.py --native-cutover-only",
+      "exit_code": 0,
+      "status": "pass"
+    },
+    "migrated_contract_content_paths": [],
+    "repository_files_scanned": 3603,
+    "retained_contract_artifacts": [
+      "origin/orbis/runtime/fixtures/Counter.sol",
+      "origin/orbis/runtime/fixtures/build/Counter.bin"
+    ],
+    "retained_revive_entries": 2,
+    "retained_revive_test_evidence": {
+      "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime solidity_evm_fixture_deploys_and_executes_through_revive --lib": {
+        "entries": [
+          "orbis-generic-asset-application-runtime",
+          "orbis-generic-counter-fixture"
+        ],
+        "exit_code": 0,
+        "output_sha256": "3b9c84cfaf74c4bbcee55701cced7c0b61126956f92b589392b52c20f4d9eada",
+        "path": "origin/orbis/runtime/src/tests.rs",
+        "status": "pass"
+      }
+    },
+    "surfaces": {
+      "build_ci_config_generated": 187,
+      "cargo_package_manifests": 105,
+      "docs": 2375,
+      "mobile": 0,
+      "rust": 828,
+      "solidity_abi": 1,
+      "typescript_javascript": 48
+    }
+  },
+  "migrated_domain_callable_contracts": 0,
+  "schema": "cord.native-cutover-cleanup-report.v1",
+  "status": "pass",
+  "unowned_survivors": 0
+}

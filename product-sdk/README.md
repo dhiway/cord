@@ -1,8 +1,9 @@
-# CORD Product SDK — P0 executable foundation
+# CORD Product SDK — native SDK v1
 
-This workspace is the transport-neutral TypeScript foundation for Orbis. It
-freezes the spec-29/transaction-8 descriptor contract, checks current runtime
-vectors, executes the hostile fake-host suite, and validates E/Q/C inputs.
+This workspace is the first supported transport-neutral TypeScript SDK for the
+clean-break Origin/Orbis stack. It freezes the Origin `9901/2` and Orbis
+`29/8` version matrix, current Orbis metadata, typed descriptor contract, and
+cross-language native semantic vectors.
 
 It is deliberately **not** a production mobile rewrite, a performance result,
 or a legacy contract compatibility layer. The host remains the authority for
@@ -12,14 +13,15 @@ indices, or migrated-domain contract ABIs.
 ```sh
 npm --prefix product-sdk ci
 npm --prefix product-sdk run generate:descriptors
-npm --prefix product-sdk test
+npm --prefix product-sdk run update:sdk-freeze
+npm --prefix product-sdk run validate:sdk-freeze
 ```
 
 ## Typed network host
 
 `@cord-network/product-sdk-workspace/network-host` provides the CORD-owned
 network adapter behind the permission/consent host. Applications inject a
-descriptor-generated PAPI-like client, chain signer, and exact typed routes:
+typed metadata-capable client, chain signer, and exact typed routes:
 
 ```ts
 import { FakeHost } from "./packages/host/src/fake-host.ts";
@@ -62,16 +64,21 @@ the stable product error vocabulary.
 
 `ORBIS_NETWORK_BINDING` is generated together with the descriptor and host
 schema. `generate:descriptors --check` fails when any of those artifacts drift;
-consumers must not copy its digest into application code.
+consumers must not copy its digest into application code. The checked-in network is
+`candidate-pending`, so development request contexts must explicitly use
+`ORBIS_CANDIDATE_NETWORK_BINDING`. A request using production access is rejected until a signed
+activation envelope derives `production-approved`.
 
 `packages/descriptors/generated/orbis-descriptor.json` is a deterministic
-bootstrap descriptor contract derived from the checked-in runtime metadata-hash
-record and SDK manifests. It binds the canonical P0 signing-payload hash while
+native host contract manifest bound to the checked-in runtime metadata-hash
+record and SDK manifests. Its 132-method inventory is generated from
+`docs/sdk/native-route-contract.json`; Rust and TypeScript execute every canonical route sample.
+The inventory is not generated from PAPI or a decoded current metadata blob. It binds the canonical P5 signing-payload hash while
 the signing payload binds a canonical descriptor-contract digest that excludes
 only that mutable binding field, avoiding a circular/full-envelope hash claim.
-A full generated PAPI descriptor and concrete route registration remain a
-delivery requirement for each deployed product domain; the checked-in bootstrap
-descriptor must not be represented as a production-generated PAPI descriptor.
+It is the supported closed host-route inventory, but must not be represented as
+a generated PAPI or metadata descriptor: the Subxt runtime adapter resolves calls from live
+metadata and the freeze validator rejects version, metadata, route, or schema drift.
 
 ## Verified content retrieval
 

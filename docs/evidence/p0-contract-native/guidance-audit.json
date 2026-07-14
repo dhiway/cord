@@ -3,9 +3,9 @@
   "approval_manifest": {
     "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
     "required_reviewer_role": "architect",
-    "review_thread_id": "019f59bd-fa87-7571-837b-6a6a7ae51b2d",
+    "review_thread_id": "019f5c3c-0569-7ca2-ba2a-1df7f15827ab",
     "schema_version": 1,
-    "sha256": "96cd0595fbc89fcd847ee58dd8427aa59bd008c8639b8f82d9bf4d6095b3b5ae",
+    "sha256": "41d0ca41a959207b98dcb5bf8b98ffe9321b15e2ccab3bea7adda187e04930ed",
     "verdict": "APPROVED"
   },
   "entries": [

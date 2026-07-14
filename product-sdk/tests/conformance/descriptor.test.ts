@@ -5,10 +5,13 @@ import { canonicalJson, canonicalSha256, contractDigest, ratificationStatus, REQ
 const repo=resolve(import.meta.dirname,"../../.."); const load=(p:string)=>JSON.parse(readFileSync(resolve(repo,p),"utf8"));
 const descriptor=load("product-sdk/packages/descriptors/generated/orbis-descriptor.json"), vectors=load("origin/orbis/runtime/fixtures/meta-v8/manifest.json");
 test("descriptor binds the P5 native SDK freeze to the exact fixture and runtime versions",()=>{
- assert.equal(descriptor.runtime.metadataHash,"0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9");
+ assert.equal(descriptor.kind,"cord-native-host-contract-manifest");assert.equal(descriptor.release,"origin-orbis-native-v1");assert.equal(descriptor.firstSupportedNativeSdk,true);
+ assert.equal(descriptor.descriptorProvenance.methodInventory,"authoritative-typed-native-route-contract");
+ assert.equal(descriptor.runtime.metadataHash,"0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391");
  assert.deepEqual([descriptor.runtime.paraId,descriptor.runtime.specVersion,descriptor.runtime.transactionVersion],[1006,29,8]);
- assert.equal(descriptor.fixtureIdentity.genesis_identity,"0x40519e2e0e894e9b68defd9df6697619116ea693d0864913c98b5c65cd4e511a");
- assert.equal(descriptor.fixtureIdentity.status,"unfinalized-p0-fixture-not-production-genesis"); assert.equal(descriptor.productionPapiDescriptorGenerated,false);
+ assert.equal(descriptor.fixtureIdentity.genesis_identity,"0x066f97db4ab6a5e5d44ee66c3b469f82d178817650fa6f52634ea2ebead6c6e3");
+ assert.deepEqual(descriptor.networkActivation,{state:"candidate-pending",productionActivationReady:false,source:"docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"});
+ assert.equal(descriptor.fixtureIdentity.status,"deterministic-clean-break-candidate-not-production-approved"); assert.equal(descriptor.productionPapiDescriptorGenerated,false);
 });
 test("host schema exactly freezes every descriptor native method and closed payload shape",()=>{
  const schema=load("docs/sdk/host/host-request.schema.json"),methods=descriptor.nativeHostContract.methods;
@@ -26,8 +29,8 @@ test("ratification derives unratified and cryptographically rejects tampering",(
 });
 test("lifecycle state conditionals fail closed",()=>{const h=`0x${"11".repeat(32)}`,base={version:1,intent_id:"intent-0000000001"};validateLifecycle({...base,state:"draft"});validateLifecycle({...base,state:"included",block_hash:h});validateLifecycle({...base,state:"finalized",block_hash:h,extrinsic_hash:h});validateLifecycle({...base,state:"cancelled",error:new ProductSdkError("cancelled","cancelled").toJSON()});for(const value of[{...base,state:"finalized",block_hash:h},{...base,state:"cancelled",error:new ProductSdkError("timeout","x").toJSON()},{...base,state:"draft",block_hash:h},{...base,state:"rejected"},{...base,state:"included",block_hash:12}])assert.throws(()=>validateLifecycle(value),(e:ProductSdkError)=>e.code==="invalid_input")});
 test("recursive product boundary rejects case, alias, nesting and method bypasses",()=>{
- for(const payload of [{abi:[]},{ABI:[]},{AbiEncoded:"x"},{scale_payload:"x"},{contractAddress:"x"},{nested:{raw_scale:"0x"}},{nested:[{"Contract-Address":"x"}]},{subject_id:"contract ABI"}]) assert.throws(()=>assertMethodPayload("identity","read",payload as any),(e:ProductSdkError)=>e.code==="unsupported_surface");
- assert.throws(()=>assertMethodPayload("identity","read",{subject_id:"id",extra:"x"}),/invalid payload/);
- assert.throws(()=>assertMethodPayload("identity","submit",{subject_id:"id"}),(e:ProductSdkError)=>e.code==="unsupported_surface");
- assert.throws(()=>assertRuntimeIdentity(`0x${"00".repeat(32)}`,29,8,"x","x","x"),(e:ProductSdkError)=>e.code==="unsupported_runtime");
+ for(const payload of [{abi:[]},{ABI:[]},{AbiEncoded:"x"},{scale_payload:"x"},{contractAddress:"x"},{nested:{raw_scale:"0x"}},{nested:[{"Contract-Address":"x"}]},{subject_id:"contract ABI"}]) assert.throws(()=>assertMethodPayload("attestation","schema_by_id",payload as any),(e:ProductSdkError)=>e.code==="unsupported_surface");
+ assert.throws(()=>assertMethodPayload("attestation","schema_by_id",{schema:`0x${"11".repeat(32)}`,extra:"x"}),/invalid payload/);
+ assert.throws(()=>assertMethodPayload("attestation","unsupported",{schema:`0x${"11".repeat(32)}`}),(e:ProductSdkError)=>e.code==="unsupported_surface");
+ assert.throws(()=>assertRuntimeIdentity(`0x${"00".repeat(32)}`,29,8,"x","x","x","candidate-pending",false,"candidate"),(e:ProductSdkError)=>e.code==="unsupported_runtime");
 });

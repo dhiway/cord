@@ -2,27 +2,113 @@
   "approval_manifest": {
     "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
     "required_reviewer_role": "architect",
-    "review_thread_id": "019f59bd-fa87-7571-837b-6a6a7ae51b2d",
+    "review_thread_id": "019f5c3c-0569-7ca2-ba2a-1df7f15827ab",
     "schema_version": 1,
-    "sha256": "96cd0595fbc89fcd847ee58dd8427aa59bd008c8639b8f82d9bf4d6095b3b5ae",
+    "sha256": "41d0ca41a959207b98dcb5bf8b98ffe9321b15e2ccab3bea7adda187e04930ed",
     "verdict": "APPROVED"
   },
   "entries": [
     {
-      "artifact": "origin/orbis/runtime pallet_revive composition",
-      "dependency_path": "origin/orbis/runtime/src/lib.rs::Revive",
+      "artifact_evidence": [
+        {
+          "artifact": "Cargo.toml",
+          "evidence_path": "Cargo.toml",
+          "symbols": [
+            "pallet-revive ="
+          ]
+        },
+        {
+          "artifact": "origin/orbis/runtime/Cargo.toml",
+          "evidence_path": "origin/orbis/runtime/Cargo.toml",
+          "symbols": [
+            "pallet-revive = { workspace = true }"
+          ]
+        },
+        {
+          "artifact": "origin/orbis/runtime/src/lib.rs",
+          "evidence_path": "origin/orbis/runtime/src/lib.rs",
+          "symbols": [
+            "Revive: pallet_revive = 100"
+          ]
+        },
+        {
+          "artifact": "origin/orbis/runtime/src/tests.rs",
+          "evidence_path": "origin/orbis/runtime/src/tests.rs",
+          "symbols": [
+            "solidity_evm_fixture_deploys_and_executes_through_revive",
+            "BareInstantiateBuilder::<Runtime>::bare_instantiate"
+          ]
+        }
+      ],
+      "artifacts": [
+        "Cargo.toml",
+        "origin/orbis/runtime/Cargo.toml",
+        "origin/orbis/runtime/src/lib.rs",
+        "origin/orbis/runtime/src/tests.rs"
+      ],
+      "dependency_path": "Cargo.toml pallet-revive -> origin/orbis/runtime/Cargo.toml -> origin/orbis/runtime/src/lib.rs::Revive",
       "exclusions": "No migrated-domain contract, ABI, address, proxy, adapter or SDK facade is allowlisted.",
+      "id": "orbis-generic-asset-application-runtime",
       "owner": "orbis-runtime-owner",
-      "test_evidence": "origin/orbis/runtime/src/tests.rs",
-      "unrelated_live_use": "generic non-migrated application execution"
+      "test_evidence": {
+        "command": "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime solidity_evm_fixture_deploys_and_executes_through_revive --lib",
+        "path": "origin/orbis/runtime/src/tests.rs",
+        "symbols": [
+          "solidity_evm_fixture_deploys_and_executes_through_revive",
+          "ethereum_pipeline_uses_mapped_nonce_payer_and_only_terminal_revive_actor"
+        ]
+      },
+      "unrelated_live_use": "generic asset-application execution and EVM transaction-policy ingress at Orbis pallet index 100; no migrated domain uses this surface"
     },
     {
-      "artifact": "origin/orbis/runtime/fixtures/Counter.sol and generated test bytecode",
+      "artifact_evidence": [
+        {
+          "artifact": "origin/orbis/runtime/fixtures/Counter.sol",
+          "evidence_path": "origin/orbis/runtime/fixtures/build.sh",
+          "symbols": [
+            "Counter.sol"
+          ]
+        },
+        {
+          "artifact": "origin/orbis/runtime/fixtures/README.md",
+          "evidence_path": "origin/orbis/runtime/fixtures/README.md",
+          "symbols": [
+            "solidity_evm_fixture_deploys_and_executes_through_revive"
+          ]
+        },
+        {
+          "artifact": "origin/orbis/runtime/fixtures/build.sh",
+          "evidence_path": "origin/orbis/runtime/fixtures/README.md",
+          "symbols": [
+            "./build.sh"
+          ]
+        },
+        {
+          "artifact": "origin/orbis/runtime/fixtures/build/Counter.bin",
+          "evidence_path": "origin/orbis/runtime/src/tests.rs",
+          "symbols": [
+            "fixtures/build/Counter.bin"
+          ]
+        }
+      ],
+      "artifacts": [
+        "origin/orbis/runtime/fixtures/Counter.sol",
+        "origin/orbis/runtime/fixtures/README.md",
+        "origin/orbis/runtime/fixtures/build.sh",
+        "origin/orbis/runtime/fixtures/build/Counter.bin"
+      ],
       "dependency_path": "origin/orbis/runtime/src/tests.rs pallet-revive fixture tests",
       "exclusions": "Every migrated-domain semantic fixture is excluded.",
+      "id": "orbis-generic-counter-fixture",
       "owner": "orbis-runtime-owner",
-      "test_evidence": "origin/orbis/runtime/fixtures/README.md",
-      "unrelated_live_use": "minimal generic pallet-revive execution test"
+      "test_evidence": {
+        "command": "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime solidity_evm_fixture_deploys_and_executes_through_revive --lib",
+        "path": "origin/orbis/runtime/src/tests.rs",
+        "symbols": [
+          "solidity_evm_fixture_deploys_and_executes_through_revive"
+        ]
+      },
+      "unrelated_live_use": "minimal generic non-domain application used only to prove retained pallet-revive execution"
     }
   ],
   "forbidden_justifications": [
@@ -40,5 +126,5 @@
     "storage"
   ],
   "policy": "Only unrelated, currently owned and tested Revive use may survive. Compatibility, legacy data, future migration and speculative reuse never qualify.",
-  "schema_version": 1
+  "schema_version": 2
 }

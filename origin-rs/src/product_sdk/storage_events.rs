@@ -399,6 +399,9 @@ fn subscription_error(e: impl core::fmt::Display) -> NativeError {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	fn bytes32(value: &str) -> [u8; 32] {
+		hex::decode(value.strip_prefix("0x").unwrap()).unwrap().try_into().unwrap()
+	}
 	fn h(n: u8) -> H {
 		H::from([n; 32])
 	}
@@ -518,5 +521,58 @@ mod tests {
 			let _ = event.outcome();
 		}
 		assert_eq!(kinds.len(), 30);
+	}
+
+	#[test]
+	fn shared_storage_provider_vector_matches_rust_native_events() {
+		let vector: serde_json::Value = serde_json::from_str(include_str!(
+			"../../../docs/sdk/vectors/storage-provider-deletion-v1.json"
+		))
+		.unwrap();
+		let input = &vector["input"];
+		let expected = &vector["expected"];
+		let sequence = input["leaf_count"].as_str().unwrap().parse::<u64>().unwrap();
+		let provider = A::from(bytes32(input["provider_account_id32"].as_str().unwrap()));
+		let root = expected["tombstone_root"].as_str().unwrap();
+
+		let committed = decode_wire(Wire::ProviderRootCommitted(ProviderRootCommittedWire {
+			provider: provider.clone(),
+			sequence,
+			root: H::from(bytes32(root)),
+			leaf_count: sequence,
+		}))
+		.unwrap();
+		match committed {
+			StorageNativeEvent::ProviderRootCommitted { root: actual, leaf_count, .. } => {
+				assert_eq!(actual.as_hash().as_str(), root);
+				assert_eq!(leaf_count, sequence);
+			},
+			_ => panic!("unexpected storage provider event"),
+		}
+
+		let acknowledged = decode_wire(Wire::DeletionAcknowledged(DeletionAcknowledgedWire {
+			agreement_id: H::from(bytes32(input["agreement_id"].as_str().unwrap())),
+			provider,
+			content_commitment: H::from(bytes32(input["content_commitment"].as_str().unwrap())),
+			tombstone_root: H::from(bytes32(root)),
+			root_sequence: sequence,
+			leaf_index: input["leaf_index"].as_str().unwrap().parse().unwrap(),
+			leaf_count: sequence,
+			proof_commitment: H::from([13; 32]),
+		}))
+		.unwrap();
+		match acknowledged {
+			StorageNativeEvent::DeletionAcknowledged {
+				tombstone_root,
+				leaf_index,
+				leaf_count,
+				..
+			} => {
+				assert_eq!(tombstone_root.as_hash().as_str(), root);
+				assert_eq!(leaf_index, 1);
+				assert_eq!(leaf_count, sequence);
+			},
+			_ => panic!("unexpected deletion acknowledgement"),
+		}
 	}
 }

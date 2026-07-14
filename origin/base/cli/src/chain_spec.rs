@@ -16,10 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use sc_chain_spec::{ChainSpecExtension, ChainType};
+use sc_chain_spec::{ChainSpec as _, ChainSpecExtension, ChainType};
 use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+use std::path::PathBuf;
+
+#[path = "../../../common/launch_authorization.rs"]
+mod launch_authorization;
 
 const ORIGIN_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
 const DEFAULT_PROTOCOL_ID: &str = "0rigin";
@@ -43,6 +47,18 @@ pub struct Extensions {
 
 /// Cord Origin chain spec, in case when we don't have the native runtime.
 pub type OriginChainSpec = sc_service::GenericChainSpec<Extensions>;
+
+/// Load a non-live JSON spec. Live JSON must go through the production authorization scheme.
+pub fn origin_spec_from_json_file(path: PathBuf) -> Result<OriginChainSpec, String> {
+	let spec = OriginChainSpec::from_json_file(path.clone())?;
+	if spec.chain_type() == ChainType::Live {
+		return Err(format!(
+			"refusing Live Origin chain spec from bare path {}; use origin-production:<input.json> so launch authorization cannot be bypassed",
+			path.display()
+		));
+	}
+	Ok(spec)
+}
 
 /// Returns the properties for the [`OriginChainSpec`].
 pub fn origin_chain_spec_properties() -> serde_json::map::Map<String, serde_json::Value> {
@@ -141,8 +157,11 @@ fn production_account(value: &str, field: &str) -> Result<polkadot_primitives::A
 
 /// Construct a live Origin spec. Validation is deliberately fail-closed: production never derives
 /// seed keys or silently reuses the local staging authorities.
-pub fn origin_production_config(
+fn origin_reviewed_config(
 	input: OriginProductionGenesisInput,
+	name: &str,
+	id: &str,
+	chain_type: ChainType,
 ) -> Result<OriginChainSpec, String> {
 	if input.validators.len() < 4 {
 		return Err("production Origin requires at least four validators".into());
@@ -221,6 +240,9 @@ pub fn origin_production_config(
 	if !endowed.contains(&root_key) || accounts.iter().any(|account| !endowed.contains(account)) {
 		return Err("root and validator accounts must be explicitly endowed".into());
 	}
+	if accounts.contains(&root_key) {
+		return Err("production root and validator authority accounts must be separated".into());
+	}
 	let development_accounts = sp_keyring::Sr25519Keyring::well_known()
 		.map(|key| polkadot_primitives::AccountId::from(key.public()))
 		.collect::<BTreeSet<polkadot_primitives::AccountId>>();
@@ -234,9 +256,9 @@ pub fn origin_production_config(
 		origin_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Origin")
-	.with_id("origin")
-	.with_chain_type(ChainType::Live)
+	.with_name(name)
+	.with_id(id)
+	.with_chain_type(chain_type)
 	.with_genesis_config_patch(
 		origin_runtime::genesis_config_presets::origin_production_config_genesis(
 			authorities,
@@ -251,4 +273,101 @@ pub fn origin_production_config(
 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
 	.with_properties(origin_chain_spec_properties())
 	.build())
+}
+
+/// Construct the deterministic P5 candidate without making it a live network.
+pub fn origin_candidate_config(
+	input: OriginProductionGenesisInput,
+) -> Result<OriginChainSpec, String> {
+	origin_reviewed_config(input, "Origin Candidate", "origin-candidate", ChainType::Local)
+}
+
+/// Construct a live Origin spec only after the embedded launch ceremony verifies.
+pub fn origin_production_config(
+	input: OriginProductionGenesisInput,
+	exact_input_bytes: &[u8],
+) -> Result<OriginChainSpec, String> {
+	launch_authorization::authorize_production(
+		launch_authorization::LaunchChain::Origin,
+		exact_input_bytes,
+		include_bytes!("chain_spec.rs"),
+	)?;
+	origin_reviewed_config(input, "Origin", "origin", ChainType::Live)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	fn hex_value(byte: u8, length: usize) -> String {
+		format!("0x{}", hex::encode(vec![byte; length]))
+	}
+
+	fn production_input() -> OriginProductionGenesisInput {
+		let validators = (0..4)
+			.map(|index| OriginProductionValidator {
+				account_id: hex_value(0x41 + index, 32),
+				babe: hex_value(0x51 + index, 32),
+				grandpa: hex_value(0x61 + index, 32),
+				para_validator: hex_value(0x71 + index, 32),
+				para_assignment: hex_value(0x81 + index, 32),
+				authority_discovery: hex_value(0x91 + index, 32),
+				beefy: format!("0x02{}", hex::encode(vec![0xa1 + index; 32])),
+			})
+			.collect();
+		OriginProductionGenesisInput {
+			root_key: hex_value(0x40, 32),
+			validators,
+			endowed_accounts: (0x40..=0x44).map(|byte| hex_value(byte, 32)).collect(),
+		}
+	}
+
+	#[test]
+	fn candidate_builder_is_non_live_and_requires_separate_explicit_authorities() {
+		let spec = origin_candidate_config(production_input()).expect("candidate input is valid");
+		assert_eq!(spec.id(), "origin-candidate");
+		assert_eq!(spec.chain_type(), ChainType::Local);
+
+		let mut combined_authority = production_input();
+		combined_authority.root_key = combined_authority.validators[0].account_id.clone();
+		combined_authority.endowed_accounts.remove(0);
+		assert!(origin_candidate_config(combined_authority).unwrap_err().contains("separated"));
+	}
+
+	#[test]
+	fn candidate_chain_spec_storage_is_deterministic() {
+		let first = origin_candidate_config(production_input())
+			.expect("candidate input is valid")
+			.build_storage()
+			.expect("candidate genesis builds");
+		let second = origin_candidate_config(production_input())
+			.expect("candidate input is valid")
+			.build_storage()
+			.expect("candidate genesis builds");
+
+		assert_eq!(first.top, second.top);
+		assert_eq!(first.children_default, second.children_default);
+	}
+
+	#[test]
+	fn unsigned_pending_candidate_cannot_build_a_live_spec() {
+		let bytes = serde_json::to_vec(&production_input()).unwrap();
+		let input = serde_json::from_slice(&bytes).unwrap();
+		let error = origin_production_config(input, &bytes).unwrap_err();
+		assert!(error.contains("activation_state is not production-approved"));
+	}
+
+	#[test]
+	fn bare_live_json_cannot_bypass_production_authorization() {
+		let candidate = origin_candidate_config(production_input()).unwrap();
+		let mut json: serde_json::Value =
+			serde_json::from_str(&candidate.as_json(false).unwrap()).unwrap();
+		json["chainType"] = serde_json::json!("Live");
+		let path =
+			std::env::temp_dir().join(format!("origin-live-bypass-{}.json", std::process::id()));
+		std::fs::write(&path, serde_json::to_vec(&json).unwrap()).unwrap();
+		let error = origin_spec_from_json_file(path.clone()).unwrap_err();
+		let _ = std::fs::remove_file(path);
+		assert!(error.contains("refusing Live Origin chain spec"));
+	}
 }

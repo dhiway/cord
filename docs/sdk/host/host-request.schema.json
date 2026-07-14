@@ -67,7 +67,6 @@
         "attestation_by_id",
         "attestation_count",
         "attestation_live_status",
-        "balance",
         "bucket_by_id",
         "bucket_by_name",
         "bucket_object_keys",
@@ -97,7 +96,6 @@
         "enable_auto_renew",
         "expire_agreement",
         "external_status",
-        "fetch",
         "force_renew",
         "force_revoke",
         "force_schema_status",
@@ -133,7 +131,6 @@
         "prune_agreement",
         "prune_expired_commitment",
         "put_object",
-        "read",
         "register",
         "register_provider",
         "release",
@@ -144,7 +141,6 @@
         "renew_reserved",
         "request_renewal",
         "reserve_name",
-        "resolve",
         "resolve_address",
         "resolve_attestation",
         "resolve_content",
@@ -182,7 +178,6 @@
         "store_with_cid_config",
         "stored_content_provenance",
         "subject_schema_attestations",
-        "submit",
         "submit_checkpoint",
         "timeout_challenge",
         "transfer",
@@ -196,7 +191,7 @@
       "additionalProperties": false,
       "properties": {
         "genesis_hash": {
-          "const": "0x40519e2e0e894e9b68defd9df6697619116ea693d0864913c98b5c65cd4e511a"
+          "const": "0x066f97db4ab6a5e5d44ee66c3b469f82d178817650fa6f52634ea2ebead6c6e3"
         },
         "spec_version": {
           "const": 29
@@ -205,13 +200,25 @@
           "const": 8
         },
         "metadata_hash": {
-          "const": "0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9"
+          "const": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391"
         },
         "chain_spec_source_sha256": {
-          "const": "b67ec215a4ecea710357537ed304e7d228d3389eabd9eb80dc47dd5c329ae489"
+          "const": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb"
         },
         "descriptor_contract_sha256": {
-          "const": "cad151efaf44b1839b3797c6159bf204395cb9a0c9c335d32fa1c390bf0c57b1"
+          "const": "ceeb91edb8cd277b12c933fdb789185acd824a2b3d68eccb7cd43a17979df609"
+        },
+        "activation_state": {
+          "const": "candidate-pending"
+        },
+        "production_activation_ready": {
+          "const": false
+        },
+        "access_mode": {
+          "enum": [
+            "candidate",
+            "production"
+          ]
         }
       },
       "required": [
@@ -220,7 +227,10 @@
         "transaction_version",
         "metadata_hash",
         "descriptor_contract_sha256",
-        "chain_spec_source_sha256"
+        "chain_spec_source_sha256",
+        "activation_state",
+        "production_activation_ready",
+        "access_mode"
       ],
       "type": "object"
     },
@@ -250,213 +260,6 @@
   "title": "Orbis native host request",
   "type": "object",
   "oneOf": [
-    {
-      "properties": {
-        "capability": {
-          "const": "identity"
-        },
-        "method": {
-          "const": "read"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "subject_id"
-          ],
-          "properties": {
-            "subject_id": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "attestation"
-        },
-        "method": {
-          "const": "read"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "attestation_id"
-          ],
-          "properties": {
-            "attestation_id": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "dotns"
-        },
-        "method": {
-          "const": "resolve"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "name"
-          ],
-          "properties": {
-            "name": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "read"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "commitment"
-          ],
-          "properties": {
-            "commitment": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "content"
-        },
-        "method": {
-          "const": "fetch"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "cid"
-          ],
-          "properties": {
-            "cid": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "assets"
-        },
-        "method": {
-          "const": "balance"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "asset_id",
-            "account"
-          ],
-          "properties": {
-            "asset_id": {},
-            "account": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "transaction"
-        },
-        "method": {
-          "const": "submit"
-        },
-        "finality": {
-          "const": "submit-and-finalize"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "operation_id",
-            "intent_id"
-          ],
-          "properties": {
-            "operation_id": {},
-            "intent_id": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
     {
       "properties": {
         "capability": {

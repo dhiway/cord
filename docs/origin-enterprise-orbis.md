@@ -58,8 +58,20 @@ the first Solidity code-upload hold has a valid destination.
 ### Clean production genesis
 
 The live aliases fail closed: `--chain origin`, `--chain origin-relay`, and `--chain orbis` never
-fall back to Alice/Bob or a local chain. Operators provide reviewed public launch material outside
-the repository and materialize raw specs explicitly:
+fall back to Alice/Bob or a local chain. Deterministic evidence uses the explicit candidate schemes,
+which always emit non-live `Local` specs:
+
+```text
+target/release/origin build-spec \
+  --chain origin-candidate:docs/genesis/origin-launch-input.candidate.json --raw \
+  --disable-default-bootnode > origin-candidate-raw.json
+
+target/release/origin-orbis build-spec \
+  --chain orbis-candidate:docs/genesis/orbis-launch-input.candidate.json --raw \
+  --disable-default-bootnode > orbis-candidate-raw.json
+```
+
+Production schemes accept reviewed input only when the embedded five-owner launch envelope verifies:
 
 ```text
 target/release/origin build-spec \
@@ -80,8 +92,9 @@ Orbis input contains the exact live Origin `relay_chain` id, `token_network_id`,
 least two fixed collator account/Aura pairs, explicit endowments, and a separate explicit feeless
 list. Well-known development identities are rejected by both builders. Neither input accepts a
 checkpoint, contract deployment, legacy state, client-compatibility flag or migration source.
-Final production files and their genesis hashes remain operator approval artifacts and are not
-invented or checked in with placeholder authority keys.
+Bare JSON with `chainType: Live` is rejected, so a path cannot bypass the production scheme. Final
+production files and their genesis hashes remain operator approval artifacts and are not invented
+or promoted from the checked-in placeholder authority keys.
 
 For example, a local authority collator can be started with:
 

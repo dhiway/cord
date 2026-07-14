@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio::sync::watch;
 
-use super::contract::{Capability, HostRequest, NativeError, NativeErrorCode};
+use super::contract::{validate_method_scope, Consent, HostRequest, NativeError, NativeErrorCode};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -51,7 +51,7 @@ struct DefaultSigner;
 #[async_trait]
 impl HostSigner for DefaultSigner {
 	async fn sign(&self, _request: &HostRequest) -> Result<String, NativeError> {
-		Ok("p0-fake-host-signature".into())
+		Ok("native-fake-host-signature".into())
 	}
 }
 
@@ -76,13 +76,23 @@ impl TerminalObserver for NoopObserver {
 
 #[derive(Default)]
 struct State {
-	permissions: HashMap<String, HashSet<Capability>>,
+	permissions: HashMap<String, HashSet<String>>,
 	revoked: HashSet<String>,
+	consents: HashMap<String, ConsentRecord>,
+	revoked_consents: HashSet<String>,
 	consumed_nonces: HashSet<String>,
 	pre_cancelled: HashSet<String>,
 	inflight: HashMap<String, watch::Sender<bool>>,
 	terminal: HashSet<String>,
 	seen: HashSet<String>,
+}
+
+#[derive(Clone)]
+struct ConsentRecord {
+	application_id: String,
+	scope: Vec<String>,
+	expires_at: u64,
+	claimed_by: Option<String>,
 }
 
 /// A deterministic, transport-neutral host used to prove the shared host contract.
@@ -118,12 +128,84 @@ impl FakeHost {
 		Self { state: Mutex::new(State::default()), now, signer, transport, observer }
 	}
 
-	pub fn grant(&self, application_id: impl Into<String>, capabilities: &[Capability]) {
+	pub fn grant<S: AsRef<str>>(
+		&self,
+		application_id: impl Into<String>,
+		method_scopes: &[S],
+	) -> Result<(), NativeError> {
+		let application_id = application_id.into();
+		if application_id.is_empty() || method_scopes.is_empty() {
+			return Err(NativeError::new(
+				NativeErrorCode::InvalidInput,
+				"host permissions require an application and exact method scopes",
+			));
+		}
+		let mut scopes = HashSet::new();
+		for scope in method_scopes {
+			let scope = scope.as_ref();
+			validate_method_scope(scope).map_err(|_| {
+				NativeError::new(NativeErrorCode::InvalidInput, "unrecognized host method scope")
+			})?;
+			if !scopes.insert(scope.to_owned()) {
+				return Err(NativeError::new(
+					NativeErrorCode::InvalidInput,
+					"duplicate host method scope",
+				));
+			}
+		}
 		self.state
 			.lock()
 			.expect("fake-host lock is not poisoned")
 			.permissions
-			.insert(application_id.into(), capabilities.iter().copied().collect());
+			.insert(application_id, scopes);
+		Ok(())
+	}
+
+	pub fn issue_consent(
+		&self,
+		application_id: impl Into<String>,
+		consent: &Consent,
+	) -> Result<(), NativeError> {
+		let application_id = application_id.into();
+		if application_id.is_empty()
+			|| consent.scope.is_empty()
+			|| consent.expires_at == 0
+			|| !(16..=128).contains(&consent.nonce.len())
+			|| consent.scope.iter().any(|scope| validate_method_scope(scope).is_err())
+			|| consent.scope.iter().collect::<HashSet<_>>().len() != consent.scope.len()
+		{
+			return Err(NativeError::new(
+				NativeErrorCode::InvalidInput,
+				"invalid host-issued consent",
+			));
+		}
+		let mut state = self.state.lock().expect("fake-host lock is not poisoned");
+		if state.consents.contains_key(&consent.nonce)
+			|| state.consumed_nonces.contains(&consent.nonce)
+		{
+			return Err(NativeError::new(
+				NativeErrorCode::Conflict,
+				"consent nonce already issued or consumed",
+			));
+		}
+		state.consents.insert(
+			consent.nonce.clone(),
+			ConsentRecord {
+				application_id,
+				scope: consent.scope.clone(),
+				expires_at: consent.expires_at,
+				claimed_by: None,
+			},
+		);
+		Ok(())
+	}
+
+	pub fn revoke_consent(&self, nonce: &str) {
+		self.state
+			.lock()
+			.expect("fake-host lock is not poisoned")
+			.revoked_consents
+			.insert(nonce.into());
 	}
 
 	pub fn revoke(&self, application_id: &str) {
@@ -165,7 +247,7 @@ impl FakeHost {
 				Ok(_) => NativeErrorCodeOrSuccess::Success,
 				Err(error) => NativeErrorCodeOrSuccess::Error(error.code),
 			};
-			self.finish(&request_id, outcome);
+			self.finish(&request, outcome);
 		}
 		result
 	}
@@ -182,33 +264,59 @@ impl FakeHost {
 					"permission revoked before signing",
 				));
 			}
-			if request.capability == Capability::Unsupported
-				|| !state
-					.permissions
-					.get(&request.application_id)
-					.is_some_and(|permissions| permissions.contains(&request.capability))
+			let scope = request.scope_name()?;
+			if !state
+				.permissions
+				.get(&request.application_id)
+				.is_some_and(|permissions| permissions.contains(&scope))
 			{
 				return Err(NativeError::new(
 					NativeErrorCode::PermissionDenied,
-					"capability not granted by host",
+					"method not granted by host",
 				));
 			}
-			let scope = request.scope_name()?;
-			if !request.consent.scope.iter().any(|item| item == scope) {
-				return Err(NativeError::new(
-					NativeErrorCode::PermissionDenied,
-					"consent does not cover method",
-				));
-			}
-			if request.consent.expires_at <= (self.now)() {
-				return Err(NativeError::new(NativeErrorCode::ConsentExpired, "consent expired"));
-			}
-			if !state.consumed_nonces.insert(request.consent.nonce.clone()) {
+			if state.consumed_nonces.contains(&request.consent.nonce) {
 				return Err(NativeError::new(
 					NativeErrorCode::Replay,
 					"consent nonce already used",
 				));
 			}
+			let Some(consent) = state.consents.get(&request.consent.nonce).cloned() else {
+				return Err(NativeError::new(
+					NativeErrorCode::PermissionDenied,
+					"host-issued consent is missing",
+				));
+			};
+			if state.revoked_consents.contains(&request.consent.nonce) {
+				return Err(NativeError::new(
+					NativeErrorCode::PermissionRevoked,
+					"host-issued consent was revoked",
+				));
+			}
+			if consent.application_id != request.application_id
+				|| consent.scope != request.consent.scope
+				|| consent.expires_at != request.consent.expires_at
+				|| !consent.scope.contains(&scope)
+			{
+				return Err(NativeError::new(
+					NativeErrorCode::PermissionDenied,
+					"request consent does not match the host-issued record",
+				));
+			}
+			if consent.expires_at <= (self.now)() {
+				return Err(NativeError::new(NativeErrorCode::ConsentExpired, "consent expired"));
+			}
+			if consent.claimed_by.is_some() {
+				return Err(NativeError::new(
+					NativeErrorCode::Replay,
+					"consent nonce is in flight",
+				));
+			}
+			state
+				.consents
+				.get_mut(&request.consent.nonce)
+				.expect("consent was read while holding the same lock")
+				.claimed_by = Some(request.request_id.clone());
 			let (sender, receiver) = watch::channel(false);
 			state.inflight.insert(request.request_id.clone(), sender.clone());
 			(sender, receiver)
@@ -225,17 +333,57 @@ impl FakeHost {
 		if *receiver.borrow() {
 			return Err(cancelled("request cancelled while signing"));
 		}
-		if self
-			.state
-			.lock()
-			.expect("fake-host lock is not poisoned")
-			.revoked
-			.contains(&request.application_id)
 		{
-			return Err(NativeError::new(
-				NativeErrorCode::PermissionRevoked,
-				"permission revoked during signing",
-			));
+			let mut state = self.state.lock().expect("fake-host lock is not poisoned");
+			let scope = request.scope_name()?;
+			if state.revoked.contains(&request.application_id)
+				|| !state
+					.permissions
+					.get(&request.application_id)
+					.is_some_and(|permissions| permissions.contains(&scope))
+			{
+				return Err(NativeError::new(
+					NativeErrorCode::PermissionRevoked,
+					"application grant was revoked during signing",
+				));
+			}
+			if state.consumed_nonces.contains(&request.consent.nonce) {
+				return Err(NativeError::new(
+					NativeErrorCode::Replay,
+					"consent nonce already used",
+				));
+			}
+			let consent = state.consents.get(&request.consent.nonce).cloned().ok_or_else(|| {
+				NativeError::new(
+					NativeErrorCode::PermissionRevoked,
+					"host-issued consent was invalidated",
+				)
+			})?;
+			if state.revoked_consents.contains(&request.consent.nonce) {
+				return Err(NativeError::new(
+					NativeErrorCode::PermissionRevoked,
+					"host-issued consent was revoked during signing",
+				));
+			}
+			if consent.application_id != request.application_id
+				|| consent.scope != request.consent.scope
+				|| consent.expires_at != request.consent.expires_at
+				|| consent.claimed_by.as_deref() != Some(request.request_id.as_str())
+				|| !consent.scope.contains(&scope)
+			{
+				return Err(NativeError::new(
+					NativeErrorCode::PermissionRevoked,
+					"host-issued consent changed during signing",
+				));
+			}
+			if consent.expires_at <= (self.now)() {
+				return Err(NativeError::new(
+					NativeErrorCode::ConsentExpired,
+					"consent expired during signing",
+				));
+			}
+			state.consents.remove(&request.consent.nonce);
+			state.consumed_nonces.insert(request.consent.nonce.clone());
 		}
 		if *receiver.borrow() {
 			return Err(cancelled("request cancelled before transport"));
@@ -255,14 +403,20 @@ impl FakeHost {
 		result
 	}
 
-	fn finish(&self, request_id: &str, outcome: NativeErrorCodeOrSuccess) {
+	fn finish(&self, request: &HostRequest, outcome: NativeErrorCodeOrSuccess) {
 		let notify = {
 			let mut state = self.state.lock().expect("fake-host lock is not poisoned");
-			state.inflight.remove(request_id);
-			state.terminal.insert(request_id.into())
+			state.inflight.remove(&request.request_id);
+			if state.consents.get(&request.consent.nonce).is_some_and(|consent| {
+				consent.claimed_by.as_deref() == Some(request.request_id.as_str())
+			}) {
+				state.consents.remove(&request.consent.nonce);
+				state.consumed_nonces.insert(request.consent.nonce.clone());
+			}
+			state.terminal.insert(request.request_id.clone())
 		};
 		if notify {
-			self.observer.terminal(request_id, outcome);
+			self.observer.terminal(&request.request_id, outcome);
 		}
 	}
 }

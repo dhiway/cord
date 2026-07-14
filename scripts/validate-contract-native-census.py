@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Fail closed on P0 M2/M3/M9 census and clean-cutover invariants."""
-import csv, hashlib, json, re, sys
+import csv, hashlib, json, re, subprocess, sys
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
@@ -35,7 +35,16 @@ approval = json.loads(approval_path.read_text())
 approval_rel = approval_path.relative_to(root).as_posix()
 if approval.get("schema_version") != 1 or approval.get("required_reviewer_role") != "architect": errors.append("approval schema/required role mismatch")
 if approval.get("branch") != "sm-update-sub-0x63": errors.append("approval branch mismatch")
-if approval.get("source_head") != __import__("subprocess").check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip(): errors.append("approval source HEAD mismatch")
+current_head = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
+source_base_head = approval.get("source_base_head")
+if not isinstance(source_base_head, str) or not re.fullmatch(r"[0-9a-f]{40}", source_base_head):
+    errors.append("approval source base HEAD invalid")
+elif subprocess.run(["git", "-C", str(root), "merge-base", "--is-ancestor", source_base_head, current_head], check=False).returncode != 0:
+    errors.append("approval source base HEAD is not an ancestor of current HEAD")
+p5_path = root / "docs/evidence/verification/p5/sdk-freeze-ratification.payload.json"
+p5_hash = hashlib.sha256(p5_path.read_bytes()).hexdigest()
+if p5_hash != "27c6effe52c60fade8e9fe341ffe874cb6e286e97944c51c7f0532052361e9fe" or approval.get("p5_payload_sha256") != p5_hash:
+    errors.append("approval final P5 payload binding mismatch")
 for r in rows:
     if r.get("approval_manifest_schema_version") != "1" or r.get("approval_manifest_path") != approval_rel or r.get("approval_manifest_sha256") != approval_hash:
         errors.append(f"row approval reference mismatch:{r['source_id']}")
@@ -161,7 +170,8 @@ front = dict(re.findall(r"^([A-Za-z0-9-]+):\s*(.+)$", approval_doc, re.M))
 expected_front = {"Verdict": approval["verdict"], "Reviewer-Role": approval["reviewer_role"],
                   "Review-Thread-ID": approval["review_thread_id"], "Approval-Manifest-SHA256": approval_hash,
                   "Census-Payload-SHA256": approval["census_payload_sha256"], "Design-Payload-SHA256": approval["design_payload_sha256"],
-                  "Branch": approval["branch"], "Source-HEAD": approval["source_head"]}
+                  "Branch": approval["branch"], "Source-Base-HEAD": approval["source_base_head"],
+                  "P5-Payload-SHA256": approval["p5_payload_sha256"]}
 for key, value in expected_front.items():
     if front.get(key) != str(value): errors.append(f"approval document mismatch:{key}")
 if approval["verdict"] == "PENDING":

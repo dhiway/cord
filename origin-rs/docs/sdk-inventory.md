@@ -361,9 +361,6 @@
   - `demo_entity_simple` with optional `--meta` flag.
   - `demo_registry_packet` end-to-end issuance, uses `examples/data_registry_packet.json`.
   - `demo_token` resolver showcasing the token query module.
-- `origin-hub.scale` / `origin-hub.json` are legacy metadata snapshots for offline
-  tooling/testing.
-
 Use this document when expanding the SDK surface so that every new module,
 helper, extrinsic builder, or schema transform is discoverable and described in
 the canonical reference.

@@ -1,0 +1,24 @@
+{
+  "schema": "cord.origin-orbis-monitoring.v1",
+  "cardinality_policy": {
+    "allowed_labels": ["network", "node_role", "instance", "severity", "domain"],
+    "forbidden_labels": ["account_id", "agreement_id", "attestation_id", "content_hash", "name_id", "request_id"]
+  },
+  "alerts": [
+    { "id": "relay-finality-lag", "source": "origin-rpc", "signal": "origin_finality_lag_blocks", "condition": "> 15 for 2m", "severity": "critical", "runbook": "origin-orbis-native-incidents.md#relay-finality-lag" },
+    { "id": "orbis-finality-lag", "source": "orbis-rpc", "signal": "orbis_finality_lag_blocks", "condition": "> 15 for 2m", "severity": "critical", "runbook": "origin-orbis-native-incidents.md#orbis-finality-lag" },
+    { "id": "provider-unhealthy", "source": "provider-/health", "signal": "provider_health_success", "condition": "< 1 for 1m", "severity": "critical", "runbook": "origin-orbis-native-incidents.md#provider-unhealthy" },
+    { "id": "provider-proof-deadline", "source": "provider-/checkpoint/duty", "signal": "provider_proof_deadline_blocks", "condition": "<= 8 with no durable submission", "severity": "critical", "runbook": "origin-orbis-native-incidents.md#provider-proof-deadline" },
+    { "id": "provider-finality-backlog", "source": "provider-journals", "signal": "provider_outbox_unfinalized_entries", "condition": "> 0 for 2 finalized blocks", "severity": "critical", "runbook": "origin-orbis-native-incidents.md#provider-finality-backlog" },
+    { "id": "provider-capacity", "source": "provider-/stats", "signal": "provider_capacity_utilization_ratio", "condition": ">= 0.80 for 10m", "severity": "warning", "runbook": "origin-orbis-native-incidents.md#provider-capacity" },
+    { "id": "cid-integrity", "source": "content-client", "signal": "content_integrity_failures_total", "condition": "> 0 in 5m", "severity": "critical", "runbook": "origin-orbis-native-incidents.md#cid-integrity" },
+    { "id": "host-permission-denials", "source": "host-audit", "signal": "host_permission_denials_ratio", "condition": "> 0.05 for 10m", "severity": "warning", "runbook": "origin-orbis-native-incidents.md#host-permission-denials" },
+    { "id": "runtime-binding-drift", "source": "typed-network-host", "signal": "runtime_binding_mismatch_total", "condition": "> 0 in 1m", "severity": "critical", "runbook": "origin-orbis-native-incidents.md#runtime-binding-drift" },
+    { "id": "native-revocation-failure", "source": "orbis-events", "signal": "native_revocation_failures_total", "condition": "> 0 in 5m", "severity": "critical", "runbook": "origin-orbis-native-incidents.md#native-revocation-failure" }
+  ],
+  "audit_events": [
+    "validator-change", "collator-change", "runtime-upgrade", "safe-mode", "xcm-policy-change",
+    "registrar-change", "issuer-change", "attestation-revocation", "provider-change", "provider-deletion",
+    "genesis-approval", "bootstrap-completion"
+  ]
+}

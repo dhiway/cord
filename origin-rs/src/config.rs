@@ -37,9 +37,6 @@ pub type OriginExtrinsicParams<T> = AnyOf<
 	),
 >;
 
-/// Legacy Hub alias retained for source compatibility; new clients should use Orbis.
-pub type OriginHubExtrinsicParams<T> = OriginExtrinsicParams<T>;
-
 /// Signed extensions exposed by Orbis. The five actor-policy extensions encode an unused
 /// `Option::None` selector and must be named here, in runtime order, so Subxt matches live
 /// metadata. Quota-aware payment remains metadata-compatible with `ChargeAssetTxPayment`; Bulletin
@@ -82,20 +79,6 @@ impl Config for OriginConfig {
 	type AssetId = u32;
 }
 
-/// Hub config (same types; separate for demos targeting hub).
-#[derive(Debug, Clone, Copy, Default)]
-pub struct OriginHubConfig;
-
-impl Config for OriginHubConfig {
-	type AccountId = AccountId;
-	type Address = MultiAddress<Self::AccountId, u32>;
-	type Signature = Signature;
-	type Hasher = DynamicHasher256;
-	type Header = SubstrateHeader<BlockNumber, DynamicHasher256>;
-	type ExtrinsicParams = OriginHubExtrinsicParams<Self>;
-	type AssetId = u32;
-}
-
 /// Orbis config including Bulletin and Revive transaction extensions.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OrbisConfig;
@@ -114,38 +97,6 @@ impl Config for OrbisConfig {
 pub fn build_origin_params<C: Config<ExtrinsicParams = OriginExtrinsicParams<C>>>(
 	builder: DefaultExtrinsicParamsBuilder<C>,
 ) -> <OriginExtrinsicParams<C> as ExtrinsicParams<C>>::Params {
-	let (
-		_,
-		spec_params,
-		tx_params,
-		nonce_params,
-		genesis_params,
-		mortality_params,
-		_,
-		charge_tx_params,
-		metadata_params,
-	) = builder.build();
-	(
-		(),
-		(),
-		spec_params,
-		tx_params,
-		genesis_params,
-		mortality_params,
-		nonce_params,
-		(),
-		charge_tx_params,
-		(),
-		metadata_params,
-		(),
-		(),
-	)
-}
-
-/// Build Origin Hub extrinsic params (same layout).
-pub fn build_origin_hub_params<C: Config<ExtrinsicParams = OriginHubExtrinsicParams<C>>>(
-	builder: DefaultExtrinsicParamsBuilder<C>,
-) -> <OriginHubExtrinsicParams<C> as ExtrinsicParams<C>>::Params {
 	let (
 		_,
 		spec_params,

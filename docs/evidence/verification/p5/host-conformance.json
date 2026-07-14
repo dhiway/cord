@@ -1,0 +1,28 @@
+{
+  "checks": {
+    "host_owned_active_expiring_consent": true,
+    "native_only_reference_app": true,
+    "revoke_cancel_and_caller_transport": true,
+    "scoped_permissions": true
+  },
+  "commands": [
+    {
+      "command": "npm --prefix product-sdk run validate:reference-app",
+      "exit_code": 0,
+      "output_sha256": "11877a4055758f995ff85a5f61d85da6b1746bd0d5169cbd5dff94940eb1dd25"
+    },
+    {
+      "command": "npm --prefix product-sdk run test:host",
+      "exit_code": 0,
+      "output_sha256": "9e28aa6df1b5b6ac13f4910fb270064e3da4df6227608ff5f6109e36de29fbb5"
+    }
+  ],
+  "criterion": "AC23",
+  "errors": [],
+  "inputs": {
+    "descriptor_sha256": "124330058c538c73f5bdc0d962ce4da476fad671c8884bf90e05446a12c496d0",
+    "reference_app_manifest_sha256": "e3603b696c8b78dfce2d81c5d4fc4e7adaf88c897f6a1a8c4ea5cc4d52932214"
+  },
+  "schema": "cord.host-conformance-report.v1",
+  "status": "pass"
+}

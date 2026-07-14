@@ -111,18 +111,6 @@ const add = (capability: string, method: string, finality: MethodFinality, field
 const read = (capability: string, method: string, fields: Record<string, Rule>): void => add(capability, method, "finalized", fields);
 const write = (capability: string, method: string, fields: Record<string, Rule>): void => add(capability, method, "submit-and-finalize", fields);
 
-// P0 compatibility methods retained for the existing identity/assets/content foundation.
-read("identity", "read", { subject_id: account });
-read("attestation", "read", { attestation_id: account });
-read("dotns", "resolve", { name: string({ min: 1, max: 253 }) });
-read("storage", "read", { commitment: hash32 });
-read("content", "fetch", { cid: string({ min: 1, max: 128 }) });
-read("assets", "balance", { asset_id: string({ min: 1, max: 64 }), account });
-write("transaction", "submit", {
-  operation_id: string({ min: 1, max: 128 }),
-  intent_id: string({ min: 16, max: 128 }),
-});
-
 // Native attestation runtime API and pallet calls.
 read("attestation", "schema_by_id", { schema: hash32 });
 read("attestation", "attestation_by_id", { attestation: hash32 });
@@ -432,18 +420,75 @@ export function assertMethodPayload(capability: string, method: string, payload:
   validateRule(payload, object(contract.fields), "payload");
 }
 
+function sampleRule(rule: Rule): JsonValue {
+  switch (rule.kind) {
+    case "string": {
+      const candidates = [`0x${"11".repeat(32)}`, "1", "AQID", "active", "sample", "a"];
+      for (const candidate of candidates) {
+        try { validateRule(candidate, rule, "sample"); return candidate; } catch {}
+      }
+      throw new Error("no canonical sample for string rule");
+    }
+    case "number": return Math.max(rule.min ?? 0, 1);
+    case "boolean": return true;
+    case "null": return null;
+    case "literal": return rule.value;
+    case "nullable": return null;
+    case "array": return Array.from({ length: rule.min ?? 0 }, () => sampleRule(rule.item));
+    case "object": return Object.fromEntries(Object.entries(rule.fields).map(([name, child]) => [name, sampleRule(child)]));
+    case "oneOf": return sampleRule(rule.choices[0]);
+  }
+}
+
+export function canonicalMethodPayload(capability: string, method: string): JsonObject {
+  const contract = methods[`${capability}.${method}`];
+  if (!contract) throw new ProductSdkError("unsupported_surface", `unsupported product method ${capability}.${method}`);
+  const payload = sampleRule(object(contract.fields)) as JsonObject;
+  validateRule(payload, object(contract.fields), "payload");
+  return payload;
+}
+
+function ruleSchema(rule: Rule): JsonObject {
+  switch (rule.kind) {
+    case "string": return { type: "string", ...(rule.min === undefined ? {} : { minLength: rule.min }), ...(rule.max === undefined ? {} : { maxLength: rule.max }), ...(rule.maxBytes === undefined ? {} : { maxUtf8Bytes: rule.maxBytes }), ...(rule.pattern ? { pattern: rule.pattern.source } : {}) };
+    case "number": return { type: rule.integer ? "integer" : "number", ...(rule.min === undefined ? {} : { minimum: rule.min }), ...(rule.max === undefined ? {} : { maximum: rule.max }) };
+    case "boolean": return { type: "boolean" };
+    case "null": return { type: "null" };
+    case "literal": return { const: rule.value };
+    case "nullable": return { anyOf: [{ type: "null" }, ruleSchema(rule.item)] };
+    case "array": return { type: "array", items: ruleSchema(rule.item), ...(rule.min === undefined ? {} : { minItems: rule.min }), ...(rule.max === undefined ? {} : { maxItems: rule.max }), ...(rule.unique ? { uniqueItems: true } : {}) };
+    case "object": return { type: "object", additionalProperties: false, required: Object.keys(rule.fields), properties: Object.fromEntries(Object.entries(rule.fields).map(([name, child]) => [name, ruleSchema(child)])) };
+    case "oneOf": return { oneOf: rule.choices.map(ruleSchema) };
+  }
+}
+
+export function methodPayloadSchema(capability: string, method: string): JsonObject {
+  const contract = methods[`${capability}.${method}`];
+  if (!contract) throw new ProductSdkError("unsupported_surface", `unsupported product method ${capability}.${method}`);
+  return ruleSchema(object(contract.fields));
+}
+
 export function assertMethodFinality(capability: string, method: string, finality: MethodFinality): void {
   const contract = methods[`${capability}.${method}`];
   if (!contract) throw new ProductSdkError("unsupported_surface", `unsupported product method ${capability}.${method}`);
   if (contract.finality !== finality)
     throw new ProductSdkError("invalid_input", `${capability}.${method} requires ${contract.finality}`);
 }
-export function assertRuntimeIdentity(genesis: string, spec: number, tx: number, metadata: string, descriptor: string, chainSpec: string): void {
+export function assertRuntimeIdentity(genesis: string, spec: number, tx: number, metadata: string, descriptor: string, chainSpec: string, activationState: "candidate-pending" | "production-approved", productionActivationReady: boolean, accessMode: "candidate" | "production"): void {
   if (genesis !== ORBIS_NETWORK_BINDING.genesis_hash) throw new ProductSdkError("unsupported_runtime", "unrecognized Orbis genesis identity");
   if (spec !== ORBIS_NETWORK_BINDING.spec_version || tx !== ORBIS_NETWORK_BINDING.transaction_version) throw new ProductSdkError("unsupported_runtime", `unsupported Orbis runtime ${spec}/${tx}`);
   if (metadata !== ORBIS_NETWORK_BINDING.metadata_hash) throw new ProductSdkError("metadata_mismatch", "metadata hash mismatch");
   if (chainSpec !== ORBIS_NETWORK_BINDING.chain_spec_source_sha256) throw new ProductSdkError("unsupported_runtime", "chain-spec source mismatch");
   if (descriptor !== ORBIS_NETWORK_BINDING.descriptor_contract_sha256) throw new ProductSdkError("descriptor_mismatch", "descriptor hash mismatch");
+  if (activationState !== ORBIS_NETWORK_BINDING.activation_state
+    || productionActivationReady !== ORBIS_NETWORK_BINDING.production_activation_ready)
+    throw new ProductSdkError("unsupported_runtime", "network activation state does not match the signed SDK freeze");
+  if (accessMode === "candidate") {
+    if (activationState !== "candidate-pending" || productionActivationReady)
+      throw new ProductSdkError("unsupported_runtime", "candidate access is unavailable for the activated production network");
+  } else if (activationState !== "production-approved" || !productionActivationReady) {
+    throw new ProductSdkError("unsupported_runtime", "production access rejects the unsigned candidate/PENDING network");
+  }
 }
 export function validateLifecycle(value:any):void{
   const states=["draft","authorized","submitted","included","finalized","rejected","expired","cancelled"],hash=/^0x[0-9a-fA-F]{64}$/;

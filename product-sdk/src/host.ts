@@ -17,6 +17,9 @@ export interface NetworkBinding {
   readonly metadata_hash: string;
   readonly descriptor_contract_sha256: string;
   readonly chain_spec_source_sha256: string;
+  readonly activation_state: "candidate-pending" | "production-approved";
+  readonly production_activation_ready: boolean;
+  readonly access_mode: "candidate" | "production";
 }
 
 export interface ActiveConsent {

@@ -1,24 +1,38 @@
 {
   "contractVersion": 1,
-  "kind": "papi-bootstrap-descriptor-contract",
+  "kind": "cord-native-host-contract-manifest",
+  "release": "origin-orbis-native-v1",
+  "firstSupportedNativeSdk": true,
   "runtime": {
     "name": "orbis",
     "paraId": 1006,
     "specVersion": 29,
     "transactionVersion": 8,
-    "metadataHash": "0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9"
+    "metadataHash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391"
   },
   "fixtureIdentity": {
-    "status": "unfinalized-p0-fixture-not-production-genesis",
-    "genesis_identity": "0x40519e2e0e894e9b68defd9df6697619116ea693d0864913c98b5c65cd4e511a",
+    "status": "deterministic-clean-break-candidate-not-production-approved",
+    "genesis_identity": "0x066f97db4ab6a5e5d44ee66c3b469f82d178817650fa6f52634ea2ebead6c6e3",
     "chain_spec_source": "origin/orbis/node/src/chain_spec.rs",
-    "chain_spec_source_sha256": "b67ec215a4ecea710357537ed304e7d228d3389eabd9eb80dc47dd5c329ae489"
+    "chain_spec_source_sha256": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
+    "genesis_state_root": "0x55e81b8c3aada6227214d467cefad014198e84d4e3fa15c8021e31dcc40fe0dc",
+    "candidate_identity_source": "docs/genesis/orbis-candidate-genesis-identity.json",
+    "candidate_identity_sha256": "8b4986d5d6c7b4e92a29b53424bedb75303dbd80c77137f996d40ae334a4b59f"
   },
-  "ratificationPayloadSha256": "2b029154ce67c4b2a5d6391937bc9b110193606f17bf068270f0198f6c3297cb",
+  "networkActivation": {
+    "state": "candidate-pending",
+    "productionActivationReady": false,
+    "source": "docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"
+  },
+  "ratificationPayloadSha256": "27c6effe52c60fade8e9fe341ffe874cb6e286e97944c51c7f0532052361e9fe",
   "sources": {
     "compatibility": {
       "path": "docs/sdk/compatibility-manifest.json",
-      "sha256": "012386b732a4ab71ad6db86bec22f786fdab62cbe104955671071d8bc445b648"
+      "sha256": "9d0026926d81c943844e9eb575ede14589c13d03a666ba027af81744189c396f"
+    },
+    "versionMatrix": {
+      "path": "docs/sdk/native-version-matrix.json",
+      "sha256": "2f6445026bb16569d2868884ebb3c0d77c08658063d4122ca0c2867eeac03678"
     },
     "extensions": {
       "path": "docs/sdk/signed-extension-manifest.json",
@@ -26,19 +40,23 @@
     },
     "metadata": {
       "path": "origin/orbis/runtime/fixtures/meta-v8/metadata-hash.json",
-      "sha256": "2dbf31989b7083a7ea08348a34820cb948d1c4405055bc78af38520b7e7347a8"
+      "sha256": "ad3acbd925f174dcffbc328c8080fd3781865b4ee3335c87cdfc0aa5a4b997b8"
     },
     "vectors": {
-      "path": "origin/orbis/runtime/fixtures/meta-v8/manifest.json",
-      "sha256": "41c9b755a4ef769aabf8c0d49ce65a89623ca424cce7cb44c4a0a47e9e6948ac"
+      "path": "docs/sdk/vectors/native-sdk-v1.json",
+      "sha256": "c63016fd58f908d08a9fa991b2ef499c37a804de150611927a50d5cc93d35264"
+    },
+    "genesisIdentity": {
+      "path": "docs/genesis/orbis-candidate-genesis-identity.json",
+      "sha256": "8b4986d5d6c7b4e92a29b53424bedb75303dbd80c77137f996d40ae334a4b59f"
     },
     "chainSpec": {
       "path": "origin/orbis/node/src/chain_spec.rs",
-      "sha256": "26db4507b7c8f04b35151e41effd140537be48ae11f4e8a90957e3f4556e7016"
+      "sha256": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb"
     },
-    "nativeMethods": {
-      "path": "product-sdk/packages/descriptors/src/native-methods.ts",
-      "sha256": "c613c19bafb76e7f0ee7ad7d1d4da05c268c2aa595a3fbdfee405c60ba0ef50a"
+    "nativeRouteContract": {
+      "path": "docs/sdk/native-route-contract.json",
+      "sha256": "4eec73f96cfb990de789e42c7fcf2ed06af74af3b51393b1df74fd2a43e625ea"
     }
   },
   "signedExtensionSurfaces": {
@@ -121,68 +139,10 @@
   },
   "nativeHostContract": {
     "version": 1,
-    "methodCount": 139,
+    "methodCount": 132,
     "pageLimit": 100,
     "payloadValidation": "closed-shape-plus-core-native-types-v1",
     "methods": [
-      {
-        "capability": "identity",
-        "method": "read",
-        "finality": "finalized",
-        "payloadFields": [
-          "subject_id"
-        ]
-      },
-      {
-        "capability": "attestation",
-        "method": "read",
-        "finality": "finalized",
-        "payloadFields": [
-          "attestation_id"
-        ]
-      },
-      {
-        "capability": "dotns",
-        "method": "resolve",
-        "finality": "finalized",
-        "payloadFields": [
-          "name"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "read",
-        "finality": "finalized",
-        "payloadFields": [
-          "commitment"
-        ]
-      },
-      {
-        "capability": "content",
-        "method": "fetch",
-        "finality": "finalized",
-        "payloadFields": [
-          "cid"
-        ]
-      },
-      {
-        "capability": "assets",
-        "method": "balance",
-        "finality": "finalized",
-        "payloadFields": [
-          "asset_id",
-          "account"
-        ]
-      },
-      {
-        "capability": "transaction",
-        "method": "submit",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "operation_id",
-          "intent_id"
-        ]
-      },
       {
         "capability": "attestation",
         "method": "schema_by_id",
@@ -1352,6 +1312,11 @@
         ]
       }
     ]
+  },
+  "descriptorProvenance": {
+    "runtimeMetadataBinding": "reproduced-rfc78-wasm-metadata-hash",
+    "methodInventory": "authoritative-typed-native-route-contract",
+    "driftValidation": "metadata-hash-pallet-call-index-runtime-api-and-rust-typescript-route-harness"
   },
   "productionPapiDescriptorGenerated": false
 }

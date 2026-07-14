@@ -1,10 +1,10 @@
 # Orbis Solidity fixture
 
 `Counter.sol` is a minimal EVM bytecode compatibility fixture for `pallet-revive`.
-The runtime test deploys the generated init bytecode, mutates contract storage, and
-reads the result through its Solidity ABI.
+The runtime test `solidity_evm_fixture_deploys_and_executes_through_revive` deploys the generated
+init bytecode, mutates contract storage, and verifies the returned bytes directly.
 
-Regenerate the committed ABI and bytecode with Solidity compiler 0.8.36:
+Regenerate the committed bytecode with Solidity compiler 0.8.36:
 
 ```sh
 ./build.sh

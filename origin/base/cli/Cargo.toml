@@ -24,6 +24,9 @@ log = { workspace = true, default-features = true }
 thiserror = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true, default-features = true }
+base64 = { workspace = true, default-features = true }
+sha2 = { workspace = true, default-features = true }
+chrono = { workspace = true, default-features = true }
 pyroscope = { optional = true, workspace = true }
 pyroscope_pprofrs = { optional = true, workspace = true }
 polkadot-primitives = { workspace = true, default-features = true }

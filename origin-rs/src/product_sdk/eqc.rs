@@ -4,9 +4,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::contract::{
-	NativeError, NativeErrorCode, ORBIS_GENESIS_FIXTURE, ORBIS_METADATA_HASH, ORBIS_PARA_ID,
-	ORBIS_SPEC_VERSION, ORBIS_TRANSACTION_VERSION, P0_RATIFICATION_PAYLOAD_SHA256,
+	NativeError, NativeErrorCode, NATIVE_SDK_RATIFICATION_PAYLOAD_SHA256,
+	ORBIS_CANDIDATE_GENESIS_HEADER_HASH, ORBIS_DESCRIPTOR_CONTRACT_SHA256, ORBIS_METADATA_HASH,
+	ORBIS_PARA_ID, ORBIS_SPEC_VERSION, ORBIS_TRANSACTION_VERSION,
 };
+use super::version::ORBIS_COMPACT_WASM_SHA256;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -115,7 +117,7 @@ pub struct ContentNetwork {
 pub struct RatificationReference {
 	pub canonical_envelope: String,
 	pub payload_sha256: String,
-	pub p0_targets_status: String,
+	pub sdk_freeze_status: String,
 	pub production_activation_status: String,
 }
 
@@ -212,11 +214,11 @@ pub fn validate_slo_manifest(
 	}) {
 		return Err(invalid("invalid E/Q/C content or finalized-read target"));
 	}
-	validate_p0_payload(ratification_payload)?;
+	validate_sdk_freeze_payload(ratification_payload)?;
 	if manifest.ratification.canonical_envelope
-		!= "docs/evidence/verification/p0/ratification-envelope.json"
-		|| manifest.ratification.payload_sha256 != P0_RATIFICATION_PAYLOAD_SHA256
-		|| manifest.ratification.p0_targets_status != "RATIFIED"
+		!= "docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"
+		|| manifest.ratification.payload_sha256 != NATIVE_SDK_RATIFICATION_PAYLOAD_SHA256
+		|| manifest.ratification.sdk_freeze_status != "PENDING"
 		|| manifest.ratification.production_activation_status != "BLOCKED"
 	{
 		return Err(invalid("E/Q/C ratification reference drift"));
@@ -283,10 +285,10 @@ pub struct EqcVerdict {
 	pub recomputed: bool,
 }
 
-/// Validate the P0 schema-only result contract.
+/// Validate the candidate-network schema-only result contract.
 ///
 /// Network campaign validation intentionally fails closed here. Production campaign evidence is
-/// authorized only after final genesis and belongs to later phases, not to P0 target ratification.
+/// authorized only after final genesis and a separately approved production campaign.
 pub fn validate_eqc_result(result: &EqcResult, manifest_sha256: &str) -> Result<(), NativeError> {
 	if result.schema_version != 1
 		|| result.manifest_sha256 != manifest_sha256
@@ -299,8 +301,10 @@ pub fn validate_eqc_result(result: &EqcResult, manifest_sha256: &str) -> Result<
 	{
 		return Err(invalid("E/Q/C result identity or hash is invalid"));
 	}
-	if result.runtime.genesis_identity != ORBIS_GENESIS_FIXTURE
+	if result.runtime.genesis_identity != ORBIS_CANDIDATE_GENESIS_HEADER_HASH
 		|| result.runtime.metadata_hash != ORBIS_METADATA_HASH
+		|| result.runtime.wasm_sha256 != ORBIS_COMPACT_WASM_SHA256
+		|| result.runtime.descriptor_contract_sha256 != ORBIS_DESCRIPTOR_CONTRACT_SHA256
 		|| result.runtime.spec_version != ORBIS_SPEC_VERSION
 		|| result.runtime.transaction_version != ORBIS_TRANSACTION_VERSION
 	{
@@ -321,14 +325,15 @@ pub fn validate_eqc_result(result: &EqcResult, manifest_sha256: &str) -> Result<
 		return Err(invalid("E/Q/C result environment or verdict is invalid"));
 	}
 	if result.campaign_executed {
-		return Err(invalid("P0 result cannot claim a network campaign"));
+		return Err(invalid("candidate result cannot claim a network campaign"));
 	}
 	if result.scope != "schema-validation-only"
 		|| result.samples != 0
 		|| !result.observations.is_empty()
 		|| result.verdict.pass
 		|| result.verdict.failures != ["schema-only-no-network-campaign"]
-		|| result.runtime.genesis_status != "unfinalized-p0-fixture-not-production-genesis"
+		|| result.runtime.genesis_status
+			!= "deterministic-clean-break-candidate-not-production-approved"
 		|| !result.raw_uri.starts_with("schema-only:")
 	{
 		return Err(invalid("schema-only result made a campaign or production claim"));
@@ -336,7 +341,7 @@ pub fn validate_eqc_result(result: &EqcResult, manifest_sha256: &str) -> Result<
 	Ok(())
 }
 
-fn validate_p0_payload(payload: &Value) -> Result<(), NativeError> {
+fn validate_sdk_freeze_payload(payload: &Value) -> Result<(), NativeError> {
 	let object = payload
 		.as_object()
 		.ok_or_else(|| invalid("ratification payload is not an object"))?;
@@ -354,11 +359,11 @@ fn validate_p0_payload(payload: &Value) -> Result<(), NativeError> {
 	.collect();
 	if object.keys().map(String::as_str).collect::<BTreeSet<_>>() != required
 		|| object.get("scope").and_then(Value::as_str)
-			!= Some("p0-targets-and-client-contracts-only")
+			!= Some("p5-first-supported-clean-break-native-sdk-freeze-requires-fresh-ratifier-signatures")
 		|| object.get("performance_claim").and_then(Value::as_bool) != Some(false)
 		|| object.get("network_launch_approval").and_then(Value::as_bool) != Some(false)
 	{
-		return Err(invalid("ratification payload is not P0 targets-only"));
+		return Err(invalid("ratification payload is not the native SDK freeze"));
 	}
 	let runtime = object
 		.get("runtime")
@@ -381,7 +386,7 @@ fn validate_p0_payload(payload: &Value) -> Result<(), NativeError> {
 		|| activation.get("final_genesis_status").and_then(Value::as_str) != Some("PENDING")
 		|| !activation.get("final_genesis_hash").is_some_and(Value::is_null)
 	{
-		return Err(invalid("P0 payload claimed production activation"));
+		return Err(invalid("SDK freeze payload claimed production activation"));
 	}
 	Ok(())
 }

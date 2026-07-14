@@ -1,11 +1,11 @@
 {
-  "allowlist_sha256": "8468c57270549bcb48d9f94d010b26042c7e14378035d56ecc9f417fd0dde692",
+  "allowlist_sha256": "cbce5790bb1513d21ffd38ac2dfd712c2d7d538c1e6ebc21ba6b00c41fb0a606",
   "approval_manifest": {
     "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
     "required_reviewer_role": "architect",
-    "review_thread_id": "019f59bd-fa87-7571-837b-6a6a7ae51b2d",
+    "review_thread_id": "019f5c3c-0569-7ca2-ba2a-1df7f15827ab",
     "schema_version": 1,
-    "sha256": "96cd0595fbc89fcd847ee58dd8427aa59bd008c8639b8f82d9bf4d6095b3b5ae",
+    "sha256": "41d0ca41a959207b98dcb5bf8b98ffe9321b15e2ccab3bea7adda187e04930ed",
     "verdict": "APPROVED"
   },
   "baseline_source_components": 132,
@@ -21,7 +21,7 @@
   },
   "known_survivors": [],
   "migrated_domain_callable_contracts": 0,
-  "note": "Native cutover pass: migrated-domain callable fixtures and product paths are absent; generic unrelated Revive remains allowlisted.",
+  "note": "P0 semantic census baseline retained; strict P5 executable cleanup and Revive-boundary verdicts are under docs/evidence/verification/p5.",
   "schema_version": 1,
   "status": "pass",
   "unowned_survivors": 0

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ORBIS_NETWORK_BINDING } from "../../packages/descriptors/generated/orbis-network-binding.ts";
+import { ORBIS_CANDIDATE_NETWORK_BINDING, ORBIS_NETWORK_BINDING } from "../../packages/descriptors/generated/orbis-network-binding.ts";
 import { ProductSdkError, type JsonObject } from "../../packages/core/src/contract.ts";
 import { FakeHost, type HostRequest } from "../../packages/host/src/fake-host.ts";
 import {
@@ -41,13 +41,13 @@ function request(overrides: Partial<HostRequest> = {}): HostRequest {
     version: 1,
     request_id: "network-request-00000001",
     application_id: "festival",
-    capability: "identity",
-    method: "read",
-    network: { ...ORBIS_NETWORK_BINDING },
+    capability: "attestation",
+    method: "attestation_live_status",
+    network: { ...ORBIS_CANDIDATE_NETWORK_BINDING },
     finality: "finalized",
-    payload: { subject_id: "subject:alice" },
+    payload: { attestation: `0x${"44".repeat(32)}` },
     consent: {
-      scope: ["identity:read"],
+      scope: ["attestation:attestation_live_status"],
       expires_at: 2_000,
       nonce: "network-consent-00000001",
     },
@@ -58,6 +58,11 @@ function request(overrides: Partial<HostRequest> = {}): HostRequest {
     network: { ...base.network, ...overrides.network },
     consent: { ...base.consent, ...overrides.consent },
   };
+}
+
+function authorize(host: FakeHost, value: HostRequest): HostRequest {
+  host.issueConsent(value.application_id, value.consent);
+  return value;
 }
 
 async function errorCode(operation: Promise<unknown>): Promise<string> {
@@ -74,22 +79,22 @@ test("typed adapter executes a read at one exact finalized hash", async () => {
   const client = new DeterministicTypedClient();
   const queriedAt: string[] = [];
   const routes = {
-    "identity:read": {
+    "attestation:attestation_live_status": {
       finality: "finalized",
       async query(payload: JsonObject, context: { at: string }) {
         queriedAt.push(context.at);
-        return { subject_id: payload.subject_id, active: true };
+        return { attestation: payload.attestation, active: true };
       },
     },
   } satisfies TypedNetworkRoutes<DeterministicTypedClient, typeof chainSigner>;
   const host = new FakeHost({
     ...createTypedNetworkHostRoutes({ client, signer: chainSigner, binding: ORBIS_NETWORK_BINDING, routes }),
   });
-  host.grant("festival", ["identity"]);
+  host.grant("festival", ["attestation:attestation_live_status"]);
 
-  const result = await host.execute(request());
+  const result = await host.execute(authorize(host, request()));
   assert.equal(result.finalizedHash, INITIAL_HASH);
-  assert.deepEqual(result.response, { subject_id: "subject:alice", active: true });
+  assert.deepEqual(result.response, { attestation: `0x${"44".repeat(32)}`, active: true });
   assert.deepEqual(queriedAt, [INITIAL_HASH]);
   assert.deepEqual(client.runtimeIdentityCalls, [INITIAL_HASH]);
 });
@@ -99,7 +104,7 @@ test("metadata-derived submission resolves only after typed finalization evidenc
   const constructedAt: string[] = [];
   const signedBy: string[] = [];
   const routes = {
-    "transaction:submit": {
+    "dotns:commit": {
       finality: "submit-and-finalize",
       transaction(_payload: JsonObject, context: { at: string }) {
         constructedAt.push(context.at);
@@ -117,15 +122,16 @@ test("metadata-derived submission resolves only after typed finalization evidenc
   const host = new FakeHost({
     ...createTypedNetworkHostRoutes({ client, signer: chainSigner, binding: ORBIS_NETWORK_BINDING, routes }),
   });
-  host.grant("festival", ["transaction"]);
+  host.grant("festival", ["dotns:commit"]);
 
-  const result = await host.execute(request({
-    capability: "transaction",
-    method: "submit",
+  const submission = request({
+    capability: "dotns",
+    method: "commit",
     finality: "submit-and-finalize",
-    payload: { operation_id: "native-operation", intent_id: "intent-0000000001" },
-    consent: { scope: ["transaction:submit"], expires_at: 2_000, nonce: "submit-consent-00000001" },
-  }));
+    payload: { commitment: `0x${"55".repeat(32)}` },
+    consent: { scope: ["dotns:commit"], expires_at: 2_000, nonce: "submit-consent-00000001" },
+  });
+  const result = await host.execute(authorize(host, submission));
 
   assert.deepEqual(constructedAt, [INITIAL_HASH]);
   assert.deepEqual(signedBy, [chainSigner.accountId]);
@@ -146,7 +152,7 @@ test("runtime drift fails closed before a typed read executes", async () => {
   client.identity = { ...client.identity, metadata_hash: `0x${"44".repeat(32)}` };
   let queries = 0;
   const routes = {
-    "identity:read": {
+    "attestation:attestation_live_status": {
       finality: "finalized",
       async query() { queries++; return null; },
     },
@@ -154,9 +160,9 @@ test("runtime drift fails closed before a typed read executes", async () => {
   const host = new FakeHost({
     ...createTypedNetworkHostRoutes({ client, signer: chainSigner, binding: ORBIS_NETWORK_BINDING, routes }),
   });
-  host.grant("festival", ["identity"]);
+  host.grant("festival", ["attestation:attestation_live_status"]);
 
-  assert.equal(await errorCode(host.execute(request())), "metadata_mismatch");
+  assert.equal(await errorCode(host.execute(authorize(host, request()))), "metadata_mismatch");
   assert.equal(queries, 0);
 });
 
@@ -164,7 +170,7 @@ test("host cancellation aborts and closes an in-flight typed transaction stream"
   const client = new DeterministicTypedClient();
   let closed = false;
   const routes = {
-    "transaction:submit": {
+    "dotns:commit": {
       finality: "submit-and-finalize",
       transaction() {
         return {
@@ -184,14 +190,15 @@ test("host cancellation aborts and closes an in-flight typed transaction stream"
   const host = new FakeHost({
     ...createTypedNetworkHostRoutes({ client, signer: chainSigner, binding: ORBIS_NETWORK_BINDING, routes }),
   });
-  host.grant("festival", ["transaction"]);
-  const pending = host.execute(request({
-    capability: "transaction",
-    method: "submit",
+  host.grant("festival", ["dotns:commit"]);
+  const cancellable = request({
+    capability: "dotns",
+    method: "commit",
     finality: "submit-and-finalize",
-    payload: { operation_id: "native-operation", intent_id: "intent-0000000001" },
-    consent: { scope: ["transaction:submit"], expires_at: 2_000, nonce: "cancel-consent-00000001" },
-  }));
+    payload: { commitment: `0x${"55".repeat(32)}` },
+    consent: { scope: ["dotns:commit"], expires_at: 2_000, nonce: "cancel-consent-00000001" },
+  });
+  const pending = host.execute(authorize(host, cancellable));
   await new Promise((resolve) => setTimeout(resolve, 0));
   host.cancel("network-request-00000001");
 
@@ -203,7 +210,7 @@ test("host cancellation aborts and closes an in-flight typed transaction stream"
 test("typed client failures map to the stable product error vocabulary", async () => {
   const client = new DeterministicTypedClient();
   const routes = {
-    "identity:read": {
+    "attestation:attestation_live_status": {
       finality: "finalized",
       async query(): Promise<never> {
         throw { code: "network", message: "endpoint unavailable", retryable: true };
@@ -213,7 +220,7 @@ test("typed client failures map to the stable product error vocabulary", async (
   const host = new FakeHost({
     ...createTypedNetworkHostRoutes({ client, signer: chainSigner, binding: ORBIS_NETWORK_BINDING, routes }),
   });
-  host.grant("festival", ["identity"]);
+  host.grant("festival", ["attestation:attestation_live_status"]);
 
-  assert.equal(await errorCode(host.execute(request())), "timeout");
+  assert.equal(await errorCode(host.execute(authorize(host, request()))), "timeout");
 });

@@ -1,0 +1,452 @@
+{
+  "schema": "cord.m5-sdk-bindings.v1",
+  "status": "authoritative",
+  "purpose": "Exact M5 bindings for architect-approved adopt-semantic source symbols; navigation hints in the design map are non-normative and unmappable adopted rows fail closed.",
+  "inputs": {
+    "design_map": {
+      "path": "docs/sdk/contract-to-native-map.json",
+      "sha256": "c6be6342ea095cc5d4f16b9f399305c93bed0e75bebbb5f87c08a894b4205234"
+    },
+    "route_contract": {
+      "path": "docs/sdk/native-route-contract.json",
+      "sha256": "4eec73f96cfb990de789e42c7fcf2ed06af74af3b51393b1df74fd2a43e625ea"
+    },
+    "approval_manifest": {
+      "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
+      "required_reviewer_role": "architect",
+      "review_thread_id": "019f5c3c-0569-7ca2-ba2a-1df7f15827ab",
+      "schema_version": 1,
+      "sha256": "41d0ca41a959207b98dcb5bf8b98ffe9321b15e2ccab3bea7adda187e04930ed",
+      "verdict": "APPROVED"
+    }
+  },
+  "counts": {
+    "design_entries": 2780,
+    "adopted_semantics": 14,
+    "exact_bindings": 14,
+    "distinct_behavior_concepts": 7,
+    "blockers": 0,
+    "blocker_categories": {}
+  },
+  "bindings": [
+    {
+      "key": {
+        "source_id": "dotns:contracts/registry/DotnsRegistry.sol",
+        "source_symbol_kind": "function",
+        "source_symbol": "owner"
+      },
+      "binding_kind": "native-route-set",
+      "behavior_concept": "owner",
+      "navigation_hint": {
+        "rust": "DotnsQuery::NameById",
+        "typescript": "dotns.nameById"
+      },
+      "routes": [
+        "dotns:name_by_id"
+      ],
+      "exercised_by": {
+        "rust": {
+          "path": "origin-rs/tests/product_sdk_native.rs",
+          "case": "every_authoritative_native_route_constructs_validates_and_dispatches_in_rust"
+        },
+        "typescript": {
+          "path": "product-sdk/tests/conformance/native-route-harness.test.ts",
+          "case": "every authoritative native route constructs, validates and selects its exact TS dispatch"
+        }
+      }
+    },
+    {
+      "key": {
+        "source_id": "dotns:contracts/registry/DotnsRegistry.sol",
+        "source_symbol_kind": "function",
+        "source_symbol": "recordExists"
+      },
+      "binding_kind": "native-route-set",
+      "behavior_concept": "recordExists",
+      "navigation_hint": {
+        "rust": "DotnsQuery::NameStatus",
+        "typescript": "dotns.nameStatus"
+      },
+      "routes": [
+        "dotns:name_status"
+      ],
+      "exercised_by": {
+        "rust": {
+          "path": "origin-rs/tests/product_sdk_native.rs",
+          "case": "every_authoritative_native_route_constructs_validates_and_dispatches_in_rust"
+        },
+        "typescript": {
+          "path": "product-sdk/tests/conformance/native-route-harness.test.ts",
+          "case": "every authoritative native route constructs, validates and selects its exact TS dispatch"
+        }
+      }
+    },
+    {
+      "key": {
+        "source_id": "dotns:contracts/registry/IDotnsRegistry.sol",
+        "source_symbol_kind": "function",
+        "source_symbol": "owner"
+      },
+      "binding_kind": "native-route-set",
+      "behavior_concept": "owner",
+      "navigation_hint": {
+        "rust": "DotnsQuery::NameById",
+        "typescript": "dotns.nameById"
+      },
+      "routes": [
+        "dotns:name_by_id"
+      ],
+      "exercised_by": {
+        "rust": {
+          "path": "origin-rs/tests/product_sdk_native.rs",
+          "case": "every_authoritative_native_route_constructs_validates_and_dispatches_in_rust"
+        },
+        "typescript": {
+          "path": "product-sdk/tests/conformance/native-route-harness.test.ts",
+          "case": "every authoritative native route constructs, validates and selects its exact TS dispatch"
+        }
+      }
+    },
+    {
+      "key": {
+        "source_id": "dotns:contracts/registry/IDotnsRegistry.sol",
+        "source_symbol_kind": "function",
+        "source_symbol": "recordExists"
+      },
+      "binding_kind": "native-route-set",
+      "behavior_concept": "recordExists",
+      "navigation_hint": {
+        "rust": "DotnsQuery::NameStatus",
+        "typescript": "dotns.nameStatus"
+      },
+      "routes": [
+        "dotns:name_status"
+      ],
+      "exercised_by": {
+        "rust": {
+          "path": "origin-rs/tests/product_sdk_native.rs",
+          "case": "every_authoritative_native_route_constructs_validates_and_dispatches_in_rust"
+        },
+        "typescript": {
+          "path": "product-sdk/tests/conformance/native-route-harness.test.ts",
+          "case": "every authoritative native route constructs, validates and selects its exact TS dispatch"
+        }
+      }
+    },
+    {
+      "key": {
+        "source_id": "dotns:contracts/resolvers/DotnsContentResolver.sol",
+        "source_symbol_kind": "function",
+        "source_symbol": "contenthash"
+      },
+      "binding_kind": "native-route-set",
+      "behavior_concept": "contenthash",
+      "navigation_hint": {
+        "rust": "DotnsQuery",
+        "typescript": "dotns content/text query"
+      },
+      "routes": [
+        "dotns:resolve_content"
+      ],
+      "exercised_by": {
+        "rust": {
+          "path": "origin-rs/tests/product_sdk_native.rs",
+          "case": "every_authoritative_native_route_constructs_validates_and_dispatches_in_rust"
+        },
+        "typescript": {
+          "path": "product-sdk/tests/conformance/native-route-harness.test.ts",
+          "case": "every authoritative native route constructs, validates and selects its exact TS dispatch"
+        }
+      }
+    },
+    {
+      "key": {
+        "source_id": "dotns:contracts/resolvers/DotnsContentResolver.sol",
+        "source_symbol_kind": "function",
+        "source_symbol": "text"
+      },
+      "binding_kind": "native-route-set",
+      "behavior_concept": "text",
+      "navigation_hint": {
+        "rust": "DotnsQuery",
+        "typescript": "dotns content/text query"
+      },
+      "routes": [
+        "dotns:resolve_text"
+      ],
+      "exercised_by": {
+        "rust": {
+          "path": "origin-rs/tests/product_sdk_native.rs",
+          "case": "every_authoritative_native_route_constructs_validates_and_dispatches_in_rust"
+        },
+        "typescript": {
+          "path": "product-sdk/tests/conformance/native-route-harness.test.ts",
+          "case": "every authoritative native route constructs, validates and selects its exact TS dispatch"
+        }
+      }
+    },
+    {
+      "key": {
+        "source_id": "dotns:contracts/resolvers/DotnsResolver.sol",
+        "source_symbol_kind": "function",
+        "source_symbol": "addressOf"
+      },
+      "binding_kind": "native-route-set",
+      "behavior_concept": "addressOf",
+      "navigation_hint": {
+        "rust": "DotnsQuery::ResolveAddress",
+        "typescript": "dotns.resolveAddress"
+      },
+      "routes": [
+        "dotns:resolve_address"
+      ],
+      "exercised_by": {
+        "rust": {
+          "path": "origin-rs/tests/product_sdk_native.rs",
+          "case": "every_authoritative_native_route_constructs_validates_and_dispatches_in_rust"
+        },
+        "typescript": {
+          "path": "product-sdk/tests/conformance/native-route-harness.test.ts",
+          "case": "every authoritative native route constructs, validates and selects its exact TS dispatch"
+        }
+      }
+    },
+    {
+      "key": {
+        "source_id": "dotns:contracts/resolvers/DotnsReverseResolver.sol",
+        "source_symbol_kind": "function",
+        "source_symbol": "nameOf"
+      },
+      "binding_kind": "native-route-set",
+      "behavior_concept": "nameOf",
+      "navigation_hint": {
+        "rust": "DotnsQuery::PrimaryName",
+        "typescript": "dotns.primaryName"
+      },
+      "routes": [
+        "dotns:primary_name"
+      ],
+      "exercised_by": {
+        "rust": {
+          "path": "origin-rs/tests/product_sdk_native.rs",
+          "case": "every_authoritative_native_route_constructs_validates_and_dispatches_in_rust"
+        },
+        "typescript": {
+          "path": "product-sdk/tests/conformance/native-route-harness.test.ts",
+          "case": "every authoritative native route constructs, validates and selects its exact TS dispatch"
+        }
+      }
+    },
+    {
+      "key": {
+        "source_id": "dotns:contracts/resolvers/IDotnsContentResolver.sol",
+        "source_symbol_kind": "function",
+        "source_symbol": "contenthash"
+      },
+      "binding_kind": "native-route-set",
+      "behavior_concept": "contenthash",
+      "navigation_hint": {
+        "rust": "DotnsQuery",
+        "typescript": "dotns content/text query"
+      },
+      "routes": [
+        "dotns:resolve_content"
+      ],
+      "exercised_by": {
+        "rust": {
+          "path": "origin-rs/tests/product_sdk_native.rs",
+          "case": "every_authoritative_native_route_constructs_validates_and_dispatches_in_rust"
+        },
+        "typescript": {
+          "path": "product-sdk/tests/conformance/native-route-harness.test.ts",
+          "case": "every authoritative native route constructs, validates and selects its exact TS dispatch"
+        }
+      }
+    },
+    {
+      "key": {
+        "source_id": "dotns:contracts/resolvers/IDotnsContentResolver.sol",
+        "source_symbol_kind": "function",
+        "source_symbol": "text"
+      },
+      "binding_kind": "native-route-set",
+      "behavior_concept": "text",
+      "navigation_hint": {
+        "rust": "DotnsQuery",
+        "typescript": "dotns content/text query"
+      },
+      "routes": [
+        "dotns:resolve_text"
+      ],
+      "exercised_by": {
+        "rust": {
+          "path": "origin-rs/tests/product_sdk_native.rs",
+          "case": "every_authoritative_native_route_constructs_validates_and_dispatches_in_rust"
+        },
+        "typescript": {
+          "path": "product-sdk/tests/conformance/native-route-harness.test.ts",
+          "case": "every authoritative native route constructs, validates and selects its exact TS dispatch"
+        }
+      }
+    },
+    {
+      "key": {
+        "source_id": "dotns:contracts/resolvers/IDotnsResolver.sol",
+        "source_symbol_kind": "function",
+        "source_symbol": "addressOf"
+      },
+      "binding_kind": "native-route-set",
+      "behavior_concept": "addressOf",
+      "navigation_hint": {
+        "rust": "DotnsQuery::ResolveAddress",
+        "typescript": "dotns.resolveAddress"
+      },
+      "routes": [
+        "dotns:resolve_address"
+      ],
+      "exercised_by": {
+        "rust": {
+          "path": "origin-rs/tests/product_sdk_native.rs",
+          "case": "every_authoritative_native_route_constructs_validates_and_dispatches_in_rust"
+        },
+        "typescript": {
+          "path": "product-sdk/tests/conformance/native-route-harness.test.ts",
+          "case": "every authoritative native route constructs, validates and selects its exact TS dispatch"
+        }
+      }
+    },
+    {
+      "key": {
+        "source_id": "dotns:contracts/resolvers/IDotnsReverseResolver.sol",
+        "source_symbol_kind": "function",
+        "source_symbol": "nameOf"
+      },
+      "binding_kind": "native-route-set",
+      "behavior_concept": "nameOf",
+      "navigation_hint": {
+        "rust": "DotnsQuery::PrimaryName",
+        "typescript": "dotns.primaryName"
+      },
+      "routes": [
+        "dotns:primary_name"
+      ],
+      "exercised_by": {
+        "rust": {
+          "path": "origin-rs/tests/product_sdk_native.rs",
+          "case": "every_authoritative_native_route_constructs_validates_and_dispatches_in_rust"
+        },
+        "typescript": {
+          "path": "product-sdk/tests/conformance/native-route-harness.test.ts",
+          "case": "every authoritative native route constructs, validates and selects its exact TS dispatch"
+        }
+      }
+    },
+    {
+      "key": {
+        "source_id": "dotns:contracts/utils/StringUtils.sol",
+        "source_symbol_kind": "function",
+        "source_symbol": "isSingleLabel"
+      },
+      "binding_kind": "label-validation-surface",
+      "behavior_concept": "single-label-validation",
+      "navigation_hint": {
+        "rust": "Label::new",
+        "typescript": "normalizedLabel"
+      },
+      "routes": [
+        "dotns:register",
+        "dotns:reserve_name",
+        "dotns:set_label_protection"
+      ],
+      "exercised_by": {
+        "rust": {
+          "path": "origin-rs/tests/product_sdk_native.rs",
+          "case": "every_authoritative_native_route_constructs_validates_and_dispatches_in_rust"
+        },
+        "typescript": {
+          "path": "product-sdk/tests/conformance/native-route-harness.test.ts",
+          "case": "every authoritative native route constructs, validates and selects its exact TS dispatch"
+        }
+      },
+      "validation_surfaces": {
+        "rust": {
+          "path": "origin-rs/src/product_sdk/domains/dotns.rs",
+          "declaration": "Label",
+          "constructor": "new"
+        },
+        "typescript": {
+          "path": "product-sdk/src/dotns.ts",
+          "function": "normalizedLabel"
+        },
+        "vectors": {
+          "path": "docs/sdk/vectors/dotns-v1.json",
+          "sha256": "41d0f028d6e29ca4bd32bfdd9912181e4f550f3a850f2395fe858b5cdf8f237d"
+        },
+        "cases": {
+          "rust": {
+            "path": "origin-rs/src/product_sdk/domains/dotns.rs",
+            "case": "shared_vectors_match_label_name_commitment_and_event_contracts"
+          },
+          "typescript": {
+            "path": "product-sdk/tests/conformance/dotns-vectors.test.ts",
+            "case": "shared DotNS canonical vectors match TypeScript SDK"
+          }
+        }
+      }
+    },
+    {
+      "key": {
+        "source_id": "dotns:contracts/utils/StringUtils.sol",
+        "source_symbol_kind": "function",
+        "source_symbol": "isSingleLabelMemory"
+      },
+      "binding_kind": "label-validation-surface",
+      "behavior_concept": "single-label-validation",
+      "navigation_hint": {
+        "rust": "Label::new",
+        "typescript": "normalizedLabel"
+      },
+      "routes": [
+        "dotns:register",
+        "dotns:reserve_name",
+        "dotns:set_label_protection"
+      ],
+      "exercised_by": {
+        "rust": {
+          "path": "origin-rs/tests/product_sdk_native.rs",
+          "case": "every_authoritative_native_route_constructs_validates_and_dispatches_in_rust"
+        },
+        "typescript": {
+          "path": "product-sdk/tests/conformance/native-route-harness.test.ts",
+          "case": "every authoritative native route constructs, validates and selects its exact TS dispatch"
+        }
+      },
+      "validation_surfaces": {
+        "rust": {
+          "path": "origin-rs/src/product_sdk/domains/dotns.rs",
+          "declaration": "Label",
+          "constructor": "new"
+        },
+        "typescript": {
+          "path": "product-sdk/src/dotns.ts",
+          "function": "normalizedLabel"
+        },
+        "vectors": {
+          "path": "docs/sdk/vectors/dotns-v1.json",
+          "sha256": "41d0f028d6e29ca4bd32bfdd9912181e4f550f3a850f2395fe858b5cdf8f237d"
+        },
+        "cases": {
+          "rust": {
+            "path": "origin-rs/src/product_sdk/domains/dotns.rs",
+            "case": "shared_vectors_match_label_name_commitment_and_event_contracts"
+          },
+          "typescript": {
+            "path": "product-sdk/tests/conformance/dotns-vectors.test.ts",
+            "case": "shared DotNS canonical vectors match TypeScript SDK"
+          }
+        }
+      }
+    }
+  ],
+  "blockers": []
+}

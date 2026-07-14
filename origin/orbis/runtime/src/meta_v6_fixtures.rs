@@ -9,7 +9,8 @@
 //!
 //! These are deliberately binary fixtures. The tests decode every file with `DecodeAll` and
 //! independently rebuild it from the runtime types, preventing a text fixture from silently
-//! describing a wire format that the runtime does not actually use.
+//! describing a wire format that the runtime does not actually use. The metadata implicit is a
+//! historical vector baseline, not the current runtime metadata identity.
 
 use crate::{AccountId, Runtime, RuntimeCall};
 use codec::{DecodeAll, Encode};
@@ -25,7 +26,7 @@ use sp_runtime::{
 };
 use verifiable::{ring::bandersnatch::BandersnatchVrfVerifiable, GenerateVerifiable};
 
-const CANONICAL_METADATA_IMPLICIT: [u8; 32] = [
+const VECTOR_BASELINE_METADATA_IMPLICIT: [u8; 32] = [
 	0x85, 0x19, 0x55, 0x76, 0x67, 0xf8, 0x7e, 0xb7, 0xee, 0x32, 0xcd, 0x10, 0x9d, 0x40, 0xac, 0xfd,
 	0x48, 0xd9, 0xc5, 0x3a, 0x7e, 0xd9, 0x15, 0xfe, 0x17, 0x33, 0xb0, 0x35, 0x73, 0xab, 0x9e, 0xf9,
 ];
@@ -78,7 +79,7 @@ fn meta_tuple_for(
 	let metadata =
 		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::decode_all(&mut &[1u8][..])
 			.unwrap();
-	let metadata_implicit = Some(CANONICAL_METADATA_IMPLICIT);
+	let metadata_implicit = Some(VECTOR_BASELINE_METADATA_IMPLICIT);
 	let preimage = crate::meta_v6::IntentPreimageV7 {
 		domain: crate::meta_v6::META_DOMAIN.to_vec(),
 		extension_version: 0,
@@ -122,7 +123,7 @@ fn meta_tuple_for(
 		bare.7.implicit().unwrap(),
 		bare.8.implicit().unwrap(),
 		bare.9.implicit().unwrap(),
-		Some(CANONICAL_METADATA_IMPLICIT),
+		Some(VECTOR_BASELINE_METADATA_IMPLICIT),
 	);
 	let signature = (0u8, call.clone(), bare.clone(), implicit)
 		.using_encoded(|payload| pair.sign(&sp_io::hashing::blake2_256(payload)));
@@ -188,7 +189,7 @@ fn honour_meta_tuples() -> (pallet_meta_tx::MetaTxFor<Runtime>, pallet_meta_tx::
 	// VoterAuth is last inside the nested identity tuple. Its inherited implication is the base
 	// Meta call followed by the outer Bulletin/metadata explicit and implicit suffixes.
 	let message =
-		(0u8, &call, &storage, &metadata, (), Some(CANONICAL_METADATA_IMPLICIT), &account)
+		(0u8, &call, &storage, &metadata, (), Some(VECTOR_BASELINE_METADATA_IMPLICIT), &account)
 			.using_encoded(sp_io::hashing::blake2_256);
 
 	let domain: RingDomainSize = crate::MembersFlexibleRingExponent::get().try_into().unwrap();
@@ -420,7 +421,7 @@ fn verify_meta_signature(meta: pallet_meta_tx::MetaTxFor<Runtime>) -> bool {
 		bare.7.implicit().unwrap(),
 		bare.8.implicit().unwrap(),
 		bare.9.implicit().unwrap(),
-		Some(CANONICAL_METADATA_IMPLICIT),
+		Some(VECTOR_BASELINE_METADATA_IMPLICIT),
 	);
 	let digest = (version, call, bare, implicit).using_encoded(sp_io::hashing::blake2_256);
 	sp_runtime::traits::Verify::verify(&signature, digest.as_slice(), &account)
@@ -469,7 +470,7 @@ fn validate_meta_head(
 		bare.7.implicit().unwrap(),
 		bare.8.implicit().unwrap(),
 		bare.9.implicit().unwrap(),
-		Some(CANONICAL_METADATA_IMPLICIT),
+		Some(VECTOR_BASELINE_METADATA_IMPLICIT),
 	);
 	verify
 		.validate(
@@ -490,7 +491,7 @@ impl crate::meta_v6::MetadataImplicitResolver for FixtureMetadataResolver {
 	fn resolve(
 		metadata: &frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 	) -> Result<Option<[u8; 32]>, sp_runtime::transaction_validity::TransactionValidityError> {
-		Ok(if metadata.encode() == [0] { None } else { Some(CANONICAL_METADATA_IMPLICIT) })
+		Ok(if metadata.encode() == [0] { None } else { Some(VECTOR_BASELINE_METADATA_IMPLICIT) })
 	}
 }
 
@@ -985,7 +986,7 @@ fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
 		let (inner_call, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
 			DecodeAll::decode_all(&mut meta.encode().as_slice()).unwrap();
 		assert_eq!(extension.1 .0, intent);
-		assert_eq!(extension.1 .0.metadata_implicit, Some(CANONICAL_METADATA_IMPLICIT));
+		assert_eq!(extension.1 .0.metadata_implicit, Some(VECTOR_BASELINE_METADATA_IMPLICIT));
 		assert!(extension.1.weight(&inner_call).all_gte(crate::weights::meta_v6::v7_commitment_delta()));
 		let score_meta = include_bytes!("../fixtures/meta-v8/score-participant-meta.scale");
 		let (score_call, _, score_extension): (RuntimeCall, u8, crate::MetaTxExtension) =
@@ -1097,7 +1098,7 @@ fn checked_in_meta_v8_fixtures_decode_all_recompute_and_match_hashes() {
 			let (_, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
 				DecodeAll::decode_all(&mut meta.encode().as_slice()).unwrap();
 			assert_eq!(extension.9 .1 .0, expected);
-			assert_eq!(extension.1 .0.metadata_implicit, Some(CANONICAL_METADATA_IMPLICIT));
+			assert_eq!(extension.1 .0.metadata_implicit, Some(VECTOR_BASELINE_METADATA_IMPLICIT));
 			match index {
 				2 => assert!(matches!(extension.9 .1 .0.personhood, Some(crate::meta_v6::MetaPersonhoodAuthV6::PersonalAliasAccountRevised(ref proof, ..)) if !proof.is_empty())),
 				5 => assert!(matches!(extension.9 .1 .0.people_lite, Some(crate::meta_v6::MetaPeopleLiteAuthV6::LiteAliasAccountRevised(ref proof, ..)) if !proof.is_empty())),

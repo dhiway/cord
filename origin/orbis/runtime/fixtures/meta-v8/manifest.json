@@ -27,7 +27,7 @@
     },
     {
       "bytes": 478,
-      "file": "metadata-hash.json",
+      "file": "metadata-hash-vector-baseline.json",
       "sha256": "2dbf31989b7083a7ea08348a34820cb948d1c4405055bc78af38520b7e7347a8"
     },
     {
@@ -198,5 +198,10 @@
   "over_bound_error": "InvalidTransaction::ExhaustsResources",
   "schema": "orbis-meta-intent-v7",
   "spec_version": 29,
-  "transaction_version": 8
+  "transaction_version": 8,
+  "fixture_status": "historical-signed-payload-vector-baseline",
+  "metadata_record": "metadata-hash-vector-baseline.json",
+  "current_runtime_metadata_record": "metadata-hash.json",
+  "current_runtime_vectors_regenerated": false,
+  "usage": "negative and construction regression vectors only; never current SDK/runtime identity"
 }

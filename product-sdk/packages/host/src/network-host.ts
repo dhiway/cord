@@ -12,7 +12,7 @@ import type {
   SignedRequest,
 } from "./fake-host.ts";
 
-export { ORBIS_NETWORK_BINDING } from "../../descriptors/generated/orbis-network-binding.ts";
+export { ORBIS_CANDIDATE_NETWORK_BINDING, ORBIS_NETWORK_BINDING } from "../../descriptors/generated/orbis-network-binding.ts";
 
 export interface TypedFinalizedBlock {
   readonly hash: string;
@@ -112,6 +112,8 @@ export interface NetworkBindingContract {
   readonly metadata_hash: string;
   readonly descriptor_contract_sha256: string;
   readonly chain_spec_source_sha256: string;
+  readonly activation_state: "candidate-pending" | "production-approved";
+  readonly production_activation_ready: boolean;
 }
 
 export interface TypedNetworkHostOptions<
@@ -143,6 +145,9 @@ function assertBindingShape(binding: NetworkBindingContract): void {
   if (!Number.isSafeInteger(binding.spec_version) || binding.spec_version < 0 ||
       !Number.isSafeInteger(binding.transaction_version) || binding.transaction_version < 0)
     throw new ProductSdkError("invalid_input", "binding runtime versions must be non-negative integers");
+  if (!(["candidate-pending", "production-approved"] as unknown[]).includes(binding.activation_state)
+    || typeof binding.production_activation_ready !== "boolean")
+    throw new ProductSdkError("invalid_input", "binding activation state is invalid");
 }
 
 function equalBinding(actual: NetworkBindingContract, expected: NetworkBindingContract): void {
@@ -160,6 +165,9 @@ function equalBinding(actual: NetworkBindingContract, expected: NetworkBindingCo
     throw new ProductSdkError("descriptor_mismatch", "descriptor contract digest mismatch");
   if (actual.chain_spec_source_sha256 !== expected.chain_spec_source_sha256)
     throw new ProductSdkError("unsupported_runtime", "chain-spec source digest mismatch");
+  if (actual.activation_state !== expected.activation_state
+    || actual.production_activation_ready !== expected.production_activation_ready)
+    throw new ProductSdkError("unsupported_runtime", "network activation state mismatch");
 }
 
 function equalObservedRuntime(

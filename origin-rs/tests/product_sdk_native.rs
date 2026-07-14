@@ -11,10 +11,10 @@ use oc::product_sdk::{
 		ORBIS_DESCRIPTOR_CONTRACT_SHA256,
 	},
 	host::{HostResponse, NativeErrorCodeOrSuccess},
-	validate_descriptor_contract, validate_eqc_result, validate_slo_manifest, Capability, Consent,
-	EqcResult, FakeHost, Finality, HostMethod, HostRequest, HostSigner, HostTransport, NativeError,
-	NativeErrorCode, NativeLifecycle, NetworkIdentity, SignedRequest, SloManifest,
-	TerminalObserver,
+	instantiate_native_route, validate_descriptor_contract, validate_eqc_result,
+	validate_slo_manifest, Capability, Consent, EqcResult, FakeHost, Finality, HostRequest,
+	HostSigner, HostTransport, NativeError, NativeErrorCode, NativeHostMethod, NativeLifecycle,
+	NetworkIdentity, SignedRequest, SloManifest, TerminalObserver,
 };
 use serde_json::{json, Map, Value};
 use tokio::sync::{watch, Notify};
@@ -22,7 +22,8 @@ use tokio::sync::{watch, Notify};
 const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/..");
 
 fn load(path: &str) -> String {
-	std::fs::read_to_string(format!("{ROOT}/{path}")).expect("shared P0 fixture must be readable")
+	std::fs::read_to_string(format!("{ROOT}/{path}"))
+		.expect("shared native SDK fixture must be readable")
 }
 
 fn payload(value: Value) -> Map<String, Value> {
@@ -34,17 +35,22 @@ fn request(id: &str, nonce: &str) -> HostRequest {
 		version: 1,
 		request_id: id.into(),
 		application_id: "festival".into(),
-		capability: Capability::Identity,
-		method: HostMethod::Read,
-		network: NetworkIdentity::p0_fixture(),
+		capability: Capability::Attestation,
+		method: NativeHostMethod::new("schema_by_id"),
+		network: NetworkIdentity::orbis_candidate(),
 		finality: Finality::Finalized,
-		payload: payload(json!({"subject_id": "subject:alice"})),
+		payload: payload(json!({"schema": format!("0x{}", "11".repeat(32))})),
 		consent: Consent {
-			scope: vec!["identity:read".into()],
+			scope: vec!["attestation:schema_by_id".into()],
 			expires_at: 2_000,
 			nonce: nonce.into(),
 		},
 	}
+}
+
+fn authorize(host: &FakeHost, request: HostRequest) -> HostRequest {
+	host.issue_consent(request.application_id.clone(), &request.consent).unwrap();
+	request
 }
 
 fn code<T>(result: Result<T, NativeError>) -> &'static str {
@@ -79,6 +85,9 @@ async fn shared_host_scenario_registry_has_rust_conformance_outcomes() {
 		"allow-scoped-read",
 		"deny-unknown-capability",
 		"deny-scope-escalation",
+		"deny-missing-host-consent",
+		"deny-caller-self-authorized-consent",
+		"deny-revoked-consent",
 		"deny-expired-consent",
 		"deny-replayed-nonce",
 		"revoke-before-sign",
@@ -91,9 +100,25 @@ async fn shared_host_scenario_registry_has_rust_conformance_outcomes() {
 	assert_eq!(registered, expected);
 
 	let host = FakeHost::default();
-	host.grant("festival", &[Capability::Identity]);
 	assert_eq!(
-		code(host.execute(request("request-0000000001", "nonce-00000000001")).await),
+		host.grant("festival", &["attestation:unknown"]).unwrap_err().code,
+		NativeErrorCode::InvalidInput
+	);
+	let unknown_consent = Consent {
+		scope: vec!["attestation:unknown".into()],
+		expires_at: 2_000,
+		nonce: "nonce-unknown-0001".into(),
+	};
+	assert_eq!(
+		host.issue_consent("festival", &unknown_consent).unwrap_err().code,
+		NativeErrorCode::InvalidInput
+	);
+	host.grant("festival", &["attestation:schema_by_id"]).unwrap();
+	assert_eq!(
+		code(
+			host.execute(authorize(&host, request("request-0000000001", "nonce-00000000001")))
+				.await
+		),
 		"success"
 	);
 
@@ -102,17 +127,34 @@ async fn shared_host_scenario_registry_has_rust_conformance_outcomes() {
 	assert_eq!(code(host.execute(hostile).await), "unsupported_surface");
 
 	let mut hostile = request("request-0000000003", "nonce-00000000003");
-	hostile.method = HostMethod::Unsupported;
-	assert_eq!(code(host.execute(hostile).await), "unsupported_surface");
+	hostile.method = NativeHostMethod::new("attestation_live_status");
+	hostile.payload = payload(json!({"attestation": format!("0x{}", "11".repeat(32))}));
+	hostile.consent.scope = vec!["attestation:attestation_live_status".into()];
+	assert_eq!(code(host.execute(authorize(&host, hostile)).await), "permission_denied");
+
+	assert_eq!(
+		code(host.execute(request("request-missing-0001", "nonce-missing-00001")).await),
+		"permission_denied"
+	);
+
+	let mut self_authorized = request("request-selfauth-001", "nonce-selfauth-0001");
+	host.issue_consent(self_authorized.application_id.clone(), &self_authorized.consent)
+		.unwrap();
+	self_authorized.consent.scope.push("attestation:attestation_live_status".into());
+	assert_eq!(code(host.execute(self_authorized).await), "permission_denied");
+
+	let revoked_consent = authorize(&host, request("request-consent-rev", "nonce-consent-revoke"));
+	host.revoke_consent(&revoked_consent.consent.nonce);
+	assert_eq!(code(host.execute(revoked_consent).await), "permission_revoked");
 
 	let mut hostile = request("request-0000000004", "nonce-00000000004");
 	hostile.consent.expires_at = 999;
-	assert_eq!(code(host.execute(hostile).await), "consent_expired");
+	assert_eq!(code(host.execute(authorize(&host, hostile)).await), "consent_expired");
 
 	let replay_host = FakeHost::default();
-	replay_host.grant("festival", &[Capability::Identity]);
+	replay_host.grant("festival", &["attestation:schema_by_id"]).unwrap();
 	replay_host
-		.execute(request("request-0000000005", "nonce-replay-00001"))
+		.execute(authorize(&replay_host, request("request-0000000005", "nonce-replay-00001")))
 		.await
 		.unwrap();
 	assert_eq!(
@@ -121,20 +163,17 @@ async fn shared_host_scenario_registry_has_rust_conformance_outcomes() {
 	);
 
 	let revoked = FakeHost::default();
-	revoked.grant("festival", &[Capability::Identity]);
+	revoked.grant("festival", &["attestation:schema_by_id"]).unwrap();
+	let revoked_request = authorize(&revoked, request("request-0000000007", "nonce-00000000007"));
 	revoked.revoke("festival");
-	assert_eq!(
-		code(revoked.execute(request("request-0000000007", "nonce-00000000007")).await),
-		"permission_revoked"
-	);
+	assert_eq!(code(revoked.execute(revoked_request).await), "permission_revoked");
 
 	let cancelled = FakeHost::default();
-	cancelled.grant("festival", &[Capability::Identity]);
+	cancelled.grant("festival", &["attestation:schema_by_id"]).unwrap();
+	let cancelled_request =
+		authorize(&cancelled, request("request-0000000008", "nonce-00000000008"));
 	cancelled.cancel("request-0000000008");
-	assert_eq!(
-		code(cancelled.execute(request("request-0000000008", "nonce-00000000008")).await),
-		"cancelled"
-	);
+	assert_eq!(code(cancelled.execute(cancelled_request).await), "cancelled");
 
 	let timeout = FakeHost::new(
 		Arc::new(|| 1_000),
@@ -142,9 +181,13 @@ async fn shared_host_scenario_registry_has_rust_conformance_outcomes() {
 		Arc::new(TimeoutTransport),
 		Arc::new(RecordingObserver::default()),
 	);
-	timeout.grant("festival", &[Capability::Identity]);
+	timeout.grant("festival", &["attestation:schema_by_id"]).unwrap();
 	assert_eq!(
-		code(timeout.execute(request("request-0000000009", "nonce-00000000009")).await),
+		code(
+			timeout
+				.execute(authorize(&timeout, request("request-0000000009", "nonce-00000000009")))
+				.await
+		),
 		"timeout"
 	);
 
@@ -156,6 +199,48 @@ async fn shared_host_scenario_registry_has_rust_conformance_outcomes() {
 	let mut abi = request("request-0000000011", "nonce-00000000011");
 	abi.payload = payload(json!({"subject_id":"alice", "nested":{"contract_address":"0x01"}}));
 	assert_eq!(code(host.execute(abi).await), "unsupported_surface");
+}
+
+#[tokio::test]
+async fn every_authoritative_native_route_constructs_validates_and_dispatches_in_rust() {
+	let contract: Value =
+		serde_json::from_str(&load("docs/sdk/native-route-contract.json")).unwrap();
+	let routes = contract["routes"].as_array().unwrap();
+	assert_eq!(routes.len(), 132);
+	let selected = Arc::new(Mutex::new(Vec::new()));
+	let host = FakeHost::new(
+		Arc::new(|| 1_000),
+		Arc::new(TestSigner::immediate()),
+		Arc::new(RouteRecordingTransport { selected: selected.clone() }),
+		Arc::new(RecordingObserver::default()),
+	);
+	for (index, route) in routes.iter().enumerate() {
+		instantiate_native_route(route).unwrap().validate_and_prepare().unwrap();
+		let scope = route["id"].as_str().unwrap();
+		host.grant("route-harness", &[scope]).unwrap();
+		let consent = Consent {
+			scope: vec![scope.into()],
+			expires_at: 2_000,
+			nonce: format!("route-consent-{index:04}"),
+		};
+		host.issue_consent("route-harness", &consent).unwrap();
+		let request: HostRequest = serde_json::from_value(json!({
+			"version": 1,
+			"request_id": format!("route-request-{index:04}"),
+			"application_id": "route-harness",
+			"capability": route["capability"],
+			"method": route["method"],
+			"network": NetworkIdentity::orbis_candidate(),
+			"finality": route["finality"],
+			"payload": route["sample_payload"],
+			"consent": consent,
+		}))
+		.unwrap();
+		request.validate().unwrap();
+		host.execute(request).await.unwrap();
+		assert!(route["runtime"]["target"].as_str().is_some_and(|target| !target.is_empty()));
+	}
+	assert_eq!(selected.lock().unwrap().len(), routes.len());
 }
 
 #[test]
@@ -175,7 +260,7 @@ fn shared_descriptor_and_identity_are_exact_and_fail_closed() {
 		("genesis_hash", NativeErrorCode::UnsupportedRuntime),
 		("chain_spec_source_sha256", NativeErrorCode::UnsupportedRuntime),
 	] {
-		let mut identity = NetworkIdentity::p0_fixture();
+		let mut identity = NetworkIdentity::orbis_candidate();
 		match field {
 			"spec_version" => identity.spec_version += 1,
 			"transaction_version" => identity.transaction_version += 1,
@@ -246,9 +331,10 @@ fn lifecycle_envelope_enforces_exact_terminal_evidence() {
 fn shared_eqc_targets_and_schema_only_results_are_strictly_validated() {
 	let manifest: SloManifest =
 		serde_json::from_str(&load("docs/evidence/performance/service-slo-manifest.json")).unwrap();
-	let payload: Value =
-		serde_json::from_str(&load("docs/evidence/verification/p0/p0-ratification.payload.json"))
-			.unwrap();
+	let payload: Value = serde_json::from_str(&load(
+		"docs/evidence/verification/p5/sdk-freeze-ratification.payload.json",
+	))
+	.unwrap();
 	validate_slo_manifest(&manifest, &payload).unwrap();
 
 	for class in ["E", "Q", "C"] {
@@ -338,6 +424,27 @@ impl HostTransport for TimeoutTransport {
 	}
 }
 
+struct RouteRecordingTransport {
+	selected: Arc<Mutex<Vec<String>>>,
+}
+
+#[async_trait]
+impl HostTransport for RouteRecordingTransport {
+	async fn submit(
+		&self,
+		request: SignedRequest,
+		_cancelled: watch::Receiver<bool>,
+	) -> Result<HostResponse, NativeError> {
+		self.selected.lock().unwrap().push(format!(
+			"{:?}:{}:{}",
+			request.request.finality,
+			request.request.scope_name()?,
+			request.signature
+		));
+		Ok(HostResponse { finalized_hash: format!("0x{}", "ab".repeat(32)) })
+	}
+}
+
 struct BlockingTransport {
 	entered: Arc<Notify>,
 	release: Arc<Notify>,
@@ -374,11 +481,10 @@ async fn cancellation_is_exactly_once_and_late_transport_cannot_win() {
 		}),
 		observer.clone(),
 	));
-	host.grant("festival", &[Capability::Identity]);
+	host.grant("festival", &["attestation:schema_by_id"]).unwrap();
+	let cancel_request = authorize(&host, request("request-cancel-0001", "nonce-cancel-00001"));
 	let running_host = host.clone();
-	let task = tokio::spawn(async move {
-		running_host.execute(request("request-cancel-0001", "nonce-cancel-00001")).await
-	});
+	let task = tokio::spawn(async move { running_host.execute(cancel_request).await });
 	entered.notified().await;
 	host.cancel("request-cancel-0001");
 	host.cancel("request-cancel-0001");
@@ -410,13 +516,11 @@ async fn revocation_is_checked_before_signing_and_again_before_transport() {
 		}),
 		Arc::new(RecordingObserver::default()),
 	);
-	host.grant("festival", &[Capability::Identity]);
+	host.grant("festival", &["attestation:schema_by_id"]).unwrap();
+	let before_request = authorize(&host, request("request-revoke-001", "nonce-revoke-00001"));
 	host.revoke("festival");
 	assert_eq!(
-		host.execute(request("request-revoke-001", "nonce-revoke-00001"))
-			.await
-			.unwrap_err()
-			.code,
+		host.execute(before_request).await.unwrap_err().code,
 		NativeErrorCode::PermissionRevoked
 	);
 	assert_eq!((calls.load(Ordering::SeqCst), transports.load(Ordering::SeqCst)), (0, 0));
@@ -438,14 +542,53 @@ async fn revocation_is_checked_before_signing_and_again_before_transport() {
 		}),
 		Arc::new(RecordingObserver::default()),
 	));
-	host.grant("festival", &[Capability::Identity]);
+	host.grant("festival", &["attestation:schema_by_id"]).unwrap();
+	let during_request = authorize(&host, request("request-revoke-002", "nonce-revoke-00002"));
 	let running_host = host.clone();
-	let task = tokio::spawn(async move {
-		running_host.execute(request("request-revoke-002", "nonce-revoke-00002")).await
-	});
+	let task = tokio::spawn(async move { running_host.execute(during_request).await });
 	entered.notified().await;
 	host.revoke("festival");
 	release.notify_one();
 	assert_eq!(task.await.unwrap().unwrap_err().code, NativeErrorCode::PermissionRevoked);
 	assert_eq!(transports.load(Ordering::SeqCst), 0);
+
+	let consent_entered = Arc::new(Notify::new());
+	let consent_release = Arc::new(Notify::new());
+	let host = Arc::new(FakeHost::new(
+		Arc::new(|| 1_000),
+		Arc::new(TestSigner {
+			entered: consent_entered.clone(),
+			release: Some(consent_release.clone()),
+			calls,
+		}),
+		Arc::new(BlockingTransport {
+			entered: Arc::new(Notify::new()),
+			release: Arc::new(Notify::new()),
+			calls: transports.clone(),
+		}),
+		Arc::new(RecordingObserver::default()),
+	));
+	host.grant("festival", &["attestation:schema_by_id"]).unwrap();
+	let consent_request = authorize(&host, request("request-consent-delay", "nonce-consent-delay"));
+	let nonce = consent_request.consent.nonce.clone();
+	let running_host = host.clone();
+	let task = tokio::spawn(async move { running_host.execute(consent_request).await });
+	consent_entered.notified().await;
+	host.revoke_consent(&nonce);
+	consent_release.notify_one();
+	assert_eq!(task.await.unwrap().unwrap_err().code, NativeErrorCode::PermissionRevoked);
+	assert_eq!(transports.load(Ordering::SeqCst), 0);
+	assert_eq!(
+		host.execute(request("request-consent-replay", &nonce)).await.unwrap_err().code,
+		NativeErrorCode::Replay
+	);
+}
+
+#[test]
+fn candidate_network_requires_explicit_mode_and_production_rejects_pending_activation() {
+	NetworkIdentity::orbis_candidate().validate().unwrap();
+	assert_eq!(
+		NetworkIdentity::orbis_production().validate().unwrap_err().code,
+		NativeErrorCode::UnsupportedRuntime
+	);
 }

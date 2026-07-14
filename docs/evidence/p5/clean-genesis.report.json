@@ -1,0 +1,36 @@
+{
+  "acceptance_criteria": "M6",
+  "activation_state": "candidate-pending",
+  "approval_status": "PENDING",
+  "candidate_only": true,
+  "generated": {
+    "clean_break_scan_pass": true,
+    "deterministic_rebuilds": 2,
+    "orbis_candidate_identity_path": "docs/genesis/orbis-candidate-genesis-identity.json",
+    "orbis_candidate_identity_sha256": "8b4986d5d6c7b4e92a29b53424bedb75303dbd80c77137f996d40ae334a4b59f",
+    "orbis_genesis_header_hash": "0x066f97db4ab6a5e5d44ee66c3b469f82d178817650fa6f52634ea2ebead6c6e3",
+    "orbis_genesis_state_root": "0x55e81b8c3aada6227214d467cefad014198e84d4e3fa15c8021e31dcc40fe0dc",
+    "orbis_raw_chain_spec_sha256": "7bd04165c64d31bd3a39ef3ddb35fe06c199b4209dd7aa67b5e9b3977acc0138",
+    "orbis_raw_storage_sha256": "213f4498f24f9ed08d46ad7a7cc4127e374a162bba3fb4bb6a1921d77fd778dc",
+    "origin_raw_chain_spec_sha256": "b519cbfe3a705557e5a37a9119800918c45587de976adde7ecb48274ddcb4fb9",
+    "origin_raw_storage_sha256": "aed635b6f71dbea38714a84e93022c7b22b08203f913e56ea25a2236d119585c",
+    "raw_storage_checks_pass": true
+  },
+  "inputs": {
+    "authority_counts": {
+      "orbis_collators": 2,
+      "origin_validators": 4
+    },
+    "orbis_input_sha256": "4ee31a3a3c689a4513512b6bd24de9006055fdcde622880062733558ccf127cb",
+    "origin_input_sha256": "aa4bea9af3cbb40475184fe3bc836eaa4a7d1bb0eb2b2f01845998adc4e5e935"
+  },
+  "legacy_checkpoint_export_import_scan_findings": 0,
+  "legacy_records_verified_from_domain_prefixes": 0,
+  "old_network_dependency_scan_findings": 0,
+  "pass": true,
+  "production_activation": false,
+  "production_activation_ready": false,
+  "schema_version": 1,
+  "scope": "origin-orbis-new-network-clean-genesis",
+  "verdict": "pass"
+}

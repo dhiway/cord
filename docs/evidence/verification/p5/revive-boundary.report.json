@@ -1,0 +1,25 @@
+{
+  "checks": {
+    "migrated_domain_abi_surfaces": 0,
+    "migrated_domain_deployments": 0,
+    "migrated_domain_runtime_calls": 0,
+    "migrated_domain_sdk_or_app_methods": 0,
+    "retained_revive_test_evidence": {
+      "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime solidity_evm_fixture_deploys_and_executes_through_revive --lib": {
+        "entries": [
+          "orbis-generic-asset-application-runtime",
+          "orbis-generic-counter-fixture"
+        ],
+        "exit_code": 0,
+        "output_sha256": "3b9c84cfaf74c4bbcee55701cced7c0b61126956f92b589392b52c20f4d9eada",
+        "path": "origin/orbis/runtime/src/tests.rs",
+        "status": "pass"
+      }
+    },
+    "strict_retained_revive_allowlist_entries": 2
+  },
+  "criterion": "M7",
+  "errors": [],
+  "schema": "cord.revive-boundary-report.v1",
+  "status": "pass"
+}

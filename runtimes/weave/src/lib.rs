@@ -1779,7 +1779,6 @@ pub type TxExtension = (
 pub type UncheckedExtrinsic =
 	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, TxExtension>;
 
-// pallet_revive::evm::runtime::UncheckedExtrinsic<Address, Signature, EthExtraImpl>;
 /// Unchecked signature payload type as expected by this runtime.
 pub type UncheckedSignaturePayload =
 	generic::UncheckedSignaturePayload<Address, Signature, TxExtension>;

@@ -3,19 +3,18 @@ use std::{collections::BTreeMap, fmt};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-pub const ORBIS_GENESIS_FIXTURE: &str =
-	"0x40519e2e0e894e9b68defd9df6697619116ea693d0864913c98b5c65cd4e511a";
-pub const ORBIS_METADATA_HASH: &str =
-	"0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9";
+pub use super::version::{
+	ORBIS_ACTIVATION_STATE, ORBIS_METADATA_HASH, ORBIS_PARA_ID, ORBIS_PRODUCTION_ACTIVATION_READY,
+	ORBIS_SPEC_VERSION, ORBIS_TRANSACTION_VERSION,
+};
+
+pub use super::version::ORBIS_CANDIDATE_GENESIS_HEADER_HASH;
 pub const ORBIS_DESCRIPTOR_CONTRACT_SHA256: &str =
-	"19865403da04a79e045620c2cb1ec9b813c9af7b9b3ba2cb4b9ad2df399ce505";
+	"ceeb91edb8cd277b12c933fdb789185acd824a2b3d68eccb7cd43a17979df609";
 pub const ORBIS_CHAIN_SPEC_SOURCE_SHA256: &str =
-	"b67ec215a4ecea710357537ed304e7d228d3389eabd9eb80dc47dd5c329ae489";
-pub const P0_RATIFICATION_PAYLOAD_SHA256: &str =
-	"18a7fe95a300632121d0f448cb7bf3e1bc0e6776e254bc26bc1437a5f19c790a";
-pub const ORBIS_SPEC_VERSION: u32 = 29;
-pub const ORBIS_TRANSACTION_VERSION: u32 = 8;
-pub const ORBIS_PARA_ID: u32 = 1006;
+	"7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb";
+pub const NATIVE_SDK_RATIFICATION_PAYLOAD_SHA256: &str =
+	"27c6effe52c60fade8e9fe341ffe874cb6e286e97944c51c7f0532052361e9fe";
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -94,16 +93,18 @@ pub enum Capability {
 	Unsupported,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum HostMethod {
-	Read,
-	Resolve,
-	Fetch,
-	Balance,
-	Submit,
-	#[serde(other)]
-	Unsupported,
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(transparent)]
+pub struct NativeHostMethod(String);
+
+impl NativeHostMethod {
+	pub fn new(value: impl Into<String>) -> Self {
+		Self(value.into())
+	}
+
+	pub fn as_str(&self) -> &str {
+		&self.0
+	}
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -122,27 +123,51 @@ pub struct NetworkIdentity {
 	pub metadata_hash: String,
 	pub descriptor_contract_sha256: String,
 	pub chain_spec_source_sha256: String,
+	pub activation_state: NetworkActivationState,
+	pub production_activation_ready: bool,
+	pub access_mode: NetworkAccessMode,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum NetworkActivationState {
+	CandidatePending,
+	ProductionApproved,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum NetworkAccessMode {
+	Candidate,
+	Production,
 }
 
 impl NetworkIdentity {
-	pub fn p0_fixture() -> Self {
+	pub fn orbis_candidate() -> Self {
 		Self {
-			genesis_hash: ORBIS_GENESIS_FIXTURE.into(),
+			genesis_hash: ORBIS_CANDIDATE_GENESIS_HEADER_HASH.into(),
 			spec_version: ORBIS_SPEC_VERSION,
 			transaction_version: ORBIS_TRANSACTION_VERSION,
 			metadata_hash: ORBIS_METADATA_HASH.into(),
 			descriptor_contract_sha256: ORBIS_DESCRIPTOR_CONTRACT_SHA256.into(),
 			chain_spec_source_sha256: ORBIS_CHAIN_SPEC_SOURCE_SHA256.into(),
+			activation_state: NetworkActivationState::CandidatePending,
+			production_activation_ready: ORBIS_PRODUCTION_ACTIVATION_READY,
+			access_mode: NetworkAccessMode::Candidate,
 		}
 	}
 
+	pub fn orbis_production() -> Self {
+		Self { access_mode: NetworkAccessMode::Production, ..Self::orbis_candidate() }
+	}
+
 	pub fn validate(&self) -> Result<(), NativeError> {
-		if self.genesis_hash != ORBIS_GENESIS_FIXTURE
+		if self.genesis_hash != ORBIS_CANDIDATE_GENESIS_HEADER_HASH
 			|| self.chain_spec_source_sha256 != ORBIS_CHAIN_SPEC_SOURCE_SHA256
 		{
 			return Err(NativeError::new(
 				NativeErrorCode::UnsupportedRuntime,
-				"unrecognized P0 Orbis fixture identity",
+				"unrecognized Orbis clean-break prelaunch identity",
 			));
 		}
 		if self.spec_version != ORBIS_SPEC_VERSION
@@ -165,6 +190,48 @@ impl NetworkIdentity {
 				"Orbis descriptor contract hash mismatch",
 			));
 		}
+		let frozen_activation = match ORBIS_ACTIVATION_STATE {
+			"candidate-pending" => NetworkActivationState::CandidatePending,
+			"production-approved" => NetworkActivationState::ProductionApproved,
+			_ => {
+				return Err(NativeError::new(
+					NativeErrorCode::UnsupportedRuntime,
+					"unsupported frozen Orbis activation state",
+				))
+			},
+		};
+		if self.activation_state != frozen_activation
+			|| self.production_activation_ready != ORBIS_PRODUCTION_ACTIVATION_READY
+			|| (frozen_activation == NetworkActivationState::CandidatePending
+				&& ORBIS_PRODUCTION_ACTIVATION_READY)
+			|| (frozen_activation == NetworkActivationState::ProductionApproved
+				&& !ORBIS_PRODUCTION_ACTIVATION_READY)
+		{
+			return Err(NativeError::new(
+				NativeErrorCode::UnsupportedRuntime,
+				"Orbis activation state does not match the signed SDK freeze",
+			));
+		}
+		match self.access_mode {
+			NetworkAccessMode::Candidate
+				if self.activation_state == NetworkActivationState::CandidatePending
+					&& !self.production_activation_ready => {},
+			NetworkAccessMode::Production
+				if self.activation_state == NetworkActivationState::ProductionApproved
+					&& self.production_activation_ready => {},
+			NetworkAccessMode::Candidate => {
+				return Err(NativeError::new(
+					NativeErrorCode::UnsupportedRuntime,
+					"candidate access is unavailable for the activated production network",
+				));
+			},
+			NetworkAccessMode::Production => {
+				return Err(NativeError::new(
+					NativeErrorCode::UnsupportedRuntime,
+					"production access rejects the unsigned candidate/PENDING network",
+				));
+			},
+		}
 		Ok(())
 	}
 }
@@ -184,7 +251,7 @@ pub struct HostRequest {
 	pub request_id: String,
 	pub application_id: String,
 	pub capability: Capability,
-	pub method: HostMethod,
+	pub method: NativeHostMethod,
 	pub network: NetworkIdentity,
 	pub finality: Finality,
 	pub payload: Map<String, Value>,
@@ -209,11 +276,11 @@ impl HostRequest {
 		}
 		self.network.validate()?;
 		assert_no_contract_surface(&Value::Object(self.payload.clone()), "payload")?;
-		validate_method_payload(self.capability, self.method, &self.payload)
+		validate_method_payload(self.capability, &self.method, self.finality, &self.payload)
 	}
 
-	pub fn scope_name(&self) -> Result<&'static str, NativeError> {
-		method_contract(self.capability, self.method).map(|contract| contract.scope)
+	pub fn scope_name(&self) -> Result<String, NativeError> {
+		method_contract(self.capability, &self.method).map(|contract| contract.scope)
 	}
 }
 
@@ -225,101 +292,105 @@ pub fn decode_host_request(source: &str) -> Result<HostRequest, NativeError> {
 }
 
 struct MethodContract {
-	scope: &'static str,
-	fields: &'static [FieldContract],
+	scope: String,
+	fields: Vec<String>,
+	finality: Finality,
 }
-
-struct FieldContract {
-	name: &'static str,
-	max: usize,
-	kind: FieldKind,
-}
-
-#[derive(Clone, Copy)]
-enum FieldKind {
-	String,
-	Hash32,
-	Intent,
-}
-
-const IDENTITY_FIELDS: &[FieldContract] =
-	&[FieldContract { name: "subject_id", max: 128, kind: FieldKind::String }];
-const ATTESTATION_FIELDS: &[FieldContract] =
-	&[FieldContract { name: "attestation_id", max: 128, kind: FieldKind::String }];
-const DOTNS_FIELDS: &[FieldContract] =
-	&[FieldContract { name: "name", max: 253, kind: FieldKind::String }];
-const STORAGE_FIELDS: &[FieldContract] =
-	&[FieldContract { name: "commitment", max: 66, kind: FieldKind::Hash32 }];
-const CONTENT_FIELDS: &[FieldContract] =
-	&[FieldContract { name: "cid", max: 128, kind: FieldKind::String }];
-const ASSET_FIELDS: &[FieldContract] = &[
-	FieldContract { name: "asset_id", max: 64, kind: FieldKind::String },
-	FieldContract { name: "account", max: 128, kind: FieldKind::String },
-];
-const TRANSACTION_FIELDS: &[FieldContract] = &[
-	FieldContract { name: "operation_id", max: 128, kind: FieldKind::String },
-	FieldContract { name: "intent_id", max: 128, kind: FieldKind::Intent },
-];
 
 fn method_contract(
 	capability: Capability,
-	method: HostMethod,
+	method: &NativeHostMethod,
 ) -> Result<MethodContract, NativeError> {
-	let contract = match (capability, method) {
-		(Capability::Identity, HostMethod::Read) => {
-			MethodContract { scope: "identity:read", fields: IDENTITY_FIELDS }
-		},
-		(Capability::Attestation, HostMethod::Read) => {
-			MethodContract { scope: "attestation:read", fields: ATTESTATION_FIELDS }
-		},
-		(Capability::Dotns, HostMethod::Resolve) => {
-			MethodContract { scope: "dotns:resolve", fields: DOTNS_FIELDS }
-		},
-		(Capability::Storage, HostMethod::Read) => {
-			MethodContract { scope: "storage:read", fields: STORAGE_FIELDS }
-		},
-		(Capability::Content, HostMethod::Fetch) => {
-			MethodContract { scope: "content:fetch", fields: CONTENT_FIELDS }
-		},
-		(Capability::Assets, HostMethod::Balance) => {
-			MethodContract { scope: "assets:balance", fields: ASSET_FIELDS }
-		},
-		(Capability::Transaction, HostMethod::Submit) => {
-			MethodContract { scope: "transaction:submit", fields: TRANSACTION_FIELDS }
-		},
+	let capability_name = match capability {
+		Capability::Identity => "identity",
+		Capability::Attestation => "attestation",
+		Capability::Dotns => "dotns",
+		Capability::Storage => "storage",
+		Capability::Content => "content",
+		Capability::Assets => "assets",
+		Capability::Transaction => "transaction",
+		Capability::Unsupported => return Err(unsupported_method()),
+	};
+	let route_contract: Value =
+		serde_json::from_str(include_str!("../../../docs/sdk/native-route-contract.json"))
+			.map_err(|_| {
+				NativeError::new(NativeErrorCode::DescriptorMismatch, "invalid route contract")
+			})?;
+	if route_contract["network"]["metadata_hash"].as_str() != Some(ORBIS_METADATA_HASH) {
+		return Err(NativeError::new(
+			NativeErrorCode::MetadataMismatch,
+			"route contract metadata binding mismatch",
+		));
+	}
+	let Some(entry) = route_contract["routes"].as_array().and_then(|routes| {
+		routes.iter().find(|entry| {
+			entry["capability"].as_str() == Some(capability_name)
+				&& entry["method"].as_str() == Some(method.as_str())
+		})
+	}) else {
+		return Err(unsupported_method());
+	};
+	let finality = match entry["finality"].as_str() {
+		Some("finalized") => Finality::Finalized,
+		Some("submit-and-finalize") => Finality::SubmitAndFinalize,
 		_ => {
 			return Err(NativeError::new(
-				NativeErrorCode::UnsupportedSurface,
-				"unsupported native product method",
+				NativeErrorCode::DescriptorMismatch,
+				"invalid descriptor finality",
 			))
 		},
 	};
-	Ok(contract)
+	let fields = entry["parameters"]
+		.as_array()
+		.ok_or_else(|| {
+			NativeError::new(NativeErrorCode::DescriptorMismatch, "invalid descriptor fields")
+		})?
+		.iter()
+		.map(|field| {
+			field["name"].as_str().map(str::to_owned).ok_or_else(|| {
+				NativeError::new(NativeErrorCode::DescriptorMismatch, "invalid descriptor field")
+			})
+		})
+		.collect::<Result<Vec<_>, _>>()?;
+	Ok(MethodContract { scope: format!("{capability_name}:{}", method.as_str()), fields, finality })
+}
+
+pub fn validate_method_scope(scope: &str) -> Result<(), NativeError> {
+	let (capability, method) = scope.split_once(':').ok_or_else(unsupported_method)?;
+	if method.is_empty() || method.contains(':') {
+		return Err(unsupported_method());
+	}
+	let capability = match capability {
+		"identity" => Capability::Identity,
+		"attestation" => Capability::Attestation,
+		"dotns" => Capability::Dotns,
+		"storage" => Capability::Storage,
+		"content" => Capability::Content,
+		"assets" => Capability::Assets,
+		"transaction" => Capability::Transaction,
+		_ => return Err(unsupported_method()),
+	};
+	method_contract(capability, &NativeHostMethod::new(method)).map(|_| ())
 }
 
 fn validate_method_payload(
 	capability: Capability,
-	method: HostMethod,
+	method: &NativeHostMethod,
+	finality: Finality,
 	payload: &Map<String, Value>,
 ) -> Result<(), NativeError> {
 	let contract = method_contract(capability, method)?;
-	if payload.len() != contract.fields.len() {
+	if finality != contract.finality
+		|| payload.len() != contract.fields.len()
+		|| contract.fields.iter().any(|field| !payload.contains_key(field))
+	{
 		return Err(invalid("payload fields do not match the method contract"));
 	}
-	for field in contract.fields {
-		let Some(value) = payload.get(field.name).and_then(Value::as_str) else {
-			return Err(invalid(format!("invalid {}", field.name)));
-		};
-		let valid = match field.kind {
-			FieldKind::String => bounded(value, 1, field.max),
-			FieldKind::Intent => bounded(value, 16, field.max),
-			FieldKind::Hash32 => is_prefixed_hash(value),
-		};
-		if !valid {
-			return Err(invalid(format!("invalid {}", field.name)));
-		}
-	}
 	Ok(())
+}
+
+fn unsupported_method() -> NativeError {
+	NativeError::new(NativeErrorCode::UnsupportedSurface, "unsupported native product method")
 }
 
 pub fn assert_no_contract_surface(value: &Value, path: &str) -> Result<(), NativeError> {
@@ -462,12 +533,44 @@ impl NativeLifecycle {
 pub struct DescriptorContract {
 	pub contract_version: u8,
 	pub kind: String,
+	pub release: String,
+	pub first_supported_native_sdk: bool,
 	pub runtime: DescriptorRuntime,
 	pub fixture_identity: DescriptorFixtureIdentity,
+	pub network_activation: DescriptorNetworkActivation,
 	pub ratification_payload_sha256: String,
 	pub sources: BTreeMap<String, DescriptorSource>,
 	pub signed_extension_surfaces: BTreeMap<String, Vec<String>>,
+	pub native_host_contract: DescriptorNativeHostContract,
+	pub descriptor_provenance: DescriptorProvenance,
 	pub production_papi_descriptor_generated: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct DescriptorProvenance {
+	pub runtime_metadata_binding: String,
+	pub method_inventory: String,
+	pub drift_validation: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct DescriptorNativeHostContract {
+	pub version: u8,
+	pub method_count: usize,
+	pub page_limit: u32,
+	pub payload_validation: String,
+	pub methods: Vec<DescriptorNativeMethod>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct DescriptorNativeMethod {
+	pub capability: String,
+	pub method: String,
+	pub finality: String,
+	pub payload_fields: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -481,10 +584,21 @@ pub struct DescriptorRuntime {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct DescriptorNetworkActivation {
+	pub state: String,
+	pub production_activation_ready: bool,
+	pub source: String,
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DescriptorFixtureIdentity {
 	pub status: String,
 	pub genesis_identity: String,
+	pub genesis_state_root: String,
+	pub candidate_identity_source: String,
+	pub candidate_identity_sha256: String,
 	pub chain_spec_source: String,
 	pub chain_spec_source_sha256: String,
 }
@@ -498,23 +612,50 @@ pub struct DescriptorSource {
 
 pub fn validate_descriptor_contract(descriptor: &DescriptorContract) -> Result<(), NativeError> {
 	if descriptor.contract_version != 1
-		|| descriptor.kind != "papi-bootstrap-descriptor-contract"
+		|| descriptor.kind != "cord-native-host-contract-manifest"
+		|| descriptor.release != "origin-orbis-native-v1"
+		|| !descriptor.first_supported_native_sdk
 		|| descriptor.runtime.name != "orbis"
 		|| descriptor.runtime.para_id != ORBIS_PARA_ID
 		|| descriptor.runtime.spec_version != ORBIS_SPEC_VERSION
 		|| descriptor.runtime.transaction_version != ORBIS_TRANSACTION_VERSION
 		|| descriptor.runtime.metadata_hash != ORBIS_METADATA_HASH
-		|| descriptor.fixture_identity.status != "unfinalized-p0-fixture-not-production-genesis"
-		|| descriptor.fixture_identity.genesis_identity != ORBIS_GENESIS_FIXTURE
+		|| descriptor.fixture_identity.status
+			!= "deterministic-clean-break-candidate-not-production-approved"
+		|| descriptor.fixture_identity.genesis_identity != ORBIS_CANDIDATE_GENESIS_HEADER_HASH
+		|| descriptor.fixture_identity.genesis_state_root
+			!= super::version::ORBIS_CANDIDATE_GENESIS_STATE_ROOT
+		|| descriptor.fixture_identity.candidate_identity_source
+			!= "docs/genesis/orbis-candidate-genesis-identity.json"
+		|| descriptor.fixture_identity.candidate_identity_sha256
+			!= super::version::ORBIS_CANDIDATE_GENESIS_IDENTITY_SHA256
 		|| descriptor.fixture_identity.chain_spec_source != "origin/orbis/node/src/chain_spec.rs"
 		|| descriptor.fixture_identity.chain_spec_source_sha256 != ORBIS_CHAIN_SPEC_SOURCE_SHA256
-		|| descriptor.ratification_payload_sha256 != P0_RATIFICATION_PAYLOAD_SHA256
+		|| descriptor.network_activation.state != ORBIS_ACTIVATION_STATE
+		|| descriptor.network_activation.production_activation_ready
+			!= ORBIS_PRODUCTION_ACTIVATION_READY
+		|| descriptor.network_activation.source
+			!= "docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"
+		|| descriptor.ratification_payload_sha256 != NATIVE_SDK_RATIFICATION_PAYLOAD_SHA256
+		|| descriptor.native_host_contract.version != 1
+		|| descriptor.native_host_contract.method_count
+			!= descriptor.native_host_contract.methods.len()
+		|| descriptor.native_host_contract.methods.is_empty()
+		|| descriptor.native_host_contract.page_limit != 100
+		|| descriptor.native_host_contract.payload_validation
+			!= "closed-shape-plus-core-native-types-v1"
+		|| descriptor.descriptor_provenance.runtime_metadata_binding
+			!= "reproduced-rfc78-wasm-metadata-hash"
+		|| descriptor.descriptor_provenance.method_inventory
+			!= "authoritative-typed-native-route-contract"
+		|| descriptor.descriptor_provenance.drift_validation
+			!= "metadata-hash-pallet-call-index-runtime-api-and-rust-typescript-route-harness"
 		|| descriptor.production_papi_descriptor_generated
 		|| descriptor.sources.is_empty()
 	{
 		return Err(NativeError::new(
 			NativeErrorCode::DescriptorMismatch,
-			"P0 Orbis descriptor contract drift",
+			"Orbis native SDK descriptor contract drift",
 		));
 	}
 	for surface in ["normal", "authorized", "ethereum", "meta_inner"] {

@@ -1,0 +1,103 @@
+{
+  "schema": "cord.sdk-native-coverage.report.v1",
+  "status": "pass",
+  "approval": {
+    "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
+    "required_reviewer_role": "architect",
+    "review_thread_id": "019f5c3c-0569-7ca2-ba2a-1df7f15827ab",
+    "schema_version": 1,
+    "sha256": "41d0ca41a959207b98dcb5bf8b98ffe9321b15e2ccab3bea7adda187e04930ed",
+    "verdict": "APPROVED"
+  },
+  "release": "origin-orbis-native-v1",
+  "clean_break": true,
+  "runtime": {
+    "origin": {
+      "spec_version": 9901,
+      "transaction_version": 2
+    },
+    "orbis": {
+      "para_id": 1006,
+      "spec_version": 29,
+      "transaction_version": 8,
+      "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391"
+    }
+  },
+  "sdk": {
+    "rust": "0.9.9",
+    "typescript": "0.9.9",
+    "contract_version": 1
+  },
+  "runtime_apis": {
+    "attestation": 1,
+    "dotns": 1,
+    "storage_provider": 4,
+    "drive": 1,
+    "s3": 1
+  },
+  "storage_schemas": {
+    "attestation": 1,
+    "dotns": 1,
+    "storage_provider": 5,
+    "drive": 1,
+    "s3": 1,
+    "transaction_storage": 8,
+    "resources": 1
+  },
+  "semantic_vectors": [
+    {
+      "domain": "attestation",
+      "sha256": "91516138c2e31d814912dbd0954045b429b7f00376f3256dd737deaa2660f1ce"
+    },
+    {
+      "domain": "dotns",
+      "sha256": "41d0f028d6e29ca4bd32bfdd9912181e4f550f3a850f2395fe858b5cdf8f237d"
+    },
+    {
+      "domain": "storage_provider",
+      "sha256": "83181b0efee4197e6c10f6c629025b32dc88c0ab696c918ca9147342bfe279f8"
+    }
+  ],
+  "coverage": {
+    "design_entries": 2780,
+    "adopted_semantics": 14,
+    "exact_m5_bindings": 14,
+    "distinct_behavior_concepts": 7,
+    "intentional_change_entries": 1116,
+    "retired_entries": 301,
+    "not_applicable_entries": 1349,
+    "binding_kinds": {
+      "label-validation-surface": 2,
+      "native-route-set": 12
+    },
+    "executable_route_cases": {
+      "distinct_routes": 132,
+      "rust": 132,
+      "typescript": 132
+    },
+    "compatibility_facade_rows": 0,
+    "data_migration_rows": 0
+  },
+  "descriptor": {
+    "kind": "cord-native-host-contract-manifest",
+    "native_method_count": 132,
+    "authoritative_route_contract": "docs/sdk/native-route-contract.json",
+    "runtime_dispatch_or_api_bound_routes": 132,
+    "metadata_reconciliation": "exact current metadata hash plus source-derived pallet/call indices and runtime API implementation tables; decoded current metadata blob unavailable, so decoded runtime signatures are not asserted"
+  },
+  "reference_surface": {
+    "raw_scale": false,
+    "migrated_domain_revive": false,
+    "contract_abi": false,
+    "pallet_or_call_indices": false
+  },
+  "inputs": {
+    "version_matrix_sha256": "2f6445026bb16569d2868884ebb3c0d77c08658063d4122ca0c2867eeac03678",
+    "coverage_map_sha256": "c6be6342ea095cc5d4f16b9f399305c93bed0e75bebbb5f87c08a894b4205234",
+    "m5_sdk_bindings_sha256": "2ec73debe6b028bf85a0162e395c1d51582f9515bce238cb8293f822495ad81b",
+    "route_contract_sha256": "4eec73f96cfb990de789e42c7fcf2ed06af74af3b51393b1df74fd2a43e625ea",
+    "rust_route_harness_sha256": "4c6ab6fddb152f964c17c0571511f189a40ae03ca77947a6c501e73124af5d18",
+    "typescript_route_harness_sha256": "1542c5b4d6e7d4ca520faa27c525babcfa09c9a44cb22b821642aaf233070e7e",
+    "descriptor_sha256": "124330058c538c73f5bdc0d962ce4da476fad671c8884bf90e05446a12c496d0"
+  }
+}

@@ -332,6 +332,42 @@ mod tests {
 	}
 
 	#[test]
+	fn production_genesis_has_only_native_bootstrap_state() {
+		let root = AccountId::new([0x40; 32]);
+		let authority = OriginProductionAuthority {
+			account_id: AccountId::new([0x41; 32]),
+			babe: [0x51; 32],
+			grandpa: [0x61; 32],
+			para_validator: [0x71; 32],
+			para_assignment: [0x81; 32],
+			authority_discovery: [0x91; 32],
+			beefy: [[0x02].as_slice(), [0xa1; 32].as_slice()]
+				.concat()
+				.try_into()
+				.expect("33-byte compressed public key"),
+		};
+		let genesis = origin_production_config_genesis(
+			vec![authority],
+			root.clone(),
+			vec![root, AccountId::new([0x41; 32])],
+		);
+
+		assert_eq!(
+			genesis
+				.as_object()
+				.expect("genesis patch is an object")
+				.keys()
+				.cloned()
+				.collect::<alloc::collections::BTreeSet<_>>(),
+			["authorityManager", "babe", "balances", "configuration", "session", "sudo"]
+				.into_iter()
+				.map(str::to_owned)
+				.collect(),
+			"Origin starts with authority and relay-system bootstrap state only"
+		);
+	}
+
+	#[test]
 	fn orbis_is_the_only_authorized_coretime_broker() {
 		assert_eq!(<crate::BrokerId as Get<u32>>::get(), ORBIS_ID);
 	}
