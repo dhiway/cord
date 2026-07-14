@@ -15,7 +15,7 @@
   "vectors": [
     {
       "id": "scoped-permission-denial",
-      "route": "dotns:set_text",
+      "route": "names:set_text",
       "expected": {
         "terminal": "permission_denied",
         "retryable": false
@@ -36,7 +36,7 @@
     },
     {
       "id": "participant-dot-registration",
-      "route": "dotns:register",
+      "route": "names:register",
       "expected": {
         "terminal": "success",
         "finality": "finalized",
@@ -82,7 +82,7 @@
     },
     {
       "id": "offline",
-      "route": "dotns:root_name_by_normalized_label",
+      "route": "names:root_name_by_normalized_label",
       "expected": {
         "terminal": "timeout",
         "retryable": true
@@ -90,7 +90,7 @@
     },
     {
       "id": "cancelled-submission",
-      "route": "dotns:commit",
+      "route": "names:commit",
       "expected": {
         "terminal": "cancelled",
         "retryable": false
@@ -98,7 +98,7 @@
     },
     {
       "id": "reconnect",
-      "route": "dotns:root_name_by_normalized_label",
+      "route": "names:root_name_by_normalized_label",
       "expected": {
         "terminal": "success",
         "finality": "finalized",
@@ -107,7 +107,7 @@
     },
     {
       "id": "replay",
-      "route": "dotns:root_name_by_normalized_label",
+      "route": "names:root_name_by_normalized_label",
       "expected": {
         "terminal": "conflict",
         "retryable": false

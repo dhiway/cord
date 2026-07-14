@@ -6,7 +6,7 @@
     "external_repository_edits": false,
     "external_web3_rows_excluded": 17,
     "legacy_data_migration": false,
-    "manifest_version": 17,
+    "manifest_version": 19,
     "orbis_pallets": 63,
     "origin_pallets": 48,
     "planned_implementation_rows": 0,
@@ -31,15 +31,15 @@
   "inputs": [
     {
       "path": "Cargo.lock",
-      "sha256": "5267de31fbf04a5594c01c9bc95cf0f7ade1b31dfda969b9c9261b824a19d489"
+      "sha256": "24adde73138855dbf401450a407391dba1e5f7ebd6484729daf885451cbf14f1"
     },
     {
       "path": "docs/adr/0017-native-feature-source-of-truth.md",
-      "sha256": "7d6c2898dddee6a9aeba7a2f5e0417381bffa371eca65a1969db690827413301"
+      "sha256": "e2224dc6b2d331673d29548c413414c5bbf9332d828a121b10796e4b1d04a597"
     },
     {
-      "path": "docs/architecture/origin-orbis-runtime-alignment.csv",
-      "sha256": "26a9610658b06fb11aa9b7951cc3cacf3d28ba9c4dd30f85b3ad4460c06a4d05"
+      "path": "docs/architecture/origin-foundation-commons-runtime-alignment.csv",
+      "sha256": "74aac4cec6abefb84d9769b8f8f6c77ec4ecd75f55a73fff6b35b5371d135956"
     },
     {
       "path": "docs/architecture/contract-to-native-migration.csv",
@@ -47,55 +47,55 @@
     },
     {
       "path": "docs/evidence/p0-contract-native/repository-scope.report.json",
-      "sha256": "220ddf6601debe5a95ffc3be51b0f8a476837c6b14adc3c419c8703116b26b12"
+      "sha256": "7e57ee10e43256b895be660119a4b5ea9f38042f40ea5a48f310f0cff7082898"
     },
     {
       "path": "docs/evidence/source-ledger.csv",
-      "sha256": "0afbf04851e844addd77166d1529d698fedd71bacb550974b5acdabd27542be7"
+      "sha256": "2329e38cb8c95d3cc3103dd58a13f42e5ef97513258d29a29e90c034fecee550"
     },
     {
       "path": "docs/genesis/origin-orbis-clean-genesis-manifest.json",
-      "sha256": "af581ef28a7ac7e8ccbaacb7b922c1be7b6d5c352f85c4799df3702ef7513dc3"
+      "sha256": "8729ee61b1c61b37fb20551e8933390dfd889cc45ccc835b3b98070a6859c982"
     },
     {
       "path": "docs/orbis-completion-manifest.toml",
-      "sha256": "074d9cec44bcf275c89b7d5a39d2cec824614f54d40f579e65cf1eac75aea43b"
+      "sha256": "e89fa5aebdf1d402b57ce1061a9ffbd02db8fe034ee77c74d72a9d5120a67ba1"
     },
     {
       "path": "docs/orbis-native-capability-matrix.md",
-      "sha256": "06499c5ea7aac8281f026064f7a250976073e01bbc2302bb79b719fbc02a8e03"
+      "sha256": "dcf04ad07d08e0d9780a77954bd10dbc68c57a2be467168ef28e9f33c4b59a8f"
     },
     {
       "path": "origin/base/runtime/Cargo.toml",
-      "sha256": "2ef71078053491443ba4867026569b79b9a34cc4a7f54289786441206c83af7e"
+      "sha256": "881df4a9d06edce0e6daff6fea870f783a971799da605234d566839dd98fc33c"
     },
     {
       "path": "origin/base/runtime/constants/src/lib.rs",
-      "sha256": "3711654721be8eef92c27183d158c73f1e89d8a8f8904b4030588c9e0629f740"
+      "sha256": "58296ddfc44b9a35a6f70abb259654cbfd289005d8fe3fdb15649b76db161938"
     },
     {
       "path": "origin/base/runtime/src/lib.rs",
-      "sha256": "7c0dbefbf59dbd00662adfa9833fbab84e138b9149538f6cd61ebadd3aa83bf9"
+      "sha256": "5cbaea83e18c9302fbeb6182b1a836f841370d8d1483a079bf6c66bc0c9a48a7"
     },
     {
       "path": "origin/orbis/node/src/main.rs",
       "sha256": "fb63575595d89fe1d566f0356799763070d58e642e95e9451955e53f36128166"
     },
     {
-      "path": "origin/orbis/pallets/feeless/src/benchmarking.rs",
+      "path": "origin/pallets/feeless/src/benchmarking.rs",
       "sha256": "4a043f35c72c77e530e236743ca4b0b3746a96509716f1eeb3c7f3ff96c6c6c4"
     },
     {
-      "path": "origin/orbis/pallets/feeless/src/weights.rs",
+      "path": "origin/pallets/feeless/src/weights.rs",
       "sha256": "a2dca1041477f74ecdfc79e3442a951205e0a9fa60141fb59133770ff4f0ee25"
     },
     {
-      "path": "origin/orbis/pallets/token/src/benchmarking.rs",
+      "path": "origin/pallets/token/src/benchmarking.rs",
       "sha256": "5cd2f1f1e49b8e289acb89cfed8324c2505736a8cc80599e2fdb4199f1f2404a"
     },
     {
       "path": "origin/orbis/runtime/Cargo.toml",
-      "sha256": "01d1032ad2d1b533d92c434c724d02064a14d23f733715f7f7715c1421976ca1"
+      "sha256": "e2ad6f21bef7fa6827c267e31a29b80813b63316704c4184a0005f42453727c6"
     },
     {
       "path": "origin/orbis/runtime/src/coretime.rs",
@@ -103,7 +103,7 @@
     },
     {
       "path": "origin/orbis/runtime/src/lib.rs",
-      "sha256": "9c0725827f48c3edfe84130c60bf0fe448e3b7c80ab5bb60ff78ca6fb421fb3c"
+      "sha256": "348b2ac5008544a5a031bcef62ed3226abf631b7f80faffe752aee14080af116"
     },
     {
       "path": "origin/pallets/coretime-control/Cargo.toml",

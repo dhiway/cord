@@ -6,7 +6,7 @@
 
 pub mod attestation;
 pub mod common;
-pub mod dotns;
+pub mod names;
 pub mod drive;
 pub mod identity_personhood;
 pub mod s3;

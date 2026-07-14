@@ -1,5 +1,5 @@
 {
-  "allowlist_sha256": "18639375b324d4130da06d498c103249f673658a614b40ed42125990001586da",
+  "allowlist_sha256": "b244a09b509cd8c868a84fd0fdddaed8ba3a047539d116eda55ec01b07459efd",
   "criterion": "M9",
   "dead_product_paths": 0,
   "deprecated_facades": 0,
@@ -8,39 +8,25 @@
     "archived_or_generated_contract_artifacts": [],
     "contract_build_ci_config_paths": [],
     "generator_reproducibility": {
-      "after_sha256": "18639375b324d4130da06d498c103249f673658a614b40ed42125990001586da",
-      "before_sha256": "18639375b324d4130da06d498c103249f673658a614b40ed42125990001586da",
+      "after_sha256": "b244a09b509cd8c868a84fd0fdddaed8ba3a047539d116eda55ec01b07459efd",
+      "before_sha256": "b244a09b509cd8c868a84fd0fdddaed8ba3a047539d116eda55ec01b07459efd",
       "byte_identical": true,
-      "command": "python3 scripts/generate-contract-native-census.py --native-cutover-only",
+      "command": "python3 scripts/generate-contract-native-census.py --check-native-cutover",
       "exit_code": 0,
       "status": "pass"
     },
     "migrated_contract_content_paths": [],
-    "repository_files_scanned": 3641,
-    "retained_contract_artifacts": [
-      "origin/orbis/runtime/fixtures/Counter.sol",
-      "origin/orbis/runtime/fixtures/build/Counter.bin"
-    ],
-    "retained_revive_entries": 2,
-    "retained_revive_test_evidence": {
-      "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime solidity_evm_fixture_deploys_and_executes_through_revive --lib": {
-        "entries": [
-          "orbis-generic-asset-application-runtime",
-          "orbis-generic-counter-fixture"
-        ],
-        "exit_code": 0,
-        "output_sha256": "8988cd5a3c06070587b1822e2d00bf043dc5867f07131c6c048eb875c29a424c",
-        "path": "origin/orbis/runtime/src/tests.rs",
-        "status": "pass"
-      }
-    },
+    "repository_files_scanned": 3509,
+    "retained_contract_artifacts": [],
+    "retained_revive_entries": 0,
+    "retained_revive_test_evidence": {},
     "surfaces": {
-      "build_ci_config_generated": 188,
-      "cargo_package_manifests": 106,
-      "docs": 2393,
+      "build_ci_config_generated": 182,
+      "cargo_package_manifests": 101,
+      "docs": 2394,
       "mobile": 0,
-      "rust": 833,
-      "solidity_abi": 1,
+      "rust": 768,
+      "solidity_abi": 0,
       "typescript_javascript": 56
     }
   },

@@ -2,13 +2,7 @@
   "checks": {
     "clean_break": true,
     "execution": {
-      "build_check": "pass",
-      "clean_shutdown": "pass",
-      "live_chain_registration": "deferred-to-p6-live-chain",
-      "local_provider_readiness": "pass",
-      "outbox_cli": "pass",
-      "outbox_without_live_chain": "expected-fail-closed",
-      "provider_cli": "pass"
+      "status": "not-executed"
     },
     "incident_runbooks": 10,
     "monitoring_alerts": 10,
@@ -25,7 +19,7 @@
   },
   "errors": [],
   "inputs": {
-    "bootstrap_manifest_sha256": "9e09bc41594a1b3da4f1824acbc4cb21f40a7f59151801f905e5f970913489dc",
+    "bootstrap_manifest_sha256": "b0acaa08cc2a8a41e23eb0fc39aad2466a0110eab8beeed8e172c68eea9ac426",
     "incident_runbook_sha256": "3b1eb86d4ccf9e46c1e86878423b69b437001fdc0d2ca59c39f62e295c284e71",
     "monitoring_manifest_sha256": "a356eb35492e4bada4861ca737a1a3a6e42ced0235d6730659b596800edc951e",
     "provider_main_sha256": "cd77321b8c52f26282aec764057b1f4b1b4777153cf3a1a28616a3f1c37f576a",
@@ -41,5 +35,5 @@
     "status": "deferred-to-p6-live-chain"
   },
   "schema": "cord.operator-bootstrap-report.v1",
-  "status": "local-executable-pass-live-chain-deferred"
+  "status": "static-contract-pass-execution-not-run"
 }

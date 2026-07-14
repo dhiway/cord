@@ -7,7 +7,7 @@
 pub mod attestation_events;
 pub mod contract;
 pub mod domains;
-pub mod dotns_events;
+pub mod names_events;
 pub mod eqc;
 pub mod host;
 pub mod orbis_reads;
@@ -25,7 +25,7 @@ pub use contract::{
 	NativeHostMethod, NativeLifecycle, NativeLifecycleState, NetworkAccessMode,
 	NetworkActivationState, NetworkIdentity,
 };
-pub use dotns_events::OrbisDotnsEventSubscription;
+pub use names_events::OrbisNamesEventSubscription;
 pub use eqc::{validate_eqc_result, validate_slo_manifest, EqcClass, EqcResult, SloManifest};
 pub use host::{FakeHost, HostSigner, HostTransport, SignedRequest, TerminalObserver};
 pub use orbis_reads::OrbisFinalizedReadBinding;
@@ -36,7 +36,7 @@ pub use sponsored_intent::{
 };
 pub use storage_events::OrbisStorageEventSubscription;
 pub use transport::{
-	prepare_attestation_command, prepare_dotns_command, prepare_drive_command,
+	prepare_attestation_command, prepare_names_command, prepare_drive_command,
 	prepare_identity_personhood_command, prepare_s3_command, prepare_storage_command,
 	prepare_storage_provider_command, FinalizedReadBinding, GovernedSudoBinding,
 	MissingFinalizedReadBinding, MissingGovernedSudoBinding, NativeDomainTransport,

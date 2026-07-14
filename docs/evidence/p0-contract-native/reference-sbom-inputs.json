@@ -1766,11 +1766,11 @@
       "reference_dependency_manifests": [
         {
           "path": "Cargo.toml",
-          "sha256": "ebfccd807bc4f0db405d2e6899e008cc112fcfd8aef40fd2c5205df4e01bb841"
+          "sha256": "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
         },
         {
           "path": "Cargo.lock",
-          "sha256": "5267de31fbf04a5594c01c9bc95cf0f7ade1b31dfda969b9c9261b824a19d489"
+          "sha256": "24adde73138855dbf401450a407391dba1e5f7ebd6484729daf885451cbf14f1"
         }
       ],
       "tree_hash": "5995836d5492d173b7f2f11dc97d9c35d76da48e"

@@ -25,7 +25,7 @@ import {
   type TypedRuntimeIdentity,
   type TypedTransactionStatus,
 } from "../../packages/host/src/network-host.ts";
-import { normalizedLabel, registrationSalt, textKey, textValue } from "../../src/dotns.ts";
+import { normalizedLabel, registrationSalt, textKey, textValue } from "../../src/names.ts";
 
 const APP_ID = "festival-p6-reference";
 const FINALIZED_HASH = `0x${"a1".repeat(32)}`;
@@ -161,23 +161,23 @@ function selfRoutes(state: JourneyState): TypedNetworkRoutes<JourneyClient, Type
         return { version: 1, full_personal_id: "42", full_recognized: true, lite_recognized: true };
       },
     },
-    "dotns:root_name_by_normalized_label": {
+    "names:root_name_by_normalized_label": {
       finality: "finalized",
       async query(payload, context): Promise<JsonValue> {
-        state.selfRouteSelections.push("dotns:root_name_by_normalized_label");
+        state.selfRouteSelections.push("names:root_name_by_normalized_label");
         state.participantAuthorizations.push(context.authorizationSignature);
         return { version: 1, value: { name: NAME_ID, label: payload.label, owner: "participant" } };
       },
     },
-    "dotns:resolve_attestation": {
+    "names:resolve_attestation": {
       finality: "finalized",
       async query(_payload, context): Promise<JsonValue> {
-        state.selfRouteSelections.push("dotns:resolve_attestation");
+        state.selfRouteSelections.push("names:resolve_attestation");
         state.participantAuthorizations.push(context.authorizationSignature);
         return { version: 1, value: CREDENTIAL_ID };
       },
     },
-    "dotns:commit": {
+    "names:commit": {
       finality: "submit-and-finalize",
       transaction(_payload, context) {
         state.participantAuthorizations.push(context.authorizationSignature);
@@ -185,7 +185,7 @@ function selfRoutes(state: JourneyState): TypedNetworkRoutes<JourneyClient, Type
           () => undefined,
           state.selfChainSigners,
           state.selfRouteSelections,
-          "dotns:commit",
+          "names:commit",
           () => {
             const paused = state.selfPauseNext;
             state.selfPauseNext = false;
@@ -194,7 +194,7 @@ function selfRoutes(state: JourneyState): TypedNetworkRoutes<JourneyClient, Type
         );
       },
     },
-    "dotns:register": {
+    "names:register": {
       finality: "submit-and-finalize",
       transaction(payload, context) {
         state.participantAuthorizations.push(context.authorizationSignature);
@@ -209,7 +209,7 @@ function selfRoutes(state: JourneyState): TypedNetworkRoutes<JourneyClient, Type
           }),
           state.selfChainSigners,
           state.selfRouteSelections,
-          "dotns:register",
+          "names:register",
           () => false,
         );
       },
@@ -455,7 +455,7 @@ export async function runFestivalJourney(): Promise<JsonObject> {
 
   const results: Record<string, Terminal> = {};
 
-  const denied = build("dotns:set_text", [NAME_ID, textKey("festival"), textValue("denied")]);
+  const denied = build("names:set_text", [NAME_ID, textKey("festival"), textValue("denied")]);
   results.permission_denial = await execute(selfHost, denied);
 
   results.personhood_credential = await execute(
@@ -468,14 +468,14 @@ export async function runFestivalJourney(): Promise<JsonObject> {
   );
   results.dot_lookup = await execute(
     selfHost,
-    build("dotns:root_name_by_normalized_label", [normalizedLabel("festival")]),
+    build("names:root_name_by_normalized_label", [normalizedLabel("festival")]),
   );
-  results.dot_commit = await execute(selfHost, build("dotns:commit", [REGISTRATION_COMMITMENT]));
+  results.dot_commit = await execute(selfHost, build("names:commit", [REGISTRATION_COMMITMENT]));
   results.dot_register = await execute(
     selfHost,
-    build("dotns:register", [null, normalizedLabel("festival"), registrationSalt("festival-p6-salt")]),
+    build("names:register", [null, normalizedLabel("festival"), registrationSalt("festival-p6-salt")]),
   );
-  results.dot_credential_link = await execute(selfHost, build("dotns:resolve_attestation", [NAME_ID]));
+  results.dot_credential_link = await execute(selfHost, build("names:resolve_attestation", [NAME_ID]));
 
   const checkIn = {
     schema: SCHEMA_ID,
@@ -530,20 +530,20 @@ export async function runFestivalJourney(): Promise<JsonObject> {
   results.sponsor_budget_exhaustion = await submitPrepared(results.prepare_exhausted_check_in);
 
   state.online = false;
-  const offlineRequest = build("dotns:root_name_by_normalized_label", [normalizedLabel("festival")]);
+  const offlineRequest = build("names:root_name_by_normalized_label", [normalizedLabel("festival")]);
   results.offline = await execute(selfHost, offlineRequest);
   state.online = true;
-  const reconnectRequest = build("dotns:root_name_by_normalized_label", [normalizedLabel("festival")]);
+  const reconnectRequest = build("names:root_name_by_normalized_label", [normalizedLabel("festival")]);
   results.offline_reconnect = await execute(selfHost, reconnectRequest);
   results.offline_replay = await execute(selfHost, reconnectRequest);
 
   state.selfPauseNext = true;
-  const cancelledRequest = build("dotns:commit", [REGISTRATION_COMMITMENT]);
+  const cancelledRequest = build("names:commit", [REGISTRATION_COMMITMENT]);
   const cancelling = execute(selfHost, cancelledRequest);
   await new Promise((done) => setTimeout(done, 0));
   selfHost.cancel(cancelledRequest.request_id);
   results.cancelled = await cancelling;
-  results.cancel_reconnect = await execute(selfHost, build("dotns:commit", [REGISTRATION_COMMITMENT]));
+  results.cancel_reconnect = await execute(selfHost, build("names:commit", [REGISTRATION_COMMITMENT]));
   results.cancel_replay = await execute(selfHost, cancelledRequest);
 
   sponsorClient.identity = { ...sponsorClient.identity, spec_version: sponsorClient.identity.spec_version + 1 };
@@ -664,7 +664,7 @@ export async function runFestivalJourney(): Promise<JsonObject> {
       call_indices: false,
     },
     sealed_route_registry: {
-      capabilities: ["attestation", "dotns", "identity", "storage", "transaction"],
+      capabilities: ["attestation", "names", "identity", "storage", "transaction"],
       identity_routes: 9,
       personhood_routes: 1,
       sponsored_transaction_routes: 2,

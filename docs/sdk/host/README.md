@@ -6,7 +6,7 @@ The host checks application scope and active consent before signing; binds reque
 
 The P5 schema is generated from
 `product-sdk/packages/descriptors/src/native-methods.ts`. It freezes every P2-P4 native
-attestation, DotNS, Orbis Storage/provider-reference, provider, Drive and S3 method, its exact closed
+attestation, Orbis Names, Orbis Storage/provider-reference, provider, Drive and S3 method, its exact closed
 payload field set, and its required `finalized` or `submit-and-finalize` route. Value types and
 bounds are enforced by `product-sdk/packages/core/src/contract.ts`; no request accepts runtime-
 encoded bytes, pallet indices, or migrated-domain ABI fields.

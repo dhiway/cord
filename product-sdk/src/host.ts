@@ -5,7 +5,7 @@ import {
   type NativeDomain,
 } from "./errors.ts";
 
-export type NativeCapability = "identity" | "attestation" | "dotns" | "storage" | "transaction";
+export type NativeCapability = "identity" | "attestation" | "names" | "storage" | "transaction";
 export type HostFinality = "finalized" | "submit-and-finalize";
 export type ConsentScope<Capability extends string = string, Method extends string = string> =
   `${Capability}:${Method}`;

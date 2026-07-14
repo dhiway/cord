@@ -105,7 +105,7 @@ test("metadata-derived submission resolves only after typed finalization evidenc
   const constructedAt: string[] = [];
   const signedBy: string[] = [];
   const routes = {
-    "dotns:commit": {
+    "names:commit": {
       finality: "submit-and-finalize",
       transaction(_payload: JsonObject, context: { at: string; atNumber: string }) {
         constructedAt.push(`${context.at}@${context.atNumber}`);
@@ -123,14 +123,14 @@ test("metadata-derived submission resolves only after typed finalization evidenc
   const host = new FakeHost({
     ...createTypedNetworkHostRoutes({ client, signer: chainSigner, binding: ORBIS_NETWORK_BINDING, routes }),
   });
-  host.grant("festival", ["dotns:commit"]);
+  host.grant("festival", ["names:commit"]);
 
   const submission = request({
-    capability: "dotns",
+    capability: "names",
     method: "commit",
     finality: "submit-and-finalize",
     payload: { commitment: `0x${"55".repeat(32)}` },
-    consent: { scope: ["dotns:commit"], expires_at: 2_000, nonce: "submit-consent-00000001" },
+    consent: { scope: ["names:commit"], expires_at: 2_000, nonce: "submit-consent-00000001" },
   });
   const result = await host.execute(authorize(host, submission));
 
@@ -171,7 +171,7 @@ test("host cancellation aborts and closes an in-flight typed transaction stream"
   const client = new DeterministicTypedClient();
   let closed = false;
   const routes = {
-    "dotns:commit": {
+    "names:commit": {
       finality: "submit-and-finalize",
       transaction() {
         return {
@@ -191,13 +191,13 @@ test("host cancellation aborts and closes an in-flight typed transaction stream"
   const host = new FakeHost({
     ...createTypedNetworkHostRoutes({ client, signer: chainSigner, binding: ORBIS_NETWORK_BINDING, routes }),
   });
-  host.grant("festival", ["dotns:commit"]);
+  host.grant("festival", ["names:commit"]);
   const cancellable = request({
-    capability: "dotns",
+    capability: "names",
     method: "commit",
     finality: "submit-and-finalize",
     payload: { commitment: `0x${"55".repeat(32)}` },
-    consent: { scope: ["dotns:commit"], expires_at: 2_000, nonce: "cancel-consent-00000001" },
+    consent: { scope: ["names:commit"], expires_at: 2_000, nonce: "cancel-consent-00000001" },
   });
   const pending = host.execute(authorize(host, cancellable));
   await new Promise((resolve) => setTimeout(resolve, 0));

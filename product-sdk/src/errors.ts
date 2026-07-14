@@ -1,7 +1,7 @@
 export type JsonValue = null | boolean | number | string | JsonValue[] | JsonObject;
 export type JsonObject = { [key: string]: JsonValue };
 
-export type NativeDomain = "identity" | "attestation" | "content" | "dotns" | "storage"
+export type NativeDomain = "identity" | "attestation" | "content" | "names" | "storage"
   | "provider" | "drive" | "s3" | "transaction";
 
 export const DOMAIN_ERROR_CODES = [

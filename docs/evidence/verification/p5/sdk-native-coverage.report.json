@@ -31,14 +31,14 @@
   "runtime_apis": {
     "identity_personhood": 1,
     "attestation": 1,
-    "dotns": 1,
+    "names": 1,
     "storage_provider": 4,
     "drive": 1,
     "s3": 1
   },
   "storage_schemas": {
     "attestation": 1,
-    "dotns": 1,
+    "names": 1,
     "storage_provider": 5,
     "drive": 1,
     "s3": 1,
@@ -51,8 +51,8 @@
       "sha256": "40b91520308ec9864e4533c1f90d367c254af872054fc599ed058e2695d14e31"
     },
     {
-      "domain": "dotns",
-      "sha256": "41d0f028d6e29ca4bd32bfdd9912181e4f550f3a850f2395fe858b5cdf8f237d"
+      "domain": "names",
+      "sha256": "1a543ac96e7212854fb6e2105e8b0d1c947a19a65fe3f0d50f91fbe0b77bd700"
     },
     {
       "domain": "storage_provider",
@@ -93,12 +93,12 @@
     "pallet_or_call_indices": false
   },
   "inputs": {
-    "version_matrix_sha256": "93f41f07b3f1c4d466eea30878e9f573902f0c9bb175970ecded899a61a18f02",
+    "version_matrix_sha256": "e288fe3f10ca7dab28d19258d0709e86af372a8c576f1a3f2ab96c05f49d68b0",
     "coverage_map_sha256": "0f1ea8783001f2f2798c5b073a9afd55bc8bf69cf2d2fe2dc10324c2763b39e5",
-    "m5_sdk_bindings_sha256": "60c275bfaf3e884165951f172d176b6fbb211c520056c45d2ed773fb334af834",
-    "route_contract_sha256": "5821b5f7205abb360a535bd6cf84eaf50b2b1cab51f3422c7d3104b4442c73e6",
+    "m5_sdk_bindings_sha256": "bc834f0a0f589eb5c4fa98e1cf6d4877c1dd2e66bfa3a6cc603bb7f446170812",
+    "route_contract_sha256": "156e93a88020ced8ee9a854d451fcfdda39755fafad4404d4c855f240b6380e8",
     "rust_route_harness_sha256": "74c7828f0a70877fb138256d39818d93a6c818c9651450add511f8634a498119",
     "typescript_route_harness_sha256": "1542c5b4d6e7d4ca520faa27c525babcfa09c9a44cb22b821642aaf233070e7e",
-    "descriptor_sha256": "0e352cfdc60ba84595d21013ab4955e72ebad0a95b1154480e81209b1824a8d6"
+    "descriptor_sha256": "856f84f87d2bb735234c659836d3c7d9e8f045ff2ba9dbb2090bbdb9df2eda72"
   }
 }

@@ -23,7 +23,7 @@ export interface OrbisDescriptorContract {
     pageLimit: 100;
     payloadValidation: "closed-shape-plus-core-native-types-v1";
     methods: readonly {
-      capability: "identity" | "attestation" | "dotns" | "storage" | "content" | "assets" | "transaction";
+      capability: "identity" | "attestation" | "names" | "storage" | "content" | "assets" | "transaction";
       method: string;
       finality: "finalized" | "submit-and-finalize";
       payloadFields: readonly string[];

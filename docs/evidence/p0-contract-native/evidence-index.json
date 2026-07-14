@@ -5,13 +5,13 @@
     "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.md": "9b54bf203f76ee559c9f2091998989596664e97bce04a2fdc239b58ea6c12721",
     "docs/evidence/p0-contract-native/contract-census.report.json": "2ccd6bc644e62b82743513e55cfbc1837f411bf8291844f484d512b11135cd77",
     "docs/evidence/p0-contract-native/guidance-audit.json": "e09676e0940985146e94a0de4181f0b634a9f0e95a4e7823211a658da611aa31",
-    "docs/evidence/p0-contract-native/native-cutover-allowlist.json": "eea7b8e3c2982c65dea81a5457a3b76abede1d778ac6d6bda5a5505e790c470e",
+    "docs/evidence/p0-contract-native/native-cutover-allowlist.json": "b244a09b509cd8c868a84fd0fdddaed8ba3a047539d116eda55ec01b07459efd",
     "docs/evidence/p0-contract-native/native-cutover-cleanup.report.json": "c29dcb744cba40191ed0f9bababbd7684b871e3a6808ebfcd61ee89c34d8d1a0",
-    "docs/evidence/p0-contract-native/reference-sbom-inputs.json": "df9c1e3a3ae8cfa1a3348b15147eb1bdb6e905383c513b5d40176da646c7e03e",
-    "docs/evidence/p0-contract-native/repository-scope.report.json": "220ddf6601debe5a95ffc3be51b0f8a476837c6b14adc3c419c8703116b26b12",
+    "docs/evidence/p0-contract-native/reference-sbom-inputs.json": "7f6b7f47a5fead64771e06d4806856ce0cba12d2f6913b6d2d88c00fb9918b20",
+    "docs/evidence/p0-contract-native/repository-scope.report.json": "7e57ee10e43256b895be660119a4b5ea9f38042f40ea5a48f310f0cff7082898",
     "docs/evidence/p0-contract-native/semantic-review-readiness.json": "b138a6d19775fc5a72fe71ef7c70f414de89d6b0d9b3c4270a96828be8eb33f8",
     "docs/evidence/p0-contract-native/source-scope.report.json": "66b5ace02f5203bb60347487149d92e3491ecd26b7657e2c9ac6eb178cda1f06",
-    "docs/evidence/source-ledger.csv": "0afbf04851e844addd77166d1529d698fedd71bacb550974b5acdabd27542be7",
+    "docs/evidence/source-ledger.csv": "2329e38cb8c95d3cc3103dd58a13f42e5ef97513258d29a29e90c034fecee550",
     "docs/sdk/contract-to-native-map.json": "0f1ea8783001f2f2798c5b073a9afd55bc8bf69cf2d2fe2dc10324c2763b39e5"
   },
   "non_goals": [

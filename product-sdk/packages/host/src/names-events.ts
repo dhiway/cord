@@ -1,38 +1,38 @@
 import { ProductSdkError } from "../../core/src/contract.ts";
 import type { TypedFinalizedEvent, TypedFinalizedEventSource } from "./attestation-events.ts";
 import {
-  dotnsEventOutcome,
+  namesEventOutcome,
   normalizedLabel,
   textKey,
-  type DotnsEvent,
-  type DotnsEventKind,
-  type DotnsEventSubscription,
-  type DotnsOutcome,
-  type FinalizedDotnsEvent,
-} from "../../../src/dotns.ts";
+  type NamesEvent,
+  type NamesEventKind,
+  type NamesEventSubscription,
+  type NamesOutcome,
+  type FinalizedNamesEvent,
+} from "../../../src/names.ts";
 import type {
   AccountId, BlockHash, BlockNumber, NameId, RegistrationCommitment,
 } from "../../../src/types.ts";
 
-export interface FinalizedDotnsOutcome { readonly event: FinalizedDotnsEvent; readonly outcome: DotnsOutcome }
+export interface FinalizedNamesOutcome { readonly event: FinalizedNamesEvent; readonly outcome: NamesOutcome }
 const HASH = /^0x[0-9a-f]{64}$/i;
 const DECIMAL = /^(0|[1-9][0-9]*)$/;
 function rejected(message: string): never { throw new ProductSdkError("runtime_rejected", message); }
 function hash(value: unknown, field: string): string {
-  if (typeof value !== "string" || !HASH.test(value)) rejected(`Dotns.${field} is not a hash`);
+  if (typeof value !== "string" || !HASH.test(value)) rejected(`Names.${field} is not a hash`);
   return value.toLowerCase();
 }
 function account(value: unknown, field: string): AccountId {
-  if (typeof value !== "string" || value.length < 1 || value.length > 128) rejected(`Dotns.${field} is not an account`);
+  if (typeof value !== "string" || value.length < 1 || value.length > 128) rejected(`Names.${field} is not an account`);
   return value as AccountId;
 }
 function bool(value: unknown, field: string): boolean {
-  if (typeof value !== "boolean") rejected(`Dotns.${field} is not boolean`);
+  if (typeof value !== "boolean") rejected(`Names.${field} is not boolean`);
   return value;
 }
 function block(value: unknown, field: string): BlockNumber {
   const text = typeof value === "bigint" || typeof value === "number" || typeof value === "string" ? String(value) : "";
-  if (!DECIMAL.test(text) || BigInt(text) > 0xffff_ffffn) rejected(`Dotns.${field} is not a u32 block number`);
+  if (!DECIMAL.test(text) || BigInt(text) > 0xffff_ffffn) rejected(`Names.${field} is not a u32 block number`);
   return text as BlockNumber;
 }
 function nullableHash(value: unknown, field: string): NameId | null {
@@ -56,21 +56,21 @@ function utf8Bytes(value: unknown, field: string): string {
     if (typeof binary.toHex === "function") return utf8Bytes(binary.toHex(), field);
     if ("value" in binary) return utf8Bytes(binary.value, field);
   }
-  if (!bytes) rejected(`Dotns.${field} is not descriptor-shaped bytes`);
+  if (!bytes) rejected(`Names.${field} is not descriptor-shaped bytes`);
   try {
     return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch {
-    rejected(`Dotns.${field} is not valid UTF-8`);
+    rejected(`Names.${field} is not valid UTF-8`);
   }
 }
 function dataObject(native: TypedFinalizedEvent): Readonly<Record<string, unknown>> {
-  if (!native.data || typeof native.data !== "object" || Array.isArray(native.data)) rejected(`Dotns.${native.event} data is not an object`);
+  if (!native.data || typeof native.data !== "object" || Array.isArray(native.data)) rejected(`Names.${native.event} data is not an object`);
   return native.data;
 }
 
-/** Decode one exact native `Dotns` pallet event into the stable product DTO. */
-export function decodeDotnsEvent(native: TypedFinalizedEvent): DotnsEvent | null {
-  if (native.pallet !== "Dotns") return null;
+/** Decode one exact native `Names` pallet event into the stable product DTO. */
+export function decodeNamesEvent(native: TypedFinalizedEvent): NamesEvent | null {
+  if (native.pallet !== "Names") return null;
   const d = dataObject(native);
   const name = () => hash(d.name, "name") as NameId;
   const present = () => bool(d.present, "present");
@@ -96,25 +96,25 @@ export function decodeDotnsEvent(native: TypedFinalizedEvent): DotnsEvent | null
     case "PauseSet": return { event: "pause_set", data: { paused: bool(d.paused, "paused") } };
     case "EmergencyNameRevoked": return { event: "emergency_name_revoked", data: { name: name() } };
     case "RegistrarSet": return { event: "registrar_set", data: { registrar: account(d.registrar, "registrar"), enabled: bool(d.enabled, "enabled") } };
-    default: throw new ProductSdkError("unsupported_runtime", `unknown native Dotns event ${native.event}`);
+    default: throw new ProductSdkError("unsupported_runtime", `unknown native Names event ${native.event}`);
   }
 }
 
-export async function* subscribeDotnsEvents(
+export async function* subscribeNamesEvents(
   source: TypedFinalizedEventSource,
-  subscription: DotnsEventSubscription,
+  subscription: NamesEventSubscription,
   signal: AbortSignal = new AbortController().signal,
-): AsyncGenerator<FinalizedDotnsOutcome> {
-  const wanted = new Set<DotnsEventKind>(subscription.kinds);
+): AsyncGenerator<FinalizedNamesOutcome> {
+  const wanted = new Set<NamesEventKind>(subscription.kinds);
   for await (const blockResult of source.subscribeFinalizedEvents({ from: subscription.from_finalized_block, signal })) {
-    if (signal.aborted) throw new ProductSdkError("cancelled", "DotNS subscription cancelled");
+    if (signal.aborted) throw new ProductSdkError("cancelled", "Orbis Names subscription cancelled");
     const finalizedBlockHash = hash(blockResult.hash, "finalized_block_hash") as BlockHash;
     for (const native of blockResult.events) {
-      if (!Number.isSafeInteger(native.index) || native.index < 0 || native.index > 0xffff_ffff) rejected("DotNS event index is not a u32");
-      const event = decodeDotnsEvent(native);
+      if (!Number.isSafeInteger(native.index) || native.index < 0 || native.index > 0xffff_ffff) rejected("Orbis Names event index is not a u32");
+      const event = decodeNamesEvent(native);
       if (!event || !wanted.has(event.event)) continue;
-      const finalized: FinalizedDotnsEvent = { finalized_block_hash: finalizedBlockHash, event_index: native.index, event };
-      yield { event: finalized, outcome: dotnsEventOutcome(event) };
+      const finalized: FinalizedNamesEvent = { finalized_block_hash: finalizedBlockHash, event_index: native.index, event };
+      yield { event: finalized, outcome: namesEventOutcome(event) };
     }
   }
 }

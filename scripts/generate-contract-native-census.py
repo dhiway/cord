@@ -72,7 +72,7 @@ def native_cutover_allowlist(approval_ref: dict[str, object]) -> dict[str, objec
             "identity",
             "personhood",
             "individuality",
-            "orbis-names",
+            "names",
             "storage",
         ],
         "policy": (

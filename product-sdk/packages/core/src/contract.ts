@@ -225,48 +225,48 @@ write("identity", "attest_lite_person", {
   proof_of_ownership: string({ pattern: /^0x[0-9a-f]{128}$/ }),
 });
 
-// Native DotNS runtime API and pallet calls.
-read("dotns", "label_policy_version", {});
-read("dotns", "name_by_id", { name: hash32 });
-read("dotns", "root_name_by_normalized_label", { label });
-read("dotns", "owner_names", { owner: account, ...pageFields });
-read("dotns", "controllers", { name: hash32 });
+// Native Orbis Names runtime API and pallet calls.
+read("names", "label_policy_version", {});
+read("names", "name_by_id", { name: hash32 });
+read("names", "root_name_by_normalized_label", { label });
+read("names", "owner_names", { owner: account, ...pageFields });
+read("names", "controllers", { name: hash32 });
 for (const method of ["resolve_address", "resolve_subject", "resolve_attestation", "resolve_content", "name_status"])
-  read("dotns", method, { name: hash32 });
-read("dotns", "resolve_text", { name: hash32, key: string({ min: 1, maxBytes: 32 }) });
-read("dotns", "primary_name", { owner: account });
-write("dotns", "commit", { commitment: hash32 });
-write("dotns", "cancel_commitment", { commitment: hash32 });
-write("dotns", "prune_expired_commitment", { owner: account, commitment: hash32 });
-write("dotns", "register", { parent: nullable(hash32), label, salt: string({ min: 1, maxBytes: 64 }) });
-write("dotns", "renew", { name: hash32, additional_period: blockNumber });
-write("dotns", "transfer", { name: hash32, new_owner: account });
-write("dotns", "add_controller", { name: hash32, controller: account });
-write("dotns", "remove_controller", { name: hash32, controller: account });
-write("dotns", "set_address", { name: hash32, address: nullable(string({ min: 1, maxBytes: 128 })) });
-write("dotns", "set_subject", { name: hash32, subject: nullable(subjectId) });
-write("dotns", "set_attestation", { name: hash32, attestation: nullable(hash32) });
-write("dotns", "set_content", { name: hash32, content: nullable(hash32) });
-write("dotns", "set_text", {
+  read("names", method, { name: hash32 });
+read("names", "resolve_text", { name: hash32, key: string({ min: 1, maxBytes: 32 }) });
+read("names", "primary_name", { owner: account });
+write("names", "commit", { commitment: hash32 });
+write("names", "cancel_commitment", { commitment: hash32 });
+write("names", "prune_expired_commitment", { owner: account, commitment: hash32 });
+write("names", "register", { parent: nullable(hash32), label, salt: string({ min: 1, maxBytes: 64 }) });
+write("names", "renew", { name: hash32, additional_period: blockNumber });
+write("names", "transfer", { name: hash32, new_owner: account });
+write("names", "add_controller", { name: hash32, controller: account });
+write("names", "remove_controller", { name: hash32, controller: account });
+write("names", "set_address", { name: hash32, address: nullable(string({ min: 1, maxBytes: 128 })) });
+write("names", "set_subject", { name: hash32, subject: nullable(subjectId) });
+write("names", "set_attestation", { name: hash32, attestation: nullable(hash32) });
+write("names", "set_content", { name: hash32, content: nullable(hash32) });
+write("names", "set_text", {
   name: hash32,
   key: string({ min: 1, maxBytes: 32 }),
   value: nullable(string({ min: 1, maxBytes: 256 })),
 });
-write("dotns", "set_primary_name", { name: nullable(hash32) });
-write("dotns", "release", { name: hash32 });
-write("dotns", "remove_expired_name", { name: hash32 });
-write("dotns", "reserve_name", {
+write("names", "set_primary_name", { name: nullable(hash32) });
+write("names", "release", { name: hash32 });
+write("names", "remove_expired_name", { name: hash32 });
+write("names", "reserve_name", {
   parent: nullable(hash32),
   label,
   beneficiary: nullable(account),
   expires_at: nullable(blockNumber),
 });
-write("dotns", "clear_reservation", { name: hash32 });
-write("dotns", "set_label_protection", { label, protected: boolean });
-write("dotns", "set_paused", { paused: boolean });
-write("dotns", "force_transfer", { name: hash32, new_owner: account });
-write("dotns", "force_revoke", { name: hash32 });
-write("dotns", "set_registrar", { registrar: account, enabled: boolean });
+write("names", "clear_reservation", { name: hash32 });
+write("names", "set_label_protection", { label, protected: boolean });
+write("names", "set_paused", { paused: boolean });
+write("names", "force_transfer", { name: hash32, new_owner: account });
+write("names", "force_revoke", { name: hash32 });
+write("names", "set_registrar", { registrar: account, enabled: boolean });
 
 // Orbis Storage storage runtime API and native calls.
 read("storage", "account_authorization", { account });

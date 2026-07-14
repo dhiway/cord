@@ -1,6 +1,6 @@
 export * from "./attestation.ts";
 export * from "./content.ts";
-export * from "./dotns.ts";
+export * from "./names.ts";
 export * from "./drive.ts";
 export * from "./errors.ts";
 export * from "./host.ts";

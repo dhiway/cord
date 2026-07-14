@@ -57,7 +57,7 @@ removing, or reassigning an entry requires Architect/Critic replanning, an ADR u
 | `113` | PGAS Allowance |
 | `114` | Alias Accounts |
 | `115` | Origin Restriction |
-| `116` | DOTNS Gateway |
+| `116` | NAMES Gateway |
 | `120` | Storage Provider |
 | `121` | Drive Registry |
 | `122` | S3 Registry |

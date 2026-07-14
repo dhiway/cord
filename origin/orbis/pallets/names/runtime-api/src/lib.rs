@@ -1,7 +1,7 @@
 // This file is part of CORD – https://cord.network
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Stable runtime API for the native Orbis DotNS registry.
+//! Stable runtime API for the native Orbis Names registry.
 //!
 //! Byte-oriented inputs and outputs are bounded at the API boundary. Clients select the block at
 //! which to invoke this API; production clients should use a finalized block hash. The runtime API
@@ -17,7 +17,7 @@ use codec::{Codec, Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
 
-/// Version encoded into every top-level DotNS response.
+/// Version encoded into every top-level Orbis Names response.
 pub const RESPONSE_VERSION: u16 = 1;
 /// Consensus label-policy version expected by normalized-label lookups.
 pub const LABEL_POLICY_VERSION: u16 = 1;
@@ -47,7 +47,7 @@ pub type ControllerItems<AccountId> = BoundedVec<AccountId, ConstU32<MAX_CONTROL
 /// A versioned optional result.
 ///
 /// `None` is also used by resolver calls when a name is missing or expired. Call
-/// [`DotnsApi::name_status`] when a client needs to distinguish those states.
+/// [`NamesApi::name_status`] when a client needs to distinguish those states.
 #[derive(
 	Clone,
 	Debug,
@@ -146,9 +146,9 @@ pub struct NameStatus<BlockNumber> {
 }
 
 sp_api::decl_runtime_apis! {
-	/// Read API for the native Orbis DotNS pallet.
+	/// Read API for the native Orbis Names pallet.
 	#[api_version(1)]
-	pub trait DotnsApi<AccountId, BlockNumber, NameId, SubjectId, AttestationId, ContentCommitment>
+	pub trait NamesApi<AccountId, BlockNumber, NameId, SubjectId, AttestationId, ContentCommitment>
 	where
 		AccountId: Codec,
 		BlockNumber: Codec,

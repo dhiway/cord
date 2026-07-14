@@ -18,7 +18,7 @@
 
 use crate::{
 	xcm_config::LocationToAccountId, AssetConversion, AssetRate, AssetTxPayment, Assets,
-	AssetsFreezer, AssetsHolder, Attestation, Balances, Broker, ChunksManager, Dotns, Drive,
+	AssetsFreezer, AssetsHolder, Attestation, Balances, Broker, ChunksManager, Names, Drive,
 	Entity, Feeless, ForeignAssets, ForeignAssetsFreezer, HopPromotion, Members, MembersNotifier,
 	Nfts, People, PeopleLite, Period, Personhood, PoolAssets, PoolAssetsFreezer, Revive, Runtime,
 	RuntimeCall, RuntimeOrigin, System, TransactionStorage, Uniques, S3,
@@ -157,7 +157,7 @@ fn completion_manifest_is_parseable_unique_and_clean_genesis() {
 	let manifest: toml::Value =
 		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml"))
 			.expect("the current completion manifest must be valid TOML");
-	assert_eq!(manifest["manifest_version"].as_integer(), Some(18));
+	assert_eq!(manifest["manifest_version"].as_integer(), Some(19));
 	let mut identities = BTreeSet::new();
 	for (table, value) in manifest.as_table().unwrap() {
 		let Some(rows) = value.as_array() else { continue };
@@ -366,7 +366,7 @@ mod transaction_policy_fixture {
 		frame_system::AuthorizeCall<Runtime>,
 		NoPolicy<12>, // AsPgas
 		NoPolicy<13>, // AsRingAlias
-		NoPolicy<14>, // AsDotnsGateway
+		NoPolicy<14>, // AsNamesGateway
 	);
 
 	pub type FrozenPayment = (
@@ -1508,30 +1508,30 @@ fn native_identity_attestation_name_asset_and_storage_journey() {
 		assert_ok!(Attestation::issue(RuntimeOrigin::signed(owner.clone()), input));
 		assert!(Attestation::is_live(attestation));
 
-		let label = Dotns::validate_label(b"alice".to_vec()).unwrap();
-		let salt: pallet_orbis_dotns::SaltOf<Runtime> = b"festival".to_vec().try_into().unwrap();
-		let commitment = Dotns::registration_commitment(&owner, None, &label, &salt);
-		assert_ok!(Dotns::commit(RuntimeOrigin::signed(owner.clone()), commitment));
+		let label = Names::validate_label(b"alice".to_vec()).unwrap();
+		let salt: pallet_orbis_names::SaltOf<Runtime> = b"festival".to_vec().try_into().unwrap();
+		let commitment = Names::registration_commitment(&owner, None, &label, &salt);
+		assert_ok!(Names::commit(RuntimeOrigin::signed(owner.clone()), commitment));
 		System::set_block_number(3);
 		System::set_extrinsic_index(1);
-		assert_ok!(Dotns::register(
+		assert_ok!(Names::register(
 			RuntimeOrigin::signed(owner.clone()),
 			None,
 			label.clone(),
 			salt,
 		));
-		let name = Dotns::derive_name_id(None, &label);
-		assert_ok!(Dotns::set_subject(
+		let name = Names::derive_name_id(None, &label);
+		assert_ok!(Names::set_subject(
 			RuntimeOrigin::signed(owner.clone()),
 			name,
 			Some(subject_id),
 		));
-		assert_ok!(Dotns::set_attestation(
+		assert_ok!(Names::set_attestation(
 			RuntimeOrigin::signed(owner.clone()),
 			name,
 			Some(attestation),
 		));
-		assert_ok!(Dotns::set_content(RuntimeOrigin::signed(owner.clone()), name, Some(audit),));
+		assert_ok!(Names::set_content(RuntimeOrigin::signed(owner.clone()), name, Some(audit),));
 
 		let drive_name: pallet_orbis_drive::DriveNameOf<Runtime> =
 			b"festival".to_vec().try_into().unwrap();
@@ -1567,7 +1567,7 @@ fn native_identity_attestation_name_asset_and_storage_journey() {
 }
 
 #[test]
-fn dotns_subjects_follow_entity_authority_not_opaque_attestation_subjects() {
+fn names_subjects_follow_entity_authority_not_opaque_attestation_subjects() {
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		System::set_block_number(1);
 		let owner = pallet_revive::test_utils::ALICE;
@@ -1581,19 +1581,19 @@ fn dotns_subjects_follow_entity_authority_not_opaque_attestation_subjects() {
 		let identity_subject = pallet_origin_entity::EntityTokenOfAccount::<Runtime>::get(&owner)
 			.expect("identity subject exists without an attestation");
 
-		let label = Dotns::validate_label(b"identity".to_vec()).unwrap();
-		let salt: pallet_orbis_dotns::SaltOf<Runtime> = b"subject".to_vec().try_into().unwrap();
-		let commitment = Dotns::registration_commitment(&owner, None, &label, &salt);
-		assert_ok!(Dotns::commit(RuntimeOrigin::signed(owner.clone()), commitment));
+		let label = Names::validate_label(b"identity".to_vec()).unwrap();
+		let salt: pallet_orbis_names::SaltOf<Runtime> = b"subject".to_vec().try_into().unwrap();
+		let commitment = Names::registration_commitment(&owner, None, &label, &salt);
+		assert_ok!(Names::commit(RuntimeOrigin::signed(owner.clone()), commitment));
 		System::set_block_number(3);
-		assert_ok!(Dotns::register(
+		assert_ok!(Names::register(
 			RuntimeOrigin::signed(owner.clone()),
 			None,
 			label.clone(),
 			salt,
 		));
-		let name = Dotns::derive_name_id(None, &label);
-		assert_ok!(Dotns::set_subject(
+		let name = Names::derive_name_id(None, &label);
+		assert_ok!(Names::set_subject(
 			RuntimeOrigin::signed(owner.clone()),
 			name,
 			Some(identity_subject),
@@ -1606,21 +1606,21 @@ fn dotns_subjects_follow_entity_authority_not_opaque_attestation_subjects() {
 			sp_core::H256::from(sp_io::hashing::blake2_256(opaque_only.as_ref()));
 		pallet_orbis_attestation::KnownSubjects::<Runtime>::insert(opaque_commitment, ());
 		assert_noop!(
-			Dotns::set_subject(RuntimeOrigin::signed(owner), name, Some(opaque_only),),
-			pallet_orbis_dotns::Error::<Runtime>::InvalidSubjectReference
+			Names::set_subject(RuntimeOrigin::signed(owner), name, Some(opaque_only),),
+			pallet_orbis_names::Error::<Runtime>::InvalidSubjectReference
 		);
 	});
 }
 
 #[test]
-fn dotns_attestation_resolution_fails_closed_after_revocation_and_expiry() {
-	use pallet_orbis_dotns_runtime_api::runtime_decl_for_dotns_api::DotnsApiV1;
+fn names_attestation_resolution_fails_closed_after_revocation_and_expiry() {
+	use pallet_orbis_names_runtime_api::runtime_decl_for_names_api::NamesApiV1;
 
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		System::set_block_number(1);
 		let owner = pallet_revive::test_utils::ALICE;
 		let definition: pallet_orbis_attestation::SchemaDefinitionOf<Runtime> =
-			b"dotns-live-link-v1".to_vec().try_into().unwrap();
+			b"names-live-link-v1".to_vec().try_into().unwrap();
 		let definition_commitment =
 			sp_core::H256::from(sp_io::hashing::blake2_256(definition.as_slice()));
 		let issuers: pallet_orbis_attestation::AuthorizedIssuersOf<Runtime> =
@@ -1654,20 +1654,20 @@ fn dotns_attestation_resolution_fails_closed_after_revocation_and_expiry() {
 		let first = Attestation::attestation_id(&owner, &first_input, 0);
 		assert_ok!(Attestation::issue(RuntimeOrigin::signed(owner.clone()), first_input));
 
-		let label = Dotns::validate_label(b"live-link".to_vec()).unwrap();
-		let salt: pallet_orbis_dotns::SaltOf<Runtime> = b"link-salt".to_vec().try_into().unwrap();
-		let commitment = Dotns::registration_commitment(&owner, None, &label, &salt);
-		assert_ok!(Dotns::commit(RuntimeOrigin::signed(owner.clone()), commitment));
+		let label = Names::validate_label(b"live-link".to_vec()).unwrap();
+		let salt: pallet_orbis_names::SaltOf<Runtime> = b"link-salt".to_vec().try_into().unwrap();
+		let commitment = Names::registration_commitment(&owner, None, &label, &salt);
+		assert_ok!(Names::commit(RuntimeOrigin::signed(owner.clone()), commitment));
 		System::set_block_number(3);
-		assert_ok!(Dotns::register(
+		assert_ok!(Names::register(
 			RuntimeOrigin::signed(owner.clone()),
 			None,
 			label.clone(),
 			salt,
 		));
-		let name = Dotns::derive_name_id(None, &label);
+		let name = Names::derive_name_id(None, &label);
 		assert_ok!(
-			Dotns::set_attestation(RuntimeOrigin::signed(owner.clone()), name, Some(first),)
+			Names::set_attestation(RuntimeOrigin::signed(owner.clone()), name, Some(first),)
 		);
 		assert_eq!(Runtime::resolve_attestation(name).value, Some(first));
 
@@ -1677,7 +1677,7 @@ fn dotns_attestation_resolution_fails_closed_after_revocation_and_expiry() {
 		let expiring_input = input(2, Some(5));
 		let expiring = Attestation::attestation_id(&owner, &expiring_input, 1);
 		assert_ok!(Attestation::issue(RuntimeOrigin::signed(owner.clone()), expiring_input));
-		assert_ok!(Dotns::set_attestation(RuntimeOrigin::signed(owner), name, Some(expiring),));
+		assert_ok!(Names::set_attestation(RuntimeOrigin::signed(owner), name, Some(expiring),));
 		assert_eq!(Runtime::resolve_attestation(name).value, Some(expiring));
 		System::set_block_number(5);
 		assert_eq!(Runtime::resolve_attestation(name).value, None);

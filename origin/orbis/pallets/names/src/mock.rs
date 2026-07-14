@@ -1,4 +1,4 @@
-use crate as pallet_orbis_dotns;
+use crate as pallet_orbis_names;
 use frame_support::{derive_impl, parameter_types, traits::ConstU32};
 use sp_core::H256;
 use sp_runtime::{traits::IdentityLookup, BuildStorage};
@@ -8,7 +8,7 @@ pub const LIVE_ATTESTATION: H256 = H256::repeat_byte(42);
 
 pub struct TestSubjectReferenceValidator;
 
-impl pallet_orbis_dotns::SubjectReferenceValidator<H256> for TestSubjectReferenceValidator {
+impl pallet_orbis_names::SubjectReferenceValidator<H256> for TestSubjectReferenceValidator {
 	fn contains(subject: &H256) -> bool {
 		*subject == KNOWN_SUBJECT
 	}
@@ -16,7 +16,7 @@ impl pallet_orbis_dotns::SubjectReferenceValidator<H256> for TestSubjectReferenc
 
 pub struct TestAttestationReferenceValidator;
 
-impl pallet_orbis_dotns::AttestationReferenceValidator<H256> for TestAttestationReferenceValidator {
+impl pallet_orbis_names::AttestationReferenceValidator<H256> for TestAttestationReferenceValidator {
 	fn is_live(attestation: &H256) -> bool {
 		*attestation == LIVE_ATTESTATION
 	}
@@ -34,7 +34,7 @@ mod runtime {
 	pub type System = frame_system;
 
 	#[runtime::pallet_index(116)]
-	pub type Dotns = pallet_orbis_dotns;
+	pub type Names = pallet_orbis_names;
 }
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
@@ -52,7 +52,7 @@ parameter_types! {
 	pub const MaxRenewalPeriod: u64 = 100;
 }
 
-impl pallet_orbis_dotns::Config for Test {
+impl pallet_orbis_names::Config for Test {
 	type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
 	type SubjectId = H256;
 	type SubjectReferenceValidator = TestSubjectReferenceValidator;
@@ -82,16 +82,16 @@ impl pallet_orbis_dotns::Config for Test {
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	new_test_ext_with_dotns(Vec::new(), Vec::new())
+	new_test_ext_with_names(Vec::new(), Vec::new())
 }
 
-pub fn new_test_ext_with_dotns(
+pub fn new_test_ext_with_names(
 	registrars: Vec<u64>,
-	root_reservations: Vec<(pallet_orbis_dotns::LabelOf<Test>, Option<u64>)>,
+	root_reservations: Vec<(pallet_orbis_names::LabelOf<Test>, Option<u64>)>,
 ) -> sp_io::TestExternalities {
 	let storage = RuntimeGenesisConfig {
 		system: Default::default(),
-		dotns: pallet_orbis_dotns::GenesisConfig { registrars, root_reservations },
+		names: pallet_orbis_names::GenesisConfig { registrars, root_reservations },
 	}
 		.build_storage()
 		.expect("test genesis builds");

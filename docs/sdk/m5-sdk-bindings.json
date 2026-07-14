@@ -9,7 +9,7 @@
     },
     "route_contract": {
       "path": "docs/sdk/native-route-contract.json",
-      "sha256": "5821b5f7205abb360a535bd6cf84eaf50b2b1cab51f3422c7d3104b4442c73e6"
+      "sha256": "156e93a88020ced8ee9a854d451fcfdda39755fafad4404d4c855f240b6380e8"
     },
     "approval_manifest": {
       "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
@@ -38,11 +38,11 @@
       "binding_kind": "native-route-set",
       "behavior_concept": "owner",
       "navigation_hint": {
-        "rust": "DotnsQuery::NameById",
-        "typescript": "dotns.nameById"
+        "rust": "NamesQuery::NameById",
+        "typescript": "names.nameById"
       },
       "routes": [
-        "dotns:name_by_id"
+        "names:name_by_id"
       ],
       "exercised_by": {
         "rust": {
@@ -64,11 +64,11 @@
       "binding_kind": "native-route-set",
       "behavior_concept": "recordExists",
       "navigation_hint": {
-        "rust": "DotnsQuery::NameStatus",
-        "typescript": "dotns.nameStatus"
+        "rust": "NamesQuery::NameStatus",
+        "typescript": "names.nameStatus"
       },
       "routes": [
-        "dotns:name_status"
+        "names:name_status"
       ],
       "exercised_by": {
         "rust": {
@@ -90,11 +90,11 @@
       "binding_kind": "native-route-set",
       "behavior_concept": "owner",
       "navigation_hint": {
-        "rust": "DotnsQuery::NameById",
-        "typescript": "dotns.nameById"
+        "rust": "NamesQuery::NameById",
+        "typescript": "names.nameById"
       },
       "routes": [
-        "dotns:name_by_id"
+        "names:name_by_id"
       ],
       "exercised_by": {
         "rust": {
@@ -116,11 +116,11 @@
       "binding_kind": "native-route-set",
       "behavior_concept": "recordExists",
       "navigation_hint": {
-        "rust": "DotnsQuery::NameStatus",
-        "typescript": "dotns.nameStatus"
+        "rust": "NamesQuery::NameStatus",
+        "typescript": "names.nameStatus"
       },
       "routes": [
-        "dotns:name_status"
+        "names:name_status"
       ],
       "exercised_by": {
         "rust": {
@@ -142,11 +142,11 @@
       "binding_kind": "native-route-set",
       "behavior_concept": "contenthash",
       "navigation_hint": {
-        "rust": "DotnsQuery",
-        "typescript": "dotns content/text query"
+        "rust": "NamesQuery",
+        "typescript": "names content/text query"
       },
       "routes": [
-        "dotns:resolve_content"
+        "names:resolve_content"
       ],
       "exercised_by": {
         "rust": {
@@ -168,11 +168,11 @@
       "binding_kind": "native-route-set",
       "behavior_concept": "text",
       "navigation_hint": {
-        "rust": "DotnsQuery",
-        "typescript": "dotns content/text query"
+        "rust": "NamesQuery",
+        "typescript": "names content/text query"
       },
       "routes": [
-        "dotns:resolve_text"
+        "names:resolve_text"
       ],
       "exercised_by": {
         "rust": {
@@ -194,11 +194,11 @@
       "binding_kind": "native-route-set",
       "behavior_concept": "addressOf",
       "navigation_hint": {
-        "rust": "DotnsQuery::ResolveAddress",
-        "typescript": "dotns.resolveAddress"
+        "rust": "NamesQuery::ResolveAddress",
+        "typescript": "names.resolveAddress"
       },
       "routes": [
-        "dotns:resolve_address"
+        "names:resolve_address"
       ],
       "exercised_by": {
         "rust": {
@@ -220,11 +220,11 @@
       "binding_kind": "native-route-set",
       "behavior_concept": "nameOf",
       "navigation_hint": {
-        "rust": "DotnsQuery::PrimaryName",
-        "typescript": "dotns.primaryName"
+        "rust": "NamesQuery::PrimaryName",
+        "typescript": "names.primaryName"
       },
       "routes": [
-        "dotns:primary_name"
+        "names:primary_name"
       ],
       "exercised_by": {
         "rust": {
@@ -246,11 +246,11 @@
       "binding_kind": "native-route-set",
       "behavior_concept": "contenthash",
       "navigation_hint": {
-        "rust": "DotnsQuery",
-        "typescript": "dotns content/text query"
+        "rust": "NamesQuery",
+        "typescript": "names content/text query"
       },
       "routes": [
-        "dotns:resolve_content"
+        "names:resolve_content"
       ],
       "exercised_by": {
         "rust": {
@@ -272,11 +272,11 @@
       "binding_kind": "native-route-set",
       "behavior_concept": "text",
       "navigation_hint": {
-        "rust": "DotnsQuery",
-        "typescript": "dotns content/text query"
+        "rust": "NamesQuery",
+        "typescript": "names content/text query"
       },
       "routes": [
-        "dotns:resolve_text"
+        "names:resolve_text"
       ],
       "exercised_by": {
         "rust": {
@@ -298,11 +298,11 @@
       "binding_kind": "native-route-set",
       "behavior_concept": "addressOf",
       "navigation_hint": {
-        "rust": "DotnsQuery::ResolveAddress",
-        "typescript": "dotns.resolveAddress"
+        "rust": "NamesQuery::ResolveAddress",
+        "typescript": "names.resolveAddress"
       },
       "routes": [
-        "dotns:resolve_address"
+        "names:resolve_address"
       ],
       "exercised_by": {
         "rust": {
@@ -324,11 +324,11 @@
       "binding_kind": "native-route-set",
       "behavior_concept": "nameOf",
       "navigation_hint": {
-        "rust": "DotnsQuery::PrimaryName",
-        "typescript": "dotns.primaryName"
+        "rust": "NamesQuery::PrimaryName",
+        "typescript": "names.primaryName"
       },
       "routes": [
-        "dotns:primary_name"
+        "names:primary_name"
       ],
       "exercised_by": {
         "rust": {
@@ -354,9 +354,9 @@
         "typescript": "normalizedLabel"
       },
       "routes": [
-        "dotns:register",
-        "dotns:reserve_name",
-        "dotns:set_label_protection"
+        "names:register",
+        "names:reserve_name",
+        "names:set_label_protection"
       ],
       "exercised_by": {
         "rust": {
@@ -370,26 +370,26 @@
       },
       "validation_surfaces": {
         "rust": {
-          "path": "origin-rs/src/product_sdk/domains/dotns.rs",
+          "path": "origin-rs/src/product_sdk/domains/names.rs",
           "declaration": "Label",
           "constructor": "new"
         },
         "typescript": {
-          "path": "product-sdk/src/dotns.ts",
+          "path": "product-sdk/src/names.ts",
           "function": "normalizedLabel"
         },
         "vectors": {
-          "path": "docs/sdk/vectors/dotns-v1.json",
-          "sha256": "41d0f028d6e29ca4bd32bfdd9912181e4f550f3a850f2395fe858b5cdf8f237d"
+          "path": "docs/sdk/vectors/names-v1.json",
+          "sha256": "1a543ac96e7212854fb6e2105e8b0d1c947a19a65fe3f0d50f91fbe0b77bd700"
         },
         "cases": {
           "rust": {
-            "path": "origin-rs/src/product_sdk/domains/dotns.rs",
+            "path": "origin-rs/src/product_sdk/domains/names.rs",
             "case": "shared_vectors_match_label_name_commitment_and_event_contracts"
           },
           "typescript": {
-            "path": "product-sdk/tests/conformance/dotns-vectors.test.ts",
-            "case": "shared DotNS canonical vectors match TypeScript SDK"
+            "path": "product-sdk/tests/conformance/names-vectors.test.ts",
+            "case": "shared Orbis Names canonical vectors match TypeScript SDK"
           }
         }
       }
@@ -407,9 +407,9 @@
         "typescript": "normalizedLabel"
       },
       "routes": [
-        "dotns:register",
-        "dotns:reserve_name",
-        "dotns:set_label_protection"
+        "names:register",
+        "names:reserve_name",
+        "names:set_label_protection"
       ],
       "exercised_by": {
         "rust": {
@@ -423,26 +423,26 @@
       },
       "validation_surfaces": {
         "rust": {
-          "path": "origin-rs/src/product_sdk/domains/dotns.rs",
+          "path": "origin-rs/src/product_sdk/domains/names.rs",
           "declaration": "Label",
           "constructor": "new"
         },
         "typescript": {
-          "path": "product-sdk/src/dotns.ts",
+          "path": "product-sdk/src/names.ts",
           "function": "normalizedLabel"
         },
         "vectors": {
-          "path": "docs/sdk/vectors/dotns-v1.json",
-          "sha256": "41d0f028d6e29ca4bd32bfdd9912181e4f550f3a850f2395fe858b5cdf8f237d"
+          "path": "docs/sdk/vectors/names-v1.json",
+          "sha256": "1a543ac96e7212854fb6e2105e8b0d1c947a19a65fe3f0d50f91fbe0b77bd700"
         },
         "cases": {
           "rust": {
-            "path": "origin-rs/src/product_sdk/domains/dotns.rs",
+            "path": "origin-rs/src/product_sdk/domains/names.rs",
             "case": "shared_vectors_match_label_name_commitment_and_event_contracts"
           },
           "typescript": {
-            "path": "product-sdk/tests/conformance/dotns-vectors.test.ts",
-            "case": "shared DotNS canonical vectors match TypeScript SDK"
+            "path": "product-sdk/tests/conformance/names-vectors.test.ts",
+            "case": "shared Orbis Names canonical vectors match TypeScript SDK"
           }
         }
       }

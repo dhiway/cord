@@ -1,6 +1,6 @@
 [package]
-name = "pallet-orbis-dotns"
-description = "Native bounded DotNS registry for the CORD Orbis runtime"
+name = "pallet-orbis-names"
+description = "Native bounded Orbis Names registry for Commons."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

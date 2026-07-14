@@ -33,14 +33,14 @@
       "success": "genesis/spec/transaction/metadata/descriptor/chain-spec hashes equal the generated binding"
     },
     {
-      "id": "register-dotns-registrar",
+      "id": "register-names-registrar",
       "actor": "domain-registrar-owner",
       "kind": "submit-and-finalize",
       "surface": "native-sdk",
-      "capability": "dotns",
+      "capability": "names",
       "method": "set_registrar",
       "approval": "domain-multisig",
-      "success": "finalized DotNS registrar query returns enabled for the exact account"
+      "success": "finalized Orbis Names registrar query returns enabled for the exact account"
     },
     {
       "id": "register-attestation-schema",

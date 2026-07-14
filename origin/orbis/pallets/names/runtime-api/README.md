@@ -1,6 +1,6 @@
-# Orbis DotNS runtime API
+# Orbis Names runtime API
 
-Stable, versioned, bounded SCALE views for the native Orbis DotNS pallet. The API supports name
+Stable, versioned, bounded SCALE views for the native Orbis Names pallet. The API supports name
 metadata, normalized root-label lookup, bounded owner pagination, record resolution, primary names,
 and active/expiry status.
 

@@ -7,7 +7,7 @@
     "external_repository_edits": false,
     "external_web3_rows_excluded": 17,
     "legacy_data_migration": false,
-    "manifest_version": 17,
+    "manifest_version": 19,
     "orbis_pallets": 63,
     "origin_pallets": 48,
     "planned_implementation_rows": 0,
@@ -32,15 +32,15 @@
   "inputs": [
     {
       "path": "Cargo.lock",
-      "sha256": "5267de31fbf04a5594c01c9bc95cf0f7ade1b31dfda969b9c9261b824a19d489"
+      "sha256": "24adde73138855dbf401450a407391dba1e5f7ebd6484729daf885451cbf14f1"
     },
     {
       "path": "docs/adr/0017-native-feature-source-of-truth.md",
-      "sha256": "7d6c2898dddee6a9aeba7a2f5e0417381bffa371eca65a1969db690827413301"
+      "sha256": "e2224dc6b2d331673d29548c413414c5bbf9332d828a121b10796e4b1d04a597"
     },
     {
-      "path": "docs/architecture/origin-orbis-runtime-alignment.csv",
-      "sha256": "26a9610658b06fb11aa9b7951cc3cacf3d28ba9c4dd30f85b3ad4460c06a4d05"
+      "path": "docs/architecture/origin-foundation-commons-runtime-alignment.csv",
+      "sha256": "74aac4cec6abefb84d9769b8f8f6c77ec4ecd75f55a73fff6b35b5371d135956"
     },
     {
       "path": "docs/architecture/contract-to-native-migration.csv",
@@ -48,55 +48,55 @@
     },
     {
       "path": "docs/evidence/p0-contract-native/repository-scope.report.json",
-      "sha256": "220ddf6601debe5a95ffc3be51b0f8a476837c6b14adc3c419c8703116b26b12"
+      "sha256": "7e57ee10e43256b895be660119a4b5ea9f38042f40ea5a48f310f0cff7082898"
     },
     {
       "path": "docs/evidence/source-ledger.csv",
-      "sha256": "0afbf04851e844addd77166d1529d698fedd71bacb550974b5acdabd27542be7"
+      "sha256": "2329e38cb8c95d3cc3103dd58a13f42e5ef97513258d29a29e90c034fecee550"
     },
     {
       "path": "docs/genesis/origin-orbis-clean-genesis-manifest.json",
-      "sha256": "af581ef28a7ac7e8ccbaacb7b922c1be7b6d5c352f85c4799df3702ef7513dc3"
+      "sha256": "8729ee61b1c61b37fb20551e8933390dfd889cc45ccc835b3b98070a6859c982"
     },
     {
       "path": "docs/orbis-completion-manifest.toml",
-      "sha256": "074d9cec44bcf275c89b7d5a39d2cec824614f54d40f579e65cf1eac75aea43b"
+      "sha256": "e89fa5aebdf1d402b57ce1061a9ffbd02db8fe034ee77c74d72a9d5120a67ba1"
     },
     {
       "path": "docs/orbis-native-capability-matrix.md",
-      "sha256": "06499c5ea7aac8281f026064f7a250976073e01bbc2302bb79b719fbc02a8e03"
+      "sha256": "dcf04ad07d08e0d9780a77954bd10dbc68c57a2be467168ef28e9f33c4b59a8f"
     },
     {
       "path": "origin/base/runtime/Cargo.toml",
-      "sha256": "2ef71078053491443ba4867026569b79b9a34cc4a7f54289786441206c83af7e"
+      "sha256": "881df4a9d06edce0e6daff6fea870f783a971799da605234d566839dd98fc33c"
     },
     {
       "path": "origin/base/runtime/constants/src/lib.rs",
-      "sha256": "3711654721be8eef92c27183d158c73f1e89d8a8f8904b4030588c9e0629f740"
+      "sha256": "58296ddfc44b9a35a6f70abb259654cbfd289005d8fe3fdb15649b76db161938"
     },
     {
       "path": "origin/base/runtime/src/lib.rs",
-      "sha256": "7c0dbefbf59dbd00662adfa9833fbab84e138b9149538f6cd61ebadd3aa83bf9"
+      "sha256": "5cbaea83e18c9302fbeb6182b1a836f841370d8d1483a079bf6c66bc0c9a48a7"
     },
     {
       "path": "origin/orbis/node/src/main.rs",
       "sha256": "fb63575595d89fe1d566f0356799763070d58e642e95e9451955e53f36128166"
     },
     {
-      "path": "origin/orbis/pallets/feeless/src/benchmarking.rs",
+      "path": "origin/pallets/feeless/src/benchmarking.rs",
       "sha256": "4a043f35c72c77e530e236743ca4b0b3746a96509716f1eeb3c7f3ff96c6c6c4"
     },
     {
-      "path": "origin/orbis/pallets/feeless/src/weights.rs",
+      "path": "origin/pallets/feeless/src/weights.rs",
       "sha256": "a2dca1041477f74ecdfc79e3442a951205e0a9fa60141fb59133770ff4f0ee25"
     },
     {
-      "path": "origin/orbis/pallets/token/src/benchmarking.rs",
+      "path": "origin/pallets/token/src/benchmarking.rs",
       "sha256": "5cd2f1f1e49b8e289acb89cfed8324c2505736a8cc80599e2fdb4199f1f2404a"
     },
     {
       "path": "origin/orbis/runtime/Cargo.toml",
-      "sha256": "01d1032ad2d1b533d92c434c724d02064a14d23f733715f7f7715c1421976ca1"
+      "sha256": "e2ad6f21bef7fa6827c267e31a29b80813b63316704c4184a0005f42453727c6"
     },
     {
       "path": "origin/orbis/runtime/src/coretime.rs",
@@ -104,7 +104,7 @@
     },
     {
       "path": "origin/orbis/runtime/src/lib.rs",
-      "sha256": "9c0725827f48c3edfe84130c60bf0fe448e3b7c80ab5bb60ff78ca6fb421fb3c"
+      "sha256": "348b2ac5008544a5a031bcef62ed3226abf631b7f80faffe752aee14080af116"
     },
     {
       "path": "origin/pallets/coretime-control/Cargo.toml",
@@ -142,119 +142,12 @@
   "status": "pass"
 }
 
-## $ cargo test -p pallet-coretime-control --features runtime-benchmarks --locked [exit=0]
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.00s
-     Running unittests src/lib.rs (target/debug/deps/pallet_coretime_control-01800d921c017cd6)
-
-running 23 tests
-test mock::test_genesis_config_builds ... ok
-test mock::__construct_runtime_integrity_test::runtime_integrity_tests ... ok
-test tests::configured_origins_reject_signed_control_calls ... ok
-test benchmarking::benchmarks::bench_acknowledge ... ok
-test tests::conflicting_replay_is_never_applied ... ok
-test benchmarking::benchmarks::bench_release_held ... ok
-test tests::bounded_history_never_prunes_unresolved_sequence_holes ... ok
-test benchmarking::benchmarks::bench_submit_request ... ok
-test tests::delayed_and_out_of_order_requests_apply_only_in_sequence ... ok
-test benchmarking::benchmarks::bench_request_core_count ... ok
-test benchmarking::benchmarks::bench_set_transport_hold ... ok
-test tests::duplicate_transport_delivery_is_acknowledged_but_applied_once ... ok
-test benchmarking::benchmarks::bench_retry_request ... ok
-test tests::failed_enqueue_does_not_allocate_or_persist_a_request ... ok
-test tests::failed_provider_apply_does_not_advance_replay_ledger ... ok
-test tests::requester_allocates_monotonic_ids_and_prunes_bounded_history ... ok
-test tests::retry_reuses_request_id_without_allocating_a_nonce ... ok
-test tests::transport_hold_retains_and_releases_the_exact_envelope ... ok
-test tests::first_duplicate_receipt_is_terminal_and_untracks_held_request ... ok
-test tests::terminal_receipt_cannot_be_downgraded_by_delayed_negative_status ... ok
-test tests::receipts_may_arrive_out_of_order_but_must_match_original_count ... ok
-test tests::failed_held_release_is_atomic_and_retry_cannot_bypass_the_gate ... ok
-test tests::terminal_held_receipt_cannot_leave_a_stale_fifo_head ... ok
-
-test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-
-   Doc-tests pallet_coretime_control
-
-running 0 tests
-
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-
-## $ cargo test -p pallet-orbis-token --features runtime-benchmarks --locked [exit=0]
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
-     Running unittests src/lib.rs (target/debug/deps/pallet_orbis_token-47adc37bec1dbfaa)
-
-running 21 tests
-test mock::__construct_runtime_integrity_test::runtime_integrity_tests ... ok
-test mock::test_genesis_config_builds ... ok
-test tests::get_or_add_pallet_index_negative ... ok
-test tests::pallet_indexes_increment_without_gap ... ok
-test tests::get_or_add_pallet_index_positive ... ok
-test tests::record_activity_positive ... ok
-test tests::resolve_pallet_name_negative ... ok
-test tests::resolve_pallet_name_positive ... ok
-test tests::network_metadata_views_return_values ... ok
-test tests::pallet_index_views_roundtrip ... ok
-test benchmarking::benches::bench_record_state_event ... ok
-test tests::history_requires_authorization ... ok
-test tests::resolve_identifier_requires_authorization ... ok
-test tests::has_history_and_latest_state_event_work ... ok
-test tests::resolve_identifier_query_expires_after_valid_until ... ok
-test tests::resolve_pallet_query_enforces_signature ... ok
-test tests::recent_timeline_respects_limit_and_ordering ... ok
-test tests::set_and_get_network_id ... ok
-test tests::resolve_pallet_requires_authorization ... ok
-test tests::timeline_requires_valid_authorization ... ok
-test tests::state_views_roundtrip_with_authorization ... ok
-
-test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
-
-   Doc-tests pallet_orbis_token
-
-running 0 tests
-
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-
-## $ cargo test -p pallet-orbis-feeless --features runtime-benchmarks --locked [exit=0]
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.67s
-     Running unittests src/lib.rs (target/debug/deps/pallet_orbis_feeless-e6e93a2f2c22eaa7)
-
-running 11 tests
-test mock::__construct_runtime_integrity_test::runtime_integrity_tests ... ok
-test tests::genesis_config_inserts_unique_accounts ... ok
-test mock::test_genesis_config_builds ... ok
-test tests::cannot_remove_unknown_account ... ok
-test tests::non_root_cannot_add ... ok
-test tests::removing_an_account_clears_its_usage ... ok
-test benchmarking::benchmarks::bench_remove_feeless_account ... ok
-test benchmarking::benchmarks::bench_add_feeless_account ... ok
-test tests::quota_is_bounded_and_resets_each_block ... ok
-test tests::root_can_add_feeless_accounts ... ok
-test tests::removing_accounts_works ... ok
-
-test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
-
-   Doc-tests pallet_orbis_feeless
-
-running 0 tests
-
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-
-## $ env SKIP_WASM_BUILD=1 cargo check -p origin-runtime --features runtime-benchmarks --locked [exit=0]
-    Checking pallet-coretime-control v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/pallets/coretime-control)
-    Checking origin-runtime v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/base/runtime)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.53s
-
-## $ env SKIP_PALLET_REVIVE_FIXTURES=1 cargo check -p origin-orbis-runtime --features runtime-benchmarks --locked [exit=0]
-   Compiling origin-orbis-runtime v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/runtime)
-    Checking pallet-coretime-control v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/pallets/coretime-control)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 09s
-
-## $ /Library/Developer/CommandLineTools/usr/bin/python3 /Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/scripts/generate-contract-native-census.py --native-cutover-only [exit=0]
-generated docs/evidence/p0-contract-native/native-cutover-allowlist.json: 18639375b324d4130da06d498c103249f673658a614b40ed42125990001586da
+## $ /Library/Developer/CommandLineTools/usr/bin/python3 /Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/scripts/generate-contract-native-census.py --check-native-cutover [exit=0]
+native cutover allowlist reproducible: b244a09b509cd8c868a84fd0fdddaed8ba3a047539d116eda55ec01b07459efd
 
 ## M9 machine inventory
 {
-  "allowlist_sha256": "18639375b324d4130da06d498c103249f673658a614b40ed42125990001586da",
+  "allowlist_sha256": "b244a09b509cd8c868a84fd0fdddaed8ba3a047539d116eda55ec01b07459efd",
   "criterion": "M9",
   "dead_product_paths": 0,
   "deprecated_facades": 0,
@@ -263,39 +156,25 @@ generated docs/evidence/p0-contract-native/native-cutover-allowlist.json: 186393
     "archived_or_generated_contract_artifacts": [],
     "contract_build_ci_config_paths": [],
     "generator_reproducibility": {
-      "after_sha256": "18639375b324d4130da06d498c103249f673658a614b40ed42125990001586da",
-      "before_sha256": "18639375b324d4130da06d498c103249f673658a614b40ed42125990001586da",
+      "after_sha256": "b244a09b509cd8c868a84fd0fdddaed8ba3a047539d116eda55ec01b07459efd",
+      "before_sha256": "b244a09b509cd8c868a84fd0fdddaed8ba3a047539d116eda55ec01b07459efd",
       "byte_identical": true,
-      "command": "python3 scripts/generate-contract-native-census.py --native-cutover-only",
+      "command": "python3 scripts/generate-contract-native-census.py --check-native-cutover",
       "exit_code": 0,
       "status": "pass"
     },
     "migrated_contract_content_paths": [],
-    "repository_files_scanned": 3641,
-    "retained_contract_artifacts": [
-      "origin/orbis/runtime/fixtures/Counter.sol",
-      "origin/orbis/runtime/fixtures/build/Counter.bin"
-    ],
-    "retained_revive_entries": 2,
-    "retained_revive_test_evidence": {
-      "SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime solidity_evm_fixture_deploys_and_executes_through_revive --lib": {
-        "entries": [
-          "orbis-generic-asset-application-runtime",
-          "orbis-generic-counter-fixture"
-        ],
-        "exit_code": 0,
-        "output_sha256": "8988cd5a3c06070587b1822e2d00bf043dc5867f07131c6c048eb875c29a424c",
-        "path": "origin/orbis/runtime/src/tests.rs",
-        "status": "pass"
-      }
-    },
+    "repository_files_scanned": 3509,
+    "retained_contract_artifacts": [],
+    "retained_revive_entries": 0,
+    "retained_revive_test_evidence": {},
     "surfaces": {
-      "build_ci_config_generated": 188,
-      "cargo_package_manifests": 106,
-      "docs": 2393,
+      "build_ci_config_generated": 182,
+      "cargo_package_manifests": 101,
+      "docs": 2394,
       "mobile": 0,
-      "rust": 833,
-      "solidity_abi": 1,
+      "rust": 768,
+      "solidity_abi": 0,
       "typescript_javascript": 56
     }
   },

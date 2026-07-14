@@ -207,7 +207,7 @@ def runtime_pallet_names() -> list[str]:
         "AssetsHolder", "ForeignAssets", "PoolAssets", "ForeignAssetsFreezer",
         "PoolAssetsFreezer", "Uniques", "Nfts", "AssetRate", "People", "ChunksManager",
         "Members", "MembersNotifier", "PeopleLite", "Personhood", "Resources", "Score",
-        "Honour", "Attestation", "Revive", "TransactionStorage", "HopPromotion", "Dotns",
+        "Honour", "Attestation", "Revive", "TransactionStorage", "HopPromotion", "Names",
         "StorageProvider", "Drive", "S3", "AssetConversion", "AssetTxPayment", "MetaTx",
         "TxPause", "SafeMode", "VerifySignature", "CoretimeControl", "MultiBlockMigrations",
         "Sudo",
@@ -242,15 +242,15 @@ def inspect_bootstrap_state(top: dict, inventory: dict[str, list[str]], manifest
         "session_validators": decode_compact_vec_32(
             value("Session", "Validators"), "Session.Validators"
         ),
-        "dotns_registrars": decode_compact_vec_32(value("Dotns", "Registrars"), "Dotns.Registrars"),
+        "names_registrars": decode_compact_vec_32(value("Names", "Registrars"), "Names.Registrars"),
         "feeless_non_default_keys": [
             key for key in inventory.get("Feeless", [])
             if bytes.fromhex(key.removeprefix("0x"))[16:32] != twox128(":__STORAGE_VERSION__:")
         ],
     }
-    reservation_prefix = twox128("Dotns") + twox128("BootstrapReservations")
+    reservation_prefix = twox128("Names") + twox128("BootstrapReservations")
     reservations = []
-    for encoded_key in inventory["Dotns"]:
+    for encoded_key in inventory["Names"]:
         key = bytes.fromhex(encoded_key.removeprefix("0x"))
         if not key.startswith(reservation_prefix):
             continue
@@ -259,16 +259,16 @@ def inspect_bootstrap_state(top: dict, inventory: dict[str, list[str]], manifest
         label_length = encoded_label[0] >> 2
         assert len(encoded_label) == label_length + 1
         reservations.append(encoded_label[1:].decode("ascii"))
-    decoded["dotns_root_reservations"] = sorted(reservations)
+    decoded["names_root_reservations"] = sorted(reservations)
 
     assert decoded["parachain_id"] == manifest["authority_policy"]["orbis_fixed_para_id"]
     assert decoded["token_network_id"] == manifest["authority_policy"]["orbis_fixed_token_network_id"]
     assert decoded["sudo_root"] == orbis_input["root_key"]
     assert decoded["collator_invulnerables"] == collators
     assert decoded["session_validators"] == collators
-    assert decoded["dotns_registrars"] == [orbis_input["root_key"]]
-    assert decoded["dotns_root_reservations"] == sorted(
-        manifest["bootstrap_state"]["orbis_dotns_root_reservations"]
+    assert decoded["names_registrars"] == [orbis_input["root_key"]]
+    assert decoded["names_root_reservations"] == sorted(
+        manifest["bootstrap_state"]["orbis_names_root_reservations"]
     )
     assert not decoded["feeless_non_default_keys"]
     return decoded
@@ -540,7 +540,7 @@ def validate_policy(manifest: dict) -> None:
     assert clean_break["old_network_dependency"] is False
     assert clean_break["pre_launch_recovery"] == "regenerate-chain-spec"
     assert clean_break["post_launch_recovery"] == "storage-versioned-forward-runtime-upgrade"
-    assert manifest["bootstrap_state"]["orbis_dotns_root_reservations"] == ["origin", "orbis", "system"]
+    assert manifest["bootstrap_state"]["orbis_names_root_reservations"] == ["origin", "orbis", "system"]
     assert manifest["bootstrap_state"]["orbis_permissionless_collator_candidates"] == 0
     assert manifest["authority_policy"]["origin_and_orbis_authority_planes_separated"] is True
     assert manifest["candidate_status"] == "deterministic-fixture-only-not-production-approved"

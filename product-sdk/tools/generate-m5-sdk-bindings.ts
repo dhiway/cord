@@ -10,24 +10,25 @@ const fail = (message: string): never => { throw new Error(message); };
 
 const mapPath = "docs/sdk/contract-to-native-map.json";
 const routePath = "docs/sdk/native-route-contract.json";
-const vectorPath = "docs/sdk/vectors/dotns-v1.json";
+const vectorPath = "docs/sdk/vectors/names-v1.json";
 const outputPath = "docs/sdk/m5-sdk-bindings.json";
 const coverage = json(mapPath);
 const routeContract = json(routePath);
 const routeIds = new Set(routeContract.routes.map((route: any) => route.id));
 
 const exactRoutes: Record<string, readonly string[]> = {
-  "function:owner": ["dotns:name_by_id"], "function:recordExists": ["dotns:name_status"],
-  "function:contenthash": ["dotns:resolve_content"], "function:text": ["dotns:resolve_text"],
-  "function:addressOf": ["dotns:resolve_address"], "function:nameOf": ["dotns:primary_name"],
-  "function:isSingleLabel": ["dotns:register", "dotns:reserve_name", "dotns:set_label_protection"],
-  "function:isSingleLabelMemory": ["dotns:register", "dotns:reserve_name", "dotns:set_label_protection"],
+  "function:owner": ["names:name_by_id"], "function:recordExists": ["names:name_status"],
+  "function:contenthash": ["names:resolve_content"], "function:text": ["names:resolve_text"],
+  "function:addressOf": ["names:resolve_address"], "function:nameOf": ["names:primary_name"],
+  "function:isSingleLabel": ["names:register", "names:reserve_name", "names:set_label_protection"],
+  "function:isSingleLabelMemory": ["names:register", "names:reserve_name", "names:set_label_protection"],
 };
 
 const adopted = coverage.entries.filter((entry: any) => entry.disposition === "adopt-semantic");
 const keyOf = (entry: any) => `${entry.source_symbol_kind}:${entry.source_symbol}`;
 const bindings = adopted.map((entry: any) => {
   if (entry.source_symbol_kind !== "function") fail(`adopted non-function has no M5 binding: ${entry.source_id}#${keyOf(entry)}`);
+  // Source identifiers remain immutable provenance; only the native target surface is branded.
   const validationSurface = entry.source_id === "dotns:contracts/utils/StringUtils.sol"
     && ["isSingleLabel", "isSingleLabelMemory"].includes(entry.source_symbol);
   const bindingKind = validationSurface ? "label-validation-surface" : "native-route-set";
@@ -41,7 +42,10 @@ const bindings = adopted.map((entry: any) => {
     },
     binding_kind: bindingKind,
     behavior_concept: validationSurface ? "single-label-validation" : entry.source_symbol,
-    navigation_hint: { rust: entry.rust_sdk, typescript: entry.typescript_sdk },
+    navigation_hint: {
+      rust: entry.rust_sdk.replaceAll("DotnsQuery", "NamesQuery"),
+      typescript: entry.typescript_sdk.replace(/^dotns\b/, "names"),
+    },
     routes,
     exercised_by: {
       rust: {
@@ -56,12 +60,12 @@ const bindings = adopted.map((entry: any) => {
   };
   if (bindingKind === "label-validation-surface") {
     binding.validation_surfaces = {
-      rust: { path: "origin-rs/src/product_sdk/domains/dotns.rs", declaration: "Label", constructor: "new" },
-      typescript: { path: "product-sdk/src/dotns.ts", function: "normalizedLabel" },
+      rust: { path: "origin-rs/src/product_sdk/domains/names.rs", declaration: "Label", constructor: "new" },
+      typescript: { path: "product-sdk/src/names.ts", function: "normalizedLabel" },
       vectors: { path: vectorPath, sha256: sha256(vectorPath) },
       cases: {
-        rust: { path: "origin-rs/src/product_sdk/domains/dotns.rs", case: "shared_vectors_match_label_name_commitment_and_event_contracts" },
-        typescript: { path: "product-sdk/tests/conformance/dotns-vectors.test.ts", case: "shared DotNS canonical vectors match TypeScript SDK" },
+        rust: { path: "origin-rs/src/product_sdk/domains/names.rs", case: "shared_vectors_match_label_name_commitment_and_event_contracts" },
+        typescript: { path: "product-sdk/tests/conformance/names-vectors.test.ts", case: "shared Orbis Names canonical vectors match TypeScript SDK" },
       },
     };
   }

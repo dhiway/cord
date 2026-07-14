@@ -6,7 +6,7 @@ use super::{
 	domains::{
 		attestation::{AttestationCommand, AttestationQuery},
 		common::{AccountId, Hash32},
-		dotns::{DotnsCommand, DotnsQuery},
+		names::{NamesCommand, NamesQuery},
 		drive::{DriveCommand, DriveQuery},
 		identity_personhood::{IdentityPersonhoodCommand, IdentityPersonhoodQuery},
 		s3::{S3Command, S3Query},
@@ -15,7 +15,7 @@ use super::{
 		Validate,
 	},
 	transport::{
-		prepare_attestation_command, prepare_dotns_command, prepare_drive_command,
+		prepare_attestation_command, prepare_names_command, prepare_drive_command,
 		prepare_identity_personhood_command, prepare_s3_command, prepare_storage_command,
 		prepare_storage_provider_command,
 	},
@@ -25,8 +25,8 @@ use super::{
 pub enum NativeRouteBinding {
 	AttestationQuery(AttestationQuery),
 	AttestationCommand(AttestationCommand),
-	DotnsQuery(DotnsQuery),
-	DotnsCommand(DotnsCommand),
+	NamesQuery(NamesQuery),
+	NamesCommand(NamesCommand),
 	StorageQuery(StorageQuery),
 	StorageCommand(StorageCommand),
 	StorageProviderQuery(StorageProviderQuery),
@@ -165,7 +165,7 @@ struct SponsoredTargetWire {
 enum SponsorableCapability {
 	Identity,
 	Attestation,
-	Dotns,
+	Names,
 	Storage,
 }
 
@@ -213,8 +213,8 @@ impl NativeRouteBinding {
 		match self {
 			Self::AttestationQuery(value) => value.validate(),
 			Self::AttestationCommand(value) => prepare_attestation_command(value).map(drop),
-			Self::DotnsQuery(value) => value.validate(),
-			Self::DotnsCommand(value) => prepare_dotns_command(value).map(drop),
+			Self::NamesQuery(value) => value.validate(),
+			Self::NamesCommand(value) => prepare_names_command(value).map(drop),
 			Self::StorageQuery(value) => value.validate(),
 			Self::StorageCommand(value) => prepare_storage_command(value).map(drop),
 			Self::StorageProviderQuery(value) => value.validate(),
@@ -329,7 +329,7 @@ fn sponsored_target_declaration(
 			}
 			"AttestationCommand"
 		},
-		SponsorableCapability::Dotns => {
+		SponsorableCapability::Names => {
 			if ![
 				"commit",
 				"cancel_commitment",
@@ -357,9 +357,9 @@ fn sponsored_target_declaration(
 			]
 			.contains(&method)
 			{
-				return Err(invalid("unsupported sponsored DotNS target"));
+				return Err(invalid("unsupported sponsored Orbis Names target"));
 			}
-			"DotnsCommand"
+			"NamesCommand"
 		},
 		SponsorableCapability::Storage => {
 			if [
@@ -595,7 +595,7 @@ fn rust_arguments(route: &Value) -> Result<Map<String, Value>, NativeError> {
 	for field in ["definition", "label", "salt", "key", "value", "endpoint", "service_key", "name"]
 	{
 		if (declaration == "AttestationCommand" && field == "definition") ||
-			declaration.starts_with("Dotns") &&
+			declaration.starts_with("Names") &&
 				((method == "register" && field == "salt") ||
 					(["resolve_text", "set_text"].contains(&method) && field == "key") ||
 					(method == "set_text" && field == "value") ||
@@ -684,8 +684,8 @@ pub fn instantiate_native_route(route: &Value) -> Result<NativeRouteBinding, Nat
 	match declaration {
 		"AttestationQuery" => decode!(AttestationQuery, AttestationQuery),
 		"AttestationCommand" => decode!(AttestationCommand, AttestationCommand),
-		"DotnsQuery" => decode!(DotnsQuery, DotnsQuery),
-		"DotnsCommand" => decode!(DotnsCommand, DotnsCommand),
+		"NamesQuery" => decode!(NamesQuery, NamesQuery),
+		"NamesCommand" => decode!(NamesCommand, NamesCommand),
 		"StorageQuery" => decode!(StorageQuery, StorageQuery),
 		"StorageCommand" => decode!(StorageCommand, StorageCommand),
 		"StorageProviderQuery" => decode!(StorageProviderQuery, StorageProviderQuery),

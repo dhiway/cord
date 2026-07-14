@@ -1,10 +1,1 @@
-## $ cargo test -p origin-orbis-runtime solidity_evm_fixture_deploys_and_executes_through_revive --lib [exit=0]
-   Compiling pallet-coretime-control v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/pallets/coretime-control)
-   Compiling origin-orbis-runtime v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/runtime)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.28s
-     Running unittests src/lib.rs (target/debug/deps/origin_orbis_runtime-ad4cb5c1f6a3d5b5)
-
-running 1 test
-test tests::solidity_evm_fixture_deploys_and_executes_through_revive ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 77 filtered out; finished in 0.01s
+## not executed

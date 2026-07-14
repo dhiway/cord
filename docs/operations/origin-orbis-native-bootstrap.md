@@ -21,8 +21,8 @@ for every step.
 
 ## Native domain registration
 
-Execute the manifest steps in order and wait for finality after each write. DotNS registrars use
-`dotns.set_registrar`; attestation issuers create an approved schema through
+Execute the manifest steps in order and wait for finality after each write. Orbis Names registrars use
+`names.set_registrar`; attestation issuers create an approved schema through
 `attestation.create_schema`; storage authority uses `TransactionStorage.authorize_account` and
 `storage.register_provider`. Read the result back at the exact finalizing block. Never substitute
 raw SCALE, a pallet/call index, a Revive call or a remembered deployment address.

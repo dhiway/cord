@@ -1,4 +1,4 @@
-# Native DotNS domain contract
+# Native Orbis Names domain contract
 
 Status: **Native P3 implementation is present; composed P6/P7 acceptance evidence remains pending**.
 
@@ -19,7 +19,7 @@ Status: **Native P3 implementation is present; composed P6/P7 acceptance evidenc
 | 13 | Observability | Bounded-cardinality metrics and native audit events with alert/runbook | No user IDs, names or CIDs as metric labels | Metric schema, synthetic alert and runbook test | Native implementation present; P6/P7 acceptance evidence pending |
 | 14 | Harnesses | Unit, runtime integration, SDK conformance, hostile network and host E2E | Frozen commands must exist before execution | Per-phase evidence index with raw hashes and verdict | Native implementation present; P6/P7 acceptance evidence pending |
 | 15 | Source inventory | 100% of relevant source contracts/interfaces/libraries/fixtures/precompiles classified | Deployment/client data is optional semantic context, never migration input | Contract census and zero-unknown report | Native implementation present; P6/P7 acceptance evidence pending |
-| 16 | Alignment disposition | New bounded pallets from reference semantics; Utility batching where sufficient; retire DotNS contracts/Create3/address registry as product authority | No copied upstream state machine without explicit ADR/provenance | Runtime-alignment validator | Native implementation present; P6/P7 acceptance evidence pending |
+| 16 | Alignment disposition | New bounded pallets from reference semantics; Utility batching where sufficient; retire Orbis Names contracts/Create3/address registry as product authority | No copied upstream state machine without explicit ADR/provenance | Runtime-alignment validator | Native implementation present; P6/P7 acceptance evidence pending |
 | 17 | Runtime composition | Append-only unassigned indices approved before integration; ASCII label_policy_version=1; ownership/registry/resolver dependency owner explicit | Append-only index; Config/storage/genesis/dependency owner explicit before integration | Runtime metadata/index/storage-version evidence | Native implementation present; P6/P7 acceptance evidence pending |
 | 18 | Fees/sponsorship | Enterprise pricing/deposit policy requires approval; absent approval use bounded administrative registration, never copied Solidity escrow | Actor, payer and nonce owner remain distinct through batch/MetaTx/failure | Fee/sponsor/quota success and failure vectors | Native implementation present; P6/P7 acceptance evidence pending |
 | 19 | Native SDK mapping | Each adopted semantic maps native runtime -> Rust -> TS or approved change/retirement | No compatibility facade | SDK-native coverage report | Native implementation present; P6/P7 acceptance evidence pending |

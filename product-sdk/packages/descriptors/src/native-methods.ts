@@ -2,7 +2,7 @@ import { NATIVE_ROUTE_CONTRACT } from "../generated/native-route-contract.ts";
 
 export type NativeHostFinality = "finalized" | "submit-and-finalize";
 export interface NativeHostMethodContract {
-  readonly capability: "identity" | "attestation" | "dotns" | "storage" | "content" | "assets" | "transaction";
+  readonly capability: "identity" | "attestation" | "names" | "storage" | "content" | "assets" | "transaction";
   readonly method: string;
   readonly finality: NativeHostFinality;
   readonly payloadFields: readonly string[];

@@ -16,7 +16,7 @@
 
 //! Personhood resource allowances and anonymous resource claims.
 //!
-//! Namespace ownership is intentionally absent: native DotNS is the sole owner of name
+//! Namespace ownership is intentionally absent: native Orbis Names is the sole owner of name
 //! registration, reservation, and resolution for the clean-break Orbis network.
 
 #![cfg_attr(not(feature = "std"), no_std)]

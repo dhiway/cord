@@ -9591,11 +9591,11 @@ dependencies = [
  "pallet-nfts",
  "pallet-orbis-attestation",
  "pallet-orbis-attestation-runtime-api",
- "pallet-orbis-dotns",
- "pallet-orbis-dotns-runtime-api",
  "pallet-orbis-drive",
  "pallet-orbis-honour",
  "pallet-orbis-hop-promotion",
+ "pallet-orbis-names",
+ "pallet-orbis-names-runtime-api",
  "pallet-orbis-people",
  "pallet-orbis-s3",
  "pallet-orbis-score",
@@ -9949,7 +9949,7 @@ dependencies = [
  "orbis-storage-runtime-api",
  "origin-primitives",
  "pallet-orbis-attestation-runtime-api",
- "pallet-orbis-dotns-runtime-api",
+ "pallet-orbis-names-runtime-api",
  "pallet-orbis-transaction-storage-runtime-api",
  "parity-scale-codec",
  "proptest",
@@ -11123,30 +11123,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-orbis-dotns"
-version = "0.9.9"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-orbis-dotns-runtime-api"
-version = "0.9.9"
-dependencies = [
- "bounded-collections",
- "parity-scale-codec",
- "scale-decode",
- "scale-info",
- "sp-api",
-]
-
-[[package]]
 name = "pallet-orbis-drive"
 version = "0.9.9"
 dependencies = [
@@ -11191,6 +11167,30 @@ dependencies = [
  "sp-keyring",
  "sp-keystore",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-orbis-names"
+version = "0.9.9"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-orbis-names-runtime-api"
+version = "0.9.9"
+dependencies = [
+ "bounded-collections",
+ "parity-scale-codec",
+ "scale-decode",
+ "scale-info",
+ "sp-api",
 ]
 
 [[package]]

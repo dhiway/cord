@@ -9,7 +9,7 @@ use orbis_identity_personhood_runtime_api as identity_api;
 use orbis_storage_runtime_api as storage_api;
 use pallet_orbis_transaction_storage_runtime_api as transaction_storage_api;
 use pallet_orbis_attestation_runtime_api as att_api;
-use pallet_orbis_dotns_runtime_api as dotns_api;
+use pallet_orbis_names_runtime_api as names_api;
 use scale_value::{Composite, Value};
 use subxt::{metadata::DecodeWithMetadata, runtime_api::StaticPayload};
 
@@ -27,8 +27,8 @@ use super::{
 			Hash32, NameId, ObjectId, ProofCommitment, ProviderReference, ReservationId, SchemaId,
 			SubjectId, UniquenessCommitment, Validate,
 		},
-		dotns::{
-			Address, DotnsQuery, DotnsRead, DotnsResponse, Label, NameStatus as DomainNameStatus,
+		names::{
+			Address, NamesQuery, NamesRead, NamesResponse, Label, NameStatus as DomainNameStatus,
 			NameView as DomainNameView, TextValue,
 		},
 		drive::{DriveName, DriveQuery, DriveRead, DriveResponse, DriveStatus, DriveView},
@@ -451,63 +451,63 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 		}
 	}
 
-	async fn dotns(&self, read: &DotnsRead) -> DomainResult<DotnsResponse> {
+	async fn names(&self, read: &NamesRead) -> DomainResult<NamesResponse> {
 		read.validate()?;
 		let hash = &read.finalized_block_hash;
 		match &read.query {
-			DotnsQuery::LabelPolicyVersion => {
+			NamesQuery::LabelPolicyVersion => {
 				let response: u16 =
-					self.call_at(hash, "DotnsApi", "label_policy_version", Vec::new()).await?;
-				Ok(DotnsResponse::LabelPolicyVersion(finalized_value(
+					self.call_at(hash, "NamesApi", "label_policy_version", Vec::new()).await?;
+				Ok(NamesResponse::LabelPolicyVersion(finalized_value(
 					hash,
-					dotns_api::RESPONSE_VERSION,
+					names_api::RESPONSE_VERSION,
 					Some(response),
 				)?))
 			},
-			DotnsQuery::NameById { name } => {
-				type Wire = dotns_api::Versioned<
-					dotns_api::ClientNameView<RuntimeAccountId, RuntimeBlockNumber, RuntimeHash>,
+			NamesQuery::NameById { name } => {
+				type Wire = names_api::Versioned<
+					names_api::ClientNameView<RuntimeAccountId, RuntimeBlockNumber, RuntimeHash>,
 				>;
 				let response: Wire = self
-					.call_at(hash, "DotnsApi", "name_by_id", vec![hash_arg(name.as_hash())?])
+					.call_at(hash, "NamesApi", "name_by_id", vec![hash_arg(name.as_hash())?])
 					.await?;
-				Ok(DotnsResponse::Name(finalized_value(
+				Ok(NamesResponse::Name(finalized_value(
 					hash,
 					response.version,
 					response.value.map(name_view).transpose()?,
 				)?))
 			},
-			DotnsQuery::RootByLabel { label } => {
-				let response: dotns_api::Versioned<RuntimeHash> = self
+			NamesQuery::RootByLabel { label } => {
+				let response: names_api::Versioned<RuntimeHash> = self
 					.call_at(
 						hash,
-						"DotnsApi",
+						"NamesApi",
 						"root_name_by_normalized_label",
 						vec![Value::from_bytes(label.as_str().as_bytes())],
 					)
 					.await?;
-				Ok(DotnsResponse::NameId(finalized_value(
+				Ok(NamesResponse::NameId(finalized_value(
 					hash,
 					response.version,
 					response.value.map(name_id),
 				)?))
 			},
-			DotnsQuery::OwnerNames { owner, page } => {
-				let response: dotns_api::ClientOwnerNamesPage<RuntimeHash> = self
-					.call_at(hash, "DotnsApi", "owner_names", page_args(account_arg(owner)?, page))
+			NamesQuery::OwnerNames { owner, page } => {
+				let response: names_api::ClientOwnerNamesPage<RuntimeHash> = self
+					.call_at(hash, "NamesApi", "owner_names", page_args(account_arg(owner)?, page))
 					.await?;
-				Ok(DotnsResponse::Names(finalized_page(
+				Ok(NamesResponse::Names(finalized_page(
 					hash,
 					response.version,
 					response.names.into_iter().map(name_id).collect(),
 					response.next_cursor,
 				)?))
 			},
-			DotnsQuery::Controllers { name } => {
-				let response: dotns_api::Versioned<Vec<RuntimeAccountId>> = self
-					.call_at(hash, "DotnsApi", "controllers", vec![hash_arg(name.as_hash())?])
+			NamesQuery::Controllers { name } => {
+				let response: names_api::Versioned<Vec<RuntimeAccountId>> = self
+					.call_at(hash, "NamesApi", "controllers", vec![hash_arg(name.as_hash())?])
 					.await?;
-				Ok(DotnsResponse::Controllers(finalized_value(
+				Ok(NamesResponse::Controllers(finalized_value(
 					hash,
 					response.version,
 					response
@@ -516,79 +516,79 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 						.transpose()?,
 				)?))
 			},
-			DotnsQuery::ResolveAddress { name } => {
-				let response: dotns_api::Versioned<Vec<u8>> = self
-					.call_at(hash, "DotnsApi", "resolve_address", vec![hash_arg(name.as_hash())?])
+			NamesQuery::ResolveAddress { name } => {
+				let response: names_api::Versioned<Vec<u8>> = self
+					.call_at(hash, "NamesApi", "resolve_address", vec![hash_arg(name.as_hash())?])
 					.await?;
-				Ok(DotnsResponse::Address(finalized_value(
+				Ok(NamesResponse::Address(finalized_value(
 					hash,
 					response.version,
 					response.value.map(Address::new).transpose()?,
 				)?))
 			},
-			DotnsQuery::ResolveSubject { name } => {
-				let response: dotns_api::Versioned<RuntimeSubjectId> = self
-					.call_at(hash, "DotnsApi", "resolve_subject", vec![hash_arg(name.as_hash())?])
+			NamesQuery::ResolveSubject { name } => {
+				let response: names_api::Versioned<RuntimeSubjectId> = self
+					.call_at(hash, "NamesApi", "resolve_subject", vec![hash_arg(name.as_hash())?])
 					.await?;
-				Ok(DotnsResponse::Subject(finalized_value(
+				Ok(NamesResponse::Subject(finalized_value(
 					hash,
 					response.version,
 					response.value.map(subject_id).transpose()?,
 				)?))
 			},
-			DotnsQuery::ResolveAttestation { name } => {
-				let response: dotns_api::Versioned<RuntimeHash> = self
+			NamesQuery::ResolveAttestation { name } => {
+				let response: names_api::Versioned<RuntimeHash> = self
 					.call_at(
 						hash,
-						"DotnsApi",
+						"NamesApi",
 						"resolve_attestation",
 						vec![hash_arg(name.as_hash())?],
 					)
 					.await?;
-				Ok(DotnsResponse::Attestation(finalized_value(
+				Ok(NamesResponse::Attestation(finalized_value(
 					hash,
 					response.version,
 					response.value.map(attestation_id),
 				)?))
 			},
-			DotnsQuery::ResolveContent { name } => {
-				let response: dotns_api::Versioned<[u8; 32]> = self
-					.call_at(hash, "DotnsApi", "resolve_content", vec![hash_arg(name.as_hash())?])
+			NamesQuery::ResolveContent { name } => {
+				let response: names_api::Versioned<[u8; 32]> = self
+					.call_at(hash, "NamesApi", "resolve_content", vec![hash_arg(name.as_hash())?])
 					.await?;
-				Ok(DotnsResponse::Content(finalized_value(
+				Ok(NamesResponse::Content(finalized_value(
 					hash,
 					response.version,
 					response.value.map(content_id),
 				)?))
 			},
-			DotnsQuery::ResolveText { name, key } => {
-				let response: dotns_api::Versioned<Vec<u8>> = self
+			NamesQuery::ResolveText { name, key } => {
+				let response: names_api::Versioned<Vec<u8>> = self
 					.call_at(
 						hash,
-						"DotnsApi",
+						"NamesApi",
 						"resolve_text",
 						vec![hash_arg(name.as_hash())?, Value::from_bytes(key.as_bytes())],
 					)
 					.await?;
-				Ok(DotnsResponse::Text(finalized_value(
+				Ok(NamesResponse::Text(finalized_value(
 					hash,
 					response.version,
 					response.value.map(TextValue::new).transpose()?,
 				)?))
 			},
-			DotnsQuery::PrimaryName { owner } => {
-				let response: dotns_api::Versioned<RuntimeHash> = self
-					.call_at(hash, "DotnsApi", "primary_name", vec![account_arg(owner)?])
+			NamesQuery::PrimaryName { owner } => {
+				let response: names_api::Versioned<RuntimeHash> = self
+					.call_at(hash, "NamesApi", "primary_name", vec![account_arg(owner)?])
 					.await?;
-				Ok(DotnsResponse::NameId(finalized_value(
+				Ok(NamesResponse::NameId(finalized_value(
 					hash,
 					response.version,
 					response.value.map(name_id),
 				)?))
 			},
-			DotnsQuery::NameStatus { name } => {
-				let response: dotns_api::NameStatus<RuntimeBlockNumber> = self
-					.call_at(hash, "DotnsApi", "name_status", vec![hash_arg(name.as_hash())?])
+			NamesQuery::NameStatus { name } => {
+				let response: names_api::NameStatus<RuntimeBlockNumber> = self
+					.call_at(hash, "NamesApi", "name_status", vec![hash_arg(name.as_hash())?])
 					.await?;
 				let version = response.version;
 				let value = DomainNameStatus {
@@ -596,7 +596,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 					active: response.active,
 					expires_at: response.expires_at,
 				};
-				Ok(DotnsResponse::Status(finalized_value(hash, version, Some(value))?))
+				Ok(NamesResponse::Status(finalized_value(hash, version, Some(value))?))
 			},
 		}
 	}
@@ -1222,10 +1222,10 @@ fn external_status_view(
 }
 
 fn name_view(
-	view: dotns_api::ClientNameView<RuntimeAccountId, RuntimeBlockNumber, RuntimeHash>,
+	view: names_api::ClientNameView<RuntimeAccountId, RuntimeBlockNumber, RuntimeHash>,
 ) -> DomainResult<DomainNameView> {
 	let label = String::from_utf8(view.label).map_err(|_| {
-		NativeError::new(NativeErrorCode::UnsupportedRuntime, "DotNS label is not UTF-8")
+		NativeError::new(NativeErrorCode::UnsupportedRuntime, "Orbis Names label is not UTF-8")
 	})?;
 	Ok(DomainNameView {
 		name: name_id(view.name),

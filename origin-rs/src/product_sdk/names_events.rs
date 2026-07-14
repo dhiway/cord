@@ -1,4 +1,4 @@
-//! Executable finalized native-DotNS event subscription.
+//! Executable finalized native-Orbis Names event subscription.
 
 use std::{collections::VecDeque, pin::Pin};
 
@@ -8,9 +8,9 @@ use subxt::{blocks::Block, events::StaticEvent, OnlineClient};
 
 use super::{
 	domains::{
-		dotns::{
-			DotnsEvent, DotnsEventKind, DotnsEventSubscription, FinalizedDotnsEvent,
-			FinalizedDotnsOutcome, Label, TextKey,
+		names::{
+			NamesEvent, NamesEventKind, NamesEventSubscription, FinalizedNamesEvent,
+			FinalizedNamesOutcome, Label, TextKey,
 		},
 		AccountId, DomainResult, Hash32, NameId, RegistrationCommitment,
 	},
@@ -32,7 +32,7 @@ macro_rules! wire {
 		#[derive(DecodeAsType)]
 		struct $name { $( $field: $ty, )* }
 		impl StaticEvent for $name {
-			const PALLET: &'static str = "Dotns";
+			const PALLET: &'static str = "Names";
 			const EVENT: &'static str = $event;
 		}
 	};
@@ -60,7 +60,7 @@ wire!(PauseSetWire, "PauseSet", { paused: bool });
 wire!(EmergencyNameRevokedWire, "EmergencyNameRevoked", { name: RuntimeHash });
 wire!(RegistrarSetWire, "RegistrarSet", { registrar: RuntimeAccountId, enabled: bool });
 
-enum DotnsEventWire {
+enum NamesEventWire {
 	CommitmentStored(CommitmentStoredWire),
 	CommitmentRemoved(CommitmentRemovedWire),
 	NameRegistered(NameRegisteredWire),
@@ -84,33 +84,33 @@ enum DotnsEventWire {
 	RegistrarSet(RegistrarSetWire),
 }
 
-/// A live finalized subscription that decodes only native `Dotns` pallet events.
-pub struct OrbisDotnsEventSubscription {
+/// A live finalized subscription that decodes only native `Names` pallet events.
+pub struct OrbisNamesEventSubscription {
 	blocks: FinalizedBlockStream,
-	kinds: Vec<DotnsEventKind>,
-	pending: VecDeque<FinalizedDotnsOutcome>,
+	kinds: Vec<NamesEventKind>,
+	pending: VecDeque<FinalizedNamesOutcome>,
 }
 
-impl OrbisDotnsEventSubscription {
+impl OrbisNamesEventSubscription {
 	/// Anchor at the current finalized block and subscribe to subsequent finalized blocks.
 	/// Historical replay/reconnect is intentionally owned by production-readiness work.
 	pub async fn subscribe(
 		client: OnlineClient<OrbisConfig>,
-		subscription: DotnsEventSubscription,
+		subscription: NamesEventSubscription,
 	) -> DomainResult<Self> {
 		let latest = client.blocks().at_latest().await.map_err(subscription_error)?;
 		let requested = runtime_hash(&subscription.from_finalized_block)?;
 		if latest.hash() != requested {
 			return Err(NativeError::new(
 				NativeErrorCode::InconsistentSnapshot,
-				"DotNS subscription anchor must equal the current finalized block",
+				"Orbis Names subscription anchor must equal the current finalized block",
 			));
 		}
 		let blocks = client.blocks().subscribe_finalized().await.map_err(subscription_error)?;
 		Ok(Self { blocks: Box::pin(blocks), kinds: subscription.kinds, pending: VecDeque::new() })
 	}
 
-	pub async fn next(&mut self) -> DomainResult<Option<FinalizedDotnsOutcome>> {
+	pub async fn next(&mut self) -> DomainResult<Option<FinalizedNamesOutcome>> {
 		loop {
 			if let Some(item) = self.pending.pop_front() {
 				return Ok(Some(item));
@@ -121,7 +121,7 @@ impl OrbisDotnsEventSubscription {
 			let events = block.events().await.map_err(subscription_error)?;
 			for details in events.iter() {
 				let details = details.map_err(subscription_error)?;
-				if details.pallet_name() != "Dotns" {
+				if details.pallet_name() != "Names" {
 					continue;
 				}
 				let event = decode_event(&details)?;
@@ -138,142 +138,142 @@ impl OrbisDotnsEventSubscription {
 }
 
 fn enqueue_if_selected(
-	pending: &mut VecDeque<FinalizedDotnsOutcome>,
-	kinds: &[DotnsEventKind],
+	pending: &mut VecDeque<FinalizedNamesOutcome>,
+	kinds: &[NamesEventKind],
 	finalized_block_hash: Hash32,
 	event_index: u32,
-	event: DotnsEvent,
+	event: NamesEvent,
 ) {
 	if kinds.contains(&event.kind()) {
 		let outcome = event.outcome();
-		pending.push_back(FinalizedDotnsOutcome {
-			event: FinalizedDotnsEvent { finalized_block_hash, event_index, event },
+		pending.push_back(FinalizedNamesOutcome {
+			event: FinalizedNamesEvent { finalized_block_hash, event_index, event },
 			outcome,
 		});
 	}
 }
 
-fn decode_event(details: &subxt::events::EventDetails<OrbisConfig>) -> DomainResult<DotnsEvent> {
+fn decode_event(details: &subxt::events::EventDetails<OrbisConfig>) -> DomainResult<NamesEvent> {
 	macro_rules! decode {
 		($wire:ty) => {
 			details.as_event::<$wire>().map_err(subscription_error)?.ok_or_else(|| {
 				NativeError::new(
 					NativeErrorCode::UnsupportedRuntime,
-					"DotNS event metadata mismatch",
+					"Orbis Names event metadata mismatch",
 				)
 			})?
 		};
 	}
 	let wire = match details.variant_name() {
-		"CommitmentStored" => DotnsEventWire::CommitmentStored(decode!(CommitmentStoredWire)),
-		"CommitmentRemoved" => DotnsEventWire::CommitmentRemoved(decode!(CommitmentRemovedWire)),
-		"NameRegistered" => DotnsEventWire::NameRegistered(decode!(NameRegisteredWire)),
-		"NameRenewed" => DotnsEventWire::NameRenewed(decode!(NameRenewedWire)),
-		"NameTransferred" => DotnsEventWire::NameTransferred(decode!(NameTransferredWire)),
-		"NameReleased" => DotnsEventWire::NameReleased(decode!(NameReleasedWire)),
-		"ExpiredNameRemoved" => DotnsEventWire::ExpiredNameRemoved(decode!(ExpiredNameRemovedWire)),
-		"ControllerAdded" => DotnsEventWire::ControllerAdded(decode!(ControllerAddedWire)),
-		"ControllerRemoved" => DotnsEventWire::ControllerRemoved(decode!(ControllerRemovedWire)),
-		"AddressSet" => DotnsEventWire::AddressSet(decode!(AddressSetWire)),
-		"SubjectSet" => DotnsEventWire::SubjectSet(decode!(SubjectSetWire)),
-		"AttestationSet" => DotnsEventWire::AttestationSet(decode!(AttestationSetWire)),
-		"ContentSet" => DotnsEventWire::ContentSet(decode!(ContentSetWire)),
-		"TextSet" => DotnsEventWire::TextSet(decode!(TextSetWire)),
-		"PrimaryNameSet" => DotnsEventWire::PrimaryNameSet(decode!(PrimaryNameSetWire)),
-		"NameReserved" => DotnsEventWire::NameReserved(decode!(NameReservedWire)),
-		"ReservationCleared" => DotnsEventWire::ReservationCleared(decode!(ReservationClearedWire)),
-		"LabelProtectionSet" => DotnsEventWire::LabelProtectionSet(decode!(LabelProtectionSetWire)),
-		"PauseSet" => DotnsEventWire::PauseSet(decode!(PauseSetWire)),
+		"CommitmentStored" => NamesEventWire::CommitmentStored(decode!(CommitmentStoredWire)),
+		"CommitmentRemoved" => NamesEventWire::CommitmentRemoved(decode!(CommitmentRemovedWire)),
+		"NameRegistered" => NamesEventWire::NameRegistered(decode!(NameRegisteredWire)),
+		"NameRenewed" => NamesEventWire::NameRenewed(decode!(NameRenewedWire)),
+		"NameTransferred" => NamesEventWire::NameTransferred(decode!(NameTransferredWire)),
+		"NameReleased" => NamesEventWire::NameReleased(decode!(NameReleasedWire)),
+		"ExpiredNameRemoved" => NamesEventWire::ExpiredNameRemoved(decode!(ExpiredNameRemovedWire)),
+		"ControllerAdded" => NamesEventWire::ControllerAdded(decode!(ControllerAddedWire)),
+		"ControllerRemoved" => NamesEventWire::ControllerRemoved(decode!(ControllerRemovedWire)),
+		"AddressSet" => NamesEventWire::AddressSet(decode!(AddressSetWire)),
+		"SubjectSet" => NamesEventWire::SubjectSet(decode!(SubjectSetWire)),
+		"AttestationSet" => NamesEventWire::AttestationSet(decode!(AttestationSetWire)),
+		"ContentSet" => NamesEventWire::ContentSet(decode!(ContentSetWire)),
+		"TextSet" => NamesEventWire::TextSet(decode!(TextSetWire)),
+		"PrimaryNameSet" => NamesEventWire::PrimaryNameSet(decode!(PrimaryNameSetWire)),
+		"NameReserved" => NamesEventWire::NameReserved(decode!(NameReservedWire)),
+		"ReservationCleared" => NamesEventWire::ReservationCleared(decode!(ReservationClearedWire)),
+		"LabelProtectionSet" => NamesEventWire::LabelProtectionSet(decode!(LabelProtectionSetWire)),
+		"PauseSet" => NamesEventWire::PauseSet(decode!(PauseSetWire)),
 		"EmergencyNameRevoked" => {
-			DotnsEventWire::EmergencyNameRevoked(decode!(EmergencyNameRevokedWire))
+			NamesEventWire::EmergencyNameRevoked(decode!(EmergencyNameRevokedWire))
 		},
-		"RegistrarSet" => DotnsEventWire::RegistrarSet(decode!(RegistrarSetWire)),
+		"RegistrarSet" => NamesEventWire::RegistrarSet(decode!(RegistrarSetWire)),
 		_ => {
 			return Err(NativeError::new(
 				NativeErrorCode::UnsupportedRuntime,
-				"unknown native DotNS event",
+				"unknown native Orbis Names event",
 			))
 		},
 	};
 	decode_wire_event(wire)
 }
 
-fn decode_wire_event(wire: DotnsEventWire) -> DomainResult<DotnsEvent> {
+fn decode_wire_event(wire: NamesEventWire) -> DomainResult<NamesEvent> {
 	Ok(match wire {
-		DotnsEventWire::CommitmentStored(w) => DotnsEvent::CommitmentStored {
+		NamesEventWire::CommitmentStored(w) => NamesEvent::CommitmentStored {
 			owner: domain_account(&w.owner)?,
 			commitment: commitment(w.commitment),
 			at: w.at,
 		},
-		DotnsEventWire::CommitmentRemoved(w) => DotnsEvent::CommitmentRemoved {
+		NamesEventWire::CommitmentRemoved(w) => NamesEvent::CommitmentRemoved {
 			owner: domain_account(&w.owner)?,
 			commitment: commitment(w.commitment),
 		},
-		DotnsEventWire::NameRegistered(w) => DotnsEvent::NameRegistered {
+		NamesEventWire::NameRegistered(w) => NamesEvent::NameRegistered {
 			name: name(w.name),
 			parent: w.parent.map(name),
 			label: label(w.label)?,
 			owner: domain_account(&w.owner)?,
 			expires_at: w.expires_at,
 		},
-		DotnsEventWire::NameRenewed(w) => {
-			DotnsEvent::NameRenewed { name: name(w.name), expires_at: w.expires_at }
+		NamesEventWire::NameRenewed(w) => {
+			NamesEvent::NameRenewed { name: name(w.name), expires_at: w.expires_at }
 		},
-		DotnsEventWire::NameTransferred(w) => DotnsEvent::NameTransferred {
+		NamesEventWire::NameTransferred(w) => NamesEvent::NameTransferred {
 			name: name(w.name),
 			from: domain_account(&w.from)?,
 			to: domain_account(&w.to)?,
 		},
-		DotnsEventWire::NameReleased(w) => {
-			DotnsEvent::NameReleased { name: name(w.name), owner: domain_account(&w.owner)? }
+		NamesEventWire::NameReleased(w) => {
+			NamesEvent::NameReleased { name: name(w.name), owner: domain_account(&w.owner)? }
 		},
-		DotnsEventWire::ExpiredNameRemoved(w) => {
-			DotnsEvent::ExpiredNameRemoved { name: name(w.name) }
+		NamesEventWire::ExpiredNameRemoved(w) => {
+			NamesEvent::ExpiredNameRemoved { name: name(w.name) }
 		},
-		DotnsEventWire::ControllerAdded(w) => DotnsEvent::ControllerAdded {
+		NamesEventWire::ControllerAdded(w) => NamesEvent::ControllerAdded {
 			name: name(w.name),
 			controller: domain_account(&w.controller)?,
 		},
-		DotnsEventWire::ControllerRemoved(w) => DotnsEvent::ControllerRemoved {
+		NamesEventWire::ControllerRemoved(w) => NamesEvent::ControllerRemoved {
 			name: name(w.name),
 			controller: domain_account(&w.controller)?,
 		},
-		DotnsEventWire::AddressSet(w) => {
-			DotnsEvent::AddressSet { name: name(w.name), present: w.present }
+		NamesEventWire::AddressSet(w) => {
+			NamesEvent::AddressSet { name: name(w.name), present: w.present }
 		},
-		DotnsEventWire::SubjectSet(w) => {
-			DotnsEvent::SubjectSet { name: name(w.name), present: w.present }
+		NamesEventWire::SubjectSet(w) => {
+			NamesEvent::SubjectSet { name: name(w.name), present: w.present }
 		},
-		DotnsEventWire::AttestationSet(w) => {
-			DotnsEvent::AttestationSet { name: name(w.name), present: w.present }
+		NamesEventWire::AttestationSet(w) => {
+			NamesEvent::AttestationSet { name: name(w.name), present: w.present }
 		},
-		DotnsEventWire::ContentSet(w) => {
-			DotnsEvent::ContentSet { name: name(w.name), present: w.present }
+		NamesEventWire::ContentSet(w) => {
+			NamesEvent::ContentSet { name: name(w.name), present: w.present }
 		},
-		DotnsEventWire::TextSet(w) => DotnsEvent::TextSet {
+		NamesEventWire::TextSet(w) => NamesEvent::TextSet {
 			name: name(w.name),
 			key: TextKey::new(w.key)?,
 			present: w.present,
 		},
-		DotnsEventWire::PrimaryNameSet(w) => {
-			DotnsEvent::PrimaryNameSet { owner: domain_account(&w.owner)?, name: w.name.map(name) }
+		NamesEventWire::PrimaryNameSet(w) => {
+			NamesEvent::PrimaryNameSet { owner: domain_account(&w.owner)?, name: w.name.map(name) }
 		},
-		DotnsEventWire::NameReserved(w) => DotnsEvent::NameReserved {
+		NamesEventWire::NameReserved(w) => NamesEvent::NameReserved {
 			name: name(w.name),
 			beneficiary: w.beneficiary.as_ref().map(domain_account).transpose()?,
 			expires_at: w.expires_at,
 		},
-		DotnsEventWire::ReservationCleared(w) => {
-			DotnsEvent::ReservationCleared { name: name(w.name) }
+		NamesEventWire::ReservationCleared(w) => {
+			NamesEvent::ReservationCleared { name: name(w.name) }
 		},
-		DotnsEventWire::LabelProtectionSet(w) => {
-			DotnsEvent::LabelProtectionSet { label: label(w.label)?, protected: w.protected }
+		NamesEventWire::LabelProtectionSet(w) => {
+			NamesEvent::LabelProtectionSet { label: label(w.label)?, protected: w.protected }
 		},
-		DotnsEventWire::PauseSet(w) => DotnsEvent::PauseSet { paused: w.paused },
-		DotnsEventWire::EmergencyNameRevoked(w) => {
-			DotnsEvent::EmergencyNameRevoked { name: name(w.name) }
+		NamesEventWire::PauseSet(w) => NamesEvent::PauseSet { paused: w.paused },
+		NamesEventWire::EmergencyNameRevoked(w) => {
+			NamesEvent::EmergencyNameRevoked { name: name(w.name) }
 		},
-		DotnsEventWire::RegistrarSet(w) => DotnsEvent::RegistrarSet {
+		NamesEventWire::RegistrarSet(w) => NamesEvent::RegistrarSet {
 			registrar: domain_account(&w.registrar)?,
 			enabled: w.enabled,
 		},
@@ -283,7 +283,7 @@ fn decode_wire_event(wire: DotnsEventWire) -> DomainResult<DotnsEvent> {
 fn label(bytes: Vec<u8>) -> DomainResult<Label> {
 	Label::new(
 		String::from_utf8(bytes).map_err(|_| {
-			NativeError::new(NativeErrorCode::InvalidInput, "DotNS label is not UTF-8")
+			NativeError::new(NativeErrorCode::InvalidInput, "Orbis Names label is not UTF-8")
 		})?,
 	)
 }
@@ -322,87 +322,87 @@ mod tests {
 	#[test]
 	fn every_wire_variant_decodes_filters_and_produces_an_outcome() {
 		let wires = vec![
-			DotnsEventWire::CommitmentStored(CommitmentStoredWire {
+			NamesEventWire::CommitmentStored(CommitmentStoredWire {
 				owner: account(1),
 				commitment: hash(2),
 				at: 3,
 			}),
-			DotnsEventWire::CommitmentRemoved(CommitmentRemovedWire {
+			NamesEventWire::CommitmentRemoved(CommitmentRemovedWire {
 				owner: account(1),
 				commitment: hash(2),
 			}),
-			DotnsEventWire::NameRegistered(NameRegisteredWire {
+			NamesEventWire::NameRegistered(NameRegisteredWire {
 				name: hash(4),
 				parent: None,
 				label: b"alice".to_vec(),
 				owner: account(1),
 				expires_at: 5,
 			}),
-			DotnsEventWire::NameRenewed(NameRenewedWire { name: hash(4), expires_at: 6 }),
-			DotnsEventWire::NameTransferred(NameTransferredWire {
+			NamesEventWire::NameRenewed(NameRenewedWire { name: hash(4), expires_at: 6 }),
+			NamesEventWire::NameTransferred(NameTransferredWire {
 				name: hash(4),
 				from: account(1),
 				to: account(2),
 			}),
-			DotnsEventWire::NameReleased(NameReleasedWire { name: hash(4), owner: account(2) }),
-			DotnsEventWire::ExpiredNameRemoved(ExpiredNameRemovedWire { name: hash(4) }),
-			DotnsEventWire::ControllerAdded(ControllerAddedWire {
+			NamesEventWire::NameReleased(NameReleasedWire { name: hash(4), owner: account(2) }),
+			NamesEventWire::ExpiredNameRemoved(ExpiredNameRemovedWire { name: hash(4) }),
+			NamesEventWire::ControllerAdded(ControllerAddedWire {
 				name: hash(4),
 				controller: account(3),
 			}),
-			DotnsEventWire::ControllerRemoved(ControllerRemovedWire {
+			NamesEventWire::ControllerRemoved(ControllerRemovedWire {
 				name: hash(4),
 				controller: account(3),
 			}),
-			DotnsEventWire::AddressSet(AddressSetWire { name: hash(4), present: true }),
-			DotnsEventWire::SubjectSet(SubjectSetWire { name: hash(4), present: true }),
-			DotnsEventWire::AttestationSet(AttestationSetWire { name: hash(4), present: true }),
-			DotnsEventWire::ContentSet(ContentSetWire { name: hash(4), present: true }),
-			DotnsEventWire::TextSet(TextSetWire {
+			NamesEventWire::AddressSet(AddressSetWire { name: hash(4), present: true }),
+			NamesEventWire::SubjectSet(SubjectSetWire { name: hash(4), present: true }),
+			NamesEventWire::AttestationSet(AttestationSetWire { name: hash(4), present: true }),
+			NamesEventWire::ContentSet(ContentSetWire { name: hash(4), present: true }),
+			NamesEventWire::TextSet(TextSetWire {
 				name: hash(4),
 				key: b"url".to_vec(),
 				present: true,
 			}),
-			DotnsEventWire::PrimaryNameSet(PrimaryNameSetWire {
+			NamesEventWire::PrimaryNameSet(PrimaryNameSetWire {
 				owner: account(1),
 				name: Some(hash(4)),
 			}),
-			DotnsEventWire::NameReserved(NameReservedWire {
+			NamesEventWire::NameReserved(NameReservedWire {
 				name: hash(4),
 				beneficiary: Some(account(1)),
 				expires_at: Some(7),
 			}),
-			DotnsEventWire::ReservationCleared(ReservationClearedWire { name: hash(4) }),
-			DotnsEventWire::LabelProtectionSet(LabelProtectionSetWire {
+			NamesEventWire::ReservationCleared(ReservationClearedWire { name: hash(4) }),
+			NamesEventWire::LabelProtectionSet(LabelProtectionSetWire {
 				label: b"root".to_vec(),
 				protected: true,
 			}),
-			DotnsEventWire::PauseSet(PauseSetWire { paused: true }),
-			DotnsEventWire::EmergencyNameRevoked(EmergencyNameRevokedWire { name: hash(4) }),
-			DotnsEventWire::RegistrarSet(RegistrarSetWire { registrar: account(5), enabled: true }),
+			NamesEventWire::PauseSet(PauseSetWire { paused: true }),
+			NamesEventWire::EmergencyNameRevoked(EmergencyNameRevokedWire { name: hash(4) }),
+			NamesEventWire::RegistrarSet(RegistrarSetWire { registrar: account(5), enabled: true }),
 		];
 		let kinds = [
-			DotnsEventKind::CommitmentStored,
-			DotnsEventKind::CommitmentRemoved,
-			DotnsEventKind::NameRegistered,
-			DotnsEventKind::NameRenewed,
-			DotnsEventKind::NameTransferred,
-			DotnsEventKind::NameReleased,
-			DotnsEventKind::ExpiredNameRemoved,
-			DotnsEventKind::ControllerAdded,
-			DotnsEventKind::ControllerRemoved,
-			DotnsEventKind::AddressSet,
-			DotnsEventKind::SubjectSet,
-			DotnsEventKind::AttestationSet,
-			DotnsEventKind::ContentSet,
-			DotnsEventKind::TextSet,
-			DotnsEventKind::PrimaryNameSet,
-			DotnsEventKind::NameReserved,
-			DotnsEventKind::ReservationCleared,
-			DotnsEventKind::LabelProtectionSet,
-			DotnsEventKind::PauseSet,
-			DotnsEventKind::EmergencyNameRevoked,
-			DotnsEventKind::RegistrarSet,
+			NamesEventKind::CommitmentStored,
+			NamesEventKind::CommitmentRemoved,
+			NamesEventKind::NameRegistered,
+			NamesEventKind::NameRenewed,
+			NamesEventKind::NameTransferred,
+			NamesEventKind::NameReleased,
+			NamesEventKind::ExpiredNameRemoved,
+			NamesEventKind::ControllerAdded,
+			NamesEventKind::ControllerRemoved,
+			NamesEventKind::AddressSet,
+			NamesEventKind::SubjectSet,
+			NamesEventKind::AttestationSet,
+			NamesEventKind::ContentSet,
+			NamesEventKind::TextSet,
+			NamesEventKind::PrimaryNameSet,
+			NamesEventKind::NameReserved,
+			NamesEventKind::ReservationCleared,
+			NamesEventKind::LabelProtectionSet,
+			NamesEventKind::PauseSet,
+			NamesEventKind::EmergencyNameRevoked,
+			NamesEventKind::RegistrarSet,
 		];
 		let finalized = Hash32::from_bytes([9; 32]);
 		let mut pending = VecDeque::new();

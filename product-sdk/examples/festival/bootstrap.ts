@@ -165,14 +165,14 @@ assert.equal(await errorCode(host.execute(consentRevoked)), "permission_revoked"
 
 await host.execute(withHostConsent(request(
   "festival-submit-000001",
-  "dotns",
+  "names",
   "commit",
   "submit-and-finalize",
   { commitment: `0x${"33".repeat(32)}` },
 )));
 const cancellable = host.execute(withHostConsent(request(
   "festival-cancel-000001",
-  "dotns",
+  "names",
   "commit",
   "submit-and-finalize",
   { commitment: `0x${"44".repeat(32)}` },

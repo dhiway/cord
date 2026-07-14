@@ -19,7 +19,7 @@
 //! Genesis config presets for the Orbis enterprise runtime
 
 use crate::{
-	AccountId, Balance, BalancesConfig, CollatorSelectionConfig, DotnsConfig, ExistentialDeposit,
+	AccountId, Balance, BalancesConfig, CollatorSelectionConfig, NamesConfig, ExistentialDeposit,
 	ParaId, ParachainInfoConfig, Revive, SessionConfig, SessionKeys, TokenConfig,
 };
 use alloc::{vec, vec::Vec};
@@ -50,10 +50,10 @@ fn orbis_genesis(
 	let mut balances: Vec<(AccountId, Balance)> =
 		endowed_accounts.iter().cloned().map(|account| (account, endowment)).collect();
 	let revive_account = Revive::account_id();
-	let dotns_registrar = root_key.clone();
-	let dotns_root_reservations = [b"origin".as_slice(), b"orbis", b"system"]
+	let names_registrar = root_key.clone();
+	let names_root_reservations = [b"origin".as_slice(), b"orbis", b"system"]
 		.into_iter()
-		.map(|label| (label.to_vec().try_into().expect("bootstrap DotNS label is bounded"), None))
+		.map(|label| (label.to_vec().try_into().expect("bootstrap Orbis Names label is bounded"), None))
 		.collect();
 	if !balances.iter().any(|(account, _)| account == &revive_account) {
 		// Code-upload deposits are held on this account. It must exist before the first upload
@@ -74,9 +74,9 @@ fn orbis_genesis(
 			network_id: token_network_id as u16,
 			..Default::default()
 		},
-		"dotns": DotnsConfig {
-			registrars: vec![dotns_registrar],
-			root_reservations: dotns_root_reservations,
+		"names": NamesConfig {
+			registrars: vec![names_registrar],
+			root_reservations: names_root_reservations,
 		},
 		"collatorSelection": CollatorSelectionConfig {
 			invulnerables: invulnerables
@@ -246,12 +246,12 @@ mod tests {
 			Some(serde_json::to_value(collator).unwrap())
 		);
 		assert_eq!(
-			genesis.pointer("/dotns/registrars/0"),
+			genesis.pointer("/names/registrars/0"),
 			genesis.pointer("/sudo/key"),
 			"the governed root is the only bootstrap registrar"
 		);
 		let reservations = genesis
-			.pointer("/dotns/rootReservations")
+			.pointer("/names/rootReservations")
 			.and_then(serde_json::Value::as_array)
 			.expect("root reservations are explicit");
 		assert_eq!(reservations.len(), 3);
@@ -265,7 +265,7 @@ mod tests {
 			[
 				"balances",
 				"collatorSelection",
-				"dotns",
+				"names",
 				"feeless",
 				"parachainInfo",
 				"polkadotXcm",

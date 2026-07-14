@@ -1,57 +1,57 @@
 {
   "artifacts": [
     {
-      "bytes": 5218,
+      "bytes": 5213,
       "path": "docs/evidence/verification/p5/feature-completeness.report.json",
-      "sha256": "76c72f9a64b16e499512bc28ce6d647b5dcf5b6f6a0d645c2778e5dbbd4374c9"
+      "sha256": "8c4fe7907cfc1fcb78b272202375ef50c81321ffd91793d547dd782d0eb3da59"
     },
     {
-      "bytes": 911,
+      "bytes": 537,
       "path": "docs/evidence/verification/p5/host-conformance.json",
-      "sha256": "eaa34c75899ccc85da1d5af047d7b189c25744cf8e9039fc0bc70073bc572939"
+      "sha256": "0b0e7aa6b5efd085ae0b95b2f6a0290705c89b8c6de4381fa67f04b4785990ab"
     },
     {
-      "bytes": 1547,
+      "bytes": 1294,
       "path": "docs/evidence/verification/p5/operator-bootstrap.report.json",
-      "sha256": "2f0759d0fc05d7cf54c4191eaef18d7b39ac177e91b87fb43542d9d558025f3e"
+      "sha256": "cc20b198d06dcce79965057d1b1f344c59ddc02ecb30f9ec74461759a4fb4f12"
     },
     {
-      "bytes": 840,
+      "bytes": 378,
       "path": "docs/evidence/verification/p5/revive-boundary.report.json",
-      "sha256": "011a08d33d06b32abb67d829db40358d190ed37c88aa500e4a27cea657a19670"
+      "sha256": "5eddb67e355e1cf78040c203e4be54d56218971a09a434d7bb0d5e5c02b1a420"
     },
     {
-      "bytes": 1821,
+      "bytes": 1248,
       "path": "docs/evidence/verification/p5/native-cutover-cleanup.report.json",
-      "sha256": "0f58a7e391d122c6a22d8cbbde9c6c3e006af826d3eb811705c5a6f0a17c9039"
+      "sha256": "a1201604aabe848eed30b60b6043de7f28ee02948e73b95d3e0f870d0d225ba9"
     },
     {
-      "bytes": 510,
+      "bytes": 515,
       "path": "docs/evidence/verification/p5/native-launch-verdict.json",
-      "sha256": "89c0b4e977292bfcc33557cd08055596740cc5b590f1bf0b54e5291815ec6cc7"
+      "sha256": "98302b309b2a907f88df2c4d5974135faa1525f26b6d03303193422b86d3f98a"
     },
     {
-      "bytes": 6008,
+      "bytes": 16,
       "path": "docs/evidence/verification/p5/raw/host-conformance.log",
-      "sha256": "bf8a15554d2c480c0d92a33ce4bbbb1171be3c5ea1b5494408b01e47450d9e06"
+      "sha256": "f33be1d02339616c782affdc287745d8dd05b4dcdcc3f03ce6dd2888ee173c69"
     },
     {
-      "bytes": 13280,
+      "bytes": 6900,
       "path": "docs/evidence/verification/p5/raw/m9-cleanup.log",
-      "sha256": "c53bca7962c1945eb45c2fd660995de817f89e317938db7250849384b10cf6eb"
+      "sha256": "2087682ddf74163c32f9c6e052643eac863aae626b675fd3478c6fae26da572d"
     },
     {
-      "bytes": 4728,
+      "bytes": 16,
       "path": "docs/evidence/verification/p5/raw/operator-executable.log",
-      "sha256": "08cc6501bd2f9ffe5b03ffa28d49b76404a89605c733386929e0476d0a744f6f"
+      "sha256": "f33be1d02339616c782affdc287745d8dd05b4dcdcc3f03ce6dd2888ee173c69"
     },
     {
-      "bytes": 706,
+      "bytes": 16,
       "path": "docs/evidence/verification/p5/raw/revive-retained-evidence.log",
-      "sha256": "9123e236addaf352c0ad09502f3b00f59fe758a04a3a88b8a8db8ac75f67dc07"
+      "sha256": "f33be1d02339616c782affdc287745d8dd05b4dcdcc3f03ce6dd2888ee173c69"
     }
   ],
-  "command": "python3 scripts/validate-p5-native-launch.py",
-  "mode": "executable",
+  "command": "python3 scripts/validate-p5-native-launch.py --static-only",
+  "mode": "static-only",
   "schema": "cord.p5-native-launch-evidence-index.v1"
 }

@@ -84,7 +84,7 @@ impl std::error::Error for NativeError {}
 pub enum Capability {
 	Identity,
 	Attestation,
-	Dotns,
+	Names,
 	Storage,
 	Content,
 	Assets,
@@ -304,7 +304,7 @@ fn method_contract(
 	let capability_name = match capability {
 		Capability::Identity => "identity",
 		Capability::Attestation => "attestation",
-		Capability::Dotns => "dotns",
+		Capability::Names => "names",
 		Capability::Storage => "storage",
 		Capability::Content => "content",
 		Capability::Assets => "assets",
@@ -363,7 +363,7 @@ pub fn validate_method_scope(scope: &str) -> Result<(), NativeError> {
 	let capability = match capability {
 		"identity" => Capability::Identity,
 		"attestation" => Capability::Attestation,
-		"dotns" => Capability::Dotns,
+		"names" => Capability::Names,
 		"storage" => Capability::Storage,
 		"content" => Capability::Content,
 		"assets" => Capability::Assets,

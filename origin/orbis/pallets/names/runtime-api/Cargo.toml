@@ -1,6 +1,6 @@
 [package]
-name = "pallet-orbis-dotns-runtime-api"
-description = "Stable bounded runtime API types for the native Orbis DotNS pallet"
+name = "pallet-orbis-names-runtime-api"
+description = "Stable bounded runtime API types for Orbis Names."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

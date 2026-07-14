@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the normative per-symbol DotNS map and its non-normative CSV summary."""
+"""Validate the normative per-symbol Orbis Names map and its non-normative CSV summary."""
 import collections
 import csv
 import json
@@ -28,6 +28,7 @@ def main():
     exact = []
     by_source = collections.defaultdict(list)
     for row in data["entries"]:
+        # Historical contract identifiers are immutable provenance; native targets are Orbis Names.
         if not row.get("source_id", "").startswith("dotns:"):
             continue
         by_source[row["source_id"]].append(row)
@@ -50,7 +51,7 @@ def main():
             if any(token in surfaces for token in BANNED):
                 errors.append(f"{label}: generic target")
             if row.get("runtime_owner") != "Dotns":
-                errors.append(f"{label}: retained row not owned by Dotns")
+                errors.append(f"{label}: historical retained row lost its source mapping owner")
         elif row.get("disposition") == "retired":
             if any(row.get(field) != "none" for field in ("runtime_owner", "rust_sdk", "typescript_sdk")):
                 errors.append(f"{label}: retired row exposes native/SDK ownership")
@@ -62,15 +63,15 @@ def main():
                 errors.append(f"{label}: missing vector test {evidence}")
 
     if any(token in MAP.read_text() for token in BANNED):
-        errors.append("map still contains a generic DotNS target phrase")
+        errors.append("map still contains a generic Orbis Names target phrase")
 
     with CSV.open(newline="") as handle:
         csv_rows = [
-            row for row in csv.DictReader(handle) if row["source_id"].startswith("dotns:")
+        row for row in csv.DictReader(handle) if row["source_id"].startswith("dotns:")
         ]
     csv_by_source = {row["source_id"]: row for row in csv_rows}
     if set(csv_by_source) != set(by_source):
-        errors.append("CSV/JSON DotNS source census differs")
+        errors.append("CSV/JSON Orbis Names source census differs")
 
     pointer = "normative per-symbol mapping: docs/sdk/contract-to-native-map.json"
     for source_id, row in csv_by_source.items():
@@ -93,11 +94,11 @@ def main():
                 errors.append(f"{source_id}: CSV lost provenance field {field}")
 
     if any(token in CSV.read_text() for token in BANNED):
-        errors.append("CSV still contains a conflicting generic DotNS target phrase")
+        errors.append("CSV still contains a conflicting generic Orbis Names target phrase")
     if errors:
         raise SystemExit("\n".join(errors))
     print(
-        f"validated {len(exact)} exact retained DotNS rows and {len(csv_rows)} "
+        f"validated {len(exact)} historical source rows mapped to Orbis Names and {len(csv_rows)} "
         "JSON-deferred CSV sources; no conflicts or generic retained targets"
     )
 

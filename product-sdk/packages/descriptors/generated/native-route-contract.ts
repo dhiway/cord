@@ -3235,26 +3235,26 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:label_policy_version",
-      "capability": "dotns",
+      "id": "names:label_policy_version",
+      "capability": "names",
       "method": "label_policy_version",
       "finality": "finalized",
       "parameters": [],
       "sample_payload": {},
       "rust": {
-        "declaration": "DotnsQuery",
+        "declaration": "NamesQuery",
         "variant": "LabelPolicyVersion",
-        "result": "DotnsResponse"
+        "result": "NamesResponse"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "labelPolicyVersion"
       },
       "runtime": {
         "kind": "runtime-api",
-        "source": "origin/orbis/pallets/dotns/runtime-api/src/lib.rs",
+        "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs",
         "target": "label_policy_version",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "runtime_api_version": 1,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
@@ -3266,8 +3266,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       "canonical_arguments": []
     },
     {
-      "id": "dotns:name_by_id",
-      "capability": "dotns",
+      "id": "names:name_by_id",
+      "capability": "names",
       "method": "name_by_id",
       "finality": "finalized",
       "parameters": [
@@ -3283,19 +3283,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "name": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsQuery",
+        "declaration": "NamesQuery",
         "variant": "NameById",
-        "result": "DotnsResponse"
+        "result": "NamesResponse"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "nameById"
       },
       "runtime": {
         "kind": "runtime-api",
-        "source": "origin/orbis/pallets/dotns/runtime-api/src/lib.rs",
+        "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs",
         "target": "name_by_id",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "runtime_api_version": 1,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
@@ -3309,8 +3309,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:root_name_by_normalized_label",
-      "capability": "dotns",
+      "id": "names:root_name_by_normalized_label",
+      "capability": "names",
       "method": "root_name_by_normalized_label",
       "finality": "finalized",
       "parameters": [
@@ -3328,19 +3328,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "label": "1"
       },
       "rust": {
-        "declaration": "DotnsQuery",
+        "declaration": "NamesQuery",
         "variant": "RootByLabel",
-        "result": "DotnsResponse"
+        "result": "NamesResponse"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "rootNameByNormalizedLabel"
       },
       "runtime": {
         "kind": "runtime-api",
-        "source": "origin/orbis/pallets/dotns/runtime-api/src/lib.rs",
+        "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs",
         "target": "root_name_by_normalized_label",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "runtime_api_version": 1,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
@@ -3354,8 +3354,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:owner_names",
-      "capability": "dotns",
+      "id": "names:owner_names",
+      "capability": "names",
       "method": "owner_names",
       "finality": "finalized",
       "parameters": [
@@ -3397,19 +3397,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "limit": 1
       },
       "rust": {
-        "declaration": "DotnsQuery",
+        "declaration": "NamesQuery",
         "variant": "OwnerNames",
-        "result": "DotnsResponse"
+        "result": "NamesResponse"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "ownerNames"
       },
       "runtime": {
         "kind": "runtime-api",
-        "source": "origin/orbis/pallets/dotns/runtime-api/src/lib.rs",
+        "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs",
         "target": "owner_names",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "runtime_api_version": 1,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
@@ -3427,8 +3427,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:controllers",
-      "capability": "dotns",
+      "id": "names:controllers",
+      "capability": "names",
       "method": "controllers",
       "finality": "finalized",
       "parameters": [
@@ -3444,19 +3444,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "name": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsQuery",
+        "declaration": "NamesQuery",
         "variant": "Controllers",
-        "result": "DotnsResponse"
+        "result": "NamesResponse"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "controllers"
       },
       "runtime": {
         "kind": "runtime-api",
-        "source": "origin/orbis/pallets/dotns/runtime-api/src/lib.rs",
+        "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs",
         "target": "controllers",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "runtime_api_version": 1,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
@@ -3470,8 +3470,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:resolve_address",
-      "capability": "dotns",
+      "id": "names:resolve_address",
+      "capability": "names",
       "method": "resolve_address",
       "finality": "finalized",
       "parameters": [
@@ -3487,19 +3487,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "name": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsQuery",
+        "declaration": "NamesQuery",
         "variant": "ResolveAddress",
-        "result": "DotnsResponse"
+        "result": "NamesResponse"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "resolveAddress"
       },
       "runtime": {
         "kind": "runtime-api",
-        "source": "origin/orbis/pallets/dotns/runtime-api/src/lib.rs",
+        "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs",
         "target": "resolve_address",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "runtime_api_version": 1,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
@@ -3513,8 +3513,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:resolve_subject",
-      "capability": "dotns",
+      "id": "names:resolve_subject",
+      "capability": "names",
       "method": "resolve_subject",
       "finality": "finalized",
       "parameters": [
@@ -3530,19 +3530,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "name": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsQuery",
+        "declaration": "NamesQuery",
         "variant": "ResolveSubject",
-        "result": "DotnsResponse"
+        "result": "NamesResponse"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "resolveSubject"
       },
       "runtime": {
         "kind": "runtime-api",
-        "source": "origin/orbis/pallets/dotns/runtime-api/src/lib.rs",
+        "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs",
         "target": "resolve_subject",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "runtime_api_version": 1,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
@@ -3556,8 +3556,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:resolve_attestation",
-      "capability": "dotns",
+      "id": "names:resolve_attestation",
+      "capability": "names",
       "method": "resolve_attestation",
       "finality": "finalized",
       "parameters": [
@@ -3573,19 +3573,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "name": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsQuery",
+        "declaration": "NamesQuery",
         "variant": "ResolveAttestation",
-        "result": "DotnsResponse"
+        "result": "NamesResponse"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "resolveAttestation"
       },
       "runtime": {
         "kind": "runtime-api",
-        "source": "origin/orbis/pallets/dotns/runtime-api/src/lib.rs",
+        "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs",
         "target": "resolve_attestation",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "runtime_api_version": 1,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
@@ -3599,8 +3599,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:resolve_content",
-      "capability": "dotns",
+      "id": "names:resolve_content",
+      "capability": "names",
       "method": "resolve_content",
       "finality": "finalized",
       "parameters": [
@@ -3616,19 +3616,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "name": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsQuery",
+        "declaration": "NamesQuery",
         "variant": "ResolveContent",
-        "result": "DotnsResponse"
+        "result": "NamesResponse"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "resolveContent"
       },
       "runtime": {
         "kind": "runtime-api",
-        "source": "origin/orbis/pallets/dotns/runtime-api/src/lib.rs",
+        "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs",
         "target": "resolve_content",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "runtime_api_version": 1,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
@@ -3642,8 +3642,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:resolve_text",
-      "capability": "dotns",
+      "id": "names:resolve_text",
+      "capability": "names",
       "method": "resolve_text",
       "finality": "finalized",
       "parameters": [
@@ -3668,19 +3668,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "key": "1"
       },
       "rust": {
-        "declaration": "DotnsQuery",
+        "declaration": "NamesQuery",
         "variant": "ResolveText",
-        "result": "DotnsResponse"
+        "result": "NamesResponse"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "resolveText"
       },
       "runtime": {
         "kind": "runtime-api",
-        "source": "origin/orbis/pallets/dotns/runtime-api/src/lib.rs",
+        "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs",
         "target": "resolve_text",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "runtime_api_version": 1,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
@@ -3695,8 +3695,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:primary_name",
-      "capability": "dotns",
+      "id": "names:primary_name",
+      "capability": "names",
       "method": "primary_name",
       "finality": "finalized",
       "parameters": [
@@ -3713,19 +3713,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "owner": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsQuery",
+        "declaration": "NamesQuery",
         "variant": "PrimaryName",
-        "result": "DotnsResponse"
+        "result": "NamesResponse"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "primaryName"
       },
       "runtime": {
         "kind": "runtime-api",
-        "source": "origin/orbis/pallets/dotns/runtime-api/src/lib.rs",
+        "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs",
         "target": "primary_name",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "runtime_api_version": 1,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
@@ -3739,8 +3739,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:name_status",
-      "capability": "dotns",
+      "id": "names:name_status",
+      "capability": "names",
       "method": "name_status",
       "finality": "finalized",
       "parameters": [
@@ -3756,19 +3756,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "name": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsQuery",
+        "declaration": "NamesQuery",
         "variant": "NameStatus",
-        "result": "DotnsResponse"
+        "result": "NamesResponse"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "nameStatus"
       },
       "runtime": {
         "kind": "runtime-api",
-        "source": "origin/orbis/pallets/dotns/runtime-api/src/lib.rs",
+        "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs",
         "target": "name_status",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "runtime_api_version": 1,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
@@ -3782,8 +3782,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:commit",
-      "capability": "dotns",
+      "id": "names:commit",
+      "capability": "names",
       "method": "commit",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -3799,19 +3799,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "commitment": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "Commit",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "commit"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "commit",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 0
       },
@@ -3824,8 +3824,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:cancel_commitment",
-      "capability": "dotns",
+      "id": "names:cancel_commitment",
+      "capability": "names",
       "method": "cancel_commitment",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -3841,19 +3841,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "commitment": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "CancelCommitment",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "cancelCommitment"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "cancel_commitment",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 1
       },
@@ -3866,8 +3866,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:prune_expired_commitment",
-      "capability": "dotns",
+      "id": "names:prune_expired_commitment",
+      "capability": "names",
       "method": "prune_expired_commitment",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -3892,19 +3892,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "commitment": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "PruneExpiredCommitment",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "pruneExpiredCommitment"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "prune_expired_commitment",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 2
       },
@@ -3918,8 +3918,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:register",
-      "capability": "dotns",
+      "id": "names:register",
+      "capability": "names",
       "method": "register",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -3961,19 +3961,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "salt": "1"
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "Register",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "register"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "register",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 3
       },
@@ -3988,8 +3988,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:renew",
-      "capability": "dotns",
+      "id": "names:renew",
+      "capability": "names",
       "method": "renew",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4013,19 +4013,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "additional_period": "1"
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "Renew",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "renew"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "renew",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 4
       },
@@ -4039,8 +4039,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:transfer",
-      "capability": "dotns",
+      "id": "names:transfer",
+      "capability": "names",
       "method": "transfer",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4065,19 +4065,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "new_owner": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "Transfer",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "transfer"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "transfer",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 5
       },
@@ -4091,8 +4091,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:add_controller",
-      "capability": "dotns",
+      "id": "names:add_controller",
+      "capability": "names",
       "method": "add_controller",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4117,19 +4117,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "controller": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "AddController",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "addController"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "add_controller",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 6
       },
@@ -4143,8 +4143,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:remove_controller",
-      "capability": "dotns",
+      "id": "names:remove_controller",
+      "capability": "names",
       "method": "remove_controller",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4169,19 +4169,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "controller": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "RemoveController",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "removeController"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "remove_controller",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 7
       },
@@ -4195,8 +4195,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:set_address",
-      "capability": "dotns",
+      "id": "names:set_address",
+      "capability": "names",
       "method": "set_address",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4228,19 +4228,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "address": null
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "SetAddress",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "setAddress"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "set_address",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 8
       },
@@ -4254,8 +4254,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:set_subject",
-      "capability": "dotns",
+      "id": "names:set_subject",
+      "capability": "names",
       "method": "set_subject",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4288,19 +4288,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "subject": null
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "SetSubject",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "setSubject"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "set_subject",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 9
       },
@@ -4314,8 +4314,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:set_attestation",
-      "capability": "dotns",
+      "id": "names:set_attestation",
+      "capability": "names",
       "method": "set_attestation",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4346,19 +4346,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "attestation": null
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "SetAttestation",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "setAttestation"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "set_attestation",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 10
       },
@@ -4372,8 +4372,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:set_content",
-      "capability": "dotns",
+      "id": "names:set_content",
+      "capability": "names",
       "method": "set_content",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4404,19 +4404,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "content": null
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "SetContent",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "setContent"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "set_content",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 11
       },
@@ -4430,8 +4430,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:set_text",
-      "capability": "dotns",
+      "id": "names:set_text",
+      "capability": "names",
       "method": "set_text",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4472,19 +4472,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "value": null
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "SetText",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "setText"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "set_text",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 12
       },
@@ -4499,8 +4499,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:set_primary_name",
-      "capability": "dotns",
+      "id": "names:set_primary_name",
+      "capability": "names",
       "method": "set_primary_name",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4523,19 +4523,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "name": null
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "SetPrimaryName",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "setPrimaryName"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "set_primary_name",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 13
       },
@@ -4548,8 +4548,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:release",
-      "capability": "dotns",
+      "id": "names:release",
+      "capability": "names",
       "method": "release",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4565,19 +4565,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "name": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "Release",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "release"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "release",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 14
       },
@@ -4590,8 +4590,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:remove_expired_name",
-      "capability": "dotns",
+      "id": "names:remove_expired_name",
+      "capability": "names",
       "method": "remove_expired_name",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4607,19 +4607,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "name": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "RemoveExpiredName",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "removeExpiredName"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "remove_expired_name",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 15
       },
@@ -4632,8 +4632,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:reserve_name",
-      "capability": "dotns",
+      "id": "names:reserve_name",
+      "capability": "names",
       "method": "reserve_name",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4697,19 +4697,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "expires_at": null
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "ReserveName",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "reserveName"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "reserve_name",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 16
       },
@@ -4725,8 +4725,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:clear_reservation",
-      "capability": "dotns",
+      "id": "names:clear_reservation",
+      "capability": "names",
       "method": "clear_reservation",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4742,19 +4742,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "name": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "ClearReservation",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "clearReservation"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "clear_reservation",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 17
       },
@@ -4767,8 +4767,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:set_label_protection",
-      "capability": "dotns",
+      "id": "names:set_label_protection",
+      "capability": "names",
       "method": "set_label_protection",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4793,19 +4793,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "protected": true
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "SetLabelProtection",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "setLabelProtection"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "set_label_protection",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 18
       },
@@ -4819,8 +4819,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:set_paused",
-      "capability": "dotns",
+      "id": "names:set_paused",
+      "capability": "names",
       "method": "set_paused",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4835,19 +4835,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "paused": true
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "SetPaused",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "setPaused"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "set_paused",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 19
       },
@@ -4860,8 +4860,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:force_transfer",
-      "capability": "dotns",
+      "id": "names:force_transfer",
+      "capability": "names",
       "method": "force_transfer",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4886,19 +4886,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "new_owner": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "ForceTransfer",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "forceTransfer"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "force_transfer",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 20
       },
@@ -4912,8 +4912,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:force_revoke",
-      "capability": "dotns",
+      "id": "names:force_revoke",
+      "capability": "names",
       "method": "force_revoke",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4929,19 +4929,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "name": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "ForceRevoke",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "forceRevoke"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "force_revoke",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 21
       },
@@ -4954,8 +4954,8 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "dotns:set_registrar",
-      "capability": "dotns",
+      "id": "names:set_registrar",
+      "capability": "names",
       "method": "set_registrar",
       "finality": "submit-and-finalize",
       "parameters": [
@@ -4979,19 +4979,19 @@ export const NATIVE_ROUTE_CONTRACT = {
         "enabled": true
       },
       "rust": {
-        "declaration": "DotnsCommand",
+        "declaration": "NamesCommand",
         "variant": "SetRegistrar",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
-        "object": "dotns",
+        "object": "names",
         "callable": "setRegistrar"
       },
       "runtime": {
         "kind": "pallet-call",
-        "source": "origin/orbis/pallets/dotns/src/lib.rs",
+        "source": "origin/orbis/pallets/names/src/lib.rs",
         "target": "set_registrar",
-        "pallet": "Dotns",
+        "pallet": "Names",
         "pallet_index": 116,
         "call_index": 22
       },
@@ -11163,7 +11163,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "commit"
@@ -11193,7 +11193,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "cancel_commitment"
@@ -11223,7 +11223,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "prune_expired_commitment"
@@ -11259,7 +11259,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "register"
@@ -11309,7 +11309,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "renew"
@@ -11344,7 +11344,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "transfer"
@@ -11380,7 +11380,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "add_controller"
@@ -11416,7 +11416,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "remove_controller"
@@ -11452,7 +11452,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "set_address"
@@ -11495,7 +11495,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "set_subject"
@@ -11539,7 +11539,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "set_attestation"
@@ -11581,7 +11581,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "set_content"
@@ -11623,7 +11623,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "set_text"
@@ -11672,7 +11672,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "set_primary_name"
@@ -11709,7 +11709,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "release"
@@ -11739,7 +11739,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "remove_expired_name"
@@ -11769,7 +11769,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "reserve_name"
@@ -11838,7 +11838,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "clear_reservation"
@@ -11868,7 +11868,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "set_label_protection"
@@ -11904,7 +11904,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "set_paused"
@@ -11933,7 +11933,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "force_transfer"
@@ -11969,7 +11969,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "force_revoke"
@@ -11999,7 +11999,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
-                    "const": "dotns"
+                    "const": "names"
                   },
                   "method": {
                     "const": "set_registrar"
@@ -15778,7 +15778,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "commit"
@@ -15808,7 +15808,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "cancel_commitment"
@@ -15838,7 +15838,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "prune_expired_commitment"
@@ -15874,7 +15874,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "register"
@@ -15924,7 +15924,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "renew"
@@ -15959,7 +15959,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "transfer"
@@ -15995,7 +15995,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "add_controller"
@@ -16031,7 +16031,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "remove_controller"
@@ -16067,7 +16067,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "set_address"
@@ -16110,7 +16110,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "set_subject"
@@ -16154,7 +16154,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "set_attestation"
@@ -16196,7 +16196,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "set_content"
@@ -16238,7 +16238,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "set_text"
@@ -16287,7 +16287,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "set_primary_name"
@@ -16324,7 +16324,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "release"
@@ -16354,7 +16354,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "remove_expired_name"
@@ -16384,7 +16384,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "reserve_name"
@@ -16453,7 +16453,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "clear_reservation"
@@ -16483,7 +16483,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "set_label_protection"
@@ -16519,7 +16519,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "set_paused"
@@ -16548,7 +16548,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "force_transfer"
@@ -16584,7 +16584,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "force_revoke"
@@ -16614,7 +16614,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
-                            "const": "dotns"
+                            "const": "names"
                           },
                           "method": {
                             "const": "set_registrar"

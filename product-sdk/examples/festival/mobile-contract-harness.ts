@@ -52,7 +52,7 @@ export async function validatePlatformContractHarness(
   const identityRoutes = routeContract.routes.filter((route: any) => route.capability === "identity");
   const personhoodRoutes = identityRoutes.filter((route: any) => /personhood/i.test(route.method));
   const sponsoredRoutes = [...routeIds].filter((id: any) => /sponsor|meta.?tx/i.test(id));
-  assert.deepEqual(capabilities, ["attestation", "dotns", "identity", "storage", "transaction"]);
+  assert.deepEqual(capabilities, ["attestation", "names", "identity", "storage", "transaction"]);
   assert.equal(identityRoutes.length, 9);
   assert.equal(personhoodRoutes.length, 1);
   assert.equal(sponsoredRoutes.length, 2);

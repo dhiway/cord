@@ -8,7 +8,7 @@ spec/transaction `29/8`. The Orbis metadata identity is
 `origin/orbis/runtime/tools/reproduce-metadata-hash.sh`.
 
 `origin-rs` and `product-sdk` both publish release `0.9.9` and freeze those values in executable
-source. The matrix also freezes each adopted runtime API, pallet storage schema, DotNS label policy,
+source. The matrix also freezes each adopted runtime API, pallet storage schema, Orbis Names label policy,
 and provider protocol version. `npm --prefix product-sdk run validate:sdk-freeze` verifies the
 matrix against the runtime sources, both SDK exports, the generated descriptor, and
 `sdk-native-coverage.report.json`.

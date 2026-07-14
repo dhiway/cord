@@ -73,7 +73,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Asset rates | `pallet_asset_rate` | Present at index 89 with Location-based, Sudo-managed rates |
 | NFTs and uniques | `pallet_nfts`, `pallet_uniques` | Present at indices 88/87 with native collection and mint lifecycle tests |
 | PGAS/allowance integration | Individuality Asset Hub PGAS pallets | Gap; must remain compatible with meta-tx/feeless policy |
-| Alias accounts, DOTNS gateway and origin restriction | Individuality Asset Hub adapters | Gap |
+| Alias accounts, NAMES gateway and origin restriction | Individuality Asset Hub adapters | Gap |
 | Vesting and claims | Asset Hub | Policy gap: include without staking only if enterprise issuance requires them |
 | Snowbridge/bridge frontend | Asset Hub | Deployment-policy gap; not required for Origin-native operation |
 
@@ -100,10 +100,10 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 
 | Capability | Reference semantics | Orbis state |
 |---|---|---|
-| DotNS ownership and lifecycle | DotNS contracts/SDK | Native bounded pallet at index 116 with commit/reveal registration, renewal, transfer, controllers, reservations and root administration |
-| Address/subject/attestation/content/text resolution | DotNS resolvers | Native records reference canonical identities, attestations and TransactionStorage commitments; no contract registry or ABI facade |
-| Label policy | DotNS normalization semantics | Deterministic ASCII policy v1 exposed through the runtime API; non-ASCII and reserved forms fail closed |
-| Rust/TypeScript access | DotNS SDK patterns | CORD-owned typed clients and exact finalized-hash runtime API surface; no changes to the reference DotNS repositories |
+| Orbis Names ownership and lifecycle | Orbis Names contracts/SDK | Native bounded pallet at index 116 with commit/reveal registration, renewal, transfer, controllers, reservations and root administration |
+| Address/subject/attestation/content/text resolution | Orbis Names resolvers | Native records reference canonical identities, attestations and TransactionStorage commitments; no contract registry or ABI facade |
+| Label policy | Orbis Names normalization semantics | Deterministic ASCII policy v1 exposed through the runtime API; non-ASCII and reserved forms fail closed |
+| Rust/TypeScript access | Orbis Names SDK patterns | CORD-owned typed clients and exact finalized-hash runtime API surface; no changes to the reference Orbis Names repositories |
 
 ## Orbis Storage and storage
 

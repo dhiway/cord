@@ -6,8 +6,8 @@
   "native_sdk_entrypoint": "@cord-network/product-sdk-workspace",
   "host_permissions": [
     { "capability": "attestation", "method": "attestation_live_status", "finality": "finalized" },
-    { "capability": "dotns", "method": "resolve_subject", "finality": "finalized" },
-    { "capability": "dotns", "method": "commit", "finality": "submit-and-finalize" },
+    { "capability": "names", "method": "resolve_subject", "finality": "finalized" },
+    { "capability": "names", "method": "commit", "finality": "submit-and-finalize" },
     { "capability": "storage", "method": "provider_by_id", "finality": "finalized" },
     { "capability": "storage", "method": "provider_checkpoint", "finality": "finalized" }
   ],

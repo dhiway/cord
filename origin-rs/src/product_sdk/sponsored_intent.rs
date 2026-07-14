@@ -12,11 +12,11 @@ use crate::{
 	config::{build_orbis_params, OrbisConfig},
 	product_sdk::{
 		domains::{
-			attestation::AttestationCommand, dotns::DotnsCommand, drive::DriveCommand,
+			attestation::AttestationCommand, names::NamesCommand, drive::DriveCommand,
 			identity_personhood::IdentityPersonhoodCommand, s3::S3Command, storage::StorageCommand,
 			storage_provider::StorageProviderCommand, BlockNumber, Validate,
 		},
-		prepare_attestation_command, prepare_dotns_command, prepare_drive_command,
+		prepare_attestation_command, prepare_names_command, prepare_drive_command,
 		prepare_identity_personhood_command, prepare_s3_command, prepare_storage_command,
 		prepare_storage_provider_command, OrbisNativeClient,
 	},
@@ -35,7 +35,7 @@ use crate::{
 pub enum SponsoredNativeTarget {
 	IdentityPersonhood(IdentityPersonhoodCommand),
 	Attestation(AttestationCommand),
-	Dotns(DotnsCommand),
+	Names(NamesCommand),
 	Storage(StorageCommand),
 	StorageProvider(StorageProviderCommand),
 	Drive(DriveCommand),
@@ -47,7 +47,7 @@ impl SponsoredNativeTarget {
 		let result = match self {
 			Self::IdentityPersonhood(command) => command.validate(),
 			Self::Attestation(command) => command.validate_at(current_block),
-			Self::Dotns(command) => command.validate_at(current_block),
+			Self::Names(command) => command.validate_at(current_block),
 			Self::Storage(command) => command.validate(),
 			Self::StorageProvider(command) => command.validate_at(current_block),
 			Self::Drive(command) => command.validate(),
@@ -66,7 +66,7 @@ impl SponsoredNativeTarget {
 		let payload = match self {
 			Self::IdentityPersonhood(command) => prepare_identity_personhood_command(&command),
 			Self::Attestation(command) => prepare_attestation_command(&command),
-			Self::Dotns(command) => prepare_dotns_command(&command),
+			Self::Names(command) => prepare_names_command(&command),
 			Self::Storage(command) => prepare_storage_command(&command),
 			Self::StorageProvider(command) => prepare_storage_provider_command(&command),
 			Self::Drive(command) => prepare_drive_command(&command),

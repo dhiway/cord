@@ -20,7 +20,7 @@
       "chain_spec_source_sha256": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
       "genesis_state_root": "0x3455b0234339e9f97fbdf926721267226782dffaffd382f3f1e9f472099615e1",
       "candidate_identity_source": "docs/genesis/orbis-candidate-genesis-identity.json",
-      "candidate_identity_sha256": "04d596ccb995cf9aa1527a43d7013a99d45d5e6d8f8aa050444bc54aa5bae3bf"
+      "candidate_identity_sha256": "2a7a8d5b8fce4fc2dd15729c3e414d6d68e82ef9a21e12c382b5676d3530ed68"
     },
     "production_activation": {
       "final_genesis_status": "PENDING",
@@ -114,11 +114,11 @@
     "contract_digests": {
       "compatibility": {
         "path": "docs/sdk/compatibility-manifest.json",
-        "canonical_sha256": "67f014cb3e3d329637ca9eba65f5eaa11653f10ffc922c82605080932d99cdda"
+        "canonical_sha256": "3d1c6b48e7da5fa26aca01089bc84d6c22613922eb55858d049e0471d258f7f0"
       },
       "version_matrix": {
         "path": "docs/sdk/native-version-matrix.json",
-        "canonical_sha256": "733685567baab26195bae7ee096d61ac300b9b989d87eeecfab9a1b48ef03091"
+        "canonical_sha256": "192d0261f64e2d5eb1f2d7464fb7acc0c9e11a63637ef5d37dd3346c42d54930"
       },
       "coverage_map": {
         "path": "docs/sdk/contract-to-native-map.json",
@@ -134,7 +134,7 @@
       },
       "host": {
         "path": "docs/sdk/host/host-request.schema.json",
-        "canonical_sha256": "16a7c5db98a4a31db193030ba78c1b7b3a008ae8f45a9ea46c5fbc249a514003"
+        "canonical_sha256": "71fdd69b516b0844f8f413f065506fadd002d654cb353301a969e732e268f139"
       },
       "error": {
         "path": "docs/sdk/native-error.schema.json",
@@ -146,15 +146,15 @@
       },
       "vectors": {
         "path": "docs/sdk/vectors/transaction-policy-vector-registry.json",
-        "canonical_sha256": "0099d535772089a2d4efcd278214b3fa5a61f4796a858612e85f93fe164734bd"
+        "canonical_sha256": "fd2b2418eb6a7f3b55f268d22fb90e934064c1da7db9204a15661fd928fa01d0"
       },
       "native_vectors": {
         "path": "docs/sdk/vectors/native-sdk-v1.json",
-        "canonical_sha256": "82b82f8e31eae5be559fc66c4f584425cc850ba0776b84fdb19919c22668c929"
+        "canonical_sha256": "f8811088defece259fa9173a60e6538ce4f50019666178e0904f16faed3e6dcc"
       },
       "descriptor": {
         "path": "product-sdk/packages/descriptors/generated/orbis-descriptor.json",
-        "canonical_sha256": "bf44c65367fffb5e4987ef3519e82f288428870531193f474565833f61ecbf4d"
+        "canonical_sha256": "f39bff271b2c46eb2883fd4088e75929f944ac7f3ceb93b8d996cba9613b133a"
       },
       "test_report": {
         "path": "docs/evidence/verification/p0/test-report-contract.json",
@@ -162,7 +162,7 @@
       }
     }
   },
-  "payload_sha256": "05445b67cd8ff824dac9376b4635abf6c1f069625ee2a0f4b937716037635dee",
+  "payload_sha256": "294df78d3a7baa4c999ce65958db08cae4e29148b8d5d22d5dc114b419bc895e",
   "signatures": [],
   "derived_status": {
     "p0_targets_ratified": false,

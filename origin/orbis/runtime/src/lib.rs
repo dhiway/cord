@@ -88,7 +88,7 @@ use pallet_asset_conversion_tx_payment::SwapAssetAdapter;
 use pallet_assets_precompiles::{ForeignIdConfig, InlineIdConfig, ERC20};
 use pallet_nfts::PalletFeatures;
 pub use pallet_orbis_attestation_runtime_api as attestation_api;
-pub use pallet_orbis_dotns_runtime_api as dotns_api;
+pub use pallet_orbis_names_runtime_api as names_api;
 use pallet_origin_token::Token as TokenTrait;
 use pallet_revive::evm::runtime::EthExtra;
 use pallet_transaction_payment::FungibleAdapter;
@@ -2210,16 +2210,16 @@ impl pallet_orbis_s3::ContentHashValidator for OrbisStorageLedger {
 	}
 }
 
-impl pallet_orbis_dotns::ContentReferenceValidator<[u8; 32]> for OrbisStorageLedger {
+impl pallet_orbis_names::ContentReferenceValidator<[u8; 32]> for OrbisStorageLedger {
 	fn contains(content_hash: &[u8; 32]) -> bool {
 		TransactionStorage::contains_transaction(*content_hash)
 	}
 }
 
-/// DotNS keeps canonical identifiers only; Entity remains the sole subject authority.
+/// Orbis Names keeps canonical identifiers only; Entity remains the sole subject authority.
 pub struct OrbisIdentityRegistry;
 
-impl pallet_orbis_dotns::SubjectReferenceValidator<Ss58Identifier> for OrbisIdentityRegistry {
+impl pallet_orbis_names::SubjectReferenceValidator<Ss58Identifier> for OrbisIdentityRegistry {
 	fn contains(subject: &Ss58Identifier) -> bool {
 		pallet_origin_entity::EntityInfoOf::<Runtime>::contains_key(subject)
 	}
@@ -2228,7 +2228,7 @@ impl pallet_orbis_dotns::SubjectReferenceValidator<Ss58Identifier> for OrbisIden
 /// Attestation remains the sole authority for opaque attestation liveness.
 pub struct OrbisAttestationRegistry;
 
-impl pallet_orbis_dotns::AttestationReferenceValidator<Hash> for OrbisAttestationRegistry {
+impl pallet_orbis_names::AttestationReferenceValidator<Hash> for OrbisAttestationRegistry {
 	fn is_live(attestation: &Hash) -> bool {
 		pallet_orbis_attestation::Pallet::<Runtime>::is_live(*attestation)
 	}
@@ -2250,27 +2250,27 @@ impl pallet_orbis_drive::Config for Runtime {
 }
 
 parameter_types! {
-	pub const DotnsMaxLabelLength: u32 = 63;
-	pub const DotnsMaxSaltLength: u32 = 64;
-	pub const DotnsMaxAddressLength: u32 = 128;
-	pub const DotnsMaxTextKeyLength: u32 = 32;
-	pub const DotnsMaxTextValueLength: u32 = 256;
-	pub const DotnsMaxTextRecords: u32 = 32;
-	pub const DotnsMaxControllers: u32 = 32;
-	pub const DotnsMaxRegistrars: u32 = 16;
-	pub const DotnsMaxBootstrapReservations: u32 = 64;
-	pub const DotnsMaxNamesPerOwner: u32 = 256;
-	pub const DotnsMaxChildrenPerName: u32 = 256;
-	pub const DotnsMaxRootNames: u32 = 10_000;
-	pub const DotnsMaxNameDepth: u32 = 16;
-	pub const DotnsMaxCommitmentsPerAccount: u32 = 32;
-	pub const DotnsMinCommitmentAge: BlockNumber = 2;
-	pub const DotnsMaxCommitmentAge: BlockNumber = 600;
-	pub const DotnsRegistrationPeriod: BlockNumber = 365 * DAYS;
-	pub const DotnsMaxRenewalPeriod: BlockNumber = 365 * DAYS;
+	pub const NamesMaxLabelLength: u32 = 63;
+	pub const NamesMaxSaltLength: u32 = 64;
+	pub const NamesMaxAddressLength: u32 = 128;
+	pub const NamesMaxTextKeyLength: u32 = 32;
+	pub const NamesMaxTextValueLength: u32 = 256;
+	pub const NamesMaxTextRecords: u32 = 32;
+	pub const NamesMaxControllers: u32 = 32;
+	pub const NamesMaxRegistrars: u32 = 16;
+	pub const NamesMaxBootstrapReservations: u32 = 64;
+	pub const NamesMaxNamesPerOwner: u32 = 256;
+	pub const NamesMaxChildrenPerName: u32 = 256;
+	pub const NamesMaxRootNames: u32 = 10_000;
+	pub const NamesMaxNameDepth: u32 = 16;
+	pub const NamesMaxCommitmentsPerAccount: u32 = 32;
+	pub const NamesMinCommitmentAge: BlockNumber = 2;
+	pub const NamesMaxCommitmentAge: BlockNumber = 600;
+	pub const NamesRegistrationPeriod: BlockNumber = 365 * DAYS;
+	pub const NamesMaxRenewalPeriod: BlockNumber = 365 * DAYS;
 }
 
-impl pallet_orbis_dotns::Config for Runtime {
+impl pallet_orbis_names::Config for Runtime {
 	type AdminOrigin = entity::IdentityAdminOrigin;
 	type SubjectId = Ss58Identifier;
 	type SubjectReferenceValidator = OrbisIdentityRegistry;
@@ -2278,25 +2278,25 @@ impl pallet_orbis_dotns::Config for Runtime {
 	type AttestationReferenceValidator = OrbisAttestationRegistry;
 	type ContentCommitment = [u8; 32];
 	type ContentReferenceValidator = OrbisStorageLedger;
-	type MaxLabelLength = DotnsMaxLabelLength;
-	type MaxSaltLength = DotnsMaxSaltLength;
-	type MaxAddressLength = DotnsMaxAddressLength;
-	type MaxTextKeyLength = DotnsMaxTextKeyLength;
-	type MaxTextValueLength = DotnsMaxTextValueLength;
-	type MaxTextRecords = DotnsMaxTextRecords;
-	type MaxControllers = DotnsMaxControllers;
-	type MaxRegistrars = DotnsMaxRegistrars;
-	type MaxBootstrapReservations = DotnsMaxBootstrapReservations;
-	type MaxNamesPerOwner = DotnsMaxNamesPerOwner;
-	type MaxChildrenPerName = DotnsMaxChildrenPerName;
-	type MaxRootNames = DotnsMaxRootNames;
-	type MaxNameDepth = DotnsMaxNameDepth;
-	type MaxCommitmentsPerAccount = DotnsMaxCommitmentsPerAccount;
-	type MinCommitmentAge = DotnsMinCommitmentAge;
-	type MaxCommitmentAge = DotnsMaxCommitmentAge;
-	type RegistrationPeriod = DotnsRegistrationPeriod;
-	type MaxRenewalPeriod = DotnsMaxRenewalPeriod;
-	type WeightInfo = pallet_orbis_dotns::weights::SubstrateWeight<Runtime>;
+	type MaxLabelLength = NamesMaxLabelLength;
+	type MaxSaltLength = NamesMaxSaltLength;
+	type MaxAddressLength = NamesMaxAddressLength;
+	type MaxTextKeyLength = NamesMaxTextKeyLength;
+	type MaxTextValueLength = NamesMaxTextValueLength;
+	type MaxTextRecords = NamesMaxTextRecords;
+	type MaxControllers = NamesMaxControllers;
+	type MaxRegistrars = NamesMaxRegistrars;
+	type MaxBootstrapReservations = NamesMaxBootstrapReservations;
+	type MaxNamesPerOwner = NamesMaxNamesPerOwner;
+	type MaxChildrenPerName = NamesMaxChildrenPerName;
+	type MaxRootNames = NamesMaxRootNames;
+	type MaxNameDepth = NamesMaxNameDepth;
+	type MaxCommitmentsPerAccount = NamesMaxCommitmentsPerAccount;
+	type MinCommitmentAge = NamesMinCommitmentAge;
+	type MaxCommitmentAge = NamesMaxCommitmentAge;
+	type RegistrationPeriod = NamesRegistrationPeriod;
+	type MaxRenewalPeriod = NamesMaxRenewalPeriod;
+	type WeightInfo = pallet_orbis_names::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -2421,7 +2421,7 @@ construct_runtime!(
 		// Orbis Storage durable transaction storage and proof accounting.
 		TransactionStorage: pallet_orbis_transaction_storage = 110,
 		HopPromotion: pallet_orbis_hop_promotion = 111,
-		Dotns: pallet_orbis_dotns = 116,
+		Names: pallet_orbis_names = 116,
 		StorageProvider: pallet_orbis_storage_provider = 120,
 		Drive: pallet_orbis_drive = 121,
 		S3: pallet_orbis_s3 = 122,
@@ -3527,17 +3527,17 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 		}
 	}
 
-	impl dotns_api::DotnsApi<Block, AccountId, BlockNumber, Hash, Ss58Identifier, Hash, [u8; 32]>
+	impl names_api::NamesApi<Block, AccountId, BlockNumber, Hash, Ss58Identifier, Hash, [u8; 32]>
 		for Runtime
 	{
 		fn label_policy_version() -> u16 {
-			Dotns::label_policy_version()
+			Names::label_policy_version()
 		}
 
-		fn name_by_id(name: Hash) -> dotns_api::Versioned<dotns_api::NameView<AccountId, BlockNumber, Hash>> {
-			let value = pallet_orbis_dotns::Names::<Runtime>::get(name).and_then(|record| {
+		fn name_by_id(name: Hash) -> names_api::Versioned<names_api::NameView<AccountId, BlockNumber, Hash>> {
+			let value = pallet_orbis_names::Names::<Runtime>::get(name).and_then(|record| {
 				let label = record.label.to_vec().try_into().ok()?;
-				Some(dotns_api::NameView {
+				Some(names_api::NameView {
 					name,
 					parent: record.parent,
 					label,
@@ -3546,105 +3546,105 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 					depth: record.depth,
 				})
 			});
-			dotns_api::Versioned::new(value)
+			names_api::Versioned::new(value)
 		}
 
-		fn root_name_by_normalized_label(label: dotns_api::NormalizedLabel) -> dotns_api::Versioned<Hash> {
-			let value = Dotns::validate_label(label.to_vec()).ok().and_then(|label| {
-				let name = Dotns::derive_name_id(None, &label);
-				pallet_orbis_dotns::Names::<Runtime>::contains_key(name).then_some(name)
+		fn root_name_by_normalized_label(label: names_api::NormalizedLabel) -> names_api::Versioned<Hash> {
+			let value = Names::validate_label(label.to_vec()).ok().and_then(|label| {
+				let name = Names::derive_name_id(None, &label);
+				pallet_orbis_names::Names::<Runtime>::contains_key(name).then_some(name)
 			});
-			dotns_api::Versioned::new(value)
+			names_api::Versioned::new(value)
 		}
 
 		fn owner_names(
 			owner: AccountId,
 			cursor: Option<u32>,
 			limit: u32,
-		) -> dotns_api::OwnerNamesPage<Hash> {
-			let all = pallet_orbis_dotns::OwnerNames::<Runtime>::get(owner);
+		) -> names_api::OwnerNamesPage<Hash> {
+			let all = pallet_orbis_names::OwnerNames::<Runtime>::get(owner);
 			if limit == 0 {
-				return dotns_api::OwnerNamesPage::new(Default::default(), None);
+				return names_api::OwnerNamesPage::new(Default::default(), None);
 			}
 			let start = cursor.unwrap_or(0) as usize;
-			let take = limit.min(dotns_api::MAX_OWNER_NAMES_PAGE_SIZE) as usize;
+			let take = limit.min(names_api::MAX_OWNER_NAMES_PAGE_SIZE) as usize;
 			let end = start.saturating_add(take).min(all.len());
 			let values = if start < all.len() { all[start..end].to_vec() } else { Vec::new() };
 			let names = values.try_into().unwrap_or_default();
 			let next_cursor = (end < all.len()).then_some(end as u32);
-			dotns_api::OwnerNamesPage::new(names, next_cursor)
+			names_api::OwnerNamesPage::new(names, next_cursor)
 		}
 
-		fn controllers(name: Hash) -> dotns_api::Versioned<dotns_api::ControllerItems<AccountId>> {
-			let value = pallet_orbis_dotns::Names::<Runtime>::contains_key(name).then(|| {
-				pallet_orbis_dotns::Controllers::<Runtime>::get(name)
+		fn controllers(name: Hash) -> names_api::Versioned<names_api::ControllerItems<AccountId>> {
+			let value = pallet_orbis_names::Names::<Runtime>::contains_key(name).then(|| {
+				pallet_orbis_names::Controllers::<Runtime>::get(name)
 					.to_vec()
 					.try_into()
 					.expect("runtime controller bound is within API controller bound")
 			});
-			dotns_api::Versioned::new(value)
+			names_api::Versioned::new(value)
 		}
 
-		fn resolve_address(name: Hash) -> dotns_api::Versioned<dotns_api::Address> {
-			let value = Dotns::is_name_active(name)
-				.then(|| pallet_orbis_dotns::Names::<Runtime>::get(name))
+		fn resolve_address(name: Hash) -> names_api::Versioned<names_api::Address> {
+			let value = Names::is_name_active(name)
+				.then(|| pallet_orbis_names::Names::<Runtime>::get(name))
 				.flatten()
 				.and_then(|record| record.address)
 				.and_then(|address| address.to_vec().try_into().ok());
-			dotns_api::Versioned::new(value)
+			names_api::Versioned::new(value)
 		}
 
-		fn resolve_subject(name: Hash) -> dotns_api::Versioned<Ss58Identifier> {
-			let value = Dotns::is_name_active(name)
-				.then(|| pallet_orbis_dotns::Names::<Runtime>::get(name))
+		fn resolve_subject(name: Hash) -> names_api::Versioned<Ss58Identifier> {
+			let value = Names::is_name_active(name)
+				.then(|| pallet_orbis_names::Names::<Runtime>::get(name))
 				.flatten()
 				.and_then(|record| record.subject);
-			dotns_api::Versioned::new(value)
+			names_api::Versioned::new(value)
 		}
 
-		fn resolve_attestation(name: Hash) -> dotns_api::Versioned<Hash> {
-			let value = Dotns::is_name_active(name)
-				.then(|| pallet_orbis_dotns::Names::<Runtime>::get(name))
+		fn resolve_attestation(name: Hash) -> names_api::Versioned<Hash> {
+			let value = Names::is_name_active(name)
+				.then(|| pallet_orbis_names::Names::<Runtime>::get(name))
 				.flatten()
 				.and_then(|record| record.attestation)
 				.filter(|attestation| Attestation::is_live(*attestation));
-			dotns_api::Versioned::new(value)
+			names_api::Versioned::new(value)
 		}
 
-		fn resolve_content(name: Hash) -> dotns_api::Versioned<[u8; 32]> {
-			let value = Dotns::is_name_active(name)
-				.then(|| pallet_orbis_dotns::Names::<Runtime>::get(name))
+		fn resolve_content(name: Hash) -> names_api::Versioned<[u8; 32]> {
+			let value = Names::is_name_active(name)
+				.then(|| pallet_orbis_names::Names::<Runtime>::get(name))
 				.flatten()
 				.and_then(|record| record.content);
-			dotns_api::Versioned::new(value)
+			names_api::Versioned::new(value)
 		}
 
-		fn resolve_text(name: Hash, key: dotns_api::TextKey) -> dotns_api::Versioned<dotns_api::TextValue> {
-			let value = if Dotns::is_name_active(name) {
-				pallet_orbis_dotns::TextKeyOf::<Runtime>::try_from(key.to_vec())
+		fn resolve_text(name: Hash, key: names_api::TextKey) -> names_api::Versioned<names_api::TextValue> {
+			let value = if Names::is_name_active(name) {
+				pallet_orbis_names::TextKeyOf::<Runtime>::try_from(key.to_vec())
 					.ok()
-					.and_then(|key| pallet_orbis_dotns::TextRecords::<Runtime>::get(name, key))
+					.and_then(|key| pallet_orbis_names::TextRecords::<Runtime>::get(name, key))
 					.and_then(|value| value.to_vec().try_into().ok())
 			} else {
 				None
 			};
-			dotns_api::Versioned::new(value)
+			names_api::Versioned::new(value)
 		}
 
-		fn primary_name(owner: AccountId) -> dotns_api::Versioned<Hash> {
-			dotns_api::Versioned::new(Dotns::primary_name(&owner))
+		fn primary_name(owner: AccountId) -> names_api::Versioned<Hash> {
+			names_api::Versioned::new(Names::primary_name(&owner))
 		}
 
-		fn name_status(name: Hash) -> dotns_api::NameStatus<BlockNumber> {
-			match pallet_orbis_dotns::Names::<Runtime>::get(name) {
-				Some(record) => dotns_api::NameStatus {
-					version: dotns_api::RESPONSE_VERSION,
+		fn name_status(name: Hash) -> names_api::NameStatus<BlockNumber> {
+			match pallet_orbis_names::Names::<Runtime>::get(name) {
+				Some(record) => names_api::NameStatus {
+					version: names_api::RESPONSE_VERSION,
 					exists: true,
-					active: Dotns::is_name_active(name),
+					active: Names::is_name_active(name),
 					expires_at: Some(record.expires_at),
 				},
-				None => dotns_api::NameStatus {
-					version: dotns_api::RESPONSE_VERSION,
+				None => names_api::NameStatus {
+					version: names_api::RESPONSE_VERSION,
 					exists: false,
 					active: false,
 					expires_at: None,

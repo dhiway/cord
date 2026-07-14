@@ -3,9 +3,9 @@
     "AC23": "pass",
     "M7": "pass",
     "M9": "pass",
-    "feature_benchmarks": "pass",
+    "feature_benchmarks": "not-executed",
     "feature_completeness": "pass",
-    "operator_bootstrap": "local-executable-pass-live-chain-deferred"
+    "operator_bootstrap": "static-contract-pass-execution-not-run"
   },
   "errors": [],
   "reports": [

@@ -17,22 +17,22 @@
     "chain_spec_source_sha256": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
     "genesis_state_root": "0x3455b0234339e9f97fbdf926721267226782dffaffd382f3f1e9f472099615e1",
     "candidate_identity_source": "docs/genesis/orbis-candidate-genesis-identity.json",
-    "candidate_identity_sha256": "04d596ccb995cf9aa1527a43d7013a99d45d5e6d8f8aa050444bc54aa5bae3bf"
+    "candidate_identity_sha256": "2a7a8d5b8fce4fc2dd15729c3e414d6d68e82ef9a21e12c382b5676d3530ed68"
   },
   "networkActivation": {
     "state": "candidate-pending",
     "productionActivationReady": false,
     "source": "docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"
   },
-  "ratificationPayloadSha256": "05445b67cd8ff824dac9376b4635abf6c1f069625ee2a0f4b937716037635dee",
+  "ratificationPayloadSha256": "294df78d3a7baa4c999ce65958db08cae4e29148b8d5d22d5dc114b419bc895e",
   "sources": {
     "compatibility": {
       "path": "docs/sdk/compatibility-manifest.json",
-      "sha256": "67f014cb3e3d329637ca9eba65f5eaa11653f10ffc922c82605080932d99cdda"
+      "sha256": "3d1c6b48e7da5fa26aca01089bc84d6c22613922eb55858d049e0471d258f7f0"
     },
     "versionMatrix": {
       "path": "docs/sdk/native-version-matrix.json",
-      "sha256": "93f41f07b3f1c4d466eea30878e9f573902f0c9bb175970ecded899a61a18f02"
+      "sha256": "e288fe3f10ca7dab28d19258d0709e86af372a8c576f1a3f2ab96c05f49d68b0"
     },
     "extensions": {
       "path": "docs/sdk/signed-extension-manifest.json",
@@ -44,19 +44,19 @@
     },
     "vectors": {
       "path": "docs/sdk/vectors/native-sdk-v1.json",
-      "sha256": "eb3b3fb36b89b9d17cf38af838841274759d06ac4bdb9ba81f252f6ba2ca8115"
+      "sha256": "37174b7b41c06d112d8a35f2daff6cda488057fc1c8888d9bed5f96c97e4b026"
     },
     "genesisIdentity": {
       "path": "docs/genesis/orbis-candidate-genesis-identity.json",
-      "sha256": "04d596ccb995cf9aa1527a43d7013a99d45d5e6d8f8aa050444bc54aa5bae3bf"
+      "sha256": "2a7a8d5b8fce4fc2dd15729c3e414d6d68e82ef9a21e12c382b5676d3530ed68"
     },
     "chainSpec": {
       "path": "origin/orbis/node/src/chain_spec.rs",
-      "sha256": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb"
+      "sha256": "0199092fe8c40201459f566c766ebf2bd2dfc3bc6dfc62badd5116edcc88dbab"
     },
     "nativeRouteContract": {
       "path": "docs/sdk/native-route-contract.json",
-      "sha256": "5821b5f7205abb360a535bd6cf84eaf50b2b1cab51f3422c7d3104b4442c73e6"
+      "sha256": "156e93a88020ced8ee9a854d451fcfdda39755fafad4404d4c855f240b6380e8"
     }
   },
   "signedExtensionSurfaces": {
@@ -446,13 +446,13 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "label_policy_version",
         "finality": "finalized",
         "payloadFields": []
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "name_by_id",
         "finality": "finalized",
         "payloadFields": [
@@ -460,7 +460,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "root_name_by_normalized_label",
         "finality": "finalized",
         "payloadFields": [
@@ -468,7 +468,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "owner_names",
         "finality": "finalized",
         "payloadFields": [
@@ -478,7 +478,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "controllers",
         "finality": "finalized",
         "payloadFields": [
@@ -486,7 +486,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "resolve_address",
         "finality": "finalized",
         "payloadFields": [
@@ -494,7 +494,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "resolve_subject",
         "finality": "finalized",
         "payloadFields": [
@@ -502,7 +502,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "resolve_attestation",
         "finality": "finalized",
         "payloadFields": [
@@ -510,7 +510,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "resolve_content",
         "finality": "finalized",
         "payloadFields": [
@@ -518,7 +518,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "resolve_text",
         "finality": "finalized",
         "payloadFields": [
@@ -527,7 +527,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "primary_name",
         "finality": "finalized",
         "payloadFields": [
@@ -535,7 +535,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "name_status",
         "finality": "finalized",
         "payloadFields": [
@@ -543,7 +543,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "commit",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -551,7 +551,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "cancel_commitment",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -559,7 +559,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "prune_expired_commitment",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -568,7 +568,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "register",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -578,7 +578,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "renew",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -587,7 +587,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "transfer",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -596,7 +596,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "add_controller",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -605,7 +605,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "remove_controller",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -614,7 +614,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "set_address",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -623,7 +623,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "set_subject",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -632,7 +632,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "set_attestation",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -641,7 +641,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "set_content",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -650,7 +650,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "set_text",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -660,7 +660,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "set_primary_name",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -668,7 +668,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "release",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -676,7 +676,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "remove_expired_name",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -684,7 +684,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "reserve_name",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -695,7 +695,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "clear_reservation",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -703,7 +703,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "set_label_protection",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -712,7 +712,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "set_paused",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -720,7 +720,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "force_transfer",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -729,7 +729,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "force_revoke",
         "finality": "submit-and-finalize",
         "payloadFields": [
@@ -737,7 +737,7 @@
         ]
       },
       {
-        "capability": "dotns",
+        "capability": "names",
         "method": "set_registrar",
         "finality": "submit-and-finalize",
         "payloadFields": [

@@ -40,7 +40,7 @@
       "candidate_genesis_header_hash": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
       "candidate_genesis_state_root": "0x3455b0234339e9f97fbdf926721267226782dffaffd382f3f1e9f472099615e1",
       "candidate_genesis_identity_source": "docs/genesis/orbis-candidate-genesis-identity.json",
-      "candidate_genesis_identity_sha256": "04d596ccb995cf9aa1527a43d7013a99d45d5e6d8f8aa050444bc54aa5bae3bf",
+      "candidate_genesis_identity_sha256": "2a7a8d5b8fce4fc2dd15729c3e414d6d68e82ef9a21e12c382b5676d3530ed68",
       "compact_wasm_sha256": "558727456824d1f06928148ffead8cee5d58a63bf9109d0334a061f30c35db0f",
       "activation_state": "candidate-pending",
       "production_activation_ready": false
@@ -67,9 +67,9 @@
       "version": 1,
       "source": "origin/orbis/pallets/attestation/runtime-api/src/lib.rs"
     },
-    "dotns": {
+    "names": {
       "version": 1,
-      "source": "origin/orbis/pallets/dotns/runtime-api/src/lib.rs"
+      "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs"
     },
     "storage_provider": {
       "version": 4,
@@ -89,9 +89,9 @@
       "version": 1,
       "source": "origin/orbis/pallets/attestation/src/lib.rs"
     },
-    "dotns": {
+    "names": {
       "version": 1,
-      "source": "origin/orbis/pallets/dotns/src/lib.rs"
+      "source": "origin/orbis/pallets/names/src/lib.rs"
     },
     "storage_provider": {
       "version": 5,
@@ -115,9 +115,9 @@
     }
   },
   "service_protocols": {
-    "dotns_label_policy": {
+    "names_label_policy": {
       "version": 1,
-      "source": "docs/sdk/vectors/dotns-v1.json"
+      "source": "docs/sdk/vectors/names-v1.json"
     },
     "storage_provider": {
       "version": 4,

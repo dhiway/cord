@@ -1,4 +1,4 @@
-manifest_version = 18
+manifest_version = 19
 scope = "origin-orbis-enterprise-completion"
 implementation_branch = "sm-update-sub-0x63"
 current_state = "p2-p6-native-feature-implementation-present-production-validation-deferred"
@@ -9,8 +9,8 @@ max_s3_object_key_bytes = 1024
 
 [replanning]
 rule = "Adding or removing any row, method, service, scenario, or exclusion requires independent review and a manifest_version increment."
-iteration = 18
-decision = "clean-break-dead-code-and-fixture-removal"
+iteration = 19
+decision = "orbis-names-native-brand-cutover"
 plan_evidence = "docs/adr/0017-native-feature-source-of-truth.md"
 transition_architect_evidence = ""
 transition_architect_status = "pending"
@@ -1403,100 +1403,100 @@ state = "present"
 evidence = "origin/orbis/pallets/attestation/runtime-api/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
-id = "API-DotnsApi-01"
-api = "DotnsApi"
+id = "API-NamesApi-01"
+api = "NamesApi"
 method = "name_by_id(name: Hash) -> Versioned<NameView>"
 max_results = 1
 state = "present"
 evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
-id = "API-DotnsApi-02"
-api = "DotnsApi"
+id = "API-NamesApi-02"
+api = "NamesApi"
 method = "root_name_by_normalized_label(label: NormalizedLabel) -> Versioned<Hash>"
 max_results = 1
 state = "present"
 evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
-id = "API-DotnsApi-03"
-api = "DotnsApi"
+id = "API-NamesApi-03"
+api = "NamesApi"
 method = "owner_names(owner: AccountId, cursor: Option<u32>, limit: u32) -> OwnerNamesPage<Hash>"
 max_results = 100
 state = "present"
 evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
-id = "API-DotnsApi-04"
-api = "DotnsApi"
+id = "API-NamesApi-04"
+api = "NamesApi"
 method = "resolve_address(name: Hash) -> Versioned<Address>"
 max_results = 1
 state = "present"
 evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
-id = "API-DotnsApi-05"
-api = "DotnsApi"
+id = "API-NamesApi-05"
+api = "NamesApi"
 method = "resolve_subject(name: Hash) -> Versioned<Hash>"
 max_results = 1
 state = "present"
 evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
-id = "API-DotnsApi-06"
-api = "DotnsApi"
+id = "API-NamesApi-06"
+api = "NamesApi"
 method = "resolve_attestation(name: Hash) -> Versioned<Hash>"
 max_results = 1
 state = "present"
 evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
-id = "API-DotnsApi-07"
-api = "DotnsApi"
+id = "API-NamesApi-07"
+api = "NamesApi"
 method = "resolve_content(name: Hash) -> Versioned<Hash>"
 max_results = 1
 state = "present"
 evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
-id = "API-DotnsApi-08"
-api = "DotnsApi"
+id = "API-NamesApi-08"
+api = "NamesApi"
 method = "resolve_text(name: Hash, key: TextKey) -> Versioned<TextValue>"
 max_results = 1
 state = "present"
 evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
-id = "API-DotnsApi-09"
-api = "DotnsApi"
+id = "API-NamesApi-09"
+api = "NamesApi"
 method = "primary_name(owner: AccountId) -> Versioned<Hash>"
 max_results = 1
 state = "present"
 evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
-id = "API-DotnsApi-10"
-api = "DotnsApi"
+id = "API-NamesApi-10"
+api = "NamesApi"
 method = "name_status(name: Hash) -> NameStatus<BlockNumber>"
 max_results = 1
 state = "present"
 evidence = "native runtime-api crate; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
-id = "API-DotnsApi-11"
-api = "DotnsApi"
+id = "API-NamesApi-11"
+api = "NamesApi"
 method = "label_policy_version() -> u16"
 max_results = 1
 state = "present"
-evidence = "origin/orbis/pallets/dotns/runtime-api/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+evidence = "origin/orbis/pallets/names/runtime-api/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
-id = "API-DotnsApi-12"
-api = "DotnsApi"
+id = "API-NamesApi-12"
+api = "NamesApi"
 method = "controllers(name: Hash) -> Versioned<ControllerItems<AccountId>>"
 max_results = 32
 state = "present"
-evidence = "origin/orbis/pallets/dotns/runtime-api/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+evidence = "origin/orbis/pallets/names/runtime-api/src/lib.rs; origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
 id = "API-StorageProviderApi-13"
@@ -2564,13 +2564,13 @@ evidence = "not admitted: no duplicate origin-policy pallet is required"
 
 [[runtime_pallet]]
 id = "PAL-116"
-name = "dotns"
+name = "names"
 index = 116
-package = "pallet-orbis-dotns"
+package = "pallet-orbis-names"
 source = "cord"
 license = "GPL-3.0-or-later"
 state = "present"
-evidence = "origin/orbis/pallets/dotns; origin/orbis/runtime/src/lib.rs:index-116"
+evidence = "origin/orbis/pallets/names; origin/orbis/runtime/src/lib.rs:index-116"
 
 [[runtime_pallet]]
 id = "PAL-120"
@@ -2720,7 +2720,7 @@ evidence = "capability excluded from enterprise launch scope"
 
 [[benchmark]]
 id = "BENCH-52"
-target = "indiv_pallet_dotns_gateway"
+target = "indiv_pallet_names_gateway"
 state = "excluded"
 evidence = "capability excluded from enterprise launch scope"
 
@@ -2854,11 +2854,11 @@ state = "not-applicable-excluded"
 evidence = "capability excluded; no pallet or state exists at genesis"
 
 [[migration]]
-id = "MIG-pallet-orbis-dotns"
-package = "pallet-orbis-dotns"
+id = "MIG-pallet-orbis-names"
+package = "pallet-orbis-names"
 storage_version = "1"
 state = "not-applicable-clean-genesis-current-schema"
-evidence = "origin/orbis/pallets/dotns/src/lib.rs:STORAGE_VERSION; no predecessor hook"
+evidence = "origin/orbis/pallets/names/src/lib.rs:STORAGE_VERSION; no predecessor hook"
 
 [[migration]]
 id = "MIG-pallet-orbis-storage-provider"
@@ -3154,9 +3154,9 @@ source = "individuality-community"
 license = "Apache-2.0"
 
 [[package_provenance]]
-package = "indiv-pallet-dotns-gateway"
+package = "indiv-pallet-names-gateway"
 version = "0.1.0"
-source_path = "pallets/dotns-gateway"
+source_path = "pallets/names-gateway"
 source = "individuality-community"
 license = "Apache-2.0"
 

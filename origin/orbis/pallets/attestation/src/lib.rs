@@ -412,7 +412,7 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
-	/// O(1) membership predicate used by runtime integrations such as DotNS. Attestations are
+	/// O(1) membership predicate used by runtime integrations such as Orbis Names. Attestations are
 	/// append-only, so a boolean is sufficient and does not duplicate any mutable record.
 	#[pallet::storage]
 	pub type KnownSubjects<T: Config> = StorageMap<_, Blake2_128Concat, T::Hash, (), OptionQuery>;

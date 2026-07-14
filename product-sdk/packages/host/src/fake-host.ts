@@ -39,7 +39,7 @@ export interface HostDependencies {
   submitAndFinalize?: HostRoute;
   onTerminal?: (requestId: string, outcome: string) => void;
 }
-const CAPABILITIES = new Set(["identity", "attestation", "dotns", "storage", "content", "assets", "transaction"]);
+const CAPABILITIES = new Set(["identity", "attestation", "names", "storage", "content", "assets", "transaction"]);
 const METHOD_SCOPES = new Set(NATIVE_HOST_METHODS.map(({ capability, method }) => `${capability}:${method}`));
 
 export class FakeHost {

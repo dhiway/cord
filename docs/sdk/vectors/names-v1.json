@@ -21,13 +21,13 @@
       "genesis_hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
       "parent": null,
       "label": "alice",
-      "name_id": "0x3b30143f3602d40a2bf8df269be4e0e6534be1117f9508f5670abf6fdcae9cf7"
+      "name_id": "0x025af7a96ce91d1996f31739dec867e859b27164ab6edca6d6c6147e6822dc31"
     },
     {
       "genesis_hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
-      "parent": "0x3b30143f3602d40a2bf8df269be4e0e6534be1117f9508f5670abf6fdcae9cf7",
+      "parent": "0x025af7a96ce91d1996f31739dec867e859b27164ab6edca6d6c6147e6822dc31",
       "label": "app",
-      "name_id": "0x73d78633f8b98c0ff93925731d75a752810123611c5c522ec177fb4b092f7aa3"
+      "name_id": "0x073287e1dc95d37f7f875cfd4bbfd66d36a6c75d81fbc546c2b9ecbcae36b500"
     }
   ],
   "commitments": [
@@ -37,8 +37,8 @@
       "parent": null,
       "label": "alice",
       "salt": "secret-01",
-      "name_id": "0x3b30143f3602d40a2bf8df269be4e0e6534be1117f9508f5670abf6fdcae9cf7",
-      "commitment": "0x54ec8299f0ba63af520d5338daba37934e23a8f4b76eba3011e4339e35f38915"
+      "name_id": "0x025af7a96ce91d1996f31739dec867e859b27164ab6edca6d6c6147e6822dc31",
+      "commitment": "0xeb5c7654e63bcbc60776c2b960a0758017c17eb20cef4a2f09bd13197f069c39"
     }
   ],
   "event_kinds": [

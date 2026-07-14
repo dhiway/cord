@@ -26,7 +26,7 @@ use crate::{
 				SignatureScheme, SignedDelegatedIssue, SignedDelegatedRevoke,
 			},
 			common::{AccountId, DomainResult, Hash32, SubmitAndFinalize, Validate},
-			dotns::{DotnsCommand, DotnsRead, DotnsResponse},
+			names::{NamesCommand, NamesRead, NamesResponse},
 			drive::{DriveCommand, DriveRead, DriveResponse},
 			identity_personhood::{
 				IdentityData, IdentityInfo, IdentityPersonhoodCommand, IdentityPersonhoodRead,
@@ -58,7 +58,7 @@ pub trait FinalizedReadBinding: Send + Sync {
 		query: &IdentityPersonhoodRead,
 	) -> DomainResult<IdentityPersonhoodResponse>;
 	async fn attestation(&self, query: &AttestationRead) -> DomainResult<AttestationResponse>;
-	async fn dotns(&self, query: &DotnsRead) -> DomainResult<DotnsResponse>;
+	async fn names(&self, query: &NamesRead) -> DomainResult<NamesResponse>;
 	async fn storage_provider(
 		&self,
 		query: &StorageProviderRead,
@@ -85,7 +85,7 @@ impl FinalizedReadBinding for MissingFinalizedReadBinding {
 		Err(read_binding_required())
 	}
 
-	async fn dotns(&self, _query: &DotnsRead) -> DomainResult<DotnsResponse> {
+	async fn names(&self, _query: &NamesRead) -> DomainResult<NamesResponse> {
 		Err(read_binding_required())
 	}
 
@@ -153,9 +153,9 @@ impl<R: FinalizedReadBinding> NativeDomainTransport<R> {
 		self.reads.attestation(query).await
 	}
 
-	pub async fn read_dotns(&self, query: &DotnsRead) -> DomainResult<DotnsResponse> {
+	pub async fn read_names(&self, query: &NamesRead) -> DomainResult<NamesResponse> {
 		query.validate()?;
-		self.reads.dotns(query).await
+		self.reads.names(query).await
 	}
 
 	pub async fn read_storage_provider(
@@ -195,11 +195,11 @@ impl<R: FinalizedReadBinding> NativeDomainTransport<R> {
 		self.submit(intent, prepare_identity_personhood_command(&intent.command)?).await
 	}
 
-	pub async fn submit_dotns(
+	pub async fn submit_names(
 		&self,
-		intent: &SubmitAndFinalize<DotnsCommand>,
+		intent: &SubmitAndFinalize<NamesCommand>,
 	) -> DomainResult<NativeLifecycle> {
-		self.submit(intent, prepare_dotns_command(&intent.command)?).await
+		self.submit(intent, prepare_names_command(&intent.command)?).await
 	}
 
 	pub async fn submit_storage_provider(
@@ -489,9 +489,9 @@ impl<R: FinalizedReadBinding, G: GovernedSudoBinding> OrbisDomainTransport<R, G>
 		self.reads.attestation(query).await
 	}
 
-	pub async fn read_dotns(&self, query: &DotnsRead) -> DomainResult<DotnsResponse> {
+	pub async fn read_names(&self, query: &NamesRead) -> DomainResult<NamesResponse> {
 		query.validate()?;
-		self.reads.dotns(query).await
+		self.reads.names(query).await
 	}
 
 	pub async fn read_storage_provider(
@@ -534,12 +534,12 @@ impl<R: FinalizedReadBinding, G: GovernedSudoBinding> OrbisDomainTransport<R, G>
 			.await
 	}
 
-	pub async fn submit_dotns(
+	pub async fn submit_names(
 		&self,
-		intent: &SubmitAndFinalize<DotnsCommand>,
+		intent: &SubmitAndFinalize<NamesCommand>,
 	) -> DomainResult<NativeLifecycle> {
-		let privileged = is_privileged_dotns(&intent.command);
-		self.submit(intent, prepare_dotns_command(&intent.command)?, privileged).await
+		let privileged = is_privileged_names(&intent.command);
+		self.submit(intent, prepare_names_command(&intent.command)?, privileged).await
 	}
 
 	pub async fn submit_storage_provider(
@@ -599,20 +599,20 @@ fn is_privileged_attestation(command: &AttestationCommand) -> bool {
 	)
 }
 
-fn is_privileged_dotns(command: &DotnsCommand) -> bool {
+fn is_privileged_names(command: &NamesCommand) -> bool {
 	matches!(
 		command,
-		DotnsCommand::SetPaused { .. }
-			| DotnsCommand::ForceTransfer { .. }
-			| DotnsCommand::ForceRevoke { .. }
-			| DotnsCommand::SetRegistrar { .. }
+		NamesCommand::SetPaused { .. }
+			| NamesCommand::ForceTransfer { .. }
+			| NamesCommand::ForceRevoke { .. }
+			| NamesCommand::SetRegistrar { .. }
 	)
 }
 
 #[cfg(test)]
-mod dotns_origin_tests {
+mod names_origin_tests {
 	use super::*;
-	use crate::product_sdk::domains::dotns::Label;
+	use crate::product_sdk::domains::names::Label;
 
 	fn name() -> crate::product_sdk::domains::common::NameId {
 		crate::product_sdk::domains::common::NameId::new(format!("0x{}", "11".repeat(32)))
@@ -620,9 +620,9 @@ mod dotns_origin_tests {
 	}
 
 	#[test]
-	fn dotns_commands_follow_the_runtime_origin_contract() {
+	fn names_commands_follow_the_runtime_origin_contract() {
 		let registrar = AccountId::new("registrar").expect("valid account DTO");
-		assert!(is_privileged_dotns(&DotnsCommand::SetRegistrar {
+		assert!(is_privileged_names(&NamesCommand::SetRegistrar {
 			registrar: registrar.clone(),
 			enabled: true,
 		}));
@@ -630,14 +630,14 @@ mod dotns_origin_tests {
 		// These calls accept either IdentityAdminOrigin or a signed scoped registrar in the
 		// runtime. The routine product command must preserve the signed registrar route;
 		// administrative emergency dispatch remains available through governance tooling.
-		assert!(!is_privileged_dotns(&DotnsCommand::ReserveName {
+		assert!(!is_privileged_names(&NamesCommand::ReserveName {
 			parent: None,
 			label: Label::new("system").expect("valid label"),
 			beneficiary: Some(registrar),
 			expires_at: None,
 		}));
-		assert!(!is_privileged_dotns(&DotnsCommand::ClearReservation { name: name() }));
-		assert!(!is_privileged_dotns(&DotnsCommand::SetLabelProtection {
+		assert!(!is_privileged_names(&NamesCommand::ClearReservation { name: name() }));
+		assert!(!is_privileged_names(&NamesCommand::SetLabelProtection {
 			label: Label::new("system").expect("valid label"),
 			protected: true,
 		}));
@@ -850,18 +850,18 @@ pub fn prepare_attestation_command(command: &AttestationCommand) -> DomainResult
 	Ok(subxt::dynamic::tx("Attestation", call, args))
 }
 
-/// Prepare a DotNS call for metadata-derived encoding without submitting it.
-pub fn prepare_dotns_command(command: &DotnsCommand) -> DomainResult<DynamicPayload> {
+/// Prepare an Orbis Names call for metadata-derived encoding without submitting it.
+pub fn prepare_names_command(command: &NamesCommand) -> DomainResult<DynamicPayload> {
 	let (call, args) = match command {
-		DotnsCommand::Commit { commitment } => ("commit", vec![hash_value(commitment.as_hash())?]),
-		DotnsCommand::CancelCommitment { commitment } => {
+		NamesCommand::Commit { commitment } => ("commit", vec![hash_value(commitment.as_hash())?]),
+		NamesCommand::CancelCommitment { commitment } => {
 			("cancel_commitment", vec![hash_value(commitment.as_hash())?])
 		},
-		DotnsCommand::PruneExpiredCommitment { owner, commitment } => (
+		NamesCommand::PruneExpiredCommitment { owner, commitment } => (
 			"prune_expired_commitment",
 			vec![account_value(owner)?, hash_value(commitment.as_hash())?],
 		),
-		DotnsCommand::Register { parent, label, salt } => (
+		NamesCommand::Register { parent, label, salt } => (
 			"register",
 			vec![
 				option_hash(parent.as_ref().map(|id| id.as_hash()))?,
@@ -869,47 +869,47 @@ pub fn prepare_dotns_command(command: &DotnsCommand) -> DomainResult<DynamicPayl
 				Value::from_bytes(salt.as_bytes()),
 			],
 		),
-		DotnsCommand::Renew { name, additional_blocks } => {
+		NamesCommand::Renew { name, additional_blocks } => {
 			("renew", vec![hash_value(name.as_hash())?, Value::u128(*additional_blocks as u128)])
 		},
-		DotnsCommand::Transfer { name, new_owner } => {
+		NamesCommand::Transfer { name, new_owner } => {
 			("transfer", vec![hash_value(name.as_hash())?, account_value(new_owner)?])
 		},
-		DotnsCommand::AddController { name, controller } => {
+		NamesCommand::AddController { name, controller } => {
 			("add_controller", vec![hash_value(name.as_hash())?, account_value(controller)?])
 		},
-		DotnsCommand::RemoveController { name, controller } => {
+		NamesCommand::RemoveController { name, controller } => {
 			("remove_controller", vec![hash_value(name.as_hash())?, account_value(controller)?])
 		},
-		DotnsCommand::SetAddress { name, address } => (
+		NamesCommand::SetAddress { name, address } => (
 			"set_address",
 			vec![
 				hash_value(name.as_hash())?,
 				option_value(address.as_ref().map(|value| Value::from_bytes(value.as_bytes()))),
 			],
 		),
-		DotnsCommand::SetSubject { name, subject } => (
+		NamesCommand::SetSubject { name, subject } => (
 			"set_subject",
 			vec![
 				hash_value(name.as_hash())?,
 				option_value(subject.as_ref().map(|id| Value::from_bytes(id.as_str().as_bytes()))),
 			],
 		),
-		DotnsCommand::SetAttestation { name, attestation } => (
+		NamesCommand::SetAttestation { name, attestation } => (
 			"set_attestation",
 			vec![
 				hash_value(name.as_hash())?,
 				option_hash(attestation.as_ref().map(|id| id.as_hash()))?,
 			],
 		),
-		DotnsCommand::SetContent { name, content } => (
+		NamesCommand::SetContent { name, content } => (
 			"set_content",
 			vec![
 				hash_value(name.as_hash())?,
 				option_hash(content.as_ref().map(|id| id.as_hash()))?,
 			],
 		),
-		DotnsCommand::SetText { name, key, value } => (
+		NamesCommand::SetText { name, key, value } => (
 			"set_text",
 			vec![
 				hash_value(name.as_hash())?,
@@ -917,14 +917,14 @@ pub fn prepare_dotns_command(command: &DotnsCommand) -> DomainResult<DynamicPayl
 				option_value(value.as_ref().map(|value| Value::from_bytes(value.as_bytes()))),
 			],
 		),
-		DotnsCommand::SetPrimaryName { name } => {
+		NamesCommand::SetPrimaryName { name } => {
 			("set_primary_name", vec![option_hash(name.as_ref().map(|id| id.as_hash()))?])
 		},
-		DotnsCommand::Release { name } => ("release", vec![hash_value(name.as_hash())?]),
-		DotnsCommand::RemoveExpiredName { name } => {
+		NamesCommand::Release { name } => ("release", vec![hash_value(name.as_hash())?]),
+		NamesCommand::RemoveExpiredName { name } => {
 			("remove_expired_name", vec![hash_value(name.as_hash())?])
 		},
-		DotnsCommand::ReserveName { parent, label, beneficiary, expires_at } => (
+		NamesCommand::ReserveName { parent, label, beneficiary, expires_at } => (
 			"reserve_name",
 			vec![
 				option_hash(parent.as_ref().map(|id| id.as_hash()))?,
@@ -933,23 +933,23 @@ pub fn prepare_dotns_command(command: &DotnsCommand) -> DomainResult<DynamicPayl
 				option_value(expires_at.map(|value| Value::u128(value as u128))),
 			],
 		),
-		DotnsCommand::ClearReservation { name } => {
+		NamesCommand::ClearReservation { name } => {
 			("clear_reservation", vec![hash_value(name.as_hash())?])
 		},
-		DotnsCommand::SetLabelProtection { label, protected } => (
+		NamesCommand::SetLabelProtection { label, protected } => (
 			"set_label_protection",
 			vec![Value::from_bytes(label.as_str().as_bytes()), Value::bool(*protected)],
 		),
-		DotnsCommand::SetPaused { paused } => ("set_paused", vec![Value::bool(*paused)]),
-		DotnsCommand::ForceTransfer { name, new_owner } => {
+		NamesCommand::SetPaused { paused } => ("set_paused", vec![Value::bool(*paused)]),
+		NamesCommand::ForceTransfer { name, new_owner } => {
 			("force_transfer", vec![hash_value(name.as_hash())?, account_value(new_owner)?])
 		},
-		DotnsCommand::ForceRevoke { name } => ("force_revoke", vec![hash_value(name.as_hash())?]),
-		DotnsCommand::SetRegistrar { registrar, enabled } => {
+		NamesCommand::ForceRevoke { name } => ("force_revoke", vec![hash_value(name.as_hash())?]),
+		NamesCommand::SetRegistrar { registrar, enabled } => {
 			("set_registrar", vec![account_value(registrar)?, Value::bool(*enabled)])
 		},
 	};
-	Ok(subxt::dynamic::tx("Dotns", call, args))
+	Ok(subxt::dynamic::tx("Names", call, args))
 }
 
 /// Prepare a provider or TransactionStorage attachment call without submitting it.

@@ -101,7 +101,7 @@ const descriptor = json("product-sdk/packages/descriptors/generated/orbis-descri
 const ratification = json(matrix.activation_source);
 const rust = read("origin-rs/src/product_sdk/version.rs");
 const rustAttestation = read("origin-rs/src/product_sdk/domains/attestation.rs");
-const rustDotns = read("origin-rs/src/product_sdk/domains/dotns.rs");
+const rustNames = read("origin-rs/src/product_sdk/domains/names.rs");
 const rustStorage = read("origin-rs/src/product_sdk/domains/storage.rs");
 const rustStorageProvider = read("origin-rs/src/product_sdk/domains/storage_provider.rs");
 const rustDrive = read("origin-rs/src/product_sdk/domains/drive.rs");
@@ -110,7 +110,7 @@ const rustIdentityPersonhood = read("origin-rs/src/product_sdk/domains/identity_
 const rustSponsoredIntent = read("origin-rs/src/product_sdk/sponsored_intent.rs");
 const rustContract = read("origin-rs/src/product_sdk/contract.rs");
 const rustCommon = read("origin-rs/src/product_sdk/domains/common.rs");
-const rustSurface = `${rust}\n${rustAttestation}\n${rustDotns}\n${rustStorage}\n${rustStorageProvider}\n${rustDrive}\n${rustS3}\n${rustIdentityPersonhood}\n${rustSponsoredIntent}\n${rustCommon}\n${rustContract}`;
+const rustSurface = `${rust}\n${rustAttestation}\n${rustNames}\n${rustStorage}\n${rustStorageProvider}\n${rustDrive}\n${rustS3}\n${rustIdentityPersonhood}\n${rustSponsoredIntent}\n${rustCommon}\n${rustContract}`;
 const originRuntime = read(matrix.networks.origin.runtime_source);
 const orbisRuntime = read(matrix.networks.orbis.runtime_source);
 const workspaceVersion = read("Cargo.toml").match(/^version\s*=\s*"([^"]+)"/m)?.[1];
@@ -196,7 +196,7 @@ const apiVersions = [...read("origin/orbis/runtime-api/storage/src/lib.rs").matc
 const observedApis = {
   identity_personhood: Number(read(matrix.native_runtime_apis.identity_personhood.source).match(/#\[api_version\((\d+)\)\]/)?.[1]),
   attestation: Number(read(matrix.native_runtime_apis.attestation.source).match(/#\[api_version\((\d+)\)\]/)?.[1]),
-  dotns: Number(read(matrix.native_runtime_apis.dotns.source).match(/#\[api_version\((\d+)\)\]/)?.[1]),
+  names: Number(read(matrix.native_runtime_apis.names.source).match(/#\[api_version\((\d+)\)\]/)?.[1]),
   storage_provider: apiVersions[0],
   drive: apiVersions[1],
   s3: apiVersions[2],
@@ -204,7 +204,7 @@ const observedApis = {
 const apiBindings = {
   identity_personhood: ["identityPersonhood", "IDENTITY_PERSONHOOD_RUNTIME_API_VERSION"],
   attestation: ["attestation", "ATTESTATION_RUNTIME_API_VERSION"],
-  dotns: ["dotns", "DOTNS_RUNTIME_API_VERSION"],
+  names: ["names", "NAMES_RUNTIME_API_VERSION"],
   storage_provider: ["storageProvider", "STORAGE_PROVIDER_RUNTIME_API_VERSION"],
   drive: ["drive", "DRIVE_RUNTIME_API_VERSION"],
   s3: ["s3", "S3_RUNTIME_API_VERSION"],
@@ -218,7 +218,7 @@ for (const [name, contract] of Object.entries(matrix.native_runtime_apis) as [ke
 const observedSchemas = Object.fromEntries(Object.entries(matrix.native_storage_schemas).map(([name, contract]: [string, any]) => [name, storageVersion(contract.source)]));
 const schemaBindings = {
   attestation: ["attestation", "ATTESTATION_STORAGE_SCHEMA_VERSION"],
-  dotns: ["dotns", "DOTNS_STORAGE_SCHEMA_VERSION"],
+  names: ["names", "NAMES_STORAGE_SCHEMA_VERSION"],
   storage_provider: ["storageProvider", "STORAGE_PROVIDER_STORAGE_SCHEMA_VERSION"],
   drive: ["drive", "DRIVE_STORAGE_SCHEMA_VERSION"],
   s3: ["s3", "S3_STORAGE_SCHEMA_VERSION"],
@@ -232,11 +232,11 @@ for (const [name, contract] of Object.entries(matrix.native_storage_schemas) as 
 }
 const providerProtocol = Number(read(matrix.service_protocols.storage_provider.source).match(/PROTOCOL_VERSION:\s*u16\s*=\s*(\d+)/)?.[1]);
 equal(providerProtocol, matrix.service_protocols.storage_provider.version, "storage provider protocol");
-equal(json(matrix.service_protocols.dotns_label_policy.source).label_policy_version, matrix.service_protocols.dotns_label_policy.version, "DotNS label policy");
+equal(json(matrix.service_protocols.names_label_policy.source).label_policy_version, matrix.service_protocols.names_label_policy.version, "Orbis Names label policy");
 equal(NATIVE_SDK_VERSION.serviceProtocols.storageProvider, matrix.service_protocols.storage_provider.version, "TypeScript storage provider protocol");
 equal(Number(rustConstant(rust, "STORAGE_PROVIDER_PROTOCOL_VERSION")), matrix.service_protocols.storage_provider.version, "Rust storage provider protocol");
-equal(NATIVE_SDK_VERSION.serviceProtocols.dotnsLabelPolicy, matrix.service_protocols.dotns_label_policy.version, "TypeScript DotNS label policy");
-equal(Number(rustConstant(rust, "DOTNS_LABEL_POLICY_VERSION")), matrix.service_protocols.dotns_label_policy.version, "Rust DotNS label policy");
+equal(NATIVE_SDK_VERSION.serviceProtocols.namesLabelPolicy, matrix.service_protocols.names_label_policy.version, "TypeScript Orbis Names label policy");
+equal(Number(rustConstant(rust, "NAMES_LABEL_POLICY_VERSION")), matrix.service_protocols.names_label_policy.version, "Rust Orbis Names label policy");
 
 equal(vectors.runtime.spec_version, matrix.networks.orbis.spec_version, "vector spec version");
 equal(vectors.runtime.transaction_version, matrix.networks.orbis.transaction_version, "vector transaction version");
@@ -310,6 +310,7 @@ const routeHarness = {
 for (const binding of m5Bindings.bindings) {
   const source = adopted.find((entry: any) => keyOf(entry) === keyOf(binding.key));
   if (!source) fail(`M5 binding has no adopted design row: ${keyOf(binding.key)}`);
+  // Source identifiers remain immutable provenance; only the native target surface is branded.
   const isLabelValidation = source.source_id === "dotns:contracts/utils/StringUtils.sol"
     && ["isSingleLabel", "isSingleLabelMemory"].includes(source.source_symbol);
   if (source.source_symbol_kind !== "function") {
@@ -318,21 +319,24 @@ for (const binding of m5Bindings.bindings) {
   equal(binding.behavior_concept, isLabelValidation ? "single-label-validation" : source.source_symbol,
     `M5 behavior concept ${keyOf(binding.key)}`);
   equal(binding.binding_kind, isLabelValidation ? "label-validation-surface" : "native-route-set", `M5 binding kind ${keyOf(binding.key)}`);
-  equal(JSON.stringify(binding.navigation_hint), JSON.stringify({ rust: source.rust_sdk, typescript: source.typescript_sdk }), `M5 navigation hint ${keyOf(binding.key)}`);
+  equal(JSON.stringify(binding.navigation_hint), JSON.stringify({
+    rust: source.rust_sdk.replaceAll("DotnsQuery", "NamesQuery"),
+    typescript: source.typescript_sdk.replace(/^dotns\b/, "names"),
+  }), `M5 navigation hint ${keyOf(binding.key)}`);
   if (!Array.isArray(binding.routes) || !binding.routes.length || binding.routes.some((id: string) => !routeIds.has(id))) {
     fail(`M5 binding route set is empty or unknown: ${keyOf(binding.key)}`);
   }
-  if (binding.routes.some((id: string) => !id.startsWith("dotns:"))) fail(`M5 binding escapes DotNS: ${keyOf(binding.key)}`);
+  if (binding.routes.some((id: string) => !id.startsWith("names:"))) fail(`M5 binding escapes Orbis Names: ${keyOf(binding.key)}`);
   equal(JSON.stringify(binding.exercised_by), JSON.stringify(routeHarness), `M5 exact route harness ${keyOf(binding.key)}`);
   if (binding.binding_kind === "label-validation-surface") {
     const surface = binding.validation_surfaces;
-    equal(surface.rust.path, "origin-rs/src/product_sdk/domains/dotns.rs", `M5 label Rust path ${keyOf(binding.key)}`);
+    equal(surface.rust.path, "origin-rs/src/product_sdk/domains/names.rs", `M5 label Rust path ${keyOf(binding.key)}`);
     const rustValidation = read(surface.rust.path);
     if (!new RegExp(`pub\\s+struct\\s+${surface.rust.declaration}\\b`).test(rustValidation)
       || !new RegExp(`impl\\s+${surface.rust.declaration}\\s*\\{[\\s\\S]*?pub\\s+fn\\s+${surface.rust.constructor}\\s*\\(`).test(rustValidation)) {
       fail(`missing exact Rust label validation surface ${keyOf(binding.key)}`);
     }
-    equal(surface.typescript.path, "product-sdk/src/dotns.ts", `M5 label TypeScript path ${keyOf(binding.key)}`);
+    equal(surface.typescript.path, "product-sdk/src/names.ts", `M5 label TypeScript path ${keyOf(binding.key)}`);
     if (!new RegExp(`export\\s+function\\s+${surface.typescript.function}\\s*\\(`).test(read(surface.typescript.path))) {
       fail(`missing exact TypeScript label validation surface ${keyOf(binding.key)}`);
     }

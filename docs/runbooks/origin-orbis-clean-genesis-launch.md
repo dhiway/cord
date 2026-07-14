@@ -63,8 +63,8 @@ validator and approvals from the beginning.
   BABE configuration, and Sudo bootstrap state.
 - Orbis contains only balances (including the Revive code-deposit account for unrelated apps), para
   and token ids, fixed collators/session keys, governed root, safe XCM version, explicit feeless
-  accounts, and DotNS bootstrap policy.
-- DotNS starts with the governed root as registrar and only `origin`, `orbis`, and `system` root
+  accounts, and Orbis Names bootstrap policy.
+- Orbis Names starts with the governed root as registrar and only `origin`, `orbis`, and `system` root
   reservations. Names, ownership records, identity/personhood/individuality state, statements,
   content agreements, providers, drives, and storage reservations start empty/default.
 - Permissionless Orbis collator candidacy is disabled (`MaxCandidates = 0`). No implicit feeless

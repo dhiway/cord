@@ -206,7 +206,7 @@ def validate() -> tuple[dict, list[str]]:
 
     manifest_version = scalar("manifest_version")
     current_state = scalar("current_state")
-    require(manifest_version == 17, "current completion manifest is not version 17")
+    require(manifest_version == 19, "current completion manifest is not version 19")
     require(
         current_state == "p2-p6-native-feature-implementation-present-production-validation-deferred",
         "manifest current-state drift",

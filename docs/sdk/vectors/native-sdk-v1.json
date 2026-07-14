@@ -19,9 +19,9 @@
       ]
     },
     {
-      "domain": "dotns",
-      "path": "docs/sdk/vectors/dotns-v1.json",
-      "sha256": "41d0f028d6e29ca4bd32bfdd9912181e4f550f3a850f2395fe858b5cdf8f237d",
+      "domain": "names",
+      "path": "docs/sdk/vectors/names-v1.json",
+      "sha256": "1a543ac96e7212854fb6e2105e8b0d1c947a19a65fe3f0d50f91fbe0b77bd700",
       "validated_by": [
         "origin-rs",
         "product-sdk"

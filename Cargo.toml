@@ -32,8 +32,8 @@ members = [
 	"origin/orbis/pallets/common",
 	"origin/orbis/pallets/attestation",
 	"origin/orbis/pallets/attestation/runtime-api",
-	"origin/orbis/pallets/dotns",
-	"origin/orbis/pallets/dotns/runtime-api",
+	"origin/orbis/pallets/names",
+	"origin/orbis/pallets/names/runtime-api",
 	"origin/pallets/token",
 	"origin/pallets/feeless",
 	"origin/pallets/entity",
@@ -400,8 +400,8 @@ pallet-orbis-transaction-storage = { path = "origin/orbis/pallets/transaction-st
 pallet-orbis-transaction-storage-runtime-api = { path = "origin/orbis/pallets/transaction-storage/runtime-api", default-features = false }
 pallet-orbis-attestation = { path = "origin/orbis/pallets/attestation", default-features = false }
 pallet-orbis-attestation-runtime-api = { path = "origin/orbis/pallets/attestation/runtime-api", default-features = false }
-pallet-orbis-dotns = { path = "origin/orbis/pallets/dotns", default-features = false }
-pallet-orbis-dotns-runtime-api = { path = "origin/orbis/pallets/dotns/runtime-api", default-features = false }
+pallet-orbis-names = { path = "origin/orbis/pallets/names", default-features = false }
+pallet-orbis-names-runtime-api = { path = "origin/orbis/pallets/names/runtime-api", default-features = false }
 orbis-identity-personhood-runtime-api = { path = "origin/orbis/runtime-api/identity-personhood", default-features = false }
 pallet-orbis-drive = { path = "origin/orbis/pallets/drive", default-features = false }
 pallet-orbis-storage-provider = { path = "origin/orbis/pallets/storage-provider", default-features = false }

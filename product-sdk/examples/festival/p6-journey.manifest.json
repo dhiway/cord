@@ -14,10 +14,10 @@
   "permissions": {
     "self_host": [
       "identity:personhood_status",
-      "dotns:root_name_by_normalized_label",
-      "dotns:commit",
-      "dotns:register",
-      "dotns:resolve_attestation",
+      "names:root_name_by_normalized_label",
+      "names:commit",
+      "names:register",
+      "names:resolve_attestation",
       "transaction:prepare_sponsored_intent"
     ],
     "sponsor_host": [

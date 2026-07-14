@@ -1,6 +1,6 @@
-# Native Orbis DotNS
+# Native Orbis Names
 
-This crate is the CORD-owned, native DotNS state machine intended for Orbis pallet index `116`.
+This crate is the CORD-owned, native Orbis Names state machine intended for Orbis pallet index `116`.
 It deliberately has no Solidity ABI, Revive contract caller, dispatcher address, ERC-721 facade,
 pricing, escrow, refunds, legacy state import, or compatibility API.
 

@@ -88,7 +88,7 @@ hash_type!(DriveId);
 hash_type!(BucketId);
 hash_type!(ObjectId);
 
-/// Canonical native Entity identifier referenced by DotNS.
+/// Canonical native Entity identifier referenced by Orbis Names.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(transparent)]
 pub struct SubjectId(String);

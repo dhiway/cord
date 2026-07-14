@@ -1,7 +1,7 @@
 // This file is part of CORD – https://cord.network
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Native, bounded DotNS registry for the Orbis runtime.
+//! Native, bounded Orbis Names registry for the Orbis runtime.
 //!
 //! This pallet is the sole native name authority. It intentionally contains no contract caller,
 //! H160 dispatcher, ABI encoding, tokenized ownership, escrow, pricing, legacy import, or
@@ -25,8 +25,8 @@ use scale_info::TypeInfo;
 
 /// Consensus label policy. Version 1 accepts lowercase ASCII letters, digits and internal hyphens.
 pub const LABEL_POLICY_VERSION: u16 = 1;
-const NAME_ID_DOMAIN: &[u8] = b"cord:orbis:dotns:name:v1";
-const COMMITMENT_DOMAIN: &[u8] = b"cord:orbis:dotns:commitment:v1";
+const NAME_ID_DOMAIN: &[u8] = b"cord:orbis:names:name:v1";
+const COMMITMENT_DOMAIN: &[u8] = b"cord:orbis:names:commitment:v1";
 
 pub trait ContentReferenceValidator<Commitment> {
 	fn contains(commitment: &Commitment) -> bool;
@@ -39,7 +39,7 @@ impl<Commitment> ContentReferenceValidator<Commitment> for () {
 }
 
 /// O(1) validation boundary for subject commitments owned by the native identity/attestation
-/// domain. DotNS stores only the canonical identifier and does not duplicate identity state.
+/// domain. Orbis Names stores only the canonical identifier and does not duplicate identity state.
 pub trait SubjectReferenceValidator<Subject> {
 	fn contains(subject: &Subject) -> bool;
 }
@@ -319,20 +319,20 @@ pub mod pallet {
 		fn build(&self) {
 			let mut registrars = BoundedVec::<T::AccountId, T::MaxRegistrars>::default();
 			for registrar in &self.registrars {
-				assert!(!registrars.contains(registrar), "duplicate DotNS genesis registrar");
+				assert!(!registrars.contains(registrar), "duplicate Orbis Names genesis registrar");
 				registrars
 					.try_push(registrar.clone())
-					.expect("DotNS genesis registrars exceed MaxRegistrars");
+					.expect("Orbis Names genesis registrars exceed MaxRegistrars");
 			}
 			Registrars::<T>::put(registrars);
 
 			let mut labels = BoundedVec::<LabelOf<T>, T::MaxBootstrapReservations>::default();
 			for (label, beneficiary) in &self.root_reservations {
-				assert!(Pallet::<T>::ensure_valid_label(label).is_ok(), "invalid DotNS genesis label");
-				assert!(!labels.contains(label), "duplicate DotNS genesis reservation");
+				assert!(Pallet::<T>::ensure_valid_label(label).is_ok(), "invalid Orbis Names genesis label");
+				assert!(!labels.contains(label), "duplicate Orbis Names genesis reservation");
 				labels
 					.try_push(label.clone())
-					.expect("DotNS genesis reservations exceed MaxBootstrapReservations");
+					.expect("Orbis Names genesis reservations exceed MaxBootstrapReservations");
 				BootstrapReservations::<T>::insert(
 					label,
 					Reservation { beneficiary: beneficiary.clone(), expires_at: None },

@@ -2,7 +2,7 @@ import { finalizedRead, submitAndFinalize, type RequestContext } from "./host.ts
 import type { JsonObject } from "./errors.ts";
 import type { AccountId, BlockNumber, Hash32 } from "./types.ts";
 import type { attestation } from "./attestation.ts";
-import type { dotns } from "./dotns.ts";
+import type { names } from "./names.ts";
 import type { drive } from "./drive.ts";
 import type { identity } from "./identity.ts";
 import type { provider } from "./provider.ts";
@@ -11,7 +11,7 @@ import type { storage } from "./storage.ts";
 
 type NativeRouteFactory =
   | typeof attestation[keyof typeof attestation]
-  | typeof dotns[keyof typeof dotns]
+  | typeof names[keyof typeof names]
   | typeof drive[keyof typeof drive]
   | typeof identity[keyof typeof identity]
   | typeof provider[keyof typeof provider]

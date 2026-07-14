@@ -22,8 +22,8 @@
     "production_approval_required": true
   },
   "bootstrap_state": {
-    "orbis_dotns_registrar": "governed-root",
-    "orbis_dotns_root_reservations": [
+    "orbis_names_registrar": "governed-root",
+    "orbis_names_root_reservations": [
       "origin",
       "orbis",
       "system"
@@ -89,7 +89,7 @@
       "AuraExt": ["Authorities"],
       "Balances": ["TotalIssuance"],
       "CollatorSelection": ["CandidacyBond", "DesiredCandidates", "Invulnerables"],
-      "Dotns": ["BootstrapReservationLabels", "BootstrapReservations", "Registrars"],
+      "Names": ["BootstrapReservationLabels", "BootstrapReservations", "Registrars"],
       "ParachainInfo": ["ParachainId"],
       "PolkadotXcm": ["SafeXcmVersion"],
       "Revive": ["BlockHash", "EthereumBlock", "ReceiptInfoData"],

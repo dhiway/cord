@@ -15,7 +15,7 @@ use frame_support::{
 	dispatch::GetDispatchInfo,
 	traits::{fungible::Mutate, BuildGenesisConfig, Hooks, SignedTransactionBuilder},
 };
-use pallet_orbis_dotns_runtime_api::runtime_decl_for_dotns_api::DotnsApiV1;
+use pallet_orbis_names_runtime_api::runtime_decl_for_names_api::NamesApiV1;
 use sp_core::{ed25519, sr25519, Pair};
 use sp_runtime::{
 	generic::{Era, SignedPayload},
@@ -213,7 +213,7 @@ fn enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail
 			}) if target == &owner && event_registrar == &registrar
 		)));
 
-		// Entity remains the authoritative SubjectId source for the native attestation and DotNS.
+		// Entity remains the authoritative SubjectId source for the native attestation and Orbis Names.
 		let mut entity_info = pallet_origin_entity::entity::EntityInfo::<
 			crate::entity::MaxRawDataLength,
 			crate::entity::MaxAdditionalAttributes,
@@ -299,31 +299,31 @@ fn enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail
 		assert_eq!(System::account_nonce(&sponsor), 1);
 		assert!(Attestation::is_live(attestation));
 
-		let label = Dotns::validate_label(b"enterprise-alice".to_vec()).unwrap();
-		let salt: pallet_orbis_dotns::SaltOf<Runtime> =
+		let label = Names::validate_label(b"enterprise-alice".to_vec()).unwrap();
+		let salt: pallet_orbis_names::SaltOf<Runtime> =
 			b"enterprise-festival".to_vec().try_into().unwrap();
-		let commitment = Dotns::registration_commitment(&owner, None, &label, &salt);
-		assert_ok!(Dotns::commit(RuntimeOrigin::signed(owner.clone()), commitment));
+		let commitment = Names::registration_commitment(&owner, None, &label, &salt);
+		assert_ok!(Names::commit(RuntimeOrigin::signed(owner.clone()), commitment));
 		System::set_block_number(5);
 		System::set_extrinsic_index(1);
-		assert_ok!(Dotns::register(
+		assert_ok!(Names::register(
 			RuntimeOrigin::signed(owner.clone()),
 			None,
 			label.clone(),
 			salt,
 		));
-		let name = Dotns::derive_name_id(None, &label);
-		assert_ok!(Dotns::set_subject(
+		let name = Names::derive_name_id(None, &label);
+		assert_ok!(Names::set_subject(
 			RuntimeOrigin::signed(owner.clone()),
 			name,
 			Some(subject_id),
 		));
-		assert_ok!(Dotns::set_attestation(
+		assert_ok!(Names::set_attestation(
 			RuntimeOrigin::signed(owner.clone()),
 			name,
 			Some(attestation),
 		));
-		assert_ok!(Dotns::set_content(
+		assert_ok!(Names::set_content(
 			RuntimeOrigin::signed(owner.clone()),
 			name,
 			Some(content_hash),
@@ -459,7 +459,7 @@ fn enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail
 		assert_eq!(resolved_object.content_hash, Some(content_hash));
 		assert!(!resolved_object.deleted);
 
-		// Revocation is authoritative: DotNS resolution no longer returns a revoked credential.
+		// Revocation is authoritative: Orbis Names resolution no longer returns a revoked credential.
 		assert_ok!(Attestation::revoke(RuntimeOrigin::signed(owner), attestation));
 		assert!(!Attestation::is_live(attestation));
 		assert_eq!(Runtime::resolve_attestation(name).value, None);

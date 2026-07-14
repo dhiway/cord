@@ -26,7 +26,7 @@ The frozen logical order is:
 2. `AuthorizeValueTransfer`, `VerifySignature`, `AsPerson`,
    `AsProofOfInkParticipant`, `ScoreAsParticipant`, `GameAsInvited`, `PeopleLiteAuth`, `AsMember`,
    `AsCoinage`, `AsResources`, `VoterAuth`, `AuthorizeCall`, `AsPgas`, `AsRingAlias`, and
-   `AsDotnsGateway`, in that order;
+   `AsNamesGateway`, in that order;
 3. `RestrictOrigin`, after all dispatch-origin mutation;
 4. nonzero-sender, spec-version, transaction-version, genesis, mortality, nonce, and weight checks;
 5. deny-by-default `ChargeOrSkipFeeless<ChargePGAS<ChargeAssetTxPayment>>`;

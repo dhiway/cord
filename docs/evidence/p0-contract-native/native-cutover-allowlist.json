@@ -19,7 +19,7 @@
     "identity",
     "personhood",
     "individuality",
-    "orbis-names",
+    "names",
     "storage"
   ],
   "policy": "Origin/Orbis platform capabilities are pallet-native. No contract, ABI, address, proxy, adapter, compatibility fixture, or speculative Revive application is allowlisted.",

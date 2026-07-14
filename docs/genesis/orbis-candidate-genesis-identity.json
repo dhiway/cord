@@ -46,10 +46,10 @@
         "0x4545454545454545454545454545454545454545454545454545454545454545",
         "0x4646464646464646464646464646464646464646464646464646464646464646"
       ],
-      "dotns_registrars": [
+      "names_registrars": [
         "0x4747474747474747474747474747474747474747474747474747474747474747"
       ],
-      "dotns_root_reservations": [
+      "names_root_reservations": [
         "orbis",
         "origin",
         "system"
@@ -80,7 +80,7 @@
       "CollatorSelection": 4,
       "CoretimeControl": 1,
       "CumulusXcm": 1,
-      "Dotns": 6,
+      "Names": 6,
       "Drive": 1,
       "Entity": 1,
       "Feeless": 1,
@@ -184,7 +184,7 @@
       "CumulusXcm": {
         ":__STORAGE_VERSION__:": 1
       },
-      "Dotns": {
+      "Names": {
         ":__STORAGE_VERSION__:": 1,
         "BootstrapReservationLabels": 1,
         "BootstrapReservations": 3,

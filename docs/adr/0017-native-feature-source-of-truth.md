@@ -8,7 +8,7 @@ P1/P6/P7 validation and approval gates.
 
 ## Context
 
-The CORD-owned implementation now contains the native identity, attestation, DotNS,
+The CORD-owned implementation now contains the native identity, attestation, Orbis Names,
 storage/provider/Drive/S3, sponsored transaction, and Broker control surfaces required by the
 enterprise app model. The completion manifest still carried older planning rows that implied a
 future code adoption from the immutable Web3 Storage reference and a future Game pallet. It also
