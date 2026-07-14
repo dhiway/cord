@@ -19,6 +19,8 @@
 **/hfuzz_target/
 **/hfuzz_workspace/
 **/node_modules
+product-sdk/packages/origin-sdk-*/dist/
+product-sdk/packages/origin-sdk-*/*.tgz
 **/target/
 **/wip/*.stderr
 /.cargo/config

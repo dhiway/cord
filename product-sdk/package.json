@@ -3,6 +3,9 @@
   "version": "0.9.9",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/origin-sdk-*"
+  ],
   "engines": {
     "node": ">=22.6.0"
   },
@@ -29,6 +32,12 @@
     "./version": "./src/version.ts"
   },
   "scripts": {
+    "build": "node --experimental-strip-types tools/run-workspace-script.ts build",
+    "check:workspaces": "node --experimental-strip-types tools/run-workspace-script.ts check",
+    "clean": "node --experimental-strip-types tools/clean-workspaces.ts",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "check:packages": "node --experimental-strip-types tools/check-package-contract.ts",
     "check:domains": "node --experimental-strip-types --input-type=module -e \"import('./src/index.ts')\"",
     "generate:routes": "node --experimental-strip-types tools/generate-route-contract.ts",
     "check:routes": "node --experimental-strip-types tools/generate-route-contract.ts --check",
@@ -50,6 +59,8 @@
     "update:sdk-freeze": "node --experimental-strip-types tools/generate-m5-sdk-bindings.ts && node --experimental-strip-types tools/validate-sdk-native-coverage.ts --write"
   },
   "devDependencies": {
+    "@changesets/cli": "2.31.0",
+    "@types/node": "22.20.1",
     "polkadot-api": "2.1.6",
     "typescript": "5.9.3"
   }
