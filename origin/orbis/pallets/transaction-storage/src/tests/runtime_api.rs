@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Tests for the pallet-side helpers backing
-//! [`pallet_bulletin_transaction_storage_runtime_api::BulletinTransactionStorageApi`].
+//! [`pallet_orbis_transaction_storage_runtime_api::OrbisTransactionStorageApi`].
 
 use crate::{
 	mock::{

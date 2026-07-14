@@ -268,7 +268,7 @@ write("dotns", "force_transfer", { name: hash32, new_owner: account });
 write("dotns", "force_revoke", { name: hash32 });
 write("dotns", "set_registrar", { registrar: account, enabled: boolean });
 
-// Bulletin storage runtime API and native calls.
+// Orbis Storage storage runtime API and native calls.
 read("storage", "account_authorization", { account });
 read("storage", "can_store", { account, data_len: u32 });
 read("storage", "can_renew", { account, entry: transactionRef });

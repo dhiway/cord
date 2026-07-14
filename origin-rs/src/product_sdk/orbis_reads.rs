@@ -7,7 +7,7 @@
 use async_trait::async_trait;
 use orbis_identity_personhood_runtime_api as identity_api;
 use orbis_storage_runtime_api as storage_api;
-use pallet_bulletin_transaction_storage_runtime_api as bulletin_api;
+use pallet_orbis_transaction_storage_runtime_api as transaction_storage_api;
 use pallet_orbis_attestation_runtime_api as att_api;
 use pallet_orbis_dotns_runtime_api as dotns_api;
 use scale_value::{Composite, Value};
@@ -42,7 +42,7 @@ use super::{
 		},
 		storage::{
 			AccountAuthorization as DomainAccountAuthorization, ActiveResourceReservation,
-			BulletinRef as DomainBulletinRef, DecimalU64, ResourceClosure,
+			StorageRef as DomainStorageRef, DecimalU64, ResourceClosure,
 			ResourceReservationLink as DomainResourceReservationLink, ResourceReservationTombstone,
 			ResourceReservationView, StorageActor, StorageQuery, StorageRead, StorageResponse,
 			TransactionRef,
@@ -601,15 +601,15 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 		}
 	}
 
-	async fn bulletin_storage(&self, read: &StorageRead) -> DomainResult<StorageResponse> {
+	async fn orbis_storage(&self, read: &StorageRead) -> DomainResult<StorageResponse> {
 		read.validate()?;
 		let hash = &read.finalized_block_hash;
 		match &read.query {
 			StorageQuery::AccountAuthorization { account } => {
-				let response: Option<bulletin_api::AccountAuthorization<RuntimeBlockNumber>> = self
+				let response: Option<transaction_storage_api::AccountAuthorization<RuntimeBlockNumber>> = self
 					.call_at(
 						hash,
-						"BulletinTransactionStorageApi",
+						"OrbisTransactionStorageApi",
 						"account_authorization",
 						vec![account_arg(account)?],
 					)
@@ -624,7 +624,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 				let response: bool = self
 					.call_at(
 						hash,
-						"BulletinTransactionStorageApi",
+						"OrbisTransactionStorageApi",
 						"can_store",
 						vec![account_arg(account)?, Value::u128(*data_len as u128)],
 					)
@@ -635,7 +635,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 				let response: bool = self
 					.call_at(
 						hash,
-						"BulletinTransactionStorageApi",
+						"OrbisTransactionStorageApi",
 						"can_renew",
 						vec![account_arg(account)?, transaction_ref_arg(entry)?],
 					)
@@ -643,12 +643,12 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 				Ok(StorageResponse::CanRenew(finalized_value(hash, 1, Some(response))?))
 			},
 			StorageQuery::StoredContentProvenance { reference } => {
-				let response: Option<bulletin_api::ClientStorageActor<RuntimeAccountId>> = self
+				let response: Option<transaction_storage_api::ClientStorageActor<RuntimeAccountId>> = self
 					.call_at(
 						hash,
-						"BulletinTransactionStorageApi",
+						"OrbisTransactionStorageApi",
 						"stored_content_provenance",
-						vec![bulletin_ref_arg(reference)],
+						vec![storage_ref_arg(reference)],
 					)
 					.await?;
 				Ok(StorageResponse::StoredContentProvenance(finalized_value(
@@ -659,14 +659,14 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 			},
 			StorageQuery::ResourceReservation { reservation_id } => {
 				let response: Option<
-					bulletin_api::ClientResourceReservationView<
+					transaction_storage_api::ClientResourceReservationView<
 						RuntimeAccountId,
 						RuntimeBlockNumber,
 					>,
 				> = self
 					.call_at(
 						hash,
-						"BulletinTransactionStorageApi",
+						"OrbisTransactionStorageApi",
 						"resource_reservation",
 						vec![Value::u128(reservation_id.as_u64()? as u128)],
 					)
@@ -679,14 +679,14 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 			},
 			StorageQuery::ResourceReservationLink { reservation_id, content_hash } => {
 				let response: Option<
-					bulletin_api::ClientResourceReservationLink<
+					transaction_storage_api::ClientResourceReservationLink<
 						RuntimeAccountId,
 						RuntimeBlockNumber,
 					>,
 				> = self
 					.call_at(
 						hash,
-						"BulletinTransactionStorageApi",
+						"OrbisTransactionStorageApi",
 						"resource_reservation_link",
 						vec![
 							Value::u128(reservation_id.as_u64()? as u128),
@@ -704,7 +704,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 				let response: Option<[u8; 32]> = self
 					.call_at(
 						hash,
-						"BulletinTransactionStorageApi",
+						"OrbisTransactionStorageApi",
 						"resource_provider_ref",
 						vec![Value::u128(reservation_id.as_u64()? as u128)],
 					)
@@ -929,7 +929,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 				let response: Option<[u8; 32]> = self
 					.call_at(
 						hash,
-						"BulletinTransactionStorageApi",
+						"OrbisTransactionStorageApi",
 						"resource_provider_ref",
 						vec![Value::u128(reservation_id.as_u64()? as u128)],
 					)
@@ -1238,7 +1238,7 @@ fn name_view(
 }
 
 fn account_authorization(
-	authorization: bulletin_api::AccountAuthorization<RuntimeBlockNumber>,
+	authorization: transaction_storage_api::AccountAuthorization<RuntimeBlockNumber>,
 ) -> DomainAccountAuthorization {
 	DomainAccountAuthorization {
 		expires_at: authorization.expires_at,
@@ -1251,27 +1251,27 @@ fn account_authorization(
 }
 
 fn storage_actor(
-	actor: bulletin_api::ClientStorageActor<RuntimeAccountId>,
+	actor: transaction_storage_api::ClientStorageActor<RuntimeAccountId>,
 ) -> DomainResult<StorageActor> {
 	Ok(match actor {
-		bulletin_api::ClientStorageActor::Account(account) => {
+		transaction_storage_api::ClientStorageActor::Account(account) => {
 			StorageActor::Account { account: account_id(&account)? }
 		},
-		bulletin_api::ClientStorageActor::Root => StorageActor::Root,
-		bulletin_api::ClientStorageActor::Preimage(content_hash) => {
+		transaction_storage_api::ClientStorageActor::Root => StorageActor::Root,
+		transaction_storage_api::ClientStorageActor::Preimage(content_hash) => {
 			StorageActor::Preimage { content_hash: ContentHash(Hash32::from_bytes(content_hash)) }
 		},
-		bulletin_api::ClientStorageActor::AutoRenew(account) => {
+		transaction_storage_api::ClientStorageActor::AutoRenew(account) => {
 			StorageActor::AutoRenew { account: account_id(&account)? }
 		},
 	})
 }
 
 fn resource_reservation(
-	view: bulletin_api::ClientResourceReservationView<RuntimeAccountId, RuntimeBlockNumber>,
+	view: transaction_storage_api::ClientResourceReservationView<RuntimeAccountId, RuntimeBlockNumber>,
 ) -> DomainResult<ResourceReservationView> {
 	Ok(match view {
-		bulletin_api::ClientResourceReservationView::Active(active) => {
+		transaction_storage_api::ClientResourceReservationView::Active(active) => {
 			ResourceReservationView::Active(ActiveResourceReservation {
 				owner: account_id(&active.owner)?,
 				purpose_digest: ContentHash(Hash32::from_bytes(active.purpose_digest)),
@@ -1281,11 +1281,11 @@ fn resource_reservation(
 				expires_at: active.expires_at,
 			})
 		},
-		bulletin_api::ClientResourceReservationView::Tombstone(tombstone) => {
+		transaction_storage_api::ClientResourceReservationView::Tombstone(tombstone) => {
 			let outcome = match tombstone.outcome {
-				bulletin_api::ClientResourceClosure::Cancelled => ResourceClosure::Cancelled,
-				bulletin_api::ClientResourceClosure::Expired => ResourceClosure::Expired,
-				bulletin_api::ClientResourceClosure::Exhausted => ResourceClosure::Exhausted,
+				transaction_storage_api::ClientResourceClosure::Cancelled => ResourceClosure::Cancelled,
+				transaction_storage_api::ClientResourceClosure::Expired => ResourceClosure::Expired,
+				transaction_storage_api::ClientResourceClosure::Exhausted => ResourceClosure::Exhausted,
 			};
 			ResourceReservationView::Tombstone(ResourceReservationTombstone {
 				owner: account_id(&tombstone.owner)?,
@@ -1300,14 +1300,14 @@ fn resource_reservation(
 }
 
 fn resource_reservation_link(
-	link: bulletin_api::ClientResourceReservationLink<RuntimeAccountId, RuntimeBlockNumber>,
+	link: transaction_storage_api::ClientResourceReservationLink<RuntimeAccountId, RuntimeBlockNumber>,
 ) -> DomainResult<DomainResourceReservationLink> {
 	Ok(DomainResourceReservationLink {
 		reservation_id: ReservationId::from_u64(link.reservation_id),
 		content_hash: ContentHash(Hash32::from_bytes(link.content_hash)),
-		bulletin_ref: DomainBulletinRef {
-			block: link.bulletin_ref.block,
-			transaction_index: link.bulletin_ref.transaction_index,
+		storage_ref: DomainStorageRef {
+			block: link.storage_ref.block,
+			transaction_index: link.storage_ref.transaction_index,
 		},
 		owner: account_id(&link.owner)?,
 		size: link.size,
@@ -1541,7 +1541,7 @@ fn account_arg(account: &AccountId) -> DomainResult<Value> {
 	Ok(Value::from_bytes(bytes))
 }
 
-fn bulletin_ref_arg(reference: &DomainBulletinRef) -> Value {
+fn storage_ref_arg(reference: &DomainStorageRef) -> Value {
 	Value::named_composite(vec![
 		("block", Value::u128(reference.block as u128)),
 		("transaction_index", Value::u128(reference.transaction_index as u128)),

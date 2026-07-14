@@ -13,12 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Benchmarks for `pallet-bulletin-hop-promotion`.
+//! Benchmarks for `pallet-orbis-hop-promotion`.
 
 use super::{signing_payload, Call, Config, Pallet};
 use alloc::vec;
 use frame_support::traits::Authorize;
-use pallet_bulletin_transaction_storage::Config as TxStorageConfig;
+use pallet_orbis_transaction_storage::Config as TxStorageConfig;
 use polkadot_sdk_frame::benchmarking::prelude::*;
 use sp_io::{
 	crypto::{sr25519_generate, sr25519_sign},
@@ -54,7 +54,7 @@ mod benchmarks {
 			.map_err(|_| BenchmarkError::Stop("unable to compute authorizer origin"))?;
 		// Allowance does not gate `can_account_promote` (it only requires an active
 		// authorization entry), so a 1-byte allowance suffices.
-		pallet_bulletin_transaction_storage::Pallet::<T>::authorize_account(
+		pallet_orbis_transaction_storage::Pallet::<T>::authorize_account(
 			auth_origin,
 			account_id.clone(),
 			1,

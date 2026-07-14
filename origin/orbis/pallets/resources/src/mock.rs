@@ -319,14 +319,14 @@ impl indiv_pallet_members::Config for Test {
 
 thread_local! {
 	pub static MOCK_UNIX_TIME: RefCell<Duration> = RefCell::new(Default::default());
-	pub static BULLETIN_STORAGE_SHOULD_FAIL: core::cell::Cell<bool> = const { core::cell::Cell::new(false) };
-	pub static BULLETIN_RESERVATIONS: RefCell<BTreeMap<ReservationId, (AccountId32, ReservationPurpose, u64)>> = RefCell::new(BTreeMap::new());
+	pub static ORIGIN_STORAGE_SHOULD_FAIL: core::cell::Cell<bool> = const { core::cell::Cell::new(false) };
+	pub static ORIGIN_STORAGE_RESERVATIONS: RefCell<BTreeMap<ReservationId, (AccountId32, ReservationPurpose, u64)>> = RefCell::new(BTreeMap::new());
 }
 
-pub struct MockBulletinStorage;
+pub struct MockOrbisStorage;
 
 impl indiv_support::traits::TwoPhaseStorage<AccountId32, ReservationId, ReservationPurpose, u64>
-	for MockBulletinStorage
+	for MockOrbisStorage
 {
 	fn reserve(
 		id: ReservationId,
@@ -336,10 +336,10 @@ impl indiv_support::traits::TwoPhaseStorage<AccountId32, ReservationId, Reservat
 		_count: u32,
 		expires_at: u64,
 	) -> sp_runtime::DispatchResult {
-		if BULLETIN_STORAGE_SHOULD_FAIL.with(|f| f.get()) {
-			Err(sp_runtime::DispatchError::Other("mock bulletin failure"))
+		if ORIGIN_STORAGE_SHOULD_FAIL.with(|f| f.get()) {
+			Err(sp_runtime::DispatchError::Other("mock storage failure"))
 		} else {
-			BULLETIN_RESERVATIONS.with(|rows| {
+			ORIGIN_STORAGE_RESERVATIONS.with(|rows| {
 				rows.borrow_mut().insert(id, (who.clone(), purpose.clone(), expires_at));
 			});
 			Ok(())
@@ -347,10 +347,10 @@ impl indiv_support::traits::TwoPhaseStorage<AccountId32, ReservationId, Reservat
 	}
 
 	fn cancel(who: &AccountId32, id: ReservationId) -> sp_runtime::DispatchResult {
-		if BULLETIN_STORAGE_SHOULD_FAIL.with(|f| f.get()) {
-			Err(sp_runtime::DispatchError::Other("mock bulletin failure"))
+		if ORIGIN_STORAGE_SHOULD_FAIL.with(|f| f.get()) {
+			Err(sp_runtime::DispatchError::Other("mock storage failure"))
 		} else {
-			BULLETIN_RESERVATIONS.with(|rows| {
+			ORIGIN_STORAGE_RESERVATIONS.with(|rows| {
 				let mut rows = rows.borrow_mut();
 				let Some((owner, _, _)) = rows.get(&id) else {
 					return Err(sp_runtime::DispatchError::Other("missing reservation"));
@@ -366,10 +366,10 @@ impl indiv_support::traits::TwoPhaseStorage<AccountId32, ReservationId, Reservat
 	}
 
 	fn expire_due(now: u64, limit: u32) -> Result<Vec<ReservationId>, sp_runtime::DispatchError> {
-		if BULLETIN_STORAGE_SHOULD_FAIL.with(|f| f.get()) {
-			return Err(sp_runtime::DispatchError::Other("mock bulletin failure"));
+		if ORIGIN_STORAGE_SHOULD_FAIL.with(|f| f.get()) {
+			return Err(sp_runtime::DispatchError::Other("mock storage failure"));
 		}
-		Ok(BULLETIN_RESERVATIONS.with(|rows| {
+		Ok(ORIGIN_STORAGE_RESERVATIONS.with(|rows| {
 			let mut rows = rows.borrow_mut();
 			let ids = rows
 				.iter()
@@ -570,7 +570,7 @@ impl Config for Test {
 	type LongTermStorageClaimsPerPeriod = LongTermStorageClaimsPerPeriod;
 	type LongTermStorageAllowanceForPeople = LongTermStorageAllowanceForPeople;
 	type LongTermStorageAllowanceForLitePeople = LongTermStorageAllowanceForLitePeople;
-	type LongTermStorageDataStore = MockBulletinStorage;
+	type LongTermStorageDataStore = MockOrbisStorage;
 	type LongTermStorageCleanupLimit = LongTermStorageCleanupLimit;
 	type MaxReservations = ConstU32<256>;
 	type StorageReservationDuration = ConstU64<100>;

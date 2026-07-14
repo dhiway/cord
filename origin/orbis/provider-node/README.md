@@ -1,7 +1,7 @@
 # Origin Orbis native provider
 
 `origin-orbis-provider` is the CORD-owned off-chain byte/proof service for the native Orbis
-`StorageProvider`, `Drive`, `S3`, and Bulletin `TransactionStorage` composition. Orbis runtime
+`StorageProvider`, `Drive`, `S3`, and Orbis Storage `TransactionStorage` composition. Orbis runtime
 state remains authoritative. The process refuses commits unless `StorageProviderApi` confirms at
 one exact finalized hash that:
 

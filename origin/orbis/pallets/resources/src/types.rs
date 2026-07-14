@@ -149,9 +149,9 @@ pub struct LongTermStorageAllocation {
 	pub bytes: u64,
 }
 
-pub use bulletin_transaction_storage_primitives::ReservationId;
+pub use orbis_transaction_storage_primitives::ReservationId;
 
-/// Stable purpose bound to an isolated Bulletin reservation.
+/// Stable purpose bound to an isolated Orbis Storage reservation.
 #[derive(
 	Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen,
 )]

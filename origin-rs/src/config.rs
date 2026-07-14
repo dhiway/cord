@@ -39,7 +39,7 @@ pub type OriginExtrinsicParams<T> = AnyOf<
 
 /// Signed extensions exposed by Orbis. The five actor-policy extensions encode an unused
 /// `Option::None` selector and must be named here, in runtime order, so Subxt matches live
-/// metadata. Quota-aware payment remains metadata-compatible with `ChargeAssetTxPayment`; Bulletin
+/// metadata. Quota-aware payment remains metadata-compatible with `ChargeAssetTxPayment`; Orbis Storage
 /// validation and Revive origin mapping are also zero-byte fields.
 pub type OrbisExtrinsicParams<T> = AnyOf<
 	T,
@@ -79,7 +79,7 @@ impl Config for OriginConfig {
 	type AssetId = u32;
 }
 
-/// Orbis config including Bulletin and Revive transaction extensions.
+/// Orbis config including Orbis Storage and Revive transaction extensions.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OrbisConfig;
 

@@ -265,7 +265,7 @@ pub mod pallet {
 		/// The long-term storage allocation granted per claim for lite people.
 		type LongTermStorageAllowanceForLitePeople: Get<LongTermStorageAllocation>;
 
-		/// Atomic isolated-capacity backend for real Bulletin content.
+		/// Atomic isolated-capacity backend for real Orbis Storage content.
 		type LongTermStorageDataStore: TwoPhaseStorage<
 			Self::AccountId,
 			ReservationId,
@@ -448,7 +448,7 @@ pub mod pallet {
 		PersonDemoted {
 			account: T::AccountId,
 		},
-		/// Isolated Bulletin capacity has been reserved for a membership claim.
+		/// Isolated Orbis Storage capacity has been reserved for a membership claim.
 		LongTermStorageReserved {
 			reservation_id: ReservationId,
 			alias: Alias,

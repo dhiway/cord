@@ -20,8 +20,8 @@ Runtime pallet indices are append-only within these bands:
 | `80..=89` | assets (local 80-82, foreign 83/85, pool 84/86, uniques 87, NFTs 88, rates 89) |
 | `90` | People/People-Lite compatible identity and aliases |
 | `91..=109` | frozen Orbis identity/application map, including Revive at 100 |
-| `110` | Bulletin transaction storage and proof inherent |
-| `111..=124` | frozen Bulletin, payment-policy, storage-service and issuance map |
+| `110` | Orbis Storage transaction storage and proof inherent |
+| `111..=124` | frozen Orbis Storage, payment-policy, storage-service and issuance map |
 | `125..=129` | reserved application extensions |
 | `200..=214` | application asset and payment extensions (conversion 200, asset payment 201) |
 | `215..=239` | meta-tx, fee policy, safety controls |
@@ -51,8 +51,8 @@ removing, or reassigning an entry requires Architect/Critic replanning, an ADR u
 | `102` | Coinage |
 | `103` | Airdrop |
 | `104` | Storage Initialization |
-| `110` | Bulletin Transaction Storage |
-| `111` | Bulletin HOP Promotion |
+| `110` | Orbis Storage Transaction Storage |
+| `111` | Orbis Storage HOP Promotion |
 | `112` | PGAS |
 | `113` | PGAS Allowance |
 | `114` | Alias Accounts |
@@ -70,7 +70,7 @@ Indices `200+`, `249`, and `255` remain protocol/operations space and are unchan
 
 Token, Register, Entity, and Feeless are byte-compatible Orbis-owned packages below
 `origin/orbis/pallets/`; Origin and CORD retain their existing packages and consumers. Unmodified
-SDK pallets remain pinned dependencies rather than local forks. Modified Individuality, Bulletin,
+SDK pallets remain pinned dependencies rather than local forks. Modified Individuality, Orbis Storage,
 or Web3 Storage behavior belongs below `origin/orbis/pallets/` with source revision, license,
 adaptation notes, and upstream test provenance.
 
@@ -80,7 +80,7 @@ parity, tokenomics redesign, live migration, and production launch are excluded.
 manifest is the finite pallet/API/node/benchmark/migration/E2E/exclusion ledger; unlisted Web3
 Storage code is not implicitly in scope.
 
-Indices must never be reused after a released runtime. Assets, People, Revive, and Bulletin receive
+Indices must never be reused after a released runtime. Assets, People, Revive, and Orbis Storage receive
 explicit indices and metadata snapshot tests before their first release.
 
 Score and Honour became native at indices 97 and 99 in spec 29. Both are Orbis-owned forks of

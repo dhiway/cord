@@ -1789,7 +1789,7 @@ mod long_term_storage {
 			let counter = 0u8;
 			let target_account = id_to_account(99);
 
-			crate::mock::BULLETIN_STORAGE_SHOULD_FAIL.with(|f| f.set(true));
+			crate::mock::ORIGIN_STORAGE_SHOULD_FAIL.with(|f| f.set(true));
 
 			assert_noop!(
 				Resources::claim_long_term_storage(
@@ -1808,7 +1808,7 @@ mod long_term_storage {
 			assert_eq!(NextStorageReservationId::<Test>::get(), 0);
 			assert!(StorageClaims::<Test>::get(0).is_none());
 
-			crate::mock::BULLETIN_STORAGE_SHOULD_FAIL.with(|f| f.set(false));
+			crate::mock::ORIGIN_STORAGE_SHOULD_FAIL.with(|f| f.set(false));
 		});
 	}
 
@@ -1926,7 +1926,7 @@ mod long_term_storage {
 				}
 				.into(),
 			);
-			// Audit rows remain until Bulletin prunes the matching tombstone.
+			// Audit rows remain until Orbis Storage prunes the matching tombstone.
 			assert!(StorageClaims::<Test>::contains_key(0));
 		});
 	}

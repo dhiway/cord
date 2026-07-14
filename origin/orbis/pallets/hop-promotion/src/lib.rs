@@ -18,13 +18,13 @@
 //! Promotes near-expiry HOP pool data to permanent chain storage via
 //! `pallet-transaction-storage`. Uses general transactions with
 //! `#[pallet::authorize]` — no signature, no fees, priority 0, and no
-//! debit of the submitter's Bulletin allowance: promotion only lands in
+//! debit of the submitter's Orbis Storage allowance: promotion only lands in
 //! blockspace that would otherwise be unused, so charging the user
 //! would just leave that space empty for no benefit.
 //!
 //! The authorize closure verifies the user's submit-time signature and the
 //! freshness of the submit timestamp, and refuses promotion for accounts
-//! whose Bulletin authorization is missing or expired.
+//! whose Orbis Storage authorization is missing or expired.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -64,13 +64,13 @@ pub mod pallet {
 	use super::signing_payload;
 	use crate::WeightInfo;
 	use alloc::vec::Vec;
-	use bulletin_transaction_storage_primitives::{
+	use orbis_transaction_storage_primitives::{
 		cids::{HashingAlgorithm, RAW_CODEC},
 		ContentHash,
 	};
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use pallet_bulletin_transaction_storage::WeightInfo as _;
+	use pallet_orbis_transaction_storage::WeightInfo as _;
 	use sp_runtime::{
 		traits::{IdentifyAccount, Verify},
 		AccountId32, MultiSignature, MultiSigner,
@@ -82,7 +82,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config:
 		frame_system::Config<AccountId = AccountId32>
-		+ pallet_bulletin_transaction_storage::Config
+		+ pallet_orbis_transaction_storage::Config
 		+ pallet_timestamp::Config<Moment = u64>
 	{
 		/// Maximum allowable skew (in milliseconds) between the user's
@@ -98,24 +98,24 @@ pub mod pallet {
 		/// Returns whether `who` may have a HOP blob promoted on their behalf.
 		///
 		/// Satisfied when the account has an unexpired authorization entry in
-		/// `pallet-bulletin-transaction-storage`, even if its store/renew
+		/// `pallet-orbis-transaction-storage`, even if its store/renew
 		/// extent has been fully spent. The storage pallet keeps the entry
 		/// around (with zero extent) until expiration so that promotion stays
 		/// available for the rest of the auth window.
 		pub fn can_account_promote(who: &T::AccountId, _data_len: u32) -> bool {
-			pallet_bulletin_transaction_storage::Pallet::<T>::account_has_active_authorization(who)
+			pallet_orbis_transaction_storage::Pallet::<T>::account_has_active_authorization(who)
 		}
 
 		/// Whether `content_hash` is currently stored on-chain — i.e. some
-		/// retained transaction in `pallet-bulletin-transaction-storage`
+		/// retained transaction in `pallet-orbis-transaction-storage`
 		/// indexes it.
 		///
 		/// Used by HOP's maintenance task to confirm a previously submitted
 		/// promotion extrinsic landed in a block. Delegates to
-		/// `pallet-bulletin-transaction-storage::contains_transaction`,
+		/// `pallet-orbis-transaction-storage::contains_transaction`,
 		/// which answers in O(1) via the content-hash index.
 		pub fn is_promoted_on_chain(content_hash: ContentHash) -> bool {
-			pallet_bulletin_transaction_storage::Pallet::<T>::contains_transaction(content_hash)
+			pallet_orbis_transaction_storage::Pallet::<T>::contains_transaction(content_hash)
 		}
 
 		/// Authorizes a [`Call::promote`] dispatch in the tx pool: validates the
@@ -134,13 +134,13 @@ pub mod pallet {
 			if matches!(source, TransactionSource::External) {
 				return Err(InvalidTransaction::Call.into());
 			}
-			if !pallet_bulletin_transaction_storage::Pallet::<T>::data_size_ok(data.len()) {
+			if !pallet_orbis_transaction_storage::Pallet::<T>::data_size_ok(data.len()) {
 				return Err(InvalidTransaction::Custom(0).into());
 			}
 
-			// Mirrors the early-out in pallet_bulletin_transaction_storage so we don't pay for
+			// Mirrors the early-out in pallet_orbis_transaction_storage so we don't pay for
 			// chunking + ordered-root hashing when the block is already at MaxBlockTransactions.
-			if pallet_bulletin_transaction_storage::Pallet::<T>::block_transactions_full() {
+			if pallet_orbis_transaction_storage::Pallet::<T>::block_transactions_full() {
 				return Err(InvalidTransaction::ExhaustsResources.into());
 			}
 
@@ -182,7 +182,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(
-			<T as pallet_bulletin_transaction_storage::Config>::WeightInfo::store(data.len() as u32)
+			<T as pallet_orbis_transaction_storage::Config>::WeightInfo::store(data.len() as u32)
 		)]
 		#[pallet::authorize(Pallet::<T>::authorize_promote)]
 		#[pallet::weight_of_authorize(<T as Config>::WeightInfo::authorize_promote(data.len() as u32))]
@@ -190,7 +190,7 @@ pub mod pallet {
 		// above; the dispatch body trusts them and only runs after authorization.
 		//
 		// `data` MUST be the last argument — see the FOOTGUN note on
-		// `pallet_bulletin_transaction_storage::Pallet::do_store`: the trailing
+		// `pallet_orbis_transaction_storage::Pallet::do_store`: the trailing
 		// `data.len()` bytes of the encoded extrinsic get indexed, so any field
 		// encoded after `data` corrupts the stored blob.
 		pub fn promote(
@@ -201,7 +201,7 @@ pub mod pallet {
 			data: Vec<u8>,
 		) -> DispatchResult {
 			ensure_authorized(origin)?;
-			pallet_bulletin_transaction_storage::Pallet::<T>::do_store(
+			pallet_orbis_transaction_storage::Pallet::<T>::do_store(
 				data,
 				HashingAlgorithm::Blake2b256,
 				RAW_CODEC,

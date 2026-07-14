@@ -14,5 +14,5 @@ runtime and its duplicate pallets are deleted: Foundation and Commons have one r
 Origin-stack implementation per shared capability.
 
 Orbis must always retain a bootstrap core. If stock omni-node cannot prove slot-based
-multi-candidate authoring, V3 descriptors, Bulletin proof-inherent construction, two collators,
+multi-candidate authoring, V3 descriptors, Orbis Storage proof-inherent construction, two collators,
 restart/sync, and retention, a dedicated Orbis node wrapper becomes mandatory.

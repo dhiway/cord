@@ -96,12 +96,12 @@ impl Validate for CidConfig {
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct BulletinRef {
+pub struct StorageRef {
 	pub block: BlockNumber,
 	pub transaction_index: u32,
 }
 
-impl Validate for BulletinRef {
+impl Validate for StorageRef {
 	fn validate(&self) -> DomainResult<()> {
 		Ok(())
 	}
@@ -185,7 +185,7 @@ pub enum ResourceReservationView {
 pub struct ResourceReservationLink {
 	pub reservation_id: ReservationId,
 	pub content_hash: ContentHash,
-	pub bulletin_ref: BulletinRef,
+	pub storage_ref: StorageRef,
 	pub owner: AccountId,
 	pub size: u32,
 	pub retention_boundary: BlockNumber,
@@ -209,7 +209,7 @@ pub enum StorageQuery {
 	AccountAuthorization { account: AccountId },
 	CanStore { account: AccountId, data_len: u32 },
 	CanRenew { account: AccountId, entry: TransactionRef },
-	StoredContentProvenance { reference: BulletinRef },
+	StoredContentProvenance { reference: StorageRef },
 	ResourceReservation { reservation_id: ReservationId },
 	ResourceReservationLink { reservation_id: ReservationId, content_hash: ContentHash },
 	ResourceProviderRef { reservation_id: ReservationId },

@@ -65,7 +65,7 @@ pub trait FinalizedReadBinding: Send + Sync {
 	) -> DomainResult<StorageProviderResponse>;
 	async fn drive(&self, query: &DriveRead) -> DomainResult<DriveResponse>;
 	async fn s3(&self, query: &S3Read) -> DomainResult<S3Response>;
-	async fn bulletin_storage(&self, query: &StorageRead) -> DomainResult<StorageResponse>;
+	async fn orbis_storage(&self, query: &StorageRead) -> DomainResult<StorageResponse>;
 }
 
 /// Fail-closed reader used when an exact pinned-hash runtime-API binding was not installed.
@@ -104,7 +104,7 @@ impl FinalizedReadBinding for MissingFinalizedReadBinding {
 		Err(read_binding_required())
 	}
 
-	async fn bulletin_storage(&self, _query: &StorageRead) -> DomainResult<StorageResponse> {
+	async fn orbis_storage(&self, _query: &StorageRead) -> DomainResult<StorageResponse> {
 		Err(read_binding_required())
 	}
 }
@@ -178,7 +178,7 @@ impl<R: FinalizedReadBinding> NativeDomainTransport<R> {
 
 	pub async fn read_storage(&self, query: &StorageRead) -> DomainResult<StorageResponse> {
 		query.validate()?;
-		self.reads.bulletin_storage(query).await
+		self.reads.orbis_storage(query).await
 	}
 
 	pub async fn submit_attestation(
@@ -514,7 +514,7 @@ impl<R: FinalizedReadBinding, G: GovernedSudoBinding> OrbisDomainTransport<R, G>
 
 	pub async fn read_storage(&self, query: &StorageRead) -> DomainResult<StorageResponse> {
 		query.validate()?;
-		self.reads.bulletin_storage(query).await
+		self.reads.orbis_storage(query).await
 	}
 
 	pub async fn submit_attestation(
@@ -1108,7 +1108,7 @@ pub fn prepare_storage_provider_command(
 	Ok(subxt::dynamic::tx(pallet, call, args))
 }
 
-/// Prepare a Bulletin TransactionStorage call using live metadata.
+/// Prepare a Orbis Storage TransactionStorage call using live metadata.
 pub fn prepare_storage_command(command: &StorageCommand) -> DomainResult<DynamicPayload> {
 	command.validate()?;
 	let (call, args) = match command {

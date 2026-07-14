@@ -11,7 +11,7 @@ extends ADR 0007 and does not replace the active identity pallets.
 | personhood roots/epochs | Members | Personhood, Resources, Score/Honour and future native apps | local MembersSubscriber root |
 | outbound root notification | MembersNotifier | approved sibling consumers | native Orbis dependency on notification |
 | anonymous proof/context alias | Personhood/verifier | scoped application call | raw private proof/claim storage |
-| quota/reservation | Resources | Bulletin/application authorization | personhood/profile truth |
+| quota/reservation | Resources | Orbis Storage/application authorization | personhood/profile truth |
 | credential schema/status | native Attestation pallet 105 | DotNS/apps/SDK | Revive contract status or private claim |
 | names/content records | native DotNS pallet 116 | resolved references | copied identity/attestation/content records |
 

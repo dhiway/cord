@@ -19,7 +19,7 @@ export interface CidConfig {
   readonly hashing: HashingAlgorithm;
 }
 
-export interface BulletinRef {
+export interface StorageRef {
   readonly block: BlockNumber;
   readonly transaction_index: number;
 }
@@ -49,7 +49,7 @@ export type StoredContentProvenance = StorageActor | null;
 export interface ResourceReservationLink {
   readonly reservation_id: ReservationId;
   readonly content_hash: ContentHash;
-  readonly bulletin_ref: BulletinRef;
+  readonly storage_ref: StorageRef;
   readonly owner: AccountId;
   readonly size: number;
   readonly retention_boundary: BlockNumber;
@@ -75,7 +75,7 @@ export const storage = {
     return finalizedRead("storage", context, "storage", "can_renew", { account, entry: { ...entry } });
   },
 
-  storedContentProvenance(context: RequestContext, reference: BulletinRef) {
+  storedContentProvenance(context: RequestContext, reference: StorageRef) {
     return finalizedRead("storage", context, "storage", "stored_content_provenance", {
       reference: { ...reference },
     });

@@ -1,12 +1,12 @@
 [package]
-name = "pallet-bulletin-transaction-storage"
+name = "pallet-orbis-transaction-storage"
 version = "0.1.0"
-authors = ["Parity Technologies <admin@parity.io>"]
+authors.workspace = true
 edition.workspace = true
 license = "Apache-2.0"
 homepage.workspace = true
 repository.workspace = true
-description = "Storage chain pallet"
+description = "Native transaction storage for Orbis Commons."
 readme = "README.md"
 
 [package.metadata.docs.rs]
@@ -17,8 +17,8 @@ array-bytes = { optional = true, workspace = true }
 codec = { workspace = true }
 scale-info = { features = ["derive"], workspace = true }
 tracing = { workspace = true }
-bulletin-transaction-storage-primitives = { workspace = true }
-pallet-bulletin-transaction-storage-runtime-api = { workspace = true }
+orbis-transaction-storage-primitives = { workspace = true }
+pallet-orbis-transaction-storage-runtime-api = { workspace = true }
 indiv-support = { workspace = true }
 
 polkadot-sdk-frame = { workspace = true, default-features = false, features = [
@@ -27,7 +27,7 @@ polkadot-sdk-frame = { workspace = true, default-features = false, features = [
 sp-transaction-storage-proof = { workspace = true, default-features = false }
 
 [dev-dependencies]
-bulletin-pallets-common = { workspace = true, features = ["std"] }
+orbis-pallets-common = { workspace = true, features = ["std"] }
 
 
 [features]
@@ -37,9 +37,9 @@ runtime-benchmarks = [
 	"polkadot-sdk-frame/runtime-benchmarks",
 ]
 std = [
-	"bulletin-transaction-storage-primitives/std",
+	"orbis-transaction-storage-primitives/std",
 	"codec/std",
-	"pallet-bulletin-transaction-storage-runtime-api/std",
+	"pallet-orbis-transaction-storage-runtime-api/std",
 	"indiv-support/std",
 	"polkadot-sdk-frame/std",
 	"scale-info/std",

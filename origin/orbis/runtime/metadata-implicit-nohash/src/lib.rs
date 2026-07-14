@@ -35,7 +35,7 @@ pub fn exercise() -> NoHashArtifact {
 	.expect("enabled metadata extension round-trips exactly");
 	let call = RuntimeCall::System(frame_system::Call::remark { remark: encoded.clone() });
 	NoHashArtifact {
-		error: bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&decoded)
+		error: orbis_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&decoded)
 			.expect_err("no-hash build must reject enabled mode"),
 		weight: decoded.weight(&call),
 		state: sp_runtime::traits::BlakeTwo256::hash(&encoded).into(),

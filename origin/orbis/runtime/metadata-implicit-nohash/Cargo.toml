@@ -11,7 +11,7 @@ std = []
 runtime-benchmarks = []
 
 [dependencies]
-bulletin-pallets-common = { workspace = true, features = ["std"] }
+orbis-pallets-common = { workspace = true, features = ["std"] }
 codec = { workspace = true, features = ["derive", "std"] }
 frame-metadata-hash-extension = { workspace = true, features = ["std"] }
 frame-support = { workspace = true, features = ["std"] }

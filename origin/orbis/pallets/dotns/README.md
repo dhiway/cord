@@ -12,4 +12,4 @@ emergency controls are bounded FRAME state.
 Resolver values remain references rather than duplicated domain state. Runtime-configured O(1)
 validators reject unknown subject commitments, non-live attestations, and unknown content
 commitments before a name record is changed. Orbis wires the subject and attestation validators to
-the native attestation pallet and the content validator to the Bulletin transaction ledger.
+the native attestation pallet and the content validator to the Orbis Storage transaction ledger.

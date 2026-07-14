@@ -762,13 +762,13 @@ pub fn benchmark_policy_scenario(
 			let mortality = frame_system::CheckMortality::<Runtime>::from(Era::Immortal);
 			let nonce = frame_system::CheckNonce::<Runtime>::from(0);
 			let policy = MetaAccountBoundPoliciesV6::default();
-			let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+			let storage = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
 				Runtime,
-				crate::BulletinCallInspector,
+				crate::OrbisStorageCallInspector,
 			>::default();
 			let metadata = crate::canonical_metadata_extension();
 			let metadata_implicit =
-				bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&metadata)
+				orbis_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&metadata)
 					.map_err(|_| stop("metadata implicit unavailable"))?;
 			let preimage = IntentPreimageV7 {
 				domain: META_DOMAIN.to_vec(),
@@ -1633,7 +1633,7 @@ impl MetadataImplicitResolver for ProductionMetadataImplicitResolver {
 	fn resolve(
 		metadata: &frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 	) -> Result<Option<[u8; 32]>, TransactionValidityError> {
-		bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(metadata)
+		orbis_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(metadata)
 	}
 }
 

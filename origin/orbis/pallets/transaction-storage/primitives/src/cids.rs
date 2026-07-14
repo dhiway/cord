@@ -189,7 +189,7 @@ mod tests {
 	#[test]
 	fn test_cid_raw_blake2b_256_roundtrip_works() {
 		// Prepare data.
-		let data = "Hello, Bulletin with PAPI - Fri Nov 21 2025 11:09:18 GMT+0000";
+		let data = "Hello, Orbis Storage with PAPI - Fri Nov 21 2025 11:09:18 GMT+0000";
 		let expected_content_hash = sp_io::hashing::blake2_256(data.as_bytes());
 
 		// Expected raw CID calculated for the same data with `examples/common.js`.
@@ -234,7 +234,7 @@ mod tests {
 
 	#[test]
 	fn test_cid_various_codecs_and_hashes() {
-		let data = "Hello, Bulletin with PAPI - Fri Nov 21 2025 11:09:18 GMT+0000";
+		let data = "Hello, Orbis Storage with PAPI - Fri Nov 21 2025 11:09:18 GMT+0000";
 
 		// Expected results from `examples/common.js`.
 		let expected_cids = vec![

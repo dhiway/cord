@@ -36,16 +36,16 @@ mod tests;
 mod types;
 
 use alloc::vec::Vec;
-use bulletin_transaction_storage_primitives::{
+use orbis_transaction_storage_primitives::{
 	cids::{calculate_cid, Cid, CidCodec, CidConfig, HashingAlgorithm, RAW_CODEC},
-	BulletinRef, ContentHash, ReservationId, ResourceClosure, ResourceExpiryCursor,
+	StorageRef, ContentHash, ReservationId, ResourceClosure, ResourceExpiryCursor,
 	ResourceReservation, ResourceReservationLink, ResourceReservationTombstone,
 	ResourceReservationView, StorageActor,
 };
 use codec::{Decode, Encode, MaxEncodedLen};
 use core::fmt::Debug;
 use indiv_support::traits::{ResourceClaimLifecycle, TwoPhaseStorage};
-use pallet_bulletin_transaction_storage_runtime_api::AccountAuthorization;
+use pallet_orbis_transaction_storage_runtime_api::AccountAuthorization;
 use polkadot_sdk_frame::{
 	deps::*,
 	prelude::*,
@@ -60,7 +60,7 @@ use sp_transaction_storage_proof::{
 };
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
-pub use bulletin_transaction_storage_primitives::ProviderAllocationId;
+pub use orbis_transaction_storage_primitives::ProviderAllocationId;
 pub use pallet::*;
 pub use types::*;
 pub use weights::WeightInfo;
@@ -130,7 +130,7 @@ pub const CANNOT_DISABLE_PREPAID_AUTO_RENEWAL: InvalidTransaction = InvalidTrans
 
 /// Percent of `MaxPermanentStorageSize` at which the pallet emits
 /// [`Event::PermanentStorageNearCap`] (rising-edge only). Off-chain governance consumers
-/// can use this as a "raise the cap or coordinate another bulletin chain" trigger.
+/// can use this as a "raise the cap or coordinate another Orbis Storage network" trigger.
 pub const PERMANENT_STORAGE_NEAR_CAP_PERCENT: u64 = 80;
 
 struct PreparedReservedStore<AccountId, BlockNumber> {
@@ -138,21 +138,21 @@ struct PreparedReservedStore<AccountId, BlockNumber> {
 	reservation: ResourceReservation<AccountId, BlockNumber>,
 	content_hash: ContentHash,
 	size: u32,
-	bulletin_ref: BulletinRef<BlockNumber>,
+	storage_ref: StorageRef<BlockNumber>,
 }
 
 struct PreparedReservedRenew<AccountId, BlockNumber> {
 	owner: AccountId,
 	reservation: ResourceReservation<AccountId, BlockNumber>,
 	source: ResourceReservationLink<AccountId, BlockNumber>,
-	bulletin_ref: BulletinRef<BlockNumber>,
+	storage_ref: StorageRef<BlockNumber>,
 }
 
 struct PreparedRenew<AccountId, BlockNumber> {
 	info: TransactionInfo,
 	content_hash: ContentHash,
 	extrinsic_index: u32,
-	bulletin_ref: BulletinRef<BlockNumber>,
+	storage_ref: StorageRef<BlockNumber>,
 	actor: StorageActor<AccountId>,
 }
 
@@ -332,7 +332,7 @@ pub mod pallet {
 		TransactionAllowanceExhausted,
 		BytesAllowanceExhausted,
 		StoredContentOwnerMismatch,
-		BulletinRefHashMismatch,
+		StorageRefHashMismatch,
 		ExpiryBucketFull,
 		ExpiryBlockSetFull,
 		CleanupLimitExceeded,
@@ -437,13 +437,13 @@ pub mod pallet {
 					let mut renewed_sum: u64 = 0;
 					for (transaction_index, tx_info) in transactions.into_iter().enumerate() {
 						let hash: ContentHash = tx_info.content_hash;
-						let bulletin_ref = BulletinRef {
+						let storage_ref = StorageRef {
 							block: obsolete,
 							transaction_index: transaction_index as u32,
 						};
-						StoredBy::<T>::remove(bulletin_ref);
+						StoredBy::<T>::remove(storage_ref);
 						if let Some((reservation_id, linked_hash)) =
-							ResourceLinkByRef::<T>::take(bulletin_ref)
+							ResourceLinkByRef::<T>::take(storage_ref)
 						{
 							ResourceReservationLinks::<T>::remove(reservation_id, linked_hash);
 							if ResourceLinkByContentHash::<T>::get(linked_hash)
@@ -636,7 +636,7 @@ pub mod pallet {
 			Self::do_store_reserved(owner, reservation_id, cid_config, data)
 		}
 
-		/// Renew the exact current Bulletin copy linked to `content_hash`.
+		/// Renew the exact current Orbis Storage copy linked to `content_hash`.
 		///
 		/// The old and new copies overlap in permanent-byte accounting until normal retention
 		/// cleanup removes the old position.
@@ -1259,7 +1259,7 @@ pub mod pallet {
 			cap: u64,
 		},
 		StoredContentProvenanceRecorded {
-			bulletin_ref: BulletinRef<BlockNumberFor<T>>,
+			storage_ref: StorageRef<BlockNumberFor<T>>,
 			actor: StorageActor<T::AccountId>,
 		},
 		ResourceCapacityReserved {
@@ -1276,12 +1276,12 @@ pub mod pallet {
 		ReservedContentStored {
 			reservation_id: ReservationId,
 			content_hash: ContentHash,
-			bulletin_ref: BulletinRef<BlockNumberFor<T>>,
+			storage_ref: StorageRef<BlockNumberFor<T>>,
 		},
 		ReservedContentRenewed {
 			reservation_id: ReservationId,
 			content_hash: ContentHash,
-			bulletin_ref: BulletinRef<BlockNumberFor<T>>,
+			storage_ref: StorageRef<BlockNumberFor<T>>,
 		},
 		ResourceCapacityReleased {
 			reservation_id: ReservationId,
@@ -1383,7 +1383,7 @@ pub mod pallet {
 	pub type StoredBy<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
-		BulletinRef<BlockNumberFor<T>>,
+		StorageRef<BlockNumberFor<T>>,
 		StorageActor<T::AccountId>,
 		OptionQuery,
 	>;
@@ -1434,7 +1434,7 @@ pub mod pallet {
 	pub type ResourceLinkByRef<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
-		BulletinRef<BlockNumberFor<T>>,
+		StorageRef<BlockNumberFor<T>>,
 		(ReservationId, ContentHash),
 		OptionQuery,
 	>;
@@ -1752,11 +1752,11 @@ pub mod pallet {
 			}
 			for (item, renewal_data) in prepared {
 				Self::deposit_event(Event::StoredContentProvenanceRecorded {
-					bulletin_ref: item.bulletin_ref,
+					storage_ref: item.storage_ref,
 					actor: item.actor,
 				});
 				Self::deposit_event(Event::DataAutoRenewed {
-					index: item.bulletin_ref.transaction_index,
+					index: item.storage_ref.transaction_index,
 					content_hash: item.content_hash,
 					account: renewal_data.account,
 				});
@@ -1792,7 +1792,7 @@ pub mod pallet {
 				},
 				content_hash: info.content_hash,
 				extrinsic_index,
-				bulletin_ref: BulletinRef { block: Self::now(), transaction_index: new_index },
+				storage_ref: StorageRef { block: Self::now(), transaction_index: new_index },
 				actor,
 			})
 		}
@@ -1811,9 +1811,9 @@ pub mod pallet {
 		) {
 			TransactionByContentHash::<T>::insert(
 				prepared.content_hash,
-				(prepared.bulletin_ref.block, prepared.bulletin_ref.transaction_index),
+				(prepared.storage_ref.block, prepared.storage_ref.transaction_index),
 			);
-			StoredBy::<T>::insert(prepared.bulletin_ref, &prepared.actor);
+			StoredBy::<T>::insert(prepared.storage_ref, &prepared.actor);
 		}
 
 		fn invoke_renew_host(extrinsic_index: u32, content_hash: ContentHash) {
@@ -1893,7 +1893,7 @@ pub mod pallet {
 		/// encodes as `preamble ++ call`, `data` must be the LAST field of any
 		/// dispatchable that funnels into `do_store` (e.g. [`store`](Self::store),
 		/// [`store_with_cid_config`](Self::store_with_cid_config),
-		/// `pallet-bulletin-hop-promotion::promote`). A field encoded after `data`
+		/// `pallet-orbis-hop-promotion::promote`). A field encoded after `data`
 		/// shifts the indexed window onto the wrong bytes and corrupts the stored
 		/// blob — without any dispatch error to flag it.
 		pub fn do_store(
@@ -2004,10 +2004,10 @@ pub mod pallet {
 			Self::commit_prepared_renew_metadata(&prepared);
 			Self::invoke_renew_host(prepared.extrinsic_index, prepared.content_hash);
 			Self::deposit_event(Event::StoredContentProvenanceRecorded {
-				bulletin_ref: prepared.bulletin_ref,
+				storage_ref: prepared.storage_ref,
 				actor: prepared.actor,
 			});
-			Ok(prepared.bulletin_ref.transaction_index)
+			Ok(prepared.storage_ref.transaction_index)
 		}
 
 		/// Append a new entry to [`BlockTransactions`] (with the cumulative `block_chunks`)
@@ -2042,9 +2042,9 @@ pub mod pallet {
 				Ok::<_, Error<T>>(new_index)
 			})?;
 			TransactionByContentHash::<T>::insert(content_hash, (Self::now(), new_index));
-			let bulletin_ref = BulletinRef { block: Self::now(), transaction_index: new_index };
-			StoredBy::<T>::insert(bulletin_ref, &actor);
-			Self::deposit_event(Event::StoredContentProvenanceRecorded { bulletin_ref, actor });
+			let storage_ref = StorageRef { block: Self::now(), transaction_index: new_index };
+			StoredBy::<T>::insert(storage_ref, &actor);
+			Self::deposit_event(Event::StoredContentProvenanceRecorded { storage_ref, actor });
 			Ok(new_index)
 		}
 
@@ -2092,7 +2092,7 @@ pub mod pallet {
 			if let Some((block, transaction_index)) =
 				TransactionByContentHash::<T>::get(content_hash)
 			{
-				match StoredBy::<T>::get(BulletinRef { block, transaction_index }) {
+				match StoredBy::<T>::get(StorageRef { block, transaction_index }) {
 					Some(StorageActor::Account(ref stored_owner)) if stored_owner == owner => {},
 					_ => return Err(Error::<T>::StoredContentOwnerMismatch.into()),
 				}
@@ -2112,7 +2112,7 @@ pub mod pallet {
 				reservation,
 				content_hash,
 				size,
-				bulletin_ref: BulletinRef {
+				storage_ref: StorageRef {
 					block: Self::now(),
 					transaction_index: transactions.len() as u32,
 				},
@@ -2159,7 +2159,7 @@ pub mod pallet {
 			let link = ResourceReservationLink {
 				reservation_id,
 				content_hash: prepared.content_hash,
-				bulletin_ref: prepared.bulletin_ref,
+				storage_ref: prepared.storage_ref,
 				owner: prepared.owner.clone(),
 				size: prepared.size,
 				retention_boundary: Self::now().saturating_add(Self::retention_period()),
@@ -2168,26 +2168,26 @@ pub mod pallet {
 			ResourceLinkByContentHash::<T>::insert(prepared.content_hash, reservation_id);
 			ResourceReservationLinkCount::<T>::mutate(|count| *count = count.saturating_add(1));
 			ResourceLinkByRef::<T>::insert(
-				prepared.bulletin_ref,
+				prepared.storage_ref,
 				(reservation_id, prepared.content_hash),
 			);
 			TransactionByContentHash::<T>::insert(
 				prepared.content_hash,
-				(prepared.bulletin_ref.block, prepared.bulletin_ref.transaction_index),
+				(prepared.storage_ref.block, prepared.storage_ref.transaction_index),
 			);
 			let actor = StorageActor::Account(prepared.owner.clone());
-			StoredBy::<T>::insert(prepared.bulletin_ref, &actor);
+			StoredBy::<T>::insert(prepared.storage_ref, &actor);
 			Self::finish_reserved_consumption(reservation_id, new_reservation);
 			// Host operation is deliberately last: everything before this point was preflighted.
 			sp_io::transaction_index::index(extrinsic_index, prepared.size, prepared.content_hash);
 			Self::deposit_event(Event::StoredContentProvenanceRecorded {
-				bulletin_ref: prepared.bulletin_ref,
+				storage_ref: prepared.storage_ref,
 				actor,
 			});
 			Self::deposit_event(Event::ReservedContentStored {
 				reservation_id,
 				content_hash: prepared.content_hash,
-				bulletin_ref: prepared.bulletin_ref,
+				storage_ref: prepared.storage_ref,
 			});
 			Ok(())
 		}
@@ -2214,24 +2214,24 @@ pub mod pallet {
 				.ok_or(Error::<T>::ContentNotFound)?;
 			ensure!(
 				ResourceLinkByContentHash::<T>::get(content_hash) == Some(reservation_id),
-				Error::<T>::BulletinRefHashMismatch
+				Error::<T>::StorageRefHashMismatch
 			);
 			ensure!(source.owner == *owner, Error::<T>::NotReservationOwner);
 			ensure!(
-				ResourceLinkByRef::<T>::get(source.bulletin_ref)
+				ResourceLinkByRef::<T>::get(source.storage_ref)
 					== Some((reservation_id, content_hash)),
-				Error::<T>::BulletinRefHashMismatch
+				Error::<T>::StorageRefHashMismatch
 			);
-			match StoredBy::<T>::get(source.bulletin_ref) {
+			match StoredBy::<T>::get(source.storage_ref) {
 				Some(StorageActor::Account(ref stored_owner)) if stored_owner == owner => {},
 				_ => return Err(Error::<T>::StoredContentOwnerMismatch.into()),
 			}
 			let info = Self::transaction_info(
-				source.bulletin_ref.block,
-				source.bulletin_ref.transaction_index,
+				source.storage_ref.block,
+				source.storage_ref.transaction_index,
 			)
 			.ok_or(Error::<T>::ContentNotFound)?;
-			ensure!(info.content_hash == content_hash, Error::<T>::BulletinRefHashMismatch);
+			ensure!(info.content_hash == content_hash, Error::<T>::StorageRefHashMismatch);
 			ensure!(
 				reservation.transactions_remaining > 0,
 				Error::<T>::TransactionAllowanceExhausted
@@ -2250,7 +2250,7 @@ pub mod pallet {
 				owner: owner.clone(),
 				reservation,
 				source,
-				bulletin_ref: BulletinRef {
+				storage_ref: StorageRef {
 					block: Self::now(),
 					transaction_index: transactions.len() as u32,
 				},
@@ -2265,8 +2265,8 @@ pub mod pallet {
 			let prepared =
 				Self::prepare_reserved_renew_inner(&owner, reservation_id, content_hash)?;
 			let info = Self::transaction_info(
-				prepared.source.bulletin_ref.block,
-				prepared.source.bulletin_ref.transaction_index,
+				prepared.source.storage_ref.block,
+				prepared.source.storage_ref.transaction_index,
 			)
 			.expect("reserved-renew preflight resolved source");
 			let extrinsic_index = frame_system::Pallet::<T>::extrinsic_index()
@@ -2289,30 +2289,30 @@ pub mod pallet {
 					})
 					.expect("reserved-renew preflight checked block capacity");
 			});
-			ResourceLinkByRef::<T>::remove(prepared.source.bulletin_ref);
+			ResourceLinkByRef::<T>::remove(prepared.source.storage_ref);
 			let link = ResourceReservationLink {
-				bulletin_ref: prepared.bulletin_ref,
+				storage_ref: prepared.storage_ref,
 				retention_boundary: Self::now().saturating_add(Self::retention_period()),
 				..prepared.source
 			};
 			ResourceReservationLinks::<T>::insert(reservation_id, content_hash, &link);
-			ResourceLinkByRef::<T>::insert(prepared.bulletin_ref, (reservation_id, content_hash));
+			ResourceLinkByRef::<T>::insert(prepared.storage_ref, (reservation_id, content_hash));
 			TransactionByContentHash::<T>::insert(
 				content_hash,
-				(prepared.bulletin_ref.block, prepared.bulletin_ref.transaction_index),
+				(prepared.storage_ref.block, prepared.storage_ref.transaction_index),
 			);
 			let actor = StorageActor::Account(prepared.owner);
-			StoredBy::<T>::insert(prepared.bulletin_ref, &actor);
+			StoredBy::<T>::insert(prepared.storage_ref, &actor);
 			Self::finish_reserved_consumption(reservation_id, new_reservation);
 			Self::invoke_renew_host(extrinsic_index, content_hash);
 			Self::deposit_event(Event::StoredContentProvenanceRecorded {
-				bulletin_ref: prepared.bulletin_ref,
+				storage_ref: prepared.storage_ref,
 				actor,
 			});
 			Self::deposit_event(Event::ReservedContentRenewed {
 				reservation_id,
 				content_hash,
-				bulletin_ref: prepared.bulletin_ref,
+				storage_ref: prepared.storage_ref,
 			});
 			Ok(())
 		}
@@ -2601,7 +2601,7 @@ pub mod pallet {
 		}
 
 		pub fn stored_content_provenance(
-			reference: BulletinRef<BlockNumberFor<T>>,
+			reference: StorageRef<BlockNumberFor<T>>,
 		) -> Option<StorageActor<T::AccountId>> {
 			StoredBy::<T>::get(reference)
 		}
@@ -2839,11 +2839,11 @@ pub mod pallet {
 		}
 
 		/// Active-authorization summary for `who`, shaped for the
-		/// [`BulletinTransactionStorageApi`] runtime API. Returns `None` if the
+		/// [`OrbisTransactionStorageApi`] runtime API. Returns `None` if the
 		/// account has no authorization or its authorization has expired.
 		///
-		/// [`BulletinTransactionStorageApi`]:
-		/// pallet_bulletin_transaction_storage_runtime_api::BulletinTransactionStorageApi
+		/// [`OrbisTransactionStorageApi`]:
+		/// pallet_orbis_transaction_storage_runtime_api::OrbisTransactionStorageApi
 		pub fn account_authorization(
 			who: T::AccountId,
 		) -> Option<AccountAuthorization<BlockNumberFor<T>>> {
@@ -3257,7 +3257,7 @@ pub mod pallet {
 					let content_hash = cid_config.hashing.hash(data);
 					return Ok((
 						context.want_valid_transaction().then(|| {
-							ValidTransaction::with_tag_prefix("BulletinReservedStore")
+							ValidTransaction::with_tag_prefix("StorageReservedStore")
 								.and_provides((*reservation_id, content_hash))
 								.longevity(T::StoreRenewLongevity::get())
 								.into()
@@ -3270,7 +3270,7 @@ pub mod pallet {
 						.map_err(|_| InvalidTransaction::Call)?;
 					return Ok((
 						context.want_valid_transaction().then(|| {
-							ValidTransaction::with_tag_prefix("BulletinReservedRenew")
+							ValidTransaction::with_tag_prefix("StorageReservedRenew")
 								.and_provides((*reservation_id, *content_hash))
 								.longevity(T::StoreRenewLongevity::get())
 								.into()
@@ -3767,7 +3767,7 @@ impl<T: Config> Pallet<T> {
 		for (id, hash, link) in links {
 			ensure!(id == link.reservation_id && hash == link.content_hash, "link key mismatch");
 			ensure!(
-				ResourceLinkByRef::<T>::get(link.bulletin_ref) == Some((id, hash)),
+				ResourceLinkByRef::<T>::get(link.storage_ref) == Some((id, hash)),
 				"link reverse pointer mismatch"
 			);
 			ensure!(
@@ -3778,7 +3778,7 @@ impl<T: Config> Pallet<T> {
 		for (reference, (id, hash)) in ResourceLinkByRef::<T>::iter() {
 			ensure!(
 				ResourceReservationLinks::<T>::get(id, hash)
-					.is_some_and(|link| link.bulletin_ref == reference),
+					.is_some_and(|link| link.storage_ref == reference),
 				"reverse pointer has no matching link"
 			);
 		}

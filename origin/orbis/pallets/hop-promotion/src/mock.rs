@@ -15,10 +15,10 @@
 
 //! Test environment for hop-promotion pallet.
 
-use crate as pallet_bulletin_hop_promotion;
-use bulletin_pallets_common::NoCurrency;
+use crate as pallet_orbis_hop_promotion;
+use orbis_pallets_common::NoCurrency;
 use indiv_support::traits::{ClaimCleanupOutcome, ResourceClaimLifecycle};
-use pallet_bulletin_transaction_storage::AsAuthorizer;
+use pallet_orbis_transaction_storage::AsAuthorizer;
 use polkadot_sdk_frame::{
 	deps::{frame_support, frame_system},
 	prelude::*,
@@ -53,10 +53,10 @@ mod runtime {
 	pub type Timestamp = pallet_timestamp;
 
 	#[runtime::pallet_index(2)]
-	pub type TransactionStorage = pallet_bulletin_transaction_storage;
+	pub type TransactionStorage = pallet_orbis_transaction_storage;
 
 	#[runtime::pallet_index(3)]
-	pub type HopPromotion = pallet_bulletin_hop_promotion;
+	pub type HopPromotion = pallet_orbis_hop_promotion;
 }
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
@@ -102,7 +102,7 @@ parameter_types! {
 	pub const SubmitTimestampTolerance: u64 = TEST_SUBMIT_TIMESTAMP_TOLERANCE_MS;
 }
 
-impl pallet_bulletin_transaction_storage::Config for Test {
+impl pallet_orbis_transaction_storage::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type Currency = NoCurrency<Self::AccountId, RuntimeHoldReason>;
@@ -129,10 +129,10 @@ impl pallet_bulletin_transaction_storage::Config for Test {
 	type RemoveExpiredAuthorizationLongevity = RemoveExpiredAuthorizationLongevity;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper =
-		pallet_bulletin_transaction_storage::benchmarking::DefaultCheckProofHelper;
+		pallet_orbis_transaction_storage::benchmarking::DefaultCheckProofHelper;
 }
 
-impl pallet_bulletin_hop_promotion::Config for Test {
+impl pallet_orbis_hop_promotion::Config for Test {
 	type SubmitTimestampTolerance = SubmitTimestampTolerance;
 	type WeightInfo = ();
 }
@@ -140,7 +140,7 @@ impl pallet_bulletin_hop_promotion::Config for Test {
 pub fn new_test_ext() -> TestExternalities {
 	let t = RuntimeGenesisConfig {
 		system: Default::default(),
-		transaction_storage: pallet_bulletin_transaction_storage::GenesisConfig::<Test> {
+		transaction_storage: pallet_orbis_transaction_storage::GenesisConfig::<Test> {
 			retention_period: 10,
 			byte_fee: 0,
 			entry_fee: 0,

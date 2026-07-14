@@ -33,7 +33,7 @@ pub type ReservationId = u64;
 /// Native storage-provider agreement attached to an isolated reservation.
 pub type ProviderAllocationId = [u8; 32];
 
-/// Exact position of a transaction in the Bulletin retention ledger.
+/// Exact position of a transaction in the Orbis Storage retention ledger.
 ///
 /// `transaction_index` is the position in the block's `Transactions` vector. It is deliberately
 /// not the extrinsic index.
@@ -51,12 +51,12 @@ pub type ProviderAllocationId = [u8; 32];
 	TypeInfo,
 	MaxEncodedLen,
 )]
-pub struct BulletinRef<BlockNumber> {
+pub struct StorageRef<BlockNumber> {
 	pub block: BlockNumber,
 	pub transaction_index: u32,
 }
 
-/// Actor responsible for creating a retained Bulletin position.
+/// Actor responsible for creating a retained Orbis Storage position.
 #[derive(
 	Clone,
 	PartialEq,
@@ -96,7 +96,7 @@ pub struct ResourceReservation<AccountId, BlockNumber> {
 	pub expires_at: BlockNumber,
 }
 
-/// Current Bulletin position for content charged to a Resources reservation.
+/// Current Orbis Storage position for content charged to a Resources reservation.
 #[derive(
 	Clone,
 	PartialEq,
@@ -111,7 +111,7 @@ pub struct ResourceReservation<AccountId, BlockNumber> {
 pub struct ResourceReservationLink<AccountId, BlockNumber> {
 	pub reservation_id: ReservationId,
 	pub content_hash: ContentHash,
-	pub bulletin_ref: BulletinRef<BlockNumber>,
+	pub storage_ref: StorageRef<BlockNumber>,
 	pub owner: AccountId,
 	pub size: u32,
 	pub retention_boundary: BlockNumber,

@@ -11,7 +11,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 |---|---:|---|---|
 | Dhiway SDK / Polkadot SDK fork | `release-v1.24.0#cc190ea8` | Apache-2.0 | FRAME, Cumulus, relay host, Assets, Revive, Broker and node interfaces |
 | Individuality Community | `28b7d07dab05` | Apache-2.0 | `next-asset-hub-paseo` and `next-people-paseo` behavior |
-| Polkadot Bulletin Chain | `b6c2827d2326` | Apache-2.0 | durable transaction storage, proof handling and hop promotion |
+| upstream transaction-storage reference | `b6c2827d2326` | Apache-2.0 | durable transaction storage, proof handling and hop promotion |
 | Paseo runtimes | `ac99ed6c1122` | GPL-3.0 | relay/system-chain configuration and XCM |
 | Fellows runtimes | `477689fddba4` | GPL-3.0 | system-chain production configuration |
 | Web3 Storage | `a32f83aae7a2` | Apache-2.0 except undeclared `file-system-primitives` | provider, drive and S3 storage service behavior; the undeclared crate requires legal clearance before copying |
@@ -25,7 +25,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 - Origin owns relay consensus, permissioned authority sessions, parachain registration, availability,
   disputes, scheduling, coretime assignment, XCM routing and Sudo administration.
 - Orbis owns all application-facing system-chain capabilities and the sole Coretime Broker.
-- Orbis must not require Asset Hub, People, Bulletin, Coretime, or Storage to be deployed as separate
+- Orbis must not require Asset Hub, People, Orbis Storage, Coretime, or Storage to be deployed as separate
   chains for native operations.
 - Staking, nomination pools, elections, councils, referenda, conviction voting, treasuries and public
   governance are excluded. Their administrative origins are replaced by Sudo/root where a retained
@@ -50,8 +50,8 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Capability | Reference | Native pallet/configuration | State |
 |---|---|---|---|
 | Parachain execution | all system chains | ParachainSystem, Aura/AuraExt, Session, two collators | Present |
-| Bundled-block accounting | Asset Hub/Bulletin/SDK | `WeightReclaim` plus outer `StorageWeightReclaim` transaction extension | Present |
-| Elastic authoring | Bulletin/SDK | target rate 3, relay-parent offset 1, capacity 12, slot-based node | Present and native-smoke tested |
+| Bundled-block accounting | Asset Hub/Orbis Storage/SDK | `WeightReclaim` plus outer `StorageWeightReclaim` transaction extension | Present |
+| Elastic authoring | Orbis Storage/SDK | target rate 3, relay-parent offset 1, capacity 12, slot-based node | Present and native-smoke tested |
 | Messaging | Asset Hub/People | XCMP, DMP, XCM, MessageQueue and safe-call filtering | Present; full native E2E pending |
 | Safety and operations | system chains | Scheduler, Utility, Multisig, Proxy, TxPause, SafeMode and the generic future-upgrade migration framework | Present; no predecessor-state migration is wired at the new genesis |
 | Administration | enterprise policy | Sudo only | Present |
@@ -87,7 +87,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Full ring-backed personhood | `indiv_pallet_people` | Native at index 95 with Sudo recognition, flexible membership and authenticated person origins |
 | People Lite compatibility API and storage semantics | `indiv_pallet_people_lite` | Native at index 94 with Members-backed aliases, Sudo allowances and transaction authentication |
 | Storage initialization | `indiv_pallet_storage_initialization` | Gap |
-| Resources and chunk management | `indiv_pallet_resources`, `indiv_pallet_chunks_manager` | Native Orbis Resources V1 present at index 96 with person/lite proof quotas, atomic isolated Bulletin reservations, account-bound paid MetaTx v6 claims and Root management; Chunk Manager remains at 91 |
+| Resources and chunk management | `indiv_pallet_resources`, `indiv_pallet_chunks_manager` | Native Orbis Resources V1 present at index 96 with person/lite proof quotas, atomic isolated Orbis Storage reservations, account-bound paid MetaTx v6 claims and Root management; Chunk Manager remains at 91 |
 | Members and notifications | members/subscriber/notifier pallets | Ring Members 92 and Sudo-managed XCM Notifier 93 present; local subscriber excluded because native consumers bind Members directly (ADR 0007) |
 | Coinage and airdrop | Individuality People | Gap; enterprise issuance policy required |
 | Score | Individuality People application pallet | Orbis-owned Apache-2.0 fork present at index 97; native Personhood/People integration, account-bound participant extension, Sudo-or-named-manager operations, conservative weights, benchmarks and upstream-derived tests |
@@ -105,18 +105,18 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Label policy | DotNS normalization semantics | Deterministic ASCII policy v1 exposed through the runtime API; non-ASCII and reserved forms fail closed |
 | Rust/TypeScript access | DotNS SDK patterns | CORD-owned typed clients and exact finalized-hash runtime API surface; no changes to the reference DotNS repositories |
 
-## Bulletin and storage
+## Orbis Storage and storage
 
 | Capability/pallet | Reference | Orbis state |
 |---|---|---|
-| Authorized durable storage | Bulletin TransactionStorage | Vendored and present at index 110 |
-| Person resource reservation and provenance | Orbis Resources/Bulletin semantics | Clean-genesis TransactionStorage V8: isolated capacity, exact `(block, transaction_index)` links, explicit current-network actors, manual reserved renewal, deterministic expiry/tombstone audit and optional native provider agreement references |
-| Content hash/CID lookup | Bulletin | Present and tested |
-| Retention, renewal and permanent accounting | Bulletin | Present and unit-tested |
-| Storage transaction validation and anti-wrapper policy | Bulletin | Present in the Orbis transaction envelope |
-| Runtime authorization/query API | Bulletin | Present |
-| Proof inherent | Bulletin node/runtime | TransactionStorageApi v2 and the SDK-v1.24 omni-node Aura provider (which accepts v1+) are composed; production retention-window E2E is deferred to P7 after feature completeness |
-| Hop promotion | `pallet_bulletin_hop_promotion` | Vendored under Orbis, present at index 111 with `sp_hop` runtime API |
+| Authorized durable storage | Orbis Storage TransactionStorage | Vendored and present at index 110 |
+| Person resource reservation and provenance | Orbis Resources/Orbis Storage semantics | Clean-genesis TransactionStorage V8: isolated capacity, exact `(block, transaction_index)` links, explicit current-network actors, manual reserved renewal, deterministic expiry/tombstone audit and optional native provider agreement references |
+| Content hash/CID lookup | Orbis Storage | Present and tested |
+| Retention, renewal and permanent accounting | Orbis Storage | Present and unit-tested |
+| Storage transaction validation and anti-wrapper policy | Orbis Storage | Present in the Orbis transaction envelope |
+| Runtime authorization/query API | Orbis Storage | Present |
+| Proof inherent | Orbis Storage node/runtime | TransactionStorageApi v2 and the SDK-v1.24 omni-node Aura provider (which accepts v1+) are composed; production retention-window E2E is deferred to P7 after feature completeness |
+| Hop promotion | `pallet_orbis_hop_promotion` | Vendored under Orbis, present at index 111 with `sp_hop` runtime API |
 | Storage providers | Web3 Storage semantics | Native CORD pallet present at index 120; Sudo-authorized, zero-stake provider lifecycle, agreements, challenges and checkpoints |
 | Drive registry | Web3 Storage semantics | Native bounded CORD pallet present at index 121 |
 | S3 registry | Web3 Storage semantics | Native bounded CORD pallet present at index 122 |
@@ -137,7 +137,7 @@ copied verbatim.
 | Sponsored transactions | MetaTx with user signature/nonce and sponsor payment | Spec 29/tx 8 composes Score participant and Honour voter authentication with Verify→Consume, the account-bound router, bounded ingress, one-shot paid token/finalization and signed direct Resources payer adapters; manifest v4 remains the immutable spec-28/tx-7 historical evidence boundary and the v8 fixtures are the active compatibility envelope |
 | Controlled zero-fee calls | Feeless allowlist, per-account quota, deny-by-default wrappers | Present and abuse-tested |
 | Solidity actor preservation | Revive `SetOrigin` plus transaction envelope | Present |
-| Bulletin call validation | recursive storage-call inspector | Present |
+| Orbis Storage call validation | recursive storage-call inspector | Present |
 | Runtime upgrade safety | generic future migrations, SafeMode and TxPause | New genesis starts directly at current migrated-domain pallet storage versions with no predecessor/data import; Orbis uses `Migrations = ()`, while Origin retains the pinned SDK permanent XCM maintenance migration. Only future post-genesis schema changes may add CORD-owned forward migrations |
 
 ### Clean-genesis feature sequence

@@ -29,7 +29,7 @@ verifiable = { workspace = true }
 indiv-support = { workspace = true }
 indiv-pallet-people = { workspace = true }
 indiv-pallet-people-lite = { workspace = true }
-bulletin-transaction-storage-primitives = { workspace = true }
+orbis-transaction-storage-primitives = { workspace = true }
 
 [dev-dependencies]
 indiv-pallet-chunks-manager = { workspace = true }
@@ -42,7 +42,7 @@ frame-executive = { workspace = true }
 default = ["std"]
 std = [
 	"codec/std",
-	"bulletin-transaction-storage-primitives/std",
+	"orbis-transaction-storage-primitives/std",
 	"frame-benchmarking?/std",
 	"frame-executive/std",
 	"frame-support/std",

@@ -13,18 +13,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Weights for `pallet-bulletin-hop-promotion`.
+//! Weights for `pallet-orbis-hop-promotion`.
 //!
 //! `authorize_promote` measures the cost of the `#[pallet::authorize]` path for
 //! [`crate::Call::promote`]: storage reads for block-fullness / timestamp /
 //! account authorization, a `blake2_256` over the data (parameterized by `d`),
 //! and an `sr25519` signature verify. The dispatch body itself reuses
-//! `pallet_bulletin_transaction_storage::WeightInfo::store`, so no `promote`
+//! `pallet_orbis_transaction_storage::WeightInfo::store`, so no `promote`
 //! weight is needed here.
 
 use polkadot_sdk_frame::weights_prelude::*;
 
-/// Weight functions needed for `pallet-bulletin-hop-promotion`.
+/// Weight functions needed for `pallet-orbis-hop-promotion`.
 pub trait WeightInfo {
 	/// Worst-case weight of the `#[pallet::authorize]` closure for
 	/// [`crate::Call::promote`], parameterized by `d` = data length in bytes.

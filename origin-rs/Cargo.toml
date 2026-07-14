@@ -27,7 +27,7 @@ backoff = { workspace = true }
 codec = { workspace = true, features = ["std"] }
 futures = { workspace = true }
 origin-primitives = { workspace = true, features = ["std"] }
-pallet-bulletin-transaction-storage-runtime-api = { workspace = true, features = ["std"] }
+pallet-orbis-transaction-storage-runtime-api = { workspace = true, features = ["std"] }
 pallet-orbis-attestation-runtime-api = { workspace = true, features = ["std"] }
 pallet-orbis-dotns-runtime-api = { workspace = true, features = ["std"] }
 orbis-storage-runtime-api = { workspace = true, features = ["std"] }

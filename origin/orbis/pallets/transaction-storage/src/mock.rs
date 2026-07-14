@@ -16,10 +16,10 @@
 //! Test environment for transaction-storage pallet.
 
 use crate::{
-	self as pallet_bulletin_transaction_storage, AsAuthorizer, EnsureAllowedAuthorizers,
+	self as pallet_orbis_transaction_storage, AsAuthorizer, EnsureAllowedAuthorizers,
 	TransactionStorageProof, DEFAULT_MAX_BLOCK_TRANSACTIONS, DEFAULT_MAX_TRANSACTION_SIZE,
 };
-use bulletin_pallets_common::NoCurrency;
+use orbis_pallets_common::NoCurrency;
 use indiv_support::traits::{ClaimCleanupOutcome, ResourceClaimLifecycle};
 use polkadot_sdk_frame::{
 	deps::{frame_support, frame_system},
@@ -53,7 +53,7 @@ mod runtime {
 	pub type System = frame_system;
 
 	#[runtime::pallet_index(1)]
-	pub type TransactionStorage = pallet_bulletin_transaction_storage;
+	pub type TransactionStorage = pallet_orbis_transaction_storage;
 }
 
 parameter_types! {
@@ -101,7 +101,7 @@ impl ResourceClaimLifecycle<u64, u32> for TestClaimLifecycle {
 	}
 }
 
-impl pallet_bulletin_transaction_storage::Config for Test {
+impl pallet_orbis_transaction_storage::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type Currency = NoCurrency<Self::AccountId, RuntimeHoldReason>;
@@ -136,7 +136,7 @@ impl pallet_bulletin_transaction_storage::Config for Test {
 pub fn new_test_ext() -> TestExternalities {
 	let t = RuntimeGenesisConfig {
 		system: Default::default(),
-		transaction_storage: pallet_bulletin_transaction_storage::GenesisConfig::<Test> {
+		transaction_storage: pallet_orbis_transaction_storage::GenesisConfig::<Test> {
 			retention_period: 10,
 			byte_fee: 2,
 			entry_fee: 200,

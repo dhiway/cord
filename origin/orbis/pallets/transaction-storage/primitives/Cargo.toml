@@ -1,12 +1,12 @@
 [package]
-name = "bulletin-transaction-storage-primitives"
+name = "orbis-transaction-storage-primitives"
 version = "0.1.0"
 authors.workspace = true
 edition.workspace = true
 license = "Apache-2.0"
 homepage.workspace = true
 repository.workspace = true
-description = "Primitives for transaction storage pallet"
+description = "Primitives for Orbis transaction storage."
 readme = "README.md"
 
 [package.metadata.docs.rs]

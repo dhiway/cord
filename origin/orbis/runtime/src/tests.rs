@@ -179,7 +179,6 @@ fn completion_manifest_is_parseable_unique_and_clean_genesis() {
 		.all(|row| row["status"].as_str() == Some("present")));
 	let text = include_str!("../../../../docs/orbis-completion-manifest.toml");
 	for stale in [
-		"PMIG-Bulletin",
 		"LegacyUnknown",
 		"LegacyContentUnrenewable",
 		"MigrateV6ToV7",
@@ -392,9 +391,9 @@ mod transaction_policy_fixture {
 		)>,
 		FrozenPayment,
 		Implemented<
-			pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
+			pallet_orbis_transaction_storage::extension::ValidateStorageCalls<
 				Runtime,
-				crate::BulletinCallInspector,
+				crate::OrbisStorageCallInspector,
 			>,
 		>,
 		Implemented<frame_metadata_hash_extension::CheckMetadataHash<Runtime>>,
@@ -820,9 +819,9 @@ fn account_aware_resources_delegates_only_origin_payer() {
 }
 
 #[test]
-fn resources_people_and_lite_reservations_use_isolated_bulletin_capacity() {
+fn resources_people_and_lite_reservations_use_isolated_storage_capacity() {
 	use crate::{Resources, Timestamp};
-	use bulletin_transaction_storage_primitives::ResourceReservationView;
+	use orbis_transaction_storage_primitives::ResourceReservationView;
 	use indiv_pallet_resources::types::{MembershipCollection, ReservationPurpose};
 
 	sp_io::TestExternalities::new_empty().execute_with(|| {
@@ -873,7 +872,7 @@ fn resources_people_and_lite_reservations_use_isolated_bulletin_capacity() {
 		assert_eq!(lite.bytes_remaining, 4 * 1024 * 1024);
 		assert_eq!(lite.transactions_remaining, 10);
 		assert_eq!(
-			pallet_bulletin_transaction_storage::ReservedPermanentCapacity::<Runtime>::get(),
+			pallet_orbis_transaction_storage::ReservedPermanentCapacity::<Runtime>::get(),
 			people.bytes_remaining + lite.bytes_remaining
 		);
 
@@ -1003,7 +1002,7 @@ fn enterprise_assets_support_native_holds_and_freezes() {
 		));
 
 		let hold_reason = crate::RuntimeHoldReason::TransactionStorage(
-			pallet_bulletin_transaction_storage::HoldReason::StorageFeeHold,
+			pallet_orbis_transaction_storage::HoldReason::StorageFeeHold,
 		);
 		assert_ok!(AssetsHolder::set_balance_on_hold(asset_id, &hold_reason, &beneficiary, 400,));
 		assert_eq!(AssetsHolder::balance_on_hold(asset_id, &beneficiary), Some(400));
@@ -1459,13 +1458,13 @@ fn native_identity_attestation_name_asset_and_storage_journey() {
 			1,
 			1024,
 		));
-		let storage_call = pallet_bulletin_transaction_storage::Call::<Runtime>::store {
+		let storage_call = pallet_orbis_transaction_storage::Call::<Runtime>::store {
 			data: audit_record.clone(),
 		};
 		let (_, scope) = TransactionStorage::validate_signed(&owner, &storage_call).unwrap();
 		let scope = scope.expect("store calls carry their validated authorization scope");
 		assert_ok!(TransactionStorage::pre_dispatch_signed(&owner, &storage_call));
-		let authorized = pallet_bulletin_transaction_storage::Origin::<Runtime>::Authorized {
+		let authorized = pallet_orbis_transaction_storage::Origin::<Runtime>::Authorized {
 			who: owner.clone(),
 			scope,
 		};
@@ -1753,7 +1752,7 @@ fn identity_personhood_runtime_api_returns_bounded_status_without_private_identi
 
 
 #[test]
-fn bulletin_storage_is_authorized_indexed_and_content_addressed() {
+fn orbis_storage_is_authorized_indexed_and_content_addressed() {
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		System::set_block_number(1);
 		System::set_extrinsic_index(0);
@@ -1803,7 +1802,7 @@ fn hop_promotion_accepts_authorized_signed_submit_intent() {
 
 		let data = b"orbis hop promotion".to_vec();
 		let hash = sp_io::hashing::blake2_256(&data);
-		let payload = pallet_bulletin_hop_promotion::signing_payload(&hash, now);
+		let payload = pallet_orbis_hop_promotion::signing_payload(&hash, now);
 		let signature = MultiSignature::Sr25519(pair.sign(&payload));
 		assert!(HopPromotion::authorize_promote(
 			sp_runtime::transaction_validity::TransactionSource::Local,
@@ -1848,9 +1847,9 @@ fn authorized_pipeline_retains_validation_and_explicitly_skips_payment_and_quota
 		let data = b"authorized pipeline promotion".to_vec();
 		let hash = sp_io::hashing::blake2_256(&data);
 		let signature = MultiSignature::Sr25519(
-			pair.sign(&pallet_bulletin_hop_promotion::signing_payload(&hash, now)),
+			pair.sign(&pallet_orbis_hop_promotion::signing_payload(&hash, now)),
 		);
-		let call = RuntimeCall::HopPromotion(pallet_bulletin_hop_promotion::Call::promote {
+		let call = RuntimeCall::HopPromotion(pallet_orbis_hop_promotion::Call::promote {
 			signer: signer.clone(),
 			signature: signature.clone(),
 			submit_timestamp: now,
@@ -1883,7 +1882,7 @@ fn authorized_pipeline_retains_validation_and_explicitly_skips_payment_and_quota
 				&sp_runtime::traits::TxBaseImplication((0u8, &call)),
 				sp_runtime::transaction_validity::TransactionSource::Local,
 			)
-			.expect("the annotated call and its Bulletin authorization are valid");
+			.expect("the annotated call and its Orbis Storage authorization are valid");
 		assert!(origin.is_transaction_authorized());
 		let pre = extension
 			.prepare(val, &origin, &call, &info, call.encoded_size())
@@ -1907,41 +1906,41 @@ fn authorized_pipeline_retains_validation_and_explicitly_skips_payment_and_quota
 
 #[test]
 #[cfg(not(feature = "runtime-benchmarks"))]
-fn bulletin_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm() {
+fn orbis_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm() {
 	use codec::Encode;
 	use frame_support::dispatch::GetDispatchInfo;
 	use sp_runtime::traits::TransactionExtension;
 
 	type XcmSafeCalls = <crate::xcm_config::XcmConfig as xcm_executor::Config>::SafeCallFilter;
-	let store = RuntimeCall::TransactionStorage(pallet_bulletin_transaction_storage::Call::store {
+	let store = RuntimeCall::TransactionStorage(pallet_orbis_transaction_storage::Call::store {
 		data: b"audit".to_vec(),
 	});
-	assert!(crate::BulletinCallInspector::contains(&store));
+	assert!(crate::OrbisStorageCallInspector::contains(&store));
 	assert!(!XcmSafeCalls::contains(&store));
 
 	let wrapped = RuntimeCall::Utility(pallet_utility::Call::batch { calls: vec![store] });
-	assert!(crate::BulletinCallInspector::contains(&wrapped));
+	assert!(crate::OrbisStorageCallInspector::contains(&wrapped));
 	assert!(!XcmSafeCalls::contains(&wrapped));
 	let reserved_renew = RuntimeCall::TransactionStorage(
-		pallet_bulletin_transaction_storage::Call::renew_reserved {
+		pallet_orbis_transaction_storage::Call::renew_reserved {
 			reservation_id: 7,
 			content_hash: [9u8; 32],
 		},
 	);
-	assert!(crate::BulletinCallInspector::contains(&reserved_renew));
+	assert!(crate::OrbisStorageCallInspector::contains(&reserved_renew));
 	assert!(!XcmSafeCalls::contains(&reserved_renew));
 	let wrapped_reserved =
 		RuntimeCall::Utility(pallet_utility::Call::batch { calls: vec![reserved_renew] });
-	assert!(crate::BulletinCallInspector::contains(&wrapped_reserved));
+	assert!(crate::OrbisStorageCallInspector::contains(&wrapped_reserved));
 	assert!(!XcmSafeCalls::contains(&wrapped_reserved));
 
 	let reserved_store = RuntimeCall::TransactionStorage(
-		pallet_bulletin_transaction_storage::Call::store_reserved {
+		pallet_orbis_transaction_storage::Call::store_reserved {
 			reservation_id: 7,
-			cid_config: bulletin_transaction_storage_primitives::cids::CidConfig {
-				codec: bulletin_transaction_storage_primitives::cids::RAW_CODEC,
+			cid_config: orbis_transaction_storage_primitives::cids::CidConfig {
+				codec: orbis_transaction_storage_primitives::cids::RAW_CODEC,
 				hashing:
-					bulletin_transaction_storage_primitives::cids::HashingAlgorithm::Blake2b256,
+					orbis_transaction_storage_primitives::cids::HashingAlgorithm::Blake2b256,
 			},
 			data: b"reserved".to_vec(),
 		},
@@ -2021,7 +2020,7 @@ fn bulletin_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm() {
 		("meta-tx", meta),
 		("revive", revive),
 	] {
-		assert!(crate::BulletinCallInspector::contains(&call), "{name} bypassed inspection");
+		assert!(crate::OrbisStorageCallInspector::contains(&call), "{name} bypassed inspection");
 		assert!(!XcmSafeCalls::contains(&call), "{name} bypassed the XCM safe filter");
 	}
 
@@ -2030,19 +2029,19 @@ fn bulletin_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm() {
 			real: AccountId::from([2u8; 32]).into(),
 			force_proxy_type: Some(crate::ProxyType::Any),
 			call: Box::new(RuntimeCall::TransactionStorage(
-				pallet_bulletin_transaction_storage::Call::store_reserved {
+				pallet_orbis_transaction_storage::Call::store_reserved {
 					reservation_id: 7,
-					cid_config: bulletin_transaction_storage_primitives::cids::CidConfig {
-				codec: bulletin_transaction_storage_primitives::cids::RAW_CODEC,
-				hashing: bulletin_transaction_storage_primitives::cids::HashingAlgorithm::Blake2b256,
+					cid_config: orbis_transaction_storage_primitives::cids::CidConfig {
+				codec: orbis_transaction_storage_primitives::cids::RAW_CODEC,
+				hashing: orbis_transaction_storage_primitives::cids::HashingAlgorithm::Blake2b256,
 			},
 					data: b"reserved".to_vec(),
 				},
 			)),
 		});
-		let extension = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+		let extension = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
 			Runtime,
-			crate::BulletinCallInspector,
+			crate::OrbisStorageCallInspector,
 		>::default();
 		let info = call.get_dispatch_info();
 		let result = extension.validate(
@@ -2061,7 +2060,7 @@ fn bulletin_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm() {
 	});
 
 	let ordinary = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
-	assert!(!crate::BulletinCallInspector::contains(&ordinary));
+	assert!(!crate::OrbisStorageCallInspector::contains(&ordinary));
 	assert!(XcmSafeCalls::contains(&ordinary));
 }
 
@@ -2631,9 +2630,9 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 				)),
 				frame_system::CheckWeight::<Runtime>::new(),
 				crate::AccountAwareResources::from(payment),
-				pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+				pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
 					Runtime,
-					crate::BulletinCallInspector,
+					crate::OrbisStorageCallInspector,
 				>::default(),
 				frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
 				revive,
@@ -2706,9 +2705,9 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 				)),
 				frame_system::CheckWeight::<Runtime>::new(),
 				crate::AccountAwareResources::from(payment),
-				pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+				pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
 					Runtime,
-					crate::BulletinCallInspector,
+					crate::OrbisStorageCallInspector,
 				>::default(),
 				frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
 				pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::default(),
@@ -2891,9 +2890,9 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 		frame_system::CheckMortality<Runtime>,
 		frame_system::CheckNonce<Runtime>,
 		crate::MetaIdentityBoundPolicies,
-		pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
+		pallet_orbis_transaction_storage::extension::ValidateStorageCalls<
 			Runtime,
-			crate::BulletinCallInspector,
+			crate::OrbisStorageCallInspector,
 		>,
 		frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 	);
@@ -2929,9 +2928,9 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 		let mortality = frame_system::CheckMortality::<Runtime>::from(Era::Immortal);
 		let nonce = frame_system::CheckNonce::<Runtime>::from(System::account(&claimed).nonce);
 		let policy = crate::meta_v6::MetaAccountBoundPoliciesV6::new(proofs);
-		let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+		let storage = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
 			Runtime,
-			crate::BulletinCallInspector,
+			crate::OrbisStorageCallInspector,
 		>::default();
 		let preimage = crate::meta_v6::IntentPreimageV7 {
 			domain: crate::meta_v6::META_DOMAIN.to_vec(),
@@ -3019,9 +3018,9 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 		let mortality = frame_system::CheckMortality::<Runtime>::from(Era::Immortal);
 		let nonce = frame_system::CheckNonce::<Runtime>::from(System::account(&claimed).nonce);
 		let policy = crate::meta_v6::MetaAccountBoundPoliciesV6::new(proofs);
-		let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+		let storage = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
 			Runtime,
-			crate::BulletinCallInspector,
+			crate::OrbisStorageCallInspector,
 		>::default();
 		let preimage = crate::meta_v6::IntentPreimageV7 {
 			domain: crate::meta_v6::META_DOMAIN.to_vec(),
@@ -3184,9 +3183,9 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 	}
 
 	fn resource_meta_message(call: &RuntimeCall, signer: &AccountId) -> [u8; 32] {
-		let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+		let storage = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
 			Runtime,
-			crate::BulletinCallInspector,
+			crate::OrbisStorageCallInspector,
 		>::default();
 		let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
 		let honour = pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None);
@@ -3235,9 +3234,9 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 		call: &RuntimeCall,
 		signer: &AccountId,
 	) -> [u8; 32] {
-		let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+		let storage = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
 			Runtime,
-			crate::BulletinCallInspector,
+			crate::OrbisStorageCallInspector,
 		>::default();
 		let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
 		let honour = pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None);
@@ -3536,9 +3535,9 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 			vote: vote.clone(),
 			call_valid_from: now,
 		});
-		let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+		let storage = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
 			Runtime,
-			crate::BulletinCallInspector,
+			crate::OrbisStorageCallInspector,
 		>::default();
 		let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
 		let message = (META_EXTENSION_VERSION, &honour_call, &storage, &metadata, (), None::<[u8; 32]>, &alice)
@@ -3621,9 +3620,9 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 					)),
 					frame_system::CheckWeight::<Runtime>::new(),
 					crate::AccountAwareResources::from(direct_payment),
-					pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+					pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
 						Runtime,
-						crate::BulletinCallInspector,
+						crate::OrbisStorageCallInspector,
 					>::default(),
 					frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
 					pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::default(),
@@ -4098,7 +4097,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 		assert!(Balances::free_balance(&bob) < bob_balance);
 		assert!(matches!(
 			crate::TransactionStorage::resource_reservation(0),
-			Some(bulletin_transaction_storage_primitives::ResourceReservationView::Active(_))
+			Some(orbis_transaction_storage_primitives::ResourceReservationView::Active(_))
 		));
 		assert_eq!(System::account_nonce(&alice), 1);
 		assert_eq!(Balances::free_balance(&alice), alice_balance);
@@ -5067,7 +5066,7 @@ fn metadata_custom_hash_loss_is_detected_after_wire_roundtrip() {
 	let extension =
 		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new_with_custom_hash(custom);
 	assert_eq!(
-		bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&extension).unwrap(),
+		orbis_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&extension).unwrap(),
 		Some(custom),
 	);
 	let decoded = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::decode_all(
@@ -5085,7 +5084,7 @@ fn metadata_custom_hash_loss_is_detected_after_wire_roundtrip() {
 		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(true).encode(),
 	);
 	let decoded_implicit =
-		bulletin_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&decoded);
+		orbis_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&decoded);
 	if option_env!("RUNTIME_METADATA_HASH").is_some() {
 		assert_eq!(
 			decoded_implicit.unwrap(),

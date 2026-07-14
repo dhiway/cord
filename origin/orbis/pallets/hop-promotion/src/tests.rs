@@ -50,7 +50,7 @@ fn dummy_signer_and_sig() -> (MultiSigner, MultiSignature) {
 }
 
 fn authorize_account(who: AccountId32, transactions: u32, bytes: u64) {
-	assert_ok!(pallet_bulletin_transaction_storage::Pallet::<Test>::authorize_account(
+	assert_ok!(pallet_orbis_transaction_storage::Pallet::<Test>::authorize_account(
 		RuntimeOrigin::root(),
 		who,
 		transactions,
@@ -92,7 +92,7 @@ fn promote_rejects_empty_data() {
 		let (signer, sig) = dummy_signer_and_sig();
 		assert_noop!(
 			HopPromotion::promote(authorized_origin(), signer, sig, 0, vec![]),
-			pallet_bulletin_transaction_storage::Error::<Test>::BadDataSize,
+			pallet_orbis_transaction_storage::Error::<Test>::BadDataSize,
 		);
 	});
 }
@@ -111,7 +111,7 @@ fn promote_rejects_oversized_data() {
 				0,
 				vec![0u8; TEST_MAX_TRANSACTION_SIZE as usize + 1],
 			),
-			pallet_bulletin_transaction_storage::Error::<Test>::BadDataSize,
+			pallet_orbis_transaction_storage::Error::<Test>::BadDataSize,
 		);
 	});
 }
@@ -282,8 +282,8 @@ fn authorize_accepts_fully_consumed_unexpired_authorization() {
 		// Authorize exactly enough for one store call, then spend it.
 		authorize_account(alice.clone(), 1, data.len() as u64);
 		let store_call =
-			pallet_bulletin_transaction_storage::Call::<Test>::store { data: data.clone() };
-		assert_ok!(pallet_bulletin_transaction_storage::Pallet::<Test>::pre_dispatch_signed(
+			pallet_orbis_transaction_storage::Call::<Test>::store { data: data.clone() };
+		assert_ok!(pallet_orbis_transaction_storage::Pallet::<Test>::pre_dispatch_signed(
 			&alice,
 			&store_call,
 		));
@@ -433,15 +433,15 @@ fn promote_has_lower_priority_than_store_and_renew() {
 
 		// Get store priority.
 		let store_call =
-			pallet_bulletin_transaction_storage::Call::<Test>::store { data: data.clone() };
-		let (store_tx, _) = pallet_bulletin_transaction_storage::Pallet::<Test>::validate_signed(
+			pallet_orbis_transaction_storage::Call::<Test>::store { data: data.clone() };
+		let (store_tx, _) = pallet_orbis_transaction_storage::Pallet::<Test>::validate_signed(
 			&alice,
 			&store_call,
 		)
 		.unwrap();
 
 		// Store data so we can renew it.
-		assert_ok!(pallet_bulletin_transaction_storage::Pallet::<Test>::store(
+		assert_ok!(pallet_orbis_transaction_storage::Pallet::<Test>::store(
 			RuntimeOrigin::none(),
 			data,
 		));
@@ -449,13 +449,13 @@ fn promote_has_lower_priority_than_store_and_renew() {
 		// Advance so the stored transaction is available for renew.
 		run_to_block(3);
 
-		let renew_call = pallet_bulletin_transaction_storage::Call::<Test>::renew {
-			entry: pallet_bulletin_transaction_storage::TransactionRef::Position {
+		let renew_call = pallet_orbis_transaction_storage::Call::<Test>::renew {
+			entry: pallet_orbis_transaction_storage::TransactionRef::Position {
 				block: 1,
 				index: 0,
 			},
 		};
-		let (renew_tx, _) = pallet_bulletin_transaction_storage::Pallet::<Test>::validate_signed(
+		let (renew_tx, _) = pallet_orbis_transaction_storage::Pallet::<Test>::validate_signed(
 			&alice,
 			&renew_call,
 		)

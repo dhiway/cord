@@ -1,7 +1,7 @@
 // Copyright (C) Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
 
-//! Runtime API for the Bulletin Chain transaction-storage pallet.
+//! Runtime API for the Orbis Storage transaction-storage pallet.
 //!
 //! Exposes one summary call and two boolean predicates that mirror the
 //! validation logic of `store` and `renew`. Clients can use these to preview
@@ -9,8 +9,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use bulletin_transaction_storage_primitives::{
-	BulletinRef, ContentHash, ProviderAllocationId, ReservationId, ResourceReservationLink,
+use orbis_transaction_storage_primitives::{
+	StorageRef, ContentHash, ProviderAllocationId, ReservationId, ResourceReservationLink,
 	ResourceReservationView, StorageActor, TransactionRef,
 };
 use codec::{Codec, Decode, Encode};
@@ -18,7 +18,7 @@ use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
 
 /// Active-authorization summary for an account. Returned by
-/// [`BulletinTransactionStorageApi::account_authorization`] when the account
+/// [`OrbisTransactionStorageApi::account_authorization`] when the account
 /// has an unexpired authorization entry.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Encode, Decode, DecodeAsType, TypeInfo)]
 pub struct AccountAuthorization<BlockNumber> {
@@ -39,9 +39,9 @@ pub struct AccountAuthorization<BlockNumber> {
 	pub transactions_used: u32,
 }
 
-/// Metadata-aware client representation of an exact Bulletin position.
+/// Metadata-aware client representation of an exact Orbis Storage position.
 #[derive(Clone, Copy, Debug, DecodeAsType, Eq, PartialEq)]
-pub struct ClientBulletinRef<BlockNumber> {
+pub struct ClientStorageRef<BlockNumber> {
 	pub block: BlockNumber,
 	pub transaction_index: u32,
 }
@@ -92,15 +92,15 @@ pub enum ClientResourceReservationView<AccountId, BlockNumber> {
 pub struct ClientResourceReservationLink<AccountId, BlockNumber> {
 	pub reservation_id: u64,
 	pub content_hash: [u8; 32],
-	pub bulletin_ref: ClientBulletinRef<BlockNumber>,
+	pub storage_ref: ClientStorageRef<BlockNumber>,
 	pub owner: AccountId,
 	pub size: u32,
 	pub retention_boundary: BlockNumber,
 }
 
 sp_api::decl_runtime_apis! {
-	/// Runtime API for the Bulletin Chain transaction-storage pallet.
-	pub trait BulletinTransactionStorageApi<AccountId, BlockNumber>
+	/// Runtime API for the Orbis Storage transaction-storage pallet.
+	pub trait OrbisTransactionStorageApi<AccountId, BlockNumber>
 	where
 		AccountId: Codec,
 		BlockNumber: Codec,
@@ -118,7 +118,7 @@ sp_api::decl_runtime_apis! {
 		fn can_renew(account: AccountId, entry: TransactionRef<BlockNumber>) -> bool;
 
 		/// Explicit actor for an exact retained position, or `None` when the position is absent.
-		fn stored_content_provenance(reference: BulletinRef<BlockNumber>) -> Option<StorageActor<AccountId>>;
+		fn stored_content_provenance(reference: StorageRef<BlockNumber>) -> Option<StorageActor<AccountId>>;
 
 		/// Scalar active-or-tombstone reservation audit view.
 		fn resource_reservation(

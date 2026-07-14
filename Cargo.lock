@@ -1984,30 +1984,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bulletin-pallets-common"
-version = "0.1.0"
-dependencies = [
- "pallet-proxy",
- "pallet-sudo",
- "pallet-utility",
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
-]
-
-[[package]]
-name = "bulletin-transaction-storage-primitives"
-version = "0.1.0"
-dependencies = [
- "cid",
- "parity-scale-codec",
- "scale-info",
- "sp-io",
- "sp-transaction-storage-proof",
- "tracing",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7247,7 +7223,6 @@ dependencies = [
 name = "indiv-pallet-resources"
 version = "0.9.9"
 dependencies = [
- "bulletin-transaction-storage-primitives",
  "frame-benchmarking",
  "frame-executive",
  "frame-support",
@@ -7258,6 +7233,7 @@ dependencies = [
  "indiv-pallet-people-lite",
  "indiv-support",
  "log",
+ "orbis-transaction-storage-primitives",
  "parity-scale-codec",
  "parking_lot 0.12.5",
  "scale-info",
@@ -9442,14 +9418,26 @@ dependencies = [
 name = "orbis-metadata-implicit-nohash"
 version = "0.9.9"
 dependencies = [
- "bulletin-pallets-common",
  "criterion",
  "frame-metadata-hash-extension",
  "frame-support",
  "frame-system",
+ "orbis-pallets-common",
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
+]
+
+[[package]]
+name = "orbis-pallets-common"
+version = "0.1.0"
+dependencies = [
+ "pallet-proxy",
+ "pallet-sudo",
+ "pallet-utility",
+ "parity-scale-codec",
+ "polkadot-sdk-frame",
+ "scale-info",
 ]
 
 [[package]]
@@ -9460,6 +9448,18 @@ dependencies = [
  "scale-decode",
  "scale-info",
  "sp-api",
+]
+
+[[package]]
+name = "orbis-transaction-storage-primitives"
+version = "0.1.0"
+dependencies = [
+ "cid",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-io",
+ "sp-transaction-storage-proof",
+ "tracing",
 ]
 
 [[package]]
@@ -9535,8 +9535,6 @@ version = "0.9.9"
 dependencies = [
  "arrayvec 0.7.8",
  "assets-common",
- "bulletin-pallets-common",
- "bulletin-transaction-storage-primitives",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-session-benchmarking",
@@ -9566,7 +9564,9 @@ dependencies = [
  "indiv-support",
  "log",
  "orbis-identity-personhood-runtime-api",
+ "orbis-pallets-common",
  "orbis-storage-runtime-api",
+ "orbis-transaction-storage-primitives",
  "origin-commons-runtime-constants",
  "origin-primitives",
  "origin-runtime-constants",
@@ -9581,9 +9581,6 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-broker",
- "pallet-bulletin-hop-promotion",
- "pallet-bulletin-transaction-storage",
- "pallet-bulletin-transaction-storage-runtime-api",
  "pallet-collator-selection",
  "pallet-coretime-control",
  "pallet-indices",
@@ -9598,10 +9595,13 @@ dependencies = [
  "pallet-orbis-dotns-runtime-api",
  "pallet-orbis-drive",
  "pallet-orbis-honour",
+ "pallet-orbis-hop-promotion",
  "pallet-orbis-people",
  "pallet-orbis-s3",
  "pallet-orbis-score",
  "pallet-orbis-storage-provider",
+ "pallet-orbis-transaction-storage",
+ "pallet-orbis-transaction-storage-runtime-api",
  "pallet-origin-entity",
  "pallet-origin-feeless",
  "pallet-origin-register",
@@ -9948,9 +9948,9 @@ dependencies = [
  "orbis-identity-personhood-runtime-api",
  "orbis-storage-runtime-api",
  "origin-primitives",
- "pallet-bulletin-transaction-storage-runtime-api",
  "pallet-orbis-attestation-runtime-api",
  "pallet-orbis-dotns-runtime-api",
+ "pallet-orbis-transaction-storage-runtime-api",
  "parity-scale-codec",
  "proptest",
  "rand 0.8.6",
@@ -10396,53 +10396,6 @@ dependencies = [
  "sp-arithmetic",
  "sp-core",
  "sp-runtime",
-]
-
-[[package]]
-name = "pallet-bulletin-hop-promotion"
-version = "0.1.0"
-dependencies = [
- "bulletin-pallets-common",
- "bulletin-transaction-storage-primitives",
- "frame-support",
- "frame-system",
- "indiv-support",
- "pallet-bulletin-transaction-storage",
- "pallet-timestamp",
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
- "sp-io",
- "sp-keyring",
- "sp-keystore",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-bulletin-transaction-storage"
-version = "0.1.0"
-dependencies = [
- "array-bytes 6.2.3",
- "bulletin-pallets-common",
- "bulletin-transaction-storage-primitives",
- "indiv-support",
- "pallet-bulletin-transaction-storage-runtime-api",
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
- "sp-transaction-storage-proof",
- "tracing",
-]
-
-[[package]]
-name = "pallet-bulletin-transaction-storage-runtime-api"
-version = "0.1.0"
-dependencies = [
- "bulletin-transaction-storage-primitives",
- "parity-scale-codec",
- "scale-decode",
- "scale-info",
- "sp-api",
 ]
 
 [[package]]
@@ -11221,6 +11174,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-orbis-hop-promotion"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "indiv-support",
+ "orbis-pallets-common",
+ "orbis-transaction-storage-primitives",
+ "pallet-orbis-transaction-storage",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "polkadot-sdk-frame",
+ "scale-info",
+ "sp-io",
+ "sp-keyring",
+ "sp-keystore",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-orbis-people"
 version = "0.9.9"
 dependencies = [
@@ -11282,6 +11255,33 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-orbis-transaction-storage"
+version = "0.1.0"
+dependencies = [
+ "array-bytes 6.2.3",
+ "indiv-support",
+ "orbis-pallets-common",
+ "orbis-transaction-storage-primitives",
+ "pallet-orbis-transaction-storage-runtime-api",
+ "parity-scale-codec",
+ "polkadot-sdk-frame",
+ "scale-info",
+ "sp-transaction-storage-proof",
+ "tracing",
+]
+
+[[package]]
+name = "pallet-orbis-transaction-storage-runtime-api"
+version = "0.1.0"
+dependencies = [
+ "orbis-transaction-storage-primitives",
+ "parity-scale-codec",
+ "scale-decode",
+ "scale-info",
+ "sp-api",
 ]
 
 [[package]]

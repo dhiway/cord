@@ -985,7 +985,7 @@ impl CleanUpAlias for () {
 	}
 }
 
-/// An abstract interface for allocating storage on a remote chain (e.g. the Bulletin chain).
+/// An abstract interface for allocating storage on a remote chain (e.g. the Orbis Storage chain).
 pub trait AllocateStorage<AccountId> {
 	fn allocate_storage(who: &AccountId, len: u64, count: u32) -> DispatchResult;
 	fn refresh_allocation(who: &AccountId) -> DispatchResult;
@@ -1020,7 +1020,7 @@ pub struct ClaimCleanupOutcome<ReservationId, Purpose> {
 	pub purpose: Option<Purpose>,
 }
 
-/// Infallible callback used by Bulletin when a tombstone becomes safe to prune.
+/// Infallible callback used by Orbis Storage when a tombstone becomes safe to prune.
 pub trait ResourceClaimLifecycle<ReservationId, Purpose> {
 	fn prune_claim(id: ReservationId) -> ClaimCleanupOutcome<ReservationId, Purpose>;
 }

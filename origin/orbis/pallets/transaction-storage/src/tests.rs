@@ -37,7 +37,7 @@ use super::{
 };
 
 use crate::mock::RuntimeGenesisConfig;
-use bulletin_transaction_storage_primitives::cids::{CidConfig, HashingAlgorithm, RAW_CODEC};
+use orbis_transaction_storage_primitives::cids::{CidConfig, HashingAlgorithm, RAW_CODEC};
 use codec::Encode;
 use polkadot_sdk_frame::{
 	deps::frame_support::{
@@ -102,8 +102,8 @@ fn disable_auto_renew_via_extension(who: u64, content_hash: super::ContentHash) 
 
 #[test]
 fn reserved_store_and_renew_use_isolated_capacity_and_exact_refs() {
-	use bulletin_transaction_storage_primitives::{
-		BulletinRef, ResourceReservationView, StorageActor,
+	use orbis_transaction_storage_primitives::{
+		StorageRef, ResourceReservationView, StorageActor,
 	};
 	use indiv_support::traits::TwoPhaseStorage;
 
@@ -117,7 +117,7 @@ fn reserved_store_and_renew_use_isolated_capacity_and_exact_refs() {
 		let cid = CidConfig { codec: RAW_CODEC, hashing: HashingAlgorithm::Blake2b256 };
 		let content_hash = cid.hashing.hash(&data);
 		assert_ok!(TransactionStorage::store_reserved(RuntimeOrigin::signed(7), 1, cid, data,));
-		let first_ref = BulletinRef { block: 1, transaction_index: 0 };
+		let first_ref = StorageRef { block: 1, transaction_index: 0 };
 		assert_eq!(
 			TransactionStorage::stored_content_provenance(first_ref),
 			Some(StorageActor::Account(7))
@@ -136,11 +136,11 @@ fn reserved_store_and_renew_use_isolated_capacity_and_exact_refs() {
 		System::set_block_number(2);
 		frame_system::Pallet::<Test>::set_extrinsic_index(1);
 		assert_ok!(TransactionStorage::renew_reserved(RuntimeOrigin::signed(7), 1, content_hash,));
-		let second_ref = BulletinRef { block: 2, transaction_index: 0 };
+		let second_ref = StorageRef { block: 2, transaction_index: 0 };
 		assert_eq!(PermanentStorageUsed::get(), 8);
 		assert_eq!(super::ReservedPermanentCapacity::<Test>::get(), 0);
 		let link = TransactionStorage::resource_reservation_link(1, content_hash).unwrap();
-		assert_eq!(link.bulletin_ref, second_ref);
+		assert_eq!(link.storage_ref, second_ref);
 		assert_eq!(super::ResourceLinkByRef::<Test>::get(first_ref), None);
 		assert_eq!(super::ResourceLinkByRef::<Test>::get(second_ref), Some((1, content_hash)));
 		assert!(matches!(
@@ -280,7 +280,7 @@ fn permanent_capacity_overflow_is_rejected_not_saturated() {
 
 #[test]
 fn expiry_is_numeric_bounded_and_tombstone_pruning_is_no_drop() {
-	use bulletin_transaction_storage_primitives::{ResourceClosure, ResourceReservationView};
+	use orbis_transaction_storage_primitives::{ResourceClosure, ResourceReservationView};
 	use indiv_support::traits::TwoPhaseStorage;
 
 	new_test_ext().execute_with(|| {
@@ -504,13 +504,13 @@ fn cancellation_releases_unused_capacity_once_but_preserves_live_link() {
 
 #[test]
 fn bulletin_clean_genesis_initializes_current_v8_state() {
-	use bulletin_transaction_storage_primitives::BulletinRef;
+	use orbis_transaction_storage_primitives::StorageRef;
 
 	new_test_ext().execute_with(|| {
 		assert_eq!(TransactionStorage::current_storage_version(), StorageVersion::new(8));
 		assert_eq!(TransactionStorage::on_chain_storage_version(), StorageVersion::new(8));
 		assert_eq!(
-			TransactionStorage::stored_content_provenance(BulletinRef {
+			TransactionStorage::stored_content_provenance(StorageRef {
 				block: 1,
 				transaction_index: 0,
 			}),
@@ -521,7 +521,7 @@ fn bulletin_clean_genesis_initializes_current_v8_state() {
 
 #[test]
 fn records_explicit_account_root_and_preimage_provenance() {
-	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
+	use orbis_transaction_storage_primitives::{StorageRef, StorageActor};
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
@@ -536,21 +536,21 @@ fn records_explicit_account_root_and_preimage_provenance() {
 		let preimage_hash = blake2_256(&preimage);
 		assert_ok!(TransactionStorage::store(RuntimeOrigin::none(), preimage));
 		assert_eq!(
-			TransactionStorage::stored_content_provenance(BulletinRef {
+			TransactionStorage::stored_content_provenance(StorageRef {
 				block: 1,
 				transaction_index: 0,
 			}),
 			Some(StorageActor::Account(7))
 		);
 		assert_eq!(
-			TransactionStorage::stored_content_provenance(BulletinRef {
+			TransactionStorage::stored_content_provenance(StorageRef {
 				block: 1,
 				transaction_index: 1,
 			}),
 			Some(StorageActor::Root)
 		);
 		assert_eq!(
-			TransactionStorage::stored_content_provenance(BulletinRef {
+			TransactionStorage::stored_content_provenance(StorageRef {
 				block: 1,
 				transaction_index: 2,
 			}),
@@ -561,7 +561,7 @@ fn records_explicit_account_root_and_preimage_provenance() {
 
 #[test]
 fn force_renew_records_explicit_account_provenance() {
-	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
+	use orbis_transaction_storage_primitives::{StorageRef, StorageActor};
 
 	new_test_ext().execute_with(|| {
 		run_to_block(1, || None);
@@ -578,7 +578,7 @@ fn force_renew_records_explicit_account_provenance() {
 		let Call::force_renew { entry } = call else { unreachable!() };
 		assert_ok!(TransactionStorage::force_renew(origin, entry));
 		assert_eq!(
-			TransactionStorage::stored_content_provenance(BulletinRef {
+			TransactionStorage::stored_content_provenance(StorageRef {
 				block: 2,
 				transaction_index: 0,
 			}),
@@ -589,7 +589,7 @@ fn force_renew_records_explicit_account_provenance() {
 
 #[test]
 fn signed_force_renew_is_charged_once_and_commits_before_host_boundary() {
-	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
+	use orbis_transaction_storage_primitives::{StorageRef, StorageActor};
 
 	new_test_ext().execute_with(|| {
 		run_to_block(1, || None);
@@ -604,7 +604,7 @@ fn signed_force_renew_is_charged_once_and_commits_before_host_boundary() {
 		assert_ok!(TransactionStorage::pre_dispatch_signed(&who, &call));
 		assert_eq!(PermanentStorageUsed::get(), 10);
 		TransactionStorage::set_renew_host_observer(Some(Box::new(move || {
-			let reference = BulletinRef { block: 2, transaction_index: 0 };
+			let reference = StorageRef { block: 2, transaction_index: 0 };
 			assert_eq!(BlockTransactions::get().len(), 1);
 			assert_eq!(super::TransactionByContentHash::<Test>::get(hash), Some((2, 0)));
 			assert_eq!(super::StoredBy::<Test>::get(reference), Some(StorageActor::Account(who)));
@@ -645,7 +645,7 @@ fn root_force_renew_checks_reserved_capacity_and_charges_exactly_once() {
 
 #[test]
 fn auto_renew_records_explicit_auto_actor_provenance() {
-	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
+	use orbis_transaction_storage_primitives::{StorageRef, StorageActor};
 
 	new_test_ext().execute_with(|| {
 		run_to_block(1, || None);
@@ -667,7 +667,7 @@ fn auto_renew_records_explicit_auto_actor_provenance() {
 		frame_system::Pallet::<Test>::set_extrinsic_index(0);
 		assert_ok!(TransactionStorage::apply_block_inherents(RuntimeOrigin::none(), None));
 		assert_eq!(
-			TransactionStorage::stored_content_provenance(BulletinRef {
+			TransactionStorage::stored_content_provenance(StorageRef {
 				block: 2,
 				transaction_index: 0,
 			}),
@@ -678,7 +678,7 @@ fn auto_renew_records_explicit_auto_actor_provenance() {
 
 #[test]
 fn auto_renew_batch_commits_all_frame_state_before_first_host_call() {
-	use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
+	use orbis_transaction_storage_primitives::{StorageRef, StorageActor};
 
 	new_test_ext().execute_with(|| {
 		run_to_block(1, || None);
@@ -705,11 +705,11 @@ fn auto_renew_batch_commits_all_frame_state_before_first_host_call() {
 		TransactionStorage::set_renew_host_observer(Some(Box::new(move || {
 			assert_eq!(BlockTransactions::get().len(), 2);
 			assert_eq!(
-				super::StoredBy::<Test>::get(BulletinRef { block: 2, transaction_index: 0 }),
+				super::StoredBy::<Test>::get(StorageRef { block: 2, transaction_index: 0 }),
 				Some(StorageActor::AutoRenew(41))
 			);
 			assert_eq!(
-				super::StoredBy::<Test>::get(BulletinRef { block: 2, transaction_index: 1 }),
+				super::StoredBy::<Test>::get(StorageRef { block: 2, transaction_index: 1 }),
 				Some(StorageActor::AutoRenew(42))
 			);
 			assert!(!AutoRenewals::contains_key(first_hash));
@@ -3118,7 +3118,7 @@ fn pending_auto_renewals_populated_only_for_registered_items() {
 fn auto_renew_permissionless_transfer() {
 	// Alice stores and enables auto-renew, waits out the prepaid window so the
 	// first cycle consumes her prepayment, then disables. Bob enables instead.
-	// Anyone can take over keeping data alive on Bulletin, permissionlessly —
+	// Anyone can take over keeping data alive on Orbis Storage, permissionlessly —
 	// but only after the original registrant's pre-paid cycle has fired.
 	new_test_ext().execute_with(|| {
 		run_to_block(1, || None);
@@ -4746,7 +4746,7 @@ fn store_records_extrinsic_index_in_transaction_info() {
 /// output times for the runtime API.
 #[test]
 fn transaction_info_projects_into_upstream_runtime_api_type() {
-	use bulletin_transaction_storage_primitives::cids::HashingAlgorithm as PalletHashingAlgorithm;
+	use orbis_transaction_storage_primitives::cids::HashingAlgorithm as PalletHashingAlgorithm;
 	use codec::{Decode, Encode};
 	use polkadot_sdk_frame::deps::sp_runtime::traits::{BlakeTwo256, Hash};
 
@@ -4788,7 +4788,7 @@ fn transaction_info_projects_into_upstream_runtime_api_type() {
 			PalletHashingAlgorithm::Blake2b256 => HashingAlgorithm::Blake2b256,
 			PalletHashingAlgorithm::Sha2_256 => HashingAlgorithm::Sha2_256,
 			PalletHashingAlgorithm::Keccak256 => HashingAlgorithm::Keccak256,
-			_ => panic!("unknown bulletin HashingAlgorithm variant"),
+			_ => panic!("unknown Orbis Storage HashingAlgorithm variant"),
 		},
 		cid_codec: tx.cid_codec,
 		extrinsic_index: tx.extrinsic_index,

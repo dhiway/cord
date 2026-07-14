@@ -81,7 +81,7 @@ test("portable SHA2-256 and Blake2b-256 match canonical vectors", () => {
 });
 
 test("raw Blake2b-256 CID matches the Orbis TransactionStorage fixture", () => {
-  const bytes = text.encode("Hello, Bulletin with PAPI - Fri Nov 21 2025 11:09:18 GMT+0000");
+  const bytes = text.encode("Hello, Orbis Storage with PAPI - Fri Nov 21 2025 11:09:18 GMT+0000");
   const expected = "bafk2bzacedvk4eijklisgdjijnxky24pmkg7jgk5vsct4mwndj3nmx7plzz7m";
   assert.equal(cid(bytes, "raw", "blake2b-256"), expected);
   assert.equal(verifyContentBlock(expected, bytes).multihash, "blake2b-256");

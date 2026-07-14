@@ -4,7 +4,7 @@
 //! Native zero-stake storage-provider registry for Orbis.
 //!
 //! The pallet owns provider admission, capacity agreements and proof-accountability checkpoints.
-//! It stores commitments and references only. Bulletin TransactionStorage remains the sole content
+//! It stores commitments and references only. Orbis Storage TransactionStorage remains the sole content
 //! commitment/retention ledger and no content bytes are stored here.
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -98,7 +98,7 @@ pub struct AgreementRecord<AccountId, Hash, BlockNumber> {
 	pub provider: AccountId,
 	pub container_ref: Hash,
 	pub content_commitment: Hash,
-	/// Exact Bulletin TransactionStorage reservation id for a resource-backed agreement.
+	/// Exact Orbis Storage TransactionStorage reservation id for a resource-backed agreement.
 	pub reservation_ref: Option<u64>,
 	pub bytes: u64,
 	pub created_at: BlockNumber,
@@ -162,7 +162,7 @@ pub struct DeletionAcknowledgementRecord<AccountId, Hash, BlockNumber> {
 	pub acknowledged_at: BlockNumber,
 }
 
-/// Validates agreement links against canonical Bulletin TransactionStorage reservations.
+/// Validates agreement links against canonical Orbis Storage TransactionStorage reservations.
 pub trait ReservationValidator<AccountId, Hash, BlockNumber> {
 	fn valid(
 		reservation_id: u64,
@@ -298,7 +298,7 @@ pub mod pallet {
 	pub type AgreementNonce<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, u64, ValueQuery>;
 
-	/// One Bulletin reservation can back at most one provider agreement.
+	/// One Orbis Storage reservation can back at most one provider agreement.
 	#[pallet::storage]
 	pub type ReservationAgreement<T: Config> =
 		StorageMap<_, Blake2_128Concat, u64, T::Hash, OptionQuery>;

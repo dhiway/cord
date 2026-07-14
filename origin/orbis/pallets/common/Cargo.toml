@@ -1,10 +1,10 @@
 [package]
-name = "bulletin-pallets-common"
+name = "orbis-pallets-common"
 version = "0.1.0"
-authors = ["Parity Technologies <admin@parity.io>"]
+authors.workspace = true
 edition.workspace = true
 license = "Apache-2.0"
-description = "Common utilities for pallets and/or runtime"
+description = "Common utilities for Orbis pallets and runtime."
 homepage.workspace = true
 repository.workspace = true
 readme = "README.md"

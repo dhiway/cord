@@ -15,7 +15,7 @@
 
 | Path | Responsibility | Highlights |
 | --- | --- | --- |
-| `src/config.rs` | Subxt config wrapper | `OriginConfig`, `OrbisConfig`, compatibility-envelope builders for relay, Bulletin, and Revive extensions. |
+| `src/config.rs` | Subxt config wrapper | `OriginConfig`, `OrbisConfig`, compatibility-envelope builders for relay, Orbis Storage, and Revive extensions. |
 | `src/client/` | Connections, signers, queues, and facades | `OriginClient`, `ConnectionBuilder`, `ViewClient`, event streaming, meta-tx entrypoints. |
 | `src/query/` | View helpers grouped per pallet | `Query` facade plus entity/registry/packet/token clients requiring authorization. |
 | `src/tx/` | Tx pipeline + pallet-specific helpers | `TxClient`, `AccountTx`, per-pallet submitters, batch/meta helpers, nonce management. |

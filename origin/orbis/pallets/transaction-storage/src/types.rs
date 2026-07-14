@@ -15,8 +15,8 @@
 
 //! Type definitions for the transaction storage pallet.
 
-pub use bulletin_transaction_storage_primitives::TransactionRef;
-use bulletin_transaction_storage_primitives::{
+pub use orbis_transaction_storage_primitives::TransactionRef;
+use orbis_transaction_storage_primitives::{
 	cids::{CidCodec, HashingAlgorithm},
 	ContentHash,
 };
@@ -107,7 +107,7 @@ pub enum AuthorizedCaller<AccountId> {
 	/// A root call (e.g. via `sudo`).
 	Root,
 	/// An unsigned transaction validated by [`ValidateUnsigned`].
-	/// TODO: replaced by https://github.com/paritytech/polkadot-bulletin-chain/pull/194
+	/// Digest algorithms accepted by the current Orbis storage protocol.
 	Unsigned,
 }
 

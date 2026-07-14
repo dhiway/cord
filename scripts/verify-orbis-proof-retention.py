@@ -768,8 +768,8 @@ def build_verdict() -> dict[str, Any]:
 		"unit_evidence": {
 			"status": "pass",
 			"commands": [
-				"cargo test -p pallet-bulletin-transaction-storage --lib",
-				"cargo test -p pallet-bulletin-hop-promotion --lib",
+				"cargo test -p pallet-orbis-transaction-storage --lib",
+				"cargo test -p pallet-orbis-hop-promotion --lib",
 				"cargo test -p indiv-pallet-resources --lib",
 			],
 			"result": "294 passed; 0 failed",

@@ -231,7 +231,7 @@ mod benchmarks {
 			Event::ReservedContentStored {
 				reservation_id,
 				content_hash,
-				bulletin_ref: BulletinRef {
+				storage_ref: StorageRef {
 					block: System::<T>::block_number(),
 					transaction_index: 0,
 				},
@@ -274,7 +274,7 @@ mod benchmarks {
 			Event::ReservedContentRenewed {
 				reservation_id,
 				content_hash,
-				bulletin_ref: BulletinRef {
+				storage_ref: StorageRef {
 					block: System::<T>::block_number(),
 					transaction_index: 0,
 				},
@@ -299,7 +299,7 @@ mod benchmarks {
 		#[block]
 		{
 			// Benchmark harnesses may start the measured block at one even when setup observed
-			// zero. Pin it so exact BulletinRef assertions and the two-block force/auto paths
+			// zero. Pin it so exact StorageRef assertions and the two-block force/auto paths
 			// remain deterministic.
 			System::<T>::set_block_number(initial_block);
 			System::<T>::set_extrinsic_index(0);
@@ -363,28 +363,28 @@ mod benchmarks {
 		}
 
 		assert_eq!(
-			StoredBy::<T>::get(BulletinRef { block: initial_block, transaction_index: 0 }),
+			StoredBy::<T>::get(StorageRef { block: initial_block, transaction_index: 0 }),
 			Some(StorageActor::Account(caller.clone()))
 		);
 		assert_eq!(
-			StoredBy::<T>::get(BulletinRef { block: initial_block, transaction_index: 1 }),
+			StoredBy::<T>::get(StorageRef { block: initial_block, transaction_index: 1 }),
 			Some(StorageActor::Root)
 		);
 		assert_eq!(
-			StoredBy::<T>::get(BulletinRef { block: initial_block, transaction_index: 2 }),
+			StoredBy::<T>::get(StorageRef { block: initial_block, transaction_index: 2 }),
 			Some(StorageActor::Preimage(preimage_hash))
 		);
 		let renewed_block = initial_block.saturating_add(1u32.into());
 		assert_eq!(
-			StoredBy::<T>::get(BulletinRef { block: renewed_block, transaction_index: 0 }),
+			StoredBy::<T>::get(StorageRef { block: renewed_block, transaction_index: 0 }),
 			Some(StorageActor::Account(caller.clone()))
 		);
 		assert_eq!(
-			StoredBy::<T>::get(BulletinRef { block: renewed_block, transaction_index: 1 }),
+			StoredBy::<T>::get(StorageRef { block: renewed_block, transaction_index: 1 }),
 			Some(StorageActor::AutoRenew(caller))
 		);
 		assert_eq!(
-			StoredBy::<T>::get(BulletinRef { block: renewed_block, transaction_index: 2 }),
+			StoredBy::<T>::get(StorageRef { block: renewed_block, transaction_index: 2 }),
 			Some(StorageActor::Account(reserved_owner))
 		);
 		assert!(TransactionByContentHash::<T>::contains_key(signed_hash));
@@ -426,7 +426,7 @@ mod benchmarks {
 
 		#[block]
 		{
-			// This is the worst-case full scan: direct Bulletin setup has no matching Resources
+			// This is the worst-case full scan: direct Orbis Storage setup has no matching Resources
 			// claim, so every synchronous cross-pallet callback reports a mismatch and every
 			// tombstone remains queued for a later repair/retry.
 			let _ =

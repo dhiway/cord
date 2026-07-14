@@ -17,10 +17,10 @@ Reviewed source snapshots are:
 | Fellows runtimes | `477689fddba4` | runtime behavior reference |
 | Paseo runtimes | `ac99ed6c1122` | runtime behavior reference |
 | Individuality Community | `28b7d07dab05` | Apache-2.0 People/Asset Hub reference |
-| Polkadot Bulletin Chain | `b6c2827d2326` | GPL-3.0 storage reference |
+| upstream transaction-storage reference | `b6c2827d2326` | GPL-3.0 storage reference |
 
 People behavior is temporarily adapted onto CORD's maintained identity pallet pending an
-Orbis-owned upstream-aligned replacement. Bulletin transaction-storage, primitives, runtime API,
+Orbis-owned upstream-aligned replacement. Orbis Storage transaction-storage, primitives, runtime API,
 common helpers, and Hop Promotion are vendored under `origin/orbis/pallets/` from revision
 `b6c2827d2326`; their manifests use CORD `workspace = true` dependencies. Adding upstream runtime crates directly remains prohibited
 because the reviewed snapshots resolve a different SDK generation. Copied source retains its

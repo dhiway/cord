@@ -146,12 +146,12 @@ identity; no council, referendum, deposit, or stake is required for administrati
 Application authorization should require the configured registrar judgement when a verified
 person is needed; merely publishing self-claimed display data is not equivalent to an attestation.
 
-## Durable Bulletin storage
+## Durable Orbis Storage storage
 
-`TransactionStorage` is at pallet index `110`. It is adapted from Polkadot Bulletin Chain revision
+`TransactionStorage` is at pallet index `110`. It is adapted from upstream transaction-storage reference revision
 `b6c2827d2326` onto CORD's SDK graph and provides bounded authorized storage, BLAKE2/CID content
 lookup, retention and renewal accounting, a permanent-storage cap, transaction indexing, proof
-inherents, and both the SDK transaction-storage API and Bulletin authorization query API.
+inherents, and both the SDK transaction-storage API and Orbis Storage authorization query API.
 
 Sudo/root manages authorizers. An authorizer grants an account explicit transaction and byte
 allowances before signed `store` or `renew` calls are accepted. The transaction extension consumes

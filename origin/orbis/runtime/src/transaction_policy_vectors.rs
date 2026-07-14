@@ -38,9 +38,9 @@ type MetaBareExtension = (
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	crate::MetaIdentityBoundPolicies,
-	pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
+	pallet_orbis_transaction_storage::extension::ValidateStorageCalls<
 		Runtime,
-		crate::BulletinCallInspector,
+		crate::OrbisStorageCallInspector,
 	>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
@@ -65,9 +65,9 @@ fn meta_tuple_for(
 	let mortality = frame_system::CheckMortality::<Runtime>::from(Era::Immortal);
 	let nonce = frame_system::CheckNonce::<Runtime>::from(0);
 	let policy = crate::meta_v6::MetaAccountBoundPoliciesV6::new(proofs);
-	let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+	let storage = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
 		Runtime,
-		crate::BulletinCallInspector,
+		crate::OrbisStorageCallInspector,
 	>::default();
 	let metadata =
 		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::decode_all(&mut &[1u8][..])
@@ -172,15 +172,15 @@ fn honour_meta_tuples() -> (pallet_meta_tx::MetaTxFor<Runtime>, pallet_meta_tx::
 		vote: vote.clone(),
 		call_valid_from: 0,
 	});
-	let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+	let storage = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
 		Runtime,
-		crate::BulletinCallInspector,
+		crate::OrbisStorageCallInspector,
 	>::default();
 	let metadata =
 		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::decode_all(&mut &[1u8][..])
 			.unwrap();
 	// VoterAuth is last inside the nested identity tuple. Its inherited implication is the base
-	// Meta call followed by the outer Bulletin/metadata explicit and implicit suffixes.
+	// Meta call followed by the outer Orbis Storage/metadata explicit and implicit suffixes.
 	let message =
 		(0u8, &call, &storage, &metadata, (), Some(VECTOR_BASELINE_METADATA_IMPLICIT), &account)
 			.using_encoded(sp_io::hashing::blake2_256);

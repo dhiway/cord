@@ -8,7 +8,7 @@
 //! topology, or production SLOs. Those boundaries are recorded in the accompanying P6 manifest.
 
 use super::*;
-use bulletin_transaction_storage_primitives::{BulletinRef, StorageActor};
+use orbis_transaction_storage_primitives::{StorageRef, StorageActor};
 use codec::{DecodeAll, Encode};
 use frame_support::{
 	assert_noop, assert_ok,
@@ -38,9 +38,9 @@ fn apply_sponsored_call(
 		frame_system::CheckMortality<Runtime>,
 		frame_system::CheckNonce<Runtime>,
 		crate::MetaIdentityBoundPolicies,
-		pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
+		pallet_orbis_transaction_storage::extension::ValidateStorageCalls<
 			Runtime,
-			crate::BulletinCallInspector,
+			crate::OrbisStorageCallInspector,
 		>,
 		frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 	);
@@ -52,9 +52,9 @@ fn apply_sponsored_call(
 	let mortality = frame_system::CheckMortality::<Runtime>::from(era);
 	let nonce = frame_system::CheckNonce::<Runtime>::from(System::account_nonce(&participant));
 	let policy = crate::meta_v6::MetaAccountBoundPoliciesV6::new(Default::default());
-	let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+	let storage = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
 		Runtime,
-		crate::BulletinCallInspector,
+		crate::OrbisStorageCallInspector,
 	>::default();
 	let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
 	let preimage = crate::meta_v6::IntentPreimageV7 {
@@ -226,7 +226,7 @@ fn enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail
 		let subject_commitment =
 			sp_core::H256::from(sp_io::hashing::blake2_256(subject_id.as_ref()));
 
-		// Bulletin stores the real call payload, indexes its content commitment, and records who
+		// Orbis Storage stores the real call payload, indexes its content commitment, and records who
 		// submitted it. Runtime state proves the commitment/provenance, not provider byte serving.
 		let content = b"festival-enterprise-admission-v1".to_vec();
 		let content_hash = sp_io::hashing::blake2_256(&content);
@@ -237,18 +237,18 @@ fn enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail
 			4096,
 		));
 		let store_call =
-			pallet_bulletin_transaction_storage::Call::<Runtime>::store { data: content.clone() };
+			pallet_orbis_transaction_storage::Call::<Runtime>::store { data: content.clone() };
 		let (_, scope) = TransactionStorage::validate_signed(&owner, &store_call).unwrap();
 		let scope = scope.expect("signed storage carries its validated authorization scope");
 		assert_ok!(TransactionStorage::pre_dispatch_signed(&owner, &store_call));
-		let authorized = pallet_bulletin_transaction_storage::Origin::<Runtime>::Authorized {
+		let authorized = pallet_orbis_transaction_storage::Origin::<Runtime>::Authorized {
 			who: owner.clone(),
 			scope,
 		};
 		assert_ok!(TransactionStorage::store(RuntimeOrigin::from(authorized), content));
 		assert!(TransactionStorage::contains_transaction(content_hash));
 		assert_eq!(
-			TransactionStorage::stored_content_provenance(BulletinRef {
+			TransactionStorage::stored_content_provenance(StorageRef {
 				block: 2,
 				transaction_index: 0,
 			}),

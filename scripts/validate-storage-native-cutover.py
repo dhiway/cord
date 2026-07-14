@@ -37,7 +37,7 @@ def main()->int:
    require(f'"{pallet}","{variant}"' in rust_events,f'Rust event missing {pallet}.{variant}',errors)
    require(f'{pallet}.{variant}' in ts_events,f'TS event missing {pallet}.{variant}',errors)
  hop=text('origin/orbis/pallets/hop-promotion/src/lib.rs')
- require('pub enum Event' not in hop and 'pallet_bulletin_transaction_storage::Pallet::<T>::do_store' in hop,'HopPromotion must remain internal and surface successful lifecycle through TransactionStorage.Stored',errors)
+ require('pub enum Event' not in hop and 'pallet_orbis_transaction_storage::Pallet::<T>::do_store' in hop,'HopPromotion must remain internal and surface successful lifecycle through TransactionStorage.Stored',errors)
  storage_domain=text('origin-rs/src/product_sdk/domains/storage.rs');storage_transport=text('origin-rs/src/product_sdk/transport.rs')
  require('pub type StorageWrite = SubmitAndFinalize<StorageCommand>' in storage_domain and 'prepare_storage_command' in storage_transport,'TransactionStorage product writes must terminate through submit-and-finalize',errors)
  onchain='\n'.join(text(p) for p in ['origin/orbis/pallets/storage-provider/src/lib.rs','origin/orbis/pallets/drive/src/lib.rs','origin/orbis/pallets/s3/src/lib.rs'])

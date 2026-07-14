@@ -59,7 +59,7 @@ export function decimalU64<Kind extends "DecimalU64" | "BlockNumber" | "Reservat
   return text as NativeString<Kind>;
 }
 
-/** Construct the exact Bulletin reservation identifier used by provider agreements. */
+/** Construct the exact Orbis Storage reservation identifier used by provider agreements. */
 export function reservationId(value: string | number): ReservationId {
   return decimalU64<"ReservationId">(value, "reservation_id");
 }
