@@ -57,7 +57,7 @@ use origin_runtime_constants::{
 };
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
 use pallet_session::historical as session_historical;
-use pallet_token::Token as _;
+use pallet_origin_token::Token as _;
 use pallet_transaction_payment::{FeeDetails, FungibleAdapter, RuntimeDispatchInfo};
 use pallet_tx_pause::RuntimeCallNameOf;
 use polkadot_primitives::{
@@ -1213,7 +1213,7 @@ parameter_types! {
 	pub const TokenAuthorizationTTL: u32 = 30;
 }
 
-impl pallet_token::Config for Runtime {
+impl pallet_origin_token::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 	type MaxAuthorizationLen = TokenMaxAuthorizationLen;
@@ -1323,7 +1323,7 @@ construct_runtime! {
 		MessageQueue: pallet_message_queue = 100,
 
 		// Token
-		Token: pallet_token = 102,
+		Token: pallet_origin_token = 102,
 
 		// BEEFY Bridges support.
 		Beefy: pallet_beefy = 200,
@@ -1451,9 +1451,9 @@ mod benches {
 
 	use frame_benchmarking::BenchmarkError;
 
-	use origin_runtime_constants::system_parachain::OriginHubInParaId;
+	use origin_runtime_constants::system_parachain::OrbisParaId;
 	use xcm_config::{
-		LocalCheckAccount, OriginHubInLocation, SovereignAccountOf, TokenLocation, XcmConfig,
+		LocalCheckAccount, OrbisLocation, SovereignAccountOf, TokenLocation, XcmConfig,
 	};
 
 	impl frame_system_benchmarking::Config for Runtime {}
@@ -1474,7 +1474,7 @@ mod benches {
 				XcmConfig,
 				ExistentialDepositAsset,
 				xcm_config::PriceForChildParachainDelivery,
-				OriginHubInParaId,
+				OrbisParaId,
 				Dmp,
 			>,
 			polkadot_runtime_common::xcm_sender::ToParachainDeliveryHelper<
@@ -1487,14 +1487,14 @@ mod benches {
 		);
 
 		fn reachable_dest() -> Option<Location> {
-			Some(OriginHubInLocation::get())
+			Some(OrbisLocation::get())
 		}
 
 		fn teleportable_asset_and_dest() -> Option<(Asset, Location)> {
 			// Relay/native token can be teleported to/from AH.
 			Some((
 				Asset { fun: Fungible(ExistentialDeposit::get()), id: AssetId(Here.into()) },
-				OriginHubInLocation::get(),
+				OrbisLocation::get(),
 			))
 		}
 
@@ -1513,7 +1513,7 @@ mod benches {
 			// benchmarking as it's slightly heavier.
 			// Relay/native token can be teleported to/from AH.
 			let native_location = Here.into();
-			let dest = OriginHubInLocation::get();
+			let dest = OrbisLocation::get();
 			pallet_xcm::benchmarking::helpers::native_teleport_as_asset_transfer::<Runtime>(
 				native_location,
 				dest,
@@ -1532,11 +1532,11 @@ mod benches {
 			XcmConfig,
 			ExistentialDepositAsset,
 			xcm_config::PriceForChildParachainDelivery,
-			OriginHubInParaId,
+			OrbisParaId,
 			Dmp,
 		>;
 		fn valid_destination() -> Result<Location, BenchmarkError> {
-			Ok(OriginHubInLocation::get())
+			Ok(OrbisLocation::get())
 		}
 		fn worst_case_holding(_depositable_count: u32) -> xcm_executor::AssetsInHolding {
 			use pallet_xcm_benchmarks::MockCredit;
@@ -1553,7 +1553,7 @@ mod benches {
 
 	parameter_types! {
 		pub TrustedTeleporter: Option<(Location, Asset)> = Some((
-			OriginHubInLocation::get(),
+			OrbisLocation::get(),
 			Asset { id: AssetId(TokenLocation::get()), fun: Fungible(UNITS) }
 		));
 		pub const TrustedReserve: Option<(Location, Asset)> = None;
@@ -1596,17 +1596,17 @@ mod benches {
 
 		fn transact_origin_and_runtime_call() -> Result<(Location, RuntimeCall), BenchmarkError> {
 			Ok((
-				OriginHubInLocation::get(),
+				OrbisLocation::get(),
 				frame_system::Call::remark_with_event { remark: vec![] }.into(),
 			))
 		}
 
 		fn subscribe_origin() -> Result<Location, BenchmarkError> {
-			Ok(OriginHubInLocation::get())
+			Ok(OrbisLocation::get())
 		}
 
 		fn claimable_asset() -> Result<(Location, Location, Assets), BenchmarkError> {
-			let origin = OriginHubInLocation::get();
+			let origin = OrbisLocation::get();
 			let assets: Assets = (AssetId(TokenLocation::get()), 1_000 * UNITS).into();
 			let ticket = Location { parents: 0, interior: Here };
 			Ok((origin, ticket, assets))

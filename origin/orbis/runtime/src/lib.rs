@@ -75,8 +75,8 @@ use frame_system::{
 };
 pub use orbis_identity_personhood_runtime_api as identity_personhood_api;
 pub use orbis_storage_runtime_api as storage_api;
-pub use origin_hub_system_runtime_constants::async_backing::SLOT_DURATION;
-use origin_hub_system_runtime_constants::{
+pub use origin_commons_runtime_constants::async_backing::SLOT_DURATION;
+use origin_commons_runtime_constants::{
 	async_backing::{
 		AVERAGE_ON_INITIALIZE_RATIO, HOURS, MAXIMUM_BLOCK_WEIGHT, MINUTES, NORMAL_DISPATCH_RATIO,
 	},
@@ -89,7 +89,7 @@ use pallet_assets_precompiles::{ForeignIdConfig, InlineIdConfig, ERC20};
 use pallet_nfts::PalletFeatures;
 pub use pallet_orbis_attestation_runtime_api as attestation_api;
 pub use pallet_orbis_dotns_runtime_api as dotns_api;
-use pallet_orbis_token::Token as TokenTrait;
+use pallet_origin_token::Token as TokenTrait;
 use pallet_revive::evm::runtime::EthExtra;
 use pallet_transaction_payment::FungibleAdapter;
 use pallet_tx_pause::RuntimeCallNameOf;
@@ -116,7 +116,7 @@ pub use sp_runtime::{MultiAddress, Perbill, Permill};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 /// Runtime API definition for token.
-pub use token_origin_hub_runtime_api as token_api;
+pub use token_origin_commons_runtime_api as token_api;
 use verifiable::{ring::bandersnatch::BandersnatchVrfVerifiable, GenerateVerifiable};
 
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
@@ -1384,7 +1384,7 @@ parameter_types! {
 	pub const TokenAuthorizationTTL: u32 = 30;
 }
 
-impl pallet_orbis_token::Config for Runtime {
+impl pallet_origin_token::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 	type MaxAuthorizationLen = TokenMaxAuthorizationLen;
@@ -1401,7 +1401,7 @@ parameter_types! {
 	pub const MaxPacketListResults: u32 = 200;
 }
 
-impl pallet_orbis_register::Config for Runtime {
+impl pallet_origin_register::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Token = Token;
 	type EntityLookup = Entity;
@@ -1411,12 +1411,12 @@ impl pallet_orbis_register::Config for Runtime {
 	type MaxAuthorizationTTL = RegisterAuthorizationTTL;
 	type MaxPacketListResults = MaxPacketListResults;
 	type Feeless = Feeless;
-	type WeightInfo = pallet_orbis_register::weights::SubstrateWeight<Self>;
+	type WeightInfo = pallet_origin_register::weights::SubstrateWeight<Self>;
 }
 
-impl pallet_orbis_feeless::Config for Runtime {
+impl pallet_origin_feeless::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_orbis_feeless::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = pallet_origin_feeless::weights::SubstrateWeight<Runtime>;
 	type MaxFeelessTransactionsPerBlock = ConstU32<16>;
 }
 
@@ -2221,7 +2221,7 @@ pub struct OrbisIdentityRegistry;
 
 impl pallet_orbis_dotns::SubjectReferenceValidator<Ss58Identifier> for OrbisIdentityRegistry {
 	fn contains(subject: &Ss58Identifier) -> bool {
-		pallet_orbis_entity::EntityInfoOf::<Runtime>::contains_key(subject)
+		pallet_origin_entity::EntityInfoOf::<Runtime>::contains_key(subject)
 	}
 }
 
@@ -2386,10 +2386,10 @@ construct_runtime!(
 		// The main stage.
 		// The relay Coretime pallet encodes Broker callbacks with pallet index 50.
 		Broker: pallet_broker = 50,
-		Token: pallet_orbis_token = 51,
-		Register: pallet_orbis_register = 52,
-		Entity: pallet_orbis_entity = 53,
-		Feeless: pallet_orbis_feeless = 54,
+		Token: pallet_origin_token = 51,
+		Register: pallet_origin_register = 52,
+		Entity: pallet_origin_entity = 53,
+		Feeless: pallet_origin_feeless = 54,
 
 		// Unified application assets.
 		Assets: pallet_assets::<Instance1> = 80,
@@ -2459,7 +2459,7 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 
 /// The TransactionExtension to the basic transaction logic.
-pub type AssetPayment = pallet_orbis_feeless::ChargeOrSkipFeeless<
+pub type AssetPayment = pallet_origin_feeless::ChargeOrSkipFeeless<
 	Runtime,
 	pallet_asset_conversion_tx_payment::ChargeAssetTxPayment<Runtime>,
 >;
@@ -2543,7 +2543,7 @@ impl EthExtra for EthExtraImpl {
 	fn get_eth_extension(nonce: u32, tip: Balance) -> Self::ExtensionV0 {
 		paid_tx_extensions(default_inner_tx_extensions(
 			nonce,
-			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+			pallet_origin_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(
 					tip, None,
 				),
@@ -2593,7 +2593,7 @@ where
 	fn create_extension() -> Self::Extension {
 		paid_tx_extensions(default_inner_tx_extensions(
 			0,
-			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+			pallet_origin_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 			)
 			.into(),
@@ -2671,8 +2671,8 @@ impl pallet_asset_conversion_tx_payment::BenchmarkHelperTrait<AccountId, Locatio
 mod benches {
 	use super::*;
 	use alloc::boxed::Box;
-	use origin_hub_system_runtime_constants::origin::locations::{
-		OriginHubLocation, OriginHubParaId,
+	use origin_commons_runtime_constants::origin::locations::{
+		BenchmarkSiblingLocation, BenchmarkSiblingParaId,
 	};
 	use xcm::latest::Assets as XcmAssets;
 
@@ -2688,8 +2688,8 @@ mod benches {
 		[pallet_bulletin_transaction_storage, TransactionStorage]
 		[pallet_bulletin_hop_promotion, HopPromotion]
 		[pallet_coretime_control, CoretimeControl]
-		[pallet_orbis_token, Token]
-		[pallet_orbis_feeless, Feeless]
+		[pallet_origin_token, Token]
+		[pallet_origin_feeless, Feeless]
 		[pallet_orbis_people, People]
 		[indiv_pallet_chunks_manager, ChunksManager]
 		[indiv_pallet_members, Members]
@@ -2699,12 +2699,12 @@ mod benches {
 		[indiv_pallet_resources, Resources]
 		[pallet_orbis_score, Score]
 		[pallet_orbis_honour, Honour]
-		[pallet_orbis_entity, Entity]
+		[pallet_origin_entity, Entity]
 		[pallet_message_queue, MessageQueue]
 		[pallet_migrations, MultiBlockMigrations]
 		[pallet_multisig, Multisig]
 		[pallet_proxy, Proxy]
-		[pallet_orbis_register, Register]
+		[pallet_origin_register, Register]
 		[pallet_safe_mode, SafeMode]
 		[pallet_session, SessionBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
@@ -2768,7 +2768,7 @@ mod benches {
 				xcm_config::XcmConfig,
 				DeliveryExistentialDepositAsset,
 				PriceForSiblingParachainDelivery,
-				OriginHubParaId,
+				BenchmarkSiblingParaId,
 				ParachainSystem,
 			>,
 		);
@@ -2790,13 +2790,13 @@ mod benches {
 
 		fn set_up_complex_asset_transfer() -> Option<(XcmAssets, u32, Location, Box<dyn FnOnce()>)>
 		{
-			// Only supports native token teleports to default Origin Hub parachain
+			// Exercise a deterministic sibling destination for the XCM benchmark.
 			let native_location = Parent.into();
-			let dest = OriginHubLocation::get();
+			let dest = BenchmarkSiblingLocation::get();
 
 			// Polkadot SDK >= stable2509: HRMP open helper still required in benchmarks.
 			ParachainSystem::open_outbound_hrmp_channel_for_benchmarks_or_tests(
-				OriginHubParaId::get(),
+				BenchmarkSiblingParaId::get(),
 			);
 
 			pallet_xcm::benchmarking::helpers::native_teleport_as_asset_transfer::<Runtime>(
@@ -3281,10 +3281,10 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 		}
 	}
 
-	impl token_api::TokenOriginHubRuntimeApi<Block> for Runtime {
+	impl token_api::TokenOriginCommonsRuntimeApi<Block> for Runtime {
 		fn decode_token(token: Vec<u8>) -> Option<token_api::DecodedTokenApi> {
 			let ss58_id = Ss58Identifier::try_from(token).ok()?;
-			let decoded: DecodedIdentifier = <pallet_orbis_token::Pallet<Runtime> as TokenTrait<Runtime>>::resolve_token(&ss58_id).ok()?;
+			let decoded: DecodedIdentifier = <pallet_origin_token::Pallet<Runtime> as TokenTrait<Runtime>>::resolve_token(&ss58_id).ok()?;
 			Some(token_api::DecodedTokenApi {
 				origin: decoded.origin,
 				network: decoded.network,
@@ -3312,10 +3312,10 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 			if Token::resolve_pallet_plain(decoded.pallet).is_err() {
 				return token_api::TokenStatusApi::PalletNotFound;
 			}
-			if !pallet_orbis_token::StateVersion::<Runtime>::contains_key(&ss58_id) {
+			if !pallet_origin_token::StateVersion::<Runtime>::contains_key(&ss58_id) {
 				return token_api::TokenStatusApi::TokenNotFound;
 			}
-			let version = pallet_orbis_token::StateVersion::<Runtime>::get(&ss58_id);
+			let version = pallet_origin_token::StateVersion::<Runtime>::get(&ss58_id);
 			let last_state = version.checked_sub(1);
 			token_api::TokenStatusApi::Found { last_state }
 		}

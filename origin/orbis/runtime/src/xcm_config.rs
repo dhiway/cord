@@ -27,7 +27,7 @@ use frame_support::{
 	traits::{ConstU32, Contains, Disabled, Equals, Everything, Nothing},
 };
 use frame_system::EnsureRoot;
-use origin_hub_system_runtime_constants::TREASURY_PALLET_ID;
+use origin_commons_runtime_constants::TREASURY_PALLET_ID;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::xcm_config::{
 	AllSiblingSystemParachains, ConcreteAssetFromSystem, ParentRelayOrSiblingParachains,

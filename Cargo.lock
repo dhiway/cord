@@ -9567,7 +9567,7 @@ dependencies = [
  "log",
  "orbis-identity-personhood-runtime-api",
  "orbis-storage-runtime-api",
- "origin-hub-system-runtime-constants",
+ "origin-commons-runtime-constants",
  "origin-primitives",
  "origin-runtime-constants",
  "pallet-asset-conversion",
@@ -9597,15 +9597,15 @@ dependencies = [
  "pallet-orbis-dotns",
  "pallet-orbis-dotns-runtime-api",
  "pallet-orbis-drive",
- "pallet-orbis-entity",
- "pallet-orbis-feeless",
  "pallet-orbis-honour",
  "pallet-orbis-people",
- "pallet-orbis-register",
  "pallet-orbis-s3",
  "pallet-orbis-score",
  "pallet-orbis-storage-provider",
- "pallet-orbis-token",
+ "pallet-origin-entity",
+ "pallet-origin-feeless",
+ "pallet-origin-register",
+ "pallet-origin-token",
  "pallet-proxy",
  "pallet-remark",
  "pallet-revive",
@@ -9657,10 +9657,25 @@ dependencies = [
  "staging-xcm-executor",
  "static_assertions",
  "substrate-wasm-builder",
- "token-origin-hub-runtime-api",
+ "token-origin-commons-runtime-api",
  "toml 0.8.23",
  "verifiable",
  "xcm-runtime-apis",
+]
+
+[[package]]
+name = "origin-commons-runtime-constants"
+version = "0.9.9"
+dependencies = [
+ "frame-support",
+ "origin-runtime-constants",
+ "parachains-common",
+ "polkadot-core-primitives",
+ "polkadot-primitives",
+ "smallvec",
+ "sp-core",
+ "sp-runtime",
+ "staging-xcm",
 ]
 
 [[package]]
@@ -9703,6 +9718,7 @@ dependencies = [
  "pallet-multisig",
  "pallet-offences",
  "pallet-offences-benchmarking",
+ "pallet-origin-token",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-remark",
@@ -9713,7 +9729,6 @@ dependencies = [
  "pallet-session-benchmarking",
  "pallet-sudo",
  "pallet-timestamp",
- "pallet-token",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-tx-pause",
@@ -9760,106 +9775,6 @@ dependencies = [
  "token-origin-runtime-api",
  "tokio",
  "xcm-runtime-apis",
-]
-
-[[package]]
-name = "origin-hub-system-runtime"
-version = "0.9.9"
-dependencies = [
- "cumulus-pallet-aura-ext",
- "cumulus-pallet-parachain-system",
- "cumulus-pallet-session-benchmarking",
- "cumulus-pallet-xcm",
- "cumulus-pallet-xcmp-queue",
- "cumulus-primitives-aura",
- "cumulus-primitives-core",
- "cumulus-primitives-utility",
- "enumflags2",
- "frame-benchmarking",
- "frame-executive",
- "frame-metadata-hash-extension",
- "frame-support",
- "frame-system",
- "frame-system-benchmarking",
- "frame-system-rpc-runtime-api",
- "frame-try-runtime",
- "hex-literal",
- "log",
- "origin-hub-system-runtime-constants",
- "origin-primitives",
- "origin-runtime-constants",
- "pallet-aura",
- "pallet-authorship",
- "pallet-balances",
- "pallet-broker",
- "pallet-collator-selection",
- "pallet-entity",
- "pallet-feeless",
- "pallet-indices",
- "pallet-message-queue",
- "pallet-meta-tx",
- "pallet-migrations",
- "pallet-multisig",
- "pallet-proxy",
- "pallet-register",
- "pallet-remark",
- "pallet-safe-mode",
- "pallet-scheduler",
- "pallet-session",
- "pallet-skip-feeless-payment",
- "pallet-sudo",
- "pallet-timestamp",
- "pallet-token",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "pallet-tx-pause",
- "pallet-utility",
- "pallet-verify-signature",
- "pallet-xcm",
- "pallet-xcm-benchmarks",
- "parachains-common",
- "parachains-runtimes-test-utils",
- "parity-scale-codec",
- "polkadot-parachain-primitives",
- "polkadot-primitives",
- "polkadot-runtime-common",
- "scale-info",
- "serde",
- "serde_json",
- "sp-api",
- "sp-block-builder",
- "sp-consensus-aura",
- "sp-core",
- "sp-genesis-builder",
- "sp-inherents",
- "sp-offchain",
- "sp-runtime",
- "sp-session",
- "sp-storage",
- "sp-transaction-pool",
- "sp-version",
- "staging-parachain-info",
- "staging-xcm",
- "staging-xcm-builder",
- "staging-xcm-executor",
- "substrate-wasm-builder",
- "token-origin-hub-runtime-api",
- "xcm-runtime-apis",
-]
-
-[[package]]
-name = "origin-hub-system-runtime-constants"
-version = "0.9.9"
-dependencies = [
- "frame-support",
- "origin-runtime-constants",
- "parachains-common",
- "polkadot-core-primitives",
- "polkadot-primitives",
- "smallvec",
- "sp-core",
- "sp-runtime",
- "staging-xcm",
 ]
 
 [[package]]
@@ -10842,26 +10757,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-entity"
-version = "0.9.9"
-dependencies = [
- "enumflags2",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "origin-primitives",
- "pallet-balances",
- "pallet-feeless",
- "pallet-token",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-entry"
 version = "0.9.9"
 dependencies = [
@@ -10897,22 +10792,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
-]
-
-[[package]]
-name = "pallet-feeless"
-version = "0.9.9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-balances",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -11326,42 +11205,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-orbis-entity"
-version = "0.9.9"
-dependencies = [
- "enumflags2",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "origin-primitives",
- "pallet-balances",
- "pallet-orbis-feeless",
- "pallet-orbis-token",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-orbis-feeless"
-version = "0.9.9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-balances",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-orbis-honour"
 version = "0.9.9"
 dependencies = [
@@ -11390,26 +11233,6 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-keystore",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-orbis-register"
-version = "0.9.9"
-dependencies = [
- "bitflags 1.3.2",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "origin-primitives",
- "pallet-orbis-entity",
- "pallet-orbis-feeless",
- "pallet-orbis-token",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
  "sp-runtime",
 ]
 
@@ -11462,7 +11285,63 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-orbis-token"
+name = "pallet-origin-entity"
+version = "0.9.9"
+dependencies = [
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "origin-primitives",
+ "pallet-balances",
+ "pallet-origin-feeless",
+ "pallet-origin-token",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-origin-feeless"
+version = "0.9.9"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-origin-register"
+version = "0.9.9"
+dependencies = [
+ "bitflags 1.3.2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "origin-primitives",
+ "pallet-origin-entity",
+ "pallet-origin-feeless",
+ "pallet-origin-token",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-origin-token"
 version = "0.9.9"
 dependencies = [
  "frame-benchmarking",
@@ -11596,26 +11475,6 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-arithmetic",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-register"
-version = "0.9.9"
-dependencies = [
- "bitflags 1.3.2",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "origin-primitives",
- "pallet-entity",
- "pallet-feeless",
- "pallet-token",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
  "sp-io",
  "sp-runtime",
 ]
@@ -12105,22 +11964,6 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-token"
-version = "0.9.9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "hex",
- "origin-primitives",
- "parity-scale-codec",
- "scale-info",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -19980,7 +19823,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
-name = "token-origin-hub-runtime-api"
+name = "token-origin-commons-runtime-api"
 version = "0.9.9"
 dependencies = [
  "parity-scale-codec",

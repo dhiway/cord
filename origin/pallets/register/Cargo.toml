@@ -1,6 +1,6 @@
 [package]
-name = "pallet-register"
-description = "Registry management pallet"
+name = "pallet-origin-register"
+description = "Origin stack registry management pallet."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -20,9 +20,9 @@ origin-primitives = { default-features = false, workspace = true }
 scale-info = { features = ["derive", "serde"], workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
-pallet-feeless = { workspace = true }
-pallet-entity = { workspace = true }
-pallet-token = { workspace = true }
+pallet-origin-feeless = { workspace = true }
+pallet-origin-entity = { workspace = true }
+pallet-origin-token = { workspace = true }
 sp-runtime = { workspace = true }
 sp-io = { workspace = true }
 bitflags = { workspace = true }
@@ -37,10 +37,10 @@ std = [
 	"origin-primitives/std",
 	"frame-support/std",
 	"frame-system/std",
-	"pallet-feeless/std",
+	"pallet-origin-feeless/std",
 	"frame-benchmarking?/std",
-	"pallet-entity/std",
-	"pallet-token/std",
+	"pallet-origin-entity/std",
+	"pallet-origin-token/std",
 	"scale-info/std",
 	"sp-io/std",
 	"sp-runtime/std",

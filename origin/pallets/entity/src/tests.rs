@@ -30,7 +30,7 @@ use origin_primitives::{
 	attribute::{Attribute, Attributes, AttributesError, Element},
 	Signature,
 };
-use pallet_token::Token;
+use pallet_origin_token::Token;
 use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_io::hashing::twox_128;
 use sp_runtime::{
@@ -60,7 +60,7 @@ fn init_with_display(who: AccountId, disp: &[u8]) -> Ss58Identifier {
 fn _test_id(input: &[u8]) -> Ss58Identifier {
 	let hash = <Test as frame_system::Config>::Hashing::hash(input);
 	let name = <Pallet<Test> as PalletInfoAccess>::name();
-	<pallet_token::Pallet<Test> as Token<Test>>::build(&hash.as_ref(), name)
+	<pallet_origin_token::Pallet<Test> as Token<Test>>::build(&hash.as_ref(), name)
 		.expect("should never fail")
 }
 

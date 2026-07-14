@@ -65,9 +65,9 @@ pub use packet::{
 use register::{AttributeFlags, AttributeSpec, LookupSpec, RegistryFieldError, RegistryInfo};
 
 pub use pallet::*;
-use pallet_entity::EntityLookup;
-use pallet_feeless::FeelessAccounts;
-use pallet_token::{EventBlock, EventTypeOf, Token};
+use pallet_origin_entity::EntityLookup;
+use pallet_origin_feeless::FeelessAccounts;
+use pallet_origin_token::{EventBlock, EventTypeOf, Token};
 use sp_io as _;
 use sp_runtime::traits::{Hash, UniqueSaturatedInto};
 pub use weights::WeightInfo;

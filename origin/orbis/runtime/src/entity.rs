@@ -19,7 +19,7 @@
 use super::*;
 use crate::{Runtime, Token};
 use frame_support::parameter_types;
-use pallet_orbis_entity::entity::EntityInfo;
+use pallet_origin_entity::entity::EntityInfo;
 
 parameter_types! {
 	pub const MaxLinkedAccounts: u32 = 32;
@@ -38,7 +38,7 @@ pub type IdentityAdminOrigin = EitherOfDiverse<
 	EnsureXcm<IsVoiceOfBody<GovernanceLocation, GeneralAdminBodyId>>,
 >;
 
-impl pallet_orbis_entity::Config for Runtime {
+impl pallet_origin_entity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Token = Token;
 	type MaxLinkedAccounts = MaxLinkedAccounts;
@@ -52,5 +52,5 @@ impl pallet_orbis_entity::Config for Runtime {
 	type MaxAuthorizationLen = MaxAuthorizationLen;
 	type MaxAuthorizationTTL = MaxAuthorizationTTL;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
-	type WeightInfo = weights::pallet_orbis_entity::WeightInfo<Runtime>;
+	type WeightInfo = weights::pallet_origin_entity::WeightInfo<Runtime>;
 }

@@ -52,7 +52,7 @@ pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 frame-executive = { workspace = true }
 frame-metadata-hash-extension = { workspace = true }
 pallet-grandpa = { workspace = true }
-pallet-token = { workspace = true }
+pallet-origin-token = { workspace = true }
 pallet-im-online = { workspace = true }
 pallet-indices = { workspace = true }
 pallet-message-queue = { workspace = true }
@@ -151,7 +151,7 @@ std = [
 	"pallet-beefy/std",
 	"pallet-broker/std",
 	"pallet-grandpa/std",
-	"pallet-token/std",
+	"pallet-origin-token/std",
 	"pallet-im-online/std",
 	"pallet-indices/std",
 	"pallet-message-queue/std",
@@ -276,7 +276,7 @@ try-runtime = [
 	"pallet-beefy/try-runtime",
 	"pallet-broker/try-runtime",
 	"pallet-grandpa/try-runtime",
-	"pallet-token/try-runtime",
+	"pallet-origin-token/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-indices/try-runtime",
 	"pallet-message-queue/try-runtime",

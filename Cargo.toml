@@ -16,16 +16,15 @@ members = [
 	"node/testing",
 	"origin/primitives",
 	"origin/runtime-api/token-origin-runtime-api",
-	"origin/runtime-api/token-origin-hub-runtime-api",
 	"origin/base",
 	"origin/base/cli",
 	"origin/base/runtime",
 	"origin/orbis/node",
 	"origin/orbis/provider-node",
-	"origin/hub/constants",
-	"origin/hub/system",
 	"origin/orbis/runtime",
 	"origin/orbis/runtime-api/storage",
+	"origin/orbis/runtime-api/token",
+	"origin/orbis/runtime/constants",
 	"origin/orbis/runtime/metadata-implicit-nohash",
 	"origin/common",
 	"origin/pallets/authorities",
@@ -35,10 +34,10 @@ members = [
 	"origin/orbis/pallets/attestation/runtime-api",
 	"origin/orbis/pallets/dotns",
 	"origin/orbis/pallets/dotns/runtime-api",
-	"origin/orbis/pallets/token",
-	"origin/orbis/pallets/feeless",
-	"origin/orbis/pallets/entity",
-	"origin/orbis/pallets/register",
+	"origin/pallets/token",
+	"origin/pallets/feeless",
+	"origin/pallets/entity",
+	"origin/pallets/register",
 	"origin/orbis/pallets/drive",
 	"origin/orbis/pallets/storage-provider",
 	"origin/orbis/pallets/s3",
@@ -56,10 +55,6 @@ members = [
 	"origin/orbis/pallets/transaction-storage",
 	"origin/orbis/pallets/transaction-storage/primitives",
 	"origin/orbis/pallets/transaction-storage/runtime-api",
-	"origin/pallets/token",
-	"origin/pallets/entity",
-	"origin/pallets/register",
-	"origin/pallets/feeless",
 	"pallets/collection",
 	"pallets/doken",
 	"pallets/identity",
@@ -850,28 +845,23 @@ pallet-schema-accounts = { path = "pallets/schema-accounts", default-features = 
 pallet-namespace = { path = 'pallets/namespace', default-features = false }
 pallet-profile = { path = "pallets/profile", default-features = false }
 # pallet-remote-proxy = { path = 'pallets/remote-proxy/', default-features = false }
-pallet-feeless = { path = "origin/pallets/feeless", default-features = false }
+pallet-origin-feeless = { path = "origin/pallets/feeless", default-features = false }
+pallet-origin-token = { path = "origin/pallets/token", default-features = false }
+pallet-origin-register = { path = "origin/pallets/register", default-features = false }
+pallet-origin-entity = { path = "origin/pallets/entity", default-features = false }
+origin-commons-runtime-constants = { path = "origin/orbis/runtime/constants", default-features = false }
+token-origin-commons-runtime-api = { path = "origin/orbis/runtime-api/token", default-features = false }
 pallet-authorities = { path = 'origin/pallets/authorities', default-features = false }
 pallet-coretime-control = { path = 'origin/pallets/coretime-control', default-features = false }
-pallet-register = { path = 'origin/pallets/register/', default-features = false }
-pallet-token = { path = "origin/pallets/token", default-features = false }
-pallet-entity = { path = "origin/pallets/entity", default-features = false }
-pallet-orbis-token = { path = "origin/orbis/pallets/token", default-features = false }
-pallet-orbis-feeless = { path = "origin/orbis/pallets/feeless", default-features = false }
-pallet-orbis-entity = { path = "origin/orbis/pallets/entity", default-features = false }
-pallet-orbis-register = { path = "origin/orbis/pallets/register", default-features = false }
 origin-primitives = { path = "origin/primitives", default-features = false }
 origin-node-cli = { path = "origin/base/cli", default-features = false }
 origin-foundation-runtime = { path = "origin/base/runtime" }
 origin-runtime-constants = { path = "origin/base/runtime/constants", default-features = false }
 origin-common = { path = "origin/common", default-features = false }
 origin-omni-node = { path = "origin/orbis/node", default-features = false }
-origin-hub-system-runtime = { path = "origin/hub/system", default-features = false }
-origin-hub-system-runtime-constants = { path = "origin/hub/constants", default-features = false }
 origin-commons-runtime = { path = "origin/orbis/runtime", default-features = false }
 orbis-storage-runtime-api = { path = "origin/orbis/runtime-api/storage", default-features = false }
 token-origin-runtime-api = { path = "origin/runtime-api/token-origin-runtime-api", default-features = false }
-token-origin-hub-runtime-api = { path = "origin/runtime-api/token-origin-hub-runtime-api", default-features = false }
 
 [patch.crates-io]
 # Revive's std-only Subxt tooling requests the published crate. Keep it on the same Dhiway SDK

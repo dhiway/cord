@@ -63,8 +63,8 @@ use origin_primitives::{
 	packet::{PacketInformationProvider, PacketUpdateError, PacketUpdateOp},
 	Signature,
 };
-use pallet_feeless::FeelessAccounts;
-use pallet_token::{EventBlock, EventTypeOf, Token};
+use pallet_origin_feeless::FeelessAccounts;
+use pallet_origin_token::{EventBlock, EventTypeOf, Token};
 use sp_runtime::{
 	traits::{Hash, UniqueSaturatedInto, Verify},
 	AccountId32,
@@ -705,8 +705,8 @@ pub mod pallet {
 		/// Remove all entity details from storage
 		#[pallet::call_index(10)]
 		#[pallet::weight({
-		    let sub_count = LinkedAccounts::<T>::get(&token).len() as u32;
-		    T::WeightInfo::clear_everything(sub_count)
+			let sub_count = LinkedAccounts::<T>::get(&token).len() as u32;
+			T::WeightInfo::clear_everything(sub_count)
 		})]
 		#[pallet::feeless_if(|origin: &OriginFor<T>, _token: &Ss58Identifier| -> bool {
 			Pallet::<T>::is_origin_feeless(origin)
@@ -724,8 +724,8 @@ pub mod pallet {
 		#[pallet::call_index(11)]
 		// #[pallet::weight(T::WeightInfo::clear_identity_for())]
 		#[pallet::weight({
-		    let sub_count = LinkedAccounts::<T>::get(&token).len() as u32;
-		    T::WeightInfo::clear_everything_for(sub_count)
+			let sub_count = LinkedAccounts::<T>::get(&token).len() as u32;
+			T::WeightInfo::clear_everything_for(sub_count)
 		})]
 		pub fn clear_everything_for(origin: OriginFor<T>, token: Ss58Identifier) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;

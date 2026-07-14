@@ -23,8 +23,8 @@ use alloc::collections::BTreeMap;
 use codec::Encode;
 use frame_support::{derive_impl, parameter_types, traits::PalletInfoAccess};
 use origin_primitives::{AccountId, Signature};
-use pallet_entity::{signature::SignatureVerificationError, EntityLookup};
-use pallet_token::{EventBlock, Token as TokenTrait};
+use pallet_origin_entity::{signature::SignatureVerificationError, EntityLookup};
+use pallet_origin_token::{EventBlock, Token as TokenTrait};
 use sp_core::{sr25519, Pair};
 use sp_runtime::{
 	traits::{BlakeTwo256, Hash as HashT, IdentifyAccount, IdentityLookup, Verify},
@@ -36,7 +36,7 @@ frame_support::construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
-		Token: pallet_token,
+		Token: pallet_origin_token,
 		Register: crate,
 	}
 );
@@ -62,7 +62,7 @@ impl frame_system::Config for Test {
 	type OnSetCode = ();
 }
 
-impl pallet_token::Config for Test {
+impl pallet_origin_token::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 	type MaxAuthorizationLen = MaxAuthorizationLen;
@@ -140,7 +140,7 @@ impl crate::benchmarking::EntityBinder<Test> for MockLookup {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type Token = pallet_token::Pallet<Self>;
+	type Token = pallet_origin_token::Pallet<Self>;
 	type EntityLookup = MockLookup;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
@@ -172,8 +172,9 @@ pub fn bind_account(account: AccountId) -> Ss58Identifier {
 	let encoded = account.encode();
 	let hash = <Test as frame_system::Config>::Hashing::hash(&encoded);
 	let pallet = <Pallet<Test> as PalletInfoAccess>::name();
-	let token = <pallet_token::Pallet<Test> as TokenTrait<Test>>::build(hash.as_ref(), pallet)
-		.expect("token generation never fails in tests");
+	let token =
+		<pallet_origin_token::Pallet<Test> as TokenTrait<Test>>::build(hash.as_ref(), pallet)
+			.expect("token generation never fails in tests");
 	ACCOUNT_TOKENS.with(|map| {
 		map.borrow_mut().insert(account.clone(), token.clone());
 	});

@@ -9,9 +9,9 @@ Orbis is Origin's unified system chain and replaces the Origin Hub runtime. It o
 capabilities and the sole Coretime Broker. The Origin relay recognizes Orbis parachain `1006` as
 `Coretime::BrokerId`; no other parachain may issue Broker-origin core-count or assignment calls.
 
-The canonical `origin-omni-node` omni-node exposes only Orbis built-in specs. The legacy
-`origin/hub/system` runtime remains source-only until Broker bootstrapping and allocation tests pass;
-it is not selectable by the Orbis node.
+The canonical `origin-omni-node` exposes only Orbis built-in specs. The superseded Origin Hub
+runtime and its duplicate pallets are deleted: Foundation and Commons have one runtime path and one
+Origin-stack implementation per shared capability.
 
 Orbis must always retain a bootstrap core. If stock omni-node cannot prove slot-based
 multi-candidate authoring, V3 descriptors, Bulletin proof-inherent construction, two collators,

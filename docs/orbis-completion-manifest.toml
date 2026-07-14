@@ -296,7 +296,7 @@ evidence = "origin/orbis/runtime/src/lib.rs:index-50"
 id = "PAL-051"
 name = "token"
 index = 51
-package = "pallet-orbis-token"
+package = "pallet-origin-token"
 source = "cord-origin-baseline"
 license = "GPL-3.0"
 state = "present"
@@ -306,7 +306,7 @@ evidence = "origin/orbis/runtime/src/lib.rs:index-51"
 id = "PAL-052"
 name = "register"
 index = 52
-package = "pallet-orbis-register"
+package = "pallet-origin-register"
 source = "cord-origin-baseline"
 license = "GPL-3.0"
 state = "present"
@@ -316,7 +316,7 @@ evidence = "origin/orbis/runtime/src/lib.rs:index-52"
 id = "PAL-053"
 name = "entity"
 index = 53
-package = "pallet-orbis-entity"
+package = "pallet-origin-entity"
 source = "cord-origin-baseline"
 license = "GPL-3.0-or-later"
 state = "present"
@@ -326,7 +326,7 @@ evidence = "origin/orbis/runtime/src/lib.rs:index-53"
 id = "PAL-054"
 name = "feeless"
 index = 54
-package = "pallet-orbis-feeless"
+package = "pallet-origin-feeless"
 source = "cord-origin-baseline"
 license = "GPL-3.0-or-later"
 state = "present"
@@ -851,24 +851,24 @@ state = "present"
 evidence = "origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
-id = "API-TokenOriginHubRuntimeApi-01"
-api = "TokenOriginHubRuntimeApi"
+id = "API-TokenOriginCommonsRuntimeApi-01"
+api = "TokenOriginCommonsRuntimeApi"
 method = "decode_token(token: Vec<u8>) -> Option<DecodedTokenApi>"
 max_results = 1
 state = "present"
 evidence = "origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
-id = "API-TokenOriginHubRuntimeApi-02"
-api = "TokenOriginHubRuntimeApi"
+id = "API-TokenOriginCommonsRuntimeApi-02"
+api = "TokenOriginCommonsRuntimeApi"
 method = "resolve_pallet(index: u16) -> Option<String>"
 max_results = 1
 state = "present"
 evidence = "origin/orbis/runtime/src/lib.rs"
 
 [[runtime_api]]
-id = "API-TokenOriginHubRuntimeApi-03"
-api = "TokenOriginHubRuntimeApi"
+id = "API-TokenOriginCommonsRuntimeApi-03"
+api = "TokenOriginCommonsRuntimeApi"
 method = "token_status(token: Vec<u8>) -> TokenStatusApi"
 max_results = 1
 state = "present"
@@ -1612,7 +1612,7 @@ evidence = "origin/orbis/runtime/src/lib.rs:define_benchmarks"
 
 [[benchmark]]
 id = "BENCH-17"
-target = "pallet_orbis_entity"
+target = "pallet_origin_entity"
 state = "present"
 evidence = "origin/orbis/runtime/src/lib.rs:define_benchmarks"
 
@@ -1648,7 +1648,7 @@ evidence = "origin/orbis/runtime/src/lib.rs:define_benchmarks"
 
 [[benchmark]]
 id = "BENCH-23"
-target = "pallet_orbis_register"
+target = "pallet_origin_register"
 state = "present"
 evidence = "origin/orbis/runtime/src/lib.rs:define_benchmarks"
 
@@ -1737,29 +1737,29 @@ state = "present"
 evidence = "origin/orbis/runtime/src/lib.rs:define_benchmarks"
 
 [[migration]]
-id = "MIG-pallet-orbis-token"
-package = "pallet-orbis-token"
+id = "MIG-pallet-origin-token"
+package = "pallet-origin-token"
 storage_version = 1
 state = "present"
 evidence = "source storage_version declaration"
 
 [[migration]]
-id = "MIG-pallet-orbis-register"
-package = "pallet-orbis-register"
+id = "MIG-pallet-origin-register"
+package = "pallet-origin-register"
 storage_version = 2
 state = "present"
 evidence = "source storage_version declaration"
 
 [[migration]]
-id = "MIG-pallet-orbis-entity"
-package = "pallet-orbis-entity"
+id = "MIG-pallet-origin-entity"
+package = "pallet-origin-entity"
 storage_version = 1
 state = "present"
 evidence = "source storage_version declaration"
 
 [[migration]]
-id = "MIG-pallet-orbis-feeless"
-package = "pallet-orbis-feeless"
+id = "MIG-pallet-origin-feeless"
+package = "pallet-origin-feeless"
 storage_version = 1
 state = "present"
 evidence = "source storage_version declaration"
@@ -2634,15 +2634,15 @@ evidence = "origin/pallets/coretime-control; origin/base/runtime/src/lib.rs:inde
 
 [[benchmark]]
 id = "BENCH-38"
-target = "pallet_orbis_token"
+target = "pallet_origin_token"
 state = "present-initial-version"
-evidence = "origin/orbis/pallets/token/src/benchmarking.rs; origin/orbis/runtime/src/lib.rs:define_benchmarks; final regeneration remains P7"
+evidence = "origin/pallets/token/src/benchmarking.rs; origin/orbis/runtime/src/lib.rs:define_benchmarks; final regeneration remains P7"
 
 [[benchmark]]
 id = "BENCH-39"
-target = "pallet_orbis_feeless"
+target = "pallet_origin_feeless"
 state = "present-conservative-p7-regeneration-required"
-evidence = "origin/orbis/pallets/feeless/src/benchmarking.rs; origin/orbis/runtime/src/lib.rs:define_benchmarks; final regeneration remains P7"
+evidence = "origin/pallets/feeless/src/benchmarking.rs; origin/orbis/runtime/src/lib.rs:define_benchmarks; final regeneration remains P7"
 
 [[benchmark]]
 id = "BENCH-40"
@@ -2896,23 +2896,23 @@ state = "not-applicable-excluded"
 evidence = "capability excluded; no pallet or state exists at genesis"
 
 [[package_provenance]]
-package = "pallet-orbis-token"
+package = "pallet-origin-token"
 version = "0.9.9"
-source_path = "origin/orbis/pallets/token"
+source_path = "origin/pallets/token"
 source = "cord-origin-baseline"
 license = "GPL-3.0"
 
 [[package_provenance]]
-package = "pallet-orbis-register"
+package = "pallet-origin-register"
 version = "0.9.9"
-source_path = "origin/orbis/pallets/register"
+source_path = "origin/pallets/register"
 source = "cord-origin-baseline"
 license = "GPL-3.0"
 
 [[package_provenance]]
-package = "pallet-orbis-entity"
+package = "pallet-origin-entity"
 version = "0.9.9"
-source_path = "origin/orbis/pallets/entity"
+source_path = "origin/pallets/entity"
 source = "cord-origin-baseline"
 license = "GPL-3.0-or-later"
 upstream_declared_license = "Apache-2.0"
@@ -2920,9 +2920,9 @@ fork_license = "GPL-3.0-or-later"
 legal_note = "Copied source carried GPL-3.0-or-later SPDX headers while upstream package metadata declared Apache-2.0; retain the fork as GPL-3.0-or-later and require legal reconciliation before production."
 
 [[package_provenance]]
-package = "pallet-orbis-feeless"
+package = "pallet-origin-feeless"
 version = "0.9.9"
-source_path = "origin/orbis/pallets/feeless"
+source_path = "origin/pallets/feeless"
 source = "cord-origin-baseline"
 license = "GPL-3.0-or-later"
 upstream_declared_license = "Apache-2.0"

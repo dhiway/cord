@@ -2,10 +2,10 @@
 
 use super::*;
 use crate::{EventBlock, EventTypeOf};
+use alloc::vec;
 use frame_benchmarking::v2::*;
-use frame_support::BoundedVec;
 use origin_primitives::identifier::Ss58Identifier;
-use sp_core::H256;
+use sp_runtime::traits::Hash as _;
 
 fn sample_token() -> Ss58Identifier {
 	let digest = [42u8; 32];
@@ -24,29 +24,20 @@ mod benches {
 	#[benchmark]
 	fn record_state_event() {
 		let token = sample_token();
-		let digest = H256::random();
+		let digest = T::Hashing::hash(b"orbis-token-state-event-benchmark");
 		let action = sample_action();
 		let seal = EventBlock { height: 1, index: 0 };
 
 		#[block]
 		{
-			Pallet::<T>::state_event(&token, digest, action.clone(), seal.clone()).unwrap();
+			<Pallet<T> as Token<T>>::state_event(&token, digest, action.clone(), seal.clone())
+				.unwrap();
 		}
 
-		#[verify]
-		{
-			let latest = StateHistory::<T>::get(&token, 0).expect("event written");
-			assert_eq!(latest.action, action);
-			assert_eq!(latest.seal.height, seal.height);
-		}
+		let latest = StateHistory::<T>::get(&token, 0).expect("event written");
+		assert_eq!(latest.action, action);
+		assert_eq!(latest.seal.height, seal.height);
 	}
-}
 
-#[cfg(test)]
-mod tests {
-	use super::*;
-	use crate::mock::Test;
-	use frame_benchmarking::v2::impl_benchmark_test_suite;
-
-	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), Test);
+	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
 }

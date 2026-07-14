@@ -112,14 +112,14 @@ fn runtime_signing_payloads_match_shared_sdk_vectors() {
 fn session_period_preserves_production_and_hash_bound_fast_profiles() {
 	#[cfg(feature = "fast-runtime")]
 	{
-		assert_eq!(Period::get(), 2 * origin_hub_system_runtime_constants::async_backing::MINUTES);
+		assert_eq!(Period::get(), 2 * origin_commons_runtime_constants::async_backing::MINUTES);
 		assert!(<<Runtime as pallet_coretime_control::Config>::TransportControlEnabled as Get<
 			bool,
 		>>::get());
 	}
 	#[cfg(not(feature = "fast-runtime"))]
 	{
-		assert_eq!(Period::get(), 6 * origin_hub_system_runtime_constants::async_backing::HOURS);
+		assert_eq!(Period::get(), 6 * origin_commons_runtime_constants::async_backing::HOURS);
 		assert!(!<<Runtime as pallet_coretime_control::Config>::TransportControlEnabled as Get<
 			bool,
 		>>::get());
@@ -214,10 +214,10 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 			.collect()
 	}
 
-	assert_eq!(pallet_orbis_token::Pallet::<Runtime>::index(), 51);
-	assert_eq!(pallet_orbis_register::Pallet::<Runtime>::index(), 52);
-	assert_eq!(pallet_orbis_entity::Pallet::<Runtime>::index(), 53);
-	assert_eq!(pallet_orbis_feeless::Pallet::<Runtime>::index(), 54);
+	assert_eq!(pallet_origin_token::Pallet::<Runtime>::index(), 51);
+	assert_eq!(pallet_origin_register::Pallet::<Runtime>::index(), 52);
+	assert_eq!(pallet_origin_entity::Pallet::<Runtime>::index(), 53);
+	assert_eq!(pallet_origin_feeless::Pallet::<Runtime>::index(), 54);
 	assert_eq!(indiv_pallet_resources::Pallet::<Runtime>::index(), 96);
 	assert_eq!(pallet_orbis_score::Pallet::<Runtime>::index(), 97);
 	assert_eq!(pallet_orbis_honour::Pallet::<Runtime>::index(), 99);
@@ -225,7 +225,7 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 	assert_eq!(crate::VERSION.transaction_version, 8);
 
 	assert_eq!(
-		call_variants::<pallet_orbis_register::Call<Runtime>>(),
+		call_variants::<pallet_origin_register::Call<Runtime>>(),
 		[
 			"create_registry",
 			"set_delegate_permissions",
@@ -246,7 +246,7 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 		.collect::<Vec<_>>()
 	);
 	assert_eq!(
-		call_variants::<pallet_orbis_entity::Call<Runtime>>(),
+		call_variants::<pallet_origin_entity::Call<Runtime>>(),
 		[
 			"set_info",
 			"rotate_attributes",
@@ -269,7 +269,7 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 		.collect::<Vec<_>>()
 	);
 	assert_eq!(
-		call_variants::<pallet_orbis_feeless::Call<Runtime>>(),
+		call_variants::<pallet_origin_feeless::Call<Runtime>>(),
 		vec![(0, "add_feeless_account".into()), (1, "remove_feeless_account".into())]
 	);
 	assert_eq!(
@@ -295,7 +295,7 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 	);
 
 	assert_eq!(
-		storage_names::<pallet_orbis_token::Pallet<Runtime>>(),
+		storage_names::<pallet_origin_token::Pallet<Runtime>>(),
 		[
 			"PalletIndex",
 			"IndexToPallet",
@@ -306,7 +306,7 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 		]
 	);
 	assert_eq!(
-		storage_names::<pallet_orbis_register::Pallet<Runtime>>(),
+		storage_names::<pallet_origin_register::Pallet<Runtime>>(),
 		[
 			"Registries",
 			"RegistryDelegates",
@@ -317,7 +317,7 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 		]
 	);
 	assert_eq!(
-		storage_names::<pallet_orbis_entity::Pallet<Runtime>>(),
+		storage_names::<pallet_origin_entity::Pallet<Runtime>>(),
 		[
 			"EntityInfoOf",
 			"EntityTokenOfAccount",
@@ -331,7 +331,7 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 		]
 	);
 	assert_eq!(
-		storage_names::<pallet_orbis_feeless::Pallet<Runtime>>(),
+		storage_names::<pallet_origin_feeless::Pallet<Runtime>>(),
 		["FeelessAccountStore", "FeelessUsage"]
 	);
 }
@@ -493,7 +493,7 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 	let normal: crate::TxExtensions =
 		crate::paid_tx_extensions(crate::default_inner_tx_extensions(
 			3,
-			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+			pallet_origin_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(5, None),
 			)
 			.into(),
@@ -659,7 +659,7 @@ fn ethereum_and_authorized_origins_cannot_activate_native_score_or_honour_polici
 
 		let before_root = sp_io::storage::root(sp_runtime::StateVersion::V1);
 		let before_balance = Balances::free_balance(&account);
-		let before_quota = pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&account);
+		let before_quota = pallet_origin_feeless::FeelessUsage::<Runtime>::get(&account);
 		for (name, origin) in [
 			(
 				"Ethereum",
@@ -714,7 +714,7 @@ fn ethereum_and_authorized_origins_cannot_activate_native_score_or_honour_polici
 			assert!(pallet_orbis_score::Participants::<Runtime>::iter().next().is_none());
 			assert!(pallet_orbis_honour::Votes::<Runtime>::iter().next().is_none());
 			assert!(pallet_orbis_honour::Tally::<Runtime>::iter().next().is_none());
-			assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&account), before_quota);
+			assert_eq!(pallet_origin_feeless::FeelessUsage::<Runtime>::get(&account), before_quota);
 			assert!(crate::meta_v6::token().is_none());
 		}
 	});
@@ -914,7 +914,7 @@ fn payment_skip_requires_authorized_origin_and_signed_origin_still_pays() {
 		System::set_block_number(1);
 		let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
 		let info = call.get_dispatch_info();
-		let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+		let payment: crate::PaymentPolicy = pallet_origin_feeless::ChargeOrSkipFeeless::from(
 			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 		)
 		.into();
@@ -1209,7 +1209,7 @@ fn native_asset_conversion_pool_supports_liquidity_and_swaps() {
 #[test]
 fn asset_fee_selector_is_preserved_inside_the_feeless_envelope() {
 	type AssetCharge = pallet_asset_conversion_tx_payment::ChargeAssetTxPayment<Runtime>;
-	type WrappedCharge = pallet_orbis_feeless::ChargeOrSkipFeeless<Runtime, AssetCharge>;
+	type WrappedCharge = pallet_origin_feeless::ChargeOrSkipFeeless<Runtime, AssetCharge>;
 
 	let asset = Location::new(0, [PalletInstance(80), GeneralIndex(21)]);
 	let wrapped = WrappedCharge::from(AssetCharge::from(0, Some(asset)));
@@ -1493,14 +1493,14 @@ fn native_identity_attestation_name_asset_and_storage_journey() {
 			pallet_orbis_people::Data::Raw(b"Alice Orbis".to_vec().try_into().unwrap());
 		assert_ok!(People::set_identity(RuntimeOrigin::signed(owner.clone()), Box::new(identity),));
 		assert!(People::has_identity(&owner, 1));
-		let mut entity_info = pallet_orbis_entity::entity::EntityInfo::<
+		let mut entity_info = pallet_origin_entity::entity::EntityInfo::<
 			crate::entity::MaxRawDataLength,
 			crate::entity::MaxAdditionalAttributes,
 		>::default();
 		entity_info.display =
 			origin_primitives::Element::Raw(b"Alice Orbis".to_vec().try_into().unwrap());
 		assert_ok!(Entity::set_info(RuntimeOrigin::signed(owner.clone()), Box::new(entity_info),));
-		let subject_id = pallet_orbis_entity::EntityTokenOfAccount::<Runtime>::get(&owner)
+		let subject_id = pallet_origin_entity::EntityTokenOfAccount::<Runtime>::get(&owner)
 			.expect("Entity is the canonical SubjectId authority");
 		let identity_commitment =
 			sp_core::H256::from(sp_io::hashing::blake2_256(subject_id.as_ref()));
@@ -1648,14 +1648,14 @@ fn dotns_subjects_follow_entity_authority_not_opaque_attestation_subjects() {
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		System::set_block_number(1);
 		let owner = pallet_revive::test_utils::ALICE;
-		let mut entity_info = pallet_orbis_entity::entity::EntityInfo::<
+		let mut entity_info = pallet_origin_entity::entity::EntityInfo::<
 			crate::entity::MaxRawDataLength,
 			crate::entity::MaxAdditionalAttributes,
 		>::default();
 		entity_info.display =
 			origin_primitives::Element::Raw(b"Canonical subject".to_vec().try_into().unwrap());
 		assert_ok!(Entity::set_info(RuntimeOrigin::signed(owner.clone()), Box::new(entity_info),));
-		let identity_subject = pallet_orbis_entity::EntityTokenOfAccount::<Runtime>::get(&owner)
+		let identity_subject = pallet_origin_entity::EntityTokenOfAccount::<Runtime>::get(&owner)
 			.expect("identity subject exists without an attestation");
 
 		let label = Dotns::validate_label(b"identity".to_vec()).unwrap();
@@ -1965,7 +1965,7 @@ fn authorized_pipeline_retains_validation_and_explicitly_skips_payment_and_quota
 			.prepare(val, &origin, &call, &info, call.encoded_size())
 			.expect("authorized preparation explicitly skips payment");
 		assert_eq!(Balances::free_balance(&account), initial_balance);
-		assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&account), None);
+		assert_eq!(pallet_origin_feeless::FeelessUsage::<Runtime>::get(&account), None);
 
 		assert_ok!(HopPromotion::promote(origin, signer, signature, now, data,));
 		assert!(TransactionStorage::contains_transaction(hash));
@@ -1977,7 +1977,7 @@ fn authorized_pipeline_retains_validation_and_explicitly_skips_payment_and_quota
 			&Ok(()),
 		));
 		assert_eq!(Balances::free_balance(&account), initial_balance);
-		assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&account), None);
+		assert_eq!(pallet_origin_feeless::FeelessUsage::<Runtime>::get(&account), None);
 	});
 }
 
@@ -2195,7 +2195,7 @@ fn fee_free_policy_is_call_scoped_quota_bounded_and_not_batchable() {
 		assert_ok!(Feeless::add_feeless_account(RuntimeOrigin::root(), account.clone()));
 
 		let allowed =
-			RuntimeCall::Entity(pallet_orbis_entity::Call::rotate_attributes { ops: vec![] });
+			RuntimeCall::Entity(pallet_origin_entity::Call::rotate_attributes { ops: vec![] });
 		assert!(allowed.is_feeless(&origin));
 
 		let wrapped =
@@ -2214,7 +2214,7 @@ fn fee_free_policy_is_call_scoped_quota_bounded_and_not_batchable() {
 		assert!(!allowed.is_feeless(&origin));
 		assert_noop!(
 			Feeless::consume_feeless_quota(&account),
-			pallet_orbis_feeless::Error::<Runtime>::QuotaExhausted
+			pallet_origin_feeless::Error::<Runtime>::QuotaExhausted
 		);
 	});
 }
@@ -2238,7 +2238,7 @@ fn normal_pipeline_charges_nonce_owner_refunds_failure_and_consumes_prepared_quo
 		let info = call.get_dispatch_info();
 		let extension = crate::default_inner_tx_extensions(
 			0,
-			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+			pallet_origin_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 			)
 			.into(),
@@ -2280,11 +2280,11 @@ fn normal_pipeline_charges_nonce_owner_refunds_failure_and_consumes_prepared_quo
 
 		assert_ok!(Feeless::add_feeless_account(RuntimeOrigin::root(), account.clone()));
 		let feeless_call =
-			RuntimeCall::Entity(pallet_orbis_entity::Call::rotate_attributes { ops: vec![] });
+			RuntimeCall::Entity(pallet_origin_entity::Call::rotate_attributes { ops: vec![] });
 		let feeless_info = feeless_call.get_dispatch_info();
 		let extension = crate::default_inner_tx_extensions(
 			1,
-			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+			pallet_origin_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 			)
 			.into(),
@@ -2307,7 +2307,7 @@ fn normal_pipeline_charges_nonce_owner_refunds_failure_and_consumes_prepared_quo
 			.prepare(val, &origin, &feeless_call, &feeless_info, feeless_call.encoded_size())
 			.unwrap();
 		assert_eq!(Balances::free_balance(&account), balance_before_feeless);
-		assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&account), Some((1, 1)));
+		assert_eq!(pallet_origin_feeless::FeelessUsage::<Runtime>::get(&account), Some((1, 1)));
 		assert_eq!(System::account_nonce(&account), 2);
 	});
 }
@@ -2350,7 +2350,7 @@ fn ethereum_pipeline_uses_mapped_nonce_payer_and_only_terminal_revive_actor() {
 		assert_eq!(System::account_nonce(&mapped), 1);
 		let after_withdrawal = Balances::free_balance(&mapped);
 		assert!(after_withdrawal < initial_balance);
-		assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&mapped), None);
+		assert_eq!(pallet_origin_feeless::FeelessUsage::<Runtime>::get(&mapped), None);
 		let failed = Err(sp_runtime::DispatchError::BadOrigin);
 		assert_ok!(crate::InnerTxExtensions::post_dispatch_details(
 			pre,
@@ -2405,7 +2405,7 @@ fn direct_score_policy_executes_once_through_concrete_runtime_extensions() {
 		MultiSigner::from(pair.public()).into_account()
 	}
 	fn extensions(standard_nonce: u32, score_nonce: u32) -> crate::TxExtensions {
-		let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+		let payment: crate::PaymentPolicy = pallet_origin_feeless::ChargeOrSkipFeeless::from(
 			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 		)
 		.into();
@@ -2689,7 +2689,7 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 			indiv_pallet_people::AccountToAlias::<Runtime>::insert(&payer, &binding);
 			indiv_pallet_people::AliasToAccount::<Runtime>::insert(&binding.ca, &payer);
 
-			let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+			let payment: crate::PaymentPolicy = pallet_origin_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 			)
 			.into();
@@ -2757,7 +2757,7 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 						MembershipCollection::People,
 					),
 				));
-			let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+			let payment: crate::PaymentPolicy = pallet_origin_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 			)
 			.into();
@@ -3214,7 +3214,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 			meta_tx: Box::new(meta),
 			meta_tx_encoded_len: meta_len,
 		});
-		let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+		let payment: crate::PaymentPolicy = pallet_origin_feeless::ChargeOrSkipFeeless::from(
 			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 		)
 		.into();
@@ -3678,7 +3678,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 			 signing_pair: &sr25519::Pair,
 			 valid_proof: bool| {
 				let direct_payment: crate::PaymentPolicy =
-					pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+					pallet_origin_feeless::ChargeOrSkipFeeless::from(
 						pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(
 							0, None,
 						),
@@ -3775,8 +3775,8 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 
 		let direct_votes = pallet_orbis_honour::Votes::<Runtime>::iter().collect::<Vec<_>>().encode();
 		let direct_tally = pallet_orbis_honour::Tally::<Runtime>::iter().collect::<Vec<_>>().encode();
-		let alice_quota = pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&alice);
-		let bob_quota = pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&bob);
+		let alice_quota = pallet_origin_feeless::FeelessUsage::<Runtime>::get(&alice);
+		let bob_quota = pallet_origin_feeless::FeelessUsage::<Runtime>::get(&bob);
 		for (name, xt, expected) in [
 			(
 				"mismatched account",
@@ -3815,8 +3815,8 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 				pallet_orbis_honour::Tally::<Runtime>::iter().collect::<Vec<_>>().encode(),
 				direct_tally
 			);
-			assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&alice), alice_quota);
-			assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&bob), bob_quota);
+			assert_eq!(pallet_origin_feeless::FeelessUsage::<Runtime>::get(&alice), alice_quota);
+			assert_eq!(pallet_origin_feeless::FeelessUsage::<Runtime>::get(&bob), bob_quota);
 			assert!(crate::meta_v6::token().is_none());
 		}
 		// Pool validation admits a future standard CheckNonce with an explicit dependency. Block
@@ -3844,8 +3844,8 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 			pallet_orbis_honour::Tally::<Runtime>::iter().collect::<Vec<_>>().encode(),
 			direct_tally
 		);
-		assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&alice), alice_quota);
-		assert_eq!(pallet_orbis_feeless::FeelessUsage::<Runtime>::get(&bob), bob_quota);
+		assert_eq!(pallet_origin_feeless::FeelessUsage::<Runtime>::get(&alice), alice_quota);
+		assert_eq!(pallet_origin_feeless::FeelessUsage::<Runtime>::get(&bob), bob_quota);
 		assert!(crate::meta_v6::token().is_none());
 
 		let direct_xt = build_direct_honour(2, alice.clone(), alice.clone(), &alice_pair, true);
@@ -4084,7 +4084,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 			>(denied, 0)
 			.is_err());
 		}
-		let denial_payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+		let denial_payment: crate::PaymentPolicy = pallet_origin_feeless::ChargeOrSkipFeeless::from(
 			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 		)
 		.into();
@@ -4137,7 +4137,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 		let outer_info = outer.get_dispatch_info();
 		let outer_extension = crate::paid_tx_extensions(crate::default_inner_tx_extensions(
 			System::account_nonce(&bob),
-			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+			pallet_origin_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 			)
 			.into(),
@@ -5101,7 +5101,7 @@ fn paid_meta_scope_implicit_is_wire_transparent_and_only_delegates_core() {
 		System::set_block_number(1);
 	let production = crate::paid_tx_extensions(crate::default_inner_tx_extensions(
 		0,
-		pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+		pallet_origin_feeless::ChargeOrSkipFeeless::from(
 			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 		)
 		.into(),

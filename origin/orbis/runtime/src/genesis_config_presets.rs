@@ -23,7 +23,7 @@ use crate::{
 	ParaId, ParachainInfoConfig, Revive, SessionConfig, SessionKeys, TokenConfig,
 };
 use alloc::{vec, vec::Vec};
-use origin_hub_system_runtime_constants::genesis_presets::*;
+use origin_commons_runtime_constants::genesis_presets::*;
 use origin_runtime_constants::system_parachain::ORBIS_ID;
 use sp_core::sr25519;
 use sp_genesis_builder::PresetId;

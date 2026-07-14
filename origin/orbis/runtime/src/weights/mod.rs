@@ -32,7 +32,7 @@ pub mod pallet_message_queue;
 pub mod pallet_meta_tx;
 pub mod pallet_migrations;
 pub mod pallet_multisig;
-pub mod pallet_orbis_entity;
+pub mod pallet_origin_entity;
 pub mod pallet_proxy;
 pub mod pallet_safe_mode;
 pub mod pallet_scheduler;

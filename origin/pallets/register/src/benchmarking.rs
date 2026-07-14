@@ -9,16 +9,16 @@ use frame_benchmarking::{v2::*, BenchmarkError};
 use frame_support::{ensure, traits::PalletInfoAccess};
 use frame_system::RawOrigin;
 use origin_primitives::element::ElementType;
-use pallet_entity::EntityTokenOfAccount;
+use pallet_origin_entity::EntityTokenOfAccount;
 use sp_runtime::traits::Hash;
 
 pub trait EntityBinder<T: Config> {
 	fn bind_account(account: &T::AccountId, token: &Ss58Identifier);
 }
 
-impl<T> EntityBinder<T> for pallet_entity::Pallet<T>
+impl<T> EntityBinder<T> for pallet_origin_entity::Pallet<T>
 where
-	T: Config + pallet_entity::Config,
+	T: Config + pallet_origin_entity::Config,
 {
 	fn bind_account(account: &T::AccountId, token: &Ss58Identifier) {
 		EntityTokenOfAccount::<T>::insert(account, token);

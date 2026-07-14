@@ -257,14 +257,14 @@ def validate() -> tuple[dict, list[str]]:
         )
     orbis_runtime = runtime_paths["Orbis"].read_text()
     orbis_runtime_cargo = (ROOT / "origin/orbis/runtime/Cargo.toml").read_text()
-    require("[pallet_orbis_token, Token]" in orbis_runtime, "Token benchmark is not runtime-wired")
-    require("[pallet_orbis_feeless, Feeless]" in orbis_runtime, "Feeless benchmark is not runtime-wired")
+    require("[pallet_origin_token, Token]" in orbis_runtime, "Token benchmark is not runtime-wired")
+    require("[pallet_origin_feeless, Feeless]" in orbis_runtime, "Feeless benchmark is not runtime-wired")
     require(
-        '"pallet-orbis-token/runtime-benchmarks"' in orbis_runtime_cargo,
+        '"pallet-origin-token/runtime-benchmarks"' in orbis_runtime_cargo,
         "Token runtime-benchmarks feature is not propagated",
     )
     require(
-        '"pallet-orbis-feeless/runtime-benchmarks"' in orbis_runtime_cargo,
+        '"pallet-origin-feeless/runtime-benchmarks"' in orbis_runtime_cargo,
         "Feeless runtime-benchmarks feature is not propagated",
     )
     origin_runtime = runtime_paths["Origin"].read_text()
@@ -374,7 +374,7 @@ def validate() -> tuple[dict, list[str]]:
         is not None,
         "CoretimeControl Duplicate receipts are not terminally untracked",
     )
-    feeless_weights = (ROOT / "origin/orbis/pallets/feeless/src/weights.rs").read_text()
+    feeless_weights = (ROOT / "origin/pallets/feeless/src/weights.rs").read_text()
     require(
         feeless_weights.count("reads_writes(1, 2)") == 2,
         "Feeless removal weight does not cover the usage cleanup write",
@@ -401,9 +401,9 @@ def validate() -> tuple[dict, list[str]]:
         "origin/base/runtime/constants/src/lib.rs",
         "origin/base/runtime/src/lib.rs",
         "origin/orbis/node/src/main.rs",
-        "origin/orbis/pallets/feeless/src/benchmarking.rs",
-        "origin/orbis/pallets/feeless/src/weights.rs",
-        "origin/orbis/pallets/token/src/benchmarking.rs",
+        "origin/pallets/feeless/src/benchmarking.rs",
+        "origin/pallets/feeless/src/weights.rs",
+        "origin/pallets/token/src/benchmarking.rs",
         "origin/orbis/runtime/Cargo.toml",
         "origin/orbis/runtime/src/coretime.rs",
         "origin/orbis/runtime/src/lib.rs",

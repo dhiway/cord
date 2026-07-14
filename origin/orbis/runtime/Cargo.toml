@@ -23,10 +23,10 @@ serde_json = { features = ["alloc"], workspace = true }
 # Local
 origin-primitives = { workspace = true }
 origin-runtime-constants = { workspace = true }
-origin-hub-system-runtime-constants = { workspace = true }
+origin-commons-runtime-constants = { workspace = true }
 orbis-storage-runtime-api = { workspace = true }
 orbis-identity-personhood-runtime-api = { workspace = true }
-token-origin-hub-runtime-api = { workspace = true }
+token-origin-commons-runtime-api = { workspace = true }
 bulletin-transaction-storage-primitives = { workspace = true }
 indiv-pallet-chunks-manager = { workspace = true }
 indiv-pallet-members = { workspace = true }
@@ -71,10 +71,10 @@ pallet-orbis-drive = { workspace = true }
 pallet-orbis-storage-provider = { workspace = true }
 pallet-orbis-s3 = { workspace = true }
 pallet-orbis-people = { workspace = true }
-pallet-orbis-entity = { workspace = true }
-pallet-orbis-register = { workspace = true }
+pallet-origin-entity = { workspace = true }
+pallet-origin-register = { workspace = true }
 pallet-revive = { workspace = true }
-pallet-orbis-token = { workspace = true }
+pallet-origin-token = { workspace = true }
 pallet-indices = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-sudo = { workspace = true }
@@ -82,7 +82,7 @@ pallet-safe-mode = { workspace = true }
 pallet-tx-pause = { workspace = true }
 pallet-meta-tx = { workspace = true }
 pallet-verify-signature = { workspace = true }
-pallet-orbis-feeless = { workspace = true }
+pallet-origin-feeless = { workspace = true }
 pallet-skip-feeless-payment = { workspace = true }
 pallet-remark = { workspace = true }
 pallet-message-queue = { workspace = true }
@@ -162,10 +162,10 @@ std = [
 	"codec/std",
 	"origin-primitives/std",
 	"origin-runtime-constants/std",
-	"origin-hub-system-runtime-constants/std",
+	"origin-commons-runtime-constants/std",
 	"orbis-storage-runtime-api/std",
 	"orbis-identity-personhood-runtime-api/std",
-	"token-origin-hub-runtime-api/std",
+	"token-origin-commons-runtime-api/std",
 	"indiv-pallet-chunks-manager/std",
 	"indiv-pallet-members/std",
 	"indiv-pallet-members-notifier/std",
@@ -219,10 +219,10 @@ std = [
 	"pallet-orbis-s3/std",
 	"pallet-orbis-people/std",
 	"pallet-collator-selection/std",
-	"pallet-orbis-entity/std",
-	"pallet-orbis-register/std",
+	"pallet-origin-entity/std",
+	"pallet-origin-register/std",
 	"pallet-revive/std",
-	"pallet-orbis-token/std",
+	"pallet-origin-token/std",
 	"pallet-indices/std",
 	"pallet-scheduler/std",
 	"pallet-sudo/std",
@@ -230,7 +230,7 @@ std = [
 	"pallet-tx-pause/std",
 	"pallet-meta-tx/std",
 	"pallet-verify-signature/std",
-	"pallet-orbis-feeless/std",
+	"pallet-origin-feeless/std",
 	"pallet-skip-feeless-payment/std",
 	"pallet-remark/std",
 	"pallet-message-queue/std",
@@ -291,7 +291,7 @@ runtime-benchmarks = [
 	"indiv-support/runtime-benchmarks",
 	"indiv-support/genesis",
 	"origin-runtime-constants/runtime-benchmarks",
-	"origin-hub-system-runtime-constants/runtime-benchmarks",
+	"origin-commons-runtime-constants/runtime-benchmarks",
 	"cumulus-pallet-parachain-system/runtime-benchmarks",
 	"cumulus-pallet-session-benchmarking/runtime-benchmarks",
 	"cumulus-pallet-weight-reclaim/runtime-benchmarks",
@@ -314,8 +314,8 @@ runtime-benchmarks = [
 	"pallet-orbis-drive/runtime-benchmarks",
 	"pallet-orbis-storage-provider/runtime-benchmarks",
 	"pallet-orbis-s3/runtime-benchmarks",
-	"pallet-orbis-token/runtime-benchmarks",
-	"pallet-orbis-feeless/runtime-benchmarks",
+	"pallet-origin-token/runtime-benchmarks",
+	"pallet-origin-feeless/runtime-benchmarks",
 	"pallet-orbis-people/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-assets-freezer/runtime-benchmarks",
@@ -325,14 +325,14 @@ runtime-benchmarks = [
 	"pallet-asset-conversion/runtime-benchmarks",
 	"pallet-asset-conversion-tx-payment/runtime-benchmarks",
 	"pallet-collator-selection/runtime-benchmarks",
-	"pallet-orbis-entity/runtime-benchmarks",
+	"pallet-origin-entity/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
 	"pallet-migrations/runtime-benchmarks",
 	"pallet-meta-tx/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-nfts/runtime-benchmarks",
 	"pallet-safe-mode/runtime-benchmarks",
-	"pallet-orbis-register/runtime-benchmarks",
+	"pallet-origin-register/runtime-benchmarks",
 	"pallet-revive/runtime-benchmarks",
 	"pallet-proxy/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
@@ -397,14 +397,14 @@ try-runtime = [
 	"pallet-asset-conversion/try-runtime",
 	"pallet-asset-conversion-tx-payment/try-runtime",
 	"pallet-collator-selection/try-runtime",
-	"pallet-orbis-entity/try-runtime",
-	"pallet-orbis-token/try-runtime",
+	"pallet-origin-entity/try-runtime",
+	"pallet-origin-token/try-runtime",
 	"pallet-meta-tx/try-runtime",
 	"pallet-message-queue/try-runtime",
 	"pallet-migrations/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-nfts/try-runtime",
-	"pallet-orbis-register/try-runtime",
+	"pallet-origin-register/try-runtime",
 	"pallet-revive/try-runtime",
 	"pallet-proxy/try-runtime",
 	"pallet-safe-mode/try-runtime",
@@ -421,7 +421,7 @@ try-runtime = [
 	"sp-runtime/try-runtime",
 ]
 
-fast-runtime = ["origin-runtime-constants/fast-runtime", "origin-hub-system-runtime-constants/fast-runtime"]
+fast-runtime = ["origin-runtime-constants/fast-runtime", "origin-commons-runtime-constants/fast-runtime"]
 
 # Enable metadata hash generation at compile time for the `CheckMetadataHash` extension.
 metadata-hash = ["substrate-wasm-builder/metadata-hash"]

@@ -27,7 +27,7 @@ use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
 use core::marker::PhantomData;
 use frame_system::Config;
 
-/// Weight functions needed for `pallet_entity`.
+/// Weight functions needed for `pallet_origin_entity`.
 
 pub trait WeightInfo {
     fn set_info(info_size: u32) -> Weight;
@@ -46,7 +46,7 @@ pub trait WeightInfo {
     fn remove_entity_nym() -> Weight;
 }
 
-/// Weights for `pallet_entity` using the Substrate node and recommended hardware.
+/// Weights for `pallet_origin_entity` using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: Config> WeightInfo for SubstrateWeight<T> {
     fn set_info(info_size: u32) -> Weight {
@@ -83,33 +83,33 @@ impl<T: Config> WeightInfo for SubstrateWeight<T> {
     }
     fn set_linked_account(r: u32) -> Weight {
         Weight::from_parts(15_000_000, 0)
-       		.saturating_add(Weight::from_parts(r as u64 * 500, 0))
+			.saturating_add(Weight::from_parts(r as u64 * 500, 0))
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(3))
     }
     fn revoke_linked_account(r: u32) -> Weight {
         Weight::from_parts(15_000_000, 0)
-        	.saturating_add(Weight::from_parts(r as u64 * 500, 0))
-        	.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(Weight::from_parts(r as u64 * 500, 0))
+			.saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(3))
     }
     fn revoke_linked_account_for(r: u32) -> Weight {
         Weight::from_parts(15_000_000, 0)
-        	.saturating_add(Weight::from_parts(r as u64 * 500, 0))
-        	.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(Weight::from_parts(r as u64 * 500, 0))
+			.saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(3))
     }
     fn rotate_controller(r: u32) -> Weight {
         Weight::from_parts(10_000_000, 0)
-       		.saturating_add(Weight::from_parts(r as u64 * 500, 0))
+			.saturating_add(Weight::from_parts(r as u64 * 500, 0))
             .saturating_add(T::DbWeight::get().reads(0))
             .saturating_add(T::DbWeight::get().writes(5))
     }
     fn rotate_controller_for(r: u32) -> Weight {
-	    Weight::from_parts(10_000_000, 0)
-	   		.saturating_add(Weight::from_parts(r as u64 * 500, 0))
-	        .saturating_add(T::DbWeight::get().reads(0))
-	        .saturating_add(T::DbWeight::get().writes(5))
+		Weight::from_parts(10_000_000, 0)
+			.saturating_add(Weight::from_parts(r as u64 * 500, 0))
+			.saturating_add(T::DbWeight::get().reads(0))
+			.saturating_add(T::DbWeight::get().writes(5))
     }
 	fn clear_everything(num_links: u32) -> Weight {
 		Weight::from_parts(40_000_000, 0)
@@ -168,31 +168,31 @@ impl WeightInfo for () {
     }
     fn set_linked_account(r: u32) -> Weight {
         Weight::from_parts(15_000_000, 0)
-       		.saturating_add(Weight::from_parts(r as u64 * 500, 0))
+			.saturating_add(Weight::from_parts(r as u64 * 500, 0))
             .saturating_add(RocksDbWeight::get().reads(1))
             .saturating_add(RocksDbWeight::get().writes(3))
     }
     fn revoke_linked_account(r: u32) -> Weight {
         Weight::from_parts(15_000_000, 0)
-        	.saturating_add(Weight::from_parts(r as u64 * 500, 0))
-        	.saturating_add(RocksDbWeight::get().reads(1))
+			.saturating_add(Weight::from_parts(r as u64 * 500, 0))
+			.saturating_add(RocksDbWeight::get().reads(1))
             .saturating_add(RocksDbWeight::get().writes(3))
     }
     fn revoke_linked_account_for(r: u32) -> Weight {
         Weight::from_parts(15_000_000, 0)
-        	.saturating_add(Weight::from_parts(r as u64 * 500, 0))
-        	.saturating_add(RocksDbWeight::get().reads(1))
+			.saturating_add(Weight::from_parts(r as u64 * 500, 0))
+			.saturating_add(RocksDbWeight::get().reads(1))
             .saturating_add(RocksDbWeight::get().writes(3))
     }
     fn rotate_controller(r: u32) -> Weight {
         Weight::from_parts(10_000_000, 0)
-       		.saturating_add(Weight::from_parts(r as u64 * 500, 0))
+			.saturating_add(Weight::from_parts(r as u64 * 500, 0))
             .saturating_add(RocksDbWeight::get().reads(0))
             .saturating_add(RocksDbWeight::get().writes(5))
     }
     fn rotate_controller_for(r: u32) -> Weight {
   Weight::from_parts(10_000_000, 0)
- 		.saturating_add(Weight::from_parts(r as u64 * 500, 0))
+		.saturating_add(Weight::from_parts(r as u64 * 500, 0))
       .saturating_add(RocksDbWeight::get().reads(0))
       .saturating_add(RocksDbWeight::get().writes(5))
     }

@@ -134,7 +134,7 @@ fn apply_sponsored_call(
 		meta_tx: Box::new(meta),
 		meta_tx_encoded_len: meta_len,
 	});
-	let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+	let payment: crate::PaymentPolicy = pallet_origin_feeless::ChargeOrSkipFeeless::from(
 		pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 	)
 	.into();
@@ -214,14 +214,14 @@ fn enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail
 		)));
 
 		// Entity remains the authoritative SubjectId source for the native attestation and DotNS.
-		let mut entity_info = pallet_orbis_entity::entity::EntityInfo::<
+		let mut entity_info = pallet_origin_entity::entity::EntityInfo::<
 			crate::entity::MaxRawDataLength,
 			crate::entity::MaxAdditionalAttributes,
 		>::default();
 		entity_info.display =
 			origin_primitives::Element::Raw(b"Enterprise Alice".to_vec().try_into().unwrap());
 		assert_ok!(Entity::set_info(RuntimeOrigin::signed(owner.clone()), Box::new(entity_info),));
-		let subject_id = pallet_orbis_entity::EntityTokenOfAccount::<Runtime>::get(&owner)
+		let subject_id = pallet_origin_entity::EntityTokenOfAccount::<Runtime>::get(&owner)
 			.expect("Entity creates the canonical subject");
 		let subject_commitment =
 			sp_core::H256::from(sp_io::hashing::blake2_256(subject_id.as_ref()));
@@ -482,7 +482,7 @@ fn enterprise_sponsored_meta_boundaries_reject_exhaustion_and_version_drift() {
 		let sponsor_pair = ed25519::Pair::from_seed(&[0x45; 32]);
 		let sponsor = MultiSigner::Ed25519(sponsor_pair.public()).into_account();
 		assert_eq!(Balances::free_balance(&sponsor), 0);
-		let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+		let payment: crate::PaymentPolicy = pallet_origin_feeless::ChargeOrSkipFeeless::from(
 			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 		)
 		.into();

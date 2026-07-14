@@ -535,7 +535,7 @@ fn apply_checked_meta_fixture(
 		meta_tx: Box::new(meta),
 		meta_tx_encoded_len: meta_len,
 	});
-	let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+	let payment: crate::PaymentPolicy = pallet_origin_feeless::ChargeOrSkipFeeless::from(
 		pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 	)
 	.into();
@@ -911,7 +911,7 @@ fn regenerate_meta_v8_fixtures() {
 		let sign_outer = |call: RuntimeCall, pair: &ed25519::Pair| {
 			let extension = crate::paid_tx_extensions(crate::default_inner_tx_extensions(
 				0,
-				pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+				pallet_origin_feeless::ChargeOrSkipFeeless::from(
 					pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(
 						0, None,
 					),
@@ -933,7 +933,7 @@ fn regenerate_meta_v8_fixtures() {
 		let direct_call = RuntimeCall::Score(pallet_orbis_score::Call::cash_out {});
 		let extension = crate::paid_tx_extensions(crate::default_inner_tx_extensions(
 			0,
-			pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+			pallet_origin_feeless::ChargeOrSkipFeeless::from(
 				pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
 			)
 			.into(),
