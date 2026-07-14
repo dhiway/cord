@@ -714,7 +714,7 @@ class ProcessManager:
 		if not isinstance(version, dict) or (
 			version.get("specName"), version.get("specVersion"), version.get("transactionVersion")
 		) != ("orbis", 29, 8):
-			raise CampaignError(f"unexpected Orbis runtime on {port}: {version}")
+			raise CampaignError(f"unexpected Commons runtime on {port}: {version}")
 		genesis = self.rpc.call(url, "chain_getBlockHash", [0])
 		return Node(role, port, pid, command, base_path, name, str(genesis))
 

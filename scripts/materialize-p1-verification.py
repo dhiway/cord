@@ -323,9 +323,9 @@ def validate_ac10(config: Any, base: Path, source: dict[str, Any]) -> dict[str, 
     if not isinstance(raw, dict) or raw.get("status") not in ("ok", "pass"):
         raise InvalidEvidence(f"AC10 raw status is not pass/ok: {raw.get('status') if isinstance(raw, dict) else None}")
     if raw.get("relay_spec_version") != origin_runtime.get("spec_version") or origin_runtime.get("spec_name") != "origin":
-        raise InvalidEvidence("AC10 Origin runtime identity mismatch")
+        raise InvalidEvidence("AC10 Foundation runtime identity mismatch")
     if raw.get("orbis_spec_version") != orbis_runtime.get("spec_version") or orbis_runtime.get("spec_name") != "orbis":
-        raise InvalidEvidence("AC10 Orbis runtime identity mismatch")
+        raise InvalidEvidence("AC10 Commons runtime identity mismatch")
     if orbis_runtime.get("transaction_version") != 8:
         raise InvalidEvidence("AC10 Orbis transaction version must be 8")
     before, after = raw.get("before"), raw.get("after")
@@ -429,7 +429,7 @@ def validate_ac13(config: Any, base: Path, source: dict[str, Any]) -> dict[str, 
         raise InvalidEvidence("AC13 evidence root is absent")
     runtime = config.get("runtime")
     if not isinstance(runtime, dict) or not isinstance(runtime.get("orbis"), dict):
-        raise InvalidEvidence("AC13 Orbis runtime binding is absent")
+        raise InvalidEvidence("AC13 Commons runtime binding is absent")
     metadata_hash = runtime["orbis"].get("metadata_hash")
     if not isinstance(metadata_hash, str) or not re.fullmatch(r"0x[0-9a-fA-F]{64}", metadata_hash):
         raise InvalidEvidence("AC13 Orbis metadata hash is malformed")

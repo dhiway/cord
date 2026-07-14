@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build hash-bound, higher-spec P1 Origin/Orbis runtime upgrade candidates.
+"""Build hash-bound, higher-spec P1 Foundation/Commons runtime upgrade candidates.
 
 The production runtime versions remain unchanged. Candidate versions exist only behind the
 explicit ``p1-upgrade-candidate`` feature; Orbis is always built with ``fast-runtime`` as well.

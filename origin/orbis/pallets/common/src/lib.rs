@@ -40,7 +40,7 @@ use scale_info::TypeInfo;
 /// Resolve an RFC-78 metadata implicit through the extension's production implementation.
 ///
 /// Keeping this tiny adapter in a no-std common crate lets runtimes and isolated no-hash tests use
-/// exactly the same resolution path without introducing a dependency on an Orbis runtime.
+/// exactly the same resolution path without introducing a dependency on the Commons runtime.
 pub fn resolve_metadata_implicit<Call, Extension>(
 	extension: &Extension,
 ) -> Result<

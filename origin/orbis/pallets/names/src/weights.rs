@@ -4,7 +4,7 @@
 //! Conservative pre-benchmark weights for native Orbis Names.
 //!
 //! These functions keep the pallet integrable before runtime benchmarks are generated. Production
-//! activation must replace the constants with benchmark output for the final Orbis runtime.
+//! activation must replace the constants with benchmark output for the final Commons runtime.
 
 use core::marker::PhantomData;
 use frame_support::{traits::Get, weights::Weight};

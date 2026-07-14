@@ -157,7 +157,7 @@ fn completion_manifest_is_parseable_unique_and_clean_genesis() {
 	let manifest: toml::Value =
 		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml"))
 			.expect("the current completion manifest must be valid TOML");
-	assert_eq!(manifest["manifest_version"].as_integer(), Some(20));
+	assert_eq!(manifest["manifest_version"].as_integer(), Some(21));
 	let mut identities = BTreeSet::new();
 	for (table, value) in manifest.as_table().unwrap() {
 		let Some(rows) = value.as_array() else { continue };

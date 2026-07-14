@@ -1,7 +1,7 @@
 // This file is part of CORD - https://cord.network
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Finalized Orbis runtime authority binding.
+//! Finalized Commons runtime authority binding.
 
 use async_trait::async_trait;
 use codec::{Decode, Encode};
@@ -70,7 +70,7 @@ pub enum ChainError {
 	#[error("Orbis RPC failed: {0}")]
 	Rpc(String),
 	/// Runtime API returned malformed SCALE.
-	#[error("Orbis runtime API response is invalid: {0}")]
+	#[error("Commons runtime API response is invalid: {0}")]
 	Decode(String),
 	/// Agreement/provider/challenge state rejected the operation.
 	#[error("storage authority rejected: {0}")]

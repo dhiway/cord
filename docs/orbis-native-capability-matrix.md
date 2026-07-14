@@ -55,7 +55,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Messaging | Asset Hub/People | XCMP, DMP, XCM, MessageQueue and safe-call filtering | Present; full native E2E pending |
 | Safety and operations | system chains | Scheduler, Utility, Multisig, Proxy, TxPause, SafeMode and the generic future-upgrade migration framework | Present; no predecessor-state migration is wired at the new genesis |
 | Administration | enterprise policy | Sudo only | Present |
-| Origin application compatibility | CORD Origin | Orbis-owned Token 51, Register 52, Entity 53 and Feeless 54 packages | Present; call/storage metadata compatibility snapshotted |
+| Shared Origin application primitives | CORD Origin | One shared Token, Register, Entity and Feeless implementation, composed at Commons indices 51–54 | Present; duplicate runtime implementations removed and indices frozen |
 
 ## Assets and Revive
 
@@ -81,8 +81,8 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 
 | Capability/pallet | People reference | Orbis state |
 |---|---|---|
-| Identity records, registrars and judgements | People/FRAME Identity | Orbis-owned compatibility fork at index 90; root-managed registrar lifecycle present |
-| Aliases, usernames and subaccounts | People/People Lite | Present in the Orbis-owned People pallet |
+| Identity records, registrars and judgements | People/FRAME Identity | Commons-owned native adaptation at index 90; root-managed registrar lifecycle present |
+| Aliases, usernames and subaccounts | People/People Lite | Present in the Commons-owned People pallet |
 | Sudo attestation and forced administration | enterprise adaptation | Present |
 | Full ring-backed personhood | `indiv_pallet_people` | Native at index 95 with Sudo recognition, flexible membership and authenticated person origins |
 | People Lite compatibility API and storage semantics | `indiv_pallet_people_lite` | Native at index 94 with Members-backed aliases, Sudo allowances and transaction authentication |
@@ -90,8 +90,8 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Resources and chunk management | `indiv_pallet_resources`, `indiv_pallet_chunks_manager` | Native Orbis Resources V1 present at index 96 with person/lite proof quotas, atomic isolated Orbis Storage reservations, account-bound paid MetaTx v6 claims and Root management; Chunk Manager remains at 91 |
 | Members and notifications | members/subscriber/notifier pallets | Ring Members 92 and Sudo-managed XCM Notifier 93 present; local subscriber excluded because native consumers bind Members directly (ADR 0007) |
 | Coinage and airdrop | Individuality People | Gap; enterprise issuance policy required |
-| Score | Individuality People application pallet | Orbis-owned Apache-2.0 fork present at index 97; native Personhood/People integration, account-bound participant extension, Sudo-or-named-manager operations, conservative weights, benchmarks and upstream-derived tests |
-| Honour | Individuality People application pallet | Orbis-owned Apache-2.0 fork present at index 99; native Members ring proofs, Timestamp mortality/freeze policy, voter-auth extension, conservative weights, benchmarks and upstream-derived tests |
+| Score | Individuality People application pallet | Commons-owned Apache-2.0 native adaptation at index 97; native Personhood/People integration, account-bound participant extension, Sudo-or-named-manager operations, conservative weights, benchmarks and upstream-derived tests |
+| Honour | Individuality People application pallet | Commons-owned Apache-2.0 native adaptation at index 99; native Members ring proofs, Timestamp mortality/freeze policy, voter-auth extension, conservative weights, benchmarks and upstream-derived tests |
 | Native attestation/schema registry | Attestation Protocol semantics | Present at index 105 with delegated/batched/expiring/revocable issuance and finalized runtime APIs |
 | Proof-of-ink and game | Individuality People application pallets | Gap; not admitted to the enterprise-first launch scope |
 | Mob rule | Individuality People | Excluded where it constitutes governance; non-governance behavior requires explicit adaptation |
@@ -150,9 +150,10 @@ copied verbatim.
 
 ## Completion order
 
-1. Maintain the Orbis-owned Token, Register, Entity, Feeless and People packages under
-   `origin/orbis/pallets/`; shared primitives may remain shared. MetaTx and signature verification
-   remain pinned SDK dependencies because Orbis does not modify those pallets.
+1. Maintain Token, Register, Entity, and Feeless as single shared implementations under
+   `origin/pallets/`; Commons-only People capabilities remain under `origin/orbis/pallets/`.
+   MetaTx and signature verification remain pinned SDK dependencies because Commons does not modify
+   those pallets.
 2. Keep PGAS/allowance aliases and public Asset Hub adapters excluded unless a later ADR admits
    them; conversion, asset fees and rates are the retained asset scope.
 3. Keep Game, Proof of Ink, Coinage and other non-admitted Individuality applications excluded;

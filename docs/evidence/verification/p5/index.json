@@ -3,7 +3,7 @@
     {
       "bytes": 5213,
       "path": "docs/evidence/verification/p5/feature-completeness.report.json",
-      "sha256": "3ae806f3d73270f9886a0182cbc34725440ed59746312eb8d1b9d85c537e3251"
+      "sha256": "f578627e7b545dc258039a1b63a5364dac6f9c200c9cab1a642d1510b85c9b82"
     },
     {
       "bytes": 537,
@@ -13,7 +13,7 @@
     {
       "bytes": 1294,
       "path": "docs/evidence/verification/p5/operator-bootstrap.report.json",
-      "sha256": "cc20b198d06dcce79965057d1b1f344c59ddc02ecb30f9ec74461759a4fb4f12"
+      "sha256": "e83cb4fb9d1c2e661f4a619e75bd3e56cb8f2aab607f3bd6147431e45ab206a0"
     },
     {
       "bytes": 378,
@@ -38,7 +38,7 @@
     {
       "bytes": 6900,
       "path": "docs/evidence/verification/p5/raw/m9-cleanup.log",
-      "sha256": "bfc90819eb3ac20bafd680490aaabae24c7816314a2037019ddcc889e9f2b1dd"
+      "sha256": "0e0c10228d129f2287dac81e5b4bbc3b462eb060528db6810a1c6340f3deac05"
     },
     {
       "bytes": 16,

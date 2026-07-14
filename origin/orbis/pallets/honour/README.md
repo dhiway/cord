@@ -2,7 +2,7 @@
 
 ## Orbis provenance and adaptation
 
-This Apache-2.0 Orbis-owned fork was imported from Individuality Community commit
+This Apache-2.0 Commons-owned native adaptation was imported from Individuality Community commit
 `28b7d07dab05bbd05f6b664278b5c83841e212d3`. It retains the upstream vote contexts,
 ring-proof verification, anti-replay/nullifier handling, point freeze, call mortality, benchmarks,
 tests, and conservative weights. SDK hashing calls were aligned to the pinned Orbis SDK through

@@ -1,7 +1,7 @@
 // This file is part of CORD – https://cord.network
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Native, bounded Orbis Names registry for the Orbis runtime.
+//! Native, bounded Orbis Names registry for the Commons runtime.
 //!
 //! This pallet is the sole native name authority. It intentionally contains no contract caller,
 //! H160 dispatcher, ABI encoding, tokenized ownership, escrow, pricing, legacy import, or

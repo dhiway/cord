@@ -11,7 +11,7 @@ ADR 0007 makes Members the sole local personhood-root authority and rejects a lo
 ## Decision
 
 Preserve the existing topology and I1-I10 in `docs/architecture/identity-topology-contract.md`.
-Add one Orbis-owned pallet, `pallet-orbis-attestation`, at append-only runtime index **105**. The
+Add one Commons-owned pallet, `pallet-orbis-attestation`, at append-only runtime index **105**. The
 pallet owns both the immutable bounded schema registry and attestation lifecycle so that Orbis does
 not acquire competing schema or credential authorities. It provides issuer/subject/schema/status
 commitments, direct/delegated/batched issue, expiry and revocation, uniqueness/parent links,

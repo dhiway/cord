@@ -37,11 +37,11 @@ origin --validator --collator-reputation-persist-interval 600
 
 ## Orbis identity
 
-Orbis uses parachain ID `1006`. The Origin runtime exposes its XCM location and trusts ORGN
+Orbis uses parachain ID `1006`. The Foundation runtime exposes its XCM location and trusts ORGN
 teleports between Origin and Orbis. Registration remains an explicit Sudo operation so the Orbis
 genesis head and validation code are supplied from the exact Orbis build being deployed.
 
-The `origin-omni-node` system-chain binary resolves only the Orbis runtime. Development and local
+The `origin-omni-node` system-chain binary resolves only the Commons runtime. Development and local
 Orbis specs are selected with `--chain orbis-dev` and `--chain orbis-local`, respectively.
 Build the production-shaped binary and materialize a raw development spec with:
 

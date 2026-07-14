@@ -663,7 +663,7 @@ export function assertMethodFinality(capability: string, method: string, finalit
 }
 export function assertRuntimeIdentity(genesis: string, spec: number, tx: number, metadata: string, descriptor: string, chainSpec: string, activationState: "candidate-pending" | "production-approved", productionActivationReady: boolean, accessMode: "candidate" | "production"): void {
   if (genesis !== ORBIS_NETWORK_BINDING.genesis_hash) throw new ProductSdkError("unsupported_runtime", "unrecognized Orbis genesis identity");
-  if (spec !== ORBIS_NETWORK_BINDING.spec_version || tx !== ORBIS_NETWORK_BINDING.transaction_version) throw new ProductSdkError("unsupported_runtime", `unsupported Orbis runtime ${spec}/${tx}`);
+  if (spec !== ORBIS_NETWORK_BINDING.spec_version || tx !== ORBIS_NETWORK_BINDING.transaction_version) throw new ProductSdkError("unsupported_runtime", `unsupported Commons runtime ${spec}/${tx}`);
   if (metadata !== ORBIS_NETWORK_BINDING.metadata_hash) throw new ProductSdkError("metadata_mismatch", "metadata hash mismatch");
   if (chainSpec !== ORBIS_NETWORK_BINDING.chain_spec_source_sha256) throw new ProductSdkError("unsupported_runtime", "chain-spec source mismatch");
   if (descriptor !== ORBIS_NETWORK_BINDING.descriptor_contract_sha256) throw new ProductSdkError("descriptor_mismatch", "descriptor hash mismatch");

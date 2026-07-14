@@ -2,7 +2,7 @@
 
 ## Orbis provenance and adaptation
 
-This Apache-2.0 Orbis-owned fork was imported from Individuality Community commit
+This Apache-2.0 Commons-owned native adaptation was imported from Individuality Community commit
 `28b7d07dab05bbd05f6b664278b5c83841e212d3`. Orbis keeps the upstream storage, calls,
 benchmarks, tests and personhood lifecycle, and adapts administration for the enterprise network:
 root or the named `ManagerAccount` may perform manager operations, while only root may rotate that

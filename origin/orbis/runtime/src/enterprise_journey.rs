@@ -3,7 +3,7 @@
 
 //! Focused P6 enterprise journey proof.
 //!
-//! These tests deliberately exercise the real Orbis runtime and native pallets in-process. They
+//! These tests deliberately exercise the real Commons runtime and native pallets in-process. They
 //! do not claim to prove provider-node byte retrieval, automatic failover, a live relay/parachain
 //! topology, or production SLOs. Those boundaries are recorded in the accompanying P6 manifest.
 

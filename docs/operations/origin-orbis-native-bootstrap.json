@@ -15,7 +15,7 @@
     "compatibility_facade": false
   },
   "required_roles": [
-    "orbis-runtime-owner",
+    "commons-runtime-owner",
     "domain-registrar-owner",
     "attestation-issuer-owner",
     "storage-authority-owner",
@@ -25,7 +25,7 @@
   "steps": [
     {
       "id": "verify-runtime-binding",
-      "actor": "orbis-runtime-owner",
+      "actor": "commons-runtime-owner",
       "kind": "finalized-read",
       "surface": "typed-network-host",
       "method": "system.version-and-metadata",

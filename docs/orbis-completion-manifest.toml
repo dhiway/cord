@@ -1,4 +1,4 @@
-manifest_version = 20
+manifest_version = 21
 scope = "origin-orbis-enterprise-completion"
 implementation_branch = "sm-update-sub-0x63"
 current_state = "p2-p6-native-feature-implementation-present-production-validation-deferred"
@@ -9,8 +9,8 @@ max_s3_object_key_bytes = 1024
 
 [replanning]
 rule = "Adding or removing any row, method, service, scenario, or exclusion requires independent review and a manifest_version increment."
-iteration = 20
-decision = "origin-orbis-live-brand-cleanup"
+iteration = 21
+decision = "foundation-commons-node-ownership-cleanup"
 plan_evidence = "docs/adr/0017-native-feature-source-of-truth.md"
 transition_architect_evidence = ""
 transition_architect_status = "pending"
@@ -2185,23 +2185,23 @@ owner = "p4-storage-provider"
 evidence = "origin/orbis/provider-node/src/workers.rs:run_workers"
 
 [[node_surface]]
-id = "NODE-orbis-node"
+id = "NODE-origin-omni-node"
 kind = "binary"
-name = "orbis-node"
+name = "origin-omni-node"
 state = "present"
 evidence = "origin/orbis/node"
 
 [[node_surface]]
-id = "NODE-orbis-cli"
+id = "NODE-origin-omni-node-cli"
 kind = "cli"
-name = "orbis-cli"
+name = "origin-omni-node"
 state = "present-omni-node"
 evidence = "origin/orbis/node/src/main.rs; polkadot-omni-node-lib"
 
 [[node_surface]]
-id = "NODE-orbis-rpc"
+id = "NODE-origin-omni-node-rpc"
 kind = "rpc"
-name = "orbis-rpc"
+name = "origin-omni-node-rpc"
 state = "present-omni-node"
 evidence = "origin/orbis/node/src/main.rs; polkadot-omni-node-lib default RPC"
 
@@ -2758,7 +2758,7 @@ evidence = "capability excluded from enterprise launch scope"
 id = "BENCH-58"
 target = "pallet_coretime_control"
 state = "present-conservative-p7-regeneration-required"
-evidence = "origin/pallets/coretime-control/src/benchmarking.rs; Origin and Orbis runtime benchmark registries; final per-runtime generation remains P7"
+evidence = "origin/pallets/coretime-control/src/benchmarking.rs; Foundation and Commons runtime benchmark registries; final per-runtime generation remains P7"
 
 [[migration]]
 id = "MIG-pallet-coretime-control"
@@ -3377,7 +3377,7 @@ state = "present"
 evidence = "dhiway-sdk:cc190ea83c59:substrate/frame/revive/src/lib.rs"
 
 [[migration_pipeline]]
-id = "MIGPIPE-orbis-runtime"
+id = "MIGPIPE-commons-runtime"
 runtime = "origin-commons-runtime"
 single_block = "Migrations = ()"
 multi_block = "MbmMigrations = ()"
@@ -3710,7 +3710,7 @@ evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/tr
 id = "TYPE-TwoPhaseStorage"
 name = "TwoPhaseStorage"
 shape = "reserve(id, owner, purpose, bytes, transactions, expires_at); cancel(owner, id); expire_due(now, limit)"
-contract = "Orbis-owned trait; no aggregate authorization or content-less permanent charge"
+contract = "Commons-owned trait; no aggregate authorization or content-less permanent charge"
 owner = "slice-1"
 state = "present"
 evidence = "origin/orbis/pallets/resources/src/types.rs; origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"

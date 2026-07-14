@@ -1,6 +1,6 @@
 # Orbis People pallet
 
-This Orbis-owned pallet provides the chain's native identity, registrar judgement, sub-account,
+This Commons-owned pallet provides the chain's native identity, registrar judgement, sub-account,
 and username state. It is derived from the CORD/SDK identity implementation, which in turn tracks
 upstream FRAME Identity, but is physically owned here so Orbis changes do not mutate CORD pallets.
 The imported source snapshot is CORD commit `0af25278` (`pallets/identity`).

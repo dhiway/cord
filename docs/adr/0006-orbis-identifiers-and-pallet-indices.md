@@ -38,10 +38,10 @@ removing, or reassigning an entry requires Architect/Critic replanning, an ADR u
 
 | Index | Pallet |
 |---:|---|
-| `51` | Orbis Token compatibility fork |
-| `52` | Orbis Register compatibility fork |
-| `53` | Orbis Entity compatibility fork |
-| `54` | Orbis Feeless compatibility fork |
+| `51` | Shared Origin Token pallet |
+| `52` | Shared Origin Register pallet |
+| `53` | Shared Origin Entity pallet |
+| `54` | Shared Origin Feeless pallet |
 | `96` | Resources |
 | `97` | Score |
 | `98` | Game |
@@ -68,8 +68,8 @@ Indices `200+`, `249`, and `255` remain protocol/operations space and are unchan
 
 ## Ownership and scope lock
 
-Token, Register, Entity, and Feeless are byte-compatible Orbis-owned packages below
-`origin/orbis/pallets/`; Origin and CORD retain their existing packages and consumers. Unmodified
+Token, Register, Entity, and Feeless have one shared CORD-owned implementation below
+`origin/pallets/`; Foundation and Commons compose those packages at their frozen indices. Unmodified
 SDK pallets remain pinned dependencies rather than local forks. Modified Individuality, Orbis Storage,
 or Web3 Storage behavior belongs below `origin/orbis/pallets/` with source revision, license,
 adaptation notes, and upstream test provenance.
@@ -83,7 +83,7 @@ Storage code is not implicitly in scope.
 Indices must never be reused after a released runtime. Assets, People, Revive, and Orbis Storage receive
 explicit indices and metadata snapshot tests before their first release.
 
-Score and Honour became native at indices 97 and 99 in spec 29. Both are Orbis-owned forks of
+Score and Honour became native at indices 97 and 99 in spec 29. Both are Commons-owned native adaptations of
 Individuality Community `28b7d07dab05bbd05f6b664278b5c83841e212d3`, retain Apache-2.0
 provenance, and declare storage version 1. Score's enterprise manager is a named genesis-backed
 account rotatable only by root; manager calls accept that account or root. Honour binds directly

@@ -6,7 +6,7 @@
     "external_repository_edits": false,
     "external_web3_rows_excluded": 17,
     "legacy_data_migration": false,
-    "manifest_version": 20,
+    "manifest_version": 21,
     "orbis_pallets": 63,
     "origin_pallets": 48,
     "planned_implementation_rows": 0,
@@ -39,7 +39,7 @@
     },
     {
       "path": "docs/architecture/origin-foundation-commons-runtime-alignment.csv",
-      "sha256": "8c3fb1727d56d2c188fd51e38f432c404ec3b515d7e071a59a1583e317fff645"
+      "sha256": "99c42be481c629dd470aab3fb6deac9ffe1a10d85419487f578a8fe46bca1dd1"
     },
     {
       "path": "docs/architecture/contract-to-native-migration.csv",
@@ -59,11 +59,11 @@
     },
     {
       "path": "docs/orbis-completion-manifest.toml",
-      "sha256": "aa404c81981c75eeba950a1d6a509aec5634e932c645b38fc82cc7bf16bbfaea"
+      "sha256": "5cf25b886b17cf73496ca9ad6e724201713f2b8ab246d3552a0aac42ebcde73d"
     },
     {
       "path": "docs/orbis-native-capability-matrix.md",
-      "sha256": "dcf04ad07d08e0d9780a77954bd10dbc68c57a2be467168ef28e9f33c4b59a8f"
+      "sha256": "bb1cb6d4be46bd7ac51fa17f37d6fdc75a09417883c21c4e5c500be460e86033"
     },
     {
       "path": "origin/base/runtime/Cargo.toml",
@@ -75,7 +75,7 @@
     },
     {
       "path": "origin/base/runtime/src/lib.rs",
-      "sha256": "5cbaea83e18c9302fbeb6182b1a836f841370d8d1483a079bf6c66bc0c9a48a7"
+      "sha256": "70d46daeb2e79a36c59fe179f9b30e251a8c82a8f08fc6e85e9830b808c0d884"
     },
     {
       "path": "origin/orbis/node/src/main.rs",

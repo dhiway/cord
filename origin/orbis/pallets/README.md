@@ -1,6 +1,6 @@
-# Orbis-owned pallets
+# Commons-owned pallets
 
-This directory contains pallets and runtime APIs owned by the Orbis system chain.
+This directory contains pallets and runtime APIs owned by the Commons runtime.
 
 - Keep CORD-generic pallets in the repository-level `pallets/` directory.
 - Keep Origin relay-only pallets in `origin/pallets/`.
@@ -15,5 +15,6 @@ This directory contains pallets and runtime APIs owned by the Orbis system chain
 
 `people/`, `people-lite/`, `personhood/`, `chunks-manager/`, `members/`, `members-notifier/`,
 `individuality-support/`, `score/`, `honour/`, `hop-promotion/`, and `transaction-storage/` are
-Orbis-owned compatibility forks. Their runtime
-pallet names and indices remain stable so physical ownership changes do not alter state.
+Commons-owned native pallets or explicitly recorded adaptations. Their runtime pallet names and
+indices are frozen for the new-network launch contract; they do not imply predecessor-state or
+contract compatibility.
