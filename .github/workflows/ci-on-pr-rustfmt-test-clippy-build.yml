@@ -23,6 +23,9 @@ jobs:
       - name: checkout repository
         uses: actions/checkout@v4.1.1
 
+      - name: canonical source headers
+        run: python3 scripts/check-source-headers.py
+
       - name: install dependencies
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
 
@@ -110,4 +113,3 @@ jobs:
   #         restore-keys: ${{ runner.os }}-rust-
   #     - name: cargo build
   #       run: rustup component add rust-src && cargo build --locked
-

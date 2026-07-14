@@ -1,3 +1,5 @@
+// This file is part of CORD – https://cord.network
+
 // Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -13,6 +15,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 use tempfile::tempdir;
 
 use cord_cli_test_utils as common;

@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 import { createHash } from "node:crypto";import { readFileSync,writeFileSync } from "node:fs";import{resolve}from"node:path";import{canonicalJson,canonicalSha256,contractDigest,ratificationStatus,REQUIRED_ROLES}from"../packages/core/src/ratification.ts";
 const root=resolve(import.meta.dirname,"../.."),load=(p:string)=>JSON.parse(readFileSync(resolve(root,p),"utf8"));const ep=resolve(root,"docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"),e=JSON.parse(readFileSync(ep,"utf8"));
 const contracts:any={compatibility:"docs/sdk/compatibility-manifest.json",version_matrix:"docs/sdk/native-version-matrix.json",coverage_map:"docs/sdk/contract-to-native-map.json",extensions:"docs/sdk/signed-extension-manifest.json",slo:"docs/evidence/performance/service-slo-manifest.json",host:"docs/sdk/host/host-request.schema.json",error:"docs/sdk/native-error.schema.json",lifecycle:"docs/sdk/native-lifecycle.schema.json",vectors:"docs/sdk/vectors/transaction-policy-vector-registry.json",native_vectors:"docs/sdk/vectors/native-sdk-v1.json",descriptor:"product-sdk/packages/descriptors/generated/orbis-descriptor.json",test_report:"docs/evidence/verification/p0/test-report-contract.json"};

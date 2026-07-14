@@ -16,8 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-// Tests for Remote Proxy Pallet
-
 use super::*;
 use crate as remote_proxy;
 use codec::{Decode, DecodeWithMemTracking};

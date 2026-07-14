@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-//
+
 //! Authority membership management
 #![warn(unused_extern_crates)]
 #![cfg_attr(not(feature = "std"), no_std)]

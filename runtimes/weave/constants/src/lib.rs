@@ -15,6 +15,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 //! A set of constant values used in runtime.
 
 #![cfg_attr(not(feature = "std"), no_std)]

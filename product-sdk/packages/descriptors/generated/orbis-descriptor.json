@@ -24,7 +24,7 @@
     "productionActivationReady": false,
     "source": "docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"
   },
-  "ratificationPayloadSha256": "294df78d3a7baa4c999ce65958db08cae4e29148b8d5d22d5dc114b419bc895e",
+  "ratificationPayloadSha256": "78cc9fff6b09b12533ee9354870a7a43bcb67f2a6ec263b0458747819d4b2c5f",
   "sources": {
     "compatibility": {
       "path": "docs/sdk/compatibility-manifest.json",
@@ -52,7 +52,7 @@
     },
     "chainSpec": {
       "path": "origin/orbis/node/src/chain_spec.rs",
-      "sha256": "0199092fe8c40201459f566c766ebf2bd2dfc3bc6dfc62badd5116edcc88dbab"
+      "sha256": "60e38b74de9c0ccdedfe9c1fa2ea4bdb0346739ba2fef5e7a5ad328c0920b451"
     },
     "nativeRouteContract": {
       "path": "docs/sdk/native-route-contract.json",

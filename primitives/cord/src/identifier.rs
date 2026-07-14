@@ -16,11 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-// # CORD Identifier (Ss58Identifier)
-
-// Note: This module is part of cord-origin-primitives and should be imported by all higher-level
-// modules that need to interact with identifiers.
-
 extern crate alloc;
 use alloc::{format, string::String, vec::Vec};
 use blake2::{Blake2b512, Digest};
