@@ -38,8 +38,15 @@ for (const path of manifests) {
     fail(`${manifest.name} must publish only dist and README.md`);
   if (!manifest.exports || !manifest.exports["."])
     fail(`${manifest.name} has no root export`);
-  const serializedExports = JSON.stringify(manifest.exports);
-  if (serializedExports.includes(".ts\"") || serializedExports.includes("src/"))
+  const exportTargets: string[] = [];
+  const collectTargets = (value: unknown): void => {
+    if (typeof value === "string") exportTargets.push(value);
+    else if (typeof value === "object" && value !== null)
+      for (const nested of Object.values(value)) collectTargets(nested);
+  };
+  collectTargets(manifest.exports);
+  if (exportTargets.some((target) => target.includes("src/")
+    || (target.endsWith(".ts") && !target.endsWith(".d.ts"))))
     fail(`${manifest.name} exports source TypeScript`);
   if (!manifest.scripts?.build || !manifest.scripts?.check)
     fail(`${manifest.name} lacks build/check scripts`);

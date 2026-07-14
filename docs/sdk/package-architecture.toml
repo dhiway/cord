@@ -10,10 +10,10 @@ manifest = "product-sdk/package.json"
 package = "@cord-network/product-sdk-workspace"
 version = "0.9.9"
 private = true
-publishable_packages = 0
+publishable_packages = 2
 export_count = 20
 exports = [".", "./attestation", "./content", "./names", "./drive", "./errors", "./host", "./identity", "./network-host", "./attestation-events", "./network-binding", "./provider", "./s3", "./storage", "./sponsored-transaction", "./types", "./names-events", "./storage-events", "./storage-native-events", "./version"]
-limitations = ["raw-typescript-exports", "no-dist-javascript", "no-declaration-output", "single-private-package", "no-testing-subpaths"]
+limitations = ["root-raw-typescript-exports", "root-private-monolith-still-present", "tier-a-incomplete"]
 
 [reference]
 repository = "paritytech/product-sdk"
@@ -27,14 +27,14 @@ usage = "architecture-reference-only"
 name = "@cord-network/origin-sdk-result"
 tier = "A"
 owner = "sdk-core"
-state = "planned"
+state = "present"
 dependencies = []
 
 [[package]]
 name = "@cord-network/origin-sdk-errors"
 tier = "A"
 owner = "sdk-core"
-state = "planned"
+state = "present"
 dependencies = ["@cord-network/origin-sdk-result"]
 
 [[package]]
