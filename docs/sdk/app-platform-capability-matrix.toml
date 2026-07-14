@@ -132,9 +132,9 @@ journey = "Festival sends bounded notifications and reconnects to subscriptions"
 runtime_owner = "Resources allowance policy and statement-store host functions"
 sdk_owner = "origin-sdk-statement-store and origin-sdk-resources"
 host_owner = "Statement transport and subscriptions"
-state = "runtime-and-node-opt-in-present-sdk-gap"
+state = "runtime-node-and-sdk-present-host-adapter-pending"
 contract_policy = "forbidden"
-evidence = "docs/sdk/statement-store-audit.md"
+evidence = "docs/sdk/statement-store-audit.md; product-sdk/packages/origin-sdk-statement-store/src/index.ts"
 
 [[capability]]
 id = "assets-payments"

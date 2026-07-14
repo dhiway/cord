@@ -2,9 +2,10 @@
 
 ## Verdict
 
-Commons has the runtime allowance policy and the pinned omni-node has persistence, propagation and
-RPC support, but the feature is opt-in and the CORD SDK/host surface is absent. It is therefore
-`runtime-and-node-opt-in-present-sdk-gap`, not production-qualified.
+Commons has the runtime allowance policy, the pinned omni-node has persistence, propagation and
+RPC support, and the CORD SDK now provides a structured permission-gated client. The feature is
+still opt-in and the concrete desktop/mobile host transport is pending, so it is
+`runtime-node-and-sdk-present-host-adapter-pending`, not production-qualified.
 
 ## Evidence
 
@@ -22,7 +23,7 @@ RPC support, but the feature is opt-in and the CORD SDK/host surface is absent. 
 ## Required implementation slices
 
 1. Make the Commons operational profile explicit without changing the upstream SDK repository.
-2. Add typed statement submit/query/subscribe methods and Resources allowance acquisition.
-3. Add host permission scopes, cancellation, reconnect and subscription disposal.
+2. Implement concrete host transports for the typed submit/query/subscribe client and Resources allowance acquisition.
+3. Verify host permission revocation, reconnect, and subscription disposal in reference journeys.
 4. Before feature-completeness, prove persistence across restart and propagation/sync in a bounded
    local journey. Load, soak, pruning pressure and recovery certification remain P9 work.
