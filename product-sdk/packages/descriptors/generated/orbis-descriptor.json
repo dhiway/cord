@@ -24,7 +24,7 @@
     "productionActivationReady": false,
     "source": "docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"
   },
-  "ratificationPayloadSha256": "78cc9fff6b09b12533ee9354870a7a43bcb67f2a6ec263b0458747819d4b2c5f",
+  "ratificationPayloadSha256": "8d2a197ca0a4093b51f29e2304bef3355c19286d796d205df38f63be6777f110",
   "sources": {
     "compatibility": {
       "path": "docs/sdk/compatibility-manifest.json",

@@ -1,0 +1,431 @@
+{
+  "$id": "https://cord.network/schemas/eqc-result-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scope",
+    "campaign_executed",
+    "class",
+    "manifest_sha256",
+    "runtime",
+    "environment",
+    "raw_uri",
+    "raw_sha256",
+    "samples",
+    "observations",
+    "verdict"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "scope": {
+      "enum": [
+        "schema-validation-only",
+        "network-campaign"
+      ]
+    },
+    "campaign_executed": {
+      "type": "boolean"
+    },
+    "class": {
+      "enum": [
+        "E",
+        "Q",
+        "C"
+      ]
+    },
+    "manifest_sha256": {
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "genesis_identity",
+        "genesis_status",
+        "wasm_sha256",
+        "metadata_hash",
+        "descriptor_contract_sha256",
+        "spec_version",
+        "transaction_version"
+      ],
+      "properties": {
+        "genesis_identity": {
+          "pattern": "^0x[0-9a-f]{64}$",
+          "const": "0x066f97db4ab6a5e5d44ee66c3b469f82d178817650fa6f52634ea2ebead6c6e3"
+        },
+        "genesis_status": {
+          "enum": [
+            "deterministic-clean-break-candidate-not-production-approved",
+            "production-genesis-final"
+          ]
+        },
+        "wasm_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "const": "5c8fc14ff06c0a85dcc3ccd95027c3b899df6fa7a691b83fb696fc278fa7ce04"
+        },
+        "metadata_hash": {
+          "const": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391"
+        },
+        "spec_version": {
+          "const": 29
+        },
+        "transaction_version": {
+          "const": 8
+        },
+        "descriptor_contract_sha256": {
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "topology_sha256",
+        "origin_validators",
+        "orbis_collators",
+        "orbis_cores",
+        "clock_offset_ms",
+        "seed",
+        "warmup_seconds",
+        "measurement_seconds",
+        "cooldown_seconds"
+      ],
+      "properties": {
+        "topology_sha256": {
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "origin_validators": {
+          "const": 6,
+          "type": "integer"
+        },
+        "orbis_collators": {
+          "const": 2,
+          "type": "integer"
+        },
+        "orbis_cores": {
+          "enum": [
+            1,
+            3
+          ],
+          "type": "integer"
+        },
+        "clock_offset_ms": {
+          "minimum": -50,
+          "maximum": 50,
+          "type": "integer"
+        },
+        "seed": {
+          "const": 20260713
+        },
+        "warmup_seconds": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "measurement_seconds": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "cooldown_seconds": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      }
+    },
+    "raw_uri": {
+      "type": "string",
+      "minLength": 1
+    },
+    "raw_sha256": {
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "samples": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "observations": {
+      "type": "object"
+    },
+    "verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pass",
+        "failures",
+        "bottleneck_attribution",
+        "recomputed"
+      ],
+      "properties": {
+        "pass": {
+          "type": "boolean"
+        },
+        "failures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bottleneck_attribution": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "recomputed": {
+          "const": true
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "campaign_executed": {
+          "const": false
+        },
+        "scope": {
+          "const": "schema-validation-only"
+        },
+        "observations": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 0
+        }
+      },
+      "required": [
+        "campaign_executed",
+        "scope",
+        "observations"
+      ]
+    },
+    {
+      "properties": {
+        "class": {
+          "const": "E"
+        },
+        "observations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "finalized_successful_eps",
+            "inclusion_p95_ms",
+            "finality_p95_ms",
+            "sponsored_success_percent",
+            "storage_headroom_percent",
+            "p95_resource_percent",
+            "max_resource_percent",
+            "finality_lag_blocks",
+            "cv_percent"
+          ],
+          "properties": {
+            "finalized_successful_eps": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            "inclusion_p95_ms": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            "finality_p95_ms": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            "sponsored_success_percent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "storage_headroom_percent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "p95_resource_percent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "max_resource_percent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "finality_lag_blocks": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            "cv_percent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            }
+          }
+        },
+        "campaign_executed": {
+          "const": true
+        },
+        "scope": {
+          "const": "network-campaign"
+        }
+      },
+      "required": [
+        "campaign_executed",
+        "scope",
+        "class",
+        "observations"
+      ]
+    },
+    {
+      "properties": {
+        "class": {
+          "const": "Q"
+        },
+        "observations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "request_success_percent",
+            "request_p95_ms",
+            "subscription_completeness_percent",
+            "subscription_delivery_p95_ms",
+            "reconnect_catchup_p95_ms",
+            "finality_lag_blocks",
+            "cv_percent"
+          ],
+          "properties": {
+            "request_success_percent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "request_p95_ms": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            "subscription_completeness_percent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "subscription_delivery_p95_ms": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            "reconnect_catchup_p95_ms": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            "finality_lag_blocks": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            "cv_percent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            }
+          }
+        },
+        "campaign_executed": {
+          "const": true
+        },
+        "scope": {
+          "const": "network-campaign"
+        }
+      },
+      "required": [
+        "campaign_executed",
+        "scope",
+        "class",
+        "observations"
+      ]
+    },
+    {
+      "properties": {
+        "class": {
+          "const": "C"
+        },
+        "observations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cid_integrity_percent",
+            "success_percent",
+            "ttfb_p95_ms",
+            "completion_p95_ms",
+            "throughput_mib_per_second",
+            "failover_success_percent",
+            "finality_lag_blocks",
+            "cv_percent"
+          ],
+          "properties": {
+            "cid_integrity_percent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "success_percent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "ttfb_p95_ms": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            "completion_p95_ms": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            "throughput_mib_per_second": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            "failover_success_percent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "finality_lag_blocks": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            "cv_percent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            }
+          }
+        },
+        "campaign_executed": {
+          "const": true
+        },
+        "scope": {
+          "const": "network-campaign"
+        }
+      },
+      "required": [
+        "campaign_executed",
+        "scope",
+        "class",
+        "observations"
+      ]
+    }
+  ]
+}

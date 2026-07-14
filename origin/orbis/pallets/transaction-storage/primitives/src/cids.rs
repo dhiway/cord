@@ -189,14 +189,25 @@ mod tests {
 	};
 	use core::str::FromStr;
 
+	const CONTENT_CID_FIXTURE: &str =
+		include_str!("../../../../../../docs/sdk/vectors/content-cid-v1.json");
+
+	fn fixture_string(field: &str) -> &'static str {
+		let marker = format!("\"{field}\": \"");
+		let start = CONTENT_CID_FIXTURE.find(&marker).expect("fixture field exists") + marker.len();
+		let tail = &CONTENT_CID_FIXTURE[start..];
+		let end = tail.find('"').expect("fixture string is terminated");
+		&tail[..end]
+	}
+
 	#[test]
 	fn test_cid_raw_blake2b_256_roundtrip_works() {
 		// Prepare data.
-		let data = "Hello, Orbis Storage with PAPI - Fri Nov 21 2025 11:09:18 GMT+0000";
+		let data = fixture_string("input_utf8");
 		let expected_content_hash = sp_io::hashing::blake2_256(data.as_bytes());
 
-		// Expected raw CID calculated for the same data with `examples/common.js`.
-		let expected_cid_base32 = "bafk2bzacedvk4eijklisgdjijnxky24pmkg7jgk5vsct4mwndj3nmx7plzz7m";
+		// This fixture is shared with the TypeScript SDK conformance suite.
+		let expected_cid_base32 = fixture_string("cid");
 		let expected_cid = CidGeneric::<32>::from_str(expected_cid_base32).expect("valid_cid");
 		assert_eq!(expected_cid.codec(), 0x55);
 		assert_eq!(expected_cid.hash().code(), 0xb220);
@@ -237,22 +248,22 @@ mod tests {
 
 	#[test]
 	fn test_cid_various_codecs_and_hashes() {
-		let data = "Hello, Orbis Storage with PAPI - Fri Nov 21 2025 11:09:18 GMT+0000";
+		let data = fixture_string("input_utf8");
 
 		// Expected results from `examples/common.js`.
 		let expected_cids = vec![
 			// raw + blake2b_256
-			("bafk2bzacedvk4eijklisgdjijnxky24pmkg7jgk5vsct4mwndj3nmx7plzz7m", 0x55, 0xb220),
+			(fixture_string("cid"), 0x55, 0xb220),
 			// DAG-PB + blake2b_256
-			("bafykbzacedvk4eijklisgdjijnxky24pmkg7jgk5vsct4mwndj3nmx7plzz7m", 0x70, 0xb220),
+			("bafykbzaceav3katluaoinsjp6e6gi2feyqta6r7rwk4lzmv64pz2srnpl3yos", 0x70, 0xb220),
 			// Raw + sha2_256
-			("bafkreig5pw2of63kmkldboh6utfovo3o3czig4yj7eb2ragxwca4c4jlke", 0x55, 0x12),
+			("bafkreihlklzlpk3requlwzzsrye67xdwb6brri62fmtaekr33dc3hqorb4", 0x55, 0x12),
 			// DAG-PB + sha2_256
-			("bafybeig5pw2of63kmkldboh6utfovo3o3czig4yj7eb2ragxwca4c4jlke", 0x70, 0x12),
+			("bafybeihlklzlpk3requlwzzsrye67xdwb6brri62fmtaekr33dc3hqorb4", 0x70, 0x12),
 			// Raw + keccak_256
-			("bafkrwifr4p73tsatchlyp3hivjee4prqqpcqayikzen46bqldwmt5mzd6e", 0x55, 0x1b),
+			("bafkrwibji2u2dqcqshcejykimei6unxxbnpcs2m2xcd3e7i3is4nqndn3a", 0x55, 0x1b),
 			// DAG-PB + keccak_256
-			("bafybwifr4p73tsatchlyp3hivjee4prqqpcqayikzen46bqldwmt5mzd6e", 0x70, 0x1b),
+			("bafybwibji2u2dqcqshcejykimei6unxxbnpcs2m2xcd3e7i3is4nqndn3a", 0x70, 0x1b),
 		];
 
 		for (expected_cid_str, codec, mh_code) in expected_cids {

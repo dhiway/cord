@@ -1,0 +1,9 @@
+{
+  "schema": "cord.content-cid-vector.v1",
+  "input_utf8": "Hello, Orbis Storage with PAPI - Fri Nov 21 2025 11:09:18 GMT+0000",
+  "codec": "raw",
+  "codec_code": 85,
+  "multihash": "blake2b-256",
+  "multihash_code": 45600,
+  "cid": "bafk2bzaceav3katluaoinsjp6e6gi2feyqta6r7rwk4lzmv64pz2srnpl3yos"
+}
