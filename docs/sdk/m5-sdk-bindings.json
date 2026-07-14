@@ -9,7 +9,7 @@
     },
     "route_contract": {
       "path": "docs/sdk/native-route-contract.json",
-      "sha256": "156e93a88020ced8ee9a854d451fcfdda39755fafad4404d4c855f240b6380e8"
+      "sha256": "d3bfe5cbf0fb1570b6097da22b53c1352e7aa57fa72effb3f4d5d3f8b2bb12fd"
     },
     "approval_manifest": {
       "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",

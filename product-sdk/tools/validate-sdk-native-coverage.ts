@@ -381,7 +381,7 @@ equal(routeContract.network.metadata_hash, matrix.networks.orbis.metadata_hash, 
 equal(routeContract.network.activation_state, matrix.networks.orbis.activation_state, "route contract activation state");
 equal(routeContract.network.production_activation_ready, false, "route contract production gate");
 equal(routeContract.signature_schema_basis.runtime_metadata,
-  "current RFC-78 metadata hash is reproduced, but no decoded metadata blob is available; runtime argument signatures are not asserted from decoded metadata",
+  "checked-in Commons V14 SCALE metadata is extracted from the current runtime Wasm and drives the reproducible PAPI descriptor; this route contract remains the authoritative product-policy projection",
   "route contract decoded metadata boundary");
 equal(routeContract.routes.length, NATIVE_HOST_METHODS.length, "route projection count");
 const projectedRoutes = routeContract.routes.map((route: any) => ({ capability: route.capability, method: route.method, finality: route.finality, payloadFields: route.parameters.map(({ name }: any) => name) }));
@@ -494,7 +494,7 @@ const report = {
     compatibility_facade_rows: compatibilityRows.length,
     data_migration_rows: migrationRows.length,
   },
-  descriptor: { kind: descriptor.kind, native_method_count: NATIVE_HOST_METHODS.length, authoritative_route_contract: "docs/sdk/native-route-contract.json", runtime_dispatch_or_api_bound_routes: routeContract.route_count, metadata_reconciliation: "exact current metadata hash plus source-derived pallet/call indices and runtime API implementation tables; decoded current metadata blob unavailable, so decoded runtime signatures are not asserted" },
+  descriptor: { kind: descriptor.kind, native_method_count: NATIVE_HOST_METHODS.length, authoritative_route_contract: "docs/sdk/native-route-contract.json", runtime_dispatch_or_api_bound_routes: routeContract.route_count, metadata_reconciliation: "checked-in Commons V14 SCALE metadata plus exact current RFC-78 hash; reproducible PAPI output provides metadata-derived types while the route contract restricts the supported product surface" },
   reference_surface: { raw_scale: false, migrated_domain_revive: false, contract_abi: false, pallet_or_call_indices: false },
   inputs: {
     version_matrix_sha256: sha256("docs/sdk/native-version-matrix.json"),

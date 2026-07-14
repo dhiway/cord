@@ -84,7 +84,7 @@
     "native_method_count": 143,
     "authoritative_route_contract": "docs/sdk/native-route-contract.json",
     "runtime_dispatch_or_api_bound_routes": 143,
-    "metadata_reconciliation": "exact current metadata hash plus source-derived pallet/call indices and runtime API implementation tables; decoded current metadata blob unavailable, so decoded runtime signatures are not asserted"
+    "metadata_reconciliation": "checked-in Commons V14 SCALE metadata plus exact current RFC-78 hash; reproducible PAPI output provides metadata-derived types while the route contract restricts the supported product surface"
   },
   "reference_surface": {
     "raw_scale": false,
@@ -95,10 +95,10 @@
   "inputs": {
     "version_matrix_sha256": "e288fe3f10ca7dab28d19258d0709e86af372a8c576f1a3f2ab96c05f49d68b0",
     "coverage_map_sha256": "0f1ea8783001f2f2798c5b073a9afd55bc8bf69cf2d2fe2dc10324c2763b39e5",
-    "m5_sdk_bindings_sha256": "bc834f0a0f589eb5c4fa98e1cf6d4877c1dd2e66bfa3a6cc603bb7f446170812",
-    "route_contract_sha256": "156e93a88020ced8ee9a854d451fcfdda39755fafad4404d4c855f240b6380e8",
-    "rust_route_harness_sha256": "74c7828f0a70877fb138256d39818d93a6c818c9651450add511f8634a498119",
-    "typescript_route_harness_sha256": "1542c5b4d6e7d4ca520faa27c525babcfa09c9a44cb22b821642aaf233070e7e",
-    "descriptor_sha256": "856f84f87d2bb735234c659836d3c7d9e8f045ff2ba9dbb2090bbdb9df2eda72"
+    "m5_sdk_bindings_sha256": "c1309c80f2100c95b22e7655bf0bb358c9f3b96a6d030bae852308be98aa563c",
+    "route_contract_sha256": "d3bfe5cbf0fb1570b6097da22b53c1352e7aa57fa72effb3f4d5d3f8b2bb12fd",
+    "rust_route_harness_sha256": "5b2c01e7cbbb38c7f5bfc0e60663971c6848751641e0413523ea13f9fa86097a",
+    "typescript_route_harness_sha256": "3032fb23e01d46abf33e18e361f33f0131564d89c726ce8d303f941172085566",
+    "descriptor_sha256": "26fce60e52372d35a64ccdf51eb4734721854c591b5ef902b9ee239e8ecd86ce"
   }
 }

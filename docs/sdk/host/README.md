@@ -14,8 +14,8 @@ encoded bytes, pallet indices, or migrated-domain ABI fields.
 The transport-neutral harness is executable with `npm --prefix product-sdk run test:host`.
 `product-sdk/packages/host/src/network-host.ts` supplies the CORD-owned typed network seam: exact
 finalized-hash reads, runtime/descriptor binding, metadata-derived submission finality,
-cancellation, and typed error/lifecycle mapping. Concrete generated PAPI clients and domain route
-registration are injected; the adapter deliberately exposes no raw SCALE, storage-key, pallet-
+cancellation, and typed error/lifecycle mapping. The reproducibly generated Commons PAPI client and
+domain route registration are injected; the adapter deliberately exposes no raw SCALE, storage-key, pallet-
 index, or call-index fallback.
 
 The schema and bootstrap descriptor are bound to the unsigned P5 SDK-freeze envelope; real

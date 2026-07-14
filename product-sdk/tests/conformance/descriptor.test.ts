@@ -29,7 +29,8 @@ test("descriptor binds the P5 native SDK freeze to the exact fixture and runtime
  assert.deepEqual([descriptor.runtime.paraId,descriptor.runtime.specVersion,descriptor.runtime.transactionVersion],[1006,29,8]);
  assert.equal(descriptor.fixtureIdentity.genesis_identity,"0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173");
  assert.deepEqual(descriptor.networkActivation,{state:"candidate-pending",productionActivationReady:false,source:"docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"});
- assert.equal(descriptor.fixtureIdentity.status,"deterministic-clean-break-candidate-not-production-approved"); assert.equal(descriptor.productionPapiDescriptorGenerated,false);
+ assert.equal(descriptor.fixtureIdentity.status,"deterministic-clean-break-candidate-not-production-approved"); assert.equal(descriptor.productionPapiDescriptorGenerated,true);
+ const papi=load("product-sdk/packages/descriptors/generated/commons-papi-manifest.json");assert.equal(papi.schema,"cord.commons-papi-descriptor.v1");assert.deepEqual(papi.generator,{package:"polkadot-api",version:"2.1.6"});assert.equal(papi.entry,"commons");assert.equal(papi.metadata.runtime_rfc78_hash,descriptor.runtime.metadataHash);assert.equal(papi.metadata.scale_sha256,"521b65c4393e065885d94af7e403bea359b71b67f7715763a70d984cd272348b");assert.ok(papi.output.length>0);assert.ok(papi.output.every((item:any)=>item.bytes>0&&/^[0-9a-f]{64}$/.test(item.sha256)));
 });
 test("host schema exactly freezes every descriptor native method and closed payload shape",()=>{
  const schema=load("docs/sdk/host/host-request.schema.json"),methods=descriptor.nativeHostContract.methods;

@@ -24,7 +24,7 @@
     "productionActivationReady": false,
     "source": "docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"
   },
-  "ratificationPayloadSha256": "8d2a197ca0a4093b51f29e2304bef3355c19286d796d205df38f63be6777f110",
+  "ratificationPayloadSha256": "c04fdfe471cc307c028ef4e99e627517ab48e5afe92ac6e6fbbee84bda06bc6d",
   "sources": {
     "compatibility": {
       "path": "docs/sdk/compatibility-manifest.json",
@@ -42,6 +42,14 @@
       "path": "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json",
       "sha256": "23355f674c0e0108c8e9a80e75fa6050d16acae92304f06327587636be689c28"
     },
+    "metadataScale": {
+      "path": "product-sdk/packages/descriptors/.papi/metadata/commons.scale",
+      "sha256": "521b65c4393e065885d94af7e403bea359b71b67f7715763a70d984cd272348b"
+    },
+    "papiDescriptor": {
+      "path": "product-sdk/packages/descriptors/generated/commons-papi-manifest.json",
+      "sha256": "bff8b9d116de20daf4d2c84083b7921a7581acfa10185c0be18881c86f406908"
+    },
     "vectors": {
       "path": "docs/sdk/vectors/native-sdk-v1.json",
       "sha256": "37174b7b41c06d112d8a35f2daff6cda488057fc1c8888d9bed5f96c97e4b026"
@@ -56,7 +64,7 @@
     },
     "nativeRouteContract": {
       "path": "docs/sdk/native-route-contract.json",
-      "sha256": "156e93a88020ced8ee9a854d451fcfdda39755fafad4404d4c855f240b6380e8"
+      "sha256": "d3bfe5cbf0fb1570b6097da22b53c1352e7aa57fa72effb3f4d5d3f8b2bb12fd"
     }
   },
   "signedExtensionSurfaces": {
@@ -1408,9 +1416,10 @@
     ]
   },
   "descriptorProvenance": {
-    "runtimeMetadataBinding": "reproduced-rfc78-wasm-metadata-hash",
+    "runtimeMetadataBinding": "checked-in-v14-scale-plus-reproduced-rfc78-wasm-metadata-hash",
+    "papiDescriptor": "polkadot-api-2.1.6-byte-reproducible-generation",
     "methodInventory": "authoritative-typed-native-route-contract",
     "driftValidation": "metadata-hash-pallet-call-index-runtime-api-and-rust-typescript-route-harness"
   },
-  "productionPapiDescriptorGenerated": false
+  "productionPapiDescriptorGenerated": true
 }

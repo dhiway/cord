@@ -26,12 +26,13 @@ The generated `cord-native-host-contract-manifest` is the supported typed host c
 143 methods are projected from `native-route-contract.json`, the authoritative route inventory.
 Each entry binds ordered parameters, result/finality, Rust query or command variant, TypeScript
 callable, runtime API or pallet call, and the pallet/call indices used by current dispatch tables.
-Rust and TypeScript harnesses execute all 143 canonical request samples. The contract is bound to
-the reproduced RFC-78 metadata hash, but it is not a generated PAPI or decoded-metadata descriptor;
-no current decoded metadata blob is available or checked in. Payload schemas therefore assert only
-the current product-sdk core validation contract and canonical Rust/TypeScript typed-factory
-coverage; they do not claim decoded runtime argument signatures. Product methods use exact, closed
-payload shapes and Subxt metadata-resolved transports. Raw SCALE, pallet/call indices, migrated
+Rust and TypeScript harnesses execute all 143 canonical request samples. The checked-in Commons V14
+SCALE metadata is extracted from the current runtime Wasm and drives a byte-reproducible
+`polkadot-api` descriptor build. The route contract remains the authoritative product-policy
+projection: its closed payload schemas and canonical Rust/TypeScript factories deliberately expose
+only admitted app methods, while the generated PAPI descriptor retains the complete metadata truth.
+Product methods use exact, closed payload shapes and metadata-resolved transports. Raw SCALE,
+pallet/call indices, migrated
 domain Revive calls, contract ABIs, and contract-address aliases are not reference SDK surfaces.
 
 The contract-to-native map is design coverage only, never a compatibility facade. It classifies

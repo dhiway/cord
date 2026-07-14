@@ -30,6 +30,8 @@ const rel = {
   versionMatrix: "docs/sdk/native-version-matrix.json",
   extensions: "docs/sdk/signed-extension-manifest.json",
   metadata: "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json",
+  metadataScale: "product-sdk/packages/descriptors/.papi/metadata/commons.scale",
+  papiDescriptor: "product-sdk/packages/descriptors/generated/commons-papi-manifest.json",
   vectors: "docs/sdk/vectors/native-sdk-v1.json",
   genesisIdentity: "docs/genesis/orbis-candidate-genesis-identity.json",
   chainSpec: "origin/orbis/node/src/chain_spec.rs",
@@ -104,11 +106,12 @@ const descriptor = {
     methods: NATIVE_HOST_METHODS
   },
   descriptorProvenance: {
-    runtimeMetadataBinding: "reproduced-rfc78-wasm-metadata-hash",
+    runtimeMetadataBinding: "checked-in-v14-scale-plus-reproduced-rfc78-wasm-metadata-hash",
+    papiDescriptor: "polkadot-api-2.1.6-byte-reproducible-generation",
     methodInventory: "authoritative-typed-native-route-contract",
     driftValidation: "metadata-hash-pallet-call-index-runtime-api-and-rust-typescript-route-harness",
   },
-  productionPapiDescriptorGenerated: false
+  productionPapiDescriptorGenerated: true
 };
 const serialized = `${JSON.stringify(descriptor, null, 2)}\n`;
 const output = resolve(sdkRoot, "packages/descriptors/generated/orbis-descriptor.json");

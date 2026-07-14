@@ -18,7 +18,9 @@
 
 export interface OrbisDescriptorContract {
   contractVersion: 1;
-  kind: "papi-bootstrap-descriptor-contract";
+  kind: "cord-native-host-contract-manifest";
+  release: "origin-orbis-native-v1";
+  firstSupportedNativeSdk: true;
   runtime: {
     name: "orbis";
     paraId: 1006;
@@ -27,10 +29,15 @@ export interface OrbisDescriptorContract {
     metadataHash: `0x${string}`;
   };
   fixtureIdentity: {
-    status: "unfinalized-p0-fixture-not-production-genesis";
+    status: "deterministic-clean-break-candidate-not-production-approved";
     genesis_identity: `0x${string}`;
     chain_spec_source: string;
     chain_spec_source_sha256: string;
+  };
+  networkActivation: {
+    state: "candidate-pending" | "production-approved";
+    productionActivationReady: boolean;
+    source: string;
   };
   ratificationPayloadSha256: string;
   sources: Record<string, { path: string; sha256: string }>;
@@ -47,5 +54,5 @@ export interface OrbisDescriptorContract {
       payloadFields: readonly string[];
     }[];
   };
-  productionPapiDescriptorGenerated: false;
+  productionPapiDescriptorGenerated: true;
 }

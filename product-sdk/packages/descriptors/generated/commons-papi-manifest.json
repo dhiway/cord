@@ -1,0 +1,82 @@
+{
+  "schema": "cord.commons-papi-descriptor.v1",
+  "generator": {
+    "package": "polkadot-api",
+    "version": "2.1.6"
+  },
+  "metadata": {
+    "path": "product-sdk/packages/descriptors/.papi/metadata/commons.scale",
+    "scale_bytes": 576607,
+    "scale_sha256": "521b65c4393e065885d94af7e403bea359b71b67f7715763a70d984cd272348b",
+    "runtime_metadata_version": 14,
+    "runtime_rfc78_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391"
+  },
+  "entry": "commons",
+  "output": [
+    {
+      "path": "dist/common-types.d.ts",
+      "bytes": 561666,
+      "sha256": "1373f517e0d07d99434a1fb3cc5d1517329245f45400d6e64679291e437ad2a9"
+    },
+    {
+      "path": "dist/common.d.ts",
+      "bytes": 838,
+      "sha256": "6094e0126a1e888b6f4a2b999a0bdd958ec704797e5bc7ae0af6b9fe321afab6"
+    },
+    {
+      "path": "dist/commons.d.ts",
+      "bytes": 709408,
+      "sha256": "29d08b2e8d0b867ff2399eb51068875991e5e0e4c90b32e46462133e1540956c"
+    },
+    {
+      "path": "dist/commons_metadata-DeUmaYFk.js",
+      "bytes": 769626,
+      "sha256": "003e6036b220b41fa867d783bde94c94c3107f90426a9d10799024dda47a6129"
+    },
+    {
+      "path": "dist/commons_metadata.d.ts",
+      "bytes": 817,
+      "sha256": "6b3e3bff7991404841bc60e5e50bf3ae4f340b48a09bb3cb974098ffc8f120df"
+    },
+    {
+      "path": "dist/descriptors-8Ezg-8Yc.js",
+      "bytes": 40193,
+      "sha256": "123b1da932a669b14a253e58798790a4487b9d19b43d004514dce9ad9ac28821"
+    },
+    {
+      "path": "dist/descriptors.d.ts",
+      "bytes": 816,
+      "sha256": "8c86f0b66a853b778f603df7ed75579b2f07f727125a701e04925110e7a13088"
+    },
+    {
+      "path": "dist/index.d.ts",
+      "bytes": 2190,
+      "sha256": "9a885e07432ff876ac5533d082eb1efbddddf2cf6da468740c550bbfaa9ef5a9"
+    },
+    {
+      "path": "dist/index.js",
+      "bytes": 5124,
+      "sha256": "d4de16c4fc52141fe06ddbc4118793288393c91ed7864343b79cd055843750cd"
+    },
+    {
+      "path": "dist/metadataTypes-CPO3jN1X.js",
+      "bytes": 154122,
+      "sha256": "27b1cfcdb67c56b307932f970fa02df5ff76f459e1c718e292bfcd4622cdc1c4"
+    },
+    {
+      "path": "dist/metadataTypes.d.ts",
+      "bytes": 154122,
+      "sha256": "c2ea74a8adaa11990835e5b0eb54ce361c5e44f1c23482705f3267b2cb75994d"
+    },
+    {
+      "path": "generated.json",
+      "bytes": 130,
+      "sha256": "62df717ccebcf1a64d1d2bc599466fd7e37228c3e4d39fd2a03f97c32d717c6c"
+    },
+    {
+      "path": "package.json",
+      "bytes": 573,
+      "sha256": "0aef80e9ba1f81e4e7fdac65b9d6d1f6a5aea65a4f29d68b8008709efd31b141"
+    }
+  ]
+}

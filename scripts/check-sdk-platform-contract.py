@@ -97,6 +97,27 @@ if not re.search(r'^manifest_version\s*=\s*22$', manifest, re.MULTILINE):
 if scalar(manifest, "implementation_branch") != "sm-update-sub-0x65":
     fail("completion manifest branch drift")
 
+metadata_identity = json.loads((ROOT / "docs/sdk/metadata/commons-v29.json").read_text())
+metadata_path = ROOT / metadata_identity["scale_path"]
+if metadata_identity.get("runtime_metadata_version") != 14:
+    fail("Commons metadata version is not V14")
+if metadata_path.stat().st_size != metadata_identity.get("scale_bytes"):
+    fail("Commons SCALE metadata size drift")
+if sha256(metadata_path) != metadata_identity.get("scale_sha256"):
+    fail("Commons SCALE metadata digest drift")
+papi = json.loads(
+    (ROOT / "product-sdk/packages/descriptors/generated/commons-papi-manifest.json").read_text()
+)
+if papi.get("schema") != "cord.commons-papi-descriptor.v1":
+    fail("Commons PAPI descriptor schema drift")
+if papi.get("metadata", {}).get("scale_sha256") != metadata_identity.get("scale_sha256"):
+    fail("Commons PAPI metadata binding drift")
+descriptor = json.loads(
+    (ROOT / "product-sdk/packages/descriptors/generated/orbis-descriptor.json").read_text()
+)
+if descriptor.get("productionPapiDescriptorGenerated") is not True:
+    fail("Commons PAPI descriptor is not marked generated")
+
 routes = json.loads((ROOT / "docs/sdk/native-route-contract.json").read_text())
 if routes.get("route_count") != 143 or len(routes.get("routes", [])) != 143:
     fail("native route count is not 143")

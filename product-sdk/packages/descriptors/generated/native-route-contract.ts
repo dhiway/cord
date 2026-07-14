@@ -18409,7 +18409,7 @@ export const NATIVE_ROUTE_CONTRACT = {
   "signature_schema_basis": {
     "host_payload": "product-sdk core validation rules and direct callable canonical arguments",
     "rust_binding": "canonical samples deserialize into the named Rust query/command variants and validate or prepare successfully",
-    "runtime_metadata": "current RFC-78 metadata hash is reproduced, but no decoded metadata blob is available; runtime argument signatures are not asserted from decoded metadata",
+    "runtime_metadata": "checked-in Commons V14 SCALE metadata is extracted from the current runtime Wasm and drives the reproducible PAPI descriptor; this route contract remains the authoritative product-policy projection",
     "sdk_host_operation": "prepare_sponsored_intent is an SDK/host operation bound to current Orbis state; it is not represented as a runtime API or pallet call"
   }
 } as const;

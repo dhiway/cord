@@ -1,0 +1,9 @@
+{
+  "name": "@cord-network/origin-sdk-descriptors-commons-generator",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@polkadot-api/descriptors": "file:generated"
+  }
+}

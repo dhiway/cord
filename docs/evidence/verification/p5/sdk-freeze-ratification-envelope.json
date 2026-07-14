@@ -134,7 +134,7 @@
       },
       "host": {
         "path": "docs/sdk/host/host-request.schema.json",
-        "canonical_sha256": "7b957b061112cde9fb11ad9fd368df0e233f722180252d5a0398d448179ea6c3"
+        "canonical_sha256": "b547b92dbe0bb80e78a19d7fd67bfc513ae0292b9676660c503ef4f4601e82b1"
       },
       "error": {
         "path": "docs/sdk/native-error.schema.json",
@@ -146,7 +146,7 @@
       },
       "vectors": {
         "path": "docs/sdk/vectors/transaction-policy-vector-registry.json",
-        "canonical_sha256": "fd2b2418eb6a7f3b55f268d22fb90e934064c1da7db9204a15661fd928fa01d0"
+        "canonical_sha256": "a8de69e0294d17bb8fccb959d96b51c41d7d0012a2efdbdf43fde114f2480aff"
       },
       "native_vectors": {
         "path": "docs/sdk/vectors/native-sdk-v1.json",
@@ -154,7 +154,7 @@
       },
       "descriptor": {
         "path": "product-sdk/packages/descriptors/generated/orbis-descriptor.json",
-        "canonical_sha256": "dd4af5d070f37137f027ca10246a027e18cc3f0adbdad26cf5b5647452314358"
+        "canonical_sha256": "4ee02519fdc85f299fc3c0f431bb9ba8bffc43f6e3b6868e617a08e01aca8eb4"
       },
       "test_report": {
         "path": "docs/evidence/verification/p0/test-report-contract.json",
@@ -162,7 +162,7 @@
       }
     }
   },
-  "payload_sha256": "8d2a197ca0a4093b51f29e2304bef3355c19286d796d205df38f63be6777f110",
+  "payload_sha256": "c04fdfe471cc307c028ef4e99e627517ab48e5afe92ac6e6fbbee84bda06bc6d",
   "signatures": [],
   "derived_status": {
     "p0_targets_ratified": false,
