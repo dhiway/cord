@@ -7,11 +7,11 @@
     "docs/evidence/p0-contract-native/guidance-audit.json": "e09676e0940985146e94a0de4181f0b634a9f0e95a4e7823211a658da611aa31",
     "docs/evidence/p0-contract-native/native-cutover-allowlist.json": "18639375b324d4130da06d498c103249f673658a614b40ed42125990001586da",
     "docs/evidence/p0-contract-native/native-cutover-cleanup.report.json": "75ffc61a67d3b20e87c55d017dd42a273ec0ab53506f0aeda83d5b8da02339d1",
-    "docs/evidence/p0-contract-native/reference-sbom-inputs.json": "8e7ae496bff91e172cb4d1c014b53a521e6127324e70b330e9c0a0139034b139",
-    "docs/evidence/p0-contract-native/repository-scope.report.json": "6eb7fcf69fccdf71d74e0be47dbada0fdce157406725568380bf3364cc10df5d",
+    "docs/evidence/p0-contract-native/reference-sbom-inputs.json": "df9c1e3a3ae8cfa1a3348b15147eb1bdb6e905383c513b5d40176da646c7e03e",
+    "docs/evidence/p0-contract-native/repository-scope.report.json": "220ddf6601debe5a95ffc3be51b0f8a476837c6b14adc3c419c8703116b26b12",
     "docs/evidence/p0-contract-native/semantic-review-readiness.json": "b138a6d19775fc5a72fe71ef7c70f414de89d6b0d9b3c4270a96828be8eb33f8",
     "docs/evidence/p0-contract-native/source-scope.report.json": "66b5ace02f5203bb60347487149d92e3491ecd26b7657e2c9ac6eb178cda1f06",
-    "docs/evidence/source-ledger.csv": "b28d19c56a6e3be75513215825c7d7195a6c8df6c345e4eb96668b2741425c8a",
+    "docs/evidence/source-ledger.csv": "0afbf04851e844addd77166d1529d698fedd71bacb550974b5acdabd27542be7",
     "docs/sdk/contract-to-native-map.json": "0f1ea8783001f2f2798c5b073a9afd55bc8bf69cf2d2fe2dc10324c2763b39e5"
   },
   "non_goals": [

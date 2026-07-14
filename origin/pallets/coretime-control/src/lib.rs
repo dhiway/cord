@@ -14,6 +14,9 @@
 
 pub use pallet::*;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{dispatch::DispatchResult, traits::Get, weights::Weight};
 use scale_info::TypeInfo;
@@ -106,22 +109,22 @@ impl SendReceipt for () {
 }
 
 pub trait WeightInfo {
-	fn request() -> Weight;
-	fn retry() -> Weight;
-	fn submit() -> Weight;
+	fn request_core_count() -> Weight;
+	fn retry_request() -> Weight;
+	fn submit_request() -> Weight;
 	fn acknowledge() -> Weight;
 	fn set_transport_hold() -> Weight;
 	fn release_held() -> Weight;
 }
 
 impl WeightInfo for () {
-	fn request() -> Weight {
+	fn request_core_count() -> Weight {
 		Weight::zero()
 	}
-	fn retry() -> Weight {
+	fn retry_request() -> Weight {
 		Weight::zero()
 	}
-	fn submit() -> Weight {
+	fn submit_request() -> Weight {
 		Weight::zero()
 	}
 	fn acknowledge() -> Weight {
@@ -137,17 +140,17 @@ impl WeightInfo for () {
 
 pub struct SubstrateWeight<T>(core::marker::PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	fn request() -> Weight {
-		Weight::from_parts(50_000_000, 4_000)
-			.saturating_add(T::DbWeight::get().reads(4))
-			.saturating_add(T::DbWeight::get().writes(6))
+	fn request_core_count() -> Weight {
+		Weight::from_parts(75_000_000, 32_000)
+			.saturating_add(T::DbWeight::get().reads(7))
+			.saturating_add(T::DbWeight::get().writes(10))
 	}
-	fn retry() -> Weight {
-		Weight::from_parts(45_000_000, 4_000)
-			.saturating_add(T::DbWeight::get().reads(3))
-			.saturating_add(T::DbWeight::get().writes(1))
+	fn retry_request() -> Weight {
+		Weight::from_parts(55_000_000, 16_000)
+			.saturating_add(T::DbWeight::get().reads(5))
+			.saturating_add(T::DbWeight::get().writes(3))
 	}
-	fn submit() -> Weight {
+	fn submit_request() -> Weight {
 		// Includes conservative headroom for applying the upstream Coretime request and sending
 		// the receipt XCM. Replace with generated weights before production activation.
 		Weight::from_parts(150_000_000, 8_000)
@@ -155,9 +158,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(8))
 	}
 	fn acknowledge() -> Weight {
-		Weight::from_parts(40_000_000, 4_000)
-			.saturating_add(T::DbWeight::get().reads(1))
-			.saturating_add(T::DbWeight::get().writes(1))
+		Weight::from_parts(50_000_000, 16_000)
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(3))
 	}
 	fn set_transport_hold() -> Weight {
 		Weight::from_parts(10_000_000, 1_000)
@@ -165,9 +168,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
 	fn release_held() -> Weight {
-		Weight::from_parts(45_000_000, 4_000)
+		Weight::from_parts(55_000_000, 16_000)
 			.saturating_add(T::DbWeight::get().reads(3))
-			.saturating_add(T::DbWeight::get().writes(1))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
 }
 
@@ -176,6 +179,8 @@ pub mod pallet {
 	use super::*;
 	use frame_support::{ensure, pallet_prelude::*, traits::EnsureOrigin};
 	use frame_system::pallet_prelude::*;
+
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config<RuntimeEvent: From<Event<Self>>> {
@@ -199,6 +204,7 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
@@ -219,6 +225,12 @@ pub mod pallet {
 
 	#[pallet::storage]
 	pub type HeldOutbound<T: Config> = StorageMap<_, Twox64Concat, RequestId, (), OptionQuery>;
+
+	/// Held request IDs in deterministic release order. This avoids an unbounded storage scan when
+	/// releasing the next request; the bounded vector is benchmarked at `MaxTrackedRequests`.
+	#[pallet::storage]
+	pub type HeldRequestIds<T: Config> =
+		StorageValue<_, BoundedVec<RequestId, T::MaxTrackedRequests>, ValueQuery>;
 
 	#[pallet::storage]
 	pub type LastApplied<T: Config> = StorageValue<_, (RequestId, CoreCount), OptionQuery>;
@@ -251,6 +263,7 @@ pub mod pallet {
 		RequestIdExhausted,
 		NoTrackingCapacity,
 		UnknownRequest,
+		RequestAlreadyTerminal,
 		UnknownReceipt,
 		ReceiptCountMismatch,
 		ReceiptStatusConflict,
@@ -263,7 +276,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Create one new monotonic request.
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::request())]
+		#[pallet::weight(T::WeightInfo::request_core_count())]
 		pub fn request_core_count(origin: OriginFor<T>, count: CoreCount) -> DispatchResult {
 			T::RequestOrigin::ensure_origin(origin)?;
 			Self::send_request(count)
@@ -272,7 +285,7 @@ pub mod pallet {
 		/// Apply an in-order request once, or deterministically acknowledge a replay/fault without
 		/// applying it. `BrokerOrigin` must be wired to para 1006 (or Root in tests).
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::submit())]
+		#[pallet::weight(T::WeightInfo::submit_request())]
 		#[frame_support::transactional]
 		pub fn submit_request(
 			origin: OriginFor<T>,
@@ -345,6 +358,12 @@ pub mod pallet {
 					record.status = Some(status);
 					Ok(status)
 				})?;
+			if matches!(
+				recorded_status,
+				ReceiptStatus::Accepted | ReceiptStatus::Duplicate | ReceiptStatus::Conflict
+			) {
+				Self::untrack_held(id);
+			}
 			Self::deposit_event(Event::ReceiptRecorded { id, count, status: recorded_status });
 			Ok(())
 		}
@@ -352,12 +371,23 @@ pub mod pallet {
 		/// Replay an existing bounded outbound record with the same request ID. This recovers from
 		/// delay, reordering, lost receipts and provider restarts without allocating a new nonce.
 		#[pallet::call_index(3)]
-		#[pallet::weight(T::WeightInfo::retry())]
+		#[pallet::weight(T::WeightInfo::retry_request())]
 		pub fn retry_request(origin: OriginFor<T>, id: RequestId) -> DispatchResult {
 			T::RequestOrigin::ensure_origin(origin)?;
 			let record = Outbound::<T>::get(id).ok_or(Error::<T>::UnknownRequest)?;
+			ensure!(
+				!matches!(
+					record.status,
+					Some(
+						ReceiptStatus::Accepted
+							| ReceiptStatus::Duplicate
+							| ReceiptStatus::Conflict
+					)
+				),
+				Error::<T>::RequestAlreadyTerminal
+			);
 			if T::TransportControlEnabled::get() && TransportHeld::<T>::get() {
-				HeldOutbound::<T>::insert(id, ());
+				Self::track_held(id)?;
 				Self::deposit_event(Event::RequestHeld { id, count: record.count });
 				return Ok(());
 			}
@@ -386,10 +416,11 @@ pub mod pallet {
 			T::TransportControlOrigin::ensure_origin(origin)?;
 			ensure!(T::TransportControlEnabled::get(), Error::<T>::TransportControlDisabled);
 			ensure!(HeldOutbound::<T>::contains_key(id), Error::<T>::RequestNotHeld);
-			let first = TrackedOutbound::<T>::get()
-				.into_iter()
-				.find(|candidate| HeldOutbound::<T>::contains_key(candidate));
-			ensure!(first == Some(id), Error::<T>::HeldReleaseOutOfOrder);
+			HeldRequestIds::<T>::try_mutate(|ids| -> DispatchResult {
+				ensure!(ids.first().copied() == Some(id), Error::<T>::HeldReleaseOutOfOrder);
+				ids.remove(0);
+				Ok(())
+			})?;
 			let record = Outbound::<T>::get(id).ok_or(Error::<T>::UnknownRequest)?;
 			T::RequestSender::send(id, record.count)?;
 			HeldOutbound::<T>::remove(id);
@@ -407,13 +438,33 @@ pub mod pallet {
 			Self::track(id, OutboundRecord { count, status: None })?;
 			NextRequestId::<T>::put(next);
 			if T::TransportControlEnabled::get() && TransportHeld::<T>::get() {
-				HeldOutbound::<T>::insert(id, ());
+				Self::track_held(id)?;
 				Self::deposit_event(Event::RequestHeld { id, count });
 			} else {
 				T::RequestSender::send(id, count)?;
 				Self::deposit_event(Event::RequestSent { id, count });
 			}
 			Ok(())
+		}
+
+		fn track_held(id: RequestId) -> DispatchResult {
+			if HeldOutbound::<T>::contains_key(id) {
+				return Ok(());
+			}
+			HeldRequestIds::<T>::try_mutate(|ids| {
+				ids.try_push(id).map_err(|_| Error::<T>::NoTrackingCapacity)
+			})?;
+			HeldOutbound::<T>::insert(id, ());
+			Ok(())
+		}
+
+		fn untrack_held(id: RequestId) {
+			HeldRequestIds::<T>::mutate(|ids| {
+				if let Some(position) = ids.iter().position(|candidate| *candidate == id) {
+					ids.remove(position);
+				}
+			});
+			HeldOutbound::<T>::remove(id);
 		}
 
 		fn track(id: RequestId, record: OutboundRecord) -> DispatchResult {
@@ -433,6 +484,7 @@ pub mod pallet {
 					});
 					ensure!(is_terminal, Error::<T>::NoTrackingCapacity);
 					ids.remove(0);
+					Self::untrack_held(completed);
 					Outbound::<T>::remove(completed);
 					Self::deposit_event(Event::OutboundPruned { id: completed });
 				}

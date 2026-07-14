@@ -49,6 +49,6 @@ mod benchmarks {
 		assert!(!FeelessPallet::<T>::is_feeless_account(&account));
 		Ok(())
 	}
-}
 
-impl_benchmark_test_suite!(FeelessPallet, crate::mock::new_test_ext(), crate::mock::Test);
+	impl_benchmark_test_suite!(FeelessPallet, crate::mock::new_test_ext(), crate::mock::Test);
+}

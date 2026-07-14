@@ -1,5 +1,5 @@
 use super::mock::*;
-use crate::{HeldOutbound, Outbound, OutboundRecord, ReceiptStatus, TransportHeld};
+use crate::{HeldOutbound, HeldRequestIds, Outbound, OutboundRecord, ReceiptStatus, TransportHeld};
 use frame_support::{assert_noop, assert_ok};
 
 #[test]
@@ -76,12 +76,14 @@ fn transport_hold_retains_and_releases_the_exact_envelope() {
 		SENT.with(|sent| assert!(sent.borrow().is_empty()));
 		assert!(TransportHeld::<Test>::get());
 		assert!(HeldOutbound::<Test>::contains_key(0));
+		assert_eq!(&*HeldRequestIds::<Test>::get(), &[0]);
 		assert_eq!(Outbound::<Test>::get(0), Some(OutboundRecord { count: 3, status: None }));
 		assert_eq!(crate::NextRequestId::<Test>::get(), 1);
 
 		assert_ok!(CoretimeControl::release_held(RuntimeOrigin::root(), 0));
 		SENT.with(|sent| assert_eq!(&*sent.borrow(), &[(0, 3)]));
 		assert!(!HeldOutbound::<Test>::contains_key(0));
+		assert!(HeldRequestIds::<Test>::get().is_empty());
 		assert_ok!(CoretimeControl::set_transport_hold(RuntimeOrigin::root(), false));
 	});
 }
@@ -93,6 +95,7 @@ fn failed_held_release_is_atomic_and_retry_cannot_bypass_the_gate() {
 		assert_ok!(CoretimeControl::request_core_count(RuntimeOrigin::root(), 2));
 		assert_ok!(CoretimeControl::request_core_count(RuntimeOrigin::root(), 3));
 		assert_ok!(CoretimeControl::retry_request(RuntimeOrigin::root(), 0));
+		assert_eq!(&*HeldRequestIds::<Test>::get(), &[0, 1]);
 		SENT.with(|sent| assert!(sent.borrow().is_empty()));
 		assert_noop!(
 			CoretimeControl::release_held(RuntimeOrigin::root(), 1),
@@ -105,7 +108,72 @@ fn failed_held_release_is_atomic_and_retry_cannot_bypass_the_gate() {
 			sp_runtime::DispatchError::Other("request send failed")
 		);
 		assert!(HeldOutbound::<Test>::contains_key(0));
+		assert_eq!(&*HeldRequestIds::<Test>::get(), &[0, 1]);
 		assert_eq!(Outbound::<Test>::get(0).unwrap().status, None);
+	});
+}
+
+#[test]
+fn terminal_held_receipt_cannot_leave_a_stale_fifo_head() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(CoretimeControl::set_transport_hold(RuntimeOrigin::root(), true));
+		assert_ok!(CoretimeControl::request_core_count(RuntimeOrigin::root(), 2));
+		assert_ok!(CoretimeControl::retry_request(RuntimeOrigin::root(), 0));
+		assert_eq!(&*HeldRequestIds::<Test>::get(), &[0]);
+
+		assert_ok!(CoretimeControl::acknowledge(
+			RuntimeOrigin::root(),
+			0,
+			2,
+			ReceiptStatus::Accepted,
+		));
+		assert!(HeldRequestIds::<Test>::get().is_empty());
+		assert!(!HeldOutbound::<Test>::contains_key(0));
+		assert_noop!(
+			CoretimeControl::retry_request(RuntimeOrigin::root(), 0),
+			crate::Error::<Test>::RequestAlreadyTerminal
+		);
+
+		assert_ok!(CoretimeControl::set_transport_hold(RuntimeOrigin::root(), false));
+		assert_ok!(CoretimeControl::request_core_count(RuntimeOrigin::root(), 3));
+		assert_ok!(CoretimeControl::acknowledge(
+			RuntimeOrigin::root(),
+			1,
+			3,
+			ReceiptStatus::Accepted,
+		));
+		assert_ok!(CoretimeControl::request_core_count(RuntimeOrigin::root(), 4));
+		assert_ok!(CoretimeControl::set_transport_hold(RuntimeOrigin::root(), true));
+		assert_ok!(CoretimeControl::request_core_count(RuntimeOrigin::root(), 5));
+		assert_eq!(&*HeldRequestIds::<Test>::get(), &[3]);
+		assert_ok!(CoretimeControl::release_held(RuntimeOrigin::root(), 3));
+		assert!(HeldRequestIds::<Test>::get().is_empty());
+	});
+}
+
+#[test]
+fn first_duplicate_receipt_is_terminal_and_untracks_held_request() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(CoretimeControl::set_transport_hold(RuntimeOrigin::root(), true));
+		assert_ok!(CoretimeControl::request_core_count(RuntimeOrigin::root(), 2));
+		assert_ok!(CoretimeControl::acknowledge(
+			RuntimeOrigin::root(),
+			0,
+			2,
+			ReceiptStatus::Duplicate,
+		));
+		assert_eq!(Outbound::<Test>::get(0).unwrap().status, Some(ReceiptStatus::Duplicate));
+		assert!(HeldRequestIds::<Test>::get().is_empty());
+		assert!(!HeldOutbound::<Test>::contains_key(0));
+		assert_noop!(
+			CoretimeControl::retry_request(RuntimeOrigin::root(), 0),
+			crate::Error::<Test>::RequestAlreadyTerminal
+		);
+
+		assert_ok!(CoretimeControl::request_core_count(RuntimeOrigin::root(), 3));
+		assert_eq!(&*HeldRequestIds::<Test>::get(), &[1]);
+		assert_ok!(CoretimeControl::release_held(RuntimeOrigin::root(), 1));
+		assert!(HeldRequestIds::<Test>::get().is_empty());
 	});
 }
 

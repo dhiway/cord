@@ -41,7 +41,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Parachain host | configuration, initializer, inclusion, paras, inherent, scheduler, disputes, slashing, HRMP/DMP/UMP | Present |
 | Elastic scheduling | Assignments V2, ElasticScalingMVP, candidate receipts V2/V3, async backing | Present and native-smoke tested |
 | Core allocation | relay `Coretime`, on-demand assignment and claim queue | Present |
-| Orbis broker trust | `BrokerId = 1006`, Orbis-origin XCM authorization | Present; full Broker-driven native E2E pending |
+| Orbis broker trust | `BrokerId = 1006`, Orbis-origin XCM authorization, `CoretimeControl` replay/receipt envelope at index 221 | Present; full Broker-driven native E2E pending |
 | Relay administration | `Sudo`, registrar/root origins | Present |
 | Staking and public governance | none in the enterprise authority/control path | Excluded by policy |
 
@@ -115,29 +115,30 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Retention, renewal and permanent accounting | Bulletin | Present and unit-tested |
 | Storage transaction validation and anti-wrapper policy | Bulletin | Present in the Orbis transaction envelope |
 | Runtime authorization/query API | Bulletin | Present |
-| Proof inherent | Bulletin node/runtime | Runtime present; production retention-window E2E is deferred to P7 after feature completeness |
+| Proof inherent | Bulletin node/runtime | TransactionStorageApi v2 and the SDK-v1.24 omni-node Aura provider (which accepts v1+) are composed; production retention-window E2E is deferred to P7 after feature completeness |
 | Hop promotion | `pallet_bulletin_hop_promotion` | Vendored under Orbis, present at index 111 with `sp_hop` runtime API |
 | Storage providers | Web3 Storage semantics | Native CORD pallet present at index 120; Sudo-authorized, zero-stake provider lifecycle, agreements, challenges and checkpoints |
 | Drive registry | Web3 Storage semantics | Native bounded CORD pallet present at index 121 |
 | S3 registry | Web3 Storage semantics | Native bounded CORD pallet present at index 122 |
 | Provider/drive/S3 runtime APIs and node services | CORD-owned implementation | Versioned finalized-state runtime APIs and the `origin-orbis-provider` companion/outbox consumer are present; deployment hardening and live-network evidence remain P7 work |
 
-The exact retained Web3 crates, provider modules, HTTP routes, workers, bounded runtime API
-signatures and pagination limits are frozen in manifest version 1. Anything else at that snapshot
-is excluded unless replanned. `file-system-primitives` has no declared license at the pinned
-revision and cannot be copied verbatim until provenance is resolved.
+The Web3 reference inventory originated in manifest version 1 and is now classified reference-only
+and excluded in current candidate manifest version 17. CORD-owned Provider, Drive, S3, runtime API,
+HTTP and worker surfaces are the implementation authority. Anything outside that boundary requires
+replanning. `file-system-primitives` has no declared license at the pinned revision and cannot be
+copied verbatim.
 
 ## Coretime, transactions, and policy
 
 | Capability | Native implementation | State |
 |---|---|---|
-| Coretime Broker | `pallet_broker` at protocol index 50 | Present |
-| Three-core reservations | complete `Task(para_id)` masks | Unit-tested; Broker-to-Origin E2E pending |
+| Coretime Broker | `pallet_broker` at protocol index 50 plus stack-owned `CoretimeControl` at index 221 | Present; monotonic request IDs, replay rejection, delayed retry and Origin receipts do not fork the SDK Broker/Coretime primitives |
+| Three-core reservations | complete `Task(para_id)` masks | Unit-tested; Broker-to-Origin live E2E pending |
 | Sponsored transactions | MetaTx with user signature/nonce and sponsor payment | Spec 29/tx 8 composes Score participant and Honour voter authentication with Verify→Consume, the account-bound router, bounded ingress, one-shot paid token/finalization and signed direct Resources payer adapters; manifest v4 remains the immutable spec-28/tx-7 historical evidence boundary and the v8 fixtures are the active compatibility envelope |
 | Controlled zero-fee calls | Feeless allowlist, per-account quota, deny-by-default wrappers | Present and abuse-tested |
 | Solidity actor preservation | Revive `SetOrigin` plus transaction envelope | Present |
 | Bulletin call validation | recursive storage-call inspector | Present |
-| Runtime upgrade safety | generic future migrations, SafeMode and TxPause | New genesis starts directly at current pallet storage versions with `Migrations = ()`; only future post-genesis schema changes may add forward migrations |
+| Runtime upgrade safety | generic future migrations, SafeMode and TxPause | New genesis starts directly at current migrated-domain pallet storage versions with no predecessor/data import; Orbis uses `Migrations = ()`, while Origin retains the pinned SDK permanent XCM maintenance migration. Only future post-genesis schema changes may add CORD-owned forward migrations |
 
 ### Clean-genesis feature sequence
 
@@ -186,9 +187,10 @@ APIs, Orbis transaction-extension order, node/CLI/RPC and Rust/TypeScript SDK di
 changing this matrix's capability decisions.
 
 The reconciliation records the independently reviewed historical Slice-2 evidence closure. Current
-manifest v7 tracks clean-genesis native feature implementation and is deliberately marked
-unratified. Historical v5 closure proves only its original bounded claims; it does not ratify the
-new provider/runtime/SDK surface or claim production readiness. There is no legacy data
+candidate manifest v17 tracks clean-genesis native feature implementation and remains unratified
+until its independent transition/product/evidence reviews are recorded. Historical v5 closure
+proves only its original bounded claims; it does not ratify the new provider/runtime/SDK surface or
+claim production readiness. There is no legacy data
 migration, Solidity-ABI compatibility or old-network cutover requirement: migrated domains start
 native at new genesis, and superseded contract-era code is deleted under the native-cutover cleanup
 gate.

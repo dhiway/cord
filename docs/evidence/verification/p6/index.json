@@ -31,24 +31,24 @@
       "sha256": "be9a8e8c69d04f47bdc9e82b2dd9dd13dbd759cadccd1071b04ea13680ced13e"
     },
     {
-      "bytes": 526,
+      "bytes": 528,
       "path": "docs/evidence/verification/p6/raw/enterprise-content-failover.log",
-      "sha256": "86bcafc70e51ac3f7bbfc06819f2df959c5b3565eb73853e60f15247048d3973"
+      "sha256": "2e1c91348451516c1ee7471820cd297dbe05da3cb7346e9b386e95228cebf259"
     },
     {
       "bytes": 569,
       "path": "docs/evidence/verification/p6/raw/enterprise-lifecycle.log",
-      "sha256": "3d5ddce3df87ae9c33114b8d738dd482aa8480a86ae0e4c514755681657336b9"
+      "sha256": "a8f7460b248468488d657a3367677a9fff343d0fdd9fe67b6f451c4e72053a67"
     },
     {
       "bytes": 908,
       "path": "docs/evidence/verification/p6/raw/enterprise-provider-read-reopen.log",
-      "sha256": "75c8b5dde6d14e6d5679d6db33666cb1e1ae01dbb888cedcbc42c59f02f7ade2"
+      "sha256": "3e963c2945d57a0bfec43f7467b1972bc2c687e8f946b593d3e3899fddfcf512"
     },
     {
       "bytes": 545,
       "path": "docs/evidence/verification/p6/raw/enterprise-sponsored-boundaries.log",
-      "sha256": "2769365a8acdc854ca2be4b04c1389d7ba5b1cd14ef6b40d74386392942aab71"
+      "sha256": "594e16897940a99d770b33c605f9afd275374c437addc6b3cf2e3d9613f55a3b"
     },
     {
       "bytes": 231,
@@ -58,7 +58,7 @@
     {
       "bytes": 689,
       "path": "docs/evidence/verification/p6/raw/festival-contract-tests.log",
-      "sha256": "caee6a0e0550edbac98530de8a67607df88c80fb3c518eb647f050efa8c31c65"
+      "sha256": "f13c50a7a7f083be8a5998aa2da8807ef18fd878f5eb4632d8ac64c7e4769254"
     },
     {
       "bytes": 223,
@@ -84,7 +84,7 @@
     },
     {
       "path": "origin/orbis/runtime/src/lib.rs",
-      "sha256": "037a34d2e287e5171c99616682adbb908b3bee5a13e13c6b9916d38102b90f53"
+      "sha256": "9c0725827f48c3edfe84130c60bf0fe448e3b7c80ab5bb60ff78ca6fb421fb3c"
     },
     {
       "path": "origin/orbis/runtime/src/enterprise_journey.rs",

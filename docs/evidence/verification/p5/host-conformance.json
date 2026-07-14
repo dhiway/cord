@@ -14,7 +14,7 @@
     {
       "command": "npm --prefix product-sdk run test:host",
       "exit_code": 0,
-      "output_sha256": "0ec2a359224db67ee1a40a9ddd9103dbf3a6ade33cb6c783ce9b43e6aceee870"
+      "output_sha256": "11e7b50651117dcc75a3bc4f9d23d813522d40d0932b6661f18ec89cad965f6a"
     }
   ],
   "criterion": "AC23",

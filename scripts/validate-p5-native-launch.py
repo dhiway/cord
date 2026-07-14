@@ -122,6 +122,53 @@ def record_log(name: str, heading: str, output: str) -> None:
     RAW_LOGS.setdefault(name, []).append(f"## {heading}\n{output.rstrip()}\n")
 
 
+def validate_feature_completeness(execute: bool) -> tuple[dict, str, list[str]]:
+    command = [
+        sys.executable,
+        "scripts/validate-origin-orbis-feature-completeness.py",
+        "--write",
+    ]
+    code, output = recorded_run("m9-cleanup", command)
+    errors: list[str] = []
+    if code:
+        errors.append("current Origin/Orbis feature-completeness validation failed")
+    path = EVIDENCE / "feature-completeness.report.json"
+    if not path.is_file():
+        errors.append("feature-completeness report was not written")
+        return {
+            "status": "fail",
+            "feature_complete": False,
+            "production_ready": False,
+            "errors": errors,
+        }, "fail", errors
+    result = read_json(path)
+    if result.get("status") != "pass" or result.get("feature_complete") is not True:
+        errors.append("native feature boundary is not complete")
+    if result.get("production_ready") is not False:
+        errors.append("feature report improperly claims production readiness")
+    benchmark_status = "not-executed"
+    if execute:
+        benchmark_status = "pass"
+        commands = [
+            ["cargo", "test", "-p", "pallet-coretime-control", "--features",
+             "runtime-benchmarks", "--locked"],
+            ["cargo", "test", "-p", "pallet-orbis-token", "--features",
+             "runtime-benchmarks", "--locked"],
+            ["cargo", "test", "-p", "pallet-orbis-feeless", "--features",
+             "runtime-benchmarks", "--locked"],
+            ["env", "SKIP_WASM_BUILD=1", "cargo", "check", "-p", "origin-runtime",
+             "--features", "runtime-benchmarks", "--locked"],
+            ["env", "SKIP_PALLET_REVIVE_FIXTURES=1", "cargo", "check", "-p",
+             "origin-orbis-runtime", "--features", "runtime-benchmarks", "--locked"],
+        ]
+        for build_command in commands:
+            build_code, _ = recorded_run("m9-cleanup", build_command, timeout=900)
+            if build_code:
+                benchmark_status = "fail"
+                errors.append(f"feature benchmark command failed: {shlex.join(build_command)}")
+    return result, benchmark_status, errors
+
+
 def recorded_run(name: str, command: list[str], *, env: dict[str, str] | None = None,
                  timeout: int | None = None) -> tuple[int, str]:
     process = subprocess.run(
@@ -860,6 +907,9 @@ def main() -> int:
     parser.add_argument("--static-only", action="store_true",
                         help="skip the focused Product SDK executable conformance commands")
     args = parser.parse_args()
+    feature, feature_benchmarks, feature_errors = validate_feature_completeness(
+        not args.static_only
+    )
     host, operator, host_errors = validate_host_and_operator(not args.static_only)
     revive, cleanup, cutover_errors = validate_cutover(not args.static_only)
     record_log("m9-cleanup", "M9 machine inventory", json.dumps(cleanup, indent=2, sort_keys=True))
@@ -869,17 +919,19 @@ def main() -> int:
     report("native-cutover-cleanup.report.json", cleanup)
     summary = {
         "schema": "cord.p5-native-launch-validation.v1",
-        "status": "pass" if not host_errors and not cutover_errors else "fail",
+        "status": "pass" if not feature_errors and not host_errors and not cutover_errors else "fail",
         "criteria": {"AC23": host["status"], "M7": revive["status"], "M9": cleanup["status"],
+                     "feature_completeness": feature["status"],
+                     "feature_benchmarks": feature_benchmarks,
                      "operator_bootstrap": operator["status"]},
-        "reports": ["host-conformance.json", "operator-bootstrap.report.json",
+        "reports": ["feature-completeness.report.json", "host-conformance.json", "operator-bootstrap.report.json",
                     "revive-boundary.report.json", "native-cutover-cleanup.report.json"],
-        "errors": host_errors + cutover_errors,
+        "errors": feature_errors + host_errors + cutover_errors,
     }
     report("native-launch-verdict.json", summary)
     write_raw_logs_and_index(
         [
-            "host-conformance.json", "operator-bootstrap.report.json",
+            "feature-completeness.report.json", "host-conformance.json", "operator-bootstrap.report.json",
             "revive-boundary.report.json", "native-cutover-cleanup.report.json",
             "native-launch-verdict.json",
         ],

@@ -1429,6 +1429,7 @@ mod benches {
 		[runtime_parachains::coretime, Coretime]
 		[pallet_balances, Balances]
 		[pallet_beefy_mmr, MmrLeaf]
+		[pallet_coretime_control, CoretimeControl]
 		[frame_benchmarking::baseline, Baseline::<Runtime>]
 		[pallet_indices, Indices]
 		[pallet_message_queue, MessageQueue]

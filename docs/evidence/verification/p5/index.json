@@ -1,9 +1,14 @@
 {
   "artifacts": [
     {
+      "bytes": 5218,
+      "path": "docs/evidence/verification/p5/feature-completeness.report.json",
+      "sha256": "76c72f9a64b16e499512bc28ce6d647b5dcf5b6f6a0d645c2778e5dbbd4374c9"
+    },
+    {
       "bytes": 911,
       "path": "docs/evidence/verification/p5/host-conformance.json",
-      "sha256": "ab62691cf8633c3335e7e44596724c79f759663cdf505621f3345f15ae636ef2"
+      "sha256": "eaa34c75899ccc85da1d5af047d7b189c25744cf8e9039fc0bc70073bc572939"
     },
     {
       "bytes": 1547,
@@ -13,37 +18,37 @@
     {
       "bytes": 840,
       "path": "docs/evidence/verification/p5/revive-boundary.report.json",
-      "sha256": "91db69b532f28e9fdb9feea00d3585657e9d89fa54f5748fe53fed1864eb3256"
+      "sha256": "011a08d33d06b32abb67d829db40358d190ed37c88aa500e4a27cea657a19670"
     },
     {
       "bytes": 1821,
       "path": "docs/evidence/verification/p5/native-cutover-cleanup.report.json",
-      "sha256": "3783183fba143dcc3dd5781a42b4bdf06af3d5cd745f346cc040e30d3f4f94b6"
+      "sha256": "0f58a7e391d122c6a22d8cbbde9c6c3e006af826d3eb811705c5a6f0a17c9039"
     },
     {
-      "bytes": 400,
+      "bytes": 510,
       "path": "docs/evidence/verification/p5/native-launch-verdict.json",
-      "sha256": "600ab768a750d7d6782b9dbff973f49406131a1e35cf1f3c5316cce4e8c15fbd"
+      "sha256": "89c0b4e977292bfcc33557cd08055596740cc5b590f1bf0b54e5291815ec6cc7"
     },
     {
-      "bytes": 6010,
+      "bytes": 6008,
       "path": "docs/evidence/verification/p5/raw/host-conformance.log",
-      "sha256": "c7c7a07ebabab8af1f4e4de3f61bb30317f904e79f9f8d10b1b00f9723eb6efb"
+      "sha256": "bf8a15554d2c480c0d92a33ce4bbbb1171be3c5ea1b5494408b01e47450d9e06"
     },
     {
-      "bytes": 2165,
+      "bytes": 13280,
       "path": "docs/evidence/verification/p5/raw/m9-cleanup.log",
-      "sha256": "4a71c58aa2c2398468b5808e4cfe444ab0ed2865e7055f4f6d0c1a63f57f15d8"
+      "sha256": "c53bca7962c1945eb45c2fd660995de817f89e317938db7250849384b10cf6eb"
     },
     {
       "bytes": 4728,
       "path": "docs/evidence/verification/p5/raw/operator-executable.log",
-      "sha256": "8f775e3c0fef70e2f3ab114b05c6c2f5c7854c1814f3141994e9fbbb4ffce23b"
+      "sha256": "08cc6501bd2f9ffe5b03ffa28d49b76404a89605c733386929e0476d0a744f6f"
     },
     {
-      "bytes": 465,
+      "bytes": 706,
       "path": "docs/evidence/verification/p5/raw/revive-retained-evidence.log",
-      "sha256": "cb400f4cd14d07ac1cd3db1026bb59ae0db6fcbdb982a494851c46512347859e"
+      "sha256": "9123e236addaf352c0ad09502f3b00f59fe758a04a3a88b8a8db8ac75f67dc07"
     }
   ],
   "command": "python3 scripts/validate-p5-native-launch.py",

@@ -10733,6 +10733,7 @@ dependencies = [
 name = "pallet-coretime-control"
 version = "0.9.9"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",

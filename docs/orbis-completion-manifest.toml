@@ -1,7 +1,7 @@
-manifest_version = 16
+manifest_version = 17
 scope = "origin-orbis-enterprise-completion"
 implementation_branch = "sm-update-sub-0x63"
-current_state = "p2-p5-feature-implementation-present-p5-unratified"
+current_state = "p2-p6-native-feature-implementation-present-production-validation-deferred"
 historical_baseline_manifest_version = 5
 max_api_page_size = 100
 max_s3_bucket_name_bytes = 63
@@ -9,9 +9,9 @@ max_s3_object_key_bytes = 1024
 
 [replanning]
 rule = "Adding or removing any row, method, service, scenario, or exclusion requires independent review and a manifest_version increment."
-iteration = 16
-decision = "clean-genesis-native-feature-completion"
-plan_evidence = "docs/adr/0013-storage-provider-completion.md"
+iteration = 17
+decision = "clean-genesis-native-feature-source-of-truth-reconciliation"
+plan_evidence = "docs/adr/0017-native-feature-source-of-truth.md"
 transition_architect_evidence = ""
 transition_architect_status = "pending"
 transition_critic_evidence = ""
@@ -1765,174 +1765,184 @@ state = "present"
 evidence = "source storage_version declaration"
 
 [[node_surface]]
+id = "NODE-ORBIS-TRANSACTION-STORAGE-PROOF-PROVIDER"
+kind = "node-consensus-provider"
+name = "SDK TransactionStorageApi proof inherent provider"
+state = "present"
+source = "dhiway-sdk"
+license = "Apache-2.0"
+owner = "p4-storage-provider"
+evidence = "origin/orbis/node/src/main.rs uses polkadot_omni_node_lib; Cargo.lock pins SDK v1.24; Orbis exposes TransactionStorageApi"
+
+[[node_surface]]
 id = "WEB3-CRATE-storage-primitives"
 kind = "source-crate"
 name = "storage-primitives"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-10"
-evidence = "slice-10"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned native replacement is implemented in origin/orbis"
 
 [[node_surface]]
 id = "WEB3-CRATE-pallet-storage-provider"
 kind = "source-crate"
 name = "pallet-storage-provider"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-10"
-evidence = "slice-10"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned native replacement is implemented in origin/orbis"
 
 [[node_surface]]
 id = "WEB3-CRATE-storage-client"
 kind = "source-crate"
 name = "storage-client"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-12"
-evidence = "slice-12"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned provider-node replacement is implemented in origin/orbis/provider-node"
 
 [[node_surface]]
 id = "WEB3-CRATE-file-system-primitives"
 kind = "source-crate"
 name = "file-system-primitives"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "UNDECLARED-REQUIRES-LEGAL-CLEARANCE"
-owner = "slice-11"
-evidence = "slice-11"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned native replacement is implemented in origin/orbis"
 
 [[node_surface]]
 id = "WEB3-CRATE-pallet-drive-registry"
 kind = "source-crate"
 name = "pallet-drive-registry"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-11"
-evidence = "slice-11"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned native replacement is implemented in origin/orbis"
 
 [[node_surface]]
 id = "WEB3-CRATE-file-system-client"
 kind = "source-crate"
 name = "file-system-client"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-12"
-evidence = "slice-12"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned provider-node replacement is implemented in origin/orbis/provider-node"
 
 [[node_surface]]
 id = "WEB3-CRATE-s3-primitives"
 kind = "source-crate"
 name = "s3-primitives"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-11"
-evidence = "slice-11"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned native replacement is implemented in origin/orbis"
 
 [[node_surface]]
 id = "WEB3-CRATE-pallet-s3-registry"
 kind = "source-crate"
 name = "pallet-s3-registry"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-11"
-evidence = "slice-11"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned native replacement is implemented in origin/orbis"
 
 [[node_surface]]
 id = "WEB3-CRATE-s3-client"
 kind = "source-crate"
 name = "s3-client"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-12"
-evidence = "slice-12"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned provider-node replacement is implemented in origin/orbis/provider-node"
 
 [[node_surface]]
 id = "WEB3-MODULE-api"
 kind = "provider-module"
 name = "api"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-12"
-evidence = "slice-12"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned provider-node replacement is implemented in origin/orbis/provider-node"
 
 [[node_surface]]
 id = "WEB3-MODULE-challenge_responder"
 kind = "provider-module"
 name = "challenge_responder"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-12"
-evidence = "slice-12"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned provider-node replacement is implemented in origin/orbis/provider-node"
 
 [[node_surface]]
 id = "WEB3-MODULE-checkpoint_coordinator"
 kind = "provider-module"
 name = "checkpoint_coordinator"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-12"
-evidence = "slice-12"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned provider-node replacement is implemented in origin/orbis/provider-node"
 
 [[node_surface]]
 id = "WEB3-MODULE-replica_sync"
 kind = "provider-module"
 name = "replica_sync"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-12"
-evidence = "slice-12"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned provider-node replacement is implemented in origin/orbis/provider-node"
 
 [[node_surface]]
 id = "WEB3-MODULE-replica_sync_coordinator"
 kind = "provider-module"
 name = "replica_sync_coordinator"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-12"
-evidence = "slice-12"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned provider-node replacement is implemented in origin/orbis/provider-node"
 
 [[node_surface]]
 id = "WEB3-MODULE-mmr"
 kind = "provider-module"
 name = "mmr"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-12"
-evidence = "slice-12"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned provider-node replacement is implemented in origin/orbis/provider-node"
 
 [[node_surface]]
 id = "WEB3-MODULE-storage-disk"
 kind = "provider-module"
 name = "storage::disk"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-12"
-evidence = "slice-12"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned provider-node replacement is implemented in origin/orbis/provider-node"
 
 [[node_surface]]
 id = "WEB3-MODULE-storage-in_memory"
 kind = "provider-module"
 name = "storage::in_memory"
-state = "planned"
+state = "excluded"
 source = "web3-storage"
 license = "Apache-2.0"
-owner = "slice-12"
-evidence = "slice-12"
+owner = "p4-storage-provider"
+evidence = "reference-only semantics; CORD-owned provider-node replacement is implemented in origin/orbis/provider-node"
 
 [[node_surface]]
 id = "HTTP-GET--health"
@@ -2448,8 +2458,8 @@ index = 98
 package = "indiv-pallet-game"
 source = "individuality-community"
 license = "Apache-2.0"
-state = "planned"
-evidence = "slice-5"
+state = "excluded"
+evidence = "not admitted: Game is outside the enterprise-first launch scope"
 
 [[runtime_pallet]]
 id = "PAL-099"
@@ -2612,17 +2622,27 @@ license = "UNRESOLVED-NOT-IN-PINNED-SDK"
 state = "excluded"
 evidence = "not admitted: claims/public token economics are outside launch scope"
 
+[[runtime_pallet]]
+id = "PAL-221"
+name = "coretime-control"
+index = 221
+package = "pallet-coretime-control"
+source = "cord"
+license = "GPL-3.0-or-later"
+state = "present"
+evidence = "origin/pallets/coretime-control; origin/base/runtime/src/lib.rs:index-221; origin/orbis/runtime/src/lib.rs:index-221"
+
 [[benchmark]]
 id = "BENCH-38"
 target = "pallet_orbis_token"
-state = "planned"
-evidence = "bounded completion slice"
+state = "present-initial-version"
+evidence = "origin/orbis/pallets/token/src/benchmarking.rs; origin/orbis/runtime/src/lib.rs:define_benchmarks; final regeneration remains P7"
 
 [[benchmark]]
 id = "BENCH-39"
 target = "pallet_orbis_feeless"
-state = "planned"
-evidence = "bounded completion slice"
+state = "present-conservative-p7-regeneration-required"
+evidence = "origin/orbis/pallets/feeless/src/benchmarking.rs; origin/orbis/runtime/src/lib.rs:define_benchmarks; final regeneration remains P7"
 
 [[benchmark]]
 id = "BENCH-40"
@@ -2733,6 +2753,19 @@ id = "BENCH-57"
 target = "pallet_claims"
 state = "excluded"
 evidence = "capability excluded from enterprise launch scope"
+
+[[benchmark]]
+id = "BENCH-58"
+target = "pallet_coretime_control"
+state = "present-conservative-p7-regeneration-required"
+evidence = "origin/pallets/coretime-control/src/benchmarking.rs; Origin and Orbis runtime benchmark registries; final per-runtime generation remains P7"
+
+[[migration]]
+id = "MIG-pallet-coretime-control"
+package = "pallet-coretime-control"
+storage_version = 1
+state = "not-applicable-clean-genesis-current-schema"
+evidence = "origin/pallets/coretime-control/src/lib.rs:STORAGE_VERSION; no predecessor hook or legacy import"
 
 [[migration]]
 id = "MIG-indiv-pallet-resources"
