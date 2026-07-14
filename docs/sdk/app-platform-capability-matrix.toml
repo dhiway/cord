@@ -55,9 +55,9 @@ journey = "Enterprise organization and user identities are resolved at finality"
 runtime_owner = "People pallet and identity runtime APIs"
 sdk_owner = "origin-sdk-identity"
 host_owner = "Account selection and disclosure consent"
-state = "runtime-present-sdk-partial"
+state = "runtime-present-sdk-present"
 contract_policy = "forbidden-native-authority"
-evidence = "origin/orbis/runtime/src/lib.rs; product-sdk/src/identity.ts"
+evidence = "origin/orbis/runtime/src/lib.rs; product-sdk/packages/origin-sdk-identity/src/index.ts"
 
 [[capability]]
 id = "personhood-resources"
@@ -66,9 +66,9 @@ journey = "Festival proves eligibility and obtains bounded messaging resources"
 runtime_owner = "Personhood, Members, PeopleLite, and Resources pallets"
 sdk_owner = "origin-sdk-personhood and origin-sdk-resources"
 host_owner = "Proof and disclosure consent"
-state = "runtime-present-sdk-gap"
+state = "runtime-sdk-present-host-proof-integration-pending"
 contract_policy = "forbidden-native-authority"
-evidence = "origin/orbis/pallets/resources/src/lib.rs; origin/orbis/runtime/src/lib.rs"
+evidence = "origin/orbis/pallets/resources/src/lib.rs; product-sdk/packages/origin-sdk-personhood/src/index.ts; product-sdk/packages/origin-sdk-resources/src/index.ts"
 
 [[capability]]
 id = "attestation"

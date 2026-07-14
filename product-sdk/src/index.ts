@@ -22,7 +22,6 @@ export * from "./names.ts";
 export * from "./drive.ts";
 export * from "./errors.ts";
 export * from "./host.ts";
-export * from "./identity.ts";
 export * from "./provider.ts";
 export * from "./s3.ts";
 export * from "./storage.ts";

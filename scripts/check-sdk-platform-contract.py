@@ -68,6 +68,13 @@ def array(block: str, key: str) -> list[str]:
     return value
 
 
+def integer(block: str, key: str) -> int:
+    match = re.search(rf'^{re.escape(key)}\s*=\s*([0-9]+)\s*$', block, re.MULTILINE)
+    if not match:
+        fail(f"missing integer {key}")
+    return int(match.group(1))
+
+
 def git(*args: str) -> str:
     return subprocess.check_output(["git", *args], cwd=ROOT, text=True).strip()
 
@@ -189,8 +196,20 @@ if "@cord-network/origin-sdk-contracts" in graph["@cord-network/origin-sdk"]:
     fail("umbrella depends on optional contracts")
 
 current = json.loads((ROOT / "product-sdk/package.json").read_text())
-if len(current.get("exports", {})) != 20:
+current_table_match = re.search(r'^\[current\]\n(.*?)(?=^\[)', package_text, re.MULTILINE | re.DOTALL)
+if not current_table_match:
+    fail("missing current package inventory")
+current_table = current_table_match.group(1)
+expected_exports = array(current_table, "exports")
+if list(current.get("exports", {})) != expected_exports or len(expected_exports) != integer(current_table, "export_count"):
     fail("current public export inventory drift")
+present_packages = {scalar(block, "name") for block in package_blocks if scalar(block, "state") == "present"}
+workspace_packages = {
+    json.loads(path.read_text())["name"]
+    for path in (ROOT / "product-sdk/packages").glob("origin-sdk-*/package.json")
+}
+if workspace_packages != present_packages or len(workspace_packages) != integer(current_table, "publishable_packages"):
+    fail("current publishable package inventory drift")
 
 header = subprocess.run(
     [sys.executable, "scripts/check-source-headers.py"],

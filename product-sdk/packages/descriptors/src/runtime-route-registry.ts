@@ -22,20 +22,20 @@ import { storage } from "../../../src/storage.ts";
 import { provider } from "../../../src/provider.ts";
 import { drive } from "../../../src/drive.ts";
 import { s3 } from "../../../src/s3.ts";
-import { identity } from "../../../src/identity.ts";
+import { identityHostRoutes, personhoodHostRoutes } from "./identity-host-routes.ts";
 import { sponsoredTransaction } from "../../../src/sponsored-transaction.ts";
 
 /** Direct references to every real exported SDK route callable. */
 export const NATIVE_RUNTIME_ROUTE_REGISTRY = {
-  "identity:identity_status": identity.identityStatus,
-  "identity:personhood_status": identity.personhoodStatus,
-  "identity:attestation_allowance": identity.attestationAllowance,
-  "identity:set_identity": identity.setIdentity,
-  "identity:clear_identity": identity.clearIdentity,
-  "identity:request_judgement": identity.requestJudgement,
-  "identity:cancel_judgement_request": identity.cancelJudgementRequest,
-  "identity:provide_judgement": identity.provideJudgement,
-  "identity:attest_lite_person": identity.attestLitePerson,
+  "identity:identity_status": identityHostRoutes.identityStatus,
+  "identity:personhood_status": personhoodHostRoutes.personhoodStatus,
+  "identity:attestation_allowance": personhoodHostRoutes.attestationAllowance,
+  "identity:set_identity": identityHostRoutes.setIdentity,
+  "identity:clear_identity": identityHostRoutes.clearIdentity,
+  "identity:request_judgement": identityHostRoutes.requestJudgement,
+  "identity:cancel_judgement_request": identityHostRoutes.cancelJudgementRequest,
+  "identity:provide_judgement": identityHostRoutes.provideJudgement,
+  "identity:attest_lite_person": personhoodHostRoutes.attestLitePerson,
   "attestation:schema_by_id": attestation.schemaById,
   "attestation:attestation_by_id": attestation.attestationById,
   "attestation:attestation_live_status": attestation.liveStatus,

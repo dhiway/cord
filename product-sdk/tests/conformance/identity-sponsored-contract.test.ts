@@ -39,7 +39,8 @@ import {
   type TypedRuntimeIdentity,
   type TypedSponsoredIntentTransport,
 } from "../../packages/host/src/network-host.ts";
-import { identity, type IdentityInfo } from "../../src/identity.ts";
+import type { IdentityInfo } from "@cord-network/origin-sdk-identity";
+import { identityHostRoutes, personhoodHostRoutes } from "../../packages/descriptors/src/identity-host-routes.ts";
 import {
   sponsoredNonce,
   sponsoredTransaction,
@@ -103,22 +104,22 @@ const signedIntent: SignedSponsoredIntent = {
   participant_signature: { scheme: "sr25519", value: `0x${"33".repeat(64)}` },
 };
 
-test("identity factories expose only the nine audit-approved closed routes", () => {
+test("identity and personhood host factories expose only the nine audit-approved closed routes", () => {
   const requests = [
-    identity.identityStatus(context("identity:identity_status"), PARTICIPANT),
-    identity.personhoodStatus(context("identity:personhood_status"), PARTICIPANT),
-    identity.attestationAllowance(context("identity:attestation_allowance"), PARTICIPANT),
-    identity.setIdentity(context("identity:set_identity"), identityInfo),
-    identity.clearIdentity(context("identity:clear_identity")),
-    identity.requestJudgement(context("identity:request_judgement"), REGISTRAR),
-    identity.cancelJudgementRequest(context("identity:cancel_judgement_request"), REGISTRAR),
-    identity.provideJudgement(
+    identityHostRoutes.identityStatus(context("identity:identity_status"), PARTICIPANT),
+    personhoodHostRoutes.personhoodStatus(context("identity:personhood_status"), PARTICIPANT),
+    personhoodHostRoutes.attestationAllowance(context("identity:attestation_allowance"), PARTICIPANT),
+    identityHostRoutes.setIdentity(context("identity:set_identity"), identityInfo),
+    identityHostRoutes.clearIdentity(context("identity:clear_identity")),
+    identityHostRoutes.requestJudgement(context("identity:request_judgement"), REGISTRAR),
+    identityHostRoutes.cancelJudgementRequest(context("identity:cancel_judgement_request"), REGISTRAR),
+    identityHostRoutes.provideJudgement(
       context("identity:provide_judgement"),
       PARTICIPANT,
       "known_good",
       HASH("4") as any,
     ),
-    identity.attestLitePerson(context("identity:attest_lite_person"), {
+    personhoodHostRoutes.attestLitePerson(context("identity:attest_lite_person"), {
       candidate: PARTICIPANT,
       candidate_signature: { scheme: "sr25519", bytes: `0x${"11".repeat(64)}` },
       ring_vrf_key: HASH("2") as any,

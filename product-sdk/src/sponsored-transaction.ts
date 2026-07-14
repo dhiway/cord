@@ -22,7 +22,7 @@ import type { AccountId, BlockNumber, Hash32 } from "./types.ts";
 import type { attestation } from "./attestation.ts";
 import type { names } from "./names.ts";
 import type { drive } from "./drive.ts";
-import type { identity } from "./identity.ts";
+import type { identityHostRoutes, personhoodHostRoutes } from "../packages/descriptors/src/identity-host-routes.ts";
 import type { provider } from "./provider.ts";
 import type { s3 } from "./s3.ts";
 import type { storage } from "./storage.ts";
@@ -31,7 +31,8 @@ type NativeRouteFactory =
   | typeof attestation[keyof typeof attestation]
   | typeof names[keyof typeof names]
   | typeof drive[keyof typeof drive]
-  | typeof identity[keyof typeof identity]
+  | typeof identityHostRoutes[keyof typeof identityHostRoutes]
+  | typeof personhoodHostRoutes[keyof typeof personhoodHostRoutes]
   | typeof provider[keyof typeof provider]
   | typeof s3[keyof typeof s3]
   | typeof storage[keyof typeof storage];

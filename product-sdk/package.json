@@ -17,7 +17,6 @@
     "./drive": "./src/drive.ts",
     "./errors": "./src/errors.ts",
     "./host": "./src/host.ts",
-    "./identity": "./src/identity.ts",
     "./network-host": "./packages/host/src/network-host.ts",
     "./attestation-events": "./packages/host/src/attestation-events.ts",
     "./network-binding": "./packages/descriptors/generated/orbis-network-binding.ts",
