@@ -129,7 +129,7 @@ equal(firstVersion(orbisRuntime, "transaction_version"), matrix.networks.orbis.t
 equal(matrix.networks.origin.activation_state, "candidate-pending", "Origin candidate activation state");
 equal(matrix.networks.origin.production_activation_ready, false, "Origin candidate production gate");
 equal(metadata.metadata_hash, matrix.networks.orbis.metadata_hash, "Orbis metadata hash");
-equal(metadata.compact_wasm_sha256, "5c8fc14ff06c0a85dcc3ccd95027c3b899df6fa7a691b83fb696fc278fa7ce04", "Orbis compact Wasm");
+equal(metadata.compact_wasm_sha256, "fb1d44f5950e7affa1b3a628fd29e5610d840e34476d7eb9cb52bf80b8c5a7da", "Orbis compact Wasm");
 equal(sha256(matrix.networks.orbis.candidate_genesis_identity_source), matrix.networks.orbis.candidate_genesis_identity_sha256, "candidate genesis artifact");
 equal(candidateGenesis.genesis.header_hash, matrix.networks.orbis.candidate_genesis_header_hash, "candidate genesis header");
 equal(candidateGenesis.genesis.state_root, matrix.networks.orbis.candidate_genesis_state_root, "candidate genesis state root");

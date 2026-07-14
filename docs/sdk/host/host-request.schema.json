@@ -64,6 +64,8 @@
         "agreement_nonce",
         "archive_drive",
         "attach_provider",
+        "attest_lite_person",
+        "attestation_allowance",
         "attestation_by_id",
         "attestation_count",
         "attestation_live_status",
@@ -75,8 +77,10 @@
         "can_store",
         "cancel_agreement",
         "cancel_commitment",
+        "cancel_judgement_request",
         "challenge_by_id",
         "challenges_at",
+        "clear_identity",
         "clear_reservation",
         "commit",
         "commit_provider_root",
@@ -101,6 +105,7 @@
         "force_schema_status",
         "force_transfer",
         "heartbeat",
+        "identity_status",
         "issue",
         "issue_batch",
         "issue_challenge",
@@ -121,8 +126,11 @@
         "owner_buckets",
         "owner_drives",
         "owner_names",
+        "personhood_status",
+        "prepare_sponsored_intent",
         "primary_name",
         "propose_agreement",
+        "provide_judgement",
         "provider_agreements",
         "provider_by_id",
         "provider_checkpoint",
@@ -139,6 +147,7 @@
         "remove_provider",
         "renew",
         "renew_reserved",
+        "request_judgement",
         "request_renewal",
         "reserve_name",
         "resolve_address",
@@ -164,6 +173,7 @@
         "set_attestation",
         "set_content",
         "set_emergency_pause",
+        "set_identity",
         "set_label_protection",
         "set_paused",
         "set_primary_name",
@@ -179,6 +189,7 @@
         "stored_content_provenance",
         "subject_schema_attestations",
         "submit_checkpoint",
+        "submit_sponsored_intent",
         "timeout_challenge",
         "transfer",
         "transfer_bucket",
@@ -191,7 +202,7 @@
       "additionalProperties": false,
       "properties": {
         "genesis_hash": {
-          "const": "0x066f97db4ab6a5e5d44ee66c3b469f82d178817650fa6f52634ea2ebead6c6e3"
+          "const": "0x98cd55908bb19c4006abf021ccb7be2ece52c8edca8149f739145836ccbfce03"
         },
         "spec_version": {
           "const": 29
@@ -206,7 +217,7 @@
           "const": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb"
         },
         "descriptor_contract_sha256": {
-          "const": "ceeb91edb8cd277b12c933fdb789185acd824a2b3d68eccb7cd43a17979df609"
+          "const": "a5396e4bed4b65b3be95fcb9e531ca5e5e7300e55b831a6cbb185dfe893e9816"
         },
         "activation_state": {
           "const": "candidate-pending"
@@ -260,6 +271,273 @@
   "title": "Orbis native host request",
   "type": "object",
   "oneOf": [
+    {
+      "properties": {
+        "capability": {
+          "const": "identity"
+        },
+        "method": {
+          "const": "identity_status"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "account"
+          ],
+          "properties": {
+            "account": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "identity"
+        },
+        "method": {
+          "const": "personhood_status"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "account"
+          ],
+          "properties": {
+            "account": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "identity"
+        },
+        "method": {
+          "const": "attestation_allowance"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "account"
+          ],
+          "properties": {
+            "account": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "identity"
+        },
+        "method": {
+          "const": "set_identity"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "info"
+          ],
+          "properties": {
+            "info": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "identity"
+        },
+        "method": {
+          "const": "clear_identity"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "identity"
+        },
+        "method": {
+          "const": "request_judgement"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "registrar"
+          ],
+          "properties": {
+            "registrar": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "identity"
+        },
+        "method": {
+          "const": "cancel_judgement_request"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "registrar"
+          ],
+          "properties": {
+            "registrar": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "identity"
+        },
+        "method": {
+          "const": "provide_judgement"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "target",
+            "judgement",
+            "identity_hash"
+          ],
+          "properties": {
+            "target": {},
+            "judgement": {},
+            "identity_hash": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "identity"
+        },
+        "method": {
+          "const": "attest_lite_person"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "candidate",
+            "candidate_signature",
+            "ring_vrf_key",
+            "proof_of_ownership"
+          ],
+          "properties": {
+            "candidate": {},
+            "candidate_signature": {},
+            "ring_vrf_key": {},
+            "proof_of_ownership": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
     {
       "properties": {
         "capability": {
@@ -4302,6 +4580,70 @@
           "properties": {
             "bucket": {},
             "expected_bucket_version": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "transaction"
+        },
+        "method": {
+          "const": "prepare_sponsored_intent"
+        },
+        "finality": {
+          "const": "finalized"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "participant",
+            "nonce",
+            "mortality",
+            "target"
+          ],
+          "properties": {
+            "participant": {},
+            "nonce": {},
+            "mortality": {},
+            "target": {}
+          }
+        }
+      },
+      "required": [
+        "capability",
+        "method",
+        "finality",
+        "payload"
+      ]
+    },
+    {
+      "properties": {
+        "capability": {
+          "const": "transaction"
+        },
+        "method": {
+          "const": "submit_sponsored_intent"
+        },
+        "finality": {
+          "const": "submit-and-finalize"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "signed_intent"
+          ],
+          "properties": {
+            "signed_intent": {}
           }
         }
       },

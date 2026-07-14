@@ -6,16 +6,17 @@ The first supported clean-break Rust and TypeScript SDK contract is frozen by:
   storage-schema, and service-protocol versions;
 - `docs/sdk/vectors/native-sdk-v1.json` — shared attestation, DotNS, and storage-provider
   semantic vectors (not raw extrinsic bytes or contract ABI fixtures);
-- `product-sdk/packages/descriptors/generated/orbis-descriptor.json` — 132 exact typed native
-  host methods; and
-- `sdk-native-coverage.report.json` — 356 strict semantic/design mappings, reported separately
-  from the 132 distinct routes actually executed by both Rust and TypeScript harnesses.
+- `product-sdk/packages/descriptors/generated/orbis-descriptor.json` — 143 exact typed native
+  host methods, including identity/personhood and sponsored transaction operations; and
+- `sdk-native-coverage.report.json` — 2,780 classified design entries and 14 exact adopted
+  semantic bindings, reported separately from the 143 distinct routes actually executed by both
+  Rust and TypeScript harnesses.
 
 `sdk-freeze-ratification-envelope.json` binds those contracts with canonical payload SHA-256
-`27c6effe52c60fade8e9fe341ffe874cb6e286e97944c51c7f0532052361e9fe`.
+`7616683dc759fd687d562ccb475d0ea329735d4a231abfb4880ef0df5ebdbb2e`.
 It is deliberately unsigned: all five approval slots remain pending and production activation is
 blocked. The contract is bound to deterministic candidate header
-`0x066f97db…c6e3` and identity artifact SHA-256 `824b76b9…6b2b`; this candidate is not
+`0x98cd5590…ce03` and identity artifact SHA-256 `d1c9f8ba…c4ec`; this candidate is not
 production-approved genesis. SDK network contracts freeze it as `candidate-pending` with
 `production_activation_ready=false`; development requires explicit candidate opt-in and production
 mode rejects it.

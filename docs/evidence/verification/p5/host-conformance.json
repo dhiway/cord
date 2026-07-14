@@ -14,13 +14,13 @@
     {
       "command": "npm --prefix product-sdk run test:host",
       "exit_code": 0,
-      "output_sha256": "9e28aa6df1b5b6ac13f4910fb270064e3da4df6227608ff5f6109e36de29fbb5"
+      "output_sha256": "c7c9c556023acb13481e899a7218a27a65d4b2d2f889abb51299846bf3a11085"
     }
   ],
   "criterion": "AC23",
   "errors": [],
   "inputs": {
-    "descriptor_sha256": "124330058c538c73f5bdc0d962ce4da476fad671c8884bf90e05446a12c496d0",
+    "descriptor_sha256": "f9f4c26249f581d0bdf043ce0edb93cddce1c4fafbc1e372c71bd2535d909780",
     "reference_app_manifest_sha256": "e3603b696c8b78dfce2d81c5d4fc4e7adaf88c897f6a1a8c4ea5cc4d52932214"
   },
   "schema": "cord.host-conformance-report.v1",

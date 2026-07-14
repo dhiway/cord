@@ -16,7 +16,7 @@
       "status": "pass"
     },
     "migrated_contract_content_paths": [],
-    "repository_files_scanned": 3603,
+    "repository_files_scanned": 3620,
     "retained_contract_artifacts": [
       "origin/orbis/runtime/fixtures/Counter.sol",
       "origin/orbis/runtime/fixtures/build/Counter.bin"
@@ -29,19 +29,19 @@
           "orbis-generic-counter-fixture"
         ],
         "exit_code": 0,
-        "output_sha256": "3b9c84cfaf74c4bbcee55701cced7c0b61126956f92b589392b52c20f4d9eada",
+        "output_sha256": "17cc60d736361b23708652aca33b7bcffcbd64e0993ea2bb658758fef116804d",
         "path": "origin/orbis/runtime/src/tests.rs",
         "status": "pass"
       }
     },
     "surfaces": {
-      "build_ci_config_generated": 187,
-      "cargo_package_manifests": 105,
-      "docs": 2375,
+      "build_ci_config_generated": 188,
+      "cargo_package_manifests": 106,
+      "docs": 2377,
       "mobile": 0,
-      "rust": 828,
+      "rust": 832,
       "solidity_abi": 1,
-      "typescript_javascript": 48
+      "typescript_javascript": 54
     }
   },
   "migrated_domain_callable_contracts": 0,

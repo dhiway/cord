@@ -29,6 +29,7 @@
     "contract_version": 1
   },
   "runtime_apis": {
+    "identity_personhood": 1,
     "attestation": 1,
     "dotns": 1,
     "storage_provider": 4,
@@ -71,18 +72,18 @@
       "native-route-set": 12
     },
     "executable_route_cases": {
-      "distinct_routes": 132,
-      "rust": 132,
-      "typescript": 132
+      "distinct_routes": 143,
+      "rust": 143,
+      "typescript": 143
     },
     "compatibility_facade_rows": 0,
     "data_migration_rows": 0
   },
   "descriptor": {
     "kind": "cord-native-host-contract-manifest",
-    "native_method_count": 132,
+    "native_method_count": 143,
     "authoritative_route_contract": "docs/sdk/native-route-contract.json",
-    "runtime_dispatch_or_api_bound_routes": 132,
+    "runtime_dispatch_or_api_bound_routes": 143,
     "metadata_reconciliation": "exact current metadata hash plus source-derived pallet/call indices and runtime API implementation tables; decoded current metadata blob unavailable, so decoded runtime signatures are not asserted"
   },
   "reference_surface": {
@@ -92,12 +93,12 @@
     "pallet_or_call_indices": false
   },
   "inputs": {
-    "version_matrix_sha256": "2f6445026bb16569d2868884ebb3c0d77c08658063d4122ca0c2867eeac03678",
+    "version_matrix_sha256": "7a4147d4e66f96240d78f53865a3c21ab56988f0a07df4b70a82be6861613e1e",
     "coverage_map_sha256": "c6be6342ea095cc5d4f16b9f399305c93bed0e75bebbb5f87c08a894b4205234",
-    "m5_sdk_bindings_sha256": "2ec73debe6b028bf85a0162e395c1d51582f9515bce238cb8293f822495ad81b",
-    "route_contract_sha256": "4eec73f96cfb990de789e42c7fcf2ed06af74af3b51393b1df74fd2a43e625ea",
+    "m5_sdk_bindings_sha256": "2616a62807ff7f8d9ef1740f7cd0ba723052d983e5f2edaeb8bcc931126e414f",
+    "route_contract_sha256": "f99d2ade1b8e5fc508b92e1fe43b86e549301dfa7f5f4250a4d312568fb69a40",
     "rust_route_harness_sha256": "4c6ab6fddb152f964c17c0571511f189a40ae03ca77947a6c501e73124af5d18",
     "typescript_route_harness_sha256": "1542c5b4d6e7d4ca520faa27c525babcfa09c9a44cb22b821642aaf233070e7e",
-    "descriptor_sha256": "124330058c538c73f5bdc0d962ce4da476fad671c8884bf90e05446a12c496d0"
+    "descriptor_sha256": "f9f4c26249f581d0bdf043ce0edb93cddce1c4fafbc1e372c71bd2535d909780"
   }
 }

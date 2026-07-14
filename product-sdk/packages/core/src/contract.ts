@@ -532,6 +532,7 @@ export function assertMethodPayload(capability: string, method: string, payload:
 function sampleRule(rule: Rule): JsonValue {
   switch (rule.kind) {
     case "string": {
+      if (rule === contentBase64) return "AQID";
       const candidates = [
         `0x${"11".repeat(32)}`,
         `0x${"11".repeat(64)}`,

@@ -14,8 +14,8 @@ matrix against the runtime sources, both SDK exports, the generated descriptor, 
 `sdk-native-coverage.report.json`.
 
 The fail-closed network identity is the exact deterministic candidate genesis header
-`0x066f97db…c6e3`, bound through `docs/genesis/orbis-candidate-genesis-identity.json` at artifact
-SHA-256 `824b76b9…6b2b`. Its frozen activation state is `candidate-pending` with
+`0x98cd5590…ce03`, bound through `docs/genesis/orbis-candidate-genesis-identity.json` at artifact
+SHA-256 `d1c9f8ba…c4ec`. Its frozen activation state is `candidate-pending` with
 `production_activation_ready=false`. Rust callers must explicitly choose
 `NetworkIdentity::orbis_candidate()` and TypeScript callers must explicitly choose
 `ORBIS_CANDIDATE_NETWORK_BINDING`. Production access rejects this identity until a checked-in,
@@ -23,10 +23,10 @@ cryptographically verified activation envelope derives `production-approved`; th
 P5 envelope does not satisfy that gate.
 
 The generated `cord-native-host-contract-manifest` is the supported typed host contract. Its
-132 methods are projected from `native-route-contract.json`, the authoritative route inventory.
+143 methods are projected from `native-route-contract.json`, the authoritative route inventory.
 Each entry binds ordered parameters, result/finality, Rust query or command variant, TypeScript
 callable, runtime API or pallet call, and the pallet/call indices used by current dispatch tables.
-Rust and TypeScript harnesses execute all 132 canonical request samples. The contract is bound to
+Rust and TypeScript harnesses execute all 143 canonical request samples. The contract is bound to
 the reproduced RFC-78 metadata hash, but it is not a generated PAPI or decoded-metadata descriptor;
 no current decoded metadata blob is available or checked in. Payload schemas therefore assert only
 the current product-sdk core validation contract and canonical Rust/TypeScript typed-factory
@@ -34,11 +34,10 @@ coverage; they do not claim decoded runtime argument signatures. Product methods
 payload shapes and Subxt metadata-resolved transports. Raw SCALE, pallet/call indices, migrated
 domain Revive calls, contract ABIs, and contract-address aliases are not reference SDK surfaces.
 
-The contract-to-native map is design coverage only, never a compatibility facade. Its 356 adopted
-semantic/design rows are not 356 executable tests: 150 name direct SDK route operations, 31 name
-exact error-trigger route sets, 9 name exact event-observation route sets, and 166 are explicitly
-non-route type, field, invariant, version, or helper contracts. Executable coverage is reported
-separately as 132 distinct Rust and TypeScript route cases. Retired and
+The contract-to-native map is design coverage only, never a compatibility facade. It classifies
+2,780 source-semantic design entries; 14 adopted semantic bindings are exact M5 bindings and the
+remaining entries record intentional changes, retirements, or non-applicable source semantics.
+Executable coverage is reported separately as 143 distinct Rust and TypeScript route cases. Retired and
 not-applicable source symbols stay explicit in the census, but no legacy client, contract facade,
 backward-compatibility layer, or data-migration path is shipped. This is a new network.
 
