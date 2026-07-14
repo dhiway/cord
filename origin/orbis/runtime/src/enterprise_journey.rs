@@ -13,27 +13,179 @@ use codec::{DecodeAll, Encode};
 use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::GetDispatchInfo,
-	traits::{fungible::Mutate, BuildGenesisConfig, Hooks},
+	traits::{fungible::Mutate, BuildGenesisConfig, Hooks, SignedTransactionBuilder},
 };
 use pallet_orbis_dotns_runtime_api::runtime_decl_for_dotns_api::DotnsApiV1;
-use sp_core::{ed25519, Pair};
+use sp_core::{ed25519, sr25519, Pair};
 use sp_runtime::{
+	generic::{Era, SignedPayload},
 	traits::{BlakeTwo256, Hash as HashT, IdentifyAccount, TransactionExtension},
-	MultiSigner,
+	MultiSignature, MultiSigner,
 };
+
+fn apply_sponsored_call(
+	call: RuntimeCall,
+	participant_pair: &sr25519::Pair,
+	sponsor_pair: &sr25519::Pair,
+) -> frame_support::dispatch::DispatchResultWithPostInfo {
+	type MetaBareExtension = (
+		crate::meta_v6::ConsumePaidMetaIngress,
+		pallet_meta_tx::MetaTxMarker<Runtime>,
+		frame_system::CheckNonZeroSender<Runtime>,
+		frame_system::CheckSpecVersion<Runtime>,
+		frame_system::CheckTxVersion<Runtime>,
+		frame_system::CheckGenesis<Runtime>,
+		frame_system::CheckMortality<Runtime>,
+		frame_system::CheckNonce<Runtime>,
+		crate::MetaIdentityBoundPolicies,
+		pallet_bulletin_transaction_storage::extension::ValidateStorageCalls<
+			Runtime,
+			crate::BulletinCallInspector,
+		>,
+		frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+	);
+
+	let participant = MultiSigner::Sr25519(participant_pair.public()).into_account();
+	let sponsor = MultiSigner::Sr25519(sponsor_pair.public()).into_account();
+	let finalized_block = System::block_number().saturating_sub(1);
+	let era = Era::mortal(4, finalized_block.into());
+	let mortality = frame_system::CheckMortality::<Runtime>::from(era);
+	let nonce = frame_system::CheckNonce::<Runtime>::from(System::account_nonce(&participant));
+	let policy = crate::meta_v6::MetaAccountBoundPoliciesV6::new(Default::default());
+	let storage = pallet_bulletin_transaction_storage::extension::ValidateStorageCalls::<
+		Runtime,
+		crate::BulletinCallInspector,
+	>::default();
+	let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
+	let preimage = crate::meta_v6::IntentPreimageV7 {
+		domain: crate::meta_v6::META_DOMAIN.to_vec(),
+		extension_version: 0,
+		genesis_hash: System::block_hash(0),
+		spec_version: crate::VERSION.spec_version,
+		transaction_version: crate::VERSION.transaction_version,
+		inner_signer: participant.clone(),
+		call_hash: sp_core::H256::from(sp_io::hashing::blake2_256(&call.encode())),
+		mortality: era,
+		nonce: System::account_nonce(&participant),
+		policy_proofs_hash: sp_core::H256::from(sp_io::hashing::blake2_256(&policy.0.encode())),
+		storage_extension_hash: sp_core::H256::from(sp_io::hashing::blake2_256(&storage.encode())),
+		metadata_extension_hash: sp_core::H256::from(sp_io::hashing::blake2_256(
+			&metadata.encode(),
+		)),
+		metadata_implicit: None,
+	};
+	let bare: MetaBareExtension = (
+		crate::meta_v6::ConsumePaidMetaIngress(preimage),
+		pallet_meta_tx::MetaTxMarker::new(),
+		frame_system::CheckNonZeroSender::new(),
+		frame_system::CheckSpecVersion::new(),
+		frame_system::CheckTxVersion::new(),
+		frame_system::CheckGenesis::new(),
+		mortality,
+		nonce,
+		(
+			pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(None),
+			policy,
+			pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None),
+		),
+		storage,
+		metadata,
+	);
+	let implicit = bare.implicit().expect("test externalities provide MetaTx implicit data");
+	let inner_signature = (0u8, call.clone(), bare.clone(), implicit)
+		.using_encoded(|payload| participant_pair.sign(&sp_io::hashing::blake2_256(payload)));
+	let verify = pallet_verify_signature::VerifySignature::new_with_signature(
+		MultiSignature::Sr25519(inner_signature),
+		participant.clone(),
+	);
+	let (
+		consume,
+		marker,
+		nonzero,
+		spec,
+		tx,
+		genesis,
+		mortality,
+		nonce,
+		identity_policies,
+		storage,
+		metadata,
+	) = bare;
+	let meta = pallet_meta_tx::MetaTxFor::<Runtime>::new(
+		call,
+		0,
+		(
+			verify,
+			consume,
+			marker,
+			nonzero,
+			spec,
+			tx,
+			genesis,
+			mortality,
+			nonce,
+			identity_policies,
+			storage,
+			metadata,
+		),
+	);
+	let meta_len = meta.encoded_size() as u32;
+	let outer_call = RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
+		meta_tx: Box::new(meta),
+		meta_tx_encoded_len: meta_len,
+	});
+	let payment: crate::PaymentPolicy = pallet_orbis_feeless::ChargeOrSkipFeeless::from(
+		pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(0, None),
+	)
+	.into();
+	let outer_extension = crate::paid_tx_extensions(crate::default_inner_tx_extensions(
+		System::account_nonce(&sponsor),
+		payment,
+		Default::default(),
+	));
+	let payload = SignedPayload::new(outer_call.clone(), outer_extension.clone()).unwrap();
+	let outer_signature = payload.using_encoded(|bytes| sponsor_pair.sign(bytes));
+	let extrinsic = <crate::UncheckedExtrinsic as SignedTransactionBuilder>::new_signed_transaction(
+		outer_call,
+		sponsor.into(),
+		MultiSignature::Sr25519(outer_signature),
+		outer_extension,
+	);
+	assert_ok!(crate::Executive::validate_transaction(
+		sp_runtime::transaction_validity::TransactionSource::External,
+		extrinsic.clone(),
+		System::block_hash(0),
+	));
+	crate::Executive::apply_extrinsic(extrinsic)
+		.expect("the signed outer MetaTx is valid")
+		.expect("the outer MetaTx dispatch succeeds");
+	System::events()
+		.into_iter()
+		.rev()
+		.find_map(|record| match record.event {
+			RuntimeEvent::MetaTx(pallet_meta_tx::Event::Dispatched { result }) => Some(result),
+			_ => None,
+		})
+		.expect("MetaTx emits the inner dispatch result")
+}
 
 #[test]
 fn enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail_closed() {
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		frame_system::GenesisConfig::<Runtime>::default().build();
-		System::set_block_number(1);
+		System::set_block_number(2);
+		frame_system::BlockHash::<Runtime>::insert(1, sp_core::H256::repeat_byte(0x42));
 		System::set_extrinsic_index(0);
 
-		let owner = pallet_revive::test_utils::ALICE;
+		let owner_pair = sr25519::Pair::from_seed(&[0x41; 32]);
+		let owner = MultiSigner::Sr25519(owner_pair.public()).into_account();
+		let sponsor_pair = sr25519::Pair::from_seed(&[0x51; 32]);
+		let sponsor = MultiSigner::Sr25519(sponsor_pair.public()).into_account();
 		let registrar = AccountId::from([3u8; 32]);
 		let unavailable_provider = AccountId::from([7u8; 32]);
 		let selected_provider = AccountId::from([8u8; 32]);
 		<Balances as Mutate<AccountId>>::set_balance(&owner, 100_000_000_000_000_000);
+		<Balances as Mutate<AccountId>>::set_balance(&sponsor, 100_000_000_000_000_000);
 
 		// Self-claimed identity is followed by an independent, native registrar judgement.
 		let mut identity = pallet_orbis_people::identity_info::IdentityInfo::<
@@ -97,13 +249,13 @@ fn enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail
 		assert!(TransactionStorage::contains_transaction(content_hash));
 		assert_eq!(
 			TransactionStorage::stored_content_provenance(BulletinRef {
-				block: 1,
+				block: 2,
 				transaction_index: 0,
 			}),
 			Some(StorageActor::Account(owner.clone())),
 		);
-		<TransactionStorage as Hooks<u32>>::on_finalize(1);
-		assert_eq!(TransactionStorage::transactions_at(1).unwrap()[0].content_hash, content_hash);
+		<TransactionStorage as Hooks<u32>>::on_finalize(2);
+		assert_eq!(TransactionStorage::transactions_at(2).unwrap()[0].content_hash, content_hash);
 
 		let definition: pallet_orbis_attestation::SchemaDefinitionOf<Runtime> =
 			b"enterprise-admission-v1".to_vec().try_into().unwrap();
@@ -137,7 +289,14 @@ fn enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail
 			revocable: true,
 		};
 		let attestation = Attestation::attestation_id(&owner, &input, 0);
-		assert_ok!(Attestation::issue(RuntimeOrigin::signed(owner.clone()), input));
+		let sponsored_result = apply_sponsored_call(
+			RuntimeCall::Attestation(pallet_orbis_attestation::Call::issue { input }),
+			&owner_pair,
+			&sponsor_pair,
+		);
+		assert_ok!(sponsored_result);
+		assert_eq!(System::account_nonce(&owner), 1);
+		assert_eq!(System::account_nonce(&sponsor), 1);
 		assert!(Attestation::is_live(attestation));
 
 		let label = Dotns::validate_label(b"enterprise-alice".to_vec()).unwrap();
@@ -145,7 +304,7 @@ fn enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail
 			b"enterprise-festival".to_vec().try_into().unwrap();
 		let commitment = Dotns::registration_commitment(&owner, None, &label, &salt);
 		assert_ok!(Dotns::commit(RuntimeOrigin::signed(owner.clone()), commitment));
-		System::set_block_number(3);
+		System::set_block_number(5);
 		System::set_extrinsic_index(1);
 		assert_ok!(Dotns::register(
 			RuntimeOrigin::signed(owner.clone()),

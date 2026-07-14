@@ -1,6 +1,6 @@
 $ cargo test -p origin-orbis-runtime enterprise_journey::enterprise_sponsored_meta_boundaries_reject_exhaustion_and_version_drift --lib --locked -- --exact
 exit=0
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.06s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.86s
      Running unittests src/lib.rs (target/debug/deps/origin_orbis_runtime-ad4cb5c1f6a3d5b5)
 
 running 1 test

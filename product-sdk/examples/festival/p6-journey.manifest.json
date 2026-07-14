@@ -65,7 +65,6 @@
   "p6_acceptance": false,
   "journey_acceptance": true,
   "deferred_p6_gate": [
-    "enterprise journey integration",
     "final mixed E/Q/C campaign and storage headroom",
     "clean-developer failure diagnosis",
     "independent P6 verification"

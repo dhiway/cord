@@ -29,8 +29,7 @@
     "version",
     "code",
     "message",
-    "retryable",
-    "details"
+    "retryable"
   ],
   "required_event_fields": [
     "finalized_block_hash",

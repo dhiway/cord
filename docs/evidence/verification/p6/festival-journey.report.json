@@ -81,7 +81,7 @@
         "spec_version": 29,
         "transaction_version": 8,
         "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
-        "participant": "participant-account",
+        "participant": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
         "nonce": "1",
         "mortality": {
           "valid_from": "100",
@@ -101,8 +101,8 @@
             "revocable": true
           }
         },
-        "signing_payload_hash": "0x0101010101010101010101010101010101010101010101010101010101010101",
-        "intent_id": "0x2121212121212121212121212121212121212121212121212121212121212121"
+        "signing_payload_hash": "0x1e75cdf73a05082eaccd3731063a1b28e2ec27c10e302655870f7a5879480232",
+        "intent_id": "0xcb9b8258b419a897487e784ce0b188fe0ac65edd27a5329b19ebb7f7b9261668"
       }
     },
     "sponsored_check_in": {
@@ -112,13 +112,21 @@
       "extrinsic_hash": "0xd4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4",
       "response": {
         "version": 1,
-        "intent_id": "0x2121212121212121212121212121212121212121212121212121212121212121",
-        "participant": "participant-account",
+        "intent_id": "0xcb9b8258b419a897487e784ce0b188fe0ac65edd27a5329b19ebb7f7b9261668",
+        "participant": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
         "sponsor": "festival-sponsor-account",
         "dispatched": true,
         "meta_tx_event": "Dispatched",
         "inner_result": "Ok"
       }
+    },
+    "sponsored_replay": {
+      "code": "replay",
+      "retryable": false
+    },
+    "tampered_sponsored_intent": {
+      "code": "proof_invalid",
+      "retryable": false
     },
     "prepare_exhausted_check_in": {
       "code": "success",
@@ -131,7 +139,7 @@
         "spec_version": 29,
         "transaction_version": 8,
         "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
-        "participant": "participant-account",
+        "participant": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
         "nonce": "2",
         "mortality": {
           "valid_from": "100",
@@ -151,8 +159,8 @@
             "revocable": true
           }
         },
-        "signing_payload_hash": "0x0202020202020202020202020202020202020202020202020202020202020202",
-        "intent_id": "0x2222222222222222222222222222222222222222222222222222222222222222"
+        "signing_payload_hash": "0x309650e5d17f9eb4252b22192933f5282c5cf602e07035f3b7517147d626f4e3",
+        "intent_id": "0xa80cfd1ea223c8f2de22a1323603bca04f1fd27be6f26f09211a9a0b368c4af4"
       }
     },
     "sponsor_budget_exhaustion": {
@@ -228,7 +236,7 @@
         "spec_version": 29,
         "transaction_version": 8,
         "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
-        "participant": "participant-account",
+        "participant": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
         "nonce": "3",
         "mortality": {
           "valid_from": "100",
@@ -248,8 +256,8 @@
             "revocable": true
           }
         },
-        "signing_payload_hash": "0x0303030303030303030303030303030303030303030303030303030303030303",
-        "intent_id": "0x2323232323232323232323232323232323232323232323232323232323232323"
+        "signing_payload_hash": "0x2cba6add4ce37242ed09271bb2c505910c35cff117bde60530b80bc5e7e7958c",
+        "intent_id": "0xc296e8ca18a13599829013209ef28f9f7404d022b409afdc7dc72e356cdb383f"
       }
     },
     "revoked_sponsored_denial": {
@@ -262,13 +270,13 @@
     }
   },
   "signer_boundaries": {
-    "participant_authorization_count": 17,
-    "self_chain_signer": "participant-account",
+    "participant_authorization_count": 19,
+    "self_chain_signer": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
     "remote_sponsor_chain_signer": "festival-sponsor-account",
     "self_submission_count": 4,
-    "sponsored_submission_count": 3,
+    "sponsored_submission_count": 5,
     "distinct_chain_signers": true,
-    "qualification": "Participant signs the inner v7 intent; the distinct host signer submits MetaTx::dispatch and requires finalized MetaTx::Dispatched(Ok)."
+    "qualification": "A deterministic Ed25519 participant key signs a digest committing the complete typed v7 envelope; the distinct host signer submits MetaTx::dispatch and requires finalized MetaTx::Dispatched(Ok). Runtime SCALE/signature parity remains covered by Rust integration tests."
   },
   "route_selections": {
     "self": [
@@ -284,6 +292,8 @@
     "sponsor": [
       "attestation:attestation_live_status",
       "transaction:prepare_sponsored_intent",
+      "transaction:submit_sponsored_intent",
+      "transaction:submit_sponsored_intent",
       "transaction:submit_sponsored_intent",
       "transaction:prepare_sponsored_intent",
       "transaction:submit_sponsored_intent",
@@ -312,8 +322,8 @@
       "event": {
         "event": "sponsored_check_in",
         "data": {
-          "intent": "0x2121212121212121212121212121212121212121212121212121212121212121",
-          "participant": "participant-account",
+          "intent": "0xcb9b8258b419a897487e784ce0b188fe0ac65edd27a5329b19ebb7f7b9261668",
+          "participant": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
           "sponsor": "festival-sponsor-account"
         }
       }
@@ -330,7 +340,31 @@
       }
     }
   ],
-  "terminal_count": 21,
+  "replay_boundaries": {
+    "sponsored_intent_replay": "replay",
+    "tampered_sponsored_intent": "proof_invalid",
+    "host_consent_replay": "conflict",
+    "reconnect_uses_new_request_and_consent": true
+  },
+  "vector_observations": {
+    "participant-dot-registration": {
+      "chain_signer": "participant",
+      "event": "name_registered"
+    },
+    "sponsored-check-in": {
+      "chain_signer": "sponsor",
+      "event": "sponsored_check_in",
+      "meta_tx_event": "Dispatched",
+      "inner_result": "Ok"
+    },
+    "reconnect": {
+      "new_request_and_consent": true
+    },
+    "revoked-credential-deny": {
+      "event": "attestation_revoked"
+    }
+  },
+  "terminal_count": 23,
   "native_only": {
     "raw_scale": false,
     "contract_abi": false,

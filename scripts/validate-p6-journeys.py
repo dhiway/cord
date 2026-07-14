@@ -73,10 +73,41 @@ def main() -> None:
         environment,
     )
     run(
+        "enterprise-provider-read-reopen",
+        [
+            "cargo", "test", "-p", "origin-orbis-provider",
+            "storage::tests::commit_read_proof_delete_and_reopen",
+            "--locked", "--", "--exact",
+        ],
+        environment,
+    )
+    run(
+        "enterprise-content-failover",
+        [
+            "node", "--experimental-strip-types", "--test",
+            "--test-name-pattern=gateway and Bitswap sources fail over in exact caller order and verify bytes",
+            "product-sdk/tests/content/content.test.ts",
+        ],
+    )
+    run(
         "festival-report",
         [
             "node", "--experimental-strip-types",
             "product-sdk/examples/festival/journey.ts", "--write",
+        ],
+    )
+    run(
+        "festival-ios-contract-report",
+        [
+            "node", "--experimental-strip-types",
+            "product-sdk/examples/festival/ios-contract-harness.ts", "--write",
+        ],
+    )
+    run(
+        "festival-android-contract-report",
+        [
+            "node", "--experimental-strip-types",
+            "product-sdk/examples/festival/android-contract-harness.ts", "--write",
         ],
     )
     run(
@@ -95,12 +126,18 @@ def main() -> None:
     )
 
     festival_path = EVIDENCE / "festival-journey.report.json"
+    ios_path = EVIDENCE / "festival-ios-contract-parity.report.json"
+    android_path = EVIDENCE / "festival-android-contract-parity.report.json"
     mobile_path = EVIDENCE / "festival-mobile-contract-parity.report.json"
     festival = json.loads(festival_path.read_text())
+    ios = json.loads(ios_path.read_text())
+    android = json.loads(android_path.read_text())
     mobile = json.loads(mobile_path.read_text())
     assert festival["status"] == "PASS" and festival["journey_acceptance"] is True
+    assert ios["status"] == "PASS" and ios["platform"] == "ios"
+    assert android["status"] == "PASS" and android["platform"] == "android"
     assert mobile["status"] == "PASS" and mobile["journey_acceptance"] is True
-    assert festival["p6_acceptance"] is False and mobile["p6_acceptance"] is False
+    assert all(report["p6_acceptance"] is False for report in [festival, ios, android, mobile])
 
     enterprise_path = EVIDENCE / "enterprise-journey.report.json"
     enterprise = {
@@ -115,10 +152,10 @@ def main() -> None:
             "subject": "native Entity subject identifier",
             "attestation": "native schema, issue, live check, revoke and deny",
             "name": "native DotNS commit, register and attestation/content resolution",
-            "content": "Bulletin commitment, provenance and finalized transaction lookup",
-            "provider": "inactive provider rejection, explicit active-provider selection, agreement renewal and checkpoint proof",
+            "content": "Bulletin commitment/provenance plus Product SDK ordered gateway-to-Bitswap failover with CID byte verification",
+            "provider": "inactive-provider rejection, active-provider agreement/checkpoint, and DiskStore committed-byte read/reopen proof",
             "application_storage": "native Drive and S3 records bind the verified content hash",
-            "sponsorship": "paid MetaTx rejects sponsor exhaustion and signed version drift",
+            "sponsorship": "successful paid outer MetaTx executes native inner attestation and advances participant/sponsor nonces; exhaustion and signed version drift reject",
         },
         "native_only": {
             "raw_scale_product_api": False,
@@ -127,7 +164,7 @@ def main() -> None:
             "legacy_state": False,
         },
         "production_evidence_deferred": [
-            "Provider-node byte retrieval and automatic failover require a live candidate topology.",
+            "Live candidate topology execution and multi-provider network failover remain deferred.",
             "Final E/Q/C SLO and storage-headroom campaigns run after deterministic journey closure.",
             "Production launch approval remains unsigned and blocked.",
         ],
@@ -148,6 +185,14 @@ def main() -> None:
             "report": relative(festival_path),
             "sha256": sha256(festival_path),
         },
+        "ios_contract_harness": {
+            "report": relative(ios_path),
+            "sha256": sha256(ios_path),
+        },
+        "android_contract_harness": {
+            "report": relative(android_path),
+            "sha256": sha256(android_path),
+        },
         "mobile_contract_parity": {
             "report": relative(mobile_path),
             "sha256": sha256(mobile_path),
@@ -155,6 +200,7 @@ def main() -> None:
         "required_failures": [
             "permission_denial", "cancellation", "sponsor_exhaustion", "version_drift",
             "provider_unavailable", "offline", "reconnect", "replay", "revocation",
+            "sponsored_replay", "tampered_sponsored_intent",
         ],
         "remaining_p6_gates": [
             "final mixed E/Q/C campaign and storage/resource headroom",
@@ -169,16 +215,23 @@ def main() -> None:
         ROOT / "scripts/validate-p6-journeys.py",
         ROOT / "origin/orbis/runtime/src/lib.rs",
         ROOT / "origin/orbis/runtime/src/enterprise_journey.rs",
+        ROOT / "origin/orbis/provider-node/src/storage.rs",
         ROOT / "product-sdk/examples/festival/journey.ts",
         ROOT / "product-sdk/examples/festival/journey.test.ts",
         ROOT / "product-sdk/examples/festival/mobile-contract-harness.ts",
+        ROOT / "product-sdk/examples/festival/ios-contract-harness.ts",
+        ROOT / "product-sdk/examples/festival/android-contract-harness.ts",
         ROOT / "product-sdk/examples/festival/mobile-contract-vectors.json",
         ROOT / "product-sdk/examples/festival/ios-contract-harness.manifest.json",
         ROOT / "product-sdk/examples/festival/android-contract-harness.manifest.json",
         ROOT / "product-sdk/examples/festival/p6-journey.manifest.json",
         ROOT / "docs/sdk/native-route-contract.json",
+        ROOT / "product-sdk/tests/content/content.test.ts",
     ]
-    artifacts = [enterprise_path, festival_path, mobile_path, journeys_path, *sorted(RAW.glob("*.log"))]
+    artifacts = [
+        enterprise_path, festival_path, ios_path, android_path, mobile_path, journeys_path,
+        *sorted(RAW.glob("*.log")),
+    ]
     index = {
         "schema": "cord.p6-journey-evidence-index.v1",
         "command": "python3 scripts/validate-p6-journeys.py",

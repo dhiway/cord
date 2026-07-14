@@ -57,6 +57,22 @@
       }
     },
     {
+      "id": "sponsored-replay",
+      "route": "transaction:submit_sponsored_intent",
+      "expected": {
+        "terminal": "replay",
+        "retryable": false
+      }
+    },
+    {
+      "id": "tampered-sponsored-intent",
+      "route": "transaction:submit_sponsored_intent",
+      "expected": {
+        "terminal": "proof_invalid",
+        "retryable": false
+      }
+    },
+    {
       "id": "sponsor-budget-exhaustion",
       "route": "transaction:submit_sponsored_intent",
       "expected": {
@@ -133,12 +149,11 @@
     "live_chain",
     "production_finality",
     "slo",
-    "production_mobile_implementation"
+    "production_mobile_rewrite_non_goal"
   ],
   "closure_status": "FEATURE_COMPLETE_PRODUCTION_EVIDENCE_DEFERRED",
   "p6_acceptance": false,
   "deferred_p6_gate": [
-    "enterprise journey integration",
     "final mixed E/Q/C campaign and storage headroom",
     "clean-developer failure diagnosis",
     "independent P6 verification"

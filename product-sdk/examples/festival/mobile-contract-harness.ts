@@ -10,42 +10,41 @@ const digest = (path: string): string => createHash("sha256")
   .update(readFileSync(resolve(import.meta.dirname, path)))
   .digest("hex");
 
-export async function validateMobileContractHarness(): Promise<Record<string, unknown>> {
-  const ios = readJson("ios-contract-harness.manifest.json");
-  const android = readJson("android-contract-harness.manifest.json");
+export type MobilePlatform = "ios" | "android";
+
+export async function validatePlatformContractHarness(
+  platform: MobilePlatform,
+): Promise<Record<string, unknown>> {
+  const manifest = readJson(`${platform}-contract-harness.manifest.json`);
   const vectors = readJson("mobile-contract-vectors.json");
   const hostSchema = readJson("../../../docs/sdk/host/host-request.schema.json");
   const errorSchema = readJson("../../../docs/sdk/native-error.schema.json");
   const routeContract = readJson("../../../docs/sdk/native-route-contract.json");
   const journey = await runFestivalJourney() as any;
 
-  assert.equal(ios.schema, "cord.mobile-contract-harness.v1");
-  assert.equal(android.schema, ios.schema);
-  assert.equal(ios.platform, "ios");
-  assert.equal(android.platform, "android");
-  const withoutPlatform = ({ platform: _platform, ...value }: any) => value;
-  assert.deepEqual(withoutPlatform(ios), withoutPlatform(android));
-  assert.equal(ios.implementation_scope, "contract-vectors-only");
-  assert.equal(ios.production_rewrite, false);
-  assert.equal(ios.transport_policy, "typed-native-routes-only");
-  assert.equal(ios.raw_scale, false);
-  assert.equal(ios.contract_abi, false);
-  assert.equal(ios.pallet_or_call_indices, false);
+  assert.equal(manifest.schema, "cord.mobile-contract-harness.v1");
+  assert.equal(manifest.platform, platform);
+  assert.equal(manifest.implementation_scope, "contract-vectors-only");
+  assert.equal(manifest.production_rewrite, false);
+  assert.equal(manifest.transport_policy, "typed-native-routes-only");
+  assert.equal(manifest.raw_scale, false);
+  assert.equal(manifest.contract_abi, false);
+  assert.equal(manifest.pallet_or_call_indices, false);
 
-  assert.deepEqual([...ios.required_request_fields].sort(), [...hostSchema.required].sort());
+  assert.deepEqual([...manifest.required_request_fields].sort(), [...hostSchema.required].sort());
   assert.deepEqual(
-    [...ios.required_consent_fields].sort(),
+    [...manifest.required_consent_fields].sort(),
     [...hostSchema.properties.consent.required].sort(),
   );
   assert.deepEqual(
-    [...ios.required_network_fields].sort(),
+    [...manifest.required_network_fields].sort(),
     [...hostSchema.properties.network.required].sort(),
   );
   assert.deepEqual(
-    [...ios.required_error_fields].sort(),
-    Object.keys(errorSchema.properties).sort(),
+    [...manifest.required_error_fields].sort(),
+    [...errorSchema.required].sort(),
   );
-  assert.deepEqual(ios.required_event_fields, ["finalized_block_hash", "event_index", "event"]);
+  assert.deepEqual(manifest.required_event_fields, ["finalized_block_hash", "event_index", "event"]);
 
   const routeIds = new Set(routeContract.routes.map((route: any) => route.id));
   for (const vector of vectors.vectors) assert.ok(routeIds.has(vector.route), vector.id);
@@ -69,6 +68,8 @@ export async function validateMobileContractHarness(): Promise<Record<string, un
     "personhood-credential": "personhood_credential",
     "participant-dot-registration": "dot_register",
     "sponsored-check-in": "sponsored_check_in",
+    "sponsored-replay": "sponsored_replay",
+    "tampered-sponsored-intent": "tampered_sponsored_intent",
     "sponsor-budget-exhaustion": "sponsor_budget_exhaustion",
     offline: "offline",
     "cancelled-submission": "cancelled",
@@ -93,6 +94,21 @@ export async function validateMobileContractHarness(): Promise<Record<string, un
         assert.equal(result.response?.[key], value, `${vector.id}.${key}`);
       }
     }
+    for (const expectation of [
+      "chain_signer",
+      "event",
+      "meta_tx_event",
+      "inner_result",
+      "new_request_and_consent",
+    ]) {
+      if (vector.expected[expectation] !== undefined) {
+        assert.equal(
+          journey.vector_observations?.[vector.id]?.[expectation],
+          vector.expected[expectation],
+          `${vector.id}.${expectation}`,
+        );
+      }
+    }
   }
   assert.equal(journey.signer_boundaries.distinct_chain_signers, true);
   assert.deepEqual(
@@ -101,12 +117,12 @@ export async function validateMobileContractHarness(): Promise<Record<string, un
   );
 
   return {
-    schema: "cord.festival-mobile-contract-parity-report.v1",
+    schema: "cord.festival-platform-contract-parity-report.v1",
     status: "PASS",
     journey_acceptance: true,
     p6_acceptance: false,
     scope: "ios-android-contract-harness-only",
-    platforms: ["ios", "android"],
+    platform,
     vector_count: vectors.vectors.length,
     request_contract_parity: true,
     consent_contract_parity: true,
@@ -128,8 +144,7 @@ export async function validateMobileContractHarness(): Promise<Record<string, un
       sponsorship_or_metatx_routes: sponsoredRoutes.length,
     },
     inputs: {
-      ios_manifest_sha256: digest("ios-contract-harness.manifest.json"),
-      android_manifest_sha256: digest("android-contract-harness.manifest.json"),
+      manifest_sha256: digest(`${platform}-contract-harness.manifest.json`),
       vectors_sha256: digest("mobile-contract-vectors.json"),
       host_request_schema_sha256: digest("../../../docs/sdk/host/host-request.schema.json"),
       native_error_schema_sha256: digest("../../../docs/sdk/native-error.schema.json"),
@@ -147,6 +162,31 @@ export async function validateMobileContractHarness(): Promise<Record<string, un
       slo: true,
       production_mobile_rewrite: true,
     },
+  };
+}
+
+export async function validateMobileContractHarness(): Promise<Record<string, unknown>> {
+  const iosManifest = readJson("ios-contract-harness.manifest.json");
+  const androidManifest = readJson("android-contract-harness.manifest.json");
+  const withoutPlatform = ({ platform: _platform, ...value }: any) => value;
+  assert.deepEqual(withoutPlatform(iosManifest), withoutPlatform(androidManifest));
+  const ios = await validatePlatformContractHarness("ios");
+  const android = await validatePlatformContractHarness("android");
+  const withoutPlatformReport = ({ platform: _platform, inputs, ...value }: any) => ({
+    ...value,
+    inputs: { ...inputs, manifest_sha256: undefined },
+  });
+  assert.deepEqual(withoutPlatformReport(ios), withoutPlatformReport(android));
+  return {
+    schema: "cord.festival-mobile-contract-parity-report.v1",
+    status: "PASS",
+    journey_acceptance: true,
+    p6_acceptance: false,
+    scope: "ios-android-contract-harness-only",
+    platforms: { ios, android },
+    vector_count: (ios as any).vector_count,
+    host_harness_outcome_parity: true,
+    qualification: "iOS and Android each execute the same sealed native-route vectors independently; these CORD-owned contract harnesses are not production Swift or Kotlin applications.",
   };
 }
 

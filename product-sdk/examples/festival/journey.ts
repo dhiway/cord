@@ -1,4 +1,11 @@
 import assert from "node:assert/strict";
+import {
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+  sign as signDetached,
+  verify as verifyDetached,
+} from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -24,7 +31,44 @@ const APP_ID = "festival-p6-reference";
 const FINALIZED_HASH = `0x${"a1".repeat(32)}`;
 const FINALIZED_NUMBER = "100";
 const SUBMISSION_HASH = `0x${"b2".repeat(32)}`;
-const PARTICIPANT_SIGNATURE = `0x${"33".repeat(64)}`;
+const PARTICIPANT_PRIVATE_KEY = createPrivateKey({
+  key: Buffer.concat([
+    Buffer.from("302e020100300506032b657004220420", "hex"),
+    Buffer.alloc(32, 0x19),
+  ]),
+  format: "der",
+  type: "pkcs8",
+});
+const PARTICIPANT_PUBLIC_KEY = createPublicKey(PARTICIPANT_PRIVATE_KEY);
+const PARTICIPANT_PUBLIC_DER = PARTICIPANT_PUBLIC_KEY.export({ format: "der", type: "spki" });
+const PARTICIPANT_ACCOUNT = `0x${PARTICIPANT_PUBLIC_DER.subarray(-32).toString("hex")}`;
+
+function canonicalJson(value: JsonValue): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  return `{${Object.keys(value).sort().map((key) =>
+    `${JSON.stringify(key)}:${canonicalJson(value[key] as JsonValue)}`).join(",")}}`;
+}
+
+function sponsoredEnvelopeHash(envelope: JsonObject): string {
+  const committed = {
+    version: envelope.version,
+    signing_domain: envelope.signing_domain,
+    genesis_hash: envelope.genesis_hash,
+    spec_version: envelope.spec_version,
+    transaction_version: envelope.transaction_version,
+    metadata_hash: envelope.metadata_hash,
+    participant: envelope.participant,
+    nonce: envelope.nonce,
+    mortality: envelope.mortality,
+    target: envelope.target,
+  } as JsonObject;
+  return `0x${createHash("sha256").update(canonicalJson(committed)).digest("hex")}`;
+}
+
+function sponsoredIntentId(signingPayloadHash: string): string {
+  return `0x${createHash("sha256").update(`orbis/meta-intent/v7:${signingPayloadHash}`).digest("hex")}`;
+}
 const CREDENTIAL_ID = `0x${"11".repeat(32)}`;
 const SCHEMA_ID = `0x${"13".repeat(32)}`;
 const NAME_ID = `0x${"14".repeat(32)}`;
@@ -53,6 +97,7 @@ interface JourneyState {
   selfRouteSelections: string[];
   sponsorRouteSelections: string[];
   sponsoredIntentSequence: number;
+  consumedIntents: Set<string>;
 }
 
 class JourneyClient implements TypedPapiClient {
@@ -178,8 +223,7 @@ function sponsorRoutes(state: JourneyState): TypedNetworkRoutes<JourneyClient, T
       state.sponsorRouteSelections.push("transaction:prepare_sponsored_intent");
       state.participantAuthorizations.push(context.authorizationSignature);
       state.sponsoredIntentSequence++;
-      const suffix = state.sponsoredIntentSequence.toString(16).padStart(2, "0");
-      return {
+      const envelope = {
         version: 1,
         signing_domain: "orbis/meta-intent/v7",
         genesis_hash: ORBIS_NETWORK_BINDING.genesis_hash,
@@ -190,8 +234,12 @@ function sponsorRoutes(state: JourneyState): TypedNetworkRoutes<JourneyClient, T
         nonce: payload.nonce,
         mortality: payload.mortality,
         target: payload.target,
-        signing_payload_hash: `0x${suffix.repeat(32)}`,
-        intent_id: `0x${(state.sponsoredIntentSequence + 32).toString(16).padStart(2, "0").repeat(32)}`,
+      } as JsonObject;
+      const signingPayloadHash = sponsoredEnvelopeHash(envelope);
+      return {
+        ...envelope,
+        signing_payload_hash: signingPayloadHash,
+        intent_id: sponsoredIntentId(signingPayloadHash),
       };
     },
     submit(payload, context) {
@@ -203,10 +251,34 @@ function sponsorRoutes(state: JourneyState): TypedNetworkRoutes<JourneyClient, T
           const signed = payload.signed_intent as JsonObject;
           const envelope = signed.envelope as JsonObject;
           const signature = signed.participant_signature as JsonObject;
-          if (signature.value !== PARTICIPANT_SIGNATURE) {
+          const signingPayloadHash = sponsoredEnvelopeHash(envelope);
+          const intentId = sponsoredIntentId(signingPayloadHash);
+          const signatureValue = String(signature.value);
+          const signatureBytes = /^0x[0-9a-f]{128}$/.test(signatureValue)
+            ? Buffer.from(signatureValue.slice(2), "hex")
+            : Buffer.alloc(0);
+          if (
+            signature.scheme !== "ed25519"
+            || envelope.participant !== PARTICIPANT_ACCOUNT
+            || envelope.signing_payload_hash !== signingPayloadHash
+            || envelope.intent_id !== intentId
+            || !verifyDetached(
+              null,
+              Buffer.from(signingPayloadHash.slice(2), "hex"),
+              PARTICIPANT_PUBLIC_KEY,
+              signatureBytes,
+            )
+          ) {
             yield {
               type: "rejected",
               error: { code: "proof_invalid", message: "participant intent signature mismatch", retryable: false },
+            };
+            return;
+          }
+          if (state.consumedIntents.has(intentId)) {
+            yield {
+              type: "rejected",
+              error: { code: "replay", message: "sponsored intent was already consumed", retryable: false },
             };
             return;
           }
@@ -225,6 +297,7 @@ function sponsorRoutes(state: JourneyState): TypedNetworkRoutes<JourneyClient, T
             return;
           }
           state.sponsorCredits--;
+          state.consumedIntents.add(intentId);
           yield { type: "broadcasted" };
           state.events.push({
             finalized_block_hash: SUBMISSION_HASH,
@@ -330,10 +403,11 @@ export async function runFestivalJourney(): Promise<JsonObject> {
     selfRouteSelections: [],
     sponsorRouteSelections: [],
     sponsoredIntentSequence: 0,
+    consumedIntents: new Set(),
   };
   const selfClient = new JourneyClient(state);
   const sponsorClient = new JourneyClient(state);
-  const selfSigner = { accountId: "participant-account" } as const;
+  const selfSigner = { accountId: PARTICIPANT_ACCOUNT } as const;
   const sponsorSigner = { accountId: "festival-sponsor-account" } as const;
   const authorizationSigner = async (request: HostRequest) => `participant-authorization:${request.request_id}`;
   const terminal: string[] = [];
@@ -422,19 +496,36 @@ export async function runFestivalJourney(): Promise<JsonObject> {
       target: { capability: "attestation", method: "issue", payload: checkIn },
     }]),
   );
-  const submitPrepared = async (prepared: Terminal): Promise<Terminal> => {
+  const signPrepared = (prepared: Terminal): JsonObject => {
     assert.equal(prepared.code, "success");
     const envelope = prepared.response as JsonObject;
-    return execute(sponsorHost, build("transaction:submit_sponsored_intent", [{
+    const signingPayloadHash = String(envelope.signing_payload_hash);
+    return {
       envelope,
       participant_signature: {
-        scheme: "sr25519",
-        value: PARTICIPANT_SIGNATURE,
+        scheme: "ed25519",
+        value: `0x${signDetached(
+          null,
+          Buffer.from(signingPayloadHash.slice(2), "hex"),
+          PARTICIPANT_PRIVATE_KEY,
+        ).toString("hex")}`,
       },
-    }]));
+    };
+  };
+  const submitSigned = async (signedIntent: JsonObject): Promise<Terminal> => execute(
+    sponsorHost,
+    build("transaction:submit_sponsored_intent", [signedIntent]),
+  );
+  const submitPrepared = async (prepared: Terminal): Promise<Terminal> => {
+    return submitSigned(signPrepared(prepared));
   };
   results.prepare_sponsored_check_in = await prepareCheckIn("1");
-  results.sponsored_check_in = await submitPrepared(results.prepare_sponsored_check_in);
+  const signedCheckIn = signPrepared(results.prepare_sponsored_check_in);
+  results.sponsored_check_in = await submitSigned(signedCheckIn);
+  results.sponsored_replay = await submitSigned(signedCheckIn);
+  const tamperedCheckIn = structuredClone(signedCheckIn);
+  (tamperedCheckIn.envelope as JsonObject).nonce = "99";
+  results.tampered_sponsored_intent = await submitSigned(tamperedCheckIn);
   results.prepare_exhausted_check_in = await prepareCheckIn("2");
   results.sponsor_budget_exhaustion = await submitPrepared(results.prepare_exhausted_check_in);
 
@@ -486,6 +577,8 @@ export async function runFestivalJourney(): Promise<JsonObject> {
     dot_credential_link: "success",
     prepare_sponsored_check_in: "success",
     sponsored_check_in: "success",
+    sponsored_replay: "replay",
+    tampered_sponsored_intent: "proof_invalid",
     prepare_exhausted_check_in: "success",
     sponsor_budget_exhaustion: "capacity_exceeded",
     offline: "timeout",
@@ -528,15 +621,41 @@ export async function runFestivalJourney(): Promise<JsonObject> {
       self_chain_signer: selfSigner.accountId,
       remote_sponsor_chain_signer: sponsorSigner.accountId,
       self_submission_count: state.selfChainSigners.length,
-      sponsored_submission_count: state.sponsorChainSigners.length - 1,
+      sponsored_submission_count: state.sponsorRouteSelections.filter(
+        (route) => route === "transaction:submit_sponsored_intent",
+      ).length,
       distinct_chain_signers: true,
-      qualification: "Participant signs the inner v7 intent; the distinct host signer submits MetaTx::dispatch and requires finalized MetaTx::Dispatched(Ok).",
+      qualification: "A deterministic Ed25519 participant key signs a digest committing the complete typed v7 envelope; the distinct host signer submits MetaTx::dispatch and requires finalized MetaTx::Dispatched(Ok). Runtime SCALE/signature parity remains covered by Rust integration tests.",
     },
     route_selections: {
       self: state.selfRouteSelections,
       sponsor: state.sponsorRouteSelections,
     },
     finalized_events: state.events,
+    replay_boundaries: {
+      sponsored_intent_replay: results.sponsored_replay.code,
+      tampered_sponsored_intent: results.tampered_sponsored_intent.code,
+      host_consent_replay: results.offline_replay.code,
+      reconnect_uses_new_request_and_consent: true,
+    },
+    vector_observations: {
+      "participant-dot-registration": {
+        chain_signer: "participant",
+        event: "name_registered",
+      },
+      "sponsored-check-in": {
+        chain_signer: "sponsor",
+        event: "sponsored_check_in",
+        meta_tx_event: (results.sponsored_check_in.response as JsonObject).meta_tx_event,
+        inner_result: (results.sponsored_check_in.response as JsonObject).inner_result,
+      },
+      reconnect: {
+        new_request_and_consent: true,
+      },
+      "revoked-credential-deny": {
+        event: "attestation_revoked",
+      },
+    },
     terminal_count: terminal.length,
     native_only: {
       raw_scale: false,

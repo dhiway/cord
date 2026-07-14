@@ -1,16 +1,24 @@
 {
+  "android_contract_harness": {
+    "report": "docs/evidence/verification/p6/festival-android-contract-parity.report.json",
+    "sha256": "62cdf426746f9f5cd87f1fd12e9f16afe15d57f9491aa779f5fd6e878e3f0787"
+  },
   "enterprise": {
     "report": "docs/evidence/verification/p6/enterprise-journey.report.json",
-    "sha256": "73d1fdc8a3fea7961bf5ae7fc2284be827dbd0ca24111554f0a26275f13a5e50"
+    "sha256": "a12826212945f07155d39f34d7e9c759f7300ac72abfbc61de68856a9b2a566d"
   },
   "festival": {
     "report": "docs/evidence/verification/p6/festival-journey.report.json",
-    "sha256": "b35256da786cbd05062fa7ec67bbfed71ba0f1b7cdd83d39e9adaca9ea8fb885"
+    "sha256": "c425e54a34e63b63a4eda2145ac230212419e86ad71bf6e6333c91742ba07799"
+  },
+  "ios_contract_harness": {
+    "report": "docs/evidence/verification/p6/festival-ios-contract-parity.report.json",
+    "sha256": "8d69acc11349d9b6087232ee96fc12be1fa547718aa132b75a29f0ca7812731b"
   },
   "journey_acceptance": true,
   "mobile_contract_parity": {
     "report": "docs/evidence/verification/p6/festival-mobile-contract-parity.report.json",
-    "sha256": "741d0f52df6f774daa21b6ceadb3be2f0a01422399fc0216844b939241fd72cd"
+    "sha256": "8925458d2a979657d88acb440774f0b04e0a0dc0f1231126a21db458cbc49d8a"
   },
   "p6_acceptance": false,
   "production_app_claim": false,
@@ -28,7 +36,9 @@
     "offline",
     "reconnect",
     "replay",
-    "revocation"
+    "revocation",
+    "sponsored_replay",
+    "tampered_sponsored_intent"
   ],
   "schema": "cord.p6-journeys.v1",
   "status": "PASS"

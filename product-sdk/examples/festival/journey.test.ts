@@ -37,6 +37,6 @@ test("iOS and Android manifests have exact request consent network error and eve
   assert.equal(report.status, "PASS");
   assert.equal(report.journey_acceptance, true);
   assert.equal(report.p6_acceptance, false);
-  assert.equal(report.vector_count, 12);
+  assert.equal(report.vector_count, 14);
   assert.equal(report.host_harness_outcome_parity, true);
 });
