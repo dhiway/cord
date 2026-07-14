@@ -97,13 +97,69 @@
           "attestation": "0x7777777777777777777777777777777777777777777777777777777777777777"
         }
       }
+    },
+    {
+      "runtime_event": {
+        "event": "delegated_intent_consumed",
+        "data": {
+          "issuer": "3trSqr2ErU2GA8YAzj1YmXfRkg4L4PrMbptvhKTxgv2zdXGL",
+          "delegate": "3tsmBvLnZVgSnZLtj1WQavcXmGy8XUScjNj3YpHBx2pr6pRA",
+          "nonce": 7,
+          "attestation": "0x7777777777777777777777777777777777777777777777777777777777777777"
+        }
+      },
+      "semantic_outcome": {
+        "outcome": "delegation_consumed",
+        "data": {
+          "account": "3trSqr2ErU2GA8YAzj1YmXfRkg4L4PrMbptvhKTxgv2zdXGL",
+          "nonce": 7,
+          "attestation": "0x7777777777777777777777777777777777777777777777777777777777777777"
+        }
+      }
+    },
+    {
+      "runtime_event": {
+        "event": "delegated_revocation_consumed",
+        "data": {
+          "revoker": "3trSqr2ErU2GA8YAzj1YmXfRkg4L4PrMbptvhKTxgv2zdXGL",
+          "delegate": "3tsmBvLnZVgSnZLtj1WQavcXmGy8XUScjNj3YpHBx2pr6pRA",
+          "nonce": 8,
+          "attestation": "0x7777777777777777777777777777777777777777777777777777777777777777"
+        }
+      },
+      "semantic_outcome": {
+        "outcome": "delegation_consumed",
+        "data": {
+          "account": "3trSqr2ErU2GA8YAzj1YmXfRkg4L4PrMbptvhKTxgv2zdXGL",
+          "nonce": 8,
+          "attestation": "0x7777777777777777777777777777777777777777777777777777777777777777"
+        }
+      }
     }
   ],
   "source_symbols": [
     "AttestationService.attestationCount",
     "AttestationService.getRevokeOffchain",
-    "AttestationService.revokeOffchain",
     "AttestationService.multiRevokeOffchain",
+    "AttestationService.revokeOffchain",
+    "EIP712Verifier.ATTEST_TYPEHASH",
+    "EIP712Verifier.EIP712Verifier__DeadlineExpired",
+    "EIP712Verifier.EIP712Verifier__InvalidNonce",
+    "EIP712Verifier.EIP712Verifier__InvalidSignature",
+    "EIP712Verifier.NonceIncreased",
+    "EIP712Verifier.REVOKE_TYPEHASH",
+    "EIP712Verifier._nonces",
+    "EIP712Verifier._time",
+    "EIP712Verifier._verifyAttest",
+    "EIP712Verifier._verifyRevoke",
+    "EIP712Verifier.constructor",
+    "EIP712Verifier.getAttestTypeHash",
+    "EIP712Verifier.getDomainSeparator",
+    "EIP712Verifier.getName",
+    "EIP712Verifier.getNonce",
+    "EIP712Verifier.getRevokeTypeHash",
+    "EIP712Verifier.increaseNonce",
+    "EIP712Verifier.roles-storage-economic-signature-lifecycle",
     "SchemaRegistry.schemaCount"
   ]
 }

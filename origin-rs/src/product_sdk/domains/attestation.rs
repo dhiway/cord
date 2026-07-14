@@ -867,6 +867,7 @@ mod vector_tests {
 	struct Vectors {
 		signing: Vec<SigningVector>,
 		events: Vec<EventVector>,
+		source_symbols: Vec<String>,
 	}
 
 	#[derive(Deserialize)]
@@ -890,6 +891,35 @@ mod vector_tests {
 			"/../docs/sdk/vectors/attestation-v1.json"
 		)))
 		.unwrap();
+		let eip712_source_symbols: BTreeSet<_> = vectors
+			.source_symbols
+			.iter()
+			.filter(|symbol| symbol.starts_with("EIP712Verifier."))
+			.map(String::as_str)
+			.collect();
+		assert_eq!(
+			eip712_source_symbols,
+			BTreeSet::from([
+				"EIP712Verifier.ATTEST_TYPEHASH",
+				"EIP712Verifier.EIP712Verifier__DeadlineExpired",
+				"EIP712Verifier.EIP712Verifier__InvalidNonce",
+				"EIP712Verifier.EIP712Verifier__InvalidSignature",
+				"EIP712Verifier.NonceIncreased",
+				"EIP712Verifier.REVOKE_TYPEHASH",
+				"EIP712Verifier._nonces",
+				"EIP712Verifier._time",
+				"EIP712Verifier._verifyAttest",
+				"EIP712Verifier._verifyRevoke",
+				"EIP712Verifier.constructor",
+				"EIP712Verifier.getAttestTypeHash",
+				"EIP712Verifier.getDomainSeparator",
+				"EIP712Verifier.getName",
+				"EIP712Verifier.getNonce",
+				"EIP712Verifier.getRevokeTypeHash",
+				"EIP712Verifier.increaseNonce",
+				"EIP712Verifier.roles-storage-economic-signature-lifecycle",
+			]),
+		);
 		let schemes: BTreeSet<_> =
 			vectors.signing.iter().map(|vector| vector.scheme.as_str()).collect();
 		assert_eq!(schemes, BTreeSet::from(["ecdsa", "ed25519", "sr25519"]));

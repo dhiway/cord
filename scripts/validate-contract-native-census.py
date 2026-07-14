@@ -150,6 +150,9 @@ if "--final" in sys.argv:
     for field in ("unowned_survivors", "migrated_domain_callable_contracts", "deprecated_facades", "dead_product_paths"):
         if cleanup[field] != 0: errors.append(f"final cleanup {field} != 0")
 allow = json.loads((ev / "native-cutover-allowlist.json").read_text())
+allowlist_hash = hashlib.sha256((ev / "native-cutover-allowlist.json").read_bytes()).hexdigest()
+if cleanup.get("allowlist_sha256") != allowlist_hash:
+    errors.append("cleanup allowlist hash mismatch")
 for entry in allow["entries"]:
     for field in ("owner", "unrelated_live_use", "dependency_path", "test_evidence", "exclusions"):
         if not entry.get(field): errors.append(f"allowlist missing {field}")

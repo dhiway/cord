@@ -1,7 +1,7 @@
 {
   "android_contract_harness": {
     "report": "docs/evidence/verification/p6/festival-android-contract-parity.report.json",
-    "sha256": "62cdf426746f9f5cd87f1fd12e9f16afe15d57f9491aa779f5fd6e878e3f0787"
+    "sha256": "ec0330282595b22d1a648480782981ddc75542e4653ee8965ffa956a326e4c8e"
   },
   "enterprise": {
     "report": "docs/evidence/verification/p6/enterprise-journey.report.json",
@@ -13,12 +13,12 @@
   },
   "ios_contract_harness": {
     "report": "docs/evidence/verification/p6/festival-ios-contract-parity.report.json",
-    "sha256": "8d69acc11349d9b6087232ee96fc12be1fa547718aa132b75a29f0ca7812731b"
+    "sha256": "8d927ec43db2857cc698a3c990188127f1ab625961b4fd9711a5cd5d6d67d240"
   },
   "journey_acceptance": true,
   "mobile_contract_parity": {
     "report": "docs/evidence/verification/p6/festival-mobile-contract-parity.report.json",
-    "sha256": "8925458d2a979657d88acb440774f0b04e0a0dc0f1231126a21db458cbc49d8a"
+    "sha256": "4f0e7ea63d6bfda2ae0ea65bad8b3952e5c174eb0236cc9667cce3721ab9508c"
   },
   "p6_acceptance": false,
   "production_app_claim": false,

@@ -2,14 +2,14 @@
   "approval_manifest": {
     "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
     "required_reviewer_role": "architect",
-    "review_thread_id": "b2c4692d-d095-40bc-9bab-5c7e053b0e14",
+    "review_thread_id": "a034f498-1a09-5509-95ff-c0c93cc8406a",
     "schema_version": 2,
-    "sha256": "639d9b868973e0020d58f98cba06e6adc18a1b691208b1d6d32dac6b52aeb594",
+    "sha256": "c930a5eb5a3abc07fa73862c7a017d499931b764a91a34a8c2bd96d1ab70cc6a",
     "verdict": "APPROVED"
   },
   "approval_note": "M3 is approved only by the hash-bound architect manifest; PENDING never counts as coverage.",
   "approved_semantic_design_coverage_percent": 100.0,
-  "census_sha256": "ac5d7bcea10a61c809809609af6d4c9d958e69d2f02edb04d5be600329c76ae8",
+  "census_sha256": "3f5adcc5f15e64f94e277096177d3c748a04b0ab6037768d708b3a9d72693698",
   "classification_coverage_percent": 100,
   "compatibility_facades": 0,
   "component_counts": {
@@ -23,9 +23,9 @@
   "criterion": "M2-M3",
   "deployment_state_inputs": 0,
   "disposition_counts": {
-    "intentional-change": 53,
+    "intentional-change": 51,
     "not-applicable": 71,
-    "retired": 8
+    "retired": 10
   },
   "file_symbol_disposition_alignment": "pass",
   "fixture_vector_categories": {
@@ -77,7 +77,7 @@
   "missing_required_fixture_vector_markers": [],
   "schema_version": 1,
   "semantic_design_entries": 2780,
-  "semantic_design_map_sha256": "65c09ed39b02c227a3402e8b8ef40474c438203e5c5f0f73b0cedf32a6ef35f9",
+  "semantic_design_map_sha256": "0f1ea8783001f2f2798c5b073a9afd55bc8bf69cf2d2fe2dc10324c2763b39e5",
   "source_components": 132,
   "source_summary_audit": {
     "method": "source-specific assertions for high-risk files; otherwise conservative declaration/state/role/token evidence with no inferred design claims",
@@ -86,8 +86,8 @@
   },
   "status": "pass",
   "symbol_disposition_state_counts": {
-    "all": 110,
-    "mixed": 22
+    "all": 107,
+    "mixed": 25
   },
   "unapproved_source_components": 0,
   "unknown_source_components": []

@@ -2,9 +2,9 @@
   "approval_manifest": {
     "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
     "required_reviewer_role": "architect",
-    "review_thread_id": "b2c4692d-d095-40bc-9bab-5c7e053b0e14",
+    "review_thread_id": "a034f498-1a09-5509-95ff-c0c93cc8406a",
     "schema_version": 2,
-    "sha256": "639d9b868973e0020d58f98cba06e6adc18a1b691208b1d6d32dac6b52aeb594",
+    "sha256": "c930a5eb5a3abc07fa73862c7a017d499931b764a91a34a8c2bd96d1ab70cc6a",
     "verdict": "APPROVED"
   },
   "schema_version": 1,
@@ -1766,11 +1766,11 @@
       "reference_dependency_manifests": [
         {
           "path": "Cargo.toml",
-          "sha256": "7ad2d1894a91ea1954f33664a72174a223cc74fb2f86d9fa11331e0ddeafaacc"
+          "sha256": "ebfccd807bc4f0db405d2e6899e008cc112fcfd8aef40fd2c5205df4e01bb841"
         },
         {
           "path": "Cargo.lock",
-          "sha256": "4295a61782b9d74616a9aa2546e6c930dcc1d880a89948db6e846185d56de7ab"
+          "sha256": "2f26a9400f7635c99b8859ad497a415d2e5e302da283f42999256004e26d7fa0"
         }
       ],
       "tree_hash": "5995836d5492d173b7f2f11dc97d9c35d76da48e"

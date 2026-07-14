@@ -4,13 +4,13 @@ TAP version 13
 # Subtest: Festival journey uses sealed typed routes and exercises required failure boundaries
 ok 1 - Festival journey uses sealed typed routes and exercises required failure boundaries
   ---
-  duration_ms: 12.502333
+  duration_ms: 10.724375
   type: 'test'
   ...
 # Subtest: iOS and Android manifests have exact request consent network error and event parity
 ok 2 - iOS and Android manifests have exact request consent network error and event parity
   ---
-  duration_ms: 18.473208
+  duration_ms: 19.612875
   type: 'test'
   ...
 1..2
@@ -21,4 +21,4 @@ ok 2 - iOS and Android manifests have exact request consent network error and ev
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 184.836167
+# duration_ms 176.060916

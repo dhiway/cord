@@ -3,8 +3,8 @@
   "clean_genesis": true,
   "data_migration": false,
   "dotns_is_sole_dns_name_registry_authority": true,
-  "files_scanned": 870,
-  "generated_at": "2026-07-13T19:32:51.546523+00:00",
+  "files_scanned": 904,
+  "generated_at": "2026-07-14T06:35:29.681068+00:00",
   "legacy_dotns_contract_survivors": [],
   "provenance_only_allowlist": [
     "docs/evidence/p0-contract-native/**",

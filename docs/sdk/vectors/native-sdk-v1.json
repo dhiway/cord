@@ -12,7 +12,7 @@
     {
       "domain": "attestation",
       "path": "docs/sdk/vectors/attestation-v1.json",
-      "sha256": "91516138c2e31d814912dbd0954045b429b7f00376f3256dd737deaa2660f1ce",
+      "sha256": "40b91520308ec9864e4533c1f90d367c254af872054fc599ed058e2695d14e31",
       "validated_by": [
         "origin-rs",
         "product-sdk"

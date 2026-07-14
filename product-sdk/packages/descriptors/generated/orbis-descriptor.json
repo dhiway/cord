@@ -24,7 +24,7 @@
     "productionActivationReady": false,
     "source": "docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"
   },
-  "ratificationPayloadSha256": "a9455ca6983aa55ae9c6baff2330051f9f51bb8273066d00b16fdd76fa436315",
+  "ratificationPayloadSha256": "05445b67cd8ff824dac9376b4635abf6c1f069625ee2a0f4b937716037635dee",
   "sources": {
     "compatibility": {
       "path": "docs/sdk/compatibility-manifest.json",
@@ -44,7 +44,7 @@
     },
     "vectors": {
       "path": "docs/sdk/vectors/native-sdk-v1.json",
-      "sha256": "c63016fd58f908d08a9fa991b2ef499c37a804de150611927a50d5cc93d35264"
+      "sha256": "eb3b3fb36b89b9d17cf38af838841274759d06ac4bdb9ba81f252f6ba2ca8115"
     },
     "genesisIdentity": {
       "path": "docs/genesis/orbis-candidate-genesis-identity.json",

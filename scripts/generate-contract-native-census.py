@@ -622,6 +622,458 @@ M5_EXACT_ADOPTED_FUNCTIONS = frozenset({
 })
 
 
+ATTESTATION_VECTOR = "docs/sdk/vectors/attestation-v1.json"
+ATTESTATION_VECTOR_TESTS = [
+    "origin/orbis/pallets/attestation/src/tests.rs",
+    "origin-rs/src/product_sdk/domains/attestation.rs",
+    "product-sdk/tests/attestation/attestation-vectors.test.ts",
+    "product-sdk/tests/host/attestation-contracts.test.ts",
+    "product-sdk/tests/host/attestation-events.test.ts",
+]
+
+
+def exact_eip712_binding(
+    kind: str,
+    name: str,
+    semantic_detail: str,
+) -> dict[str, object]:
+    """Replace the contract EIP-712 verifier with exact native SCALE-intent surfaces."""
+    pallet = "origin/orbis/pallets/attestation/src/lib.rs"
+    runtime_api = "origin/orbis/pallets/attestation/runtime-api/src/lib.rs"
+    rust_sdk = "origin-rs/src/product_sdk/domains/attestation.rs"
+    typescript_sdk = "product-sdk/src/attestation.ts"
+    rust_error = "origin-rs/src/product_sdk/contract.rs::NativeError"
+    ts_error = "product-sdk/packages/core/src/contract.ts::ProductSdkError"
+
+    error_bindings = {
+        "EIP712Verifier__DeadlineExpired": (
+            f"{pallet}::Error::IntentExpired",
+            f"{rust_sdk}::AttestationCommand::validate_at + {rust_error}",
+            f"{typescript_sdk}::DelegatedIssueIntent.deadline/DelegatedRevokeIntent.deadline + {ts_error}",
+        ),
+        "EIP712Verifier__InvalidNonce": (
+            f"{pallet}::Error::InvalidNonce",
+            f"{rust_sdk}::AttestationCommand::IssueDelegated/RevokeDelegated + {rust_error}",
+            f"{typescript_sdk}::attestation.issueDelegated/revokeDelegated + {ts_error}",
+        ),
+        "EIP712Verifier__InvalidSignature": (
+            f"{pallet}::Error::InvalidSignature",
+            f"{rust_sdk}::Signature/AttestationCommand::IssueDelegated/RevokeDelegated + {rust_error}",
+            "product-sdk/src/types.ts::IssuerSignature + "
+            f"{typescript_sdk}::attestation.issueDelegated/revokeDelegated + {ts_error}",
+        ),
+    }
+    function_bindings = {
+        "_time": (
+            f"{pallet}::ensure_delegated_context -> frame_system::Pallet::block_number <= deadline",
+            f"{rust_sdk}::DelegatedIntent::validate_at/DelegatedRevokeIntent::validate_at",
+            f"{typescript_sdk}::DelegatedIssueIntent.deadline/DelegatedRevokeIntent.deadline",
+        ),
+        "_verifyAttest": (
+            f"{pallet}::validate_delegated_issue + delegated_signing_payload",
+            f"{rust_sdk}::delegated_issue_signing_payload + AttestationCommand::IssueDelegated",
+            f"{typescript_sdk}::delegatedIssueSigningPayload + attestation.issueDelegated",
+        ),
+        "_verifyRevoke": (
+            f"{pallet}::validate_delegated_revoke + delegated_revoke_signing_payload",
+            f"{rust_sdk}::delegated_revoke_signing_payload + AttestationCommand::RevokeDelegated",
+            f"{typescript_sdk}::delegatedRevokeSigningPayload + attestation.revokeDelegated",
+        ),
+        "constructor": (
+            f"{pallet}::Config + DELEGATED_INTENT_DOMAIN/DELEGATED_REVOKE_DOMAIN (static composition; no constructor)",
+            f"{rust_sdk}::delegated_issue_signing_payload/delegated_revoke_signing_payload (no constructor)",
+            f"{typescript_sdk}::delegatedIssueSigningPayload/delegatedRevokeSigningPayload (no constructor)",
+        ),
+        "getAttestTypeHash": (
+            f"{pallet}::DELEGATED_INTENT_DOMAIN + delegated_signing_payload canonical SCALE tuple",
+            f"{rust_sdk}::delegated_issue_signing_payload",
+            f"{typescript_sdk}::delegatedIssueSigningPayload",
+        ),
+        "getDomainSeparator": (
+            f"{pallet}::DELEGATED_INTENT_DOMAIN/DELEGATED_REVOKE_DOMAIN + ensure_delegated_context(genesis_hash,spec_version)",
+            f"{rust_sdk}::DelegatedIntent::genesis_hash/spec_version + DelegatedRevokeIntent::genesis_hash/spec_version",
+            f"{typescript_sdk}::DelegatedIssueIntent.genesis_hash/spec_version + DelegatedRevokeIntent.genesis_hash/spec_version",
+        ),
+        "getName": (
+            f"{pallet}::DELEGATED_INTENT_DOMAIN/DELEGATED_REVOKE_DOMAIN (no EIP-712 name)",
+            f"{rust_sdk}::delegated_issue_signing_payload/delegated_revoke_signing_payload",
+            f"{typescript_sdk}::delegatedIssueSigningPayload/delegatedRevokeSigningPayload",
+        ),
+        "getNonce": (
+            f"{runtime_api}::AttestationApi::next_delegated_nonce",
+            f"{rust_sdk}::AttestationQuery::NextDelegatedNonce",
+            f"{typescript_sdk}::attestation.nextDelegatedNonce",
+        ),
+        "getRevokeTypeHash": (
+            f"{pallet}::DELEGATED_REVOKE_DOMAIN + delegated_revoke_signing_payload canonical SCALE tuple",
+            f"{rust_sdk}::delegated_revoke_signing_payload",
+            f"{typescript_sdk}::delegatedRevokeSigningPayload",
+        ),
+        "increaseNonce": (
+            f"{pallet}::consume_delegated_issue/consume_delegated_revoke -> NextDelegatedNonce + DelegatedIntentConsumed/DelegatedRevocationConsumed",
+            f"{rust_sdk}::AttestationEvent::DelegatedIntentConsumed/DelegatedRevocationConsumed",
+            f"{typescript_sdk}::AttestationEvent delegated_intent_consumed/delegated_revocation_consumed",
+        ),
+    }
+    state_bindings = {
+        "ATTEST_TYPEHASH": function_bindings["getAttestTypeHash"],
+        "REVOKE_TYPEHASH": function_bindings["getRevokeTypeHash"],
+        "_nonces": (
+            f"{pallet}::NextDelegatedNonce",
+            f"{rust_sdk}::AttestationQuery::NextDelegatedNonce",
+            f"{typescript_sdk}::attestation.nextDelegatedNonce",
+        ),
+    }
+
+    if kind == "error":
+        targets = error_bindings.get(name)
+    elif kind == "event" and name == "NonceIncreased":
+        targets = (
+            f"{pallet}::Event::DelegatedIntentConsumed/DelegatedRevocationConsumed",
+            f"{rust_sdk}::AttestationEvent::DelegatedIntentConsumed/DelegatedRevocationConsumed",
+            f"{typescript_sdk}::AttestationEvent delegated_intent_consumed/delegated_revocation_consumed",
+        )
+    elif kind == "function":
+        targets = function_bindings.get(name)
+    elif kind == "state":
+        targets = state_bindings.get(name)
+    elif kind == "invariant-bundle" and name == "roles-storage-economic-signature-lifecycle":
+        targets = (
+            f"{pallet}::DELEGATED_INTENT_DOMAIN/DELEGATED_REVOKE_DOMAIN + NextDelegatedNonce + ensure_delegated_context/validate_delegated_issue/validate_delegated_revoke/consume_delegated_issue/consume_delegated_revoke",
+            f"{rust_sdk}::impl Validate for DelegatedIntent/DelegatedRevokeIntent/Signature + DelegatedIntent::validate_at/DelegatedRevokeIntent::validate_at + delegated_issue_signing_payload/delegated_revoke_signing_payload + AttestationQuery::NextDelegatedNonce",
+            "product-sdk/src/types.ts::IssuerSignature + "
+            f"{typescript_sdk}::DelegatedIssueIntent/DelegatedRevokeIntent + delegatedIssueSigningPayload/delegatedRevokeSigningPayload + attestation.nextDelegatedNonce/issueDelegated/revokeDelegated",
+        )
+    else:
+        targets = None
+    if targets is None:
+        raise ValueError(f"unmapped active EIP712Verifier semantic: {kind}::{name}")
+    native_target, rust_target, ts_target = targets
+    implementation_evidence = runtime_api if native_target.startswith(runtime_api) else pallet
+    return {
+        "native_target": native_target,
+        "rust_sdk": rust_target,
+        "typescript_sdk": ts_target,
+        "implementation_evidence": implementation_evidence,
+        "semantic_evidence": "docs/architecture/domains/identity-personhood-attestation.md",
+        "vector_evidence": ATTESTATION_VECTOR,
+        "vector_test_evidence": ATTESTATION_VECTOR_TESTS,
+        "bounded_semantic_disposition": (
+            f"Replace EIP-712 {kind} {name} with {native_target} and the named typed Rust/"
+            "TypeScript SCALE-intent surface. EIP-712 domains/type hashes, ABI signatures, "
+            "contract addresses, arbitrary nonce increments, legacy state, and compatibility "
+            "facades are excluded. "
+            + semantic_detail.replace("native delegated-attestation calls and intent verifier", native_target)
+        ),
+    }
+
+
+def exact_attestation_binding(
+    source_id: str,
+    kind: str,
+    name: str,
+    semantic_detail: str,
+) -> dict[str, object]:
+    """Bind one adopted Attestation semantic to existing native and SDK symbols."""
+    if source_id.endswith("/EIP712Verifier.sol"):
+        return exact_eip712_binding(kind, name, semantic_detail)
+    pallet = "origin/orbis/pallets/attestation/src/lib.rs"
+    runtime_api = "origin/orbis/pallets/attestation/runtime-api/src/lib.rs"
+    rust_sdk = "origin-rs/src/product_sdk/domains/attestation.rs"
+    typescript_sdk = "product-sdk/src/attestation.ts"
+    function_bindings = {
+        "_attest": ("Call::issue", "AttestationCommand::Issue", "attestation.issue"),
+        "attest": ("Call::issue", "AttestationCommand::Issue", "attestation.issue"),
+        "attestByDelegation": ("Call::issue_delegated", "AttestationCommand::IssueDelegated", "attestation.issueDelegated"),
+        "_mergeIDs": ("Call::issue_batch", "AttestationCommand::IssueBatch", "attestation.issueBatch"),
+        "multiAttest": ("Call::issue_batch", "AttestationCommand::IssueBatch", "attestation.issueBatch"),
+        "multiAttestByDelegation": ("Call::issue_delegated_batch", "AttestationCommand::IssueDelegatedBatch", "attestation.issueDelegatedBatch"),
+        "_revoke": ("Call::revoke", "AttestationCommand::Revoke", "attestation.revoke"),
+        "revoke": ("Call::revoke", "AttestationCommand::Revoke", "attestation.revoke"),
+        "revokeByDelegation": ("Call::revoke_delegated", "AttestationCommand::RevokeDelegated", "attestation.revokeDelegated"),
+        "multiRevoke": ("Call::revoke_batch", "AttestationCommand::RevokeBatch", "attestation.revokeBatch"),
+        "multiRevokeByDelegation": ("Call::revoke_delegated_batch", "AttestationCommand::RevokeDelegatedBatch", "attestation.revokeDelegatedBatch"),
+        "_revokeOffchain": ("Call::revoke_external_status", "AttestationCommand::RevokeExternalStatus", "attestation.revokeExternalStatus"),
+        "revokeOffchain": ("Call::revoke_external_status", "AttestationCommand::RevokeExternalStatus", "attestation.revokeExternalStatus"),
+        "multiRevokeOffchain": ("Call::revoke_external_status_batch", "AttestationCommand::RevokeExternalStatusBatch", "attestation.revokeExternalStatusBatch"),
+        "getRevokeOffchain": ("AttestationApi::external_status", "AttestationQuery::ExternalStatus", "attestation.externalStatus"),
+        "register": ("Call::create_schema", "AttestationCommand::CreateSchema", "attestation.createSchema"),
+        "getAttestationById": ("AttestationApi::attestation_by_id", "AttestationQuery::AttestationById", "attestation.attestationById"),
+        "getAttestationByIds": ("AttestationApi::attestation_by_id repeated at one finalized hash", "AttestationQuery::AttestationById", "attestation.attestationById"),
+        "isActive": ("AttestationApi::attestation_live_status", "AttestationQuery::LiveStatus", "attestation.liveStatus"),
+        "isAttestationValid": ("AttestationApi::attestation_live_status", "AttestationQuery::LiveStatus", "attestation.liveStatus"),
+        "isActiveAny": ("AttestationApi::attestation_live_status repeated at one finalized hash", "AttestationQuery::LiveStatus", "attestation.liveStatus"),
+        "getSchema": ("AttestationApi::schema_by_id", "AttestationQuery::SchemaById", "attestation.schemaById"),
+        "getSchemaRegistry": ("AttestationApi::schema_by_id/schema_count; no registry address", "AttestationQuery::SchemaById/SchemaCount", "attestation.schemaById/attestation.schemaCount"),
+        "schemaCount": ("AttestationApi::schema_count", "AttestationQuery::SchemaCount", "attestation.schemaCount"),
+        "attestationCount": ("AttestationApi::attestation_count", "AttestationQuery::AttestationCount", "attestation.attestationCount"),
+        "countByAttester": ("AttestationApi::issuer_attestations", "AttestationQuery::IssuerAttestations", "attestation.issuerAttestations"),
+        "listByAttester": ("AttestationApi::issuer_attestations", "AttestationQuery::IssuerAttestations", "attestation.issuerAttestations"),
+        "countByRecipientAndSchema": ("AttestationApi::subject_schema_attestations", "AttestationQuery::SubjectSchemaAttestations", "attestation.subjectSchemaAttestations"),
+        "listByRecipientAndSchema": ("AttestationApi::subject_schema_attestations", "AttestationQuery::SubjectSchemaAttestations", "attestation.subjectSchemaAttestations"),
+        "countBySchema": ("AttestationApi::issuer_attestations + AttestationApi::attestation_by_id at one finalized hash", "AttestationQuery::IssuerAttestations/AttestationById", "attestation.issuerAttestations/attestation.attestationById"),
+        "listBySchema": ("AttestationApi::issuer_attestations + AttestationApi::attestation_by_id at one finalized hash", "AttestationQuery::IssuerAttestations/AttestationById", "attestation.issuerAttestations/attestation.attestationById"),
+        "_compositeKey": ("SubjectSchemaAttestations storage key (schema, subject_commitment)", "AttestationQuery::SubjectSchemaAttestations", "attestation.subjectSchemaAttestations"),
+        "_page": ("IdPage/MAX_PAGE_SIZE", "PageRequest", "PageInput"),
+        "onAttest": ("issue_inner atomic IssuerAttestations/SubjectSchemaAttestations update", "AttestationEvent::AttestationIssued", "AttestationEvent event=attestation_issued"),
+        "onRevoke": ("revoke_inner atomic Attestations update", "AttestationEvent::AttestationRevoked", "AttestationEvent event=attestation_revoked"),
+        "bindIdentity": ("Call::issue with AttestationInput::subject_commitment", "AttestationCommand::Issue", "attestation.issue"),
+        "boundIdentity": ("AttestationApi::attestation_by_id -> AttestationView::subject_commitment", "AttestationQuery::AttestationById", "attestation.attestationById"),
+        "identityHasAttested": ("AttestationApi::subject_schema_attestations + attestation_live_status", "AttestationQuery::SubjectSchemaAttestations/LiveStatus", "attestation.subjectSchemaAttestations/attestation.liveStatus"),
+        "trustedAttester": ("AttestationApi::schema_by_id -> SchemaView::authorized_issuers", "AttestationQuery::SchemaById", "attestation.schemaById"),
+        "_bindingMessage": ("delegated_signing_payload", "delegated_issue_signing_payload", "delegatedIssueSigningPayload"),
+        "_toFixedSignature": ("Config::Signature + Verify::verify", "Signature", "IssuerSignature"),
+        "_wrapBytes": ("delegated_signing_payload SCALE encoding", "delegated_issue_signing_payload", "delegatedIssueSigningPayload"),
+    }
+    error_bindings = {
+        "AttestationService__AccessDenied": "Error::UnauthorizedIssuer/Error::NotAuthorizedToRevoke",
+        "AttestationService__AlreadyRevoked": "Error::AttestationRevoked",
+        "AttestationService__AlreadyRevokedOffchain": "Error::ExternalStatusAlreadyRevoked",
+        "AttestationService__InvalidExpirationTime": "Error::ExpiryNotInFuture/Error::AttestationExpired",
+        "AttestationService__InvalidLength": "Error::EmptyBatch/Error::BatchPayloadTooLarge",
+        "AttestationService__InvalidSchema": "Error::SchemaNotFound/Error::SchemaNotActive",
+        "AttestationService__Irrevocable": "Error::Irrevocable",
+        "AttestationService__NotFound": "Error::AttestationNotFound",
+        "AttestationService__RevocableMismatch": "Error::RevocableMismatch",
+        "AttestationService__WrongSchema": "Error::ParentSchemaMismatch",
+        "RecipientAndAttesterIndexResolver__InvalidIdentitySignature": "Error::InvalidSignature",
+        "RecipientAndAttesterIndexResolver__PageSizeTooLarge": "MAX_PAGE_SIZE + NativeErrorCode::InvalidInput",
+        "SchemaRegistry__EmptySchema": "Error::EmptySchemaDefinition",
+        "SchemaRegistry__SchemaNotFound": "Error::SchemaNotFound",
+        "TrustedAttesterIndexResolver__InvalidAttester": "Error::UnauthorizedIssuer",
+        "TrustedAttesterIndexResolver__PageSizeTooLarge": "MAX_PAGE_SIZE + NativeErrorCode::InvalidInput",
+    }
+    event_bindings = {
+        "Attested": "Event::AttestationIssued",
+        "IdentityAccountBound": "Event::AttestationIssued(subject_commitment)",
+        "Registered": "Event::SchemaCreated",
+        "Revoked": "Event::AttestationRevoked",
+        "RevokedOffchain": "Event::ExternalStatusRevoked",
+    }
+    field_bindings = {
+        "Attestation.attester": ("AttestationRecord::issuer", "AttestationView::issuer", "AttestationView.issuer"),
+        "Attestation.data": ("AttestationRecord::payload_commitment", "AttestationView::payload_commitment", "AttestationView.payload_commitment"),
+        "Attestation.expirationTime": ("AttestationRecord::expiry", "AttestationView::expiry", "AttestationView.expiry"),
+        "Attestation.id": ("Config::Hash (Attestations storage key)", "AttestationView::attestation", "AttestationView.attestation"),
+        "Attestation.recipient": ("AttestationRecord::subject_commitment", "AttestationView::subject_commitment", "AttestationView.subject_commitment"),
+        "Attestation.refId": ("AttestationRecord::parent", "AttestationView::parent", "AttestationView.parent"),
+        "Attestation.revocable": ("AttestationRecord::revocable", "AttestationView::revocable", "AttestationView.revocable"),
+        "Attestation.revocationTime": ("AttestationRecord::revoked_at", "AttestationView::revoked_at", "AttestationView.revoked_at"),
+        "Attestation.schema": ("AttestationRecord::schema", "AttestationView::schema", "AttestationView.schema"),
+        "Attestation.time": ("AttestationRecord::issued_at", "AttestationView::issued_at", "AttestationView.issued_at"),
+        "AttestationRequest.data": ("AttestationInput", "AttestationInput", "AttestationInput"),
+        "AttestationRequest.schema": ("AttestationInput::schema", "AttestationInput::schema", "AttestationInput.schema"),
+        "AttestationRequestData.data": ("AttestationInput::payload_commitment", "AttestationInput::payload_commitment", "AttestationInput.payload_commitment"),
+        "AttestationRequestData.expirationTime": ("AttestationInput::expiry", "AttestationInput::expiry", "AttestationInput.expiry"),
+        "AttestationRequestData.recipient": ("AttestationInput::subject_commitment", "AttestationInput::subject_commitment", "AttestationInput.subject_commitment"),
+        "AttestationRequestData.refId": ("AttestationInput::parent", "AttestationInput::parent", "AttestationInput.parent"),
+        "AttestationRequestData.revocable": ("AttestationInput::revocable", "AttestationInput::revocable", "AttestationInput.revocable"),
+        "DelegatedAttestationRequest.attester": ("DelegatedIntent::issuer", "DelegatedIntent::issuer", "DelegatedIssueIntent.issuer"),
+        "DelegatedAttestationRequest.data": ("DelegatedIntent input fields", "DelegatedIntent::input", "DelegatedIssueIntent input fields"),
+        "DelegatedAttestationRequest.deadline": ("DelegatedIntent::deadline", "DelegatedIntent::deadline", "DelegatedIssueIntent.deadline"),
+        "DelegatedAttestationRequest.schema": ("DelegatedIntent::schema", "DelegatedIntent::schema", "DelegatedIssueIntent.schema"),
+        "DelegatedAttestationRequest.signature": ("SignedDelegatedIntent::signature", "SignedDelegatedIssue::signature", "SignedDelegatedIssue.signature"),
+        "DelegatedRevocationRequest.data": ("DelegatedRevokeIntent::attestation", "DelegatedRevokeIntent::attestation", "DelegatedRevokeIntent.attestation"),
+        "DelegatedRevocationRequest.deadline": ("DelegatedRevokeIntent::deadline", "DelegatedRevokeIntent::deadline", "DelegatedRevokeIntent.deadline"),
+        "DelegatedRevocationRequest.revoker": ("DelegatedRevokeIntent::revoker", "DelegatedRevokeIntent::revoker", "DelegatedRevokeIntent.revoker"),
+        "DelegatedRevocationRequest.schema": ("AttestationRecord::schema checked during revoke", "AttestationView::schema", "AttestationView.schema"),
+        "DelegatedRevocationRequest.signature": ("SignedDelegatedRevokeIntent::signature", "SignedDelegatedRevoke::signature", "SignedDelegatedRevoke.signature"),
+        "MultiAttestationRequest.data": ("BatchOf<T> (bounded AttestationInputOf<T>)", "AttestationCommand::IssueBatch::inputs", "attestation.issueBatch items"),
+        "MultiAttestationRequest.schema": ("AttestationInput::schema per item", "AttestationInput::schema", "AttestationInput.schema"),
+        "MultiDelegatedAttestationRequest.attester": ("DelegatedIntent::issuer per item", "SignedDelegatedIssue::intent.issuer", "SignedDelegatedIssue.intent.issuer"),
+        "MultiDelegatedAttestationRequest.data": ("DelegatedIssueBatchOf", "AttestationCommand::IssueDelegatedBatch::items", "attestation.issueDelegatedBatch items"),
+        "MultiDelegatedAttestationRequest.deadline": ("DelegatedIntent::deadline per item", "SignedDelegatedIssue::intent.deadline", "SignedDelegatedIssue.intent.deadline"),
+        "MultiDelegatedAttestationRequest.schema": ("DelegatedIntent::schema per item", "SignedDelegatedIssue::intent.schema", "SignedDelegatedIssue.intent.schema"),
+        "MultiDelegatedAttestationRequest.signatures": ("SignedDelegatedIntent::signature per item", "SignedDelegatedIssue::signature", "SignedDelegatedIssue.signature"),
+        "MultiDelegatedRevocationRequest.data": ("DelegatedRevokeBatchOf", "AttestationCommand::RevokeDelegatedBatch::items", "attestation.revokeDelegatedBatch items"),
+        "MultiDelegatedRevocationRequest.deadline": ("DelegatedRevokeIntent::deadline per item", "SignedDelegatedRevoke::intent.deadline", "SignedDelegatedRevoke.intent.deadline"),
+        "MultiDelegatedRevocationRequest.revoker": ("DelegatedRevokeIntent::revoker per item", "SignedDelegatedRevoke::intent.revoker", "SignedDelegatedRevoke.intent.revoker"),
+        "MultiDelegatedRevocationRequest.schema": ("AttestationRecord::schema checked per item", "AttestationView::schema", "AttestationView.schema"),
+        "MultiDelegatedRevocationRequest.signatures": ("SignedDelegatedRevokeIntent::signature per item", "SignedDelegatedRevoke::signature", "SignedDelegatedRevoke.signature"),
+        "MultiRevocationRequest.data": ("AttestationIdBatchOf", "AttestationCommand::RevokeBatch::attestations", "attestation.revokeBatch attestations"),
+        "MultiRevocationRequest.schema": ("AttestationRecord::schema checked per ID", "AttestationView::schema", "AttestationView.schema"),
+        "RevocationRequest.data": ("Config::Hash/AttestationIdBatchOf", "AttestationCommand::Revoke/RevokeBatch", "attestation.revoke/attestation.revokeBatch"),
+        "RevocationRequest.schema": ("AttestationRecord::schema checked during revoke", "AttestationView::schema", "AttestationView.schema"),
+        "RevocationRequestData.id": ("Config::Hash (Attestations storage key)", "AttestationId", "AttestationId"),
+        "SchemaRecord.id": ("Config::Hash (Schemas storage key)", "SchemaView::schema", "SchemaView.schema"),
+        "SchemaRecord.registerer": ("SchemaRecord::creator", "SchemaView::creator", "SchemaView.creator"),
+        "SchemaRecord.resolver": ("SchemaRecord::index_policy", "SchemaView::index_policy", "SchemaView.index_policy"),
+        "SchemaRecord.revocable": ("SchemaRecord::revocable", "SchemaView::revocable", "SchemaView.revocable"),
+        "SchemaRecord.schema": ("SchemaRecord::definition", "SchemaView::definition", "SchemaView.definition"),
+        "SchemaRecord.unique": ("SchemaRecord::unique", "SchemaView::unique", "SchemaView.unique"),
+        "Signature.r": ("Config::Signature encoded bytes", "Signature::bytes", "IssuerSignature (opaque encoding; no r component)"),
+        "Signature.s": ("Config::Signature encoded bytes", "Signature::bytes", "IssuerSignature (opaque encoding; no s component)"),
+        "Signature.v": ("Config::Signature scheme/discriminant", "Signature::scheme", "IssuerSignature (opaque encoding; no v component)"),
+    }
+    struct_bindings = {
+        "Attestation": ("AttestationRecord", "AttestationView", "AttestationView"),
+        "AttestationRequest": ("AttestationInput", "AttestationInput", "AttestationInput"),
+        "AttestationRequestData": ("AttestationInput", "AttestationInput", "AttestationInput"),
+        "DelegatedAttestationRequest": ("SignedDelegatedIntent", "SignedDelegatedIssue", "SignedDelegatedIssue"),
+        "DelegatedRevocationRequest": ("SignedDelegatedRevokeIntent", "SignedDelegatedRevoke", "SignedDelegatedRevoke"),
+        "MultiAttestationRequest": ("BatchOf<T> (bounded AttestationInputOf<T>)", "Vec<AttestationInput>", "readonly AttestationInput[]"),
+        "MultiDelegatedAttestationRequest": ("DelegatedIssueBatchOf<T> (bounded SignedDelegatedIntent<T>)", "Vec<SignedDelegatedIssue>", "readonly SignedDelegatedIssue[]"),
+        "MultiDelegatedRevocationRequest": ("DelegatedRevokeBatchOf<T> (bounded SignedDelegatedRevokeIntent<T>)", "Vec<SignedDelegatedRevoke>", "readonly SignedDelegatedRevoke[]"),
+        "MultiRevocationRequest": ("AttestationIdBatchOf", "Vec<AttestationId>", "readonly AttestationId[]"),
+        "RevocationRequest": ("Config::Hash/AttestationIdBatchOf", "AttestationId (single/Vec)", "AttestationId (single/readonly array)"),
+        "RevocationRequestData": ("AttestationId", "AttestationId", "AttestationId"),
+        "SchemaRecord": ("SchemaRecord", "SchemaView", "SchemaView"),
+        "Signature": ("Config::Signature", "Signature", "IssuerSignature"),
+    }
+    state_bindings = {
+        "MAX_PAGE_SIZE": (f"{runtime_api}::MAX_PAGE_SIZE", "PageRequest::limit", "PageInput.limit"),
+        "MESSAGE_PREFIX": (f"{pallet}::DELEGATED_INTENT_DOMAIN/DELEGATED_REVOKE_DOMAIN", "delegated_issue_signing_payload/delegated_revoke_signing_payload", "delegatedIssueSigningPayload/delegatedRevokeSigningPayload"),
+        "SYSTEM": (f"{pallet}::Config::Signature + frame_system chain context", "DelegatedIntent::genesis_hash/spec_version", "DelegatedIssueIntent.genesis_hash/spec_version"),
+        "_attestations": (f"{pallet}::Attestations", "AttestationQuery::AttestationById", "attestation.attestationById"),
+        "_attestationsByAttester": (f"{pallet}::IssuerAttestations", "AttestationQuery::IssuerAttestations", "attestation.issuerAttestations"),
+        "_attestationsByRecipientAndSchema": (f"{pallet}::SubjectSchemaAttestations", "AttestationQuery::SubjectSchemaAttestations", "attestation.subjectSchemaAttestations"),
+        "_attestedBySchema": (f"{pallet}::IssuerAttestations + Attestations(schema)", "AttestationQuery::IssuerAttestations/AttestationById", "attestation.issuerAttestations/attestation.attestationById"),
+        "_boundIdentity": (f"{pallet}::AttestationRecord::subject_commitment", "AttestationView::subject_commitment", "AttestationView.subject_commitment"),
+        "_count": (f"{pallet}::SchemaCount", "AttestationQuery::SchemaCount", "attestation.schemaCount"),
+        "_identityAttested": (f"{pallet}::KnownSubjects", "AttestationQuery::SubjectSchemaAttestations", "attestation.subjectSchemaAttestations"),
+        "_identityByAttestation": (f"{pallet}::Attestations -> AttestationRecord::subject_commitment", "AttestationQuery::AttestationById", "attestation.attestationById"),
+        "_revocationsOffchain": (f"{pallet}::ExternalStatuses", "AttestationQuery::ExternalStatus", "attestation.externalStatus"),
+        "_schemaRegistry": (f"{pallet}::Schemas (static pallet composition; no address)", "AttestationQuery::SchemaById", "attestation.schemaById"),
+        "_schemas": (f"{pallet}::Schemas", "AttestationQuery::SchemaById", "attestation.schemaById"),
+        "_trustedAttester": (f"{pallet}::SchemaRecord::authorized_issuers", "SchemaView::authorized_issuers", "SchemaView.authorized_issuers"),
+        "attestationCount": (f"{pallet}::AttestationCount", "AttestationQuery::AttestationCount", "attestation.attestationCount"),
+    }
+
+    implementation_evidence = pallet
+    if kind == "function":
+        if name == "constructor":
+            native_target = f"{pallet}::Config/GenesisConfig (static composition; no callable constructor)"
+            rust_target = "no callable Rust SDK constructor"
+            ts_target = "no callable TypeScript SDK constructor"
+        else:
+            try:
+                native_symbol, rust_symbol, ts_symbol = function_bindings[name]
+            except KeyError as error:
+                raise ValueError(f"unmapped active Attestation function: {source_id}::{name}") from error
+            if name == "_page":
+                native_target = f"{runtime_api}::IdPage/MAX_PAGE_SIZE"
+                rust_target = "origin-rs/src/product_sdk/domains/common.rs::PageRequest"
+                ts_target = "product-sdk/src/types.ts::PageInput"
+                implementation_evidence = runtime_api
+            elif name == "_toFixedSignature":
+                native_target = f"{pallet}::Config::Signature + Verify::verify"
+                rust_target = f"{rust_sdk}::Signature"
+                ts_target = "product-sdk/src/types.ts::IssuerSignature"
+            else:
+                native_target = (
+                    f"{runtime_api}::{native_symbol}"
+                    if native_symbol.startswith("AttestationApi::")
+                    else f"{pallet}::{native_symbol}"
+                )
+                rust_target = f"{rust_sdk}::{rust_symbol}"
+                ts_target = f"{typescript_sdk}::{ts_symbol}"
+                if native_symbol.startswith("AttestationApi::"):
+                    implementation_evidence = runtime_api
+    elif kind == "error":
+        try:
+            native_symbol = error_bindings[name]
+        except KeyError as error:
+            raise ValueError(f"unmapped active Attestation error: {source_id}::{name}") from error
+        if name.endswith("PageSizeTooLarge"):
+            native_target = f"{runtime_api}::MAX_PAGE_SIZE"
+            rust_target = "origin-rs/src/product_sdk/contract.rs::NativeErrorCode::InvalidInput"
+            ts_target = "product-sdk/packages/core/src/contract.ts::ProductSdkError(code=invalid_input)"
+            implementation_evidence = runtime_api
+        else:
+            native_target = f"{pallet}::{native_symbol}"
+            rust_target = "origin-rs/src/product_sdk/contract.rs::NativeError"
+            ts_target = "product-sdk/packages/core/src/contract.ts::ProductSdkError"
+    elif kind == "event":
+        native_target = f"{pallet}::{event_bindings[name]}"
+        rust_target = "origin-rs/src/product_sdk/domains/attestation.rs::AttestationEvent"
+        ts_target = "product-sdk/src/attestation.ts::AttestationEvent"
+    elif kind == "field":
+        native_symbol, rust_symbol, ts_symbol = field_bindings[name]
+        if name == "RevocationRequestData.id":
+            native_target = f"{pallet}::{native_symbol}"
+            rust_target = "origin-rs/src/product_sdk/domains/common.rs::AttestationId"
+            ts_target = "product-sdk/src/types.ts::AttestationId"
+        elif name in {"Signature.r", "Signature.s", "Signature.v"}:
+            native_target = f"{pallet}::{native_symbol}"
+            rust_target = f"{rust_sdk}::{rust_symbol}"
+            ts_target = f"product-sdk/src/types.ts::{ts_symbol}"
+        else:
+            native_target = f"{pallet}::{native_symbol}"
+            rust_target = f"{rust_sdk}::{rust_symbol}"
+            ts_target = f"{typescript_sdk}::{ts_symbol}"
+    elif kind == "struct":
+        native_symbol, rust_symbol, ts_symbol = struct_bindings[name]
+        if name == "RevocationRequestData":
+            native_target = f"{pallet}::Config::Hash (Attestations storage key)"
+            rust_target = "origin-rs/src/product_sdk/domains/common.rs::AttestationId"
+            ts_target = "product-sdk/src/types.ts::AttestationId"
+        elif name == "Signature":
+            native_target = f"{pallet}::{native_symbol}"
+            rust_target = f"{rust_sdk}::{rust_symbol}"
+            ts_target = "product-sdk/src/types.ts::IssuerSignature"
+        elif name == "RevocationRequest":
+            native_target = f"{pallet}::{native_symbol}"
+            rust_target = "origin-rs/src/product_sdk/domains/common.rs::AttestationId (single/Vec)"
+            ts_target = "product-sdk/src/types.ts::AttestationId (single/readonly array)"
+        else:
+            native_target = f"{pallet}::{native_symbol}"
+            rust_target = f"{rust_sdk}::{rust_symbol}"
+            ts_target = f"{typescript_sdk}::{ts_symbol}"
+    elif kind == "state":
+        try:
+            native_target, rust_symbol, ts_symbol = state_bindings[name]
+        except KeyError as error:
+            raise ValueError(f"unmapped active Attestation state: {source_id}::{name}") from error
+        if name == "MAX_PAGE_SIZE":
+            rust_target = "origin-rs/src/product_sdk/domains/common.rs::PageRequest::limit"
+            ts_target = "product-sdk/src/types.ts::PageInput.limit"
+        else:
+            rust_target = f"{rust_sdk}::{rust_symbol}"
+            ts_target = f"{typescript_sdk}::{ts_symbol}"
+        if native_target.startswith(runtime_api):
+            implementation_evidence = runtime_api
+    elif kind == "invariant-bundle":
+        native_target = (
+            f"{pallet}::Schemas/Attestations/IssuerAttestations/"
+            "SubjectSchemaAttestations/KnownSubjects + "
+            "Call::create_schema/issue/issue_delegated/issue_batch/revoke/"
+            "revoke_delegated/revoke_batch + ensure_batch/ensure_delegated_context/"
+            "issue_inner/revoke_inner"
+        )
+        rust_target = (
+            f"{rust_sdk}::impl Validate for AttestationInput/DelegatedIntent/"
+            "DelegatedRevokeIntent/Signature/AttestationQuery, AttestationCommand + "
+            "validate_at + delegated_issue_signing_payload/delegated_revoke_signing_payload"
+        )
+        ts_target = (
+            f"{typescript_sdk}::attestation.createSchema/issue/issueDelegated/issueBatch/"
+            "revoke/revokeDelegated/revokeBatch + ensureBatch + "
+            "delegatedIssueSigningPayload/delegatedRevokeSigningPayload"
+        )
+    else:
+        raise ValueError(f"unmapped active Attestation semantic: {source_id}::{kind}::{name}")
+
+    result: dict[str, object] = {
+        "native_target": native_target,
+        "rust_sdk": rust_target,
+        "typescript_sdk": ts_target,
+        "implementation_evidence": implementation_evidence,
+        "semantic_evidence": "docs/architecture/domains/identity-personhood-attestation.md",
+        "vector_test_evidence": ATTESTATION_VECTOR_TESTS,
+        "bounded_semantic_disposition": (
+            f"Map source {kind} {name} to {native_target} and the named typed Rust/TypeScript "
+            "surface. Contract addresses, ABI encoding, callback authority, legacy state, and "
+            "compatibility facades are intentionally excluded. "
+            + semantic_detail.replace("Attestation calls/runtime APIs/events/errors", native_target)
+        ),
+    }
+    if (kind == "function" and name in {
+        "attestByDelegation", "multiAttestByDelegation",
+        "multiRevokeByDelegation", "revokeByDelegation",
+    }) or (kind == "event" and name in {"Attested", "Revoked"}):
+        result["vector_evidence"] = ATTESTATION_VECTOR
+    return result
+
 def symbol_semantics(row: dict[str, str], kind: str, name: str) -> dict[str, object]:
     """Apply explicit per-symbol semantic decisions required by the P0 review."""
     sid = row["source_id"]
@@ -775,7 +1227,20 @@ def symbol_semantics(row: dict[str, str], kind: str, name: str) -> dict[str, obj
     )
     if attestation_semantic_source:
         n = name.lower()
-        if n.endswith(".resolver"):
+        if "eip712verifier.sol" in p:
+            owner = "Attestation"
+        resolver_service_surface = (
+            n in {"constructor", "getservice", "_service", "onlyservice"}
+            or n.endswith("__invalidservice")
+            or n.endswith("__accessdenied")
+        )
+        if "interfaces/iattestationresolver.sol" in p:
+            retire("Retire the external resolver callback interface; native indexes update inside the Attestation pallet with no callback authority or ABI.")
+        elif "resolver" in p and resolver_service_surface:
+            retire("Retire resolver service-address construction, getters, storage and only-service authorization; static pallet composition owns native index updates.")
+        elif n == "attestationservice__invalidregistry":
+            retire("Retire external schema-registry address validation because Schemas is statically owned by the native Attestation pallet.")
+        elif n.endswith(".resolver"):
             disposition, native, owner, rust, ts = "intentional-change", "Schema bounded native index policy", "Attestation", "attestation.schemas", "attestation.schemas"
             detail = "Replace arbitrary resolver address with an optional bounded native IndexPolicy enum selected at schema registration; only audited recipient/attester indexes are admitted and update atomically."
         elif n == "register" and "schemaregistry.sol" in p:
@@ -799,9 +1264,15 @@ def symbol_semantics(row: dict[str, str], kind: str, name: str) -> dict[str, obj
         elif "attestationcount" in n or n in {"id", "getattestationbyid", "getattestationbyids", "isattestationvalid"}:
             disposition, native, owner, rust, ts = "intentional-change", "AttestationId and finalized queries", "Attestation", "attestation.byId", "attestation.byId"
             detail = "Use domain-separated Blake2 AttestationId over canonical SCALE issuer/schema/subject/nonce-or-unique-key; zero is invalid, unique-schema overwrite policy is explicit, and reads pin one finalized hash. No uint256/EVM ID compatibility."
-    return {"disposition": disposition, "native_target": native, "runtime_owner": owner,
-            "rust_sdk": rust, "typescript_sdk": ts, "target_kind": target_kind,
-            "bounded_semantic_disposition": detail, "decision_gate": gate, "vector_category": "not-a-fixture"}
+    result = {"disposition": disposition, "native_target": native, "runtime_owner": owner,
+              "rust_sdk": rust, "typescript_sdk": ts, "target_kind": target_kind,
+              "bounded_semantic_disposition": detail, "decision_gate": gate,
+              "vector_category": "not-a-fixture"}
+    if attestation_semantic_source and owner == "Attestation" and disposition in {
+        "adopt-semantic", "intentional-change",
+    }:
+        result.update(exact_attestation_binding(sid, kind, name, detail))
+    return result
 
 
 def license_for(repo: Path, text: str) -> str:
@@ -1134,6 +1605,11 @@ It does not approve implementation, runtime code, backward compatibility, legacy
         artifact = json.loads(artifact_path.read_text())
         if "approval_manifest" in artifact:
             artifact["approval_manifest"] = approval_ref
+        if artifact_path.name == "native-cutover-cleanup.report.json":
+            artifact["allowlist_sha256"] = hashlib.sha256(
+                NATIVE_CUTOVER_ALLOWLIST.read_bytes()
+            ).hexdigest()
+        if "approval_manifest" in artifact or artifact_path.name == "native-cutover-cleanup.report.json":
             artifact_path.write_text(json.dumps(artifact, indent=2, sort_keys=True) + "\n")
 
     indexed_paths = sorted(
@@ -1141,6 +1617,7 @@ It does not approve implementation, runtime code, backward compatibility, legacy
         if path.name != "evidence-index.json"
     ) + [
         approval_doc_path,
+        ROOT / "docs/evidence/source-ledger.csv",
         OUT,
         design_path,
     ]

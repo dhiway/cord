@@ -1,8 +1,8 @@
 ## $ cargo check -p origin-orbis-provider --bins --locked [exit=0]
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.92s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.90s
 
 ## $ cargo build -p origin-orbis-provider --bins --locked [exit=0]
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.77s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.86s
 
 ## $ /Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/target/debug/origin-orbis-provider --help [exit=0]
 Native Orbis content-provider service
@@ -64,13 +64,13 @@ Options:
   },
   "info": {
     "profile": {
-      "endpoint": "http://127.0.0.1:64945",
+      "endpoint": "http://127.0.0.1:54591",
       "provider": "0x4545454545454545454545454545454545454545454545454545454545454545",
       "region": null,
       "service_key": "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
     },
     "service_key": "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d",
-    "started_unix_ms": 1784008729252,
+    "started_unix_ms": 1784022644726,
     "version": 4
   },
   "replica_sync_status": {
@@ -89,9 +89,9 @@ Options:
   }
 }
 
-## $ /Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/target/debug/origin-orbis-provider --orbis-rpc http://127.0.0.1:9 --provider 0x4545454545454545454545454545454545454545454545454545454545454545 --public-endpoint http://127.0.0.1:64945 --data-path /var/folders/ww/gtrj_81s6hj7p_6bd0b3qgb00000gn/T/cord-p5-provider-u_uxwqqd/data --capacity-bytes 1048576 --listen 127.0.0.1:64945 --checkpoint-seconds 3600 [exit=0; secrets supplied by environment]
-origin-orbis-provider listening on 127.0.0.1:64945
+## $ /Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/target/debug/origin-orbis-provider --orbis-rpc http://127.0.0.1:9 --provider 0x4545454545454545454545454545454545454545454545454545454545454545 --public-endpoint http://127.0.0.1:54591 --data-path /var/folders/ww/gtrj_81s6hj7p_6bd0b3qgb00000gn/T/cord-p5-provider-zax8bzub/data --capacity-bytes 1048576 --listen 127.0.0.1:54591 --checkpoint-seconds 3600 [exit=0; secrets supplied by environment]
+origin-orbis-provider listening on 127.0.0.1:54591
 challenge responder finalized scan failed: Orbis RPC failed: client error (Connect)
 
-## $ /Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/target/debug/origin-orbis-provider-outbox --once --orbis-rpc ws://127.0.0.1:9 --outbox /var/folders/ww/gtrj_81s6hj7p_6bd0b3qgb00000gn/T/cord-p5-provider-u_uxwqqd/data/provider-submissions-v3.jsonl [exit=1]
+## $ /Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/target/debug/origin-orbis-provider-outbox --once --orbis-rpc ws://127.0.0.1:9 --outbox /var/folders/ww/gtrj_81s6hj7p_6bd0b3qgb00000gn/T/cord-p5-provider-zax8bzub/data/provider-submissions-v3.jsonl [exit=1]
 Error: InvalidInput("ContentUnavailable: RPC error: RPC error: client error: RPC error: client error: Error when opening the TCP socket: Connection refused (os error 61)")

@@ -1,11 +1,11 @@
 {
-  "allowlist_sha256": "cbce5790bb1513d21ffd38ac2dfd712c2d7d538c1e6ebc21ba6b00c41fb0a606",
+  "allowlist_sha256": "18639375b324d4130da06d498c103249f673658a614b40ed42125990001586da",
   "approval_manifest": {
     "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
     "required_reviewer_role": "architect",
-    "review_thread_id": "b2c4692d-d095-40bc-9bab-5c7e053b0e14",
+    "review_thread_id": "a034f498-1a09-5509-95ff-c0c93cc8406a",
     "schema_version": 2,
-    "sha256": "639d9b868973e0020d58f98cba06e6adc18a1b691208b1d6d32dac6b52aeb594",
+    "sha256": "c930a5eb5a3abc07fa73862c7a017d499931b764a91a34a8c2bd96d1ab70cc6a",
     "verdict": "APPROVED"
   },
   "baseline_source_components": 132,

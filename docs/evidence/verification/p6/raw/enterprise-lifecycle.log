@@ -1,6 +1,6 @@
 $ cargo test -p origin-orbis-runtime enterprise_journey::enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail_closed --lib --locked -- --exact
 exit=0
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.70s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.88s
      Running unittests src/lib.rs (target/debug/deps/origin_orbis_runtime-ad4cb5c1f6a3d5b5)
 
 running 1 test

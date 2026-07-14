@@ -1,14 +1,14 @@
 ---
 Verdict: APPROVED
 Reviewer-Role: architect
-Review-Thread-ID: b2c4692d-d095-40bc-9bab-5c7e053b0e14
-Approval-Manifest-SHA256: 639d9b868973e0020d58f98cba06e6adc18a1b691208b1d6d32dac6b52aeb594
-Census-Payload-SHA256: 27295261921f4699ab57bfa46928f82f3c461d708db5575f6701bb7d49368f9d
-Design-Payload-SHA256: 2d1638fa6c0f7b1273161d932fba710989db4a3fdc289947ff8347909fec54f5
-Census-Artifact-SHA256: ac5d7bcea10a61c809809609af6d4c9d958e69d2f02edb04d5be600329c76ae8
-Design-Artifact-SHA256: 65c09ed39b02c227a3402e8b8ef40474c438203e5c5f0f73b0cedf32a6ef35f9
+Review-Thread-ID: a034f498-1a09-5509-95ff-c0c93cc8406a
+Approval-Manifest-SHA256: c930a5eb5a3abc07fa73862c7a017d499931b764a91a34a8c2bd96d1ab70cc6a
+Census-Payload-SHA256: 94e6e04dae956c4953350136a6641810a8480dc6a5d2979264321c1cae6997fb
+Design-Payload-SHA256: 6751fce3e71d4136fa8c859330f0f7069f7de463a41d91290a2a5d524e3347d1
+Census-Artifact-SHA256: 3f5adcc5f15e64f94e277096177d3c748a04b0ab6037768d708b3a9d72693698
+Design-Artifact-SHA256: 0f1ea8783001f2f2798c5b073a9afd55bc8bf69cf2d2fe2dc10324c2763b39e5
 Branch: sm-update-sub-0x63
-Source-Base-HEAD: be57cdac316d76ac17a8c91a4265d08c76b7ef93
+Source-Base-HEAD: bc5675d7dc22a338fa394c269d2cbbd50cd22f65
 Source-Components: 132
 Semantic-Design-Entries: 2780
 ---

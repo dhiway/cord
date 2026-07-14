@@ -11,7 +11,7 @@
           "orbis-generic-counter-fixture"
         ],
         "exit_code": 0,
-        "output_sha256": "7339358e96cc8564e919fe9941e0f06d90fa3a1f7e23e1a01a9ac54a18f08e09",
+        "output_sha256": "4fb3cb5af8f43d7a8cad8c0f1800995e735b0f576f4f981b9c4e71a07ebbdb7f",
         "path": "origin/orbis/runtime/src/tests.rs",
         "status": "pass"
       }

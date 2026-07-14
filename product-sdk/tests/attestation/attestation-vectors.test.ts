@@ -27,9 +27,35 @@ const vectors = JSON.parse(
     payload: string;
   }>;
   events: Array<{ runtime_event: AttestationEvent; semantic_outcome: AttestationOutcome }>;
+  source_symbols: string[];
 };
 
+const EIP712_SOURCE_SYMBOLS = [
+  "EIP712Verifier.ATTEST_TYPEHASH",
+  "EIP712Verifier.EIP712Verifier__DeadlineExpired",
+  "EIP712Verifier.EIP712Verifier__InvalidNonce",
+  "EIP712Verifier.EIP712Verifier__InvalidSignature",
+  "EIP712Verifier.NonceIncreased",
+  "EIP712Verifier.REVOKE_TYPEHASH",
+  "EIP712Verifier._nonces",
+  "EIP712Verifier._time",
+  "EIP712Verifier._verifyAttest",
+  "EIP712Verifier._verifyRevoke",
+  "EIP712Verifier.constructor",
+  "EIP712Verifier.getAttestTypeHash",
+  "EIP712Verifier.getDomainSeparator",
+  "EIP712Verifier.getName",
+  "EIP712Verifier.getNonce",
+  "EIP712Verifier.getRevokeTypeHash",
+  "EIP712Verifier.increaseNonce",
+  "EIP712Verifier.roles-storage-economic-signature-lifecycle",
+] as const;
+
 test("Rust and TypeScript share canonical delegated signing payloads for every scheme", () => {
+  assert.deepEqual(
+    vectors.source_symbols.filter((symbol) => symbol.startsWith("EIP712Verifier.")).sort(),
+    [...EIP712_SOURCE_SYMBOLS].sort(),
+  );
   assert.deepEqual(
     [...new Set(vectors.signing.map(({ scheme }) => scheme))].sort(),
     [...SUPPORTED_DELEGATED_SIGNATURE_SCHEMES].sort(),
@@ -54,12 +80,19 @@ test("native attestation events map to stable finalized semantic outcomes", () =
   assert.deepEqual(
     attestationEventSubscription(`0x${"11".repeat(32)}` as BlockHash, [
       "attestation_issued",
+      "delegated_intent_consumed",
+      "delegated_revocation_consumed",
       "attestation_revoked",
     ]),
     {
       finality: "finalized",
       from_finalized_block: `0x${"11".repeat(32)}`,
-      kinds: ["attestation_issued", "attestation_revoked"],
+      kinds: [
+        "attestation_issued",
+        "delegated_intent_consumed",
+        "delegated_revocation_consumed",
+        "attestation_revoked",
+      ],
     },
   );
 });
