@@ -133,10 +133,15 @@ impl MetaTxClient {
 		signed: SignedMetaTx,
 		relayer: Arc<dyn Signer>,
 	) -> Result<TxHandle, OriginSdkError> {
+		let encoded_len = u32::try_from(signed.raw().len())
+			.map_err(|_| OriginSdkError::InvalidInput("meta-tx exceeds u32 length".into()))?;
 		let dispatch_call = subxt::dynamic::tx(
 			"MetaTx",
 			"dispatch",
-			vec![meta_tx_value_from_signed(&self.connection.metadata(), &signed)?],
+			vec![
+				meta_tx_value_from_signed(&self.connection.metadata(), &signed)?,
+				Value::u128(encoded_len.into()),
+			],
 		);
 
 		let nonce = self
@@ -183,22 +188,19 @@ impl MetaTxClient {
 	}
 
 	fn ensure_dispatched_ok(&self, outcome: &TxOutcome) -> Result<(), OriginSdkError> {
-		if let Some(ev) = outcome
+		let ev = outcome
 			.events
 			.iter()
 			.find(|e| e.pallet == "MetaTx" && e.variant == "Dispatched")
-		{
-			if let Some(first) = ev.fields.get(0) {
-				match decode_dispatch_result(first) {
-					Ok(true) => {},
-					Ok(false) => {
-						return Err(OriginSdkError::MetaTx("meta-tx dispatched with error".into()))
-					},
-					Err(e) => return Err(OriginSdkError::MetaTx(format!("meta-tx decode: {e}"))),
-				}
-			}
+			.ok_or_else(|| OriginSdkError::MetaTx("MetaTx::Dispatched event missing".into()))?;
+		let first = ev.fields.get(0).ok_or_else(|| {
+			OriginSdkError::MetaTx("MetaTx::Dispatched result field missing".into())
+		})?;
+		match decode_dispatch_result(first) {
+			Ok(true) => Ok(()),
+			Ok(false) => Err(OriginSdkError::MetaTx("meta-tx dispatched with error".into())),
+			Err(e) => Err(OriginSdkError::MetaTx(format!("meta-tx decode: {e}"))),
 		}
-		Ok(())
 	}
 }
 

@@ -1093,6 +1093,43 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Return fixed-width identity judgement counts without exposing identity field values.
+	///
+	/// `None` means the account has no registered identity. The tuple contains, in order, total,
+	/// requested, reasonable, known-good, out-of-date, low-quality and erroneous judgements.
+	pub fn identity_judgement_counts(
+		who: &T::AccountId,
+	) -> Option<(u32, u32, u32, u32, u32, u32, u32)> {
+		let (registration, _) = IdentityOf::<T>::get(who)?;
+		let mut requested = 0u32;
+		let mut reasonable = 0u32;
+		let mut known_good = 0u32;
+		let mut out_of_date = 0u32;
+		let mut low_quality = 0u32;
+		let mut erroneous = 0u32;
+		for (_, judgement) in &registration.judgements {
+			match judgement {
+				Judgement::Requested => requested = requested.saturating_add(1),
+				Judgement::Reasonable => reasonable = reasonable.saturating_add(1),
+				Judgement::KnownGood => known_good = known_good.saturating_add(1),
+				Judgement::OutOfDate => out_of_date = out_of_date.saturating_add(1),
+				Judgement::LowQuality => low_quality = low_quality.saturating_add(1),
+				Judgement::Erroneous => erroneous = erroneous.saturating_add(1),
+				Judgement::Unknown => {},
+			}
+		}
+		Some((
+			registration.judgements.len() as u32,
+			requested,
+			reasonable,
+			known_good,
+			out_of_date,
+			low_quality,
+			erroneous,
+		))
+	}
+
+
 	/// Get the subs of an account.
 	pub fn subs(who: &T::AccountId) -> Vec<(T::AccountId, Data)> {
 		SubsOf::<T>::get(who)

@@ -105,9 +105,11 @@ const rustStorage = read("origin-rs/src/product_sdk/domains/storage.rs");
 const rustStorageProvider = read("origin-rs/src/product_sdk/domains/storage_provider.rs");
 const rustDrive = read("origin-rs/src/product_sdk/domains/drive.rs");
 const rustS3 = read("origin-rs/src/product_sdk/domains/s3.rs");
+const rustIdentityPersonhood = read("origin-rs/src/product_sdk/domains/identity_personhood.rs");
+const rustSponsoredIntent = read("origin-rs/src/product_sdk/sponsored_intent.rs");
 const rustContract = read("origin-rs/src/product_sdk/contract.rs");
 const rustCommon = read("origin-rs/src/product_sdk/domains/common.rs");
-const rustSurface = `${rust}\n${rustAttestation}\n${rustDotns}\n${rustStorage}\n${rustStorageProvider}\n${rustDrive}\n${rustS3}\n${rustCommon}\n${rustContract}`;
+const rustSurface = `${rust}\n${rustAttestation}\n${rustDotns}\n${rustStorage}\n${rustStorageProvider}\n${rustDrive}\n${rustS3}\n${rustIdentityPersonhood}\n${rustSponsoredIntent}\n${rustCommon}\n${rustContract}`;
 const originRuntime = read(matrix.networks.origin.runtime_source);
 const orbisRuntime = read(matrix.networks.orbis.runtime_source);
 const workspaceVersion = read("Cargo.toml").match(/^version\s*=\s*"([^"]+)"/m)?.[1];
@@ -191,6 +193,7 @@ equal(rustConstant(rust, "ORBIS_CANDIDATE_GENESIS_IDENTITY_SHA256"), matrix.netw
 
 const apiVersions = [...read("origin/orbis/runtime-api/storage/src/lib.rs").matchAll(/#\[api_version\((\d+)\)\]/g)].map((match) => Number(match[1]));
 const observedApis = {
+  identity_personhood: Number(read(matrix.native_runtime_apis.identity_personhood.source).match(/#\[api_version\((\d+)\)\]/)?.[1]),
   attestation: Number(read(matrix.native_runtime_apis.attestation.source).match(/#\[api_version\((\d+)\)\]/)?.[1]),
   dotns: Number(read(matrix.native_runtime_apis.dotns.source).match(/#\[api_version\((\d+)\)\]/)?.[1]),
   storage_provider: apiVersions[0],
@@ -198,6 +201,7 @@ const observedApis = {
   s3: apiVersions[2],
 };
 const apiBindings = {
+  identity_personhood: ["identityPersonhood", "IDENTITY_PERSONHOOD_RUNTIME_API_VERSION"],
   attestation: ["attestation", "ATTESTATION_RUNTIME_API_VERSION"],
   dotns: ["dotns", "DOTNS_RUNTIME_API_VERSION"],
   storage_provider: ["storageProvider", "STORAGE_PROVIDER_RUNTIME_API_VERSION"],
@@ -349,7 +353,7 @@ equal(descriptor.fixtureIdentity.genesis_state_root, matrix.networks.orbis.candi
 equal(descriptor.fixtureIdentity.candidate_identity_sha256, matrix.networks.orbis.candidate_genesis_identity_sha256, "descriptor candidate artifact");
 equal(descriptor.nativeHostContract.methodCount, NATIVE_HOST_METHODS.length, "descriptor native method count");
 equal(routeContract.schema, "cord.native-route-contract.v1", "route contract schema");
-equal(routeContract.route_count, 132, "route contract count");
+equal(routeContract.route_count, 143, "route contract count");
 equal(routeContract.network.metadata_hash, matrix.networks.orbis.metadata_hash, "route contract metadata hash");
 equal(routeContract.network.activation_state, matrix.networks.orbis.activation_state, "route contract activation state");
 equal(routeContract.network.production_activation_ready, false, "route contract production gate");
@@ -364,12 +368,22 @@ const runtimeTable = read("origin/orbis/runtime/src/lib.rs");
 const routeGaps: string[] = [];
 const palletCallItems = new Map<string, Map<string, number>>();
 const writeRoutes = routeContract.routes.filter((route: any) => route.runtime.kind === "pallet-call");
-equal(writeRoutes.length, 77, "authoritative pallet call route count");
-equal(new Set(writeRoutes.map((route: any) => `${route.runtime.source}#${route.runtime.target}`)).size, 77, "distinct pallet call item count");
+equal(writeRoutes.length, 84, "authoritative pallet call route count");
+equal(new Set(writeRoutes.map((route: any) => `${route.runtime.source}#${route.runtime.target}`)).size, 84, "distinct pallet call item count");
+const sdkHostRoutes = routeContract.routes.filter((route: any) => route.runtime.kind === "sdk-host-operation");
+equal(sdkHostRoutes.length, 1, "authoritative SDK host operation count");
 for (const route of routeContract.routes) {
   const parameters = route.parameters.map(({ name }: any) => name);
   if (Object.keys(route.sample_payload).join() !== parameters.join()) routeGaps.push(`${route.id}:sample parameter order`);
-  if (!blockContains(rustSurface, route.rust.declaration, route.rust.variant)) routeGaps.push(`${route.id}:Rust ${route.rust.declaration}::${route.rust.variant}`);
+  const rustSdkFunction = route.rust.binding_kind === "sdk-function";
+  if (rustSdkFunction) {
+    const rustProductSource = read(route.rust.source);
+    if (!new RegExp(`pub\\s+async\\s+fn\\s+${route.rust.declaration}\\s*\\(`).test(rustProductSource)) {
+      routeGaps.push(`${route.id}:Rust SDK function ${route.rust.declaration}`);
+    }
+  } else if (!blockContains(rustSurface, route.rust.declaration, route.rust.variant)) {
+    routeGaps.push(`${route.id}:Rust ${route.rust.declaration}::${route.rust.variant}`);
+  }
   if (typeof (NATIVE_RUNTIME_ROUTE_REGISTRY as any)[route.id] !== "function") routeGaps.push(`${route.id}:direct TypeScript callable`);
   const coreSchema = methodPayloadSchema(route.capability, route.method) as any;
   const sourceParameters = Object.entries(coreSchema.properties).map(([name, schema]) => ({ name, schema }));
@@ -386,9 +400,21 @@ for (const route of routeContract.routes) {
     }
     if (calls.get(route.runtime.target) !== route.runtime.call_index) routeGaps.push(`${route.id}:dispatch index ${route.runtime.pallet_index}/${route.runtime.call_index}`);
     if (!new RegExp(`\\b${route.runtime.pallet}:\\s+[^=]+\\s*=\\s*${route.runtime.pallet_index},`).test(runtimeTable)) routeGaps.push(`${route.id}:pallet index ${route.runtime.pallet_index}`);
-  } else {
+  } else if (route.runtime.kind === "runtime-api") {
     if (!new RegExp(`(?:pub\\s+)?trait\\s+[A-Za-z0-9_]+[\\s\\S]*?fn\\s+${target}\\s*\\(`).test(runtimeSource)) routeGaps.push(`${route.id}:runtime API declaration`);
     if (!new RegExp(`fn\\s+${target}\\s*\\(`).test(read(route.runtime.implementation_source))) routeGaps.push(`${route.id}:runtime API implementation`);
+  } else if (route.runtime.kind === "sdk-host-operation") {
+    if (!rustSdkFunction || route.rust.source !== route.runtime.source || route.rust.declaration !== route.runtime.target) {
+      routeGaps.push(`${route.id}:SDK host operation binding`);
+    }
+    if (!new RegExp(`pub\\s+async\\s+fn\\s+${target}\\s*\\(`).test(runtimeSource)) {
+      routeGaps.push(`${route.id}:SDK host operation implementation`);
+    }
+    for (const forbiddenField of ["pallet", "pallet_index", "call_index", "runtime_api_version", "implementation_source"]) {
+      if (Object.hasOwn(route.runtime, forbiddenField)) routeGaps.push(`${route.id}:SDK host operation exposes ${forbiddenField}`);
+    }
+  } else {
+    routeGaps.push(`${route.id}:unsupported runtime binding kind ${route.runtime.kind}`);
   }
 }
 if (routeGaps.length) fail(`authoritative native route contract gaps (${routeGaps.length}): ${routeGaps.slice(0, 20).join("; ")}`);

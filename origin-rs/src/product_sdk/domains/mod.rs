@@ -8,6 +8,7 @@ pub mod attestation;
 pub mod common;
 pub mod dotns;
 pub mod drive;
+pub mod identity_personhood;
 pub mod s3;
 pub mod storage;
 pub mod storage_events;

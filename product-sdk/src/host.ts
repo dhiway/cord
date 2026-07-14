@@ -5,7 +5,7 @@ import {
   type NativeDomain,
 } from "./errors.ts";
 
-export type NativeCapability = "attestation" | "dotns" | "storage";
+export type NativeCapability = "identity" | "attestation" | "dotns" | "storage" | "transaction";
 export type HostFinality = "finalized" | "submit-and-finalize";
 export type ConsentScope<Capability extends string = string, Method extends string = string> =
   `${Capability}:${Method}`;
@@ -93,7 +93,8 @@ function assertNativePayload(
       if (
         forbiddenPayloadKeys.has(normalized) ||
         normalized.includes("scale") ||
-        normalized.includes("abi") ||
+        normalized === "abi" || normalized.startsWith("abi") || normalized.endsWith("abi")
+          || normalized.includes("contractabi") ||
         normalized.includes("selector") ||
         normalized.includes("solidity") ||
         normalized.includes("contract") ||

@@ -4,9 +4,20 @@ import { storage } from "../../../src/storage.ts";
 import { provider } from "../../../src/provider.ts";
 import { drive } from "../../../src/drive.ts";
 import { s3 } from "../../../src/s3.ts";
+import { identity } from "../../../src/identity.ts";
+import { sponsoredTransaction } from "../../../src/sponsored-transaction.ts";
 
 /** Direct references to every real exported SDK route callable. */
 export const NATIVE_RUNTIME_ROUTE_REGISTRY = {
+  "identity:identity_status": identity.identityStatus,
+  "identity:personhood_status": identity.personhoodStatus,
+  "identity:attestation_allowance": identity.attestationAllowance,
+  "identity:set_identity": identity.setIdentity,
+  "identity:clear_identity": identity.clearIdentity,
+  "identity:request_judgement": identity.requestJudgement,
+  "identity:cancel_judgement_request": identity.cancelJudgementRequest,
+  "identity:provide_judgement": identity.provideJudgement,
+  "identity:attest_lite_person": identity.attestLitePerson,
   "attestation:schema_by_id": attestation.schemaById,
   "attestation:attestation_by_id": attestation.attestationById,
   "attestation:attestation_live_status": attestation.liveStatus,
@@ -139,4 +150,6 @@ export const NATIVE_RUNTIME_ROUTE_REGISTRY = {
   "storage:put_object": s3.putObject,
   "storage:delete_object": s3.deleteObject,
   "storage:delete_bucket": s3.deleteBucket,
+  "transaction:prepare_sponsored_intent": sponsoredTransaction.prepareSponsoredIntent,
+  "transaction:submit_sponsored_intent": sponsoredTransaction.submitSponsoredIntent,
 } as const;

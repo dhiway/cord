@@ -24,7 +24,10 @@ export function assertNoContractSurface(value: JsonValue, path = "payload"): voi
   if (Array.isArray(value)) return value.forEach((item, index) => assertNoContractSurface(item, `${path}[${index}]`));
   if (value && typeof value === "object") for (const [key, child] of Object.entries(value)) {
     const normalized=normalizeKey(key);
-    if (forbidden.has(normalized)||normalized.includes("scale")||normalized.includes("abi")||(normalized.includes("contract")&&(normalized.includes("address")||normalized.includes("addr")||normalized.includes("deployment")))) throw new ProductSdkError("unsupported_surface", `forbidden product field ${path}.${key}`);
+    if (forbidden.has(normalized)||normalized.includes("scale")
+      ||normalized==="abi"||normalized.startsWith("abi")||normalized.endsWith("abi")
+      ||normalized.includes("contractabi")
+      ||(normalized.includes("contract")&&(normalized.includes("address")||normalized.includes("addr")||normalized.includes("deployment")))) throw new ProductSdkError("unsupported_surface", `forbidden product field ${path}.${key}`);
     assertNoContractSurface(child, `${path}.${key}`);
   }
 }
@@ -40,7 +43,8 @@ type Rule =
   | { kind: "nullable"; item: Rule }
   | { kind: "array"; item: Rule; min?: number; max?: number; unique?: boolean }
   | { kind: "object"; fields: Record<string, Rule> }
-  | { kind: "oneOf"; choices: Rule[] };
+  | { kind: "oneOf"; choices: Rule[] }
+  | { kind: "nativeWriteTarget" };
 type MethodContract = { finality: MethodFinality; fields: Record<string, Rule> };
 
 const string = (options: Omit<Extract<Rule, { kind: "string" }>, "kind"> = {}): Rule => ({ kind: "string", ...options });
@@ -61,6 +65,27 @@ const u32 = integer(0, 0xffff_ffff);
 const pageFields = { cursor: nullable(u32), limit: integer(0, 100) };
 const label = string({ min: 1, maxBytes: 63, pattern: /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/ });
 const subjectId = string({ min: 38, maxBytes: 64, pattern: /^[1-9A-HJ-NP-Za-km-z]+$/ });
+const identityData = oneOf(
+  object({ kind: literal("none") }),
+  object({ kind: literal("raw"), value: string({ min: 1, maxBytes: 32 }) }),
+  object({ kind: literal("blake2_256"), hash: hash32 }),
+  object({ kind: literal("sha2_256"), hash: hash32 }),
+  object({ kind: literal("keccak_256"), hash: hash32 }),
+  object({ kind: literal("sha3_256"), hash: hash32 }),
+);
+const identityInfo = object({
+  display: identityData,
+  legal: identityData,
+  web: identityData,
+  email: identityData,
+  image: identityData,
+  additional: array(object({ key: identityData, value: identityData }), 0, 32),
+});
+const identityJudgement = oneOf(
+  literal("reasonable"), literal("known_good"), literal("out_of_date"),
+  literal("low_quality"), literal("erroneous"),
+);
+const nativeWriteTarget: Rule = { kind: "nativeWriteTarget" };
 
 const attestationInput = {
   schema: hash32,
@@ -169,6 +194,30 @@ write("attestation", "revoke_delegated_batch", {
 write("attestation", "revoke_external_status", { status_commitment: hash32 });
 write("attestation", "revoke_external_status_batch", {
 	status_commitments: array(hash32, 1, 64, true),
+});
+
+// Native People/People-Lite runtime API and pallet calls.
+read("identity", "identity_status", { account });
+read("identity", "personhood_status", { account });
+read("identity", "attestation_allowance", { account });
+write("identity", "set_identity", { info: identityInfo });
+write("identity", "clear_identity", {});
+write("identity", "request_judgement", { registrar: account });
+write("identity", "cancel_judgement_request", { registrar: account });
+write("identity", "provide_judgement", {
+  target: account,
+  judgement: identityJudgement,
+  identity_hash: hash32,
+});
+write("identity", "attest_lite_person", {
+  candidate: account,
+  candidate_signature: oneOf(
+    object({ scheme: literal("sr25519"), bytes: string({ pattern: /^0x[0-9a-f]{128}$/ }) }),
+    object({ scheme: literal("ed25519"), bytes: string({ pattern: /^0x[0-9a-f]{128}$/ }) }),
+    object({ scheme: literal("ecdsa"), bytes: string({ pattern: /^0x[0-9a-f]{130}$/ }) }),
+  ),
+  ring_vrf_key: hash32,
+  proof_of_ownership: string({ pattern: /^0x[0-9a-f]{128}$/ }),
 });
 
 // Native DotNS runtime API and pallet calls.
@@ -359,6 +408,38 @@ write("storage", "delete_object", {
 });
 write("storage", "delete_bucket", { bucket: hash32, expected_bucket_version: decimalU64 });
 
+// Typed sponsored transaction host contract. The v8 transport owns all SCALE construction.
+const sponsoredMortality = object({ valid_from: blockNumber, valid_until: blockNumber });
+const sponsoredEnvelopeFields = {
+  version: integer(1, 1),
+  signing_domain: literal("orbis/meta-intent/v7"),
+  genesis_hash: hash32,
+  spec_version: u32,
+  transaction_version: u32,
+  metadata_hash: hash32,
+  participant: account,
+  nonce: decimalU64,
+  mortality: sponsoredMortality,
+  target: nativeWriteTarget,
+  signing_payload_hash: hash32,
+  intent_id: hash32,
+};
+read("transaction", "prepare_sponsored_intent", {
+  participant: account,
+  nonce: decimalU64,
+  mortality: sponsoredMortality,
+  target: nativeWriteTarget,
+});
+write("transaction", "submit_sponsored_intent", {
+  signed_intent: object({
+    envelope: object(sponsoredEnvelopeFields),
+    participant_signature: object({
+      scheme: oneOf(literal("sr25519"), literal("ed25519"), literal("ecdsa")),
+      value: string({ min: 1, max: 2048 }),
+    }),
+  }),
+});
+
 function invalid(path: string): never {
   throw new ProductSdkError("invalid_input", `invalid ${path}`);
 }
@@ -409,6 +490,18 @@ function validateRule(value: JsonValue | undefined, rule: Rule, path: string): v
         }
       }
       if (matches !== 1) invalid(path);
+      return;
+    }
+    case "nativeWriteTarget": {
+      if (!value || typeof value !== "object" || Array.isArray(value)) invalid(path);
+      const target = value as JsonObject;
+      if (Object.keys(target).sort().join() !== ["capability", "method", "payload"].sort().join()
+        || typeof target.capability !== "string" || typeof target.method !== "string"
+        || !target.payload || typeof target.payload !== "object" || Array.isArray(target.payload)) invalid(path);
+      const contract = methods[`${target.capability}.${target.method}`];
+      if (!contract || contract.finality !== "submit-and-finalize" || target.capability === "transaction") invalid(path);
+      validateRule(target.payload as JsonObject, object(contract.fields), `${path}.payload`);
+      return;
     }
   }
 }
@@ -418,12 +511,33 @@ export function assertMethodPayload(capability: string, method: string, payload:
   const contract = methods[`${capability}.${method}`];
   if (!contract) throw new ProductSdkError("unsupported_surface", `unsupported product method ${capability}.${method}`);
   validateRule(payload, object(contract.fields), "payload");
+  if (capability === "transaction") {
+    const input = method === "submit_sponsored_intent"
+      ? (payload.signed_intent as JsonObject).envelope as JsonObject
+      : payload;
+    const mortality = input.mortality as JsonObject;
+    if (BigInt(String(mortality.valid_until)) <= BigInt(String(mortality.valid_from)))
+      invalid("payload.mortality.valid_until");
+    if (method === "submit_sponsored_intent") {
+      if (input.genesis_hash !== ORBIS_NETWORK_BINDING.genesis_hash
+        || input.spec_version !== ORBIS_NETWORK_BINDING.spec_version
+        || input.transaction_version !== ORBIS_NETWORK_BINDING.transaction_version)
+        throw new ProductSdkError("unsupported_runtime", "sponsored intent runtime identity mismatch");
+      if (input.metadata_hash !== ORBIS_NETWORK_BINDING.metadata_hash)
+        throw new ProductSdkError("metadata_mismatch", "sponsored intent metadata hash mismatch");
+    }
+  }
 }
 
 function sampleRule(rule: Rule): JsonValue {
   switch (rule.kind) {
     case "string": {
-      const candidates = [`0x${"11".repeat(32)}`, "1", "AQID", "active", "sample", "a"];
+      const candidates = [
+        `0x${"11".repeat(32)}`,
+        `0x${"11".repeat(64)}`,
+        `0x${"11".repeat(65)}`,
+        "1", "AQID", "active", "sample", "a",
+      ];
       for (const candidate of candidates) {
         try { validateRule(candidate, rule, "sample"); return candidate; } catch {}
       }
@@ -437,14 +551,44 @@ function sampleRule(rule: Rule): JsonValue {
     case "array": return Array.from({ length: rule.min ?? 0 }, () => sampleRule(rule.item));
     case "object": return Object.fromEntries(Object.entries(rule.fields).map(([name, child]) => [name, sampleRule(child)]));
     case "oneOf": return sampleRule(rule.choices[0]);
+    case "nativeWriteTarget": return {
+      capability: "identity",
+      method: "clear_identity",
+      payload: {},
+    };
   }
 }
 
 export function canonicalMethodPayload(capability: string, method: string): JsonObject {
   const contract = methods[`${capability}.${method}`];
   if (!contract) throw new ProductSdkError("unsupported_surface", `unsupported product method ${capability}.${method}`);
-  const payload = sampleRule(object(contract.fields)) as JsonObject;
+  let payload = sampleRule(object(contract.fields)) as JsonObject;
+  if (capability === "transaction") {
+    const base = {
+      participant: "participant-account",
+      nonce: "1",
+      mortality: { valid_from: "1", valid_until: "65" },
+      target: { capability: "identity", method: "clear_identity", payload: {} },
+    };
+    payload = method === "prepare_sponsored_intent" ? base : {
+      signed_intent: {
+        envelope: {
+          version: 1,
+          signing_domain: "orbis/meta-intent/v7",
+          genesis_hash: ORBIS_NETWORK_BINDING.genesis_hash,
+          spec_version: ORBIS_NETWORK_BINDING.spec_version,
+          transaction_version: ORBIS_NETWORK_BINDING.transaction_version,
+          metadata_hash: ORBIS_NETWORK_BINDING.metadata_hash,
+          ...base,
+          signing_payload_hash: `0x${"22".repeat(32)}`,
+          intent_id: `0x${"11".repeat(32)}`,
+        },
+        participant_signature: { scheme: "sr25519", value: "sample-signature" },
+      },
+    };
+  }
   validateRule(payload, object(contract.fields), "payload");
+  assertMethodPayload(capability, method, payload);
   return payload;
 }
 
@@ -459,6 +603,24 @@ function ruleSchema(rule: Rule): JsonObject {
     case "array": return { type: "array", items: ruleSchema(rule.item), ...(rule.min === undefined ? {} : { minItems: rule.min }), ...(rule.max === undefined ? {} : { maxItems: rule.max }), ...(rule.unique ? { uniqueItems: true } : {}) };
     case "object": return { type: "object", additionalProperties: false, required: Object.keys(rule.fields), properties: Object.fromEntries(Object.entries(rule.fields).map(([name, child]) => [name, ruleSchema(child)])) };
     case "oneOf": return { oneOf: rule.choices.map(ruleSchema) };
+    case "nativeWriteTarget": return {
+      oneOf: Object.entries(methods)
+        .filter(([identity, contract]) => contract.finality === "submit-and-finalize"
+          && !identity.startsWith("transaction."))
+        .map(([identity, contract]) => {
+          const [capability, method] = identity.split(".");
+          return {
+            type: "object",
+            additionalProperties: false,
+            required: ["capability", "method", "payload"],
+            properties: {
+              capability: { const: capability },
+              method: { const: method },
+              payload: ruleSchema(object(contract.fields)),
+            },
+          };
+        }),
+    };
   }
 }
 

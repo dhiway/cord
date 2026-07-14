@@ -42,6 +42,12 @@ export interface TypedChainSigner {
   readonly accountId: string;
 }
 
+export interface TypedFinalizedEvent {
+  readonly pallet: string;
+  readonly event: string;
+  readonly fields: JsonObject;
+}
+
 export interface TypedReadContext<Client extends TypedPapiClient> {
   readonly client: Client;
   readonly at: string;
@@ -60,7 +66,12 @@ export interface TypedTransactionContext<Client extends TypedPapiClient> {
 export type TypedTransactionStatus =
   | { readonly type: "broadcasted" }
   | { readonly type: "included"; readonly blockHash: string; readonly extrinsicHash?: string }
-  | { readonly type: "finalized"; readonly blockHash: string; readonly extrinsicHash: string }
+  | {
+      readonly type: "finalized";
+      readonly blockHash: string;
+      readonly extrinsicHash: string;
+      readonly events?: readonly TypedFinalizedEvent[];
+    }
   | { readonly type: "rejected"; readonly error: TypedClientFailure };
 
 /** A descriptor-generated transaction; its implementation owns encoding. */
@@ -104,6 +115,37 @@ export type TypedNetworkRoutes<
   Client extends TypedPapiClient,
   Signer extends TypedChainSigner,
 > = Readonly<Record<string, TypedNetworkRoute<Client, Signer>>>;
+
+/**
+ * Required descriptor-v8 boundary for sponsored intents.
+ *
+ * The SDK deliberately has no fallback encoder. An implementation must construct the active
+ * metadata-v8 call and participant signing payload through generated typed APIs. Submission must
+ * surface decoded finalized events; raw SCALE, pallet indices and call indices are not accepted.
+ */
+export interface TypedSponsoredIntentTransport<
+  Client extends TypedPapiClient,
+  Signer extends TypedChainSigner,
+> {
+  prepare(payload: JsonObject, context: TypedReadContext<Client>): Promise<JsonValue>;
+  submit(payload: JsonObject, context: TypedTransactionContext<Client>): TypedPapiTransaction<Signer>;
+}
+
+export function createTypedSponsoredIntentRoutes<
+  Client extends TypedPapiClient,
+  Signer extends TypedChainSigner,
+>(transport: TypedSponsoredIntentTransport<Client, Signer>): TypedNetworkRoutes<Client, Signer> {
+  return {
+    "transaction:prepare_sponsored_intent": {
+      finality: "finalized",
+      query: (payload, context) => transport.prepare(payload, context),
+    },
+    "transaction:submit_sponsored_intent": {
+      finality: "submit-and-finalize",
+      transaction: (payload, context) => transport.submit(payload, context),
+    },
+  };
+}
 
 export interface NetworkBindingContract {
   readonly genesis_hash: string;
@@ -201,6 +243,37 @@ function assertJsonValue(value: unknown, path = "response"): asserts value is Js
     return;
   }
   throw new ProductSdkError("runtime_rejected", `${path} is not JSON-safe`);
+}
+
+function validatePreparedSponsoredIntent(
+  response: JsonValue,
+  requestPayload: JsonObject,
+  binding: NetworkBindingContract,
+): asserts response is JsonObject {
+  const keys = [
+    "version", "signing_domain", "genesis_hash", "spec_version", "transaction_version",
+    "metadata_hash", "participant", "nonce", "mortality", "target",
+    "signing_payload_hash", "intent_id",
+  ];
+  if (!response || typeof response !== "object" || Array.isArray(response)
+    || Object.keys(response).sort().join() !== keys.sort().join()
+    || response.version !== 1
+    || response.signing_domain !== "orbis/meta-intent/v7"
+    || response.genesis_hash !== binding.genesis_hash
+    || response.spec_version !== binding.spec_version
+    || response.transaction_version !== binding.transaction_version
+    || response.metadata_hash !== binding.metadata_hash
+    || response.participant !== requestPayload.participant
+    || response.nonce !== requestPayload.nonce
+    || JSON.stringify(response.mortality) !== JSON.stringify(requestPayload.mortality)
+    || JSON.stringify(response.target) !== JSON.stringify(requestPayload.target)
+    || typeof response.signing_payload_hash !== "string" || !HASH_32.test(response.signing_payload_hash)
+    || typeof response.intent_id !== "string" || !HASH_32.test(response.intent_id)) {
+    throw new ProductSdkError(
+      "runtime_rejected",
+      "typed v8 transport returned an invalid sponsored signing envelope",
+    );
+  }
 }
 
 function cancelled(): ProductSdkError {
@@ -306,6 +379,10 @@ export function createTypedNetworkHostRoutes<
         signal,
       );
       assertJsonValue(response);
+      if (signed.request.capability === "transaction"
+        && signed.request.method === "prepare_sponsored_intent") {
+        validatePreparedSponsoredIntent(response, signed.request.payload, options.binding);
+      }
       return { finalizedHash: at, response };
     } catch (error) {
       throw mapFailure(error);
@@ -319,6 +396,14 @@ export function createTypedNetworkHostRoutes<
       const route = routeFor(options.routes, signed.request);
       if (route.finality !== "submit-and-finalize")
         throw new ProductSdkError("invalid_input", "read route used for submission");
+      const isSponsoredSubmit = signed.request.capability === "transaction"
+        && signed.request.method === "submit_sponsored_intent";
+      let sponsoredEnvelope: JsonObject | undefined;
+      if (isSponsoredSubmit) {
+        sponsoredEnvelope = ((signed.request.payload.signed_intent as JsonObject).envelope) as JsonObject;
+        if (sponsoredEnvelope.participant === options.signer.accountId)
+          throw new ProductSdkError("invalid_input", "participant and outer sponsor signer must be distinct");
+      }
       const at = await finalizedContext(options.client, options.binding, signal);
       const transaction = route.transaction(signed.request.payload, {
         client: options.client,
@@ -336,6 +421,25 @@ export function createTypedNetworkHostRoutes<
         if (status.type !== "finalized") continue;
         assertHash(status.blockHash, "finalized transaction block hash");
         assertHash(status.extrinsicHash, "finalized extrinsic hash");
+        let sponsoredOutcome: JsonObject | undefined;
+        if (isSponsoredSubmit) {
+          const dispatched = status.events?.find((event) => event.pallet === "MetaTx"
+            && event.event === "Dispatched" && event.fields.result === "Ok");
+          if (!dispatched)
+            throw new ProductSdkError(
+              "runtime_rejected",
+              "sponsored submission finalized without MetaTx::Dispatched Ok",
+            );
+          sponsoredOutcome = {
+            version: 1,
+            intent_id: sponsoredEnvelope!.intent_id,
+            participant: sponsoredEnvelope!.participant,
+            sponsor: options.signer.accountId,
+            dispatched: true,
+            meta_tx_event: "Dispatched",
+            inner_result: "Ok",
+          };
+        }
         const observed = await abortable(
           options.client.getRuntimeIdentityAt(status.blockHash, signal),
           signal,
@@ -351,6 +455,7 @@ export function createTypedNetworkHostRoutes<
             block_hash: status.blockHash,
             extrinsic_hash: status.extrinsicHash,
           },
+          ...(sponsoredOutcome ? { response: sponsoredOutcome } : {}),
         };
       }
     } catch (error) {

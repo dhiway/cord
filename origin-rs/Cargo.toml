@@ -31,6 +31,7 @@ pallet-bulletin-transaction-storage-runtime-api = { workspace = true, features =
 pallet-orbis-attestation-runtime-api = { workspace = true, features = ["std"] }
 pallet-orbis-dotns-runtime-api = { workspace = true, features = ["std"] }
 orbis-storage-runtime-api = { workspace = true, features = ["std"] }
+orbis-identity-personhood-runtime-api = { workspace = true, features = ["std"] }
 serde = { workspace = true, features = ["derive", "std"] }
 serde_json = { workspace = true, features = ["std"] }
 thiserror = { workspace = true }

@@ -407,6 +407,7 @@ pallet-orbis-attestation = { path = "origin/orbis/pallets/attestation", default-
 pallet-orbis-attestation-runtime-api = { path = "origin/orbis/pallets/attestation/runtime-api", default-features = false }
 pallet-orbis-dotns = { path = "origin/orbis/pallets/dotns", default-features = false }
 pallet-orbis-dotns-runtime-api = { path = "origin/orbis/pallets/dotns/runtime-api", default-features = false }
+orbis-identity-personhood-runtime-api = { path = "origin/orbis/runtime-api/identity-personhood", default-features = false }
 pallet-orbis-drive = { path = "origin/orbis/pallets/drive", default-features = false }
 pallet-orbis-storage-provider = { path = "origin/orbis/pallets/storage-provider", default-features = false }
 pallet-orbis-s3 = { path = "origin/orbis/pallets/s3", default-features = false }

@@ -9429,6 +9429,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
+name = "orbis-identity-personhood-runtime-api"
+version = "0.9.9"
+dependencies = [
+ "parity-scale-codec",
+ "scale-decode",
+ "scale-info",
+ "sp-api",
+]
+
+[[package]]
 name = "orbis-metadata-implicit-nohash"
 version = "0.9.9"
 dependencies = [
@@ -9787,6 +9797,7 @@ dependencies = [
  "indiv-pallet-resources",
  "indiv-support",
  "log",
+ "orbis-identity-personhood-runtime-api",
  "orbis-storage-runtime-api",
  "origin-hub-system-runtime-constants",
  "origin-primitives",
@@ -9920,6 +9931,7 @@ dependencies = [
  "hex",
  "kvdb",
  "kvdb-rocksdb",
+ "orbis-identity-personhood-runtime-api",
  "orbis-storage-runtime-api",
  "origin-primitives",
  "pallet-bulletin-transaction-storage-runtime-api",

@@ -22,6 +22,7 @@ use crate::{
 /// Meta transaction extension version used by the runtime.
 pub const META_TX_VERSION: ExtensionVersion = 0;
 const META_TAG: [u8; 8] = *b"_meta_tx";
+const SPONSORED_INTENT_DOMAIN: &[u8] = b"orbis/meta-intent/v7";
 
 type Result<T> = std::result::Result<T, OriginSdkError>;
 
@@ -87,6 +88,146 @@ pub struct SignedMetaTx {
 	raw: Vec<u8>,
 	extension_version: u8,
 	debug: Option<MetaTxDebug>,
+}
+
+/// Runtime bindings captured by an Orbis sponsored intent.
+///
+/// The product operation deliberately supports the closed, ordinary-account lane only: score,
+/// personhood, people-lite, resources and honour proofs are all disabled. Policy-bearing intents
+/// require their own typed proof builders and must not be smuggled through this API as SCALE.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SponsoredIntentBindings {
+	pub nonce: u32,
+	pub era: Era,
+	pub spec_version: u32,
+	pub transaction_version: u32,
+	pub genesis_hash: H256,
+	pub metadata_hash: Option<[u8; 32]>,
+}
+
+/// A participant-authorized current-wire Orbis MetaTx, ready for a distinct sponsor to submit.
+#[derive(Clone)]
+pub struct SponsoredIntent {
+	signed: SignedMetaTx,
+	participant: origin_primitives::AccountId,
+	intent_commitment: H256,
+	bindings: SponsoredIntentBindings,
+}
+
+impl SponsoredIntent {
+	pub fn participant(&self) -> &origin_primitives::AccountId {
+		&self.participant
+	}
+
+	pub fn intent_commitment(&self) -> H256 {
+		self.intent_commitment
+	}
+
+	pub fn bindings(&self) -> SponsoredIntentBindings {
+		self.bindings
+	}
+
+	pub fn encoded_meta_tx(&self) -> &[u8] {
+		self.signed.raw()
+	}
+
+	pub(crate) fn signed(&self) -> &SignedMetaTx {
+		&self.signed
+	}
+}
+
+/// Prepare and participant-sign the active Orbis v8/v7-intent MetaTx wire.
+///
+/// This is intentionally not the legacy bare MetaTx helper below. It mirrors the active runtime
+/// extension ordering, including paid-ingress intent commitment, policy/storage hashes and the
+/// metadata implicit. The resulting bytes are decoded against live metadata before they leave the
+/// SDK, so runtime wire drift fails closed.
+pub(crate) async fn prepare_sponsored_intent<S: Signer + ?Sized>(
+	metadata: &Metadata,
+	call_bytes: &[u8],
+	participant: &S,
+	bindings: SponsoredIntentBindings,
+) -> Result<SponsoredIntent> {
+	if !bindings.era.is_immortal() {
+		return Err(OriginSdkError::InvalidInput(
+			"sponsored intents currently require an immortal era".into(),
+		));
+	}
+
+	let account = participant.account_id();
+	let policy_proofs = raw::PolicyProofsV6::default();
+	let metadata_extension = raw::CheckMetadataHash {
+		mode: if bindings.metadata_hash.is_some() {
+			raw::MetadataMode::Enabled
+		} else {
+			raw::MetadataMode::Disabled
+		},
+	};
+	let preimage = raw::IntentPreimageV7 {
+		domain: SPONSORED_INTENT_DOMAIN.to_vec(),
+		extension_version: META_TX_VERSION,
+		genesis_hash: bindings.genesis_hash,
+		spec_version: bindings.spec_version,
+		transaction_version: bindings.transaction_version,
+		inner_signer: account.clone(),
+		call_hash: H256(blake2_256(call_bytes)),
+		mortality: bindings.era,
+		nonce: bindings.nonce,
+		policy_proofs_hash: H256(blake2_256(&policy_proofs.encode())),
+		storage_extension_hash: H256(blake2_256(&[])),
+		metadata_extension_hash: H256(blake2_256(&metadata_extension.encode())),
+		metadata_implicit: bindings.metadata_hash,
+	};
+	let intent_commitment = H256(blake2_256(&preimage.encode()));
+	let bare = raw::SponsoredBareExtension {
+		consume: raw::ConsumePaidMetaIngress(preimage),
+		marker: raw::MetaTxMarker(PhantomData),
+		non_zero_sender: raw::CheckNonZeroSender(PhantomData),
+		check_spec_version: raw::CheckSpecVersion(PhantomData),
+		check_tx_version: raw::CheckTxVersion(PhantomData),
+		check_genesis: raw::CheckGenesis(PhantomData),
+		mortality: raw::CheckMortality(bindings.era),
+		nonce: raw::CheckNonce(bindings.nonce),
+		identity_policies: raw::MetaIdentityBoundPolicies::default(),
+		storage: raw::ValidateStorageCalls(PhantomData),
+		metadata: metadata_extension,
+	};
+	let implicit = raw::SponsoredImplicit {
+		consume: (),
+		meta_tag: META_TAG,
+		non_zero_sender: (),
+		spec_version: bindings.spec_version,
+		transaction_version: bindings.transaction_version,
+		genesis_hash: bindings.genesis_hash,
+		mortality_hash: bindings.genesis_hash,
+		nonce: (),
+		identity_policies: ((), (), ()),
+		storage: (),
+		metadata_hash: bindings.metadata_hash,
+	};
+	let mut payload = Vec::new();
+	META_TX_VERSION.encode_to(&mut payload);
+	payload.extend_from_slice(call_bytes);
+	bare.encode_to(&mut payload);
+	implicit.encode_to(&mut payload);
+	let signature = participant.sign_payload(&blake2_256(&payload)).await;
+	let raw = raw::SponsoredMetaTx {
+		call: RawRuntimeCall(call_bytes),
+		extension_version: META_TX_VERSION,
+		extension: raw::SponsoredExtension {
+			verify: raw::ActiveVerifySignature::Signed { signature, account: account.clone() },
+			bare,
+		},
+	}
+	.encode();
+	decode_meta_value(metadata, &raw)?;
+
+	Ok(SponsoredIntent {
+		signed: SignedMetaTx::from_parts(raw, META_TX_VERSION, None),
+		participant: account,
+		intent_commitment,
+		bindings,
+	})
 }
 
 impl SignedMetaTx {
@@ -287,8 +428,8 @@ fn find_type(metadata: &Metadata, path: &[&str]) -> Option<scale_info::PortableT
 		.iter()
 		.find(|ty| {
 			let segments = &ty.ty.path.segments;
-			segments.len() == path.len()
-				&& segments.iter().map(|seg| seg.as_str()).zip(path.iter()).all(|(a, b)| a == *b)
+			segments.len() == path.len() &&
+				segments.iter().map(|seg| seg.as_str()).zip(path.iter()).all(|(a, b)| a == *b)
 		})
 		.cloned()
 }
@@ -427,6 +568,96 @@ fn encode_meta_tx(
 mod raw {
 	use super::*;
 
+	#[derive(Clone, Decode, Encode)]
+	pub struct IntentPreimageV7 {
+		pub domain: Vec<u8>,
+		pub extension_version: ExtensionVersion,
+		pub genesis_hash: H256,
+		pub spec_version: u32,
+		pub transaction_version: u32,
+		pub inner_signer: origin_primitives::AccountId,
+		pub call_hash: H256,
+		pub mortality: Era,
+		pub nonce: u32,
+		pub policy_proofs_hash: H256,
+		pub storage_extension_hash: H256,
+		pub metadata_extension_hash: H256,
+		pub metadata_implicit: Option<[u8; 32]>,
+	}
+
+	#[derive(Clone, Encode)]
+	pub struct ConsumePaidMetaIngress(pub IntentPreimageV7);
+
+	#[derive(Clone, Default, Encode)]
+	pub struct PolicyProofsV6 {
+		pub personhood: Option<()>,
+		pub people_lite: Option<()>,
+		pub resources: Option<()>,
+	}
+
+	#[derive(Clone, Default, Encode)]
+	pub struct MetaAccountBoundPoliciesV6(pub PolicyProofsV6);
+
+	#[derive(Clone, Default, Encode)]
+	pub struct MetaIdentityBoundPolicies(
+		pub Option<()>,
+		pub MetaAccountBoundPoliciesV6,
+		pub Option<()>,
+	);
+
+	#[derive(Clone, Encode)]
+	pub struct ValidateStorageCalls(pub PhantomData<()>);
+
+	#[derive(Clone, Encode)]
+	pub struct SponsoredBareExtension {
+		pub consume: ConsumePaidMetaIngress,
+		pub marker: MetaTxMarker,
+		pub non_zero_sender: CheckNonZeroSender,
+		pub check_spec_version: CheckSpecVersion,
+		pub check_tx_version: CheckTxVersion,
+		pub check_genesis: CheckGenesis,
+		pub mortality: CheckMortality,
+		pub nonce: CheckNonce,
+		pub identity_policies: MetaIdentityBoundPolicies,
+		pub storage: ValidateStorageCalls,
+		pub metadata: CheckMetadataHash,
+	}
+
+	#[derive(Clone, Encode)]
+	#[allow(dead_code)]
+	pub enum ActiveVerifySignature {
+		Disabled,
+		Signed { signature: MultiSignature, account: origin_primitives::AccountId },
+	}
+
+	#[derive(Clone, Encode)]
+	pub struct SponsoredExtension {
+		pub verify: ActiveVerifySignature,
+		pub bare: SponsoredBareExtension,
+	}
+
+	#[derive(Encode)]
+	pub struct SponsoredMetaTx<'a> {
+		pub call: RawRuntimeCall<'a>,
+		pub extension_version: ExtensionVersion,
+		pub extension: SponsoredExtension,
+	}
+
+	#[derive(Clone, Encode)]
+	pub struct SponsoredImplicit {
+		pub consume: (),
+		pub meta_tag: [u8; 8],
+		pub non_zero_sender: (),
+		pub spec_version: u32,
+		pub transaction_version: u32,
+		pub genesis_hash: H256,
+		pub mortality_hash: H256,
+		pub nonce: (),
+		pub identity_policies: ((), (), ()),
+		pub storage: (),
+		pub metadata_hash: Option<[u8; 32]>,
+	}
+
 	#[derive(Clone, Encode)]
 	pub struct MetaTxMarker(pub PhantomData<()>);
 
@@ -464,5 +695,44 @@ mod raw {
 	pub enum VerifySignature {
 		Signed { signature: MultiSignature, account: MultiSigner },
 		Disabled,
+	}
+}
+
+#[cfg(test)]
+mod sponsored_tests {
+	use super::*;
+
+	#[test]
+	fn current_intent_preimage_fixture_matches_wire_shape() {
+		let fixture =
+			include_bytes!("../../../origin/orbis/runtime/fixtures/meta-v8/intent-preimage.scale");
+		let mut cursor = &fixture[..];
+		let decoded = raw::IntentPreimageV7::decode(&mut cursor).expect("current intent fixture");
+		assert!(cursor.is_empty());
+		assert_eq!(decoded.domain, SPONSORED_INTENT_DOMAIN);
+		assert_eq!(decoded.extension_version, META_TX_VERSION);
+		assert_eq!(decoded.transaction_version, 8);
+		assert_eq!(decoded.mortality, Era::Immortal);
+		assert_eq!(decoded.encode(), fixture);
+	}
+
+	#[test]
+	fn closed_policy_lane_has_canonical_default_encoding() {
+		assert_eq!(raw::PolicyProofsV6::default().encode(), [0, 0, 0]);
+		assert_eq!(raw::MetaIdentityBoundPolicies::default().encode(), [0, 0, 0, 0, 0]);
+		assert!(raw::ValidateStorageCalls(PhantomData).encode().is_empty());
+		assert_eq!(raw::CheckMetadataHash { mode: raw::MetadataMode::Enabled }.encode(), [1]);
+	}
+
+	#[test]
+	fn active_verify_signature_keeps_disabled_as_zero_and_signed_as_one() {
+		let disabled = raw::ActiveVerifySignature::Disabled.encode();
+		assert_eq!(disabled, [0]);
+		let signed = raw::ActiveVerifySignature::Signed {
+			signature: MultiSignature::Ed25519(sp_core::ed25519::Signature::from_raw([7; 64])),
+			account: origin_primitives::AccountId::new([9; 32]),
+		}
+		.encode();
+		assert_eq!(signed[0], 1);
 	}
 }
