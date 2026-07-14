@@ -503,7 +503,7 @@ fn cancellation_releases_unused_capacity_once_but_preserves_live_link() {
 }
 
 #[test]
-fn bulletin_clean_genesis_initializes_current_v8_state() {
+fn orbis_storage_clean_genesis_initializes_current_v8_state() {
 	use orbis_transaction_storage_primitives::StorageRef;
 
 	new_test_ext().execute_with(|| {

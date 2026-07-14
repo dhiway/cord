@@ -157,7 +157,7 @@ fn completion_manifest_is_parseable_unique_and_clean_genesis() {
 	let manifest: toml::Value =
 		toml::from_str(include_str!("../../../../docs/orbis-completion-manifest.toml"))
 			.expect("the current completion manifest must be valid TOML");
-	assert_eq!(manifest["manifest_version"].as_integer(), Some(19));
+	assert_eq!(manifest["manifest_version"].as_integer(), Some(20));
 	let mut identities = BTreeSet::new();
 	for (table, value) in manifest.as_table().unwrap() {
 		let Some(rows) = value.as_array() else { continue };
@@ -170,8 +170,11 @@ fn completion_manifest_is_parseable_unique_and_clean_genesis() {
 		}
 	}
 	assert!(manifest.get("protocol_migration").is_none());
-	assert!(manifest.get("bulletin_v7_rehearsal").is_none());
-	assert!(manifest.get("bulletin_v7_contract").is_none());
+	assert!(manifest
+		.as_table()
+		.expect("completion manifest is a table")
+		.keys()
+		.all(|key| !key.contains("v7_rehearsal") && !key.contains("v7_contract")));
 	assert!(manifest["provider_v8_contract"]
 		.as_array()
 		.unwrap()
@@ -421,7 +424,7 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 			_nonce,
 			_weight,
 			_payment,
-			_bulletin,
+			_storage_policy,
 			_metadata,
 			_set_origin,
 		) = inner;
@@ -443,7 +446,7 @@ fn transaction_policy_construction_surfaces_share_the_frozen_slots() {
 			_mortality,
 			_nonce,
 			identity_policies,
-			_bulletin,
+			_storage_policy,
 			_metadata,
 		) = extension;
 		let (score, _policy, honour) = identity_policies;

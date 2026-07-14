@@ -152,7 +152,7 @@ def main() -> None:
             "subject": "native Entity subject identifier",
             "attestation": "native schema, issue, live check, revoke and deny",
             "name": "native Orbis Names commit, register and attestation/content resolution",
-            "content": "Bulletin commitment/provenance plus Product SDK ordered gateway-to-Bitswap failover with CID byte verification",
+            "content": "Orbis Storage commitment/provenance plus Product SDK ordered gateway-to-Bitswap failover with CID byte verification",
             "provider": "inactive-provider rejection, active-provider agreement/checkpoint, and DiskStore committed-byte read/reopen proof",
             "application_storage": "native Drive and S3 records bind the verified content hash",
             "sponsorship": "successful paid outer MetaTx executes native inner attestation and advances participant/sponsor nonces; exhaustion and signed version drift reject",

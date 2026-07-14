@@ -16,14 +16,14 @@
       "status": "pass"
     },
     "migrated_contract_content_paths": [],
-    "repository_files_scanned": 3509,
+    "repository_files_scanned": 3508,
     "retained_contract_artifacts": [],
     "retained_revive_entries": 0,
     "retained_revive_test_evidence": {},
     "surfaces": {
       "build_ci_config_generated": 182,
       "cargo_package_manifests": 101,
-      "docs": 2394,
+      "docs": 2393,
       "mobile": 0,
       "rust": 768,
       "solidity_abi": 0,

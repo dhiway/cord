@@ -1,4 +1,4 @@
-manifest_version = 19
+manifest_version = 20
 scope = "origin-orbis-enterprise-completion"
 implementation_branch = "sm-update-sub-0x63"
 current_state = "p2-p6-native-feature-implementation-present-production-validation-deferred"
@@ -9,8 +9,8 @@ max_s3_object_key_bytes = 1024
 
 [replanning]
 rule = "Adding or removing any row, method, service, scenario, or exclusion requires independent review and a manifest_version increment."
-iteration = 19
-decision = "orbis-names-native-brand-cutover"
+iteration = 20
+decision = "origin-orbis-live-brand-cleanup"
 plan_evidence = "docs/adr/0017-native-feature-source-of-truth.md"
 transition_architect_evidence = ""
 transition_architect_status = "pending"
@@ -5271,8 +5271,8 @@ artifact_sha256 = "987bfe1eff95003a16404c2173e4f9488adeff0755323d254943303d13ae4
 source_commit = "f88aa3faa6573582ca690fa3cace58b7f670aa88"
 status = "present"
 
-[[bulletin_v8_contract]]
-id = "BUL-V8-BY-REF"
+[[orbis_storage_v8_contract]]
+id = "ORBIS-STORAGE-V8-BY-REF"
 kind = "reverse-index"
 value = "ByRef[link.storage_ref] == (reservation_id, content_hash); every ByRef row has exactly one authoritative link"
 source_paths = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
@@ -5287,8 +5287,8 @@ artifact_sha256 = "1fd8e0fc1211dca6f4efd2afb81f19ff5aad01df59121699b97a71f282189
 source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
 status = "present"
 
-[[bulletin_v8_contract]]
-id = "BUL-V8-BY-HASH"
+[[orbis_storage_v8_contract]]
+id = "ORBIS-STORAGE-V8-BY-HASH"
 kind = "reverse-index"
 value = "ByContentHash[content_hash] == reservation_id; every ByContentHash row has exactly one authoritative link"
 source_paths = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
@@ -5303,8 +5303,8 @@ artifact_sha256 = "f8f3d2d155a21b1f6256b4b04543fcee2dcbfbdd4bd3df2787608a3c456a4
 source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
 status = "present"
 
-[[bulletin_v8_contract]]
-id = "BUL-V8-ROW-COUNT"
+[[orbis_storage_v8_contract]]
+id = "ORBIS-STORAGE-V8-ROW-COUNT"
 kind = "counter"
 value = "ResourceReservationRowCount == active + tombstones <= MaxReservations"
 source_paths = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
@@ -5319,8 +5319,8 @@ artifact_sha256 = "7cac98c7edde2c7f44460f952a4326a8c223946641ae587a5265e2a040633
 source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
 status = "present"
 
-[[bulletin_v8_contract]]
-id = "BUL-V8-LINK-COUNT"
+[[orbis_storage_v8_contract]]
+id = "ORBIS-STORAGE-V8-LINK-COUNT"
 kind = "counter"
 value = "ResourceReservationLinkCount == links == ByRef == ByContentHash <= MaxLinks"
 source_paths = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
@@ -5335,8 +5335,8 @@ artifact_sha256 = "8dbdb9e5482e1c4194d539a73d56ee45032c14043a72ed28cf25e622263e4
 source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
 status = "present"
 
-[[bulletin_v8_contract]]
-id = "BUL-V8-TRY-STATE"
+[[orbis_storage_v8_contract]]
+id = "ORBIS-STORAGE-V8-TRY-STATE"
 kind = "invariant"
 value = "bidirectional reverse-map bijection and exact counters continuously enforced"
 source_paths = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/pallets/transaction-storage/src/tests.rs"
@@ -5352,7 +5352,7 @@ source_commit = "d6b0fd2f7a2f50808e68889b2255fa63935d41bc"
 status = "present"
 
 [[provider_v8_contract]]
-id = "BUL-V8-FIELD"
+id = "ORBIS-STORAGE-V8-FIELD"
 kind = "layout"
 value = "clean-genesis ReservationProviderRef: ReservationId -> Option<ProviderAllocationId>"
 source_paths = "origin/orbis/pallets/transaction-storage/src/lib.rs"
@@ -5365,7 +5365,7 @@ source_commit = ""
 status = "present"
 
 [[provider_v8_contract]]
-id = "BUL-V8-SEAM"
+id = "ORBIS-STORAGE-V8-SEAM"
 kind = "gate"
 value = "provider composition is native from clean genesis through attach_provider and OrbisProviderAllocation"
 source_paths = "origin/orbis/pallets/transaction-storage/src/lib.rs; origin/orbis/runtime/src/lib.rs"
