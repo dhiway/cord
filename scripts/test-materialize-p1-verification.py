@@ -106,17 +106,17 @@ def fixture(root: Path) -> Path:
             "candidates": {
                 "origin": {
                     "sha256": module.sha256(control_bins["origin_upgrade_wasm"]),
-                    "spec_name": "origin",
+                    "spec_name": "foundation",
                     "current_spec_version": 9901,
                     "candidate_spec_version": 9902,
                     "higher_spec": True,
                     "features": ["p1-upgrade-candidate"],
                 },
-                "orbis-fast": {
+                "commons-fast": {
                     "sha256": module.sha256(control_bins["orbis_upgrade_wasm"]),
-                    "spec_name": "orbis",
-                    "current_spec_version": 29,
-                    "candidate_spec_version": 30,
+                    "spec_name": "commons",
+                    "current_spec_version": 31,
+                    "candidate_spec_version": 32,
                     "higher_spec": True,
                     "features": ["fast-runtime", "p1-upgrade-candidate"],
                 },
@@ -131,8 +131,8 @@ def fixture(root: Path) -> Path:
     write_json(control_root / "raw-hashes.json", raw_hashes)
     versions = {
         str(port): {
-            "specName": "origin" if port < 6 else "orbis",
-            "specVersion": 9901 if port < 6 else 29,
+            "specName": "foundation" if port < 6 else "commons",
+            "specVersion": 9901 if port < 6 else 31,
         }
         for port in range(8)
     }
@@ -179,7 +179,7 @@ def fixture(root: Path) -> Path:
             "observed_finalized_block_ratio": 3.0,
             "measurement_seconds": 60,
             "relay_spec_version": 9901,
-            "orbis_spec_version": 29,
+            "orbis_spec_version": 31,
         },
     )
 
@@ -267,8 +267,8 @@ def fixture(root: Path) -> Path:
                 "topology": binding(control_topology),
                 "binaries": {name: binding(path) for name, path in control_bins.items()},
                 "runtime": {
-                    "origin": {"spec_name": "origin", "current_spec_version": 9901, "candidate_spec_version": 9902},
-                    "orbis": {"spec_name": "orbis", "current_spec_version": 29, "candidate_spec_version": 30, "transaction_version": 8},
+                    "origin": {"spec_name": "foundation", "current_spec_version": 9901, "candidate_spec_version": 9902},
+                    "orbis": {"spec_name": "commons", "current_spec_version": 31, "candidate_spec_version": 32, "transaction_version": 8},
                 },
             },
             "ac10": {
@@ -276,8 +276,8 @@ def fixture(root: Path) -> Path:
                 "topology": binding(smoke_topology),
                 "binaries": {"origin": binding(smoke_origin), "orbis": binding(smoke_orbis)},
                 "runtime": {
-                    "origin": {"spec_name": "origin", "spec_version": 9901},
-                    "orbis": {"spec_name": "orbis", "spec_version": 29, "transaction_version": 8},
+                    "origin": {"spec_name": "foundation", "spec_version": 9901},
+                    "orbis": {"spec_name": "commons", "spec_version": 31, "transaction_version": 8},
                 },
                 "unincluded_segment_capacity": 12,
             },
@@ -288,7 +288,7 @@ def fixture(root: Path) -> Path:
                 "topology": binding(proof_topology),
                 "driver": binding(proof_driver),
                 "binaries": {name: binding(path) for name, path in proof_bins.items()},
-                "runtime": {"orbis": {"spec_name": "orbis", "spec_version": 29, "transaction_version": 8, "metadata_hash": metadata_hash}},
+                "runtime": {"orbis": {"spec_name": "commons", "spec_version": 31, "transaction_version": 8, "metadata_hash": metadata_hash}},
             },
         },
     )

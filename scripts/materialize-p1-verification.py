@@ -172,8 +172,8 @@ def validate_control_raw(config: Any, base: Path, source: dict[str, Any]) -> tup
     if not isinstance(runtime, dict):
         raise InvalidEvidence("AC7/AC8 runtime identity binding is absent")
     expected_runtime = {
-        "origin": {"spec_name": "origin", "current_spec_version": 9901, "candidate_spec_version": 9902},
-        "orbis": {"spec_name": "orbis", "current_spec_version": 29, "candidate_spec_version": 30, "transaction_version": 8},
+        "origin": {"spec_name": "foundation", "current_spec_version": 9901, "candidate_spec_version": 9902},
+        "orbis": {"spec_name": "commons", "current_spec_version": 31, "candidate_spec_version": 32, "transaction_version": 8},
     }
     if runtime != expected_runtime:
         raise InvalidEvidence(f"AC7/AC8 runtime identity binding mismatch: {runtime}")
@@ -188,11 +188,11 @@ def validate_control_raw(config: Any, base: Path, source: dict[str, Any]) -> tup
     ):
         raise InvalidEvidence("AC7/AC8 upgrade-candidate manifest is absent, non-authoritative, or stale")
     candidates = candidate_manifest.get("candidates")
-    if not isinstance(candidates, dict) or set(candidates) != {"origin", "orbis-fast"}:
+    if not isinstance(candidates, dict) or set(candidates) != {"origin", "commons-fast"}:
         raise InvalidEvidence("AC7/AC8 upgrade-candidate set is incomplete")
     candidate_expectations = {
-        "origin": (binaries["origin_upgrade_wasm"]["sha256"], "origin", 9901, 9902, {"p1-upgrade-candidate"}),
-        "orbis-fast": (binaries["orbis_upgrade_wasm"]["sha256"], "orbis", 29, 30, {"fast-runtime", "p1-upgrade-candidate"}),
+        "origin": (binaries["origin_upgrade_wasm"]["sha256"], "foundation", 9901, 9902, {"p1-upgrade-candidate"}),
+        "commons-fast": (binaries["orbis_upgrade_wasm"]["sha256"], "commons", 31, 32, {"fast-runtime", "p1-upgrade-candidate"}),
     }
     for name, (wasm_hash, spec_name, current_spec, candidate_spec, features) in candidate_expectations.items():
         candidate = candidates.get(name)
@@ -239,10 +239,10 @@ def validate_control_raw(config: Any, base: Path, source: dict[str, Any]) -> tup
     if not isinstance(versions, dict) or len(versions) != 8:
         raise InvalidEvidence("AC7/AC8 runtime-version ledger must contain eight nodes")
     spec_names = [value.get("specName") for value in versions.values() if isinstance(value, dict)]
-    if spec_names.count("origin") != 6 or spec_names.count("orbis") != 2:
+    if spec_names.count("foundation") != 6 or spec_names.count("commons") != 2:
         raise InvalidEvidence(f"AC7/AC8 runtime identities are invalid: {spec_names}")
     if any(
-        value.get("specVersion") != (9901 if value.get("specName") == "origin" else 29)
+        value.get("specVersion") != (9901 if value.get("specName") == "foundation" else 31)
         for value in versions.values()
         if isinstance(value, dict)
     ):
@@ -331,8 +331,12 @@ def validate_ac10(config: Any, base: Path, source: dict[str, Any]) -> dict[str, 
     if set(binaries) != {"origin", "orbis"}:
         raise InvalidEvidence("AC10 requires exactly Origin and Orbis binary bindings")
     runtime = config.get("runtime")
-    if not isinstance(runtime, dict):
-        raise InvalidEvidence("AC10 runtime binding is absent")
+    expected_runtime = {
+        "origin": {"spec_name": "foundation", "spec_version": 9901},
+        "orbis": {"spec_name": "commons", "spec_version": 31, "transaction_version": 8},
+    }
+    if runtime != expected_runtime:
+        raise InvalidEvidence("AC10 runtime binding does not match Foundation/Commons identities")
     origin_runtime = runtime.get("origin")
     orbis_runtime = runtime.get("orbis")
     if not isinstance(origin_runtime, dict) or not isinstance(orbis_runtime, dict):
@@ -340,12 +344,12 @@ def validate_ac10(config: Any, base: Path, source: dict[str, Any]) -> dict[str, 
     raw = read_json(Path(raw_binding["path"]))
     if not isinstance(raw, dict) or raw.get("status") not in ("ok", "pass"):
         raise InvalidEvidence(f"AC10 raw status is not pass/ok: {raw.get('status') if isinstance(raw, dict) else None}")
-    if raw.get("relay_spec_version") != origin_runtime.get("spec_version") or origin_runtime.get("spec_name") != "origin":
+    if raw.get("relay_spec_version") != origin_runtime.get("spec_version") or origin_runtime.get("spec_name") != "foundation":
         raise InvalidEvidence("AC10 Foundation runtime identity mismatch")
-    if raw.get("orbis_spec_version") != orbis_runtime.get("spec_version") or orbis_runtime.get("spec_name") != "orbis":
+    if raw.get("orbis_spec_version") != orbis_runtime.get("spec_version") or orbis_runtime.get("spec_name") != "commons":
         raise InvalidEvidence("AC10 Commons runtime identity mismatch")
     if orbis_runtime.get("transaction_version") != 8:
-        raise InvalidEvidence("AC10 Orbis transaction version must be 8")
+        raise InvalidEvidence("AC10 Commons transaction version must be 8")
     before, after = raw.get("before"), raw.get("after")
     if not isinstance(before, dict) or not isinstance(after, dict):
         raise InvalidEvidence("AC10 progress snapshots are absent")
@@ -446,11 +450,17 @@ def validate_ac13(config: Any, base: Path, source: dict[str, Any]) -> dict[str, 
     if not evidence_root.is_dir():
         raise InvalidEvidence("AC13 evidence root is absent")
     runtime = config.get("runtime")
-    if not isinstance(runtime, dict) or not isinstance(runtime.get("orbis"), dict):
+    if not isinstance(runtime, dict) or set(runtime) != {"orbis"} or not isinstance(runtime.get("orbis"), dict):
         raise InvalidEvidence("AC13 Commons runtime binding is absent")
-    metadata_hash = runtime["orbis"].get("metadata_hash")
+    commons_runtime = runtime["orbis"]
+    if {
+        key: commons_runtime.get(key)
+        for key in ("spec_name", "spec_version", "transaction_version")
+    } != {"spec_name": "commons", "spec_version": 31, "transaction_version": 8}:
+        raise InvalidEvidence("AC13 Commons runtime identity mismatch")
+    metadata_hash = commons_runtime.get("metadata_hash")
     if not isinstance(metadata_hash, str) or not re.fullmatch(r"0x[0-9a-fA-F]{64}", metadata_hash):
-        raise InvalidEvidence("AC13 Orbis metadata hash is malformed")
+        raise InvalidEvidence("AC13 Commons metadata hash is malformed")
     verdict = read_json(Path(raw_binding["path"]))
     if not isinstance(verdict, dict) or verdict.get("schema_version") != 1 or verdict.get("status") != "pass":
         raise InvalidEvidence("AC13 production campaign verdict is absent or non-pass")
