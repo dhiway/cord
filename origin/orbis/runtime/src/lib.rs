@@ -2408,6 +2408,10 @@ impl pallet_orbis_storage_provider::CheckpointContextProvider<Hash, BlockNumber>
 impl pallet_orbis_storage_provider::benchmarking::BenchmarkHelper<Runtime>
 	for OrbisProviderAuthority
 {
+	fn set_finalized_block(block: BlockNumber) {
+		pallet_orbis_storage_provider::GovernedFinalizedCheckpoint::<Runtime>::put(block);
+	}
+
 	fn organization(
 		provider: &AccountId,
 		service_key: &sp_core::ed25519::Public,

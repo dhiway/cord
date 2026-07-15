@@ -2572,12 +2572,9 @@ pub mod pallet {
 		/// recovery duty is visible only at the next governed finalized snapshot. Its predecessor
 		/// is retained as audit data and remains eligible to confirm if it becomes valid again.
 		#[pallet::call_index(26)]
-		#[pallet::weight(
-			T::WeightInfo::submit_checkpoint(0).max(T::WeightInfo::reconcile_bucket(
-				replicas_bound::<T>(),
-				BucketAgreements::<T>::decode_len(payload.bucket_id).unwrap_or(0) as u32,
-			))
-		)]
+		#[pallet::weight(T::WeightInfo::promote_checkpoint_fallback(
+			BucketAgreements::<T>::decode_len(payload.bucket_id).unwrap_or(0) as u32,
+		))]
 		#[transactional]
 		pub fn promote_checkpoint_fallback(
 			origin: OriginFor<T>,

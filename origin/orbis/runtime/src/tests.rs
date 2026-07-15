@@ -190,6 +190,7 @@ fn completion_manifest_is_parseable_unique_and_clean_genesis() {
 
 #[test]
 fn commons_storage_control_worst_case_weights_fit_the_runtime_block_budget() {
+	use frame_support::weights::Weight;
 	use pallet_orbis_drive::weights::WeightInfo as DriveWeightInfo;
 	use pallet_orbis_s3::weights::WeightInfo as S3WeightInfo;
 	use pallet_orbis_storage_provider::weights::WeightInfo as StorageWeightInfo;
@@ -203,7 +204,17 @@ fn commons_storage_control_worst_case_weights_fit_the_runtime_block_budget() {
 	assert_eq!(crate::ProviderMaxCapacityReleasesPerBlock::get(), 256);
 	assert_eq!(crate::ProviderMaxChallengesPerBlock::get(), 128);
 	assert_eq!(crate::ProviderMaxReconciliationRecords::get(), 128);
+	let assert_bounded_monotonic = |name: &str, sequence: &[Weight]| {
+		assert!(
+			sequence.iter().all(|weight| *weight != Weight::zero()),
+			"{name} contains a zero weight"
+		);
+		for pair in sequence.windows(2) {
+			assert!(pair[1].all_gte(pair[0]), "{name} is not monotonic: {pair:?}");
+		}
+	};
 	let mandatory = StorageWeights::submit_checkpoint(crate::ProviderMaxReplicas::get())
+		.max(StorageWeights::promote_checkpoint_fallback(crate::ProviderMaxBucketAgreements::get()))
 		.max(StorageWeights::submit_challenge_proof(crate::ProviderMaxProofNodes::get()))
 		.max(StorageWeights::publish_manifest(crate::ProviderMaxProofNodes::get()))
 		.max(StorageWeights::refresh_bucket_authority_valid(crate::ProviderMaxReplicas::get()))
@@ -244,6 +255,67 @@ fn commons_storage_control_worst_case_weights_fit_the_runtime_block_budget() {
 		crate::ProviderMaxBucketAgreements::get() - 1,
 	)));
 	assert!(challenges.all_gte(StorageWeights::on_initialize_challenges(127)));
+	assert_bounded_monotonic(
+		"provider.release.0-1-255-256",
+		&[
+			StorageWeights::on_initialize_release(0),
+			StorageWeights::on_initialize_release(1),
+			StorageWeights::on_initialize_release(255),
+			StorageWeights::on_initialize_release(256),
+		],
+	);
+	assert_bounded_monotonic(
+		"provider.reconcile.records.0-1-127-128",
+		&[
+			StorageWeights::on_initialize_reconcile(0, 32),
+			StorageWeights::on_initialize_reconcile(1, 32),
+			StorageWeights::on_initialize_reconcile(127, 32),
+			StorageWeights::on_initialize_reconcile(128, 32),
+		],
+	);
+	assert_bounded_monotonic(
+		"provider.reconcile.agreements.0-1-31-32",
+		&[
+			StorageWeights::on_initialize_reconcile(128, 0),
+			StorageWeights::on_initialize_reconcile(128, 1),
+			StorageWeights::on_initialize_reconcile(128, 31),
+			StorageWeights::on_initialize_reconcile(128, 32),
+		],
+	);
+	assert_bounded_monotonic(
+		"provider.challenges.0-1-127-128",
+		&[
+			StorageWeights::on_initialize_challenges(0),
+			StorageWeights::on_initialize_challenges(1),
+			StorageWeights::on_initialize_challenges(127),
+			StorageWeights::on_initialize_challenges(128),
+		],
+	);
+	assert_bounded_monotonic(
+		"provider.promotion.0-1-31-32",
+		&[
+			StorageWeights::promote_checkpoint_fallback(0),
+			StorageWeights::promote_checkpoint_fallback(1),
+			StorageWeights::promote_checkpoint_fallback(31),
+			StorageWeights::promote_checkpoint_fallback(32),
+		],
+	);
+	assert_bounded_monotonic(
+		"provider.replica-bound.2-3-4",
+		&[
+			StorageWeights::submit_checkpoint(2),
+			StorageWeights::submit_checkpoint(3),
+			StorageWeights::submit_checkpoint(4),
+		],
+	);
+	assert_bounded_monotonic(
+		"provider.proof-bound.1-63-64",
+		&[
+			StorageWeights::submit_challenge_proof(1),
+			StorageWeights::submit_challenge_proof(63),
+			StorageWeights::submit_challenge_proof(64),
+		],
+	);
 	let provider_dispatches = [
 		(
 			"provider.register",
@@ -307,6 +379,11 @@ fn commons_storage_control_worst_case_weights_fit_the_runtime_block_budget() {
 			"provider.submit_checkpoint",
 			StorageWeights::submit_checkpoint(2),
 			StorageWeights::submit_checkpoint(crate::ProviderMaxReplicas::get()),
+		),
+		(
+			"provider.promote_checkpoint_fallback",
+			StorageWeights::promote_checkpoint_fallback(0),
+			StorageWeights::promote_checkpoint_fallback(crate::ProviderMaxBucketAgreements::get()),
 		),
 		(
 			"provider.issue_challenge",
@@ -424,6 +501,85 @@ fn commons_storage_control_worst_case_weights_fit_the_runtime_block_budget() {
 		("s3.prune_history", S3Weights::prune_history(1), S3Weights::prune_history(64)),
 		("s3.purge_object", S3Weights::purge_object(1), S3Weights::purge_object(65)),
 	];
+	for (name, sequence) in [
+		(
+			"drive.create.1-255-256",
+			vec![
+				DriveWeights::create_drive(1),
+				DriveWeights::create_drive(255),
+				DriveWeights::create_drive(256),
+			],
+		),
+		(
+			"drive.root.0-1-62-63",
+			vec![
+				DriveWeights::update_root(0),
+				DriveWeights::update_root(1),
+				DriveWeights::update_root(62),
+				DriveWeights::update_root(63),
+			],
+		),
+		(
+			"drive.path.1-4095-4096",
+			vec![
+				DriveWeights::write_node_create(1, 64),
+				DriveWeights::write_node_create(4_095, 64),
+				DriveWeights::write_node_create(4_096, 64),
+			],
+		),
+		(
+			"drive.metadata.0-1-63-64",
+			vec![
+				DriveWeights::write_node_update_file(4_096, 0),
+				DriveWeights::write_node_update_file(4_096, 1),
+				DriveWeights::write_node_update_file(4_096, 63),
+				DriveWeights::write_node_update_file(4_096, 64),
+			],
+		),
+		(
+			"s3.bucket-name.3-62-63",
+			vec![
+				S3Weights::create_bucket(3),
+				S3Weights::create_bucket(62),
+				S3Weights::create_bucket(63),
+			],
+		),
+		(
+			"s3.key.1-1023-1024",
+			vec![
+				S3Weights::put_object_create(1),
+				S3Weights::put_object_create(1_023),
+				S3Weights::put_object_create(1_024),
+			],
+		),
+		(
+			"s3.history.0-1-62-63",
+			vec![
+				S3Weights::put_object_update(1_024, 0),
+				S3Weights::put_object_update(1_024, 1),
+				S3Weights::put_object_update(1_024, 62),
+				S3Weights::put_object_update(1_024, 63),
+			],
+		),
+		(
+			"s3.prune.1-63-64",
+			vec![
+				S3Weights::prune_history(1),
+				S3Weights::prune_history(63),
+				S3Weights::prune_history(64),
+			],
+		),
+		(
+			"s3.purge.1-64-65",
+			vec![
+				S3Weights::purge_object(1),
+				S3Weights::purge_object(64),
+				S3Weights::purge_object(65),
+			],
+		),
+	] {
+		assert_bounded_monotonic(name, &sequence);
+	}
 	for (name, base, limit) in drive_dispatches.into_iter().chain(s3_dispatches) {
 		assert!(base.all_lte(block), "{name} base weight {base:?} exceeds {block:?}");
 		assert!(limit.all_lte(block), "{name} limit weight {limit:?} exceeds {block:?}");
