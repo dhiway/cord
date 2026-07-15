@@ -165,9 +165,9 @@ journey = "An application explicitly deploys independent business logic"
 runtime_owner = "Revive execution only"
 sdk_owner = "origin-sdk-contracts optional leaf"
 host_owner = "Deployment and call approval"
-state = "runtime-present-sdk-gap"
+state = "runtime-and-optional-sdk-present-local-network-e2e-pending"
 contract_policy = "allowed-only-for-app-specific-non-authoritative-state"
-evidence = "docs/adr/0018-native-first-sdk-and-contract-boundary.md"
+evidence = "docs/adr/0018-native-first-sdk-and-contract-boundary.md; docs/sdk/revive-contracts.toml; product-sdk/packages/origin-sdk-contracts/src/index.ts"
 
 [[capability]]
 id = "device-capabilities"
