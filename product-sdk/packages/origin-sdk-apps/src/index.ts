@@ -378,3 +378,4 @@ export const ORIGIN_APPS_CONTRACT = {
 } as const;
 
 export * from "./deployment.ts";
+export * from "./discovery.ts";

@@ -26,6 +26,14 @@ native_retention = "TransactionStorage.store_with_cid_config"
 binding_after_retention_finality = true
 car_unixfs = "injected-audited-packager-interface"
 
+[discovery]
+schema = "cord.origin.app-index.v1"
+authority = false
+reconstructible = true
+search_results_revalidate_native_name = true
+search_results_revalidate_manifest_commitment = true
+ownership_records = false
+
 [bounds]
 manifest_bytes = 65536
 entrypoint_bytes = 256
