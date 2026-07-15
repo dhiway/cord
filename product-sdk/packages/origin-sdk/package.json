@@ -5,8 +5,16 @@
   "license": "GPL-3.0-or-later",
   "type": "module",
   "sideEffects": false,
-  "files": ["dist", "README.md"],
-  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -28,7 +36,10 @@
     "@cord-network/origin-sdk-resources": "0.1.0",
     "@cord-network/origin-sdk-result": "0.1.0",
     "@cord-network/origin-sdk-signer": "0.1.0",
-    "@cord-network/origin-sdk-statement-store": "0.1.0"
+    "@cord-network/origin-sdk-statement-store": "0.1.0",
+    "@cord-network/origin-sdk-tx": "0.1.0"
   },
-  "cord": { "bundleBudgetBytes": 750000 }
+  "cord": {
+    "bundleBudgetBytes": 750000
+  }
 }

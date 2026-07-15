@@ -74,6 +74,12 @@ import {
   type SelectedOriginSigner,
 } from "@cord-network/origin-sdk-signer";
 import {
+  createOriginAppRuntime,
+  type CommonsRuntimeExecutor,
+} from "./runtime.ts";
+
+export * from "./runtime.ts";
+import {
   createHostStatementStoreTransport,
   createStatementStoreClient,
   type StatementStoreClient,
@@ -93,7 +99,7 @@ export interface CreateAppOptions {
   readonly product: ProductIdentity;
   readonly bridge: OriginHostBridge;
   /** One descriptor-backed integration bundle supplied by the host/platform integration. */
-  readonly runtime: OriginAppRuntime;
+  readonly runtime: OriginAppRuntime | CommonsRuntimeExecutor;
   readonly account?: string;
   readonly storageNamespace?: string;
   readonly signal?: AbortSignal;
@@ -166,9 +172,12 @@ export async function createApp(
     return selected;
   }
 
-  const identity = createIdentityClient(chain, options.runtime.identity);
-  const personhood = createPersonhoodClient(chain, options.runtime.personhood);
-  const resources = createResourcesClient(chain, options.runtime.resources, options.runtime.personhood);
+  const runtime = "identity" in options.runtime
+    ? options.runtime
+    : createOriginAppRuntime(options.runtime);
+  const identity = createIdentityClient(chain, runtime.identity);
+  const personhood = createPersonhoodClient(chain, runtime.personhood);
+  const resources = createResourcesClient(chain, runtime.resources, runtime.personhood);
   const statements = createStatementStoreClient(
     host,
     createHostStatementStoreTransport(host),
@@ -184,11 +193,11 @@ export async function createApp(
     identity,
     personhood,
     resources,
-    attestations: createAttestationClient(chain, options.runtime.attestation),
-    names: createNamesClient(chain, options.runtime.names),
-    cloudStorage: createCloudStorageClient(chain, options.runtime.storage),
+    attestations: createAttestationClient(chain, runtime.attestation),
+    names: createNamesClient(chain, runtime.names),
+    cloudStorage: createCloudStorageClient(chain, runtime.storage),
     statements,
-    assets: createAssetsClient(chain, options.runtime.assets),
+    assets: createAssetsClient(chain, runtime.assets),
     signal: lifetime.signal,
     async close() {
       if (closed) return ok(undefined);

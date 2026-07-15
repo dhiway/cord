@@ -13,7 +13,7 @@ sdk_owner = "origin-sdk-descriptors and origin-sdk-chain-client"
 host_owner = "Endpoint selection and reconnect policy"
 state = "runtime-sdk-host-provider-and-umbrella-present"
 contract_policy = "forbidden"
-evidence = "docs/sdk/native-route-contract.json; product-sdk/packages/descriptors/generated/orbis-descriptor.json; product-sdk/packages/origin-sdk-host/src/index.ts"
+evidence = "docs/sdk/native-route-contract.json; product-sdk/packages/descriptors/generated/orbis-descriptor.json; product-sdk/packages/origin-sdk-host/src/index.ts; product-sdk/packages/origin-sdk/src/runtime.ts"
 
 [[capability]]
 id = "transactions"
