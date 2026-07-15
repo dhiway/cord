@@ -1532,7 +1532,7 @@ fn decode_meta_payload<R: MetadataImplicitResolver>(
 		metadata_implicit: R::resolve(&metadata)?,
 	};
 	if consume.0 != expected
-		|| expected.spec_version != 29
+		|| expected.spec_version != crate::VERSION.spec_version
 		|| expected.transaction_version != 8
 		|| matches!(inner_call, RuntimeCall::MetaTx(..))
 	{

@@ -3,27 +3,27 @@
     {
       "bytes": 113,
       "file": "direct-signed-extrinsic.scale",
-      "sha256": "3c7409802e5eb1098b537c6038601fab7d1f9a77e4e836e35c56d6612849f73d"
+      "sha256": "a1ef73f6fed2e4c1fd88379a8332589ac1d86ae71bad5c49f7dd4795cd16177b"
     },
     {
       "bytes": 1270,
       "file": "honour-voter-meta.scale",
-      "sha256": "3f0e44499cd446c8dfc22b26a366fa6b06a0d2bf2a998f20d390aa12e546c02e"
+      "sha256": "6401cfe6894ab1ad584c0d701617d45a58c76a04e9ed70bd29668cd9c7f00859"
     },
     {
       "bytes": 32,
       "file": "intent-commitment.bin",
-      "sha256": "13ccb3264dfd39300b93c6825e3cc3c5a8af34b446542b941eae5b2f4014b391"
+      "sha256": "22331ae159532ff2868499c740d71807d8b7a7eceb9ea835349ac8205ce0d328"
     },
     {
       "bytes": 260,
       "file": "intent-preimage.scale",
-      "sha256": "912dfee0b6efe850f1d81ca70a78e7d133a18fa95fa30cdb4f2d5627c2ce9ecd"
+      "sha256": "d29a63640bb4be0faf93b156cf486af3d8831a658d4f35a4f4564431fc508661"
     },
     {
       "bytes": 65536,
       "file": "max-envelope.scale",
-      "sha256": "da37bbac882761802c65f7763ef4e0bd2864c4569776fcba04986f43562f38d5"
+      "sha256": "474d5ca64a79afaa656e083a091c46ea774c0e6d0b93ddc145e9314369a959d6"
     },
     {
       "bytes": 478,
@@ -31,177 +31,184 @@
       "sha256": "2dbf31989b7083a7ea08348a34820cb948d1c4405055bc78af38520b7e7347a8"
     },
     {
+      "file": "metadata-hash.json",
+      "bytes": 480,
+      "sha256": "6fbadcd4742ef9dd3d7ecdda4b0375646422c0a19e07eb99cca8e2a17782ef1b"
+    },
+    {
       "bytes": 383,
       "expected_error": "InvalidTransaction::BadProof",
       "file": "mutate-call-hash.scale",
-      "sha256": "ba38b6f770d32750e4615bf7bfc4710dfd7099c568e5634cd21273ade0d30525"
+      "sha256": "ef8822d718d91f4426f97462cc805676ee7939f9f729ea7c71027167890c996d"
     },
     {
       "bytes": 384,
       "expected_error": "InvalidTransaction::BadProof",
       "file": "mutate-domain.scale",
-      "sha256": "1a278c7241eef36634caf06b17df544f0462bdfc02a888536bf597adfbbf4cb6"
+      "sha256": "8d3dc4938db1c249a9bb1ded9d29cce3e0c4a46a4d60b571e1b1663ed6e14dea"
     },
     {
       "bytes": 383,
       "expected_error": "InvalidTransaction::BadProof",
       "file": "mutate-genesis.scale",
-      "sha256": "8069582d1e9c668f7c80b5d7048b6d430683021f4efd2c087396ab183a2593f8"
+      "sha256": "b74d0ed10363c1213b5c2520bae5194fd285a8cf161f862ac0163bda47030d03"
     },
     {
       "bytes": 1270,
       "expected_error": "InvalidTransaction::BadSigner",
       "file": "mutate-honour-account-meta.scale",
-      "sha256": "31c1e6424f137d5c45ba2c2e9a757439a683289d58adefda1efe0eb5d5b96a6d"
+      "sha256": "2e94174b301e445b193a4580a2b6304da9468e289f4a39fc2d5adaeee6c2d5d3"
     },
     {
       "bytes": 383,
       "expected_error": "InvalidTransaction::BadProof",
       "file": "mutate-metadata-hash.scale",
-      "sha256": "28ea14e3bb5543ef32c782395be83238748cfdbeb366c0b182dc037061ecac69"
+      "sha256": "e97a5b986230b9706d0f2359a7a08faccea2e54fb8aec9091b02f1b0ec525de0"
     },
     {
       "bytes": 351,
       "expected_error": "InvalidTransaction::BadProof",
       "file": "mutate-metadata-implicit-none.scale",
-      "sha256": "21dc5a96311120b73424d4ec4310d33eb5efe59472cac9def4a369a888fd11d5"
+      "sha256": "755e3ddc82d346748511f425e96d89dbe8df7f5f2b63e9cc6db98baef006730e"
     },
     {
       "bytes": 383,
       "expected_error": "InvalidTransaction::BadProof",
       "file": "mutate-metadata-implicit-wrong.scale",
-      "sha256": "15885dd1d27c7cc0b3b74776cb25f7fbc99cdd4477354374d5c0aec94a1571ef"
+      "sha256": "a84c92f66488dda4c133f8badf5cd37c67e01ddcfa4b2e81535720ca79c65080"
     },
     {
       "bytes": 384,
       "expected_error": "InvalidTransaction::BadProof",
       "file": "mutate-mortality.scale",
-      "sha256": "138eaecff0d76ad7e468ff180faef68a8804c09820a9d8096ca1954bcf7cacd7"
+      "sha256": "1cffecd785be26b14639be98f7917fa1667d2466bd310dc00e36d8c5994e6141"
     },
     {
       "bytes": 383,
       "expected_error": "InvalidTransaction::BadProof",
       "file": "mutate-nonce.scale",
-      "sha256": "b327f75cf64a43264e4be199a5a60c7f150a9c3bcffb0a0fc2e03b5d10b1a788"
+      "sha256": "e7f2c571da7fb643f6ddda84b8a02eb71abd5ad27d2ab79712ab16c292ca1b00"
     },
     {
       "bytes": 383,
       "expected_error": "InvalidTransaction::BadProof",
       "file": "mutate-policy-hash.scale",
-      "sha256": "044f9bce741e8d0b0f8ec03dc4f10862db10912c72a2b136df154b34ead384e1"
+      "sha256": "3d6beb7f7f90237c8314afaa1c7528fe8d44b39ffc081a08cb1619548a085109"
     },
     {
       "bytes": 373,
       "expected_error": "InvalidTransaction::Future",
       "file": "mutate-score-nonce-meta.scale",
-      "sha256": "512a534ad44948642f4bb4befd2d017c20a88f39fbe4f3826e6455e3446db3a9"
+      "sha256": "fd5bf918a7563c23781cd12967ff2894158bc0722143fe8f976b6ae7661d1504"
     },
     {
       "bytes": 383,
       "expected_error": "InvalidTransaction::BadProof",
       "file": "mutate-signer.scale",
-      "sha256": "fb4fef5ec5eb7df45590996315558c1b5ae86d1612e10c7c9dbc6c938112ab15"
+      "sha256": "069a7a24d98872ae413a0ab406a47a49abecceaf5916c57f3123b7b6189119d1"
     },
     {
       "bytes": 383,
       "expected_error": "InvalidTransaction::BadProof",
       "file": "mutate-spec.scale",
-      "sha256": "d83d5922059c87d7c44878a44bf5ba8f4d5ca724f861cfd4c5d8682241878f34"
+      "sha256": "0aa36233d61c31541fe027ed6df15c79987fa26b9b82992faa49fe35a911d12a"
     },
     {
       "bytes": 383,
       "expected_error": "InvalidTransaction::BadProof",
       "file": "mutate-storage-hash.scale",
-      "sha256": "e8e6e848d6f674b0d355781100f54ad6ad5ab230a05b3f622124533da31419bb"
+      "sha256": "a7a453f46dd3ab86de383180d4bf0668a7d4cb69daeb53c850583bc00d5f8d73"
     },
     {
       "bytes": 384,
       "expected_error": "Codec::TrailingBytes",
       "file": "mutate-trailing-byte.scale",
-      "sha256": "9835ee34b7acb659f48dfa8b20206691c1b80c73ee9c61863b99c1d767afe062"
+      "sha256": "27f5080a27cfe253f304522d3a7de667f29cebc764e749420055b8750d5925de"
     },
     {
       "bytes": 383,
       "expected_error": "InvalidTransaction::BadProof",
       "file": "mutate-transaction-version.scale",
-      "sha256": "07d69ddd2e1eef63373e2c9ba13334fc1d0f28432bfd8216d4ebe039289146c9"
+      "sha256": "1ed6a9f1f0c75ecc5a2ccf5f67d5d556a40797329f9dd742794eda87b89d048f"
     },
     {
       "bytes": 383,
       "expected_error": "InvalidTransaction::BadProof",
       "file": "mutate-wrong-signature.scale",
-      "sha256": "c0022038c9527f6ff0652f9c61e67c8f69857c43d1c637e9f4418de84b345ec2"
+      "sha256": "9f5b6beafa3e6f76023d555725b0f615b0f09fbfe8a4e9501560ba624736317d"
     },
     {
       "bytes": 32,
       "file": "paid-token-key.bin",
-      "sha256": "3e1dbd31fb664d2d47e5743de7249ffefb3c31107f34e7dd4569553792345a70"
+      "sha256": "41db7d63607562991f759820e56e30ff23a0bcf3ba09535e556eb4e3c8db3065"
     },
     {
       "bytes": 109,
       "file": "paid-token.scale",
-      "sha256": "f064524bf1609ab6304873b3bc761fe59a40cb40b4c7b250914f98794a500c92"
+      "sha256": "4b274afe5074dbe32eadb0ac0d6b013a709bdc0de8c45121dfdef07038a4930e"
     },
     {
       "bytes": 384,
       "file": "proof-lite-alias-meta.scale",
-      "sha256": "65d37013daf702a572fb66f066d4ca80014e3bdcb28159e0efea547efd170dd2"
+      "sha256": "2fb8c643094039a0c18d2c4b6d19ce6fc319afbcb84dd477e0f621b4553ddba0"
     },
     {
       "bytes": 1207,
       "file": "proof-lite-alias-revised-meta.scale",
-      "sha256": "3b3ad868da889c634f9da1abc28b4e645f7e4a0a9ff64e25361babcd57287f79"
+      "sha256": "a9ce5bc462f4e201918e25c0481ca27266e57d5626364889584420814e0758f4"
     },
     {
       "bytes": 384,
       "file": "proof-lite-person-meta.scale",
-      "sha256": "4400a03db3f688ab584727c1bca7b5c0bf1ce073107f4025ce9be8a8ae59e9df"
+      "sha256": "3d7c6521c7ce6f6233f7f0460f33ad2e3e05636eb2ecdc81ae8ddfc4405bf4c9"
     },
     {
       "bytes": 384,
       "file": "proof-person-alias-meta.scale",
-      "sha256": "f55916327104155aeb49038511d0410753cc6a4b2d6240e0f301adf892c5f349"
+      "sha256": "16f076dc83376b990e9730d76f73c02bd9c7dfd04f6e402a5c73131f0ace381a"
     },
     {
       "bytes": 1207,
       "file": "proof-person-alias-revised-meta.scale",
-      "sha256": "f8d9382136ad18d441f8f0c8aaecf8a40cfaeb052db36a92053c91530181a903"
+      "sha256": "af7aa828ed85fe44176b5d8d73e9daa4eb9b1fe7f9e3a5e3439e1718b806132c"
     },
     {
       "bytes": 384,
       "file": "proof-person-identity-meta.scale",
-      "sha256": "399c39973c8a6273067574314201948c103a958a1f1470d9e959137f19ee43fb"
+      "sha256": "a19e0b817f7be48cb249becc7bda1165f14661265948b6f05a1380c424c714f0"
     },
     {
       "bytes": 1180,
       "file": "proof-resources-claim-meta.scale",
-      "sha256": "f547d2b631cd86d32022eec4a783dabe114041edeb7c00f0f0b39386dc051d23"
+      "sha256": "b71ed56e6ff1a56a2ec00249bcea717a16252572d13fa6b841747b35dcbf3c6a"
     },
     {
       "bytes": 373,
       "file": "score-participant-meta.scale",
-      "sha256": "bf57014828f7ffed19b8fae999ecae071020b060d379492c8b3b26f95cb3c0a4"
+      "sha256": "50823c51982607e44d998bf0fcf2e421e9740a3af3331af941926bea8b16f8be"
     },
     {
       "bytes": 500,
       "file": "sponsored-outer-extrinsic.scale",
-      "sha256": "8cba0f2c8357d746747752ec986ab42bb51e179acc63340cd52bba7a932f040e"
+      "sha256": "50a9f232ac88b7672ea86adf4d8468a700319c6780c6ca7676513cd2a0ea0e44"
     },
     {
       "bytes": 383,
       "file": "verify-consume-tuple.scale",
-      "sha256": "f68f4cedb9368ddc577c3b987e2cc689e1bd2822feb91d52ecb20e5f0719047d"
+      "sha256": "2978914fb78a9d782daa5ba9beb1171b1cfad6c885143c107cfa86431901c26c"
     }
   ],
   "max_envelope_bytes": 65536,
-  "metadata_implicit": "0x8519557667f87eb7ee32cd109d40acfd48d9c53a7ed915fe1733b03573ab9ef9",
+  "metadata_implicit": "0x89670a50e0aac1cda62f5692625cfd09323505f7efc175aed6d4c30eeb5e36b0",
   "over_bound_error": "InvalidTransaction::ExhaustsResources",
   "schema": "orbis-meta-intent-v7",
-  "spec_version": 29,
+  "spec_version": 31,
   "transaction_version": 8,
-  "fixture_status": "historical-signed-payload-vector-baseline",
-  "metadata_record": "metadata-hash-vector-baseline.json",
+  "fixture_status": "current-runtime-signed-payload-vectors",
+  "metadata_record": "metadata-hash.json",
   "current_runtime_metadata_record": "metadata-hash.json",
-  "current_runtime_vectors_regenerated": false,
-  "usage": "negative and construction regression vectors only; never current SDK/runtime identity"
+  "current_runtime_vectors_regenerated": true,
+  "usage": "current runtime construction, negative-path and cryptographic conformance vectors; not a production-readiness claim",
+  "historical_metadata_record": "metadata-hash-vector-baseline.json",
+  "generator": "RUNTIME_METADATA_HASH=<metadata-hash.json#/metadata_hash> cargo test -p origin-commons-runtime transaction_policy_vectors::regenerate_meta_v8_fixtures -- --ignored --exact"
 }

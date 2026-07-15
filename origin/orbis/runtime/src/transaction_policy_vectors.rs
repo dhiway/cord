@@ -36,9 +36,9 @@ use sp_runtime::{
 };
 use verifiable::{ring::bandersnatch::BandersnatchVrfVerifiable, GenerateVerifiable};
 
-const VECTOR_BASELINE_METADATA_IMPLICIT: [u8; 32] = [
-	0x85, 0x19, 0x55, 0x76, 0x67, 0xf8, 0x7e, 0xb7, 0xee, 0x32, 0xcd, 0x10, 0x9d, 0x40, 0xac, 0xfd,
-	0x48, 0xd9, 0xc5, 0x3a, 0x7e, 0xd9, 0x15, 0xfe, 0x17, 0x33, 0xb0, 0x35, 0x73, 0xab, 0x9e, 0xf9,
+pub(crate) const VECTOR_CURRENT_METADATA_IMPLICIT: [u8; 32] = [
+	0x89, 0x67, 0x0a, 0x50, 0xe0, 0xaa, 0xc1, 0xcd, 0xa6, 0x2f, 0x56, 0x92, 0x62, 0x5c, 0xfd, 0x09,
+	0x32, 0x35, 0x05, 0xf7, 0xef, 0xc1, 0x75, 0xae, 0xd6, 0xd4, 0xc3, 0x0e, 0xeb, 0x5e, 0x36, 0xb0,
 ];
 
 type MetaBareExtension = (
@@ -85,7 +85,7 @@ fn meta_tuple_for(
 	let metadata =
 		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::decode_all(&mut &[1u8][..])
 			.unwrap();
-	let metadata_implicit = Some(VECTOR_BASELINE_METADATA_IMPLICIT);
+	let metadata_implicit = Some(VECTOR_CURRENT_METADATA_IMPLICIT);
 	let preimage = crate::meta_v6::IntentPreimageV7 {
 		domain: crate::meta_v6::META_DOMAIN.to_vec(),
 		extension_version: 0,
@@ -129,7 +129,7 @@ fn meta_tuple_for(
 		bare.7.implicit().unwrap(),
 		bare.8.implicit().unwrap(),
 		bare.9.implicit().unwrap(),
-		Some(VECTOR_BASELINE_METADATA_IMPLICIT),
+		Some(VECTOR_CURRENT_METADATA_IMPLICIT),
 	);
 	let signature = (0u8, call.clone(), bare.clone(), implicit)
 		.using_encoded(|payload| pair.sign(&sp_io::hashing::blake2_256(payload)));
@@ -195,7 +195,7 @@ fn honour_meta_tuples() -> (pallet_meta_tx::MetaTxFor<Runtime>, pallet_meta_tx::
 	// VoterAuth is last inside the nested identity tuple. Its inherited implication is the base
 	// Meta call followed by the outer Orbis Storage/metadata explicit and implicit suffixes.
 	let message =
-		(0u8, &call, &storage, &metadata, (), Some(VECTOR_BASELINE_METADATA_IMPLICIT), &account)
+		(0u8, &call, &storage, &metadata, (), Some(VECTOR_CURRENT_METADATA_IMPLICIT), &account)
 			.using_encoded(sp_io::hashing::blake2_256);
 
 	let domain: RingDomainSize = crate::MembersFlexibleRingExponent::get().try_into().unwrap();
@@ -432,7 +432,7 @@ fn verify_meta_signature(meta: pallet_meta_tx::MetaTxFor<Runtime>) -> bool {
 		bare.7.implicit().unwrap(),
 		bare.8.implicit().unwrap(),
 		bare.9.implicit().unwrap(),
-		Some(VECTOR_BASELINE_METADATA_IMPLICIT),
+		Some(VECTOR_CURRENT_METADATA_IMPLICIT),
 	);
 	let digest = (version, call, bare, implicit).using_encoded(sp_io::hashing::blake2_256);
 	sp_runtime::traits::Verify::verify(&signature, digest.as_slice(), &account)
@@ -481,7 +481,7 @@ fn validate_meta_head(
 		bare.7.implicit().unwrap(),
 		bare.8.implicit().unwrap(),
 		bare.9.implicit().unwrap(),
-		Some(VECTOR_BASELINE_METADATA_IMPLICIT),
+		Some(VECTOR_CURRENT_METADATA_IMPLICIT),
 	);
 	verify
 		.validate(
@@ -502,7 +502,7 @@ impl crate::meta_v6::MetadataImplicitResolver for FixtureMetadataResolver {
 	fn resolve(
 		metadata: &frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 	) -> Result<Option<[u8; 32]>, sp_runtime::transaction_validity::TransactionValidityError> {
-		Ok(if metadata.encode() == [0] { None } else { Some(VECTOR_BASELINE_METADATA_IMPLICIT) })
+		Ok(if metadata.encode() == [0] { None } else { Some(VECTOR_CURRENT_METADATA_IMPLICIT) })
 	}
 }
 
@@ -997,7 +997,7 @@ fn checked_in_current_transaction_policy_vectors_decode_all_recompute_and_match_
 		let (inner_call, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
 			DecodeAll::decode_all(&mut meta.encode().as_slice()).unwrap();
 		assert_eq!(extension.1 .0, intent);
-		assert_eq!(extension.1 .0.metadata_implicit, Some(VECTOR_BASELINE_METADATA_IMPLICIT));
+		assert_eq!(extension.1 .0.metadata_implicit, Some(VECTOR_CURRENT_METADATA_IMPLICIT));
 		assert!(extension.1.weight(&inner_call).all_gte(crate::weights::meta_v6::v7_commitment_delta()));
 		let score_meta = include_bytes!("../vectors/transaction-policy-v8/score-participant-meta.scale");
 		let (score_call, _, score_extension): (RuntimeCall, u8, crate::MetaTxExtension) =
@@ -1109,7 +1109,7 @@ fn checked_in_current_transaction_policy_vectors_decode_all_recompute_and_match_
 			let (_, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
 				DecodeAll::decode_all(&mut meta.encode().as_slice()).unwrap();
 			assert_eq!(extension.9 .1 .0, expected);
-			assert_eq!(extension.1 .0.metadata_implicit, Some(VECTOR_BASELINE_METADATA_IMPLICIT));
+			assert_eq!(extension.1 .0.metadata_implicit, Some(VECTOR_CURRENT_METADATA_IMPLICIT));
 			match index {
 				2 => assert!(matches!(extension.9 .1 .0.personhood, Some(crate::meta_v6::MetaPersonhoodAuthV6::PersonalAliasAccountRevised(ref proof, ..)) if !proof.is_empty())),
 				5 => assert!(matches!(extension.9 .1 .0.people_lite, Some(crate::meta_v6::MetaPeopleLiteAuthV6::LiteAliasAccountRevised(ref proof, ..)) if !proof.is_empty())),
@@ -1155,7 +1155,7 @@ fn checked_in_current_transaction_policy_vectors_decode_all_recompute_and_match_
 		assert_eq!(crate::meta_v6::MAX_META_PAYLOAD_BYTES, 65_503);
 		let manifest: serde_json::Value =
 			serde_json::from_str(include_str!("../vectors/transaction-policy-v8/manifest.json")).unwrap();
-		assert_eq!(manifest["spec_version"], 29);
+		assert_eq!(manifest["spec_version"], crate::VERSION.spec_version);
 		assert_eq!(manifest["transaction_version"], 8);
 		assert_eq!(manifest["max_envelope_bytes"], 65_536);
 		assert_eq!(manifest["over_bound_error"], "InvalidTransaction::ExhaustsResources");
