@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/origin-sdk-*"
+    "packages/origin-sdk-*",
+    "packages/origin-sdk"
   ],
   "engines": {
     "node": ">=22.6.0"

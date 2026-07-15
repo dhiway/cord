@@ -21,7 +21,7 @@ import { resolve } from "node:path";
 
 const packagesRoot = resolve(import.meta.dirname, "../packages");
 const manifests = readdirSync(packagesRoot, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory() && entry.name.startsWith("origin-sdk-"))
+  .filter((entry) => entry.isDirectory() && (entry.name === "origin-sdk" || entry.name.startsWith("origin-sdk-")))
   .map((entry) => resolve(packagesRoot, entry.name, "package.json"))
   .filter(existsSync)
   .sort();

@@ -25,6 +25,7 @@ import type { ResourcesClient } from "@cord-network/origin-sdk-resources";
 import { ok } from "@cord-network/origin-sdk-result";
 import {
   STATEMENT_STORE_EXCLUSIONS,
+  createHostStatementStoreTransport,
   createStatementStoreClient,
   statementHash,
   statementTopic,
@@ -78,4 +79,25 @@ test("subscriptions are permission-gated and disposable", async () => {
   assert.equal(updates.length, 1);
   assert.equal(updates[0]?.success, true);
   assert.equal(controller.signal.aborted, true);
+});
+
+
+test("host statement adapter uses only the active product-scoped host transport", async () => {
+  const fake = createFakeHost();
+  fake.grant(product.id, "statements");
+  const host = createHostClient(fake.bridge, product);
+  const transport = createHostStatementStoreTransport(host);
+  const submitted = await transport.submit(product, {
+    account,
+    topics: [topic],
+    data: Uint8Array.of(4),
+  });
+  const records = await transport.query(product, { kind: "broadcasts", topics: [topic] });
+  assert.match(submitted, /^0x[0-9a-f]{64}$/);
+  assert.equal(records.length, 1);
+  assert.equal(records[0]?.topics[0], topic);
+  await assert.rejects(
+    () => transport.query({ id: "other.app", name: "Other" }, { kind: "broadcasts", topics: [] }),
+    /product does not match/,
+  );
 });

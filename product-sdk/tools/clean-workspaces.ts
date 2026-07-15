@@ -21,6 +21,6 @@ import { resolve } from "node:path";
 
 const packages = resolve(import.meta.dirname, "../packages");
 for (const entry of readdirSync(packages, { withFileTypes: true })) {
-  if (!entry.isDirectory() || !entry.name.startsWith("origin-sdk-")) continue;
+  if (!entry.isDirectory() || entry.name !== "origin-sdk" && !entry.name.startsWith("origin-sdk-")) continue;
   rmSync(resolve(packages, entry.name, "dist"), { force: true, recursive: true });
 }

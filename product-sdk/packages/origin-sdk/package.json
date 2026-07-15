@@ -1,0 +1,34 @@
+{
+  "name": "@cord-network/origin-sdk",
+  "version": "0.1.0",
+  "description": "Hosted Commons application bootstrap and native domain SDK",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "sideEffects": false,
+  "files": ["dist", "README.md"],
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit && node --experimental-strip-types --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@cord-network/origin-sdk-assets": "0.1.0",
+    "@cord-network/origin-sdk-attestation": "0.1.0",
+    "@cord-network/origin-sdk-chain-client": "0.1.0",
+    "@cord-network/origin-sdk-cloud-storage": "0.1.0",
+    "@cord-network/origin-sdk-errors": "0.1.0",
+    "@cord-network/origin-sdk-host": "0.1.0",
+    "@cord-network/origin-sdk-identity": "0.1.0",
+    "@cord-network/origin-sdk-local-storage": "0.1.0",
+    "@cord-network/origin-sdk-names": "0.1.0",
+    "@cord-network/origin-sdk-personhood": "0.1.0",
+    "@cord-network/origin-sdk-resources": "0.1.0",
+    "@cord-network/origin-sdk-result": "0.1.0",
+    "@cord-network/origin-sdk-signer": "0.1.0",
+    "@cord-network/origin-sdk-statement-store": "0.1.0"
+  },
+  "cord": { "bundleBudgetBytes": 750000 }
+}

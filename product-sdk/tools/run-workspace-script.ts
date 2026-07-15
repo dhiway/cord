@@ -24,7 +24,7 @@ const script = process.argv[2];
 if (!script) throw new Error("workspace script name is required");
 const packages = resolve(import.meta.dirname, "../packages");
 const discovered = readdirSync(packages, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory() && entry.name.startsWith("origin-sdk-"))
+  .filter((entry) => entry.isDirectory() && (entry.name === "origin-sdk" || entry.name.startsWith("origin-sdk-")))
   .map((entry) => resolve(packages, entry.name))
   .filter((path) => existsSync(resolve(path, "package.json")))
   .sort();

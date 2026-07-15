@@ -17,7 +17,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 import { OriginSdkError, asSdkError, type SdkResult } from "@cord-network/origin-sdk-errors";
-import type { OriginHostClient, ProductIdentity } from "@cord-network/origin-sdk-host";
+import type { HostStatementRecord, OriginHostClient, ProductIdentity } from "@cord-network/origin-sdk-host";
 import { hash32, type AccountId, type Hash32 } from "@cord-network/origin-sdk-identity";
 import type { ResourcesClient, StatementAllowance } from "@cord-network/origin-sdk-resources";
 import { err, ok } from "@cord-network/origin-sdk-result";
@@ -142,6 +142,66 @@ export function createStatementStoreClient(
         }
       } catch (error) {
         yield err(signal.aborted ? abortError() : asSdkError(error, { source: "statement-store", domain: "subscription", code: "subscription_failed", retryable: true }));
+      }
+    },
+  };
+}
+
+function requireHostStatementValue<T>(result: SdkResult<T>): T {
+  if (result.success) return result.value;
+  throw new OriginSdkError({
+    source: result.error.source,
+    domain: result.error.domain,
+    code: result.error.code,
+    message: result.error.message,
+    retryable: result.error.retryable,
+    ...(result.error.details === undefined ? {} : { details: result.error.details }),
+  });
+}
+
+function statementFromHost(record: HostStatementRecord): StatementRecord {
+  return {
+    hash: statementHash(record.hash),
+    account: record.account as AccountId,
+    topics: record.topics.map(statementTopic),
+    data: record.data.slice(),
+    ...(record.destination === undefined
+      ? {}
+      : { destination: statementDestination(record.destination) }),
+    ...(record.channel === undefined ? {} : { channel: statementChannel(record.channel) }),
+    ...(record.priority === undefined ? {} : { priority: record.priority }),
+  };
+}
+
+/** Host-backed statement transport used by the umbrella; no direct node endpoint is accepted. */
+export function createHostStatementStoreTransport(
+  host: OriginHostClient,
+): StatementStoreTransport {
+  const assertProduct = (product: ProductIdentity): void => {
+    if (product.id !== host.product.id) {
+      throw new OriginSdkError({
+        source: "statement-store",
+        domain: "host",
+        code: "product_mismatch",
+        message: "Statement transport product does not match the active host client",
+      });
+    }
+  };
+  return {
+    async submit(product, draft, signal) {
+      assertProduct(product);
+      const record = requireHostStatementValue(await host.submitStatement(draft, signal));
+      return statementHash(record.hash);
+    },
+    async query(product, query, signal) {
+      assertProduct(product);
+      const records = requireHostStatementValue(await host.queryStatements(query, signal));
+      return records.map(statementFromHost);
+    },
+    async *subscribe(product, query, signal) {
+      assertProduct(product);
+      for await (const result of host.subscribeStatements(query, signal)) {
+        yield requireHostStatementValue(result).map(statementFromHost);
       }
     },
   };

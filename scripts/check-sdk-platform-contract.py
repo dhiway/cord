@@ -206,7 +206,7 @@ if list(current.get("exports", {})) != expected_exports or len(expected_exports)
 present_packages = {scalar(block, "name") for block in package_blocks if scalar(block, "state") == "present"}
 workspace_packages = {
     json.loads(path.read_text())["name"]
-    for path in (ROOT / "product-sdk/packages").glob("origin-sdk-*/package.json")
+    for path in (ROOT / "product-sdk/packages").glob("origin-sdk*/package.json")
 }
 if workspace_packages != present_packages or len(workspace_packages) != integer(current_table, "publishable_packages"):
     fail("current publishable package inventory drift")
