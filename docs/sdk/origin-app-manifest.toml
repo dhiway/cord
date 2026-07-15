@@ -18,6 +18,14 @@ reads = ["NamesApi.name_status", "NamesApi.name_by_id", "NamesApi.resolve_conten
 content_integrity = "blake2b-256 commitment plus CID declaration"
 sandbox_isolation = "product-origin"
 
+[deployment]
+default_bundle = "origin-static-v1"
+deterministic_file_order = true
+incremental_block_upload = true
+native_retention = "TransactionStorage.store_with_cid_config"
+binding_after_retention_finality = true
+car_unixfs = "injected-audited-packager-interface"
+
 [bounds]
 manifest_bytes = 65536
 entrypoint_bytes = 256

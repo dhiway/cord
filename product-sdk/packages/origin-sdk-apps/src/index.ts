@@ -376,3 +376,5 @@ export const ORIGIN_APPS_CONTRACT = {
   contractAddressAccepted: false,
   finalizedSnapshot: true,
 } as const;
+
+export * from "./deployment.ts";

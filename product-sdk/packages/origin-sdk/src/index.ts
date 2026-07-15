@@ -24,7 +24,11 @@ import {
 } from "@cord-network/origin-sdk-assets";
 import {
   createHostOriginAppContentStore,
+  createHostOriginAppBlockStore,
+  createOriginAppDeployer,
   createOriginAppsClient,
+  type PrepareOriginAppDeployment,
+  type PreparedOriginAppDeployment,
   type OriginAppsClient,
 } from "@cord-network/origin-sdk-apps";
 import {
@@ -100,6 +104,13 @@ export interface OriginAppRuntime {
   readonly assets: AssetsRuntimeAdapter;
 }
 
+export interface OriginApplicationClient extends OriginAppsClient {
+  prepareDeployment(
+    input: PrepareOriginAppDeployment,
+    signal?: AbortSignal,
+  ): Promise<SdkResult<PreparedOriginAppDeployment>>;
+}
+
 export interface CreateAppOptions {
   readonly product: ProductIdentity;
   readonly bridge: OriginHostBridge;
@@ -124,7 +135,7 @@ export interface OriginApp {
   readonly cloudStorage: CloudStorageClient;
   readonly statements: StatementStoreClient;
   readonly assets: AssetsClient;
-  readonly apps: OriginAppsClient;
+  readonly apps: OriginApplicationClient;
   readonly signal: AbortSignal;
   close(): Promise<SdkResult<void>>;
 }
@@ -189,6 +200,13 @@ export async function createApp(
     createHostStatementStoreTransport(host),
     resources,
   );
+  const cloudStorage = createCloudStorageClient(chain, runtime.storage);
+  const apps = createOriginAppsClient(chain, runtime.names, createHostOriginAppContentStore(host));
+  const deployer = createOriginAppDeployer(
+    apps,
+    cloudStorage,
+    createHostOriginAppBlockStore(host),
+  );
   let closed = false;
   const app: OriginApp = {
     product: { ...options.product },
@@ -201,10 +219,10 @@ export async function createApp(
     resources,
     attestations: createAttestationClient(chain, runtime.attestation),
     names: createNamesClient(chain, runtime.names),
-    cloudStorage: createCloudStorageClient(chain, runtime.storage),
+    cloudStorage,
     statements,
     assets: createAssetsClient(chain, runtime.assets),
-    apps: createOriginAppsClient(chain, runtime.names, createHostOriginAppContentStore(host)),
+    apps: { ...apps, prepareDeployment: deployer.prepare },
     signal: lifetime.signal,
     async close() {
       if (closed) return ok(undefined);
