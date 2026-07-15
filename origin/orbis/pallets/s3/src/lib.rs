@@ -18,11 +18,15 @@
 
 //! Native S3-style bucket and object metadata for Orbis.
 //!
-//! Object bodies remain exclusively in canonical TransactionStorage. This pallet stores no bytes,
-//! CID, private data, or independent content availability state: every object version is only a
-//! validated reference to a canonical TransactionStorage content hash.
+//! Object bodies remain exclusively in the canonical Commons storage control plane. This pallet
+//! stores bounded S3 metadata and validated manifest/provider commitments, never application bytes.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub mod benchmarking;
 
 #[cfg(test)]
 mod mock;
@@ -36,23 +40,45 @@ use frame_support::{
 	DebugNoBound, EqNoBound, PartialEqNoBound,
 };
 use frame_system::pallet_prelude::*;
+pub use pallet_orbis_storage_control_primitives::{
+	CanonicalStorageControl, Commitment, CommitmentState,
+};
 use scale_info::TypeInfo;
 use sp_runtime::traits::Hash as HashT;
 pub use weights::WeightInfo;
 
-pub type ContentHash = [u8; 32];
+pub type ContentHash = Commitment;
+pub type OperationId = [u8; 32];
+pub type ContentType = BoundedVec<u8, ConstU32<256>>;
+pub type MetadataKey = BoundedVec<u8, ConstU32<128>>;
+pub type MetadataValue = BoundedVec<u8, ConstU32<256>>;
+pub type UserMetadata = BoundedVec<MetadataEntry, ConstU32<64>>;
 const BUCKET_ID_DOMAIN: &[u8] = b"cord:orbis:s3:bucket:v1";
 const OBJECT_ID_DOMAIN: &[u8] = b"cord:orbis:s3:object:v1";
 
-/// Runtime adapter that validates a reference against canonical TransactionStorage state.
-pub trait ContentHashValidator {
-	fn exists(content_hash: &ContentHash) -> bool;
+#[derive(
+	Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, MaxEncodedLen, PartialEq, TypeInfo,
+)]
+pub struct MetadataEntry {
+	pub key: MetadataKey,
+	pub value: MetadataValue,
 }
 
-impl ContentHashValidator for () {
-	fn exists(_: &ContentHash) -> bool {
-		false
-	}
+#[derive(
+	Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, MaxEncodedLen, PartialEq, TypeInfo,
+)]
+pub struct ListCursor {
+	pub snapshot_version: u64,
+	pub last_key: ObjectKeyCursor,
+}
+
+pub type ObjectKeyCursor = BoundedVec<u8, ConstU32<1024>>;
+
+#[derive(Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, PartialEq, TypeInfo)]
+pub struct ListPage<Key> {
+	pub objects: sp_runtime::Vec<Key>,
+	pub next_cursor: Option<ListCursor>,
+	pub snapshot_version: u64,
 }
 
 pub type BucketNameOf<T> = BoundedVec<u8, <T as Config>::MaxBucketNameLen>;
@@ -61,8 +87,8 @@ pub type ControllersOf<T> =
 	BoundedVec<<T as frame_system::Config>::AccountId, <T as Config>::MaxControllers>;
 pub type OwnerBucketIndexOf<T> =
 	BoundedVec<<T as frame_system::Config>::Hash, <T as Config>::MaxBucketsPerOwner>;
-pub type BucketObjectIndexOf<T> = BoundedVec<ObjectKeyOf<T>, <T as Config>::MaxObjectsPerBucket>;
 pub type ObjectHistoryOf<T> = BoundedVec<ObjectVersion<T>, <T as Config>::MaxObjectVersions>;
+pub type ObjectOperationIds = BoundedVec<OperationId, ConstU32<65>>;
 
 #[derive(
 	Clone,
@@ -123,6 +149,10 @@ pub struct BucketRecord<T: Config> {
 pub struct ObjectRecord<T: Config> {
 	pub object_id: T::Hash,
 	pub content_hash: Option<ContentHash>,
+	pub provider_commitment: Option<Commitment>,
+	pub content_type: ContentType,
+	pub metadata: UserMetadata,
+	pub operation_id: OperationId,
 	pub version: u64,
 	pub deleted: bool,
 	pub updated_by: T::AccountId,
@@ -144,10 +174,35 @@ pub struct ObjectRecord<T: Config> {
 #[scale_info(skip_type_params(T))]
 pub struct ObjectVersion<T: Config> {
 	pub content_hash: Option<ContentHash>,
+	pub provider_commitment: Option<Commitment>,
+	pub operation_id: OperationId,
 	pub version: u64,
 	pub deleted: bool,
 	pub updated_by: T::AccountId,
 	pub updated_at: BlockNumberFor<T>,
+}
+
+#[derive(
+	CloneNoBound,
+	DebugNoBound,
+	Decode,
+	DecodeWithMemTracking,
+	Encode,
+	EqNoBound,
+	MaxEncodedLen,
+	PartialEqNoBound,
+	TypeInfo,
+)]
+#[scale_info(skip_type_params(T))]
+pub struct OperationRecord<T: Config> {
+	/// Domain-separated SCALE fingerprint of every semantic call input, including the actor.
+	pub request_fingerprint: T::Hash,
+	pub key: ObjectKeyOf<T>,
+	pub content_hash: Option<ContentHash>,
+	pub deleted: bool,
+	pub expected_object_version: Option<u64>,
+	pub if_match: Option<ContentHash>,
+	pub outcome_version: u64,
 }
 
 pub use pallet::*;
@@ -156,15 +211,17 @@ pub use pallet::*;
 pub mod pallet {
 	use super::*;
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		#[allow(deprecated)]
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// Adapter to canonical TransactionStorage content-hash lookup.
-		type ContentValidator: ContentHashValidator;
+		/// Adapter to the single canonical Commons storage control plane.
+		type StorageControl: CanonicalStorageControl;
+		#[cfg(feature = "runtime-benchmarks")]
+		type BenchmarkHelper: crate::benchmarking::BenchmarkHelper;
 
 		#[pallet::constant]
 		type MaxBucketNameLen: Get<u32>;
@@ -200,8 +257,8 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, T::AccountId, OwnerBucketIndexOf<T>, ValueQuery>;
 
 	#[pallet::storage]
-	pub type BucketObjectKeys<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::Hash, BucketObjectIndexOf<T>, ValueQuery>;
+	pub type BucketObjectCount<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::Hash, u32, ValueQuery>;
 
 	#[pallet::storage]
 	pub type Objects<T: Config> = StorageDoubleMap<
@@ -223,6 +280,28 @@ pub mod pallet {
 		Blake2_128Concat,
 		ObjectKeyOf<T>,
 		ObjectHistoryOf<T>,
+		ValueQuery,
+	>;
+
+	/// Bucket-scoped idempotency authority. Exact retries are no-ops; changed reuse fails closed.
+	#[pallet::storage]
+	pub type OperationResults<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::Hash,
+		Blake2_128Concat,
+		OperationId,
+		OperationRecord<T>,
+		OptionQuery,
+	>;
+	#[pallet::storage]
+	pub type ObjectOperations<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::Hash,
+		Blake2_128Concat,
+		ObjectKeyOf<T>,
+		ObjectOperationIds,
 		ValueQuery,
 	>;
 
@@ -289,16 +368,25 @@ pub mod pallet {
 			key: ObjectKeyOf<T>,
 			version: u64,
 		},
+		ObjectPurged {
+			bucket: T::Hash,
+			key: ObjectKeyOf<T>,
+		},
 		BucketDeleted {
 			bucket: T::Hash,
 			name: BucketNameOf<T>,
 			owner: T::AccountId,
 		},
+		ObjectHistoryPruned {
+			bucket: T::Hash,
+			key: ObjectKeyOf<T>,
+			through_version: u64,
+			removed: u32,
+		},
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		EmptyBucketName,
 		InvalidBucketName,
 		BucketNameTaken,
 		BucketAlreadyExists,
@@ -313,8 +401,6 @@ pub mod pallet {
 		ControllerIndexFull,
 		OwnerBucketIndexFull,
 		BucketObjectIndexFull,
-		EmptyObjectKey,
-		ContentNotFound,
 		ObjectNotFound,
 		ObjectAlreadyExists,
 		ObjectAlreadyDeleted,
@@ -323,6 +409,22 @@ pub mod pallet {
 		ObjectVersionOverflow,
 		BucketVersionOverflow,
 		ObjectHistoryFull,
+		ObjectHistoryNotEmpty,
+		InvalidObjectKey,
+		MetadataInvalid,
+		MetadataOrderInvalid,
+		ManifestMissing,
+		ManifestPending,
+		ManifestTombstoned,
+		ProviderCommitmentInvalid,
+		PreconditionFailed,
+		CursorStale,
+		PageLimitInvalid,
+		ActiveDriveReference,
+		DeletionEvidencePending,
+		NothingToPrune,
+		OperationIdConflict,
+		OperationHistoryFull,
 	}
 
 	#[pallet::call]
@@ -482,22 +584,57 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(5)]
-		#[pallet::weight(T::WeightInfo::put_object(key.len() as u32, ObjectHistory::<T>::decode_len(bucket, &key).unwrap_or(0) as u32))]
+		#[pallet::weight(Pallet::<T>::put_object_weight(
+			key.len() as u32,
+			ObjectHistory::<T>::decode_len(bucket, &key).unwrap_or(0) as u32,
+		))]
 		#[transactional]
 		pub fn put_object(
 			origin: OriginFor<T>,
 			bucket: T::Hash,
 			key: ObjectKeyOf<T>,
 			content_hash: ContentHash,
+			provider_commitment: Commitment,
+			content_type: ContentType,
+			metadata: UserMetadata,
+			operation_id: OperationId,
+			if_match: Option<ContentHash>,
 			expected_object_version: Option<u64>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(!key.is_empty(), Error::<T>::EmptyObjectKey);
-			ensure!(T::ContentValidator::exists(&content_hash), Error::<T>::ContentNotFound);
+			Self::validate_object_key(&key)?;
+			Self::validate_metadata(&metadata)?;
+			let request_fingerprint = T::Hashing::hash_of(&(
+				b"cord/orbis/s3/put-operation/v1",
+				&who,
+				bucket,
+				&key,
+				content_hash,
+				provider_commitment,
+				&content_type,
+				&metadata,
+				operation_id,
+				if_match,
+				expected_object_version,
+			));
 			let mut bucket_record = Buckets::<T>::get(bucket).ok_or(Error::<T>::BucketNotFound)?;
 			Self::ensure_bucket_active(&bucket_record)?;
 			Self::ensure_controller(&bucket_record, &who)?;
+			if let Some(applied) = OperationResults::<T>::get(bucket, operation_id) {
+				ensure!(
+					applied.request_fingerprint == request_fingerprint,
+					Error::<T>::OperationIdConflict
+				);
+				return Ok(())
+			}
+			Self::validate_commitment(&content_hash, &provider_commitment)?;
 			let current = Objects::<T>::get(bucket, &key);
+			if let Some(expected_etag) = if_match {
+				ensure!(
+					current.as_ref().and_then(|record| record.content_hash) == Some(expected_etag),
+					Error::<T>::PreconditionFailed
+				);
+			}
 			match (&current, expected_object_version) {
 				(None, None) => {},
 				(None, Some(_)) => return Err(Error::<T>::ObjectNotFound.into()),
@@ -514,16 +651,30 @@ pub mod pallet {
 							.map_err(|_| Error::<T>::ObjectHistoryFull)
 					})?;
 				}
+			} else if let Some(record) = current.as_ref() {
+				OperationResults::<T>::remove(bucket, record.operation_id);
+				ObjectOperations::<T>::mutate(bucket, &key, |ids| {
+					if let Some(index) = ids.iter().position(|id| id == &record.operation_id) {
+						ids.remove(index);
+					}
+				});
 			}
+			ObjectOperations::<T>::try_mutate(bucket, &key, |ids| {
+				ids.try_push(operation_id).map_err(|_| Error::<T>::OperationHistoryFull)
+			})?;
 			let version = match current.as_ref() {
-				Some(record) => {
-					record.version.checked_add(1).ok_or(Error::<T>::ObjectVersionOverflow)?
-				},
+				Some(record) =>
+					record.version.checked_add(1).ok_or(Error::<T>::ObjectVersionOverflow)?,
 				None => 1,
 			};
 			if current.is_none() {
-				BucketObjectKeys::<T>::try_mutate(bucket, |keys| {
-					keys.try_push(key.clone()).map_err(|_| Error::<T>::BucketObjectIndexFull)
+				BucketObjectCount::<T>::try_mutate(bucket, |count| -> DispatchResult {
+					ensure!(
+						*count < T::MaxObjectsPerBucket::get(),
+						Error::<T>::BucketObjectIndexFull
+					);
+					*count = count.saturating_add(1);
+					Ok(())
 				})?;
 				bucket_record.live_objects = bucket_record.live_objects.saturating_add(1);
 			} else if current.as_ref().is_some_and(|record| record.deleted) {
@@ -537,14 +688,31 @@ pub mod pallet {
 				ObjectRecord::<T> {
 					object_id: object,
 					content_hash: Some(content_hash),
+					provider_commitment: Some(provider_commitment),
+					content_type,
+					metadata,
+					operation_id,
 					version,
 					deleted: false,
 					updated_by: who,
 					updated_at: now,
 				},
 			);
-			bucket_record.updated_at = now;
+			Self::bump_bucket(&mut bucket_record)?;
 			Buckets::<T>::insert(bucket, bucket_record);
+			OperationResults::<T>::insert(
+				bucket,
+				operation_id,
+				OperationRecord::<T> {
+					request_fingerprint,
+					key: key.clone(),
+					content_hash: Some(content_hash),
+					deleted: false,
+					expected_object_version,
+					if_match,
+					outcome_version: version,
+				},
+			);
 			Self::deposit_event(Event::ObjectPut { bucket, object, key, content_hash, version });
 			Ok(())
 		}
@@ -556,14 +724,38 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			bucket: T::Hash,
 			key: ObjectKeyOf<T>,
+			operation_id: OperationId,
+			if_match: Option<ContentHash>,
 			expected_object_version: u64,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(!key.is_empty(), Error::<T>::EmptyObjectKey);
+			Self::validate_object_key(&key)?;
+			let request_fingerprint = T::Hashing::hash_of(&(
+				b"cord/orbis/s3/delete-operation/v1",
+				&who,
+				bucket,
+				&key,
+				operation_id,
+				if_match,
+				expected_object_version,
+			));
 			let mut bucket_record = Buckets::<T>::get(bucket).ok_or(Error::<T>::BucketNotFound)?;
 			Self::ensure_bucket_active(&bucket_record)?;
 			Self::ensure_controller(&bucket_record, &who)?;
+			if let Some(applied) = OperationResults::<T>::get(bucket, operation_id) {
+				ensure!(
+					applied.request_fingerprint == request_fingerprint,
+					Error::<T>::OperationIdConflict
+				);
+				return Ok(())
+			}
 			let current = Objects::<T>::get(bucket, &key).ok_or(Error::<T>::ObjectNotFound)?;
+			if let Some(expected_etag) = if_match {
+				ensure!(
+					current.content_hash == Some(expected_etag),
+					Error::<T>::PreconditionFailed
+				);
+			}
 			ensure!(!current.deleted, Error::<T>::ObjectAlreadyDeleted);
 			ensure!(current.version == expected_object_version, Error::<T>::ObjectVersionMismatch);
 			if bucket_record.versioning_enabled {
@@ -572,7 +764,17 @@ pub mod pallet {
 						.try_push(Self::history_entry(&current))
 						.map_err(|_| Error::<T>::ObjectHistoryFull)
 				})?;
+			} else {
+				OperationResults::<T>::remove(bucket, current.operation_id);
+				ObjectOperations::<T>::mutate(bucket, &key, |ids| {
+					if let Some(index) = ids.iter().position(|id| id == &current.operation_id) {
+						ids.remove(index);
+					}
+				});
 			}
+			ObjectOperations::<T>::try_mutate(bucket, &key, |ids| {
+				ids.try_push(operation_id).map_err(|_| Error::<T>::OperationHistoryFull)
+			})?;
 			let version =
 				current.version.checked_add(1).ok_or(Error::<T>::ObjectVersionOverflow)?;
 			let now = frame_system::Pallet::<T>::block_number();
@@ -581,7 +783,11 @@ pub mod pallet {
 				&key,
 				ObjectRecord::<T> {
 					object_id: current.object_id,
-					content_hash: None,
+					content_hash: current.content_hash,
+					provider_commitment: current.provider_commitment,
+					content_type: Default::default(),
+					metadata: Default::default(),
+					operation_id,
 					version,
 					deleted: true,
 					updated_by: who,
@@ -589,8 +795,21 @@ pub mod pallet {
 				},
 			);
 			bucket_record.live_objects = bucket_record.live_objects.saturating_sub(1);
-			bucket_record.updated_at = now;
+			Self::bump_bucket(&mut bucket_record)?;
 			Buckets::<T>::insert(bucket, bucket_record);
+			OperationResults::<T>::insert(
+				bucket,
+				operation_id,
+				OperationRecord::<T> {
+					request_fingerprint,
+					key: key.clone(),
+					content_hash: current.content_hash,
+					deleted: true,
+					expected_object_version: Some(expected_object_version),
+					if_match,
+					outcome_version: version,
+				},
+			);
 			Self::deposit_event(Event::ObjectDeleted {
 				bucket,
 				object: current.object_id,
@@ -601,7 +820,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(7)]
-		#[pallet::weight(T::WeightInfo::delete_bucket(BucketObjectKeys::<T>::decode_len(bucket).unwrap_or(0) as u32))]
+		#[pallet::weight(T::WeightInfo::delete_bucket())]
 		#[transactional]
 		pub fn delete_bucket(
 			origin: OriginFor<T>,
@@ -613,11 +832,7 @@ pub mod pallet {
 			Self::ensure_bucket_live(&record)?;
 			ensure!(record.owner == owner, Error::<T>::NotBucketOwner);
 			Self::ensure_bucket_version(&record, expected_bucket_version)?;
-			ensure!(record.live_objects == 0, Error::<T>::BucketNotEmpty);
-			for key in BucketObjectKeys::<T>::take(bucket) {
-				Objects::<T>::remove(bucket, &key);
-				ObjectHistory::<T>::remove(bucket, &key);
-			}
+			ensure!(BucketObjectCount::<T>::get(bucket) == 0, Error::<T>::BucketNotEmpty);
 			OwnerBuckets::<T>::mutate(&owner, |items| {
 				if let Some(index) = items.iter().position(|id| id == &bucket) {
 					items.swap_remove(index);
@@ -633,29 +848,189 @@ pub mod pallet {
 			Self::deposit_event(Event::BucketDeleted { bucket, name, owner });
 			Ok(())
 		}
+
+		#[pallet::call_index(8)]
+		#[pallet::weight(T::WeightInfo::prune_history(ObjectHistory::<T>::decode_len(bucket, &key).unwrap_or(0) as u32))]
+		#[transactional]
+		pub fn prune_history(
+			origin: OriginFor<T>,
+			bucket: T::Hash,
+			key: ObjectKeyOf<T>,
+			through_version: u64,
+		) -> DispatchResult {
+			let owner = ensure_signed(origin)?;
+			let record = Buckets::<T>::get(bucket).ok_or(Error::<T>::BucketNotFound)?;
+			Self::ensure_bucket_live(&record)?;
+			ensure!(record.owner == owner, Error::<T>::NotBucketOwner);
+			let mut history = ObjectHistory::<T>::get(bucket, &key);
+			let before = history.len();
+			for version in history.iter().filter(|item| item.version <= through_version) {
+				if let Some(manifest) = version.content_hash {
+					ensure!(
+						!T::StorageControl::is_drive_referenced(&manifest),
+						Error::<T>::ActiveDriveReference
+					);
+					ensure!(
+						T::StorageControl::deletion_evidence_satisfied(&manifest),
+						Error::<T>::DeletionEvidencePending
+					);
+				}
+			}
+			let removed_operations = history
+				.iter()
+				.filter(|item| item.version <= through_version)
+				.map(|item| item.operation_id)
+				.collect::<sp_runtime::Vec<_>>();
+			history.retain(|item| item.version > through_version);
+			let removed = (before - history.len()) as u32;
+			ensure!(removed > 0, Error::<T>::NothingToPrune);
+			ObjectHistory::<T>::insert(bucket, &key, history);
+			ObjectOperations::<T>::mutate(bucket, &key, |ids| {
+				ids.retain(|id| !removed_operations.contains(id));
+			});
+			for operation_id in removed_operations {
+				OperationResults::<T>::remove(bucket, operation_id);
+			}
+			Self::deposit_event(Event::ObjectHistoryPruned {
+				bucket,
+				key,
+				through_version,
+				removed,
+			});
+			Ok(())
+		}
+
+		/// Permanently remove one tombstoned object after its bounded version history is pruned.
+		#[pallet::call_index(9)]
+		#[pallet::weight(T::WeightInfo::purge_object(ObjectOperations::<T>::decode_len(bucket, &key).unwrap_or(0) as u32))]
+		#[transactional]
+		pub fn purge_object(
+			origin: OriginFor<T>,
+			bucket: T::Hash,
+			key: ObjectKeyOf<T>,
+			expected_object_version: u64,
+		) -> DispatchResult {
+			let owner = ensure_signed(origin)?;
+			let bucket_record = Buckets::<T>::get(bucket).ok_or(Error::<T>::BucketNotFound)?;
+			Self::ensure_bucket_live(&bucket_record)?;
+			ensure!(bucket_record.owner == owner, Error::<T>::NotBucketOwner);
+			let object = Objects::<T>::get(bucket, &key).ok_or(Error::<T>::ObjectNotFound)?;
+			ensure!(object.deleted, Error::<T>::ObjectAlreadyExists);
+			ensure!(object.version == expected_object_version, Error::<T>::ObjectVersionMismatch);
+			ensure!(
+				ObjectHistory::<T>::decode_len(bucket, &key).unwrap_or(0) == 0,
+				Error::<T>::ObjectHistoryNotEmpty
+			);
+			let manifest = object.content_hash.ok_or(Error::<T>::DeletionEvidencePending)?;
+			ensure!(
+				!T::StorageControl::is_drive_referenced(&manifest),
+				Error::<T>::ActiveDriveReference
+			);
+			ensure!(
+				T::StorageControl::deletion_evidence_satisfied(&manifest),
+				Error::<T>::DeletionEvidencePending
+			);
+			for operation_id in ObjectOperations::<T>::take(bucket, &key) {
+				OperationResults::<T>::remove(bucket, operation_id);
+			}
+			Objects::<T>::remove(bucket, &key);
+			ObjectHistory::<T>::remove(bucket, &key);
+			BucketObjectCount::<T>::mutate(bucket, |count| *count = count.saturating_sub(1));
+			Self::deposit_event(Event::ObjectPurged { bucket, key });
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
+		pub(crate) fn put_object_weight(
+			key_bytes: u32,
+			history_items: u32,
+		) -> frame_support::weights::Weight {
+			T::WeightInfo::put_object_create(key_bytes)
+				.max(T::WeightInfo::put_object_update(key_bytes, history_items))
+		}
+
+		pub fn validate_object_key(key: &[u8]) -> DispatchResult {
+			ensure!(!key.is_empty() && key.len() <= 1_024, Error::<T>::InvalidObjectKey);
+			ensure!(!key.contains(&0), Error::<T>::InvalidObjectKey);
+			Ok(())
+		}
+
+		pub fn validate_metadata(metadata: &UserMetadata) -> DispatchResult {
+			let mut previous: Option<&[u8]> = None;
+			for entry in metadata {
+				ensure!(
+					!entry.key.is_empty() && !entry.key.contains(&0),
+					Error::<T>::MetadataInvalid
+				);
+				if let Some(previous) = previous {
+					ensure!(previous < entry.key.as_slice(), Error::<T>::MetadataOrderInvalid);
+				}
+				previous = Some(entry.key.as_slice());
+			}
+			Ok(())
+		}
+
+		pub fn list_objects(
+			bucket: T::Hash,
+			prefix: Option<&[u8]>,
+			cursor: Option<ListCursor>,
+			limit: u32,
+		) -> Result<ListPage<ObjectKeyOf<T>>, DispatchError> {
+			ensure!(limit > 0 && limit <= 100, Error::<T>::PageLimitInvalid);
+			let record = Buckets::<T>::get(bucket).ok_or(Error::<T>::BucketNotFound)?;
+			Self::ensure_bucket_live(&record)?;
+			if let Some(cursor) = cursor.as_ref() {
+				ensure!(cursor.snapshot_version == record.version, Error::<T>::CursorStale);
+			}
+			let last_key = cursor.as_ref().map(|cursor| cursor.last_key.as_slice());
+			let mut matching = Objects::<T>::iter_prefix(bucket)
+				.filter(|(_, object)| !object.deleted)
+				.map(|(key, _)| key)
+				.filter(|key| prefix.is_none_or(|prefix| key.as_slice().starts_with(prefix)))
+				.filter(|key| last_key.is_none_or(|last| key.as_slice() > last))
+				.collect::<sp_runtime::Vec<_>>();
+			matching.sort_by(|left, right| left.as_slice().cmp(right.as_slice()));
+			let has_more = matching.len() > limit as usize;
+			matching.truncate(limit as usize);
+			let next_cursor = if has_more {
+				matching.last().map(|key| ListCursor {
+					snapshot_version: record.version,
+					last_key: key
+						.to_vec()
+						.try_into()
+						.expect("configured key bound is at most 1024"),
+				})
+			} else {
+				None
+			};
+			Ok(ListPage { objects: matching, next_cursor, snapshot_version: record.version })
+		}
+
+		fn validate_commitment(manifest: &Commitment, provider: &Commitment) -> DispatchResult {
+			match T::StorageControl::manifest_state(manifest) {
+				CommitmentState::Publishable => {},
+				CommitmentState::Pending => return Err(Error::<T>::ManifestPending.into()),
+				CommitmentState::Tombstoned => return Err(Error::<T>::ManifestTombstoned.into()),
+				CommitmentState::Missing => return Err(Error::<T>::ManifestMissing.into()),
+			}
+			ensure!(
+				T::StorageControl::provider_commitment_matches(manifest, provider),
+				Error::<T>::ProviderCommitmentInvalid
+			);
+			Ok(())
+		}
+
 		pub fn validate_bucket_name(name: &BucketNameOf<T>) -> DispatchResult {
 			let bytes = name.as_slice();
-			ensure!(!bytes.is_empty(), Error::<T>::EmptyBucketName);
+			ensure!((3..=63).contains(&bytes.len()), Error::<T>::InvalidBucketName);
 			let is_alphanumeric = |byte: u8| byte.is_ascii_lowercase() || byte.is_ascii_digit();
 			ensure!(
 				is_alphanumeric(bytes[0]) && is_alphanumeric(bytes[bytes.len() - 1]),
 				Error::<T>::InvalidBucketName
 			);
-			let mut previous = 0;
 			for byte in bytes.iter().copied() {
-				ensure!(
-					is_alphanumeric(byte) || byte == b'.' || byte == b'-',
-					Error::<T>::InvalidBucketName
-				);
-				ensure!(!(byte == b'.' && previous == b'.'), Error::<T>::InvalidBucketName);
-				ensure!(
-					!((byte == b'.' && previous == b'-') || (byte == b'-' && previous == b'.')),
-					Error::<T>::InvalidBucketName
-				);
-				previous = byte;
+				ensure!(is_alphanumeric(byte) || byte == b'-', Error::<T>::InvalidBucketName);
 			}
 			Ok(())
 		}
@@ -704,6 +1079,8 @@ pub mod pallet {
 		fn history_entry(record: &ObjectRecord<T>) -> ObjectVersion<T> {
 			ObjectVersion::<T> {
 				content_hash: record.content_hash,
+				provider_commitment: record.provider_commitment,
+				operation_id: record.operation_id,
 				version: record.version,
 				deleted: record.deleted,
 				updated_by: record.updated_by.clone(),

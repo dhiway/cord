@@ -9726,6 +9726,7 @@ dependencies = [
  "enumflags2",
  "frame-benchmarking",
  "frame-executive",
+ "frame-metadata 23.0.1",
  "frame-metadata-hash-extension",
  "frame-support",
  "frame-system",
@@ -9778,6 +9779,7 @@ dependencies = [
  "pallet-orbis-people",
  "pallet-orbis-s3",
  "pallet-orbis-score",
+ "pallet-orbis-storage-control-primitives",
  "pallet-orbis-storage-provider",
  "pallet-orbis-transaction-storage",
  "pallet-orbis-transaction-storage-runtime-api",
@@ -9816,6 +9818,7 @@ dependencies = [
  "sp-block-builder",
  "sp-consensus-aura",
  "sp-core",
+ "sp-crypto-hashing",
  "sp-externalities",
  "sp-genesis-builder",
  "sp-hop",
@@ -11312,11 +11315,16 @@ dependencies = [
 name = "pallet-orbis-drive"
 version = "0.9.9"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "pallet-orbis-storage-control-primitives",
  "parity-scale-codec",
  "scale-info",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
+ "unicode-normalization",
 ]
 
 [[package]]
@@ -11399,8 +11407,10 @@ dependencies = [
 name = "pallet-orbis-s3"
 version = "0.9.9"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "pallet-orbis-storage-control-primitives",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -11431,11 +11441,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-orbis-storage-control-primitives"
+version = "0.9.9"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+]
+
+[[package]]
 name = "pallet-orbis-storage-provider"
 version = "0.9.9"
 dependencies = [
+ "ed25519-zebra",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "pallet-orbis-storage-control-primitives",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
