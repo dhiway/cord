@@ -447,8 +447,9 @@ mod benchmarks {
 		T::BenchmarkHelper::set_finalized_block(initial);
 		let owner: T::AccountId = account("promotion-owner", 0, SEED);
 		let (primary, _) = provider::<T>(0, ProviderStatus::Active);
-		let (replicas, replica_pairs) = replicas::<T>(2);
+		let (replicas, replica_pairs) = replicas::<T>(T::MaxReplicas::get());
 		let id = bucket::<T>(&owner, &primary, replicas.clone());
+		assert_eq!(replicas.len() as u32, T::MaxReplicas::get());
 		failover_agreements::<T>(a, id, &primary, &replicas);
 		Pallet::<T>::stage_checkpoint_duty(
 			id,
@@ -476,7 +477,7 @@ mod benchmarks {
 			.collect::<Vec<_>>();
 		candidates.sort_by(|left, right| left.0.cmp(&right.0));
 		let (_, signing_index, promoted, promoted_key) =
-			candidates.into_iter().next().expect("two replicas are configured");
+			candidates.into_iter().next().expect("at least one replica is configured");
 		let duty = Pallet::<T>::checkpoint_duty_at(id, finalized)
 			.expect("staged duty is visible at the grace snapshot");
 		let payload = CheckpointFallbackPromotionV1 {

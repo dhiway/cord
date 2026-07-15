@@ -158,7 +158,7 @@ impl pallet_orbis_storage_provider::Config for Test {
 	type CheckpointContext = Context;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = Authority;
-	type WeightInfo = ();
+	type WeightInfo = crate::weights::SubstrateWeight<Test>;
 }
 
 #[cfg(feature = "runtime-benchmarks")]

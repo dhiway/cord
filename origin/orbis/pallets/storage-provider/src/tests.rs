@@ -1479,7 +1479,7 @@ fn challenge_backlog_is_bounded_lossless_and_non_starving() {
 		let deferred_weight = StorageProvider::on_initialize(104);
 		assert_eq!(
 			deferred_weight,
-			<() as crate::weights::WeightInfo>::on_initialize_challenges(4,)
+			<crate::weights::SubstrateWeight<Test> as crate::weights::WeightInfo>::on_initialize_challenges(4,)
 		);
 		assert_eq!(ChallengeBacklog::<Test>::get().len(), 8);
 		assert_eq!(crate::ChallengeBacklogCursor::<Test>::get(), 4);
@@ -2576,6 +2576,75 @@ fn duplicate_challenge_is_rejected_and_proof_prunes_every_work_index() {
 		assert_eq!(
 			crate::Challenges::<Test>::get(challenge_id).unwrap().status,
 			ChallengeStatus::Proved
+		);
+	});
+}
+
+#[test]
+fn checkpoint_dispatch_weights_cover_atomic_fallback_at_configured_bounds() {
+	use crate::weights::{SubstrateWeight, WeightInfo};
+	use frame_support::{dispatch::GetDispatchInfo, traits::Get};
+
+	new_test_ext().execute_with(|| {
+		let max_replicas = <<Test as crate::Config>::MaxReplicas as Get<u32>>::get();
+		let max_agreements = <MaxAgreements as Get<u32>>::get();
+		for id in 1..=5 {
+			register(id, 10_000);
+		}
+		let replicas: ReplicasOf<Test> = vec![2, 3, 4, 5].try_into().unwrap();
+		assert_eq!(replicas.len() as u32, max_replicas);
+		assert_ok!(StorageProvider::create_bucket(
+			RuntimeOrigin::signed(OWNER),
+			H256::repeat_byte(10),
+			1,
+			replicas,
+		));
+		let bucket = BucketIds::<Test>::get()[0];
+		let agreement_ids: frame_support::BoundedVec<H256, MaxAgreements> = (0..max_agreements)
+			.map(|index| H256::from_low_u64_be(index as u64 + 1))
+			.collect::<Vec<_>>()
+			.try_into()
+			.unwrap();
+		BucketAgreements::<Test>::insert(bucket, agreement_ids);
+
+		let checkpoint_payload = payload(bucket, H256::repeat_byte(44), 0, 1, 1);
+		let confirmations: ConfirmationsOf<Test> = (2..=5)
+			.map(|provider| ReplicaSignature {
+				provider,
+				service_key: pair(provider as u8).public(),
+				signature: pair(provider as u8).sign(&[0u8; 32]),
+				context_signature: pair(provider as u8).sign(&[1u8; 32]),
+			})
+			.collect::<Vec<_>>()
+			.try_into()
+			.unwrap();
+		let checkpoint = crate::Call::<Test>::submit_checkpoint {
+			domain: DOMAIN.to_vec().try_into().unwrap(),
+			payload: checkpoint_payload,
+			window_start: 1,
+			window_end: 1,
+			service_key: pair(1).public(),
+			primary_signature: pair(1).sign(&[0u8; 32]),
+			primary_context_signature: pair(1).sign(&[1u8; 32]),
+			confirmations,
+		};
+		let expected_checkpoint = SubstrateWeight::<Test>::submit_checkpoint(max_replicas)
+			.saturating_add(SubstrateWeight::<Test>::promote_checkpoint_fallback(max_agreements));
+		assert_eq!(checkpoint.get_dispatch_info().call_weight, expected_checkpoint);
+
+		let promotion = crate::Call::<Test>::promote_checkpoint_fallback {
+			payload: CheckpointFallbackPromotionV1 {
+				version: 1,
+				bucket_id: bucket,
+				snapshot_nonce: 1,
+				duty_id: H256::repeat_byte(45),
+			},
+			service_key: pair(2).public(),
+			signature: pair(2).sign(&[2u8; 32]),
+		};
+		assert_eq!(
+			promotion.get_dispatch_info().call_weight,
+			SubstrateWeight::<Test>::promote_checkpoint_fallback(max_agreements)
 		);
 	});
 }

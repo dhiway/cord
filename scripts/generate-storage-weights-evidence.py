@@ -191,8 +191,9 @@ def main() -> int:
         raise RuntimeError("P1 requires exactly --steps 50 --repeat 20")
     if len(args.pallets) != len(set(args.pallets)):
         raise RuntimeError("duplicate --pallet is not allowed")
-    if set(args.pallets) != set(PALLET_OUTPUTS):
-        raise RuntimeError(f"P1 requires exactly {sorted(PALLET_OUTPUTS)}")
+    unknown_pallets = set(args.pallets) - set(PALLET_OUTPUTS)
+    if unknown_pallets:
+        raise RuntimeError(f"unsupported storage pallets: {sorted(unknown_pallets)}")
     limits = (root / args.limits).resolve()
     if not limits.is_file():
         raise RuntimeError(f"missing limits file: {limits}")

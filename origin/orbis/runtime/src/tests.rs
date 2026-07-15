@@ -213,8 +213,11 @@ fn commons_storage_control_worst_case_weights_fit_the_runtime_block_budget() {
 			assert!(pair[1].all_gte(pair[0]), "{name} is not monotonic: {pair:?}");
 		}
 	};
-	let mandatory = StorageWeights::submit_checkpoint(crate::ProviderMaxReplicas::get())
-		.max(StorageWeights::promote_checkpoint_fallback(crate::ProviderMaxBucketAgreements::get()))
+	let atomic_checkpoint = StorageWeights::submit_checkpoint(crate::ProviderMaxReplicas::get())
+		.saturating_add(StorageWeights::promote_checkpoint_fallback(
+			crate::ProviderMaxBucketAgreements::get(),
+		));
+	let mandatory = atomic_checkpoint
 		.max(StorageWeights::submit_challenge_proof(crate::ProviderMaxProofNodes::get()))
 		.max(StorageWeights::publish_manifest(crate::ProviderMaxProofNodes::get()))
 		.max(StorageWeights::refresh_bucket_authority_valid(crate::ProviderMaxReplicas::get()))
@@ -233,6 +236,10 @@ fn commons_storage_control_worst_case_weights_fit_the_runtime_block_budget() {
 	for weight in [mandatory, release, reconcile, challenges] {
 		assert!(weight.all_lte(block), "storage-control weight {weight:?} exceeds {block:?}");
 	}
+	assert!(
+		atomic_checkpoint.all_lte(block),
+		"atomic checkpoint fallback weight {atomic_checkpoint:?} exceeds {block:?}"
+	);
 	assert!(
 		release.saturating_add(mandatory).all_lte(block),
 		"release phase leaves no mandatory storage-control extrinsic headroom"
@@ -377,8 +384,13 @@ fn commons_storage_control_worst_case_weights_fit_the_runtime_block_budget() {
 		),
 		(
 			"provider.submit_checkpoint",
-			StorageWeights::submit_checkpoint(2),
-			StorageWeights::submit_checkpoint(crate::ProviderMaxReplicas::get()),
+			StorageWeights::submit_checkpoint(2)
+				.saturating_add(StorageWeights::promote_checkpoint_fallback(0)),
+			StorageWeights::submit_checkpoint(crate::ProviderMaxReplicas::get()).saturating_add(
+				StorageWeights::promote_checkpoint_fallback(
+					crate::ProviderMaxBucketAgreements::get(),
+				),
+			),
 		),
 		(
 			"provider.promote_checkpoint_fallback",

@@ -1774,9 +1774,8 @@ pub mod pallet {
 
 		#[pallet::call_index(14)]
 		#[pallet::weight(
-			T::WeightInfo::submit_checkpoint(confirmations.len() as u32).max(
-				T::WeightInfo::reconcile_bucket(
-					replicas_bound::<T>(),
+			T::WeightInfo::submit_checkpoint(confirmations.len() as u32).saturating_add(
+				T::WeightInfo::promote_checkpoint_fallback(
 					BucketAgreements::<T>::decode_len(payload.bucket_id).unwrap_or(0) as u32,
 				)
 			)
