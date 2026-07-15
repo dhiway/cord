@@ -1,0 +1,30 @@
+schema_version = 1
+production_ready = false
+framework = "none"
+production_entrypoints_include_fakes = false
+arbitrary_endpoint_chain_read_fake = false
+
+[[testing_export]]
+package = "@cord-network/origin-sdk-host/testing"
+capabilities = ["permission", "account", "signing", "storage", "preimage", "resource", "statement", "subscription"]
+
+[[testing_export]]
+package = "@cord-network/origin-sdk-local-storage/testing"
+capabilities = ["scoped-in-memory-storage"]
+
+[[testing_export]]
+package = "@cord-network/origin-sdk-signer/testing"
+capabilities = ["accounts", "signing", "rejection", "inspection", "reset"]
+
+[[testing_export]]
+package = "@cord-network/origin-sdk-statement-store/testing"
+capabilities = ["submit", "query", "subscription", "injection", "inspection", "reset"]
+
+[[testing_export]]
+package = "@cord-network/origin-sdk-tx/testing"
+capabilities = ["transaction-status-stream"]
+
+[[testing_export]]
+package = "@cord-network/origin-sdk/testing"
+capabilities = ["hosted-app", "domain-overrides", "prepared-native-writes", "storage", "lifecycle"]
+unconfigured_native_read_error = "unconfigured_chain_read"

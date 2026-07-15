@@ -14,3 +14,8 @@ await app.storage.set("theme", "dark", utf8Codec);
 const accounts = await app.signer.accounts();
 await app.close();
 ```
+
+Application tests import `createFakeApp` from `@cord-network/origin-sdk/testing`. Host storage,
+signing, statement transport, and prepared native writes are observable in memory. Native reads
+fail with `unconfigured_chain_read` unless the test supplies a domain override or runtime adapter;
+the fake never invents an RPC endpoint.

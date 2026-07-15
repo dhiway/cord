@@ -6,7 +6,10 @@
   "type": "module",
   "sideEffects": false,
   "files": ["dist", "README.md"],
-  "exports": {".": {"types": "./dist/index.d.ts", "import": "./dist/index.js"}},
+  "exports": {
+    ".": {"types": "./dist/index.d.ts", "import": "./dist/index.js"},
+    "./testing": {"types": "./dist/testing.d.ts", "import": "./dist/testing.js"}
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
