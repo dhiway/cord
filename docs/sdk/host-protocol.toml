@@ -1,0 +1,20 @@
+schema_version = 1
+protocol = "cord.origin-host"
+version = 1
+production_ready = false
+application_supplies_inner_requests_only = true
+host_owns_endpoint_selection = true
+host_owns_permission_grants = true
+per_transaction_signing_approval = true
+
+capabilities = ["accounts", "chain", "signing", "local-storage", "preimages", "resources", "statements"]
+request_operations = ["permissions.authorize", "accounts.list", "chain.finalized-block", "chain.runtime-identity", "chain.disconnect", "signing.approve", "local-storage.get", "local-storage.set", "local-storage.delete", "preimages.put", "preimages.get", "resources.allocate", "statements.submit", "statements.query"]
+subscription_operations = ["statements.subscribe"]
+
+[invariants]
+version_envelope_owner = "@cord-network/origin-sdk-host"
+permission_revalidation = "every protected operation"
+signing_consent = "separate host approval for every signature"
+chain_endpoint_input = "forbidden from application payloads"
+subscription_cleanup = "AbortSignal-disposable"
+wrong_network_handling = "origin-sdk-chain-client descriptor validation"

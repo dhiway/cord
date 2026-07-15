@@ -11,9 +11,9 @@ journey = "Both Festival and enterprise applications read one finalized Commons 
 runtime_owner = "Commons metadata and runtime APIs"
 sdk_owner = "origin-sdk-descriptors and origin-sdk-chain-client"
 host_owner = "Endpoint selection and reconnect policy"
-state = "runtime-present-sdk-gap"
+state = "runtime-sdk-and-host-provider-present-umbrella-pending"
 contract_policy = "forbidden"
-evidence = "docs/sdk/native-route-contract.json; product-sdk/packages/descriptors/generated/orbis-descriptor.json"
+evidence = "docs/sdk/native-route-contract.json; product-sdk/packages/descriptors/generated/orbis-descriptor.json; product-sdk/packages/origin-sdk-host/src/index.ts"
 
 [[capability]]
 id = "transactions"
@@ -33,9 +33,9 @@ journey = "Hosted app connects an account without choosing an RPC endpoint"
 runtime_owner = "Signed and sponsored transaction verification only"
 sdk_owner = "origin-sdk-host and origin-sdk-signer"
 host_owner = "Authoritative consent, accounts, signing, and endpoint policy"
-state = "sdk-partial-host-gap"
+state = "sdk-host-protocol-present-umbrella-pending"
 contract_policy = "forbidden"
-evidence = "product-sdk/src/host.ts; product-sdk/packages/host/src/network-host.ts"
+evidence = "docs/sdk/host-protocol.toml; product-sdk/packages/origin-sdk-host/src/protocol.ts; product-sdk/packages/origin-sdk-host/src/index.ts"
 
 [[capability]]
 id = "local-storage"
@@ -44,9 +44,9 @@ journey = "Hosted app persists settings without leaking across product identitie
 runtime_owner = "none"
 sdk_owner = "origin-sdk-local-storage and createApp"
 host_owner = "Namespaced device storage"
-state = "sdk-gap"
+state = "host-primitive-present-leaf-and-umbrella-pending"
 contract_policy = "forbidden"
-evidence = "docs/sdk/package-architecture.toml"
+evidence = "docs/sdk/host-protocol.toml; product-sdk/packages/origin-sdk-host/src/index.ts"
 
 [[capability]]
 id = "identity"
@@ -121,7 +121,7 @@ journey = "Applications upload, renew, fetch, and delegate content"
 runtime_owner = "TransactionStorage, StorageProvider, Drive, and S3 pallets"
 sdk_owner = "origin-sdk-cloud-storage"
 host_owner = "Preimages, transport, and secret material"
-state = "runtime-sdk-present-host-preimage-integration-pending"
+state = "runtime-sdk-and-host-preimage-primitive-present-adapter-pending"
 contract_policy = "forbidden-native-authority"
 evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs; product-sdk/packages/origin-sdk-cloud-storage/src/index.ts"
 
