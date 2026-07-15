@@ -92,7 +92,11 @@ test("local storage, preimages, chain, and resources remain product and permissi
   const stored = await host.putPreimage(new Uint8Array([1, 2, 3]), "application/octet-stream");
   assert.equal(stored.success, true);
   if (!stored.success) return;
-  assert.deepEqual((await host.getPreimage(stored.value)).success && (await host.getPreimage(stored.value)).value, new Uint8Array([1, 2, 3]));
+  assert.deepEqual(
+    (await host.getPreimage(stored.value.contentHash)).success
+      && (await host.getPreimage(stored.value.contentHash)).value,
+    new Uint8Array([1, 2, 3]),
+  );
   assert.equal((await host.finalizedBlock()).success, true);
   const provider = createHostChainProvider(host);
   assert.deepEqual(await provider.finalizedBlock(), { hash: `0x${"1".repeat(64)}`, number: 1n });

@@ -18,6 +18,7 @@
 
 
 import { createHash } from "node:crypto";
+import { blake2b256 } from "@cord-network/origin-sdk-crypto";
 import { OriginSdkError, type SdkResult } from "@cord-network/origin-sdk-errors";
 import { err, ok } from "@cord-network/origin-sdk-result";
 import type {
@@ -171,7 +172,10 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
         }
         case "preimages.put": {
           const request = input as HostMethodMap["preimages.put"]["input"];
-          const contentHash = `0x${createHash("sha256").update(request.bytes).digest("hex")}` as const;
+          const contentHash = `0x${Array.from(
+            blake2b256(request.bytes),
+            (byte) => byte.toString(16).padStart(2, "0"),
+          ).join("")}` as const;
           preimages.set(contentHash, request.bytes.slice());
           const reference: HostPreimageReference = {
             contentHash,
@@ -181,8 +185,8 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
           return answer(reference);
         }
         case "preimages.get": {
-          const { reference } = input as HostMethodMap["preimages.get"]["input"];
-          const bytes = preimages.get(reference.contentHash);
+          const { contentHash } = input as HostMethodMap["preimages.get"]["input"];
+          const bytes = preimages.get(contentHash);
           return bytes === undefined
             ? reject("preimages", "not_found", "Preimage not found")
             : answer(bytes.slice());

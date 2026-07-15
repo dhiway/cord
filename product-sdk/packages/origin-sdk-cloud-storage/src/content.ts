@@ -392,6 +392,26 @@ export function declareContentAddress(
   return { cid, codec, multihash };
 }
 
+/** Build the canonical CIDv1 address for one raw content block. */
+export function rawContentAddress(
+  bytes: Uint8Array,
+  multihash: ContentMultihash = "blake2b-256",
+): ContentAddress {
+  if (!(bytes instanceof Uint8Array) || bytes.length === 0) {
+    throw contentError("cid.create", "invalid_input", "raw content must not be empty");
+  }
+  const digest = digestContent(multihash, bytes);
+  const multihashCode = multihash === "sha2-256" ? 0x12 : 0xb220;
+  const cidBytes = Uint8Array.from([
+    ...encodeVarint(1),
+    ...encodeVarint(CODECS.raw),
+    ...encodeVarint(multihashCode),
+    ...encodeVarint(digest.length),
+    ...digest,
+  ]);
+  return { cid: `b${encodeBase32(cidBytes)}`, codec: "raw", multihash };
+}
+
 const SHA256_K = Uint32Array.from([
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
   0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,

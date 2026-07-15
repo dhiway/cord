@@ -1,0 +1,24 @@
+schema_version = 1
+manifest_schema = "cord.origin.app-manifest"
+manifest_version = 1
+package = "@cord-network/origin-sdk-apps"
+production_ready = false
+
+[authority]
+name_owner = "Commons Names"
+manifest_commitment = "Commons retained content hash"
+live_attestation = "Commons Names resolver"
+search_ranking = "reconstructible off-chain index"
+registry_contract = false
+deployment_contract = false
+
+[resolution]
+finalized_snapshot = true
+reads = ["NamesApi.name_status", "NamesApi.name_by_id", "NamesApi.resolve_content", "NamesApi.resolve_attestation"]
+content_integrity = "blake2b-256 commitment plus CID declaration"
+sandbox_isolation = "product-origin"
+
+[bounds]
+manifest_bytes = 65536
+entrypoint_bytes = 256
+channel_bytes = 32

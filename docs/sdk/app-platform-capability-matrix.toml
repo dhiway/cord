@@ -99,9 +99,9 @@ journey = "A static app is launched from a Commons name and content commitment"
 runtime_owner = "Names owns the manifest commitment; storage owns content commitments"
 sdk_owner = "origin-sdk-apps"
 host_owner = "Fetch transport, sandbox, and requested device permissions"
-state = "native-primitives-present-sdk-gap"
+state = "native-manifest-and-finalized-resolver-present-publication-pending"
 contract_policy = "deployment-contract-forbidden"
-evidence = "docs/adr/0019-app-discovery-and-publication.md"
+evidence = "docs/adr/0019-app-discovery-and-publication.md; docs/sdk/origin-app-manifest.toml; product-sdk/packages/origin-sdk-apps/src/index.ts"
 
 [[capability]]
 id = "app-discovery"

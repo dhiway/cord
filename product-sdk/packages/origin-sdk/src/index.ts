@@ -23,6 +23,11 @@ import {
   type AssetsRuntimeAdapter,
 } from "@cord-network/origin-sdk-assets";
 import {
+  createHostOriginAppContentStore,
+  createOriginAppsClient,
+  type OriginAppsClient,
+} from "@cord-network/origin-sdk-apps";
+import {
   createAttestationClient,
   type AttestationClient,
   type AttestationRuntimeAdapter,
@@ -119,6 +124,7 @@ export interface OriginApp {
   readonly cloudStorage: CloudStorageClient;
   readonly statements: StatementStoreClient;
   readonly assets: AssetsClient;
+  readonly apps: OriginAppsClient;
   readonly signal: AbortSignal;
   close(): Promise<SdkResult<void>>;
 }
@@ -198,6 +204,7 @@ export async function createApp(
     cloudStorage: createCloudStorageClient(chain, runtime.storage),
     statements,
     assets: createAssetsClient(chain, runtime.assets),
+    apps: createOriginAppsClient(chain, runtime.names, createHostOriginAppContentStore(host)),
     signal: lifetime.signal,
     async close() {
       if (closed) return ok(undefined);
@@ -229,4 +236,5 @@ export const ORIGIN_APP_CONTRACT = {
     "cloudStorage", "statements", "assets",
   ],
   contractsIncluded: false,
+  applicationDomains: ["apps"],
 } as const;

@@ -54,7 +54,7 @@ export interface OriginHostClient {
     contentType?: string,
     signal?: AbortSignal,
   ): Promise<SdkResult<HostPreimageReference>>;
-  getPreimage(reference: HostPreimageReference, signal?: AbortSignal): Promise<SdkResult<Uint8Array>>;
+  getPreimage(contentHash: `0x${string}`, signal?: AbortSignal): Promise<SdkResult<Uint8Array>>;
   allocateResources(request: HostResourceRequest, signal?: AbortSignal): Promise<SdkResult<HostResourceGrant>>;
   submitStatement(draft: HostStatementDraft, signal?: AbortSignal): Promise<SdkResult<HostStatementRecord>>;
   queryStatements(query: HostStatementQuery, signal?: AbortSignal): Promise<SdkResult<readonly HostStatementRecord[]>>;
@@ -218,9 +218,12 @@ export function createHostClient(
         signal,
       );
     },
-    async getPreimage(reference, signal) {
+    async getPreimage(contentHash, signal) {
+      if (!/^0x[0-9a-fA-F]{64}$/.test(contentHash)) {
+        return hostError("preimages", "invalid_content_hash", "Preimage content hash must be 32 bytes");
+      }
       const result = await granted(
-        "preimages", () => bridge.request(product, "preimages.get", { reference }, signal), signal,
+        "preimages", () => bridge.request(product, "preimages.get", { contentHash }, signal), signal,
       );
       return result.success ? { success: true, value: result.value.slice() } : result;
     },

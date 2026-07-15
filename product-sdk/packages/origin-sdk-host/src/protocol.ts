@@ -129,7 +129,7 @@ export interface HostMethodMap {
     readonly input: { readonly bytes: Uint8Array; readonly contentType?: string };
     readonly output: HostPreimageReference;
   };
-  "preimages.get": { readonly input: { readonly reference: HostPreimageReference }; readonly output: Uint8Array };
+  "preimages.get": { readonly input: { readonly contentHash: `0x${string}` }; readonly output: Uint8Array };
   "resources.allocate": { readonly input: HostResourceRequest; readonly output: HostResourceGrant };
   "statements.submit": { readonly input: HostStatementDraft; readonly output: HostStatementRecord };
   "statements.query": { readonly input: HostStatementQuery; readonly output: readonly HostStatementRecord[] };

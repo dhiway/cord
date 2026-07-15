@@ -27,6 +27,7 @@
     "check": "tsc -p tsconfig.json --noEmit && node --experimental-strip-types --test tests/*.test.ts"
   },
   "dependencies": {
+    "@cord-network/origin-sdk-crypto": "0.1.0",
     "@cord-network/origin-sdk-result": "0.1.0",
     "@cord-network/origin-sdk-errors": "0.1.0"
   },

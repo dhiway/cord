@@ -52,6 +52,7 @@ export type FakeAppOverrides = Partial<Pick<
   | "cloudStorage"
   | "statements"
   | "assets"
+  | "apps"
 >>;
 
 export interface CreateFakeAppOptions {
