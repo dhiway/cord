@@ -143,9 +143,9 @@ journey = "Enterprise application issues an asset and records a payment"
 runtime_owner = "Balances, Assets, Uniques/NFTs, conversion, and asset fee pallets"
 sdk_owner = "origin-sdk-assets"
 host_owner = "Payment approval"
-state = "runtime-present-sdk-gap"
+state = "runtime-sdk-present-host-payment-approval-and-conversion-quotes-pending"
 contract_policy = "native-assets-must-not-use-contracts"
-evidence = "origin/orbis/runtime/src/lib.rs"
+evidence = "origin/orbis/runtime/src/lib.rs; product-sdk/packages/origin-sdk-assets/src/index.ts; product-sdk/tests/conformance/assets-metadata-coverage.test.ts"
 
 [[capability]]
 id = "pure-utilities"

@@ -23,7 +23,7 @@ import { spawnSync } from "node:child_process";
 
 const sdkRoot = resolve(import.meta.dirname, "..");
 const consumer = mkdtempSync(resolve(tmpdir(), "cord-origin-sdk-consumer-"));
-const packages = ["result", "errors", "descriptors", "host", "chain-client", "signer", "tx", "identity", "personhood", "resources", "attestation", "crypto", "names", "statement-store", "cloud-storage"];
+const packages = ["result", "errors", "descriptors", "host", "chain-client", "signer", "tx", "identity", "personhood", "resources", "attestation", "crypto", "names", "statement-store", "cloud-storage", "assets"];
 const run = (command: string, args: string[], cwd = consumer): string => {
   const result = spawnSync(command, args, { cwd, encoding: "utf8" });
   if (result.status !== 0) {
@@ -59,8 +59,11 @@ import { accountId, createIdentityClient } from "@cord-network/origin-sdk-identi
 import { blake2b256 } from "@cord-network/origin-sdk-crypto";
 import { normalizedLabel } from "@cord-network/origin-sdk-names";
 import { digestContent, storageRequests } from "@cord-network/origin-sdk-cloud-storage";
+import { assetId, assetWrites, balance, commonsAsset, paymentOptions } from "@cord-network/origin-sdk-assets";
 const hash = "0x" + "11".repeat(32), txHash = "0x" + "22".repeat(32);
-if (blake2b256(new Uint8Array()).length !== 32 || normalizedLabel("packed-app") !== "packed-app" || digestContent("blake2b-256", new Uint8Array()).length !== 32 || storageRequests.store("YQ==").method !== "store") throw new Error("packed crypto/names/storage surface failed");
+const packedAsset = assetWrites.transfer(assetId(7), accountId("5Packed"), balance(9));
+const packedPayment = paymentOptions(commonsAsset(assetId(7)));
+if (blake2b256(new Uint8Array()).length !== 32 || normalizedLabel("packed-app") !== "packed-app" || digestContent("blake2b-256", new Uint8Array()).length !== 32 || storageRequests.store("YQ==").method !== "store" || packedAsset.target !== "Assets.transfer" || packedPayment.feeAsset?.parents !== 0) throw new Error("packed crypto/names/storage/assets surface failed");
 const identity = {
   genesis_hash: COMMONS_NETWORK_BINDING.genesis_hash,
   spec_version: COMMONS_NETWORK_BINDING.spec_version,
