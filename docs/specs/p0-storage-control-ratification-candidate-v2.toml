@@ -1,0 +1,111 @@
+schema_version = 2
+candidate_id = "P0-STORAGE-CONTROL-RATIFICATION-20260716-V2"
+status = "candidate-awaiting-independent-architect-and-critic-review"
+ratified = false
+p0_gate_status = "unchanged-by-candidate"
+self_ratification = false
+
+# This envelope binds a replacement clarification candidate and an explicit execution-phase
+# amendment. It edits neither the frozen P0 inputs nor the blocked v1 candidate/addendum.
+clarification_path = "docs/specs/p0-storage-control-clarification-candidate-v2.json"
+clarification_sha256 = "1d7f6606f261c72a1faab1078f557856c5561e4afd914db00da0bed4f939fd8c"
+phase_amendment_path = "docs/specs/web3-storage-phase-ownership-amendment-v2.json"
+phase_amendment_sha256 = "ba89e20cb46bc19c9aa96cd1b316a1952f596209e82a939c446db86179e65c2d"
+wire_vocabulary_amendment_path = "docs/specs/web3-storage-checkpoint-wire-vocabulary-amendment-v1.json"
+wire_vocabulary_amendment_sha256 = "4a5edb30aa03e9ef086a61b8533575081182268519dd253156241dca10370969"
+implementation_repository = "cord"
+implementation_branch = "sm-update-sub-0x65"
+implementation_commit = "14e30039f4c5cf06bc1b856f0550d1aecb737d0b"
+implementation_tree = "e6d7b11afb266873fdeee7752865e8a31ee14f01"
+implementation_claim = "canonical-commons-control-plane-source-checkpoint-only"
+feature_complete = false
+provider_byte_plane_complete = false
+production_ready = false
+
+[replacement]
+blocked_clarification_v1_path = "docs/specs/p0-storage-control-clarification-candidate-v1.json"
+blocked_clarification_v1_sha256 = "9c1f3b187c5db443f7458ec72d4a2568b622334d0419d166c6ca9514aa9f5368"
+blocked_ratification_v1_path = "docs/specs/p0-storage-control-ratification-candidate-v1.toml"
+blocked_ratification_v1_sha256 = "040cece6d8ab799d1790a885bf98b9d6ce817faf7d6942c6f6a4b5db27a0fc77"
+phase_addendum_v1_path = "docs/specs/web3-storage-phase-ownership-addendum-v1.json"
+phase_addendum_v1_sha256 = "56e894c5adea60a81bea79e5d46848c42bce8002cf10ab44d2b675dce75c082d"
+v1_files_mutated = false
+
+[frozen_inputs]
+p0_ratification_path = "docs/specs/p0-ratification-v1.toml"
+p0_ratification_sha256 = "51fea4f6214826e51013a90e9fe720f5a6ffe1483a0849ebcd57b218e9ba8514"
+capability_ledger_path = "docs/specs/web3-storage-capability-ledger-v1.json"
+capability_ledger_sha256 = "86406be20d40d4439d3612127687e4943f175902d75e93f62a82dbe32e0fe83d"
+upstream_inventory_path = "docs/specs/web3-storage-upstream-inventory-v1.json"
+upstream_inventory_sha256 = "048e1f5f757f84d39b6c824ed24f330fd0e3217dbe8380799ac22300103c672e"
+blocked_conflicts_json_path = "docs/specs/web3-storage-blocked-conflicts-v1.json"
+blocked_conflicts_json_sha256 = "0e88563da7df0eff198b2d8b8ff6ae2292487518e9edea055d0c152a550d34ea"
+blocked_conflicts_markdown_path = "docs/specs/web3-storage-blocked-conflicts-v1.md"
+blocked_conflicts_markdown_sha256 = "8bcf8b2a37a30214fc9188f6796c99a1f84e610c909eb989fab64d9fe4b3a9b4"
+checkpoint_contract_path = "docs/specs/storage-checkpoints-v2.md"
+checkpoint_contract_sha256 = "01ad7921def074683a667651f2635a3b0fe1257e9126ff898c70d9de84f17294"
+checkpoint_vectors_path = "docs/specs/checkpoint-v2.vectors.json"
+checkpoint_vectors_sha256 = "16a68a1c7032c542ae5c5d01e7ae723ad3bf99f025c6586ae0d9e8a53c99ca8d"
+logical_types_path = "docs/specs/checkpoint-scale-logical-types-v1.toml"
+logical_types_sha256 = "e0d6172450765a9951ee13bd7e8d25ff64b9e7d3065d417a345ff17ca7821af3"
+storage_bounds_path = "docs/specs/storage-bounds-v1.toml"
+storage_bounds_sha256 = "0dd0a38e5a064e23501f0f446bbef9bd6015fdbaef953bdf0e515f92bb1a2b2c"
+storage_control_path = "docs/specs/storage-control-v1.md"
+storage_control_sha256 = "63567abc1c8849d61ab737e1f190d56a05e7af62c4ba70f44411542b1142c12b"
+state_machines_path = "docs/specs/control-state-machines-v1.json"
+state_machines_sha256 = "040f5d040fe7e5bb4f8f8499fb5555f931029cc50bfa6a46699e968d095c0082"
+provider_sla_path = "docs/specs/provider-organization-sla-v1.md"
+provider_sla_sha256 = "44cdedf8470c2df2b7cc71888a6417115e2327acb3ad4182fd2564181e30484e"
+accepted_plan_path = "../.omx/plans/origin-orbis-web3-storage-identity-platform.md"
+accepted_plan_sha256 = "dcbd412684cc236c03a34e78087a7ebd4ef1bb2908e5032249bfbf106f48f297"
+ultragoal_brief_path = "../.omx/ultragoal/brief.md"
+ultragoal_brief_sha256 = "dcbd412684cc236c03a34e78087a7ebd4ef1bb2908e5032249bfbf106f48f297"
+ultragoal_goals_path = "../.omx/ultragoal/goals.json"
+ultragoal_goals_sha256 = "45ac9c8a2bbe98bc72037d7a24fb9e473c53337fa10af251c1ea028f26374f05"
+ultragoal_ledger_path = "../.omx/ultragoal/ledger.jsonl"
+ultragoal_ledger_sha256 = "a96cc3d0f5f50bbb94abe711963b19e2e14d2a7e445fc7286fc06703dedf23b1"
+
+[semantic_acceptance]
+authority_only_promotion_is_separate_from_publication = true
+exact_primary_plus_two_quorum_unchanged = true
+frozen_checkpoint_error_range_220_through_241_unchanged = true
+context_error_242_is_additive = true
+context_error_242_requires_wire_amendment_approval = true
+frozen_files_mutated = false
+normative_amendments_proposed = true
+promotion_errors_243_through_246_are_additive_and_disjoint = true
+shared_checkpoint_challenge_admission_256 = true
+challenge_backlog_256_is_additive = true
+capacity_release_queue_256_is_additive = true
+bucket_agreements_32_is_additive = true
+provider_agreements_1024_is_conjunctive = true
+phase_reassignment_is_explicit_amendment_not_clarification = true
+provider_tests_7_through_11_remain_required = true
+feature_complete_before_g003 = false
+
+[architect_review]
+status = "pending-independent-review"
+approval_id = ""
+review_path = ""
+review_sha256 = ""
+required_verdict = "CLEAR"
+required_scope = "frozen compatibility, exact serialization, promotion/publication separation, bounded storage, rollback, and explicit phase amendment"
+
+[critic_review]
+status = "pending-independent-review"
+approval_id = ""
+review_path = ""
+review_sha256 = ""
+required_verdict = "APPROVE"
+required_scope = "falsify hashes, vectors, errors, mixed bounds, index occupancy/release, test mappings, and no-completion boundaries"
+
+[acceptance]
+ready = false
+requires_both_independent_reviews = true
+requires_exact_clarification_hash = true
+requires_exact_phase_amendment_hash = true
+requires_exact_wire_vocabulary_amendment_hash = true
+requires_frozen_hash_match = true
+requires_no_frozen_or_v1_file_edits = true
+requires_no_blocking_findings = true
+acceptance_must_be_recorded_by = "independent-ratifier-after-both-reviews"

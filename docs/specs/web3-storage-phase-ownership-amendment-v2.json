@@ -1,0 +1,159 @@
+{
+  "schema_version": 2,
+  "candidate_id": "CORD-WEB3-STORAGE-PHASE-OWNERSHIP-AMENDMENT-002",
+  "status": "candidate-awaiting-independent-architect-and-critic-review",
+  "ratified": false,
+  "classification": "explicit-superseding-execution-phase-amendment",
+  "not_a_clarification": true,
+  "supersedes": {
+    "path": "docs/specs/web3-storage-phase-ownership-addendum-v1.json",
+    "sha256": "56e894c5adea60a81bea79e5d46848c42bce8002cf10ab44d2b675dce75c082d",
+    "mutated": false,
+    "reason": "V1 called the reassignment an addendum/clarification and contained stale test mappings. V2 names it as a proposed execution-schedule amendment and uses only extant P1 tests."
+  },
+  "authorization_snapshot": {
+    "accepted_plan": {
+      "path": "../.omx/plans/origin-orbis-web3-storage-identity-platform.md",
+      "sha256": "dcbd412684cc236c03a34e78087a7ebd4ef1bb2908e5032249bfbf106f48f297",
+      "status_in_document": "APPROVED"
+    },
+    "ultragoal_brief": {
+      "path": "../.omx/ultragoal/brief.md",
+      "sha256": "dcbd412684cc236c03a34e78087a7ebd4ef1bb2908e5032249bfbf106f48f297"
+    },
+    "ultragoal_goals": {
+      "path": "../.omx/ultragoal/goals.json",
+      "sha256": "45ac9c8a2bbe98bc72037d7a24fb9e473c53337fa10af251c1ea028f26374f05"
+    },
+    "ultragoal_ledger": {
+      "path": "../.omx/ultragoal/ledger.jsonl",
+      "sha256": "a96cc3d0f5f50bbb94abe711963b19e2e14d2a7e445fc7286fc06703dedf23b1"
+    },
+    "authority": "The accepted plan already separates P1 canonical control plane from P2 provider byte plane. This candidate makes the execution ownership of provider tests 7-11 explicit; it does not edit the accepted plan or become active before independent approval."
+  },
+  "superseding_schedule": {
+    "from": {
+      "goal_id": "G002-p1-canonical-commons-control-plane",
+      "phase": "P1",
+      "removed_obligations": [
+        "checkpoint-provider-7",
+        "checkpoint-provider-8",
+        "checkpoint-provider-9",
+        "checkpoint-provider-10",
+        "checkpoint-three-provider-11"
+      ]
+    },
+    "to": {
+      "goal_id": "G003-p2-provider-byte-plane-and-authoriza",
+      "phase": "P2",
+      "added_obligations": [
+        "checkpoint-provider-7",
+        "checkpoint-provider-8",
+        "checkpoint-provider-9",
+        "checkpoint-provider-10",
+        "checkpoint-three-provider-11"
+      ]
+    },
+    "total_requirement_changed": false,
+    "tests_removed": false,
+    "quorum_or_finality_weakened": false,
+    "provider_byte_plane_claim_allowed_at_p1": false,
+    "feature_complete_claim_allowed_before_g003": false
+  },
+  "g002_p1_scope": {
+    "claim": "canonical-commons-control-plane-source-only",
+    "includes": [
+      "finalized bounded checkpoint-duty discovery and paging",
+      "checkpoint domain/window/sequence/quorum/context/equivocation enforcement",
+      "separate deterministic authority-only promotion and direct full-quorum grace publication",
+      "governed provider organization/SLA/key/challenge eligibility",
+      "bounded bucket/agreement/challenge/capacity-release state",
+      "canonical manifest publishability and deletion evidence authority",
+      "runtime API and pallet source/tests for those controls"
+    ],
+    "real_test_mappings": [
+      {
+        "package": "origin-commons-runtime",
+        "test": "tests::checkpoint_duty_runtime_api_has_exact_128_snapshot_paging_contract"
+      },
+      {
+        "package": "origin-commons-runtime",
+        "test": "tests::checkpoint_duty_runtime_api_filters_members_and_preserves_typed_ineligible_views"
+      },
+      {
+        "package": "origin-commons-runtime",
+        "test": "tests::runtime_checkpoint_duty_admission_is_exactly_255_256_257"
+      },
+      {
+        "package": "pallet-orbis-storage-provider",
+        "test": "tests::checkpoint_context_duty_and_promotion_exact_golden_vector_is_stable"
+      },
+      {
+        "package": "pallet-orbis-storage-provider",
+        "test": "tests::authority_only_fallback_promotion_is_idempotent_and_requires_repair_before_publish"
+      },
+      {
+        "package": "pallet-orbis-storage-provider",
+        "test": "tests::authority_only_fallback_promotion_rolls_back_every_surface_on_hostile_invariants"
+      },
+      {
+        "package": "pallet-orbis-storage-provider",
+        "test": "tests::checkpoint_and_challenge_admissions_share_one_exact_bound"
+      },
+      {
+        "package": "pallet-orbis-storage-provider",
+        "test": "tests::bucket_agreement_admission_is_exact_and_terminal_release_frees_slot"
+      }
+    ],
+    "must_not_claim": [
+      "provider polling/journal complete",
+      "authorized byte persistence/serving complete",
+      "real replication/repair complete",
+      "provider byte plane complete",
+      "feature complete",
+      "production ready"
+    ]
+  },
+  "g003_p2_required_obligations": [
+    {
+      "id": "checkpoint-provider-7",
+      "status": "missing-required",
+      "requirement": "Automatic finalized polling discovers a due bucket, constructs exact payload/context signatures, collects two peer confirmations, durably submits once, and marks publishable only after finalized quorum.",
+      "test_mapping": null
+    },
+    {
+      "id": "checkpoint-provider-8",
+      "status": "missing-required",
+      "requirement": "Peer refuses missing/corrupt bytes, CID/root/sequence/audience/duty/key errors and replay; refused data never counts or serves.",
+      "test_mapping": null
+    },
+    {
+      "id": "checkpoint-provider-9",
+      "status": "missing-required",
+      "requirement": "Crash boundaries before proposal, after one confirmation, after outbox fsync and after submission retry byte-identically; grace promotion never creates competing publication.",
+      "test_mapping": null
+    },
+    {
+      "id": "checkpoint-provider-10",
+      "status": "missing-required",
+      "requirement": "Cursor and pending outbox survive restart and transport/decode/transaction failures without silent empty success.",
+      "test_mapping": null
+    },
+    {
+      "id": "checkpoint-three-provider-11",
+      "status": "missing-required",
+      "requirement": "Three providers converge on bytes and one finalized checkpoint; corrupt/partitioned primary never serves; deterministic separate promotion plus repair/replacement restores exact primary-plus-two publication within the required intervals.",
+      "test_mapping": null
+    }
+  ],
+  "completion_law": {
+    "before_g003": "No provider-byte-plane, feature-complete, parity, or production-ready claim.",
+    "after_g003": "Provider-byte-plane completion still requires every obligation above to have a real passing mapping and independent gate approval.",
+    "whole_program": "Whole-stack feature completeness remains governed by the accepted plan through P7; this amendment never shortens it."
+  },
+  "review_requirements": {
+    "architect": "CLEAR required over exact amendment and clarification hashes",
+    "critic": "APPROVE required over the same hashes",
+    "self_approval_prohibited": true
+  }
+}

@@ -1,0 +1,492 @@
+{
+  "schema_version": 2,
+  "candidate_id": "P0-STORAGE-CONTROL-CLARIFICATION-20260716-V2",
+  "status": "candidate-awaiting-independent-architect-and-critic-review",
+  "ratified": false,
+  "effect": "additive-interpretation-plus-explicit-wire-vocabulary-and-phase-ownership-normative-amendments-plus-clean-break-bounds",
+  "scope": "Candidate storage-control interpretation, named additive clean-break bounds, a bound narrow normative amendment to the frozen submit_checkpoint closed-vocabulary clause for code 242, and a bound normative execution-phase ownership amendment for provider tests 7-11. Frozen files remain byte-unchanged. This is not approval, provider byte-plane completion, feature completeness, or production readiness.",
+  "replacement": {
+    "replaces_blocked_candidate": {
+      "path": "docs/specs/p0-storage-control-clarification-candidate-v1.json",
+      "sha256": "9c1f3b187c5db443f7458ec72d4a2568b622334d0419d166c6ca9514aa9f5368",
+      "mutated": false
+    },
+    "replaces_blocked_envelope": {
+      "path": "docs/specs/p0-storage-control-ratification-candidate-v1.toml",
+      "sha256": "040cece6d8ab799d1790a885bf98b9d6ce817faf7d6942c6f6a4b5db27a0fc77",
+      "mutated": false
+    },
+    "reason": "V1 coupled authority-only promotion to publication, described admissions as independent, lacked a complete duty/context/promotion wire contract, and mislabeled the G002-to-G003 execution reassignment as clarification. V2 replaces those statements without editing V1 or any frozen P0 input."
+  },
+  "implementation_baseline": {
+    "repository": "cord",
+    "branch": "sm-update-sub-0x65",
+    "commit": "14e30039f4c5cf06bc1b856f0550d1aecb737d0b",
+    "tree": "e6d7b11afb266873fdeee7752865e8a31ee14f01",
+    "parent": "8e1524e24b9ffcda8d15382b3c853c303dc3033d",
+    "author": "Satish Mohan <satish@dhiway.com>",
+    "committer": "Satish Mohan <satish@dhiway.com>",
+    "claim": "canonical-commons-control-plane-source-checkpoint-only",
+    "feature_complete": false,
+    "provider_byte_plane_complete": false,
+    "production_ready": false,
+    "files_sha256": [
+      {
+        "path": "origin/orbis/pallets/storage-provider/src/benchmarking.rs",
+        "sha256": "6a9df52bd7448265dc88755a98b1a20f35e7c7c4159ab6ea52465d0ca790e29e"
+      },
+      {
+        "path": "origin/orbis/pallets/storage-provider/src/lib.rs",
+        "sha256": "c844d9a772e36d6059e9b33a8e1b932e9d1b8714046935b706a7d55789a58fb0"
+      },
+      {
+        "path": "origin/orbis/pallets/storage-provider/src/mock.rs",
+        "sha256": "f7c1bcf90356aed2552093eeb132f1a23106dea3f48fe186e95abfbe2383b099"
+      },
+      {
+        "path": "origin/orbis/pallets/storage-provider/src/tests.rs",
+        "sha256": "8bf0d900a736361777d7e11bf8f05af9433e2664d2063506dfd3a8ca9e1bc954"
+      },
+      {
+        "path": "origin/orbis/runtime-api/storage/src/lib.rs",
+        "sha256": "c34a786295271d2f260ebc971e2a5e33f2fa58d4e8883717d99af30f1c555c8a"
+      },
+      {
+        "path": "origin/orbis/runtime/src/lib.rs",
+        "sha256": "3a4da7d9a98ebe5e788861315d5605859cd485bd9d0ef5bd037f61dbe751ff59"
+      },
+      {
+        "path": "origin/orbis/runtime/src/tests.rs",
+        "sha256": "e74644a61ba8088a27297d17286133bfd34bb3465e7246018ebe9f8850211613"
+      }
+    ]
+  },
+  "frozen_inputs": [
+    {
+      "path": "docs/specs/p0-ratification-v1.toml",
+      "sha256": "51fea4f6214826e51013a90e9fe720f5a6ffe1483a0849ebcd57b218e9ba8514"
+    },
+    {
+      "path": "docs/specs/web3-storage-capability-ledger-v1.json",
+      "sha256": "86406be20d40d4439d3612127687e4943f175902d75e93f62a82dbe32e0fe83d"
+    },
+    {
+      "path": "docs/specs/web3-storage-upstream-inventory-v1.json",
+      "sha256": "048e1f5f757f84d39b6c824ed24f330fd0e3217dbe8380799ac22300103c672e"
+    },
+    {
+      "path": "docs/specs/web3-storage-blocked-conflicts-v1.json",
+      "sha256": "0e88563da7df0eff198b2d8b8ff6ae2292487518e9edea055d0c152a550d34ea"
+    },
+    {
+      "path": "docs/specs/web3-storage-blocked-conflicts-v1.md",
+      "sha256": "8bcf8b2a37a30214fc9188f6796c99a1f84e610c909eb989fab64d9fe4b3a9b4"
+    },
+    {
+      "path": "docs/specs/storage-checkpoints-v2.md",
+      "sha256": "01ad7921def074683a667651f2635a3b0fe1257e9126ff898c70d9de84f17294"
+    },
+    {
+      "path": "docs/specs/checkpoint-v2.vectors.json",
+      "sha256": "16a68a1c7032c542ae5c5d01e7ae723ad3bf99f025c6586ae0d9e8a53c99ca8d"
+    },
+    {
+      "path": "docs/specs/checkpoint-scale-logical-types-v1.toml",
+      "sha256": "e0d6172450765a9951ee13bd7e8d25ff64b9e7d3065d417a345ff17ca7821af3"
+    },
+    {
+      "path": "docs/specs/storage-bounds-v1.toml",
+      "sha256": "0dd0a38e5a064e23501f0f446bbef9bd6015fdbaef953bdf0e515f92bb1a2b2c"
+    },
+    {
+      "path": "docs/specs/storage-control-v1.md",
+      "sha256": "63567abc1c8849d61ab737e1f190d56a05e7af62c4ba70f44411542b1142c12b"
+    },
+    {
+      "path": "docs/specs/control-state-machines-v1.json",
+      "sha256": "040f5d040fe7e5bb4f8f8499fb5555f931029cc50bfa6a46699e968d095c0082"
+    },
+    {
+      "path": "docs/specs/provider-organization-sla-v1.md",
+      "sha256": "44cdedf8470c2df2b7cc71888a6417115e2327acb3ad4182fd2564181e30484e"
+    },
+    {
+      "path": "../.omx/plans/origin-orbis-web3-storage-identity-platform.md",
+      "sha256": "dcbd412684cc236c03a34e78087a7ebd4ef1bb2908e5032249bfbf106f48f297"
+    },
+    {
+      "path": "../.omx/ultragoal/brief.md",
+      "sha256": "dcbd412684cc236c03a34e78087a7ebd4ef1bb2908e5032249bfbf106f48f297"
+    },
+    {
+      "path": "../.omx/ultragoal/goals.json",
+      "sha256": "45ac9c8a2bbe98bc72037d7a24fb9e473c53337fa10af251c1ea028f26374f05"
+    },
+    {
+      "path": "../.omx/ultragoal/ledger.jsonl",
+      "sha256": "a96cc3d0f5f50bbb94abe711963b19e2e14d2a7e445fc7286fc06703dedf23b1"
+    }
+  ],
+  "interpretations": {
+    "fallback_promotion_and_publication": {
+      "authority_only_promotion": "After grace, the deterministic eligible replica alone may call promote_checkpoint_fallback using its active finalized Ed25519 service key over the promotion-v1 digest.",
+      "separate_transition": true,
+      "promotion_writes": [
+        "Promoted Providers record only when an effective pending service key activates",
+        "ServiceKeyOwner removal of the predecessor key only when pending service-key activation succeeds; the pending key owner was reserved at rotation",
+        "ServiceKeyRotated event only when pending service-key activation succeeds",
+        "bucket primary/replica roles and monotonic bucket version",
+        "every BucketAgreements-referenced Agreement whose capacity_state is not Released: primary/replica roles and monotonic agreement version",
+        "AgreementProviderRebound event for each rebound unreleased agreement",
+        "DutyAdmissionBlock and shared DutyAdmissionCount reservation for this block",
+        "CheckpointDutyCurrent only when an older finalized pending duty is advanced",
+        "strict-next-finalized CheckpointDutyPending in PromotionPending mode",
+        "exact CheckpointFallbackPromotionReceiptByBucket receipt",
+        "ReplicaSelected event",
+        "PrimaryPromoted event",
+        "CheckpointFallbackPromotionPendingQuorum event"
+      ],
+      "promotion_must_not_write": [
+        "CheckpointClaims",
+        "BucketSnapshots",
+        "ReplicaCheckpoint"
+      ],
+      "exact_replay": "The exact accepted promotion receipt is idempotent and emits no event.",
+      "publish_quorum": "Exactly the current primary signature plus exactly two distinct eligible current replicas in canonical encoded-provider order.",
+      "missing_quorum_submit": "Returns StorageCheckpointInsufficientQuorum/code 239 with zero state and event effects.",
+      "one_primary_two_replicas": "At grace the deterministic replica may promote separately, but publication remains pending until the predecessor repairs and validly confirms or governed replacement yields two eligible confirming replicas.",
+      "one_primary_three_or_four_replicas": "A direct full-quorum grace submit remains allowed and may atomically promote and publish when two eligible post-promotion confirmations are supplied.",
+      "predecessor": "promotion_predecessor is audit-only. It is not an exclusion and may repair/reconnect and confirm if finalized on-chain validation succeeds.",
+      "strict_next_snapshot": "The PromotionPending duty has scheduled_at equal to the promotion finalized snapshot and is visible only when scheduled_at < requested_snapshot_checkpoint.",
+      "runtime_api_blocked_scope": "BlockedInsufficientFallbackQuorum describes only finalized on-chain eligibility in a visible PromotionPending duty. A provider that is offline but still Active/eligible on chain is optimistically counted by the API; off-chain confirmation collection may nevertheless fail and submit returns code 239.",
+      "rollback": "Every listed write/event, including conditional service-key activation and shared admission, is inside the dispatch transaction and rolls back on any later invariant failure.",
+      "promotion_write_set_classification": "normative-and-exhaustive-for-success-paths",
+      "promotion_preserves_without_write": [
+        "BucketAgreements and ProviderAgreements indexes (the primary promotion swaps roles inside the same provider set)",
+        "provider pending_bytes and allocated_bytes",
+        "ReplicaCheckpoint entries"
+      ]
+    },
+    "shared_admission": {
+      "classification": "frozen-interpretation-of-storage-bounds-v1.max_duties_per_block",
+      "max_duties_per_block": 256,
+      "consumers": [
+        "checkpoint-duty admission",
+        "challenge admission"
+      ],
+      "law": "The two consumers reserve from one block-number-scoped counter; any mix may consume slots 1..256 and the 257th combined admission fails with its operation-specific error and zero effects.",
+      "operation_errors": {
+        "checkpoint": "CheckpointDutyLimit",
+        "challenge": "ChallengeDutyLimit"
+      },
+      "not_admission_capacity": {
+        "challenge_backlog": 256,
+        "capacity_releases_per_block": 256
+      },
+      "reconciliation_records_per_tick": 128
+    }
+  },
+  "additive_clean_break_bounds": {
+    "classification": "honest-additive-bounded-storage-decisions-not-clarifications",
+    "migration_or_backward_compatibility": false,
+    "challenge_backlog": {
+      "max_open_indexed": 256,
+      "relation_to_shared_admission": "additive storage occupancy bound"
+    },
+    "capacity_release_queue": {
+      "max_per_release_block": 256,
+      "relation_to_shared_admission": "additive storage/processing bound"
+    },
+    "bucket_agreements": {
+      "max": 32,
+      "provider_agreements_max": 1024,
+      "conjunction": "Every new agreement must fit both the bucket index and each primary/replica provider index.",
+      "index_invariant": "BucketAgreements and every ProviderAgreements index are complete and duplicate-free for every unreleased agreement.",
+      "counted": "Every agreement whose capacity_state is Pending or Allocated, including terminal-awaiting-release, remains in complete duplicate-free bucket/provider indexes and consumes both bounds.",
+      "slot_freed_only_when": "Actual capacity release/removal removes the agreement from every relevant index; terminal status alone does not free a slot.",
+      "exact_boundaries": {
+        "bucket": [
+          0,
+          1,
+          31,
+          32,
+          33
+        ],
+        "provider": [
+          1024,
+          1025
+        ]
+      },
+      "overflow": "AgreementIndexFull with zero changes to agreement records, nonce, bucket/provider indexes, provider capacity/accounting, bucket state, or events.",
+      "failover": "Primary promotion rebinds roles without moving capacity because the provider set is unchanged. Replica replacement moves Pending/Allocated bytes and provider-index membership from the old replica to the replacement. Both are transactional; the later release decrements the current role holders.",
+      "rebind_rule": "Primary promotion and replica replacement process every indexed agreement whose capacity_state is not Released, regardless of terminal status. Released agreements are no longer indexed."
+    }
+  },
+  "wire_contracts": {
+    "frozen_v2_unchanged": {
+      "domain": "cord/storage/checkpoint/v2",
+      "message": "raw domain bytes || SCALE(CommitmentPayloadV2)",
+      "hash": "BLAKE2b-256",
+      "error_codes": "Codes 220..241 remain byte-for-byte preserved. Candidate amendment CORD-WEB3-STORAGE-CHECKPOINT-WIRE-VOCABULARY-AMENDMENT-001 proposes only additive submit_checkpoint code 242."
+    },
+    "duty_id_v2": {
+      "domain": "cord/storage/checkpoint-duty/v2",
+      "domain_encoding": "31 raw bytes encoded as the fixed byte-array tuple element; no compact length prefix",
+      "logical_preimage_tuple_order": [
+        "[u8;31] domain",
+        "Hash genesis_hash",
+        "u32 spec_version",
+        "u32 transaction_version",
+        "Hash metadata_hash",
+        "BlockNumber snapshot_checkpoint",
+        "Hash block_hash(snapshot_checkpoint)",
+        "Hash bucket_id",
+        "AccountId primary",
+        "BoundedVec<AccountId,MaxReplicas> replicas",
+        "BlockNumber previous_checkpoint",
+        "Option<CommitmentV1<Hash>> previous_commitment",
+        "u64 expected_next_start_seq",
+        "BlockNumber due_at",
+        "BlockNumber grace_until",
+        "CheckpointDutyMode mode (Standard=0, PromotionPending=1)",
+        "Option<AccountId> promotion_predecessor"
+      ],
+      "excluded_fields": [
+        "scheduled_at"
+      ],
+      "encoding": "SCALE tuple in the exact listed order",
+      "hash": "Runtime Hashing over the complete SCALE preimage; Commons uses BlakeTwo256"
+    },
+    "context_v1": {
+      "logical_path": "cord::storage::CheckpointContextV1",
+      "domain": "cord/storage/checkpoint-context/v1",
+      "message": "34 raw domain bytes || SCALE(CheckpointContextV1)",
+      "hash": "BLAKE2b-256",
+      "fields": [
+        "u8 version=1",
+        "Hash genesis_hash",
+        "u32 spec_version",
+        "u32 transaction_version",
+        "Hash metadata_hash",
+        "Hash finalized_hash",
+        "Hash duty_id",
+        "[u8;32] v2_digest"
+      ],
+      "signature_requirement": "Primary and each exact replica confirmation sign both the frozen V2 digest and this separate context digest with the same active finalized service key.",
+      "wrong_context_error": {
+        "name": "StorageCheckpointWrongContext",
+        "code": 242,
+        "effects": 0,
+        "authority": "proposed by CORD-WEB3-STORAGE-CHECKPOINT-WIRE-VOCABULARY-AMENDMENT-001; inactive until independently approved"
+      },
+      "wrong_service_key_or_version_remains": {
+        "name": "StorageCheckpointWrongKey",
+        "code": 223
+      }
+    },
+    "promotion_v1": {
+      "logical_path": "cord::storage::CheckpointFallbackPromotionV1",
+      "domain": "cord/storage/checkpoint-promotion/v1",
+      "message": "36 raw domain bytes || SCALE(CheckpointFallbackPromotionV1)",
+      "hash": "BLAKE2b-256",
+      "fields": [
+        "u8 version=1",
+        "Hash bucket_id",
+        "BlockNumber snapshot_nonce",
+        "Hash duty_id"
+      ],
+      "errors": [
+        {
+          "name": "CheckpointFallbackPromotionWrongVersion",
+          "code": 243
+        },
+        {
+          "name": "CheckpointFallbackPromotionWrongDuty",
+          "code": 244
+        },
+        {
+          "name": "CheckpointFallbackPromotionWrongKey",
+          "code": 245
+        },
+        {
+          "name": "CheckpointFallbackPromotionNotAllowed",
+          "code": 246
+        }
+      ],
+      "disjoint_from_checkpoint_mapper": true
+    }
+  },
+  "executable_golden_vector": {
+    "test_profile": {
+      "Hash": "H256",
+      "AccountId": "u64 little-endian",
+      "BlockNumber": "u64 little-endian",
+      "Hashing": "BlakeTwo256"
+    },
+    "test_ref": "origin/orbis/pallets/storage-provider/src/tests.rs::checkpoint_context_duty_and_promotion_exact_golden_vector_is_stable",
+    "bucket_id_hex": "e47d01b8abf1ab7be46c1c985ddd7d1cd4d198ddf533f5a322a885c383f7d105",
+    "duty_preimage_scale_hex": "636f72642f73746f726167652f636865636b706f696e742d647574792f763211111111111111111111111111111111111111111111111111111111111111110100000001000000222222222222222222222222222222222222222222222222222222222222222265000000000000000000000000000000000000000000000000000000000000000000000000000065e47d01b8abf1ab7be46c1c985ddd7d1cd4d198ddf533f5a322a885c383f7d105010000000000000008020000000000000003000000000000000100000000000000000000000000000000650000000000000079000000000000000000",
+    "duty_id_hex": "8973f76c873b69489cff1ee35f4f1c8c3f61d6f111e2919f2de53cbdb7c7e171",
+    "context_scale_hex": "0111111111111111111111111111111111111111111111111111111111111111110100000001000000222222222222222222222222222222222222222222222222222222222222222200000000000000000000000000000000000000000000000000000000000000658973f76c873b69489cff1ee35f4f1c8c3f61d6f111e2919f2de53cbdb7c7e171e54285176cae46b1765a808fa812a1e09203f54337656e9ab3b6bd7d9514485b",
+    "context_message_hex": "636f72642f73746f726167652f636865636b706f696e742d636f6e746578742f76310111111111111111111111111111111111111111111111111111111111111111110100000001000000222222222222222222222222222222222222222222222222222222222222222200000000000000000000000000000000000000000000000000000000000000658973f76c873b69489cff1ee35f4f1c8c3f61d6f111e2919f2de53cbdb7c7e171e54285176cae46b1765a808fa812a1e09203f54337656e9ab3b6bd7d9514485b",
+    "context_digest_hex": "66f0ce2876c7ebc5c57c3388e826750eef59b6950e96ab57c7d8e3f2ef81992a",
+    "ed25519_public_key_hex": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+    "context_signature_hex": "b5c269cf6b084071e45731e1f4477dfc62e13b726e0df49a69fac882d41ff7e99072894a9f8111dbb8b907d72fa9f8471c3167e280d0ba492a8e3b81f764b80a",
+    "promotion_scale_hex": "01e47d01b8abf1ab7be46c1c985ddd7d1cd4d198ddf533f5a322a885c383f7d10565000000000000008973f76c873b69489cff1ee35f4f1c8c3f61d6f111e2919f2de53cbdb7c7e171",
+    "promotion_digest_hex": "c70899b451eac1e5bf509fa33dfc71448f0ed1078b67c04424b070530e4fc988",
+    "profile_name": "pallet-mock-logical-profile",
+    "profile_scope": "Executable logical-contract vector using mock AccountId=u64 and BlockNumber=u64; it is not the production Commons concrete-width vector."
+  },
+  "current_real_test_mappings": [
+    {
+      "package": "pallet-orbis-storage-provider",
+      "test": "tests::exact_checkpoint_error_codes_are_frozen"
+    },
+    {
+      "package": "pallet-orbis-storage-provider",
+      "test": "tests::exact_checkpoint_promotion_error_codes_are_additive_and_disjoint"
+    },
+    {
+      "package": "pallet-orbis-storage-provider",
+      "test": "tests::checkpoint_context_v1_binds_every_field_and_rejects_wrong_signatures_without_effects"
+    },
+    {
+      "package": "pallet-orbis-storage-provider",
+      "test": "tests::checkpoint_context_duty_and_promotion_exact_golden_vector_is_stable"
+    },
+    {
+      "package": "pallet-orbis-storage-provider",
+      "test": "tests::checkpoint_and_challenge_admissions_share_one_exact_bound"
+    },
+    {
+      "package": "pallet-orbis-storage-provider",
+      "test": "tests::outstanding_challenge_and_capacity_release_bounds_are_additive"
+    },
+    {
+      "package": "pallet-orbis-storage-provider",
+      "test": "tests::bucket_agreement_admission_is_exact_and_terminal_release_frees_slot"
+    },
+    {
+      "package": "pallet-orbis-storage-provider",
+      "test": "tests::authority_only_fallback_promotion_is_idempotent_and_requires_repair_before_publish"
+    },
+    {
+      "package": "pallet-orbis-storage-provider",
+      "test": "tests::authority_only_fallback_promotion_rolls_back_every_surface_on_hostile_invariants"
+    },
+    {
+      "package": "pallet-orbis-storage-provider",
+      "test": "tests::grace_fallback_atomically_promotes_with_two_eligible_post_promotion_confirmers"
+    },
+    {
+      "package": "pallet-orbis-storage-provider",
+      "test": "tests::grace_fallback_rolls_back_every_surface_on_hostile_invariants"
+    },
+    {
+      "package": "origin-commons-runtime",
+      "test": "tests::checkpoint_duty_runtime_api_has_exact_128_snapshot_paging_contract"
+    },
+    {
+      "package": "origin-commons-runtime",
+      "test": "tests::checkpoint_duty_runtime_api_filters_members_and_preserves_typed_ineligible_views"
+    },
+    {
+      "package": "origin-commons-runtime",
+      "test": "tests::runtime_checkpoint_duty_admission_is_exactly_255_256_257"
+    },
+    {
+      "package": "pallet-orbis-storage-provider",
+      "test": "tests::replica_replacement_rebinds_terminal_awaiting_release_and_moves_capacity"
+    },
+    {
+      "package": "pallet-orbis-storage-provider",
+      "test": "tests::primary_failover_rebinds_terminal_awaiting_release_without_moving_capacity"
+    },
+    {
+      "package": "pallet-orbis-storage-provider",
+      "test": "tests::primary_failover_terminal_rebind_invariant_failure_rolls_back_every_surface"
+    },
+    {
+      "package": "origin-commons-runtime",
+      "test": "tests::commons_checkpoint_wire_vector_production_profile_is_stable"
+    }
+  ],
+  "phase_amendment": {
+    "candidate_id": "CORD-WEB3-STORAGE-PHASE-OWNERSHIP-AMENDMENT-002",
+    "path": "docs/specs/web3-storage-phase-ownership-amendment-v2.json",
+    "classification": "explicit-superseding-execution-phase-amendment-not-clarification"
+  },
+  "completion_boundary": {
+    "g002_claim": "canonical Commons control-plane source only",
+    "g003_required_before_provider_byte_plane_complete": true,
+    "feature_complete_before_g003": false,
+    "whole_plan_feature_complete": "Only after every required later plan gate through P7; never inferred from this candidate.",
+    "production_ready": false
+  },
+  "review_requirements": {
+    "architect": "must independently return CLEAR over this exact artifact hash and exact phase-amendment hash",
+    "critic": "must independently return APPROVE over the same exact hashes after attempting to falsify serialization, bounds, rollback, and completion claims",
+    "self_approval_prohibited": true,
+    "ratification_before_both_reviews": false
+  },
+  "frozen_files_mutated": false,
+  "normative_amendments_proposed": true,
+  "proposed_normative_amendments": [
+    {
+      "candidate_id": "CORD-WEB3-STORAGE-CHECKPOINT-WIRE-VOCABULARY-AMENDMENT-001",
+      "path": "docs/specs/web3-storage-checkpoint-wire-vocabulary-amendment-v1.json",
+      "sha256": "4a5edb30aa03e9ef086a61b8533575081182268519dd253156241dca10370969",
+      "scope": "only the storage-checkpoints-v2 closed rejection-vocabulary clause"
+    },
+    {
+      "candidate_id": "CORD-WEB3-STORAGE-PHASE-OWNERSHIP-AMENDMENT-002",
+      "path": "docs/specs/web3-storage-phase-ownership-amendment-v2.json",
+      "sha256": "ba89e20cb46bc19c9aa96cd1b316a1952f596209e82a939c446db86179e65c2d",
+      "scope": "only the G002/P1 to G003/P2 execution ownership of provider tests 7-11"
+    }
+  ],
+  "production_commons_wire_vector": {
+    "profile_name": "origin-commons-runtime-concrete-scale-profile",
+    "profile_scope": "Deterministic synthetic runtime state using the actual Commons Runtime, BlockNumber=u32 and polkadot AccountId32. Genesis/finalized hashes are fixed test inputs; each profile is selected by the actual OrbisCheckpointContext metadata hash and unknown hashes fail closed.",
+    "runtime_spec_version": 31,
+    "runtime_transaction_version": 8,
+    "Hash": "H256",
+    "AccountId": "AccountId32 (32 SCALE bytes)",
+    "BlockNumber": "u32 (4 SCALE bytes)",
+    "Hashing": "BlakeTwo256",
+    "test_ref": "origin/orbis/runtime/src/tests.rs::commons_checkpoint_wire_vector_production_profile_is_stable",
+    "ed25519_public_key_hex": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+    "verification_commands": [
+      "env -u RUNTIME_METADATA_HASH cargo test -p origin-commons-runtime commons_checkpoint_wire_vector_production_profile_is_stable -- --nocapture",
+      "RUNTIME_METADATA_HASH=0xb17b1892ac63c0d16b91d901aab12c69a777d24f3262faca602518aad3e27164 cargo test -p origin-commons-runtime commons_checkpoint_wire_vector_production_profile_is_stable -- --nocapture"
+    ],
+    "profiles": [
+      {
+        "profile_id": "developer-no-metadata-hash",
+        "runtime_metadata_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+        "verification_command": "env -u RUNTIME_METADATA_HASH cargo test -p origin-commons-runtime commons_checkpoint_wire_vector_production_profile_is_stable -- --nocapture",
+        "duty_preimage_scale_hex": "636f72642f73746f726167652f636865636b706f696e742d647574792f763211111111111111111111111111111111111111111111111111111111111111111f0000000800000000000000000000000000000000000000000000000000000000000000000000006500000033333333333333333333333333333333333333333333333333333333333333334444444444444444444444444444444444444444444444444444444444444444010101010101010101010101010101010101010101010101010101010101010108020202020202020202020202020202020202020202020202020202020202020203030303030303030303030303030303030303030303030303030303030303036400000000000000000000000065000000790000000000",
+        "duty_id_hex": "e3224e65a6802bcb25dd90842c5af86353bcec0c296263497f55e33e31d14f79",
+        "context_scale_hex": "0111111111111111111111111111111111111111111111111111111111111111111f0000000800000000000000000000000000000000000000000000000000000000000000000000003333333333333333333333333333333333333333333333333333333333333333e3224e65a6802bcb25dd90842c5af86353bcec0c296263497f55e33e31d14f79e900e784b0698b7a8ea9a84e96bc50196cbc2fc1e1354955c1a9f0b0d781cb1d",
+        "context_message_hex": "636f72642f73746f726167652f636865636b706f696e742d636f6e746578742f76310111111111111111111111111111111111111111111111111111111111111111111f0000000800000000000000000000000000000000000000000000000000000000000000000000003333333333333333333333333333333333333333333333333333333333333333e3224e65a6802bcb25dd90842c5af86353bcec0c296263497f55e33e31d14f79e900e784b0698b7a8ea9a84e96bc50196cbc2fc1e1354955c1a9f0b0d781cb1d",
+        "context_digest_hex": "3740d134e048c20317e41178a4cb6badb1628a1cc2bf9a8760fbc1edf0442868",
+        "context_signature_hex": "8d70c432862088031d9376e584445337d4293b22cae8197ce2cab31c4420f557a8db69e27a0e503a08816f584a4eac6b76214407e484a8f6c69ae608a6b78b03",
+        "promotion_scale_hex": "01444444444444444444444444444444444444444444444444444444444444444465000000e3224e65a6802bcb25dd90842c5af86353bcec0c296263497f55e33e31d14f79",
+        "promotion_digest_hex": "e01c29220d047b914f0d43b34ed27fd04723097bb41d11a325d14e66460d0a7e"
+      },
+      {
+        "profile_id": "verification-metadata-hash-b17b1892",
+        "runtime_metadata_hash_hex": "b17b1892ac63c0d16b91d901aab12c69a777d24f3262faca602518aad3e27164",
+        "verification_command": "RUNTIME_METADATA_HASH=0xb17b1892ac63c0d16b91d901aab12c69a777d24f3262faca602518aad3e27164 cargo test -p origin-commons-runtime commons_checkpoint_wire_vector_production_profile_is_stable -- --nocapture",
+        "duty_preimage_scale_hex": "636f72642f73746f726167652f636865636b706f696e742d647574792f763211111111111111111111111111111111111111111111111111111111111111111f00000008000000b17b1892ac63c0d16b91d901aab12c69a777d24f3262faca602518aad3e271646500000033333333333333333333333333333333333333333333333333333333333333334444444444444444444444444444444444444444444444444444444444444444010101010101010101010101010101010101010101010101010101010101010108020202020202020202020202020202020202020202020202020202020202020203030303030303030303030303030303030303030303030303030303030303036400000000000000000000000065000000790000000000",
+        "duty_id_hex": "f0fc473d97f6c565f83215eeb06508cf6af4858f132f3d374b680deb9769440f",
+        "context_scale_hex": "0111111111111111111111111111111111111111111111111111111111111111111f00000008000000b17b1892ac63c0d16b91d901aab12c69a777d24f3262faca602518aad3e271643333333333333333333333333333333333333333333333333333333333333333f0fc473d97f6c565f83215eeb06508cf6af4858f132f3d374b680deb9769440fe900e784b0698b7a8ea9a84e96bc50196cbc2fc1e1354955c1a9f0b0d781cb1d",
+        "context_message_hex": "636f72642f73746f726167652f636865636b706f696e742d636f6e746578742f76310111111111111111111111111111111111111111111111111111111111111111111f00000008000000b17b1892ac63c0d16b91d901aab12c69a777d24f3262faca602518aad3e271643333333333333333333333333333333333333333333333333333333333333333f0fc473d97f6c565f83215eeb06508cf6af4858f132f3d374b680deb9769440fe900e784b0698b7a8ea9a84e96bc50196cbc2fc1e1354955c1a9f0b0d781cb1d",
+        "context_digest_hex": "94a3d6c5a97c137e41c476742d4d481f93f00abf2d6003b002c48d8330af81e8",
+        "context_signature_hex": "572a71cd96a4ae67e246f46a325c242657373a5599031bd67d45b8e0d8790fb5afcd8dc141f962043fa6e687936a419b843e734ac91ff3113cd236f72a718c06",
+        "promotion_scale_hex": "01444444444444444444444444444444444444444444444444444444444444444465000000f0fc473d97f6c565f83215eeb06508cf6af4858f132f3d374b680deb9769440f",
+        "promotion_digest_hex": "805ba87ae10c5b1d1ded7b4498ed9b2371b30f58c4af1ad5d92a1e79764cda07"
+      }
+    ]
+  }
+}

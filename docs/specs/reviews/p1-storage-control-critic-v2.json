@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "review_id": "P1-STORAGE-CONTROL-CRITIC-20260716-V2",
+  "approval_id": "P1-STORAGE-CONTROL-CRITIC-APPROVE-20260716-V2",
+  "role": "critic",
+  "independent_review": true,
+  "verdict": "APPROVE",
+  "reviewed_source": {
+    "repository": "cord",
+    "branch": "sm-update-sub-0x65",
+    "commit": "14e30039f4c5cf06bc1b856f0550d1aecb737d0b",
+    "tree": "e6d7b11afb266873fdeee7752865e8a31ee14f01"
+  },
+  "reviewed_candidates": {
+    "clarification": {
+      "path": "docs/specs/p0-storage-control-clarification-candidate-v2.json",
+      "sha256": "1d7f6606f261c72a1faab1078f557856c5561e4afd914db00da0bed4f939fd8c"
+    },
+    "phase_ownership_amendment": {
+      "path": "docs/specs/web3-storage-phase-ownership-amendment-v2.json",
+      "sha256": "ba89e20cb46bc19c9aa96cd1b316a1952f596209e82a939c446db86179e65c2d"
+    },
+    "checkpoint_wire_vocabulary_amendment": {
+      "path": "docs/specs/web3-storage-checkpoint-wire-vocabulary-amendment-v1.json",
+      "sha256": "4a5edb30aa03e9ef086a61b8533575081182268519dd253156241dca10370969"
+    },
+    "ratification_envelope": {
+      "path": "docs/specs/p0-storage-control-ratification-candidate-v2.toml",
+      "sha256": "08f4c3de0acbc14418af53176276133b76d53912b1cb471be52c3c4b1164e14c"
+    }
+  },
+  "falsification": [
+    {
+      "id": "candidate-source-and-hash-cascade",
+      "command": "git rev-parse HEAD HEAD^{tree} && shasum -a 256 docs/specs/p0-storage-control-clarification-candidate-v2.json docs/specs/web3-storage-phase-ownership-amendment-v2.json docs/specs/web3-storage-checkpoint-wire-vocabulary-amendment-v1.json docs/specs/p0-storage-control-ratification-candidate-v2.toml && git show -s --format='%H%n%T%n%P%n%an <%ae>%n%cn <%ce>' 14e30039f4c5cf06bc1b856f0550d1aecb737d0b",
+      "result": "pass",
+      "evidence": "HEAD and tree matched the reviewed source; all four candidate hashes matched exactly; author and committer were Satish Mohan <satish@dhiway.com>. A Python SHA-256 sweep also matched every frozen-input and implementation-file hash declared by the clarification."
+    },
+    {
+      "id": "commons-concrete-wire-profile-without-compiled-metadata-hash",
+      "command": "env -u RUNTIME_METADATA_HASH cargo test --locked -p origin-commons-runtime tests::commons_checkpoint_wire_vector_production_profile_is_stable -- --exact --nocapture",
+      "result": "pass",
+      "evidence": "1 passed, 0 failed. The developer no-metadata-hash profile selected the all-zero metadata hash and matched every hardcoded duty preimage, duty id, context encoding, context message, context digest, Ed25519 signature, promotion encoding and promotion digest."
+    },
+    {
+      "id": "commons-concrete-wire-profile-with-verification-metadata-hash",
+      "command": "RUNTIME_METADATA_HASH=0xb17b1892ac63c0d16b91d901aab12c69a777d24f3262faca602518aad3e27164 cargo test --locked -p origin-commons-runtime tests::commons_checkpoint_wire_vector_production_profile_is_stable -- --exact --nocapture",
+      "result": "pass",
+      "evidence": "1 passed, 0 failed. The repository verification metadata-hash profile matched every hardcoded duty preimage, duty id, context encoding, context message, context digest, Ed25519 signature, promotion encoding and promotion digest. The test also asserted Commons BlockNumber SCALE width 4 and AccountId32 SCALE width 32."
+    },
+    {
+      "id": "unknown-commons-metadata-hash-fails-closed",
+      "command": "set +e; RUNTIME_METADATA_HASH=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa cargo test --locked -p origin-commons-runtime tests::commons_checkpoint_wire_vector_production_profile_is_stable -- --exact --nocapture; rc=$?; echo EXPECTED_NONZERO_RC=$rc; test \"$rc\" -ne 0",
+      "result": "pass",
+      "evidence": "The inner cargo test exited 101 and panicked with 'unregistered Commons runtime metadata-hash wire profile: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; the enclosing falsification command accepted only a nonzero result."
+    },
+    {
+      "id": "independent-vector-cryptography",
+      "command": "python3 independent SHA/BLAKE2b cascade verification over both production_commons_wire_vector profiles, followed by openssl pkeyutl -verify -pubin -keyform DER -rawin for each context digest/signature",
+      "result": "pass",
+      "evidence": "For both profiles, BLAKE2b-256(duty preimage) equaled duty_id; context_message equaled raw context domain bytes concatenated with SCALE context; its BLAKE2b-256 equaled context_digest; the frozen V2 digest embedded in context was exact; BLAKE2b-256(raw promotion domain bytes concatenated with SCALE promotion) equaled promotion_digest; both Ed25519 signatures verified independently with OpenSSL."
+    },
+    {
+      "id": "storage-provider-control-plane-regression",
+      "command": "SKIP_PALLET_REVIVE_FIXTURES=1 cargo test --locked -p pallet-orbis-storage-provider --features runtime-benchmarks",
+      "result": "pass",
+      "evidence": "76 passed, 0 failed. This included terminal-awaiting-release promotion and replacement rebinding, current-holder capacity release, hostile transactional rollback, exact checkpoint error mappings, context mutation rejection, quorum, mixed admission and bounded-index tests."
+    }
+  ],
+  "prior_blockers_resolved": [
+    {
+      "blocker": "Provider tests 7-11 were reassigned from P1 to P2 while represented as an additive clarification.",
+      "resolution": "The exact phase-ownership artifact now classifies the change as an explicit superseding execution-phase amendment, retains every obligation as required in G003/P2, and prohibits provider-byte-plane or feature-complete claims before G003 approval."
+    },
+    {
+      "blocker": "The blocked-conflicts Markdown authority hash was omitted.",
+      "resolution": "The clarification and envelope bind both the frozen JSON and Markdown decision-packet hashes."
+    },
+    {
+      "blocker": "Offline-but-on-chain-active primary loss was overstated as a typed blocked runtime-API condition.",
+      "resolution": "The clarification now explicitly limits BlockedInsufficientFallbackQuorum to finalized on-chain eligibility and states that optimistic offline collection can still fail with code 239."
+    },
+    {
+      "blocker": "Terminal-awaiting-release agreements were skipped during primary promotion and replica replacement despite being classified as unreleased.",
+      "resolution": "The implementation now rebinds every indexed agreement whose capacity_state is not Released; focused tests prove terminal rebinding, movement or preservation of capacity as appropriate, later release from current holders, complete indexes and hostile rollback."
+    },
+    {
+      "blocker": "Submit-checkpoint error 242 expanded a frozen closed vocabulary without explicit authority.",
+      "resolution": "The exact narrow wire-vocabulary amendment supersedes only the closed-vocabulary clause, preserves codes 220-241, authorizes only context-signature mismatch code 242 with zero effects, and keeps promotion codes 243-246 in a separate dispatch vocabulary."
+    },
+    {
+      "blocker": "The Commons concrete-width vector hardcoded only the no-metadata-hash build and failed the repository verification metadata profile.",
+      "resolution": "The source and clarification now hardcode and verify both the zero-hash developer profile and b17b1892 verification profile; any unregistered metadata hash fails closed."
+    }
+  ],
+  "review_conclusions": {
+    "exact_primary_plus_two_quorum_preserved": true,
+    "authority_only_promotion_separate_from_publication": true,
+    "terminal_unreleased_agreement_rebinding_verified": true,
+    "transactional_zero_effect_rollback_verified": true,
+    "codes_220_through_241_preserved": true,
+    "context_code_242_requires_bound_amendment": true,
+    "promotion_codes_243_through_246_separate": true,
+    "phase_amendment_explicit": true,
+    "provider_tests_7_through_11_remain_required": true,
+    "unknown_metadata_hash_fails_closed": true,
+    "no_premature_completion_claim": true
+  },
+  "reviewed_artifact_integrity": {
+    "reviewed_artifacts_edited_by_critic": false,
+    "other_repository_files_edited_by_critic": false,
+    "only_review_record_created": "docs/specs/reviews/p1-storage-control-critic-v2.json"
+  },
+  "completion_boundary": {
+    "feature_complete": false,
+    "provider_byte_plane_complete": false,
+    "production_ready": false
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "review_id": "P1-STORAGE-CONTROL-ARCHITECT-20260716-V2",
+  "approval_id": "P1-STORAGE-CONTROL-ARCH-CLEAR-20260716-V2",
+  "role": "architect",
+  "verdict": "CLEAR",
+  "independent_review": true,
+  "self_ratification": false,
+  "reviewed_source": {
+    "repository": "cord",
+    "branch": "sm-update-sub-0x65",
+    "commit": "14e30039f4c5cf06bc1b856f0550d1aecb737d0b",
+    "tree": "e6d7b11afb266873fdeee7752865e8a31ee14f01",
+    "parent": "8e1524e24b9ffcda8d15382b3c853c303dc3033d",
+    "author": "Satish Mohan <satish@dhiway.com>",
+    "committer": "Satish Mohan <satish@dhiway.com>"
+  },
+  "reviewed_candidates": [
+    {
+      "kind": "clarification",
+      "path": "docs/specs/p0-storage-control-clarification-candidate-v2.json",
+      "sha256": "1d7f6606f261c72a1faab1078f557856c5561e4afd914db00da0bed4f939fd8c"
+    },
+    {
+      "kind": "phase_ownership_amendment",
+      "path": "docs/specs/web3-storage-phase-ownership-amendment-v2.json",
+      "sha256": "ba89e20cb46bc19c9aa96cd1b316a1952f596209e82a939c446db86179e65c2d"
+    },
+    {
+      "kind": "wire_vocabulary_amendment",
+      "path": "docs/specs/web3-storage-checkpoint-wire-vocabulary-amendment-v1.json",
+      "sha256": "4a5edb30aa03e9ef086a61b8533575081182268519dd253156241dca10370969"
+    },
+    {
+      "kind": "ratification_envelope",
+      "path": "docs/specs/p0-storage-control-ratification-candidate-v2.toml",
+      "sha256": "08f4c3de0acbc14418af53176276133b76d53912b1cb471be52c3c4b1164e14c"
+    }
+  ],
+  "scope": [
+    "candidate hash cascade and frozen-input integrity",
+    "authority-only promotion separated from strict primary-plus-two publication",
+    "terminal-awaiting-release agreement rebinding, capacity movement, release and rollback",
+    "exact duty, context and promotion SCALE contracts and error vocabularies",
+    "shared admission and additive bounded-storage decisions",
+    "runtime API eligibility caveat and deterministic fallback semantics",
+    "explicit G002/P1 to G003/P2 provider-test ownership amendment",
+    "feature-completion and production-readiness claim boundaries"
+  ],
+  "validation": {
+    "commands": [
+      {
+        "command": "shasum -a 256 docs/specs/p0-storage-control-clarification-candidate-v2.json docs/specs/web3-storage-phase-ownership-amendment-v2.json docs/specs/web3-storage-checkpoint-wire-vocabulary-amendment-v1.json docs/specs/p0-storage-control-ratification-candidate-v2.toml",
+        "result": "PASS: all four digests exactly matched the reviewed_candidates entries"
+      },
+      {
+        "command": "git rev-parse HEAD && git show -s --format='%T%n%P%n%an <%ae>%n%cn <%ce>' HEAD && git diff-tree --no-commit-id --name-status -r HEAD",
+        "result": "PASS: commit, tree, parent, author and committer matched; the reviewed commit changed only origin/orbis/runtime/src/tests.rs"
+      },
+      {
+        "command": "python3 <independent SHA-256 verifier over clarification frozen_inputs and implementation_baseline.files_sha256, comparing worktree bytes with git show 14e30039:<path>>",
+        "result": "PASS: all 16 frozen/plan/goal/ledger inputs and all 7 implementation files matched their bound hashes and commit content"
+      },
+      {
+        "command": "cargo test -p pallet-orbis-storage-provider --lib -- --nocapture",
+        "result": "PASS: 46 passed, 0 failed; the storage-provider source and test hashes are unchanged at reviewed commit 14e30039"
+      },
+      {
+        "command": "env -u RUNTIME_METADATA_HASH cargo test -p origin-commons-runtime commons_checkpoint_wire_vector_production_profile_is_stable -- --nocapture",
+        "result": "PASS: developer zero-metadata-hash Commons u32/AccountId32 profile passed 1/1"
+      },
+      {
+        "command": "RUNTIME_METADATA_HASH=0xb17b1892ac63c0d16b91d901aab12c69a777d24f3262faca602518aad3e27164 cargo test -p origin-commons-runtime commons_checkpoint_wire_vector_production_profile_is_stable -- --nocapture",
+        "result": "PASS: verification-metadata-hash Commons u32/AccountId32 profile passed 1/1"
+      },
+      {
+        "command": "python3 <independent BLAKE2b-256 recomputation for both production_commons_wire_vector profiles>",
+        "result": "PASS: zero profile duty/context/promotion digests e3224e65a6802bcb25dd90842c5af86353bcec0c296263497f55e33e31d14f79, 3740d134e048c20317e41178a4cb6badb1628a1cc2bf9a8760fbc1edf0442868, e01c29220d047b914f0d43b34ed27fd04723097bb41d11a325d14e66460d0a7e; b17b profile digests f0fc473d97f6c565f83215eeb06508cf6af4858f132f3d374b680deb9769440f, 94a3d6c5a97c137e41c476742d4d481f93f00abf2d6003b002c48d8330af81e8, 805ba87ae10c5b1d1ded7b4498ed9b2371b30f58c4af1ad5d92a1e79764cda07"
+      }
+    ],
+    "frozen_files_mutated": false,
+    "reviewed_artifacts_modified_by_reviewer": false,
+    "blocking_findings": []
+  },
+  "resolved_blockers": [
+    {
+      "id": "promotion-publication-coupling",
+      "resolution": "Authority-only deterministic promotion is a separate transactional transition; publication still requires the current primary plus exactly two distinct eligible current replicas. Promotion does not write CheckpointClaims, BucketSnapshots or ReplicaCheckpoint."
+    },
+    {
+      "id": "unreleased-terminal-agreement-rebinding",
+      "resolution": "Primary promotion and replica replacement process every indexed agreement whose capacity_state is not Released, including terminal-awaiting-release agreements; tests cover capacity/index movement, later release and hostile rollback."
+    },
+    {
+      "id": "non-production-wire-vector",
+      "resolution": "The candidate and runtime test bind actual Commons BlockNumber=u32 and AccountId32 bytes for both the developer zero-metadata profile and the b17b1892 verification metadata profile; unknown metadata hashes fail closed."
+    },
+    {
+      "id": "submit-context-error-authorization",
+      "resolution": "A narrow normative amendment adds submit_checkpoint code 242 only for context-v1 signature mismatch while preserving codes 220 through 241 and keeping promotion codes 243 through 246 separate."
+    },
+    {
+      "id": "incomplete-promotion-write-set",
+      "resolution": "The candidate exhaustively identifies conditional service-key activation, provider and key-owner state, bucket/agreement roles and versions, shared admission, duty staging, replay receipt and events, with transactional rollback."
+    },
+    {
+      "id": "bounds-and-phase-classification",
+      "resolution": "The shared 256 admission law is distinct from honestly additive backlog, release and agreement-index bounds; provider tests 7 through 11 remain required and explicitly move to G003/P2 without enabling premature completion claims."
+    }
+  ],
+  "claims": {
+    "canonical_commons_control_plane_source_checkpoint": true,
+    "feature_complete": false,
+    "provider_byte_plane_complete": false,
+    "production_ready": false
+  },
+  "approval": {
+    "approved": true,
+    "condition": "This CLEAR applies only to the exact reviewed source commit/tree and exact four candidate hashes recorded above. Any byte change requires a new independent review.",
+    "ratification_recorded_here": false
+  }
+}

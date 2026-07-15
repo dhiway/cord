@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "candidate_id": "CORD-WEB3-STORAGE-CHECKPOINT-WIRE-VOCABULARY-AMENDMENT-001",
+  "status": "candidate-awaiting-independent-architect-and-critic-review",
+  "ratified": false,
+  "classification": "narrow-normative-wire-vocabulary-amendment",
+  "frozen_files_mutated": false,
+  "normative_semantics_amendment_proposed": true,
+  "scope": "Supersede only the closed-vocabulary clause for submit_checkpoint so a context-v1 signature mismatch has one additive distinct error. No frozen file, V2 payload byte, V2 signature, or existing code is changed by this candidate.",
+  "superseded_clause": {
+    "path": "docs/specs/storage-checkpoints-v2.md",
+    "file_sha256": "01ad7921def074683a667651f2635a3b0fe1257e9126ff898c70d9de84f17294",
+    "line": 16,
+    "clause_sha256": "3a9ca4325a15dedfa592737117df1f813b28d7633be7cf9123ef5006fb69797c",
+    "old_rule": "Checkpoint rejection vocabulary is closed at the named 220-241 entries.",
+    "new_rule": "The named 220-241 entries remain exact and immutable; submit_checkpoint additionally returns 242 STORAGE_CHECKPOINT_WRONG_CONTEXT only when a primary or replica context-v1 signature does not verify against the exact context-v1 digest."
+  },
+  "preserved_checkpoint_codes": [
+    {
+      "code": 220,
+      "name": "STORAGE_CHECKPOINT_WRONG_DOMAIN"
+    },
+    {
+      "code": 221,
+      "name": "STORAGE_CHECKPOINT_WRONG_VERSION"
+    },
+    {
+      "code": 222,
+      "name": "STORAGE_CHECKPOINT_WRONG_BUCKET"
+    },
+    {
+      "code": 223,
+      "name": "STORAGE_CHECKPOINT_WRONG_KEY"
+    },
+    {
+      "code": 224,
+      "name": "STORAGE_CHECKPOINT_STALE_NONCE"
+    },
+    {
+      "code": 225,
+      "name": "STORAGE_CHECKPOINT_WRONG_WINDOW"
+    },
+    {
+      "code": 239,
+      "name": "STORAGE_CHECKPOINT_INSUFFICIENT_QUORUM"
+    },
+    {
+      "code": 240,
+      "name": "STORAGE_CHECKPOINT_SEQUENCE_INVALID"
+    },
+    {
+      "code": 241,
+      "name": "STORAGE_CHECKPOINT_EQUIVOCATION"
+    }
+  ],
+  "additive_checkpoint_code": {
+    "code": 242,
+    "name": "STORAGE_CHECKPOINT_WRONG_CONTEXT",
+    "dispatch": "submit_checkpoint",
+    "condition": "A primary_context_signature or replica context_signature fails Ed25519 verification over BLAKE2b-256(raw cord/storage/checkpoint-context/v1 domain bytes || SCALE(CheckpointContextV1)).",
+    "state_effects": 0,
+    "event_effects": 0,
+    "wrong_service_key_or_key_version_remains_code": 223,
+    "non_context_replica_eligibility_or_quorum_failure_remains_code": 239
+  },
+  "separate_promotion_dispatch_vocabulary": {
+    "dispatch": "promote_checkpoint_fallback",
+    "not_part_of_submit_checkpoint_closed_vocabulary": true,
+    "codes": [
+      {
+        "code": 243,
+        "name": "CHECKPOINT_FALLBACK_PROMOTION_WRONG_VERSION"
+      },
+      {
+        "code": 244,
+        "name": "CHECKPOINT_FALLBACK_PROMOTION_WRONG_DUTY"
+      },
+      {
+        "code": 245,
+        "name": "CHECKPOINT_FALLBACK_PROMOTION_WRONG_KEY"
+      },
+      {
+        "code": 246,
+        "name": "CHECKPOINT_FALLBACK_PROMOTION_NOT_ALLOWED"
+      }
+    ]
+  },
+  "implementation_checkpoint": {
+    "commit": "14e30039f4c5cf06bc1b856f0550d1aecb737d0b",
+    "tree": "e6d7b11afb266873fdeee7752865e8a31ee14f01",
+    "tests": [
+      "pallet-orbis-storage-provider::tests::exact_checkpoint_error_codes_are_frozen",
+      "pallet-orbis-storage-provider::tests::exact_checkpoint_promotion_error_codes_are_additive_and_disjoint",
+      "pallet-orbis-storage-provider::tests::checkpoint_context_v1_binds_every_field_and_rejects_wrong_signatures_without_effects",
+      "origin-commons-runtime::tests::commons_checkpoint_wire_vector_production_profile_is_stable"
+    ]
+  },
+  "review_requirements": {
+    "architect": "CLEAR over the exact amendment hash and proof that only the closed-vocabulary clause is superseded",
+    "critic": "APPROVE after attempting to collide 242 with 220-241 or promotion 243-246 and falsifying zero effects",
+    "self_approval_prohibited": true
+  }
+}
