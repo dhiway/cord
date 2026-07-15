@@ -5743,6 +5743,112 @@ fn checkpoint_duty_runtime_api_has_exact_128_snapshot_paging_contract() {
 }
 
 #[test]
+fn commons_checkpoint_wire_vector_production_profile_is_stable() {
+	use pallet_orbis_storage_provider::{
+		CheckpointDutyCurrent, CheckpointDutyMode, CheckpointDutyRecord,
+		CheckpointFallbackPromotionV1, CommitmentPayloadV2, CommitmentV1, ReplicasOf,
+	};
+	use sp_core::Pair;
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		System::set_block_number(101);
+		frame_system::BlockHash::<Runtime>::insert(0, sp_core::H256::repeat_byte(0x11));
+		frame_system::BlockHash::<Runtime>::insert(101, sp_core::H256::repeat_byte(0x33));
+		let bucket_id = sp_core::H256::repeat_byte(0x44);
+		let primary = AccountId::new([1; 32]);
+		let replicas: ReplicasOf<Runtime> =
+			vec![AccountId::new([2; 32]), AccountId::new([3; 32])].try_into().unwrap();
+		let duty = CheckpointDutyRecord {
+			bucket_id,
+			primary: primary.clone(),
+			replicas,
+			previous_checkpoint: 100,
+			previous_commitment: None,
+			expected_next_start_seq: 0,
+			due_at: 101,
+			grace_until: 121,
+			scheduled_at: 100,
+			mode: CheckpointDutyMode::Standard,
+			promotion_predecessor: None,
+		};
+		CheckpointDutyCurrent::<Runtime>::insert(bucket_id, &duty);
+		let payload = CommitmentPayloadV2 {
+			version: 2,
+			bucket_id,
+			commitment: CommitmentV1 {
+				mmr_root: sp_core::H256::repeat_byte(0x55),
+				start_seq: 0,
+				leaf_count: 1,
+			},
+			nonce: 101,
+		};
+		let duty_preimage =
+			pallet_orbis_storage_provider::Pallet::<Runtime>::checkpoint_duty_preimage(&duty, 101);
+		let duty_id =
+			pallet_orbis_storage_provider::Pallet::<Runtime>::checkpoint_duty_id(&duty, 101);
+		let context =
+			pallet_orbis_storage_provider::Pallet::<Runtime>::checkpoint_context_for(&payload)
+				.unwrap();
+		let context_scale = context.encode();
+		let mut context_message = b"cord/storage/checkpoint-context/v1".to_vec();
+		context_message.extend_from_slice(&context_scale);
+		let context_digest =
+			pallet_orbis_storage_provider::Pallet::<Runtime>::checkpoint_context_digest(&context);
+		let pair = sp_core::ed25519::Pair::from_seed(&[1; 32]);
+		let context_signature = pair.sign(&context_digest);
+		let promotion =
+			CheckpointFallbackPromotionV1 { version: 1, bucket_id, snapshot_nonce: 101, duty_id };
+		assert_eq!((101u32).encode().len(), 4);
+		assert_eq!(primary.encode().len(), 32);
+		assert_eq!(
+			hex::encode(&duty_preimage),
+			"636f72642f73746f726167652f636865636b706f696e742d647574792f763211111111111111111111111111111111111111111111111111111111111111111f0000000800000000000000000000000000000000000000000000000000000000000000000000006500000033333333333333333333333333333333333333333333333333333333333333334444444444444444444444444444444444444444444444444444444444444444010101010101010101010101010101010101010101010101010101010101010108020202020202020202020202020202020202020202020202020202020202020203030303030303030303030303030303030303030303030303030303030303036400000000000000000000000065000000790000000000"
+		);
+		assert_eq!(
+			hex::encode(duty_id.as_bytes()),
+			"e3224e65a6802bcb25dd90842c5af86353bcec0c296263497f55e33e31d14f79"
+		);
+		assert_eq!(
+			hex::encode(&context_scale),
+			"0111111111111111111111111111111111111111111111111111111111111111111f0000000800000000000000000000000000000000000000000000000000000000000000000000003333333333333333333333333333333333333333333333333333333333333333e3224e65a6802bcb25dd90842c5af86353bcec0c296263497f55e33e31d14f79e900e784b0698b7a8ea9a84e96bc50196cbc2fc1e1354955c1a9f0b0d781cb1d"
+		);
+		assert_eq!(
+			hex::encode(&context_message),
+			"636f72642f73746f726167652f636865636b706f696e742d636f6e746578742f76310111111111111111111111111111111111111111111111111111111111111111111f0000000800000000000000000000000000000000000000000000000000000000000000000000003333333333333333333333333333333333333333333333333333333333333333e3224e65a6802bcb25dd90842c5af86353bcec0c296263497f55e33e31d14f79e900e784b0698b7a8ea9a84e96bc50196cbc2fc1e1354955c1a9f0b0d781cb1d"
+		);
+		assert_eq!(
+			hex::encode(context_digest),
+			"3740d134e048c20317e41178a4cb6badb1628a1cc2bf9a8760fbc1edf0442868"
+		);
+		assert_eq!(
+			hex::encode(pair.public().0),
+			"8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c"
+		);
+		assert_eq!(
+			hex::encode(context_signature.0),
+			"8d70c432862088031d9376e584445337d4293b22cae8197ce2cab31c4420f557a8db69e27a0e503a08816f584a4eac6b76214407e484a8f6c69ae608a6b78b03"
+		);
+		assert!(sp_io::crypto::ed25519_verify(
+			&context_signature,
+			&context_digest,
+			&pair.public()
+		));
+		assert_eq!(
+			hex::encode(promotion.encode()),
+			"01444444444444444444444444444444444444444444444444444444444444444465000000e3224e65a6802bcb25dd90842c5af86353bcec0c296263497f55e33e31d14f79"
+		);
+		assert_eq!(
+			hex::encode(
+				pallet_orbis_storage_provider::Pallet::<Runtime>::checkpoint_promotion_digest(
+					&promotion,
+				)
+			),
+			"e01c29220d047b914f0d43b34ed27fd04723097bb41d11a325d14e66460d0a7e"
+		);
+	});
+}
+
+#[test]
 fn checkpoint_duty_runtime_api_filters_members_and_preserves_typed_ineligible_views() {
 	use orbis_storage_runtime_api::{
 		CheckpointDutyMode as ApiDutyMode, CheckpointDutyPhase, ProviderDutyExclusion,

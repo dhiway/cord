@@ -809,6 +809,77 @@ fn replica_replacement_atomically_rebinds_proposed_active_and_suspended_agreemen
 }
 
 #[test]
+fn replica_replacement_rebinds_terminal_awaiting_release_and_moves_capacity() {
+	new_test_ext().execute_with(|| {
+		let bucket = setup_bucket();
+		assert_ok!(StorageProvider::propose_agreement(
+			RuntimeOrigin::signed(OWNER),
+			bucket,
+			1,
+			40,
+			200,
+		));
+		let agreement_id = Agreements::<Test>::iter_keys().next().unwrap();
+		assert_ok!(StorageProvider::terminate_agreement(
+			RuntimeOrigin::signed(OWNER),
+			agreement_id,
+			1,
+		));
+		let terminal = Agreements::<Test>::get(agreement_id).unwrap();
+		assert_eq!(terminal.status, AgreementStatus::Cancelled);
+		assert_eq!(terminal.capacity_state, AgreementCapacityState::Pending);
+		assert_eq!(terminal.release_at, Some(12));
+		assert_eq!(Providers::<Test>::get(2).unwrap().pending_bytes, 40);
+
+		set_finalized(2);
+		register(5, 10_000);
+		let bucket_index = BucketAgreements::<Test>::get(bucket);
+		assert_ok!(StorageProvider::replace_bucket_replica(
+			RuntimeOrigin::signed(OWNER),
+			bucket,
+			1,
+			2,
+			5,
+		));
+		let rebound = Agreements::<Test>::get(agreement_id).unwrap();
+		assert_eq!(rebound.status, AgreementStatus::Cancelled);
+		assert_eq!(rebound.capacity_state, AgreementCapacityState::Pending);
+		assert_eq!(rebound.release_at, Some(12));
+		assert_eq!(rebound.version, 3);
+		assert!(!rebound.replicas.contains(&2));
+		assert!(rebound.replicas.contains(&5));
+		assert_eq!(BucketAgreements::<Test>::get(bucket), bucket_index);
+		assert_eq!(
+			BucketAgreements::<Test>::get(bucket)
+				.iter()
+				.filter(|id| **id == agreement_id)
+				.count(),
+			1
+		);
+		assert!(!ProviderAgreements::<Test>::get(2).contains(&agreement_id));
+		assert_eq!(
+			ProviderAgreements::<Test>::get(5)
+				.iter()
+				.filter(|id| **id == agreement_id)
+				.count(),
+			1
+		);
+		assert_eq!(Providers::<Test>::get(2).unwrap().pending_bytes, 0);
+		assert_eq!(Providers::<Test>::get(5).unwrap().pending_bytes, 40);
+
+		System::set_block_number(12);
+		StorageProvider::on_initialize(12);
+		assert_eq!(
+			Agreements::<Test>::get(agreement_id).unwrap().capacity_state,
+			AgreementCapacityState::Released
+		);
+		assert_eq!(Providers::<Test>::get(5).unwrap().pending_bytes, 0);
+		assert!(!BucketAgreements::<Test>::get(bucket).contains(&agreement_id));
+		assert!(!ProviderAgreements::<Test>::get(5).contains(&agreement_id));
+	});
+}
+
+#[test]
 fn replica_replacement_capacity_failure_rolls_back_every_index_and_counter() {
 	new_test_ext().execute_with(|| {
 		let bucket = setup_bucket();
@@ -821,22 +892,42 @@ fn replica_replacement_capacity_failure_rolls_back_every_index_and_counter() {
 			50,
 		));
 		let agreement_id = Agreements::<Test>::iter_keys().next().unwrap();
+		assert_ok!(StorageProvider::terminate_agreement(
+			RuntimeOrigin::signed(OWNER),
+			agreement_id,
+			1,
+		));
 		let before_bucket = Buckets::<Test>::get(bucket).unwrap();
 		let before_agreement = Agreements::<Test>::get(agreement_id).unwrap();
-		let old_record = Providers::<Test>::get(2).unwrap();
-		let new_record = Providers::<Test>::get(5).unwrap();
+		assert_eq!(before_agreement.status, AgreementStatus::Cancelled);
+		assert_eq!(before_agreement.capacity_state, AgreementCapacityState::Pending);
+		let bucket_index = BucketAgreements::<Test>::get(bucket);
+		let provider_indexes = (1..=5).map(ProviderAgreements::<Test>::get).collect::<Vec<_>>();
+		let provider_records = (1..=5).map(Providers::<Test>::get).collect::<Vec<_>>();
+		let assignment_counts =
+			(1..=5).map(ProviderBucketAssignmentCount::<Test>::get).collect::<Vec<_>>();
+		let release_queue = CapacityReleases::<Test>::get(12);
+		let pending_duty = CheckpointDutyPending::<Test>::get(bucket);
+		let events = System::events().len();
 		assert_noop!(
 			StorageProvider::replace_bucket_replica(RuntimeOrigin::signed(OWNER), bucket, 1, 2, 5,),
 			Error::<Test>::AgreementCapacityExceeded
 		);
 		assert_eq!(Buckets::<Test>::get(bucket).unwrap(), before_bucket);
 		assert_eq!(Agreements::<Test>::get(agreement_id).unwrap(), before_agreement);
-		assert_eq!(Providers::<Test>::get(2).unwrap(), old_record);
-		assert_eq!(Providers::<Test>::get(5).unwrap(), new_record);
-		assert!(ProviderAgreements::<Test>::get(2).contains(&agreement_id));
-		assert!(!ProviderAgreements::<Test>::get(5).contains(&agreement_id));
-		assert_eq!(ProviderBucketAssignmentCount::<Test>::get(2), 1);
-		assert_eq!(ProviderBucketAssignmentCount::<Test>::get(5), 0);
+		assert_eq!(BucketAgreements::<Test>::get(bucket), bucket_index);
+		assert_eq!(
+			(1..=5).map(ProviderAgreements::<Test>::get).collect::<Vec<_>>(),
+			provider_indexes
+		);
+		assert_eq!((1..=5).map(Providers::<Test>::get).collect::<Vec<_>>(), provider_records);
+		assert_eq!(
+			(1..=5).map(ProviderBucketAssignmentCount::<Test>::get).collect::<Vec<_>>(),
+			assignment_counts
+		);
+		assert_eq!(CapacityReleases::<Test>::get(12), release_queue);
+		assert_eq!(CheckpointDutyPending::<Test>::get(bucket), pending_duty);
+		assert_eq!(System::events().len(), events);
 	});
 }
 
@@ -1219,6 +1310,141 @@ fn primary_failover_atomically_rebinds_every_non_terminal_agreement_role() {
 				agreement.version,
 			));
 		}
+	});
+}
+
+#[test]
+fn primary_failover_rebinds_terminal_awaiting_release_without_moving_capacity() {
+	new_test_ext().execute_with(|| {
+		let bucket = setup_bucket();
+		assert_ok!(StorageProvider::propose_agreement(
+			RuntimeOrigin::signed(OWNER),
+			bucket,
+			1,
+			40,
+			200,
+		));
+		let agreement_id = Agreements::<Test>::iter_keys().next().unwrap();
+		assert_ok!(StorageProvider::terminate_agreement(
+			RuntimeOrigin::signed(OWNER),
+			agreement_id,
+			1,
+		));
+		let terminal = Agreements::<Test>::get(agreement_id).unwrap();
+		assert_eq!(terminal.status, AgreementStatus::Cancelled);
+		assert_eq!(terminal.capacity_state, AgreementCapacityState::Pending);
+		assert_eq!(terminal.release_at, Some(12));
+		let bucket_index = BucketAgreements::<Test>::get(bucket);
+		let provider_indexes = (1..=3).map(ProviderAgreements::<Test>::get).collect::<Vec<_>>();
+		let provider_capacity = (1..=3)
+			.map(|provider| {
+				let record = Providers::<Test>::get(provider).unwrap();
+				(record.pending_bytes, record.allocated_bytes)
+			})
+			.collect::<Vec<_>>();
+
+		set_finalized(101);
+		submit(payload(bucket, H256::repeat_byte(20), 0, 3, 101));
+		set_finalized(102);
+		Providers::<Test>::mutate(1, |record| {
+			record.as_mut().unwrap().status = ProviderStatus::Suspended
+		});
+		assert_ok!(
+			StorageProvider::refresh_bucket_authority(RuntimeOrigin::signed(OWNER), bucket,)
+		);
+		let rebound = Agreements::<Test>::get(agreement_id).unwrap();
+		assert_eq!(rebound.status, AgreementStatus::Cancelled);
+		assert_eq!(rebound.capacity_state, AgreementCapacityState::Pending);
+		assert_eq!(rebound.release_at, Some(12));
+		assert_eq!(rebound.version, 3);
+		assert_eq!(rebound.primary, 2);
+		assert!(rebound.replicas.contains(&1));
+		assert!(!rebound.replicas.contains(&2));
+		assert_eq!(BucketAgreements::<Test>::get(bucket), bucket_index);
+		assert_eq!(
+			(1..=3).map(ProviderAgreements::<Test>::get).collect::<Vec<_>>(),
+			provider_indexes
+		);
+		assert_eq!(
+			(1..=3)
+				.map(|provider| {
+					let record = Providers::<Test>::get(provider).unwrap();
+					(record.pending_bytes, record.allocated_bytes)
+				})
+				.collect::<Vec<_>>(),
+			provider_capacity
+		);
+
+		System::set_block_number(12);
+		StorageProvider::on_initialize(12);
+		assert_eq!(
+			Agreements::<Test>::get(agreement_id).unwrap().capacity_state,
+			AgreementCapacityState::Released
+		);
+		for provider in 1..=3 {
+			assert_eq!(Providers::<Test>::get(provider).unwrap().pending_bytes, 0);
+			assert!(!ProviderAgreements::<Test>::get(provider).contains(&agreement_id));
+		}
+		assert!(!BucketAgreements::<Test>::get(bucket).contains(&agreement_id));
+	});
+}
+
+#[test]
+fn primary_failover_terminal_rebind_invariant_failure_rolls_back_every_surface() {
+	new_test_ext().execute_with(|| {
+		let bucket = setup_bucket();
+		assert_ok!(StorageProvider::propose_agreement(
+			RuntimeOrigin::signed(OWNER),
+			bucket,
+			1,
+			40,
+			200,
+		));
+		let agreement_id = Agreements::<Test>::iter_keys().next().unwrap();
+		assert_ok!(StorageProvider::terminate_agreement(
+			RuntimeOrigin::signed(OWNER),
+			agreement_id,
+			1,
+		));
+		set_finalized(101);
+		submit(payload(bucket, H256::repeat_byte(20), 0, 3, 101));
+		Agreements::<Test>::mutate(agreement_id, |record| record.as_mut().unwrap().primary = 3);
+		set_finalized(102);
+		Providers::<Test>::mutate(1, |record| {
+			record.as_mut().unwrap().status = ProviderStatus::Suspended
+		});
+		let bucket_before = Buckets::<Test>::get(bucket).unwrap();
+		let agreement_before = Agreements::<Test>::get(agreement_id).unwrap();
+		let bucket_index_before = BucketAgreements::<Test>::get(bucket);
+		let provider_indexes_before =
+			(1..=3).map(ProviderAgreements::<Test>::get).collect::<Vec<_>>();
+		let providers_before = (1..=3).map(Providers::<Test>::get).collect::<Vec<_>>();
+		let assignment_counts_before =
+			(1..=3).map(ProviderBucketAssignmentCount::<Test>::get).collect::<Vec<_>>();
+		let release_queue_before = CapacityReleases::<Test>::get(12);
+		let pending_before = CheckpointDutyPending::<Test>::get(bucket);
+		let current_before = CheckpointDutyCurrent::<Test>::get(bucket);
+		let events = System::events().len();
+		assert_noop!(
+			StorageProvider::refresh_bucket_authority(RuntimeOrigin::signed(OWNER), bucket),
+			Error::<Test>::AgreementInvalidState
+		);
+		assert_eq!(Buckets::<Test>::get(bucket).unwrap(), bucket_before);
+		assert_eq!(Agreements::<Test>::get(agreement_id).unwrap(), agreement_before);
+		assert_eq!(BucketAgreements::<Test>::get(bucket), bucket_index_before);
+		assert_eq!(
+			(1..=3).map(ProviderAgreements::<Test>::get).collect::<Vec<_>>(),
+			provider_indexes_before
+		);
+		assert_eq!((1..=3).map(Providers::<Test>::get).collect::<Vec<_>>(), providers_before);
+		assert_eq!(
+			(1..=3).map(ProviderBucketAssignmentCount::<Test>::get).collect::<Vec<_>>(),
+			assignment_counts_before
+		);
+		assert_eq!(CapacityReleases::<Test>::get(12), release_queue_before);
+		assert_eq!(CheckpointDutyPending::<Test>::get(bucket), pending_before);
+		assert_eq!(CheckpointDutyCurrent::<Test>::get(bucket), current_before);
+		assert_eq!(System::events().len(), events);
 	});
 }
 

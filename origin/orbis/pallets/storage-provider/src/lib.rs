@@ -2391,7 +2391,7 @@ pub mod pallet {
 				let agreement =
 					Agreements::<T>::get(agreement_id).ok_or(Error::<T>::AgreementNotFound)?;
 				ensure!(agreement.bucket_id == bucket_id, Error::<T>::AgreementInvalidState);
-				if agreement.status.is_terminal() {
+				if agreement.capacity_state == AgreementCapacityState::Released {
 					continue
 				}
 				ensure!(agreement.replicas.contains(&old_provider), Error::<T>::ProviderIneligible);
@@ -3471,7 +3471,8 @@ pub mod pallet {
 
 		/// Keep agreement authority aligned with a bucket failover. Both providers were already
 		/// parties to every matching agreement, so capacity and provider indexes do not move; only
-		/// their primary/replica roles change. All fallible validation is completed before writes.
+		/// their primary/replica roles change. Terminal agreements remain bound until their
+		/// capacity is actually released. All fallible validation is completed before writes.
 		fn rebind_failover_agreements(
 			bucket_id: T::Hash,
 			old_primary: &T::AccountId,
@@ -3482,7 +3483,7 @@ pub mod pallet {
 				let mut agreement =
 					Agreements::<T>::get(agreement_id).ok_or(Error::<T>::AgreementNotFound)?;
 				ensure!(agreement.bucket_id == bucket_id, Error::<T>::AgreementInvalidState);
-				if agreement.status.is_terminal() {
+				if agreement.capacity_state == AgreementCapacityState::Released {
 					continue
 				}
 				ensure!(agreement.primary == *old_primary, Error::<T>::AgreementInvalidState);
