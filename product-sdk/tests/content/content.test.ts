@@ -29,8 +29,8 @@ import {
   verifyContentBlock,
   type ContentCodec,
   type ContentMultihash,
-} from "../../src/content.ts";
-import { NativeDomainError } from "../../src/errors.ts";
+} from "@cord-network/origin-sdk-cloud-storage";
+import { ContentError } from "@cord-network/origin-sdk-cloud-storage";
 
 const text = new TextEncoder();
 const cidFixture = JSON.parse(
@@ -95,7 +95,7 @@ async function errorCode(promise: Promise<unknown>): Promise<string> {
     await promise;
     return "success";
   } catch (error) {
-    assert.ok(error instanceof NativeDomainError);
+    assert.ok(error instanceof ContentError);
     return error.code;
   }
 }
@@ -198,7 +198,7 @@ test("abort signals cancel an in-flight caller transport with one typed result",
     await pending;
     assert.fail("fetch should be cancelled");
   } catch (error) {
-    assert.ok(error instanceof NativeDomainError);
+    assert.ok(error instanceof ContentError);
     assert.equal(error.code, "content_unavailable");
     assert.equal(error.details.cancelled, true);
   }

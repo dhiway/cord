@@ -16,8 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-export * from "./errors.ts";
-export * from "./host.ts";
-export * from "./sponsored-transaction.ts";
 export * from "./types.ts";
-export * from "./version.ts";
+export * from "./content.ts";
+export * from "./storage.ts";
+export * from "./provider.ts";
+export * from "./drive.ts";
+export * from "./s3.ts";
+export * from "./events.ts";
+export * from "./requests.ts";
+export * from "./client.ts";

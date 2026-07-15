@@ -121,9 +121,9 @@ journey = "Applications upload, renew, fetch, and delegate content"
 runtime_owner = "TransactionStorage, StorageProvider, Drive, and S3 pallets"
 sdk_owner = "origin-sdk-cloud-storage"
 host_owner = "Preimages, transport, and secret material"
-state = "runtime-present-sdk-partial"
+state = "runtime-sdk-present-host-preimage-integration-pending"
 contract_policy = "forbidden-native-authority"
-evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs; product-sdk/src/storage.ts"
+evidence = "origin/orbis/pallets/transaction-storage/src/lib.rs; product-sdk/packages/origin-sdk-cloud-storage/src/index.ts"
 
 [[capability]]
 id = "statement-store"

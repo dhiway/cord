@@ -16,8 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-import { invalidDomainInput } from "./errors.ts";
-import type { AccountId, AgreementId, BlockHash, BlockNumber, BucketId, ChallengeId, ContentCommitment, DecimalU64, DriveId, ObjectId, ProviderId } from "./types.ts";
+import { invalidDomainInput, type AccountId, type AgreementId, type BlockHash, type BlockNumber, type BucketId, type ChallengeId, type ContentCommitment, type DecimalU64, type DriveId, type ObjectId, type ProviderId } from "./types.ts";
 
 export type StorageNativeEventKind =
   | "provider_registered" | "provider_updated" | "provider_status_changed" | "provider_removed" | "heartbeat"

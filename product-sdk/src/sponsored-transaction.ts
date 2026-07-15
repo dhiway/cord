@@ -21,21 +21,18 @@ import type { JsonObject } from "./errors.ts";
 import type { AccountId, BlockNumber, Hash32 } from "./types.ts";
 import type { attestationHostRoutes } from "../packages/descriptors/src/attestation-host-routes.ts";
 import type { namesHostRoutes } from "../packages/descriptors/src/names-host-routes.ts";
-import type { drive } from "./drive.ts";
+import type { driveHostRoutes, providerHostRoutes, s3HostRoutes, storageHostRoutes } from "../packages/descriptors/src/storage-host-routes.ts";
 import type { identityHostRoutes, personhoodHostRoutes } from "../packages/descriptors/src/identity-host-routes.ts";
-import type { provider } from "./provider.ts";
-import type { s3 } from "./s3.ts";
-import type { storage } from "./storage.ts";
 
 type NativeRouteFactory =
   | typeof attestationHostRoutes[keyof typeof attestationHostRoutes]
   | typeof namesHostRoutes[keyof typeof namesHostRoutes]
-  | typeof drive[keyof typeof drive]
+  | typeof driveHostRoutes[keyof typeof driveHostRoutes]
   | typeof identityHostRoutes[keyof typeof identityHostRoutes]
   | typeof personhoodHostRoutes[keyof typeof personhoodHostRoutes]
-  | typeof provider[keyof typeof provider]
-  | typeof s3[keyof typeof s3]
-  | typeof storage[keyof typeof storage];
+  | typeof providerHostRoutes[keyof typeof providerHostRoutes]
+  | typeof s3HostRoutes[keyof typeof s3HostRoutes]
+  | typeof storageHostRoutes[keyof typeof storageHostRoutes];
 
 type NativeRouteRequestOf<Factory> = Factory extends (...args: never[]) => infer Request
   ? Request

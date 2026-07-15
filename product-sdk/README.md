@@ -92,7 +92,7 @@ validator rejects version, metadata, descriptor, route, or schema drift.
 
 ## Verified content retrieval
 
-`src/content.ts` is the CORD-owned, transport-neutral content client. Applications
+`@cord-network/origin-sdk-cloud-storage` provides the CORD-owned, transport-neutral content client. Applications
 inject an ordered set of gateway and/or Bitswap block providers; the SDK applies
 that order deterministically, bounds block/file sizes and DAG block counts, and
 verifies CIDv0/v1 SHA2-256 or Blake2b-256 multihashes before returning bytes.

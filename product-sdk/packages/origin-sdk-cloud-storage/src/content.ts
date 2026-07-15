@@ -16,8 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-import { NativeDomainError, type JsonObject } from "./errors.ts";
+import { OriginSdkError } from "@cord-network/origin-sdk-errors";
 import { blake2b256 } from "@cord-network/origin-sdk-crypto";
+type JsonValue = null | boolean | number | string | JsonValue[] | JsonObject;
+type JsonObject = { [key: string]: JsonValue };
+export class ContentError extends OriginSdkError {
+  readonly operation: string;
+  constructor(_domain: "content", operation: string, code: string, message: string, retryable=false, details: JsonObject={}) {
+    super({ source: "cloud-storage", domain: `content.${operation}`, code, message, retryable, details });
+    this.name = "ContentError"; this.operation = operation;
+  }
+}
+
 
 export type ContentCodec = "raw" | "dag-pb";
 export type ContentMultihash = "blake2b-256" | "sha2-256";
@@ -97,8 +107,8 @@ function contentError(
   message: string,
   retryable = false,
   details: JsonObject = {},
-): NativeDomainError {
-  return new NativeDomainError("content", operation, code, message, retryable, details);
+): ContentError {
+  return new ContentError("content", operation, code, message, retryable, details);
 }
 
 function assertBound(value: number, label: string): void {
@@ -107,7 +117,7 @@ function assertBound(value: number, label: string): void {
   }
 }
 
-function cancelled(operation: string): NativeDomainError {
+function cancelled(operation: string): ContentError {
   return contentError(operation, "content_unavailable", "content fetch cancelled", false, {
     cancelled: true,
   });
@@ -360,7 +370,7 @@ export function parseContentCid(cid: string): ParsedContentCid {
     const hash = parseMultihash(bytes, codec.next);
     return { version: 1, codec: codecName(codec.value), ...hash };
   } catch (error) {
-    if (error instanceof NativeDomainError) throw error;
+    if (error instanceof ContentError) throw error;
     throw contentError("cid.parse", "content_integrity", error instanceof Error ? error.message : "invalid CID");
   }
 }
@@ -567,7 +577,7 @@ export class ContentClient {
         return bytes;
       } catch (error) {
         if (signal?.aborted) throw cancelled("fetch");
-        if (error instanceof NativeDomainError && error.code === "content_integrity") {
+        if (error instanceof ContentError && error.code === "content_integrity") {
           sawIntegrityFailure = true;
           attempts.push(`${provider.id}:content_integrity`);
         } else {
@@ -652,7 +662,7 @@ export class ContentClient {
         "fetch",
       );
     } catch (error) {
-      if (error instanceof NativeDomainError) throw error;
+      if (error instanceof ContentError) throw error;
       throw contentError("fetch", "content_unavailable", "DAG-PB/UnixFS decoder failed", false, {
         decoder_failed: true,
       });

@@ -18,8 +18,8 @@
 
 import { ProductSdkError } from "../../core/src/contract.ts";
 import type { TypedFinalizedEvent, TypedFinalizedEventSource } from "./attestation-events.ts";
-import { storageNativeEventOutcome, type FinalizedStorageNativeEvent, type StorageNativeEvent, type StorageNativeEventKind, type StorageNativeEventSubscription, type StorageNativeOutcome } from "../../../src/storage-events.ts";
-import type { AccountId, AgreementId, BlockHash, BlockNumber, BucketId, ChallengeId, ContentCommitment, DecimalU64, DriveId, ObjectId, ProviderId } from "../../../src/types.ts";
+import { storageNativeEventOutcome, type FinalizedStorageNativeEvent, type StorageNativeEvent, type StorageNativeEventKind, type StorageNativeEventSubscription, type StorageNativeOutcome } from "@cord-network/origin-sdk-cloud-storage";
+import type { AccountId, AgreementId, BlockHash, BlockNumber, BucketId, ChallengeId, ContentCommitment, DecimalU64, DriveId, ObjectId, ProviderId } from "@cord-network/origin-sdk-cloud-storage";
 export interface FinalizedStorageNativeOutcome{readonly event:FinalizedStorageNativeEvent;readonly outcome:StorageNativeOutcome}
 const HASH=/^0x[0-9a-f]{64}$/i,DECIMAL=/^(0|[1-9][0-9]*)$/,U64=18_446_744_073_709_551_615n;
 function reject(m:string):never{throw new ProductSdkError("runtime_rejected",m)}

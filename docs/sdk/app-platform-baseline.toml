@@ -16,8 +16,8 @@ production_ready = false
 [locks]
 cargo_toml_sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
 cargo_lock_sha256 = "24adde73138855dbf401450a407391dba1e5f7ebd6484729daf885451cbf14f1"
-product_sdk_package_sha256 = "627bba8a8e0892087ce39b9b5fff518d64c3551fe421e194958e4f3546fece11"
-product_sdk_lock_sha256 = "db779a4e04547aa60f7c841651a743779f27327a91f41bf9713a0aeaaadb7ce7"
+product_sdk_package_sha256 = "38ffacae22d0a6f74deae604516159b3dc713dd10150bfd388a5f365048b20f5"
+product_sdk_lock_sha256 = "1ddd072b4d3e9fe60b122c8ac08bc05b240ecfb47206a55a55b00f0df7674d3e"
 cord_sdk_revision = "cc190ea83c590b6a14a6b9771ab02c81618dc118"
 cord_sdk_branch = "release-v1.24.0"
 reference_product_sdk_revision = "2f359bba28ca72855207a0a519d4118b37b4438c"
