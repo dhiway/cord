@@ -1,0 +1,2760 @@
+{
+  "protocol": "cord.origin.host/2",
+  "encoding": "RFC8949-4.2.3.1-length-first",
+  "registry_sha256": "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba",
+  "cbor_sha256": "9ef6624ba14275b9e30cca8ff786255011962e05986a12aac0071c85427be71c",
+  "vectors": [
+    {
+      "id": "wire-1001-canonical",
+      "valid": true,
+      "expected": "StorageBucketGetRequest",
+      "wire_hex": "a700020150000000000000000000000000000000000268666573746976616c031903e9045820010101010101010101010101010101010101010101010101010101010101010107186408a10058200202020202020202020202020202020202020202020202020202020202020202"
+    },
+    {
+      "id": "wire-noncanonical-long-version",
+      "valid": false,
+      "expected_error": "WIRE_NON_CANONICAL",
+      "wire_hex": "a70018020150000000000000000000000000000000000268666573746976616c031903e9045820010101010101010101010101010101010101010101010101010101010101010107186408a10058200202020202020202020202020202020202020202020202020202020202020202"
+    },
+    {
+      "id": "wire-noncanonical-indefinite-map",
+      "valid": false,
+      "expected_error": "WIRE_NON_CANONICAL",
+      "wire_hex": "bf00020150000000000000000000000000000000000268666573746976616c031903e9045820010101010101010101010101010101010101010101010101010101010101010107186408a10058200202020202020202020202020202020202020202020202020202020202020202ff"
+    },
+    {
+      "id": "wire-noncanonical-reversed-map",
+      "valid": false,
+      "expected_error": "WIRE_NON_CANONICAL",
+      "wire_hex": "a708a100582002020202020202020202020202020202020202020202020202020202020202020718640458200101010101010101010101010101010101010101010101010101010101010101031903e90268666573746976616c0150000000000000000000000000000000000002"
+    },
+    {
+      "id": "wire-schema-duplicate-key",
+      "valid": false,
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a800020150000000000000000000000000000000000268666573746976616c031903e9045820010101010101010101010101010101010101010101010101010101010101010107186408a100582002020202020202020202020202020202020202020202020202020202020202020002"
+    },
+    {
+      "id": "wire-noncanonical-tag",
+      "valid": false,
+      "expected_error": "WIRE_NON_CANONICAL",
+      "wire_hex": "d818a700020150000000000000000000000000000000000268666573746976616c031903e9045820010101010101010101010101010101010101010101010101010101010101010107186408a10058200202020202020202020202020202020202020202020202020202020202020202"
+    },
+    {
+      "id": "wire-schema-float",
+      "valid": false,
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a800020150000000000000000000000000000000000268666573746976616c031903e9045820010101010101010101010101010101010101010101010101010101010101010107186408a1005820020202020202020202020202020202020202020202020202020202020202020209fb0000000000000000"
+    },
+    {
+      "id": "wire-schema-invalid-utf8",
+      "valid": false,
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a10261ff"
+    },
+    {
+      "id": "wire-noncanonical-indefinite-bytes",
+      "valid": false,
+      "expected_error": "WIRE_NON_CANONICAL",
+      "wire_hex": "a1015f5000000000000000000000000000000000ff"
+    },
+    {
+      "id": "1000-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.bucket.create",
+      "cddl": {
+        "Request": "StorageBucketCreateRequest",
+        "Accepted": "StorageBucketCreateAccepted",
+        "Progress": "StorageBucketCreateProgress",
+        "Result": "StorageBucketCreateResult",
+        "Error": "StorageBucketCreateError"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031903e8045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a30001018258202222222222222222222222222222222222222222222222222222222222222222582022222222222222222222222222222222222222222222222222222222222222220200",
+      "wire_sha256": "bca8522000d9f3a7414231b9c1f2da4d32fbe8d9ff830a7bba351d98c67a9ea3",
+      "concrete": true
+    },
+    {
+      "id": "1000-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.bucket.create",
+      "cddl": {
+        "Request": "StorageBucketCreateRequest",
+        "Accepted": "StorageBucketCreateAccepted",
+        "Progress": "StorageBucketCreateProgress",
+        "Result": "StorageBucketCreateResult",
+        "Error": "StorageBucketCreateError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903e80458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "dbb2b015b8ea768dc6b6817d2da86ea42d29013821fda8150e5005c834d6ce8b",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1000-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.bucket.create",
+      "cddl": {
+        "Request": "StorageBucketCreateRequest",
+        "Accepted": "StorageBucketCreateAccepted",
+        "Progress": "StorageBucketCreateProgress",
+        "Result": "StorageBucketCreateResult",
+        "Error": "StorageBucketCreateError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031903e8045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a30001018258202222222222222222222222222222222222222222222222222222222222222222582022222222222222222222222222222222222222222222222222222222222222220200",
+      "wire_sha256": "bca8522000d9f3a7414231b9c1f2da4d32fbe8d9ff830a7bba351d98c67a9ea3",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1001-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.bucket.get",
+      "cddl": {
+        "Request": "StorageBucketGetRequest",
+        "Accepted": "StorageBucketGetAccepted",
+        "Progress": "StorageBucketGetProgress",
+        "Result": "StorageBucketGetResult",
+        "Error": "StorageBucketGetError"
+      },
+      "expected": "accept",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903e9045820222222222222222222222222222222222222222222222222222222222222222207186408a10058202222222222222222222222222222222222222222222222222222222222222222",
+      "wire_sha256": "baecf516d23752fb11d20a47de820ce5908e977ab14c6ad0ffb5fa73ed134c84",
+      "concrete": true
+    },
+    {
+      "id": "1001-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.bucket.get",
+      "cddl": {
+        "Request": "StorageBucketGetRequest",
+        "Accepted": "StorageBucketGetAccepted",
+        "Progress": "StorageBucketGetProgress",
+        "Result": "StorageBucketGetResult",
+        "Error": "StorageBucketGetError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c031903e90458202222222222222222222222222222222222222222222222222222222222222222071864",
+      "wire_sha256": "705cfe2496a8dc07ceaef9bfd2055ac3b04f3d6999435ef16fb4d1a9ea75c6f0",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1001-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.bucket.get",
+      "cddl": {
+        "Request": "StorageBucketGetRequest",
+        "Accepted": "StorageBucketGetAccepted",
+        "Progress": "StorageBucketGetProgress",
+        "Result": "StorageBucketGetResult",
+        "Error": "StorageBucketGetError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903e9045820222222222222222222222222222222222222222222222222222222222222222207186408a10058202222222222222222222222222222222222222222222222222222222222222222",
+      "wire_sha256": "baecf516d23752fb11d20a47de820ce5908e977ab14c6ad0ffb5fa73ed134c84",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1002-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.bucket.grant",
+      "cddl": {
+        "Request": "StorageBucketGrantRequest",
+        "Accepted": "StorageBucketGrantAccepted",
+        "Progress": "StorageBucketGrantProgress",
+        "Result": "StorageBucketGrantResult",
+        "Error": "StorageBucketGrantError"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031903ea045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a500582022222222222222222222222222222222222222222222222222222222222222220158202222222222222222222222222222222222222222222222222222222222222222020003010401",
+      "wire_sha256": "c01909f0b92d45d4c8b414725d5808387bcc401a7b70897f4b79a03fe4069f75",
+      "concrete": true
+    },
+    {
+      "id": "1002-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.bucket.grant",
+      "cddl": {
+        "Request": "StorageBucketGrantRequest",
+        "Accepted": "StorageBucketGrantAccepted",
+        "Progress": "StorageBucketGrantProgress",
+        "Result": "StorageBucketGrantResult",
+        "Error": "StorageBucketGrantError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903ea0458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "840e2cd08dadb592c803dacd431b79278b76b86a913ccdcbedec45c903d81442",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1002-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.bucket.grant",
+      "cddl": {
+        "Request": "StorageBucketGrantRequest",
+        "Accepted": "StorageBucketGrantAccepted",
+        "Progress": "StorageBucketGrantProgress",
+        "Result": "StorageBucketGrantResult",
+        "Error": "StorageBucketGrantError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031903ea045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a500582022222222222222222222222222222222222222222222222222222222222222220158202222222222222222222222222222222222222222222222222222222222222222020003010401",
+      "wire_sha256": "c01909f0b92d45d4c8b414725d5808387bcc401a7b70897f4b79a03fe4069f75",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1003-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.bucket.revoke",
+      "cddl": {
+        "Request": "StorageBucketRevokeRequest",
+        "Accepted": "StorageBucketRevokeAccepted",
+        "Progress": "StorageBucketRevokeProgress",
+        "Result": "StorageBucketRevokeResult",
+        "Error": "StorageBucketRevokeError"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031903eb045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a3005820222222222222222222222222222222222222222222222222222222222222222201582022222222222222222222222222222222222222222222222222222222222222220201",
+      "wire_sha256": "a88020d6c588967b58b08bd5ca41875b70769e78bbe77b7e7bd7d345edf759a4",
+      "concrete": true
+    },
+    {
+      "id": "1003-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.bucket.revoke",
+      "cddl": {
+        "Request": "StorageBucketRevokeRequest",
+        "Accepted": "StorageBucketRevokeAccepted",
+        "Progress": "StorageBucketRevokeProgress",
+        "Result": "StorageBucketRevokeResult",
+        "Error": "StorageBucketRevokeError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903eb0458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "c9f77b73bd21f4f413181611bd50734050630cac486d2208cf72e02d79b78196",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1003-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.bucket.revoke",
+      "cddl": {
+        "Request": "StorageBucketRevokeRequest",
+        "Accepted": "StorageBucketRevokeAccepted",
+        "Progress": "StorageBucketRevokeProgress",
+        "Result": "StorageBucketRevokeResult",
+        "Error": "StorageBucketRevokeError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031903eb045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a3005820222222222222222222222222222222222222222222222222222222222222222201582022222222222222222222222222222222222222222222222222222222222222220201",
+      "wire_sha256": "a88020d6c588967b58b08bd5ca41875b70769e78bbe77b7e7bd7d345edf759a4",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1010-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.object.put",
+      "cddl": {
+        "Request": "StorageObjectPutRequest",
+        "Accepted": "StorageObjectPutAccepted",
+        "Progress": "StorageObjectPutProgress",
+        "Result": "StorageObjectPutResult",
+        "Error": "StorageObjectPutError"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031903f2045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a5005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c747072663772327102010300045011111111111111111111111111111111",
+      "wire_sha256": "7adeb9f13323674a316f265e0a68a1737a4328221934eda796cd50c49ca31fe4",
+      "concrete": true
+    },
+    {
+      "id": "1010-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.object.put",
+      "cddl": {
+        "Request": "StorageObjectPutRequest",
+        "Accepted": "StorageObjectPutAccepted",
+        "Progress": "StorageObjectPutProgress",
+        "Result": "StorageObjectPutResult",
+        "Error": "StorageObjectPutError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903f20458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "a075599476755df0b7babf0276a7c8a6e6bfd3871035affbb337b21191616855",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1010-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.object.put",
+      "cddl": {
+        "Request": "StorageObjectPutRequest",
+        "Accepted": "StorageObjectPutAccepted",
+        "Progress": "StorageObjectPutProgress",
+        "Result": "StorageObjectPutResult",
+        "Error": "StorageObjectPutError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031903f2045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a5005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c747072663772327102010300045011111111111111111111111111111111",
+      "wire_sha256": "7adeb9f13323674a316f265e0a68a1737a4328221934eda796cd50c49ca31fe4",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1011-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.object.get",
+      "cddl": {
+        "Request": "StorageObjectGetRequest",
+        "Accepted": "StorageObjectGetAccepted",
+        "Progress": "StorageObjectGetProgress",
+        "Result": "StorageObjectGetResult",
+        "Error": "StorageObjectGetError"
+      },
+      "expected": "accept",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903f3045820222222222222222222222222222222222222222222222222222222222222222207186408a2005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c7470726637723271",
+      "wire_sha256": "bb91bd598577d8c67cc82e9cfe7977bc9491957c8fdd79b569da040320c1137f",
+      "concrete": true
+    },
+    {
+      "id": "1011-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.object.get",
+      "cddl": {
+        "Request": "StorageObjectGetRequest",
+        "Accepted": "StorageObjectGetAccepted",
+        "Progress": "StorageObjectGetProgress",
+        "Result": "StorageObjectGetResult",
+        "Error": "StorageObjectGetError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c031903f30458202222222222222222222222222222222222222222222222222222222222222222071864",
+      "wire_sha256": "16714c286de204e87b1106b08d939087874e49a914f1a2fe830bf1aa9d0f7fd4",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1011-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.object.get",
+      "cddl": {
+        "Request": "StorageObjectGetRequest",
+        "Accepted": "StorageObjectGetAccepted",
+        "Progress": "StorageObjectGetProgress",
+        "Result": "StorageObjectGetResult",
+        "Error": "StorageObjectGetError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903f3045820222222222222222222222222222222222222222222222222222222222222222207186408a2005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c7470726637723271",
+      "wire_sha256": "bb91bd598577d8c67cc82e9cfe7977bc9491957c8fdd79b569da040320c1137f",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1012-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.object.range",
+      "cddl": {
+        "Request": "StorageObjectRangeRequest",
+        "Accepted": "StorageObjectRangeAccepted",
+        "Progress": "StorageObjectRangeProgress",
+        "Result": "StorageObjectRangeResult",
+        "Error": "StorageObjectRangeError"
+      },
+      "expected": "accept",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903f4045820222222222222222222222222222222222222222222222222222222222222222207186408a4005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c747072663772327102010301",
+      "wire_sha256": "2e19b091424dfb51c8db2b76f63a9ef1cfeaeca4f1090ceb1e046b5184a4a8cc",
+      "concrete": true
+    },
+    {
+      "id": "1012-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.object.range",
+      "cddl": {
+        "Request": "StorageObjectRangeRequest",
+        "Accepted": "StorageObjectRangeAccepted",
+        "Progress": "StorageObjectRangeProgress",
+        "Result": "StorageObjectRangeResult",
+        "Error": "StorageObjectRangeError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c031903f40458202222222222222222222222222222222222222222222222222222222222222222071864",
+      "wire_sha256": "ab8092ab5cc827f6972c2a34fe68c9a21a6d209c5b558a02077d66769a1ee691",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1012-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.object.range",
+      "cddl": {
+        "Request": "StorageObjectRangeRequest",
+        "Accepted": "StorageObjectRangeAccepted",
+        "Progress": "StorageObjectRangeProgress",
+        "Result": "StorageObjectRangeResult",
+        "Error": "StorageObjectRangeError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903f4045820222222222222222222222222222222222222222222222222222222222222222207186408a4005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c747072663772327102010301",
+      "wire_sha256": "2e19b091424dfb51c8db2b76f63a9ef1cfeaeca4f1090ceb1e046b5184a4a8cc",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1013-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.object.delete",
+      "cddl": {
+        "Request": "StorageObjectDeleteRequest",
+        "Accepted": "StorageObjectDeleteAccepted",
+        "Progress": "StorageObjectDeleteProgress",
+        "Result": "StorageObjectDeleteResult",
+        "Error": "StorageObjectDeleteError"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031903f5045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a3005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c74707266377232710201",
+      "wire_sha256": "e29fa1454fc932ddfa89f9faecf45fa16336423746d87e2eea39e82292fea42e",
+      "concrete": true
+    },
+    {
+      "id": "1013-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.object.delete",
+      "cddl": {
+        "Request": "StorageObjectDeleteRequest",
+        "Accepted": "StorageObjectDeleteAccepted",
+        "Progress": "StorageObjectDeleteProgress",
+        "Result": "StorageObjectDeleteResult",
+        "Error": "StorageObjectDeleteError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903f50458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "5cdabc763513abfd288b08311ee190ab808f3f6d7827cc9270a08f69c6d75e35",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1013-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.object.delete",
+      "cddl": {
+        "Request": "StorageObjectDeleteRequest",
+        "Accepted": "StorageObjectDeleteAccepted",
+        "Progress": "StorageObjectDeleteProgress",
+        "Result": "StorageObjectDeleteResult",
+        "Error": "StorageObjectDeleteError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031903f5045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a3005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c74707266377232710201",
+      "wire_sha256": "e29fa1454fc932ddfa89f9faecf45fa16336423746d87e2eea39e82292fea42e",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1014-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.object.status",
+      "cddl": {
+        "Request": "StorageObjectStatusRequest",
+        "Accepted": "StorageObjectStatusAccepted",
+        "Progress": "StorageObjectStatusProgress",
+        "Result": "StorageObjectStatusResult",
+        "Error": "StorageObjectStatusError"
+      },
+      "expected": "accept",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903f6045820222222222222222222222222222222222222222222222222222222222222222207186408a2005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c7470726637723271",
+      "wire_sha256": "5325df3cdbd79565819b882c31d2b7befbcde9685eb0ece093a2c77d9603349a",
+      "concrete": true
+    },
+    {
+      "id": "1014-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.object.status",
+      "cddl": {
+        "Request": "StorageObjectStatusRequest",
+        "Accepted": "StorageObjectStatusAccepted",
+        "Progress": "StorageObjectStatusProgress",
+        "Result": "StorageObjectStatusResult",
+        "Error": "StorageObjectStatusError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c031903f60458202222222222222222222222222222222222222222222222222222222222222222071864",
+      "wire_sha256": "54f6f30a0ccc3deab19a3dfb326ecfe5d842791cee31c9cbadf981420de114c5",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1014-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.object.status",
+      "cddl": {
+        "Request": "StorageObjectStatusRequest",
+        "Accepted": "StorageObjectStatusAccepted",
+        "Progress": "StorageObjectStatusProgress",
+        "Result": "StorageObjectStatusResult",
+        "Error": "StorageObjectStatusError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903f6045820222222222222222222222222222222222222222222222222222222222222222207186408a2005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c7470726637723271",
+      "wire_sha256": "5325df3cdbd79565819b882c31d2b7befbcde9685eb0ece093a2c77d9603349a",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1020-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.checkpoint.status",
+      "cddl": {
+        "Request": "StorageCheckpointStatusRequest",
+        "Accepted": "StorageCheckpointStatusAccepted",
+        "Progress": "StorageCheckpointStatusProgress",
+        "Result": "StorageCheckpointStatusResult",
+        "Error": "StorageCheckpointStatusError"
+      },
+      "expected": "accept",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903fc045820222222222222222222222222222222222222222222222222222222222222222207186408a10058202222222222222222222222222222222222222222222222222222222222222222",
+      "wire_sha256": "85e0e43b20f5345c879df6e6bbd71cc4205e1c7e79fd3301a640b46e840283e4",
+      "concrete": true
+    },
+    {
+      "id": "1020-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.checkpoint.status",
+      "cddl": {
+        "Request": "StorageCheckpointStatusRequest",
+        "Accepted": "StorageCheckpointStatusAccepted",
+        "Progress": "StorageCheckpointStatusProgress",
+        "Result": "StorageCheckpointStatusResult",
+        "Error": "StorageCheckpointStatusError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c031903fc0458202222222222222222222222222222222222222222222222222222222222222222071864",
+      "wire_sha256": "82075cc7ac6526d30c99d55d81ca72e968e8b57073c4c59dd54361ffeba4f45f",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1020-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.checkpoint.status",
+      "cddl": {
+        "Request": "StorageCheckpointStatusRequest",
+        "Accepted": "StorageCheckpointStatusAccepted",
+        "Progress": "StorageCheckpointStatusProgress",
+        "Result": "StorageCheckpointStatusResult",
+        "Error": "StorageCheckpointStatusError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903fc045820222222222222222222222222222222222222222222222222222222222222222207186408a10058202222222222222222222222222222222222222222222222222222222222222222",
+      "wire_sha256": "85e0e43b20f5345c879df6e6bbd71cc4205e1c7e79fd3301a640b46e840283e4",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1021-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.checkpoint.subscribe",
+      "cddl": {
+        "Request": "StorageCheckpointSubscribeRequest",
+        "Accepted": "StorageCheckpointSubscribeAccepted",
+        "Progress": "StorageCheckpointSubscribeProgress",
+        "Result": "StorageCheckpointSubscribeResult",
+        "Error": "StorageCheckpointSubscribeError",
+        "SubscriptionEvent": "StorageCheckpointSubscribeSubscriptionEvent",
+        "UnsubscribeAck": "StorageCheckpointSubscribeUnsubscribeAck"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031903fd045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a200582022222222222222222222222222222222222222222222222222222222222222220101",
+      "wire_sha256": "1aa4584e0d8d6e577963e62aec08b5528101e6fe081b553565b68577987de819",
+      "concrete": true
+    },
+    {
+      "id": "1021-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.checkpoint.subscribe",
+      "cddl": {
+        "Request": "StorageCheckpointSubscribeRequest",
+        "Accepted": "StorageCheckpointSubscribeAccepted",
+        "Progress": "StorageCheckpointSubscribeProgress",
+        "Result": "StorageCheckpointSubscribeResult",
+        "Error": "StorageCheckpointSubscribeError",
+        "SubscriptionEvent": "StorageCheckpointSubscribeSubscriptionEvent",
+        "UnsubscribeAck": "StorageCheckpointSubscribeUnsubscribeAck"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903fd0458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "13ec779411ee37d08752217675a927fd0887246395c9393cd4e455695eb88d6a",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1021-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.checkpoint.subscribe",
+      "cddl": {
+        "Request": "StorageCheckpointSubscribeRequest",
+        "Accepted": "StorageCheckpointSubscribeAccepted",
+        "Progress": "StorageCheckpointSubscribeProgress",
+        "Result": "StorageCheckpointSubscribeResult",
+        "Error": "StorageCheckpointSubscribeError",
+        "SubscriptionEvent": "StorageCheckpointSubscribeSubscriptionEvent",
+        "UnsubscribeAck": "StorageCheckpointSubscribeUnsubscribeAck"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031903fd045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a200582022222222222222222222222222222222222222222222222222222222222222220101",
+      "wire_sha256": "1aa4584e0d8d6e577963e62aec08b5528101e6fe081b553565b68577987de819",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1022-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.replica.status",
+      "cddl": {
+        "Request": "StorageReplicaStatusRequest",
+        "Accepted": "StorageReplicaStatusAccepted",
+        "Progress": "StorageReplicaStatusProgress",
+        "Result": "StorageReplicaStatusResult",
+        "Error": "StorageReplicaStatusError"
+      },
+      "expected": "accept",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903fe045820222222222222222222222222222222222222222222222222222222222222222207186408a10058202222222222222222222222222222222222222222222222222222222222222222",
+      "wire_sha256": "d9cf1e06821ab17506d2002d4515014f82817ef2457ae4e0ece1a11ca8734342",
+      "concrete": true
+    },
+    {
+      "id": "1022-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.replica.status",
+      "cddl": {
+        "Request": "StorageReplicaStatusRequest",
+        "Accepted": "StorageReplicaStatusAccepted",
+        "Progress": "StorageReplicaStatusProgress",
+        "Result": "StorageReplicaStatusResult",
+        "Error": "StorageReplicaStatusError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c031903fe0458202222222222222222222222222222222222222222222222222222222222222222071864",
+      "wire_sha256": "5412f78ba6272f01aecfd3838ec684a099ba3f1008f06207adffa7e8613bec0e",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1022-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.replica.status",
+      "cddl": {
+        "Request": "StorageReplicaStatusRequest",
+        "Accepted": "StorageReplicaStatusAccepted",
+        "Progress": "StorageReplicaStatusProgress",
+        "Result": "StorageReplicaStatusResult",
+        "Error": "StorageReplicaStatusError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903fe045820222222222222222222222222222222222222222222222222222222222222222207186408a10058202222222222222222222222222222222222222222222222222222222222222222",
+      "wire_sha256": "d9cf1e06821ab17506d2002d4515014f82817ef2457ae4e0ece1a11ca8734342",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1023-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.replica.subscribe",
+      "cddl": {
+        "Request": "StorageReplicaSubscribeRequest",
+        "Accepted": "StorageReplicaSubscribeAccepted",
+        "Progress": "StorageReplicaSubscribeProgress",
+        "Result": "StorageReplicaSubscribeResult",
+        "Error": "StorageReplicaSubscribeError",
+        "SubscriptionEvent": "StorageReplicaSubscribeSubscriptionEvent",
+        "UnsubscribeAck": "StorageReplicaSubscribeUnsubscribeAck"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031903ff045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a200582022222222222222222222222222222222222222222222222222222222222222220101",
+      "wire_sha256": "300a417bb3f60207317e58b394f7360cc3f9457ccd80ee18f1885a81399e1122",
+      "concrete": true
+    },
+    {
+      "id": "1023-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.replica.subscribe",
+      "cddl": {
+        "Request": "StorageReplicaSubscribeRequest",
+        "Accepted": "StorageReplicaSubscribeAccepted",
+        "Progress": "StorageReplicaSubscribeProgress",
+        "Result": "StorageReplicaSubscribeResult",
+        "Error": "StorageReplicaSubscribeError",
+        "SubscriptionEvent": "StorageReplicaSubscribeSubscriptionEvent",
+        "UnsubscribeAck": "StorageReplicaSubscribeUnsubscribeAck"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031903ff0458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "d2eb1983b048d1d0283a2f956cab1f9dc8566f2178b82d2761e7d99731836582",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1023-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.replica.subscribe",
+      "cddl": {
+        "Request": "StorageReplicaSubscribeRequest",
+        "Accepted": "StorageReplicaSubscribeAccepted",
+        "Progress": "StorageReplicaSubscribeProgress",
+        "Result": "StorageReplicaSubscribeResult",
+        "Error": "StorageReplicaSubscribeError",
+        "SubscriptionEvent": "StorageReplicaSubscribeSubscriptionEvent",
+        "UnsubscribeAck": "StorageReplicaSubscribeUnsubscribeAck"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031903ff045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a200582022222222222222222222222222222222222222222222222222222222222222220101",
+      "wire_sha256": "300a417bb3f60207317e58b394f7360cc3f9457ccd80ee18f1885a81399e1122",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1024-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.deletion.status",
+      "cddl": {
+        "Request": "StorageDeletionStatusRequest",
+        "Accepted": "StorageDeletionStatusAccepted",
+        "Progress": "StorageDeletionStatusProgress",
+        "Result": "StorageDeletionStatusResult",
+        "Error": "StorageDeletionStatusError"
+      },
+      "expected": "accept",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c03190400045820222222222222222222222222222222222222222222222222222222222222222207186408a2005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c7470726637723271",
+      "wire_sha256": "640a3c310d8c32581ca665cdd50dec19042029e3161275e76830c37c0c95df4d",
+      "concrete": true
+    },
+    {
+      "id": "1024-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.deletion.status",
+      "cddl": {
+        "Request": "StorageDeletionStatusRequest",
+        "Accepted": "StorageDeletionStatusAccepted",
+        "Progress": "StorageDeletionStatusProgress",
+        "Result": "StorageDeletionStatusResult",
+        "Error": "StorageDeletionStatusError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c031904000458202222222222222222222222222222222222222222222222222222222222222222071864",
+      "wire_sha256": "4e49b64b18af9ed93f3c2edeabffbbe46407936e547a555761c2c01f921f02f8",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1024-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.deletion.status",
+      "cddl": {
+        "Request": "StorageDeletionStatusRequest",
+        "Accepted": "StorageDeletionStatusAccepted",
+        "Progress": "StorageDeletionStatusProgress",
+        "Result": "StorageDeletionStatusResult",
+        "Error": "StorageDeletionStatusError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c03190400045820222222222222222222222222222222222222222222222222222222222222222207186408a2005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c7470726637723271",
+      "wire_sha256": "640a3c310d8c32581ca665cdd50dec19042029e3161275e76830c37c0c95df4d",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1025-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.deletion.subscribe",
+      "cddl": {
+        "Request": "StorageDeletionSubscribeRequest",
+        "Accepted": "StorageDeletionSubscribeAccepted",
+        "Progress": "StorageDeletionSubscribeProgress",
+        "Result": "StorageDeletionSubscribeResult",
+        "Error": "StorageDeletionSubscribeError",
+        "SubscriptionEvent": "StorageDeletionSubscribeSubscriptionEvent",
+        "UnsubscribeAck": "StorageDeletionSubscribeUnsubscribeAck"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190401045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a3005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c74707266377232710201",
+      "wire_sha256": "19850200002441a8e0fb9cee5f70f66e52a8021c61c3f8aac50977652b2b268f",
+      "concrete": true
+    },
+    {
+      "id": "1025-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.deletion.subscribe",
+      "cddl": {
+        "Request": "StorageDeletionSubscribeRequest",
+        "Accepted": "StorageDeletionSubscribeAccepted",
+        "Progress": "StorageDeletionSubscribeProgress",
+        "Result": "StorageDeletionSubscribeResult",
+        "Error": "StorageDeletionSubscribeError",
+        "SubscriptionEvent": "StorageDeletionSubscribeSubscriptionEvent",
+        "UnsubscribeAck": "StorageDeletionSubscribeUnsubscribeAck"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031904010458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "aa1107cd0fbca2b51fb30be9667ca845e7b246b846233d7ef2e48ad18d114307",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1025-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.deletion.subscribe",
+      "cddl": {
+        "Request": "StorageDeletionSubscribeRequest",
+        "Accepted": "StorageDeletionSubscribeAccepted",
+        "Progress": "StorageDeletionSubscribeProgress",
+        "Result": "StorageDeletionSubscribeResult",
+        "Error": "StorageDeletionSubscribeError",
+        "SubscriptionEvent": "StorageDeletionSubscribeSubscriptionEvent",
+        "UnsubscribeAck": "StorageDeletionSubscribeUnsubscribeAck"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190401045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a3005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c74707266377232710201",
+      "wire_sha256": "19850200002441a8e0fb9cee5f70f66e52a8021c61c3f8aac50977652b2b268f",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1030-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.drive.read",
+      "cddl": {
+        "Request": "StorageDriveReadRequest",
+        "Accepted": "StorageDriveReadAccepted",
+        "Progress": "StorageDriveReadProgress",
+        "Result": "StorageDriveReadResult",
+        "Error": "StorageDriveReadError"
+      },
+      "expected": "accept",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c03190406045820222222222222222222222222222222222222222222222222222222222222222207186408a20058202222222222222222222222222222222222222222222222222222222222222222016161",
+      "wire_sha256": "892faab8fbbc017f8209d3123e0094b3e27ad9996d2f1ab799e5e27fde4ea113",
+      "concrete": true
+    },
+    {
+      "id": "1030-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.drive.read",
+      "cddl": {
+        "Request": "StorageDriveReadRequest",
+        "Accepted": "StorageDriveReadAccepted",
+        "Progress": "StorageDriveReadProgress",
+        "Result": "StorageDriveReadResult",
+        "Error": "StorageDriveReadError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c031904060458202222222222222222222222222222222222222222222222222222222222222222071864",
+      "wire_sha256": "15c370871ea5a880b02db6913f5144fd2073652de853d9b542f96af38cf017d8",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1030-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.drive.read",
+      "cddl": {
+        "Request": "StorageDriveReadRequest",
+        "Accepted": "StorageDriveReadAccepted",
+        "Progress": "StorageDriveReadProgress",
+        "Result": "StorageDriveReadResult",
+        "Error": "StorageDriveReadError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c03190406045820222222222222222222222222222222222222222222222222222222222222222207186408a20058202222222222222222222222222222222222222222222222222222222222222222016161",
+      "wire_sha256": "892faab8fbbc017f8209d3123e0094b3e27ad9996d2f1ab799e5e27fde4ea113",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1031-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.drive.commit",
+      "cddl": {
+        "Request": "StorageDriveCommitRequest",
+        "Accepted": "StorageDriveCommitAccepted",
+        "Progress": "StorageDriveCommitProgress",
+        "Result": "StorageDriveCommitResult",
+        "Error": "StorageDriveCommitError"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190407045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a5005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c747072663772327102413303010400",
+      "wire_sha256": "202e2678ad16dc059a29f27ed71e9d8bc4deba647a32089b490ee935195b8b30",
+      "concrete": true
+    },
+    {
+      "id": "1031-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.drive.commit",
+      "cddl": {
+        "Request": "StorageDriveCommitRequest",
+        "Accepted": "StorageDriveCommitAccepted",
+        "Progress": "StorageDriveCommitProgress",
+        "Result": "StorageDriveCommitResult",
+        "Error": "StorageDriveCommitError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031904070458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "d528e067c05627a60a6e239280202ec1c7dbf65542361761f8e25c2a7016e367",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1031-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.drive.commit",
+      "cddl": {
+        "Request": "StorageDriveCommitRequest",
+        "Accepted": "StorageDriveCommitAccepted",
+        "Progress": "StorageDriveCommitProgress",
+        "Result": "StorageDriveCommitResult",
+        "Error": "StorageDriveCommitError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190407045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a5005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c747072663772327102413303010400",
+      "wire_sha256": "202e2678ad16dc059a29f27ed71e9d8bc4deba647a32089b490ee935195b8b30",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1032-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.drive.share",
+      "cddl": {
+        "Request": "StorageDriveShareRequest",
+        "Accepted": "StorageDriveShareAccepted",
+        "Progress": "StorageDriveShareProgress",
+        "Result": "StorageDriveShareResult",
+        "Error": "StorageDriveShareError"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190408045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a500582022222222222222222222222222222222222222222222222222222222222222220158202222222222222222222222222222222222222222222222222222222222222222020003010401",
+      "wire_sha256": "815ee090b1d576cddfdaf5b75e23d8c78a5c469fe8b682d8027aadc877c820aa",
+      "concrete": true
+    },
+    {
+      "id": "1032-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.drive.share",
+      "cddl": {
+        "Request": "StorageDriveShareRequest",
+        "Accepted": "StorageDriveShareAccepted",
+        "Progress": "StorageDriveShareProgress",
+        "Result": "StorageDriveShareResult",
+        "Error": "StorageDriveShareError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031904080458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "2cc94df30da1d263c49d882976b69f23fe9e1e67ec2a9cfc04181e831aa1a31d",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1032-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.drive.share",
+      "cddl": {
+        "Request": "StorageDriveShareRequest",
+        "Accepted": "StorageDriveShareAccepted",
+        "Progress": "StorageDriveShareProgress",
+        "Result": "StorageDriveShareResult",
+        "Error": "StorageDriveShareError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190408045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a500582022222222222222222222222222222222222222222222222222222222222222220158202222222222222222222222222222222222222222222222222222222222222222020003010401",
+      "wire_sha256": "815ee090b1d576cddfdaf5b75e23d8c78a5c469fe8b682d8027aadc877c820aa",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1040-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.s3.put",
+      "cddl": {
+        "Request": "StorageS3PutRequest",
+        "Accepted": "StorageS3PutAccepted",
+        "Progress": "StorageS3PutProgress",
+        "Result": "StorageS3PutResult",
+        "Error": "StorageS3PutError"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190410045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a600616101413302783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c74707266377232710340046161065011111111111111111111111111111111",
+      "wire_sha256": "c383b2eb06584e42bee1dea989029db68675f5b6ffe4c86486cbc527418bdc1a",
+      "concrete": true
+    },
+    {
+      "id": "1040-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.s3.put",
+      "cddl": {
+        "Request": "StorageS3PutRequest",
+        "Accepted": "StorageS3PutAccepted",
+        "Progress": "StorageS3PutProgress",
+        "Result": "StorageS3PutResult",
+        "Error": "StorageS3PutError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031904100458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "5de572609895f17e8620c866b2a1a7dc312c0342d822b2f45be1779d951dbe65",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1040-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.s3.put",
+      "cddl": {
+        "Request": "StorageS3PutRequest",
+        "Accepted": "StorageS3PutAccepted",
+        "Progress": "StorageS3PutProgress",
+        "Result": "StorageS3PutResult",
+        "Error": "StorageS3PutError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190410045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a600616101413302783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c74707266377232710340046161065011111111111111111111111111111111",
+      "wire_sha256": "c383b2eb06584e42bee1dea989029db68675f5b6ffe4c86486cbc527418bdc1a",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1041-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.s3.get",
+      "cddl": {
+        "Request": "StorageS3GetRequest",
+        "Accepted": "StorageS3GetAccepted",
+        "Progress": "StorageS3GetProgress",
+        "Result": "StorageS3GetResult",
+        "Error": "StorageS3GetError"
+      },
+      "expected": "accept",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c03190411045820222222222222222222222222222222222222222222222222222222222222222207186408a2006161014133",
+      "wire_sha256": "f1fb0ca9121159dcc86f85be4ac957d1ec218278f1fecf495f8c379db0244dc1",
+      "concrete": true
+    },
+    {
+      "id": "1041-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.s3.get",
+      "cddl": {
+        "Request": "StorageS3GetRequest",
+        "Accepted": "StorageS3GetAccepted",
+        "Progress": "StorageS3GetProgress",
+        "Result": "StorageS3GetResult",
+        "Error": "StorageS3GetError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c031904110458202222222222222222222222222222222222222222222222222222222222222222071864",
+      "wire_sha256": "bb96e505fba48933fa60b5f597634702345a7d883a6c9549ca384ba55534fb1d",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1041-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.s3.get",
+      "cddl": {
+        "Request": "StorageS3GetRequest",
+        "Accepted": "StorageS3GetAccepted",
+        "Progress": "StorageS3GetProgress",
+        "Result": "StorageS3GetResult",
+        "Error": "StorageS3GetError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c03190411045820222222222222222222222222222222222222222222222222222222222222222207186408a2006161014133",
+      "wire_sha256": "f1fb0ca9121159dcc86f85be4ac957d1ec218278f1fecf495f8c379db0244dc1",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1042-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.s3.list",
+      "cddl": {
+        "Request": "StorageS3ListRequest",
+        "Accepted": "StorageS3ListAccepted",
+        "Progress": "StorageS3ListProgress",
+        "Result": "StorageS3ListResult",
+        "Error": "StorageS3ListError"
+      },
+      "expected": "accept",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c03190412045820222222222222222222222222222222222222222222222222222222222222222207186408a20061610301",
+      "wire_sha256": "214e2cff37f62f078b9f054695278b2b1c36a9fd0775757ddc157ccd3c238f9b",
+      "concrete": true
+    },
+    {
+      "id": "1042-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.s3.list",
+      "cddl": {
+        "Request": "StorageS3ListRequest",
+        "Accepted": "StorageS3ListAccepted",
+        "Progress": "StorageS3ListProgress",
+        "Result": "StorageS3ListResult",
+        "Error": "StorageS3ListError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c031904120458202222222222222222222222222222222222222222222222222222222222222222071864",
+      "wire_sha256": "c686c9392a5414810e7775d8ce0480f35fe17be450f35f719e6d1808c9bb1fb7",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1042-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.s3.list",
+      "cddl": {
+        "Request": "StorageS3ListRequest",
+        "Accepted": "StorageS3ListAccepted",
+        "Progress": "StorageS3ListProgress",
+        "Result": "StorageS3ListResult",
+        "Error": "StorageS3ListError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c03190412045820222222222222222222222222222222222222222222222222222222222222222207186408a20061610301",
+      "wire_sha256": "214e2cff37f62f078b9f054695278b2b1c36a9fd0775757ddc157ccd3c238f9b",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1043-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.s3.delete",
+      "cddl": {
+        "Request": "StorageS3DeleteRequest",
+        "Accepted": "StorageS3DeleteAccepted",
+        "Progress": "StorageS3DeleteProgress",
+        "Result": "StorageS3DeleteResult",
+        "Error": "StorageS3DeleteError"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190413045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a3006161014133035011111111111111111111111111111111",
+      "wire_sha256": "1b566d788ce2b6a49d7b8f0f9d630581ad76df61b547358b8102706699fa523e",
+      "concrete": true
+    },
+    {
+      "id": "1043-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.s3.delete",
+      "cddl": {
+        "Request": "StorageS3DeleteRequest",
+        "Accepted": "StorageS3DeleteAccepted",
+        "Progress": "StorageS3DeleteProgress",
+        "Result": "StorageS3DeleteResult",
+        "Error": "StorageS3DeleteError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031904130458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "cdbdf95a362e0f6de899d4f98a93825ebb651806ca4414d339fe8716f820d720",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1043-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.s3.delete",
+      "cddl": {
+        "Request": "StorageS3DeleteRequest",
+        "Accepted": "StorageS3DeleteAccepted",
+        "Progress": "StorageS3DeleteProgress",
+        "Result": "StorageS3DeleteResult",
+        "Error": "StorageS3DeleteError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190413045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a3006161014133035011111111111111111111111111111111",
+      "wire_sha256": "1b566d788ce2b6a49d7b8f0f9d630581ad76df61b547358b8102706699fa523e",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1050-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.publish",
+      "cddl": {
+        "Request": "StoragePublishRequest",
+        "Accepted": "StoragePublishAccepted",
+        "Progress": "StoragePublishProgress",
+        "Result": "StoragePublishResult",
+        "Error": "StoragePublishError"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c0319041a045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a2005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c7470726637723271",
+      "wire_sha256": "d4fb2fe1d8c6ab978f1249e6eec9f372ddaf2b120a80dad7a6bd009a55aa92da",
+      "concrete": true
+    },
+    {
+      "id": "1050-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.publish",
+      "cddl": {
+        "Request": "StoragePublishRequest",
+        "Accepted": "StoragePublishAccepted",
+        "Progress": "StoragePublishProgress",
+        "Result": "StoragePublishResult",
+        "Error": "StoragePublishError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c0319041a0458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "23c79bc96d17e96c4f500b74d9f352f46d996842370707705b55ba3aa2d91823",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1050-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.publish",
+      "cddl": {
+        "Request": "StoragePublishRequest",
+        "Accepted": "StoragePublishAccepted",
+        "Progress": "StoragePublishProgress",
+        "Result": "StoragePublishResult",
+        "Error": "StoragePublishError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c0319041a045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a2005820222222222222222222222222222222222222222222222222222222222222222201783e6261666b32627a6163656168666f756f6165337375686d7869766d786c6179657a336b7135647a6f376935337936353468376b76756c7470726637723271",
+      "wire_sha256": "d4fb2fe1d8c6ab978f1249e6eec9f372ddaf2b120a80dad7a6bd009a55aa92da",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1051-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.resolve",
+      "cddl": {
+        "Request": "StorageResolveRequest",
+        "Accepted": "StorageResolveAccepted",
+        "Progress": "StorageResolveProgress",
+        "Result": "StorageResolveResult",
+        "Error": "StorageResolveError"
+      },
+      "expected": "accept",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c0319041b07186408a1006161",
+      "wire_sha256": "6430137055a89ff0a484fa3d54ef91a6fced187fe1814532b23a8a3e3fef603d",
+      "concrete": true
+    },
+    {
+      "id": "1051-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.resolve",
+      "cddl": {
+        "Request": "StorageResolveRequest",
+        "Accepted": "StorageResolveAccepted",
+        "Progress": "StorageResolveProgress",
+        "Result": "StorageResolveResult",
+        "Error": "StorageResolveError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a500020150111111111111111111111111111111110268666573746976616c0319041b071864",
+      "wire_sha256": "531e3a2ae2e4f237e5d6566a5cf84a69ac90bf213e35c90b66a89a356bd1dc8e",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1051-deadline-negative",
+      "kind": "operation-negative",
+      "operation": "storage.resolve",
+      "cddl": {
+        "Request": "StorageResolveRequest",
+        "Accepted": "StorageResolveAccepted",
+        "Progress": "StorageResolveProgress",
+        "Result": "StorageResolveResult",
+        "Error": "StorageResolveError"
+      },
+      "expected_error": "REQUEST_DEADLINE_EXPIRED",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c0319041b07186408a1006161",
+      "wire_sha256": "6430137055a89ff0a484fa3d54ef91a6fced187fe1814532b23a8a3e3fef603d",
+      "mutation": "deadline_block is finalized head or older",
+      "concrete": true
+    },
+    {
+      "id": "1060-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.keys.export",
+      "cddl": {
+        "Request": "StorageKeysExportRequest",
+        "Accepted": "StorageKeysExportAccepted",
+        "Progress": "StorageKeysExportProgress",
+        "Result": "StorageKeysExportResult",
+        "Error": "StorageKeysExportError"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190424045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a3005820222222222222222222222222222222222222222222222222222222222222222201010258203333333333333333333333333333333333333333333333333333333333333333",
+      "wire_sha256": "79c33a6744f180a1ca51b58444205a9f078a352e298427408f58b23bd4d06ee2",
+      "concrete": true
+    },
+    {
+      "id": "1060-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.keys.export",
+      "cddl": {
+        "Request": "StorageKeysExportRequest",
+        "Accepted": "StorageKeysExportAccepted",
+        "Progress": "StorageKeysExportProgress",
+        "Result": "StorageKeysExportResult",
+        "Error": "StorageKeysExportError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031904240458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "b4e2366a166e606eae4ff887a5ecd23e8019b6c9c5f7e3a14ab0205ac5ae163f",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1060-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.keys.export",
+      "cddl": {
+        "Request": "StorageKeysExportRequest",
+        "Accepted": "StorageKeysExportAccepted",
+        "Progress": "StorageKeysExportProgress",
+        "Result": "StorageKeysExportResult",
+        "Error": "StorageKeysExportError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190424045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a3005820222222222222222222222222222222222222222222222222222222222222222201010258203333333333333333333333333333333333333333333333333333333333333333",
+      "wire_sha256": "79c33a6744f180a1ca51b58444205a9f078a352e298427408f58b23bd4d06ee2",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1061-positive",
+      "kind": "operation-schema-positive",
+      "operation": "storage.keys.import",
+      "cddl": {
+        "Request": "StorageKeysImportRequest",
+        "Accepted": "StorageKeysImportAccepted",
+        "Progress": "StorageKeysImportProgress",
+        "Result": "StorageKeysImportResult",
+        "Error": "StorageKeysImportError"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190425045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a40058202222222222222222222222222222222222222222222222222222222222222222015820333333333333333333333333333333333333333333333333333333333333333302000301",
+      "wire_sha256": "785c48565a7696f09df7e375c7d2adfe030905c664dbfce2a42f75360bb523d3",
+      "concrete": true
+    },
+    {
+      "id": "1061-schema-negative",
+      "kind": "operation-negative",
+      "operation": "storage.keys.import",
+      "cddl": {
+        "Request": "StorageKeysImportRequest",
+        "Accepted": "StorageKeysImportAccepted",
+        "Progress": "StorageKeysImportProgress",
+        "Result": "StorageKeysImportResult",
+        "Error": "StorageKeysImportError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031904250458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "dd937d29b6d04e586e4c3f7b629546c729a9141f29242e8e393eadfa026953ef",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1061-grant-negative",
+      "kind": "operation-negative",
+      "operation": "storage.keys.import",
+      "cddl": {
+        "Request": "StorageKeysImportRequest",
+        "Accepted": "StorageKeysImportAccepted",
+        "Progress": "StorageKeysImportProgress",
+        "Result": "StorageKeysImportResult",
+        "Error": "StorageKeysImportError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190425045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a40058202222222222222222222222222222222222222222222222222222222222222222015820333333333333333333333333333333333333333333333333333333333333333302000301",
+      "wire_sha256": "785c48565a7696f09df7e375c7d2adfe030905c664dbfce2a42f75360bb523d3",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1100-positive",
+      "kind": "operation-schema-positive",
+      "operation": "identity.account",
+      "cddl": {
+        "Request": "IdentityAccountRequest",
+        "Accepted": "IdentityAccountAccepted",
+        "Progress": "IdentityAccountProgress",
+        "Result": "IdentityAccountResult",
+        "Error": "IdentityAccountError"
+      },
+      "expected": "accept",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c0319044c045820222222222222222222222222222222222222222222222222222222222222222207186408a1006161",
+      "wire_sha256": "361d110ef011727ae482d166fa71ffdc264d38cd37fc296c3054ec91dba49850",
+      "concrete": true
+    },
+    {
+      "id": "1100-schema-negative",
+      "kind": "operation-negative",
+      "operation": "identity.account",
+      "cddl": {
+        "Request": "IdentityAccountRequest",
+        "Accepted": "IdentityAccountAccepted",
+        "Progress": "IdentityAccountProgress",
+        "Result": "IdentityAccountResult",
+        "Error": "IdentityAccountError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c0319044c0458202222222222222222222222222222222222222222222222222222222222222222071864",
+      "wire_sha256": "e9bc5e16a81de10b70010ee4467a0573cd581c72c36445236f3bce72c3b473e3",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1100-grant-negative",
+      "kind": "operation-negative",
+      "operation": "identity.account",
+      "cddl": {
+        "Request": "IdentityAccountRequest",
+        "Accepted": "IdentityAccountAccepted",
+        "Progress": "IdentityAccountProgress",
+        "Result": "IdentityAccountResult",
+        "Error": "IdentityAccountError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c0319044c045820222222222222222222222222222222222222222222222222222222222222222207186408a1006161",
+      "wire_sha256": "361d110ef011727ae482d166fa71ffdc264d38cd37fc296c3054ec91dba49850",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1101-positive",
+      "kind": "operation-schema-positive",
+      "operation": "identity.profile.read",
+      "cddl": {
+        "Request": "IdentityProfileReadRequest",
+        "Accepted": "IdentityProfileReadAccepted",
+        "Progress": "IdentityProfileReadProgress",
+        "Result": "IdentityProfileReadResult",
+        "Error": "IdentityProfileReadError"
+      },
+      "expected": "accept",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c0319044d045820222222222222222222222222222222222222222222222222222222222222222207186408a2005820222222222222222222222222222222222222222222222222222222222222222201816161",
+      "wire_sha256": "98c621eef7f2a5e2ff2fdf9e478f942ac37e734873a98fad90185bdc3e384277",
+      "concrete": true
+    },
+    {
+      "id": "1101-schema-negative",
+      "kind": "operation-negative",
+      "operation": "identity.profile.read",
+      "cddl": {
+        "Request": "IdentityProfileReadRequest",
+        "Accepted": "IdentityProfileReadAccepted",
+        "Progress": "IdentityProfileReadProgress",
+        "Result": "IdentityProfileReadResult",
+        "Error": "IdentityProfileReadError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c0319044d0458202222222222222222222222222222222222222222222222222222222222222222071864",
+      "wire_sha256": "08855ed46ade249c295ae0d22e764403230b42d2fe87de912aa9f433f8c790f3",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1101-grant-negative",
+      "kind": "operation-negative",
+      "operation": "identity.profile.read",
+      "cddl": {
+        "Request": "IdentityProfileReadRequest",
+        "Accepted": "IdentityProfileReadAccepted",
+        "Progress": "IdentityProfileReadProgress",
+        "Result": "IdentityProfileReadResult",
+        "Error": "IdentityProfileReadError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c0319044d045820222222222222222222222222222222222222222222222222222222222222222207186408a2005820222222222222222222222222222222222222222222222222222222222222222201816161",
+      "wire_sha256": "98c621eef7f2a5e2ff2fdf9e478f942ac37e734873a98fad90185bdc3e384277",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1102-positive",
+      "kind": "operation-schema-positive",
+      "operation": "identity.profile.disclose",
+      "cddl": {
+        "Request": "IdentityProfileDiscloseRequest",
+        "Accepted": "IdentityProfileDiscloseAccepted",
+        "Progress": "IdentityProfileDiscloseProgress",
+        "Result": "IdentityProfileDiscloseResult",
+        "Error": "IdentityProfileDiscloseError"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c0319044e045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a4006161018161610261610301",
+      "wire_sha256": "c8ab647407b26ca748fda747a1196b1d4b9bb7023f4e7d1ef56b3804d12730c2",
+      "concrete": true
+    },
+    {
+      "id": "1102-schema-negative",
+      "kind": "operation-negative",
+      "operation": "identity.profile.disclose",
+      "cddl": {
+        "Request": "IdentityProfileDiscloseRequest",
+        "Accepted": "IdentityProfileDiscloseAccepted",
+        "Progress": "IdentityProfileDiscloseProgress",
+        "Result": "IdentityProfileDiscloseResult",
+        "Error": "IdentityProfileDiscloseError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c0319044e0458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "232a85d0cdf2e295c30667de1d48e8ed07f79fce49bfe8f472714ad50a212af9",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1102-grant-negative",
+      "kind": "operation-negative",
+      "operation": "identity.profile.disclose",
+      "cddl": {
+        "Request": "IdentityProfileDiscloseRequest",
+        "Accepted": "IdentityProfileDiscloseAccepted",
+        "Progress": "IdentityProfileDiscloseProgress",
+        "Result": "IdentityProfileDiscloseResult",
+        "Error": "IdentityProfileDiscloseError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c0319044e045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a4006161018161610261610301",
+      "wire_sha256": "c8ab647407b26ca748fda747a1196b1d4b9bb7023f4e7d1ef56b3804d12730c2",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1103-positive",
+      "kind": "operation-schema-positive",
+      "operation": "identity.humanity.status",
+      "cddl": {
+        "Request": "IdentityHumanityStatusRequest",
+        "Accepted": "IdentityHumanityStatusAccepted",
+        "Progress": "IdentityHumanityStatusProgress",
+        "Result": "IdentityHumanityStatusResult",
+        "Error": "IdentityHumanityStatusError"
+      },
+      "expected": "accept",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c0319044f045820222222222222222222222222222222222222222222222222222222222222222207186408a10058202222222222222222222222222222222222222222222222222222222222222222",
+      "wire_sha256": "a5454ee9e7270cb7f338b8979a837a635afa3ec543987c615a86d85a6a0b2bcf",
+      "concrete": true
+    },
+    {
+      "id": "1103-schema-negative",
+      "kind": "operation-negative",
+      "operation": "identity.humanity.status",
+      "cddl": {
+        "Request": "IdentityHumanityStatusRequest",
+        "Accepted": "IdentityHumanityStatusAccepted",
+        "Progress": "IdentityHumanityStatusProgress",
+        "Result": "IdentityHumanityStatusResult",
+        "Error": "IdentityHumanityStatusError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c0319044f0458202222222222222222222222222222222222222222222222222222222222222222071864",
+      "wire_sha256": "262a87b5ae29a5ec58dc1db84ab403283015229a0c7a4057fda85336766b8975",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1103-grant-negative",
+      "kind": "operation-negative",
+      "operation": "identity.humanity.status",
+      "cddl": {
+        "Request": "IdentityHumanityStatusRequest",
+        "Accepted": "IdentityHumanityStatusAccepted",
+        "Progress": "IdentityHumanityStatusProgress",
+        "Result": "IdentityHumanityStatusResult",
+        "Error": "IdentityHumanityStatusError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c0319044f045820222222222222222222222222222222222222222222222222222222222222222207186408a10058202222222222222222222222222222222222222222222222222222222222222222",
+      "wire_sha256": "a5454ee9e7270cb7f338b8979a837a635afa3ec543987c615a86d85a6a0b2bcf",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1104-positive",
+      "kind": "operation-schema-positive",
+      "operation": "identity.humanity.prove",
+      "cddl": {
+        "Request": "IdentityHumanityProveRequest",
+        "Accepted": "IdentityHumanityProveAccepted",
+        "Progress": "IdentityHumanityProveProgress",
+        "Result": "IdentityHumanityProveResult",
+        "Error": "IdentityHumanityProveError"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190450045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a400616101503333333333333333333333333333333302010380",
+      "wire_sha256": "3bf4489a67186e17d031b55acd7b9c8556a1f9270dddba3fa18f380317d770b4",
+      "concrete": true
+    },
+    {
+      "id": "1104-schema-negative",
+      "kind": "operation-negative",
+      "operation": "identity.humanity.prove",
+      "cddl": {
+        "Request": "IdentityHumanityProveRequest",
+        "Accepted": "IdentityHumanityProveAccepted",
+        "Progress": "IdentityHumanityProveProgress",
+        "Result": "IdentityHumanityProveResult",
+        "Error": "IdentityHumanityProveError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031904500458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "1d7940644499d79a076767c57da35bdc8596d75eb986c16a6a3cb770707a19f0",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1104-grant-negative",
+      "kind": "operation-negative",
+      "operation": "identity.humanity.prove",
+      "cddl": {
+        "Request": "IdentityHumanityProveRequest",
+        "Accepted": "IdentityHumanityProveAccepted",
+        "Progress": "IdentityHumanityProveProgress",
+        "Result": "IdentityHumanityProveResult",
+        "Error": "IdentityHumanityProveError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c03190450045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a400616101503333333333333333333333333333333302010380",
+      "wire_sha256": "3bf4489a67186e17d031b55acd7b9c8556a1f9270dddba3fa18f380317d770b4",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1105-positive",
+      "kind": "operation-schema-positive",
+      "operation": "identity.subject.derive",
+      "cddl": {
+        "Request": "IdentitySubjectDeriveRequest",
+        "Accepted": "IdentitySubjectDeriveAccepted",
+        "Progress": "IdentitySubjectDeriveProgress",
+        "Result": "IdentitySubjectDeriveResult",
+        "Error": "IdentitySubjectDeriveError"
+      },
+      "expected": "accept",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c03190451045820222222222222222222222222222222222222222222222222222222222222222207186408a3006161016161026161",
+      "wire_sha256": "44f5a1f9053765dcb436a8ca061ced9544165063868f4cfade008fbf39675932",
+      "concrete": true
+    },
+    {
+      "id": "1105-schema-negative",
+      "kind": "operation-negative",
+      "operation": "identity.subject.derive",
+      "cddl": {
+        "Request": "IdentitySubjectDeriveRequest",
+        "Accepted": "IdentitySubjectDeriveAccepted",
+        "Progress": "IdentitySubjectDeriveProgress",
+        "Result": "IdentitySubjectDeriveResult",
+        "Error": "IdentitySubjectDeriveError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c031904510458202222222222222222222222222222222222222222222222222222222222222222071864",
+      "wire_sha256": "09a5301738e89c023d0c9be653f7ef767d0a304224c2e60c803592ab157e9274",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1105-grant-negative",
+      "kind": "operation-negative",
+      "operation": "identity.subject.derive",
+      "cddl": {
+        "Request": "IdentitySubjectDeriveRequest",
+        "Accepted": "IdentitySubjectDeriveAccepted",
+        "Progress": "IdentitySubjectDeriveProgress",
+        "Result": "IdentitySubjectDeriveResult",
+        "Error": "IdentitySubjectDeriveError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c03190451045820222222222222222222222222222222222222222222222222222222222222222207186408a3006161016161026161",
+      "wire_sha256": "44f5a1f9053765dcb436a8ca061ced9544165063868f4cfade008fbf39675932",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1106-positive",
+      "kind": "operation-schema-positive",
+      "operation": "identity.entitlements.read",
+      "cddl": {
+        "Request": "IdentityEntitlementsReadRequest",
+        "Accepted": "IdentityEntitlementsReadAccepted",
+        "Progress": "IdentityEntitlementsReadProgress",
+        "Result": "IdentityEntitlementsReadResult",
+        "Error": "IdentityEntitlementsReadError"
+      },
+      "expected": "accept",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c03190452045820222222222222222222222222222222222222222222222222222222222222222207186408a20058202222222222222222222222222222222222222222222222222222222222222222016161",
+      "wire_sha256": "6547795ac2ba0895254406d2aaeed9abaced46372b8f2f855d420478c47759d1",
+      "concrete": true
+    },
+    {
+      "id": "1106-schema-negative",
+      "kind": "operation-negative",
+      "operation": "identity.entitlements.read",
+      "cddl": {
+        "Request": "IdentityEntitlementsReadRequest",
+        "Accepted": "IdentityEntitlementsReadAccepted",
+        "Progress": "IdentityEntitlementsReadProgress",
+        "Result": "IdentityEntitlementsReadResult",
+        "Error": "IdentityEntitlementsReadError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a600020150111111111111111111111111111111110268666573746976616c031904520458202222222222222222222222222222222222222222222222222222222222222222071864",
+      "wire_sha256": "801b4dd280645db4a73ea18648ca8331daa19cb8e3f889f85ff3671af80c51aa",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1106-grant-negative",
+      "kind": "operation-negative",
+      "operation": "identity.entitlements.read",
+      "cddl": {
+        "Request": "IdentityEntitlementsReadRequest",
+        "Accepted": "IdentityEntitlementsReadAccepted",
+        "Progress": "IdentityEntitlementsReadProgress",
+        "Result": "IdentityEntitlementsReadResult",
+        "Error": "IdentityEntitlementsReadError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c03190452045820222222222222222222222222222222222222222222222222222222222222222207186408a20058202222222222222222222222222222222222222222222222222222222222222222016161",
+      "wire_sha256": "6547795ac2ba0895254406d2aaeed9abaced46372b8f2f855d420478c47759d1",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "1200-positive",
+      "kind": "operation-schema-positive",
+      "operation": "transaction.sign",
+      "cddl": {
+        "Request": "TransactionSignRequest",
+        "Accepted": "TransactionSignAccepted",
+        "Progress": "TransactionSignProgress",
+        "Result": "TransactionSignResult",
+        "Error": "TransactionSignError"
+      },
+      "expected": "accept",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031904b0045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a3005820222222222222222222222222222222222222222222222222222222222222222201582022222222222222222222222222222222222222222222222222222222222222220201",
+      "wire_sha256": "b2470af9da250f3ab277ab1ca056824e6beee155dcdff15e6051e36945425dca",
+      "concrete": true
+    },
+    {
+      "id": "1200-schema-negative",
+      "kind": "operation-negative",
+      "operation": "transaction.sign",
+      "cddl": {
+        "Request": "TransactionSignRequest",
+        "Accepted": "TransactionSignAccepted",
+        "Progress": "TransactionSignProgress",
+        "Result": "TransactionSignResult",
+        "Error": "TransactionSignError"
+      },
+      "expected_error": "WIRE_SCHEMA_INVALID",
+      "wire_hex": "a700020150111111111111111111111111111111110268666573746976616c031904b00458202222222222222222222222222222222222222222222222222222222222222222055033333333333333333333333333333333071864",
+      "wire_sha256": "fab9e6c8ddb8f5a986b487972936a066bf3ae8563072ed32d87000d42a1109c2",
+      "mutation": "required payload key 8 absent",
+      "concrete": true
+    },
+    {
+      "id": "1200-grant-negative",
+      "kind": "operation-negative",
+      "operation": "transaction.sign",
+      "cddl": {
+        "Request": "TransactionSignRequest",
+        "Accepted": "TransactionSignAccepted",
+        "Progress": "TransactionSignProgress",
+        "Result": "TransactionSignResult",
+        "Error": "TransactionSignError"
+      },
+      "expected_error": "GRANT_SCOPE_DENIED",
+      "wire_hex": "a800020150111111111111111111111111111111110268666573746976616c031904b0045820222222222222222222222222222222222222222222222222222222222222222205503333333333333333333333333333333307186408a3005820222222222222222222222222222222222222222222222222222222222222222201582022222222222222222222222222222222222222222222222222222222222222220201",
+      "wire_sha256": "b2470af9da250f3ab277ab1ca056824e6beee155dcdff15e6051e36945425dca",
+      "mutation": "syntactically valid all-0x22 grant is unauthorized for resource",
+      "concrete": true
+    },
+    {
+      "id": "error-100-wire_schema_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018640173574952455f534348454d415f494e56414c494402f403a0",
+      "wire_sha256": "f6b434c980a1d4feb517360c0b7397e5c92cb5883638e0f467117ee88dd2bec2",
+      "expected": "WIRE_SCHEMA_INVALID",
+      "code": 100,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-101-wire_non_canonical",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018650172574952455f4e4f4e5f43414e4f4e4943414c02f403a0",
+      "wire_sha256": "550fbc71a73f633f0941062ae49b51fd149df5c819770b4cd426b029dfe32e5c",
+      "expected": "WIRE_NON_CANONICAL",
+      "code": 101,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-102-wire_version_mismatch",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018660175574952455f56455253494f4e5f4d49534d4154434802f403a0",
+      "wire_sha256": "5b81d07cac7621a03d66d23eba9ae4cb211d61f6b73449cff15a11c375ea3af2",
+      "expected": "WIRE_VERSION_MISMATCH",
+      "code": 102,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-103-wire_genesis_mismatch",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018670175574952455f47454e455349535f4d49534d4154434802f403a0",
+      "wire_sha256": "e7977db3cda97ba117a9a7f505382310e95efa1c713855006286af79aa39db2d",
+      "expected": "WIRE_GENESIS_MISMATCH",
+      "code": 103,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-104-wire_descriptor_mismatch",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a4001868017818574952455f44455343524950544f525f4d49534d4154434802f403a0",
+      "wire_sha256": "295085c559b5c66b9c0f7fc084b1f42d823c36b1cef224ef3e5efed18a06d136",
+      "expected": "WIRE_DESCRIPTOR_MISMATCH",
+      "code": 104,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-105-wire_sequence_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018690175574952455f53455155454e43455f494e56414c494402f403a0",
+      "wire_sha256": "a5b55d3a4f0e7b280261297e82bcb66c8c328d21f474933aebb09b1b4717708c",
+      "expected": "WIRE_SEQUENCE_INVALID",
+      "code": 105,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-106-request_deadline_expired",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400186a017818524551554553545f444541444c494e455f4558504952454402f403a0",
+      "wire_sha256": "b8349e439c865e5697d25c7ab0bdfa693e65e2daeed98a6181e2ed389e158a80",
+      "expected": "REQUEST_DEADLINE_EXPIRED",
+      "code": 106,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-107-request_cancelled",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400186b0171524551554553545f43414e43454c4c454402f403a0",
+      "wire_sha256": "8f8f9c1cd37f7f8d3d5c805659f88a6c0c1ce7f4c3bec1c6bc0d46494b4c2c15",
+      "expected": "REQUEST_CANCELLED",
+      "code": 107,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-108-request_not_found",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400186c0171524551554553545f4e4f545f464f554e4402f403a0",
+      "wire_sha256": "b6de1ae41017edabbe0976b2789c49b75c29dc769f7b3d8987a0c51bf8bb4cbb",
+      "expected": "REQUEST_NOT_FOUND",
+      "code": 108,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-109-grant_required",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400186d016e4752414e545f524551554952454402f403a0",
+      "wire_sha256": "632da5366aee8023866e2127ca1a8cc6d969160eb29224fe2abb60d78194649b",
+      "expected": "GRANT_REQUIRED",
+      "code": 109,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-110-grant_scope_denied",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400186e01724752414e545f53434f50455f44454e49454402f403a0",
+      "wire_sha256": "2081945b84647f6c645c51d102b0635ce0a7fc45f34115d10fd842c8fbb679f5",
+      "expected": "GRANT_SCOPE_DENIED",
+      "code": 110,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-111-grant_expired",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400186f016d4752414e545f4558504952454402f403a0",
+      "wire_sha256": "e51ec9d226fe6fbbcb862d364c9875e8e94e4aa0e44a77f4521f0205f4300d18",
+      "expected": "GRANT_EXPIRED",
+      "code": 111,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-112-grant_revoked",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a4001870016d4752414e545f5245564f4b454402f403a0",
+      "wire_sha256": "2c6b0ae9b44b7fa9cce8519e1e5b0495b79facb5cabfb27ddc090a269177c088",
+      "expected": "GRANT_REVOKED",
+      "code": 112,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-113-host_outbox_unavailable",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018710177484f53545f4f5554424f585f554e415641494c41424c4502f403a0",
+      "wire_sha256": "e6800ffc80faa7707924be34446f935544950c2b330574d4cbce3136550a9efa",
+      "expected": "HOST_OUTBOX_UNAVAILABLE",
+      "code": 113,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-114-host_outbox_full",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018720170484f53545f4f5554424f585f46554c4c02f503a0",
+      "wire_sha256": "eae4f7806aa1fbc0f9fae1be9845dd0c858f7cfb5dc08046599707fb042c5bdd",
+      "expected": "HOST_OUTBOX_FULL",
+      "code": 114,
+      "retryable": true,
+      "concrete": true
+    },
+    {
+      "id": "error-115-host_outbox_corrupt",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018730173484f53545f4f5554424f585f434f525255505402f403a0",
+      "wire_sha256": "1d58ddc66910de67794a0694e220c2d81602f9817eec0c4b3e06a5b198a08dcc",
+      "expected": "HOST_OUTBOX_CORRUPT",
+      "code": 115,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-116-host_outbox_expired",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018740173484f53545f4f5554424f585f4558504952454402f403a0",
+      "wire_sha256": "e7de3d588dfba92ed4a9b7434d70a1718d84ca731c42c9ef007ab0f6e8a1f1bc",
+      "expected": "HOST_OUTBOX_EXPIRED",
+      "code": 116,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-200-storage_chunk_out_of_order",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018c801781a53544f524147455f4348554e4b5f4f55545f4f465f4f5244455202f403a0",
+      "wire_sha256": "fb6ccfd96a2938c7460bdd7a85ff32c15e9fda1e9c9fca6d284b24408d168735",
+      "expected": "STORAGE_CHUNK_OUT_OF_ORDER",
+      "code": 200,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-201-storage_chunk_too_large",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018c9017753544f524147455f4348554e4b5f544f4f5f4c4152474502f403a0",
+      "wire_sha256": "455dbec99e8cd75b1b7c87686afee86c2478c9e1720d678a5cd28c45c5ed1719",
+      "expected": "STORAGE_CHUNK_TOO_LARGE",
+      "code": 201,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-202-storage_chunk_missing",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018ca017553544f524147455f4348554e4b5f4d495353494e4702f403a0",
+      "wire_sha256": "c190aca26c513092d394f73457056ea04f29b2b3067c6374819c68fac14117ca",
+      "expected": "STORAGE_CHUNK_MISSING",
+      "code": 202,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-203-storage_length_mismatch",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018cb017753544f524147455f4c454e4754485f4d49534d4154434802f403a0",
+      "wire_sha256": "5f777ac6b8af7b6ddb47db46c9c81585379a874a48067c2d8ae9620d6140dd73",
+      "expected": "STORAGE_LENGTH_MISMATCH",
+      "code": 203,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-204-storage_cid_mismatch",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018cc017453544f524147455f4349445f4d49534d4154434802f403a0",
+      "wire_sha256": "f82b1ab5501dac6a0e4314756b608f84acf0dc775723cd03010d007fb188641d",
+      "expected": "STORAGE_CID_MISMATCH",
+      "code": 204,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-205-storage_object_too_large",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018cd01781853544f524147455f4f424a4543545f544f4f5f4c4152474502f403a0",
+      "wire_sha256": "8ff206ea106aeac0ef3cc46985ffa97bfbd3b3a6cb8c7835acb1644a124c1305",
+      "expected": "STORAGE_OBJECT_TOO_LARGE",
+      "code": 205,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-206-storage_idempotency_conflict",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018ce01781c53544f524147455f4944454d504f54454e43595f434f4e464c49435402f403a0",
+      "wire_sha256": "503929e07209846dc99b550cd71c11f33f293898bca201e0302a05e156c0ec68",
+      "expected": "STORAGE_IDEMPOTENCY_CONFLICT",
+      "code": 206,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-207-storage_range_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018cf017553544f524147455f52414e47455f494e56414c494402f403a0",
+      "wire_sha256": "95befd78a8f463573159ec896524073d0a0006d86f127679e48c9cfd6a8fd58a",
+      "expected": "STORAGE_RANGE_INVALID",
+      "code": 207,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-208-storage_integrity_failed",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018d001781853544f524147455f494e544547524954595f4641494c454402f403a0",
+      "wire_sha256": "450a0f96e20cf410072cd32cc8ceedd129e3951a35f5c2e67ad35dd8750f5467",
+      "expected": "STORAGE_INTEGRITY_FAILED",
+      "code": 208,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-209-storage_not_publishable",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018d1017753544f524147455f4e4f545f5055424c49534841424c4502f503a0",
+      "wire_sha256": "244476aba6ffbe6ee49560b902404de3703cc4582c0238934e3f05acb7fe8f96",
+      "expected": "STORAGE_NOT_PUBLISHABLE",
+      "code": 209,
+      "retryable": true,
+      "concrete": true
+    },
+    {
+      "id": "error-210-storage_not_found",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018d2017153544f524147455f4e4f545f464f554e4402f403a0",
+      "wire_sha256": "3bae012fc9231557c2832b38703f8813f5a03199dd94e307d37a969581948f57",
+      "expected": "STORAGE_NOT_FOUND",
+      "code": 210,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-211-encryption_nonce_reuse",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018d30176454e4352595054494f4e5f4e4f4e43455f524555534502f403a0",
+      "wire_sha256": "ee3e04769d0f8b951b9b18542806302684a88e859944b5c54976489c1d79aa7e",
+      "expected": "ENCRYPTION_NONCE_REUSE",
+      "code": 211,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-220-storage_checkpoint_wrong_domain",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018dc01781f53544f524147455f434845434b504f494e545f57524f4e475f444f4d41494e02f403a0",
+      "wire_sha256": "c291676783f8684a050f8aa66e56d59e69e4d9836a3c56762bade24660918d19",
+      "expected": "STORAGE_CHECKPOINT_WRONG_DOMAIN",
+      "code": 220,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-221-storage_checkpoint_wrong_version",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018dd01782053544f524147455f434845434b504f494e545f57524f4e475f56455253494f4e02f403a0",
+      "wire_sha256": "a31e25e319e456a913a35cc06630b286f8d2c7aa289d208f9ad3208ce78be24a",
+      "expected": "STORAGE_CHECKPOINT_WRONG_VERSION",
+      "code": 221,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-222-storage_checkpoint_wrong_bucket",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018de01781f53544f524147455f434845434b504f494e545f57524f4e475f4255434b455402f403a0",
+      "wire_sha256": "2b2466421888198491815ae7aa2c62d36629128d784002ce3cfbf5c6a50f4589",
+      "expected": "STORAGE_CHECKPOINT_WRONG_BUCKET",
+      "code": 222,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-223-storage_checkpoint_wrong_key",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018df01781c53544f524147455f434845434b504f494e545f57524f4e475f4b455902f403a0",
+      "wire_sha256": "26016f4292905fe3dd4fa109aceb99ccf824f91dfc8885280ba40c5ed41ae87d",
+      "expected": "STORAGE_CHECKPOINT_WRONG_KEY",
+      "code": 223,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-224-storage_checkpoint_stale_nonce",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018e001781e53544f524147455f434845434b504f494e545f5354414c455f4e4f4e434502f503a0",
+      "wire_sha256": "a210496e479a7c49eded0b4ba71f294034d65f1712bb6f10d957be86de496174",
+      "expected": "STORAGE_CHECKPOINT_STALE_NONCE",
+      "code": 224,
+      "retryable": true,
+      "concrete": true
+    },
+    {
+      "id": "error-225-storage_checkpoint_wrong_window",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018e101781f53544f524147455f434845434b504f494e545f57524f4e475f57494e444f5702f403a0",
+      "wire_sha256": "8358d3aeee14b2e85a7bd6dd6fc7ad059634d1a69631eb769de73aedea8b6f87",
+      "expected": "STORAGE_CHECKPOINT_WRONG_WINDOW",
+      "code": 225,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-226-capability_signature_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018e201781c4341504142494c4954595f5349474e41545552455f494e56414c494402f403a0",
+      "wire_sha256": "1d15cc2685b2a8dc651db91cce12148ee564cb704e8fad88a12baea49df4a22e",
+      "expected": "CAPABILITY_SIGNATURE_INVALID",
+      "code": 226,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-227-capability_audience_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018e301781b4341504142494c4954595f41554449454e43455f494e56414c494402f403a0",
+      "wire_sha256": "fbd1c19e0ecdc45bbbc5ad0bb4949c1e77363f20eca313f312420ee412ad2d61",
+      "expected": "CAPABILITY_AUDIENCE_INVALID",
+      "code": 227,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-228-capability_content_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018e401781a4341504142494c4954595f434f4e54454e545f494e56414c494402f403a0",
+      "wire_sha256": "7ef09efa9ac0f8e3c5bd92cbd369c4cbbba59bd70ff2681757fb51f5fcf1a5ec",
+      "expected": "CAPABILITY_CONTENT_INVALID",
+      "code": 228,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-229-capability_nonce_replay",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018e501774341504142494c4954595f4e4f4e43455f5245504c415902f403a0",
+      "wire_sha256": "c79fff0fafb8de4e41bbac21fdf72a0c7e7a2159af36f95255937f4c3c0d3eec",
+      "expected": "CAPABILITY_NONCE_REPLAY",
+      "code": 229,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-230-capability_expired",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018e601724341504142494c4954595f4558504952454402f403a0",
+      "wire_sha256": "41c5f016547064b361fb6457ef32f45d9d28144a910ba053625ec3692dab0148",
+      "expected": "CAPABILITY_EXPIRED",
+      "code": 230,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-231-capability_issuer_revoked",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018e70178194341504142494c4954595f4953535545525f5245564f4b454402f403a0",
+      "wire_sha256": "42a175600de61d7df2401db79e19c2671951d8de496d88d4de755e9ed681ce54",
+      "expected": "CAPABILITY_ISSUER_REVOKED",
+      "code": 231,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-232-resume_signature_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018e8017818524553554d455f5349474e41545552455f494e56414c494402f403a0",
+      "wire_sha256": "d394b0b597982ed897fc54fb857d3528bb6dbde3aa0a7847f7bcbf067c3429a1",
+      "expected": "RESUME_SIGNATURE_INVALID",
+      "code": 232,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-233-resume_audience_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018e90177524553554d455f41554449454e43455f494e56414c494402f403a0",
+      "wire_sha256": "7d8474494502943a4dfb077006178815882252bba77701088afa6c253450ec1c",
+      "expected": "RESUME_AUDIENCE_INVALID",
+      "code": 233,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-234-resume_replay",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018ea016d524553554d455f5245504c415902f403a0",
+      "wire_sha256": "90d6eab8900840fff60c5067c80799035ea1bc00c75b78ee04e570682662f532",
+      "expected": "RESUME_REPLAY",
+      "code": 234,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-235-resume_expired",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018eb016e524553554d455f4558504952454402f403a0",
+      "wire_sha256": "3d8ecbee943a0e7e26aa42a95c43dec65ac4a9d8227ddc348a96b43705fa713d",
+      "expected": "RESUME_EXPIRED",
+      "code": 235,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-236-resume_revoked",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018ec016e524553554d455f5245564f4b454402f403a0",
+      "wire_sha256": "4664734e3cfd79499630beb8373e4a671130c2057f4a5fb583bfba3f07bc4d3c",
+      "expected": "RESUME_REVOKED",
+      "code": 236,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-237-resume_cursor_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018ed0175524553554d455f435552534f525f494e56414c494402f403a0",
+      "wire_sha256": "4fd2b0d5dbe72846091b78c286452123a7494d777d67c168ecf9d1bd31eb2796",
+      "expected": "RESUME_CURSOR_INVALID",
+      "code": 237,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-238-provider_recovery_table_full",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018ee01781c50524f56494445525f5245434f564552595f5441424c455f46554c4c02f403a0",
+      "wire_sha256": "a441801f46fb694cc39e0456b8398998810137612a8840415adb185eb784b7c6",
+      "expected": "PROVIDER_RECOVERY_TABLE_FULL",
+      "code": 238,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-239-storage_checkpoint_insufficient_quorum",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018ef01782653544f524147455f434845434b504f494e545f494e53554646494349454e545f51554f52554d02f403a0",
+      "wire_sha256": "40863f4e46f67fd98f6766f967a888d72adae17b085f84c1707e7bcbeee59f0c",
+      "expected": "STORAGE_CHECKPOINT_INSUFFICIENT_QUORUM",
+      "code": 239,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-240-storage_checkpoint_sequence_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018f001782353544f524147455f434845434b504f494e545f53455155454e43455f494e56414c494402f403a0",
+      "wire_sha256": "b19af32046097deee24f8ba94077a92ab30222bc226ee85da6a5c85dbaae4d03",
+      "expected": "STORAGE_CHECKPOINT_SEQUENCE_INVALID",
+      "code": 240,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-241-storage_checkpoint_equivocation",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018f101781f53544f524147455f434845434b504f494e545f45515549564f434154494f4e02f403a0",
+      "wire_sha256": "cc148460cebaeda2d800fae5ef5a68c96d3e9cc489b5a08f86dd95fddd3fabaf",
+      "expected": "STORAGE_CHECKPOINT_EQUIVOCATION",
+      "code": 241,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-250-bucket_not_found",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018fa01704255434b45545f4e4f545f464f554e4402f403a0",
+      "wire_sha256": "bb378651e87d54244b21d434c0b77d6636096ba8390ac84db5be85358705ea09",
+      "expected": "BUCKET_NOT_FOUND",
+      "code": 250,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-251-bucket_version_conflict",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018fb01774255434b45545f56455253494f4e5f434f4e464c49435402f403a0",
+      "wire_sha256": "ed8f90e435b3e6cd9daa70f6c91c3043ca6802f8bc5c8957eab252880ff710f9",
+      "expected": "BUCKET_VERSION_CONFLICT",
+      "code": 251,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-252-bucket_member_limit",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018fc01734255434b45545f4d454d4245525f4c494d495402f403a0",
+      "wire_sha256": "469a66030df46a5c621b0910a1590693054b1babbca2ea5379982f2ab3dc3b58",
+      "expected": "BUCKET_MEMBER_LIMIT",
+      "code": 252,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-253-agreement_invalid_state",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018fd017741475245454d454e545f494e56414c49445f535441544502f403a0",
+      "wire_sha256": "381ab1be92cd7e7fef23d6638ed8ef0e542412ed220b36eaa6f19e0149930799",
+      "expected": "AGREEMENT_INVALID_STATE",
+      "code": 253,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-254-agreement_capacity_exceeded",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018fe01781b41475245454d454e545f43415041434954595f455843454544454402f403a0",
+      "wire_sha256": "0e411afbfc0eaba6c36a779ee721e216b5bbf7f803a0b2053d801ccd0b796fe5",
+      "expected": "AGREEMENT_CAPACITY_EXCEEDED",
+      "code": 254,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-255-provider_ineligible",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018ff017350524f56494445525f494e454c494749424c4502f503a0",
+      "wire_sha256": "5a3a8ff193423164d546a11a7b0f92fe265789d337910d5061a086775841235f",
+      "expected": "PROVIDER_INELIGIBLE",
+      "code": 255,
+      "retryable": true,
+      "concrete": true
+    },
+    {
+      "id": "error-256-provider_org_unknown",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400190100017450524f56494445525f4f52475f554e4b4e4f574e02f403a0",
+      "wire_sha256": "72ced4420f517344270623e56b80f8963cb3f7a1dc85721b030f5d2116d7a284",
+      "expected": "PROVIDER_ORG_UNKNOWN",
+      "code": 256,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-257-provider_attestation_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019010101781c50524f56494445525f4154544553544154494f4e5f494e56414c494402f403a0",
+      "wire_sha256": "0cb5644df0310de3b18040445f1b3845be3d4e01f24f57ce5a05f7314be6fc54",
+      "expected": "PROVIDER_ATTESTATION_INVALID",
+      "code": 257,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-258-provider_attestation_expired",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019010201781c50524f56494445525f4154544553544154494f4e5f4558504952454402f403a0",
+      "wire_sha256": "e22182e8fb70226e2e99aa4c4a6ce77b324acd9689742029b9294465fa071a6f",
+      "expected": "PROVIDER_ATTESTATION_EXPIRED",
+      "code": 258,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-259-provider_sla_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400190103017450524f56494445525f534c415f494e56414c494402f403a0",
+      "wire_sha256": "22e6ceab2e39880aff252a81ddaea4e9a0c0decf6c50354cb4d3a8bd108d1c52",
+      "expected": "PROVIDER_SLA_INVALID",
+      "code": 259,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-260-provider_service_key_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019010401781c50524f56494445525f534552564943455f4b45595f494e56414c494402f403a0",
+      "wire_sha256": "491d72c82319e764df512f05dcae3f28c13c803caadf2dc0246087f07ddbaa3b",
+      "expected": "PROVIDER_SERVICE_KEY_INVALID",
+      "code": 260,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-261-storage_cursor_stale",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400190105017453544f524147455f435552534f525f5354414c4502f503a0",
+      "wire_sha256": "cabff03b327c93990e54076b05d5d33dc52883cba0f2ce123b7a0ad14007ff19",
+      "expected": "STORAGE_CURSOR_STALE",
+      "code": 261,
+      "retryable": true,
+      "concrete": true
+    },
+    {
+      "id": "error-300-drive_name_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019012c017244524956455f4e414d455f494e56414c494402f403a0",
+      "wire_sha256": "4b7e01f2601cfb98d1b294b642199db12d329720f125d89983a932a23d04e062",
+      "expected": "DRIVE_NAME_INVALID",
+      "code": 300,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-301-drive_path_too_long",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019012d017344524956455f504154485f544f4f5f4c4f4e4702f403a0",
+      "wire_sha256": "9ba0ca02ebf7ae16e636d0140e7a58ec1583e2831b84aa5c689e233425e3e0f2",
+      "expected": "DRIVE_PATH_TOO_LONG",
+      "code": 301,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-302-drive_depth_exceeded",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019012e017444524956455f44455054485f455843454544454402f403a0",
+      "wire_sha256": "07d49a64ff18930895a7374af44059820e171d9c0782c343310db882059e60d7",
+      "expected": "DRIVE_DEPTH_EXCEEDED",
+      "code": 302,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-303-drive_child_limit",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019012f017144524956455f4348494c445f4c494d495402f403a0",
+      "wire_sha256": "f175eaca50a705b03cd8a89f79f02f4a4bbba2a8e1779f4b6125f5dcc405ee64",
+      "expected": "DRIVE_CHILD_LIMIT",
+      "code": 303,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-304-drive_metadata_limit",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400190130017444524956455f4d455441444154415f4c494d495402f403a0",
+      "wire_sha256": "b90e6cc87fe32e2b3316ad5aada86d6389f8a5763fb65e1d2b8ae4c7301a7745",
+      "expected": "DRIVE_METADATA_LIMIT",
+      "code": 304,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-305-drive_order_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400190131017344524956455f4f524445525f494e56414c494402f403a0",
+      "wire_sha256": "4f3d6b0b94a18ed2ba1b60986a5066ae7addfecef0cf3cf78a56179d7edafe7c",
+      "expected": "DRIVE_ORDER_INVALID",
+      "code": 305,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-306-drive_version_conflict",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400190132017644524956455f56455253494f4e5f434f4e464c49435402f403a0",
+      "wire_sha256": "e5ca95bb3382f8231a9af218012b2dba2c345e3a409a15d285a76da211469840",
+      "expected": "DRIVE_VERSION_CONFLICT",
+      "code": 306,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-307-drive_reference_unpublishable",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019013301781d44524956455f5245464552454e43455f554e5055424c49534841424c4502f403a0",
+      "wire_sha256": "d125885b191fde7c03fd8d065caec600bdb2a1cfae89698b04d79fe864fdfc85",
+      "expected": "DRIVE_REFERENCE_UNPUBLISHABLE",
+      "code": 307,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-320-s3_bucket_name_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400190140017653335f4255434b45545f4e414d455f494e56414c494402f403a0",
+      "wire_sha256": "c8467189716dfa81055f5a5b21bf42d69cfc4170ed0cb7f768ce9b4cdd4abb5c",
+      "expected": "S3_BUCKET_NAME_INVALID",
+      "code": 320,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-321-s3_key_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400190141016e53335f4b45595f494e56414c494402f403a0",
+      "wire_sha256": "f2bb42666f92d89b59a5d55a76e6fdbe546670519591f6f6c41b921ac2133558",
+      "expected": "S3_KEY_INVALID",
+      "code": 321,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-322-s3_metadata_limit",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400190142017153335f4d455441444154415f4c494d495402f403a0",
+      "wire_sha256": "6ac9e63db5958fdff474816606ec26164b76926e4ccdde79a4119e923076fb9d",
+      "expected": "S3_METADATA_LIMIT",
+      "code": 322,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-323-s3_precondition_failed",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400190143017653335f505245434f4e444954494f4e5f4641494c454402f403a0",
+      "wire_sha256": "a16b73c4d719fa87e94903db8d4b977ca48c69559fd179630babce19c19445d0",
+      "expected": "S3_PRECONDITION_FAILED",
+      "code": 323,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-324-s3_not_found",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400190144016c53335f4e4f545f464f554e4402f403a0",
+      "wire_sha256": "1d10c24d680bba56a100330793c6ef884c41194ea084a4b77df6e9abf9cfbf5d",
+      "expected": "S3_NOT_FOUND",
+      "code": 324,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-325-s3_history_limit",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a400190145017053335f484953544f52595f4c494d495402f403a0",
+      "wire_sha256": "8a39732ccb994e1346807eaa127a1b36e32d8a4ed143aeb239bca6180ce102c5",
+      "expected": "S3_HISTORY_LIMIT",
+      "code": 325,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-400-identity_audience_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a4001901900178194944454e544954595f41554449454e43455f494e56414c494402f403a0",
+      "wire_sha256": "4b6ae9cdf49dc7e8ac6e6757f0b3df40afe368ef78dbb5db55f4840bf1734a10",
+      "expected": "IDENTITY_AUDIENCE_INVALID",
+      "code": 400,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-401-identity_challenge_replay",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a4001901910178194944454e544954595f4348414c4c454e47455f5245504c415902f403a0",
+      "wire_sha256": "82b763529b2342597d0b51c61cbd2efeaf143f219103cb14c0da0c9ae903513c",
+      "expected": "IDENTITY_CHALLENGE_REPLAY",
+      "code": 401,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-402-identity_proof_expired",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019019201764944454e544954595f50524f4f465f4558504952454402f403a0",
+      "wire_sha256": "5e4cce4d0685cf0ad0eaaadfb2135d5e535fbf32db82489c53d71fdcd5c39be6",
+      "expected": "IDENTITY_PROOF_EXPIRED",
+      "code": 402,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-403-identity_epoch_invalid",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019019301764944454e544954595f45504f43485f494e56414c494402f403a0",
+      "wire_sha256": "7bb029cb08dcf555d49e8be5acad8d6efe3fa3d38e207a49cfccfdf9dab03f3c",
+      "expected": "IDENTITY_EPOCH_INVALID",
+      "code": 403,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-404-identity_disclosure_denied",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019019401781a4944454e544954595f444953434c4f535552455f44454e49454402f403a0",
+      "wire_sha256": "3243a5c09807d23b52005bd1bcfa9bb2d6ab1cc22f3cc15ffd2a8f3107784567",
+      "expected": "IDENTITY_DISCLOSURE_DENIED",
+      "code": 404,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-405-identity_humanity_unavailable",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019019501781d4944454e544954595f48554d414e4954595f554e415641494c41424c4502f503a0",
+      "wire_sha256": "75ce4bca8e428ede2201718bd1d843a5bc3f004b4e55daf74885ab66fd59a1e6",
+      "expected": "IDENTITY_HUMANITY_UNAVAILABLE",
+      "code": 405,
+      "retryable": true,
+      "concrete": true
+    },
+    {
+      "id": "error-406-identity_entitlement_unavailable",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a4001901960178204944454e544954595f454e5449544c454d454e545f554e415641494c41424c4502f503a0",
+      "wire_sha256": "613771c2c12836ff781d52e05f41f6f09e9fad3104549adb9d56067dc0be53c7",
+      "expected": "IDENTITY_ENTITLEMENT_UNAVAILABLE",
+      "code": 406,
+      "retryable": true,
+      "concrete": true
+    },
+    {
+      "id": "error-407-signing_consent_required",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a4001901970178185349474e494e475f434f4e53454e545f524551554952454402f403a0",
+      "wire_sha256": "acc452eda77724e5581cbc5b7f8067665c330df80b8398c08d183e79ebd134f8",
+      "expected": "SIGNING_CONSENT_REQUIRED",
+      "code": 407,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-408-identity_recovery_entropy_failed",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a4001901980178204944454e544954595f5245434f564552595f454e54524f50595f4641494c454402f403a0",
+      "wire_sha256": "1b326309c8d92567a556f902550317e8b0ceff45efd4ce2709539972f1ed40e6",
+      "expected": "IDENTITY_RECOVERY_ENTROPY_FAILED",
+      "code": 408,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-409-identity_recovery_install_failed",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a4001901990178204944454e544954595f5245434f564552595f494e5354414c4c5f4641494c454402f403a0",
+      "wire_sha256": "072d20713f605498d35ea239c6b71d199242ca8be41f6bf79d4ddd57eae53d23",
+      "expected": "IDENTITY_RECOVERY_INSTALL_FAILED",
+      "code": 409,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-410-identity_old_incarnation",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019019a0178184944454e544954595f4f4c445f494e4341524e4154494f4e02f403a0",
+      "wire_sha256": "27cea85ca86fe4147caecc44db14c8847ab577fc9087aabe3a73eb5ce2975416",
+      "expected": "IDENTITY_OLD_INCARNATION",
+      "code": 410,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-411-identity_retired_set_full",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019019b0178194944454e544954595f524554495245445f5345545f46554c4c02f403a0",
+      "wire_sha256": "52878c15b2d19c33f1e4ea138387147e4889a3052610e023a1096e429c197f68",
+      "expected": "IDENTITY_RETIRED_SET_FULL",
+      "code": 411,
+      "retryable": false,
+      "concrete": true
+    }
+  ],
+  "concrete_wire_vectors": 200
+}

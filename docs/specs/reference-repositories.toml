@@ -1,0 +1,212 @@
+schema_version = 1
+integrity_policy = "content-sensitive-no-ignored-deltas"
+
+[[repository]]
+name = "cord"
+role = "cord"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-attestation-protocol"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/attestation-protocol"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-bcts"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/bcts"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-browse"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/browse"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-dotli-community"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/dotli-community"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-dotli-starter"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/dotli-starter"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-dotns"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/dotns"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-dotns-sdk"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/dotns-sdk"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-fellowship-runtimes"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/fellowship-runtimes"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-identity-backend-community"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/identity-backend-community"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-individuality-community"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/individuality-community"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-localdot-community"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/localdot-community"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-paseo-runtimes"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/paseo-runtimes"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-playground-app-community"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/playground-app-community"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-polkadot-android-community"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/polkadot-android-community"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-polkadot-app-deploy"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/polkadot-app-deploy"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-polkadot-app-design-system"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/polkadot-app-design-system"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-polkadot-app-design-system-android"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/polkadot-app-design-system-android"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-polkadot-app-design-system-ios"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/polkadot-app-design-system-ios"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-polkadot-apps"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/polkadot-apps"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-polkadot-bulletin-chain"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/polkadot-bulletin-chain"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-polkadot-cli"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/polkadot-cli"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-polkadot-desktop-community"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/polkadot-desktop-community"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-polkadot-ios-community"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/polkadot-ios-community"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-product-sdk"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/product-sdk"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-statement-store-tools"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/statement-store-tools"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-truapi"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/truapi"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-verifiable"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/verifiable"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-verifiablejs"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/verifiablejs"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "cache-web3-storage"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/.omx/cache/web3-storage"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "individuality-community"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/individuality-community"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "polkadot-bulletin-chain"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/polkadot-bulletin-chain"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "runtimes"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/runtimes"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "runtimes-paseo"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/runtimes-paseo"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
+
+[[repository]]
+name = "sdk"
+role = "reference"
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/sdk"
+cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]

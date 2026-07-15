@@ -1,0 +1,66 @@
+schema_version = 1
+cord_repository_name = "cord"
+
+# A slice is enabled only while its gate is being evaluated. Commit SHAs are
+# appended after the integrator creates an accepted Satish-authored commit.
+[[slice]]
+id = "P0_EVIDENCE"
+enabled = true
+path_globs = [
+  "docs/specs/evidence-gates-v1.toml",
+  "docs/specs/evidence-report-v1.schema.json",
+  "docs/specs/reference-repositories.toml",
+  "docs/specs/cord-change-slices.toml",
+  "docs/specs/storage-identity-deletion-v1.toml",
+  "scripts/evidence_common.py",
+  "scripts/run-evidence-gate.py",
+  "scripts/run-p0-control-tests.py",
+  "scripts/evidence-read-tracer/**",
+  "scripts/validate-ac-decidability.py",
+  "scripts/snapshot-repositories.py",
+  "scripts/validate-repository-boundary.py",
+  "scripts/validate-storage-identity-deletion.py",
+  "scripts/validate-phase-gate.py",
+  "scripts/scale_metadata_binding.py",
+  "scripts/generate-scale-metadata-binding.py",
+  "scripts/validate-scale-metadata-binding.py",
+  "scripts/tests/test_evidence_framework.py",
+  "scripts/tests/test_evidence_runner_safety.py",
+  "scripts/tests/test_scale_metadata_binding.py",
+  "scripts/tests/test_storage_identity_deletion.py",
+  "scripts/tests/fixtures/**",
+]
+commit_shas = []
+
+[[slice]]
+id = "P0_INVENTORY"
+enabled = true
+path_globs = [
+  "docs/specs/web3-storage-upstream-sources-v1.toml",
+  "docs/specs/web3-storage-upstream-inventory-v1.json",
+  "docs/specs/web3-storage-disposition-v1.toml",
+  "scripts/build-web3-storage-inventory.py",
+  "scripts/web3_storage_semantic.py",
+  "scripts/validate-web3-storage-parity.py",
+  "scripts/test-web3-storage-inventory.py",
+]
+commit_shas = []
+
+[[slice]]
+id = "P0_CONTRACTS"
+enabled = true
+path_globs = [
+  "docs/specs/**",
+  "docs/specs/storage-*.toml",
+  "docs/specs/identity-*.toml",
+  "docs/specs/host-*.toml",
+  "docs/specs/provider-*.toml",
+  "docs/specs/*.schema.json",
+  "docs/adr/**",
+  "Cargo.lock",
+  "origin-rs/Cargo.toml",
+  "origin-rs/tests/origin_host_registry_conformance.rs",
+  "origin-rs/tests/generated/**",
+  "product-sdk/tools/origin-host-conformance/**",
+]
+commit_shas = []

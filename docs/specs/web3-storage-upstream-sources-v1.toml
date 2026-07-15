@@ -1,0 +1,27 @@
+schema_version = 1
+enumerator_version = 3
+
+[source]
+name = "paritytech-web3-storage"
+repository = "https://github.com/paritytech/web3-storage.git"
+default_branch = "dev"
+commit = "48a38a1e8cdcce0a4947611252ec449ea04c1df3"
+reference_checkout = "../.omx/cache/web3-storage"
+read_only = true
+
+[census]
+command = ["git", "ls-files", "-z"]
+include_gitlinks_recursively = true
+path_encoding = "utf-8"
+sort = "unsigned-utf8-bytes"
+root_hash = "sha256-length-framed-v1"
+semantic_extractors = ["cargo-metadata-all-features", "rust-token-structure-qualified-context-cfg-frame-runtime-api", "npm-conditional-exports", "typescript-token-structure-resolved-export-route-graph", "markdown-guidance", "independent-qualified-completeness-oracle"]
+
+[policy]
+upstream_is_prototype = true
+upstream_is_unaudited = true
+upstream_is_production_ready = false
+external_modification_forbidden = true
+unknown_classification_forbidden = true
+unvisited_tracked_path_forbidden = true
+blocked_conflict_authorizes_implementation = false

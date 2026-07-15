@@ -1,0 +1,28 @@
+schema_version = 1
+runtime = "origin-commons-runtime"
+metadata_hash = "sha256-complete-runtime-metadata-scale-bytes"
+
+[[logical_type]]
+name = "cord.storage.MmrLeaf.v1"
+path = "cord::storage::MmrLeafV1"
+shape = '{"composite":[["data_root","H256"],["data_size","u64"],["total_size","u64"]]}'
+
+[[logical_type]]
+name = "cord.storage.MmrProof.v1"
+path = "cord::storage::MmrProofV1"
+shape = '{"composite":[["peaks","Vec<H256>"],["leaf","cord::storage::MmrLeafV1"],["leaf_proof","Vec<H256>"]]}'
+
+[[logical_type]]
+name = "cord.storage.Commitment.v1"
+path = "cord::storage::CommitmentV1"
+shape = '{"composite":[["mmr_root","H256"],["start_seq","u64"],["leaf_count","u64"]]}'
+
+[[logical_type]]
+name = "cord.storage.ChunkLocation.v1"
+path = "cord::storage::ChunkLocationV1"
+shape = '{"composite":[["leaf_index","u64"],["chunk_index","u32"]]}'
+
+[[logical_type]]
+name = "cord.storage.CommitmentPayload.v2"
+path = "cord::storage::CommitmentPayloadV2"
+shape = '{"composite":[["version","u8"],["bucket_id","BucketId"],["commitment","cord::storage::CommitmentV1"],["nonce","u32"]]}'

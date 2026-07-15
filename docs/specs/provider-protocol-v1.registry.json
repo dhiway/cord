@@ -1,0 +1,479 @@
+{
+  "protocol": "cord.provider/1",
+  "version": 1,
+  "authority": {
+    "cddl": "origin-host-registry-v2.cddl",
+    "types": {
+      "ProviderCapabilityV1": {
+        "closed": true,
+        "integer_keys": true,
+        "fields": [
+          {
+            "key": 0,
+            "required": true,
+            "cddl_type": "1"
+          },
+          {
+            "key": 1,
+            "required": true,
+            "cddl_type": "Hash32"
+          },
+          {
+            "key": 2,
+            "required": true,
+            "cddl_type": "Hash32"
+          },
+          {
+            "key": 3,
+            "required": true,
+            "cddl_type": "GrantId"
+          },
+          {
+            "key": 4,
+            "required": true,
+            "cddl_type": "KeyId"
+          },
+          {
+            "key": 5,
+            "required": true,
+            "cddl_type": "ProductId"
+          },
+          {
+            "key": 6,
+            "required": true,
+            "cddl_type": "BucketId"
+          },
+          {
+            "key": 7,
+            "required": false,
+            "cddl_type": "AgreementId"
+          },
+          {
+            "key": 8,
+            "required": true,
+            "cddl_type": "ProviderId"
+          },
+          {
+            "key": 9,
+            "required": true,
+            "cddl_type": "[1*64 U16]"
+          },
+          {
+            "key": 10,
+            "required": false,
+            "cddl_type": "Cid"
+          },
+          {
+            "key": 11,
+            "required": true,
+            "cddl_type": "U64"
+          },
+          {
+            "key": 12,
+            "required": true,
+            "cddl_type": "U64"
+          },
+          {
+            "key": 13,
+            "required": true,
+            "cddl_type": "U64"
+          },
+          {
+            "key": 14,
+            "required": true,
+            "cddl_type": "Nonce"
+          },
+          {
+            "key": 15,
+            "required": true,
+            "cddl_type": "bytes .size 64"
+          }
+        ]
+      },
+      "ResumeTokenV1": {
+        "closed": true,
+        "integer_keys": true,
+        "fields": [
+          {
+            "key": 0,
+            "required": true,
+            "cddl_type": "1"
+          },
+          {
+            "key": 1,
+            "required": true,
+            "cddl_type": "Hash32"
+          },
+          {
+            "key": 2,
+            "required": true,
+            "cddl_type": "Hash32"
+          },
+          {
+            "key": 3,
+            "required": true,
+            "cddl_type": "ProviderId"
+          },
+          {
+            "key": 4,
+            "required": true,
+            "cddl_type": "KeyId"
+          },
+          {
+            "key": 5,
+            "required": true,
+            "cddl_type": "OperationId"
+          },
+          {
+            "key": 6,
+            "required": true,
+            "cddl_type": "BucketId"
+          },
+          {
+            "key": 7,
+            "required": true,
+            "cddl_type": "Cid"
+          },
+          {
+            "key": 8,
+            "required": true,
+            "cddl_type": "U64"
+          },
+          {
+            "key": 9,
+            "required": true,
+            "cddl_type": "U32"
+          },
+          {
+            "key": 10,
+            "required": true,
+            "cddl_type": "U64"
+          },
+          {
+            "key": 11,
+            "required": true,
+            "cddl_type": "U64"
+          },
+          {
+            "key": 12,
+            "required": true,
+            "cddl_type": "U64"
+          },
+          {
+            "key": 13,
+            "required": true,
+            "cddl_type": "Nonce"
+          },
+          {
+            "key": 14,
+            "required": true,
+            "cddl_type": "bool"
+          },
+          {
+            "key": 15,
+            "required": true,
+            "cddl_type": "bytes .size 64"
+          }
+        ]
+      },
+      "RecoveryEntryV1": {
+        "closed": true,
+        "integer_keys": true,
+        "fields": [
+          {
+            "key": 0,
+            "required": true,
+            "cddl_type": "OperationId"
+          },
+          {
+            "key": 1,
+            "required": true,
+            "cddl_type": "RequestId"
+          },
+          {
+            "key": 2,
+            "required": true,
+            "cddl_type": "U64"
+          },
+          {
+            "key": 3,
+            "required": true,
+            "cddl_type": "Hash32"
+          },
+          {
+            "key": 4,
+            "required": true,
+            "cddl_type": "Nonce"
+          },
+          {
+            "key": 5,
+            "required": true,
+            "cddl_type": "U32"
+          },
+          {
+            "key": 6,
+            "required": true,
+            "cddl_type": "U32"
+          },
+          {
+            "key": 7,
+            "required": true,
+            "cddl_type": "Bytes4MiB"
+          },
+          {
+            "key": 8,
+            "required": false,
+            "cddl_type": "bytes .size (1..4096)"
+          },
+          {
+            "key": 9,
+            "required": true,
+            "cddl_type": "Hash32"
+          },
+          {
+            "key": 10,
+            "required": true,
+            "cddl_type": "Hash32"
+          },
+          {
+            "key": 11,
+            "required": true,
+            "cddl_type": "bool"
+          },
+          {
+            "key": 12,
+            "required": true,
+            "cddl_type": "U64"
+          }
+        ]
+      },
+      "ResponseAckV1": {
+        "closed": true,
+        "integer_keys": true,
+        "fields": [
+          {
+            "key": 0,
+            "required": true,
+            "cddl_type": "RequestId"
+          },
+          {
+            "key": 1,
+            "required": true,
+            "cddl_type": "OperationId"
+          },
+          {
+            "key": 2,
+            "required": true,
+            "cddl_type": "U64"
+          },
+          {
+            "key": 3,
+            "required": true,
+            "cddl_type": "Hash32"
+          }
+        ]
+      },
+      "ProviderTransferRequestV1": {
+        "closed": true,
+        "integer_keys": true,
+        "fields": [
+          {
+            "key": 0,
+            "required": true,
+            "cddl_type": "1"
+          },
+          {
+            "key": 1,
+            "required": true,
+            "cddl_type": "OperationId"
+          },
+          {
+            "key": 2,
+            "required": true,
+            "cddl_type": "BucketId"
+          },
+          {
+            "key": 3,
+            "required": true,
+            "cddl_type": "Cid"
+          },
+          {
+            "key": 4,
+            "required": true,
+            "cddl_type": "U64"
+          },
+          {
+            "key": 5,
+            "required": true,
+            "cddl_type": "U32"
+          },
+          {
+            "key": 6,
+            "required": true,
+            "cddl_type": "ProviderId"
+          },
+          {
+            "key": 7,
+            "required": true,
+            "cddl_type": "ProviderId"
+          },
+          {
+            "key": 8,
+            "required": true,
+            "cddl_type": "Hash32"
+          }
+        ]
+      },
+      "ProviderTransferChunkV1": {
+        "closed": true,
+        "integer_keys": true,
+        "fields": [
+          {
+            "key": 0,
+            "required": true,
+            "cddl_type": "1"
+          },
+          {
+            "key": 1,
+            "required": true,
+            "cddl_type": "OperationId"
+          },
+          {
+            "key": 2,
+            "required": true,
+            "cddl_type": "U32"
+          },
+          {
+            "key": 3,
+            "required": true,
+            "cddl_type": "bytes .size (0..262144)"
+          },
+          {
+            "key": 4,
+            "required": true,
+            "cddl_type": "Hash32"
+          }
+        ]
+      },
+      "ProviderTransferReceiptV1": {
+        "closed": true,
+        "integer_keys": true,
+        "fields": [
+          {
+            "key": 0,
+            "required": true,
+            "cddl_type": "1"
+          },
+          {
+            "key": 1,
+            "required": true,
+            "cddl_type": "OperationId"
+          },
+          {
+            "key": 2,
+            "required": true,
+            "cddl_type": "Cid"
+          },
+          {
+            "key": 3,
+            "required": true,
+            "cddl_type": "U64"
+          },
+          {
+            "key": 4,
+            "required": true,
+            "cddl_type": "U32"
+          },
+          {
+            "key": 5,
+            "required": true,
+            "cddl_type": "ProviderId"
+          },
+          {
+            "key": 6,
+            "required": true,
+            "cddl_type": "Hash32"
+          },
+          {
+            "key": 7,
+            "required": true,
+            "cddl_type": "bytes .size 64"
+          }
+        ]
+      }
+    }
+  },
+  "encoding": "RFC8949-4.2.3.1-length-first",
+  "signature": {
+    "capability": {
+      "domain": "cord.provider.capability.v1",
+      "algorithm": "Ed25519-direct",
+      "signed_keys": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "detached_key": 15
+    },
+    "resume": {
+      "domain": "cord.provider.resume.v1",
+      "algorithm": "Ed25519-direct",
+      "signed_keys": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "detached_key": 15
+    },
+    "transfer_receipt": {
+      "domain": "cord.provider.transfer.receipt.v1",
+      "algorithm": "Ed25519-direct",
+      "signed_keys": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "detached_key": 7
+    }
+  },
+  "fingerprint": {
+    "algorithm": "SHA-256",
+    "bytes": "canonical RequestV2 || canonical capability-or-resume-token"
+  },
+  "bounds": {
+    "capability_lifetime_blocks": 128,
+    "recovery_extension_blocks": 256,
+    "recovery_entries": 8192,
+    "backpressure_chunks": 4,
+    "backpressure_bytes": 1048576
+  },
+  "vectors": "provider-protocol-v1.vectors.json"
+}

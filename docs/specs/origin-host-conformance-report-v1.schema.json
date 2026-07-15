@@ -1,0 +1,271 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cord.network/schemas/origin-host-conformance-report-v2.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "authority",
+    "coverage",
+    "typescript",
+    "rust"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "status": {
+      "const": "pass"
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cddl_sha256",
+        "json_projection_sha256",
+        "semantic_schema_sha256",
+        "operations_sha256",
+        "errors_sha256",
+        "host_vectors_sha256",
+        "protocol_vectors_sha256",
+        "checkpoint_vectors_sha256",
+        "provider_vectors_sha256",
+        "outbox_vectors_sha256",
+        "identity_vectors_sha256",
+        "drive_s3_vectors_sha256"
+      ],
+      "properties": {
+        "cddl_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "operations_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "errors_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "host_vectors_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "protocol_vectors_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "checkpoint_vectors_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "provider_vectors_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "outbox_vectors_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "identity_vectors_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "drive_s3_vectors_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "json_projection_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "semantic_schema_sha256": {
+          "$ref": "#/$defs/hash"
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": [
+        "operations",
+        "errors",
+        "types",
+        "host_vectors",
+        "exact_protocol_vectors",
+        "missing_operations",
+        "missing_errors",
+        "missing_types",
+        "extra_types",
+        "missing_vectors",
+        "unmatched_productions",
+        "uncovered_constraints",
+        "semantic_coverage_sha256",
+        "semantic_vector_accepted",
+        "semantic_vector_rejected",
+        "outbox_drift_rejections",
+        "production_coverage",
+        "constraint_class_coverage"
+      ],
+      "properties": {
+        "operations": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "errors": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "types": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "host_vectors": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "exact_protocol_vectors": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "missing_operations": {
+          "$ref": "#/$defs/empty"
+        },
+        "missing_errors": {
+          "$ref": "#/$defs/empty"
+        },
+        "missing_types": {
+          "$ref": "#/$defs/empty"
+        },
+        "extra_types": {
+          "$ref": "#/$defs/empty"
+        },
+        "missing_vectors": {
+          "$ref": "#/$defs/empty"
+        },
+        "unmatched_productions": {
+          "$ref": "#/$defs/empty"
+        },
+        "uncovered_constraints": {
+          "$ref": "#/$defs/empty"
+        },
+        "semantic_coverage_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "semantic_vector_accepted": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "semantic_vector_rejected": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "outbox_drift_rejections": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "production_coverage": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/productionCoverage"
+          }
+        },
+        "constraint_class_coverage": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "typescript": {
+      "$ref": "#/$defs/decoder"
+    },
+    "rust": {
+      "$ref": "#/$defs/decoder"
+    }
+  },
+  "$defs": {
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "empty": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "decoder": {
+      "type": "object",
+      "required": [
+        "status",
+        "canonical_accepted",
+        "canonical_rejected",
+        "schema_rejected",
+        "crypto_verified",
+        "negative_state_assertions",
+        "semantic_schema_sha256",
+        "semantic_coverage_sha256",
+        "unmatched_productions",
+        "uncovered_constraints"
+      ],
+      "properties": {
+        "status": {
+          "const": "pass"
+        },
+        "canonical_accepted": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "canonical_rejected": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "schema_rejected": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "crypto_verified": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "negative_state_assertions": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "semantic_schema_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "semantic_coverage_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "unmatched_productions": {
+          "$ref": "#/$defs/empty"
+        },
+        "uncovered_constraints": {
+          "$ref": "#/$defs/empty"
+        }
+      }
+    },
+    "productionCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "positive",
+        "negative_constraints"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "positive": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "negative_constraints": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

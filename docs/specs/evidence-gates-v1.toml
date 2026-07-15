@@ -1,0 +1,3357 @@
+schema_version = 1
+evidence_root = "../.omx/evidence/origin-orbis-web3-storage"
+runner = "scripts/run-evidence-gate.py"
+canonicalization = "cord-json-canonical-v1"
+
+[execution_policy]
+repository_manifest = "docs/specs/reference-repositories.toml"
+allowed_executables = ["python3", "cargo", "npm", "node", "product-sdk/node_modules/.bin/tsc"]
+allowed_python_scripts = ["scripts/build-web3-storage-inventory.py", "scripts/check-source-headers.py", "scripts/generate-scale-metadata-binding.py", "scripts/run-origin-orbis-app-journey.py", "scripts/run-p0-control-tests.py", "scripts/snapshot-repositories.py", "scripts/validate-ac-decidability.py", "scripts/validate-drive-s3-vectors.py", "scripts/validate-host-provider-wire.py", "scripts/validate-origin-orbis-scope.py", "scripts/validate-phase-gate.py", "scripts/validate-product-projection.py", "scripts/validate-provider-organization.py", "scripts/validate-repository-boundary.py", "scripts/validate-scale-metadata-binding.py", "scripts/validate-storage-content-vectors.py", "scripts/validate-storage-identity-deletion.py", "scripts/validate-storage-proof-vectors.py", "scripts/validate-three-provider-recovery.py", "scripts/validate-web3-storage-parity.py", "scripts/verify-slice-commits.py"]
+allowed_external_output_roots = ["../.omx/evidence/origin-orbis-web3-storage"]
+
+[[gate]]
+id = "AC1"
+output = "../.omx/evidence/origin-orbis-web3-storage/ac1.json"
+decidability = "mechanical"
+clauses = ["pinned-commit", "census-root", "census-count", "unvisited", "missing", "duplicates", "multi-classified", "unmapped", "blocked", "unknown"]
+enforce_write_set = true
+write_paths = ["docs/specs/web3-storage-upstream-inventory-v1.json", "target/evidence/ac1-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "../.omx/cache/web3-storage"
+sha256 = "6ee0927655e8cb283b4dc7e84839cbcd1cbc11917dbddf19acf83ba90455b39d"
+
+[[gate.input]]
+path = "docs/specs/p0-ratification-v1.toml"
+sha256 = "51fea4f6214826e51013a90e9fe720f5a6ffe1483a0849ebcd57b218e9ba8514"
+
+[[gate.input]]
+path = "docs/specs/web3-storage-blocked-conflicts-v1.json"
+sha256 = "0e88563da7df0eff198b2d8b8ff6ae2292487518e9edea055d0c152a550d34ea"
+
+[[gate.input]]
+path = "docs/specs/web3-storage-blocked-conflicts-v1.md"
+sha256 = "8bcf8b2a37a30214fc9188f6796c99a1f84e610c909eb989fab64d9fe4b3a9b4"
+
+[[gate.input]]
+path = "docs/specs/web3-storage-capability-ledger-v1.json"
+sha256 = "86406be20d40d4439d3612127687e4943f175902d75e93f62a82dbe32e0fe83d"
+
+[[gate.input]]
+path = "docs/specs/web3-storage-upstream-sources-v1.toml"
+sha256 = "084135c94753f5de1cf29db561d86738700e30d64eb5fed577e942cd96848faa"
+
+[[gate.input]]
+path = "scripts/build-web3-storage-inventory.py"
+sha256 = "9bfd74744f3e525e994e7fafe95f9be746d0f57cc99ada910509d85e0b7669b0"
+
+[[gate.input]]
+path = "scripts/validate-web3-storage-parity.py"
+sha256 = "2b9c997cb28128f88ff47a2485a10728a4eb32745b0910163d70cb389b432829"
+
+[[gate.input]]
+path = "scripts/web3_storage_semantic.py"
+sha256 = "aaa087f55ed3a2cf31c4ebf3ce7cca4567e8757f29fb54b63cab8de6da5680f3"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/build-web3-storage-inventory.py", "--manifest", "docs/specs/web3-storage-upstream-sources-v1.toml", "--source", "../.omx/cache/web3-storage", "--ledger", "docs/specs/web3-storage-capability-ledger-v1.json", "--out", "docs/specs/web3-storage-upstream-inventory-v1.json"]
+test_count = 0
+outputs = ["docs/specs/web3-storage-upstream-inventory-v1.json"]
+inputs = ["scripts/build-web3-storage-inventory.py", "docs/specs/web3-storage-upstream-sources-v1.toml", "../.omx/cache/web3-storage", "docs/specs/web3-storage-capability-ledger-v1.json", "scripts/web3_storage_semantic.py"]
+allowed_writes = []
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-web3-storage-parity.py", "--manifest", "docs/specs/web3-storage-upstream-sources-v1.toml", "--source", "../.omx/cache/web3-storage", "--inventory", "docs/specs/web3-storage-upstream-inventory-v1.json", "--ledger", "docs/specs/web3-storage-capability-ledger-v1.json", "--decisions-json", "docs/specs/web3-storage-blocked-conflicts-v1.json", "--decisions-markdown", "docs/specs/web3-storage-blocked-conflicts-v1.md", "--ratification", "docs/specs/p0-ratification-v1.toml", "--p0-audit", "--out", "target/evidence/ac1-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/ac1-assertions.json"]
+inputs = ["scripts/validate-web3-storage-parity.py", "docs/specs/web3-storage-upstream-sources-v1.toml", "../.omx/cache/web3-storage", "docs/specs/web3-storage-upstream-inventory-v1.json", "docs/specs/web3-storage-capability-ledger-v1.json", "docs/specs/web3-storage-blocked-conflicts-v1.json", "docs/specs/web3-storage-blocked-conflicts-v1.md", "docs/specs/p0-ratification-v1.toml", "scripts/build-web3-storage-inventory.py", "scripts/web3_storage_semantic.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/ac1-assertions.json"
+sha256 = "record"
+schema = "unversioned-assertions-v1"
+
+[[gate.assertion]]
+clause = "pinned-commit"
+source = "target/evidence/ac1-assertions.json"
+json_pointer = "/repo_sha"
+operator = "eq"
+expected = "48a38a1e8cdcce0a4947611252ec449ea04c1df3"
+
+[[gate.assertion]]
+clause = "census-root"
+source = "target/evidence/ac1-assertions.json"
+json_pointer = "/census_root"
+operator = "sha256_eq"
+expected = "eb9a988fea53ad8b782a604374e478d4605858b2cf0775e91bf54c9d8ab40fa9"
+
+[[gate.assertion]]
+clause = "census-count"
+source = "target/evidence/ac1-assertions.json"
+json_pointer = "/census_count"
+operator = "eq"
+expected = 626
+
+[[gate.assertion]]
+clause = "unvisited"
+source = "target/evidence/ac1-assertions.json"
+json_pointer = "/unvisited"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "missing"
+source = "target/evidence/ac1-assertions.json"
+json_pointer = "/missing"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "duplicates"
+source = "target/evidence/ac1-assertions.json"
+json_pointer = "/duplicate"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "multi-classified"
+source = "target/evidence/ac1-assertions.json"
+json_pointer = "/multi_classified"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "unmapped"
+source = "target/evidence/ac1-assertions.json"
+json_pointer = "/unmapped"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "blocked"
+source = "target/evidence/ac1-assertions.json"
+json_pointer = "/blocked"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "unknown"
+source = "target/evidence/ac1-assertions.json"
+json_pointer = "/unknown"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "AC2"
+output = "../.omx/evidence/origin-orbis-web3-storage/ac2.json"
+decidability = "mechanical"
+clauses = ["vectors", "negative-codes", "no-commit", "hashes"]
+enforce_write_set = true
+write_paths = ["target/evidence/ac2-assertions.json", "target/debug/**", "target/.rustc_info.json", "product-sdk/node_modules/.cache/**"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "Cargo.lock"
+sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
+
+[[gate.input]]
+path = "Cargo.toml"
+sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
+
+[[gate.input]]
+path = "product-sdk"
+sha256 = "0242db16952fddf0c4201ff2847e280fd297dc80f5c319aed4b4075fa7d5e63f"
+
+[[gate.input]]
+path = "product-sdk/package-lock.json"
+sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
+
+[[gate.input]]
+path = "product-sdk/package.json"
+sha256 = "a66d8315ab531cd4644e5e5a1dd1f4e99c90b7abf3760e070488ac3b5e6dded8"
+
+[[gate.input]]
+path = "scripts/validate-storage-content-vectors.py"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC2-implementation"
+producer_output = "scripts/validate-storage-content-vectors.py"
+
+[[gate.command]]
+cwd = "."
+argv = ["cargo", "test", "-p", "origin-orbis-provider", "--test", "content_contract", "--", "--exact", "golden_contract"]
+test_count = 1
+outputs = []
+inputs = ["Cargo.toml", "Cargo.lock"]
+allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
+
+[[gate.command]]
+cwd = "."
+argv = ["npm", "--prefix", "product-sdk", "run", "test:storage-vectors"]
+test_count = 1
+outputs = []
+inputs = ["product-sdk", "product-sdk/package.json", "product-sdk/package-lock.json"]
+allowed_writes = ["product-sdk/node_modules/.cache/**"]
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-storage-content-vectors.py", "--out", "target/evidence/ac2-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/ac2-assertions.json"]
+inputs = ["scripts/validate-storage-content-vectors.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/ac2-assertions.json"
+sha256 = "record"
+schema = "unversioned-assertions-v1"
+
+[[gate.assertion]]
+clause = "vectors"
+source = "target/evidence/ac2-assertions.json"
+json_pointer = "/vector_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "negative-codes"
+source = "target/evidence/ac2-assertions.json"
+json_pointer = "/negative_code_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "no-commit"
+source = "target/evidence/ac2-assertions.json"
+json_pointer = "/commits"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "hashes"
+source = "target/evidence/ac2-assertions.json"
+json_pointer = "/hash_failures"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "AC3"
+output = "../.omx/evidence/origin-orbis-web3-storage/ac3.json"
+decidability = "mechanical"
+clauses = ["frozen-proof", "negative-codes", "evidence-two", "suspension-one"]
+enforce_write_set = true
+write_paths = ["target/evidence/ac3-assertions.json", "target/debug/**", "target/.rustc_info.json", "product-sdk/node_modules/.cache/**"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "Cargo.lock"
+sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
+
+[[gate.input]]
+path = "Cargo.toml"
+sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
+
+[[gate.input]]
+path = "product-sdk"
+sha256 = "0242db16952fddf0c4201ff2847e280fd297dc80f5c319aed4b4075fa7d5e63f"
+
+[[gate.input]]
+path = "product-sdk/package-lock.json"
+sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
+
+[[gate.input]]
+path = "product-sdk/package.json"
+sha256 = "a66d8315ab531cd4644e5e5a1dd1f4e99c90b7abf3760e070488ac3b5e6dded8"
+
+[[gate.input]]
+path = "scripts/validate-storage-proof-vectors.py"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC3-implementation"
+producer_output = "scripts/validate-storage-proof-vectors.py"
+
+[[gate.command]]
+cwd = "."
+argv = ["cargo", "test", "-p", "pallet-orbis-storage-provider", "checkpoint_contract", "--", "--nocapture"]
+test_count = 1
+outputs = []
+inputs = ["Cargo.toml", "Cargo.lock"]
+allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
+
+[[gate.command]]
+cwd = "."
+argv = ["npm", "--prefix", "product-sdk", "run", "test:proof-vectors"]
+test_count = 1
+outputs = []
+inputs = ["product-sdk", "product-sdk/package.json", "product-sdk/package-lock.json"]
+allowed_writes = ["product-sdk/node_modules/.cache/**"]
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-storage-proof-vectors.py", "--out", "target/evidence/ac3-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/ac3-assertions.json"]
+inputs = ["scripts/validate-storage-proof-vectors.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/ac3-assertions.json"
+sha256 = "record"
+schema = "unversioned-assertions-v1"
+
+[[gate.assertion]]
+clause = "frozen-proof"
+source = "target/evidence/ac3-assertions.json"
+json_pointer = "/proof_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "negative-codes"
+source = "target/evidence/ac3-assertions.json"
+json_pointer = "/negative_code_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "evidence-two"
+source = "target/evidence/ac3-assertions.json"
+json_pointer = "/evidence"
+operator = "eq"
+expected = 2
+
+[[gate.assertion]]
+clause = "suspension-one"
+source = "target/evidence/ac3-assertions.json"
+json_pointer = "/suspensions"
+operator = "eq"
+expected = 1
+
+[[gate]]
+id = "AC4"
+output = "../.omx/evidence/origin-orbis-web3-storage/ac4.json"
+decidability = "mechanical"
+clauses = ["invalid-cases", "event-order", "no-humanity-read", "evidence-hashes"]
+enforce_write_set = true
+write_paths = ["target/evidence/ac4-assertions.json", "target/debug/**", "target/.rustc_info.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "Cargo.lock"
+sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
+
+[[gate.input]]
+path = "Cargo.toml"
+sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
+
+[[gate.input]]
+path = "scripts/validate-provider-organization.py"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC4-implementation"
+producer_output = "scripts/validate-provider-organization.py"
+
+[[gate.command]]
+cwd = "."
+argv = ["cargo", "test", "-p", "pallet-orbis-storage-provider", "provider_organization_contract", "--", "--nocapture"]
+test_count = 1
+outputs = []
+inputs = ["Cargo.toml", "Cargo.lock"]
+allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-provider-organization.py", "--out", "target/evidence/ac4-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/ac4-assertions.json"]
+inputs = ["scripts/validate-provider-organization.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/ac4-assertions.json"
+sha256 = "record"
+schema = "unversioned-assertions-v1"
+
+[[gate.assertion]]
+clause = "invalid-cases"
+source = "target/evidence/ac4-assertions.json"
+json_pointer = "/invalid_case_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "event-order"
+source = "target/evidence/ac4-assertions.json"
+json_pointer = "/event_order_matches"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "no-humanity-read"
+source = "target/evidence/ac4-assertions.json"
+json_pointer = "/humanity_reads"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "evidence-hashes"
+source = "target/evidence/ac4-assertions.json"
+json_pointer = "/evidence_hash_failures"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "AC5"
+output = "../.omx/evidence/origin-orbis-web3-storage/ac5.json"
+decidability = "mechanical"
+clauses = ["root", "tie-break", "corrupt-reads", "convergence"]
+enforce_write_set = true
+write_paths = ["target/evidence/ac5-assertions.json", "target/debug/**", "target/.rustc_info.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "Cargo.lock"
+sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
+
+[[gate.input]]
+path = "Cargo.toml"
+sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
+
+[[gate.input]]
+path = "scripts/validate-three-provider-recovery.py"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC5-implementation"
+producer_output = "scripts/validate-three-provider-recovery.py"
+
+[[gate.command]]
+cwd = "."
+argv = ["cargo", "test", "-p", "origin-orbis-provider", "--test", "three_provider_recovery", "--", "--exact", "deterministic_failover"]
+test_count = 1
+outputs = []
+inputs = ["Cargo.toml", "Cargo.lock"]
+allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-three-provider-recovery.py", "--out", "target/evidence/ac5-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/ac5-assertions.json"]
+inputs = ["scripts/validate-three-provider-recovery.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/ac5-assertions.json"
+sha256 = "record"
+schema = "unversioned-assertions-v1"
+
+[[gate.assertion]]
+clause = "root"
+source = "target/evidence/ac5-assertions.json"
+json_pointer = "/root_matches"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "tie-break"
+source = "target/evidence/ac5-assertions.json"
+json_pointer = "/tie_break_matches"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "corrupt-reads"
+source = "target/evidence/ac5-assertions.json"
+json_pointer = "/corrupt_reads"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "convergence"
+source = "target/evidence/ac5-assertions.json"
+json_pointer = "/convergence_blocks"
+operator = "lte"
+expected = 200
+
+[[gate]]
+id = "AC6"
+output = "../.omx/evidence/origin-orbis-web3-storage/ac6.json"
+decidability = "mechanical"
+clauses = ["bounds", "codes", "state", "events"]
+enforce_write_set = true
+write_paths = ["target/evidence/ac6-assertions.json", "target/debug/**", "target/.rustc_info.json", "product-sdk/node_modules/.cache/**"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "Cargo.lock"
+sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
+
+[[gate.input]]
+path = "Cargo.toml"
+sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
+
+[[gate.input]]
+path = "product-sdk"
+sha256 = "0242db16952fddf0c4201ff2847e280fd297dc80f5c319aed4b4075fa7d5e63f"
+
+[[gate.input]]
+path = "product-sdk/package-lock.json"
+sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
+
+[[gate.input]]
+path = "product-sdk/package.json"
+sha256 = "a66d8315ab531cd4644e5e5a1dd1f4e99c90b7abf3760e070488ac3b5e6dded8"
+
+[[gate.input]]
+path = "scripts/validate-drive-s3-vectors.py"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC6-implementation"
+producer_output = "scripts/validate-drive-s3-vectors.py"
+
+[[gate.command]]
+cwd = "."
+argv = ["cargo", "test", "-p", "pallet-orbis-drive", "drive_contract", "--", "--nocapture"]
+test_count = 1
+outputs = []
+inputs = ["Cargo.toml", "Cargo.lock"]
+allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
+
+[[gate.command]]
+cwd = "."
+argv = ["cargo", "test", "-p", "pallet-orbis-s3", "s3_contract", "--", "--nocapture"]
+test_count = 1
+outputs = []
+inputs = ["Cargo.toml", "Cargo.lock"]
+allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
+
+[[gate.command]]
+cwd = "."
+argv = ["npm", "--prefix", "product-sdk", "run", "test:drive-s3-vectors"]
+test_count = 1
+outputs = []
+inputs = ["product-sdk", "product-sdk/package.json", "product-sdk/package-lock.json"]
+allowed_writes = ["product-sdk/node_modules/.cache/**"]
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-drive-s3-vectors.py", "--out", "target/evidence/ac6-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/ac6-assertions.json"]
+inputs = ["scripts/validate-drive-s3-vectors.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/ac6-assertions.json"
+sha256 = "record"
+schema = "unversioned-assertions-v1"
+
+[[gate.assertion]]
+clause = "bounds"
+source = "target/evidence/ac6-assertions.json"
+json_pointer = "/bound_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "codes"
+source = "target/evidence/ac6-assertions.json"
+json_pointer = "/error_code_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "state"
+source = "target/evidence/ac6-assertions.json"
+json_pointer = "/state_hash_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "events"
+source = "target/evidence/ac6-assertions.json"
+json_pointer = "/event_hash_failures"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "AC7"
+output = "../.omx/evidence/origin-orbis-web3-storage/ac7.json"
+decidability = "mechanical"
+clauses = ["registry-hash", "codes", "progress", "loss-boundaries", "effects", "outbox"]
+enforce_write_set = true
+write_paths = ["target/evidence/ac7-assertions.json", "product-sdk/node_modules/.cache/**", "target/debug/**", "target/.rustc_info.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "Cargo.lock"
+sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
+
+[[gate.input]]
+path = "Cargo.toml"
+sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
+
+[[gate.input]]
+path = "origin-rs"
+sha256 = "13fddab325b92fd8683c53e407de92dc0652fb6697ad6fbc3ba97b53de58b324"
+
+[[gate.input]]
+path = "product-sdk"
+sha256 = "0242db16952fddf0c4201ff2847e280fd297dc80f5c319aed4b4075fa7d5e63f"
+
+[[gate.input]]
+path = "product-sdk/package-lock.json"
+sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
+
+[[gate.input]]
+path = "product-sdk/package.json"
+sha256 = "a66d8315ab531cd4644e5e5a1dd1f4e99c90b7abf3760e070488ac3b5e6dded8"
+
+[[gate.input]]
+path = "scripts/validate-host-provider-wire.py"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC7-implementation"
+producer_output = "scripts/validate-host-provider-wire.py"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-host-provider-wire.py", "--registry", "docs/specs/host-provider-wire-v2.toml", "--out", "target/evidence/ac7-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/ac7-assertions.json"]
+inputs = ["scripts/validate-host-provider-wire.py"]
+allowed_writes = []
+
+[[gate.command]]
+cwd = "."
+argv = ["npm", "--prefix", "product-sdk", "run", "test:host-v2-outbox"]
+test_count = 1
+outputs = []
+inputs = ["product-sdk", "product-sdk/package.json", "product-sdk/package-lock.json"]
+allowed_writes = ["product-sdk/node_modules/.cache/**"]
+
+[[gate.command]]
+cwd = "."
+argv = ["cargo", "test", "-p", "origin-rs", "host_v2_conformance", "--", "--nocapture"]
+test_count = 1
+outputs = []
+inputs = ["origin-rs", "Cargo.toml", "Cargo.lock"]
+allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
+
+[[gate.command]]
+cwd = "."
+argv = ["cargo", "test", "-p", "origin-orbis-provider", "capability_resume_crash", "--", "--nocapture"]
+test_count = 1
+outputs = []
+inputs = ["Cargo.toml", "Cargo.lock"]
+allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
+
+[[gate.artifact]]
+path = "target/evidence/ac7-assertions.json"
+sha256 = "record"
+schema = "unversioned-assertions-v1"
+
+[[gate.assertion]]
+clause = "registry-hash"
+source = "target/evidence/ac7-assertions.json"
+json_pointer = "/registry_hash_matches"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "codes"
+source = "target/evidence/ac7-assertions.json"
+json_pointer = "/error_code_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "progress"
+source = "target/evidence/ac7-assertions.json"
+json_pointer = "/trace_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "loss-boundaries"
+source = "target/evidence/ac7-assertions.json"
+json_pointer = "/loss_boundary_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "effects"
+source = "target/evidence/ac7-assertions.json"
+json_pointer = "/duplicate_effects"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "outbox"
+source = "target/evidence/ac7-assertions.json"
+json_pointer = "/outbox_failures"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "AC8"
+output = "../.omx/evidence/origin-orbis-web3-storage/ac8.json"
+decidability = "mechanical"
+clauses = ["v2-vectors", "codes", "seven-ops", "separate-signing", "restart-replay", "fresh-recovery", "continuity", "leakage"]
+enforce_write_set = true
+write_paths = ["target/evidence/ac8-assertions.json", "product-sdk/node_modules/.cache/**", "target/debug/**", "target/.rustc_info.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "Cargo.lock"
+sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
+
+[[gate.input]]
+path = "Cargo.toml"
+sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
+
+[[gate.input]]
+path = "origin-rs"
+sha256 = "13fddab325b92fd8683c53e407de92dc0652fb6697ad6fbc3ba97b53de58b324"
+
+[[gate.input]]
+path = "product-sdk"
+sha256 = "0242db16952fddf0c4201ff2847e280fd297dc80f5c319aed4b4075fa7d5e63f"
+
+[[gate.input]]
+path = "product-sdk/package-lock.json"
+sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
+
+[[gate.input]]
+path = "product-sdk/package.json"
+sha256 = "a66d8315ab531cd4644e5e5a1dd1f4e99c90b7abf3760e070488ac3b5e6dded8"
+
+[[gate.input]]
+path = "scripts/validate-product-projection.py"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC8-implementation"
+producer_output = "scripts/validate-product-projection.py"
+
+[[gate.command]]
+cwd = "."
+argv = ["npm", "--prefix", "product-sdk", "run", "test:identity-vectors"]
+test_count = 1
+outputs = []
+inputs = ["product-sdk", "product-sdk/package.json", "product-sdk/package-lock.json"]
+allowed_writes = ["product-sdk/node_modules/.cache/**"]
+
+[[gate.command]]
+cwd = "."
+argv = ["cargo", "test", "-p", "origin-rs", "subject_recovery", "--", "--nocapture"]
+test_count = 1
+outputs = []
+inputs = ["origin-rs", "Cargo.toml", "Cargo.lock"]
+allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-product-projection.py", "--mode", "identity", "--out", "target/evidence/ac8-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/ac8-assertions.json"]
+inputs = ["scripts/validate-product-projection.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/ac8-assertions.json"
+sha256 = "record"
+schema = "unversioned-assertions-v1"
+
+[[gate.assertion]]
+clause = "v2-vectors"
+source = "target/evidence/ac8-assertions.json"
+json_pointer = "/vector_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "codes"
+source = "target/evidence/ac8-assertions.json"
+json_pointer = "/error_code_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "seven-ops"
+source = "target/evidence/ac8-assertions.json"
+json_pointer = "/identity_operation_count"
+operator = "eq"
+expected = 7
+
+[[gate.assertion]]
+clause = "separate-signing"
+source = "target/evidence/ac8-assertions.json"
+json_pointer = "/separate_signing"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "restart-replay"
+source = "target/evidence/ac8-assertions.json"
+json_pointer = "/same_store_replay_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "fresh-recovery"
+source = "target/evidence/ac8-assertions.json"
+json_pointer = "/recovery_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "continuity"
+source = "target/evidence/ac8-assertions.json"
+json_pointer = "/non_live_continuity_true"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "leakage"
+source = "target/evidence/ac8-assertions.json"
+json_pointer = "/leakage_findings"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "AC9"
+output = "../.omx/evidence/origin-orbis-web3-storage/ac9.json"
+decidability = "mechanical"
+clauses = ["public-taxonomy", "disposition", "projection", "no-shim"]
+enforce_write_set = true
+write_paths = ["target/evidence/ac9-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "scripts/validate-product-projection.py"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC9-implementation"
+producer_output = "scripts/validate-product-projection.py"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-product-projection.py", "--mode", "people-lite-disposition", "--ledger", "docs/specs/web3-storage-disposition-v1.toml", "--out", "target/evidence/ac9-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/ac9-assertions.json"]
+inputs = ["scripts/validate-product-projection.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/ac9-assertions.json"
+sha256 = "record"
+schema = "unversioned-assertions-v1"
+
+[[gate.assertion]]
+clause = "public-taxonomy"
+source = "target/evidence/ac9-assertions.json"
+json_pointer = "/public_old_taxonomy_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "disposition"
+source = "target/evidence/ac9-assertions.json"
+json_pointer = "/disposition_branch_valid"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "projection"
+source = "target/evidence/ac9-assertions.json"
+json_pointer = "/internal_projection_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "no-shim"
+source = "target/evidence/ac9-assertions.json"
+json_pointer = "/metadata_filter_shim_count"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "AC10"
+output = "../.omx/evidence/origin-orbis-web3-storage/ac10.json"
+decidability = "mechanical"
+clauses = ["deletion-items", "dag-fields", "dag-ids", "dag-orders", "dag-items", "dag-edges", "dag-cycles", "exact-symbols", "surface-census", "declaration-bijection", "unique-surfaces", "exhaustive-findings", "unique-ownership", "accepted-exclusions", "symbols", "fixtures", "taxonomy", "allowlist", "dependencies"]
+enforce_write_set = true
+write_paths = ["target/evidence/ac10-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "docs/specs/storage-identity-deletion-v1.toml"
+sha256 = "4b4ebe744c38516f2b70c20796a70ee9a9ad6e8ac1c0cc7140ae6396054e7e4f"
+
+[[gate.input]]
+path = "docs/specs/web3-storage-capability-ledger-v1.json"
+sha256 = "86406be20d40d4439d3612127687e4943f175902d75e93f62a82dbe32e0fe83d"
+
+[[gate.input]]
+path = "scripts/evidence_common.py"
+sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
+
+[[gate.input]]
+path = "scripts/validate-storage-identity-deletion.py"
+sha256 = "c4bc7414c6b97679e87284511de3da9e2d779740db028e97bba18e0130c2ed43"
+
+[[gate.input]]
+path = "Cargo.lock"
+sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
+
+[[gate.input]]
+path = "Cargo.toml"
+sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
+
+[[gate.input]]
+path = "docs/adr/0020-web3-storage-component-disposition-policy.md"
+sha256 = "4fd571cf440f6ee9840c3b775fe436f3de1ba32f3adc7dceeebd800b51c6a141"
+
+[[gate.input]]
+path = "docs/architecture/domains/identity-personhood-attestation.md"
+sha256 = "008eb0d87971ee92bcfbdac069bc00ba491ce36e1623501e860048dec82f1a01"
+
+[[gate.input]]
+path = "origin-rs/examples/orbis_storage_proof_fault.rs"
+sha256 = "14a817db7e754833956ecd359c943f5641eaba25c24495fadadf711eb2788550"
+
+[[gate.input]]
+path = "origin-rs/src/product_sdk/domains/storage_provider.rs"
+sha256 = "9000d050bf0e863e1b247b8414f613a6eee702232fec5031967b147e1f72bec0"
+
+[[gate.input]]
+path = "origin-rs/src/product_sdk/transport.rs"
+sha256 = "da4dccc8ec21c60882ff2d3cb9cbb5477e4d5f578b997b3b9107f8d9f6a5ac83"
+
+[[gate.input]]
+path = "origin/orbis/node/src/proof_campaign/config.rs"
+sha256 = "45b707e325c89c6bf483dc91c27f85a3c1b8bc909efe8f429c0b26e17ad1d141"
+
+[[gate.input]]
+path = "origin/orbis/node/src/proof_campaign/mod.rs"
+sha256 = "1f79deef645bfc6642c17644165ea8dc0b7866915b12aab2bca03f39225bced1"
+
+[[gate.input]]
+path = "origin/orbis/node/src/proof_campaign/proposer.rs"
+sha256 = "44194e0198b0a0a9c2b7abea09a2f628b83f931505e2178027dd621bc3a4c2f5"
+
+[[gate.input]]
+path = "origin/orbis/node/src/proof_campaign/provider.rs"
+sha256 = "81b97b33c730156ccae2afb4857f482ca48c7506ee221473bfef7eccad9ae851"
+
+[[gate.input]]
+path = "origin/orbis/node/src/proof_campaign/service.rs"
+sha256 = "f5b79b23349679c69c2053b3775f3080506a1661308c7b72ef54595ca9eac616"
+
+[[gate.input]]
+path = "origin/orbis/pallets/drive/src/lib.rs"
+sha256 = "f59fc4b62ba76113f560125bbe861bbb865bcdd637fac7a2f10126a195406929"
+
+[[gate.input]]
+path = "origin/orbis/pallets/hop-promotion/Cargo.toml"
+sha256 = "96e4015ccafc1b75aa24b523cdccde7287e3fc99f21804fc7f4137609ded5b24"
+
+[[gate.input]]
+path = "origin/orbis/pallets/hop-promotion/README.md"
+sha256 = "b26a1a53405459f3f59dd5f642282258c59f4ff1f09e1c97982c6bf86e1fd5c7"
+
+[[gate.input]]
+path = "origin/orbis/pallets/hop-promotion/src/benchmarking.rs"
+sha256 = "39fa9c8822ce65020e466dcb57459731b0ed7dbfeb2d906c73da8030347fc1d1"
+
+[[gate.input]]
+path = "origin/orbis/pallets/hop-promotion/src/lib.rs"
+sha256 = "3f3682029d9acec874e8ffe1de4dc968d1deb51762435f7e76192ce9f40163f4"
+
+[[gate.input]]
+path = "origin/orbis/pallets/hop-promotion/src/mock.rs"
+sha256 = "39549770798f1c247ac73195bf0f305f924f31c50c41eef6c8831f2d8387081f"
+
+[[gate.input]]
+path = "origin/orbis/pallets/hop-promotion/src/tests.rs"
+sha256 = "cb77942d40c6532b7d41583860a727309ad95b5a9b86eb527844829f5f1e5bb4"
+
+[[gate.input]]
+path = "origin/orbis/pallets/hop-promotion/src/weights.rs"
+sha256 = "8867d8141250f74beab9d4acae87b2448fab4cc6fb020f15d00cabf0052c3edd"
+
+[[gate.input]]
+path = "origin/orbis/pallets/s3/src/lib.rs"
+sha256 = "7c5e1d67f9f73abcaa4526fc98cc8de5cf011f726e55d7eebb007f93466809b2"
+
+[[gate.input]]
+path = "origin/orbis/pallets/storage-provider/src/lib.rs"
+sha256 = "f5e8ca0a747ee8f260eaebe1b0e934f969ba33eeb17740bbbd2c44ed5c444837"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/Cargo.toml"
+sha256 = "0c1cb446016a744d3b388589e5f489d748b6b7f04bf20d86260d56c65f9365b5"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/README.md"
+sha256 = "1e926f1f92d8e5ded2394f532ef79e75a4154d6b39f1e688878213724b09260b"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/primitives/Cargo.toml"
+sha256 = "a73968e9154ffe10e4f9a3bfec15008d40bb0fe95305454626a1a8a022cbcb76"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/primitives/README.md"
+sha256 = "a7f8e284da67c8486d66c9bb1abeabbd52131846c238ebae3bbf41c0ed5573c7"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/primitives/src/cids.rs"
+sha256 = "440e5cbe5a0fd53d5ab409e220d0f215ca0babd19a5a82283599961b60a04943"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
+sha256 = "9c7c9b89a1630867593e49af7eebb49a437d591376f1276bf9b18b6597164574"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/runtime-api/Cargo.toml"
+sha256 = "8013ca6d0d3a2ef01c7e7f6c7b5c52e276b24bad5f085496dde6f0ccf385fac3"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs"
+sha256 = "30ca8d7efe9a21fd0bfca674d04210195239cb91049eb15f2471366fbd46d480"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/benchmarking.rs"
+sha256 = "a2c16cfc40fb77cd00276db9c510b38ee5995c5b52202b1053b5cd3fd4565aab"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/extension.rs"
+sha256 = "80ca153202a3053b7f9f046829432cf7dfacfd92e75c256400618a3fce536927"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/lib.rs"
+sha256 = "3409322cef225ea0b7138a651dcfdd05f41590003cf587641bad7a6ed7e8ee9d"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/mock.rs"
+sha256 = "00cb4b8cfc6d45f422f85dffcc027ddde2affdd3eaeed7e7be2724294f2a5ccb"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/tests.rs"
+sha256 = "625d4e4e494abd10def5800281f77467dff673abe3048a6953abdb93a2c870b1"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/tests/runtime_api.rs"
+sha256 = "8078f4a18832d3e2430ee22c275b91015b1ef8b7a6d587b4864244e6963d2a4c"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/types.rs"
+sha256 = "2bc26d9a76f73abbce94bf9ab89b04a271090ef4bb37bb7066d7c98a87707582"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/weights.rs"
+sha256 = "dc6f3945d7c879d95dee5e48d7436544345ab175ea8d4fe4843225e2f21d5f2b"
+
+[[gate.input]]
+path = "origin/orbis/provider-node/README.md"
+sha256 = "aee0501405ac13bdbfc0d09dbbf7ebca2c2883e25c4748f7a80d4104bf3dcea2"
+
+[[gate.input]]
+path = "origin/orbis/provider-node/src/api.rs"
+sha256 = "ded04e7a416596f9121c33a7b2f0f59dd9c4f74ac307c03a149b93a06f45a8eb"
+
+[[gate.input]]
+path = "origin/orbis/runtime/src/enterprise_journey.rs"
+sha256 = "ce25982d911319fd551b28e7fc932e7a0506b1e06edfe4aceb9233a60b41490a"
+
+[[gate.input]]
+path = "origin/orbis/runtime/src/lib.rs"
+sha256 = "348b2ac5008544a5a031bcef62ed3226abf631b7f80faffe752aee14080af116"
+
+[[gate.input]]
+path = "origin/orbis/runtime/src/tests.rs"
+sha256 = "a998a285a93be0cd23b224efc24a095be6501ff1fd53774e4abbbe93b9f1ba3f"
+
+[[gate.input]]
+path = "origin/orbis/runtime/src/weights/pallet_orbis_hop_promotion.rs"
+sha256 = "8240875eefd114c0268391285ca582163d83e5f47507951bcaf40cda2ba6ef78"
+
+[[gate.input]]
+path = "product-sdk/examples/festival/mobile-contract-harness.ts"
+sha256 = "9277475bd3384df6f8e0f68fe4ac31acc923963fbdc31cc774416150c56a9ebd"
+
+[[gate.input]]
+path = "product-sdk/examples/festival/mobile-contract-vectors.json"
+sha256 = "2e9ee4aba923383ed47bb0786a69246e800097f895b8309bbd377e7264df512b"
+
+[[gate.input]]
+path = "product-sdk/package-lock.json"
+sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
+
+[[gate.input]]
+path = "product-sdk/packages/descriptors/generated/commons-papi-manifest.json"
+sha256 = "863725ddb75dca2cda5550d8f28cebcbf0be38c06a3f038da05b3574b8ba3aaa"
+
+[[gate.input]]
+path = "product-sdk/packages/descriptors/generated/native-route-contract.ts"
+sha256 = "ac8c668d36548cc4a40e28575022aaae73940ac4bab5a56d7e912ad0e7a97437"
+
+[[gate.input]]
+path = "product-sdk/packages/descriptors/generated/orbis-descriptor.json"
+sha256 = "62b0c9621c410dd3fbb919848306ea6601841fe83235a807af3cda61554cc729"
+
+[[gate.input]]
+path = "product-sdk/packages/descriptors/generated/orbis-network-binding.ts"
+sha256 = "0473be87d0485799c17204c78039e618bbdaf6796a648d10657884a15b7c9845"
+
+[[gate.input]]
+path = "product-sdk/packages/descriptors/src/identity-host-routes.ts"
+sha256 = "78f74df3511da8b97169f999ab8121deace974f792be22886bdfc3c383680a39"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-apps/README.md"
+sha256 = "a8362355c57d2b357439905f7670d99e2e3d6f3bcd636f2d849cca7396c123f2"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-apps/src/index.ts"
+sha256 = "ff1ee42c1c12a446e13d2e622f151523d01bb34b3366e2a9a8b61d21083a1d42"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-cloud-storage/README.md"
+sha256 = "8ec34f224114a4ff196bfd005a3c894f50c5540a957022498e253a8c9a760e0e"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts"
+sha256 = "c9262bf69456c9e79ef05a97ef382d39e2fff45bf50f5f576bb176d92ad07bbb"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-contracts/README.md"
+sha256 = "42909f74edadacb7595d6657a0b51558fd0833da480d2cd7b28c97e4bc4401e5"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-contracts/src/index.ts"
+sha256 = "5a0a7fbdae13ad49490c8066e14baa7056b7091da784f0a7b3304612bf90783a"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-host/src/index.ts"
+sha256 = "d7ac15793b9de725d75a7fb326d1b5f6062116b8d3c51b7bd531f13a3c9eb042"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-host/src/protocol.ts"
+sha256 = "ee3fa7eb0bb51221590492945d89e1998b4bda5d63402e5578a755ddedd51da9"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-host/src/testing.ts"
+sha256 = "29e90aec056e60f7d8f274c74f4c07a406af36c0cb182eaea695003bf13ea48d"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-host/tests/index.test.ts"
+sha256 = "a9b81ca8aa3a603abfa076aced701c703036d0d957169e0fbf42b1ba5515dfa4"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-personhood/README.md"
+sha256 = "9023448d0b65ad9a5f9ac151060b876cf64d8991af6c95d93074559ad773c611"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-personhood/package.json"
+sha256 = "b583de205cb44e272c5af25ac537af11c818bc2ae10283e6e79fbf1f94bf2689"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-personhood/src/index.ts"
+sha256 = "143ffd585b6deb795c89d53afe33188a7e66f50459c2ec3329a01d5522907b29"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-personhood/tests/index.test.ts"
+sha256 = "19fdec47e97f91adc7e34cde6ba61d73b050e3b7023cd66fb8e05b9acf56dacf"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-resources/README.md"
+sha256 = "02a5faf07d6f59538518f3d2fcb5fc7b1b04c7ad2de202e70c988d0d35ffa1c2"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-resources/package.json"
+sha256 = "63c68c3137d4cd1b8d2d8a78c45f40eff6ec366cfa39ca31d8868a9cc60f0a07"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-resources/src/index.ts"
+sha256 = "f0c8a35308e08d7fff253f1329221964af106809fc475d0736e6cda8b885a2c9"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-resources/tests/index.test.ts"
+sha256 = "34c961040358abcd0845ba56c1c1f24cc33b52dd9332bc1ac46e80c2e5f43d0f"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-statement-store/README.md"
+sha256 = "a617df8e7394f8d3cf19c50449ed53d6cff219eb1adfc23f39a8cdf8e0138bda"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-statement-store/package.json"
+sha256 = "7da54f9949c9709ba9971538017d009a30d81c20273141ab0a3fe44a47b7683d"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-statement-store/src/index.ts"
+sha256 = "1f8ec4504a48d5439197cd58feaebb1cb7a5ee6cb44c2b3b679b9507821bc416"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts"
+sha256 = "c80688c27179715d13495fb07352cd1fc7ba8e2726c2f3635d68bc21d03f88cc"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk/package.json"
+sha256 = "5d28f62a9579a577eb05cabbcddf85ca16bc4cc73b667c992396147dee8c54ad"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk/src/index.ts"
+sha256 = "d3acd66b0ceefb6066f751de33d754cbfba5d045947a276788d97fbb45cfd067"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk/src/runtime.ts"
+sha256 = "7ab9fd8c4b53b8a8601c31c624697a6ef7ae561b8e84295c4e4277c446cd6834"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk/src/testing.ts"
+sha256 = "d89ff97c9d0a3c71d0992028fcb7c7c2cb3ef94a38bf8ea328de95cd1cc32443"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk/tests/index.test.ts"
+sha256 = "dc32296053b5723ea12fccc2ad57a8cf8b787d24e1a6b63e4328b180730e98da"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk/tests/runtime.test.ts"
+sha256 = "ce66f41f12aa7396b39aef7bb92dcf9bc592dd1cf16c56156fcbde4e3f5cefcc"
+
+[[gate.input]]
+path = "product-sdk/src/version.ts"
+sha256 = "2c46e678303eb25805a91756003f1ff326c4a03953e9bd3a749a99f0491ca725"
+
+[[gate.input]]
+path = "product-sdk/tests/conformance/identity-sponsored-contract.test.ts"
+sha256 = "209a8ebe3a4b7d3ac84b7b792c2ee51a1c8c61f59521300b8dcfd1a1ab42419c"
+
+[[gate.input]]
+path = "product-sdk/tests/content/content.test.ts"
+sha256 = "2025942f30325fd34d16b59237ee4ab8f9eee713dbaa158acf671966208d2204"
+
+[[gate.input]]
+path = "product-sdk/tools/generate-papi-app-surface.ts"
+sha256 = "11f3a566c591561f3f0b6481ceefa0d0ed99490aa9f0da18e44e13405269f5ca"
+
+[[gate.input]]
+path = "product-sdk/tools/test-packed-consumer.ts"
+sha256 = "10785678d67fc050b6b5b4b368b2c7707d88599e84483c2900a50a88885a086c"
+
+[[gate.input]]
+path = "product-sdk/tools/validate-sdk-native-coverage.ts"
+sha256 = "08ae41f6d59120dc656241dba58a87407107f35ccb83fd14c554f2f02cf7e301"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-storage-identity-deletion.py", "--manifest", "docs/specs/storage-identity-deletion-v1.toml", "--ledger", "docs/specs/web3-storage-capability-ledger-v1.json", "--out", "target/evidence/ac10-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/ac10-assertions.json"]
+inputs = ["scripts/validate-storage-identity-deletion.py", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/web3-storage-capability-ledger-v1.json", "scripts/evidence_common.py", "Cargo.lock", "Cargo.toml", "docs/adr/0020-web3-storage-component-disposition-policy.md", "docs/architecture/domains/identity-personhood-attestation.md", "origin-rs/examples/orbis_storage_proof_fault.rs", "origin-rs/src/product_sdk/domains/storage_provider.rs", "origin-rs/src/product_sdk/transport.rs", "origin/orbis/node/src/proof_campaign/config.rs", "origin/orbis/node/src/proof_campaign/mod.rs", "origin/orbis/node/src/proof_campaign/proposer.rs", "origin/orbis/node/src/proof_campaign/provider.rs", "origin/orbis/node/src/proof_campaign/service.rs", "origin/orbis/pallets/drive/src/lib.rs", "origin/orbis/pallets/hop-promotion/Cargo.toml", "origin/orbis/pallets/hop-promotion/README.md", "origin/orbis/pallets/hop-promotion/src/benchmarking.rs", "origin/orbis/pallets/hop-promotion/src/lib.rs", "origin/orbis/pallets/hop-promotion/src/mock.rs", "origin/orbis/pallets/hop-promotion/src/tests.rs", "origin/orbis/pallets/hop-promotion/src/weights.rs", "origin/orbis/pallets/s3/src/lib.rs", "origin/orbis/pallets/storage-provider/src/lib.rs", "origin/orbis/pallets/transaction-storage/Cargo.toml", "origin/orbis/pallets/transaction-storage/README.md", "origin/orbis/pallets/transaction-storage/primitives/Cargo.toml", "origin/orbis/pallets/transaction-storage/primitives/README.md", "origin/orbis/pallets/transaction-storage/primitives/src/cids.rs", "origin/orbis/pallets/transaction-storage/primitives/src/lib.rs", "origin/orbis/pallets/transaction-storage/runtime-api/Cargo.toml", "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs", "origin/orbis/pallets/transaction-storage/src/benchmarking.rs", "origin/orbis/pallets/transaction-storage/src/extension.rs", "origin/orbis/pallets/transaction-storage/src/lib.rs", "origin/orbis/pallets/transaction-storage/src/mock.rs", "origin/orbis/pallets/transaction-storage/src/tests.rs", "origin/orbis/pallets/transaction-storage/src/tests/runtime_api.rs", "origin/orbis/pallets/transaction-storage/src/types.rs", "origin/orbis/pallets/transaction-storage/src/weights.rs", "origin/orbis/provider-node/README.md", "origin/orbis/provider-node/src/api.rs", "origin/orbis/runtime/src/enterprise_journey.rs", "origin/orbis/runtime/src/lib.rs", "origin/orbis/runtime/src/tests.rs", "origin/orbis/runtime/src/weights/pallet_orbis_hop_promotion.rs", "product-sdk/examples/festival/mobile-contract-harness.ts", "product-sdk/examples/festival/mobile-contract-vectors.json", "product-sdk/package-lock.json", "product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "product-sdk/packages/descriptors/generated/native-route-contract.ts", "product-sdk/packages/descriptors/generated/orbis-descriptor.json", "product-sdk/packages/descriptors/generated/orbis-network-binding.ts", "product-sdk/packages/descriptors/src/identity-host-routes.ts", "product-sdk/packages/origin-sdk-apps/README.md", "product-sdk/packages/origin-sdk-apps/src/index.ts", "product-sdk/packages/origin-sdk-cloud-storage/README.md", "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts", "product-sdk/packages/origin-sdk-contracts/README.md", "product-sdk/packages/origin-sdk-contracts/src/index.ts", "product-sdk/packages/origin-sdk-host/src/index.ts", "product-sdk/packages/origin-sdk-host/src/protocol.ts", "product-sdk/packages/origin-sdk-host/src/testing.ts", "product-sdk/packages/origin-sdk-host/tests/index.test.ts", "product-sdk/packages/origin-sdk-personhood/README.md", "product-sdk/packages/origin-sdk-personhood/package.json", "product-sdk/packages/origin-sdk-personhood/src/index.ts", "product-sdk/packages/origin-sdk-personhood/tests/index.test.ts", "product-sdk/packages/origin-sdk-resources/README.md", "product-sdk/packages/origin-sdk-resources/package.json", "product-sdk/packages/origin-sdk-resources/src/index.ts", "product-sdk/packages/origin-sdk-resources/tests/index.test.ts", "product-sdk/packages/origin-sdk-statement-store/README.md", "product-sdk/packages/origin-sdk-statement-store/package.json", "product-sdk/packages/origin-sdk-statement-store/src/index.ts", "product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts", "product-sdk/packages/origin-sdk/package.json", "product-sdk/packages/origin-sdk/src/index.ts", "product-sdk/packages/origin-sdk/src/runtime.ts", "product-sdk/packages/origin-sdk/src/testing.ts", "product-sdk/packages/origin-sdk/tests/index.test.ts", "product-sdk/packages/origin-sdk/tests/runtime.test.ts", "product-sdk/src/version.ts", "product-sdk/tests/conformance/identity-sponsored-contract.test.ts", "product-sdk/tests/content/content.test.ts", "product-sdk/tools/generate-papi-app-surface.ts", "product-sdk/tools/test-packed-consumer.ts", "product-sdk/tools/validate-sdk-native-coverage.ts"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/ac10-assertions.json"
+sha256 = "record"
+schema = "unversioned-assertions-v1"
+
+[[gate.assertion]]
+clause = "deletion-items"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/deletion_item_count"
+operator = "gte"
+expected = 30
+
+[[gate.assertion]]
+clause = "dag-fields"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/dag_missing_fields"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "dag-ids"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/dag_duplicate_ids"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "dag-orders"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/dag_duplicate_orders"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "dag-items"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/dag_invalid_items"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "dag-edges"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/dag_invalid_edges"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "dag-cycles"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/dag_cycle_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "exact-symbols"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/absent_symbol_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "surface-census"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/unmapped_surface_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "unique-surfaces"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/duplicate_surface_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "exhaustive-findings"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/unmapped_finding_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "unique-ownership"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/duplicate_owner_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "accepted-exclusions"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/approved_exclusion_invalid"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "symbols"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/obsolete_symbol_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "fixtures"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/obsolete_fixture_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "taxonomy"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/public_old_taxonomy_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "allowlist"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/allowlist_invalid"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "dependencies"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/deleted_dependency_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "declaration-bijection"
+source = "target/evidence/ac10-assertions.json"
+json_pointer = "/declaration_only_surface_count"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "AC11"
+output = "../.omx/evidence/origin-orbis-web3-storage/ac11.json"
+decidability = "blocked"
+clauses = ["state", "events", "frames", "roots", "errors", "metrics", "idempotency", "recovery"]
+enforce_write_set = true
+write_paths = ["target/evidence/ac11-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "scripts/run-origin-orbis-app-journey.py"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC11-implementation"
+producer_output = "scripts/run-origin-orbis-app-journey.py"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/run-origin-orbis-app-journey.py", "--providers", "3", "--transports", "messageport,desktop-cbor", "--repeat", "2", "--out", "target/evidence/ac11-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/ac11-assertions.json"]
+inputs = ["scripts/run-origin-orbis-app-journey.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/ac11-assertions.json"
+sha256 = "record"
+schema = "unversioned-assertions-v1"
+
+[[gate.assertion]]
+clause = "state"
+source = "target/evidence/ac11-assertions.json"
+json_pointer = "/state_trace_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "events"
+source = "target/evidence/ac11-assertions.json"
+json_pointer = "/event_trace_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "frames"
+source = "target/evidence/ac11-assertions.json"
+json_pointer = "/frame_trace_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "roots"
+source = "target/evidence/ac11-assertions.json"
+json_pointer = "/root_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "errors"
+source = "target/evidence/ac11-assertions.json"
+json_pointer = "/error_trace_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "metrics"
+source = "target/evidence/ac11-assertions.json"
+json_pointer = "/metric_trace_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "idempotency"
+source = "target/evidence/ac11-assertions.json"
+json_pointer = "/duplicate_effects"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "recovery"
+source = "target/evidence/ac11-assertions.json"
+json_pointer = "/recovery_hash_failures"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "AC12"
+output = "../.omx/evidence/origin-orbis-web3-storage/ac12.json"
+decidability = "mechanical"
+clauses = ["external", "cord-subset", "before-hash", "after-hash"]
+enforce_write_set = true
+write_paths = ["target/evidence/repos-after.json", "target/evidence/ac12-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "../.omx/evidence/origin-orbis-web3-storage/repos-before.json"
+sha256 = "1ee21acc0580bc7698cef67d6ef293c15d54d506288e38252fb6bcad7659e52a"
+
+[[gate.input]]
+path = "docs/specs/cord-change-slices.toml"
+sha256 = "3848cde7c62912f9aafe0144df39a09cc0b6f176a3edbf2c9e16c2f6f768c5e3"
+
+[[gate.input]]
+path = "docs/specs/reference-repositories.toml"
+sha256 = "ac457c5d367c90a60e21da46652d32abbdb237f3a43c07d43a7897b1d52757b4"
+
+[[gate.input]]
+path = "scripts/evidence_common.py"
+sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
+
+[[gate.input]]
+path = "scripts/snapshot-repositories.py"
+sha256 = "9856273aeaeb254ed0138cb0aa3b8fa562ea4680ddda201f1370a46fc7d428d9"
+
+[[gate.input]]
+path = "scripts/validate-repository-boundary.py"
+sha256 = "6715c8c6bae7d8d4fc99e44fcd0d4e1da28cf2edfe0749acf97d78a83f38e9f6"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/snapshot-repositories.py", "--manifest", "docs/specs/reference-repositories.toml", "--out", "target/evidence/repos-after.json"]
+test_count = 0
+outputs = ["target/evidence/repos-after.json"]
+inputs = ["scripts/snapshot-repositories.py", "docs/specs/reference-repositories.toml", "scripts/evidence_common.py", "@repository_snapshot"]
+allowed_writes = []
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-repository-boundary.py", "--baseline", "../.omx/evidence/origin-orbis-web3-storage/repos-before.json", "--current", "target/evidence/repos-after.json", "--allow-cord", "docs/specs/cord-change-slices.toml", "--out", "target/evidence/ac12-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/ac12-assertions.json"]
+inputs = ["scripts/validate-repository-boundary.py", "../.omx/evidence/origin-orbis-web3-storage/repos-before.json", "target/evidence/repos-after.json", "docs/specs/cord-change-slices.toml", "scripts/evidence_common.py", "scripts/snapshot-repositories.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/ac12-assertions.json"
+sha256 = "record"
+schema = "unversioned-assertions-v1"
+
+[[gate.assertion]]
+clause = "external"
+source = "target/evidence/ac12-assertions.json"
+json_pointer = "/external_content_deltas"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "cord-subset"
+source = "target/evidence/ac12-assertions.json"
+json_pointer = "/cord_undeclared_path_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "before-hash"
+source = "target/evidence/ac12-assertions.json"
+json_pointer = "/baseline_hash_valid"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "after-hash"
+source = "target/evidence/ac12-assertions.json"
+json_pointer = "/current_hash_valid"
+operator = "eq"
+expected = true
+
+[[gate]]
+id = "AC13"
+output = "../.omx/evidence/origin-orbis-web3-storage/ac13.json"
+decidability = "mechanical"
+clauses = ["headers", "identity", "gates", "paths"]
+enforce_write_set = true
+write_paths = ["target/evidence/ac13-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "docs/specs/cord-change-slices.toml"
+sha256 = "3848cde7c62912f9aafe0144df39a09cc0b6f176a3edbf2c9e16c2f6f768c5e3"
+
+[[gate.input]]
+path = "scripts/check-source-headers.py"
+sha256 = "7b921593b5ba35b245d853185af26905bf53037c8273877bd5a8bd6433067068"
+
+[[gate.input]]
+path = "scripts/verify-slice-commits.py"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC13-implementation"
+producer_output = "scripts/verify-slice-commits.py"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/check-source-headers.py"]
+test_count = 0
+outputs = []
+inputs = ["scripts/check-source-headers.py"]
+allowed_writes = []
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/verify-slice-commits.py", "--slices", "docs/specs/cord-change-slices.toml", "--author", "Satish Mohan <satish@dhiway.com>", "--out", "target/evidence/ac13-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/ac13-assertions.json"]
+inputs = ["docs/specs/cord-change-slices.toml", "scripts/verify-slice-commits.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/ac13-assertions.json"
+sha256 = "record"
+schema = "unversioned-assertions-v1"
+
+[[gate.assertion]]
+clause = "headers"
+source = "target/evidence/ac13-assertions.json"
+json_pointer = "/header_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "identity"
+source = "target/evidence/ac13-assertions.json"
+json_pointer = "/identity_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "gates"
+source = "target/evidence/ac13-assertions.json"
+json_pointer = "/recorded_gate_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "paths"
+source = "target/evidence/ac13-assertions.json"
+json_pointer = "/undeclared_paths"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "AC14"
+output = "../.omx/evidence/origin-orbis-web3-storage/ac14.json"
+decidability = "mechanical"
+clauses = ["economics", "duplicate", "migration", "fallback", "mobile", "external", "stop", "p8"]
+enforce_write_set = true
+write_paths = ["target/evidence/ac14-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "docs/specs/storage-identity-deletion-v1.toml"
+sha256 = "4b4ebe744c38516f2b70c20796a70ee9a9ad6e8ac1c0cc7140ae6396054e7e4f"
+
+[[gate.input]]
+path = "target/evidence/ac12-assertions.json"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC12"
+producer_output = "target/evidence/ac12-assertions.json"
+
+[[gate.input]]
+path = "scripts/validate-origin-orbis-scope.py"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC14-implementation"
+producer_output = "scripts/validate-origin-orbis-scope.py"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-origin-orbis-scope.py", "--ledger", "docs/specs/web3-storage-disposition-v1.toml", "--deletion", "docs/specs/storage-identity-deletion-v1.toml", "--repositories", "target/evidence/ac12-assertions.json", "--p7", "../.omx/evidence/origin-orbis-web3-storage/p7.json", "--out", "target/evidence/ac14-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/ac14-assertions.json"]
+inputs = ["docs/specs/storage-identity-deletion-v1.toml", "target/evidence/ac12-assertions.json", "scripts/validate-origin-orbis-scope.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/ac14-assertions.json"
+sha256 = "record"
+schema = "unversioned-assertions-v1"
+
+[[gate.assertion]]
+clause = "economics"
+source = "target/evidence/ac14-assertions.json"
+json_pointer = "/economics_findings"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "duplicate"
+source = "target/evidence/ac14-assertions.json"
+json_pointer = "/duplicate_state_findings"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "migration"
+source = "target/evidence/ac14-assertions.json"
+json_pointer = "/migration_compat_findings"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "fallback"
+source = "target/evidence/ac14-assertions.json"
+json_pointer = "/fallback_findings"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "mobile"
+source = "target/evidence/ac14-assertions.json"
+json_pointer = "/production_mobile_edits"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "external"
+source = "target/evidence/ac14-assertions.json"
+json_pointer = "/external_content_deltas"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "stop"
+source = "target/evidence/ac14-assertions.json"
+json_pointer = "/stop_literal"
+operator = "eq"
+expected = "feature-complete candidate—not production-ready"
+
+[[gate.assertion]]
+clause = "p8"
+source = "target/evidence/ac14-assertions.json"
+json_pointer = "/p8_authorized"
+operator = "eq"
+expected = false
+
+[[gate]]
+id = "P0"
+output = "../.omx/evidence/origin-orbis-web3-storage/p0.json"
+decidability = "mechanical"
+clauses = ["baseline-hash", "decidability", "pinned-commit", "census-root", "census-count", "blocked-conflicts", "unknown", "unmapped", "deletion-items", "deletion-dag", "exact-symbols", "surface-census", "unique-surfaces", "exhaustive-findings", "unique-ownership", "accepted-exclusions", "semantic-schema", "cddl-authority", "operations-authority", "errors-authority", "host-vectors-authority", "protocol-vectors-authority", "checkpoint-vectors-authority", "provider-vectors-authority", "outbox-vectors-authority", "identity-vectors-authority", "drive-s3-vectors-authority", "semantic-conformance", "adr-accepted", "ratification", "authorization-boundary", "phase-contract", "control-tests", "control-test-errors", "declaration-bijection"]
+enforce_write_set = true
+write_paths = ["../.omx/evidence/origin-orbis-web3-storage/ac-decidability-v1.json", "docs/specs/web3-storage-upstream-inventory-v1.json", "target/evidence/ac1-assertions.json", "target/p0-origin-host-rust-conformance.json", "target/p0-origin-host-cross-contract-report.json", "target/evidence/p0-deletion-dag.json", "target/evidence/p0-assertions.json", "target/evidence/p0-control-tests.json", "target/debug/**", "target/.rustc_info.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "docs/specs/reference-repositories.toml"
+sha256 = "ac457c5d367c90a60e21da46652d32abbdb237f3a43c07d43a7897b1d52757b4"
+
+[[gate.input]]
+path = "docs/specs/web3-storage-upstream-sources-v1.toml"
+sha256 = "084135c94753f5de1cf29db561d86738700e30d64eb5fed577e942cd96848faa"
+
+[[gate.input]]
+path = "docs/specs/web3-storage-capability-ledger-v1.json"
+sha256 = "86406be20d40d4439d3612127687e4943f175902d75e93f62a82dbe32e0fe83d"
+
+[[gate.input]]
+path = "docs/specs/web3-storage-upstream-inventory-v1.json"
+sha256 = "048e1f5f757f84d39b6c824ed24f330fd0e3217dbe8380799ac22300103c672e"
+
+[[gate.input]]
+path = "docs/specs/web3-storage-blocked-conflicts-v1.json"
+sha256 = "0e88563da7df0eff198b2d8b8ff6ae2292487518e9edea055d0c152a550d34ea"
+
+[[gate.input]]
+path = "docs/specs/web3-storage-blocked-conflicts-v1.md"
+sha256 = "8bcf8b2a37a30214fc9188f6796c99a1f84e610c909eb989fab64d9fe4b3a9b4"
+
+[[gate.input]]
+path = "docs/specs/storage-identity-deletion-v1.toml"
+sha256 = "4b4ebe744c38516f2b70c20796a70ee9a9ad6e8ac1c0cc7140ae6396054e7e4f"
+
+[[gate.input]]
+path = "docs/adr/0020-web3-storage-component-disposition-policy.md"
+sha256 = "4fd571cf440f6ee9840c3b775fe436f3de1ba32f3adc7dceeebd800b51c6a141"
+
+[[gate.input]]
+path = "docs/specs/storage-content-v1.md"
+sha256 = "ffc9823741011a6909525a37efa25da27b2950981ab5a08eaf8e894d13111ad1"
+
+[[gate.input]]
+path = "docs/specs/storage-checkpoints-v2.md"
+sha256 = "01ad7921def074683a667651f2635a3b0fe1257e9126ff898c70d9de84f17294"
+
+[[gate.input]]
+path = "docs/specs/storage-control-v1.md"
+sha256 = "63567abc1c8849d61ab737e1f190d56a05e7af62c4ba70f44411542b1142c12b"
+
+[[gate.input]]
+path = "docs/specs/drive-filesystem-v1.md"
+sha256 = "c6ad60147e9e9031b96f942d8b114682c60a0bd4f787d01404038b7df1843656"
+
+[[gate.input]]
+path = "docs/specs/s3-v1.md"
+sha256 = "db608449f7d0f9af8a43f6b221c520046407c00a23c66623be7b56eba7cc16bb"
+
+[[gate.input]]
+path = "docs/specs/storage-encryption-v1.md"
+sha256 = "641ab60b1f7d824e390d01aeefaecda0074dad38bd5bc8dc67e8cfb5604ccf49"
+
+[[gate.input]]
+path = "docs/specs/provider-organization-sla-v1.md"
+sha256 = "44cdedf8470c2df2b7cc71888a6417115e2327acb3ad4182fd2564181e30484e"
+
+[[gate.input]]
+path = "docs/specs/identity-v2.md"
+sha256 = "370336c2e73e43278cbb832c1318756cf882ba2aab5ddf4b4638c547f80b3b3a"
+
+[[gate.input]]
+path = "docs/specs/host-provider-protocol-v2.md"
+sha256 = "de8116cb44b3b8f5a0a6d5bc135588edbb85366f1865db737c449f257deb99cf"
+
+[[gate.input]]
+path = "docs/specs/origin-host-registry-v2.cddl"
+sha256 = "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba"
+
+[[gate.input]]
+path = "docs/specs/origin-host-registry-v2.schema.json"
+sha256 = "f6ce027cb6b4f93038f96d045e8abbeee751c901015d3e9bd58e2833beedc18b"
+
+[[gate.input]]
+path = "docs/specs/origin-host-registry-v2.operations.json"
+sha256 = "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca"
+
+[[gate.input]]
+path = "docs/specs/origin-host-registry-v2.errors.json"
+sha256 = "f9734782c6ade5eb8c0cbea5ad93a9808a6cc6a88363fec6f7bfc023de58d8ca"
+
+[[gate.input]]
+path = "docs/specs/origin-host-registry-v2.vectors.json"
+sha256 = "6a2be09c04d1cf006c72eeaddfe66915381bfc849216c9d91746151687afc03b"
+
+[[gate.input]]
+path = "docs/specs/origin-host-registry-v2.vectors.cbor"
+sha256 = "9ef6624ba14275b9e30cca8ff786255011962e05986a12aac0071c85427be71c"
+
+[[gate.input]]
+path = "docs/specs/protocol-executable-v2.vectors.json"
+sha256 = "1b1da4bbc870dec61f9f85e0f2f06c80f54ddb6802f793287af7382ff9b27c64"
+
+[[gate.input]]
+path = "docs/specs/checkpoint-v2.vectors.json"
+sha256 = "16a68a1c7032c542ae5c5d01e7ae723ad3bf99f025c6586ae0d9e8a53c99ca8d"
+
+[[gate.input]]
+path = "docs/specs/provider-protocol-v1.registry.json"
+sha256 = "645bb0749f35e2f3f71c932ceca413c7d9351b3c3976a10d6ff96c1aceba8f9c"
+
+[[gate.input]]
+path = "docs/specs/provider-protocol-v1.vectors.json"
+sha256 = "cd9967f183b10632bd5036f897fba8f22391900158586c9a5af6d83c683f6ec6"
+
+[[gate.input]]
+path = "docs/specs/host-outbox-v1.vectors.json"
+sha256 = "97086f7e8a84ba32108968b8f27babc7832bcb08573914773eb9ca3b7f92899a"
+
+[[gate.input]]
+path = "docs/specs/identity-v2.vectors.json"
+sha256 = "480988ed6529c7f4fd7e93395074d77d5c6a97ae29868ec4a62eb4baa1ddd57e"
+
+[[gate.input]]
+path = "docs/specs/drive-s3-v1.vectors.json"
+sha256 = "b68097810de7ea3b2b780ba993efdfddd85e7b0bfaea818648db815420a5692f"
+
+[[gate.input]]
+path = "docs/specs/storage-bounds-v1.toml"
+sha256 = "0dd0a38e5a064e23501f0f446bbef9bd6015fdbaef953bdf0e515f92bb1a2b2c"
+
+[[gate.input]]
+path = "docs/specs/storage-v1.vectors.json"
+sha256 = "8458f96e635568ae84e4234a26378f6fb2133d5ce9877ae1aa985970752899c9"
+
+[[gate.input]]
+path = "docs/specs/host-outbox-v1.state-machine.json"
+sha256 = "bf9ba9ee5ab22dd537600bc0677950a655a4f0624e2f459715d9e4c06a54e8ef"
+
+[[gate.input]]
+path = "docs/specs/identity-recovery-v2.state-machine.json"
+sha256 = "910f271d07e86fc1cb75b3c98f304b2809d7fd0dc0f014468f93ad5d2c732c11"
+
+[[gate.input]]
+path = "docs/specs/generated/host-outbox-v1.md"
+sha256 = "133714198eb0722c1fc561aac9afb181cda759987e78fe7fe037494de951fa3d"
+
+[[gate.input]]
+path = "docs/specs/generated/identity-recovery-v2.md"
+sha256 = "b77892fee62fc61b00538e7e593252dde2d5552940c863629f74d3b1a48e304e"
+
+[[gate.input]]
+path = "docs/specs/p0-open-decisions.toml"
+sha256 = "f9738cb0a57ae42d2b788cb899064c16c5e4d21bea22bf87181d03b2aff726ab"
+
+[[gate.input]]
+path = "docs/specs/p0-ratification-v1.toml"
+sha256 = "51fea4f6214826e51013a90e9fe720f5a6ffe1483a0849ebcd57b218e9ba8514"
+
+[[gate.input]]
+path = "docs/specs/origin-host-conformance-report-v1.schema.json"
+sha256 = "58ee013c5639e42ce284873cb19ab0bb8261114647707f2ac4203f41dfd533ef"
+
+[[gate.input]]
+path = "scripts/run-evidence-gate.py"
+sha256 = "568815bdb96f589f23ef68995530c4aa7fa06f1c89ad19dc16a355e95127ef80"
+
+[[gate.input]]
+path = "scripts/evidence_common.py"
+sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
+
+[[gate.input]]
+path = "scripts/snapshot-repositories.py"
+sha256 = "9856273aeaeb254ed0138cb0aa3b8fa562ea4680ddda201f1370a46fc7d428d9"
+
+[[gate.input]]
+path = "scripts/validate-repository-boundary.py"
+sha256 = "6715c8c6bae7d8d4fc99e44fcd0d4e1da28cf2edfe0749acf97d78a83f38e9f6"
+
+[[gate.input]]
+path = "scripts/validate-ac-decidability.py"
+sha256 = "521831c68e52e5696b65145c08c1d53a54bffcebc0f7190b5a3aa23fce7d9e9c"
+
+[[gate.input]]
+path = "scripts/build-web3-storage-inventory.py"
+sha256 = "9bfd74744f3e525e994e7fafe95f9be746d0f57cc99ada910509d85e0b7669b0"
+
+[[gate.input]]
+path = "scripts/web3_storage_semantic.py"
+sha256 = "aaa087f55ed3a2cf31c4ebf3ce7cca4567e8757f29fb54b63cab8de6da5680f3"
+
+[[gate.input]]
+path = "scripts/validate-web3-storage-parity.py"
+sha256 = "2b9c997cb28128f88ff47a2485a10728a4eb32745b0910163d70cb389b432829"
+
+[[gate.input]]
+path = "scripts/validate-storage-identity-deletion.py"
+sha256 = "c4bc7414c6b97679e87284511de3da9e2d779740db028e97bba18e0130c2ed43"
+
+[[gate.input]]
+path = "scripts/validate-phase-gate.py"
+sha256 = "b64e1974b760f0020df8d9283f5a8778759319d561f90c8612573615bfe6aea3"
+
+[[gate.input]]
+path = "HEADER-GPL3"
+sha256 = "28509264003a2f17ca6441fe2eb084506eaf39af50e10f9cbba35a959719e9f1"
+
+[[gate.input]]
+path = "product-sdk/tools/origin-host-conformance/generate-origin-host-types.cjs"
+sha256 = "bf171c9d82c261b1c4ad5eef85d8286a73ea5b86ef2fac21b65fd73d39ec7476"
+
+[[gate.input]]
+path = "product-sdk/tools/origin-host-conformance/generated/origin-host-registry-v2.ts"
+sha256 = "65f1c4bc1e40d65da24570e04ec0ce66dd0ebbeca76c9fb7dd8eceeea87a7990"
+
+[[gate.input]]
+path = "product-sdk/tools/origin-host-conformance/validate-origin-host-conformance.ts"
+sha256 = "559eb6238efafdcfa986c227cf52fbd2ee4abeab60df9cfe0f50ea8e2f7f69b8"
+
+[[gate.input]]
+path = "origin-rs/tests/origin_host_registry_conformance.rs"
+sha256 = "64bf5b285e32623598724e633e895d52f311f46f4ac4e2c8ff4e1b5f4fc4f183"
+
+[[gate.input]]
+path = "origin-rs/tests/generated/origin_host_registry_v2.rs"
+sha256 = "d569ecce7cb08cc50d1ba151f4f1bbe9d93542840071c92699e2bca0a6c7a6a7"
+
+[[gate.input]]
+path = "origin-rs/Cargo.toml"
+sha256 = "27990674a5775d80b013e8658ae73cb46672ca649f415ed925c68c2324f659ac"
+
+[[gate.input]]
+path = "Cargo.lock"
+sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
+
+[[gate.input]]
+path = "product-sdk/package.json"
+sha256 = "a66d8315ab531cd4644e5e5a1dd1f4e99c90b7abf3760e070488ac3b5e6dded8"
+
+[[gate.input]]
+path = "product-sdk/package-lock.json"
+sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
+
+[[gate.input]]
+path = "../.omx/cache/web3-storage"
+sha256 = "6ee0927655e8cb283b4dc7e84839cbcd1cbc11917dbddf19acf83ba90455b39d"
+
+[[gate.input]]
+path = "Cargo.toml"
+sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
+
+[[gate.input]]
+path = "node"
+sha256 = "acb68921405e0d8862a872aa8ed14574601d8e74585c7d80ca067e886580c762"
+
+[[gate.input]]
+path = "product-sdk/node_modules/@types"
+sha256 = "cbd101e262436b9a55fe93e0a02c9ddd4f68476a5755e85697bab5895587f1a5"
+
+[[gate.input]]
+path = "../.omx/evidence/origin-orbis-web3-storage/repos-before.json"
+sha256 = "1ee21acc0580bc7698cef67d6ef293c15d54d506288e38252fb6bcad7659e52a"
+
+[[gate.input]]
+path = "docs/architecture/domains/identity-personhood-attestation.md"
+sha256 = "008eb0d87971ee92bcfbdac069bc00ba491ce36e1623501e860048dec82f1a01"
+
+[[gate.input]]
+path = "origin-rs/examples/orbis_storage_proof_fault.rs"
+sha256 = "14a817db7e754833956ecd359c943f5641eaba25c24495fadadf711eb2788550"
+
+[[gate.input]]
+path = "origin-rs/src/product_sdk/domains/storage_provider.rs"
+sha256 = "9000d050bf0e863e1b247b8414f613a6eee702232fec5031967b147e1f72bec0"
+
+[[gate.input]]
+path = "origin-rs/src/product_sdk/transport.rs"
+sha256 = "da4dccc8ec21c60882ff2d3cb9cbb5477e4d5f578b997b3b9107f8d9f6a5ac83"
+
+[[gate.input]]
+path = "origin/orbis/node/src/proof_campaign/config.rs"
+sha256 = "45b707e325c89c6bf483dc91c27f85a3c1b8bc909efe8f429c0b26e17ad1d141"
+
+[[gate.input]]
+path = "origin/orbis/node/src/proof_campaign/mod.rs"
+sha256 = "1f79deef645bfc6642c17644165ea8dc0b7866915b12aab2bca03f39225bced1"
+
+[[gate.input]]
+path = "origin/orbis/node/src/proof_campaign/proposer.rs"
+sha256 = "44194e0198b0a0a9c2b7abea09a2f628b83f931505e2178027dd621bc3a4c2f5"
+
+[[gate.input]]
+path = "origin/orbis/node/src/proof_campaign/provider.rs"
+sha256 = "81b97b33c730156ccae2afb4857f482ca48c7506ee221473bfef7eccad9ae851"
+
+[[gate.input]]
+path = "origin/orbis/node/src/proof_campaign/service.rs"
+sha256 = "f5b79b23349679c69c2053b3775f3080506a1661308c7b72ef54595ca9eac616"
+
+[[gate.input]]
+path = "origin/orbis/pallets/drive/src/lib.rs"
+sha256 = "f59fc4b62ba76113f560125bbe861bbb865bcdd637fac7a2f10126a195406929"
+
+[[gate.input]]
+path = "origin/orbis/pallets/hop-promotion/Cargo.toml"
+sha256 = "96e4015ccafc1b75aa24b523cdccde7287e3fc99f21804fc7f4137609ded5b24"
+
+[[gate.input]]
+path = "origin/orbis/pallets/hop-promotion/README.md"
+sha256 = "b26a1a53405459f3f59dd5f642282258c59f4ff1f09e1c97982c6bf86e1fd5c7"
+
+[[gate.input]]
+path = "origin/orbis/pallets/hop-promotion/src/benchmarking.rs"
+sha256 = "39fa9c8822ce65020e466dcb57459731b0ed7dbfeb2d906c73da8030347fc1d1"
+
+[[gate.input]]
+path = "origin/orbis/pallets/hop-promotion/src/lib.rs"
+sha256 = "3f3682029d9acec874e8ffe1de4dc968d1deb51762435f7e76192ce9f40163f4"
+
+[[gate.input]]
+path = "origin/orbis/pallets/hop-promotion/src/mock.rs"
+sha256 = "39549770798f1c247ac73195bf0f305f924f31c50c41eef6c8831f2d8387081f"
+
+[[gate.input]]
+path = "origin/orbis/pallets/hop-promotion/src/tests.rs"
+sha256 = "cb77942d40c6532b7d41583860a727309ad95b5a9b86eb527844829f5f1e5bb4"
+
+[[gate.input]]
+path = "origin/orbis/pallets/hop-promotion/src/weights.rs"
+sha256 = "8867d8141250f74beab9d4acae87b2448fab4cc6fb020f15d00cabf0052c3edd"
+
+[[gate.input]]
+path = "origin/orbis/pallets/s3/src/lib.rs"
+sha256 = "7c5e1d67f9f73abcaa4526fc98cc8de5cf011f726e55d7eebb007f93466809b2"
+
+[[gate.input]]
+path = "origin/orbis/pallets/storage-provider/src/lib.rs"
+sha256 = "f5e8ca0a747ee8f260eaebe1b0e934f969ba33eeb17740bbbd2c44ed5c444837"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/Cargo.toml"
+sha256 = "0c1cb446016a744d3b388589e5f489d748b6b7f04bf20d86260d56c65f9365b5"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/README.md"
+sha256 = "1e926f1f92d8e5ded2394f532ef79e75a4154d6b39f1e688878213724b09260b"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/primitives/Cargo.toml"
+sha256 = "a73968e9154ffe10e4f9a3bfec15008d40bb0fe95305454626a1a8a022cbcb76"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/primitives/README.md"
+sha256 = "a7f8e284da67c8486d66c9bb1abeabbd52131846c238ebae3bbf41c0ed5573c7"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/primitives/src/cids.rs"
+sha256 = "440e5cbe5a0fd53d5ab409e220d0f215ca0babd19a5a82283599961b60a04943"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
+sha256 = "9c7c9b89a1630867593e49af7eebb49a437d591376f1276bf9b18b6597164574"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/runtime-api/Cargo.toml"
+sha256 = "8013ca6d0d3a2ef01c7e7f6c7b5c52e276b24bad5f085496dde6f0ccf385fac3"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs"
+sha256 = "30ca8d7efe9a21fd0bfca674d04210195239cb91049eb15f2471366fbd46d480"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/benchmarking.rs"
+sha256 = "a2c16cfc40fb77cd00276db9c510b38ee5995c5b52202b1053b5cd3fd4565aab"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/extension.rs"
+sha256 = "80ca153202a3053b7f9f046829432cf7dfacfd92e75c256400618a3fce536927"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/lib.rs"
+sha256 = "3409322cef225ea0b7138a651dcfdd05f41590003cf587641bad7a6ed7e8ee9d"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/mock.rs"
+sha256 = "00cb4b8cfc6d45f422f85dffcc027ddde2affdd3eaeed7e7be2724294f2a5ccb"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/tests.rs"
+sha256 = "625d4e4e494abd10def5800281f77467dff673abe3048a6953abdb93a2c870b1"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/tests/runtime_api.rs"
+sha256 = "8078f4a18832d3e2430ee22c275b91015b1ef8b7a6d587b4864244e6963d2a4c"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/types.rs"
+sha256 = "2bc26d9a76f73abbce94bf9ab89b04a271090ef4bb37bb7066d7c98a87707582"
+
+[[gate.input]]
+path = "origin/orbis/pallets/transaction-storage/src/weights.rs"
+sha256 = "dc6f3945d7c879d95dee5e48d7436544345ab175ea8d4fe4843225e2f21d5f2b"
+
+[[gate.input]]
+path = "origin/orbis/provider-node/README.md"
+sha256 = "aee0501405ac13bdbfc0d09dbbf7ebca2c2883e25c4748f7a80d4104bf3dcea2"
+
+[[gate.input]]
+path = "origin/orbis/provider-node/src/api.rs"
+sha256 = "ded04e7a416596f9121c33a7b2f0f59dd9c4f74ac307c03a149b93a06f45a8eb"
+
+[[gate.input]]
+path = "origin/orbis/runtime/src/enterprise_journey.rs"
+sha256 = "ce25982d911319fd551b28e7fc932e7a0506b1e06edfe4aceb9233a60b41490a"
+
+[[gate.input]]
+path = "origin/orbis/runtime/src/lib.rs"
+sha256 = "348b2ac5008544a5a031bcef62ed3226abf631b7f80faffe752aee14080af116"
+
+[[gate.input]]
+path = "origin/orbis/runtime/src/tests.rs"
+sha256 = "a998a285a93be0cd23b224efc24a095be6501ff1fd53774e4abbbe93b9f1ba3f"
+
+[[gate.input]]
+path = "origin/orbis/runtime/src/weights/pallet_orbis_hop_promotion.rs"
+sha256 = "8240875eefd114c0268391285ca582163d83e5f47507951bcaf40cda2ba6ef78"
+
+[[gate.input]]
+path = "product-sdk/examples/festival/mobile-contract-harness.ts"
+sha256 = "9277475bd3384df6f8e0f68fe4ac31acc923963fbdc31cc774416150c56a9ebd"
+
+[[gate.input]]
+path = "product-sdk/examples/festival/mobile-contract-vectors.json"
+sha256 = "2e9ee4aba923383ed47bb0786a69246e800097f895b8309bbd377e7264df512b"
+
+[[gate.input]]
+path = "product-sdk/packages/descriptors/generated/commons-papi-manifest.json"
+sha256 = "863725ddb75dca2cda5550d8f28cebcbf0be38c06a3f038da05b3574b8ba3aaa"
+
+[[gate.input]]
+path = "product-sdk/packages/descriptors/generated/native-route-contract.ts"
+sha256 = "ac8c668d36548cc4a40e28575022aaae73940ac4bab5a56d7e912ad0e7a97437"
+
+[[gate.input]]
+path = "product-sdk/packages/descriptors/generated/orbis-descriptor.json"
+sha256 = "62b0c9621c410dd3fbb919848306ea6601841fe83235a807af3cda61554cc729"
+
+[[gate.input]]
+path = "product-sdk/packages/descriptors/generated/orbis-network-binding.ts"
+sha256 = "0473be87d0485799c17204c78039e618bbdaf6796a648d10657884a15b7c9845"
+
+[[gate.input]]
+path = "product-sdk/packages/descriptors/src/identity-host-routes.ts"
+sha256 = "78f74df3511da8b97169f999ab8121deace974f792be22886bdfc3c383680a39"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-apps/README.md"
+sha256 = "a8362355c57d2b357439905f7670d99e2e3d6f3bcd636f2d849cca7396c123f2"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-apps/src/index.ts"
+sha256 = "ff1ee42c1c12a446e13d2e622f151523d01bb34b3366e2a9a8b61d21083a1d42"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-cloud-storage/README.md"
+sha256 = "8ec34f224114a4ff196bfd005a3c894f50c5540a957022498e253a8c9a760e0e"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts"
+sha256 = "c9262bf69456c9e79ef05a97ef382d39e2fff45bf50f5f576bb176d92ad07bbb"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-contracts/README.md"
+sha256 = "42909f74edadacb7595d6657a0b51558fd0833da480d2cd7b28c97e4bc4401e5"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-contracts/src/index.ts"
+sha256 = "5a0a7fbdae13ad49490c8066e14baa7056b7091da784f0a7b3304612bf90783a"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-host/src/index.ts"
+sha256 = "d7ac15793b9de725d75a7fb326d1b5f6062116b8d3c51b7bd531f13a3c9eb042"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-host/src/protocol.ts"
+sha256 = "ee3fa7eb0bb51221590492945d89e1998b4bda5d63402e5578a755ddedd51da9"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-host/src/testing.ts"
+sha256 = "29e90aec056e60f7d8f274c74f4c07a406af36c0cb182eaea695003bf13ea48d"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-host/tests/index.test.ts"
+sha256 = "a9b81ca8aa3a603abfa076aced701c703036d0d957169e0fbf42b1ba5515dfa4"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-personhood/README.md"
+sha256 = "9023448d0b65ad9a5f9ac151060b876cf64d8991af6c95d93074559ad773c611"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-personhood/package.json"
+sha256 = "b583de205cb44e272c5af25ac537af11c818bc2ae10283e6e79fbf1f94bf2689"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-personhood/src/index.ts"
+sha256 = "143ffd585b6deb795c89d53afe33188a7e66f50459c2ec3329a01d5522907b29"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-personhood/tests/index.test.ts"
+sha256 = "19fdec47e97f91adc7e34cde6ba61d73b050e3b7023cd66fb8e05b9acf56dacf"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-resources/README.md"
+sha256 = "02a5faf07d6f59538518f3d2fcb5fc7b1b04c7ad2de202e70c988d0d35ffa1c2"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-resources/package.json"
+sha256 = "63c68c3137d4cd1b8d2d8a78c45f40eff6ec366cfa39ca31d8868a9cc60f0a07"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-resources/src/index.ts"
+sha256 = "f0c8a35308e08d7fff253f1329221964af106809fc475d0736e6cda8b885a2c9"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-resources/tests/index.test.ts"
+sha256 = "34c961040358abcd0845ba56c1c1f24cc33b52dd9332bc1ac46e80c2e5f43d0f"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-statement-store/README.md"
+sha256 = "a617df8e7394f8d3cf19c50449ed53d6cff219eb1adfc23f39a8cdf8e0138bda"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-statement-store/package.json"
+sha256 = "7da54f9949c9709ba9971538017d009a30d81c20273141ab0a3fe44a47b7683d"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-statement-store/src/index.ts"
+sha256 = "1f8ec4504a48d5439197cd58feaebb1cb7a5ee6cb44c2b3b679b9507821bc416"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts"
+sha256 = "c80688c27179715d13495fb07352cd1fc7ba8e2726c2f3635d68bc21d03f88cc"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk/package.json"
+sha256 = "5d28f62a9579a577eb05cabbcddf85ca16bc4cc73b667c992396147dee8c54ad"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk/src/index.ts"
+sha256 = "d3acd66b0ceefb6066f751de33d754cbfba5d045947a276788d97fbb45cfd067"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk/src/runtime.ts"
+sha256 = "7ab9fd8c4b53b8a8601c31c624697a6ef7ae561b8e84295c4e4277c446cd6834"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk/src/testing.ts"
+sha256 = "d89ff97c9d0a3c71d0992028fcb7c7c2cb3ef94a38bf8ea328de95cd1cc32443"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk/tests/index.test.ts"
+sha256 = "dc32296053b5723ea12fccc2ad57a8cf8b787d24e1a6b63e4328b180730e98da"
+
+[[gate.input]]
+path = "product-sdk/packages/origin-sdk/tests/runtime.test.ts"
+sha256 = "ce66f41f12aa7396b39aef7bb92dcf9bc592dd1cf16c56156fcbde4e3f5cefcc"
+
+[[gate.input]]
+path = "product-sdk/src/version.ts"
+sha256 = "2c46e678303eb25805a91756003f1ff326c4a03953e9bd3a749a99f0491ca725"
+
+[[gate.input]]
+path = "product-sdk/tests/conformance/identity-sponsored-contract.test.ts"
+sha256 = "209a8ebe3a4b7d3ac84b7b792c2ee51a1c8c61f59521300b8dcfd1a1ab42419c"
+
+[[gate.input]]
+path = "product-sdk/tests/content/content.test.ts"
+sha256 = "2025942f30325fd34d16b59237ee4ab8f9eee713dbaa158acf671966208d2204"
+
+[[gate.input]]
+path = "product-sdk/tools/generate-papi-app-surface.ts"
+sha256 = "11f3a566c591561f3f0b6481ceefa0d0ed99490aa9f0da18e44e13405269f5ca"
+
+[[gate.input]]
+path = "product-sdk/tools/test-packed-consumer.ts"
+sha256 = "10785678d67fc050b6b5b4b368b2c7707d88599e84483c2900a50a88885a086c"
+
+[[gate.input]]
+path = "product-sdk/tools/validate-sdk-native-coverage.ts"
+sha256 = "08ae41f6d59120dc656241dba58a87407107f35ccb83fd14c554f2f02cf7e301"
+
+[[gate.input]]
+path = "scripts/run-p0-control-tests.py"
+sha256 = "adbf27925c01afe27ba0accaef07eef779d027048a525394075c64e84b5ba743"
+
+[[gate.input]]
+path = "scripts/tests/test_storage_identity_deletion.py"
+sha256 = "3aafd5016ea5bbadaa59ec602463ff2684768f0b1b12b04ac28027ee1b5b138a"
+
+[[gate.input]]
+path = "scripts/tests/test_evidence_runner_safety.py"
+sha256 = "fc17bfce8c47064ccbad9e0606fe85a170f00a0c8fff83e10e5abf3d42d1b9b5"
+
+[[gate.input]]
+path = "scripts/tests/fixtures/evidence-writer.py"
+sha256 = "42fffc876bc593a8ab57cdbc57643581082cc498eaded82bc6c7c740de926f1f"
+
+[[gate.input]]
+path = "scripts/tests/fixtures/evidence_transitive_reader.py"
+sha256 = "ca8cc23227a146f31a13b12884b60b299e60faa8e90be714bc4bb05c431c8df5"
+
+[[gate.input]]
+path = "scripts/evidence-read-tracer/sitecustomize.py"
+sha256 = "3376b985c5d0fc360534a0c347fa83a2e0441a34ba7e589ce14f80a7c1f5ad59"
+
+[[gate.input]]
+path = "origin"
+sha256 = "05905bbbcb6a6469a0ee6d4a90b5b13362ce1fc5e92f3150a2f7dad0d0d798d3"
+
+[[gate.input]]
+path = "origin-rs"
+sha256 = "13fddab325b92fd8683c53e407de92dc0652fb6697ad6fbc3ba97b53de58b324"
+
+[[gate.input]]
+path = "product-sdk"
+sha256 = "0242db16952fddf0c4201ff2847e280fd297dc80f5c319aed4b4075fa7d5e63f"
+
+[[gate.input]]
+path = "docs/architecture/domains"
+sha256 = "6871bb84532221cee796ae95da6d2c331f4da7d6c3bd67099df44ad6108d23d0"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-ac-decidability.py", "--registry", "docs/specs/evidence-gates-v1.toml", "--schema", "docs/specs/evidence-report-v1.schema.json", "--minimum-mechanical", "13", "--out", "../.omx/evidence/origin-orbis-web3-storage/ac-decidability-v1.json"]
+test_count = 0
+outputs = ["../.omx/evidence/origin-orbis-web3-storage/ac-decidability-v1.json"]
+inputs = ["scripts/validate-ac-decidability.py", "@registry", "@schema", "@repository_snapshot", "product-sdk/node_modules/@types", "scripts/evidence_common.py"]
+allowed_writes = []
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/build-web3-storage-inventory.py", "--manifest", "docs/specs/web3-storage-upstream-sources-v1.toml", "--source", "../.omx/cache/web3-storage", "--ledger", "docs/specs/web3-storage-capability-ledger-v1.json", "--out", "docs/specs/web3-storage-upstream-inventory-v1.json"]
+test_count = 0
+outputs = ["docs/specs/web3-storage-upstream-inventory-v1.json"]
+inputs = ["scripts/build-web3-storage-inventory.py", "docs/specs/web3-storage-upstream-sources-v1.toml", "../.omx/cache/web3-storage", "docs/specs/web3-storage-capability-ledger-v1.json", "scripts/web3_storage_semantic.py"]
+allowed_writes = []
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-web3-storage-parity.py", "--manifest", "docs/specs/web3-storage-upstream-sources-v1.toml", "--source", "../.omx/cache/web3-storage", "--inventory", "docs/specs/web3-storage-upstream-inventory-v1.json", "--ledger", "docs/specs/web3-storage-capability-ledger-v1.json", "--p0-audit", "--out", "target/evidence/ac1-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/ac1-assertions.json"]
+inputs = ["scripts/validate-web3-storage-parity.py", "docs/specs/web3-storage-upstream-sources-v1.toml", "../.omx/cache/web3-storage", "docs/specs/web3-storage-upstream-inventory-v1.json", "docs/specs/web3-storage-capability-ledger-v1.json", "scripts/build-web3-storage-inventory.py", "scripts/web3_storage_semantic.py", "docs/specs/web3-storage-blocked-conflicts-v1.json", "docs/specs/web3-storage-blocked-conflicts-v1.md", "docs/specs/p0-ratification-v1.toml"]
+allowed_writes = []
+
+[[gate.command]]
+cwd = "."
+argv = ["node", "product-sdk/tools/origin-host-conformance/generate-origin-host-types.cjs", "--check"]
+test_count = 0
+outputs = []
+inputs = ["product-sdk/tools/origin-host-conformance/generate-origin-host-types.cjs", "HEADER-GPL3", "docs/specs/origin-host-registry-v2.cddl", "docs/specs/origin-host-registry-v2.operations.json", "docs/specs/origin-host-registry-v2.errors.json", "product-sdk/tools/origin-host-conformance/generated/origin-host-registry-v2.ts", "origin-rs/tests/generated/origin_host_registry_v2.rs"]
+allowed_writes = []
+
+[[gate.command]]
+cwd = "."
+argv = ["product-sdk/node_modules/.bin/tsc", "--noEmit", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--allowImportingTsExtensions", "--typeRoots", "product-sdk/node_modules/@types", "--types", "node", "product-sdk/tools/origin-host-conformance/validate-origin-host-conformance.ts", "product-sdk/tools/origin-host-conformance/generated/origin-host-registry-v2.ts"]
+test_count = 0
+outputs = []
+inputs = ["product-sdk/node_modules/@types", "node", "product-sdk/tools/origin-host-conformance/validate-origin-host-conformance.ts", "product-sdk/tools/origin-host-conformance/generated/origin-host-registry-v2.ts", "product-sdk/package.json", "product-sdk/package-lock.json"]
+allowed_writes = []
+
+[[gate.command]]
+cwd = "."
+argv = ["cargo", "test", "--manifest-path", "origin-rs/Cargo.toml", "--test", "origin_host_registry_conformance", "--", "--nocapture"]
+test_count = 1
+outputs = ["target/p0-origin-host-rust-conformance.json"]
+inputs = ["origin-rs/Cargo.toml", "docs/specs/origin-host-registry-v2.errors.json", "docs/specs/storage-bounds-v1.toml", "origin-rs/tests/generated/origin_host_registry_v2.rs", "docs/specs/protocol-executable-v2.vectors.json", "docs/specs/web3-storage-blocked-conflicts-v1.json", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/s3-v1.md", "docs/specs/identity-recovery-v2.state-machine.json", "docs/specs/generated/identity-recovery-v2.md", "docs/specs/drive-s3-v1.vectors.json", "docs/specs/origin-host-registry-v2.vectors.json", "docs/specs/host-provider-protocol-v2.md", "docs/specs/storage-v1.vectors.json", "docs/specs/web3-storage-blocked-conflicts-v1.md", "docs/specs/origin-host-registry-v2.schema.json", "docs/specs/origin-host-registry-v2.cddl", "docs/specs/provider-protocol-v1.vectors.json", "docs/specs/generated/host-outbox-v1.md", "docs/specs/storage-checkpoints-v2.md", "docs/specs/checkpoint-v2.vectors.json", "docs/specs/storage-encryption-v1.md", "docs/specs/origin-host-registry-v2.operations.json", "docs/specs/reference-repositories.toml", "docs/specs/identity-v2.md", "docs/specs/host-outbox-v1.state-machine.json", "docs/specs/web3-storage-capability-ledger-v1.json", "Cargo.lock", "docs/specs/web3-storage-upstream-inventory-v1.json", "docs/specs/host-outbox-v1.vectors.json", "docs/specs/drive-filesystem-v1.md", "docs/specs/p0-ratification-v1.toml", "docs/specs/provider-organization-sla-v1.md", "docs/specs/evidence-report-v1.schema.json", "docs/specs/web3-storage-upstream-sources-v1.toml", "docs/specs/p0-open-decisions.toml", "docs/specs/storage-control-v1.md", "docs/specs/origin-host-registry-v2.vectors.cbor", "origin-rs/tests/origin_host_registry_conformance.rs", "docs/specs/provider-protocol-v1.registry.json", "docs/specs/identity-v2.vectors.json", "docs/specs/origin-host-conformance-report-v1.schema.json", "docs/specs/storage-content-v1.md", "Cargo.toml"]
+allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
+
+[[gate.command]]
+cwd = "."
+argv = ["node", "--experimental-strip-types", "product-sdk/tools/origin-host-conformance/validate-origin-host-conformance.ts", "--rust-report", "target/p0-origin-host-rust-conformance.json", "--report", "target/p0-origin-host-cross-contract-report.json"]
+test_count = 1
+outputs = ["target/p0-origin-host-cross-contract-report.json"]
+inputs = ["product-sdk/tools/origin-host-conformance/validate-origin-host-conformance.ts", "target/p0-origin-host-rust-conformance.json"]
+allowed_writes = []
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-storage-identity-deletion.py", "--manifest", "docs/specs/storage-identity-deletion-v1.toml", "--ledger", "docs/specs/web3-storage-capability-ledger-v1.json", "--p0-audit", "--out", "target/evidence/p0-deletion-dag.json"]
+test_count = 0
+outputs = ["target/evidence/p0-deletion-dag.json"]
+inputs = ["scripts/validate-storage-identity-deletion.py", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/web3-storage-capability-ledger-v1.json", "scripts/evidence_common.py", "Cargo.lock", "Cargo.toml", "docs/adr/0020-web3-storage-component-disposition-policy.md", "docs/architecture/domains/identity-personhood-attestation.md", "origin-rs/examples/orbis_storage_proof_fault.rs", "origin-rs/src/product_sdk/domains/storage_provider.rs", "origin-rs/src/product_sdk/transport.rs", "origin/orbis/node/src/proof_campaign/config.rs", "origin/orbis/node/src/proof_campaign/mod.rs", "origin/orbis/node/src/proof_campaign/proposer.rs", "origin/orbis/node/src/proof_campaign/provider.rs", "origin/orbis/node/src/proof_campaign/service.rs", "origin/orbis/pallets/drive/src/lib.rs", "origin/orbis/pallets/hop-promotion/Cargo.toml", "origin/orbis/pallets/hop-promotion/README.md", "origin/orbis/pallets/hop-promotion/src/benchmarking.rs", "origin/orbis/pallets/hop-promotion/src/lib.rs", "origin/orbis/pallets/hop-promotion/src/mock.rs", "origin/orbis/pallets/hop-promotion/src/tests.rs", "origin/orbis/pallets/hop-promotion/src/weights.rs", "origin/orbis/pallets/s3/src/lib.rs", "origin/orbis/pallets/storage-provider/src/lib.rs", "origin/orbis/pallets/transaction-storage/Cargo.toml", "origin/orbis/pallets/transaction-storage/README.md", "origin/orbis/pallets/transaction-storage/primitives/Cargo.toml", "origin/orbis/pallets/transaction-storage/primitives/README.md", "origin/orbis/pallets/transaction-storage/primitives/src/cids.rs", "origin/orbis/pallets/transaction-storage/primitives/src/lib.rs", "origin/orbis/pallets/transaction-storage/runtime-api/Cargo.toml", "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs", "origin/orbis/pallets/transaction-storage/src/benchmarking.rs", "origin/orbis/pallets/transaction-storage/src/extension.rs", "origin/orbis/pallets/transaction-storage/src/lib.rs", "origin/orbis/pallets/transaction-storage/src/mock.rs", "origin/orbis/pallets/transaction-storage/src/tests.rs", "origin/orbis/pallets/transaction-storage/src/tests/runtime_api.rs", "origin/orbis/pallets/transaction-storage/src/types.rs", "origin/orbis/pallets/transaction-storage/src/weights.rs", "origin/orbis/provider-node/README.md", "origin/orbis/provider-node/src/api.rs", "origin/orbis/runtime/src/enterprise_journey.rs", "origin/orbis/runtime/src/lib.rs", "origin/orbis/runtime/src/tests.rs", "origin/orbis/runtime/src/weights/pallet_orbis_hop_promotion.rs", "product-sdk/examples/festival/mobile-contract-harness.ts", "product-sdk/examples/festival/mobile-contract-vectors.json", "product-sdk/package-lock.json", "product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "product-sdk/packages/descriptors/generated/native-route-contract.ts", "product-sdk/packages/descriptors/generated/orbis-descriptor.json", "product-sdk/packages/descriptors/generated/orbis-network-binding.ts", "product-sdk/packages/descriptors/src/identity-host-routes.ts", "product-sdk/packages/origin-sdk-apps/README.md", "product-sdk/packages/origin-sdk-apps/src/index.ts", "product-sdk/packages/origin-sdk-cloud-storage/README.md", "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts", "product-sdk/packages/origin-sdk-contracts/README.md", "product-sdk/packages/origin-sdk-contracts/src/index.ts", "product-sdk/packages/origin-sdk-host/src/index.ts", "product-sdk/packages/origin-sdk-host/src/protocol.ts", "product-sdk/packages/origin-sdk-host/src/testing.ts", "product-sdk/packages/origin-sdk-host/tests/index.test.ts", "product-sdk/packages/origin-sdk-personhood/README.md", "product-sdk/packages/origin-sdk-personhood/package.json", "product-sdk/packages/origin-sdk-personhood/src/index.ts", "product-sdk/packages/origin-sdk-personhood/tests/index.test.ts", "product-sdk/packages/origin-sdk-resources/README.md", "product-sdk/packages/origin-sdk-resources/package.json", "product-sdk/packages/origin-sdk-resources/src/index.ts", "product-sdk/packages/origin-sdk-resources/tests/index.test.ts", "product-sdk/packages/origin-sdk-statement-store/README.md", "product-sdk/packages/origin-sdk-statement-store/package.json", "product-sdk/packages/origin-sdk-statement-store/src/index.ts", "product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts", "product-sdk/packages/origin-sdk/package.json", "product-sdk/packages/origin-sdk/src/index.ts", "product-sdk/packages/origin-sdk/src/runtime.ts", "product-sdk/packages/origin-sdk/src/testing.ts", "product-sdk/packages/origin-sdk/tests/index.test.ts", "product-sdk/packages/origin-sdk/tests/runtime.test.ts", "product-sdk/src/version.ts", "product-sdk/tests/conformance/identity-sponsored-contract.test.ts", "product-sdk/tests/content/content.test.ts", "product-sdk/tools/generate-papi-app-surface.ts", "product-sdk/tools/test-packed-consumer.ts", "product-sdk/tools/validate-sdk-native-coverage.ts", "origin", "origin-rs", "product-sdk", "docs/architecture/domains", "@repository_snapshot"]
+allowed_writes = []
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/run-p0-control-tests.py", "--out", "target/evidence/p0-control-tests.json"]
+test_count = 18
+outputs = ["target/evidence/p0-control-tests.json"]
+inputs = ["scripts/run-p0-control-tests.py", "scripts/evidence_common.py", "scripts/tests/test_storage_identity_deletion.py", "scripts/tests/test_evidence_runner_safety.py", "scripts/tests/fixtures/evidence-writer.py", "scripts/tests/fixtures/evidence_transitive_reader.py", "scripts/validate-storage-identity-deletion.py", "scripts/run-evidence-gate.py", "scripts/evidence-read-tracer/sitecustomize.py", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/web3-storage-capability-ledger-v1.json", "docs/specs/evidence-report-v1.schema.json", "@repository_snapshot"]
+allowed_reads = ["target/evidence/hostile-*", "target/evidence/hostile-*/**"]
+allowed_writes = []
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P0", "--out", "target/evidence/p0-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/p0-assertions.json"]
+inputs = ["target/evidence/p0-control-tests.json", "scripts/validate-phase-gate.py", "scripts/evidence_common.py", "product-sdk/node_modules/@types", "product-sdk/package.json", "scripts/snapshot-repositories.py", "docs/specs/origin-host-registry-v2.errors.json", "HEADER-GPL3", "docs/specs/storage-bounds-v1.toml", "origin-rs/tests/generated/origin_host_registry_v2.rs", "product-sdk/tools/origin-host-conformance/generated/origin-host-registry-v2.ts", "docs/specs/protocol-executable-v2.vectors.json", "docs/specs/web3-storage-blocked-conflicts-v1.json", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/s3-v1.md", "docs/adr/0020-web3-storage-component-disposition-policy.md", "../.omx/cache/web3-storage", "docs/specs/identity-recovery-v2.state-machine.json", "scripts/validate-ac-decidability.py", "docs/specs/generated/identity-recovery-v2.md", "docs/specs/drive-s3-v1.vectors.json", "docs/specs/origin-host-registry-v2.vectors.json", "docs/specs/host-provider-protocol-v2.md", "docs/specs/storage-v1.vectors.json", "docs/specs/web3-storage-blocked-conflicts-v1.md", "scripts/run-evidence-gate.py", "product-sdk/tools/origin-host-conformance/generate-origin-host-types.cjs", "product-sdk/package-lock.json", "product-sdk/tools/origin-host-conformance/validate-origin-host-conformance.ts", "docs/specs/origin-host-registry-v2.schema.json", "docs/specs/origin-host-registry-v2.cddl", "docs/specs/provider-protocol-v1.vectors.json", "docs/specs/generated/host-outbox-v1.md", "docs/specs/storage-checkpoints-v2.md", "docs/specs/checkpoint-v2.vectors.json", "docs/specs/storage-encryption-v1.md", "docs/specs/origin-host-registry-v2.operations.json", "docs/specs/reference-repositories.toml", "scripts/build-web3-storage-inventory.py", "docs/specs/identity-v2.md", "docs/specs/host-outbox-v1.state-machine.json", "origin-rs/Cargo.toml", "docs/specs/web3-storage-capability-ledger-v1.json", "Cargo.lock", "scripts/validate-repository-boundary.py", "docs/specs/web3-storage-upstream-inventory-v1.json", "docs/specs/host-outbox-v1.vectors.json", "docs/specs/drive-filesystem-v1.md", "docs/specs/p0-ratification-v1.toml", "docs/specs/provider-organization-sla-v1.md", "Cargo.toml", "scripts/validate-storage-identity-deletion.py", "node", "docs/specs/web3-storage-upstream-sources-v1.toml", "scripts/web3_storage_semantic.py", "docs/specs/p0-open-decisions.toml", "docs/specs/storage-control-v1.md", "docs/specs/origin-host-registry-v2.vectors.cbor", "origin-rs/tests/origin_host_registry_conformance.rs", "docs/specs/provider-protocol-v1.registry.json", "docs/specs/identity-v2.vectors.json", "docs/specs/origin-host-conformance-report-v1.schema.json", "scripts/validate-web3-storage-parity.py", "docs/specs/storage-content-v1.md", "../.omx/evidence/origin-orbis-web3-storage/repos-before.json", "../.omx/evidence/origin-orbis-web3-storage/ac-decidability-v1.json", "target/evidence/ac1-assertions.json", "target/p0-origin-host-rust-conformance.json", "target/p0-origin-host-cross-contract-report.json", "target/evidence/p0-deletion-dag.json", "docs/architecture/domains/identity-personhood-attestation.md", "origin-rs/examples/orbis_storage_proof_fault.rs", "origin-rs/src/product_sdk/domains/storage_provider.rs", "origin-rs/src/product_sdk/transport.rs", "origin/orbis/node/src/proof_campaign/config.rs", "origin/orbis/node/src/proof_campaign/mod.rs", "origin/orbis/node/src/proof_campaign/proposer.rs", "origin/orbis/node/src/proof_campaign/provider.rs", "origin/orbis/node/src/proof_campaign/service.rs", "origin/orbis/pallets/drive/src/lib.rs", "origin/orbis/pallets/hop-promotion/Cargo.toml", "origin/orbis/pallets/hop-promotion/README.md", "origin/orbis/pallets/hop-promotion/src/benchmarking.rs", "origin/orbis/pallets/hop-promotion/src/lib.rs", "origin/orbis/pallets/hop-promotion/src/mock.rs", "origin/orbis/pallets/hop-promotion/src/tests.rs", "origin/orbis/pallets/hop-promotion/src/weights.rs", "origin/orbis/pallets/s3/src/lib.rs", "origin/orbis/pallets/storage-provider/src/lib.rs", "origin/orbis/pallets/transaction-storage/Cargo.toml", "origin/orbis/pallets/transaction-storage/README.md", "origin/orbis/pallets/transaction-storage/primitives/Cargo.toml", "origin/orbis/pallets/transaction-storage/primitives/README.md", "origin/orbis/pallets/transaction-storage/primitives/src/cids.rs", "origin/orbis/pallets/transaction-storage/primitives/src/lib.rs", "origin/orbis/pallets/transaction-storage/runtime-api/Cargo.toml", "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs", "origin/orbis/pallets/transaction-storage/src/benchmarking.rs", "origin/orbis/pallets/transaction-storage/src/extension.rs", "origin/orbis/pallets/transaction-storage/src/lib.rs", "origin/orbis/pallets/transaction-storage/src/mock.rs", "origin/orbis/pallets/transaction-storage/src/tests.rs", "origin/orbis/pallets/transaction-storage/src/tests/runtime_api.rs", "origin/orbis/pallets/transaction-storage/src/types.rs", "origin/orbis/pallets/transaction-storage/src/weights.rs", "origin/orbis/provider-node/README.md", "origin/orbis/provider-node/src/api.rs", "origin/orbis/runtime/src/enterprise_journey.rs", "origin/orbis/runtime/src/lib.rs", "origin/orbis/runtime/src/tests.rs", "origin/orbis/runtime/src/weights/pallet_orbis_hop_promotion.rs", "product-sdk/examples/festival/mobile-contract-harness.ts", "product-sdk/examples/festival/mobile-contract-vectors.json", "product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "product-sdk/packages/descriptors/generated/native-route-contract.ts", "product-sdk/packages/descriptors/generated/orbis-descriptor.json", "product-sdk/packages/descriptors/generated/orbis-network-binding.ts", "product-sdk/packages/descriptors/src/identity-host-routes.ts", "product-sdk/packages/origin-sdk-apps/README.md", "product-sdk/packages/origin-sdk-apps/src/index.ts", "product-sdk/packages/origin-sdk-cloud-storage/README.md", "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts", "product-sdk/packages/origin-sdk-contracts/README.md", "product-sdk/packages/origin-sdk-contracts/src/index.ts", "product-sdk/packages/origin-sdk-host/src/index.ts", "product-sdk/packages/origin-sdk-host/src/protocol.ts", "product-sdk/packages/origin-sdk-host/src/testing.ts", "product-sdk/packages/origin-sdk-host/tests/index.test.ts", "product-sdk/packages/origin-sdk-personhood/README.md", "product-sdk/packages/origin-sdk-personhood/package.json", "product-sdk/packages/origin-sdk-personhood/src/index.ts", "product-sdk/packages/origin-sdk-personhood/tests/index.test.ts", "product-sdk/packages/origin-sdk-resources/README.md", "product-sdk/packages/origin-sdk-resources/package.json", "product-sdk/packages/origin-sdk-resources/src/index.ts", "product-sdk/packages/origin-sdk-resources/tests/index.test.ts", "product-sdk/packages/origin-sdk-statement-store/README.md", "product-sdk/packages/origin-sdk-statement-store/package.json", "product-sdk/packages/origin-sdk-statement-store/src/index.ts", "product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts", "product-sdk/packages/origin-sdk/package.json", "product-sdk/packages/origin-sdk/src/index.ts", "product-sdk/packages/origin-sdk/src/runtime.ts", "product-sdk/packages/origin-sdk/src/testing.ts", "product-sdk/packages/origin-sdk/tests/index.test.ts", "product-sdk/packages/origin-sdk/tests/runtime.test.ts", "product-sdk/src/version.ts", "product-sdk/tests/conformance/identity-sponsored-contract.test.ts", "product-sdk/tests/content/content.test.ts", "product-sdk/tools/generate-papi-app-surface.ts", "product-sdk/tools/test-packed-consumer.ts", "product-sdk/tools/validate-sdk-native-coverage.ts"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/p0-origin-host-rust-conformance.json"
+sha256 = "record"
+schema = "unversioned-origin-host-rust-conformance-v1"
+
+[[gate.artifact]]
+path = "target/p0-origin-host-cross-contract-report.json"
+sha256 = "record"
+schema = "docs/specs/origin-host-conformance-report-v1.schema.json"
+
+[[gate.artifact]]
+path = "target/evidence/p0-deletion-dag.json"
+sha256 = "record"
+schema = "unversioned-deletion-dag-v1"
+
+[[gate.artifact]]
+path = "target/evidence/p0-assertions.json"
+sha256 = "record"
+schema = "unversioned-phase-assertions-v1"
+
+[[gate.artifact]]
+path = "target/evidence/p0-control-tests.json"
+sha256 = "record"
+schema = "unversioned-p0-control-tests-v1"
+
+[[gate.assertion]]
+clause = "baseline-hash"
+source = "target/evidence/p0-assertions.json"
+json_pointer = "/baseline_hash_valid"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "decidability"
+source = "target/evidence/p0-assertions.json"
+json_pointer = "/mechanical"
+operator = "gte"
+expected = 13
+
+[[gate.assertion]]
+clause = "pinned-commit"
+source = "target/evidence/p0-assertions.json"
+json_pointer = "/repo_sha"
+operator = "eq"
+expected = "48a38a1e8cdcce0a4947611252ec449ea04c1df3"
+
+[[gate.assertion]]
+clause = "census-root"
+source = "target/evidence/p0-assertions.json"
+json_pointer = "/census_root"
+operator = "sha256_eq"
+expected = "eb9a988fea53ad8b782a604374e478d4605858b2cf0775e91bf54c9d8ab40fa9"
+
+[[gate.assertion]]
+clause = "census-count"
+source = "target/evidence/p0-assertions.json"
+json_pointer = "/census_count"
+operator = "eq"
+expected = 626
+
+[[gate.assertion]]
+clause = "blocked-conflicts"
+source = "target/evidence/p0-assertions.json"
+json_pointer = "/blocked"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "unknown"
+source = "target/evidence/p0-assertions.json"
+json_pointer = "/unknown"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "unmapped"
+source = "target/evidence/p0-assertions.json"
+json_pointer = "/unmapped"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "deletion-items"
+source = "target/evidence/p0-deletion-dag.json"
+json_pointer = "/deletion_item_count"
+operator = "eq"
+expected = 305
+
+[[gate.assertion]]
+clause = "deletion-dag"
+source = "target/evidence/p0-assertions.json"
+json_pointer = "/deletion_dag_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "exact-symbols"
+source = "target/evidence/p0-deletion-dag.json"
+json_pointer = "/absent_symbol_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "surface-census"
+source = "target/evidence/p0-deletion-dag.json"
+json_pointer = "/unmapped_surface_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "unique-surfaces"
+source = "target/evidence/p0-deletion-dag.json"
+json_pointer = "/duplicate_surface_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "exhaustive-findings"
+source = "target/evidence/p0-deletion-dag.json"
+json_pointer = "/unmapped_finding_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "unique-ownership"
+source = "target/evidence/p0-deletion-dag.json"
+json_pointer = "/duplicate_owner_count"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "accepted-exclusions"
+source = "target/evidence/p0-deletion-dag.json"
+json_pointer = "/approved_exclusion_invalid"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "semantic-schema"
+source = "target/p0-origin-host-cross-contract-report.json"
+json_pointer = ""
+operator = "matches_schema"
+expected = "docs/specs/origin-host-conformance-report-v1.schema.json"
+
+[[gate.assertion]]
+clause = "cddl-authority"
+source = "target/p0-origin-host-cross-contract-report.json"
+json_pointer = "/authority/cddl_sha256"
+operator = "sha256_eq"
+expected = "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba"
+
+[[gate.assertion]]
+clause = "operations-authority"
+source = "target/p0-origin-host-cross-contract-report.json"
+json_pointer = "/authority/operations_sha256"
+operator = "sha256_eq"
+expected = "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca"
+
+[[gate.assertion]]
+clause = "errors-authority"
+source = "target/p0-origin-host-cross-contract-report.json"
+json_pointer = "/authority/errors_sha256"
+operator = "sha256_eq"
+expected = "f9734782c6ade5eb8c0cbea5ad93a9808a6cc6a88363fec6f7bfc023de58d8ca"
+
+[[gate.assertion]]
+clause = "host-vectors-authority"
+source = "target/p0-origin-host-cross-contract-report.json"
+json_pointer = "/authority/host_vectors_sha256"
+operator = "sha256_eq"
+expected = "9ef6624ba14275b9e30cca8ff786255011962e05986a12aac0071c85427be71c"
+
+[[gate.assertion]]
+clause = "protocol-vectors-authority"
+source = "target/p0-origin-host-cross-contract-report.json"
+json_pointer = "/authority/protocol_vectors_sha256"
+operator = "sha256_eq"
+expected = "1b1da4bbc870dec61f9f85e0f2f06c80f54ddb6802f793287af7382ff9b27c64"
+
+[[gate.assertion]]
+clause = "checkpoint-vectors-authority"
+source = "target/p0-origin-host-cross-contract-report.json"
+json_pointer = "/authority/checkpoint_vectors_sha256"
+operator = "sha256_eq"
+expected = "16a68a1c7032c542ae5c5d01e7ae723ad3bf99f025c6586ae0d9e8a53c99ca8d"
+
+[[gate.assertion]]
+clause = "provider-vectors-authority"
+source = "target/p0-origin-host-cross-contract-report.json"
+json_pointer = "/authority/provider_vectors_sha256"
+operator = "sha256_eq"
+expected = "cd9967f183b10632bd5036f897fba8f22391900158586c9a5af6d83c683f6ec6"
+
+[[gate.assertion]]
+clause = "outbox-vectors-authority"
+source = "target/p0-origin-host-cross-contract-report.json"
+json_pointer = "/authority/outbox_vectors_sha256"
+operator = "sha256_eq"
+expected = "97086f7e8a84ba32108968b8f27babc7832bcb08573914773eb9ca3b7f92899a"
+
+[[gate.assertion]]
+clause = "identity-vectors-authority"
+source = "target/p0-origin-host-cross-contract-report.json"
+json_pointer = "/authority/identity_vectors_sha256"
+operator = "sha256_eq"
+expected = "480988ed6529c7f4fd7e93395074d77d5c6a97ae29868ec4a62eb4baa1ddd57e"
+
+[[gate.assertion]]
+clause = "drive-s3-vectors-authority"
+source = "target/p0-origin-host-cross-contract-report.json"
+json_pointer = "/authority/drive_s3_vectors_sha256"
+operator = "sha256_eq"
+expected = "b68097810de7ea3b2b780ba993efdfddd85e7b0bfaea818648db815420a5692f"
+
+[[gate.assertion]]
+clause = "semantic-conformance"
+source = "target/evidence/p0-assertions.json"
+json_pointer = "/semantic_conformance_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "adr-accepted"
+source = "target/evidence/p0-assertions.json"
+json_pointer = "/adr_accepted"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "ratification"
+source = "target/evidence/p0-assertions.json"
+json_pointer = "/ratification_valid"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "authorization-boundary"
+source = "target/evidence/p0-assertions.json"
+json_pointer = "/authorization_boundary_valid"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "phase-contract"
+source = "target/evidence/p0-assertions.json"
+json_pointer = "/failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "control-tests"
+source = "target/evidence/p0-control-tests.json"
+json_pointer = "/failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "control-test-errors"
+source = "target/evidence/p0-control-tests.json"
+json_pointer = "/errors"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "declaration-bijection"
+source = "target/evidence/p0-deletion-dag.json"
+json_pointer = "/declaration_only_surface_count"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "P1"
+output = "../.omx/evidence/origin-orbis-web3-storage/p1.json"
+decidability = "mechanical"
+clauses = ["scale-binding-schema", "scale-binding-complete", "phase-contract"]
+enforce_write_set = true
+write_paths = ["target/evidence/p1-scale-metadata-binding.json", "target/evidence/p1-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "docs/specs/checkpoint-scale-logical-types-v1.toml"
+sha256 = "e0d6172450765a9951ee13bd7e8d25ff64b9e7d3065d417a345ff17ca7821af3"
+
+[[gate.input]]
+path = "docs/specs/scale-metadata-binding-v1.schema.json"
+sha256 = "7437edd379fa0e2e1df309959427196dcc59e74d5ce55d9e10793c238360c698"
+
+[[gate.input]]
+path = "scripts/generate-scale-metadata-binding.py"
+sha256 = "be312d8bb7d0ac735b2cec20b1c5db0949d4ef772e4d31c11d99693584042495"
+
+[[gate.input]]
+path = "scripts/scale_metadata_binding.py"
+sha256 = "3272829b1aff6f4830fe70e1f32083d2215732905cdae184ae8ad6ceade63abe"
+
+[[gate.input]]
+path = "target/evidence/origin-commons-runtime.metadata.scale"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "P1-predecessor"
+producer_output = "target/evidence/origin-commons-runtime.metadata.scale"
+
+[[gate.input]]
+path = "target/evidence/origin-commons-runtime.portable-registry.json"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "P1-predecessor"
+producer_output = "target/evidence/origin-commons-runtime.portable-registry.json"
+
+[[gate.input]]
+path = "scripts/evidence_common.py"
+sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
+
+[[gate.input]]
+path = "scripts/validate-phase-gate.py"
+sha256 = "b64e1974b760f0020df8d9283f5a8778759319d561f90c8612573615bfe6aea3"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/generate-scale-metadata-binding.py", "--metadata-scale", "target/evidence/origin-commons-runtime.metadata.scale", "--portable-registry", "target/evidence/origin-commons-runtime.portable-registry.json", "--logical-types", "docs/specs/checkpoint-scale-logical-types-v1.toml", "--runtime", "origin-commons-runtime", "--out", "target/evidence/p1-scale-metadata-binding.json"]
+test_count = 0
+outputs = ["target/evidence/p1-scale-metadata-binding.json"]
+inputs = ["scripts/generate-scale-metadata-binding.py", "docs/specs/checkpoint-scale-logical-types-v1.toml", "scripts/evidence_common.py"]
+allowed_writes = []
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P1", "--out", "target/evidence/p1-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/p1-assertions.json"]
+inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/p1-scale-metadata-binding.json"
+sha256 = "record"
+schema = "docs/specs/scale-metadata-binding-v1.schema.json"
+
+[[gate.artifact]]
+path = "target/evidence/p1-assertions.json"
+sha256 = "record"
+schema = "unversioned-phase-assertions-v1"
+
+[[gate.assertion]]
+clause = "scale-binding-schema"
+source = "target/evidence/p1-scale-metadata-binding.json"
+json_pointer = ""
+operator = "matches_schema"
+expected = "docs/specs/scale-metadata-binding-v1.schema.json"
+
+[[gate.assertion]]
+clause = "scale-binding-complete"
+source = "target/evidence/p1-scale-metadata-binding.json"
+json_pointer = "/complete"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "phase-contract"
+source = "target/evidence/p1-assertions.json"
+json_pointer = "/failures"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "P2"
+output = "../.omx/evidence/origin-orbis-web3-storage/p2.json"
+decidability = "mechanical"
+clauses = ["phase-contract"]
+enforce_write_set = true
+write_paths = ["target/evidence/p2-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "scripts/evidence_common.py"
+sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
+
+[[gate.input]]
+path = "scripts/validate-phase-gate.py"
+sha256 = "b64e1974b760f0020df8d9283f5a8778759319d561f90c8612573615bfe6aea3"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P2", "--out", "target/evidence/p2-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/p2-assertions.json"]
+inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/p2-assertions.json"
+sha256 = "record"
+schema = "unversioned-phase-assertions-v1"
+
+[[gate.assertion]]
+clause = "phase-contract"
+source = "target/evidence/p2-assertions.json"
+json_pointer = "/failures"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "P3"
+output = "../.omx/evidence/origin-orbis-web3-storage/p3.json"
+decidability = "mechanical"
+clauses = ["metadata-hash", "logical-binding", "descriptor-equality", "phase-contract"]
+enforce_write_set = true
+write_paths = ["product-sdk/generated/origin-commons-runtime.descriptor.json", "target/evidence/p3-scale-metadata-recheck.json", "target/evidence/p3-assertions.json", "product-sdk/node_modules/.cache/**"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "docs/specs/checkpoint-scale-logical-types-v1.toml"
+sha256 = "e0d6172450765a9951ee13bd7e8d25ff64b9e7d3065d417a345ff17ca7821af3"
+
+[[gate.input]]
+path = "docs/specs/scale-metadata-binding-v1.schema.json"
+sha256 = "7437edd379fa0e2e1df309959427196dcc59e74d5ce55d9e10793c238360c698"
+
+[[gate.input]]
+path = "scripts/validate-scale-metadata-binding.py"
+sha256 = "b734239475d9bea7de5b377a6b27f55f969f1dd4c6a3ab95986096f08996aa97"
+
+[[gate.input]]
+path = "scripts/scale_metadata_binding.py"
+sha256 = "3272829b1aff6f4830fe70e1f32083d2215732905cdae184ae8ad6ceade63abe"
+
+[[gate.input]]
+path = "product-sdk/package.json"
+sha256 = "a66d8315ab531cd4644e5e5a1dd1f4e99c90b7abf3760e070488ac3b5e6dded8"
+
+[[gate.input]]
+path = "target/evidence/p1-scale-metadata-binding.json"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "P3-predecessor"
+producer_output = "target/evidence/p1-scale-metadata-binding.json"
+
+[[gate.input]]
+path = "target/evidence/origin-commons-runtime.metadata.scale"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "P3-predecessor"
+producer_output = "target/evidence/origin-commons-runtime.metadata.scale"
+
+[[gate.input]]
+path = "target/evidence/origin-commons-runtime.portable-registry.json"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "P3-predecessor"
+producer_output = "target/evidence/origin-commons-runtime.portable-registry.json"
+
+[[gate.input]]
+path = "product-sdk/generated/origin-commons-runtime.descriptor.json"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "P3-predecessor"
+producer_output = "product-sdk/generated/origin-commons-runtime.descriptor.json"
+
+[[gate.input]]
+path = "product-sdk"
+sha256 = "0242db16952fddf0c4201ff2847e280fd297dc80f5c319aed4b4075fa7d5e63f"
+
+[[gate.input]]
+path = "product-sdk/package-lock.json"
+sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
+
+[[gate.input]]
+path = "scripts/evidence_common.py"
+sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
+
+[[gate.input]]
+path = "scripts/validate-phase-gate.py"
+sha256 = "b64e1974b760f0020df8d9283f5a8778759319d561f90c8612573615bfe6aea3"
+
+[[gate.command]]
+cwd = "."
+argv = ["npm", "--prefix", "product-sdk", "run", "generate:runtime-descriptor"]
+test_count = 0
+outputs = ["product-sdk/generated/origin-commons-runtime.descriptor.json"]
+inputs = ["product-sdk", "product-sdk/package.json", "product-sdk/package-lock.json"]
+allowed_writes = ["product-sdk/node_modules/.cache/**"]
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-scale-metadata-binding.py", "--binding", "target/evidence/p1-scale-metadata-binding.json", "--metadata-scale", "target/evidence/origin-commons-runtime.metadata.scale", "--portable-registry", "target/evidence/origin-commons-runtime.portable-registry.json", "--logical-types", "docs/specs/checkpoint-scale-logical-types-v1.toml", "--descriptor", "product-sdk/generated/origin-commons-runtime.descriptor.json", "--out", "target/evidence/p3-scale-metadata-recheck.json"]
+test_count = 0
+outputs = ["target/evidence/p3-scale-metadata-recheck.json"]
+inputs = ["scripts/validate-scale-metadata-binding.py", "docs/specs/checkpoint-scale-logical-types-v1.toml", "scripts/evidence_common.py"]
+allowed_writes = []
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P3", "--out", "target/evidence/p3-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/p3-assertions.json"]
+inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/p3-scale-metadata-recheck.json"
+sha256 = "record"
+schema = "unversioned-scale-metadata-recheck-v1"
+
+[[gate.artifact]]
+path = "target/evidence/p3-assertions.json"
+sha256 = "record"
+schema = "unversioned-phase-assertions-v1"
+
+[[gate.assertion]]
+clause = "metadata-hash"
+source = "target/evidence/p3-scale-metadata-recheck.json"
+json_pointer = "/metadata_hash_matches"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "logical-binding"
+source = "target/evidence/p3-scale-metadata-recheck.json"
+json_pointer = "/drifted_logical_types"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "descriptor-equality"
+source = "target/evidence/p3-scale-metadata-recheck.json"
+json_pointer = "/descriptor_binding_equal"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "phase-contract"
+source = "target/evidence/p3-assertions.json"
+json_pointer = "/failures"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "P4_OBJECT"
+output = "../.omx/evidence/origin-orbis-web3-storage/p4-object.json"
+decidability = "mechanical"
+clauses = ["phase-contract"]
+enforce_write_set = true
+write_paths = ["target/evidence/p4-object-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "scripts/evidence_common.py"
+sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
+
+[[gate.input]]
+path = "scripts/validate-phase-gate.py"
+sha256 = "b64e1974b760f0020df8d9283f5a8778759319d561f90c8612573615bfe6aea3"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P4_OBJECT", "--out", "target/evidence/p4-object-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/p4-object-assertions.json"]
+inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/p4-object-assertions.json"
+sha256 = "record"
+schema = "unversioned-phase-assertions-v1"
+
+[[gate.assertion]]
+clause = "phase-contract"
+source = "target/evidence/p4-object-assertions.json"
+json_pointer = "/failures"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "P4_PROVIDER"
+output = "../.omx/evidence/origin-orbis-web3-storage/p4-provider.json"
+decidability = "mechanical"
+clauses = ["phase-contract"]
+enforce_write_set = true
+write_paths = ["target/evidence/p4-provider-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "scripts/evidence_common.py"
+sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
+
+[[gate.input]]
+path = "scripts/validate-phase-gate.py"
+sha256 = "b64e1974b760f0020df8d9283f5a8778759319d561f90c8612573615bfe6aea3"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P4_PROVIDER", "--out", "target/evidence/p4-provider-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/p4-provider-assertions.json"]
+inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/p4-provider-assertions.json"
+sha256 = "record"
+schema = "unversioned-phase-assertions-v1"
+
+[[gate.assertion]]
+clause = "phase-contract"
+source = "target/evidence/p4-provider-assertions.json"
+json_pointer = "/failures"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "P4_DRIVE"
+output = "../.omx/evidence/origin-orbis-web3-storage/p4-drive.json"
+decidability = "mechanical"
+clauses = ["phase-contract"]
+enforce_write_set = true
+write_paths = ["target/evidence/p4-drive-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "scripts/evidence_common.py"
+sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
+
+[[gate.input]]
+path = "scripts/validate-phase-gate.py"
+sha256 = "b64e1974b760f0020df8d9283f5a8778759319d561f90c8612573615bfe6aea3"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P4_DRIVE", "--out", "target/evidence/p4-drive-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/p4-drive-assertions.json"]
+inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/p4-drive-assertions.json"
+sha256 = "record"
+schema = "unversioned-phase-assertions-v1"
+
+[[gate.assertion]]
+clause = "phase-contract"
+source = "target/evidence/p4-drive-assertions.json"
+json_pointer = "/failures"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "P4_S3"
+output = "../.omx/evidence/origin-orbis-web3-storage/p4-s3.json"
+decidability = "mechanical"
+clauses = ["phase-contract"]
+enforce_write_set = true
+write_paths = ["target/evidence/p4-s3-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "scripts/evidence_common.py"
+sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
+
+[[gate.input]]
+path = "scripts/validate-phase-gate.py"
+sha256 = "b64e1974b760f0020df8d9283f5a8778759319d561f90c8612573615bfe6aea3"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P4_S3", "--out", "target/evidence/p4-s3-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/p4-s3-assertions.json"]
+inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/p4-s3-assertions.json"
+sha256 = "record"
+schema = "unversioned-phase-assertions-v1"
+
+[[gate.assertion]]
+clause = "phase-contract"
+source = "target/evidence/p4-s3-assertions.json"
+json_pointer = "/failures"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "P4_RUNTIME"
+output = "../.omx/evidence/origin-orbis-web3-storage/p4-runtime.json"
+decidability = "mechanical"
+clauses = ["phase-contract"]
+enforce_write_set = true
+write_paths = ["target/evidence/p4-runtime-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "scripts/evidence_common.py"
+sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
+
+[[gate.input]]
+path = "scripts/validate-phase-gate.py"
+sha256 = "b64e1974b760f0020df8d9283f5a8778759319d561f90c8612573615bfe6aea3"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P4_RUNTIME", "--out", "target/evidence/p4-runtime-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/p4-runtime-assertions.json"]
+inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/p4-runtime-assertions.json"
+sha256 = "record"
+schema = "unversioned-phase-assertions-v1"
+
+[[gate.assertion]]
+clause = "phase-contract"
+source = "target/evidence/p4-runtime-assertions.json"
+json_pointer = "/failures"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "P5"
+output = "../.omx/evidence/origin-orbis-web3-storage/p5.json"
+decidability = "mechanical"
+clauses = ["phase-contract"]
+enforce_write_set = true
+write_paths = ["target/evidence/p5-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "scripts/evidence_common.py"
+sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
+
+[[gate.input]]
+path = "scripts/validate-phase-gate.py"
+sha256 = "b64e1974b760f0020df8d9283f5a8778759319d561f90c8612573615bfe6aea3"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P5", "--out", "target/evidence/p5-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/p5-assertions.json"]
+inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/p5-assertions.json"
+sha256 = "record"
+schema = "unversioned-phase-assertions-v1"
+
+[[gate.assertion]]
+clause = "phase-contract"
+source = "target/evidence/p5-assertions.json"
+json_pointer = "/failures"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "P6"
+output = "../.omx/evidence/origin-orbis-web3-storage/p6.json"
+decidability = "mechanical"
+clauses = ["phase-contract"]
+enforce_write_set = true
+write_paths = ["target/evidence/p6-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "scripts/evidence_common.py"
+sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
+
+[[gate.input]]
+path = "scripts/validate-phase-gate.py"
+sha256 = "b64e1974b760f0020df8d9283f5a8778759319d561f90c8612573615bfe6aea3"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P6", "--out", "target/evidence/p6-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/p6-assertions.json"]
+inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/p6-assertions.json"
+sha256 = "record"
+schema = "unversioned-phase-assertions-v1"
+
+[[gate.assertion]]
+clause = "phase-contract"
+source = "target/evidence/p6-assertions.json"
+json_pointer = "/failures"
+operator = "zero"
+expected = 0
+
+[[gate]]
+id = "P7"
+output = "../.omx/evidence/origin-orbis-web3-storage/p7.json"
+decidability = "mechanical"
+stop_literal = "feature-complete candidate—not production-ready"
+p8_authorized = false
+clauses = ["phase-contract"]
+enforce_write_set = true
+write_paths = ["target/evidence/p7-assertions.json"]
+
+[[gate.input]]
+path = "docs/specs/evidence-report-v1.schema.json"
+sha256 = "bf4d490feada004a08f2221b5328a6b81e5f733877394129a6eaf781d933d358"
+
+[[gate.input]]
+path = "scripts/evidence_common.py"
+sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
+
+[[gate.input]]
+path = "scripts/validate-phase-gate.py"
+sha256 = "b64e1974b760f0020df8d9283f5a8778759319d561f90c8612573615bfe6aea3"
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P7", "--out", "target/evidence/p7-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/p7-assertions.json"]
+inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py"]
+allowed_writes = []
+
+[[gate.artifact]]
+path = "target/evidence/p7-assertions.json"
+sha256 = "record"
+schema = "unversioned-phase-assertions-v1"
+
+[[gate.assertion]]
+clause = "phase-contract"
+source = "target/evidence/p7-assertions.json"
+json_pointer = "/failures"
+operator = "zero"
+expected = 0

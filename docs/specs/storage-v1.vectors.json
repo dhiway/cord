@@ -1,0 +1,234 @@
+{
+  "version": 1,
+  "cid_profile": {
+    "version": 1,
+    "multicodec": 85,
+    "multihash": 45600,
+    "digest": "blake2b-256",
+    "text": "base32lower"
+  },
+  "plaintext_generator": {
+    "repeat-byte-a5": "byte 0xa5 repeated plaintext_len times"
+  },
+  "encryption_aad": {
+    "scale_tuple": [
+      "[u8;32] genesis ascending 00..1f",
+      "[u8;32] bucket ascending 00..1f",
+      "ObjectPurposeV1::content = 0",
+      "u64 plaintext_len little-endian",
+      "u32 key_version little-endian"
+    ],
+    "note": "literal compact encryption vectors use their exact aad_hex; boundary vectors derive plaintext_len"
+  },
+  "vectors": [
+    {
+      "aad_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f00000000000000000001000000",
+      "cid": "bafk2bzacec4coryz6hnacord2hz3qibtcxa3gmtcv5etai6kvr7lff74inrx6",
+      "digest_hex": "b8274719f1da013a23d1f3b8203315c1b33262af493023caac7eb297fc43637f",
+      "envelope_hex": "01222222222222222222222222222222222222222222222222dca42c46976c53a757bab7d2a0324004",
+      "id": "encrypted-empty",
+      "key_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+      "nonce_hex": "222222222222222222222222222222222222222222222222",
+      "plaintext_hex": "",
+      "stored_len": 41
+    },
+    {
+      "aad_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f00160000000000000001000000",
+      "cid": "bafk2bzacedzjyq2drm2ucjo2iqfzumb6g23marf2236pprre3qlzuhjx475c2",
+      "digest_hex": "f29c43438b354125da440b9a303e36b6c044bad6fcf7c624dc179a1d37e7fa2d",
+      "envelope_hex": "0123232323232323232323232323232323232323232323232386ebb860cd4cd6b3d70df6fa0257d3ef60987c6a8d0f8864ba9d8469ccc00e7dfcbf31e4bd8e",
+      "id": "encrypted-hello",
+      "key_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+      "nonce_hex": "232323232323232323232323232323232323232323232323",
+      "plaintext_hex": "434f52442073746f7261676520766563746f72207631",
+      "stored_len": 63
+    },
+    {
+      "chunk_count": 0,
+      "cid": "bafk2bzaceahfouoae3suhmxivmxlayez3kq5dzo7i53y654h7kvultprf7r2q",
+      "digest_hex": "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8",
+      "generator": "repeat-byte-a5",
+      "id": "none-empty",
+      "plaintext_len": 0,
+      "stored_len": 0
+    },
+    {
+      "chunk_count": 1,
+      "cid": "bafk2bzacea3vkltbtydl5vwv5tolk2fo552zr6umugo4i2zyh2r3vscfkharo",
+      "digest_hex": "37552e619e06bed6d5ecdcb568aeef7598fa8ca19dc46b383ea3bac84551c117",
+      "generator": "repeat-byte-a5",
+      "id": "none-stored-255k",
+      "plaintext_len": 261120,
+      "stored_len": 261120
+    },
+    {
+      "chunk_count": 1,
+      "cid": "bafk2bzaceaxj24w33f5ofschz6tufor7rx73xp7piu7zk6sp263adykx6oem4",
+      "digest_hex": "2e9d72dbd97ae2c847cfa742ba3f8dffbbbfef453f957a4fd7b601e157f388ce",
+      "generator": "repeat-byte-a5",
+      "id": "none-stored-256k",
+      "plaintext_len": 262144,
+      "stored_len": 262144
+    },
+    {
+      "chunk_count": 2,
+      "cid": "bafk2bzacecnaqgjfv4wjnlbwsy6wumu3spzcmgrc5gnakdxsz5b5jeshph2sw",
+      "digest_hex": "9a081925af2c96ac36963d6a329b93f2261a22e99a050ef2cf43d4924779f52b",
+      "generator": "repeat-byte-a5",
+      "id": "none-stored-257k",
+      "plaintext_len": 263168,
+      "stored_len": 263168
+    },
+    {
+      "chunk_count": 256,
+      "cid": "bafk2bzacebbe4sgdqeqfoiqnebbeihcnpfo34zyz27lnur2ykejsrodpifvia",
+      "digest_hex": "424e48c3812057220d2042441c4d795dbe6719d7d6da4758511328b86f416a80",
+      "generator": "repeat-byte-a5",
+      "id": "none-64m",
+      "plaintext_len": 67108864,
+      "stored_len": 67108864
+    },
+    {
+      "id": "none-64m-plus-1",
+      "mode": "none",
+      "plaintext_len": 67108865,
+      "expected_error": "STORAGE_OBJECT_TOO_LARGE",
+      "pre_encryption_rejection": true
+    },
+    {
+      "aad_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f00d7ffff030000000001000000",
+      "chunk_count": 256,
+      "cid": "bafk2bzacedpiauunj3krk6cfwzy4c6wcuovsygcplx5fu4vvlavtn3furvygk",
+      "digest_hex": "de80528d4ed5157845b671c17ac2a3ab2c184f5dfa5a72b5582b36ecb48d7065",
+      "generator": "repeat-byte-a5",
+      "id": "encrypted-max-plaintext-67108823",
+      "key_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+      "mode": "xchacha20poly1305-v1",
+      "nonce_hex": "333333333333333333333333333333333333333333333333",
+      "plaintext_len": 67108823,
+      "stored_len": 67108864
+    },
+    {
+      "id": "encrypted-max-stored-67108864",
+      "alias_of": "encrypted-max-plaintext-67108823"
+    },
+    {
+      "id": "encrypted-plaintext-plus-1",
+      "mode": "xchacha20poly1305-v1",
+      "plaintext_len": 67108824,
+      "stored_len": 67108865,
+      "chunk_count": 257,
+      "expected_error": "STORAGE_OBJECT_TOO_LARGE",
+      "pre_encryption_rejection": true
+    },
+    {
+      "id": "none-manifest-max",
+      "mode": "none",
+      "plaintext_len": 4194304,
+      "stored_len": 4194304,
+      "expected": "accept"
+    },
+    {
+      "id": "none-manifest-plus-1",
+      "mode": "none",
+      "plaintext_len": 4194305,
+      "expected_error": "STORAGE_OBJECT_TOO_LARGE"
+    },
+    {
+      "aad_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f00d7ff3f000000000001000000",
+      "chunk_count": 16,
+      "cid": "bafk2bzacec7uiwdvz5w4dgnheo7msys4srjutmqqz3ktldxa4hvz33rziwvmw",
+      "digest_hex": "bf445875cf6dc199a723bec9625c945349b210ced5358ee0e1eb9dee3945aacb",
+      "generator": "repeat-byte-a5",
+      "id": "encrypted-manifest-max",
+      "key_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+      "mode": "xchacha20poly1305-v1",
+      "nonce_hex": "343434343434343434343434343434343434343434343434",
+      "plaintext_len": 4194263,
+      "stored_len": 4194304
+    },
+    {
+      "id": "encrypted-manifest-plus-1",
+      "mode": "xchacha20poly1305-v1",
+      "plaintext_len": 4194264,
+      "stored_len": 4194305,
+      "expected_error": "STORAGE_OBJECT_TOO_LARGE"
+    },
+    {
+      "id": "range-empty-at-end",
+      "object_len": 8,
+      "start": 8,
+      "end": 8,
+      "returned_len": 0,
+      "expected": "accept"
+    },
+    {
+      "id": "range-end-past-object",
+      "object_len": 8,
+      "start": 0,
+      "end": 9,
+      "expected_error": "STORAGE_RANGE_INVALID"
+    },
+    {
+      "id": "duplicate-identical",
+      "expected": "prior-byte-identical-receipt",
+      "effects": 1
+    },
+    {
+      "id": "duplicate-changed-byte",
+      "expected_error": "STORAGE_IDEMPOTENCY_CONFLICT",
+      "effects": 1
+    },
+    {
+      "id": "corrupt-stored-byte",
+      "expected_error": "STORAGE_INTEGRITY_FAILED",
+      "returned_bytes": 0,
+      "evidence": true
+    },
+    {
+      "aad_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f00d7fb03000000000001000000",
+      "chunk_count": 1,
+      "cid": "bafk2bzacedxiukgkzz6i3gtdfaimqsdfo3ujukksc2jmjbfgczqk55v6jq5oq",
+      "digest_hex": "ee8a28cace7c8d9a632810c8486576e89a29521692c484a61660aef6be4c3ae8",
+      "generator": "repeat-byte-a5",
+      "id": "encrypted-stored-255k",
+      "key_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+      "mode": "xchacha20poly1305-v1",
+      "nonce_hex": "303030303030303030303030303030303030303030303030",
+      "plaintext_len": 261079,
+      "stored_len": 261120
+    },
+    {
+      "aad_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f00d7ff03000000000001000000",
+      "chunk_count": 1,
+      "cid": "bafk2bzaced2lg5qvsgssa6fowq57bg43g7yi3k6x5tjoa2jpztf7kddja6ew4",
+      "digest_hex": "f4b3761591a52078aeb43bf09b9b37f08dabd7ecd2e0692fcccbf50c6907896e",
+      "generator": "repeat-byte-a5",
+      "id": "encrypted-stored-256k",
+      "key_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+      "mode": "xchacha20poly1305-v1",
+      "nonce_hex": "313131313131313131313131313131313131313131313131",
+      "plaintext_len": 262103,
+      "stored_len": 262144
+    },
+    {
+      "aad_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f00d70304000000000001000000",
+      "chunk_count": 2,
+      "cid": "bafk2bzacedze7wvcvfedkngpr7b4yrwthw53x7bik4vnqtbvnxuwm4ybs6rlg",
+      "digest_hex": "f24fdaa2a9483534cf8fc3cc46d33dbbbbfc28572ad84c356de966730197a2b3",
+      "generator": "repeat-byte-a5",
+      "id": "encrypted-stored-257k",
+      "key_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+      "mode": "xchacha20poly1305-v1",
+      "nonce_hex": "323232323232323232323232323232323232323232323232",
+      "plaintext_len": 263127,
+      "stored_len": 263168
+    },
+    {
+      "id": "encrypted-nonce-reuse",
+      "mutation": "reuse an admitted vector key/nonce pair for different plaintext",
+      "expected_error": "ENCRYPTION_NONCE_REUSE",
+      "effect": "reject before encryption and addressing"
+    }
+  ]
+}

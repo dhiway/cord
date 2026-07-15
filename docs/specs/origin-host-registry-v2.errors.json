@@ -1,0 +1,634 @@
+{
+  "encoding": {
+    "0": "code_u16",
+    "1": "name",
+    "2": "retryable",
+    "3": "details"
+  },
+  "unknown": "fail-closed",
+  "errors": [
+    {
+      "family": "E_COMMON",
+      "code": 100,
+      "name": "WIRE_SCHEMA_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 101,
+      "name": "WIRE_NON_CANONICAL",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 102,
+      "name": "WIRE_VERSION_MISMATCH",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 103,
+      "name": "WIRE_GENESIS_MISMATCH",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 104,
+      "name": "WIRE_DESCRIPTOR_MISMATCH",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 105,
+      "name": "WIRE_SEQUENCE_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 106,
+      "name": "REQUEST_DEADLINE_EXPIRED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 107,
+      "name": "REQUEST_CANCELLED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 108,
+      "name": "REQUEST_NOT_FOUND",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 109,
+      "name": "GRANT_REQUIRED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 110,
+      "name": "GRANT_SCOPE_DENIED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 111,
+      "name": "GRANT_EXPIRED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 112,
+      "name": "GRANT_REVOKED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 113,
+      "name": "HOST_OUTBOX_UNAVAILABLE",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 114,
+      "name": "HOST_OUTBOX_FULL",
+      "retryable": true,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 115,
+      "name": "HOST_OUTBOX_CORRUPT",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_COMMON",
+      "code": 116,
+      "name": "HOST_OUTBOX_EXPIRED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTENT",
+      "code": 200,
+      "name": "STORAGE_CHUNK_OUT_OF_ORDER",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTENT",
+      "code": 201,
+      "name": "STORAGE_CHUNK_TOO_LARGE",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTENT",
+      "code": 202,
+      "name": "STORAGE_CHUNK_MISSING",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTENT",
+      "code": 203,
+      "name": "STORAGE_LENGTH_MISMATCH",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTENT",
+      "code": 204,
+      "name": "STORAGE_CID_MISMATCH",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTENT",
+      "code": 205,
+      "name": "STORAGE_OBJECT_TOO_LARGE",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTENT",
+      "code": 206,
+      "name": "STORAGE_IDEMPOTENCY_CONFLICT",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTENT",
+      "code": 207,
+      "name": "STORAGE_RANGE_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTENT",
+      "code": 208,
+      "name": "STORAGE_INTEGRITY_FAILED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTENT",
+      "code": 209,
+      "name": "STORAGE_NOT_PUBLISHABLE",
+      "retryable": true,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTENT",
+      "code": 210,
+      "name": "STORAGE_NOT_FOUND",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTENT",
+      "code": 211,
+      "name": "ENCRYPTION_NONCE_REUSE",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 220,
+      "name": "STORAGE_CHECKPOINT_WRONG_DOMAIN",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 221,
+      "name": "STORAGE_CHECKPOINT_WRONG_VERSION",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 222,
+      "name": "STORAGE_CHECKPOINT_WRONG_BUCKET",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 223,
+      "name": "STORAGE_CHECKPOINT_WRONG_KEY",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 224,
+      "name": "STORAGE_CHECKPOINT_STALE_NONCE",
+      "retryable": true,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 225,
+      "name": "STORAGE_CHECKPOINT_WRONG_WINDOW",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 226,
+      "name": "CAPABILITY_SIGNATURE_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 227,
+      "name": "CAPABILITY_AUDIENCE_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 228,
+      "name": "CAPABILITY_CONTENT_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 229,
+      "name": "CAPABILITY_NONCE_REPLAY",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 230,
+      "name": "CAPABILITY_EXPIRED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 231,
+      "name": "CAPABILITY_ISSUER_REVOKED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 232,
+      "name": "RESUME_SIGNATURE_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 233,
+      "name": "RESUME_AUDIENCE_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 234,
+      "name": "RESUME_REPLAY",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 235,
+      "name": "RESUME_EXPIRED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 236,
+      "name": "RESUME_REVOKED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 237,
+      "name": "RESUME_CURSOR_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 238,
+      "name": "PROVIDER_RECOVERY_TABLE_FULL",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 239,
+      "name": "STORAGE_CHECKPOINT_INSUFFICIENT_QUORUM",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 240,
+      "name": "STORAGE_CHECKPOINT_SEQUENCE_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_PROOF_AUTH",
+      "code": 241,
+      "name": "STORAGE_CHECKPOINT_EQUIVOCATION",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTROL",
+      "code": 250,
+      "name": "BUCKET_NOT_FOUND",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTROL",
+      "code": 251,
+      "name": "BUCKET_VERSION_CONFLICT",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTROL",
+      "code": 252,
+      "name": "BUCKET_MEMBER_LIMIT",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTROL",
+      "code": 253,
+      "name": "AGREEMENT_INVALID_STATE",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTROL",
+      "code": 254,
+      "name": "AGREEMENT_CAPACITY_EXCEEDED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTROL",
+      "code": 255,
+      "name": "PROVIDER_INELIGIBLE",
+      "retryable": true,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTROL",
+      "code": 256,
+      "name": "PROVIDER_ORG_UNKNOWN",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTROL",
+      "code": 257,
+      "name": "PROVIDER_ATTESTATION_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTROL",
+      "code": 258,
+      "name": "PROVIDER_ATTESTATION_EXPIRED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTROL",
+      "code": 259,
+      "name": "PROVIDER_SLA_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTROL",
+      "code": 260,
+      "name": "PROVIDER_SERVICE_KEY_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTROL",
+      "code": 261,
+      "name": "STORAGE_CURSOR_STALE",
+      "retryable": true,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_DRIVE_S3",
+      "code": 300,
+      "name": "DRIVE_NAME_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_DRIVE_S3",
+      "code": 301,
+      "name": "DRIVE_PATH_TOO_LONG",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_DRIVE_S3",
+      "code": 302,
+      "name": "DRIVE_DEPTH_EXCEEDED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_DRIVE_S3",
+      "code": 303,
+      "name": "DRIVE_CHILD_LIMIT",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_DRIVE_S3",
+      "code": 304,
+      "name": "DRIVE_METADATA_LIMIT",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_DRIVE_S3",
+      "code": 305,
+      "name": "DRIVE_ORDER_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_DRIVE_S3",
+      "code": 306,
+      "name": "DRIVE_VERSION_CONFLICT",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_DRIVE_S3",
+      "code": 307,
+      "name": "DRIVE_REFERENCE_UNPUBLISHABLE",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_DRIVE_S3",
+      "code": 320,
+      "name": "S3_BUCKET_NAME_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_DRIVE_S3",
+      "code": 321,
+      "name": "S3_KEY_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_DRIVE_S3",
+      "code": 322,
+      "name": "S3_METADATA_LIMIT",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_DRIVE_S3",
+      "code": 323,
+      "name": "S3_PRECONDITION_FAILED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_DRIVE_S3",
+      "code": 324,
+      "name": "S3_NOT_FOUND",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_DRIVE_S3",
+      "code": 325,
+      "name": "S3_HISTORY_LIMIT",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_IDENTITY",
+      "code": 400,
+      "name": "IDENTITY_AUDIENCE_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_IDENTITY",
+      "code": 401,
+      "name": "IDENTITY_CHALLENGE_REPLAY",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_IDENTITY",
+      "code": 402,
+      "name": "IDENTITY_PROOF_EXPIRED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_IDENTITY",
+      "code": 403,
+      "name": "IDENTITY_EPOCH_INVALID",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_IDENTITY",
+      "code": 404,
+      "name": "IDENTITY_DISCLOSURE_DENIED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_IDENTITY",
+      "code": 405,
+      "name": "IDENTITY_HUMANITY_UNAVAILABLE",
+      "retryable": true,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_IDENTITY",
+      "code": 406,
+      "name": "IDENTITY_ENTITLEMENT_UNAVAILABLE",
+      "retryable": true,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_IDENTITY",
+      "code": 407,
+      "name": "SIGNING_CONSENT_REQUIRED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_IDENTITY",
+      "code": 408,
+      "name": "IDENTITY_RECOVERY_ENTROPY_FAILED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_IDENTITY",
+      "code": 409,
+      "name": "IDENTITY_RECOVERY_INSTALL_FAILED",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_IDENTITY",
+      "code": 410,
+      "name": "IDENTITY_OLD_INCARNATION",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_IDENTITY",
+      "code": 411,
+      "name": "IDENTITY_RETIRED_SET_FULL",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    }
+  ]
+}

@@ -1,0 +1,688 @@
+{
+  "$comment": "report_sha256 uses cord-json-canonical-v1 from scripts/evidence_common.py with report_sha256 omitted. The profile forbids floats, sorts object keys by unsigned UTF-8 bytes, emits UTF-8 strings with JSON escapes and no insignificant whitespace, BOM, or trailing newline.",
+  "$id": "https://cord.network/schemas/evidence-report-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifacts": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sha256": {
+            "pattern": "[0-9a-f]{64}",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256",
+          "schema"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "assertions": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "actual": {},
+          "error": {
+            "type": "string"
+          },
+          "expected": {},
+          "json_pointer": {
+            "type": "string"
+          },
+          "operator": {
+            "enum": [
+              "eq",
+              "zero",
+              "gte",
+              "lte",
+              "subset",
+              "sha256_eq",
+              "matches_schema"
+            ]
+          },
+          "pass": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "json_pointer",
+          "operator",
+          "expected",
+          "actual",
+          "pass"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "blockers": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "commands": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "argv": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "cwd": {
+            "type": "string"
+          },
+          "declared_outputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "exit_code": {
+            "type": "integer"
+          },
+          "generated_input_ancestry": {
+            "additionalProperties": {
+              "additionalProperties": false,
+              "properties": {
+                "command_index": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "sha256": {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "command_index",
+                "sha256"
+              ],
+              "type": "object"
+            },
+            "type": "object"
+          },
+          "observed_read_manifest": {
+            "additionalProperties": false,
+            "properties": {
+              "allowed_read_patterns": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "closure_proven": {
+                "type": "boolean"
+              },
+              "reads": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "provenance": {
+                      "type": "string"
+                    },
+                    "sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "provenance",
+                    "sha256"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "repository_snapshot_sha256": {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              "subprocess_ancestry": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "argv": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "executable": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "pid": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "ppid": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "pid",
+                    "ppid",
+                    "executable",
+                    "argv"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "undeclared_paths": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "reads",
+              "undeclared_paths",
+              "closure_proven",
+              "repository_snapshot_sha256",
+              "subprocess_ancestry",
+              "allowed_read_patterns"
+            ],
+            "type": "object"
+          },
+          "read_inputs": {
+            "additionalProperties": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "stderr_sha256": {
+            "pattern": "[0-9a-f]{64}",
+            "type": "string"
+          },
+          "stdout_sha256": {
+            "pattern": "[0-9a-f]{64}",
+            "type": "string"
+          },
+          "test_count": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "write_set": {
+            "additionalProperties": false,
+            "properties": {
+              "allowed_cache_patterns": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "changed_paths": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "unexpected_paths": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "changed_paths",
+              "allowed_cache_patterns",
+              "unexpected_paths"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "argv",
+          "cwd",
+          "exit_code",
+          "stdout_sha256",
+          "stderr_sha256",
+          "test_count",
+          "declared_outputs",
+          "read_inputs",
+          "generated_input_ancestry",
+          "write_set",
+          "observed_read_manifest"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "cord_head": {
+      "pattern": "[0-9a-f]{40,64}",
+      "type": "string"
+    },
+    "finished_at": {
+      "minLength": 20,
+      "type": "string"
+    },
+    "gate_id": {
+      "pattern": "(?:AC(?:[1-9]|1[0-4])|P[0-7]|P4_(?:OBJECT|PROVIDER|DRIVE|S3|RUNTIME))",
+      "type": "string"
+    },
+    "input_ancestry": {
+      "additionalProperties": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "producer_gate": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "producer_output": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "producer_report": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "producer_report_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "producer_gate",
+          "producer_output",
+          "producer_report",
+          "producer_report_sha256",
+          "artifact_sha256"
+        ],
+        "type": "object"
+      },
+      "type": "object"
+    },
+    "input_hashes": {
+      "additionalProperties": {
+        "pattern": "[0-9a-f]{64}",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "p8_authorized": {
+      "type": "boolean"
+    },
+    "registry_sha256": {
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "report_sha256": {
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "repository_snapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "repositories": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "cached_diff_sha256": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "head": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "index_sha256": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "path": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "receipt_sha256": {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              "role": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tracked_tree_root": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "untracked_tree_root": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "worktree_diff_sha256": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "role",
+              "path",
+              "head",
+              "tracked_tree_root",
+              "untracked_tree_root",
+              "worktree_diff_sha256",
+              "cached_diff_sha256",
+              "index_sha256",
+              "receipt_sha256"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repositories",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "started_at": {
+      "minLength": 20,
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "blocked",
+        "fail"
+      ]
+    },
+    "stop_literal": {
+      "type": "string"
+    },
+    "toolchains": {
+      "additionalProperties": false,
+      "properties": {
+        "cargo": {
+          "type": "string"
+        },
+        "node": {
+          "type": "string"
+        },
+        "npm": {
+          "type": "string"
+        },
+        "python": {
+          "type": "string"
+        },
+        "rustc": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "python",
+        "rustc",
+        "cargo",
+        "node",
+        "npm"
+      ],
+      "type": "object"
+    },
+    "write_set": {
+      "additionalProperties": false,
+      "properties": {
+        "after_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "allowed_paths": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "before_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "cord_changed_paths": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "external_deltas": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "undeclared_paths": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "violations": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "before_sha256",
+        "after_sha256",
+        "external_deltas",
+        "cord_changed_paths",
+        "undeclared_paths",
+        "allowed_paths",
+        "violations"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "gate_id",
+    "status",
+    "cord_head",
+    "started_at",
+    "finished_at",
+    "registry_sha256",
+    "input_hashes",
+    "toolchains",
+    "commands",
+    "artifacts",
+    "assertions",
+    "blockers",
+    "report_sha256",
+    "write_set",
+    "input_ancestry",
+    "repository_snapshot"
+  ],
+  "title": "EvidenceReportV1",
+  "type": "object",
+  "x-cord-ac-required-assertions": {
+    "AC1": [
+      "pinned-commit",
+      "census-root",
+      "census-count",
+      "unvisited",
+      "missing",
+      "duplicates",
+      "multi-classified",
+      "unmapped",
+      "blocked",
+      "unknown"
+    ],
+    "AC2": [
+      "vectors",
+      "negative-codes",
+      "no-commit",
+      "hashes"
+    ],
+    "AC3": [
+      "frozen-proof",
+      "negative-codes",
+      "evidence-two",
+      "suspension-one"
+    ],
+    "AC4": [
+      "invalid-cases",
+      "event-order",
+      "no-humanity-read",
+      "evidence-hashes"
+    ],
+    "AC5": [
+      "root",
+      "tie-break",
+      "corrupt-reads",
+      "convergence"
+    ],
+    "AC6": [
+      "bounds",
+      "codes",
+      "state",
+      "events"
+    ],
+    "AC7": [
+      "registry-hash",
+      "codes",
+      "progress",
+      "loss-boundaries",
+      "effects",
+      "outbox"
+    ],
+    "AC8": [
+      "v2-vectors",
+      "codes",
+      "seven-ops",
+      "separate-signing",
+      "restart-replay",
+      "fresh-recovery",
+      "continuity",
+      "leakage"
+    ],
+    "AC9": [
+      "public-taxonomy",
+      "disposition",
+      "projection",
+      "no-shim"
+    ],
+    "AC10": [
+      "deletion-items",
+      "dag-fields",
+      "dag-ids",
+      "dag-orders",
+      "dag-items",
+      "dag-edges",
+      "dag-cycles",
+      "exact-symbols",
+      "surface-census",
+      "declaration-bijection",
+      "unique-surfaces",
+      "exhaustive-findings",
+      "unique-ownership",
+      "accepted-exclusions",
+      "symbols",
+      "fixtures",
+      "taxonomy",
+      "allowlist",
+      "dependencies"
+    ],
+    "AC11": [
+      "state",
+      "events",
+      "frames",
+      "roots",
+      "errors",
+      "metrics",
+      "idempotency",
+      "recovery"
+    ],
+    "AC12": [
+      "external",
+      "cord-subset",
+      "before-hash",
+      "after-hash"
+    ],
+    "AC13": [
+      "headers",
+      "identity",
+      "gates",
+      "paths"
+    ],
+    "AC14": [
+      "economics",
+      "duplicate",
+      "migration",
+      "fallback",
+      "mobile",
+      "external",
+      "stop",
+      "p8"
+    ]
+  }
+}

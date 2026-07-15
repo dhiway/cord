@@ -1,0 +1,6 @@
+{
+  "version":1,
+  "bucket":{"version":"monotonic","primary":1,"replicas":{"min":2,"max":4},"membership_grants_max":256,"roles":["reader","writer","admin"]},
+  "agreement":{"states":["Proposed","Active","Suspended","Cancelled","Expired"],"transitions":[["Proposed","Active"],["Active","Suspended"],["Suspended","Active"],["Proposed","Cancelled"],["Active","Cancelled"],["Suspended","Cancelled"],["Proposed","Expired"],["Active","Expired"],["Suspended","Expired"]],"terminal":["Cancelled","Expired"],"max_per_provider":1024,"max_replicas":4},
+  "deletion":{"states":["Tombstoned","AwaitingProviderAcknowledgements","ControlledReplicasUnavailable","EvidenceWindowComplete"],"guarantee":"CORD-controlled active replicas no longer serve object","non_guarantees":["cryptographic erasure","GDPR compliance","SLA compliance","third-party deletion","chain-event deletion"]}
+}

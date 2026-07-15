@@ -1,0 +1,8266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cord.network/schemas/origin-host-registry-v2.schema.json",
+  "title": "Non-authoritative numeric-key mobile JSON projection of cord.origin.host/2",
+  "description": "CBOR byte strings are unpadded base64url. U16/U32/U64 values are decimal strings. Enum values use stable registry names with x-cord-cbor-discriminants. NFC and decoded-byte x-cord-* bounds MUST be enforced before canonical CBOR authorization. Numeric JSON object keys map to unsigned CBOR integer keys.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/RequestV2"
+    },
+    {
+      "$ref": "#/$defs/EventV2"
+    },
+    {
+      "$ref": "#/$defs/SubjectContextV2"
+    },
+    {
+      "$ref": "#/$defs/SubjectProofV2"
+    },
+    {
+      "$ref": "#/$defs/ProviderCapabilityV1"
+    },
+    {
+      "$ref": "#/$defs/ResumeTokenV1"
+    },
+    {
+      "$ref": "#/$defs/ResponseAckV1"
+    },
+    {
+      "$ref": "#/$defs/HostOutboxEntryV1"
+    },
+    {
+      "$ref": "#/$defs/RecoveryEntryV1"
+    },
+    {
+      "$ref": "#/$defs/CheckpointSubmissionV2"
+    },
+    {
+      "$ref": "#/$defs/CheckpointResultV2"
+    },
+    {
+      "$ref": "#/$defs/ProviderTransferRequestV1"
+    },
+    {
+      "$ref": "#/$defs/ProviderTransferChunkV1"
+    },
+    {
+      "$ref": "#/$defs/ProviderTransferReceiptV1"
+    },
+    {
+      "$ref": "#/$defs/SubjectProofEnvelopeV2"
+    },
+    {
+      "$ref": "#/$defs/RecoveryInstallV2"
+    },
+    {
+      "$ref": "#/$defs/RecoveryReceiptV2"
+    },
+    {
+      "$ref": "#/$defs/DriveFileManifestV1"
+    },
+    {
+      "$ref": "#/$defs/DriveManifestV1"
+    },
+    {
+      "$ref": "#/$defs/DriveChangedEventV1"
+    },
+    {
+      "$ref": "#/$defs/S3ObjectVersionV1"
+    },
+    {
+      "$ref": "#/$defs/S3ChangedEventV1"
+    },
+    {
+      "$ref": "#/$defs/DurableStateV1"
+    }
+  ],
+  "$defs": {
+    "Hash32": {
+      "type": "string",
+      "contentEncoding": "base64url",
+      "x-cord-unpadded-base64url": true,
+      "x-cord-decoded-minBytes": 32,
+      "x-cord-decoded-maxBytes": 32
+    },
+    "AccountId32": {
+      "type": "string",
+      "contentEncoding": "base64url",
+      "x-cord-unpadded-base64url": true,
+      "x-cord-decoded-minBytes": 32,
+      "x-cord-decoded-maxBytes": 32
+    },
+    "ProviderId": {
+      "type": "string",
+      "contentEncoding": "base64url",
+      "x-cord-unpadded-base64url": true,
+      "x-cord-decoded-minBytes": 32,
+      "x-cord-decoded-maxBytes": 32
+    },
+    "BucketId": {
+      "type": "string",
+      "contentEncoding": "base64url",
+      "x-cord-unpadded-base64url": true,
+      "x-cord-decoded-minBytes": 32,
+      "x-cord-decoded-maxBytes": 32
+    },
+    "AgreementId": {
+      "type": "string",
+      "contentEncoding": "base64url",
+      "x-cord-unpadded-base64url": true,
+      "x-cord-decoded-minBytes": 32,
+      "x-cord-decoded-maxBytes": 32
+    },
+    "GrantId": {
+      "type": "string",
+      "contentEncoding": "base64url",
+      "x-cord-unpadded-base64url": true,
+      "x-cord-decoded-minBytes": 32,
+      "x-cord-decoded-maxBytes": 32
+    },
+    "Subject": {
+      "type": "string",
+      "contentEncoding": "base64url",
+      "x-cord-unpadded-base64url": true,
+      "x-cord-decoded-minBytes": 32,
+      "x-cord-decoded-maxBytes": 32
+    },
+    "KeyId": {
+      "type": "string",
+      "contentEncoding": "base64url",
+      "x-cord-unpadded-base64url": true,
+      "x-cord-decoded-minBytes": 32,
+      "x-cord-decoded-maxBytes": 32
+    },
+    "RequestId": {
+      "type": "string",
+      "contentEncoding": "base64url",
+      "x-cord-unpadded-base64url": true,
+      "x-cord-decoded-minBytes": 16,
+      "x-cord-decoded-maxBytes": 16
+    },
+    "OperationId": {
+      "type": "string",
+      "contentEncoding": "base64url",
+      "x-cord-unpadded-base64url": true,
+      "x-cord-decoded-minBytes": 16,
+      "x-cord-decoded-maxBytes": 16
+    },
+    "Nonce": {
+      "type": "string",
+      "contentEncoding": "base64url",
+      "x-cord-unpadded-base64url": true,
+      "x-cord-decoded-minBytes": 16,
+      "x-cord-decoded-maxBytes": 16
+    },
+    "Cid": {
+      "type": "string",
+      "x-cord-nfc": true,
+      "minLength": 1,
+      "maxLength": 128,
+      "x-cord-utf8-minBytes": 1,
+      "x-cord-utf8-maxBytes": 128
+    },
+    "ProductId": {
+      "type": "string",
+      "x-cord-nfc": true,
+      "minLength": 1,
+      "maxLength": 128,
+      "x-cord-utf8-minBytes": 1,
+      "x-cord-utf8-maxBytes": 128
+    },
+    "NfcText128": {
+      "type": "string",
+      "x-cord-nfc": true,
+      "minLength": 1,
+      "maxLength": 128,
+      "x-cord-utf8-minBytes": 1,
+      "x-cord-utf8-maxBytes": 128
+    },
+    "NfcText256": {
+      "type": "string",
+      "x-cord-nfc": true,
+      "minLength": 1,
+      "maxLength": 256,
+      "x-cord-utf8-minBytes": 1,
+      "x-cord-utf8-maxBytes": 256
+    },
+    "Bytes4MiB": {
+      "type": "string",
+      "contentEncoding": "base64url",
+      "x-cord-unpadded-base64url": true,
+      "x-cord-decoded-minBytes": 0,
+      "x-cord-decoded-maxBytes": 4194304
+    },
+    "U16": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$",
+      "x-cord-max": "65535"
+    },
+    "U32": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$",
+      "x-cord-max": "4294967295"
+    },
+    "U64": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$",
+      "x-cord-max": "18446744073709551615"
+    },
+    "EventV2": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/AcceptedEventV2"
+        },
+        {
+          "$ref": "#/$defs/ProgressEventV2"
+        },
+        {
+          "$ref": "#/$defs/ResultEventV2"
+        },
+        {
+          "$ref": "#/$defs/ErrorEventV2"
+        },
+        {
+          "$ref": "#/$defs/CancelledEventV2"
+        }
+      ]
+    },
+    "ErrorDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/NfcText256"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": []
+    },
+    "RequestV2": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/StorageBucketCreateFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketGetFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketGrantFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketRevokeFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectPutFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectGetFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectRangeFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectDeleteFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectStatusFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageCheckpointStatusFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageCheckpointSubscribeFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageReplicaStatusFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageReplicaSubscribeFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageDeletionStatusFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageDeletionSubscribeFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveReadFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveCommitFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveShareFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageS3PutFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageS3GetFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageS3ListFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageS3DeleteFrame"
+        },
+        {
+          "$ref": "#/$defs/StoragePublishFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageResolveFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageKeysExportFrame"
+        },
+        {
+          "$ref": "#/$defs/StorageKeysImportFrame"
+        },
+        {
+          "$ref": "#/$defs/IdentityAccountFrame"
+        },
+        {
+          "$ref": "#/$defs/IdentityProfileReadFrame"
+        },
+        {
+          "$ref": "#/$defs/IdentityProfileDiscloseFrame"
+        },
+        {
+          "$ref": "#/$defs/IdentityHumanityStatusFrame"
+        },
+        {
+          "$ref": "#/$defs/IdentityHumanityProveFrame"
+        },
+        {
+          "$ref": "#/$defs/IdentitySubjectDeriveFrame"
+        },
+        {
+          "$ref": "#/$defs/IdentityEntitlementsReadFrame"
+        },
+        {
+          "$ref": "#/$defs/TransactionSignFrame"
+        }
+      ]
+    },
+    "StorageBucketCreateFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1000
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageBucketCreateRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "StorageBucketGetFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1001
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageBucketGetRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "7",
+        "8"
+      ]
+    },
+    "StorageBucketGrantFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1002
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageBucketGrantRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "StorageBucketRevokeFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1003
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageBucketRevokeRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "StorageObjectPutFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1010
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageObjectPutRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "StorageObjectGetFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1011
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageObjectGetRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "7",
+        "8"
+      ]
+    },
+    "StorageObjectRangeFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1012
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageObjectRangeRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "7",
+        "8"
+      ]
+    },
+    "StorageObjectDeleteFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1013
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageObjectDeleteRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "StorageObjectStatusFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1014
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageObjectStatusRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "7",
+        "8"
+      ]
+    },
+    "StorageCheckpointStatusFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1020
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageCheckpointStatusRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "7",
+        "8"
+      ]
+    },
+    "StorageCheckpointSubscribeFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1021
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageCheckpointSubscribeRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "StorageReplicaStatusFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1022
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageReplicaStatusRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "7",
+        "8"
+      ]
+    },
+    "StorageReplicaSubscribeFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1023
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageReplicaSubscribeRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "StorageDeletionStatusFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1024
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageDeletionStatusRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "7",
+        "8"
+      ]
+    },
+    "StorageDeletionSubscribeFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1025
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageDeletionSubscribeRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "StorageDriveReadFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1030
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageDriveReadRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "7",
+        "8"
+      ]
+    },
+    "StorageDriveCommitFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1031
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageDriveCommitRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "StorageDriveShareFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1032
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageDriveShareRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "StorageS3PutFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1040
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageS3PutRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "StorageS3GetFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1041
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageS3GetRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "7",
+        "8"
+      ]
+    },
+    "StorageS3ListFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1042
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageS3ListRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "7",
+        "8"
+      ]
+    },
+    "StorageS3DeleteFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1043
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageS3DeleteRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "StoragePublishFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1050
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StoragePublishRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "StorageResolveFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1051
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageResolveRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "7",
+        "8"
+      ]
+    },
+    "StorageKeysExportFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1060
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageKeysExportRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "StorageKeysImportFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1061
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/StorageKeysImportRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "IdentityAccountFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1100
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/IdentityAccountRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "7",
+        "8"
+      ]
+    },
+    "IdentityProfileReadFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1101
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/IdentityProfileReadRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "7",
+        "8"
+      ]
+    },
+    "IdentityProfileDiscloseFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1102
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/IdentityProfileDiscloseRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "IdentityHumanityStatusFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1103
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/IdentityHumanityStatusRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "7",
+        "8"
+      ]
+    },
+    "IdentityHumanityProveFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1104
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/IdentityHumanityProveRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "IdentitySubjectDeriveFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1105
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/IdentitySubjectDeriveRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "7",
+        "8"
+      ]
+    },
+    "IdentityEntitlementsReadFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1106
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/IdentityEntitlementsReadRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "7",
+        "8"
+      ]
+    },
+    "TransactionSignFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "const": 1200
+        },
+        "4": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "$ref": "#/$defs/TransactionSignRequest"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "ErrorV2": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Error100"
+        },
+        {
+          "$ref": "#/$defs/Error101"
+        },
+        {
+          "$ref": "#/$defs/Error102"
+        },
+        {
+          "$ref": "#/$defs/Error103"
+        },
+        {
+          "$ref": "#/$defs/Error104"
+        },
+        {
+          "$ref": "#/$defs/Error105"
+        },
+        {
+          "$ref": "#/$defs/Error106"
+        },
+        {
+          "$ref": "#/$defs/Error107"
+        },
+        {
+          "$ref": "#/$defs/Error108"
+        },
+        {
+          "$ref": "#/$defs/Error109"
+        },
+        {
+          "$ref": "#/$defs/Error110"
+        },
+        {
+          "$ref": "#/$defs/Error111"
+        },
+        {
+          "$ref": "#/$defs/Error112"
+        },
+        {
+          "$ref": "#/$defs/Error113"
+        },
+        {
+          "$ref": "#/$defs/Error114"
+        },
+        {
+          "$ref": "#/$defs/Error115"
+        },
+        {
+          "$ref": "#/$defs/Error116"
+        },
+        {
+          "$ref": "#/$defs/Error200"
+        },
+        {
+          "$ref": "#/$defs/Error201"
+        },
+        {
+          "$ref": "#/$defs/Error202"
+        },
+        {
+          "$ref": "#/$defs/Error203"
+        },
+        {
+          "$ref": "#/$defs/Error204"
+        },
+        {
+          "$ref": "#/$defs/Error205"
+        },
+        {
+          "$ref": "#/$defs/Error206"
+        },
+        {
+          "$ref": "#/$defs/Error207"
+        },
+        {
+          "$ref": "#/$defs/Error208"
+        },
+        {
+          "$ref": "#/$defs/Error209"
+        },
+        {
+          "$ref": "#/$defs/Error210"
+        },
+        {
+          "$ref": "#/$defs/Error211"
+        },
+        {
+          "$ref": "#/$defs/Error220"
+        },
+        {
+          "$ref": "#/$defs/Error221"
+        },
+        {
+          "$ref": "#/$defs/Error222"
+        },
+        {
+          "$ref": "#/$defs/Error223"
+        },
+        {
+          "$ref": "#/$defs/Error224"
+        },
+        {
+          "$ref": "#/$defs/Error225"
+        },
+        {
+          "$ref": "#/$defs/Error226"
+        },
+        {
+          "$ref": "#/$defs/Error227"
+        },
+        {
+          "$ref": "#/$defs/Error228"
+        },
+        {
+          "$ref": "#/$defs/Error229"
+        },
+        {
+          "$ref": "#/$defs/Error230"
+        },
+        {
+          "$ref": "#/$defs/Error231"
+        },
+        {
+          "$ref": "#/$defs/Error232"
+        },
+        {
+          "$ref": "#/$defs/Error233"
+        },
+        {
+          "$ref": "#/$defs/Error234"
+        },
+        {
+          "$ref": "#/$defs/Error235"
+        },
+        {
+          "$ref": "#/$defs/Error236"
+        },
+        {
+          "$ref": "#/$defs/Error237"
+        },
+        {
+          "$ref": "#/$defs/Error238"
+        },
+        {
+          "$ref": "#/$defs/Error239"
+        },
+        {
+          "$ref": "#/$defs/Error240"
+        },
+        {
+          "$ref": "#/$defs/Error241"
+        },
+        {
+          "$ref": "#/$defs/Error250"
+        },
+        {
+          "$ref": "#/$defs/Error251"
+        },
+        {
+          "$ref": "#/$defs/Error252"
+        },
+        {
+          "$ref": "#/$defs/Error253"
+        },
+        {
+          "$ref": "#/$defs/Error254"
+        },
+        {
+          "$ref": "#/$defs/Error255"
+        },
+        {
+          "$ref": "#/$defs/Error256"
+        },
+        {
+          "$ref": "#/$defs/Error257"
+        },
+        {
+          "$ref": "#/$defs/Error258"
+        },
+        {
+          "$ref": "#/$defs/Error259"
+        },
+        {
+          "$ref": "#/$defs/Error260"
+        },
+        {
+          "$ref": "#/$defs/Error261"
+        },
+        {
+          "$ref": "#/$defs/Error300"
+        },
+        {
+          "$ref": "#/$defs/Error301"
+        },
+        {
+          "$ref": "#/$defs/Error302"
+        },
+        {
+          "$ref": "#/$defs/Error303"
+        },
+        {
+          "$ref": "#/$defs/Error304"
+        },
+        {
+          "$ref": "#/$defs/Error305"
+        },
+        {
+          "$ref": "#/$defs/Error306"
+        },
+        {
+          "$ref": "#/$defs/Error307"
+        },
+        {
+          "$ref": "#/$defs/Error320"
+        },
+        {
+          "$ref": "#/$defs/Error321"
+        },
+        {
+          "$ref": "#/$defs/Error322"
+        },
+        {
+          "$ref": "#/$defs/Error323"
+        },
+        {
+          "$ref": "#/$defs/Error324"
+        },
+        {
+          "$ref": "#/$defs/Error325"
+        },
+        {
+          "$ref": "#/$defs/Error400"
+        },
+        {
+          "$ref": "#/$defs/Error401"
+        },
+        {
+          "$ref": "#/$defs/Error402"
+        },
+        {
+          "$ref": "#/$defs/Error403"
+        },
+        {
+          "$ref": "#/$defs/Error404"
+        },
+        {
+          "$ref": "#/$defs/Error405"
+        },
+        {
+          "$ref": "#/$defs/Error406"
+        },
+        {
+          "$ref": "#/$defs/Error407"
+        },
+        {
+          "$ref": "#/$defs/Error408"
+        },
+        {
+          "$ref": "#/$defs/Error409"
+        },
+        {
+          "$ref": "#/$defs/Error410"
+        },
+        {
+          "$ref": "#/$defs/Error411"
+        }
+      ]
+    },
+    "Error100": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 100
+        },
+        "1": {
+          "const": "WIRE_SCHEMA_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error101": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 101
+        },
+        "1": {
+          "const": "WIRE_NON_CANONICAL"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error102": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 102
+        },
+        "1": {
+          "const": "WIRE_VERSION_MISMATCH"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error103": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 103
+        },
+        "1": {
+          "const": "WIRE_GENESIS_MISMATCH"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error104": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 104
+        },
+        "1": {
+          "const": "WIRE_DESCRIPTOR_MISMATCH"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error105": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 105
+        },
+        "1": {
+          "const": "WIRE_SEQUENCE_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error106": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 106
+        },
+        "1": {
+          "const": "REQUEST_DEADLINE_EXPIRED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error107": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 107
+        },
+        "1": {
+          "const": "REQUEST_CANCELLED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error108": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 108
+        },
+        "1": {
+          "const": "REQUEST_NOT_FOUND"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error109": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 109
+        },
+        "1": {
+          "const": "GRANT_REQUIRED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error110": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 110
+        },
+        "1": {
+          "const": "GRANT_SCOPE_DENIED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error111": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 111
+        },
+        "1": {
+          "const": "GRANT_EXPIRED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error112": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 112
+        },
+        "1": {
+          "const": "GRANT_REVOKED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error113": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 113
+        },
+        "1": {
+          "const": "HOST_OUTBOX_UNAVAILABLE"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error114": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 114
+        },
+        "1": {
+          "const": "HOST_OUTBOX_FULL"
+        },
+        "2": {
+          "const": true
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error115": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 115
+        },
+        "1": {
+          "const": "HOST_OUTBOX_CORRUPT"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error116": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 116
+        },
+        "1": {
+          "const": "HOST_OUTBOX_EXPIRED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error200": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 200
+        },
+        "1": {
+          "const": "STORAGE_CHUNK_OUT_OF_ORDER"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error201": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 201
+        },
+        "1": {
+          "const": "STORAGE_CHUNK_TOO_LARGE"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error202": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 202
+        },
+        "1": {
+          "const": "STORAGE_CHUNK_MISSING"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error203": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 203
+        },
+        "1": {
+          "const": "STORAGE_LENGTH_MISMATCH"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error204": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 204
+        },
+        "1": {
+          "const": "STORAGE_CID_MISMATCH"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error205": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 205
+        },
+        "1": {
+          "const": "STORAGE_OBJECT_TOO_LARGE"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error206": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 206
+        },
+        "1": {
+          "const": "STORAGE_IDEMPOTENCY_CONFLICT"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error207": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 207
+        },
+        "1": {
+          "const": "STORAGE_RANGE_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error208": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 208
+        },
+        "1": {
+          "const": "STORAGE_INTEGRITY_FAILED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error209": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 209
+        },
+        "1": {
+          "const": "STORAGE_NOT_PUBLISHABLE"
+        },
+        "2": {
+          "const": true
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error210": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 210
+        },
+        "1": {
+          "const": "STORAGE_NOT_FOUND"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error211": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 211
+        },
+        "1": {
+          "const": "ENCRYPTION_NONCE_REUSE"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error220": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 220
+        },
+        "1": {
+          "const": "STORAGE_CHECKPOINT_WRONG_DOMAIN"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error221": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 221
+        },
+        "1": {
+          "const": "STORAGE_CHECKPOINT_WRONG_VERSION"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error222": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 222
+        },
+        "1": {
+          "const": "STORAGE_CHECKPOINT_WRONG_BUCKET"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error223": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 223
+        },
+        "1": {
+          "const": "STORAGE_CHECKPOINT_WRONG_KEY"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error224": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 224
+        },
+        "1": {
+          "const": "STORAGE_CHECKPOINT_STALE_NONCE"
+        },
+        "2": {
+          "const": true
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error225": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 225
+        },
+        "1": {
+          "const": "STORAGE_CHECKPOINT_WRONG_WINDOW"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error226": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 226
+        },
+        "1": {
+          "const": "CAPABILITY_SIGNATURE_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error227": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 227
+        },
+        "1": {
+          "const": "CAPABILITY_AUDIENCE_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error228": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 228
+        },
+        "1": {
+          "const": "CAPABILITY_CONTENT_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error229": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 229
+        },
+        "1": {
+          "const": "CAPABILITY_NONCE_REPLAY"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error230": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 230
+        },
+        "1": {
+          "const": "CAPABILITY_EXPIRED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error231": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 231
+        },
+        "1": {
+          "const": "CAPABILITY_ISSUER_REVOKED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error232": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 232
+        },
+        "1": {
+          "const": "RESUME_SIGNATURE_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error233": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 233
+        },
+        "1": {
+          "const": "RESUME_AUDIENCE_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error234": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 234
+        },
+        "1": {
+          "const": "RESUME_REPLAY"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error235": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 235
+        },
+        "1": {
+          "const": "RESUME_EXPIRED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error236": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 236
+        },
+        "1": {
+          "const": "RESUME_REVOKED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error237": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 237
+        },
+        "1": {
+          "const": "RESUME_CURSOR_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error238": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 238
+        },
+        "1": {
+          "const": "PROVIDER_RECOVERY_TABLE_FULL"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error239": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 239
+        },
+        "1": {
+          "const": "STORAGE_CHECKPOINT_INSUFFICIENT_QUORUM"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error240": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 240
+        },
+        "1": {
+          "const": "STORAGE_CHECKPOINT_SEQUENCE_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error241": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 241
+        },
+        "1": {
+          "const": "STORAGE_CHECKPOINT_EQUIVOCATION"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error250": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 250
+        },
+        "1": {
+          "const": "BUCKET_NOT_FOUND"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error251": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 251
+        },
+        "1": {
+          "const": "BUCKET_VERSION_CONFLICT"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error252": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 252
+        },
+        "1": {
+          "const": "BUCKET_MEMBER_LIMIT"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error253": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 253
+        },
+        "1": {
+          "const": "AGREEMENT_INVALID_STATE"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error254": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 254
+        },
+        "1": {
+          "const": "AGREEMENT_CAPACITY_EXCEEDED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error255": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 255
+        },
+        "1": {
+          "const": "PROVIDER_INELIGIBLE"
+        },
+        "2": {
+          "const": true
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error256": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 256
+        },
+        "1": {
+          "const": "PROVIDER_ORG_UNKNOWN"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error257": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 257
+        },
+        "1": {
+          "const": "PROVIDER_ATTESTATION_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error258": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 258
+        },
+        "1": {
+          "const": "PROVIDER_ATTESTATION_EXPIRED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error259": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 259
+        },
+        "1": {
+          "const": "PROVIDER_SLA_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error260": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 260
+        },
+        "1": {
+          "const": "PROVIDER_SERVICE_KEY_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error261": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 261
+        },
+        "1": {
+          "const": "STORAGE_CURSOR_STALE"
+        },
+        "2": {
+          "const": true
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error300": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 300
+        },
+        "1": {
+          "const": "DRIVE_NAME_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error301": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 301
+        },
+        "1": {
+          "const": "DRIVE_PATH_TOO_LONG"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error302": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 302
+        },
+        "1": {
+          "const": "DRIVE_DEPTH_EXCEEDED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error303": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 303
+        },
+        "1": {
+          "const": "DRIVE_CHILD_LIMIT"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error304": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 304
+        },
+        "1": {
+          "const": "DRIVE_METADATA_LIMIT"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error305": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 305
+        },
+        "1": {
+          "const": "DRIVE_ORDER_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error306": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 306
+        },
+        "1": {
+          "const": "DRIVE_VERSION_CONFLICT"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error307": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 307
+        },
+        "1": {
+          "const": "DRIVE_REFERENCE_UNPUBLISHABLE"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error320": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 320
+        },
+        "1": {
+          "const": "S3_BUCKET_NAME_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error321": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 321
+        },
+        "1": {
+          "const": "S3_KEY_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error322": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 322
+        },
+        "1": {
+          "const": "S3_METADATA_LIMIT"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error323": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 323
+        },
+        "1": {
+          "const": "S3_PRECONDITION_FAILED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error324": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 324
+        },
+        "1": {
+          "const": "S3_NOT_FOUND"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error325": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 325
+        },
+        "1": {
+          "const": "S3_HISTORY_LIMIT"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error400": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 400
+        },
+        "1": {
+          "const": "IDENTITY_AUDIENCE_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error401": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 401
+        },
+        "1": {
+          "const": "IDENTITY_CHALLENGE_REPLAY"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error402": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 402
+        },
+        "1": {
+          "const": "IDENTITY_PROOF_EXPIRED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error403": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 403
+        },
+        "1": {
+          "const": "IDENTITY_EPOCH_INVALID"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error404": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 404
+        },
+        "1": {
+          "const": "IDENTITY_DISCLOSURE_DENIED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error405": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 405
+        },
+        "1": {
+          "const": "IDENTITY_HUMANITY_UNAVAILABLE"
+        },
+        "2": {
+          "const": true
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error406": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 406
+        },
+        "1": {
+          "const": "IDENTITY_ENTITLEMENT_UNAVAILABLE"
+        },
+        "2": {
+          "const": true
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error407": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 407
+        },
+        "1": {
+          "const": "SIGNING_CONSENT_REQUIRED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error408": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 408
+        },
+        "1": {
+          "const": "IDENTITY_RECOVERY_ENTROPY_FAILED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error409": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 409
+        },
+        "1": {
+          "const": "IDENTITY_RECOVERY_INSTALL_FAILED"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error410": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 410
+        },
+        "1": {
+          "const": "IDENTITY_OLD_INCARNATION"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error411": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 411
+        },
+        "1": {
+          "const": "IDENTITY_RETIRED_SET_FULL"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Empty": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {},
+      "required": []
+    },
+    "Fin": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/U64"
+        },
+        "1": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "AcceptedState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4
+        }
+      },
+      "required": [
+        "0"
+      ]
+    },
+    "ProgressState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/U64"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0"
+      ]
+    },
+    "ResultState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0"
+      ]
+    },
+    "BucketV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/AccountId32"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/U32"
+        },
+        "3": {
+          "$ref": "#/$defs/ProviderId"
+        },
+        "4": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/ProviderId"
+          }
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "ProviderReceiptV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/ProviderId"
+        },
+        "1": {
+          "$ref": "#/$defs/Cid"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 64,
+          "x-cord-decoded-maxBytes": 64
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "CheckpointV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "$ref": "#/$defs/U32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "SubscriptionAckV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "IdentityReceiptV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "StorageBucketCreateRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/U32"
+        },
+        "1": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/ProviderId"
+          }
+        },
+        "2": {
+          "type": "string",
+          "enum": [
+            "none",
+            "xchacha20poly1305-v1"
+          ],
+          "x-cord-cbor-discriminants": {
+            "none": 0,
+            "xchacha20poly1305-v1": 1
+          }
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "StorageBucketCreateAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageBucketCreateProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageBucketCreateResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "StorageBucketCreateError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageBucketGetRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0"
+      ]
+    },
+    "StorageBucketGetAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageBucketGetProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageBucketGetResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketV1"
+        },
+        "1": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "StorageBucketGetError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageBucketGrantRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/Subject"
+        },
+        "2": {
+          "type": "string",
+          "enum": [
+            "reader",
+            "writer",
+            "admin"
+          ],
+          "x-cord-cbor-discriminants": {
+            "reader": 0,
+            "writer": 1,
+            "admin": 2
+          }
+        },
+        "3": {
+          "$ref": "#/$defs/U64"
+        },
+        "4": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "StorageBucketGrantAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageBucketGrantProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageBucketGrantResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "StorageBucketGrantError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageBucketRevokeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "StorageBucketRevokeAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageBucketRevokeProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageBucketRevokeResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "StorageBucketRevokeError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageObjectPutRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/Cid"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "type": "string",
+          "enum": [
+            "none",
+            "xchacha20poly1305-v1"
+          ],
+          "x-cord-cbor-discriminants": {
+            "none": 0,
+            "xchacha20poly1305-v1": 1
+          }
+        },
+        "4": {
+          "$ref": "#/$defs/OperationId"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "StorageObjectPutAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageObjectPutProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageObjectPutResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/ProviderReceiptV1"
+        },
+        "1": {
+          "type": "boolean"
+        },
+        "2": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "StorageObjectPutError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageObjectGetRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/Cid"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "StorageObjectGetAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageObjectGetProgress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/U64"
+        },
+        "1": {
+          "$ref": "#/$defs/Bytes4MiB"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "StorageObjectGetResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Cid"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/CheckpointV2"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "StorageObjectGetError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageObjectRangeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/Cid"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "StorageObjectRangeAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageObjectRangeProgress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/U64"
+        },
+        "1": {
+          "$ref": "#/$defs/Bytes4MiB"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "StorageObjectRangeResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Cid"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "$ref": "#/$defs/U64"
+        },
+        "4": {
+          "$ref": "#/$defs/CheckpointV2"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "StorageObjectRangeError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageObjectDeleteRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/Cid"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "StorageObjectDeleteAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageObjectDeleteProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageObjectDeleteResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/U64"
+        },
+        "1": {
+          "$ref": "#/$defs/U32"
+        },
+        "2": {
+          "$ref": "#/$defs/U32"
+        },
+        "3": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "StorageObjectDeleteError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageObjectStatusRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/Cid"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "StorageObjectStatusAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageObjectStatusProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageObjectStatusResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "durably-readable",
+            "publishable",
+            "tombstoned",
+            "controlled-replicas-unavailable"
+          ],
+          "x-cord-cbor-discriminants": {
+            "pending": 0,
+            "durably-readable": 1,
+            "publishable": 2,
+            "tombstoned": 3,
+            "controlled-replicas-unavailable": 4
+          }
+        },
+        "1": {
+          "$ref": "#/$defs/ProviderReceiptV1"
+        },
+        "2": {
+          "$ref": "#/$defs/CheckpointV2"
+        },
+        "3": {
+          "$ref": "#/$defs/U32"
+        },
+        "4": {
+          "type": "boolean"
+        },
+        "5": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "StorageObjectStatusError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageCheckpointStatusRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0"
+      ]
+    },
+    "StorageCheckpointStatusAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageCheckpointStatusProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageCheckpointStatusResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/CheckpointV2"
+        },
+        "1": {
+          "$ref": "#/$defs/U32"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "$ref": "#/$defs/U32"
+        },
+        "4": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "StorageCheckpointStatusError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageCheckpointSubscribeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "StorageCheckpointSubscribeAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageCheckpointSubscribeProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageCheckpointSubscribeResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/SubscriptionAckV1"
+        }
+      },
+      "required": [
+        "0"
+      ]
+    },
+    "StorageCheckpointSubscribeError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageReplicaStatusRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        }
+      },
+      "required": [
+        "0"
+      ]
+    },
+    "StorageReplicaStatusAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageReplicaStatusProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageReplicaStatusResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/ProviderId"
+        },
+        "1": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/ProviderId"
+          }
+        },
+        "2": {
+          "$ref": "#/$defs/U32"
+        },
+        "3": {
+          "$ref": "#/$defs/U64"
+        },
+        "4": {
+          "$ref": "#/$defs/U32"
+        },
+        "5": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "StorageReplicaStatusError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageReplicaSubscribeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "StorageReplicaSubscribeAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageReplicaSubscribeProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageReplicaSubscribeResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/SubscriptionAckV1"
+        }
+      },
+      "required": [
+        "0"
+      ]
+    },
+    "StorageReplicaSubscribeError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageDeletionStatusRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/Cid"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "StorageDeletionStatusAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageDeletionStatusProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageDeletionStatusResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/U64"
+        },
+        "1": {
+          "$ref": "#/$defs/U32"
+        },
+        "2": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "3": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "StorageDeletionStatusError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageDeletionSubscribeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/Cid"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "StorageDeletionSubscribeAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageDeletionSubscribeProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageDeletionSubscribeResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/SubscriptionAckV1"
+        }
+      },
+      "required": [
+        "0"
+      ]
+    },
+    "StorageDeletionSubscribeError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageDriveReadRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "type": "string",
+          "x-cord-nfc": true,
+          "minLength": 1,
+          "maxLength": 4096,
+          "x-cord-utf8-minBytes": 1,
+          "x-cord-utf8-maxBytes": 4096
+        },
+        "2": {
+          "$ref": "#/$defs/Cid"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "StorageDriveReadAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageDriveReadProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageDriveReadResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Cid"
+        },
+        "1": {
+          "$ref": "#/$defs/Cid"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "StorageDriveReadError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageDriveCommitRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/Cid"
+        },
+        "2": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 4194304
+        },
+        "3": {
+          "$ref": "#/$defs/U64"
+        },
+        "4": {
+          "type": "string",
+          "enum": [
+            "batched-100-blocks",
+            "immediate",
+            "manual"
+          ],
+          "x-cord-cbor-discriminants": {
+            "batched-100-blocks": 0,
+            "immediate": 1,
+            "manual": 2
+          }
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "StorageDriveCommitAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageDriveCommitProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageDriveCommitResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Cid"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/CheckpointV2"
+        },
+        "3": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "StorageDriveCommitError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageDriveShareRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/Subject"
+        },
+        "2": {
+          "type": "string",
+          "enum": [
+            "reader",
+            "writer",
+            "admin"
+          ],
+          "x-cord-cbor-discriminants": {
+            "reader": 0,
+            "writer": 1,
+            "admin": 2
+          }
+        },
+        "3": {
+          "$ref": "#/$defs/U64"
+        },
+        "4": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "StorageDriveShareAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageDriveShareProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageDriveShareResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "StorageDriveShareError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageS3PutRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/NfcText128"
+        },
+        "1": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 1024
+        },
+        "2": {
+          "$ref": "#/$defs/Cid"
+        },
+        "3": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 0,
+          "x-cord-decoded-maxBytes": 32768
+        },
+        "4": {
+          "$ref": "#/$defs/NfcText256"
+        },
+        "5": {
+          "type": "string",
+          "x-cord-nfc": true,
+          "minLength": 1,
+          "maxLength": 64,
+          "x-cord-utf8-minBytes": 64,
+          "x-cord-utf8-maxBytes": 64
+        },
+        "6": {
+          "$ref": "#/$defs/OperationId"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "6"
+      ]
+    },
+    "StorageS3PutAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageS3PutProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageS3PutResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "type": "string",
+          "x-cord-nfc": true,
+          "minLength": 1,
+          "maxLength": 64,
+          "x-cord-utf8-minBytes": 64,
+          "x-cord-utf8-maxBytes": 64
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "StorageS3PutError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageS3GetRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/NfcText128"
+        },
+        "1": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 1024
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "StorageS3GetAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageS3GetProgress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/U64"
+        },
+        "1": {
+          "$ref": "#/$defs/Bytes4MiB"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "StorageS3GetResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Cid"
+        },
+        "1": {
+          "type": "string",
+          "x-cord-nfc": true,
+          "minLength": 1,
+          "maxLength": 64,
+          "x-cord-utf8-minBytes": 64,
+          "x-cord-utf8-maxBytes": 64
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "StorageS3GetError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageS3ListRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/NfcText128"
+        },
+        "1": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 0,
+          "x-cord-decoded-maxBytes": 1024
+        },
+        "2": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 2048
+        },
+        "3": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "required": [
+        "0",
+        "3"
+      ]
+    },
+    "StorageS3ListAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageS3ListProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageS3ListResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/Cid"
+          }
+        },
+        "1": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 2048
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "2",
+        "3"
+      ]
+    },
+    "StorageS3ListError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageS3DeleteRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/NfcText128"
+        },
+        "1": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 1024
+        },
+        "2": {
+          "type": "string",
+          "x-cord-nfc": true,
+          "minLength": 1,
+          "maxLength": 64,
+          "x-cord-utf8-minBytes": 64,
+          "x-cord-utf8-maxBytes": 64
+        },
+        "3": {
+          "$ref": "#/$defs/OperationId"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "3"
+      ]
+    },
+    "StorageS3DeleteAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageS3DeleteProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageS3DeleteResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/U64"
+        },
+        "1": {
+          "$ref": "#/$defs/U32"
+        },
+        "2": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "StorageS3DeleteError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StoragePublishRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "1": {
+          "$ref": "#/$defs/Cid"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "StoragePublishAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StoragePublishProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StoragePublishResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "1": {
+          "$ref": "#/$defs/Cid"
+        },
+        "2": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "StoragePublishError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageResolveRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/NfcText256"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0"
+      ]
+    },
+    "StorageResolveAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageResolveProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageResolveResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Cid"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/CheckpointV2"
+        },
+        "3": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "StorageResolveError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageKeysExportRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/U32"
+        },
+        "2": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 32,
+          "x-cord-decoded-maxBytes": 256
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "StorageKeysExportAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageKeysExportProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageKeysExportResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 32,
+          "x-cord-decoded-maxBytes": 1024
+        },
+        "1": {
+          "$ref": "#/$defs/U16"
+        },
+        "2": {
+          "$ref": "#/$defs/U32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "StorageKeysExportError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "StorageKeysImportRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 32,
+          "x-cord-decoded-maxBytes": 1024
+        },
+        "2": {
+          "type": "string",
+          "enum": [
+            "xchacha20poly1305-v1",
+            "none"
+          ],
+          "x-cord-cbor-discriminants": {
+            "xchacha20poly1305-v1": 0,
+            "none": 1
+          }
+        },
+        "3": {
+          "$ref": "#/$defs/U32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "StorageKeysImportAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "StorageKeysImportProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "StorageKeysImportResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/KeyId"
+        },
+        "1": {
+          "$ref": "#/$defs/U32"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "StorageKeysImportError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "IdentityAccountRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/NfcText128"
+        }
+      },
+      "required": [
+        "0"
+      ]
+    },
+    "IdentityAccountAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "IdentityAccountProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "IdentityAccountResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/AccountId32"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "IdentityAccountError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "IdentityProfileReadRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Subject"
+        },
+        "1": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/NfcText128"
+          }
+        },
+        "2": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "IdentityProfileReadAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "IdentityProfileReadProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "IdentityProfileReadResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/IdentityReceiptV2"
+        }
+      },
+      "required": [
+        "0"
+      ]
+    },
+    "IdentityProfileReadError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "IdentityProfileDiscloseRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/NfcText256"
+        },
+        "1": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/NfcText128"
+          }
+        },
+        "2": {
+          "$ref": "#/$defs/NfcText256"
+        },
+        "3": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "IdentityProfileDiscloseAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "IdentityProfileDiscloseProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "IdentityProfileDiscloseResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/IdentityReceiptV2"
+        }
+      },
+      "required": [
+        "0"
+      ]
+    },
+    "IdentityProfileDiscloseError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "IdentityHumanityStatusRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Subject"
+        },
+        "1": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0"
+      ]
+    },
+    "IdentityHumanityStatusAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "IdentityHumanityStatusProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "IdentityHumanityStatusResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/U16"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "IdentityHumanityStatusError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "IdentityHumanityProveRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/NfcText256"
+        },
+        "1": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 16,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/NfcText128"
+          }
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "IdentityHumanityProveAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "IdentityHumanityProveProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "IdentityHumanityProveResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 64,
+          "x-cord-decoded-maxBytes": 4096
+        },
+        "1": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 32,
+          "x-cord-decoded-maxBytes": 32
+        },
+        "2": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "3": {
+          "type": "boolean"
+        },
+        "4": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "IdentityHumanityProveError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "IdentitySubjectDeriveRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "1": {
+          "$ref": "#/$defs/NfcText256"
+        },
+        "2": {
+          "$ref": "#/$defs/NfcText256"
+        },
+        "3": {
+          "$ref": "#/$defs/U32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "IdentitySubjectDeriveAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "IdentitySubjectDeriveProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "IdentitySubjectDeriveResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Subject"
+        },
+        "1": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 32,
+          "x-cord-decoded-maxBytes": 32
+        },
+        "2": {
+          "$ref": "#/$defs/U32"
+        },
+        "3": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "4": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "IdentitySubjectDeriveError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "IdentityEntitlementsReadRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Subject"
+        },
+        "1": {
+          "$ref": "#/$defs/NfcText256"
+        },
+        "2": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "IdentityEntitlementsReadAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "IdentityEntitlementsReadProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "IdentityEntitlementsReadResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "type": "boolean"
+        },
+        "1": {
+          "$ref": "#/$defs/NfcText256"
+        },
+        "2": {
+          "$ref": "#/$defs/U32"
+        },
+        "3": {
+          "$ref": "#/$defs/U64"
+        },
+        "4": {
+          "$ref": "#/$defs/U64"
+        },
+        "5": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "IdentityEntitlementsReadError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "TransactionSignRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "1": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "TransactionSignAccepted": {
+      "$ref": "#/$defs/AcceptedState"
+    },
+    "TransactionSignProgress": {
+      "$ref": "#/$defs/ProgressState"
+    },
+    "TransactionSignResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "1": {
+          "$ref": "#/$defs/Fin"
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "TransactionSignError": {
+      "$ref": "#/$defs/ErrorV2"
+    },
+    "OperationRequest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/StorageBucketCreateRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketGetRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketGrantRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketRevokeRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectPutRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectGetRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectRangeRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectDeleteRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectStatusRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageCheckpointStatusRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageCheckpointSubscribeRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageReplicaStatusRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageReplicaSubscribeRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageDeletionStatusRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageDeletionSubscribeRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveReadRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveCommitRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveShareRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageS3PutRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageS3GetRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageS3ListRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageS3DeleteRequest"
+        },
+        {
+          "$ref": "#/$defs/StoragePublishRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageResolveRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageKeysExportRequest"
+        },
+        {
+          "$ref": "#/$defs/StorageKeysImportRequest"
+        },
+        {
+          "$ref": "#/$defs/IdentityAccountRequest"
+        },
+        {
+          "$ref": "#/$defs/IdentityProfileReadRequest"
+        },
+        {
+          "$ref": "#/$defs/IdentityProfileDiscloseRequest"
+        },
+        {
+          "$ref": "#/$defs/IdentityHumanityStatusRequest"
+        },
+        {
+          "$ref": "#/$defs/IdentityHumanityProveRequest"
+        },
+        {
+          "$ref": "#/$defs/IdentitySubjectDeriveRequest"
+        },
+        {
+          "$ref": "#/$defs/IdentityEntitlementsReadRequest"
+        },
+        {
+          "$ref": "#/$defs/TransactionSignRequest"
+        }
+      ]
+    },
+    "AcceptedEventV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/U32"
+        },
+        "3": {
+          "type": "string",
+          "enum": [
+            "accepted"
+          ],
+          "x-cord-cbor-discriminants": {
+            "accepted": 0
+          }
+        },
+        "4": {
+          "$ref": "#/$defs/AllAccepted"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "ProgressEventV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/U32"
+        },
+        "3": {
+          "type": "string",
+          "enum": [
+            "progress"
+          ],
+          "x-cord-cbor-discriminants": {
+            "progress": 1
+          }
+        },
+        "4": {
+          "$ref": "#/$defs/AllProgress"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "ResultEventV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/U32"
+        },
+        "3": {
+          "type": "string",
+          "enum": [
+            "result"
+          ],
+          "x-cord-cbor-discriminants": {
+            "result": 2
+          }
+        },
+        "4": {
+          "$ref": "#/$defs/AllResult"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "ErrorEventV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/U32"
+        },
+        "3": {
+          "type": "string",
+          "enum": [
+            "error"
+          ],
+          "x-cord-cbor-discriminants": {
+            "error": 3
+          }
+        },
+        "4": {
+          "$ref": "#/$defs/AllError"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "CancelledEventV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/U32"
+        },
+        "3": {
+          "type": "string",
+          "enum": [
+            "cancelled"
+          ],
+          "x-cord-cbor-discriminants": {
+            "cancelled": 4
+          }
+        },
+        "4": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "0": {
+              "const": 107
+            }
+          },
+          "required": [
+            "0"
+          ]
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "StorageCheckpointSubscribeSubscriptionEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/Fin"
+        },
+        "3": {
+          "$ref": "#/$defs/CheckpointV2"
+        },
+        "4": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "StorageCheckpointSubscribeUnsubscribeAck": {
+      "$ref": "#/$defs/SubscriptionAckV1"
+    },
+    "StorageReplicaSubscribeSubscriptionEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/Fin"
+        },
+        "3": {
+          "$ref": "#/$defs/ProviderId"
+        },
+        "4": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/ProviderId"
+          }
+        },
+        "5": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "StorageReplicaSubscribeUnsubscribeAck": {
+      "$ref": "#/$defs/SubscriptionAckV1"
+    },
+    "StorageDeletionSubscribeSubscriptionEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/Fin"
+        },
+        "3": {
+          "$ref": "#/$defs/Cid"
+        },
+        "4": {
+          "$ref": "#/$defs/U32"
+        },
+        "5": {
+          "$ref": "#/$defs/U32"
+        },
+        "6": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+      ]
+    },
+    "StorageDeletionSubscribeUnsubscribeAck": {
+      "$ref": "#/$defs/SubscriptionAckV1"
+    },
+    "AllAccepted": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/StorageBucketCreateAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketGetAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketGrantAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketRevokeAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectPutAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectGetAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectRangeAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectDeleteAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectStatusAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageCheckpointStatusAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageCheckpointSubscribeAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageReplicaStatusAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageReplicaSubscribeAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageDeletionStatusAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageDeletionSubscribeAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveReadAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveCommitAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveShareAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageS3PutAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageS3GetAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageS3ListAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageS3DeleteAccepted"
+        },
+        {
+          "$ref": "#/$defs/StoragePublishAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageResolveAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageKeysExportAccepted"
+        },
+        {
+          "$ref": "#/$defs/StorageKeysImportAccepted"
+        },
+        {
+          "$ref": "#/$defs/IdentityAccountAccepted"
+        },
+        {
+          "$ref": "#/$defs/IdentityProfileReadAccepted"
+        },
+        {
+          "$ref": "#/$defs/IdentityProfileDiscloseAccepted"
+        },
+        {
+          "$ref": "#/$defs/IdentityHumanityStatusAccepted"
+        },
+        {
+          "$ref": "#/$defs/IdentityHumanityProveAccepted"
+        },
+        {
+          "$ref": "#/$defs/IdentitySubjectDeriveAccepted"
+        },
+        {
+          "$ref": "#/$defs/IdentityEntitlementsReadAccepted"
+        },
+        {
+          "$ref": "#/$defs/TransactionSignAccepted"
+        }
+      ]
+    },
+    "AllProgress": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/StorageBucketCreateProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketGetProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketGrantProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketRevokeProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectPutProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectGetProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectRangeProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectDeleteProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectStatusProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageCheckpointStatusProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageCheckpointSubscribeProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageReplicaStatusProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageReplicaSubscribeProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageDeletionStatusProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageDeletionSubscribeProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveReadProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveCommitProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveShareProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageS3PutProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageS3GetProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageS3ListProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageS3DeleteProgress"
+        },
+        {
+          "$ref": "#/$defs/StoragePublishProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageResolveProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageKeysExportProgress"
+        },
+        {
+          "$ref": "#/$defs/StorageKeysImportProgress"
+        },
+        {
+          "$ref": "#/$defs/IdentityAccountProgress"
+        },
+        {
+          "$ref": "#/$defs/IdentityProfileReadProgress"
+        },
+        {
+          "$ref": "#/$defs/IdentityProfileDiscloseProgress"
+        },
+        {
+          "$ref": "#/$defs/IdentityHumanityStatusProgress"
+        },
+        {
+          "$ref": "#/$defs/IdentityHumanityProveProgress"
+        },
+        {
+          "$ref": "#/$defs/IdentitySubjectDeriveProgress"
+        },
+        {
+          "$ref": "#/$defs/IdentityEntitlementsReadProgress"
+        },
+        {
+          "$ref": "#/$defs/TransactionSignProgress"
+        }
+      ]
+    },
+    "AllResult": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/StorageBucketCreateResult"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketGetResult"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketGrantResult"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketRevokeResult"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectPutResult"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectGetResult"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectRangeResult"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectDeleteResult"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectStatusResult"
+        },
+        {
+          "$ref": "#/$defs/StorageCheckpointStatusResult"
+        },
+        {
+          "$ref": "#/$defs/StorageCheckpointSubscribeResult"
+        },
+        {
+          "$ref": "#/$defs/StorageReplicaStatusResult"
+        },
+        {
+          "$ref": "#/$defs/StorageReplicaSubscribeResult"
+        },
+        {
+          "$ref": "#/$defs/StorageDeletionStatusResult"
+        },
+        {
+          "$ref": "#/$defs/StorageDeletionSubscribeResult"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveReadResult"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveCommitResult"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveShareResult"
+        },
+        {
+          "$ref": "#/$defs/StorageS3PutResult"
+        },
+        {
+          "$ref": "#/$defs/StorageS3GetResult"
+        },
+        {
+          "$ref": "#/$defs/StorageS3ListResult"
+        },
+        {
+          "$ref": "#/$defs/StorageS3DeleteResult"
+        },
+        {
+          "$ref": "#/$defs/StoragePublishResult"
+        },
+        {
+          "$ref": "#/$defs/StorageResolveResult"
+        },
+        {
+          "$ref": "#/$defs/StorageKeysExportResult"
+        },
+        {
+          "$ref": "#/$defs/StorageKeysImportResult"
+        },
+        {
+          "$ref": "#/$defs/IdentityAccountResult"
+        },
+        {
+          "$ref": "#/$defs/IdentityProfileReadResult"
+        },
+        {
+          "$ref": "#/$defs/IdentityProfileDiscloseResult"
+        },
+        {
+          "$ref": "#/$defs/IdentityHumanityStatusResult"
+        },
+        {
+          "$ref": "#/$defs/IdentityHumanityProveResult"
+        },
+        {
+          "$ref": "#/$defs/IdentitySubjectDeriveResult"
+        },
+        {
+          "$ref": "#/$defs/IdentityEntitlementsReadResult"
+        },
+        {
+          "$ref": "#/$defs/TransactionSignResult"
+        }
+      ]
+    },
+    "AllError": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/StorageBucketCreateError"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketGetError"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketGrantError"
+        },
+        {
+          "$ref": "#/$defs/StorageBucketRevokeError"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectPutError"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectGetError"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectRangeError"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectDeleteError"
+        },
+        {
+          "$ref": "#/$defs/StorageObjectStatusError"
+        },
+        {
+          "$ref": "#/$defs/StorageCheckpointStatusError"
+        },
+        {
+          "$ref": "#/$defs/StorageCheckpointSubscribeError"
+        },
+        {
+          "$ref": "#/$defs/StorageReplicaStatusError"
+        },
+        {
+          "$ref": "#/$defs/StorageReplicaSubscribeError"
+        },
+        {
+          "$ref": "#/$defs/StorageDeletionStatusError"
+        },
+        {
+          "$ref": "#/$defs/StorageDeletionSubscribeError"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveReadError"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveCommitError"
+        },
+        {
+          "$ref": "#/$defs/StorageDriveShareError"
+        },
+        {
+          "$ref": "#/$defs/StorageS3PutError"
+        },
+        {
+          "$ref": "#/$defs/StorageS3GetError"
+        },
+        {
+          "$ref": "#/$defs/StorageS3ListError"
+        },
+        {
+          "$ref": "#/$defs/StorageS3DeleteError"
+        },
+        {
+          "$ref": "#/$defs/StoragePublishError"
+        },
+        {
+          "$ref": "#/$defs/StorageResolveError"
+        },
+        {
+          "$ref": "#/$defs/StorageKeysExportError"
+        },
+        {
+          "$ref": "#/$defs/StorageKeysImportError"
+        },
+        {
+          "$ref": "#/$defs/IdentityAccountError"
+        },
+        {
+          "$ref": "#/$defs/IdentityProfileReadError"
+        },
+        {
+          "$ref": "#/$defs/IdentityProfileDiscloseError"
+        },
+        {
+          "$ref": "#/$defs/IdentityHumanityStatusError"
+        },
+        {
+          "$ref": "#/$defs/IdentityHumanityProveError"
+        },
+        {
+          "$ref": "#/$defs/IdentitySubjectDeriveError"
+        },
+        {
+          "$ref": "#/$defs/IdentityEntitlementsReadError"
+        },
+        {
+          "$ref": "#/$defs/TransactionSignError"
+        }
+      ]
+    },
+    "SubjectContextV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "$ref": "#/$defs/NfcText256"
+        },
+        "4": {
+          "$ref": "#/$defs/NfcText256"
+        },
+        "5": {
+          "$ref": "#/$defs/U32"
+        },
+        "6": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "7": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ]
+    },
+    "SubjectProofV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "2": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "3": {
+          "$ref": "#/$defs/NfcText256"
+        },
+        "4": {
+          "$ref": "#/$defs/NfcText256"
+        },
+        "5": {
+          "$ref": "#/$defs/U32"
+        },
+        "6": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "7": {
+          "type": "boolean"
+        },
+        "8": {
+          "$ref": "#/$defs/Subject"
+        },
+        "9": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 32,
+          "x-cord-decoded-maxBytes": 32
+        },
+        "10": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 16,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "11": {
+          "$ref": "#/$defs/U64"
+        },
+        "12": {
+          "$ref": "#/$defs/U64"
+        },
+        "13": {
+          "$ref": "#/$defs/Nonce"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13"
+      ]
+    },
+    "ProviderCapabilityV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 1
+        },
+        "1": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "2": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "3": {
+          "$ref": "#/$defs/GrantId"
+        },
+        "4": {
+          "$ref": "#/$defs/KeyId"
+        },
+        "5": {
+          "$ref": "#/$defs/ProductId"
+        },
+        "6": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "7": {
+          "$ref": "#/$defs/AgreementId"
+        },
+        "8": {
+          "$ref": "#/$defs/ProviderId"
+        },
+        "9": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/U16"
+          }
+        },
+        "10": {
+          "$ref": "#/$defs/Cid"
+        },
+        "11": {
+          "$ref": "#/$defs/U64"
+        },
+        "12": {
+          "$ref": "#/$defs/U64"
+        },
+        "13": {
+          "$ref": "#/$defs/U64"
+        },
+        "14": {
+          "$ref": "#/$defs/Nonce"
+        },
+        "15": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 64,
+          "x-cord-decoded-maxBytes": 64
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "8",
+        "9",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15"
+      ]
+    },
+    "ResumeTokenV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 1
+        },
+        "1": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "2": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "3": {
+          "$ref": "#/$defs/ProviderId"
+        },
+        "4": {
+          "$ref": "#/$defs/KeyId"
+        },
+        "5": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "6": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "7": {
+          "$ref": "#/$defs/Cid"
+        },
+        "8": {
+          "$ref": "#/$defs/U64"
+        },
+        "9": {
+          "$ref": "#/$defs/U32"
+        },
+        "10": {
+          "$ref": "#/$defs/U64"
+        },
+        "11": {
+          "$ref": "#/$defs/U64"
+        },
+        "12": {
+          "$ref": "#/$defs/U64"
+        },
+        "13": {
+          "$ref": "#/$defs/Nonce"
+        },
+        "14": {
+          "type": "boolean"
+        },
+        "15": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 64,
+          "x-cord-decoded-maxBytes": 64
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15"
+      ]
+    },
+    "ResponseAckV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "1": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "HostOutboxEntryV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 1
+        },
+        "1": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "2": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "3": {
+          "$ref": "#/$defs/Bytes4MiB"
+        },
+        "4": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 4096
+        },
+        "5": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "6": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "7": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "8": {
+          "$ref": "#/$defs/U64"
+        },
+        "9": {
+          "$ref": "#/$defs/U32"
+        },
+        "10": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "11": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "12": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "13": {
+          "$ref": "#/$defs/ProviderId"
+        },
+        "14": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "15": {
+          "$ref": "#/$defs/U16"
+        },
+        "16": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "17": {
+          "$ref": "#/$defs/U64"
+        },
+        "18": {
+          "$ref": "#/$defs/U64"
+        },
+        "19": {
+          "$ref": "#/$defs/U64"
+        },
+        "20": {
+          "$ref": "#/$defs/U32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "17",
+        "18",
+        "19",
+        "20"
+      ]
+    },
+    "RecoveryEntryV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "1": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "4": {
+          "$ref": "#/$defs/Nonce"
+        },
+        "5": {
+          "$ref": "#/$defs/U32"
+        },
+        "6": {
+          "$ref": "#/$defs/U32"
+        },
+        "7": {
+          "$ref": "#/$defs/Bytes4MiB"
+        },
+        "8": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 4096
+        },
+        "9": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "10": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "11": {
+          "type": "boolean"
+        },
+        "12": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "9",
+        "10",
+        "11",
+        "12"
+      ]
+    },
+    "CheckpointSubmissionV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "2": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "3": {
+          "$ref": "#/$defs/U64"
+        },
+        "4": {
+          "$ref": "#/$defs/U64"
+        },
+        "5": {
+          "$ref": "#/$defs/U32"
+        },
+        "6": {
+          "$ref": "#/$defs/ProviderId"
+        },
+        "7": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 64,
+          "x-cord-decoded-maxBytes": 64
+        },
+        "8": {
+          "$ref": "#/$defs/U32"
+        },
+        "9": {
+          "$ref": "#/$defs/U32"
+        },
+        "10": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/ProviderId"
+          }
+        },
+        "11": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11"
+      ]
+    },
+    "CheckpointResultV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "2": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "3": {
+          "$ref": "#/$defs/U32"
+        },
+        "4": {
+          "$ref": "#/$defs/U32"
+        },
+        "5": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "ProviderTransferRequestV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 1
+        },
+        "1": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "2": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "3": {
+          "$ref": "#/$defs/Cid"
+        },
+        "4": {
+          "$ref": "#/$defs/U64"
+        },
+        "5": {
+          "$ref": "#/$defs/U32"
+        },
+        "6": {
+          "$ref": "#/$defs/ProviderId"
+        },
+        "7": {
+          "$ref": "#/$defs/ProviderId"
+        },
+        "8": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ]
+    },
+    "ProviderTransferChunkV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 1
+        },
+        "1": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "2": {
+          "$ref": "#/$defs/U32"
+        },
+        "3": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 0,
+          "x-cord-decoded-maxBytes": 262144
+        },
+        "4": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "ProviderTransferReceiptV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 1
+        },
+        "1": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "2": {
+          "$ref": "#/$defs/Cid"
+        },
+        "3": {
+          "$ref": "#/$defs/U64"
+        },
+        "4": {
+          "$ref": "#/$defs/U32"
+        },
+        "5": {
+          "$ref": "#/$defs/ProviderId"
+        },
+        "6": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "7": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 64,
+          "x-cord-decoded-maxBytes": 64
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ]
+    },
+    "SubjectProofEnvelopeV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/SubjectProofV2"
+        },
+        "1": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 64,
+          "x-cord-decoded-maxBytes": 64
+        }
+      },
+      "required": [
+        "0",
+        "1"
+      ]
+    },
+    "RecoveryInstallV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "2": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 32,
+          "x-cord-decoded-maxBytes": 32
+        },
+        "3": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "4": {
+          "const": 0
+        },
+        "5": {
+          "const": false
+        },
+        "6": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7"
+      ]
+    },
+    "RecoveryReceiptV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 2
+        },
+        "1": {
+          "$ref": "#/$defs/OperationId"
+        },
+        "2": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "3": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "4": {
+          "const": 0
+        },
+        "5": {
+          "const": false
+        },
+        "6": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "7": {
+          "$ref": "#/$defs/U64"
+        },
+        "8": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 64,
+          "x-cord-decoded-maxBytes": 64
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8"
+      ]
+    },
+    "DriveFileManifestV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 1
+        },
+        "1": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/Cid"
+          }
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "$ref": "#/$defs/U64"
+        },
+        "4": {
+          "type": "string",
+          "x-cord-nfc": true,
+          "minLength": 1,
+          "maxLength": 128,
+          "x-cord-utf8-minBytes": 1,
+          "x-cord-utf8-maxBytes": 128
+        },
+        "5": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 0,
+          "x-cord-decoded-maxBytes": 512
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "DriveManifestV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 1
+        },
+        "1": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/Cid"
+          }
+        },
+        "4": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    "DriveChangedEventV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "$ref": "#/$defs/BucketId"
+        },
+        "1": {
+          "$ref": "#/$defs/Cid"
+        },
+        "2": {
+          "$ref": "#/$defs/Cid"
+        },
+        "3": {
+          "$ref": "#/$defs/U64"
+        },
+        "4": {
+          "$ref": "#/$defs/U64"
+        },
+        "5": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "S3ObjectVersionV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 1
+        },
+        "1": {
+          "type": "string",
+          "x-cord-nfc": true,
+          "minLength": 1,
+          "maxLength": 63,
+          "x-cord-utf8-minBytes": 3,
+          "x-cord-utf8-maxBytes": 63
+        },
+        "2": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 1024
+        },
+        "3": {
+          "$ref": "#/$defs/Cid"
+        },
+        "4": {
+          "type": "string",
+          "x-cord-nfc": true,
+          "minLength": 1,
+          "maxLength": 64,
+          "x-cord-utf8-minBytes": 64,
+          "x-cord-utf8-maxBytes": 64
+        },
+        "5": {
+          "$ref": "#/$defs/U64"
+        },
+        "6": {
+          "type": "boolean"
+        },
+        "7": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ]
+    },
+    "S3ChangedEventV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "type": "string",
+          "x-cord-nfc": true,
+          "minLength": 1,
+          "maxLength": 63,
+          "x-cord-utf8-minBytes": 3,
+          "x-cord-utf8-maxBytes": 63
+        },
+        "1": {
+          "type": "string",
+          "contentEncoding": "base64url",
+          "x-cord-unpadded-base64url": true,
+          "x-cord-decoded-minBytes": 1,
+          "x-cord-decoded-maxBytes": 1024
+        },
+        "2": {
+          "$ref": "#/$defs/U64"
+        },
+        "3": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "4": {
+          "type": "string",
+          "x-cord-nfc": true,
+          "minLength": 1,
+          "maxLength": 64,
+          "x-cord-utf8-minBytes": 64,
+          "x-cord-utf8-maxBytes": 64
+        },
+        "5": {
+          "$ref": "#/$defs/Hash32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "DurableStateV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 1
+        },
+        "1": {
+          "$ref": "#/$defs/U64"
+        },
+        "2": {
+          "$ref": "#/$defs/Hash32"
+        },
+        "3": {
+          "$ref": "#/$defs/U64"
+        },
+        "4": {
+          "$ref": "#/$defs/U32"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    }
+  },
+  "x-cord-generated-from": {
+    "cddl_sha256": "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba",
+    "operations_sha256": "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca"
+  }
+}
