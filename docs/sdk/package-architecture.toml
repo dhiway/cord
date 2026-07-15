@@ -10,7 +10,7 @@ manifest = "product-sdk/package.json"
 package = "@cord-network/product-sdk-workspace"
 version = "0.9.9"
 private = true
-publishable_packages = 16
+publishable_packages = 17
 export_count = 10
 exports = [".", "./errors", "./host", "./network-host", "./attestation-events", "./network-binding", "./sponsored-transaction", "./types", "./names-events", "./version"]
 limitations = ["root-raw-typescript-exports", "root-private-monolith-still-present", "tier-b-and-tier-c-incomplete"]
@@ -132,7 +132,7 @@ dependencies = ["@cord-network/origin-sdk-chain-client", "@cord-network/origin-s
 name = "@cord-network/origin-sdk-local-storage"
 tier = "C"
 owner = "sdk-host"
-state = "planned"
+state = "present"
 dependencies = ["@cord-network/origin-sdk-result", "@cord-network/origin-sdk-errors", "@cord-network/origin-sdk-host"]
 
 [[package]]

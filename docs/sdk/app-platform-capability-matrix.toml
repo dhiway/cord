@@ -44,9 +44,9 @@ journey = "Hosted app persists settings without leaking across product identitie
 runtime_owner = "none"
 sdk_owner = "origin-sdk-local-storage and createApp"
 host_owner = "Namespaced device storage"
-state = "host-primitive-present-leaf-and-umbrella-pending"
+state = "sdk-host-present-umbrella-pending"
 contract_policy = "forbidden"
-evidence = "docs/sdk/host-protocol.toml; product-sdk/packages/origin-sdk-host/src/index.ts"
+evidence = "docs/sdk/host-protocol.toml; product-sdk/packages/origin-sdk-host/src/index.ts; product-sdk/packages/origin-sdk-local-storage/src/index.ts"
 
 [[capability]]
 id = "identity"

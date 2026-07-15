@@ -23,7 +23,7 @@ import { spawnSync } from "node:child_process";
 
 const sdkRoot = resolve(import.meta.dirname, "..");
 const consumer = mkdtempSync(resolve(tmpdir(), "cord-origin-sdk-consumer-"));
-const packages = ["result", "errors", "descriptors", "host", "chain-client", "signer", "tx", "identity", "personhood", "resources", "attestation", "crypto", "names", "statement-store", "cloud-storage", "assets"];
+const packages = ["result", "errors", "descriptors", "host", "chain-client", "signer", "tx", "identity", "personhood", "resources", "attestation", "crypto", "names", "statement-store", "cloud-storage", "assets", "local-storage"];
 const run = (command: string, args: string[], cwd = consumer): string => {
   const result = spawnSync(command, args, { cwd, encoding: "utf8" });
   if (result.status !== 0) {
@@ -60,6 +60,7 @@ import { blake2b256 } from "@cord-network/origin-sdk-crypto";
 import { normalizedLabel } from "@cord-network/origin-sdk-names";
 import { digestContent, storageRequests } from "@cord-network/origin-sdk-cloud-storage";
 import { assetId, assetWrites, balance, commonsAsset, paymentOptions } from "@cord-network/origin-sdk-assets";
+import { createLocalStorage, utf8Codec } from "@cord-network/origin-sdk-local-storage";
 const hash = "0x" + "11".repeat(32), txHash = "0x" + "22".repeat(32);
 const packedAsset = assetWrites.transfer(assetId(7), accountId("5Packed"), balance(9));
 const packedPayment = paymentOptions(commonsAsset(assetId(7)));
@@ -84,7 +85,11 @@ const identityStatus = await identityClient.status(accountId("5Packed"));
 if (!identityStatus.success || !identityStatus.value.value?.registered) throw new Error("packed identity read failed");
 const fake = createFakeHost({ accounts: [{ address: "5Packed" }] });
 fake.grant("packed.app", "signing");
-const signer = createHostSigner(createHostClient(fake.bridge, { id: "packed.app", name: "Packed" }));
+const packedHost = createHostClient(fake.bridge, { id: "packed.app", name: "Packed" });
+fake.grant("packed.app", "local-storage");
+const packedStorage = createLocalStorage(packedHost, "quickstart");
+if (!(await packedStorage.set("ready", "yes", utf8Codec)).success || (await packedStorage.get("ready", utf8Codec)).value !== "yes") throw new Error("packed local storage failed");
+const signer = createHostSigner(packedHost);
 const transaction = { async *signSubmitAndWatch(activeSigner) { const signed = await activeSigner.sign({ account: "5Packed", payload: new Uint8Array([1]), purpose: "packed-test" }); if (!signed.success) throw signed.error; yield { type: "finalized", blockHash: hash, transactionHash: txHash }; } };
 const receipt = await submitAndFinalize(transaction, signer);
 if (!receipt.success || receipt.value.transactionHash !== txHash) throw new Error("packed signed transaction failed");
