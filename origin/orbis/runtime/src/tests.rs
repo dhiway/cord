@@ -198,7 +198,7 @@ fn commons_storage_control_worst_case_weights_fit_the_runtime_block_budget() {
 	type DriveWeights = pallet_orbis_drive::weights::SubstrateWeight<Runtime>;
 	type S3Weights = pallet_orbis_s3::weights::SubstrateWeight<Runtime>;
 	let block = crate::RuntimeBlockWeights::get().max_block;
-	assert_eq!(crate::ProviderMaxCheckpointDutyAdmissionsPerBlock::get(), 256);
+	assert_eq!(crate::ProviderMaxDutiesPerBlock::get(), 256);
 	assert_eq!(crate::ProviderMaxChallengeBacklog::get(), 256);
 	assert_eq!(crate::ProviderMaxCapacityReleasesPerBlock::get(), 256);
 	assert_eq!(crate::ProviderMaxChallengesPerBlock::get(), 128);
@@ -5625,6 +5625,8 @@ fn checkpoint_duty_runtime_api_has_exact_128_snapshot_paging_contract() {
 			due_at: 100 + index,
 			grace_until: 120 + index,
 			scheduled_at: 40,
+			mode: pallet_orbis_storage_provider::CheckpointDutyMode::Standard,
+			promotion_predecessor: None,
 		}
 	}
 	fn put_duties(count: u32) {
@@ -5742,8 +5744,14 @@ fn checkpoint_duty_runtime_api_has_exact_128_snapshot_paging_contract() {
 
 #[test]
 fn checkpoint_duty_runtime_api_filters_members_and_preserves_typed_ineligible_views() {
-	use orbis_storage_runtime_api::{ProviderDutyExclusion, ProviderDutyRole};
-	use pallet_orbis_storage_provider::{ProviderStatus, Providers};
+	use orbis_storage_runtime_api::{
+		CheckpointDutyMode as ApiDutyMode, CheckpointDutyPhase, ProviderDutyExclusion,
+		ProviderDutyRole,
+	};
+	use pallet_orbis_storage_provider::{
+		CheckpointDutyCurrent, CheckpointDutyMode, CheckpointDutyPending,
+		GovernedFinalizedCheckpoint, ProviderStatus, Providers,
+	};
 
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		System::set_block_number(1);
@@ -5784,6 +5792,37 @@ fn checkpoint_duty_runtime_api_filters_members_and_preserves_typed_ineligible_vi
 		assert!(!suspended_view.may_initiate);
 		assert_eq!(suspended_view.exclusion, Some(ProviderDutyExclusion::Inactive));
 
+		let mut fallback = CheckpointDutyCurrent::<Runtime>::get(admission.bucket_id).unwrap();
+		CheckpointDutyPending::<Runtime>::remove(admission.bucket_id);
+		fallback.due_at = 101;
+		fallback.grace_until = 121;
+		fallback.mode = CheckpointDutyMode::Standard;
+		CheckpointDutyCurrent::<Runtime>::insert(admission.bucket_id, &fallback);
+		GovernedFinalizedCheckpoint::<Runtime>::put(121);
+		let fallback_page =
+			crate::checkpoint_duty_page(eligible_replica.clone(), None, 128).unwrap();
+		assert_eq!(fallback_page.items[0].phase, CheckpointDutyPhase::ReplicaFallbackPromotion);
+		assert_eq!(fallback_page.items[0].mode, ApiDutyMode::Standard);
+		assert_eq!(fallback_page.items[0].initiator, Some(eligible_replica.clone()));
+
+		fallback.primary = eligible_replica.clone();
+		fallback.replicas = vec![admission.primary.clone(), suspended.clone()].try_into().unwrap();
+		fallback.due_at = 121;
+		fallback.grace_until = 141;
+		fallback.mode = CheckpointDutyMode::PromotionPending;
+		fallback.promotion_predecessor = Some(admission.primary.clone());
+		CheckpointDutyCurrent::<Runtime>::insert(admission.bucket_id, &fallback);
+		let blocked = crate::checkpoint_duty_page(eligible_replica.clone(), None, 128).unwrap();
+		assert_eq!(blocked.items[0].phase, CheckpointDutyPhase::BlockedInsufficientFallbackQuorum);
+		assert_eq!(blocked.items[0].mode, ApiDutyMode::PromotionPending);
+		assert_eq!(blocked.items[0].initiator, None);
+		Providers::<Runtime>::mutate(&suspended, |record| {
+			record.as_mut().unwrap().status = ProviderStatus::Active
+		});
+		let repaired = crate::checkpoint_duty_page(eligible_replica.clone(), None, 128).unwrap();
+		assert_eq!(repaired.items[0].phase, CheckpointDutyPhase::Primary);
+		assert_eq!(repaired.items[0].initiator, Some(eligible_replica));
+
 		assert!(crate::checkpoint_duty_page(AccountId::new([0xEE; 32]), None, 128)
 			.unwrap()
 			.items
@@ -5794,9 +5833,8 @@ fn checkpoint_duty_runtime_api_filters_members_and_preserves_typed_ineligible_vi
 #[test]
 fn runtime_checkpoint_duty_admission_is_exactly_255_256_257() {
 	use pallet_orbis_storage_provider::{
-		CheckpointDutyAdmissionCount, Error as StorageError, OrganizationRefOf,
-		ProviderOrganizationRefV1, ProviderRecord, ProviderStatus, Providers, ReplicasOf,
-		ServiceKeyRecord,
+		DutyAdmissionCount, Error as StorageError, OrganizationRefOf, ProviderOrganizationRefV1,
+		ProviderRecord, ProviderStatus, Providers, ReplicasOf, ServiceKeyRecord,
 	};
 	use sp_core::ed25519;
 
@@ -5869,26 +5907,56 @@ fn runtime_checkpoint_duty_admission_is_exactly_255_256_257() {
 			}
 		}
 		assert!(crate::checkpoint_duty_page(owner.clone(), None, 128).unwrap().items.is_empty());
-		assert_eq!(CheckpointDutyAdmissionCount::<Runtime>::get(), 255);
-		assert_ok!(crate::StorageProvider::create_bucket(
-			crate::RuntimeOrigin::signed(owner.clone()),
-			sp_core::H256::from_low_u64_be(256),
+		assert_eq!(DutyAdmissionCount::<Runtime>::get(), 255);
+		let bucket = pallet_orbis_storage_provider::BucketIds::<Runtime>::get()[0];
+		pallet_orbis_storage_provider::BucketSnapshots::<Runtime>::insert(
+			bucket,
+			pallet_orbis_storage_provider::BucketSnapshot {
+				commitment: pallet_orbis_storage_provider::CommitmentV1 {
+					mmr_root: sp_core::H256::repeat_byte(1),
+					start_seq: 0,
+					leaf_count: 1,
+				},
+				checkpoint_block: 1,
+				primary_signers: 1,
+				commitment_nonce: 1,
+				replica_confirmations: replicas.clone(),
+			},
+		);
+		assert_ok!(crate::StorageProvider::issue_challenge(
+			crate::RuntimeOrigin::root(),
+			bucket,
 			provider(1),
-			replicas.clone(),
+			pallet_orbis_storage_provider::ChunkLocationV1 { leaf_index: 0, chunk_index: 0 },
+			2,
 		));
-		assert_eq!(CheckpointDutyAdmissionCount::<Runtime>::get(), 256);
+		assert_eq!(DutyAdmissionCount::<Runtime>::get(), 256);
 		assert_noop!(
 			crate::StorageProvider::create_bucket(
-				crate::RuntimeOrigin::signed(owner),
-				sp_core::H256::from_low_u64_be(257),
+				crate::RuntimeOrigin::signed(owner.clone()),
+				sp_core::H256::from_low_u64_be(256),
 				provider(1),
-				replicas,
+				replicas.clone(),
 			),
 			StorageError::<Runtime>::CheckpointDutyLimit
 		);
-		assert_eq!(pallet_orbis_storage_provider::BucketIds::<Runtime>::get().len(), 256);
-		let bucket = pallet_orbis_storage_provider::BucketIds::<Runtime>::get()[0];
-		for _ in 0..31 {
+		assert_noop!(
+			crate::StorageProvider::issue_challenge(
+				crate::RuntimeOrigin::root(),
+				bucket,
+				provider(1),
+				pallet_orbis_storage_provider::ChunkLocationV1 { leaf_index: 1, chunk_index: 0 },
+				2,
+			),
+			StorageError::<Runtime>::ChallengeDutyLimit
+		);
+		assert_eq!(DutyAdmissionCount::<Runtime>::get(), 256);
+		assert_eq!(pallet_orbis_storage_provider::BucketIds::<Runtime>::get().len(), 255);
+		assert_eq!(
+			pallet_orbis_storage_provider::BucketAgreements::<Runtime>::get(bucket).len(),
+			0
+		);
+		for index in 0..31 {
 			assert_ok!(crate::StorageProvider::propose_agreement(
 				crate::RuntimeOrigin::signed(AccountId::new([9; 32])),
 				bucket,
@@ -5896,6 +5964,12 @@ fn runtime_checkpoint_duty_admission_is_exactly_255_256_257() {
 				1,
 				1_000,
 			));
+			if index == 0 {
+				assert_eq!(
+					pallet_orbis_storage_provider::BucketAgreements::<Runtime>::get(bucket).len(),
+					1
+				);
+			}
 		}
 		assert_eq!(
 			pallet_orbis_storage_provider::BucketAgreements::<Runtime>::get(bucket).len(),
@@ -5922,5 +5996,175 @@ fn runtime_checkpoint_duty_admission_is_exactly_255_256_257() {
 			),
 			StorageError::<Runtime>::AgreementIndexFull
 		);
+
+		System::set_block_number(2);
+		let provider_full_bucket_hash = sp_core::H256::from_low_u64_be(10_000);
+		assert_ok!(crate::StorageProvider::create_bucket(
+			crate::RuntimeOrigin::signed(owner.clone()),
+			provider_full_bucket_hash,
+			provider(1),
+			replicas,
+		));
+		let provider_full_bucket = pallet_orbis_storage_provider::BucketIds::<Runtime>::get()
+			.last()
+			.copied()
+			.unwrap();
+		let full_provider_index: frame_support::BoundedVec<
+			sp_core::H256,
+			crate::ProviderMaxAgreements,
+		> = (0..1_024u64)
+			.map(|index| sp_core::H256::from_low_u64_be(20_000 + index))
+			.collect::<Vec<_>>()
+			.try_into()
+			.unwrap();
+		pallet_orbis_storage_provider::ProviderAgreements::<Runtime>::insert(
+			provider(1),
+			full_provider_index,
+		);
+		let bucket_index_before =
+			pallet_orbis_storage_provider::BucketAgreements::<Runtime>::get(provider_full_bucket);
+		let provider_indexes_before = (1..=3)
+			.map(|byte| {
+				pallet_orbis_storage_provider::ProviderAgreements::<Runtime>::get(provider(byte))
+			})
+			.collect::<Vec<_>>();
+		let providers_before = (1..=3)
+			.map(|byte| Providers::<Runtime>::get(provider(byte)))
+			.collect::<Vec<_>>();
+		let agreement_count = pallet_orbis_storage_provider::Agreements::<Runtime>::iter().count();
+		let nonce = pallet_orbis_storage_provider::AgreementNonce::<Runtime>::get(&owner);
+		let events = System::events().len();
+		assert_noop!(
+			crate::StorageProvider::propose_agreement(
+				crate::RuntimeOrigin::signed(owner.clone()),
+				provider_full_bucket,
+				1,
+				1,
+				1_000,
+			),
+			StorageError::<Runtime>::AgreementIndexFull
+		);
+		assert_eq!(
+			pallet_orbis_storage_provider::BucketAgreements::<Runtime>::get(provider_full_bucket),
+			bucket_index_before
+		);
+		assert_eq!(
+			(1..=3)
+				.map(|byte| {
+					pallet_orbis_storage_provider::ProviderAgreements::<Runtime>::get(provider(
+						byte,
+					))
+				})
+				.collect::<Vec<_>>(),
+			provider_indexes_before
+		);
+		assert_eq!(
+			(1..=3)
+				.map(|byte| Providers::<Runtime>::get(provider(byte)))
+				.collect::<Vec<_>>(),
+			providers_before
+		);
+		assert_eq!(
+			pallet_orbis_storage_provider::Agreements::<Runtime>::iter().count(),
+			agreement_count
+		);
+		assert_eq!(pallet_orbis_storage_provider::AgreementNonce::<Runtime>::get(&owner), nonce);
+		assert_eq!(System::events().len(), events);
+
+		System::set_block_number(3);
+		let backlog_255: frame_support::BoundedVec<
+			sp_core::H256,
+			crate::ProviderMaxChallengeBacklog,
+		> = (0..255u64)
+			.map(|index| sp_core::H256::from_low_u64_be(30_000 + index))
+			.collect::<Vec<_>>()
+			.try_into()
+			.unwrap();
+		pallet_orbis_storage_provider::ChallengeBacklog::<Runtime>::put(backlog_255);
+		assert_eq!(pallet_orbis_storage_provider::ChallengeBacklog::<Runtime>::get().len(), 255);
+		assert_ok!(crate::StorageProvider::issue_challenge(
+			crate::RuntimeOrigin::root(),
+			bucket,
+			provider(1),
+			pallet_orbis_storage_provider::ChunkLocationV1 { leaf_index: 255, chunk_index: 0 },
+			4,
+		));
+		assert_eq!(pallet_orbis_storage_provider::ChallengeBacklog::<Runtime>::get().len(), 256);
+		let challenges_before =
+			pallet_orbis_storage_provider::Challenges::<Runtime>::iter().count();
+		let events = System::events().len();
+		assert_noop!(
+			crate::StorageProvider::issue_challenge(
+				crate::RuntimeOrigin::root(),
+				bucket,
+				provider(1),
+				pallet_orbis_storage_provider::ChunkLocationV1 { leaf_index: 256, chunk_index: 0 },
+				4,
+			),
+			StorageError::<Runtime>::ChallengeDutyLimit
+		);
+		assert_eq!(pallet_orbis_storage_provider::ChallengeBacklog::<Runtime>::get().len(), 256);
+		assert_eq!(
+			pallet_orbis_storage_provider::Challenges::<Runtime>::iter().count(),
+			challenges_before
+		);
+		assert_eq!(DutyAdmissionCount::<Runtime>::get(), 1);
+		assert_eq!(System::events().len(), events);
+
+		let releases_255: frame_support::BoundedVec<
+			sp_core::H256,
+			crate::ProviderMaxCapacityReleasesPerBlock,
+		> = (0..255u64)
+			.map(|index| sp_core::H256::from_low_u64_be(40_000 + index))
+			.collect::<Vec<_>>()
+			.try_into()
+			.unwrap();
+		let earliest = System::block_number().saturating_add(crate::ProviderEvidenceWindow::get());
+		let release_at = earliest.saturating_add((3 - earliest % 3) % 3);
+		pallet_orbis_storage_provider::CapacityReleases::<Runtime>::insert(
+			release_at,
+			releases_255,
+		);
+		let agreements = pallet_orbis_storage_provider::BucketAgreements::<Runtime>::get(bucket);
+		let accepted = agreements[0];
+		let rejected = agreements[1];
+		assert_ok!(crate::StorageProvider::terminate_agreement(
+			crate::RuntimeOrigin::signed(owner.clone()),
+			accepted,
+			1,
+		));
+		assert_eq!(
+			pallet_orbis_storage_provider::CapacityReleases::<Runtime>::get(release_at).len(),
+			256
+		);
+		let accepted_record =
+			pallet_orbis_storage_provider::Agreements::<Runtime>::get(accepted).unwrap();
+		assert_eq!(
+			accepted_record.status,
+			pallet_orbis_storage_provider::AgreementStatus::Cancelled
+		);
+		assert_eq!(accepted_record.release_at, Some(release_at));
+		let rejected_before =
+			pallet_orbis_storage_provider::Agreements::<Runtime>::get(rejected).unwrap();
+		let queue_before =
+			pallet_orbis_storage_provider::CapacityReleases::<Runtime>::get(release_at);
+		let events = System::events().len();
+		assert_noop!(
+			crate::StorageProvider::terminate_agreement(
+				crate::RuntimeOrigin::signed(owner),
+				rejected,
+				1,
+			),
+			StorageError::<Runtime>::CapacityReleaseQueueFull
+		);
+		assert_eq!(
+			pallet_orbis_storage_provider::Agreements::<Runtime>::get(rejected).unwrap(),
+			rejected_before
+		);
+		assert_eq!(
+			pallet_orbis_storage_provider::CapacityReleases::<Runtime>::get(release_at),
+			queue_before
+		);
+		assert_eq!(System::events().len(), events);
 	});
 }

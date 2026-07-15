@@ -31,7 +31,7 @@ use codec::{Codec, Decode, Encode};
 use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
 
-pub const RESPONSE_VERSION: u16 = 6;
+pub const RESPONSE_VERSION: u16 = 7;
 pub const MAX_PAGE_SIZE: u32 = 100;
 pub const MAX_CHECKPOINT_DUTY_PAGE_SIZE: u32 = 128;
 /// Maximum concurrently indexed agreements for one control-plane bucket.
@@ -257,6 +257,7 @@ pub struct CheckpointDutyInfo<AccountId, Hash, BlockNumber> {
 	pub authorities: Vec<ProviderDutyAuthority<AccountId, Hash, BlockNumber>>,
 	pub initiator: Option<AccountId>,
 	pub phase: CheckpointDutyPhase,
+	pub mode: CheckpointDutyMode,
 	pub snapshot_checkpoint: BlockNumber,
 	pub snapshot_hash: Hash,
 	pub due_at: BlockNumber,
@@ -294,8 +295,15 @@ pub enum CheckpointDutyPhase {
 	NotDue,
 	Primary,
 	ReplicaFallback,
+	ReplicaFallbackPromotion,
 	BlockedInsufficientFallbackQuorum,
 	Unavailable,
+}
+
+#[derive(Clone, Copy, Debug, Decode, DecodeAsType, Encode, Eq, PartialEq, TypeInfo)]
+pub enum CheckpointDutyMode {
+	Standard,
+	PromotionPending,
 }
 
 #[derive(Clone, Debug, Decode, DecodeAsType, Encode, Eq, PartialEq, TypeInfo)]
@@ -400,7 +408,7 @@ pub struct ObjectVersionInfo<AccountId, BlockNumber> {
 }
 
 sp_api::decl_runtime_apis! {
-	#[api_version(8)]
+	#[api_version(9)]
 	pub trait StorageProviderApi<AccountId, Hash, BlockNumber>
 	where
 		AccountId: Codec,

@@ -46,7 +46,8 @@ use sp_runtime::traits::{SaturatedConversion, Saturating};
 
 use pallet_orbis_storage_control_primitives::{Commitment as CanonicalCommitment, CommitmentState};
 
-/// Closed P0 error vocabulary for checkpoint submission.
+/// Checkpoint submission wire errors. Codes 220--241 are the frozen P0 vocabulary; code 242 is
+/// the additive context-v1 extension.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u16)]
 pub enum CheckpointErrorCode {
@@ -59,6 +60,16 @@ pub enum CheckpointErrorCode {
 	StorageCheckpointInsufficientQuorum = 239,
 	StorageCheckpointSequenceInvalid = 240,
 	StorageCheckpointEquivocation = 241,
+	StorageCheckpointWrongContext = 242,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u16)]
+pub enum CheckpointFallbackPromotionErrorCode {
+	WrongVersion = 243,
+	WrongDuty = 244,
+	WrongKey = 245,
+	NotAllowed = 246,
 }
 
 impl<T: pallet::Config> pallet_orbis_storage_control_primitives::CanonicalStorageControl
@@ -368,6 +379,25 @@ pub struct CheckpointDutyRecord<AccountId, Hash, BlockNumber, Replicas> {
 	pub due_at: BlockNumber,
 	pub grace_until: BlockNumber,
 	pub scheduled_at: BlockNumber,
+	pub mode: CheckpointDutyMode,
+	pub promotion_predecessor: Option<AccountId>,
+}
+
+#[derive(
+	Clone,
+	Copy,
+	Debug,
+	Decode,
+	DecodeWithMemTracking,
+	Encode,
+	Eq,
+	MaxEncodedLen,
+	PartialEq,
+	TypeInfo,
+)]
+pub enum CheckpointDutyMode {
+	Standard,
+	PromotionPending,
 }
 
 /// Stable logical SCALE types published under the `cord::storage` metadata namespace.
@@ -463,9 +493,66 @@ pub mod storage {
 		pub commitment: CommitmentV1<Hash>,
 		pub nonce: BlockNumber,
 	}
+
+	#[derive(
+		Clone,
+		Copy,
+		Debug,
+		Decode,
+		DecodeWithMemTracking,
+		Encode,
+		Eq,
+		MaxEncodedLen,
+		PartialEq,
+		TypeInfo,
+	)]
+	#[scale_info(replace_segment("pallet_orbis_storage_provider", "cord"))]
+	pub struct CheckpointFallbackPromotionV1<Hash, BlockNumber> {
+		pub version: u8,
+		pub bucket_id: Hash,
+		pub snapshot_nonce: BlockNumber,
+		pub duty_id: Hash,
+	}
+
+	#[derive(
+		Clone,
+		Copy,
+		Debug,
+		Decode,
+		DecodeWithMemTracking,
+		Encode,
+		Eq,
+		MaxEncodedLen,
+		PartialEq,
+		TypeInfo,
+	)]
+	#[scale_info(replace_segment("pallet_orbis_storage_provider", "cord"))]
+	pub struct CheckpointContextV1<Hash> {
+		pub version: u8,
+		pub genesis_hash: Hash,
+		pub spec_version: u32,
+		pub transaction_version: u32,
+		pub metadata_hash: Hash,
+		pub finalized_hash: Hash,
+		pub duty_id: Hash,
+		pub v2_digest: [u8; 32],
+	}
 }
 
-pub use storage::{ChunkLocationV1, CommitmentPayloadV2, CommitmentV1, MmrLeafV1, MmrProofV1};
+pub use storage::{
+	CheckpointContextV1, CheckpointFallbackPromotionV1, ChunkLocationV1, CommitmentPayloadV2,
+	CommitmentV1, MmrLeafV1, MmrProofV1,
+};
+
+#[derive(
+	Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, MaxEncodedLen, PartialEq, TypeInfo,
+)]
+pub struct CheckpointFallbackPromotionReceipt<AccountId, Hash, BlockNumber> {
+	pub payload: CheckpointFallbackPromotionV1<Hash, BlockNumber>,
+	pub provider: AccountId,
+	pub service_key: ed25519::Public,
+	pub signature: ed25519::Signature,
+}
 
 #[derive(
 	Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, MaxEncodedLen, PartialEq, TypeInfo,
@@ -475,29 +562,6 @@ pub struct ReplicaSignature<AccountId> {
 	pub service_key: ed25519::Public,
 	pub signature: ed25519::Signature,
 	pub context_signature: ed25519::Signature,
-}
-
-#[derive(
-	Clone,
-	Copy,
-	Debug,
-	Decode,
-	DecodeWithMemTracking,
-	Encode,
-	Eq,
-	MaxEncodedLen,
-	PartialEq,
-	TypeInfo,
-)]
-pub struct CheckpointContextV1<Hash> {
-	pub version: u8,
-	pub genesis_hash: Hash,
-	pub spec_version: u32,
-	pub transaction_version: u32,
-	pub metadata_hash: Hash,
-	pub finalized_hash: Hash,
-	pub duty_id: Hash,
-	pub v2_digest: [u8; 32],
 }
 
 #[derive(
@@ -583,6 +647,7 @@ pub mod pallet {
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 	const CHECKPOINT_DOMAIN: &[u8] = b"cord/storage/checkpoint/v2";
 	const CHECKPOINT_CONTEXT_DOMAIN: &[u8] = b"cord/storage/checkpoint-context/v1";
+	const CHECKPOINT_PROMOTION_DOMAIN: &[u8] = b"cord/storage/checkpoint-promotion/v1";
 
 	pub type EndpointOf<T> = BoundedVec<u8, <T as Config>::MaxEndpointBytes>;
 	pub type EntityIdOf<T> = BoundedVec<u8, <T as Config>::MaxEntityIdBytes>;
@@ -632,6 +697,11 @@ pub mod pallet {
 		BlockNumberFor<T>,
 		ConfirmationsOf<T>,
 	>;
+	pub type PromotionReceiptOf<T> = CheckpointFallbackPromotionReceipt<
+		<T as frame_system::Config>::AccountId,
+		<T as frame_system::Config>::Hash,
+		BlockNumberFor<T>,
+	>;
 	pub type MmrProofOf<T> = MmrProofV1<<T as frame_system::Config>::Hash>;
 	pub type ChallengeRecordOf<T> = ChallengeRecord<
 		<T as frame_system::Config>::AccountId,
@@ -673,7 +743,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxBucketAgreements: Get<u32>;
 		#[pallet::constant]
-		type MaxCheckpointDutyAdmissionsPerBlock: Get<u32>;
+		type MaxDutiesPerBlock: Get<u32>;
 		type MaxChallengeBacklog: Get<u32>;
 		type MaxCapacityReleasesPerBlock: Get<u32>;
 		#[pallet::constant]
@@ -755,10 +825,12 @@ pub mod pallet {
 	pub type CheckpointDutyPending<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::Hash, CheckpointDutyRecordOf<T>, OptionQuery>;
 	#[pallet::storage]
-	pub type CheckpointDutyAdmissionBlock<T: Config> =
-		StorageValue<_, BlockNumberFor<T>, OptionQuery>;
+	pub type DutyAdmissionBlock<T: Config> = StorageValue<_, BlockNumberFor<T>, OptionQuery>;
 	#[pallet::storage]
-	pub type CheckpointDutyAdmissionCount<T: Config> = StorageValue<_, u32, ValueQuery>;
+	pub type DutyAdmissionCount<T: Config> = StorageValue<_, u32, ValueQuery>;
+	#[pallet::storage]
+	pub type CheckpointFallbackPromotionReceiptByBucket<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::Hash, PromotionReceiptOf<T>, OptionQuery>;
 	/// Singular manifest-to-checkpoint authority consumed by Drive and S3.
 	#[pallet::storage]
 	pub type CanonicalManifests<T: Config> = StorageMap<
@@ -1014,6 +1086,12 @@ pub mod pallet {
 			new_provider: T::AccountId,
 			checkpoint: BlockNumberFor<T>,
 		},
+		CheckpointFallbackPromotionPendingQuorum {
+			bucket_id: T::Hash,
+			provider: T::AccountId,
+			snapshot_nonce: BlockNumberFor<T>,
+			duty_id: T::Hash,
+		},
 		ManifestCommitmentChanged {
 			manifest: CanonicalCommitment,
 			bucket_id: T::Hash,
@@ -1100,8 +1178,13 @@ pub mod pallet {
 		StorageCheckpointWrongWindow,
 		StorageCheckpointInsufficientQuorum,
 		InsufficientFallbackQuorum,
+		CheckpointFallbackPromotionWrongVersion,
+		CheckpointFallbackPromotionWrongDuty,
+		CheckpointFallbackPromotionWrongKey,
+		CheckpointFallbackPromotionNotAllowed,
 		StorageCheckpointSequenceInvalid,
 		StorageCheckpointEquivocation,
+		StorageCheckpointWrongContext,
 		CheckpointDutyLimit,
 		CheckpointDutyPending,
 		ManifestAlreadyExists,
@@ -1422,6 +1505,8 @@ pub mod pallet {
 				&replicas,
 				created_at,
 				created_at.saturating_add(T::CheckpointCadence::get()),
+				CheckpointDutyMode::Standard,
+				None,
 			)?;
 			ProviderBucketAssignmentCount::<T>::mutate(&primary, |count| {
 				*count = count.saturating_add(1)
@@ -1524,8 +1609,10 @@ pub mod pallet {
 			for provider in bucket.replicas.iter() {
 				Self::reserve_capacity(provider, bytes, agreement_id)?;
 			}
-			BucketAgreements::<T>::try_mutate(bucket_id, |ids| ids.try_push(agreement_id))
-				.map_err(|_| Error::<T>::AgreementIndexFull)?;
+			BucketAgreements::<T>::try_mutate(bucket_id, |ids| {
+				ensure!(!ids.contains(&agreement_id), Error::<T>::AgreementAlreadyExists);
+				ids.try_push(agreement_id).map_err(|_| Error::<T>::AgreementIndexFull)
+			})?;
 			AgreementNonce::<T>::insert(&owner, nonce.saturating_add(1));
 			Agreements::<T>::insert(
 				agreement_id,
@@ -1742,7 +1829,8 @@ pub mod pallet {
 					finalized >= window_start,
 				Error::<T>::StorageCheckpointWrongWindow
 			);
-			let fallback = finalized >= duty.grace_until;
+			let fallback =
+				duty.mode == CheckpointDutyMode::Standard && finalized >= duty.grace_until;
 			let mut post_promotion_replicas = duty.replicas.clone();
 			if fallback {
 				let mut candidates = duty
@@ -1776,7 +1864,7 @@ pub mod pallet {
 						.iter()
 						.filter(|provider| Self::checkpoint_signer_eligible(provider, finalized))
 						.count() >= 2,
-					Error::<T>::InsufficientFallbackQuorum
+					Error::<T>::StorageCheckpointInsufficientQuorum
 				);
 			} else {
 				ensure!(duty.primary == primary, Error::<T>::StorageCheckpointWrongKey);
@@ -1809,7 +1897,7 @@ pub mod pallet {
 					&context_digest,
 					&service_key
 				),
-				Error::<T>::StorageCheckpointWrongKey
+				Error::<T>::StorageCheckpointWrongContext
 			);
 			if let Some(accepted) = CheckpointClaims::<T>::get(payload.bucket_id, claim_key) {
 				if accepted.payload.commitment.mmr_root != payload.commitment.mmr_root {
@@ -1907,7 +1995,7 @@ pub mod pallet {
 						&context_digest,
 						&confirmation.service_key
 					),
-					Error::<T>::StorageCheckpointInsufficientQuorum
+					Error::<T>::StorageCheckpointWrongContext
 				);
 				confirmed
 					.try_push(confirmation.provider.clone())
@@ -1960,6 +2048,8 @@ pub mod pallet {
 				&bucket.replicas,
 				finalized,
 				due_at,
+				CheckpointDutyMode::Standard,
+				None,
 			)?;
 			Self::deposit_event(Event::CheckpointAccepted {
 				bucket_id: payload.bucket_id,
@@ -2002,6 +2092,7 @@ pub mod pallet {
 				Error::<T>::ChallengeAlreadyExists
 			);
 
+			Self::reserve_duty_admission(Error::<T>::ChallengeDutyLimit)?;
 			ChallengeBacklog::<T>::try_mutate(|ids| {
 				ids.try_push(challenge_id).map_err(|_| Error::<T>::ChallengeDutyLimit)
 			})?;
@@ -2476,6 +2567,149 @@ pub mod pallet {
 			});
 			Ok(())
 		}
+
+		/// Promote the deterministic grace fallback without publishing a checkpoint. The resulting
+		/// recovery duty is visible only at the next governed finalized snapshot. Its predecessor
+		/// is retained as audit data and remains eligible to confirm if it becomes valid again.
+		#[pallet::call_index(26)]
+		#[pallet::weight(
+			T::WeightInfo::submit_checkpoint(0).max(T::WeightInfo::reconcile_bucket(
+				replicas_bound::<T>(),
+				BucketAgreements::<T>::decode_len(payload.bucket_id).unwrap_or(0) as u32,
+			))
+		)]
+		#[transactional]
+		pub fn promote_checkpoint_fallback(
+			origin: OriginFor<T>,
+			payload: CheckpointFallbackPromotionV1<T::Hash, BlockNumberFor<T>>,
+			service_key: ed25519::Public,
+			signature: ed25519::Signature,
+		) -> DispatchResult {
+			let provider = ensure_signed(origin)?;
+			if CheckpointFallbackPromotionReceiptByBucket::<T>::get(payload.bucket_id).is_some_and(
+				|receipt| {
+					receipt.payload == payload &&
+						receipt.provider == provider &&
+						receipt.service_key == service_key &&
+						receipt.signature == signature
+				},
+			) {
+				return Ok(())
+			}
+			ensure!(payload.version == 1, Error::<T>::CheckpointFallbackPromotionWrongVersion);
+			let finalized = Self::finalized_checkpoint()?;
+			ensure!(
+				payload.snapshot_nonce == finalized,
+				Error::<T>::CheckpointFallbackPromotionWrongDuty
+			);
+			let duty = Self::checkpoint_duty_at(payload.bucket_id, payload.snapshot_nonce)
+				.ok_or(Error::<T>::CheckpointFallbackPromotionWrongDuty)?;
+			ensure!(
+				duty.mode == CheckpointDutyMode::Standard &&
+					payload.snapshot_nonce >= duty.grace_until,
+				Error::<T>::CheckpointFallbackPromotionNotAllowed
+			);
+			ensure!(
+				Self::checkpoint_duty_id(&duty, payload.snapshot_nonce) == payload.duty_id,
+				Error::<T>::CheckpointFallbackPromotionWrongDuty
+			);
+			let mut bucket = Buckets::<T>::get(payload.bucket_id)
+				.ok_or(Error::<T>::CheckpointFallbackPromotionWrongDuty)?;
+			ensure!(
+				bucket.primary == duty.primary && bucket.replicas == duty.replicas,
+				Error::<T>::CheckpointFallbackPromotionWrongDuty
+			);
+			let mut candidates = duty
+				.replicas
+				.iter()
+				.filter(|candidate| Self::checkpoint_signer_eligible(candidate, finalized))
+				.filter_map(|candidate| {
+					let confirmed = ReplicaCheckpoint::<T>::get(payload.bucket_id, candidate);
+					if duty.previous_commitment.is_some() &&
+						confirmed != Some(duty.previous_checkpoint)
+					{
+						return None
+					}
+					Some((confirmed, candidate.encode(), candidate.clone()))
+				})
+				.collect::<Vec<_>>();
+			candidates
+				.sort_by(|left, right| right.0.cmp(&left.0).then_with(|| left.1.cmp(&right.1)));
+			let promoted = candidates
+				.first()
+				.map(|(_, _, provider)| provider.clone())
+				.ok_or(Error::<T>::CheckpointFallbackPromotionNotAllowed)?;
+			ensure!(provider == promoted, Error::<T>::CheckpointFallbackPromotionWrongKey);
+			let mut provider_record = Providers::<T>::get(&provider)
+				.ok_or(Error::<T>::CheckpointFallbackPromotionWrongKey)?;
+			Self::activate_pending_key(&provider, &mut provider_record, finalized);
+			Providers::<T>::insert(&provider, &provider_record);
+			ensure!(
+				provider_record.status == ProviderStatus::Active &&
+					provider_record.service_key.active == service_key &&
+					OverdueChallenges::<T>::get(&provider) == 0,
+				Error::<T>::CheckpointFallbackPromotionWrongKey
+			);
+			Self::ensure_authority(
+				&provider,
+				&provider_record.organization,
+				&service_key,
+				finalized,
+			)
+			.map_err(|_| Error::<T>::CheckpointFallbackPromotionWrongKey)?;
+			let digest = Self::checkpoint_promotion_digest(&payload);
+			ensure!(
+				sp_io::crypto::ed25519_verify(&signature, &digest, &service_key),
+				Error::<T>::CheckpointFallbackPromotionWrongKey
+			);
+			let old_primary = bucket.primary.clone();
+			let promoted_index = bucket
+				.replicas
+				.iter()
+				.position(|candidate| candidate == &promoted)
+				.ok_or(Error::<T>::CheckpointFallbackPromotionWrongDuty)?;
+			bucket.replicas[promoted_index] = old_primary.clone();
+			bucket.primary = promoted.clone();
+			bucket.version = bucket.version.saturating_add(1);
+			Self::rebind_failover_agreements(payload.bucket_id, &old_primary, &promoted)?;
+			Self::stage_checkpoint_duty(
+				payload.bucket_id,
+				&bucket.primary,
+				&bucket.replicas,
+				duty.previous_checkpoint,
+				finalized,
+				CheckpointDutyMode::PromotionPending,
+				Some(old_primary.clone()),
+			)?;
+			Buckets::<T>::insert(payload.bucket_id, bucket);
+			CheckpointFallbackPromotionReceiptByBucket::<T>::insert(
+				payload.bucket_id,
+				CheckpointFallbackPromotionReceipt {
+					payload,
+					provider: promoted.clone(),
+					service_key,
+					signature,
+				},
+			);
+			Self::deposit_event(Event::ReplicaSelected {
+				bucket_id: payload.bucket_id,
+				provider: promoted.clone(),
+				checkpoint: duty.previous_checkpoint,
+			});
+			Self::deposit_event(Event::PrimaryPromoted {
+				bucket_id: payload.bucket_id,
+				old_provider: old_primary,
+				new_provider: promoted.clone(),
+				checkpoint: duty.previous_checkpoint,
+			});
+			Self::deposit_event(Event::CheckpointFallbackPromotionPendingQuorum {
+				bucket_id: payload.bucket_id,
+				provider: promoted,
+				snapshot_nonce: payload.snapshot_nonce,
+				duty_id: payload.duty_id,
+			});
+			Ok(())
+		}
 	}
 
 	fn replicas_bound<T: Config>() -> u32 {
@@ -2498,18 +2732,11 @@ pub mod pallet {
 			replicas: &ReplicasOf<T>,
 			previous_checkpoint: BlockNumberFor<T>,
 			due_at: BlockNumberFor<T>,
+			mode: CheckpointDutyMode,
+			promotion_predecessor: Option<T::AccountId>,
 		) -> DispatchResult {
-			let admission_at = frame_system::Pallet::<T>::block_number();
 			let scheduled_at = Self::finalized_checkpoint()?;
-			if CheckpointDutyAdmissionBlock::<T>::get() != Some(admission_at) {
-				CheckpointDutyAdmissionBlock::<T>::put(admission_at);
-				CheckpointDutyAdmissionCount::<T>::put(0);
-			}
-			ensure!(
-				CheckpointDutyAdmissionCount::<T>::get() <
-					T::MaxCheckpointDutyAdmissionsPerBlock::get(),
-				Error::<T>::CheckpointDutyLimit
-			);
+			Self::reserve_duty_admission(Error::<T>::CheckpointDutyLimit)?;
 			let duty = CheckpointDutyRecord {
 				bucket_id,
 				primary: primary.clone(),
@@ -2523,6 +2750,8 @@ pub mod pallet {
 				due_at,
 				grace_until: due_at.saturating_add(T::CheckpointGrace::get()),
 				scheduled_at,
+				mode,
+				promotion_predecessor,
 			};
 			if let Some(previous) = CheckpointDutyPending::<T>::get(bucket_id) {
 				let finalized = GovernedFinalizedCheckpoint::<T>::get()
@@ -2531,7 +2760,17 @@ pub mod pallet {
 				CheckpointDutyCurrent::<T>::insert(bucket_id, previous);
 			}
 			CheckpointDutyPending::<T>::insert(bucket_id, duty);
-			CheckpointDutyAdmissionCount::<T>::mutate(|count| *count = count.saturating_add(1));
+			Ok(())
+		}
+
+		fn reserve_duty_admission(error: Error<T>) -> DispatchResult {
+			let admission_at = frame_system::Pallet::<T>::block_number();
+			if DutyAdmissionBlock::<T>::get() != Some(admission_at) {
+				DutyAdmissionBlock::<T>::put(admission_at);
+				DutyAdmissionCount::<T>::put(0);
+			}
+			ensure!(DutyAdmissionCount::<T>::get() < T::MaxDutiesPerBlock::get(), error);
+			DutyAdmissionCount::<T>::mutate(|count| *count = count.saturating_add(1));
 			Ok(())
 		}
 
@@ -2548,7 +2787,14 @@ pub mod pallet {
 			duty: &CheckpointDutyRecordOf<T>,
 			snapshot_checkpoint: BlockNumberFor<T>,
 		) -> T::Hash {
-			T::Hashing::hash_of(&(
+			T::Hashing::hash(&Self::checkpoint_duty_preimage(duty, snapshot_checkpoint))
+		}
+
+		pub fn checkpoint_duty_preimage(
+			duty: &CheckpointDutyRecordOf<T>,
+			snapshot_checkpoint: BlockNumberFor<T>,
+		) -> Vec<u8> {
+			(
 				b"cord/storage/checkpoint-duty/v2",
 				T::CheckpointContext::genesis_hash(),
 				T::CheckpointContext::spec_version(),
@@ -2564,7 +2810,10 @@ pub mod pallet {
 				duty.expected_next_start_seq,
 				duty.due_at,
 				duty.grace_until,
-			))
+				duty.mode,
+				&duty.promotion_predecessor,
+			)
+				.encode()
 		}
 
 		fn checkpoint_context(
@@ -2627,6 +2876,22 @@ pub mod pallet {
 					CheckpointErrorCode::StorageCheckpointSequenceInvalid as u16,
 				Error::StorageCheckpointEquivocation =>
 					CheckpointErrorCode::StorageCheckpointEquivocation as u16,
+				Error::StorageCheckpointWrongContext =>
+					CheckpointErrorCode::StorageCheckpointWrongContext as u16,
+				_ => return None,
+			})
+		}
+
+		pub fn checkpoint_promotion_error_code(error: &Error<T>) -> Option<u16> {
+			Some(match error {
+				Error::CheckpointFallbackPromotionWrongVersion =>
+					CheckpointFallbackPromotionErrorCode::WrongVersion as u16,
+				Error::CheckpointFallbackPromotionWrongDuty =>
+					CheckpointFallbackPromotionErrorCode::WrongDuty as u16,
+				Error::CheckpointFallbackPromotionWrongKey =>
+					CheckpointFallbackPromotionErrorCode::WrongKey as u16,
+				Error::CheckpointFallbackPromotionNotAllowed =>
+					CheckpointFallbackPromotionErrorCode::NotAllowed as u16,
 				_ => return None,
 			})
 		}
@@ -2712,8 +2977,10 @@ pub mod pallet {
 			bytes: u64,
 			agreement_id: T::Hash,
 		) -> DispatchResult {
-			ProviderAgreements::<T>::try_mutate(provider, |ids| ids.try_push(agreement_id))
-				.map_err(|_| Error::<T>::AgreementIndexFull)?;
+			ProviderAgreements::<T>::try_mutate(provider, |ids| {
+				ensure!(!ids.contains(&agreement_id), Error::<T>::AgreementAlreadyExists);
+				ids.try_push(agreement_id).map_err(|_| Error::<T>::AgreementIndexFull)
+			})?;
 			Providers::<T>::try_mutate(provider, |maybe| -> DispatchResult {
 				let record = maybe.as_mut().ok_or(Error::<T>::ProviderIneligible)?;
 				let used = record
@@ -2846,6 +3113,14 @@ pub mod pallet {
 			payload: &CommitmentPayloadV2<T::Hash, BlockNumberFor<T>>,
 		) -> [u8; 32] {
 			let mut message = domain.to_vec();
+			payload.encode_to(&mut message);
+			sp_io::hashing::blake2_256(&message)
+		}
+
+		pub fn checkpoint_promotion_digest(
+			payload: &CheckpointFallbackPromotionV1<T::Hash, BlockNumberFor<T>>,
+		) -> [u8; 32] {
+			let mut message = CHECKPOINT_PROMOTION_DOMAIN.to_vec();
 			payload.encode_to(&mut message);
 			sp_io::hashing::blake2_256(&message)
 		}
@@ -3165,14 +3440,33 @@ pub mod pallet {
 			let finalized = Self::finalized_checkpoint()?;
 			let existing = Self::checkpoint_duty_at(bucket_id, finalized)
 				.or_else(|| CheckpointDutyPending::<T>::get(bucket_id));
-			let (previous_checkpoint, due_at) = if let Some(existing) = existing {
-				(existing.previous_checkpoint, existing.due_at)
-			} else {
-				let created_at =
-					Buckets::<T>::get(bucket_id).ok_or(Error::<T>::BucketNotFound)?.created_at;
-				(created_at, created_at.saturating_add(T::CheckpointCadence::get()))
-			};
-			Self::stage_checkpoint_duty(bucket_id, primary, replicas, previous_checkpoint, due_at)
+			let (previous_checkpoint, due_at, mode, promotion_predecessor) =
+				if let Some(existing) = existing {
+					(
+						existing.previous_checkpoint,
+						existing.due_at,
+						existing.mode,
+						existing.promotion_predecessor,
+					)
+				} else {
+					let created_at =
+						Buckets::<T>::get(bucket_id).ok_or(Error::<T>::BucketNotFound)?.created_at;
+					(
+						created_at,
+						created_at.saturating_add(T::CheckpointCadence::get()),
+						CheckpointDutyMode::Standard,
+						None,
+					)
+				};
+			Self::stage_checkpoint_duty(
+				bucket_id,
+				primary,
+				replicas,
+				previous_checkpoint,
+				due_at,
+				mode,
+				promotion_predecessor,
+			)
 		}
 
 		/// Keep agreement authority aligned with a bucket failover. Both providers were already

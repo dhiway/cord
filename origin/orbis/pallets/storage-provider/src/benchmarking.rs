@@ -387,6 +387,8 @@ mod benchmarks {
 			&replicas,
 			Zero::zero(),
 			T::CheckpointCadence::get(),
+			CheckpointDutyMode::Standard,
+			None,
 		)
 		.expect("benchmark duty is staged");
 		let duty = CheckpointDutyPending::<T>::get(id).expect("bucket duty is staged");
@@ -435,6 +437,65 @@ mod benchmarks {
 			service_sign(0, &context_digest),
 			confirmations,
 		);
+	}
+
+	#[benchmark]
+	fn promote_checkpoint_fallback(a: Linear<0, { T::MaxBucketAgreements::get() }>) {
+		let initial = T::CheckpointCadence::get();
+		frame_system::Pallet::<T>::set_block_number(initial);
+		GovernedFinalizedCheckpoint::<T>::put(initial);
+		T::BenchmarkHelper::set_finalized_block(initial);
+		let owner: T::AccountId = account("promotion-owner", 0, SEED);
+		let (primary, _) = provider::<T>(0, ProviderStatus::Active);
+		let (replicas, replica_pairs) = replicas::<T>(2);
+		let id = bucket::<T>(&owner, &primary, replicas.clone());
+		failover_agreements::<T>(a, id, &primary, &replicas);
+		Pallet::<T>::stage_checkpoint_duty(
+			id,
+			&primary,
+			&replicas,
+			Zero::zero(),
+			initial,
+			CheckpointDutyMode::Standard,
+			None,
+		)
+		.expect("benchmark duty is staged");
+		let duty = CheckpointDutyPending::<T>::get(id).expect("bucket duty is staged");
+		let finalized = duty.grace_until;
+		frame_system::Pallet::<T>::set_block_number(finalized);
+		GovernedFinalizedCheckpoint::<T>::put(finalized);
+		T::BenchmarkHelper::set_finalized_block(finalized);
+		let organization = Providers::<T>::get(&primary).unwrap().organization;
+		T::BenchmarkHelper::invalidate_authority(&primary, &organization);
+		let mut candidates = replica_pairs
+			.iter()
+			.enumerate()
+			.map(|(index, (account, key))| {
+				(account.encode(), index as u32 + 10, account.clone(), *key)
+			})
+			.collect::<Vec<_>>();
+		candidates.sort_by(|left, right| left.0.cmp(&right.0));
+		let (_, signing_index, promoted, promoted_key) =
+			candidates.into_iter().next().expect("two replicas are configured");
+		let duty = Pallet::<T>::checkpoint_duty_at(id, finalized)
+			.expect("staged duty is visible at the grace snapshot");
+		let payload = CheckpointFallbackPromotionV1 {
+			version: 1,
+			bucket_id: id,
+			snapshot_nonce: finalized,
+			duty_id: Pallet::<T>::checkpoint_duty_id(&duty, finalized),
+		};
+		let signature =
+			service_sign(signing_index, &Pallet::<T>::checkpoint_promotion_digest(&payload));
+		#[extrinsic_call]
+		_(RawOrigin::Signed(promoted.clone()), payload, promoted_key, signature);
+		assert_eq!(Buckets::<T>::get(id).unwrap().primary, promoted);
+		assert!(BucketSnapshots::<T>::get(id).is_none());
+		assert_eq!(
+			CheckpointDutyPending::<T>::get(id).unwrap().mode,
+			CheckpointDutyMode::PromotionPending
+		);
+		assert!(CheckpointFallbackPromotionReceiptByBucket::<T>::contains_key(id));
 	}
 
 	#[benchmark]

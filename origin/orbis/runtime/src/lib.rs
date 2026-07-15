@@ -162,7 +162,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("commons"),
 	impl_name: Cow::Borrowed("origin-commons"),
 	authoring_version: 1,
-	spec_version: 30,
+	spec_version: 31,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 8,
@@ -176,7 +176,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("commons"),
 	impl_name: Cow::Borrowed("origin-commons"),
 	authoring_version: 1,
-	spec_version: 31,
+	spec_version: 32,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 8,
@@ -2355,7 +2355,7 @@ parameter_types! {
 	pub const ProviderMaxAssignedProviders: u32 = 5;
 	pub const ProviderMaxAgreements: u32 = 1_024;
 	pub const ProviderMaxBucketAgreements: u32 = storage_api::MAX_BUCKET_AGREEMENTS;
-	pub const ProviderMaxCheckpointDutyAdmissionsPerBlock: u32 = 256;
+	pub const ProviderMaxDutiesPerBlock: u32 = 256;
 	pub const ProviderMaxChallengeBacklog: u32 = 256;
 	pub const ProviderMaxCapacityReleasesPerBlock: u32 = 256;
 	pub const ProviderMaxChallengesPerBlock: u32 = 128;
@@ -2568,7 +2568,7 @@ impl pallet_orbis_storage_provider::Config for Runtime {
 	type MaxAssignedProviders = ProviderMaxAssignedProviders;
 	type MaxProviderAgreements = ProviderMaxAgreements;
 	type MaxBucketAgreements = ProviderMaxBucketAgreements;
-	type MaxCheckpointDutyAdmissionsPerBlock = ProviderMaxCheckpointDutyAdmissionsPerBlock;
+	type MaxDutiesPerBlock = ProviderMaxDutiesPerBlock;
 	type MaxChallengeBacklog = ProviderMaxChallengeBacklog;
 	type MaxCapacityReleasesPerBlock = ProviderMaxCapacityReleasesPerBlock;
 	type MaxChallengesPerBlock = ProviderMaxChallengesPerBlock;
@@ -3544,6 +3544,25 @@ fn checkpoint_duty_page(
 			}
 			let (phase, initiator) = if snapshot_checkpoint < duty.due_at {
 				(storage_api::CheckpointDutyPhase::NotDue, None)
+			} else if duty.mode ==
+				pallet_orbis_storage_provider::CheckpointDutyMode::PromotionPending
+			{
+				let primary = authorities
+					.first()
+					.filter(|candidate| candidate.eligible)
+					.map(|candidate| candidate.provider.clone());
+				if primary.is_none() {
+					(storage_api::CheckpointDutyPhase::Unavailable, None)
+				} else if authorities
+					.iter()
+					.skip(1)
+					.filter(|candidate| candidate.eligible)
+					.count() < 2
+				{
+					(storage_api::CheckpointDutyPhase::BlockedInsufficientFallbackQuorum, None)
+				} else {
+					(storage_api::CheckpointDutyPhase::Primary, primary)
+				}
 			} else if snapshot_checkpoint < duty.grace_until {
 				let primary = authorities
 					.first()
@@ -3582,7 +3601,7 @@ fn checkpoint_duty_page(
 						{
 							storage_api::CheckpointDutyPhase::ReplicaFallback
 						} else {
-							storage_api::CheckpointDutyPhase::BlockedInsufficientFallbackQuorum
+							storage_api::CheckpointDutyPhase::ReplicaFallbackPromotion
 						}
 					},
 				);
@@ -3591,7 +3610,8 @@ fn checkpoint_duty_page(
 			if matches!(
 				phase,
 				storage_api::CheckpointDutyPhase::Primary |
-					storage_api::CheckpointDutyPhase::ReplicaFallback
+					storage_api::CheckpointDutyPhase::ReplicaFallback |
+					storage_api::CheckpointDutyPhase::ReplicaFallbackPromotion
 			) {
 				if let Some(initiator) = initiator.as_ref() {
 					if let Some(view) =
@@ -3628,6 +3648,12 @@ fn checkpoint_duty_page(
 				authorities,
 				initiator,
 				phase,
+				mode: match duty.mode {
+					pallet_orbis_storage_provider::CheckpointDutyMode::Standard =>
+						storage_api::CheckpointDutyMode::Standard,
+					pallet_orbis_storage_provider::CheckpointDutyMode::PromotionPending =>
+						storage_api::CheckpointDutyMode::PromotionPending,
+				},
 				snapshot_checkpoint,
 				snapshot_hash,
 				due_at: duty.due_at,

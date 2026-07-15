@@ -19,13 +19,15 @@
 use crate::{
 	mock::*, AgreementCapacityState, AgreementStatus, Agreements, BucketAgreements, BucketIds,
 	BucketSnapshots, Buckets, CanonicalManifests, CapacityReleases, ChallengeBacklog,
-	ChallengeStatus, CheckpointClaims, CheckpointDutyAdmissionCount, CheckpointDutyCurrent,
-	CheckpointDutyPending, CheckpointErrorCode, CommitmentPayloadV2, CommitmentState, CommitmentV1,
-	ConfirmationsOf, EquivocationEvidence, Error, Event, GovernedFinalizedCheckpoint,
-	ManifestDeletionAcknowledgements, ManifestDeletionRequirements, MmrLeafV1, MmrProofV1,
-	OrganizationRefOf, ProviderAgreements, ProviderAuthorityError, ProviderBucketAssignmentCount,
-	ProviderEvidence, ProviderEvidenceOverflow, ProviderOrganizationRefV1, ProviderStatus,
-	Providers, ReplicaSignature, ReplicasOf, ServiceKeyOwner,
+	ChallengeStatus, CheckpointClaims, CheckpointDutyCurrent, CheckpointDutyMode,
+	CheckpointDutyPending, CheckpointErrorCode, CheckpointFallbackPromotionErrorCode,
+	CheckpointFallbackPromotionReceiptByBucket, CheckpointFallbackPromotionV1, CommitmentPayloadV2,
+	CommitmentState, CommitmentV1, ConfirmationsOf, DutyAdmissionCount, EquivocationEvidence,
+	Error, Event, GovernedFinalizedCheckpoint, ManifestDeletionAcknowledgements,
+	ManifestDeletionRequirements, MmrLeafV1, MmrProofV1, OrganizationRefOf, ProviderAgreements,
+	ProviderAuthorityError, ProviderBucketAssignmentCount, ProviderEvidence,
+	ProviderEvidenceOverflow, ProviderOrganizationRefV1, ProviderStatus, Providers,
+	ReplicaSignature, ReplicasOf, ServiceKeyOwner,
 };
 use codec::Encode;
 use frame_support::{assert_noop, assert_ok, traits::Hooks};
@@ -131,6 +133,23 @@ fn signed_checkpoint_for(
 	(primary_signature, pair(primary as u8).sign(&context_digest), confirmations)
 }
 
+fn signed_promotion(
+	bucket_id: H256,
+	snapshot_nonce: u64,
+	provider: u64,
+) -> (CheckpointFallbackPromotionV1<H256, u64>, ed25519::Signature) {
+	let duty = StorageProvider::checkpoint_duty_at(bucket_id, snapshot_nonce).unwrap();
+	let payload = CheckpointFallbackPromotionV1 {
+		version: 1,
+		bucket_id,
+		snapshot_nonce,
+		duty_id: StorageProvider::checkpoint_duty_id(&duty, snapshot_nonce),
+	};
+	let signature =
+		pair(provider as u8).sign(&StorageProvider::checkpoint_promotion_digest(&payload));
+	(payload, signature)
+}
+
 fn submit(payload: CommitmentPayloadV2<H256, u64>) {
 	let (signature, context_signature, confirmations) = signed_checkpoint(payload);
 	assert_ok!(StorageProvider::submit_checkpoint(
@@ -159,11 +178,39 @@ fn exact_checkpoint_error_codes_are_frozen() {
 			(Error::<Test>::StorageCheckpointInsufficientQuorum, 239),
 			(Error::<Test>::StorageCheckpointSequenceInvalid, 240),
 			(Error::<Test>::StorageCheckpointEquivocation, 241),
+			(Error::<Test>::StorageCheckpointWrongContext, 242),
 		];
 		for (error, code) in cases {
 			assert_eq!(StorageProvider::checkpoint_error_code(&error), Some(code));
 		}
 		assert_eq!(CheckpointErrorCode::StorageCheckpointEquivocation as u16, 241);
+		assert_eq!(CheckpointErrorCode::StorageCheckpointWrongContext as u16, 242);
+		assert_eq!(
+			StorageProvider::checkpoint_promotion_error_code(
+				&Error::<Test>::StorageCheckpointWrongContext
+			),
+			None
+		);
+	});
+}
+
+#[test]
+fn exact_checkpoint_promotion_error_codes_are_additive_and_disjoint() {
+	new_test_ext().execute_with(|| {
+		let cases = [
+			(Error::<Test>::CheckpointFallbackPromotionWrongVersion, 243),
+			(Error::<Test>::CheckpointFallbackPromotionWrongDuty, 244),
+			(Error::<Test>::CheckpointFallbackPromotionWrongKey, 245),
+			(Error::<Test>::CheckpointFallbackPromotionNotAllowed, 246),
+		];
+		for (error, code) in cases {
+			assert_eq!(StorageProvider::checkpoint_promotion_error_code(&error), Some(code));
+			assert_eq!(StorageProvider::checkpoint_error_code(&error), None);
+		}
+		assert_eq!(CheckpointFallbackPromotionErrorCode::WrongVersion as u16, 243);
+		assert_eq!(CheckpointFallbackPromotionErrorCode::WrongDuty as u16, 244);
+		assert_eq!(CheckpointFallbackPromotionErrorCode::WrongKey as u16, 245);
+		assert_eq!(CheckpointFallbackPromotionErrorCode::NotAllowed as u16, 246);
 	});
 }
 
@@ -298,7 +345,8 @@ fn checkpoint_negatives_220_through_225_and_239_240_have_no_state_or_events() {
 					Error::<Test>::StorageCheckpointStaleNonce |
 					Error::<Test>::StorageCheckpointWrongWindow |
 					Error::<Test>::StorageCheckpointInsufficientQuorum |
-					Error::<Test>::StorageCheckpointSequenceInvalid
+					Error::<Test>::StorageCheckpointSequenceInvalid |
+					Error::<Test>::StorageCheckpointWrongContext
 			));
 		};
 
@@ -1115,7 +1163,7 @@ fn proposed_replica_replacement_releases_pending_capacity_without_version_heuris
 fn primary_failover_atomically_rebinds_every_non_terminal_agreement_role() {
 	new_test_ext().execute_with(|| {
 		let bucket = setup_bucket();
-		for (bytes, expires_at) in [(10, 200), (20, 210), (30, 220)] {
+		for (bytes, expires_at) in [(10, 200), (20, 210), (30, 220), (40, 230)] {
 			assert_ok!(StorageProvider::propose_agreement(
 				RuntimeOrigin::signed(OWNER),
 				bucket,
@@ -1126,11 +1174,6 @@ fn primary_failover_atomically_rebinds_every_non_terminal_agreement_role() {
 		}
 		let mut ids = Agreements::<Test>::iter_keys().collect::<Vec<_>>();
 		ids.sort();
-		let proposed = ids
-			.iter()
-			.copied()
-			.find(|id| Agreements::<Test>::get(id).unwrap().bytes == 10)
-			.unwrap();
 		let active = ids
 			.iter()
 			.copied()
@@ -1161,17 +1204,21 @@ fn primary_failover_atomically_rebinds_every_non_terminal_agreement_role() {
 		let bucket_record = Buckets::<Test>::get(bucket).unwrap();
 		assert_eq!(bucket_record.primary, 2);
 		assert!(bucket_record.replicas.contains(&1));
-		for agreement_id in [proposed, active, suspended] {
+		for agreement_id in ids.iter().copied() {
 			let agreement = Agreements::<Test>::get(agreement_id).unwrap();
 			assert_eq!(agreement.primary, 2);
 			assert!(agreement.replicas.contains(&1));
 			assert!(!agreement.replicas.contains(&2));
 		}
-		assert_ok!(StorageProvider::terminate_agreement(RuntimeOrigin::signed(2), active, 3,));
-		assert_ok!(StorageProvider::terminate_agreement(RuntimeOrigin::signed(2), suspended, 4,));
-		assert_ok!(
-			StorageProvider::terminate_agreement(RuntimeOrigin::signed(OWNER), proposed, 2,)
-		);
+		for agreement_id in ids {
+			let agreement = Agreements::<Test>::get(agreement_id).unwrap();
+			let caller = if agreement.status == AgreementStatus::Proposed { OWNER } else { 2 };
+			assert_ok!(StorageProvider::terminate_agreement(
+				RuntimeOrigin::signed(caller),
+				agreement_id,
+				agreement.version,
+			));
+		}
 	});
 }
 
@@ -1337,7 +1384,7 @@ fn checkpoint_duty_admission_is_exactly_bounded_per_block() {
 				replicas.clone(),
 			));
 		}
-		assert_eq!(CheckpointDutyAdmissionCount::<Test>::get(), 8);
+		assert_eq!(DutyAdmissionCount::<Test>::get(), 8);
 		assert_eq!(CheckpointDutyPending::<Test>::iter().count(), 8);
 		assert_noop!(
 			StorageProvider::create_bucket(
@@ -1356,36 +1403,15 @@ fn checkpoint_duty_admission_is_exactly_bounded_per_block() {
 			1,
 			vec![2, 3].try_into().unwrap(),
 		));
-		assert_eq!(CheckpointDutyAdmissionCount::<Test>::get(), 1);
+		assert_eq!(DutyAdmissionCount::<Test>::get(), 1);
 		assert_eq!(CheckpointDutyPending::<Test>::iter().count(), 9);
 	});
 }
 
 #[test]
-fn checkpoint_challenge_and_capacity_release_bounds_saturate_independently() {
+fn checkpoint_and_challenge_admissions_share_one_exact_bound() {
 	new_test_ext().execute_with(|| {
 		let bucket = setup_bucket();
-		let challenge_ids =
-			(0..8).map(|index| H256::from_low_u64_be(100 + index)).collect::<Vec<_>>();
-		let challenge_backlog: frame_support::BoundedVec<H256, MaxChallengeBacklog> =
-			challenge_ids.clone().try_into().unwrap();
-		let releases: frame_support::BoundedVec<H256, MaxCapacityReleasesPerBlock> =
-			challenge_ids.clone().try_into().unwrap();
-		ChallengeBacklog::<Test>::put(challenge_backlog);
-		CapacityReleases::<Test>::insert(12, releases);
-		for index in 1..8 {
-			assert_ok!(StorageProvider::create_bucket(
-				RuntimeOrigin::signed(OWNER),
-				H256::from_low_u64_be(index),
-				1,
-				vec![2, 3].try_into().unwrap(),
-			));
-		}
-		assert_eq!(CheckpointDutyAdmissionCount::<Test>::get(), 8);
-		assert_eq!(ChallengeBacklog::<Test>::get().len(), 8);
-		assert_eq!(CapacityReleases::<Test>::get(12).len(), 8);
-
-		ChallengeBacklog::<Test>::kill();
 		BucketSnapshots::<Test>::insert(
 			bucket,
 			crate::BucketSnapshot {
@@ -1400,16 +1426,66 @@ fn checkpoint_challenge_and_capacity_release_bounds_saturate_independently() {
 				replica_confirmations: vec![2, 3].try_into().unwrap(),
 			},
 		);
-		assert_ok!(StorageProvider::issue_challenge(
-			RuntimeOrigin::root(),
-			bucket,
-			1,
-			crate::ChunkLocationV1 { leaf_index: 0, chunk_index: 0 },
-			10,
-		));
-		assert_eq!(ChallengeBacklog::<Test>::get().len(), 1);
-		assert_eq!(CheckpointDutyAdmissionCount::<Test>::get(), 8);
+		for index in 1..4 {
+			assert_ok!(StorageProvider::create_bucket(
+				RuntimeOrigin::signed(OWNER),
+				H256::from_low_u64_be(index),
+				1,
+				vec![2, 3].try_into().unwrap(),
+			));
+		}
+		for index in 0..4 {
+			assert_ok!(StorageProvider::issue_challenge(
+				RuntimeOrigin::root(),
+				bucket,
+				1,
+				crate::ChunkLocationV1 { leaf_index: index, chunk_index: 0 },
+				10,
+			));
+		}
+		assert_eq!(DutyAdmissionCount::<Test>::get(), 8);
+		let buckets = BucketIds::<Test>::get();
+		let backlog = ChallengeBacklog::<Test>::get();
+		let events = System::events().len();
+		assert_noop!(
+			StorageProvider::issue_challenge(
+				RuntimeOrigin::root(),
+				bucket,
+				1,
+				crate::ChunkLocationV1 { leaf_index: 4, chunk_index: 0 },
+				10,
+			),
+			Error::<Test>::ChallengeDutyLimit
+		);
+		assert_noop!(
+			StorageProvider::create_bucket(
+				RuntimeOrigin::signed(OWNER),
+				H256::from_low_u64_be(9),
+				1,
+				vec![2, 3].try_into().unwrap(),
+			),
+			Error::<Test>::CheckpointDutyLimit
+		);
+		assert_eq!(DutyAdmissionCount::<Test>::get(), 8);
+		assert_eq!(BucketIds::<Test>::get(), buckets);
+		assert_eq!(ChallengeBacklog::<Test>::get(), backlog);
+		assert_eq!(System::events().len(), events);
+	});
+}
+
+#[test]
+fn outstanding_challenge_and_capacity_release_bounds_are_additive() {
+	new_test_ext().execute_with(|| {
+		let ids = (0..8).map(H256::from_low_u64_be).collect::<Vec<_>>();
+		let challenge_backlog: frame_support::BoundedVec<H256, MaxChallengeBacklog> =
+			ids.clone().try_into().unwrap();
+		let releases: frame_support::BoundedVec<H256, MaxCapacityReleasesPerBlock> =
+			ids.try_into().unwrap();
+		ChallengeBacklog::<Test>::put(challenge_backlog);
+		CapacityReleases::<Test>::insert(12, releases);
+		assert_eq!(ChallengeBacklog::<Test>::get().len(), 8);
 		assert_eq!(CapacityReleases::<Test>::get(12).len(), 8);
+		assert_eq!(DutyAdmissionCount::<Test>::get(), 0);
 	});
 }
 
@@ -1568,7 +1644,7 @@ fn checkpoint_context_v1_binds_every_field_and_rejects_wrong_signatures_without_
 					wrong_context_signature,
 					confirmations,
 				),
-				Error::<Test>::StorageCheckpointWrongKey
+				Error::<Test>::StorageCheckpointWrongContext
 			);
 			assert!(BucketSnapshots::<Test>::get(bucket).is_none());
 			assert_eq!(CheckpointClaims::<Test>::iter().count(), 0);
@@ -1595,10 +1671,83 @@ fn checkpoint_context_v1_binds_every_field_and_rejects_wrong_signatures_without_
 				context_signature,
 				confirmations,
 			),
-			Error::<Test>::StorageCheckpointInsufficientQuorum
+			Error::<Test>::StorageCheckpointWrongContext
 		);
 		assert!(BucketSnapshots::<Test>::get(bucket).is_none());
+		assert_eq!(CheckpointClaims::<Test>::iter().count(), 0);
 		assert_eq!(System::events().len(), events);
+	});
+}
+
+#[test]
+fn checkpoint_context_duty_and_promotion_exact_golden_vector_is_stable() {
+	new_test_ext().execute_with(|| {
+		let hex = |bytes: &[u8]| {
+			bytes.iter().map(|byte| format!("{byte:02x}")).collect::<String>()
+		};
+		let bucket = setup_bucket();
+		set_finalized(101);
+		let checkpoint = payload(bucket, H256::repeat_byte(88), 0, 1, 101);
+		let duty = StorageProvider::checkpoint_duty_at(bucket, 101).unwrap();
+		let duty_preimage = StorageProvider::checkpoint_duty_preimage(&duty, 101);
+		let duty_id = StorageProvider::checkpoint_duty_id(&duty, 101);
+		let context = StorageProvider::checkpoint_context_for(&checkpoint).unwrap();
+		let context_scale = context.encode();
+		let mut context_message = b"cord/storage/checkpoint-context/v1".to_vec();
+		context_message.extend_from_slice(&context_scale);
+		let promotion = CheckpointFallbackPromotionV1 {
+			version: 1,
+			bucket_id: bucket,
+			snapshot_nonce: 101,
+			duty_id,
+		};
+		assert_eq!(
+			hex(bucket.as_bytes()),
+			"e47d01b8abf1ab7be46c1c985ddd7d1cd4d198ddf533f5a322a885c383f7d105"
+		);
+		assert_eq!(
+			hex(&duty_preimage),
+			"636f72642f73746f726167652f636865636b706f696e742d647574792f763211111111111111111111111111111111111111111111111111111111111111110100000001000000222222222222222222222222222222222222222222222222222222222222222265000000000000000000000000000000000000000000000000000000000000000000000000000065e47d01b8abf1ab7be46c1c985ddd7d1cd4d198ddf533f5a322a885c383f7d105010000000000000008020000000000000003000000000000000100000000000000000000000000000000650000000000000079000000000000000000"
+		);
+		assert_eq!(
+			hex(duty_id.as_bytes()),
+			"8973f76c873b69489cff1ee35f4f1c8c3f61d6f111e2919f2de53cbdb7c7e171"
+		);
+		assert_eq!(
+			hex(&context_scale),
+			"0111111111111111111111111111111111111111111111111111111111111111110100000001000000222222222222222222222222222222222222222222222222222222222222222200000000000000000000000000000000000000000000000000000000000000658973f76c873b69489cff1ee35f4f1c8c3f61d6f111e2919f2de53cbdb7c7e171e54285176cae46b1765a808fa812a1e09203f54337656e9ab3b6bd7d9514485b"
+		);
+		assert_eq!(
+			hex(&context_message),
+			"636f72642f73746f726167652f636865636b706f696e742d636f6e746578742f76310111111111111111111111111111111111111111111111111111111111111111110100000001000000222222222222222222222222222222222222222222222222222222222222222200000000000000000000000000000000000000000000000000000000000000658973f76c873b69489cff1ee35f4f1c8c3f61d6f111e2919f2de53cbdb7c7e171e54285176cae46b1765a808fa812a1e09203f54337656e9ab3b6bd7d9514485b"
+		);
+		let context_digest = StorageProvider::checkpoint_context_digest(&context);
+		assert_eq!(
+			hex(&context_digest),
+			"66f0ce2876c7ebc5c57c3388e826750eef59b6950e96ab57c7d8e3f2ef81992a"
+		);
+		assert_eq!(
+			hex(pair(1).public().as_ref()),
+			"8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c"
+		);
+		let context_signature = pair(1).sign(&context_digest);
+		assert_eq!(
+			hex(context_signature.as_ref()),
+			"b5c269cf6b084071e45731e1f4477dfc62e13b726e0df49a69fac882d41ff7e99072894a9f8111dbb8b907d72fa9f8471c3167e280d0ba492a8e3b81f764b80a"
+		);
+		assert!(sp_io::crypto::ed25519_verify(
+			&context_signature,
+			&context_digest,
+			&pair(1).public()
+		));
+		assert_eq!(
+			hex(&promotion.encode()),
+			"01e47d01b8abf1ab7be46c1c985ddd7d1cd4d198ddf533f5a322a885c383f7d10565000000000000008973f76c873b69489cff1ee35f4f1c8c3f61d6f111e2919f2de53cbdb7c7e171"
+		);
+		assert_eq!(
+			hex(&StorageProvider::checkpoint_promotion_digest(&promotion)),
+			"c70899b451eac1e5bf509fa33dfc71448f0ed1078b67c04424b070530e4fc988"
+		);
 	});
 }
 
@@ -1658,12 +1807,225 @@ fn grace_fallback_is_typed_when_two_post_promotion_confirmers_are_unavailable() 
 				context_signature,
 				confirmations,
 			),
-			Error::<Test>::InsufficientFallbackQuorum
+			Error::<Test>::StorageCheckpointInsufficientQuorum
 		);
 		assert_eq!(Buckets::<Test>::get(bucket).unwrap(), before_bucket);
 		assert!(BucketSnapshots::<Test>::get(bucket).is_none());
 		assert_eq!(System::events().len(), before_events);
 	});
+}
+
+#[test]
+fn authority_only_fallback_promotion_is_idempotent_and_requires_repair_before_publish() {
+	new_test_ext().execute_with(|| {
+		let bucket = setup_bucket();
+		assert_ok!(StorageProvider::propose_agreement(
+			RuntimeOrigin::signed(OWNER),
+			bucket,
+			1,
+			10,
+			200,
+		));
+		let agreement_id = Agreements::<Test>::iter_keys().next().unwrap();
+		set_finalized(121);
+		Providers::<Test>::mutate(1, |record| {
+			record.as_mut().unwrap().status = ProviderStatus::Suspended
+		});
+		let (promotion, signature) = signed_promotion(bucket, 121, 2);
+		assert_ok!(StorageProvider::promote_checkpoint_fallback(
+			RuntimeOrigin::signed(2),
+			promotion,
+			pair(2).public(),
+			signature.clone(),
+		));
+		let promoted = Buckets::<Test>::get(bucket).unwrap();
+		assert_eq!(promoted.primary, 2);
+		assert_eq!(promoted.replicas.as_slice(), &[1, 3]);
+		let agreement = Agreements::<Test>::get(agreement_id).unwrap();
+		assert_eq!(agreement.primary, 2);
+		assert_eq!(agreement.replicas.as_slice(), &[1, 3]);
+		assert!(BucketSnapshots::<Test>::get(bucket).is_none());
+		assert_eq!(CheckpointClaims::<Test>::iter().count(), 0);
+		let recovery = CheckpointDutyPending::<Test>::get(bucket).unwrap();
+		assert_eq!(recovery.mode, CheckpointDutyMode::PromotionPending);
+		assert_eq!(recovery.promotion_predecessor, Some(1));
+		assert_eq!(recovery.scheduled_at, 121);
+		assert!(StorageProvider::checkpoint_duty_at(bucket, 121)
+			.is_some_and(|duty| duty.mode == CheckpointDutyMode::Standard));
+		assert!(CheckpointFallbackPromotionReceiptByBucket::<Test>::contains_key(bucket));
+
+		let events = System::events().len();
+		assert_ok!(StorageProvider::promote_checkpoint_fallback(
+			RuntimeOrigin::signed(2),
+			promotion,
+			pair(2).public(),
+			signature,
+		));
+		assert_eq!(Buckets::<Test>::get(bucket).unwrap(), promoted);
+		assert_eq!(System::events().len(), events);
+
+		Providers::<Test>::mutate(4, |record| {
+			record.as_mut().unwrap().authority_validated_at = Some(121)
+		});
+		assert_noop!(
+			StorageProvider::replace_bucket_replica(
+				RuntimeOrigin::signed(OWNER),
+				bucket,
+				promoted.version,
+				1,
+				4,
+			),
+			Error::<Test>::CheckpointDutyPending
+		);
+		System::set_block_number(122);
+		set_finalized(122);
+		Providers::<Test>::mutate(4, |record| {
+			record.as_mut().unwrap().authority_validated_at = Some(122)
+		});
+		assert_ok!(StorageProvider::replace_bucket_replica(
+			RuntimeOrigin::signed(OWNER),
+			bucket,
+			promoted.version,
+			1,
+			4,
+		));
+		let repaired = Buckets::<Test>::get(bucket).unwrap();
+		assert_eq!(repaired.replicas.as_slice(), &[4, 3]);
+		assert_eq!(
+			StorageProvider::checkpoint_duty_at(bucket, 122).unwrap().mode,
+			CheckpointDutyMode::PromotionPending
+		);
+		System::set_block_number(123);
+		set_finalized(123);
+		let repaired_duty = StorageProvider::checkpoint_duty_at(bucket, 123).unwrap();
+		assert_eq!(repaired_duty.replicas.as_slice(), &[4, 3]);
+		assert_eq!(repaired_duty.mode, CheckpointDutyMode::PromotionPending);
+		let checkpoint = payload(bucket, H256::repeat_byte(90), 0, 1, 123);
+		let (checkpoint_signature, context_signature, confirmations) =
+			signed_checkpoint_for(checkpoint, 2, &[3, 4]);
+		assert_ok!(StorageProvider::submit_checkpoint(
+			RuntimeOrigin::signed(2),
+			DOMAIN.to_vec().try_into().unwrap(),
+			checkpoint,
+			repaired_duty.due_at,
+			repaired_duty.grace_until,
+			pair(2).public(),
+			checkpoint_signature,
+			context_signature,
+			confirmations,
+		));
+		assert_eq!(BucketSnapshots::<Test>::get(bucket).unwrap().checkpoint_block, 123);
+	});
+}
+
+#[test]
+fn authority_only_fallback_promotion_rolls_back_every_surface_on_hostile_invariants() {
+	for case in 0..6 {
+		new_test_ext().execute_with(|| {
+			for provider in 1..=4 {
+				register(provider, 10_000);
+			}
+			assert_ok!(StorageProvider::create_bucket(
+				RuntimeOrigin::signed(OWNER),
+				H256::repeat_byte(10),
+				1,
+				vec![2, 3, 4].try_into().unwrap(),
+			));
+			let bucket = BucketIds::<Test>::get()[0];
+			assert_ok!(StorageProvider::propose_agreement(
+				RuntimeOrigin::signed(OWNER),
+				bucket,
+				1,
+				10,
+				200,
+			));
+			let agreement_id = Agreements::<Test>::iter_keys().next().unwrap();
+			set_finalized(121);
+			Providers::<Test>::mutate(1, |record| {
+				record.as_mut().unwrap().status = ProviderStatus::Suspended
+			});
+			let (promotion, mut signature) = signed_promotion(bucket, 121, 2);
+			let expected = match case {
+				0 => {
+					Agreements::<Test>::remove(agreement_id);
+					Error::<Test>::AgreementNotFound
+				},
+				1 => {
+					Agreements::<Test>::mutate(agreement_id, |record| {
+						record.as_mut().unwrap().bucket_id = H256::repeat_byte(99)
+					});
+					Error::<Test>::AgreementInvalidState
+				},
+				2 => {
+					Agreements::<Test>::mutate(agreement_id, |record| {
+						record.as_mut().unwrap().primary = 4
+					});
+					Error::<Test>::AgreementInvalidState
+				},
+				3 => {
+					Agreements::<Test>::mutate(agreement_id, |record| {
+						record.as_mut().unwrap().replicas = vec![3, 4].try_into().unwrap()
+					});
+					Error::<Test>::ProviderIneligible
+				},
+				4 => {
+					let initial = CheckpointDutyPending::<Test>::take(bucket).unwrap();
+					CheckpointDutyCurrent::<Test>::insert(bucket, initial.clone());
+					let mut unfinalized = initial;
+					unfinalized.scheduled_at = 121;
+					CheckpointDutyPending::<Test>::insert(bucket, unfinalized);
+					Error::<Test>::CheckpointDutyPending
+				},
+				_ => {
+					signature = ed25519::Signature::from_raw([0; 64]);
+					Error::<Test>::CheckpointFallbackPromotionWrongKey
+				},
+			};
+			let bucket_before = Buckets::<Test>::get(bucket).unwrap();
+			let agreement_before = Agreements::<Test>::get(agreement_id);
+			let bucket_index_before = BucketAgreements::<Test>::get(bucket);
+			let provider_indexes_before =
+				(1..=4).map(ProviderAgreements::<Test>::get).collect::<Vec<_>>();
+			let assignment_counts_before =
+				(1..=4).map(ProviderBucketAssignmentCount::<Test>::get).collect::<Vec<_>>();
+			let pending_before = CheckpointDutyPending::<Test>::get(bucket);
+			let current_before = CheckpointDutyCurrent::<Test>::get(bucket);
+			let providers_before = (1..=4)
+				.map(|provider| Providers::<Test>::get(provider).unwrap())
+				.collect::<Vec<_>>();
+			let events = System::events().len();
+			assert_noop!(
+				StorageProvider::promote_checkpoint_fallback(
+					RuntimeOrigin::signed(2),
+					promotion,
+					pair(2).public(),
+					signature,
+				),
+				expected
+			);
+			assert_eq!(Buckets::<Test>::get(bucket).unwrap(), bucket_before);
+			assert_eq!(Agreements::<Test>::get(agreement_id), agreement_before);
+			assert_eq!(BucketAgreements::<Test>::get(bucket), bucket_index_before);
+			assert_eq!(
+				(1..=4).map(ProviderAgreements::<Test>::get).collect::<Vec<_>>(),
+				provider_indexes_before
+			);
+			assert_eq!(
+				(1..=4).map(ProviderBucketAssignmentCount::<Test>::get).collect::<Vec<_>>(),
+				assignment_counts_before
+			);
+			assert_eq!(CheckpointDutyPending::<Test>::get(bucket), pending_before);
+			assert_eq!(CheckpointDutyCurrent::<Test>::get(bucket), current_before);
+			assert_eq!(
+				(1..=4)
+					.map(|provider| Providers::<Test>::get(provider).unwrap())
+					.collect::<Vec<_>>(),
+				providers_before
+			);
+			assert!(!CheckpointFallbackPromotionReceiptByBucket::<Test>::contains_key(bucket));
+			assert_eq!(System::events().len(), events);
+		});
+	}
 }
 
 #[test]

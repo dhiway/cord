@@ -119,7 +119,7 @@ parameter_types! {
 	pub const MaxEndpointBytes: u32 = 64;
 	pub const MaxEntityIdBytes: u32 = 64;
 	pub const MaxAgreements: u32 = 4;
-	pub const MaxCheckpointDutyAdmissionsPerBlock: u32 = 8;
+	pub const MaxDutiesPerBlock: u32 = 8;
 	pub const MaxChallengeBacklog: u32 = 8;
 	pub const MaxCapacityReleasesPerBlock: u32 = 8;
 	pub const MaxProofNodes: u32 = 16;
@@ -142,7 +142,7 @@ impl pallet_orbis_storage_provider::Config for Test {
 	type MaxAssignedProviders = ConstU32<5>;
 	type MaxProviderAgreements = ConstU32<16>;
 	type MaxBucketAgreements = MaxAgreements;
-	type MaxCheckpointDutyAdmissionsPerBlock = MaxCheckpointDutyAdmissionsPerBlock;
+	type MaxDutiesPerBlock = MaxDutiesPerBlock;
 	type MaxChallengeBacklog = MaxChallengeBacklog;
 	type MaxCapacityReleasesPerBlock = MaxCapacityReleasesPerBlock;
 	type MaxChallengesPerBlock = ConstU32<4>;
