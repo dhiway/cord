@@ -313,6 +313,15 @@ impl CheckpointStack {
 		self.lock()?.replication.plan_session(session, operation_id)
 	}
 
+	pub(crate) fn replan_replication_source(
+		&self,
+		intent_key: &str,
+		session: &ReplicationSessionV1,
+		operation_id: [u8; 16],
+	) -> Result<ReplicationIntentV1, ContentError> {
+		self.lock()?.replication.replan_source(intent_key, session, operation_id)
+	}
+
 	pub(crate) fn replication_resume_tick(
 		&self,
 		limit: usize,
@@ -609,6 +618,14 @@ impl CheckpointStack {
 		fault: PeerReplyFault,
 	) -> Result<(), ContentError> {
 		self.lock()?.peer_replies.inject_fault_once(fault)
+	}
+
+	#[cfg(test)]
+	pub(crate) fn inject_replication_intent_fault_once(
+		&self,
+		fault: crate::replication::ReplicationFault,
+	) -> Result<(), ContentError> {
+		self.lock()?.replication.inject_fault_once(fault)
 	}
 
 	#[cfg(test)]

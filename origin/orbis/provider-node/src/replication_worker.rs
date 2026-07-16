@@ -33,7 +33,7 @@ use crate::{
 	peer::PeerMmrCommitmentV1,
 	peer_transport::HyperPeerTransport,
 	replication::ReplicationResumeV1,
-	replication_reconciler::ReplicationReconciler,
+	replication_reconciler::{ReconcileFailureV1, ReplicationReconciler},
 	replication_session::ReplicationSessionV1,
 	BucketId, CheckpointDuty, DiskStore, FinalizedRuntimeAuthority,
 };
@@ -170,7 +170,7 @@ async fn reconcile_intent(
 	target_key: ed25519::Pair,
 	intent: WorkerIntent,
 ) -> Result<(), String> {
-	let (session, operation_id) = match intent {
+	let (session, operation_id, intent_key) = match intent {
 		WorkerIntent::Resume(resume) => {
 			let pinned = authority
 				.replication_topology_at(
@@ -208,19 +208,96 @@ async fn reconcile_intent(
 			)
 			.map_err(|error| error.to_string())?;
 			ensure_current(&pinned_session, &current_session)?;
-			(pinned_session, resume.operation_id)
+			(pinned_session, resume.operation_id, resume.intent_key)
 		},
-		WorkerIntent::Discovered(discovered) => (discovered.session, discovered.operation_id),
+		WorkerIntent::Discovered(discovered) => {
+			(discovered.session, discovered.operation_id, discovered.intent_key)
+		},
 	};
 	let transport =
 		Arc::new(HyperPeerTransport::new(PEER_TIMEOUT).map_err(|error| error.to_string())?);
-	let reconciler = ReplicationReconciler::new(stack, transport, target_key)
+	let reconciler = ReplicationReconciler::new(Arc::clone(&stack), transport, target_key.clone())
 		.map_err(|error| error.to_string())?;
-	reconciler
-		.reconcile_one(&session, operation_id)
+	match reconciler.reconcile_one(&session, operation_id).await {
+		Ok(_) => Ok(()),
+		Err(ReconcileFailureV1::TargetLocal(error)) => Err(error.to_string()),
+		Err(ReconcileFailureV1::SourcePeer(error)) => {
+			let _ = replan_failed_source(
+				authority,
+				stack,
+				local_provider,
+				&target_key,
+				&intent_key,
+				&session,
+			)
+			.await?;
+			Err(error.to_string())
+		},
+	}
+}
+
+async fn replan_failed_source<A: ReplicationAuthority>(
+	authority: Arc<A>,
+	stack: Arc<CheckpointStack>,
+	local_provider: [u8; 32],
+	target_key: &ed25519::Pair,
+	intent_key: &str,
+	failed_session: &ReplicationSessionV1,
+) -> Result<Option<ReplicationSessionV1>, String> {
+	let pinned = failed_session.topology();
+	let failed = pinned
+		.providers
+		.iter()
+		.find(|provider| provider.provider == failed_session.source().provider())
+		.ok_or_else(|| "failed replication source is absent from pinned topology".to_string())?;
+	let checkpoint = failed
+		.confirmed_checkpoint
+		.ok_or_else(|| "failed replication source has no confirmed checkpoint".to_string())?;
+	let current = authority
+		.replication_topology(pinned.bucket_id)
 		.await
 		.map_err(|error| error.to_string())?;
-	Ok(())
+	let commitment = failed_session.context().candidate_commitment().clone();
+	for source in eligible_sources_after(
+		pinned,
+		&current,
+		local_provider,
+		checkpoint,
+		(failed.order, failed.provider),
+	) {
+		let pinned_session = match ReplicationSessionV1::from_topology(
+			pinned.clone(),
+			local_provider,
+			target_key.public().0,
+			source,
+			local_provider,
+			commitment.clone(),
+		) {
+			Ok(session) => session,
+			Err(_) => continue,
+		};
+		let current_session = match ReplicationSessionV1::from_topology(
+			current.clone(),
+			local_provider,
+			target_key.public().0,
+			source,
+			local_provider,
+			commitment.clone(),
+		) {
+			Ok(session) => session,
+			Err(_) => continue,
+		};
+		if ensure_current(&pinned_session, &current_session).is_err() {
+			continue;
+		}
+		let operation_id =
+			ReplicationReconciler::<HyperPeerTransport>::operation_id(&pinned_session);
+		stack
+			.replan_replication_source(intent_key, &pinned_session, operation_id)
+			.map_err(|error| error.to_string())?;
+		return Ok(Some(pinned_session));
+	}
+	Ok(None)
 }
 
 async fn discover<A: ReplicationAuthority>(
@@ -313,17 +390,44 @@ pub(crate) fn select_source(
 	local_provider: [u8; 32],
 	checkpoint: u32,
 ) -> Option<[u8; 32]> {
-	topology
+	eligible_sources_after(topology, topology, local_provider, checkpoint, (0, [0; 32]))
+		.into_iter()
+		.next()
+}
+
+fn eligible_sources_after(
+	pinned: &ReplicationTopologySnapshot,
+	current: &ReplicationTopologySnapshot,
+	local_provider: [u8; 32],
+	checkpoint: u32,
+	after: (u8, [u8; 32]),
+) -> Vec<[u8; 32]> {
+	let mut candidates = pinned
 		.providers
 		.iter()
 		.filter(|provider| {
 			provider.provider != local_provider
-				&& provider.usable
-				&& provider.exclusions.is_empty()
-				&& provider.confirmed_checkpoint == Some(checkpoint)
+				&& (provider.order, provider.provider) > after
+				&& source_is_eligible(provider, checkpoint)
+				&& current.providers.iter().any(|candidate| {
+					candidate.provider == provider.provider
+						&& candidate.order == provider.order
+						&& source_is_eligible(candidate, checkpoint)
+				})
 		})
-		.min_by_key(|provider| provider.order)
-		.map(|provider| provider.provider)
+		.map(|provider| (provider.order, provider.provider))
+		.collect::<Vec<_>>();
+	candidates.sort_unstable();
+	candidates.into_iter().map(|(_, provider)| provider).collect()
+}
+
+fn source_is_eligible(
+	provider: &crate::chain::ReplicationProviderSnapshot,
+	checkpoint: u32,
+) -> bool {
+	provider.usable
+		&& provider.exclusions.is_empty()
+		&& provider.confirmed_checkpoint == Some(checkpoint)
 }
 
 fn ensure_current(
@@ -354,7 +458,13 @@ fn decode_hash(value: &str) -> Result<[u8; 32], String> {
 
 #[cfg(test)]
 mod tests {
-	use std::{fs, sync::Mutex};
+	use std::{
+		fs,
+		sync::{
+			atomic::{AtomicUsize, Ordering},
+			Mutex,
+		},
+	};
 
 	use async_trait::async_trait;
 	use codec::Encode;
@@ -407,6 +517,32 @@ mod tests {
 	struct DirectTransport {
 		responder: Arc<PeerResponder<Authority>>,
 		requests: Mutex<Vec<Vec<u8>>>,
+	}
+
+	#[derive(Default)]
+	struct PersistentPartition {
+		requests: AtomicUsize,
+	}
+
+	#[async_trait]
+	impl PeerTransport for PersistentPartition {
+		async fn page(
+			&self,
+			_: &ReplicationSessionV1,
+			_: &[u8],
+		) -> Result<Vec<u8>, PeerTransportError> {
+			self.requests.fetch_add(1, Ordering::SeqCst);
+			Err(PeerTransportError::Transport)
+		}
+
+		async fn chunk(
+			&self,
+			_: &ReplicationSessionV1,
+			_: &[u8],
+		) -> Result<Vec<u8>, PeerTransportError> {
+			self.requests.fetch_add(1, Ordering::SeqCst);
+			Err(PeerTransportError::Transport)
+		}
 	}
 
 	#[async_trait]
@@ -768,6 +904,213 @@ mod tests {
 		corrupt_target_is_discovered_and_repaired(true, true, b"", b"suffix", 0, true).await;
 	}
 
+	#[tokio::test]
+	async fn persistent_source_partition_replans_once_and_resumes_from_the_next_source() {
+		let source = TempDir::new().unwrap();
+		let target = TempDir::new().unwrap();
+		let bytes = b"deterministic source failover".to_vec();
+		let source_streaming = StreamingStore::open(source.path()).unwrap();
+		let cid = install_object(source.path(), &source_streaming, 7, &bytes);
+		let source_mmr = BucketMmrStore::open(source.path(), &source_streaming).unwrap();
+		let candidate = source_mmr
+			.commitment_candidate(&source_streaming, BucketId::from_bytes([3; 32]), 0)
+			.unwrap();
+		let commitment = PeerMmrCommitmentV1::new(
+			candidate.mmr_root.0,
+			candidate.start_seq,
+			candidate.leaf_count,
+			0,
+		)
+		.unwrap();
+		let checkpoint = 50;
+		let mut topology = ReplicationTopologySnapshot {
+			genesis_hash: [1; 32],
+			finalized_hash: [2; 32],
+			finalized_number: 60,
+			governed_finalized_checkpoint: Some(checkpoint),
+			bucket_id: [3; 32],
+			bucket_version: 4,
+			primary: [4; 32],
+			replicas: vec![[5; 32], [9; 32]],
+			providers: vec![
+				topology_provider([4; 32], 0, pair(11).public().0, Some(checkpoint)),
+				topology_provider([5; 32], 1, pair(13).public().0, Some(checkpoint)),
+				topology_provider([9; 32], 2, pair(12).public().0, Some(checkpoint)),
+			],
+			current_checkpoint: Some(CheckpointInfo {
+				bucket_id: H256::repeat_byte(3),
+				commitment: CommitmentInfo {
+					mmr_root: candidate.mmr_root,
+					start_seq: candidate.start_seq,
+					leaf_count: candidate.leaf_count,
+				},
+				checkpoint_block: checkpoint,
+				primary_signers: 1,
+				commitment_nonce: checkpoint,
+				replica_confirmations: vec![AccountId32::new([5; 32]), AccountId32::new([9; 32])],
+			}),
+			snapshot_hash: [0; 32],
+		};
+		let mut topology_bytes = b"cord/provider/replication-topology/v1".to_vec();
+		topology.encode_to(&mut topology_bytes);
+		topology.snapshot_hash = blake2_256(&topology_bytes);
+		let authority = Arc::new(Authority(topology.clone()));
+		let initial_session = ReplicationSessionV1::from_topology(
+			topology.clone(),
+			[9; 32],
+			pair(12).public().0,
+			[4; 32],
+			[9; 32],
+			commitment.clone(),
+		)
+		.unwrap();
+		let initial_operation =
+			ReplicationReconciler::<PersistentPartition>::operation_id(&initial_session);
+		let target_stack = Arc::new(CheckpointStack::open(target.path()).unwrap());
+		let initial = target_stack.plan_replication(&initial_session, initial_operation).unwrap();
+		let partition = Arc::new(PersistentPartition::default());
+		let failed =
+			ReplicationReconciler::new(Arc::clone(&target_stack), Arc::clone(&partition), pair(12))
+				.unwrap();
+		assert!(matches!(
+			failed.reconcile_one(&initial_session, initial_operation).await,
+			Err(ReconcileFailureV1::SourcePeer(PeerTransportError::Transport))
+		));
+		assert_eq!(partition.requests.load(Ordering::SeqCst), 1);
+
+		let replacement = replan_failed_source(
+			Arc::clone(&authority),
+			Arc::clone(&target_stack),
+			[9; 32],
+			&pair(12),
+			&initial.intent_key,
+			&initial_session,
+		)
+		.await
+		.unwrap()
+		.expect("the next confirmed source must be selected");
+		assert_eq!(replacement.source().provider(), [5; 32]);
+		drop(failed);
+		drop(target_stack);
+
+		let reopened = Arc::new(CheckpointStack::open(target.path()).unwrap());
+		let resumes = reopened.replication_resume_tick(1).unwrap();
+		assert_eq!(resumes.len(), 1);
+		let resume = &resumes[0];
+		assert_eq!(resume.intent_key, initial.intent_key);
+		assert_eq!(resume.source_provider, [5; 32]);
+		assert_ne!(resume.operation_id, initial_operation);
+		let resumed_session = ReplicationSessionV1::from_topology(
+			topology.clone(),
+			[9; 32],
+			pair(12).public().0,
+			resume.source_provider,
+			resume.target_provider,
+			resume.commitment.clone(),
+		)
+		.unwrap();
+		assert_eq!(
+			resume.operation_id,
+			ReplicationReconciler::<DirectTransport>::operation_id(&resumed_session)
+		);
+		let responder = Arc::new(
+			PeerResponder::new(
+				Arc::clone(&authority),
+				Arc::new(CheckpointStack::open(source.path()).unwrap()),
+				[5; 32],
+				pair(13),
+			)
+			.unwrap(),
+		);
+		let transport = Arc::new(DirectTransport { responder, requests: Mutex::new(Vec::new()) });
+		let reconciler =
+			ReplicationReconciler::new(Arc::clone(&reopened), transport, pair(12)).unwrap();
+		let mut phase = ReplicationPhase::Planned;
+		let mut steps = 0;
+		for _ in 0..5 {
+			steps += 1;
+			phase = reconciler
+				.reconcile_one(&resumed_session, resume.operation_id)
+				.await
+				.unwrap()
+				.phase;
+			if phase == ReplicationPhase::MmrCommitted {
+				break;
+			}
+		}
+		assert_eq!(phase, ReplicationPhase::MmrCommitted);
+		assert!(steps <= 5);
+		let target_streaming = StreamingStore::open(target.path()).unwrap();
+		assert_eq!(target_streaming.read_chunk_verified(cid.as_str(), 0).unwrap(), bytes);
+		let target_mmr = BucketMmrStore::open(target.path(), &target_streaming).unwrap();
+		let installed = target_mmr
+			.commitment_candidate(&target_streaming, BucketId::from_bytes([3; 32]), 0)
+			.unwrap();
+		assert_eq!(installed.mmr_root, candidate.mmr_root);
+		assert_eq!(installed.leaf_count, 1);
+	}
+
+	#[tokio::test]
+	async fn target_local_persistence_failure_does_not_rotate_the_source() {
+		let target = TempDir::new().unwrap();
+		let checkpoint = 50;
+		let mut topology = ReplicationTopologySnapshot {
+			genesis_hash: [1; 32],
+			finalized_hash: [2; 32],
+			finalized_number: 60,
+			governed_finalized_checkpoint: Some(checkpoint),
+			bucket_id: [3; 32],
+			bucket_version: 4,
+			primary: [4; 32],
+			replicas: vec![[5; 32], [9; 32]],
+			providers: vec![
+				topology_provider([4; 32], 0, pair(11).public().0, Some(checkpoint)),
+				topology_provider([5; 32], 1, pair(13).public().0, Some(checkpoint)),
+				topology_provider([9; 32], 2, pair(12).public().0, Some(checkpoint)),
+			],
+			current_checkpoint: None,
+			snapshot_hash: [0; 32],
+		};
+		let mut topology_bytes = b"cord/provider/replication-topology/v1".to_vec();
+		topology.encode_to(&mut topology_bytes);
+		topology.snapshot_hash = blake2_256(&topology_bytes);
+		let session = ReplicationSessionV1::from_topology(
+			topology,
+			[9; 32],
+			pair(12).public().0,
+			[4; 32],
+			[9; 32],
+			PeerMmrCommitmentV1::new([21; 32], 0, 1, 0).unwrap(),
+		)
+		.unwrap();
+		let operation = ReplicationReconciler::<PersistentPartition>::operation_id(&session);
+		let stack = Arc::new(CheckpointStack::open(target.path()).unwrap());
+		let planned = stack.plan_replication(&session, operation).unwrap();
+		stack
+			.inject_replication_intent_fault_once(
+				crate::replication::ReplicationFault::BeforeTempFsync,
+			)
+			.unwrap();
+		let partition = Arc::new(PersistentPartition::default());
+		let reconciler =
+			ReplicationReconciler::new(Arc::clone(&stack), Arc::clone(&partition), pair(12))
+				.unwrap();
+		assert!(matches!(
+			reconciler.reconcile_one(&session, operation).await,
+			Err(ReconcileFailureV1::TargetLocal(_))
+		));
+		assert_eq!(partition.requests.load(Ordering::SeqCst), 0);
+		drop(reconciler);
+		drop(stack);
+
+		let reopened = CheckpointStack::open(target.path()).unwrap();
+		let resumes = reopened.replication_resume_tick(1).unwrap();
+		assert_eq!(resumes.len(), 1);
+		assert_eq!(resumes[0].intent_key, planned.intent_key);
+		assert_eq!(resumes[0].source_provider, [4; 32]);
+		assert_eq!(resumes[0].operation_id, operation);
+	}
+
 	#[test]
 	fn source_selection_is_ordered_and_observes_current_revocation() {
 		let mut topology = ReplicationTopologySnapshot {
@@ -792,5 +1135,39 @@ mod tests {
 		assert_eq!(select_source(&topology, [9; 32], 7), Some([5; 32]));
 		topology.providers[1].usable = false;
 		assert_eq!(select_source(&topology, [9; 32], 7), None);
+	}
+
+	#[test]
+	fn failover_candidates_use_stable_provider_tie_break_and_current_exclusions() {
+		let pinned = ReplicationTopologySnapshot {
+			genesis_hash: [1; 32],
+			finalized_hash: [2; 32],
+			finalized_number: 10,
+			governed_finalized_checkpoint: Some(7),
+			bucket_id: [3; 32],
+			bucket_version: 1,
+			primary: [4; 32],
+			replicas: vec![[6; 32], [5; 32], [9; 32]],
+			providers: vec![
+				provider(4, 0, true, Some(7)),
+				provider(6, 1, true, Some(7)),
+				provider(5, 1, true, Some(7)),
+				provider(9, 2, true, Some(7)),
+			],
+			current_checkpoint: None,
+			snapshot_hash: [6; 32],
+		};
+		let mut current = pinned.clone();
+		assert_eq!(
+			eligible_sources_after(&pinned, &current, [9; 32], 7, (0, [4; 32])),
+			vec![[5; 32], [6; 32]]
+		);
+		current.providers[2]
+			.exclusions
+			.push(crate::chain::ReplicationProviderExclusion::ConfirmationInvalid);
+		assert_eq!(
+			eligible_sources_after(&pinned, &current, [9; 32], 7, (0, [4; 32])),
+			vec![[6; 32]]
+		);
 	}
 }

@@ -333,6 +333,47 @@ impl ReplicationIntentStore {
 		self.plan_input(&input)
 	}
 
+	/// Durably move an active transfer to another source at its current object boundary.
+	///
+	/// Completed objects retain their source-independent receipts and cursor. Any admitted page,
+	/// partial current object proof, or outstanding request is discarded so responses from two
+	/// source authorities can never contribute to the same admitted page. Streaming operation IDs
+	/// are derived from the stable intent key, making already-fsynced chunks safe to reverify when
+	/// the current object is requested again from the replacement source.
+	pub(crate) fn replan_source(
+		&self,
+		existing_intent_key: &str,
+		session: &ReplicationSessionV1,
+		peer_operation_id: [u8; 16],
+	) -> Result<ReplicationIntentV1, ContentError> {
+		let replacement = input_from_session(session, peer_operation_id)?;
+		self.mutate(existing_intent_key, |existing| {
+			if existing.intent_key != existing_intent_key
+				|| intent_key(&replacement) != existing_intent_key
+				|| !same_replan_scope(&existing.identity, &replacement)
+				|| existing.identity.source_provider == replacement.source_provider
+				|| !matches!(
+					existing.phase,
+					ReplicationPhase::Planned | ReplicationPhase::Receiving
+				) || existing.local_commitment.is_some()
+				|| existing.confirmation.is_some()
+			{
+				return Err(ContentError::IdempotencyConflict);
+			}
+			let mut next = existing.clone();
+			next.identity = replacement.clone();
+			next.phase = if next.next_sequence == next.identity.candidate_start {
+				ReplicationPhase::Planned
+			} else {
+				ReplicationPhase::Receiving
+			};
+			next.outstanding_request = None;
+			next.admitted_page = None;
+			next.attempts = 0;
+			Ok(next)
+		})
+	}
+
 	pub(crate) fn record(&self, intent_key: &str) -> Result<ReplicationIntentV1, ContentError> {
 		self.ensure_healthy()?;
 		self.records
@@ -1021,7 +1062,8 @@ impl ReplicationIntentStore {
 	}
 
 	#[cfg(test)]
-	fn inject_fault_once(&self, fault: ReplicationFault) -> Result<(), ContentError> {
+	#[cfg(test)]
+	pub(crate) fn inject_fault_once(&self, fault: ReplicationFault) -> Result<(), ContentError> {
 		*self.fault.write().map_err(|_| lock_error())? = Some(fault);
 		Ok(())
 	}
@@ -1274,6 +1316,28 @@ fn validate_identity(input: &ReplicationIntentInputV1) -> Result<(), ContentErro
 		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(())
+}
+
+fn same_replan_scope(
+	current: &ReplicationIntentInputV1,
+	replacement: &ReplicationIntentInputV1,
+) -> bool {
+	current.genesis_hash == replacement.genesis_hash
+		&& current.topology_snapshot_hash == replacement.topology_snapshot_hash
+		&& current.topology_finalized_hash == replacement.topology_finalized_hash
+		&& current.topology_finalized_number == replacement.topology_finalized_number
+		&& current.topology_governed_checkpoint == replacement.topology_governed_checkpoint
+		&& current.bucket_id == replacement.bucket_id
+		&& current.bucket_version == replacement.bucket_version
+		&& current.target_provider == replacement.target_provider
+		&& current.target_service_key == replacement.target_service_key
+		&& current.target_service_key_version == replacement.target_service_key_version
+		&& current.target_endpoint_hash == replacement.target_endpoint_hash
+		&& current.target_may_confirm == replacement.target_may_confirm
+		&& current.candidate_mmr_root == replacement.candidate_mmr_root
+		&& current.candidate_start == replacement.candidate_start
+		&& current.candidate_count == replacement.candidate_count
+		&& current.candidate_predecessor_total == replacement.candidate_predecessor_total
 }
 
 fn validate_record(record: &ReplicationIntentV1) -> Result<(), ContentError> {
@@ -2277,6 +2341,70 @@ mod tests {
 				.0
 				.to_vec(),
 		}
+	}
+
+	#[test]
+	fn source_replan_preserves_completed_cursor_and_discards_inflight_source_proof() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = ReplicationIntentStore::open(temp.path()).unwrap();
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let candidate = input(19);
+		let initial_session = session_for_identity(&candidate, 19, false);
+		let initial_operation = [31; 16];
+		let planned = store.plan_session(&initial_session, initial_operation).unwrap();
+		let completed = complete_ready(
+			&store,
+			&streaming,
+			&planned,
+			planned.next_sequence,
+			b"completed before source partition".to_vec(),
+		);
+		let completed_cursor = (
+			completed.next_sequence,
+			completed.cumulative_total,
+			completed.last_completed.clone(),
+		);
+		let admitted = with_verified_page(&store, completed, b"inflight source proof");
+		assert!(admitted.admitted_page.is_some());
+		assert!(admitted.outstanding_request.is_some());
+
+		let topology = initial_session.topology().clone();
+		let replacement_source = [250; 32];
+		let replacement_session = ReplicationSessionV1::from_topology(
+			topology,
+			candidate.target_provider,
+			target_pair(19).public().0,
+			replacement_source,
+			candidate.target_provider,
+			initial_session.context().candidate_commitment().clone(),
+		)
+		.unwrap();
+		let replacement_operation = [42; 16];
+		let replanned = store
+			.replan_source(
+				&admitted.intent_key,
+				&replacement_session,
+				replacement_operation,
+			)
+			.unwrap();
+
+		assert_eq!(replanned.intent_key, admitted.intent_key);
+		assert_eq!(replanned.identity.source_provider, replacement_source);
+		assert_eq!(replanned.identity.peer_operation_id, replacement_operation);
+		assert_eq!(replanned.next_sequence, completed_cursor.0);
+		assert_eq!(replanned.cumulative_total, completed_cursor.1);
+		assert_eq!(replanned.last_completed, completed_cursor.2);
+		assert_eq!(replanned.phase, ReplicationPhase::Receiving);
+		assert!(replanned.admitted_page.is_none());
+		assert!(replanned.outstanding_request.is_none());
+		assert_eq!(replanned.attempts, 0);
+		assert!(store
+			.attach_page_response(&replanned.intent_key, b"stale source response")
+			.is_err());
+
+		drop(store);
+		let reopened = ReplicationIntentStore::open(temp.path()).unwrap();
+		assert_eq!(reopened.record(&replanned.intent_key).unwrap(), replanned);
 	}
 
 	#[test]
