@@ -32,6 +32,8 @@ mod capability;
 mod chain;
 #[allow(dead_code)]
 mod checkpoint;
+#[cfg(feature = "checkpoint-live")]
+mod checkpoint_live_worker;
 mod checkpoint_quorum_worker;
 mod checkpoint_stack;
 mod checkpoint_transport;
@@ -55,6 +57,8 @@ mod replication_session;
 mod storage;
 mod workers;
 
+#[cfg(feature = "checkpoint-live")]
+pub use api::run_checkpoint_live_worker;
 pub use api::{
 	run_checkpoint_quorum_worker, run_replication_worker, serve, serve_provider_ingress, ApiConfig,
 	ProviderService,

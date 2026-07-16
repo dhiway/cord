@@ -354,6 +354,35 @@ impl CheckpointOutboxV2 {
 			.cloned())
 	}
 
+	/// Clone every durably finalized submission and its exact finality receipt.
+	pub(crate) fn finalized_submissions(
+		&self,
+	) -> Result<Vec<(CheckpointSubmissionV2, CheckpointFinalizedReceiptV2)>, ContentError> {
+		if *self.poisoned.read().map_err(|_| lock_error())? {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let submissions = self.submissions.read().map_err(|_| lock_error())?;
+		let finalized = self.finalized_receipts.read().map_err(|_| lock_error())?;
+		let mut records = finalized
+			.values()
+			.map(|receipt| {
+				let submission = submissions
+					.get(&receipt.submission_id)
+					.cloned()
+					.ok_or(ContentError::IntegrityFailed)?;
+				validate_finalized_receipt(receipt, &submission)?;
+				Ok((submission, receipt.clone()))
+			})
+			.collect::<Result<Vec<_>, ContentError>>()?;
+		records.sort_by(|left, right| {
+			left.1
+				.finalized_number
+				.cmp(&right.1.finalized_number)
+				.then_with(|| left.0.submission_id.cmp(&right.0.submission_id))
+		});
+		Ok(records)
+	}
+
 	pub(crate) fn record_finalized(
 		&self,
 		submission_id: &str,

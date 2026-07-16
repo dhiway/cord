@@ -197,6 +197,45 @@ pub async fn run_checkpoint_quorum_worker(
 	.await
 }
 
+/// Run one long-lived account-serialized finality lane and exact checkpoint publication lifecycle.
+#[cfg(feature = "checkpoint-live")]
+pub async fn run_checkpoint_live_worker(
+	service: Arc<ProviderService<FinalizedRuntimeAuthority>>,
+	local_provider: [u8; 32],
+	orbis_native_rpc: String,
+	account_suri: String,
+	cadence: std::time::Duration,
+) -> Result<(), ContentError> {
+	use oc::{product_sdk::OrbisNativeClient, types::OriginAccount, OriginSigner};
+
+	let account = OriginAccount::from_uri(&account_suri, None)
+		.map_err(|_| ContentError::Io("invalid provider account secret URI".into()))?;
+	drop(account_suri);
+	let signer = OriginSigner::from_account(&account)
+		.map_err(|_| ContentError::Io("provider account signer initialization failed".into()))?;
+	drop(account);
+	let signer_account: [u8; 32] = signer.account_id().into();
+	if signer_account != local_provider {
+		return Err(ContentError::IntegrityFailed);
+	}
+	let client = OrbisNativeClient::connect(&orbis_native_rpc)
+		.await
+		.map_err(|error| ContentError::Io(error.to_string()))?;
+	let lane = crate::checkpoint::checkpoint_live::OriginRsCheckpointFinalityLane::new(
+		client,
+		signer,
+		service.service_key.clone(),
+	)?;
+	crate::checkpoint_live_worker::run(
+		Arc::clone(service.authority()),
+		Arc::clone(service.checkpoint_stack()),
+		lane,
+		cadence,
+	)
+	.await;
+	Ok(())
+}
+
 fn peer_responder_for_service<A>(
 	service: &Arc<ProviderService<A>>,
 	local_provider: [u8; 32],

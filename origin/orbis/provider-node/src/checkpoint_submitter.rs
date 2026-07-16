@@ -72,12 +72,23 @@ pub(crate) async fn consume_one_with_lane(
 	outbox: &CheckpointOutboxV2,
 	lane: &impl CheckpointFinalityLane,
 ) -> Result<Option<CheckpointFinalizedReceiptV2>, ContentError> {
+	consume_one_with_lane_bounded(outbox, lane, usize::MAX).await
+}
+
+pub(crate) async fn consume_one_with_lane_bounded(
+	outbox: &CheckpointOutboxV2,
+	lane: &impl CheckpointFinalityLane,
+	max_attempts: usize,
+) -> Result<Option<CheckpointFinalizedReceiptV2>, ContentError> {
+	if max_attempts == 0 {
+		return Err(ContentError::IntegrityFailed)
+	}
 	let heads = outbox.pending_submission_heads()?;
 	if heads.is_empty() {
 		return Ok(None)
 	}
 	let mut first_lane_error = None;
-	for submission in heads {
+	for submission in heads.into_iter().take(max_attempts) {
 		validate_submission(&submission)?;
 		if decode_fixed_hex::<32>(&submission.primary)? != lane.signer_account() {
 			return Err(ContentError::IntegrityFailed)

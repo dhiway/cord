@@ -9,10 +9,15 @@ repository.workspace = true
 publish = false
 
 [features]
-default = []
+default = ["checkpoint-live"]
 checkpoint-consumer = ["dep:scale-decode", "dep:scale-value", "dep:subxt"]
 checkpoint-live = ["checkpoint-consumer", "outbox"]
 outbox = ["dep:origin-rs"]
+
+[[bin]]
+name = "origin-orbis-provider"
+path = "src/main.rs"
+required-features = ["checkpoint-live"]
 
 [[bin]]
 name = "origin-orbis-provider-outbox"

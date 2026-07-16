@@ -714,7 +714,7 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 	assert_eq!(indiv_pallet_resources::Pallet::<Runtime>::index(), 96);
 	assert_eq!(pallet_orbis_score::Pallet::<Runtime>::index(), 97);
 	assert_eq!(pallet_orbis_honour::Pallet::<Runtime>::index(), 99);
-	assert_eq!(crate::VERSION.spec_version, 32);
+	assert_eq!(crate::VERSION.spec_version, 33);
 	assert_eq!(crate::VERSION.transaction_version, 8);
 
 	assert_eq!(
@@ -827,6 +827,19 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 		storage_names::<pallet_origin_feeless::Pallet<Runtime>>(),
 		["FeelessAccountStore", "FeelessUsage"]
 	);
+}
+
+#[test]
+fn checkpoint_claim_v33_fresh_network_metadata_includes_the_call_digest() {
+	use frame_support::traits::StorageInfoTrait;
+
+	let claim = pallet_orbis_storage_provider::Pallet::<Runtime>::storage_info()
+		.into_iter()
+		.find(|info| info.storage_name == b"CheckpointClaims")
+		.expect("checkpoint claim storage metadata must exist");
+	assert_eq!(claim.max_size, Some(1_142));
+	assert_eq!(crate::VERSION.spec_version, 33);
+	assert_eq!(crate::VERSION.transaction_version, 8);
 }
 
 /// Compile-time representation of ADR 0008's frozen policy slots. `NoPolicy` is deliberately not a

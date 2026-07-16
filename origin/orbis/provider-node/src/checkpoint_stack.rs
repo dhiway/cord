@@ -19,11 +19,12 @@
 //! Private ownership boundary for the provider checkpoint control plane.
 
 use std::{
+	collections::HashMap,
 	path::Path,
 	sync::{Mutex, MutexGuard},
 };
 
-use sp_core::ed25519;
+use sp_core::{ed25519, H256};
 
 use crate::{
 	checkpoint::{
@@ -32,7 +33,10 @@ use crate::{
 			submission_input, CheckpointPrimaryQuorumStore, PrimaryQuorumSnapshotV1,
 		},
 		checkpoint_promotion::CheckpointPromotionStoreV1,
-		checkpoint_publication::CheckpointPublicationStoreV1,
+		checkpoint_publication::{
+			CheckpointPublicationStoreV1, FinalizedCheckpointPublicationInputV1,
+			PublishedCheckpointV1,
+		},
 		checkpoint_quorum::ReplicaConfirmationStore,
 		CheckpointProposalStore, PreparedCheckpointProposalV2, ServiceKeySigner,
 	},
@@ -73,20 +77,30 @@ pub(crate) struct CheckpointStack {
 	state: Mutex<CheckpointStackState>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CheckpointPublicationIntentV1 {
+	pub(crate) submission: CheckpointSubmissionV2,
+	pub(crate) finalized_hash: H256,
+	pub(crate) finalized_number: u32,
+}
+
 impl CheckpointStack {
 	/// Open every checkpoint kernel against the same provider root.
 	pub(crate) fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
 		let root = root.as_ref();
 		let streaming = StreamingStore::open(root)?;
 		let bucket_mmr = BucketMmrStore::open(root, &streaming)?;
+		let outbox = std::sync::Arc::new(CheckpointOutboxV2::open(root)?);
+		let publications = CheckpointPublicationStoreV1::open(root)?;
+		validate_publication_receipts(&outbox, &publications)?;
 		let state = CheckpointStackState {
 			streaming,
 			bucket_mmr,
 			proposals: CheckpointProposalStore::open(root)?,
 			replica_confirmations: ReplicaConfirmationStore::open(root)?,
 			primary_quorum: CheckpointPrimaryQuorumStore::open(root)?,
-			outbox: std::sync::Arc::new(CheckpointOutboxV2::open(root)?),
-			publications: CheckpointPublicationStoreV1::open(root)?,
+			outbox,
+			publications,
 			fallback_promotions: CheckpointPromotionStoreV1::open(root)?,
 			replication: ReplicationIntentStore::open(root)?,
 			peer_replies: PeerReplyStore::open(root)?,
@@ -558,6 +572,14 @@ impl CheckpointStack {
 		self.state.try_lock().is_ok()
 	}
 
+	#[cfg(all(test, feature = "checkpoint-live"))]
+	pub(crate) fn enqueue_checkpoint_for_test(
+		&self,
+		input: &crate::checkpoint::checkpoint_outbox::CheckpointSubmissionInputV2,
+	) -> Result<CheckpointSubmissionV2, ContentError> {
+		Ok(self.lock()?.outbox.enqueue(input)?.submission)
+	}
+
 	/// Consume one durable v2 submission without retaining the stack guard across finality.
 	#[cfg(feature = "checkpoint-live")]
 	pub(crate) async fn consume_one_with_lane(
@@ -571,9 +593,113 @@ impl CheckpointStack {
 		crate::checkpoint::checkpoint_submitter::consume_one_with_lane(&outbox, lane).await
 	}
 
+	/// Consume at most `max_attempts` bucket heads without retaining the stack guard across finality.
+	#[cfg(feature = "checkpoint-live")]
+	pub(crate) async fn consume_one_with_lane_bounded(
+		&self,
+		lane: &impl crate::checkpoint::checkpoint_submitter::CheckpointFinalityLane,
+		max_attempts: usize,
+	) -> Result<
+		Option<crate::checkpoint::checkpoint_outbox::CheckpointFinalizedReceiptV2>,
+		ContentError,
+	> {
+		let outbox = std::sync::Arc::clone(&self.lock()?.outbox);
+		crate::checkpoint::checkpoint_submitter::consume_one_with_lane_bounded(
+			&outbox,
+			lane,
+			max_attempts,
+		)
+		.await
+	}
+
+	pub(crate) fn pending_checkpoint_publications(
+		&self,
+		limit: usize,
+	) -> Result<Vec<CheckpointPublicationIntentV1>, ContentError> {
+		if limit == 0 {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let state = self.lock()?;
+		let mut pending = Vec::new();
+		for (submission, receipt) in state.outbox.finalized_submissions()? {
+			if state.publications.contains(&submission.submission_id)? {
+				continue;
+			}
+			let hash: [u8; 32] = decode_canonical_hash(&receipt.finalized_hash)?;
+			pending.push(CheckpointPublicationIntentV1 {
+				submission,
+				finalized_hash: H256::from(hash),
+				finalized_number: receipt.finalized_number,
+			});
+			if pending.len() == limit {
+				break;
+			}
+		}
+		Ok(pending)
+	}
+
+	pub(crate) fn publish_checkpoint_observation(
+		&self,
+		intent: &CheckpointPublicationIntentV1,
+		response_scale: Vec<u8>,
+	) -> Result<PublishedCheckpointV1, ContentError> {
+		let state = self.lock()?;
+		let receipt = state
+			.outbox
+			.finalized_receipt(&intent.submission.submission_id)?
+			.ok_or(ContentError::IntegrityFailed)?;
+		if receipt.submission_record_hash != intent.submission.record_hash
+			|| decode_canonical_hash(&receipt.finalized_hash)? != intent.finalized_hash.0
+			|| receipt.finalized_number != intent.finalized_number
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+		state.publications.publish(&FinalizedCheckpointPublicationInputV1 {
+			submission: intent.submission.clone(),
+			finalized_hash: intent.finalized_hash,
+			finalized_number: intent.finalized_number,
+			response_scale,
+		})
+	}
+
 	fn lock(&self) -> Result<MutexGuard<'_, CheckpointStackState>, ContentError> {
 		self.state.lock().map_err(|_| ContentError::IntegrityFailed)
 	}
+}
+
+fn decode_canonical_hash(value: &str) -> Result<[u8; 32], ContentError> {
+	if value.len() != 64
+		|| value.bytes().any(|byte| !byte.is_ascii_hexdigit() || byte.is_ascii_uppercase())
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	hex::decode(value)
+		.map_err(|_| ContentError::IntegrityFailed)?
+		.try_into()
+		.map_err(|_| ContentError::IntegrityFailed)
+}
+
+fn validate_publication_receipts(
+	outbox: &CheckpointOutboxV2,
+	publications: &CheckpointPublicationStoreV1,
+) -> Result<(), ContentError> {
+	let finalized = outbox
+		.finalized_submissions()?
+		.into_iter()
+		.map(|(submission, receipt)| (submission.submission_id.clone(), (submission, receipt)))
+		.collect::<HashMap<_, _>>();
+	for publication in publications.records()? {
+		let (submission, receipt) =
+			finalized.get(&publication.submission_id).ok_or(ContentError::IntegrityFailed)?;
+		if submission != &publication.submission
+			|| receipt.submission_record_hash != publication.submission_record_hash
+			|| receipt.finalized_hash != publication.finalized_hash
+			|| receipt.finalized_number != publication.finalized_number
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+	}
+	Ok(())
 }
 
 fn emit_quorum_if_ready(

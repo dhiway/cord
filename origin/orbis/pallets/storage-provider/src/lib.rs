@@ -39,7 +39,7 @@ mod mock;
 mod tests;
 
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use frame_support::{pallet_prelude::BoundedVec, traits::Get};
+use frame_support::{pallet_prelude::BoundedVec, traits::Get, weights::Weight};
 use scale_info::TypeInfo;
 use sp_core::ed25519;
 use sp_runtime::traits::{SaturatedConversion, Saturating};
@@ -605,6 +605,7 @@ pub struct BucketSnapshot<Hash, BlockNumber, Confirmations> {
 pub struct CheckpointClaim<AccountId, Hash, BlockNumber, Confirmations> {
 	pub primary: AccountId,
 	pub payload: CommitmentPayloadV2<Hash, BlockNumber>,
+	pub call_digest: [u8; 32],
 	pub primary_signature: ed25519::Signature,
 	pub primary_context_signature: ed25519::Signature,
 	pub replica_confirmations: Confirmations,
@@ -1867,7 +1868,7 @@ pub mod pallet {
 				T::WeightInfo::promote_checkpoint_fallback(
 					BucketAgreements::<T>::decode_len(payload.bucket_id).unwrap_or(0) as u32,
 				)
-			)
+			).saturating_add(Weight::from_parts(5_000_000, 64))
 		)]
 		#[transactional]
 		pub fn submit_checkpoint(
@@ -1887,6 +1888,35 @@ pub mod pallet {
 				Error::<T>::StorageCheckpointWrongDomain
 			);
 			ensure!(payload.version == 2, Error::<T>::StorageCheckpointWrongVersion);
+			let claim_key = T::Hashing::hash_of(&(payload.nonce, payload.commitment.start_seq));
+			let call_digest = sp_io::hashing::blake2_256(
+				&(
+					b"cord/storage/checkpoint-call/v2",
+					&primary,
+					&domain,
+					payload,
+					window_start,
+					window_end,
+					service_key,
+					primary_signature,
+					primary_context_signature,
+					&confirmations,
+				)
+					.encode(),
+			);
+			let submitted_claim = CheckpointClaim {
+				primary: primary.clone(),
+				payload,
+				call_digest,
+				primary_signature,
+				primary_context_signature,
+				replica_confirmations: confirmations.clone(),
+			};
+			if CheckpointClaims::<T>::get(payload.bucket_id, claim_key).as_ref()
+				== Some(&submitted_claim)
+			{
+				return Ok(())
+			}
 			let mut bucket = Buckets::<T>::get(payload.bucket_id)
 				.ok_or(Error::<T>::StorageCheckpointWrongBucket)?;
 			let finalized = Self::finalized_checkpoint()?;
@@ -1897,16 +1927,6 @@ pub mod pallet {
 			);
 			let duty = Self::checkpoint_duty_at(payload.bucket_id, payload.nonce)
 				.ok_or(Error::<T>::StorageCheckpointWrongWindow)?;
-			let claim_key = T::Hashing::hash_of(&(payload.nonce, payload.commitment.start_seq));
-			if CheckpointClaims::<T>::get(payload.bucket_id, claim_key).is_some_and(|accepted| {
-				accepted.primary == primary &&
-					accepted.payload == payload &&
-					accepted.primary_signature == primary_signature &&
-					accepted.primary_context_signature == primary_context_signature &&
-					accepted.replica_confirmations == confirmations
-			}) {
-				return Ok(())
-			}
 			ensure!(
 				bucket.primary == duty.primary && bucket.replicas == duty.replicas,
 				Error::<T>::StorageCheckpointWrongWindow
@@ -1989,13 +2009,7 @@ pub mod pallet {
 			);
 			if let Some(accepted) = CheckpointClaims::<T>::get(payload.bucket_id, claim_key) {
 				if accepted.payload.commitment.mmr_root != payload.commitment.mmr_root {
-					let conflicting = CheckpointClaim {
-						primary: primary.clone(),
-						payload,
-						primary_signature,
-						primary_context_signature,
-						replica_confirmations: confirmations,
-					};
+					let conflicting = submitted_claim.clone();
 					EquivocationEvidence::<T>::try_mutate(&primary, |items| -> DispatchResult {
 						if !items.contains(&accepted) {
 							items
@@ -2089,13 +2103,6 @@ pub mod pallet {
 					.try_push(confirmation.provider.clone())
 					.map_err(|_| Error::<T>::StorageCheckpointInsufficientQuorum)?;
 			}
-			let claim = CheckpointClaim {
-				primary: primary.clone(),
-				payload,
-				primary_signature,
-				primary_context_signature,
-				replica_confirmations: confirmations,
-			};
 			if fallback {
 				let old_primary = bucket.primary.clone();
 				bucket.primary = primary.clone();
@@ -2115,7 +2122,7 @@ pub mod pallet {
 					checkpoint: duty.previous_checkpoint,
 				});
 			}
-			CheckpointClaims::<T>::insert(payload.bucket_id, claim_key, claim);
+			CheckpointClaims::<T>::insert(payload.bucket_id, claim_key, submitted_claim);
 			for replica in confirmed.iter() {
 				ReplicaCheckpoint::<T>::insert(payload.bucket_id, replica, finalized);
 			}

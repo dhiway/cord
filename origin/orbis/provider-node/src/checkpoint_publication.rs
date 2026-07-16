@@ -47,6 +47,14 @@ const MAX_TEMP_ARTIFACTS: usize = 1;
 
 type CheckpointResponse = Versioned<CheckpointInfo<AccountId32, H256, u32>>;
 
+pub(crate) fn submission_bucket_id(
+	submission: &CheckpointSubmissionV2,
+) -> Result<[u8; 32], ContentError> {
+	validate_submission(submission)?;
+	let payload = decode_hex_scale::<CommitmentPayloadV2<H256, u32>>(&submission.payload_scale)?;
+	Ok(payload.bucket_id.0)
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct FinalizedCheckpointPublicationInputV1 {
 	pub submission: CheckpointSubmissionV2,
@@ -126,6 +134,28 @@ impl CheckpointPublicationStoreV1 {
 	) -> Result<(), ContentError> {
 		*self.fault.write().map_err(|_| lock_error())? = Some(fault);
 		Ok(())
+	}
+
+	pub(crate) fn contains(&self, submission_id: &str) -> Result<bool, ContentError> {
+		if *self.poisoned.read().map_err(|_| lock_error())? {
+			return Err(ContentError::IntegrityFailed);
+		}
+		Ok(self.records.read().map_err(|_| lock_error())?.contains_key(submission_id))
+	}
+
+	pub(crate) fn records(&self) -> Result<Vec<PublishedCheckpointV1>, ContentError> {
+		if *self.poisoned.read().map_err(|_| lock_error())? {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let mut records = self
+			.records
+			.read()
+			.map_err(|_| lock_error())?
+			.values()
+			.cloned()
+			.collect::<Vec<_>>();
+		records.sort_by(|left, right| left.submission_id.cmp(&right.submission_id));
+		Ok(records)
 	}
 
 	pub(crate) fn publish(

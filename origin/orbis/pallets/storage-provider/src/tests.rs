@@ -1769,6 +1769,74 @@ fn checkpoint_nonce_age_has_exact_127_128_129_boundary() {
 }
 
 #[test]
+fn exact_checkpoint_replay_remains_idempotent_after_nonce_and_duty_expire() {
+	new_test_ext().execute_with(|| {
+		let bucket = setup_bucket();
+		set_finalized(101);
+		let checkpoint = payload(bucket, H256::repeat_byte(20), 0, 3, 101);
+		let (signature, context_signature, confirmations) = signed_checkpoint(checkpoint);
+		assert_ok!(StorageProvider::submit_checkpoint(
+			RuntimeOrigin::signed(1),
+			DOMAIN.to_vec().try_into().unwrap(),
+			checkpoint,
+			101,
+			121,
+			pair(1).public(),
+			signature.clone(),
+			context_signature.clone(),
+			confirmations.clone(),
+		));
+		let snapshot = BucketSnapshots::<Test>::get(bucket).unwrap();
+		let events = System::events().len();
+		set_finalized(230);
+
+		assert_ok!(StorageProvider::submit_checkpoint(
+			RuntimeOrigin::signed(1),
+			DOMAIN.to_vec().try_into().unwrap(),
+			checkpoint,
+			101,
+			121,
+			pair(1).public(),
+			signature.clone(),
+			context_signature.clone(),
+			confirmations.clone(),
+		));
+		assert_eq!(BucketSnapshots::<Test>::get(bucket).unwrap(), snapshot);
+		assert_eq!(System::events().len(), events);
+		assert_noop!(
+			StorageProvider::submit_checkpoint(
+				RuntimeOrigin::signed(1),
+				DOMAIN.to_vec().try_into().unwrap(),
+				checkpoint,
+				102,
+				121,
+				pair(1).public(),
+				signature.clone(),
+				context_signature.clone(),
+				confirmations.clone(),
+			),
+			Error::<Test>::StorageCheckpointStaleNonce
+		);
+		assert_noop!(
+			StorageProvider::submit_checkpoint(
+				RuntimeOrigin::signed(1),
+				DOMAIN.to_vec().try_into().unwrap(),
+				checkpoint,
+				101,
+				121,
+				pair(2).public(),
+				signature,
+				context_signature,
+				confirmations,
+			),
+			Error::<Test>::StorageCheckpointStaleNonce
+		);
+		assert_eq!(BucketSnapshots::<Test>::get(bucket).unwrap(), snapshot);
+		assert_eq!(System::events().len(), events);
+	});
+}
+
+#[test]
 fn checkpoint_sequence_accepts_contiguous_and_rejects_gap_and_overlap() {
 	for (start_seq, accepted) in [(3u64, true), (4, false), (2, false)] {
 		new_test_ext().execute_with(|| {
@@ -2642,7 +2710,8 @@ fn checkpoint_dispatch_weights_cover_atomic_fallback_at_configured_bounds() {
 			confirmations,
 		};
 		let expected_checkpoint = SubstrateWeight::<Test>::submit_checkpoint(max_replicas)
-			.saturating_add(SubstrateWeight::<Test>::promote_checkpoint_fallback(max_agreements));
+			.saturating_add(SubstrateWeight::<Test>::promote_checkpoint_fallback(max_agreements))
+			.saturating_add(frame_support::weights::Weight::from_parts(5_000_000, 64));
 		assert_eq!(checkpoint.get_dispatch_info().call_weight, expected_checkpoint);
 
 		let promotion = crate::Call::<Test>::promote_checkpoint_fallback {

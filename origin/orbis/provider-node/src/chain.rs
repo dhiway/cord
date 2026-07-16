@@ -150,6 +150,23 @@ pub(crate) trait ReplicationAuthority: Send + Sync {
 	) -> Result<ReplicationTopologySnapshot, ChainError>;
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct FinalizedCheckpointObservation {
+	pub(crate) finalized_hash: [u8; 32],
+	pub(crate) finalized_number: u32,
+	pub(crate) response_scale: Vec<u8>,
+}
+
+#[async_trait]
+pub(crate) trait CheckpointPublicationAuthority: Send + Sync {
+	async fn checkpoint_observation_at(
+		&self,
+		bucket_id: [u8; 32],
+		finalized_hash: [u8; 32],
+		finalized_number: u32,
+	) -> Result<FinalizedCheckpointObservation, ChainError>;
+}
+
 /// Open proof duty discovered from a finalized `StorageProviderApi::challenges_at` query.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ChallengeDuty {
@@ -503,13 +520,7 @@ impl FinalizedRuntimeAuthority {
 		params: Vec<u8>,
 		hash: &str,
 	) -> Result<T, ChainError> {
-		let encoded: String = self
-			.client
-			.request("state_call", rpc_params![method, format!("0x{}", hex::encode(params)), hash])
-			.await
-			.map_err(|error| ChainError::Rpc(error.to_string()))?;
-		let raw = hex::decode(encoded.trim_start_matches("0x"))
-			.map_err(|error| ChainError::Decode(error.to_string()))?;
+		let raw = self.runtime_call_raw(method, params, hash).await?;
 		let mut input = &raw[..];
 		let decoded =
 			T::decode(&mut input).map_err(|error| ChainError::Decode(error.to_string()))?;
@@ -517,6 +528,21 @@ impl FinalizedRuntimeAuthority {
 			return Err(ChainError::Decode("runtime API response contains trailing bytes".into()));
 		}
 		Ok(decoded)
+	}
+
+	async fn runtime_call_raw(
+		&self,
+		method: &str,
+		params: Vec<u8>,
+		hash: &str,
+	) -> Result<Vec<u8>, ChainError> {
+		let encoded: String = self
+			.client
+			.request("state_call", rpc_params![method, format!("0x{}", hex::encode(params)), hash])
+			.await
+			.map_err(|error| ChainError::Rpc(error.to_string()))?;
+		hex::decode(encoded.trim_start_matches("0x"))
+			.map_err(|error| ChainError::Decode(error.to_string()))
 	}
 
 	fn authorization(
@@ -888,6 +914,50 @@ impl ReplicationAuthority for FinalizedRuntimeAuthority {
 			Some(finalized_number),
 		)
 		.await
+	}
+}
+
+#[async_trait]
+impl CheckpointPublicationAuthority for FinalizedRuntimeAuthority {
+	async fn checkpoint_observation_at(
+		&self,
+		bucket_id: [u8; 32],
+		finalized_hash: [u8; 32],
+		finalized_number: u32,
+	) -> Result<FinalizedCheckpointObservation, ChainError> {
+		let canonical_hash: Option<String> = self
+			.client
+			.request("chain_getBlockHash", rpc_params![finalized_number])
+			.await
+			.map_err(|error| ChainError::Rpc(error.to_string()))?;
+		let canonical_hash = canonical_hash
+			.ok_or_else(|| ChainError::Rejected("checkpoint finalized block not found".into()))?;
+		if decode_hash(&canonical_hash, "checkpoint finalized hash")? != finalized_hash {
+			return Err(ChainError::Rejected(
+				"checkpoint finalized hash is not canonical at its claimed number".into(),
+			));
+		}
+		let finalized_hash_text = format!("0x{}", hex::encode(finalized_hash));
+		let header: RpcHeader = self
+			.client
+			.request("chain_getHeader", rpc_params![finalized_hash_text.clone()])
+			.await
+			.map_err(|error| ChainError::Rpc(error.to_string()))?;
+		let header_number = u32::from_str_radix(header.number.trim_start_matches("0x"), 16)
+			.map_err(|error| ChainError::Decode(error.to_string()))?;
+		if header_number != finalized_number {
+			return Err(ChainError::Rejected(
+				"checkpoint finalized hash and number disagree".into(),
+			));
+		}
+		let response_scale = self
+			.runtime_call_raw(
+				"StorageProviderApi_checkpoint",
+				H256::from(bucket_id).encode(),
+				&finalized_hash_text,
+			)
+			.await?;
+		Ok(FinalizedCheckpointObservation { finalized_hash, finalized_number, response_scale })
 	}
 }
 

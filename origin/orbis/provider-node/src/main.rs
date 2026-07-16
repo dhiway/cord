@@ -22,9 +22,9 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
 use origin_orbis_provider::{
-	run_checkpoint_quorum_worker, run_replication_worker, run_workers, serve_provider_ingress,
-	ApiConfig, DiskStore, FinalizedRuntimeAuthority, JsonlCheckpointOutbox, NodeProfile,
-	ProviderService, WorkerConfig,
+	run_checkpoint_live_worker, run_checkpoint_quorum_worker, run_replication_worker, run_workers,
+	serve_provider_ingress, ApiConfig, DiskStore, FinalizedRuntimeAuthority, JsonlCheckpointOutbox,
+	NodeProfile, ProviderService, WorkerConfig,
 };
 use sp_core::{crypto::AccountId32, ed25519, Pair as _};
 
@@ -34,6 +34,9 @@ struct Cli {
 	/// Orbis HTTP JSON-RPC endpoint. Every commit is checked at finalized head.
 	#[arg(long, default_value = "http://127.0.0.1:9933")]
 	orbis_rpc: String,
+	/// Orbis native WebSocket RPC endpoint used by the account-serialized SDK finality lane.
+	#[arg(long, default_value = "ws://127.0.0.1:9944")]
+	orbis_native_rpc: String,
 	/// Provider AccountId32 as 0x-prefixed hex.
 	#[arg(long)]
 	provider: String,
@@ -61,6 +64,9 @@ struct Cli {
 	/// Environment variable containing the Ed25519 secret URI for the registered service key.
 	#[arg(long, default_value = "ORBIS_PROVIDER_SERVICE_SURI")]
 	service_key_env: String,
+	/// Environment variable containing the provider account secret URI used for Orbis extrinsics.
+	#[arg(long, default_value = "ORBIS_PROVIDER_ACCOUNT_SURI")]
+	account_key_env: String,
 	/// Maximum decoded content bytes per commit.
 	#[arg(long, default_value_t = 16 * 1024 * 1024)]
 	max_content_bytes: usize,
@@ -73,6 +79,9 @@ struct Cli {
 	/// Primary checkpoint quorum coordination interval in seconds.
 	#[arg(long, default_value_t = 6)]
 	checkpoint_quorum_seconds: u64,
+	/// Checkpoint finality and exact publication reconciliation interval in seconds.
+	#[arg(long, default_value_t = 6)]
+	checkpoint_live_seconds: u64,
 }
 
 #[tokio::main]
@@ -91,6 +100,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		.map_err(|_| format!("{} must contain the service-key secret URI", cli.service_key_env))?;
 	let service_key = ed25519::Pair::from_string(&suri, None)
 		.map_err(|error| format!("invalid service-key secret URI: {error:?}"))?;
+	let account_suri = std::env::var(&cli.account_key_env).map_err(|_| {
+		format!("{} must contain the provider account secret URI", cli.account_key_env)
+	})?;
 	let provider_bytes: &[u8] = provider.as_ref();
 	let local_provider: [u8; 32] =
 		provider_bytes.try_into().map_err(|_| "provider must be exactly 32 bytes")?;
@@ -128,6 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		_ = run_workers(service.clone(), workers) => {},
 		_ = run_replication_worker(service.clone(), local_provider, Duration::from_secs(cli.replication_seconds.max(1))) => {},
 		_ = run_checkpoint_quorum_worker(service.clone(), local_provider, Duration::from_secs(cli.checkpoint_quorum_seconds.max(1))) => {},
+		result = run_checkpoint_live_worker(service.clone(), local_provider, cli.orbis_native_rpc, account_suri, Duration::from_secs(cli.checkpoint_live_seconds.max(1))) => result?,
 		_ = tokio::signal::ctrl_c() => {},
 	}
 	Ok(())
