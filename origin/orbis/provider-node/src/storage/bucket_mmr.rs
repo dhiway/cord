@@ -474,6 +474,47 @@ impl BucketMmrStore {
 		})
 	}
 
+	/// Validate one finalized commitment from durable bucket structure without reading object
+	/// bytes, and report exact CID/length membership within its committed sequence range. This is
+	/// the quarantine-safe seam used by private STATUS; byte-serving callers verify bytes separately.
+	pub(crate) fn finalized_object_membership(
+		&self,
+		bucket_id: BucketId,
+		expected_root: H256,
+		start_seq: u64,
+		leaf_count: u64,
+		cid: &CanonicalCid,
+		object_len: u64,
+	) -> Result<bool, ContentError> {
+		let end = start_seq.checked_add(leaf_count).ok_or(ContentError::IntegrityFailed)?;
+		let state = self.state.read().map_err(|_| lock_error())?;
+		let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::NotFound)?;
+		if leaf_count == 0 || end > bucket.entries.len() as u64 || end > bucket.meta.entry_count {
+			return Err(ContentError::IntegrityFailed)
+		}
+		let mut rebuilt = BucketMeta::default();
+		for (index, entry) in bucket.entries.iter().take(end as usize).enumerate() {
+			if entry.version != VERSION ||
+				entry.bucket_id != bucket_id.to_string() ||
+				entry.sequence != index as u64 ||
+				bucket.source_order.get(index) != Some(&entry.install_sequence)
+			{
+				return Err(ContentError::IntegrityFailed)
+			}
+			let frame = encode_frame(entry)?;
+			rebuilt = advance_meta(&rebuilt, entry, frame.len() as u64)?;
+		}
+		if rebuilt.entry_count != end ||
+			decode_hash(rebuilt.root.as_deref().ok_or(ContentError::IntegrityFailed)?)? !=
+				expected_root
+		{
+			return Err(ContentError::IntegrityFailed)
+		}
+		Ok(bucket.entries[..end as usize]
+			.iter()
+			.any(|entry| entry.cid == cid.as_str() && entry.data_size == object_len))
+	}
+
 	/// Return the exact cumulative total immediately before a candidate range after rebuilding the
 	/// committed MMR structure. This deliberately does not verify object bytes or claim that an
 	/// unavailable bucket is publishable; it only exposes predecessor size evidence when the

@@ -38,10 +38,13 @@ use crate::{
 };
 
 #[allow(dead_code)]
+pub(crate) mod private_query;
+#[allow(dead_code)]
 pub(crate) mod recovery;
+use private_query::{PrivateQueryRecord, PrivateQueryReplayRecord};
 use recovery::{CapabilityReplayRecord, RecoveryRecord};
 
-const STREAM_VERSION: u16 = 10;
+const STREAM_VERSION: u16 = 12;
 const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
@@ -171,6 +174,8 @@ pub enum StreamingFault {
 	BeforeRecoveryGcCommit,
 	/// The bounded GC transition is durable but staged-byte cleanup or completion is absent.
 	AfterRecoveryGcCommit,
+	/// Private query response is complete in memory but its cloned journal is not yet durable.
+	BeforePrivateQueryCommit,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -213,6 +218,9 @@ struct JournalState {
 	detection_sequence: u64,
 	recovery: BTreeMap<String, RecoveryRecord>,
 	capability_replay: BTreeMap<String, CapabilityReplayRecord>,
+	private_queries: BTreeMap<String, PrivateQueryRecord>,
+	private_query_replay: BTreeMap<String, PrivateQueryReplayRecord>,
+	private_query_gc_cursor: Option<String>,
 }
 
 /// One immutable, fully reverified installed operation used by the private commitment store.
@@ -371,11 +379,14 @@ impl StreamingStore {
 			if state.version != STREAM_VERSION ||
 				state.operations.len() > operation_limit ||
 				state.recovery.len() > MAX_STREAMING_OPERATIONS ||
+				state.private_queries.len() > MAX_STREAMING_OPERATIONS ||
+				state.private_query_replay.len() > MAX_STREAMING_OPERATIONS ||
 				state.repairs.len() > operation_limit
 			{
 				return Err(ContentError::IntegrityFailed)
 			}
 			recovery::validate_recovery_state(&state)?;
+			private_query::validate_private_query_state(&state)?;
 			state
 		} else {
 			JournalState {
@@ -387,6 +398,9 @@ impl StreamingStore {
 				detection_sequence: 0,
 				recovery: BTreeMap::new(),
 				capability_replay: BTreeMap::new(),
+				private_queries: BTreeMap::new(),
+				private_query_replay: BTreeMap::new(),
+				private_query_gc_cursor: None,
 			}
 		};
 		let store = Self {
