@@ -26,6 +26,9 @@
 #![warn(missing_docs)]
 
 mod api;
+// Deliberately compiled but not routed until durable RequestV2 recovery is implemented.
+#[allow(dead_code)]
+mod capability;
 mod chain;
 mod content;
 mod merkle;
@@ -34,9 +37,10 @@ mod workers;
 
 pub use api::{serve, ApiConfig, ProviderService};
 pub use chain::{
-	AgreementAuthorization, ChainAuthority, ChainError, ChallengeBatch, ChallengeDuty,
-	CheckpointDuty, CheckpointDutyBatch, CheckpointDutyMode, CheckpointDutyPageRequest,
-	CheckpointDutyPhase, CheckpointDutyRole, CheckpointDutyScanCursor, FinalizedRuntimeAuthority,
+	AgreementAuthorization, CapabilityAuthoritySnapshot, ChainAuthority, ChainError,
+	ChallengeBatch, ChallengeDuty, CheckpointDuty, CheckpointDutyBatch, CheckpointDutyMode,
+	CheckpointDutyPageRequest, CheckpointDutyPhase, CheckpointDutyRole, CheckpointDutyScanCursor,
+	FinalizedRuntimeAuthority,
 };
 pub use content::{
 	BucketId, CanonicalCid, ContentError, OperationId, BLAKE2B_256_CODE, CHUNK_BYTES,

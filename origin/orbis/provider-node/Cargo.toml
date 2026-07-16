@@ -26,6 +26,7 @@ base64 = { workspace = true, default-features = true }
 blake3 = { workspace = true }
 blake2 = { workspace = true, default-features = true }
 bytes = { workspace = true, default-features = true }
+ciborium = { workspace = true }
 cid = { workspace = true, default-features = true }
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true, default-features = true }
@@ -38,6 +39,7 @@ origin-rs = { path = "../../../origin-rs", optional = true }
 orbis-storage-runtime-api = { workspace = true, default-features = true }
 serde = { workspace = true, features = ["derive"], default-features = true }
 serde_json = { workspace = true, default-features = true }
+sha2 = { workspace = true, default-features = true }
 sp-core = { workspace = true, default-features = true }
 sp-crypto-hashing = { workspace = true, default-features = true }
 thiserror = { workspace = true }

@@ -187,6 +187,7 @@ cfg-expr = { version = "0.15.5" }
 cfg-if = { version = "1.0" }
 chain-spec-builder = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0", package = "staging-chain-spec-builder" }
 chrono = { version = "0.4.31" }
+ciborium = { version = "0.2.2" }
 cid = { version = "0.11.1", default-features = false }
 clap = { version = "4.5.13" }
 clap_complete = { version = "4.5.13" }

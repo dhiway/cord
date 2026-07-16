@@ -24,11 +24,14 @@ use jsonrpsee::{core::client::ClientT, http_client::HttpClient, rpc_params};
 use orbis_storage_runtime_api::{
 	AgreementInfo, AgreementStatus, CheckpointDutyCursor, CheckpointDutyInfo,
 	CheckpointDutyMode as RuntimeCheckpointDutyMode, CheckpointDutyPage, CheckpointDutyPageError,
-	CheckpointDutyPhase as RuntimeCheckpointDutyPhase, ProviderDutyRole, ProviderInfo,
-	ProviderStatus, Versioned, MAX_CHECKPOINT_DUTY_PAGE_SIZE, RESPONSE_VERSION,
+	CheckpointDutyPhase as RuntimeCheckpointDutyPhase, ControlBucketInfo, HostDelegationInfo,
+	ProviderDutyRole, ProviderInfo, ProviderStatus, Versioned, MAX_CHECKPOINT_DUTY_PAGE_SIZE,
+	RESPONSE_VERSION,
 };
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::AccountId32, H256};
+
+use crate::capability::NORMATIVE_REGISTRY_SHA256;
 
 /// Authorization returned after checking a storage agreement at a finalized block.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -45,6 +48,27 @@ pub struct AgreementAuthorization {
 	pub bytes: u64,
 	/// Expiry block.
 	pub expires_at: u32,
+}
+
+/// Singular capability authority loaded from one exact finalized Commons state.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CapabilityAuthoritySnapshot {
+	/// Finalized block hash used for every mutable runtime-API read.
+	pub finalized_hash: String,
+	/// Finalized block number corresponding to `finalized_hash`.
+	pub finalized_number: u32,
+	/// Immutable chain block-zero hash.
+	pub genesis_hash: [u8; 32],
+	/// Normative provider-registry SHA-256 supported by this provider build.
+	pub registry_sha256: [u8; 32],
+	/// Provider account configured locally.
+	pub local_provider: [u8; 32],
+	/// Required finalized host delegation. Missing delegation is a terminal chain error.
+	pub delegation: HostDelegationInfo<AccountId32, H256, u32>,
+	/// Exact control bucket referenced by the delegation; ACL grants are never capability fallback.
+	pub bucket: ControlBucketInfo<AccountId32, H256, u32>,
+	/// Optional exact agreement requested by the capability.
+	pub agreement: Option<AgreementInfo<AccountId32, H256, u32>>,
 }
 
 /// Open proof duty discovered from a finalized `StorageProviderApi::challenges_at` query.
@@ -219,6 +243,20 @@ pub enum ChainError {
 /// Canonical authority seam for all content mutations and proof duties.
 #[async_trait]
 pub trait ChainAuthority: Send + Sync + 'static {
+	/// Load the singular host-delegation capability authority at one finalized state hash.
+	///
+	/// The default rejects rather than consulting bucket ACLs, bearer credentials, DIDs or any
+	/// other fallback. Implementations that support the internal capability protocol override it.
+	async fn capability_authority_snapshot(
+		&self,
+		_grant_id: [u8; 32],
+		_agreement_id: Option<[u8; 32]>,
+	) -> Result<CapabilityAuthoritySnapshot, ChainError> {
+		Err(ChainError::Rejected(
+			"finalized host-delegation capability authority unavailable".into(),
+		))
+	}
+
 	/// Validate a content write against one exact finalized Orbis state.
 	async fn authorize_commit(
 		&self,
@@ -335,6 +373,51 @@ impl FinalizedRuntimeAuthority {
 		Ok(agreement)
 	}
 
+	async fn capability_delegation(
+		&self,
+		grant_id: [u8; 32],
+		hash: &str,
+	) -> Result<HostDelegationInfo<AccountId32, H256, u32>, ChainError> {
+		let response: Versioned<HostDelegationInfo<AccountId32, H256, u32>> = self
+			.runtime_call(
+				"StorageProviderApi_capability_authority",
+				H256::from(grant_id).encode(),
+				hash,
+			)
+			.await?;
+		ensure_version(response.version)?;
+		response.value.ok_or_else(|| {
+			ChainError::Rejected(
+				"finalized host delegation not found; no authority fallback".into(),
+			)
+		})
+	}
+
+	async fn control_bucket(
+		&self,
+		bucket_id: H256,
+		hash: &str,
+	) -> Result<ControlBucketInfo<AccountId32, H256, u32>, ChainError> {
+		let response: Versioned<ControlBucketInfo<AccountId32, H256, u32>> = self
+			.runtime_call("StorageProviderApi_control_bucket", bucket_id.encode(), hash)
+			.await?;
+		ensure_version(response.version)?;
+		response
+			.value
+			.ok_or_else(|| ChainError::Rejected("host delegation control bucket not found".into()))
+	}
+
+	async fn genesis_hash(&self) -> Result<[u8; 32], ChainError> {
+		let hash: Option<String> = self
+			.client
+			.request("chain_getBlockHash", rpc_params![0u32])
+			.await
+			.map_err(|error| ChainError::Rpc(error.to_string()))?;
+		let hash =
+			hash.ok_or_else(|| ChainError::Rejected("chain genesis hash not found".into()))?;
+		decode_hash(&hash, "genesis hash")
+	}
+
 	async fn runtime_call<T: Decode>(
 		&self,
 		method: &str,
@@ -371,6 +454,33 @@ impl FinalizedRuntimeAuthority {
 
 #[async_trait]
 impl ChainAuthority for FinalizedRuntimeAuthority {
+	async fn capability_authority_snapshot(
+		&self,
+		grant_id: [u8; 32],
+		agreement_id: Option<[u8; 32]>,
+	) -> Result<CapabilityAuthoritySnapshot, ChainError> {
+		let (finalized_hash, finalized_number) = self.finalized_context().await?;
+		let delegation = self.capability_delegation(grant_id, &finalized_hash).await?;
+		let bucket = self.control_bucket(delegation.bucket_id, &finalized_hash).await?;
+		let agreement = match agreement_id {
+			Some(agreement_id) => Some(self.agreement(agreement_id, &finalized_hash).await?),
+			None => None,
+		};
+		let provider: &[u8] = self.provider.as_ref();
+		Ok(CapabilityAuthoritySnapshot {
+			finalized_hash,
+			finalized_number,
+			genesis_hash: self.genesis_hash().await?,
+			registry_sha256: NORMATIVE_REGISTRY_SHA256,
+			local_provider: provider
+				.try_into()
+				.expect("AccountId32 always contains exactly 32 bytes"),
+			delegation,
+			bucket,
+			agreement,
+		})
+	}
+
 	async fn authorize_commit(
 		&self,
 		agreement_id: [u8; 32],
@@ -544,6 +654,20 @@ fn canonical_hash(value: &str) -> Result<(), ChainError> {
 	Ok(())
 }
 
+fn decode_hash(value: &str, label: &str) -> Result<[u8; 32], ChainError> {
+	let raw = hex::decode(
+		value
+			.strip_prefix("0x")
+			.ok_or_else(|| ChainError::Decode(format!("{label} is not 0x-prefixed")))?,
+	)
+	.map_err(|_| ChainError::Decode(format!("{label} is not hexadecimal")))?;
+	if format!("0x{}", hex::encode(&raw)) != value {
+		return Err(ChainError::Decode(format!("{label} is not canonical lowercase hex")));
+	}
+	raw.try_into()
+		.map_err(|_| ChainError::Decode(format!("{label} is not 32 bytes")))
+}
+
 fn decode_checkpoint_cursor(
 	cursor: &CheckpointDutyScanCursor,
 ) -> Result<CheckpointDutyCursor<u32>, ChainError> {
@@ -591,9 +715,9 @@ pub(crate) fn validate_checkpoint_duty(
 	for ((expected_provider, expected_role, expected_order), authority) in
 		expected.iter().zip(&duty.authorities)
 	{
-		if authority.provider != **expected_provider ||
-			authority.role != *expected_role ||
-			authority.order != *expected_order
+		if authority.provider != **expected_provider
+			|| authority.role != *expected_role
+			|| authority.order != *expected_order
 		{
 			return Err(ChainError::DutyProtocol(
 				"checkpoint duty authority ordering does not match its provider audience".into(),
@@ -637,10 +761,12 @@ pub(crate) fn validate_checkpoint_duty(
 		RuntimeCheckpointDutyPhase::NotDue => CheckpointDutyPhase::NotDue,
 		RuntimeCheckpointDutyPhase::Primary => CheckpointDutyPhase::Primary,
 		RuntimeCheckpointDutyPhase::ReplicaFallback => CheckpointDutyPhase::ReplicaFallback,
-		RuntimeCheckpointDutyPhase::ReplicaFallbackPromotion =>
-			CheckpointDutyPhase::ReplicaFallbackPromotion,
-		RuntimeCheckpointDutyPhase::BlockedInsufficientFallbackQuorum =>
-			CheckpointDutyPhase::BlockedInsufficientFallbackQuorum,
+		RuntimeCheckpointDutyPhase::ReplicaFallbackPromotion => {
+			CheckpointDutyPhase::ReplicaFallbackPromotion
+		},
+		RuntimeCheckpointDutyPhase::BlockedInsufficientFallbackQuorum => {
+			CheckpointDutyPhase::BlockedInsufficientFallbackQuorum
+		},
 		RuntimeCheckpointDutyPhase::Unavailable => CheckpointDutyPhase::Unavailable,
 	};
 	let mode = match duty.mode {
@@ -682,4 +808,184 @@ fn ensure_version(version: u16) -> Result<(), ChainError> {
 #[derive(Deserialize)]
 struct RpcHeader {
 	number: String,
+}
+
+#[cfg(test)]
+mod tests {
+	use std::{convert::Infallible, sync::Arc};
+
+	use http_body_util::{BodyExt, Full};
+	use hyper::{body::Bytes, server::conn::http1, service::service_fn, Request, Response};
+	use hyper_util::rt::TokioIo;
+	use orbis_storage_runtime_api::{
+		BucketGrantInfo, BucketRole, OrganizationInfo, ServiceKeyInfo,
+	};
+	use serde_json::{json, Value};
+	use tokio::{net::TcpListener, sync::Mutex};
+
+	use super::*;
+
+	const FINALIZED_HASH: &str =
+		"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+	const GENESIS_HASH: &str = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+	fn runtime_response(method: &str) -> String {
+		let provider = AccountId32::new([7; 32]);
+		let owner = AccountId32::new([1; 32]);
+		let encoded = match method {
+			"StorageProviderApi_provider" => Versioned::new(Some(ProviderInfo {
+				endpoint: b"https://provider.invalid".to_vec(),
+				organization: OrganizationInfo {
+					entity_id: b"enterprise".to_vec(),
+					attestation_id: H256([1; 32]),
+					schema_id: H256([2; 32]),
+					sla_commitment: H256([3; 32]),
+					sla_version: 1,
+					valid_from: 1,
+					valid_until: 1_000,
+					rotation_predecessor: None,
+				},
+				service_key: ServiceKeyInfo {
+					active: [9; 32],
+					active_version: 1,
+					previous: None,
+					pending: None,
+					pending_version: None,
+					pending_effective_at: None,
+				},
+				capacity_bytes: 1_000_000,
+				allocated_bytes: 0,
+				pending_bytes: 0,
+				status: ProviderStatus::Active,
+				last_heartbeat: 109,
+				overdue_challenges: 0,
+				authority_validated_at: Some(100),
+			}))
+			.encode(),
+			"StorageProviderApi_capability_authority" => Versioned::new(Some(HostDelegationInfo {
+				grant_id: H256([3; 32]),
+				bucket_id: H256([5; 32]),
+				owner: owner.clone(),
+				issuance_nonce: 0,
+				issuer_key_id: H256([4; 32]),
+				issuer_public_key: [6; 32],
+				key_version: 1,
+				state_version: 1,
+				key_activated_at: 90,
+				product_id: b"festival".to_vec(),
+				methods: vec![1010],
+				cid: None,
+				max_bytes: 4096,
+				issued_at: 90,
+				expires_at: 200,
+				revoked_at: None,
+			}))
+			.encode(),
+			"StorageProviderApi_control_bucket" => Versioned::new(Some(ControlBucketInfo {
+				bucket_id: H256([5; 32]),
+				owner: owner.clone(),
+				version: 1,
+				policy: H256([8; 32]),
+				primary: provider.clone(),
+				replicas: vec![],
+				grants: vec![BucketGrantInfo { account: owner.clone(), role: BucketRole::Admin }],
+				created_at: 1,
+			}))
+			.encode(),
+			"StorageProviderApi_agreement" => Versioned::new(Some(AgreementInfo {
+				agreement_id: H256([6; 32]),
+				owner,
+				bucket_id: H256([5; 32]),
+				primary: provider,
+				replicas: vec![],
+				bytes: 4096,
+				created_at: 90,
+				expires_at: 180,
+				release_at: None,
+				state_version: 1,
+				status: AgreementStatus::Active,
+			}))
+			.encode(),
+			other => panic!("unexpected runtime API method: {other}"),
+		};
+		format!("0x{}", hex::encode(encoded))
+	}
+
+	async fn rpc_response(
+		request: Request<hyper::body::Incoming>,
+		reads: Arc<Mutex<Vec<(String, String)>>>,
+	) -> Result<Response<Full<Bytes>>, Infallible> {
+		let body = request.into_body().collect().await.unwrap().to_bytes();
+		let request: Value = serde_json::from_slice(&body).unwrap();
+		let method = request["method"].as_str().unwrap();
+		let result = match method {
+			"chain_getFinalizedHead" => json!(FINALIZED_HASH),
+			"chain_getHeader" => json!({ "number": "0x6e" }),
+			"chain_getBlockHash" => json!(GENESIS_HASH),
+			"state_call" => {
+				let params = request["params"].as_array().unwrap();
+				let runtime_method = params[0].as_str().unwrap().to_owned();
+				let at = params[2].as_str().unwrap().to_owned();
+				reads.lock().await.push((runtime_method.clone(), at));
+				json!(runtime_response(&runtime_method))
+			},
+			other => panic!("unexpected JSON-RPC method: {other}"),
+		};
+		let body = serde_json::to_vec(&json!({
+			"jsonrpc": "2.0",
+			"id": request["id"],
+			"result": result,
+		}))
+		.unwrap();
+		Ok(Response::new(Full::new(Bytes::from(body))))
+	}
+
+	#[tokio::test]
+	async fn capability_snapshot_pins_every_mutable_authority_read_to_one_finalized_hash() {
+		let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+		let address = listener.local_addr().unwrap();
+		let reads = Arc::new(Mutex::new(Vec::new()));
+		let server_reads = reads.clone();
+		let server = tokio::spawn(async move {
+			loop {
+				let (stream, _) = listener.accept().await.unwrap();
+				let connection_reads = server_reads.clone();
+				tokio::spawn(async move {
+					http1::Builder::new()
+						.serve_connection(
+							TokioIo::new(stream),
+							service_fn(move |request| {
+								rpc_response(request, connection_reads.clone())
+							}),
+						)
+						.await
+						.unwrap();
+				});
+			}
+		});
+
+		let authority = FinalizedRuntimeAuthority::connect(
+			&format!("http://{address}"),
+			AccountId32::new([7; 32]),
+			[9; 32],
+		)
+		.unwrap();
+		let snapshot =
+			authority.capability_authority_snapshot([3; 32], Some([6; 32])).await.unwrap();
+		assert_eq!(snapshot.finalized_hash, FINALIZED_HASH);
+		assert_eq!(snapshot.finalized_number, 110);
+		assert_eq!(snapshot.genesis_hash, [0xbb; 32]);
+		let reads = reads.lock().await.clone();
+		assert_eq!(
+			reads.iter().map(|(method, _)| method.as_str()).collect::<Vec<_>>(),
+			[
+				"StorageProviderApi_provider",
+				"StorageProviderApi_capability_authority",
+				"StorageProviderApi_control_bucket",
+				"StorageProviderApi_agreement",
+			]
+		);
+		assert!(reads.iter().all(|(_, at)| at == FINALIZED_HASH));
+		server.abort();
+	}
 }
