@@ -39,7 +39,7 @@ use sp_core::H256;
 use sp_crypto_hashing::blake2_256;
 
 use super::streaming::{StreamingStore, VerifiedInstallation};
-use crate::{BucketId, CanonicalCid, ContentError, OperationId};
+use crate::{BucketId, CanonicalCid, ContentError, OperationId, MAX_STREAMING_OPERATIONS};
 
 const VERSION: u16 = 3;
 const ROOT: &str = "bucket-mmr-v3";
@@ -49,6 +49,8 @@ const MAX_FRAME_PAYLOAD: usize = 2_048;
 const MAX_META_BYTES: usize = 8_192;
 const CHECKSUM_BYTES: usize = 32;
 const LENGTH_BYTES: usize = 4;
+const MAX_FRAME_BYTES: usize = LENGTH_BYTES + MAX_FRAME_PAYLOAD + CHECKSUM_BYTES;
+const MAX_LOG_BYTES: u64 = MAX_STREAMING_OPERATIONS as u64 * MAX_FRAME_BYTES as u64;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum BucketMmrFault {
@@ -153,7 +155,9 @@ impl BucketMmrStore {
 		}
 		for bucket_id in bucket_ids {
 			let bucket = state.buckets.entry(bucket_id).or_default();
-			open_bucket(&root, bucket_id, bucket)?;
+			if open_bucket(&root, bucket_id, bucket).is_err() {
+				bucket.unavailable = true;
+			}
 		}
 		index_confirmed_entries(&mut state)?;
 		for (bucket_id, bucket) in &mut state.buckets {
@@ -242,7 +246,11 @@ impl BucketMmrStore {
 				Err(ContentError::IdempotencyConflict)
 			};
 		}
-		if !state.known_sources.contains_key(&installation.install_sequence) {
+		if let Some(known) = state.known_sources.get(&installation.install_sequence) {
+			if known != &installation {
+				return Err(ContentError::IdempotencyConflict);
+			}
+		} else {
 			if installation.install_sequence != state.next_new_install_sequence {
 				return Err(ContentError::IntegrityFailed);
 			}
@@ -260,6 +268,7 @@ impl BucketMmrStore {
 		}
 		let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::IntegrityFailed)?;
 		if bucket.unavailable
+			|| bucket.meta.entry_count >= MAX_STREAMING_OPERATIONS as u64
 			|| bucket.source_order.get(bucket.entries.len()).copied()
 				!= Some(installation.install_sequence)
 		{
@@ -405,10 +414,21 @@ fn open_bucket(
 		sync_dir(&directory)?;
 	}
 	let log_len = fs::metadata(&log_path).map_err(io_error)?.len();
+	if log_len > MAX_LOG_BYTES {
+		bucket.unavailable = true;
+		return Ok(());
+	}
 	let meta_path = directory.join(META);
 	let meta = if meta_path.exists() {
 		match read_json::<BucketMeta>(&meta_path, MAX_META_BYTES) {
-			Ok(meta) if meta.version == VERSION && meta.peaks.len() <= 64 => meta,
+			Ok(meta)
+				if meta.version == VERSION
+					&& meta.peaks.len() <= 64
+					&& meta.entry_count <= MAX_STREAMING_OPERATIONS as u64
+					&& meta.confirmed_log_bytes <= MAX_LOG_BYTES =>
+			{
+				meta
+			},
 			_ => {
 				bucket.unavailable = true;
 				return Ok(());
@@ -421,7 +441,13 @@ fn open_bucket(
 		bucket.unavailable = true;
 		return Ok(());
 	}
-	let confirmed = match read_confirmed_frames(&log_path, meta.confirmed_log_bytes) {
+	let mut parsed_frames = 0usize;
+	let confirmed = match read_confirmed_frames(
+		&log_path,
+		meta.confirmed_log_bytes,
+		meta.entry_count,
+		&mut parsed_frames,
+	) {
 		Ok(entries) => entries,
 		Err(_) => {
 			bucket.unavailable = true;
@@ -598,11 +624,24 @@ fn encode_frame(entry: &Entry) -> Result<Vec<u8>, ContentError> {
 	Ok(frame)
 }
 
-fn read_confirmed_frames(path: &Path, confirmed_bytes: u64) -> Result<Vec<Entry>, ContentError> {
+fn read_confirmed_frames(
+	path: &Path,
+	confirmed_bytes: u64,
+	expected_entries: u64,
+	parsed_frames: &mut usize,
+) -> Result<Vec<Entry>, ContentError> {
+	if confirmed_bytes > MAX_LOG_BYTES || expected_entries > MAX_STREAMING_OPERATIONS as u64 {
+		return Err(ContentError::IntegrityFailed);
+	}
+	let expected_entries: usize =
+		expected_entries.try_into().map_err(|_| ContentError::IntegrityFailed)?;
 	let mut file = File::open(path).map_err(io_error)?;
 	let mut consumed = 0u64;
-	let mut entries = Vec::new();
+	let mut entries = Vec::with_capacity(expected_entries);
 	while consumed < confirmed_bytes {
+		if *parsed_frames >= expected_entries || *parsed_frames >= MAX_STREAMING_OPERATIONS {
+			return Err(ContentError::IntegrityFailed);
+		}
 		let mut length = [0u8; LENGTH_BYTES];
 		file.read_exact(&mut length).map_err(|_| ContentError::IntegrityFailed)?;
 		let length = u32::from_le_bytes(length) as usize;
@@ -625,8 +664,9 @@ fn read_confirmed_frames(path: &Path, confirmed_bytes: u64) -> Result<Vec<Entry>
 			return Err(ContentError::IntegrityFailed);
 		}
 		entries.push(serde_json::from_slice(&payload).map_err(|_| ContentError::IntegrityFailed)?);
+		*parsed_frames += 1;
 	}
-	if consumed != confirmed_bytes {
+	if consumed != confirmed_bytes || *parsed_frames != expected_entries {
 		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(entries)
@@ -924,5 +964,74 @@ mod tests {
 				.to_string_lossy()
 				.contains(".tmp-")));
 		}
+	}
+
+	#[test]
+	fn max_plus_one_valid_frames_are_rejected_before_parse_and_isolated() {
+		let temp = TempDir::new().unwrap();
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let (bucket_a, _, _) = install(temp.path(), &streaming, 9, 9, b"bounded");
+		let (bucket_b, _, _) = install(temp.path(), &streaming, 10, 10, b"healthy");
+		let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		let healthy = mmr.commitment_candidate(&streaming, bucket_b, 0).unwrap();
+		drop(mmr);
+		let directory = temp.path().join(ROOT).join(bucket_a.to_string());
+		let frame = fs::read(directory.join(LOG)).unwrap();
+		let mut oversized = File::create(directory.join(LOG)).unwrap();
+		for _ in 0..=MAX_STREAMING_OPERATIONS {
+			oversized.write_all(&frame).unwrap();
+		}
+		oversized.sync_all().unwrap();
+		let mut meta = read_json::<BucketMeta>(&directory.join(META), MAX_META_BYTES).unwrap();
+		meta.entry_count = MAX_STREAMING_OPERATIONS as u64 + 1;
+		meta.confirmed_log_bytes = frame.len() as u64 * meta.entry_count;
+		fs::write(directory.join(META), encode_json(&meta, MAX_META_BYTES).unwrap()).unwrap();
+		let mut parsed = 0usize;
+		assert!(read_confirmed_frames(
+			&directory.join(LOG),
+			meta.confirmed_log_bytes,
+			meta.entry_count,
+			&mut parsed,
+		)
+		.is_err());
+		assert_eq!(parsed, 0);
+		let reopened = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		assert!(reopened.commitment_candidate(&streaming, bucket_a, 0).is_err());
+		assert_eq!(reopened.commitment_candidate(&streaming, bucket_b, 0).unwrap(), healthy);
+	}
+
+	#[test]
+	fn unexpected_bucket_file_is_namespace_local() {
+		let temp = TempDir::new().unwrap();
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let (bucket_a, _, _) = install(temp.path(), &streaming, 11, 11, b"namespace");
+		let (bucket_b, _, _) = install(temp.path(), &streaming, 12, 12, b"healthy");
+		let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		let healthy = mmr.commitment_candidate(&streaming, bucket_b, 0).unwrap();
+		drop(mmr);
+		fs::write(temp.path().join(ROOT).join(bucket_a.to_string()).join("unexpected"), b"tamper")
+			.unwrap();
+		let reopened = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		assert!(reopened.commitment_candidate(&streaming, bucket_a, 0).is_err());
+		assert_eq!(reopened.commitment_candidate(&streaming, bucket_b, 0).unwrap(), healthy);
+	}
+
+	#[test]
+	fn changed_known_source_is_never_accepted() {
+		let temp = TempDir::new().unwrap();
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let (bucket, operation, cid) = install(temp.path(), &streaming, 13, 13, b"blocked");
+		let object = temp.path().join("streaming-v1").join("objects").join(cid.as_str());
+		fs::write(&object, b"corrupt").unwrap();
+		let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		fs::write(&object, b"blocked").unwrap();
+		{
+			let mut state = mmr.state.write().unwrap();
+			state.known_sources.get_mut(&0).unwrap().cid = CanonicalCid::from_digest([99; 32]);
+		}
+		assert_eq!(
+			mmr.append_verified(&streaming, bucket, operation),
+			Err(ContentError::IdempotencyConflict)
+		);
 	}
 }
