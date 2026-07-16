@@ -24,7 +24,7 @@ use std::{
 	sync::{Mutex, MutexGuard},
 };
 
-use sp_core::{ed25519, H256};
+use sp_core::{crypto::AccountId32, ed25519, H256};
 
 use crate::{
 	checkpoint::{
@@ -67,7 +67,10 @@ struct CheckpointStackState {
 	primary_quorum: CheckpointPrimaryQuorumStore,
 	outbox: std::sync::Arc<CheckpointOutboxV2>,
 	publications: CheckpointPublicationStoreV1,
-	fallback_promotions: CheckpointPromotionStoreV2,
+	fallback_promotions: std::sync::Arc<CheckpointPromotionStoreV2>,
+	#[cfg(feature = "checkpoint-live")]
+	promotion_discovery:
+		std::sync::Arc<crate::checkpoint_promotion_worker::PromotionDiscoveryScheduler>,
 	replication: ReplicationIntentStore,
 	peer_replies: PeerReplyStore,
 }
@@ -101,7 +104,11 @@ impl CheckpointStack {
 			primary_quorum: CheckpointPrimaryQuorumStore::open(root)?,
 			outbox,
 			publications,
-			fallback_promotions: CheckpointPromotionStoreV2::open(root)?,
+			fallback_promotions: std::sync::Arc::new(CheckpointPromotionStoreV2::open(root)?),
+			#[cfg(feature = "checkpoint-live")]
+			promotion_discovery: std::sync::Arc::new(
+				crate::checkpoint_promotion_worker::PromotionDiscoveryScheduler::open(root)?,
+			),
 			replication: ReplicationIntentStore::open(root)?,
 			peer_replies: PeerReplyStore::open(root)?,
 		};
@@ -134,6 +141,46 @@ impl CheckpointStack {
 		&self,
 	) -> Result<Vec<PreparedCheckpointProposalV2>, ContentError> {
 		self.lock()?.primary_quorum.outstanding_proposals()
+	}
+
+	pub(crate) fn authorize_checkpoint_promotion(
+		&self,
+		provider: &AccountId32,
+		duty_scale: &[u8],
+		signer: &dyn ServiceKeySigner,
+	) -> Result<crate::checkpoint::checkpoint_promotion::FallbackPromotionIntentV2, ContentError> {
+		let store = std::sync::Arc::clone(&self.lock()?.fallback_promotions);
+		store.authorize(provider, duty_scale, signer)
+	}
+
+	#[cfg(feature = "checkpoint-live")]
+	pub(crate) fn checkpoint_promotion_discovery_scheduler(
+		&self,
+	) -> Result<
+		std::sync::Arc<crate::checkpoint_promotion_worker::PromotionDiscoveryScheduler>,
+		ContentError,
+	> {
+		Ok(std::sync::Arc::clone(&self.lock()?.promotion_discovery))
+	}
+
+	#[cfg(feature = "checkpoint-consumer")]
+	pub(crate) async fn consume_checkpoint_promotion_with_lane_bounded(
+		&self,
+		lane: &impl crate::checkpoint::checkpoint_promotion_submitter::PromotionFinalityLane,
+		max_attempts: usize,
+	) -> Result<
+		Option<
+			crate::checkpoint::checkpoint_promotion::FallbackPromotionFinalizedReceiptV2,
+		>,
+		ContentError,
+	> {
+		let store = std::sync::Arc::clone(&self.lock()?.fallback_promotions);
+		crate::checkpoint::checkpoint_promotion_submitter::consume_one_with_lane_bounded(
+			&store,
+			lane,
+			max_attempts,
+		)
+		.await
 	}
 
 	pub(crate) fn begin_checkpoint_quorum(
@@ -861,7 +908,7 @@ mod tests {
 		CheckpointDutyPageRequest, DiskStore, JsonlCheckpointOutbox, NodeProfile, ProviderService,
 	};
 
-	const DURABLE_ROOTS: [&str; 16] = [
+	const DURABLE_ROOTS: [&str; 17] = [
 		"streaming-v1",
 		"bucket-mmr-v3",
 		"checkpoint-proposals-v2",
@@ -876,6 +923,7 @@ mod tests {
 		"checkpoint-promotion-intents-v2",
 		"checkpoint-promotion-finalized-receipts-v2",
 		"checkpoint-promotion-scheduler-v2",
+		"checkpoint-promotion-discovery-v1",
 		"replication-v3",
 		"peer-replies-v1",
 	];

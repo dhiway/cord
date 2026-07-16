@@ -20,45 +20,76 @@
 
 use std::{sync::Arc, time::Duration};
 
+use sp_core::ed25519;
 use tokio::time::{interval, timeout, MissedTickBehavior};
 
 use crate::{
-	chain::{CheckpointPublicationAuthority, FinalizedCheckpointObservation},
+	chain::{
+		CheckpointPublicationAuthority, FinalizedCheckpointObservation, ReplicationAuthority,
+	},
 	checkpoint::{
 		checkpoint_outbox::CheckpointFinalizedReceiptV2,
+		checkpoint_promotion::FallbackPromotionFinalizedReceiptV2,
+		checkpoint_promotion_submitter::PromotionFinalityLane,
 		checkpoint_publication::{submission_bucket_id, PublishedCheckpointV1},
 		checkpoint_submitter::CheckpointFinalityLane,
 	},
+	checkpoint_promotion_worker::PromotionDiscoveryScheduler,
 	checkpoint_stack::CheckpointStack,
-	ContentError,
+	ContentError, DiskStore,
 };
 
 const MAX_FINALITY_ATTEMPTS: usize = 8;
 const MAX_PUBLICATIONS: usize = 8;
 const FINALITY_TIMEOUT: Duration = Duration::from_secs(45);
 const OBSERVATION_TIMEOUT: Duration = Duration::from_secs(10);
+const PROMOTION_FINALITY_TIMEOUT: Duration = Duration::from_secs(45);
+const PROMOTION_TOPOLOGY_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Default)]
 pub(crate) struct CheckpointLiveTick {
 	pub(crate) finalized: Option<CheckpointFinalizedReceiptV2>,
+	pub(crate) promotion_finalized: Option<FallbackPromotionFinalizedReceiptV2>,
 	pub(crate) published: Vec<PublishedCheckpointV1>,
 }
 
 pub(crate) async fn run<A, L>(
 	authority: Arc<A>,
 	stack: Arc<CheckpointStack>,
+	store: Arc<DiskStore>,
 	lane: L,
+	local_provider: [u8; 32],
+	local_key: ed25519::Pair,
 	cadence: Duration,
-) where
-	A: CheckpointPublicationAuthority + 'static,
-	L: CheckpointFinalityLane + 'static,
+) -> Result<(), ContentError>
+where
+	A: CheckpointPublicationAuthority + ReplicationAuthority + 'static,
+	L: CheckpointFinalityLane + PromotionFinalityLane + 'static,
 {
+	let promotion_scheduler = stack.checkpoint_promotion_discovery_scheduler()?;
 	let mut ticker = interval(cadence.max(Duration::from_secs(1)));
 	ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
 	loop {
 		ticker.tick().await;
-		match tick(&*authority, &stack, &lane).await {
+		match tick_with_promotions(
+			&*authority,
+			&stack,
+			&store,
+			&lane,
+			&promotion_scheduler,
+			local_provider,
+			&local_key,
+			PROMOTION_FINALITY_TIMEOUT,
+			PROMOTION_TOPOLOGY_TIMEOUT,
+			FINALITY_TIMEOUT,
+			OBSERVATION_TIMEOUT,
+		)
+		.await
+		{
 			Ok(result) => {
+				if let Some(receipt) = result.promotion_finalized {
+					println!("checkpoint fallback promotion finalized: {}", receipt.intent_id);
+				}
 				if let Some(receipt) = result.finalized {
 					println!("checkpoint finalized: {}", receipt.submission_id);
 				}
@@ -69,6 +100,56 @@ pub(crate) async fn run<A, L>(
 			Err(error) => eprintln!("checkpoint live lifecycle tick failed: {error}"),
 		}
 	}
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn tick_with_promotions<A, L>(
+	authority: &A,
+	stack: &CheckpointStack,
+	store: &DiskStore,
+	lane: &L,
+	scheduler: &PromotionDiscoveryScheduler,
+	local_provider: [u8; 32],
+	local_key: &ed25519::Pair,
+	promotion_finality_timeout: Duration,
+	promotion_topology_timeout: Duration,
+	checkpoint_finality_timeout: Duration,
+	observation_timeout: Duration,
+) -> Result<CheckpointLiveTick, ContentError>
+where
+	A: CheckpointPublicationAuthority + ReplicationAuthority,
+	L: CheckpointFinalityLane + PromotionFinalityLane,
+{
+	let promotion = crate::checkpoint_promotion_worker::tick(
+		authority,
+		stack,
+		store,
+		lane,
+		scheduler,
+		local_provider,
+		local_key,
+		promotion_finality_timeout,
+		promotion_topology_timeout,
+	)
+	.await;
+	let mut first_error = promotion.as_ref().err().cloned();
+	let checkpoint = tick_with_timeouts(
+		authority,
+		stack,
+		lane,
+		checkpoint_finality_timeout,
+		observation_timeout,
+	)
+	.await;
+	if let Err(error) = &checkpoint {
+		first_error.get_or_insert_with(|| error.clone());
+	}
+	if let Some(error) = first_error {
+		return Err(error);
+	}
+	let mut checkpoint = checkpoint?;
+	checkpoint.promotion_finalized = promotion?;
+	Ok(checkpoint)
 }
 
 pub(crate) async fn tick<A, L>(
@@ -148,7 +229,11 @@ where
 	if let Some(error) = first_error {
 		return Err(error);
 	}
-	Ok(CheckpointLiveTick { finalized: finalized?, published })
+	Ok(CheckpointLiveTick {
+		finalized: finalized?,
+		promotion_finalized: None,
+		published,
+	})
 }
 
 fn observation_matches(
@@ -169,9 +254,14 @@ mod tests {
 		CustomMetadata, ExtrinsicMetadata, OuterEnums, PalletCallMetadata, PalletMetadata,
 		RuntimeMetadataV15,
 	};
-	use orbis_storage_runtime_api::{CheckpointInfo, CommitmentInfo, Versioned, RESPONSE_VERSION};
+	use orbis_storage_runtime_api::{
+		CheckpointDutyInfo, CheckpointDutyMode, CheckpointDutyPhase, CheckpointInfo,
+		CommitmentInfo, ProviderDutyAuthority, ProviderDutyExclusion, ProviderDutyRole, Versioned,
+		RESPONSE_VERSION,
+	};
 	use pallet_orbis_storage_provider::{
-		CheckpointContextV1, CommitmentPayloadV2, CommitmentV1, ReplicaSignature,
+		CheckpointContextV1, CheckpointFallbackPromotionV1, CommitmentPayloadV2, CommitmentV1,
+		ReplicaSignature,
 	};
 	use scale_info::{meta_type, TypeInfo};
 	use sp_core::{crypto::AccountId32, ed25519, Pair as _, H256};
@@ -179,15 +269,20 @@ mod tests {
 
 	use super::*;
 	use crate::{
-		chain::ChainError,
+		chain::{
+			ChainError, ReplicationAuthority, ReplicationTopologySnapshot,
+		},
 		checkpoint::{
 			checkpoint_outbox::{CheckpointOutboxV2, CheckpointSubmissionInputV2},
+			checkpoint_promotion::FallbackPromotionIntentV2,
 			checkpoint_publication::{
 				CheckpointPublicationStoreV1, FinalizedCheckpointPublicationInputV1,
 			},
 			checkpoint_quorum::{checkpoint_context_digest, checkpoint_digest},
+			checkpoint_promotion_submitter::PromotionFinalityLane,
 			checkpoint_submitter::FinalizedEvidence,
 		},
+		NodeProfile,
 	};
 
 	type Confirmations = Vec<ReplicaSignature<AccountId32>>;
@@ -205,6 +300,12 @@ mod tests {
 			primary_signature: ed25519::Signature,
 			primary_context_signature: ed25519::Signature,
 			confirmations: Confirmations,
+		},
+		#[codec(index = 20)]
+		promote_checkpoint_fallback {
+			payload: CheckpointFallbackPromotionV1<H256, u32>,
+			service_key: ed25519::Public,
+			signature: ed25519::Signature,
 		},
 	}
 
@@ -310,6 +411,59 @@ mod tests {
 			})
 			.collect();
 		input
+	}
+
+	fn promotion_duty() -> CheckpointDutyInfo<AccountId32, H256, u32> {
+		let authority = |seed, role, order, eligible, may_initiate| ProviderDutyAuthority {
+			provider: AccountId32::new([seed; 32]),
+			role,
+			order,
+			active_service_key_version: 5,
+			active_service_key: pair(seed).public().0,
+			endpoint_hash: H256::repeat_byte(seed),
+			organization_sla_eligible: true,
+			overdue_challenge: false,
+			eligible,
+			may_sign: eligible,
+			may_initiate,
+			exclusion: (!eligible).then_some(ProviderDutyExclusion::Inactive),
+			initiation_exclusion: None,
+			confirmed_checkpoint: Some(100),
+		};
+		CheckpointDutyInfo {
+			response_version: RESPONSE_VERSION,
+			commons_genesis_hash: H256::repeat_byte(10),
+			commons_spec_version: 11,
+			commons_transaction_version: 12,
+			commons_metadata_hash: H256::repeat_byte(13),
+			duty_id: H256::repeat_byte(14),
+			bucket_id: H256::repeat_byte(4),
+			primary: AccountId32::new([9; 32]),
+			replicas: vec![AccountId32::new([1; 32]), AccountId32::new([2; 32])],
+			authorities: vec![
+				authority(9, ProviderDutyRole::Primary, 0, false, false),
+				authority(1, ProviderDutyRole::Replica, 1, true, true),
+				authority(2, ProviderDutyRole::Replica, 2, true, false),
+			],
+			initiator: Some(AccountId32::new([1; 32])),
+			phase: CheckpointDutyPhase::ReplicaFallbackPromotion,
+			mode: CheckpointDutyMode::Standard,
+			snapshot_checkpoint: 120,
+			snapshot_hash: H256::repeat_byte(15),
+			due_at: 100,
+			grace_until: 110,
+			expected_nonce: 120,
+			scheduled_at: 90,
+			previous_commitment: Some(CommitmentInfo {
+				mmr_root: H256::repeat_byte(5),
+				start_seq: 0,
+				leaf_count: 5,
+			}),
+			previous_checkpoint: Some(100),
+			expected_next_start_seq: 5,
+			required_primary_confirmations: 1,
+			required_replica_confirmations: 2,
+		}
 	}
 
 	fn valid_response() -> Vec<u8> {
@@ -433,6 +587,30 @@ mod tests {
 		}
 	}
 
+	#[async_trait]
+	impl PromotionFinalityLane for PendingLane {
+		fn metadata(&self) -> &subxt::Metadata {
+			&self.metadata
+		}
+
+		fn signer_account(&self) -> [u8; 32] {
+			[1; 32]
+		}
+
+		fn service_key(&self) -> [u8; 32] {
+			pair(1).public().0
+		}
+
+		async fn submit_and_finalize(
+			&self,
+			_intent_id: &str,
+			_intent: &FallbackPromotionIntentV2,
+			_payload: subxt::tx::DynamicPayload,
+		) -> Result<FinalizedEvidence, ContentError> {
+			std::future::pending().await
+		}
+	}
+
 	struct MockAuthority {
 		stack: Arc<CheckpointStack>,
 		observation: FinalizedCheckpointObservation,
@@ -456,6 +634,25 @@ mod tests {
 				));
 			}
 			Ok(self.observation.clone())
+		}
+	}
+
+	#[async_trait]
+	impl ReplicationAuthority for MockAuthority {
+		async fn replication_topology(
+			&self,
+			_bucket_id: [u8; 32],
+		) -> Result<ReplicationTopologySnapshot, ChainError> {
+			Err(ChainError::Rejected("unexpected promotion topology read".into()))
+		}
+
+		async fn replication_topology_at(
+			&self,
+			_bucket_id: [u8; 32],
+			_finalized_hash: [u8; 32],
+			_finalized_number: u32,
+		) -> Result<ReplicationTopologySnapshot, ChainError> {
+			Err(ChainError::Rejected("unexpected pinned promotion topology read".into()))
 		}
 	}
 
@@ -527,6 +724,54 @@ mod tests {
 		assert!(matches!(
 			tick_with_timeouts(&authority, &stack, &lane, Duration::ZERO, Duration::from_secs(1)).await,
 			Err(ContentError::Io(message)) if message.contains("finality attempt timed out")
+		));
+		assert_eq!(authority.calls.load(Ordering::SeqCst), 1);
+		assert!(stack.pending_checkpoint_publications(MAX_PUBLICATIONS).unwrap().is_empty());
+	}
+
+	#[tokio::test]
+	async fn promotion_timeout_does_not_block_checkpoint_publication_on_the_shared_lane() {
+		let temp = TempDir::new().unwrap();
+		let stack = finalized_stack(&temp).await;
+		stack
+			.authorize_checkpoint_promotion(
+				&AccountId32::new([1; 32]),
+				&promotion_duty().encode(),
+				&pair(1),
+			)
+			.unwrap();
+		let store = DiskStore::open(
+			temp.path(),
+			NodeProfile {
+				provider: hex::encode([1; 32]),
+				endpoint: "https://provider.invalid".into(),
+				service_key: hex::encode(pair(1).public().0),
+				region: None,
+			},
+			1024,
+		)
+		.unwrap();
+		let scheduler = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
+		let lane = PendingLane { metadata: metadata() };
+		let authority = authority(Arc::clone(&stack), [22; 32], 120, valid_response());
+
+		assert!(matches!(
+			tick_with_promotions(
+				&authority,
+				&stack,
+				&store,
+				&lane,
+				&scheduler,
+				[1; 32],
+				&pair(1),
+				Duration::from_millis(1),
+				Duration::from_secs(1),
+				Duration::from_secs(1),
+				Duration::from_secs(1),
+			)
+			.await,
+			Err(ContentError::Io(message))
+				if message.contains("checkpoint promotion finality timed out")
 		));
 		assert_eq!(authority.calls.load(Ordering::SeqCst), 1);
 		assert!(stack.pending_checkpoint_publications(MAX_PUBLICATIONS).unwrap().is_empty());

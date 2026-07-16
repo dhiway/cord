@@ -34,6 +34,8 @@ mod chain;
 mod checkpoint;
 #[cfg(feature = "checkpoint-live")]
 mod checkpoint_live_worker;
+#[cfg(feature = "checkpoint-live")]
+mod checkpoint_promotion_worker;
 mod checkpoint_quorum_worker;
 mod checkpoint_stack;
 mod checkpoint_transport;

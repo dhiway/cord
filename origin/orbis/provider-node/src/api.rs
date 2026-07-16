@@ -229,11 +229,13 @@ pub async fn run_checkpoint_live_worker(
 	crate::checkpoint_live_worker::run(
 		Arc::clone(service.authority()),
 		Arc::clone(service.checkpoint_stack()),
+		Arc::clone(service.store()),
 		lane,
+		local_provider,
+		service.service_key.clone(),
 		cadence,
 	)
-	.await;
-	Ok(())
+	.await
 }
 
 fn peer_responder_for_service<A>(
