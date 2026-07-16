@@ -11,6 +11,7 @@ publish = false
 [features]
 default = []
 checkpoint-consumer = ["dep:scale-decode", "dep:scale-value", "dep:subxt"]
+checkpoint-live = ["checkpoint-consumer", "outbox"]
 outbox = ["dep:origin-rs"]
 
 [[bin]]

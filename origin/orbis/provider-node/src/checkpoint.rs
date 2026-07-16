@@ -18,6 +18,9 @@
 
 //! Private durable preparation of exact Commons checkpoint proposals.
 
+#[cfg(feature = "checkpoint-live")]
+#[path = "checkpoint_live.rs"]
+pub(crate) mod checkpoint_live;
 #[path = "checkpoint_outbox.rs"]
 pub(crate) mod checkpoint_outbox;
 #[path = "checkpoint_primary.rs"]
