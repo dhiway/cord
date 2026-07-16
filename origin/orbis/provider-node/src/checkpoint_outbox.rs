@@ -240,14 +240,14 @@ impl CheckpointOutboxV2 {
 		let mut pending = submissions
 			.values()
 			.filter(|submission| !finalized.contains_key(&submission.submission_id))
-			.cloned()
-			.collect::<Vec<_>>();
+			.map(|submission| Ok((pending_order_key(submission)?, submission.clone())))
+			.collect::<Result<Vec<_>, ContentError>>()?;
 		pending.sort_by(|left, right| {
-			left.tuple_key
-				.cmp(&right.tuple_key)
-				.then_with(|| left.submission_id.cmp(&right.submission_id))
+			left.0
+				.cmp(&right.0)
+				.then_with(|| left.1.submission_id.cmp(&right.1.submission_id))
 		});
-		Ok(pending)
+		Ok(pending.into_iter().map(|(_, submission)| submission).collect())
 	}
 
 	pub(crate) fn finalized_receipt(
@@ -589,6 +589,16 @@ pub(super) fn validate_submission(record: &CheckpointSubmissionV2) -> Result<(),
 		return Err(ContentError::IntegrityFailed)
 	}
 	Ok(())
+}
+
+fn pending_order_key(
+	record: &CheckpointSubmissionV2,
+) -> Result<([u8; 32], u32, u64), ContentError> {
+	// Open and enqueue validate records before they enter the immutable submissions map.
+	let payload = decode_scale::<CommitmentPayloadV2<H256, u32>>(&record.payload_scale)?;
+	let mut bucket_id = [0u8; 32];
+	bucket_id.copy_from_slice(payload.bucket_id.as_bytes());
+	Ok((bucket_id, payload.nonce, payload.commitment.start_seq))
 }
 
 fn validate_input(input: &CheckpointSubmissionInputV2) -> Result<(), ContentError> {
@@ -1024,23 +1034,35 @@ mod tests {
 	}
 
 	#[test]
-	fn pending_is_sorted_and_exact_finality_receipts_survive_reopen() {
+	fn pending_is_causally_sorted_and_exact_finality_receipts_survive_reopen() {
 		let temp = TempDir::new().unwrap();
 		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
-		for nonce in [103, 101, 102] {
+		let mut inserted = Vec::new();
+		for (bucket, nonce, start_seq) in [(5, 1, 1), (4, 104, 7), (4, 103, 9), (4, 103, 7)] {
 			let mut input = fixture();
+			input.payload.bucket_id = H256::repeat_byte(bucket);
 			input.payload.nonce = nonce;
+			input.payload.commitment.start_seq = start_seq;
 			resign(&mut input);
-			outbox.enqueue(&input).unwrap();
+			inserted.push(((bucket, nonce, start_seq), outbox.enqueue(&input).unwrap().submission));
 		}
+		let later = &inserted[1].1;
+		let predecessor = &inserted[3].1;
+		assert!(later.tuple_key < predecessor.tuple_key);
+
 		let pending = outbox.pending_submissions().unwrap();
-		let mut expected = pending.clone();
-		expected.sort_by(|left, right| {
-			left.tuple_key
-				.cmp(&right.tuple_key)
-				.then_with(|| left.submission_id.cmp(&right.submission_id))
-		});
-		assert_eq!(pending, expected);
+		assert_eq!(
+			pending
+				.iter()
+				.map(|submission| submission.submission_id.as_str())
+				.collect::<Vec<_>>(),
+			[
+				inserted[3].1.submission_id.as_str(),
+				inserted[2].1.submission_id.as_str(),
+				inserted[1].1.submission_id.as_str(),
+				inserted[0].1.submission_id.as_str(),
+			]
+		);
 
 		let submission = pending[0].clone();
 		let receipt = outbox

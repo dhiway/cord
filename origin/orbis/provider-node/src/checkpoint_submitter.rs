@@ -333,6 +333,19 @@ mod tests {
 		input
 	}
 
+	fn resign(input: &mut CheckpointSubmissionInputV2) {
+		input.context.v2_digest = checkpoint_digest(&input.payload);
+		input.primary_signature = pair(1).sign(&checkpoint_digest(&input.payload));
+		input.primary_context_signature = pair(1).sign(&checkpoint_context_digest(&input.context));
+		for confirmation in &mut input.confirmations {
+			let seed = <AccountId32 as AsRef<[u8]>>::as_ref(&confirmation.provider)[0];
+			confirmation.service_key = pair(seed).public();
+			confirmation.signature = pair(seed).sign(&checkpoint_digest(&input.payload));
+			confirmation.context_signature =
+				pair(seed).sign(&checkpoint_context_digest(&input.context));
+		}
+	}
+
 	fn submission(temp: &TempDir) -> (CheckpointOutboxV2, CheckpointSubmissionV2) {
 		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
 		let submission = outbox.enqueue(&fixture()).unwrap().submission;
@@ -343,6 +356,7 @@ mod tests {
 		metadata: Metadata,
 		signer: [u8; 32],
 		result: Mutex<Result<FinalizedEvidence, ContentError>>,
+		reject_intent: Option<String>,
 		calls: AtomicUsize,
 		intents: Mutex<Vec<String>>,
 	}
@@ -357,6 +371,7 @@ mod tests {
 					block_number: 44,
 					extrinsic_hash: [9; 32],
 				})),
+				reject_intent: None,
 				calls: AtomicUsize::new(0),
 				intents: Mutex::new(Vec::new()),
 			}
@@ -380,6 +395,9 @@ mod tests {
 		) -> Result<FinalizedEvidence, ContentError> {
 			self.calls.fetch_add(1, Ordering::SeqCst);
 			self.intents.lock().unwrap().push(intent_id.into());
+			if self.reject_intent.as_deref() == Some(intent_id) {
+				return Err(ContentError::Io("later checkpoint rejected".into()))
+			}
 			self.result.lock().unwrap().clone()
 		}
 	}
@@ -451,6 +469,42 @@ mod tests {
 			[format!("orbis-checkpoint-v2-{}", submission.submission_id)]
 		);
 		assert_eq!(outbox.finalized_receipt(&submission.submission_id).unwrap(), None);
+	}
+
+	#[tokio::test]
+	async fn later_hash_precedence_and_rejection_cannot_starve_predecessor() {
+		let temp = TempDir::new().unwrap();
+		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+		let mut later_input = fixture();
+		later_input.payload.nonce = 104;
+		resign(&mut later_input);
+		let later = outbox.enqueue(&later_input).unwrap().submission;
+		let mut predecessor_input = fixture();
+		predecessor_input.payload.nonce = 103;
+		resign(&mut predecessor_input);
+		let predecessor = outbox.enqueue(&predecessor_input).unwrap().submission;
+		assert!(later.tuple_key < predecessor.tuple_key);
+
+		let predecessor_intent = format!("orbis-checkpoint-v2-{}", predecessor.submission_id);
+		let later_intent = format!("orbis-checkpoint-v2-{}", later.submission_id);
+		let lane =
+			MockLane { reject_intent: Some(later_intent.clone()), ..MockLane::successful([1; 32]) };
+		let receipt = consume_one_with_lane(&outbox, &lane).await.unwrap().unwrap();
+		assert_eq!(receipt.submission_id, predecessor.submission_id);
+		assert!(outbox.finalized_receipt(&predecessor.submission_id).unwrap().is_some());
+		assert_eq!(
+			outbox
+				.pending_submissions()
+				.unwrap()
+				.iter()
+				.map(|submission| submission.submission_id.as_str())
+				.collect::<Vec<_>>(),
+			[later.submission_id.as_str()]
+		);
+
+		assert!(matches!(consume_one_with_lane(&outbox, &lane).await, Err(ContentError::Io(_))));
+		assert_eq!(lane.intents.lock().unwrap().as_slice(), [predecessor_intent, later_intent]);
+		assert_eq!(outbox.finalized_receipt(&later.submission_id).unwrap(), None);
 	}
 
 	#[tokio::test]
