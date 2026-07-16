@@ -37,8 +37,8 @@ use sp_crypto_hashing::blake2_256;
 
 use super::{ServiceKeySigner, CONTEXT_DOMAIN, DOMAIN};
 use crate::{
-	chain::validate_checkpoint_duty, storage::bucket_mmr::BucketMmrStore, BucketId,
-	CheckpointDutyRole, ContentError, DiskStore, StreamingStore,
+	chain::validate_checkpoint_duty, storage::bucket_mmr::BucketMmrStore, BucketId, ContentError,
+	DiskStore, StreamingStore,
 };
 
 const ROOT: &str = "checkpoint-confirmations-v1";
@@ -109,12 +109,12 @@ impl ReplicaConfirmationRequestV1 {
 
 	pub(crate) fn decode_canonical(bytes: &[u8]) -> Result<Self, ContentError> {
 		if bytes.len() > MAX_REQUEST_BYTES {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let mut input = bytes;
 		let request = Self::decode(&mut input).map_err(|_| ContentError::IntegrityFailed)?;
 		if !input.is_empty() || request.encode() != bytes || request.version != VERSION {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		Ok(request)
 	}
@@ -132,12 +132,12 @@ pub(crate) struct ReplicaConfirmationResponseV1 {
 impl ReplicaConfirmationResponseV1 {
 	fn decode_canonical(bytes: &[u8]) -> Result<Self, ContentError> {
 		if bytes.len() > MAX_RESPONSE_BYTES {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let mut input = bytes;
 		let response = Self::decode(&mut input).map_err(|_| ContentError::IntegrityFailed)?;
 		if !input.is_empty() || response.encode() != bytes || response.version != VERSION {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		Ok(response)
 	}
@@ -183,20 +183,20 @@ impl ReplicaConfirmationStore {
 			let name = entry.file_name().to_string_lossy().into_owned();
 			if name.contains(".tmp-") {
 				fs::remove_file(entry.path()).map_err(io_error)?;
-				continue
+				continue;
 			}
 			if !name.ends_with(".json") || !entry.file_type().map_err(io_error)?.is_file() {
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 			let bytes = fs::read(entry.path()).map_err(io_error)?;
 			if bytes.len() > MAX_RECORD_BYTES || records.len() >= MAX_CONFIRMATIONS {
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 			let record: ConfirmationRecordV1 =
 				serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			let key = validate_record(&record)?;
 			if name != format!("{key}.json") || records.insert(key, record).is_some() {
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 		}
 		Ok(Self {
@@ -226,14 +226,14 @@ impl ReplicaConfirmationStore {
 		{
 			let poisoned = *self.poisoned.read().map_err(|_| lock_error())?;
 			if poisoned {
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 			let records = self.records.read().map_err(|_| lock_error())?;
 			if let Some(record) = records.get(&key) {
 				if record.request != hex::encode(request_bytes) {
-					return Err(ContentError::IdempotencyConflict)
+					return Err(ContentError::IdempotencyConflict);
 				}
-				return hex::decode(&record.response).map_err(|_| ContentError::IntegrityFailed)
+				return hex::decode(&record.response).map_err(|_| ContentError::IntegrityFailed);
 			}
 		}
 
@@ -256,17 +256,17 @@ impl ReplicaConfirmationStore {
 		let response_bytes = response.encode();
 		let mut records = self.records.write().map_err(|_| lock_error())?;
 		if *self.poisoned.read().map_err(|_| lock_error())? {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		if let Some(record) = records.get(&key) {
 			return if record.request == hex::encode(request_bytes) {
 				hex::decode(&record.response).map_err(|_| ContentError::IntegrityFailed)
 			} else {
 				Err(ContentError::IdempotencyConflict)
-			}
+			};
 		}
 		if records.len() >= MAX_CONFIRMATIONS {
-			return Err(ContentError::ProviderRecoveryTableFull)
+			return Err(ContentError::ProviderRecoveryTableFull);
 		}
 		let mut record = ConfirmationRecordV1 {
 			version: VERSION,
@@ -283,7 +283,7 @@ impl ReplicaConfirmationStore {
 		record.record_hash = record_hash(&record)?;
 		if let Err(error) = self.persist(&key, &record) {
 			*self.poisoned.write().map_err(|_| lock_error())? = true;
-			return Err(error)
+			return Err(error);
 		}
 		records.insert(key, record);
 		Ok(response_bytes)
@@ -292,16 +292,16 @@ impl ReplicaConfirmationStore {
 	fn persist(&self, key: &str, record: &ConfirmationRecordV1) -> Result<(), ContentError> {
 		let validated = validate_record(record)?;
 		if validated != key {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let bytes = serde_json::to_vec(record).map_err(io_error)?;
 		if bytes.len() > MAX_RECORD_BYTES {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let path = self.root.join(format!("{key}.json"));
 		if path.exists() {
 			let existing = fs::read(&path).map_err(io_error)?;
-			return if existing == bytes { Ok(()) } else { Err(ContentError::IdempotencyConflict) }
+			return if existing == bytes { Ok(()) } else { Err(ContentError::IdempotencyConflict) };
 		}
 		let temp = self.root.join(format!("{key}.json.tmp-{}", std::process::id()));
 		let mut file = File::create(&temp).map_err(io_error)?;
@@ -353,7 +353,7 @@ fn validate_fresh_request(
 	let encoded = hex::decode(duty.encoded_duty.trim_start_matches("0x"))
 		.map_err(|_| ContentError::IntegrityFailed)?;
 	if hex::encode(blake2_256(&encoded)) != normalize_hash(&duty.duty_fingerprint)? {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let decoded = validate_frozen_duty(request, &encoded)?;
 	let projected = validate_checkpoint_duty(
@@ -365,7 +365,6 @@ fn validate_fresh_request(
 	.map_err(|_| ContentError::IntegrityFailed)?;
 	if projected != duty ||
 		watermark.snapshot_checkpoint != duty.snapshot_checkpoint ||
-		duty.role != CheckpointDutyRole::Replica ||
 		!duty.may_sign ||
 		duty.service_key_version == 0 ||
 		duty.service_key.trim_start_matches("0x") != hex::encode(signer.public_key()) ||
@@ -376,15 +375,14 @@ fn validate_fresh_request(
 			decoded.phase,
 			CheckpointDutyPhase::Primary | CheckpointDutyPhase::ReplicaFallback
 		) {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let local = decoded
 		.authorities
 		.iter()
 		.find(|authority| authority.provider == request.target_provider)
 		.ok_or(ContentError::IntegrityFailed)?;
-	if local.role != ProviderDutyRole::Replica ||
-		local.active_service_key_version != duty.service_key_version ||
+	if local.active_service_key_version != duty.service_key_version ||
 		local.active_service_key_version != request.target_service_key_version ||
 		local.active_service_key != signer.public_key() ||
 		local.active_service_key != request.target_service_key.0 ||
@@ -394,7 +392,7 @@ fn validate_fresh_request(
 		local.overdue_challenge ||
 		local.exclusion.is_some()
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let primary = decoded
 		.authorities
@@ -410,7 +408,7 @@ fn validate_fresh_request(
 		primary.exclusion.is_some() ||
 		primary.initiation_exclusion.is_some()
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let expected_start = match decoded.previous_commitment.as_ref() {
 		Some(previous) => previous
@@ -425,7 +423,7 @@ fn validate_fresh_request(
 		request.payload.commitment.start_seq != expected_start ||
 		request.payload.commitment.range_end().is_none()
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let candidate = mmr.commitment_candidate(
 		streaming,
@@ -433,7 +431,7 @@ fn validate_fresh_request(
 		expected_start,
 	)?;
 	if request.payload.commitment != candidate {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let expected_context = CheckpointContextV1 {
 		version: 1,
@@ -448,7 +446,7 @@ fn validate_fresh_request(
 	if request.context != expected_context ||
 		hex::encode(decoded.snapshot_hash.as_bytes()) != normalize_hash(&duty.snapshot_hash)?
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(FrozenDuty { encoded, decoded })
 }
@@ -467,7 +465,7 @@ fn validate_request_signatures(request: &ReplicaConfirmationRequestV1) -> Result
 		&request.auth_message(),
 		&request.primary_service_key,
 	) {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(())
 }
@@ -489,15 +487,19 @@ fn validate_frozen_duty(
 			duty.phase,
 			CheckpointDutyPhase::Primary | CheckpointDutyPhase::ReplicaFallback
 		) {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
+	}
+	validate_authority_projection(&duty)?;
+	let initiator = duty.initiator.as_ref().ok_or(ContentError::IntegrityFailed)?;
+	if !valid_confirmation_target(&duty, &request.target_provider, initiator) {
+		return Err(ContentError::IntegrityFailed);
 	}
 	let local = duty
 		.authorities
 		.iter()
 		.find(|authority| authority.provider == request.target_provider)
 		.ok_or(ContentError::IntegrityFailed)?;
-	if local.role != ProviderDutyRole::Replica ||
-		local.active_service_key_version != request.target_service_key_version ||
+	if local.active_service_key_version != request.target_service_key_version ||
 		local.active_service_key != request.target_service_key.0 ||
 		!local.may_sign ||
 		!local.eligible ||
@@ -505,7 +507,7 @@ fn validate_frozen_duty(
 		local.overdue_challenge ||
 		local.exclusion.is_some()
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let primary = duty
 		.authorities
@@ -521,7 +523,7 @@ fn validate_frozen_duty(
 		primary.exclusion.is_some() ||
 		primary.initiation_exclusion.is_some()
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let expected_start = match duty.previous_commitment.as_ref() {
 		Some(previous) => previous
@@ -530,13 +532,18 @@ fn validate_frozen_duty(
 			.ok_or(ContentError::IntegrityFailed)?,
 		None => 0,
 	};
-	if request.payload.version != 2 ||
+	if duty.expected_nonce != duty.snapshot_checkpoint ||
+		duty.expected_next_start_seq != expected_start ||
+		duty.required_primary_confirmations != 1 ||
+		duty.required_replica_confirmations != 2 ||
+		request.payload.version != 2 ||
 		request.payload.bucket_id != duty.bucket_id ||
 		request.payload.nonce != duty.expected_nonce ||
+		request.payload.commitment.leaf_count == 0 ||
 		request.payload.commitment.start_seq != expected_start ||
 		request.payload.commitment.range_end().is_none()
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let expected_context = CheckpointContextV1 {
 		version: 1,
@@ -549,21 +556,76 @@ fn validate_frozen_duty(
 		v2_digest: checkpoint_digest(&request.payload),
 	};
 	if request.context != expected_context {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(duty)
 }
 
+fn validate_authority_projection(
+	duty: &CheckpointDutyInfo<AccountId32, H256, u32>,
+) -> Result<(), ContentError> {
+	if duty.replicas.iter().any(|replica| replica == &duty.primary) ||
+		duty.replicas
+			.iter()
+			.enumerate()
+			.any(|(index, replica)| duty.replicas[..index].contains(replica)) ||
+		duty.authorities.len() != duty.replicas.len().saturating_add(1)
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	let primary = duty.authorities.first().ok_or(ContentError::IntegrityFailed)?;
+	if primary.provider != duty.primary ||
+		primary.role != ProviderDutyRole::Primary ||
+		primary.order != 0
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	for (index, (replica, authority)) in
+		duty.replicas.iter().zip(duty.authorities.iter().skip(1)).enumerate()
+	{
+		let order =
+			u8::try_from(index.saturating_add(1)).map_err(|_| ContentError::IntegrityFailed)?;
+		if authority.provider != *replica ||
+			authority.role != ProviderDutyRole::Replica ||
+			authority.order != order
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+	}
+	Ok(())
+}
+
+fn valid_confirmation_target(
+	duty: &CheckpointDutyInfo<AccountId32, H256, u32>,
+	target: &AccountId32,
+	initiator: &AccountId32,
+) -> bool {
+	if target == initiator {
+		return false;
+	}
+	match duty.phase {
+		CheckpointDutyPhase::Primary =>
+			initiator == &duty.primary && duty.replicas.contains(target),
+		CheckpointDutyPhase::ReplicaFallback =>
+			duty.replicas.contains(initiator) &&
+				(target == &duty.primary ||
+					duty.replicas
+						.iter()
+						.any(|replica| replica == target && replica != initiator)),
+		_ => false,
+	}
+}
+
 fn validate_record(record: &ConfirmationRecordV1) -> Result<String, ContentError> {
 	if record.version != VERSION || record.record_hash != record_hash(record)? {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let duty_bytes = hex::decode(&record.duty_scale).map_err(|_| ContentError::IntegrityFailed)?;
 	if duty_bytes.is_empty() ||
 		hex::encode(&duty_bytes) != record.duty_scale ||
 		record.duty_fingerprint != hex::encode(blake2_256(&duty_bytes))
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let request_bytes = hex::decode(&record.request).map_err(|_| ContentError::IntegrityFailed)?;
 	let response_bytes =
@@ -573,7 +635,7 @@ fn validate_record(record: &ConfirmationRecordV1) -> Result<String, ContentError
 		record.request_hash != hex::encode(blake2_256(&request_bytes)) ||
 		record.response_hash != hex::encode(blake2_256(&response_bytes))
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let request = ReplicaConfirmationRequestV1::decode_canonical(&request_bytes)?;
 	validate_request_signatures(&request)?;
@@ -581,7 +643,7 @@ fn validate_record(record: &ConfirmationRecordV1) -> Result<String, ContentError
 	if duty.snapshot_checkpoint != record.snapshot_checkpoint ||
 		record.snapshot_hash != hex::encode(duty.snapshot_hash.as_bytes())
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let response = ReplicaConfirmationResponseV1::decode_canonical(&response_bytes)?;
 	if response.proposal_record_hash != request.proposal_record_hash ||
@@ -598,7 +660,7 @@ fn validate_record(record: &ConfirmationRecordV1) -> Result<String, ContentError
 		&checkpoint_context_digest(&request.context),
 		&response.confirmation.service_key,
 	) {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(confirmation_key(&request))
 }
@@ -617,9 +679,8 @@ fn checkpoint_context_digest(context: &CheckpointContextV1<H256>) -> [u8; 32] {
 
 fn confirmation_key(request: &ReplicaConfirmationRequestV1) -> String {
 	let mut input = b"cord/provider/checkpoint-confirmation-key/v1".to_vec();
-	input.extend_from_slice(&request.proposal_record_hash);
-	input.extend_from_slice(<AccountId32 as AsRef<[u8]>>::as_ref(&request.target_provider));
 	input.extend_from_slice(request.duty_id.as_bytes());
+	input.extend_from_slice(<AccountId32 as AsRef<[u8]>>::as_ref(&request.target_provider));
 	hex::encode(blake2_256(&input))
 }
 
@@ -634,7 +695,7 @@ fn record_hash(record: &ConfirmationRecordV1) -> Result<String, ContentError> {
 fn normalize_hash(value: &str) -> Result<String, ContentError> {
 	let value = value.trim_start_matches("0x");
 	if value.len() != 64 || value.bytes().any(|byte| byte.is_ascii_uppercase()) {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	hex::decode(value).map_err(|_| ContentError::IntegrityFailed)?;
 	Ok(value.into())
@@ -705,29 +766,65 @@ mod tests {
 	}
 
 	fn fixture(fallback: bool, authority_fault: u8) -> Fixture {
+		fixture_variant(fallback, authority_fault, 0, 0)
+	}
+
+	fn fixture_variant(
+		fallback: bool,
+		authority_fault: u8,
+		target_kind: u8,
+		duty_fault: u8,
+	) -> Fixture {
 		let temp = TempDir::new().unwrap();
-		let local = ed25519::Pair::from_seed(&[8; 32]);
+		let replica = ed25519::Pair::from_seed(&[8; 32]);
 		let primary = ed25519::Pair::from_seed(&[7; 32]);
 		let other = ed25519::Pair::from_seed(&[9; 32]);
 		let old_primary = AccountId32::new([1; 32]);
-		let target = AccountId32::new([2; 32]);
+		let configured_replica = AccountId32::new([2; 32]);
 		let promoted = AccountId32::new([3; 32]);
 		let mut authorities = vec![
-			authority(old_primary.clone(), ProviderDutyRole::Primary, 0, primary.public().0, true),
-			authority(target.clone(), ProviderDutyRole::Replica, 1, local.public().0, false),
+			authority(
+				old_primary.clone(),
+				ProviderDutyRole::Primary,
+				0,
+				primary.public().0,
+				!fallback,
+			),
+			authority(
+				configured_replica.clone(),
+				ProviderDutyRole::Replica,
+				1,
+				replica.public().0,
+				false,
+			),
 			authority(promoted.clone(), ProviderDutyRole::Replica, 2, other.public().0, fallback),
 		];
+		let target = match target_kind {
+			1 => old_primary.clone(),
+			2 => promoted.clone(),
+			_ => configured_replica.clone(),
+		};
+		let local = match target_kind {
+			1 => ed25519::Pair::from_seed(&[7; 32]),
+			2 => ed25519::Pair::from_seed(&[9; 32]),
+			_ => ed25519::Pair::from_seed(&[8; 32]),
+		};
+		let target_index = match target_kind {
+			1 => 0,
+			2 => 2,
+			_ => 1,
+		};
 		match authority_fault {
-			1 => authorities[1].eligible = false,
-			2 => authorities[1].overdue_challenge = true,
-			3 => authorities[1].exclusion = Some(ProviderDutyExclusion::Inactive),
+			1 => authorities[target_index].eligible = false,
+			2 => authorities[target_index].overdue_challenge = true,
+			3 => authorities[target_index].exclusion = Some(ProviderDutyExclusion::Inactive),
 			4 =>
-				authorities[1].initiation_exclusion =
+				authorities[target_index].initiation_exclusion =
 					Some(ProviderDutyExclusion::ReplicaCheckpointMissingOrStale),
 			_ => {},
 		}
 		let initiator = if fallback { promoted.clone() } else { old_primary.clone() };
-		let typed = CheckpointDutyInfo {
+		let mut typed = CheckpointDutyInfo {
 			response_version: RESPONSE_VERSION,
 			commons_genesis_hash: H256::repeat_byte(10),
 			commons_spec_version: 1,
@@ -736,7 +833,7 @@ mod tests {
 			duty_id: H256::repeat_byte(5),
 			bucket_id: H256::repeat_byte(4),
 			primary: old_primary,
-			replicas: vec![target.clone(), promoted],
+			replicas: vec![configured_replica, promoted],
 			authorities,
 			initiator: Some(initiator.clone()),
 			phase: if fallback {
@@ -757,6 +854,24 @@ mod tests {
 			required_primary_confirmations: 1,
 			required_replica_confirmations: 2,
 		};
+		match duty_fault {
+			1 => typed.expected_nonce = 99,
+			2 => typed.expected_next_start_seq = 1,
+			3 => typed.required_primary_confirmations = 0,
+			4 => typed.required_replica_confirmations = 1,
+			5 => {
+				let duplicate = typed.replicas[1].clone();
+				typed.replicas.push(duplicate.clone());
+				typed.authorities.push(authority(
+					duplicate,
+					ProviderDutyRole::Replica,
+					3,
+					other.public().0,
+					false,
+				));
+			},
+			_ => {},
+		}
 		let duty = validate_checkpoint_duty(typed.clone(), &target, local.public().0, 100).unwrap();
 		let disk = DiskStore::open(
 			temp.path().join("disk"),
@@ -866,6 +981,119 @@ mod tests {
 	}
 
 	#[test]
+	fn fallback_predecessor_confirms_but_promoted_initiator_cannot_confirm_itself() {
+		let predecessor = fixture_variant(true, 0, 1, 0);
+		assert!(predecessor
+			.store
+			.confirm(
+				&predecessor.disk,
+				&predecessor.mmr,
+				&predecessor.streaming,
+				&predecessor.local,
+				&predecessor.request.encode(),
+			)
+			.is_ok());
+
+		let promoted = fixture_variant(true, 0, 2, 0);
+		assert_eq!(
+			promoted.store.confirm(
+				&promoted.disk,
+				&promoted.mmr,
+				&promoted.streaming,
+				&promoted.local,
+				&promoted.request.encode(),
+			),
+			Err(ContentError::IntegrityFailed)
+		);
+	}
+
+	#[test]
+	fn frozen_duty_requires_nonce_sequence_quorum_and_unique_authorities() {
+		for duty_fault in 1..=5 {
+			let fixture = fixture_variant(false, 0, 0, duty_fault);
+			assert!(
+				fixture
+					.store
+					.confirm(
+						&fixture.disk,
+						&fixture.mmr,
+						&fixture.streaming,
+						&fixture.local,
+						&fixture.request.encode(),
+					)
+					.is_err(),
+				"duty fault {duty_fault}"
+			);
+		}
+
+		let fixture = fixture(false, 0);
+		let duty = fixture.disk.pending_checkpoint_duties().unwrap().pop().unwrap();
+		let mut encoded = &hex::decode(duty.encoded_duty.trim_start_matches("0x")).unwrap()[..];
+		let mut decoded =
+			CheckpointDutyInfo::<AccountId32, H256, u32>::decode(&mut encoded).unwrap();
+		decoded.initiator = Some(decoded.replicas[0].clone());
+		decoded.authorities[1].may_initiate = true;
+		assert!(!valid_confirmation_target(
+			&decoded,
+			&decoded.replicas[1],
+			decoded.initiator.as_ref().unwrap(),
+		));
+	}
+
+	#[test]
+	fn reopen_rejects_rehashed_semantically_invalid_frozen_duties() {
+		for duty_fault in 1..=5 {
+			let fixture = fixture(false, 0);
+			fixture
+				.store
+				.confirm(
+					&fixture.disk,
+					&fixture.mmr,
+					&fixture.streaming,
+					&fixture.local,
+					&fixture.request.encode(),
+				)
+				.unwrap();
+			drop(fixture.store);
+			let path = fs::read_dir(fixture._temp.path().join(ROOT))
+				.unwrap()
+				.next()
+				.unwrap()
+				.unwrap()
+				.path();
+			let mut record: ConfirmationRecordV1 =
+				serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+			let bytes = hex::decode(&record.duty_scale).unwrap();
+			let mut input = &bytes[..];
+			let mut duty =
+				CheckpointDutyInfo::<AccountId32, H256, u32>::decode(&mut input).unwrap();
+			match duty_fault {
+				1 => duty.expected_nonce = duty.snapshot_checkpoint.saturating_sub(1),
+				2 => duty.expected_next_start_seq = 1,
+				3 => duty.required_primary_confirmations = 0,
+				4 => duty.required_replica_confirmations = 1,
+				5 => {
+					let duplicate = duty.replicas[1].clone();
+					let mut duplicate_authority = duty.authorities[2].clone();
+					duplicate_authority.order = 3;
+					duty.replicas.push(duplicate);
+					duty.authorities.push(duplicate_authority);
+				},
+				_ => unreachable!(),
+			}
+			let changed = duty.encode();
+			record.duty_scale = hex::encode(&changed);
+			record.duty_fingerprint = hex::encode(blake2_256(&changed));
+			record.record_hash = record_hash(&record).unwrap();
+			fs::write(&path, serde_json::to_vec(&record).unwrap()).unwrap();
+			assert!(
+				ReplicaConfirmationStore::open(fixture._temp.path()).is_err(),
+				"reopen duty fault {duty_fault}"
+			);
+		}
+	}
+
+	#[test]
 	fn replica_may_sign_when_only_failover_initiation_is_excluded() {
 		let fixture = fixture(false, 4);
 		assert!(fixture
@@ -921,7 +1149,7 @@ mod tests {
 		assert!(ReplicaConfirmationRequestV1::decode_canonical(&trailing).is_err());
 		assert!(ReplicaConfirmationRequestV1::decode_canonical(&vec![0; MAX_REQUEST_BYTES + 1])
 			.is_err());
-		for case in 0..15 {
+		for case in 0..16 {
 			let fault = match case {
 				8 => 1,
 				9 => 2,
@@ -964,6 +1192,7 @@ mod tests {
 				},
 				13 => request.target_service_key_version += 1,
 				14 => request.target_service_key = ed25519::Pair::from_seed(&[66; 32]).public(),
+				15 => request.payload.commitment.leaf_count = 0,
 				_ => {},
 			}
 			if !matches!(case, 2 | 3 | 8 | 9 | 10 | 11 | 12) {
@@ -1094,6 +1323,20 @@ mod tests {
 			.store
 			.confirm(&capacity.disk, &capacity.mmr, &capacity.streaming, &capacity.local, &request)
 			.unwrap();
+		let mut changed_proposal = capacity.request.clone();
+		changed_proposal.proposal_record_hash = [77; 32];
+		resign(&mut changed_proposal, &capacity.primary);
+		assert_eq!(
+			capacity.store.confirm(
+				&capacity.disk,
+				&capacity.mmr,
+				&capacity.streaming,
+				&capacity.local,
+				&changed_proposal.encode(),
+			),
+			Err(ContentError::IdempotencyConflict)
+		);
+		assert_eq!(capacity.store.records.read().unwrap().len(), 1);
 		let existing = capacity.store.records.read().unwrap().values().next().unwrap().clone();
 		let mut records = capacity.store.records.write().unwrap();
 		let mut index = 0u64;
@@ -1115,18 +1358,15 @@ mod tests {
 				.unwrap(),
 			first
 		);
-		let mut next = capacity.request.clone();
-		next.proposal_record_hash = [77; 32];
-		resign(&mut next, &capacity.primary);
 		assert_eq!(
 			capacity.store.confirm(
 				&capacity.disk,
 				&capacity.mmr,
 				&capacity.streaming,
 				&capacity.local,
-				&next.encode(),
+				&changed_proposal.encode(),
 			),
-			Err(ContentError::ProviderRecoveryTableFull)
+			Err(ContentError::IdempotencyConflict)
 		);
 
 		for (fault, persisted) in [
