@@ -57,6 +57,9 @@ impl<A: ReplicationAuthority> PeerResponder<A> {
 	/// Authenticate topology and durably build or replay one exact page response.
 	pub(crate) async fn page(&self, request_bytes: &[u8]) -> Result<Vec<u8>, ContentError> {
 		let request = PeerSyncPageRequestV1::decode_authenticated(request_bytes)?;
+		if let Some(bytes) = self.stack.replay_peer_page(&request)? {
+			return Ok(bytes);
+		}
 		self.authenticate_context(request.context()).await?;
 		self.stack.serve_peer_page(&request, &self.local_service)
 	}
@@ -64,6 +67,9 @@ impl<A: ReplicationAuthority> PeerResponder<A> {
 	/// Authenticate topology and durably build or replay one exact committed-object chunk.
 	pub(crate) async fn chunk(&self, request_bytes: &[u8]) -> Result<Vec<u8>, ContentError> {
 		let request = PeerChunkRequestV1::decode_authenticated(request_bytes)?;
+		if let Some(bytes) = self.stack.replay_peer_chunk(&request)? {
+			return Ok(bytes);
+		}
 		self.authenticate_context(request.context()).await?;
 		self.stack.serve_peer_chunk(&request, &self.local_service)
 	}
@@ -72,18 +78,19 @@ impl<A: ReplicationAuthority> PeerResponder<A> {
 		&self,
 		claimed: &crate::peer::PeerContextV1,
 	) -> Result<(), ContentError> {
-		if claimed.source_provider() != self.local_provider
-			|| self.local_service.public().0 == [0; 32]
+		if claimed.source_provider() != self.local_provider ||
+			self.local_service.public().0 == [0; 32]
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
-		let topology = self
+		let (finalized_hash, finalized_number) = claimed.finalized();
+		let pinned_topology = self
 			.authority
-			.replication_topology(claimed.bucket())
+			.replication_topology_at(claimed.bucket(), finalized_hash, finalized_number)
 			.await
 			.map_err(|_| ContentError::IntegrityFailed)?;
-		let session = ReplicationSessionV1::from_topology(
-			topology,
+		let pinned_session = ReplicationSessionV1::from_topology(
+			pinned_topology,
 			self.local_provider,
 			self.local_service.public().0,
 			claimed.source_provider(),
@@ -91,7 +98,41 @@ impl<A: ReplicationAuthority> PeerResponder<A> {
 			claimed.candidate_commitment(),
 		)
 		.map_err(|_| ContentError::IntegrityFailed)?;
-		if session.context() != claimed {
+		if pinned_session.context() != claimed {
+			return Err(ContentError::IntegrityFailed);
+		}
+
+		// Historical context authenticates the request; current finalized state separately controls
+		// whether either peer may perform new content I/O after revocation or key rotation.
+		let current_topology = self
+			.authority
+			.replication_topology(claimed.bucket())
+			.await
+			.map_err(|_| ContentError::IntegrityFailed)?;
+		if current_topology.finalized_number < finalized_number {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let current_session = ReplicationSessionV1::from_topology(
+			current_topology,
+			self.local_provider,
+			self.local_service.public().0,
+			claimed.source_provider(),
+			claimed.target_provider(),
+			claimed.candidate_commitment(),
+		)
+		.map_err(|_| ContentError::IntegrityFailed)?;
+		if current_session.topology().bucket_version != pinned_session.topology().bucket_version ||
+			current_session.source().order() != pinned_session.source().order() ||
+			current_session.target().order() != pinned_session.target().order() ||
+			current_session.source().endpoint_hash() != pinned_session.source().endpoint_hash() ||
+			current_session.target().endpoint_hash() != pinned_session.target().endpoint_hash() ||
+			current_session.source().service_key() != pinned_session.source().service_key() ||
+			current_session.source().service_key_version() !=
+				pinned_session.source().service_key_version() ||
+			current_session.target().service_key() != pinned_session.target().service_key() ||
+			current_session.target().service_key_version() !=
+				pinned_session.target().service_key_version()
+		{
 			return Err(ContentError::IntegrityFailed);
 		}
 		Ok(())
@@ -100,7 +141,7 @@ impl<A: ReplicationAuthority> PeerResponder<A> {
 
 #[cfg(test)]
 mod tests {
-	use std::{fs, path::PathBuf};
+	use std::{fs, path::PathBuf, sync::RwLock};
 
 	use async_trait::async_trait;
 	use codec::Encode;
@@ -139,6 +180,56 @@ mod tests {
 				return Err(ChainError::Rejected("wrong bucket".into()));
 			}
 			Ok(self.topology.clone())
+		}
+
+		async fn replication_topology_at(
+			&self,
+			bucket_id: [u8; 32],
+			finalized_hash: [u8; 32],
+			finalized_number: u32,
+		) -> Result<ReplicationTopologySnapshot, ChainError> {
+			if bucket_id != self.topology.bucket_id ||
+				finalized_hash != self.topology.finalized_hash ||
+				finalized_number != self.topology.finalized_number
+			{
+				return Err(ChainError::Rejected("wrong pinned topology".into()));
+			}
+			Ok(self.topology.clone())
+		}
+	}
+
+	#[derive(Clone)]
+	struct AdvancingAuthority {
+		pinned: ReplicationTopologySnapshot,
+		current: Arc<RwLock<ReplicationTopologySnapshot>>,
+	}
+
+	#[async_trait]
+	impl ReplicationAuthority for AdvancingAuthority {
+		async fn replication_topology(
+			&self,
+			bucket_id: [u8; 32],
+		) -> Result<ReplicationTopologySnapshot, ChainError> {
+			let topology = self.current.read().unwrap().clone();
+			if bucket_id != topology.bucket_id {
+				return Err(ChainError::Rejected("wrong bucket".into()));
+			}
+			Ok(topology)
+		}
+
+		async fn replication_topology_at(
+			&self,
+			bucket_id: [u8; 32],
+			finalized_hash: [u8; 32],
+			finalized_number: u32,
+		) -> Result<ReplicationTopologySnapshot, ChainError> {
+			if bucket_id != self.pinned.bucket_id ||
+				finalized_hash != self.pinned.finalized_hash ||
+				finalized_number != self.pinned.finalized_number
+			{
+				return Err(ChainError::Rejected("wrong pinned topology".into()));
+			}
+			Ok(self.pinned.clone())
 		}
 	}
 
@@ -342,6 +433,63 @@ mod tests {
 		let reopened = make_responder(&fixture);
 		assert_eq!(reopened.page(&page_request.encode_wire()).await.unwrap(), page);
 		assert_eq!(reopened.chunk(&chunk_request.encode_wire()).await.unwrap(), chunk);
+	}
+
+	#[tokio::test]
+	async fn pinned_progress_survives_head_advance_and_revocation_only_blocks_new_io() {
+		let fixture = build_fixture();
+		let current = Arc::new(RwLock::new(fixture.topology.clone()));
+		let authority = Arc::new(AdvancingAuthority {
+			pinned: fixture.topology.clone(),
+			current: Arc::clone(&current),
+		});
+		let responder = PeerResponder::new(
+			authority,
+			Arc::new(CheckpointStack::open(fixture.temp.path()).unwrap()),
+			[4; 32],
+			pair(11),
+		)
+		.unwrap();
+		let first = chunk_request(
+			fixture.topology.clone(),
+			fixture.commitment,
+			fixture.object.clone(),
+			40,
+			0,
+		);
+		let first_reply = responder.chunk(&first.encode_wire()).await.unwrap();
+
+		{
+			let mut advanced = current.write().unwrap();
+			advanced.finalized_hash = [42; 32];
+			advanced.finalized_number += 1;
+			reseal(&mut advanced);
+		}
+		let second = chunk_request(
+			fixture.topology.clone(),
+			fixture.commitment,
+			fixture.object.clone(),
+			41,
+			1,
+		);
+		assert!(responder.chunk(&second.encode_wire()).await.is_ok());
+
+		{
+			let mut revoked = current.write().unwrap();
+			revoked.finalized_hash = [43; 32];
+			revoked.finalized_number += 1;
+			revoked.providers[1].active_service_key = None;
+			revoked.providers[1].usable = false;
+			revoked.providers[1].exclusions = vec![ReplicationProviderExclusion::InvalidServiceKey];
+			reseal(&mut revoked);
+		}
+		let blocked = page_request(fixture.topology.clone(), fixture.commitment, 42, 1);
+		assert_eq!(
+			responder.page(&blocked.encode_wire()).await,
+			Err(ContentError::IntegrityFailed)
+		);
+		fs::remove_file(object_path(&fixture)).unwrap();
+		assert_eq!(responder.chunk(&first.encode_wire()).await.unwrap(), first_reply);
 	}
 
 	#[tokio::test]

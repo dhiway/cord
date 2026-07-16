@@ -145,6 +145,13 @@ pub(crate) trait ReplicationAuthority: Send + Sync {
 		&self,
 		bucket_id: [u8; 32],
 	) -> Result<ReplicationTopologySnapshot, ChainError>;
+
+	async fn replication_topology_at(
+		&self,
+		bucket_id: [u8; 32],
+		finalized_hash: [u8; 32],
+		finalized_number: u32,
+	) -> Result<ReplicationTopologySnapshot, ChainError>;
 }
 
 /// Open proof duty discovered from a finalized `StorageProviderApi::challenges_at` query.
@@ -532,6 +539,130 @@ impl FinalizedRuntimeAuthority {
 			expires_at: agreement.expires_at,
 		}
 	}
+	async fn replication_topology_at_hash(
+		&self,
+		bucket_id: [u8; 32],
+		finalized_hash_text: String,
+		expected_number: Option<u32>,
+	) -> Result<ReplicationTopologySnapshot, ChainError> {
+		let finalized_hash = decode_hash(&finalized_hash_text, "finalized hash")?;
+		let header: RpcHeader = self
+			.client
+			.request("chain_getHeader", rpc_params![finalized_hash_text.clone()])
+			.await
+			.map_err(|error| ChainError::Rpc(error.to_string()))?;
+		let finalized_number = u32::from_str_radix(header.number.trim_start_matches("0x"), 16)
+			.map_err(|error| ChainError::Decode(error.to_string()))?;
+		if expected_number.is_some_and(|expected| expected != finalized_number) {
+			return Err(ChainError::Rejected(
+				"replication finalized hash and number disagree".into(),
+			));
+		}
+		let governed_finalized_checkpoint: Option<u32> = self
+			.runtime_call(
+				"StorageProviderApi_governed_finalized_checkpoint",
+				().encode(),
+				&finalized_hash_text,
+			)
+			.await?;
+		let bucket_hash = H256::from(bucket_id);
+		let bucket_response: Versioned<ControlBucketInfo<AccountId32, H256, u32>> = self
+			.runtime_call(
+				"StorageProviderApi_control_bucket",
+				bucket_hash.encode(),
+				&finalized_hash_text,
+			)
+			.await?;
+		ensure_version(bucket_response.version)?;
+		let bucket = bucket_response
+			.value
+			.ok_or_else(|| ChainError::Rejected("replication control bucket not found".into()))?;
+		if bucket.bucket_id != bucket_hash {
+			return Err(ChainError::Rejected(
+				"replication control bucket response has the wrong bucket id".into(),
+			));
+		}
+		let membership = replication_members(&bucket, &self.provider)?;
+		let checkpoint_response: Versioned<CheckpointInfo<AccountId32, H256, u32>> = self
+			.runtime_call(
+				"StorageProviderApi_checkpoint",
+				bucket_hash.encode(),
+				&finalized_hash_text,
+			)
+			.await?;
+		ensure_version(checkpoint_response.version)?;
+		let current_checkpoint = checkpoint_response.value;
+		if current_checkpoint
+			.as_ref()
+			.is_some_and(|checkpoint| checkpoint.bucket_id != bucket_hash)
+		{
+			return Err(ChainError::Rejected(
+				"replication checkpoint response has the wrong bucket id".into(),
+			));
+		}
+
+		let mut providers = Vec::with_capacity(membership.len());
+		for (index, provider) in membership.iter().enumerate() {
+			let response: Versioned<ProviderInfo<H256, u32>> = self
+				.runtime_call(
+					"StorageProviderApi_provider",
+					provider.encode(),
+					&finalized_hash_text,
+				)
+				.await?;
+			ensure_version(response.version)?;
+			let eligible: bool = self
+				.runtime_call(
+					"StorageProviderApi_provider_is_eligible",
+					provider.encode(),
+					&finalized_hash_text,
+				)
+				.await?;
+			let confirmed_checkpoint = if index == 0 {
+				current_checkpoint.as_ref().map(|checkpoint| checkpoint.checkpoint_block)
+			} else {
+				self.runtime_call(
+					"StorageProviderApi_replica_checkpoint",
+					(bucket_hash, provider.clone()).encode(),
+					&finalized_hash_text,
+				)
+				.await?
+			};
+			providers.push(replication_provider(
+				provider,
+				index,
+				response.value,
+				governed_finalized_checkpoint,
+				eligible,
+				confirmed_checkpoint,
+			)?);
+		}
+		apply_confirmation_evidence(
+			&mut providers,
+			&current_checkpoint,
+			governed_finalized_checkpoint,
+			&bucket.replicas,
+		)?;
+
+		let primary = account_bytes(&bucket.primary);
+		let replicas = bucket.replicas.iter().map(account_bytes).collect();
+		let mut snapshot = ReplicationTopologySnapshot {
+			genesis_hash: self.genesis_hash().await?,
+			finalized_hash,
+			finalized_number,
+			governed_finalized_checkpoint,
+			bucket_id,
+			bucket_version: bucket.version,
+			primary,
+			replicas,
+			providers,
+			current_checkpoint,
+			snapshot_hash: [0; 32],
+		};
+		snapshot.snapshot_hash = snapshot.calculated_hash();
+		snapshot.validate(account_bytes(&self.provider), self.service_key)?;
+		Ok(snapshot)
+	}
 }
 
 #[async_trait]
@@ -729,123 +860,38 @@ impl ReplicationAuthority for FinalizedRuntimeAuthority {
 		&self,
 		bucket_id: [u8; 32],
 	) -> Result<ReplicationTopologySnapshot, ChainError> {
-		let finalized_hash_text: String = self
+		let finalized_hash: String = self
 			.client
 			.request("chain_getFinalizedHead", rpc_params![])
 			.await
 			.map_err(|error| ChainError::Rpc(error.to_string()))?;
-		let finalized_hash = decode_hash(&finalized_hash_text, "finalized hash")?;
-		let header: RpcHeader = self
+		self.replication_topology_at_hash(bucket_id, finalized_hash, None).await
+	}
+
+	async fn replication_topology_at(
+		&self,
+		bucket_id: [u8; 32],
+		finalized_hash: [u8; 32],
+		finalized_number: u32,
+	) -> Result<ReplicationTopologySnapshot, ChainError> {
+		let canonical_hash: Option<String> = self
 			.client
-			.request("chain_getHeader", rpc_params![finalized_hash_text.clone()])
+			.request("chain_getBlockHash", rpc_params![finalized_number])
 			.await
 			.map_err(|error| ChainError::Rpc(error.to_string()))?;
-		let finalized_number = u32::from_str_radix(header.number.trim_start_matches("0x"), 16)
-			.map_err(|error| ChainError::Decode(error.to_string()))?;
-		let governed_finalized_checkpoint: Option<u32> = self
-			.runtime_call(
-				"StorageProviderApi_governed_finalized_checkpoint",
-				().encode(),
-				&finalized_hash_text,
-			)
-			.await?;
-		let bucket_hash = H256::from(bucket_id);
-		let bucket_response: Versioned<ControlBucketInfo<AccountId32, H256, u32>> = self
-			.runtime_call(
-				"StorageProviderApi_control_bucket",
-				bucket_hash.encode(),
-				&finalized_hash_text,
-			)
-			.await?;
-		ensure_version(bucket_response.version)?;
-		let bucket = bucket_response
-			.value
-			.ok_or_else(|| ChainError::Rejected("replication control bucket not found".into()))?;
-		if bucket.bucket_id != bucket_hash {
+		let canonical_hash = canonical_hash
+			.ok_or_else(|| ChainError::Rejected("replication finalized block not found".into()))?;
+		if decode_hash(&canonical_hash, "replication finalized hash")? != finalized_hash {
 			return Err(ChainError::Rejected(
-				"replication control bucket response has the wrong bucket id".into(),
+				"replication finalized hash is not canonical at its claimed number".into(),
 			));
 		}
-		let membership = replication_members(&bucket, &self.provider)?;
-		let checkpoint_response: Versioned<CheckpointInfo<AccountId32, H256, u32>> = self
-			.runtime_call(
-				"StorageProviderApi_checkpoint",
-				bucket_hash.encode(),
-				&finalized_hash_text,
-			)
-			.await?;
-		ensure_version(checkpoint_response.version)?;
-		let current_checkpoint = checkpoint_response.value;
-		if current_checkpoint
-			.as_ref()
-			.is_some_and(|checkpoint| checkpoint.bucket_id != bucket_hash)
-		{
-			return Err(ChainError::Rejected(
-				"replication checkpoint response has the wrong bucket id".into(),
-			));
-		}
-
-		let mut providers = Vec::with_capacity(membership.len());
-		for (index, provider) in membership.iter().enumerate() {
-			let response: Versioned<ProviderInfo<H256, u32>> = self
-				.runtime_call(
-					"StorageProviderApi_provider",
-					provider.encode(),
-					&finalized_hash_text,
-				)
-				.await?;
-			ensure_version(response.version)?;
-			let eligible: bool = self
-				.runtime_call(
-					"StorageProviderApi_provider_is_eligible",
-					provider.encode(),
-					&finalized_hash_text,
-				)
-				.await?;
-			let confirmed_checkpoint = if index == 0 {
-				current_checkpoint.as_ref().map(|checkpoint| checkpoint.checkpoint_block)
-			} else {
-				self.runtime_call(
-					"StorageProviderApi_replica_checkpoint",
-					(bucket_hash, provider.clone()).encode(),
-					&finalized_hash_text,
-				)
-				.await?
-			};
-			providers.push(replication_provider(
-				provider,
-				index,
-				response.value,
-				governed_finalized_checkpoint,
-				eligible,
-				confirmed_checkpoint,
-			)?);
-		}
-		apply_confirmation_evidence(
-			&mut providers,
-			&current_checkpoint,
-			governed_finalized_checkpoint,
-			&bucket.replicas,
-		)?;
-
-		let primary = account_bytes(&bucket.primary);
-		let replicas = bucket.replicas.iter().map(account_bytes).collect();
-		let mut snapshot = ReplicationTopologySnapshot {
-			genesis_hash: self.genesis_hash().await?,
-			finalized_hash,
-			finalized_number,
-			governed_finalized_checkpoint,
+		self.replication_topology_at_hash(
 			bucket_id,
-			bucket_version: bucket.version,
-			primary,
-			replicas,
-			providers,
-			current_checkpoint,
-			snapshot_hash: [0; 32],
-		};
-		snapshot.snapshot_hash = snapshot.calculated_hash();
-		snapshot.validate(account_bytes(&self.provider), self.service_key)?;
-		Ok(snapshot)
+			format!("0x{}", hex::encode(finalized_hash)),
+			Some(finalized_number),
+		)
+		.await
 	}
 }
 

@@ -600,6 +600,11 @@ impl ReplicationIntentStore {
 			next.cumulative_total = completion.cumulative_total;
 			next.last_completed = Some(completion);
 			let page = next.admitted_page.as_mut().ok_or(ContentError::IntegrityFailed)?;
+			page.objects
+				.get_mut(page.next_object)
+				.ok_or(ContentError::IntegrityFailed)?
+				.verified_chunks
+				.clear();
 			page.next_object =
 				page.next_object.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 			if page.next_object == page.objects.len() {
@@ -1311,7 +1316,7 @@ fn validate_admitted_page(
 		),
 		None => (record.identity.candidate_start, record.identity.candidate_predecessor_total),
 	};
-	for object in &page.objects {
+	for (object_index, object) in page.objects.iter().enumerate() {
 		CanonicalCid::parse(&object.cid)?;
 		let expected_chunks = if object.length == 0 {
 			0
@@ -1323,7 +1328,9 @@ fn validate_admitted_page(
 			|| object.chunk_manifest_hash == [0; 32]
 			|| object.chunk_manifest_hash != replication_chunk_manifest_hash(&object.chunk_hashes)
 			|| object.chunk_hashes.len() != expected_chunks
-			|| object.verified_chunks.len() != expected_chunks
+			|| (object_index < page.next_object && !object.verified_chunks.is_empty())
+			|| (object_index >= page.next_object
+				&& object.verified_chunks.len() != expected_chunks)
 			|| expected_chunks > MAX_CHUNKS
 		{
 			return Err(ContentError::IntegrityFailed);
@@ -2420,15 +2427,28 @@ mod tests {
 		let staged = store
 			.stage_page_request_before_send(&planned.intent_key, &request.encode_wire())
 			.unwrap();
-		let empty_cid = CanonicalCid::from_digest(blake2_256(&[]));
+		let max_cid = CanonicalCid::from_digest([76; 32]);
+		let max_hashes = vec![[75; 32]; MAX_CHUNKS];
 		let items = (0..128)
-			.map(|sequence| PeerObjectV1::new(&empty_cid, 0, sequence, 0, Vec::new()).unwrap())
+			.map(|sequence| {
+				let cumulative = (sequence + 1) * MAX_STORED_BYTES;
+				PeerObjectV1::new(
+					&max_cid,
+					MAX_STORED_BYTES,
+					sequence,
+					cumulative,
+					max_hashes.clone(),
+				)
+				.unwrap()
+			})
 			.collect();
 		let response =
 			PeerSyncPageResponseV1::new_signed(&request, items, None, &source_pair()).unwrap();
 		let admitted =
 			store.attach_page_response(&staged.intent_key, &response.encode_wire()).unwrap();
 		assert_eq!(admitted.admitted_page.as_ref().unwrap().objects.len(), 128);
+		assert!(serde_json::to_vec(&admitted).unwrap().len() <= MAX_RECORD_BYTES);
+		assert!(store.select_tick().is_ok());
 
 		let manifest_temp = tempfile::tempdir().unwrap();
 		let manifest_store = ReplicationIntentStore::open(manifest_temp.path()).unwrap();
@@ -2468,6 +2488,67 @@ mod tests {
 			manifest_admitted.admitted_page.as_ref().unwrap().objects[0].chunk_hashes.len(),
 			MAX_CHUNKS
 		);
+	}
+
+	#[test]
+	fn full_page_progress_compacts_completed_proofs_without_poisoning_persistence() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = ReplicationIntentStore::open(temp.path()).unwrap();
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let mut identity = input(75);
+		identity.candidate_start = 0;
+		identity.candidate_count = 128;
+		identity.candidate_predecessor_total = 0;
+		let planned = store.plan(&identity).unwrap();
+		let expectation = PeerPageExpectationV1::new(
+			expected_peer_context(&planned.identity).unwrap(),
+			PeerRequestIdentityV1::new(planned.identity.peer_operation_id, [75; 16]).unwrap(),
+			None,
+			128,
+		)
+		.unwrap();
+		let request = PeerSyncPageRequestV1::new_signed(&expectation, &target_pair(75)).unwrap();
+		let staged = store
+			.stage_page_request_before_send(&planned.intent_key, &request.encode_wire())
+			.unwrap();
+		let items = (0..128u64)
+			.map(|sequence| {
+				let bytes = [sequence as u8];
+				PeerObjectV1::new(
+					&CanonicalCid::from_digest(blake2_256(&bytes)),
+					1,
+					sequence,
+					sequence + 1,
+					vec![blake2_256(&bytes)],
+				)
+				.unwrap()
+			})
+			.collect();
+		let response =
+			PeerSyncPageResponseV1::new_signed(&request, items, None, &source_pair()).unwrap();
+		let mut record =
+			store.attach_page_response(&staged.intent_key, &response.encode_wire()).unwrap();
+
+		for sequence in 0..128u64 {
+			let bytes = vec![sequence as u8];
+			record = admit_object_chunks(&store, record, &bytes);
+			let operation = derived_stream_id(&record.intent_key, sequence, OPERATION_DOMAIN);
+			let (cid, length) = install_ready(&streaming, &record, sequence, bytes, operation);
+			record = store
+				.complete_object(&streaming, &record.intent_key, sequence, &cid, length)
+				.unwrap();
+			if let Some(page) = &record.admitted_page {
+				assert!(page.objects[..page.next_object]
+					.iter()
+					.all(|object| object.verified_chunks.is_empty()));
+			}
+			assert!(store.select_tick().is_ok());
+		}
+		assert_eq!(record.next_sequence, 128);
+		assert!(record.admitted_page.is_none());
+		assert!(store.mark_installed(&record.intent_key).is_ok());
+		drop(store);
+		assert!(ReplicationIntentStore::open(temp.path()).unwrap().select_tick().is_ok());
 	}
 
 	#[test]

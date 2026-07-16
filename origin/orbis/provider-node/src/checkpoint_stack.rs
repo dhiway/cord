@@ -92,6 +92,30 @@ impl CheckpointStack {
 		self.lock()?.outbox.pending_submission_heads()
 	}
 
+	/// Replay an exact durable page reply without consulting mutable chain or content state.
+	pub(crate) fn replay_peer_page(
+		&self,
+		request: &PeerSyncPageRequestV1,
+	) -> Result<Option<Vec<u8>>, ContentError> {
+		match self.lock()?.peer_replies.replay_page(request) {
+			Ok(bytes) => Ok(Some(bytes)),
+			Err(ContentError::NotFound) => Ok(None),
+			Err(error) => Err(error),
+		}
+	}
+
+	/// Replay an exact durable chunk reply without consulting mutable chain or content state.
+	pub(crate) fn replay_peer_chunk(
+		&self,
+		request: &PeerChunkRequestV1,
+	) -> Result<Option<Vec<u8>>, ContentError> {
+		match self.lock()?.peer_replies.replay_chunk(request) {
+			Ok(bytes) => Ok(Some(bytes)),
+			Err(ContentError::NotFound) => Ok(None),
+			Err(error) => Err(error),
+		}
+	}
+
 	/// Build or replay one exact page response while holding the synchronous durability boundary.
 	pub(crate) fn serve_peer_page(
 		&self,
