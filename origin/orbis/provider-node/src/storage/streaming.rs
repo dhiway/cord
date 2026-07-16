@@ -41,7 +41,7 @@ use crate::{
 pub(crate) mod recovery;
 use recovery::{CapabilityReplayRecord, RecoveryRecord};
 
-const STREAM_VERSION: u16 = 9;
+const STREAM_VERSION: u16 = 10;
 const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
@@ -199,6 +199,7 @@ struct OperationRecord {
 	received_bytes: u64,
 	chunks: Vec<ChunkRecord>,
 	receipt: Option<StreamingReceipt>,
+	provider_receipt: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -455,6 +456,7 @@ impl StreamingStore {
 				received_bytes: 0,
 				chunks: Vec::new(),
 				receipt: None,
+				provider_receipt: None,
 			},
 		);
 		persist_state(&self.root, &next)?;
@@ -1190,6 +1192,17 @@ impl StreamingStore {
 							sync_dir(part.parent().expect("staging path has parent"))?;
 						}
 					}
+					if next.recovery.values().any(|item| item.descriptor == record.descriptor) {
+						if record.provider_receipt.is_some() {
+							return Err(ContentError::IntegrityFailed)
+						}
+						// Capability-authorized finalize must produce its service-key signature
+						// only after this recovered atomic install. Leave the operation
+						// Finalizing for the authenticated retry rather than synthesizing an
+						// unsigned terminal response.
+						changed = true;
+						continue
+					}
 					let (_, fingerprint, _) =
 						verify_file(&object, &record.descriptor, &record.chunks)?;
 					let install_sequence = next.next_install_sequence;
@@ -1201,13 +1214,8 @@ impl StreamingStore {
 					recovered.phase = Phase::Installed;
 					recovered.install_sequence = Some(install_sequence);
 					recovered.receipt = Some(recovered_receipt.clone());
-					if next.recovery.values().any(|item| item.descriptor == record.descriptor) {
-						recovery::append_installed_terminal(
-							&mut next,
-							&key,
-							recovered_receipt,
-							install_sequence,
-						)?;
+					if record.provider_receipt.is_some() {
+						return Err(ContentError::IntegrityFailed)
 					}
 					changed = true;
 				},
