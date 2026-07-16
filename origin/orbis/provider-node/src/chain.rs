@@ -73,7 +73,6 @@ pub struct CapabilityAuthoritySnapshot {
 }
 
 /// One reason an ordered replication member cannot currently be used.
-#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Decode, Encode, Eq, PartialEq)]
 pub(crate) enum ReplicationProviderExclusion {
 	MissingProvider,
@@ -95,7 +94,6 @@ impl ReplicationProviderExclusion {
 }
 
 /// One evidence-preserving provider slot in finalized bucket membership order.
-#[allow(dead_code)]
 #[derive(Clone, Debug, Encode, Eq, PartialEq)]
 pub(crate) struct ReplicationProviderSnapshot {
 	pub(crate) provider: [u8; 32],
@@ -119,7 +117,6 @@ pub(crate) struct ReplicationProviderSnapshot {
 }
 
 /// Exact finalized replication topology for one control bucket.
-#[allow(dead_code)]
 #[derive(Clone, Debug, Encode, Eq, PartialEq)]
 pub(crate) struct ReplicationTopologySnapshot {
 	pub(crate) genesis_hash: [u8; 32],
@@ -139,7 +136,6 @@ pub(crate) struct ReplicationTopologySnapshot {
 
 /// Private authority seam for a replication session pinned to one finalized Commons state.
 #[async_trait]
-#[allow(dead_code)]
 pub(crate) trait ReplicationAuthority: Send + Sync {
 	async fn replication_topology(
 		&self,
@@ -895,7 +891,6 @@ impl ReplicationAuthority for FinalizedRuntimeAuthority {
 	}
 }
 
-#[allow(dead_code)]
 impl ReplicationTopologySnapshot {
 	fn calculated_hash(&self) -> [u8; 32] {
 		let mut canonical = self.clone();
@@ -1038,7 +1033,6 @@ impl ReplicationTopologySnapshot {
 	}
 }
 
-#[allow(dead_code)]
 fn replication_members(
 	bucket: &ControlBucketInfo<AccountId32, H256, u32>,
 	local_provider: &AccountId32,
@@ -1060,7 +1054,6 @@ fn replication_members(
 	Ok(members)
 }
 
-#[allow(dead_code)]
 fn replication_provider(
 	provider: &AccountId32,
 	index: usize,
@@ -1149,7 +1142,6 @@ fn replication_provider(
 	})
 }
 
-#[allow(dead_code)]
 fn apply_confirmation_evidence(
 	providers: &mut [ReplicationProviderSnapshot],
 	checkpoint: &Option<CheckpointInfo<AccountId32, H256, u32>>,
@@ -1195,7 +1187,6 @@ fn apply_confirmation_evidence(
 	Ok(())
 }
 
-#[allow(dead_code)]
 fn active_service_key(
 	info: &ProviderInfo<H256, u32>,
 	finalized_number: u32,
@@ -1227,7 +1218,6 @@ fn active_service_key(
 	Ok(selected)
 }
 
-#[allow(dead_code)]
 fn validate_provider_endpoint(endpoint: &[u8]) -> Result<(), ChainError> {
 	let endpoint = std::str::from_utf8(endpoint)
 		.map_err(|_| ChainError::Rejected("replication provider endpoint is not UTF-8".into()))?;
@@ -1252,7 +1242,6 @@ fn validate_provider_endpoint(endpoint: &[u8]) -> Result<(), ChainError> {
 	Ok(())
 }
 
-#[allow(dead_code)]
 fn account_bytes(account: &AccountId32) -> [u8; 32] {
 	let bytes: &[u8] = account.as_ref();
 	bytes.try_into().expect("AccountId32 always contains exactly 32 bytes")
