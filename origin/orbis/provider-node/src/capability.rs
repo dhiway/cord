@@ -24,6 +24,7 @@ use ciborium::value::Value;
 use orbis_storage_runtime_api::AgreementStatus;
 use sha2::{Digest, Sha256};
 use sp_core::{ed25519, Pair as _};
+use unicode_normalization::UnicodeNormalization;
 
 use crate::{CanonicalCid, CapabilityAuthoritySnapshot};
 
@@ -450,7 +451,7 @@ fn fixed_bytes<const N: usize>(value: Value) -> Result<[u8; N], CapabilityError>
 
 fn bounded_text(value: Value, max_bytes: usize) -> Result<String, CapabilityError> {
 	let Value::Text(text) = value else { return Err(CapabilityError::WireSchemaInvalid) };
-	if text.is_empty() || text.len() > max_bytes {
+	if text.is_empty() || text.len() > max_bytes || !text.nfc().eq(text.chars()) {
 		return Err(CapabilityError::WireSchemaInvalid);
 	}
 	Ok(text)
@@ -643,6 +644,22 @@ mod tests {
 			.1 = Value::Text(String::new());
 		assert_eq!(
 			ProviderCapabilityV1::decode(&encode(empty_product)),
+			Err(CapabilityError::WireSchemaInvalid)
+		);
+
+		let canonical = hex_field(&vector(), "canonical_cbor_hex");
+		let Value::Map(mut decomposed_product) =
+			ciborium::de::from_reader(canonical.as_slice()).unwrap()
+		else {
+			unreachable!()
+		};
+		decomposed_product
+			.iter_mut()
+			.find(|(key, _)| key == &Value::Integer(5.into()))
+			.unwrap()
+			.1 = Value::Text("fe\u{301}stival".into());
+		assert_eq!(
+			ProviderCapabilityV1::decode(&encode(decomposed_product)),
 			Err(CapabilityError::WireSchemaInvalid)
 		);
 	}
