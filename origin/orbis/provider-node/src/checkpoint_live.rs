@@ -70,6 +70,10 @@ impl CheckpointFinalityLane for OriginRsCheckpointFinalityLane {
 		self.signer_account
 	}
 
+	fn service_key(&self) -> [u8; 32] {
+		self.service_key.public().0
+	}
+
 	async fn submit_and_finalize(
 		&self,
 		intent_id: &str,

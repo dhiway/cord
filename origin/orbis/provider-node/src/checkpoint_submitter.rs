@@ -59,6 +59,7 @@ pub(crate) struct FinalizedEvidence {
 pub(crate) trait CheckpointFinalityLane: Send + Sync {
 	fn metadata(&self) -> &Metadata;
 	fn signer_account(&self) -> [u8; 32];
+	fn service_key(&self) -> [u8; 32];
 
 	async fn submit_and_finalize(
 		&self,
@@ -77,7 +78,11 @@ pub(crate) async fn consume_one_with_lane(
 	}
 	let mut first_lane_error = None;
 	for submission in heads {
+		validate_submission(&submission)?;
 		if decode_fixed_hex::<32>(&submission.primary)? != lane.signer_account() {
+			return Err(ContentError::IntegrityFailed)
+		}
+		if decode_fixed_hex::<32>(&submission.service_key)? != lane.service_key() {
 			return Err(ContentError::IntegrityFailed)
 		}
 		let payload = checkpoint_payload(lane.metadata(), &submission)?;
@@ -428,6 +433,10 @@ mod tests {
 			self.signer
 		}
 
+		fn service_key(&self) -> [u8; 32] {
+			pair(self.attestation_seed).public().0
+		}
+
 		async fn submit_and_finalize(
 			&self,
 			intent_id: &str,
@@ -528,8 +537,34 @@ mod tests {
 			consume_one_with_lane(&outbox, &forged).await,
 			Err(ContentError::IntegrityFailed)
 		));
-		assert_eq!(forged.calls.load(Ordering::SeqCst), 1);
+		assert_eq!(forged.calls.load(Ordering::SeqCst), 0);
 		assert_eq!(outbox.finalized_receipt(&submission.submission_id).unwrap(), None);
+	}
+
+	#[tokio::test]
+	async fn wrong_service_key_preflight_preserves_cursor_and_pending_receipt() {
+		let temp = TempDir::new().unwrap();
+		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+		let first = enqueue_checkpoint(&outbox, 4, 103, 7);
+		let second = enqueue_checkpoint(&outbox, 5, 99, 2);
+		let wrong_service_key =
+			MockLane { attestation_seed: 99, ..MockLane::successful([1; 32]) };
+
+		assert!(matches!(
+			consume_one_with_lane(&outbox, &wrong_service_key).await,
+			Err(ContentError::IntegrityFailed)
+		));
+		assert_eq!(wrong_service_key.calls.load(Ordering::SeqCst), 0);
+		assert!(wrong_service_key.intents.lock().unwrap().is_empty());
+		assert_eq!(outbox.finalized_receipt(&first.submission_id).unwrap(), None);
+		assert_eq!(outbox.finalized_receipt(&second.submission_id).unwrap(), None);
+
+		let corrected = MockLane::successful([1; 32]);
+		let receipt = consume_one_with_lane(&outbox, &corrected).await.unwrap().unwrap();
+		assert_eq!(receipt.submission_id, first.submission_id);
+		assert_eq!(corrected.calls.load(Ordering::SeqCst), 1);
+		assert!(outbox.finalized_receipt(&first.submission_id).unwrap().is_some());
+		assert_eq!(outbox.finalized_receipt(&second.submission_id).unwrap(), None);
 	}
 
 	#[tokio::test]
