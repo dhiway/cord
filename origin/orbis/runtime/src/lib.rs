@@ -2351,6 +2351,11 @@ parameter_types! {
 	pub const ProviderMaxEntityIdBytes: u32 = 64;
 	pub const ProviderMaxBuckets: u32 = 4_096;
 	pub const ProviderMaxBucketGrants: u32 = 256;
+	pub const ProviderMaxHostDelegationsPerBucket: u32 = 256;
+	pub const ProviderMaxCapabilityProductIdBytes: u32 = 128;
+	pub const ProviderMaxCapabilityMethods: u32 = 64;
+	pub const ProviderMaxCapabilityCidBytes: u32 = 128;
+	pub const ProviderMaxHostDelegationLifetime: BlockNumber = 128;
 	pub const ProviderMaxReplicas: u32 = 4;
 	pub const ProviderMaxAssignedProviders: u32 = 5;
 	pub const ProviderMaxAgreements: u32 = 1_024;
@@ -2568,6 +2573,11 @@ impl pallet_orbis_storage_provider::Config for Runtime {
 	type MaxProviders = ConstU32<1_024>;
 	type MaxBuckets = ProviderMaxBuckets;
 	type MaxBucketGrants = ProviderMaxBucketGrants;
+	type MaxHostDelegationsPerBucket = ProviderMaxHostDelegationsPerBucket;
+	type MaxCapabilityProductIdBytes = ProviderMaxCapabilityProductIdBytes;
+	type MaxCapabilityMethods = ProviderMaxCapabilityMethods;
+	type MaxCapabilityCidBytes = ProviderMaxCapabilityCidBytes;
+	type MaxHostDelegationLifetime = ProviderMaxHostDelegationLifetime;
 	type MaxReplicas = ProviderMaxReplicas;
 	type MaxAssignedProviders = ProviderMaxAssignedProviders;
 	type MaxProviderAgreements = ProviderMaxAgreements;
@@ -3251,6 +3261,39 @@ fn control_bucket_api_info(
 			.collect(),
 		created_at: record.created_at,
 	}
+}
+
+fn host_delegation_api_info(
+	grant_id: Hash,
+	record: pallet_orbis_storage_provider::HostDelegationRecordOf<Runtime>,
+) -> storage_api::HostDelegationInfo<AccountId, Hash, BlockNumber> {
+	storage_api::HostDelegationInfo {
+		grant_id,
+		bucket_id: record.bucket_id,
+		owner: record.owner,
+		issuance_nonce: record.issuance_nonce,
+		issuer_key_id: record.issuer_key_id,
+		issuer_public_key: record.issuer_public_key.0,
+		key_version: record.key_version,
+		state_version: record.state_version,
+		key_activated_at: record.key_activated_at,
+		product_id: record.product_id.to_vec(),
+		methods: record.methods.to_vec(),
+		cid: record.cid.map(|cid| cid.to_vec()),
+		max_bytes: record.max_bytes,
+		issued_at: record.issued_at,
+		expires_at: record.expires_at,
+		revoked_at: record.revoked_at,
+	}
+}
+
+fn capability_authority_info(
+	grant_id: Hash,
+) -> storage_api::Versioned<storage_api::HostDelegationInfo<AccountId, Hash, BlockNumber>> {
+	storage_api::Versioned::new(
+		pallet_orbis_storage_provider::HostDelegations::<Runtime>::get(grant_id)
+			.map(|record| host_delegation_api_info(grant_id, record)),
+	)
 }
 
 fn agreement_api_info(
@@ -4310,6 +4353,14 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 				})
 				.collect();
 			storage_api::Page::new(items, next)
+		}
+
+		fn capability_authority(
+			grant_id: Hash,
+		) -> storage_api::Versioned<
+			storage_api::HostDelegationInfo<AccountId, Hash, BlockNumber>,
+		> {
+			capability_authority_info(grant_id)
 		}
 
 		fn agreement(

@@ -31,7 +31,7 @@ use codec::{Codec, Decode, Encode};
 use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
 
-pub const RESPONSE_VERSION: u16 = 7;
+pub const RESPONSE_VERSION: u16 = 8;
 pub const MAX_PAGE_SIZE: u32 = 100;
 pub const MAX_CHECKPOINT_DUTY_PAGE_SIZE: u32 = 128;
 /// Maximum concurrently indexed agreements for one control-plane bucket.
@@ -189,8 +189,30 @@ pub struct ProviderInfo<Hash, BlockNumber> {
 
 #[derive(Clone, Debug, Decode, DecodeAsType, Encode, Eq, PartialEq, TypeInfo)]
 pub struct BucketGrantInfo<AccountId> {
+	/// Bucket ACL account. This is never a provider capability authority.
 	pub account: AccountId,
+	/// Coarse ACL role with no fallback into host-delegation verification.
 	pub role: BucketRole,
+}
+
+#[derive(Clone, Debug, Decode, DecodeAsType, Encode, Eq, PartialEq, TypeInfo)]
+pub struct HostDelegationInfo<AccountId, Hash, BlockNumber> {
+	pub grant_id: Hash,
+	pub bucket_id: Hash,
+	pub owner: AccountId,
+	pub issuance_nonce: u64,
+	pub issuer_key_id: Hash,
+	pub issuer_public_key: [u8; 32],
+	pub key_version: u64,
+	pub state_version: u64,
+	pub key_activated_at: BlockNumber,
+	pub product_id: Vec<u8>,
+	pub methods: Vec<u16>,
+	pub cid: Option<Vec<u8>>,
+	pub max_bytes: u64,
+	pub issued_at: BlockNumber,
+	pub expires_at: BlockNumber,
+	pub revoked_at: Option<BlockNumber>,
 }
 
 #[derive(Clone, Debug, Decode, DecodeAsType, Encode, Eq, PartialEq, TypeInfo)]
@@ -408,7 +430,7 @@ pub struct ObjectVersionInfo<AccountId, BlockNumber> {
 }
 
 sp_api::decl_runtime_apis! {
-	#[api_version(9)]
+		#[api_version(10)]
 	pub trait StorageProviderApi<AccountId, Hash, BlockNumber>
 	where
 		AccountId: Codec,
@@ -418,7 +440,8 @@ sp_api::decl_runtime_apis! {
 		fn provider(provider: AccountId) -> Versioned<ProviderInfo<Hash, BlockNumber>>;
 		fn providers(cursor: Option<u32>, limit: u32) -> Page<(AccountId, ProviderInfo<Hash, BlockNumber>)>;
 		fn control_bucket(bucket_id: Hash) -> Versioned<ControlBucketInfo<AccountId, Hash, BlockNumber>>;
-		fn control_buckets(cursor: Option<u32>, limit: u32) -> Page<ControlBucketInfo<AccountId, Hash, BlockNumber>>;
+			fn control_buckets(cursor: Option<u32>, limit: u32) -> Page<ControlBucketInfo<AccountId, Hash, BlockNumber>>;
+			fn capability_authority(grant_id: Hash) -> Versioned<HostDelegationInfo<AccountId, Hash, BlockNumber>>;
 		fn agreement(agreement_id: Hash) -> Versioned<AgreementInfo<AccountId, Hash, BlockNumber>>;
 		fn provider_agreements(provider: AccountId, cursor: Option<u32>, limit: u32) -> Page<AgreementInfo<AccountId, Hash, BlockNumber>>;
 		fn agreement_nonce(owner: AccountId) -> u64;

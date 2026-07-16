@@ -124,6 +124,35 @@ fn bucket<T: Config>(
 	id
 }
 
+fn host_delegation<T: Config>(owner: &T::AccountId, bucket_id: T::Hash) -> T::Hash {
+	let now = frame_system::Pallet::<T>::block_number();
+	let grant_id = Pallet::<T>::host_delegation_id(owner, bucket_id, 0);
+	let product_id: CapabilityProductIdOf<T> = b"benchmark".to_vec().try_into().ok().unwrap();
+	let methods: CapabilityMethodsOf<T> = vec![1010].try_into().ok().unwrap();
+	HostDelegations::<T>::insert(
+		grant_id,
+		HostDelegationRecord {
+			bucket_id,
+			owner: owner.clone(),
+			issuance_nonce: 0,
+			issuer_key_id: T::Hashing::hash_of(&b"issuer-key"),
+			issuer_public_key: service_public(30_000),
+			key_version: 1,
+			state_version: 1,
+			key_activated_at: now,
+			product_id,
+			methods,
+			cid: None,
+			max_bytes: 1,
+			issued_at: now,
+			expires_at: now.saturating_add(One::one()),
+			revoked_at: None,
+		},
+	);
+	BucketHostDelegations::<T>::try_mutate(bucket_id, |ids| ids.try_push(grant_id)).unwrap();
+	grant_id
+}
+
 fn replicas<T: Config>(count: u32) -> (ReplicasOf<T>, Vec<(T::AccountId, ed25519::Public)>) {
 	let items = (0..count)
 		.map(|i| provider::<T>(i + 10, ProviderStatus::Active))
@@ -794,6 +823,59 @@ mod benchmarks {
 		#[extrinsic_call]
 		_(admin::<T>()?, now);
 		Ok(())
+	}
+
+	#[benchmark]
+	fn create_host_delegation() {
+		let owner: T::AccountId = account("host-owner", 0, SEED);
+		let (primary, _) = provider::<T>(40_000, ProviderStatus::Active);
+		let bucket_id = bucket::<T>(&owner, &primary, Default::default());
+		let product_id: CapabilityProductIdOf<T> = b"benchmark".to_vec().try_into().ok().unwrap();
+		let methods: CapabilityMethodsOf<T> = vec![1010].try_into().ok().unwrap();
+		let now = frame_system::Pallet::<T>::block_number();
+		#[extrinsic_call]
+		_(
+			RawOrigin::Signed(owner.clone()),
+			bucket_id,
+			T::Hashing::hash_of(&b"issuer-key"),
+			service_public(40_001),
+			product_id,
+			methods,
+			None,
+			1,
+			now.saturating_add(One::one()),
+		);
+		assert!(HostDelegations::<T>::contains_key(Pallet::<T>::host_delegation_id(
+			&owner, bucket_id, 0
+		)));
+	}
+
+	#[benchmark]
+	fn rotate_host_delegation() {
+		let owner: T::AccountId = account("host-owner", 0, SEED);
+		let (primary, _) = provider::<T>(40_000, ProviderStatus::Active);
+		let bucket_id = bucket::<T>(&owner, &primary, Default::default());
+		let grant_id = host_delegation::<T>(&owner, bucket_id);
+		#[extrinsic_call]
+		_(
+			RawOrigin::Signed(owner),
+			grant_id,
+			1,
+			T::Hashing::hash_of(&b"new-key"),
+			service_public(40_002),
+		);
+		assert_eq!(HostDelegations::<T>::get(grant_id).unwrap().key_version, 2);
+	}
+
+	#[benchmark]
+	fn revoke_host_delegation() {
+		let owner: T::AccountId = account("host-owner", 0, SEED);
+		let (primary, _) = provider::<T>(40_000, ProviderStatus::Active);
+		let bucket_id = bucket::<T>(&owner, &primary, Default::default());
+		let grant_id = host_delegation::<T>(&owner, bucket_id);
+		#[extrinsic_call]
+		_(RawOrigin::Signed(owner), grant_id, 1);
+		assert!(HostDelegations::<T>::get(grant_id).unwrap().revoked_at.is_some());
 	}
 
 	#[benchmark]

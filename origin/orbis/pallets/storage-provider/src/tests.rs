@@ -17,17 +17,18 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	mock::*, AgreementCapacityState, AgreementStatus, Agreements, BucketAgreements, BucketIds,
-	BucketSnapshots, Buckets, CanonicalManifests, CapacityReleases, ChallengeBacklog,
-	ChallengeStatus, CheckpointClaims, CheckpointDutyCurrent, CheckpointDutyMode,
+	mock::*, AgreementCapacityState, AgreementStatus, Agreements, BucketAgreements,
+	BucketHostDelegations, BucketIds, BucketSnapshots, Buckets, CanonicalManifests,
+	CapabilityCidOf, CapabilityMethodsOf, CapabilityProductIdOf, CapacityReleases,
+	ChallengeBacklog, ChallengeStatus, CheckpointClaims, CheckpointDutyCurrent, CheckpointDutyMode,
 	CheckpointDutyPending, CheckpointErrorCode, CheckpointFallbackPromotionErrorCode,
 	CheckpointFallbackPromotionReceiptByBucket, CheckpointFallbackPromotionV1, CommitmentPayloadV2,
 	CommitmentState, CommitmentV1, ConfirmationsOf, DutyAdmissionCount, EquivocationEvidence,
-	Error, Event, GovernedFinalizedCheckpoint, ManifestDeletionAcknowledgements,
-	ManifestDeletionRequirements, MmrLeafV1, MmrProofV1, OrganizationRefOf, ProviderAgreements,
-	ProviderAuthorityError, ProviderBucketAssignmentCount, ProviderEvidence,
-	ProviderEvidenceOverflow, ProviderOrganizationRefV1, ProviderStatus, Providers,
-	ReplicaSignature, ReplicasOf, ServiceKeyOwner,
+	Error, Event, GovernedFinalizedCheckpoint, GrantNonce, HostDelegations,
+	ManifestDeletionAcknowledgements, ManifestDeletionRequirements, MmrLeafV1, MmrProofV1,
+	OrganizationRefOf, ProviderAgreements, ProviderAuthorityError, ProviderBucketAssignmentCount,
+	ProviderEvidence, ProviderEvidenceOverflow, ProviderOrganizationRefV1, ProviderStatus,
+	Providers, ReplicaSignature, ReplicasOf, ServiceKeyOwner,
 };
 use codec::Encode;
 use frame_support::{assert_noop, assert_ok, traits::Hooks};
@@ -79,6 +80,18 @@ fn setup_bucket() -> H256 {
 		replicas,
 	));
 	BucketIds::<Test>::get()[0]
+}
+
+fn product(value: &[u8]) -> CapabilityProductIdOf<Test> {
+	value.to_vec().try_into().unwrap()
+}
+
+fn methods(value: &[u16]) -> CapabilityMethodsOf<Test> {
+	value.to_vec().try_into().unwrap()
+}
+
+fn capability_cid(value: &[u8]) -> CapabilityCidOf<Test> {
+	value.to_vec().try_into().unwrap()
 }
 
 fn payload(
@@ -2646,5 +2659,214 @@ fn checkpoint_dispatch_weights_cover_atomic_fallback_at_configured_bounds() {
 			promotion.get_dispatch_info().call_weight,
 			SubstrateWeight::<Test>::promote_checkpoint_fallback(max_agreements)
 		);
+	});
+}
+
+#[test]
+fn host_delegation_is_the_owner_controlled_no_fallback_capability_authority() {
+	new_test_ext().execute_with(|| {
+		let bucket_id = setup_bucket();
+		assert_ok!(StorageProvider::change_bucket_grant(
+			RuntimeOrigin::signed(OWNER),
+			bucket_id,
+			1,
+			77,
+			Some(crate::BucketRole::Admin),
+		));
+		assert!(HostDelegations::<Test>::iter().next().is_none());
+		assert_noop!(
+			StorageProvider::create_host_delegation(
+				RuntimeOrigin::signed(77),
+				bucket_id,
+				H256::repeat_byte(1),
+				pair(70).public(),
+				product(b"festival"),
+				methods(&[1010, 1011]),
+				None,
+				1024,
+				100,
+			),
+			Error::<Test>::NotBucketOwner
+		);
+
+		assert_ok!(StorageProvider::create_host_delegation(
+			RuntimeOrigin::signed(OWNER),
+			bucket_id,
+			H256::repeat_byte(1),
+			pair(70).public(),
+			product(b"festival"),
+			methods(&[1010, 1011]),
+			Some(capability_cid(b"bafk-test")),
+			1024,
+			100,
+		));
+		let grant_id = StorageProvider::host_delegation_id(&OWNER, bucket_id, 0);
+		let created = HostDelegations::<Test>::get(grant_id).unwrap();
+		assert_eq!(created.issuance_nonce, 0);
+		assert_eq!(created.key_version, 1);
+		assert_eq!(created.state_version, 1);
+		assert_eq!(created.key_activated_at, 1);
+		assert_eq!(GrantNonce::<Test>::get(OWNER), 1);
+		assert_eq!(BucketHostDelegations::<Test>::get(bucket_id).as_slice(), &[grant_id]);
+
+		System::set_block_number(5);
+		let new_key = pair(71).public();
+		assert_noop!(
+			StorageProvider::rotate_host_delegation(
+				RuntimeOrigin::signed(OWNER),
+				grant_id,
+				2,
+				H256::repeat_byte(2),
+				new_key,
+			),
+			Error::<Test>::HostDelegationVersionConflict
+		);
+		assert_ok!(StorageProvider::rotate_host_delegation(
+			RuntimeOrigin::signed(OWNER),
+			grant_id,
+			1,
+			H256::repeat_byte(2),
+			new_key,
+		));
+		let rotated = HostDelegations::<Test>::get(grant_id).unwrap();
+		assert_eq!(rotated.issuer_public_key, new_key);
+		assert_ne!(rotated.issuer_public_key, created.issuer_public_key);
+		assert_eq!(rotated.key_version, 2);
+		assert_eq!(rotated.state_version, 2);
+		assert_eq!(rotated.key_activated_at, 5);
+		assert_eq!(rotated.issued_at, 1);
+
+		assert_noop!(
+			StorageProvider::revoke_host_delegation(RuntimeOrigin::signed(77), grant_id, 2),
+			Error::<Test>::NotBucketOwner
+		);
+		assert_ok!(StorageProvider::revoke_host_delegation(
+			RuntimeOrigin::signed(OWNER),
+			grant_id,
+			2,
+		));
+		let revoked = HostDelegations::<Test>::get(grant_id).unwrap();
+		assert_eq!(revoked.state_version, 3);
+		assert_eq!(revoked.revoked_at, Some(5));
+		assert!(BucketHostDelegations::<Test>::get(bucket_id).is_empty());
+		assert_noop!(
+			StorageProvider::rotate_host_delegation(
+				RuntimeOrigin::signed(OWNER),
+				grant_id,
+				3,
+				H256::repeat_byte(3),
+				pair(72).public(),
+			),
+			Error::<Test>::HostDelegationRevoked
+		);
+		assert_ok!(StorageProvider::create_host_delegation(
+			RuntimeOrigin::signed(OWNER),
+			bucket_id,
+			H256::repeat_byte(3),
+			pair(72).public(),
+			product(b"festival"),
+			methods(&[1010]),
+			None,
+			1024,
+			100,
+		));
+		let successor = StorageProvider::host_delegation_id(&OWNER, bucket_id, 1);
+		assert_ne!(successor, grant_id);
+		assert_eq!(HostDelegations::<Test>::get(grant_id).unwrap(), revoked);
+	});
+}
+
+#[test]
+fn host_delegation_scope_lifetime_active_bound_and_nonce_are_fail_closed() {
+	new_test_ext().execute_with(|| {
+		let bucket_id = setup_bucket();
+		let create = |product_id, methods, cid, max_bytes, expires_at| {
+			StorageProvider::create_host_delegation(
+				RuntimeOrigin::signed(OWNER),
+				bucket_id,
+				H256::repeat_byte(1),
+				pair(80).public(),
+				product_id,
+				methods,
+				cid,
+				max_bytes,
+				expires_at,
+			)
+		};
+		assert_noop!(
+			create(product(b""), methods(&[1]), None, 1, 2),
+			Error::<Test>::InvalidCapabilityScope
+		);
+		assert_noop!(
+			create(product(&[0xff]), methods(&[1]), None, 1, 2),
+			Error::<Test>::InvalidCapabilityScope
+		);
+		assert_noop!(
+			create(product(b"app"), methods(&[]), None, 1, 2),
+			Error::<Test>::InvalidCapabilityScope
+		);
+		assert_noop!(
+			create(product(b"app"), methods(&[2, 1]), None, 1, 2),
+			Error::<Test>::InvalidCapabilityScope
+		);
+		assert_noop!(
+			create(product(b"app"), methods(&[1, 1]), None, 1, 2),
+			Error::<Test>::InvalidCapabilityScope
+		);
+		assert_noop!(
+			create(product(b"app"), methods(&[1]), Some(capability_cid(b"")), 1, 2),
+			Error::<Test>::InvalidCapabilityScope
+		);
+		assert_noop!(
+			create(product(b"app"), methods(&[1]), Some(capability_cid(&[0xff])), 1, 2),
+			Error::<Test>::InvalidCapabilityScope
+		);
+		assert_noop!(
+			create(product(b"app"), methods(&[1]), None, 0, 2),
+			Error::<Test>::InvalidCapabilityScope
+		);
+		assert_noop!(
+			create(product(b"app"), methods(&[1]), None, 1, 1),
+			Error::<Test>::InvalidCapabilityLifetime
+		);
+		assert_noop!(
+			create(product(b"app"), methods(&[1]), None, 1, 130),
+			Error::<Test>::InvalidCapabilityLifetime
+		);
+
+		assert_ok!(create(product(b"one"), methods(&[1]), None, 1, 129));
+		assert_ok!(create(product(b"two"), methods(&[2]), None, 1, 129));
+		assert_noop!(
+			create(product(b"three"), methods(&[3]), None, 1, 129),
+			Error::<Test>::HostDelegationLimit
+		);
+		assert_eq!(GrantNonce::<Test>::get(OWNER), 2);
+
+		GrantNonce::<Test>::insert(OWNER, u64::MAX);
+		let other_bucket = {
+			let replicas: ReplicasOf<Test> = vec![2, 3].try_into().unwrap();
+			assert_ok!(StorageProvider::create_bucket(
+				RuntimeOrigin::signed(OWNER),
+				H256::repeat_byte(11),
+				1,
+				replicas,
+			));
+			BucketIds::<Test>::get()[1]
+		};
+		assert_noop!(
+			StorageProvider::create_host_delegation(
+				RuntimeOrigin::signed(OWNER),
+				other_bucket,
+				H256::repeat_byte(4),
+				pair(81).public(),
+				product(b"overflow"),
+				methods(&[1]),
+				None,
+				1,
+				129,
+			),
+			Error::<Test>::GrantNonceOverflow
+		);
+		assert_eq!(GrantNonce::<Test>::get(OWNER), u64::MAX);
 	});
 }

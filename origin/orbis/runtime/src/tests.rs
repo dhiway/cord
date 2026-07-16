@@ -19,9 +19,9 @@
 use crate::{
 	xcm_config::LocationToAccountId, AssetConversion, AssetRate, AssetTxPayment, Assets,
 	AssetsFreezer, AssetsHolder, Attestation, Balances, Broker, ChunksManager, Drive, Entity,
-	Feeless, ForeignAssets, ForeignAssetsFreezer, HopPromotion, Members, MembersNotifier, Names,
-	Nfts, People, PeopleLite, Period, Personhood, PoolAssets, PoolAssetsFreezer, Revive, Runtime,
-	RuntimeCall, RuntimeOrigin, System, TransactionStorage, Uniques, S3,
+	Feeless, ForeignAssets, ForeignAssetsFreezer, Hash, HopPromotion, Members, MembersNotifier,
+	Names, Nfts, People, PeopleLite, Period, Personhood, PoolAssets, PoolAssetsFreezer, Revive,
+	Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage, Uniques, S3,
 };
 use codec::{Decode, Encode};
 use cumulus_primitives_core::ParaId;
@@ -52,6 +52,89 @@ fn attestation_page_zero_and_boundaries_are_explicit() {
 	let past_end = crate::attestation_id_page(&ids, Some(u32::MAX), 10);
 	assert!(past_end.items.is_empty());
 	assert_eq!(past_end.next_cursor, None);
+}
+
+#[test]
+fn storage_runtime_api_exposes_exact_active_and_revoked_host_delegation() {
+	use pallet_orbis_storage_provider::{
+		BucketRecord, Buckets, CapabilityMethodsOf, CapabilityProductIdOf,
+	};
+	use sp_core::ed25519;
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		System::set_block_number(10);
+		let owner = AccountId::new([9; 32]);
+		let primary = AccountId::new([1; 32]);
+		let bucket_id = Hash::repeat_byte(0x22);
+		Buckets::<Runtime>::insert(
+			bucket_id,
+			BucketRecord {
+				owner: owner.clone(),
+				version: 1,
+				policy: Hash::repeat_byte(0x33),
+				primary,
+				replicas: Default::default(),
+				grants: Default::default(),
+				created_at: 10,
+			},
+		);
+		let product_id: CapabilityProductIdOf<Runtime> = b"festival".to_vec().try_into().unwrap();
+		let methods: CapabilityMethodsOf<Runtime> = vec![1010, 1011].try_into().unwrap();
+		let first_key = ed25519::Public::from_raw([0x41; 32]);
+		assert_ok!(crate::StorageProvider::create_host_delegation(
+			crate::RuntimeOrigin::signed(owner.clone()),
+			bucket_id,
+			Hash::repeat_byte(0x51),
+			first_key,
+			product_id,
+			methods,
+			None,
+			4096,
+			100,
+		));
+		let grant_id = crate::StorageProvider::host_delegation_id(&owner, bucket_id, 0);
+		System::set_block_number(11);
+		let second_key = ed25519::Public::from_raw([0x42; 32]);
+		assert_ok!(crate::StorageProvider::rotate_host_delegation(
+			crate::RuntimeOrigin::signed(owner.clone()),
+			grant_id,
+			1,
+			Hash::repeat_byte(0x52),
+			second_key,
+		));
+
+		let active = crate::capability_authority_info(grant_id);
+		assert_eq!(active.version, crate::storage_api::RESPONSE_VERSION);
+		let active = active.value.unwrap();
+		assert_eq!(active.grant_id, grant_id);
+		assert_eq!(active.bucket_id, bucket_id);
+		assert_eq!(active.owner, owner);
+		assert_eq!(active.issuance_nonce, 0);
+		assert_eq!(active.issuer_key_id, Hash::repeat_byte(0x52));
+		assert_eq!(active.issuer_public_key, second_key.0);
+		assert_eq!(active.key_version, 2);
+		assert_eq!(active.state_version, 2);
+		assert_eq!(active.key_activated_at, 11);
+		assert_eq!(active.product_id, b"festival");
+		assert_eq!(active.methods, vec![1010, 1011]);
+		assert_eq!(active.cid, None);
+		assert_eq!(active.max_bytes, 4096);
+		assert_eq!(active.issued_at, 10);
+		assert_eq!(active.expires_at, 100);
+		assert_eq!(active.revoked_at, None);
+
+		System::set_block_number(12);
+		assert_ok!(crate::StorageProvider::revoke_host_delegation(
+			crate::RuntimeOrigin::signed(owner),
+			grant_id,
+			2,
+		));
+		let revoked = crate::capability_authority_info(grant_id).value.unwrap();
+		assert_eq!(revoked.state_version, 3);
+		assert_eq!(revoked.key_version, 2);
+		assert_eq!(revoked.key_activated_at, 11);
+		assert_eq!(revoked.revoked_at, Some(12));
+	});
 }
 
 #[test]

@@ -87,6 +87,9 @@ pub trait WeightInfo {
 	fn acknowledge_manifest_deletion() -> Weight;
 	fn replace_bucket_replica(a: u32, ) -> Weight;
 	fn advance_finalized_checkpoint() -> Weight;
+	fn create_host_delegation() -> Weight;
+	fn rotate_host_delegation() -> Weight;
+	fn revoke_host_delegation() -> Weight;
 	fn on_initialize_release(r: u32, ) -> Weight;
 	fn on_initialize_reconcile(q: u32, a: u32, ) -> Weight;
 	fn on_initialize_challenges(c: u32, ) -> Weight;
@@ -741,6 +744,21 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		Weight::from_parts(12_000_000, 1489)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+	fn create_host_delegation() -> Weight {
+		Weight::from_parts(30_000_000, 24_000)
+			.saturating_add(T::DbWeight::get().reads(4_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
+	}
+	fn rotate_host_delegation() -> Weight {
+		Weight::from_parts(18_000_000, 8_000)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+	fn revoke_host_delegation() -> Weight {
+		Weight::from_parts(24_000_000, 24_000)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
 	/// Storage: `StorageProvider::CapacityReleases` (r:1 w:1)
 	/// Proof: `StorageProvider::CapacityReleases` (`max_values`: None, `max_size`: Some(8214), added: 10689, mode: `MaxEncodedLen`)
@@ -1497,6 +1515,21 @@ impl WeightInfo for () {
 		Weight::from_parts(12_000_000, 1489)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn create_host_delegation() -> Weight {
+		Weight::from_parts(30_000_000, 24_000)
+			.saturating_add(RocksDbWeight::get().reads(4_u64))
+			.saturating_add(RocksDbWeight::get().writes(3_u64))
+	}
+	fn rotate_host_delegation() -> Weight {
+		Weight::from_parts(18_000_000, 8_000)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn revoke_host_delegation() -> Weight {
+		Weight::from_parts(24_000_000, 24_000)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
 	/// Storage: `StorageProvider::CapacityReleases` (r:1 w:1)
 	/// Proof: `StorageProvider::CapacityReleases` (`max_values`: None, `max_size`: Some(8214), added: 10689, mode: `MaxEncodedLen`)

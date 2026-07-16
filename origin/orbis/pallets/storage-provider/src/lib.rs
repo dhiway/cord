@@ -332,7 +332,9 @@ pub struct ProviderRecord<Endpoint, OrganizationRef, BlockNumber> {
 	Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, MaxEncodedLen, PartialEq, TypeInfo,
 )]
 pub struct BucketGrant<AccountId> {
+	/// Account admitted by the bucket ACL. This is not a provider capability authority.
 	pub account: AccountId,
+	/// Coarse bucket ACL role. Provider capabilities never fall back to this role.
 	pub role: BucketRole,
 }
 
@@ -347,6 +349,28 @@ pub struct BucketRecord<AccountId, Hash, BlockNumber, Replicas, Grants> {
 	pub replicas: Replicas,
 	pub grants: Grants,
 	pub created_at: BlockNumber,
+}
+
+/// Canonical finalized host-delegation authority for one provider capability grant.
+#[derive(
+	Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, MaxEncodedLen, PartialEq, TypeInfo,
+)]
+pub struct HostDelegationRecord<AccountId, Hash, BlockNumber, ProductId, Methods, Cid> {
+	pub bucket_id: Hash,
+	pub owner: AccountId,
+	pub issuance_nonce: u64,
+	pub issuer_key_id: Hash,
+	pub issuer_public_key: ed25519::Public,
+	pub key_version: u64,
+	pub state_version: u64,
+	pub key_activated_at: BlockNumber,
+	pub product_id: ProductId,
+	pub methods: Methods,
+	pub cid: Option<Cid>,
+	pub max_bytes: u64,
+	pub issued_at: BlockNumber,
+	pub expires_at: BlockNumber,
+	pub revoked_at: Option<BlockNumber>,
 }
 
 #[derive(
@@ -644,7 +668,7 @@ pub mod pallet {
 	use scale_info::prelude::vec::Vec;
 	use sp_runtime::traits::{Hash as HashT, Saturating};
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 	const CHECKPOINT_DOMAIN: &[u8] = b"cord/storage/checkpoint/v2";
 	const CHECKPOINT_CONTEXT_DOMAIN: &[u8] = b"cord/storage/checkpoint-context/v1";
 	const CHECKPOINT_PROMOTION_DOMAIN: &[u8] = b"cord/storage/checkpoint-promotion/v1";
@@ -672,6 +696,17 @@ pub mod pallet {
 		BlockNumberFor<T>,
 		ReplicasOf<T>,
 		GrantsOf<T>,
+	>;
+	pub type CapabilityProductIdOf<T> = BoundedVec<u8, <T as Config>::MaxCapabilityProductIdBytes>;
+	pub type CapabilityMethodsOf<T> = BoundedVec<u16, <T as Config>::MaxCapabilityMethods>;
+	pub type CapabilityCidOf<T> = BoundedVec<u8, <T as Config>::MaxCapabilityCidBytes>;
+	pub type HostDelegationRecordOf<T> = HostDelegationRecord<
+		<T as frame_system::Config>::AccountId,
+		<T as frame_system::Config>::Hash,
+		BlockNumberFor<T>,
+		CapabilityProductIdOf<T>,
+		CapabilityMethodsOf<T>,
+		CapabilityCidOf<T>,
 	>;
 	pub type AgreementRecordOf<T> = AgreementRecord<
 		<T as frame_system::Config>::AccountId,
@@ -734,6 +769,16 @@ pub mod pallet {
 		type MaxBuckets: Get<u32>;
 		#[pallet::constant]
 		type MaxBucketGrants: Get<u32>;
+		#[pallet::constant]
+		type MaxHostDelegationsPerBucket: Get<u32>;
+		#[pallet::constant]
+		type MaxCapabilityProductIdBytes: Get<u32>;
+		#[pallet::constant]
+		type MaxCapabilityMethods: Get<u32>;
+		#[pallet::constant]
+		type MaxCapabilityCidBytes: Get<u32>;
+		#[pallet::constant]
+		type MaxHostDelegationLifetime: Get<BlockNumberFor<Self>>;
 		#[pallet::constant]
 		type MaxReplicas: Get<u32>;
 		#[pallet::constant]
@@ -812,6 +857,22 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type BucketNonce<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, u64, ValueQuery>;
+	/// Owner-scoped checked nonce used to derive unique host-delegation grant identifiers.
+	#[pallet::storage]
+	pub type GrantNonce<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u64, ValueQuery>;
+	/// Sole provider-capability authority. Revoked entries remain as fail-closed tombstones.
+	#[pallet::storage]
+	pub type HostDelegations<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::Hash, HostDelegationRecordOf<T>, OptionQuery>;
+	/// Bounded active host-delegation identifiers for a bucket.
+	#[pallet::storage]
+	pub type BucketHostDelegations<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::Hash,
+		BoundedVec<T::Hash, T::MaxHostDelegationsPerBucket>,
+		ValueQuery,
+	>;
 	#[pallet::storage]
 	pub type BucketSnapshots<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::Hash, SnapshotOf<T>, OptionQuery>;
@@ -1021,6 +1082,26 @@ pub mod pallet {
 			previous_version: u64,
 			new_version: u64,
 		},
+		HostDelegationCreated {
+			grant_id: T::Hash,
+			bucket_id: T::Hash,
+			owner: T::AccountId,
+			issuance_nonce: u64,
+			state_version: u64,
+		},
+		HostDelegationKeyRotated {
+			grant_id: T::Hash,
+			old_key_id: T::Hash,
+			new_key_id: T::Hash,
+			key_version: u64,
+			state_version: u64,
+			key_activated_at: BlockNumberFor<T>,
+		},
+		HostDelegationRevoked {
+			grant_id: T::Hash,
+			state_version: u64,
+			revoked_at: BlockNumberFor<T>,
+		},
 		AgreementTransitioned {
 			agreement_id: T::Hash,
 			previous: Option<AgreementStatus>,
@@ -1149,6 +1230,14 @@ pub mod pallet {
 		BucketLimitReached,
 		BucketVersionConflict,
 		BucketMemberLimit,
+		HostDelegationLimit,
+		HostDelegationNotFound,
+		HostDelegationAlreadyExists,
+		HostDelegationRevoked,
+		HostDelegationVersionConflict,
+		GrantNonceOverflow,
+		InvalidCapabilityScope,
+		InvalidCapabilityLifetime,
 		InvalidReplicaCount,
 		DuplicateProviderAssignment,
 		NotBucketOwner,
@@ -2706,6 +2795,153 @@ pub mod pallet {
 			});
 			Ok(())
 		}
+
+		/// Create the sole host-delegation authority for a provider capability grant.
+		#[pallet::call_index(27)]
+		#[pallet::weight(T::WeightInfo::create_host_delegation())]
+		#[transactional]
+		pub fn create_host_delegation(
+			origin: OriginFor<T>,
+			bucket_id: T::Hash,
+			issuer_key_id: T::Hash,
+			issuer_public_key: ed25519::Public,
+			product_id: CapabilityProductIdOf<T>,
+			methods: CapabilityMethodsOf<T>,
+			cid: Option<CapabilityCidOf<T>>,
+			max_bytes: u64,
+			expires_at: BlockNumberFor<T>,
+		) -> DispatchResult {
+			let owner = ensure_signed(origin)?;
+			let bucket = Buckets::<T>::get(bucket_id).ok_or(Error::<T>::BucketNotFound)?;
+			ensure!(bucket.owner == owner, Error::<T>::NotBucketOwner);
+			Self::validate_capability_scope(&product_id, &methods, cid.as_ref(), max_bytes)?;
+			let now = frame_system::Pallet::<T>::block_number();
+			Self::validate_capability_lifetime(now, expires_at)?;
+			let issuance_nonce = GrantNonce::<T>::get(&owner);
+			let next_nonce = issuance_nonce.checked_add(1).ok_or(Error::<T>::GrantNonceOverflow)?;
+			let grant_id = Self::host_delegation_id(&owner, bucket_id, issuance_nonce);
+			ensure!(
+				!HostDelegations::<T>::contains_key(grant_id),
+				Error::<T>::HostDelegationAlreadyExists
+			);
+			BucketHostDelegations::<T>::try_mutate(bucket_id, |ids| {
+				ids.try_push(grant_id).map_err(|_| Error::<T>::HostDelegationLimit)
+			})?;
+			HostDelegations::<T>::insert(
+				grant_id,
+				HostDelegationRecord {
+					bucket_id,
+					owner: owner.clone(),
+					issuance_nonce,
+					issuer_key_id,
+					issuer_public_key,
+					key_version: 1,
+					state_version: 1,
+					key_activated_at: now,
+					product_id,
+					methods,
+					cid,
+					max_bytes,
+					issued_at: now,
+					expires_at,
+					revoked_at: None,
+				},
+			);
+			GrantNonce::<T>::insert(&owner, next_nonce);
+			Self::deposit_event(Event::HostDelegationCreated {
+				grant_id,
+				bucket_id,
+				owner,
+				issuance_nonce,
+				state_version: 1,
+			});
+			Ok(())
+		}
+
+		/// Rotate only the host delegation key; its scope and expiry remain immutable.
+		#[pallet::call_index(28)]
+		#[pallet::weight(T::WeightInfo::rotate_host_delegation())]
+		pub fn rotate_host_delegation(
+			origin: OriginFor<T>,
+			grant_id: T::Hash,
+			expected_version: u64,
+			new_key_id: T::Hash,
+			new_public_key: ed25519::Public,
+		) -> DispatchResult {
+			let owner = ensure_signed(origin)?;
+			let now = frame_system::Pallet::<T>::block_number();
+			HostDelegations::<T>::try_mutate(grant_id, |maybe| -> DispatchResult {
+				let record = maybe.as_mut().ok_or(Error::<T>::HostDelegationNotFound)?;
+				ensure!(record.owner == owner, Error::<T>::NotBucketOwner);
+				ensure!(record.revoked_at.is_none(), Error::<T>::HostDelegationRevoked);
+				ensure!(
+					record.state_version == expected_version,
+					Error::<T>::HostDelegationVersionConflict
+				);
+				let old_key_id = record.issuer_key_id;
+				record.issuer_key_id = new_key_id;
+				record.issuer_public_key = new_public_key;
+				record.key_version = record
+					.key_version
+					.checked_add(1)
+					.ok_or(Error::<T>::HostDelegationVersionConflict)?;
+				record.state_version = record
+					.state_version
+					.checked_add(1)
+					.ok_or(Error::<T>::HostDelegationVersionConflict)?;
+				record.key_activated_at = now;
+				Self::deposit_event(Event::HostDelegationKeyRotated {
+					grant_id,
+					old_key_id,
+					new_key_id,
+					key_version: record.key_version,
+					state_version: record.state_version,
+					key_activated_at: now,
+				});
+				Ok(())
+			})
+		}
+
+		/// Revoke a host delegation permanently while retaining its tombstone.
+		#[pallet::call_index(29)]
+		#[pallet::weight(T::WeightInfo::revoke_host_delegation())]
+		#[transactional]
+		pub fn revoke_host_delegation(
+			origin: OriginFor<T>,
+			grant_id: T::Hash,
+			expected_version: u64,
+		) -> DispatchResult {
+			let owner = ensure_signed(origin)?;
+			let now = frame_system::Pallet::<T>::block_number();
+			let mut record =
+				HostDelegations::<T>::get(grant_id).ok_or(Error::<T>::HostDelegationNotFound)?;
+			ensure!(record.owner == owner, Error::<T>::NotBucketOwner);
+			ensure!(record.revoked_at.is_none(), Error::<T>::HostDelegationRevoked);
+			ensure!(
+				record.state_version == expected_version,
+				Error::<T>::HostDelegationVersionConflict
+			);
+			record.state_version = record
+				.state_version
+				.checked_add(1)
+				.ok_or(Error::<T>::HostDelegationVersionConflict)?;
+			record.revoked_at = Some(now);
+			BucketHostDelegations::<T>::try_mutate(record.bucket_id, |ids| -> DispatchResult {
+				let position = ids
+					.iter()
+					.position(|candidate| candidate == &grant_id)
+					.ok_or(Error::<T>::HostDelegationNotFound)?;
+				ids.remove(position);
+				Ok(())
+			})?;
+			HostDelegations::<T>::insert(grant_id, &record);
+			Self::deposit_event(Event::HostDelegationRevoked {
+				grant_id,
+				state_version: record.state_version,
+				revoked_at: now,
+			});
+			Ok(())
+		}
 	}
 
 	fn replicas_bound<T: Config>() -> u32 {
@@ -2715,6 +2951,53 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		pub fn governed_finalized_checkpoint() -> Option<BlockNumberFor<T>> {
 			GovernedFinalizedCheckpoint::<T>::get()
+		}
+
+		pub fn host_delegation_id(
+			owner: &T::AccountId,
+			bucket_id: T::Hash,
+			issuance_nonce: u64,
+		) -> T::Hash {
+			T::Hashing::hash_of(&(
+				b"cord/storage/host-delegation/v1",
+				owner,
+				bucket_id,
+				issuance_nonce,
+			))
+		}
+
+		fn validate_capability_scope(
+			product_id: &CapabilityProductIdOf<T>,
+			methods: &CapabilityMethodsOf<T>,
+			cid: Option<&CapabilityCidOf<T>>,
+			max_bytes: u64,
+		) -> DispatchResult {
+			ensure!(
+				!product_id.is_empty() && core::str::from_utf8(product_id).is_ok(),
+				Error::<T>::InvalidCapabilityScope
+			);
+			ensure!(
+				!methods.is_empty() && methods.windows(2).all(|pair| pair[0] < pair[1]),
+				Error::<T>::InvalidCapabilityScope
+			);
+			ensure!(
+				cid.is_none_or(|value| !value.is_empty() && core::str::from_utf8(value).is_ok()),
+				Error::<T>::InvalidCapabilityScope
+			);
+			ensure!(max_bytes > 0, Error::<T>::InvalidCapabilityScope);
+			Ok(())
+		}
+
+		fn validate_capability_lifetime(
+			issued_at: BlockNumberFor<T>,
+			expires_at: BlockNumberFor<T>,
+		) -> DispatchResult {
+			ensure!(expires_at > issued_at, Error::<T>::InvalidCapabilityLifetime);
+			ensure!(
+				expires_at <= issued_at.saturating_add(T::MaxHostDelegationLifetime::get()),
+				Error::<T>::InvalidCapabilityLifetime
+			);
+			Ok(())
 		}
 
 		fn finalized_checkpoint() -> Result<BlockNumberFor<T>, DispatchError> {
