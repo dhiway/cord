@@ -418,7 +418,7 @@ fn submission_record(
 	})
 }
 
-fn validate_submission(record: &CheckpointSubmissionV2) -> Result<(), ContentError> {
+pub(super) fn validate_submission(record: &CheckpointSubmissionV2) -> Result<(), ContentError> {
 	if record.version != VERSION ||
 		record.record_hash != submission_record_hash(record)? ||
 		record.submission_id.len() != 64 ||
