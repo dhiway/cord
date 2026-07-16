@@ -2662,6 +2662,14 @@ fn duplicate_challenge_is_rejected_and_proof_prunes_every_work_index() {
 }
 
 #[test]
+fn checkpoint_contract() {
+	exact_checkpoint_error_codes_are_frozen();
+	checkpoint_negatives_220_through_225_and_239_240_have_no_state_or_events();
+	checkpoint_equivocation_preserves_two_claims_then_suspends_with_one_event();
+	duplicate_challenge_is_rejected_and_proof_prunes_every_work_index();
+}
+
+#[test]
 fn checkpoint_dispatch_weights_cover_atomic_fallback_at_configured_bounds() {
 	use crate::weights::{SubstrateWeight, WeightInfo};
 	use frame_support::{dispatch::GetDispatchInfo, traits::Get};
