@@ -66,20 +66,40 @@ pub(crate) async fn consume_one_with_lane_bounded(
 	}
 	let mut first_error = None;
 	for intent in pending.into_iter().take(max_attempts) {
-		match consume_intent(store, lane, &intent).await {
-			Ok(receipt) => return Ok(Some(receipt)),
-			Err(error) if first_error.is_none() => first_error = Some(error),
-			Err(_) => {},
-		}
+		let (native_intent_id, payload) = match prepare_intent(lane, &intent) {
+			Ok(prepared) => prepared,
+			Err(error) => {
+				first_error.get_or_insert(error);
+				continue;
+			},
+		};
+		let evidence = match lane.submit_and_finalize(&native_intent_id, &intent, payload).await {
+			Ok(evidence) => evidence,
+			Err(error) if first_error.is_none() => {
+				first_error = Some(error);
+				continue;
+			},
+			Err(_) => continue,
+		};
+		// A finalized chain transition has occurred. Any local validation or persistence failure
+		// must stop this batch so a poisoned store cannot trigger another extrinsic.
+		let receipt = store.record_finalized(
+			&intent.intent_id,
+			evidence.block_hash,
+			evidence.block_number,
+			evidence.extrinsic_hash,
+			evidence.finality_attestation_version,
+			evidence.finality_signature,
+		)?;
+		return Ok(Some(receipt));
 	}
 	Err(first_error.unwrap_or(ContentError::IntegrityFailed))
 }
 
-async fn consume_intent(
-	store: &CheckpointPromotionStoreV2,
+fn prepare_intent(
 	lane: &impl PromotionFinalityLane,
 	intent: &FallbackPromotionIntentV2,
-) -> Result<FallbackPromotionFinalizedReceiptV2, ContentError> {
+) -> Result<(String, subxt::tx::DynamicPayload), ContentError> {
 	validate_intent(intent)?;
 	if decode_fixed_hex::<32>(&intent.provider)? != lane.signer_account()
 		|| decode_fixed_hex::<32>(&intent.service_key)? != lane.service_key()
@@ -88,15 +108,7 @@ async fn consume_intent(
 	}
 	let payload = promotion_payload(lane.metadata(), intent)?;
 	let native_intent_id = format!("{NATIVE_INTENT_PREFIX}{}", intent.intent_id);
-	let evidence = lane.submit_and_finalize(&native_intent_id, intent, payload).await?;
-	store.record_finalized(
-		&intent.intent_id,
-		evidence.block_hash,
-		evidence.block_number,
-		evidence.extrinsic_hash,
-		evidence.finality_attestation_version,
-		evidence.finality_signature,
-	)
+	Ok((native_intent_id, payload))
 }
 
 pub(crate) fn promotion_payload(
@@ -535,5 +547,51 @@ mod tests {
 		assert_eq!(lane.intents.lock().unwrap().as_slice(), [native.clone(), native]);
 		assert_eq!(receipt.intent_id, intent.intent_id);
 		assert!(reopened.reserve_pending_intents(8).unwrap().is_empty());
+	}
+
+	#[tokio::test]
+	async fn post_finality_receipt_failure_aborts_batch_and_reopens_old_or_new() {
+		for fault in [
+			CheckpointPromotionFault::BeforeTempFsync,
+			CheckpointPromotionFault::AfterTempFsync,
+			CheckpointPromotionFault::AfterRename,
+			CheckpointPromotionFault::AfterDirectoryFsync,
+		] {
+			let temp = TempDir::new().unwrap();
+			let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+			authorize(&store, 14);
+			authorize(&store, 15);
+			let pending = store.reserve_pending_intents(2).unwrap();
+			let lane = MockLane::valid();
+			store.inject_fault_once(fault).unwrap();
+			assert!(matches!(
+				consume_one_with_lane_bounded(&store, &lane, 2).await,
+				Err(ContentError::Io(_))
+			));
+			assert_eq!(lane.calls.load(Ordering::SeqCst), 1);
+			assert_eq!(
+				lane.intents.lock().unwrap().as_slice(),
+				[format!("{NATIVE_INTENT_PREFIX}{}", pending[0].intent_id)]
+			);
+			drop(store);
+
+			let reopened = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+			let receipt = consume_one_with_lane_bounded(&reopened, &lane, 2)
+				.await
+				.unwrap()
+				.unwrap();
+			let expected = match fault {
+				CheckpointPromotionFault::BeforeTempFsync |
+				CheckpointPromotionFault::AfterTempFsync => &pending[0],
+				CheckpointPromotionFault::AfterRename |
+				CheckpointPromotionFault::AfterDirectoryFsync => &pending[1],
+			};
+			assert_eq!(lane.calls.load(Ordering::SeqCst), 2);
+			assert_eq!(receipt.intent_id, expected.intent_id);
+			assert_eq!(
+				lane.intents.lock().unwrap().last(),
+				Some(&format!("{NATIVE_INTENT_PREFIX}{}", expected.intent_id))
+			);
+		}
 	}
 }
