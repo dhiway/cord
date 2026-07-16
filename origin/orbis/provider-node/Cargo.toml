@@ -9,7 +9,7 @@ repository.workspace = true
 publish = false
 
 [features]
-default = ["outbox"]
+default = []
 outbox = ["dep:origin-rs"]
 
 [[bin]]
