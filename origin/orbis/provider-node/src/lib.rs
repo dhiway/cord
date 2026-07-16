@@ -32,22 +32,15 @@ mod capability;
 mod chain;
 #[allow(dead_code)]
 mod checkpoint;
-// Deliberately private until ProviderService activates the checkpoint control plane atomically.
-#[allow(dead_code)]
 mod checkpoint_stack;
 mod content;
 mod merkle;
-// Deliberately private until the authenticated provider replication transport is activated.
-#[allow(dead_code)]
 mod peer;
 // Private HTTP/1 listener for the service-key-authenticated replication wire protocol.
-#[allow(dead_code)]
 mod peer_http;
 // Private durable replay table for exact authenticated peer responses.
-#[allow(dead_code)]
 mod peer_reply;
-// Private topology-authenticated responder; deliberately has no route or transport listener.
-#[allow(dead_code)]
+// Private topology-authenticated responder behind the dedicated peer listener.
 mod peer_responder;
 // Private outbound transport pinned to one exact finalized replication session.
 #[allow(dead_code)]
@@ -59,12 +52,11 @@ mod replication;
 #[allow(dead_code)]
 mod replication_reconciler;
 // Private deterministic bridge from finalized topology evidence into authenticated peer context.
-#[allow(dead_code)]
 mod replication_session;
 mod storage;
 mod workers;
 
-pub use api::{serve, ApiConfig, ProviderService};
+pub use api::{serve, serve_provider_ingress, ApiConfig, ProviderService};
 pub use chain::{
 	AgreementAuthorization, CapabilityAuthoritySnapshot, ChainAuthority, ChainError,
 	ChallengeBatch, ChallengeDuty, CheckpointDuty, CheckpointDutyBatch, CheckpointDutyMode,

@@ -22,8 +22,8 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
 use origin_orbis_provider::{
-	run_workers, serve, ApiConfig, DiskStore, FinalizedRuntimeAuthority, JsonlCheckpointOutbox,
-	NodeProfile, ProviderService, WorkerConfig,
+	run_workers, serve_provider_ingress, ApiConfig, DiskStore, FinalizedRuntimeAuthority,
+	JsonlCheckpointOutbox, NodeProfile, ProviderService, WorkerConfig,
 };
 use sp_core::{crypto::AccountId32, ed25519, Pair as _};
 
@@ -48,6 +48,9 @@ struct Cli {
 	/// HTTP listener.
 	#[arg(long, default_value = "127.0.0.1:8080")]
 	listen: SocketAddr,
+	/// Dedicated service-key-authenticated provider replication listener.
+	#[arg(long, default_value = "127.0.0.1:8081")]
+	peer_listen: SocketAddr,
 	/// Optional provider region label.
 	#[arg(long)]
 	region: Option<String>,
@@ -68,6 +71,9 @@ struct Cli {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let cli = Cli::parse();
+	if cli.peer_listen == cli.listen {
+		return Err("peer listener must be distinct from the public HTTP listener".into());
+	}
 	let provider = decode_account(&cli.provider)?;
 	let bearer = std::env::var(&cli.bearer_token_env)
 		.map_err(|_| format!("{} must contain a non-empty bearer token", cli.bearer_token_env))?;
@@ -79,6 +85,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let service_key = ed25519::Pair::from_string(&suri, None)
 		.map_err(|error| format!("invalid service-key secret URI: {error:?}"))?;
 	let provider_bytes: &[u8] = provider.as_ref();
+	let local_provider: [u8; 32] =
+		provider_bytes.try_into().map_err(|_| "provider must be exactly 32 bytes")?;
 	let profile = NodeProfile {
 		provider: format!("0x{}", hex::encode(provider_bytes)),
 		endpoint: cli.public_endpoint,
@@ -104,9 +112,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		checkpoint_interval: Duration::from_secs(cli.checkpoint_seconds.max(1)),
 		..Default::default()
 	};
+	// Bind before entering either lifecycle select so an unavailable peer endpoint is fatal.
+	let peer_listener = tokio::net::TcpListener::bind(cli.peer_listen).await?;
 	println!("origin-orbis-provider listening on {}", api.listen);
+	println!("origin-orbis-provider peer ingress listening on {}", cli.peer_listen);
 	tokio::select! {
-		result = serve(api, service.clone()) => result?,
+		result = serve_provider_ingress(api, peer_listener, service.clone(), local_provider) => result?,
 		_ = run_workers(service, workers) => {},
 		_ = tokio::signal::ctrl_c() => {},
 	}

@@ -233,7 +233,8 @@ mod tests {
 	use sp_core::{ed25519, Pair as _};
 	use sp_crypto_hashing::blake2_256;
 	use tempfile::TempDir;
-	use tokio::net::TcpListener;
+	use tokio::io::{AsyncReadExt, AsyncWriteExt};
+	use tokio::net::{TcpListener, TcpStream};
 
 	use super::*;
 	use crate::{
@@ -243,7 +244,7 @@ mod tests {
 			PeerChunkExpectationV1, PeerMmrCommitmentV1, PeerPageExpectationV1,
 			PeerRequestIdentityV1,
 		},
-		peer_http::serve_peer_http,
+		peer_http::{serve_peer_http, serve_peer_http_with_limits},
 		peer_responder::PeerResponder,
 		storage::{bucket_mmr::BucketMmrStore, StreamingDescriptor, StreamingStore},
 		BucketId, CanonicalCid, OperationId, CHUNK_BYTES,
@@ -666,5 +667,51 @@ mod tests {
 			client.page(&session, &request.encode_wire()).await,
 			Err(PeerTransportError::Endpoint)
 		));
+	}
+
+	#[tokio::test]
+	async fn peer_ingress_refuses_excess_connections_and_times_out_idle_peer() {
+		let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+		let address = listener.local_addr().unwrap();
+		let endpoint = format!("http://{address}");
+		let topology = topology(endpoint.as_bytes().to_vec());
+		let temp = TempDir::new().unwrap();
+		let _ = install_source(&temp);
+		let responder = Arc::new(
+			PeerResponder::new(
+				Arc::new(MockAuthority { topology }),
+				Arc::new(CheckpointStack::open(temp.path()).unwrap()),
+				[4; 32],
+				pair(11),
+			)
+			.unwrap(),
+		);
+		let server = tokio::spawn(serve_peer_http_with_limits(
+			listener,
+			responder,
+			1,
+			Duration::from_millis(80),
+		));
+		let _idle = TcpStream::connect(address).await.unwrap();
+		tokio::time::sleep(Duration::from_millis(10)).await;
+
+		let mut excess = TcpStream::connect(address).await.unwrap();
+		excess
+			.write_all(b"GET /_cord/peer/v1/page HTTP/1.1\r\nHost: peer\r\n\r\n")
+			.await
+			.unwrap();
+		let mut refused = [0; 1];
+		let refused = tokio::time::timeout(Duration::from_millis(50), excess.read(&mut refused))
+			.await
+			.unwrap();
+		assert!(matches!(refused, Ok(0) | Err(_)));
+
+		tokio::time::sleep(Duration::from_millis(100)).await;
+		let client = HyperPeerTransport::new(Duration::from_secs(1)).unwrap();
+		let accepted =
+			raw(&client.client, format!("{endpoint}/not-a-peer-route"), Method::GET, None, &[])
+				.await;
+		assert_eq!(accepted.status(), StatusCode::NOT_FOUND);
+		server.abort();
 	}
 }

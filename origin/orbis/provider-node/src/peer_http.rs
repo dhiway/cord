@@ -18,7 +18,7 @@
 
 //! Private HTTP/1 ingress for canonical service-key-authenticated replication messages.
 
-use std::{convert::Infallible, sync::Arc};
+use std::{convert::Infallible, sync::Arc, time::Duration};
 
 use bytes::{Bytes, BytesMut};
 use http_body_util::{BodyExt, Full};
@@ -31,6 +31,7 @@ use hyper::{
 };
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
+use tokio::sync::Semaphore;
 
 use crate::{
 	chain::ReplicationAuthority, peer::MAX_REQUEST_ENCODED, peer_responder::PeerResponder,
@@ -39,6 +40,8 @@ use crate::{
 pub(crate) const PEER_CONTENT_TYPE: &str = "application/vnd.cord.peer-scale-v1";
 pub(crate) const PAGE_PATH: &str = "/_cord/peer/v1/page";
 pub(crate) const CHUNK_PATH: &str = "/_cord/peer/v1/chunk";
+const MAX_PEER_CONNECTIONS: usize = 64;
+const PEER_CONNECTION_TIMEOUT: Duration = Duration::from_secs(15);
 
 type Body = Full<Bytes>;
 
@@ -50,15 +53,42 @@ pub(crate) async fn serve_peer_http<A>(
 where
 	A: ReplicationAuthority + 'static,
 {
+	serve_peer_http_with_limits(listener, responder, MAX_PEER_CONNECTIONS, PEER_CONNECTION_TIMEOUT)
+		.await
+}
+
+pub(crate) async fn serve_peer_http_with_limits<A>(
+	listener: TcpListener,
+	responder: Arc<PeerResponder<A>>,
+	max_connections: usize,
+	connection_timeout: Duration,
+) -> Result<(), std::io::Error>
+where
+	A: ReplicationAuthority + 'static,
+{
+	if max_connections == 0 || connection_timeout.is_zero() {
+		return Err(std::io::Error::new(
+			std::io::ErrorKind::InvalidInput,
+			"peer ingress limits must be non-zero",
+		));
+	}
+	let permits = Arc::new(Semaphore::new(max_connections));
 	loop {
 		let (stream, _) = listener.accept().await?;
+		let Ok(permit) = Arc::clone(&permits).try_acquire_owned() else {
+			// Refuse excess peers without parsing or emitting an authentication oracle.
+			continue;
+		};
 		let responder = Arc::clone(&responder);
 		tokio::spawn(async move {
+			let _permit = permit;
 			let connection = http1::Builder::new().serve_connection(
 				TokioIo::new(stream),
 				service_fn(move |request| route(request, Arc::clone(&responder))),
 			);
-			if connection.await.is_err() {
+			if tokio::time::timeout(connection_timeout, connection).await.is_err() {
+				// Slow or idle peers receive no timeout diagnostic.
+			} else {
 				// A private peer receives no transport diagnostic or protocol fallback.
 			}
 		});

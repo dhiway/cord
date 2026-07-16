@@ -54,6 +54,11 @@ impl<A: ReplicationAuthority> PeerResponder<A> {
 		Ok(Self { authority, stack, local_provider, local_service })
 	}
 
+	#[cfg(test)]
+	pub(crate) fn checkpoint_stack(&self) -> &Arc<CheckpointStack> {
+		&self.stack
+	}
+
 	/// Authenticate topology and durably build or replay one exact page response.
 	pub(crate) async fn page(&self, request_bytes: &[u8]) -> Result<Vec<u8>, ContentError> {
 		let request = PeerSyncPageRequestV1::decode_authenticated(request_bytes)?;
