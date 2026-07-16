@@ -46,11 +46,15 @@ const REGISTRY_SHA256: [u8; 32] = [
 
 const MAX_PAGE_ITEMS: usize = 128;
 const MAX_CID_BYTES: usize = 96;
+const MAX_CHUNK_MANIFEST_BYTES: usize = crate::MAX_CHUNKS * 32;
 // A maximum object contributes 256 fixed hashes (8 KiB); the remaining fixed context, object,
 // signature and SCALE length prefixes stay below the explicit 16 KiB request ceiling.
 const MAX_REQUEST_ENCODED: usize = 16 * 1024;
 const MAX_PAGE_RESPONSE_ENCODED: usize = 2 * 1024 * 1024;
-const MAX_CHUNK_RESPONSE_ENCODED: usize = CHUNK_BYTES + 4 * 1024;
+// A response carries both a full chunk and its full authenticated object manifest. Four KiB is a
+// conservative fixed allowance for the context, CID, leaf, identities, hashes, signature and SCALE
+// length prefixes after accounting for the manifest separately.
+const MAX_CHUNK_RESPONSE_ENCODED: usize = CHUNK_BYTES + MAX_CHUNK_MANIFEST_BYTES + 4 * 1024;
 
 /// Exact finalized registry and peer audience bound into every message.
 #[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
@@ -1188,5 +1192,35 @@ mod tests {
 		let mut oversized = response;
 		oversized.chunk.push(0);
 		assert!(PeerChunkResponseV1::decode_canonical(&oversized.encode(), &request).is_err());
+	}
+
+	#[test]
+	fn maximum_manifest_and_chunk_response_round_trips_with_derived_bound() {
+		let chunk = vec![31; CHUNK_BYTES];
+		let chunk_hash = sp_crypto_hashing::blake2_256(&chunk);
+		let object = PeerObjectV1::new(
+			&CanonicalCid::from_digest([32; 32]),
+			MAX_STORED_BYTES,
+			0,
+			MAX_STORED_BYTES,
+			vec![chunk_hash; crate::MAX_CHUNKS],
+		)
+		.unwrap();
+		let expected = PeerChunkExpectationV1::new(
+			context(),
+			identity(),
+			object,
+			(crate::MAX_CHUNKS - 1) as u16,
+		)
+		.unwrap();
+		let request = PeerChunkRequestV1::new_signed(&expected, &pair(12)).unwrap();
+		let response = PeerChunkResponseV1::new_signed(&request, chunk, &pair(11)).unwrap();
+		let encoded = response.encode_wire();
+
+		assert!(encoded.len() > CHUNK_BYTES + 4 * 1024);
+		assert!(encoded.len() <= MAX_CHUNK_RESPONSE_ENCODED);
+		assert_eq!(PeerChunkResponseV1::decode_canonical(&encoded, &request).unwrap(), response);
+		assert!(PeerChunkResponseV1::new_signed(&request, vec![31; CHUNK_BYTES + 1], &pair(11),)
+			.is_err());
 	}
 }
