@@ -44,12 +44,12 @@ use crate::{
 				SignatureScheme, SignedDelegatedIssue, SignedDelegatedRevoke,
 			},
 			common::{AccountId, DomainResult, Hash32, SubmitAndFinalize, Validate},
-			names::{NamesCommand, NamesRead, NamesResponse},
 			drive::{DriveCommand, DriveRead, DriveResponse},
 			identity_personhood::{
 				IdentityData, IdentityInfo, IdentityPersonhoodCommand, IdentityPersonhoodRead,
 				IdentityPersonhoodResponse, Judgement,
 			},
+			names::{NamesCommand, NamesRead, NamesResponse},
 			s3::{S3Command, S3Read, S3Response},
 			storage::{
 				CidConfig, HashingAlgorithm as StorageHashingAlgorithm, StorageCommand,
@@ -699,8 +699,8 @@ pub fn prepare_identity_personhood_command(
 	let args = match command {
 		IdentityPersonhoodCommand::SetIdentity { info } => vec![identity_info_value(info)?],
 		IdentityPersonhoodCommand::ClearIdentity => vec![],
-		IdentityPersonhoodCommand::RequestJudgement { registrar } |
-		IdentityPersonhoodCommand::CancelJudgement { registrar } => vec![account_value(registrar)?],
+		IdentityPersonhoodCommand::RequestJudgement { registrar }
+		| IdentityPersonhoodCommand::CancelJudgement { registrar } => vec![account_value(registrar)?],
 		IdentityPersonhoodCommand::ProvideJudgement { target, judgement, identity_hash } => vec![
 			lookup_account_value(target)?,
 			judgement_value(*judgement),
@@ -752,14 +752,18 @@ fn identity_data_value(data: &IdentityData) -> DomainResult<Value> {
 			format!("Raw{}", value.len()),
 			Composite::unnamed(vec![Value::from_bytes(value.as_bytes())]),
 		),
-		IdentityData::BlakeTwo256 { hash } =>
-			Value::variant("BlakeTwo256", Composite::unnamed(vec![hash_value(hash)?])),
-		IdentityData::Sha256 { hash } =>
-			Value::variant("Sha256", Composite::unnamed(vec![hash_value(hash)?])),
-		IdentityData::Keccak256 { hash } =>
-			Value::variant("Keccak256", Composite::unnamed(vec![hash_value(hash)?])),
-		IdentityData::ShaThree256 { hash } =>
-			Value::variant("ShaThree256", Composite::unnamed(vec![hash_value(hash)?])),
+		IdentityData::BlakeTwo256 { hash } => {
+			Value::variant("BlakeTwo256", Composite::unnamed(vec![hash_value(hash)?]))
+		},
+		IdentityData::Sha256 { hash } => {
+			Value::variant("Sha256", Composite::unnamed(vec![hash_value(hash)?]))
+		},
+		IdentityData::Keccak256 { hash } => {
+			Value::variant("Keccak256", Composite::unnamed(vec![hash_value(hash)?]))
+		},
+		IdentityData::ShaThree256 { hash } => {
+			Value::variant("ShaThree256", Composite::unnamed(vec![hash_value(hash)?]))
+		},
 	})
 }
 
@@ -1099,6 +1103,21 @@ pub fn prepare_storage_provider_command(
 						.map(|hash| hash_value(hash.as_hash()))
 						.collect::<DomainResult<Vec<_>>>()?,
 				),
+			],
+		),
+		StorageProviderCommand::AcknowledgeManifestDeletion {
+			manifest,
+			evidence_hash,
+			service_key,
+			signature,
+		} => (
+			"StorageProvider",
+			"acknowledge_manifest_deletion",
+			vec![
+				hash_value(manifest.as_hash())?,
+				hash_value(evidence_hash.as_hash())?,
+				Value::from_bytes(service_key.as_bytes()),
+				Value::from_bytes(signature),
 			],
 		),
 		StorageProviderCommand::CommitProviderRoot { sequence, appended_leaves } => (

@@ -26,6 +26,7 @@ use std::{
 
 use sp_core::{crypto::AccountId32, ed25519, H256};
 
+use crate::storage::streaming::ManifestDeletionEvidence;
 use crate::{
 	checkpoint::{
 		checkpoint_outbox::{CheckpointOutboxV2, CheckpointSubmissionV2},
@@ -120,6 +121,22 @@ impl CheckpointStack {
 		self.lock()?.streaming.integrity_summary()
 	}
 
+	/// Durably tombstone canonical manifest bytes while retaining bucket-MMR installation history.
+	pub(crate) fn tombstone_manifest(
+		&self,
+		manifest: [u8; 32],
+		bucket_id: BucketId,
+		provider_commitment: [u8; 32],
+		tombstoned_at: u32,
+	) -> Result<ManifestDeletionEvidence, ContentError> {
+		self.lock()?.streaming.tombstone_manifest(
+			manifest,
+			bucket_id,
+			provider_commitment,
+			tombstoned_at,
+		)
+	}
+
 	/// Clone each independent bucket head so external finality work never borrows the stack guard.
 	pub(crate) fn submission_heads(&self) -> Result<Vec<CheckpointSubmissionV2>, ContentError> {
 		self.lock()?.outbox.pending_submission_heads()
@@ -174,9 +191,7 @@ impl CheckpointStack {
 		lane: &impl crate::checkpoint::checkpoint_promotion_submitter::PromotionFinalityLane,
 		max_attempts: usize,
 	) -> Result<
-		Option<
-			crate::checkpoint::checkpoint_promotion::FallbackPromotionFinalizedReceiptV2,
-		>,
+		Option<crate::checkpoint::checkpoint_promotion::FallbackPromotionFinalizedReceiptV2>,
 		ContentError,
 	> {
 		let store = std::sync::Arc::clone(&self.lock()?.fallback_promotions);
@@ -773,16 +788,18 @@ fn checkpoint_publication_intents(
 		.outbox
 		.finalized_submissions()?
 		.into_iter()
-		.filter_map(|(submission, receipt)| match state.publications.contains(&submission.submission_id) {
-			Ok(true) => None,
-			Ok(false) => Some(
-				decode_canonical_hash(&receipt.finalized_hash).map(|hash| CheckpointPublicationIntentV1 {
-					submission,
-					finalized_hash: H256::from(hash),
-					finalized_number: receipt.finalized_number,
-				}),
-			),
-			Err(error) => Some(Err(error)),
+		.filter_map(|(submission, receipt)| {
+			match state.publications.contains(&submission.submission_id) {
+				Ok(true) => None,
+				Ok(false) => Some(decode_canonical_hash(&receipt.finalized_hash).map(|hash| {
+					CheckpointPublicationIntentV1 {
+						submission,
+						finalized_hash: H256::from(hash),
+						finalized_number: receipt.finalized_number,
+					}
+				})),
+				Err(error) => Some(Err(error)),
+			}
 		})
 		.collect()
 }
@@ -1265,9 +1282,9 @@ mod tests {
 			finalized_number: u32,
 		) -> Result<FinalizedCheckpointObservation, ChainError> {
 			self.calls.fetch_add(1, Ordering::SeqCst);
-			if bucket_id != self.bucket_id ||
-				finalized_hash != [8; 32] ||
-				finalized_number != self.finalized_number
+			if bucket_id != self.bucket_id
+				|| finalized_hash != [8; 32]
+				|| finalized_number != self.finalized_number
 			{
 				return Err(ChainError::Rejected("unexpected promoted checkpoint identity".into()));
 			}

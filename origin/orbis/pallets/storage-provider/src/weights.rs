@@ -83,7 +83,7 @@ pub trait WeightInfo {
 	fn refresh_bucket_authority_failover(r: u32, a: u32, ) -> Weight;
 	fn register_manifest() -> Weight;
 	fn publish_manifest(n: u32, ) -> Weight;
-	fn tombstone_manifest() -> Weight;
+	fn tombstone_manifest(r: u32) -> Weight;
 	fn acknowledge_manifest_deletion() -> Weight;
 	fn replace_bucket_replica(a: u32, ) -> Weight;
 	fn advance_finalized_checkpoint() -> Weight;
@@ -665,14 +665,18 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof: `StorageProvider::GovernedFinalizedCheckpoint` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// Storage: `StorageProvider::ManifestDeletionRequirements` (r:0 w:1)
 	/// Proof: `StorageProvider::ManifestDeletionRequirements` (`max_values`: None, `max_size`: Some(209), added: 2684, mode: `MaxEncodedLen`)
-	fn tombstone_manifest() -> Weight {
+	/// Storage: `StorageProvider::ManifestDeletionDuties` (r:0 w:5)
+	/// Proof: `StorageProvider::ManifestDeletionDuties` (`max_values`: None, `max_size`: Some(18), added: 2493, mode: `MaxEncodedLen`)
+	fn tombstone_manifest(r: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `759`
 		//  Estimated: `12200`
 		// Minimum execution time: 24_000_000 picoseconds.
 		Weight::from_parts(27_000_000, 12200)
+			.saturating_add(Weight::from_parts(1_000_000, 0).saturating_mul(r.into()))
 			.saturating_add(T::DbWeight::get().reads(3_u64))
-			.saturating_add(T::DbWeight::get().writes(2_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
+			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(r.into())))
 	}
 	/// Storage: `StorageProvider::CanonicalManifests` (r:1 w:0)
 	/// Proof: `StorageProvider::CanonicalManifests` (`max_values`: None, `max_size`: Some(124), added: 2599, mode: `MaxEncodedLen`)
@@ -684,6 +688,8 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof: `StorageProvider::Providers` (`max_values`: None, `max_size`: Some(921), added: 3396, mode: `MaxEncodedLen`)
 	/// Storage: `StorageProvider::GovernedFinalizedCheckpoint` (r:1 w:0)
 	/// Proof: `StorageProvider::GovernedFinalizedCheckpoint` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `StorageProvider::ManifestDeletionDuties` (r:0 w:1)
+	/// Proof: `StorageProvider::ManifestDeletionDuties` (`max_values`: None, `max_size`: Some(18), added: 2493, mode: `MaxEncodedLen`)
 	fn acknowledge_manifest_deletion() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `900`
@@ -691,7 +697,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		// Minimum execution time: 67_000_000 picoseconds.
 		Weight::from_parts(70_000_000, 4386)
 			.saturating_add(T::DbWeight::get().reads(5_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
+			.saturating_add(T::DbWeight::get().writes(4_u64))
 	}
 	/// Storage: `StorageProvider::GovernedFinalizedCheckpoint` (r:1 w:0)
 	/// Proof: `StorageProvider::GovernedFinalizedCheckpoint` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
@@ -1436,14 +1442,18 @@ impl WeightInfo for () {
 	/// Proof: `StorageProvider::GovernedFinalizedCheckpoint` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// Storage: `StorageProvider::ManifestDeletionRequirements` (r:0 w:1)
 	/// Proof: `StorageProvider::ManifestDeletionRequirements` (`max_values`: None, `max_size`: Some(209), added: 2684, mode: `MaxEncodedLen`)
-	fn tombstone_manifest() -> Weight {
+	/// Storage: `StorageProvider::ManifestDeletionDuties` (r:0 w:5)
+	/// Proof: `StorageProvider::ManifestDeletionDuties` (`max_values`: None, `max_size`: Some(18), added: 2493, mode: `MaxEncodedLen`)
+	fn tombstone_manifest(r: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `759`
 		//  Estimated: `12200`
 		// Minimum execution time: 24_000_000 picoseconds.
 		Weight::from_parts(27_000_000, 12200)
+			.saturating_add(Weight::from_parts(1_000_000, 0).saturating_mul(r.into()))
 			.saturating_add(RocksDbWeight::get().reads(3_u64))
-			.saturating_add(RocksDbWeight::get().writes(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(3_u64))
+			.saturating_add(RocksDbWeight::get().writes((1_u64).saturating_mul(r.into())))
 	}
 	/// Storage: `StorageProvider::CanonicalManifests` (r:1 w:0)
 	/// Proof: `StorageProvider::CanonicalManifests` (`max_values`: None, `max_size`: Some(124), added: 2599, mode: `MaxEncodedLen`)
@@ -1455,6 +1465,8 @@ impl WeightInfo for () {
 	/// Proof: `StorageProvider::Providers` (`max_values`: None, `max_size`: Some(921), added: 3396, mode: `MaxEncodedLen`)
 	/// Storage: `StorageProvider::GovernedFinalizedCheckpoint` (r:1 w:0)
 	/// Proof: `StorageProvider::GovernedFinalizedCheckpoint` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `StorageProvider::ManifestDeletionDuties` (r:0 w:1)
+	/// Proof: `StorageProvider::ManifestDeletionDuties` (`max_values`: None, `max_size`: Some(18), added: 2493, mode: `MaxEncodedLen`)
 	fn acknowledge_manifest_deletion() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `900`
@@ -1462,7 +1474,7 @@ impl WeightInfo for () {
 		// Minimum execution time: 67_000_000 picoseconds.
 		Weight::from_parts(70_000_000, 4386)
 			.saturating_add(RocksDbWeight::get().reads(5_u64))
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(4_u64))
 	}
 	/// Storage: `StorageProvider::GovernedFinalizedCheckpoint` (r:1 w:0)
 	/// Proof: `StorageProvider::GovernedFinalizedCheckpoint` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)

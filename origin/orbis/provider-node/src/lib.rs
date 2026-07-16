@@ -71,6 +71,7 @@ pub use chain::{
 	AgreementAuthorization, CapabilityAuthoritySnapshot, ChainAuthority, ChainError,
 	ChallengeBatch, ChallengeDuty, CheckpointDuty, CheckpointDutyBatch, CheckpointDutyMode,
 	CheckpointDutyPageRequest, CheckpointDutyPhase, CheckpointDutyRole, CheckpointDutyScanCursor,
+	DeletionDuty, DeletionDutyBatch, DeletionDutyPageRequest, DeletionDutyScanCursor,
 	FinalizedRuntimeAuthority,
 };
 pub use content::{
@@ -91,9 +92,9 @@ pub use three_provider_evidence::{
 	ThreeProviderRecoveryEvidence,
 };
 pub use workers::{
-	poll_checkpoint_duties_once, run_workers, CheckpointSubmission, CheckpointSubmitter,
-	ContentDeletionSubmission, JsonlCheckpointOutbox, ProviderRootSubmission, ProviderSubmission,
-	WorkerConfig,
+	poll_checkpoint_duties_once, poll_manifest_deletions_once, run_workers, CheckpointSubmission,
+	CheckpointSubmitter, ContentDeletionSubmission, JsonlCheckpointOutbox,
+	ManifestDeletionSubmission, ProviderRootSubmission, ProviderSubmission, WorkerConfig,
 };
 
 /// Protocol version shared by persisted records and HTTP responses.

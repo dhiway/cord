@@ -108,6 +108,10 @@ impl<A: ChainAuthority> ProviderService<A> {
 		&self.checkpoint_stack
 	}
 
+	pub(crate) fn sign_manifest_deletion_digest(&self, digest: [u8; 32]) -> ([u8; 32], [u8; 64]) {
+		(self.service_key.public().0, self.service_key.sign(&digest).0)
+	}
+
 	/// Audit the private byte plane and return only redacted readiness counts.
 	fn integrity_summary(&self) -> Result<crate::IntegritySummary, ContentError> {
 		self.checkpoint_stack.integrity_summary()
@@ -317,19 +321,20 @@ where
 	let method = request.method().clone();
 	let path = request.uri().path().to_owned();
 	let query = parse_query(request.uri().query());
-	let requires_auth = method != Method::GET ||
-		matches!(
-			path.as_str(),
-			"/read" |
-				"/commitment" |
-				"/buckets" | "/checkpoint-signature" |
-				"/checkpoint/duty" |
-				"/mmr_proof" | "/chunk_proof" |
-				"/mmr_peaks" | "/mmr_subtree" |
-				"/replica/historical_roots" |
-				"/replica/sync_status" |
-				"/stats"
-		);
+	let requires_auth =
+		method != Method::GET
+			|| matches!(
+				path.as_str(),
+				"/read"
+					| "/commitment" | "/buckets"
+					| "/checkpoint-signature"
+					| "/checkpoint/duty"
+					| "/mmr_proof" | "/chunk_proof"
+					| "/mmr_peaks" | "/mmr_subtree"
+					| "/replica/historical_roots"
+					| "/replica/sync_status"
+					| "/stats"
+			);
 	if requires_auth && !authorized(&request, config.bearer_token_hash) {
 		return Err(ApiError::unauthorized());
 	}

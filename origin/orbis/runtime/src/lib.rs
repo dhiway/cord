@@ -855,20 +855,20 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::Any => true,
 			ProxyType::NonTransfer => matches!(
 				c,
-				RuntimeCall::System(..) |
-					RuntimeCall::ParachainSystem(..) |
-					RuntimeCall::Timestamp(..) |
-					RuntimeCall::Indices(pallet_indices::Call::claim { .. }) |
-					RuntimeCall::Indices(pallet_indices::Call::free { .. }) |
-					RuntimeCall::Indices(pallet_indices::Call::freeze { .. }) |
-					RuntimeCall::Entity(..) |
-					RuntimeCall::Feeless(..) |
-					RuntimeCall::Register(..) |
-					RuntimeCall::Session(..) |
-					RuntimeCall::Utility(..) |
-					RuntimeCall::Proxy(..) |
-					RuntimeCall::Multisig(..) |
-					RuntimeCall::MessageQueue(..)
+				RuntimeCall::System(..)
+					| RuntimeCall::ParachainSystem(..)
+					| RuntimeCall::Timestamp(..)
+					| RuntimeCall::Indices(pallet_indices::Call::claim { .. })
+					| RuntimeCall::Indices(pallet_indices::Call::free { .. })
+					| RuntimeCall::Indices(pallet_indices::Call::freeze { .. })
+					| RuntimeCall::Entity(..)
+					| RuntimeCall::Feeless(..)
+					| RuntimeCall::Register(..)
+					| RuntimeCall::Session(..)
+					| RuntimeCall::Utility(..)
+					| RuntimeCall::Proxy(..)
+					| RuntimeCall::Multisig(..)
+					| RuntimeCall::MessageQueue(..)
 			),
 			ProxyType::CancelProxy => {
 				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))
@@ -1160,31 +1160,34 @@ where
 					account_id,
 					..
 				}) if account_id == payer => Some(payer.clone()),
-				_ =>
+				_ => {
 					return Err(
 						sp_runtime::transaction_validity::InvalidTransaction::BadSigner.into()
-					),
+					)
+				},
 			},
 			OriginCaller::Score(pallet_orbis_score::Origin::<Runtime>::AccountParticipant(
 				account,
-			)) =>
+			)) => {
 				if matches!(call, RuntimeCall::Score(_)) {
 					Some(account.clone())
 				} else {
 					return Err(
 						sp_runtime::transaction_validity::InvalidTransaction::BadSigner.into()
 					);
-				},
+				}
+			},
 			OriginCaller::Honour(pallet_orbis_honour::Origin::<Runtime>::Voter {
 				account, ..
-			}) =>
+			}) => {
 				if matches!(call, RuntimeCall::Honour(_)) {
 					Some(account.clone())
 				} else {
 					return Err(
 						sp_runtime::transaction_validity::InvalidTransaction::BadSigner.into()
 					);
-				},
+				}
+			},
 			_ => None,
 		};
 		let delegated_origin = account
@@ -1300,8 +1303,9 @@ where
 				.inner
 				.prepare(val, origin, call, info, len)
 				.map(ExplicitPaymentIntermediate::Apply),
-			ExplicitPaymentIntermediate::Skip(weight) =>
-				Ok(ExplicitPaymentIntermediate::Skip(weight)),
+			ExplicitPaymentIntermediate::Skip(weight) => {
+				Ok(ExplicitPaymentIntermediate::Skip(weight))
+			},
 		}
 	}
 
@@ -1313,8 +1317,9 @@ where
 		result: &frame_support::dispatch::DispatchResult,
 	) -> Result<Weight, sp_runtime::transaction_validity::TransactionValidityError> {
 		match pre {
-			ExplicitPaymentIntermediate::Apply(pre) =>
-				S::post_dispatch_details(pre, info, post_info, len, result),
+			ExplicitPaymentIntermediate::Apply(pre) => {
+				S::post_dispatch_details(pre, info, post_info, len, result)
+			},
 			ExplicitPaymentIntermediate::Skip(weight) => Ok(weight),
 		}
 	}
@@ -1954,17 +1959,17 @@ impl OrbisStorageCallInspector {
 		if matches!(
 			call,
 			RuntimeCall::TransactionStorage(
-				pallet_orbis_transaction_storage::Call::store { .. } |
-					pallet_orbis_transaction_storage::Call::store_with_cid_config { .. } |
-					pallet_orbis_transaction_storage::Call::force_renew { .. } |
-					pallet_orbis_transaction_storage::Call::store_reserved { .. } |
-					pallet_orbis_transaction_storage::Call::renew_reserved { .. }
+				pallet_orbis_transaction_storage::Call::store { .. }
+					| pallet_orbis_transaction_storage::Call::store_with_cid_config { .. }
+					| pallet_orbis_transaction_storage::Call::force_renew { .. }
+					| pallet_orbis_transaction_storage::Call::store_reserved { .. }
+					| pallet_orbis_transaction_storage::Call::renew_reserved { .. }
 			)
 		) {
 			return true;
 		}
-		if Self::is_opaque_dispatch_wrapper(call) ||
-			depth >= pallet_orbis_transaction_storage::MAX_WRAPPER_DEPTH
+		if Self::is_opaque_dispatch_wrapper(call)
+			|| depth >= pallet_orbis_transaction_storage::MAX_WRAPPER_DEPTH
 		{
 			return true;
 		}
@@ -1989,27 +1994,29 @@ impl OrbisStorageCallInspector {
 impl pallet_orbis_transaction_storage::CallInspector<Runtime> for OrbisStorageCallInspector {
 	fn inspect_wrapper(call: &RuntimeCall) -> Option<Vec<&RuntimeCall>> {
 		match call {
-			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) |
-			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) |
-			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) =>
-				Some(calls.iter().collect()),
-			RuntimeCall::Utility(pallet_utility::Call::as_derivative { call, .. }) |
-			RuntimeCall::Utility(pallet_utility::Call::dispatch_as { call, .. }) |
-			RuntimeCall::Utility(pallet_utility::Call::dispatch_as_fallible { call, .. }) |
-			RuntimeCall::Utility(pallet_utility::Call::with_weight { call, .. }) =>
-				Some(vec![call.as_ref()]),
-			RuntimeCall::Proxy(pallet_proxy::Call::proxy { call, .. }) |
-			RuntimeCall::Proxy(pallet_proxy::Call::proxy_announced { call, .. }) |
-			RuntimeCall::Multisig(pallet_multisig::Call::as_multi_threshold_1 { call, .. }) |
-			RuntimeCall::Multisig(pallet_multisig::Call::as_multi { call, .. }) |
-			RuntimeCall::Scheduler(pallet_scheduler::Call::schedule { call, .. }) |
-			RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named { call, .. }) |
-			RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_after { call, .. }) |
-			RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named_after {
+			RuntimeCall::Utility(pallet_utility::Call::batch { calls })
+			| RuntimeCall::Utility(pallet_utility::Call::batch_all { calls })
+			| RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => {
+				Some(calls.iter().collect())
+			},
+			RuntimeCall::Utility(pallet_utility::Call::as_derivative { call, .. })
+			| RuntimeCall::Utility(pallet_utility::Call::dispatch_as { call, .. })
+			| RuntimeCall::Utility(pallet_utility::Call::dispatch_as_fallible { call, .. })
+			| RuntimeCall::Utility(pallet_utility::Call::with_weight { call, .. }) => {
+				Some(vec![call.as_ref()])
+			},
+			RuntimeCall::Proxy(pallet_proxy::Call::proxy { call, .. })
+			| RuntimeCall::Proxy(pallet_proxy::Call::proxy_announced { call, .. })
+			| RuntimeCall::Multisig(pallet_multisig::Call::as_multi_threshold_1 { call, .. })
+			| RuntimeCall::Multisig(pallet_multisig::Call::as_multi { call, .. })
+			| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule { call, .. })
+			| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named { call, .. })
+			| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_after { call, .. })
+			| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named_after {
 				call, ..
-			}) |
-			RuntimeCall::Revive(pallet_revive::Call::eth_substrate_call { call, .. }) |
-			RuntimeCall::Revive(pallet_revive::Call::dispatch_as_fallback_account {
+			})
+			| RuntimeCall::Revive(pallet_revive::Call::eth_substrate_call { call, .. })
+			| RuntimeCall::Revive(pallet_revive::Call::dispatch_as_fallback_account {
 				call, ..
 			}) => Some(vec![call.as_ref()]),
 			_ => None,
@@ -2537,9 +2544,9 @@ impl
 		let attestation =
 			pallet_orbis_attestation::Attestations::<Runtime>::get(organization.attestation_id)
 				.ok_or(ProviderAuthorityError::AttestationInvalid)?;
-		if attestation.schema != organization.schema_id ||
-			attestation.issued_at > finalized_at ||
-			attestation.revoked_at.is_some_and(|at| at <= finalized_at)
+		if attestation.schema != organization.schema_id
+			|| attestation.issued_at > finalized_at
+			|| attestation.revoked_at.is_some_and(|at| at <= finalized_at)
 		{
 			return Err(ProviderAuthorityError::AttestationInvalid);
 		}
@@ -2548,11 +2555,11 @@ impl
 		}
 		let schema = pallet_orbis_attestation::Schemas::<Runtime>::get(organization.schema_id)
 			.ok_or(ProviderAuthorityError::SlaInvalid)?;
-		if schema.status != pallet_orbis_attestation::SchemaStatus::Active ||
-			(attestation.issuer != schema.creator &&
-				!schema.authorized_issuers.contains(&attestation.issuer)) ||
-			organization.sla_version != 1 ||
-			attestation.payload_commitment != organization.sla_commitment
+		if schema.status != pallet_orbis_attestation::SchemaStatus::Active
+			|| (attestation.issuer != schema.creator
+				&& !schema.authorized_issuers.contains(&attestation.issuer))
+			|| organization.sla_version != 1
+			|| attestation.payload_commitment != organization.sla_commitment
 		{
 			return Err(ProviderAuthorityError::SlaInvalid);
 		}
@@ -3220,10 +3227,12 @@ fn provider_api_info(
 		allocated_bytes: record.allocated_bytes,
 		pending_bytes: record.pending_bytes,
 		status: match record.status {
-			pallet_orbis_storage_provider::ProviderStatus::Active =>
-				storage_api::ProviderStatus::Active,
-			pallet_orbis_storage_provider::ProviderStatus::Suspended =>
-				storage_api::ProviderStatus::Suspended,
+			pallet_orbis_storage_provider::ProviderStatus::Active => {
+				storage_api::ProviderStatus::Active
+			},
+			pallet_orbis_storage_provider::ProviderStatus::Suspended => {
+				storage_api::ProviderStatus::Suspended
+			},
 		},
 		last_heartbeat: record.last_heartbeat,
 		overdue_challenges: pallet_orbis_storage_provider::OverdueChallenges::<Runtime>::get(
@@ -3250,12 +3259,15 @@ fn control_bucket_api_info(
 			.map(|grant| storage_api::BucketGrantInfo {
 				account: grant.account,
 				role: match grant.role {
-					pallet_orbis_storage_provider::BucketRole::Reader =>
-						storage_api::BucketRole::Reader,
-					pallet_orbis_storage_provider::BucketRole::Writer =>
-						storage_api::BucketRole::Writer,
-					pallet_orbis_storage_provider::BucketRole::Admin =>
-						storage_api::BucketRole::Admin,
+					pallet_orbis_storage_provider::BucketRole::Reader => {
+						storage_api::BucketRole::Reader
+					},
+					pallet_orbis_storage_provider::BucketRole::Writer => {
+						storage_api::BucketRole::Writer
+					},
+					pallet_orbis_storage_provider::BucketRole::Admin => {
+						storage_api::BucketRole::Admin
+					},
 				},
 			})
 			.collect(),
@@ -3312,16 +3324,21 @@ fn agreement_api_info(
 		release_at: record.release_at,
 		state_version: record.version,
 		status: match record.status {
-			pallet_orbis_storage_provider::AgreementStatus::Proposed =>
-				storage_api::AgreementStatus::Proposed,
-			pallet_orbis_storage_provider::AgreementStatus::Active =>
-				storage_api::AgreementStatus::Active,
-			pallet_orbis_storage_provider::AgreementStatus::Suspended =>
-				storage_api::AgreementStatus::Suspended,
-			pallet_orbis_storage_provider::AgreementStatus::Cancelled =>
-				storage_api::AgreementStatus::Cancelled,
-			pallet_orbis_storage_provider::AgreementStatus::Expired =>
-				storage_api::AgreementStatus::Expired,
+			pallet_orbis_storage_provider::AgreementStatus::Proposed => {
+				storage_api::AgreementStatus::Proposed
+			},
+			pallet_orbis_storage_provider::AgreementStatus::Active => {
+				storage_api::AgreementStatus::Active
+			},
+			pallet_orbis_storage_provider::AgreementStatus::Suspended => {
+				storage_api::AgreementStatus::Suspended
+			},
+			pallet_orbis_storage_provider::AgreementStatus::Cancelled => {
+				storage_api::AgreementStatus::Cancelled
+			},
+			pallet_orbis_storage_provider::AgreementStatus::Expired => {
+				storage_api::AgreementStatus::Expired
+			},
 		},
 	}
 }
@@ -3345,12 +3362,15 @@ fn challenge_api_info(
 		},
 		due_at: record.due_at,
 		status: match record.status {
-			pallet_orbis_storage_provider::ChallengeStatus::Open =>
-				storage_api::ChallengeStatus::Open,
-			pallet_orbis_storage_provider::ChallengeStatus::Proved =>
-				storage_api::ChallengeStatus::Proved,
-			pallet_orbis_storage_provider::ChallengeStatus::TimedOut =>
-				storage_api::ChallengeStatus::TimedOut,
+			pallet_orbis_storage_provider::ChallengeStatus::Open => {
+				storage_api::ChallengeStatus::Open
+			},
+			pallet_orbis_storage_provider::ChallengeStatus::Proved => {
+				storage_api::ChallengeStatus::Proved
+			},
+			pallet_orbis_storage_provider::ChallengeStatus::TimedOut => {
+				storage_api::ChallengeStatus::TimedOut
+			},
 		},
 	}
 }
@@ -3439,7 +3459,7 @@ fn checkpoint_duty_page(
 	storage_api::CheckpointDutyPageError,
 > {
 	if limit == 0 || limit > storage_api::MAX_CHECKPOINT_DUTY_PAGE_SIZE {
-		return Err(storage_api::CheckpointDutyPageError::PageLimitInvalid)
+		return Err(storage_api::CheckpointDutyPageError::PageLimitInvalid);
 	}
 	let snapshot_checkpoint =
 		pallet_orbis_storage_provider::GovernedFinalizedCheckpoint::<Runtime>::get()
@@ -3452,7 +3472,7 @@ fn checkpoint_duty_page(
 				snapshot_checkpoint,
 			)?;
 			if duty.primary != provider && !duty.replicas.contains(&provider) {
-				return None
+				return None;
 			}
 			Some(duty)
 		})
@@ -3462,7 +3482,7 @@ fn checkpoint_duty_page(
 		None => 0,
 		Some(cursor) => {
 			if cursor.snapshot_checkpoint != snapshot_checkpoint {
-				return Err(storage_api::CheckpointDutyPageError::CursorSnapshotStale)
+				return Err(storage_api::CheckpointDutyPageError::CursorSnapshotStale);
 			}
 			duties
 				.iter()
@@ -3725,6 +3745,93 @@ fn checkpoint_duty_page(
 		None
 	};
 	Ok(storage_api::CheckpointDutyPage {
+		version: storage_api::RESPONSE_VERSION,
+		items,
+		next_cursor,
+		snapshot_checkpoint,
+	})
+}
+
+fn deletion_duty_page(
+	provider: AccountId,
+	cursor: Option<storage_api::DeletionDutyCursor<BlockNumber>>,
+	limit: u32,
+) -> Result<
+	storage_api::DeletionDutyPage<
+		storage_api::DeletionDutyInfo<AccountId, Hash, BlockNumber>,
+		BlockNumber,
+	>,
+	storage_api::DeletionDutyPageError,
+> {
+	if limit == 0 || limit > storage_api::MAX_DELETION_DUTY_PAGE_SIZE {
+		return Err(storage_api::DeletionDutyPageError::PageLimitInvalid);
+	}
+	let snapshot_checkpoint =
+		pallet_orbis_storage_provider::GovernedFinalizedCheckpoint::<Runtime>::get()
+			.ok_or(storage_api::DeletionDutyPageError::FinalizedCheckpointUnavailable)?;
+	let manifests = match cursor {
+		None => pallet_orbis_storage_provider::ManifestDeletionDuties::<Runtime>::iter_key_prefix(
+			&provider,
+		)
+		.take(limit.saturating_add(1) as usize)
+		.collect::<Vec<_>>(),
+		Some(cursor) => {
+			if cursor.snapshot_checkpoint != snapshot_checkpoint {
+				return Err(storage_api::DeletionDutyPageError::CursorSnapshotStale);
+			}
+			if !pallet_orbis_storage_provider::ManifestDeletionDuties::<Runtime>::contains_key(
+				&provider,
+				cursor.last_manifest,
+			) {
+				return Err(storage_api::DeletionDutyPageError::CursorKeyInvalid);
+			}
+			let raw_key =
+				pallet_orbis_storage_provider::ManifestDeletionDuties::<Runtime>::hashed_key_for(
+					&provider,
+					cursor.last_manifest,
+				);
+			pallet_orbis_storage_provider::ManifestDeletionDuties::<Runtime>::iter_key_prefix_from(
+				&provider, raw_key,
+			)
+			.take(limit.saturating_add(1) as usize)
+			.collect::<Vec<_>>()
+		},
+	};
+	let has_more = manifests.len() > limit as usize;
+	let items = manifests
+		.into_iter()
+		.take(limit as usize)
+		.map(|manifest| {
+			let record =
+				pallet_orbis_storage_provider::CanonicalManifests::<Runtime>::get(manifest)
+					.ok_or(storage_api::DeletionDutyPageError::CursorKeyInvalid)?;
+			let provider_commitment = record
+				.provider_commitment
+				.ok_or(storage_api::DeletionDutyPageError::CursorKeyInvalid)?;
+			let tombstoned_at = record
+				.tombstoned_at
+				.ok_or(storage_api::DeletionDutyPageError::CursorKeyInvalid)?;
+			Ok(storage_api::DeletionDutyInfo {
+				provider: provider.clone(),
+				manifest,
+				bucket_id: record.bucket_id,
+				provider_commitment,
+				tombstoned_at,
+			})
+		})
+		.collect::<Result<Vec<_>, storage_api::DeletionDutyPageError>>()?;
+	let next_cursor = if has_more {
+		Some(storage_api::DeletionDutyCursor {
+			snapshot_checkpoint,
+			last_manifest: items
+				.last()
+				.ok_or(storage_api::DeletionDutyPageError::CursorKeyInvalid)?
+				.manifest,
+		})
+	} else {
+		None
+	};
+	Ok(storage_api::DeletionDutyPage {
 		version: storage_api::RESPONSE_VERSION,
 		items,
 		next_cursor,
@@ -4453,6 +4560,20 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 			storage_api::CheckpointDutyPageError,
 		> {
 			checkpoint_duty_page(provider, cursor, limit)
+		}
+
+		fn deletion_duties(
+			provider: AccountId,
+			cursor: Option<storage_api::DeletionDutyCursor<BlockNumber>>,
+			limit: u32,
+		) -> Result<
+			storage_api::DeletionDutyPage<
+				storage_api::DeletionDutyInfo<AccountId, Hash, BlockNumber>,
+				BlockNumber,
+			>,
+			storage_api::DeletionDutyPageError,
+		> {
+			deletion_duty_page(provider, cursor, limit)
 		}
 
 		fn replica_checkpoint(bucket_id: Hash, provider: AccountId) -> Option<BlockNumber> {

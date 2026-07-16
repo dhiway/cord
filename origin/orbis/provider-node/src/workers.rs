@@ -29,17 +29,21 @@ use codec::Encode;
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::AccountId32, H256};
 use tokio::{
-	io::AsyncWriteExt,
+	io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
 	sync::Mutex,
 	time::{interval, MissedTickBehavior},
 };
 
+const MANIFEST_DELETION_DEDUPE_TAIL_BYTES: u64 = 64 * 1024;
+const MAX_JSONL_RECORD_BYTES: u64 = 1024 * 1024;
+
 use crate::{
-	ChainAuthority, ChallengeDuty, PendingDeletion, PendingRootSubmission, ProviderService,
-	SignedCheckpoint,
+	BucketId, ChainAuthority, ChallengeDuty, DeletionDuty, PendingDeletion, PendingRootSubmission,
+	ProviderService, SignedCheckpoint,
 };
 
 const MAX_CHECKPOINT_DUTY_PAGES_PER_POLL: usize = 4_096;
+const MAX_MANIFEST_DELETIONS_PER_POLL: usize = 128;
 
 /// Durable request consumed by the CORD-owned Orbis signer/nonce/finality pipeline.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -77,6 +81,28 @@ pub struct ContentDeletionSubmission {
 	pub inclusion_proof: Vec<String>,
 }
 
+/// Idempotent canonical manifest-deletion acknowledgement for the governed signer pipeline.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManifestDeletionSubmission {
+	/// Canonical manifest digest used as the outbox idempotency key.
+	pub manifest: String,
+	/// Canonical bucket identifier from the finalized duty.
+	pub bucket_id: String,
+	/// Provider CID digest that was durably tombstoned.
+	pub provider_commitment: String,
+	/// Deterministic local deletion evidence hash.
+	pub evidence_hash: String,
+	/// Governed checkpoint at which the manifest was tombstoned.
+	pub tombstoned_at: u32,
+	/// Finalized provider service key which signed the acknowledgement digest.
+	pub service_key: String,
+	/// Ed25519 signature over `cord/storage/deletion-ack/v1` runtime digest.
+	pub signature: String,
+	/// Exact finalized runtime duty fingerprint retained for replay auditing.
+	pub duty_fingerprint: String,
+}
+
 /// Provider-authenticated append-only root which must finalize before a deletion acknowledgement.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -101,6 +127,8 @@ pub enum ProviderSubmission {
 	ProviderRoot(ProviderRootSubmission),
 	/// Native provider content-deletion acknowledgement request.
 	ContentDeletion(ContentDeletionSubmission),
+	/// Native `StorageProvider::acknowledge_manifest_deletion` request.
+	ManifestDeletion(ManifestDeletionSubmission),
 }
 
 /// Explicit seam between proof production and signed Orbis extrinsic submission.
@@ -114,6 +142,14 @@ pub trait CheckpointSubmitter: Send + Sync + 'static {
 
 	/// Durably accept a content-deletion acknowledgement.
 	async fn submit_deletion(&self, request: ContentDeletionSubmission) -> Result<(), String>;
+
+	/// Durably accept one idempotent canonical manifest-deletion acknowledgement.
+	async fn submit_manifest_deletion(
+		&self,
+		_request: ManifestDeletionSubmission,
+	) -> Result<(), String> {
+		Err("canonical manifest deletion outbox unavailable".into())
+	}
 }
 
 /// Append-only JSONL outbox for a separately governed CORD Orbis transaction worker.
@@ -171,10 +207,59 @@ impl CheckpointSubmitter for JsonlCheckpointOutbox {
 			.map_err(|error| error.to_string())?;
 		self.append(&mut encoded).await
 	}
+
+	async fn submit_manifest_deletion(
+		&self,
+		request: ManifestDeletionSubmission,
+	) -> Result<(), String> {
+		let _guard = self.write_lock.lock().await;
+		let existing = read_bounded_jsonl_tail(&self.path, MANIFEST_DELETION_DEDUPE_TAIL_BYTES).await?;
+		for line in existing.split(|byte| *byte == b'\n').filter(|line| !line.is_empty()) {
+			let Ok(ProviderSubmission::ManifestDeletion(previous)) =
+				serde_json::from_slice::<ProviderSubmission>(line)
+			else {
+				continue;
+			};
+			if previous.manifest == request.manifest {
+				return if previous == request {
+					Ok(())
+				} else {
+					Err("manifest deletion outbox replay changed its payload".into())
+				};
+			}
+		}
+		let mut encoded = serde_json::to_vec(&ProviderSubmission::ManifestDeletion(request))
+			.map_err(|error| error.to_string())?;
+		self.append(&mut encoded).await
+	}
+}
+
+async fn read_bounded_jsonl_tail(path: &Path, limit: u64) -> Result<Vec<u8>, String> {
+	let mut file = match tokio::fs::File::open(path).await {
+		Ok(file) => file,
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+		Err(error) => return Err(error.to_string()),
+	};
+	let len = file.metadata().await.map_err(|error| error.to_string())?.len();
+	let start = len.saturating_sub(limit);
+	file.seek(std::io::SeekFrom::Start(start)).await.map_err(|error| error.to_string())?;
+	let mut bytes = Vec::with_capacity((len - start) as usize);
+	file.take(limit).read_to_end(&mut bytes).await.map_err(|error| error.to_string())?;
+	if start > 0 {
+		if let Some(newline) = bytes.iter().position(|byte| *byte == b'\n') {
+			bytes.drain(..=newline);
+		} else {
+			bytes.clear();
+		}
+	}
+	Ok(bytes)
 }
 
 impl JsonlCheckpointOutbox {
 	async fn append(&self, encoded: &mut Vec<u8>) -> Result<(), String> {
+		if encoded.len() as u64 > MAX_JSONL_RECORD_BYTES {
+			return Err("outbox record exceeds the bounded line limit".into());
+		}
 		if let Some(parent) = self.path.parent() {
 			tokio::fs::create_dir_all(parent).await.map_err(|error| error.to_string())?;
 		}
@@ -206,21 +291,32 @@ async fn sync_parent_directory(path: &Path) -> Result<(), String> {
 }
 
 async fn repair_incomplete_jsonl_tail(path: &Path) -> Result<(), String> {
-	let bytes = match tokio::fs::read(path).await {
-		Ok(bytes) => bytes,
+	let mut file = match tokio::fs::OpenOptions::new().read(true).write(true).open(path).await {
+		Ok(file) => file,
 		Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
 		Err(error) => return Err(error.to_string()),
 	};
-	if bytes.is_empty() || bytes.ends_with(b"\n") {
+	let len = file.metadata().await.map_err(|error| error.to_string())?.len();
+	if len == 0 {
 		return Ok(());
 	}
-	let keep = bytes.iter().rposition(|byte| *byte == b'\n').map_or(0, |index| index + 1);
-	let file = tokio::fs::OpenOptions::new()
-		.write(true)
-		.open(path)
-		.await
-		.map_err(|error| error.to_string())?;
-	file.set_len(keep as u64).await.map_err(|error| error.to_string())?;
+	file.seek(std::io::SeekFrom::Start(len - 1)).await.map_err(|error| error.to_string())?;
+	let mut last = [0u8; 1];
+	file.read_exact(&mut last).await.map_err(|error| error.to_string())?;
+	if last[0] == b'\n' {
+		return Ok(());
+	}
+	let start = len.saturating_sub(MAX_JSONL_RECORD_BYTES.saturating_add(1));
+	let width = (len - start) as usize;
+	let mut tail = vec![0u8; width];
+	file.seek(std::io::SeekFrom::Start(start)).await.map_err(|error| error.to_string())?;
+	file.read_exact(&mut tail).await.map_err(|error| error.to_string())?;
+	let keep = match tail.iter().rposition(|byte| *byte == b'\n') {
+		Some(index) => start + index as u64 + 1,
+		None if start == 0 => 0,
+		None => return Err("incomplete outbox record exceeds the bounded line limit".into()),
+	};
+	file.set_len(keep).await.map_err(|error| error.to_string())?;
 	file.sync_all().await.map_err(|error| error.to_string())
 }
 
@@ -318,6 +414,9 @@ pub async fn run_workers<A: ChainAuthority>(
 				if poll_checkpoint_duties_once(&service).await.is_err() {
 					eprintln!("checkpoint duty intake failed");
 				}
+				if poll_manifest_deletions_once(&service).await.is_err() {
+					eprintln!("manifest deletion duty processing failed");
+				}
 			},
 		}
 	}
@@ -352,6 +451,107 @@ pub async fn poll_checkpoint_duties_once<A: ChainAuthority>(
 		}
 	}
 	Err("checkpoint duty page bound exceeded".into())
+}
+
+/// Stage or resume one bounded fixed-finalized page, then durably hand off that page's duties.
+pub async fn poll_manifest_deletions_once<A: ChainAuthority>(
+	service: &ProviderService<A>,
+) -> Result<usize, String> {
+	let mut duties = service
+		.store()
+		.pending_manifest_deletions(MAX_MANIFEST_DELETIONS_PER_POLL)
+		.map_err(|error| error.to_string())?;
+	if duties.is_empty() {
+		let request = service
+			.store()
+			.deletion_duty_resume_request()
+			.map_err(|error| error.to_string())?;
+		let page = service
+			.authority()
+			.deletion_duties(request)
+			.await
+			.map_err(|error| error.to_string())?;
+		service
+			.store()
+			.stage_deletion_duty_page(page)
+			.map_err(|error| error.to_string())?;
+		duties = service
+			.store()
+			.pending_manifest_deletions(MAX_MANIFEST_DELETIONS_PER_POLL)
+			.map_err(|error| error.to_string())?;
+	}
+	let mut completed = 0usize;
+	for duty in duties {
+		process_manifest_deletion(service, &duty).await?;
+		service
+			.store()
+			.complete_manifest_deletion(&duty.manifest, &duty.duty_fingerprint)
+			.map_err(|error| error.to_string())?;
+		completed = completed.saturating_add(1);
+	}
+	Ok(completed)
+}
+
+async fn process_manifest_deletion<A: ChainAuthority>(
+	service: &ProviderService<A>,
+	duty: &DeletionDuty,
+) -> Result<(), String> {
+	let manifest = decode_prefixed_hash(&duty.manifest, "manifest")?;
+	let bucket = decode_prefixed_hash(&duty.bucket_id, "bucket")?;
+	let provider_commitment =
+		decode_prefixed_hash(&duty.provider_commitment, "provider commitment")?;
+	let evidence = service
+		.checkpoint_stack()
+		.tombstone_manifest(
+			manifest,
+			BucketId::from_bytes(bucket),
+			provider_commitment,
+			duty.tombstoned_at,
+		)
+		.map_err(|error| error.to_string())?;
+	let digest = manifest_deletion_ack_digest(
+		H256::from(*evidence.bucket_id.as_bytes()),
+		evidence.manifest,
+		H256::from(evidence.evidence_hash),
+		evidence.tombstoned_at,
+	);
+	let (service_key, signature) = service.sign_manifest_deletion_digest(digest);
+	service
+		.outbox()
+		.submit_manifest_deletion(ManifestDeletionSubmission {
+			manifest: duty.manifest.clone(),
+			bucket_id: duty.bucket_id.clone(),
+			provider_commitment: duty.provider_commitment.clone(),
+			evidence_hash: format!("0x{}", hex::encode(evidence.evidence_hash)),
+			tombstoned_at: duty.tombstoned_at,
+			service_key: format!("0x{}", hex::encode(service_key)),
+			signature: format!("0x{}", hex::encode(signature)),
+			duty_fingerprint: duty.duty_fingerprint.clone(),
+		})
+		.await
+}
+
+pub(crate) fn manifest_deletion_ack_digest(
+	bucket_id: H256,
+	manifest: [u8; 32],
+	evidence_hash: H256,
+	tombstoned_at: u32,
+) -> [u8; 32] {
+	sp_crypto_hashing::blake2_256(
+		&(b"cord/storage/deletion-ack/v1", bucket_id, manifest, evidence_hash, tombstoned_at)
+			.encode(),
+	)
+}
+
+fn decode_prefixed_hash(value: &str, label: &str) -> Result<[u8; 32], String> {
+	let raw = value.strip_prefix("0x").ok_or_else(|| format!("{label} is not 0x-prefixed"))?;
+	if raw.bytes().any(|byte| byte.is_ascii_uppercase()) {
+		return Err(format!("{label} is not canonical lowercase hex"));
+	}
+	hex::decode(raw)
+		.map_err(|error| error.to_string())?
+		.try_into()
+		.map_err(|_| format!("{label} is not 32 bytes"))
 }
 
 fn checkpoint_for_duty<A: ChainAuthority>(
@@ -473,6 +673,101 @@ mod tests {
 	}
 
 	struct NoopAuthority;
+
+	#[test]
+	fn provider_manifest_deletion_signature_is_accepted_by_runtime_pallet() {
+		use origin_commons_runtime::{Runtime, RuntimeOrigin, StorageProvider, System};
+		use pallet_orbis_storage_control_primitives::CommitmentState;
+		use pallet_orbis_storage_provider::{
+			AssignedProvidersOf, CanonicalManifestRecord, CanonicalManifests,
+			GovernedFinalizedCheckpoint, ManifestDeletionAcknowledgements,
+			ManifestDeletionRequirements, OrganizationRefOf,
+			ProviderOrganizationRefV1, ProviderRecord, ProviderStatus, Providers, ServiceKeyRecord,
+		};
+		use sp_core::ed25519;
+
+		sp_io::TestExternalities::new_empty().execute_with(|| {
+			System::set_block_number(90);
+			GovernedFinalizedCheckpoint::<Runtime>::put(90);
+			let provider = AccountId32::new([0x17; 32]);
+			let pair = ed25519::Pair::from_seed(&[0x27; 32]);
+			let organization: OrganizationRefOf<Runtime> = ProviderOrganizationRefV1 {
+				entity_id: vec![1].try_into().unwrap(),
+				attestation_id: H256::repeat_byte(1),
+				schema_id: H256::repeat_byte(2),
+				sla_commitment: H256::repeat_byte(3),
+				sla_version: 1,
+				valid_from: 1,
+				valid_until: 1_000,
+				rotation_predecessor: None,
+			};
+			Providers::<Runtime>::insert(
+				provider.clone(),
+				ProviderRecord {
+					endpoint: vec![1].try_into().unwrap(),
+					organization,
+					service_key: ServiceKeyRecord {
+						active: pair.public(),
+						active_version: 1,
+						previous: None,
+						pending: None,
+						pending_version: None,
+						pending_effective_at: None,
+					},
+					capacity_bytes: 1_000,
+					allocated_bytes: 0,
+					pending_bytes: 0,
+					status: ProviderStatus::Active,
+					last_heartbeat: 90,
+					authority_validated_at: Some(90),
+				},
+			);
+			let manifest = [0x37; 32];
+			let bucket_id = H256::repeat_byte(0x47);
+			CanonicalManifests::<Runtime>::insert(
+				manifest,
+				CanonicalManifestRecord {
+					bucket_id,
+					provider_commitment: Some([0x57; 32]),
+					state: CommitmentState::Tombstoned,
+					checkpoint: Some(70),
+					tombstoned_at: Some(80),
+				},
+			);
+			let required: AssignedProvidersOf<Runtime> = vec![provider.clone()].try_into().unwrap();
+			ManifestDeletionRequirements::<Runtime>::insert(manifest, required);
+			let evidence_hash = H256::repeat_byte(0x67);
+			let digest = manifest_deletion_ack_digest(bucket_id, manifest, evidence_hash, 80);
+			let signature = pair.sign(&digest);
+			let result = StorageProvider::acknowledge_manifest_deletion(
+				RuntimeOrigin::signed(provider.clone()),
+				manifest,
+				evidence_hash,
+				pair.public(),
+				signature.clone(),
+			);
+			assert!(result.is_ok(), "runtime rejected provider-produced signature: {result:?}");
+			assert!(ManifestDeletionAcknowledgements::<Runtime>::contains_key(manifest, &provider));
+			let events = System::events().len();
+			assert!(StorageProvider::acknowledge_manifest_deletion(
+				RuntimeOrigin::signed(provider.clone()),
+				manifest,
+				evidence_hash,
+				pair.public(),
+				signature.clone(),
+			)
+			.is_ok());
+			assert_eq!(System::events().len(), events);
+			assert!(StorageProvider::acknowledge_manifest_deletion(
+				RuntimeOrigin::signed(provider),
+				manifest,
+				H256::repeat_byte(0x68),
+				pair.public(),
+				signature,
+			)
+			.is_err());
+		});
+	}
 
 	#[async_trait]
 	impl ChainAuthority for NoopAuthority {
@@ -621,6 +916,54 @@ mod tests {
 			.collect();
 		assert!(matches!(lines[0], ProviderSubmission::ProviderRoot(_)));
 		assert!(matches!(lines[1], ProviderSubmission::ContentDeletion(_)));
+	}
+
+	#[tokio::test]
+	async fn manifest_deletion_outbox_replay_is_idempotent_and_conflicts_fail_closed() {
+		let temp = tempfile::tempdir().unwrap();
+		let path = temp.path().join("outbox.jsonl");
+		let outbox = JsonlCheckpointOutbox::new(&path);
+		let request = ManifestDeletionSubmission {
+			manifest: format!("0x{}", "11".repeat(32)),
+			bucket_id: format!("0x{}", "22".repeat(32)),
+			provider_commitment: format!("0x{}", "33".repeat(32)),
+			evidence_hash: format!("0x{}", "44".repeat(32)),
+			tombstoned_at: 70,
+			service_key: format!("0x{}", "55".repeat(32)),
+			signature: format!("0x{}", "66".repeat(64)),
+			duty_fingerprint: format!("0x{}", "77".repeat(32)),
+		};
+		outbox.submit_manifest_deletion(request.clone()).await.unwrap();
+		outbox.submit_manifest_deletion(request.clone()).await.unwrap();
+		assert_eq!(tokio::fs::read_to_string(&path).await.unwrap().lines().count(), 1);
+		let mut conflict = request;
+		conflict.evidence_hash = format!("0x{}", "88".repeat(32));
+		assert!(outbox.submit_manifest_deletion(conflict).await.is_err());
+		assert_eq!(tokio::fs::read_to_string(path).await.unwrap().lines().count(), 1);
+	}
+
+	#[tokio::test]
+	async fn manifest_deletion_submission_is_bounded_with_large_unrelated_outbox_prefix() {
+		let temp = tempfile::tempdir().unwrap();
+		let path = temp.path().join("outbox.jsonl");
+		let prefix = b"{}\n".repeat(700_000);
+		tokio::fs::write(&path, &prefix).await.unwrap();
+		let outbox = JsonlCheckpointOutbox::new(&path);
+		let request = ManifestDeletionSubmission {
+			manifest: format!("0x{}", "11".repeat(32)),
+			bucket_id: format!("0x{}", "22".repeat(32)),
+			provider_commitment: format!("0x{}", "33".repeat(32)),
+			evidence_hash: format!("0x{}", "44".repeat(32)),
+			tombstoned_at: 70,
+			service_key: format!("0x{}", "55".repeat(32)),
+			signature: format!("0x{}", "66".repeat(64)),
+			duty_fingerprint: format!("0x{}", "77".repeat(32)),
+		};
+		outbox.submit_manifest_deletion(request.clone()).await.unwrap();
+		let once = tokio::fs::metadata(&path).await.unwrap().len();
+		outbox.submit_manifest_deletion(request).await.unwrap();
+		assert_eq!(tokio::fs::metadata(path).await.unwrap().len(), once);
+		assert!(once > prefix.len() as u64);
 	}
 
 	#[tokio::test]

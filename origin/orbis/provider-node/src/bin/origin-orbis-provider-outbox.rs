@@ -32,7 +32,7 @@ use oc::{
 				AccountId, AgreementId, ChallengeId, ContentCommitment, ProofCommitment,
 				SubmitAndFinalize,
 			},
-			storage_provider::StorageProviderCommand,
+			storage_provider::{ServiceKey, StorageProviderCommand},
 		},
 		OrbisDomainTransport, OrbisNativeClient,
 	},
@@ -191,6 +191,35 @@ fn command(
 							Ok(ProofCommitment::new(hash).map_err(native_error)?)
 						})
 						.collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?,
+				},
+			))
+		},
+		ProviderSubmission::ManifestDeletion(request) => {
+			let key = format!(
+				"manifest-deletion-{}-{}-{}",
+				request.manifest, request.duty_fingerprint, request.evidence_hash,
+			);
+			let service_key = hex::decode(
+				request
+					.service_key
+					.strip_prefix("0x")
+					.ok_or("manifest deletion service key is not 0x-prefixed")?,
+			)?;
+			let signature = hex::decode(
+				request
+					.signature
+					.strip_prefix("0x")
+					.ok_or("manifest deletion signature is not 0x-prefixed")?,
+			)?;
+			Ok((
+				key,
+				StorageProviderCommand::AcknowledgeManifestDeletion {
+					manifest: ContentCommitment::new(canonical_hash(request.manifest)?)
+						.map_err(native_error)?,
+					evidence_hash: ProofCommitment::new(canonical_hash(request.evidence_hash)?)
+						.map_err(native_error)?,
+					service_key: ServiceKey::new(service_key).map_err(native_error)?,
+					signature,
 				},
 			))
 		},

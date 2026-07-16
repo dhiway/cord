@@ -25,10 +25,11 @@ use crate::{
 	CheckpointFallbackPromotionReceiptByBucket, CheckpointFallbackPromotionV1, CommitmentPayloadV2,
 	CommitmentState, CommitmentV1, ConfirmationsOf, DutyAdmissionCount, EquivocationEvidence,
 	Error, Event, GovernedFinalizedCheckpoint, GrantNonce, HostDelegations,
-	ManifestDeletionAcknowledgements, ManifestDeletionRequirements, MmrLeafV1, MmrProofV1,
-	OrganizationRefOf, ProviderAgreements, ProviderAuthorityError, ProviderBucketAssignmentCount,
-	ProviderEvidence, ProviderEvidenceOverflow, ProviderOrganizationRefV1, ProviderStatus,
-	Providers, ReplicaSignature, ReplicasOf, ServiceKeyOwner,
+	ManifestDeletionAcknowledgements, ManifestDeletionDuties, ManifestDeletionRequirements,
+	MmrLeafV1, MmrProofV1, OrganizationRefOf, ProviderAgreements, ProviderAuthorityError,
+	ProviderBucketAssignmentCount, ProviderEvidence, ProviderEvidenceOverflow,
+	ProviderOrganizationRefV1, ProviderStatus, Providers, ReplicaSignature, ReplicasOf,
+	ServiceKeyOwner,
 };
 use codec::Encode;
 use frame_support::{assert_noop, assert_ok, traits::Hooks};
@@ -351,15 +352,15 @@ fn checkpoint_negatives_220_through_225_and_239_240_have_no_state_or_events() {
 			assert_eq!(System::events().len(), baseline_events);
 			assert!(matches!(
 				expected,
-				Error::<Test>::StorageCheckpointWrongDomain |
-					Error::<Test>::StorageCheckpointWrongVersion |
-					Error::<Test>::StorageCheckpointWrongBucket |
-					Error::<Test>::StorageCheckpointWrongKey |
-					Error::<Test>::StorageCheckpointStaleNonce |
-					Error::<Test>::StorageCheckpointWrongWindow |
-					Error::<Test>::StorageCheckpointInsufficientQuorum |
-					Error::<Test>::StorageCheckpointSequenceInvalid |
-					Error::<Test>::StorageCheckpointWrongContext
+				Error::<Test>::StorageCheckpointWrongDomain
+					| Error::<Test>::StorageCheckpointWrongVersion
+					| Error::<Test>::StorageCheckpointWrongBucket
+					| Error::<Test>::StorageCheckpointWrongKey
+					| Error::<Test>::StorageCheckpointStaleNonce
+					| Error::<Test>::StorageCheckpointWrongWindow
+					| Error::<Test>::StorageCheckpointInsufficientQuorum
+					| Error::<Test>::StorageCheckpointSequenceInvalid
+					| Error::<Test>::StorageCheckpointWrongContext
 			));
 		};
 
@@ -1191,7 +1192,35 @@ fn canonical_manifest_lifecycle_is_pending_publishable_then_tombstoned() {
 		set_finalized(111);
 		assert!(!StorageProvider::deletion_evidence_satisfied(&manifest));
 		assert_eq!(ManifestDeletionRequirements::<Test>::get(manifest).as_slice(), &[1, 2, 3]);
+		assert!([1u64, 2, 3]
+			.into_iter()
+			.all(|provider| ManifestDeletionDuties::<Test>::contains_key(provider, manifest)));
+		Providers::<Test>::mutate(1, |record| {
+			let record = record.as_mut().unwrap();
+			record.service_key.previous = Some(pair(1).public());
+			record.service_key.active = pair(8).public();
+		});
+		let tombstoned_at = CanonicalManifests::<Test>::get(manifest).unwrap().tombstoned_at.unwrap();
+		let old_evidence = H256::repeat_byte(1);
+		let old_digest = sp_runtime::traits::BlakeTwo256::hash_of(&(
+			b"cord/storage/deletion-ack/v1",
+			bucket,
+			manifest,
+			old_evidence,
+			tombstoned_at,
+		));
+		assert_noop!(
+			StorageProvider::acknowledge_manifest_deletion(
+				RuntimeOrigin::signed(1),
+				manifest,
+				old_evidence,
+				pair(1).public(),
+				pair(1).sign(old_digest.as_bytes()),
+			),
+			crate::Error::<Test>::DeletionEvidenceInvalid
+		);
 		for provider in [1u64, 2, 3] {
+			let signing_seed = if provider == 1 { 8 } else { provider as u8 };
 			let evidence_hash = H256::repeat_byte(provider as u8);
 			let tombstoned_at =
 				CanonicalManifests::<Test>::get(manifest).unwrap().tombstoned_at.unwrap();
@@ -1202,15 +1231,36 @@ fn canonical_manifest_lifecycle_is_pending_publishable_then_tombstoned() {
 				evidence_hash,
 				tombstoned_at,
 			));
-			let signature = pair(provider as u8).sign(digest.as_bytes());
+			let signature = pair(signing_seed).sign(digest.as_bytes());
+			let service_key = pair(signing_seed).public();
 			assert_ok!(StorageProvider::acknowledge_manifest_deletion(
 				RuntimeOrigin::signed(provider),
 				manifest,
 				evidence_hash,
-				pair(provider as u8).public(),
-				signature,
+				service_key,
+				signature.clone(),
 			));
 			assert!(ManifestDeletionAcknowledgements::<Test>::contains_key(manifest, provider));
+			assert!(!ManifestDeletionDuties::<Test>::contains_key(provider, manifest));
+			let events = System::events().len();
+			assert_ok!(StorageProvider::acknowledge_manifest_deletion(
+				RuntimeOrigin::signed(provider),
+				manifest,
+				evidence_hash,
+				service_key,
+				signature.clone(),
+			));
+			assert_eq!(System::events().len(), events);
+			assert_noop!(
+				StorageProvider::acknowledge_manifest_deletion(
+					RuntimeOrigin::signed(provider),
+					manifest,
+					H256::repeat_byte(0xEE),
+					service_key,
+					signature,
+				),
+				crate::Error::<Test>::DeletionAlreadyAcknowledged
+			);
 			if provider != 3 {
 				assert!(!StorageProvider::deletion_evidence_satisfied(&manifest));
 			}

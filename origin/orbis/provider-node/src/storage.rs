@@ -37,13 +37,14 @@ use std::{
 };
 
 use codec::{Decode, Encode};
-use orbis_storage_runtime_api::CheckpointDutyInfo;
+use orbis_storage_runtime_api::{CheckpointDutyInfo, DeletionDutyInfo};
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::AccountId32, H256};
 
 use crate::{
 	merkle, AgreementAuthorization, CheckpointDuty, CheckpointDutyBatch, CheckpointDutyPageRequest,
-	CheckpointDutyRole, CheckpointDutyScanCursor, PROTOCOL_VERSION,
+	CheckpointDutyRole, CheckpointDutyScanCursor, DeletionDuty, DeletionDutyBatch,
+	DeletionDutyPageRequest, DeletionDutyScanCursor, PROTOCOL_VERSION,
 };
 
 const INDEX_FILE: &str = "provider-index-v6.json";
@@ -217,6 +218,27 @@ struct CheckpointDutyIntake {
 	duties: Vec<CheckpointDuty>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DeletionDutyIntake {
+	finalized_hash: String,
+	finalized_number: u32,
+	provider: String,
+	snapshot_checkpoint: u32,
+	requested_cursor: Option<DeletionDutyScanCursor>,
+	next_cursor: Option<DeletionDutyScanCursor>,
+	page_tail: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DeletionDutyWatermark {
+	finalized_hash: String,
+	finalized_number: u32,
+	snapshot_checkpoint: u32,
+	last_manifest: Option<String>,
+}
+
 /// Bounded provider statistics.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct ProviderStats {
@@ -296,6 +318,12 @@ struct PersistedState {
 	checkpoint_duty_inventory: Option<CheckpointDutyInventory>,
 	checkpoint_duty_discovery_cursor: Option<CheckpointDutyDiscoveryCursor>,
 	#[serde(default)]
+	deletion_duty_intake: Option<DeletionDutyIntake>,
+	#[serde(default)]
+	deletion_duty_watermark: Option<DeletionDutyWatermark>,
+	#[serde(default)]
+	pending_manifest_deletions: BTreeMap<String, DeletionDuty>,
+	#[serde(default)]
 	checkpoints: Vec<SignedCheckpoint>,
 }
 
@@ -353,8 +381,8 @@ impl DiskStore {
 					existing.version
 				)));
 			}
-			if existing.profile.provider != profile.provider ||
-				existing.profile.service_key != profile.service_key
+			if existing.profile.provider != profile.provider
+				|| existing.profile.service_key != profile.service_key
 			{
 				return Err(StoreError::Invalid(
 					"configured provider identity does not match persisted store".into(),
@@ -384,6 +412,9 @@ impl DiskStore {
 				pending_checkpoint_duties: BTreeMap::new(),
 				checkpoint_duty_inventory: None,
 				checkpoint_duty_discovery_cursor: None,
+				deletion_duty_intake: None,
+				deletion_duty_watermark: None,
+				pending_manifest_deletions: BTreeMap::new(),
 				checkpoints: Vec::new(),
 			}
 		};
@@ -418,8 +449,8 @@ impl DiskStore {
 	) -> Result<(), StoreError> {
 		validate_profile(&profile)?;
 		let mut state = self.write_state()?;
-		if profile.provider != state.profile.provider ||
-			profile.service_key != state.profile.service_key
+		if profile.provider != state.profile.provider
+			|| profile.service_key != state.profile.service_key
 		{
 			return Err(StoreError::Invalid(
 				"provider and service_key are immutable for an initialized store".into(),
@@ -501,8 +532,8 @@ impl DiskStore {
 			.filter(|record| !record.deleted)
 			.ok_or(StoreError::NotFound)?;
 		let bytes = fs::read(self.root.join(BLOBS_DIR).join(&normalized)).map_err(io_error)?;
-		if bytes.len() as u64 != record.bytes ||
-			hex::encode(Self::content_commitment(&bytes)) != normalized
+		if bytes.len() as u64 != record.bytes
+			|| hex::encode(Self::content_commitment(&bytes)) != normalized
 		{
 			return Err(StoreError::Io("stored blob failed commitment verification".into()));
 		}
@@ -635,8 +666,8 @@ impl DiskStore {
 		let mut state = self.write_state()?;
 		validate_checkpoint_duty_page(&batch, &state.profile)?;
 		if let Some(previous) = &state.checkpoint_duty_watermark {
-			if batch.snapshot_checkpoint < previous.snapshot_checkpoint ||
-				batch.finalized_number < previous.finalized_number
+			if batch.snapshot_checkpoint < previous.snapshot_checkpoint
+				|| batch.finalized_number < previous.finalized_number
 			{
 				return Err(StoreError::Invalid(
 					"checkpoint duty snapshot or finalized height regressed".into(),
@@ -646,11 +677,11 @@ impl DiskStore {
 		let mut next = state.clone();
 		let mut accumulated = match next.checkpoint_duty_intake.take() {
 			Some(intake) => {
-				if batch.finalized_hash != intake.finalized_hash ||
-					batch.finalized_number != intake.finalized_number ||
-					batch.provider != intake.provider ||
-					batch.snapshot_checkpoint != intake.snapshot_checkpoint ||
-					batch.requested_cursor.as_ref() != Some(&intake.next_cursor)
+				if batch.finalized_hash != intake.finalized_hash
+					|| batch.finalized_number != intake.finalized_number
+					|| batch.provider != intake.provider
+					|| batch.snapshot_checkpoint != intake.snapshot_checkpoint
+					|| batch.requested_cursor.as_ref() != Some(&intake.next_cursor)
 				{
 					return Err(StoreError::Invalid(
 						"checkpoint duty page does not resume the durable fixed snapshot".into(),
@@ -838,6 +869,156 @@ impl DiskStore {
 		Ok(self.read_state()?.pending_checkpoint_duties.values().cloned().collect())
 	}
 
+	/// Atomically stage one bounded page without accumulating the complete runtime snapshot.
+	pub fn stage_deletion_duty_page(&self, batch: DeletionDutyBatch) -> Result<bool, StoreError> {
+		let mut state = self.write_state()?;
+		validate_deletion_duty_page(&batch, &state.profile)?;
+		if !state.pending_manifest_deletions.is_empty() {
+			return Err(StoreError::Invalid(
+				"manifest deletion page cannot advance before its staged duties are handed off".into(),
+			));
+		}
+		if let Some(previous) = &state.deletion_duty_watermark {
+			if batch.snapshot_checkpoint < previous.snapshot_checkpoint
+				|| batch.finalized_number < previous.finalized_number
+			{
+				return Err(StoreError::Invalid(
+					"manifest deletion duty snapshot or finalized height regressed".into(),
+				));
+			}
+		}
+		match &state.deletion_duty_intake {
+			Some(intake) => {
+				if batch.finalized_hash != intake.finalized_hash
+					|| batch.finalized_number != intake.finalized_number
+					|| batch.provider != intake.provider
+					|| batch.snapshot_checkpoint != intake.snapshot_checkpoint
+					|| batch.requested_cursor != intake.next_cursor
+				{
+					return Err(StoreError::Invalid(
+						"manifest deletion page does not resume the durable fixed snapshot".into(),
+					));
+				}
+			},
+			None => {
+				if batch.requested_cursor.is_some() {
+					return Err(StoreError::Invalid(
+						"manifest deletion resume cursor has no durable staging record".into(),
+					));
+				}
+			},
+		}
+		let page_tail = batch.duties.last().map(|duty| duty.manifest.clone());
+		let last_manifest = page_tail.clone().or_else(|| {
+			batch.requested_cursor.as_ref().map(|cursor| cursor.last_manifest.clone())
+		});
+		let mut next = state.clone();
+		for duty in &batch.duties {
+			next.pending_manifest_deletions
+				.insert(normalize_hash(&duty.manifest)?, duty.clone());
+		}
+		let terminal = batch.next_cursor.is_none();
+		if terminal && batch.duties.is_empty() {
+			next.deletion_duty_watermark = Some(DeletionDutyWatermark {
+				finalized_hash: batch.finalized_hash,
+				finalized_number: batch.finalized_number,
+				snapshot_checkpoint: batch.snapshot_checkpoint,
+				last_manifest,
+			});
+			next.deletion_duty_intake = None;
+			persist_state(&self.root, &next)?;
+			*state = next;
+			return Ok(true);
+		}
+		next.deletion_duty_intake = Some(DeletionDutyIntake {
+			finalized_hash: batch.finalized_hash.clone(),
+			finalized_number: batch.finalized_number,
+			provider: batch.provider,
+			snapshot_checkpoint: batch.snapshot_checkpoint,
+			requested_cursor: batch.requested_cursor,
+			next_cursor: batch.next_cursor,
+			page_tail,
+		});
+		/* The watermark advances only after every duty in the terminal page is durable in the
+		 * acknowledgement outbox. */
+		persist_state(&self.root, &next)?;
+		*state = next;
+		Ok(terminal)
+	}
+
+	fn finalize_manifest_deletion_page(next: &mut PersistedState) {
+		let Some(intake) = next.deletion_duty_intake.clone() else { return };
+		if intake.next_cursor.is_some() {
+			return;
+		}
+		next.deletion_duty_watermark = Some(DeletionDutyWatermark {
+			finalized_hash: intake.finalized_hash.clone(),
+			finalized_number: intake.finalized_number,
+			snapshot_checkpoint: intake.snapshot_checkpoint,
+			last_manifest: intake.page_tail.clone().or_else(|| {
+				intake.requested_cursor.as_ref().map(|cursor| cursor.last_manifest.clone())
+			}),
+		});
+		next.deletion_duty_intake = None;
+	}
+
+	/// Return the exact fixed-hash request needed to resume deletion intake after restart.
+	pub fn deletion_duty_resume_request(
+		&self,
+	) -> Result<Option<DeletionDutyPageRequest>, StoreError> {
+		let state = self.read_state()?;
+		if !state.pending_manifest_deletions.is_empty() {
+			return Ok(None);
+		}
+		Ok(state.deletion_duty_intake.as_ref().and_then(|intake| {
+			intake.next_cursor.clone().map(|cursor| DeletionDutyPageRequest {
+				finalized_hash: intake.finalized_hash.clone(),
+				finalized_number: intake.finalized_number,
+				provider: intake.provider.clone(),
+				snapshot_checkpoint: intake.snapshot_checkpoint,
+				cursor,
+			})
+		}))
+	}
+
+	/// Return the bounded staged-page work slice in deterministic manifest-key order.
+	pub fn pending_manifest_deletions(
+		&self,
+		limit: usize,
+	) -> Result<Vec<DeletionDuty>, StoreError> {
+		Ok(self
+			.read_state()?
+			.pending_manifest_deletions
+			.values()
+			.take(limit)
+			.cloned()
+			.collect())
+	}
+
+	/// Complete exact work only after its acknowledgement is durable in the signer outbox.
+	pub fn complete_manifest_deletion(
+		&self,
+		manifest: &str,
+		duty_fingerprint: &str,
+	) -> Result<(), StoreError> {
+		let key = normalize_hash(manifest)?;
+		let mut state = self.write_state()?;
+		let Some(existing) = state.pending_manifest_deletions.get(&key) else { return Ok(()) };
+		if normalize_hash(&existing.duty_fingerprint)? != normalize_hash(duty_fingerprint)? {
+			return Err(StoreError::Invalid(
+				"manifest deletion completion changed its duty fingerprint".into(),
+			));
+		}
+		let mut next = state.clone();
+		next.pending_manifest_deletions.remove(&key);
+		if next.pending_manifest_deletions.is_empty() {
+			Self::finalize_manifest_deletion_page(&mut next);
+		}
+		persist_state(&self.root, &next)?;
+		*state = next;
+		Ok(())
+	}
+
 	/// Remove a root journal entry only after it has been durably appended to the outbox.
 	pub fn complete_root_submission(&self, sequence: u64) -> Result<(), StoreError> {
 		let mut state = self.write_state()?;
@@ -866,8 +1047,8 @@ impl DiskStore {
 			.records
 			.values()
 			.filter(|record| {
-				!record.deleted &&
-					bucket.map_or(true, |name| record.bucket.as_deref() == Some(name))
+				!record.deleted
+					&& bucket.map_or(true, |name| record.bucket.as_deref() == Some(name))
 			})
 			.skip(cursor)
 			.take(limit + 1)
@@ -1000,14 +1181,15 @@ impl DiskStore {
 	fn verify_index(&self) -> Result<(), StoreError> {
 		let state = self.read_state()?;
 		verify_checkpoint_duty_state(&state)?;
+		verify_deletion_duty_state(&state)?;
 		if state.root_sequence != state.leaf_hashes.len() as u64 {
 			return Err(StoreError::Io("root sequence and proof-leaf counts differ".into()));
 		}
 		let leaves = decode_leaves(&state)?;
 		let (frontier, history) = merkle::accumulate(&leaves)
 			.ok_or_else(|| StoreError::Io("proof frontier reconstruction failed".into()))?;
-		if encode_frontier(&frontier) != state.root_frontier ||
-			history.iter().map(hex::encode).collect::<Vec<_>>() != state.root_history
+		if encode_frontier(&frontier) != state.root_frontier
+			|| history.iter().map(hex::encode).collect::<Vec<_>>() != state.root_history
 		{
 			return Err(StoreError::Io("persisted proof frontier/history is invalid".into()));
 		}
@@ -1060,16 +1242,16 @@ impl DiskStore {
 			}
 		}
 		for (sequence, pending) in &state.pending_roots {
-			if *sequence != pending.sequence ||
-				pending.appended_leaves.len() != 1 ||
-				pending.expected_leaf_count == 0 ||
-				pending.expected_leaf_count > state.leaf_hashes.len() as u64
+			if *sequence != pending.sequence
+				|| pending.appended_leaves.len() != 1
+				|| pending.expected_leaf_count == 0
+				|| pending.expected_leaf_count > state.leaf_hashes.len() as u64
 			{
 				return Err(StoreError::Io("pending provider root journal is invalid".into()));
 			}
 			let index = pending.expected_leaf_count as usize - 1;
-			if state.leaf_hashes[index] != pending.appended_leaves[0] ||
-				state.root_history.get(index) != Some(&pending.expected_root)
+			if state.leaf_hashes[index] != pending.appended_leaves[0]
+				|| state.root_history.get(index) != Some(&pending.expected_root)
 			{
 				return Err(StoreError::Io(
 					"pending provider root journal does not match proof log".into(),
@@ -1100,9 +1282,9 @@ fn validate_profile(profile: &NodeProfile) -> Result<(), StoreError> {
 	{
 		return Err(StoreError::Invalid("provider, endpoint and service_key are required".into()));
 	}
-	if profile.endpoint.len() > 256 ||
-		profile.service_key.len() > 256 ||
-		profile.provider.len() > 128
+	if profile.endpoint.len() > 256
+		|| profile.service_key.len() > 256
+		|| profile.provider.len() > 128
 	{
 		return Err(StoreError::Invalid("node profile field exceeds bound".into()));
 	}
@@ -1280,16 +1462,17 @@ fn validate_checkpoint_duty_page(
 	match (&batch.next_cursor, batch.duties.last()) {
 		(None, _) => {},
 		(Some(cursor), Some(last)) => {
-			if cursor.snapshot_checkpoint != batch.snapshot_checkpoint ||
-				normalize_hash(&cursor.last_key)? != normalize_hash(&last.bucket_id)?
+			if cursor.snapshot_checkpoint != batch.snapshot_checkpoint
+				|| normalize_hash(&cursor.last_key)? != normalize_hash(&last.bucket_id)?
 			{
 				return Err(StoreError::Invalid(
 					"checkpoint duty cursor does not bind the installed snapshot tail".into(),
 				));
 			}
 		},
-		(Some(_), None) =>
-			return Err(StoreError::Invalid("checkpoint duty page advanced an empty cursor".into())),
+		(Some(_), None) => {
+			return Err(StoreError::Invalid("checkpoint duty page advanced an empty cursor".into()))
+		},
 	}
 	let expected_provider = normalize_hash(&profile.provider)?;
 	let expected_key = normalize_hash(&profile.service_key)?;
@@ -1318,8 +1501,8 @@ fn validate_checkpoint_duty_page(
 		let encoded = hex::decode(duty.encoded_duty.trim_start_matches("0x")).map_err(|error| {
 			StoreError::Invalid(format!("invalid checkpoint duty SCALE: {error}"))
 		})?;
-		if normalize_hash(&duty.duty_fingerprint)? !=
-			hex::encode(sp_crypto_hashing::blake2_256(&encoded))
+		if normalize_hash(&duty.duty_fingerprint)?
+			!= hex::encode(sp_crypto_hashing::blake2_256(&encoded))
 		{
 			return Err(StoreError::Invalid("checkpoint duty fingerprint mismatch".into()));
 		}
@@ -1362,6 +1545,163 @@ fn validate_checkpoint_duty_page(
 			));
 		}
 		previous_bucket = Some(bucket);
+	}
+	Ok(())
+}
+
+fn validate_deletion_duty_page(
+	batch: &DeletionDutyBatch,
+	profile: &NodeProfile,
+) -> Result<(), StoreError> {
+	if batch.duties.len() > orbis_storage_runtime_api::MAX_DELETION_DUTY_PAGE_SIZE as usize {
+		return Err(StoreError::Invalid("manifest deletion page exceeds the runtime bound".into()));
+	}
+	normalize_hash(&batch.finalized_hash)?;
+	let expected_provider = normalize_hash(&profile.provider)?;
+	if normalize_hash(&batch.provider)? != expected_provider {
+		return Err(StoreError::Invalid(
+			"manifest deletion page belongs to another provider".into(),
+		));
+	}
+	if let Some(cursor) = &batch.requested_cursor {
+		if cursor.snapshot_checkpoint != batch.snapshot_checkpoint {
+			return Err(StoreError::Invalid(
+				"manifest deletion request cursor belongs to another snapshot".into(),
+			));
+		}
+		normalize_hash(&cursor.last_manifest)?;
+	}
+	if batch.next_cursor.is_some() && batch.next_cursor == batch.requested_cursor {
+		return Err(StoreError::Invalid("manifest deletion cursor did not advance".into()));
+	}
+	match (&batch.next_cursor, batch.duties.last()) {
+		(None, _) => {},
+		(Some(cursor), Some(last)) => {
+			if cursor.snapshot_checkpoint != batch.snapshot_checkpoint
+				|| normalize_hash(&cursor.last_manifest)? != normalize_hash(&last.manifest)?
+			{
+				return Err(StoreError::Invalid(
+					"manifest deletion cursor does not bind the page tail".into(),
+				));
+			}
+		},
+		(Some(_), None) => {
+			return Err(StoreError::Invalid(
+				"manifest deletion page advanced an empty cursor".into(),
+			))
+		},
+	}
+	let provider_raw: [u8; 32] = hex::decode(&expected_provider)
+		.map_err(io_error)?
+		.try_into()
+		.map_err(|_| StoreError::Invalid("provider profile is not 32 bytes".into()))?;
+	let provider = AccountId32::new(provider_raw);
+	let mut manifests = std::collections::BTreeSet::new();
+	for duty in &batch.duties {
+		let manifest = normalize_hash(&duty.manifest)?;
+		if !manifests.insert(manifest) {
+			return Err(StoreError::Invalid(
+				"manifest deletion duties contain a duplicate manifest".into(),
+			));
+		}
+		if duty.snapshot_checkpoint != batch.snapshot_checkpoint
+			|| normalize_hash(&duty.provider)? != expected_provider
+		{
+			return Err(StoreError::Invalid(
+				"manifest deletion duty has the wrong snapshot or provider".into(),
+			));
+		}
+		normalize_hash(&duty.bucket_id)?;
+		normalize_hash(&duty.provider_commitment)?;
+		let encoded = hex::decode(duty.encoded_duty.strip_prefix("0x").ok_or_else(|| {
+			StoreError::Invalid("manifest deletion SCALE is not prefixed".into())
+		})?)
+		.map_err(|error| {
+			StoreError::Invalid(format!("invalid manifest deletion SCALE: {error}"))
+		})?;
+		if normalize_hash(&duty.duty_fingerprint)?
+			!= hex::encode(sp_crypto_hashing::blake2_256(&encoded))
+		{
+			return Err(StoreError::Invalid("manifest deletion duty fingerprint mismatch".into()));
+		}
+		let mut input = &encoded[..];
+		let decoded =
+			DeletionDutyInfo::<AccountId32, H256, u32>::decode(&mut input).map_err(|error| {
+				StoreError::Invalid(format!("invalid manifest deletion SCALE: {error}"))
+			})?;
+		if !input.is_empty() {
+			return Err(StoreError::Invalid("manifest deletion SCALE has trailing bytes".into()));
+		}
+		let projected =
+			crate::chain::validate_deletion_duty(decoded, &provider, batch.snapshot_checkpoint)
+				.map_err(|error| StoreError::Invalid(error.to_string()))?;
+		if &projected != duty {
+			return Err(StoreError::Invalid(
+				"manifest deletion typed projection does not match runtime SCALE".into(),
+			));
+		}
+	}
+	Ok(())
+}
+
+fn verify_deletion_duty_state(state: &PersistedState) -> Result<(), StoreError> {
+	if state.pending_manifest_deletions.len()
+		> orbis_storage_runtime_api::MAX_DELETION_DUTY_PAGE_SIZE as usize
+	{
+		return Err(StoreError::Io("manifest deletion pending page exceeds its bound".into()));
+	}
+	if let Some(intake) = &state.deletion_duty_intake {
+		normalize_hash(&intake.finalized_hash)?;
+		if normalize_hash(&intake.provider)? != normalize_hash(&state.profile.provider)? {
+			return Err(StoreError::Io("manifest deletion intake provider is invalid".into()));
+		}
+		for cursor in intake.requested_cursor.iter().chain(intake.next_cursor.iter()) {
+			if cursor.snapshot_checkpoint != intake.snapshot_checkpoint {
+				return Err(StoreError::Io("manifest deletion intake cursor is invalid".into()));
+			}
+			normalize_hash(&cursor.last_manifest)?;
+		}
+		if let Some(tail) = &intake.page_tail {
+			normalize_hash(tail)?;
+		}
+		if state
+			.pending_manifest_deletions
+			.values()
+			.any(|duty| duty.snapshot_checkpoint != intake.snapshot_checkpoint)
+		{
+			return Err(StoreError::Io(
+				"manifest deletion pending duty belongs to another intake snapshot".into(),
+			));
+		}
+	}
+	if state.deletion_duty_intake.is_none() && !state.pending_manifest_deletions.is_empty() {
+		return Err(StoreError::Io("manifest deletion duties have no page intake".into()));
+	}
+	if let Some(watermark) = &state.deletion_duty_watermark {
+		normalize_hash(&watermark.finalized_hash)?;
+		if let Some(last_manifest) = &watermark.last_manifest {
+			normalize_hash(last_manifest)?;
+		}
+	}
+	for (key, duty) in &state.pending_manifest_deletions {
+		if key != &normalize_hash(&duty.manifest)? {
+			return Err(StoreError::Io(
+				"manifest deletion pending key does not match its duty".into(),
+			));
+		}
+		validate_deletion_duty_page(
+			&DeletionDutyBatch {
+				finalized_hash: format!("0x{}", "00".repeat(32)),
+				finalized_number: 0,
+				provider: state.profile.provider.clone(),
+				snapshot_checkpoint: duty.snapshot_checkpoint,
+				requested_cursor: None,
+				next_cursor: None,
+				duties: vec![duty.clone()],
+			},
+			&state.profile,
+		)
+		.map_err(|_| StoreError::Io("pending manifest deletion duty is invalid".into()))?;
 	}
 	Ok(())
 }
@@ -1482,8 +1822,8 @@ mod tests {
 	use super::*;
 	use orbis_storage_runtime_api::{
 		CheckpointDutyMode as RuntimeCheckpointDutyMode,
-		CheckpointDutyPhase as RuntimeCheckpointDutyPhase, ProviderDutyAuthority, ProviderDutyRole,
-		RESPONSE_VERSION,
+		CheckpointDutyPhase as RuntimeCheckpointDutyPhase, DeletionDutyInfo, ProviderDutyAuthority,
+		ProviderDutyRole, RESPONSE_VERSION,
 	};
 
 	fn profile() -> NodeProfile {
@@ -1614,6 +1954,164 @@ mod tests {
 			next_cursor,
 			duties,
 		}
+	}
+
+	fn deletion_duty(manifest: u8, snapshot: u32) -> DeletionDuty {
+		crate::chain::validate_deletion_duty(
+			DeletionDutyInfo {
+				provider: AccountId32::new([1; 32]),
+				manifest: [manifest; 32],
+				bucket_id: H256::repeat_byte(manifest.saturating_add(1)),
+				provider_commitment: [manifest.saturating_add(2); 32],
+				tombstoned_at: snapshot.saturating_sub(1),
+			},
+			&AccountId32::new([1; 32]),
+			snapshot,
+		)
+		.unwrap()
+	}
+
+	fn deletion_cursor(snapshot: u32, manifest: u8) -> DeletionDutyScanCursor {
+		DeletionDutyScanCursor {
+			snapshot_checkpoint: snapshot,
+			last_manifest: format!("0x{}", hex::encode([manifest; 32])),
+		}
+	}
+
+	fn deletion_page(
+		snapshot: u32,
+		requested_cursor: Option<DeletionDutyScanCursor>,
+		next_cursor: Option<DeletionDutyScanCursor>,
+		duties: Vec<DeletionDuty>,
+	) -> DeletionDutyBatch {
+		DeletionDutyBatch {
+			finalized_hash: format!("0x{}", "20".repeat(32)),
+			finalized_number: snapshot + 1,
+			provider: format!("0x{}", "01".repeat(32)),
+			snapshot_checkpoint: snapshot,
+			requested_cursor,
+			next_cursor,
+			duties,
+		}
+	}
+
+	#[test]
+	fn manifest_deletion_pages_resume_after_restart_and_complete_idempotently() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		// Runtime double-map iteration follows hashed storage-key order, not manifest order.
+		let first = deletion_duty(2, 70);
+		let second = deletion_duty(1, 70);
+		let cursor = deletion_cursor(70, 2);
+		assert!(!store
+			.stage_deletion_duty_page(deletion_page(
+				70,
+				None,
+				Some(cursor.clone()),
+				vec![first.clone()],
+			))
+			.unwrap());
+		assert_eq!(store.pending_manifest_deletions(8).unwrap(), vec![first.clone()]);
+		assert!(store.deletion_duty_resume_request().unwrap().is_none());
+		assert!(store
+			.stage_deletion_duty_page(deletion_page(
+				70,
+				Some(cursor.clone()),
+				None,
+				vec![second.clone()],
+			))
+			.is_err());
+		drop(store);
+
+		let reopened = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		assert_eq!(reopened.pending_manifest_deletions(8).unwrap(), vec![first.clone()]);
+		assert!(reopened.deletion_duty_resume_request().unwrap().is_none());
+		reopened
+			.complete_manifest_deletion(&first.manifest, &first.duty_fingerprint)
+			.unwrap();
+		drop(reopened);
+		let reopened = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		let resume = reopened.deletion_duty_resume_request().unwrap().unwrap();
+		assert_eq!(resume.cursor, cursor);
+		assert!(reopened
+			.stage_deletion_duty_page(deletion_page(70, Some(cursor), None, vec![second.clone()],))
+			.unwrap());
+		assert_eq!(reopened.pending_manifest_deletions(8).unwrap(), vec![second.clone()]);
+		reopened
+			.complete_manifest_deletion(&second.manifest, &second.duty_fingerprint)
+			.unwrap();
+		reopened
+			.complete_manifest_deletion(&second.manifest, &second.duty_fingerprint)
+			.unwrap();
+		assert!(reopened.pending_manifest_deletions(8).unwrap().is_empty());
+		assert!(reopened.deletion_duty_resume_request().unwrap().is_none());
+	}
+
+	#[test]
+	fn manifest_deletion_intake_stays_one_page_bounded_across_restarts() {
+		let temp = tempfile::tempdir().unwrap();
+		let mut requested = None;
+		let mut processed = std::collections::BTreeSet::new();
+		let mut largest_journal = 0;
+		for manifest in 1..=32u8 {
+			let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+			let duty = deletion_duty(manifest, 70);
+			let next = (manifest < 32).then(|| deletion_cursor(70, manifest));
+			store
+				.stage_deletion_duty_page(deletion_page(
+					70,
+					requested.clone(),
+					next.clone(),
+					vec![duty.clone()],
+				))
+				.unwrap();
+			assert_eq!(store.pending_manifest_deletions(2).unwrap(), vec![duty.clone()]);
+			largest_journal = largest_journal.max(
+				std::fs::metadata(temp.path().join(INDEX_FILE)).unwrap().len(),
+			);
+			assert!(processed.insert(duty.manifest.clone()));
+			store
+				.complete_manifest_deletion(&duty.manifest, &duty.duty_fingerprint)
+				.unwrap();
+			requested = next;
+			drop(store);
+		}
+		assert_eq!(processed.len(), 32);
+		// A page contains one duty here; traversing 32 pages must not grow a snapshot-sized journal.
+		assert!(largest_journal < 64 * 1024, "deletion intake journal grew to {largest_journal}");
+		let reopened = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		assert!(reopened.pending_manifest_deletions(2).unwrap().is_empty());
+		assert!(reopened.deletion_duty_resume_request().unwrap().is_none());
+	}
+
+	#[test]
+	fn manifest_deletion_restart_allows_runtime_tail_to_finish_before_other_page_duties() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		let lexical_later = deletion_duty(2, 70);
+		let runtime_tail = deletion_duty(1, 70);
+		assert!(store
+			.stage_deletion_duty_page(deletion_page(
+				70,
+				None,
+				None,
+				vec![lexical_later.clone(), runtime_tail.clone()],
+			))
+			.unwrap());
+		store
+			.complete_manifest_deletion(&runtime_tail.manifest, &runtime_tail.duty_fingerprint)
+			.unwrap();
+		drop(store);
+
+		let reopened = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		assert_eq!(
+			reopened.pending_manifest_deletions(8).unwrap(),
+			vec![lexical_later.clone()],
+		);
+		reopened
+			.complete_manifest_deletion(&lexical_later.manifest, &lexical_later.duty_fingerprint)
+			.unwrap();
+		assert!(reopened.pending_manifest_deletions(8).unwrap().is_empty());
 	}
 
 	#[test]

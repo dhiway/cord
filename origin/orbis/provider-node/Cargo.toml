@@ -72,5 +72,8 @@ rustix = { workspace = true, features = ["fs", "std"] }
 [dev-dependencies]
 chacha20poly1305 = "0.10.1"
 frame-metadata = { version = "23.0.1", features = ["current"] }
+origin-commons-runtime = { workspace = true, features = ["std"] }
+pallet-orbis-storage-control-primitives = { workspace = true, features = ["std"] }
 scale-info = { workspace = true, features = ["std"] }
+sp-io = { workspace = true, default-features = true }
 tempfile = { workspace = true }

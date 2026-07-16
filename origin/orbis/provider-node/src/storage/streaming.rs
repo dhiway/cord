@@ -44,7 +44,7 @@ pub(crate) mod recovery;
 use private_query::{PrivateQueryRecord, PrivateQueryReplayRecord};
 use recovery::{CapabilityReplayRecord, RecoveryRecord};
 
-const STREAM_VERSION: u16 = 13;
+const STREAM_VERSION: u16 = 14;
 const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
@@ -176,6 +176,10 @@ pub enum StreamingFault {
 	AfterRecoveryGcCommit,
 	/// Private query response is complete in memory but its cloned journal is not yet durable.
 	BeforePrivateQueryCommit,
+	/// A manifest tombstone is durable but its object bytes may still be present.
+	AfterTombstoneJournal,
+	/// Tombstoned object bytes are absent but completion was not delivered.
+	AfterTombstoneRemoval,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -222,6 +226,29 @@ struct JournalState {
 	private_query_replay: BTreeMap<String, PrivateQueryReplayRecord>,
 	private_query_gc_cursor: Option<String>,
 	private_query_response_bytes: u64,
+	manifest_tombstones: BTreeMap<String, ManifestTombstoneRecord>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ManifestTombstoneRecord {
+	manifest: String,
+	bucket_id: String,
+	cid: String,
+	provider_commitment: String,
+	tombstoned_at: u32,
+	evidence_hash: String,
+}
+
+/// Durable local evidence that canonical stored bytes are no longer served.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ManifestDeletionEvidence {
+	pub(crate) manifest: [u8; 32],
+	pub(crate) bucket_id: BucketId,
+	pub(crate) cid: CanonicalCid,
+	pub(crate) provider_commitment: [u8; 32],
+	pub(crate) tombstoned_at: u32,
+	pub(crate) evidence_hash: [u8; 32],
 }
 
 /// One immutable, fully reverified installed operation used by the private commitment store.
@@ -361,7 +388,7 @@ impl StreamingStore {
 		operation_limit: usize,
 	) -> Result<Self, ContentError> {
 		if operation_limit == 0 || operation_limit > MAX_STREAMING_OPERATIONS {
-			return Err(ContentError::SchemaInvalid)
+			return Err(ContentError::SchemaInvalid);
 		}
 		Self::open_with_limit(root, operation_limit)
 	}
@@ -383,9 +410,10 @@ impl StreamingStore {
 				state.recovery.len() > MAX_STREAMING_OPERATIONS ||
 				state.private_queries.len() > MAX_STREAMING_OPERATIONS ||
 				state.private_query_replay.len() > MAX_STREAMING_OPERATIONS ||
+				state.manifest_tombstones.len() > operation_limit ||
 				state.repairs.len() > operation_limit
 			{
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 			recovery::validate_recovery_state(&state)?;
 			private_query::validate_private_query_state(&state)?;
@@ -404,6 +432,7 @@ impl StreamingStore {
 				private_query_replay: BTreeMap::new(),
 				private_query_gc_cursor: None,
 				private_query_response_bytes: 0,
+				manifest_tombstones: BTreeMap::new(),
 			}
 		};
 		let store = Self {
@@ -437,26 +466,29 @@ impl StreamingStore {
 		validate_descriptor(&descriptor)?;
 		let key = operation_key(&descriptor);
 		let mut state = self.write_state()?;
+		if is_bucket_tombstoned(&state, descriptor.bucket_id, &descriptor.expected_cid) {
+			return Err(ContentError::NotFound);
+		}
 		if state.recovery.values().any(|item| item.descriptor == descriptor) {
-			return Err(ContentError::IdempotencyConflict)
+			return Err(ContentError::IdempotencyConflict);
 		}
 		if let Some(existing) = state.operations.get(&key) {
 			if existing.descriptor != descriptor {
-				return Err(ContentError::IdempotencyConflict)
+				return Err(ContentError::IdempotencyConflict);
 			}
-			if existing.phase == Phase::Installed &&
-				state.quarantine.contains_key(&existing.descriptor.expected_cid)
+			if existing.phase == Phase::Installed
+				&& state.quarantine.contains_key(&existing.descriptor.expected_cid)
 			{
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 			return match (&existing.phase, &existing.receipt) {
 				(Phase::Installed, Some(receipt)) => Ok(BeginStreaming::Installed(receipt.clone())),
 				(Phase::Receiving, _) => Ok(BeginStreaming::Receiving(self.progress(existing)?)),
 				_ => Err(ContentError::IntegrityFailed),
-			}
+			};
 		}
 		if state.operations.len() >= self.operation_limit {
-			return Err(ContentError::ProviderRecoveryTableFull)
+			return Err(ContentError::ProviderRecoveryTableFull);
 		}
 		let path = self.part_path(&key);
 		let file = OpenOptions::new().create_new(true).write(true).open(&path).map_err(io_error)?;
@@ -492,27 +524,27 @@ impl StreamingStore {
 		bytes: usize,
 	) -> Result<Option<IngressPermit>, ContentError> {
 		if bytes > CHUNK_BYTES {
-			return Err(ContentError::ChunkTooLarge)
+			return Err(ContentError::ChunkTooLarge);
 		}
 		let key = operation_key_parts(bucket_id, operation_id);
 		let state = self.read_state()?;
 		let record = state.operations.get(&key).ok_or(ContentError::NotFound)?;
 		if state.recovery.values().any(|item| item.descriptor == record.descriptor) {
-			return Err(ContentError::IdempotencyConflict)
+			return Err(ContentError::IdempotencyConflict);
 		}
 		if record.phase != Phase::Receiving {
-			return Err(ContentError::ChunkOutOfOrder)
+			return Err(ContentError::ChunkOutOfOrder);
 		}
 		if index as usize >= record.next_chunk as usize + INGRESS_WINDOW_CHUNKS {
-			return Err(ContentError::ChunkOutOfOrder)
+			return Err(ContentError::ChunkOutOfOrder);
 		}
 		validate_chunk_len(record.descriptor.object_len, index, bytes)?;
 		drop(state);
 		let mut window = self.window.window.lock().map_err(|_| lock_error())?;
-		if window.chunks >= INGRESS_WINDOW_CHUNKS ||
-			window.bytes.saturating_add(bytes) > INGRESS_WINDOW_BYTES
+		if window.chunks >= INGRESS_WINDOW_CHUNKS
+			|| window.bytes.saturating_add(bytes) > INGRESS_WINDOW_BYTES
 		{
-			return Ok(None)
+			return Ok(None);
 		}
 		window.chunks += 1;
 		window.bytes += bytes;
@@ -531,17 +563,17 @@ impl StreamingStore {
 		bytes: &[u8],
 	) -> Result<ProgressAck, ContentError> {
 		if permit.bytes != bytes.len() {
-			return Err(ContentError::LengthMismatch)
+			return Err(ContentError::LengthMismatch);
 		}
 		let key = permit.operation_key.clone();
 		let index = permit.index;
 		let mut state = self.write_state()?;
 		let record = state.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
 		if state.recovery.values().any(|item| item.descriptor == record.descriptor) {
-			return Err(ContentError::IdempotencyConflict)
+			return Err(ContentError::IdempotencyConflict);
 		}
 		if record.phase != Phase::Receiving {
-			return Err(ContentError::ChunkOutOfOrder)
+			return Err(ContentError::ChunkOutOfOrder);
 		}
 		validate_chunk_len(record.descriptor.object_len, index, bytes.len())?;
 		let path = self.part_path(&key);
@@ -549,7 +581,7 @@ impl StreamingStore {
 			let expected =
 				record.chunks.get(index as usize).ok_or(ContentError::IntegrityFailed)?;
 			if expected.length as usize != bytes.len() || expected.hash != chunk_hash(bytes) {
-				return Err(ContentError::IdempotencyConflict)
+				return Err(ContentError::IdempotencyConflict);
 			}
 			let mut file = File::open(&path).map_err(io_error)?;
 			let installed = read_chunk_bytes(&mut file, index, expected.length as usize)?;
@@ -558,14 +590,14 @@ impl StreamingStore {
 				self.progress(&record)
 			} else {
 				Err(ContentError::IdempotencyConflict)
-			}
+			};
 		}
 		if index != record.next_chunk {
-			return Err(ContentError::ChunkOutOfOrder)
+			return Err(ContentError::ChunkOutOfOrder);
 		}
 		let mut file = OpenOptions::new().append(true).open(&path).map_err(io_error)?;
 		if file.metadata().map_err(io_error)?.len() != record.received_bytes {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		file.write_all(bytes).map_err(io_error)?;
 		file.sync_all().map_err(io_error)?;
@@ -597,22 +629,22 @@ impl StreamingStore {
 		bytes: &[u8],
 	) -> Result<ProgressAck, ContentError> {
 		if bytes.len() > CHUNK_BYTES {
-			return Err(ContentError::ChunkTooLarge)
+			return Err(ContentError::ChunkTooLarge);
 		}
 		let key = operation_key_parts(bucket_id, operation_id);
 		let state = self.read_state()?;
 		let record = state.operations.get(&key).ok_or(ContentError::NotFound)?;
 		if state.recovery.values().any(|item| item.descriptor == record.descriptor) {
-			return Err(ContentError::IdempotencyConflict)
+			return Err(ContentError::IdempotencyConflict);
 		}
 		if record.phase != Phase::Receiving {
-			return Err(ContentError::ChunkOutOfOrder)
+			return Err(ContentError::ChunkOutOfOrder);
 		}
 		validate_chunk_len(record.descriptor.object_len, index, bytes.len())?;
 		drop(state);
 		let mut window = self.window.window.lock().map_err(|_| lock_error())?;
-		while window.chunks >= INGRESS_WINDOW_CHUNKS ||
-			window.bytes.saturating_add(bytes.len()) > INGRESS_WINDOW_BYTES
+		while window.chunks >= INGRESS_WINDOW_CHUNKS
+			|| window.bytes.saturating_add(bytes.len()) > INGRESS_WINDOW_BYTES
 		{
 			window = self.window.available.wait(window).map_err(|_| lock_error())?;
 		}
@@ -636,30 +668,43 @@ impl StreamingStore {
 	) -> Result<StreamingReceipt, ContentError> {
 		let key = operation_key_parts(bucket_id, operation_id);
 		let mut state = self.write_state()?;
+		if state
+			.operations
+			.get(&key)
+			.is_some_and(|record| {
+				is_bucket_tombstoned(
+					&state,
+					record.descriptor.bucket_id,
+					&record.descriptor.expected_cid,
+				)
+			})
+		{
+			return Err(ContentError::NotFound);
+		}
 		validate_install_sequences(&state)?;
 		let record = state.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
 		if state.recovery.values().any(|item| item.descriptor == record.descriptor) {
-			return Err(ContentError::IdempotencyConflict)
+			return Err(ContentError::IdempotencyConflict);
 		}
 		if record.phase == Phase::Installed {
 			if state.quarantine.contains_key(&record.descriptor.expected_cid) {
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
-			return record.receipt.ok_or(ContentError::IntegrityFailed)
+			return record.receipt.ok_or(ContentError::IntegrityFailed);
 		}
 		if record.phase != Phase::Receiving {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
-		if record.received_bytes != record.descriptor.object_len ||
-			record.next_chunk as usize != chunk_count(record.descriptor.object_len)? ||
-			record.chunks.len() != record.next_chunk as usize
+		if record.received_bytes != record.descriptor.object_len
+			|| record.next_chunk as usize != chunk_count(record.descriptor.object_len)?
+			|| record.chunks.len() != record.next_chunk as usize
 		{
-			return Err(ContentError::ChunkMissing)
+			return Err(ContentError::ChunkMissing);
 		}
 		let part = self.part_path(&key);
 		let (cid, fingerprint, length) = verify_file(&part, &record.descriptor, &record.chunks)?;
 		if length != record.descriptor.object_len {
-			return Err(ContentError::LengthMismatch)
+			return Err(ContentError::LengthMismatch);
 		}
 		let receipt = receipt(&record.descriptor, cid.as_str(), fingerprint);
 		let mut finalizing = state.clone();
@@ -698,12 +743,12 @@ impl StreamingStore {
 			BeginStreaming::Installed(receipt) => {
 				let (cid, fingerprint, length, records) = verify_chunk_stream(&descriptor, chunks)
 					.map_err(|_| ContentError::IdempotencyConflict)?;
-				if cid.as_str() != receipt.cid ||
-					fingerprint != receipt.fingerprint ||
-					length != receipt.stored_bytes ||
-					records.len() != receipt.chunks as usize
+				if cid.as_str() != receipt.cid
+					|| fingerprint != receipt.fingerprint
+					|| length != receipt.stored_bytes
+					|| records.len() != receipt.chunks as usize
 				{
-					return Err(ContentError::IdempotencyConflict)
+					return Err(ContentError::IdempotencyConflict);
 				}
 				Ok(receipt)
 			},
@@ -722,9 +767,90 @@ impl StreamingStore {
 		}
 	}
 
+	/// Durably fail closed for one canonical manifest before removing its installed object bytes.
+	///
+	/// The manifest record and immutable installation metadata remain in the journal so bucket-MMR
+	/// history can still be reconstructed. Exact replay returns the original evidence; changed
+	/// replay is rejected. Once the tombstone journal is durable every read and peer-replication
+	/// surface rejects the CID, including after a crash before byte removal.
+	pub(crate) fn tombstone_manifest(
+		&self,
+		manifest: [u8; 32],
+		bucket_id: BucketId,
+		provider_commitment: [u8; 32],
+		tombstoned_at: u32,
+	) -> Result<ManifestDeletionEvidence, ContentError> {
+		let cid = CanonicalCid::from_digest(provider_commitment);
+		let manifest_key = hex::encode(manifest);
+		let key = manifest_tombstone_key(bucket_id, cid.as_str());
+		let evidence_hash = manifest_deletion_evidence_hash(
+			manifest,
+			bucket_id,
+			provider_commitment,
+			tombstoned_at,
+		);
+		let record = ManifestTombstoneRecord {
+			manifest: manifest_key,
+			bucket_id: bucket_id.to_string(),
+			cid: cid.to_string(),
+			provider_commitment: hex::encode(provider_commitment),
+			tombstoned_at,
+			evidence_hash: hex::encode(evidence_hash),
+		};
+		let mut state = self.write_state()?;
+		if let Some(existing) = state.manifest_tombstones.get(&key) {
+			if existing != &record {
+				return Err(ContentError::IdempotencyConflict);
+			}
+		} else {
+			if state.manifest_tombstones.len() >= self.operation_limit {
+				return Err(ContentError::ProviderRecoveryTableFull);
+			}
+			let exact_installation = state.operations.values().any(|operation| {
+				operation.phase == Phase::Installed
+					&& operation.descriptor.bucket_id == bucket_id
+					&& operation.descriptor.expected_cid == cid.as_str()
+			});
+			if !exact_installation {
+				return Err(ContentError::NotFound);
+			}
+			let mut next = state.clone();
+			next.manifest_tombstones.insert(key, record);
+			let invalidated_response_blobs = private_query::invalidate_bucket_cid_queries(
+				&mut next,
+				bucket_id,
+				cid.as_str(),
+			)?;
+			if is_tombstoned(&next, cid.as_str()) {
+				next.quarantine.remove(cid.as_str());
+				next.repairs.retain(|_, repair| repair.cid != cid.as_str());
+			}
+			persist_state(&self.root, &next)?;
+			*state = next;
+			private_query::delete_response_blobs(&self.root, &invalidated_response_blobs)?;
+			self.trip_fault(StreamingFault::AfterTombstoneJournal)?;
+		}
+		let remove_shared_bytes = is_tombstoned(&state, cid.as_str());
+		let object = self.object_path(cid.as_str());
+		if remove_shared_bytes && object.exists() {
+			fs::remove_file(&object).map_err(io_error)?;
+			sync_dir(object.parent().expect("object path has parent"))?;
+		}
+		self.trip_fault(StreamingFault::AfterTombstoneRemoval)?;
+		Ok(ManifestDeletionEvidence {
+			manifest,
+			bucket_id,
+			cid,
+			provider_commitment,
+			tombstoned_at,
+			evidence_hash,
+		})
+	}
+
 	/// Verify an installed object completely without exposing a filesystem handle or bytes.
 	pub fn verify_installed(&self, cid: &str) -> Result<(), ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
+		self.reject_tombstoned(canonical.as_str())?;
 		let record = self.installed_record(canonical.as_str())?;
 		self.reject_quarantined(canonical.as_str())?;
 		let path = self.object_path(canonical.as_str());
@@ -745,13 +871,14 @@ impl StreamingStore {
 		end: u64,
 	) -> Result<Vec<u8>, ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
+		self.reject_tombstoned(canonical.as_str())?;
 		let record = self.installed_record(canonical.as_str())?;
 		self.reject_quarantined(canonical.as_str())?;
-		if start > end ||
-			end > record.descriptor.object_len ||
-			end.saturating_sub(start) > MAX_RANGE_BYTES
+		if start > end
+			|| end > record.descriptor.object_len
+			|| end.saturating_sub(start) > MAX_RANGE_BYTES
 		{
-			return Err(ContentError::RangeInvalid)
+			return Err(ContentError::RangeInvalid);
 		}
 		let path = self.object_path(canonical.as_str());
 		let (mut file, _, _, _) = match verify_open_file(&path, &record.descriptor, &record.chunks)
@@ -759,11 +886,11 @@ impl StreamingStore {
 			Ok(verified) => verified,
 			Err(error) => {
 				self.quarantine_failure(canonical.as_str(), &record, &path, &error)?;
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			},
 		};
 		if start == end {
-			return Ok(Vec::new())
+			return Ok(Vec::new());
 		}
 		let first = (start / CHUNK_BYTES as u64) as usize;
 		let last = ((end - 1) / CHUNK_BYTES as u64) as usize;
@@ -773,7 +900,7 @@ impl StreamingStore {
 				Ok(chunk) => chunk,
 				Err(error) => {
 					self.quarantine_failure(canonical.as_str(), &record, &path, &error)?;
-					return Err(ContentError::IntegrityFailed)
+					return Err(ContentError::IntegrityFailed);
 				},
 			};
 			let chunk_start = index as u64 * CHUNK_BYTES as u64;
@@ -787,6 +914,7 @@ impl StreamingStore {
 	/// Return one chunk only after a full preflight and complete emitted-chunk re-hash.
 	pub fn read_chunk_verified(&self, cid: &str, index: u16) -> Result<Vec<u8>, ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
+		self.reject_tombstoned(canonical.as_str())?;
 		let record = self.installed_record(canonical.as_str())?;
 		self.reject_quarantined(canonical.as_str())?;
 		let expected = record.chunks.get(index as usize).ok_or(ContentError::ChunkOutOfOrder)?;
@@ -796,7 +924,7 @@ impl StreamingStore {
 			Ok(verified) => verified,
 			Err(error) => {
 				self.quarantine_failure(canonical.as_str(), &record, &path, &error)?;
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			},
 		};
 		match read_verified_chunk(&mut file, index, expected) {
@@ -816,7 +944,7 @@ impl StreamingStore {
 	fn audit_integrity(&self) -> Result<IntegritySummary, ContentError> {
 		for (cid, record) in self.installed_records()? {
 			if self.is_quarantined(&cid)? {
-				continue
+				continue;
 			}
 			let path = self.object_path(&cid);
 			if let Err(error) = verify_file(&path, &record.descriptor, &record.chunks) {
@@ -878,6 +1006,9 @@ impl StreamingStore {
 	) -> Result<RepairProgress, ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
 		let mut state = self.write_state()?;
+		if is_tombstoned(&state, canonical.as_str()) {
+			return Err(ContentError::NotFound);
+		}
 		let record = installed_record_in(&state, canonical.as_str())?;
 		validate_installed_record(&record)?;
 		let key = repair_key(canonical.as_str(), operation_id)?;
@@ -949,6 +1080,9 @@ impl StreamingStore {
 		let canonical = CanonicalCid::parse(cid)?;
 		let key = repair_key(canonical.as_str(), operation_id)?;
 		let mut state = self.write_state()?;
+		if is_tombstoned(&state, canonical.as_str()) {
+			return Err(ContentError::NotFound);
+		}
 		let installed = installed_record_in(&state, canonical.as_str())?;
 		validate_installed_record(&installed)?;
 		let repair = state.repairs.get(&key).cloned().ok_or(ContentError::NotFound)?;
@@ -1012,6 +1146,9 @@ impl StreamingStore {
 		let canonical = CanonicalCid::parse(cid)?;
 		let key = repair_key(canonical.as_str(), operation_id)?;
 		let mut state = self.write_state()?;
+		if is_tombstoned(&state, canonical.as_str()) {
+			return Err(ContentError::NotFound);
+		}
 		let installed = installed_record_in(&state, canonical.as_str())?;
 		validate_installed_record(&installed)?;
 		let repair = state.repairs.get(&key).cloned().ok_or(ContentError::NotFound)?;
@@ -1061,6 +1198,9 @@ impl StreamingStore {
 		operation_id: OperationId,
 	) -> Result<RepairProgress, ContentError> {
 		let state = self.read_state()?;
+		if is_tombstoned(&state, cid) {
+			return Err(ContentError::NotFound);
+		}
 		if state.quarantine.contains_key(cid) {
 			return Err(ContentError::IdempotencyConflict);
 		}
@@ -1083,11 +1223,32 @@ impl StreamingStore {
 			.iter()
 			.any(|(key, record)| key != &operation_key(&record.descriptor))
 		{
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		validate_install_sequences(&state)?;
 		let mut next = state.clone();
 		let mut changed = false;
+		for (key, tombstone) in &next.manifest_tombstones {
+			validate_manifest_tombstone(key, tombstone, &next)?;
+			let object = self.object_path(&tombstone.cid);
+			if is_tombstoned(&next, &tombstone.cid) && object.exists() {
+				fs::remove_file(&object).map_err(io_error)?;
+				sync_dir(object.parent().expect("object path has parent"))?;
+				changed = true;
+			}
+		}
+		let tombstoned_cids = next
+			.manifest_tombstones
+			.values()
+			.filter(|record| is_tombstoned(&next, &record.cid))
+			.map(|record| record.cid.clone())
+			.collect::<BTreeSet<_>>();
+		let quarantine_len = next.quarantine.len();
+		next.quarantine.retain(|cid, _| !tombstoned_cids.contains(cid));
+		changed |= quarantine_len != next.quarantine.len();
+		let repair_len = next.repairs.len();
+		next.repairs.retain(|_, repair| !tombstoned_cids.contains(&repair.cid));
+		changed |= repair_len != next.repairs.len();
 		let installed_cids: BTreeSet<_> = next
 			.operations
 			.values()
@@ -1107,12 +1268,12 @@ impl StreamingStore {
 				})
 				.map(|record| &record.descriptor)
 				.ok_or(ContentError::IntegrityFailed)?;
-			if quarantine.expected_bytes != descriptor.object_len ||
-				quarantine.detection_sequence == 0 ||
-				quarantine.detection_sequence > next.detection_sequence ||
-				!quarantine_sequences.insert(quarantine.detection_sequence)
+			if quarantine.expected_bytes != descriptor.object_len
+				|| quarantine.detection_sequence == 0
+				|| quarantine.detection_sequence > next.detection_sequence
+				|| !quarantine_sequences.insert(quarantine.detection_sequence)
 			{
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 		}
 		let mut repaired_cids = BTreeSet::new();
@@ -1176,7 +1337,7 @@ impl StreamingStore {
 			match record.phase {
 				Phase::Receiving => {
 					if record.install_sequence.is_some() {
-						return Err(ContentError::IntegrityFailed)
+						return Err(ContentError::IntegrityFailed);
 					}
 					let path = self.part_path(&key);
 					let file = OpenOptions::new()
@@ -1186,7 +1347,7 @@ impl StreamingStore {
 						.map_err(|_| ContentError::IntegrityFailed)?;
 					let length = file.metadata().map_err(io_error)?.len();
 					if length < record.received_bytes {
-						return Err(ContentError::IntegrityFailed)
+						return Err(ContentError::IntegrityFailed);
 					}
 					if length > record.received_bytes {
 						file.set_len(record.received_bytes).map_err(io_error)?;
@@ -1196,7 +1357,7 @@ impl StreamingStore {
 				},
 				Phase::Finalizing => {
 					if record.install_sequence.is_some() {
-						return Err(ContentError::IntegrityFailed)
+						return Err(ContentError::IntegrityFailed);
 					}
 					let part = self.part_path(&key);
 					let object = self.object_path(&record.descriptor.expected_cid);
@@ -1212,14 +1373,14 @@ impl StreamingStore {
 					}
 					if next.recovery.values().any(|item| item.descriptor == record.descriptor) {
 						if record.provider_receipt.is_some() {
-							return Err(ContentError::IntegrityFailed)
+							return Err(ContentError::IntegrityFailed);
 						}
 						// Capability-authorized finalize must produce its service-key signature
 						// only after this recovered atomic install. Leave the operation
 						// Finalizing for the authenticated retry rather than synthesizing an
 						// unsigned terminal response.
 						changed = true;
-						continue
+						continue;
 					}
 					let (_, fingerprint, _) =
 						verify_file(&object, &record.descriptor, &record.chunks)?;
@@ -1233,24 +1394,27 @@ impl StreamingStore {
 					recovered.install_sequence = Some(install_sequence);
 					recovered.receipt = Some(recovered_receipt.clone());
 					if record.provider_receipt.is_some() {
-						return Err(ContentError::IntegrityFailed)
+						return Err(ContentError::IntegrityFailed);
 					}
 					changed = true;
 				},
 				Phase::Installed => {
 					validate_installed_record(&record)?;
+					if tombstoned_cids.contains(&record.descriptor.expected_cid) {
+						continue;
+					}
 					let expected_receipt =
 						record.receipt.as_ref().expect("validated installed record has a receipt");
 					if next.quarantine.contains_key(&record.descriptor.expected_cid) {
-						continue
+						continue;
 					}
 					let path = self.object_path(&record.descriptor.expected_cid);
 					match verify_file(&path, &record.descriptor, &record.chunks) {
 						Ok((_, fingerprint, length)) => {
-							if fingerprint != expected_receipt.fingerprint ||
-								expected_receipt.stored_bytes != length
+							if fingerprint != expected_receipt.fingerprint
+								|| expected_receipt.stored_bytes != length
 							{
-								return Err(ContentError::IntegrityFailed)
+								return Err(ContentError::IntegrityFailed);
 							}
 						},
 						Err(error) => {
@@ -1266,7 +1430,7 @@ impl StreamingStore {
 				},
 				Phase::Cancelled => {
 					if record.install_sequence.is_some() || record.receipt.is_some() {
-						return Err(ContentError::IntegrityFailed)
+						return Err(ContentError::IntegrityFailed);
 					}
 					let path = self.part_path(&key);
 					if path.exists() {
@@ -1291,6 +1455,7 @@ impl StreamingStore {
 			.operations
 			.values()
 			.filter(|record| matches!(record.phase, Phase::Finalizing | Phase::Installed))
+			.filter(|record| !tombstoned_cids.contains(&record.descriptor.expected_cid))
 			.map(|record| record.descriptor.expected_cid.clone())
 			.collect();
 		changed |= remove_unowned(&self.root.join(OBJECTS), &referenced_objects)?;
@@ -1339,10 +1504,25 @@ impl StreamingStore {
 		#[cfg(test)]
 		self.exact_record_probes.fetch_add(1, Ordering::Relaxed);
 		let record = state.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
+		let tombstoned = is_bucket_tombstoned(
+			&state,
+			record.descriptor.bucket_id,
+			&record.descriptor.expected_cid,
+		);
 		#[cfg(test)]
 		self.exact_quarantine_probes.fetch_add(1, Ordering::Relaxed);
 		let quarantined = state.quarantine.contains_key(&record.descriptor.expected_cid);
 		drop(state);
+		if tombstoned {
+			validate_installed_record(&record)?;
+			return Ok(VerifiedInstallation {
+				install_sequence: record.install_sequence.ok_or(ContentError::IntegrityFailed)?,
+				operation_id: record.descriptor.operation_id,
+				bucket_id: record.descriptor.bucket_id,
+				cid: CanonicalCid::parse(&record.descriptor.expected_cid)?,
+				stored_bytes: record.descriptor.object_len,
+			});
+		}
 		self.verify_installation_record(record, quarantined)
 	}
 
@@ -1357,6 +1537,9 @@ impl StreamingStore {
 	) -> Result<VerifiedReplicationReady, ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
 		let state = self.read_state()?;
+		if is_bucket_tombstoned(&state, bucket_id, canonical.as_str()) {
+			return Err(ContentError::NotFound);
+		}
 		let install_key = operation_key_parts(bucket_id, install_operation_id);
 		let exact_install = state.operations.get(&install_key).cloned().filter(|record| {
 			record.phase == Phase::Installed
@@ -1416,6 +1599,9 @@ impl StreamingStore {
 	) -> Result<ReplicationIngressState, ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
 		let state = self.read_state()?;
+		if is_bucket_tombstoned(&state, bucket_id, canonical.as_str()) {
+			return Err(ContentError::NotFound);
+		}
 		let install_key = operation_key_parts(bucket_id, install_operation_id);
 		if let Some(exact) = state.operations.get(&install_key).cloned() {
 			if exact.descriptor.bucket_id != bucket_id
@@ -1516,6 +1702,9 @@ impl StreamingStore {
 	) -> Result<(), ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
 		let mut state = self.write_state()?;
+		if is_bucket_tombstoned(&state, bucket_id, canonical.as_str()) {
+			return Err(ContentError::NotFound);
+		}
 		let install = state
 			.operations
 			.get(&operation_key_parts(bucket_id, install_operation_id))
@@ -1553,6 +1742,13 @@ impl StreamingStore {
 		let key = operation_key_parts(bucket_id, operation_id);
 		let state = self.read_state()?;
 		let record = state.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
+		if is_bucket_tombstoned(
+			&state,
+			record.descriptor.bucket_id,
+			&record.descriptor.expected_cid,
+		) {
+			return Err(ContentError::NotFound);
+		}
 		let quarantined = state.quarantine.contains_key(&record.descriptor.expected_cid);
 		drop(state);
 		let installation = self.verify_installation_record(record.clone(), quarantined)?;
@@ -1580,7 +1776,7 @@ impl StreamingStore {
 	) -> Result<VerifiedInstallation, ContentError> {
 		validate_installed_record(&record)?;
 		if quarantined {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let receipt = record.receipt.as_ref().ok_or(ContentError::IntegrityFailed)?;
 		let (cid, fingerprint, length) = verify_file(
@@ -1590,7 +1786,7 @@ impl StreamingStore {
 		)
 		.map_err(|_| ContentError::IntegrityFailed)?;
 		if fingerprint != receipt.fingerprint || length != receipt.stored_bytes {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		Ok(VerifiedInstallation {
 			install_sequence: record.install_sequence.ok_or(ContentError::IntegrityFailed)?,
@@ -1602,7 +1798,11 @@ impl StreamingStore {
 	}
 
 	fn installed_record(&self, cid: &str) -> Result<OperationRecord, ContentError> {
-		self.read_state()?
+		let state = self.read_state()?;
+		if is_tombstoned(&state, cid) {
+			return Err(ContentError::NotFound);
+		}
+		state
 			.operations
 			.values()
 			.find(|record| {
@@ -1613,11 +1813,14 @@ impl StreamingStore {
 	}
 
 	fn installed_records(&self) -> Result<BTreeMap<String, OperationRecord>, ContentError> {
-		Ok(self
-			.read_state()?
+		let state = self.read_state()?;
+		Ok(state
 			.operations
 			.values()
-			.filter(|record| record.phase == Phase::Installed)
+			.filter(|record| {
+				record.phase == Phase::Installed
+					&& !is_tombstoned(&state, &record.descriptor.expected_cid)
+			})
 			.map(|record| (record.descriptor.expected_cid.clone(), record.clone()))
 			.collect())
 	}
@@ -1625,6 +1828,15 @@ impl StreamingStore {
 	fn reject_quarantined(&self, cid: &str) -> Result<(), ContentError> {
 		if self.is_quarantined(cid)? {
 			Err(ContentError::IntegrityFailed)
+		} else {
+			Ok(())
+		}
+	}
+
+	fn reject_tombstoned(&self, cid: &str) -> Result<(), ContentError> {
+		let state = self.read_state()?;
+		if is_tombstoned(&state, cid) {
+			Err(ContentError::NotFound)
 		} else {
 			Ok(())
 		}
@@ -1644,12 +1856,12 @@ impl StreamingStore {
 		let (reason, observed_bytes) = diagnose_failure(path, record, error);
 		let mut state = self.write_state()?;
 		if state.quarantine.contains_key(cid) {
-			return Ok(())
+			return Ok(());
 		}
 		if !state.operations.values().any(|candidate| {
 			candidate.phase == Phase::Installed && candidate.descriptor.expected_cid == cid
 		}) {
-			return Err(ContentError::NotFound)
+			return Err(ContentError::NotFound);
 		}
 		let mut next = state.clone();
 		insert_quarantine(&mut next, &record.descriptor, reason, observed_bytes)?;
@@ -1673,7 +1885,7 @@ impl StreamingStore {
 		let mut fault = self.fault.write().map_err(|_| lock_error())?;
 		if fault.as_ref() == Some(&point) {
 			*fault = None;
-			return Err(ContentError::Io(format!("injected streaming fault: {point:?}")))
+			return Err(ContentError::Io(format!("injected streaming fault: {point:?}")));
 		}
 		Ok(())
 	}
@@ -1708,7 +1920,10 @@ fn integrity_summary(state: &JournalState) -> IntegritySummary {
 	let installed: BTreeSet<_> = state
 		.operations
 		.values()
-		.filter(|record| record.phase == Phase::Installed)
+		.filter(|record| {
+			record.phase == Phase::Installed
+				&& !is_tombstoned(state, &record.descriptor.expected_cid)
+		})
 		.map(|record| record.descriptor.expected_cid.as_str())
 		.collect();
 	let installed_objects = installed.len() as u64;
@@ -1724,6 +1939,76 @@ fn integrity_summary(state: &JournalState) -> IntegritySummary {
 	}
 }
 
+fn is_tombstoned(state: &JournalState, cid: &str) -> bool {
+	let mut installed = state.operations.values().filter(|record| {
+		record.phase == Phase::Installed && record.descriptor.expected_cid == cid
+	});
+	let Some(first) = installed.next() else { return false };
+	is_bucket_tombstoned(state, first.descriptor.bucket_id, cid)
+		&& installed.all(|record| {
+			is_bucket_tombstoned(state, record.descriptor.bucket_id, cid)
+		})
+}
+
+fn is_bucket_tombstoned(state: &JournalState, bucket_id: BucketId, cid: &str) -> bool {
+	state.manifest_tombstones.contains_key(&manifest_tombstone_key(bucket_id, cid))
+}
+
+fn manifest_tombstone_key(bucket_id: BucketId, cid: &str) -> String {
+	format!("{}:{cid}", bucket_id)
+}
+
+fn manifest_deletion_evidence_hash(
+	manifest: [u8; 32],
+	bucket_id: BucketId,
+	provider_commitment: [u8; 32],
+	tombstoned_at: u32,
+) -> [u8; 32] {
+	let mut preimage = Vec::with_capacity(32 + 32 + 32 + 32 + 4);
+	preimage.extend_from_slice(b"cord/storage/deletion-evidence/v1");
+	preimage.extend_from_slice(&manifest);
+	preimage.extend_from_slice(bucket_id.as_bytes());
+	preimage.extend_from_slice(&provider_commitment);
+	preimage.extend_from_slice(&tombstoned_at.to_le_bytes());
+	sp_crypto_hashing::blake2_256(&preimage)
+}
+
+fn validate_manifest_tombstone(
+	key: &str,
+	record: &ManifestTombstoneRecord,
+	state: &JournalState,
+) -> Result<(), ContentError> {
+	let manifest: [u8; 32] = hex::decode(&record.manifest)
+		.map_err(|_| ContentError::IntegrityFailed)?
+		.try_into()
+		.map_err(|_| ContentError::IntegrityFailed)?;
+	if record.manifest != hex::encode(manifest) {
+		return Err(ContentError::IntegrityFailed);
+	}
+	let bucket_id = BucketId::parse(&record.bucket_id)?;
+	let provider_commitment: [u8; 32] = hex::decode(&record.provider_commitment)
+		.map_err(|_| ContentError::IntegrityFailed)?
+		.try_into()
+		.map_err(|_| ContentError::IntegrityFailed)?;
+	let cid = CanonicalCid::parse(&record.cid)?;
+	if key != manifest_tombstone_key(bucket_id, cid.as_str())
+		|| cid.digest() != provider_commitment
+		|| record.evidence_hash
+			!= hex::encode(manifest_deletion_evidence_hash(
+				manifest,
+				bucket_id,
+				provider_commitment,
+				record.tombstoned_at,
+			)) || !state.operations.values().any(|operation| {
+		operation.phase == Phase::Installed
+			&& operation.descriptor.bucket_id == bucket_id
+			&& operation.descriptor.expected_cid == cid.as_str()
+	}) {
+		return Err(ContentError::IntegrityFailed);
+	}
+	Ok(())
+}
+
 fn insert_quarantine(
 	state: &mut JournalState,
 	descriptor: &StreamingDescriptor,
@@ -1731,7 +2016,7 @@ fn insert_quarantine(
 	observed_bytes: Option<u64>,
 ) -> Result<bool, ContentError> {
 	if state.quarantine.contains_key(&descriptor.expected_cid) {
-		return Ok(false)
+		return Ok(false);
 	}
 	state.detection_sequence =
 		state.detection_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
@@ -1901,13 +2186,14 @@ fn diagnose_failure(
 ) -> (QuarantineReason, Option<u64>) {
 	let metadata = match fs::metadata(path) {
 		Ok(metadata) => metadata,
-		Err(error) if error.kind() == std::io::ErrorKind::NotFound =>
-			return (QuarantineReason::Missing, None),
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+			return (QuarantineReason::Missing, None)
+		},
 		Err(_) => return (QuarantineReason::Unreadable, None),
 	};
 	let observed = Some(metadata.len());
 	if metadata.len() != record.descriptor.object_len {
-		return (QuarantineReason::LengthMismatch, observed)
+		return (QuarantineReason::LengthMismatch, observed);
 	}
 	let mut file = match File::open(path) {
 		Ok(file) => file,
@@ -1917,20 +2203,20 @@ fn diagnose_failure(
 	for chunk in &record.chunks {
 		let mut bytes = vec![0; chunk.length as usize];
 		if file.read_exact(&mut bytes).is_err() {
-			return (QuarantineReason::Unreadable, observed)
+			return (QuarantineReason::Unreadable, observed);
 		}
 		if chunk_hash(&bytes) != chunk.hash {
-			return (QuarantineReason::ChunkMismatch, observed)
+			return (QuarantineReason::ChunkMismatch, observed);
 		}
 		content.update(&bytes);
 	}
 	let mut trailing = [0u8; 1];
 	if file.read(&mut trailing).ok() != Some(0) {
-		return (QuarantineReason::LengthMismatch, observed)
+		return (QuarantineReason::LengthMismatch, observed);
 	}
 	let cid = CanonicalCid::from_digest(content.finalize().into());
 	if cid.as_str() != record.descriptor.expected_cid {
-		return (QuarantineReason::FullCidMismatch, observed)
+		return (QuarantineReason::FullCidMismatch, observed);
 	}
 	match original {
 		ContentError::LengthMismatch => (QuarantineReason::LengthMismatch, observed),
@@ -1956,27 +2242,27 @@ fn expected_receipt(record: &OperationRecord) -> Result<StreamingReceipt, Conten
 }
 
 fn validate_installed_record(record: &OperationRecord) -> Result<(), ContentError> {
-	if record.phase != Phase::Installed ||
-		record.install_sequence.is_none() ||
-		validate_descriptor(&record.descriptor).is_err() ||
-		record.received_bytes != record.descriptor.object_len
+	if record.phase != Phase::Installed
+		|| record.install_sequence.is_none()
+		|| validate_descriptor(&record.descriptor).is_err()
+		|| record.received_bytes != record.descriptor.object_len
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let expected_chunks = chunk_count(record.descriptor.object_len)?;
 	if record.next_chunk as usize != expected_chunks || record.chunks.len() != expected_chunks {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	for (index, chunk) in record.chunks.iter().enumerate() {
 		let index: u16 = index.try_into().map_err(|_| ContentError::IntegrityFailed)?;
 		if chunk.length as usize != expected_chunk_len(record.descriptor.object_len, index)? {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		decode_chunk_hash(&chunk.hash)?;
 	}
 	let installed_receipt = record.receipt.as_ref().ok_or(ContentError::IntegrityFailed)?;
 	if installed_receipt != &expected_receipt(record)? {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(())
 }
@@ -1991,10 +2277,10 @@ fn validate_install_sequences(state: &JournalState) -> Result<(), ContentError> 
 			(_, Some(_)) => return Err(ContentError::IntegrityFailed),
 		}
 	}
-	if state.next_install_sequence != sequences.len() as u64 ||
-		sequences.iter().copied().ne(0..state.next_install_sequence)
+	if state.next_install_sequence != sequences.len() as u64
+		|| sequences.iter().copied().ne(0..state.next_install_sequence)
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(())
 }
@@ -2007,11 +2293,11 @@ fn validate_descriptor(descriptor: &StreamingDescriptor) -> Result<(), ContentEr
 
 fn chunk_count(length: u64) -> Result<usize, ContentError> {
 	if length > MAX_STORED_BYTES {
-		return Err(ContentError::ObjectTooLarge)
+		return Err(ContentError::ObjectTooLarge);
 	}
 	let chunks = if length == 0 { 0 } else { length.div_ceil(CHUNK_BYTES as u64) as usize };
 	if chunks > MAX_CHUNKS {
-		return Err(ContentError::ObjectTooLarge)
+		return Err(ContentError::ObjectTooLarge);
 	}
 	Ok(chunks)
 }
@@ -2020,7 +2306,7 @@ fn expected_chunk_len(length: u64, index: u16) -> Result<usize, ContentError> {
 	let chunks = chunk_count(length)?;
 	let index = index as usize;
 	if index >= chunks {
-		return Err(ContentError::ChunkOutOfOrder)
+		return Err(ContentError::ChunkOutOfOrder);
 	}
 	let start = index as u64 * CHUNK_BYTES as u64;
 	Ok((length - start).min(CHUNK_BYTES as u64) as usize)
@@ -2028,10 +2314,10 @@ fn expected_chunk_len(length: u64, index: u16) -> Result<usize, ContentError> {
 
 fn validate_chunk_len(length: u64, index: u16, supplied: usize) -> Result<(), ContentError> {
 	if supplied > CHUNK_BYTES {
-		return Err(ContentError::ChunkTooLarge)
+		return Err(ContentError::ChunkTooLarge);
 	}
 	if supplied != expected_chunk_len(length, index)? {
-		return Err(ContentError::LengthMismatch)
+		return Err(ContentError::LengthMismatch);
 	}
 	Ok(())
 }
@@ -2076,14 +2362,14 @@ fn fingerprint_from_chunks(
 fn decode_chunk_hash(value: &str) -> Result<[u8; 32], ContentError> {
 	let encoded = value.strip_prefix("0x").ok_or(ContentError::IntegrityFailed)?;
 	if encoded.len() != 64 || encoded.bytes().any(|byte| byte.is_ascii_uppercase()) {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let hash: [u8; 32] = hex::decode(encoded)
 		.map_err(|_| ContentError::IntegrityFailed)?
 		.try_into()
 		.map_err(|_| ContentError::IntegrityFailed)?;
 	if value != format!("0x{}", hex::encode(hash)) {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(hash)
 }
@@ -2107,33 +2393,33 @@ fn verify_open_file(
 	chunks: &[ChunkRecord],
 ) -> Result<(File, CanonicalCid, String, u64), ContentError> {
 	if chunks.len() != chunk_count(descriptor.object_len)? {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let mut file = File::open(path).map_err(|_| ContentError::IntegrityFailed)?;
 	let mut content = Blake2b::<U32>::new();
 	let mut length = 0u64;
 	for (index, expected) in chunks.iter().enumerate() {
 		if expected.length as usize != expected_chunk_len(descriptor.object_len, index as u16)? {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let mut bytes = vec![0u8; expected.length as usize];
 		file.read_exact(&mut bytes).map_err(|_| ContentError::IntegrityFailed)?;
 		if chunk_hash(&bytes) != expected.hash {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		content.update(&bytes);
 		length += bytes.len() as u64;
 	}
 	let mut trailing = [0u8; 1];
 	if file.read(&mut trailing).map_err(|_| ContentError::IntegrityFailed)? != 0 {
-		return Err(ContentError::LengthMismatch)
+		return Err(ContentError::LengthMismatch);
 	}
 	if length != descriptor.object_len {
-		return Err(ContentError::LengthMismatch)
+		return Err(ContentError::LengthMismatch);
 	}
 	let cid = CanonicalCid::from_digest(content.finalize().into());
 	if cid.as_str() != descriptor.expected_cid {
-		return Err(ContentError::CidMismatch)
+		return Err(ContentError::CidMismatch);
 	}
 	Ok((file, cid, fingerprint_from_chunks(descriptor, chunks)?, length))
 }
@@ -2148,12 +2434,12 @@ fn verify_persisted_chunks(
 	for (index, expected) in chunks.iter().enumerate() {
 		let bytes = read_chunk_bytes(&mut file, index as u16, expected.length as usize)?;
 		if chunk_hash(&bytes) != expected.hash {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		total += bytes.len() as u64;
 	}
 	if total != received_bytes {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(())
 }
@@ -2173,7 +2459,7 @@ fn read_verified_chunk(
 ) -> Result<Vec<u8>, ContentError> {
 	let bytes = read_chunk_bytes(file, index, expected.length as usize)?;
 	if chunk_hash(&bytes) != expected.hash {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(bytes)
 }
@@ -2196,11 +2482,11 @@ where
 		records.push(ChunkRecord { length: chunk.len() as u32, hash: chunk_hash(&chunk) });
 	}
 	if length != descriptor.object_len || records.len() != chunk_count(descriptor.object_len)? {
-		return Err(ContentError::ChunkMissing)
+		return Err(ContentError::ChunkMissing);
 	}
 	let cid = CanonicalCid::from_digest(content.finalize().into());
 	if cid.as_str() != descriptor.expected_cid {
-		return Err(ContentError::CidMismatch)
+		return Err(ContentError::CidMismatch);
 	}
 	let fingerprint = fingerprint_from_chunks(descriptor, &records)?;
 	Ok((cid, fingerprint, length, records))
@@ -2281,6 +2567,7 @@ fn lock_error() -> ContentError {
 #[cfg(test)]
 mod exact_lookup_tests {
 	use super::*;
+	use crate::storage::bucket_mmr::BucketMmrStore;
 	use crate::{capability::ProviderCapabilityV1, CapabilityAuthoritySnapshot};
 	use orbis_storage_runtime_api::{
 		AgreementInfo, AgreementStatus, BucketGrantInfo, BucketRole, ControlBucketInfo,
@@ -2378,6 +2665,112 @@ mod exact_lookup_tests {
 			}),
 		};
 		(request, capability, snapshot, service)
+	}
+
+	#[test]
+	fn manifest_tombstone_fails_closed_across_crash_and_preserves_bucket_mmr_history() {
+		let temp = tempfile::tempdir().unwrap();
+		let bucket_id = BucketId::from_bytes([0x21; 32]);
+		let operation_id = OperationId::from_bytes([0x31; 16]);
+		let manifest = [0x41; 32];
+		let bytes = b"canonical manifest bytes";
+		let provider_commitment = sp_crypto_hashing::blake2_256(bytes);
+		let cid = CanonicalCid::from_digest(provider_commitment);
+		let store = StreamingStore::open(temp.path()).unwrap();
+		store
+			.put_chunks(
+				StreamingDescriptor {
+					operation_id,
+					bucket_id,
+					expected_cid: cid.to_string(),
+					object_len: bytes.len() as u64,
+				},
+				[bytes.to_vec()],
+			)
+			.unwrap();
+		let mmr = BucketMmrStore::open(temp.path(), &store).unwrap();
+		mmr.append_verified(&store, bucket_id, operation_id).unwrap();
+		let before = mmr.commitment_candidate(&store, bucket_id, 0).unwrap();
+
+		store.inject_fault_once(StreamingFault::AfterTombstoneJournal).unwrap();
+		assert!(store.tombstone_manifest(manifest, bucket_id, provider_commitment, 77).is_err());
+		assert_eq!(
+			store.read_range_verified(cid.as_str(), 0, bytes.len() as u64),
+			Err(ContentError::NotFound)
+		);
+		assert_eq!(
+			store.verified_replication_object(bucket_id, operation_id),
+			Err(ContentError::NotFound),
+		);
+		drop(mmr);
+		drop(store);
+
+		let reopened = StreamingStore::open(temp.path()).unwrap();
+		assert!(!reopened.object_path(cid.as_str()).exists());
+		let evidence = reopened
+			.tombstone_manifest(manifest, bucket_id, provider_commitment, 77)
+			.unwrap();
+		assert_eq!(evidence.manifest, manifest);
+		assert_eq!(evidence.bucket_id, bucket_id);
+		assert_eq!(evidence.cid, cid);
+		assert_eq!(evidence.provider_commitment, provider_commitment);
+		assert_eq!(evidence.tombstoned_at, 77);
+		assert_eq!(
+			evidence.evidence_hash,
+			manifest_deletion_evidence_hash(manifest, bucket_id, provider_commitment, 77),
+		);
+		assert_eq!(
+			reopened.tombstone_manifest(manifest, bucket_id, provider_commitment, 78),
+			Err(ContentError::IdempotencyConflict),
+		);
+		let reopened_mmr = BucketMmrStore::open(temp.path(), &reopened).unwrap();
+		assert_eq!(reopened_mmr.commitment_candidate(&reopened, bucket_id, 0).unwrap(), before);
+	}
+
+	#[test]
+	fn manifest_tombstone_is_bucket_scoped_for_shared_cid_until_last_reference() {
+		let temp = tempfile::tempdir().unwrap();
+		let bucket_a = BucketId::from_bytes([0x61; 32]);
+		let bucket_b = BucketId::from_bytes([0x62; 32]);
+		let operation_a = OperationId::from_bytes([0x71; 16]);
+		let operation_b = OperationId::from_bytes([0x72; 16]);
+		let bytes = b"shared canonical bytes";
+		let commitment = sp_crypto_hashing::blake2_256(bytes);
+		let cid = CanonicalCid::from_digest(commitment);
+		let store = StreamingStore::open(temp.path()).unwrap();
+		for (bucket_id, operation_id) in [(bucket_a, operation_a), (bucket_b, operation_b)] {
+			store
+				.put_chunks(
+					StreamingDescriptor {
+						operation_id,
+						bucket_id,
+						expected_cid: cid.to_string(),
+						object_len: bytes.len() as u64,
+					},
+					[bytes.to_vec()],
+				)
+				.unwrap();
+		}
+		store.tombstone_manifest([0x81; 32], bucket_a, commitment, 90).unwrap();
+		assert_eq!(
+			store.verified_replication_object(bucket_a, operation_a),
+			Err(ContentError::NotFound),
+		);
+		assert!(store.verified_replication_object(bucket_b, operation_b).is_ok());
+		assert_eq!(
+			store.read_range_verified(cid.as_str(), 0, bytes.len() as u64).unwrap(),
+			bytes,
+		);
+		drop(store);
+
+		let reopened = StreamingStore::open(temp.path()).unwrap();
+		assert!(reopened.verified_replication_object(bucket_b, operation_b).is_ok());
+		reopened.tombstone_manifest([0x82; 32], bucket_b, commitment, 91).unwrap();
+		assert_eq!(
+			reopened.read_range_verified(cid.as_str(), 0, bytes.len() as u64),
+			Err(ContentError::NotFound),
+		);
+		assert!(!reopened.object_path(cid.as_str()).exists());
 	}
 
 	#[test]

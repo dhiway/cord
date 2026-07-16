@@ -284,6 +284,19 @@ impl StreamingStore {
 		verified_offset: u64,
 	) -> Result<PrivateObjectResponseV2, PrivateQueryError> {
 		let request = PrivateObjectRequestV2::decode(request_bytes)?;
+		let deleted = {
+			let state = self.read_state()?;
+			super::is_bucket_tombstoned(
+				&state,
+				BucketId::from_bytes(request.bucket_id),
+				request.cid.as_str(),
+			)
+		};
+		// Deletion wins over durable response replay: no previously journaled byte response can
+		// resurrect a tombstoned object.
+		if deleted && matches!(request.method, GET | RANGE) {
+			return Err(ContentError::NotFound.into())
+		}
 		if request.method == STATUS && verified_offset != 0 {
 			return Err(PrivateQueryError::VerifiedOffsetInvalid)
 		}
@@ -385,6 +398,7 @@ impl StreamingStore {
 				checkpoint,
 				authority.local_provider,
 				local_service_key,
+				deleted,
 			)?,
 			_ => return Err(PrivateQueryError::WireSchemaInvalid),
 		};
@@ -663,9 +677,12 @@ impl StreamingStore {
 		checkpoint: FinalizedCheckpoint,
 		local_provider: [u8; 32],
 		local_service_key: [u8; 32],
+		deleted: bool,
 	) -> Result<(Vec<Vec<u8>>, Option<u64>), PrivateQueryError> {
 		let mut receipt = None;
-		let status = if self.is_quarantined(request.cid.as_str())? {
+		let status = if deleted {
+			3
+		} else if self.is_quarantined(request.cid.as_str())? {
 			4
 		} else {
 			match record.map(|record| record.phase) {
@@ -701,7 +718,7 @@ impl StreamingStore {
 		result.extend([
 			(uint(2), checkpoint_value(checkpoint)),
 			(uint(3), uint(u64::from(checkpoint.replicas))),
-			(uint(4), Value::Bool(false)),
+			(uint(4), Value::Bool(deleted)),
 			(uint(5), finality_value(checkpoint)),
 		]);
 		Ok((
@@ -860,6 +877,41 @@ fn prune_private_query_state(
 	}
 	state.private_query_gc_cursor = if has_more { last } else { None };
 	Ok(removed_blobs)
+}
+
+pub(super) fn invalidate_bucket_cid_queries(
+	state: &mut super::JournalState,
+	bucket_id: BucketId,
+	cid: &str,
+) -> Result<Vec<String>, ContentError> {
+	let mut keys = Vec::new();
+	let mut replay_keys = BTreeSet::new();
+	for (key, record) in &state.private_queries {
+		let request = PrivateObjectRequestV2::decode(
+			&hex::decode(&record.request).map_err(|_| ContentError::IntegrityFailed)?,
+		)
+		.map_err(|_| ContentError::IntegrityFailed)?;
+		if request.bucket_id == *bucket_id.as_bytes() && request.cid.as_str() == cid {
+			keys.push(key.clone());
+			let capability = ProviderCapabilityV1::decode(
+				&hex::decode(&record.authority).map_err(|_| ContentError::IntegrityFailed)?,
+			)
+			.map_err(|_| ContentError::IntegrityFailed)?;
+			replay_keys.insert(replay_key(capability.grant_id, capability.nonce));
+		}
+	}
+	let mut blobs = Vec::with_capacity(keys.len());
+	for key in keys {
+		let record = state.private_queries.remove(&key).ok_or(ContentError::IntegrityFailed)?;
+		state.private_query_response_bytes = state
+			.private_query_response_bytes
+			.checked_sub(record.response_bytes)
+			.ok_or(ContentError::IntegrityFailed)?;
+		blobs.push(record.response_blob);
+	}
+	state.private_query_replay.retain(|key, _| !replay_keys.contains(key));
+	state.private_query_gc_cursor = None;
+	Ok(blobs)
 }
 
 fn finalized_checkpoint(
@@ -1251,13 +1303,27 @@ fn read_bounded_regular_blob_after_metadata(
 	Ok(bytes)
 }
 
-fn delete_response_blob(root: &Path, blob: &str) -> Result<(), ContentError> {
+pub(super) fn delete_response_blob(root: &Path, blob: &str) -> Result<(), ContentError> {
+	delete_response_blobs(root, &[blob.to_string()])
+}
+
+pub(super) fn delete_response_blobs(root: &Path, blobs: &[String]) -> Result<(), ContentError> {
+	if blobs.is_empty() {
+		return Ok(())
+	}
 	#[cfg(not(unix))]
 	return Err(ContentError::IntegrityFailed);
 	#[cfg(unix)]
 	{
 		let directory = acquire_response_directory(root)?;
-		delete_response_blob_in_directory(&directory, blob)
+		for blob in blobs {
+			let name = response_blob_name(blob)?;
+			match unix_fs::unlinkat(&directory.fd, name.as_str(), AtFlags::empty()) {
+				Ok(()) | Err(UnixErrno::NOENT) => {},
+				Err(error) => return Err(blob_io(error)),
+			}
+		}
+		unix_fs::fsync(&directory.fd).map_err(blob_io)
 	}
 }
 
@@ -2240,6 +2306,92 @@ mod tests {
 		let Value::Map(event) = result else { panic!("event") };
 		let Value::Map(payload) = &event[4].1 else { panic!("payload") };
 		assert_eq!(payload[0].1, uint(4));
+	}
+
+	#[test]
+	fn tombstone_invalidates_stored_bytes_and_status_replays_then_persists_deleted_status() {
+		let fixture = query_fixture(b"deleted-query".to_vec());
+		let get = request(&fixture, GET, None);
+		let get_authority = capability(&fixture, GET, fixture.bytes.len() as u64, 31);
+		let status = request(&fixture, STATUS, None);
+		let status_authority = capability(&fixture, STATUS, 0, 32);
+		for (request, authority) in [(&get, &get_authority), (&status, &status_authority)] {
+			fixture
+				.streaming
+				.private_object_query(
+					request,
+					authority,
+					&fixture.authority,
+					&fixture.topology,
+					&fixture.mmr,
+					fixture.service.public().0,
+					0,
+				)
+				.unwrap();
+		}
+		assert_eq!(fixture.streaming.read_state().unwrap().private_queries.len(), 2);
+		fixture
+			.streaming
+			.tombstone_manifest(
+				[0x91; 32],
+				BucketId::from_bytes([5; 32]),
+				fixture.cid.digest(),
+				111,
+			)
+			.unwrap();
+		let state = fixture.streaming.read_state().unwrap();
+		assert!(state.private_queries.is_empty());
+		assert!(state.private_query_replay.is_empty());
+		assert_eq!(state.private_query_response_bytes, 0);
+		drop(state);
+		assert_eq!(
+			fixture
+				.streaming
+				.private_object_query(
+					&get,
+					&get_authority,
+					&fixture.authority,
+					&fixture.topology,
+					&fixture.mmr,
+					fixture.service.public().0,
+					0,
+				)
+				.unwrap_err(),
+			PrivateQueryError::Content(ContentError::NotFound),
+		);
+		let deleted = fixture
+			.streaming
+			.private_object_query(
+				&status,
+				&status_authority,
+				&fixture.authority,
+				&fixture.topology,
+				&fixture.mmr,
+				fixture.service.public().0,
+				0,
+			)
+			.unwrap();
+		let result: Value = ciborium::de::from_reader(deleted.frames[1].as_slice()).unwrap();
+		let Value::Map(event) = result else { panic!("event") };
+		let Value::Map(payload) = &event[4].1 else { panic!("payload") };
+		assert_eq!(payload[0].1, uint(3));
+		assert!(payload.iter().any(|(key, value)| key == &uint(4) && value == &Value::Bool(true)));
+		let reopened = StreamingStore::open(fixture.temp.path()).unwrap();
+		let reopened_mmr = BucketMmrStore::open(fixture.temp.path(), &reopened).unwrap();
+		assert_eq!(
+			reopened
+				.private_object_query(
+					&status,
+					&status_authority,
+					&fixture.authority,
+					&fixture.topology,
+					&reopened_mmr,
+					fixture.service.public().0,
+					0,
+				)
+				.unwrap(),
+			deleted,
+		);
 	}
 
 	#[test]

@@ -527,8 +527,8 @@ fn commons_storage_control_worst_case_weights_fit_the_runtime_block_budget() {
 		),
 		(
 			"provider.tombstone_manifest",
-			StorageWeights::tombstone_manifest(),
-			StorageWeights::tombstone_manifest(),
+			StorageWeights::tombstone_manifest(0),
+			StorageWeights::tombstone_manifest(crate::ProviderMaxReplicas::get()),
 		),
 		(
 			"provider.ack_deletion",
@@ -3942,8 +3942,9 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 			.into_iter()
 			.rev()
 			.find_map(|record| match record.event {
-				crate::RuntimeEvent::MetaTx(pallet_meta_tx::Event::Dispatched { result }) =>
-					Some(result),
+				crate::RuntimeEvent::MetaTx(pallet_meta_tx::Event::Dispatched { result }) => {
+					Some(result)
+				},
 				_ => None,
 			})
 			.expect("MetaTx emits the inner dispatch result");
@@ -5880,6 +5881,126 @@ fn metadata_custom_hash_loss_is_detected_after_wire_roundtrip() {
 }
 
 #[test]
+fn deletion_duty_runtime_api_is_provider_scoped_bounded_and_ack_aware() {
+	use orbis_storage_runtime_api as storage_api;
+	use pallet_orbis_storage_control_primitives::CommitmentState;
+	use pallet_orbis_storage_provider::{
+		AssignedProvidersOf, CanonicalManifestRecord, CanonicalManifests, DeletionAcknowledgement,
+		GovernedFinalizedCheckpoint, ManifestDeletionAcknowledgements, ManifestDeletionDuties,
+		ManifestDeletionRequirements,
+	};
+	use sp_core::ed25519;
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		let local = AccountId::new([1; 32]);
+		let peer = AccountId::new([2; 32]);
+		GovernedFinalizedCheckpoint::<Runtime>::put(50);
+
+		let insert =
+			|manifest: [u8; 32], commitment: Option<[u8; 32]>, providers: Vec<AccountId>| {
+				CanonicalManifests::<Runtime>::insert(
+					manifest,
+					CanonicalManifestRecord {
+						bucket_id: Hash::repeat_byte(manifest[0]),
+						provider_commitment: commitment,
+						state: CommitmentState::Tombstoned,
+						checkpoint: Some(40),
+						tombstoned_at: Some(50),
+					},
+				);
+				let providers: AssignedProvidersOf<Runtime> = providers.try_into().unwrap();
+				ManifestDeletionRequirements::<Runtime>::insert(manifest, &providers);
+				if commitment.is_some() {
+					for provider in providers {
+						ManifestDeletionDuties::<Runtime>::insert(provider, manifest, ());
+					}
+				}
+			};
+
+		insert([1; 32], Some([0xA1; 32]), vec![local.clone()]);
+		insert([2; 32], Some([0xA2; 32]), vec![local.clone(), peer.clone()]);
+		insert([3; 32], Some([0xA3; 32]), vec![peer.clone()]);
+		insert([4; 32], Some([0xA4; 32]), vec![local.clone()]);
+		insert([5; 32], None, vec![local.clone()]);
+		ManifestDeletionAcknowledgements::<Runtime>::insert(
+			[4; 32],
+			&local,
+			DeletionAcknowledgement {
+				provider: local.clone(),
+				bucket_id: Hash::repeat_byte(4),
+				manifest: [4; 32],
+				evidence_hash: Hash::repeat_byte(0xE4),
+				service_key: ed25519::Public::from_raw([0x44; 32]),
+				signature: ed25519::Signature::from_raw([0x55; 64]),
+				acknowledged_at: 50,
+			},
+		);
+		ManifestDeletionDuties::<Runtime>::remove(&local, [4; 32]);
+
+		assert_eq!(
+			crate::deletion_duty_page(local.clone(), None, 0),
+			Err(storage_api::DeletionDutyPageError::PageLimitInvalid),
+		);
+		assert_eq!(
+			crate::deletion_duty_page(
+				local.clone(),
+				None,
+				storage_api::MAX_DELETION_DUTY_PAGE_SIZE + 1,
+			),
+			Err(storage_api::DeletionDutyPageError::PageLimitInvalid),
+		);
+
+		let first = crate::deletion_duty_page(local.clone(), None, 1).unwrap();
+		assert_eq!(first.version, storage_api::RESPONSE_VERSION);
+		assert_eq!(first.snapshot_checkpoint, 50);
+		assert_eq!(first.items.len(), 1);
+		assert_eq!(first.items[0].provider, local);
+		assert!([[1; 32], [2; 32]].contains(&first.items[0].manifest));
+		assert_eq!(
+			first.items[0].provider_commitment,
+			if first.items[0].manifest == [1; 32] { [0xA1; 32] } else { [0xA2; 32] },
+		);
+		let cursor = first.next_cursor.unwrap();
+		assert_eq!(cursor.last_manifest, first.items[0].manifest);
+
+		let second =
+			crate::deletion_duty_page(AccountId::new([1; 32]), Some(cursor.clone()), 1).unwrap();
+		assert_eq!(second.items.len(), 1);
+		assert_ne!(second.items[0].manifest, first.items[0].manifest);
+		assert!([[1; 32], [2; 32]].contains(&second.items[0].manifest));
+		assert_eq!(second.next_cursor, None);
+
+		let peer_page = crate::deletion_duty_page(peer, None, 8).unwrap();
+		let mut peer_manifests =
+			peer_page.items.iter().map(|duty| duty.manifest).collect::<Vec<_>>();
+		peer_manifests.sort();
+		assert_eq!(peer_manifests, vec![[2; 32], [3; 32]],);
+		assert_eq!(
+			crate::deletion_duty_page(
+				AccountId::new([1; 32]),
+				Some(storage_api::DeletionDutyCursor {
+					snapshot_checkpoint: 49,
+					last_manifest: cursor.last_manifest,
+				}),
+				1,
+			),
+			Err(storage_api::DeletionDutyPageError::CursorSnapshotStale),
+		);
+		assert_eq!(
+			crate::deletion_duty_page(
+				AccountId::new([1; 32]),
+				Some(storage_api::DeletionDutyCursor {
+					snapshot_checkpoint: 50,
+					last_manifest: [0xFF; 32],
+				}),
+				1,
+			),
+			Err(storage_api::DeletionDutyPageError::CursorKeyInvalid),
+		);
+	});
+}
+
+#[test]
 fn checkpoint_duty_runtime_api_has_exact_128_snapshot_paging_contract() {
 	use orbis_storage_runtime_api as storage_api;
 	use pallet_orbis_storage_provider::{
@@ -6590,8 +6711,8 @@ fn runtime_checkpoint_duty_admission_is_exactly_255_256_257() {
 				assert!(first
 					.items
 					.iter()
-					.all(|duty| duty.authorities.len() == 3 &&
-						duty.required_replica_confirmations == 2));
+					.all(|duty| duty.authorities.len() == 3
+						&& duty.required_replica_confirmations == 2));
 				if count == 129 {
 					let second =
 						crate::checkpoint_duty_page(provider(1), first.next_cursor, 128).unwrap();

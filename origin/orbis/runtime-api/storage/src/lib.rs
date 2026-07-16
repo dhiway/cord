@@ -31,9 +31,11 @@ use codec::{Codec, Decode, Encode};
 use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
 
-pub const RESPONSE_VERSION: u16 = 8;
+pub const RESPONSE_VERSION: u16 = 9;
 pub const MAX_PAGE_SIZE: u32 = 100;
 pub const MAX_CHECKPOINT_DUTY_PAGE_SIZE: u32 = 128;
+/// Maximum manifest-deletion duties returned by one finalized runtime-API page.
+pub const MAX_DELETION_DUTY_PAGE_SIZE: u32 = 128;
 /// Maximum concurrently indexed agreements for one control-plane bucket.
 pub const MAX_BUCKET_AGREEMENTS: u32 = 32;
 
@@ -130,6 +132,43 @@ pub struct CheckpointDutyPage<T, BlockNumber> {
 
 #[derive(Clone, Copy, Debug, Decode, DecodeAsType, Encode, Eq, PartialEq, TypeInfo)]
 pub enum CheckpointDutyPageError {
+	FinalizedCheckpointUnavailable,
+	PageLimitInvalid,
+	CursorSnapshotStale,
+	CursorKeyInvalid,
+}
+
+/// Cursor for one deletion-duty scan fixed to a governed finalized checkpoint.
+///
+/// `last_manifest` is the exact last key returned by the preceding page. A cursor is valid only
+/// while that key remains in the provider's unacknowledged duty set at `snapshot_checkpoint`.
+#[derive(Clone, Debug, Decode, DecodeAsType, Encode, Eq, PartialEq, TypeInfo)]
+pub struct DeletionDutyCursor<BlockNumber> {
+	pub snapshot_checkpoint: BlockNumber,
+	pub last_manifest: [u8; 32],
+}
+
+/// One canonical manifest deletion addressed to one exact provider.
+#[derive(Clone, Debug, Decode, DecodeAsType, Encode, Eq, PartialEq, TypeInfo)]
+pub struct DeletionDutyInfo<AccountId, Hash, BlockNumber> {
+	pub provider: AccountId,
+	pub manifest: [u8; 32],
+	pub bucket_id: Hash,
+	pub provider_commitment: [u8; 32],
+	pub tombstoned_at: BlockNumber,
+}
+
+/// Bounded deletion-duty page from one fixed governed finalized snapshot.
+#[derive(Clone, Debug, Decode, DecodeAsType, Encode, Eq, PartialEq, TypeInfo)]
+pub struct DeletionDutyPage<T, BlockNumber> {
+	pub version: u16,
+	pub items: Vec<T>,
+	pub next_cursor: Option<DeletionDutyCursor<BlockNumber>>,
+	pub snapshot_checkpoint: BlockNumber,
+}
+
+#[derive(Clone, Copy, Debug, Decode, DecodeAsType, Encode, Eq, PartialEq, TypeInfo)]
+pub enum DeletionDutyPageError {
 	FinalizedCheckpointUnavailable,
 	PageLimitInvalid,
 	CursorSnapshotStale,
@@ -430,7 +469,7 @@ pub struct ObjectVersionInfo<AccountId, BlockNumber> {
 }
 
 sp_api::decl_runtime_apis! {
-		#[api_version(10)]
+		#[api_version(11)]
 	pub trait StorageProviderApi<AccountId, Hash, BlockNumber>
 	where
 		AccountId: Codec,
@@ -449,6 +488,7 @@ sp_api::decl_runtime_apis! {
 		fn challenges_at(block: BlockNumber, cursor: Option<u32>, limit: u32) -> Page<ChallengeInfo<AccountId, Hash, BlockNumber>>;
 		fn checkpoint(bucket_id: Hash) -> Versioned<CheckpointInfo<AccountId, Hash, BlockNumber>>;
 		fn checkpoint_duties(provider: AccountId, cursor: Option<CheckpointDutyCursor<BlockNumber>>, limit: u32) -> Result<CheckpointDutyPage<CheckpointDutyInfo<AccountId, Hash, BlockNumber>, BlockNumber>, CheckpointDutyPageError>;
+		fn deletion_duties(provider: AccountId, cursor: Option<DeletionDutyCursor<BlockNumber>>, limit: u32) -> Result<DeletionDutyPage<DeletionDutyInfo<AccountId, Hash, BlockNumber>, BlockNumber>, DeletionDutyPageError>;
 		fn replica_checkpoint(bucket_id: Hash, provider: AccountId) -> Option<BlockNumber>;
 		fn canonical_manifest(manifest: [u8; 32]) -> Versioned<ManifestInfo<AccountId, Hash, BlockNumber>>;
 		fn provider_evidence(provider: AccountId, cursor: Option<u32>, limit: u32) -> Page<EvidenceInfo<AccountId, Hash, BlockNumber>>;

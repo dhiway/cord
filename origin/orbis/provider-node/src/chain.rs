@@ -25,8 +25,9 @@ use orbis_storage_runtime_api::{
 	AgreementInfo, AgreementStatus, CheckpointDutyCursor, CheckpointDutyInfo,
 	CheckpointDutyMode as RuntimeCheckpointDutyMode, CheckpointDutyPage, CheckpointDutyPageError,
 	CheckpointDutyPhase as RuntimeCheckpointDutyPhase, CheckpointInfo, ControlBucketInfo,
+	DeletionDutyCursor, DeletionDutyInfo, DeletionDutyPage, DeletionDutyPageError,
 	HostDelegationInfo, ProviderDutyRole, ProviderInfo, ProviderStatus, Versioned,
-	MAX_CHECKPOINT_DUTY_PAGE_SIZE, RESPONSE_VERSION,
+	MAX_CHECKPOINT_DUTY_PAGE_SIZE, MAX_DELETION_DUTY_PAGE_SIZE, RESPONSE_VERSION,
 };
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::AccountId32, H256};
@@ -66,7 +67,8 @@ pub struct CapabilityAuthoritySnapshot {
 	pub local_provider: [u8; 32],
 	/// Required finalized host delegation. Missing delegation is a terminal chain error.
 	pub delegation: HostDelegationInfo<AccountId32, H256, u32>,
-	/// Exact control bucket referenced by the delegation; ACL grants are never capability fallback.
+	/// Exact control bucket referenced by the delegation; ACL grants are never capability
+	/// fallback.
 	pub bucket: ControlBucketInfo<AccountId32, H256, u32>,
 	/// Optional exact agreement requested by the capability.
 	pub agreement: Option<AgreementInfo<AccountId32, H256, u32>>,
@@ -319,6 +321,74 @@ pub struct CheckpointDutyBatch {
 	pub duties: Vec<CheckpointDuty>,
 }
 
+/// Exact runtime cursor retained at the end of a staged manifest-deletion page.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeletionDutyScanCursor {
+	/// Governed finalized checkpoint which fixes the deletion snapshot.
+	pub snapshot_checkpoint: u32,
+	/// Canonical manifest digest of the last duty in the page.
+	pub last_manifest: String,
+}
+
+/// Durable request used to resume one fixed finalized deletion-duty snapshot.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeletionDutyPageRequest {
+	/// Finalized block hash pinned for every page of this scan.
+	pub finalized_hash: String,
+	/// Finalized block number corresponding to the pinned hash.
+	pub finalized_number: u32,
+	/// Provider account to which every returned duty must be addressed.
+	pub provider: String,
+	/// Governed checkpoint that fixes the scan snapshot.
+	pub snapshot_checkpoint: u32,
+	/// Opaque runtime cursor at which to resume.
+	pub cursor: DeletionDutyScanCursor,
+}
+
+/// One canonical tombstoned manifest addressed to this provider.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeletionDuty {
+	/// Provider account required to acknowledge the deletion.
+	pub provider: String,
+	/// Canonical manifest digest being deleted.
+	pub manifest: String,
+	/// Bucket from which the manifest is being removed.
+	pub bucket_id: String,
+	/// Content commitment used to locate the provider-local object.
+	pub provider_commitment: String,
+	/// Runtime block at which the manifest was tombstoned.
+	pub tombstoned_at: u32,
+	/// Governed checkpoint that fixed discovery of this duty.
+	pub snapshot_checkpoint: u32,
+	/// Exact SCALE encoding retained for changed-payload replay detection.
+	pub encoded_duty: String,
+	/// Blake2 fingerprint of the exact SCALE-encoded runtime duty.
+	pub duty_fingerprint: String,
+}
+
+/// One validated provider-scoped deletion page from a fixed finalized state hash.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeletionDutyBatch {
+	/// Finalized block hash used for this page.
+	pub finalized_hash: String,
+	/// Finalized block number used for this page.
+	pub finalized_number: u32,
+	/// Provider account addressed by this page.
+	pub provider: String,
+	/// Governed checkpoint that fixes the page snapshot.
+	pub snapshot_checkpoint: u32,
+	/// Cursor supplied to the runtime, or `None` for the first page.
+	pub requested_cursor: Option<DeletionDutyScanCursor>,
+	/// Cursor for the next page, or `None` when this page is terminal.
+	pub next_cursor: Option<DeletionDutyScanCursor>,
+	/// Validated deletion duties in runtime index order.
+	pub duties: Vec<DeletionDuty>,
+}
+
 /// Errors from the finalized chain authority.
 #[derive(Debug, thiserror::Error)]
 pub enum ChainError {
@@ -334,6 +404,9 @@ pub enum ChainError {
 	/// Finalized checkpoint-duty paging or audience contract was violated.
 	#[error("checkpoint duty protocol rejected: {0}")]
 	DutyProtocol(String),
+	/// Finalized deletion-duty paging or audience contract was violated.
+	#[error("manifest deletion duty protocol rejected: {0}")]
+	DeletionDutyProtocol(String),
 }
 
 /// Canonical authority seam for all content mutations and proof duties.
@@ -380,6 +453,17 @@ pub trait ChainAuthority: Send + Sync + 'static {
 		&self,
 		request: Option<CheckpointDutyPageRequest>,
 	) -> Result<CheckpointDutyBatch, ChainError>;
+
+	/// Read and validate one page of canonical manifest deletion duties at one fixed finalized
+	/// hash.
+	async fn deletion_duties(
+		&self,
+		_request: Option<DeletionDutyPageRequest>,
+	) -> Result<DeletionDutyBatch, ChainError> {
+		Err(ChainError::Rejected(
+			"finalized canonical manifest deletion-duty authority unavailable".into(),
+		))
+	}
 }
 
 /// Runtime-API client that validates decisions at `chain_getFinalizedHead`.
@@ -874,6 +958,117 @@ impl ChainAuthority for FinalizedRuntimeAuthority {
 			duties,
 		})
 	}
+
+	async fn deletion_duties(
+		&self,
+		request: Option<DeletionDutyPageRequest>,
+	) -> Result<DeletionDutyBatch, ChainError> {
+		let provider_bytes: &[u8] = self.provider.as_ref();
+		let provider = format!("0x{}", hex::encode(provider_bytes));
+		let (finalized_hash, finalized_number, expected_snapshot, requested_cursor) = match request
+		{
+			None => {
+				let (hash, number) = self.finalized_context().await?;
+				canonical_hash(&hash)?;
+				(hash, number, None, None)
+			},
+			Some(request) => {
+				if request.provider != provider {
+					return Err(ChainError::DeletionDutyProtocol(
+						"resume request belongs to another provider".into(),
+					));
+				}
+				canonical_hash(&request.finalized_hash)?;
+				if request.cursor.snapshot_checkpoint != request.snapshot_checkpoint {
+					return Err(ChainError::DeletionDutyProtocol(
+						"resume cursor belongs to another snapshot".into(),
+					));
+				}
+				let cursor = decode_deletion_cursor(&request.cursor)?;
+				let header: RpcHeader = self
+					.client
+					.request("chain_getHeader", rpc_params![request.finalized_hash.clone()])
+					.await
+					.map_err(|error| ChainError::Rpc(error.to_string()))?;
+				let number = u32::from_str_radix(header.number.trim_start_matches("0x"), 16)
+					.map_err(|error| ChainError::Decode(error.to_string()))?;
+				if number != request.finalized_number {
+					return Err(ChainError::DeletionDutyProtocol(
+						"resume finalized hash and number disagree".into(),
+					));
+				}
+				self.ensure_provider(&request.finalized_hash, number).await?;
+				(request.finalized_hash, number, Some(request.snapshot_checkpoint), Some(cursor))
+			},
+		};
+		let params =
+			(self.provider.clone(), requested_cursor.clone(), MAX_DELETION_DUTY_PAGE_SIZE).encode();
+		let result: Result<
+			DeletionDutyPage<DeletionDutyInfo<AccountId32, H256, u32>, u32>,
+			DeletionDutyPageError,
+		> = self
+			.runtime_call("StorageProviderApi_deletion_duties", params, &finalized_hash)
+			.await?;
+		let page = result.map_err(|error| {
+			ChainError::DeletionDutyProtocol(format!(
+				"runtime rejected manifest deletion duty page: {error:?}"
+			))
+		})?;
+		if page.version != RESPONSE_VERSION {
+			return Err(ChainError::DeletionDutyProtocol(format!(
+				"manifest deletion duty page response version {} is not {RESPONSE_VERSION}",
+				page.version
+			)));
+		}
+		if expected_snapshot.is_some_and(|expected| expected != page.snapshot_checkpoint) {
+			return Err(ChainError::DeletionDutyProtocol(
+				"manifest deletion snapshot changed while resuming fixed finalized state".into(),
+			));
+		}
+		let snapshot_checkpoint = page.snapshot_checkpoint;
+		let mut duties = Vec::with_capacity(page.items.len());
+		let mut seen_manifests = std::collections::BTreeSet::new();
+		let mut last_manifest = None;
+		for duty in page.items {
+			if !seen_manifests.insert(duty.manifest) {
+				return Err(ChainError::DeletionDutyProtocol(
+					"manifest deletion duties contain a duplicate manifest".into(),
+				));
+			}
+			last_manifest = Some(duty.manifest);
+			duties.push(validate_deletion_duty(duty, &self.provider, snapshot_checkpoint)?);
+		}
+		let next_cursor = match page.next_cursor {
+			Some(cursor) => {
+				if cursor.snapshot_checkpoint != snapshot_checkpoint {
+					return Err(ChainError::DeletionDutyProtocol(
+						"manifest deletion cursor has the wrong snapshot".into(),
+					));
+				}
+				if last_manifest != Some(cursor.last_manifest) {
+					return Err(ChainError::DeletionDutyProtocol(
+						"manifest deletion cursor does not bind the page tail".into(),
+					));
+				}
+				if requested_cursor.as_ref() == Some(&cursor) {
+					return Err(ChainError::DeletionDutyProtocol(
+						"manifest deletion cursor did not advance".into(),
+					));
+				}
+				Some(encode_deletion_cursor(cursor))
+			},
+			None => None,
+		};
+		Ok(DeletionDutyBatch {
+			finalized_hash,
+			finalized_number,
+			provider,
+			snapshot_checkpoint,
+			requested_cursor: requested_cursor.map(encode_deletion_cursor),
+			next_cursor,
+			duties,
+		})
+	}
 }
 
 #[async_trait]
@@ -1362,6 +1557,51 @@ fn encode_checkpoint_cursor(cursor: CheckpointDutyCursor<u32>) -> CheckpointDuty
 	}
 }
 
+fn decode_deletion_cursor(
+	cursor: &DeletionDutyScanCursor,
+) -> Result<DeletionDutyCursor<u32>, ChainError> {
+	Ok(DeletionDutyCursor {
+		snapshot_checkpoint: cursor.snapshot_checkpoint,
+		last_manifest: decode_hash(&cursor.last_manifest, "manifest deletion cursor")?,
+	})
+}
+
+fn encode_deletion_cursor(cursor: DeletionDutyCursor<u32>) -> DeletionDutyScanCursor {
+	DeletionDutyScanCursor {
+		snapshot_checkpoint: cursor.snapshot_checkpoint,
+		last_manifest: format!("0x{}", hex::encode(cursor.last_manifest)),
+	}
+}
+
+pub(crate) fn validate_deletion_duty(
+	duty: DeletionDutyInfo<AccountId32, H256, u32>,
+	provider: &AccountId32,
+	snapshot_checkpoint: u32,
+) -> Result<DeletionDuty, ChainError> {
+	if &duty.provider != provider {
+		return Err(ChainError::DeletionDutyProtocol(
+			"manifest deletion duty is addressed to another provider".into(),
+		));
+	}
+	if duty.tombstoned_at > snapshot_checkpoint {
+		return Err(ChainError::DeletionDutyProtocol(
+			"manifest deletion duty predates its tombstone".into(),
+		));
+	}
+	let encoded = duty.encode();
+	let provider_bytes: &[u8] = provider.as_ref();
+	Ok(DeletionDuty {
+		provider: format!("0x{}", hex::encode(provider_bytes)),
+		manifest: format!("0x{}", hex::encode(duty.manifest)),
+		bucket_id: format!("{:#x}", duty.bucket_id),
+		provider_commitment: format!("0x{}", hex::encode(duty.provider_commitment)),
+		tombstoned_at: duty.tombstoned_at,
+		snapshot_checkpoint,
+		encoded_duty: format!("0x{}", hex::encode(&encoded)),
+		duty_fingerprint: format!("0x{}", hex::encode(blake2_256(&encoded))),
+	})
+}
+
 pub(crate) fn validate_checkpoint_duty(
 	duty: CheckpointDutyInfo<AccountId32, H256, u32>,
 	provider: &AccountId32,
@@ -1504,6 +1744,37 @@ mod tests {
 	const FINALIZED_HASH: &str =
 		"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 	const GENESIS_HASH: &str = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+	#[test]
+	fn manifest_deletion_duty_validation_is_exactly_provider_scoped() {
+		let provider = AccountId32::new([7; 32]);
+		let duty = DeletionDutyInfo {
+			provider: provider.clone(),
+			manifest: [0x11; 32],
+			bucket_id: H256::repeat_byte(0x22),
+			provider_commitment: [0x33; 32],
+			tombstoned_at: 40,
+		};
+		let validated = validate_deletion_duty(duty.clone(), &provider, 50).unwrap();
+		assert_eq!(validated.provider, format!("0x{}", hex::encode([7; 32])));
+		assert_eq!(validated.manifest, format!("0x{}", hex::encode([0x11; 32])));
+		assert_eq!(validated.provider_commitment, format!("0x{}", hex::encode([0x33; 32])),);
+		assert_eq!(validated.snapshot_checkpoint, 50);
+		assert!(matches!(
+			validate_deletion_duty(duty.clone(), &AccountId32::new([8; 32]), 50),
+			Err(ChainError::DeletionDutyProtocol(_))
+		));
+		assert!(matches!(
+			validate_deletion_duty(duty, &provider, 39),
+			Err(ChainError::DeletionDutyProtocol(_))
+		));
+
+		let cursor = DeletionDutyCursor { snapshot_checkpoint: 50, last_manifest: [0x44; 32] };
+		assert_eq!(
+			decode_deletion_cursor(&encode_deletion_cursor(cursor.clone())).unwrap(),
+			cursor,
+		);
+	}
 
 	#[derive(Clone)]
 	struct TopologyFixture {

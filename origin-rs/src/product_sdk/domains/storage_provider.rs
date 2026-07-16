@@ -250,8 +250,9 @@ pub enum StorageProviderQuery {
 impl Validate for StorageProviderQuery {
 	fn validate(&self) -> DomainResult<()> {
 		match self {
-			Self::ProviderById { provider } | Self::AgreementNonce { owner: provider } =>
-				provider.validate(),
+			Self::ProviderById { provider } | Self::AgreementNonce { owner: provider } => {
+				provider.validate()
+			},
 			Self::CanAcceptCapacity { provider, additional_bytes } => {
 				let _ = additional_bytes;
 				provider.validate()
@@ -341,6 +342,12 @@ pub enum StorageProviderCommand {
 		leaf_count: u64,
 		inclusion_proof: Vec<ProofCommitment>,
 	},
+	AcknowledgeManifestDeletion {
+		manifest: ContentCommitment,
+		evidence_hash: ProofCommitment,
+		service_key: ServiceKey,
+		signature: Vec<u8>,
+	},
 	CommitProviderRoot {
 		sequence: u64,
 		appended_leaves: Vec<ProofCommitment>,
@@ -358,9 +365,12 @@ impl StorageProviderCommand {
 		match self {
 			Self::ProposeAgreement { expires_at, .. } | Self::RequestRenewal { expires_at, .. }
 				if *expires_at <= current_block =>
-				Err(invalid("agreement expiry must be in the future")),
-			Self::IssueChallenge { due_at, .. } if *due_at <= current_block =>
-				Err(invalid("challenge deadline must be in the future")),
+			{
+				Err(invalid("agreement expiry must be in the future"))
+			},
+			Self::IssueChallenge { due_at, .. } if *due_at <= current_block => {
+				Err(invalid("challenge deadline must be in the future"))
+			},
 			_ => Ok(()),
 		}
 	}
@@ -369,8 +379,8 @@ impl StorageProviderCommand {
 impl Validate for StorageProviderCommand {
 	fn validate(&self) -> DomainResult<()> {
 		match self {
-			Self::RegisterProvider { provider, endpoint, service_key, capacity_bytes } |
-			Self::UpdateProvider { provider, endpoint, service_key, capacity_bytes } => {
+			Self::RegisterProvider { provider, endpoint, service_key, capacity_bytes }
+			| Self::UpdateProvider { provider, endpoint, service_key, capacity_bytes } => {
 				provider.validate()?;
 				endpoint.validate()?;
 				service_key.validate()?;
@@ -379,8 +389,9 @@ impl Validate for StorageProviderCommand {
 				}
 				Ok(())
 			},
-			Self::SetProviderStatus { provider, .. } | Self::RemoveProvider { provider } =>
-				provider.validate(),
+			Self::SetProviderStatus { provider, .. } | Self::RemoveProvider { provider } => {
+				provider.validate()
+			},
 			Self::Heartbeat => Ok(()),
 			Self::ProposeAgreement {
 				provider,
@@ -399,11 +410,11 @@ impl Validate for StorageProviderCommand {
 				}
 				Ok(())
 			},
-			Self::AcceptAgreement { agreement } |
-			Self::CancelAgreement { agreement } |
-			Self::AcceptRenewal { agreement } |
-			Self::ExpireAgreement { agreement } |
-			Self::PruneAgreement { agreement } => agreement.validate(),
+			Self::AcceptAgreement { agreement }
+			| Self::CancelAgreement { agreement }
+			| Self::AcceptRenewal { agreement }
+			| Self::ExpireAgreement { agreement }
+			| Self::PruneAgreement { agreement } => agreement.validate(),
 			Self::AcknowledgeDeletion {
 				agreement,
 				content_commitment,
@@ -424,9 +435,27 @@ impl Validate for StorageProviderCommand {
 				}
 				inclusion_proof.iter().try_for_each(Validate::validate)
 			},
+			Self::AcknowledgeManifestDeletion {
+				manifest,
+				evidence_hash,
+				service_key,
+				signature,
+			} => {
+				manifest.validate()?;
+				evidence_hash.validate()?;
+				service_key.validate()?;
+				if service_key.as_bytes().len() != 32 || signature.len() != 64 {
+					return Err(invalid(
+						"manifest deletion service key or signature has the wrong length",
+					));
+				}
+				Ok(())
+			},
 			Self::CommitProviderRoot { sequence, appended_leaves } => {
 				if *sequence == 0 || appended_leaves.is_empty() {
-					return Err(invalid("provider root sequence and append batch must be non-zero"));
+					return Err(invalid(
+						"provider root sequence and append batch must be non-zero",
+					));
 				}
 				if appended_leaves.len() > MAX_ROOT_APPEND_BATCH {
 					return Err(invalid("provider root append batch exceeds maximum size"));

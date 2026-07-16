@@ -86,27 +86,28 @@ impl<T: pallet::Config> pallet_orbis_storage_control_primitives::CanonicalStorag
 		provider_commitment: &CanonicalCommitment,
 	) -> bool {
 		pallet::CanonicalManifests::<T>::get(manifest).is_some_and(|record| {
-			record.state == CommitmentState::Publishable &&
-				record.provider_commitment.as_ref() == Some(provider_commitment)
+			record.state == CommitmentState::Publishable
+				&& record.provider_commitment.as_ref() == Some(provider_commitment)
 		})
 	}
 
 	fn deletion_evidence_satisfied(manifest: &CanonicalCommitment) -> bool {
 		pallet::CanonicalManifests::<T>::get(manifest).is_some_and(|record| {
-			record.state == CommitmentState::Tombstoned &&
-				record.tombstoned_at.is_some_and(|at| {
+			record.state == CommitmentState::Tombstoned
+				&& record.tombstoned_at.is_some_and(|at| {
 					let window_elapsed = pallet::GovernedFinalizedCheckpoint::<T>::get()
 						.is_some_and(|finalized| {
 							finalized >= at.saturating_add(T::EvidenceWindow::get())
 						});
 					let required = pallet::ManifestDeletionRequirements::<T>::get(manifest);
-					window_elapsed &&
-						!required.is_empty() &&
-						required.iter().all(|provider| {
-							pallet::ManifestDeletionAcknowledgements::<T>::contains_key(
-								manifest, provider,
-							)
-						})
+					window_elapsed
+						&& (record.provider_commitment.is_none()
+							|| (!required.is_empty()
+								&& required.iter().all(|provider| {
+									pallet::ManifestDeletionAcknowledgements::<T>::contains_key(
+										manifest, provider,
+									)
+								})))
 				})
 		})
 	}
@@ -905,6 +906,17 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type ManifestDeletionRequirements<T: Config> =
 		StorageMap<_, Blake2_128Concat, CanonicalCommitment, AssignedProvidersOf<T>, ValueQuery>;
+	/// Provider-first bounded-page index of unacknowledged canonical manifest deletion duties.
+	#[pallet::storage]
+	pub type ManifestDeletionDuties<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		Blake2_128Concat,
+		CanonicalCommitment,
+		(),
+		OptionQuery,
+	>;
 	#[pallet::storage]
 	pub type GovernedFinalizedCheckpoint<T: Config> =
 		StorageValue<_, BlockNumberFor<T>, OptionQuery>;
@@ -1744,8 +1756,8 @@ pub mod pallet {
 				Agreements::<T>::get(agreement_id).ok_or(Error::<T>::AgreementNotFound)?;
 			ensure!(agreement.primary == provider, Error::<T>::NotAgreementParty);
 			ensure!(
-				agreement.version == expected_version &&
-					agreement.status == AgreementStatus::Proposed,
+				agreement.version == expected_version
+					&& agreement.status == AgreementStatus::Proposed,
 				Error::<T>::AgreementInvalidState
 			);
 			ensure!(
@@ -1915,14 +1927,14 @@ pub mod pallet {
 			if CheckpointClaims::<T>::get(payload.bucket_id, claim_key).as_ref()
 				== Some(&submitted_claim)
 			{
-				return Ok(())
+				return Ok(());
 			}
 			let mut bucket = Buckets::<T>::get(payload.bucket_id)
 				.ok_or(Error::<T>::StorageCheckpointWrongBucket)?;
 			let finalized = Self::finalized_checkpoint()?;
 			ensure!(
-				payload.nonce <= finalized &&
-					finalized.saturating_sub(payload.nonce) <= T::MaxCheckpointAge::get(),
+				payload.nonce <= finalized
+					&& finalized.saturating_sub(payload.nonce) <= T::MaxCheckpointAge::get(),
 				Error::<T>::StorageCheckpointStaleNonce
 			);
 			let duty = Self::checkpoint_duty_at(payload.bucket_id, payload.nonce)
@@ -1932,9 +1944,9 @@ pub mod pallet {
 				Error::<T>::StorageCheckpointWrongWindow
 			);
 			ensure!(
-				window_start == duty.due_at &&
-					window_end == duty.grace_until &&
-					finalized >= window_start,
+				window_start == duty.due_at
+					&& window_end == duty.grace_until
+					&& finalized >= window_start,
 				Error::<T>::StorageCheckpointWrongWindow
 			);
 			let fallback =
@@ -1947,10 +1959,10 @@ pub mod pallet {
 					.filter(|candidate| Self::checkpoint_signer_eligible(candidate, finalized))
 					.filter_map(|candidate| {
 						let confirmed = ReplicaCheckpoint::<T>::get(payload.bucket_id, candidate);
-						if duty.previous_commitment.is_some() &&
-							confirmed != Some(duty.previous_checkpoint)
+						if duty.previous_commitment.is_some()
+							&& confirmed != Some(duty.previous_checkpoint)
 						{
-							return None
+							return None;
 						}
 						Some((confirmed, candidate.encode(), candidate.clone()))
 					})
@@ -1982,8 +1994,8 @@ pub mod pallet {
 			Self::activate_pending_key(&primary, &mut provider, finalized);
 			Providers::<T>::insert(&primary, &provider);
 			ensure!(
-				provider.status == ProviderStatus::Active &&
-					provider.service_key.active == service_key,
+				provider.status == ProviderStatus::Active
+					&& provider.service_key.active == service_key,
 				Error::<T>::StorageCheckpointWrongKey
 			);
 			Self::ensure_authority(&primary, &provider.organization, &service_key, finalized)
@@ -2037,18 +2049,18 @@ pub mod pallet {
 					// FRAME rolls all state and events back when a dispatchable returns `Err`. The
 					// durable consensus result is therefore the code-bearing evidence event;
 					// host/SDK adapters map that event to closed wire error 241.
-					return Ok(())
+					return Ok(());
 				}
-				return Err(Error::<T>::StorageCheckpointSequenceInvalid.into())
+				return Err(Error::<T>::StorageCheckpointSequenceInvalid.into());
 			}
 			let expected_start = BucketSnapshots::<T>::get(payload.bucket_id)
 				.and_then(|snapshot| snapshot.commitment.range_end())
 				.unwrap_or(0);
 			ensure!(
-				payload.commitment.leaf_count > 0 &&
-					payload.commitment.start_seq == expected_start &&
-					payload.commitment.start_seq == duty.expected_next_start_seq &&
-					payload.commitment.range_end().is_some(),
+				payload.commitment.leaf_count > 0
+					&& payload.commitment.start_seq == expected_start
+					&& payload.commitment.start_seq == duty.expected_next_start_seq
+					&& payload.commitment.range_end().is_some(),
 				Error::<T>::StorageCheckpointSequenceInvalid
 			);
 			ensure!(confirmations.len() == 2, Error::<T>::StorageCheckpointInsufficientQuorum);
@@ -2057,12 +2069,12 @@ pub mod pallet {
 			for confirmation in confirmations.iter() {
 				let encoded_provider = confirmation.provider.encode();
 				ensure!(
-					post_promotion_replicas.contains(&confirmation.provider) &&
-						confirmation.provider != primary &&
-						previous_provider
+					post_promotion_replicas.contains(&confirmation.provider)
+						&& confirmation.provider != primary
+						&& previous_provider
 							.as_ref()
-							.is_none_or(|previous| previous < &encoded_provider) &&
-						!confirmed.contains(&confirmation.provider),
+							.is_none_or(|previous| previous < &encoded_provider)
+						&& !confirmed.contains(&confirmation.provider),
 					Error::<T>::StorageCheckpointInsufficientQuorum
 				);
 				previous_provider = Some(encoded_provider);
@@ -2071,9 +2083,9 @@ pub mod pallet {
 				Self::activate_pending_key(&confirmation.provider, &mut replica, finalized);
 				Providers::<T>::insert(&confirmation.provider, &replica);
 				ensure!(
-					replica.status == ProviderStatus::Active &&
-						replica.service_key.active == confirmation.service_key &&
-						OverdueChallenges::<T>::get(&confirmation.provider) == 0,
+					replica.status == ProviderStatus::Active
+						&& replica.service_key.active == confirmation.service_key
+						&& OverdueChallenges::<T>::get(&confirmation.provider) == 0,
 					Error::<T>::StorageCheckpointInsufficientQuorum
 				);
 				Self::ensure_authority(
@@ -2342,7 +2354,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(21)]
-		#[pallet::weight(T::WeightInfo::tombstone_manifest())]
+		#[pallet::weight(T::WeightInfo::tombstone_manifest(replicas_bound::<T>()))]
 		pub fn tombstone_manifest(
 			origin: OriginFor<T>,
 			manifest: CanonicalCommitment,
@@ -2359,15 +2371,20 @@ pub mod pallet {
 			record.state = CommitmentState::Tombstoned;
 			record.tombstoned_at = Some(Self::finalized_checkpoint()?);
 			let mut required: AssignedProvidersOf<T> = Default::default();
-			required
-				.try_push(bucket.primary.clone())
-				.map_err(|_| Error::<T>::InvalidReplicaCount)?;
-			for provider in bucket.replicas.iter() {
-				if !required.contains(provider) {
-					required
-						.try_push(provider.clone())
-						.map_err(|_| Error::<T>::InvalidReplicaCount)?;
+			if record.provider_commitment.is_some() {
+				required
+					.try_push(bucket.primary.clone())
+					.map_err(|_| Error::<T>::InvalidReplicaCount)?;
+				for provider in bucket.replicas.iter() {
+					if !required.contains(provider) {
+						required
+							.try_push(provider.clone())
+							.map_err(|_| Error::<T>::InvalidReplicaCount)?;
+					}
 				}
+			}
+			for provider in required.iter() {
+				ManifestDeletionDuties::<T>::insert(provider, manifest, ());
 			}
 			ManifestDeletionRequirements::<T>::insert(manifest, required);
 			CanonicalManifests::<T>::insert(manifest, &record);
@@ -2398,15 +2415,27 @@ pub mod pallet {
 				ManifestDeletionRequirements::<T>::get(manifest).contains(&provider),
 				Error::<T>::DeletionProviderNotRequired
 			);
-			ensure!(
-				!ManifestDeletionAcknowledgements::<T>::contains_key(manifest, &provider),
-				Error::<T>::DeletionAlreadyAcknowledged
-			);
-			let provider_record =
+			if let Some(existing) =
+				ManifestDeletionAcknowledgements::<T>::get(manifest, &provider)
+			{
+				if existing.provider == provider &&
+					existing.bucket_id == record.bucket_id &&
+					existing.manifest == manifest &&
+					existing.evidence_hash == evidence_hash &&
+					existing.service_key == service_key &&
+					existing.signature == signature
+				{
+					return Ok(())
+				}
+				return Err(Error::<T>::DeletionAlreadyAcknowledged.into())
+			}
+			let finalized = Self::finalized_checkpoint()?;
+			let mut provider_record =
 				Providers::<T>::get(&provider).ok_or(Error::<T>::ProviderNotFound)?;
+			Self::activate_pending_key(&provider, &mut provider_record, finalized);
+			Providers::<T>::insert(&provider, &provider_record);
 			ensure!(
-				provider_record.service_key.active == service_key ||
-					provider_record.service_key.previous == Some(service_key),
+				provider_record.service_key.active == service_key,
 				Error::<T>::DeletionEvidenceInvalid
 			);
 			let tombstoned_at = record.tombstoned_at.ok_or(Error::<T>::ManifestInvalidState)?;
@@ -2425,7 +2454,7 @@ pub mod pallet {
 				sp_io::crypto::ed25519_verify(&signature, &digest_array, &service_key),
 				Error::<T>::DeletionEvidenceInvalid
 			);
-			let acknowledged_at = Self::finalized_checkpoint()?;
+			let acknowledged_at = finalized;
 			ManifestDeletionAcknowledgements::<T>::insert(
 				manifest,
 				&provider,
@@ -2439,6 +2468,7 @@ pub mod pallet {
 					acknowledged_at,
 				},
 			);
+			ManifestDeletionDuties::<T>::remove(&provider, manifest);
 			Self::deposit_event(Event::ManifestDeletionAcknowledged {
 				manifest,
 				bucket_id: record.bucket_id,
@@ -2487,7 +2517,7 @@ pub mod pallet {
 					Agreements::<T>::get(agreement_id).ok_or(Error::<T>::AgreementNotFound)?;
 				ensure!(agreement.bucket_id == bucket_id, Error::<T>::AgreementInvalidState);
 				if agreement.capacity_state == AgreementCapacityState::Released {
-					continue
+					continue;
 				}
 				ensure!(agreement.replicas.contains(&old_provider), Error::<T>::ProviderIneligible);
 				if agreement.capacity_state == AgreementCapacityState::Pending {
@@ -2680,13 +2710,13 @@ pub mod pallet {
 			let provider = ensure_signed(origin)?;
 			if CheckpointFallbackPromotionReceiptByBucket::<T>::get(payload.bucket_id).is_some_and(
 				|receipt| {
-					receipt.payload == payload &&
-						receipt.provider == provider &&
-						receipt.service_key == service_key &&
-						receipt.signature == signature
+					receipt.payload == payload
+						&& receipt.provider == provider
+						&& receipt.service_key == service_key
+						&& receipt.signature == signature
 				},
 			) {
-				return Ok(())
+				return Ok(());
 			}
 			ensure!(payload.version == 1, Error::<T>::CheckpointFallbackPromotionWrongVersion);
 			let finalized = Self::finalized_checkpoint()?;
@@ -2697,8 +2727,8 @@ pub mod pallet {
 			let duty = Self::checkpoint_duty_at(payload.bucket_id, payload.snapshot_nonce)
 				.ok_or(Error::<T>::CheckpointFallbackPromotionWrongDuty)?;
 			ensure!(
-				duty.mode == CheckpointDutyMode::Standard &&
-					payload.snapshot_nonce >= duty.grace_until,
+				duty.mode == CheckpointDutyMode::Standard
+					&& payload.snapshot_nonce >= duty.grace_until,
 				Error::<T>::CheckpointFallbackPromotionNotAllowed
 			);
 			ensure!(
@@ -2717,10 +2747,10 @@ pub mod pallet {
 				.filter(|candidate| Self::checkpoint_signer_eligible(candidate, finalized))
 				.filter_map(|candidate| {
 					let confirmed = ReplicaCheckpoint::<T>::get(payload.bucket_id, candidate);
-					if duty.previous_commitment.is_some() &&
-						confirmed != Some(duty.previous_checkpoint)
+					if duty.previous_commitment.is_some()
+						&& confirmed != Some(duty.previous_checkpoint)
 					{
-						return None
+						return None;
 					}
 					Some((confirmed, candidate.encode(), candidate.clone()))
 				})
@@ -2737,9 +2767,9 @@ pub mod pallet {
 			Self::activate_pending_key(&provider, &mut provider_record, finalized);
 			Providers::<T>::insert(&provider, &provider_record);
 			ensure!(
-				provider_record.status == ProviderStatus::Active &&
-					provider_record.service_key.active == service_key &&
-					OverdueChallenges::<T>::get(&provider) == 0,
+				provider_record.status == ProviderStatus::Active
+					&& provider_record.service_key.active == service_key
+					&& OverdueChallenges::<T>::get(&provider) == 0,
 				Error::<T>::CheckpointFallbackPromotionWrongKey
 			);
 			Self::ensure_authority(
@@ -3144,40 +3174,54 @@ pub mod pallet {
 
 		pub fn checkpoint_error_code(error: &Error<T>) -> Option<u16> {
 			Some(match error {
-				Error::StorageCheckpointWrongDomain =>
-					CheckpointErrorCode::StorageCheckpointWrongDomain as u16,
-				Error::StorageCheckpointWrongVersion =>
-					CheckpointErrorCode::StorageCheckpointWrongVersion as u16,
-				Error::StorageCheckpointWrongBucket =>
-					CheckpointErrorCode::StorageCheckpointWrongBucket as u16,
-				Error::StorageCheckpointWrongKey =>
-					CheckpointErrorCode::StorageCheckpointWrongKey as u16,
-				Error::StorageCheckpointStaleNonce =>
-					CheckpointErrorCode::StorageCheckpointStaleNonce as u16,
-				Error::StorageCheckpointWrongWindow =>
-					CheckpointErrorCode::StorageCheckpointWrongWindow as u16,
-				Error::StorageCheckpointInsufficientQuorum =>
-					CheckpointErrorCode::StorageCheckpointInsufficientQuorum as u16,
-				Error::StorageCheckpointSequenceInvalid =>
-					CheckpointErrorCode::StorageCheckpointSequenceInvalid as u16,
-				Error::StorageCheckpointEquivocation =>
-					CheckpointErrorCode::StorageCheckpointEquivocation as u16,
-				Error::StorageCheckpointWrongContext =>
-					CheckpointErrorCode::StorageCheckpointWrongContext as u16,
+				Error::StorageCheckpointWrongDomain => {
+					CheckpointErrorCode::StorageCheckpointWrongDomain as u16
+				},
+				Error::StorageCheckpointWrongVersion => {
+					CheckpointErrorCode::StorageCheckpointWrongVersion as u16
+				},
+				Error::StorageCheckpointWrongBucket => {
+					CheckpointErrorCode::StorageCheckpointWrongBucket as u16
+				},
+				Error::StorageCheckpointWrongKey => {
+					CheckpointErrorCode::StorageCheckpointWrongKey as u16
+				},
+				Error::StorageCheckpointStaleNonce => {
+					CheckpointErrorCode::StorageCheckpointStaleNonce as u16
+				},
+				Error::StorageCheckpointWrongWindow => {
+					CheckpointErrorCode::StorageCheckpointWrongWindow as u16
+				},
+				Error::StorageCheckpointInsufficientQuorum => {
+					CheckpointErrorCode::StorageCheckpointInsufficientQuorum as u16
+				},
+				Error::StorageCheckpointSequenceInvalid => {
+					CheckpointErrorCode::StorageCheckpointSequenceInvalid as u16
+				},
+				Error::StorageCheckpointEquivocation => {
+					CheckpointErrorCode::StorageCheckpointEquivocation as u16
+				},
+				Error::StorageCheckpointWrongContext => {
+					CheckpointErrorCode::StorageCheckpointWrongContext as u16
+				},
 				_ => return None,
 			})
 		}
 
 		pub fn checkpoint_promotion_error_code(error: &Error<T>) -> Option<u16> {
 			Some(match error {
-				Error::CheckpointFallbackPromotionWrongVersion =>
-					CheckpointFallbackPromotionErrorCode::WrongVersion as u16,
-				Error::CheckpointFallbackPromotionWrongDuty =>
-					CheckpointFallbackPromotionErrorCode::WrongDuty as u16,
-				Error::CheckpointFallbackPromotionWrongKey =>
-					CheckpointFallbackPromotionErrorCode::WrongKey as u16,
-				Error::CheckpointFallbackPromotionNotAllowed =>
-					CheckpointFallbackPromotionErrorCode::NotAllowed as u16,
+				Error::CheckpointFallbackPromotionWrongVersion => {
+					CheckpointFallbackPromotionErrorCode::WrongVersion as u16
+				},
+				Error::CheckpointFallbackPromotionWrongDuty => {
+					CheckpointFallbackPromotionErrorCode::WrongDuty as u16
+				},
+				Error::CheckpointFallbackPromotionWrongKey => {
+					CheckpointFallbackPromotionErrorCode::WrongKey as u16
+				},
+				Error::CheckpointFallbackPromotionNotAllowed => {
+					CheckpointFallbackPromotionErrorCode::NotAllowed as u16
+				},
 				_ => return None,
 			})
 		}
@@ -3191,13 +3235,16 @@ pub mod pallet {
 			T::ProviderAuthority::validate(provider, organization, service_key, finalized_at)
 				.map_err(|error| match error {
 					ProviderAuthorityError::OrganizationUnknown => Error::<T>::ProviderOrgUnknown,
-					ProviderAuthorityError::AttestationInvalid =>
-						Error::<T>::ProviderAttestationInvalid,
-					ProviderAuthorityError::AttestationExpired =>
-						Error::<T>::ProviderAttestationExpired,
+					ProviderAuthorityError::AttestationInvalid => {
+						Error::<T>::ProviderAttestationInvalid
+					},
+					ProviderAuthorityError::AttestationExpired => {
+						Error::<T>::ProviderAttestationExpired
+					},
 					ProviderAuthorityError::SlaInvalid => Error::<T>::ProviderSlaInvalid,
-					ProviderAuthorityError::ServiceKeyInvalid =>
-						Error::<T>::ProviderServiceKeyInvalid,
+					ProviderAuthorityError::ServiceKeyInvalid => {
+						Error::<T>::ProviderServiceKeyInvalid
+					},
 				})?;
 			Ok(())
 		}
@@ -3208,11 +3255,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let record = Providers::<T>::get(provider).ok_or(Error::<T>::ProviderIneligible)?;
 			ensure!(
-				record.status == ProviderStatus::Active &&
-					record.authority_validated_at == Some(finalized_at) &&
-					OverdueChallenges::<T>::get(provider) == 0 &&
-					finalized_at >= record.organization.valid_from &&
-					finalized_at < record.organization.valid_until,
+				record.status == ProviderStatus::Active
+					&& record.authority_validated_at == Some(finalized_at)
+					&& OverdueChallenges::<T>::get(provider) == 0
+					&& finalized_at >= record.organization.valid_from
+					&& finalized_at < record.organization.valid_until,
 				Error::<T>::ProviderIneligible
 			);
 			Ok(())
@@ -3304,11 +3351,11 @@ pub mod pallet {
 				Agreements::<T>::try_mutate(agreement_id, |maybe| -> Result<_, DispatchError> {
 					let agreement = maybe.as_mut().ok_or(Error::<T>::AgreementNotFound)?;
 					ensure!(
-						agreement.version == expected_version &&
-							matches!(
+						agreement.version == expected_version
+							&& matches!(
 								agreement.status,
-								AgreementStatus::Proposed |
-									AgreementStatus::Active | AgreementStatus::Suspended
+								AgreementStatus::Proposed
+									| AgreementStatus::Active | AgreementStatus::Suspended
 							),
 						Error::<T>::AgreementInvalidState
 					);
@@ -3352,7 +3399,7 @@ pub mod pallet {
 			for agreement_id in ids {
 				let Some(mut agreement) = Agreements::<T>::get(agreement_id) else { continue };
 				if !agreement.status.is_terminal() || agreement.release_at != Some(now) {
-					continue
+					continue;
 				}
 				let capacity_state = agreement.capacity_state;
 				for provider in
@@ -3417,9 +3464,9 @@ pub mod pallet {
 		) -> bool {
 			Providers::<T>::get(provider).is_some_and(|record| {
 				let service_key = Self::effective_service_key(&record, finalized);
-				record.status == ProviderStatus::Active &&
-					OverdueChallenges::<T>::get(provider) == 0 &&
-					Self::ensure_authority(
+				record.status == ProviderStatus::Active
+					&& OverdueChallenges::<T>::get(provider) == 0
+					&& Self::ensure_authority(
 						provider,
 						&record.organization,
 						&service_key,
@@ -3441,10 +3488,10 @@ pub mod pallet {
 		}
 
 		fn verify_mmr_proof(proof: &MmrProofOf<T>, mut index: u64, expected_root: T::Hash) -> bool {
-			if proof.peaks.len().saturating_add(proof.leaf_proof.len()) >
-				T::MaxProofNodes::get() as usize
+			if proof.peaks.len().saturating_add(proof.leaf_proof.len())
+				> T::MaxProofNodes::get() as usize
 			{
-				return false
+				return false;
 			}
 			let mut current = T::Hashing::hash_of(&proof.leaf);
 			for sibling in proof.leaf_proof.iter() {
@@ -3456,7 +3503,7 @@ pub mod pallet {
 				index >>= 1;
 			}
 			if !proof.peaks.contains(&current) {
-				return false
+				return false;
 			}
 			proof
 				.peaks
@@ -3474,7 +3521,7 @@ pub mod pallet {
 		fn hash_commitment(hash: &T::Hash) -> Option<CanonicalCommitment> {
 			let encoded = hash.encode();
 			if encoded.len() != 32 {
-				return None
+				return None;
 			}
 			let mut commitment = [0u8; 32];
 			commitment.copy_from_slice(&encoded);
@@ -3555,23 +3602,23 @@ pub mod pallet {
 					.min(duties.len().saturating_sub(1));
 				for _ in 0..attempts {
 					if duties.is_empty() {
-						break
+						break;
 					}
 					cursor %= duties.len();
 					let challenge_id = duties[cursor];
 					attempted = attempted.saturating_add(1);
 					let Some(challenge) = Challenges::<T>::get(challenge_id) else {
 						duties.swap_remove(cursor);
-						continue
+						continue;
 					};
 					if challenge.status != ChallengeStatus::Open {
 						duties.swap_remove(cursor);
-						continue
+						continue;
 					}
 					let ready = finalized.is_some_and(|checkpoint| checkpoint > challenge.due_at);
 					if !ready {
 						cursor = cursor.saturating_add(1);
-						continue
+						continue;
 					}
 					if let Some(checkpoint) = finalized {
 						if Self::timeout_one_challenge(challenge_id, checkpoint).is_ok() {
@@ -3602,9 +3649,9 @@ pub mod pallet {
 				let provider = &provider_ids[provider_cursor];
 				if let Some(mut record) = Providers::<T>::get(provider) {
 					Self::activate_pending_key(provider, &mut record, finalized);
-					if record.status == ProviderStatus::Active &&
-						(finalized < record.organization.valid_from ||
-							finalized >= record.organization.valid_until)
+					if record.status == ProviderStatus::Active
+						&& (finalized < record.organization.valid_from
+							|| finalized >= record.organization.valid_until)
 					{
 						record.status = ProviderStatus::Suspended;
 						Self::deposit_event(Event::ProviderStatusChanged {
@@ -3632,7 +3679,7 @@ pub mod pallet {
 				});
 				if primary_eligible {
 					bucket_cursor += 1;
-					continue
+					continue;
 				}
 				agreements = BucketAgreements::<T>::decode_len(bucket_id).unwrap_or(0) as u32;
 				if let Err(error) = Self::reconcile_one_bucket(bucket_id, finalized) {
@@ -3652,7 +3699,7 @@ pub mod pallet {
 				} else {
 					bucket_cursor += 1;
 				}
-				break
+				break;
 			}
 			BucketReconciliationCursor::<T>::put(if bucket_cursor >= bucket_ids.len() {
 				0
@@ -3669,7 +3716,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let mut bucket = Buckets::<T>::get(bucket_id).ok_or(Error::<T>::BucketNotFound)?;
 			if Self::ensure_provider_eligible(&bucket.primary, finalized).is_ok() {
-				return Ok(())
+				return Ok(());
 			}
 			let snapshot =
 				BucketSnapshots::<T>::get(bucket_id).ok_or(Error::<T>::ProviderIneligible)?;
@@ -3770,7 +3817,7 @@ pub mod pallet {
 					Agreements::<T>::get(agreement_id).ok_or(Error::<T>::AgreementNotFound)?;
 				ensure!(agreement.bucket_id == bucket_id, Error::<T>::AgreementInvalidState);
 				if agreement.capacity_state == AgreementCapacityState::Released {
-					continue
+					continue;
 				}
 				ensure!(agreement.primary == *old_primary, Error::<T>::AgreementInvalidState);
 				let replica_index = agreement
