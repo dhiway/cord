@@ -33,7 +33,7 @@ sequence; it does not continue with guessed state.
 
 ## Provider start and acceptance
 
-Validate that the on-chain provider account, sr25519 service key, endpoint and capacity exactly
+Validate that the on-chain provider account, Ed25519 service key, endpoint and capacity exactly
 match the service configuration. Start `origin-orbis-provider` and its
 `origin-orbis-provider-outbox` finality consumer using the commands and secret environment names in
 the JSON manifest. TLS and client identity terminate outside the provider process; do not expose
