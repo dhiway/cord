@@ -57,6 +57,8 @@ mod replication_worker;
 // Private deterministic bridge from finalized topology evidence into authenticated peer context.
 mod replication_session;
 mod storage;
+#[cfg(feature = "evidence")]
+mod three_provider_evidence;
 mod workers;
 
 #[cfg(feature = "checkpoint-live")]
@@ -81,6 +83,12 @@ pub use storage::{
 	IngressPermit, IntegritySummary, NodeProfile, PendingDeletion, PendingRootSubmission,
 	ProgressAck, ProviderStats, RootObservation, SignedCheckpoint, StoreError, StreamingDescriptor,
 	StreamingFault, StreamingReceipt, StreamingStore,
+};
+#[cfg(feature = "evidence")]
+#[doc(hidden)]
+pub use three_provider_evidence::{
+	run_three_provider_recovery_evidence, CorruptReadObservation, EligibleSourceObservation,
+	ThreeProviderRecoveryEvidence,
 };
 pub use workers::{
 	poll_checkpoint_duties_once, run_workers, CheckpointSubmission, CheckpointSubmitter,

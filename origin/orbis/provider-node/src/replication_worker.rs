@@ -308,7 +308,7 @@ fn latest_replica_duties(
 	duties
 }
 
-fn select_source(
+pub(crate) fn select_source(
 	topology: &ReplicationTopologySnapshot,
 	local_provider: [u8; 32],
 	checkpoint: u32,

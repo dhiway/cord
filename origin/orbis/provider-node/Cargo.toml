@@ -12,6 +12,7 @@ publish = false
 default = ["checkpoint-live"]
 checkpoint-consumer = ["dep:scale-decode", "dep:scale-value", "dep:subxt"]
 checkpoint-live = ["checkpoint-consumer", "outbox"]
+evidence = []
 outbox = ["dep:origin-rs"]
 
 [[bin]]
@@ -23,6 +24,11 @@ required-features = ["checkpoint-live"]
 name = "origin-orbis-provider-outbox"
 path = "src/bin/origin-orbis-provider-outbox.rs"
 required-features = ["outbox"]
+
+[[test]]
+name = "three_provider_recovery"
+path = "tests/three_provider_recovery.rs"
+required-features = ["evidence"]
 
 [lints]
 workspace = true
