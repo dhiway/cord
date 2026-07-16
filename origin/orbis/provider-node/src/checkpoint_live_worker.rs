@@ -120,6 +120,15 @@ where
 	A: CheckpointPublicationAuthority + ReplicationAuthority,
 	L: CheckpointFinalityLane + PromotionFinalityLane,
 {
+	let checkpoint = tick_with_timeouts(
+		authority,
+		stack,
+		lane,
+		checkpoint_finality_timeout,
+		observation_timeout,
+	)
+	.await;
+	let mut first_error = checkpoint.as_ref().err().cloned();
 	let promotion = crate::checkpoint_promotion_worker::tick(
 		authority,
 		stack,
@@ -132,16 +141,7 @@ where
 		promotion_topology_timeout,
 	)
 	.await;
-	let mut first_error = promotion.as_ref().err().cloned();
-	let checkpoint = tick_with_timeouts(
-		authority,
-		stack,
-		lane,
-		checkpoint_finality_timeout,
-		observation_timeout,
-	)
-	.await;
-	if let Err(error) = &checkpoint {
+	if let Err(error) = &promotion {
 		first_error.get_or_insert_with(|| error.clone());
 	}
 	if let Some(error) = first_error {
@@ -284,6 +284,7 @@ mod tests {
 		},
 		NodeProfile,
 	};
+	use crate::CheckpointDutyBatch;
 
 	type Confirmations = Vec<ReplicaSignature<AccountId32>>;
 
@@ -466,6 +467,13 @@ mod tests {
 		}
 	}
 
+	fn promotion_duty_for(seed: u8) -> CheckpointDutyInfo<AccountId32, H256, u32> {
+		let mut duty = promotion_duty();
+		duty.bucket_id = H256::repeat_byte(seed);
+		duty.duty_id = H256::repeat_byte(seed.saturating_add(100));
+		duty
+	}
+
 	fn valid_response() -> Vec<u8> {
 		Versioned {
 			version: RESPONSE_VERSION,
@@ -616,6 +624,9 @@ mod tests {
 		observation: FinalizedCheckpointObservation,
 		calls: AtomicUsize,
 		guard_available: AtomicBool,
+		topology_calls: AtomicUsize,
+		publication_before_topology: AtomicBool,
+		slow_topology: bool,
 	}
 
 	#[async_trait]
@@ -643,6 +654,12 @@ mod tests {
 			&self,
 			_bucket_id: [u8; 32],
 		) -> Result<ReplicationTopologySnapshot, ChainError> {
+			self.topology_calls.fetch_add(1, Ordering::SeqCst);
+			self.publication_before_topology
+				.store(self.calls.load(Ordering::SeqCst) > 0, Ordering::SeqCst);
+			if self.slow_topology {
+				return std::future::pending().await;
+			}
 			Err(ChainError::Rejected("unexpected promotion topology read".into()))
 		}
 
@@ -652,6 +669,12 @@ mod tests {
 			_finalized_hash: [u8; 32],
 			_finalized_number: u32,
 		) -> Result<ReplicationTopologySnapshot, ChainError> {
+			self.topology_calls.fetch_add(1, Ordering::SeqCst);
+			self.publication_before_topology
+				.store(self.calls.load(Ordering::SeqCst) > 0, Ordering::SeqCst);
+			if self.slow_topology {
+				return std::future::pending().await;
+			}
 			Err(ChainError::Rejected("unexpected pinned promotion topology read".into()))
 		}
 	}
@@ -685,6 +708,9 @@ mod tests {
 			},
 			calls: AtomicUsize::new(0),
 			guard_available: AtomicBool::new(false),
+			topology_calls: AtomicUsize::new(0),
+			publication_before_topology: AtomicBool::new(false),
+			slow_topology: false,
 		}
 	}
 
@@ -774,6 +800,72 @@ mod tests {
 				if message.contains("checkpoint promotion finality timed out")
 		));
 		assert_eq!(authority.calls.load(Ordering::SeqCst), 1);
+		assert!(stack.pending_checkpoint_publications(MAX_PUBLICATIONS).unwrap().is_empty());
+	}
+
+	#[tokio::test]
+	async fn eight_slow_promotion_topologies_run_after_checkpoint_publication() {
+		let temp = TempDir::new().unwrap();
+		let stack = finalized_stack(&temp).await;
+		let profile = NodeProfile {
+			provider: hex::encode([1; 32]),
+			endpoint: "https://provider.invalid".into(),
+			service_key: hex::encode(pair(1).public().0),
+			region: None,
+		};
+		let store = DiskStore::open(temp.path(), profile.clone(), 1024).unwrap();
+		let duties = (20..28)
+			.map(|seed| {
+				crate::chain::validate_checkpoint_duty(
+					promotion_duty_for(seed),
+					&AccountId32::new([1; 32]),
+					pair(1).public().0,
+					120,
+				)
+				.unwrap()
+			})
+			.collect();
+		store
+			.stage_checkpoint_duty_page(CheckpointDutyBatch {
+				finalized_hash: hex::encode([5; 32]),
+				finalized_number: 130,
+				provider: profile.provider,
+				snapshot_checkpoint: 120,
+				requested_cursor: None,
+				next_cursor: None,
+				duties,
+			})
+			.unwrap();
+		let scheduler = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
+		let lane = PendingLane { metadata: metadata() };
+		let mut authority = authority(Arc::clone(&stack), [22; 32], 120, valid_response());
+		authority.slow_topology = true;
+
+		assert!(matches!(
+			tokio::time::timeout(
+				Duration::from_millis(250),
+				tick_with_promotions(
+					&authority,
+					&stack,
+					&store,
+					&lane,
+					&scheduler,
+					[1; 32],
+					&pair(1),
+					Duration::from_secs(1),
+					Duration::from_millis(5),
+					Duration::from_secs(1),
+					Duration::from_secs(1),
+				),
+			)
+			.await
+			.unwrap(),
+			Err(ContentError::Io(message))
+				if message.contains("pinned promotion topology timed out")
+		));
+		assert_eq!(authority.calls.load(Ordering::SeqCst), 1);
+		assert_eq!(authority.topology_calls.load(Ordering::SeqCst), 8);
+		assert!(authority.publication_before_topology.load(Ordering::SeqCst));
 		assert!(stack.pending_checkpoint_publications(MAX_PUBLICATIONS).unwrap().is_empty());
 	}
 

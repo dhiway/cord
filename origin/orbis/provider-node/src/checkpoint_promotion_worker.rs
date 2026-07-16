@@ -144,6 +144,19 @@ impl PromotionDiscoveryScheduler {
 				return Err(ContentError::IntegrityFailed);
 			}
 			(index + 1) % inventory.duties.len()
+		} else if let Some(cursor) = guard.as_ref() {
+			if inventory.finalized_number < cursor.finalized_number ||
+				inventory.snapshot_checkpoint < cursor.snapshot_checkpoint ||
+				(inventory.finalized_number == cursor.finalized_number &&
+					inventory.snapshot_checkpoint == cursor.snapshot_checkpoint)
+			{
+				return Err(ContentError::IntegrityFailed);
+			}
+			let anchor = canonical_hash(&cursor.last_bucket_id)?;
+			match canonical_anchor(&inventory.duties, &anchor)? {
+				Ok(index) => (index + 1) % inventory.duties.len(),
+				Err(insertion) => insertion % inventory.duties.len(),
+			}
 		} else {
 			0
 		};
@@ -178,6 +191,26 @@ impl PromotionDiscoveryScheduler {
 		}
 		Ok(candidates)
 	}
+}
+
+/// Locate a stable bucket anchor in one canonically ordered inventory without scanning it.
+/// `Ok(index)` means the anchor remains present (its duty payload may have changed); `Err(index)`
+/// is the insertion point after an anchor was removed, so progress resumes at the next bucket.
+fn canonical_anchor(
+	duties: &[CheckpointDuty],
+	anchor: &str,
+) -> Result<Result<usize, usize>, ContentError> {
+	let mut left = 0usize;
+	let mut right = duties.len();
+	while left < right {
+		let middle = left + (right - left) / 2;
+		match canonical_hash(&duties[middle].bucket_id)?.as_str().cmp(anchor) {
+			std::cmp::Ordering::Less => left = middle + 1,
+			std::cmp::Ordering::Greater => right = middle,
+			std::cmp::Ordering::Equal => return Ok(Ok(middle)),
+		}
+	}
+	Ok(Err(left))
 }
 
 pub(crate) async fn tick<A, L>(
@@ -797,6 +830,51 @@ mod tests {
 		let reopened = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
 		assert!(reopened.reserve(&inventory, [2; 32], pair(2).public().0).unwrap().is_empty());
 		assert_eq!(reopened.cursor.lock().unwrap().as_ref().unwrap().last_index, 127);
+	}
+
+	#[test]
+	fn finalized_view_churn_preserves_anchor_fairness_past_sixty_four() {
+		let temp = TempDir::new().unwrap();
+		let mut promoted = runtime_duty();
+		promoted.bucket_id = H256::repeat_byte(129);
+		promoted.duty_id = H256::repeat_byte(200);
+		let promoted =
+			validate_checkpoint_duty(promoted, &account(2), pair(2).public().0, 120).unwrap();
+		let mut duties = (0u8..130).map(invalid_duty).collect::<Vec<_>>();
+		duties[129] = promoted.clone();
+
+		let first = inventory_with(duties.clone());
+		let scheduler = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
+		assert!(scheduler.reserve(&first, [2; 32], pair(2).public().0).unwrap().is_empty());
+		assert_eq!(
+			scheduler.cursor.lock().unwrap().as_ref().unwrap().last_bucket_id,
+			duties[63].bucket_id
+		);
+		drop(scheduler);
+
+		let mut changed_anchor = duties.clone();
+		changed_anchor[63].duty_id = format!("0x{}", hex::encode([201; 32]));
+		changed_anchor[63].duty_fingerprint = format!("0x{}", hex::encode([202; 32]));
+		let mut second = inventory_with(changed_anchor);
+		second.finalized_hash = hex::encode([6; 32]);
+		second.finalized_number = 131;
+		let scheduler = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
+		assert!(scheduler.reserve(&second, [2; 32], pair(2).public().0).unwrap().is_empty());
+		assert_eq!(
+			scheduler.cursor.lock().unwrap().as_ref().unwrap().last_bucket_id,
+			duties[127].bucket_id
+		);
+		drop(scheduler);
+
+		let mut missing_anchor = duties;
+		missing_anchor.remove(127);
+		let mut third = inventory_with(missing_anchor);
+		third.finalized_hash = hex::encode([7; 32]);
+		third.finalized_number = 132;
+		let scheduler = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
+		let selected = scheduler.reserve(&third, [2; 32], pair(2).public().0).unwrap();
+		assert_eq!(selected.len(), 1);
+		assert_eq!(selected[0].public, promoted);
 	}
 
 	#[test]
