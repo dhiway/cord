@@ -24,12 +24,13 @@ use jsonrpsee::{core::client::ClientT, http_client::HttpClient, rpc_params};
 use orbis_storage_runtime_api::{
 	AgreementInfo, AgreementStatus, CheckpointDutyCursor, CheckpointDutyInfo,
 	CheckpointDutyMode as RuntimeCheckpointDutyMode, CheckpointDutyPage, CheckpointDutyPageError,
-	CheckpointDutyPhase as RuntimeCheckpointDutyPhase, ControlBucketInfo, HostDelegationInfo,
-	ProviderDutyRole, ProviderInfo, ProviderStatus, Versioned, MAX_CHECKPOINT_DUTY_PAGE_SIZE,
-	RESPONSE_VERSION,
+	CheckpointDutyPhase as RuntimeCheckpointDutyPhase, CheckpointInfo, ControlBucketInfo,
+	HostDelegationInfo, ProviderDutyRole, ProviderInfo, ProviderStatus, Versioned,
+	MAX_CHECKPOINT_DUTY_PAGE_SIZE, RESPONSE_VERSION,
 };
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::AccountId32, H256};
+use sp_crypto_hashing::blake2_256;
 
 use crate::capability::NORMATIVE_REGISTRY_SHA256;
 
@@ -69,6 +70,51 @@ pub struct CapabilityAuthoritySnapshot {
 	pub bucket: ControlBucketInfo<AccountId32, H256, u32>,
 	/// Optional exact agreement requested by the capability.
 	pub agreement: Option<AgreementInfo<AccountId32, H256, u32>>,
+}
+
+/// One validated provider in finalized bucket membership order.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Encode, Eq, PartialEq)]
+pub(crate) struct ReplicationProviderSnapshot {
+	pub(crate) provider: [u8; 32],
+	pub(crate) order: u8,
+	pub(crate) primary: bool,
+	pub(crate) endpoint: Vec<u8>,
+	pub(crate) endpoint_hash: [u8; 32],
+	pub(crate) active_service_key: [u8; 32],
+	pub(crate) active_service_key_version: u64,
+	pub(crate) status_active: bool,
+	pub(crate) organization_valid: bool,
+	pub(crate) authority_validated_at: Option<u32>,
+	pub(crate) overdue_challenges: u32,
+	pub(crate) eligible: bool,
+	pub(crate) confirmed_checkpoint: Option<u32>,
+}
+
+/// Exact finalized replication topology for one control bucket.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Encode, Eq, PartialEq)]
+pub(crate) struct ReplicationTopologySnapshot {
+	pub(crate) genesis_hash: [u8; 32],
+	pub(crate) finalized_hash: [u8; 32],
+	pub(crate) finalized_number: u32,
+	pub(crate) bucket_id: [u8; 32],
+	pub(crate) bucket_version: u64,
+	pub(crate) primary: [u8; 32],
+	pub(crate) replicas: Vec<[u8; 32]>,
+	pub(crate) providers: Vec<ReplicationProviderSnapshot>,
+	pub(crate) current_checkpoint: Option<CheckpointInfo<AccountId32, H256, u32>>,
+	pub(crate) snapshot_hash: [u8; 32],
+}
+
+/// Private authority seam for a replication session pinned to one finalized Commons state.
+#[async_trait]
+#[allow(dead_code)]
+pub(crate) trait ReplicationAuthority: Send + Sync {
+	async fn replication_topology(
+		&self,
+		bucket_id: [u8; 32],
+	) -> Result<ReplicationTopologySnapshot, ChainError>;
 }
 
 /// Open proof duty discovered from a finalized `StorageProviderApi::challenges_at` query.
@@ -431,7 +477,13 @@ impl FinalizedRuntimeAuthority {
 			.map_err(|error| ChainError::Rpc(error.to_string()))?;
 		let raw = hex::decode(encoded.trim_start_matches("0x"))
 			.map_err(|error| ChainError::Decode(error.to_string()))?;
-		T::decode(&mut &raw[..]).map_err(|error| ChainError::Decode(error.to_string()))
+		let mut input = &raw[..];
+		let decoded =
+			T::decode(&mut input).map_err(|error| ChainError::Decode(error.to_string()))?;
+		if !input.is_empty() {
+			return Err(ChainError::Decode("runtime API response contains trailing bytes".into()));
+		}
+		Ok(decoded)
 	}
 
 	fn authorization(
@@ -641,6 +693,377 @@ impl ChainAuthority for FinalizedRuntimeAuthority {
 	}
 }
 
+#[async_trait]
+impl ReplicationAuthority for FinalizedRuntimeAuthority {
+	async fn replication_topology(
+		&self,
+		bucket_id: [u8; 32],
+	) -> Result<ReplicationTopologySnapshot, ChainError> {
+		let finalized_hash_text: String = self
+			.client
+			.request("chain_getFinalizedHead", rpc_params![])
+			.await
+			.map_err(|error| ChainError::Rpc(error.to_string()))?;
+		let finalized_hash = decode_hash(&finalized_hash_text, "finalized hash")?;
+		let header: RpcHeader = self
+			.client
+			.request("chain_getHeader", rpc_params![finalized_hash_text.clone()])
+			.await
+			.map_err(|error| ChainError::Rpc(error.to_string()))?;
+		let finalized_number = u32::from_str_radix(header.number.trim_start_matches("0x"), 16)
+			.map_err(|error| ChainError::Decode(error.to_string()))?;
+		let bucket_hash = H256::from(bucket_id);
+		let bucket_response: Versioned<ControlBucketInfo<AccountId32, H256, u32>> = self
+			.runtime_call(
+				"StorageProviderApi_control_bucket",
+				bucket_hash.encode(),
+				&finalized_hash_text,
+			)
+			.await?;
+		ensure_version(bucket_response.version)?;
+		let bucket = bucket_response
+			.value
+			.ok_or_else(|| ChainError::Rejected("replication control bucket not found".into()))?;
+		if bucket.bucket_id != bucket_hash {
+			return Err(ChainError::Rejected(
+				"replication control bucket response has the wrong bucket id".into(),
+			));
+		}
+		let membership = replication_members(&bucket, &self.provider)?;
+		let checkpoint_response: Versioned<CheckpointInfo<AccountId32, H256, u32>> = self
+			.runtime_call(
+				"StorageProviderApi_checkpoint",
+				bucket_hash.encode(),
+				&finalized_hash_text,
+			)
+			.await?;
+		ensure_version(checkpoint_response.version)?;
+		let current_checkpoint = checkpoint_response.value;
+		if current_checkpoint
+			.as_ref()
+			.is_some_and(|checkpoint| checkpoint.bucket_id != bucket_hash)
+		{
+			return Err(ChainError::Rejected(
+				"replication checkpoint response has the wrong bucket id".into(),
+			));
+		}
+
+		let mut providers = Vec::with_capacity(membership.len());
+		for (index, provider) in membership.iter().enumerate() {
+			let response: Versioned<ProviderInfo<H256, u32>> = self
+				.runtime_call(
+					"StorageProviderApi_provider",
+					provider.encode(),
+					&finalized_hash_text,
+				)
+				.await?;
+			ensure_version(response.version)?;
+			let info = response.value.ok_or_else(|| {
+				ChainError::Rejected(format!(
+					"replication member {} is not registered",
+					account_hex(provider)
+				))
+			})?;
+			let eligible: bool = self
+				.runtime_call(
+					"StorageProviderApi_provider_is_eligible",
+					provider.encode(),
+					&finalized_hash_text,
+				)
+				.await?;
+			let confirmed_checkpoint = if index == 0 {
+				current_checkpoint.as_ref().map(|checkpoint| checkpoint.checkpoint_block)
+			} else {
+				self.runtime_call(
+					"StorageProviderApi_replica_checkpoint",
+					(bucket_hash, provider.clone()).encode(),
+					&finalized_hash_text,
+				)
+				.await?
+			};
+			providers.push(replication_provider(
+				provider,
+				index,
+				info,
+				finalized_number,
+				eligible,
+				confirmed_checkpoint,
+			)?);
+		}
+
+		let primary = account_bytes(&bucket.primary);
+		let replicas = bucket.replicas.iter().map(account_bytes).collect();
+		let mut snapshot = ReplicationTopologySnapshot {
+			genesis_hash: self.genesis_hash().await?,
+			finalized_hash,
+			finalized_number,
+			bucket_id,
+			bucket_version: bucket.version,
+			primary,
+			replicas,
+			providers,
+			current_checkpoint,
+			snapshot_hash: [0; 32],
+		};
+		snapshot.snapshot_hash = snapshot.calculated_hash();
+		snapshot.validate(account_bytes(&self.provider), self.service_key)?;
+		Ok(snapshot)
+	}
+}
+
+#[allow(dead_code)]
+impl ReplicationTopologySnapshot {
+	fn calculated_hash(&self) -> [u8; 32] {
+		let mut canonical = self.clone();
+		canonical.snapshot_hash = [0; 32];
+		let mut input = b"cord/provider/replication-topology/v1".to_vec();
+		canonical.encode_to(&mut input);
+		blake2_256(&input)
+	}
+
+	fn validate(
+		&self,
+		local_provider: [u8; 32],
+		local_service_key: [u8; 32],
+	) -> Result<(), ChainError> {
+		let mut members = Vec::with_capacity(self.replicas.len().saturating_add(1));
+		members.push(self.primary);
+		members.extend_from_slice(&self.replicas);
+		let mut unique = std::collections::BTreeSet::new();
+		if members.iter().any(|member| !unique.insert(*member)) {
+			return Err(ChainError::Rejected(
+				"replication control bucket contains duplicate providers".into(),
+			));
+		}
+		if !unique.contains(&local_provider) {
+			return Err(ChainError::Rejected(
+				"local provider is not a member of the replication bucket".into(),
+			));
+		}
+		if self.providers.len() != members.len() {
+			return Err(ChainError::Rejected("replication provider snapshot is incomplete".into()));
+		}
+		for (index, (expected, provider)) in members.iter().zip(&self.providers).enumerate() {
+			if provider.provider != *expected
+				|| usize::from(provider.order) != index
+				|| provider.primary != (index == 0)
+			{
+				return Err(ChainError::Rejected(
+					"replication provider order does not match bucket membership".into(),
+				));
+			}
+			validate_provider_endpoint(&provider.endpoint)?;
+			if blake2_256(&provider.endpoint) != provider.endpoint_hash {
+				return Err(ChainError::Rejected(
+					"replication provider endpoint hash mismatch".into(),
+				));
+			}
+			if !provider.status_active
+				|| !provider.organization_valid
+				|| provider.authority_validated_at.is_none()
+				|| provider.authority_validated_at.is_some_and(|at| at > self.finalized_number)
+				|| provider.overdue_challenges != 0
+				|| !provider.eligible
+			{
+				return Err(ChainError::Rejected(format!(
+					"replication member {} is not eligible",
+					hex::encode(provider.provider)
+				)));
+			}
+			if provider.provider == local_provider
+				&& provider.active_service_key != local_service_key
+			{
+				return Err(ChainError::Rejected(
+					"local replication service key does not match finalized provider state".into(),
+				));
+			}
+		}
+		if self
+			.current_checkpoint
+			.as_ref()
+			.is_some_and(|checkpoint| checkpoint.bucket_id.as_bytes() != &self.bucket_id)
+		{
+			return Err(ChainError::Rejected(
+				"replication checkpoint is bound to another bucket".into(),
+			));
+		}
+		match &self.current_checkpoint {
+			Some(checkpoint) => {
+				let mut confirmations = std::collections::BTreeSet::new();
+				for provider in &checkpoint.replica_confirmations {
+					let provider = account_bytes(provider);
+					if !self.replicas.contains(&provider) || !confirmations.insert(provider) {
+						return Err(ChainError::Rejected(
+							"replication checkpoint confirmations do not match bucket replicas"
+								.into(),
+						));
+					}
+				}
+				for provider in &self.providers {
+					if provider
+						.confirmed_checkpoint
+						.is_some_and(|at| at > checkpoint.checkpoint_block)
+					{
+						return Err(ChainError::Rejected(
+							"replication member confirmation is ahead of the bucket checkpoint"
+								.into(),
+						));
+					}
+					let confirms_current =
+						provider.confirmed_checkpoint == Some(checkpoint.checkpoint_block);
+					let inconsistent = if provider.primary {
+						!confirms_current
+					} else {
+						confirmations.contains(&provider.provider) != confirms_current
+					};
+					if inconsistent {
+						return Err(ChainError::Rejected(
+							"replication member confirmation disagrees with the current checkpoint"
+								.into(),
+						));
+					}
+				}
+			},
+			None if self
+				.providers
+				.iter()
+				.any(|provider| provider.confirmed_checkpoint.is_some()) =>
+			{
+				return Err(ChainError::Rejected(
+					"replication members have confirmations without a bucket checkpoint".into(),
+				));
+			},
+			None => {},
+		}
+		if self.snapshot_hash != self.calculated_hash() {
+			return Err(ChainError::Rejected("replication topology hash mismatch".into()));
+		}
+		Ok(())
+	}
+}
+
+#[allow(dead_code)]
+fn replication_members(
+	bucket: &ControlBucketInfo<AccountId32, H256, u32>,
+	local_provider: &AccountId32,
+) -> Result<Vec<AccountId32>, ChainError> {
+	let mut members = Vec::with_capacity(bucket.replicas.len().saturating_add(1));
+	members.push(bucket.primary.clone());
+	members.extend(bucket.replicas.iter().cloned());
+	let mut unique = std::collections::BTreeSet::new();
+	if members.iter().any(|member| !unique.insert(account_bytes(member))) {
+		return Err(ChainError::Rejected(
+			"replication control bucket contains duplicate providers".into(),
+		));
+	}
+	if !members.contains(local_provider) {
+		return Err(ChainError::Rejected(
+			"local provider is not a member of the replication bucket".into(),
+		));
+	}
+	Ok(members)
+}
+
+#[allow(dead_code)]
+fn replication_provider(
+	provider: &AccountId32,
+	index: usize,
+	info: ProviderInfo<H256, u32>,
+	finalized_number: u32,
+	eligible: bool,
+	confirmed_checkpoint: Option<u32>,
+) -> Result<ReplicationProviderSnapshot, ChainError> {
+	validate_provider_endpoint(&info.endpoint)?;
+	let (active_service_key, active_service_key_version) =
+		active_service_key(&info, finalized_number)?;
+	let order = u8::try_from(index)
+		.map_err(|_| ChainError::Rejected("replication provider order overflow".into()))?;
+	Ok(ReplicationProviderSnapshot {
+		provider: account_bytes(provider),
+		order,
+		primary: index == 0,
+		endpoint_hash: blake2_256(&info.endpoint),
+		endpoint: info.endpoint,
+		active_service_key,
+		active_service_key_version,
+		status_active: info.status == ProviderStatus::Active,
+		organization_valid: info.organization.valid_from <= finalized_number
+			&& finalized_number < info.organization.valid_until,
+		authority_validated_at: info.authority_validated_at,
+		overdue_challenges: info.overdue_challenges,
+		eligible,
+		confirmed_checkpoint,
+	})
+}
+
+#[allow(dead_code)]
+fn active_service_key(
+	info: &ProviderInfo<H256, u32>,
+	finalized_number: u32,
+) -> Result<([u8; 32], u64), ChainError> {
+	let key = &info.service_key;
+	let selected = match (key.pending, key.pending_version, key.pending_effective_at) {
+		(Some(pending), Some(version), Some(effective_at)) => {
+			if version <= key.active_version {
+				return Err(ChainError::Rejected(
+					"replication provider service-key version did not advance".into(),
+				));
+			}
+			if effective_at <= finalized_number {
+				Ok((pending, version))
+			} else {
+				Ok((key.active, key.active_version))
+			}
+		},
+		(None, None, None) => Ok((key.active, key.active_version)),
+		_ => Err(ChainError::Rejected(
+			"replication provider has an incomplete service-key rotation".into(),
+		)),
+	}?;
+	if selected.1 == 0 || selected.0 == [0; 32] {
+		return Err(ChainError::Rejected(
+			"replication provider has an invalid active service key".into(),
+		));
+	}
+	Ok(selected)
+}
+
+#[allow(dead_code)]
+fn validate_provider_endpoint(endpoint: &[u8]) -> Result<(), ChainError> {
+	let endpoint = std::str::from_utf8(endpoint)
+		.map_err(|_| ChainError::Rejected("replication provider endpoint is not UTF-8".into()))?;
+	if endpoint.len() > 256 || endpoint.bytes().any(|byte| byte.is_ascii_control() || byte == b' ')
+	{
+		return Err(ChainError::Rejected("replication provider endpoint is malformed".into()));
+	}
+	let authority = endpoint
+		.strip_prefix("https://")
+		.or_else(|| endpoint.strip_prefix("http://"))
+		.ok_or_else(|| {
+			ChainError::Rejected("replication provider endpoint must use HTTP(S)".into())
+		})?
+		.split(['/', '?', '#'])
+		.next()
+		.unwrap_or_default();
+	if authority.is_empty() || authority.contains('@') || authority.starts_with(':') {
+		return Err(ChainError::Rejected(
+			"replication provider endpoint has no valid authority".into(),
+		));
+	}
+	Ok(())
+}
+
+#[allow(dead_code)]
+fn account_bytes(account: &AccountId32) -> [u8; 32] {
+	let bytes: &[u8] = account.as_ref();
+	bytes.try_into().expect("AccountId32 always contains exactly 32 bytes")
+}
+
+#[allow(dead_code)]
+fn account_hex(account: &AccountId32) -> String {
+	hex::encode(account_bytes(account))
+}
+
 fn canonical_hash(value: &str) -> Result<(), ChainError> {
 	let raw = hex::decode(value.strip_prefix("0x").ok_or_else(|| {
 		ChainError::DutyProtocol("checkpoint duty hash is not 0x-prefixed".into())
@@ -812,7 +1235,7 @@ struct RpcHeader {
 
 #[cfg(test)]
 mod tests {
-	use std::{convert::Infallible, sync::Arc};
+	use std::{collections::BTreeMap, convert::Infallible, sync::Arc};
 
 	use http_body_util::{BodyExt, Full};
 	use hyper::{body::Bytes, server::conn::http1, service::service_fn, Request, Response};
@@ -828,6 +1251,202 @@ mod tests {
 	const FINALIZED_HASH: &str =
 		"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 	const GENESIS_HASH: &str = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+	#[derive(Clone)]
+	struct TopologyFixture {
+		response_version: u16,
+		bucket: ControlBucketInfo<AccountId32, H256, u32>,
+		providers: BTreeMap<[u8; 32], ProviderInfo<H256, u32>>,
+		eligibility: BTreeMap<[u8; 32], bool>,
+		checkpoint: Option<CheckpointInfo<AccountId32, H256, u32>>,
+		replica_checkpoints: BTreeMap<[u8; 32], Option<u32>>,
+	}
+
+	fn provider_info(seed: u8) -> ProviderInfo<H256, u32> {
+		ProviderInfo {
+			endpoint: format!("https://provider-{seed}.invalid/storage").into_bytes(),
+			organization: OrganizationInfo {
+				entity_id: vec![seed],
+				attestation_id: H256::repeat_byte(seed),
+				schema_id: H256::repeat_byte(seed.saturating_add(1)),
+				sla_commitment: H256::repeat_byte(seed.saturating_add(2)),
+				sla_version: 1,
+				valid_from: 1,
+				valid_until: 1_000,
+				rotation_predecessor: None,
+			},
+			service_key: ServiceKeyInfo {
+				active: [seed.saturating_add(10); 32],
+				active_version: 1,
+				previous: None,
+				pending: None,
+				pending_version: None,
+				pending_effective_at: None,
+			},
+			capacity_bytes: 1_000_000,
+			allocated_bytes: 10,
+			pending_bytes: 0,
+			status: ProviderStatus::Active,
+			last_heartbeat: 109,
+			overdue_challenges: 0,
+			authority_validated_at: Some(100),
+		}
+	}
+
+	fn topology_fixture() -> TopologyFixture {
+		let bucket_id = H256::repeat_byte(5);
+		let primary = AccountId32::new([7; 32]);
+		let local_replica = AccountId32::new([8; 32]);
+		let other_replica = AccountId32::new([9; 32]);
+		let mut providers = BTreeMap::new();
+		providers.insert([7; 32], provider_info(7));
+		let mut local = provider_info(8);
+		local.service_key.pending = Some([9; 32]);
+		local.service_key.pending_version = Some(2);
+		local.service_key.pending_effective_at = Some(100);
+		providers.insert([8; 32], local);
+		providers.insert([9; 32], provider_info(9));
+		TopologyFixture {
+			response_version: RESPONSE_VERSION,
+			bucket: ControlBucketInfo {
+				bucket_id,
+				owner: AccountId32::new([1; 32]),
+				version: 4,
+				policy: H256::repeat_byte(6),
+				primary: primary.clone(),
+				replicas: vec![local_replica.clone(), other_replica.clone()],
+				grants: vec![],
+				created_at: 1,
+			},
+			providers,
+			eligibility: [([7; 32], true), ([8; 32], true), ([9; 32], true)].into_iter().collect(),
+			checkpoint: Some(CheckpointInfo {
+				bucket_id,
+				commitment: orbis_storage_runtime_api::CommitmentInfo {
+					mmr_root: H256::repeat_byte(11),
+					start_seq: 0,
+					leaf_count: 3,
+				},
+				checkpoint_block: 100,
+				primary_signers: 1,
+				commitment_nonce: 100,
+				replica_confirmations: vec![local_replica],
+			}),
+			replica_checkpoints: [([8; 32], Some(100)), ([9; 32], Some(99))].into_iter().collect(),
+		}
+	}
+
+	fn topology_runtime_response(method: &str, params: &[u8], fixture: &TopologyFixture) -> String {
+		let encoded = match method {
+			"StorageProviderApi_control_bucket" => {
+				Versioned { version: fixture.response_version, value: Some(fixture.bucket.clone()) }
+					.encode()
+			},
+			"StorageProviderApi_checkpoint" => {
+				Versioned { version: fixture.response_version, value: fixture.checkpoint.clone() }
+					.encode()
+			},
+			"StorageProviderApi_provider" => {
+				let provider = AccountId32::decode(&mut &params[..]).unwrap();
+				Versioned {
+					version: fixture.response_version,
+					value: fixture.providers.get(&account_bytes(&provider)).cloned(),
+				}
+				.encode()
+			},
+			"StorageProviderApi_provider_is_eligible" => {
+				let provider = AccountId32::decode(&mut &params[..]).unwrap();
+				fixture
+					.eligibility
+					.get(&account_bytes(&provider))
+					.copied()
+					.unwrap_or(false)
+					.encode()
+			},
+			"StorageProviderApi_replica_checkpoint" => {
+				let (_, provider) = <(H256, AccountId32)>::decode(&mut &params[..]).unwrap();
+				fixture
+					.replica_checkpoints
+					.get(&account_bytes(&provider))
+					.copied()
+					.flatten()
+					.encode()
+			},
+			other => panic!("unexpected topology runtime API method: {other}"),
+		};
+		format!("0x{}", hex::encode(encoded))
+	}
+
+	async fn topology_rpc_response(
+		request: Request<hyper::body::Incoming>,
+		fixture: Arc<TopologyFixture>,
+		reads: Arc<Mutex<Vec<(String, String, Vec<u8>)>>>,
+	) -> Result<Response<Full<Bytes>>, Infallible> {
+		let body = request.into_body().collect().await.unwrap().to_bytes();
+		let request: Value = serde_json::from_slice(&body).unwrap();
+		let method = request["method"].as_str().unwrap();
+		let result = match method {
+			"chain_getFinalizedHead" => json!(FINALIZED_HASH),
+			"chain_getHeader" => json!({ "number": "0x6e" }),
+			"chain_getBlockHash" => json!(GENESIS_HASH),
+			"state_call" => {
+				let params = request["params"].as_array().unwrap();
+				let runtime_method = params[0].as_str().unwrap().to_owned();
+				let raw =
+					hex::decode(params[1].as_str().unwrap().strip_prefix("0x").unwrap()).unwrap();
+				let at = params[2].as_str().unwrap().to_owned();
+				reads.lock().await.push((runtime_method.clone(), at, raw.clone()));
+				json!(topology_runtime_response(&runtime_method, &raw, &fixture))
+			},
+			other => panic!("unexpected topology JSON-RPC method: {other}"),
+		};
+		let body = serde_json::to_vec(&json!({
+			"jsonrpc": "2.0",
+			"id": request["id"],
+			"result": result,
+		}))
+		.unwrap();
+		Ok(Response::new(Full::new(Bytes::from(body))))
+	}
+
+	async fn topology_authority(
+		fixture: TopologyFixture,
+	) -> (
+		FinalizedRuntimeAuthority,
+		Arc<Mutex<Vec<(String, String, Vec<u8>)>>>,
+		tokio::task::JoinHandle<()>,
+	) {
+		let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+		let address = listener.local_addr().unwrap();
+		let reads = Arc::new(Mutex::new(Vec::new()));
+		let server_reads = reads.clone();
+		let fixture = Arc::new(fixture);
+		let server = tokio::spawn(async move {
+			loop {
+				let (stream, _) = listener.accept().await.unwrap();
+				let reads = server_reads.clone();
+				let fixture = fixture.clone();
+				tokio::spawn(async move {
+					http1::Builder::new()
+						.serve_connection(
+							TokioIo::new(stream),
+							service_fn(move |request| {
+								topology_rpc_response(request, fixture.clone(), reads.clone())
+							}),
+						)
+						.await
+						.unwrap();
+				});
+			}
+		});
+		let authority = FinalizedRuntimeAuthority::connect(
+			&format!("http://{address}"),
+			AccountId32::new([8; 32]),
+			[9; 32],
+		)
+		.unwrap();
+		(authority, reads, server)
+	}
 
 	fn runtime_response(method: &str) -> String {
 		let provider = AccountId32::new([7; 32]);
@@ -986,6 +1605,145 @@ mod tests {
 			]
 		);
 		assert!(reads.iter().all(|(_, at)| at == FINALIZED_HASH));
+		server.abort();
+	}
+
+	#[tokio::test]
+	async fn replication_topology_pins_one_hash_and_preserves_member_order_and_rotation() {
+		let (authority, reads, server) = topology_authority(topology_fixture()).await;
+		let first = authority.replication_topology([5; 32]).await.unwrap();
+		let second = authority.replication_topology([5; 32]).await.unwrap();
+
+		assert_eq!(first, second);
+		assert_eq!(first.genesis_hash, [0xbb; 32]);
+		assert_eq!(first.finalized_hash, [0xaa; 32]);
+		assert_eq!(first.finalized_number, 110);
+		assert_eq!(first.bucket_version, 4);
+		assert_eq!(first.primary, [7; 32]);
+		assert_eq!(first.replicas, vec![[8; 32], [9; 32]]);
+		assert_eq!(
+			first.providers.iter().map(|provider| provider.provider).collect::<Vec<_>>(),
+			vec![[7; 32], [8; 32], [9; 32]]
+		);
+		assert_eq!(first.providers[1].active_service_key, [9; 32]);
+		assert_eq!(first.providers[1].active_service_key_version, 2);
+		assert_eq!(first.providers[1].confirmed_checkpoint, Some(100));
+		assert_eq!(first.providers[2].confirmed_checkpoint, Some(99));
+		for provider in &first.providers {
+			assert_eq!(provider.endpoint_hash, blake2_256(&provider.endpoint));
+		}
+		assert_eq!(first.snapshot_hash, first.calculated_hash());
+
+		let reads = reads.lock().await.clone();
+		assert!(reads.iter().all(|(_, at, _)| at == FINALIZED_HASH));
+		let methods = reads[..10].iter().map(|(method, _, _)| method.as_str()).collect::<Vec<_>>();
+		assert_eq!(
+			methods,
+			[
+				"StorageProviderApi_control_bucket",
+				"StorageProviderApi_checkpoint",
+				"StorageProviderApi_provider",
+				"StorageProviderApi_provider_is_eligible",
+				"StorageProviderApi_provider",
+				"StorageProviderApi_provider_is_eligible",
+				"StorageProviderApi_replica_checkpoint",
+				"StorageProviderApi_provider",
+				"StorageProviderApi_provider_is_eligible",
+				"StorageProviderApi_replica_checkpoint",
+			]
+		);
+		let provider_order = reads[..10]
+			.iter()
+			.filter(|(method, _, _)| method == "StorageProviderApi_provider")
+			.map(|(_, _, params)| account_bytes(&AccountId32::decode(&mut &params[..]).unwrap()))
+			.collect::<Vec<_>>();
+		assert_eq!(provider_order, vec![[7; 32], [8; 32], [9; 32]]);
+		server.abort();
+	}
+
+	#[tokio::test]
+	async fn replication_topology_rejects_missing_duplicate_nonmember_and_ineligible_members() {
+		let mut cases = Vec::new();
+		let mut missing = topology_fixture();
+		missing.providers.remove(&[9; 32]);
+		cases.push(missing);
+		let mut duplicate = topology_fixture();
+		duplicate.bucket.replicas.push(AccountId32::new([8; 32]));
+		cases.push(duplicate);
+		let mut nonmember = topology_fixture();
+		nonmember.bucket.replicas = vec![AccountId32::new([9; 32])];
+		cases.push(nonmember);
+		let mut ineligible = topology_fixture();
+		ineligible.eligibility.insert([9; 32], false);
+		cases.push(ineligible);
+		let mut overdue = topology_fixture();
+		overdue.providers.get_mut(&[9; 32]).unwrap().overdue_challenges = 1;
+		cases.push(overdue);
+		let mut expired_organization = topology_fixture();
+		expired_organization
+			.providers
+			.get_mut(&[9; 32])
+			.unwrap()
+			.organization
+			.valid_until = 110;
+		cases.push(expired_organization);
+		let mut missing_authority_validation = topology_fixture();
+		missing_authority_validation
+			.providers
+			.get_mut(&[9; 32])
+			.unwrap()
+			.authority_validated_at = None;
+		cases.push(missing_authority_validation);
+
+		for fixture in cases {
+			let (authority, _reads, server) = topology_authority(fixture).await;
+			assert!(matches!(
+				authority.replication_topology([5; 32]).await,
+				Err(ChainError::Rejected(_))
+			));
+			server.abort();
+		}
+	}
+
+	#[tokio::test]
+	async fn replication_topology_rejects_versions_bucket_ids_and_malformed_endpoints() {
+		let mut cases = Vec::new();
+		let mut wrong_version = topology_fixture();
+		wrong_version.response_version = RESPONSE_VERSION + 1;
+		cases.push(wrong_version);
+		let mut wrong_bucket = topology_fixture();
+		wrong_bucket.bucket.bucket_id = H256::repeat_byte(99);
+		cases.push(wrong_bucket);
+		let mut wrong_checkpoint = topology_fixture();
+		wrong_checkpoint.checkpoint.as_mut().unwrap().bucket_id = H256::repeat_byte(99);
+		cases.push(wrong_checkpoint);
+		let mut invalid_utf8 = topology_fixture();
+		invalid_utf8.providers.get_mut(&[9; 32]).unwrap().endpoint = vec![0xff];
+		cases.push(invalid_utf8);
+		let mut wrong_scheme = topology_fixture();
+		wrong_scheme.providers.get_mut(&[9; 32]).unwrap().endpoint = b"ftp://invalid".to_vec();
+		cases.push(wrong_scheme);
+
+		for fixture in cases {
+			let (authority, _reads, server) = topology_authority(fixture).await;
+			assert!(matches!(
+				authority.replication_topology([5; 32]).await,
+				Err(ChainError::Rejected(_))
+			));
+			server.abort();
+		}
+	}
+
+	#[tokio::test]
+	async fn replication_snapshot_validation_rejects_endpoint_hash_or_service_key_tampering() {
+		let (authority, _reads, server) = topology_authority(topology_fixture()).await;
+		let snapshot = authority.replication_topology([5; 32]).await.unwrap();
+		let mut endpoint_tamper = snapshot.clone();
+		endpoint_tamper.providers[1].endpoint_hash = [0; 32];
+		assert!(matches!(endpoint_tamper.validate([8; 32], [9; 32]), Err(ChainError::Rejected(_))));
+		let mut key_tamper = snapshot;
+		key_tamper.providers[1].active_service_key = [77; 32];
+		assert!(matches!(key_tamper.validate([8; 32], [9; 32]), Err(ChainError::Rejected(_))));
 		server.abort();
 	}
 }
