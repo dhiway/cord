@@ -88,6 +88,12 @@ pub(crate) enum ReplicationProviderExclusion {
 	ConfirmationInvalid,
 }
 
+impl ReplicationProviderExclusion {
+	fn prevents_local_participation(self) -> bool {
+		!matches!(self, Self::ConfirmationInvalid)
+	}
+}
+
 /// One evidence-preserving provider slot in finalized bucket membership order.
 #[allow(dead_code)]
 #[derive(Clone, Debug, Encode, Eq, PartialEq)]
@@ -896,6 +902,11 @@ impl ReplicationTopologySnapshot {
 					"replication provider endpoint evidence is incomplete".into(),
 				));
 			}
+			if provider.record_present != provider.endpoint.is_some() {
+				return Err(ChainError::Rejected(
+					"replication provider endpoint presence is inconsistent".into(),
+				));
+			}
 			if let (Some(endpoint), Some(endpoint_hash)) =
 				(&provider.endpoint, provider.endpoint_hash)
 			{
@@ -913,22 +924,56 @@ impl ReplicationTopologySnapshot {
 					));
 				}
 			}
+			let effective_key_valid =
+				match (provider.active_service_key, provider.active_service_key_version) {
+					(Some(key), Some(version)) if key != [0; 32] && version != 0 => true,
+					(Some(_), Some(_)) => {
+						return Err(ChainError::Rejected(
+							"replication provider effective service key is invalid".into(),
+						));
+					},
+					(None, None) => false,
+					_ => {
+						return Err(ChainError::Rejected(
+							"replication provider service-key evidence is incomplete".into(),
+						));
+					},
+				};
+			let invalid_service_key =
+				provider.exclusions.contains(&ReplicationProviderExclusion::InvalidServiceKey);
+			if provider.record_present {
+				if invalid_service_key == effective_key_valid {
+					return Err(ChainError::Rejected(
+						"replication provider service-key exclusion is inconsistent".into(),
+					));
+				}
+			} else if effective_key_valid || invalid_service_key {
+				return Err(ChainError::Rejected(
+					"missing replication provider has service-key evidence".into(),
+				));
+			}
 			if provider.usable != provider.exclusions.is_empty() {
 				return Err(ChainError::Rejected(
 					"replication provider usability evidence is inconsistent".into(),
 				));
 			}
-			if provider.provider == local_provider && !provider.record_present {
-				return Err(ChainError::Rejected(
-					"local replication provider record is missing".into(),
-				));
-			}
-			if provider.provider == local_provider
-				&& provider.active_service_key != Some(local_service_key)
-			{
-				return Err(ChainError::Rejected(
-					"local replication service key does not match finalized provider state".into(),
-				));
+			if provider.provider == local_provider {
+				if provider
+					.exclusions
+					.iter()
+					.copied()
+					.any(ReplicationProviderExclusion::prevents_local_participation)
+				{
+					return Err(ChainError::Rejected(
+						"local replication provider is excluded from participation".into(),
+					));
+				}
+				if provider.active_service_key != Some(local_service_key) {
+					return Err(ChainError::Rejected(
+						"local replication service key does not match finalized provider state"
+							.into(),
+					));
+				}
 			}
 		}
 		if self
@@ -1841,6 +1886,41 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn replication_topology_rejects_excluded_local_participation_authority() {
+		let mut inactive = topology_fixture();
+		inactive.providers.get_mut(&[8; 32]).unwrap().status = ProviderStatus::Suspended;
+		let mut invalid_endpoint = topology_fixture();
+		invalid_endpoint.providers.get_mut(&[8; 32]).unwrap().endpoint = b"corrupt".to_vec();
+		let mut runtime_ineligible = topology_fixture();
+		runtime_ineligible.eligibility.insert([8; 32], false);
+
+		for fixture in [inactive, invalid_endpoint, runtime_ineligible] {
+			let (authority, _reads, server) = topology_authority(fixture).await;
+			assert!(matches!(
+				authority.replication_topology([5; 32]).await,
+				Err(ChainError::Rejected(_))
+			));
+			server.abort();
+		}
+	}
+
+	#[tokio::test]
+	async fn replication_topology_retains_confirmation_invalid_local_as_nonusable() {
+		let mut fixture = topology_fixture();
+		fixture.replica_checkpoints.insert([8; 32], Some(101));
+		let (authority, _reads, server) = topology_authority(fixture).await;
+		let snapshot = authority.replication_topology([5; 32]).await.unwrap();
+		assert_eq!(
+			snapshot.providers[1].exclusions,
+			vec![ReplicationProviderExclusion::ConfirmationInvalid]
+		);
+		assert!(snapshot.providers[1].eligible);
+		assert!(!snapshot.providers[1].usable);
+		assert_eq!(snapshot.snapshot_hash, snapshot.calculated_hash());
+		server.abort();
+	}
+
+	#[tokio::test]
 	async fn replication_topology_rejects_duplicate_and_local_nonmember() {
 		let mut cases = Vec::new();
 		let mut duplicate = topology_fixture();
@@ -1917,6 +1997,44 @@ mod tests {
 		let mut key_tamper = snapshot;
 		key_tamper.providers[1].active_service_key = Some([77; 32]);
 		assert!(matches!(key_tamper.validate([8; 32], [9; 32]), Err(ChainError::Rejected(_))));
+		server.abort();
+	}
+
+	#[tokio::test]
+	async fn replication_snapshot_validation_enforces_service_key_evidence() {
+		let (authority, _reads, server) = topology_authority(topology_fixture()).await;
+		let snapshot = authority.replication_topology([5; 32]).await.unwrap();
+
+		let mut missing_version = snapshot.clone();
+		missing_version.providers[2].active_service_key_version = None;
+		assert!(matches!(
+			missing_version.validate([8; 32], [18; 32]),
+			Err(ChainError::Rejected(_))
+		));
+
+		let mut zero_key = snapshot.clone();
+		zero_key.providers[2].active_service_key = Some([0; 32]);
+		assert!(matches!(zero_key.validate([8; 32], [18; 32]), Err(ChainError::Rejected(_))));
+
+		let mut false_exclusion = snapshot.clone();
+		false_exclusion.providers[2]
+			.exclusions
+			.push(ReplicationProviderExclusion::InvalidServiceKey);
+		false_exclusion.providers[2].usable = false;
+		assert!(matches!(
+			false_exclusion.validate([8; 32], [18; 32]),
+			Err(ChainError::Rejected(_))
+		));
+
+		let mut invalid_remote = snapshot;
+		invalid_remote.providers[2].active_service_key = None;
+		invalid_remote.providers[2].active_service_key_version = None;
+		invalid_remote.providers[2]
+			.exclusions
+			.push(ReplicationProviderExclusion::InvalidServiceKey);
+		invalid_remote.providers[2].usable = false;
+		invalid_remote.snapshot_hash = invalid_remote.calculated_hash();
+		invalid_remote.validate([8; 32], [18; 32]).unwrap();
 		server.abort();
 	}
 }
