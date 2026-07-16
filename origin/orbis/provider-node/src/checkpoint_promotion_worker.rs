@@ -145,10 +145,9 @@ impl PromotionDiscoveryScheduler {
 			}
 			(index + 1) % inventory.duties.len()
 		} else if let Some(cursor) = guard.as_ref() {
-			if inventory.finalized_number < cursor.finalized_number ||
-				inventory.snapshot_checkpoint < cursor.snapshot_checkpoint ||
-				(inventory.finalized_number == cursor.finalized_number &&
-					inventory.snapshot_checkpoint == cursor.snapshot_checkpoint)
+			if finalized_hash == cursor.finalized_hash ||
+				inventory.finalized_number <= cursor.finalized_number ||
+				inventory.snapshot_checkpoint < cursor.snapshot_checkpoint
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
@@ -830,6 +829,55 @@ mod tests {
 		let reopened = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
 		assert!(reopened.reserve(&inventory, [2; 32], pair(2).public().0).unwrap().is_empty());
 		assert_eq!(reopened.cursor.lock().unwrap().as_ref().unwrap().last_index, 127);
+	}
+
+	fn assert_changed_inventory_rejected_without_cursor_movement(
+		finalized_hash: [u8; 32],
+		finalized_number: u32,
+		snapshot_checkpoint: u32,
+	) {
+		let temp = TempDir::new().unwrap();
+		let duties = vec![invalid_duty(1)];
+		let inventory = inventory_with(duties.clone());
+		let scheduler = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
+		assert!(scheduler.reserve(&inventory, [2; 32], pair(2).public().0).unwrap().is_empty());
+		let before = scheduler.cursor.lock().unwrap().clone();
+
+		let changed = CheckpointDutyInventory {
+			finalized_hash: hex::encode(finalized_hash),
+			finalized_number,
+			snapshot_checkpoint,
+			duties,
+		};
+		assert!(matches!(
+			scheduler.reserve(&changed, [2; 32], pair(2).public().0),
+			Err(ContentError::IntegrityFailed)
+		));
+		assert_eq!(*scheduler.cursor.lock().unwrap(), before);
+		drop(scheduler);
+		assert_eq!(
+			PromotionDiscoveryScheduler::open(temp.path())
+				.unwrap()
+				.cursor
+				.into_inner()
+				.unwrap(),
+			before
+		);
+	}
+
+	#[test]
+	fn same_height_different_hash_equal_snapshot_is_rejected_without_cursor_movement() {
+		assert_changed_inventory_rejected_without_cursor_movement([6; 32], 130, 120);
+	}
+
+	#[test]
+	fn same_height_different_hash_increased_snapshot_is_rejected_without_cursor_movement() {
+		assert_changed_inventory_rejected_without_cursor_movement([6; 32], 130, 121);
+	}
+
+	#[test]
+	fn identical_hash_different_height_is_rejected_without_cursor_movement() {
+		assert_changed_inventory_rejected_without_cursor_movement([5; 32], 131, 120);
 	}
 
 	#[test]
