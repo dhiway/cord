@@ -30,6 +30,8 @@ mod api;
 #[allow(dead_code)]
 mod capability;
 mod chain;
+#[allow(dead_code)]
+mod checkpoint;
 mod content;
 mod merkle;
 mod storage;
