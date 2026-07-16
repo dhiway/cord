@@ -48,7 +48,8 @@ use std::{
 
 use codec::{Decode, Encode};
 use orbis_storage_runtime_api::{
-	CheckpointDutyInfo, CheckpointDutyPhase as RuntimePhase, CommitmentInfo, RESPONSE_VERSION,
+	CheckpointDutyInfo, CheckpointDutyMode as RuntimeMode, CheckpointDutyPhase as RuntimePhase,
+	CommitmentInfo, RESPONSE_VERSION,
 };
 use pallet_orbis_storage_provider::{CheckpointContextV1, CommitmentPayloadV2};
 use serde::{Deserialize, Serialize};
@@ -67,6 +68,55 @@ const CONTEXT_DOMAIN: &[u8] = b"cord/storage/checkpoint-context/v1";
 const RECORD_DOMAIN: &[u8] = b"cord/storage/checkpoint-proposal-record/v2";
 const MAX_PROPOSAL_BYTES: usize = 32_768;
 const MAX_PROPOSALS: usize = 8_192;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum QuorumDutyMode {
+	Standard,
+	PromotionPending,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum QuorumDutyPhase {
+	Primary,
+	ReplicaFallback,
+	Other,
+}
+
+const fn valid_quorum_mode_phase(mode: QuorumDutyMode, phase: QuorumDutyPhase) -> bool {
+	matches!(
+		(mode, phase),
+		(QuorumDutyMode::Standard, QuorumDutyPhase::Primary) |
+			(QuorumDutyMode::Standard, QuorumDutyPhase::ReplicaFallback) |
+			(QuorumDutyMode::PromotionPending, QuorumDutyPhase::Primary)
+	)
+}
+
+/// Whether one projected finalized duty may enter or resume the ordinary checkpoint quorum path.
+pub(crate) fn valid_checkpoint_quorum_duty(duty: &CheckpointDuty) -> bool {
+	let mode = match duty.mode {
+		crate::CheckpointDutyMode::Standard => QuorumDutyMode::Standard,
+		crate::CheckpointDutyMode::PromotionPending => QuorumDutyMode::PromotionPending,
+	};
+	let phase = match duty.phase {
+		CheckpointDutyPhase::Primary => QuorumDutyPhase::Primary,
+		CheckpointDutyPhase::ReplicaFallback => QuorumDutyPhase::ReplicaFallback,
+		_ => QuorumDutyPhase::Other,
+	};
+	valid_quorum_mode_phase(mode, phase)
+}
+
+fn valid_runtime_checkpoint_quorum_duty(duty: &CheckpointDutyInfo<AccountId32, H256, u32>) -> bool {
+	let mode = match duty.mode {
+		RuntimeMode::Standard => QuorumDutyMode::Standard,
+		RuntimeMode::PromotionPending => QuorumDutyMode::PromotionPending,
+	};
+	let phase = match duty.phase {
+		RuntimePhase::Primary => QuorumDutyPhase::Primary,
+		RuntimePhase::ReplicaFallback => QuorumDutyPhase::ReplicaFallback,
+		_ => QuorumDutyPhase::Other,
+	};
+	valid_quorum_mode_phase(mode, phase)
+}
 
 pub(crate) trait ServiceKeySigner {
 	fn public_key(&self) -> [u8; 32];
@@ -317,10 +367,8 @@ impl CheckpointProposalStore {
 		if !duty.may_sign ||
 			!duty.may_initiate ||
 			decoded.initiator.as_ref() != Some(&provider) ||
-			!matches!(
-				duty.phase,
-				CheckpointDutyPhase::Primary | CheckpointDutyPhase::ReplicaFallback
-			) || decoded.required_primary_confirmations != 1 ||
+			!valid_checkpoint_quorum_duty(duty) ||
+			decoded.required_primary_confirmations != 1 ||
 			decoded.required_replica_confirmations != 2
 		{
 			return Err(ContentError::IntegrityFailed);
@@ -342,7 +390,7 @@ impl CheckpointProposalStore {
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
-		if !matches!(decoded.phase, RuntimePhase::Primary | RuntimePhase::ReplicaFallback) {
+		if !valid_runtime_checkpoint_quorum_duty(&decoded) {
 			return Err(ContentError::IntegrityFailed);
 		}
 		let commitment = mmr.commitment_candidate(streaming, bucket, expected_start)?;
@@ -437,10 +485,10 @@ impl CheckpointProposalStore {
 			validate_proposal(&existing)?;
 			return if existing == *proposal {
 				Ok(())
-			} else {
-				Err(ContentError::IdempotencyConflict)
+				} else {
+					Err(ContentError::IdempotencyConflict)
+				}
 			}
-		}
 		let temp = self.root.join(format!("{key}.json.tmp-{}", std::process::id()));
 		let mut file = File::create(&temp).map_err(io_error)?;
 		file.write_all(&bytes).map_err(io_error)?;
@@ -517,7 +565,7 @@ fn validate_proposal(proposal: &PreparedCheckpointProposalV2) -> Result<(), Cont
 		duty.due_at != proposal.window_start ||
 		duty.grace_until != proposal.window_end ||
 		proposal.window_start > proposal.window_end ||
-		!matches!(duty.phase, RuntimePhase::Primary | RuntimePhase::ReplicaFallback) ||
+		!valid_runtime_checkpoint_quorum_duty(&duty) ||
 		duty.required_primary_confirmations != 1 ||
 		duty.required_replica_confirmations != 2
 	{
@@ -931,6 +979,62 @@ mod tests {
 		)
 		.unwrap();
 		assert_eq!(context.duty_id, H256::repeat_byte(5));
+	}
+
+	#[test]
+	fn promotion_pending_primary_prepares_and_reopens_as_an_ordinary_quorum_proposal() {
+		let temp = TempDir::new().unwrap();
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		install(&streaming, &mmr, 1, b"first");
+		let signer = ed25519::Pair::from_seed(&[7; 32]);
+		let mut typed = typed_duty(signer.public().0, 14);
+		typed.mode = CheckpointDutyMode::PromotionPending;
+		typed.phase = CheckpointDutyPhase::Primary;
+		assert!(valid_runtime_checkpoint_quorum_duty(&typed));
+		let duty = project(typed, signer.public().0);
+		assert!(valid_checkpoint_quorum_duty(&duty));
+
+		let store = CheckpointProposalStore::open(temp.path()).unwrap();
+		let proposal = store.prepare_exact(&duty, &watermark(), &mmr, &streaming, &signer).unwrap();
+		validate_proposal(&proposal).unwrap();
+		drop(store);
+
+		let reopened = CheckpointProposalStore::open(temp.path()).unwrap();
+		assert_eq!(reopened.pending_checkpoint_proposals().unwrap(), vec![proposal]);
+	}
+
+	#[test]
+	fn every_other_mode_phase_pair_is_rejected_before_proposal_persistence() {
+		let temp = TempDir::new().unwrap();
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		let signer = ed25519::Pair::from_seed(&[7; 32]);
+		let store = CheckpointProposalStore::open(temp.path()).unwrap();
+		let invalid = [
+			(CheckpointDutyMode::Standard, CheckpointDutyPhase::NotDue),
+			(CheckpointDutyMode::Standard, CheckpointDutyPhase::ReplicaFallbackPromotion),
+			(CheckpointDutyMode::Standard, CheckpointDutyPhase::BlockedInsufficientFallbackQuorum),
+			(CheckpointDutyMode::Standard, CheckpointDutyPhase::Unavailable),
+			(CheckpointDutyMode::PromotionPending, CheckpointDutyPhase::NotDue),
+			(CheckpointDutyMode::PromotionPending, CheckpointDutyPhase::ReplicaFallback),
+			(CheckpointDutyMode::PromotionPending, CheckpointDutyPhase::ReplicaFallbackPromotion),
+			(
+				CheckpointDutyMode::PromotionPending,
+				CheckpointDutyPhase::BlockedInsufficientFallbackQuorum,
+			),
+			(CheckpointDutyMode::PromotionPending, CheckpointDutyPhase::Unavailable),
+		];
+		for (index, (mode, phase)) in invalid.into_iter().enumerate() {
+			let mut typed = typed_duty(signer.public().0, index as u8 + 20);
+			typed.mode = mode;
+			typed.phase = phase;
+			assert!(!valid_runtime_checkpoint_quorum_duty(&typed));
+			let duty = project(typed, signer.public().0);
+			assert!(!valid_checkpoint_quorum_duty(&duty));
+			assert!(store.prepare_exact(&duty, &watermark(), &mmr, &streaming, &signer).is_err());
+			assert!(store.pending_checkpoint_proposals().unwrap().is_empty());
+		}
 	}
 
 	#[test]

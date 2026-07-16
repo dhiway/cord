@@ -38,13 +38,16 @@ use tokio::{
 
 use crate::{
 	chain::{ReplicationAuthority, ReplicationTopologySnapshot},
-	checkpoint::{checkpoint_quorum::ReplicaConfirmationRequestV1, PreparedCheckpointProposalV2},
+	checkpoint::{
+		checkpoint_quorum::ReplicaConfirmationRequestV1, valid_checkpoint_quorum_duty,
+		PreparedCheckpointProposalV2,
+	},
 	checkpoint_stack::CheckpointStack,
 	checkpoint_transport::{
 		CheckpointConfirmationEndpoint, CheckpointConfirmationTransport,
 		HyperCheckpointConfirmationTransport,
 	},
-	CheckpointDuty, CheckpointDutyPhase, ContentError, DiskStore, FinalizedRuntimeAuthority,
+	CheckpointDuty, ContentError, DiskStore, FinalizedRuntimeAuthority,
 };
 
 const MAX_RESUMES: usize = 64;
@@ -135,14 +138,7 @@ where
 	let candidates = inventory
 		.duties
 		.iter()
-		.filter(|duty| {
-			duty.may_initiate
-				&& duty.mode == crate::CheckpointDutyMode::Standard
-				&& matches!(
-					duty.phase,
-					CheckpointDutyPhase::Primary | CheckpointDutyPhase::ReplicaFallback
-				)
-		})
+		.filter(|duty| checkpoint_quorum_candidate(duty))
 		.filter(|duty| !resume_ids.contains(duty.duty_id.trim_start_matches("0x")))
 		.cloned()
 		.collect::<Vec<_>>();
@@ -510,9 +506,13 @@ fn current_duty_matches_proposal(
 	proposal: &PreparedCheckpointProposalV2,
 ) -> bool {
 	duty.may_initiate
-		&& matches!(duty.phase, CheckpointDutyPhase::Primary | CheckpointDutyPhase::ReplicaFallback)
+		&& valid_checkpoint_quorum_duty(duty)
 		&& duty.duty_id.trim_start_matches("0x") == proposal.duty_id
 		&& duty.duty_fingerprint.trim_start_matches("0x") == proposal.duty_fingerprint
+}
+
+fn checkpoint_quorum_candidate(duty: &CheckpointDuty) -> bool {
+	duty.may_initiate && valid_checkpoint_quorum_duty(duty)
 }
 
 async fn resolve_endpoint<A: ReplicationAuthority>(
@@ -649,7 +649,8 @@ mod tests {
 
 	use super::*;
 	use crate::{
-		storage::CheckpointDutyInventory, CheckpointDutyMode, CheckpointDutyRole, NodeProfile,
+		storage::CheckpointDutyInventory, CheckpointDutyMode, CheckpointDutyPhase,
+		CheckpointDutyRole, NodeProfile,
 	};
 
 	fn duty(id: u8) -> CheckpointDuty {
@@ -718,6 +719,47 @@ mod tests {
 		proposal.bucket_id = hex::encode([id; 32]);
 		proposal.duty_id = hex::encode([id; 32]);
 		(proposal, duty(id))
+	}
+
+	#[test]
+	fn promotion_pending_primary_is_candidate_and_resume_eligible_but_no_other_pair_is() {
+		let mut promotion = duty(1);
+		promotion.mode = CheckpointDutyMode::PromotionPending;
+		promotion.phase = CheckpointDutyPhase::Primary;
+		let mut prepared = proposal();
+		prepared.duty_id = promotion.duty_id.trim_start_matches("0x").into();
+		prepared.duty_fingerprint =
+			promotion.duty_fingerprint.trim_start_matches("0x").into();
+		assert!(checkpoint_quorum_candidate(&promotion));
+		assert!(current_duty_matches_proposal(&promotion, &prepared));
+
+		let invalid = [
+			(CheckpointDutyMode::Standard, CheckpointDutyPhase::NotDue),
+			(CheckpointDutyMode::Standard, CheckpointDutyPhase::ReplicaFallbackPromotion),
+			(
+				CheckpointDutyMode::Standard,
+				CheckpointDutyPhase::BlockedInsufficientFallbackQuorum,
+			),
+			(CheckpointDutyMode::Standard, CheckpointDutyPhase::Unavailable),
+			(CheckpointDutyMode::PromotionPending, CheckpointDutyPhase::NotDue),
+			(CheckpointDutyMode::PromotionPending, CheckpointDutyPhase::ReplicaFallback),
+			(
+				CheckpointDutyMode::PromotionPending,
+				CheckpointDutyPhase::ReplicaFallbackPromotion,
+			),
+			(
+				CheckpointDutyMode::PromotionPending,
+				CheckpointDutyPhase::BlockedInsufficientFallbackQuorum,
+			),
+			(CheckpointDutyMode::PromotionPending, CheckpointDutyPhase::Unavailable),
+		];
+		for (mode, phase) in invalid {
+			let mut rejected = promotion.clone();
+			rejected.mode = mode;
+			rejected.phase = phase;
+			assert!(!checkpoint_quorum_candidate(&rejected));
+			assert!(!current_duty_matches_proposal(&rejected, &prepared));
+		}
 	}
 
 	fn action_ids(actions: &[Selection]) -> (Vec<u8>, Vec<u8>) {
