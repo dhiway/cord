@@ -43,6 +43,9 @@ mod peer;
 // Deliberately private until authenticated peer replication orchestration is activated.
 #[allow(dead_code)]
 mod replication;
+// Private deterministic bridge from finalized topology evidence into authenticated peer context.
+#[allow(dead_code)]
+mod replication_session;
 mod storage;
 mod workers;
 

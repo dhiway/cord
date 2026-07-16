@@ -859,7 +859,7 @@ impl ReplicationTopologySnapshot {
 		blake2_256(&input)
 	}
 
-	fn validate(
+	pub(crate) fn validate(
 		&self,
 		local_provider: [u8; 32],
 		local_service_key: [u8; 32],
