@@ -428,7 +428,7 @@ output = "../.omx/evidence/origin-orbis-web3-storage/ac5.json"
 decidability = "mechanical"
 clauses = ["root", "tie-break", "corrupt-reads", "convergence"]
 enforce_write_set = true
-write_paths = ["target/evidence/ac5-assertions.json", "target/debug/**", "target/.rustc_info.json"]
+write_paths = ["target/debug/ac5-three-provider-recovery-v1.json", "target/evidence/ac5-assertions.json", "target/debug/**", "target/.rustc_info.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
@@ -436,34 +436,40 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
+sha256 = "ad5914bc9ae2316d9b3980e5024f3070f75be3427ca065400fa7066b331699f5"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
+sha256 = "e0e58f314ffc82529b1f81a23e93799a5f2931ff3a2927f95d964bc5a70e8b4b"
+
+[[gate.input]]
+path = "origin/orbis/provider-node"
+sha256 = "62d9890807b8b3e96b33e6e5c98968deae87da9171b0eb10b64c54f7cb920f26"
 
 [[gate.input]]
 path = "scripts/validate-three-provider-recovery.py"
-sha256 = "record"
-input_class = "generated"
-producer_gate = "AC5-implementation"
-producer_output = "scripts/validate-three-provider-recovery.py"
+sha256 = "22a6a9121cd48f6d629ce5a1acef9b06414f64d669eefbdd694bd6ab9b55d6d9"
 
 [[gate.command]]
 cwd = "."
-argv = ["cargo", "test", "-p", "origin-orbis-provider", "--test", "three_provider_recovery", "--", "--exact", "deterministic_failover"]
+argv = ["cargo", "test", "-p", "origin-orbis-provider", "--features", "evidence", "--test", "three_provider_recovery", "--", "--exact", "deterministic_failover"]
 test_count = 1
-outputs = []
-inputs = ["Cargo.toml", "Cargo.lock"]
+outputs = ["target/debug/ac5-three-provider-recovery-v1.json"]
+inputs = ["Cargo.toml", "Cargo.lock", "origin/orbis/provider-node"]
 allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
 
 [[gate.command]]
 cwd = "."
-argv = ["python3", "scripts/validate-three-provider-recovery.py", "--out", "target/evidence/ac5-assertions.json"]
+argv = ["python3", "scripts/validate-three-provider-recovery.py", "--source", "target/debug/ac5-three-provider-recovery-v1.json", "--out", "target/evidence/ac5-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/ac5-assertions.json"]
-inputs = ["scripts/validate-three-provider-recovery.py"]
+inputs = ["scripts/validate-three-provider-recovery.py", "target/debug/ac5-three-provider-recovery-v1.json"]
 allowed_writes = []
+
+[[gate.artifact]]
+path = "target/debug/ac5-three-provider-recovery-v1.json"
+sha256 = "record"
+schema = "unversioned-three-provider-recovery-observations-v2"
 
 [[gate.artifact]]
 path = "target/evidence/ac5-assertions.json"
@@ -700,7 +706,7 @@ sha256 = "d569ecce7cb08cc50d1ba151f4f1bbe9d93542840071c92699e2bca0a6c7a6a7"
 
 [[gate.input]]
 path = "origin/orbis/provider-node"
-sha256 = "a29fc43fe4404670f77ac01f6430b198082f99bea93a412c45f6d5c26ba89b74"
+sha256 = "62d9890807b8b3e96b33e6e5c98968deae87da9171b0eb10b64c54f7cb920f26"
 
 [[gate.input]]
 path = "origin/orbis/provider-node/src/capability.rs"
