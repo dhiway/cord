@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "review_id": "G002-FINAL-ARCHITECT-20260716-V1",
+  "role": "architect",
+  "verdict": "CLEAR",
+  "independent": true,
+  "independent_review": true,
+  "self_ratification": false,
+  "implementation_repository": "cord",
+  "implementation_branch": "sm-update-sub-0x65",
+  "reviewed_commit_range": {
+    "base_exclusive": "c2d5afe1898e0593105d63da2376c4ca9d7c0acb",
+    "head_inclusive": "e342141ccaf67bb0e90bdf6fb6f699c21c407fd1"
+  },
+  "reviewed_head": {
+    "commit": "e342141ccaf67bb0e90bdf6fb6f699c21c407fd1",
+    "tree": "7232763972092a4f4df202b82e4bef003aa80da6"
+  },
+  "evidence_reports": {
+    "P1_METADATA": {
+      "path": "../.omx/evidence/origin-orbis-web3-storage/p1-metadata.json",
+      "cord_head": "e342141ccaf67bb0e90bdf6fb6f699c21c407fd1",
+      "report_sha256": "889d3a27bd4e843a7cb22a844b0a97cb81d75d882ec618e1512a4a9eed995fc6",
+      "file_sha256": "74e62b54bb63053a04303afb4709c998887e84115e31a7b6980d3818790712dd",
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "blocker_count": 0
+    },
+    "P1": {
+      "path": "../.omx/evidence/origin-orbis-web3-storage/p1.json",
+      "cord_head": "e342141ccaf67bb0e90bdf6fb6f699c21c407fd1",
+      "report_sha256": "2375a3fb10083e465384be71a82ada56f43081d6bd951cbeff236c4cb8b8c60d",
+      "file_sha256": "f1465008633d3630c0e0967cbd4444d1c50ecc04856a42f5b130e35f1e2df6da",
+      "assertions_passed": 22,
+      "assertions_total": 22,
+      "blocker_count": 0
+    }
+  },
+  "key_invariants": {
+    "canonical_provider_organization_and_sla_authority": true,
+    "checkpoint_publication_requires_one_primary_and_exactly_two_distinct_replicas": true,
+    "fallback_promotion_is_separate_authority_only_call_index_26": true,
+    "checkpoint_and_challenge_duties_share_one_bounded_admission_counter": true,
+    "unreleased_agreements_rebind_until_capacity_release": true,
+    "drive_and_s3_fail_closed_against_one_canonical_storage_control_adapter": true,
+    "provider_drive_and_s3_use_bounded_generated_compiled_wasm_weights": true,
+    "atomic_checkpoint_fallback_dispatch_is_additively_weighted": true,
+    "sdk_facing_scale_metadata_contains_checkpoint_fallback_promotion_v1": true,
+    "metadata_promotion_payload_and_call_index_are_mechanically_bound": true,
+    "cord_is_the_only_changed_implementation_repository": true,
+    "legacy_content_ledger_is_not_a_runtime_authority": true
+  },
+  "artifact_bindings": {
+    "scale_metadata_sha256": "5c10778acb64de5799e3933e774d0c646e5fbefd5bfeb7ef28b3fde2ac8f43a3",
+    "portable_registry_sha256": "534a55cd5e3311d044522334af217319c529bdc9a91bea8f5bec076abbae0619",
+    "rfc78_metadata_hash": "0x89670a50e0aac1cda62f5692625cfd09323505f7efc175aed6d4c30eeb5e36b0",
+    "compact_wasm_sha256": "dca623a6e247f4539594a8ecde9ae9ccb568f8081ed4c698f1fb5f5059cc18e3",
+    "provider_weights_sha256": "2b7356a2c4e4b9e8663507ec52a6dcb6dd927b120a3571f6211fa220e9756292",
+    "drive_weights_sha256": "ba4c5a6c2dcb0d43ef14b4356d20e5c42d947268e2b3a74a73290be0516ec70e",
+    "s3_weights_sha256": "5d6a7cae56deffba6d3cce491883eaa8e9bdaebc7f4ce3531894cd2d68a2396b"
+  },
+  "acceptance_boundary": {
+    "g002_canonical_commons_control_plane_complete": true,
+    "g003_provider_byte_plane_complete": false,
+    "feature_complete": false,
+    "production_ready": false,
+    "whole_program_complete": false,
+    "g003_remains_required": true
+  },
+  "validation": {
+    "diff_check": "PASS",
+    "author_and_committer_identity": "Satish Mohan <satish@dhiway.com>",
+    "focused_atomic_fallback_weight_test": "PASS",
+    "focused_promotion_golden_vector_test": "PASS",
+    "focused_runtime_weight_budget_test": "PASS",
+    "focused_checkpoint_duty_paging_test": "PASS",
+    "current_metadata_promotion_shape_check": "PASS"
+  },
+  "findings": [],
+  "residual_notes": [
+    "G003 provider byte-plane implementation and production-readiness validation remain outside this CLEAR.",
+    "Generated benchmark weight headers retain machine and temporary-path provenance; accepted artifacts are hash-bound rather than guaranteed byte-identical across hosts."
+  ]
+}

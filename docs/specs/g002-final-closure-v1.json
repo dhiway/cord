@@ -1,0 +1,89 @@
+{
+  "canonical_evidence": {
+    "P1": {
+      "artifact_count": 3,
+      "assertions_passed": 22,
+      "assertions_total": 22,
+      "blocker_count": 0,
+      "command_count": 4,
+      "compiled_wasm_benchmark_count": 49,
+      "cord_head": "e342141ccaf67bb0e90bdf6fb6f699c21c407fd1",
+      "executed_test_count": 198,
+      "file_sha256": "f1465008633d3630c0e0967cbd4444d1c50ecc04856a42f5b130e35f1e2df6da",
+      "g002_mapped_tests_passed": 8,
+      "g003_missing_required_obligations": 5,
+      "gate_id": "P1",
+      "ignored_test_count": 1,
+      "path": "../.omx/evidence/origin-orbis-web3-storage/p1.json",
+      "report_sha256": "2375a3fb10083e465384be71a82ada56f43081d6bd951cbeff236c4cb8b8c60d",
+      "status": "pass"
+    },
+    "P1_METADATA": {
+      "artifact_count": 2,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "blocker_count": 0,
+      "command_count": 1,
+      "cord_head": "e342141ccaf67bb0e90bdf6fb6f699c21c407fd1",
+      "file_sha256": "74e62b54bb63053a04303afb4709c998887e84115e31a7b6980d3818790712dd",
+      "gate_id": "P1_METADATA",
+      "path": "../.omx/evidence/origin-orbis-web3-storage/p1-metadata.json",
+      "report_sha256": "889d3a27bd4e843a7cb22a844b0a97cb81d75d882ec618e1512a4a9eed995fc6",
+      "status": "pass"
+    }
+  },
+  "claim": "G002 canonical Commons control-plane implementation is complete at the exact reviewed commit and evidence hashes only. G003 and every later completeness or readiness claim remain outside this closure.",
+  "closure_boundary": {
+    "feature_complete": false,
+    "g002_canonical_commons_control_plane_complete": true,
+    "g003_provider_byte_plane_complete": false,
+    "g003_remains_required": true,
+    "later_phase_independent_approval_remains_required": true,
+    "production_ready": false,
+    "proof_retention_complete": false,
+    "proof_retention_validation_remains_required": true,
+    "whole_program_complete": false
+  },
+  "closure_id": "G002-FINAL-CLOSURE-20260716-V1",
+  "docs_only_closure": {
+    "exact_files": [
+      "docs/specs/reviews/g002-final-architect-v1.json",
+      "docs/specs/reviews/g002-final-critic-v1.json",
+      "docs/specs/g002-final-closure-v1.json"
+    ],
+    "expected_parent_commit": "e342141ccaf67bb0e90bdf6fb6f699c21c407fd1",
+    "reviewed_implementation_remains": {
+      "commit": "e342141ccaf67bb0e90bdf6fb6f699c21c407fd1",
+      "tree": "7232763972092a4f4df202b82e4bef003aa80da6"
+    },
+    "reviewed_source_or_evidence_changed": false,
+    "statement": "The following commit records independent reviews and this closure only; it does not alter the reviewed implementation source, runtime artifacts, canonical evidence, weights, metadata, vectors, or gate registry."
+  },
+  "implementation_branch": "sm-update-sub-0x65",
+  "implementation_repository": "cord",
+  "independent_reviews": {
+    "architect": {
+      "independent": true,
+      "path": "docs/specs/reviews/g002-final-architect-v1.json",
+      "review_id": "G002-FINAL-ARCHITECT-20260716-V1",
+      "role": "architect",
+      "sha256": "06af4cb07b83dcb2abce3e3f1078604b9774d74912961c9f203f4da21b84d38b",
+      "verdict": "CLEAR"
+    },
+    "critic": {
+      "approval_id": "G002-FINAL-CRITIC-APPROVE-20260716-V1",
+      "independent": true,
+      "path": "docs/specs/reviews/g002-final-critic-v1.json",
+      "review_id": "G002-FINAL-CRITIC-20260716-V1",
+      "role": "critic",
+      "sha256": "f70055f4faafeb11a3e7be6e78daf79255388a50d6c83fe5c0a01f3f8984be7f",
+      "verdict": "APPROVE"
+    }
+  },
+  "reviewed_implementation": {
+    "commit": "e342141ccaf67bb0e90bdf6fb6f699c21c407fd1",
+    "tree": "7232763972092a4f4df202b82e4bef003aa80da6"
+  },
+  "schema_version": 1,
+  "status": "closed-control-plane-only"
+}
