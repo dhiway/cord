@@ -139,7 +139,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		result = serve_provider_ingress(api, peer_listener, service.clone(), local_provider) => result?,
 		_ = run_workers(service.clone(), workers) => {},
 		_ = run_replication_worker(service.clone(), local_provider, Duration::from_secs(cli.replication_seconds.max(1))) => {},
-		_ = run_checkpoint_quorum_worker(service.clone(), local_provider, Duration::from_secs(cli.checkpoint_quorum_seconds.max(1))) => {},
+		result = run_checkpoint_quorum_worker(service.clone(), local_provider, Duration::from_secs(cli.checkpoint_quorum_seconds.max(1))) => result?,
 		result = run_checkpoint_live_worker(service.clone(), local_provider, cli.orbis_native_rpc, account_suri, Duration::from_secs(cli.checkpoint_live_seconds.max(1))) => result?,
 		_ = tokio::signal::ctrl_c() => {},
 	}

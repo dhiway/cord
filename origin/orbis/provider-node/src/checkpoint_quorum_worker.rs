@@ -66,21 +66,8 @@ pub(crate) async fn run(
 	local_provider: [u8; 32],
 	local_key: ed25519::Pair,
 	cadence: Duration,
-) {
-	let transport = match HyperCheckpointConfirmationTransport::new(TRANSPORT_TIMEOUT) {
-		Ok(transport) => Arc::new(transport),
-		Err(error) => {
-			eprintln!("checkpoint quorum transport initialization failed: {error}");
-			return;
-		},
-	};
-	let scheduler = match CheckpointQuorumScheduler::open(store.root()) {
-		Ok(scheduler) => Arc::new(scheduler),
-		Err(error) => {
-			eprintln!("checkpoint quorum scheduler initialization failed: {error}");
-			return;
-		},
-	};
+) -> Result<(), ContentError> {
+	let (transport, scheduler) = initialize(store.root())?;
 	let mut ticker = interval(cadence.max(Duration::from_secs(1)));
 	ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
 	loop {
@@ -99,6 +86,23 @@ pub(crate) async fn run(
 			eprintln!("checkpoint quorum tick failed: {error}");
 		}
 	}
+}
+
+fn initialize(
+	root: &Path,
+) -> Result<
+	(
+		Arc<HyperCheckpointConfirmationTransport>,
+		Arc<CheckpointQuorumScheduler>,
+	),
+	ContentError,
+> {
+	let scheduler = Arc::new(CheckpointQuorumScheduler::open(root)?);
+	let transport = Arc::new(
+		HyperCheckpointConfirmationTransport::new(TRANSPORT_TIMEOUT)
+			.map_err(|_| ContentError::IntegrityFailed)?,
+	);
+	Ok((transport, scheduler))
 }
 
 async fn tick<A, T>(
@@ -681,6 +685,18 @@ mod tests {
 			snapshot_checkpoint: 7,
 			duties: (1..=120).map(duty).collect(),
 		}
+	}
+
+	#[test]
+	fn initialize_rejects_unexpected_scheduler_state() {
+		let temp = TempDir::new().unwrap();
+		let scheduler = temp.path().join(SCHEDULER_ROOT);
+		fs::create_dir_all(&scheduler).unwrap();
+		fs::write(scheduler.join("unexpected"), b"not scheduler state").unwrap();
+		assert!(matches!(
+			initialize(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
 	}
 
 	fn proposal() -> PreparedCheckpointProposalV2 {

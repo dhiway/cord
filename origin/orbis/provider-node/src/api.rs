@@ -185,7 +185,7 @@ pub async fn run_checkpoint_quorum_worker(
 	service: Arc<ProviderService<FinalizedRuntimeAuthority>>,
 	local_provider: [u8; 32],
 	cadence: std::time::Duration,
-) {
+) -> Result<(), ContentError> {
 	crate::checkpoint_quorum_worker::run(
 		Arc::clone(service.authority()),
 		Arc::clone(service.checkpoint_stack()),

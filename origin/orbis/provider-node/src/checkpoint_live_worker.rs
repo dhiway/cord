@@ -87,17 +87,17 @@ where
 		.await
 		{
 			Ok(result) => {
-				if let Some(receipt) = result.promotion_finalized {
-					println!("checkpoint fallback promotion finalized: {}", receipt.intent_id);
+				if result.promotion_finalized.is_some() {
+					println!("checkpoint fallback promotion finalized");
 				}
-				if let Some(receipt) = result.finalized {
-					println!("checkpoint finalized: {}", receipt.submission_id);
+				if result.finalized.is_some() {
+					println!("checkpoint finalized");
 				}
-				for record in result.published {
-					println!("checkpoint publication reconciled: {}", record.submission_id);
+				for _ in result.published {
+					println!("checkpoint publication reconciled");
 				}
 			},
-			Err(error) => eprintln!("checkpoint live lifecycle tick failed: {error}"),
+			Err(_) => eprintln!("checkpoint live lifecycle tick failed"),
 		}
 	}
 }

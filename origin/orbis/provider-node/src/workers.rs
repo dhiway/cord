@@ -265,11 +265,11 @@ pub async fn run_workers<A: ChainAuthority>(
 	loop {
 		tokio::select! {
 			_ = checkpoint.tick() => {
-				if let Err(error) = service.sign_checkpoint() {
-					eprintln!("checkpoint coordinator failed: {error}");
+				if service.sign_checkpoint().is_err() {
+					eprintln!("checkpoint coordinator failed");
 				}
-				if let Err(error) = recover_pending_submissions(&service).await {
-					eprintln!("provider outbox recovery failed: {error}");
+				if recover_pending_submissions(&service).await.is_err() {
+					eprintln!("provider outbox recovery failed");
 				}
 			},
 			_ = challenge.tick() => {
@@ -279,8 +279,8 @@ pub async fn run_workers<A: ChainAuthority>(
 					for duty in batch.duties {
 						let checkpoint = match checkpoint_for_duty(&service, &duty) {
 							Ok(checkpoint) => checkpoint,
-							Err(error) => {
-								eprintln!("challenge responder local proof failed for {}: {error}", duty.challenge_id);
+							Err(_) => {
+								eprintln!("challenge responder local proof failed");
 								accepted = false;
 								continue;
 							},
@@ -291,13 +291,13 @@ pub async fn run_workers<A: ChainAuthority>(
 							) {
 								Ok(proof_commitment) => {
 									let request = CheckpointSubmission { proof_commitment, duty, checkpoint };
-									if let Err(error) = service.outbox().submit(request).await {
-										eprintln!("challenge responder outbox failed: {error}");
+									if service.outbox().submit(request).await.is_err() {
+										eprintln!("challenge responder outbox failed");
 										accepted = false;
 									}
 								},
-								Err(error) => {
-									eprintln!("challenge responder proof failed: {error}");
+								Err(_) => {
+									eprintln!("challenge responder proof failed");
 									accepted = false;
 								},
 							}
@@ -306,17 +306,17 @@ pub async fn run_workers<A: ChainAuthority>(
 							last_scanned_due_block = Some(batch.scanned_through);
 						}
 					},
-					Err(error) => eprintln!("challenge responder finalized scan failed: {error}"),
+					Err(_) => eprintln!("challenge responder finalized scan failed"),
 				}
 			},
 			_ = replica.tick() => {
-				if let Err(error) = service.store().stats().and_then(|_| service.store().peaks().map(|_| ())) {
-					eprintln!("replica sync coordinator detected local inconsistency: {error}");
+				if service.store().stats().and_then(|_| service.store().peaks().map(|_| ())).is_err() {
+					eprintln!("replica sync coordinator detected local inconsistency");
 				}
 			},
 			_ = checkpoint_duty.tick() => {
-				if let Err(error) = poll_checkpoint_duties_once(&service).await {
-					eprintln!("checkpoint duty intake failed: {error}");
+				if poll_checkpoint_duties_once(&service).await.is_err() {
+					eprintln!("checkpoint duty intake failed");
 				}
 			},
 		}

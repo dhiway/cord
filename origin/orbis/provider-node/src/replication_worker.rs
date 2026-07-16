@@ -56,7 +56,7 @@ pub(crate) async fn run(
 	ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
 	loop {
 		ticker.tick().await;
-		if let Err(error) = tick(
+		if tick(
 			Arc::clone(&authority),
 			Arc::clone(&stack),
 			Arc::clone(&store),
@@ -64,8 +64,9 @@ pub(crate) async fn run(
 			target_key.clone(),
 		)
 		.await
+		.is_err()
 		{
-			eprintln!("replication coordinator tick failed: {error}");
+			eprintln!("replication coordinator tick failed");
 		}
 	}
 }
@@ -111,7 +112,7 @@ async fn tick(
 				work.push(WorkerIntent::Discovered(discovered));
 			},
 			Ok(_) => {},
-			Err(error) => eprintln!("replication discovery rejected {}: {error}", duty.bucket_id),
+			Err(_) => eprintln!("replication discovery rejected"),
 		}
 	}
 	let remaining = MAX_TICK_INTENTS.saturating_sub(work.len());
@@ -132,10 +133,10 @@ async fn tick(
 		let target_key = target_key.clone();
 		tasks.spawn(async move {
 			let _permit = permit;
-			if let Err(error) =
-				reconcile_intent(authority, stack, local_provider, target_key, intent).await
-			{
-				eprintln!("replication intent failed: {error}");
+			let result =
+				reconcile_intent(authority, stack, local_provider, target_key, intent).await;
+			if result.is_err() {
+				eprintln!("replication intent failed");
 			}
 		});
 	}
