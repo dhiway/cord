@@ -861,7 +861,7 @@ mod tests {
 		CheckpointDutyPageRequest, DiskStore, JsonlCheckpointOutbox, NodeProfile, ProviderService,
 	};
 
-	const DURABLE_ROOTS: [&str; 15] = [
+	const DURABLE_ROOTS: [&str; 16] = [
 		"streaming-v1",
 		"bucket-mmr-v3",
 		"checkpoint-proposals-v2",
@@ -875,6 +875,7 @@ mod tests {
 		"checkpoint-publication-cursor-v1",
 		"checkpoint-promotion-intents-v2",
 		"checkpoint-promotion-finalized-receipts-v2",
+		"checkpoint-promotion-scheduler-v2",
 		"replication-v3",
 		"peer-replies-v1",
 	];

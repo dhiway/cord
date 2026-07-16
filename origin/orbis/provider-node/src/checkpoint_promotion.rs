@@ -19,7 +19,7 @@
 //! Private durable intents and finalized receipts for deterministic checkpoint promotions.
 
 use std::{
-	collections::HashMap,
+	collections::{BTreeMap, HashMap},
 	fs::{self, File, OpenOptions},
 	io::Write,
 	path::{Path, PathBuf},
@@ -42,7 +42,10 @@ use crate::ContentError;
 const LEGACY_ROOT: &str = "checkpoint-promotions-v1";
 const INTENTS_ROOT: &str = "checkpoint-promotion-intents-v2";
 const FINALIZED_RECEIPTS_ROOT: &str = "checkpoint-promotion-finalized-receipts-v2";
+const SCHEDULER_ROOT: &str = "checkpoint-promotion-scheduler-v2";
+const SCHEDULER_KEY: &str = "cursor";
 const STORE_VERSION: u8 = 2;
+const SCHEDULER_VERSION: u8 = 2;
 const PAYLOAD_VERSION: u8 = 1;
 const FINALITY_ATTESTATION_VERSION: u8 = 1;
 const AUTHORIZED_STATE: &str = "authorized";
@@ -55,11 +58,14 @@ const FINALIZED_RECEIPT_DOMAIN: &[u8] =
 	b"cord/provider/checkpoint-promotion-finalized-receipt/v2";
 const FINALITY_ATTESTATION_DOMAIN: &[u8] =
 	b"cord/provider/checkpoint-promotion-finality-attestation/v1";
+const SCHEDULER_RECORD_DOMAIN: &[u8] = b"cord/provider/checkpoint-promotion-scheduler/v2";
 const MAX_DUTY_BYTES: usize = 64 * 1024;
 const MAX_INTENT_BYTES: usize = 192 * 1024;
 const MAX_RECEIPT_BYTES: usize = 8 * 1024;
 const MAX_RECORDS: usize = 8_192;
 const MAX_TEMP_ARTIFACTS: usize = 1;
+const MAX_RESERVATION_SCAN: usize = 64;
+const MAX_RESERVATION_ACTIONS: usize = 8;
 
 type Duty = CheckpointDutyInfo<AccountId32, H256, u32>;
 type Payload = CheckpointFallbackPromotionV1<H256, u32>;
@@ -106,6 +112,18 @@ pub(crate) struct FallbackPromotionFinalizedReceiptV2 {
 	pub receipt_hash: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CheckpointPromotionSchedulerCursorV2 {
+	version: u8,
+	intent_id: String,
+	intent_record_hash: String,
+	tuple_key: String,
+	inventory_finalized_hash: String,
+	inventory_finalized_number: u32,
+	record_hash: String,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum CheckpointPromotionFault {
 	BeforeTempFsync,
@@ -117,9 +135,12 @@ pub(crate) enum CheckpointPromotionFault {
 pub(crate) struct CheckpointPromotionStoreV2 {
 	intents_root: PathBuf,
 	finalized_receipts_root: PathBuf,
+	scheduler_root: PathBuf,
 	intents: RwLock<HashMap<String, FallbackPromotionIntentV2>>,
+	intent_order: RwLock<BTreeMap<(u32, String), String>>,
 	by_tuple: RwLock<HashMap<String, String>>,
 	finalized_receipts: RwLock<HashMap<String, FallbackPromotionFinalizedReceiptV2>>,
+	scheduler_cursor: RwLock<Option<CheckpointPromotionSchedulerCursorV2>>,
 	fault: RwLock<Option<CheckpointPromotionFault>>,
 	poisoned: RwLock<bool>,
 }
@@ -132,18 +153,23 @@ impl CheckpointPromotionStoreV2 {
 		}
 		let intents_root = provider_root.join(INTENTS_ROOT);
 		let finalized_receipts_root = provider_root.join(FINALIZED_RECEIPTS_ROOT);
+		let scheduler_root = provider_root.join(SCHEDULER_ROOT);
 		fs::create_dir_all(&intents_root).map_err(io_error)?;
 		fs::create_dir_all(&finalized_receipts_root).map_err(io_error)?;
+		fs::create_dir_all(&scheduler_root).map_err(io_error)?;
 
 		let mut intents = HashMap::new();
+		let mut intent_order = BTreeMap::new();
 		let mut by_tuple = HashMap::new();
 		for item in read_records(&intents_root, MAX_INTENT_BYTES)? {
 			let intent: FallbackPromotionIntentV2 =
 				serde_json::from_slice(&item.bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			validate_intent(&intent)?;
+			let order_key = (intent.inventory_finalized_number, intent.intent_id.clone());
 			if item.name != format!("{}.json", intent.intent_id)
 				|| intents.len() >= MAX_RECORDS
 				|| intents.insert(intent.intent_id.clone(), intent.clone()).is_some()
+				|| intent_order.insert(order_key, intent.intent_id.clone()).is_some()
 				|| by_tuple
 					.insert(intent.tuple_key.clone(), intent.intent_id.clone())
 					.is_some()
@@ -165,13 +191,21 @@ impl CheckpointPromotionStoreV2 {
 				return Err(ContentError::IntegrityFailed);
 			}
 		}
+		let scheduler_cursor = read_scheduler_cursor(&scheduler_root)?;
+		if let Some(cursor) = &scheduler_cursor {
+			let intent = intents.get(&cursor.intent_id).ok_or(ContentError::IntegrityFailed)?;
+			validate_scheduler_cursor_against_intent(cursor, intent)?;
+		}
 
 		Ok(Self {
 			intents_root,
 			finalized_receipts_root,
+			scheduler_root,
 			intents: RwLock::new(intents),
+			intent_order: RwLock::new(intent_order),
 			by_tuple: RwLock::new(by_tuple),
 			finalized_receipts: RwLock::new(finalized_receipts),
+			scheduler_cursor: RwLock::new(scheduler_cursor),
 			fault: RwLock::new(None),
 			poisoned: RwLock::new(false),
 		})
@@ -204,6 +238,7 @@ impl CheckpointPromotionStoreV2 {
 
 		let mut intents = self.intents.write().map_err(|_| lock_error())?;
 		let mut by_tuple = self.by_tuple.write().map_err(|_| lock_error())?;
+		let mut intent_order = self.intent_order.write().map_err(|_| lock_error())?;
 		self.ensure_healthy()?;
 		if let Some(existing_id) = by_tuple.get(&candidate.tuple_key) {
 			let existing = intents.get(existing_id).ok_or(ContentError::IntegrityFailed)?;
@@ -217,11 +252,75 @@ impl CheckpointPromotionStoreV2 {
 			return Err(error);
 		}
 		by_tuple.insert(candidate.tuple_key.clone(), candidate.intent_id.clone());
+		intent_order.insert(
+			(candidate.inventory_finalized_number, candidate.intent_id.clone()),
+			candidate.intent_id.clone(),
+		);
 		intents.insert(candidate.intent_id.clone(), candidate.clone());
 		Ok(candidate)
 	}
 
-	pub(crate) fn pending_intents(
+	/// Reserve one bounded fair batch and fsync its cursor before the caller performs network work.
+	pub(crate) fn reserve_pending_intents(
+		&self,
+		limit: usize,
+	) -> Result<Vec<FallbackPromotionIntentV2>, ContentError> {
+		if limit == 0 || limit > MAX_RESERVATION_ACTIONS {
+			return Err(ContentError::IntegrityFailed);
+		}
+		self.ensure_healthy()?;
+		let intents = self.intents.read().map_err(|_| lock_error())?;
+		let intent_order = self.intent_order.read().map_err(|_| lock_error())?;
+		let receipts = self.finalized_receipts.read().map_err(|_| lock_error())?;
+		let mut cursor = self.scheduler_cursor.write().map_err(|_| lock_error())?;
+		self.ensure_healthy()?;
+		let previous_key = cursor
+			.as_ref()
+			.map(|previous| (previous.inventory_finalized_number, previous.intent_id.clone()));
+		let mut ordered_ids = Vec::with_capacity(MAX_RESERVATION_SCAN);
+		if let Some(previous_key) = previous_key {
+			use std::ops::Bound::{Excluded, Included, Unbounded};
+			ordered_ids.extend(
+				intent_order
+					.range((Excluded(previous_key.clone()), Unbounded))
+					.chain(intent_order.range((Unbounded, Included(previous_key))))
+					.take(MAX_RESERVATION_SCAN)
+					.map(|(_, intent_id)| intent_id.clone()),
+			);
+		} else {
+			ordered_ids.extend(
+				intent_order
+					.values()
+					.take(MAX_RESERVATION_SCAN)
+					.cloned(),
+			);
+		}
+		let mut pending = Vec::with_capacity(limit);
+		let mut last_considered = None;
+		for intent_id in ordered_ids {
+			let intent = intents.get(&intent_id).ok_or(ContentError::IntegrityFailed)?;
+			last_considered = Some(intent);
+			if !receipts.contains_key(&intent_id) {
+				pending.push(intent.clone());
+				if pending.len() == limit {
+					break;
+				}
+			}
+		}
+		if let Some(last) = last_considered {
+			let candidate = scheduler_cursor(last)?;
+			if cursor.as_ref() != Some(&candidate) {
+				if let Err(error) = self.persist_scheduler_cursor(&candidate) {
+					self.poison()?;
+					return Err(error);
+				}
+				*cursor = Some(candidate);
+			}
+		}
+		Ok(pending)
+	}
+
+	fn unreserved_pending_intents(
 		&self,
 	) -> Result<Vec<FallbackPromotionIntentV2>, ContentError> {
 		self.ensure_healthy()?;
@@ -232,8 +331,17 @@ impl CheckpointPromotionStoreV2 {
 			.filter(|intent| !receipts.contains_key(&intent.intent_id))
 			.cloned()
 			.collect::<Vec<_>>();
-		pending.sort_by(|left, right| left.intent_id.cmp(&right.intent_id));
+		pending.sort_by(|left, right| {
+			left.inventory_finalized_number
+				.cmp(&right.inventory_finalized_number)
+				.then_with(|| left.intent_id.cmp(&right.intent_id))
+		});
 		Ok(pending)
+	}
+
+	#[cfg(test)]
+	fn pending_intents(&self) -> Result<Vec<FallbackPromotionIntentV2>, ContentError> {
+		self.unreserved_pending_intents()
 	}
 
 	pub(crate) fn record_finalized(
@@ -310,6 +418,21 @@ impl CheckpointPromotionStoreV2 {
 		)
 	}
 
+	fn persist_scheduler_cursor(
+		&self,
+		cursor: &CheckpointPromotionSchedulerCursorV2,
+	) -> Result<(), ContentError> {
+		validate_scheduler_cursor(cursor)?;
+		let bytes = serde_json::to_vec(cursor).map_err(io_error)?;
+		persist_record(
+			&self.scheduler_root,
+			SCHEDULER_KEY,
+			&bytes,
+			MAX_RECEIPT_BYTES,
+			&self.fault,
+		)
+	}
+
 	fn ensure_healthy(&self) -> Result<(), ContentError> {
 		if *self.poisoned.read().map_err(|_| lock_error())? {
 			Err(ContentError::IntegrityFailed)
@@ -376,6 +499,110 @@ fn read_records(root: &Path, max_record_bytes: usize) -> Result<Vec<RecordFile>,
 		File::open(root).and_then(|directory| directory.sync_all()).map_err(io_error)?;
 	}
 	Ok(records)
+}
+
+fn read_scheduler_cursor(
+	root: &Path,
+) -> Result<Option<CheckpointPromotionSchedulerCursorV2>, ContentError> {
+	let expected = format!("{SCHEDULER_KEY}.json");
+	let temp_prefix = format!("{SCHEDULER_KEY}.json.tmp-");
+	let mut cursor = None;
+	let mut temp_artifacts = 0usize;
+	let mut removed_temp = false;
+	for item in fs::read_dir(root).map_err(io_error)? {
+		let item = item.map_err(io_error)?;
+		let name = item.file_name().to_string_lossy().into_owned();
+		if name.starts_with(&temp_prefix) {
+			temp_artifacts = temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+			if temp_artifacts > MAX_TEMP_ARTIFACTS
+				|| !item.file_type().map_err(io_error)?.is_file()
+			{
+				return Err(ContentError::IntegrityFailed);
+			}
+			fs::remove_file(item.path()).map_err(io_error)?;
+			removed_temp = true;
+			continue;
+		}
+		if name != expected || cursor.is_some() || !item.file_type().map_err(io_error)?.is_file() {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let bytes = fs::read(item.path()).map_err(io_error)?;
+		if bytes.len() > MAX_RECEIPT_BYTES {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let decoded: CheckpointPromotionSchedulerCursorV2 =
+			serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
+		validate_scheduler_cursor(&decoded)?;
+		cursor = Some(decoded);
+	}
+	if removed_temp {
+		File::open(root).and_then(|directory| directory.sync_all()).map_err(io_error)?;
+	}
+	Ok(cursor)
+}
+
+fn scheduler_cursor(
+	intent: &FallbackPromotionIntentV2,
+) -> Result<CheckpointPromotionSchedulerCursorV2, ContentError> {
+	validate_intent(intent)?;
+	let mut cursor = CheckpointPromotionSchedulerCursorV2 {
+		version: SCHEDULER_VERSION,
+		intent_id: intent.intent_id.clone(),
+		intent_record_hash: intent.record_hash.clone(),
+		tuple_key: intent.tuple_key.clone(),
+		inventory_finalized_hash: intent.inventory_finalized_hash.clone(),
+		inventory_finalized_number: intent.inventory_finalized_number,
+		record_hash: String::new(),
+	};
+	cursor.record_hash = scheduler_cursor_hash(&cursor)?;
+	validate_scheduler_cursor_against_intent(&cursor, intent)?;
+	Ok(cursor)
+}
+
+fn validate_scheduler_cursor(
+	cursor: &CheckpointPromotionSchedulerCursorV2,
+) -> Result<(), ContentError> {
+	if cursor.version != SCHEDULER_VERSION
+		|| cursor.record_hash != scheduler_cursor_hash(cursor)?
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	for value in [
+		&cursor.intent_id,
+		&cursor.intent_record_hash,
+		&cursor.tuple_key,
+		&cursor.inventory_finalized_hash,
+		&cursor.record_hash,
+	] {
+		let _: [u8; 32] = decode_hex(value)?.try_into().map_err(|_| ContentError::IntegrityFailed)?;
+	}
+	Ok(())
+}
+
+fn validate_scheduler_cursor_against_intent(
+	cursor: &CheckpointPromotionSchedulerCursorV2,
+	intent: &FallbackPromotionIntentV2,
+) -> Result<(), ContentError> {
+	validate_scheduler_cursor(cursor)?;
+	if cursor.intent_id != intent.intent_id
+		|| cursor.intent_record_hash != intent.record_hash
+		|| cursor.tuple_key != intent.tuple_key
+		|| cursor.inventory_finalized_hash != intent.inventory_finalized_hash
+		|| cursor.inventory_finalized_number != intent.inventory_finalized_number
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	Ok(())
+}
+
+fn scheduler_cursor_hash(
+	cursor: &CheckpointPromotionSchedulerCursorV2,
+) -> Result<String, ContentError> {
+	let mut canonical = cursor.clone();
+	canonical.record_hash.clear();
+	let mut input = SCHEDULER_RECORD_DOMAIN.to_vec();
+	input.extend_from_slice(&serde_json::to_vec(&canonical).map_err(io_error)?);
+	Ok(hex::encode(blake2_256(&input)))
 }
 
 fn persist_record(
@@ -524,6 +751,8 @@ fn validate_finalized_receipt(
 		|| receipt.extrinsic_hash.len() != 64
 		|| receipt.finality_attestation_version != FINALITY_ATTESTATION_VERSION
 		|| receipt.finality_signature.len() != 128
+		|| receipt.finalized_number < intent.inventory_finalized_number
+		|| receipt.finalized_number < intent.snapshot_checkpoint
 		|| receipt.receipt_hash != finalized_receipt_hash(receipt)?
 	{
 		return Err(ContentError::IntegrityFailed);
@@ -823,6 +1052,20 @@ mod tests {
 			required_primary_confirmations: 1,
 			required_replica_confirmations: 2,
 		}
+	}
+
+	fn duty_with(seed: u8) -> Duty {
+		let mut duty = duty();
+		duty.duty_id = H256::repeat_byte(seed);
+		duty.bucket_id = H256::repeat_byte(seed.wrapping_add(100));
+		duty
+	}
+
+	fn authorize_with(
+		store: &CheckpointPromotionStoreV2,
+		seed: u8,
+	) -> FallbackPromotionIntentV2 {
+		store.authorize(&account(2), &duty_with(seed).encode(), &pair(2)).unwrap()
 	}
 
 	fn intent_path(temp: &TempDir, intent_id: &str) -> PathBuf {
@@ -1253,5 +1496,130 @@ mod tests {
 			),
 			Err(ContentError::NotFound)
 		));
+
+		let block_hash = [21; 32];
+		let block_number = intent.inventory_finalized_number - 1;
+		let extrinsic_hash = [22; 32];
+		assert!(matches!(
+			store.record_finalized(
+				&intent.intent_id,
+				block_hash,
+				block_number,
+				extrinsic_hash,
+				FINALITY_ATTESTATION_VERSION,
+				finality_signature(&intent, block_hash, block_number, extrinsic_hash),
+			),
+			Err(ContentError::IntegrityFailed)
+		));
+	}
+
+	#[test]
+	fn scheduler_bounds_and_persistent_failures_rotate_across_restart() {
+		let temp = TempDir::new().unwrap();
+		let mut store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+		let mut all = std::collections::HashSet::new();
+		for seed in 20..90 {
+			all.insert(authorize_with(&store, seed).intent_id);
+		}
+		assert!(matches!(
+			store.reserve_pending_intents(0),
+			Err(ContentError::IntegrityFailed)
+		));
+		assert!(matches!(
+			store.reserve_pending_intents(MAX_RESERVATION_ACTIONS + 1),
+			Err(ContentError::IntegrityFailed)
+		));
+
+		let mut seen = std::collections::HashSet::new();
+		for _ in 0..9 {
+			let batch = store.reserve_pending_intents(MAX_RESERVATION_ACTIONS).unwrap();
+			assert!(!batch.is_empty());
+			assert!(batch.len() <= MAX_RESERVATION_ACTIONS);
+			assert_eq!(
+				batch.iter().map(|intent| &intent.intent_id).collect::<std::collections::HashSet<_>>().len(),
+				batch.len()
+			);
+			seen.extend(batch.into_iter().map(|intent| intent.intent_id));
+			drop(store);
+			store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+		}
+		assert_eq!(seen, all);
+	}
+
+	#[test]
+	fn scheduler_scans_past_sixty_four_finalized_entries_after_restart() {
+		let temp = TempDir::new().unwrap();
+		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+		for seed in 20..86 {
+			authorize_with(&store, seed);
+		}
+		let ordered = store.pending_intents().unwrap();
+		for intent in ordered.iter().take(MAX_RESERVATION_SCAN) {
+			let block_hash = [21; 32];
+			let block_number = 130;
+			let extrinsic_hash = [22; 32];
+			store
+				.record_finalized(
+					&intent.intent_id,
+					block_hash,
+					block_number,
+					extrinsic_hash,
+					FINALITY_ATTESTATION_VERSION,
+					finality_signature(intent, block_hash, block_number, extrinsic_hash),
+				)
+				.unwrap();
+		}
+		assert!(store.reserve_pending_intents(MAX_RESERVATION_ACTIONS).unwrap().is_empty());
+		drop(store);
+
+		let reopened = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+		let batch = reopened.reserve_pending_intents(MAX_RESERVATION_ACTIONS).unwrap();
+		assert_eq!(batch.len(), 2);
+		assert_eq!(
+			batch.iter().map(|intent| &intent.intent_id).collect::<std::collections::HashSet<_>>().len(),
+			2
+		);
+	}
+
+	#[test]
+	fn scheduler_cursor_tamper_and_every_crash_seam_fail_closed() {
+		let temp = TempDir::new().unwrap();
+		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+		authorize_with(&store, 20);
+		store.reserve_pending_intents(1).unwrap();
+		drop(store);
+		let path = temp.path().join(SCHEDULER_ROOT).join(format!("{SCHEDULER_KEY}.json"));
+		let mut cursor: CheckpointPromotionSchedulerCursorV2 =
+			serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+		cursor.tuple_key = "ff".repeat(32);
+		cursor.record_hash = scheduler_cursor_hash(&cursor).unwrap();
+		fs::write(&path, serde_json::to_vec(&cursor).unwrap()).unwrap();
+		assert!(matches!(
+			CheckpointPromotionStoreV2::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+
+		for fault in [
+			CheckpointPromotionFault::BeforeTempFsync,
+			CheckpointPromotionFault::AfterTempFsync,
+			CheckpointPromotionFault::AfterRename,
+			CheckpointPromotionFault::AfterDirectoryFsync,
+		] {
+			let temp = TempDir::new().unwrap();
+			let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+			let expected = [authorize_with(&store, 20).intent_id, authorize_with(&store, 21).intent_id]
+				.into_iter()
+				.collect::<std::collections::HashSet<_>>();
+			store.inject_fault_once(fault).unwrap();
+			assert!(matches!(
+				store.reserve_pending_intents(1),
+				Err(ContentError::Io(_))
+			));
+			drop(store);
+			let reopened = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+			let batch = reopened.reserve_pending_intents(1).unwrap();
+			assert_eq!(batch.len(), 1);
+			assert!(expected.contains(&batch[0].intent_id));
+		}
 	}
 }
