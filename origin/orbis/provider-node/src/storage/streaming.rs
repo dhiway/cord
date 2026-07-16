@@ -41,7 +41,7 @@ use crate::{
 pub(crate) mod recovery;
 use recovery::{CapabilityReplayRecord, RecoveryRecord};
 
-const STREAM_VERSION: u16 = 8;
+const STREAM_VERSION: u16 = 9;
 const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
@@ -96,6 +96,19 @@ pub struct ProgressAck {
 	pub available_window_bytes: usize,
 }
 
+/// Durable progress for one quarantined-object repair operation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RepairProgress {
+	/// Exact next contiguous chunk index required by the repair.
+	pub next_chunk: u16,
+	/// Number of chunks durably journaled for the repair.
+	pub persisted_chunks: u16,
+	/// Number of repaired bytes durably journaled.
+	pub persisted_bytes: u64,
+	/// True when every expected chunk is durable and finalization may be retried.
+	pub ready_to_finalize: bool,
+}
+
 /// Result of opening an idempotent operation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BeginStreaming {
@@ -119,6 +132,10 @@ pub enum StreamingFault {
 	AfterObjectRename,
 	/// Verified repair rename is durable but sticky quarantine is not cleared.
 	AfterRepairRename,
+	/// A verified repair chunk is durable but its progress journal is absent.
+	AfterRepairChunkSync,
+	/// Quarantine clearance is durable but the successful response was not delivered.
+	AfterRepairQuarantineClear,
 	/// Recovery effect is staged but its combined journal transition is absent.
 	BeforeRecoveryCommit,
 	/// Combined recovery transition is durable but its response was not delivered.
@@ -172,6 +189,7 @@ struct JournalState {
 	operations: BTreeMap<String, OperationRecord>,
 	next_install_sequence: u64,
 	quarantine: BTreeMap<String, QuarantineRecord>,
+	repairs: BTreeMap<String, RepairRecord>,
 	detection_sequence: u64,
 	recovery: BTreeMap<String, RecoveryRecord>,
 	capability_replay: BTreeMap<String, CapabilityReplayRecord>,
@@ -204,6 +222,26 @@ struct QuarantineRecord {
 	expected_bytes: u64,
 	observed_bytes: Option<u64>,
 	detection_sequence: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum RepairPhase {
+	Receiving,
+	Finalizing,
+	Installed,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RepairRecord {
+	operation_id: OperationId,
+	cid: String,
+	descriptor_hash: String,
+	manifest_hash: String,
+	next_chunk: u16,
+	staged_bytes: u64,
+	phase: RepairPhase,
 }
 
 /// Redacted local integrity state without object identifiers or failure details.
@@ -297,7 +335,8 @@ impl StreamingStore {
 			let state: JournalState = serde_json::from_slice(&bytes).map_err(io_error)?;
 			if state.version != STREAM_VERSION ||
 				state.operations.len() > operation_limit ||
-				state.recovery.len() > MAX_STREAMING_OPERATIONS
+				state.recovery.len() > MAX_STREAMING_OPERATIONS ||
+				state.repairs.len() > operation_limit
 			{
 				return Err(ContentError::IntegrityFailed)
 			}
@@ -309,6 +348,7 @@ impl StreamingStore {
 				operations: BTreeMap::new(),
 				next_install_sequence: 0,
 				quarantine: BTreeMap::new(),
+				repairs: BTreeMap::new(),
 				detection_sequence: 0,
 				recovery: BTreeMap::new(),
 				capability_replay: BTreeMap::new(),
@@ -742,7 +782,7 @@ impl StreamingStore {
 		self.install_verified_repair_reader(cid, bytes)
 	}
 
-	/// Stream an exact verified repair for an existing quarantine.
+	/// Stream an exact verified repair for an existing quarantine through the resumable journal.
 	pub fn install_verified_repair_reader<R: Read>(
 		&self,
 		cid: &str,
@@ -750,27 +790,217 @@ impl StreamingStore {
 	) -> Result<(), ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
 		let record = self.installed_record(canonical.as_str())?;
+		let operation_id = full_repair_operation(canonical.as_str());
+		let progress = match self.begin_repair(canonical.as_str(), operation_id) {
+			Ok(progress) => progress,
+			Err(ContentError::IdempotencyConflict) => {
+				self.completed_repair_progress(canonical.as_str(), operation_id)?
+			},
+			Err(error) => return Err(error),
+		};
+		for (index, expected) in record.chunks.iter().enumerate() {
+			let mut bytes = vec![0; expected.length as usize];
+			reader.read_exact(&mut bytes).map_err(|_| ContentError::LengthMismatch)?;
+			if chunk_hash(&bytes) != expected.hash {
+				return Err(ContentError::CidMismatch);
+			}
+			let index: u16 = index.try_into().map_err(|_| ContentError::ObjectTooLarge)?;
+			if index >= progress.next_chunk {
+				self.push_repair_chunk(canonical.as_str(), operation_id, index, &bytes)?;
+			}
+		}
+		let mut trailing = [0u8; 1];
+		if reader.read(&mut trailing).map_err(|_| ContentError::IntegrityFailed)? != 0 {
+			return Err(ContentError::LengthMismatch);
+		}
+		self.finalize_repair(canonical.as_str(), operation_id)
+	}
+
+	/// Start or resume one stable repair and return its first absent or invalid chunk.
+	pub fn begin_repair(
+		&self,
+		cid: &str,
+		operation_id: OperationId,
+	) -> Result<RepairProgress, ContentError> {
+		let canonical = CanonicalCid::parse(cid)?;
 		let mut state = self.write_state()?;
+		let record = installed_record_in(&state, canonical.as_str())?;
+		validate_installed_record(&record)?;
+		let key = repair_key(canonical.as_str(), operation_id)?;
 		if !state.quarantine.contains_key(canonical.as_str()) {
-			return Err(ContentError::IdempotencyConflict)
+			return Err(ContentError::IdempotencyConflict);
 		}
-		let repair = self.repair_path(canonical.as_str());
-		remove_repair_if_present(&repair)?;
-		if let Err(error) = stage_verified_repair(&repair, &record, &mut reader) {
-			remove_repair_if_present(&repair)?;
-			return Err(error)
+		if let Some(existing) = state.repairs.get(&key) {
+			validate_repair_record(&key, existing, &record)?;
+			return if existing.phase == RepairPhase::Installed {
+				Err(ContentError::IntegrityFailed)
+			} else {
+				repair_progress(existing, &record)
+			};
 		}
+		if state.repairs.values().any(|repair| repair.cid == canonical.as_str()) {
+			return Err(ContentError::IdempotencyConflict);
+		}
+
+		let repair = RepairRecord {
+			operation_id,
+			cid: canonical.as_str().into(),
+			descriptor_hash: repair_descriptor_hash(&record.descriptor),
+			manifest_hash: repair_manifest_hash(&record.chunks),
+			next_chunk: 0,
+			staged_bytes: 0,
+			phase: RepairPhase::Receiving,
+		};
+		let path = self.repair_path(&key);
+		remove_repair_if_present(&path)?;
+		let mut staged =
+			OpenOptions::new().create_new(true).write(true).open(&path).map_err(io_error)?;
+		let mut source = File::open(self.object_path(canonical.as_str())).ok();
+		let mut repair = repair;
+		for expected in &record.chunks {
+			let mut bytes = vec![0; expected.length as usize];
+			let Some(source) = source.as_mut() else { break };
+			if source.read_exact(&mut bytes).is_err() || chunk_hash(&bytes) != expected.hash {
+				break;
+			}
+			staged.write_all(&bytes).map_err(io_error)?;
+			repair.next_chunk =
+				repair.next_chunk.checked_add(1).ok_or(ContentError::ObjectTooLarge)?;
+			repair.staged_bytes = repair
+				.staged_bytes
+				.checked_add(bytes.len() as u64)
+				.ok_or(ContentError::ObjectTooLarge)?;
+		}
+		staged.sync_all().map_err(io_error)?;
+		sync_dir(path.parent().expect("repair path has parent"))?;
+		let mut next = state.clone();
+		next.repairs.insert(key, repair.clone());
+		persist_state(&self.root, &next)?;
+		*state = next;
+		repair_progress(&repair, &record)
+	}
+
+	/// Append and durably journal one exact contiguous verified repair chunk.
+	pub fn push_repair_chunk(
+		&self,
+		cid: &str,
+		operation_id: OperationId,
+		index: u16,
+		bytes: &[u8],
+	) -> Result<RepairProgress, ContentError> {
+		if bytes.len() > CHUNK_BYTES {
+			return Err(ContentError::ChunkTooLarge);
+		}
+		let canonical = CanonicalCid::parse(cid)?;
+		let key = repair_key(canonical.as_str(), operation_id)?;
+		let mut state = self.write_state()?;
+		let installed = installed_record_in(&state, canonical.as_str())?;
+		validate_installed_record(&installed)?;
+		let repair = state.repairs.get(&key).cloned().ok_or(ContentError::NotFound)?;
+		validate_repair_record(&key, &repair, &installed)?;
+		if !state.quarantine.contains_key(canonical.as_str()) {
+			return Err(ContentError::IdempotencyConflict);
+		}
+		if repair.phase != RepairPhase::Receiving || index != repair.next_chunk {
+			return Err(ContentError::ChunkOutOfOrder);
+		}
+		validate_chunk_len(installed.descriptor.object_len, index, bytes.len())?;
+		let expected = installed.chunks.get(index as usize).ok_or(ContentError::ChunkOutOfOrder)?;
+		if chunk_hash(bytes) != expected.hash {
+			return Err(ContentError::CidMismatch);
+		}
+		let path = self.repair_path(&key);
+		let mut file = OpenOptions::new().append(true).open(&path).map_err(io_error)?;
+		if file.metadata().map_err(io_error)?.len() != repair.staged_bytes {
+			return Err(ContentError::IntegrityFailed);
+		}
+		file.write_all(bytes).map_err(io_error)?;
+		file.sync_all().map_err(io_error)?;
+		self.trip_fault(StreamingFault::AfterRepairChunkSync)?;
+		let mut next = state.clone();
+		let next_repair = next.repairs.get_mut(&key).expect("repair exists");
+		next_repair.next_chunk =
+			next_repair.next_chunk.checked_add(1).ok_or(ContentError::ObjectTooLarge)?;
+		next_repair.staged_bytes = next_repair
+			.staged_bytes
+			.checked_add(bytes.len() as u64)
+			.ok_or(ContentError::ObjectTooLarge)?;
+		persist_state(&self.root, &next)?;
+		let progress = repair_progress(next.repairs.get(&key).expect("repair exists"), &installed)?;
+		*state = next;
+		Ok(progress)
+	}
+
+	/// Verify and atomically install one complete durable repair.
+	pub fn finalize_repair(
+		&self,
+		cid: &str,
+		operation_id: OperationId,
+	) -> Result<(), ContentError> {
+		let canonical = CanonicalCid::parse(cid)?;
+		let key = repair_key(canonical.as_str(), operation_id)?;
+		let mut state = self.write_state()?;
+		let installed = installed_record_in(&state, canonical.as_str())?;
+		validate_installed_record(&installed)?;
+		let repair = state.repairs.get(&key).cloned().ok_or(ContentError::NotFound)?;
+		validate_repair_record(&key, &repair, &installed)?;
 		let object = self.object_path(canonical.as_str());
-		fs::rename(&repair, &object).map_err(io_error)?;
+		if repair.phase == RepairPhase::Installed
+			&& !state.quarantine.contains_key(canonical.as_str())
+		{
+			return verify_file(&object, &installed.descriptor, &installed.chunks).map(|_| ());
+		}
+		if !state.quarantine.contains_key(canonical.as_str()) {
+			return Err(ContentError::IdempotencyConflict);
+		}
+		if repair.next_chunk as usize != installed.chunks.len()
+			|| repair.staged_bytes != installed.descriptor.object_len
+		{
+			return Err(ContentError::ChunkMissing);
+		}
+		let path = self.repair_path(&key);
+		if repair.phase == RepairPhase::Receiving {
+			verify_file(&path, &installed.descriptor, &installed.chunks)?;
+			let mut next = state.clone();
+			next.repairs.get_mut(&key).expect("repair exists").phase = RepairPhase::Finalizing;
+			persist_state(&self.root, &next)?;
+			*state = next;
+		}
+		if path.exists() {
+			fs::rename(&path, &object).map_err(io_error)?;
+		}
+		verify_file(&object, &installed.descriptor, &installed.chunks)?;
 		File::open(&object).and_then(|file| file.sync_all()).map_err(io_error)?;
-		sync_dir(repair.parent().expect("repair path has parent"))?;
+		sync_dir(path.parent().expect("repair path has parent"))?;
 		sync_dir(object.parent().expect("object path has parent"))?;
 		self.trip_fault(StreamingFault::AfterRepairRename)?;
 		let mut next = state.clone();
 		next.quarantine.remove(canonical.as_str());
+		next.repairs.get_mut(&key).expect("repair exists").phase = RepairPhase::Installed;
 		persist_state(&self.root, &next)?;
 		*state = next;
-		Ok(())
+		self.trip_fault(StreamingFault::AfterRepairQuarantineClear)
+	}
+
+	fn completed_repair_progress(
+		&self,
+		cid: &str,
+		operation_id: OperationId,
+	) -> Result<RepairProgress, ContentError> {
+		let state = self.read_state()?;
+		if state.quarantine.contains_key(cid) {
+			return Err(ContentError::IdempotencyConflict);
+		}
+		let installed = installed_record_in(&state, cid)?;
+		validate_installed_record(&installed)?;
+		let key = repair_key(cid, operation_id)?;
+		let repair = state.repairs.get(&key).ok_or(ContentError::IdempotencyConflict)?;
+		validate_repair_record(&key, repair, &installed)?;
+		if repair.phase != RepairPhase::Installed {
+			return Err(ContentError::IdempotencyConflict);
+		}
+		verify_file(&self.object_path(cid), &installed.descriptor, &installed.chunks)?;
+		repair_progress(repair, &installed)
 	}
 
 	fn recover(&self) -> Result<(), ContentError> {
@@ -810,6 +1040,61 @@ impl StreamingStore {
 				!quarantine_sequences.insert(quarantine.detection_sequence)
 			{
 				return Err(ContentError::IntegrityFailed)
+			}
+		}
+		let mut repaired_cids = BTreeSet::new();
+		for (key, repair) in &next.repairs {
+			if !repaired_cids.insert(repair.cid.clone()) {
+				return Err(ContentError::IntegrityFailed);
+			}
+			let installed = installed_record_in(&next, &repair.cid)?;
+			validate_installed_record(&installed)?;
+			validate_repair_record(key, repair, &installed)?;
+			let path = self.repair_path(key);
+			match repair.phase {
+				RepairPhase::Receiving => {
+					if !next.quarantine.contains_key(&repair.cid) {
+						return Err(ContentError::IntegrityFailed);
+					}
+					let file = OpenOptions::new()
+						.read(true)
+						.write(true)
+						.open(&path)
+						.map_err(|_| ContentError::IntegrityFailed)?;
+					let length = file.metadata().map_err(io_error)?.len();
+					if length < repair.staged_bytes {
+						return Err(ContentError::IntegrityFailed);
+					}
+					if length > repair.staged_bytes {
+						file.set_len(repair.staged_bytes).map_err(io_error)?;
+						file.sync_all().map_err(io_error)?;
+					}
+					verify_repair_prefix(&path, repair, &installed)?;
+				},
+				RepairPhase::Finalizing => {
+					if !next.quarantine.contains_key(&repair.cid) {
+						return Err(ContentError::IntegrityFailed);
+					}
+					if path.exists() {
+						verify_file(&path, &installed.descriptor, &installed.chunks)?;
+					} else {
+						verify_file(
+							&self.object_path(&repair.cid),
+							&installed.descriptor,
+							&installed.chunks,
+						)?;
+					}
+				},
+				RepairPhase::Installed => {
+					if next.quarantine.contains_key(&repair.cid) || path.exists() {
+						return Err(ContentError::IntegrityFailed);
+					}
+					verify_file(
+						&self.object_path(&repair.cid),
+						&installed.descriptor,
+						&installed.chunks,
+					)?;
+				},
 			}
 		}
 		let keys: Vec<_> = next.operations.keys().cloned().collect();
@@ -918,6 +1203,9 @@ impl StreamingStore {
 			.iter()
 			.filter(|(_, record)| matches!(record.phase, Phase::Receiving | Phase::Finalizing))
 			.map(|(key, _)| format!("{key}.part"))
+			.chain(next.repairs.iter().filter_map(|(key, repair)| {
+				(repair.phase != RepairPhase::Installed).then(|| format!("repair-{key}.part"))
+			}))
 			.collect();
 		changed |= remove_unowned(&self.root.join(STAGING), &referenced_staging)?;
 		let referenced_objects: BTreeSet<_> = next
@@ -1150,7 +1438,122 @@ fn insert_quarantine(
 			detection_sequence: state.detection_sequence,
 		},
 	);
+	state.repairs.retain(|_, repair| {
+		repair.cid != descriptor.expected_cid || repair.phase != RepairPhase::Installed
+	});
 	Ok(true)
+}
+
+fn installed_record_in(state: &JournalState, cid: &str) -> Result<OperationRecord, ContentError> {
+	state
+		.operations
+		.values()
+		.find(|record| record.phase == Phase::Installed && record.descriptor.expected_cid == cid)
+		.cloned()
+		.ok_or(ContentError::NotFound)
+}
+
+fn repair_key(cid: &str, operation_id: OperationId) -> Result<String, ContentError> {
+	let canonical = CanonicalCid::parse(cid)?;
+	let mut hash = Blake2b::<U32>::new();
+	hash.update(b"origin/quarantined-object-repair/v1");
+	hash.update(canonical.digest());
+	hash.update(operation_id.as_bytes());
+	Ok(hex::encode(hash.finalize()))
+}
+
+fn full_repair_operation(cid: &str) -> OperationId {
+	let canonical = CanonicalCid::parse(cid).expect("repair operation requires canonical CID");
+	let mut hash = Blake2b::<U32>::new();
+	hash.update(b"origin/full-reader-repair/v1");
+	hash.update(canonical.digest());
+	let digest: [u8; 32] = hash.finalize().into();
+	let mut operation = [0u8; 16];
+	operation.copy_from_slice(&digest[..16]);
+	OperationId::from_bytes(operation)
+}
+
+fn repair_descriptor_hash(descriptor: &StreamingDescriptor) -> String {
+	let canonical =
+		CanonicalCid::parse(&descriptor.expected_cid).expect("installed descriptor is canonical");
+	let mut hash = Blake2b::<U32>::new();
+	hash.update(b"origin/repair-descriptor/v1");
+	hash.update(descriptor.operation_id.as_bytes());
+	hash.update(descriptor.bucket_id.as_bytes());
+	hash.update(canonical.digest());
+	hash.update(descriptor.object_len.to_le_bytes());
+	format!("0x{}", hex::encode(hash.finalize()))
+}
+
+fn repair_manifest_hash(chunks: &[ChunkRecord]) -> String {
+	let mut hash = Blake2b::<U32>::new();
+	hash.update(b"origin/repair-manifest/v1");
+	hash.update((chunks.len() as u64).to_le_bytes());
+	for (index, chunk) in chunks.iter().enumerate() {
+		hash.update((index as u16).to_le_bytes());
+		hash.update(chunk.length.to_le_bytes());
+		hash.update(decode_chunk_hash(&chunk.hash).expect("installed manifest is valid"));
+	}
+	format!("0x{}", hex::encode(hash.finalize()))
+}
+
+fn validate_repair_record(
+	key: &str,
+	repair: &RepairRecord,
+	installed: &OperationRecord,
+) -> Result<(), ContentError> {
+	if repair_key(&repair.cid, repair.operation_id).map_err(|_| ContentError::IntegrityFailed)?
+		!= key || repair.cid != installed.descriptor.expected_cid
+		|| repair.descriptor_hash != repair_descriptor_hash(&installed.descriptor)
+		|| repair.manifest_hash != repair_manifest_hash(&installed.chunks)
+		|| repair.next_chunk as usize > installed.chunks.len()
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	let staged_bytes = installed
+		.chunks
+		.iter()
+		.take(repair.next_chunk as usize)
+		.try_fold(0u64, |total, chunk| total.checked_add(chunk.length as u64))
+		.ok_or(ContentError::IntegrityFailed)?;
+	if repair.staged_bytes != staged_bytes
+		|| (matches!(repair.phase, RepairPhase::Finalizing | RepairPhase::Installed)
+			&& repair.next_chunk as usize != installed.chunks.len())
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	Ok(())
+}
+
+fn verify_repair_prefix(
+	path: &Path,
+	repair: &RepairRecord,
+	installed: &OperationRecord,
+) -> Result<(), ContentError> {
+	let mut file = File::open(path).map_err(|_| ContentError::IntegrityFailed)?;
+	for expected in installed.chunks.iter().take(repair.next_chunk as usize) {
+		let mut bytes = vec![0; expected.length as usize];
+		file.read_exact(&mut bytes).map_err(|_| ContentError::IntegrityFailed)?;
+		if chunk_hash(&bytes) != expected.hash {
+			return Err(ContentError::IntegrityFailed);
+		}
+	}
+	if file.metadata().map_err(io_error)?.len() != repair.staged_bytes {
+		return Err(ContentError::IntegrityFailed);
+	}
+	Ok(())
+}
+
+fn repair_progress(
+	repair: &RepairRecord,
+	installed: &OperationRecord,
+) -> Result<RepairProgress, ContentError> {
+	Ok(RepairProgress {
+		next_chunk: repair.next_chunk,
+		persisted_chunks: repair.next_chunk,
+		persisted_bytes: repair.staged_bytes,
+		ready_to_finalize: repair.next_chunk as usize == installed.chunks.len(),
+	})
 }
 
 fn diagnose_failure(
@@ -1196,40 +1599,6 @@ fn diagnose_failure(
 		ContentError::CidMismatch => (QuarantineReason::FullCidMismatch, observed),
 		_ => (QuarantineReason::Unreadable, observed),
 	}
-}
-
-fn stage_verified_repair<R: Read>(
-	path: &Path,
-	record: &OperationRecord,
-	reader: &mut R,
-) -> Result<(), ContentError> {
-	validate_installed_record(record)?;
-	let mut file = OpenOptions::new().create_new(true).write(true).open(path).map_err(io_error)?;
-	let mut content = Blake2b::<U32>::new();
-	let mut length = 0u64;
-	for expected in &record.chunks {
-		let mut bytes = vec![0; expected.length as usize];
-		reader.read_exact(&mut bytes).map_err(|_| ContentError::LengthMismatch)?;
-		if chunk_hash(&bytes) != expected.hash {
-			return Err(ContentError::CidMismatch)
-		}
-		length = length.checked_add(bytes.len() as u64).ok_or(ContentError::ObjectTooLarge)?;
-		content.update(&bytes);
-		file.write_all(&bytes).map_err(io_error)?;
-	}
-	let mut trailing = [0u8; 1];
-	if reader.read(&mut trailing).map_err(|_| ContentError::IntegrityFailed)? != 0 ||
-		length != record.descriptor.object_len ||
-		record.chunks.len() != chunk_count(length)?
-	{
-		return Err(ContentError::LengthMismatch)
-	}
-	let cid = CanonicalCid::from_digest(content.finalize().into());
-	if cid.as_str() != record.descriptor.expected_cid {
-		return Err(ContentError::CidMismatch)
-	}
-	file.sync_all().map_err(io_error)?;
-	sync_dir(path.parent().expect("repair path has parent"))
 }
 
 fn remove_repair_if_present(path: &Path) -> Result<(), ContentError> {
@@ -1821,5 +2190,129 @@ mod exact_lookup_tests {
 			.unwrap();
 		assert!(installed.successor_token.is_none());
 		reopened.verify_installed(request.cid.as_str()).unwrap();
+	}
+
+	fn repair_fixture(bytes: &[u8], operation: u8) -> (tempfile::TempDir, StreamingStore, String) {
+		let temp = tempfile::tempdir().unwrap();
+		let store = StreamingStore::open(temp.path()).unwrap();
+		let descriptor = StreamingDescriptor {
+			operation_id: OperationId::from_bytes([operation; 16]),
+			bucket_id: BucketId::from_bytes([operation; 32]),
+			expected_cid: CanonicalCid::from_digest(Blake2b::<U32>::digest(bytes).into())
+				.to_string(),
+			object_len: bytes.len() as u64,
+		};
+		let cid = store
+			.put_chunks(descriptor, bytes.chunks(CHUNK_BYTES).map(ToOwned::to_owned))
+			.unwrap()
+			.cid;
+		(temp, store, cid)
+	}
+
+	#[test]
+	fn repair_starts_at_zero_middle_last_or_missing_chunk() {
+		let bytes: Vec<_> = (0..CHUNK_BYTES * 3 - 17).map(|index| (index % 251) as u8).collect();
+		for (case, damaged_chunk, expected_next) in
+			[(1u8, Some(0usize), 0u16), (2, Some(1), 1), (3, Some(2), 2), (4, None, 0)]
+		{
+			let (temp, store, cid) = repair_fixture(&bytes, case);
+			let object = store.object_path(&cid);
+			if let Some(index) = damaged_chunk {
+				let mut damaged = bytes.clone();
+				damaged[index * CHUNK_BYTES] ^= 1;
+				fs::write(&object, damaged).unwrap();
+			} else {
+				fs::remove_file(&object).unwrap();
+			}
+			assert_eq!(store.verify_installed(&cid), Err(ContentError::IntegrityFailed));
+			assert_eq!(store.read_chunk_verified(&cid, 0), Err(ContentError::IntegrityFailed));
+			let repair_operation = OperationId::from_bytes([case + 10; 16]);
+			let progress = store.begin_repair(&cid, repair_operation).unwrap();
+			assert_eq!(progress.next_chunk, expected_next);
+			assert_eq!(progress.persisted_bytes, (expected_next as usize * CHUNK_BYTES) as u64);
+			for (index, chunk) in bytes.chunks(CHUNK_BYTES).enumerate().skip(expected_next as usize)
+			{
+				store.push_repair_chunk(&cid, repair_operation, index as u16, chunk).unwrap();
+			}
+			store.finalize_repair(&cid, repair_operation).unwrap();
+			assert_eq!(store.read_range_verified(&cid, 0, 32).unwrap(), bytes[..32]);
+			drop(store);
+			StreamingStore::open(temp.path()).unwrap().verify_installed(&cid).unwrap();
+		}
+	}
+
+	#[test]
+	fn repair_preserves_255_256_and_257_kib_boundaries() {
+		for (case, length) in
+			[(20u8, 255usize * 1024), (21, 256usize * 1024), (22, 257usize * 1024)]
+		{
+			let bytes: Vec<_> = (0..length).map(|index| (index % 239) as u8).collect();
+			let (_temp, store, cid) = repair_fixture(&bytes, case);
+			assert_eq!(
+				store.begin_repair(&cid, OperationId::from_bytes([case; 16])),
+				Err(ContentError::IdempotencyConflict)
+			);
+			let mut damaged = bytes.clone();
+			damaged[0] ^= 1;
+			fs::write(store.object_path(&cid), damaged).unwrap();
+			assert_eq!(store.verify_installed(&cid), Err(ContentError::IntegrityFailed));
+			store.install_verified_repair(&cid, &bytes).unwrap();
+			store.verify_installed(&cid).unwrap();
+			assert_eq!(
+				store.installed_record(&cid).unwrap().chunks.len(),
+				length.div_ceil(CHUNK_BYTES)
+			);
+		}
+	}
+
+	#[test]
+	fn repair_crashes_resume_at_chunk_rename_and_quarantine_clear() {
+		let bytes: Vec<_> = (0..CHUNK_BYTES + 31).map(|index| (index % 223) as u8).collect();
+		let (temp, store, cid) = repair_fixture(&bytes, 30);
+		let mut damaged = bytes.clone();
+		damaged[0] ^= 1;
+		fs::write(store.object_path(&cid), damaged).unwrap();
+		assert_eq!(store.verify_installed(&cid), Err(ContentError::IntegrityFailed));
+		let operation = OperationId::from_bytes([31; 16]);
+		assert_eq!(store.begin_repair(&cid, operation).unwrap().next_chunk, 0);
+		assert_eq!(
+			store.push_repair_chunk(&cid, operation, 1, &bytes[CHUNK_BYTES..]),
+			Err(ContentError::ChunkOutOfOrder)
+		);
+		let mut wrong = bytes[..CHUNK_BYTES].to_vec();
+		wrong[0] ^= 1;
+		assert_eq!(
+			store.push_repair_chunk(&cid, operation, 0, &wrong),
+			Err(ContentError::CidMismatch)
+		);
+		assert_eq!(
+			store.push_repair_chunk(&cid, operation, 0, &vec![0; CHUNK_BYTES + 1]),
+			Err(ContentError::ChunkTooLarge)
+		);
+		store.inject_fault_once(StreamingFault::AfterRepairChunkSync).unwrap();
+		assert!(matches!(
+			store.push_repair_chunk(&cid, operation, 0, &bytes[..CHUNK_BYTES]),
+			Err(ContentError::Io(_))
+		));
+		drop(store);
+
+		let store = StreamingStore::open(temp.path()).unwrap();
+		assert_eq!(store.begin_repair(&cid, operation).unwrap().next_chunk, 0);
+		store.push_repair_chunk(&cid, operation, 0, &bytes[..CHUNK_BYTES]).unwrap();
+		store.push_repair_chunk(&cid, operation, 1, &bytes[CHUNK_BYTES..]).unwrap();
+		store.inject_fault_once(StreamingFault::AfterRepairRename).unwrap();
+		assert!(matches!(store.finalize_repair(&cid, operation), Err(ContentError::Io(_))));
+		drop(store);
+
+		let store = StreamingStore::open(temp.path()).unwrap();
+		assert!(store.begin_repair(&cid, operation).unwrap().ready_to_finalize);
+		store.inject_fault_once(StreamingFault::AfterRepairQuarantineClear).unwrap();
+		assert!(matches!(store.finalize_repair(&cid, operation), Err(ContentError::Io(_))));
+		assert_eq!(store.read_chunk_verified(&cid, 0).unwrap(), bytes[..CHUNK_BYTES]);
+		drop(store);
+
+		let store = StreamingStore::open(temp.path()).unwrap();
+		store.finalize_repair(&cid, operation).unwrap();
+		store.verify_installed(&cid).unwrap();
 	}
 }
