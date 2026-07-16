@@ -18,6 +18,9 @@
 
 //! Private durable preparation of exact Commons checkpoint proposals.
 
+#[path = "checkpoint_quorum.rs"]
+pub(crate) mod checkpoint_quorum;
+
 use std::{
 	collections::HashMap,
 	fs::{self, File},
