@@ -263,13 +263,13 @@ pub(crate) struct CapabilityRequest<'a> {
 pub(crate) enum CapabilityReplayInspection {
 	/// The `(grant, nonce)` has not been observed.
 	Fresh,
-	/// The nonce and capability digest match, but durable request recovery is not implemented.
+	/// The nonce and capability digest match a durable byte-identical recovery entry.
 	ExactRetry,
 	/// The nonce was observed with a different canonical capability digest.
 	Conflict,
 }
 
-/// Read-only seam for a future provider-local durable capability replay table.
+/// Read-only seam for the provider-local durable capability replay table.
 pub(crate) trait CapabilityReplayInspector {
 	/// Inspect one grant/nonce/capability-digest tuple without consuming or persisting it.
 	fn inspect(
@@ -287,7 +287,7 @@ pub(crate) struct VerifiedCapability {
 	pub(crate) finalized_hash: String,
 	/// Finalized state number used for validity checks.
 	pub(crate) finalized_number: u32,
-	/// SHA-256 of only the canonical capability bytes, not a future request recovery fingerprint.
+	/// SHA-256 of only the canonical capability bytes, not the request recovery fingerprint.
 	pub(crate) canonical_capability_sha256: [u8; 32],
 }
 

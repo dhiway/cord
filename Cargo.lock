@@ -10165,6 +10165,7 @@ dependencies = [
  "sp-runtime",
  "subxt",
  "subxt-metadata 0.41.0",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tracing",

@@ -28,6 +28,9 @@ pub mod domains;
 pub mod names_events;
 pub mod eqc;
 pub mod host;
+// P2 compiles this private kernel before P3 binds real browser/desktop adapters.
+#[allow(dead_code)]
+pub(crate) mod host_outbox;
 pub mod orbis_reads;
 pub mod route_registry;
 pub mod sponsored_intent;

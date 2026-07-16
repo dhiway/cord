@@ -26,7 +26,7 @@
 #![warn(missing_docs)]
 
 mod api;
-// Deliberately compiled but not routed until durable RequestV2 recovery is implemented.
+// Deliberately private until the P4 route cutover removes the shared bearer atomically.
 #[allow(dead_code)]
 mod capability;
 mod chain;
