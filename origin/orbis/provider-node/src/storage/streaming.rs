@@ -125,6 +125,8 @@ pub(crate) enum ReplicationIngressState {
 	ExactReady,
 	/// The exact operation is absent/receiving, including a healthy duplicate CID logical entry.
 	Fresh,
+	/// A completed shared-CID repair must materialize/resume the derived logical install.
+	MaterializeRepaired,
 	/// The matching installed object is quarantined and requires the exact repair operation.
 	Repair,
 }
@@ -1396,7 +1398,22 @@ impl StreamingStore {
 				return Err(ContentError::IdempotencyConflict);
 			}
 			return match exact.phase {
-				Phase::Receiving => Ok(ReplicationIngressState::Fresh),
+				Phase::Receiving => {
+					let repair_key = repair_key(canonical.as_str(), repair_operation_id)?;
+					if let Some(repair) = state.repairs.get(&repair_key) {
+						let repaired = installed_record_for_repair(&state, repair)?;
+						validate_repair_record(&repair_key, repair, &repaired)?;
+						if repair.phase == RepairPhase::Installed
+							&& !state.quarantine.contains_key(canonical.as_str())
+						{
+							Ok(ReplicationIngressState::MaterializeRepaired)
+						} else {
+							Err(ContentError::IntegrityFailed)
+						}
+					} else {
+						Ok(ReplicationIngressState::Fresh)
+					}
+				},
 				Phase::Installed if state.quarantine.contains_key(canonical.as_str()) => {
 					validate_replication_repair_identity(
 						&state,

@@ -619,4 +619,39 @@ mod tests {
 		durable.extend(streaming.read_chunk_verified(cid.as_str(), 1).unwrap());
 		assert_eq!(durable, bytes);
 	}
+
+	#[tokio::test]
+	async fn crash_mid_repaired_materialization_resumes_before_proof_attach() {
+		let (_source, target, session, responder, _, _) = duplicate_suffix_fixture();
+		let stack = Arc::new(CheckpointStack::open(target.path()).unwrap());
+		let transport = Arc::new(DirectTransport::new(responder.clone()));
+		let reconciler = ReplicationReconciler::new(stack.clone(), transport, pair(12)).unwrap();
+		let operation = ReplicationReconciler::<DirectTransport>::operation_id(&session);
+		reconciler.reconcile_one(&session, operation).await.unwrap();
+		reconciler.reconcile_one(&session, operation).await.unwrap();
+		stack
+			.inject_replication_streaming_fault_once(crate::StreamingFault::AfterChunkSync)
+			.unwrap();
+		assert!(matches!(
+			reconciler.reconcile_one(&session, operation).await,
+			Err(ContentError::Io(_))
+		));
+		drop(reconciler);
+		drop(stack);
+
+		let retry = ReplicationReconciler::new(
+			Arc::new(CheckpointStack::open(target.path()).unwrap()),
+			Arc::new(DirectTransport::new(responder)),
+			pair(12),
+		)
+		.unwrap();
+		let mut phase = ReplicationPhase::Receiving;
+		for _ in 0..6 {
+			phase = retry.reconcile_one(&session, operation).await.unwrap().phase;
+			if phase == ReplicationPhase::MmrCommitted {
+				break;
+			}
+		}
+		assert_eq!(phase, ReplicationPhase::MmrCommitted);
+	}
 }

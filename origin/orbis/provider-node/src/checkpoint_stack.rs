@@ -275,6 +275,9 @@ impl CheckpointStack {
 					)?;
 				}
 			},
+			ReplicationIngressState::MaterializeRepaired => {
+				install_derived_replication_object(&state.streaming, &state.bucket_mmr, &incoming)?;
+			},
 			ReplicationIngressState::Repair => {
 				let progress = state
 					.streaming
@@ -378,6 +381,14 @@ impl CheckpointStack {
 		fault: PeerReplyFault,
 	) -> Result<(), ContentError> {
 		self.lock()?.peer_replies.inject_fault_once(fault)
+	}
+
+	#[cfg(test)]
+	pub(crate) fn inject_replication_streaming_fault_once(
+		&self,
+		fault: crate::StreamingFault,
+	) -> Result<(), ContentError> {
+		self.lock()?.streaming.inject_fault_once(fault)
 	}
 
 	/// Consume one durable v2 submission without retaining the stack guard across finality.
