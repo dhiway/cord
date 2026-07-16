@@ -45,9 +45,9 @@ pub const ORBIS_PRODUCTION_ACTIVATION_READY: bool = false;
 pub const IDENTITY_PERSONHOOD_RUNTIME_API_VERSION: u32 = 1;
 pub const ATTESTATION_RUNTIME_API_VERSION: u32 = 1;
 pub const NAMES_RUNTIME_API_VERSION: u32 = 1;
-pub const STORAGE_PROVIDER_RUNTIME_API_VERSION: u32 = 4;
-pub const DRIVE_RUNTIME_API_VERSION: u32 = 1;
-pub const S3_RUNTIME_API_VERSION: u32 = 1;
+pub const STORAGE_PROVIDER_RUNTIME_API_VERSION: u32 = 10;
+pub const DRIVE_RUNTIME_API_VERSION: u32 = 2;
+pub const S3_RUNTIME_API_VERSION: u32 = 3;
 
 pub const ATTESTATION_STORAGE_SCHEMA_VERSION: u32 = 1;
 pub const NAMES_STORAGE_SCHEMA_VERSION: u32 = 1;
@@ -96,6 +96,8 @@ mod tests {
 			matrix["native_runtime_apis"]["storage_provider"]["version"],
 			STORAGE_PROVIDER_RUNTIME_API_VERSION
 		);
+		assert_eq!(matrix["native_runtime_apis"]["drive"]["version"], DRIVE_RUNTIME_API_VERSION);
+		assert_eq!(matrix["native_runtime_apis"]["s3"]["version"], S3_RUNTIME_API_VERSION);
 		assert_eq!(
 			matrix["native_storage_schemas"]["storage_provider"]["version"],
 			STORAGE_PROVIDER_STORAGE_SCHEMA_VERSION

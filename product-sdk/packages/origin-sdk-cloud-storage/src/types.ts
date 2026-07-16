@@ -38,7 +38,7 @@ export type BlockNumber = string & { readonly [storageType]: "BlockNumber" };
 export type ReservationId = string & { readonly [storageType]: "ReservationId" };
 export interface PageInput { readonly cursor?: number | null; readonly limit?: number; }
 export interface PageRequest { readonly cursor: number | null; readonly limit: number; }
-export interface IdPage<Id> { readonly version: 1; readonly items: readonly Id[]; readonly next_cursor: number | null; readonly finalized_hash: BlockHash; }
+export interface IdPage<Id> { readonly version: 8; readonly items: readonly Id[]; readonly next_cursor: number | null; readonly finalized_hash: BlockHash; }
 export function page(input: PageInput = {}): PageRequest {
   const cursor=input.cursor??null, limit=input.limit??50;
   if(cursor!==null&&(!Number.isSafeInteger(cursor)||cursor<0||cursor>0xffff_ffff)) throw new TypeError("cursor must be a u32");
