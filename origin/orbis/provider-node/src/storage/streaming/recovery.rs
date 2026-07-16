@@ -592,6 +592,17 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 				capability
 					.verify_signature(decode_hex(&record.authority_public_key)?)
 					.map_err(|_| ContentError::IntegrityFailed)?;
+				if capability.issuer_key_id != host_key ||
+					capability.grant_id != request.grant_id ||
+					capability.product_id != request.product_id ||
+					capability.bucket_id != request.bucket_id ||
+					capability.cid.as_ref() != Some(&request.cid) ||
+					!capability.methods.contains(&METHOD) ||
+					request.object_len > capability.max_bytes ||
+					request.deadline > capability.expires_at
+				{
+					return Err(ContentError::IntegrityFailed)
+				}
 				(capability.expires_at, capability.provider)
 			} else {
 				let token =
@@ -599,7 +610,14 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 				token
 					.verify(decode_hex(&record.authority_public_key)?)
 					.map_err(|_| ContentError::IntegrityFailed)?;
-				if token.generation != record.generation || token.nonce != nonce {
+				if token.host_key_id != host_key ||
+					token.generation != record.generation ||
+					token.nonce != nonce ||
+					token.operation_id != request.operation_id ||
+					token.bucket_id != request.bucket_id ||
+					token.cid != request.cid ||
+					token.object_len != request.object_len
+				{
 					return Err(ContentError::IntegrityFailed)
 				}
 				(token.expires_at, token.provider)
@@ -766,6 +784,30 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 		let capability =
 			ProviderCapabilityV1::decode(&authority).map_err(|_| ContentError::IntegrityFailed)?;
 		if *key != capability_replay_key(capability.grant_id, capability.nonce) {
+			return Err(ContentError::IntegrityFailed)
+		}
+	}
+	let accepted = state
+		.recovery
+		.iter()
+		.filter(|(_, record)| record.effect == RecoveryEffect::Accepted)
+		.collect::<Vec<_>>();
+	if accepted.len() != state.capability_replay.len() {
+		return Err(ContentError::IntegrityFailed)
+	}
+	for (recovery_key, record) in accepted {
+		let authority =
+			hex::decode(&record.authority).map_err(|_| ContentError::IntegrityFailed)?;
+		let capability =
+			ProviderCapabilityV1::decode(&authority).map_err(|_| ContentError::IntegrityFailed)?;
+		let replay = state
+			.capability_replay
+			.get(&capability_replay_key(capability.grant_id, capability.nonce))
+			.ok_or(ContentError::IntegrityFailed)?;
+		if replay.recovery_key != *recovery_key ||
+			replay.fingerprint != record.fingerprint ||
+			replay.retain_until != record.retain_until
+		{
 			return Err(ContentError::IntegrityFailed)
 		}
 	}
@@ -2572,5 +2614,75 @@ mod tests {
 		drop(state);
 		drop(store);
 		assert!(StreamingStore::open(temp.path()).is_err());
+	}
+
+	#[test]
+	fn reopen_requires_replay_bijection_host_binding_and_immutable_capability_scope() {
+		for case in 0..4 {
+			let temp = TempDir::new().unwrap();
+			let (request, capability, snapshot, service) = fixture();
+			let store = StreamingStore::open(temp.path()).unwrap();
+			store
+				.accept_object_put(
+					&request.canonical_bytes(),
+					&capability.canonical_bytes(),
+					&snapshot,
+					service.public().0,
+					&service,
+					[10; 16],
+				)
+				.unwrap();
+			let mut state = store.state.write().unwrap();
+			match case {
+				0 => state.capability_replay.clear(),
+				1 => {
+					let (_, replay) = state.capability_replay.pop_first().unwrap();
+					state.capability_replay.insert("aa".repeat(32), replay);
+				},
+				2 => {
+					let old_key = state
+						.recovery
+						.iter()
+						.find(|(_, record)| record.effect == RecoveryEffect::Accepted)
+						.map(|(key, _)| key.clone())
+						.unwrap();
+					let mut record = state.recovery.remove(&old_key).unwrap();
+					let operation = decode_hex(&record.operation_id).unwrap();
+					let nonce = decode_hex(&record.nonce).unwrap();
+					let changed_host = [44; 32];
+					record.host_key_id = hex::encode(changed_host);
+					let changed_key =
+						recovery_key(changed_host, operation, record.generation, nonce);
+					state.recovery.insert(changed_key.clone(), record);
+					state.capability_replay.values_mut().next().unwrap().recovery_key = changed_key;
+				},
+				3 => {
+					let record = state
+						.recovery
+						.values_mut()
+						.find(|record| record.effect == RecoveryEffect::Accepted)
+						.unwrap();
+					let authority = hex::decode(&record.authority).unwrap();
+					let mut changed =
+						ObjectPutRequestV2::decode(&hex::decode(&record.request).unwrap()).unwrap();
+					changed.product_id = "other".into();
+					let request_bytes = changed.canonical_bytes();
+					let changed_fingerprint = fingerprint(&request_bytes, &authority);
+					record.request = hex::encode(request_bytes);
+					record.fingerprint = hex::encode(changed_fingerprint);
+					let mut entry =
+						RecoveryEntryV1::decode(&hex::decode(&record.entry_cbor).unwrap()).unwrap();
+					entry.fingerprint = changed_fingerprint;
+					record.entry_cbor = hex::encode(entry.canonical_bytes());
+					state.capability_replay.values_mut().next().unwrap().fingerprint =
+						hex::encode(changed_fingerprint);
+				},
+				_ => unreachable!(),
+			}
+			persist_state(&store.root, &state).unwrap();
+			drop(state);
+			drop(store);
+			assert!(StreamingStore::open(temp.path()).is_err(), "case {case}");
+		}
 	}
 }
