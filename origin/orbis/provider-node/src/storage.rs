@@ -21,8 +21,8 @@
 pub mod streaming;
 
 pub use streaming::{
-	BeginStreaming, IngressPermit, ProgressAck, StreamingDescriptor, StreamingFault,
-	StreamingReceipt, StreamingStore,
+	BeginStreaming, IngressPermit, IntegritySummary, ProgressAck, StreamingDescriptor,
+	StreamingFault, StreamingReceipt, StreamingStore,
 };
 
 use std::{

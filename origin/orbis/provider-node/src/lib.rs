@@ -45,9 +45,9 @@ pub use content::{
 };
 pub use storage::{
 	BeginStreaming, CheckpointDutyWatermark, ChunkProof, CommitInput, ContentRecord, DiskStore,
-	IngressPermit, NodeProfile, PendingDeletion, PendingRootSubmission, ProgressAck, ProviderStats,
-	RootObservation, SignedCheckpoint, StoreError, StreamingDescriptor, StreamingFault,
-	StreamingReceipt, StreamingStore,
+	IngressPermit, IntegritySummary, NodeProfile, PendingDeletion, PendingRootSubmission,
+	ProgressAck, ProviderStats, RootObservation, SignedCheckpoint, StoreError, StreamingDescriptor,
+	StreamingFault, StreamingReceipt, StreamingStore,
 };
 pub use workers::{
 	poll_checkpoint_duties_once, run_workers, CheckpointSubmission, CheckpointSubmitter,

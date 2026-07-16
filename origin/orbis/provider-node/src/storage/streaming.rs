@@ -34,7 +34,7 @@ use crate::{
 	INGRESS_WINDOW_CHUNKS, MAX_CHUNKS, MAX_RANGE_BYTES, MAX_STORED_BYTES, MAX_STREAMING_OPERATIONS,
 };
 
-const STREAM_VERSION: u16 = 2;
+const STREAM_VERSION: u16 = 3;
 const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
@@ -110,6 +110,8 @@ pub enum StreamingFault {
 	AfterFinalizingJournal,
 	/// Object rename is durable but the installed journal is absent.
 	AfterObjectRename,
+	/// Verified repair rename is durable but sticky quarantine is not cleared.
+	AfterRepairRename,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -143,6 +145,44 @@ struct OperationRecord {
 struct JournalState {
 	version: u16,
 	operations: BTreeMap<String, OperationRecord>,
+	#[serde(default)]
+	quarantine: BTreeMap<String, QuarantineRecord>,
+	#[serde(default)]
+	detection_sequence: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum QuarantineReason {
+	Missing,
+	Unreadable,
+	LengthMismatch,
+	ChunkMismatch,
+	FullCidMismatch,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct QuarantineRecord {
+	reason: QuarantineReason,
+	expected_bytes: u64,
+	observed_bytes: Option<u64>,
+	detection_sequence: u64,
+}
+
+/// Redacted local integrity state without object identifiers or failure details.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntegritySummary {
+	/// Number of distinct installed canonical objects.
+	pub installed_objects: u64,
+	/// Number of installed objects admitted for verified reads.
+	pub ready_objects: u64,
+	/// Number of distinct installed objects in sticky quarantine.
+	pub quarantined_objects: u64,
+	/// True only when every installed object is outside quarantine.
+	pub ready: bool,
+	/// Last monotonically assigned integrity detection sequence.
+	pub last_detection_sequence: u64,
 }
 
 #[derive(Default)]
@@ -220,7 +260,12 @@ impl StreamingStore {
 			}
 			state
 		} else {
-			JournalState { version: STREAM_VERSION, operations: BTreeMap::new() }
+			JournalState {
+				version: STREAM_VERSION,
+				operations: BTreeMap::new(),
+				quarantine: BTreeMap::new(),
+				detection_sequence: 0,
+			}
 		};
 		let store = Self {
 			root,
@@ -251,6 +296,11 @@ impl StreamingStore {
 		if let Some(existing) = state.operations.get(&key) {
 			if existing.descriptor != descriptor {
 				return Err(ContentError::IdempotencyConflict)
+			}
+			if existing.phase == Phase::Installed &&
+				state.quarantine.contains_key(&existing.descriptor.expected_cid)
+			{
+				return Err(ContentError::IntegrityFailed)
 			}
 			return match (&existing.phase, &existing.receipt) {
 				(Phase::Installed, Some(receipt)) => Ok(BeginStreaming::Installed(receipt.clone())),
@@ -430,6 +480,9 @@ impl StreamingStore {
 		let mut state = self.write_state()?;
 		let record = state.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
 		if record.phase == Phase::Installed {
+			if state.quarantine.contains_key(&record.descriptor.expected_cid) {
+				return Err(ContentError::IntegrityFailed)
+			}
 			return record.receipt.ok_or(ContentError::IntegrityFailed)
 		}
 		if record.phase != Phase::Receiving {
@@ -506,8 +559,15 @@ impl StreamingStore {
 	pub fn verify_installed(&self, cid: &str) -> Result<(), ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
 		let record = self.installed_record(canonical.as_str())?;
-		verify_file(&self.object_path(canonical.as_str()), &record.descriptor, &record.chunks)?;
-		Ok(())
+		self.reject_quarantined(canonical.as_str())?;
+		let path = self.object_path(canonical.as_str());
+		match verify_file(&path, &record.descriptor, &record.chunks) {
+			Ok(_) => Ok(()),
+			Err(error) => {
+				self.quarantine_failure(canonical.as_str(), &record, &path, &error)?;
+				Err(ContentError::IntegrityFailed)
+			},
+		}
 	}
 
 	/// Return a bounded half-open range only after a full preflight and per-touched-chunk re-hash.
@@ -519,17 +579,22 @@ impl StreamingStore {
 	) -> Result<Vec<u8>, ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
 		let record = self.installed_record(canonical.as_str())?;
+		self.reject_quarantined(canonical.as_str())?;
 		if start > end ||
 			end > record.descriptor.object_len ||
 			end.saturating_sub(start) > MAX_RANGE_BYTES
 		{
 			return Err(ContentError::RangeInvalid)
 		}
-		let (mut file, _, _, _) = verify_open_file(
-			&self.object_path(canonical.as_str()),
-			&record.descriptor,
-			&record.chunks,
-		)?;
+		let path = self.object_path(canonical.as_str());
+		let (mut file, _, _, _) = match verify_open_file(&path, &record.descriptor, &record.chunks)
+		{
+			Ok(verified) => verified,
+			Err(error) => {
+				self.quarantine_failure(canonical.as_str(), &record, &path, &error)?;
+				return Err(ContentError::IntegrityFailed)
+			},
+		};
 		if start == end {
 			return Ok(Vec::new())
 		}
@@ -537,7 +602,13 @@ impl StreamingStore {
 		let last = ((end - 1) / CHUNK_BYTES as u64) as usize;
 		let mut output = Vec::with_capacity((end - start) as usize);
 		for index in first..=last {
-			let chunk = read_verified_chunk(&mut file, index as u16, &record.chunks[index])?;
+			let chunk = match read_verified_chunk(&mut file, index as u16, &record.chunks[index]) {
+				Ok(chunk) => chunk,
+				Err(error) => {
+					self.quarantine_failure(canonical.as_str(), &record, &path, &error)?;
+					return Err(ContentError::IntegrityFailed)
+				},
+			};
 			let chunk_start = index as u64 * CHUNK_BYTES as u64;
 			let from = start.saturating_sub(chunk_start) as usize;
 			let to = (end - chunk_start).min(chunk.len() as u64) as usize;
@@ -550,13 +621,80 @@ impl StreamingStore {
 	pub fn read_chunk_verified(&self, cid: &str, index: u16) -> Result<Vec<u8>, ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
 		let record = self.installed_record(canonical.as_str())?;
+		self.reject_quarantined(canonical.as_str())?;
 		let expected = record.chunks.get(index as usize).ok_or(ContentError::ChunkOutOfOrder)?;
-		let (mut file, _, _, _) = verify_open_file(
-			&self.object_path(canonical.as_str()),
-			&record.descriptor,
-			&record.chunks,
-		)?;
-		read_verified_chunk(&mut file, index, expected)
+		let path = self.object_path(canonical.as_str());
+		let (mut file, _, _, _) = match verify_open_file(&path, &record.descriptor, &record.chunks)
+		{
+			Ok(verified) => verified,
+			Err(error) => {
+				self.quarantine_failure(canonical.as_str(), &record, &path, &error)?;
+				return Err(ContentError::IntegrityFailed)
+			},
+		};
+		match read_verified_chunk(&mut file, index, expected) {
+			Ok(bytes) => Ok(bytes),
+			Err(error) => {
+				self.quarantine_failure(canonical.as_str(), &record, &path, &error)?;
+				Err(ContentError::IntegrityFailed)
+			},
+		}
+	}
+
+	/// Return redacted durable integrity counts without reading object bytes.
+	pub fn integrity_summary(&self) -> Result<IntegritySummary, ContentError> {
+		let state = self.read_state()?;
+		Ok(integrity_summary(&state))
+	}
+
+	/// Verify every non-quarantined installed object before returning a readiness summary.
+	pub fn audit_integrity(&self) -> Result<IntegritySummary, ContentError> {
+		for (cid, record) in self.installed_records()? {
+			if self.is_quarantined(&cid)? {
+				continue
+			}
+			let path = self.object_path(&cid);
+			if let Err(error) = verify_file(&path, &record.descriptor, &record.chunks) {
+				self.quarantine_failure(&cid, &record, &path, &error)?;
+			}
+		}
+		self.integrity_summary()
+	}
+
+	/// Install exact verified bytes for an existing quarantine and clear it only after durability.
+	pub fn install_verified_repair(&self, cid: &str, bytes: &[u8]) -> Result<(), ContentError> {
+		self.install_verified_repair_reader(cid, bytes)
+	}
+
+	/// Stream an exact verified repair for an existing quarantine.
+	pub fn install_verified_repair_reader<R: Read>(
+		&self,
+		cid: &str,
+		mut reader: R,
+	) -> Result<(), ContentError> {
+		let canonical = CanonicalCid::parse(cid)?;
+		let record = self.installed_record(canonical.as_str())?;
+		let mut state = self.write_state()?;
+		if !state.quarantine.contains_key(canonical.as_str()) {
+			return Err(ContentError::IdempotencyConflict)
+		}
+		let repair = self.repair_path(canonical.as_str());
+		remove_repair_if_present(&repair)?;
+		if let Err(error) = stage_verified_repair(&repair, &record, &mut reader) {
+			remove_repair_if_present(&repair)?;
+			return Err(error)
+		}
+		let object = self.object_path(canonical.as_str());
+		fs::rename(&repair, &object).map_err(io_error)?;
+		File::open(&object).and_then(|file| file.sync_all()).map_err(io_error)?;
+		sync_dir(repair.parent().expect("repair path has parent"))?;
+		sync_dir(object.parent().expect("object path has parent"))?;
+		self.trip_fault(StreamingFault::AfterRepairRename)?;
+		let mut next = state.clone();
+		next.quarantine.remove(canonical.as_str());
+		persist_state(&self.root, &next)?;
+		*state = next;
+		Ok(())
 	}
 
 	fn recover(&self) -> Result<(), ContentError> {
@@ -570,6 +708,33 @@ impl StreamingStore {
 		}
 		let mut next = state.clone();
 		let mut changed = false;
+		let installed_cids: BTreeSet<_> = next
+			.operations
+			.values()
+			.filter(|record| record.phase == Phase::Installed)
+			.map(|record| record.descriptor.expected_cid.clone())
+			.collect();
+		let previous_quarantines = next.quarantine.len();
+		next.quarantine.retain(|cid, _| installed_cids.contains(cid));
+		changed |= previous_quarantines != next.quarantine.len();
+		let mut quarantine_sequences = BTreeSet::new();
+		for (cid, quarantine) in &next.quarantine {
+			let descriptor = next
+				.operations
+				.values()
+				.find(|record| {
+					record.phase == Phase::Installed && record.descriptor.expected_cid == *cid
+				})
+				.map(|record| &record.descriptor)
+				.ok_or(ContentError::IntegrityFailed)?;
+			if quarantine.expected_bytes != descriptor.object_len ||
+				quarantine.detection_sequence == 0 ||
+				quarantine.detection_sequence > next.detection_sequence ||
+				!quarantine_sequences.insert(quarantine.detection_sequence)
+			{
+				return Err(ContentError::IntegrityFailed)
+			}
+		}
 		let keys: Vec<_> = next.operations.keys().cloned().collect();
 		for key in keys {
 			let record = next.operations.get(&key).cloned().expect("key exists");
@@ -618,17 +783,31 @@ impl StreamingStore {
 				Phase::Installed => {
 					let installed_receipt =
 						record.receipt.as_ref().ok_or(ContentError::IntegrityFailed)?;
-					let (_, fingerprint, length) = verify_file(
-						&self.object_path(&record.descriptor.expected_cid),
-						&record.descriptor,
-						&record.chunks,
-					)?;
-					let expected_receipt =
-						receipt(&record.descriptor, &record.descriptor.expected_cid, fingerprint);
-					if installed_receipt != &expected_receipt ||
-						expected_receipt.stored_bytes != length
-					{
+					let expected_receipt = expected_receipt(&record)?;
+					if installed_receipt != &expected_receipt {
 						return Err(ContentError::IntegrityFailed)
+					}
+					if next.quarantine.contains_key(&record.descriptor.expected_cid) {
+						continue
+					}
+					let path = self.object_path(&record.descriptor.expected_cid);
+					match verify_file(&path, &record.descriptor, &record.chunks) {
+						Ok((_, fingerprint, length)) => {
+							if fingerprint != expected_receipt.fingerprint ||
+								expected_receipt.stored_bytes != length
+							{
+								return Err(ContentError::IntegrityFailed)
+							}
+						},
+						Err(error) => {
+							let (reason, observed_bytes) = diagnose_failure(&path, &record, &error);
+							changed |= insert_quarantine(
+								&mut next,
+								&record.descriptor,
+								reason,
+								observed_bytes,
+							)?;
+						},
 					}
 				},
 			}
@@ -665,6 +844,52 @@ impl StreamingStore {
 			.ok_or(ContentError::NotFound)
 	}
 
+	fn installed_records(&self) -> Result<BTreeMap<String, OperationRecord>, ContentError> {
+		Ok(self
+			.read_state()?
+			.operations
+			.values()
+			.filter(|record| record.phase == Phase::Installed)
+			.map(|record| (record.descriptor.expected_cid.clone(), record.clone()))
+			.collect())
+	}
+
+	fn reject_quarantined(&self, cid: &str) -> Result<(), ContentError> {
+		if self.is_quarantined(cid)? {
+			Err(ContentError::IntegrityFailed)
+		} else {
+			Ok(())
+		}
+	}
+
+	fn is_quarantined(&self, cid: &str) -> Result<bool, ContentError> {
+		Ok(self.read_state()?.quarantine.contains_key(cid))
+	}
+
+	fn quarantine_failure(
+		&self,
+		cid: &str,
+		record: &OperationRecord,
+		path: &Path,
+		error: &ContentError,
+	) -> Result<(), ContentError> {
+		let (reason, observed_bytes) = diagnose_failure(path, record, error);
+		let mut state = self.write_state()?;
+		if state.quarantine.contains_key(cid) {
+			return Ok(())
+		}
+		if !state.operations.values().any(|candidate| {
+			candidate.phase == Phase::Installed && candidate.descriptor.expected_cid == cid
+		}) {
+			return Err(ContentError::NotFound)
+		}
+		let mut next = state.clone();
+		insert_quarantine(&mut next, &record.descriptor, reason, observed_bytes)?;
+		persist_state(&self.root, &next)?;
+		*state = next;
+		Ok(())
+	}
+
 	fn progress(&self, record: &OperationRecord) -> Result<ProgressAck, ContentError> {
 		let window = self.window.window.lock().map_err(|_| lock_error())?;
 		Ok(ProgressAck {
@@ -693,6 +918,10 @@ impl StreamingStore {
 		self.root.join(OBJECTS).join(cid)
 	}
 
+	fn repair_path(&self, cid: &str) -> PathBuf {
+		self.root.join(STAGING).join(format!("repair-{cid}.part"))
+	}
+
 	fn persist(&self) -> Result<(), ContentError> {
 		let state = self.read_state()?;
 		persist_state(&self.root, &state)
@@ -705,6 +934,143 @@ impl StreamingStore {
 	fn write_state(&self) -> Result<std::sync::RwLockWriteGuard<'_, JournalState>, ContentError> {
 		self.state.write().map_err(|_| lock_error())
 	}
+}
+
+fn integrity_summary(state: &JournalState) -> IntegritySummary {
+	let installed: BTreeSet<_> = state
+		.operations
+		.values()
+		.filter(|record| record.phase == Phase::Installed)
+		.map(|record| record.descriptor.expected_cid.as_str())
+		.collect();
+	let installed_objects = installed.len() as u64;
+	let quarantined_objects =
+		state.quarantine.keys().filter(|cid| installed.contains(cid.as_str())).count() as u64;
+	let ready_objects = installed_objects.saturating_sub(quarantined_objects);
+	IntegritySummary {
+		installed_objects,
+		ready_objects,
+		quarantined_objects,
+		ready: quarantined_objects == 0,
+		last_detection_sequence: state.detection_sequence,
+	}
+}
+
+fn insert_quarantine(
+	state: &mut JournalState,
+	descriptor: &StreamingDescriptor,
+	reason: QuarantineReason,
+	observed_bytes: Option<u64>,
+) -> Result<bool, ContentError> {
+	if state.quarantine.contains_key(&descriptor.expected_cid) {
+		return Ok(false)
+	}
+	state.detection_sequence =
+		state.detection_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+	state.quarantine.insert(
+		descriptor.expected_cid.clone(),
+		QuarantineRecord {
+			reason,
+			expected_bytes: descriptor.object_len,
+			observed_bytes,
+			detection_sequence: state.detection_sequence,
+		},
+	);
+	Ok(true)
+}
+
+fn diagnose_failure(
+	path: &Path,
+	record: &OperationRecord,
+	original: &ContentError,
+) -> (QuarantineReason, Option<u64>) {
+	let metadata = match fs::metadata(path) {
+		Ok(metadata) => metadata,
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound =>
+			return (QuarantineReason::Missing, None),
+		Err(_) => return (QuarantineReason::Unreadable, None),
+	};
+	let observed = Some(metadata.len());
+	if metadata.len() != record.descriptor.object_len {
+		return (QuarantineReason::LengthMismatch, observed)
+	}
+	let mut file = match File::open(path) {
+		Ok(file) => file,
+		Err(_) => return (QuarantineReason::Unreadable, observed),
+	};
+	let mut content = Blake2b::<U32>::new();
+	for chunk in &record.chunks {
+		let mut bytes = vec![0; chunk.length as usize];
+		if file.read_exact(&mut bytes).is_err() {
+			return (QuarantineReason::Unreadable, observed)
+		}
+		if chunk_hash(&bytes) != chunk.hash {
+			return (QuarantineReason::ChunkMismatch, observed)
+		}
+		content.update(&bytes);
+	}
+	let mut trailing = [0u8; 1];
+	if file.read(&mut trailing).ok() != Some(0) {
+		return (QuarantineReason::LengthMismatch, observed)
+	}
+	let cid = CanonicalCid::from_digest(content.finalize().into());
+	if cid.as_str() != record.descriptor.expected_cid {
+		return (QuarantineReason::FullCidMismatch, observed)
+	}
+	match original {
+		ContentError::LengthMismatch => (QuarantineReason::LengthMismatch, observed),
+		ContentError::CidMismatch => (QuarantineReason::FullCidMismatch, observed),
+		_ => (QuarantineReason::Unreadable, observed),
+	}
+}
+
+fn stage_verified_repair<R: Read>(
+	path: &Path,
+	record: &OperationRecord,
+	reader: &mut R,
+) -> Result<(), ContentError> {
+	let mut file = OpenOptions::new().create_new(true).write(true).open(path).map_err(io_error)?;
+	let mut content = Blake2b::<U32>::new();
+	let mut length = 0u64;
+	for expected in &record.chunks {
+		let mut bytes = vec![0; expected.length as usize];
+		reader.read_exact(&mut bytes).map_err(|_| ContentError::LengthMismatch)?;
+		if chunk_hash(&bytes) != expected.hash {
+			return Err(ContentError::CidMismatch)
+		}
+		length = length.checked_add(bytes.len() as u64).ok_or(ContentError::ObjectTooLarge)?;
+		content.update(&bytes);
+		file.write_all(&bytes).map_err(io_error)?;
+	}
+	let mut trailing = [0u8; 1];
+	if reader.read(&mut trailing).map_err(|_| ContentError::IntegrityFailed)? != 0 ||
+		length != record.descriptor.object_len ||
+		record.chunks.len() != chunk_count(length)?
+	{
+		return Err(ContentError::LengthMismatch)
+	}
+	let cid = CanonicalCid::from_digest(content.finalize().into());
+	if cid.as_str() != record.descriptor.expected_cid {
+		return Err(ContentError::CidMismatch)
+	}
+	file.sync_all().map_err(io_error)?;
+	sync_dir(path.parent().expect("repair path has parent"))
+}
+
+fn remove_repair_if_present(path: &Path) -> Result<(), ContentError> {
+	if path.exists() {
+		fs::remove_file(path).map_err(io_error)?;
+		sync_dir(path.parent().expect("repair path has parent"))?;
+	}
+	Ok(())
+}
+
+fn expected_receipt(record: &OperationRecord) -> Result<StreamingReceipt, ContentError> {
+	Ok(receipt(
+		&record.descriptor,
+		&record.descriptor.expected_cid,
+		fingerprint_from_chunks(&record.descriptor, &record.chunks)?,
+	))
 }
 
 fn validate_descriptor(descriptor: &StreamingDescriptor) -> Result<(), ContentError> {
@@ -758,12 +1124,34 @@ fn operation_key_parts(bucket_id: BucketId, operation_id: OperationId) -> String
 
 fn new_fingerprint(descriptor: &StreamingDescriptor) -> Blake2b<U32> {
 	let mut hash = Blake2b::<U32>::new();
-	hash.update(b"origin/streaming-content/v1");
+	hash.update(b"origin/streaming-content-receipt/v2");
 	hash.update(descriptor.bucket_id.as_bytes());
 	hash.update(descriptor.operation_id.as_bytes());
 	hash.update(CanonicalCid::parse(&descriptor.expected_cid).expect("validated CID").digest());
 	hash.update(descriptor.object_len.to_le_bytes());
 	hash
+}
+
+fn fingerprint_from_chunks(
+	descriptor: &StreamingDescriptor,
+	chunks: &[ChunkRecord],
+) -> Result<String, ContentError> {
+	let mut fingerprint = new_fingerprint(descriptor);
+	for (index, chunk) in chunks.iter().enumerate() {
+		let index: u16 = index.try_into().map_err(|_| ContentError::IntegrityFailed)?;
+		let encoded = chunk.hash.strip_prefix("0x").ok_or(ContentError::IntegrityFailed)?;
+		if encoded.len() != 64 || encoded.bytes().any(|byte| byte.is_ascii_uppercase()) {
+			return Err(ContentError::IntegrityFailed)
+		}
+		let hash = hex::decode(encoded).map_err(|_| ContentError::IntegrityFailed)?;
+		if hash.len() != 32 {
+			return Err(ContentError::IntegrityFailed)
+		}
+		fingerprint.update(index.to_le_bytes());
+		fingerprint.update(chunk.length.to_le_bytes());
+		fingerprint.update(hash);
+	}
+	Ok(format!("0x{}", hex::encode(fingerprint.finalize())))
 }
 
 fn chunk_hash(bytes: &[u8]) -> String {
@@ -789,7 +1177,6 @@ fn verify_open_file(
 	}
 	let mut file = File::open(path).map_err(|_| ContentError::IntegrityFailed)?;
 	let mut content = Blake2b::<U32>::new();
-	let mut fingerprint = new_fingerprint(descriptor);
 	let mut length = 0u64;
 	for (index, expected) in chunks.iter().enumerate() {
 		if expected.length as usize != expected_chunk_len(descriptor.object_len, index as u16)? {
@@ -801,7 +1188,6 @@ fn verify_open_file(
 			return Err(ContentError::IntegrityFailed)
 		}
 		content.update(&bytes);
-		fingerprint.update(&bytes);
 		length += bytes.len() as u64;
 	}
 	let mut trailing = [0u8; 1];
@@ -815,7 +1201,7 @@ fn verify_open_file(
 	if cid.as_str() != descriptor.expected_cid {
 		return Err(ContentError::CidMismatch)
 	}
-	Ok((file, cid, format!("0x{}", hex::encode(fingerprint.finalize())), length))
+	Ok((file, cid, fingerprint_from_chunks(descriptor, chunks)?, length))
 }
 
 fn verify_persisted_chunks(
@@ -866,14 +1252,12 @@ where
 	I: IntoIterator<Item = Vec<u8>>,
 {
 	let mut content = Blake2b::<U32>::new();
-	let mut fingerprint = new_fingerprint(descriptor);
 	let mut length = 0u64;
 	let mut records = Vec::new();
 	for (index, chunk) in chunks.into_iter().enumerate() {
 		let index: u16 = index.try_into().map_err(|_| ContentError::ObjectTooLarge)?;
 		validate_chunk_len(descriptor.object_len, index, chunk.len())?;
 		content.update(&chunk);
-		fingerprint.update(&chunk);
 		length += chunk.len() as u64;
 		records.push(ChunkRecord { length: chunk.len() as u32, hash: chunk_hash(&chunk) });
 	}
@@ -884,7 +1268,8 @@ where
 	if cid.as_str() != descriptor.expected_cid {
 		return Err(ContentError::CidMismatch)
 	}
-	Ok((cid, format!("0x{}", hex::encode(fingerprint.finalize())), length, records))
+	let fingerprint = fingerprint_from_chunks(descriptor, &records)?;
+	Ok((cid, fingerprint, length, records))
 }
 
 fn receipt(descriptor: &StreamingDescriptor, cid: &str, fingerprint: String) -> StreamingReceipt {
