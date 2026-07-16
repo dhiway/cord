@@ -299,6 +299,42 @@ impl BucketMmrStore {
 		Ok(())
 	}
 
+	/// Revalidate every committed entry after a quarantined object repair and make the bucket
+	/// available only when the complete in-memory index still matches durable streaming state.
+	pub(crate) fn revalidate_repaired_bucket(
+		&self,
+		streaming: &StreamingStore,
+		bucket_id: BucketId,
+	) -> Result<(), ContentError> {
+		let snapshot = {
+			let state = self.state.read().map_err(|_| lock_error())?;
+			let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::NotFound)?;
+			(bucket.entries.clone(), bucket.source_order.clone(), bucket.meta.clone())
+		};
+		let (entries, source_order, meta) = snapshot;
+		if entries.len() != source_order.len() || entries.len() as u64 != meta.entry_count {
+			return Err(ContentError::IntegrityFailed);
+		}
+		for (index, entry) in entries.iter().enumerate() {
+			if source_order.get(index) != Some(&entry.install_sequence) {
+				return Err(ContentError::IntegrityFailed);
+			}
+			let installation = streaming
+				.verified_installation(bucket_id, OperationId::parse(&entry.operation_id)?)?;
+			if !entry_matches_installation(entry, &installation)? {
+				return Err(ContentError::IntegrityFailed);
+			}
+		}
+		let mut state = self.state.write().map_err(|_| lock_error())?;
+		let bucket = state.buckets.get_mut(&bucket_id).ok_or(ContentError::NotFound)?;
+		if bucket.entries != entries || bucket.source_order != source_order || bucket.meta != meta {
+			return Err(ContentError::IdempotencyConflict);
+		}
+		bucket.unavailable = false;
+		bucket.blocked_at = None;
+		Ok(())
+	}
+
 	/// Build the exact runtime commitment fields after re-verifying only this bucket's bytes.
 	pub(crate) fn commitment_candidate(
 		&self,

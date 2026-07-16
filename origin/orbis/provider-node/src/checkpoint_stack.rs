@@ -38,9 +38,12 @@ use crate::{
 		PeerChunkRequestV1, PeerChunkResponseV1, PeerSyncPageRequestV1, PeerSyncPageResponseV1,
 	},
 	peer_reply::{PeerReplyFault, PeerReplyStore},
-	replication::ReplicationIntentStore,
-	storage::bucket_mmr::BucketMmrStore,
-	BucketId, ContentError, StreamingStore,
+	replication::{
+		ReplicationActionV1, ReplicationIntentStore, ReplicationIntentV1, VerifiedIncomingChunkV1,
+	},
+	replication_session::ReplicationSessionV1,
+	storage::{bucket_mmr::BucketMmrStore, streaming::ReplicationIngressState},
+	BeginStreaming, BucketId, ContentError, StreamingDescriptor, StreamingStore,
 };
 
 /// All durable checkpoint kernels opened against one provider root.
@@ -168,6 +171,178 @@ impl CheckpointStack {
 		state.peer_replies.record_chunk(request, &response)
 	}
 
+	pub(crate) fn plan_replication(
+		&self,
+		session: &ReplicationSessionV1,
+		operation_id: [u8; 16],
+	) -> Result<ReplicationIntentV1, ContentError> {
+		self.lock()?.replication.plan_session(session, operation_id)
+	}
+
+	pub(crate) fn next_replication_action(
+		&self,
+		intent_key: &str,
+		target: &ed25519::Pair,
+	) -> Result<ReplicationActionV1, ContentError> {
+		self.lock()?.replication.next_action(intent_key, target)
+	}
+
+	pub(crate) fn accept_replication_page(
+		&self,
+		intent_key: &str,
+		response: &[u8],
+	) -> Result<ReplicationIntentV1, ContentError> {
+		self.lock()?.replication.attach_page_response(intent_key, response)
+	}
+
+	/// Authenticate, classify and durably store one response chunk without advancing its proof.
+	pub(crate) fn persist_replication_chunk(
+		&self,
+		intent_key: &str,
+		response: &[u8],
+	) -> Result<(), ContentError> {
+		let state = self.lock()?;
+		let incoming = state.replication.inspect_chunk_response(intent_key, response)?;
+		match state.streaming.classify_replication_ingress(
+			incoming.bucket_id,
+			incoming.object.cid(),
+			incoming.object.position().0,
+			incoming.install_operation_id,
+			incoming.repair_operation_id,
+		)? {
+			ReplicationIngressState::ExactReady => {
+				ensure_exact_chunk(&state.streaming, &incoming)?;
+				match state.bucket_mmr.append_verified(
+					&state.streaming,
+					incoming.bucket_id,
+					incoming.install_operation_id,
+				) {
+					Ok(()) => {},
+					Err(ContentError::NotFound) => state
+						.bucket_mmr
+						.revalidate_repaired_bucket(&state.streaming, incoming.bucket_id)?,
+					Err(error) => return Err(error),
+				}
+			},
+			ReplicationIngressState::Fresh => {
+				let descriptor = StreamingDescriptor {
+					operation_id: incoming.install_operation_id,
+					bucket_id: incoming.bucket_id,
+					expected_cid: incoming.object.cid().into(),
+					object_len: incoming.object.position().0,
+				};
+				match state.streaming.begin(descriptor)? {
+					BeginStreaming::Installed(_) => {
+						ensure_exact_chunk(&state.streaming, &incoming)?
+					},
+					BeginStreaming::Receiving(_) => {
+						let permit = state
+							.streaming
+							.try_acquire_ingress(
+								incoming.bucket_id,
+								incoming.install_operation_id,
+								incoming.index,
+								incoming.bytes.len(),
+							)?
+							.ok_or(ContentError::ProviderRecoveryTableFull)?;
+						state.streaming.push_chunk(permit, &incoming.bytes)?;
+					},
+				}
+				if incoming.index as usize + 1 == incoming.object.chunk_hashes().len() {
+					state.streaming.finalize(incoming.bucket_id, incoming.install_operation_id)?;
+					state.bucket_mmr.append_verified(
+						&state.streaming,
+						incoming.bucket_id,
+						incoming.install_operation_id,
+					)?;
+				}
+			},
+			ReplicationIngressState::Repair => {
+				let progress = state
+					.streaming
+					.begin_repair(incoming.object.cid(), incoming.repair_operation_id)?;
+				if incoming.index > progress.next_chunk {
+					return Err(ContentError::ChunkOutOfOrder);
+				}
+				let progress = state.streaming.push_repair_chunk(
+					incoming.object.cid(),
+					incoming.repair_operation_id,
+					incoming.index,
+					&incoming.bytes,
+				)?;
+				if progress.ready_to_finalize {
+					state
+						.streaming
+						.finalize_repair(incoming.object.cid(), incoming.repair_operation_id)?;
+					state
+						.bucket_mmr
+						.revalidate_repaired_bucket(&state.streaming, incoming.bucket_id)?;
+				}
+			},
+		}
+		Ok(())
+	}
+
+	pub(crate) fn accept_replication_chunk(
+		&self,
+		intent_key: &str,
+		response: &[u8],
+	) -> Result<ReplicationIntentV1, ContentError> {
+		self.lock()?.replication.attach_chunk_response(intent_key, response)
+	}
+
+	pub(crate) fn finish_replication_object(
+		&self,
+		intent_key: &str,
+		sequence: u64,
+		cid: &str,
+		length: u64,
+	) -> Result<ReplicationIntentV1, ContentError> {
+		let state = self.lock()?;
+		if length == 0 {
+			let install =
+				state.replication.object_installation(intent_key, sequence, cid, length)?;
+			let descriptor = StreamingDescriptor {
+				operation_id: install.operation_id,
+				bucket_id: install.bucket_id,
+				expected_cid: cid.into(),
+				object_len: 0,
+			};
+			match state.streaming.begin(descriptor)? {
+				BeginStreaming::Receiving(progress) if progress.next_chunk == 0 => {
+					state.streaming.finalize(install.bucket_id, install.operation_id)?;
+				},
+				BeginStreaming::Installed(_) => {},
+				BeginStreaming::Receiving(_) => return Err(ContentError::IntegrityFailed),
+			}
+			state.bucket_mmr.append_verified(
+				&state.streaming,
+				install.bucket_id,
+				install.operation_id,
+			)?;
+		}
+		state
+			.replication
+			.complete_object(&state.streaming, intent_key, sequence, cid, length)
+	}
+
+	pub(crate) fn mark_replication_installed(
+		&self,
+		intent_key: &str,
+	) -> Result<ReplicationIntentV1, ContentError> {
+		self.lock()?.replication.mark_installed(intent_key)
+	}
+
+	pub(crate) fn commit_replication_mmr(
+		&self,
+		intent_key: &str,
+	) -> Result<ReplicationIntentV1, ContentError> {
+		let state = self.lock()?;
+		state
+			.replication
+			.commit_local_mmr(&state.bucket_mmr, &state.streaming, intent_key)
+	}
+
 	#[doc(hidden)]
 	pub(crate) fn inject_peer_reply_fault_once(
 		&self,
@@ -191,6 +366,17 @@ impl CheckpointStack {
 
 	fn lock(&self) -> Result<MutexGuard<'_, CheckpointStackState>, ContentError> {
 		self.state.lock().map_err(|_| ContentError::IntegrityFailed)
+	}
+}
+
+fn ensure_exact_chunk(
+	streaming: &StreamingStore,
+	incoming: &VerifiedIncomingChunkV1,
+) -> Result<(), ContentError> {
+	if streaming.read_chunk_verified(incoming.object.cid(), incoming.index)? == incoming.bytes {
+		Ok(())
+	} else {
+		Err(ContentError::IdempotencyConflict)
 	}
 }
 

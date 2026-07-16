@@ -33,9 +33,10 @@ use sp_crypto_hashing::blake2_256;
 
 use crate::{
 	peer::{
-		PeerChunkRequestV1, PeerChunkResponseV1, PeerContextV1, PeerMmrCommitmentV1,
-		PeerReplayIdentityV1, PeerRequestProofV1, PeerResponseProofV1, PeerSyncPageRequestV1,
-		PeerSyncPageResponseV1, MAX_REQUEST_ENCODED,
+		PeerChunkExpectationV1, PeerChunkRequestV1, PeerChunkResponseV1, PeerContextV1,
+		PeerMmrCommitmentV1, PeerPageExpectationV1, PeerReplayIdentityV1, PeerRequestIdentityV1,
+		PeerRequestProofV1, PeerResponseProofV1, PeerSyncPageRequestV1, PeerSyncPageResponseV1,
+		MAX_REQUEST_ENCODED,
 	},
 	replication_session::ReplicationSessionV1,
 	storage::bucket_mmr::BucketMmrStore,
@@ -58,6 +59,9 @@ const REPAIR_DOMAIN: &[u8] = b"origin/replication-stream-repair/v1";
 const CONFIRMATION_DOMAIN: &[u8] = b"origin/replication-confirmation-binding/v1";
 const CONFIRMATION_SIGNATURE_DOMAIN: &[u8] = b"origin/replication-target-confirmation/v1";
 const SCHEDULER_DOMAIN: &[u8] = b"origin/replication-scheduler/v3";
+const REPLICATION_NONCE_VERSION: u8 = 1;
+const PAGE_NONCE_KIND: u8 = 1;
+const CHUNK_NONCE_KIND: u8 = 2;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -205,6 +209,32 @@ pub(crate) struct ReplicationIntentV1 {
 	record_hash: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ReplicationActionV1 {
+	SendPage { intent_key: String, request_bytes: Vec<u8> },
+	SendChunk { intent_key: String, request_bytes: Vec<u8> },
+	FinishObject { intent_key: String, sequence: u64, cid: String, length: u64 },
+	MarkInstalled { intent_key: String },
+	CommitMmr { intent_key: String },
+	Complete,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct VerifiedIncomingChunkV1 {
+	pub(crate) bucket_id: BucketId,
+	pub(crate) install_operation_id: OperationId,
+	pub(crate) repair_operation_id: OperationId,
+	pub(crate) object: crate::peer::PeerObjectV1,
+	pub(crate) index: u16,
+	pub(crate) bytes: Vec<u8>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ReplicationObjectInstallV1 {
+	pub(crate) bucket_id: BucketId,
+	pub(crate) operation_id: OperationId,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SchedulerStateV1 {
@@ -286,6 +316,111 @@ impl ReplicationIntentStore {
 	) -> Result<ReplicationIntentV1, ContentError> {
 		let input = input_from_session(session, peer_operation_id)?;
 		self.plan_input(&input)
+	}
+
+	pub(crate) fn record(&self, intent_key: &str) -> Result<ReplicationIntentV1, ContentError> {
+		self.ensure_healthy()?;
+		self.records
+			.read()
+			.map_err(|_| lock_error())?
+			.get(intent_key)
+			.cloned()
+			.ok_or(ContentError::NotFound)
+	}
+
+	pub(crate) fn next_action(
+		&self,
+		intent_key: &str,
+		target: &ed25519::Pair,
+	) -> Result<ReplicationActionV1, ContentError> {
+		let record = self.record(intent_key)?;
+		if target.public().0 != record.identity.target_service_key {
+			return Err(ContentError::IntegrityFailed);
+		}
+		if let Some(outstanding) = record
+			.outstanding_request
+			.as_ref()
+			.filter(|request| request.verified_response_hash.is_none())
+		{
+			validate_request(&record.identity, outstanding, false)?;
+			return Ok(match outstanding.kind {
+				ReplicationRequestKindV1::Page => ReplicationActionV1::SendPage {
+					intent_key: record.intent_key,
+					request_bytes: outstanding.signed_request_bytes.clone(),
+				},
+				ReplicationRequestKindV1::Chunk => ReplicationActionV1::SendChunk {
+					intent_key: record.intent_key,
+					request_bytes: outstanding.signed_request_bytes.clone(),
+				},
+			});
+		}
+		match record.phase {
+			ReplicationPhase::Planned | ReplicationPhase::Receiving => {
+				let end = candidate_end(&record.identity)?;
+				if let Some(page) = &record.admitted_page {
+					let object =
+						page.objects.get(page.next_object).ok_or(ContentError::IntegrityFailed)?;
+					if let Some(index) = object.verified_chunks.iter().position(Option::is_none) {
+						let object = peer_object_from_evidence(object)?;
+						let index: u16 =
+							index.try_into().map_err(|_| ContentError::ObjectTooLarge)?;
+						let expected = PeerChunkExpectationV1::new(
+							expected_peer_context(&record.identity)?,
+							PeerRequestIdentityV1::new(
+								record.identity.peer_operation_id,
+								replication_nonce(CHUNK_NONCE_KIND, object.position().1, index),
+							)?,
+							object,
+							index,
+						)?;
+						let request = PeerChunkRequestV1::new_signed(&expected, target)?;
+						let bytes = request.encode_wire();
+						self.stage_chunk_request_before_send(intent_key, &bytes)?;
+						return Ok(ReplicationActionV1::SendChunk {
+							intent_key: intent_key.into(),
+							request_bytes: bytes,
+						});
+					}
+					return Ok(ReplicationActionV1::FinishObject {
+						intent_key: intent_key.into(),
+						sequence: object.sequence,
+						cid: object.cid.clone(),
+						length: object.length,
+					});
+				}
+				if record.next_sequence == end {
+					return Ok(ReplicationActionV1::MarkInstalled {
+						intent_key: intent_key.into(),
+					});
+				}
+				let cursor = expected_request_cursor(&record)?;
+				let remaining =
+					end.checked_sub(record.next_sequence).ok_or(ContentError::IntegrityFailed)?;
+				let limit: u16 = remaining.min(128) as u16;
+				let expected = PeerPageExpectationV1::new(
+					expected_peer_context(&record.identity)?,
+					PeerRequestIdentityV1::new(
+						record.identity.peer_operation_id,
+						replication_nonce(PAGE_NONCE_KIND, record.next_sequence, u16::MAX),
+					)?,
+					peer_cursor_from_evidence(cursor),
+					limit,
+				)?;
+				let request = PeerSyncPageRequestV1::new_signed(&expected, target)?;
+				let bytes = request.encode_wire();
+				self.stage_page_request_before_send(intent_key, &bytes)?;
+				Ok(ReplicationActionV1::SendPage {
+					intent_key: intent_key.into(),
+					request_bytes: bytes,
+				})
+			},
+			ReplicationPhase::Installed => {
+				Ok(ReplicationActionV1::CommitMmr { intent_key: intent_key.into() })
+			},
+			ReplicationPhase::MmrCommitted | ReplicationPhase::Confirmed => {
+				Ok(ReplicationActionV1::Complete)
+			},
+		}
 	}
 
 	#[cfg(test)]
@@ -415,6 +550,62 @@ impl ReplicationIntentStore {
 		response_bytes: &[u8],
 	) -> Result<ReplicationIntentV1, ContentError> {
 		self.attach_response(intent_key, ReplicationRequestKindV1::Chunk, response_bytes)
+	}
+
+	/// Authenticate one chunk response without advancing durable replication evidence.
+	///
+	/// The caller must durably install these exact bytes before calling
+	/// [`Self::attach_chunk_response`]. This split makes a crash after the byte fsync replay the
+	/// exact outstanding request rather than falsely acknowledging volatile data.
+	pub(crate) fn inspect_chunk_response(
+		&self,
+		intent_key: &str,
+		response_bytes: &[u8],
+	) -> Result<VerifiedIncomingChunkV1, ContentError> {
+		let record = self.record(intent_key)?;
+		let outstanding =
+			record.outstanding_request.as_ref().ok_or(ContentError::IdempotencyConflict)?;
+		if outstanding.kind != ReplicationRequestKindV1::Chunk
+			|| outstanding.verified_response_hash.is_some()
+		{
+			return Err(ContentError::IdempotencyConflict);
+		}
+		validate_request(&record.identity, outstanding, true)?;
+		let request = PeerChunkRequestV1::decode_authenticated(&outstanding.signed_request_bytes)?;
+		let response = PeerChunkResponseV1::decode_canonical(response_bytes, &request)?;
+		let (object, index, bytes) = response.verified_chunk();
+		let expected = record
+			.admitted_page
+			.as_ref()
+			.and_then(|page| page.objects.get(page.next_object))
+			.ok_or(ContentError::IdempotencyConflict)?;
+		let slot = expected
+			.verified_chunks
+			.get(usize::from(index))
+			.ok_or(ContentError::IdempotencyConflict)?;
+		if !object_matches_evidence(object, expected)
+			|| expected.chunk_hashes.get(usize::from(index))
+				!= Some(&sp_crypto_hashing::blake2_256(bytes))
+			|| slot.is_some()
+		{
+			return Err(ContentError::IdempotencyConflict);
+		}
+		Ok(VerifiedIncomingChunkV1 {
+			bucket_id: BucketId::from_bytes(record.identity.bucket_id),
+			install_operation_id: OperationId::from_bytes(derived_stream_id(
+				intent_key,
+				object.position().1,
+				OPERATION_DOMAIN,
+			)),
+			repair_operation_id: OperationId::from_bytes(derived_stream_id(
+				intent_key,
+				object.position().1,
+				REPAIR_DOMAIN,
+			)),
+			object: object.clone(),
+			index,
+			bytes: bytes.to_vec(),
+		})
 	}
 
 	fn attach_response(
@@ -615,6 +806,25 @@ impl ReplicationIntentStore {
 		})
 	}
 
+	pub(crate) fn object_installation(
+		&self,
+		intent_key: &str,
+		sequence: u64,
+		cid: &str,
+		length: u64,
+	) -> Result<ReplicationObjectInstallV1, ContentError> {
+		let record = self.record(intent_key)?;
+		validate_admitted_completion(&record, sequence, cid, length)?;
+		Ok(ReplicationObjectInstallV1 {
+			bucket_id: BucketId::from_bytes(record.identity.bucket_id),
+			operation_id: OperationId::from_bytes(derived_stream_id(
+				intent_key,
+				sequence,
+				OPERATION_DOMAIN,
+			)),
+		})
+	}
+
 	pub(crate) fn mark_installed(
 		&self,
 		intent_key: &str,
@@ -713,7 +923,7 @@ impl ReplicationIntentStore {
 		self.ensure_healthy()?;
 		let active: Vec<_> = records
 			.values()
-			.filter(|record| record.phase != ReplicationPhase::Confirmed)
+			.filter(|record| record.phase < ReplicationPhase::MmrCommitted)
 			.collect();
 		if active.is_empty() {
 			return Ok(Vec::new());
@@ -1329,8 +1539,7 @@ fn validate_admitted_page(
 			|| object.chunk_manifest_hash != replication_chunk_manifest_hash(&object.chunk_hashes)
 			|| object.chunk_hashes.len() != expected_chunks
 			|| (object_index < page.next_object && !object.verified_chunks.is_empty())
-			|| (object_index >= page.next_object
-				&& object.verified_chunks.len() != expected_chunks)
+			|| (object_index >= page.next_object && object.verified_chunks.len() != expected_chunks)
 			|| expected_chunks > MAX_CHUNKS
 		{
 			return Err(ContentError::IntegrityFailed);
@@ -1497,6 +1706,15 @@ fn derived_stream_id(intent_key: &str, sequence: u64, domain: &[u8]) -> [u8; 16]
 	let mut id = [0; 16];
 	id.copy_from_slice(&digest[..16]);
 	id
+}
+
+fn replication_nonce(kind: u8, sequence: u64, chunk: u16) -> [u8; 16] {
+	let mut nonce = [0; 16];
+	nonce[0] = REPLICATION_NONCE_VERSION;
+	nonce[1] = kind;
+	nonce[2..10].copy_from_slice(&sequence.to_le_bytes());
+	nonce[10..12].copy_from_slice(&chunk.to_le_bytes());
+	nonce
 }
 
 fn confirmation_binding(record: &ReplicationIntentV1) -> Result<[u8; 32], ContentError> {

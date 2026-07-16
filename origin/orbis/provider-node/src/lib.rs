@@ -55,6 +55,9 @@ mod peer_transport;
 // Deliberately private until authenticated peer replication orchestration is activated.
 #[allow(dead_code)]
 mod replication;
+// Private bounded target reconciler; deliberately not wired into the public node lifecycle yet.
+#[allow(dead_code)]
+mod replication_reconciler;
 // Private deterministic bridge from finalized topology evidence into authenticated peer context.
 #[allow(dead_code)]
 mod replication_session;

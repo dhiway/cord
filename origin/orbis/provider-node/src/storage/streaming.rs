@@ -118,6 +118,17 @@ pub enum BeginStreaming {
 	Installed(StreamingReceipt),
 }
 
+/// Non-mutating classification for authenticated replication ingress.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ReplicationIngressState {
+	/// The exact derived operation is already installed and fully verified.
+	ExactReady,
+	/// The exact operation is absent/receiving, including a healthy duplicate CID logical entry.
+	Fresh,
+	/// The matching installed object is quarantined and requires the exact repair operation.
+	Repair,
+}
+
 /// Deterministic one-shot crash boundary used only by focused local recovery tests.
 #[doc(hidden)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1365,6 +1376,92 @@ impl StreamingStore {
 		})
 	}
 
+	/// Classify exact replication ingress without creating an install or repair journal entry.
+	pub(crate) fn classify_replication_ingress(
+		&self,
+		bucket_id: BucketId,
+		cid: &str,
+		object_len: u64,
+		install_operation_id: OperationId,
+		repair_operation_id: OperationId,
+	) -> Result<ReplicationIngressState, ContentError> {
+		let canonical = CanonicalCid::parse(cid)?;
+		let state = self.read_state()?;
+		let install_key = operation_key_parts(bucket_id, install_operation_id);
+		if let Some(exact) = state.operations.get(&install_key).cloned() {
+			if exact.descriptor.bucket_id != bucket_id
+				|| exact.descriptor.expected_cid != canonical.as_str()
+				|| exact.descriptor.object_len != object_len
+			{
+				return Err(ContentError::IdempotencyConflict);
+			}
+			return match exact.phase {
+				Phase::Receiving => Ok(ReplicationIngressState::Fresh),
+				Phase::Installed if state.quarantine.contains_key(canonical.as_str()) => {
+					validate_replication_repair_identity(
+						&state,
+						canonical.as_str(),
+						repair_operation_id,
+					)?;
+					Ok(ReplicationIngressState::Repair)
+				},
+				Phase::Installed => {
+					drop(state);
+					self.verify_installation_record(exact, false)?;
+					Ok(ReplicationIngressState::ExactReady)
+				},
+				_ => Err(ContentError::IntegrityFailed),
+			};
+		}
+		let matching = state
+			.operations
+			.values()
+			.filter(|record| {
+				record.phase == Phase::Installed
+					&& record.descriptor.bucket_id == bucket_id
+					&& record.descriptor.expected_cid == canonical.as_str()
+			})
+			.cloned()
+			.collect::<Vec<_>>();
+		if matching.iter().any(|record| record.descriptor.object_len != object_len)
+			|| matching
+				.first()
+				.is_some_and(|first| matching.iter().any(|record| record.chunks != first.chunks))
+		{
+			return Err(ContentError::IdempotencyConflict);
+		}
+		let Some(_) = matching.first() else {
+			return Ok(ReplicationIngressState::Fresh);
+		};
+		let exact_repair_key = repair_key(canonical.as_str(), repair_operation_id)?;
+		if let Some(repair) = state.repairs.get(&exact_repair_key) {
+			validate_repair_record(
+				&exact_repair_key,
+				repair,
+				matching.first().expect("matching record exists"),
+			)?;
+			if repair.phase == RepairPhase::Installed {
+				if state.quarantine.contains_key(canonical.as_str()) {
+					return Err(ContentError::IntegrityFailed);
+				}
+				drop(state);
+				for record in matching {
+					self.verify_installation_record(record, false)?;
+				}
+				return Ok(ReplicationIngressState::ExactReady);
+			}
+		}
+		if state.quarantine.contains_key(canonical.as_str()) {
+			validate_replication_repair_identity(&state, canonical.as_str(), repair_operation_id)?;
+			return Ok(ReplicationIngressState::Repair);
+		}
+		drop(state);
+		for record in matching {
+			self.verify_installation_record(record, false)?;
+		}
+		Ok(ReplicationIngressState::Fresh)
+	}
+
 	/// Return one exact replication descriptor and manifest only after full-file verification.
 	pub(crate) fn verified_replication_object(
 		&self,
@@ -1587,6 +1684,22 @@ fn repair_key(cid: &str, operation_id: OperationId) -> Result<String, ContentErr
 	hash.update(canonical.digest());
 	hash.update(operation_id.as_bytes());
 	Ok(hex::encode(hash.finalize()))
+}
+
+fn validate_replication_repair_identity(
+	state: &JournalState,
+	cid: &str,
+	operation_id: OperationId,
+) -> Result<(), ContentError> {
+	if state
+		.repairs
+		.values()
+		.any(|repair| repair.cid == cid && repair.operation_id != operation_id)
+	{
+		Err(ContentError::IdempotencyConflict)
+	} else {
+		Ok(())
+	}
 }
 
 fn full_repair_operation(cid: &str) -> OperationId {
@@ -2543,5 +2656,89 @@ mod exact_lookup_tests {
 			bytes[CHUNK_BYTES..CHUNK_BYTES * 2]
 		);
 		store.finalize_repair(&cid, operation).unwrap();
+	}
+
+	#[test]
+	fn replication_ingress_classifies_duplicate_cid_as_fresh_without_mutation() {
+		let bytes = vec![9; CHUNK_BYTES + 3];
+		let (_temp, store, cid) = repair_fixture(&bytes, 61);
+		let install = OperationId::from_bytes([62; 16]);
+		let repair = OperationId::from_bytes([63; 16]);
+		assert_eq!(
+			store
+				.classify_replication_ingress(
+					BucketId::from_bytes([61; 32]),
+					&cid,
+					bytes.len() as u64,
+					install,
+					repair,
+				)
+				.unwrap(),
+			ReplicationIngressState::Fresh
+		);
+		store
+			.put_chunks(
+				StreamingDescriptor {
+					operation_id: install,
+					bucket_id: BucketId::from_bytes([61; 32]),
+					expected_cid: cid.clone(),
+					object_len: bytes.len() as u64,
+				},
+				bytes.chunks(CHUNK_BYTES).map(ToOwned::to_owned),
+			)
+			.unwrap();
+		assert_eq!(
+			store
+				.classify_replication_ingress(
+					BucketId::from_bytes([61; 32]),
+					&cid,
+					bytes.len() as u64,
+					OperationId::from_bytes([64; 16]),
+					OperationId::from_bytes([65; 16]),
+				)
+				.unwrap(),
+			ReplicationIngressState::Fresh
+		);
+	}
+
+	#[test]
+	fn replication_ingress_classifies_quarantine_for_exact_repair() {
+		let bytes = vec![7; CHUNK_BYTES + 5];
+		let (_temp, store, cid) = repair_fixture(&bytes, 71);
+		let mut damaged = bytes.clone();
+		damaged[0] ^= 1;
+		fs::write(store.object_path(&cid), damaged).unwrap();
+		assert_eq!(store.verify_installed(&cid), Err(ContentError::IntegrityFailed));
+		let install = OperationId::from_bytes([72; 16]);
+		let repair = OperationId::from_bytes([73; 16]);
+		assert_eq!(
+			store
+				.classify_replication_ingress(
+					BucketId::from_bytes([71; 32]),
+					&cid,
+					(CHUNK_BYTES + 5) as u64,
+					install,
+					repair,
+				)
+				.unwrap(),
+			ReplicationIngressState::Repair
+		);
+		store.begin_repair(&cid, repair).unwrap();
+		for (index, chunk) in bytes.chunks(CHUNK_BYTES).enumerate() {
+			store.push_repair_chunk(&cid, repair, index as u16, chunk).unwrap();
+		}
+		store.finalize_repair(&cid, repair).unwrap();
+		assert_eq!(
+			store
+				.classify_replication_ingress(
+					BucketId::from_bytes([71; 32]),
+					&cid,
+					bytes.len() as u64,
+					install,
+					repair,
+				)
+				.unwrap(),
+			ReplicationIngressState::ExactReady
+		);
 	}
 }
