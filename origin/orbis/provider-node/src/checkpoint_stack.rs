@@ -32,7 +32,7 @@ use crate::{
 		checkpoint_primary::{
 			submission_input, CheckpointPrimaryQuorumStore, PrimaryQuorumSnapshotV1,
 		},
-		checkpoint_promotion::CheckpointPromotionStoreV1,
+		checkpoint_promotion::CheckpointPromotionStoreV2,
 		checkpoint_publication::{
 			CheckpointPublicationStoreV1, FinalizedCheckpointPublicationInputV1,
 			PublishedCheckpointV1,
@@ -67,7 +67,7 @@ struct CheckpointStackState {
 	primary_quorum: CheckpointPrimaryQuorumStore,
 	outbox: std::sync::Arc<CheckpointOutboxV2>,
 	publications: CheckpointPublicationStoreV1,
-	fallback_promotions: CheckpointPromotionStoreV1,
+	fallback_promotions: CheckpointPromotionStoreV2,
 	replication: ReplicationIntentStore,
 	peer_replies: PeerReplyStore,
 }
@@ -101,7 +101,7 @@ impl CheckpointStack {
 			primary_quorum: CheckpointPrimaryQuorumStore::open(root)?,
 			outbox,
 			publications,
-			fallback_promotions: CheckpointPromotionStoreV1::open(root)?,
+			fallback_promotions: CheckpointPromotionStoreV2::open(root)?,
 			replication: ReplicationIntentStore::open(root)?,
 			peer_replies: PeerReplyStore::open(root)?,
 		};
@@ -861,7 +861,7 @@ mod tests {
 		CheckpointDutyPageRequest, DiskStore, JsonlCheckpointOutbox, NodeProfile, ProviderService,
 	};
 
-	const DURABLE_ROOTS: [&str; 14] = [
+	const DURABLE_ROOTS: [&str; 15] = [
 		"streaming-v1",
 		"bucket-mmr-v3",
 		"checkpoint-proposals-v2",
@@ -873,7 +873,8 @@ mod tests {
 		"checkpoint-scheduler-v1",
 		"checkpoint-publications-v1",
 		"checkpoint-publication-cursor-v1",
-		"checkpoint-promotions-v1",
+		"checkpoint-promotion-intents-v2",
+		"checkpoint-promotion-finalized-receipts-v2",
 		"replication-v3",
 		"peer-replies-v1",
 	];

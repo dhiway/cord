@@ -16,11 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! Private durable queue for deterministic checkpoint fallback promotions.
+//! Private durable intents and finalized receipts for deterministic checkpoint promotions.
 
 use std::{
 	collections::HashMap,
-	fs::{self, File},
+	fs::{self, File, OpenOptions},
 	io::Write,
 	path::{Path, PathBuf},
 	sync::RwLock,
@@ -39,15 +39,25 @@ use sp_crypto_hashing::blake2_256;
 use super::ServiceKeySigner;
 use crate::ContentError;
 
-const ROOT: &str = "checkpoint-promotions-v1";
-const VERSION: u8 = 1;
-const STATE: &str = "PromotionQueued";
+const LEGACY_ROOT: &str = "checkpoint-promotions-v1";
+const INTENTS_ROOT: &str = "checkpoint-promotion-intents-v2";
+const FINALIZED_RECEIPTS_ROOT: &str = "checkpoint-promotion-finalized-receipts-v2";
+const STORE_VERSION: u8 = 2;
+const PAYLOAD_VERSION: u8 = 1;
+const FINALITY_ATTESTATION_VERSION: u8 = 1;
+const AUTHORIZED_STATE: &str = "authorized";
+const FINALIZED_STATE: &str = "finalized";
 const PROMOTION_DOMAIN: &[u8] = b"cord/storage/checkpoint-promotion/v1";
-const ID_DOMAIN: &[u8] = b"cord/provider/checkpoint-promotion-queue/v1";
-const TUPLE_DOMAIN: &[u8] = b"cord/provider/checkpoint-promotion-tuple/v1";
-const RECORD_DOMAIN: &[u8] = b"cord/provider/checkpoint-promotion-record/v1";
+const ID_DOMAIN: &[u8] = b"cord/provider/checkpoint-promotion-intent/v2";
+const TUPLE_DOMAIN: &[u8] = b"cord/provider/checkpoint-promotion-tuple/v2";
+const INTENT_RECORD_DOMAIN: &[u8] = b"cord/provider/checkpoint-promotion-intent-record/v2";
+const FINALIZED_RECEIPT_DOMAIN: &[u8] =
+	b"cord/provider/checkpoint-promotion-finalized-receipt/v2";
+const FINALITY_ATTESTATION_DOMAIN: &[u8] =
+	b"cord/provider/checkpoint-promotion-finality-attestation/v1";
 const MAX_DUTY_BYTES: usize = 64 * 1024;
-const MAX_RECORD_BYTES: usize = 192 * 1024;
+const MAX_INTENT_BYTES: usize = 192 * 1024;
+const MAX_RECEIPT_BYTES: usize = 8 * 1024;
 const MAX_RECORDS: usize = 8_192;
 const MAX_TEMP_ARTIFACTS: usize = 1;
 
@@ -58,13 +68,15 @@ type Authority = ProviderDutyAuthority<AccountId32, H256, u32>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct QueuedFallbackPromotionV1 {
+pub(crate) struct FallbackPromotionIntentV2 {
 	pub version: u8,
-	pub queue_id: String,
+	pub intent_id: String,
 	pub tuple_key: String,
 	pub provider: String,
 	pub duty_scale: String,
 	pub duty_fingerprint: String,
+	pub inventory_finalized_hash: String,
+	pub inventory_finalized_number: u32,
 	pub snapshot_checkpoint: u32,
 	pub bucket_id: String,
 	pub duty_id: String,
@@ -77,6 +89,23 @@ pub(crate) struct QueuedFallbackPromotionV1 {
 	pub record_hash: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct FallbackPromotionFinalizedReceiptV2 {
+	pub version: u8,
+	pub intent_id: String,
+	pub intent_record_hash: String,
+	pub tuple_key: String,
+	pub provider: String,
+	pub finalized_hash: String,
+	pub finalized_number: u32,
+	pub extrinsic_hash: String,
+	pub state: String,
+	pub finality_attestation_version: u8,
+	pub finality_signature: String,
+	pub receipt_hash: String,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum CheckpointPromotionFault {
 	BeforeTempFsync,
@@ -85,35 +114,64 @@ pub(crate) enum CheckpointPromotionFault {
 	AfterDirectoryFsync,
 }
 
-pub(crate) struct CheckpointPromotionStoreV1 {
-	root: PathBuf,
-	records: RwLock<HashMap<String, QueuedFallbackPromotionV1>>,
+pub(crate) struct CheckpointPromotionStoreV2 {
+	intents_root: PathBuf,
+	finalized_receipts_root: PathBuf,
+	intents: RwLock<HashMap<String, FallbackPromotionIntentV2>>,
 	by_tuple: RwLock<HashMap<String, String>>,
+	finalized_receipts: RwLock<HashMap<String, FallbackPromotionFinalizedReceiptV2>>,
 	fault: RwLock<Option<CheckpointPromotionFault>>,
 	poisoned: RwLock<bool>,
 }
 
-impl CheckpointPromotionStoreV1 {
+impl CheckpointPromotionStoreV2 {
 	pub(crate) fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
-		let root = root.as_ref().join(ROOT);
-		fs::create_dir_all(&root).map_err(io_error)?;
-		let mut records = HashMap::new();
+		let provider_root = root.as_ref();
+		if provider_root.join(LEGACY_ROOT).try_exists().map_err(io_error)? {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let intents_root = provider_root.join(INTENTS_ROOT);
+		let finalized_receipts_root = provider_root.join(FINALIZED_RECEIPTS_ROOT);
+		fs::create_dir_all(&intents_root).map_err(io_error)?;
+		fs::create_dir_all(&finalized_receipts_root).map_err(io_error)?;
+
+		let mut intents = HashMap::new();
 		let mut by_tuple = HashMap::new();
-		for item in read_records(&root)? {
-			let record: QueuedFallbackPromotionV1 =
+		for item in read_records(&intents_root, MAX_INTENT_BYTES)? {
+			let intent: FallbackPromotionIntentV2 =
 				serde_json::from_slice(&item.bytes).map_err(|_| ContentError::IntegrityFailed)?;
-			validate_record(&record)?;
-			if item.name != format!("{}.json", record.queue_id) ||
-				records.insert(record.queue_id.clone(), record.clone()).is_some() ||
-				by_tuple.insert(record.tuple_key.clone(), record.queue_id.clone()).is_some()
+			validate_intent(&intent)?;
+			if item.name != format!("{}.json", intent.intent_id)
+				|| intents.len() >= MAX_RECORDS
+				|| intents.insert(intent.intent_id.clone(), intent.clone()).is_some()
+				|| by_tuple
+					.insert(intent.tuple_key.clone(), intent.intent_id.clone())
+					.is_some()
 			{
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 		}
+
+		let mut finalized_receipts = HashMap::new();
+		for item in read_records(&finalized_receipts_root, MAX_RECEIPT_BYTES)? {
+			let receipt: FallbackPromotionFinalizedReceiptV2 =
+				serde_json::from_slice(&item.bytes).map_err(|_| ContentError::IntegrityFailed)?;
+			let intent = intents.get(&receipt.intent_id).ok_or(ContentError::IntegrityFailed)?;
+			validate_finalized_receipt(&receipt, intent)?;
+			if item.name != format!("{}.json", receipt.intent_id)
+				|| finalized_receipts.len() >= MAX_RECORDS
+				|| finalized_receipts.insert(receipt.intent_id.clone(), receipt).is_some()
+			{
+				return Err(ContentError::IntegrityFailed);
+			}
+		}
+
 		Ok(Self {
-			root,
-			records: RwLock::new(records),
+			intents_root,
+			finalized_receipts_root,
+			intents: RwLock::new(intents),
 			by_tuple: RwLock::new(by_tuple),
+			finalized_receipts: RwLock::new(finalized_receipts),
 			fault: RwLock::new(None),
 			poisoned: RwLock::new(false),
 		})
@@ -127,82 +185,150 @@ impl CheckpointPromotionStoreV1 {
 		Ok(())
 	}
 
-	pub(crate) fn queue(
+	pub(crate) fn authorize(
 		&self,
 		provider: &AccountId32,
 		duty_scale: &[u8],
 		signer: &dyn ServiceKeySigner,
-	) -> Result<QueuedFallbackPromotionV1, ContentError> {
-		let candidate = queue_record(provider, duty_scale, signer)?;
-		if *self.poisoned.read().map_err(|_| lock_error())? {
-			return Err(ContentError::IntegrityFailed)
-		}
+	) -> Result<FallbackPromotionIntentV2, ContentError> {
+		let candidate = intent_record(provider, duty_scale, signer)?;
+		self.ensure_healthy()?;
 		{
-			let records = self.records.read().map_err(|_| lock_error())?;
+			let intents = self.intents.read().map_err(|_| lock_error())?;
 			let by_tuple = self.by_tuple.read().map_err(|_| lock_error())?;
 			if let Some(existing_id) = by_tuple.get(&candidate.tuple_key) {
-				let existing = records.get(existing_id).ok_or(ContentError::IntegrityFailed)?;
-				return if existing == &candidate {
-					Ok(existing.clone())
-				} else {
-					Err(ContentError::IdempotencyConflict)
-				}
+				let existing = intents.get(existing_id).ok_or(ContentError::IntegrityFailed)?;
+				return exact_or_conflict(existing, &candidate);
 			}
 		}
-		let mut records = self.records.write().map_err(|_| lock_error())?;
+
+		let mut intents = self.intents.write().map_err(|_| lock_error())?;
 		let mut by_tuple = self.by_tuple.write().map_err(|_| lock_error())?;
-		if *self.poisoned.read().map_err(|_| lock_error())? {
-			return Err(ContentError::IntegrityFailed)
-		}
+		self.ensure_healthy()?;
 		if let Some(existing_id) = by_tuple.get(&candidate.tuple_key) {
-			let existing = records.get(existing_id).ok_or(ContentError::IntegrityFailed)?;
-			return if existing == &candidate {
-				Ok(existing.clone())
-			} else {
-				Err(ContentError::IdempotencyConflict)
-			}
+			let existing = intents.get(existing_id).ok_or(ContentError::IntegrityFailed)?;
+			return exact_or_conflict(existing, &candidate);
 		}
-		if records.len() >= MAX_RECORDS {
-			return Err(ContentError::ProviderRecoveryTableFull)
+		if intents.len() >= MAX_RECORDS {
+			return Err(ContentError::ProviderRecoveryTableFull);
 		}
-		if let Err(error) = self.persist(&candidate) {
-			*self.poisoned.write().map_err(|_| lock_error())? = true;
-			return Err(error)
+		if let Err(error) = self.persist_intent(&candidate) {
+			self.poison()?;
+			return Err(error);
 		}
-		by_tuple.insert(candidate.tuple_key.clone(), candidate.queue_id.clone());
-		records.insert(candidate.queue_id.clone(), candidate.clone());
+		by_tuple.insert(candidate.tuple_key.clone(), candidate.intent_id.clone());
+		intents.insert(candidate.intent_id.clone(), candidate.clone());
 		Ok(candidate)
 	}
 
-	fn persist(&self, record: &QueuedFallbackPromotionV1) -> Result<(), ContentError> {
-		validate_record(record)?;
-		let bytes = serde_json::to_vec(record).map_err(io_error)?;
-		if bytes.len() > MAX_RECORD_BYTES {
-			return Err(ContentError::IntegrityFailed)
-		}
-		let key = &record.queue_id;
-		let temp = self.root.join(format!("{key}.json.tmp-{}", std::process::id()));
-		let mut file = File::create(&temp).map_err(io_error)?;
-		file.write_all(&bytes).map_err(io_error)?;
-		self.trip(CheckpointPromotionFault::BeforeTempFsync)?;
-		file.sync_all().map_err(io_error)?;
-		self.trip(CheckpointPromotionFault::AfterTempFsync)?;
-		fs::rename(&temp, self.root.join(format!("{key}.json"))).map_err(io_error)?;
-		self.trip(CheckpointPromotionFault::AfterRename)?;
-		File::open(&self.root)
-			.and_then(|directory| directory.sync_all())
-			.map_err(io_error)?;
-		self.trip(CheckpointPromotionFault::AfterDirectoryFsync)
+	pub(crate) fn pending_intents(
+		&self,
+	) -> Result<Vec<FallbackPromotionIntentV2>, ContentError> {
+		self.ensure_healthy()?;
+		let intents = self.intents.read().map_err(|_| lock_error())?;
+		let receipts = self.finalized_receipts.read().map_err(|_| lock_error())?;
+		let mut pending = intents
+			.values()
+			.filter(|intent| !receipts.contains_key(&intent.intent_id))
+			.cloned()
+			.collect::<Vec<_>>();
+		pending.sort_by(|left, right| left.intent_id.cmp(&right.intent_id));
+		Ok(pending)
 	}
 
-	fn trip(&self, point: CheckpointPromotionFault) -> Result<(), ContentError> {
-		let mut fault = self.fault.write().map_err(|_| lock_error())?;
-		if fault.as_ref() == Some(&point) {
-			*fault = None;
-			Err(ContentError::Io(format!("injected checkpoint promotion fault: {point:?}")))
+	pub(crate) fn record_finalized(
+		&self,
+		intent_id: &str,
+		finalized_hash: [u8; 32],
+		finalized_number: u32,
+		extrinsic_hash: [u8; 32],
+		finality_attestation_version: u8,
+		finality_signature: [u8; 64],
+	) -> Result<FallbackPromotionFinalizedReceiptV2, ContentError> {
+		self.ensure_healthy()?;
+		let intent = self
+			.intents
+			.read()
+			.map_err(|_| lock_error())?
+			.get(intent_id)
+			.cloned()
+			.ok_or(ContentError::NotFound)?;
+		let mut receipt = FallbackPromotionFinalizedReceiptV2 {
+			version: STORE_VERSION,
+			intent_id: intent.intent_id.clone(),
+			intent_record_hash: intent.record_hash.clone(),
+			tuple_key: intent.tuple_key.clone(),
+			provider: intent.provider.clone(),
+			finalized_hash: hex::encode(finalized_hash),
+			finalized_number,
+			extrinsic_hash: hex::encode(extrinsic_hash),
+			state: FINALIZED_STATE.into(),
+			finality_attestation_version,
+			finality_signature: hex::encode(finality_signature),
+			receipt_hash: String::new(),
+		};
+		receipt.receipt_hash = finalized_receipt_hash(&receipt)?;
+		validate_finalized_receipt(&receipt, &intent)?;
+
+		let mut receipts = self.finalized_receipts.write().map_err(|_| lock_error())?;
+		self.ensure_healthy()?;
+		if let Some(existing) = receipts.get(intent_id) {
+			return exact_or_conflict(existing, &receipt);
+		}
+		if receipts.len() >= MAX_RECORDS {
+			return Err(ContentError::ProviderRecoveryTableFull);
+		}
+		if let Err(error) = self.persist_finalized_receipt(&receipt) {
+			self.poison()?;
+			return Err(error);
+		}
+		receipts.insert(intent_id.into(), receipt.clone());
+		Ok(receipt)
+	}
+
+	fn persist_intent(&self, intent: &FallbackPromotionIntentV2) -> Result<(), ContentError> {
+		validate_intent(intent)?;
+		persist_record(
+			&self.intents_root,
+			&intent.intent_id,
+			&serde_json::to_vec(intent).map_err(io_error)?,
+			MAX_INTENT_BYTES,
+			&self.fault,
+		)
+	}
+
+	fn persist_finalized_receipt(
+		&self,
+		receipt: &FallbackPromotionFinalizedReceiptV2,
+	) -> Result<(), ContentError> {
+		persist_record(
+			&self.finalized_receipts_root,
+			&receipt.intent_id,
+			&serde_json::to_vec(receipt).map_err(io_error)?,
+			MAX_RECEIPT_BYTES,
+			&self.fault,
+		)
+	}
+
+	fn ensure_healthy(&self) -> Result<(), ContentError> {
+		if *self.poisoned.read().map_err(|_| lock_error())? {
+			Err(ContentError::IntegrityFailed)
 		} else {
 			Ok(())
 		}
+	}
+
+	fn poison(&self) -> Result<(), ContentError> {
+		*self.poisoned.write().map_err(|_| lock_error())? = true;
+		Ok(())
+	}
+}
+
+fn exact_or_conflict<T: Clone + Eq>(existing: &T, candidate: &T) -> Result<T, ContentError> {
+	if existing == candidate {
+		Ok(existing.clone())
+	} else {
+		Err(ContentError::IdempotencyConflict)
 	}
 }
 
@@ -211,53 +337,99 @@ struct RecordFile {
 	bytes: Vec<u8>,
 }
 
-fn read_records(root: &Path) -> Result<Vec<RecordFile>, ContentError> {
+fn read_records(root: &Path, max_record_bytes: usize) -> Result<Vec<RecordFile>, ContentError> {
 	let mut records = Vec::new();
 	let mut visited = 0usize;
 	let mut temp_artifacts = 0usize;
+	let mut removed_temp = false;
 	for item in fs::read_dir(root).map_err(io_error)? {
 		visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 		if visited > MAX_RECORDS + MAX_TEMP_ARTIFACTS {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().to_string_lossy().into_owned();
 		if name.contains(".tmp-") {
 			temp_artifacts = temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
-			if temp_artifacts > MAX_TEMP_ARTIFACTS {
-				return Err(ContentError::IntegrityFailed)
+			if temp_artifacts > MAX_TEMP_ARTIFACTS
+				|| !item.file_type().map_err(io_error)?.is_file()
+			{
+				return Err(ContentError::IntegrityFailed);
 			}
 			fs::remove_file(item.path()).map_err(io_error)?;
-			continue
+			removed_temp = true;
+			continue;
 		}
-		if records.len() >= MAX_RECORDS ||
-			!name.ends_with(".json") ||
-			!item.file_type().map_err(io_error)?.is_file()
+		if records.len() >= MAX_RECORDS
+			|| !name.ends_with(".json")
+			|| !item.file_type().map_err(io_error)?.is_file()
 		{
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let bytes = fs::read(item.path()).map_err(io_error)?;
-		if bytes.len() > MAX_RECORD_BYTES {
-			return Err(ContentError::IntegrityFailed)
+		if bytes.len() > max_record_bytes {
+			return Err(ContentError::IntegrityFailed);
 		}
 		records.push(RecordFile { name, bytes });
+	}
+	if removed_temp {
+		File::open(root).and_then(|directory| directory.sync_all()).map_err(io_error)?;
 	}
 	Ok(records)
 }
 
-fn queue_record(
+fn persist_record(
+	root: &Path,
+	key: &str,
+	bytes: &[u8],
+	max_record_bytes: usize,
+	fault: &RwLock<Option<CheckpointPromotionFault>>,
+) -> Result<(), ContentError> {
+	if bytes.len() > max_record_bytes {
+		return Err(ContentError::IntegrityFailed);
+	}
+	let temp = root.join(format!("{key}.json.tmp-{}", std::process::id()));
+	let mut file = OpenOptions::new()
+		.write(true)
+		.create_new(true)
+		.open(&temp)
+		.map_err(io_error)?;
+	file.write_all(bytes).map_err(io_error)?;
+	trip(fault, CheckpointPromotionFault::BeforeTempFsync)?;
+	file.sync_all().map_err(io_error)?;
+	trip(fault, CheckpointPromotionFault::AfterTempFsync)?;
+	fs::rename(&temp, root.join(format!("{key}.json"))).map_err(io_error)?;
+	trip(fault, CheckpointPromotionFault::AfterRename)?;
+	File::open(root).and_then(|directory| directory.sync_all()).map_err(io_error)?;
+	trip(fault, CheckpointPromotionFault::AfterDirectoryFsync)
+}
+
+fn trip(
+	fault: &RwLock<Option<CheckpointPromotionFault>>,
+	point: CheckpointPromotionFault,
+) -> Result<(), ContentError> {
+	let mut fault = fault.write().map_err(|_| lock_error())?;
+	if fault.as_ref() == Some(&point) {
+		*fault = None;
+		Err(ContentError::Io(format!("injected checkpoint promotion fault: {point:?}")))
+	} else {
+		Ok(())
+	}
+}
+
+fn intent_record(
 	provider: &AccountId32,
 	duty_scale: &[u8],
 	signer: &dyn ServiceKeySigner,
-) -> Result<QueuedFallbackPromotionV1, ContentError> {
+) -> Result<FallbackPromotionIntentV2, ContentError> {
 	if duty_scale.len() > MAX_DUTY_BYTES {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let duty = decode_scale::<Duty>(duty_scale)?;
 	let service_key = ed25519::Public::from_raw(signer.public_key());
 	let local = validate_duty(&duty, provider, &service_key)?;
 	let payload = Payload {
-		version: VERSION,
+		version: PAYLOAD_VERSION,
 		bucket_id: duty.bucket_id,
 		snapshot_nonce: duty.snapshot_checkpoint,
 		duty_id: duty.duty_id,
@@ -265,16 +437,18 @@ fn queue_record(
 	let digest = promotion_digest(&payload);
 	let signature = ed25519::Signature::from_raw(signer.sign_digest(digest));
 	if !ed25519::Pair::verify(&signature, &digest, &service_key) {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let args = (payload, service_key, signature);
-	let mut record = QueuedFallbackPromotionV1 {
-		version: VERSION,
-		queue_id: queue_id(provider, &args),
+	let mut intent = FallbackPromotionIntentV2 {
+		version: STORE_VERSION,
+		intent_id: intent_id(provider, duty_scale, &args),
 		tuple_key: tuple_key(&payload),
 		provider: account_hex(provider),
 		duty_scale: hex::encode(duty_scale),
 		duty_fingerprint: hex::encode(blake2_256(duty_scale)),
+		inventory_finalized_hash: hex::encode(duty.snapshot_hash.as_bytes()),
+		inventory_finalized_number: duty.snapshot_checkpoint,
 		snapshot_checkpoint: duty.snapshot_checkpoint,
 		bucket_id: hex::encode(duty.bucket_id.as_bytes()),
 		duty_id: hex::encode(duty.duty_id.as_bytes()),
@@ -283,55 +457,123 @@ fn queue_record(
 		service_key: hex::encode(service_key.0),
 		signature: hex::encode(signature.0),
 		call_args_scale: hex::encode(args.encode()),
-		state: STATE.into(),
+		state: AUTHORIZED_STATE.into(),
 		record_hash: String::new(),
 	};
-	record.record_hash = record_hash(&record)?;
-	validate_record(&record)?;
-	Ok(record)
+	intent.record_hash = intent_record_hash(&intent)?;
+	validate_intent(&intent)?;
+	Ok(intent)
 }
 
-fn validate_record(record: &QueuedFallbackPromotionV1) -> Result<(), ContentError> {
-	if record.version != VERSION ||
-		record.state != STATE ||
-		record.queue_id.len() != 64 ||
-		record.tuple_key.len() != 64 ||
-		record.record_hash != record_hash(record)?
+fn validate_intent(intent: &FallbackPromotionIntentV2) -> Result<(), ContentError> {
+	if intent.version != STORE_VERSION
+		|| intent.state != AUTHORIZED_STATE
+		|| intent.intent_id.len() != 64
+		|| intent.tuple_key.len() != 64
+		|| intent.record_hash != intent_record_hash(intent)?
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
-	let provider = decode_account(&record.provider)?;
-	let duty_bytes = decode_hex(&record.duty_scale)?;
-	if duty_bytes.len() > MAX_DUTY_BYTES ||
-		record.duty_fingerprint != hex::encode(blake2_256(&duty_bytes))
+	let provider = decode_account(&intent.provider)?;
+	let duty_bytes = decode_hex(&intent.duty_scale)?;
+	if duty_bytes.len() > MAX_DUTY_BYTES
+		|| intent.duty_fingerprint != hex::encode(blake2_256(&duty_bytes))
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let duty = decode_scale::<Duty>(&duty_bytes)?;
-	let service_key = ed25519::Public::from_raw(decode_fixed(&record.service_key)?);
+	let service_key = ed25519::Public::from_raw(decode_fixed(&intent.service_key)?);
 	let local = validate_duty(&duty, &provider, &service_key)?;
-	let payload = decode_hex_scale::<Payload>(&record.payload_scale)?;
+	let payload = decode_hex_scale::<Payload>(&intent.payload_scale)?;
 	let expected_payload = Payload {
-		version: VERSION,
+		version: PAYLOAD_VERSION,
 		bucket_id: duty.bucket_id,
 		snapshot_nonce: duty.snapshot_checkpoint,
 		duty_id: duty.duty_id,
 	};
-	let signature = ed25519::Signature::from_raw(decode_fixed(&record.signature)?);
+	let signature = ed25519::Signature::from_raw(decode_fixed(&intent.signature)?);
 	let args = (payload, service_key, signature);
-	if payload != expected_payload ||
-		record.snapshot_checkpoint != duty.snapshot_checkpoint ||
-		record.bucket_id != hex::encode(duty.bucket_id.as_bytes()) ||
-		record.duty_id != hex::encode(duty.duty_id.as_bytes()) ||
-		record.service_key_version != local.active_service_key_version ||
-		record.call_args_scale != hex::encode(args.encode()) ||
-		record.queue_id != queue_id(&provider, &args) ||
-		record.tuple_key != tuple_key(&payload) ||
-		!ed25519::Pair::verify(&signature, &promotion_digest(&payload), &service_key)
+	if payload != expected_payload
+		|| intent.inventory_finalized_hash != hex::encode(duty.snapshot_hash.as_bytes())
+		|| intent.inventory_finalized_number != duty.snapshot_checkpoint
+		|| intent.snapshot_checkpoint != duty.snapshot_checkpoint
+		|| intent.bucket_id != hex::encode(duty.bucket_id.as_bytes())
+		|| intent.duty_id != hex::encode(duty.duty_id.as_bytes())
+		|| intent.service_key_version != local.active_service_key_version
+		|| intent.call_args_scale != hex::encode(args.encode())
+		|| intent.intent_id != intent_id(&provider, &duty_bytes, &args)
+		|| intent.tuple_key != tuple_key(&payload)
+		|| !ed25519::Pair::verify(&signature, &promotion_digest(&payload), &service_key)
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(())
+}
+
+fn validate_finalized_receipt(
+	receipt: &FallbackPromotionFinalizedReceiptV2,
+	intent: &FallbackPromotionIntentV2,
+) -> Result<(), ContentError> {
+	if receipt.version != STORE_VERSION
+		|| receipt.intent_id != intent.intent_id
+		|| receipt.intent_record_hash != intent.record_hash
+		|| receipt.tuple_key != intent.tuple_key
+		|| receipt.provider != intent.provider
+		|| receipt.state != FINALIZED_STATE
+		|| receipt.finalized_hash.len() != 64
+		|| receipt.extrinsic_hash.len() != 64
+		|| receipt.finality_attestation_version != FINALITY_ATTESTATION_VERSION
+		|| receipt.finality_signature.len() != 128
+		|| receipt.receipt_hash != finalized_receipt_hash(receipt)?
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	let finalized_hash = decode_fixed::<32>(&receipt.finalized_hash)?;
+	let extrinsic_hash = decode_fixed::<32>(&receipt.extrinsic_hash)?;
+	let signature = ed25519::Signature::from_raw(decode_fixed::<64>(&receipt.finality_signature)?);
+	let service_key = ed25519::Public::from_raw(decode_fixed::<32>(&intent.service_key)?);
+	let digest = promotion_finality_attestation_digest(
+		receipt.finality_attestation_version,
+		&receipt.intent_id,
+		&receipt.intent_record_hash,
+		&receipt.tuple_key,
+		finalized_hash,
+		receipt.finalized_number,
+		extrinsic_hash,
+		&receipt.state,
+	)?;
+	if !ed25519::Pair::verify(&signature, &digest, &service_key) {
+		return Err(ContentError::IntegrityFailed);
+	}
+	Ok(())
+}
+
+pub(crate) fn promotion_finality_attestation_digest(
+	version: u8,
+	intent_id: &str,
+	intent_record_hash: &str,
+	tuple_key: &str,
+	finalized_hash: [u8; 32],
+	finalized_number: u32,
+	extrinsic_hash: [u8; 32],
+	state: &str,
+) -> Result<[u8; 32], ContentError> {
+	if version != FINALITY_ATTESTATION_VERSION || state != FINALIZED_STATE {
+		return Err(ContentError::IntegrityFailed);
+	}
+	let intent_id = decode_fixed::<32>(intent_id)?;
+	let intent_record_hash = decode_fixed::<32>(intent_record_hash)?;
+	let tuple_key = decode_fixed::<32>(tuple_key)?;
+	let mut input = FINALITY_ATTESTATION_DOMAIN.to_vec();
+	version.encode_to(&mut input);
+	intent_id.encode_to(&mut input);
+	intent_record_hash.encode_to(&mut input);
+	tuple_key.encode_to(&mut input);
+	finalized_hash.encode_to(&mut input);
+	finalized_number.encode_to(&mut input);
+	extrinsic_hash.encode_to(&mut input);
+	state.as_bytes().encode_to(&mut input);
+	Ok(blake2_256(&input))
 }
 
 fn validate_duty<'a>(
@@ -427,9 +669,10 @@ fn promotion_digest(payload: &Payload) -> [u8; 32] {
 	blake2_256(&input)
 }
 
-fn queue_id(provider: &AccountId32, args: &CallArgs) -> String {
+fn intent_id(provider: &AccountId32, duty_scale: &[u8], args: &CallArgs) -> String {
 	let mut input = ID_DOMAIN.to_vec();
 	provider.encode_to(&mut input);
+	duty_scale.encode_to(&mut input);
 	args.encode_to(&mut input);
 	hex::encode(blake2_256(&input))
 }
@@ -442,10 +685,20 @@ fn tuple_key(payload: &Payload) -> String {
 	hex::encode(blake2_256(&input))
 }
 
-fn record_hash(record: &QueuedFallbackPromotionV1) -> Result<String, ContentError> {
-	let mut canonical = record.clone();
+fn intent_record_hash(intent: &FallbackPromotionIntentV2) -> Result<String, ContentError> {
+	let mut canonical = intent.clone();
 	canonical.record_hash.clear();
-	let mut input = RECORD_DOMAIN.to_vec();
+	let mut input = INTENT_RECORD_DOMAIN.to_vec();
+	input.extend_from_slice(&serde_json::to_vec(&canonical).map_err(io_error)?);
+	Ok(hex::encode(blake2_256(&input)))
+}
+
+fn finalized_receipt_hash(
+	receipt: &FallbackPromotionFinalizedReceiptV2,
+) -> Result<String, ContentError> {
+	let mut canonical = receipt.clone();
+	canonical.receipt_hash.clear();
+	let mut input = FINALIZED_RECEIPT_DOMAIN.to_vec();
 	input.extend_from_slice(&serde_json::to_vec(&canonical).map_err(io_error)?);
 	Ok(hex::encode(blake2_256(&input)))
 }
@@ -572,30 +825,83 @@ mod tests {
 		}
 	}
 
-	fn path(temp: &TempDir, queue_id: &str) -> PathBuf {
-		temp.path().join(ROOT).join(format!("{queue_id}.json"))
+	fn intent_path(temp: &TempDir, intent_id: &str) -> PathBuf {
+		temp.path().join(INTENTS_ROOT).join(format!("{intent_id}.json"))
+	}
+
+	fn receipt_path(temp: &TempDir, intent_id: &str) -> PathBuf {
+		temp.path()
+			.join(FINALIZED_RECEIPTS_ROOT)
+			.join(format!("{intent_id}.json"))
+	}
+
+	fn finality_signature(
+		intent: &FallbackPromotionIntentV2,
+		block_hash: [u8; 32],
+		block_number: u32,
+		extrinsic_hash: [u8; 32],
+	) -> [u8; 64] {
+		let digest = promotion_finality_attestation_digest(
+			FINALITY_ATTESTATION_VERSION,
+			&intent.intent_id,
+			&intent.record_hash,
+			&intent.tuple_key,
+			block_hash,
+			block_number,
+			extrinsic_hash,
+			FINALIZED_STATE,
+		)
+		.unwrap();
+		pair(2).sign(&digest).0
+	}
+
+	fn finalize(
+		store: &CheckpointPromotionStoreV2,
+		intent: &FallbackPromotionIntentV2,
+	) -> FallbackPromotionFinalizedReceiptV2 {
+		let block_hash = [21; 32];
+		let block_number = 130;
+		let extrinsic_hash = [22; 32];
+		store
+			.record_finalized(
+				&intent.intent_id,
+				block_hash,
+				block_number,
+				extrinsic_hash,
+				FINALITY_ATTESTATION_VERSION,
+				finality_signature(intent, block_hash, block_number, extrinsic_hash),
+			)
+			.unwrap()
 	}
 
 	#[test]
-	fn exact_call_args_are_queued_signed_and_reopen_stably() {
+	fn exact_intent_and_finalized_receipt_replay_and_reopen_stably() {
 		let temp = TempDir::new().unwrap();
 		let duty = duty();
 		let duty_scale = duty.encode();
-		let store = CheckpointPromotionStoreV1::open(temp.path()).unwrap();
-		let queued = store.queue(&account(2), &duty_scale, &pair(2)).unwrap();
-		assert_eq!(queued.state, STATE);
-		assert_eq!(decode_hex(&queued.duty_scale).unwrap(), duty_scale);
-		let args = decode_hex_scale::<CallArgs>(&queued.call_args_scale).unwrap();
+		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+		let intent = store.authorize(&account(2), &duty_scale, &pair(2)).unwrap();
+		assert_eq!(intent.state, AUTHORIZED_STATE);
+		assert_eq!(intent.inventory_finalized_hash, hex::encode(duty.snapshot_hash));
+		assert_eq!(intent.inventory_finalized_number, duty.snapshot_checkpoint);
+		assert_eq!(decode_hex(&intent.duty_scale).unwrap(), duty_scale);
+		let args = decode_hex_scale::<CallArgs>(&intent.call_args_scale).unwrap();
+		assert_eq!(args.0.version, PAYLOAD_VERSION);
 		assert_eq!(args.0.bucket_id, duty.bucket_id);
 		assert_eq!(args.0.snapshot_nonce, duty.snapshot_checkpoint);
 		assert_eq!(args.0.duty_id, duty.duty_id);
-		assert_eq!(args.1, pair(2).public());
-		assert!(ed25519::Pair::verify(&args.2, &promotion_digest(&args.0), &args.1));
-		assert_eq!(store.queue(&account(2), &duty_scale, &pair(2)).unwrap(), queued);
+		assert_eq!(store.pending_intents().unwrap(), vec![intent.clone()]);
+		assert_eq!(store.authorize(&account(2), &duty_scale, &pair(2)).unwrap(), intent);
+
+		let receipt = finalize(&store, &intent);
+		assert!(store.pending_intents().unwrap().is_empty());
+		assert_eq!(finalize(&store, &intent), receipt);
 		drop(store);
 
-		let reopened = CheckpointPromotionStoreV1::open(temp.path()).unwrap();
-		assert_eq!(reopened.queue(&account(2), &duty_scale, &pair(2)).unwrap(), queued);
+		let reopened = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+		assert_eq!(reopened.authorize(&account(2), &duty_scale, &pair(2)).unwrap(), intent);
+		assert_eq!(finalize(&reopened, &intent), receipt);
+		assert!(reopened.pending_intents().unwrap().is_empty());
 	}
 
 	#[test]
@@ -603,8 +909,8 @@ mod tests {
 		let temp = TempDir::new().unwrap();
 		let mut tie = duty();
 		tie.authorities[2].confirmed_checkpoint = Some(100);
-		let store = CheckpointPromotionStoreV1::open(temp.path()).unwrap();
-		store.queue(&account(2), &tie.encode(), &pair(2)).unwrap();
+		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+		store.authorize(&account(2), &tie.encode(), &pair(2)).unwrap();
 
 		let temp = TempDir::new().unwrap();
 		let mut higher = duty();
@@ -612,15 +918,15 @@ mod tests {
 		higher.authorities[2].may_initiate = true;
 		higher.authorities[2].confirmed_checkpoint = Some(101);
 		higher.initiator = Some(account(3));
-		let store = CheckpointPromotionStoreV1::open(temp.path()).unwrap();
-		store.queue(&account(3), &higher.encode(), &pair(3)).unwrap();
+		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+		store.authorize(&account(3), &higher.encode(), &pair(3)).unwrap();
 
 		let temp = TempDir::new().unwrap();
 		let mut forged_lower = duty();
 		forged_lower.authorities[2].confirmed_checkpoint = Some(101);
-		let store = CheckpointPromotionStoreV1::open(temp.path()).unwrap();
+		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
 		assert!(matches!(
-			store.queue(&account(2), &forged_lower.encode(), &pair(2)),
+			store.authorize(&account(2), &forged_lower.encode(), &pair(2)),
 			Err(ContentError::IntegrityFailed)
 		));
 	}
@@ -676,9 +982,9 @@ mod tests {
 
 		for duty_scale in variants {
 			let temp = TempDir::new().unwrap();
-			let store = CheckpointPromotionStoreV1::open(temp.path()).unwrap();
+			let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
 			assert!(matches!(
-				store.queue(&account(2), &duty_scale, &pair(2)),
+				store.authorize(&account(2), &duty_scale, &pair(2)),
 				Err(ContentError::IntegrityFailed)
 			));
 		}
@@ -688,13 +994,13 @@ mod tests {
 	fn wrong_self_key_authority_projection_and_eligibility_fail_closed() {
 		let base = duty();
 		let temp = TempDir::new().unwrap();
-		let store = CheckpointPromotionStoreV1::open(temp.path()).unwrap();
+		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
 		assert!(matches!(
-			store.queue(&account(3), &base.encode(), &pair(3)),
+			store.authorize(&account(3), &base.encode(), &pair(3)),
 			Err(ContentError::IntegrityFailed)
 		));
 		assert!(matches!(
-			store.queue(&account(2), &base.encode(), &pair(3)),
+			store.authorize(&account(2), &base.encode(), &pair(3)),
 			Err(ContentError::IntegrityFailed)
 		));
 
@@ -730,9 +1036,9 @@ mod tests {
 
 		for changed in variants {
 			let temp = TempDir::new().unwrap();
-			let store = CheckpointPromotionStoreV1::open(temp.path()).unwrap();
+			let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
 			assert!(matches!(
-				store.queue(&account(2), &changed.encode(), &pair(2)),
+				store.authorize(&account(2), &changed.encode(), &pair(2)),
 				Err(ContentError::IntegrityFailed)
 			));
 		}
@@ -742,70 +1048,110 @@ mod tests {
 	fn exact_retry_precedes_capacity_while_changed_duty_conflicts() {
 		let temp = TempDir::new().unwrap();
 		let base = duty();
-		let store = CheckpointPromotionStoreV1::open(temp.path()).unwrap();
-		let queued = store.queue(&account(2), &base.encode(), &pair(2)).unwrap();
+		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+		let intent = store.authorize(&account(2), &base.encode(), &pair(2)).unwrap();
 		let mut changed = base.clone();
 		changed.snapshot_hash = H256::repeat_byte(88);
 		assert!(matches!(
-			store.queue(&account(2), &changed.encode(), &pair(2)),
+			store.authorize(&account(2), &changed.encode(), &pair(2)),
 			Err(ContentError::IdempotencyConflict)
 		));
 
 		{
-			let mut records = store.records.write().unwrap();
-			for index in records.len()..MAX_RECORDS {
-				let mut dummy = queued.clone();
-				dummy.queue_id = format!("{index:064x}");
-				records.insert(dummy.queue_id.clone(), dummy);
+			let mut intents = store.intents.write().unwrap();
+			for index in intents.len()..MAX_RECORDS {
+				let mut dummy = intent.clone();
+				dummy.intent_id = format!("{index:064x}");
+				intents.insert(dummy.intent_id.clone(), dummy);
 			}
 		}
-		assert_eq!(store.queue(&account(2), &base.encode(), &pair(2)).unwrap(), queued);
+		assert_eq!(
+			store.authorize(&account(2), &base.encode(), &pair(2)).unwrap(),
+			intent
+		);
 		let mut next = base;
 		next.duty_id = H256::repeat_byte(89);
 		assert!(matches!(
-			store.queue(&account(2), &next.encode(), &pair(2)),
+			store.authorize(&account(2), &next.encode(), &pair(2)),
 			Err(ContentError::ProviderRecoveryTableFull)
 		));
+	}
+
+	#[test]
+	fn same_tuple_with_changed_duty_conflicts_and_changed_finality_conflicts() {
+		let temp = TempDir::new().unwrap();
+		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+		let base = duty();
+		let intent = store.authorize(&account(2), &base.encode(), &pair(2)).unwrap();
+		let mut changed = base.clone();
+		changed.snapshot_hash = H256::repeat_byte(88);
+		assert!(matches!(
+			store.authorize(&account(2), &changed.encode(), &pair(2)),
+			Err(ContentError::IdempotencyConflict)
+		));
+		finalize(&store, &intent);
+		assert!(matches!(
+			store.record_finalized(
+				&intent.intent_id,
+				[31; 32],
+				131,
+				[32; 32],
+				FINALITY_ATTESTATION_VERSION,
+				[0; 64],
+			),
+			Err(ContentError::IntegrityFailed)
+		));
+	}
+
+	#[test]
+	fn legacy_root_is_rejected_without_creating_v2_roots() {
+		let temp = TempDir::new().unwrap();
+		fs::create_dir(temp.path().join(LEGACY_ROOT)).unwrap();
+		assert!(matches!(
+			CheckpointPromotionStoreV2::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+		assert!(!temp.path().join(INTENTS_ROOT).exists());
+		assert!(!temp.path().join(FINALIZED_RECEIPTS_ROOT).exists());
 	}
 
 	#[test]
 	fn rehashed_semantic_tampering_is_rejected_on_reopen() {
 		let temp = TempDir::new().unwrap();
 		let base = duty();
-		let store = CheckpointPromotionStoreV1::open(temp.path()).unwrap();
-		let queued = store.queue(&account(2), &base.encode(), &pair(2)).unwrap();
+		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+		let intent = store.authorize(&account(2), &base.encode(), &pair(2)).unwrap();
 		drop(store);
-		let reopened = CheckpointPromotionStoreV1::open(temp.path()).unwrap();
-		assert_eq!(reopened.queue(&account(2), &base.encode(), &pair(2)).unwrap(), queued);
-		drop(reopened);
-
-		let path = path(&temp, &queued.queue_id);
-		let mut record: QueuedFallbackPromotionV1 =
+		let path = intent_path(&temp, &intent.intent_id);
+		let mut record: FallbackPromotionIntentV2 =
 			serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
-		let mut changed = decode_hex_scale::<Duty>(&record.duty_scale).unwrap();
-		changed.authorities[2].confirmed_checkpoint = Some(101);
-		record.duty_scale = hex::encode(changed.encode());
-		record.duty_fingerprint = hex::encode(blake2_256(&changed.encode()));
-		record.record_hash = record_hash(&record).unwrap();
+		record.call_args_scale.push_str("00");
+		record.record_hash = intent_record_hash(&record).unwrap();
 		fs::write(&path, serde_json::to_vec(&record).unwrap()).unwrap();
 		assert!(matches!(
-			CheckpointPromotionStoreV1::open(temp.path()),
+			CheckpointPromotionStoreV2::open(temp.path()),
 			Err(ContentError::IntegrityFailed)
 		));
 
-		record.duty_scale = hex::encode(base.encode());
-		record.duty_fingerprint = hex::encode(blake2_256(&base.encode()));
-		record.call_args_scale.push_str("00");
-		record.record_hash = record_hash(&record).unwrap();
+		let temp = TempDir::new().unwrap();
+		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+		let intent = store.authorize(&account(2), &base.encode(), &pair(2)).unwrap();
+		finalize(&store, &intent);
+		drop(store);
+		let path = receipt_path(&temp, &intent.intent_id);
+		let mut record: FallbackPromotionFinalizedReceiptV2 =
+			serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+		record.finalized_number += 1;
+		record.receipt_hash = finalized_receipt_hash(&record).unwrap();
 		fs::write(path, serde_json::to_vec(&record).unwrap()).unwrap();
 		assert!(matches!(
-			CheckpointPromotionStoreV1::open(temp.path()),
+			CheckpointPromotionStoreV2::open(temp.path()),
 			Err(ContentError::IntegrityFailed)
 		));
 	}
 
 	#[test]
-	fn every_promotion_crash_seam_recovers_exact_old_or_new_state() {
+	fn every_intent_and_receipt_crash_seam_recovers_exact_old_or_new_state() {
 		let faults = [
 			CheckpointPromotionFault::BeforeTempFsync,
 			CheckpointPromotionFault::AfterTempFsync,
@@ -815,43 +1161,97 @@ mod tests {
 		for fault in faults {
 			let temp = TempDir::new().unwrap();
 			let base = duty();
-			let store = CheckpointPromotionStoreV1::open(temp.path()).unwrap();
+			let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
 			store.inject_fault_once(fault).unwrap();
 			assert!(matches!(
-				store.queue(&account(2), &base.encode(), &pair(2)),
+				store.authorize(&account(2), &base.encode(), &pair(2)),
 				Err(ContentError::Io(_))
 			));
-			assert!(matches!(
-				store.queue(&account(2), &base.encode(), &pair(2)),
-				Err(ContentError::IntegrityFailed)
-			));
 			drop(store);
-			let reopened = CheckpointPromotionStoreV1::open(temp.path()).unwrap();
-			reopened.queue(&account(2), &base.encode(), &pair(2)).unwrap();
+			let reopened = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+			let intent = reopened.authorize(&account(2), &base.encode(), &pair(2)).unwrap();
+
+			reopened.inject_fault_once(fault).unwrap();
+			let block_hash = [21; 32];
+			let block_number = 130;
+			let extrinsic_hash = [22; 32];
+			assert!(matches!(
+				reopened.record_finalized(
+					&intent.intent_id,
+					block_hash,
+					block_number,
+					extrinsic_hash,
+					FINALITY_ATTESTATION_VERSION,
+					finality_signature(&intent, block_hash, block_number, extrinsic_hash),
+				),
+				Err(ContentError::Io(_))
+			));
+			drop(reopened);
+			let reopened = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+			finalize(&reopened, &intent);
+			assert!(reopened.pending_intents().unwrap().is_empty());
 		}
 	}
 
 	#[test]
-	fn recovery_directory_and_record_bytes_are_hard_bounded() {
+	fn directories_records_and_capacity_are_hard_bounded() {
 		let temp = TempDir::new().unwrap();
-		let root = temp.path().join(ROOT);
+		let root = temp.path().join(INTENTS_ROOT);
 		fs::create_dir_all(&root).unwrap();
 		for index in 0..=MAX_RECORDS {
 			fs::write(root.join(format!("{index:064x}.json")), []).unwrap();
 		}
-		assert!(matches!(read_records(&root), Err(ContentError::IntegrityFailed)));
+		assert!(matches!(
+			read_records(&root, MAX_INTENT_BYTES),
+			Err(ContentError::IntegrityFailed)
+		));
 
 		let temp = TempDir::new().unwrap();
-		let root = temp.path().join(ROOT);
+		let root = temp.path().join(FINALIZED_RECEIPTS_ROOT);
 		fs::create_dir_all(&root).unwrap();
 		fs::write(root.join("first.json.tmp-1"), []).unwrap();
 		fs::write(root.join("second.json.tmp-1"), []).unwrap();
-		assert!(matches!(read_records(&root), Err(ContentError::IntegrityFailed)));
+		assert!(matches!(
+			read_records(&root, MAX_RECEIPT_BYTES),
+			Err(ContentError::IntegrityFailed)
+		));
 
 		let temp = TempDir::new().unwrap();
-		let root = temp.path().join(ROOT);
+		let root = temp.path().join(INTENTS_ROOT);
 		fs::create_dir_all(&root).unwrap();
-		fs::write(root.join("oversized.json"), vec![0; MAX_RECORD_BYTES + 1]).unwrap();
-		assert!(matches!(read_records(&root), Err(ContentError::IntegrityFailed)));
+		fs::write(root.join("oversized.json"), vec![0; MAX_INTENT_BYTES + 1]).unwrap();
+		assert!(matches!(
+			read_records(&root, MAX_INTENT_BYTES),
+			Err(ContentError::IntegrityFailed)
+		));
+	}
+
+	#[test]
+	fn invalid_finality_attestation_and_unknown_intent_fail_closed() {
+		let temp = TempDir::new().unwrap();
+		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
+		let intent = store.authorize(&account(2), &duty().encode(), &pair(2)).unwrap();
+		assert!(matches!(
+			store.record_finalized(
+				&intent.intent_id,
+				[21; 32],
+				130,
+				[22; 32],
+				FINALITY_ATTESTATION_VERSION,
+				pair(3).sign(b"wrong").0,
+			),
+			Err(ContentError::IntegrityFailed)
+		));
+		assert!(matches!(
+			store.record_finalized(
+				&"ff".repeat(32),
+				[21; 32],
+				130,
+				[22; 32],
+				FINALITY_ATTESTATION_VERSION,
+				[0; 64],
+			),
+			Err(ContentError::NotFound)
+		));
 	}
 }
