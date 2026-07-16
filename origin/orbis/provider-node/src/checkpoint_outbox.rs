@@ -37,10 +37,12 @@ use crate::ContentError;
 
 const SUBMISSIONS_ROOT: &str = "checkpoint-submissions-v2";
 const RECEIPTS_ROOT: &str = "checkpoint-receipts-v2";
+const FINALIZED_RECEIPTS_ROOT: &str = "checkpoint-finalized-receipts-v2";
 const VERSION: u8 = 2;
 const ID_DOMAIN: &[u8] = b"cord/provider/checkpoint-submission-v2";
 const RECORD_DOMAIN: &[u8] = b"cord/provider/checkpoint-submission-record/v2";
 const RECEIPT_DOMAIN: &[u8] = b"cord/provider/checkpoint-receipt-record/v2";
+const FINALIZED_RECEIPT_DOMAIN: &[u8] = b"cord/provider/checkpoint-finalized-receipt-record/v2";
 const CHECKPOINT_DOMAIN: &[u8] = b"cord/storage/checkpoint/v2";
 const MAX_RECORD_BYTES: usize = 128 * 1024;
 const MAX_RECORDS: usize = 8_192;
@@ -116,6 +118,21 @@ pub(crate) struct CheckpointReceiptV2 {
 	pub receipt_hash: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CheckpointFinalizedReceiptV2 {
+	pub version: u8,
+	pub submission_id: String,
+	pub tuple_key: String,
+	pub submission_record_hash: String,
+	pub primary: String,
+	pub finalized_hash: String,
+	pub finalized_number: u32,
+	pub extrinsic_hash: String,
+	pub state: String,
+	pub receipt_hash: String,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct CheckpointOutboxSnapshotV2 {
 	pub submission: CheckpointSubmissionV2,
@@ -133,9 +150,11 @@ pub(crate) enum CheckpointOutboxFault {
 pub(crate) struct CheckpointOutboxV2 {
 	submissions_root: PathBuf,
 	receipts_root: PathBuf,
+	finalized_receipts_root: PathBuf,
 	submissions: RwLock<HashMap<String, CheckpointSubmissionV2>>,
 	by_tuple: RwLock<HashMap<String, String>>,
 	receipts: RwLock<HashMap<String, CheckpointReceiptV2>>,
+	finalized_receipts: RwLock<HashMap<String, CheckpointFinalizedReceiptV2>>,
 	fault: RwLock<Option<CheckpointOutboxFault>>,
 	poisoned: RwLock<bool>,
 	#[cfg(test)]
@@ -147,8 +166,10 @@ impl CheckpointOutboxV2 {
 	pub(crate) fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
 		let submissions_root = root.as_ref().join(SUBMISSIONS_ROOT);
 		let receipts_root = root.as_ref().join(RECEIPTS_ROOT);
+		let finalized_receipts_root = root.as_ref().join(FINALIZED_RECEIPTS_ROOT);
 		fs::create_dir_all(&submissions_root).map_err(io_error)?;
 		fs::create_dir_all(&receipts_root).map_err(io_error)?;
+		fs::create_dir_all(&finalized_receipts_root).map_err(io_error)?;
 		let mut submissions = HashMap::new();
 		let mut by_tuple = HashMap::new();
 		for item in read_records(&submissions_root)? {
@@ -180,17 +201,121 @@ impl CheckpointOutboxV2 {
 				return Err(ContentError::IntegrityFailed)
 			}
 		}
+		let mut finalized_receipts = HashMap::new();
+		for item in read_records(&finalized_receipts_root)? {
+			let receipt: CheckpointFinalizedReceiptV2 =
+				serde_json::from_slice(&item.bytes).map_err(|_| ContentError::IntegrityFailed)?;
+			let submission =
+				submissions.get(&receipt.submission_id).ok_or(ContentError::IntegrityFailed)?;
+			validate_finalized_receipt(&receipt, submission)?;
+			if item.name != format!("{}.json", receipt.submission_id) ||
+				finalized_receipts.len() >= MAX_RECORDS ||
+				finalized_receipts.insert(receipt.submission_id.clone(), receipt).is_some()
+			{
+				return Err(ContentError::IntegrityFailed)
+			}
+		}
 		Ok(Self {
 			submissions_root,
 			receipts_root,
+			finalized_receipts_root,
 			submissions: RwLock::new(submissions),
 			by_tuple: RwLock::new(by_tuple),
 			receipts: RwLock::new(receipts),
+			finalized_receipts: RwLock::new(finalized_receipts),
 			fault: RwLock::new(None),
 			poisoned: RwLock::new(false),
 			#[cfg(test)]
 			ack_gate: RwLock::new(None),
 		})
+	}
+
+	/// Enumerate durable submissions without a durable finality receipt.
+	pub(crate) fn pending_submissions(&self) -> Result<Vec<CheckpointSubmissionV2>, ContentError> {
+		if *self.poisoned.read().map_err(|_| lock_error())? {
+			return Err(ContentError::IntegrityFailed)
+		}
+		let submissions = self.submissions.read().map_err(|_| lock_error())?;
+		let finalized = self.finalized_receipts.read().map_err(|_| lock_error())?;
+		let mut pending = submissions
+			.values()
+			.filter(|submission| !finalized.contains_key(&submission.submission_id))
+			.cloned()
+			.collect::<Vec<_>>();
+		pending.sort_by(|left, right| {
+			left.tuple_key
+				.cmp(&right.tuple_key)
+				.then_with(|| left.submission_id.cmp(&right.submission_id))
+		});
+		Ok(pending)
+	}
+
+	pub(crate) fn finalized_receipt(
+		&self,
+		submission_id: &str,
+	) -> Result<Option<CheckpointFinalizedReceiptV2>, ContentError> {
+		if *self.poisoned.read().map_err(|_| lock_error())? {
+			return Err(ContentError::IntegrityFailed)
+		}
+		Ok(self
+			.finalized_receipts
+			.read()
+			.map_err(|_| lock_error())?
+			.get(submission_id)
+			.cloned())
+	}
+
+	pub(crate) fn record_finalized(
+		&self,
+		submission_id: &str,
+		finalized_hash: [u8; 32],
+		finalized_number: u32,
+		extrinsic_hash: [u8; 32],
+	) -> Result<CheckpointFinalizedReceiptV2, ContentError> {
+		if *self.poisoned.read().map_err(|_| lock_error())? {
+			return Err(ContentError::IntegrityFailed)
+		}
+		let submission = self
+			.submissions
+			.read()
+			.map_err(|_| lock_error())?
+			.get(submission_id)
+			.cloned()
+			.ok_or(ContentError::NotFound)?;
+		let mut receipt = CheckpointFinalizedReceiptV2 {
+			version: VERSION,
+			submission_id: submission.submission_id.clone(),
+			tuple_key: submission.tuple_key.clone(),
+			submission_record_hash: submission.record_hash.clone(),
+			primary: submission.primary.clone(),
+			finalized_hash: hex::encode(finalized_hash),
+			finalized_number,
+			extrinsic_hash: hex::encode(extrinsic_hash),
+			state: "finalized".into(),
+			receipt_hash: String::new(),
+		};
+		receipt.receipt_hash = finalized_receipt_hash(&receipt)?;
+		validate_finalized_receipt(&receipt, &submission)?;
+		let mut finalized = self.finalized_receipts.write().map_err(|_| lock_error())?;
+		if *self.poisoned.read().map_err(|_| lock_error())? {
+			return Err(ContentError::IntegrityFailed)
+		}
+		if let Some(existing) = finalized.get(submission_id) {
+			return if existing == &receipt {
+				Ok(existing.clone())
+			} else {
+				Err(ContentError::IdempotencyConflict)
+			}
+		}
+		if finalized.len() >= MAX_RECORDS {
+			return Err(ContentError::ProviderRecoveryTableFull)
+		}
+		if let Err(error) = self.persist_finalized_receipt(&receipt) {
+			*self.poisoned.write().map_err(|_| lock_error())? = true;
+			return Err(error)
+		}
+		finalized.insert(submission_id.into(), receipt.clone());
+		Ok(receipt)
 	}
 
 	pub(crate) fn inject_fault_once(
@@ -324,6 +449,13 @@ impl CheckpointOutboxV2 {
 	fn persist_receipt(&self, receipt: &CheckpointReceiptV2) -> Result<(), ContentError> {
 		validate_receipt(receipt)?;
 		self.persist(&self.receipts_root, &receipt.submission_id, receipt)
+	}
+
+	fn persist_finalized_receipt(
+		&self,
+		receipt: &CheckpointFinalizedReceiptV2,
+	) -> Result<(), ContentError> {
+		self.persist(&self.finalized_receipts_root, &receipt.submission_id, receipt)
 	}
 
 	fn persist<T: Serialize>(&self, root: &Path, key: &str, value: &T) -> Result<(), ContentError> {
@@ -517,7 +649,9 @@ fn tuple_key(payload: &CommitmentPayloadV2<H256, u32>) -> String {
 	hex::encode(blake2_256(&input))
 }
 
-fn submission_record_hash(record: &CheckpointSubmissionV2) -> Result<String, ContentError> {
+pub(super) fn submission_record_hash(
+	record: &CheckpointSubmissionV2,
+) -> Result<String, ContentError> {
 	let mut canonical = record.clone();
 	canonical.record_hash.clear();
 	let mut input = RECORD_DOMAIN.to_vec();
@@ -543,6 +677,35 @@ fn receipt_hash(receipt: &CheckpointReceiptV2) -> Result<String, ContentError> {
 	let mut canonical = receipt.clone();
 	canonical.receipt_hash.clear();
 	let mut input = RECEIPT_DOMAIN.to_vec();
+	input.extend_from_slice(&serde_json::to_vec(&canonical).map_err(io_error)?);
+	Ok(hex::encode(blake2_256(&input)))
+}
+
+fn validate_finalized_receipt(
+	receipt: &CheckpointFinalizedReceiptV2,
+	submission: &CheckpointSubmissionV2,
+) -> Result<(), ContentError> {
+	if receipt.version != VERSION ||
+		receipt.state != "finalized" ||
+		receipt.submission_id != submission.submission_id ||
+		receipt.tuple_key != submission.tuple_key ||
+		receipt.submission_record_hash != submission.record_hash ||
+		receipt.primary != submission.primary ||
+		receipt.finalized_hash.len() != 64 ||
+		receipt.extrinsic_hash.len() != 64 ||
+		receipt.receipt_hash != finalized_receipt_hash(receipt)?
+	{
+		return Err(ContentError::IntegrityFailed)
+	}
+	decode_fixed::<32>(&receipt.finalized_hash)?;
+	decode_fixed::<32>(&receipt.extrinsic_hash)?;
+	Ok(())
+}
+
+fn finalized_receipt_hash(receipt: &CheckpointFinalizedReceiptV2) -> Result<String, ContentError> {
+	let mut canonical = receipt.clone();
+	canonical.receipt_hash.clear();
+	let mut input = FINALIZED_RECEIPT_DOMAIN.to_vec();
 	input.extend_from_slice(&serde_json::to_vec(&canonical).map_err(io_error)?);
 	Ok(hex::encode(blake2_256(&input)))
 }
@@ -663,6 +826,10 @@ mod tests {
 
 	fn receipt_path(temp: &TempDir, id: &str) -> PathBuf {
 		temp.path().join(RECEIPTS_ROOT).join(format!("{id}.json"))
+	}
+
+	fn finalized_receipt_path(temp: &TempDir, id: &str) -> PathBuf {
+		temp.path().join(FINALIZED_RECEIPTS_ROOT).join(format!("{id}.json"))
 	}
 
 	#[test]
@@ -818,7 +985,7 @@ mod tests {
 
 	#[test]
 	fn recovery_rejects_more_than_the_hard_on_disk_record_bound_in_either_root() {
-		for root_name in [SUBMISSIONS_ROOT, RECEIPTS_ROOT] {
+		for root_name in [SUBMISSIONS_ROOT, RECEIPTS_ROOT, FINALIZED_RECEIPTS_ROOT] {
 			let temp = TempDir::new().unwrap();
 			let root = temp.path().join(root_name);
 			fs::create_dir_all(&root).unwrap();
@@ -854,5 +1021,117 @@ mod tests {
 
 		assert!(matches!(handle.join().unwrap(), Err(ContentError::IntegrityFailed)));
 		assert!(!receipt_path(&temp, &submission.submission_id).exists());
+	}
+
+	#[test]
+	fn pending_is_sorted_and_exact_finality_receipts_survive_reopen() {
+		let temp = TempDir::new().unwrap();
+		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+		for nonce in [103, 101, 102] {
+			let mut input = fixture();
+			input.payload.nonce = nonce;
+			resign(&mut input);
+			outbox.enqueue(&input).unwrap();
+		}
+		let pending = outbox.pending_submissions().unwrap();
+		let mut expected = pending.clone();
+		expected.sort_by(|left, right| {
+			left.tuple_key
+				.cmp(&right.tuple_key)
+				.then_with(|| left.submission_id.cmp(&right.submission_id))
+		});
+		assert_eq!(pending, expected);
+
+		let submission = pending[0].clone();
+		let receipt = outbox
+			.record_finalized(&submission.submission_id, [8; 32], 44, [9; 32])
+			.unwrap();
+		assert_eq!(
+			outbox
+				.record_finalized(&submission.submission_id, [8; 32], 44, [9; 32])
+				.unwrap(),
+			receipt
+		);
+		assert!(matches!(
+			outbox.record_finalized(&submission.submission_id, [7; 32], 44, [9; 32]),
+			Err(ContentError::IdempotencyConflict)
+		));
+		assert!(!outbox
+			.pending_submissions()
+			.unwrap()
+			.iter()
+			.any(|item| item.submission_id == submission.submission_id));
+		drop(outbox);
+
+		let reopened = CheckpointOutboxV2::open(temp.path()).unwrap();
+		assert_eq!(reopened.finalized_receipt(&submission.submission_id).unwrap(), Some(receipt));
+	}
+
+	#[test]
+	fn finalized_receipt_capacity_and_recomputed_binding_tampering_fail_closed() {
+		let temp = TempDir::new().unwrap();
+		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+		let first = outbox.enqueue(&fixture()).unwrap().submission;
+		let receipt = outbox.record_finalized(&first.submission_id, [1; 32], 2, [3; 32]).unwrap();
+		{
+			let mut receipts = outbox.finalized_receipts.write().unwrap();
+			for index in receipts.len()..MAX_RECORDS {
+				let mut dummy = receipt.clone();
+				dummy.submission_id = format!("{index:064x}");
+				receipts.insert(dummy.submission_id.clone(), dummy);
+			}
+		}
+		assert_eq!(
+			outbox.record_finalized(&first.submission_id, [1; 32], 2, [3; 32]).unwrap(),
+			receipt
+		);
+		let mut next = fixture();
+		next.payload.nonce += 1;
+		resign(&mut next);
+		let next = outbox.enqueue(&next).unwrap().submission;
+		assert!(matches!(
+			outbox.record_finalized(&next.submission_id, [1; 32], 2, [3; 32]),
+			Err(ContentError::ProviderRecoveryTableFull)
+		));
+		drop(outbox);
+
+		let path = finalized_receipt_path(&temp, &first.submission_id);
+		let mut tampered: CheckpointFinalizedReceiptV2 =
+			serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+		tampered.primary = hex::encode([99; 32]);
+		tampered.receipt_hash = finalized_receipt_hash(&tampered).unwrap();
+		fs::write(path, serde_json::to_vec(&tampered).unwrap()).unwrap();
+		assert!(matches!(
+			CheckpointOutboxV2::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+	}
+
+	#[test]
+	fn finalized_receipt_crash_seams_replay_exactly_from_durable_state() {
+		for fault in [
+			CheckpointOutboxFault::BeforeTempFsync,
+			CheckpointOutboxFault::AfterTempFsync,
+			CheckpointOutboxFault::AfterRename,
+			CheckpointOutboxFault::AfterDirectoryFsync,
+		] {
+			let temp = TempDir::new().unwrap();
+			let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+			let submission = outbox.enqueue(&fixture()).unwrap().submission;
+			outbox.inject_fault_once(fault).unwrap();
+			assert!(matches!(
+				outbox.record_finalized(&submission.submission_id, [4; 32], 5, [6; 32]),
+				Err(ContentError::Io(_))
+			));
+			assert!(matches!(outbox.pending_submissions(), Err(ContentError::IntegrityFailed)));
+			drop(outbox);
+
+			let reopened = CheckpointOutboxV2::open(temp.path()).unwrap();
+			let recovered = reopened
+				.record_finalized(&submission.submission_id, [4; 32], 5, [6; 32])
+				.unwrap();
+			assert_eq!(recovered.finalized_hash, hex::encode([4; 32]));
+			assert!(reopened.pending_submissions().unwrap().is_empty());
+		}
 	}
 }

@@ -28,6 +28,9 @@ pub(crate) mod checkpoint_promotion;
 pub(crate) mod checkpoint_publication;
 #[path = "checkpoint_quorum.rs"]
 pub(crate) mod checkpoint_quorum;
+#[cfg(feature = "checkpoint-consumer")]
+#[path = "checkpoint_submitter.rs"]
+pub(crate) mod checkpoint_submitter;
 
 use std::{
 	collections::HashMap,
