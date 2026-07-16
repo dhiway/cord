@@ -55,8 +55,9 @@ use super::{
 			NamesRead, NamesResponse, TextValue,
 		},
 		s3::{
-			BucketName, BucketStatus, BucketView, ObjectKey, ObjectVersionView, ObjectView,
-			S3Query, S3Read, S3Response,
+			BucketName, BucketStatus, BucketView, FinalizedObjectPage, ObjectKey, ObjectKeyPrefix,
+			ObjectListCursor, ObjectListRequest, ObjectVersionView, ObjectView, S3Query, S3Read,
+			S3Response,
 		},
 		storage::{
 			AccountAuthorization as DomainAccountAuthorization, ActiveResourceReservation,
@@ -238,6 +239,114 @@ mod finalized_ancestry_tests {
 	}
 
 	#[test]
+	fn object_key_arguments_match_the_v3_runtime_api_shape() {
+		let bucket = BucketId::new(format!("0x{}", "11".repeat(32))).unwrap();
+		let page = ObjectListRequest {
+			prefix: Some(ObjectKeyPrefix::new(b"images/".to_vec()).unwrap()),
+			cursor: Some(ObjectListCursor {
+				snapshot_version: 7,
+				last_key: ObjectKey::new(b"images/a.png".to_vec()).unwrap(),
+			}),
+			limit: 25,
+		};
+		let expected = vec![
+			Value::from_bytes([0x11; 32]),
+			Value::variant("Some", Composite::unnamed(vec![Value::from_bytes(b"images/")])),
+			Value::variant(
+				"Some",
+				Composite::unnamed(vec![Value::named_composite(vec![
+					("snapshot_version", Value::u128(7)),
+					("last_key", Value::from_bytes(b"images/a.png")),
+				])]),
+			),
+			Value::u128(25),
+		];
+		assert_eq!(object_keys_args(&bucket, &page).unwrap(), expected);
+		assert!(ObjectKeyPrefix::new(Vec::new()).is_ok());
+		assert!(ObjectKeyPrefix::new(vec![0; 1_025]).is_err());
+		assert!(object_keys_args(
+			&bucket,
+			&ObjectListRequest { prefix: None, cursor: None, limit: 0 }
+		)
+		.is_err());
+	}
+
+	#[test]
+	fn snapshot_object_pages_decode_and_reject_inconsistent_cursors() {
+		let hash = Hash32::from_bytes([1; 32]);
+		let request = ObjectListRequest {
+			prefix: None,
+			cursor: Some(ObjectListCursor {
+				snapshot_version: 7,
+				last_key: ObjectKey::new(b"a".to_vec()).unwrap(),
+			}),
+			limit: 2,
+		};
+		let response = storage_api::SnapshotPage {
+			version: storage_api::RESPONSE_VERSION,
+			items: vec![b"b".to_vec()],
+			next_cursor: Some(storage_api::SnapshotCursor {
+				snapshot_version: 7,
+				last_key: b"b".to_vec(),
+			}),
+			snapshot_version: 7,
+		};
+		let page = finalized_object_page(&hash, &request, response.clone()).unwrap();
+		assert_eq!(page.snapshot_version, 7);
+		assert_eq!(page.items[0].as_bytes(), b"b");
+		assert_eq!(page.next_cursor.unwrap().last_key.as_bytes(), b"b");
+
+		let mut stale = response.clone();
+		stale.snapshot_version = 8;
+		assert_eq!(
+			finalized_object_page(&hash, &request, stale).unwrap_err().code,
+			NativeErrorCode::InconsistentSnapshot
+		);
+		let mut wrong_next = response;
+		wrong_next.next_cursor.as_mut().unwrap().last_key = b"c".to_vec();
+		assert_eq!(
+			finalized_object_page(&hash, &request, wrong_next).unwrap_err().code,
+			NativeErrorCode::InconsistentSnapshot
+		);
+	}
+
+	#[test]
+	fn s3_list_errors_and_sparse_challenge_cursors_are_deterministic() {
+		for (error, code) in [
+			(storage_api::S3ListError::BucketNotFound, NativeErrorCode::NotFound),
+			(storage_api::S3ListError::BucketDeleted, NativeErrorCode::Conflict),
+			(storage_api::S3ListError::CursorStale, NativeErrorCode::InconsistentSnapshot),
+			(storage_api::S3ListError::PageLimitInvalid, NativeErrorCode::InvalidInput),
+			(storage_api::S3ListError::CursorKeyInvalid, NativeErrorCode::InvalidInput),
+		] {
+			assert_eq!(s3_list_error(error).code, code);
+		}
+
+		let hash = Hash32::from_bytes([1; 32]);
+		let page = storage_sparse_finalized_page::<()>(
+			&hash,
+			storage_api::RESPONSE_VERSION,
+			vec![],
+			Some(4),
+			Some(3),
+		)
+		.unwrap();
+		assert_eq!(page.next_cursor, Some(4));
+		assert_eq!(
+			storage_sparse_finalized_page::<()>(
+				&hash,
+				storage_api::RESPONSE_VERSION,
+				vec![],
+				Some(3),
+				Some(3),
+			)
+			.unwrap_err()
+			.code,
+			NativeErrorCode::InconsistentSnapshot
+		);
+	}
+
+	#[test]
 	fn current_storage_v8_shapes_map_without_legacy_projection() {
 		let provider_account = RuntimeAccountId::from([1; 32]);
 		let provider = account_id(&provider_account).unwrap();
@@ -342,6 +451,36 @@ mod finalized_ancestry_tests {
 		assert_eq!(drive.status, DriveStatus::Deleted);
 		assert!(drive.root_manifest.is_some());
 		assert_eq!(drive.controllers.len(), 1);
+
+		let object = object_view(storage_api::ObjectInfo {
+			object_id: RuntimeHash::repeat_byte(52),
+			bucket_id: RuntimeHash::repeat_byte(53),
+			key: b"object".to_vec(),
+			content_hash: Some([54; 32]),
+			provider_commitment: Some([55; 32]),
+			version: 56,
+			deleted: false,
+			updated_by: RuntimeAccountId::from([57; 32]),
+			updated_at: 58,
+		})
+		.unwrap();
+		assert_eq!(
+			object.provider_commitment,
+			Some(ContentCommitment(Hash32::from_bytes([55; 32])))
+		);
+		let version = object_version_view(storage_api::ObjectVersionInfo {
+			content_hash: Some([59; 32]),
+			provider_commitment: Some([60; 32]),
+			version: 61,
+			deleted: false,
+			updated_by: RuntimeAccountId::from([62; 32]),
+			updated_at: 63,
+		})
+		.unwrap();
+		assert_eq!(
+			version.provider_commitment,
+			Some(ContentCommitment(Hash32::from_bytes([60; 32])))
+		);
 	}
 }
 
@@ -960,7 +1099,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 				let response: storage_api::Page<
 					storage_api::ChallengeInfo<RuntimeAccountId, RuntimeHash, RuntimeBlockNumber>,
 				> = self.call_at(hash, "StorageProviderApi", "challenges_at", args).await?;
-				Ok(StorageProviderResponse::Challenges(storage_finalized_page(
+				Ok(StorageProviderResponse::Challenges(storage_sparse_finalized_page(
 					hash,
 					response.version,
 					response
@@ -969,6 +1108,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 						.map(|item| challenge_id(item.challenge_id))
 						.collect(),
 					response.next_cursor,
+					page.cursor,
 				)?))
 			},
 			StorageProviderQuery::CanAcceptCapacity { provider, additional_bytes } => {
@@ -1144,24 +1284,18 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 				)?))
 			},
 			S3Query::BucketObjects { bucket, page } => {
-				let response: storage_api::Page<Vec<u8>> = self
-					.call_at(
+				let response: Result<storage_api::SnapshotPage<Vec<u8>>, storage_api::S3ListError> =
+					self.call_at(
 						hash,
 						"S3RegistryApi",
 						"object_keys",
-						page_args(hash_arg(bucket.as_hash())?, page),
+						object_keys_args(bucket, page)?,
 					)
 					.await?;
-				let items = response
-					.items
-					.into_iter()
-					.map(ObjectKey::new)
-					.collect::<DomainResult<Vec<_>>>()?;
-				Ok(S3Response::Objects(storage_finalized_page(
+				Ok(S3Response::Objects(finalized_object_page(
 					hash,
-					response.version,
-					items,
-					response.next_cursor,
+					page,
+					response.map_err(s3_list_error)?,
 				)?))
 			},
 			S3Query::ObjectByKey { bucket, key } => {
@@ -1566,6 +1700,9 @@ fn object_view(
 		bucket: bucket_id(info.bucket_id),
 		key: ObjectKey::new(info.key)?,
 		content: info.content_hash.map(|hash| ContentCommitment(Hash32::from_bytes(hash))),
+		provider_commitment: info
+			.provider_commitment
+			.map(|hash| ContentCommitment(Hash32::from_bytes(hash))),
 		version: info.version,
 		deleted: info.deleted,
 		updated_by: account_id(&info.updated_by)?,
@@ -1578,6 +1715,9 @@ fn object_version_view(
 ) -> DomainResult<ObjectVersionView> {
 	Ok(ObjectVersionView {
 		content: info.content_hash.map(|hash| ContentCommitment(Hash32::from_bytes(hash))),
+		provider_commitment: info
+			.provider_commitment
+			.map(|hash| ContentCommitment(Hash32::from_bytes(hash))),
 		version: info.version,
 		deleted: info.deleted,
 		updated_by: account_id(&info.updated_by)?,
@@ -1640,6 +1780,102 @@ fn storage_finalized_page<T>(
 		))
 	}
 	Ok(FinalizedPage { version, finalized_block_hash: hash.clone(), items, next_cursor })
+}
+
+fn storage_sparse_finalized_page<T>(
+	hash: &Hash32,
+	version: u16,
+	items: Vec<T>,
+	next_cursor: Option<u32>,
+	request_cursor: Option<u32>,
+) -> DomainResult<FinalizedPage<T>> {
+	ensure_storage_response_version(version)?;
+	hash.validate()?;
+	if items.len() > storage_api::MAX_PAGE_SIZE as usize {
+		return Err(NativeError::new(
+			NativeErrorCode::UnsupportedRuntime,
+			"storage runtime response exceeded its page contract",
+		))
+	}
+	if next_cursor.is_some_and(|next| next <= request_cursor.unwrap_or(0)) {
+		return Err(NativeError::new(
+			NativeErrorCode::InconsistentSnapshot,
+			"sparse storage runtime response did not advance its cursor",
+		))
+	}
+	Ok(FinalizedPage { version, finalized_block_hash: hash.clone(), items, next_cursor })
+}
+
+fn finalized_object_page(
+	hash: &Hash32,
+	request: &ObjectListRequest,
+	response: storage_api::SnapshotPage<Vec<u8>>,
+) -> DomainResult<FinalizedObjectPage> {
+	ensure_storage_response_version(response.version)?;
+	hash.validate()?;
+	if response.items.len() > storage_api::MAX_PAGE_SIZE as usize {
+		return Err(NativeError::new(
+			NativeErrorCode::UnsupportedRuntime,
+			"S3 object response exceeded its page contract",
+		))
+	}
+	if request
+		.cursor
+		.as_ref()
+		.is_some_and(|cursor| cursor.snapshot_version != response.snapshot_version)
+	{
+		return Err(NativeError::new(
+			NativeErrorCode::InconsistentSnapshot,
+			"S3 object response changed snapshot version",
+		))
+	}
+
+	let items = response
+		.items
+		.into_iter()
+		.map(ObjectKey::new)
+		.collect::<DomainResult<Vec<_>>>()?;
+	let next_cursor = response
+		.next_cursor
+		.map(|cursor| {
+			Ok(ObjectListCursor {
+				snapshot_version: cursor.snapshot_version,
+				last_key: ObjectKey::new(cursor.last_key)?,
+			})
+		})
+		.transpose()?;
+	if let Some(next) = next_cursor.as_ref() {
+		if next.snapshot_version != response.snapshot_version {
+			return Err(NativeError::new(
+				NativeErrorCode::InconsistentSnapshot,
+				"S3 object cursor changed snapshot version",
+			))
+		}
+		if items.last() != Some(&next.last_key) {
+			return Err(NativeError::new(
+				NativeErrorCode::InconsistentSnapshot,
+				"S3 object cursor does not identify the last returned key",
+			))
+		}
+		if request
+			.cursor
+			.as_ref()
+			.is_some_and(|current| next.last_key.as_bytes() <= current.last_key.as_bytes())
+		{
+			return Err(NativeError::new(
+				NativeErrorCode::InconsistentSnapshot,
+				"S3 object cursor did not advance",
+			))
+		}
+	}
+
+	Ok(FinalizedObjectPage {
+		version: response.version,
+		finalized_block_hash: hash.clone(),
+		items,
+		next_cursor,
+		snapshot_version: response.snapshot_version,
+	})
 }
 
 fn ensure_response_version(version: u16) -> DomainResult<()> {
@@ -1720,6 +1956,36 @@ fn page_tail(page: &super::domains::PageRequest) -> [Value; 2] {
 	[option_u32(page.cursor), Value::u128(page.limit as u128)]
 }
 
+fn object_keys_args(bucket: &BucketId, page: &ObjectListRequest) -> DomainResult<Vec<Value>> {
+	page.validate()?;
+	Ok(vec![
+		hash_arg(bucket.as_hash())?,
+		option_bytes(page.prefix.as_ref().map(ObjectKeyPrefix::as_bytes)),
+		option_object_cursor(page.cursor.as_ref()),
+		Value::u128(page.limit as u128),
+	])
+}
+
+fn option_bytes(value: Option<&[u8]>) -> Value {
+	match value {
+		Some(value) => Value::variant("Some", Composite::unnamed(vec![Value::from_bytes(value)])),
+		None => Value::variant("None", Composite::unnamed(Vec::new())),
+	}
+}
+
+fn option_object_cursor(cursor: Option<&ObjectListCursor>) -> Value {
+	match cursor {
+		Some(cursor) => Value::variant(
+			"Some",
+			Composite::unnamed(vec![Value::named_composite(vec![
+				("snapshot_version", Value::u128(cursor.snapshot_version as u128)),
+				("last_key", Value::from_bytes(cursor.last_key.as_bytes())),
+			])]),
+		),
+		None => Value::variant("None", Composite::unnamed(Vec::new())),
+	}
+}
+
 fn option_u32(value: Option<u32>) -> Value {
 	match value {
 		Some(value) => Value::variant("Some", Composite::unnamed(vec![Value::u128(value as u128)])),
@@ -1777,4 +2043,20 @@ fn object_id(hash: RuntimeHash) -> ObjectId {
 
 fn runtime_api_error(error: subxt::Error) -> NativeError {
 	NativeError::new(NativeErrorCode::UnsupportedRuntime, error.to_string())
+}
+
+fn s3_list_error(error: storage_api::S3ListError) -> NativeError {
+	let (code, message) = match error {
+		storage_api::S3ListError::BucketNotFound =>
+			(NativeErrorCode::NotFound, "S3 bucket was not found"),
+		storage_api::S3ListError::BucketDeleted =>
+			(NativeErrorCode::Conflict, "S3 bucket is deleted"),
+		storage_api::S3ListError::CursorStale =>
+			(NativeErrorCode::InconsistentSnapshot, "S3 object cursor is stale"),
+		storage_api::S3ListError::PageLimitInvalid =>
+			(NativeErrorCode::InvalidInput, "S3 object page limit is invalid"),
+		storage_api::S3ListError::CursorKeyInvalid =>
+			(NativeErrorCode::InvalidInput, "S3 object cursor key is invalid"),
+	};
+	NativeError::new(code, message)
 }

@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 use super::common::{
 	ensure_bytes, invalid, AccountId, BucketId, ContentCommitment, DomainResult, FinalizedQuery,
-	ObjectId, PageRequest, SubmitAndFinalize, Validate,
+	Hash32, ObjectId, PageRequest, SubmitAndFinalize, Validate,
 };
 
 pub const MAX_BUCKET_NAME_BYTES: usize = 63;
@@ -99,6 +99,71 @@ impl Validate for ObjectKey {
 	}
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[serde(transparent)]
+pub struct ObjectKeyPrefix(Vec<u8>);
+
+impl ObjectKeyPrefix {
+	pub fn new(value: Vec<u8>) -> DomainResult<Self> {
+		ensure_bytes(&value, 0, MAX_OBJECT_KEY_BYTES, "S3 object key prefix")?;
+		Ok(Self(value))
+	}
+
+	pub fn as_bytes(&self) -> &[u8] {
+		&self.0
+	}
+}
+
+impl Validate for ObjectKeyPrefix {
+	fn validate(&self) -> DomainResult<()> {
+		ensure_bytes(&self.0, 0, MAX_OBJECT_KEY_BYTES, "S3 object key prefix")
+	}
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ObjectListCursor {
+	pub snapshot_version: u64,
+	pub last_key: ObjectKey,
+}
+
+impl Validate for ObjectListCursor {
+	fn validate(&self) -> DomainResult<()> {
+		self.last_key.validate()
+	}
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ObjectListRequest {
+	#[serde(default)]
+	pub prefix: Option<ObjectKeyPrefix>,
+	#[serde(default)]
+	pub cursor: Option<ObjectListCursor>,
+	pub limit: u32,
+}
+
+impl Validate for ObjectListRequest {
+	fn validate(&self) -> DomainResult<()> {
+		self.prefix.as_ref().map_or(Ok(()), Validate::validate)?;
+		self.cursor.as_ref().map_or(Ok(()), Validate::validate)?;
+		if !(1..=100).contains(&self.limit) {
+			return Err(invalid("S3 object page limit must be between 1 and 100"))
+		}
+		Ok(())
+	}
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct FinalizedObjectPage {
+	pub version: u16,
+	pub finalized_block_hash: Hash32,
+	pub items: Vec<ObjectKey>,
+	pub next_cursor: Option<ObjectListCursor>,
+	pub snapshot_version: u64,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BucketView {
@@ -121,6 +186,7 @@ pub struct ObjectView {
 	pub bucket: BucketId,
 	pub key: ObjectKey,
 	pub content: Option<ContentCommitment>,
+	pub provider_commitment: Option<ContentCommitment>,
 	pub version: u64,
 	pub deleted: bool,
 	pub updated_by: AccountId,
@@ -131,6 +197,7 @@ pub struct ObjectView {
 #[serde(deny_unknown_fields)]
 pub struct ObjectVersionView {
 	pub content: Option<ContentCommitment>,
+	pub provider_commitment: Option<ContentCommitment>,
 	pub version: u64,
 	pub deleted: bool,
 	pub updated_by: AccountId,
@@ -144,7 +211,7 @@ pub enum S3Response {
 	BucketId(super::common::FinalizedValue<BucketId>),
 	Buckets(super::common::FinalizedPage<BucketId>),
 	Object(super::common::FinalizedValue<ObjectView>),
-	Objects(super::common::FinalizedPage<ObjectKey>),
+	Objects(FinalizedObjectPage),
 	ObjectHistory(super::common::FinalizedPage<ObjectVersionView>),
 	ObjectId(super::common::FinalizedValue<ObjectId>),
 	IsBucketOwner(super::common::FinalizedValue<bool>),
@@ -156,7 +223,7 @@ pub enum S3Query {
 	BucketById { bucket: BucketId },
 	BucketByName { name: BucketName },
 	OwnerBuckets { owner: AccountId, page: PageRequest },
-	BucketObjects { bucket: BucketId, page: PageRequest },
+	BucketObjects { bucket: BucketId, page: ObjectListRequest },
 	ObjectByKey { bucket: BucketId, key: ObjectKey },
 	ObjectHistory { bucket: BucketId, key: ObjectKey, page: PageRequest },
 	ObjectId { bucket: BucketId, key: ObjectKey },
