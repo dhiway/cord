@@ -44,6 +44,7 @@ const RECEIPT_DOMAIN: &[u8] = b"cord/provider/checkpoint-receipt-record/v2";
 const CHECKPOINT_DOMAIN: &[u8] = b"cord/storage/checkpoint/v2";
 const MAX_RECORD_BYTES: usize = 128 * 1024;
 const MAX_RECORDS: usize = 8_192;
+const MAX_TEMP_ARTIFACTS: usize = 1;
 
 type CallArgs = (
 	Vec<u8>,
@@ -137,6 +138,9 @@ pub(crate) struct CheckpointOutboxV2 {
 	receipts: RwLock<HashMap<String, CheckpointReceiptV2>>,
 	fault: RwLock<Option<CheckpointOutboxFault>>,
 	poisoned: RwLock<bool>,
+	#[cfg(test)]
+	ack_gate:
+		RwLock<Option<(std::sync::Arc<std::sync::Barrier>, std::sync::Arc<std::sync::Barrier>)>>,
 }
 
 impl CheckpointOutboxV2 {
@@ -184,6 +188,8 @@ impl CheckpointOutboxV2 {
 			receipts: RwLock::new(receipts),
 			fault: RwLock::new(None),
 			poisoned: RwLock::new(false),
+			#[cfg(test)]
+			ack_gate: RwLock::new(None),
 		})
 	}
 
@@ -273,7 +279,15 @@ impl CheckpointOutboxV2 {
 			receipt_hash: String::new(),
 		};
 		receipt.receipt_hash = receipt_hash(&receipt)?;
+		#[cfg(test)]
+		if let Some((arrived, release)) = self.ack_gate.read().map_err(|_| lock_error())?.clone() {
+			arrived.wait();
+			release.wait();
+		}
 		let mut receipts = self.receipts.write().map_err(|_| lock_error())?;
+		if *self.poisoned.read().map_err(|_| lock_error())? {
+			return Err(ContentError::IntegrityFailed)
+		}
 		if let Some(existing) = receipts.get(submission_id) {
 			return Ok(CheckpointOutboxSnapshotV2 { submission, receipt: Some(existing.clone()) })
 		}
@@ -347,14 +361,27 @@ struct RecordFile {
 
 fn read_records(root: &Path) -> Result<Vec<RecordFile>, ContentError> {
 	let mut records = Vec::new();
+	let mut visited = 0usize;
+	let mut temp_artifacts = 0usize;
 	for item in fs::read_dir(root).map_err(io_error)? {
+		visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+		if visited > MAX_RECORDS + MAX_TEMP_ARTIFACTS {
+			return Err(ContentError::IntegrityFailed)
+		}
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().to_string_lossy().into_owned();
 		if name.contains(".tmp-") {
+			temp_artifacts = temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+			if temp_artifacts > MAX_TEMP_ARTIFACTS {
+				return Err(ContentError::IntegrityFailed)
+			}
 			fs::remove_file(item.path()).map_err(io_error)?;
 			continue
 		}
 		if !name.ends_with(".json") || !item.file_type().map_err(io_error)?.is_file() {
+			return Err(ContentError::IntegrityFailed)
+		}
+		if records.len() >= MAX_RECORDS {
 			return Err(ContentError::IntegrityFailed)
 		}
 		let bytes = fs::read(item.path()).map_err(io_error)?;
@@ -787,5 +814,45 @@ mod tests {
 				.receipt
 				.is_some());
 		}
+	}
+
+	#[test]
+	fn recovery_rejects_more_than_the_hard_on_disk_record_bound_in_either_root() {
+		for root_name in [SUBMISSIONS_ROOT, RECEIPTS_ROOT] {
+			let temp = TempDir::new().unwrap();
+			let root = temp.path().join(root_name);
+			fs::create_dir_all(&root).unwrap();
+			for index in 0..=MAX_RECORDS {
+				fs::write(root.join(format!("{index:064x}.json")), []).unwrap();
+			}
+			assert!(matches!(read_records(&root), Err(ContentError::IntegrityFailed)));
+
+			let temp = TempDir::new().unwrap();
+			let root = temp.path().join(root_name);
+			fs::create_dir_all(&root).unwrap();
+			fs::write(root.join("first.json.tmp-1"), []).unwrap();
+			fs::write(root.join("second.json.tmp-1"), []).unwrap();
+			assert!(matches!(read_records(&root), Err(ContentError::IntegrityFailed)));
+		}
+	}
+
+	#[test]
+	fn acknowledgement_waiter_rechecks_poison_before_persisting() {
+		let temp = TempDir::new().unwrap();
+		let outbox = std::sync::Arc::new(CheckpointOutboxV2::open(temp.path()).unwrap());
+		let submission = outbox.enqueue(&fixture()).unwrap().submission;
+		let arrived = std::sync::Arc::new(std::sync::Barrier::new(2));
+		let release = std::sync::Arc::new(std::sync::Barrier::new(2));
+		*outbox.ack_gate.write().unwrap() = Some((arrived.clone(), release.clone()));
+
+		let waiter = outbox.clone();
+		let id = submission.submission_id.clone();
+		let handle = std::thread::spawn(move || waiter.acknowledge_enqueue(&id));
+		arrived.wait();
+		*outbox.poisoned.write().unwrap() = true;
+		release.wait();
+
+		assert!(matches!(handle.join().unwrap(), Err(ContentError::IntegrityFailed)));
+		assert!(!receipt_path(&temp, &submission.submission_id).exists());
 	}
 }
