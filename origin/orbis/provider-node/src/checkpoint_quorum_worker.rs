@@ -211,6 +211,25 @@ where
 	Ok(())
 }
 
+/// Execute one bounded quorum coordinator tick with an injected private transport.
+#[cfg(feature = "evidence")]
+pub(crate) async fn evidence_tick<A, T>(
+	authority: Arc<A>,
+	stack: Arc<CheckpointStack>,
+	store: Arc<DiskStore>,
+	local_provider: [u8; 32],
+	local_key: ed25519::Pair,
+	transport: Arc<T>,
+) -> Result<(), String>
+where
+	A: ReplicationAuthority + 'static,
+	T: CheckpointConfirmationTransport + 'static,
+{
+	let scheduler =
+		Arc::new(CheckpointQuorumScheduler::open(store.root()).map_err(|error| error.to_string())?);
+	tick(authority, stack, store, local_provider, local_key, transport, scheduler).await
+}
+
 async fn dispatch_confirmation<T: CheckpointConfirmationTransport>(
 	stack: Arc<CheckpointStack>,
 	transport: Arc<T>,

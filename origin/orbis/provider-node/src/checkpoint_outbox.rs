@@ -48,8 +48,8 @@ const RECEIPT_DOMAIN: &[u8] = b"cord/provider/checkpoint-receipt-record/v2";
 const FINALIZED_RECEIPT_DOMAIN: &[u8] = b"cord/provider/checkpoint-finalized-receipt-record/v2";
 const FINALITY_ATTESTATION_DOMAIN: &[u8] = b"cord/provider/checkpoint-finality-attestation/v1";
 const SCHEDULER_RECORD_DOMAIN: &[u8] = b"cord/provider/checkpoint-scheduler-record/v1";
-pub(super) const FINALITY_ATTESTATION_VERSION: u8 = 1;
-pub(super) const FINALIZED_STATE: &str = "finalized";
+pub(crate) const FINALITY_ATTESTATION_VERSION: u8 = 1;
+pub(crate) const FINALIZED_STATE: &str = "finalized";
 const CHECKPOINT_DOMAIN: &[u8] = b"cord/storage/checkpoint/v2";
 const MAX_RECORD_BYTES: usize = 128 * 1024;
 const MAX_RECORDS: usize = 8_192;
@@ -904,7 +904,7 @@ fn validate_finalized_receipt(
 	Ok(())
 }
 
-pub(super) fn finality_attestation_digest(
+pub(crate) fn finality_attestation_digest(
 	version: u8,
 	submission_id: &str,
 	finalized_hash: [u8; 32],

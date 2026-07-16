@@ -12,7 +12,7 @@ publish = false
 default = ["checkpoint-live"]
 checkpoint-consumer = ["dep:scale-decode", "dep:scale-value", "dep:subxt"]
 checkpoint-live = ["checkpoint-consumer", "outbox"]
-evidence = []
+evidence = ["dep:frame-metadata", "dep:scale-info"]
 outbox = ["dep:origin-rs"]
 
 [[bin]]
@@ -43,6 +43,7 @@ ciborium = { workspace = true }
 cid = { workspace = true, default-features = true }
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true, default-features = true }
+frame-metadata = { version = "23.0.1", features = ["current"], optional = true }
 hex = { workspace = true, default-features = true }
 http-body-util = { workspace = true }
 hyper = { workspace = true, features = ["client", "http1", "server"] }
@@ -55,6 +56,7 @@ pallet-orbis-storage-provider = { workspace = true, default-features = true }
 serde = { workspace = true, features = ["derive"], default-features = true }
 serde_json = { workspace = true, default-features = true }
 scale-decode = { version = "0.16", default-features = false, optional = true }
+scale-info = { workspace = true, features = ["std"], optional = true }
 scale-value = { version = "0.18", default-features = false, optional = true }
 sha2 = { workspace = true, default-features = true }
 sp-core = { workspace = true, default-features = true }

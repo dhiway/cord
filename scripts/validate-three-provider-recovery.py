@@ -29,13 +29,14 @@ from typing import Any
 
 DEFAULT_SOURCE = Path("target/debug/ac5-three-provider-recovery-v1.json")
 HEX_32 = re.compile(r"[0-9a-f]{64}")
-REQUIRED_SURFACES = {
-    "StreamingStore::read_range_verified",
-    "BucketMmrStore::commitment_candidate",
-    "replication_worker::select_source",
-    "PeerResponder::page/chunk",
-    "ReplicationReconciler::reconcile_one",
-}
+EXPECTED_RUNTIME_KINDS = [
+    "initial_duty",
+    "initial_checkpoint_finality",
+    "fallback_duty",
+    "promotion_finality",
+    "repaired_eligible_duty",
+    "promoted_checkpoint_finality",
+]
 
 
 class ValidationError(Exception):
@@ -65,9 +66,16 @@ def object_list(value: Any, field: str) -> list[dict[str, Any]]:
 def derive(raw: Any) -> dict[str, Any]:
     """Validate raw observations and derive exactly the four registered assertions."""
     require(isinstance(raw, dict), "source artifact must be a JSON object")
-    require(integer(raw.get("schema_version"), "schema_version", 1) == 1,
+    require(integer(raw.get("schema_version"), "schema_version", 1) == 2,
             "unsupported source artifact schema")
     require(raw.get("test") == "deterministic_failover", "unexpected source test name")
+
+    content_cids = raw.get("content_cids")
+    require(isinstance(content_cids, list) and len(content_cids) == 2,
+            "two bounded content identifiers are required")
+    require(all(isinstance(cid, str) and cid for cid in content_cids),
+            "content identifiers must be non-empty strings")
+    require(len(set(content_cids)) == 2, "content identifiers must be distinct")
 
     provider_count = integer(raw.get("provider_count"), "provider_count", 1)
     roots = raw.get("provider_roots")
@@ -110,21 +118,104 @@ def derive(raw: Any) -> dict[str, Any]:
         require(read["result"] == "rejected_integrity_failed" and returned == 0,
                 "a corrupt-object read did not fail closed")
 
-    failure_block = integer(raw.get("failure_detected_block"), "failure_detected_block")
-    observed_block = integer(raw.get("convergence_observed_block"), "convergence_observed_block")
-    recovery_steps = integer(raw.get("recovery_steps"), "recovery_steps", 1)
-    require(observed_block >= failure_block, "convergence preceded failure detection")
+    runtime = object_list(raw.get("runtime_observations"), "runtime_observations")
+    require(len(runtime) == len(EXPECTED_RUNTIME_KINDS),
+            "the complete ordered runtime observation sequence is required")
+    runtime_numbers: list[int] = []
+    for index, (observation, expected_kind) in enumerate(zip(runtime, EXPECTED_RUNTIME_KINDS)):
+        require(set(observation) == {"kind", "finalized_number"},
+                f"runtime_observations[{index}] has unknown fields")
+        require(observation["kind"] == expected_kind,
+                f"runtime_observations[{index}] is not {expected_kind}")
+        runtime_numbers.append(integer(observation["finalized_number"],
+                                       f"runtime_observations[{index}].finalized_number"))
+    require(runtime_numbers == sorted(runtime_numbers) and len(set(runtime_numbers)) == len(runtime_numbers),
+            "runtime observations must be strictly increasing")
+    failure_block = runtime_numbers[2]
+    repaired_block = runtime_numbers[4]
+    observed_block = runtime_numbers[5]
+    require(failure_block < repaired_block < observed_block,
+            "repair eligibility must precede promoted checkpoint finality")
     convergence_blocks = observed_block - failure_block
-    require(convergence_blocks == recovery_steps,
-            "convergence block delta was not derived from real reconciler actions")
     require(convergence_blocks <= 200, "recovery exceeded the 200-block bound")
-    requests = integer(raw.get("recovery_network_requests"), "recovery_network_requests", 1)
-    require(requests <= recovery_steps, "network requests exceeded reconciler actions")
 
-    surfaces = raw.get("production_surfaces")
-    require(isinstance(surfaces, list) and all(isinstance(surface, str) for surface in surfaces),
-            "production_surfaces must be a string list")
-    require(REQUIRED_SURFACES.issubset(set(surfaces)), "required production surfaces are missing")
+    require(integer(raw.get("runtime_duty_reads"), "runtime_duty_reads", 1) == 7,
+            "each provider must discover both checkpoint duties and the promoter must discover fallback")
+    checkpoints = object_list(raw.get("checkpoints"), "checkpoints")
+    require(len(checkpoints) == 2, "initial and promoted checkpoint observations are required")
+    checkpoint_fields = {
+        "phase", "duty_id", "primary", "confirmation_providers", "submission_id",
+        "submission_record_hash", "mmr_root", "start_seq", "leaf_count",
+        "call_args_blake2_256", "before_restart_blake2_256", "after_restart_blake2_256",
+        "finality_calls", "finalized_number", "publication_count", "replay_finality_calls",
+        "replay_publication_count",
+    }
+    submission_ids: list[str] = []
+    for index, (checkpoint, expected_phase, runtime_index) in enumerate(
+            zip(checkpoints, ["initial", "promoted"], [1, 5])):
+        require(set(checkpoint) == checkpoint_fields, f"checkpoints[{index}] has unknown fields")
+        require(checkpoint["phase"] == expected_phase, f"checkpoints[{index}] has wrong phase")
+        for field in ["duty_id", "primary", "submission_id", "submission_record_hash", "mmr_root",
+                      "call_args_blake2_256", "before_restart_blake2_256",
+                      "after_restart_blake2_256"]:
+            require(isinstance(checkpoint[field], str) and HEX_32.fullmatch(checkpoint[field]),
+                    f"checkpoints[{index}].{field} is invalid")
+        confirmations = checkpoint["confirmation_providers"]
+        require(isinstance(confirmations, list) and len(confirmations) == 2,
+                f"checkpoints[{index}] must have exactly two replica confirmations")
+        require(all(isinstance(provider, str) and HEX_32.fullmatch(provider)
+                    for provider in confirmations),
+                f"checkpoints[{index}] confirmation providers are invalid")
+        require(len(set(confirmations)) == 2 and checkpoint["primary"] not in confirmations,
+                f"checkpoints[{index}] does not prove primary-plus-two quorum")
+        require(checkpoint["before_restart_blake2_256"] ==
+                checkpoint["after_restart_blake2_256"],
+                f"checkpoints[{index}] durable record changed across reopen")
+        integer(checkpoint["start_seq"], f"checkpoints[{index}].start_seq")
+        integer(checkpoint["leaf_count"], f"checkpoints[{index}].leaf_count", 1)
+        require(integer(checkpoint["finalized_number"],
+                        f"checkpoints[{index}].finalized_number") == runtime_numbers[runtime_index],
+                f"checkpoints[{index}] finality is not runtime-observed")
+        require(integer(checkpoint["finality_calls"], f"checkpoints[{index}].finality_calls") == 1,
+                f"checkpoints[{index}] did not finalize exactly once")
+        require(integer(checkpoint["publication_count"],
+                        f"checkpoints[{index}].publication_count") == 1,
+                f"checkpoints[{index}] did not publish exactly once")
+        require(integer(checkpoint["replay_finality_calls"],
+                        f"checkpoints[{index}].replay_finality_calls") == 0,
+                f"checkpoints[{index}] replay resubmitted finality")
+        require(integer(checkpoint["replay_publication_count"],
+                        f"checkpoints[{index}].replay_publication_count") == 0,
+                f"checkpoints[{index}] replay republished checkpoint")
+        submission_ids.append(checkpoint["submission_id"])
+    require(len(set(submission_ids)) == 2, "checkpoint submission identifiers must be distinct")
+    require(checkpoints[0]["start_seq"] == 0,
+            "initial checkpoint must begin the bounded commitment sequence")
+    require(checkpoints[1]["start_seq"] ==
+            checkpoints[0]["start_seq"] + checkpoints[0]["leaf_count"],
+            "promoted checkpoint must be the next non-overlapping bounded commitment")
+    require(checkpoints[1]["mmr_root"] == roots[0],
+            "promoted checkpoint must finalize the converged provider commitment")
+
+    promotion = raw.get("promotion")
+    require(isinstance(promotion, dict) and
+            set(promotion) == {"intent_id", "provider", "finalized_number", "finality_calls"},
+            "promotion observation is malformed")
+    require(all(isinstance(promotion[field], str) and HEX_32.fullmatch(promotion[field])
+                for field in ["intent_id", "provider"]), "promotion identifiers are invalid")
+    require(promotion["provider"] == checkpoints[1]["primary"],
+            "promoted provider is not the new primary")
+    require(integer(promotion["finalized_number"], "promotion.finalized_number") == runtime_numbers[3],
+            "promotion finality is not runtime-observed")
+    require(integer(promotion["finality_calls"], "promotion.finality_calls") == 1,
+            "promotion did not finalize exactly once")
+
+    repaired_lengths = raw.get("repaired_read_lengths")
+    require(isinstance(repaired_lengths, list) and len(repaired_lengths) == 3,
+            "all three repaired read observations are required")
+    require(all(integer(length, "repaired_read_lengths[]", 1) > 0 for length in repaired_lengths),
+            "every provider must serve the repaired object")
+    integer(raw.get("replication_network_requests"), "replication_network_requests", 1)
 
     return {
         "root_matches": root_matches,
