@@ -1338,8 +1338,8 @@ impl StreamingStore {
 				&& record.descriptor.expected_cid == canonical.as_str()
 				&& record.descriptor.object_len == object_len
 		});
-		let (record, repaired) = if let Some(record) = exact_install {
-			(record, false)
+		let (record, exact_installation) = if let Some(record) = exact_install {
+			(record, true)
 		} else {
 			let record = state
 				.operations
@@ -1353,12 +1353,13 @@ impl StreamingStore {
 				.cloned()
 				.ok_or(ContentError::NotFound)?;
 			let key = repair_key(canonical.as_str(), repair_operation_id)?;
-			let repair = state.repairs.get(&key).ok_or(ContentError::IntegrityFailed)?;
-			validate_repair_record(&key, repair, &record)?;
-			if repair.phase != RepairPhase::Installed {
-				return Err(ContentError::IntegrityFailed);
+			if let Some(repair) = state.repairs.get(&key) {
+				validate_repair_record(&key, repair, &record)?;
+				if repair.phase != RepairPhase::Installed {
+					return Err(ContentError::IntegrityFailed);
+				}
 			}
-			(record, true)
+			(record, false)
 		};
 		if state.quarantine.contains_key(canonical.as_str()) {
 			return Err(ContentError::IntegrityFailed);
@@ -1369,7 +1370,7 @@ impl StreamingStore {
 		if verified.bucket_id != bucket_id
 			|| verified.cid.as_str() != canonical.as_str()
 			|| verified.stored_bytes != object_len
-			|| (!repaired && verified.operation_id != install_operation_id)
+			|| (exact_installation && verified.operation_id != install_operation_id)
 		{
 			return Err(ContentError::IntegrityFailed);
 		}

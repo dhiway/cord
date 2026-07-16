@@ -931,6 +931,13 @@ impl ReplicationIntentStore {
 	}
 
 	pub(crate) fn select_tick(&self) -> Result<Vec<ReplicationIntentV1>, ContentError> {
+		self.select_tick_limit(MAX_TICK_WORK)
+	}
+
+	fn select_tick_limit(&self, limit: usize) -> Result<Vec<ReplicationIntentV1>, ContentError> {
+		if limit == 0 || limit > MAX_TICK_WORK {
+			return Err(ContentError::SchemaInvalid);
+		}
 		self.ensure_healthy()?;
 		let records = self.records.read().map_err(|_| lock_error())?;
 		self.ensure_healthy()?;
@@ -952,7 +959,7 @@ impl ReplicationIntentStore {
 			.iter()
 			.cycle()
 			.skip(start)
-			.take(active.len().min(MAX_TICK_WORK))
+			.take(active.len().min(limit))
 			.map(|record| (*record).clone())
 			.collect();
 		let mut next = scheduler.clone();
@@ -963,8 +970,11 @@ impl ReplicationIntentStore {
 		Ok(selected)
 	}
 
-	pub(crate) fn select_resume_tick(&self) -> Result<Vec<ReplicationResumeV1>, ContentError> {
-		self.select_tick()?
+	pub(crate) fn select_resume_tick_limit(
+		&self,
+		limit: usize,
+	) -> Result<Vec<ReplicationResumeV1>, ContentError> {
+		self.select_tick_limit(limit)?
 			.into_iter()
 			.map(|record| {
 				Ok(ReplicationResumeV1 {
@@ -2830,17 +2840,40 @@ mod tests {
 	}
 
 	#[test]
+	fn limited_resume_scheduler_advances_all_stalled_intents_across_restart() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = ReplicationIntentStore::open(temp.path()).unwrap();
+		for value in 1..=200 {
+			store.plan(&input(value)).unwrap();
+		}
+		let first = store.select_resume_tick_limit(64).unwrap();
+		let second = store.select_resume_tick_limit(64).unwrap();
+		assert_eq!(first.len(), 64);
+		assert_eq!(second.len(), 64);
+		drop(store);
+
+		let reopened = ReplicationIntentStore::open(temp.path()).unwrap();
+		let third = reopened.select_resume_tick_limit(64).unwrap();
+		let fourth = reopened.select_resume_tick_limit(64).unwrap();
+		let mut seen = BTreeMap::new();
+		for resume in first.into_iter().chain(second).chain(third).chain(fourth) {
+			seen.insert(resume.intent_key, ());
+		}
+		assert_eq!(seen.len(), 200);
+	}
+
+	#[test]
 	fn resume_descriptor_is_exact_across_restart() {
 		let temp = tempfile::tempdir().unwrap();
 		let store = ReplicationIntentStore::open(temp.path()).unwrap();
 		let planned = store.plan(&input(91)).unwrap();
-		let first = store.select_resume_tick().unwrap();
+		let first = store.select_resume_tick_limit(MAX_TICK_WORK).unwrap();
 		assert_eq!(first.len(), 1);
 		assert_eq!(first[0].intent_key, planned.intent_key);
 		assert_eq!(first[0].operation_id, planned.identity.peer_operation_id);
 		assert_eq!(first[0].topology_snapshot_hash, planned.identity.topology_snapshot_hash);
 		drop(store);
 		let reopened = ReplicationIntentStore::open(temp.path()).unwrap();
-		assert_eq!(reopened.select_resume_tick().unwrap(), first);
+		assert_eq!(reopened.select_resume_tick_limit(MAX_TICK_WORK).unwrap(), first);
 	}
 }

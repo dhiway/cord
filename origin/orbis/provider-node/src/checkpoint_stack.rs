@@ -180,8 +180,28 @@ impl CheckpointStack {
 		self.lock()?.replication.plan_session(session, operation_id)
 	}
 
-	pub(crate) fn replication_resume_tick(&self) -> Result<Vec<ReplicationResumeV1>, ContentError> {
-		self.lock()?.replication.select_resume_tick()
+	pub(crate) fn replication_resume_tick(
+		&self,
+		limit: usize,
+	) -> Result<Vec<ReplicationResumeV1>, ContentError> {
+		self.lock()?.replication.select_resume_tick_limit(limit)
+	}
+
+	/// Reverify the complete local bucket and compare it with the current checkpoint's full MMR
+	/// root and end. Integrity/not-found outcomes mean repair is required; durable I/O failures
+	/// remain fatal to discovery.
+	pub(crate) fn replication_checkpoint_ready(
+		&self,
+		bucket_id: BucketId,
+		mmr_root: [u8; 32],
+		end: u64,
+	) -> Result<bool, ContentError> {
+		let state = self.lock()?;
+		match state.bucket_mmr.commitment_candidate(&state.streaming, bucket_id, 0) {
+			Ok(candidate) => Ok(candidate.mmr_root.0 == mmr_root && candidate.leaf_count == end),
+			Err(ContentError::IntegrityFailed | ContentError::NotFound) => Ok(false),
+			Err(error) => Err(error),
+		}
 	}
 
 	pub(crate) fn replication_predecessor_total(
@@ -219,6 +239,21 @@ impl CheckpointStack {
 	) -> Result<(), ContentError> {
 		let state = self.lock()?;
 		let incoming = state.replication.inspect_chunk_response(intent_key, response)?;
+		let structurally_present = match state
+			.bucket_mmr
+			.replication_slot_structurally_matches(incoming.bucket_id, &incoming.object)
+		{
+			Ok(present) => present,
+			Err(ContentError::NotFound) => false,
+			Err(error) => return Err(error),
+		};
+		if structurally_present {
+			match ensure_exact_chunk(&state.streaming, &incoming) {
+				Ok(()) => return Ok(()),
+				Err(ContentError::IntegrityFailed | ContentError::NotFound) => {},
+				Err(error) => return Err(error),
+			}
+		}
 		match state.streaming.classify_replication_ingress(
 			incoming.bucket_id,
 			incoming.object.cid(),
@@ -441,6 +476,14 @@ fn install_derived_replication_object(
 	mmr: &BucketMmrStore,
 	incoming: &VerifiedIncomingChunkV1,
 ) -> Result<(), ContentError> {
+	materialize_derived_replication_object(streaming, incoming)?;
+	mmr.append_verified(streaming, incoming.bucket_id, incoming.install_operation_id)
+}
+
+fn materialize_derived_replication_object(
+	streaming: &StreamingStore,
+	incoming: &VerifiedIncomingChunkV1,
+) -> Result<(), ContentError> {
 	let descriptor = StreamingDescriptor {
 		operation_id: incoming.install_operation_id,
 		bucket_id: incoming.bucket_id,
@@ -470,7 +513,6 @@ fn install_derived_replication_object(
 			streaming.finalize(incoming.bucket_id, incoming.install_operation_id)?;
 		},
 	}
-	mmr.append_verified(streaming, incoming.bucket_id, incoming.install_operation_id)?;
 	streaming.retire_completed_replication_repair(
 		incoming.bucket_id,
 		incoming.object.cid(),

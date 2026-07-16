@@ -337,6 +337,30 @@ impl BucketMmrStore {
 
 	/// Return whether the exact logical replication leaf already occupies its sequence.
 	/// An absent next suffix slot is appendable; a gap or occupied mismatch fails closed.
+	pub(crate) fn replication_slot_structurally_matches(
+		&self,
+		bucket_id: BucketId,
+		object: &PeerObjectV1,
+	) -> Result<bool, ContentError> {
+		let (length, sequence, cumulative_total) = object.position();
+		let state = self.state.read().map_err(|_| lock_error())?;
+		let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::NotFound)?;
+		let index: usize = sequence.try_into().map_err(|_| ContentError::IntegrityFailed)?;
+		if index == bucket.entries.len() {
+			return Ok(false);
+		}
+		let entry = bucket.entries.get(index).ok_or(ContentError::IntegrityFailed)?;
+		if entry.sequence != sequence
+			|| entry.cid != object.cid()
+			|| entry.data_size != length
+			|| entry.total_size != cumulative_total
+		{
+			return Err(ContentError::IdempotencyConflict);
+		}
+		Ok(true)
+	}
+
+	/// Reverify the bytes behind a structurally matching logical replication slot.
 	pub(crate) fn replication_slot_matches(
 		&self,
 		streaming: &StreamingStore,
@@ -416,7 +440,10 @@ impl BucketMmrStore {
 		})
 	}
 
-	/// Return the exact cumulative total immediately before a candidate range.
+	/// Return the exact cumulative total immediately before a candidate range after rebuilding the
+	/// committed MMR structure. This deliberately does not verify object bytes or claim that an
+	/// unavailable bucket is publishable; it only exposes predecessor size evidence when the
+	/// durable entry structure itself is exact.
 	pub(crate) fn commitment_predecessor_total(
 		&self,
 		bucket_id: BucketId,
@@ -424,7 +451,24 @@ impl BucketMmrStore {
 	) -> Result<u64, ContentError> {
 		let state = self.state.read().map_err(|_| lock_error())?;
 		let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::NotFound)?;
-		if bucket.unavailable || expected_start_seq > bucket.meta.entry_count {
+		if expected_start_seq > bucket.meta.entry_count
+			|| bucket.entries.len() as u64 != bucket.meta.entry_count
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+		let mut rebuilt = BucketMeta::default();
+		for (index, entry) in bucket.entries.iter().enumerate() {
+			if entry.version != VERSION
+				|| entry.bucket_id != bucket_id.to_string()
+				|| entry.sequence != index as u64
+				|| bucket.source_order.get(index) != Some(&entry.install_sequence)
+			{
+				return Err(ContentError::IntegrityFailed);
+			}
+			let frame = encode_frame(entry)?;
+			rebuilt = advance_meta(&rebuilt, entry, frame.len() as u64)?;
+		}
+		if rebuilt != bucket.meta {
 			return Err(ContentError::IntegrityFailed);
 		}
 		if expected_start_seq == 0 {

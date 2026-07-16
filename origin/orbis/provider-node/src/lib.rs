@@ -78,4 +78,4 @@ pub use workers::{
 };
 
 /// Protocol version shared by persisted records and HTTP responses.
-pub const PROTOCOL_VERSION: u16 = 5;
+pub const PROTOCOL_VERSION: u16 = 6;
