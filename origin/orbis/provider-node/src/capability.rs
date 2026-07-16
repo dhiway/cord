@@ -241,6 +241,12 @@ impl ProviderCapabilityV1 {
 /// Requested provider operation that must be contained by a capability.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CapabilityRequest<'a> {
+	/// Exact product identifier carried by the request.
+	pub(crate) product_id: &'a str,
+	/// Exact control-plane bucket carried by the request.
+	pub(crate) bucket_id: [u8; 32],
+	/// Exact optional storage agreement carried by the request.
+	pub(crate) agreement_id: Option<[u8; 32]>,
 	/// Exact host method being requested.
 	pub(crate) method: u16,
 	/// Exact optional canonical CID used by the request.
@@ -317,6 +323,14 @@ pub(crate) fn verify_capability<I: CapabilityReplayInspector>(
 		|| capability.bucket_id != snapshot.bucket.bucket_id.0
 	{
 		return Err(CapabilityError::GrantScopeDenied);
+	}
+	if capability.product_id != request.product_id || capability.bucket_id != request.bucket_id {
+		return Err(CapabilityError::GrantScopeDenied);
+	}
+	if capability.agreement_id != request.agreement_id
+		|| (request.requires_agreement && request.agreement_id.is_none())
+	{
+		return Err(CapabilityError::AgreementInvalidState);
 	}
 	if !provider_is_assigned(
 		&snapshot.local_provider,
@@ -711,7 +725,70 @@ mod tests {
 	}
 
 	fn request(cid: &CanonicalCid) -> CapabilityRequest<'_> {
-		CapabilityRequest { method: 1010, cid: Some(cid), bytes: 1024, requires_agreement: true }
+		CapabilityRequest {
+			product_id: "festival",
+			bucket_id: [5; 32],
+			agreement_id: Some([6; 32]),
+			method: 1010,
+			cid: Some(cid),
+			bytes: 1024,
+			requires_agreement: true,
+		}
+	}
+
+	fn invalid_signature_fixture(
+	) -> (ProviderCapabilityV1, CapabilityAuthoritySnapshot, CanonicalCid) {
+		let (mut capability, snapshot, cid) = signed_fixture();
+		capability.signature = [0; 64];
+		(capability, snapshot, cid)
+	}
+
+	#[test]
+	fn request_product_must_match_capability_before_signature_verification() {
+		let (capability, snapshot, cid) = invalid_signature_fixture();
+		let mut product = request(&cid);
+		product.product_id = "levity";
+		assert_eq!(
+			verify_capability(
+				&capability,
+				&snapshot,
+				product,
+				&Replay(CapabilityReplayInspection::Fresh),
+			),
+			Err(CapabilityError::GrantScopeDenied)
+		);
+	}
+
+	#[test]
+	fn request_bucket_must_match_capability_before_signature_verification() {
+		let (capability, snapshot, cid) = invalid_signature_fixture();
+		let mut bucket = request(&cid);
+		bucket.bucket_id = [55; 32];
+		assert_eq!(
+			verify_capability(
+				&capability,
+				&snapshot,
+				bucket,
+				&Replay(CapabilityReplayInspection::Fresh),
+			),
+			Err(CapabilityError::GrantScopeDenied)
+		);
+	}
+
+	#[test]
+	fn request_agreement_must_match_capability_before_signature_verification() {
+		let (capability, snapshot, cid) = invalid_signature_fixture();
+		let mut agreement = request(&cid);
+		agreement.agreement_id = Some([66; 32]);
+		assert_eq!(
+			verify_capability(
+				&capability,
+				&snapshot,
+				agreement,
+				&Replay(CapabilityReplayInspection::Fresh),
+			),
+			Err(CapabilityError::AgreementInvalidState)
+		);
 	}
 
 	#[test]
