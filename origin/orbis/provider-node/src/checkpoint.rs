@@ -407,6 +407,7 @@ fn validate_proposal(proposal: &PreparedCheckpointProposalV1) -> Result<(), Cont
 	if proposal.version != VERSION ||
 		proposal.state != "prepared" ||
 		proposal.leaf_count == 0 ||
+		proposal.nonce != proposal.snapshot_checkpoint ||
 		proposal.start_seq.checked_add(proposal.leaf_count).is_none()
 	{
 		return Err(ContentError::IntegrityFailed);
@@ -861,6 +862,9 @@ mod tests {
 		let mut start = proposal.clone();
 		start.start_seq += 1;
 		start.record_hash = proposal_record_hash(&start).unwrap();
+		let mut snapshot = proposal.clone();
+		snapshot.snapshot_checkpoint += 1;
+		snapshot.record_hash = proposal_record_hash(&snapshot).unwrap();
 		for (record, wrong_filename) in [
 			(field, false),
 			(payload, false),
@@ -868,6 +872,7 @@ mod tests {
 			(bucket, false),
 			(nonce, false),
 			(start, false),
+			(snapshot, false),
 			(proposal.clone(), true),
 		] {
 			let case = TempDir::new().unwrap();
