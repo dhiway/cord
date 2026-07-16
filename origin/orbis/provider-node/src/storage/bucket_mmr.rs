@@ -18,51 +18,75 @@
 
 //! Private durable bucket-local MMR commitments over verified streaming installations.
 //!
-//! Opening is globally fail-closed because the single immutable installation sequence cannot skip
-//! a corrupt source during suffix reconciliation. Once open, candidate verification is bucket-local
-//! so later corruption in an unrelated bucket does not invalidate an already complete commitment.
+//! Immutable per-install records are the append commit points. Small global, bucket, and
+//! idempotency metadata are derived indexes: a restart validates or completes a stale index from
+//! the immutable records. Corrupt bytes make only their bucket unavailable. Reconciliation stops
+//! at the first bad global suffix source, without invalidating already complete healthy buckets.
 
 use std::{
-	collections::{BTreeMap, BTreeSet},
-	fs::{self, File},
-	io::Write,
+	collections::{BTreeSet, HashMap},
+	fs::{self, File, OpenOptions},
+	io::{Read, Seek, SeekFrom, Write},
 	path::{Path, PathBuf},
 	sync::RwLock,
 };
 
 use codec::Encode;
 use pallet_orbis_storage_provider::{CommitmentV1, MmrLeafV1};
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use sha2::{Digest as _, Sha256};
 use sp_core::H256;
 use sp_crypto_hashing::blake2_256;
 
 use super::streaming::{StreamingStore, VerifiedInstallation};
 use crate::{BucketId, CanonicalCid, ContentError, OperationId};
 
-const VERSION: u16 = 1;
-const ROOT: &str = "bucket-mmr-v1";
-const JOURNAL: &str = "journal.json";
+const VERSION: u16 = 3;
+const ROOT: &str = "bucket-mmr-v3";
+const LOG: &str = "leaves.v1.log";
+const META: &str = "meta.v1";
+const MAX_FRAME_PAYLOAD: usize = 2_048;
+const MAX_META_BYTES: usize = 8_192;
+const CHECKSUM_BYTES: usize = 32;
+const LENGTH_BYTES: usize = 4;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct JournalState {
-	version: u16,
-	next_install_sequence: u64,
-	buckets: BTreeMap<String, BucketState>,
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum BucketMmrFault {
+	PartialFrame,
+	AfterLogSync,
+	AfterMetaTempSync,
+	AfterMetaRename,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct BucketState {
-	entries: Vec<Entry>,
+struct BucketMeta {
+	version: u16,
+	entry_count: u64,
+	confirmed_log_bytes: u64,
 	peaks: Vec<String>,
 	total_size: u64,
-	root: String,
+	root: Option<String>,
+}
+
+impl Default for BucketMeta {
+	fn default() -> Self {
+		Self {
+			version: VERSION,
+			entry_count: 0,
+			confirmed_log_bytes: 0,
+			peaks: Vec::new(),
+			total_size: 0,
+			root: None,
+		}
+	}
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Entry {
+	version: u16,
+	bucket_id: String,
 	sequence: u64,
 	install_sequence: u64,
 	operation_id: String,
@@ -72,46 +96,131 @@ struct Entry {
 	leaf_hash: String,
 }
 
+#[derive(Default)]
+struct BucketRuntime {
+	entries: Vec<Entry>,
+	meta: BucketMeta,
+	unavailable: bool,
+	blocked_at: Option<u64>,
+	source_order: Vec<u64>,
+}
+
+#[derive(Default)]
+struct State {
+	buckets: HashMap<BucketId, BucketRuntime>,
+	known_sources: HashMap<u64, VerifiedInstallation>,
+	committed_sources: HashMap<u64, (BucketId, usize)>,
+	operations: HashMap<(BucketId, OperationId), u64>,
+	next_new_install_sequence: u64,
+}
+
 /// Private commitment substrate. It is deliberately not attached to any public route.
 pub(crate) struct BucketMmrStore {
 	root: PathBuf,
-	state: RwLock<JournalState>,
+	state: RwLock<State>,
+	fault: RwLock<Option<BucketMmrFault>>,
 }
 
 impl BucketMmrStore {
-	/// Open, fully verify, and deterministically reconcile any missing installed suffix.
+	/// Open every bucket independently and reconcile each contiguous verified bucket suffix.
 	pub(crate) fn open(
 		root: impl AsRef<Path>,
 		streaming: &StreamingStore,
 	) -> Result<Self, ContentError> {
 		let root = root.as_ref().join(ROOT);
 		fs::create_dir_all(&root).map_err(io_error)?;
-		let journal = root.join(JOURNAL);
-		let mut state = if journal.exists() {
-			let bytes = fs::read(&journal).map_err(io_error)?;
-			let state: JournalState = serde_json::from_slice(&bytes).map_err(io_error)?;
-			if state.version != VERSION {
+		let records = streaming.installation_records()?;
+		let mut state = State::default();
+		for record in records {
+			state.next_new_install_sequence = state
+				.next_new_install_sequence
+				.max(record.install_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?);
+			state
+				.buckets
+				.entry(record.bucket_id)
+				.or_default()
+				.source_order
+				.push(record.install_sequence);
+			state.known_sources.insert(record.install_sequence, record);
+		}
+		let mut bucket_ids = state.buckets.keys().copied().collect::<BTreeSet<_>>();
+		for item in fs::read_dir(&root).map_err(io_error)? {
+			let item = item.map_err(io_error)?;
+			if !item.file_type().map_err(io_error)?.is_dir() {
 				return Err(ContentError::IntegrityFailed);
 			}
-			state
-		} else {
-			JournalState { version: VERSION, next_install_sequence: 0, buckets: BTreeMap::new() }
-		};
-		validate_state(&state)?;
-		let installations = streaming.verified_installations()?;
-		validate_prefix(&state, &installations)?;
-		let mut changed = !journal.exists();
-		for installation in installations.iter().skip(state.next_install_sequence as usize) {
-			append_to_state(&mut state, installation)?;
-			changed = true;
+			bucket_ids.insert(BucketId::parse(&item.file_name().to_string_lossy())?);
 		}
-		if changed {
-			persist_state(&root, &state)?;
+		for bucket_id in bucket_ids {
+			let bucket = state.buckets.entry(bucket_id).or_default();
+			open_bucket(&root, bucket_id, bucket)?;
 		}
-		Ok(Self { root, state: RwLock::new(state) })
+		index_confirmed_entries(&mut state)?;
+		for (bucket_id, bucket) in &mut state.buckets {
+			if bucket.unavailable {
+				continue;
+			}
+			for (index, entry) in bucket.entries.iter().enumerate() {
+				let Some(source) = state.known_sources.get(&entry.install_sequence) else {
+					bucket.unavailable = true;
+					break;
+				};
+				if bucket.source_order.get(index).copied() != Some(entry.install_sequence)
+					|| !entry_matches_installation(entry, source)?
+					|| source.bucket_id != *bucket_id
+				{
+					bucket.unavailable = true;
+					break;
+				}
+				if streaming.verified_installation(source.bucket_id, source.operation_id).is_err() {
+					bucket.unavailable = true;
+					bucket.blocked_at = Some(source.install_sequence);
+					break;
+				}
+			}
+		}
+		let store = Self { root, state: RwLock::new(state), fault: RwLock::new(None) };
+		let bucket_ids = store
+			.state
+			.read()
+			.map_err(|_| lock_error())?
+			.buckets
+			.keys()
+			.copied()
+			.collect::<Vec<_>>();
+		for bucket_id in bucket_ids {
+			loop {
+				let next = {
+					let state = store.state.read().map_err(|_| lock_error())?;
+					let bucket = state.buckets.get(&bucket_id).expect("bucket exists");
+					if bucket.unavailable || bucket.entries.len() >= bucket.source_order.len() {
+						None
+					} else {
+						let sequence = bucket.source_order[bucket.entries.len()];
+						state.known_sources.get(&sequence).cloned()
+					}
+				};
+				let Some(source) = next else { break };
+				if store.append_verified(streaming, source.bucket_id, source.operation_id).is_err()
+				{
+					let mut state = store.state.write().map_err(|_| lock_error())?;
+					let bucket = state.buckets.get_mut(&bucket_id).expect("bucket exists");
+					bucket.unavailable = true;
+					bucket.blocked_at = Some(source.install_sequence);
+					break;
+				}
+			}
+		}
+		Ok(store)
 	}
 
-	/// Append one exact verified install, or accept only an exact immutable replay.
+	#[doc(hidden)]
+	pub(crate) fn inject_fault_once(&self, fault: BucketMmrFault) -> Result<(), ContentError> {
+		*self.fault.write().map_err(|_| lock_error())? = Some(fault);
+		Ok(())
+	}
+
+	/// Append one exact next source for its bucket, or accept an exact committed replay.
 	pub(crate) fn append_verified(
 		&self,
 		streaming: &StreamingStore,
@@ -120,111 +229,451 @@ impl BucketMmrStore {
 	) -> Result<(), ContentError> {
 		let installation = streaming.verified_installation(bucket_id, operation_id)?;
 		let mut state = self.state.write().map_err(|_| lock_error())?;
-		if installation.install_sequence < state.next_install_sequence {
-			let (bucket, existing) =
-				entry_by_install_sequence(&state, installation.install_sequence)
-					.ok_or(ContentError::IntegrityFailed)?;
-			if bucket != installation.bucket_id.to_string()
-				|| !entry_matches_installation(existing, &installation)?
-			{
-				return Err(ContentError::IdempotencyConflict);
-			}
-			return Ok(());
+		if let Some(sequence) = state.operations.get(&(bucket_id, operation_id)).copied() {
+			let (committed_bucket, index) = state
+				.committed_sources
+				.get(&sequence)
+				.copied()
+				.ok_or(ContentError::IntegrityFailed)?;
+			let entry = &state.buckets[&committed_bucket].entries[index];
+			return if entry_matches_installation(entry, &installation)? {
+				Ok(())
+			} else {
+				Err(ContentError::IdempotencyConflict)
+			};
 		}
-		if installation.install_sequence != state.next_install_sequence {
+		if !state.known_sources.contains_key(&installation.install_sequence) {
+			if installation.install_sequence != state.next_new_install_sequence {
+				return Err(ContentError::IntegrityFailed);
+			}
+			state.next_new_install_sequence = installation
+				.install_sequence
+				.checked_add(1)
+				.ok_or(ContentError::IntegrityFailed)?;
+			state
+				.buckets
+				.entry(bucket_id)
+				.or_default()
+				.source_order
+				.push(installation.install_sequence);
+			state.known_sources.insert(installation.install_sequence, installation.clone());
+		}
+		let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::IntegrityFailed)?;
+		if bucket.unavailable
+			|| bucket.source_order.get(bucket.entries.len()).copied()
+				!= Some(installation.install_sequence)
+		{
 			return Err(ContentError::IntegrityFailed);
 		}
-		let mut next = state.clone();
-		append_to_state(&mut next, &installation)?;
-		persist_state(&self.root, &next)?;
-		*state = next;
+		let entry = build_entry(&installation, &bucket.meta)?;
+		let frame = encode_frame(&entry)?;
+		let next_meta = advance_meta(&bucket.meta, &entry, frame.len() as u64)?;
+		let result = self.persist_append(bucket_id, &bucket.meta, &next_meta, &frame);
+		if let Err(error) = result {
+			state.buckets.get_mut(&bucket_id).expect("bucket exists").unavailable = true;
+			return Err(error);
+		}
+		let bucket = state.buckets.get_mut(&bucket_id).expect("bucket exists");
+		let index = bucket.entries.len();
+		bucket.entries.push(entry.clone());
+		bucket.meta = next_meta;
+		bucket.blocked_at = None;
+		state
+			.operations
+			.insert((bucket_id, operation_id), installation.install_sequence);
+		state
+			.committed_sources
+			.insert(installation.install_sequence, (bucket_id, index));
 		Ok(())
 	}
 
-	/// Build only the exact runtime commitment fields over a non-empty verified suffix.
+	/// Build the exact runtime commitment fields after re-verifying only this bucket's bytes.
 	pub(crate) fn commitment_candidate(
 		&self,
 		streaming: &StreamingStore,
 		bucket_id: BucketId,
 		expected_start_seq: u64,
 	) -> Result<CommitmentV1<H256>, ContentError> {
+		let structural = streaming.installation_records()?;
+		let structural_count =
+			structural.iter().filter(|source| source.bucket_id == bucket_id).count();
 		let state = self.state.read().map_err(|_| lock_error())?;
-		validate_state(&state)?;
-		let bucket = state.buckets.get(&bucket_id.to_string()).ok_or(ContentError::NotFound)?;
-		let installations = streaming.verified_bucket_installations(bucket_id)?;
-		if bucket.entries.len() != installations.len()
-			|| bucket.entries.iter().zip(&installations).any(|(entry, installation)| {
-				entry.install_sequence != installation.install_sequence
-					|| !entry_matches_installation(entry, installation).unwrap_or(false)
-			}) {
+		let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::NotFound)?;
+		if bucket.unavailable
+			|| bucket.entries.len() != bucket.source_order.len()
+			|| bucket.entries.len() != structural_count
+		{
 			return Err(ContentError::IntegrityFailed);
 		}
-		let end = bucket.entries.len() as u64;
-		let leaf_count =
-			end.checked_sub(expected_start_seq).ok_or(ContentError::IntegrityFailed)?;
+		for entry in &bucket.entries {
+			let source = streaming
+				.verified_installation(bucket_id, OperationId::parse(&entry.operation_id)?)?;
+			if !entry_matches_installation(entry, &source)? {
+				return Err(ContentError::IntegrityFailed);
+			}
+		}
+		let leaf_count = bucket
+			.meta
+			.entry_count
+			.checked_sub(expected_start_seq)
+			.ok_or(ContentError::IntegrityFailed)?;
 		if leaf_count == 0 {
 			return Err(ContentError::IntegrityFailed);
 		}
 		Ok(CommitmentV1 {
-			mmr_root: decode_hash(&bucket.root)?,
+			mmr_root: decode_hash(
+				bucket.meta.root.as_deref().ok_or(ContentError::IntegrityFailed)?,
+			)?,
 			start_seq: expected_start_seq,
 			leaf_count,
 		})
 	}
+
+	fn persist_append(
+		&self,
+		bucket_id: BucketId,
+		current: &BucketMeta,
+		next: &BucketMeta,
+		frame: &[u8],
+	) -> Result<(), ContentError> {
+		let directory = self.root.join(bucket_id.to_string());
+		fs::create_dir_all(&directory).map_err(io_error)?;
+		let log_path = directory.join(LOG);
+		let mut log = OpenOptions::new()
+			.create(true)
+			.read(true)
+			.write(true)
+			.open(&log_path)
+			.map_err(io_error)?;
+		let length = log.metadata().map_err(io_error)?.len();
+		if length != current.confirmed_log_bytes {
+			return Err(ContentError::IntegrityFailed);
+		}
+		log.seek(SeekFrom::End(0)).map_err(io_error)?;
+		if self.take_fault(BucketMmrFault::PartialFrame)? {
+			let partial = (frame.len() / 2).max(1);
+			log.write_all(&frame[..partial]).map_err(io_error)?;
+			log.sync_all().map_err(io_error)?;
+			return Err(ContentError::Io("injected partial bucket MMR frame".into()));
+		}
+		log.write_all(frame).map_err(io_error)?;
+		log.sync_all().map_err(io_error)?;
+		self.trip_fault(BucketMmrFault::AfterLogSync)?;
+		let bytes = encode_json(next, MAX_META_BYTES)?;
+		let meta_path = directory.join(META);
+		let temporary =
+			directory.join(format!("{META}.tmp-{}-{}", std::process::id(), next.entry_count));
+		let mut file = File::create(&temporary).map_err(io_error)?;
+		file.write_all(&bytes).map_err(io_error)?;
+		file.sync_all().map_err(io_error)?;
+		self.trip_fault(BucketMmrFault::AfterMetaTempSync)?;
+		fs::rename(temporary, meta_path).map_err(io_error)?;
+		self.trip_fault(BucketMmrFault::AfterMetaRename)?;
+		sync_dir(&directory)
+	}
+
+	fn take_fault(&self, point: BucketMmrFault) -> Result<bool, ContentError> {
+		let mut fault = self.fault.write().map_err(|_| lock_error())?;
+		if fault.as_ref() == Some(&point) {
+			*fault = None;
+			Ok(true)
+		} else {
+			Ok(false)
+		}
+	}
+
+	fn trip_fault(&self, point: BucketMmrFault) -> Result<(), ContentError> {
+		if self.take_fault(point)? {
+			Err(ContentError::Io(format!("injected bucket MMR fault: {point:?}")))
+		} else {
+			Ok(())
+		}
+	}
 }
 
-fn append_to_state(
-	state: &mut JournalState,
-	installation: &VerifiedInstallation,
+fn open_bucket(
+	root: &Path,
+	bucket_id: BucketId,
+	bucket: &mut BucketRuntime,
 ) -> Result<(), ContentError> {
-	if installation.install_sequence != state.next_install_sequence {
-		return Err(ContentError::IntegrityFailed);
+	let directory = root.join(bucket_id.to_string());
+	fs::create_dir_all(&directory).map_err(io_error)?;
+	remove_meta_temps(&directory)?;
+	let log_path = directory.join(LOG);
+	if !log_path.exists() {
+		File::create(&log_path).and_then(|file| file.sync_all()).map_err(io_error)?;
+		sync_dir(&directory)?;
 	}
-	let key = installation.bucket_id.to_string();
-	if state.buckets.values().any(|bucket| {
-		bucket
-			.entries
-			.iter()
-			.any(|entry| entry.install_sequence == installation.install_sequence)
-	}) || state.buckets.get(&key).is_some_and(|bucket| {
-		bucket
-			.entries
-			.iter()
-			.any(|entry| entry.operation_id == installation.operation_id.to_string())
-	}) {
-		return Err(ContentError::IdempotencyConflict);
+	let log_len = fs::metadata(&log_path).map_err(io_error)?.len();
+	let meta_path = directory.join(META);
+	let meta = if meta_path.exists() {
+		match read_json::<BucketMeta>(&meta_path, MAX_META_BYTES) {
+			Ok(meta) if meta.version == VERSION && meta.peaks.len() <= 64 => meta,
+			_ => {
+				bucket.unavailable = true;
+				return Ok(());
+			},
+		}
+	} else {
+		BucketMeta::default()
+	};
+	if meta.confirmed_log_bytes > log_len {
+		bucket.unavailable = true;
+		return Ok(());
 	}
-	let bucket = state.buckets.entry(key).or_insert_with(|| BucketState {
-		entries: Vec::new(),
-		peaks: Vec::new(),
-		total_size: 0,
-		root: String::new(),
-	});
-	let sequence = bucket.entries.len() as u64;
-	let total_size = bucket
+	let confirmed = match read_confirmed_frames(&log_path, meta.confirmed_log_bytes) {
+		Ok(entries) => entries,
+		Err(_) => {
+			bucket.unavailable = true;
+			return Ok(());
+		},
+	};
+	let mut rebuilt = BucketMeta::default();
+	for (index, entry) in confirmed.iter().enumerate() {
+		if entry.version != VERSION
+			|| entry.bucket_id != bucket_id.to_string()
+			|| entry.sequence != index as u64
+		{
+			bucket.unavailable = true;
+			return Ok(());
+		}
+		let next =
+			encode_frame(entry).and_then(|frame| advance_meta(&rebuilt, entry, frame.len() as u64));
+		match next {
+			Ok(next) => rebuilt = next,
+			Err(_) => {
+				bucket.unavailable = true;
+				return Ok(());
+			},
+		}
+	}
+	if rebuilt != meta {
+		bucket.unavailable = true;
+		return Ok(());
+	}
+	if log_len > meta.confirmed_log_bytes {
+		let file = OpenOptions::new().write(true).open(&log_path).map_err(io_error)?;
+		file.set_len(meta.confirmed_log_bytes).map_err(io_error)?;
+		file.sync_all().map_err(io_error)?;
+		sync_dir(&directory)?;
+	}
+	if !meta_path.exists() {
+		persist_meta(&directory, &meta)?;
+	}
+	bucket.entries = confirmed;
+	bucket.meta = meta;
+	Ok(())
+}
+
+fn index_confirmed_entries(state: &mut State) -> Result<(), ContentError> {
+	let mut duplicate_sources: HashMap<u64, BucketId> = HashMap::new();
+	let mut duplicate_operations: HashMap<(BucketId, OperationId), BucketId> = HashMap::new();
+	let mut unavailable = BTreeSet::new();
+	for (bucket_id, bucket) in &state.buckets {
+		if bucket.unavailable {
+			continue;
+		}
+		for entry in &bucket.entries {
+			let operation = match OperationId::parse(&entry.operation_id) {
+				Ok(operation) => operation,
+				Err(_) => {
+					unavailable.insert(*bucket_id);
+					continue;
+				},
+			};
+			if let Some(previous) = duplicate_sources.insert(entry.install_sequence, *bucket_id) {
+				unavailable.insert(previous);
+				unavailable.insert(*bucket_id);
+			}
+			if let Some(previous) = duplicate_operations.insert((*bucket_id, operation), *bucket_id)
+			{
+				unavailable.insert(previous);
+				unavailable.insert(*bucket_id);
+			}
+		}
+	}
+	for bucket_id in unavailable {
+		state.buckets.get_mut(&bucket_id).expect("bucket exists").unavailable = true;
+	}
+	for (bucket_id, bucket) in &state.buckets {
+		if bucket.unavailable {
+			continue;
+		}
+		for (index, entry) in bucket.entries.iter().enumerate() {
+			let operation = OperationId::parse(&entry.operation_id)
+				.map_err(|_| ContentError::IntegrityFailed)?;
+			state.committed_sources.insert(entry.install_sequence, (*bucket_id, index));
+			state.operations.insert((*bucket_id, operation), entry.install_sequence);
+		}
+	}
+	Ok(())
+}
+
+fn build_entry(
+	installation: &VerifiedInstallation,
+	meta: &BucketMeta,
+) -> Result<Entry, ContentError> {
+	let total_size = meta
 		.total_size
 		.checked_add(installation.stored_bytes)
 		.ok_or(ContentError::IntegrityFailed)?;
-	let leaf = leaf(installation, total_size);
-	let leaf_hash = hash_leaf(&leaf);
-	bucket.entries.push(Entry {
-		sequence,
+	let leaf = MmrLeafV1 {
+		data_root: H256::from(installation.cid.digest()),
+		data_size: installation.stored_bytes,
+		total_size,
+	};
+	Ok(Entry {
+		version: VERSION,
+		bucket_id: installation.bucket_id.to_string(),
+		sequence: meta.entry_count,
 		install_sequence: installation.install_sequence,
 		operation_id: installation.operation_id.to_string(),
 		cid: installation.cid.as_str().into(),
 		data_size: installation.stored_bytes,
 		total_size,
-		leaf_hash: encode_hash(leaf_hash),
-	});
-	let (peaks, root) = append_peak(&bucket.peaks, sequence, leaf_hash)?;
-	bucket.peaks = peaks.into_iter().map(encode_hash).collect();
-	bucket.root = encode_hash(root);
-	bucket.total_size = total_size;
-	state.next_install_sequence = state
-		.next_install_sequence
-		.checked_add(1)
-		.ok_or(ContentError::IntegrityFailed)?;
+		leaf_hash: encode_hash(hash_leaf(&leaf)),
+	})
+}
+
+fn advance_meta(
+	meta: &BucketMeta,
+	entry: &Entry,
+	frame_bytes: u64,
+) -> Result<BucketMeta, ContentError> {
+	validate_entry(entry, meta)?;
+	let (peaks, root) = append_peak(&meta.peaks, meta.entry_count, decode_hash(&entry.leaf_hash)?)?;
+	Ok(BucketMeta {
+		version: VERSION,
+		entry_count: meta.entry_count.checked_add(1).ok_or(ContentError::IntegrityFailed)?,
+		confirmed_log_bytes: meta
+			.confirmed_log_bytes
+			.checked_add(frame_bytes)
+			.ok_or(ContentError::IntegrityFailed)?,
+		peaks: peaks.into_iter().map(encode_hash).collect(),
+		total_size: entry.total_size,
+		root: Some(encode_hash(root)),
+	})
+}
+
+fn validate_entry(entry: &Entry, meta: &BucketMeta) -> Result<(), ContentError> {
+	if entry.sequence != meta.entry_count
+		|| entry.total_size
+			!= meta
+				.total_size
+				.checked_add(entry.data_size)
+				.ok_or(ContentError::IntegrityFailed)?
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	let cid = CanonicalCid::parse(&entry.cid)?;
+	let leaf = MmrLeafV1 {
+		data_root: H256::from(cid.digest()),
+		data_size: entry.data_size,
+		total_size: entry.total_size,
+	};
+	if entry.leaf_hash != encode_hash(hash_leaf(&leaf)) {
+		return Err(ContentError::IntegrityFailed);
+	}
 	Ok(())
+}
+
+fn entry_matches_installation(
+	entry: &Entry,
+	installation: &VerifiedInstallation,
+) -> Result<bool, ContentError> {
+	Ok(entry.install_sequence == installation.install_sequence
+		&& entry.bucket_id == installation.bucket_id.to_string()
+		&& entry.operation_id == installation.operation_id.to_string()
+		&& entry.cid == installation.cid.as_str()
+		&& entry.data_size == installation.stored_bytes)
+}
+
+fn encode_frame(entry: &Entry) -> Result<Vec<u8>, ContentError> {
+	let payload = encode_json(entry, MAX_FRAME_PAYLOAD)?;
+	let length: u32 = payload.len().try_into().map_err(|_| ContentError::IntegrityFailed)?;
+	let mut frame = Vec::with_capacity(LENGTH_BYTES + payload.len() + CHECKSUM_BYTES);
+	frame.extend_from_slice(&length.to_le_bytes());
+	frame.extend_from_slice(&payload);
+	frame.extend_from_slice(&Sha256::digest(&payload));
+	Ok(frame)
+}
+
+fn read_confirmed_frames(path: &Path, confirmed_bytes: u64) -> Result<Vec<Entry>, ContentError> {
+	let mut file = File::open(path).map_err(io_error)?;
+	let mut consumed = 0u64;
+	let mut entries = Vec::new();
+	while consumed < confirmed_bytes {
+		let mut length = [0u8; LENGTH_BYTES];
+		file.read_exact(&mut length).map_err(|_| ContentError::IntegrityFailed)?;
+		let length = u32::from_le_bytes(length) as usize;
+		if length == 0 || length > MAX_FRAME_PAYLOAD {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let frame_len = LENGTH_BYTES
+			.checked_add(length)
+			.and_then(|value| value.checked_add(CHECKSUM_BYTES))
+			.ok_or(ContentError::IntegrityFailed)? as u64;
+		consumed = consumed.checked_add(frame_len).ok_or(ContentError::IntegrityFailed)?;
+		if consumed > confirmed_bytes {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let mut payload = vec![0u8; length];
+		file.read_exact(&mut payload).map_err(|_| ContentError::IntegrityFailed)?;
+		let mut checksum = [0u8; CHECKSUM_BYTES];
+		file.read_exact(&mut checksum).map_err(|_| ContentError::IntegrityFailed)?;
+		if Sha256::digest(&payload).as_slice() != checksum {
+			return Err(ContentError::IntegrityFailed);
+		}
+		entries.push(serde_json::from_slice(&payload).map_err(|_| ContentError::IntegrityFailed)?);
+	}
+	if consumed != confirmed_bytes {
+		return Err(ContentError::IntegrityFailed);
+	}
+	Ok(entries)
+}
+
+fn persist_meta(directory: &Path, meta: &BucketMeta) -> Result<(), ContentError> {
+	let bytes = encode_json(meta, MAX_META_BYTES)?;
+	let temporary = directory.join(format!("{META}.tmp-{}", std::process::id()));
+	let mut file = File::create(&temporary).map_err(io_error)?;
+	file.write_all(&bytes).map_err(io_error)?;
+	file.sync_all().map_err(io_error)?;
+	fs::rename(temporary, directory.join(META)).map_err(io_error)?;
+	sync_dir(directory)
+}
+
+fn remove_meta_temps(directory: &Path) -> Result<(), ContentError> {
+	let mut changed = false;
+	for item in fs::read_dir(directory).map_err(io_error)? {
+		let item = item.map_err(io_error)?;
+		let name = item.file_name().to_string_lossy().into_owned();
+		if name.starts_with(&format!("{META}.tmp-")) {
+			fs::remove_file(item.path()).map_err(io_error)?;
+			changed = true;
+		} else if name != LOG && name != META {
+			return Err(ContentError::IntegrityFailed);
+		}
+	}
+	if changed {
+		sync_dir(directory)?;
+	}
+	Ok(())
+}
+
+fn encode_json<T: Serialize>(value: &T, bound: usize) -> Result<Vec<u8>, ContentError> {
+	let bytes = serde_json::to_vec(value).map_err(io_error)?;
+	if bytes.len() > bound {
+		return Err(ContentError::IntegrityFailed);
+	}
+	Ok(bytes)
+}
+
+fn read_json<T: DeserializeOwned>(path: &Path, bound: usize) -> Result<T, ContentError> {
+	let bytes = fs::read(path).map_err(io_error)?;
+	if bytes.len() > bound {
+		return Err(ContentError::IntegrityFailed);
+	}
+	serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)
 }
 
 fn append_peak(
@@ -260,111 +709,12 @@ fn append_peak(
 		}
 	}
 	let peaks = slots.into_iter().rev().flatten().collect::<Vec<_>>();
-	let root = bag_peaks(&peaks)?;
-	Ok((peaks, root))
-}
-
-fn validate_state(state: &JournalState) -> Result<(), ContentError> {
-	if state.version != VERSION {
-		return Err(ContentError::IntegrityFailed);
-	}
-	let mut install_sequences = BTreeSet::new();
-	let mut sources = BTreeSet::new();
-	for (bucket_key, bucket) in &state.buckets {
-		let bucket_id = BucketId::parse(bucket_key).map_err(|_| ContentError::IntegrityFailed)?;
-		if bucket.entries.is_empty() {
-			return Err(ContentError::IntegrityFailed);
-		}
-		let mut total_size = 0u64;
-		let mut hashes = Vec::with_capacity(bucket.entries.len());
-		for (index, entry) in bucket.entries.iter().enumerate() {
-			if entry.sequence != index as u64
-				|| !install_sequences.insert(entry.install_sequence)
-				|| !sources.insert((
-					bucket_id,
-					OperationId::parse(&entry.operation_id)
-						.map_err(|_| ContentError::IntegrityFailed)?,
-				)) {
-				return Err(ContentError::IntegrityFailed);
-			}
-			let cid = CanonicalCid::parse(&entry.cid).map_err(|_| ContentError::IntegrityFailed)?;
-			total_size =
-				total_size.checked_add(entry.data_size).ok_or(ContentError::IntegrityFailed)?;
-			if entry.total_size != total_size {
-				return Err(ContentError::IntegrityFailed);
-			}
-			let leaf = MmrLeafV1 {
-				data_root: H256::from(cid.digest()),
-				data_size: entry.data_size,
-				total_size,
-			};
-			let hash = hash_leaf(&leaf);
-			if entry.leaf_hash != encode_hash(hash) {
-				return Err(ContentError::IntegrityFailed);
-			}
-			hashes.push(Ok(hash));
-		}
-		let (peaks, root) = peaks_and_root(hashes.into_iter())?;
-		if bucket.total_size != total_size
-			|| bucket.peaks != peaks.into_iter().map(encode_hash).collect::<Vec<_>>()
-			|| bucket.root != encode_hash(root)
-		{
-			return Err(ContentError::IntegrityFailed);
-		}
-	}
-	if install_sequences.len() as u64 != state.next_install_sequence
-		|| install_sequences.iter().copied().ne(0..state.next_install_sequence)
-	{
-		return Err(ContentError::IntegrityFailed);
-	}
-	Ok(())
-}
-
-fn validate_prefix(
-	state: &JournalState,
-	installations: &[VerifiedInstallation],
-) -> Result<(), ContentError> {
-	if state.next_install_sequence > installations.len() as u64 {
-		return Err(ContentError::IntegrityFailed);
-	}
-	for installation in installations.iter().take(state.next_install_sequence as usize) {
-		let (bucket, entry) = entry_by_install_sequence(state, installation.install_sequence)
-			.ok_or(ContentError::IntegrityFailed)?;
-		if bucket != installation.bucket_id.to_string()
-			|| !entry_matches_installation(entry, installation)?
-		{
-			return Err(ContentError::IntegrityFailed);
-		}
-	}
-	Ok(())
-}
-
-fn entry_by_install_sequence(state: &JournalState, sequence: u64) -> Option<(&str, &Entry)> {
-	state
-		.buckets
+	let root = peaks
 		.iter()
-		.flat_map(|(bucket_id, bucket)| {
-			bucket.entries.iter().map(move |entry| (bucket_id.as_str(), entry))
-		})
-		.find(|(_, entry)| entry.install_sequence == sequence)
-}
-
-fn entry_matches_installation(
-	entry: &Entry,
-	installation: &VerifiedInstallation,
-) -> Result<bool, ContentError> {
-	Ok(entry.operation_id == installation.operation_id.to_string()
-		&& entry.cid == installation.cid.as_str()
-		&& entry.data_size == installation.stored_bytes
-		&& CanonicalCid::parse(&entry.cid)?.digest() == installation.cid.digest())
-}
-
-fn leaf(installation: &VerifiedInstallation, total_size: u64) -> MmrLeafV1<H256> {
-	MmrLeafV1 {
-		data_root: H256::from(installation.cid.digest()),
-		data_size: installation.stored_bytes,
-		total_size,
-	}
+		.rev()
+		.fold(None, |right, peak| Some(right.map_or(*peak, |value| hash_parent(*peak, value))))
+		.ok_or(ContentError::IntegrityFailed)?;
+	Ok((peaks, root))
 }
 
 fn hash_leaf(leaf: &MmrLeafV1<H256>) -> H256 {
@@ -373,49 +723,6 @@ fn hash_leaf(leaf: &MmrLeafV1<H256>) -> H256 {
 
 fn hash_parent(left: H256, right: H256) -> H256 {
 	H256::from(blake2_256(&(left, right).encode()))
-}
-
-fn peaks_and_root<I>(hashes: I) -> Result<(Vec<H256>, H256), ContentError>
-where
-	I: IntoIterator<Item = Result<H256, ContentError>>,
-{
-	let mut slots: Vec<Option<H256>> = Vec::new();
-	let mut count = 0u64;
-	for hash in hashes {
-		let mut current = hash?;
-		count = count.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
-		let mut height = 0usize;
-		loop {
-			if height == slots.len() {
-				slots.push(Some(current));
-				break;
-			}
-			match slots[height].take() {
-				Some(left) => {
-					current = hash_parent(left, current);
-					height += 1;
-				},
-				None => {
-					slots[height] = Some(current);
-					break;
-				},
-			}
-		}
-	}
-	if count == 0 {
-		return Err(ContentError::IntegrityFailed);
-	}
-	let peaks = slots.into_iter().rev().flatten().collect::<Vec<_>>();
-	let root = bag_peaks(&peaks)?;
-	Ok((peaks, root))
-}
-
-fn bag_peaks(peaks: &[H256]) -> Result<H256, ContentError> {
-	peaks
-		.iter()
-		.rev()
-		.fold(None, |right, peak| Some(right.map_or(*peak, |value| hash_parent(*peak, value))))
-		.ok_or(ContentError::IntegrityFailed)
 }
 
 fn encode_hash(hash: H256) -> String {
@@ -430,15 +737,8 @@ fn decode_hash(value: &str) -> Result<H256, ContentError> {
 	Ok(H256::from_slice(&bytes))
 }
 
-fn persist_state(root: &Path, state: &JournalState) -> Result<(), ContentError> {
-	let bytes = serde_json::to_vec_pretty(state).map_err(io_error)?;
-	let path = root.join(JOURNAL);
-	let temporary = root.join(format!("{JOURNAL}.tmp-{}", std::process::id()));
-	let mut file = File::create(&temporary).map_err(io_error)?;
-	file.write_all(&bytes).map_err(io_error)?;
-	file.sync_all().map_err(io_error)?;
-	fs::rename(temporary, path).map_err(io_error)?;
-	File::open(root).and_then(|directory| directory.sync_all()).map_err(io_error)
+fn sync_dir(path: &Path) -> Result<(), ContentError> {
+	File::open(path).and_then(|directory| directory.sync_all()).map_err(io_error)
 }
 
 fn io_error(error: impl std::fmt::Display) -> ContentError {
@@ -452,7 +752,7 @@ fn lock_error() -> ContentError {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::storage::{StreamingDescriptor, StreamingFault};
+	use crate::storage::{StreamingDescriptor, StreamingStore};
 	use tempfile::TempDir;
 
 	fn install(
@@ -475,156 +775,154 @@ mod tests {
 				},
 				[bytes.to_vec()],
 			)
-			.expect("install bytes");
+			.unwrap();
 		assert!(root.join("streaming-v1").exists());
 		(bucket_id, operation_id, cid)
 	}
 
 	#[test]
-	fn runtime_scale_hashes_and_right_bagged_peaks_are_fixed() {
+	fn runtime_scale_hashes_and_incremental_right_bagging_are_fixed() {
 		let leaves = (1u8..=5)
 			.map(|value| {
-				Ok(hash_leaf(&MmrLeafV1 {
+				hash_leaf(&MmrLeafV1 {
 					data_root: H256::repeat_byte(value),
 					data_size: u64::from(value),
 					total_size: u64::from(value) * u64::from(value + 1) / 2,
-				}))
+				})
 			})
 			.collect::<Vec<_>>();
 		assert_eq!(
-			encode_hash(leaves[0].as_ref().copied().unwrap()),
+			encode_hash(leaves[0]),
 			"adcbaa3f6b801cf206aa63c8afd2607f2fb717b51803a6f095e2bd9442e4184d"
 		);
-		for (count, expected) in [
-			(1, "adcbaa3f6b801cf206aa63c8afd2607f2fb717b51803a6f095e2bd9442e4184d"),
-			(2, "6b4f9b5a21fd137869c9a8561e3e34f853a6f9097dede747b3bf84edac734b70"),
-			(3, "93c8c0d7c0e8f06177602ff1b83886544fd10ac8a17cdfa05687117c36e9e5ec"),
-			(4, "8887a98cd8949e50e33713cea9ea92087a49bd41afbad20466764a0b64fdfcb0"),
-			(5, "f8834153b4b86a917233960176970659158448828dddb050c81627dcfd9d1d5b"),
-		] {
-			let (_, root) = peaks_and_root(leaves.iter().take(count).cloned()).unwrap();
-			assert_eq!(encode_hash(root), expected);
+		let expected = [
+			"adcbaa3f6b801cf206aa63c8afd2607f2fb717b51803a6f095e2bd9442e4184d",
+			"6b4f9b5a21fd137869c9a8561e3e34f853a6f9097dede747b3bf84edac734b70",
+			"93c8c0d7c0e8f06177602ff1b83886544fd10ac8a17cdfa05687117c36e9e5ec",
+			"8887a98cd8949e50e33713cea9ea92087a49bd41afbad20466764a0b64fdfcb0",
+			"f8834153b4b86a917233960176970659158448828dddb050c81627dcfd9d1d5b",
+		];
+		let mut peaks = Vec::new();
+		for (index, leaf) in leaves.into_iter().enumerate() {
+			let (next, root) = append_peak(&peaks, index as u64, leaf).unwrap();
+			assert_eq!(encode_hash(root), expected[index]);
+			peaks = next.into_iter().map(encode_hash).collect();
 		}
-		let mut incremental = Vec::new();
-		for (count, leaf) in leaves.iter().enumerate() {
-			let (peaks, root) =
-				append_peak(&incremental, count as u64, leaf.clone().unwrap()).unwrap();
-			let (rebuilt, rebuilt_root) =
-				peaks_and_root(leaves.iter().take(count + 1).cloned()).unwrap();
-			assert_eq!((peaks.clone(), root), (rebuilt, rebuilt_root));
-			incremental = peaks.into_iter().map(encode_hash).collect();
-		}
-		let (odd_peaks, _) = peaks_and_root(leaves.iter().take(3).cloned()).unwrap();
-		assert_eq!(
-			odd_peaks.into_iter().map(encode_hash).collect::<Vec<_>>(),
-			vec![
-				"6b4f9b5a21fd137869c9a8561e3e34f853a6f9097dede747b3bf84edac734b70",
-				"74ad4fe182f780f088c5c5a5bc3e527cc672e97624dcf20ac85d639dee7ef3d9",
-			]
-		);
 	}
 
 	#[test]
-	fn interleaved_buckets_reconcile_in_install_order_and_candidates_are_bounded() {
+	fn append_is_bucket_local_exact_and_uses_bounded_logs() {
 		let temp = TempDir::new().unwrap();
 		let streaming = StreamingStore::open(temp.path()).unwrap();
 		let (bucket_a, operation_a, _) = install(temp.path(), &streaming, 1, 1, b"alpha");
 		let (bucket_b, _, _) = install(temp.path(), &streaming, 2, 2, b"bravo");
-		let (_, _, _) = install(temp.path(), &streaming, 1, 3, b"charlie");
 		let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		let log_path = temp.path().join(ROOT).join(bucket_a.to_string()).join(LOG);
+		let prefix = fs::read(&log_path).unwrap();
+		let (_, operation_c, _) = install(temp.path(), &streaming, 1, 3, b"charlie");
+		mmr.append_verified(&streaming, bucket_a, operation_c).unwrap();
+		let appended = fs::read(&log_path).unwrap();
+		assert!(appended.len() > prefix.len());
+		assert_eq!(&appended[..prefix.len()], prefix.as_slice());
 		assert_eq!(mmr.commitment_candidate(&streaming, bucket_a, 0).unwrap().leaf_count, 2);
-		assert_eq!(mmr.commitment_candidate(&streaming, bucket_a, 1).unwrap().leaf_count, 1);
 		assert_eq!(mmr.commitment_candidate(&streaming, bucket_b, 0).unwrap().leaf_count, 1);
 		assert_eq!(
 			mmr.commitment_candidate(&streaming, bucket_a, 2),
 			Err(ContentError::IntegrityFailed)
 		);
-		assert_eq!(
-			mmr.commitment_candidate(&streaming, bucket_a, 3),
-			Err(ContentError::IntegrityFailed)
-		);
-		mmr.append_verified(&streaming, bucket_a, operation_a).expect("exact replay");
+		mmr.append_verified(&streaming, bucket_a, operation_a).unwrap();
 		let state = mmr.state.read().unwrap();
-		assert_eq!(state.next_install_sequence, 3);
-		assert_eq!(state.buckets[&bucket_a.to_string()].entries[0].sequence, 0);
-		assert_eq!(state.buckets[&bucket_a.to_string()].entries[1].sequence, 1);
-		assert_eq!(state.buckets[&bucket_b.to_string()].entries[0].sequence, 0);
+		assert_eq!(state.operations.len(), 3);
+		assert!(state.buckets.values().all(|bucket| bucket.meta.peaks.len() <= 64));
+		for (bucket, runtime) in &state.buckets {
+			let log = temp.path().join(ROOT).join(bucket.to_string()).join(LOG);
+			assert_eq!(fs::metadata(log).unwrap().len(), runtime.meta.confirmed_log_bytes);
+		}
 	}
 
 	#[test]
-	fn crash_recovery_assigns_one_sequence_and_changed_source_conflicts() {
-		let temp = TempDir::new().unwrap();
-		let streaming = StreamingStore::open(temp.path()).unwrap();
-		streaming.inject_fault_once(StreamingFault::AfterObjectRename).unwrap();
-		let bucket = BucketId::from_bytes([3; 32]);
-		let operation = OperationId::from_bytes([4; 16]);
-		let bytes = b"recover";
-		let cid = CanonicalCid::from_digest(blake2_256(bytes));
-		assert!(streaming
-			.put_chunks(
-				StreamingDescriptor {
-					operation_id: operation,
-					bucket_id: bucket,
-					expected_cid: cid.as_str().into(),
-					object_len: bytes.len() as u64,
-				},
-				[bytes.to_vec()],
-			)
-			.is_err());
-		drop(streaming);
-		let streaming = StreamingStore::open(temp.path()).unwrap();
-		let installations = streaming.verified_installations().unwrap();
-		assert_eq!(installations.len(), 1);
-		assert_eq!(installations[0].install_sequence, 0);
-		let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
-		drop(mmr);
-		let reopened = BucketMmrStore::open(temp.path(), &streaming).unwrap();
-		assert_eq!(reopened.state.read().unwrap().next_install_sequence, 1);
-
-		let first = installations[0].clone();
-		let mut state =
-			JournalState { version: VERSION, next_install_sequence: 0, buckets: BTreeMap::new() };
-		append_to_state(&mut state, &first).unwrap();
-		let mut changed = first;
-		changed.install_sequence = 1;
-		changed.cid = CanonicalCid::from_digest([99; 32]);
-		assert_eq!(append_to_state(&mut state, &changed), Err(ContentError::IdempotencyConflict));
-	}
-
-	#[test]
-	fn corrupt_quarantined_and_tampered_state_fail_closed_while_legacy_is_untouched() {
+	fn corrupt_confirmed_bucket_log_is_isolated_across_restart() {
 		let temp = TempDir::new().unwrap();
 		let legacy = temp.path().join("provider-index-v5.json");
 		fs::write(&legacy, b"legacy-byte-for-byte").unwrap();
 		let streaming = StreamingStore::open(temp.path()).unwrap();
-		let (_, _, cid) = install(temp.path(), &streaming, 5, 5, b"durable");
-		let (healthy_bucket, _, _) = install(temp.path(), &streaming, 6, 6, b"healthy");
-		let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
-		assert_eq!(fs::read(&legacy).unwrap(), b"legacy-byte-for-byte");
+		let (bucket_a, _, _) = install(temp.path(), &streaming, 3, 3, b"corrupt-me");
+		let (bucket_b, _, _) = install(temp.path(), &streaming, 4, 4, b"meta-ahead");
+		let (bucket_c, _, _) = install(temp.path(), &streaming, 8, 8, b"healthy");
+		drop(BucketMmrStore::open(temp.path(), &streaming).unwrap());
+		let log = temp.path().join(ROOT).join(bucket_a.to_string()).join(LOG);
+		let mut bytes = fs::read(&log).unwrap();
+		bytes[LENGTH_BYTES + 1] ^= 0x01;
+		fs::write(&log, bytes).unwrap();
+		let meta_path = temp.path().join(ROOT).join(bucket_b.to_string()).join(META);
+		let mut meta = read_json::<BucketMeta>(&meta_path, MAX_META_BYTES).unwrap();
+		meta.confirmed_log_bytes += 1;
+		fs::write(&meta_path, encode_json(&meta, MAX_META_BYTES).unwrap()).unwrap();
+		let reopened = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		assert_eq!(
+			reopened.commitment_candidate(&streaming, bucket_a, 0),
+			Err(ContentError::IntegrityFailed)
+		);
+		assert_eq!(
+			reopened.commitment_candidate(&streaming, bucket_b, 0),
+			Err(ContentError::IntegrityFailed)
+		);
+		assert_eq!(reopened.commitment_candidate(&streaming, bucket_c, 0).unwrap().leaf_count, 1);
+		assert_eq!(fs::read(legacy).unwrap(), b"legacy-byte-for-byte");
+	}
 
-		let journal = temp.path().join(ROOT).join(JOURNAL);
-		let original = fs::read(&journal).unwrap();
-		for field in ["root", "peaks", "total_size"] {
-			let mut value: serde_json::Value = serde_json::from_slice(&original).unwrap();
-			let bucket = value["buckets"].as_object_mut().unwrap().values_mut().next().unwrap();
-			match field {
-				"root" => bucket["root"] = serde_json::Value::String("00".repeat(32)),
-				"peaks" => bucket["peaks"][0] = serde_json::Value::String("11".repeat(32)),
-				_ => bucket["total_size"] = serde_json::Value::from(999u64),
+	#[test]
+	fn corrupt_object_blocks_only_its_bucket_after_restart() {
+		let temp = TempDir::new().unwrap();
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let (bucket_a, _, cid_a) = install(temp.path(), &streaming, 5, 5, b"bad-object");
+		let (bucket_b, _, _) = install(temp.path(), &streaming, 6, 6, b"good-object");
+		drop(BucketMmrStore::open(temp.path(), &streaming).unwrap());
+		fs::write(
+			temp.path().join("streaming-v1").join("objects").join(cid_a.as_str()),
+			b"corruption",
+		)
+		.unwrap();
+		let reopened = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		assert!(reopened.commitment_candidate(&streaming, bucket_a, 0).is_err());
+		assert!(reopened.commitment_candidate(&streaming, bucket_b, 0).is_ok());
+	}
+
+	#[test]
+	fn persistence_faults_are_old_or_new_and_poison_until_reopen() {
+		for fault in [
+			BucketMmrFault::PartialFrame,
+			BucketMmrFault::AfterLogSync,
+			BucketMmrFault::AfterMetaTempSync,
+			BucketMmrFault::AfterMetaRename,
+		] {
+			let temp = TempDir::new().unwrap();
+			let streaming = StreamingStore::open(temp.path()).unwrap();
+			let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+			let (bucket, operation, _) = install(temp.path(), &streaming, 7, 7, b"faulted");
+			mmr.inject_fault_once(fault).unwrap();
+			assert!(mmr.append_verified(&streaming, bucket, operation).is_err());
+			assert!(mmr.commitment_candidate(&streaming, bucket, 0).is_err());
+			let directory = temp.path().join(ROOT).join(bucket.to_string());
+			let persisted = directory.join(META);
+			if fault == BucketMmrFault::AfterMetaRename {
+				assert_eq!(
+					read_json::<BucketMeta>(&persisted, MAX_META_BYTES).unwrap().entry_count,
+					1
+				);
+			} else {
+				assert!(!persisted.exists());
 			}
-			fs::write(&journal, serde_json::to_vec_pretty(&value).unwrap()).unwrap();
-			assert!(BucketMmrStore::open(temp.path(), &streaming).is_err(), "{field}");
-			fs::write(&journal, &original).unwrap();
+			drop(mmr);
+			let reopened = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+			assert_eq!(reopened.commitment_candidate(&streaming, bucket, 0).unwrap().leaf_count, 1);
+			let meta = read_json::<BucketMeta>(&directory.join(META), MAX_META_BYTES).unwrap();
+			assert_eq!(fs::metadata(directory.join(LOG)).unwrap().len(), meta.confirmed_log_bytes);
+			assert!(!fs::read_dir(&directory).unwrap().any(|item| item
+				.unwrap()
+				.file_name()
+				.to_string_lossy()
+				.contains(".tmp-")));
 		}
-
-		let object = temp.path().join("streaming-v1").join("objects").join(cid.as_str());
-		fs::write(&object, b"corrupt").unwrap();
-		assert_eq!(mmr.commitment_candidate(&streaming, healthy_bucket, 0).unwrap().leaf_count, 1);
-		assert!(BucketMmrStore::open(temp.path(), &streaming).is_err());
-		assert_eq!(streaming.verify_installed(cid.as_str()), Err(ContentError::IntegrityFailed));
-		fs::write(&object, b"durable").unwrap();
-		assert!(mmr.commitment_candidate(&streaming, healthy_bucket, 0).is_ok());
-		assert!(BucketMmrStore::open(temp.path(), &streaming).is_err());
-		assert_eq!(fs::read(&legacy).unwrap(), b"legacy-byte-for-byte");
 	}
 }

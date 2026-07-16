@@ -867,28 +867,28 @@ impl StreamingStore {
 		Ok(())
 	}
 
-	/// Return every installed operation in immutable installation order after re-reading all bytes.
-	pub(super) fn verified_installations(&self) -> Result<Vec<VerifiedInstallation>, ContentError> {
+	/// Return immutable installed descriptors in sequence order without admitting their bytes.
+	pub(super) fn installation_records(&self) -> Result<Vec<VerifiedInstallation>, ContentError> {
 		let state = self.read_state()?;
 		validate_install_sequences(&state)?;
-		let quarantined = state.quarantine.keys().cloned().collect::<BTreeSet<_>>();
-		let records = state
+		let mut installations = state
 			.operations
 			.values()
 			.filter(|record| record.phase == Phase::Installed)
-			.cloned()
-			.collect::<Vec<_>>();
-		drop(state);
-		let mut installations = records
-			.into_iter()
-			.map(|record| self.verify_installation_record(record, &quarantined))
-			.collect::<Result<Vec<_>, _>>()?;
+			.map(|record| {
+				validate_installed_record(record)?;
+				Ok(VerifiedInstallation {
+					install_sequence: record
+						.install_sequence
+						.ok_or(ContentError::IntegrityFailed)?,
+					operation_id: record.descriptor.operation_id,
+					bucket_id: record.descriptor.bucket_id,
+					cid: CanonicalCid::parse(&record.descriptor.expected_cid)?,
+					stored_bytes: record.descriptor.object_len,
+				})
+			})
+			.collect::<Result<Vec<_>, ContentError>>()?;
 		installations.sort_by_key(|installation| installation.install_sequence);
-		for (expected, installation) in installations.iter().enumerate() {
-			if installation.install_sequence != expected as u64 {
-				return Err(ContentError::IntegrityFailed)
-			}
-		}
 		Ok(installations)
 	}
 
@@ -905,31 +905,6 @@ impl StreamingStore {
 		let quarantined = state.quarantine.keys().cloned().collect::<BTreeSet<_>>();
 		drop(state);
 		self.verify_installation_record(record, &quarantined)
-	}
-
-	/// Reverify only one bucket's installed operations while retaining global sequence validation.
-	pub(super) fn verified_bucket_installations(
-		&self,
-		bucket_id: BucketId,
-	) -> Result<Vec<VerifiedInstallation>, ContentError> {
-		let state = self.read_state()?;
-		validate_install_sequences(&state)?;
-		let quarantined = state.quarantine.keys().cloned().collect::<BTreeSet<_>>();
-		let records = state
-			.operations
-			.values()
-			.filter(|record| {
-				record.phase == Phase::Installed && record.descriptor.bucket_id == bucket_id
-			})
-			.cloned()
-			.collect::<Vec<_>>();
-		drop(state);
-		let mut installations = records
-			.into_iter()
-			.map(|record| self.verify_installation_record(record, &quarantined))
-			.collect::<Result<Vec<_>, _>>()?;
-		installations.sort_by_key(|installation| installation.install_sequence);
-		Ok(installations)
 	}
 
 	fn verify_installation_record(
