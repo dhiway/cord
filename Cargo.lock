@@ -10071,8 +10071,10 @@ version = "0.9.9"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
+ "blake2 0.10.6",
  "blake3",
  "bytes",
+ "cid",
  "clap",
  "hex",
  "http-body-util",

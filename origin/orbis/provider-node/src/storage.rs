@@ -18,6 +18,10 @@
 
 //! Crash-safe content and provider metadata storage.
 
+pub mod streaming;
+
+pub use streaming::{BeginStreaming, StreamingDescriptor, StreamingReceipt, StreamingStore};
+
 use std::{
 	collections::BTreeMap,
 	fs,

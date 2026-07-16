@@ -27,6 +27,7 @@
 
 mod api;
 mod chain;
+mod content;
 mod merkle;
 mod storage;
 mod workers;
@@ -37,10 +38,14 @@ pub use chain::{
 	CheckpointDuty, CheckpointDutyBatch, CheckpointDutyMode, CheckpointDutyPageRequest,
 	CheckpointDutyPhase, CheckpointDutyRole, CheckpointDutyScanCursor, FinalizedRuntimeAuthority,
 };
+pub use content::{
+	CanonicalCid, ContentError, BLAKE2B_256_CODE, CHUNK_BYTES, INGRESS_WINDOW_BYTES,
+	INGRESS_WINDOW_CHUNKS, MAX_CHUNKS, MAX_RANGE_BYTES, MAX_STORED_BYTES, RAW_CODEC,
+};
 pub use storage::{
-	CheckpointDutyWatermark, ChunkProof, CommitInput, ContentRecord, DiskStore, NodeProfile,
-	PendingDeletion, PendingRootSubmission, ProviderStats, RootObservation, SignedCheckpoint,
-	StoreError,
+	BeginStreaming, CheckpointDutyWatermark, ChunkProof, CommitInput, ContentRecord, DiskStore,
+	NodeProfile, PendingDeletion, PendingRootSubmission, ProviderStats, RootObservation,
+	SignedCheckpoint, StoreError, StreamingDescriptor, StreamingReceipt, StreamingStore,
 };
 pub use workers::{
 	poll_checkpoint_duties_once, run_workers, CheckpointSubmission, CheckpointSubmitter,

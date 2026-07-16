@@ -24,7 +24,9 @@ workspace = true
 async-trait = { workspace = true }
 base64 = { workspace = true, default-features = true }
 blake3 = { workspace = true }
+blake2 = { workspace = true, default-features = true }
 bytes = { workspace = true, default-features = true }
+cid = { workspace = true, default-features = true }
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true, default-features = true }
 hex = { workspace = true, default-features = true }
