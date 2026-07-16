@@ -134,6 +134,12 @@ pub enum StreamingFault {
 	AfterRepairRename,
 	/// A verified repair chunk is durable but its progress journal is absent.
 	AfterRepairChunkSync,
+	/// A verified repair prefix is durable but its repair journal is absent.
+	AfterRepairPrefixSync,
+	/// Repair progress is durable but its acknowledgement was not delivered.
+	AfterRepairProgressCommit,
+	/// The finalizing repair journal is durable but installation has not started.
+	AfterRepairFinalizingJournal,
 	/// Quarantine clearance is durable but the successful response was not delivered.
 	AfterRepairQuarantineClear,
 	/// Recovery effect is staged but its combined journal transition is absent.
@@ -873,6 +879,7 @@ impl StreamingStore {
 		}
 		staged.sync_all().map_err(io_error)?;
 		sync_dir(path.parent().expect("repair path has parent"))?;
+		self.trip_fault(StreamingFault::AfterRepairPrefixSync)?;
 		let mut next = state.clone();
 		next.repairs.insert(key, repair.clone());
 		persist_state(&self.root, &next)?;
@@ -901,7 +908,23 @@ impl StreamingStore {
 		if !state.quarantine.contains_key(canonical.as_str()) {
 			return Err(ContentError::IdempotencyConflict);
 		}
-		if repair.phase != RepairPhase::Receiving || index != repair.next_chunk {
+		if repair.phase != RepairPhase::Receiving {
+			return Err(ContentError::ChunkOutOfOrder);
+		}
+		if index < repair.next_chunk {
+			let expected =
+				installed.chunks.get(index as usize).ok_or(ContentError::IntegrityFailed)?;
+			if expected.length as usize != bytes.len() || expected.hash != chunk_hash(bytes) {
+				return Err(ContentError::IdempotencyConflict);
+			}
+			let mut file = File::open(self.repair_path(&key)).map_err(io_error)?;
+			let durable = read_chunk_bytes(&mut file, index, expected.length as usize)?;
+			if durable != bytes || chunk_hash(&durable) != expected.hash {
+				return Err(ContentError::IntegrityFailed);
+			}
+			return repair_progress(&repair, &installed);
+		}
+		if index != repair.next_chunk {
 			return Err(ContentError::ChunkOutOfOrder);
 		}
 		validate_chunk_len(installed.descriptor.object_len, index, bytes.len())?;
@@ -928,6 +951,7 @@ impl StreamingStore {
 		persist_state(&self.root, &next)?;
 		let progress = repair_progress(next.repairs.get(&key).expect("repair exists"), &installed)?;
 		*state = next;
+		self.trip_fault(StreamingFault::AfterRepairProgressCommit)?;
 		Ok(progress)
 	}
 
@@ -965,6 +989,7 @@ impl StreamingStore {
 			next.repairs.get_mut(&key).expect("repair exists").phase = RepairPhase::Finalizing;
 			persist_state(&self.root, &next)?;
 			*state = next;
+			self.trip_fault(StreamingFault::AfterRepairFinalizingJournal)?;
 		}
 		if path.exists() {
 			fs::rename(&path, &object).map_err(io_error)?;
@@ -2298,7 +2323,30 @@ mod exact_lookup_tests {
 
 		let store = StreamingStore::open(temp.path()).unwrap();
 		assert_eq!(store.begin_repair(&cid, operation).unwrap().next_chunk, 0);
-		store.push_repair_chunk(&cid, operation, 0, &bytes[..CHUNK_BYTES]).unwrap();
+		store.inject_fault_once(StreamingFault::AfterRepairProgressCommit).unwrap();
+		assert!(matches!(
+			store.push_repair_chunk(&cid, operation, 0, &bytes[..CHUNK_BYTES]),
+			Err(ContentError::Io(_))
+		));
+		let committed = store.begin_repair(&cid, operation).unwrap();
+		assert_eq!(committed.next_chunk, 1);
+		assert_eq!(committed.persisted_bytes, CHUNK_BYTES as u64);
+		assert_eq!(
+			store.push_repair_chunk(&cid, operation, 0, &bytes[..CHUNK_BYTES]).unwrap(),
+			committed
+		);
+		assert_eq!(
+			fs::metadata(store.repair_path(&repair_key(&cid, operation).unwrap()))
+				.unwrap()
+				.len(),
+			CHUNK_BYTES as u64
+		);
+		let mut changed_replay = bytes[..CHUNK_BYTES].to_vec();
+		changed_replay[1] ^= 1;
+		assert_eq!(
+			store.push_repair_chunk(&cid, operation, 0, &changed_replay),
+			Err(ContentError::IdempotencyConflict)
+		);
 		store.push_repair_chunk(&cid, operation, 1, &bytes[CHUNK_BYTES..]).unwrap();
 		store.inject_fault_once(StreamingFault::AfterRepairRename).unwrap();
 		assert!(matches!(store.finalize_repair(&cid, operation), Err(ContentError::Io(_))));
@@ -2314,5 +2362,43 @@ mod exact_lookup_tests {
 		let store = StreamingStore::open(temp.path()).unwrap();
 		store.finalize_repair(&cid, operation).unwrap();
 		store.verify_installed(&cid).unwrap();
+	}
+
+	#[test]
+	fn repair_prefix_and_finalizing_journals_resume_without_duplicate_effects() {
+		let bytes: Vec<_> = (0..CHUNK_BYTES * 3 - 9).map(|index| (index % 211) as u8).collect();
+		let (temp, store, cid) = repair_fixture(&bytes, 40);
+		let object = store.object_path(&cid);
+		let mut damaged = bytes.clone();
+		damaged[CHUNK_BYTES] ^= 1;
+		fs::write(&object, &damaged).unwrap();
+		assert_eq!(store.verify_installed(&cid), Err(ContentError::IntegrityFailed));
+		let operation = OperationId::from_bytes([41; 16]);
+		store.inject_fault_once(StreamingFault::AfterRepairPrefixSync).unwrap();
+		assert!(matches!(store.begin_repair(&cid, operation), Err(ContentError::Io(_))));
+		assert_eq!(fs::read_dir(store.root.join(STAGING)).unwrap().count(), 1);
+		drop(store);
+
+		let store = StreamingStore::open(temp.path()).unwrap();
+		let progress = store.begin_repair(&cid, operation).unwrap();
+		assert_eq!(progress.next_chunk, 1);
+		assert_eq!(progress.persisted_bytes, CHUNK_BYTES as u64);
+		for (index, chunk) in bytes.chunks(CHUNK_BYTES).enumerate().skip(1) {
+			store.push_repair_chunk(&cid, operation, index as u16, chunk).unwrap();
+		}
+		store.inject_fault_once(StreamingFault::AfterRepairFinalizingJournal).unwrap();
+		assert!(matches!(store.finalize_repair(&cid, operation), Err(ContentError::Io(_))));
+		assert_eq!(fs::read(&object).unwrap(), damaged);
+		assert_eq!(store.read_chunk_verified(&cid, 0), Err(ContentError::IntegrityFailed));
+		drop(store);
+
+		let store = StreamingStore::open(temp.path()).unwrap();
+		assert!(store.begin_repair(&cid, operation).unwrap().ready_to_finalize);
+		store.finalize_repair(&cid, operation).unwrap();
+		assert_eq!(
+			store.read_chunk_verified(&cid, 1).unwrap(),
+			bytes[CHUNK_BYTES..CHUNK_BYTES * 2]
+		);
+		store.finalize_repair(&cid, operation).unwrap();
 	}
 }
