@@ -344,6 +344,9 @@ impl StreamingStore {
 		validate_descriptor(&descriptor)?;
 		let key = operation_key(&descriptor);
 		let mut state = self.write_state()?;
+		if state.recovery.values().any(|item| item.descriptor == descriptor) {
+			return Err(ContentError::IdempotencyConflict)
+		}
 		if let Some(existing) = state.operations.get(&key) {
 			if existing.descriptor != descriptor {
 				return Err(ContentError::IdempotencyConflict)
@@ -400,6 +403,9 @@ impl StreamingStore {
 		let key = operation_key_parts(bucket_id, operation_id);
 		let state = self.read_state()?;
 		let record = state.operations.get(&key).ok_or(ContentError::NotFound)?;
+		if state.recovery.values().any(|item| item.descriptor == record.descriptor) {
+			return Err(ContentError::IdempotencyConflict)
+		}
 		if record.phase != Phase::Receiving {
 			return Err(ContentError::ChunkOutOfOrder)
 		}
@@ -437,6 +443,9 @@ impl StreamingStore {
 		let index = permit.index;
 		let mut state = self.write_state()?;
 		let record = state.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
+		if state.recovery.values().any(|item| item.descriptor == record.descriptor) {
+			return Err(ContentError::IdempotencyConflict)
+		}
 		if record.phase != Phase::Receiving {
 			return Err(ContentError::ChunkOutOfOrder)
 		}
@@ -499,6 +508,9 @@ impl StreamingStore {
 		let key = operation_key_parts(bucket_id, operation_id);
 		let state = self.read_state()?;
 		let record = state.operations.get(&key).ok_or(ContentError::NotFound)?;
+		if state.recovery.values().any(|item| item.descriptor == record.descriptor) {
+			return Err(ContentError::IdempotencyConflict)
+		}
 		if record.phase != Phase::Receiving {
 			return Err(ContentError::ChunkOutOfOrder)
 		}
@@ -1562,6 +1574,104 @@ fn lock_error() -> ContentError {
 #[cfg(test)]
 mod exact_lookup_tests {
 	use super::*;
+	use crate::{capability::ProviderCapabilityV1, CapabilityAuthoritySnapshot};
+	use orbis_storage_runtime_api::{
+		AgreementInfo, AgreementStatus, BucketGrantInfo, BucketRole, ControlBucketInfo,
+		HostDelegationInfo,
+	};
+	use recovery::ObjectPutRequestV2;
+	use sp_core::{crypto::AccountId32, ed25519, Pair as _, H256};
+
+	fn recovery_fixture(
+	) -> (ObjectPutRequestV2, ProviderCapabilityV1, CapabilityAuthoritySnapshot, ed25519::Pair) {
+		let host = ed25519::Pair::from_seed(&[9; 32]);
+		let service = ed25519::Pair::from_seed(&[7; 32]);
+		let cid = CanonicalCid::from_digest(sp_crypto_hashing::blake2_256(b"first"));
+		let request = ObjectPutRequestV2 {
+			request_id: [1; 16],
+			product_id: "festival".into(),
+			grant_id: [3; 32],
+			operation_id: [4; 16],
+			trace_context: None,
+			deadline: 120,
+			bucket_id: [5; 32],
+			cid: cid.clone(),
+			object_len: 5,
+			mode: 0,
+		};
+		let mut capability = ProviderCapabilityV1 {
+			version: 1,
+			registry_sha256: crate::capability::NORMATIVE_REGISTRY_SHA256,
+			genesis_hash: [2; 32],
+			grant_id: [3; 32],
+			issuer_key_id: [6; 32],
+			product_id: "festival".into(),
+			bucket_id: [5; 32],
+			agreement_id: Some([8; 32]),
+			provider: [7; 32],
+			methods: vec![1010],
+			cid: Some(cid),
+			max_bytes: 5,
+			issued_at: 100,
+			expires_at: 128,
+			nonce: [9; 16],
+			signature: [0; 64],
+		};
+		capability.signature = sp_core::Pair::sign(&host, &capability.signed_preimage()).0;
+		let local = AccountId32::new([7; 32]);
+		let snapshot = CapabilityAuthoritySnapshot {
+			finalized_hash: format!("0x{}", "0a".repeat(32)),
+			finalized_number: 110,
+			genesis_hash: [2; 32],
+			registry_sha256: crate::capability::NORMATIVE_REGISTRY_SHA256,
+			local_provider: [7; 32],
+			delegation: HostDelegationInfo {
+				grant_id: H256([3; 32]),
+				bucket_id: H256([5; 32]),
+				owner: AccountId32::new([1; 32]),
+				issuance_nonce: 0,
+				issuer_key_id: H256([6; 32]),
+				issuer_public_key: host.public().0,
+				key_version: 1,
+				state_version: 1,
+				key_activated_at: 90,
+				product_id: b"festival".to_vec(),
+				methods: vec![1010],
+				cid: Some(request.cid.as_str().as_bytes().to_vec()),
+				max_bytes: 5,
+				issued_at: 90,
+				expires_at: 200,
+				revoked_at: None,
+			},
+			bucket: ControlBucketInfo {
+				bucket_id: H256([5; 32]),
+				owner: AccountId32::new([1; 32]),
+				version: 1,
+				policy: H256([1; 32]),
+				primary: local.clone(),
+				replicas: vec![],
+				grants: vec![BucketGrantInfo {
+					account: AccountId32::new([1; 32]),
+					role: BucketRole::Admin,
+				}],
+				created_at: 1,
+			},
+			agreement: Some(AgreementInfo {
+				agreement_id: H256([8; 32]),
+				owner: AccountId32::new([1; 32]),
+				bucket_id: H256([5; 32]),
+				primary: local,
+				replicas: vec![],
+				bytes: 5,
+				created_at: 90,
+				expires_at: 180,
+				release_at: None,
+				state_version: 1,
+				status: AgreementStatus::Active,
+			}),
+		};
+		(request, capability, snapshot, service)
+	}
 
 	#[test]
 	fn exact_verified_lookup_does_not_scan_operations_or_quarantine() {
@@ -1614,5 +1724,102 @@ mod exact_lookup_tests {
 		assert_eq!(verified.install_sequence, 0);
 		assert_eq!(store.exact_record_probes.load(Ordering::Relaxed), 1);
 		assert_eq!(store.exact_quarantine_probes.load(Ordering::Relaxed), 1);
+	}
+
+	#[test]
+	fn recovery_owned_stream_rejects_standard_mutations_without_state_change() {
+		let temp = tempfile::tempdir().unwrap();
+		let (request, capability, snapshot, service) = recovery_fixture();
+		let request_bytes = request.canonical_bytes();
+		let store = StreamingStore::open(temp.path()).unwrap();
+		let accepted = store
+			.accept_object_put(
+				&request_bytes,
+				&capability.canonical_bytes(),
+				&snapshot,
+				service.public().0,
+				&service,
+				[10; 16],
+			)
+			.unwrap();
+		let token = accepted.successor_token.unwrap();
+		let descriptor = StreamingDescriptor {
+			operation_id: OperationId::from_bytes(request.operation_id),
+			bucket_id: BucketId::from_bytes(request.bucket_id),
+			expected_cid: request.cid.as_str().into(),
+			object_len: request.object_len,
+		};
+		let key = operation_key(&descriptor);
+		let part = store.part_path(&key);
+		let journal = store.root.join(JOURNAL);
+		let (operation_before, recovery_before) = {
+			let state = store.read_state().unwrap();
+			(state.operations.get(&key).unwrap().clone(), state.recovery.clone())
+		};
+		let staged_before = fs::read(&part).unwrap();
+		let journal_before = fs::read(&journal).unwrap();
+
+		assert!(matches!(store.begin(descriptor.clone()), Err(ContentError::IdempotencyConflict)));
+		assert!(matches!(
+			store.try_acquire_ingress(descriptor.bucket_id, descriptor.operation_id, 0, 5,),
+			Err(ContentError::IdempotencyConflict)
+		));
+		{
+			let mut window = store.window.window.lock().unwrap();
+			window.chunks += 1;
+			window.bytes += 5;
+		}
+		let permit = IngressPermit {
+			shared: Arc::clone(&store.window),
+			operation_key: key.clone(),
+			index: 0,
+			bytes: 5,
+		};
+		assert!(matches!(
+			store.push_chunk(permit, b"first"),
+			Err(ContentError::IdempotencyConflict)
+		));
+		assert!(matches!(
+			store.put_chunks(descriptor.clone(), [b"first".to_vec()]),
+			Err(ContentError::IdempotencyConflict)
+		));
+		assert!(matches!(
+			store.finalize(descriptor.bucket_id, descriptor.operation_id),
+			Err(ContentError::IdempotencyConflict)
+		));
+
+		assert_eq!(fs::read(&part).unwrap(), staged_before);
+		assert_eq!(fs::read(&journal).unwrap(), journal_before);
+		{
+			let state = store.read_state().unwrap();
+			assert_eq!(state.operations.get(&key), Some(&operation_before));
+			assert_eq!(state.recovery, recovery_before);
+		}
+
+		drop(store);
+		let reopened = StreamingStore::open(temp.path()).unwrap();
+		let progress = reopened
+			.advance_object_put(
+				&request_bytes,
+				&token,
+				&snapshot,
+				service.public().0,
+				1,
+				b"first",
+				&service,
+				[11; 16],
+			)
+			.unwrap();
+		let installed = reopened
+			.finalize_object_put(
+				&request_bytes,
+				progress.successor_token.as_deref().unwrap(),
+				&snapshot,
+				service.public().0,
+				&service,
+			)
+			.unwrap();
+		assert!(installed.successor_token.is_none());
+		reopened.verify_installed(request.cid.as_str()).unwrap();
 	}
 }
