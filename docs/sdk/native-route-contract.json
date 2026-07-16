@@ -6017,7 +6017,7 @@
         "target": "provider",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6077,7 +6077,7 @@
         "target": "providers",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6123,7 +6123,7 @@
         "target": "agreement",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6192,7 +6192,7 @@
         "target": "provider_agreements",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6240,7 +6240,7 @@
         "target": "agreement_nonce",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6283,7 +6283,7 @@
         "target": "challenge",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6351,7 +6351,7 @@
         "target": "challenges_at",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6407,7 +6407,7 @@
         "target": "can_accept_capacity",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6451,7 +6451,7 @@
         "target": "checkpoint",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -7441,7 +7441,7 @@
         "target": "drive",
         "pallet": "Drive",
         "pallet_index": 121,
-        "runtime_api_version": 4,
+        "runtime_api_version": 2,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -7510,7 +7510,7 @@
         "target": "drives",
         "pallet": "Drive",
         "pallet_index": 121,
-        "runtime_api_version": 4,
+        "runtime_api_version": 2,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -7582,7 +7582,7 @@
         "target": "controllers",
         "pallet": "Drive",
         "pallet_index": 121,
-        "runtime_api_version": 4,
+        "runtime_api_version": 2,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -7630,7 +7630,7 @@
         "target": "next_drive_nonce",
         "pallet": "Drive",
         "pallet_index": 121,
-        "runtime_api_version": 4,
+        "runtime_api_version": 2,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -7953,7 +7953,7 @@
         "target": "bucket",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 4,
+        "runtime_api_version": 3,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -7998,7 +7998,7 @@
         "target": "bucket_by_name",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 4,
+        "runtime_api_version": 3,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -8067,7 +8067,7 @@
         "target": "buckets",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 4,
+        "runtime_api_version": 3,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -8139,7 +8139,7 @@
         "target": "object_keys",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 4,
+        "runtime_api_version": 3,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -8195,7 +8195,7 @@
         "target": "object",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 4,
+        "runtime_api_version": 3,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -8273,7 +8273,7 @@
         "target": "object_history",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 4,
+        "runtime_api_version": 3,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -8330,7 +8330,7 @@
         "target": "object_id",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 4,
+        "runtime_api_version": 3,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {

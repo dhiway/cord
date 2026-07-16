@@ -267,6 +267,48 @@ async fn every_authoritative_native_route_constructs_validates_and_dispatches_in
 }
 
 #[test]
+fn storage_native_routes_track_source_runtime_api_versions() {
+	const SOURCE: &str = "origin/orbis/runtime-api/storage/src/lib.rs";
+	const API_VERSION_PREFIX: &str = "#[api_version(";
+
+	let contract: Value =
+		serde_json::from_str(&load("docs/sdk/native-route-contract.json")).unwrap();
+	let source = load(SOURCE);
+	let mut route_counts = [0usize; 3];
+	for route in contract["routes"]
+		.as_array()
+		.unwrap()
+		.iter()
+		.filter(|route| route["runtime"]["source"].as_str() == Some(SOURCE))
+	{
+		let route_id = route["id"].as_str().unwrap();
+		let (trait_name, count_index) = match route["runtime"]["pallet"].as_str().unwrap() {
+			"StorageProvider" => ("StorageProviderApi", 0),
+			"Drive" => ("DriveRegistryApi", 1),
+			"S3" => ("S3RegistryApi", 2),
+			pallet => panic!("{route_id} has unknown storage runtime API pallet {pallet}"),
+		};
+		let declaration = format!("pub trait {trait_name}");
+		let declaration_offset = source
+			.find(&declaration)
+			.unwrap_or_else(|| panic!("{trait_name} is absent from {SOURCE}"));
+		let annotation_offset = source[..declaration_offset]
+			.rfind(API_VERSION_PREFIX)
+			.unwrap_or_else(|| panic!("{trait_name} has no api_version in {SOURCE}"));
+		let version_tail =
+			&source[annotation_offset + API_VERSION_PREFIX.len()..declaration_offset];
+		let expected = version_tail[..version_tail.find(')').unwrap()].parse::<u64>().unwrap();
+		assert_eq!(
+			route["runtime"]["runtime_api_version"].as_u64(),
+			Some(expected),
+			"{route_id} must track {trait_name} in {SOURCE}",
+		);
+		route_counts[count_index] += 1;
+	}
+	assert_eq!(route_counts, [9, 4, 7]);
+}
+
+#[test]
 fn shared_descriptor_and_identity_are_exact_and_fail_closed() {
 	let descriptor: DescriptorContract = serde_json::from_str(&load(
 		"product-sdk/packages/descriptors/generated/orbis-descriptor.json",
