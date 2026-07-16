@@ -18,6 +18,8 @@
 
 //! Private durable preparation of exact Commons checkpoint proposals.
 
+#[path = "checkpoint_outbox.rs"]
+pub(crate) mod checkpoint_outbox;
 #[path = "checkpoint_primary.rs"]
 pub(crate) mod checkpoint_primary;
 #[path = "checkpoint_quorum.rs"]
