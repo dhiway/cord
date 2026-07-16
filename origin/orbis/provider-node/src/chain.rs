@@ -22,14 +22,13 @@ use async_trait::async_trait;
 use codec::{Decode, Encode};
 use jsonrpsee::{core::client::ClientT, http_client::HttpClient, rpc_params};
 use orbis_storage_runtime_api::{
-	AgreementInfo, AgreementStatus, ChallengeInfo, ChallengeStatus, Page, ProviderInfo,
-	ProviderStatus, Versioned, RESPONSE_VERSION,
+	AgreementInfo, AgreementStatus, CheckpointDutyCursor, CheckpointDutyInfo,
+	CheckpointDutyMode as RuntimeCheckpointDutyMode, CheckpointDutyPage, CheckpointDutyPageError,
+	CheckpointDutyPhase as RuntimeCheckpointDutyPhase, ProviderDutyRole, ProviderInfo,
+	ProviderStatus, Versioned, MAX_CHECKPOINT_DUTY_PAGE_SIZE, RESPONSE_VERSION,
 };
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::AccountId32, H256};
-
-const MAX_CHALLENGE_BLOCK_CATCHUP: u32 = 128;
-const API_PAGE_SIZE: u32 = 100;
 
 /// Authorization returned after checking a storage agreement at a finalized block.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -78,6 +77,128 @@ pub struct ChallengeBatch {
 	pub duties: Vec<ChallengeDuty>,
 }
 
+/// Provider role assigned by one finalized checkpoint duty.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CheckpointDutyRole {
+	/// The provider is the duty's primary.
+	Primary,
+	/// The provider is one of the duty's replicas.
+	Replica,
+}
+
+/// Finalized scheduling phase reported for a checkpoint duty.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CheckpointDutyPhase {
+	/// Duty is retained but is not due yet.
+	NotDue,
+	/// Primary provider may initiate during its grace window.
+	Primary,
+	/// Deterministic replica fallback may initiate.
+	ReplicaFallback,
+	/// Replica fallback must additionally promote the checkpoint.
+	ReplicaFallbackPromotion,
+	/// Fallback quorum is insufficient.
+	BlockedInsufficientFallbackQuorum,
+	/// No eligible initiator exists.
+	Unavailable,
+}
+
+/// Runtime mode attached to a finalized checkpoint duty.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CheckpointDutyMode {
+	/// Normal checkpoint flow.
+	Standard,
+	/// Checkpoint promotion is pending.
+	PromotionPending,
+}
+
+/// Exact runtime cursor retained as the durable end of a fully scanned duty snapshot.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CheckpointDutyScanCursor {
+	/// Governed finalized checkpoint which fixes the duty snapshot.
+	pub snapshot_checkpoint: u32,
+	/// SCALE-encoded bucket key of the last duty in the snapshot.
+	pub last_key: String,
+}
+
+/// Durable request used to resume one fixed finalized checkpoint-duty snapshot.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CheckpointDutyPageRequest {
+	/// Fixed finalized block hash used for every page and retry.
+	pub finalized_hash: String,
+	/// Block number corresponding to `finalized_hash`.
+	pub finalized_number: u32,
+	/// Provider account which owns the scan.
+	pub provider: String,
+	/// Governed finalized checkpoint shared by all staged pages.
+	pub snapshot_checkpoint: u32,
+	/// Exact opaque cursor returned by the preceding runtime page.
+	pub cursor: CheckpointDutyScanCursor,
+}
+
+/// One finalized checkpoint duty addressed to this provider.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CheckpointDuty {
+	/// Runtime-assigned duty identifier.
+	pub duty_id: String,
+	/// Runtime bucket identifier.
+	pub bucket_id: String,
+	/// Local provider account to which the duty is addressed.
+	pub provider: String,
+	/// Local provider role in the duty.
+	pub role: CheckpointDutyRole,
+	/// Active finalized service-key version.
+	pub service_key_version: u64,
+	/// Active finalized service key.
+	pub service_key: String,
+	/// Governed finalized checkpoint which fixes the duty.
+	pub snapshot_checkpoint: u32,
+	/// Hash of the governed finalized checkpoint.
+	pub snapshot_hash: String,
+	/// First block at which the duty is due.
+	pub due_at: u32,
+	/// Last primary grace block.
+	pub grace_until: u32,
+	/// Finalized scheduling phase; blocked and not-due duties remain durable.
+	pub phase: CheckpointDutyPhase,
+	/// Finalized checkpoint mode.
+	pub mode: CheckpointDutyMode,
+	/// Whether the local finalized authority may sign this duty.
+	pub may_sign: bool,
+	/// Whether the local finalized authority may initiate this duty.
+	pub may_initiate: bool,
+	/// Exact SCALE encoding of `CheckpointDutyInfo` for later protocol stages.
+	pub encoded_duty: String,
+	/// Blake2-256 digest of `encoded_duty`, used to reject changed-payload replay.
+	pub duty_fingerprint: String,
+}
+
+/// One validated checkpoint-duty page read at a fixed finalized block hash.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CheckpointDutyBatch {
+	/// Finalized block hash used for every runtime API page.
+	pub finalized_hash: String,
+	/// Finalized block number corresponding to `finalized_hash`.
+	pub finalized_number: u32,
+	/// Provider account which owns the scan.
+	pub provider: String,
+	/// Governed finalized checkpoint shared by every returned page and duty.
+	pub snapshot_checkpoint: u32,
+	/// Cursor used to request this page; `None` only for the first page.
+	pub requested_cursor: Option<CheckpointDutyScanCursor>,
+	/// Exact opaque cursor for the next page; `None` marks the terminal page.
+	pub next_cursor: Option<CheckpointDutyScanCursor>,
+	/// Duties addressed to the configured provider in this page.
+	pub duties: Vec<CheckpointDuty>,
+}
+
 /// Errors from the finalized chain authority.
 #[derive(Debug, thiserror::Error)]
 pub enum ChainError {
@@ -90,6 +211,9 @@ pub enum ChainError {
 	/// Agreement/provider/challenge state rejected the operation.
 	#[error("storage authority rejected: {0}")]
 	Rejected(String),
+	/// Finalized checkpoint-duty paging or audience contract was violated.
+	#[error("checkpoint duty protocol rejected: {0}")]
+	DutyProtocol(String),
 }
 
 /// Canonical authority seam for all content mutations and proof duties.
@@ -116,6 +240,12 @@ pub trait ChainAuthority: Send + Sync + 'static {
 		&self,
 		after_block: Option<u32>,
 	) -> Result<ChallengeBatch, ChainError>;
+
+	/// Read and validate one page, starting or resuming one fixed finalized duty snapshot.
+	async fn checkpoint_duties(
+		&self,
+		request: Option<CheckpointDutyPageRequest>,
+	) -> Result<CheckpointDutyBatch, ChainError>;
 }
 
 /// Runtime-API client that validates decisions at `chain_getFinalizedHead`.
@@ -151,12 +281,12 @@ impl FinalizedRuntimeAuthority {
 			.map_err(|error| ChainError::Rpc(error.to_string()))?;
 		let number = u32::from_str_radix(header.number.trim_start_matches("0x"), 16)
 			.map_err(|error| ChainError::Decode(error.to_string()))?;
-		self.ensure_provider(&hash).await?;
+		self.ensure_provider(&hash, number).await?;
 		Ok((hash, number))
 	}
 
-	async fn ensure_provider(&self, hash: &str) -> Result<(), ChainError> {
-		let response: Versioned<ProviderInfo<u32>> = self
+	async fn ensure_provider(&self, hash: &str, finalized_number: u32) -> Result<(), ChainError> {
+		let response: Versioned<ProviderInfo<H256, u32>> = self
 			.runtime_call("StorageProviderApi_provider", self.provider.encode(), hash)
 			.await?;
 		ensure_version(response.version)?;
@@ -166,7 +296,20 @@ impl FinalizedRuntimeAuthority {
 		if provider.status != ProviderStatus::Active {
 			return Err(ChainError::Rejected("provider is suspended".into()));
 		}
-		if provider.service_key.as_slice() != self.service_key {
+		let finalized_service_key = if provider
+			.service_key
+			.pending_effective_at
+			.is_some_and(|at| at <= finalized_number)
+		{
+			provider.service_key.pending.ok_or_else(|| {
+				ChainError::DutyProtocol(
+					"finalized provider key activation has no pending key".into(),
+				)
+			})?
+		} else {
+			provider.service_key.active
+		};
+		if finalized_service_key != self.service_key {
 			return Err(ChainError::Rejected(
 				"local service key does not match finalized provider record".into(),
 			));
@@ -186,8 +329,8 @@ impl FinalizedRuntimeAuthority {
 		let agreement = response
 			.value
 			.ok_or_else(|| ChainError::Rejected("agreement not found".into()))?;
-		if agreement.provider != self.provider {
-			return Err(ChainError::Rejected("agreement belongs to another provider".into()));
+		if agreement.primary != self.provider && !agreement.replicas.contains(&self.provider) {
+			return Err(ChainError::Rejected("agreement belongs to other providers".into()));
 		}
 		Ok(agreement)
 	}
@@ -212,14 +355,15 @@ impl FinalizedRuntimeAuthority {
 		&self,
 		agreement: AgreementInfo<AccountId32, H256, u32>,
 		finalized_hash: String,
+		authorized_bytes: u64,
 	) -> AgreementAuthorization {
 		let provider_bytes: &[u8] = self.provider.as_ref();
 		AgreementAuthorization {
 			finalized_hash,
 			agreement_id: format!("{:#x}", agreement.agreement_id),
 			provider: format!("0x{}", hex::encode(provider_bytes)),
-			container_ref: format!("{:#x}", agreement.container_ref),
-			bytes: agreement.bytes,
+			container_ref: format!("{:#x}", agreement.bucket_id),
+			bytes: authorized_bytes,
 			expires_at: agreement.expires_at,
 		}
 	}
@@ -238,16 +382,14 @@ impl ChainAuthority for FinalizedRuntimeAuthority {
 		if agreement.status != AgreementStatus::Active || number >= agreement.expires_at {
 			return Err(ChainError::Rejected("agreement is not live and active".into()));
 		}
-		if agreement.content_commitment != H256::from(content_commitment) {
-			return Err(ChainError::Rejected("content commitment mismatch".into()));
-		}
-		if agreement.bytes != bytes {
+		let _ = content_commitment;
+		if bytes > agreement.bytes {
 			return Err(ChainError::Rejected(format!(
-				"content length {bytes} does not equal agreement length {}",
+				"content length {bytes} exceeds agreement capacity {}",
 				agreement.bytes
 			)));
 		}
-		Ok(self.authorization(agreement, hash))
+		Ok(self.authorization(agreement, hash, bytes))
 	}
 
 	async fn authorize_delete(
@@ -257,9 +399,7 @@ impl ChainAuthority for FinalizedRuntimeAuthority {
 	) -> Result<AgreementAuthorization, ChainError> {
 		let (hash, _number) = self.finalized_context().await?;
 		let agreement = self.agreement(agreement_id, &hash).await?;
-		if agreement.content_commitment != H256::from(content_commitment) {
-			return Err(ChainError::Rejected("content commitment mismatch".into()));
-		}
+		let _ = content_commitment;
 		let terminal =
 			matches!(agreement.status, AgreementStatus::Cancelled | AgreementStatus::Expired);
 		if !terminal {
@@ -268,78 +408,265 @@ impl ChainAuthority for FinalizedRuntimeAuthority {
 					.into(),
 			));
 		}
-		Ok(self.authorization(agreement, hash))
+		let bytes = agreement.bytes;
+		Ok(self.authorization(agreement, hash, bytes))
 	}
 
 	async fn challenge_duties(
 		&self,
-		after_block: Option<u32>,
+		_after_block: Option<u32>,
 	) -> Result<ChallengeBatch, ChainError> {
-		let (hash, finalized_number) = self.finalized_context().await?;
-		let (start, scan_end, safe_cursor) = challenge_scan_window(finalized_number, after_block)?;
-		// Future due buckets are deliberately rescanned. Advancing a durable cursor beyond
-		// finalized height would skip a duty created later for a due block already inspected in
-		// an older state.
-		let mut duties = Vec::new();
-		if start <= scan_end {
-			for block in start..=scan_end {
-				let mut cursor = None;
-				loop {
-					let params = (block, cursor, API_PAGE_SIZE).encode();
-					let page: Page<ChallengeInfo<AccountId32, H256, u32>> = self
-						.runtime_call("StorageProviderApi_challenges_at", params, &hash)
-						.await?;
-					ensure_version(page.version)?;
-					for challenge in page.items {
-						if challenge.provider == self.provider
-							&& challenge.status == ChallengeStatus::Open
-							&& finalized_number <= challenge.due_at
-						{
-							let agreement =
-								self.agreement(challenge.agreement_id.into(), &hash).await?;
-							duties.push(ChallengeDuty {
-								challenge_id: format!("{:#x}", challenge.challenge_id),
-								agreement_id: format!("{:#x}", challenge.agreement_id),
-								content_commitment: format!("{:#x}", agreement.content_commitment),
-								expected_commitment: format!(
-									"{:#x}",
-									challenge.expected_commitment
-								),
-								due_at: challenge.due_at,
-								observed_at: hash.clone(),
-							});
-						}
-					}
-					cursor = page.next_cursor;
-					if cursor.is_none() {
-						break;
-					}
+		Err(ChainError::Rejected(
+			"legacy content-challenge intake is not valid for checkpoint duty API v9".into(),
+		))
+	}
+
+	async fn checkpoint_duties(
+		&self,
+		request: Option<CheckpointDutyPageRequest>,
+	) -> Result<CheckpointDutyBatch, ChainError> {
+		let provider_bytes: &[u8] = self.provider.as_ref();
+		let provider = format!("0x{}", hex::encode(provider_bytes));
+		let (finalized_hash, finalized_number, expected_snapshot, requested_cursor) = match request
+		{
+			None => {
+				let (hash, number) = self.finalized_context().await?;
+				canonical_hash(&hash)?;
+				(hash, number, None, None)
+			},
+			Some(request) => {
+				if request.provider != provider {
+					return Err(ChainError::DutyProtocol(
+						"resume request belongs to another provider".into(),
+					));
 				}
-			}
+				canonical_hash(&request.finalized_hash)?;
+				if request.cursor.snapshot_checkpoint != request.snapshot_checkpoint {
+					return Err(ChainError::DutyProtocol(
+						"resume cursor belongs to another snapshot".into(),
+					));
+				}
+				let cursor = decode_checkpoint_cursor(&request.cursor)?;
+				let header: RpcHeader = self
+					.client
+					.request("chain_getHeader", rpc_params![request.finalized_hash.clone()])
+					.await
+					.map_err(|error| ChainError::Rpc(error.to_string()))?;
+				let number = u32::from_str_radix(header.number.trim_start_matches("0x"), 16)
+					.map_err(|error| ChainError::Decode(error.to_string()))?;
+				if number != request.finalized_number {
+					return Err(ChainError::DutyProtocol(
+						"resume finalized hash and number disagree".into(),
+					));
+				}
+				self.ensure_provider(&request.finalized_hash, number).await?;
+				(request.finalized_hash, number, Some(request.snapshot_checkpoint), Some(cursor))
+			},
+		};
+		let params =
+			(self.provider.clone(), requested_cursor.clone(), MAX_CHECKPOINT_DUTY_PAGE_SIZE)
+				.encode();
+		let result: Result<
+			CheckpointDutyPage<CheckpointDutyInfo<AccountId32, H256, u32>, u32>,
+			CheckpointDutyPageError,
+		> = self
+			.runtime_call("StorageProviderApi_checkpoint_duties", params, &finalized_hash)
+			.await?;
+		let page = result.map_err(|error| {
+			ChainError::DutyProtocol(format!("runtime rejected checkpoint duty page: {error:?}"))
+		})?;
+		if page.version != RESPONSE_VERSION {
+			return Err(ChainError::DutyProtocol(format!(
+				"checkpoint duty page response version {} is not {RESPONSE_VERSION}",
+				page.version
+			)));
 		}
-		Ok(ChallengeBatch {
+		if expected_snapshot.is_some_and(|expected| expected != page.snapshot_checkpoint) {
+			return Err(ChainError::DutyProtocol(
+				"checkpoint duty snapshot changed while resuming fixed finalized state".into(),
+			));
+		}
+		let snapshot_checkpoint = page.snapshot_checkpoint;
+		let mut duties = Vec::with_capacity(page.items.len());
+		let mut last_key = None;
+		for duty in page.items {
+			last_key = Some(duty.bucket_id.encode());
+			duties.push(validate_checkpoint_duty(
+				duty,
+				&self.provider,
+				self.service_key,
+				snapshot_checkpoint,
+			)?);
+		}
+		let next_cursor = match page.next_cursor {
+			Some(cursor) => {
+				if cursor.snapshot_checkpoint != snapshot_checkpoint {
+					return Err(ChainError::DutyProtocol(
+						"checkpoint duty cursor has the wrong snapshot".into(),
+					));
+				}
+				if last_key.as_ref() != Some(&cursor.last_key) {
+					return Err(ChainError::DutyProtocol(
+						"checkpoint duty cursor does not bind the page tail".into(),
+					));
+				}
+				if requested_cursor.as_ref() == Some(&cursor) {
+					return Err(ChainError::DutyProtocol(
+						"checkpoint duty cursor did not advance".into(),
+					));
+				}
+				Some(encode_checkpoint_cursor(cursor))
+			},
+			None => None,
+		};
+		Ok(CheckpointDutyBatch {
+			finalized_hash,
 			finalized_number,
-			finalized_hash: hash,
-			scanned_through: safe_cursor,
+			provider,
+			snapshot_checkpoint,
+			requested_cursor: requested_cursor.map(encode_checkpoint_cursor),
+			next_cursor,
 			duties,
 		})
 	}
 }
 
-fn challenge_scan_window(
-	finalized_number: u32,
-	after_block: Option<u32>,
-) -> Result<(u32, u32, u32), ChainError> {
-	if after_block.is_some_and(|cursor| cursor > finalized_number) {
-		return Err(ChainError::Rejected(
-			"finalized height regressed behind the challenge scan cursor".into(),
+fn canonical_hash(value: &str) -> Result<(), ChainError> {
+	let raw = hex::decode(value.strip_prefix("0x").ok_or_else(|| {
+		ChainError::DutyProtocol("checkpoint duty hash is not 0x-prefixed".into())
+	})?)
+	.map_err(|_| ChainError::DutyProtocol("checkpoint duty hash is not hexadecimal".into()))?;
+	if raw.len() != 32 || format!("0x{}", hex::encode(raw)) != value {
+		return Err(ChainError::DutyProtocol(
+			"checkpoint duty hash is not canonical 32-byte lowercase hex".into(),
 		));
 	}
-	Ok((
-		finalized_number,
-		finalized_number.saturating_add(MAX_CHALLENGE_BLOCK_CATCHUP),
-		finalized_number,
-	))
+	Ok(())
+}
+
+fn decode_checkpoint_cursor(
+	cursor: &CheckpointDutyScanCursor,
+) -> Result<CheckpointDutyCursor<u32>, ChainError> {
+	canonical_hash(&cursor.last_key)?;
+	Ok(CheckpointDutyCursor {
+		snapshot_checkpoint: cursor.snapshot_checkpoint,
+		last_key: hex::decode(cursor.last_key.trim_start_matches("0x"))
+			.expect("canonical_hash checked hexadecimal"),
+	})
+}
+
+fn encode_checkpoint_cursor(cursor: CheckpointDutyCursor<u32>) -> CheckpointDutyScanCursor {
+	CheckpointDutyScanCursor {
+		snapshot_checkpoint: cursor.snapshot_checkpoint,
+		last_key: format!("0x{}", hex::encode(cursor.last_key)),
+	}
+}
+
+pub(crate) fn validate_checkpoint_duty(
+	duty: CheckpointDutyInfo<AccountId32, H256, u32>,
+	provider: &AccountId32,
+	service_key: [u8; 32],
+	snapshot_checkpoint: u32,
+) -> Result<CheckpointDuty, ChainError> {
+	if duty.response_version != RESPONSE_VERSION {
+		return Err(ChainError::DutyProtocol(format!(
+			"checkpoint duty response version {} is not {RESPONSE_VERSION}",
+			duty.response_version
+		)));
+	}
+	if duty.snapshot_checkpoint != snapshot_checkpoint {
+		return Err(ChainError::DutyProtocol("checkpoint duty has the wrong snapshot".into()));
+	}
+	let mut expected = Vec::with_capacity(duty.replicas.len().saturating_add(1));
+	expected.push((&duty.primary, ProviderDutyRole::Primary, 0u8));
+	for (index, replica) in duty.replicas.iter().enumerate() {
+		expected.push((replica, ProviderDutyRole::Replica, index.saturating_add(1) as u8));
+	}
+	if duty.authorities.len() != expected.len() {
+		return Err(ChainError::DutyProtocol(
+			"checkpoint duty authority set does not match its provider audience".into(),
+		));
+	}
+	let mut local = None;
+	for ((expected_provider, expected_role, expected_order), authority) in
+		expected.iter().zip(&duty.authorities)
+	{
+		if authority.provider != **expected_provider ||
+			authority.role != *expected_role ||
+			authority.order != *expected_order
+		{
+			return Err(ChainError::DutyProtocol(
+				"checkpoint duty authority ordering does not match its provider audience".into(),
+			));
+		}
+		if &authority.provider == provider {
+			if local.is_some() {
+				return Err(ChainError::DutyProtocol(
+					"checkpoint duty addresses the local provider more than once".into(),
+				));
+			}
+			local = Some(authority);
+		}
+	}
+	let local = local.ok_or_else(|| {
+		ChainError::DutyProtocol("checkpoint duty is addressed to another provider".into())
+	})?;
+	if local.active_service_key != service_key {
+		return Err(ChainError::DutyProtocol(
+			"checkpoint duty service key does not match the local finalized key".into(),
+		));
+	}
+	if let Some(initiator) = duty.initiator.as_ref() {
+		let Some(authority) = duty.authorities.iter().find(|item| &item.provider == initiator)
+		else {
+			return Err(ChainError::DutyProtocol(
+				"checkpoint duty initiator is outside its provider audience".into(),
+			));
+		};
+		if !authority.may_initiate {
+			return Err(ChainError::DutyProtocol(
+				"checkpoint duty initiator is not authorized to initiate".into(),
+			));
+		}
+	}
+	let role = match local.role {
+		ProviderDutyRole::Primary => CheckpointDutyRole::Primary,
+		ProviderDutyRole::Replica => CheckpointDutyRole::Replica,
+	};
+	let phase = match duty.phase {
+		RuntimeCheckpointDutyPhase::NotDue => CheckpointDutyPhase::NotDue,
+		RuntimeCheckpointDutyPhase::Primary => CheckpointDutyPhase::Primary,
+		RuntimeCheckpointDutyPhase::ReplicaFallback => CheckpointDutyPhase::ReplicaFallback,
+		RuntimeCheckpointDutyPhase::ReplicaFallbackPromotion =>
+			CheckpointDutyPhase::ReplicaFallbackPromotion,
+		RuntimeCheckpointDutyPhase::BlockedInsufficientFallbackQuorum =>
+			CheckpointDutyPhase::BlockedInsufficientFallbackQuorum,
+		RuntimeCheckpointDutyPhase::Unavailable => CheckpointDutyPhase::Unavailable,
+	};
+	let mode = match duty.mode {
+		RuntimeCheckpointDutyMode::Standard => CheckpointDutyMode::Standard,
+		RuntimeCheckpointDutyMode::PromotionPending => CheckpointDutyMode::PromotionPending,
+	};
+	let encoded = duty.encode();
+	let provider_bytes: &[u8] = provider.as_ref();
+	Ok(CheckpointDuty {
+		duty_id: format!("{:#x}", duty.duty_id),
+		bucket_id: format!("{:#x}", duty.bucket_id),
+		provider: format!("0x{}", hex::encode(provider_bytes)),
+		role,
+		service_key_version: local.active_service_key_version,
+		service_key: format!("0x{}", hex::encode(local.active_service_key)),
+		snapshot_checkpoint,
+		snapshot_hash: format!("{:#x}", duty.snapshot_hash),
+		due_at: duty.due_at,
+		grace_until: duty.grace_until,
+		phase,
+		mode,
+		may_sign: local.may_sign,
+		may_initiate: local.may_initiate,
+		encoded_duty: format!("0x{}", hex::encode(&encoded)),
+		duty_fingerprint: format!("0x{}", hex::encode(sp_crypto_hashing::blake2_256(&encoded))),
+	})
 }
 
 fn ensure_version(version: u16) -> Result<(), ChainError> {
@@ -355,16 +682,4 @@ fn ensure_version(version: u16) -> Result<(), ChainError> {
 #[derive(Deserialize)]
 struct RpcHeader {
 	number: String,
-}
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-
-	#[test]
-	fn future_scan_window_never_advances_safe_cursor_past_finality() {
-		assert_eq!(challenge_scan_window(50, Some(49)).unwrap(), (50, 178, 50));
-		assert!(challenge_scan_window(50, Some(51)).is_err());
-		assert_eq!(challenge_scan_window(u32::MAX, None).unwrap(), (u32::MAX, u32::MAX, u32::MAX));
-	}
 }

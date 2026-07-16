@@ -34,16 +34,19 @@ mod workers;
 pub use api::{serve, ApiConfig, ProviderService};
 pub use chain::{
 	AgreementAuthorization, ChainAuthority, ChainError, ChallengeBatch, ChallengeDuty,
-	FinalizedRuntimeAuthority,
+	CheckpointDuty, CheckpointDutyBatch, CheckpointDutyMode, CheckpointDutyPageRequest,
+	CheckpointDutyPhase, CheckpointDutyRole, CheckpointDutyScanCursor, FinalizedRuntimeAuthority,
 };
 pub use storage::{
-	ChunkProof, CommitInput, ContentRecord, DiskStore, NodeProfile, PendingDeletion,
-	PendingRootSubmission, ProviderStats, RootObservation, SignedCheckpoint, StoreError,
+	CheckpointDutyWatermark, ChunkProof, CommitInput, ContentRecord, DiskStore, NodeProfile,
+	PendingDeletion, PendingRootSubmission, ProviderStats, RootObservation, SignedCheckpoint,
+	StoreError,
 };
 pub use workers::{
-	run_workers, CheckpointSubmission, CheckpointSubmitter, ContentDeletionSubmission,
-	JsonlCheckpointOutbox, ProviderRootSubmission, ProviderSubmission, WorkerConfig,
+	poll_checkpoint_duties_once, run_workers, CheckpointSubmission, CheckpointSubmitter,
+	ContentDeletionSubmission, JsonlCheckpointOutbox, ProviderRootSubmission, ProviderSubmission,
+	WorkerConfig,
 };
 
 /// Protocol version shared by persisted records and HTTP responses.
-pub const PROTOCOL_VERSION: u16 = 4;
+pub const PROTOCOL_VERSION: u16 = 5;

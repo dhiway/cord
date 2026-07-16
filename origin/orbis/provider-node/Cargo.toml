@@ -8,6 +8,15 @@ license.workspace = true
 repository.workspace = true
 publish = false
 
+[features]
+default = ["outbox"]
+outbox = ["dep:origin-rs"]
+
+[[bin]]
+name = "origin-orbis-provider-outbox"
+path = "src/bin/origin-orbis-provider-outbox.rs"
+required-features = ["outbox"]
+
 [lints]
 workspace = true
 
@@ -23,7 +32,7 @@ http-body-util = { workspace = true }
 hyper = { workspace = true, features = ["http1", "server"] }
 hyper-util = { workspace = true, features = ["tokio"] }
 jsonrpsee = { workspace = true, features = ["http-client"] }
-origin-rs = { path = "../../../origin-rs" }
+origin-rs = { path = "../../../origin-rs", optional = true }
 orbis-storage-runtime-api = { workspace = true, default-features = true }
 serde = { workspace = true, features = ["derive"], default-features = true }
 serde_json = { workspace = true, default-features = true }

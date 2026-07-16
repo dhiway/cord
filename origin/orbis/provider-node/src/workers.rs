@@ -39,6 +39,8 @@ use crate::{
 	SignedCheckpoint,
 };
 
+const MAX_CHECKPOINT_DUTY_PAGES_PER_POLL: usize = 4_096;
+
 /// Durable request consumed by the CORD-owned Orbis signer/nonce/finality pipeline.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -231,6 +233,8 @@ pub struct WorkerConfig {
 	pub challenge_interval: Duration,
 	/// Replica/index integrity observation cadence.
 	pub replica_observation_interval: Duration,
+	/// Finalized checkpoint-duty intake cadence.
+	pub checkpoint_duty_interval: Duration,
 }
 
 impl Default for WorkerConfig {
@@ -239,6 +243,7 @@ impl Default for WorkerConfig {
 			checkpoint_interval: Duration::from_secs(60),
 			challenge_interval: Duration::from_secs(6),
 			replica_observation_interval: Duration::from_secs(30),
+			checkpoint_duty_interval: Duration::from_secs(6),
 		}
 	}
 }
@@ -254,6 +259,8 @@ pub async fn run_workers<A: ChainAuthority>(
 	challenge.set_missed_tick_behavior(MissedTickBehavior::Skip);
 	let mut replica = interval(config.replica_observation_interval);
 	replica.set_missed_tick_behavior(MissedTickBehavior::Skip);
+	let mut checkpoint_duty = interval(config.checkpoint_duty_interval);
+	checkpoint_duty.set_missed_tick_behavior(MissedTickBehavior::Skip);
 	let mut last_scanned_due_block = None;
 	loop {
 		tokio::select! {
@@ -307,8 +314,44 @@ pub async fn run_workers<A: ChainAuthority>(
 					eprintln!("replica sync coordinator detected local inconsistency: {error}");
 				}
 			},
+			_ = checkpoint_duty.tick() => {
+				if let Err(error) = poll_checkpoint_duties_once(&service).await {
+					eprintln!("checkpoint duty intake failed: {error}");
+				}
+			},
 		}
 	}
+}
+
+/// Poll and durably stage one complete fixed-finalized-state checkpoint-duty snapshot.
+///
+/// Each non-terminal page is fsynced before its exact cursor is used. A retry or restart resumes
+/// the same finalized hash; pending duties become visible only after the terminal page is
+/// installed.
+pub async fn poll_checkpoint_duties_once<A: ChainAuthority>(
+	service: &ProviderService<A>,
+) -> Result<usize, String> {
+	let mut installed = 0usize;
+	for _ in 0..MAX_CHECKPOINT_DUTY_PAGES_PER_POLL {
+		let request = service
+			.store()
+			.checkpoint_duty_resume_request()
+			.map_err(|error| error.to_string())?;
+		let page = service
+			.authority()
+			.checkpoint_duties(request)
+			.await
+			.map_err(|error| error.to_string())?;
+		installed = installed.saturating_add(page.duties.len());
+		if service
+			.store()
+			.stage_checkpoint_duty_page(page)
+			.map_err(|error| error.to_string())?
+		{
+			return Ok(installed);
+		}
+	}
+	Err("checkpoint duty page bound exceeded".into())
 }
 
 fn checkpoint_for_duty<A: ChainAuthority>(
@@ -456,6 +499,13 @@ mod tests {
 		) -> Result<ChallengeBatch, ChainError> {
 			Err(ChainError::Rejected("unused test authority".into()))
 		}
+
+		async fn checkpoint_duties(
+			&self,
+			_request: Option<crate::CheckpointDutyPageRequest>,
+		) -> Result<crate::CheckpointDutyBatch, ChainError> {
+			Err(ChainError::Decode("injected checkpoint duty decode failure".into()))
+		}
 	}
 
 	impl FaultOutbox {
@@ -531,6 +581,17 @@ mod tests {
 			sp_core::sr25519::Pair::from_seed(&[7u8; 32]),
 			Arc::new(FaultOutbox::default()),
 		)
+	}
+
+	#[tokio::test]
+	async fn checkpoint_duty_authority_failure_cannot_advance_durable_intake() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		let service = service(store.clone());
+		assert!(poll_checkpoint_duties_once(&service).await.is_err());
+		assert!(store.checkpoint_duty_resume_request().unwrap().is_none());
+		assert!(store.checkpoint_duty_watermark().unwrap().is_none());
+		assert!(store.pending_checkpoint_duties().unwrap().is_empty());
 	}
 
 	#[tokio::test]
