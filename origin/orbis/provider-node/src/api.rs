@@ -41,8 +41,9 @@ use sp_core::{ed25519, Pair as _};
 use tokio::net::TcpListener;
 
 use crate::{
-	workers::flush_pending_submissions, ChainAuthority, CheckpointSubmitter, CommitInput,
-	DiskStore, NodeProfile, RootObservation, SignedCheckpoint, StoreError, PROTOCOL_VERSION,
+	checkpoint_stack::CheckpointStack, workers::flush_pending_submissions, ChainAuthority,
+	CheckpointSubmitter, CommitInput, ContentError, DiskStore, NodeProfile, RootObservation,
+	SignedCheckpoint, StoreError, PROTOCOL_VERSION,
 };
 
 type Body = Full<Bytes>;
@@ -63,6 +64,7 @@ pub struct ApiConfig {
 /// Shared provider service state.
 pub struct ProviderService<A: ChainAuthority> {
 	store: Arc<DiskStore>,
+	checkpoint_stack: CheckpointStack,
 	authority: Arc<A>,
 	service_key: ed25519::Pair,
 	outbox: Arc<dyn CheckpointSubmitter>,
@@ -77,15 +79,17 @@ impl<A: ChainAuthority> ProviderService<A> {
 		authority: Arc<A>,
 		service_key: ed25519::Pair,
 		outbox: Arc<dyn CheckpointSubmitter>,
-	) -> Self {
-		Self {
+	) -> Result<Self, ContentError> {
+		let checkpoint_stack = CheckpointStack::open(store.root())?;
+		Ok(Self {
 			store,
+			checkpoint_stack,
 			authority,
 			service_key,
 			outbox,
 			root_outbox_lock: tokio::sync::Mutex::new(()),
 			started_unix_ms: now_ms(),
-		}
+		})
 	}
 
 	/// Access the local store for worker orchestration.
@@ -96,6 +100,12 @@ impl<A: ChainAuthority> ProviderService<A> {
 	/// Access the finalized chain authority for challenge coordination.
 	pub fn authority(&self) -> &Arc<A> {
 		&self.authority
+	}
+
+	/// Access the private checkpoint kernels for in-crate orchestration.
+	#[allow(dead_code)]
+	pub(crate) fn checkpoint_stack(&self) -> &CheckpointStack {
+		&self.checkpoint_stack
 	}
 
 	pub(crate) fn outbox(&self) -> &Arc<dyn CheckpointSubmitter> {

@@ -93,7 +93,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		service_key.public().0,
 	)?);
 	let submitter = Arc::new(JsonlCheckpointOutbox::new(outbox_path));
-	let service = Arc::new(ProviderService::new(store, authority, service_key, submitter));
+	let service = Arc::new(ProviderService::new(store, authority, service_key, submitter)?);
 	let api = ApiConfig {
 		listen: cli.listen,
 		bearer_token_hash: *blake3::hash(bearer.as_bytes()).as_bytes(),

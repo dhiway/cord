@@ -582,6 +582,7 @@ mod tests {
 			sp_core::ed25519::Pair::from_seed(&[7u8; 32]),
 			Arc::new(FaultOutbox::default()),
 		)
+		.unwrap()
 	}
 
 	#[tokio::test]

@@ -88,11 +88,17 @@ impl CheckpointStack {
 
 #[cfg(test)]
 mod tests {
-	use std::fs;
+	use std::{fs, path::Path, sync::Arc};
 
+	use async_trait::async_trait;
+	use sp_core::Pair as _;
 	use tempfile::TempDir;
 
 	use super::*;
+	use crate::{
+		AgreementAuthorization, ChainAuthority, ChainError, ChallengeBatch, CheckpointDutyBatch,
+		CheckpointDutyPageRequest, DiskStore, JsonlCheckpointOutbox, NodeProfile, ProviderService,
+	};
 
 	const DURABLE_ROOTS: [&str; 11] = [
 		"streaming-v1",
@@ -107,6 +113,64 @@ mod tests {
 		"checkpoint-publications-v1",
 		"checkpoint-promotions-v1",
 	];
+
+	struct NoopAuthority;
+
+	#[async_trait]
+	impl ChainAuthority for NoopAuthority {
+		async fn authorize_commit(
+			&self,
+			_agreement_id: [u8; 32],
+			_content_commitment: [u8; 32],
+			_bytes: u64,
+		) -> Result<AgreementAuthorization, ChainError> {
+			Err(ChainError::Rejected("unused test authority".into()))
+		}
+
+		async fn authorize_delete(
+			&self,
+			_agreement_id: [u8; 32],
+			_content_commitment: [u8; 32],
+		) -> Result<AgreementAuthorization, ChainError> {
+			Err(ChainError::Rejected("unused test authority".into()))
+		}
+
+		async fn challenge_duties(
+			&self,
+			_after_block: Option<u32>,
+		) -> Result<ChallengeBatch, ChainError> {
+			Err(ChainError::Rejected("unused test authority".into()))
+		}
+
+		async fn checkpoint_duties(
+			&self,
+			_request: Option<CheckpointDutyPageRequest>,
+		) -> Result<CheckpointDutyBatch, ChainError> {
+			Err(ChainError::Rejected("unused test authority".into()))
+		}
+	}
+
+	fn profile() -> NodeProfile {
+		let service_key = sp_core::ed25519::Pair::from_seed(&[7u8; 32]).public();
+		NodeProfile {
+			provider: "01".repeat(32),
+			endpoint: "http://127.0.0.1:8080".into(),
+			service_key: hex::encode(service_key.0),
+			region: None,
+		}
+	}
+
+	fn service(
+		store: Arc<DiskStore>,
+		root: &Path,
+	) -> Result<ProviderService<NoopAuthority>, ContentError> {
+		ProviderService::new(
+			store,
+			Arc::new(NoopAuthority),
+			sp_core::ed25519::Pair::from_seed(&[7u8; 32]),
+			Arc::new(JsonlCheckpointOutbox::new(root.join("test-outbox.jsonl"))),
+		)
+	}
 
 	#[test]
 	fn one_stack_opens_every_kernel_and_releases_owned_intents() {
@@ -142,5 +206,37 @@ mod tests {
 			.unwrap();
 		assert!(matches!(CheckpointStack::open(first.path()), Err(ContentError::IntegrityFailed)));
 		assert!(CheckpointStack::open(second.path()).is_ok());
+	}
+
+	#[test]
+	fn provider_service_owns_all_checkpoint_roots_under_its_disk_store() {
+		let temp = TempDir::new().unwrap();
+		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		let service = service(store, temp.path()).unwrap();
+
+		assert!(service.checkpoint_stack().submission_heads().unwrap().is_empty());
+		assert_eq!(service.store().root(), temp.path());
+		for durable_root in DURABLE_ROOTS {
+			let path = temp.path().join(durable_root);
+			assert!(path.is_dir(), "missing durable root {durable_root}");
+			assert_eq!(path.parent(), Some(temp.path()));
+		}
+	}
+
+	#[test]
+	fn provider_service_fails_closed_for_every_corrupt_checkpoint_root() {
+		for durable_root in DURABLE_ROOTS {
+			let temp = TempDir::new().unwrap();
+			let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+			drop(service(store.clone(), temp.path()).unwrap());
+			let corrupt_path = temp.path().join(durable_root);
+			fs::remove_dir_all(&corrupt_path).unwrap();
+			fs::write(&corrupt_path, b"corrupt durable-root shape").unwrap();
+
+			assert!(
+				service(store, temp.path()).is_err(),
+				"service opened corrupt durable root {durable_root}"
+			);
+		}
 	}
 }

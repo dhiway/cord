@@ -364,6 +364,11 @@ impl DiskStore {
 		Ok(store)
 	}
 
+	/// Return the provider data root for co-located private durable kernels.
+	pub(crate) fn root(&self) -> &Path {
+		&self.root
+	}
+
 	/// Compute the canonical off-chain content commitment.
 	pub fn content_commitment(bytes: &[u8]) -> [u8; 32] {
 		sp_crypto_hashing::blake2_256(bytes)
