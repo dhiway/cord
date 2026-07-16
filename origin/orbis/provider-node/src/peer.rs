@@ -36,12 +36,12 @@ const CHUNK_REQUEST_TAG: &[u8] = b"cord/provider/peer-replication/chunk-request/
 const CHUNK_RESPONSE_TAG: &[u8] = b"cord/provider/peer-replication/chunk-response/v1";
 
 /// Canonical source registry used to derive [`REGISTRY_SHA256`].
-const REGISTRY: &[u8] = b"cord.provider.peer-replication.scale.v1|context=domain:[u8;33],registry_hash:[u8;32],genesis_hash:[u8;32],finalized_hash:[u8;32],finalized_number:u32,bucket:[u8;32],source_provider:[u8;32],target_provider:[u8;32],source_key_version:u64,source_key:[u8;32],target_key_version:u64,target_key:[u8;32],source_endpoint_hash:[u8;32],target_endpoint_hash:[u8;32]|identity=operation_id:[u8;16],request_nonce:[u8;16]|page_request=v1,context,identity,cursor:Option<u64>,limit:u16,signature:[u8;64]|page_item=cid:Vec<u8><=96,length:u64<=67108864,sequence:u64,total_size:u64,data_root:[u8;32],leaf_hash:[u8;32],chunk_manifest_hash:[u8;32],chunk_hashes:Vec<[u8;32]><=256|page_response=v1,context,identity,request_hash:[u8;32],requested_cursor:Option<u64>,items:Vec<page_item><=128,next_cursor:Option<u64>,response_hash:[u8;32],signature:[u8;64]|chunk_request=v1,context,identity,item,chunk_index:u16,chunk_hash:[u8;32],signature:[u8;64]|chunk_response=v1,context,identity,request_hash:[u8;32],item,chunk_index:u16,chunk_hash:[u8;32],chunk:Vec<u8><=262144,response_hash:[u8;32],signature:[u8;64]";
+const REGISTRY: &[u8] = b"cord.provider.peer-replication.scale.v1|commitment=mmr_root:[u8;32],start_seq:u64,leaf_count:u64,predecessor_total_size:u64|context=domain:[u8;33],registry_hash:[u8;32],genesis_hash:[u8;32],finalized_hash:[u8;32],finalized_number:u32,bucket:[u8;32],source_provider:[u8;32],target_provider:[u8;32],source_key_version:u64,source_key:[u8;32],target_key_version:u64,target_key:[u8;32],source_endpoint_hash:[u8;32],target_endpoint_hash:[u8;32],commitment:commitment|identity=operation_id:[u8;16],request_nonce:[u8;16]|cursor=last_sequence:u64,cumulative_total:u64|page_request=v1,context,identity,cursor:Option<cursor>,limit:u16,signature:[u8;64]|page_item=cid:Vec<u8><=96,length:u64<=67108864,sequence:u64,total_size:u64,data_root:[u8;32],leaf_hash:[u8;32],chunk_manifest_hash:[u8;32],chunk_hashes:Vec<[u8;32]><=256|page_response=v1,context,identity,request_hash:[u8;32],requested_cursor:Option<cursor>,items:Vec<page_item><=128,next_cursor:Option<cursor>,response_hash:[u8;32],signature:[u8;64]|chunk_request=v1,context,identity,item,chunk_index:u16,chunk_hash:[u8;32],signature:[u8;64]|chunk_response=v1,context,identity,request_hash:[u8;32],item,chunk_index:u16,chunk_hash:[u8;32],chunk:Vec<u8><=262144,response_hash:[u8;32],signature:[u8;64]";
 
 /// SHA-256 of the complete canonical registry declaration above.
 const REGISTRY_SHA256: [u8; 32] = [
-	66, 70, 74, 74, 134, 91, 121, 65, 104, 242, 154, 67, 229, 12, 110, 12, 208, 11, 232, 94, 225,
-	46, 212, 193, 158, 177, 62, 95, 54, 181, 255, 143,
+	58, 222, 156, 89, 28, 203, 225, 54, 189, 131, 179, 112, 132, 254, 92, 77, 127, 8, 255, 120,
+	198, 189, 78, 95, 65, 134, 54, 246, 21, 75, 180, 240,
 ];
 
 const MAX_PAGE_ITEMS: usize = 128;
@@ -55,6 +55,86 @@ const MAX_PAGE_RESPONSE_ENCODED: usize = 2 * 1024 * 1024;
 // conservative fixed allowance for the context, CID, leaf, identities, hashes, signature and SCALE
 // length prefixes after accounting for the manifest separately.
 const MAX_CHUNK_RESPONSE_ENCODED: usize = CHUNK_BYTES + MAX_CHUNK_MANIFEST_BYTES + 4 * 1024;
+
+/// Exact candidate MMR range that a replication operation must reconstruct.
+#[derive(Clone, Copy, Debug, Decode, Encode, Eq, PartialEq)]
+pub(crate) struct PeerMmrCommitmentV1 {
+	mmr_root: [u8; 32],
+	start_seq: u64,
+	leaf_count: u64,
+	predecessor_total_size: u64,
+}
+
+impl PeerMmrCommitmentV1 {
+	/// Build a non-empty, overflow-safe candidate commitment.
+	pub(crate) fn new(
+		mmr_root: [u8; 32],
+		start_seq: u64,
+		leaf_count: u64,
+		predecessor_total_size: u64,
+	) -> Result<Self, ContentError> {
+		let commitment = Self { mmr_root, start_seq, leaf_count, predecessor_total_size };
+		commitment.validate()?;
+		Ok(commitment)
+	}
+
+	/// Return the committed MMR root.
+	pub(crate) fn mmr_root(&self) -> [u8; 32] {
+		self.mmr_root
+	}
+
+	/// Return the half-open committed sequence range.
+	pub(crate) fn sequence_range(&self) -> (u64, u64) {
+		(self.start_seq, self.end_exclusive().expect("validated commitment cannot overflow"))
+	}
+
+	/// Return the cumulative total immediately before the first committed leaf.
+	pub(crate) fn predecessor_total_size(&self) -> u64 {
+		self.predecessor_total_size
+	}
+
+	/// Verify the reconstructed local MMR before a caller confirms replication.
+	pub(crate) fn verify_local_root(&self, local_root: [u8; 32]) -> Result<(), ContentError> {
+		if local_root != self.mmr_root {
+			return Err(ContentError::IntegrityFailed);
+		}
+		Ok(())
+	}
+
+	fn end_exclusive(&self) -> Result<u64, ContentError> {
+		self.start_seq.checked_add(self.leaf_count).ok_or(ContentError::IntegrityFailed)
+	}
+
+	fn validate(&self) -> Result<(), ContentError> {
+		if self.mmr_root == [0; 32]
+			|| self.leaf_count == 0
+			|| (self.start_seq == 0 && self.predecessor_total_size != 0)
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+		self.end_exclusive()?;
+		Ok(())
+	}
+}
+
+/// Source-authenticated continuation state for an exact MMR prefix.
+#[derive(Clone, Copy, Debug, Decode, Encode, Eq, PartialEq)]
+pub(crate) struct PeerPageCursorV1 {
+	last_sequence: u64,
+	cumulative_total: u64,
+}
+
+impl PeerPageCursorV1 {
+	/// Build the continuation state emitted for the last item in a non-terminal page.
+	pub(crate) fn new(last_sequence: u64, cumulative_total: u64) -> Self {
+		Self { last_sequence, cumulative_total }
+	}
+
+	/// Return `(last sequence, cumulative total)`.
+	pub(crate) fn position(&self) -> (u64, u64) {
+		(self.last_sequence, self.cumulative_total)
+	}
+}
 
 /// Exact finalized registry and peer audience bound into every message.
 #[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
@@ -73,6 +153,7 @@ pub(crate) struct PeerContextV1 {
 	target_service_key: [u8; 32],
 	source_endpoint_hash: [u8; 32],
 	target_endpoint_hash: [u8; 32],
+	commitment: PeerMmrCommitmentV1,
 }
 
 impl PeerContextV1 {
@@ -91,6 +172,7 @@ impl PeerContextV1 {
 		target_service_key: [u8; 32],
 		source_endpoint_hash: [u8; 32],
 		target_endpoint_hash: [u8; 32],
+		commitment: PeerMmrCommitmentV1,
 	) -> Result<Self, ContentError> {
 		let context = Self {
 			domain: DOMAIN,
@@ -107,6 +189,7 @@ impl PeerContextV1 {
 			target_service_key,
 			source_endpoint_hash,
 			target_endpoint_hash,
+			commitment,
 		};
 		context.validate()?;
 		Ok(context)
@@ -132,6 +215,11 @@ impl PeerContextV1 {
 		self.target_provider
 	}
 
+	/// Return the exact candidate MMR that replication must reconstruct.
+	pub(crate) fn candidate_commitment(&self) -> PeerMmrCommitmentV1 {
+		self.commitment
+	}
+
 	fn validate(&self) -> Result<(), ContentError> {
 		if self.domain != DOMAIN || self.registry_hash != REGISTRY_SHA256 {
 			return Err(ContentError::IntegrityFailed);
@@ -152,6 +240,7 @@ impl PeerContextV1 {
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
+		self.commitment.validate()?;
 		Ok(())
 	}
 
@@ -264,6 +353,9 @@ impl PeerObjectV1 {
 		if self.length > MAX_STORED_BYTES {
 			return Err(ContentError::ObjectTooLarge);
 		}
+		if self.length == 0 && self.data_root != sp_crypto_hashing::blake2_256(&[]) {
+			return Err(ContentError::IntegrityFailed);
+		}
 		let chunk_count =
 			if self.length == 0 { 0 } else { self.length.div_ceil(CHUNK_BYTES as u64) as usize };
 		if self.chunk_hashes.len() != chunk_count
@@ -292,7 +384,7 @@ impl PeerObjectV1 {
 pub(crate) struct PeerPageExpectationV1 {
 	context: PeerContextV1,
 	identity: PeerRequestIdentityV1,
-	cursor: Option<u64>,
+	cursor: Option<PeerPageCursorV1>,
 	limit: u16,
 }
 
@@ -301,7 +393,7 @@ impl PeerPageExpectationV1 {
 	pub(crate) fn new(
 		context: PeerContextV1,
 		identity: PeerRequestIdentityV1,
-		cursor: Option<u64>,
+		cursor: Option<PeerPageCursorV1>,
 		limit: u16,
 	) -> Result<Self, ContentError> {
 		context.validate()?;
@@ -309,6 +401,7 @@ impl PeerPageExpectationV1 {
 		if limit == 0 || usize::from(limit) > MAX_PAGE_ITEMS {
 			return Err(ContentError::SchemaInvalid);
 		}
+		validate_cursor(&context.commitment, cursor)?;
 		Ok(Self { context, identity, cursor, limit })
 	}
 }
@@ -319,7 +412,7 @@ pub(crate) struct PeerSyncPageRequestV1 {
 	version: u8,
 	context: PeerContextV1,
 	identity: PeerRequestIdentityV1,
-	cursor: Option<u64>,
+	cursor: Option<PeerPageCursorV1>,
 	limit: u16,
 	signature: [u8; 64],
 }
@@ -349,7 +442,7 @@ impl PeerSyncPageRequestV1 {
 	}
 
 	/// Return the requested cursor and page bound.
-	pub(crate) fn page(&self) -> (Option<u64>, u16) {
+	pub(crate) fn page(&self) -> (Option<PeerPageCursorV1>, u16) {
 		(self.cursor, self.limit)
 	}
 
@@ -379,7 +472,8 @@ impl PeerSyncPageRequestV1 {
 			return Err(ContentError::SchemaInvalid);
 		}
 		self.context.validate()?;
-		self.identity.validate()
+		self.identity.validate()?;
+		validate_cursor(&self.context.commitment, self.cursor)
 	}
 
 	fn validate_expected(&self, expected: &PeerPageExpectationV1) -> Result<(), ContentError> {
@@ -423,9 +517,9 @@ pub(crate) struct PeerSyncPageResponseV1 {
 	context: PeerContextV1,
 	identity: PeerRequestIdentityV1,
 	request_hash: [u8; 32],
-	requested_cursor: Option<u64>,
+	requested_cursor: Option<PeerPageCursorV1>,
 	items: Vec<PeerObjectV1>,
-	next_cursor: Option<u64>,
+	next_cursor: Option<PeerPageCursorV1>,
 	response_hash: [u8; 32],
 	signature: [u8; 64],
 }
@@ -435,7 +529,7 @@ impl PeerSyncPageResponseV1 {
 	pub(crate) fn new_signed(
 		request: &PeerSyncPageRequestV1,
 		items: Vec<PeerObjectV1>,
-		next_cursor: Option<u64>,
+		next_cursor: Option<PeerPageCursorV1>,
 		source: &ed25519::Pair,
 	) -> Result<Self, ContentError> {
 		request.validate_authentication()?;
@@ -466,7 +560,7 @@ impl PeerSyncPageResponseV1 {
 	}
 
 	/// Return the authenticated continuation cursor.
-	pub(crate) fn next_cursor(&self) -> Option<u64> {
+	pub(crate) fn next_cursor(&self) -> Option<PeerPageCursorV1> {
 		self.next_cursor
 	}
 
@@ -502,25 +596,43 @@ impl PeerSyncPageResponseV1 {
 		}
 		self.context.validate()?;
 		self.identity.validate()?;
+		validate_cursor(&self.context.commitment, self.requested_cursor)?;
 		for item in &self.items {
 			item.validate()?;
 		}
-		let mut expected_sequence = match self.requested_cursor {
-			Some(cursor) => cursor.checked_add(1).ok_or(ContentError::IntegrityFailed)?,
-			None => 0,
+		let commitment = self.context.commitment;
+		let end = commitment.end_exclusive()?;
+		let (mut expected_sequence, mut prior_total) = match self.requested_cursor {
+			Some(cursor) => (
+				cursor.last_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?,
+				cursor.cumulative_total,
+			),
+			None => (commitment.start_seq, commitment.predecessor_total_size),
 		};
+		if self.items.is_empty() {
+			return Err(ContentError::IntegrityFailed);
+		}
 		for item in &self.items {
-			if item.sequence != expected_sequence {
+			if item.sequence != expected_sequence || item.sequence >= end {
 				return Err(ContentError::IntegrityFailed);
 			}
+			let expected_total =
+				prior_total.checked_add(item.length).ok_or(ContentError::IntegrityFailed)?;
+			if item.total_size != expected_total {
+				return Err(ContentError::IntegrityFailed);
+			}
+			prior_total = item.total_size;
 			expected_sequence =
 				expected_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 		}
-		match (self.items.last(), self.next_cursor) {
-			(None, None) => {},
-			(Some(last), Some(next)) if next == last.sequence => {},
-			(Some(_), None) => {},
-			_ => return Err(ContentError::IntegrityFailed),
+		let last = self.items.last().expect("non-empty page checked above");
+		let continuation = PeerPageCursorV1::new(last.sequence, last.total_size);
+		if last.sequence.checked_add(1) == Some(end) {
+			if self.next_cursor.is_some() {
+				return Err(ContentError::IntegrityFailed);
+			}
+		} else if self.next_cursor != Some(continuation) {
+			return Err(ContentError::IntegrityFailed);
 		}
 		Ok(())
 	}
@@ -846,6 +958,23 @@ impl PeerChunkResponseV1 {
 	}
 }
 
+fn validate_cursor(
+	commitment: &PeerMmrCommitmentV1,
+	cursor: Option<PeerPageCursorV1>,
+) -> Result<(), ContentError> {
+	commitment.validate()?;
+	let Some(cursor) = cursor else { return Ok(()) };
+	let end = commitment.end_exclusive()?;
+	let next = cursor.last_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+	if cursor.last_sequence < commitment.start_seq
+		|| next >= end
+		|| cursor.cumulative_total < commitment.predecessor_total_size
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	Ok(())
+}
+
 fn expected_chunk_length(length: u64, index: u16) -> Result<usize, ContentError> {
 	if length > MAX_STORED_BYTES {
 		return Err(ContentError::ObjectTooLarge);
@@ -905,6 +1034,10 @@ mod tests {
 	}
 
 	fn context() -> PeerContextV1 {
+		context_with_commitment(PeerMmrCommitmentV1::new([17; 32], 0, 128, 0).unwrap())
+	}
+
+	fn context_with_commitment(commitment: PeerMmrCommitmentV1) -> PeerContextV1 {
 		PeerContextV1::new(
 			[1; 32],
 			[2; 32],
@@ -918,6 +1051,7 @@ mod tests {
 			pair(12).public().0,
 			[13; 32],
 			[14; 32],
+			commitment,
 		)
 		.unwrap()
 	}
@@ -932,6 +1066,19 @@ mod tests {
 		let chunk_hashes = vec![[sequence as u8 | 1; 32]];
 		PeerObjectV1::new(
 			&CanonicalCid::from_digest([sequence as u8; 32]),
+			length,
+			sequence,
+			total_size,
+			chunk_hashes,
+		)
+		.unwrap()
+	}
+
+	fn sized_object(sequence: u64, length: u64, total_size: u64, seed: u8) -> PeerObjectV1 {
+		let digest = if length == 0 { sp_crypto_hashing::blake2_256(&[]) } else { [seed; 32] };
+		let chunk_hashes = if length == 0 { Vec::new() } else { vec![[seed | 1; 32]] };
+		PeerObjectV1::new(
+			&CanonicalCid::from_digest(digest),
 			length,
 			sequence,
 			total_size,
@@ -967,6 +1114,8 @@ mod tests {
 	#[test]
 	fn registry_hash_and_page_request_identity_are_canonical() {
 		assert_eq!(Sha256::digest(REGISTRY).as_slice(), REGISTRY_SHA256);
+		assert!(PeerMmrCommitmentV1::new([1; 32], 0, 1, 1).is_err());
+		assert!(PeerMmrCommitmentV1::new([1; 32], 1, 1, 0).is_ok());
 		let (request, expected) = page_request();
 		let bytes = request.encode();
 		let (decoded, replay) = PeerSyncPageRequestV1::decode_canonical(&bytes, &expected).unwrap();
@@ -992,7 +1141,7 @@ mod tests {
 	fn page_request_rejects_every_snapshot_audience_key_endpoint_and_bound_change() {
 		let (request, expected) = page_request();
 		let mut cases = Vec::new();
-		for change in 0..14 {
+		for change in 0..15 {
 			let mut changed = request.clone();
 			match change {
 				0 => changed.context.domain[0] ^= 1,
@@ -1009,6 +1158,7 @@ mod tests {
 				11 => changed.context.target_service_key[0] ^= 1,
 				12 => changed.context.source_endpoint_hash[0] ^= 1,
 				13 => changed.context.target_endpoint_hash[0] ^= 1,
+				14 => changed.context.commitment.mmr_root[0] ^= 1,
 				_ => unreachable!(),
 			}
 			cases.push(changed);
@@ -1024,7 +1174,7 @@ mod tests {
 			PeerSyncPageRequestV1::decode_canonical(&wrong_operation.encode(), &expected).is_err()
 		);
 		let mut wrong_cursor = request.clone();
-		wrong_cursor.cursor = Some(1);
+		wrong_cursor.cursor = Some(PeerPageCursorV1::new(1, 2 * CHUNK_BYTES as u64));
 		wrong_cursor.sign(&pair(12)).unwrap();
 		assert!(PeerSyncPageRequestV1::decode_canonical(&wrong_cursor.encode(), &expected).is_err());
 		let mut wrong_signature = request.clone();
@@ -1052,28 +1202,141 @@ mod tests {
 	}
 
 	#[test]
+	fn pages_are_exact_prefixes_of_the_committed_mmr_range() {
+		let commitment = PeerMmrCommitmentV1::new([40; 32], 10, 3, 100).unwrap();
+		let context = context_with_commitment(commitment);
+		assert_eq!(context.candidate_commitment(), commitment);
+		assert_eq!(commitment.mmr_root(), [40; 32]);
+		assert_eq!(commitment.sequence_range(), (10, 13));
+		assert_eq!(commitment.predecessor_total_size(), 100);
+		assert!(commitment.verify_local_root([40; 32]).is_ok());
+		assert!(commitment.verify_local_root([41; 32]).is_err());
+
+		let first_expected =
+			PeerPageExpectationV1::new(context.clone(), identity(), None, 2).unwrap();
+		let first_request = PeerSyncPageRequestV1::new_signed(&first_expected, &pair(12)).unwrap();
+		let mut wrong_commitment = first_request.clone();
+		wrong_commitment.context.commitment.mmr_root[0] ^= 1;
+		wrong_commitment.sign(&pair(12)).unwrap();
+		assert!(PeerSyncPageRequestV1::decode_canonical(
+			&wrong_commitment.encode_wire(),
+			&first_expected,
+		)
+		.is_err());
+		let cursor = PeerPageCursorV1::new(11, 112);
+		let first = PeerSyncPageResponseV1::new_signed(
+			&first_request,
+			vec![sized_object(10, 5, 105, 50), sized_object(11, 7, 112, 51)],
+			Some(cursor),
+			&pair(11),
+		)
+		.unwrap();
+		let first =
+			PeerSyncPageResponseV1::decode_canonical(&first.encode_wire(), &first_request).unwrap();
+		assert_eq!(first.next_cursor().unwrap().position(), (11, 112));
+
+		let next_identity = PeerRequestIdentityV1::new([15; 16], [18; 16]).unwrap();
+		let second_expected =
+			PeerPageExpectationV1::new(context, next_identity, first.next_cursor(), 2).unwrap();
+		let second_request =
+			PeerSyncPageRequestV1::new_signed(&second_expected, &pair(12)).unwrap();
+		let second = PeerSyncPageResponseV1::new_signed(
+			&second_request,
+			vec![sized_object(12, 9, 121, 52)],
+			None,
+			&pair(11),
+		)
+		.unwrap();
+		assert!(PeerSyncPageResponseV1::decode_canonical(&second.encode_wire(), &second_request)
+			.is_ok());
+		assert_eq!(second.next_cursor(), None);
+	}
+
+	#[test]
+	fn pages_reject_early_terminal_gaps_overrun_and_invalid_totals() {
+		let commitment = PeerMmrCommitmentV1::new([60; 32], 10, 3, 100).unwrap();
+		let context = context_with_commitment(commitment);
+		let expected = PeerPageExpectationV1::new(context.clone(), identity(), None, 2).unwrap();
+		let request = PeerSyncPageRequestV1::new_signed(&expected, &pair(12)).unwrap();
+
+		assert!(PeerSyncPageResponseV1::new_signed(
+			&request,
+			vec![sized_object(10, 5, 105, 70)],
+			None,
+			&pair(11),
+		)
+		.is_err());
+		assert!(PeerSyncPageResponseV1::new_signed(&request, Vec::new(), None, &pair(11)).is_err());
+		assert!(PeerSyncPageResponseV1::new_signed(
+			&request,
+			vec![sized_object(10, 5, 105, 70), sized_object(12, 7, 112, 71)],
+			Some(PeerPageCursorV1::new(12, 112)),
+			&pair(11),
+		)
+		.is_err());
+		assert!(PeerSyncPageResponseV1::new_signed(
+			&request,
+			vec![sized_object(10, 5, 105, 70), sized_object(11, 7, 105, 71)],
+			Some(PeerPageCursorV1::new(11, 105)),
+			&pair(11),
+		)
+		.is_err());
+
+		let resumed = PeerPageExpectationV1::new(
+			context,
+			identity(),
+			Some(PeerPageCursorV1::new(11, 112)),
+			2,
+		)
+		.unwrap();
+		let resumed = PeerSyncPageRequestV1::new_signed(&resumed, &pair(12)).unwrap();
+		assert!(PeerSyncPageResponseV1::new_signed(
+			&resumed,
+			vec![sized_object(13, 1, 113, 72)],
+			None,
+			&pair(11),
+		)
+		.is_err());
+		assert!(PeerPageExpectationV1::new(
+			resumed.context.clone(),
+			identity(),
+			Some(PeerPageCursorV1::new(12, 121)),
+			1,
+		)
+		.is_err());
+	}
+
+	#[test]
+	fn empty_objects_require_the_canonical_empty_raw_cid() {
+		let empty_digest = sp_crypto_hashing::blake2_256(&[]);
+		assert!(PeerObjectV1::new(&CanonicalCid::from_digest(empty_digest), 0, 0, 0, Vec::new(),)
+			.is_ok());
+		assert!(
+			PeerObjectV1::new(&CanonicalCid::from_digest([99; 32]), 0, 0, 0, Vec::new(),).is_err()
+		);
+	}
+
+	#[test]
 	fn pinned_page_response_enforces_128_cursor_hash_and_source_authentication() {
 		let (request, expected) = page_request();
 		let (request, _) =
 			PeerSyncPageRequestV1::decode_canonical(&request.encode(), &expected).unwrap();
 		let items = (0..MAX_PAGE_ITEMS as u64).map(object).collect::<Vec<_>>();
-		let response = PeerSyncPageResponseV1::new_signed(
-			&request,
-			items,
-			Some(MAX_PAGE_ITEMS as u64 - 1),
-			&pair(11),
-		)
-		.unwrap();
+		let response =
+			PeerSyncPageResponseV1::new_signed(&request, items, None, &pair(11)).unwrap();
 		assert_eq!(
 			PeerSyncPageResponseV1::decode_canonical(&response.encode_wire(), &request).unwrap(),
 			response
 		);
 		assert_eq!(response.items().len(), MAX_PAGE_ITEMS);
-		assert_eq!(response.next_cursor(), Some(MAX_PAGE_ITEMS as u64 - 1));
+		assert_eq!(response.next_cursor(), None);
 
 		let mut oversized = response.clone();
 		oversized.items.push(object(MAX_PAGE_ITEMS as u64));
-		oversized.next_cursor = Some(MAX_PAGE_ITEMS as u64);
+		oversized.next_cursor = Some(PeerPageCursorV1::new(
+			MAX_PAGE_ITEMS as u64,
+			(MAX_PAGE_ITEMS as u64 + 1) * CHUNK_BYTES as u64,
+		));
 		assert!(PeerSyncPageResponseV1::decode_canonical(&oversized.encode(), &request).is_err());
 		let mut regressed = response.clone();
 		regressed.items[1].sequence = regressed.items[0].sequence;
@@ -1091,7 +1354,10 @@ mod tests {
 			PeerSyncPageResponseV1::decode_canonical(&changed_manifest.encode(), &request).is_err()
 		);
 		let mut wrong_next = response.clone();
-		wrong_next.next_cursor = Some(126);
+		wrong_next.next_cursor = Some(PeerPageCursorV1::new(
+			MAX_PAGE_ITEMS as u64 - 1,
+			MAX_PAGE_ITEMS as u64 * CHUNK_BYTES as u64,
+		));
 		assert!(PeerSyncPageResponseV1::decode_canonical(&wrong_next.encode(), &request).is_err());
 		let mut wrong_request = response.clone();
 		wrong_request.request_hash[0] ^= 1;
