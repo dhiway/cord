@@ -63,7 +63,7 @@ scripts/build-origin-orbis-release.sh
 
 The script must run from the clean repository root and requires exactly `srtool-cli 0.13.2`. It
 pins `paritytech/srtool@sha256:8638a668bd6d29111dc01953fbead6eb08c062e1cc62d3047a245a52b6edb3bf`
-and verifies the image ID, OS, and architecture before every build invocation.
+and fixes the srtool Rust tag to `1.93.0` while verifying the image ID, OS, and architecture before every build invocation.
 It builds both runtimes at the fixed container path `/build` with profile `release` and the explicit
 `on-chain-release-build` feature. It then builds `origin` and `origin-omni-node` in that same image
 and path. It performs two no-cache builds from independent clean source worktrees at the same

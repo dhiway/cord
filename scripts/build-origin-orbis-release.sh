@@ -22,7 +22,8 @@ set -euo pipefail
 readonly SRTOOL_DIGEST="docker.io/paritytech/srtool@sha256:8638a668bd6d29111dc01953fbead6eb08c062e1cc62d3047a245a52b6edb3bf"
 readonly SRTOOL_IMAGE_ID="sha256:8638a668bd6d29111dc01953fbead6eb08c062e1cc62d3047a245a52b6edb3bf"
 readonly SRTOOL_LOCAL_REPOSITORY="cord-srtool-pinned"
-readonly SRTOOL_LOCAL_IMAGE="$SRTOOL_LOCAL_REPOSITORY:1.93.0"
+readonly SRTOOL_RUST_TAG="1.93.0"
+readonly SRTOOL_LOCAL_IMAGE="$SRTOOL_LOCAL_REPOSITORY:$SRTOOL_RUST_TAG"
 readonly PROFILE="release"
 readonly FOUNDATION_PACKAGE="origin-foundation-runtime"
 readonly FOUNDATION_DIR="origin/base/runtime"
@@ -141,7 +142,7 @@ run_srtool() {
 
 	verify_source_tree "$source_root" "$source_label"
 	verify_pinned_image
-	srtool build \
+	SRTOOL_TAG="$SRTOOL_RUST_TAG" srtool build \
 		--engine docker \
 		--image "$SRTOOL_LOCAL_REPOSITORY" \
 		--app \
@@ -315,12 +316,12 @@ cmp "$staging_dir/orbis-dev-code.compact.wasm" "$commons_canonical_compact"
 
 verify_source_identity
 python3 - "$staging_dir/release-inputs.json.tmp" "$source_commit" "$cargo_lock_sha256" \
-	"$SRTOOL_DIGEST" "$SRTOOL_IMAGE_ID" "$srtool_version" <<'PY'
+	"$SRTOOL_DIGEST" "$SRTOOL_IMAGE_ID" "$srtool_version" "$SRTOOL_RUST_TAG" <<'PY'
 import json
 import pathlib
 import sys
 
-output, commit, cargo_lock_sha256, image_digest, image_id, srtool_version = sys.argv[1:]
+output, commit, cargo_lock_sha256, image_digest, image_id, srtool_version, rust_tag = sys.argv[1:]
 report = {
     "cargo_lock_sha256": cargo_lock_sha256,
     "fresh_srtool_target": True,
@@ -334,6 +335,7 @@ report = {
     "srtool_os": "linux",
     "srtool_no_cache": True,
     "srtool_profile": "release",
+    "srtool_rust_tag": rust_tag,
     "runtime_feature": "on-chain-release-build",
     "workspace_mount": "/build",
 }
