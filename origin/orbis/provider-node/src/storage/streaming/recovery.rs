@@ -593,6 +593,7 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 					.verify_signature(decode_hex(&record.authority_public_key)?)
 					.map_err(|_| ContentError::IntegrityFailed)?;
 				if capability.issuer_key_id != host_key ||
+					capability.nonce != nonce ||
 					capability.grant_id != request.grant_id ||
 					capability.product_id != request.product_id ||
 					capability.bucket_id != request.bucket_id ||
@@ -2684,5 +2685,52 @@ mod tests {
 			drop(store);
 			assert!(StreamingStore::open(temp.path()).is_err(), "case {case}");
 		}
+	}
+
+	#[test]
+	fn reopen_rejects_accepted_nonce_not_bound_to_signed_capability() {
+		let temp = TempDir::new().unwrap();
+		let (request, capability, snapshot, service) = fixture();
+		let signed_capability = capability.canonical_bytes();
+		let store = StreamingStore::open(temp.path()).unwrap();
+		store
+			.accept_object_put(
+				&request.canonical_bytes(),
+				&signed_capability,
+				&snapshot,
+				service.public().0,
+				&service,
+				[10; 16],
+			)
+			.unwrap();
+
+		let mut state = store.state.write().unwrap();
+		let old_key = state
+			.recovery
+			.iter()
+			.find(|(_, record)| record.effect == RecoveryEffect::Accepted)
+			.map(|(key, _)| key.clone())
+			.unwrap();
+		let mut record = state.recovery.remove(&old_key).unwrap();
+		let changed_nonce = [55; 16];
+		record.nonce = hex::encode(changed_nonce);
+		let mut entry = RecoveryEntryV1::decode(&hex::decode(&record.entry_cbor).unwrap()).unwrap();
+		entry.nonce = changed_nonce;
+		record.entry_cbor = hex::encode(entry.canonical_bytes());
+		assert_ne!(changed_nonce, capability.nonce);
+		assert_eq!(hex::decode(&record.authority).unwrap(), signed_capability);
+		let changed_key = recovery_key(
+			decode_hex(&record.host_key_id).unwrap(),
+			decode_hex(&record.operation_id).unwrap(),
+			record.generation,
+			changed_nonce,
+		);
+		state.recovery.insert(changed_key.clone(), record);
+		state.capability_replay.values_mut().next().unwrap().recovery_key = changed_key;
+		persist_state(&store.root, &state).unwrap();
+		drop(state);
+		drop(store);
+
+		assert!(StreamingStore::open(temp.path()).is_err());
 	}
 }
