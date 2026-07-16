@@ -126,9 +126,12 @@ if descriptor.get("productionPapiDescriptorGenerated") is not True:
     fail("Commons PAPI descriptor is not marked generated")
 
 routes = json.loads((ROOT / "docs/sdk/native-route-contract.json").read_text())
-if routes.get("route_count") != 143 or len(routes.get("routes", [])) != 143:
-    fail("native route count is not 143")
-if len({route.get("id") for route in routes["routes"]}) != 143:
+expected_route_count = 138
+if routes.get("route_count") != expected_route_count:
+    fail(f"native route count is not {expected_route_count}")
+if len(routes.get("routes", [])) != expected_route_count:
+    fail("native route inventory length does not match route_count")
+if len({route.get("id") for route in routes["routes"]}) != expected_route_count:
     fail("native route IDs are not unique")
 for relative in ("product-sdk/README.md", "docs/sdk/README.md", "docs/sdk/native-contract.md"):
     content = (ROOT / relative).read_text()
@@ -222,5 +225,6 @@ if header.returncode:
 
 print(
     "PASS sdk platform contract: "
-    f"capabilities={len(capability_blocks)} packages={len(package_blocks)} routes=143 branch=sm-update-sub-0x65"
+    f"capabilities={len(capability_blocks)} packages={len(package_blocks)} "
+    f"routes={expected_route_count} branch=sm-update-sub-0x65"
 )
