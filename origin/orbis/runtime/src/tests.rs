@@ -38,6 +38,10 @@ use sp_runtime::traits::AsSystemOriginSigner;
 use xcm::prelude::*;
 use xcm_runtime_apis::conversions::LocationToAccountHelper;
 
+mod three_provider_continuity_fixture {
+	include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../test-fixtures/three_provider_continuity.rs"));
+}
+
 #[test]
 fn attestation_page_zero_and_boundaries_are_explicit() {
 	let ids: Vec<sp_core::H256> = (0..=attestation_api::MAX_PAGE_SIZE)
@@ -1930,6 +1934,14 @@ pub(crate) fn admit_canonical_manifest(
 	owner: &AccountId,
 	manifest: [u8; 32],
 ) -> CanonicalAdmission {
+	admit_canonical_manifest_with_provider_commitment(owner, manifest, [0xA5; 32])
+}
+
+fn admit_canonical_manifest_with_provider_commitment(
+	owner: &AccountId,
+	manifest: [u8; 32],
+	provider_commitment: [u8; 32],
+) -> CanonicalAdmission {
 	use pallet_orbis_storage_provider::{
 		CommitmentPayloadV2, CommitmentV1, MmrLeafV1, MmrProofV1, ProviderOrganizationRefV1,
 		ReplicaSignature,
@@ -2027,7 +2039,6 @@ pub(crate) fn admit_canonical_manifest(
 		replicas,
 	));
 	let bucket_id = pallet_orbis_storage_provider::BucketIds::<Runtime>::get()[0];
-	let provider_commitment = [0xA5; 32];
 	let leaf = MmrLeafV1 {
 		data_root: sp_core::H256::from(provider_commitment),
 		data_size: 1,
@@ -6214,18 +6225,25 @@ fn checkpoint_duty_runtime_api_filters_members_and_preserves_typed_ineligible_vi
 
 #[test]
 fn three_provider_promotion_repair_quorum_returns_to_standard_exactly_once() {
-	use orbis_storage_runtime_api::{CheckpointDutyMode as ApiDutyMode, CheckpointDutyPhase};
+	use orbis_storage_runtime_api::{
+		runtime_decl_for_storage_provider_api::StorageProviderApi,
+		CheckpointDutyMode as ApiDutyMode, CheckpointDutyPhase,
+	};
 	use pallet_orbis_storage_provider::{
 		BucketSnapshots, Buckets, CheckpointFallbackPromotionReceiptByBucket,
-		CheckpointFallbackPromotionV1, CommitmentPayloadV2, CommitmentV1, ProviderStatus,
-		Providers, ReplicaSignature,
+		CheckpointFallbackPromotionV1, CommitmentPayloadV2, CommitmentV1, MmrLeafV1,
+		ProviderStatus, Providers, ReplicaSignature,
 	};
 	use sp_core::{ed25519, Pair as _};
+	use sp_runtime::traits::{BlakeTwo256, Hash as HashT};
+	use three_provider_continuity_fixture as fixture;
 
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		System::set_block_number(1);
 		let owner = AccountId::new([9; 32]);
-		let admission = admit_canonical_manifest(&owner, [0xB1; 32]);
+		let prior_digest = sp_io::hashing::blake2_256(fixture::PRIOR_OBJECT);
+		let admission =
+			admit_canonical_manifest_with_provider_commitment(&owner, [0xB1; 32], prior_digest);
 		assert_eq!(admission.replicas.len(), 2);
 		assert_eq!(Providers::<Runtime>::iter_keys().count(), 3);
 		let old_primary = admission.primary.clone();
@@ -6256,9 +6274,11 @@ fn three_provider_promotion_repair_quorum_returns_to_standard_exactly_once() {
 			RuntimeOrigin::root(),
 			promotion_at,
 		));
-		Providers::<Runtime>::mutate(&old_primary, |record| {
-			record.as_mut().unwrap().status = ProviderStatus::Suspended
-		});
+		assert_ok!(crate::StorageProvider::set_provider_status(
+			RuntimeOrigin::root(),
+			old_primary.clone(),
+			ProviderStatus::Suspended,
+		));
 		let fallback = crate::checkpoint_duty_page(admission.replicas[0].clone(), None, 128)
 			.unwrap()
 			.items
@@ -6332,9 +6352,11 @@ fn three_provider_promotion_repair_quorum_returns_to_standard_exactly_once() {
 		assert_eq!(blocked.initiator, None);
 		assert_eq!(blocked.primary, new_primary);
 		assert_eq!(blocked.replicas, promoted_replicas);
-		Providers::<Runtime>::mutate(&old_primary, |record| {
-			record.as_mut().unwrap().status = ProviderStatus::Active
-		});
+		assert_ok!(crate::StorageProvider::set_provider_status(
+			RuntimeOrigin::root(),
+			old_primary.clone(),
+			ProviderStatus::Active,
+		));
 		let repaired = crate::checkpoint_duty_page(new_primary.clone(), None, 128)
 			.unwrap()
 			.items
@@ -6361,17 +6383,28 @@ fn three_provider_promotion_repair_quorum_returns_to_standard_exactly_once() {
 			.unwrap();
 		assert!(repaired_old_primary.eligible);
 		assert!(repaired_old_primary.may_sign);
+		let repaired_scale = repaired.encode();
+		let repaired_hash = sp_io::hashing::blake2_256(&repaired_scale);
 
 		let previous = BucketSnapshots::<Runtime>::get(admission.bucket_id).unwrap();
 		let start_seq = previous.commitment.start_seq + previous.commitment.leaf_count;
+		let prior_leaf = MmrLeafV1 {
+			data_root: sp_core::H256::from(prior_digest),
+			data_size: fixture::PRIOR_OBJECT.len() as u64,
+			total_size: fixture::PRIOR_OBJECT.len() as u64,
+		};
+		assert_eq!(previous.commitment.mmr_root, BlakeTwo256::hash_of(&prior_leaf));
+		let next_leaf = MmrLeafV1 {
+			data_root: sp_core::H256::from(sp_io::hashing::blake2_256(fixture::NEXT_OBJECT)),
+			data_size: fixture::NEXT_OBJECT.len() as u64,
+			total_size: (fixture::PRIOR_OBJECT.len() + fixture::NEXT_OBJECT.len()) as u64,
+		};
+		let repaired_root =
+			BlakeTwo256::hash_of(&(previous.commitment.mmr_root, BlakeTwo256::hash_of(&next_leaf)));
 		let payload = CommitmentPayloadV2 {
 			version: 2,
 			bucket_id: admission.bucket_id,
-			commitment: CommitmentV1 {
-				mmr_root: sp_core::H256::repeat_byte(0x77),
-				start_seq,
-				leaf_count: 1,
-			},
+			commitment: CommitmentV1 { mmr_root: repaired_root, start_seq, leaf_count: 1 },
 			nonce: recovery_at,
 		};
 		let mut message = b"cord/storage/checkpoint/v2".to_vec();
@@ -6397,8 +6430,21 @@ fn three_provider_promotion_repair_quorum_returns_to_standard_exactly_once() {
 		confirmations.sort_by(|left, right| left.provider.encode().cmp(&right.provider.encode()));
 		let confirmations: pallet_orbis_storage_provider::ConfirmationsOf<Runtime> =
 			confirmations.try_into().unwrap();
+		let confirmed_replicas =
+			confirmations.iter().map(|item| item.provider.clone()).collect::<Vec<_>>();
 		let primary_signature = new_pair.sign(&digest);
 		let primary_context_signature = new_pair.sign(&context_digest);
+		let accepted_before = System::events()
+			.iter()
+			.filter(|record| {
+				matches!(
+					record.event,
+					crate::RuntimeEvent::StorageProvider(
+						pallet_orbis_storage_provider::Event::CheckpointAccepted { .. }
+					)
+				)
+			})
+			.count();
 		assert_ok!(crate::StorageProvider::submit_checkpoint(
 			RuntimeOrigin::signed(new_primary.clone()),
 			b"cord/storage/checkpoint/v2".to_vec().try_into().unwrap(),
@@ -6410,11 +6456,22 @@ fn three_provider_promotion_repair_quorum_returns_to_standard_exactly_once() {
 			primary_context_signature,
 			confirmations.clone(),
 		));
-		let accepted_events = System::events().len();
+		let accepted_events = System::events()
+			.iter()
+			.filter(|record| {
+				matches!(
+					record.event,
+					crate::RuntimeEvent::StorageProvider(
+						pallet_orbis_storage_provider::Event::CheckpointAccepted { .. }
+					)
+				)
+			})
+			.count();
+		assert_eq!(accepted_events, accepted_before + 1);
 		assert_ok!(crate::StorageProvider::submit_checkpoint(
 			RuntimeOrigin::signed(new_primary.clone()),
 			b"cord/storage/checkpoint/v2".to_vec().try_into().unwrap(),
-			payload,
+			payload.clone(),
 			repaired.due_at,
 			repaired.grace_until,
 			new_pair.public(),
@@ -6422,11 +6479,26 @@ fn three_provider_promotion_repair_quorum_returns_to_standard_exactly_once() {
 			primary_context_signature,
 			confirmations,
 		));
-		assert_eq!(System::events().len(), accepted_events);
 		assert_eq!(
-			BucketSnapshots::<Runtime>::get(admission.bucket_id).unwrap().checkpoint_block,
-			recovery_at
+			System::events()
+				.iter()
+				.filter(|record| matches!(
+					record.event,
+					crate::RuntimeEvent::StorageProvider(
+						pallet_orbis_storage_provider::Event::CheckpointAccepted { .. }
+					)
+				))
+				.count(),
+			accepted_events
 		);
+		let snapshot = BucketSnapshots::<Runtime>::get(admission.bucket_id).unwrap();
+		assert_eq!(snapshot.checkpoint_block, recovery_at);
+		assert_eq!(snapshot.commitment, payload.commitment);
+		assert_eq!(snapshot.replica_confirmations.as_slice(), confirmed_replicas.as_slice());
+		assert_eq!(confirmed_replicas.len(), 2);
+		let checkpoint = Runtime::checkpoint(admission.bucket_id);
+		let checkpoint_scale = checkpoint.encode();
+		let checkpoint_hash = sp_io::hashing::blake2_256(&checkpoint_scale);
 
 		System::set_block_number(recovery_at + 1);
 		assert_ok!(crate::StorageProvider::advance_finalized_checkpoint(
@@ -6441,6 +6513,16 @@ fn three_provider_promotion_repair_quorum_returns_to_standard_exactly_once() {
 			.unwrap();
 		assert_eq!(standard.mode, ApiDutyMode::Standard);
 		assert_eq!(standard.primary, new_primary);
+		assert_eq!(standard.replicas, promoted_replicas);
+		assert_eq!(standard.previous_commitment.as_ref().unwrap().mmr_root, repaired_root);
+		assert_eq!(standard.previous_commitment.as_ref().unwrap().start_seq, start_seq);
+		assert_eq!(standard.previous_commitment.as_ref().unwrap().leaf_count, 1);
+		assert_eq!(standard.expected_next_start_seq, start_seq + 1);
+
+		assert_eq!(hex::encode(repaired_scale), fixture::REPAIRED_DUTY_SCALE);
+		assert_eq!(hex::encode(repaired_hash), fixture::REPAIRED_DUTY_HASH);
+		assert_eq!(hex::encode(checkpoint_scale), fixture::CHECKPOINT_INFO_SCALE);
+		assert_eq!(hex::encode(checkpoint_hash), fixture::CHECKPOINT_INFO_HASH);
 	});
 }
 

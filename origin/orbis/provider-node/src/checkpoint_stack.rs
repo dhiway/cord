@@ -885,8 +885,7 @@ mod tests {
 	};
 	#[cfg(feature = "checkpoint-live")]
 	use orbis_storage_runtime_api::{
-		CheckpointDutyInfo, CheckpointDutyMode, CheckpointDutyPhase, CheckpointInfo,
-		CommitmentInfo, Versioned, RESPONSE_VERSION,
+		CheckpointDutyInfo, CheckpointDutyMode, CheckpointDutyPhase, CheckpointInfo, Versioned,
 	};
 	#[cfg(feature = "checkpoint-live")]
 	use pallet_orbis_storage_provider::{
@@ -912,8 +911,17 @@ mod tests {
 	};
 	use crate::{
 		AgreementAuthorization, ChainAuthority, ChainError, ChallengeBatch, CheckpointDutyBatch,
-		CheckpointDutyPageRequest, DiskStore, JsonlCheckpointOutbox, NodeProfile, ProviderService,
+		CheckpointDutyPageRequest, DiskStore, JsonlCheckpointOutbox, NodeProfile, OperationId,
+		ProviderService,
 	};
+
+	#[cfg(feature = "checkpoint-live")]
+	mod three_provider_continuity_fixture {
+		include!(concat!(
+			env!("CARGO_MANIFEST_DIR"),
+			"/../test-fixtures/three_provider_continuity.rs"
+		));
+	}
 
 	const DURABLE_ROOTS: [&str; 17] = [
 		"streaming-v1",
@@ -1169,24 +1177,27 @@ mod tests {
 	}
 
 	#[cfg(feature = "checkpoint-live")]
-	struct PromotedLane {
+	struct ContinuityLane {
 		metadata: subxt::Metadata,
 		calls: AtomicUsize,
+		signer_account: [u8; 32],
+		signer: ed25519::Pair,
+		finalized_number: u32,
 	}
 
 	#[cfg(feature = "checkpoint-live")]
 	#[async_trait]
-	impl CheckpointFinalityLane for PromotedLane {
+	impl CheckpointFinalityLane for ContinuityLane {
 		fn metadata(&self) -> &subxt::Metadata {
 			&self.metadata
 		}
 
 		fn signer_account(&self) -> [u8; 32] {
-			[2; 32]
+			self.signer_account
 		}
 
 		fn service_key(&self) -> [u8; 32] {
-			crate::checkpoint::checkpoint_primary::tests::pair(2).public().0
+			self.signer.public().0
 		}
 
 		async fn submit_and_finalize(
@@ -1199,14 +1210,15 @@ mod tests {
 				.strip_prefix("orbis-checkpoint-v2-")
 				.ok_or(ContentError::IntegrityFailed)?;
 			let block_hash = [8; 32];
-			let block_number = 120;
+			let block_number = self.finalized_number;
 			let extrinsic_hash = [9; 32];
 			Ok(FinalizedEvidence {
 				block_hash,
 				block_number,
 				extrinsic_hash,
 				finality_attestation_version: 1,
-				finality_signature: crate::checkpoint::checkpoint_primary::tests::pair(2)
+				finality_signature: self
+					.signer
 					.sign(&finality_digest(submission_id, block_hash, block_number, extrinsic_hash))
 					.0,
 			})
@@ -1214,14 +1226,16 @@ mod tests {
 	}
 
 	#[cfg(feature = "checkpoint-live")]
-	struct PromotedPublicationAuthority {
+	struct ContinuityPublicationAuthority {
 		calls: AtomicUsize,
+		bucket_id: [u8; 32],
+		finalized_number: u32,
 		response_scale: Vec<u8>,
 	}
 
 	#[cfg(feature = "checkpoint-live")]
 	#[async_trait]
-	impl CheckpointPublicationAuthority for PromotedPublicationAuthority {
+	impl CheckpointPublicationAuthority for ContinuityPublicationAuthority {
 		async fn checkpoint_observation_at(
 			&self,
 			bucket_id: [u8; 32],
@@ -1229,7 +1243,10 @@ mod tests {
 			finalized_number: u32,
 		) -> Result<FinalizedCheckpointObservation, ChainError> {
 			self.calls.fetch_add(1, Ordering::SeqCst);
-			if bucket_id != [4; 32] || finalized_hash != [8; 32] || finalized_number != 120 {
+			if bucket_id != self.bucket_id ||
+				finalized_hash != [8; 32] ||
+				finalized_number != self.finalized_number
+			{
 				return Err(ChainError::Rejected("unexpected promoted checkpoint identity".into()));
 			}
 			Ok(FinalizedCheckpointObservation {
@@ -1338,36 +1355,165 @@ mod tests {
 	#[cfg(feature = "checkpoint-live")]
 	#[tokio::test]
 	async fn three_provider_promoted_quorum_finality_and_publication_are_exact_once() {
-		use crate::checkpoint::{
-			checkpoint_primary::{
-				tests::{pair, promoted_proposal, response},
-				PrimaryQuorumState,
+		use crate::{
+			chain::validate_checkpoint_duty,
+			checkpoint::{
+				checkpoint_primary::PrimaryQuorumState,
+				checkpoint_quorum::{
+					checkpoint_context_digest, checkpoint_digest, ReplicaConfirmationRequestV1,
+					ReplicaConfirmationResponseV1,
+				},
 			},
-			checkpoint_quorum::ReplicaConfirmationRequestV1,
+			CanonicalCid,
 		};
+		use three_provider_continuity_fixture as fixture;
+
+		fn decode_exact<T: Decode + Encode>(encoded: &str) -> T {
+			let bytes = hex::decode(encoded).unwrap();
+			let mut input = &bytes[..];
+			let value = T::decode(&mut input).unwrap();
+			assert!(input.is_empty());
+			assert_eq!(value.encode(), bytes);
+			value
+		}
+
+		fn response(request_bytes: &[u8]) -> Vec<u8> {
+			let request = ReplicaConfirmationRequestV1::decode_canonical(request_bytes).unwrap();
+			let signer = [10u8, 11, 12]
+				.into_iter()
+				.map(pair)
+				.find(|candidate| candidate.public() == request.target_service_key)
+				.expect("frozen runtime authority has a fixture signing key");
+			ReplicaConfirmationResponseV1 {
+				version: 1,
+				proposal_record_hash: request.proposal_record_hash,
+				target_provider: request.target_provider.clone(),
+				duty_id: request.duty_id,
+				confirmation: ReplicaSignature {
+					provider: request.target_provider,
+					service_key: signer.public(),
+					signature: signer.sign(&checkpoint_digest(&request.payload)),
+					context_signature: signer.sign(&checkpoint_context_digest(&request.context)),
+				},
+			}
+			.encode()
+		}
+
+		let duty_bytes = hex::decode(fixture::REPAIRED_DUTY_SCALE).unwrap();
+		assert_eq!(
+			hex::encode(sp_crypto_hashing::blake2_256(&duty_bytes)),
+			fixture::REPAIRED_DUTY_HASH
+		);
+		let typed = decode_exact::<CheckpointDutyInfo<AccountId32, H256, u32>>(
+			fixture::REPAIRED_DUTY_SCALE,
+		);
+		assert_eq!(typed.mode, CheckpointDutyMode::PromotionPending);
+		assert_eq!(typed.phase, CheckpointDutyPhase::Primary);
+		assert_eq!(typed.initiator.as_ref(), Some(&typed.primary));
+		assert_eq!(typed.replicas.len(), 2);
+		let signer = [10u8, 11, 12]
+			.into_iter()
+			.map(pair)
+			.find(|candidate| AccountId32::new(candidate.public().0) == typed.primary)
+			.expect("frozen promoted primary has a fixture signing key");
+		let duty = validate_checkpoint_duty(
+			typed.clone(),
+			&typed.primary,
+			signer.public().0,
+			typed.snapshot_checkpoint,
+		)
+		.unwrap();
+		assert_eq!(duty.encoded_duty.trim_start_matches("0x"), fixture::REPAIRED_DUTY_SCALE);
+
+		let response_scale = hex::decode(fixture::CHECKPOINT_INFO_SCALE).unwrap();
+		assert_eq!(
+			hex::encode(sp_crypto_hashing::blake2_256(&response_scale)),
+			fixture::CHECKPOINT_INFO_HASH
+		);
+		let checkpoint = decode_exact::<Versioned<CheckpointInfo<AccountId32, H256, u32>>>(
+			fixture::CHECKPOINT_INFO_SCALE,
+		);
+		let checkpoint = checkpoint.value.expect("runtime froze an accepted checkpoint");
+		assert_eq!(checkpoint.bucket_id, typed.bucket_id);
+		assert_eq!(checkpoint.replica_confirmations.len(), 2);
 
 		let temp = TempDir::new().unwrap();
-		let proposal = promoted_proposal();
-		let duty_bytes = hex::decode(&proposal.duty_scale).unwrap();
-		let duty =
-			CheckpointDutyInfo::<AccountId32, H256, u32>::decode(&mut &duty_bytes[..]).unwrap();
-		let payload_bytes = hex::decode(&proposal.payload_scale).unwrap();
-		let payload = CommitmentPayloadV2::<H256, u32>::decode(&mut &payload_bytes[..]).unwrap();
-		assert_eq!(duty.primary, AccountId32::new([2; 32]));
-		assert_eq!(duty.replicas, vec![AccountId32::new([1; 32]), AccountId32::new([3; 32])]);
-		assert_eq!(duty.mode, CheckpointDutyMode::PromotionPending);
-		assert_eq!(duty.phase, CheckpointDutyPhase::Primary);
-		assert_eq!(duty.initiator, Some(AccountId32::new([2; 32])));
-		assert_eq!(proposal.duty_id, hex::encode(duty.duty_id.as_bytes()));
-		assert_eq!(
-			proposal.duty_fingerprint,
-			hex::encode(sp_crypto_hashing::blake2_256(&duty_bytes))
-		);
-
 		let stack = CheckpointStack::open(temp.path()).unwrap();
-		let collecting = stack.resume_checkpoint_quorum(&proposal, &pair(2)).unwrap();
+		let provider_bytes: &[u8] = typed.primary.as_ref();
+		let store = DiskStore::open(
+			temp.path().join("duty-store"),
+			NodeProfile {
+				provider: hex::encode(provider_bytes),
+				endpoint: "http://127.0.0.1:8080".into(),
+				service_key: hex::encode(signer.public().0),
+				region: None,
+			},
+			1024,
+		)
+		.unwrap();
+		store
+			.stage_checkpoint_duty_page(CheckpointDutyBatch {
+				finalized_hash: duty.snapshot_hash.clone(),
+				finalized_number: typed.snapshot_checkpoint,
+				provider: duty.provider.clone(),
+				snapshot_checkpoint: typed.snapshot_checkpoint,
+				requested_cursor: None,
+				next_cursor: None,
+				duties: vec![duty.clone()],
+			})
+			.unwrap();
+
+		let bucket = BucketId::from_bytes(typed.bucket_id.0);
+		{
+			let state = stack.lock().unwrap();
+			for (operation, bytes) in [(1u8, fixture::PRIOR_OBJECT), (2, fixture::NEXT_OBJECT)] {
+				let operation_id = OperationId::from_bytes([operation; 16]);
+				let cid = CanonicalCid::from_digest(sp_crypto_hashing::blake2_256(bytes));
+				state
+					.streaming
+					.put_chunks(
+						StreamingDescriptor {
+							operation_id,
+							bucket_id: bucket,
+							expected_cid: cid.as_str().into(),
+							object_len: bytes.len() as u64,
+						},
+						[bytes.to_vec()],
+					)
+					.unwrap();
+				state
+					.bucket_mmr
+					.append_verified(&state.streaming, bucket, operation_id)
+					.unwrap();
+				if operation == 1 {
+					let previous =
+						state.bucket_mmr.commitment_candidate(&state.streaming, bucket, 0).unwrap();
+					let frozen_previous = typed.previous_commitment.as_ref().unwrap();
+					assert_eq!(previous.mmr_root, frozen_previous.mmr_root);
+					assert_eq!(previous.start_seq, frozen_previous.start_seq);
+					assert_eq!(previous.leaf_count, frozen_previous.leaf_count);
+				}
+			}
+			let candidate = state
+				.bucket_mmr
+				.commitment_candidate(&state.streaming, bucket, typed.expected_next_start_seq)
+				.unwrap();
+			assert_eq!(candidate.mmr_root, checkpoint.commitment.mmr_root);
+			assert_eq!(candidate.start_seq, checkpoint.commitment.start_seq);
+			assert_eq!(candidate.leaf_count, checkpoint.commitment.leaf_count);
+		}
+
+		let (proposal, collecting) = stack.begin_checkpoint_quorum(&store, &duty, &signer).unwrap();
 		assert_eq!(collecting.state, PrimaryQuorumState::Collecting);
 		assert_eq!(collecting.requests.len(), 2);
+		assert_eq!(proposal.duty_scale, fixture::REPAIRED_DUTY_SCALE);
+		let payload = decode_exact::<CommitmentPayloadV2<H256, u32>>(&proposal.payload_scale);
+		assert_eq!(payload.bucket_id, checkpoint.bucket_id);
+		assert_eq!(payload.commitment.mmr_root, checkpoint.commitment.mmr_root);
+		assert_eq!(payload.commitment.start_seq, checkpoint.commitment.start_seq);
+		assert_eq!(payload.commitment.leaf_count, checkpoint.commitment.leaf_count);
+		assert_eq!(payload.nonce, checkpoint.commitment_nonce);
+
 		let requests = collecting
 			.requests
 			.iter()
@@ -1378,14 +1524,8 @@ mod tests {
 				.iter()
 				.map(|request| request.target_provider.clone())
 				.collect::<Vec<_>>(),
-			vec![AccountId32::new([1; 32]), AccountId32::new([3; 32])]
+			checkpoint.replica_confirmations
 		);
-		for request in &requests {
-			assert_eq!(request.primary_provider, AccountId32::new([2; 32]));
-			assert_eq!(request.duty_id, duty.duty_id);
-			assert_eq!(request.context.duty_id, duty.duty_id);
-		}
-
 		let first = response(&collecting.requests[0]);
 		let second = response(&collecting.requests[1]);
 		let partial = stack.accept_checkpoint_confirmation(&proposal, &first).unwrap();
@@ -1393,16 +1533,6 @@ mod tests {
 		assert!(stack.submission_heads().unwrap().is_empty());
 		let ready = stack.accept_checkpoint_confirmation(&proposal, &second).unwrap();
 		assert_eq!(ready.state, PrimaryQuorumState::QuorumReady);
-		assert_eq!(
-			ready
-				.confirmations
-				.as_ref()
-				.unwrap()
-				.iter()
-				.map(|confirmation| confirmation.provider.clone())
-				.collect::<Vec<_>>(),
-			vec![AccountId32::new([1; 32]), AccountId32::new([3; 32])]
-		);
 		let submissions = stack.submission_heads().unwrap();
 		assert_eq!(submissions.len(), 1);
 		stack.accept_checkpoint_confirmation(&proposal, &second).unwrap();
@@ -1410,30 +1540,27 @@ mod tests {
 		drop(stack);
 
 		let stack = CheckpointStack::open(temp.path()).unwrap();
-		let reopened_ready = stack.resume_checkpoint_quorum(&proposal, &pair(2)).unwrap();
+		let reopened_ready = stack.resume_checkpoint_quorum(&proposal, &signer).unwrap();
 		assert_eq!(reopened_ready.state, PrimaryQuorumState::QuorumReady);
 		assert!(reopened_ready.requests.is_empty());
 		stack.accept_checkpoint_confirmation(&proposal, &first).unwrap();
 		assert_eq!(stack.submission_heads().unwrap(), submissions);
 
-		let response_scale = Versioned {
-			version: RESPONSE_VERSION,
-			value: Some(CheckpointInfo {
-				bucket_id: payload.bucket_id,
-				commitment: CommitmentInfo {
-					mmr_root: payload.commitment.mmr_root,
-					start_seq: payload.commitment.start_seq,
-					leaf_count: payload.commitment.leaf_count,
-				},
-				checkpoint_block: 115,
-				primary_signers: 1,
-				commitment_nonce: payload.nonce,
-				replica_confirmations: vec![AccountId32::new([1; 32]), AccountId32::new([3; 32])],
-			}),
-		}
-		.encode();
-		let lane = PromotedLane { metadata: checkpoint_metadata(), calls: AtomicUsize::new(0) };
-		let authority = PromotedPublicationAuthority { calls: AtomicUsize::new(0), response_scale };
+		let mut signer_account = [0u8; 32];
+		signer_account.copy_from_slice(typed.primary.as_ref());
+		let lane = ContinuityLane {
+			metadata: checkpoint_metadata(),
+			calls: AtomicUsize::new(0),
+			signer_account,
+			signer,
+			finalized_number: checkpoint.checkpoint_block,
+		};
+		let authority = ContinuityPublicationAuthority {
+			calls: AtomicUsize::new(0),
+			bucket_id: typed.bucket_id.0,
+			finalized_number: checkpoint.checkpoint_block,
+			response_scale,
+		};
 		let lifecycle =
 			crate::checkpoint_live_worker::tick(&authority, &stack, &lane).await.unwrap();
 		assert_eq!(

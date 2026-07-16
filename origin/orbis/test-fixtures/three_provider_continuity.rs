@@ -1,0 +1,29 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
+/// Exact runtime/provider continuity fixture for the three-provider recovery journey.
+
+pub(crate) const PRIOR_OBJECT: &[u8] = b"\xa5";
+pub(crate) const NEXT_OBJECT: &[u8] = b"origin-orbis-repaired-object";
+
+pub(crate) const REPAIRED_DUTY_SCALE: &str = "0800000000000000000000000000000000000000000000000000000000000000000021000000080000000000000000000000000000000000000000000000000000000000000000000000b8cb2b6f88ff96f9eddc350f1a292b346b7ea874b1106c85556a993a0ff038e6d0df7fc11a0d1f2933c34c82c826ba80bb8f9c78a20cad15e462c1691afc71580b513ad9b4924015ca0902ed079044d3ac5dbec2306f06948c10da8eb6e39f2d0866be7e332c7a453332bd9d0a7f7db055f5c5ef1a06ada66d98b39fb6810c473a43a72e714401762df66b68c26dfbdf2682aaec9f2474eca4613e424a0fbafd3c0c0b513ad9b4924015ca0902ed079044d3ac5dbec2306f06948c10da8eb6e39f2d000001000000000000000b513ad9b4924015ca0902ed079044d3ac5dbec2306f06948c10da8eb6e39f2d71bec3c74a77eaf4388935fdc969e75d39d85bb41f55c6dd4332da77fa1fc7b501000101010000016500000066be7e332c7a453332bd9d0a7f7db055f5c5ef1a06ada66d98b39fb6810c473a0101010000000000000066be7e332c7a453332bd9d0a7f7db055f5c5ef1a06ada66d98b39fb6810c473a393dc938483dbd58aabd6e6daf7b4c076e963109602f75446e0a6e0c9c2a7e7401000101000000016500000043a72e714401762df66b68c26dfbdf2682aaec9f2474eca4613e424a0fbafd3c0102010000000000000043a72e714401762df66b68c26dfbdf2682aaec9f2474eca4613e424a0fbafd3cbb28f710bccb6d4ebdbbdd0280c631ce2f3dbd1eb7d9b14b935159fdc93f37cd010001010000010800010b513ad9b4924015ca0902ed079044d3ac5dbec2306f06948c10da8eb6e39f2d0101de0000000000000000000000000000000000000000000000000000000000000000000000dd000000f1000000de000000dd000000014beae00ad030a97ab31eef3978e34e7fef760fa3319a61c42b35574c17a6a86200000000000000000100000000000000016500000001000000000000000102";
+pub(crate) const REPAIRED_DUTY_HASH: &str =
+	"057c3eeb6fabd7f04c6fa7df20759489003e87abf1f2dbf76c24b3bde0907f38";
+pub(crate) const CHECKPOINT_INFO_SCALE: &str = "080001d0df7fc11a0d1f2933c34c82c826ba80bb8f9c78a20cad15e462c1691afc71586a8d281490745250b971f1503f938b18fb8d500c30a967ce4c97f77edd0c78fb01000000000000000100000000000000de00000001de0000000843a72e714401762df66b68c26dfbdf2682aaec9f2474eca4613e424a0fbafd3c66be7e332c7a453332bd9d0a7f7db055f5c5ef1a06ada66d98b39fb6810c473a";
+pub(crate) const CHECKPOINT_INFO_HASH: &str =
+	"8100af3e517883834e27a85ea421b125ef2051c5dcc3561e24b965a00996b439";
