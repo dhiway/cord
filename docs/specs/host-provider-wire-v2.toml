@@ -1,0 +1,190 @@
+# This file is part of CORD – https://cord.network
+
+# Copyright (C) Dhiway Networks Pvt. Ltd.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# CORD is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# CORD is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
+schema_version = 1
+protocol = "cord.origin.host/2"
+registry_sha256 = "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba"
+
+[boundary]
+scope = "p2-private-protocol-kernel"
+public_host_provider_routes = false
+browser_adapter_complete = false
+desktop_adapter_complete = false
+p3_transport_complete = false
+
+[[artifact]]
+role = "protocol"
+path = "docs/specs/host-provider-protocol-v2.md"
+sha256 = "de8116cb44b3b8f5a0a6d5bc135588edbb85366f1865db737c449f257deb99cf"
+
+[[artifact]]
+role = "registry"
+path = "docs/specs/origin-host-registry-v2.cddl"
+sha256 = "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba"
+
+[[artifact]]
+role = "operations"
+path = "docs/specs/origin-host-registry-v2.operations.json"
+sha256 = "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca"
+
+[[artifact]]
+role = "errors"
+path = "docs/specs/origin-host-registry-v2.errors.json"
+sha256 = "f9734782c6ade5eb8c0cbea5ad93a9808a6cc6a88363fec6f7bfc023de58d8ca"
+
+[[artifact]]
+role = "projection"
+path = "docs/specs/origin-host-registry-v2.schema.json"
+sha256 = "f6ce027cb6b4f93038f96d045e8abbeee751c901015d3e9bd58e2833beedc18b"
+
+[[artifact]]
+role = "host-vectors-json"
+path = "docs/specs/origin-host-registry-v2.vectors.json"
+sha256 = "6a2be09c04d1cf006c72eeaddfe66915381bfc849216c9d91746151687afc03b"
+
+[[artifact]]
+role = "host-vectors-cbor"
+path = "docs/specs/origin-host-registry-v2.vectors.cbor"
+sha256 = "9ef6624ba14275b9e30cca8ff786255011962e05986a12aac0071c85427be71c"
+
+[[artifact]]
+role = "protocol-vectors"
+path = "docs/specs/protocol-executable-v2.vectors.json"
+sha256 = "1b1da4bbc870dec61f9f85e0f2f06c80f54ddb6802f793287af7382ff9b27c64"
+
+[[artifact]]
+role = "provider-registry"
+path = "docs/specs/provider-protocol-v1.registry.json"
+sha256 = "645bb0749f35e2f3f71c932ceca413c7d9351b3c3976a10d6ff96c1aceba8f9c"
+
+[[artifact]]
+role = "provider-vectors"
+path = "docs/specs/provider-protocol-v1.vectors.json"
+sha256 = "cd9967f183b10632bd5036f897fba8f22391900158586c9a5af6d83c683f6ec6"
+
+[[artifact]]
+role = "outbox-state-machine"
+path = "docs/specs/host-outbox-v1.state-machine.json"
+sha256 = "bf9ba9ee5ab22dd537600bc0677950a655a4f0624e2f459715d9e4c06a54e8ef"
+
+[[artifact]]
+role = "outbox-vectors"
+path = "docs/specs/host-outbox-v1.vectors.json"
+sha256 = "97086f7e8a84ba32108968b8f27babc7832bcb08573914773eb9ca3b7f92899a"
+
+[expectations]
+provider_vector_ids = ["provider-capability-v1", "provider-resume-v1", "provider-recovery-entry-v1", "provider-response-ack-v1", "provider-transfer-request-v1"]
+outbox_states = ["Prepared", "SentAdvisory", "ResponseInstalled", "AckConfirmed", "Expired", "Quarantined", "GC"]
+outbox_transitions = [
+  "Prepared|network_send|SentAdvisory|none",
+  "Prepared|authenticated_response|ResponseInstalled|atomic_install_response_successor_cursor",
+  "SentAdvisory|authenticated_response|ResponseInstalled|atomic_install_response_successor_cursor",
+  "SentAdvisory|transport_loss|Prepared|resend_byte_identical_record",
+  "ResponseInstalled|provider_ack_confirmed|AckConfirmed|persist_ack_and_retire_consumed_authority",
+  "AckConfirmed|gc|GC|erase_body_keep_bounded_tombstone",
+  "Prepared|recovery_window_closed|Expired|erase_authority_keep_tombstone",
+  "ResponseInstalled|recovery_window_closed|Expired|erase_authority_keep_tombstone",
+  "Prepared|integrity_failure|Quarantined|send_nothing_require_user_recovery",
+  "ResponseInstalled|integrity_failure|Quarantined|send_nothing_require_user_recovery",
+]
+
+[expectations.host_outbox_errors]
+HOST_OUTBOX_UNAVAILABLE = 113
+HOST_OUTBOX_FULL = 114
+HOST_OUTBOX_CORRUPT = 115
+HOST_OUTBOX_EXPIRED = 116
+
+[[loss_boundary]]
+id = "failure-before-persist"
+effect_count = 0
+event_count = 0
+
+[[loss_boundary]]
+id = "after-persist-before-send"
+effect_count = 0
+event_count = 0
+
+[[loss_boundary]]
+id = "after-send-before-provider-commit"
+effect_count = 0
+event_count = 0
+
+[[loss_boundary]]
+id = "provider-commit-before-accepted"
+effect_count = 1
+event_count = 0
+
+[[loss_boundary]]
+id = "accepted-before-host-install"
+effect_count = 1
+event_count = 0
+
+[[loss_boundary]]
+id = "host-install-before-ack"
+effect_count = 1
+event_count = 0
+
+[[loss_boundary]]
+id = "ack-confirmation-loss"
+effect_count = 1
+event_count = 0
+
+[[loss_boundary]]
+id = "ack-confirmed-before-gc"
+effect_count = 1
+event_count = 0
+
+[[loss_boundary]]
+id = "cancel-before-provider-commit"
+effect_count = 1
+event_count = 1
+
+[[loss_boundary]]
+id = "cancel-after-provider-commit"
+effect_count = 1
+event_count = 1
+
+[[loss_boundary]]
+id = "host-restart"
+effect_count = 0
+event_count = 0
+
+[[loss_boundary]]
+id = "provider-restart"
+effect_count = 1
+event_count = 0
+
+[[loss_boundary]]
+id = "joint-restart"
+effect_count = 0
+event_count = 0
+
+[[loss_boundary]]
+id = "keystore-unavailable"
+effect_count = 0
+event_count = 0
+
+[[loss_boundary]]
+id = "ciphertext-corrupt"
+effect_count = 0
+event_count = 0
+
+[[loss_boundary]]
+id = "expiry-gc-race"
+effect_count = 0
+event_count = 0

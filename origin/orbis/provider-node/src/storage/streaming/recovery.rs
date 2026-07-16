@@ -3615,4 +3615,13 @@ mod tests {
 
 		assert!(StreamingStore::open(temp.path()).is_err());
 	}
+
+	#[test]
+	fn capability_resume_crash() {
+		crate::capability::tests::executable_vector_fixes_canonical_signature_and_fingerprint_bytes();
+		crate::capability::tests::agreement_lifetime_and_replay_checks_fail_closed();
+		installed_terminal_is_canonical_exact_ackable_and_gc_safe();
+		combined_commit_crash_points_recover_old_or_new_for_accept_and_progress();
+		terminal_and_gc_crash_seams_recover_old_or_new_atomically();
+	}
 }

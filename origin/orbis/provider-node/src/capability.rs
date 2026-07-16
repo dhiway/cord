@@ -547,7 +547,7 @@ fn encode_map(capability: &ProviderCapabilityV1, include_signature: bool) -> Vec
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
 	use super::*;
 	use orbis_storage_runtime_api::{
 		AgreementInfo, BucketGrantInfo, BucketRole, ControlBucketInfo, HostDelegationInfo,
@@ -586,7 +586,7 @@ mod tests {
 	}
 
 	#[test]
-	fn executable_vector_fixes_canonical_signature_and_fingerprint_bytes() {
+	pub(crate) fn executable_vector_fixes_canonical_signature_and_fingerprint_bytes() {
 		let vector = vector();
 		let canonical = hex_field(&vector, "canonical_cbor_hex");
 		let capability = ProviderCapabilityV1::decode(&canonical).expect("canonical vector");
@@ -910,7 +910,7 @@ mod tests {
 	}
 
 	#[test]
-	fn agreement_lifetime_and_replay_checks_fail_closed() {
+	pub(crate) fn agreement_lifetime_and_replay_checks_fail_closed() {
 		let (mut capability, mut snapshot, cid) = signed_fixture();
 		let pair = ed25519::Pair::from_seed(&[9; 32]);
 		assert_eq!(

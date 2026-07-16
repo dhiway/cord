@@ -1384,4 +1384,13 @@ mod tests {
 				.unwrap();
 		assert_eq!(store.prepare(prepared(), [4; 24]), Err(HostOutboxError::Full));
 	}
+
+	#[test]
+	fn host_v2_conformance() {
+		exact_registry_entry_and_envelope_vector_are_reproduced();
+		prepared_response_ack_restart_and_terminal_gc_are_byte_exact();
+		expiry_erases_authority_and_corrupt_ciphertext_is_quarantined();
+		crash_after_rename_recovers_new_durable_state_without_memory_claim();
+		every_atomic_prepare_boundary_recovers_old_or_new_without_regeneration();
+	}
 }
