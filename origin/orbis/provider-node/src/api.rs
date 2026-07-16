@@ -37,7 +37,7 @@ use hyper::{
 };
 use hyper_util::rt::TokioIo;
 use serde::{Deserialize, Serialize};
-use sp_core::{sr25519, Pair as _};
+use sp_core::{ed25519, Pair as _};
 use tokio::net::TcpListener;
 
 use crate::{
@@ -64,7 +64,7 @@ pub struct ApiConfig {
 pub struct ProviderService<A: ChainAuthority> {
 	store: Arc<DiskStore>,
 	authority: Arc<A>,
-	service_key: sr25519::Pair,
+	service_key: ed25519::Pair,
 	outbox: Arc<dyn CheckpointSubmitter>,
 	root_outbox_lock: tokio::sync::Mutex<()>,
 	started_unix_ms: u64,
@@ -75,7 +75,7 @@ impl<A: ChainAuthority> ProviderService<A> {
 	pub fn new(
 		store: Arc<DiskStore>,
 		authority: Arc<A>,
-		service_key: sr25519::Pair,
+		service_key: ed25519::Pair,
 		outbox: Arc<dyn CheckpointSubmitter>,
 	) -> Self {
 		Self {

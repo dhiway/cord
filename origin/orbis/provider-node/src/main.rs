@@ -25,7 +25,7 @@ use origin_orbis_provider::{
 	run_workers, serve, ApiConfig, DiskStore, FinalizedRuntimeAuthority, JsonlCheckpointOutbox,
 	NodeProfile, ProviderService, WorkerConfig,
 };
-use sp_core::{crypto::AccountId32, sr25519, Pair as _};
+use sp_core::{crypto::AccountId32, ed25519, Pair as _};
 
 #[derive(Debug, Parser)]
 #[command(name = "origin-orbis-provider", about = "Native Orbis content-provider service")]
@@ -54,7 +54,7 @@ struct Cli {
 	/// Environment variable containing the bearer token. The token is never persisted.
 	#[arg(long, default_value = "ORBIS_PROVIDER_BEARER_TOKEN")]
 	bearer_token_env: String,
-	/// Environment variable containing the sr25519 secret URI for the registered service key.
+	/// Environment variable containing the Ed25519 secret URI for the registered service key.
 	#[arg(long, default_value = "ORBIS_PROVIDER_SERVICE_SURI")]
 	service_key_env: String,
 	/// Maximum decoded content bytes per commit.
@@ -76,7 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	}
 	let suri = std::env::var(&cli.service_key_env)
 		.map_err(|_| format!("{} must contain the service-key secret URI", cli.service_key_env))?;
-	let service_key = sr25519::Pair::from_string(&suri, None)
+	let service_key = ed25519::Pair::from_string(&suri, None)
 		.map_err(|error| format!("invalid service-key secret URI: {error:?}"))?;
 	let provider_bytes: &[u8] = provider.as_ref();
 	let profile = NodeProfile {

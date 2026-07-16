@@ -539,10 +539,11 @@ mod tests {
 	}
 
 	fn profile() -> NodeProfile {
+		let service_key = sp_core::ed25519::Pair::from_seed(&[7u8; 32]).public();
 		NodeProfile {
 			provider: "01".repeat(32),
 			endpoint: "http://127.0.0.1:8080".into(),
-			service_key: "02".repeat(32),
+			service_key: hex::encode(service_key.0),
 			region: None,
 		}
 	}
@@ -578,7 +579,7 @@ mod tests {
 		ProviderService::new(
 			store,
 			Arc::new(NoopAuthority),
-			sp_core::sr25519::Pair::from_seed(&[7u8; 32]),
+			sp_core::ed25519::Pair::from_seed(&[7u8; 32]),
 			Arc::new(FaultOutbox::default()),
 		)
 	}
@@ -683,6 +684,20 @@ mod tests {
 		let checkpoint = service(store.clone()).sign_checkpoint().unwrap();
 		assert_eq!(checkpoint.root, stats.root);
 		assert_eq!(checkpoint.leaves, 2);
+		let signature: [u8; 64] = hex::decode(&checkpoint.signature).unwrap().try_into().unwrap();
+		let payload = [
+			b"orbis/provider-checkpoint/v1".as_slice(),
+			checkpoint.root.as_bytes(),
+			&checkpoint.leaves.to_le_bytes(),
+			&checkpoint.created_unix_ms.to_le_bytes(),
+		]
+		.concat();
+		let pair = sp_core::ed25519::Pair::from_seed(&[7u8; 32]);
+		assert!(sp_core::ed25519::Pair::verify(
+			&sp_core::ed25519::Signature::from_raw(signature),
+			&payload,
+			&pair.public(),
+		));
 		assert_eq!(store.latest_checkpoint().unwrap(), checkpoint);
 	}
 
