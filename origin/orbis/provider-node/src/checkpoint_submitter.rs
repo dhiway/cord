@@ -65,22 +65,35 @@ pub(crate) async fn consume_one_with_lane(
 	outbox: &CheckpointOutboxV2,
 	lane: &impl CheckpointFinalityLane,
 ) -> Result<Option<CheckpointFinalizedReceiptV2>, ContentError> {
-	let Some(submission) = outbox.pending_submissions()?.into_iter().next() else {
+	let heads = outbox.pending_submission_heads()?;
+	if heads.is_empty() {
 		return Ok(None)
-	};
-	if decode_fixed_hex::<32>(&submission.primary)? != lane.signer_account() {
-		return Err(ContentError::IntegrityFailed)
 	}
-	let payload = checkpoint_payload(lane.metadata(), &submission)?;
-	let intent_id = format!("orbis-checkpoint-v2-{}", submission.submission_id);
-	let evidence = lane.submit_and_finalize(&intent_id, payload).await?;
-	let receipt = outbox.record_finalized(
-		&submission.submission_id,
-		evidence.block_hash,
-		evidence.block_number,
-		evidence.extrinsic_hash,
-	)?;
-	Ok(Some(receipt))
+	let mut first_lane_error = None;
+	for submission in heads {
+		if decode_fixed_hex::<32>(&submission.primary)? != lane.signer_account() {
+			return Err(ContentError::IntegrityFailed)
+		}
+		let payload = checkpoint_payload(lane.metadata(), &submission)?;
+		let intent_id = format!("orbis-checkpoint-v2-{}", submission.submission_id);
+		let evidence = match lane.submit_and_finalize(&intent_id, payload).await {
+			Ok(evidence) => evidence,
+			Err(error) => {
+				if first_lane_error.is_none() {
+					first_lane_error = Some(error);
+				}
+				continue
+			},
+		};
+		let receipt = outbox.record_finalized(
+			&submission.submission_id,
+			evidence.block_hash,
+			evidence.block_number,
+			evidence.extrinsic_hash,
+		)?;
+		return Ok(Some(receipt))
+	}
+	Err(first_lane_error.unwrap_or(ContentError::IntegrityFailed))
 }
 
 pub(crate) fn checkpoint_payload(
@@ -352,11 +365,25 @@ mod tests {
 		(outbox, submission)
 	}
 
+	fn enqueue_checkpoint(
+		outbox: &CheckpointOutboxV2,
+		bucket: u8,
+		nonce: u32,
+		start_seq: u64,
+	) -> CheckpointSubmissionV2 {
+		let mut input = fixture();
+		input.payload.bucket_id = H256::repeat_byte(bucket);
+		input.payload.nonce = nonce;
+		input.payload.commitment.start_seq = start_seq;
+		resign(&mut input);
+		outbox.enqueue(&input).unwrap().submission
+	}
+
 	struct MockLane {
 		metadata: Metadata,
 		signer: [u8; 32],
 		result: Mutex<Result<FinalizedEvidence, ContentError>>,
-		reject_intent: Option<String>,
+		reject_intents: Vec<String>,
 		calls: AtomicUsize,
 		intents: Mutex<Vec<String>>,
 	}
@@ -371,7 +398,7 @@ mod tests {
 					block_number: 44,
 					extrinsic_hash: [9; 32],
 				})),
-				reject_intent: None,
+				reject_intents: Vec::new(),
 				calls: AtomicUsize::new(0),
 				intents: Mutex::new(Vec::new()),
 			}
@@ -395,8 +422,8 @@ mod tests {
 		) -> Result<FinalizedEvidence, ContentError> {
 			self.calls.fetch_add(1, Ordering::SeqCst);
 			self.intents.lock().unwrap().push(intent_id.into());
-			if self.reject_intent.as_deref() == Some(intent_id) {
-				return Err(ContentError::Io("later checkpoint rejected".into()))
+			if self.reject_intents.iter().any(|rejected| rejected == intent_id) {
+				return Err(ContentError::Io(format!("checkpoint rejected: {intent_id}")))
 			}
 			self.result.lock().unwrap().clone()
 		}
@@ -487,8 +514,10 @@ mod tests {
 
 		let predecessor_intent = format!("orbis-checkpoint-v2-{}", predecessor.submission_id);
 		let later_intent = format!("orbis-checkpoint-v2-{}", later.submission_id);
-		let lane =
-			MockLane { reject_intent: Some(later_intent.clone()), ..MockLane::successful([1; 32]) };
+		let lane = MockLane {
+			reject_intents: vec![later_intent.clone()],
+			..MockLane::successful([1; 32])
+		};
 		let receipt = consume_one_with_lane(&outbox, &lane).await.unwrap().unwrap();
 		assert_eq!(receipt.submission_id, predecessor.submission_id);
 		assert!(outbox.finalized_receipt(&predecessor.submission_id).unwrap().is_some());
@@ -505,6 +534,66 @@ mod tests {
 		assert!(matches!(consume_one_with_lane(&outbox, &lane).await, Err(ContentError::Io(_))));
 		assert_eq!(lane.intents.lock().unwrap().as_slice(), [predecessor_intent, later_intent]);
 		assert_eq!(outbox.finalized_receipt(&later.submission_id).unwrap(), None);
+	}
+
+	#[tokio::test]
+	async fn rejected_bucket_head_cannot_starve_an_independent_bucket() {
+		let temp = TempDir::new().unwrap();
+		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+		let first_a = enqueue_checkpoint(&outbox, 4, 103, 7);
+		let successor_a = enqueue_checkpoint(&outbox, 4, 104, 10);
+		let first_b = enqueue_checkpoint(&outbox, 5, 99, 2);
+		let first_a_intent = format!("orbis-checkpoint-v2-{}", first_a.submission_id);
+		let first_b_intent = format!("orbis-checkpoint-v2-{}", first_b.submission_id);
+		let lane = MockLane {
+			reject_intents: vec![first_a_intent.clone()],
+			..MockLane::successful([1; 32])
+		};
+
+		let receipt = consume_one_with_lane(&outbox, &lane).await.unwrap().unwrap();
+		assert_eq!(receipt.submission_id, first_b.submission_id);
+		assert_eq!(lane.intents.lock().unwrap().as_slice(), [first_a_intent, first_b_intent]);
+		assert_eq!(outbox.finalized_receipt(&first_a.submission_id).unwrap(), None);
+		assert_eq!(outbox.finalized_receipt(&successor_a.submission_id).unwrap(), None);
+		assert!(outbox.finalized_receipt(&first_b.submission_id).unwrap().is_some());
+		assert_eq!(
+			outbox
+				.pending_submissions()
+				.unwrap()
+				.iter()
+				.map(|submission| submission.submission_id.as_str())
+				.collect::<Vec<_>>(),
+			[first_a.submission_id.as_str(), successor_a.submission_id.as_str()]
+		);
+	}
+
+	#[tokio::test]
+	async fn all_bucket_head_failures_return_the_first_deterministic_error() {
+		let temp = TempDir::new().unwrap();
+		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+		let first_a = enqueue_checkpoint(&outbox, 4, 103, 7);
+		let successor_a = enqueue_checkpoint(&outbox, 4, 104, 10);
+		let first_b = enqueue_checkpoint(&outbox, 5, 99, 2);
+		let first_a_intent = format!("orbis-checkpoint-v2-{}", first_a.submission_id);
+		let successor_a_intent = format!("orbis-checkpoint-v2-{}", successor_a.submission_id);
+		let first_b_intent = format!("orbis-checkpoint-v2-{}", first_b.submission_id);
+		let lane = MockLane {
+			reject_intents: vec![
+				first_a_intent.clone(),
+				successor_a_intent,
+				first_b_intent.clone(),
+			],
+			..MockLane::successful([1; 32])
+		};
+
+		assert_eq!(
+			consume_one_with_lane(&outbox, &lane).await,
+			Err(ContentError::Io(format!("checkpoint rejected: {first_a_intent}")))
+		);
+		assert_eq!(lane.intents.lock().unwrap().as_slice(), [first_a_intent, first_b_intent]);
+		for submission in [&first_a, &successor_a, &first_b] {
+			assert_eq!(outbox.finalized_receipt(&submission.submission_id).unwrap(), None);
+		}
 	}
 
 	#[tokio::test]

@@ -76,9 +76,9 @@ impl CheckpointStack {
 		Ok(Self { state: Mutex::new(state) })
 	}
 
-	/// Clone the next durable submission so external finality work never borrows the stack guard.
-	pub(crate) fn next_submission(&self) -> Result<Option<CheckpointSubmissionV2>, ContentError> {
-		Ok(self.lock()?.outbox.pending_submissions()?.into_iter().next())
+	/// Clone each independent bucket head so external finality work never borrows the stack guard.
+	pub(crate) fn submission_heads(&self) -> Result<Vec<CheckpointSubmissionV2>, ContentError> {
+		self.lock()?.outbox.pending_submission_heads()
 	}
 
 	fn lock(&self) -> Result<MutexGuard<'_, CheckpointStackState>, ContentError> {
@@ -115,7 +115,7 @@ mod tests {
 		for root in DURABLE_ROOTS {
 			assert!(temp.path().join(root).is_dir(), "missing durable root {root}");
 		}
-		assert!(stack.next_submission().unwrap().is_none());
+		assert!(stack.submission_heads().unwrap().is_empty());
 		assert!(stack.state.try_lock().is_ok());
 		let state = stack.lock().unwrap();
 		assert!(state.proposals.pending_checkpoint_proposals().unwrap().is_empty());

@@ -250,6 +250,22 @@ impl CheckpointOutboxV2 {
 		Ok(pending.into_iter().map(|(_, submission)| submission).collect())
 	}
 
+	/// Clone only the earliest causal submission for each independent bucket.
+	pub(crate) fn pending_submission_heads(
+		&self,
+	) -> Result<Vec<CheckpointSubmissionV2>, ContentError> {
+		let mut previous_bucket = None;
+		let mut heads = Vec::new();
+		for submission in self.pending_submissions()? {
+			let bucket = pending_order_key(&submission)?.0;
+			if previous_bucket != Some(bucket) {
+				previous_bucket = Some(bucket);
+				heads.push(submission);
+			}
+		}
+		Ok(heads)
+	}
+
 	pub(crate) fn finalized_receipt(
 		&self,
 		submission_id: &str,
