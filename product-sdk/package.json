@@ -40,6 +40,7 @@
     "test:conformance": "node --experimental-strip-types --test tests/conformance/*.test.ts",
     "test:content": "node --experimental-strip-types --test tests/content/*.test.ts",
     "test:proof-vectors": "node --experimental-strip-types --test tests/content/proof-vectors.test.ts",
+    "test:storage-vectors": "node --experimental-strip-types --test tests/content/storage-vectors.test.ts",
     "test:host": "node --experimental-strip-types --test tests/host/*.test.ts",
     "validate:reference-app": "node --experimental-strip-types examples/festival/bootstrap.ts",
     "test:network-host": "node --experimental-strip-types --test tests/host/network-host.test.ts",
