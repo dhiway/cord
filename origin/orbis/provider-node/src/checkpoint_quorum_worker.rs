@@ -128,6 +128,10 @@ where
 				.map(|duty| (proposal, duty))
 		})
 		.collect::<Vec<_>>();
+	let resume_ids = resumes
+		.iter()
+		.map(|(proposal, _)| proposal.duty_id.clone())
+		.collect::<BTreeSet<_>>();
 	let candidates = inventory
 		.duties
 		.iter()
@@ -139,29 +143,19 @@ where
 					CheckpointDutyPhase::Primary | CheckpointDutyPhase::ReplicaFallback
 				)
 		})
+		.filter(|duty| !resume_ids.contains(duty.duty_id.trim_start_matches("0x")))
 		.cloned()
 		.collect::<Vec<_>>();
 	let (resumes, candidates) = scheduler
-		.reserve(&inventory, resumes, candidates)
+		.scan(&inventory, resumes, candidates)
 		.map_err(|error| error.to_string())?;
-	let mut selected = Vec::with_capacity(MAX_SELECTIONS);
-	let mut seen = BTreeSet::new();
-	for (proposal, duty) in resumes {
-		seen.insert(proposal.duty_id.clone());
-		selected.push(Selection::Resume(proposal, duty));
-	}
-	for duty in candidates {
-		let key = duty.duty_id.trim_start_matches("0x").to_string();
-		if seen.insert(key) && selected.len() < MAX_SELECTIONS {
-			selected.push(Selection::Candidate(duty));
-		}
-	}
 
 	let mut actions = Vec::with_capacity(MAX_ACTIONS);
-	for selection in selected {
+	for selection in fair_considerations(resumes, candidates) {
 		if actions.len() == MAX_ACTIONS {
 			break;
 		}
+		let admission = Admission::from(&selection);
 		let prepared = match selection {
 			Selection::Resume(proposal, duty) => stack
 				.resume_checkpoint_quorum(&proposal, &local_key)
@@ -173,6 +167,7 @@ where
 		match prepared {
 			Ok((proposal, duty, snapshot)) => {
 				if let Some(request) = snapshot.requests.into_iter().next() {
+					scheduler.admit(&inventory, &admission).map_err(|error| error.to_string())?;
 					actions.push((proposal, duty, request));
 				}
 			},
@@ -273,7 +268,7 @@ impl CheckpointQuorumScheduler {
 		Ok(Self { root, record: Mutex::new(record) })
 	}
 
-	fn reserve(
+	fn scan(
 		&self,
 		inventory: &crate::storage::CheckpointDutyInventory,
 		mut resumes: Vec<(PreparedCheckpointProposalV2, CheckpointDuty)>,
@@ -284,7 +279,7 @@ impl CheckpointQuorumScheduler {
 	> {
 		resumes.sort_by(|left, right| resume_key(&left.0).cmp(&resume_key(&right.0)));
 		candidates.sort_by_key(duty_key);
-		let mut guard = self.record.lock().map_err(|_| ContentError::IntegrityFailed)?;
+		let guard = self.record.lock().map_err(|_| ContentError::IntegrityFailed)?;
 		let canonical_finalized_hash = hex::encode(decode_hash(&inventory.finalized_hash)?);
 		let same_inventory = guard.as_ref().is_some_and(|record| {
 			record.finalized_hash == canonical_finalized_hash
@@ -299,19 +294,47 @@ impl CheckpointQuorumScheduler {
 			.flatten();
 		let resumes = round_robin(resumes, resume_after, MAX_RESUMES, |item| resume_key(&item.0));
 		let candidates = round_robin(candidates, candidate_after, MAX_CANDIDATES, duty_key);
+		debug_assert!(resumes.len().saturating_add(candidates.len()) <= MAX_SELECTIONS);
+		Ok((resumes, candidates))
+	}
+
+	fn admit(
+		&self,
+		inventory: &crate::storage::CheckpointDutyInventory,
+		admission: &Admission,
+	) -> Result<(), ContentError> {
+		let mut guard = self.record.lock().map_err(|_| ContentError::IntegrityFailed)?;
+		let canonical_finalized_hash = hex::encode(decode_hash(&inventory.finalized_hash)?);
+		let same_inventory = guard.as_ref().is_some_and(|record| {
+			record.finalized_hash == canonical_finalized_hash
+				&& record.finalized_number == inventory.finalized_number
+				&& record.snapshot_checkpoint == inventory.snapshot_checkpoint
+		});
+		let previous_resume = same_inventory
+			.then(|| guard.as_ref().and_then(|record| record.resume_after.clone()))
+			.flatten();
+		let previous_candidate = same_inventory
+			.then(|| guard.as_ref().and_then(|record| record.candidate_after.clone()))
+			.flatten();
 		let mut next = SchedulerRecordV1 {
 			version: SCHEDULER_VERSION,
 			finalized_hash: canonical_finalized_hash,
 			finalized_number: inventory.finalized_number,
 			snapshot_checkpoint: inventory.snapshot_checkpoint,
-			resume_after: resumes.last().map(|item| resume_key(&item.0)),
-			candidate_after: candidates.last().map(duty_key),
+			resume_after: match admission.lane {
+				Lane::Resume => Some(admission.key.clone()),
+				Lane::Candidate => previous_resume,
+			},
+			candidate_after: match admission.lane {
+				Lane::Resume => previous_candidate,
+				Lane::Candidate => Some(admission.key.clone()),
+			},
 			record_hash: String::new(),
 		};
 		next.record_hash = scheduler_hash(&next)?;
 		self.persist(&next)?;
 		*guard = Some(next);
-		Ok((resumes, candidates))
+		Ok(())
 	}
 
 	fn persist(&self, record: &SchedulerRecordV1) -> Result<(), ContentError> {
@@ -340,6 +363,29 @@ where
 		.and_then(|after| items.iter().position(|item| key(item).as_str() > after))
 		.unwrap_or(0);
 	items.iter().cycle().skip(start).take(items.len().min(limit)).cloned().collect()
+}
+
+fn fair_considerations(
+	resumes: Vec<(PreparedCheckpointProposalV2, CheckpointDuty)>,
+	candidates: Vec<CheckpointDuty>,
+) -> Vec<Selection> {
+	let mut resumes = resumes.into_iter();
+	let mut candidates = candidates.into_iter();
+	let mut selected = Vec::with_capacity(MAX_SELECTIONS);
+	loop {
+		let resume = resumes.next();
+		let candidate = candidates.next();
+		if resume.is_none() && candidate.is_none() {
+			break;
+		}
+		if let Some((proposal, duty)) = resume {
+			selected.push(Selection::Resume(proposal, duty));
+		}
+		if let Some(duty) = candidate {
+			selected.push(Selection::Candidate(duty));
+		}
+	}
+	selected
 }
 
 fn duty_key(duty: &CheckpointDuty) -> String {
@@ -387,6 +433,28 @@ fn io_error(error: impl std::fmt::Display) -> ContentError {
 enum Selection {
 	Resume(PreparedCheckpointProposalV2, CheckpointDuty),
 	Candidate(CheckpointDuty),
+}
+
+#[derive(Clone, Copy)]
+enum Lane {
+	Resume,
+	Candidate,
+}
+
+struct Admission {
+	lane: Lane,
+	key: String,
+}
+
+impl From<&Selection> for Admission {
+	fn from(selection: &Selection) -> Self {
+		match selection {
+			Selection::Resume(proposal, _) => {
+				Self { lane: Lane::Resume, key: resume_key(proposal) }
+			},
+			Selection::Candidate(duty) => Self { lane: Lane::Candidate, key: duty_key(duty) },
+		}
+	}
 }
 
 fn current_duty_matches_proposal(
@@ -562,7 +630,7 @@ mod tests {
 			finalized_hash: hex::encode([5; 32]),
 			finalized_number: number,
 			snapshot_checkpoint: 7,
-			duties: (1..=70).map(duty).collect(),
+			duties: (1..=120).map(duty).collect(),
 		}
 	}
 
@@ -604,27 +672,125 @@ mod tests {
 		(proposal, duty(id))
 	}
 
+	fn action_ids(actions: &[Selection]) -> (Vec<u8>, Vec<u8>) {
+		let mut resumes = Vec::new();
+		let mut candidates = Vec::new();
+		for action in actions {
+			match action {
+				Selection::Resume(proposal, _) => {
+					resumes.push(hex::decode(&proposal.bucket_id).unwrap()[0])
+				},
+				Selection::Candidate(duty) => candidates
+					.push(hex::decode(duty.bucket_id.trim_start_matches("0x")).unwrap()[0]),
+			}
+		}
+		(resumes, candidates)
+	}
+
+	fn admit_successes(
+		scheduler: &CheckpointQuorumScheduler,
+		current: &CheckpointDutyInventory,
+		resumes: Vec<(PreparedCheckpointProposalV2, CheckpointDuty)>,
+		candidates: Vec<CheckpointDuty>,
+		failed_considerations: usize,
+	) -> Vec<Selection> {
+		let scanned = scheduler.scan(current, resumes, candidates).unwrap();
+		let mut admitted = Vec::new();
+		for (index, selection) in fair_considerations(scanned.0, scanned.1).into_iter().enumerate()
+		{
+			if index < failed_considerations {
+				continue;
+			}
+			scheduler.admit(current, &Admission::from(&selection)).unwrap();
+			admitted.push(selection);
+			if admitted.len() == MAX_ACTIONS {
+				break;
+			}
+		}
+		admitted
+	}
+
 	#[test]
-	fn scheduler_round_robin_is_durable_and_resets_only_for_a_new_inventory() {
+	fn ninth_persistent_resume_is_next_after_reopen_not_the_sixty_fifth() {
+		let temp = TempDir::new().unwrap();
+		let current = inventory(9);
+		let resumes = (1..=70).map(resume).collect::<Vec<_>>();
+		let scheduler = CheckpointQuorumScheduler::open(temp.path()).unwrap();
+		let first = admit_successes(&scheduler, &current, resumes.clone(), Vec::new(), 0);
+		assert_eq!(action_ids(&first).0, (1..=8).collect::<Vec<_>>());
+		drop(scheduler);
+		let reopened = CheckpointQuorumScheduler::open(temp.path()).unwrap();
+		let second = admit_successes(&reopened, &current, resumes, Vec::new(), 0);
+		assert_eq!(action_ids(&second).0.first(), Some(&9));
+	}
+
+	#[test]
+	fn busy_resume_and_candidate_lanes_each_receive_four_actions_every_tick() {
 		let temp = TempDir::new().unwrap();
 		let current = inventory(9);
 		let scheduler = CheckpointQuorumScheduler::open(temp.path()).unwrap();
-		let resumes = (1..=70).map(resume).collect::<Vec<_>>();
-		let (first_resumes, first) =
-			scheduler.reserve(&current, resumes.clone(), current.duties.clone()).unwrap();
-		assert_eq!(first_resumes.len(), 64);
-		assert_eq!(first.len(), 64);
-		drop(scheduler);
-		let reopened = CheckpointQuorumScheduler::open(temp.path()).unwrap();
-		let (second_resumes, second) =
-			reopened.reserve(&current, resumes.clone(), current.duties.clone()).unwrap();
-		assert_eq!(second_resumes.first().unwrap().0.bucket_id, resume(65).0.bucket_id);
-		assert_eq!(second.first().unwrap().bucket_id, duty(65).bucket_id);
-		let changed = inventory(10);
-		let (reset_resumes, reset) =
-			reopened.reserve(&changed, resumes, changed.duties.clone()).unwrap();
-		assert_eq!(reset_resumes.first().unwrap().0.bucket_id, resume(1).0.bucket_id);
-		assert_eq!(reset.first().unwrap().bucket_id, duty(1).bucket_id);
+		let resumes = (1..=20).map(resume).collect::<Vec<_>>();
+		let candidates = (101..=120).map(duty).collect::<Vec<_>>();
+		for expected_start in [1, 5] {
+			let actions =
+				admit_successes(&scheduler, &current, resumes.clone(), candidates.clone(), 0);
+			let (resume_ids, candidate_ids) = action_ids(&actions);
+			assert_eq!(resume_ids, (expected_start..expected_start + 4).collect::<Vec<_>>());
+			assert_eq!(candidate_ids.len(), 4);
+		}
+	}
+
+	#[test]
+	fn uneven_or_empty_lane_fills_every_available_action_slot() {
+		for (case, resumes, candidates, expected) in [
+			(1, (1..=2).map(resume).collect(), (101..=110).map(duty).collect(), (2, 6)),
+			(2, (1..=10).map(resume).collect(), Vec::new(), (8, 0)),
+			(3, Vec::new(), (101..=103).map(duty).collect(), (0, 3)),
+		] {
+			let temp = TempDir::new().unwrap();
+			let scheduler = CheckpointQuorumScheduler::open(temp.path()).unwrap();
+			let current = inventory(case);
+			let actions = admit_successes(&scheduler, &current, resumes, candidates, 0);
+			let ids = action_ids(&actions);
+			assert_eq!((ids.0.len(), ids.1.len()), expected);
+		}
+	}
+
+	#[test]
+	fn failed_or_requestless_selection_does_not_advance_but_cannot_starve_followers() {
+		for candidates_only in [false, true] {
+			let temp = TempDir::new().unwrap();
+			let current = inventory(9);
+			let scheduler = CheckpointQuorumScheduler::open(temp.path()).unwrap();
+			let resumes = (!candidates_only)
+				.then(|| (1..=12).map(resume).collect::<Vec<_>>())
+				.unwrap_or_default();
+			let candidates = candidates_only
+				.then(|| (1..=12).map(duty).collect::<Vec<_>>())
+				.unwrap_or_default();
+			let scanned = scheduler.scan(&current, resumes.clone(), candidates.clone()).unwrap();
+			let first_considered = fair_considerations(scanned.0, scanned.1);
+			let expected_first =
+				if candidates_only { (Vec::new(), vec![1]) } else { (vec![1], Vec::new()) };
+			assert_eq!(action_ids(&first_considered[..1]), expected_first);
+			drop(scheduler);
+			let reopened = CheckpointQuorumScheduler::open(temp.path()).unwrap();
+			let unchanged = reopened.scan(&current, resumes.clone(), candidates.clone()).unwrap();
+			assert_eq!(
+				action_ids(&fair_considerations(unchanged.0, unchanged.1)[..1]),
+				expected_first
+			);
+			// The first selected preparation fails/no-requests; later prepared actions still progress.
+			let admitted =
+				admit_successes(&reopened, &current, resumes.clone(), candidates.clone(), 1);
+			assert_eq!(admitted.len(), MAX_ACTIONS);
+			drop(reopened);
+			let reopened = CheckpointQuorumScheduler::open(temp.path()).unwrap();
+			let next = admit_successes(&reopened, &current, resumes, candidates, 0);
+			let ids = action_ids(&next);
+			let first = if candidates_only { ids.1.first() } else { ids.0.first() };
+			assert_eq!(first, Some(&10));
+		}
 	}
 
 	struct GatedTransport {
