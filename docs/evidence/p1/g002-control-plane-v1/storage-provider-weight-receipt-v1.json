@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "scope": "G002 provider control-plane weights: clean provider-only compiled-Wasm 50x20 rerun",
+  "measurement_source": {
+    "commit": "1ef7cc7285c5012d3d112d1211bd15a12fa5120c",
+    "tree": "52c1ee56f3230691096dd855b71e440e6c3b6981",
+    "branch": "sm-update-sub-0x65",
+    "isolated_worktree": true
+  },
+  "producer": {
+    "path": "scripts/generate-storage-weights-evidence.py",
+    "sha256": "361c69c5ee56d27dc54d14d260af6665fa85681c2e88e6ac5729ab5d61f66e49",
+    "original_pass_receipt_sha256": "ac16f1ed917bea74f2d1ff0875489f2fd720376636a5fdfbf37c3c42d8c48da9"
+  },
+  "parameters": {
+    "chain": "orbis-dev",
+    "wasm_execution": "compiled",
+    "steps": 50,
+    "repeat": 20,
+    "pallets": [
+      "pallet_orbis_storage_provider"
+    ]
+  },
+  "benchmark": {
+    "pallet": "pallet_orbis_storage_provider",
+    "benchmark_count": 30,
+    "benchmarks": [
+      "register_provider",
+      "update_provider",
+      "rotate_service_key",
+      "rotate_provider_organization",
+      "set_provider_status",
+      "remove_provider",
+      "heartbeat",
+      "create_bucket",
+      "change_bucket_grant",
+      "propose_agreement",
+      "accept_agreement",
+      "set_agreement_suspension",
+      "terminate_agreement",
+      "expire_agreement",
+      "submit_checkpoint",
+      "promote_checkpoint_fallback",
+      "issue_challenge",
+      "submit_challenge_proof",
+      "reconcile_bucket",
+      "refresh_bucket_authority_valid",
+      "refresh_bucket_authority_failover",
+      "register_manifest",
+      "publish_manifest",
+      "tombstone_manifest",
+      "acknowledge_manifest_deletion",
+      "replace_bucket_replica",
+      "advance_finalized_checkpoint",
+      "on_initialize_release",
+      "on_initialize_reconcile",
+      "on_initialize_challenges"
+    ],
+    "raw_json_path": "docs/evidence/p1/g002-control-plane-v1/benchmarks/pallet_orbis_storage_provider.json",
+    "raw_json_sha256": "32c11274c0528e7692d0ab788a7dfa941e744624459bf5243b1fa73136c40608",
+    "generated_weight_path": "origin/orbis/pallets/storage-provider/src/weights.rs",
+    "generated_weight_sha256": "2b7356a2c4e4b9e8663507ec52a6dcb6dd927b120a3571f6211fa220e9756292"
+  },
+  "worst_case_binding": {
+    "configured_max_replicas": 4,
+    "configured_max_bucket_agreements": 32,
+    "promotion_benchmark_replicas": "T::MaxReplicas::get()",
+    "generated_promotion_provider_reads": 4,
+    "generated_promotion_replica_checkpoint_reads": 4,
+    "atomic_submit_charge": "submit_checkpoint(confirmations) + promote_checkpoint_fallback(bucket_agreements)"
+  },
+  "checks": {
+    "generated_coverage": {
+      "pallet": "pallet_orbis_storage_provider",
+      "measured_benchmarks": [
+        "register_provider",
+        "update_provider",
+        "rotate_service_key",
+        "rotate_provider_organization",
+        "set_provider_status",
+        "remove_provider",
+        "heartbeat",
+        "create_bucket",
+        "change_bucket_grant",
+        "propose_agreement",
+        "accept_agreement",
+        "set_agreement_suspension",
+        "terminate_agreement",
+        "expire_agreement",
+        "submit_checkpoint",
+        "promote_checkpoint_fallback",
+        "issue_challenge",
+        "submit_challenge_proof",
+        "reconcile_bucket",
+        "refresh_bucket_authority_valid",
+        "refresh_bucket_authority_failover",
+        "register_manifest",
+        "publish_manifest",
+        "tombstone_manifest",
+        "acknowledge_manifest_deletion",
+        "replace_bucket_replica",
+        "advance_finalized_checkpoint",
+        "on_initialize_release",
+        "on_initialize_reconcile",
+        "on_initialize_challenges"
+      ],
+      "measured_count": 30,
+      "trait_count": 30,
+      "generic_implementation_count": 30,
+      "nonzero_fallback_implementation_count": 30,
+      "exact_header": true,
+      "compiled_wasm_steps_50_repeat_20": true,
+      "zero_weight_absent": true
+    },
+    "promotion_dispatch_uses_generated_weight": true,
+    "fallback_zero_weight_absent": true,
+    "bounded_limits": {
+      "max_duties_per_block": 256,
+      "max_reconciliation_records_per_tick": 128
+    },
+    "compiled_runtime_gate": {
+      "result": "pass",
+      "log_sha256": "290f82de7da009ecb48bde2bad5e0c8a00efa87f125530c58bf81c69e3869bae",
+      "assertions": [
+        "all generated dispatch and hook weights are nonzero",
+        "0/1/limit-1/limit sequences are monotonic where the function domain permits",
+        "256-release, 128-reconciliation and 128-challenge hook maxima fit RuntimeBlockWeights",
+        "each hook plus the maximum provider dispatch fits the aggregate block budget",
+        "provider replica/agreement/proof, Drive and S3 component limits are monotonic and bounded"
+      ]
+    }
+  },
+  "sanitization": {
+    "omits": [
+      "absolute host paths",
+      "native node binary",
+      "runtime benchmark Wasm",
+      "build and benchmark logs"
+    ],
+    "raw_benchmark_measurements_preserved": true,
+    "source_and_output_hashes_preserved": true
+  },
+  "claim_boundary": {
+    "g002_control_plane": true,
+    "g003_provider_byte_plane": false,
+    "production_ready": false
+  }
+}
