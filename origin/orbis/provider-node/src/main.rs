@@ -22,8 +22,9 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
 use origin_orbis_provider::{
-	run_replication_worker, run_workers, serve_provider_ingress, ApiConfig, DiskStore,
-	FinalizedRuntimeAuthority, JsonlCheckpointOutbox, NodeProfile, ProviderService, WorkerConfig,
+	run_checkpoint_quorum_worker, run_replication_worker, run_workers, serve_provider_ingress,
+	ApiConfig, DiskStore, FinalizedRuntimeAuthority, JsonlCheckpointOutbox, NodeProfile,
+	ProviderService, WorkerConfig,
 };
 use sp_core::{crypto::AccountId32, ed25519, Pair as _};
 
@@ -69,6 +70,9 @@ struct Cli {
 	/// Target replication reconciliation interval in seconds.
 	#[arg(long, default_value_t = 6)]
 	replication_seconds: u64,
+	/// Primary checkpoint quorum coordination interval in seconds.
+	#[arg(long, default_value_t = 6)]
+	checkpoint_quorum_seconds: u64,
 }
 
 #[tokio::main]
@@ -122,7 +126,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	tokio::select! {
 		result = serve_provider_ingress(api, peer_listener, service.clone(), local_provider) => result?,
 		_ = run_workers(service.clone(), workers) => {},
-		_ = run_replication_worker(service, local_provider, Duration::from_secs(cli.replication_seconds.max(1))) => {},
+		_ = run_replication_worker(service.clone(), local_provider, Duration::from_secs(cli.replication_seconds.max(1))) => {},
+		_ = run_checkpoint_quorum_worker(service.clone(), local_provider, Duration::from_secs(cli.checkpoint_quorum_seconds.max(1))) => {},
 		_ = tokio::signal::ctrl_c() => {},
 	}
 	Ok(())

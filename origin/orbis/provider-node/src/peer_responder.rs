@@ -23,14 +23,17 @@
 
 use std::sync::Arc;
 
-use sp_core::{ed25519, Pair as _};
+use codec::{Decode, Encode};
+use orbis_storage_runtime_api::CheckpointDutyInfo;
+use sp_core::{crypto::AccountId32, ed25519, Pair as _, H256};
 
 use crate::{
-	chain::ReplicationAuthority,
+	chain::{ReplicationAuthority, ReplicationTopologySnapshot},
+	checkpoint::checkpoint_quorum::ReplicaConfirmationRequestV1,
 	checkpoint_stack::CheckpointStack,
 	peer::{PeerChunkRequestV1, PeerSyncPageRequestV1},
 	replication_session::ReplicationSessionV1,
-	ContentError,
+	ContentError, DiskStore,
 };
 
 /// Private source-side responder. It deliberately owns no route or transport listener.
@@ -39,6 +42,7 @@ pub(crate) struct PeerResponder<A> {
 	stack: Arc<CheckpointStack>,
 	local_provider: [u8; 32],
 	local_service: ed25519::Pair,
+	store: Option<Arc<DiskStore>>,
 }
 
 impl<A: ReplicationAuthority> PeerResponder<A> {
@@ -51,7 +55,19 @@ impl<A: ReplicationAuthority> PeerResponder<A> {
 		if local_provider == [0; 32] {
 			return Err(ContentError::IntegrityFailed);
 		}
-		Ok(Self { authority, stack, local_provider, local_service })
+		Ok(Self { authority, stack, local_provider, local_service, store: None })
+	}
+
+	pub(crate) fn new_with_store(
+		authority: Arc<A>,
+		stack: Arc<CheckpointStack>,
+		store: Arc<DiskStore>,
+		local_provider: [u8; 32],
+		local_service: ed25519::Pair,
+	) -> Result<Self, ContentError> {
+		let mut responder = Self::new(authority, stack, local_provider, local_service)?;
+		responder.store = Some(store);
+		Ok(responder)
 	}
 
 	#[cfg(test)]
@@ -77,6 +93,61 @@ impl<A: ReplicationAuthority> PeerResponder<A> {
 		}
 		self.authenticate_context(request.context()).await?;
 		self.stack.serve_peer_chunk(&request, &self.local_service)
+	}
+
+	/// Revalidate a pinned duty against current topology before signing one exact confirmation.
+	pub(crate) async fn confirmation(&self, request_bytes: &[u8]) -> Result<Vec<u8>, ContentError> {
+		let request = ReplicaConfirmationRequestV1::decode_canonical(request_bytes)?;
+		let store = self.store.as_ref().ok_or(ContentError::IntegrityFailed)?;
+		let inventory = store
+			.checkpoint_duty_inventory()
+			.map_err(|error| ContentError::Io(error.to_string()))?
+			.ok_or(ContentError::IntegrityFailed)?;
+		let duty = inventory
+			.duties
+			.iter()
+			.find(|duty| {
+				duty.duty_id.trim_start_matches("0x") == hex::encode(request.duty_id.as_bytes())
+			})
+			.ok_or(ContentError::NotFound)?;
+		let encoded = hex::decode(duty.encoded_duty.trim_start_matches("0x"))
+			.map_err(|_| ContentError::IntegrityFailed)?;
+		let mut input = &encoded[..];
+		let decoded = CheckpointDutyInfo::<AccountId32, H256, u32>::decode(&mut input)
+			.map_err(|_| ContentError::IntegrityFailed)?;
+		if !input.is_empty() || decoded.encode() != encoded {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let finalized_hash = decode_hash(&inventory.finalized_hash)?;
+		let pinned = self
+			.authority
+			.replication_topology_at(
+				request.payload.bucket_id.0,
+				finalized_hash,
+				inventory.finalized_number,
+			)
+			.await
+			.map_err(|_| ContentError::IntegrityFailed)?;
+		if pinned.finalized_hash != finalized_hash
+			|| pinned.finalized_number != inventory.finalized_number
+			|| pinned.governed_finalized_checkpoint != Some(inventory.snapshot_checkpoint)
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+		let current = self
+			.authority
+			.replication_topology(request.payload.bucket_id.0)
+			.await
+			.map_err(|_| ContentError::IntegrityFailed)?;
+		validate_confirmation_topologies(
+			&request,
+			&decoded,
+			&pinned,
+			&current,
+			self.local_provider,
+			self.local_service.public().0,
+		)?;
+		self.stack.confirm_checkpoint(store, &self.local_service, request_bytes)
 	}
 
 	async fn authenticate_context(
@@ -142,6 +213,76 @@ impl<A: ReplicationAuthority> PeerResponder<A> {
 		}
 		Ok(())
 	}
+}
+
+fn decode_hash(value: &str) -> Result<[u8; 32], ContentError> {
+	hex::decode(value.trim_start_matches("0x"))
+		.map_err(|_| ContentError::IntegrityFailed)?
+		.try_into()
+		.map_err(|_| ContentError::IntegrityFailed)
+}
+
+fn validate_confirmation_topologies(
+	request: &ReplicaConfirmationRequestV1,
+	duty: &CheckpointDutyInfo<AccountId32, H256, u32>,
+	pinned: &ReplicationTopologySnapshot,
+	current: &ReplicationTopologySnapshot,
+	local_provider: [u8; 32],
+	local_key: [u8; 32],
+) -> Result<(), ContentError> {
+	let target = account_bytes(&request.target_provider)?;
+	let primary = account_bytes(&request.primary_provider)?;
+	if target != local_provider
+		|| request.target_service_key.0 != local_key
+		|| pinned.bucket_id != request.payload.bucket_id.0
+		|| current.bucket_id != pinned.bucket_id
+		|| current.finalized_number < pinned.finalized_number
+		|| current.governed_finalized_checkpoint < pinned.governed_finalized_checkpoint
+		|| current.bucket_version != pinned.bucket_version
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	for (provider, key, version) in [
+		(target, request.target_service_key.0, request.target_service_key_version),
+		(primary, request.primary_service_key.0, 0),
+	] {
+		let authority = duty
+			.authorities
+			.iter()
+			.find(|authority| account_bytes(&authority.provider).ok() == Some(provider))
+			.ok_or(ContentError::IntegrityFailed)?;
+		let pinned_provider = pinned
+			.providers
+			.iter()
+			.find(|candidate| candidate.provider == provider)
+			.ok_or(ContentError::IntegrityFailed)?;
+		let current_provider = current
+			.providers
+			.iter()
+			.find(|candidate| candidate.provider == provider)
+			.ok_or(ContentError::IntegrityFailed)?;
+		if authority.active_service_key != key
+			|| (version != 0 && authority.active_service_key_version != version)
+			|| pinned_provider.active_service_key != Some(key)
+			|| (version != 0 && pinned_provider.active_service_key_version != Some(version))
+			|| pinned_provider.endpoint_hash != Some(authority.endpoint_hash.0)
+			|| !pinned_provider.usable
+			|| !current_provider.usable
+			|| current_provider.order != pinned_provider.order
+			|| current_provider.active_service_key != pinned_provider.active_service_key
+			|| current_provider.active_service_key_version
+				!= pinned_provider.active_service_key_version
+			|| current_provider.endpoint_hash != pinned_provider.endpoint_hash
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+	}
+	Ok(())
+}
+
+fn account_bytes(account: &AccountId32) -> Result<[u8; 32], ContentError> {
+	let bytes: &[u8] = account.as_ref();
+	bytes.try_into().map_err(|_| ContentError::IntegrityFailed)
 }
 
 #[cfg(test)]

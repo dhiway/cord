@@ -180,6 +180,23 @@ pub async fn run_replication_worker(
 	.await
 }
 
+/// Run the separately bounded checkpoint confirmation quorum lifecycle.
+pub async fn run_checkpoint_quorum_worker(
+	service: Arc<ProviderService<FinalizedRuntimeAuthority>>,
+	local_provider: [u8; 32],
+	cadence: std::time::Duration,
+) {
+	crate::checkpoint_quorum_worker::run(
+		Arc::clone(service.authority()),
+		Arc::clone(service.checkpoint_stack()),
+		Arc::clone(service.store()),
+		local_provider,
+		service.service_key.clone(),
+		cadence,
+	)
+	.await
+}
+
 fn peer_responder_for_service<A>(
 	service: &Arc<ProviderService<A>>,
 	local_provider: [u8; 32],
@@ -187,9 +204,10 @@ fn peer_responder_for_service<A>(
 where
 	A: ChainAuthority + ReplicationAuthority,
 {
-	Ok(Arc::new(PeerResponder::new(
+	Ok(Arc::new(PeerResponder::new_with_store(
 		Arc::clone(service.authority()),
 		Arc::clone(service.checkpoint_stack()),
+		Arc::clone(service.store()),
 		local_provider,
 		service.service_key.clone(),
 	)?))

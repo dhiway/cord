@@ -37,6 +37,7 @@ use sp_core::{crypto::AccountId32, ed25519, Pair as _, H256};
 use sp_crypto_hashing::blake2_256;
 
 use super::{
+	checkpoint_outbox::CheckpointSubmissionInputV2,
 	checkpoint_quorum::{
 		checkpoint_context_digest, checkpoint_digest, ReplicaConfirmationRequestV1,
 		ReplicaConfirmationResponseV1,
@@ -140,6 +141,32 @@ impl CheckpointPrimaryQuorumStore {
 	pub(crate) fn inject_fault_once(&self, fault: PrimaryQuorumFault) -> Result<(), ContentError> {
 		*self.fault.write().map_err(|_| lock_error())? = Some(fault);
 		Ok(())
+	}
+
+	pub(crate) fn outstanding_proposals(
+		&self,
+	) -> Result<Vec<PreparedCheckpointProposalV2>, ContentError> {
+		let records = self.records.read().map_err(|_| lock_error())?;
+		if *self.poisoned.read().map_err(|_| lock_error())? {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let mut proposals = records
+			.values()
+			.filter(|record| {
+				record.state == PrimaryQuorumState::Collecting
+					&& record.selected.iter().any(|selected| selected.response.is_none())
+			})
+			.map(|record| record.proposal.clone())
+			.collect::<Vec<_>>();
+		proposals.sort_by(|left, right| {
+			(&left.bucket_id, left.nonce, left.start_seq, &left.duty_id).cmp(&(
+				&right.bucket_id,
+				right.nonce,
+				right.start_seq,
+				&right.duty_id,
+			))
+		});
+		Ok(proposals)
 	}
 
 	pub(crate) fn begin(
@@ -507,9 +534,34 @@ fn snapshot(record: &PrimaryQuorumRecordV1) -> Result<PrimaryQuorumSnapshotV1, C
 		requests: record
 			.selected
 			.iter()
+			.filter(|item| item.response.is_none())
 			.map(|item| hex::decode(&item.request).map_err(|_| ContentError::IntegrityFailed))
 			.collect::<Result<_, _>>()?,
 		confirmations,
+	})
+}
+
+pub(crate) fn submission_input(
+	proposal: &PreparedCheckpointProposalV2,
+	snapshot: &PrimaryQuorumSnapshotV1,
+) -> Result<CheckpointSubmissionInputV2, ContentError> {
+	validate_proposal(proposal)?;
+	if snapshot.state != PrimaryQuorumState::QuorumReady || !snapshot.requests.is_empty() {
+		return Err(ContentError::IntegrityFailed);
+	}
+	Ok(CheckpointSubmissionInputV2 {
+		primary: decode_account(&proposal.primary_provider)?,
+		domain: b"cord/storage/checkpoint/v2".to_vec(),
+		payload: decode_exact(&proposal.payload_scale)?,
+		context: decode_exact(&proposal.context_scale)?,
+		window_start: proposal.window_start,
+		window_end: proposal.window_end,
+		service_key: ed25519::Public::from_raw(decode_32(&proposal.service_key)?),
+		primary_signature: ed25519::Signature::from_raw(decode_64(&proposal.signature)?),
+		primary_context_signature: ed25519::Signature::from_raw(decode_64(
+			&proposal.context_signature,
+		)?),
+		confirmations: snapshot.confirmations.clone().ok_or(ContentError::IntegrityFailed)?,
 	})
 }
 
@@ -583,12 +635,12 @@ fn lock_error() -> ContentError {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
 	use super::*;
 	use orbis_storage_runtime_api::{CheckpointDutyMode, CommitmentInfo, ProviderDutyExclusion};
 	use tempfile::TempDir;
 
-	fn pair(id: u8) -> ed25519::Pair {
+	pub(crate) fn pair(id: u8) -> ed25519::Pair {
 		ed25519::Pair::from_seed(&[id.saturating_add(10); 32])
 	}
 
@@ -616,7 +668,7 @@ mod tests {
 		}
 	}
 
-	fn proposal(fallback: bool, replicas: u8) -> PreparedCheckpointProposalV2 {
+	pub(crate) fn proposal(fallback: bool, replicas: u8) -> PreparedCheckpointProposalV2 {
 		proposal_for_bucket(fallback, replicas, 4)
 	}
 
@@ -730,7 +782,7 @@ mod tests {
 		proposal
 	}
 
-	fn response(request_bytes: &[u8]) -> Vec<u8> {
+	pub(crate) fn response(request_bytes: &[u8]) -> Vec<u8> {
 		let request = ReplicaConfirmationRequestV1::decode_canonical(request_bytes).unwrap();
 		let provider_bytes: &[u8] = request.target_provider.as_ref();
 		let signer = pair(provider_bytes[0]);
@@ -814,6 +866,48 @@ mod tests {
 				.unwrap(),
 			ready
 		);
+	}
+
+	#[test]
+	fn terminal_early_records_do_not_starve_later_outstanding_quorums_after_reopen() {
+		let temp = TempDir::new().unwrap();
+		let store = CheckpointPrimaryQuorumStore::open(temp.path()).unwrap();
+		for bucket in 1..=70u8 {
+			let proposal = proposal_for_bucket(false, 2, bucket);
+			let started = store.begin(&proposal, &pair(1)).unwrap();
+			if bucket <= 64 {
+				store.accept_response(&proposal, &response(&started.requests[0])).unwrap();
+				store.accept_response(&proposal, &response(&started.requests[1])).unwrap();
+			}
+		}
+		assert_eq!(store.outstanding_proposals().unwrap().len(), 6);
+		drop(store);
+		let reopened = CheckpointPrimaryQuorumStore::open(temp.path()).unwrap();
+		let outstanding = reopened.outstanding_proposals().unwrap();
+		assert_eq!(outstanding.len(), 6);
+		assert!(outstanding
+			.iter()
+			.all(|proposal| decode_32(&proposal.bucket_id).unwrap()[0] > 64));
+	}
+
+	#[test]
+	fn quorum_emits_one_canonical_outbox_record_across_reopen() {
+		let temp = TempDir::new().unwrap();
+		let proposal = proposal(false, 2);
+		let quorum = CheckpointPrimaryQuorumStore::open(temp.path()).unwrap();
+		let started = quorum.begin(&proposal, &pair(1)).unwrap();
+		quorum.accept_response(&proposal, &response(&started.requests[0])).unwrap();
+		let ready = quorum.accept_response(&proposal, &response(&started.requests[1])).unwrap();
+		let outbox =
+			super::super::checkpoint_outbox::CheckpointOutboxV2::open(temp.path()).unwrap();
+		let first = outbox.enqueue(&submission_input(&proposal, &ready).unwrap()).unwrap();
+		let replay = outbox.enqueue(&submission_input(&proposal, &ready).unwrap()).unwrap();
+		assert_eq!(first, replay);
+		drop(outbox);
+		let reopened =
+			super::super::checkpoint_outbox::CheckpointOutboxV2::open(temp.path()).unwrap();
+		assert_eq!(reopened.enqueue(&submission_input(&proposal, &ready).unwrap()).unwrap(), first);
+		assert_eq!(reopened.pending_submissions().unwrap().len(), 1);
 	}
 
 	#[test]

@@ -28,11 +28,13 @@ use sp_core::ed25519;
 use crate::{
 	checkpoint::{
 		checkpoint_outbox::{CheckpointOutboxV2, CheckpointSubmissionV2},
-		checkpoint_primary::CheckpointPrimaryQuorumStore,
+		checkpoint_primary::{
+			submission_input, CheckpointPrimaryQuorumStore, PrimaryQuorumSnapshotV1,
+		},
 		checkpoint_promotion::CheckpointPromotionStoreV1,
 		checkpoint_publication::CheckpointPublicationStoreV1,
 		checkpoint_quorum::ReplicaConfirmationStore,
-		CheckpointProposalStore,
+		CheckpointProposalStore, PreparedCheckpointProposalV2, ServiceKeySigner,
 	},
 	peer::{
 		PeerChunkRequestV1, PeerChunkResponseV1, PeerSyncPageRequestV1, PeerSyncPageResponseV1,
@@ -44,7 +46,8 @@ use crate::{
 	},
 	replication_session::ReplicationSessionV1,
 	storage::{bucket_mmr::BucketMmrStore, streaming::ReplicationIngressState},
-	BeginStreaming, BucketId, ContentError, StreamingDescriptor, StreamingStore,
+	BeginStreaming, BucketId, CheckpointDuty, ContentError, DiskStore, StreamingDescriptor,
+	StreamingStore,
 };
 
 /// All durable checkpoint kernels opened against one provider root.
@@ -94,6 +97,70 @@ impl CheckpointStack {
 	/// Clone each independent bucket head so external finality work never borrows the stack guard.
 	pub(crate) fn submission_heads(&self) -> Result<Vec<CheckpointSubmissionV2>, ContentError> {
 		self.lock()?.outbox.pending_submission_heads()
+	}
+
+	/// Confirm one canonical private replica request against the exact current local inventory.
+	pub(crate) fn confirm_checkpoint(
+		&self,
+		disk: &DiskStore,
+		signer: &dyn ServiceKeySigner,
+		request: &[u8],
+	) -> Result<Vec<u8>, ContentError> {
+		let state = self.lock()?;
+		state.replica_confirmations.confirm(
+			disk,
+			&state.bucket_mmr,
+			&state.streaming,
+			signer,
+			request,
+		)
+	}
+
+	pub(crate) fn outstanding_checkpoint_quorums(
+		&self,
+	) -> Result<Vec<PreparedCheckpointProposalV2>, ContentError> {
+		self.lock()?.primary_quorum.outstanding_proposals()
+	}
+
+	pub(crate) fn begin_checkpoint_quorum(
+		&self,
+		disk: &DiskStore,
+		duty: &CheckpointDuty,
+		signer: &dyn ServiceKeySigner,
+	) -> Result<(PreparedCheckpointProposalV2, PrimaryQuorumSnapshotV1), ContentError> {
+		let state = self.lock()?;
+		let proposal = state.proposals.prepare(
+			disk,
+			&duty.duty_id,
+			&state.bucket_mmr,
+			&state.streaming,
+			signer,
+		)?;
+		let snapshot = state.primary_quorum.begin(&proposal, signer)?;
+		emit_quorum_if_ready(&state, &proposal, &snapshot)?;
+		Ok((proposal, snapshot))
+	}
+
+	pub(crate) fn resume_checkpoint_quorum(
+		&self,
+		proposal: &PreparedCheckpointProposalV2,
+		signer: &dyn ServiceKeySigner,
+	) -> Result<PrimaryQuorumSnapshotV1, ContentError> {
+		let state = self.lock()?;
+		let snapshot = state.primary_quorum.begin(proposal, signer)?;
+		emit_quorum_if_ready(&state, proposal, &snapshot)?;
+		Ok(snapshot)
+	}
+
+	pub(crate) fn accept_checkpoint_confirmation(
+		&self,
+		proposal: &PreparedCheckpointProposalV2,
+		response: &[u8],
+	) -> Result<PrimaryQuorumSnapshotV1, ContentError> {
+		let state = self.lock()?;
+		let snapshot = state.primary_quorum.accept_response(proposal, response)?;
+		emit_quorum_if_ready(&state, proposal, &snapshot)?;
+		Ok(snapshot)
 	}
 
 	/// Replay an exact durable page reply without consulting mutable chain or content state.
@@ -486,6 +553,11 @@ impl CheckpointStack {
 		self.lock()?.streaming.inject_fault_once(fault)
 	}
 
+	#[cfg(test)]
+	pub(crate) fn guard_is_available(&self) -> bool {
+		self.state.try_lock().is_ok()
+	}
+
 	/// Consume one durable v2 submission without retaining the stack guard across finality.
 	#[cfg(feature = "checkpoint-live")]
 	pub(crate) async fn consume_one_with_lane(
@@ -502,6 +574,17 @@ impl CheckpointStack {
 	fn lock(&self) -> Result<MutexGuard<'_, CheckpointStackState>, ContentError> {
 		self.state.lock().map_err(|_| ContentError::IntegrityFailed)
 	}
+}
+
+fn emit_quorum_if_ready(
+	state: &CheckpointStackState,
+	proposal: &PreparedCheckpointProposalV2,
+	snapshot: &PrimaryQuorumSnapshotV1,
+) -> Result<(), ContentError> {
+	if snapshot.confirmations.is_some() {
+		state.outbox.enqueue(&submission_input(proposal, snapshot)?)?;
+	}
+	Ok(())
 }
 
 fn ensure_exact_chunk(
@@ -920,6 +1003,30 @@ mod tests {
 				"service opened corrupt durable root {durable_root}"
 			);
 		}
+	}
+
+	#[test]
+	fn accepted_quorum_emits_one_stack_owned_outbox_record_across_reopen() {
+		use crate::checkpoint::checkpoint_primary::tests::{pair, proposal, response};
+
+		let temp = TempDir::new().unwrap();
+		let proposal = proposal(false, 2);
+		let stack = CheckpointStack::open(temp.path()).unwrap();
+		let started = stack.resume_checkpoint_quorum(&proposal, &pair(1)).unwrap();
+		let first = response(&started.requests[0]);
+		let second = response(&started.requests[1]);
+		stack.accept_checkpoint_confirmation(&proposal, &first).unwrap();
+		assert!(stack.submission_heads().unwrap().is_empty());
+		stack.accept_checkpoint_confirmation(&proposal, &second).unwrap();
+		let submission = stack.submission_heads().unwrap();
+		assert_eq!(submission.len(), 1);
+		drop(stack);
+
+		let reopened = CheckpointStack::open(temp.path()).unwrap();
+		let ready = reopened.resume_checkpoint_quorum(&proposal, &pair(1)).unwrap();
+		assert!(ready.requests.is_empty());
+		reopened.accept_checkpoint_confirmation(&proposal, &second).unwrap();
+		assert_eq!(reopened.submission_heads().unwrap(), submission);
 	}
 
 	#[cfg(feature = "checkpoint-live")]

@@ -32,7 +32,9 @@ mod capability;
 mod chain;
 #[allow(dead_code)]
 mod checkpoint;
+mod checkpoint_quorum_worker;
 mod checkpoint_stack;
+mod checkpoint_transport;
 mod content;
 mod merkle;
 mod peer;
@@ -53,7 +55,10 @@ mod replication_session;
 mod storage;
 mod workers;
 
-pub use api::{run_replication_worker, serve, serve_provider_ingress, ApiConfig, ProviderService};
+pub use api::{
+	run_checkpoint_quorum_worker, run_replication_worker, serve, serve_provider_ingress, ApiConfig,
+	ProviderService,
+};
 pub use chain::{
 	AgreementAuthorization, CapabilityAuthoritySnapshot, ChainAuthority, ChainError,
 	ChallengeBatch, ChallengeDuty, CheckpointDuty, CheckpointDutyBatch, CheckpointDutyMode,
