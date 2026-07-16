@@ -1,0 +1,101 @@
+{
+  "claim_boundary": {
+    "feature_complete": false,
+    "g002_control_plane": true,
+    "g003_provider_byte_plane": false,
+    "production_ready": false
+  },
+  "components": [
+    {
+      "benchmark_count": 30,
+      "generated_weight_path": "origin/orbis/pallets/storage-provider/src/weights.rs",
+      "generated_weight_sha256": "2b7356a2c4e4b9e8663507ec52a6dcb6dd927b120a3571f6211fa220e9756292",
+      "measurement_source": {
+        "branch": "sm-update-sub-0x65",
+        "commit": "1ef7cc7285c5012d3d112d1211bd15a12fa5120c",
+        "isolated_worktree": true,
+        "tree": "52c1ee56f3230691096dd855b71e440e6c3b6981"
+      },
+      "pallet": "pallet_orbis_storage_provider",
+      "raw_json_path": "docs/evidence/p1/g002-control-plane-v1/benchmarks/pallet_orbis_storage_provider.json",
+      "raw_json_sha256": "32c11274c0528e7692d0ab788a7dfa941e744624459bf5243b1fa73136c40608",
+      "receipt_path": "docs/evidence/p1/g002-control-plane-v1/storage-provider-weight-receipt-v1.json",
+      "receipt_sha256": "6f6d9ff2e0e79700b60bf6e71ad190264311219ba80e590a2a81ea14e88fa34f"
+    },
+    {
+      "benchmark_count": 8,
+      "generated_weight_path": "origin/orbis/pallets/drive/src/weights.rs",
+      "generated_weight_sha256": "ba4c5a6c2dcb0d43ef14b4356d20e5c42d947268e2b3a74a73290be0516ec70e",
+      "measurement_source": {
+        "branch": "sm-update-sub-0x65",
+        "commit": "048309a9e45abb315a25d25c06039936872e938f",
+        "isolated_worktree": true,
+        "tree": "c9455774c63decfb62b35eb250524c121fcca6eb"
+      },
+      "pallet": "pallet_orbis_drive",
+      "raw_json_path": "docs/evidence/p1/g002-control-plane-v1/benchmarks/pallet_orbis_drive.json",
+      "raw_json_sha256": "633e9d86a1ecb295b0ef13988f91254a50d8f2cca5678979a8c3f7eaadb21283",
+      "receipt_path": "docs/evidence/p1/g002-control-plane-v1/drive-weight-receipt-v1.json",
+      "receipt_sha256": "9885800019f0a5b45b199978d35721b948c2db6eb3f5395acf78603d0c017012"
+    },
+    {
+      "benchmark_count": 11,
+      "generated_weight_path": "origin/orbis/pallets/s3/src/weights.rs",
+      "generated_weight_sha256": "5d6a7cae56deffba6d3cce491883eaa8e9bdaebc7f4ce3531894cd2d68a2396b",
+      "measurement_source": {
+        "branch": "sm-update-sub-0x65",
+        "commit": "048309a9e45abb315a25d25c06039936872e938f",
+        "isolated_worktree": true,
+        "tree": "c9455774c63decfb62b35eb250524c121fcca6eb"
+      },
+      "pallet": "pallet_orbis_s3",
+      "raw_json_path": "docs/evidence/p1/g002-control-plane-v1/benchmarks/pallet_orbis_s3.json",
+      "raw_json_sha256": "649a3e62fe31ed7e42d9874e3d2dee949ddad19f7b4c884b0ac591d8ad12d524",
+      "receipt_path": "docs/evidence/p1/g002-control-plane-v1/s3-weight-receipt-v1.json",
+      "receipt_sha256": "82c0cc1aec5090cd2a0d66530f5206651c206e741f4bf1e9999adcd37f1b10de"
+    }
+  ],
+  "materialized_at_commit": "cb35f8064454571adf7389885c301ba26fdb748a",
+  "metadata": {
+    "compact_wasm_sha256": "dca623a6e247f4539594a8ecde9ae9ccb568f8081ed4c698f1fb5f5059cc18e3",
+    "compressed_wasm_sha256": "f64774de792d410654390d71f7f7d1d1bebd7baa100f36579fcd52b542abe0e2",
+    "manifest_path": "origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json",
+    "manifest_sha256": "623e7f21f640c65e9f21f4571f3b1b12d6c2e7de2e8691612ee317bfbe70fe05",
+    "metadata_export_gate": {
+      "binding_path": "target/evidence/p1-scale-metadata-binding.json",
+      "binding_sha256": "88c91a4825c0d0258ea45d349fb32cf5f66162021ec54b801562e16f8a59d22c",
+      "complete": true,
+      "promotion_export_test": "tests::checkpoint_context_duty_and_promotion_exact_golden_vector_is_stable"
+    },
+    "metadata_hash": "0x89670a50e0aac1cda62f5692625cfd09323505f7efc175aed6d4c30eeb5e36b0",
+    "receipt_path": "docs/evidence/p1/g002-control-plane-v1/commons-metadata-evidence-v1.json",
+    "receipt_sha256": "01145481ea030238c8c4989a6008fa129a8a98702241263103fd20835d22177e",
+    "record_path": "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json",
+    "record_sha256": "1536d928d57f99cc8d72be5d14e4f0f2a7e74c1e4e8d614f2258a9ab67d45f20",
+    "source": {
+      "branch": "sm-update-sub-0x65",
+      "commit": "cb35f8064454571adf7389885c301ba26fdb748a",
+      "tree": "c92d04eb0b54010b0a163b45d9fdf3a7791cc6f5"
+    }
+  },
+  "runtime_budget_gate": {
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "origin-commons-runtime",
+      "tests::commons_storage_control_worst_case_weights_fit_the_runtime_block_budget",
+      "--",
+      "--exact"
+    ],
+    "log_sha256": "9d515122f889bff2add09978d0f37fb2caadf2a6415d40e26f1181580cb85743",
+    "result": "pass"
+  },
+  "schema_version": 1,
+  "scope": "G002 compiled-Wasm storage weights and canonical Commons metadata",
+  "status": "pass",
+  "validator": {
+    "path": "scripts/validate-g002-storage-evidence.py"
+  }
+}

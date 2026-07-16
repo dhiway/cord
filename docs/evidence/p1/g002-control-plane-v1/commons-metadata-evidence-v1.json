@@ -1,0 +1,67 @@
+{
+  "claim_boundary": {
+    "feature_complete": false,
+    "g002_control_plane": true,
+    "g003_provider_byte_plane": false,
+    "production_ready": false
+  },
+  "compact_compressed_wasm_sha256": "f64774de792d410654390d71f7f7d1d1bebd7baa100f36579fcd52b542abe0e2",
+  "compact_wasm_sha256": "dca623a6e247f4539594a8ecde9ae9ccb568f8081ed4c698f1fb5f5059cc18e3",
+  "compressed_wasm_sha256": "f64774de792d410654390d71f7f7d1d1bebd7baa100f36579fcd52b542abe0e2",
+  "metadata_export_gate": {
+    "binding_path": "target/evidence/p1-scale-metadata-binding.json",
+    "binding_sha256": "88c91a4825c0d0258ea45d349fb32cf5f66162021ec54b801562e16f8a59d22c",
+    "complete": true,
+    "promotion_export_test": "tests::checkpoint_context_duty_and_promotion_exact_golden_vector_is_stable"
+  },
+  "metadata_hash": "0x89670a50e0aac1cda62f5692625cfd09323505f7efc175aed6d4c30eeb5e36b0",
+  "metadata_record": {
+    "path": "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json",
+    "sha256": "1536d928d57f99cc8d72be5d14e4f0f2a7e74c1e4e8d614f2258a9ab67d45f20"
+  },
+  "portable_registry_sha256": "2d29d0d62a1cff26de0111d27e52a07790dd7728e887de934810d4bb392c6fbe",
+  "reproduce": "CARGO_TARGET_DIR=target/orbis-metadata origin/orbis/runtime/tools/reproduce-metadata-hash.sh",
+  "reproduction": {
+    "deterministic": true,
+    "run1_log_sha256": "19babb28130a7bfbcd3f4be17104575e283cb8d62f19a18191217a2dc00b57a0",
+    "run1_output_sha256": "e4f2bb136b1f35977a45e898c5277172a9909367ceba943b3c82e7f4966fac13",
+    "run2_log_sha256": "d99f2d303e6f23bd6d904be43ff37f31019684be39f3aba8bf58fcacc489e0c4",
+    "run2_output_sha256": "e4f2bb136b1f35977a45e898c5277172a9909367ceba943b3c82e7f4966fac13",
+    "runs": 2
+  },
+  "rfc78_metadata_hash": "0x89670a50e0aac1cda62f5692625cfd09323505f7efc175aed6d4c30eeb5e36b0",
+  "rfc78_run_receipt_sha256": [
+    "e4f2bb136b1f35977a45e898c5277172a9909367ceba943b3c82e7f4966fac13",
+    "e4f2bb136b1f35977a45e898c5277172a9909367ceba943b3c82e7f4966fac13"
+  ],
+  "runtime": "origin-commons-runtime",
+  "runtime_source_commit": "cb35f8064454571adf7389885c301ba26fdb748a",
+  "sanitization": {
+    "omits": [
+      "absolute host paths",
+      "runtime Wasm artifacts",
+      "build logs"
+    ],
+    "preserves": [
+      "source hashes",
+      "output hashes",
+      "deterministic run hashes"
+    ]
+  },
+  "scale_metadata_sha256": "26838fa05181fd90a18e46d167c454fd27d92478717c4c1d833bf3758764d76e",
+  "schema_version": 1,
+  "scope": "G002 Commons production metadata and runtime Wasm binding after final storage weights",
+  "source": {
+    "branch": "sm-update-sub-0x65",
+    "commit": "cb35f8064454571adf7389885c301ba26fdb748a",
+    "tree": "c92d04eb0b54010b0a163b45d9fdf3a7791cc6f5"
+  },
+  "spec_name": "commons",
+  "spec_version": 31,
+  "status": "pass",
+  "transaction_manifest": {
+    "path": "origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json",
+    "sha256": "623e7f21f640c65e9f21f4571f3b1b12d6c2e7de2e8691612ee317bfbe70fe05"
+  },
+  "transaction_version": 8
+}

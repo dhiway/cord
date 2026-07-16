@@ -294,7 +294,7 @@
       "type": "string"
     },
     "gate_id": {
-      "pattern": "(?:AC(?:[1-9]|1[0-4])|P[0-7]|P4_(?:OBJECT|PROVIDER|DRIVE|S3|RUNTIME))",
+      "pattern": "(?:AC(?:[1-9]|1[0-4])|P[0-7]|P1_METADATA|P4_(?:OBJECT|PROVIDER|DRIVE|S3|RUNTIME))",
       "type": "string"
     },
     "input_ancestry": {
