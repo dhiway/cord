@@ -1,12 +1,12 @@
 {
   "algorithm": "RFC-78 merkleized_metadata V15 via substrate-wasm-builder",
-  "compact_wasm_sha256": "dca623a6e247f4539594a8ecde9ae9ccb568f8081ed4c698f1fb5f5059cc18e3",
+  "compact_wasm_sha256": "c87f259cb8017d027e38fb0054b2f4b39796353fc5b7af91f15b1fa9e58034cc",
   "decimals": 10,
-  "metadata_hash": "0x89670a50e0aac1cda62f5692625cfd09323505f7efc175aed6d4c30eeb5e36b0",
+  "metadata_hash": "0xadbb97728bff9e99f1cdc47adefe65a51074c887f999ffe6822d9d9ac5ada497",
   "reproduce": "origin/orbis/runtime/tools/reproduce-metadata-hash.sh",
   "runtime": "commons",
   "sdk_revision": "cc190ea8",
-  "spec_version": 31,
+  "spec_version": 32,
   "token_symbol": "ORU",
   "transaction_version": 8
 }

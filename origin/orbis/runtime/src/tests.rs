@@ -714,7 +714,7 @@ fn orbis_owned_origin_forks_preserve_indices_calls_and_storage_metadata() {
 	assert_eq!(indiv_pallet_resources::Pallet::<Runtime>::index(), 96);
 	assert_eq!(pallet_orbis_score::Pallet::<Runtime>::index(), 97);
 	assert_eq!(pallet_orbis_honour::Pallet::<Runtime>::index(), 99);
-	assert_eq!(crate::VERSION.spec_version, 31);
+	assert_eq!(crate::VERSION.spec_version, 32);
 	assert_eq!(crate::VERSION.transaction_version, 8);
 
 	assert_eq!(
