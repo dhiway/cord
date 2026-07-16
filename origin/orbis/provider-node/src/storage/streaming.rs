@@ -784,12 +784,9 @@ impl StreamingStore {
 					changed = true;
 				},
 				Phase::Installed => {
-					let installed_receipt =
-						record.receipt.as_ref().ok_or(ContentError::IntegrityFailed)?;
-					let expected_receipt = expected_receipt(&record)?;
-					if installed_receipt != &expected_receipt {
-						return Err(ContentError::IntegrityFailed)
-					}
+					validate_installed_record(&record)?;
+					let expected_receipt =
+						record.receipt.as_ref().expect("validated installed record has a receipt");
 					if next.quarantine.contains_key(&record.descriptor.expected_cid) {
 						continue
 					}
@@ -1032,6 +1029,7 @@ fn stage_verified_repair<R: Read>(
 	record: &OperationRecord,
 	reader: &mut R,
 ) -> Result<(), ContentError> {
+	validate_installed_record(record)?;
 	let mut file = OpenOptions::new().create_new(true).write(true).open(path).map_err(io_error)?;
 	let mut content = Blake2b::<U32>::new();
 	let mut length = 0u64;
@@ -1074,6 +1072,31 @@ fn expected_receipt(record: &OperationRecord) -> Result<StreamingReceipt, Conten
 		&record.descriptor.expected_cid,
 		fingerprint_from_chunks(&record.descriptor, &record.chunks)?,
 	))
+}
+
+fn validate_installed_record(record: &OperationRecord) -> Result<(), ContentError> {
+	if record.phase != Phase::Installed ||
+		validate_descriptor(&record.descriptor).is_err() ||
+		record.received_bytes != record.descriptor.object_len
+	{
+		return Err(ContentError::IntegrityFailed)
+	}
+	let expected_chunks = chunk_count(record.descriptor.object_len)?;
+	if record.next_chunk as usize != expected_chunks || record.chunks.len() != expected_chunks {
+		return Err(ContentError::IntegrityFailed)
+	}
+	for (index, chunk) in record.chunks.iter().enumerate() {
+		let index: u16 = index.try_into().map_err(|_| ContentError::IntegrityFailed)?;
+		if chunk.length as usize != expected_chunk_len(record.descriptor.object_len, index)? {
+			return Err(ContentError::IntegrityFailed)
+		}
+		decode_chunk_hash(&chunk.hash)?;
+	}
+	let installed_receipt = record.receipt.as_ref().ok_or(ContentError::IntegrityFailed)?;
+	if installed_receipt != &expected_receipt(record)? {
+		return Err(ContentError::IntegrityFailed)
+	}
+	Ok(())
 }
 
 fn validate_descriptor(descriptor: &StreamingDescriptor) -> Result<(), ContentError> {
@@ -1142,19 +1165,27 @@ fn fingerprint_from_chunks(
 	let mut fingerprint = new_fingerprint(descriptor);
 	for (index, chunk) in chunks.iter().enumerate() {
 		let index: u16 = index.try_into().map_err(|_| ContentError::IntegrityFailed)?;
-		let encoded = chunk.hash.strip_prefix("0x").ok_or(ContentError::IntegrityFailed)?;
-		if encoded.len() != 64 || encoded.bytes().any(|byte| byte.is_ascii_uppercase()) {
-			return Err(ContentError::IntegrityFailed)
-		}
-		let hash = hex::decode(encoded).map_err(|_| ContentError::IntegrityFailed)?;
-		if hash.len() != 32 {
-			return Err(ContentError::IntegrityFailed)
-		}
+		let hash = decode_chunk_hash(&chunk.hash)?;
 		fingerprint.update(index.to_le_bytes());
 		fingerprint.update(chunk.length.to_le_bytes());
 		fingerprint.update(hash);
 	}
 	Ok(format!("0x{}", hex::encode(fingerprint.finalize())))
+}
+
+fn decode_chunk_hash(value: &str) -> Result<[u8; 32], ContentError> {
+	let encoded = value.strip_prefix("0x").ok_or(ContentError::IntegrityFailed)?;
+	if encoded.len() != 64 || encoded.bytes().any(|byte| byte.is_ascii_uppercase()) {
+		return Err(ContentError::IntegrityFailed)
+	}
+	let hash: [u8; 32] = hex::decode(encoded)
+		.map_err(|_| ContentError::IntegrityFailed)?
+		.try_into()
+		.map_err(|_| ContentError::IntegrityFailed)?;
+	if value != format!("0x{}", hex::encode(hash)) {
+		return Err(ContentError::IntegrityFailed)
+	}
+	Ok(hash)
 }
 
 fn chunk_hash(bytes: &[u8]) -> String {

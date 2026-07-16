@@ -54,6 +54,25 @@ fn journal(root: &std::path::Path) -> Value {
 	serde_json::from_slice(&fs::read(root.join("streaming-v1/journal.json")).unwrap()).unwrap()
 }
 
+fn chunk_hash(bytes: &[u8]) -> String {
+	format!("0x{}", hex::encode(Blake2b::<U32>::digest(bytes)))
+}
+
+fn fingerprint(descriptor: &StreamingDescriptor, chunks: &[&[u8]]) -> String {
+	let mut hash = Blake2b::<U32>::new();
+	hash.update(b"origin/streaming-content-receipt/v2");
+	hash.update(descriptor.bucket_id.as_bytes());
+	hash.update(descriptor.operation_id.as_bytes());
+	hash.update(CanonicalCid::parse(&descriptor.expected_cid).unwrap().digest());
+	hash.update(descriptor.object_len.to_le_bytes());
+	for (index, chunk) in chunks.iter().enumerate() {
+		hash.update((index as u16).to_le_bytes());
+		hash.update((chunk.len() as u32).to_le_bytes());
+		hash.update(Blake2b::<U32>::digest(chunk));
+	}
+	format!("0x{}", hex::encode(hash.finalize()))
+}
+
 #[test]
 fn corrupt_read_is_sticky_idempotent_and_releases_no_bytes_across_reopen() {
 	let temp = tempfile::tempdir().unwrap();
@@ -264,5 +283,33 @@ fn quarantined_receipt_fingerprint_is_reconstructed_and_tampering_never_escapes_
 	quarantined_again["detection_sequence"] = Value::from(1u64);
 	fs::write(&journal_path, serde_json::to_vec_pretty(&quarantined_again).unwrap()).unwrap();
 	drop(reopened);
+	assert!(matches!(StreamingStore::open(temp.path()), Err(ContentError::IntegrityFailed)));
+}
+
+#[test]
+fn quarantined_coherent_chunk_repartition_fails_before_repair_admission() {
+	let temp = tempfile::tempdir().unwrap();
+	let bytes = vec![10; CHUNK_BYTES + 17];
+	let descriptor = descriptor(9, &bytes);
+	let store = StreamingStore::open(temp.path()).unwrap();
+	let receipt = store.put_chunks(descriptor.clone(), chunks(&bytes)).unwrap();
+	let mut corrupt = bytes.clone();
+	corrupt[0] ^= 1;
+	fs::write(object_path(temp.path(), &receipt.cid), corrupt).unwrap();
+	assert_eq!(store.verify_installed(&receipt.cid), Err(ContentError::IntegrityFailed));
+	drop(store);
+
+	let first = &bytes[..CHUNK_BYTES - 1];
+	let second = &bytes[CHUNK_BYTES - 1..];
+	let journal_path = temp.path().join("streaming-v1/journal.json");
+	let mut state = journal(temp.path());
+	let operation = state["operations"].as_object_mut().unwrap().values_mut().next().unwrap();
+	operation["chunks"][0]["length"] = Value::from((CHUNK_BYTES - 1) as u64);
+	operation["chunks"][0]["hash"] = Value::String(chunk_hash(first));
+	operation["chunks"][1]["length"] = Value::from(second.len() as u64);
+	operation["chunks"][1]["hash"] = Value::String(chunk_hash(second));
+	operation["receipt"]["fingerprint"] = Value::String(fingerprint(&descriptor, &[first, second]));
+	fs::write(&journal_path, serde_json::to_vec_pretty(&state).unwrap()).unwrap();
+
 	assert!(matches!(StreamingStore::open(temp.path()), Err(ContentError::IntegrityFailed)));
 }
