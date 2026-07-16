@@ -20,7 +20,7 @@
 
 use std::{sync::Arc, time::Duration};
 
-use tokio::time::{interval, MissedTickBehavior};
+use tokio::time::{interval, timeout, MissedTickBehavior};
 
 use crate::{
 	chain::{CheckpointPublicationAuthority, FinalizedCheckpointObservation},
@@ -35,6 +35,8 @@ use crate::{
 
 const MAX_FINALITY_ATTEMPTS: usize = 8;
 const MAX_PUBLICATIONS: usize = 8;
+const FINALITY_TIMEOUT: Duration = Duration::from_secs(45);
+const OBSERVATION_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Default)]
 pub(crate) struct CheckpointLiveTick {
@@ -78,10 +80,32 @@ where
 	A: CheckpointPublicationAuthority,
 	L: CheckpointFinalityLane,
 {
-	let finalized = stack.consume_one_with_lane_bounded(lane, MAX_FINALITY_ATTEMPTS).await;
+	tick_with_timeouts(authority, stack, lane, FINALITY_TIMEOUT, OBSERVATION_TIMEOUT).await
+}
+
+async fn tick_with_timeouts<A, L>(
+	authority: &A,
+	stack: &CheckpointStack,
+	lane: &L,
+	finality_timeout: Duration,
+	observation_timeout: Duration,
+) -> Result<CheckpointLiveTick, ContentError>
+where
+	A: CheckpointPublicationAuthority,
+	L: CheckpointFinalityLane,
+{
+	let finalized = match timeout(
+		finality_timeout,
+		stack.consume_one_with_lane_bounded(lane, MAX_FINALITY_ATTEMPTS),
+	)
+	.await
+	{
+		Ok(result) => result,
+		Err(_) => Err(ContentError::Io("checkpoint finality attempt timed out".into())),
+	};
 	let mut first_error = finalized.as_ref().err().cloned();
 	let mut published = Vec::new();
-	for intent in stack.pending_checkpoint_publications(MAX_PUBLICATIONS)? {
+	for intent in stack.reserve_checkpoint_publications(MAX_PUBLICATIONS)? {
 		let bucket_id = match submission_bucket_id(&intent.submission) {
 			Ok(bucket_id) => bucket_id,
 			Err(error) => {
@@ -89,13 +113,24 @@ where
 				continue;
 			},
 		};
-		let observation = match authority
-			.checkpoint_observation_at(bucket_id, intent.finalized_hash.0, intent.finalized_number)
-			.await
+		let observation = match timeout(
+			observation_timeout,
+			authority.checkpoint_observation_at(
+				bucket_id,
+				intent.finalized_hash.0,
+				intent.finalized_number,
+			),
+		)
+		.await
 		{
-			Ok(observation) => observation,
-			Err(_) => {
+			Ok(Ok(observation)) => observation,
+			Ok(Err(_)) => {
 				first_error.get_or_insert(ContentError::IntegrityFailed);
+				continue;
+			},
+			Err(_) => {
+				first_error
+					.get_or_insert_with(|| ContentError::Io("checkpoint observation timed out".into()));
 				continue;
 			},
 		};
@@ -256,6 +291,27 @@ mod tests {
 		input
 	}
 
+	fn checkpoint_input_for(seed: u8) -> CheckpointSubmissionInputV2 {
+		let mut input = checkpoint_input();
+		input.payload.bucket_id = H256::repeat_byte(seed);
+		input.payload.commitment.mmr_root = H256::repeat_byte(seed.saturating_add(1));
+		input.payload.commitment.start_seq = u64::from(seed);
+		input.payload.nonce = 100 + u32::from(seed);
+		input.context.v2_digest = checkpoint_digest(&input.payload);
+		input.primary_signature = pair(1).sign(&checkpoint_digest(&input.payload));
+		input.primary_context_signature = pair(1).sign(&checkpoint_context_digest(&input.context));
+		input.confirmations = [2, 3]
+			.into_iter()
+			.map(|provider| ReplicaSignature {
+				provider: AccountId32::new([provider; 32]),
+				service_key: pair(provider).public(),
+				signature: pair(provider).sign(&checkpoint_digest(&input.payload)),
+				context_signature: pair(provider).sign(&checkpoint_context_digest(&input.context)),
+			})
+			.collect();
+		input
+	}
+
 	fn valid_response() -> Vec<u8> {
 		Versioned {
 			version: RESPONSE_VERSION,
@@ -350,6 +406,33 @@ mod tests {
 		}
 	}
 
+	struct PendingLane {
+		metadata: subxt::Metadata,
+	}
+
+	#[async_trait]
+	impl CheckpointFinalityLane for PendingLane {
+		fn metadata(&self) -> &subxt::Metadata {
+			&self.metadata
+		}
+
+		fn signer_account(&self) -> [u8; 32] {
+			[1; 32]
+		}
+
+		fn service_key(&self) -> [u8; 32] {
+			pair(1).public().0
+		}
+
+		async fn submit_and_finalize(
+			&self,
+			_intent_id: &str,
+			_payload: subxt::tx::DynamicPayload,
+		) -> Result<FinalizedEvidence, ContentError> {
+			std::future::pending().await
+		}
+	}
+
 	struct MockAuthority {
 		stack: Arc<CheckpointStack>,
 		observation: FinalizedCheckpointObservation,
@@ -373,6 +456,20 @@ mod tests {
 				));
 			}
 			Ok(self.observation.clone())
+		}
+	}
+
+	struct PendingAuthority;
+
+	#[async_trait]
+	impl CheckpointPublicationAuthority for PendingAuthority {
+		async fn checkpoint_observation_at(
+			&self,
+			_bucket_id: [u8; 32],
+			_finalized_hash: [u8; 32],
+			_finalized_number: u32,
+		) -> Result<FinalizedCheckpointObservation, ChainError> {
+			std::future::pending().await
 		}
 	}
 
@@ -417,6 +514,95 @@ mod tests {
 		assert!(authority.guard_available.load(Ordering::SeqCst));
 		assert!(stack.guard_is_available());
 		assert!(stack.pending_checkpoint_publications(MAX_PUBLICATIONS).unwrap().is_empty());
+	}
+
+	#[tokio::test]
+	async fn pending_finality_is_cancelled_without_blocking_publication_in_the_same_tick() {
+		let temp = TempDir::new().unwrap();
+		let stack = finalized_stack(&temp).await;
+		stack.enqueue_checkpoint_for_test(&checkpoint_input_for(6)).unwrap();
+		let lane = PendingLane { metadata: metadata() };
+		let authority = authority(Arc::clone(&stack), [22; 32], 120, valid_response());
+
+		assert!(matches!(
+			tick_with_timeouts(&authority, &stack, &lane, Duration::ZERO, Duration::from_secs(1)).await,
+			Err(ContentError::Io(message)) if message.contains("finality attempt timed out")
+		));
+		assert_eq!(authority.calls.load(Ordering::SeqCst), 1);
+		assert!(stack.pending_checkpoint_publications(MAX_PUBLICATIONS).unwrap().is_empty());
+	}
+
+	#[tokio::test]
+	async fn pending_observation_is_cancelled_and_remains_durably_retryable() {
+		let temp = TempDir::new().unwrap();
+		let stack = finalized_stack(&temp).await;
+		let lane = MockLane::new(Arc::clone(&stack));
+
+		assert!(matches!(
+			tick_with_timeouts(
+				&PendingAuthority,
+				&stack,
+				&lane,
+				Duration::from_secs(1),
+				Duration::ZERO,
+			)
+			.await,
+			Err(ContentError::Io(message)) if message.contains("observation timed out")
+		));
+		assert_eq!(stack.pending_checkpoint_publications(MAX_PUBLICATIONS).unwrap().len(), 1);
+	}
+
+	#[tokio::test]
+	async fn eight_failed_publications_rotate_past_the_oldest_and_survive_reopen() {
+		let temp = TempDir::new().unwrap();
+		let stack = Arc::new(CheckpointStack::open(temp.path()).unwrap());
+		let lane = MockLane::new(Arc::clone(&stack));
+		for seed in 4..14 {
+			stack.enqueue_checkpoint_for_test(&checkpoint_input_for(seed)).unwrap();
+			stack.consume_one_with_lane_bounded(&lane, 1).await.unwrap().unwrap();
+		}
+		let first = stack.reserve_checkpoint_publications(MAX_PUBLICATIONS).unwrap();
+		assert_eq!(first.len(), 8);
+		let first_ids = first
+			.iter()
+			.map(|intent| intent.submission.submission_id.clone())
+			.collect::<std::collections::HashSet<_>>();
+		drop(stack);
+
+		let reopened = CheckpointStack::open(temp.path()).unwrap();
+		let second = reopened.reserve_checkpoint_publications(MAX_PUBLICATIONS).unwrap();
+		assert_eq!(second.len(), 8);
+		assert_eq!(
+			second
+				.iter()
+				.filter(|intent| !first_ids.contains(&intent.submission.submission_id))
+				.count(),
+			2
+		);
+		assert_eq!(
+			second
+				.iter()
+				.map(|intent| &intent.submission.submission_id)
+				.collect::<std::collections::HashSet<_>>()
+				.len(),
+			8
+		);
+	}
+
+	#[tokio::test]
+	async fn publication_cursor_is_cross_validated_against_finality_on_reopen() {
+		let temp = TempDir::new().unwrap();
+		let stack = finalized_stack(&temp).await;
+		let intent = stack.reserve_checkpoint_publications(1).unwrap().pop().unwrap();
+		drop(stack);
+		std::fs::remove_file(
+			temp.path()
+				.join("checkpoint-finalized-receipts-v2")
+				.join(format!("{}.json", intent.submission.submission_id)),
+		)
+		.unwrap();
+
+		assert!(matches!(CheckpointStack::open(temp.path()), Err(ContentError::IntegrityFailed)));
 	}
 
 	#[tokio::test]

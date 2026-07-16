@@ -37,11 +37,16 @@ use super::checkpoint_outbox::{validate_submission, CheckpointSubmissionV2};
 use crate::ContentError;
 
 const ROOT: &str = "checkpoint-publications-v1";
+const CURSOR_ROOT: &str = "checkpoint-publication-cursor-v1";
+const CURSOR_KEY: &str = "cursor";
 const VERSION: u8 = 1;
+const CURSOR_VERSION: u8 = 1;
 const STATE: &str = "published";
 const RECORD_DOMAIN: &[u8] = b"cord/provider/checkpoint-publication-record/v1";
+const CURSOR_DOMAIN: &[u8] = b"cord/provider/checkpoint-publication-cursor/v1";
 const MAX_RESPONSE_BYTES: usize = 64 * 1024;
 const MAX_RECORD_BYTES: usize = 256 * 1024;
+const MAX_CURSOR_BYTES: usize = 4 * 1024;
 const MAX_RECORDS: usize = 8_192;
 const MAX_TEMP_ARTIFACTS: usize = 1;
 
@@ -78,6 +83,17 @@ pub(crate) struct PublishedCheckpointV1 {
 	pub record_hash: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CheckpointPublicationCursorV1 {
+	pub(crate) version: u8,
+	pub(crate) submission_id: String,
+	pub(crate) submission_record_hash: String,
+	pub(crate) finalized_hash: String,
+	pub(crate) finalized_number: u32,
+	pub(crate) record_hash: String,
+}
+
 impl PublishedCheckpointV1 {
 	pub(crate) fn is_publishable(&self) -> bool {
 		self.state == STATE
@@ -94,16 +110,22 @@ pub(crate) enum CheckpointPublicationFault {
 
 pub(crate) struct CheckpointPublicationStoreV1 {
 	root: PathBuf,
+	cursor_root: PathBuf,
 	records: RwLock<HashMap<String, PublishedCheckpointV1>>,
 	by_tuple: RwLock<HashMap<String, String>>,
+	cursor: RwLock<Option<CheckpointPublicationCursorV1>>,
 	fault: RwLock<Option<CheckpointPublicationFault>>,
 	poisoned: RwLock<bool>,
 }
 
 impl CheckpointPublicationStoreV1 {
 	pub(crate) fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
-		let root = root.as_ref().join(ROOT);
+		let base = root.as_ref();
+		let root = base.join(ROOT);
+		let cursor_root = base.join(CURSOR_ROOT);
 		fs::create_dir_all(&root).map_err(io_error)?;
+		fs::create_dir_all(&cursor_root).map_err(io_error)?;
+		let cursor = read_cursor(&cursor_root)?;
 		let mut records = HashMap::new();
 		let mut by_tuple = HashMap::new();
 		for item in read_records(&root)? {
@@ -121,8 +143,10 @@ impl CheckpointPublicationStoreV1 {
 		}
 		Ok(Self {
 			root,
+			cursor_root,
 			records: RwLock::new(records),
 			by_tuple: RwLock::new(by_tuple),
+			cursor: RwLock::new(cursor),
 			fault: RwLock::new(None),
 			poisoned: RwLock::new(false),
 		})
@@ -156,6 +180,48 @@ impl CheckpointPublicationStoreV1 {
 			.collect::<Vec<_>>();
 		records.sort_by(|left, right| left.submission_id.cmp(&right.submission_id));
 		Ok(records)
+	}
+
+	pub(crate) fn cursor(
+		&self,
+	) -> Result<Option<CheckpointPublicationCursorV1>, ContentError> {
+		if *self.poisoned.read().map_err(|_| lock_error())? {
+			return Err(ContentError::IntegrityFailed);
+		}
+		Ok(self.cursor.read().map_err(|_| lock_error())?.clone())
+	}
+
+	/// Durably reserve the end of a bounded publication batch before any network await.
+	pub(crate) fn reserve_cursor(
+		&self,
+		submission: &CheckpointSubmissionV2,
+		finalized_hash: H256,
+		finalized_number: u32,
+	) -> Result<CheckpointPublicationCursorV1, ContentError> {
+		validate_submission(submission)?;
+		let mut candidate = CheckpointPublicationCursorV1 {
+			version: CURSOR_VERSION,
+			submission_id: submission.submission_id.clone(),
+			submission_record_hash: submission.record_hash.clone(),
+			finalized_hash: hex::encode(finalized_hash.as_bytes()),
+			finalized_number,
+			record_hash: String::new(),
+		};
+		candidate.record_hash = cursor_hash(&candidate)?;
+		validate_cursor(&candidate)?;
+		let mut cursor = self.cursor.write().map_err(|_| lock_error())?;
+		if *self.poisoned.read().map_err(|_| lock_error())? {
+			return Err(ContentError::IntegrityFailed);
+		}
+		if cursor.as_ref() == Some(&candidate) {
+			return Ok(candidate);
+		}
+		if let Err(error) = self.persist_cursor(&candidate) {
+			*self.poisoned.write().map_err(|_| lock_error())? = true;
+			return Err(error);
+		}
+		*cursor = Some(candidate.clone());
+		Ok(candidate)
 	}
 
 	pub(crate) fn publish(
@@ -224,6 +290,27 @@ impl CheckpointPublicationStoreV1 {
 		self.trip(CheckpointPublicationFault::AfterDirectoryFsync)
 	}
 
+	fn persist_cursor(&self, cursor: &CheckpointPublicationCursorV1) -> Result<(), ContentError> {
+		validate_cursor(cursor)?;
+		let bytes = serde_json::to_vec(cursor).map_err(io_error)?;
+		if bytes.len() > MAX_CURSOR_BYTES {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let temp = self.cursor_root.join(format!("{CURSOR_KEY}.json.tmp-{}", std::process::id()));
+		let mut file = File::create(&temp).map_err(io_error)?;
+		file.write_all(&bytes).map_err(io_error)?;
+		self.trip(CheckpointPublicationFault::BeforeTempFsync)?;
+		file.sync_all().map_err(io_error)?;
+		self.trip(CheckpointPublicationFault::AfterTempFsync)?;
+		fs::rename(&temp, self.cursor_root.join(format!("{CURSOR_KEY}.json")))
+			.map_err(io_error)?;
+		self.trip(CheckpointPublicationFault::AfterRename)?;
+		File::open(&self.cursor_root)
+			.and_then(|directory| directory.sync_all())
+			.map_err(io_error)?;
+		self.trip(CheckpointPublicationFault::AfterDirectoryFsync)
+	}
+
 	fn trip(&self, point: CheckpointPublicationFault) -> Result<(), ContentError> {
 		let mut fault = self.fault.write().map_err(|_| lock_error())?;
 		if fault.as_ref() == Some(&point) {
@@ -272,6 +359,60 @@ fn read_records(root: &Path) -> Result<Vec<RecordFile>, ContentError> {
 		records.push(RecordFile { name, bytes });
 	}
 	Ok(records)
+}
+
+fn read_cursor(root: &Path) -> Result<Option<CheckpointPublicationCursorV1>, ContentError> {
+	let expected = format!("{CURSOR_KEY}.json");
+	let temp_prefix = format!("{CURSOR_KEY}.json.tmp-");
+	let mut cursor = None;
+	let mut temp_artifacts = 0usize;
+	for item in fs::read_dir(root).map_err(io_error)? {
+		let item = item.map_err(io_error)?;
+		let name = item.file_name().to_string_lossy().into_owned();
+		if name.starts_with(&temp_prefix) {
+			temp_artifacts = temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+			if temp_artifacts > MAX_TEMP_ARTIFACTS {
+				return Err(ContentError::IntegrityFailed);
+			}
+			fs::remove_file(item.path()).map_err(io_error)?;
+			continue;
+		}
+		if name != expected || cursor.is_some() || !item.file_type().map_err(io_error)?.is_file() {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let bytes = fs::read(item.path()).map_err(io_error)?;
+		if bytes.len() > MAX_CURSOR_BYTES {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let decoded: CheckpointPublicationCursorV1 =
+			serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
+		validate_cursor(&decoded)?;
+		cursor = Some(decoded);
+	}
+	Ok(cursor)
+}
+
+fn validate_cursor(cursor: &CheckpointPublicationCursorV1) -> Result<(), ContentError> {
+	if cursor.version != CURSOR_VERSION || cursor.record_hash != cursor_hash(cursor)? {
+		return Err(ContentError::IntegrityFailed);
+	}
+	for value in [
+		&cursor.submission_id,
+		&cursor.submission_record_hash,
+		&cursor.finalized_hash,
+		&cursor.record_hash,
+	] {
+		let _: [u8; 32] = decode_hex(value)?.try_into().map_err(|_| ContentError::IntegrityFailed)?;
+	}
+	Ok(())
+}
+
+fn cursor_hash(cursor: &CheckpointPublicationCursorV1) -> Result<String, ContentError> {
+	let mut canonical = cursor.clone();
+	canonical.record_hash.clear();
+	let mut input = CURSOR_DOMAIN.to_vec();
+	input.extend_from_slice(&serde_json::to_vec(&canonical).map_err(io_error)?);
+	Ok(hex::encode(blake2_256(&input)))
 }
 
 fn publication_record(
@@ -687,6 +828,32 @@ mod tests {
 		record.submission_record_hash = hex::encode([44; 32]);
 		record.record_hash = record_hash(&record).unwrap();
 		fs::write(path, serde_json::to_vec(&record).unwrap()).unwrap();
+		assert!(matches!(
+			CheckpointPublicationStoreV1::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+	}
+
+	#[test]
+	fn publication_cursor_is_authenticated_and_reopens_exactly() {
+		let temp = TempDir::new().unwrap();
+		let (_submission_temp, submission) = durable_submission(&submission_input());
+		let store = CheckpointPublicationStoreV1::open(temp.path()).unwrap();
+		let cursor = store
+			.reserve_cursor(&submission, H256::repeat_byte(22), 120)
+			.unwrap();
+		assert_eq!(store.cursor().unwrap(), Some(cursor.clone()));
+		drop(store);
+		assert_eq!(
+			CheckpointPublicationStoreV1::open(temp.path()).unwrap().cursor().unwrap(),
+			Some(cursor.clone())
+		);
+
+		let path = temp.path().join(CURSOR_ROOT).join(format!("{CURSOR_KEY}.json"));
+		let mut tampered: CheckpointPublicationCursorV1 =
+			serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+		tampered.finalized_number += 1;
+		fs::write(path, serde_json::to_vec(&tampered).unwrap()).unwrap();
 		assert!(matches!(
 			CheckpointPublicationStoreV1::open(temp.path()),
 			Err(ContentError::IntegrityFailed)

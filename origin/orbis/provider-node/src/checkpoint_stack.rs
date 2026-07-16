@@ -620,20 +620,38 @@ impl CheckpointStack {
 			return Err(ContentError::IntegrityFailed);
 		}
 		let state = self.lock()?;
-		let mut pending = Vec::new();
-		for (submission, receipt) in state.outbox.finalized_submissions()? {
-			if state.publications.contains(&submission.submission_id)? {
-				continue;
-			}
-			let hash: [u8; 32] = decode_canonical_hash(&receipt.finalized_hash)?;
-			pending.push(CheckpointPublicationIntentV1 {
-				submission,
-				finalized_hash: H256::from(hash),
-				finalized_number: receipt.finalized_number,
-			});
-			if pending.len() == limit {
-				break;
-			}
+		let mut pending = checkpoint_publication_intents(&state)?;
+		pending.truncate(limit);
+		Ok(pending)
+	}
+
+	/// Select a unique bounded batch after the durable cursor and reserve it before network work.
+	pub(crate) fn reserve_checkpoint_publications(
+		&self,
+		limit: usize,
+	) -> Result<Vec<CheckpointPublicationIntentV1>, ContentError> {
+		if limit == 0 {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let state = self.lock()?;
+		let mut pending = checkpoint_publication_intents(&state)?;
+		if let Some(cursor) = state.publications.cursor()? {
+			let split = pending
+				.iter()
+				.position(|intent| {
+					(intent.finalized_number, intent.submission.submission_id.as_str())
+						> (cursor.finalized_number, cursor.submission_id.as_str())
+				})
+				.unwrap_or(0);
+			pending.rotate_left(split);
+		}
+		pending.truncate(limit);
+		if let Some(last) = pending.last() {
+			state.publications.reserve_cursor(
+				&last.submission,
+				last.finalized_hash,
+				last.finalized_number,
+			)?;
 		}
 		Ok(pending)
 	}
@@ -679,6 +697,27 @@ fn decode_canonical_hash(value: &str) -> Result<[u8; 32], ContentError> {
 		.map_err(|_| ContentError::IntegrityFailed)
 }
 
+fn checkpoint_publication_intents(
+	state: &CheckpointStackState,
+) -> Result<Vec<CheckpointPublicationIntentV1>, ContentError> {
+	state
+		.outbox
+		.finalized_submissions()?
+		.into_iter()
+		.filter_map(|(submission, receipt)| match state.publications.contains(&submission.submission_id) {
+			Ok(true) => None,
+			Ok(false) => Some(
+				decode_canonical_hash(&receipt.finalized_hash).map(|hash| CheckpointPublicationIntentV1 {
+					submission,
+					finalized_hash: H256::from(hash),
+					finalized_number: receipt.finalized_number,
+				}),
+			),
+			Err(error) => Some(Err(error)),
+		})
+		.collect()
+}
+
 fn validate_publication_receipts(
 	outbox: &CheckpointOutboxV2,
 	publications: &CheckpointPublicationStoreV1,
@@ -695,6 +734,17 @@ fn validate_publication_receipts(
 			|| receipt.submission_record_hash != publication.submission_record_hash
 			|| receipt.finalized_hash != publication.finalized_hash
 			|| receipt.finalized_number != publication.finalized_number
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+	}
+	if let Some(cursor) = publications.cursor()? {
+		let (submission, receipt) =
+			finalized.get(&cursor.submission_id).ok_or(ContentError::IntegrityFailed)?;
+		if submission.record_hash != cursor.submission_record_hash
+			|| receipt.submission_record_hash != cursor.submission_record_hash
+			|| receipt.finalized_hash != cursor.finalized_hash
+			|| receipt.finalized_number != cursor.finalized_number
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -811,7 +861,7 @@ mod tests {
 		CheckpointDutyPageRequest, DiskStore, JsonlCheckpointOutbox, NodeProfile, ProviderService,
 	};
 
-	const DURABLE_ROOTS: [&str; 13] = [
+	const DURABLE_ROOTS: [&str; 14] = [
 		"streaming-v1",
 		"bucket-mmr-v3",
 		"checkpoint-proposals-v2",
@@ -822,6 +872,7 @@ mod tests {
 		"checkpoint-finalized-receipts-v2",
 		"checkpoint-scheduler-v1",
 		"checkpoint-publications-v1",
+		"checkpoint-publication-cursor-v1",
 		"checkpoint-promotions-v1",
 		"replication-v3",
 		"peer-replies-v1",
