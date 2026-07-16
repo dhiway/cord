@@ -291,6 +291,45 @@ pub(crate) struct VerifiedCapability {
 	pub(crate) canonical_capability_sha256: [u8; 32],
 }
 
+/// Validate immutable capability structure and request/provider audience without consulting
+/// delegation liveness. Exact durable recovery uses this before lookup; fresh effects must also
+/// pass [`verify_capability`].
+pub(crate) fn verify_capability_identity(
+	capability: &ProviderCapabilityV1,
+	snapshot: &CapabilityAuthoritySnapshot,
+	request: &CapabilityRequest<'_>,
+) -> Result<(), CapabilityError> {
+	if capability.version != 1 {
+		return Err(CapabilityError::WireVersionMismatch);
+	}
+	if capability.provider != snapshot.local_provider {
+		return Err(CapabilityError::CapabilityAudienceInvalid);
+	}
+	if snapshot.registry_sha256 != NORMATIVE_REGISTRY_SHA256
+		|| capability.registry_sha256 != NORMATIVE_REGISTRY_SHA256
+	{
+		return Err(CapabilityError::WireDescriptorMismatch);
+	}
+	if capability.genesis_hash != snapshot.genesis_hash {
+		return Err(CapabilityError::WireGenesisMismatch);
+	}
+	if capability.product_id != request.product_id || capability.bucket_id != request.bucket_id {
+		return Err(CapabilityError::GrantScopeDenied);
+	}
+	if capability.agreement_id != request.agreement_id
+		|| (request.requires_agreement && request.agreement_id.is_none())
+	{
+		return Err(CapabilityError::AgreementInvalidState);
+	}
+	if !capability.methods.contains(&request.method) || request.bytes > capability.max_bytes {
+		return Err(CapabilityError::GrantScopeDenied);
+	}
+	if capability.cid.as_ref() != request.cid {
+		return Err(CapabilityError::CapabilityContentInvalid);
+	}
+	Ok(())
+}
+
 /// Verify a capability only against its singular finalized host delegation and optional agreement.
 pub(crate) fn verify_capability<I: CapabilityReplayInspector>(
 	capability: &ProviderCapabilityV1,
@@ -298,6 +337,7 @@ pub(crate) fn verify_capability<I: CapabilityReplayInspector>(
 	request: CapabilityRequest<'_>,
 	replay: &I,
 ) -> Result<VerifiedCapability, CapabilityError> {
+	verify_capability_identity(capability, snapshot, &request)?;
 	if capability.version != 1 {
 		return Err(CapabilityError::WireVersionMismatch);
 	}

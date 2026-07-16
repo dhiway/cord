@@ -37,7 +37,11 @@ use crate::{
 	INGRESS_WINDOW_CHUNKS, MAX_CHUNKS, MAX_RANGE_BYTES, MAX_STORED_BYTES, MAX_STREAMING_OPERATIONS,
 };
 
-const STREAM_VERSION: u16 = 4;
+#[allow(dead_code)]
+pub(crate) mod recovery;
+use recovery::RecoveryRecord;
+
+const STREAM_VERSION: u16 = 5;
 const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
@@ -115,6 +119,10 @@ pub enum StreamingFault {
 	AfterObjectRename,
 	/// Verified repair rename is durable but sticky quarantine is not cleared.
 	AfterRepairRename,
+	/// Recovery effect is staged but its combined journal transition is absent.
+	BeforeRecoveryCommit,
+	/// Combined recovery transition is durable but its response was not delivered.
+	AfterRecoveryCommit,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -137,7 +145,6 @@ struct ChunkRecord {
 struct OperationRecord {
 	descriptor: StreamingDescriptor,
 	phase: Phase,
-	#[serde(default)]
 	install_sequence: Option<u64>,
 	next_chunk: u16,
 	received_bytes: u64,
@@ -150,12 +157,10 @@ struct OperationRecord {
 struct JournalState {
 	version: u16,
 	operations: BTreeMap<String, OperationRecord>,
-	#[serde(default)]
 	next_install_sequence: u64,
-	#[serde(default)]
 	quarantine: BTreeMap<String, QuarantineRecord>,
-	#[serde(default)]
 	detection_sequence: u64,
+	recovery: BTreeMap<String, RecoveryRecord>,
 }
 
 /// One immutable, fully reverified installed operation used by the private commitment store.
@@ -276,9 +281,13 @@ impl StreamingStore {
 		let state = if journal.exists() {
 			let bytes = fs::read(&journal).map_err(io_error)?;
 			let state: JournalState = serde_json::from_slice(&bytes).map_err(io_error)?;
-			if state.version != STREAM_VERSION || state.operations.len() > operation_limit {
+			if state.version != STREAM_VERSION ||
+				state.operations.len() > operation_limit ||
+				state.recovery.len() > MAX_STREAMING_OPERATIONS
+			{
 				return Err(ContentError::IntegrityFailed)
 			}
+			recovery::validate_recovery_state(&state)?;
 			state
 		} else {
 			JournalState {
@@ -287,6 +296,7 @@ impl StreamingStore {
 				next_install_sequence: 0,
 				quarantine: BTreeMap::new(),
 				detection_sequence: 0,
+				recovery: BTreeMap::new(),
 			}
 		};
 		let store = Self {
