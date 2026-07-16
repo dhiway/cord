@@ -211,6 +211,11 @@ pub(super) struct VerifiedInstallation {
 	pub(super) stored_bytes: u64,
 }
 
+/// Fully reverified local readiness bound to one replication object identity.
+pub(crate) struct VerifiedReplicationReady {
+	pub(crate) receipt_fingerprint: [u8; 32],
+}
+
 /// Fully reverified descriptor and bounded chunk manifest for private peer replication.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct VerifiedReplicationObject {
@@ -1300,6 +1305,64 @@ impl StreamingStore {
 		let quarantined = state.quarantine.contains_key(&record.descriptor.expected_cid);
 		drop(state);
 		self.verify_installation_record(record, quarantined)
+	}
+
+	/// Reverify one replication object and its exact derived install or repair operation.
+	pub(crate) fn verified_replication_ready(
+		&self,
+		bucket_id: BucketId,
+		cid: &str,
+		object_len: u64,
+		install_operation_id: OperationId,
+		repair_operation_id: OperationId,
+	) -> Result<VerifiedReplicationReady, ContentError> {
+		let canonical = CanonicalCid::parse(cid)?;
+		let state = self.read_state()?;
+		let install_key = operation_key_parts(bucket_id, install_operation_id);
+		let exact_install = state.operations.get(&install_key).cloned().filter(|record| {
+			record.phase == Phase::Installed
+				&& record.descriptor.bucket_id == bucket_id
+				&& record.descriptor.expected_cid == canonical.as_str()
+				&& record.descriptor.object_len == object_len
+		});
+		let (record, repaired) = if let Some(record) = exact_install {
+			(record, false)
+		} else {
+			let record = state
+				.operations
+				.values()
+				.find(|record| {
+					record.phase == Phase::Installed
+						&& record.descriptor.bucket_id == bucket_id
+						&& record.descriptor.expected_cid == canonical.as_str()
+						&& record.descriptor.object_len == object_len
+				})
+				.cloned()
+				.ok_or(ContentError::NotFound)?;
+			let key = repair_key(canonical.as_str(), repair_operation_id)?;
+			let repair = state.repairs.get(&key).ok_or(ContentError::IntegrityFailed)?;
+			validate_repair_record(&key, repair, &record)?;
+			if repair.phase != RepairPhase::Installed {
+				return Err(ContentError::IntegrityFailed);
+			}
+			(record, true)
+		};
+		if state.quarantine.contains_key(canonical.as_str()) {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let receipt = record.receipt.clone().ok_or(ContentError::IntegrityFailed)?;
+		drop(state);
+		let verified = self.verify_installation_record(record, false)?;
+		if verified.bucket_id != bucket_id
+			|| verified.cid.as_str() != canonical.as_str()
+			|| verified.stored_bytes != object_len
+			|| (!repaired && verified.operation_id != install_operation_id)
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+		Ok(VerifiedReplicationReady {
+			receipt_fingerprint: decode_chunk_hash(&receipt.fingerprint)?,
+		})
 	}
 
 	/// Return one exact replication descriptor and manifest only after full-file verification.

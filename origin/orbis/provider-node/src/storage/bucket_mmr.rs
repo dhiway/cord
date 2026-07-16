@@ -341,6 +341,30 @@ impl BucketMmrStore {
 		})
 	}
 
+	/// Return the exact cumulative total immediately before a candidate range.
+	pub(crate) fn commitment_predecessor_total(
+		&self,
+		bucket_id: BucketId,
+		expected_start_seq: u64,
+	) -> Result<u64, ContentError> {
+		let state = self.state.read().map_err(|_| lock_error())?;
+		let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::NotFound)?;
+		if bucket.unavailable || expected_start_seq > bucket.meta.entry_count {
+			return Err(ContentError::IntegrityFailed);
+		}
+		if expected_start_seq == 0 {
+			return Ok(0);
+		}
+		let predecessor: usize =
+			(expected_start_seq - 1).try_into().map_err(|_| ContentError::IntegrityFailed)?;
+		bucket
+			.entries
+			.get(predecessor)
+			.filter(|entry| entry.sequence == expected_start_seq - 1)
+			.map(|entry| entry.total_size)
+			.ok_or(ContentError::IntegrityFailed)
+	}
+
 	/// Build one bounded, contiguous replication page from fully reverified installed objects.
 	pub(crate) fn replication_page(
 		&self,
