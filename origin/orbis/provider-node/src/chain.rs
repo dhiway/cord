@@ -72,22 +72,43 @@ pub struct CapabilityAuthoritySnapshot {
 	pub agreement: Option<AgreementInfo<AccountId32, H256, u32>>,
 }
 
-/// One validated provider in finalized bucket membership order.
+/// One reason an ordered replication member cannot currently be used.
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Decode, Encode, Eq, PartialEq)]
+pub(crate) enum ReplicationProviderExclusion {
+	MissingProvider,
+	Inactive,
+	GovernedCheckpointUnavailable,
+	OrgInvalid,
+	AuthorityUnvalidated,
+	OverdueChallenge,
+	RuntimeIneligible,
+	InvalidEndpoint,
+	InvalidServiceKey,
+	ConfirmationInvalid,
+}
+
+/// One evidence-preserving provider slot in finalized bucket membership order.
 #[allow(dead_code)]
 #[derive(Clone, Debug, Encode, Eq, PartialEq)]
 pub(crate) struct ReplicationProviderSnapshot {
 	pub(crate) provider: [u8; 32],
 	pub(crate) order: u8,
 	pub(crate) primary: bool,
-	pub(crate) endpoint: Vec<u8>,
-	pub(crate) endpoint_hash: [u8; 32],
-	pub(crate) active_service_key: [u8; 32],
-	pub(crate) active_service_key_version: u64,
+	pub(crate) record_present: bool,
+	pub(crate) endpoint: Option<Vec<u8>>,
+	pub(crate) endpoint_hash: Option<[u8; 32]>,
+	pub(crate) active_service_key: Option<[u8; 32]>,
+	pub(crate) active_service_key_version: Option<u64>,
 	pub(crate) status_active: bool,
 	pub(crate) organization_valid: bool,
 	pub(crate) authority_validated_at: Option<u32>,
 	pub(crate) overdue_challenges: u32,
+	/// Exact answer returned by `provider_is_eligible` at the pinned state hash.
 	pub(crate) eligible: bool,
+	/// True only when the complete retained evidence has no exclusion.
+	pub(crate) usable: bool,
+	pub(crate) exclusions: Vec<ReplicationProviderExclusion>,
 	pub(crate) confirmed_checkpoint: Option<u32>,
 }
 
@@ -97,7 +118,10 @@ pub(crate) struct ReplicationProviderSnapshot {
 pub(crate) struct ReplicationTopologySnapshot {
 	pub(crate) genesis_hash: [u8; 32],
 	pub(crate) finalized_hash: [u8; 32],
+	/// Header number retained solely as the pinned transport-state identity.
 	pub(crate) finalized_number: u32,
+	/// Runtime-governed checkpoint used for authority and confirmation semantics.
+	pub(crate) governed_finalized_checkpoint: Option<u32>,
 	pub(crate) bucket_id: [u8; 32],
 	pub(crate) bucket_version: u64,
 	pub(crate) primary: [u8; 32],
@@ -712,6 +736,13 @@ impl ReplicationAuthority for FinalizedRuntimeAuthority {
 			.map_err(|error| ChainError::Rpc(error.to_string()))?;
 		let finalized_number = u32::from_str_radix(header.number.trim_start_matches("0x"), 16)
 			.map_err(|error| ChainError::Decode(error.to_string()))?;
+		let governed_finalized_checkpoint: Option<u32> = self
+			.runtime_call(
+				"StorageProviderApi_governed_finalized_checkpoint",
+				().encode(),
+				&finalized_hash_text,
+			)
+			.await?;
 		let bucket_hash = H256::from(bucket_id);
 		let bucket_response: Versioned<ControlBucketInfo<AccountId32, H256, u32>> = self
 			.runtime_call(
@@ -758,12 +789,6 @@ impl ReplicationAuthority for FinalizedRuntimeAuthority {
 				)
 				.await?;
 			ensure_version(response.version)?;
-			let info = response.value.ok_or_else(|| {
-				ChainError::Rejected(format!(
-					"replication member {} is not registered",
-					account_hex(provider)
-				))
-			})?;
 			let eligible: bool = self
 				.runtime_call(
 					"StorageProviderApi_provider_is_eligible",
@@ -784,12 +809,18 @@ impl ReplicationAuthority for FinalizedRuntimeAuthority {
 			providers.push(replication_provider(
 				provider,
 				index,
-				info,
-				finalized_number,
+				response.value,
+				governed_finalized_checkpoint,
 				eligible,
 				confirmed_checkpoint,
 			)?);
 		}
+		apply_confirmation_evidence(
+			&mut providers,
+			&current_checkpoint,
+			governed_finalized_checkpoint,
+			&bucket.replicas,
+		)?;
 
 		let primary = account_bytes(&bucket.primary);
 		let replicas = bucket.replicas.iter().map(account_bytes).collect();
@@ -797,6 +828,7 @@ impl ReplicationAuthority for FinalizedRuntimeAuthority {
 			genesis_hash: self.genesis_hash().await?,
 			finalized_hash,
 			finalized_number,
+			governed_finalized_checkpoint,
 			bucket_id,
 			bucket_version: bucket.version,
 			primary,
@@ -852,26 +884,47 @@ impl ReplicationTopologySnapshot {
 					"replication provider order does not match bucket membership".into(),
 				));
 			}
-			validate_provider_endpoint(&provider.endpoint)?;
-			if blake2_256(&provider.endpoint) != provider.endpoint_hash {
+			if provider.record_present
+				== provider.exclusions.contains(&ReplicationProviderExclusion::MissingProvider)
+			{
 				return Err(ChainError::Rejected(
-					"replication provider endpoint hash mismatch".into(),
+					"replication provider presence evidence is inconsistent".into(),
 				));
 			}
-			if !provider.status_active
-				|| !provider.organization_valid
-				|| provider.authority_validated_at.is_none()
-				|| provider.authority_validated_at.is_some_and(|at| at > self.finalized_number)
-				|| provider.overdue_challenges != 0
-				|| !provider.eligible
+			if provider.endpoint.is_some() != provider.endpoint_hash.is_some() {
+				return Err(ChainError::Rejected(
+					"replication provider endpoint evidence is incomplete".into(),
+				));
+			}
+			if let (Some(endpoint), Some(endpoint_hash)) =
+				(&provider.endpoint, provider.endpoint_hash)
 			{
-				return Err(ChainError::Rejected(format!(
-					"replication member {} is not eligible",
-					hex::encode(provider.provider)
-				)));
+				if blake2_256(endpoint) != endpoint_hash {
+					return Err(ChainError::Rejected(
+						"replication provider endpoint hash mismatch".into(),
+					));
+				}
+				let invalid = validate_provider_endpoint(endpoint).is_err();
+				if invalid
+					!= provider.exclusions.contains(&ReplicationProviderExclusion::InvalidEndpoint)
+				{
+					return Err(ChainError::Rejected(
+						"replication provider endpoint exclusion is inconsistent".into(),
+					));
+				}
+			}
+			if provider.usable != provider.exclusions.is_empty() {
+				return Err(ChainError::Rejected(
+					"replication provider usability evidence is inconsistent".into(),
+				));
+			}
+			if provider.provider == local_provider && !provider.record_present {
+				return Err(ChainError::Rejected(
+					"local replication provider record is missing".into(),
+				));
 			}
 			if provider.provider == local_provider
-				&& provider.active_service_key != local_service_key
+				&& provider.active_service_key != Some(local_service_key)
 			{
 				return Err(ChainError::Rejected(
 					"local replication service key does not match finalized provider state".into(),
@@ -886,54 +939,6 @@ impl ReplicationTopologySnapshot {
 			return Err(ChainError::Rejected(
 				"replication checkpoint is bound to another bucket".into(),
 			));
-		}
-		match &self.current_checkpoint {
-			Some(checkpoint) => {
-				let mut confirmations = std::collections::BTreeSet::new();
-				for provider in &checkpoint.replica_confirmations {
-					let provider = account_bytes(provider);
-					if !self.replicas.contains(&provider) || !confirmations.insert(provider) {
-						return Err(ChainError::Rejected(
-							"replication checkpoint confirmations do not match bucket replicas"
-								.into(),
-						));
-					}
-				}
-				for provider in &self.providers {
-					if provider
-						.confirmed_checkpoint
-						.is_some_and(|at| at > checkpoint.checkpoint_block)
-					{
-						return Err(ChainError::Rejected(
-							"replication member confirmation is ahead of the bucket checkpoint"
-								.into(),
-						));
-					}
-					let confirms_current =
-						provider.confirmed_checkpoint == Some(checkpoint.checkpoint_block);
-					let inconsistent = if provider.primary {
-						!confirms_current
-					} else {
-						confirmations.contains(&provider.provider) != confirms_current
-					};
-					if inconsistent {
-						return Err(ChainError::Rejected(
-							"replication member confirmation disagrees with the current checkpoint"
-								.into(),
-						));
-					}
-				}
-			},
-			None if self
-				.providers
-				.iter()
-				.any(|provider| provider.confirmed_checkpoint.is_some()) =>
-			{
-				return Err(ChainError::Rejected(
-					"replication members have confirmations without a bucket checkpoint".into(),
-				));
-			},
-			None => {},
 		}
 		if self.snapshot_hash != self.calculated_hash() {
 			return Err(ChainError::Rejected("replication topology hash mismatch".into()));
@@ -968,32 +973,135 @@ fn replication_members(
 fn replication_provider(
 	provider: &AccountId32,
 	index: usize,
-	info: ProviderInfo<H256, u32>,
-	finalized_number: u32,
+	info: Option<ProviderInfo<H256, u32>>,
+	governed_finalized_checkpoint: Option<u32>,
 	eligible: bool,
 	confirmed_checkpoint: Option<u32>,
 ) -> Result<ReplicationProviderSnapshot, ChainError> {
-	validate_provider_endpoint(&info.endpoint)?;
-	let (active_service_key, active_service_key_version) =
-		active_service_key(&info, finalized_number)?;
 	let order = u8::try_from(index)
 		.map_err(|_| ChainError::Rejected("replication provider order overflow".into()))?;
+	let Some(info) = info else {
+		return Ok(ReplicationProviderSnapshot {
+			provider: account_bytes(provider),
+			order,
+			primary: index == 0,
+			record_present: false,
+			endpoint: None,
+			endpoint_hash: None,
+			active_service_key: None,
+			active_service_key_version: None,
+			status_active: false,
+			organization_valid: false,
+			authority_validated_at: None,
+			overdue_challenges: 0,
+			eligible,
+			usable: false,
+			exclusions: vec![ReplicationProviderExclusion::MissingProvider],
+			confirmed_checkpoint,
+		});
+	};
+	let status_active = info.status == ProviderStatus::Active;
+	let organization_valid = governed_finalized_checkpoint.is_some_and(|checkpoint| {
+		info.organization.valid_from <= checkpoint && checkpoint < info.organization.valid_until
+	});
+	let authority_validated = governed_finalized_checkpoint
+		.is_some_and(|checkpoint| info.authority_validated_at == Some(checkpoint));
+	let endpoint_valid = validate_provider_endpoint(&info.endpoint).is_ok();
+	let service_key = governed_finalized_checkpoint
+		.ok_or_else(|| ChainError::Rejected("governed checkpoint unavailable".into()))
+		.and_then(|checkpoint| active_service_key(&info, checkpoint));
+	let mut exclusions = Vec::new();
+	if !status_active {
+		exclusions.push(ReplicationProviderExclusion::Inactive);
+	}
+	if governed_finalized_checkpoint.is_none() {
+		exclusions.push(ReplicationProviderExclusion::GovernedCheckpointUnavailable);
+	}
+	if !organization_valid {
+		exclusions.push(ReplicationProviderExclusion::OrgInvalid);
+	}
+	if !authority_validated {
+		exclusions.push(ReplicationProviderExclusion::AuthorityUnvalidated);
+	}
+	if info.overdue_challenges != 0 {
+		exclusions.push(ReplicationProviderExclusion::OverdueChallenge);
+	}
+	if !eligible {
+		exclusions.push(ReplicationProviderExclusion::RuntimeIneligible);
+	}
+	if !endpoint_valid {
+		exclusions.push(ReplicationProviderExclusion::InvalidEndpoint);
+	}
+	if service_key.is_err() {
+		exclusions.push(ReplicationProviderExclusion::InvalidServiceKey);
+	}
+	let (active_service_key, active_service_key_version) = service_key
+		.map(|(key, version)| (Some(key), Some(version)))
+		.unwrap_or((None, None));
 	Ok(ReplicationProviderSnapshot {
 		provider: account_bytes(provider),
 		order,
 		primary: index == 0,
-		endpoint_hash: blake2_256(&info.endpoint),
-		endpoint: info.endpoint,
+		record_present: true,
+		endpoint_hash: Some(blake2_256(&info.endpoint)),
+		endpoint: Some(info.endpoint),
 		active_service_key,
 		active_service_key_version,
-		status_active: info.status == ProviderStatus::Active,
-		organization_valid: info.organization.valid_from <= finalized_number
-			&& finalized_number < info.organization.valid_until,
+		status_active,
+		organization_valid,
 		authority_validated_at: info.authority_validated_at,
 		overdue_challenges: info.overdue_challenges,
 		eligible,
+		usable: exclusions.is_empty(),
+		exclusions,
 		confirmed_checkpoint,
 	})
+}
+
+#[allow(dead_code)]
+fn apply_confirmation_evidence(
+	providers: &mut [ReplicationProviderSnapshot],
+	checkpoint: &Option<CheckpointInfo<AccountId32, H256, u32>>,
+	governed_finalized_checkpoint: Option<u32>,
+	replicas: &[AccountId32],
+) -> Result<(), ChainError> {
+	let confirmations = if let Some(checkpoint) = checkpoint {
+		let mut confirmations = std::collections::BTreeSet::new();
+		for provider in &checkpoint.replica_confirmations {
+			let provider = account_bytes(provider);
+			if !replicas.iter().any(|replica| account_bytes(replica) == provider)
+				|| !confirmations.insert(provider)
+			{
+				return Err(ChainError::Rejected(
+					"replication checkpoint confirmations do not match bucket replicas".into(),
+				));
+			}
+		}
+		Some((checkpoint.checkpoint_block, confirmations))
+	} else {
+		None
+	};
+	for provider in providers {
+		let invalid = provider.confirmed_checkpoint.is_some_and(|confirmed| {
+			governed_finalized_checkpoint.is_none_or(|governed| confirmed > governed)
+		}) || match &confirmations {
+			Some((checkpoint, confirmations)) => {
+				provider.confirmed_checkpoint.is_some_and(|confirmed| confirmed > *checkpoint)
+					|| if provider.primary {
+						provider.confirmed_checkpoint != Some(*checkpoint)
+					} else {
+						confirmations.contains(&provider.provider)
+							!= (provider.confirmed_checkpoint == Some(*checkpoint))
+					}
+			},
+			None => provider.confirmed_checkpoint.is_some(),
+		};
+		if invalid {
+			provider.exclusions.push(ReplicationProviderExclusion::ConfirmationInvalid);
+		}
+		provider.usable = provider.exclusions.is_empty();
+	}
+	Ok(())
 }
 
 #[allow(dead_code)]
@@ -1057,11 +1165,6 @@ fn validate_provider_endpoint(endpoint: &[u8]) -> Result<(), ChainError> {
 fn account_bytes(account: &AccountId32) -> [u8; 32] {
 	let bytes: &[u8] = account.as_ref();
 	bytes.try_into().expect("AccountId32 always contains exactly 32 bytes")
-}
-
-#[allow(dead_code)]
-fn account_hex(account: &AccountId32) -> String {
-	hex::encode(account_bytes(account))
 }
 
 fn canonical_hash(value: &str) -> Result<(), ChainError> {
@@ -1255,6 +1358,7 @@ mod tests {
 	#[derive(Clone)]
 	struct TopologyFixture {
 		response_version: u16,
+		governed_finalized_checkpoint: Option<u32>,
 		bucket: ControlBucketInfo<AccountId32, H256, u32>,
 		providers: BTreeMap<[u8; 32], ProviderInfo<H256, u32>>,
 		eligibility: BTreeMap<[u8; 32], bool>,
@@ -1303,11 +1407,12 @@ mod tests {
 		let mut local = provider_info(8);
 		local.service_key.pending = Some([9; 32]);
 		local.service_key.pending_version = Some(2);
-		local.service_key.pending_effective_at = Some(100);
+		local.service_key.pending_effective_at = Some(105);
 		providers.insert([8; 32], local);
 		providers.insert([9; 32], provider_info(9));
 		TopologyFixture {
 			response_version: RESPONSE_VERSION,
+			governed_finalized_checkpoint: Some(100),
 			bucket: ControlBucketInfo {
 				bucket_id,
 				owner: AccountId32::new([1; 32]),
@@ -1338,6 +1443,9 @@ mod tests {
 
 	fn topology_runtime_response(method: &str, params: &[u8], fixture: &TopologyFixture) -> String {
 		let encoded = match method {
+			"StorageProviderApi_governed_finalized_checkpoint" => {
+				fixture.governed_finalized_checkpoint.encode()
+			},
 			"StorageProviderApi_control_bucket" => {
 				Versioned { version: fixture.response_version, value: Some(fixture.bucket.clone()) }
 					.encode()
@@ -1416,6 +1524,14 @@ mod tests {
 		Arc<Mutex<Vec<(String, String, Vec<u8>)>>>,
 		tokio::task::JoinHandle<()>,
 	) {
+		let local_service_key = active_service_key(
+			fixture.providers.get(&[8; 32]).expect("local provider fixture exists"),
+			fixture
+				.governed_finalized_checkpoint
+				.expect("governed fixture checkpoint exists"),
+		)
+		.unwrap()
+		.0;
 		let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
 		let address = listener.local_addr().unwrap();
 		let reads = Arc::new(Mutex::new(Vec::new()));
@@ -1442,7 +1558,7 @@ mod tests {
 		let authority = FinalizedRuntimeAuthority::connect(
 			&format!("http://{address}"),
 			AccountId32::new([8; 32]),
-			[9; 32],
+			local_service_key,
 		)
 		.unwrap();
 		(authority, reads, server)
@@ -1618,6 +1734,7 @@ mod tests {
 		assert_eq!(first.genesis_hash, [0xbb; 32]);
 		assert_eq!(first.finalized_hash, [0xaa; 32]);
 		assert_eq!(first.finalized_number, 110);
+		assert_eq!(first.governed_finalized_checkpoint, Some(100));
 		assert_eq!(first.bucket_version, 4);
 		assert_eq!(first.primary, [7; 32]);
 		assert_eq!(first.replicas, vec![[8; 32], [9; 32]]);
@@ -1625,21 +1742,24 @@ mod tests {
 			first.providers.iter().map(|provider| provider.provider).collect::<Vec<_>>(),
 			vec![[7; 32], [8; 32], [9; 32]]
 		);
-		assert_eq!(first.providers[1].active_service_key, [9; 32]);
-		assert_eq!(first.providers[1].active_service_key_version, 2);
+		assert_eq!(first.providers[1].active_service_key, Some([18; 32]));
+		assert_eq!(first.providers[1].active_service_key_version, Some(1));
 		assert_eq!(first.providers[1].confirmed_checkpoint, Some(100));
 		assert_eq!(first.providers[2].confirmed_checkpoint, Some(99));
 		for provider in &first.providers {
-			assert_eq!(provider.endpoint_hash, blake2_256(&provider.endpoint));
+			assert_eq!(provider.endpoint_hash, provider.endpoint.as_deref().map(blake2_256));
+			assert!(provider.usable);
+			assert!(provider.exclusions.is_empty());
 		}
 		assert_eq!(first.snapshot_hash, first.calculated_hash());
 
 		let reads = reads.lock().await.clone();
 		assert!(reads.iter().all(|(_, at, _)| at == FINALIZED_HASH));
-		let methods = reads[..10].iter().map(|(method, _, _)| method.as_str()).collect::<Vec<_>>();
+		let methods = reads[..11].iter().map(|(method, _, _)| method.as_str()).collect::<Vec<_>>();
 		assert_eq!(
 			methods,
 			[
+				"StorageProviderApi_governed_finalized_checkpoint",
 				"StorageProviderApi_control_bucket",
 				"StorageProviderApi_checkpoint",
 				"StorageProviderApi_provider",
@@ -1652,7 +1772,7 @@ mod tests {
 				"StorageProviderApi_replica_checkpoint",
 			]
 		);
-		let provider_order = reads[..10]
+		let provider_order = reads[..11]
 			.iter()
 			.filter(|(method, _, _)| method == "StorageProviderApi_provider")
 			.map(|(_, _, params)| account_bytes(&AccountId32::decode(&mut &params[..]).unwrap()))
@@ -1662,38 +1782,73 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn replication_topology_rejects_missing_duplicate_nonmember_and_ineligible_members() {
-		let mut cases = Vec::new();
+	async fn replication_topology_preserves_missing_and_ineligible_remote_members() {
 		let mut missing = topology_fixture();
 		missing.providers.remove(&[9; 32]);
-		cases.push(missing);
+		let (authority, _reads, server) = topology_authority(missing).await;
+		let snapshot = authority.replication_topology([5; 32]).await.unwrap();
+		assert_eq!(snapshot.providers.len(), 3);
+		assert_eq!(snapshot.providers[2].provider, [9; 32]);
+		assert!(!snapshot.providers[2].record_present);
+		assert_eq!(snapshot.providers[2].endpoint, None);
+		assert_eq!(snapshot.providers[2].active_service_key, None);
+		assert_eq!(
+			snapshot.providers[2].exclusions,
+			vec![ReplicationProviderExclusion::MissingProvider]
+		);
+		assert!(!snapshot.providers[2].usable);
+		assert!(snapshot.providers[1].usable);
+		server.abort();
+
+		let mut unavailable = topology_fixture();
+		unavailable.providers.get_mut(&[7; 32]).unwrap().status = ProviderStatus::Suspended;
+		unavailable.providers.get_mut(&[7; 32]).unwrap().endpoint = b"corrupt".to_vec();
+		unavailable.eligibility.insert([7; 32], false);
+		let (authority, _reads, server) = topology_authority(unavailable).await;
+		let snapshot = authority.replication_topology([5; 32]).await.unwrap();
+		assert_eq!(snapshot.providers[0].provider, [7; 32]);
+		assert_eq!(
+			snapshot.providers[0].exclusions,
+			vec![
+				ReplicationProviderExclusion::Inactive,
+				ReplicationProviderExclusion::RuntimeIneligible,
+				ReplicationProviderExclusion::InvalidEndpoint,
+			]
+		);
+		assert!(!snapshot.providers[0].usable);
+		assert!(snapshot.providers[1].usable);
+		assert!(snapshot.providers[2].usable);
+		assert_eq!(snapshot.snapshot_hash, snapshot.calculated_hash());
+		server.abort();
+
+		let mut unavailable = topology_fixture();
+		unavailable.eligibility.insert([9; 32], false);
+		unavailable.providers.get_mut(&[9; 32]).unwrap().overdue_challenges = 1;
+		unavailable.providers.get_mut(&[9; 32]).unwrap().organization.valid_until = 100;
+		unavailable.providers.get_mut(&[9; 32]).unwrap().authority_validated_at = None;
+		let (authority, _reads, server) = topology_authority(unavailable).await;
+		let snapshot = authority.replication_topology([5; 32]).await.unwrap();
+		assert_eq!(
+			snapshot.providers[2].exclusions,
+			vec![
+				ReplicationProviderExclusion::OrgInvalid,
+				ReplicationProviderExclusion::AuthorityUnvalidated,
+				ReplicationProviderExclusion::OverdueChallenge,
+				ReplicationProviderExclusion::RuntimeIneligible,
+			]
+		);
+		server.abort();
+	}
+
+	#[tokio::test]
+	async fn replication_topology_rejects_duplicate_and_local_nonmember() {
+		let mut cases = Vec::new();
 		let mut duplicate = topology_fixture();
 		duplicate.bucket.replicas.push(AccountId32::new([8; 32]));
 		cases.push(duplicate);
 		let mut nonmember = topology_fixture();
 		nonmember.bucket.replicas = vec![AccountId32::new([9; 32])];
 		cases.push(nonmember);
-		let mut ineligible = topology_fixture();
-		ineligible.eligibility.insert([9; 32], false);
-		cases.push(ineligible);
-		let mut overdue = topology_fixture();
-		overdue.providers.get_mut(&[9; 32]).unwrap().overdue_challenges = 1;
-		cases.push(overdue);
-		let mut expired_organization = topology_fixture();
-		expired_organization
-			.providers
-			.get_mut(&[9; 32])
-			.unwrap()
-			.organization
-			.valid_until = 110;
-		cases.push(expired_organization);
-		let mut missing_authority_validation = topology_fixture();
-		missing_authority_validation
-			.providers
-			.get_mut(&[9; 32])
-			.unwrap()
-			.authority_validated_at = None;
-		cases.push(missing_authority_validation);
 
 		for fixture in cases {
 			let (authority, _reads, server) = topology_authority(fixture).await;
@@ -1703,6 +1858,31 @@ mod tests {
 			));
 			server.abort();
 		}
+	}
+
+	#[tokio::test]
+	async fn replication_topology_uses_governed_checkpoint_for_service_key_activation() {
+		let (authority, _reads, server) = topology_authority(topology_fixture()).await;
+		let before = authority.replication_topology([5; 32]).await.unwrap();
+		assert_eq!(before.finalized_number, 110);
+		assert_eq!(before.governed_finalized_checkpoint, Some(100));
+		assert_eq!(before.providers[1].active_service_key, Some([18; 32]));
+		assert_eq!(before.providers[1].active_service_key_version, Some(1));
+		server.abort();
+
+		let mut activated = topology_fixture();
+		activated.governed_finalized_checkpoint = Some(105);
+		for provider in activated.providers.values_mut() {
+			provider.authority_validated_at = Some(105);
+		}
+		let (authority, _reads, server) = topology_authority(activated).await;
+		let after = authority.replication_topology([5; 32]).await.unwrap();
+		assert_eq!(after.finalized_number, 110);
+		assert_eq!(after.governed_finalized_checkpoint, Some(105));
+		assert_eq!(after.providers[1].active_service_key, Some([9; 32]));
+		assert_eq!(after.providers[1].active_service_key_version, Some(2));
+		assert!(after.providers.iter().all(|provider| provider.usable));
+		server.abort();
 	}
 
 	#[tokio::test]
@@ -1717,13 +1897,6 @@ mod tests {
 		let mut wrong_checkpoint = topology_fixture();
 		wrong_checkpoint.checkpoint.as_mut().unwrap().bucket_id = H256::repeat_byte(99);
 		cases.push(wrong_checkpoint);
-		let mut invalid_utf8 = topology_fixture();
-		invalid_utf8.providers.get_mut(&[9; 32]).unwrap().endpoint = vec![0xff];
-		cases.push(invalid_utf8);
-		let mut wrong_scheme = topology_fixture();
-		wrong_scheme.providers.get_mut(&[9; 32]).unwrap().endpoint = b"ftp://invalid".to_vec();
-		cases.push(wrong_scheme);
-
 		for fixture in cases {
 			let (authority, _reads, server) = topology_authority(fixture).await;
 			assert!(matches!(
@@ -1739,10 +1912,10 @@ mod tests {
 		let (authority, _reads, server) = topology_authority(topology_fixture()).await;
 		let snapshot = authority.replication_topology([5; 32]).await.unwrap();
 		let mut endpoint_tamper = snapshot.clone();
-		endpoint_tamper.providers[1].endpoint_hash = [0; 32];
+		endpoint_tamper.providers[1].endpoint_hash = Some([0; 32]);
 		assert!(matches!(endpoint_tamper.validate([8; 32], [9; 32]), Err(ChainError::Rejected(_))));
 		let mut key_tamper = snapshot;
-		key_tamper.providers[1].active_service_key = [77; 32];
+		key_tamper.providers[1].active_service_key = Some([77; 32]);
 		assert!(matches!(key_tamper.validate([8; 32], [9; 32]), Err(ChainError::Rejected(_))));
 		server.abort();
 	}
