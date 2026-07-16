@@ -1,6 +1,6 @@
 {
   "algorithm": "RFC-78 merkleized_metadata V15 via substrate-wasm-builder",
-  "compact_wasm_sha256": "33dd3f450e7b035a0d7c54137617a19ea4da724e5c25a844bd45ac401bfe3081",
+  "compact_wasm_sha256": "0d997f2f2c5e42170a4ec3108c2ff97917e0dd7dad32371402879cca5fb73bbe",
   "decimals": 10,
   "metadata_hash": "0x824731ed7cab6037cdfa3f88e40f78556f77f016136fd563acd6c7a414c29f8e",
   "reproduce": "origin/orbis/runtime/tools/reproduce-metadata-hash.sh",
