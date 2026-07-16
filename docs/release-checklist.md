@@ -53,12 +53,41 @@ locally, for example:
 srtool build --engine docker --package cord-braid-runtime --runtime-dir runtimes/braid .
 srtool build --engine docker --package cord-loom-runtime --runtime-dir runtimes/loom .
 srtool build --engine docker --package cord-weave-runtime --runtime-dir runtimes/weave .
-srtool build --engine docker --package origin-foundation-runtime --runtime-dir origin/base/runtime .
-srtool build --engine docker --package origin-commons-runtime --runtime-dir origin/orbis/runtime .
 ```
 
-Attach the srtool JSON, compact/compressed Wasm artifacts, and subwasm `info`,
-`meta`, and `diff` outputs to the release record.
+Origin and Orbis production artifacts have a stricter, shared entrypoint:
+
+```bash
+scripts/build-origin-orbis-release.sh
+```
+
+The script must run from the clean repository root and requires exactly `srtool-cli 0.13.2`. It
+pins `paritytech/srtool@sha256:8638a668bd6d29111dc01953fbead6eb08c062e1cc62d3047a245a52b6edb3bf`
+and verifies the image ID, OS, and architecture before every build invocation.
+It builds both runtimes at the fixed container path `/build` with profile `release` and the explicit
+`on-chain-release-build` feature. It then builds `origin` and `origin-omni-node` in that same image
+and path. It performs two no-cache builds from independent clean source worktrees at the same
+commit, each with freshly cleared targets, and requires Foundation and Commons compact/compressed
+artifacts to be byte-identical across the runs. It then reuses the primary srtool targets for the
+nodes. The gate extracts `:code` from raw `origin-local` and `orbis-dev` chain specs and requires
+both compressed payloads and their decompressed compact Wasm to match immutable copies of the
+primary srtool artifacts byte for byte. Do not use a host-path runtime
+build as production release evidence.
+
+The release boundary does not rely on package defaults: production features are always explicit. If
+focused manual production compiles are required, use:
+
+```bash
+cargo build --locked --release --package origin \
+  --no-default-features --features on-chain-release-build
+cargo build --locked --release --package origin-omni-node \
+  --no-default-features --features on-chain-release-build
+```
+
+The canonical release script, rather than those host commands, remains the required artifact path.
+It records the source commit and root `Cargo.lock` SHA-256 and only publishes its evidence directory
+after every identity gate succeeds. Attach its srtool JSON, compact/compressed Wasm artifacts, raw chain specs, `SHA256SUMS`, and subwasm
+`info`, `meta`, and `diff` outputs to the release record.
 
 ### Try Runtime
 

@@ -87,6 +87,7 @@ substrate-build-script-utils = { workspace = true, default-features = true }
 
 [features]
 default = ["on-chain-release-build"]
+# The canonical release entrypoint selects this explicitly instead of relying on package defaults.
 on-chain-release-build = ["origin-commons-runtime/on-chain-release-build"]
 proof-campaign = [
 	"dep:clap",
