@@ -51,7 +51,7 @@ use crate::{
 };
 
 const ROOT: &str = "checkpoint-promotion-discovery-v1";
-const VERSION: u8 = 1;
+const VERSION: u8 = 2;
 const DOMAIN: &[u8] = b"cord/provider/checkpoint-promotion-discovery/v1";
 const MAX_SCAN: usize = 64;
 const MAX_ACTIONS: usize = 8;
@@ -68,21 +68,27 @@ struct Candidate {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct DiscoveryCursorV1 {
-	version: u8,
-	finalized_hash: String,
-	finalized_number: u32,
-	snapshot_checkpoint: u32,
+struct DiscoveryAnchorV2 {
 	last_index: u32,
 	last_duty_id: String,
 	last_duty_fingerprint: String,
 	last_bucket_id: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DiscoveryCursorV2 {
+	version: u8,
+	finalized_hash: String,
+	finalized_number: u32,
+	snapshot_checkpoint: u32,
+	anchor: Option<DiscoveryAnchorV2>,
 	record_hash: String,
 }
 
 pub(crate) struct PromotionDiscoveryScheduler {
 	root: PathBuf,
-	cursor: Mutex<Option<DiscoveryCursorV1>>,
+	cursor: Mutex<Option<DiscoveryCursorV2>>,
 }
 
 impl PromotionDiscoveryScheduler {
@@ -122,9 +128,6 @@ impl PromotionDiscoveryScheduler {
 		local_provider: [u8; 32],
 		local_key: [u8; 32],
 	) -> Result<Vec<Candidate>, ContentError> {
-		if inventory.duties.is_empty() {
-			return Ok(Vec::new());
-		}
 		let finalized_hash = canonical_hash(&inventory.finalized_hash)?;
 		let mut guard = self.cursor.lock().map_err(|_| ContentError::IntegrityFailed)?;
 		let same_inventory = guard.as_ref().is_some_and(|cursor| {
@@ -132,29 +135,50 @@ impl PromotionDiscoveryScheduler {
 				cursor.finalized_number == inventory.finalized_number &&
 				cursor.snapshot_checkpoint == inventory.snapshot_checkpoint
 		});
+		if let Some(cursor) = guard.as_ref() {
+			if !same_inventory &&
+				(finalized_hash == cursor.finalized_hash ||
+					inventory.finalized_number <= cursor.finalized_number ||
+					inventory.snapshot_checkpoint < cursor.snapshot_checkpoint)
+			{
+				return Err(ContentError::IntegrityFailed);
+			}
+		}
+		if inventory.duties.is_empty() {
+			if same_inventory {
+				if guard.as_ref().and_then(|cursor| cursor.anchor.as_ref()).is_some() {
+					return Err(ContentError::IntegrityFailed);
+				}
+				return Ok(Vec::new());
+			}
+			let cursor = new_cursor(inventory, finalized_hash, None)?;
+			persist_cursor(&self.root, &cursor)?;
+			*guard = Some(cursor);
+			return Ok(Vec::new());
+		}
 		let start = if same_inventory {
 			let cursor = guard.as_ref().ok_or(ContentError::IntegrityFailed)?;
+			let anchor = cursor.anchor.as_ref().ok_or(ContentError::IntegrityFailed)?;
 			let index =
-				usize::try_from(cursor.last_index).map_err(|_| ContentError::IntegrityFailed)?;
+				usize::try_from(anchor.last_index).map_err(|_| ContentError::IntegrityFailed)?;
 			let duty = inventory.duties.get(index).ok_or(ContentError::IntegrityFailed)?;
-			if duty.duty_id != cursor.last_duty_id ||
-				duty.duty_fingerprint != cursor.last_duty_fingerprint ||
-				duty.bucket_id != cursor.last_bucket_id
+			if duty.duty_id != anchor.last_duty_id ||
+				duty.duty_fingerprint != anchor.last_duty_fingerprint ||
+				duty.bucket_id != anchor.last_bucket_id
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
 			(index + 1) % inventory.duties.len()
 		} else if let Some(cursor) = guard.as_ref() {
-			if finalized_hash == cursor.finalized_hash ||
-				inventory.finalized_number <= cursor.finalized_number ||
-				inventory.snapshot_checkpoint < cursor.snapshot_checkpoint
-			{
-				return Err(ContentError::IntegrityFailed);
-			}
-			let anchor = canonical_hash(&cursor.last_bucket_id)?;
-			match canonical_anchor(&inventory.duties, &anchor)? {
-				Ok(index) => (index + 1) % inventory.duties.len(),
-				Err(insertion) => insertion % inventory.duties.len(),
+			match cursor.anchor.as_ref() {
+				Some(previous) => {
+					let anchor = canonical_hash(&previous.last_bucket_id)?;
+					match canonical_anchor(&inventory.duties, &anchor)? {
+						Ok(index) => (index + 1) % inventory.duties.len(),
+						Err(insertion) => insertion % inventory.duties.len(),
+					}
+				},
+				None => 0,
 			}
 		} else {
 			0
@@ -173,18 +197,13 @@ impl PromotionDiscoveryScheduler {
 			}
 		}
 		if let Some((index, duty)) = last_considered {
-			let mut cursor = DiscoveryCursorV1 {
-				version: VERSION,
-				finalized_hash,
-				finalized_number: inventory.finalized_number,
-				snapshot_checkpoint: inventory.snapshot_checkpoint,
+			let anchor = DiscoveryAnchorV2 {
 				last_index: u32::try_from(index).map_err(|_| ContentError::IntegrityFailed)?,
 				last_duty_id: duty.duty_id.clone(),
 				last_duty_fingerprint: duty.duty_fingerprint.clone(),
 				last_bucket_id: duty.bucket_id.clone(),
-				record_hash: String::new(),
 			};
-			cursor.record_hash = cursor_hash(&cursor)?;
+			let cursor = new_cursor(inventory, finalized_hash, Some(anchor))?;
 			persist_cursor(&self.root, &cursor)?;
 			*guard = Some(cursor);
 		}
@@ -457,7 +476,24 @@ fn canonical_hash(value: &str) -> Result<String, ContentError> {
 	Ok(hex::encode(hash_bytes(value)?))
 }
 
-fn cursor_hash(cursor: &DiscoveryCursorV1) -> Result<String, ContentError> {
+fn new_cursor(
+	inventory: &CheckpointDutyInventory,
+	finalized_hash: String,
+	anchor: Option<DiscoveryAnchorV2>,
+) -> Result<DiscoveryCursorV2, ContentError> {
+	let mut cursor = DiscoveryCursorV2 {
+		version: VERSION,
+		finalized_hash,
+		finalized_number: inventory.finalized_number,
+		snapshot_checkpoint: inventory.snapshot_checkpoint,
+		anchor,
+		record_hash: String::new(),
+	};
+	cursor.record_hash = cursor_hash(&cursor)?;
+	Ok(cursor)
+}
+
+fn cursor_hash(cursor: &DiscoveryCursorV2) -> Result<String, ContentError> {
 	let mut canonical = cursor.clone();
 	canonical.record_hash.clear();
 	let mut input = DOMAIN.to_vec();
@@ -465,9 +501,9 @@ fn cursor_hash(cursor: &DiscoveryCursorV1) -> Result<String, ContentError> {
 	Ok(hex::encode(blake2_256(&input)))
 }
 
-fn validate_cursor(cursor: &DiscoveryCursorV1) -> Result<(), ContentError> {
+fn validate_cursor(cursor: &DiscoveryCursorV2) -> Result<(), ContentError> {
 	if cursor.version != VERSION ||
-		cursor.finalized_hash.len() != 64 ||
+		canonical_hash(&cursor.finalized_hash)? != cursor.finalized_hash ||
 		cursor.record_hash != cursor_hash(cursor)?
 	{
 		return Err(ContentError::IntegrityFailed);
@@ -475,7 +511,7 @@ fn validate_cursor(cursor: &DiscoveryCursorV1) -> Result<(), ContentError> {
 	Ok(())
 }
 
-fn persist_cursor(root: &Path, cursor: &DiscoveryCursorV1) -> Result<(), ContentError> {
+fn persist_cursor(root: &Path, cursor: &DiscoveryCursorV2) -> Result<(), ContentError> {
 	validate_cursor(cursor)?;
 	let bytes = serde_json::to_vec(cursor).map_err(io_error)?;
 	if bytes.len() > MAX_RECORD_BYTES {
@@ -823,12 +859,36 @@ mod tests {
 		let inventory = inventory_with((0..130).map(invalid_duty).collect());
 		let scheduler = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
 		assert!(scheduler.reserve(&inventory, [2; 32], pair(2).public().0).unwrap().is_empty());
-		assert_eq!(scheduler.cursor.lock().unwrap().as_ref().unwrap().last_index, 63);
+		assert_eq!(
+			scheduler
+				.cursor
+				.lock()
+				.unwrap()
+				.as_ref()
+				.unwrap()
+				.anchor
+				.as_ref()
+				.unwrap()
+				.last_index,
+			63
+		);
 		drop(scheduler);
 
 		let reopened = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
 		assert!(reopened.reserve(&inventory, [2; 32], pair(2).public().0).unwrap().is_empty());
-		assert_eq!(reopened.cursor.lock().unwrap().as_ref().unwrap().last_index, 127);
+		assert_eq!(
+			reopened
+				.cursor
+				.lock()
+				.unwrap()
+				.as_ref()
+				.unwrap()
+				.anchor
+				.as_ref()
+				.unwrap()
+				.last_index,
+			127
+		);
 	}
 
 	fn assert_changed_inventory_rejected_without_cursor_movement(
@@ -880,6 +940,154 @@ mod tests {
 		assert_changed_inventory_rejected_without_cursor_movement([5; 32], 131, 120);
 	}
 
+	fn assert_empty_inventory_rejected_without_cursor_movement(
+		finalized_hash: String,
+		finalized_number: u32,
+		snapshot_checkpoint: u32,
+	) {
+		let temp = TempDir::new().unwrap();
+		let inventory = inventory_with(vec![invalid_duty(1)]);
+		let scheduler = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
+		assert!(scheduler.reserve(&inventory, [2; 32], pair(2).public().0).unwrap().is_empty());
+		let before = scheduler.cursor.lock().unwrap().clone();
+		let empty = CheckpointDutyInventory {
+			finalized_hash,
+			finalized_number,
+			snapshot_checkpoint,
+			duties: Vec::new(),
+		};
+
+		assert!(matches!(
+			scheduler.reserve(&empty, [2; 32], pair(2).public().0),
+			Err(ContentError::IntegrityFailed)
+		));
+		assert_eq!(*scheduler.cursor.lock().unwrap(), before);
+		drop(scheduler);
+		assert_eq!(
+			PromotionDiscoveryScheduler::open(temp.path())
+				.unwrap()
+				.cursor
+				.into_inner()
+				.unwrap(),
+			before
+		);
+	}
+
+	#[test]
+	fn malformed_empty_inventory_is_rejected_without_cursor_movement() {
+		assert_empty_inventory_rejected_without_cursor_movement("not-a-hash".into(), 131, 120);
+	}
+
+	#[test]
+	fn conflicting_empty_inventories_are_rejected_without_cursor_movement() {
+		for (hash, number, snapshot) in [
+			([6; 32], 130, 120),
+			([6; 32], 130, 121),
+			([6; 32], 129, 120),
+			([5; 32], 131, 120),
+			([6; 32], 131, 119),
+		] {
+			assert_empty_inventory_rejected_without_cursor_movement(
+				hex::encode(hash),
+				number,
+				snapshot,
+			);
+		}
+	}
+
+	#[test]
+	fn newer_empty_inventory_persists_and_same_view_reopens_cleanly() {
+		let temp = TempDir::new().unwrap();
+		let inventory = inventory_with(vec![invalid_duty(1)]);
+		let scheduler = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
+		scheduler.reserve(&inventory, [2; 32], pair(2).public().0).unwrap();
+		let empty = CheckpointDutyInventory {
+			finalized_hash: hex::encode([6; 32]),
+			finalized_number: 131,
+			snapshot_checkpoint: 120,
+			duties: Vec::new(),
+		};
+
+		assert!(scheduler.reserve(&empty, [2; 32], pair(2).public().0).unwrap().is_empty());
+		let persisted = scheduler.cursor.lock().unwrap().clone();
+		let cursor = persisted.as_ref().unwrap();
+		assert_eq!(cursor.finalized_hash, hex::encode([6; 32]));
+		assert_eq!(cursor.finalized_number, 131);
+		assert!(cursor.anchor.is_none());
+		drop(scheduler);
+
+		let reopened = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
+		assert_eq!(*reopened.cursor.lock().unwrap(), persisted);
+		assert!(reopened.reserve(&empty, [2; 32], pair(2).public().0).unwrap().is_empty());
+		assert_eq!(*reopened.cursor.lock().unwrap(), persisted);
+	}
+
+	#[test]
+	fn empty_cursor_rejects_a_later_older_view_without_movement() {
+		let temp = TempDir::new().unwrap();
+		let scheduler = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
+		let empty = CheckpointDutyInventory {
+			finalized_hash: hex::encode([6; 32]),
+			finalized_number: 131,
+			snapshot_checkpoint: 120,
+			duties: Vec::new(),
+		};
+		scheduler.reserve(&empty, [2; 32], pair(2).public().0).unwrap();
+		let before = scheduler.cursor.lock().unwrap().clone();
+		let older = CheckpointDutyInventory {
+			finalized_hash: hex::encode([5; 32]),
+			finalized_number: 130,
+			snapshot_checkpoint: 120,
+			duties: Vec::new(),
+		};
+
+		assert!(matches!(
+			scheduler.reserve(&older, [2; 32], pair(2).public().0),
+			Err(ContentError::IntegrityFailed)
+		));
+		assert_eq!(*scheduler.cursor.lock().unwrap(), before);
+		drop(scheduler);
+		assert_eq!(
+			PromotionDiscoveryScheduler::open(temp.path())
+				.unwrap()
+				.cursor
+				.into_inner()
+				.unwrap(),
+			before
+		);
+	}
+
+	#[test]
+	fn next_newer_nonempty_inventory_restarts_safely_after_empty_view() {
+		let temp = TempDir::new().unwrap();
+		let scheduler = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
+		let empty = CheckpointDutyInventory {
+			finalized_hash: hex::encode([6; 32]),
+			finalized_number: 131,
+			snapshot_checkpoint: 120,
+			duties: Vec::new(),
+		};
+		scheduler.reserve(&empty, [2; 32], pair(2).public().0).unwrap();
+		drop(scheduler);
+
+		let promoted =
+			validate_checkpoint_duty(runtime_duty(), &account(2), pair(2).public().0, 120).unwrap();
+		let next = CheckpointDutyInventory {
+			finalized_hash: hex::encode([7; 32]),
+			finalized_number: 132,
+			snapshot_checkpoint: 120,
+			duties: vec![promoted.clone()],
+		};
+		let reopened = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
+		let selected = reopened.reserve(&next, [2; 32], pair(2).public().0).unwrap();
+		assert_eq!(selected.len(), 1);
+		assert_eq!(selected[0].public, promoted);
+		let cursor = reopened.cursor.lock().unwrap();
+		let cursor = cursor.as_ref().unwrap();
+		assert_eq!(cursor.finalized_number, 132);
+		assert_eq!(cursor.anchor.as_ref().unwrap().last_index, 0);
+	}
+
 	#[test]
 	fn finalized_view_churn_preserves_anchor_fairness_past_sixty_four() {
 		let temp = TempDir::new().unwrap();
@@ -895,7 +1103,16 @@ mod tests {
 		let scheduler = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
 		assert!(scheduler.reserve(&first, [2; 32], pair(2).public().0).unwrap().is_empty());
 		assert_eq!(
-			scheduler.cursor.lock().unwrap().as_ref().unwrap().last_bucket_id,
+			scheduler
+				.cursor
+				.lock()
+				.unwrap()
+				.as_ref()
+				.unwrap()
+				.anchor
+				.as_ref()
+				.unwrap()
+				.last_bucket_id,
 			duties[63].bucket_id
 		);
 		drop(scheduler);
@@ -909,7 +1126,16 @@ mod tests {
 		let scheduler = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
 		assert!(scheduler.reserve(&second, [2; 32], pair(2).public().0).unwrap().is_empty());
 		assert_eq!(
-			scheduler.cursor.lock().unwrap().as_ref().unwrap().last_bucket_id,
+			scheduler
+				.cursor
+				.lock()
+				.unwrap()
+				.as_ref()
+				.unwrap()
+				.anchor
+				.as_ref()
+				.unwrap()
+				.last_bucket_id,
 			duties[127].bucket_id
 		);
 		drop(scheduler);
@@ -940,7 +1166,7 @@ mod tests {
 				let path = root.join("cursor.json");
 				let mut record: serde_json::Value =
 					serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
-				record["last_index"] = serde_json::json!(9);
+				record["anchor"]["last_index"] = serde_json::json!(9);
 				fs::write(path, serde_json::to_vec(&record).unwrap()).unwrap();
 			}
 			assert!(matches!(
