@@ -94,7 +94,7 @@ mod tests {
 
 	use super::*;
 
-	const DURABLE_ROOTS: [&str; 10] = [
+	const DURABLE_ROOTS: [&str; 11] = [
 		"streaming-v1",
 		"bucket-mmr-v3",
 		"checkpoint-proposals-v2",
@@ -103,6 +103,7 @@ mod tests {
 		"checkpoint-submissions-v2",
 		"checkpoint-receipts-v2",
 		"checkpoint-finalized-receipts-v2",
+		"checkpoint-scheduler-v1",
 		"checkpoint-publications-v1",
 		"checkpoint-promotions-v1",
 	];

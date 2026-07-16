@@ -81,6 +81,7 @@ pub(crate) async fn consume_one_with_lane(
 			return Err(ContentError::IntegrityFailed)
 		}
 		let payload = checkpoint_payload(lane.metadata(), &submission)?;
+		outbox.record_bucket_attempt(&submission)?;
 		let intent_id = format!("orbis-checkpoint-v2-{}", submission.submission_id);
 		let evidence = match lane.submit_and_finalize(&intent_id, payload).await {
 			Ok(evidence) => evidence,
@@ -532,6 +533,32 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn signer_and_metadata_failures_do_not_advance_the_bucket_cursor() {
+		for metadata_failure in [false, true] {
+			let temp = TempDir::new().unwrap();
+			let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+			let first_a = enqueue_checkpoint(&outbox, 4, 103, 7);
+			let _first_b = enqueue_checkpoint(&outbox, 5, 99, 2);
+			let invalid = if metadata_failure {
+				MockLane { metadata: metadata::<RenamedCall>(), ..MockLane::successful([1; 32]) }
+			} else {
+				MockLane::successful([99; 32])
+			};
+			assert!(matches!(
+				consume_one_with_lane(&outbox, &invalid).await,
+				Err(ContentError::IntegrityFailed)
+			));
+			assert_eq!(invalid.calls.load(Ordering::SeqCst), 0);
+
+			let valid = MockLane::successful([1; 32]);
+			assert_eq!(
+				consume_one_with_lane(&outbox, &valid).await.unwrap().unwrap().submission_id,
+				first_a.submission_id
+			);
+		}
+	}
+
+	#[tokio::test]
 	async fn later_hash_precedence_and_rejection_cannot_starve_predecessor() {
 		let temp = TempDir::new().unwrap();
 		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
@@ -601,6 +628,83 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn successful_lower_bucket_cannot_starve_a_pending_higher_bucket() {
+		let temp = TempDir::new().unwrap();
+		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+		let first_a = enqueue_checkpoint(&outbox, 4, 103, 7);
+		let first_b = enqueue_checkpoint(&outbox, 5, 99, 2);
+		let lane = MockLane::successful([1; 32]);
+
+		let first = consume_one_with_lane(&outbox, &lane).await.unwrap().unwrap();
+		assert_eq!(first.submission_id, first_a.submission_id);
+		let successor_a = enqueue_checkpoint(&outbox, 4, 104, 10);
+		let second = consume_one_with_lane(&outbox, &lane).await.unwrap().unwrap();
+		assert_eq!(second.submission_id, first_b.submission_id);
+		assert_eq!(outbox.finalized_receipt(&successor_a.submission_id).unwrap(), None);
+	}
+
+	#[tokio::test]
+	async fn restart_preserves_rotation_and_never_loses_the_deferred_head() {
+		let temp = TempDir::new().unwrap();
+		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+		let first_a = enqueue_checkpoint(&outbox, 4, 103, 7);
+		let first_b = enqueue_checkpoint(&outbox, 5, 99, 2);
+		let lane = MockLane::successful([1; 32]);
+		assert_eq!(
+			consume_one_with_lane(&outbox, &lane).await.unwrap().unwrap().submission_id,
+			first_a.submission_id
+		);
+		drop(outbox);
+
+		let reopened = CheckpointOutboxV2::open(temp.path()).unwrap();
+		assert_eq!(
+			consume_one_with_lane(&reopened, &lane).await.unwrap().unwrap().submission_id,
+			first_b.submission_id
+		);
+	}
+
+	#[tokio::test]
+	async fn rotated_all_head_failures_return_the_first_rotated_error() {
+		let temp = TempDir::new().unwrap();
+		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+		let first_a = enqueue_checkpoint(&outbox, 4, 103, 7);
+		let first_b = enqueue_checkpoint(&outbox, 5, 99, 2);
+		outbox.record_bucket_attempt(&first_a).unwrap();
+		let first_a_intent = format!("orbis-checkpoint-v2-{}", first_a.submission_id);
+		let first_b_intent = format!("orbis-checkpoint-v2-{}", first_b.submission_id);
+		let lane = MockLane {
+			reject_intents: vec![first_a_intent.clone(), first_b_intent.clone()],
+			..MockLane::successful([1; 32])
+		};
+
+		assert_eq!(
+			consume_one_with_lane(&outbox, &lane).await,
+			Err(ContentError::Io(format!("checkpoint rejected: {first_b_intent}")))
+		);
+		assert_eq!(lane.intents.lock().unwrap().as_slice(), [first_b_intent, first_a_intent]);
+	}
+
+	#[tokio::test]
+	async fn cursor_persistence_failure_poisoning_precedes_external_submission() {
+		let temp = TempDir::new().unwrap();
+		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+		let submission = enqueue_checkpoint(&outbox, 4, 103, 7);
+		let lane = MockLane::successful([1; 32]);
+		outbox.inject_fault_once(CheckpointOutboxFault::AfterTempFsync).unwrap();
+
+		assert!(matches!(consume_one_with_lane(&outbox, &lane).await, Err(ContentError::Io(_))));
+		assert_eq!(lane.calls.load(Ordering::SeqCst), 0);
+		assert!(matches!(outbox.pending_submissions(), Err(ContentError::IntegrityFailed)));
+		drop(outbox);
+
+		let reopened = CheckpointOutboxV2::open(temp.path()).unwrap();
+		assert_eq!(
+			consume_one_with_lane(&reopened, &lane).await.unwrap().unwrap().submission_id,
+			submission.submission_id
+		);
+	}
+
+	#[tokio::test]
 	async fn all_bucket_head_failures_return_the_first_deterministic_error() {
 		let temp = TempDir::new().unwrap();
 		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
@@ -634,6 +738,7 @@ mod tests {
 		let temp = TempDir::new().unwrap();
 		let (outbox, submission) = submission(&temp);
 		let lane = MockLane::successful([1; 32]);
+		outbox.record_bucket_attempt(&submission).unwrap();
 		outbox.inject_fault_once(CheckpointOutboxFault::AfterTempFsync).unwrap();
 		assert!(matches!(consume_one_with_lane(&outbox, &lane).await, Err(ContentError::Io(_))));
 		assert_eq!(lane.calls.load(Ordering::SeqCst), 1);

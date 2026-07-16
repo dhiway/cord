@@ -38,18 +38,23 @@ use crate::ContentError;
 const SUBMISSIONS_ROOT: &str = "checkpoint-submissions-v2";
 const RECEIPTS_ROOT: &str = "checkpoint-receipts-v2";
 const FINALIZED_RECEIPTS_ROOT: &str = "checkpoint-finalized-receipts-v2";
+const SCHEDULER_ROOT: &str = "checkpoint-scheduler-v1";
+const SCHEDULER_CURSOR_KEY: &str = "cursor";
 const VERSION: u8 = 2;
+const SCHEDULER_VERSION: u8 = 1;
 const ID_DOMAIN: &[u8] = b"cord/provider/checkpoint-submission-v2";
 const RECORD_DOMAIN: &[u8] = b"cord/provider/checkpoint-submission-record/v2";
 const RECEIPT_DOMAIN: &[u8] = b"cord/provider/checkpoint-receipt-record/v2";
 const FINALIZED_RECEIPT_DOMAIN: &[u8] = b"cord/provider/checkpoint-finalized-receipt-record/v2";
 const FINALITY_ATTESTATION_DOMAIN: &[u8] = b"cord/provider/checkpoint-finality-attestation/v1";
+const SCHEDULER_RECORD_DOMAIN: &[u8] = b"cord/provider/checkpoint-scheduler-record/v1";
 pub(super) const FINALITY_ATTESTATION_VERSION: u8 = 1;
 pub(super) const FINALIZED_STATE: &str = "finalized";
 const CHECKPOINT_DOMAIN: &[u8] = b"cord/storage/checkpoint/v2";
 const MAX_RECORD_BYTES: usize = 128 * 1024;
 const MAX_RECORDS: usize = 8_192;
 const MAX_TEMP_ARTIFACTS: usize = 1;
+const MAX_SCHEDULER_RECORD_BYTES: usize = 1_024;
 
 type CallArgs = (
 	Vec<u8>,
@@ -138,6 +143,14 @@ pub(crate) struct CheckpointFinalizedReceiptV2 {
 	pub receipt_hash: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CheckpointSchedulerCursorV1 {
+	version: u8,
+	last_attempted_bucket: String,
+	record_hash: String,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct CheckpointOutboxSnapshotV2 {
 	pub submission: CheckpointSubmissionV2,
@@ -156,10 +169,12 @@ pub(crate) struct CheckpointOutboxV2 {
 	submissions_root: PathBuf,
 	receipts_root: PathBuf,
 	finalized_receipts_root: PathBuf,
+	scheduler_root: PathBuf,
 	submissions: RwLock<HashMap<String, CheckpointSubmissionV2>>,
 	by_tuple: RwLock<HashMap<String, String>>,
 	receipts: RwLock<HashMap<String, CheckpointReceiptV2>>,
 	finalized_receipts: RwLock<HashMap<String, CheckpointFinalizedReceiptV2>>,
+	scheduler_cursor: RwLock<Option<CheckpointSchedulerCursorV1>>,
 	fault: RwLock<Option<CheckpointOutboxFault>>,
 	poisoned: RwLock<bool>,
 	#[cfg(test)]
@@ -172,9 +187,12 @@ impl CheckpointOutboxV2 {
 		let submissions_root = root.as_ref().join(SUBMISSIONS_ROOT);
 		let receipts_root = root.as_ref().join(RECEIPTS_ROOT);
 		let finalized_receipts_root = root.as_ref().join(FINALIZED_RECEIPTS_ROOT);
+		let scheduler_root = root.as_ref().join(SCHEDULER_ROOT);
 		fs::create_dir_all(&submissions_root).map_err(io_error)?;
 		fs::create_dir_all(&receipts_root).map_err(io_error)?;
 		fs::create_dir_all(&finalized_receipts_root).map_err(io_error)?;
+		fs::create_dir_all(&scheduler_root).map_err(io_error)?;
+		let scheduler_cursor = read_scheduler_cursor(&scheduler_root)?;
 		let mut submissions = HashMap::new();
 		let mut by_tuple = HashMap::new();
 		for item in read_records(&submissions_root)? {
@@ -224,10 +242,12 @@ impl CheckpointOutboxV2 {
 			submissions_root,
 			receipts_root,
 			finalized_receipts_root,
+			scheduler_root,
 			submissions: RwLock::new(submissions),
 			by_tuple: RwLock::new(by_tuple),
 			receipts: RwLock::new(receipts),
 			finalized_receipts: RwLock::new(finalized_receipts),
+			scheduler_cursor: RwLock::new(scheduler_cursor),
 			fault: RwLock::new(None),
 			poisoned: RwLock::new(false),
 			#[cfg(test)]
@@ -268,7 +288,55 @@ impl CheckpointOutboxV2 {
 				heads.push(submission);
 			}
 		}
+		let cursor = self
+			.scheduler_cursor
+			.read()
+			.map_err(|_| lock_error())?
+			.as_ref()
+			.map(|cursor| decode_fixed::<32>(&cursor.last_attempted_bucket))
+			.transpose()?;
+		if let Some(cursor) = cursor {
+			let start = heads
+				.iter()
+				.position(|submission| {
+					pending_order_key(submission).is_ok_and(|(bucket, _, _)| bucket > cursor)
+				})
+				.unwrap_or(0);
+			heads.rotate_left(start);
+		}
 		Ok(heads)
+	}
+
+	/// Durably advance the round-robin cursor immediately before an external lane attempt.
+	pub(crate) fn record_bucket_attempt(
+		&self,
+		submission: &CheckpointSubmissionV2,
+	) -> Result<(), ContentError> {
+		if *self.poisoned.read().map_err(|_| lock_error())? {
+			return Err(ContentError::IntegrityFailed)
+		}
+		validate_submission(submission)?;
+		let bucket = pending_order_key(submission)?.0;
+		let mut record = CheckpointSchedulerCursorV1 {
+			version: SCHEDULER_VERSION,
+			last_attempted_bucket: hex::encode(bucket),
+			record_hash: String::new(),
+		};
+		record.record_hash = scheduler_cursor_hash(&record)?;
+		validate_scheduler_cursor(&record)?;
+		let mut cursor = self.scheduler_cursor.write().map_err(|_| lock_error())?;
+		if *self.poisoned.read().map_err(|_| lock_error())? {
+			return Err(ContentError::IntegrityFailed)
+		}
+		if cursor.as_ref() == Some(&record) {
+			return Ok(())
+		}
+		if let Err(error) = self.persist(&self.scheduler_root, SCHEDULER_CURSOR_KEY, &record) {
+			*self.poisoned.write().map_err(|_| lock_error())? = true;
+			return Err(error)
+		}
+		*cursor = Some(record);
+		Ok(())
 	}
 
 	pub(crate) fn finalized_receipt(
@@ -548,6 +616,61 @@ fn read_records(root: &Path) -> Result<Vec<RecordFile>, ContentError> {
 		records.push(RecordFile { name, bytes });
 	}
 	Ok(records)
+}
+
+fn read_scheduler_cursor(root: &Path) -> Result<Option<CheckpointSchedulerCursorV1>, ContentError> {
+	let mut record = None;
+	let mut temp_artifacts = 0usize;
+	let expected_name = format!("{SCHEDULER_CURSOR_KEY}.json");
+	let temp_prefix = format!("{expected_name}.tmp-");
+	for item in fs::read_dir(root).map_err(io_error)? {
+		let item = item.map_err(io_error)?;
+		let name = item.file_name().to_string_lossy().into_owned();
+		if name.starts_with(&temp_prefix) {
+			temp_artifacts = temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+			if temp_artifacts > MAX_TEMP_ARTIFACTS {
+				return Err(ContentError::IntegrityFailed)
+			}
+			fs::remove_file(item.path()).map_err(io_error)?;
+			continue
+		}
+		if name != expected_name ||
+			!item.file_type().map_err(io_error)?.is_file() ||
+			record.is_some()
+		{
+			return Err(ContentError::IntegrityFailed)
+		}
+		let bytes = fs::read(item.path()).map_err(io_error)?;
+		if bytes.len() > MAX_SCHEDULER_RECORD_BYTES {
+			return Err(ContentError::IntegrityFailed)
+		}
+		let cursor: CheckpointSchedulerCursorV1 =
+			serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
+		validate_scheduler_cursor(&cursor)?;
+		record = Some(cursor);
+	}
+	Ok(record)
+}
+
+fn validate_scheduler_cursor(cursor: &CheckpointSchedulerCursorV1) -> Result<(), ContentError> {
+	if cursor.version != SCHEDULER_VERSION ||
+		cursor.last_attempted_bucket.len() != 64 ||
+		cursor.record_hash.len() != 64 ||
+		cursor.record_hash != scheduler_cursor_hash(cursor)?
+	{
+		return Err(ContentError::IntegrityFailed)
+	}
+	decode_fixed::<32>(&cursor.last_attempted_bucket)?;
+	decode_fixed::<32>(&cursor.record_hash)?;
+	Ok(())
+}
+
+fn scheduler_cursor_hash(cursor: &CheckpointSchedulerCursorV1) -> Result<String, ContentError> {
+	let mut canonical = cursor.clone();
+	canonical.record_hash.clear();
+	let mut input = SCHEDULER_RECORD_DOMAIN.to_vec();
+	input.extend_from_slice(&serde_json::to_vec(&canonical).map_err(io_error)?);
+	Ok(hex::encode(blake2_256(&input)))
 }
 
 fn submission_record(
@@ -971,6 +1094,10 @@ mod tests {
 		temp.path().join(FINALIZED_RECEIPTS_ROOT).join(format!("{id}.json"))
 	}
 
+	fn scheduler_cursor_path(temp: &TempDir) -> PathBuf {
+		temp.path().join(SCHEDULER_ROOT).join(format!("{SCHEDULER_CURSOR_KEY}.json"))
+	}
+
 	#[test]
 	fn exact_call_args_receipt_and_reopen_are_stable() {
 		let temp = TempDir::new().unwrap();
@@ -1209,6 +1336,97 @@ mod tests {
 
 		let reopened = CheckpointOutboxV2::open(temp.path()).unwrap();
 		assert_eq!(reopened.finalized_receipt(&submission.submission_id).unwrap(), Some(receipt));
+	}
+
+	#[test]
+	fn scheduler_cursor_is_bounded_tamper_evident_and_recovers_one_temp() {
+		let temp = TempDir::new().unwrap();
+		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+		let submission = outbox.enqueue(&fixture()).unwrap().submission;
+		outbox.record_bucket_attempt(&submission).unwrap();
+		drop(outbox);
+		assert!(CheckpointOutboxV2::open(temp.path()).is_ok());
+
+		let path = scheduler_cursor_path(&temp);
+		let mut cursor: CheckpointSchedulerCursorV1 =
+			serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+		cursor.last_attempted_bucket = hex::encode([99; 32]);
+		fs::write(&path, serde_json::to_vec(&cursor).unwrap()).unwrap();
+		assert!(matches!(
+			CheckpointOutboxV2::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+
+		let one_temp = TempDir::new().unwrap();
+		let root = one_temp.path().join(SCHEDULER_ROOT);
+		fs::create_dir_all(&root).unwrap();
+		fs::write(root.join("cursor.json.tmp-1"), b"partial").unwrap();
+		assert!(CheckpointOutboxV2::open(one_temp.path()).is_ok());
+		assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
+
+		let two_temps = TempDir::new().unwrap();
+		let root = two_temps.path().join(SCHEDULER_ROOT);
+		fs::create_dir_all(&root).unwrap();
+		fs::write(root.join("cursor.json.tmp-1"), b"partial").unwrap();
+		fs::write(root.join("cursor.json.tmp-2"), b"partial").unwrap();
+		assert!(matches!(
+			CheckpointOutboxV2::open(two_temps.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+
+		let extra_record = TempDir::new().unwrap();
+		let root = extra_record.path().join(SCHEDULER_ROOT);
+		fs::create_dir_all(&root).unwrap();
+		fs::write(root.join("unexpected.json"), b"{}").unwrap();
+		assert!(matches!(
+			CheckpointOutboxV2::open(extra_record.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+
+		let oversized = TempDir::new().unwrap();
+		let root = oversized.path().join(SCHEDULER_ROOT);
+		fs::create_dir_all(&root).unwrap();
+		fs::write(root.join("cursor.json"), vec![0; MAX_SCHEDULER_RECORD_BYTES + 1]).unwrap();
+		assert!(matches!(
+			CheckpointOutboxV2::open(oversized.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+	}
+
+	#[test]
+	fn scheduler_cursor_crash_seams_recover_exactly_old_or_new_and_poison() {
+		for (fault, persisted) in [
+			(CheckpointOutboxFault::BeforeTempFsync, false),
+			(CheckpointOutboxFault::AfterTempFsync, false),
+			(CheckpointOutboxFault::AfterRename, true),
+			(CheckpointOutboxFault::AfterDirectoryFsync, true),
+		] {
+			let temp = TempDir::new().unwrap();
+			let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+			let mut first_input = fixture();
+			first_input.payload.bucket_id = H256::repeat_byte(4);
+			resign(&mut first_input);
+			let first = outbox.enqueue(&first_input).unwrap().submission;
+			let mut second_input = fixture();
+			second_input.payload.bucket_id = H256::repeat_byte(5);
+			resign(&mut second_input);
+			let second = outbox.enqueue(&second_input).unwrap().submission;
+
+			outbox.inject_fault_once(fault).unwrap();
+			assert!(matches!(outbox.record_bucket_attempt(&first), Err(ContentError::Io(_))));
+			assert!(matches!(
+				outbox.pending_submission_heads(),
+				Err(ContentError::IntegrityFailed)
+			));
+			drop(outbox);
+
+			let reopened = CheckpointOutboxV2::open(temp.path()).unwrap();
+			let heads = reopened.pending_submission_heads().unwrap();
+			assert_eq!(
+				heads[0].submission_id,
+				if persisted { second.submission_id.clone() } else { first.submission_id.clone() }
+			);
+		}
 	}
 
 	#[test]
