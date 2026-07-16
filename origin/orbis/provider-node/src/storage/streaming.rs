@@ -641,14 +641,12 @@ impl StreamingStore {
 		}
 	}
 
-	/// Return redacted durable integrity counts without reading object bytes.
+	/// Audit every non-quarantined object and return redacted durable readiness counts.
 	pub fn integrity_summary(&self) -> Result<IntegritySummary, ContentError> {
-		let state = self.read_state()?;
-		Ok(integrity_summary(&state))
+		self.audit_integrity()
 	}
 
-	/// Verify every non-quarantined installed object before returning a readiness summary.
-	pub fn audit_integrity(&self) -> Result<IntegritySummary, ContentError> {
+	fn audit_integrity(&self) -> Result<IntegritySummary, ContentError> {
 		for (cid, record) in self.installed_records()? {
 			if self.is_quarantined(&cid)? {
 				continue
@@ -658,7 +656,12 @@ impl StreamingStore {
 				self.quarantine_failure(&cid, &record, &path, &error)?;
 			}
 		}
-		self.integrity_summary()
+		self.unchecked_integrity_summary()
+	}
+
+	fn unchecked_integrity_summary(&self) -> Result<IntegritySummary, ContentError> {
+		let state = self.read_state()?;
+		Ok(integrity_summary(&state))
 	}
 
 	/// Install exact verified bytes for an existing quarantine and clear it only after durability.

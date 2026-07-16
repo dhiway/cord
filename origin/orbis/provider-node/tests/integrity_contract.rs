@@ -108,15 +108,13 @@ fn audit_detects_missing_and_unread_corruption_before_ready_summary() {
 	let mut changed = second_bytes.clone();
 	changed[9] ^= 1;
 	fs::write(object_path(temp.path(), &corrupt), changed).unwrap();
-	assert!(store.integrity_summary().unwrap().ready);
-
-	let audited = store.audit_integrity().unwrap();
+	let audited = store.integrity_summary().unwrap();
 	assert_eq!(audited.installed_objects, 2);
 	assert_eq!(audited.ready_objects, 0);
 	assert_eq!(audited.quarantined_objects, 2);
 	assert!(!audited.ready);
 	assert_eq!(audited.last_detection_sequence, 2);
-	assert_eq!(store.audit_integrity().unwrap(), audited);
+	assert_eq!(store.integrity_summary().unwrap(), audited);
 	let state = journal(temp.path());
 	assert_eq!(state["quarantine"][&missing]["reason"], "missing");
 	assert_eq!(state["quarantine"][&missing]["observed_bytes"], Value::Null);
@@ -219,7 +217,7 @@ fn quarantine_is_bounded_by_distinct_installed_objects_and_orphans_are_pruned() 
 	let mut corrupt = bytes.to_vec();
 	corrupt[0] ^= 1;
 	fs::write(object_path(temp.path(), &content_id), corrupt).unwrap();
-	let audited = reopened.audit_integrity().unwrap();
+	let audited = reopened.integrity_summary().unwrap();
 	assert_eq!(audited.installed_objects, 1);
 	assert_eq!(audited.quarantined_objects, 1);
 	assert_eq!(journal(temp.path())["quarantine"].as_object().unwrap().len(), 1);
