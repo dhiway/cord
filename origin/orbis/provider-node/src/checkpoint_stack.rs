@@ -877,11 +877,16 @@ mod tests {
 
 	use async_trait::async_trait;
 	#[cfg(feature = "checkpoint-live")]
-	use codec::Encode;
+	use codec::{Decode, Encode};
 	#[cfg(feature = "checkpoint-live")]
 	use frame_metadata::v15::{
 		CustomMetadata, ExtrinsicMetadata, OuterEnums, PalletCallMetadata, PalletMetadata,
 		RuntimeMetadataV15,
+	};
+	#[cfg(feature = "checkpoint-live")]
+	use orbis_storage_runtime_api::{
+		CheckpointDutyInfo, CheckpointDutyMode, CheckpointDutyPhase, CheckpointInfo,
+		CommitmentInfo, Versioned, RESPONSE_VERSION,
 	};
 	#[cfg(feature = "checkpoint-live")]
 	use pallet_orbis_storage_provider::{
@@ -893,10 +898,12 @@ mod tests {
 	#[cfg(feature = "checkpoint-live")]
 	use sp_core::{crypto::AccountId32, ed25519, H256};
 	#[cfg(feature = "checkpoint-live")]
-	use std::sync::atomic::{AtomicBool, Ordering};
+	use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 	use tempfile::TempDir;
 
 	use super::*;
+	#[cfg(feature = "checkpoint-live")]
+	use crate::chain::{CheckpointPublicationAuthority, FinalizedCheckpointObservation};
 	#[cfg(feature = "checkpoint-live")]
 	use crate::checkpoint::{
 		checkpoint_outbox::CheckpointSubmissionInputV2,
@@ -1161,6 +1168,78 @@ mod tests {
 		}
 	}
 
+	#[cfg(feature = "checkpoint-live")]
+	struct PromotedLane {
+		metadata: subxt::Metadata,
+		calls: AtomicUsize,
+	}
+
+	#[cfg(feature = "checkpoint-live")]
+	#[async_trait]
+	impl CheckpointFinalityLane for PromotedLane {
+		fn metadata(&self) -> &subxt::Metadata {
+			&self.metadata
+		}
+
+		fn signer_account(&self) -> [u8; 32] {
+			[2; 32]
+		}
+
+		fn service_key(&self) -> [u8; 32] {
+			crate::checkpoint::checkpoint_primary::tests::pair(2).public().0
+		}
+
+		async fn submit_and_finalize(
+			&self,
+			intent_id: &str,
+			_payload: subxt::tx::DynamicPayload,
+		) -> Result<FinalizedEvidence, ContentError> {
+			self.calls.fetch_add(1, Ordering::SeqCst);
+			let submission_id = intent_id
+				.strip_prefix("orbis-checkpoint-v2-")
+				.ok_or(ContentError::IntegrityFailed)?;
+			let block_hash = [8; 32];
+			let block_number = 120;
+			let extrinsic_hash = [9; 32];
+			Ok(FinalizedEvidence {
+				block_hash,
+				block_number,
+				extrinsic_hash,
+				finality_attestation_version: 1,
+				finality_signature: crate::checkpoint::checkpoint_primary::tests::pair(2)
+					.sign(&finality_digest(submission_id, block_hash, block_number, extrinsic_hash))
+					.0,
+			})
+		}
+	}
+
+	#[cfg(feature = "checkpoint-live")]
+	struct PromotedPublicationAuthority {
+		calls: AtomicUsize,
+		response_scale: Vec<u8>,
+	}
+
+	#[cfg(feature = "checkpoint-live")]
+	#[async_trait]
+	impl CheckpointPublicationAuthority for PromotedPublicationAuthority {
+		async fn checkpoint_observation_at(
+			&self,
+			bucket_id: [u8; 32],
+			finalized_hash: [u8; 32],
+			finalized_number: u32,
+		) -> Result<FinalizedCheckpointObservation, ChainError> {
+			self.calls.fetch_add(1, Ordering::SeqCst);
+			if bucket_id != [4; 32] || finalized_hash != [8; 32] || finalized_number != 120 {
+				return Err(ChainError::Rejected("unexpected promoted checkpoint identity".into()));
+			}
+			Ok(FinalizedCheckpointObservation {
+				finalized_hash,
+				finalized_number,
+				response_scale: self.response_scale.clone(),
+			})
+		}
+	}
+
 	#[test]
 	fn one_stack_opens_every_kernel_and_releases_owned_intents() {
 		let temp = TempDir::new().unwrap();
@@ -1254,6 +1333,141 @@ mod tests {
 		assert!(ready.requests.is_empty());
 		reopened.accept_checkpoint_confirmation(&proposal, &second).unwrap();
 		assert_eq!(reopened.submission_heads().unwrap(), submission);
+	}
+
+	#[cfg(feature = "checkpoint-live")]
+	#[tokio::test]
+	async fn three_provider_promoted_quorum_finality_and_publication_are_exact_once() {
+		use crate::checkpoint::{
+			checkpoint_primary::{
+				tests::{pair, promoted_proposal, response},
+				PrimaryQuorumState,
+			},
+			checkpoint_quorum::ReplicaConfirmationRequestV1,
+		};
+
+		let temp = TempDir::new().unwrap();
+		let proposal = promoted_proposal();
+		let duty_bytes = hex::decode(&proposal.duty_scale).unwrap();
+		let duty =
+			CheckpointDutyInfo::<AccountId32, H256, u32>::decode(&mut &duty_bytes[..]).unwrap();
+		let payload_bytes = hex::decode(&proposal.payload_scale).unwrap();
+		let payload = CommitmentPayloadV2::<H256, u32>::decode(&mut &payload_bytes[..]).unwrap();
+		assert_eq!(duty.primary, AccountId32::new([2; 32]));
+		assert_eq!(duty.replicas, vec![AccountId32::new([1; 32]), AccountId32::new([3; 32])]);
+		assert_eq!(duty.mode, CheckpointDutyMode::PromotionPending);
+		assert_eq!(duty.phase, CheckpointDutyPhase::Primary);
+		assert_eq!(duty.initiator, Some(AccountId32::new([2; 32])));
+		assert_eq!(proposal.duty_id, hex::encode(duty.duty_id.as_bytes()));
+		assert_eq!(
+			proposal.duty_fingerprint,
+			hex::encode(sp_crypto_hashing::blake2_256(&duty_bytes))
+		);
+
+		let stack = CheckpointStack::open(temp.path()).unwrap();
+		let collecting = stack.resume_checkpoint_quorum(&proposal, &pair(2)).unwrap();
+		assert_eq!(collecting.state, PrimaryQuorumState::Collecting);
+		assert_eq!(collecting.requests.len(), 2);
+		let requests = collecting
+			.requests
+			.iter()
+			.map(|bytes| ReplicaConfirmationRequestV1::decode_canonical(bytes).unwrap())
+			.collect::<Vec<_>>();
+		assert_eq!(
+			requests
+				.iter()
+				.map(|request| request.target_provider.clone())
+				.collect::<Vec<_>>(),
+			vec![AccountId32::new([1; 32]), AccountId32::new([3; 32])]
+		);
+		for request in &requests {
+			assert_eq!(request.primary_provider, AccountId32::new([2; 32]));
+			assert_eq!(request.duty_id, duty.duty_id);
+			assert_eq!(request.context.duty_id, duty.duty_id);
+		}
+
+		let first = response(&collecting.requests[0]);
+		let second = response(&collecting.requests[1]);
+		let partial = stack.accept_checkpoint_confirmation(&proposal, &first).unwrap();
+		assert_eq!(partial.state, PrimaryQuorumState::Collecting);
+		assert!(stack.submission_heads().unwrap().is_empty());
+		let ready = stack.accept_checkpoint_confirmation(&proposal, &second).unwrap();
+		assert_eq!(ready.state, PrimaryQuorumState::QuorumReady);
+		assert_eq!(
+			ready
+				.confirmations
+				.as_ref()
+				.unwrap()
+				.iter()
+				.map(|confirmation| confirmation.provider.clone())
+				.collect::<Vec<_>>(),
+			vec![AccountId32::new([1; 32]), AccountId32::new([3; 32])]
+		);
+		let submissions = stack.submission_heads().unwrap();
+		assert_eq!(submissions.len(), 1);
+		stack.accept_checkpoint_confirmation(&proposal, &second).unwrap();
+		assert_eq!(stack.submission_heads().unwrap(), submissions);
+		drop(stack);
+
+		let stack = CheckpointStack::open(temp.path()).unwrap();
+		let reopened_ready = stack.resume_checkpoint_quorum(&proposal, &pair(2)).unwrap();
+		assert_eq!(reopened_ready.state, PrimaryQuorumState::QuorumReady);
+		assert!(reopened_ready.requests.is_empty());
+		stack.accept_checkpoint_confirmation(&proposal, &first).unwrap();
+		assert_eq!(stack.submission_heads().unwrap(), submissions);
+
+		let response_scale = Versioned {
+			version: RESPONSE_VERSION,
+			value: Some(CheckpointInfo {
+				bucket_id: payload.bucket_id,
+				commitment: CommitmentInfo {
+					mmr_root: payload.commitment.mmr_root,
+					start_seq: payload.commitment.start_seq,
+					leaf_count: payload.commitment.leaf_count,
+				},
+				checkpoint_block: 115,
+				primary_signers: 1,
+				commitment_nonce: payload.nonce,
+				replica_confirmations: vec![AccountId32::new([1; 32]), AccountId32::new([3; 32])],
+			}),
+		}
+		.encode();
+		let lane = PromotedLane { metadata: checkpoint_metadata(), calls: AtomicUsize::new(0) };
+		let authority = PromotedPublicationAuthority { calls: AtomicUsize::new(0), response_scale };
+		let lifecycle =
+			crate::checkpoint_live_worker::tick(&authority, &stack, &lane).await.unwrap();
+		assert_eq!(
+			lifecycle.finalized.as_ref().unwrap().submission_id,
+			submissions[0].submission_id
+		);
+		assert_eq!(lifecycle.published.len(), 1);
+		assert_eq!(lifecycle.published[0].submission_id, submissions[0].submission_id);
+		assert_eq!(lane.calls.load(Ordering::SeqCst), 1);
+		assert_eq!(authority.calls.load(Ordering::SeqCst), 1);
+		assert!(stack.submission_heads().unwrap().is_empty());
+		assert!(stack.pending_checkpoint_publications(8).unwrap().is_empty());
+
+		let repeated =
+			crate::checkpoint_live_worker::tick(&authority, &stack, &lane).await.unwrap();
+		assert!(repeated.finalized.is_none());
+		assert!(repeated.published.is_empty());
+		assert_eq!(lane.calls.load(Ordering::SeqCst), 1);
+		assert_eq!(authority.calls.load(Ordering::SeqCst), 1);
+		drop(stack);
+
+		let reopened = CheckpointStack::open(temp.path()).unwrap();
+		let replay =
+			crate::checkpoint_live_worker::tick(&authority, &reopened, &lane).await.unwrap();
+		assert!(replay.finalized.is_none());
+		assert!(replay.published.is_empty());
+		assert_eq!(lane.calls.load(Ordering::SeqCst), 1);
+		assert_eq!(authority.calls.load(Ordering::SeqCst), 1);
+		let state = reopened.lock().unwrap();
+		assert_eq!(state.publications.records().unwrap().len(), 1);
+		assert_eq!(
+			state.outbox.finalized_receipt(&submissions[0].submission_id).unwrap(),
+			lifecycle.finalized
+		);
 	}
 
 	#[cfg(feature = "checkpoint-live")]

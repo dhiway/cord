@@ -6213,6 +6213,238 @@ fn checkpoint_duty_runtime_api_filters_members_and_preserves_typed_ineligible_vi
 }
 
 #[test]
+fn three_provider_promotion_repair_quorum_returns_to_standard_exactly_once() {
+	use orbis_storage_runtime_api::{CheckpointDutyMode as ApiDutyMode, CheckpointDutyPhase};
+	use pallet_orbis_storage_provider::{
+		BucketSnapshots, Buckets, CheckpointFallbackPromotionReceiptByBucket,
+		CheckpointFallbackPromotionV1, CommitmentPayloadV2, CommitmentV1, ProviderStatus,
+		Providers, ReplicaSignature,
+	};
+	use sp_core::{ed25519, Pair as _};
+
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		System::set_block_number(1);
+		let owner = AccountId::new([9; 32]);
+		let admission = admit_canonical_manifest(&owner, [0xB1; 32]);
+		assert_eq!(admission.replicas.len(), 2);
+		assert_eq!(Providers::<Runtime>::iter_keys().count(), 3);
+		let old_primary = admission.primary.clone();
+		let old_pair = ed25519::Pair::from_seed(&[10; 32]);
+		assert_eq!(AccountId::from(old_pair.public().0), old_primary);
+		assert_eq!(
+			admission.replicas,
+			vec![
+				AccountId::from(ed25519::Pair::from_seed(&[11; 32]).public().0),
+				AccountId::from(ed25519::Pair::from_seed(&[12; 32]).public().0),
+			]
+		);
+
+		System::set_block_number(102);
+		assert_ok!(crate::StorageProvider::advance_finalized_checkpoint(
+			RuntimeOrigin::root(),
+			102,
+		));
+		let scheduled = crate::checkpoint_duty_page(admission.replicas[0].clone(), None, 128)
+			.unwrap()
+			.items
+			.into_iter()
+			.find(|duty| duty.bucket_id == admission.bucket_id)
+			.unwrap();
+		let promotion_at = scheduled.grace_until;
+		System::set_block_number(promotion_at);
+		assert_ok!(crate::StorageProvider::advance_finalized_checkpoint(
+			RuntimeOrigin::root(),
+			promotion_at,
+		));
+		Providers::<Runtime>::mutate(&old_primary, |record| {
+			record.as_mut().unwrap().status = ProviderStatus::Suspended
+		});
+		let fallback = crate::checkpoint_duty_page(admission.replicas[0].clone(), None, 128)
+			.unwrap()
+			.items
+			.into_iter()
+			.find(|duty| duty.bucket_id == admission.bucket_id)
+			.unwrap();
+		let new_primary = fallback.initiator.clone().unwrap();
+		let (new_pair, replica3, replica3_pair) = if new_primary == admission.replicas[0] {
+			(
+				ed25519::Pair::from_seed(&[11; 32]),
+				admission.replicas[1].clone(),
+				ed25519::Pair::from_seed(&[12; 32]),
+			)
+		} else {
+			(
+				ed25519::Pair::from_seed(&[12; 32]),
+				admission.replicas[0].clone(),
+				ed25519::Pair::from_seed(&[11; 32]),
+			)
+		};
+		assert!(admission.replicas.contains(&new_primary));
+		assert_eq!(fallback.mode, ApiDutyMode::Standard);
+		assert_eq!(fallback.phase, CheckpointDutyPhase::ReplicaFallbackPromotion);
+		assert_eq!(fallback.initiator, Some(new_primary.clone()));
+		assert_eq!(fallback.authorities.len(), 3);
+		let fallback_initiator = fallback
+			.authorities
+			.iter()
+			.find(|authority| authority.provider == new_primary)
+			.unwrap();
+		assert!(fallback_initiator.may_initiate);
+		assert_eq!(fallback_initiator.active_service_key, new_pair.public().0);
+		let promotion = CheckpointFallbackPromotionV1 {
+			version: 1,
+			bucket_id: admission.bucket_id,
+			snapshot_nonce: promotion_at,
+			duty_id: fallback.duty_id,
+		};
+		let promotion_signature =
+			new_pair.sign(&crate::StorageProvider::checkpoint_promotion_digest(&promotion));
+		assert_ok!(crate::StorageProvider::promote_checkpoint_fallback(
+			RuntimeOrigin::signed(new_primary.clone()),
+			promotion.clone(),
+			new_pair.public(),
+			promotion_signature,
+		));
+		assert!(CheckpointFallbackPromotionReceiptByBucket::<Runtime>::contains_key(
+			admission.bucket_id
+		));
+		let promoted = Buckets::<Runtime>::get(admission.bucket_id).unwrap();
+		assert_eq!(promoted.primary, new_primary);
+		assert_eq!(promoted.replicas.len(), 2);
+		assert!(promoted.replicas.contains(&old_primary));
+		assert!(promoted.replicas.contains(&replica3));
+		let promoted_replicas = promoted.replicas.to_vec();
+
+		let recovery_at = promotion_at + 1;
+		System::set_block_number(recovery_at);
+		assert_ok!(crate::StorageProvider::advance_finalized_checkpoint(
+			RuntimeOrigin::root(),
+			recovery_at,
+		));
+		let blocked = crate::checkpoint_duty_page(new_primary.clone(), None, 128)
+			.unwrap()
+			.items
+			.into_iter()
+			.find(|duty| duty.bucket_id == admission.bucket_id)
+			.unwrap();
+		assert_eq!(blocked.mode, ApiDutyMode::PromotionPending);
+		assert_eq!(blocked.phase, CheckpointDutyPhase::BlockedInsufficientFallbackQuorum);
+		assert_eq!(blocked.initiator, None);
+		assert_eq!(blocked.primary, new_primary);
+		assert_eq!(blocked.replicas, promoted_replicas);
+		Providers::<Runtime>::mutate(&old_primary, |record| {
+			record.as_mut().unwrap().status = ProviderStatus::Active
+		});
+		let repaired = crate::checkpoint_duty_page(new_primary.clone(), None, 128)
+			.unwrap()
+			.items
+			.into_iter()
+			.find(|duty| duty.bucket_id == admission.bucket_id)
+			.unwrap();
+		assert_eq!(repaired.mode, ApiDutyMode::PromotionPending);
+		assert_eq!(repaired.phase, CheckpointDutyPhase::Primary);
+		assert_eq!(repaired.initiator, Some(new_primary.clone()));
+		assert_eq!(repaired.duty_id, blocked.duty_id);
+		assert_eq!(repaired.primary, new_primary);
+		assert_eq!(repaired.replicas, blocked.replicas);
+		let repaired_primary = repaired
+			.authorities
+			.iter()
+			.find(|authority| authority.provider == new_primary)
+			.unwrap();
+		assert!(repaired_primary.may_initiate);
+		assert_eq!(repaired_primary.active_service_key, new_pair.public().0);
+		let repaired_old_primary = repaired
+			.authorities
+			.iter()
+			.find(|authority| authority.provider == old_primary)
+			.unwrap();
+		assert!(repaired_old_primary.eligible);
+		assert!(repaired_old_primary.may_sign);
+
+		let previous = BucketSnapshots::<Runtime>::get(admission.bucket_id).unwrap();
+		let start_seq = previous.commitment.start_seq + previous.commitment.leaf_count;
+		let payload = CommitmentPayloadV2 {
+			version: 2,
+			bucket_id: admission.bucket_id,
+			commitment: CommitmentV1 {
+				mmr_root: sp_core::H256::repeat_byte(0x77),
+				start_seq,
+				leaf_count: 1,
+			},
+			nonce: recovery_at,
+		};
+		let mut message = b"cord/storage/checkpoint/v2".to_vec();
+		payload.encode_to(&mut message);
+		let digest = sp_io::hashing::blake2_256(&message);
+		let context = crate::StorageProvider::checkpoint_context_for(&payload).unwrap();
+		assert_eq!(context.duty_id, repaired.duty_id);
+		let context_digest = crate::StorageProvider::checkpoint_context_digest(&context);
+		let mut confirmations = vec![
+			ReplicaSignature {
+				provider: old_primary.clone(),
+				service_key: old_pair.public(),
+				signature: old_pair.sign(&digest),
+				context_signature: old_pair.sign(&context_digest),
+			},
+			ReplicaSignature {
+				provider: replica3.clone(),
+				service_key: replica3_pair.public(),
+				signature: replica3_pair.sign(&digest),
+				context_signature: replica3_pair.sign(&context_digest),
+			},
+		];
+		confirmations.sort_by(|left, right| left.provider.encode().cmp(&right.provider.encode()));
+		let confirmations: pallet_orbis_storage_provider::ConfirmationsOf<Runtime> =
+			confirmations.try_into().unwrap();
+		let primary_signature = new_pair.sign(&digest);
+		let primary_context_signature = new_pair.sign(&context_digest);
+		assert_ok!(crate::StorageProvider::submit_checkpoint(
+			RuntimeOrigin::signed(new_primary.clone()),
+			b"cord/storage/checkpoint/v2".to_vec().try_into().unwrap(),
+			payload.clone(),
+			repaired.due_at,
+			repaired.grace_until,
+			new_pair.public(),
+			primary_signature,
+			primary_context_signature,
+			confirmations.clone(),
+		));
+		let accepted_events = System::events().len();
+		assert_ok!(crate::StorageProvider::submit_checkpoint(
+			RuntimeOrigin::signed(new_primary.clone()),
+			b"cord/storage/checkpoint/v2".to_vec().try_into().unwrap(),
+			payload,
+			repaired.due_at,
+			repaired.grace_until,
+			new_pair.public(),
+			primary_signature,
+			primary_context_signature,
+			confirmations,
+		));
+		assert_eq!(System::events().len(), accepted_events);
+		assert_eq!(
+			BucketSnapshots::<Runtime>::get(admission.bucket_id).unwrap().checkpoint_block,
+			recovery_at
+		);
+
+		System::set_block_number(recovery_at + 1);
+		assert_ok!(crate::StorageProvider::advance_finalized_checkpoint(
+			RuntimeOrigin::root(),
+			recovery_at + 1,
+		));
+		let standard = crate::checkpoint_duty_page(new_primary.clone(), None, 128)
+			.unwrap()
+			.items
+			.into_iter()
+			.find(|duty| duty.bucket_id == admission.bucket_id)
+			.unwrap();
+		assert_eq!(standard.mode, ApiDutyMode::Standard);
+		assert_eq!(standard.primary, new_primary);
+	});
+}
+
+#[test]
 fn runtime_checkpoint_duty_admission_is_exactly_255_256_257() {
 	use pallet_orbis_storage_provider::{
 		DutyAdmissionCount, Error as StorageError, OrganizationRefOf, ProviderOrganizationRefV1,

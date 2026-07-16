@@ -672,6 +672,38 @@ pub(crate) mod tests {
 		proposal_for_bucket(fallback, replicas, 4)
 	}
 
+	pub(crate) fn promoted_proposal() -> PreparedCheckpointProposalV2 {
+		let mut proposal = proposal_for_bucket(false, 2, 4);
+		let mut duty = decode_duty(&proposal).unwrap();
+		duty.primary = AccountId32::new([2; 32]);
+		duty.replicas = vec![AccountId32::new([1; 32]), AccountId32::new([3; 32])];
+		duty.authorities = vec![
+			authority(2, ProviderDutyRole::Primary, 0, true),
+			authority(1, ProviderDutyRole::Replica, 1, false),
+			authority(3, ProviderDutyRole::Replica, 2, false),
+		];
+		duty.initiator = Some(AccountId32::new([2; 32]));
+		duty.phase = CheckpointDutyPhase::Primary;
+		duty.mode = CheckpointDutyMode::PromotionPending;
+		let duty_scale = duty.encode();
+		let payload =
+			decode_exact::<CommitmentPayloadV2<H256, u32>>(&proposal.payload_scale).unwrap();
+		let context = decode_exact::<CheckpointContextV1<H256>>(&proposal.context_scale).unwrap();
+		let signer = pair(2);
+		proposal.duty_id = hex::encode(duty.duty_id.as_bytes());
+		proposal.duty_fingerprint = hex::encode(blake2_256(&duty_scale));
+		proposal.duty_scale = hex::encode(duty_scale);
+		proposal.service_key = hex::encode(signer.public().0);
+		proposal.primary_provider = account_hex(&AccountId32::new([2; 32]));
+		proposal.signature = hex::encode(signer.sign(&checkpoint_digest(&payload)).0);
+		proposal.context_signature =
+			hex::encode(signer.sign(&checkpoint_context_digest(&context)).0);
+		proposal.record_hash.clear();
+		proposal.record_hash = super::super::proposal_record_hash(&proposal).unwrap();
+		validate_proposal(&proposal).unwrap();
+		proposal
+	}
+
 	fn proposal_for_bucket(
 		fallback: bool,
 		replicas: u8,
