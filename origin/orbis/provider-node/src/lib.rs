@@ -39,13 +39,15 @@ pub use chain::{
 	CheckpointDutyPhase, CheckpointDutyRole, CheckpointDutyScanCursor, FinalizedRuntimeAuthority,
 };
 pub use content::{
-	CanonicalCid, ContentError, BLAKE2B_256_CODE, CHUNK_BYTES, INGRESS_WINDOW_BYTES,
-	INGRESS_WINDOW_CHUNKS, MAX_CHUNKS, MAX_RANGE_BYTES, MAX_STORED_BYTES, RAW_CODEC,
+	BucketId, CanonicalCid, ContentError, OperationId, BLAKE2B_256_CODE, CHUNK_BYTES,
+	INGRESS_WINDOW_BYTES, INGRESS_WINDOW_CHUNKS, MAX_CHUNKS, MAX_RANGE_BYTES, MAX_STORED_BYTES,
+	MAX_STREAMING_OPERATIONS, RAW_CODEC,
 };
 pub use storage::{
 	BeginStreaming, CheckpointDutyWatermark, ChunkProof, CommitInput, ContentRecord, DiskStore,
-	NodeProfile, PendingDeletion, PendingRootSubmission, ProviderStats, RootObservation,
-	SignedCheckpoint, StoreError, StreamingDescriptor, StreamingReceipt, StreamingStore,
+	IngressPermit, NodeProfile, PendingDeletion, PendingRootSubmission, ProgressAck, ProviderStats,
+	RootObservation, SignedCheckpoint, StoreError, StreamingDescriptor, StreamingFault,
+	StreamingReceipt, StreamingStore,
 };
 pub use workers::{
 	poll_checkpoint_duties_once, run_workers, CheckpointSubmission, CheckpointSubmitter,

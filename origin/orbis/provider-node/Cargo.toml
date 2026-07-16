@@ -44,4 +44,5 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 
 [dev-dependencies]
+chacha20poly1305 = "0.10.1"
 tempfile = { workspace = true }

@@ -20,7 +20,10 @@
 
 pub mod streaming;
 
-pub use streaming::{BeginStreaming, StreamingDescriptor, StreamingReceipt, StreamingStore};
+pub use streaming::{
+	BeginStreaming, IngressPermit, ProgressAck, StreamingDescriptor, StreamingFault,
+	StreamingReceipt, StreamingStore,
+};
 
 use std::{
 	collections::BTreeMap,

@@ -21,6 +21,7 @@
 use std::{fmt, str::FromStr};
 
 use cid::{multibase::Base, multihash::Multihash, CidGeneric};
+use serde::{de::Error as _, Deserialize, Deserializer, Serialize, Serializer};
 
 /// Raw CID multicodec required by the provider byte plane.
 pub const RAW_CODEC: u64 = 0x55;
@@ -38,6 +39,61 @@ pub const MAX_RANGE_BYTES: u64 = 4_194_304;
 pub const INGRESS_WINDOW_CHUNKS: usize = 4;
 /// Maximum unacknowledged ingress bytes.
 pub const INGRESS_WINDOW_BYTES: usize = 1_048_576;
+/// Maximum durable idempotency records retained by one streaming store.
+pub const MAX_STREAMING_OPERATIONS: usize = 8_192;
+
+macro_rules! fixed_identifier {
+	($name:ident, $bytes:expr, $description:literal) => {
+		#[doc = $description]
+		#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+		pub struct $name([u8; $bytes]);
+
+		impl $name {
+			/// Construct an identifier from its exact binary representation.
+			pub const fn from_bytes(bytes: [u8; $bytes]) -> Self {
+				Self(bytes)
+			}
+
+			/// Parse exact lowercase hexadecimal without a prefix.
+			pub fn parse(value: &str) -> Result<Self, ContentError> {
+				if value.len() != $bytes * 2 || value.bytes().any(|byte| byte.is_ascii_uppercase())
+				{
+					return Err(ContentError::SchemaInvalid)
+				}
+				let decoded = hex::decode(value).map_err(|_| ContentError::SchemaInvalid)?;
+				let bytes = decoded.try_into().map_err(|_| ContentError::SchemaInvalid)?;
+				Ok(Self(bytes))
+			}
+
+			/// Return the fixed binary representation.
+			pub const fn as_bytes(&self) -> &[u8; $bytes] {
+				&self.0
+			}
+		}
+
+		impl fmt::Display for $name {
+			fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+				formatter.write_str(&hex::encode(self.0))
+			}
+		}
+
+		impl Serialize for $name {
+			fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+				serializer.serialize_str(&self.to_string())
+			}
+		}
+
+		impl<'de> Deserialize<'de> for $name {
+			fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+				let value = String::deserialize(deserializer)?;
+				Self::parse(&value).map_err(D::Error::custom)
+			}
+		}
+	};
+}
+
+fixed_identifier!(OperationId, 16, "Exact 128-bit idempotency operation identifier.");
+fixed_identifier!(BucketId, 32, "Exact 256-bit canonical bucket identifier.");
 
 /// Canonical CIDv1 base32lower/raw/BLAKE2b-256 address.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -50,22 +106,23 @@ impl CanonicalCid {
 	/// Parse an exact canonical textual CID.
 	pub fn parse(value: &str) -> Result<Self, ContentError> {
 		if !value.starts_with('b') || value.bytes().any(|byte| byte.is_ascii_uppercase()) {
-			return Err(ContentError::CidInvalid)
+			return Err(ContentError::SchemaInvalid)
 		}
-		let cid = CidGeneric::<32>::from_str(value).map_err(|_| ContentError::CidInvalid)?;
+		let cid = CidGeneric::<32>::from_str(value).map_err(|_| ContentError::SchemaInvalid)?;
 		if cid.version() != cid::Version::V1 ||
 			cid.codec() != RAW_CODEC ||
 			cid.hash().code() != BLAKE2B_256_CODE ||
 			cid.hash().size() != 32
 		{
-			return Err(ContentError::CidInvalid)
+			return Err(ContentError::SchemaInvalid)
 		}
-		let canonical =
-			cid.to_string_of_base(Base::Base32Lower).map_err(|_| ContentError::CidInvalid)?;
+		let canonical = cid
+			.to_string_of_base(Base::Base32Lower)
+			.map_err(|_| ContentError::SchemaInvalid)?;
 		if canonical != value {
-			return Err(ContentError::CidInvalid)
+			return Err(ContentError::SchemaInvalid)
 		}
-		let digest = cid.hash().digest().try_into().map_err(|_| ContentError::CidInvalid)?;
+		let digest = cid.hash().digest().try_into().map_err(|_| ContentError::SchemaInvalid)?;
 		Ok(Self { text: canonical, digest })
 	}
 
@@ -98,18 +155,21 @@ impl fmt::Display for CanonicalCid {
 /// Stored-content contract failure.
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum ContentError {
-	/// CID text or components are non-canonical.
-	#[error("STORAGE_CID_INVALID")]
-	CidInvalid,
+	/// Input is malformed or uses a non-canonical schema representation.
+	#[error("WIRE_SCHEMA_INVALID")]
+	SchemaInvalid,
 	/// Object exceeds the stored-byte or chunk bound.
 	#[error("STORAGE_OBJECT_TOO_LARGE")]
 	ObjectTooLarge,
+	/// Durable provider operation recovery table reached its fixed bound.
+	#[error("PROVIDER_RECOVERY_TABLE_FULL")]
+	ProviderRecoveryTableFull,
 	/// Chunk sequence is not contiguous.
 	#[error("STORAGE_CHUNK_OUT_OF_ORDER")]
 	ChunkOutOfOrder,
-	/// Chunk length does not match its exact fixed position.
-	#[error("STORAGE_CHUNK_SIZE_INVALID")]
-	ChunkSizeInvalid,
+	/// A non-final chunk exceeds the fixed 256 KiB limit.
+	#[error("STORAGE_CHUNK_TOO_LARGE")]
+	ChunkTooLarge,
 	/// Finalization was attempted with missing bytes or chunks.
 	#[error("STORAGE_CHUNK_MISSING")]
 	ChunkMissing,

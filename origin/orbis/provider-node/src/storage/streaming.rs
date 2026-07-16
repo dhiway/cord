@@ -23,17 +23,18 @@ use std::{
 	fs::{self, File, OpenOptions},
 	io::{Read, Seek, SeekFrom, Write},
 	path::{Path, PathBuf},
-	sync::RwLock,
+	sync::{Arc, Condvar, Mutex, RwLock},
 };
 
 use blake2::{digest::consts::U32, Blake2b, Digest};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-	CanonicalCid, ContentError, CHUNK_BYTES, MAX_CHUNKS, MAX_RANGE_BYTES, MAX_STORED_BYTES,
+	BucketId, CanonicalCid, ContentError, OperationId, CHUNK_BYTES, INGRESS_WINDOW_BYTES,
+	INGRESS_WINDOW_CHUNKS, MAX_CHUNKS, MAX_RANGE_BYTES, MAX_STORED_BYTES, MAX_STREAMING_OPERATIONS,
 };
 
-const STREAM_VERSION: u16 = 1;
+const STREAM_VERSION: u16 = 2;
 const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
@@ -43,48 +44,72 @@ const OBJECTS: &str = "objects";
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StreamingDescriptor {
-	/// Caller idempotency operation id.
-	pub operation_id: String,
-	/// Canonical bucket id or host bucket reference.
-	pub bucket_id: String,
+	/// Exact 128-bit caller idempotency operation id.
+	pub operation_id: OperationId,
+	/// Exact 256-bit canonical bucket id.
+	pub bucket_id: BucketId,
 	/// Expected canonical stored-byte CID.
 	pub expected_cid: String,
 	/// Exact stored-byte length.
 	pub object_len: u64,
 }
 
-/// Byte-plane receipt. Durable readability is not checkpoint publishability.
+/// Unsigned local installation receipt. It makes no durable-read or publishability claim.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StreamingReceipt {
 	/// Idempotency operation id.
-	pub operation_id: String,
+	pub operation_id: OperationId,
 	/// Bucket id.
-	pub bucket_id: String,
+	pub bucket_id: BucketId,
 	/// Canonical stored-byte CID.
 	pub cid: String,
 	/// Exact stored-byte length.
 	pub stored_bytes: u64,
 	/// Number of stored chunks.
 	pub chunks: u16,
-	/// Exact descriptor-and-content replay fingerprint.
+	/// Exact fixed-binary descriptor-and-content replay fingerprint.
 	pub fingerprint: String,
-	/// Bytes are installed and fully verified locally, but not necessarily publishable.
-	pub durably_readable: bool,
+	/// Bytes completed the local atomic installation transition.
+	pub locally_installed: bool,
+}
+
+/// Cumulative durable acknowledgement and current sender window.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProgressAck {
+	/// Exact next contiguous chunk index.
+	pub next_chunk: u16,
+	/// Number of chunks durably journaled.
+	pub persisted_chunks: u16,
+	/// Number of bytes durably journaled.
+	pub persisted_bytes: u64,
+	/// Maximum additional chunks that may currently be admitted.
+	pub available_window_chunks: usize,
+	/// Maximum additional bytes that may currently be admitted.
+	pub available_window_bytes: usize,
 }
 
 /// Result of opening an idempotent operation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BeginStreaming {
-	/// Operation is accepting contiguous chunks from `next_chunk`.
-	Receiving {
-		/// Exact next contiguous chunk index.
-		next_chunk: u16,
-		/// Bytes already durably acknowledged.
-		received_bytes: u64,
-	},
+	/// Operation is accepting a full replay from index zero or an explicit tail.
+	Receiving(ProgressAck),
 	/// Exact operation was already installed.
 	Installed(StreamingReceipt),
+}
+
+/// Deterministic one-shot crash boundary used only by focused local recovery tests.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StreamingFault {
+	/// Staging file is durable but the operation journal is absent.
+	AfterStagingSync,
+	/// Appended chunk is durable but its cumulative acknowledgement is absent.
+	AfterChunkSync,
+	/// Finalizing journal is durable but installation has not started.
+	AfterFinalizingJournal,
+	/// Object rename is durable but the installed journal is absent.
+	AfterObjectRename,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -97,11 +122,19 @@ enum Phase {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+struct ChunkRecord {
+	length: u32,
+	hash: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct OperationRecord {
 	descriptor: StreamingDescriptor,
 	phase: Phase,
 	next_chunk: u16,
 	received_bytes: u64,
+	chunks: Vec<ChunkRecord>,
 	receipt: Option<StreamingReceipt>,
 }
 
@@ -112,15 +145,69 @@ struct JournalState {
 	operations: BTreeMap<String, OperationRecord>,
 }
 
+#[derive(Default)]
+struct IngressWindow {
+	chunks: usize,
+	bytes: usize,
+}
+
+#[derive(Default)]
+struct IngressShared {
+	window: Mutex<IngressWindow>,
+	available: Condvar,
+}
+
+/// A reserved bounded ingress slot. Dropping it releases the slot without consuming bytes.
+pub struct IngressPermit {
+	shared: Arc<IngressShared>,
+	operation_key: String,
+	index: u16,
+	bytes: usize,
+}
+
+impl Drop for IngressPermit {
+	fn drop(&mut self) {
+		let mut window = self.shared.window.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+		window.chunks = window.chunks.saturating_sub(1);
+		window.bytes = window.bytes.saturating_sub(self.bytes);
+		self.shared.available.notify_one();
+	}
+}
+
 /// Internal provider streaming store. No public HTTP route is attached to this type.
+///
+/// Operation records are retained for exact replay and never evicted implicitly. New operation
+/// admission stops at [`MAX_STREAMING_OPERATIONS`]; exact replay remains available at the bound.
 pub struct StreamingStore {
 	root: PathBuf,
 	state: RwLock<JournalState>,
+	window: Arc<IngressShared>,
+	fault: RwLock<Option<StreamingFault>>,
+	operation_limit: usize,
 }
 
 impl StreamingStore {
-	/// Open a staged store, recover finalizing operations and remove unreferenced staging files.
+	/// Open a staged store, recover durable transitions and remove unowned files.
 	pub fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
+		Self::open_with_limit(root, MAX_STREAMING_OPERATIONS)
+	}
+
+	/// Test seam for the durable operation-retention admission bound.
+	#[doc(hidden)]
+	pub fn open_with_operation_limit(
+		root: impl AsRef<Path>,
+		operation_limit: usize,
+	) -> Result<Self, ContentError> {
+		if operation_limit == 0 || operation_limit > MAX_STREAMING_OPERATIONS {
+			return Err(ContentError::SchemaInvalid)
+		}
+		Self::open_with_limit(root, operation_limit)
+	}
+
+	fn open_with_limit(
+		root: impl AsRef<Path>,
+		operation_limit: usize,
+	) -> Result<Self, ContentError> {
 		let root = root.as_ref().join(STREAM_ROOT);
 		fs::create_dir_all(root.join(STAGING)).map_err(io_error)?;
 		fs::create_dir_all(root.join(OBJECTS)).map_err(io_error)?;
@@ -128,14 +215,20 @@ impl StreamingStore {
 		let state = if journal.exists() {
 			let bytes = fs::read(&journal).map_err(io_error)?;
 			let state: JournalState = serde_json::from_slice(&bytes).map_err(io_error)?;
-			if state.version != STREAM_VERSION {
+			if state.version != STREAM_VERSION || state.operations.len() > operation_limit {
 				return Err(ContentError::IntegrityFailed)
 			}
 			state
 		} else {
 			JournalState { version: STREAM_VERSION, operations: BTreeMap::new() }
 		};
-		let store = Self { root, state: RwLock::new(state) };
+		let store = Self {
+			root,
+			state: RwLock::new(state),
+			window: Arc::new(IngressShared::default()),
+			fault: RwLock::new(None),
+			operation_limit,
+		};
 		store.recover()?;
 		if !journal.exists() {
 			store.persist()?;
@@ -143,7 +236,14 @@ impl StreamingStore {
 		Ok(store)
 	}
 
-	/// Start or resume one operation. Installed replay is returned only for an exact descriptor.
+	/// Arm one deterministic crash boundary for the next matching transition.
+	#[doc(hidden)]
+	pub fn inject_fault_once(&self, fault: StreamingFault) -> Result<(), ContentError> {
+		*self.fault.write().map_err(|_| lock_error())? = Some(fault);
+		Ok(())
+	}
+
+	/// Start or resume one operation. Installed replay requires an exact fixed descriptor.
 	pub fn begin(&self, descriptor: StreamingDescriptor) -> Result<BeginStreaming, ContentError> {
 		validate_descriptor(&descriptor)?;
 		let key = operation_key(&descriptor);
@@ -154,59 +254,106 @@ impl StreamingStore {
 			}
 			return match (&existing.phase, &existing.receipt) {
 				(Phase::Installed, Some(receipt)) => Ok(BeginStreaming::Installed(receipt.clone())),
-				(Phase::Receiving, _) => Ok(BeginStreaming::Receiving {
-					next_chunk: existing.next_chunk,
-					received_bytes: existing.received_bytes,
-				}),
+				(Phase::Receiving, _) => Ok(BeginStreaming::Receiving(self.progress(existing)?)),
 				_ => Err(ContentError::IntegrityFailed),
 			}
+		}
+		if state.operations.len() >= self.operation_limit {
+			return Err(ContentError::ProviderRecoveryTableFull)
 		}
 		let path = self.part_path(&key);
 		let file = OpenOptions::new().create_new(true).write(true).open(&path).map_err(io_error)?;
 		file.sync_all().map_err(io_error)?;
 		sync_dir(path.parent().expect("staging path has parent"))?;
+		self.trip_fault(StreamingFault::AfterStagingSync)?;
 		let mut next = state.clone();
 		next.operations.insert(
-			key,
+			key.clone(),
 			OperationRecord {
 				descriptor,
 				phase: Phase::Receiving,
 				next_chunk: 0,
 				received_bytes: 0,
+				chunks: Vec::new(),
 				receipt: None,
 			},
 		);
 		persist_state(&self.root, &next)?;
+		let ack = self.progress(next.operations.get(&key).expect("inserted operation"))?;
 		*state = next;
-		Ok(BeginStreaming::Receiving { next_chunk: 0, received_bytes: 0 })
+		Ok(BeginStreaming::Receiving(ack))
+	}
+
+	/// Reserve one enforceable sender-window slot before accepting chunk bytes.
+	pub fn try_acquire_ingress(
+		&self,
+		bucket_id: BucketId,
+		operation_id: OperationId,
+		index: u16,
+		bytes: usize,
+	) -> Result<Option<IngressPermit>, ContentError> {
+		if bytes > CHUNK_BYTES {
+			return Err(ContentError::ChunkTooLarge)
+		}
+		let key = operation_key_parts(bucket_id, operation_id);
+		let state = self.read_state()?;
+		let record = state.operations.get(&key).ok_or(ContentError::NotFound)?;
+		if record.phase != Phase::Receiving {
+			return Err(ContentError::ChunkOutOfOrder)
+		}
+		if index as usize >= record.next_chunk as usize + INGRESS_WINDOW_CHUNKS {
+			return Err(ContentError::ChunkOutOfOrder)
+		}
+		validate_chunk_len(record.descriptor.object_len, index, bytes)?;
+		drop(state);
+		let mut window = self.window.window.lock().map_err(|_| lock_error())?;
+		if window.chunks >= INGRESS_WINDOW_CHUNKS ||
+			window.bytes.saturating_add(bytes) > INGRESS_WINDOW_BYTES
+		{
+			return Ok(None)
+		}
+		window.chunks += 1;
+		window.bytes += bytes;
+		Ok(Some(IngressPermit {
+			shared: Arc::clone(&self.window),
+			operation_key: key,
+			index,
+			bytes,
+		}))
 	}
 
 	/// Append and durably acknowledge exactly one contiguous fixed-size chunk.
 	pub fn push_chunk(
 		&self,
-		bucket_id: &str,
-		operation_id: &str,
-		index: u16,
+		permit: IngressPermit,
 		bytes: &[u8],
-	) -> Result<(), ContentError> {
-		let key = operation_key_parts(bucket_id, operation_id);
+	) -> Result<ProgressAck, ContentError> {
+		if permit.bytes != bytes.len() {
+			return Err(ContentError::LengthMismatch)
+		}
+		let key = permit.operation_key.clone();
+		let index = permit.index;
 		let mut state = self.write_state()?;
 		let record = state.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
 		if record.phase != Phase::Receiving {
 			return Err(ContentError::ChunkOutOfOrder)
 		}
-		let expected = expected_chunk_len(record.descriptor.object_len, index)?;
-		if bytes.len() != expected {
-			return Err(ContentError::ChunkSizeInvalid)
-		}
+		validate_chunk_len(record.descriptor.object_len, index, bytes.len())?;
 		let path = self.part_path(&key);
 		if index < record.next_chunk {
+			let expected =
+				record.chunks.get(index as usize).ok_or(ContentError::IntegrityFailed)?;
+			if expected.length as usize != bytes.len() || expected.hash != chunk_hash(bytes) {
+				return Err(ContentError::IdempotencyConflict)
+			}
 			let mut file = File::open(&path).map_err(io_error)?;
-			file.seek(SeekFrom::Start(index as u64 * CHUNK_BYTES as u64))
-				.map_err(io_error)?;
-			let mut installed = vec![0; expected];
-			file.read_exact(&mut installed).map_err(io_error)?;
-			return if installed == bytes { Ok(()) } else { Err(ContentError::IdempotencyConflict) }
+			let installed = read_chunk_bytes(&mut file, index, expected.length as usize)?;
+			return if installed == bytes {
+				drop(permit);
+				self.progress(&record)
+			} else {
+				Err(ContentError::IdempotencyConflict)
+			}
 		}
 		if index != record.next_chunk {
 			return Err(ContentError::ChunkOutOfOrder)
@@ -217,24 +364,67 @@ impl StreamingStore {
 		}
 		file.write_all(bytes).map_err(io_error)?;
 		file.sync_all().map_err(io_error)?;
+		self.trip_fault(StreamingFault::AfterChunkSync)?;
 		let mut next = state.clone();
-		let next_record = next.operations.get_mut(&key).expect("record was cloned from state");
+		let next_record = next.operations.get_mut(&key).expect("record exists");
 		next_record.received_bytes = next_record
 			.received_bytes
 			.checked_add(bytes.len() as u64)
 			.ok_or(ContentError::ObjectTooLarge)?;
 		next_record.next_chunk =
 			next_record.next_chunk.checked_add(1).ok_or(ContentError::ObjectTooLarge)?;
+		next_record
+			.chunks
+			.push(ChunkRecord { length: bytes.len() as u32, hash: chunk_hash(bytes) });
 		persist_state(&self.root, &next)?;
+		drop(permit);
+		let ack = self.progress(next.operations.get(&key).expect("record exists"))?;
 		*state = next;
-		Ok(())
+		Ok(ack)
+	}
+
+	/// Synchronous convenience path that still passes through the enforceable ingress window.
+	fn push_chunk_sync(
+		&self,
+		bucket_id: BucketId,
+		operation_id: OperationId,
+		index: u16,
+		bytes: &[u8],
+	) -> Result<ProgressAck, ContentError> {
+		if bytes.len() > CHUNK_BYTES {
+			return Err(ContentError::ChunkTooLarge)
+		}
+		let key = operation_key_parts(bucket_id, operation_id);
+		let state = self.read_state()?;
+		let record = state.operations.get(&key).ok_or(ContentError::NotFound)?;
+		if record.phase != Phase::Receiving {
+			return Err(ContentError::ChunkOutOfOrder)
+		}
+		validate_chunk_len(record.descriptor.object_len, index, bytes.len())?;
+		drop(state);
+		let mut window = self.window.window.lock().map_err(|_| lock_error())?;
+		while window.chunks >= INGRESS_WINDOW_CHUNKS ||
+			window.bytes.saturating_add(bytes.len()) > INGRESS_WINDOW_BYTES
+		{
+			window = self.window.available.wait(window).map_err(|_| lock_error())?;
+		}
+		window.chunks += 1;
+		window.bytes += bytes.len();
+		drop(window);
+		let permit = IngressPermit {
+			shared: Arc::clone(&self.window),
+			operation_key: key,
+			index,
+			bytes: bytes.len(),
+		};
+		self.push_chunk(permit, bytes)
 	}
 
 	/// Verify and atomically install a complete staged operation.
 	pub fn finalize(
 		&self,
-		bucket_id: &str,
-		operation_id: &str,
+		bucket_id: BucketId,
+		operation_id: OperationId,
 	) -> Result<StreamingReceipt, ContentError> {
 		let key = operation_key_parts(bucket_id, operation_id);
 		let mut state = self.write_state()?;
@@ -246,12 +436,13 @@ impl StreamingStore {
 			return Err(ContentError::IntegrityFailed)
 		}
 		if record.received_bytes != record.descriptor.object_len ||
-			record.next_chunk as usize != chunk_count(record.descriptor.object_len)?
+			record.next_chunk as usize != chunk_count(record.descriptor.object_len)? ||
+			record.chunks.len() != record.next_chunk as usize
 		{
 			return Err(ContentError::ChunkMissing)
 		}
 		let part = self.part_path(&key);
-		let (cid, fingerprint, length) = verify_file(&part, &record.descriptor)?;
+		let (cid, fingerprint, length) = verify_file(&part, &record.descriptor, &record.chunks)?;
 		if length != record.descriptor.object_len {
 			return Err(ContentError::LengthMismatch)
 		}
@@ -260,7 +451,9 @@ impl StreamingStore {
 		finalizing.operations.get_mut(&key).expect("record exists").phase = Phase::Finalizing;
 		persist_state(&self.root, &finalizing)?;
 		*state = finalizing;
-		install_file(&part, &self.object_path(cid.as_str()), &record.descriptor)?;
+		self.trip_fault(StreamingFault::AfterFinalizingJournal)?;
+		install_file(&part, &self.object_path(cid.as_str()), &record.descriptor, &record.chunks)?;
+		self.trip_fault(StreamingFault::AfterObjectRename)?;
 		let mut installed = state.clone();
 		let installed_record = installed.operations.get_mut(&key).expect("record exists");
 		installed_record.phase = Phase::Installed;
@@ -270,8 +463,9 @@ impl StreamingStore {
 		Ok(receipt)
 	}
 
-	/// Convenience streaming path. Chunks are processed one at a time and never assembled in
-	/// memory.
+	/// Consume an exact full-stream replay from index zero. Previously acknowledged chunks are
+	/// compared and re-acknowledged; callers that possess only a tail must explicitly reserve and
+	/// push from the durable `next_chunk` returned by `begin`.
 	pub fn put_chunks<I>(
 		&self,
 		descriptor: StreamingDescriptor,
@@ -282,74 +476,87 @@ impl StreamingStore {
 	{
 		match self.begin(descriptor.clone())? {
 			BeginStreaming::Installed(receipt) => {
-				let (cid, fingerprint, length, count) = verify_chunk_stream(&descriptor, chunks)
+				let (cid, fingerprint, length, records) = verify_chunk_stream(&descriptor, chunks)
 					.map_err(|_| ContentError::IdempotencyConflict)?;
 				if cid.as_str() != receipt.cid ||
 					fingerprint != receipt.fingerprint ||
 					length != receipt.stored_bytes ||
-					count != receipt.chunks
+					records.len() != receipt.chunks as usize
 				{
 					return Err(ContentError::IdempotencyConflict)
 				}
 				Ok(receipt)
 			},
-			BeginStreaming::Receiving { next_chunk, .. } => {
-				for (offset, chunk) in chunks.into_iter().enumerate() {
-					let index = next_chunk
-						.checked_add(offset.try_into().map_err(|_| ContentError::ObjectTooLarge)?)
-						.ok_or(ContentError::ObjectTooLarge)?;
-					self.push_chunk(
-						&descriptor.bucket_id,
-						&descriptor.operation_id,
+			BeginStreaming::Receiving(_) => {
+				for (index, chunk) in chunks.into_iter().enumerate() {
+					let index: u16 = index.try_into().map_err(|_| ContentError::ObjectTooLarge)?;
+					self.push_chunk_sync(
+						descriptor.bucket_id,
+						descriptor.operation_id,
 						index,
 						&chunk,
 					)?;
 				}
-				self.finalize(&descriptor.bucket_id, &descriptor.operation_id)
+				self.finalize(descriptor.bucket_id, descriptor.operation_id)
 			},
 		}
 	}
 
-	/// Open a fully verified object for streaming. Verification completes before the file is
-	/// returned.
-	pub fn open_verified(&self, cid: &str) -> Result<File, ContentError> {
+	/// Verify an installed object completely without exposing a filesystem handle or bytes.
+	pub fn verify_installed(&self, cid: &str) -> Result<(), ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
-		let descriptor = self.installed_descriptor(canonical.as_str())?;
-		let (mut file, _, _, _) =
-			verify_open_file(&self.object_path(canonical.as_str()), &descriptor)?;
-		file.seek(SeekFrom::Start(0)).map_err(io_error)?;
-		Ok(file)
+		let record = self.installed_record(canonical.as_str())?;
+		verify_file(&self.object_path(canonical.as_str()), &record.descriptor, &record.chunks)?;
+		Ok(())
 	}
 
-	/// Return a fully verified bounded half-open range. No bytes are released before full-CID
-	/// check.
+	/// Return a bounded half-open range only after a full preflight and per-touched-chunk re-hash.
 	pub fn read_range_verified(
 		&self,
 		cid: &str,
 		start: u64,
 		end: u64,
 	) -> Result<Vec<u8>, ContentError> {
-		let mut file = self.open_verified(cid)?;
-		let length = file.metadata().map_err(io_error)?.len();
-		if start > end || end > length || end.saturating_sub(start) > MAX_RANGE_BYTES {
+		let canonical = CanonicalCid::parse(cid)?;
+		let record = self.installed_record(canonical.as_str())?;
+		if start > end ||
+			end > record.descriptor.object_len ||
+			end.saturating_sub(start) > MAX_RANGE_BYTES
+		{
 			return Err(ContentError::RangeInvalid)
 		}
-		file.seek(SeekFrom::Start(start)).map_err(io_error)?;
-		let mut bytes = vec![0; (end - start) as usize];
-		file.read_exact(&mut bytes).map_err(io_error)?;
-		Ok(bytes)
+		let (mut file, _, _, _) = verify_open_file(
+			&self.object_path(canonical.as_str()),
+			&record.descriptor,
+			&record.chunks,
+		)?;
+		if start == end {
+			return Ok(Vec::new())
+		}
+		let first = (start / CHUNK_BYTES as u64) as usize;
+		let last = ((end - 1) / CHUNK_BYTES as u64) as usize;
+		let mut output = Vec::with_capacity((end - start) as usize);
+		for index in first..=last {
+			let chunk = read_verified_chunk(&mut file, index as u16, &record.chunks[index])?;
+			let chunk_start = index as u64 * CHUNK_BYTES as u64;
+			let from = start.saturating_sub(chunk_start) as usize;
+			let to = (end - chunk_start).min(chunk.len() as u64) as usize;
+			output.extend_from_slice(&chunk[from..to]);
+		}
+		Ok(output)
 	}
 
-	/// Return one verified stored chunk after full-CID verification.
+	/// Return one chunk only after a full preflight and complete emitted-chunk re-hash.
 	pub fn read_chunk_verified(&self, cid: &str, index: u16) -> Result<Vec<u8>, ContentError> {
-		let mut file = self.open_verified(cid)?;
-		let length = file.metadata().map_err(io_error)?.len();
-		let expected = expected_chunk_len(length, index)?;
-		file.seek(SeekFrom::Start(index as u64 * CHUNK_BYTES as u64))
-			.map_err(io_error)?;
-		let mut bytes = vec![0; expected];
-		file.read_exact(&mut bytes).map_err(io_error)?;
-		Ok(bytes)
+		let canonical = CanonicalCid::parse(cid)?;
+		let record = self.installed_record(canonical.as_str())?;
+		let expected = record.chunks.get(index as usize).ok_or(ContentError::ChunkOutOfOrder)?;
+		let (mut file, _, _, _) = verify_open_file(
+			&self.object_path(canonical.as_str()),
+			&record.descriptor,
+			&record.chunks,
+		)?;
+		read_verified_chunk(&mut file, index, expected)
 	}
 
 	fn recover(&self) -> Result<(), ContentError> {
@@ -375,26 +582,30 @@ impl StreamingStore {
 						file.set_len(record.received_bytes).map_err(io_error)?;
 						file.sync_all().map_err(io_error)?;
 					}
+					verify_persisted_chunks(&path, &record.chunks, record.received_bytes)?;
 				},
 				Phase::Finalizing => {
 					let part = self.part_path(&key);
 					let object = self.object_path(&record.descriptor.expected_cid);
 					if !object.exists() {
-						verify_file(&part, &record.descriptor)?;
-						install_file(&part, &object, &record.descriptor)?;
+						verify_file(&part, &record.descriptor, &record.chunks)?;
+						install_file(&part, &object, &record.descriptor, &record.chunks)?;
 					} else {
-						verify_file(&object, &record.descriptor)?;
+						verify_file(&object, &record.descriptor, &record.chunks)?;
 						if part.exists() {
 							fs::remove_file(&part).map_err(io_error)?;
 							sync_dir(part.parent().expect("staging path has parent"))?;
 						}
 					}
-					let (_, fingerprint, _) = verify_file(&object, &record.descriptor)?;
-					let receipt =
-						receipt(&record.descriptor, &record.descriptor.expected_cid, fingerprint);
+					let (_, fingerprint, _) =
+						verify_file(&object, &record.descriptor, &record.chunks)?;
 					let recovered = next.operations.get_mut(&key).expect("key exists");
 					recovered.phase = Phase::Installed;
-					recovered.receipt = Some(receipt);
+					recovered.receipt = Some(receipt(
+						&record.descriptor,
+						&record.descriptor.expected_cid,
+						fingerprint,
+					));
 					changed = true;
 				},
 				Phase::Installed => {
@@ -402,32 +613,31 @@ impl StreamingStore {
 					let (_, fingerprint, length) = verify_file(
 						&self.object_path(&record.descriptor.expected_cid),
 						&record.descriptor,
+						&record.chunks,
 					)?;
-					if receipt.fingerprint != fingerprint || receipt.stored_bytes != length {
+					if receipt.fingerprint != fingerprint ||
+						receipt.stored_bytes != length ||
+						!receipt.locally_installed
+					{
 						return Err(ContentError::IntegrityFailed)
 					}
 				},
 			}
 		}
-		let referenced: BTreeSet<_> = next
+		let referenced_staging: BTreeSet<_> = next
 			.operations
 			.iter()
 			.filter(|(_, record)| record.phase != Phase::Installed)
 			.map(|(key, _)| format!("{key}.part"))
 			.collect();
-		let mut removed_orphan = false;
-		for entry in fs::read_dir(self.root.join(STAGING)).map_err(io_error)? {
-			let entry = entry.map_err(io_error)?;
-			let name = entry.file_name().to_string_lossy().into_owned();
-			if !referenced.contains(&name) {
-				fs::remove_file(entry.path()).map_err(io_error)?;
-				changed = true;
-				removed_orphan = true;
-			}
-		}
-		if removed_orphan {
-			sync_dir(&self.root.join(STAGING))?;
-		}
+		changed |= remove_unowned(&self.root.join(STAGING), &referenced_staging)?;
+		let referenced_objects: BTreeSet<_> = next
+			.operations
+			.values()
+			.filter(|record| matches!(record.phase, Phase::Finalizing | Phase::Installed))
+			.map(|record| record.descriptor.expected_cid.clone())
+			.collect();
+		changed |= remove_unowned(&self.root.join(OBJECTS), &referenced_objects)?;
 		if changed {
 			persist_state(&self.root, &next)?;
 			*state = next;
@@ -435,15 +645,35 @@ impl StreamingStore {
 		Ok(())
 	}
 
-	fn installed_descriptor(&self, cid: &str) -> Result<StreamingDescriptor, ContentError> {
+	fn installed_record(&self, cid: &str) -> Result<OperationRecord, ContentError> {
 		self.read_state()?
 			.operations
 			.values()
 			.find(|record| {
 				record.phase == Phase::Installed && record.descriptor.expected_cid == cid
 			})
-			.map(|record| record.descriptor.clone())
+			.cloned()
 			.ok_or(ContentError::NotFound)
+	}
+
+	fn progress(&self, record: &OperationRecord) -> Result<ProgressAck, ContentError> {
+		let window = self.window.window.lock().map_err(|_| lock_error())?;
+		Ok(ProgressAck {
+			next_chunk: record.next_chunk,
+			persisted_chunks: record.next_chunk,
+			persisted_bytes: record.received_bytes,
+			available_window_chunks: INGRESS_WINDOW_CHUNKS.saturating_sub(window.chunks),
+			available_window_bytes: INGRESS_WINDOW_BYTES.saturating_sub(window.bytes),
+		})
+	}
+
+	fn trip_fault(&self, point: StreamingFault) -> Result<(), ContentError> {
+		let mut fault = self.fault.write().map_err(|_| lock_error())?;
+		if fault.as_ref() == Some(&point) {
+			*fault = None;
+			return Err(ContentError::Io(format!("injected streaming fault: {point:?}")))
+		}
+		Ok(())
 	}
 
 	fn part_path(&self, key: &str) -> PathBuf {
@@ -460,26 +690,15 @@ impl StreamingStore {
 	}
 
 	fn read_state(&self) -> Result<std::sync::RwLockReadGuard<'_, JournalState>, ContentError> {
-		self.state
-			.read()
-			.map_err(|_| ContentError::Io("stream state lock poisoned".into()))
+		self.state.read().map_err(|_| lock_error())
 	}
 
 	fn write_state(&self) -> Result<std::sync::RwLockWriteGuard<'_, JournalState>, ContentError> {
-		self.state
-			.write()
-			.map_err(|_| ContentError::Io("stream state lock poisoned".into()))
+		self.state.write().map_err(|_| lock_error())
 	}
 }
 
 fn validate_descriptor(descriptor: &StreamingDescriptor) -> Result<(), ContentError> {
-	if descriptor.operation_id.is_empty() ||
-		descriptor.operation_id.len() > 128 ||
-		descriptor.bucket_id.is_empty() ||
-		descriptor.bucket_id.len() > 128
-	{
-		return Err(ContentError::IdempotencyConflict)
-	}
 	CanonicalCid::parse(&descriptor.expected_cid)?;
 	chunk_count(descriptor.object_len)?;
 	Ok(())
@@ -506,108 +725,168 @@ fn expected_chunk_len(length: u64, index: u16) -> Result<usize, ContentError> {
 	Ok((length - start).min(CHUNK_BYTES as u64) as usize)
 }
 
-fn operation_key(descriptor: &StreamingDescriptor) -> String {
-	operation_key_parts(&descriptor.bucket_id, &descriptor.operation_id)
+fn validate_chunk_len(length: u64, index: u16, supplied: usize) -> Result<(), ContentError> {
+	if supplied > CHUNK_BYTES {
+		return Err(ContentError::ChunkTooLarge)
+	}
+	if supplied != expected_chunk_len(length, index)? {
+		return Err(ContentError::LengthMismatch)
+	}
+	Ok(())
 }
 
-fn operation_key_parts(bucket_id: &str, operation_id: &str) -> String {
+fn operation_key(descriptor: &StreamingDescriptor) -> String {
+	operation_key_parts(descriptor.bucket_id, descriptor.operation_id)
+}
+
+fn operation_key_parts(bucket_id: BucketId, operation_id: OperationId) -> String {
 	let mut hash = Blake2b::<U32>::new();
-	feed(&mut hash, bucket_id.as_bytes());
-	feed(&mut hash, operation_id.as_bytes());
+	hash.update(b"origin/streaming-operation/v1");
+	hash.update(bucket_id.as_bytes());
+	hash.update(operation_id.as_bytes());
 	hex::encode(hash.finalize())
 }
 
 fn new_fingerprint(descriptor: &StreamingDescriptor) -> Blake2b<U32> {
 	let mut hash = Blake2b::<U32>::new();
-	feed(&mut hash, b"origin/streaming-content/v1");
-	feed(&mut hash, descriptor.bucket_id.as_bytes());
-	feed(&mut hash, descriptor.operation_id.as_bytes());
-	feed(&mut hash, descriptor.expected_cid.as_bytes());
+	hash.update(b"origin/streaming-content/v1");
+	hash.update(descriptor.bucket_id.as_bytes());
+	hash.update(descriptor.operation_id.as_bytes());
+	hash.update(CanonicalCid::parse(&descriptor.expected_cid).expect("validated CID").digest());
 	hash.update(descriptor.object_len.to_le_bytes());
 	hash
 }
 
-fn feed(hash: &mut Blake2b<U32>, bytes: &[u8]) {
-	hash.update((bytes.len() as u64).to_le_bytes());
-	hash.update(bytes);
+fn chunk_hash(bytes: &[u8]) -> String {
+	format!("0x{}", hex::encode(Blake2b::<U32>::digest(bytes)))
 }
 
 fn verify_file(
 	path: &Path,
 	descriptor: &StreamingDescriptor,
+	chunks: &[ChunkRecord],
 ) -> Result<(CanonicalCid, String, u64), ContentError> {
-	let (_, cid, fingerprint, length) = verify_open_file(path, descriptor)?;
+	let (_, cid, fingerprint, length) = verify_open_file(path, descriptor, chunks)?;
 	Ok((cid, fingerprint, length))
 }
 
 fn verify_open_file(
 	path: &Path,
 	descriptor: &StreamingDescriptor,
+	chunks: &[ChunkRecord],
 ) -> Result<(File, CanonicalCid, String, u64), ContentError> {
+	if chunks.len() != chunk_count(descriptor.object_len)? {
+		return Err(ContentError::IntegrityFailed)
+	}
 	let mut file = File::open(path).map_err(|_| ContentError::IntegrityFailed)?;
 	let mut content = Blake2b::<U32>::new();
 	let mut fingerprint = new_fingerprint(descriptor);
 	let mut length = 0u64;
-	let mut buffer = vec![0u8; CHUNK_BYTES];
-	loop {
-		let read = file.read(&mut buffer).map_err(|_| ContentError::IntegrityFailed)?;
-		if read == 0 {
-			break
+	for (index, expected) in chunks.iter().enumerate() {
+		if expected.length as usize != expected_chunk_len(descriptor.object_len, index as u16)? {
+			return Err(ContentError::IntegrityFailed)
 		}
-		content.update(&buffer[..read]);
-		fingerprint.update(&buffer[..read]);
-		length = length.checked_add(read as u64).ok_or(ContentError::ObjectTooLarge)?;
+		let mut bytes = vec![0u8; expected.length as usize];
+		file.read_exact(&mut bytes).map_err(|_| ContentError::IntegrityFailed)?;
+		if chunk_hash(&bytes) != expected.hash {
+			return Err(ContentError::IntegrityFailed)
+		}
+		content.update(&bytes);
+		fingerprint.update(&bytes);
+		length += bytes.len() as u64;
+	}
+	let mut trailing = [0u8; 1];
+	if file.read(&mut trailing).map_err(|_| ContentError::IntegrityFailed)? != 0 {
+		return Err(ContentError::LengthMismatch)
 	}
 	if length != descriptor.object_len {
 		return Err(ContentError::LengthMismatch)
 	}
-	let digest: [u8; 32] = content.finalize().into();
-	let cid = CanonicalCid::from_digest(digest);
+	let cid = CanonicalCid::from_digest(content.finalize().into());
 	if cid.as_str() != descriptor.expected_cid {
 		return Err(ContentError::CidMismatch)
 	}
 	Ok((file, cid, format!("0x{}", hex::encode(fingerprint.finalize())), length))
 }
 
+fn verify_persisted_chunks(
+	path: &Path,
+	chunks: &[ChunkRecord],
+	received_bytes: u64,
+) -> Result<(), ContentError> {
+	let mut file = File::open(path).map_err(|_| ContentError::IntegrityFailed)?;
+	let mut total = 0u64;
+	for (index, expected) in chunks.iter().enumerate() {
+		let bytes = read_chunk_bytes(&mut file, index as u16, expected.length as usize)?;
+		if chunk_hash(&bytes) != expected.hash {
+			return Err(ContentError::IntegrityFailed)
+		}
+		total += bytes.len() as u64;
+	}
+	if total != received_bytes {
+		return Err(ContentError::IntegrityFailed)
+	}
+	Ok(())
+}
+
+fn read_chunk_bytes(file: &mut File, index: u16, length: usize) -> Result<Vec<u8>, ContentError> {
+	file.seek(SeekFrom::Start(index as u64 * CHUNK_BYTES as u64))
+		.map_err(|_| ContentError::IntegrityFailed)?;
+	let mut bytes = vec![0; length];
+	file.read_exact(&mut bytes).map_err(|_| ContentError::IntegrityFailed)?;
+	Ok(bytes)
+}
+
+fn read_verified_chunk(
+	file: &mut File,
+	index: u16,
+	expected: &ChunkRecord,
+) -> Result<Vec<u8>, ContentError> {
+	let bytes = read_chunk_bytes(file, index, expected.length as usize)?;
+	if chunk_hash(&bytes) != expected.hash {
+		return Err(ContentError::IntegrityFailed)
+	}
+	Ok(bytes)
+}
+
 fn verify_chunk_stream<I>(
 	descriptor: &StreamingDescriptor,
 	chunks: I,
-) -> Result<(CanonicalCid, String, u64, u16), ContentError>
+) -> Result<(CanonicalCid, String, u64, Vec<ChunkRecord>), ContentError>
 where
 	I: IntoIterator<Item = Vec<u8>>,
 {
 	let mut content = Blake2b::<U32>::new();
 	let mut fingerprint = new_fingerprint(descriptor);
 	let mut length = 0u64;
-	let mut count = 0u16;
+	let mut records = Vec::new();
 	for (index, chunk) in chunks.into_iter().enumerate() {
-		if chunk.len() != expected_chunk_len(descriptor.object_len, index as u16)? {
-			return Err(ContentError::ChunkSizeInvalid)
-		}
+		let index: u16 = index.try_into().map_err(|_| ContentError::ObjectTooLarge)?;
+		validate_chunk_len(descriptor.object_len, index, chunk.len())?;
 		content.update(&chunk);
 		fingerprint.update(&chunk);
 		length += chunk.len() as u64;
-		count = count.checked_add(1).ok_or(ContentError::ObjectTooLarge)?;
+		records.push(ChunkRecord { length: chunk.len() as u32, hash: chunk_hash(&chunk) });
 	}
-	if length != descriptor.object_len || count as usize != chunk_count(descriptor.object_len)? {
+	if length != descriptor.object_len || records.len() != chunk_count(descriptor.object_len)? {
 		return Err(ContentError::ChunkMissing)
 	}
 	let cid = CanonicalCid::from_digest(content.finalize().into());
 	if cid.as_str() != descriptor.expected_cid {
 		return Err(ContentError::CidMismatch)
 	}
-	Ok((cid, format!("0x{}", hex::encode(fingerprint.finalize())), length, count))
+	Ok((cid, format!("0x{}", hex::encode(fingerprint.finalize())), length, records))
 }
 
 fn receipt(descriptor: &StreamingDescriptor, cid: &str, fingerprint: String) -> StreamingReceipt {
 	StreamingReceipt {
-		operation_id: descriptor.operation_id.clone(),
-		bucket_id: descriptor.bucket_id.clone(),
+		operation_id: descriptor.operation_id,
+		bucket_id: descriptor.bucket_id,
 		cid: cid.into(),
 		stored_bytes: descriptor.object_len,
 		chunks: chunk_count(descriptor.object_len).expect("validated descriptor") as u16,
 		fingerprint,
-		durably_readable: true,
+		locally_installed: true,
 	}
 }
 
@@ -615,18 +894,37 @@ fn install_file(
 	part: &Path,
 	object: &Path,
 	descriptor: &StreamingDescriptor,
+	chunks: &[ChunkRecord],
 ) -> Result<(), ContentError> {
+	let staging = part.parent().expect("staging path has parent");
+	let objects = object.parent().expect("object path has parent");
 	if object.exists() {
-		verify_file(object, descriptor)?;
+		verify_file(object, descriptor, chunks)?;
 		if part.exists() {
 			fs::remove_file(part).map_err(io_error)?;
-			sync_dir(part.parent().expect("staging path has parent"))?;
 		}
 	} else {
 		fs::rename(part, object).map_err(io_error)?;
 	}
 	File::open(object).and_then(|file| file.sync_all()).map_err(io_error)?;
-	sync_dir(object.parent().expect("object path has parent"))
+	sync_dir(staging)?;
+	sync_dir(objects)
+}
+
+fn remove_unowned(directory: &Path, owned: &BTreeSet<String>) -> Result<bool, ContentError> {
+	let mut changed = false;
+	for entry in fs::read_dir(directory).map_err(io_error)? {
+		let entry = entry.map_err(io_error)?;
+		let name = entry.file_name().to_string_lossy().into_owned();
+		if !owned.contains(&name) {
+			fs::remove_file(entry.path()).map_err(io_error)?;
+			changed = true;
+		}
+	}
+	if changed {
+		sync_dir(directory)?;
+	}
+	Ok(changed)
 }
 
 fn persist_state(root: &Path, state: &JournalState) -> Result<(), ContentError> {
@@ -646,4 +944,8 @@ fn sync_dir(path: &Path) -> Result<(), ContentError> {
 
 fn io_error(error: impl std::fmt::Display) -> ContentError {
 	ContentError::Io(error.to_string())
+}
+
+fn lock_error() -> ContentError {
+	ContentError::Io("stream state lock poisoned".into())
 }
