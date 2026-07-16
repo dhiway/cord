@@ -86,7 +86,8 @@ xcm = { workspace = true, default-features = true }
 substrate-build-script-utils = { workspace = true, default-features = true }
 
 [features]
-default = []
+default = ["on-chain-release-build"]
+on-chain-release-build = ["origin-commons-runtime/on-chain-release-build"]
 proof-campaign = [
 	"dep:clap",
 	"dep:codec",

@@ -24,7 +24,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import platform
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -188,7 +190,13 @@ def validate_inputs(manifest: dict) -> tuple[dict, dict, dict]:
 
 
 def run(command: list[str]) -> bytes:
-    completed = subprocess.run(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    completed = subprocess.run(
+        command,
+        cwd=ROOT,
+        env={**os.environ, "NO_COLOR": "true"},
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
     COMMAND_LOG.append({
         "command": command,
         "exit_code": completed.returncode,
@@ -200,18 +208,19 @@ def run(command: list[str]) -> bytes:
     return completed.stdout
 
 
-def run_rejected(command: list[str], marker: str) -> None:
+def run_rejected(command: list[str], marker: str | tuple[str, ...]) -> None:
+    markers = (marker,) if isinstance(marker, str) else marker
     completed = subprocess.run(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     COMMAND_LOG.append({
         "command": command,
         "exit_code": completed.returncode,
         "stdout_sha256": sha256(completed.stdout),
         "stderr": completed.stderr.decode(errors="replace"),
-        "expected_rejection": marker,
+        "expected_rejection": markers,
     })
     output = (completed.stdout + completed.stderr).decode(errors="replace")
-    assert completed.returncode != 0 and marker in output, (
-        f"command did not fail closed with {marker!r}: {' '.join(command)}\n{output}"
+    assert completed.returncode != 0 and any(value in output for value in markers), (
+        f"command did not fail closed with one of {markers!r}: {' '.join(command)}\n{output}"
     )
 
 
@@ -416,7 +425,14 @@ def source_and_dependency_scan() -> dict:
 
 
 def command_version(command: list[str]) -> str:
-    return subprocess.run(command, cwd=ROOT, check=True, stdout=subprocess.PIPE, text=True).stdout.strip()
+    return subprocess.run(
+        command,
+        cwd=ROOT,
+        check=True,
+        env={**os.environ, "NO_COLOR": "true"},
+        stdout=subprocess.PIPE,
+        text=True,
+    ).stdout.strip()
 
 
 def repository_path(path: Path) -> str:
@@ -428,6 +444,7 @@ def build_evidence(
     orbis_node: Path,
     compact_wasm: Path,
     metadata_hash_path: Path,
+    subwasm: str,
     manifest: dict,
 ) -> tuple[dict, dict]:
     origin_chain = f"origin-candidate:{manifest['inputs']['origin']}"
@@ -446,11 +463,17 @@ def build_evidence(
     # Candidate inputs and raw JSON can never bypass the production approval ceremony.
     run_rejected(
         [str(origin_node), *base, f"origin-production:{manifest['inputs']['origin']}"],
-        "activation_state is not production-approved",
+        (
+            "activation_state is not production-approved",
+            "production launch payload SHA-256 does not match the embedded release artifact",
+        ),
     )
     run_rejected(
         [str(orbis_node), *base, f"orbis-production:{manifest['inputs']['orbis']}"],
-        "activation_state is not production-approved",
+        (
+            "activation_state is not production-approved",
+            "production launch payload SHA-256 does not match the embedded release artifact",
+        ),
     )
     with tempfile.TemporaryDirectory() as rejection_dir:
         origin_live = Path(rejection_dir) / "origin-live.json"
@@ -470,17 +493,45 @@ def build_evidence(
 
     orbis_header_hash = "0x" + hashlib.blake2b(encoded, digest_size=32).hexdigest()
     orbis_top = orbis_raw["genesis"]["raw"]["top"]
-    embedded_code = bytes.fromhex(orbis_top["0x3a636f6465"].removeprefix("0x"))
+    embedded_code_blob = bytes.fromhex(orbis_top["0x3a636f6465"].removeprefix("0x"))
     metadata_hash = read_json(metadata_hash_path)
-    compact_wasm_sha256 = sha256(compact_wasm.read_bytes())
+    compact_wasm_bytes = compact_wasm.read_bytes()
+    compact_wasm_sha256 = sha256(compact_wasm_bytes)
     assert metadata_hash["compact_wasm_sha256"] == compact_wasm_sha256, (
         "metadata hash fixture and compact Wasm do not describe the same runtime"
+    )
+    runtime_info = json.loads(run([subwasm, "info", "--json", str(compact_wasm)]))
+    assert runtime_info["compression"]["compressed"] is False, (
+        "the supplied on-chain-release compact Wasm must be uncompressed"
+    )
+    assert runtime_info["metadata_version"] == 14, "Commons runtime metadata must be V14"
+    core_version = runtime_info["core_version"]
+    assert {
+        "specName": core_version["specName"],
+        "specVersion": core_version["specVersion"],
+        "transactionVersion": core_version["transactionVersion"],
+    } == {
+        "specName": metadata_hash["runtime"],
+        "specVersion": metadata_hash["spec_version"],
+        "transactionVersion": metadata_hash["transaction_version"],
+    }, "embedded Commons Core_version and RFC-78 manifest identity differ"
+    exact_hex(metadata_hash["metadata_hash"], 32, "metadata_hash.metadata_hash")
+    with tempfile.TemporaryDirectory() as runtime_dir:
+        embedded_path = Path(runtime_dir) / "embedded-code.blob"
+        decompressed_path = Path(runtime_dir) / "embedded-code.wasm"
+        embedded_path.write_bytes(embedded_code_blob)
+        run([subwasm, "decompress", str(embedded_path), str(decompressed_path)])
+        embedded_code = decompressed_path.read_bytes()
+    assert embedded_code == compact_wasm_bytes, (
+        "Orbis chain-spec :code does not decompress to the supplied on-chain-release compact Wasm; "
+        "build origin-omni-node with --features on-chain-release-build"
     )
     raw_storage = inspect_raw_storage(orbis_raw, manifest)
     scan = source_and_dependency_scan()
     revision = command_version(["git", "rev-parse", "HEAD"])
     branch = command_version(["git", "branch", "--show-current"])
 
+    subwasm_name = Path(subwasm).name
     identity = {
         "schema_version": 1,
         "scope": "orbis-deterministic-candidate-genesis",
@@ -503,6 +554,7 @@ def build_evidence(
                 f"--orbis-node {repository_path(orbis_node)} "
                 f"--compact-wasm {repository_path(compact_wasm)} "
                 f"--metadata-hash-manifest {repository_path(metadata_hash_path)} "
+                f"--subwasm {subwasm_name} "
                 "--write-evidence"
             ),
             "header_encoding": "SCALE sp_runtime::generic::Header<BlockNumber=u32, BlakeTwo256>",
@@ -513,7 +565,16 @@ def build_evidence(
         "runtime": {
             "node_binary_path": str(orbis_node.relative_to(ROOT)),
             "node_binary_sha256": sha256(orbis_node.read_bytes()),
-            "embedded_code_sha256": sha256(embedded_code),
+            "embedded_code_blob_sha256": sha256(embedded_code_blob),
+            "embedded_code_blob_bytes": len(embedded_code_blob),
+            "embedded_code_sha256": sha256(embedded_code_blob),
+            "embedded_code_decompressed_sha256": sha256(embedded_code),
+            "embedded_code_decompressed_bytes": len(embedded_code),
+            "core_version": {
+                "spec_name": core_version["specName"],
+                "spec_version": core_version["specVersion"],
+                "transaction_version": core_version["transactionVersion"],
+            },
             "compact_wasm_path": str(compact_wasm.relative_to(ROOT)),
             "compact_wasm_sha256": compact_wasm_sha256,
             "metadata_hash_manifest": str(metadata_hash_path.relative_to(ROOT)),
@@ -537,6 +598,9 @@ def build_evidence(
             "python": platform.python_version(),
             "rustc": command_version(["rustc", "--version"]),
             "cargo": command_version(["cargo", "--version"]),
+            "subwasm": command_version([subwasm, "--version"]),
+            "subwasm_executable": subwasm_name,
+            "subwasm_executable_sha256": sha256(Path(subwasm).read_bytes()),
             "build_profile": "release; metadata compact Wasm uses on-chain-release-build",
         },
         "raw_storage_verification": raw_storage,
@@ -633,6 +697,7 @@ def main() -> int:
     parser.add_argument("--orbis-node", type=Path)
     parser.add_argument("--compact-wasm", type=Path)
     parser.add_argument("--metadata-hash-manifest", type=Path, default=METADATA_HASH)
+    parser.add_argument("--subwasm", default="subwasm")
     parser.add_argument("--write-evidence", action="store_true")
     args = parser.parse_args()
     if bool(args.origin_node) != bool(args.orbis_node):
@@ -641,6 +706,12 @@ def main() -> int:
         parser.error("--write-evidence requires both freshly built node binaries")
     if args.origin_node and not args.compact_wasm:
         parser.error("binary validation requires --compact-wasm from the metadata-hash build")
+    subwasm = None
+    if args.origin_node:
+        subwasm = shutil.which(args.subwasm)
+        if subwasm is None:
+            parser.error(f"--subwasm executable not found: {args.subwasm}")
+        subwasm = str(Path(subwasm).resolve())
     manifest = read_json(MANIFEST)
     assert isinstance(manifest, dict)
     validate_policy(manifest)
@@ -652,6 +723,7 @@ def main() -> int:
             args.orbis_node.resolve(),
             args.compact_wasm.resolve(),
             args.metadata_hash_manifest.resolve(),
+            subwasm,
             manifest,
         )
     else:
