@@ -34,8 +34,9 @@ clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true, default-features = true }
 hex = { workspace = true, default-features = true }
 http-body-util = { workspace = true }
-hyper = { workspace = true, features = ["http1", "server"] }
-hyper-util = { workspace = true, features = ["tokio"] }
+hyper = { workspace = true, features = ["client", "http1", "server"] }
+hyper-rustls = { workspace = true }
+hyper-util = { workspace = true, features = ["client-legacy", "http1", "tokio"] }
 jsonrpsee = { workspace = true, features = ["http-client"] }
 origin-rs = { path = "../../../origin-rs", optional = true }
 orbis-storage-runtime-api = { workspace = true, default-features = true }

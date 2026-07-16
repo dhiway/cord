@@ -10082,6 +10082,7 @@ dependencies = [
  "hex",
  "http-body-util",
  "hyper 1.10.1",
+ "hyper-rustls",
  "hyper-util",
  "jsonrpsee",
  "orbis-storage-runtime-api",

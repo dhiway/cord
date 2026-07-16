@@ -40,12 +40,18 @@ mod merkle;
 // Deliberately private until the authenticated provider replication transport is activated.
 #[allow(dead_code)]
 mod peer;
+// Private HTTP/1 listener for the service-key-authenticated replication wire protocol.
+#[allow(dead_code)]
+mod peer_http;
 // Private durable replay table for exact authenticated peer responses.
 #[allow(dead_code)]
 mod peer_reply;
 // Private topology-authenticated responder; deliberately has no route or transport listener.
 #[allow(dead_code)]
 mod peer_responder;
+// Private outbound transport pinned to one exact finalized replication session.
+#[allow(dead_code)]
+mod peer_transport;
 // Deliberately private until authenticated peer replication orchestration is activated.
 #[allow(dead_code)]
 mod replication;
