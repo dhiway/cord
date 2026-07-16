@@ -335,6 +335,45 @@ impl BucketMmrStore {
 		Ok(())
 	}
 
+	/// Return whether the exact logical replication leaf already occupies its sequence.
+	/// An absent next suffix slot is appendable; a gap or occupied mismatch fails closed.
+	pub(crate) fn replication_slot_matches(
+		&self,
+		streaming: &StreamingStore,
+		bucket_id: BucketId,
+		object: &PeerObjectV1,
+	) -> Result<bool, ContentError> {
+		let (length, sequence, cumulative_total) = object.position();
+		let entry = {
+			let state = self.state.read().map_err(|_| lock_error())?;
+			let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::NotFound)?;
+			if bucket.unavailable {
+				return Err(ContentError::IntegrityFailed);
+			}
+			let index: usize = sequence.try_into().map_err(|_| ContentError::IntegrityFailed)?;
+			if index == bucket.entries.len() {
+				return Ok(false);
+			}
+			bucket.entries.get(index).cloned().ok_or(ContentError::IntegrityFailed)?
+		};
+		if entry.sequence != sequence
+			|| entry.cid != object.cid()
+			|| entry.data_size != length
+			|| entry.total_size != cumulative_total
+		{
+			return Err(ContentError::IdempotencyConflict);
+		}
+		let installed = streaming
+			.verified_replication_object(bucket_id, OperationId::parse(&entry.operation_id)?)?;
+		if installed.cid.as_str() != object.cid()
+			|| installed.stored_bytes != length
+			|| installed.chunk_hashes != object.chunk_hashes()
+		{
+			return Err(ContentError::IdempotencyConflict);
+		}
+		Ok(true)
+	}
+
 	/// Build the exact runtime commitment fields after re-verifying only this bucket's bytes.
 	pub(crate) fn commitment_candidate(
 		&self,

@@ -1098,7 +1098,7 @@ impl StreamingStore {
 			if !repaired_cids.insert(repair.cid.clone()) {
 				return Err(ContentError::IntegrityFailed);
 			}
-			let installed = installed_record_in(&next, &repair.cid)?;
+			let installed = installed_record_for_repair(&next, repair)?;
 			validate_installed_record(&installed)?;
 			validate_repair_record(key, repair, &installed)?;
 			let path = self.repair_path(key);
@@ -1462,6 +1462,44 @@ impl StreamingStore {
 		Ok(ReplicationIngressState::Fresh)
 	}
 
+	/// Retire a completed shared-CID repair after the exact derived logical install is durable.
+	pub(crate) fn retire_completed_replication_repair(
+		&self,
+		bucket_id: BucketId,
+		cid: &str,
+		repair_operation_id: OperationId,
+		install_operation_id: OperationId,
+	) -> Result<(), ContentError> {
+		let canonical = CanonicalCid::parse(cid)?;
+		let mut state = self.write_state()?;
+		let install = state
+			.operations
+			.get(&operation_key_parts(bucket_id, install_operation_id))
+			.cloned()
+			.ok_or(ContentError::NotFound)?;
+		if install.phase != Phase::Installed
+			|| install.descriptor.expected_cid != canonical.as_str()
+			|| state.quarantine.contains_key(canonical.as_str())
+		{
+			return Err(ContentError::IdempotencyConflict);
+		}
+		let key = repair_key(canonical.as_str(), repair_operation_id)?;
+		let Some(repair) = state.repairs.get(&key) else {
+			return Ok(());
+		};
+		if repair.operation_id != repair_operation_id
+			|| repair.cid != canonical.as_str()
+			|| repair.phase != RepairPhase::Installed
+		{
+			return Err(ContentError::IdempotencyConflict);
+		}
+		let mut next = state.clone();
+		next.repairs.remove(&key);
+		persist_state(&self.root, &next)?;
+		*state = next;
+		Ok(())
+	}
+
 	/// Return one exact replication descriptor and manifest only after full-file verification.
 	pub(crate) fn verified_replication_object(
 		&self,
@@ -1700,6 +1738,22 @@ fn validate_replication_repair_identity(
 	} else {
 		Ok(())
 	}
+}
+
+fn installed_record_for_repair(
+	state: &JournalState,
+	repair: &RepairRecord,
+) -> Result<OperationRecord, ContentError> {
+	state
+		.operations
+		.values()
+		.find(|record| {
+			record.phase == Phase::Installed
+				&& record.descriptor.expected_cid == repair.cid
+				&& repair_descriptor_hash(&record.descriptor) == repair.descriptor_hash
+		})
+		.cloned()
+		.ok_or(ContentError::IntegrityFailed)
 }
 
 fn full_repair_operation(cid: &str) -> OperationId {

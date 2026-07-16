@@ -217,10 +217,28 @@ impl CheckpointStack {
 					incoming.bucket_id,
 					incoming.install_operation_id,
 				) {
-					Ok(()) => {},
-					Err(ContentError::NotFound) => state
-						.bucket_mmr
-						.revalidate_repaired_bucket(&state.streaming, incoming.bucket_id)?,
+					Ok(()) => state.streaming.retire_completed_replication_repair(
+						incoming.bucket_id,
+						incoming.object.cid(),
+						incoming.repair_operation_id,
+						incoming.install_operation_id,
+					)?,
+					Err(ContentError::NotFound) => {
+						state
+							.bucket_mmr
+							.revalidate_repaired_bucket(&state.streaming, incoming.bucket_id)?;
+						if !state.bucket_mmr.replication_slot_matches(
+							&state.streaming,
+							incoming.bucket_id,
+							&incoming.object,
+						)? {
+							install_derived_replication_object(
+								&state.streaming,
+								&state.bucket_mmr,
+								&incoming,
+							)?;
+						}
+					},
 					Err(error) => return Err(error),
 				}
 			},
@@ -277,6 +295,17 @@ impl CheckpointStack {
 					state
 						.bucket_mmr
 						.revalidate_repaired_bucket(&state.streaming, incoming.bucket_id)?;
+					if !state.bucket_mmr.replication_slot_matches(
+						&state.streaming,
+						incoming.bucket_id,
+						&incoming.object,
+					)? {
+						install_derived_replication_object(
+							&state.streaming,
+							&state.bucket_mmr,
+							&incoming,
+						)?;
+					}
 				}
 			},
 		}
@@ -378,6 +407,49 @@ fn ensure_exact_chunk(
 	} else {
 		Err(ContentError::IdempotencyConflict)
 	}
+}
+
+fn install_derived_replication_object(
+	streaming: &StreamingStore,
+	mmr: &BucketMmrStore,
+	incoming: &VerifiedIncomingChunkV1,
+) -> Result<(), ContentError> {
+	let descriptor = StreamingDescriptor {
+		operation_id: incoming.install_operation_id,
+		bucket_id: incoming.bucket_id,
+		expected_cid: incoming.object.cid().into(),
+		object_len: incoming.object.position().0,
+	};
+	match streaming.begin(descriptor)? {
+		BeginStreaming::Installed(_) => {},
+		BeginStreaming::Receiving(progress) => {
+			for index in progress.next_chunk..incoming.object.chunk_hashes().len() as u16 {
+				let bytes = streaming.read_chunk_verified(incoming.object.cid(), index)?;
+				if incoming.object.chunk_hashes().get(usize::from(index))
+					!= Some(&sp_crypto_hashing::blake2_256(&bytes))
+				{
+					return Err(ContentError::IntegrityFailed);
+				}
+				let permit = streaming
+					.try_acquire_ingress(
+						incoming.bucket_id,
+						incoming.install_operation_id,
+						index,
+						bytes.len(),
+					)?
+					.ok_or(ContentError::ProviderRecoveryTableFull)?;
+				streaming.push_chunk(permit, &bytes)?;
+			}
+			streaming.finalize(incoming.bucket_id, incoming.install_operation_id)?;
+		},
+	}
+	mmr.append_verified(streaming, incoming.bucket_id, incoming.install_operation_id)?;
+	streaming.retire_completed_replication_repair(
+		incoming.bucket_id,
+		incoming.object.cid(),
+		incoming.repair_operation_id,
+		incoming.install_operation_id,
+	)
 }
 
 #[cfg(test)]

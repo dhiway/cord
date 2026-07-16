@@ -335,6 +335,91 @@ mod tests {
 		fixture_with_bytes(vec![31; CHUNK_BYTES + 7])
 	}
 
+	fn duplicate_suffix_fixture() -> (
+		TempDir,
+		TempDir,
+		ReplicationSessionV1,
+		Arc<PeerResponder<Authority>>,
+		CanonicalCid,
+		Vec<u8>,
+	) {
+		let source = TempDir::new().unwrap();
+		let target = TempDir::new().unwrap();
+		let bytes = vec![41; CHUNK_BYTES + 11];
+		let cid = CanonicalCid::from_digest(blake2_256(&bytes));
+		let source_streaming = StreamingStore::open(source.path()).unwrap();
+		for operation in [7u8, 8] {
+			source_streaming
+				.put_chunks(
+					StreamingDescriptor {
+						operation_id: OperationId::from_bytes([operation; 16]),
+						bucket_id: BucketId::from_bytes([3; 32]),
+						expected_cid: cid.to_string(),
+						object_len: bytes.len() as u64,
+					},
+					bytes.chunks(CHUNK_BYTES).map(<[u8]>::to_vec),
+				)
+				.unwrap();
+		}
+		let source_mmr = BucketMmrStore::open(source.path(), &source_streaming).unwrap();
+		let candidate = source_mmr
+			.commitment_candidate(&source_streaming, BucketId::from_bytes([3; 32]), 1)
+			.unwrap();
+		let predecessor = source_mmr
+			.commitment_predecessor_total(BucketId::from_bytes([3; 32]), 1)
+			.unwrap();
+		let commitment = PeerMmrCommitmentV1::new(
+			candidate.mmr_root.0,
+			candidate.start_seq,
+			candidate.leaf_count,
+			predecessor,
+		)
+		.unwrap();
+		let topology = topology();
+		let session = ReplicationSessionV1::from_topology(
+			topology.clone(),
+			[5; 32],
+			pair(12).public().0,
+			[4; 32],
+			[5; 32],
+			commitment,
+		)
+		.unwrap();
+		let responder = Arc::new(
+			PeerResponder::new(
+				Arc::new(Authority(topology)),
+				Arc::new(CheckpointStack::open(source.path()).unwrap()),
+				[4; 32],
+				pair(11),
+			)
+			.unwrap(),
+		);
+		let target_streaming = StreamingStore::open(target.path()).unwrap();
+		target_streaming
+			.put_chunks(
+				StreamingDescriptor {
+					operation_id: OperationId::from_bytes([99; 16]),
+					bucket_id: BucketId::from_bytes([3; 32]),
+					expected_cid: cid.to_string(),
+					object_len: bytes.len() as u64,
+				},
+				bytes.chunks(CHUNK_BYTES).map(<[u8]>::to_vec),
+			)
+			.unwrap();
+		let target_mmr = BucketMmrStore::open(target.path(), &target_streaming).unwrap();
+		let mut damaged = bytes.clone();
+		damaged[0] ^= 1;
+		fs::write(target.path().join("streaming-v1").join("objects").join(cid.as_str()), damaged)
+			.unwrap();
+		assert_eq!(
+			target_streaming.verify_installed(cid.as_str()),
+			Err(ContentError::IntegrityFailed)
+		);
+		drop(target_mmr);
+		drop(target_streaming);
+		(source, target, session, responder, cid, bytes)
+	}
+
 	#[tokio::test]
 	async fn page_and_two_chunks_reach_exact_local_mmr() {
 		let (_source, target, session, responder, cid, bytes) = fixture();
@@ -503,6 +588,35 @@ mod tests {
 		let repaired = StreamingStore::open(target.path()).unwrap();
 		let mut durable = repaired.read_chunk_verified(cid.as_str(), 0).unwrap();
 		durable.extend(repaired.read_chunk_verified(cid.as_str(), 1).unwrap());
+		assert_eq!(durable, bytes);
+	}
+
+	#[tokio::test]
+	async fn quarantined_prior_duplicate_repairs_then_appends_exact_suffix_leaf() {
+		let (_source, target, session, responder, cid, bytes) = duplicate_suffix_fixture();
+		let reconciler = ReplicationReconciler::new(
+			Arc::new(CheckpointStack::open(target.path()).unwrap()),
+			Arc::new(DirectTransport::new(responder)),
+			pair(12),
+		)
+		.unwrap();
+		let operation = ReplicationReconciler::<DirectTransport>::operation_id(&session);
+		let mut phase = ReplicationPhase::Planned;
+		for _ in 0..8 {
+			phase = reconciler.reconcile_one(&session, operation).await.unwrap().phase;
+			if phase == ReplicationPhase::MmrCommitted {
+				break;
+			}
+		}
+		assert_eq!(phase, ReplicationPhase::MmrCommitted);
+		let streaming = StreamingStore::open(target.path()).unwrap();
+		let mmr = BucketMmrStore::open(target.path(), &streaming).unwrap();
+		let candidate =
+			mmr.commitment_candidate(&streaming, BucketId::from_bytes([3; 32]), 1).unwrap();
+		assert_eq!(candidate.mmr_root.0, session.context().candidate_commitment().mmr_root());
+		assert_eq!(candidate.leaf_count, 1);
+		let mut durable = streaming.read_chunk_verified(cid.as_str(), 0).unwrap();
+		durable.extend(streaming.read_chunk_verified(cid.as_str(), 1).unwrap());
 		assert_eq!(durable, bytes);
 	}
 }
