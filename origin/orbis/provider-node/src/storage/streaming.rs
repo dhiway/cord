@@ -561,6 +561,13 @@ impl StreamingStore {
 
 	fn recover(&self) -> Result<(), ContentError> {
 		let mut state = self.write_state()?;
+		if state
+			.operations
+			.iter()
+			.any(|(key, record)| key != &operation_key(&record.descriptor))
+		{
+			return Err(ContentError::IntegrityFailed)
+		}
 		let mut next = state.clone();
 		let mut changed = false;
 		let keys: Vec<_> = next.operations.keys().cloned().collect();
@@ -609,15 +616,17 @@ impl StreamingStore {
 					changed = true;
 				},
 				Phase::Installed => {
-					let receipt = record.receipt.as_ref().ok_or(ContentError::IntegrityFailed)?;
+					let installed_receipt =
+						record.receipt.as_ref().ok_or(ContentError::IntegrityFailed)?;
 					let (_, fingerprint, length) = verify_file(
 						&self.object_path(&record.descriptor.expected_cid),
 						&record.descriptor,
 						&record.chunks,
 					)?;
-					if receipt.fingerprint != fingerprint ||
-						receipt.stored_bytes != length ||
-						!receipt.locally_installed
+					let expected_receipt =
+						receipt(&record.descriptor, &record.descriptor.expected_cid, fingerprint);
+					if installed_receipt != &expected_receipt ||
+						expected_receipt.stored_bytes != length
 					{
 						return Err(ContentError::IntegrityFailed)
 					}

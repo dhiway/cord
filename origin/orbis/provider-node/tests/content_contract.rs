@@ -374,3 +374,43 @@ fn ordered_chunk_hashes_are_durable_and_unsigned_receipt_is_local_only() {
 	assert_eq!(hashes[1]["length"], 1);
 	assert_ne!(hashes[0]["hash"], hashes[1]["hash"]);
 }
+
+#[test]
+fn hostile_journal_key_and_every_receipt_field_fail_closed_on_reopen() {
+	for mutation in 0..8 {
+		let temp = tempfile::tempdir().unwrap();
+		let store = StreamingStore::open(temp.path()).unwrap();
+		store
+			.put_chunks(descriptor(70, b"journal-integrity"), vec![b"journal-integrity".to_vec()])
+			.unwrap();
+		drop(store);
+		let journal = temp.path().join("streaming-v1/journal.json");
+		let mut state: Value = serde_json::from_slice(&fs::read(&journal).unwrap()).unwrap();
+		let operations = state["operations"].as_object_mut().unwrap();
+		if mutation == 0 {
+			let (key, record) = operations
+				.iter()
+				.next()
+				.map(|(key, value)| (key.clone(), value.clone()))
+				.unwrap();
+			operations.remove(&key);
+			operations.insert("00".repeat(32), record);
+		} else {
+			let receipt =
+				operations.values_mut().next().unwrap()["receipt"].as_object_mut().unwrap();
+			match mutation {
+				1 => receipt.insert("operation_id".into(), Value::String("ff".repeat(16))),
+				2 => receipt.insert("bucket_id".into(), Value::String("ee".repeat(32))),
+				3 => receipt.insert("cid".into(), Value::String(cid(b"other"))),
+				4 => receipt.insert("stored_bytes".into(), Value::from(1_000u64)),
+				5 => receipt.insert("chunks".into(), Value::from(2u64)),
+				6 => receipt
+					.insert("fingerprint".into(), Value::String(format!("0x{}", "00".repeat(32)))),
+				7 => receipt.insert("locally_installed".into(), Value::Bool(false)),
+				_ => unreachable!(),
+			};
+		}
+		fs::write(&journal, serde_json::to_vec_pretty(&state).unwrap()).unwrap();
+		assert!(matches!(StreamingStore::open(temp.path()), Err(ContentError::IntegrityFailed)));
+	}
+}
