@@ -20,10 +20,21 @@
 
 use std::{
 	array,
+	collections::BTreeSet,
+	fs::{self, File},
+	io::{Read, Write},
 	ops::Bound::{Excluded, Unbounded},
+	path::Path,
+	sync::atomic::{AtomicU64, Ordering},
 };
 
 use ciborium::value::Value;
+#[cfg(unix)]
+use rustix::{
+	fd::OwnedFd,
+	fs::{self as unix_fs, AtFlags, Dir, FileType, Mode, OFlags},
+	io::Errno as UnixErrno,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sp_core::{ed25519, Pair as _};
@@ -48,6 +59,12 @@ const STATUS: u16 = 1014;
 const MAX_REQUEST_BYTES: usize = 4096;
 const QUERY_TTL: u64 = 256;
 const PRIVATE_QUERY_GC_BATCH: usize = 64;
+const RESPONSE_DIR: &str = "private-query-responses-v1";
+const RESPONSE_MAGIC: &[u8; 8] = b"CORDQRY1";
+const MAX_RESPONSE_BLOB_BYTES: u64 = MAX_RANGE_BYTES + 65_536;
+const MAX_PRIVATE_RESPONSE_BYTES: u64 = 512 * 1024 * 1024;
+const MAX_RESPONSE_DIRECTORY_FILES: usize = MAX_STREAMING_OPERATIONS * 2;
+static NEXT_BLOB_TEMP: AtomicU64 = AtomicU64::new(0);
 const QUERY_ID_DOMAIN: &[u8] = b"cord/provider/private-object-query/v1";
 const QUERY_RESPONSE_DOMAIN: &[u8] = b"cord/provider/private-object-response/v1";
 
@@ -213,7 +230,10 @@ pub(super) struct PrivateQueryRecord {
 	fingerprint: String,
 	verified_offset: u64,
 	next_verified_offset: Option<u64>,
-	frames: Vec<String>,
+	response_blob: String,
+	response_blob_hash: String,
+	response_bytes: u64,
+	frame_count: u16,
 	response_hash: String,
 	checkpoint_root: String,
 	checkpoint_start: u64,
@@ -311,6 +331,7 @@ impl StreamingStore {
 			let state = self.read_state()?;
 			if let Some(stored) = state.private_queries.get(&query_key) {
 				return recover(
+					&self.root,
 					stored,
 					request_bytes,
 					authority_bytes,
@@ -372,6 +393,19 @@ impl StreamingStore {
 			.expires_at
 			.checked_add(QUERY_TTL)
 			.ok_or(ContentError::IntegrityFailed)?;
+		let response_blob_bytes = encode_response_blob(&frames)?;
+		let response_bytes: u64 = response_blob_bytes
+			.len()
+			.try_into()
+			.map_err(|_| ContentError::IntegrityFailed)?;
+		let frame_count: u16 =
+			frames.len().try_into().map_err(|_| ContentError::IntegrityFailed)?;
+		let response_blob = response_blob_id(&query_key, response_hash);
+		let response_blob_hash: [u8; 32] = Sha256::digest(&response_blob_bytes).into();
+		{
+			let state = self.read_state()?;
+			ensure_private_query_capacity(&state, &replay_key, response_bytes)?;
+		}
 		let stored = PrivateQueryRecord {
 			request: hex::encode(request_bytes),
 			authority: hex::encode(authority_bytes),
@@ -383,7 +417,10 @@ impl StreamingStore {
 			fingerprint: hex::encode(fingerprint),
 			verified_offset,
 			next_verified_offset,
-			frames: frames.iter().map(hex::encode).collect(),
+			response_blob: response_blob.clone(),
+			response_blob_hash: hex::encode(response_blob_hash),
+			response_bytes,
+			frame_count,
 			response_hash: hex::encode(response_hash),
 			checkpoint_root: hex::encode(checkpoint.root),
 			checkpoint_start: checkpoint.start,
@@ -396,6 +433,7 @@ impl StreamingStore {
 		let mut state = self.write_state()?;
 		if let Some(existing) = state.private_queries.get(&query_key) {
 			return recover(
+				&self.root,
 				existing,
 				request_bytes,
 				authority_bytes,
@@ -404,7 +442,7 @@ impl StreamingStore {
 				now,
 			)
 		}
-		ensure_private_query_capacity(&state, &replay_key)?;
+		ensure_private_query_capacity(&state, &replay_key, response_bytes)?;
 		let mut next = state.clone();
 		match next.private_query_replay.get(&replay_key) {
 			Some(replay)
@@ -426,8 +464,39 @@ impl StreamingStore {
 			return Err(PrivateQueryError::VerifiedOffsetInvalid)
 		}
 		next.private_queries.insert(query_key, stored);
-		self.trip_fault(super::StreamingFault::BeforePrivateQueryCommit)?;
-		persist_state(&self.root, &next)?;
+		next.private_query_response_bytes = next
+			.private_query_response_bytes
+			.checked_add(response_bytes)
+			.ok_or(ContentError::ProviderRecoveryTableFull)?;
+		if let Err(error) = persist_response_blob(&self.root, &response_blob, &response_blob_bytes)
+		{
+			drop(state);
+			self.cleanup_unreferenced_response_blob(&response_blob)?;
+			return Err(error.into())
+		}
+		if let Err(error) = self.trip_fault(super::StreamingFault::BeforePrivateQueryCommit) {
+			drop(state);
+			self.cleanup_unreferenced_response_blob(&response_blob)?;
+			return Err(error.into())
+		}
+		if let Err(error) = persist_state(&self.root, &next) {
+			match read_durable_journal(&self.root) {
+				Ok(durable)
+					if durable
+						.private_queries
+						.values()
+						.any(|record| record.response_blob == response_blob) =>
+				{
+					*state = durable;
+				},
+				Ok(_) => {
+					drop(state);
+					self.cleanup_unreferenced_response_blob(&response_blob)?;
+				},
+				Err(reconcile) => return Err(reconcile.into()),
+			}
+			return Err(error.into())
+		}
 		*state = next;
 		Ok(PrivateObjectResponseV2 { operation_id, frames, next_verified_offset, response_hash })
 	}
@@ -454,7 +523,7 @@ impl StreamingStore {
 	fn prune_private_queries(&self, now: u64) -> Result<(), ContentError> {
 		let mut state = self.write_state()?;
 		let mut next = state.clone();
-		prune_private_query_state(&mut next, now, PRIVATE_QUERY_GC_BATCH)?;
+		let removed = prune_private_query_state(&mut next, now, PRIVATE_QUERY_GC_BATCH)?;
 		if next.private_queries != state.private_queries ||
 			next.private_query_replay != state.private_query_replay ||
 			next.private_query_gc_cursor != state.private_query_gc_cursor
@@ -462,7 +531,19 @@ impl StreamingStore {
 			persist_state(&self.root, &next)?;
 			*state = next;
 		}
+		drop(state);
+		for blob in removed {
+			delete_response_blob(&self.root, &blob)?;
+		}
 		Ok(())
+	}
+
+	fn cleanup_unreferenced_response_blob(&self, blob: &str) -> Result<(), ContentError> {
+		let state = self.read_state()?;
+		if state.private_queries.values().any(|record| record.response_blob == blob) {
+			return Ok(())
+		}
+		delete_response_blob(&self.root, blob)
 	}
 
 	fn get_frames(
@@ -639,6 +720,8 @@ pub(super) fn validate_private_query_state(
 	if state.private_query_gc_cursor.as_ref().is_some_and(|cursor| cursor.len() > 64) {
 		return Err(ContentError::IntegrityFailed)
 	}
+	let mut response_bytes = 0u64;
+	let mut response_blobs = BTreeSet::new();
 	for (key, record) in &state.private_queries {
 		let request_bytes =
 			hex::decode(&record.request).map_err(|_| ContentError::IntegrityFailed)?;
@@ -649,11 +732,8 @@ pub(super) fn validate_private_query_state(
 		let capability =
 			ProviderCapabilityV1::decode(&authority).map_err(|_| ContentError::IntegrityFailed)?;
 		let operation = derive_operation_id(request.method, request.request_id);
-		let frames = record
-			.frames
-			.iter()
-			.map(|frame| hex::decode(frame).map_err(|_| ContentError::IntegrityFailed))
-			.collect::<Result<Vec<_>, _>>()?;
+		let response_hash: [u8; 32] = decode_hex_content(&record.response_hash)?;
+		let response_blob_hash: [u8; 32] = decode_hex_content(&record.response_blob_hash)?;
 		if *key != query_key(operation, record.verified_offset) ||
 			record.method != request.method ||
 			record.request_id != hex::encode(request.request_id) ||
@@ -661,12 +741,21 @@ pub(super) fn validate_private_query_state(
 			record.nonce != hex::encode(capability.nonce) ||
 			record.provider != hex::encode(capability.provider) ||
 			record.fingerprint != hex::encode(fingerprint(&request_bytes, &authority)) ||
-			record.response_hash !=
-				hex::encode(response_hash(&frames, record.next_verified_offset)) ||
-			record.frames.is_empty()
+			record.response_hash != hex::encode(response_hash) ||
+			record.response_blob != response_blob_id(key, response_hash) ||
+			!valid_blob_id(&record.response_blob) ||
+			record.response_blob_hash != hex::encode(response_blob_hash) ||
+			record.response_bytes < 10 ||
+			record.response_bytes > MAX_RESPONSE_BLOB_BYTES ||
+			record.frame_count == 0 ||
+			record.frame_count > 3 ||
+			!response_blobs.insert(record.response_blob.clone())
 		{
 			return Err(ContentError::IntegrityFailed)
 		}
+		response_bytes = response_bytes
+			.checked_add(record.response_bytes)
+			.ok_or(ContentError::IntegrityFailed)?;
 		let replay = state
 			.private_query_replay
 			.get(&replay_key(capability.grant_id, capability.nonce))
@@ -677,6 +766,11 @@ pub(super) fn validate_private_query_state(
 		{
 			return Err(ContentError::IntegrityFailed)
 		}
+	}
+	if response_bytes != state.private_query_response_bytes ||
+		response_bytes > MAX_PRIVATE_RESPONSE_BYTES
+	{
+		return Err(ContentError::IntegrityFailed)
 	}
 	for (key, replay) in &state.private_query_replay {
 		let roots = state.private_queries.values().filter(|record| {
@@ -706,9 +800,9 @@ fn prune_private_query_state(
 	state: &mut super::JournalState,
 	now: u64,
 	batch: usize,
-) -> Result<(), ContentError> {
+) -> Result<Vec<String>, ContentError> {
 	if batch == 0 {
-		return Ok(())
+		return Ok(Vec::new())
 	}
 	let mut keys = match &state.private_query_gc_cursor {
 		Some(cursor) => state
@@ -726,12 +820,13 @@ fn prune_private_query_state(
 	};
 	if keys.is_empty() {
 		state.private_query_gc_cursor = None;
-		return Ok(())
+		return Ok(Vec::new())
 	}
 	let has_more = keys.len() > batch;
 	keys.truncate(batch);
 	let last = keys.last().cloned();
 	let mut replay_candidates = Vec::new();
+	let mut removed_blobs = Vec::new();
 	for key in &keys {
 		let Some(record) = state.private_queries.get(key) else { continue };
 		if now <= record.retain_until {
@@ -742,6 +837,11 @@ fn prune_private_query_state(
 		let capability =
 			ProviderCapabilityV1::decode(&authority).map_err(|_| ContentError::IntegrityFailed)?;
 		replay_candidates.push(replay_key(capability.grant_id, capability.nonce));
+		state.private_query_response_bytes = state
+			.private_query_response_bytes
+			.checked_sub(record.response_bytes)
+			.ok_or(ContentError::IntegrityFailed)?;
+		removed_blobs.push(record.response_blob.clone());
 		state.private_queries.remove(key);
 	}
 	replay_candidates.sort();
@@ -759,7 +859,7 @@ fn prune_private_query_state(
 		}
 	}
 	state.private_query_gc_cursor = if has_more { last } else { None };
-	Ok(())
+	Ok(removed_blobs)
 }
 
 fn finalized_checkpoint(
@@ -825,7 +925,361 @@ fn finalized_checkpoint(
 	})
 }
 
+#[cfg(unix)]
+struct ResponseDirectory {
+	fd: OwnedFd,
+}
+
+#[cfg(unix)]
+fn acquire_response_directory(root: &Path) -> Result<ResponseDirectory, ContentError> {
+	let fd = unix_fs::open(
+		root.join(RESPONSE_DIR),
+		OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+		Mode::empty(),
+	)
+	.map_err(|_| ContentError::IntegrityFailed)?;
+	Ok(ResponseDirectory { fd })
+}
+
+#[cfg(unix)]
+pub(super) fn prepare_response_dir(root: &Path) -> Result<(), ContentError> {
+	match fs::create_dir(root.join(RESPONSE_DIR)) {
+		Ok(()) => {},
+		Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {},
+		Err(error) => return Err(blob_io(error)),
+	}
+	acquire_response_directory(root).map(|_| ())
+}
+
+#[cfg(not(unix))]
+pub(super) fn prepare_response_dir(_root: &Path) -> Result<(), ContentError> {
+	Err(ContentError::IntegrityFailed)
+}
+
+fn read_durable_journal(root: &Path) -> Result<super::JournalState, ContentError> {
+	let bytes = fs::read(root.join(super::JOURNAL)).map_err(blob_io)?;
+	let state: super::JournalState =
+		serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
+	if state.version != super::STREAM_VERSION {
+		return Err(ContentError::IntegrityFailed)
+	}
+	validate_private_query_state(&state)?;
+	Ok(state)
+}
+
+pub(super) fn validate_private_query_blobs(store: &StreamingStore) -> Result<(), ContentError> {
+	#[cfg(not(unix))]
+	return Err(ContentError::IntegrityFailed);
+	#[cfg(unix)]
+	{
+		let state = store.read_state()?;
+		let directory = acquire_response_directory(&store.root)?;
+		validate_private_query_blobs_in_directory(&state, &directory)
+	}
+}
+
+#[cfg(unix)]
+fn validate_private_query_blobs_in_directory(
+	state: &super::JournalState,
+	directory: &ResponseDirectory,
+) -> Result<(), ContentError> {
+	let mut artifacts = Vec::new();
+	for entry in Dir::read_from(&directory.fd).map_err(blob_io)? {
+		let entry = entry.map_err(blob_io)?;
+		let name = std::str::from_utf8(entry.file_name().to_bytes())
+			.map_err(|_| ContentError::IntegrityFailed)?;
+		if name == "." || name == ".." {
+			continue
+		}
+		artifacts.push(name.to_owned());
+		if artifacts.len() > MAX_RESPONSE_DIRECTORY_FILES {
+			break
+		}
+	}
+	validate_response_file_count(artifacts.len())?;
+	artifacts.sort();
+	let referenced = state
+		.private_queries
+		.values()
+		.map(|record| (format!("{}.bin", record.response_blob), record))
+		.collect::<std::collections::BTreeMap<_, _>>();
+	let mut seen = BTreeSet::new();
+	let mut scrubbed = false;
+	for name in artifacts {
+		if let Some(record) = referenced.get(&name) {
+			if !seen.insert(name) {
+				return Err(ContentError::IntegrityFailed)
+			}
+			read_response_blob_from_directory(directory, record)
+				.map_err(|_| ContentError::IntegrityFailed)?;
+		} else {
+			let metadata = unix_fs::statat(&directory.fd, name.as_str(), AtFlags::SYMLINK_NOFOLLOW)
+				.map_err(blob_io)?;
+			if FileType::from_raw_mode(metadata.st_mode) == FileType::Directory {
+				return Err(ContentError::IntegrityFailed)
+			}
+			unix_fs::unlinkat(&directory.fd, name.as_str(), AtFlags::empty()).map_err(blob_io)?;
+			scrubbed = true;
+		}
+	}
+	if seen.len() != referenced.len() {
+		return Err(ContentError::IntegrityFailed)
+	}
+	if scrubbed {
+		unix_fs::fsync(&directory.fd).map_err(blob_io)?;
+	}
+	Ok(())
+}
+
+fn validate_response_file_count(count: usize) -> Result<(), ContentError> {
+	if count > MAX_RESPONSE_DIRECTORY_FILES {
+		Err(ContentError::IntegrityFailed)
+	} else {
+		Ok(())
+	}
+}
+
+fn response_blob_id(query_key: &str, response_hash: [u8; 32]) -> String {
+	let mut hash = Sha256::new();
+	hash.update(b"cord/provider/private-object-response-blob/v1");
+	hash.update((query_key.len() as u64).to_be_bytes());
+	hash.update(query_key.as_bytes());
+	hash.update(response_hash);
+	hex::encode(<[u8; 32]>::from(hash.finalize()))
+}
+
+fn valid_blob_id(blob: &str) -> bool {
+	blob.len() == 64 &&
+		blob.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+#[cfg(test)]
+fn response_blob_path(root: &Path, blob: &str) -> Result<std::path::PathBuf, ContentError> {
+	Ok(root.join(RESPONSE_DIR).join(response_blob_name(blob)?))
+}
+
+fn response_blob_name(blob: &str) -> Result<String, ContentError> {
+	if !valid_blob_id(blob) {
+		return Err(ContentError::IntegrityFailed)
+	}
+	Ok(format!("{blob}.bin"))
+}
+
+fn encode_response_blob(frames: &[Vec<u8>]) -> Result<Vec<u8>, ContentError> {
+	if frames.is_empty() || frames.len() > 3 {
+		return Err(ContentError::IntegrityFailed)
+	}
+	let mut blob = Vec::with_capacity(10);
+	blob.extend_from_slice(RESPONSE_MAGIC);
+	blob.extend_from_slice(&(frames.len() as u16).to_be_bytes());
+	for frame in frames {
+		let length: u32 = frame.len().try_into().map_err(|_| ContentError::IntegrityFailed)?;
+		if length == 0 {
+			return Err(ContentError::IntegrityFailed)
+		}
+		blob.extend_from_slice(&length.to_be_bytes());
+		blob.extend_from_slice(frame);
+		if blob.len() as u64 > MAX_RESPONSE_BLOB_BYTES {
+			return Err(ContentError::ProviderRecoveryTableFull)
+		}
+	}
+	Ok(blob)
+}
+
+fn decode_response_blob(bytes: &[u8], frame_count: u16) -> Result<Vec<Vec<u8>>, ContentError> {
+	if bytes.len() as u64 > MAX_RESPONSE_BLOB_BYTES ||
+		bytes.len() < 10 ||
+		&bytes[..8] != RESPONSE_MAGIC
+	{
+		return Err(ContentError::IntegrityFailed)
+	}
+	let encoded_count = u16::from_be_bytes([bytes[8], bytes[9]]);
+	if encoded_count == 0 || encoded_count > 3 || encoded_count != frame_count {
+		return Err(ContentError::IntegrityFailed)
+	}
+	let mut cursor = 10usize;
+	let mut frames = Vec::with_capacity(encoded_count as usize);
+	for _ in 0..encoded_count {
+		let length_bytes = bytes.get(cursor..cursor + 4).ok_or(ContentError::IntegrityFailed)?;
+		let length =
+			u32::from_be_bytes(length_bytes.try_into().map_err(|_| ContentError::IntegrityFailed)?)
+				as usize;
+		cursor = cursor.checked_add(4).ok_or(ContentError::IntegrityFailed)?;
+		if length == 0 {
+			return Err(ContentError::IntegrityFailed)
+		}
+		let end = cursor.checked_add(length).ok_or(ContentError::IntegrityFailed)?;
+		frames.push(bytes.get(cursor..end).ok_or(ContentError::IntegrityFailed)?.to_vec());
+		cursor = end;
+	}
+	if cursor != bytes.len() {
+		return Err(ContentError::IntegrityFailed)
+	}
+	Ok(frames)
+}
+
+fn persist_response_blob(root: &Path, blob: &str, bytes: &[u8]) -> Result<(), ContentError> {
+	#[cfg(not(unix))]
+	return Err(ContentError::IntegrityFailed);
+	#[cfg(unix)]
+	{
+		if bytes.len() as u64 > MAX_RESPONSE_BLOB_BYTES {
+			return Err(ContentError::ProviderRecoveryTableFull)
+		}
+		let directory = acquire_response_directory(root)?;
+		persist_response_blob_in_directory(&directory, blob, bytes)
+	}
+}
+
+#[cfg(unix)]
+fn persist_response_blob_in_directory(
+	directory: &ResponseDirectory,
+	blob: &str,
+	bytes: &[u8],
+) -> Result<(), ContentError> {
+	if bytes.len() as u64 > MAX_RESPONSE_BLOB_BYTES {
+		return Err(ContentError::ProviderRecoveryTableFull)
+	}
+	let name = response_blob_name(blob)?;
+	match unix_fs::openat(
+		&directory.fd,
+		name.as_str(),
+		OFlags::RDONLY | OFlags::NONBLOCK | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+		Mode::empty(),
+	) {
+		Ok(fd) =>
+			return if read_bounded_regular_blob_handle(File::from(fd))? == bytes {
+				Ok(())
+			} else {
+				Err(ContentError::IntegrityFailed)
+			},
+		Err(UnixErrno::NOENT) => {},
+		Err(_) => return Err(ContentError::IntegrityFailed),
+	}
+	let sequence = NEXT_BLOB_TEMP.fetch_add(1, Ordering::Relaxed);
+	let temporary = format!(".{blob}.tmp-{}-{sequence}", std::process::id());
+	let result = (|| {
+		let fd = unix_fs::openat(
+			&directory.fd,
+			temporary.as_str(),
+			OFlags::WRONLY | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+			Mode::RUSR | Mode::WUSR,
+		)
+		.map_err(blob_io)?;
+		let mut file = File::from(fd);
+		file.write_all(bytes).map_err(blob_io)?;
+		file.sync_all().map_err(blob_io)?;
+		unix_fs::renameat(&directory.fd, temporary.as_str(), &directory.fd, name.as_str())
+			.map_err(blob_io)?;
+		unix_fs::fsync(&directory.fd).map_err(blob_io)
+	})();
+	if result.is_err() {
+		match unix_fs::unlinkat(&directory.fd, temporary.as_str(), AtFlags::empty()) {
+			Ok(()) => {
+				let _ = unix_fs::fsync(&directory.fd);
+			},
+			Err(UnixErrno::NOENT) => {},
+			Err(_) => {},
+		}
+	}
+	result
+}
+
+fn read_response_blob(
+	root: &Path,
+	record: &PrivateQueryRecord,
+) -> Result<Vec<Vec<u8>>, PrivateQueryError> {
+	#[cfg(not(unix))]
+	return Err(ContentError::IntegrityFailed.into());
+	#[cfg(unix)]
+	{
+		let directory = acquire_response_directory(root)?;
+		read_response_blob_from_directory(&directory, record)
+	}
+}
+
+#[cfg(unix)]
+fn read_response_blob_from_directory(
+	directory: &ResponseDirectory,
+	record: &PrivateQueryRecord,
+) -> Result<Vec<Vec<u8>>, PrivateQueryError> {
+	let name = response_blob_name(&record.response_blob)?;
+	let fd = unix_fs::openat(
+		&directory.fd,
+		name.as_str(),
+		OFlags::RDONLY | OFlags::NONBLOCK | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+		Mode::empty(),
+	)
+	.map_err(|_| ContentError::IntegrityFailed)?;
+	let bytes = read_bounded_regular_blob_handle(File::from(fd))
+		.map_err(|_| ContentError::IntegrityFailed)?;
+	if bytes.len() as u64 != record.response_bytes {
+		return Err(ContentError::IntegrityFailed.into())
+	}
+	let blob_hash: [u8; 32] = Sha256::digest(&bytes).into();
+	if record.response_blob_hash != hex::encode(blob_hash) {
+		return Err(ContentError::IntegrityFailed.into())
+	}
+	let frames = decode_response_blob(&bytes, record.frame_count)?;
+	let expected: [u8; 32] = decode_hex(&record.response_hash)?;
+	if response_hash_fn(&frames, record.next_verified_offset) != expected {
+		return Err(ContentError::IntegrityFailed.into())
+	}
+	Ok(frames)
+}
+
+fn read_bounded_regular_blob_handle(file: File) -> Result<Vec<u8>, ContentError> {
+	let handle_metadata = file.metadata().map_err(|_| ContentError::IntegrityFailed)?;
+	read_bounded_regular_blob_after_metadata(file, &handle_metadata)
+}
+
+fn read_bounded_regular_blob_after_metadata(
+	file: File,
+	handle_metadata: &fs::Metadata,
+) -> Result<Vec<u8>, ContentError> {
+	if !handle_metadata.file_type().is_file() || handle_metadata.len() > MAX_RESPONSE_BLOB_BYTES {
+		return Err(ContentError::IntegrityFailed)
+	}
+	let capacity: usize =
+		handle_metadata.len().try_into().map_err(|_| ContentError::IntegrityFailed)?;
+	let mut bytes = Vec::with_capacity(capacity);
+	let mut bounded = file.take(MAX_RESPONSE_BLOB_BYTES.saturating_add(1));
+	bounded.read_to_end(&mut bytes).map_err(|_| ContentError::IntegrityFailed)?;
+	if bytes.len() as u64 != handle_metadata.len() || bytes.len() as u64 > MAX_RESPONSE_BLOB_BYTES {
+		return Err(ContentError::IntegrityFailed)
+	}
+	Ok(bytes)
+}
+
+fn delete_response_blob(root: &Path, blob: &str) -> Result<(), ContentError> {
+	#[cfg(not(unix))]
+	return Err(ContentError::IntegrityFailed);
+	#[cfg(unix)]
+	{
+		let directory = acquire_response_directory(root)?;
+		delete_response_blob_in_directory(&directory, blob)
+	}
+}
+
+#[cfg(unix)]
+fn delete_response_blob_in_directory(
+	directory: &ResponseDirectory,
+	blob: &str,
+) -> Result<(), ContentError> {
+	let name = response_blob_name(blob)?;
+	match unix_fs::unlinkat(&directory.fd, name.as_str(), AtFlags::empty()) {
+		Ok(()) => unix_fs::fsync(&directory.fd).map_err(blob_io),
+		Err(UnixErrno::NOENT) => Ok(()),
+		Err(error) => Err(blob_io(error)),
+	}
+}
+
+fn blob_io(error: impl std::fmt::Display) -> ContentError {
+	ContentError::Io(error.to_string())
+}
+
 fn recover(
+	root: &Path,
 	record: &PrivateQueryRecord,
 	request: &[u8],
 	authority: &[u8],
@@ -843,11 +1297,7 @@ fn recover(
 	if now > record.retain_until {
 		return Err(CapabilityError::CapabilityExpired.into())
 	}
-	let frames = record
-		.frames
-		.iter()
-		.map(|frame| hex::decode(frame).map_err(|_| ContentError::IntegrityFailed.into()))
-		.collect::<Result<Vec<_>, PrivateQueryError>>()?;
+	let frames = read_response_blob(root, record)?;
 	let operation_id = decode_hex(&record.operation_id)?;
 	let response_hash = decode_hex(&record.response_hash)?;
 	if response_hash != response_hash_fn(&frames, record.next_verified_offset) {
@@ -925,10 +1375,16 @@ fn continuation_authorized(
 fn ensure_private_query_capacity(
 	state: &super::JournalState,
 	replay_key: &str,
+	additional_bytes: u64,
 ) -> Result<(), PrivateQueryError> {
+	let total = state
+		.private_query_response_bytes
+		.checked_add(additional_bytes)
+		.ok_or(ContentError::ProviderRecoveryTableFull)?;
 	if state.private_queries.len() >= MAX_STREAMING_OPERATIONS ||
 		(!state.private_query_replay.contains_key(replay_key) &&
-			state.private_query_replay.len() >= MAX_STREAMING_OPERATIONS)
+			state.private_query_replay.len() >= MAX_STREAMING_OPERATIONS) ||
+		total > MAX_PRIVATE_RESPONSE_BYTES
 	{
 		Err(ContentError::ProviderRecoveryTableFull.into())
 	} else {
@@ -1053,6 +1509,13 @@ fn decode_hex<const N: usize>(value: &str) -> Result<[u8; N], PrivateQueryError>
 		.map_err(|_| ContentError::IntegrityFailed)?
 		.try_into()
 		.map_err(|_| ContentError::IntegrityFailed.into())
+}
+
+fn decode_hex_content<const N: usize>(value: &str) -> Result<[u8; N], ContentError> {
+	hex::decode(value)
+		.map_err(|_| ContentError::IntegrityFailed)?
+		.try_into()
+		.map_err(|_| ContentError::IntegrityFailed)
 }
 
 #[cfg(test)]
@@ -1550,6 +2013,18 @@ mod tests {
 			)
 			.unwrap();
 		assert_eq!(first.next_verified_offset, Some(MAX_RANGE_BYTES));
+		assert!(
+			std::fs::metadata(fixture.temp.path().join("streaming-v1/journal.json"))
+				.unwrap()
+				.len() < 65_536
+		);
+		let response_files =
+			std::fs::read_dir(fixture.temp.path().join("streaming-v1").join(RESPONSE_DIR))
+				.unwrap()
+				.collect::<Result<Vec<_>, _>>()
+				.unwrap();
+		assert_eq!(response_files.len(), 1);
+		assert!(response_files[0].metadata().unwrap().len() > MAX_RANGE_BYTES);
 		assert_eq!(
 			fixture
 				.streaming
@@ -1793,9 +2268,20 @@ mod tests {
 			assert!(state.private_queries.is_empty());
 			assert!(state.private_query_replay.is_empty());
 		}
+		let response_directory = fixture.temp.path().join("streaming-v1").join(RESPONSE_DIR);
+		assert_eq!(std::fs::read_dir(&response_directory).unwrap().count(), 0);
+		let orphan = hex::encode([88; 32]);
+		persist_response_blob(
+			&fixture.streaming.root,
+			&orphan,
+			&encode_response_blob(&[vec![1]]).unwrap(),
+		)
+		.unwrap();
+		assert_eq!(std::fs::read_dir(&response_directory).unwrap().count(), 1);
 		let reopened = StreamingStore::open(fixture.temp.path()).unwrap();
 		let reopened_mmr = BucketMmrStore::open(fixture.temp.path(), &reopened).unwrap();
 		assert!(reopened.read_state().unwrap().private_queries.is_empty());
+		assert_eq!(std::fs::read_dir(&response_directory).unwrap().count(), 0);
 		assert!(reopened
 			.private_object_query(
 				&get,
@@ -1835,6 +2321,17 @@ mod tests {
 			.next()
 			.unwrap()
 			.retain_until;
+		let blob = fixture
+			.streaming
+			.read_state()
+			.unwrap()
+			.private_queries
+			.values()
+			.next()
+			.unwrap()
+			.response_blob
+			.clone();
+		assert!(response_blob_path(&fixture.streaming.root, &blob).unwrap().exists());
 		fixture.streaming.prune_private_queries(retain_until).unwrap();
 		assert_eq!(fixture.streaming.read_state().unwrap().private_queries.len(), 1);
 		fixture.streaming.prune_private_queries(retain_until + 1).unwrap();
@@ -1842,8 +2339,10 @@ mod tests {
 			let state = fixture.streaming.read_state().unwrap();
 			assert!(state.private_queries.is_empty());
 			assert!(state.private_query_replay.is_empty());
+			assert_eq!(state.private_query_response_bytes, 0);
 			validate_private_query_state(&state).unwrap();
 		}
+		assert!(!response_blob_path(&fixture.streaming.root, &blob).unwrap().exists());
 		let reopened = StreamingStore::open(fixture.temp.path()).unwrap();
 		let state = reopened.read_state().unwrap();
 		assert!(state.private_queries.is_empty());
@@ -1877,11 +2376,220 @@ mod tests {
 		}
 		let replay_key = state.private_query_replay.keys().next().unwrap().clone();
 		assert_eq!(
-			ensure_private_query_capacity(&state, &replay_key).unwrap_err(),
+			ensure_private_query_capacity(&state, &replay_key, 1).unwrap_err(),
 			PrivateQueryError::Content(ContentError::ProviderRecoveryTableFull)
 		);
-		prune_private_query_state(&mut state, 2, PRIVATE_QUERY_GC_BATCH).unwrap();
+		state.private_query_response_bytes =
+			template.response_bytes * MAX_STREAMING_OPERATIONS as u64;
+		let _ = prune_private_query_state(&mut state, 2, PRIVATE_QUERY_GC_BATCH).unwrap();
 		assert_eq!(state.private_queries.len(), MAX_STREAMING_OPERATIONS - PRIVATE_QUERY_GC_BATCH);
-		ensure_private_query_capacity(&state, &replay_key).unwrap();
+		ensure_private_query_capacity(&state, &replay_key, 1).unwrap();
+	}
+
+	#[test]
+	fn response_blob_corruption_fails_closed_in_process_and_on_restart() {
+		let fixture = query_fixture(b"blob-integrity".to_vec());
+		let get = request(&fixture, GET, None);
+		let authority = capability(&fixture, GET, fixture.bytes.len() as u64, 20);
+		fixture
+			.streaming
+			.private_object_query(
+				&get,
+				&authority,
+				&fixture.authority,
+				&fixture.topology,
+				&fixture.mmr,
+				fixture.service.public().0,
+				0,
+			)
+			.unwrap();
+		let record = fixture
+			.streaming
+			.read_state()
+			.unwrap()
+			.private_queries
+			.values()
+			.next()
+			.unwrap()
+			.clone();
+		let path = response_blob_path(&fixture.streaming.root, &record.response_blob).unwrap();
+		let mut bytes = std::fs::read(&path).unwrap();
+		*bytes.last_mut().unwrap() ^= 0x01;
+		std::fs::write(path, bytes).unwrap();
+		assert_eq!(
+			fixture
+				.streaming
+				.private_object_query(
+					&get,
+					&authority,
+					&fixture.authority,
+					&fixture.topology,
+					&fixture.mmr,
+					fixture.service.public().0,
+					0,
+				)
+				.unwrap_err(),
+			PrivateQueryError::Content(ContentError::IntegrityFailed)
+		);
+		assert!(matches!(
+			StreamingStore::open(fixture.temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn response_directory_symlink_is_rejected_without_following_it() {
+		use std::os::unix::fs::symlink;
+
+		let temp = TempDir::new().unwrap();
+		let stream_root = temp.path().join("streaming-v1");
+		std::fs::create_dir_all(&stream_root).unwrap();
+		let target = temp.path().join("outside-response-directory");
+		std::fs::create_dir(&target).unwrap();
+		symlink(&target, stream_root.join(RESPONSE_DIR)).unwrap();
+		assert!(matches!(StreamingStore::open(temp.path()), Err(ContentError::IntegrityFailed)));
+		assert_eq!(std::fs::read_dir(target).unwrap().count(), 0);
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn response_blob_symlink_is_rejected_in_process_and_on_restart() {
+		use std::os::unix::fs::symlink;
+
+		let fixture = query_fixture(b"blob-symlink".to_vec());
+		let get = request(&fixture, GET, None);
+		let authority = capability(&fixture, GET, fixture.bytes.len() as u64, 21);
+		fixture
+			.streaming
+			.private_object_query(
+				&get,
+				&authority,
+				&fixture.authority,
+				&fixture.topology,
+				&fixture.mmr,
+				fixture.service.public().0,
+				0,
+			)
+			.unwrap();
+		let blob = fixture
+			.streaming
+			.read_state()
+			.unwrap()
+			.private_queries
+			.values()
+			.next()
+			.unwrap()
+			.response_blob
+			.clone();
+		let path = response_blob_path(&fixture.streaming.root, &blob).unwrap();
+		let target = fixture.temp.path().join("outside-blob.bin");
+		std::fs::copy(&path, &target).unwrap();
+		std::fs::remove_file(&path).unwrap();
+		symlink(&target, &path).unwrap();
+		assert!(matches!(
+			fixture.streaming.private_object_query(
+				&get,
+				&authority,
+				&fixture.authority,
+				&fixture.topology,
+				&fixture.mmr,
+				fixture.service.public().0,
+				0,
+			),
+			Err(PrivateQueryError::Content(ContentError::IntegrityFailed))
+		));
+		assert!(matches!(
+			StreamingStore::open(fixture.temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn held_response_directory_cannot_be_redirected_by_path_swap() {
+		use std::os::unix::fs::symlink;
+
+		let fixture = query_fixture(b"held-directory".to_vec());
+		let state = fixture.streaming.read_state().unwrap().clone();
+		let directory = acquire_response_directory(&fixture.streaming.root).unwrap();
+		let response_path = fixture.streaming.root.join(RESPONSE_DIR);
+		std::fs::write(response_path.join("orphan.bin"), b"orphan").unwrap();
+		let held_path = fixture.streaming.root.join("held-response-directory");
+		std::fs::rename(&response_path, &held_path).unwrap();
+		let outside = fixture.temp.path().join("outside-response-directory");
+		std::fs::create_dir(&outside).unwrap();
+		std::fs::write(outside.join("sentinel"), b"untouched").unwrap();
+		symlink(&outside, &response_path).unwrap();
+
+		validate_private_query_blobs_in_directory(&state, &directory).unwrap();
+		assert!(!held_path.join("orphan.bin").exists());
+		let blob = "a".repeat(64);
+		let bytes = encode_response_blob(&[b"held-write".to_vec()]).unwrap();
+		persist_response_blob_in_directory(&directory, &blob, &bytes).unwrap();
+		let blob_name = response_blob_name(&blob).unwrap();
+		assert_eq!(std::fs::read(held_path.join(&blob_name)).unwrap(), bytes);
+		assert!(!outside.join(&blob_name).exists());
+		delete_response_blob_in_directory(&directory, &blob).unwrap();
+		assert!(!held_path.join(&blob_name).exists());
+		assert_eq!(std::fs::read(outside.join("sentinel")).unwrap(), b"untouched");
+		assert_eq!(
+			std::fs::read_dir(outside)
+				.unwrap()
+				.map(|entry| entry.unwrap().file_name())
+				.collect::<Vec<_>>(),
+			vec![std::ffi::OsString::from("sentinel")]
+		);
+	}
+
+	#[test]
+	fn response_blob_handle_read_rejects_oversized_growth_bound() {
+		let temp = TempDir::new().unwrap();
+		let path = temp.path().join("oversized.bin");
+		let file = File::create(&path).unwrap();
+		file.set_len(MAX_RESPONSE_BLOB_BYTES + 1).unwrap();
+		assert_eq!(
+			read_bounded_regular_blob_handle(File::open(path).unwrap()).unwrap_err(),
+			ContentError::IntegrityFailed
+		);
+	}
+
+	#[test]
+	fn response_blob_handle_read_rejects_growth_after_metadata_inspection() {
+		let temp = TempDir::new().unwrap();
+		let path = temp.path().join("growing.bin");
+		std::fs::write(&path, [0_u8]).unwrap();
+		let reader = File::open(&path).unwrap();
+		let inspected_metadata = reader.metadata().unwrap();
+		File::options()
+			.write(true)
+			.open(&path)
+			.unwrap()
+			.set_len(MAX_RESPONSE_BLOB_BYTES + 1)
+			.unwrap();
+		assert_eq!(
+			read_bounded_regular_blob_after_metadata(reader, &inspected_metadata).unwrap_err(),
+			ContentError::IntegrityFailed
+		);
+	}
+
+	#[test]
+	fn response_blob_file_count_size_and_total_accounting_are_bounded() {
+		assert!(validate_response_file_count(MAX_RESPONSE_DIRECTORY_FILES).is_ok());
+		assert_eq!(
+			validate_response_file_count(MAX_RESPONSE_DIRECTORY_FILES + 1).unwrap_err(),
+			ContentError::IntegrityFailed
+		);
+		assert_eq!(
+			encode_response_blob(&[vec![0; MAX_RESPONSE_BLOB_BYTES as usize]]).unwrap_err(),
+			ContentError::ProviderRecoveryTableFull
+		);
+		let fixture = query_fixture(b"accounting".to_vec());
+		let mut state = fixture.streaming.read_state().unwrap().clone();
+		state.private_query_response_bytes = MAX_PRIVATE_RESPONSE_BYTES;
+		assert_eq!(
+			ensure_private_query_capacity(&state, "new-replay", 1).unwrap_err(),
+			PrivateQueryError::Content(ContentError::ProviderRecoveryTableFull)
+		);
 	}
 }

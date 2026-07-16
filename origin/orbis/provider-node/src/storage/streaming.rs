@@ -44,7 +44,7 @@ pub(crate) mod recovery;
 use private_query::{PrivateQueryRecord, PrivateQueryReplayRecord};
 use recovery::{CapabilityReplayRecord, RecoveryRecord};
 
-const STREAM_VERSION: u16 = 12;
+const STREAM_VERSION: u16 = 13;
 const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
@@ -221,6 +221,7 @@ struct JournalState {
 	private_queries: BTreeMap<String, PrivateQueryRecord>,
 	private_query_replay: BTreeMap<String, PrivateQueryReplayRecord>,
 	private_query_gc_cursor: Option<String>,
+	private_query_response_bytes: u64,
 }
 
 /// One immutable, fully reverified installed operation used by the private commitment store.
@@ -372,6 +373,7 @@ impl StreamingStore {
 		let root = root.as_ref().join(STREAM_ROOT);
 		fs::create_dir_all(root.join(STAGING)).map_err(io_error)?;
 		fs::create_dir_all(root.join(OBJECTS)).map_err(io_error)?;
+		private_query::prepare_response_dir(&root)?;
 		let journal = root.join(JOURNAL);
 		let state = if journal.exists() {
 			let bytes = fs::read(&journal).map_err(io_error)?;
@@ -401,6 +403,7 @@ impl StreamingStore {
 				private_queries: BTreeMap::new(),
 				private_query_replay: BTreeMap::new(),
 				private_query_gc_cursor: None,
+				private_query_response_bytes: 0,
 			}
 		};
 		let store = Self {
@@ -414,6 +417,7 @@ impl StreamingStore {
 			#[cfg(test)]
 			exact_quarantine_probes: AtomicUsize::new(0),
 		};
+		private_query::validate_private_query_blobs(&store)?;
 		store.recover()?;
 		if !journal.exists() {
 			store.persist()?;

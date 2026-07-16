@@ -10089,6 +10089,7 @@ dependencies = [
  "origin-rs",
  "pallet-orbis-storage-provider",
  "parity-scale-codec",
+ "rustix 1.1.4",
  "scale-decode",
  "scale-info",
  "scale-value",

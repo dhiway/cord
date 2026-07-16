@@ -66,6 +66,9 @@ subxt = { workspace = true, features = ["native"], optional = true }
 tokio = { workspace = true, features = ["fs", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 unicode-normalization = "0.1.24"
 
+[target.'cfg(unix)'.dependencies]
+rustix = { workspace = true, features = ["fs", "std"] }
+
 [dev-dependencies]
 chacha20poly1305 = "0.10.1"
 frame-metadata = { version = "23.0.1", features = ["current"] }
