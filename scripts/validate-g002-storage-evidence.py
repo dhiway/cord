@@ -143,7 +143,47 @@ def main() -> int:
     assert export_receipt["complete"] is True
     assert export_receipt["metadata_sha256"] == metadata_receipt["scale_metadata_sha256"]
     assert export_receipt["portable_registry_sha256"] == metadata_receipt["portable_registry_sha256"]
-    assert export_gate["promotion_export_test"]
+    assert export_receipt["logical_types_spec_sha256"] == export_gate["logical_types_spec_sha256"]
+    assert {row["logical_name"] for row in export_receipt["logical_types"]} == {
+        "cord.storage.ChunkLocation.v1",
+        "cord.storage.Commitment.v1",
+        "cord.storage.CommitmentPayload.v2",
+        "cord.storage.MmrLeaf.v1",
+        "cord.storage.MmrProof.v1",
+    }
+
+    registry_declaration = metadata_receipt["portable_registry"]
+    registry_path = root / str(registry_declaration["path"])
+    assert sha256(registry_path) == registry_declaration["sha256"]
+    assert registry_declaration["sha256"] == metadata_receipt["portable_registry_sha256"]
+    registry = read_json(registry_path)
+    assert registry["metadata_sha256"] == metadata_receipt["scale_metadata_sha256"]
+    types = registry["types"]
+    promotion_contract = export_gate["promotion"]
+    promotion_rows = [
+        row for row in types if row.get("path") == promotion_contract["type_path"]
+    ]
+    assert len(promotion_rows) == 1
+    promotion = promotion_rows[0]
+    assert promotion["id"] == promotion_contract["portable_id"]
+    assert promotion["shape"] == {"composite": promotion_contract["fields"]}
+    assert [field["name"] for field in promotion["definition"]["fields"]] == [
+        "version", "bucket_id", "snapshot_nonce", "duty_id"
+    ]
+
+    call_rows = [
+        row for row in types if row.get("path") == promotion_contract["call_type_path"]
+    ]
+    assert len(call_rows) == 1
+    variants = call_rows[0]["definition"]["variants"]
+    call = next(
+        row for row in variants if row.get("name") == promotion_contract["call_name"]
+    )
+    assert call["index"] == promotion_contract["call_index"] == 26
+    assert call["fields"][0] == {
+        "name": "payload", "type_id": promotion_contract["payload_type_id"]
+    }
+    assert promotion_contract["payload_type_id"] == promotion["id"]
     if args.compact_wasm is not None:
         assert sha256(args.compact_wasm) == metadata["compact_wasm_sha256"]
 

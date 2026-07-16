@@ -63,13 +63,39 @@
     "manifest_sha256": "623e7f21f640c65e9f21f4571f3b1b12d6c2e7de2e8691612ee317bfbe70fe05",
     "metadata_export_gate": {
       "binding_path": "target/evidence/p1-scale-metadata-binding.json",
-      "binding_sha256": "88c91a4825c0d0258ea45d349fb32cf5f66162021ec54b801562e16f8a59d22c",
+      "binding_sha256": "f960e23b8026b4c3c90872dba172545c6ef53f9a13594de8acb80e6f3a634956",
       "complete": true,
-      "promotion_export_test": "tests::checkpoint_context_duty_and_promotion_exact_golden_vector_is_stable"
+      "logical_types_spec_sha256": "e0d6172450765a9951ee13bd7e8d25ff64b9e7d3065d417a345ff17ca7821af3",
+      "promotion": {
+        "call_index": 26,
+        "call_name": "promote_checkpoint_fallback",
+        "call_type_path": "pallet_orbis_storage_provider::pallet::Call",
+        "fields": [
+          [
+            "version",
+            "u8"
+          ],
+          [
+            "bucket_id",
+            "BucketId"
+          ],
+          [
+            "snapshot_nonce",
+            "u32"
+          ],
+          [
+            "duty_id",
+            "H256"
+          ]
+        ],
+        "payload_type_id": 649,
+        "portable_id": 649,
+        "type_path": "cord::storage::CheckpointFallbackPromotionV1"
+      }
     },
     "metadata_hash": "0x89670a50e0aac1cda62f5692625cfd09323505f7efc175aed6d4c30eeb5e36b0",
     "receipt_path": "docs/evidence/p1/g002-control-plane-v1/commons-metadata-evidence-v1.json",
-    "receipt_sha256": "01145481ea030238c8c4989a6008fa129a8a98702241263103fd20835d22177e",
+    "receipt_sha256": "c8ea2c94e5bc7413f56cdb8c94030096372e10d74cdb0ecebebaa1b98e6dd136",
     "record_path": "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json",
     "record_sha256": "1536d928d57f99cc8d72be5d14e4f0f2a7e74c1e4e8d614f2258a9ab67d45f20",
     "source": {

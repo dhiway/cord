@@ -387,8 +387,8 @@ def main() -> int:
     metadata_evidence = load_json(args.metadata_evidence)
     binding = load_json(args.scale_binding)
     metadata_valid = (
-        metadata_scale_sha == "26838fa05181fd90a18e46d167c454fd27d92478717c4c1d833bf3758764d76e"
-        and registry_sha == "2d29d0d62a1cff26de0111d27e52a07790dd7728e887de934810d4bb392c6fbe"
+        metadata_scale_sha == "5c10778acb64de5799e3933e774d0c646e5fbefd5bfeb7ef28b3fde2ac8f43a3"
+        and registry_sha == "534a55cd5e3311d044522334af217319c529bdc9a91bea8f5bec076abbae0619"
         and binding.get("complete") is True
         and binding.get("metadata_sha256") == metadata_scale_sha
         and binding.get("portable_registry_sha256") == registry_sha

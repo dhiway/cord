@@ -10,16 +10,46 @@
   "compressed_wasm_sha256": "f64774de792d410654390d71f7f7d1d1bebd7baa100f36579fcd52b542abe0e2",
   "metadata_export_gate": {
     "binding_path": "target/evidence/p1-scale-metadata-binding.json",
-    "binding_sha256": "88c91a4825c0d0258ea45d349fb32cf5f66162021ec54b801562e16f8a59d22c",
+    "binding_sha256": "f960e23b8026b4c3c90872dba172545c6ef53f9a13594de8acb80e6f3a634956",
     "complete": true,
-    "promotion_export_test": "tests::checkpoint_context_duty_and_promotion_exact_golden_vector_is_stable"
+    "logical_types_spec_sha256": "e0d6172450765a9951ee13bd7e8d25ff64b9e7d3065d417a345ff17ca7821af3",
+    "promotion": {
+      "call_index": 26,
+      "call_name": "promote_checkpoint_fallback",
+      "call_type_path": "pallet_orbis_storage_provider::pallet::Call",
+      "fields": [
+        [
+          "version",
+          "u8"
+        ],
+        [
+          "bucket_id",
+          "BucketId"
+        ],
+        [
+          "snapshot_nonce",
+          "u32"
+        ],
+        [
+          "duty_id",
+          "H256"
+        ]
+      ],
+      "payload_type_id": 649,
+      "portable_id": 649,
+      "type_path": "cord::storage::CheckpointFallbackPromotionV1"
+    }
   },
   "metadata_hash": "0x89670a50e0aac1cda62f5692625cfd09323505f7efc175aed6d4c30eeb5e36b0",
   "metadata_record": {
     "path": "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json",
     "sha256": "1536d928d57f99cc8d72be5d14e4f0f2a7e74c1e4e8d614f2258a9ab67d45f20"
   },
-  "portable_registry_sha256": "2d29d0d62a1cff26de0111d27e52a07790dd7728e887de934810d4bb392c6fbe",
+  "portable_registry": {
+    "path": "target/evidence/origin-commons-runtime.portable-registry.json",
+    "sha256": "534a55cd5e3311d044522334af217319c529bdc9a91bea8f5bec076abbae0619"
+  },
+  "portable_registry_sha256": "534a55cd5e3311d044522334af217319c529bdc9a91bea8f5bec076abbae0619",
   "reproduce": "CARGO_TARGET_DIR=target/orbis-metadata origin/orbis/runtime/tools/reproduce-metadata-hash.sh",
   "reproduction": {
     "deterministic": true,
@@ -48,7 +78,11 @@
       "deterministic run hashes"
     ]
   },
-  "scale_metadata_sha256": "26838fa05181fd90a18e46d167c454fd27d92478717c4c1d833bf3758764d76e",
+  "scale_metadata": {
+    "path": "target/evidence/origin-commons-runtime.metadata.scale",
+    "sha256": "5c10778acb64de5799e3933e774d0c646e5fbefd5bfeb7ef28b3fde2ac8f43a3"
+  },
+  "scale_metadata_sha256": "5c10778acb64de5799e3933e774d0c646e5fbefd5bfeb7ef28b3fde2ac8f43a3",
   "schema_version": 1,
   "scope": "G002 Commons production metadata and runtime Wasm binding after final storage weights",
   "source": {
