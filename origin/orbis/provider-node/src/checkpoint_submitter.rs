@@ -24,6 +24,10 @@ use scale_decode::{DecodeAsFields, Field};
 use scale_value::Composite;
 use subxt::{tx::Payload as _, Metadata};
 
+#[cfg(test)]
+use super::checkpoint_outbox::{
+	finality_attestation_digest, FINALITY_ATTESTATION_VERSION, FINALIZED_STATE,
+};
 use super::checkpoint_outbox::{
 	validate_submission, CheckpointFinalizedReceiptV2, CheckpointOutboxV2, CheckpointSubmissionV2,
 };
@@ -47,6 +51,8 @@ pub(crate) struct FinalizedEvidence {
 	pub block_hash: [u8; 32],
 	pub block_number: u32,
 	pub extrinsic_hash: [u8; 32],
+	pub finality_attestation_version: u8,
+	pub finality_signature: [u8; 64],
 }
 
 #[async_trait]
@@ -90,6 +96,8 @@ pub(crate) async fn consume_one_with_lane(
 			evidence.block_hash,
 			evidence.block_number,
 			evidence.extrinsic_hash,
+			evidence.finality_attestation_version,
+			evidence.finality_signature,
 		)?;
 		return Ok(Some(receipt))
 	}
@@ -383,6 +391,7 @@ mod tests {
 		metadata: Metadata,
 		signer: [u8; 32],
 		result: Mutex<Result<FinalizedEvidence, ContentError>>,
+		attestation_seed: u8,
 		reject_intents: Vec<String>,
 		calls: AtomicUsize,
 		intents: Mutex<Vec<String>>,
@@ -397,7 +406,10 @@ mod tests {
 					block_hash: [8; 32],
 					block_number: 44,
 					extrinsic_hash: [9; 32],
+					finality_attestation_version: FINALITY_ATTESTATION_VERSION,
+					finality_signature: [0; 64],
 				})),
+				attestation_seed: 1,
 				reject_intents: Vec::new(),
 				calls: AtomicUsize::new(0),
 				intents: Mutex::new(Vec::new()),
@@ -425,7 +437,20 @@ mod tests {
 			if self.reject_intents.iter().any(|rejected| rejected == intent_id) {
 				return Err(ContentError::Io(format!("checkpoint rejected: {intent_id}")))
 			}
-			self.result.lock().unwrap().clone()
+			let mut evidence = self.result.lock().unwrap().clone()?;
+			let submission_id = intent_id
+				.strip_prefix("orbis-checkpoint-v2-")
+				.ok_or(ContentError::IntegrityFailed)?;
+			let digest = finality_attestation_digest(
+				evidence.finality_attestation_version,
+				submission_id,
+				evidence.block_hash,
+				evidence.block_number,
+				evidence.extrinsic_hash,
+				FINALIZED_STATE,
+			)?;
+			evidence.finality_signature = pair(self.attestation_seed).sign(&digest).0;
+			Ok(evidence)
 		}
 	}
 
@@ -495,6 +520,14 @@ mod tests {
 			failed.intents.lock().unwrap().as_slice(),
 			[format!("orbis-checkpoint-v2-{}", submission.submission_id)]
 		);
+		assert_eq!(outbox.finalized_receipt(&submission.submission_id).unwrap(), None);
+
+		let forged = MockLane { attestation_seed: 99, ..MockLane::successful([1; 32]) };
+		assert!(matches!(
+			consume_one_with_lane(&outbox, &forged).await,
+			Err(ContentError::IntegrityFailed)
+		));
+		assert_eq!(forged.calls.load(Ordering::SeqCst), 1);
 		assert_eq!(outbox.finalized_receipt(&submission.submission_id).unwrap(), None);
 	}
 

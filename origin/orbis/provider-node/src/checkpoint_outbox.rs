@@ -43,6 +43,9 @@ const ID_DOMAIN: &[u8] = b"cord/provider/checkpoint-submission-v2";
 const RECORD_DOMAIN: &[u8] = b"cord/provider/checkpoint-submission-record/v2";
 const RECEIPT_DOMAIN: &[u8] = b"cord/provider/checkpoint-receipt-record/v2";
 const FINALIZED_RECEIPT_DOMAIN: &[u8] = b"cord/provider/checkpoint-finalized-receipt-record/v2";
+const FINALITY_ATTESTATION_DOMAIN: &[u8] = b"cord/provider/checkpoint-finality-attestation/v1";
+pub(super) const FINALITY_ATTESTATION_VERSION: u8 = 1;
+pub(super) const FINALIZED_STATE: &str = "finalized";
 const CHECKPOINT_DOMAIN: &[u8] = b"cord/storage/checkpoint/v2";
 const MAX_RECORD_BYTES: usize = 128 * 1024;
 const MAX_RECORDS: usize = 8_192;
@@ -130,6 +133,8 @@ pub(crate) struct CheckpointFinalizedReceiptV2 {
 	pub finalized_number: u32,
 	pub extrinsic_hash: String,
 	pub state: String,
+	pub finality_attestation_version: u8,
+	pub finality_signature: String,
 	pub receipt_hash: String,
 }
 
@@ -287,6 +292,8 @@ impl CheckpointOutboxV2 {
 		finalized_hash: [u8; 32],
 		finalized_number: u32,
 		extrinsic_hash: [u8; 32],
+		finality_attestation_version: u8,
+		finality_signature: [u8; 64],
 	) -> Result<CheckpointFinalizedReceiptV2, ContentError> {
 		if *self.poisoned.read().map_err(|_| lock_error())? {
 			return Err(ContentError::IntegrityFailed)
@@ -307,7 +314,9 @@ impl CheckpointOutboxV2 {
 			finalized_hash: hex::encode(finalized_hash),
 			finalized_number,
 			extrinsic_hash: hex::encode(extrinsic_hash),
-			state: "finalized".into(),
+			state: FINALIZED_STATE.into(),
+			finality_attestation_version,
+			finality_signature: hex::encode(finality_signature),
 			receipt_hash: String::new(),
 		};
 		receipt.receipt_hash = finalized_receipt_hash(&receipt)?;
@@ -712,20 +721,57 @@ fn validate_finalized_receipt(
 	submission: &CheckpointSubmissionV2,
 ) -> Result<(), ContentError> {
 	if receipt.version != VERSION ||
-		receipt.state != "finalized" ||
+		receipt.state != FINALIZED_STATE ||
 		receipt.submission_id != submission.submission_id ||
 		receipt.tuple_key != submission.tuple_key ||
 		receipt.submission_record_hash != submission.record_hash ||
 		receipt.primary != submission.primary ||
 		receipt.finalized_hash.len() != 64 ||
 		receipt.extrinsic_hash.len() != 64 ||
+		receipt.finality_attestation_version != FINALITY_ATTESTATION_VERSION ||
+		receipt.finality_signature.len() != 128 ||
 		receipt.receipt_hash != finalized_receipt_hash(receipt)?
 	{
 		return Err(ContentError::IntegrityFailed)
 	}
-	decode_fixed::<32>(&receipt.finalized_hash)?;
-	decode_fixed::<32>(&receipt.extrinsic_hash)?;
+	let finalized_hash = decode_fixed::<32>(&receipt.finalized_hash)?;
+	let extrinsic_hash = decode_fixed::<32>(&receipt.extrinsic_hash)?;
+	let signature = ed25519::Signature::from_raw(decode_fixed::<64>(&receipt.finality_signature)?);
+	let service_key = ed25519::Public::from_raw(decode_fixed::<32>(&submission.service_key)?);
+	let digest = finality_attestation_digest(
+		receipt.finality_attestation_version,
+		&receipt.submission_id,
+		finalized_hash,
+		receipt.finalized_number,
+		extrinsic_hash,
+		&receipt.state,
+	)?;
+	if !ed25519::Pair::verify(&signature, &digest, &service_key) {
+		return Err(ContentError::IntegrityFailed)
+	}
 	Ok(())
+}
+
+pub(super) fn finality_attestation_digest(
+	version: u8,
+	submission_id: &str,
+	finalized_hash: [u8; 32],
+	finalized_number: u32,
+	extrinsic_hash: [u8; 32],
+	state: &str,
+) -> Result<[u8; 32], ContentError> {
+	if version != FINALITY_ATTESTATION_VERSION || state != FINALIZED_STATE {
+		return Err(ContentError::IntegrityFailed)
+	}
+	let submission_id = decode_fixed::<32>(submission_id)?;
+	let mut input = FINALITY_ATTESTATION_DOMAIN.to_vec();
+	version.encode_to(&mut input);
+	submission_id.encode_to(&mut input);
+	finalized_hash.encode_to(&mut input);
+	finalized_number.encode_to(&mut input);
+	extrinsic_hash.encode_to(&mut input);
+	state.as_bytes().encode_to(&mut input);
+	Ok(blake2_256(&input))
 }
 
 fn finalized_receipt_hash(receipt: &CheckpointFinalizedReceiptV2) -> Result<String, ContentError> {
@@ -844,6 +890,73 @@ mod tests {
 			confirmation.context_signature =
 				pair(seed).sign(&checkpoint_context_digest(&input.context));
 		}
+	}
+
+	fn finality_signature(
+		submission: &CheckpointSubmissionV2,
+		finalized_hash: [u8; 32],
+		finalized_number: u32,
+		extrinsic_hash: [u8; 32],
+		signer: &ed25519::Pair,
+	) -> [u8; 64] {
+		let digest = finality_attestation_digest(
+			FINALITY_ATTESTATION_VERSION,
+			&submission.submission_id,
+			finalized_hash,
+			finalized_number,
+			extrinsic_hash,
+			FINALIZED_STATE,
+		)
+		.unwrap();
+		signer.sign(&digest).0
+	}
+
+	fn finalize(
+		outbox: &CheckpointOutboxV2,
+		submission: &CheckpointSubmissionV2,
+		finalized_hash: [u8; 32],
+		finalized_number: u32,
+		extrinsic_hash: [u8; 32],
+	) -> Result<CheckpointFinalizedReceiptV2, ContentError> {
+		outbox.record_finalized(
+			&submission.submission_id,
+			finalized_hash,
+			finalized_number,
+			extrinsic_hash,
+			FINALITY_ATTESTATION_VERSION,
+			finality_signature(
+				submission,
+				finalized_hash,
+				finalized_number,
+				extrinsic_hash,
+				&pair(1),
+			),
+		)
+	}
+
+	fn synthesized_finalized_receipt(
+		submission: &CheckpointSubmissionV2,
+		finalized_hash: [u8; 32],
+		finalized_number: u32,
+		extrinsic_hash: [u8; 32],
+		finality_signature: [u8; 64],
+	) -> CheckpointFinalizedReceiptV2 {
+		let mut receipt = CheckpointFinalizedReceiptV2 {
+			version: VERSION,
+			submission_id: submission.submission_id.clone(),
+			tuple_key: submission.tuple_key.clone(),
+			submission_record_hash: submission.record_hash.clone(),
+			primary: submission.primary.clone(),
+			finalized_hash: hex::encode(finalized_hash),
+			finalized_number,
+			extrinsic_hash: hex::encode(extrinsic_hash),
+			state: FINALIZED_STATE.into(),
+			finality_attestation_version: FINALITY_ATTESTATION_VERSION,
+			finality_signature: hex::encode(finality_signature),
+			receipt_hash: String::new(),
+		};
+		receipt.receipt_hash = finalized_receipt_hash(&receipt).unwrap();
+		receipt
 	}
 
 	fn record_path(temp: &TempDir, id: &str) -> PathBuf {
@@ -1081,17 +1194,10 @@ mod tests {
 		);
 
 		let submission = pending[0].clone();
-		let receipt = outbox
-			.record_finalized(&submission.submission_id, [8; 32], 44, [9; 32])
-			.unwrap();
-		assert_eq!(
-			outbox
-				.record_finalized(&submission.submission_id, [8; 32], 44, [9; 32])
-				.unwrap(),
-			receipt
-		);
+		let receipt = finalize(&outbox, &submission, [8; 32], 44, [9; 32]).unwrap();
+		assert_eq!(finalize(&outbox, &submission, [8; 32], 44, [9; 32]).unwrap(), receipt);
 		assert!(matches!(
-			outbox.record_finalized(&submission.submission_id, [7; 32], 44, [9; 32]),
+			finalize(&outbox, &submission, [7; 32], 44, [9; 32]),
 			Err(ContentError::IdempotencyConflict)
 		));
 		assert!(!outbox
@@ -1106,11 +1212,88 @@ mod tests {
 	}
 
 	#[test]
+	fn authenticated_finality_fields_reject_tamper_with_a_recomputed_public_hash() {
+		for mutation in 0..5 {
+			let temp = TempDir::new().unwrap();
+			let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+			let submission = outbox.enqueue(&fixture()).unwrap().submission;
+			let receipt = finalize(&outbox, &submission, [1; 32], 2, [3; 32]).unwrap();
+			drop(outbox);
+
+			let mut tampered = receipt;
+			match mutation {
+				0 => tampered.finalized_hash = hex::encode([4; 32]),
+				1 => tampered.finalized_number = 5,
+				2 => tampered.extrinsic_hash = hex::encode([6; 32]),
+				3 => tampered.state = "forged-finalized".into(),
+				4 => tampered.finality_attestation_version += 1,
+				_ => unreachable!(),
+			}
+			tampered.receipt_hash = finalized_receipt_hash(&tampered).unwrap();
+			fs::write(
+				finalized_receipt_path(&temp, &submission.submission_id),
+				serde_json::to_vec(&tampered).unwrap(),
+			)
+			.unwrap();
+			assert!(matches!(
+				CheckpointOutboxV2::open(temp.path()),
+				Err(ContentError::IntegrityFailed)
+			));
+		}
+	}
+
+	#[test]
+	fn synthesized_finality_receipt_with_public_checksum_and_forged_signature_is_rejected() {
+		let temp = TempDir::new().unwrap();
+		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+		let submission = outbox.enqueue(&fixture()).unwrap().submission;
+		let forged_signature = finality_signature(&submission, [1; 32], 2, [3; 32], &pair(99));
+		let forged =
+			synthesized_finalized_receipt(&submission, [1; 32], 2, [3; 32], forged_signature);
+		drop(outbox);
+		fs::write(
+			finalized_receipt_path(&temp, &submission.submission_id),
+			serde_json::to_vec(&forged).unwrap(),
+		)
+		.unwrap();
+		assert!(matches!(
+			CheckpointOutboxV2::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+	}
+
+	#[test]
+	fn finality_signature_cannot_replay_across_submissions() {
+		let temp = TempDir::new().unwrap();
+		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
+		let first = outbox.enqueue(&fixture()).unwrap().submission;
+		let mut next = fixture();
+		next.payload.nonce += 1;
+		resign(&mut next);
+		let second = outbox.enqueue(&next).unwrap().submission;
+		let first_receipt = finalize(&outbox, &first, [1; 32], 2, [3; 32]).unwrap();
+		let mut replayed = finalize(&outbox, &second, [1; 32], 2, [3; 32]).unwrap();
+		drop(outbox);
+
+		replayed.finality_signature = first_receipt.finality_signature;
+		replayed.receipt_hash = finalized_receipt_hash(&replayed).unwrap();
+		fs::write(
+			finalized_receipt_path(&temp, &second.submission_id),
+			serde_json::to_vec(&replayed).unwrap(),
+		)
+		.unwrap();
+		assert!(matches!(
+			CheckpointOutboxV2::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+	}
+
+	#[test]
 	fn finalized_receipt_capacity_and_recomputed_binding_tampering_fail_closed() {
 		let temp = TempDir::new().unwrap();
 		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
 		let first = outbox.enqueue(&fixture()).unwrap().submission;
-		let receipt = outbox.record_finalized(&first.submission_id, [1; 32], 2, [3; 32]).unwrap();
+		let receipt = finalize(&outbox, &first, [1; 32], 2, [3; 32]).unwrap();
 		{
 			let mut receipts = outbox.finalized_receipts.write().unwrap();
 			for index in receipts.len()..MAX_RECORDS {
@@ -1119,16 +1302,13 @@ mod tests {
 				receipts.insert(dummy.submission_id.clone(), dummy);
 			}
 		}
-		assert_eq!(
-			outbox.record_finalized(&first.submission_id, [1; 32], 2, [3; 32]).unwrap(),
-			receipt
-		);
+		assert_eq!(finalize(&outbox, &first, [1; 32], 2, [3; 32]).unwrap(), receipt);
 		let mut next = fixture();
 		next.payload.nonce += 1;
 		resign(&mut next);
 		let next = outbox.enqueue(&next).unwrap().submission;
 		assert!(matches!(
-			outbox.record_finalized(&next.submission_id, [1; 32], 2, [3; 32]),
+			finalize(&outbox, &next, [1; 32], 2, [3; 32]),
 			Err(ContentError::ProviderRecoveryTableFull)
 		));
 		drop(outbox);
@@ -1158,16 +1338,14 @@ mod tests {
 			let submission = outbox.enqueue(&fixture()).unwrap().submission;
 			outbox.inject_fault_once(fault).unwrap();
 			assert!(matches!(
-				outbox.record_finalized(&submission.submission_id, [4; 32], 5, [6; 32]),
+				finalize(&outbox, &submission, [4; 32], 5, [6; 32]),
 				Err(ContentError::Io(_))
 			));
 			assert!(matches!(outbox.pending_submissions(), Err(ContentError::IntegrityFailed)));
 			drop(outbox);
 
 			let reopened = CheckpointOutboxV2::open(temp.path()).unwrap();
-			let recovered = reopened
-				.record_finalized(&submission.submission_id, [4; 32], 5, [6; 32])
-				.unwrap();
+			let recovered = finalize(&reopened, &submission, [4; 32], 5, [6; 32]).unwrap();
 			assert_eq!(recovered.finalized_hash, hex::encode([4; 32]));
 			assert!(reopened.pending_submissions().unwrap().is_empty());
 		}
