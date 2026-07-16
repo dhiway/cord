@@ -37,6 +37,9 @@ mod checkpoint;
 mod checkpoint_stack;
 mod content;
 mod merkle;
+// Deliberately private until the authenticated provider replication transport is activated.
+#[allow(dead_code)]
+mod peer;
 mod storage;
 mod workers;
 
