@@ -34,7 +34,7 @@ use crate::{
 	INGRESS_WINDOW_CHUNKS, MAX_CHUNKS, MAX_RANGE_BYTES, MAX_STORED_BYTES, MAX_STREAMING_OPERATIONS,
 };
 
-const STREAM_VERSION: u16 = 3;
+const STREAM_VERSION: u16 = 4;
 const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
@@ -134,6 +134,8 @@ struct ChunkRecord {
 struct OperationRecord {
 	descriptor: StreamingDescriptor,
 	phase: Phase,
+	#[serde(default)]
+	install_sequence: Option<u64>,
 	next_chunk: u16,
 	received_bytes: u64,
 	chunks: Vec<ChunkRecord>,
@@ -146,9 +148,21 @@ struct JournalState {
 	version: u16,
 	operations: BTreeMap<String, OperationRecord>,
 	#[serde(default)]
+	next_install_sequence: u64,
+	#[serde(default)]
 	quarantine: BTreeMap<String, QuarantineRecord>,
 	#[serde(default)]
 	detection_sequence: u64,
+}
+
+/// One immutable, fully reverified installed operation used by the private commitment store.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct VerifiedInstallation {
+	pub(super) install_sequence: u64,
+	pub(super) operation_id: OperationId,
+	pub(super) bucket_id: BucketId,
+	pub(super) cid: CanonicalCid,
+	pub(super) stored_bytes: u64,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -263,6 +277,7 @@ impl StreamingStore {
 			JournalState {
 				version: STREAM_VERSION,
 				operations: BTreeMap::new(),
+				next_install_sequence: 0,
 				quarantine: BTreeMap::new(),
 				detection_sequence: 0,
 			}
@@ -322,6 +337,7 @@ impl StreamingStore {
 			OperationRecord {
 				descriptor,
 				phase: Phase::Receiving,
+				install_sequence: None,
 				next_chunk: 0,
 				received_bytes: 0,
 				chunks: Vec::new(),
@@ -508,8 +524,13 @@ impl StreamingStore {
 		install_file(&part, &self.object_path(cid.as_str()), &record.descriptor, &record.chunks)?;
 		self.trip_fault(StreamingFault::AfterObjectRename)?;
 		let mut installed = state.clone();
+		let install_sequence = installed.next_install_sequence;
+		installed.next_install_sequence = install_sequence
+			.checked_add(1)
+			.ok_or(ContentError::IntegrityFailed)?;
 		let installed_record = installed.operations.get_mut(&key).expect("record exists");
 		installed_record.phase = Phase::Installed;
+		installed_record.install_sequence = Some(install_sequence);
 		installed_record.receipt = Some(receipt.clone());
 		persist_state(&self.root, &installed)?;
 		*state = installed;
@@ -709,6 +730,7 @@ impl StreamingStore {
 		{
 			return Err(ContentError::IntegrityFailed)
 		}
+		validate_install_sequences(&state)?;
 		let mut next = state.clone();
 		let mut changed = false;
 		let installed_cids: BTreeSet<_> = next
@@ -743,6 +765,9 @@ impl StreamingStore {
 			let record = next.operations.get(&key).cloned().expect("key exists");
 			match record.phase {
 				Phase::Receiving => {
+					if record.install_sequence.is_some() {
+						return Err(ContentError::IntegrityFailed)
+					}
 					let path = self.part_path(&key);
 					let file = OpenOptions::new()
 						.read(true)
@@ -760,6 +785,9 @@ impl StreamingStore {
 					verify_persisted_chunks(&path, &record.chunks, record.received_bytes)?;
 				},
 				Phase::Finalizing => {
+					if record.install_sequence.is_some() {
+						return Err(ContentError::IntegrityFailed)
+					}
 					let part = self.part_path(&key);
 					let object = self.object_path(&record.descriptor.expected_cid);
 					if !object.exists() {
@@ -774,8 +802,13 @@ impl StreamingStore {
 					}
 					let (_, fingerprint, _) =
 						verify_file(&object, &record.descriptor, &record.chunks)?;
+					let install_sequence = next.next_install_sequence;
+					next.next_install_sequence = install_sequence
+						.checked_add(1)
+						.ok_or(ContentError::IntegrityFailed)?;
 					let recovered = next.operations.get_mut(&key).expect("key exists");
 					recovered.phase = Phase::Installed;
+					recovered.install_sequence = Some(install_sequence);
 					recovered.receipt = Some(receipt(
 						&record.descriptor,
 						&record.descriptor.expected_cid,
@@ -827,10 +860,104 @@ impl StreamingStore {
 			.collect();
 		changed |= remove_unowned(&self.root.join(OBJECTS), &referenced_objects)?;
 		if changed {
+			validate_install_sequences(&next)?;
 			persist_state(&self.root, &next)?;
 			*state = next;
 		}
 		Ok(())
+	}
+
+	/// Return every installed operation in immutable installation order after re-reading all bytes.
+	pub(super) fn verified_installations(&self) -> Result<Vec<VerifiedInstallation>, ContentError> {
+		let state = self.read_state()?;
+		validate_install_sequences(&state)?;
+		let quarantined = state.quarantine.keys().cloned().collect::<BTreeSet<_>>();
+		let records = state
+			.operations
+			.values()
+			.filter(|record| record.phase == Phase::Installed)
+			.cloned()
+			.collect::<Vec<_>>();
+		drop(state);
+		let mut installations = records
+			.into_iter()
+			.map(|record| self.verify_installation_record(record, &quarantined))
+			.collect::<Result<Vec<_>, _>>()?;
+		installations.sort_by_key(|installation| installation.install_sequence);
+		for (expected, installation) in installations.iter().enumerate() {
+			if installation.install_sequence != expected as u64 {
+				return Err(ContentError::IntegrityFailed)
+			}
+		}
+		Ok(installations)
+	}
+
+	/// Reverify one exact installed operation without accepting a CID-only alias.
+	pub(super) fn verified_installation(
+		&self,
+		bucket_id: BucketId,
+		operation_id: OperationId,
+	) -> Result<VerifiedInstallation, ContentError> {
+		let key = operation_key_parts(bucket_id, operation_id);
+		let state = self.read_state()?;
+		validate_install_sequences(&state)?;
+		let record = state.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
+		let quarantined = state.quarantine.keys().cloned().collect::<BTreeSet<_>>();
+		drop(state);
+		self.verify_installation_record(record, &quarantined)
+	}
+
+	/// Reverify only one bucket's installed operations while retaining global sequence validation.
+	pub(super) fn verified_bucket_installations(
+		&self,
+		bucket_id: BucketId,
+	) -> Result<Vec<VerifiedInstallation>, ContentError> {
+		let state = self.read_state()?;
+		validate_install_sequences(&state)?;
+		let quarantined = state.quarantine.keys().cloned().collect::<BTreeSet<_>>();
+		let records = state
+			.operations
+			.values()
+			.filter(|record| {
+				record.phase == Phase::Installed && record.descriptor.bucket_id == bucket_id
+			})
+			.cloned()
+			.collect::<Vec<_>>();
+		drop(state);
+		let mut installations = records
+			.into_iter()
+			.map(|record| self.verify_installation_record(record, &quarantined))
+			.collect::<Result<Vec<_>, _>>()?;
+		installations.sort_by_key(|installation| installation.install_sequence);
+		Ok(installations)
+	}
+
+	fn verify_installation_record(
+		&self,
+		record: OperationRecord,
+		quarantined: &BTreeSet<String>,
+	) -> Result<VerifiedInstallation, ContentError> {
+		validate_installed_record(&record)?;
+		if quarantined.contains(&record.descriptor.expected_cid) {
+			return Err(ContentError::IntegrityFailed)
+		}
+		let receipt = record.receipt.as_ref().ok_or(ContentError::IntegrityFailed)?;
+		let (cid, fingerprint, length) = verify_file(
+			&self.object_path(&record.descriptor.expected_cid),
+			&record.descriptor,
+			&record.chunks,
+		)
+		.map_err(|_| ContentError::IntegrityFailed)?;
+		if fingerprint != receipt.fingerprint || length != receipt.stored_bytes {
+			return Err(ContentError::IntegrityFailed)
+		}
+		Ok(VerifiedInstallation {
+			install_sequence: record.install_sequence.ok_or(ContentError::IntegrityFailed)?,
+			operation_id: record.descriptor.operation_id,
+			bucket_id: record.descriptor.bucket_id,
+			cid,
+			stored_bytes: length,
+		})
 	}
 
 	fn installed_record(&self, cid: &str) -> Result<OperationRecord, ContentError> {
@@ -1076,6 +1203,7 @@ fn expected_receipt(record: &OperationRecord) -> Result<StreamingReceipt, Conten
 
 fn validate_installed_record(record: &OperationRecord) -> Result<(), ContentError> {
 	if record.phase != Phase::Installed ||
+		record.install_sequence.is_none() ||
 		validate_descriptor(&record.descriptor).is_err() ||
 		record.received_bytes != record.descriptor.object_len
 	{
@@ -1094,6 +1222,24 @@ fn validate_installed_record(record: &OperationRecord) -> Result<(), ContentErro
 	}
 	let installed_receipt = record.receipt.as_ref().ok_or(ContentError::IntegrityFailed)?;
 	if installed_receipt != &expected_receipt(record)? {
+		return Err(ContentError::IntegrityFailed)
+	}
+	Ok(())
+}
+
+fn validate_install_sequences(state: &JournalState) -> Result<(), ContentError> {
+	let mut sequences = BTreeSet::new();
+	for record in state.operations.values() {
+		match (record.phase, record.install_sequence) {
+			(Phase::Installed, Some(sequence)) if sequences.insert(sequence) => {},
+			(Phase::Installed, _) => return Err(ContentError::IntegrityFailed),
+			(_, None) => {},
+			(_, Some(_)) => return Err(ContentError::IntegrityFailed),
+		}
+	}
+	if state.next_install_sequence != sequences.len() as u64 ||
+		sequences.iter().copied().ne(0..state.next_install_sequence)
+	{
 		return Err(ContentError::IntegrityFailed)
 	}
 	Ok(())

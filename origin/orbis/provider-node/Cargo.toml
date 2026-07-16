@@ -37,6 +37,7 @@ hyper-util = { workspace = true, features = ["tokio"] }
 jsonrpsee = { workspace = true, features = ["http-client"] }
 origin-rs = { path = "../../../origin-rs", optional = true }
 orbis-storage-runtime-api = { workspace = true, default-features = true }
+pallet-orbis-storage-provider = { workspace = true, default-features = true }
 serde = { workspace = true, features = ["derive"], default-features = true }
 serde_json = { workspace = true, default-features = true }
 sha2 = { workspace = true, default-features = true }

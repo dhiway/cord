@@ -10085,6 +10085,7 @@ dependencies = [
  "jsonrpsee",
  "orbis-storage-runtime-api",
  "origin-rs",
+ "pallet-orbis-storage-provider",
  "parity-scale-codec",
  "serde",
  "serde_json",

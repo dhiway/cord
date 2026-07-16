@@ -18,6 +18,8 @@
 
 //! Crash-safe content and provider metadata storage.
 
+#[allow(dead_code)]
+pub(crate) mod bucket_mmr;
 pub mod streaming;
 
 pub use streaming::{
