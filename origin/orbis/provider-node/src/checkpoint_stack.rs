@@ -32,6 +32,7 @@ use crate::{
 		checkpoint_quorum::ReplicaConfirmationStore,
 		CheckpointProposalStore,
 	},
+	peer_reply::PeerReplyStore,
 	replication::ReplicationIntentStore,
 	storage::bucket_mmr::BucketMmrStore,
 	ContentError, StreamingStore,
@@ -52,6 +53,7 @@ struct CheckpointStackState {
 	publications: CheckpointPublicationStoreV1,
 	fallback_promotions: CheckpointPromotionStoreV1,
 	replication: ReplicationIntentStore,
+	peer_replies: PeerReplyStore,
 }
 
 /// Cohesive private checkpoint state owned through one synchronization boundary.
@@ -75,6 +77,7 @@ impl CheckpointStack {
 			publications: CheckpointPublicationStoreV1::open(root)?,
 			fallback_promotions: CheckpointPromotionStoreV1::open(root)?,
 			replication: ReplicationIntentStore::open(root)?,
+			peer_replies: PeerReplyStore::open(root)?,
 		};
 		Ok(Self { state: Mutex::new(state) })
 	}
@@ -139,7 +142,7 @@ mod tests {
 		CheckpointDutyPageRequest, DiskStore, JsonlCheckpointOutbox, NodeProfile, ProviderService,
 	};
 
-	const DURABLE_ROOTS: [&str; 12] = [
+	const DURABLE_ROOTS: [&str; 13] = [
 		"streaming-v1",
 		"bucket-mmr-v3",
 		"checkpoint-proposals-v2",
@@ -152,6 +155,7 @@ mod tests {
 		"checkpoint-publications-v1",
 		"checkpoint-promotions-v1",
 		"replication-v1",
+		"peer-replies-v1",
 	];
 
 	struct NoopAuthority;
@@ -409,6 +413,7 @@ mod tests {
 			&state.publications,
 			&state.fallback_promotions,
 			&state.replication,
+			&state.peer_replies,
 		);
 	}
 

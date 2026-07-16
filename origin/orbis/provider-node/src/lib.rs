@@ -40,6 +40,9 @@ mod merkle;
 // Deliberately private until the authenticated provider replication transport is activated.
 #[allow(dead_code)]
 mod peer;
+// Private durable replay table for exact authenticated peer responses.
+#[allow(dead_code)]
+mod peer_reply;
 // Deliberately private until authenticated peer replication orchestration is activated.
 #[allow(dead_code)]
 mod replication;

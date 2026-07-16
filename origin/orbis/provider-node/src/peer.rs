@@ -49,12 +49,13 @@ const MAX_CID_BYTES: usize = 96;
 const MAX_CHUNK_MANIFEST_BYTES: usize = crate::MAX_CHUNKS * 32;
 // A maximum object contributes 256 fixed hashes (8 KiB); the remaining fixed context, object,
 // signature and SCALE length prefixes stay below the explicit 16 KiB request ceiling.
-const MAX_REQUEST_ENCODED: usize = 16 * 1024;
-const MAX_PAGE_RESPONSE_ENCODED: usize = 2 * 1024 * 1024;
+pub(crate) const MAX_REQUEST_ENCODED: usize = 16 * 1024;
+pub(crate) const MAX_PAGE_RESPONSE_ENCODED: usize = 2 * 1024 * 1024;
 // A response carries both a full chunk and its full authenticated object manifest. Four KiB is a
 // conservative fixed allowance for the context, CID, leaf, identities, hashes, signature and SCALE
 // length prefixes after accounting for the manifest separately.
-const MAX_CHUNK_RESPONSE_ENCODED: usize = CHUNK_BYTES + MAX_CHUNK_MANIFEST_BYTES + 4 * 1024;
+pub(crate) const MAX_CHUNK_RESPONSE_ENCODED: usize =
+	CHUNK_BYTES + MAX_CHUNK_MANIFEST_BYTES + 4 * 1024;
 
 /// Exact candidate MMR range that a replication operation must reconstruct.
 #[derive(Clone, Copy, Debug, Decode, Encode, Eq, PartialEq)]
@@ -501,6 +502,21 @@ impl PeerSyncPageRequestV1 {
 		Ok((request, replay))
 	}
 
+	/// Decode and authenticate a canonical request without an external expectation.
+	pub(crate) fn decode_authenticated(bytes: &[u8]) -> Result<Self, ContentError> {
+		let request: Self = decode_canonical(bytes, MAX_REQUEST_ENCODED)?;
+		request.validate_authentication()?;
+		Ok(request)
+	}
+
+	/// Return the replay identity only after authenticating this exact request.
+	pub(crate) fn authenticated_replay_identity(
+		&self,
+	) -> Result<PeerReplayIdentityV1, ContentError> {
+		self.validate_authentication()?;
+		Ok(self.replay_identity())
+	}
+
 	fn replay_identity(&self) -> PeerReplayIdentityV1 {
 		PeerReplayIdentityV1 {
 			operation_id: self.identity.operation_id,
@@ -811,6 +827,21 @@ impl PeerChunkRequestV1 {
 		request.validate_expected(expected)?;
 		let replay = request.replay_identity();
 		Ok((request, replay))
+	}
+
+	/// Decode and authenticate a canonical request without an external expectation.
+	pub(crate) fn decode_authenticated(bytes: &[u8]) -> Result<Self, ContentError> {
+		let request: Self = decode_canonical(bytes, MAX_REQUEST_ENCODED)?;
+		request.validate_authentication()?;
+		Ok(request)
+	}
+
+	/// Return the replay identity only after authenticating this exact request.
+	pub(crate) fn authenticated_replay_identity(
+		&self,
+	) -> Result<PeerReplayIdentityV1, ContentError> {
+		self.validate_authentication()?;
+		Ok(self.replay_identity())
 	}
 
 	fn replay_identity(&self) -> PeerReplayIdentityV1 {
