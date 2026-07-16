@@ -25,9 +25,9 @@
 use async_trait::async_trait;
 use orbis_identity_personhood_runtime_api as identity_api;
 use orbis_storage_runtime_api as storage_api;
-use pallet_orbis_transaction_storage_runtime_api as transaction_storage_api;
 use pallet_orbis_attestation_runtime_api as att_api;
 use pallet_orbis_names_runtime_api as names_api;
+use pallet_orbis_transaction_storage_runtime_api as transaction_storage_api;
 use scale_value::{Composite, Value};
 use subxt::{metadata::DecodeWithMetadata, runtime_api::StaticPayload};
 
@@ -40,19 +40,19 @@ use super::{
 			LiveStatus, SchemaStatus as DomainSchemaStatus, SchemaView as DomainSchemaView,
 		},
 		common::{
-			AccountId, AgreementId, AttestationId, BucketId, ChallengeId, ContainerId,
-			ContentCommitment, ContentHash, DomainResult, DriveId, FinalizedPage, FinalizedValue,
-			Hash32, NameId, ObjectId, ProofCommitment, ProviderReference, ReservationId, SchemaId,
-			SubjectId, UniquenessCommitment, Validate,
-		},
-		names::{
-			Address, NamesQuery, NamesRead, NamesResponse, Label, NameStatus as DomainNameStatus,
-			NameView as DomainNameView, TextValue,
+			AccountId, AgreementId, AttestationId, BucketId, ChallengeId, ContentCommitment,
+			ContentHash, DomainResult, DriveId, FinalizedPage, FinalizedValue, Hash32, NameId,
+			ObjectId, ProofCommitment, ProviderReference, ReservationId, SchemaId, SubjectId,
+			UniquenessCommitment, Validate,
 		},
 		drive::{DriveName, DriveQuery, DriveRead, DriveResponse, DriveStatus, DriveView},
 		identity_personhood::{
 			AttestationAllowanceView, IdentityPersonhoodQuery, IdentityPersonhoodRead,
 			IdentityPersonhoodResponse, IdentityStatusView, PersonalId, PersonhoodStatusView,
+		},
+		names::{
+			Address, Label, NameStatus as DomainNameStatus, NameView as DomainNameView, NamesQuery,
+			NamesRead, NamesResponse, TextValue,
 		},
 		s3::{
 			BucketName, BucketStatus, BucketView, ObjectKey, ObjectVersionView, ObjectView,
@@ -60,15 +60,15 @@ use super::{
 		},
 		storage::{
 			AccountAuthorization as DomainAccountAuthorization, ActiveResourceReservation,
-			StorageRef as DomainStorageRef, DecimalU64, ResourceClosure,
-			ResourceReservationLink as DomainResourceReservationLink, ResourceReservationTombstone,
-			ResourceReservationView, StorageActor, StorageQuery, StorageRead, StorageResponse,
-			TransactionRef,
+			DecimalU64, ResourceClosure, ResourceReservationLink as DomainResourceReservationLink,
+			ResourceReservationTombstone, ResourceReservationView, StorageActor, StorageQuery,
+			StorageRead, StorageRef as DomainStorageRef, StorageResponse, TransactionRef,
 		},
 		storage_provider::{
 			AgreementStatus, AgreementView, ChallengeStatus, ChallengeView, CheckpointView,
-			DeletionAcknowledgementView, Endpoint, ProviderRootView, ProviderStatus, ProviderView,
-			ServiceKey, StorageProviderQuery, StorageProviderRead, StorageProviderResponse,
+			ChunkLocationView, CommitmentView, Endpoint, ProviderOrganizationView,
+			ProviderServiceKeyView, ProviderStatus, ProviderView, ServiceKey, StorageProviderQuery,
+			StorageProviderRead, StorageProviderResponse,
 		},
 	},
 	transport::{FinalizedReadBinding, OrbisNativeClient},
@@ -179,7 +179,7 @@ impl OrbisFinalizedReadBinding {
 		let response: storage_api::Page<
 			storage_api::AgreementInfo<RuntimeAccountId, RuntimeHash, RuntimeBlockNumber>,
 		> = self.call_at(hash, "StorageProviderApi", method, page_args(first, page)).await?;
-		Ok(StorageProviderResponse::Agreements(finalized_page(
+		Ok(StorageProviderResponse::Agreements(storage_finalized_page(
 			hash,
 			response.version,
 			response.items.into_iter().map(|item| agreement_id(item.agreement_id)).collect(),
@@ -212,13 +212,136 @@ fn canonical_hash_at_height_matches<Hash: Eq>(
 
 #[cfg(test)]
 mod finalized_ancestry_tests {
-	use super::canonical_hash_at_height_matches;
+	use super::*;
 
 	#[test]
 	fn rejects_same_height_fork_and_wrong_height() {
 		assert!(canonical_hash_at_height_matches([1u8; 32], 7, [1u8; 32], 7));
 		assert!(!canonical_hash_at_height_matches([1u8; 32], 7, [2u8; 32], 7));
 		assert!(!canonical_hash_at_height_matches([1u8; 32], 7, [1u8; 32], 8));
+	}
+
+	#[test]
+	fn storage_versions_are_v8_without_relaxing_unrelated_v1_envelopes() {
+		let hash = Hash32::from_bytes([1; 32]);
+		assert!(finalized_value::<()>(&hash, 1, None).is_ok());
+		assert!(finalized_value::<()>(&hash, storage_api::RESPONSE_VERSION, None).is_err());
+		assert!(storage_finalized_value::<()>(&hash, storage_api::RESPONSE_VERSION, None).is_ok());
+		assert!(storage_finalized_value::<()>(&hash, 1, None).is_err());
+		assert!(storage_finalized_page::<()>(
+			&hash,
+			storage_api::RESPONSE_VERSION,
+			vec![],
+			Some(1)
+		)
+		.is_err());
+	}
+
+	#[test]
+	fn current_storage_v8_shapes_map_without_legacy_projection() {
+		let provider_account = RuntimeAccountId::from([1; 32]);
+		let provider = account_id(&provider_account).unwrap();
+		let provider_view = provider_view(
+			provider.clone(),
+			storage_api::ProviderInfo {
+				endpoint: b"https://provider.example".to_vec(),
+				organization: storage_api::OrganizationInfo {
+					entity_id: b"did:cord:provider".to_vec(),
+					attestation_id: RuntimeHash::repeat_byte(2),
+					schema_id: RuntimeHash::repeat_byte(3),
+					sla_commitment: RuntimeHash::repeat_byte(4),
+					sla_version: 5,
+					valid_from: 6,
+					valid_until: 7,
+					rotation_predecessor: Some(RuntimeHash::repeat_byte(8)),
+				},
+				service_key: storage_api::ServiceKeyInfo {
+					active: [9; 32],
+					active_version: 10,
+					previous: Some([11; 32]),
+					pending: Some([12; 32]),
+					pending_version: Some(13),
+					pending_effective_at: Some(14),
+				},
+				capacity_bytes: 15,
+				allocated_bytes: 16,
+				pending_bytes: 17,
+				status: storage_api::ProviderStatus::Suspended,
+				last_heartbeat: 18,
+				overdue_challenges: 19,
+				authority_validated_at: Some(20),
+			},
+		)
+		.unwrap();
+		assert_eq!(provider_view.provider, provider);
+		assert_eq!(provider_view.organization.sla_version, 5);
+		assert_eq!(provider_view.service_key.active.as_bytes(), &[9; 32]);
+		assert_eq!(provider_view.overdue_challenges, 19);
+
+		let agreement = agreement_view(storage_api::AgreementInfo {
+			agreement_id: RuntimeHash::repeat_byte(21),
+			owner: RuntimeAccountId::from([22; 32]),
+			bucket_id: RuntimeHash::repeat_byte(23),
+			primary: RuntimeAccountId::from([24; 32]),
+			replicas: vec![RuntimeAccountId::from([25; 32])],
+			bytes: 26,
+			created_at: 27,
+			expires_at: 28,
+			release_at: Some(29),
+			state_version: 30,
+			status: storage_api::AgreementStatus::Suspended,
+		})
+		.unwrap();
+		assert_eq!(agreement.status, AgreementStatus::Suspended);
+		assert_eq!(agreement.replicas.len(), 1);
+		assert_eq!(agreement.state_version, 30);
+
+		let commitment = storage_api::CommitmentInfo {
+			mmr_root: RuntimeHash::repeat_byte(31),
+			start_seq: 32,
+			leaf_count: 33,
+		};
+		let challenge = challenge_view(storage_api::ChallengeInfo {
+			challenge_id: RuntimeHash::repeat_byte(34),
+			bucket_id: RuntimeHash::repeat_byte(35),
+			provider: RuntimeAccountId::from([36; 32]),
+			expected_commitment: commitment,
+			location: storage_api::ChunkLocationInfo { leaf_index: 37, chunk_index: 38 },
+			due_at: 39,
+			status: storage_api::ChallengeStatus::Open,
+		})
+		.unwrap();
+		assert_eq!(challenge.expected_commitment.start_seq, 32);
+		assert_eq!(challenge.location.chunk_index, 38);
+
+		let checkpoint = checkpoint_view(storage_api::CheckpointInfo {
+			bucket_id: RuntimeHash::repeat_byte(40),
+			commitment,
+			checkpoint_block: 41,
+			primary_signers: 1,
+			commitment_nonce: 42,
+			replica_confirmations: vec![RuntimeAccountId::from([43; 32])],
+		})
+		.unwrap();
+		assert_eq!(checkpoint.commitment.leaf_count, 33);
+		assert_eq!(checkpoint.replica_confirmations.len(), 1);
+
+		let drive = drive_view(storage_api::DriveInfo {
+			drive_id: RuntimeHash::repeat_byte(44),
+			owner: RuntimeAccountId::from([45; 32]),
+			name: b"archive".to_vec(),
+			root_manifest: Some([46; 32]),
+			root_provider_commitment: Some([47; 32]),
+			version: 48,
+			status: storage_api::ContainerStatus::Deleted,
+			created_at: 49,
+			updated_at: 50,
+			controllers: vec![RuntimeAccountId::from([51; 32])],
+		})
+		.unwrap();
+		assert_eq!(drive.status, DriveStatus::Deleted);
+		assert!(drive.root_manifest.is_some());
+		assert_eq!(drive.controllers.len(), 1);
 	}
 }
 
@@ -293,7 +416,6 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 			},
 		}
 	}
-
 
 	async fn attestation(&self, read: &AttestationRead) -> DomainResult<AttestationResponse> {
 		read.validate()?;
@@ -624,7 +746,9 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 		let hash = &read.finalized_block_hash;
 		match &read.query {
 			StorageQuery::AccountAuthorization { account } => {
-				let response: Option<transaction_storage_api::AccountAuthorization<RuntimeBlockNumber>> = self
+				let response: Option<
+					transaction_storage_api::AccountAuthorization<RuntimeBlockNumber>,
+				> = self
 					.call_at(
 						hash,
 						"OrbisTransactionStorageApi",
@@ -661,7 +785,9 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 				Ok(StorageResponse::CanRenew(finalized_value(hash, 1, Some(response))?))
 			},
 			StorageQuery::StoredContentProvenance { reference } => {
-				let response: Option<transaction_storage_api::ClientStorageActor<RuntimeAccountId>> = self
+				let response: Option<
+					transaction_storage_api::ClientStorageActor<RuntimeAccountId>,
+				> = self
 					.call_at(
 						hash,
 						"OrbisTransactionStorageApi",
@@ -745,13 +871,13 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 		match &read.query {
 			StorageProviderQuery::ProviderById { provider } => {
 				let response: storage_api::Versioned<
-					storage_api::ProviderInfo<RuntimeBlockNumber>,
+					storage_api::ProviderInfo<RuntimeHash, RuntimeBlockNumber>,
 				> = self
 					.call_at(hash, "StorageProviderApi", "provider", vec![account_arg(provider)?])
 					.await?;
 				let value =
 					response.value.map(|info| provider_view(provider.clone(), info)).transpose()?;
-				Ok(StorageProviderResponse::Provider(finalized_value(
+				Ok(StorageProviderResponse::Provider(storage_finalized_value(
 					hash,
 					response.version,
 					value,
@@ -760,7 +886,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 			StorageProviderQuery::Providers { page } => {
 				let response: storage_api::Page<(
 					RuntimeAccountId,
-					storage_api::ProviderInfo<RuntimeBlockNumber>,
+					storage_api::ProviderInfo<RuntimeHash, RuntimeBlockNumber>,
 				)> = self
 					.call_at(hash, "StorageProviderApi", "providers", page_tail(page).into())
 					.await?;
@@ -769,7 +895,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 					.iter()
 					.map(|(account, _)| account_id(account))
 					.collect::<DomainResult<Vec<_>>>()?;
-				Ok(StorageProviderResponse::Providers(finalized_page(
+				Ok(StorageProviderResponse::Providers(storage_finalized_page(
 					hash,
 					response.version,
 					items,
@@ -787,28 +913,15 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 						vec![hash_arg(agreement.as_hash())?],
 					)
 					.await?;
-				Ok(StorageProviderResponse::Agreement(finalized_value(
+				Ok(StorageProviderResponse::Agreement(storage_finalized_value(
 					hash,
 					response.version,
 					response.value.map(agreement_view).transpose()?,
 				)?))
 			},
-			StorageProviderQuery::ProviderAgreements { provider, page } => {
+			StorageProviderQuery::ProviderAgreements { provider, page } =>
 				self.agreement_page(hash, "provider_agreements", account_arg(provider)?, page)
-					.await
-			},
-			StorageProviderQuery::OwnerAgreements { owner, page } => {
-				self.agreement_page(hash, "owner_agreements", account_arg(owner)?, page).await
-			},
-			StorageProviderQuery::ContainerAgreements { container, page } => {
-				self.agreement_page(
-					hash,
-					"container_agreements",
-					hash_arg(container.as_hash())?,
-					page,
-				)
-				.await
-			},
+					.await,
 			StorageProviderQuery::AgreementNonce { owner } => {
 				let nonce: u64 = self
 					.call_at(
@@ -818,7 +931,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 						vec![account_arg(owner)?],
 					)
 					.await?;
-				Ok(StorageProviderResponse::AgreementNonce(finalized_value(
+				Ok(StorageProviderResponse::AgreementNonce(storage_finalized_value(
 					hash,
 					storage_api::RESPONSE_VERSION,
 					Some(nonce),
@@ -835,7 +948,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 						vec![hash_arg(challenge.as_hash())?],
 					)
 					.await?;
-				Ok(StorageProviderResponse::Challenge(finalized_value(
+				Ok(StorageProviderResponse::Challenge(storage_finalized_value(
 					hash,
 					response.version,
 					response.value.map(challenge_view).transpose()?,
@@ -847,7 +960,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 				let response: storage_api::Page<
 					storage_api::ChallengeInfo<RuntimeAccountId, RuntimeHash, RuntimeBlockNumber>,
 				> = self.call_at(hash, "StorageProviderApi", "challenges_at", args).await?;
-				Ok(StorageProviderResponse::Challenges(finalized_page(
+				Ok(StorageProviderResponse::Challenges(storage_finalized_page(
 					hash,
 					response.version,
 					response
@@ -856,21 +969,6 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 						.map(|item| challenge_id(item.challenge_id))
 						.collect(),
 					response.next_cursor,
-				)?))
-			},
-			StorageProviderQuery::OpenChallengeCount { agreement } => {
-				let count: u32 = self
-					.call_at(
-						hash,
-						"StorageProviderApi",
-						"open_challenge_count",
-						vec![hash_arg(agreement.as_hash())?],
-					)
-					.await?;
-				Ok(StorageProviderResponse::OpenChallengeCount(finalized_value(
-					hash,
-					storage_api::RESPONSE_VERSION,
-					Some(count),
 				)?))
 			},
 			StorageProviderQuery::CanAcceptCapacity { provider, additional_bytes } => {
@@ -882,65 +980,27 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 						vec![account_arg(provider)?, Value::u128(*additional_bytes as u128)],
 					)
 					.await?;
-				Ok(StorageProviderResponse::CanAcceptCapacity(finalized_value(
+				Ok(StorageProviderResponse::CanAcceptCapacity(storage_finalized_value(
 					hash,
 					storage_api::RESPONSE_VERSION,
 					Some(accepted),
 				)?))
 			},
-			StorageProviderQuery::ProviderCheckpoint { provider } => {
+			StorageProviderQuery::BucketCheckpoint { bucket } => {
 				let response: storage_api::Versioned<
-					storage_api::CheckpointInfo<RuntimeHash, RuntimeBlockNumber>,
-				> = self
-					.call_at(hash, "StorageProviderApi", "checkpoint", vec![account_arg(provider)?])
-					.await?;
-				Ok(StorageProviderResponse::Checkpoint(finalized_value(
-					hash,
-					response.version,
-					response.value.map(checkpoint_view),
-				)?))
-			},
-			StorageProviderQuery::ProviderRoot { provider } => {
-				let response: storage_api::Versioned<
-					storage_api::ProviderRootInfo<RuntimeHash, RuntimeBlockNumber>,
+					storage_api::CheckpointInfo<RuntimeAccountId, RuntimeHash, RuntimeBlockNumber>,
 				> = self
 					.call_at(
 						hash,
 						"StorageProviderApi",
-						"provider_root",
-						vec![account_arg(provider)?],
+						"checkpoint",
+						vec![hash_arg(bucket.as_hash())?],
 					)
 					.await?;
-				Ok(StorageProviderResponse::ProviderRoot(finalized_value(
+				Ok(StorageProviderResponse::Checkpoint(storage_finalized_value(
 					hash,
 					response.version,
-					response.value.map(|info| ProviderRootView {
-						sequence: info.sequence,
-						root: ProofCommitment(domain_hash(info.root)),
-						leaf_count: info.leaf_count,
-						committed_at: info.committed_at,
-					}),
-				)?))
-			},
-			StorageProviderQuery::DeletionAcknowledgement { agreement } => {
-				let response: storage_api::Versioned<
-					storage_api::DeletionAcknowledgementInfo<
-						RuntimeAccountId,
-						RuntimeHash,
-						RuntimeBlockNumber,
-					>,
-				> = self
-					.call_at(
-						hash,
-						"StorageProviderApi",
-						"deletion_acknowledgement",
-						vec![hash_arg(agreement.as_hash())?],
-					)
-					.await?;
-				Ok(StorageProviderResponse::DeletionAcknowledgement(finalized_value(
-					hash,
-					response.version,
-					response.value.map(deletion_acknowledgement_view).transpose()?,
+					response.value.map(checkpoint_view).transpose()?,
 				)?))
 			},
 			StorageProviderQuery::ResourceProviderRef { reservation_id } => {
@@ -971,7 +1031,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 				> = self
 					.call_at(hash, "DriveRegistryApi", "drive", vec![hash_arg(drive.as_hash())?])
 					.await?;
-				Ok(DriveResponse::Drive(finalized_value(
+				Ok(DriveResponse::Drive(storage_finalized_value(
 					hash,
 					response.version,
 					response.value.map(drive_view).transpose()?,
@@ -988,7 +1048,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 						page_args(account_arg(owner)?, page),
 					)
 					.await?;
-				Ok(DriveResponse::Drives(finalized_page(
+				Ok(DriveResponse::Drives(storage_finalized_page(
 					hash,
 					response.version,
 					response.items.into_iter().map(|item| drive_id(item.drive_id)).collect(),
@@ -1006,7 +1066,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 					.await?;
 				let items =
 					response.items.iter().map(account_id).collect::<DomainResult<Vec<_>>>()?;
-				Ok(DriveResponse::Controllers(finalized_page(
+				Ok(DriveResponse::Controllers(storage_finalized_page(
 					hash,
 					response.version,
 					items,
@@ -1022,7 +1082,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 						vec![account_arg(owner)?],
 					)
 					.await?;
-				Ok(DriveResponse::NextDriveNonce(finalized_value(
+				Ok(DriveResponse::NextDriveNonce(storage_finalized_value(
 					hash,
 					storage_api::RESPONSE_VERSION,
 					Some(nonce),
@@ -1037,7 +1097,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 						vec![account_arg(owner)?, hash_arg(drive.as_hash())?],
 					)
 					.await?;
-				Ok(DriveResponse::IsDriveOwner(finalized_value(
+				Ok(DriveResponse::IsDriveOwner(storage_finalized_value(
 					hash,
 					storage_api::RESPONSE_VERSION,
 					Some(is_owner),
@@ -1053,7 +1113,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 			S3Query::BucketById { bucket } => {
 				let response =
 					self.bucket_call(hash, "bucket", vec![hash_arg(bucket.as_hash())?]).await?;
-				Ok(S3Response::Bucket(finalized_value(
+				Ok(S3Response::Bucket(storage_finalized_value(
 					hash,
 					response.version,
 					response.value.map(bucket_view).transpose()?,
@@ -1068,7 +1128,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 					)
 					.await?;
 				let id = response.value.map(|bucket| bucket_id(bucket.bucket_id));
-				Ok(S3Response::BucketId(finalized_value(hash, response.version, id)?))
+				Ok(S3Response::BucketId(storage_finalized_value(hash, response.version, id)?))
 			},
 			S3Query::OwnerBuckets { owner, page } => {
 				let response: storage_api::Page<
@@ -1076,7 +1136,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 				> = self
 					.call_at(hash, "S3RegistryApi", "buckets", page_args(account_arg(owner)?, page))
 					.await?;
-				Ok(S3Response::Buckets(finalized_page(
+				Ok(S3Response::Buckets(storage_finalized_page(
 					hash,
 					response.version,
 					response.items.into_iter().map(|item| bucket_id(item.bucket_id)).collect(),
@@ -1097,7 +1157,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 					.into_iter()
 					.map(ObjectKey::new)
 					.collect::<DomainResult<Vec<_>>>()?;
-				Ok(S3Response::Objects(finalized_page(
+				Ok(S3Response::Objects(storage_finalized_page(
 					hash,
 					response.version,
 					items,
@@ -1115,7 +1175,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 						vec![hash_arg(bucket.as_hash())?, Value::from_bytes(key.as_bytes())],
 					)
 					.await?;
-				Ok(S3Response::Object(finalized_value(
+				Ok(S3Response::Object(storage_finalized_value(
 					hash,
 					response.version,
 					response.value.map(object_view).transpose()?,
@@ -1132,7 +1192,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 					.into_iter()
 					.map(object_version_view)
 					.collect::<DomainResult<Vec<_>>>()?;
-				Ok(S3Response::ObjectHistory(finalized_page(
+				Ok(S3Response::ObjectHistory(storage_finalized_page(
 					hash,
 					response.version,
 					items,
@@ -1148,7 +1208,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 						vec![hash_arg(bucket.as_hash())?, Value::from_bytes(key.as_bytes())],
 					)
 					.await?;
-				Ok(S3Response::ObjectId(finalized_value(
+				Ok(S3Response::ObjectId(storage_finalized_value(
 					hash,
 					response.version,
 					response.value.map(object_id),
@@ -1163,7 +1223,7 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 						vec![account_arg(owner)?, hash_arg(bucket.as_hash())?],
 					)
 					.await?;
-				Ok(S3Response::IsBucketOwner(finalized_value(
+				Ok(S3Response::IsBucketOwner(storage_finalized_value(
 					hash,
 					storage_api::RESPONSE_VERSION,
 					Some(is_owner),
@@ -1192,9 +1252,8 @@ fn schema_view(
 			att_api::IndexPolicy::None => DomainIndexPolicy::None,
 			att_api::IndexPolicy::Issuer => DomainIndexPolicy::Issuer,
 			att_api::IndexPolicy::SubjectAndSchema => DomainIndexPolicy::SubjectAndSchema,
-			att_api::IndexPolicy::IssuerAndSubjectSchema => {
-				DomainIndexPolicy::IssuerAndSubjectSchema
-			},
+			att_api::IndexPolicy::IssuerAndSubjectSchema =>
+				DomainIndexPolicy::IssuerAndSubjectSchema,
 		},
 		authorized_issuers: view
 			.authorized_issuers
@@ -1272,24 +1331,24 @@ fn storage_actor(
 	actor: transaction_storage_api::ClientStorageActor<RuntimeAccountId>,
 ) -> DomainResult<StorageActor> {
 	Ok(match actor {
-		transaction_storage_api::ClientStorageActor::Account(account) => {
-			StorageActor::Account { account: account_id(&account)? }
-		},
+		transaction_storage_api::ClientStorageActor::Account(account) =>
+			StorageActor::Account { account: account_id(&account)? },
 		transaction_storage_api::ClientStorageActor::Root => StorageActor::Root,
-		transaction_storage_api::ClientStorageActor::Preimage(content_hash) => {
-			StorageActor::Preimage { content_hash: ContentHash(Hash32::from_bytes(content_hash)) }
-		},
-		transaction_storage_api::ClientStorageActor::AutoRenew(account) => {
-			StorageActor::AutoRenew { account: account_id(&account)? }
-		},
+		transaction_storage_api::ClientStorageActor::Preimage(content_hash) =>
+			StorageActor::Preimage { content_hash: ContentHash(Hash32::from_bytes(content_hash)) },
+		transaction_storage_api::ClientStorageActor::AutoRenew(account) =>
+			StorageActor::AutoRenew { account: account_id(&account)? },
 	})
 }
 
 fn resource_reservation(
-	view: transaction_storage_api::ClientResourceReservationView<RuntimeAccountId, RuntimeBlockNumber>,
+	view: transaction_storage_api::ClientResourceReservationView<
+		RuntimeAccountId,
+		RuntimeBlockNumber,
+	>,
 ) -> DomainResult<ResourceReservationView> {
 	Ok(match view {
-		transaction_storage_api::ClientResourceReservationView::Active(active) => {
+		transaction_storage_api::ClientResourceReservationView::Active(active) =>
 			ResourceReservationView::Active(ActiveResourceReservation {
 				owner: account_id(&active.owner)?,
 				purpose_digest: ContentHash(Hash32::from_bytes(active.purpose_digest)),
@@ -1297,13 +1356,14 @@ fn resource_reservation(
 				transactions_remaining: active.transactions_remaining,
 				created_at: active.created_at,
 				expires_at: active.expires_at,
-			})
-		},
+			}),
 		transaction_storage_api::ClientResourceReservationView::Tombstone(tombstone) => {
 			let outcome = match tombstone.outcome {
-				transaction_storage_api::ClientResourceClosure::Cancelled => ResourceClosure::Cancelled,
+				transaction_storage_api::ClientResourceClosure::Cancelled =>
+					ResourceClosure::Cancelled,
 				transaction_storage_api::ClientResourceClosure::Expired => ResourceClosure::Expired,
-				transaction_storage_api::ClientResourceClosure::Exhausted => ResourceClosure::Exhausted,
+				transaction_storage_api::ClientResourceClosure::Exhausted =>
+					ResourceClosure::Exhausted,
 			};
 			ResourceReservationView::Tombstone(ResourceReservationTombstone {
 				owner: account_id(&tombstone.owner)?,
@@ -1318,7 +1378,10 @@ fn resource_reservation(
 }
 
 fn resource_reservation_link(
-	link: transaction_storage_api::ClientResourceReservationLink<RuntimeAccountId, RuntimeBlockNumber>,
+	link: transaction_storage_api::ClientResourceReservationLink<
+		RuntimeAccountId,
+		RuntimeBlockNumber,
+	>,
 ) -> DomainResult<DomainResourceReservationLink> {
 	Ok(DomainResourceReservationLink {
 		reservation_id: ReservationId::from_u64(link.reservation_id),
@@ -1335,12 +1398,37 @@ fn resource_reservation_link(
 
 fn provider_view(
 	provider: AccountId,
-	info: storage_api::ProviderInfo<RuntimeBlockNumber>,
+	info: storage_api::ProviderInfo<RuntimeHash, RuntimeBlockNumber>,
 ) -> DomainResult<ProviderView> {
 	Ok(ProviderView {
 		provider,
 		endpoint: Endpoint::new(info.endpoint)?,
-		service_key: ServiceKey::new(info.service_key)?,
+		organization: ProviderOrganizationView {
+			entity_id: info.organization.entity_id,
+			attestation: domain_hash(info.organization.attestation_id),
+			schema: domain_hash(info.organization.schema_id),
+			sla_commitment: domain_hash(info.organization.sla_commitment),
+			sla_version: info.organization.sla_version,
+			valid_from: info.organization.valid_from,
+			valid_until: info.organization.valid_until,
+			rotation_predecessor: info.organization.rotation_predecessor.map(domain_hash),
+		},
+		service_key: ProviderServiceKeyView {
+			active: ServiceKey::new(info.service_key.active.to_vec())?,
+			active_version: info.service_key.active_version,
+			previous: info
+				.service_key
+				.previous
+				.map(|key| ServiceKey::new(key.to_vec()))
+				.transpose()?,
+			pending: info
+				.service_key
+				.pending
+				.map(|key| ServiceKey::new(key.to_vec()))
+				.transpose()?,
+			pending_version: info.service_key.pending_version,
+			pending_effective_at: info.service_key.pending_effective_at,
+		},
 		capacity_bytes: info.capacity_bytes,
 		allocated_bytes: info.allocated_bytes,
 		pending_bytes: info.pending_bytes,
@@ -1349,7 +1437,8 @@ fn provider_view(
 			storage_api::ProviderStatus::Suspended => ProviderStatus::Suspended,
 		},
 		last_heartbeat: info.last_heartbeat,
-		reputation: info.reputation,
+		overdue_challenges: info.overdue_challenges,
+		authority_validated_at: info.authority_validated_at,
 	})
 }
 
@@ -1359,17 +1448,18 @@ fn agreement_view(
 	Ok(AgreementView {
 		agreement: agreement_id(info.agreement_id),
 		owner: account_id(&info.owner)?,
-		provider: account_id(&info.provider)?,
-		container: container_id(info.container_ref),
-		content_commitment: ContentCommitment(domain_hash(info.content_commitment)),
-		reservation_ref: info.reservation_ref.map(ReservationId::from_u64),
+		bucket: bucket_id(info.bucket_id),
+		primary: account_id(&info.primary)?,
+		replicas: info.replicas.iter().map(account_id).collect::<DomainResult<Vec<_>>>()?,
 		bytes: info.bytes,
 		created_at: info.created_at,
 		expires_at: info.expires_at,
-		pending_expiry: info.pending_expiry,
+		release_at: info.release_at,
+		state_version: info.state_version,
 		status: match info.status {
 			storage_api::AgreementStatus::Proposed => AgreementStatus::Proposed,
 			storage_api::AgreementStatus::Active => AgreementStatus::Active,
+			storage_api::AgreementStatus::Suspended => AgreementStatus::Suspended,
 			storage_api::AgreementStatus::Cancelled => AgreementStatus::Cancelled,
 			storage_api::AgreementStatus::Expired => AgreementStatus::Expired,
 		},
@@ -1381,11 +1471,14 @@ fn challenge_view(
 ) -> DomainResult<ChallengeView> {
 	Ok(ChallengeView {
 		challenge: challenge_id(info.challenge_id),
+		bucket: bucket_id(info.bucket_id),
 		provider: account_id(&info.provider)?,
-		agreement: agreement_id(info.agreement_id),
-		expected_commitment: ProofCommitment(domain_hash(info.expected_commitment)),
+		expected_commitment: commitment_view(info.expected_commitment),
+		location: ChunkLocationView {
+			leaf_index: info.location.leaf_index,
+			chunk_index: info.location.chunk_index,
+		},
 		due_at: info.due_at,
-		proof_commitment: info.proof_commitment.map(|hash| ProofCommitment(domain_hash(hash))),
 		status: match info.status {
 			storage_api::ChallengeStatus::Open => ChallengeStatus::Open,
 			storage_api::ChallengeStatus::Proved => ChallengeStatus::Proved,
@@ -1395,32 +1488,28 @@ fn challenge_view(
 }
 
 fn checkpoint_view(
-	info: storage_api::CheckpointInfo<RuntimeHash, RuntimeBlockNumber>,
-) -> CheckpointView {
-	CheckpointView {
-		challenge: challenge_id(info.challenge_id),
-		proof_commitment: ProofCommitment(domain_hash(info.proof_commitment)),
-		recorded_at: info.recorded_at,
-	}
+	info: storage_api::CheckpointInfo<RuntimeAccountId, RuntimeHash, RuntimeBlockNumber>,
+) -> DomainResult<CheckpointView> {
+	Ok(CheckpointView {
+		bucket: bucket_id(info.bucket_id),
+		commitment: commitment_view(info.commitment),
+		checkpoint_block: info.checkpoint_block,
+		primary_signers: info.primary_signers,
+		commitment_nonce: info.commitment_nonce,
+		replica_confirmations: info
+			.replica_confirmations
+			.iter()
+			.map(account_id)
+			.collect::<DomainResult<Vec<_>>>()?,
+	})
 }
 
-fn deletion_acknowledgement_view(
-	info: storage_api::DeletionAcknowledgementInfo<
-		RuntimeAccountId,
-		RuntimeHash,
-		RuntimeBlockNumber,
-	>,
-) -> DomainResult<DeletionAcknowledgementView> {
-	Ok(DeletionAcknowledgementView {
-		provider: account_id(&info.provider)?,
-		content_commitment: ContentCommitment(domain_hash(info.content_commitment)),
-		tombstone_root: ProofCommitment(domain_hash(info.tombstone_root)),
-		root_sequence: info.root_sequence,
-		leaf_index: info.leaf_index,
+fn commitment_view(info: storage_api::CommitmentInfo<RuntimeHash>) -> CommitmentView {
+	CommitmentView {
+		mmr_root: ProofCommitment(domain_hash(info.mmr_root)),
+		start_seq: info.start_seq,
 		leaf_count: info.leaf_count,
-		proof_commitment: ProofCommitment(domain_hash(info.proof_commitment)),
-		acknowledged_at: info.acknowledged_at,
-	})
+	}
 }
 
 fn drive_view(
@@ -1429,24 +1518,19 @@ fn drive_view(
 	let status = match info.status {
 		storage_api::ContainerStatus::Active => DriveStatus::Active,
 		storage_api::ContainerStatus::Archived => DriveStatus::Archived,
-		storage_api::ContainerStatus::Deleted => {
-			return Err(NativeError::new(
-				NativeErrorCode::UnsupportedRuntime,
-				"Drive runtime API returned deleted status",
-			));
-		},
+		storage_api::ContainerStatus::Deleted => DriveStatus::Deleted,
 	};
 	Ok(DriveView {
 		drive: drive_id(info.drive_id),
 		owner: account_id(&info.owner)?,
 		name: DriveName::new(info.name)?,
-		root_storage_ref: info
-			.root_storage_ref
-			.map(|hash| ContentCommitment(Hash32::from_bytes(hash))),
+		root_manifest: info.root_manifest.map(content_id),
+		root_provider_commitment: info.root_provider_commitment.map(content_id),
 		version: info.version,
 		status,
 		created_at: info.created_at,
 		updated_at: info.updated_at,
+		controllers: info.controllers.iter().map(account_id).collect::<DomainResult<Vec<_>>>()?,
 	})
 }
 
@@ -1525,12 +1609,55 @@ fn finalized_page<T>(
 	Ok(response)
 }
 
+fn storage_finalized_value<T>(
+	hash: &Hash32,
+	version: u16,
+	value: Option<T>,
+) -> DomainResult<FinalizedValue<T>> {
+	ensure_storage_response_version(version)?;
+	hash.validate()?;
+	Ok(FinalizedValue { version, finalized_block_hash: hash.clone(), value })
+}
+
+fn storage_finalized_page<T>(
+	hash: &Hash32,
+	version: u16,
+	items: Vec<T>,
+	next_cursor: Option<u32>,
+) -> DomainResult<FinalizedPage<T>> {
+	ensure_storage_response_version(version)?;
+	hash.validate()?;
+	if items.len() > storage_api::MAX_PAGE_SIZE as usize {
+		return Err(NativeError::new(
+			NativeErrorCode::UnsupportedRuntime,
+			"storage runtime response exceeded its page contract",
+		))
+	}
+	if items.is_empty() && next_cursor.is_some() {
+		return Err(NativeError::new(
+			NativeErrorCode::UnsupportedRuntime,
+			"empty storage runtime response advanced its cursor",
+		))
+	}
+	Ok(FinalizedPage { version, finalized_block_hash: hash.clone(), items, next_cursor })
+}
+
 fn ensure_response_version(version: u16) -> DomainResult<()> {
 	if version != 1 {
 		return Err(NativeError::new(
 			NativeErrorCode::UnsupportedRuntime,
 			format!("unsupported Orbis runtime API response version {version}"),
 		));
+	}
+	Ok(())
+}
+
+fn ensure_storage_response_version(version: u16) -> DomainResult<()> {
+	if version != storage_api::RESPONSE_VERSION {
+		return Err(NativeError::new(
+			NativeErrorCode::UnsupportedRuntime,
+			format!("unsupported Orbis storage runtime API response version {version}"),
+		))
 	}
 	Ok(())
 }
@@ -1634,10 +1761,6 @@ fn agreement_id(hash: RuntimeHash) -> AgreementId {
 
 fn challenge_id(hash: RuntimeHash) -> ChallengeId {
 	ChallengeId(domain_hash(hash))
-}
-
-fn container_id(hash: RuntimeHash) -> ContainerId {
-	ContainerId(domain_hash(hash))
 }
 
 fn drive_id(hash: RuntimeHash) -> DriveId {

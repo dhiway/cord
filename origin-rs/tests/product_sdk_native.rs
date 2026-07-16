@@ -225,7 +225,7 @@ async fn every_authoritative_native_route_constructs_validates_and_dispatches_in
 		serde_json::from_str(&load("docs/sdk/native-route-contract.json")).unwrap();
 	let routes = contract["routes"].as_array().unwrap();
 	assert_eq!(contract["route_count"].as_u64(), Some(routes.len() as u64));
-	assert_eq!(routes.len(), 143);
+	assert_eq!(routes.len(), 138);
 	let selected = Arc::new(Mutex::new(Vec::new()));
 	let host = FakeHost::new(
 		Arc::new(|| 1_000),

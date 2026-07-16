@@ -33,6 +33,7 @@ pub type DriveWrite = SubmitAndFinalize<DriveCommand>;
 pub enum DriveStatus {
 	Active,
 	Archived,
+	Deleted,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -62,11 +63,13 @@ pub struct DriveView {
 	pub drive: DriveId,
 	pub owner: AccountId,
 	pub name: DriveName,
-	pub root_storage_ref: Option<ContentCommitment>,
+	pub root_manifest: Option<ContentCommitment>,
+	pub root_provider_commitment: Option<ContentCommitment>,
 	pub version: u64,
 	pub status: DriveStatus,
 	pub created_at: super::common::BlockNumber,
 	pub updated_at: super::common::BlockNumber,
+	pub controllers: Vec<AccountId>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
