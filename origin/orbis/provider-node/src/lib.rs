@@ -32,6 +32,9 @@ mod capability;
 mod chain;
 #[allow(dead_code)]
 mod checkpoint;
+// Deliberately private until ProviderService activates the checkpoint control plane atomically.
+#[allow(dead_code)]
+mod checkpoint_stack;
 mod content;
 mod merkle;
 mod storage;
