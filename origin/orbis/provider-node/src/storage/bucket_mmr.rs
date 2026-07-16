@@ -483,6 +483,41 @@ impl BucketMmrStore {
 		Ok((items, next_cursor))
 	}
 
+	/// Prove that a target-signed chunk descriptor is the exact committed object at its sequence.
+	pub(crate) fn verify_replication_object(
+		&self,
+		streaming: &StreamingStore,
+		bucket_id: BucketId,
+		commitment: PeerMmrCommitmentV1,
+		object: &PeerObjectV1,
+	) -> Result<(), ContentError> {
+		let (_, sequence, _) = object.position();
+		let (start, end) = commitment.sequence_range();
+		if sequence < start || sequence >= end {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let cursor = if sequence == start {
+			None
+		} else {
+			let state = self.state.read().map_err(|_| lock_error())?;
+			let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::NotFound)?;
+			let predecessor = sequence.checked_sub(1).ok_or(ContentError::IntegrityFailed)?;
+			let index: usize = predecessor.try_into().map_err(|_| ContentError::IntegrityFailed)?;
+			let total = bucket
+				.entries
+				.get(index)
+				.filter(|entry| entry.sequence == predecessor)
+				.map(|entry| entry.total_size)
+				.ok_or(ContentError::IntegrityFailed)?;
+			Some(PeerPageCursorV1::new(predecessor, total))
+		};
+		let (items, _) = self.replication_page(streaming, bucket_id, commitment, cursor, 1)?;
+		if items.as_slice() != [object.clone()] {
+			return Err(ContentError::IntegrityFailed);
+		}
+		Ok(())
+	}
+
 	fn persist_append(
 		&self,
 		bucket_id: BucketId,

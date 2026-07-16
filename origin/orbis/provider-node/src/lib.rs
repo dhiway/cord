@@ -43,6 +43,9 @@ mod peer;
 // Private durable replay table for exact authenticated peer responses.
 #[allow(dead_code)]
 mod peer_reply;
+// Private topology-authenticated responder; deliberately has no route or transport listener.
+#[allow(dead_code)]
+mod peer_responder;
 // Deliberately private until authenticated peer replication orchestration is activated.
 #[allow(dead_code)]
 mod replication;

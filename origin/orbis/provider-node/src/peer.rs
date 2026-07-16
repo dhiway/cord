@@ -345,6 +345,11 @@ impl PeerObjectV1 {
 		&self.chunk_hashes
 	}
 
+	/// Return the authenticated digest of the ordered per-chunk manifest.
+	pub(crate) fn chunk_manifest_hash(&self) -> [u8; 32] {
+		self.chunk_manifest_hash
+	}
+
 	fn validate(&self) -> Result<(), ContentError> {
 		if self.cid.is_empty() || self.cid.len() > MAX_CID_BYTES {
 			return Err(ContentError::SchemaInvalid);

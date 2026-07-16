@@ -23,6 +23,8 @@ use std::{
 	sync::{Mutex, MutexGuard},
 };
 
+use sp_core::ed25519;
+
 use crate::{
 	checkpoint::{
 		checkpoint_outbox::{CheckpointOutboxV2, CheckpointSubmissionV2},
@@ -32,10 +34,13 @@ use crate::{
 		checkpoint_quorum::ReplicaConfirmationStore,
 		CheckpointProposalStore,
 	},
-	peer_reply::PeerReplyStore,
+	peer::{
+		PeerChunkRequestV1, PeerChunkResponseV1, PeerSyncPageRequestV1, PeerSyncPageResponseV1,
+	},
+	peer_reply::{PeerReplyFault, PeerReplyStore},
 	replication::ReplicationIntentStore,
 	storage::bucket_mmr::BucketMmrStore,
-	ContentError, StreamingStore,
+	BucketId, ContentError, StreamingStore,
 };
 
 /// All durable checkpoint kernels opened against one provider root.
@@ -85,6 +90,66 @@ impl CheckpointStack {
 	/// Clone each independent bucket head so external finality work never borrows the stack guard.
 	pub(crate) fn submission_heads(&self) -> Result<Vec<CheckpointSubmissionV2>, ContentError> {
 		self.lock()?.outbox.pending_submission_heads()
+	}
+
+	/// Build or replay one exact page response while holding the synchronous durability boundary.
+	pub(crate) fn serve_peer_page(
+		&self,
+		request: &PeerSyncPageRequestV1,
+		source: &ed25519::Pair,
+	) -> Result<Vec<u8>, ContentError> {
+		let state = self.lock()?;
+		match state.peer_replies.replay_page(request) {
+			Ok(bytes) => return Ok(bytes),
+			Err(ContentError::NotFound) => {},
+			Err(error) => return Err(error),
+		}
+		let context = request.context();
+		let (cursor, limit) = request.page();
+		let (items, next_cursor) = state.bucket_mmr.replication_page(
+			&state.streaming,
+			BucketId::from_bytes(context.bucket()),
+			context.candidate_commitment(),
+			cursor,
+			limit,
+		)?;
+		let response =
+			PeerSyncPageResponseV1::new_signed(request, items, next_cursor, source)?.encode_wire();
+		state.peer_replies.record_page(request, &response)
+	}
+
+	/// Build or replay one exact chunk response after proving its committed object descriptor.
+	pub(crate) fn serve_peer_chunk(
+		&self,
+		request: &PeerChunkRequestV1,
+		source: &ed25519::Pair,
+	) -> Result<Vec<u8>, ContentError> {
+		let state = self.lock()?;
+		match state.peer_replies.replay_chunk(request) {
+			Ok(bytes) => return Ok(bytes),
+			Err(ContentError::NotFound) => {},
+			Err(error) => return Err(error),
+		}
+		let context = request.context();
+		let bucket_id = BucketId::from_bytes(context.bucket());
+		let (object, index, _) = request.chunk();
+		state.bucket_mmr.verify_replication_object(
+			&state.streaming,
+			bucket_id,
+			context.candidate_commitment(),
+			object,
+		)?;
+		let bytes = state.streaming.read_chunk_verified(object.cid(), index)?;
+		let response = PeerChunkResponseV1::new_signed(request, bytes, source)?.encode_wire();
+		state.peer_replies.record_chunk(request, &response)
+	}
+
+	#[doc(hidden)]
+	pub(crate) fn inject_peer_reply_fault_once(
+		&self,
+		fault: PeerReplyFault,
+	) -> Result<(), ContentError> {
+		self.lock()?.peer_replies.inject_fault_once(fault)
 	}
 
 	/// Consume one durable v2 submission without retaining the stack guard across finality.
