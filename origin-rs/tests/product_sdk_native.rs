@@ -269,7 +269,6 @@ async fn every_authoritative_native_route_constructs_validates_and_dispatches_in
 #[test]
 fn storage_native_routes_track_source_runtime_api_versions() {
 	const SOURCE: &str = "origin/orbis/runtime-api/storage/src/lib.rs";
-	const API_VERSION_PREFIX: &str = "#[api_version(";
 
 	let contract: Value =
 		serde_json::from_str(&load("docs/sdk/native-route-contract.json")).unwrap();
@@ -288,16 +287,8 @@ fn storage_native_routes_track_source_runtime_api_versions() {
 			"S3" => ("S3RegistryApi", 2),
 			pallet => panic!("{route_id} has unknown storage runtime API pallet {pallet}"),
 		};
-		let declaration = format!("pub trait {trait_name}");
-		let declaration_offset = source
-			.find(&declaration)
-			.unwrap_or_else(|| panic!("{trait_name} is absent from {SOURCE}"));
-		let annotation_offset = source[..declaration_offset]
-			.rfind(API_VERSION_PREFIX)
-			.unwrap_or_else(|| panic!("{trait_name} has no api_version in {SOURCE}"));
-		let version_tail =
-			&source[annotation_offset + API_VERSION_PREFIX.len()..declaration_offset];
-		let expected = version_tail[..version_tail.find(')').unwrap()].parse::<u64>().unwrap();
+		let expected = local_runtime_api_version(&source, trait_name)
+			.unwrap_or_else(|error| panic!("{trait_name} in {SOURCE}: {error}"));
 		assert_eq!(
 			route["runtime"]["runtime_api_version"].as_u64(),
 			Some(expected),
@@ -306,6 +297,94 @@ fn storage_native_routes_track_source_runtime_api_versions() {
 		route_counts[count_index] += 1;
 	}
 	assert_eq!(route_counts, [9, 4, 7]);
+}
+
+fn local_runtime_api_version(source: &str, trait_name: &str) -> Result<u64, String> {
+	const PREFIX: &str = "#[api_version(";
+	const SUFFIX: &str = ")]";
+
+	let declaration = format!("pub trait {trait_name}");
+	let mut declarations = source.match_indices(&declaration);
+	let declaration_offset = declarations
+		.next()
+		.map(|(offset, _)| offset)
+		.ok_or_else(|| format!("trait declaration `{declaration}` is absent"))?;
+	if declarations.next().is_some() {
+		return Err(format!("trait declaration `{declaration}` is duplicated"))
+	}
+
+	let declaration_line = source[..declaration_offset].rfind('\n').map_or(0, |offset| offset + 1);
+	let mut local_attributes = Vec::new();
+	for line in source[..declaration_line].lines().rev() {
+		let line = line.trim();
+		if line.is_empty() {
+			continue
+		}
+		if line.starts_with("#[") {
+			local_attributes.push(line);
+			continue
+		}
+		break
+	}
+
+	let annotations = local_attributes
+		.into_iter()
+		.filter(|attribute| attribute.starts_with("#[api_version"))
+		.collect::<Vec<_>>();
+	if annotations.len() != 1 {
+		return Err(format!(
+			"expected exactly one local api_version annotation, found {}",
+			annotations.len()
+		))
+	}
+	let version = annotations[0]
+		.strip_prefix(PREFIX)
+		.and_then(|value| value.strip_suffix(SUFFIX))
+		.ok_or_else(|| "local api_version annotation is malformed".to_owned())?;
+	if version.is_empty() || !version.bytes().all(|byte| byte.is_ascii_digit()) {
+		return Err("local api_version annotation is malformed".to_owned())
+	}
+	version
+		.parse()
+		.map_err(|_| "local api_version annotation is out of range".to_owned())
+}
+
+#[test]
+fn runtime_api_version_parser_rejects_non_local_duplicate_and_malformed_annotations() {
+	let valid = r#"
+#[api_version(10)]
+pub trait FirstApi {}
+
+#[api_version(2)]
+pub trait TargetApi {}
+"#;
+	assert_eq!(local_runtime_api_version(valid, "TargetApi"), Ok(2));
+
+	let missing = r#"
+#[api_version(10)]
+pub trait FirstApi {}
+
+pub trait TargetApi {}
+"#;
+	assert!(local_runtime_api_version(missing, "TargetApi").is_err());
+
+	let duplicate = r#"
+#[api_version(1)]
+#[api_version(2)]
+pub trait TargetApi {}
+"#;
+	assert!(local_runtime_api_version(duplicate, "TargetApi").is_err());
+
+	for malformed in [
+		r#"#[api_version()]
+pub trait TargetApi {}"#,
+		r#"#[api_version(two)]
+pub trait TargetApi {}"#,
+		r#"#[api_version = 2]
+pub trait TargetApi {}"#,
+	] {
+		assert!(local_runtime_api_version(malformed, "TargetApi").is_err());
+	}
 }
 
 #[test]
