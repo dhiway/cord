@@ -46,7 +46,9 @@ const REGISTRY_SHA256: [u8; 32] = [
 
 const MAX_PAGE_ITEMS: usize = 128;
 const MAX_CID_BYTES: usize = 96;
-const MAX_REQUEST_ENCODED: usize = 4 * 1024;
+// A maximum object contributes 256 fixed hashes (8 KiB); the remaining fixed context, object,
+// signature and SCALE length prefixes stay below the explicit 16 KiB request ceiling.
+const MAX_REQUEST_ENCODED: usize = 16 * 1024;
 const MAX_PAGE_RESPONSE_ENCODED: usize = 2 * 1024 * 1024;
 const MAX_CHUNK_RESPONSE_ENCODED: usize = CHUNK_BYTES + 4 * 1024;
 
@@ -1126,6 +1128,38 @@ mod tests {
 		invented_hash.chunk_hash[0] ^= 1;
 		invented_hash.signature = pair(12).sign(&invented_hash.request_hash()).0;
 		assert!(PeerChunkRequestV1::decode_canonical(&invented_hash.encode(), &expected).is_err());
+
+		let hashes = vec![[23; 32]; crate::MAX_CHUNKS];
+		let object = PeerObjectV1::new(
+			&CanonicalCid::from_digest([24; 32]),
+			MAX_STORED_BYTES,
+			0,
+			MAX_STORED_BYTES,
+			hashes.clone(),
+		)
+		.unwrap();
+		let expected = PeerChunkExpectationV1::new(
+			context(),
+			identity(),
+			object,
+			(crate::MAX_CHUNKS - 1) as u16,
+		)
+		.unwrap();
+		let max_request = PeerChunkRequestV1::new_signed(&expected, &pair(12)).unwrap();
+		assert!(max_request.encode_wire().len() > 4 * 1024);
+		assert!(max_request.encode_wire().len() <= MAX_REQUEST_ENCODED);
+		assert!(PeerChunkRequestV1::decode_canonical(&max_request.encode_wire(), &expected).is_ok());
+
+		let mut too_many = hashes;
+		too_many.push([25; 32]);
+		assert!(PeerObjectV1::new(
+			&CanonicalCid::from_digest([24; 32]),
+			MAX_STORED_BYTES,
+			0,
+			MAX_STORED_BYTES,
+			too_many,
+		)
+		.is_err());
 	}
 
 	#[test]
