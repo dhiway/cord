@@ -316,16 +316,11 @@ read("storage", "provider_by_id", { provider: account });
 read("storage", "providers", pageFields);
 read("storage", "agreement_by_id", { agreement_id: hash32 });
 read("storage", "provider_agreements", { provider: account, ...pageFields });
-read("storage", "owner_agreements", { owner: account, ...pageFields });
-read("storage", "container_agreements", { container_ref: hash32, ...pageFields });
 read("storage", "agreement_nonce", { owner: account });
 read("storage", "challenge_by_id", { challenge_id: hash32 });
 read("storage", "challenges_at", { block: blockNumber, ...pageFields });
-read("storage", "open_challenge_count", { agreement_id: hash32 });
 read("storage", "can_accept_capacity", { provider: account, additional_bytes: decimalU64 });
-read("storage", "provider_checkpoint", { provider: account });
-read("storage", "provider_root", { provider: account });
-read("storage", "deletion_acknowledgement", { agreement_id: hash32 });
+read("storage", "bucket_checkpoint", { bucket: hash32 });
 const providerFields = {
   provider: account,
   endpoint: string({ min: 1, maxBytes: 512 }),
@@ -400,7 +395,12 @@ const objectKey = string({ min: 1, maxBytes: 1024 });
 read("storage", "bucket_by_id", { bucket: hash32 });
 read("storage", "bucket_by_name", { name: bucketName });
 read("storage", "owner_buckets", { owner: account, ...pageFields });
-read("storage", "bucket_object_keys", { bucket: hash32, ...pageFields });
+read("storage", "bucket_object_keys", {
+  bucket: hash32,
+  prefix: nullable(string({ min: 0, maxBytes: 1024 })),
+  cursor: nullable(object({ snapshot_version: decimalU64, last_key: objectKey })),
+  limit: integer(1, 100),
+});
 read("storage", "object_by_key", { bucket: hash32, key: objectKey });
 read("storage", "object_history", { bucket: hash32, key: objectKey, ...pageFields });
 read("storage", "object_id", { bucket: hash32, key: objectKey });

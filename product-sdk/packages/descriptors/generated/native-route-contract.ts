@@ -28,7 +28,7 @@ export const NATIVE_ROUTE_CONTRACT = {
     "activation_state": "candidate-pending",
     "production_activation_ready": false
   },
-  "route_count": 143,
+  "route_count": 138,
   "routes": [
     {
       "id": "identity:identity_status",
@@ -6036,7 +6036,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "provider",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6096,7 +6096,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "providers",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6142,7 +6142,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "agreement",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6211,152 +6211,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "provider_agreements",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
-        "implementation_source": "origin/orbis/runtime/src/lib.rs"
-      },
-      "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
-        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
-      },
-      "canonical_arguments": [
-        "0x1111111111111111111111111111111111111111111111111111111111111111",
-        {
-          "cursor": null,
-          "limit": 1
-        }
-      ]
-    },
-    {
-      "id": "storage:owner_agreements",
-      "capability": "storage",
-      "method": "owner_agreements",
-      "finality": "finalized",
-      "parameters": [
-        {
-          "name": "owner",
-          "schema": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 128
-          }
-        },
-        {
-          "name": "cursor",
-          "schema": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 4294967295
-              }
-            ]
-          }
-        },
-        {
-          "name": "limit",
-          "schema": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 100
-          }
-        }
-      ],
-      "sample_payload": {
-        "owner": "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "cursor": null,
-        "limit": 1
-      },
-      "rust": {
-        "declaration": "StorageProviderQuery",
-        "variant": "OwnerAgreements",
-        "result": "StorageProviderResponse"
-      },
-      "typescript": {
-        "object": "provider",
-        "callable": "ownerAgreements"
-      },
-      "runtime": {
-        "kind": "runtime-api",
-        "source": "origin/orbis/runtime-api/storage/src/lib.rs",
-        "target": "owner_agreements",
-        "pallet": "StorageProvider",
-        "pallet_index": 120,
-        "runtime_api_version": 4,
-        "implementation_source": "origin/orbis/runtime/src/lib.rs"
-      },
-      "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
-        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
-      },
-      "canonical_arguments": [
-        "0x1111111111111111111111111111111111111111111111111111111111111111",
-        {
-          "cursor": null,
-          "limit": 1
-        }
-      ]
-    },
-    {
-      "id": "storage:container_agreements",
-      "capability": "storage",
-      "method": "container_agreements",
-      "finality": "finalized",
-      "parameters": [
-        {
-          "name": "container_ref",
-          "schema": {
-            "type": "string",
-            "pattern": "^0x[0-9a-f]{64}$"
-          }
-        },
-        {
-          "name": "cursor",
-          "schema": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 4294967295
-              }
-            ]
-          }
-        },
-        {
-          "name": "limit",
-          "schema": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 100
-          }
-        }
-      ],
-      "sample_payload": {
-        "container_ref": "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "cursor": null,
-        "limit": 1
-      },
-      "rust": {
-        "declaration": "StorageProviderQuery",
-        "variant": "ContainerAgreements",
-        "result": "StorageProviderResponse"
-      },
-      "typescript": {
-        "object": "provider",
-        "callable": "containerAgreements"
-      },
-      "runtime": {
-        "kind": "runtime-api",
-        "source": "origin/orbis/runtime-api/storage/src/lib.rs",
-        "target": "container_agreements",
-        "pallet": "StorageProvider",
-        "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6404,7 +6259,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "agreement_nonce",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6447,7 +6302,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "challenge",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6515,7 +6370,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "challenges_at",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6528,49 +6383,6 @@ export const NATIVE_ROUTE_CONTRACT = {
           "cursor": null,
           "limit": 1
         }
-      ]
-    },
-    {
-      "id": "storage:open_challenge_count",
-      "capability": "storage",
-      "method": "open_challenge_count",
-      "finality": "finalized",
-      "parameters": [
-        {
-          "name": "agreement_id",
-          "schema": {
-            "type": "string",
-            "pattern": "^0x[0-9a-f]{64}$"
-          }
-        }
-      ],
-      "sample_payload": {
-        "agreement_id": "0x1111111111111111111111111111111111111111111111111111111111111111"
-      },
-      "rust": {
-        "declaration": "StorageProviderQuery",
-        "variant": "OpenChallengeCount",
-        "result": "StorageProviderResponse"
-      },
-      "typescript": {
-        "object": "provider",
-        "callable": "openChallengeCount"
-      },
-      "runtime": {
-        "kind": "runtime-api",
-        "source": "origin/orbis/runtime-api/storage/src/lib.rs",
-        "target": "open_challenge_count",
-        "pallet": "StorageProvider",
-        "pallet_index": 120,
-        "runtime_api_version": 4,
-        "implementation_source": "origin/orbis/runtime/src/lib.rs"
-      },
-      "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
-        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
-      },
-      "canonical_arguments": [
-        "0x1111111111111111111111111111111111111111111111111111111111111111"
       ]
     },
     {
@@ -6614,7 +6426,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "can_accept_capacity",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -6627,101 +6439,13 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "storage:provider_checkpoint",
+      "id": "storage:bucket_checkpoint",
       "capability": "storage",
-      "method": "provider_checkpoint",
+      "method": "bucket_checkpoint",
       "finality": "finalized",
       "parameters": [
         {
-          "name": "provider",
-          "schema": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 128
-          }
-        }
-      ],
-      "sample_payload": {
-        "provider": "0x1111111111111111111111111111111111111111111111111111111111111111"
-      },
-      "rust": {
-        "declaration": "StorageProviderQuery",
-        "variant": "ProviderCheckpoint",
-        "result": "StorageProviderResponse"
-      },
-      "typescript": {
-        "object": "provider",
-        "callable": "providerCheckpoint"
-      },
-      "runtime": {
-        "kind": "runtime-api",
-        "source": "origin/orbis/runtime-api/storage/src/lib.rs",
-        "target": "checkpoint",
-        "pallet": "StorageProvider",
-        "pallet_index": 120,
-        "runtime_api_version": 4,
-        "implementation_source": "origin/orbis/runtime/src/lib.rs"
-      },
-      "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
-        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
-      },
-      "canonical_arguments": [
-        "0x1111111111111111111111111111111111111111111111111111111111111111"
-      ]
-    },
-    {
-      "id": "storage:provider_root",
-      "capability": "storage",
-      "method": "provider_root",
-      "finality": "finalized",
-      "parameters": [
-        {
-          "name": "provider",
-          "schema": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 128
-          }
-        }
-      ],
-      "sample_payload": {
-        "provider": "0x1111111111111111111111111111111111111111111111111111111111111111"
-      },
-      "rust": {
-        "declaration": "StorageProviderQuery",
-        "variant": "ProviderRoot",
-        "result": "StorageProviderResponse"
-      },
-      "typescript": {
-        "object": "provider",
-        "callable": "providerRoot"
-      },
-      "runtime": {
-        "kind": "runtime-api",
-        "source": "origin/orbis/runtime-api/storage/src/lib.rs",
-        "target": "provider_root",
-        "pallet": "StorageProvider",
-        "pallet_index": 120,
-        "runtime_api_version": 4,
-        "implementation_source": "origin/orbis/runtime/src/lib.rs"
-      },
-      "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
-        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
-      },
-      "canonical_arguments": [
-        "0x1111111111111111111111111111111111111111111111111111111111111111"
-      ]
-    },
-    {
-      "id": "storage:deletion_acknowledgement",
-      "capability": "storage",
-      "method": "deletion_acknowledgement",
-      "finality": "finalized",
-      "parameters": [
-        {
-          "name": "agreement_id",
+          "name": "bucket",
           "schema": {
             "type": "string",
             "pattern": "^0x[0-9a-f]{64}$"
@@ -6729,24 +6453,24 @@ export const NATIVE_ROUTE_CONTRACT = {
         }
       ],
       "sample_payload": {
-        "agreement_id": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        "bucket": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
         "declaration": "StorageProviderQuery",
-        "variant": "DeletionAcknowledgement",
+        "variant": "BucketCheckpoint",
         "result": "StorageProviderResponse"
       },
       "typescript": {
         "object": "provider",
-        "callable": "deletionAcknowledgement"
+        "callable": "bucketCheckpoint"
       },
       "runtime": {
         "kind": "runtime-api",
         "source": "origin/orbis/runtime-api/storage/src/lib.rs",
-        "target": "deletion_acknowledgement",
+        "target": "checkpoint",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 4,
+        "runtime_api_version": 10,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -7736,7 +7460,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "drive",
         "pallet": "Drive",
         "pallet_index": 121,
-        "runtime_api_version": 4,
+        "runtime_api_version": 2,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -7805,7 +7529,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "drives",
         "pallet": "Drive",
         "pallet_index": 121,
-        "runtime_api_version": 4,
+        "runtime_api_version": 2,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -7877,7 +7601,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "controllers",
         "pallet": "Drive",
         "pallet_index": 121,
-        "runtime_api_version": 4,
+        "runtime_api_version": 2,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -7925,7 +7649,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "next_drive_nonce",
         "pallet": "Drive",
         "pallet_index": 121,
-        "runtime_api_version": 4,
+        "runtime_api_version": 2,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -8248,7 +7972,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "bucket",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 4,
+        "runtime_api_version": 3,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -8293,7 +8017,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "bucket_by_name",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 4,
+        "runtime_api_version": 3,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -8362,7 +8086,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "buckets",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 4,
+        "runtime_api_version": 3,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -8391,6 +8115,21 @@ export const NATIVE_ROUTE_CONTRACT = {
           }
         },
         {
+          "name": "prefix",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "minLength": 0,
+                "maxUtf8Bytes": 1024
+              }
+            ]
+          }
+        },
+        {
           "name": "cursor",
           "schema": {
             "anyOf": [
@@ -8398,9 +8137,23 @@ export const NATIVE_ROUTE_CONTRACT = {
                 "type": "null"
               },
               {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 4294967295
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "snapshot_version",
+                  "last_key"
+                ],
+                "properties": {
+                  "snapshot_version": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]{0,19})$"
+                  },
+                  "last_key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxUtf8Bytes": 1024
+                  }
+                }
               }
             ]
           }
@@ -8409,13 +8162,14 @@ export const NATIVE_ROUTE_CONTRACT = {
           "name": "limit",
           "schema": {
             "type": "integer",
-            "minimum": 0,
+            "minimum": 1,
             "maximum": 100
           }
         }
       ],
       "sample_payload": {
         "bucket": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "prefix": null,
         "cursor": null,
         "limit": 1
       },
@@ -8434,7 +8188,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "object_keys",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 4,
+        "runtime_api_version": 3,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -8444,6 +8198,7 @@ export const NATIVE_ROUTE_CONTRACT = {
       "canonical_arguments": [
         "0x1111111111111111111111111111111111111111111111111111111111111111",
         {
+          "prefix": null,
           "cursor": null,
           "limit": 1
         }
@@ -8490,7 +8245,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "object",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 4,
+        "runtime_api_version": 3,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -8568,7 +8323,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "object_history",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 4,
+        "runtime_api_version": 3,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
@@ -8625,7 +8380,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "target": "object_id",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 4,
+        "runtime_api_version": 3,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {

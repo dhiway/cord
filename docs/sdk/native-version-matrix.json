@@ -72,15 +72,15 @@
       "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs"
     },
     "storage_provider": {
-      "version": 4,
+      "version": 10,
       "source": "origin/orbis/runtime-api/storage/src/lib.rs"
     },
     "drive": {
-      "version": 1,
+      "version": 2,
       "source": "origin/orbis/runtime-api/storage/src/lib.rs"
     },
     "s3": {
-      "version": 1,
+      "version": 3,
       "source": "origin/orbis/runtime-api/storage/src/lib.rs"
     }
   },

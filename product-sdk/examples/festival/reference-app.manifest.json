@@ -9,7 +9,7 @@
     { "capability": "names", "method": "resolve_subject", "finality": "finalized" },
     { "capability": "names", "method": "commit", "finality": "submit-and-finalize" },
     { "capability": "storage", "method": "provider_by_id", "finality": "finalized" },
-    { "capability": "storage", "method": "provider_checkpoint", "finality": "finalized" }
+    { "capability": "storage", "method": "bucket_checkpoint", "finality": "finalized" }
   ],
   "consent": {
     "explicit": true,

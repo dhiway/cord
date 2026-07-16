@@ -22,11 +22,13 @@ SHA-256 `bfac0f6c…c9e0`. Its frozen activation state is `candidate-pending` wi
 cryptographically verified activation envelope derives `production-approved`; the current unsigned
 P5 envelope does not satisfy that gate.
 
-The generated `cord-native-host-contract-manifest` is the supported typed host contract. Its
-143 methods are projected from `native-route-contract.json`, the authoritative route inventory.
+`native-route-contract.json` is the authoritative typed host-route inventory and now contains 138
+methods. Its generated TypeScript projection is updated independently of the network-bound
+descriptor and host schema, which remain fail-closed until the live Commons metadata identity is
+reconciled.
 Each entry binds ordered parameters, result/finality, Rust query or command variant, TypeScript
 callable, runtime API or pallet call, and the pallet/call indices used by current dispatch tables.
-Rust and TypeScript harnesses execute all 143 canonical request samples. The checked-in Commons V14
+Rust and TypeScript harnesses execute all 138 canonical request samples. The checked-in Commons V14
 SCALE metadata is extracted from the current runtime Wasm and drives a byte-reproducible
 `polkadot-api` descriptor build. The route contract remains the authoritative product-policy
 projection: its closed payload schemas and canonical Rust/TypeScript factories deliberately expose
@@ -38,7 +40,7 @@ domain Revive calls, contract ABIs, and contract-address aliases are not referen
 The contract-to-native map is design coverage only, never a compatibility facade. It classifies
 2,780 source-semantic design entries; 14 adopted semantic bindings are exact M5 bindings and the
 remaining entries record intentional changes, retirements, or non-applicable source semantics.
-Executable coverage is reported separately as 143 distinct Rust and TypeScript route cases. Retired and
+Executable coverage is reported separately as 138 distinct Rust and TypeScript route cases. Retired and
 not-applicable source symbols stay explicit in the census, but no legacy client, contract facade,
 backward-compatibility layer, or data-migration path is shipped. This is a new network.
 

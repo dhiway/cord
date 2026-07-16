@@ -20,7 +20,7 @@ import { page, type AccountId, type AgreementId, type BlockNumber, type BucketId
 import type { Base64Content, CidConfig, StorageRef, TransactionRef } from "./storage.ts";
 import type { ProviderEndpoint, ProviderServiceKey, ProviderStatus } from "./provider.ts";
 import type { DriveName } from "./drive.ts";
-import type { BucketName, ObjectKey } from "./s3.ts";
+import type { BucketName, ObjectKey, ObjectListInput } from "./s3.ts";
 
 export type StorageService = "storage" | "provider" | "drive" | "s3";
 export interface CloudStorageReadRequest { readonly kind:"read"; readonly service:StorageService; readonly method:string; readonly payload:Readonly<Record<string,unknown>> }
@@ -145,20 +145,6 @@ export const providerRequests = {
     });
   },
 
-  ownerAgreements(owner: AccountId, input?: PageInput) {
-    return readRequest("provider", "owner_agreements", {
-      owner,
-      ...page(input),
-    });
-  },
-
-  containerAgreements(container_ref: ContainerId, input?: PageInput) {
-    return readRequest("provider", "container_agreements", {
-      container_ref,
-      ...page(input),
-    });
-  },
-
   agreementNonce(owner: AccountId) {
     return readRequest("provider", "agreement_nonce", { owner });
   },
@@ -174,10 +160,6 @@ export const providerRequests = {
     });
   },
 
-  openChallengeCount(agreement_id: AgreementId) {
-    return readRequest("provider", "open_challenge_count", { agreement_id });
-  },
-
   canAcceptCapacity(provider: ProviderId, additional_bytes: DecimalU64) {
     return readRequest("provider", "can_accept_capacity", {
       provider,
@@ -185,18 +167,8 @@ export const providerRequests = {
     });
   },
 
-  providerCheckpoint(provider: ProviderId) {
-    return readRequest("provider", "provider_checkpoint", { provider });
-  },
-
-  providerRoot(provider: ProviderId) {
-    return readRequest("provider", "provider_root", { provider });
-  },
-
-  deletionAcknowledgement(agreement_id: AgreementId) {
-    return readRequest("provider", "deletion_acknowledgement", {
-      agreement_id,
-    });
+  bucketCheckpoint(bucket: BucketId) {
+    return readRequest("provider", "bucket_checkpoint", { bucket });
   },
 
   heartbeat() {
@@ -358,10 +330,16 @@ export const s3Requests = {
     return readRequest("s3", "owner_buckets", { owner, ...page(input) });
   },
 
-  bucketObjectKeys(bucket: BucketId, input?: PageInput) {
+  bucketObjectKeys(bucket: BucketId, input: ObjectListInput = {}) {
+    const limit = input.limit ?? 50;
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+      throw new TypeError("limit must be an integer between 1 and 100");
+    }
     return readRequest("s3", "bucket_object_keys", {
       bucket,
-      ...page(input),
+      prefix: input.prefix ?? null,
+      cursor: input.cursor ? { ...input.cursor } : null,
+      limit,
     });
   },
 

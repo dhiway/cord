@@ -36,7 +36,7 @@ transaction_version = 8
 para_id = 1006
 metadata_hash = "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45"
 runtime_source = "origin/orbis/runtime/src/lib.rs"
-route_count = 143
+route_count = 138
 route_contract = "docs/sdk/native-route-contract.json"
 
 [node]

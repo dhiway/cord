@@ -21,6 +21,7 @@ import { invalidDomainInput, type AccountId, type BlockNumber, type BucketId, ty
 declare const s3Type: unique symbol;
 export type BucketName = string & { readonly [s3Type]: "BucketName" };
 export type ObjectKey = string & { readonly [s3Type]: "ObjectKey" };
+export type ObjectKeyPrefix = string & { readonly [s3Type]: "ObjectKeyPrefix" };
 export type BucketStatus = "active" | "archived" | "deleted";
 
 const utf8 = new TextEncoder();
@@ -46,6 +47,13 @@ export function objectKey(value: string): ObjectKey {
   return value as ObjectKey;
 }
 
+export function objectKeyPrefix(value: string): ObjectKeyPrefix {
+  if (utf8.encode(value).length > 1_024) {
+    invalidDomainInput("s3", "object_key_prefix", "object key prefix must contain 0-1024 UTF-8 bytes");
+  }
+  return value as ObjectKeyPrefix;
+}
+
 export interface BucketView {
   readonly bucket: BucketId;
   readonly name: BucketName;
@@ -64,6 +72,7 @@ export interface ObjectView {
   readonly bucket: BucketId;
   readonly key: ObjectKey;
   readonly content_hash: ContentHash | null;
+  readonly provider_commitment: ContentHash | null;
   readonly version: DecimalU64;
   readonly deleted: boolean;
   readonly updated_by: AccountId;
@@ -72,8 +81,28 @@ export interface ObjectView {
 
 export interface ObjectVersion {
   readonly content_hash: ContentHash | null;
+  readonly provider_commitment: ContentHash | null;
   readonly version: DecimalU64;
   readonly deleted: boolean;
   readonly updated_by: AccountId;
   readonly updated_at: BlockNumber;
+}
+
+export interface ObjectListCursor {
+  readonly snapshot_version: DecimalU64;
+  readonly last_key: ObjectKey;
+}
+
+export interface ObjectListInput {
+  readonly prefix?: ObjectKeyPrefix | null;
+  readonly cursor?: ObjectListCursor | null;
+  readonly limit?: number;
+}
+
+export interface ObjectListPage {
+  readonly version: 8;
+  readonly finalized_hash: `0x${string}`;
+  readonly items: readonly ObjectKey[];
+  readonly next_cursor: ObjectListCursor | null;
+  readonly snapshot_version: DecimalU64;
 }

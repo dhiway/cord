@@ -20,7 +20,7 @@ import {
   page,
   type AccountId, type AgreementId, type Base64Content, type BlockNumber, type BucketId, type BucketName,
   type ChallengeId, type CidConfig, type ContainerId, type ContentCommitment, type ContentHash, type DecimalU64,
-  type DriveId, type DriveName, type ObjectId, type ObjectKey, type PageInput, type ProviderAllocationId,
+  type DriveId, type DriveName, type ObjectId, type ObjectKey, type ObjectListInput, type PageInput, type ProviderAllocationId,
   type ProviderEndpoint, type ProviderId, type ProviderServiceKey, type ProviderStatus, type ReservationId,
   type StorageRef, type TransactionRef,
 } from "@cord-network/origin-sdk-cloud-storage";
@@ -147,20 +147,6 @@ export const providerHostRoutes = {
     });
   },
 
-  ownerAgreements(context: RequestContext, owner: AccountId, input?: PageInput) {
-    return finalizedRead("provider", context, "storage", "owner_agreements", {
-      owner,
-      ...page(input),
-    });
-  },
-
-  containerAgreements(context: RequestContext, container_ref: ContainerId, input?: PageInput) {
-    return finalizedRead("provider", context, "storage", "container_agreements", {
-      container_ref,
-      ...page(input),
-    });
-  },
-
   agreementNonce(context: RequestContext, owner: AccountId) {
     return finalizedRead("provider", context, "storage", "agreement_nonce", { owner });
   },
@@ -176,10 +162,6 @@ export const providerHostRoutes = {
     });
   },
 
-  openChallengeCount(context: RequestContext, agreement_id: AgreementId) {
-    return finalizedRead("provider", context, "storage", "open_challenge_count", { agreement_id });
-  },
-
   canAcceptCapacity(context: RequestContext, provider: ProviderId, additional_bytes: DecimalU64) {
     return finalizedRead("provider", context, "storage", "can_accept_capacity", {
       provider,
@@ -187,18 +169,8 @@ export const providerHostRoutes = {
     });
   },
 
-  providerCheckpoint(context: RequestContext, provider: ProviderId) {
-    return finalizedRead("provider", context, "storage", "provider_checkpoint", { provider });
-  },
-
-  providerRoot(context: RequestContext, provider: ProviderId) {
-    return finalizedRead("provider", context, "storage", "provider_root", { provider });
-  },
-
-  deletionAcknowledgement(context: RequestContext, agreement_id: AgreementId) {
-    return finalizedRead("provider", context, "storage", "deletion_acknowledgement", {
-      agreement_id,
-    });
+  bucketCheckpoint(context: RequestContext, bucket: BucketId) {
+    return finalizedRead("provider", context, "storage", "bucket_checkpoint", { bucket });
   },
 
   registerProvider(
@@ -417,10 +389,16 @@ export const s3HostRoutes = {
     return finalizedRead("s3", context, "storage", "owner_buckets", { owner, ...page(input) });
   },
 
-  bucketObjectKeys(context: RequestContext, bucket: BucketId, input?: PageInput) {
+  bucketObjectKeys(context: RequestContext, bucket: BucketId, input: ObjectListInput = {}) {
+    const limit = input.limit ?? 50;
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+      throw new TypeError("limit must be an integer between 1 and 100");
+    }
     return finalizedRead("s3", context, "storage", "bucket_object_keys", {
       bucket,
-      ...page(input),
+      prefix: input.prefix ?? null,
+      cursor: input.cursor ? { ...input.cursor } : null,
+      limit,
     });
   },
 

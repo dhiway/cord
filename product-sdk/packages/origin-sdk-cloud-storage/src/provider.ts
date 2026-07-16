@@ -16,14 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-import { invalidDomainInput, type AccountId, type AgreementId, type BlockNumber, type ChallengeId, type ContainerId, type ContentCommitment, type DecimalU64, type IdPage, type PageInput, type ProviderId, type ReservationId } from "./types.ts";
+import { invalidDomainInput, type AccountId, type AgreementId, type BlockNumber, type BucketId, type ChallengeId, type ContentCommitment, type DecimalU64, type Hash32, type ProviderId } from "./types.ts";
 
 declare const providerType: unique symbol;
 export type ProviderEndpoint = string & { readonly [providerType]: "ProviderEndpoint" };
 export type ProviderServiceKey = string & { readonly [providerType]: "ProviderServiceKey" };
 
 export type ProviderStatus = "active" | "suspended";
-export type AgreementStatus = "proposed" | "active" | "cancelled" | "expired";
+export type AgreementStatus = "proposed" | "active" | "suspended" | "cancelled" | "expired";
 export type ChallengeStatus = "open" | "proved" | "timed_out";
 
 const utf8 = new TextEncoder();
@@ -43,62 +43,80 @@ export const providerEndpoint = (value: string): ProviderEndpoint =>
 export const providerServiceKey = (value: string): ProviderServiceKey =>
   boundedProviderText(value, "ProviderServiceKey", 128);
 
+export interface ProviderOrganizationView {
+  readonly entity_id: string;
+  readonly attestation_id: Hash32;
+  readonly schema_id: Hash32;
+  readonly sla_commitment: Hash32;
+  readonly sla_version: number;
+  readonly valid_from: BlockNumber;
+  readonly valid_until: BlockNumber;
+  readonly rotation_predecessor: Hash32 | null;
+}
+
+export interface ProviderServiceKeyView {
+  readonly active: ProviderServiceKey;
+  readonly active_version: DecimalU64;
+  readonly previous: ProviderServiceKey | null;
+  readonly pending: ProviderServiceKey | null;
+  readonly pending_version: DecimalU64 | null;
+  readonly pending_effective_at: BlockNumber | null;
+}
+
 export interface ProviderView {
   readonly provider: ProviderId;
   readonly endpoint: ProviderEndpoint;
-  readonly service_key: ProviderServiceKey;
+  readonly organization: ProviderOrganizationView;
+  readonly service_key: ProviderServiceKeyView;
   readonly capacity_bytes: DecimalU64;
   readonly allocated_bytes: DecimalU64;
   readonly pending_bytes: DecimalU64;
   readonly status: ProviderStatus;
   readonly last_heartbeat: BlockNumber;
-  readonly reputation: number;
+  readonly overdue_challenges: number;
+  readonly authority_validated_at: BlockNumber | null;
 }
 
 export interface AgreementView {
   readonly agreement_id: AgreementId;
   readonly owner: AccountId;
-  readonly provider: ProviderId;
-  readonly container_ref: ContainerId;
-  readonly content_commitment: ContentCommitment;
-  readonly reservation_ref: ReservationId | null;
+  readonly bucket_id: BucketId;
+  readonly primary: ProviderId;
+  readonly replicas: readonly ProviderId[];
   readonly bytes: DecimalU64;
   readonly created_at: BlockNumber;
   readonly expires_at: BlockNumber;
-  readonly pending_expiry: BlockNumber | null;
+  readonly release_at: BlockNumber | null;
+  readonly state_version: DecimalU64;
   readonly status: AgreementStatus;
 }
 
 export interface ChallengeView {
   readonly challenge_id: ChallengeId;
   readonly provider: ProviderId;
-  readonly agreement_id: AgreementId;
-  readonly expected_commitment: ContentCommitment;
+  readonly bucket_id: BucketId;
+  readonly expected_commitment: CommitmentView;
+  readonly location: ChunkLocationView;
   readonly due_at: BlockNumber;
-  readonly proof_commitment: ContentCommitment | null;
   readonly status: ChallengeStatus;
 }
 
-export interface ProviderCheckpoint {
-  readonly challenge_id: ChallengeId;
-  readonly proof_commitment: ContentCommitment;
-  readonly recorded_at: BlockNumber;
-}
-
-export interface ProviderRootView {
-  readonly sequence: DecimalU64;
-  readonly root: ContentCommitment;
+export interface CommitmentView {
+  readonly mmr_root: ContentCommitment;
+  readonly start_seq: DecimalU64;
   readonly leaf_count: DecimalU64;
-  readonly committed_at: BlockNumber;
 }
 
-export interface DeletionAcknowledgementView {
-  readonly provider: ProviderId;
-  readonly content_commitment: ContentCommitment;
-  readonly tombstone_root: ContentCommitment;
-  readonly root_sequence: DecimalU64;
+export interface ChunkLocationView {
   readonly leaf_index: DecimalU64;
-  readonly leaf_count: DecimalU64;
-  readonly proof_commitment: ContentCommitment;
-  readonly acknowledged_at: BlockNumber;
+  readonly chunk_index: number;
+}
+
+export interface CheckpointView {
+  readonly bucket_id: BucketId;
+  readonly commitment: CommitmentView;
+  readonly checkpoint_block: BlockNumber;
+  readonly primary_signers: number;
+  readonly commitment_nonce: BlockNumber;
+  readonly replica_confirmations: readonly ProviderId[];
 }

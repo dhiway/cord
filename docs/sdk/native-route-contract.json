@@ -8096,6 +8096,21 @@
           }
         },
         {
+          "name": "prefix",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "minLength": 0,
+                "maxUtf8Bytes": 1024
+              }
+            ]
+          }
+        },
+        {
           "name": "cursor",
           "schema": {
             "anyOf": [
@@ -8103,9 +8118,23 @@
                 "type": "null"
               },
               {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 4294967295
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "snapshot_version",
+                  "last_key"
+                ],
+                "properties": {
+                  "snapshot_version": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]{0,19})$"
+                  },
+                  "last_key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxUtf8Bytes": 1024
+                  }
+                }
               }
             ]
           }
@@ -8114,13 +8143,14 @@
           "name": "limit",
           "schema": {
             "type": "integer",
-            "minimum": 0,
+            "minimum": 1,
             "maximum": 100
           }
         }
       ],
       "sample_payload": {
         "bucket": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "prefix": null,
         "cursor": null,
         "limit": 1
       },
@@ -8149,6 +8179,7 @@
       "canonical_arguments": [
         "0x1111111111111111111111111111111111111111111111111111111111111111",
         {
+          "prefix": null,
           "cursor": null,
           "limit": 1
         }

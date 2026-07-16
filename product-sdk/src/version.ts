@@ -42,9 +42,9 @@ export const NATIVE_SDK_VERSION = {
     identityPersonhood: 1,
     attestation: 1,
     names: 1,
-    storageProvider: 4,
-    drive: 1,
-    s3: 1,
+    storageProvider: 10,
+    drive: 2,
+    s3: 3,
   },
   storageSchemas: {
     attestation: 1,
