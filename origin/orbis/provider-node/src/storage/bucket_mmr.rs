@@ -343,6 +343,40 @@ impl BucketMmrStore {
 		object: &PeerObjectV1,
 	) -> Result<bool, ContentError> {
 		let (length, sequence, cumulative_total) = object.position();
+		self.replication_position_structurally_matches(
+			bucket_id,
+			sequence,
+			object.cid(),
+			length,
+			cumulative_total,
+		)
+	}
+
+	/// Return whether an admitted empty object already occupies its exact logical position.
+	pub(crate) fn zero_replication_slot_structurally_matches(
+		&self,
+		bucket_id: BucketId,
+		sequence: u64,
+		cid: &str,
+		cumulative_total: u64,
+	) -> Result<bool, ContentError> {
+		self.replication_position_structurally_matches(
+			bucket_id,
+			sequence,
+			cid,
+			0,
+			cumulative_total,
+		)
+	}
+
+	fn replication_position_structurally_matches(
+		&self,
+		bucket_id: BucketId,
+		sequence: u64,
+		cid: &str,
+		length: u64,
+		cumulative_total: u64,
+	) -> Result<bool, ContentError> {
 		let state = self.state.read().map_err(|_| lock_error())?;
 		let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::NotFound)?;
 		let index: usize = sequence.try_into().map_err(|_| ContentError::IntegrityFailed)?;
@@ -351,7 +385,7 @@ impl BucketMmrStore {
 		}
 		let entry = bucket.entries.get(index).ok_or(ContentError::IntegrityFailed)?;
 		if entry.sequence != sequence
-			|| entry.cid != object.cid()
+			|| entry.cid != cid
 			|| entry.data_size != length
 			|| entry.total_size != cumulative_total
 		{

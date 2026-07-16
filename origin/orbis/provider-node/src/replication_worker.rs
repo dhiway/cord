@@ -514,6 +514,7 @@ mod tests {
 		bytes: &[u8],
 	) -> crate::CanonicalCid {
 		let cid = crate::CanonicalCid::from_digest(blake2_256(bytes));
+		let chunks = (!bytes.is_empty()).then(|| bytes.to_vec()).into_iter();
 		streaming
 			.put_chunks(
 				StreamingDescriptor {
@@ -522,7 +523,7 @@ mod tests {
 					expected_cid: cid.to_string(),
 					object_len: bytes.len() as u64,
 				},
-				std::iter::once(bytes.to_vec()),
+				chunks,
 			)
 			.unwrap();
 		assert!(root.join("streaming-v1").join("objects").join(cid.as_str()).is_file());
@@ -532,14 +533,16 @@ mod tests {
 	async fn corrupt_target_is_discovered_and_repaired(
 		target_confirmed: bool,
 		target_has_suffix: bool,
+		first: &[u8],
+		second: &[u8],
+		damaged_index: usize,
+		remove_damaged: bool,
 	) {
 		let source = TempDir::new().unwrap();
 		let target = TempDir::new().unwrap();
-		let first = b"checkpoint-prefix".to_vec();
-		let second = b"checkpoint-suffix".to_vec();
 		let source_streaming = StreamingStore::open(source.path()).unwrap();
-		let first_cid = install_object(source.path(), &source_streaming, 7, &first);
-		install_object(source.path(), &source_streaming, 8, &second);
+		let first_cid = install_object(source.path(), &source_streaming, 7, first);
+		let second_cid = install_object(source.path(), &source_streaming, 8, second);
 		let source_mmr = BucketMmrStore::open(source.path(), &source_streaming).unwrap();
 		let suffix = source_mmr
 			.commitment_candidate(&source_streaming, BucketId::from_bytes([3; 32]), 1)
@@ -548,16 +551,26 @@ mod tests {
 		assert_eq!(suffix.leaf_count, 1);
 
 		let target_streaming = StreamingStore::open(target.path()).unwrap();
-		install_object(target.path(), &target_streaming, 97, &first);
+		install_object(target.path(), &target_streaming, 97, first);
 		if target_has_suffix {
-			install_object(target.path(), &target_streaming, 98, &second);
+			install_object(target.path(), &target_streaming, 98, second);
 		}
 		drop(BucketMmrStore::open(target.path(), &target_streaming).unwrap());
 		drop(target_streaming);
-		let object = target.path().join("streaming-v1").join("objects").join(first_cid.as_str());
-		let mut damaged = first.clone();
-		damaged[0] ^= 1;
-		fs::write(object, damaged).unwrap();
+		let damaged_cid = [&first_cid, &second_cid][damaged_index];
+		let object = target.path().join("streaming-v1").join("objects").join(damaged_cid.as_str());
+		if remove_damaged {
+			fs::remove_file(object).unwrap();
+		} else {
+			let original = [first, second][damaged_index];
+			let mut damaged = original.to_vec();
+			if damaged.is_empty() {
+				damaged.push(1);
+			} else {
+				damaged[0] ^= 1;
+			}
+			fs::write(object, damaged).unwrap();
+		}
 
 		let checkpoint = 50;
 		let mut topology = ReplicationTopologySnapshot {
@@ -645,6 +658,23 @@ mod tests {
 			.replication_checkpoint_ready(BucketId::from_bytes([3; 32]), suffix.mmr_root.0, 2)
 			.unwrap());
 		assert!(!transport.requests.lock().unwrap().is_empty());
+
+		drop(reconciler);
+		drop(target_stack);
+		let reopened_streaming = StreamingStore::open(target.path()).unwrap();
+		let reopened_mmr = BucketMmrStore::open(target.path(), &reopened_streaming).unwrap();
+		let full = reopened_mmr
+			.commitment_candidate(&reopened_streaming, BucketId::from_bytes([3; 32]), 0)
+			.unwrap();
+		assert_eq!(full.mmr_root, suffix.mmr_root);
+		assert_eq!(full.start_seq, 0);
+		assert_eq!(full.leaf_count, 2);
+		drop(reopened_mmr);
+		drop(reopened_streaming);
+		assert!(CheckpointStack::open(target.path())
+			.unwrap()
+			.replication_checkpoint_ready(BucketId::from_bytes([3; 32]), suffix.mmr_root.0, 2)
+			.unwrap());
 	}
 
 	#[test]
@@ -693,12 +723,48 @@ mod tests {
 
 	#[tokio::test]
 	async fn confirmed_corrupt_bucket_is_audited_then_repaired_from_full_checkpoint_range() {
-		corrupt_target_is_discovered_and_repaired(true, true).await;
+		corrupt_target_is_discovered_and_repaired(
+			true,
+			true,
+			b"checkpoint-prefix",
+			b"checkpoint-suffix",
+			0,
+			false,
+		)
+		.await;
 	}
 
 	#[tokio::test]
 	async fn unconfirmed_unavailable_prefix_is_repaired_before_missing_suffix_is_installed() {
-		corrupt_target_is_discovered_and_repaired(false, false).await;
+		corrupt_target_is_discovered_and_repaired(
+			false,
+			false,
+			b"checkpoint-prefix",
+			b"checkpoint-suffix",
+			0,
+			false,
+		)
+		.await;
+	}
+
+	#[tokio::test]
+	async fn healthy_zero_prefix_is_not_duplicated_while_corrupt_suffix_is_repaired() {
+		corrupt_target_is_discovered_and_repaired(true, true, b"", b"suffix", 1, false).await;
+	}
+
+	#[tokio::test]
+	async fn healthy_zero_suffix_is_not_duplicated_after_corrupt_prefix_is_repaired() {
+		corrupt_target_is_discovered_and_repaired(true, true, b"prefix", b"", 0, false).await;
+	}
+
+	#[tokio::test]
+	async fn corrupt_zero_on_confirmed_target_is_restored_without_duplicate_leaf() {
+		corrupt_target_is_discovered_and_repaired(true, true, b"", b"suffix", 0, false).await;
+	}
+
+	#[tokio::test]
+	async fn missing_zero_on_confirmed_target_is_restored_without_duplicate_leaf() {
+		corrupt_target_is_discovered_and_repaired(true, true, b"", b"suffix", 0, true).await;
 	}
 
 	#[test]

@@ -385,6 +385,50 @@ impl CheckpointStack {
 		if length == 0 {
 			let install =
 				state.replication.object_installation(intent_key, sequence, cid, length)?;
+			let structurally_present =
+				match state.bucket_mmr.zero_replication_slot_structurally_matches(
+					install.bucket_id,
+					sequence,
+					cid,
+					install.cumulative_total,
+				) {
+					Ok(present) => present,
+					Err(ContentError::NotFound) => false,
+					Err(error) => return Err(error),
+				};
+			if structurally_present {
+				match state.streaming.verified_replication_ready(
+					install.bucket_id,
+					cid,
+					0,
+					install.operation_id,
+					install.repair_operation_id,
+				) {
+					Ok(_) => {},
+					Err(ContentError::IntegrityFailed | ContentError::NotFound) => {
+						// Force an exact full-file audit so an unobserved missing/corrupt empty
+						// object is quarantined before entering the durable repair lifecycle.
+						let _ = state.streaming.read_range_verified(cid, 0, 0);
+						let progress =
+							state.streaming.begin_repair(cid, install.repair_operation_id)?;
+						if !progress.ready_to_finalize {
+							return Err(ContentError::ChunkMissing);
+						}
+						state.streaming.finalize_repair(cid, install.repair_operation_id)?;
+						state
+							.bucket_mmr
+							.revalidate_repaired_bucket(&state.streaming, install.bucket_id)?;
+					},
+					Err(error) => return Err(error),
+				}
+				return state.replication.complete_object(
+					&state.streaming,
+					intent_key,
+					sequence,
+					cid,
+					length,
+				);
+			}
 			let descriptor = StreamingDescriptor {
 				operation_id: install.operation_id,
 				bucket_id: install.bucket_id,

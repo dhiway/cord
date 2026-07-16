@@ -233,6 +233,8 @@ pub(crate) struct VerifiedIncomingChunkV1 {
 pub(crate) struct ReplicationObjectInstallV1 {
 	pub(crate) bucket_id: BucketId,
 	pub(crate) operation_id: OperationId,
+	pub(crate) repair_operation_id: OperationId,
+	pub(crate) cumulative_total: u64,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -828,6 +830,21 @@ impl ReplicationIntentStore {
 	) -> Result<ReplicationObjectInstallV1, ContentError> {
 		let record = self.record(intent_key)?;
 		validate_admitted_completion(&record, sequence, cid, length)?;
+		let cumulative_total = record
+			.last_completed
+			.as_ref()
+			.filter(|completed| {
+				completed.sequence == sequence && completed.cid == cid && completed.length == length
+			})
+			.map(|completed| completed.cumulative_total)
+			.or_else(|| {
+				record
+					.admitted_page
+					.as_ref()
+					.and_then(|page| page.objects.get(page.next_object))
+					.map(|object| object.cumulative_total)
+			})
+			.ok_or(ContentError::IdempotencyConflict)?;
 		Ok(ReplicationObjectInstallV1 {
 			bucket_id: BucketId::from_bytes(record.identity.bucket_id),
 			operation_id: OperationId::from_bytes(derived_stream_id(
@@ -835,6 +852,12 @@ impl ReplicationIntentStore {
 				sequence,
 				OPERATION_DOMAIN,
 			)),
+			repair_operation_id: OperationId::from_bytes(derived_stream_id(
+				intent_key,
+				sequence,
+				REPAIR_DOMAIN,
+			)),
+			cumulative_total,
 		})
 	}
 
