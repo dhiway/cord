@@ -39,7 +39,10 @@ use sp_core::H256;
 use sp_crypto_hashing::blake2_256;
 
 use super::streaming::{StreamingStore, VerifiedInstallation};
-use crate::{BucketId, CanonicalCid, ContentError, OperationId, MAX_STREAMING_OPERATIONS};
+use crate::{
+	peer::{PeerMmrCommitmentV1, PeerObjectV1, PeerPageCursorV1},
+	BucketId, CanonicalCid, ContentError, OperationId, MAX_STREAMING_OPERATIONS,
+};
 
 const VERSION: u16 = 3;
 const ROOT: &str = "bucket-mmr-v3";
@@ -336,6 +339,124 @@ impl BucketMmrStore {
 			start_seq: expected_start_seq,
 			leaf_count,
 		})
+	}
+
+	/// Build one bounded, contiguous replication page from fully reverified installed objects.
+	pub(crate) fn replication_page(
+		&self,
+		streaming: &StreamingStore,
+		bucket_id: BucketId,
+		commitment: PeerMmrCommitmentV1,
+		cursor: Option<PeerPageCursorV1>,
+		limit: u16,
+	) -> Result<(Vec<PeerObjectV1>, Option<PeerPageCursorV1>), ContentError> {
+		const MAX_REPLICATION_PAGE_ITEMS: usize = 128;
+		if limit == 0 || usize::from(limit) > MAX_REPLICATION_PAGE_ITEMS {
+			return Err(ContentError::SchemaInvalid);
+		}
+		commitment.validate()?;
+		let (start, end) = commitment.sequence_range();
+		let candidate = self.commitment_candidate(streaming, bucket_id, start)?;
+		if candidate.mmr_root != H256::from(commitment.mmr_root())
+			|| candidate.start_seq != start
+			|| candidate.leaf_count != end - start
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+
+		let (entries, mut sequence, mut prior_total) = {
+			let state = self.state.read().map_err(|_| lock_error())?;
+			let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::NotFound)?;
+			let entry_count: u64 =
+				bucket.entries.len().try_into().map_err(|_| ContentError::IntegrityFailed)?;
+			if bucket.unavailable || entry_count != end || bucket.meta.entry_count != end {
+				return Err(ContentError::IntegrityFailed);
+			}
+			let predecessor_total = if start == 0 {
+				0
+			} else {
+				let predecessor: usize =
+					(start - 1).try_into().map_err(|_| ContentError::IntegrityFailed)?;
+				bucket.entries.get(predecessor).ok_or(ContentError::IntegrityFailed)?.total_size
+			};
+			if predecessor_total != commitment.predecessor_total_size() {
+				return Err(ContentError::IntegrityFailed);
+			}
+			let (sequence, prior_total) = match cursor {
+				None => (start, predecessor_total),
+				Some(cursor) => {
+					let (last_sequence, cumulative_total) = cursor.position();
+					let next = last_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+					let last: usize =
+						last_sequence.try_into().map_err(|_| ContentError::IntegrityFailed)?;
+					let stored_total = bucket
+						.entries
+						.get(last)
+						.filter(|entry| entry.sequence == last_sequence)
+						.map(|entry| entry.total_size)
+						.ok_or(ContentError::IntegrityFailed)?;
+					if last_sequence < start || next >= end || cumulative_total != stored_total {
+						return Err(ContentError::IntegrityFailed);
+					}
+					(next, cumulative_total)
+				},
+			};
+			let remaining: usize =
+				(end - sequence).try_into().map_err(|_| ContentError::IntegrityFailed)?;
+			let take = usize::from(limit).min(remaining);
+			let from: usize = sequence.try_into().map_err(|_| ContentError::IntegrityFailed)?;
+			let to = from.checked_add(take).ok_or(ContentError::IntegrityFailed)?;
+			let entries =
+				bucket.entries.get(from..to).ok_or(ContentError::IntegrityFailed)?.to_vec();
+			(entries, sequence, prior_total)
+		};
+
+		let mut items = Vec::with_capacity(entries.len());
+		for entry in entries {
+			if entry.sequence != sequence {
+				return Err(ContentError::IntegrityFailed);
+			}
+			let expected_total =
+				prior_total.checked_add(entry.data_size).ok_or(ContentError::IntegrityFailed)?;
+			if entry.total_size != expected_total {
+				return Err(ContentError::IntegrityFailed);
+			}
+			let operation_id = OperationId::parse(&entry.operation_id)?;
+			let source = streaming.verified_replication_object(bucket_id, operation_id)?;
+			if source.bucket_id != bucket_id
+				|| source.operation_id != operation_id
+				|| source.cid.as_str() != entry.cid
+				|| source.stored_bytes != entry.data_size
+			{
+				return Err(ContentError::IntegrityFailed);
+			}
+			let leaf = MmrLeafV1 {
+				data_root: H256::from(source.cid.digest()),
+				data_size: source.stored_bytes,
+				total_size: entry.total_size,
+			};
+			if decode_hash(&entry.leaf_hash)? != hash_leaf(&leaf) {
+				return Err(ContentError::IntegrityFailed);
+			}
+			items.push(PeerObjectV1::new(
+				&source.cid,
+				source.stored_bytes,
+				entry.sequence,
+				entry.total_size,
+				source.chunk_hashes,
+			)?);
+			sequence = sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+			prior_total = entry.total_size;
+		}
+		if items.is_empty() {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let next_cursor = if sequence == end {
+			None
+		} else {
+			Some(PeerPageCursorV1::new(sequence - 1, prior_total))
+		};
+		Ok((items, next_cursor))
 	}
 
 	fn persist_append(
@@ -820,6 +941,26 @@ mod tests {
 		(bucket_id, operation_id, cid)
 	}
 
+	fn peer_commitment(
+		mmr: &BucketMmrStore,
+		streaming: &StreamingStore,
+		bucket_id: BucketId,
+		start: u64,
+	) -> PeerMmrCommitmentV1 {
+		let candidate = mmr.commitment_candidate(streaming, bucket_id, start).unwrap();
+		let state = mmr.state.read().unwrap();
+		let bucket = state.buckets.get(&bucket_id).unwrap();
+		let predecessor =
+			if start == 0 { 0 } else { bucket.entries[(start - 1) as usize].total_size };
+		PeerMmrCommitmentV1::new(
+			candidate.mmr_root.0,
+			candidate.start_seq,
+			candidate.leaf_count,
+			predecessor,
+		)
+		.unwrap()
+	}
+
 	#[test]
 	fn runtime_scale_hashes_and_incremental_right_bagging_are_fixed() {
 		let leaves = (1u8..=5)
@@ -878,6 +1019,102 @@ mod tests {
 			let log = temp.path().join(ROOT).join(bucket.to_string()).join(LOG);
 			assert_eq!(fs::metadata(log).unwrap().len(), runtime.meta.confirmed_log_bytes);
 		}
+	}
+
+	#[test]
+	fn replication_pages_enforce_zero_one_127_and_128_bounds_and_cursors() {
+		let temp = TempDir::new().unwrap();
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let mut bucket = None;
+		for value in 1u8..=128 {
+			let (installed_bucket, _, _) = install(temp.path(), &streaming, 30, value, &[value]);
+			bucket = Some(installed_bucket);
+		}
+		let bucket = bucket.unwrap();
+		let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		let commitment = peer_commitment(&mmr, &streaming, bucket, 0);
+		assert_eq!(commitment.sequence_range(), (0, 128));
+		assert_eq!(
+			mmr.replication_page(&streaming, bucket, commitment, None, 0),
+			Err(ContentError::SchemaInvalid)
+		);
+		assert_eq!(
+			mmr.replication_page(&streaming, bucket, commitment, None, 129),
+			Err(ContentError::SchemaInvalid)
+		);
+
+		let (one, cursor) = mmr.replication_page(&streaming, bucket, commitment, None, 1).unwrap();
+		assert_eq!(one.len(), 1);
+		assert_eq!(one[0].position(), (1, 0, 1));
+		assert_eq!(cursor.unwrap().position(), (0, 1));
+
+		let (prefix, cursor) =
+			mmr.replication_page(&streaming, bucket, commitment, None, 127).unwrap();
+		assert_eq!(prefix.len(), 127);
+		assert_eq!(prefix.last().unwrap().position(), (1, 126, 127));
+		assert_eq!(cursor.unwrap().position(), (126, 127));
+		let (tail, terminal) =
+			mmr.replication_page(&streaming, bucket, commitment, cursor, 128).unwrap();
+		assert_eq!(tail.len(), 1);
+		assert_eq!(tail[0].position(), (1, 127, 128));
+		assert_eq!(terminal, None);
+
+		let (full, terminal) =
+			mmr.replication_page(&streaming, bucket, commitment, None, 128).unwrap();
+		assert_eq!(full.len(), 128);
+		assert_eq!(terminal, None);
+		let suffix = peer_commitment(&mmr, &streaming, bucket, 1);
+		let (suffix_items, terminal) =
+			mmr.replication_page(&streaming, bucket, suffix, None, 128).unwrap();
+		assert_eq!(suffix_items.len(), 127);
+		assert_eq!(suffix_items[0].position(), (1, 1, 2));
+		assert_eq!(terminal, None);
+	}
+
+	#[test]
+	fn replication_pages_reject_commitment_cursor_entry_and_source_tamper() {
+		let temp = TempDir::new().unwrap();
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let (bucket, _, first_cid) = install(temp.path(), &streaming, 31, 1, b"first");
+		install(temp.path(), &streaming, 31, 2, b"second");
+		let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		let commitment = peer_commitment(&mmr, &streaming, bucket, 0);
+		let (start, end) = commitment.sequence_range();
+
+		let wrong_root = PeerMmrCommitmentV1::new([99; 32], start, end - start, 0).unwrap();
+		assert!(mmr.replication_page(&streaming, bucket, wrong_root, None, 1).is_err());
+		let wrong_count =
+			PeerMmrCommitmentV1::new(commitment.mmr_root(), start, end - start - 1, 0).unwrap();
+		assert!(mmr.replication_page(&streaming, bucket, wrong_count, None, 1).is_err());
+		let suffix = peer_commitment(&mmr, &streaming, bucket, 1);
+		let wrong_total =
+			PeerMmrCommitmentV1::new(suffix.mmr_root(), 1, 1, suffix.predecessor_total_size() + 1)
+				.unwrap();
+		assert!(mmr.replication_page(&streaming, bucket, wrong_total, None, 1).is_err());
+		assert!(mmr
+			.replication_page(&streaming, bucket, commitment, Some(PeerPageCursorV1::new(0, 99)), 1,)
+			.is_err());
+
+		{
+			let mut state = mmr.state.write().unwrap();
+			state.buckets.get_mut(&bucket).unwrap().entries[0].total_size += 1;
+		}
+		assert!(mmr.replication_page(&streaming, bucket, commitment, None, 1).is_err());
+		{
+			let mut state = mmr.state.write().unwrap();
+			state.buckets.get_mut(&bucket).unwrap().entries[0].total_size -= 1;
+		}
+
+		let object = temp.path().join("streaming-v1").join("objects").join(first_cid.as_str());
+		let original = fs::read(&object).unwrap();
+		fs::write(&object, b"xxxxx").unwrap();
+		assert!(mmr.replication_page(&streaming, bucket, commitment, None, 1).is_err());
+		assert_eq!(
+			streaming.verify_installed(first_cid.as_str()),
+			Err(ContentError::IntegrityFailed)
+		);
+		fs::write(&object, original).unwrap();
+		assert!(mmr.replication_page(&streaming, bucket, commitment, None, 1).is_err());
 	}
 
 	#[test]

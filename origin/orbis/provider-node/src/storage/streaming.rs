@@ -211,6 +211,16 @@ pub(super) struct VerifiedInstallation {
 	pub(super) stored_bytes: u64,
 }
 
+/// Fully reverified descriptor and bounded chunk manifest for private peer replication.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct VerifiedReplicationObject {
+	pub(crate) operation_id: OperationId,
+	pub(crate) bucket_id: BucketId,
+	pub(crate) cid: CanonicalCid,
+	pub(crate) stored_bytes: u64,
+	pub(crate) chunk_hashes: Vec<[u8; 32]>,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum QuarantineReason {
@@ -1292,6 +1302,35 @@ impl StreamingStore {
 		self.verify_installation_record(record, quarantined)
 	}
 
+	/// Return one exact replication descriptor and manifest only after full-file verification.
+	pub(crate) fn verified_replication_object(
+		&self,
+		bucket_id: BucketId,
+		operation_id: OperationId,
+	) -> Result<VerifiedReplicationObject, ContentError> {
+		let key = operation_key_parts(bucket_id, operation_id);
+		let state = self.read_state()?;
+		let record = state.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
+		let quarantined = state.quarantine.contains_key(&record.descriptor.expected_cid);
+		drop(state);
+		let installation = self.verify_installation_record(record.clone(), quarantined)?;
+		let chunk_hashes = record
+			.chunks
+			.iter()
+			.map(|chunk| decode_chunk_hash(&chunk.hash))
+			.collect::<Result<Vec<_>, _>>()?;
+		if chunk_hashes.len() > MAX_CHUNKS {
+			return Err(ContentError::IntegrityFailed);
+		}
+		Ok(VerifiedReplicationObject {
+			operation_id: installation.operation_id,
+			bucket_id: installation.bucket_id,
+			cid: installation.cid,
+			stored_bytes: installation.stored_bytes,
+			chunk_hashes,
+		})
+	}
+
 	fn verify_installation_record(
 		&self,
 		record: OperationRecord,
@@ -2118,6 +2157,47 @@ mod exact_lookup_tests {
 		assert_eq!(verified.install_sequence, 0);
 		assert_eq!(store.exact_record_probes.load(Ordering::Relaxed), 1);
 		assert_eq!(store.exact_quarantine_probes.load(Ordering::Relaxed), 1);
+	}
+
+	#[test]
+	fn replication_descriptor_returns_max_decoded_manifest_and_exact_verified_chunk() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = StreamingStore::open(temp.path()).unwrap();
+		let bucket_id = BucketId::from_bytes([51; 32]);
+		let operation_id = OperationId::from_bytes([52; 16]);
+		let chunk = vec![53; CHUNK_BYTES];
+		let chunk_digest: [u8; 32] = Blake2b::<U32>::digest(&chunk).into();
+		let mut content = Blake2b::<U32>::new();
+		for _ in 0..MAX_CHUNKS {
+			content.update(&chunk);
+		}
+		let cid = CanonicalCid::from_digest(content.finalize().into());
+		store
+			.put_chunks(
+				StreamingDescriptor {
+					operation_id,
+					bucket_id,
+					expected_cid: cid.as_str().into(),
+					object_len: MAX_STORED_BYTES,
+				},
+				(0..MAX_CHUNKS).map(|_| chunk.clone()),
+			)
+			.unwrap();
+
+		let source = store.verified_replication_object(bucket_id, operation_id).unwrap();
+		assert_eq!(source.bucket_id, bucket_id);
+		assert_eq!(source.operation_id, operation_id);
+		assert_eq!(source.cid, cid);
+		assert_eq!(source.stored_bytes, MAX_STORED_BYTES);
+		assert_eq!(source.chunk_hashes.len(), MAX_CHUNKS);
+		assert!(source.chunk_hashes.iter().all(|hash| *hash == chunk_digest));
+		assert_eq!(
+			store.read_chunk_verified(cid.as_str(), (MAX_CHUNKS - 1) as u16).unwrap(),
+			chunk
+		);
+		assert!(store
+			.verified_replication_object(bucket_id, OperationId::from_bytes([54; 16]))
+			.is_err());
 	}
 
 	#[test]

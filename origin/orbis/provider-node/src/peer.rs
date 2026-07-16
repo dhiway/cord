@@ -105,7 +105,7 @@ impl PeerMmrCommitmentV1 {
 		self.start_seq.checked_add(self.leaf_count).ok_or(ContentError::IntegrityFailed)
 	}
 
-	fn validate(&self) -> Result<(), ContentError> {
+	pub(crate) fn validate(&self) -> Result<(), ContentError> {
 		if self.mmr_root == [0; 32]
 			|| self.leaf_count == 0
 			|| (self.start_seq == 0 && self.predecessor_total_size != 0)
