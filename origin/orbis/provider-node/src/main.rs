@@ -22,8 +22,8 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
 use origin_orbis_provider::{
-	run_workers, serve_provider_ingress, ApiConfig, DiskStore, FinalizedRuntimeAuthority,
-	JsonlCheckpointOutbox, NodeProfile, ProviderService, WorkerConfig,
+	run_replication_worker, run_workers, serve_provider_ingress, ApiConfig, DiskStore,
+	FinalizedRuntimeAuthority, JsonlCheckpointOutbox, NodeProfile, ProviderService, WorkerConfig,
 };
 use sp_core::{crypto::AccountId32, ed25519, Pair as _};
 
@@ -66,6 +66,9 @@ struct Cli {
 	/// Signed checkpoint interval in seconds.
 	#[arg(long, default_value_t = 60)]
 	checkpoint_seconds: u64,
+	/// Target replication reconciliation interval in seconds.
+	#[arg(long, default_value_t = 6)]
+	replication_seconds: u64,
 }
 
 #[tokio::main]
@@ -118,7 +121,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	println!("origin-orbis-provider peer ingress listening on {}", cli.peer_listen);
 	tokio::select! {
 		result = serve_provider_ingress(api, peer_listener, service.clone(), local_provider) => result?,
-		_ = run_workers(service, workers) => {},
+		_ = run_workers(service.clone(), workers) => {},
+		_ = run_replication_worker(service, local_provider, Duration::from_secs(cli.replication_seconds.max(1))) => {},
 		_ = tokio::signal::ctrl_c() => {},
 	}
 	Ok(())

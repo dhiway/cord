@@ -43,20 +43,17 @@ mod peer_reply;
 // Private topology-authenticated responder behind the dedicated peer listener.
 mod peer_responder;
 // Private outbound transport pinned to one exact finalized replication session.
-#[allow(dead_code)]
 mod peer_transport;
-// Deliberately private until authenticated peer replication orchestration is activated.
-#[allow(dead_code)]
 mod replication;
-// Private bounded target reconciler; deliberately not wired into the public node lifecycle yet.
-#[allow(dead_code)]
+// Private bounded target reconciler driven by the dedicated replication worker.
 mod replication_reconciler;
+mod replication_worker;
 // Private deterministic bridge from finalized topology evidence into authenticated peer context.
 mod replication_session;
 mod storage;
 mod workers;
 
-pub use api::{serve, serve_provider_ingress, ApiConfig, ProviderService};
+pub use api::{run_replication_worker, serve, serve_provider_ingress, ApiConfig, ProviderService};
 pub use chain::{
 	AgreementAuthorization, CapabilityAuthoritySnapshot, ChainAuthority, ChainError,
 	ChallengeBatch, ChallengeDuty, CheckpointDuty, CheckpointDutyBatch, CheckpointDutyMode,

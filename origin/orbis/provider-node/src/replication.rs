@@ -235,6 +235,19 @@ pub(crate) struct ReplicationObjectInstallV1 {
 	pub(crate) operation_id: OperationId,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ReplicationResumeV1 {
+	pub(crate) intent_key: String,
+	pub(crate) topology_snapshot_hash: [u8; 32],
+	pub(crate) topology_finalized_hash: [u8; 32],
+	pub(crate) topology_finalized_number: u32,
+	pub(crate) bucket_id: [u8; 32],
+	pub(crate) source_provider: [u8; 32],
+	pub(crate) target_provider: [u8; 32],
+	pub(crate) commitment: PeerMmrCommitmentV1,
+	pub(crate) operation_id: [u8; 16],
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SchedulerStateV1 {
@@ -948,6 +961,30 @@ impl ReplicationIntentStore {
 		self.persist_scheduler_or_poison(&next)?;
 		*scheduler = next;
 		Ok(selected)
+	}
+
+	pub(crate) fn select_resume_tick(&self) -> Result<Vec<ReplicationResumeV1>, ContentError> {
+		self.select_tick()?
+			.into_iter()
+			.map(|record| {
+				Ok(ReplicationResumeV1 {
+					intent_key: record.intent_key,
+					topology_snapshot_hash: record.identity.topology_snapshot_hash,
+					topology_finalized_hash: record.identity.topology_finalized_hash,
+					topology_finalized_number: record.identity.topology_finalized_number,
+					bucket_id: record.identity.bucket_id,
+					source_provider: record.identity.source_provider,
+					target_provider: record.identity.target_provider,
+					commitment: PeerMmrCommitmentV1::new(
+						record.identity.candidate_mmr_root,
+						record.identity.candidate_start,
+						record.identity.candidate_count,
+						record.identity.candidate_predecessor_total,
+					)?,
+					operation_id: record.identity.peer_operation_id,
+				})
+			})
+			.collect()
 	}
 
 	#[cfg(test)]
@@ -2790,5 +2827,20 @@ mod tests {
 			!first.iter().any(|other| item.intent_key == other.intent_key)
 				&& !second.iter().any(|other| item.intent_key == other.intent_key)
 		}));
+	}
+
+	#[test]
+	fn resume_descriptor_is_exact_across_restart() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = ReplicationIntentStore::open(temp.path()).unwrap();
+		let planned = store.plan(&input(91)).unwrap();
+		let first = store.select_resume_tick().unwrap();
+		assert_eq!(first.len(), 1);
+		assert_eq!(first[0].intent_key, planned.intent_key);
+		assert_eq!(first[0].operation_id, planned.identity.peer_operation_id);
+		assert_eq!(first[0].topology_snapshot_hash, planned.identity.topology_snapshot_hash);
+		drop(store);
+		let reopened = ReplicationIntentStore::open(temp.path()).unwrap();
+		assert_eq!(reopened.select_resume_tick().unwrap(), first);
 	}
 }

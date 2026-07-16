@@ -39,7 +39,8 @@ use crate::{
 	},
 	peer_reply::{PeerReplyFault, PeerReplyStore},
 	replication::{
-		ReplicationActionV1, ReplicationIntentStore, ReplicationIntentV1, VerifiedIncomingChunkV1,
+		ReplicationActionV1, ReplicationIntentStore, ReplicationIntentV1, ReplicationResumeV1,
+		VerifiedIncomingChunkV1,
 	},
 	replication_session::ReplicationSessionV1,
 	storage::{bucket_mmr::BucketMmrStore, streaming::ReplicationIngressState},
@@ -177,6 +178,21 @@ impl CheckpointStack {
 		operation_id: [u8; 16],
 	) -> Result<ReplicationIntentV1, ContentError> {
 		self.lock()?.replication.plan_session(session, operation_id)
+	}
+
+	pub(crate) fn replication_resume_tick(&self) -> Result<Vec<ReplicationResumeV1>, ContentError> {
+		self.lock()?.replication.select_resume_tick()
+	}
+
+	pub(crate) fn replication_predecessor_total(
+		&self,
+		bucket_id: BucketId,
+		start: u64,
+	) -> Result<u64, ContentError> {
+		if start == 0 {
+			return Ok(0);
+		}
+		self.lock()?.bucket_mmr.commitment_predecessor_total(bucket_id, start)
 	}
 
 	pub(crate) fn next_replication_action(

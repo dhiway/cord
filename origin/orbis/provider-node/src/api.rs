@@ -163,6 +163,23 @@ pub async fn serve_provider_ingress(
 	}
 }
 
+/// Run the separately bounded target replication lifecycle for the production authority.
+pub async fn run_replication_worker(
+	service: Arc<ProviderService<FinalizedRuntimeAuthority>>,
+	local_provider: [u8; 32],
+	cadence: std::time::Duration,
+) {
+	crate::replication_worker::run(
+		Arc::clone(service.authority()),
+		Arc::clone(service.checkpoint_stack()),
+		Arc::clone(service.store()),
+		local_provider,
+		service.service_key.clone(),
+		cadence,
+	)
+	.await
+}
+
 fn peer_responder_for_service<A>(
 	service: &Arc<ProviderService<A>>,
 	local_provider: [u8; 32],
