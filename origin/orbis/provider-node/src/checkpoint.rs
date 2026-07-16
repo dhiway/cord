@@ -28,9 +28,9 @@ use std::{
 
 use codec::{Decode, Encode};
 use orbis_storage_runtime_api::{
-	CheckpointDutyInfo, CheckpointDutyPhase as RuntimePhase, CommitmentInfo,
+	CheckpointDutyInfo, CheckpointDutyPhase as RuntimePhase, CommitmentInfo, RESPONSE_VERSION,
 };
-use pallet_orbis_storage_provider::CommitmentPayloadV2;
+use pallet_orbis_storage_provider::{CheckpointContextV1, CommitmentPayloadV2};
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::AccountId32, ed25519, Pair as _, H256};
 use sp_crypto_hashing::blake2_256;
@@ -40,11 +40,12 @@ use crate::{
 	CheckpointDutyPhase, ContentError, DiskStore, StreamingStore,
 };
 
-const ROOT: &str = "checkpoint-proposals-v1";
-const VERSION: u16 = 1;
+const ROOT: &str = "checkpoint-proposals-v2";
+const VERSION: u16 = 2;
 const DOMAIN: &[u8] = b"cord/storage/checkpoint/v2";
-const RECORD_DOMAIN: &[u8] = b"cord/storage/checkpoint-proposal-record/v1";
-const MAX_PROPOSAL_BYTES: usize = 16_384;
+const CONTEXT_DOMAIN: &[u8] = b"cord/storage/checkpoint-context/v1";
+const RECORD_DOMAIN: &[u8] = b"cord/storage/checkpoint-proposal-record/v2";
+const MAX_PROPOSAL_BYTES: usize = 32_768;
 const MAX_PROPOSALS: usize = 8_192;
 
 pub(crate) trait ServiceKeySigner {
@@ -72,17 +73,21 @@ pub(crate) enum ProposalFault {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct PreparedCheckpointProposalV1 {
+pub(crate) struct PreparedCheckpointProposalV2 {
 	pub version: u16,
 	pub duty_id: String,
 	pub duty_fingerprint: String,
+	pub duty_scale: String,
 	pub finalized_number: u32,
 	pub finalized_hash: String,
 	pub snapshot_checkpoint: u32,
 	pub snapshot_hash: String,
 	pub service_key_version: u64,
 	pub service_key: String,
+	pub primary_provider: String,
 	pub bucket_id: String,
+	pub window_start: u32,
+	pub window_end: u32,
 	pub nonce: u32,
 	pub start_seq: u64,
 	pub leaf_count: u64,
@@ -90,6 +95,9 @@ pub(crate) struct PreparedCheckpointProposalV1 {
 	pub payload_scale: String,
 	pub digest: String,
 	pub signature: String,
+	pub context_scale: String,
+	pub context_digest: String,
+	pub context_signature: String,
 	pub state: String,
 	pub record_hash: String,
 }
@@ -102,7 +110,7 @@ pub(crate) struct CheckpointProposalStore {
 
 #[derive(Default)]
 struct ProposalState {
-	by_tuple: HashMap<String, PreparedCheckpointProposalV1>,
+	by_tuple: HashMap<String, PreparedCheckpointProposalV2>,
 	by_duty: HashMap<String, String>,
 	poisoned: bool,
 }
@@ -127,7 +135,7 @@ impl CheckpointProposalStore {
 			if bytes.len() > MAX_PROPOSAL_BYTES {
 				return Err(ContentError::IntegrityFailed);
 			}
-			let proposal: PreparedCheckpointProposalV1 =
+			let proposal: PreparedCheckpointProposalV2 =
 				serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			validate_proposal(&proposal)?;
 			let tuple = tuple_key(&proposal.bucket_id, proposal.nonce, proposal.start_seq)?;
@@ -154,7 +162,7 @@ impl CheckpointProposalStore {
 
 	pub(crate) fn pending_checkpoint_proposals(
 		&self,
-	) -> Result<Vec<PreparedCheckpointProposalV1>, ContentError> {
+	) -> Result<Vec<PreparedCheckpointProposalV2>, ContentError> {
 		let state = self.state.read().map_err(|_| lock_error())?;
 		if state.poisoned || state.by_tuple.len() > MAX_PROPOSALS {
 			return Err(ContentError::IntegrityFailed);
@@ -179,7 +187,7 @@ impl CheckpointProposalStore {
 		mmr: &BucketMmrStore,
 		streaming: &StreamingStore,
 		signer: &dyn ServiceKeySigner,
-	) -> Result<PreparedCheckpointProposalV1, ContentError> {
+	) -> Result<PreparedCheckpointProposalV2, ContentError> {
 		let duty = disk
 			.pending_checkpoint_duties()
 			.map_err(io_error)?
@@ -201,7 +209,7 @@ impl CheckpointProposalStore {
 		mmr: &BucketMmrStore,
 		streaming: &StreamingStore,
 		signer: &dyn ServiceKeySigner,
-	) -> Result<PreparedCheckpointProposalV1, ContentError> {
+	) -> Result<PreparedCheckpointProposalV2, ContentError> {
 		let encoded = hex::decode(duty.encoded_duty.trim_start_matches("0x"))
 			.map_err(|_| ContentError::IntegrityFailed)?;
 		if normalize_hash(&duty.duty_fingerprint)? != hex::encode(blake2_256(&encoded)) {
@@ -237,17 +245,23 @@ impl CheckpointProposalStore {
 		}
 		let duty_id = normalize_hash(&duty.duty_id)?;
 		let duty_fingerprint = normalize_hash(&duty.duty_fingerprint)?;
+		let duty_scale = hex::encode(&encoded);
 		let snapshot_hash = normalize_hash(&duty.snapshot_hash)?;
 		let service_key = hex::encode(signer.public_key());
+		let primary_provider = hex::encode(<AccountId32 as AsRef<[u8]>>::as_ref(&provider));
 		let bucket_id = normalize_hash(&duty.bucket_id)?;
 		if let Some(existing) = state.by_tuple.get(&tuple).cloned() {
 			if existing.duty_id == duty_id &&
 				existing.duty_fingerprint == duty_fingerprint &&
+				existing.duty_scale == duty_scale &&
 				existing.snapshot_checkpoint == duty.snapshot_checkpoint &&
 				existing.snapshot_hash == snapshot_hash &&
 				existing.service_key_version == duty.service_key_version &&
 				existing.service_key == service_key &&
+				existing.primary_provider == primary_provider &&
 				existing.bucket_id == bucket_id &&
+				existing.window_start == decoded.due_at &&
+				existing.window_end == decoded.grace_until &&
 				existing.nonce == decoded.expected_nonce &&
 				existing.start_seq == expected_start
 			{
@@ -324,17 +338,36 @@ impl CheckpointProposalStore {
 		digest_input.extend_from_slice(&payload_scale);
 		let digest = blake2_256(&digest_input);
 		let signature = signer.sign_digest(digest);
-		let mut proposal = PreparedCheckpointProposalV1 {
+		let context = CheckpointContextV1 {
+			version: 1,
+			genesis_hash: decoded.commons_genesis_hash,
+			spec_version: decoded.commons_spec_version,
+			transaction_version: decoded.commons_transaction_version,
+			metadata_hash: decoded.commons_metadata_hash,
+			finalized_hash: decoded.snapshot_hash,
+			duty_id: decoded.duty_id,
+			v2_digest: digest,
+		};
+		let context_scale = context.encode();
+		let mut context_input = CONTEXT_DOMAIN.to_vec();
+		context_input.extend_from_slice(&context_scale);
+		let context_digest = blake2_256(&context_input);
+		let context_signature = signer.sign_digest(context_digest);
+		let mut proposal = PreparedCheckpointProposalV2 {
 			version: VERSION,
 			duty_id,
 			duty_fingerprint,
+			duty_scale,
 			finalized_number: watermark.finalized_number,
 			finalized_hash,
 			snapshot_checkpoint: duty.snapshot_checkpoint,
 			snapshot_hash,
 			service_key_version: duty.service_key_version,
 			service_key,
+			primary_provider,
 			bucket_id,
+			window_start: decoded.due_at,
+			window_end: decoded.grace_until,
 			nonce: decoded.expected_nonce,
 			start_seq: commitment.start_seq,
 			leaf_count: commitment.leaf_count,
@@ -342,6 +375,9 @@ impl CheckpointProposalStore {
 			payload_scale: hex::encode(payload_scale),
 			digest: hex::encode(digest),
 			signature: hex::encode(signature),
+			context_scale: hex::encode(context_scale),
+			context_digest: hex::encode(context_digest),
+			context_signature: hex::encode(context_signature),
 			state: "prepared".into(),
 			record_hash: String::new(),
 		};
@@ -358,7 +394,7 @@ impl CheckpointProposalStore {
 	fn persist(
 		&self,
 		key: &str,
-		proposal: &PreparedCheckpointProposalV1,
+		proposal: &PreparedCheckpointProposalV2,
 	) -> Result<(), ContentError> {
 		validate_proposal(proposal)?;
 		let bytes = serde_json::to_vec(proposal).map_err(io_error)?;
@@ -371,7 +407,7 @@ impl CheckpointProposalStore {
 			if existing.len() > MAX_PROPOSAL_BYTES {
 				return Err(ContentError::IntegrityFailed);
 			}
-			let existing: PreparedCheckpointProposalV1 =
+			let existing: PreparedCheckpointProposalV2 =
 				serde_json::from_slice(&existing).map_err(|_| ContentError::IntegrityFailed)?;
 			validate_proposal(&existing)?;
 			return if existing == *proposal {
@@ -403,7 +439,7 @@ impl CheckpointProposalStore {
 	}
 }
 
-fn validate_proposal(proposal: &PreparedCheckpointProposalV1) -> Result<(), ContentError> {
+fn validate_proposal(proposal: &PreparedCheckpointProposalV2) -> Result<(), ContentError> {
 	if proposal.version != VERSION ||
 		proposal.state != "prepared" ||
 		proposal.leaf_count == 0 ||
@@ -418,9 +454,11 @@ fn validate_proposal(proposal: &PreparedCheckpointProposalV1) -> Result<(), Cont
 		&proposal.finalized_hash,
 		&proposal.snapshot_hash,
 		&proposal.service_key,
+		&proposal.primary_provider,
 		&proposal.bucket_id,
 		&proposal.mmr_root,
 		&proposal.digest,
+		&proposal.context_digest,
 		&proposal.record_hash,
 	] {
 		if normalize_hash(value)? != *value {
@@ -431,6 +469,56 @@ fn validate_proposal(proposal: &PreparedCheckpointProposalV1) -> Result<(), Cont
 		return Err(ContentError::IntegrityFailed);
 	}
 	canonical_hex(&proposal.signature, 64)?;
+	canonical_hex(&proposal.context_signature, 64)?;
+	let duty_bytes =
+		hex::decode(&proposal.duty_scale).map_err(|_| ContentError::IntegrityFailed)?;
+	if duty_bytes.is_empty() ||
+		hex::encode(&duty_bytes) != proposal.duty_scale ||
+		hex::encode(blake2_256(&duty_bytes)) != proposal.duty_fingerprint
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	let mut duty_input = &duty_bytes[..];
+	let duty = CheckpointDutyInfo::<AccountId32, H256, u32>::decode(&mut duty_input)
+		.map_err(|_| ContentError::IntegrityFailed)?;
+	if !duty_input.is_empty() ||
+		duty.encode() != duty_bytes ||
+		duty.response_version != RESPONSE_VERSION ||
+		hex::encode(duty.duty_id.as_bytes()) != proposal.duty_id ||
+		hex::encode(duty.bucket_id.as_bytes()) != proposal.bucket_id ||
+		hex::encode(duty.snapshot_hash.as_bytes()) != proposal.snapshot_hash ||
+		duty.snapshot_checkpoint != proposal.snapshot_checkpoint ||
+		duty.expected_nonce != proposal.nonce ||
+		duty.due_at != proposal.window_start ||
+		duty.grace_until != proposal.window_end ||
+		proposal.window_start > proposal.window_end ||
+		!matches!(duty.phase, RuntimePhase::Primary | RuntimePhase::ReplicaFallback) ||
+		duty.required_primary_confirmations != 1 ||
+		duty.required_replica_confirmations != 2
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	let initiator = duty.initiator.as_ref().ok_or(ContentError::IntegrityFailed)?;
+	if hex::encode(<AccountId32 as AsRef<[u8]>>::as_ref(initiator)) != proposal.primary_provider {
+		return Err(ContentError::IntegrityFailed);
+	}
+	let authority = duty
+		.authorities
+		.iter()
+		.find(|authority| &authority.provider == initiator)
+		.ok_or(ContentError::IntegrityFailed)?;
+	if authority.active_service_key_version != proposal.service_key_version ||
+		authority.active_service_key != decode_32(&proposal.service_key)? ||
+		!authority.may_sign ||
+		!authority.may_initiate ||
+		!authority.eligible ||
+		!authority.organization_sla_eligible ||
+		authority.overdue_challenge ||
+		authority.exclusion.is_some() ||
+		authority.initiation_exclusion.is_some()
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
 	let payload_bytes =
 		hex::decode(&proposal.payload_scale).map_err(|_| ContentError::IntegrityFailed)?;
 	if hex::encode(&payload_bytes) != proposal.payload_scale {
@@ -464,10 +552,49 @@ fn validate_proposal(proposal: &PreparedCheckpointProposalV1) -> Result<(), Cont
 	if !ed25519::Pair::verify(&ed25519::Signature::from_raw(signature), &digest, &key) {
 		return Err(ContentError::IntegrityFailed);
 	}
+	let context_bytes =
+		hex::decode(&proposal.context_scale).map_err(|_| ContentError::IntegrityFailed)?;
+	if context_bytes.is_empty() || hex::encode(&context_bytes) != proposal.context_scale {
+		return Err(ContentError::IntegrityFailed);
+	}
+	let mut context_input = &context_bytes[..];
+	let context = CheckpointContextV1::<H256>::decode(&mut context_input)
+		.map_err(|_| ContentError::IntegrityFailed)?;
+	let expected_context = CheckpointContextV1 {
+		version: 1,
+		genesis_hash: duty.commons_genesis_hash,
+		spec_version: duty.commons_spec_version,
+		transaction_version: duty.commons_transaction_version,
+		metadata_hash: duty.commons_metadata_hash,
+		finalized_hash: duty.snapshot_hash,
+		duty_id: duty.duty_id,
+		v2_digest: digest,
+	};
+	if !context_input.is_empty() || context.encode() != context_bytes || context != expected_context
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	let mut signed_context = CONTEXT_DOMAIN.to_vec();
+	signed_context.extend_from_slice(&context_bytes);
+	let context_digest = blake2_256(&signed_context);
+	if proposal.context_digest != hex::encode(context_digest) {
+		return Err(ContentError::IntegrityFailed);
+	}
+	let context_signature: [u8; 64] = hex::decode(&proposal.context_signature)
+		.map_err(|_| ContentError::IntegrityFailed)?
+		.try_into()
+		.map_err(|_| ContentError::IntegrityFailed)?;
+	if !ed25519::Pair::verify(
+		&ed25519::Signature::from_raw(context_signature),
+		&context_digest,
+		&key,
+	) {
+		return Err(ContentError::IntegrityFailed);
+	}
 	Ok(())
 }
 
-fn proposal_record_hash(proposal: &PreparedCheckpointProposalV1) -> Result<String, ContentError> {
+fn proposal_record_hash(proposal: &PreparedCheckpointProposalV2) -> Result<String, ContentError> {
 	let mut canonical = proposal.clone();
 	canonical.record_hash.clear();
 	let bytes = serde_json::to_vec(&canonical).map_err(io_error)?;
@@ -656,6 +783,40 @@ mod tests {
 	}
 
 	#[test]
+	fn checkpoint_context_fixture_matches_runtime_scale_digest_and_signature() {
+		let context = CheckpointContextV1 {
+			version: 1,
+			genesis_hash: H256::repeat_byte(10),
+			spec_version: 1,
+			transaction_version: 1,
+			metadata_hash: H256::repeat_byte(11),
+			finalized_hash: H256::repeat_byte(12),
+			duty_id: H256::repeat_byte(5),
+			v2_digest: hex::decode(
+				"ace62a2f3c3887586e55ca13c4ba2313583801f9874380aae8a583a119c89920",
+			)
+			.unwrap()
+			.try_into()
+			.unwrap(),
+		};
+		let scale = context.encode();
+		let mut input = CONTEXT_DOMAIN.to_vec();
+		input.extend_from_slice(&scale);
+		let digest = blake2_256(&input);
+		let signer = ed25519::Pair::from_seed(&[7; 32]);
+		let signature = signer.sign_digest(digest);
+		assert_eq!(hex::encode(&scale), "010a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a01000000010000000b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0505050505050505050505050505050505050505050505050505050505050505ace62a2f3c3887586e55ca13c4ba2313583801f9874380aae8a583a119c89920");
+		assert_eq!(
+			hex::encode(digest),
+			"813859d02f56c76f8ecb615542729b4fb6628d9534048a2bc6c4713ff42137a0"
+		);
+		assert_eq!(hex::encode(signature), "5ff25804878efd113e2d4667b406d671e916bae819f4177eaade713ecdf5bbba79bce7db5387d12ed1efd7d98459631ce61a6b54d472561bfaf152f0b18ebd04");
+		let mut decoded = &scale[..];
+		assert_eq!(CheckpointContextV1::<H256>::decode(&mut decoded).unwrap(), context);
+		assert!(decoded.is_empty());
+	}
+
+	#[test]
 	fn prepares_from_distinct_finalized_and_snapshot_contexts_and_retries_after_growth() {
 		let temp = TempDir::new().unwrap();
 		let streaming = StreamingStore::open(temp.path()).unwrap();
@@ -689,6 +850,11 @@ mod tests {
 		let first = store.prepare(&disk, &duty.duty_id, &mmr, &streaming, &signer).unwrap();
 		assert_eq!(first.finalized_number, 111);
 		assert_eq!(first.snapshot_checkpoint, 100);
+		assert_eq!(first.primary_provider, "01".repeat(32));
+		assert_eq!((first.window_start, first.window_end), (100, 110));
+		assert!(!first.context_scale.is_empty());
+		assert!(!first.context_digest.is_empty());
+		assert!(!first.context_signature.is_empty());
 		install(&streaming, &mmr, 2, b"second");
 		let retry = store.prepare(&disk, &duty.duty_id, &mmr, &streaming, &signer).unwrap();
 		assert_eq!(retry, first);
@@ -715,6 +881,31 @@ mod tests {
 				.len(),
 			1
 		);
+	}
+
+	#[test]
+	fn replica_fallback_persists_local_initiator_not_stale_primary() {
+		let temp = TempDir::new().unwrap();
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		install(&streaming, &mmr, 1, b"first");
+		let signer = ed25519::Pair::from_seed(&[7; 32]);
+		let mut typed = typed_duty([6; 32], 5);
+		let replica = AccountId32::new([2; 32]);
+		typed.initiator = Some(replica.clone());
+		typed.phase = CheckpointDutyPhase::ReplicaFallback;
+		typed.authorities[1].active_service_key = signer.public().0;
+		typed.authorities[1].may_initiate = true;
+		let duty = validate_checkpoint_duty(typed, &replica, signer.public().0, 100).unwrap();
+		let store = CheckpointProposalStore::open(temp.path()).unwrap();
+		let proposal = store.prepare_exact(&duty, &watermark(), &mmr, &streaming, &signer).unwrap();
+		assert_eq!(proposal.primary_provider, "02".repeat(32));
+		assert_ne!(proposal.primary_provider, "01".repeat(32));
+		let context = CheckpointContextV1::<H256>::decode(
+			&mut &hex::decode(&proposal.context_scale).unwrap()[..],
+		)
+		.unwrap();
+		assert_eq!(context.duty_id, H256::repeat_byte(5));
 	}
 
 	#[test]
@@ -843,7 +1034,7 @@ mod tests {
 		drop(store);
 		let root = temp.path().join(ROOT);
 		let path = fs::read_dir(&root).unwrap().next().unwrap().unwrap().path();
-		let proposal: PreparedCheckpointProposalV1 =
+		let proposal: PreparedCheckpointProposalV2 =
 			serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
 		let mut field = proposal.clone();
 		field.finalized_number += 1;
@@ -865,6 +1056,27 @@ mod tests {
 		let mut snapshot = proposal.clone();
 		snapshot.snapshot_checkpoint += 1;
 		snapshot.record_hash = proposal_record_hash(&snapshot).unwrap();
+		let mut duty_scale = proposal.clone();
+		duty_scale.duty_scale.push_str("00");
+		duty_scale.record_hash = proposal_record_hash(&duty_scale).unwrap();
+		let mut primary_provider = proposal.clone();
+		primary_provider.primary_provider = "aa".repeat(32);
+		primary_provider.record_hash = proposal_record_hash(&primary_provider).unwrap();
+		let mut window_start = proposal.clone();
+		window_start.window_start += 1;
+		window_start.record_hash = proposal_record_hash(&window_start).unwrap();
+		let mut window_end = proposal.clone();
+		window_end.window_end += 1;
+		window_end.record_hash = proposal_record_hash(&window_end).unwrap();
+		let mut context_scale = proposal.clone();
+		context_scale.context_scale.push_str("00");
+		context_scale.record_hash = proposal_record_hash(&context_scale).unwrap();
+		let mut context_digest = proposal.clone();
+		context_digest.context_digest = "aa".repeat(32);
+		context_digest.record_hash = proposal_record_hash(&context_digest).unwrap();
+		let mut context_signature = proposal.clone();
+		context_signature.context_signature.replace_range(0..2, "aa");
+		context_signature.record_hash = proposal_record_hash(&context_signature).unwrap();
 		for (record, wrong_filename) in [
 			(field, false),
 			(payload, false),
@@ -873,6 +1085,13 @@ mod tests {
 			(nonce, false),
 			(start, false),
 			(snapshot, false),
+			(duty_scale, false),
+			(primary_provider, false),
+			(window_start, false),
+			(window_end, false),
+			(context_scale, false),
+			(context_digest, false),
+			(context_signature, false),
 			(proposal.clone(), true),
 		] {
 			let case = TempDir::new().unwrap();
