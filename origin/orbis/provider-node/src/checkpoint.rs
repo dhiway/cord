@@ -22,6 +22,8 @@
 pub(crate) mod checkpoint_outbox;
 #[path = "checkpoint_primary.rs"]
 pub(crate) mod checkpoint_primary;
+#[path = "checkpoint_promotion.rs"]
+pub(crate) mod checkpoint_promotion;
 #[path = "checkpoint_publication.rs"]
 pub(crate) mod checkpoint_publication;
 #[path = "checkpoint_quorum.rs"]
