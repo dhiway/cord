@@ -1072,6 +1072,38 @@ mod tests {
 	}
 
 	#[test]
+	fn zero_byte_installation_is_a_canonical_terminal_replication_page() {
+		let temp = TempDir::new().unwrap();
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let bucket_id = BucketId::from_bytes([32; 32]);
+		let operation_id = OperationId::from_bytes([32; 16]);
+		let cid = CanonicalCid::from_digest(blake2_256(&[]));
+		streaming
+			.put_chunks(
+				StreamingDescriptor {
+					operation_id,
+					bucket_id,
+					expected_cid: cid.as_str().into(),
+					object_len: 0,
+				},
+				std::iter::empty::<Vec<u8>>(),
+			)
+			.unwrap();
+
+		let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		let commitment = peer_commitment(&mmr, &streaming, bucket_id, 0);
+		assert_eq!(commitment.sequence_range(), (0, 1));
+		assert_eq!(commitment.predecessor_total_size(), 0);
+		let (items, cursor) =
+			mmr.replication_page(&streaming, bucket_id, commitment, None, 1).unwrap();
+		assert_eq!(items.len(), 1);
+		assert_eq!(items[0].cid(), cid.as_str());
+		assert_eq!(items[0].position(), (0, 0, 0));
+		assert!(items[0].chunk_hashes().is_empty());
+		assert_eq!(cursor, None);
+	}
+
+	#[test]
 	fn replication_pages_reject_commitment_cursor_entry_and_source_tamper() {
 		let temp = TempDir::new().unwrap();
 		let streaming = StreamingStore::open(temp.path()).unwrap();
