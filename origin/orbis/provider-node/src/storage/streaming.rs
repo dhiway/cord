@@ -41,7 +41,7 @@ use crate::{
 pub(crate) mod recovery;
 use recovery::{CapabilityReplayRecord, RecoveryRecord};
 
-const STREAM_VERSION: u16 = 7;
+const STREAM_VERSION: u16 = 8;
 const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
@@ -127,6 +127,10 @@ pub enum StreamingFault {
 	BeforeTerminalCommit,
 	/// Terminal cancellation is durable but staged-byte cleanup or response delivery is absent.
 	AfterTerminalCommit,
+	/// Recovered bytes are installed but the combined Installed terminal journal is absent.
+	BeforeRecoveryInstallCommit,
+	/// The combined Installed operation and terminal response are durable but were not delivered.
+	AfterRecoveryInstallCommit,
 	/// Expired recovery records have been selected but the bounded GC transition is absent.
 	BeforeRecoveryGcCommit,
 	/// The bounded GC transition is durable but staged-byte cleanup or completion is absent.
@@ -528,6 +532,9 @@ impl StreamingStore {
 		let mut state = self.write_state()?;
 		validate_install_sequences(&state)?;
 		let record = state.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
+		if state.recovery.values().any(|item| item.descriptor == record.descriptor) {
+			return Err(ContentError::IdempotencyConflict)
+		}
 		if record.phase == Phase::Installed {
 			if state.quarantine.contains_key(&record.descriptor.expected_cid) {
 				return Err(ContentError::IntegrityFailed)
@@ -838,14 +845,20 @@ impl StreamingStore {
 					let install_sequence = next.next_install_sequence;
 					next.next_install_sequence =
 						install_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+					let recovered_receipt =
+						receipt(&record.descriptor, &record.descriptor.expected_cid, fingerprint);
 					let recovered = next.operations.get_mut(&key).expect("key exists");
 					recovered.phase = Phase::Installed;
 					recovered.install_sequence = Some(install_sequence);
-					recovered.receipt = Some(receipt(
-						&record.descriptor,
-						&record.descriptor.expected_cid,
-						fingerprint,
-					));
+					recovered.receipt = Some(recovered_receipt.clone());
+					if next.recovery.values().any(|item| item.descriptor == record.descriptor) {
+						recovery::append_installed_terminal(
+							&mut next,
+							&key,
+							recovered_receipt,
+							install_sequence,
+						)?;
+					}
 					changed = true;
 				},
 				Phase::Installed => {
@@ -904,6 +917,7 @@ impl StreamingStore {
 		changed |= remove_unowned(&self.root.join(OBJECTS), &referenced_objects)?;
 		if changed {
 			validate_install_sequences(&next)?;
+			recovery::validate_recovery_state(&next)?;
 			persist_state(&self.root, &next)?;
 			*state = next;
 		}

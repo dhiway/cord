@@ -27,8 +27,9 @@ use sp_core::{ed25519, Pair as _};
 use unicode_normalization::UnicodeNormalization;
 
 use super::{
-	chunk_hash, operation_key, persist_state, sync_dir, validate_chunk_len, validate_descriptor,
-	ChunkRecord, OperationRecord, Phase, StreamingDescriptor, StreamingFault, StreamingStore,
+	chunk_count, chunk_hash, install_file, operation_key, persist_state, receipt, sync_dir,
+	validate_chunk_len, validate_descriptor, validate_install_sequences, verify_file, ChunkRecord,
+	OperationRecord, Phase, StreamingDescriptor, StreamingFault, StreamingReceipt, StreamingStore,
 	STAGING,
 };
 use crate::{
@@ -47,6 +48,7 @@ const MAX_REQUEST_BYTES: usize = 4096;
 const MAX_RESUME_TOKEN_BYTES: usize = 4096;
 const MAX_RECOVERY_ENTRY_BYTES: usize = 4 * 1024 * 1024 + 8192;
 const MAX_ACK_BYTES: usize = 256;
+const MAX_INSTALLED_RESPONSE_BYTES: usize = 4096;
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub(crate) enum RecoveryError {
@@ -454,11 +456,133 @@ pub(crate) struct RecoveryResponseV1 {
 	pub response_hash: [u8; 32],
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct InstalledTerminalV1 {
+	pub request_id: [u8; 16],
+	pub operation_id: [u8; 16],
+	pub generation: u64,
+	pub response_sequence: u32,
+	pub final_cursor: u32,
+	pub receipt: StreamingReceipt,
+	pub install_sequence: u64,
+	pub effect_state_hash: [u8; 32],
+}
+
+impl InstalledTerminalV1 {
+	pub(crate) fn decode(bytes: &[u8]) -> Result<Self, RecoveryError> {
+		if bytes.len() > MAX_INSTALLED_RESPONSE_BYTES {
+			return Err(RecoveryError::WireSchemaInvalid)
+		}
+		let value: Value =
+			ciborium::de::from_reader(bytes).map_err(|_| RecoveryError::WireSchemaInvalid)?;
+		let Value::Map(entries) = value else { return Err(RecoveryError::WireSchemaInvalid) };
+		let mut f: [Option<Value>; 9] = array::from_fn(|_| None);
+		for (key, value) in entries {
+			let key = integer(key)? as usize;
+			if key > 8 || f[key].replace(value).is_some() {
+				return Err(RecoveryError::WireSchemaInvalid)
+			}
+		}
+		if f.iter().any(Option::is_none) || integer(take(&mut f, 0)?)? != 1 {
+			return Err(RecoveryError::WireSchemaInvalid)
+		}
+		let request_id = bytes_fixed(take(&mut f, 1)?)?;
+		let operation_id = bytes_fixed(take(&mut f, 2)?)?;
+		let generation = integer(take(&mut f, 3)?)?;
+		let response_sequence = integer(take(&mut f, 4)?)?
+			.try_into()
+			.map_err(|_| RecoveryError::WireSchemaInvalid)?;
+		let final_cursor = integer(take(&mut f, 5)?)?
+			.try_into()
+			.map_err(|_| RecoveryError::WireSchemaInvalid)?;
+		let Value::Map(receipt_fields) = take(&mut f, 6)? else {
+			return Err(RecoveryError::WireSchemaInvalid)
+		};
+		let mut r: [Option<Value>; 7] = array::from_fn(|_| None);
+		for (key, value) in receipt_fields {
+			let key = integer(key)? as usize;
+			if key > 6 || r[key].replace(value).is_some() {
+				return Err(RecoveryError::WireSchemaInvalid)
+			}
+		}
+		if r.iter().any(Option::is_none) {
+			return Err(RecoveryError::WireSchemaInvalid)
+		}
+		let receipt_operation: [u8; 16] = bytes_fixed(take(&mut r, 0)?)?;
+		let receipt = StreamingReceipt {
+			operation_id: OperationId::from_bytes(receipt_operation),
+			bucket_id: BucketId::from_bytes(bytes_fixed(take(&mut r, 1)?)?),
+			cid: CanonicalCid::parse(&text(take(&mut r, 2)?, 128)?)
+				.map_err(|_| RecoveryError::WireSchemaInvalid)?
+				.as_str()
+				.into(),
+			stored_bytes: integer(take(&mut r, 3)?)?,
+			chunks: integer(take(&mut r, 4)?)?
+				.try_into()
+				.map_err(|_| RecoveryError::WireSchemaInvalid)?,
+			fingerprint: format!("0x{}", hex::encode(bytes_fixed::<32>(take(&mut r, 5)?)?)),
+			locally_installed: boolean(take(&mut r, 6)?)?,
+		};
+		if receipt_operation != operation_id || !receipt.locally_installed {
+			return Err(RecoveryError::WireSchemaInvalid)
+		}
+		let terminal = Self {
+			request_id,
+			operation_id,
+			generation,
+			response_sequence,
+			final_cursor,
+			receipt,
+			install_sequence: integer(take(&mut f, 7)?)?,
+			effect_state_hash: bytes_fixed(take(&mut f, 8)?)?,
+		};
+		if terminal.canonical_bytes()? != bytes {
+			return Err(RecoveryError::WireNonCanonical)
+		}
+		Ok(terminal)
+	}
+
+	pub(crate) fn canonical_bytes(&self) -> Result<Vec<u8>, RecoveryError> {
+		let fingerprint = self
+			.receipt
+			.fingerprint
+			.strip_prefix("0x")
+			.ok_or(RecoveryError::WireSchemaInvalid)?;
+		if fingerprint.len() != 64 || fingerprint.bytes().any(|byte| byte.is_ascii_uppercase()) {
+			return Err(RecoveryError::WireSchemaInvalid)
+		}
+		let fingerprint = hex::decode(fingerprint).map_err(|_| RecoveryError::WireSchemaInvalid)?;
+		Ok(map(vec![
+			(0, uint(1)),
+			(1, bstr(&self.request_id)),
+			(2, bstr(&self.operation_id)),
+			(3, uint(self.generation)),
+			(4, uint(u64::from(self.response_sequence))),
+			(5, uint(u64::from(self.final_cursor))),
+			(
+				6,
+				Value::Map(vec![
+					(uint(0), bstr(self.receipt.operation_id.as_bytes())),
+					(uint(1), bstr(self.receipt.bucket_id.as_bytes())),
+					(uint(2), Value::Text(self.receipt.cid.clone())),
+					(uint(3), uint(self.receipt.stored_bytes)),
+					(uint(4), uint(u64::from(self.receipt.chunks))),
+					(uint(5), bstr(&fingerprint)),
+					(uint(6), Value::Bool(self.receipt.locally_installed)),
+				]),
+			),
+			(7, uint(self.install_sequence)),
+			(8, bstr(&self.effect_state_hash)),
+		]))
+	}
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum RecoveryEffect {
 	Accepted,
 	Progress,
+	Installed,
 	Cancelled,
 }
 
@@ -486,9 +610,11 @@ pub(super) struct RecoveryRecord {
 	host_key_id: String,
 	acknowledged: bool,
 	retain_until: u64,
-	descriptor: StreamingDescriptor,
+	pub(super) descriptor: StreamingDescriptor,
 	effect_hash: String,
 	chunk_hash: String,
+	install_sequence: Option<u64>,
+	receipt: Option<StreamingReceipt>,
 	entry_cbor: String,
 }
 
@@ -524,7 +650,7 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 		let host_key: [u8; 32] = decode_hex(&record.host_key_id)?;
 		let provider: [u8; 32] = decode_hex(&record.provider)?;
 		let chunk_hash = match record.effect {
-			RecoveryEffect::Accepted | RecoveryEffect::Cancelled => {
+			RecoveryEffect::Accepted | RecoveryEffect::Installed | RecoveryEffect::Cancelled => {
 				if !record.chunk_hash.is_empty() {
 					return Err(ContentError::IntegrityFailed)
 				}
@@ -545,14 +671,8 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 			record.descriptor.bucket_id != BucketId::from_bytes(request.bucket_id) ||
 			record.descriptor.expected_cid != request.cid.as_str() ||
 			record.descriptor.object_len != request.object_len ||
-			record.effect_hash !=
-				hex::encode(effect_state_hash(
-					record.effect,
-					&record.descriptor,
-					record.cursor,
-					record.received_bytes,
-					chunk_hash,
-				)) {
+			record.effect_hash != hex::encode(record_effect_state_hash(record, chunk_hash)?)
+		{
 			return Err(ContentError::IntegrityFailed)
 		}
 		let response = hex::decode(&record.response).map_err(|_| ContentError::IntegrityFailed)?;
@@ -574,6 +694,24 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 				record.received_bytes,
 				record.cursor,
 			),
+			RecoveryEffect::Installed => {
+				let receipt = record.receipt.as_ref().ok_or(ContentError::IntegrityFailed)?;
+				let install_sequence =
+					record.install_sequence.ok_or(ContentError::IntegrityFailed)?;
+				terminal_operations.insert(operation_key(&record.descriptor));
+				InstalledTerminalV1 {
+					request_id,
+					operation_id: operation,
+					generation: record.generation,
+					response_sequence: record.response_sequence,
+					final_cursor: record.cursor,
+					receipt: receipt.clone(),
+					install_sequence,
+					effect_state_hash: decode_hex(&record.effect_hash)?,
+				}
+				.canonical_bytes()
+				.map_err(|_| ContentError::IntegrityFailed)?
+			},
 			RecoveryEffect::Cancelled => {
 				if record.prior_cursor != record.cursor {
 					return Err(ContentError::IntegrityFailed)
@@ -632,7 +770,7 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 			return Err(ContentError::IntegrityFailed)
 		}
 		let successor = match (&record.effect, &record.successor_token) {
-			(RecoveryEffect::Cancelled, None) => None,
+			(RecoveryEffect::Installed | RecoveryEffect::Cancelled, None) => None,
 			(RecoveryEffect::Accepted | RecoveryEffect::Progress, Some(encoded)) => {
 				let bytes = hex::decode(encoded).map_err(|_| ContentError::IntegrityFailed)?;
 				let token =
@@ -682,10 +820,16 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 		{
 			return Err(ContentError::IntegrityFailed)
 		}
-		if record.effect == RecoveryEffect::Cancelled &&
-			state.operations.get(&operation_key).map(|item| item.phase) != Some(Phase::Cancelled)
-		{
-			return Err(ContentError::IntegrityFailed)
+		match record.effect {
+			RecoveryEffect::Installed
+				if state.operations.get(&operation_key).map(|item| item.phase) !=
+					Some(Phase::Installed) =>
+				return Err(ContentError::IntegrityFailed),
+			RecoveryEffect::Cancelled
+				if state.operations.get(&operation_key).map(|item| item.phase) !=
+					Some(Phase::Cancelled) =>
+				return Err(ContentError::IntegrityFailed),
+			_ => {},
 		}
 	}
 	for (operation_key, chain) in &mut chains {
@@ -720,6 +864,7 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 			match current.effect {
 				RecoveryEffect::Progress
 					if current.prior_cursor.checked_add(1) == Some(current.cursor) => {},
+				RecoveryEffect::Installed if current.cursor == current.prior_cursor => {},
 				RecoveryEffect::Cancelled if current.cursor == current.prior_cursor => {},
 				_ => return Err(ContentError::IntegrityFailed),
 			}
@@ -747,6 +892,12 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 		{
 			return Err(ContentError::IntegrityFailed)
 		}
+		if latest.effect == RecoveryEffect::Installed &&
+			(operation.receipt.as_ref() != latest.receipt.as_ref() ||
+				operation.install_sequence != latest.install_sequence)
+		{
+			return Err(ContentError::IntegrityFailed)
+		}
 		if let Some(last_progress) =
 			chain.iter().rev().find(|record| record.effect == RecoveryEffect::Progress)
 		{
@@ -760,12 +911,17 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 		}
 		match (operation.phase, latest.effect) {
 			(Phase::Receiving, RecoveryEffect::Accepted | RecoveryEffect::Progress) |
+			(Phase::Finalizing, RecoveryEffect::Progress) |
+			(Phase::Installed, RecoveryEffect::Installed) |
 			(Phase::Cancelled, RecoveryEffect::Cancelled) => {},
 			_ => return Err(ContentError::IntegrityFailed),
 		}
 	}
 	for (key, operation) in &state.operations {
-		if operation.phase == Phase::Cancelled && !terminal_operations.contains(key) {
+		if matches!(operation.phase, Phase::Installed | Phase::Cancelled) &&
+			chains.contains_key(key) &&
+			!terminal_operations.contains(key)
+		{
 			return Err(ContentError::IntegrityFailed)
 		}
 	}
@@ -902,9 +1058,7 @@ impl StreamingStore {
 		if state.capability_replay.contains_key(&replay_key) {
 			return Err(CapabilityError::CapabilityNonceReplay.into())
 		}
-		if state.recovery.len() >= MAX_STREAMING_OPERATIONS {
-			return Err(ContentError::ProviderRecoveryTableFull.into())
-		}
+		ensure_recovery_capacity(&state, 1, 1)?;
 		let operation_key = operation_key(&descriptor);
 		if state.operations.contains_key(&operation_key) {
 			return Err(ContentError::IdempotencyConflict.into())
@@ -988,6 +1142,8 @@ impl StreamingStore {
 			descriptor: descriptor.clone(),
 			effect_hash: hex::encode(initial_effect_hash),
 			chunk_hash: String::new(),
+			install_sequence: None,
+			receipt: None,
 			entry_cbor: hex::encode(entry_cbor),
 		};
 		let mut next = state.clone();
@@ -1108,9 +1264,7 @@ impl StreamingStore {
 				now,
 			)
 		}
-		if state.recovery.len() >= MAX_STREAMING_OPERATIONS {
-			return Err(ContentError::ProviderRecoveryTableFull.into())
-		}
+		ensure_recovery_capacity(&state, 1, 0)?;
 		let prior = predecessor(&state, token_bytes)?;
 		if prior.cursor != token.cursor || prior.provider != hex::encode(local_provider) {
 			return Err(RecoveryError::ResumeReplay)
@@ -1213,6 +1367,8 @@ impl StreamingStore {
 			descriptor: descriptor.clone(),
 			effect_hash: hex::encode(effect_state_hash),
 			chunk_hash: chunk_digest,
+			install_sequence: None,
+			receipt: None,
 			entry_cbor: hex::encode(entry_cbor),
 		};
 		let mut next = state.clone();
@@ -1229,6 +1385,136 @@ impl StreamingStore {
 		*state = next;
 		self.trip_fault(StreamingFault::AfterRecoveryCommit)?;
 		Ok(RecoveryResponseV1 { response, successor_token: Some(successor_bytes), response_hash })
+	}
+
+	pub(crate) fn finalize_object_put(
+		&self,
+		request_bytes: &[u8],
+		token_bytes: &[u8],
+		snapshot: &CapabilityAuthoritySnapshot,
+		current_service_key: [u8; 32],
+		signer: &dyn RecoverySigner,
+	) -> Result<RecoveryResponseV1, RecoveryError> {
+		let request = ObjectPutRequestV2::decode(request_bytes)?;
+		let token = ResumeTokenV1::decode(token_bytes)?;
+		let local_provider = snapshot.local_provider;
+		let now = u64::from(snapshot.finalized_number);
+		if token.provider != local_provider ||
+			token.registry_sha256 != snapshot.registry_sha256 ||
+			token.genesis_hash != snapshot.genesis_hash ||
+			token.operation_id != request.operation_id ||
+			token.bucket_id != request.bucket_id ||
+			token.cid != request.cid ||
+			token.object_len != request.object_len
+		{
+			return Err(RecoveryError::ResumeAudienceInvalid)
+		}
+		let key =
+			recovery_key(token.host_key_id, token.operation_id, token.generation, token.nonce);
+		let request_fingerprint = fingerprint(request_bytes, token_bytes);
+		{
+			let state = self.read_state()?;
+			if let Some(record) = state.recovery.get(&key) {
+				return recover(
+					record,
+					RecoveryEffect::Installed,
+					request_bytes,
+					token_bytes,
+					request_fingerprint,
+					local_provider,
+					now,
+				)
+			}
+		}
+		if token.cancelled {
+			return Err(RecoveryError::ResumeReplay)
+		}
+		let (prior_snapshot, accepted) = {
+			let state = self.read_state()?;
+			let prior = predecessor(&state, token_bytes)?.clone();
+			let accepted = accepted_root(&state, &prior.descriptor)?.clone();
+			(prior, accepted)
+		};
+		let recorded_service_key = decode_hex(&prior_snapshot.successor_public_key)?;
+		token.verify(recorded_service_key)?;
+		if recorded_service_key != current_service_key || signer.public_key() != current_service_key
+		{
+			return Err(RecoveryError::ResumeRevoked)
+		}
+		validate_fresh_resume_authority(&request, &token, &accepted, snapshot, now)?;
+
+		let mut state = self.write_state()?;
+		if let Some(record) = state.recovery.get(&key) {
+			return recover(
+				record,
+				RecoveryEffect::Installed,
+				request_bytes,
+				token_bytes,
+				request_fingerprint,
+				local_provider,
+				now,
+			)
+		}
+		ensure_terminal_capacity(&state)?;
+		validate_install_sequences(&state)?;
+		let prior = predecessor(&state, token_bytes)?;
+		if prior.cursor != token.cursor || prior.provider != hex::encode(local_provider) {
+			return Err(RecoveryError::ResumeReplay)
+		}
+		let operation_key = operation_key(&prior.descriptor);
+		let operation =
+			state.operations.get(&operation_key).cloned().ok_or(ContentError::NotFound)?;
+		let final_cursor: u16 =
+			token.cursor.try_into().map_err(|_| RecoveryError::ResumeCursorInvalid)?;
+		if operation.phase != Phase::Receiving ||
+			operation.next_chunk != final_cursor ||
+			operation.received_bytes != request.object_len ||
+			operation.chunks.len() != usize::from(final_cursor) ||
+			operation.chunks.len() != chunk_count(request.object_len)?
+		{
+			return Err(ContentError::ChunkMissing.into())
+		}
+		let part = self.root.join(STAGING).join(format!("{operation_key}.part"));
+		let (cid, content_fingerprint, length) =
+			verify_file(&part, &operation.descriptor, &operation.chunks)?;
+		if cid != request.cid ||
+			length != request.object_len ||
+			operation.descriptor.expected_cid != request.cid.as_str()
+		{
+			return Err(ContentError::IntegrityFailed.into())
+		}
+		let receipt = receipt(&operation.descriptor, cid.as_str(), content_fingerprint);
+		let mut finalizing = state.clone();
+		finalizing.operations.get_mut(&operation_key).expect("operation exists").phase =
+			Phase::Finalizing;
+		persist_state(&self.root, &finalizing)?;
+		*state = finalizing;
+		self.trip_fault(StreamingFault::AfterFinalizingJournal)?;
+		install_file(
+			&part,
+			&self.root.join(super::OBJECTS).join(cid.as_str()),
+			&operation.descriptor,
+			&operation.chunks,
+		)?;
+		self.trip_fault(StreamingFault::AfterObjectRename)?;
+		self.trip_fault(StreamingFault::BeforeRecoveryInstallCommit)?;
+		let mut installed = state.clone();
+		let install_sequence = installed.next_install_sequence;
+		installed.next_install_sequence =
+			install_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+		let installed_operation =
+			installed.operations.get_mut(&operation_key).expect("operation exists");
+		installed_operation.phase = Phase::Installed;
+		installed_operation.install_sequence = Some(install_sequence);
+		installed_operation.receipt = Some(receipt.clone());
+		let terminal =
+			append_installed_terminal(&mut installed, &operation_key, receipt, install_sequence)?;
+		validate_install_sequences(&installed)?;
+		validate_recovery_state(&installed)?;
+		persist_state(&self.root, &installed)?;
+		*state = installed;
+		self.trip_fault(StreamingFault::AfterRecoveryInstallCommit)?;
+		Ok(terminal)
 	}
 
 	pub(crate) fn cancel_object_put(
@@ -1308,9 +1594,7 @@ impl StreamingStore {
 				now,
 			)
 		}
-		if state.recovery.len() >= MAX_STREAMING_OPERATIONS {
-			return Err(ContentError::ProviderRecoveryTableFull.into())
-		}
+		ensure_terminal_capacity(&state)?;
 		let encoded_token = hex::encode(token_bytes);
 		let prior = state
 			.recovery
@@ -1384,6 +1668,8 @@ impl StreamingStore {
 			descriptor: prior.descriptor.clone(),
 			effect_hash: hex::encode(effect_hash),
 			chunk_hash: String::new(),
+			install_sequence: None,
+			receipt: None,
 			entry_cbor: hex::encode(entry_cbor),
 		};
 		let mut next = state.clone();
@@ -1404,11 +1690,9 @@ impl StreamingStore {
 		}
 		let mut state = self.write_state()?;
 		let mut keys = Vec::new();
-		for (expired_key, _) in state
-			.operations
-			.iter()
-			.filter(|(_, operation)| matches!(operation.phase, Phase::Receiving | Phase::Cancelled))
-		{
+		for (expired_key, _) in state.operations.iter().filter(|(_, operation)| {
+			matches!(operation.phase, Phase::Receiving | Phase::Installed | Phase::Cancelled)
+		}) {
 			let operation_keys = state
 				.recovery
 				.iter()
@@ -1511,6 +1795,168 @@ impl StreamingStore {
 		*state = next;
 		Ok(response)
 	}
+}
+
+pub(super) fn append_installed_terminal(
+	state: &mut super::JournalState,
+	operation_key_value: &str,
+	receipt: StreamingReceipt,
+	install_sequence: u64,
+) -> Result<RecoveryResponseV1, ContentError> {
+	let operation = state
+		.operations
+		.get(operation_key_value)
+		.cloned()
+		.ok_or(ContentError::IntegrityFailed)?;
+	if operation.phase != Phase::Installed ||
+		operation.receipt.as_ref() != Some(&receipt) ||
+		operation.install_sequence != Some(install_sequence)
+	{
+		return Err(ContentError::IntegrityFailed)
+	}
+	let prior = state
+		.recovery
+		.values()
+		.filter(|record| {
+			record.descriptor == operation.descriptor &&
+				matches!(record.effect, RecoveryEffect::Accepted | RecoveryEffect::Progress)
+		})
+		.max_by_key(|record| record.generation)
+		.cloned()
+		.ok_or(ContentError::IntegrityFailed)?;
+	let token_bytes =
+		hex::decode(prior.successor_token.as_deref().ok_or(ContentError::IntegrityFailed)?)
+			.map_err(|_| ContentError::IntegrityFailed)?;
+	let token = ResumeTokenV1::decode(&token_bytes).map_err(|_| ContentError::IntegrityFailed)?;
+	let request_bytes = hex::decode(&prior.request).map_err(|_| ContentError::IntegrityFailed)?;
+	let request =
+		ObjectPutRequestV2::decode(&request_bytes).map_err(|_| ContentError::IntegrityFailed)?;
+	if token.operation_id != request.operation_id ||
+		token.cursor != u32::from(operation.next_chunk) ||
+		operation.received_bytes != request.object_len ||
+		operation.chunks.len() != usize::from(operation.next_chunk) ||
+		receipt.operation_id != operation.descriptor.operation_id ||
+		receipt.bucket_id != operation.descriptor.bucket_id ||
+		receipt.cid != operation.descriptor.expected_cid ||
+		receipt.stored_bytes != operation.descriptor.object_len ||
+		receipt.chunks != operation.next_chunk ||
+		!receipt.locally_installed
+	{
+		return Err(ContentError::IntegrityFailed)
+	}
+	let key = recovery_key(token.host_key_id, token.operation_id, token.generation, token.nonce);
+	if state.recovery.contains_key(&key) || state.recovery.len() >= MAX_STREAMING_OPERATIONS {
+		return Err(ContentError::IntegrityFailed)
+	}
+	let response_sequence =
+		prior.response_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+	let effect_hash = installed_effect_state_hash(
+		&operation.descriptor,
+		u32::from(operation.next_chunk),
+		operation.received_bytes,
+		&receipt,
+		install_sequence,
+	);
+	let terminal = InstalledTerminalV1 {
+		request_id: request.request_id,
+		operation_id: request.operation_id,
+		generation: token.generation,
+		response_sequence,
+		final_cursor: token.cursor,
+		receipt: receipt.clone(),
+		install_sequence,
+		effect_state_hash: effect_hash,
+	};
+	let response = terminal.canonical_bytes().map_err(|_| ContentError::IntegrityFailed)?;
+	InstalledTerminalV1::decode(&response).map_err(|_| ContentError::IntegrityFailed)?;
+	let response_hash: [u8; 32] = Sha256::digest(&response).into();
+	let request_fingerprint = fingerprint(&request_bytes, &token_bytes);
+	let retain_until = token
+		.expires_at
+		.checked_add(RECOVERY_TTL)
+		.ok_or(ContentError::IntegrityFailed)?;
+	let entry_cbor = RecoveryEntryV1 {
+		operation_id: request.operation_id,
+		request_id: request.request_id,
+		generation: token.generation,
+		fingerprint: request_fingerprint,
+		nonce: token.nonce,
+		prior_cursor: token.cursor,
+		new_cursor: token.cursor,
+		response: response.clone(),
+		successor_token: None,
+		response_hash,
+		effect_state_hash: effect_hash,
+		acknowledged: false,
+		retain_until,
+	}
+	.canonical_bytes();
+	state.recovery.insert(
+		key,
+		RecoveryRecord {
+			effect: RecoveryEffect::Installed,
+			request: hex::encode(&request_bytes),
+			authority: hex::encode(&token_bytes),
+			authority_public_key: prior.successor_public_key.clone(),
+			successor_public_key: prior.successor_public_key,
+			provider: prior.provider,
+			operation_id: hex::encode(request.operation_id),
+			request_id: hex::encode(request.request_id),
+			generation: token.generation,
+			fingerprint: hex::encode(request_fingerprint),
+			nonce: hex::encode(token.nonce),
+			prior_cursor: token.cursor,
+			cursor: token.cursor,
+			received_bytes: operation.received_bytes,
+			response_sequence,
+			response: hex::encode(&response),
+			successor_token: None,
+			response_hash: hex::encode(response_hash),
+			host_key_id: hex::encode(token.host_key_id),
+			acknowledged: false,
+			retain_until,
+			descriptor: operation.descriptor,
+			effect_hash: hex::encode(effect_hash),
+			chunk_hash: String::new(),
+			install_sequence: Some(install_sequence),
+			receipt: Some(receipt),
+			entry_cbor: hex::encode(entry_cbor),
+		},
+	);
+	Ok(RecoveryResponseV1 { response, successor_token: None, response_hash })
+}
+
+fn ensure_recovery_capacity(
+	state: &super::JournalState,
+	additional_records: usize,
+	additional_active: usize,
+) -> Result<(), RecoveryError> {
+	let active = state
+		.operations
+		.values()
+		.filter(|operation| {
+			matches!(operation.phase, Phase::Receiving | Phase::Finalizing) &&
+				state.recovery.values().any(|record| record.descriptor == operation.descriptor)
+		})
+		.count();
+	if state
+		.recovery
+		.len()
+		.checked_add(additional_records)
+		.and_then(|count| count.checked_add(active))
+		.and_then(|count| count.checked_add(additional_active))
+		.is_none_or(|count| count > MAX_STREAMING_OPERATIONS)
+	{
+		return Err(ContentError::ProviderRecoveryTableFull.into())
+	}
+	Ok(())
+}
+
+fn ensure_terminal_capacity(state: &super::JournalState) -> Result<(), RecoveryError> {
+	if state.recovery.len() >= MAX_STREAMING_OPERATIONS {
+		return Err(ContentError::IntegrityFailed.into())
+	}
+	Ok(())
 }
 
 fn predecessor<'a>(
@@ -1701,6 +2147,7 @@ fn effect_state_hash(
 		RecoveryEffect::Accepted => 0,
 		RecoveryEffect::Progress => 1,
 		RecoveryEffect::Cancelled => 2,
+		RecoveryEffect::Installed => 3,
 	}]);
 	hash.update(serde_json::to_vec(descriptor).expect("descriptor serializes"));
 	hash.update(cursor.to_be_bytes());
@@ -1709,6 +2156,51 @@ fn effect_state_hash(
 		hash.update(chunk_hash.as_bytes());
 	}
 	hash.finalize().into()
+}
+
+fn installed_effect_state_hash(
+	descriptor: &StreamingDescriptor,
+	cursor: u32,
+	received: u64,
+	receipt: &StreamingReceipt,
+	install_sequence: u64,
+) -> [u8; 32] {
+	let mut hash = Sha256::new();
+	hash.update(b"cord.provider.recovery.effect.v1");
+	hash.update([3]);
+	hash.update(serde_json::to_vec(descriptor).expect("descriptor serializes"));
+	hash.update(cursor.to_be_bytes());
+	hash.update(received.to_be_bytes());
+	hash.update(serde_json::to_vec(receipt).expect("receipt serializes"));
+	hash.update(install_sequence.to_be_bytes());
+	hash.finalize().into()
+}
+
+fn record_effect_state_hash(
+	record: &RecoveryRecord,
+	chunk_hash: Option<&str>,
+) -> Result<[u8; 32], ContentError> {
+	match record.effect {
+		RecoveryEffect::Installed => Ok(installed_effect_state_hash(
+			&record.descriptor,
+			record.cursor,
+			record.received_bytes,
+			record.receipt.as_ref().ok_or(ContentError::IntegrityFailed)?,
+			record.install_sequence.ok_or(ContentError::IntegrityFailed)?,
+		)),
+		_ => {
+			if record.receipt.is_some() || record.install_sequence.is_some() {
+				return Err(ContentError::IntegrityFailed)
+			}
+			Ok(effect_state_hash(
+				record.effect,
+				&record.descriptor,
+				record.cursor,
+				record.received_bytes,
+				chunk_hash,
+			))
+		},
+	}
 }
 fn map(entries: Vec<(u8, Value)>) -> Vec<u8> {
 	let entries = entries.into_iter().map(|(k, v)| (uint(u64::from(k)), v)).collect();
@@ -1864,6 +2356,178 @@ mod tests {
 			}),
 		};
 		(request, capability, snapshot, service)
+	}
+
+	fn stage_complete_object(
+		root: &std::path::Path,
+	) -> (StreamingStore, Vec<u8>, CapabilityAuthoritySnapshot, ed25519::Pair, Vec<u8>) {
+		let (request, capability, snapshot, service) = fixture();
+		let request_bytes = request.canonical_bytes();
+		let store = StreamingStore::open(root).unwrap();
+		let accepted = store
+			.accept_object_put(
+				&request_bytes,
+				&capability.canonical_bytes(),
+				&snapshot,
+				service.public().0,
+				&service,
+				[10; 16],
+			)
+			.unwrap();
+		let progress = store
+			.advance_object_put(
+				&request_bytes,
+				accepted.successor_token.as_deref().unwrap(),
+				&snapshot,
+				service.public().0,
+				1,
+				b"first",
+				&service,
+				[11; 16],
+			)
+			.unwrap();
+		(store, request_bytes, snapshot, service, progress.successor_token.unwrap())
+	}
+
+	#[test]
+	fn installed_terminal_is_canonical_exact_ackable_and_gc_safe() {
+		let temp = TempDir::new().unwrap();
+		let (store, request, snapshot, service, token) = stage_complete_object(temp.path());
+		let installed = store
+			.finalize_object_put(&request, &token, &snapshot, service.public().0, &service)
+			.unwrap();
+		assert!(installed.successor_token.is_none());
+		assert!(installed.response.len() <= MAX_INSTALLED_RESPONSE_BYTES);
+		let response_hash: [u8; 32] = Sha256::digest(&installed.response).into();
+		assert_eq!(
+			hex::encode(&installed.response),
+			"a9000101500101010101010101010101010101010102500404040404040404040404040404040403020402050106a7005004040404040404040404040404040404015820050505050505050505050505050505050505050505050505050505050505050502783e6261666b32627a616365627836666c7262746e326172726e7537623478726b6672636273363237327774707369696774657a63656f6d707768366832686703050401055820055bf3c15bbe190b8e282f7102238d03eac6191d29d95633d87a62cfa2979da506f50700085820fac7de843e15152cee360493deaf9044acdd56824a895a8d6c4583bcabf90755"
+		);
+		assert_eq!(
+			hex::encode(response_hash),
+			"43956e27e244273fb716b63d695c96578e4a74aa36f01e9945c460e041e3324b"
+		);
+		assert_eq!(installed.response_hash, response_hash);
+		let terminal = InstalledTerminalV1::decode(&installed.response).unwrap();
+		assert_eq!(terminal.canonical_bytes().unwrap(), installed.response);
+		assert_eq!(terminal.request_id, [1; 16]);
+		assert_eq!(terminal.operation_id, [4; 16]);
+		assert_eq!(terminal.generation, 2);
+		assert_eq!(terminal.response_sequence, 2);
+		assert_eq!(terminal.final_cursor, 1);
+		assert_eq!(terminal.install_sequence, 0);
+		assert_eq!(terminal.receipt.stored_bytes, 5);
+		assert_eq!(terminal.receipt.chunks, 1);
+		assert!(terminal.receipt.locally_installed);
+		assert_eq!(terminal.receipt.fingerprint.len(), 66);
+
+		let mut revoked = snapshot.clone();
+		revoked.finalized_number = 130;
+		revoked.delegation.revoked_at = Some(120);
+		assert_eq!(
+			store
+				.finalize_object_put(&request, &token, &revoked, [99; 32], &service)
+				.unwrap(),
+			installed
+		);
+		assert_eq!(
+			store.advance_object_put(
+				&request,
+				&token,
+				&snapshot,
+				service.public().0,
+				2,
+				b"x",
+				&service,
+				[12; 16],
+			),
+			Err(RecoveryError::ResumeReplay)
+		);
+		assert_eq!(
+			store.cancel_object_put(&request, &token, &snapshot, service.public().0, &service),
+			Err(RecoveryError::ResumeReplay)
+		);
+
+		let ack = ResponseAckV1 {
+			request_id: terminal.request_id,
+			operation_id: terminal.operation_id,
+			generation: terminal.generation,
+			response_hash: installed.response_hash,
+		}
+		.canonical_bytes();
+		store.acknowledge_response(&ack).unwrap();
+		drop(store);
+		let reopened = StreamingStore::open(temp.path()).unwrap();
+		assert_eq!(
+			reopened
+				.finalize_object_put(&request, &token, &revoked, [99; 32], &service)
+				.unwrap(),
+			installed
+		);
+		assert_eq!(reopened.gc_recovery(384, MAX_STREAMING_OPERATIONS).unwrap(), 0);
+		assert_eq!(reopened.gc_recovery(385, MAX_STREAMING_OPERATIONS).unwrap(), 3);
+		reopened.verify_installed(&terminal.receipt.cid).unwrap();
+		let state = reopened.state.read().unwrap();
+		assert!(state.recovery.is_empty());
+		assert!(state.capability_replay.is_empty());
+		assert_eq!(state.operations.len(), 1);
+	}
+
+	#[test]
+	fn finalizing_and_installed_crashes_recover_the_exact_terminal() {
+		let baseline = TempDir::new().unwrap();
+		let (store, request, snapshot, service, token) = stage_complete_object(baseline.path());
+		let expected = store
+			.finalize_object_put(&request, &token, &snapshot, service.public().0, &service)
+			.unwrap();
+		for fault in [
+			StreamingFault::AfterFinalizingJournal,
+			StreamingFault::AfterObjectRename,
+			StreamingFault::BeforeRecoveryInstallCommit,
+			StreamingFault::AfterRecoveryInstallCommit,
+		] {
+			let temp = TempDir::new().unwrap();
+			let (store, request, snapshot, service, token) = stage_complete_object(temp.path());
+			store.inject_fault_once(fault).unwrap();
+			assert!(store
+				.finalize_object_put(&request, &token, &snapshot, service.public().0, &service)
+				.is_err());
+			drop(store);
+			let reopened = StreamingStore::open(temp.path()).unwrap();
+			let recovered = reopened
+				.finalize_object_put(&request, &token, &snapshot, service.public().0, &service)
+				.unwrap();
+			assert_eq!(recovered, expected, "fault {fault:?}");
+			assert!(recovered.successor_token.is_none());
+			drop(reopened);
+			StreamingStore::open(temp.path()).unwrap();
+		}
+	}
+
+	#[test]
+	fn installed_terminal_receipt_and_fingerprint_tamper_fail_closed() {
+		for case in 0..2 {
+			let temp = TempDir::new().unwrap();
+			let (store, request, snapshot, service, token) = stage_complete_object(temp.path());
+			store
+				.finalize_object_put(&request, &token, &snapshot, service.public().0, &service)
+				.unwrap();
+			let mut state = store.state.write().unwrap();
+			let record = state
+				.recovery
+				.values_mut()
+				.find(|record| record.effect == RecoveryEffect::Installed)
+				.unwrap();
+			match case {
+				0 => record.receipt.as_mut().unwrap().stored_bytes += 1,
+				1 => record.receipt.as_mut().unwrap().fingerprint = "not-hex".into(),
+				_ => unreachable!(),
+			}
+			persist_state(&store.root, &state).unwrap();
+			drop(state);
+			drop(store);
+			assert!(StreamingStore::open(temp.path()).is_err(), "case {case}");
+		}
 	}
 	#[test]
 	fn exact_request_ack_and_resume_vectors_decode_and_verify() {
