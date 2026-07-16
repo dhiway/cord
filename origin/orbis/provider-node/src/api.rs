@@ -29,7 +29,7 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::{
-	body::{Body as _, Incoming},
+	body::{Body as HttpBody, Incoming},
 	header,
 	server::conn::http1,
 	service::service_fn,
@@ -106,6 +106,11 @@ impl<A: ChainAuthority> ProviderService<A> {
 	/// Access the private checkpoint kernels for in-crate orchestration.
 	pub(crate) fn checkpoint_stack(&self) -> &Arc<CheckpointStack> {
 		&self.checkpoint_stack
+	}
+
+	/// Audit the private byte plane and return only redacted readiness counts.
+	fn integrity_summary(&self) -> Result<crate::IntegritySummary, ContentError> {
+		self.checkpoint_stack.integrity_summary()
 	}
 
 	pub(crate) fn outbox(&self) -> &Arc<dyn CheckpointSubmitter> {
@@ -282,41 +287,54 @@ async fn route<A: ChainAuthority>(
 	service: Arc<ProviderService<A>>,
 	config: ApiConfig,
 ) -> Result<Response<Body>, Infallible> {
-	let response = match handle(request, service, &config).await {
-		Ok(response) => response,
-		Err(error) => error_response(error),
-	};
-	Ok(response)
+	Ok(dispatch(request, service, &config).await)
 }
 
-async fn handle<A: ChainAuthority>(
-	request: Request<Incoming>,
+async fn dispatch<A, B>(
+	request: Request<B>,
 	service: Arc<ProviderService<A>>,
 	config: &ApiConfig,
-) -> Result<Response<Body>, ApiError> {
+) -> Response<Body>
+where
+	A: ChainAuthority,
+	B: HttpBody<Data = Bytes>,
+{
+	match handle(request, service, config).await {
+		Ok(response) => response,
+		Err(error) => error_response(error),
+	}
+}
+
+async fn handle<A, B>(
+	request: Request<B>,
+	service: Arc<ProviderService<A>>,
+	config: &ApiConfig,
+) -> Result<Response<Body>, ApiError>
+where
+	A: ChainAuthority,
+	B: HttpBody<Data = Bytes>,
+{
 	let method = request.method().clone();
 	let path = request.uri().path().to_owned();
 	let query = parse_query(request.uri().query());
-	let requires_auth =
-		method != Method::GET
-			|| matches!(
-				path.as_str(),
-				"/read"
-					| "/commitment" | "/buckets"
-					| "/checkpoint-signature"
-					| "/checkpoint/duty"
-					| "/mmr_proof" | "/chunk_proof"
-					| "/mmr_peaks" | "/mmr_subtree"
-					| "/replica/historical_roots"
-					| "/replica/sync_status"
-			);
+	let requires_auth = method != Method::GET ||
+		matches!(
+			path.as_str(),
+			"/read" |
+				"/commitment" |
+				"/buckets" | "/checkpoint-signature" |
+				"/checkpoint/duty" |
+				"/mmr_proof" | "/chunk_proof" |
+				"/mmr_peaks" | "/mmr_subtree" |
+				"/replica/historical_roots" |
+				"/replica/sync_status" |
+				"/stats"
+		);
 	if requires_auth && !authorized(&request, config.bearer_token_hash) {
 		return Err(ApiError::unauthorized());
 	}
 	match (method, path.as_str()) {
-		(Method::GET, "/health") => {
-			json(StatusCode::OK, &serde_json::json!({"version": PROTOCOL_VERSION, "status": "ok"}))
-		},
+		(Method::GET, "/health") => provider_health(&service),
 		(Method::GET, "/info") => json(
 			StatusCode::OK,
 			&serde_json::json!({"version": PROTOCOL_VERSION, "profile": service.store.profile()?, "service_key": hex::encode(service.service_key.public().0), "started_unix_ms": service.started_unix_ms}),
@@ -483,12 +501,71 @@ async fn handle<A: ChainAuthority>(
 				&serde_json::json!({"checkpoints": service.store.checkpoints(limit)?}),
 			)
 		},
-		(Method::GET, "/replica/sync_status") => json(
-			StatusCode::OK,
-			&serde_json::json!({"root": service.store.stats()?.root, "peaks": service.store.peaks()?, "status": "ready"}),
-		),
+		(Method::GET, "/replica/sync_status") => replica_sync_status(&service),
 		_ => Err(ApiError::not_found()),
 	}
+}
+
+#[derive(Serialize)]
+struct ProviderHealth {
+	version: u16,
+	status: &'static str,
+	ready: bool,
+}
+
+#[derive(Serialize)]
+struct ReplicaSyncStatus {
+	version: u16,
+	status: &'static str,
+	ready: bool,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	installed_objects: Option<u64>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	ready_objects: Option<u64>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	quarantined_objects: Option<u64>,
+}
+
+fn provider_health<A: ChainAuthority>(
+	service: &ProviderService<A>,
+) -> Result<Response<Body>, ApiError> {
+	let ready = service.integrity_summary().is_ok_and(|summary| summary.ready);
+	let status = if ready { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
+	json(
+		status,
+		&ProviderHealth {
+			version: PROTOCOL_VERSION,
+			status: if ready { "ready" } else { "degraded" },
+			ready,
+		},
+	)
+}
+
+fn replica_sync_status<A: ChainAuthority>(
+	service: &ProviderService<A>,
+) -> Result<Response<Body>, ApiError> {
+	let summary = service.integrity_summary();
+	let ready = summary.as_ref().is_ok_and(|summary| summary.ready);
+	let response = match summary {
+		Ok(summary) => ReplicaSyncStatus {
+			version: PROTOCOL_VERSION,
+			status: if ready { "ready" } else { "degraded" },
+			ready,
+			installed_objects: Some(summary.installed_objects),
+			ready_objects: Some(summary.ready_objects),
+			quarantined_objects: Some(summary.quarantined_objects),
+		},
+		Err(_) => ReplicaSyncStatus {
+			version: PROTOCOL_VERSION,
+			status: "degraded",
+			ready: false,
+			installed_objects: None,
+			ready_objects: None,
+			quarantined_objects: None,
+		},
+	};
+	let status = if ready { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
+	json(status, &response)
 }
 
 #[derive(Deserialize)]
@@ -564,10 +641,11 @@ impl From<StoreError> for ApiError {
 	}
 }
 
-async fn read_json<T: for<'de> Deserialize<'de>>(
-	request: Request<Incoming>,
-	limit: usize,
-) -> Result<T, ApiError> {
+async fn read_json<T, B>(request: Request<B>, limit: usize) -> Result<T, ApiError>
+where
+	T: for<'de> Deserialize<'de>,
+	B: HttpBody<Data = Bytes>,
+{
 	if request.body().size_hint().upper().is_some_and(|size| size > limit as u64) {
 		return Err(ApiError::payload_too_large());
 	}
@@ -602,7 +680,7 @@ fn error_response(error: ApiError) -> Response<Body> {
 		.unwrap_or_else(|_| Response::new(Full::new(Bytes::new())))
 }
 
-fn authorized(request: &Request<Incoming>, expected: [u8; 32]) -> bool {
+fn authorized<B>(request: &Request<B>, expected: [u8; 32]) -> bool {
 	let token = request
 		.headers()
 		.get(header::AUTHORIZATION)
@@ -669,6 +747,8 @@ fn now_ms() -> u64 {
 
 #[cfg(test)]
 mod lifecycle_tests {
+	use std::fs;
+
 	use async_trait::async_trait;
 	use sp_core::Pair as _;
 
@@ -686,9 +766,41 @@ mod lifecycle_tests {
 	};
 
 	struct Authority(ReplicationTopologySnapshot);
+	struct RouteAuthority;
 
 	#[async_trait]
 	impl ChainAuthority for Authority {
+		async fn authorize_commit(
+			&self,
+			_: [u8; 32],
+			_: [u8; 32],
+			_: u64,
+		) -> Result<AgreementAuthorization, ChainError> {
+			Err(ChainError::Rejected("unused".into()))
+		}
+
+		async fn authorize_delete(
+			&self,
+			_: [u8; 32],
+			_: [u8; 32],
+		) -> Result<AgreementAuthorization, ChainError> {
+			Err(ChainError::Rejected("unused".into()))
+		}
+
+		async fn challenge_duties(&self, _: Option<u32>) -> Result<ChallengeBatch, ChainError> {
+			Err(ChainError::Rejected("unused".into()))
+		}
+
+		async fn checkpoint_duties(
+			&self,
+			_: Option<CheckpointDutyPageRequest>,
+		) -> Result<CheckpointDutyBatch, ChainError> {
+			Err(ChainError::Rejected("unused".into()))
+		}
+	}
+
+	#[async_trait]
+	impl ChainAuthority for RouteAuthority {
 		async fn authorize_commit(
 			&self,
 			_: [u8; 32],
@@ -842,5 +954,172 @@ mod lifecycle_tests {
 		let first = responder.page(&request).await.unwrap();
 		let replay = responder.page(&request).await.unwrap();
 		assert_eq!(replay, first);
+	}
+
+	fn route_fixture(
+		corrupt: bool,
+	) -> (tempfile::TempDir, Arc<ProviderService<RouteAuthority>>, ApiConfig, String) {
+		let temp = tempfile::tempdir().unwrap();
+		let key = ed25519::Pair::from_seed(&[0x31; 32]);
+		let bytes = b"private provider health fixture".to_vec();
+		let cid = CanonicalCid::from_digest(sp_crypto_hashing::blake2_256(&bytes));
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let receipt = streaming
+			.put_chunks(
+				StreamingDescriptor {
+					operation_id: OperationId::from_bytes([0x41; 16]),
+					bucket_id: BucketId::from_bytes([0x51; 32]),
+					expected_cid: cid.to_string(),
+					object_len: bytes.len() as u64,
+				},
+				[bytes],
+			)
+			.unwrap();
+		drop(streaming);
+		let store = Arc::new(
+			DiskStore::open(
+				temp.path(),
+				NodeProfile {
+					provider: hex::encode([0x21; 32]),
+					endpoint: "http://127.0.0.1:8080".into(),
+					service_key: hex::encode(key.public().0),
+					region: None,
+				},
+				1024,
+			)
+			.unwrap(),
+		);
+		let service = Arc::new(
+			ProviderService::new(
+				store,
+				Arc::new(RouteAuthority),
+				key,
+				Arc::new(JsonlCheckpointOutbox::new(temp.path().join("outbox.jsonl"))),
+			)
+			.unwrap(),
+		);
+		if corrupt {
+			fs::write(
+				temp.path().join("streaming-v1").join("objects").join(&receipt.cid),
+				b"corrupt",
+			)
+			.unwrap();
+		}
+		let token = "route-health-test-token";
+		let config = ApiConfig {
+			listen: "127.0.0.1:0".parse().unwrap(),
+			bearer_token_hash: *blake3::hash(token.as_bytes()).as_bytes(),
+			max_content_bytes: 1024,
+			max_json_bytes: 1024,
+		};
+		(temp, service, config, receipt.cid)
+	}
+
+	fn get(path: &str, token: Option<&str>) -> Request<Body> {
+		let mut builder = Request::builder().method(Method::GET).uri(path);
+		if let Some(token) = token {
+			builder = builder.header(header::AUTHORIZATION, format!("Bearer {token}"));
+		}
+		builder.body(Full::new(Bytes::new())).unwrap()
+	}
+
+	async fn response_json(response: Response<Body>) -> serde_json::Value {
+		let body = response.into_body().collect().await.unwrap().to_bytes();
+		serde_json::from_slice(&body).unwrap()
+	}
+
+	fn assert_integrity_response_is_redacted(value: &serde_json::Value, cid: &str) {
+		let private = [
+			cid.to_string(),
+			hex::encode([0x51; 32]),
+			hex::encode([0x41; 16]),
+			"proof".into(),
+			"fingerprint".into(),
+			"root".into(),
+			"error".into(),
+		];
+		let encoded = serde_json::to_string(value).unwrap();
+		for private in private {
+			assert!(!encoded.contains(&private), "integrity response leaked {private}");
+		}
+	}
+
+	#[tokio::test]
+	async fn healthy_routes_require_auth_for_details_and_redact_integrity_evidence() {
+		let (_temp, service, config, cid) = route_fixture(false);
+		let health = dispatch(get("/health", None), Arc::clone(&service), &config).await;
+		assert_eq!(health.status(), StatusCode::OK);
+		let health = response_json(health).await;
+		assert_eq!(
+			health,
+			serde_json::json!({"version": PROTOCOL_VERSION, "status": "ready", "ready": true})
+		);
+		assert_integrity_response_is_redacted(&health, &cid);
+
+		let unauthenticated =
+			dispatch(get("/replica/sync_status", None), Arc::clone(&service), &config).await;
+		assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
+		let sync = dispatch(
+			get("/replica/sync_status", Some("route-health-test-token")),
+			Arc::clone(&service),
+			&config,
+		)
+		.await;
+		assert_eq!(sync.status(), StatusCode::OK);
+		let sync = response_json(sync).await;
+		assert_eq!(
+			sync,
+			serde_json::json!({
+				"version": PROTOCOL_VERSION,
+				"status": "ready",
+				"ready": true,
+				"installed_objects": 1,
+				"ready_objects": 1,
+				"quarantined_objects": 0
+			})
+		);
+		assert_integrity_response_is_redacted(&sync, &cid);
+
+		let stats = dispatch(get("/stats", None), Arc::clone(&service), &config).await;
+		assert_eq!(stats.status(), StatusCode::UNAUTHORIZED);
+		let stats =
+			dispatch(get("/stats", Some("route-health-test-token")), Arc::clone(&service), &config)
+				.await;
+		assert_eq!(stats.status(), StatusCode::OK);
+		assert!(response_json(stats).await.get("root").is_some());
+	}
+
+	#[tokio::test]
+	async fn quarantine_degrades_health_and_reports_only_redacted_authenticated_counts() {
+		let (_temp, service, config, cid) = route_fixture(true);
+		let health = dispatch(get("/health", None), Arc::clone(&service), &config).await;
+		assert_eq!(health.status(), StatusCode::SERVICE_UNAVAILABLE);
+		let health = response_json(health).await;
+		assert_eq!(
+			health,
+			serde_json::json!({"version": PROTOCOL_VERSION, "status": "degraded", "ready": false})
+		);
+		assert_integrity_response_is_redacted(&health, &cid);
+
+		let sync = dispatch(
+			get("/replica/sync_status", Some("route-health-test-token")),
+			service,
+			&config,
+		)
+		.await;
+		assert_eq!(sync.status(), StatusCode::SERVICE_UNAVAILABLE);
+		let sync = response_json(sync).await;
+		assert_eq!(
+			sync,
+			serde_json::json!({
+				"version": PROTOCOL_VERSION,
+				"status": "degraded",
+				"ready": false,
+				"installed_objects": 1,
+				"ready_objects": 0,
+				"quarantined_objects": 1
+			})
+		);
+		assert_integrity_response_is_redacted(&sync, &cid);
 	}
 }

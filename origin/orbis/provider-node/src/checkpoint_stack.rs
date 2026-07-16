@@ -50,8 +50,8 @@ use crate::{
 	},
 	replication_session::ReplicationSessionV1,
 	storage::{bucket_mmr::BucketMmrStore, streaming::ReplicationIngressState},
-	BeginStreaming, BucketId, CheckpointDuty, ContentError, DiskStore, StreamingDescriptor,
-	StreamingStore,
+	BeginStreaming, BucketId, CheckpointDuty, ContentError, DiskStore, IntegritySummary,
+	StreamingDescriptor, StreamingStore,
 };
 
 /// All durable checkpoint kernels opened against one provider root.
@@ -113,6 +113,11 @@ impl CheckpointStack {
 			peer_replies: PeerReplyStore::open(root)?,
 		};
 		Ok(Self { state: Mutex::new(state) })
+	}
+
+	/// Audit the local byte plane and return only redacted readiness counts.
+	pub(crate) fn integrity_summary(&self) -> Result<IntegritySummary, ContentError> {
+		self.lock()?.streaming.integrity_summary()
 	}
 
 	/// Clone each independent bucket head so external finality work never borrows the stack guard.
