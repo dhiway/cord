@@ -32,8 +32,8 @@ use sp_crypto_hashing::blake2_256;
 
 use crate::{
 	peer::{
-		PeerChunkRequestV1, PeerContextV1, PeerMmrCommitmentV1, PeerReplayIdentityV1,
-		PeerSyncPageRequestV1, MAX_REQUEST_ENCODED,
+		PeerChunkRequestV1, PeerChunkResponseV1, PeerContextV1, PeerMmrCommitmentV1,
+		PeerReplayIdentityV1, PeerSyncPageRequestV1, PeerSyncPageResponseV1, MAX_REQUEST_ENCODED,
 	},
 	storage::bucket_mmr::BucketMmrStore,
 	BucketId, CanonicalCid, ContentError, OperationId, StreamingStore, MAX_STORED_BYTES,
@@ -307,21 +307,52 @@ impl ReplicationIntentStore {
 		})
 	}
 
-	pub(crate) fn attach_verified_response(
+	pub(crate) fn attach_page_response(
 		&self,
 		intent_key: &str,
-		request_hash: [u8; 32],
-		response_hash: [u8; 32],
+		response_bytes: &[u8],
 	) -> Result<ReplicationIntentV1, ContentError> {
-		if request_hash == [0; 32] || response_hash == [0; 32] {
-			return Err(ContentError::SchemaInvalid);
-		}
+		self.attach_response(intent_key, ReplicationRequestKindV1::Page, response_bytes)
+	}
+
+	pub(crate) fn attach_chunk_response(
+		&self,
+		intent_key: &str,
+		response_bytes: &[u8],
+	) -> Result<ReplicationIntentV1, ContentError> {
+		self.attach_response(intent_key, ReplicationRequestKindV1::Chunk, response_bytes)
+	}
+
+	fn attach_response(
+		&self,
+		intent_key: &str,
+		kind: ReplicationRequestKindV1,
+		response_bytes: &[u8],
+	) -> Result<ReplicationIntentV1, ContentError> {
 		self.mutate(intent_key, |existing| {
 			let outstanding =
 				existing.outstanding_request.as_ref().ok_or(ContentError::IdempotencyConflict)?;
-			if outstanding.request_hash != request_hash {
+			if outstanding.kind != kind {
 				return Err(ContentError::IdempotencyConflict);
 			}
+			validate_request(&existing.identity, outstanding, true)?;
+			let response_hash = match kind {
+				ReplicationRequestKindV1::Page => {
+					let request = PeerSyncPageRequestV1::decode_authenticated(
+						&outstanding.signed_request_bytes,
+					)?;
+					let response =
+						PeerSyncPageResponseV1::decode_canonical(response_bytes, &request)?;
+					blake2_256(&response.encode_wire())
+				},
+				ReplicationRequestKindV1::Chunk => {
+					let request = PeerChunkRequestV1::decode_authenticated(
+						&outstanding.signed_request_bytes,
+					)?;
+					let response = PeerChunkResponseV1::decode_canonical(response_bytes, &request)?;
+					blake2_256(&response.encode_wire())
+				},
+			};
 			if outstanding.verified_response_hash == Some(response_hash) {
 				return Ok(existing.clone());
 			}
@@ -1031,7 +1062,8 @@ mod tests {
 	use super::*;
 	use crate::{
 		peer::{
-			PeerChunkExpectationV1, PeerObjectV1, PeerPageExpectationV1, PeerRequestIdentityV1,
+			PeerChunkExpectationV1, PeerObjectV1, PeerPageCursorV1, PeerPageExpectationV1,
+			PeerRequestIdentityV1,
 		},
 		StreamingDescriptor,
 	};
@@ -1044,6 +1076,10 @@ mod tests {
 
 	fn target_pair(value: u16) -> ed25519::Pair {
 		ed25519::Pair::from_seed(&bytes32(value, 90))
+	}
+
+	fn source_pair() -> ed25519::Pair {
+		ed25519::Pair::from_seed(&[8; 32])
 	}
 
 	fn input(value: u16) -> ReplicationIntentInputV1 {
@@ -1100,6 +1136,25 @@ mod tests {
 		.unwrap()
 	}
 
+	fn page_response(
+		record: &ReplicationIntentV1,
+		page: &PeerSyncPageRequestV1,
+	) -> PeerSyncPageResponseV1 {
+		let bytes = b"authenticated page object".to_vec();
+		let total = record.identity.candidate_predecessor_total + bytes.len() as u64;
+		let object = PeerObjectV1::new(
+			&CanonicalCid::from_digest(blake2_256(&bytes)),
+			bytes.len() as u64,
+			record.identity.candidate_start,
+			total,
+			vec![blake2_256(&bytes)],
+		)
+		.unwrap();
+		let next = (record.identity.candidate_count > 1)
+			.then(|| PeerPageCursorV1::new(record.identity.candidate_start, total));
+		PeerSyncPageResponseV1::new_signed(page, vec![object], next, &source_pair()).unwrap()
+	}
+
 	fn with_verified_page(
 		store: &ReplicationIntentStore,
 		record: ReplicationIntentV1,
@@ -1113,13 +1168,11 @@ mod tests {
 			return record;
 		}
 		let page = page_request(&record, [77; 16], record.identity.peer_operation_id);
-		let replay = page.authenticated_replay_identity().unwrap();
 		let staged = store
 			.stage_page_request_before_send(&record.intent_key, &page.encode_wire())
 			.unwrap();
-		store
-			.attach_verified_response(&staged.intent_key, replay.request_hash, [78; 32])
-			.unwrap()
+		let response = page_response(&record, &page);
+		store.attach_page_response(&staged.intent_key, &response.encode_wire()).unwrap()
 	}
 
 	fn install_ready(
@@ -1277,9 +1330,42 @@ mod tests {
 			.stage_page_request_before_send(&planned.intent_key, &page.encode_wire())
 			.unwrap();
 		assert_eq!(staged.outstanding_request.as_ref().unwrap().request_hash, replay.request_hash);
+		assert!(store.attach_page_response(&planned.intent_key, b"caller hash").is_err());
+		assert!(store
+			.attach_chunk_response(
+				&planned.intent_key,
+				&page_response(&planned, &page).encode_wire()
+			)
+			.is_err());
+		let other_page = page_request(&other, [6; 16], other.identity.peer_operation_id);
+		assert!(store
+			.attach_page_response(
+				&planned.intent_key,
+				&page_response(&other, &other_page).encode_wire()
+			)
+			.is_err());
+		let changed_request = page_request(&planned, [7; 16], planned.identity.peer_operation_id);
+		assert!(store
+			.attach_page_response(
+				&planned.intent_key,
+				&page_response(&planned, &changed_request).encode_wire()
+			)
+			.is_err());
+		let response = page_response(&planned, &page);
+		let mut bad_response_signature = response.encode_wire();
+		*bad_response_signature.last_mut().unwrap() ^= 1;
+		assert!(store
+			.attach_page_response(&planned.intent_key, &bad_response_signature)
+			.is_err());
 		let answered = store
-			.attach_verified_response(&planned.intent_key, replay.request_hash, [4; 32])
+			.attach_page_response(&planned.intent_key, &response.encode_wire())
 			.unwrap();
+		assert_eq!(
+			store
+				.attach_page_response(&planned.intent_key, &response.encode_wire())
+				.unwrap(),
+			answered
+		);
 
 		let bytes = b"authenticated chunk".to_vec();
 		let object = PeerObjectV1::new(
@@ -1307,9 +1393,27 @@ mod tests {
 			chunk_staged.outstanding_request.as_ref().unwrap().request_hash,
 			chunk_replay.request_hash
 		);
+		assert!(store
+			.attach_page_response(&planned.intent_key, &response.encode_wire())
+			.is_err());
+		assert!(store.attach_chunk_response(&planned.intent_key, b"caller hash").is_err());
+		let chunk_response =
+			PeerChunkResponseV1::new_signed(&chunk, bytes, &source_pair()).unwrap();
+		let mut bad_chunk_signature = chunk_response.encode_wire();
+		*bad_chunk_signature.last_mut().unwrap() ^= 1;
+		assert!(store.attach_chunk_response(&planned.intent_key, &bad_chunk_signature).is_err());
+		let chunk_answered = store
+			.attach_chunk_response(&planned.intent_key, &chunk_response.encode_wire())
+			.unwrap();
+		assert_eq!(
+			store
+				.attach_chunk_response(&planned.intent_key, &chunk_response.encode_wire())
+				.unwrap(),
+			chunk_answered
+		);
 		drop(store);
 		let reopened = ReplicationIntentStore::open(temp.path()).unwrap();
-		assert_eq!(reopened.plan(&shared_ingress).unwrap(), chunk_staged);
+		assert_eq!(reopened.plan(&shared_ingress).unwrap(), chunk_answered);
 	}
 
 	#[test]
