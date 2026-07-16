@@ -27,6 +27,9 @@ pub(crate) mod checkpoint_outbox;
 pub(crate) mod checkpoint_primary;
 #[path = "checkpoint_promotion.rs"]
 pub(crate) mod checkpoint_promotion;
+#[cfg(feature = "checkpoint-consumer")]
+#[path = "checkpoint_promotion_submitter.rs"]
+pub(crate) mod checkpoint_promotion_submitter;
 #[path = "checkpoint_publication.rs"]
 pub(crate) mod checkpoint_publication;
 #[path = "checkpoint_quorum.rs"]

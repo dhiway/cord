@@ -692,7 +692,7 @@ fn intent_record(
 	Ok(intent)
 }
 
-fn validate_intent(intent: &FallbackPromotionIntentV2) -> Result<(), ContentError> {
+pub(crate) fn validate_intent(intent: &FallbackPromotionIntentV2) -> Result<(), ContentError> {
 	if intent.version != STORE_VERSION
 		|| intent.state != AUTHORIZED_STATE
 		|| intent.intent_id.len() != 64
