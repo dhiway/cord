@@ -214,53 +214,7 @@ impl CheckpointProposalStore {
 			return Err(ContentError::IntegrityFailed);
 		}
 		let provider = decode_account(&duty.provider)?;
-		let projected = validate_checkpoint_duty(
-			decoded.clone(),
-			&provider,
-			signer.public_key(),
-			duty.snapshot_checkpoint,
-		)
-		.map_err(|_| ContentError::IntegrityFailed)?;
-		if projected != *duty || watermark.snapshot_checkpoint != duty.snapshot_checkpoint {
-			return Err(ContentError::IntegrityFailed);
-		}
-		normalize_hash(&watermark.finalized_hash)?;
-		if decoded.snapshot_checkpoint != duty.snapshot_checkpoint ||
-			hex::encode(decoded.snapshot_hash.as_bytes()) != normalize_hash(&duty.snapshot_hash)?
-		{
-			return Err(ContentError::IntegrityFailed);
-		}
-		if !duty.may_initiate ||
-			decoded.initiator.as_ref() != Some(&provider) ||
-			!matches!(
-				duty.phase,
-				CheckpointDutyPhase::Primary |
-					CheckpointDutyPhase::ReplicaFallback |
-					CheckpointDutyPhase::ReplicaFallbackPromotion
-			) || decoded.required_primary_confirmations != 1 ||
-			decoded.required_replica_confirmations != 2
-		{
-			return Err(ContentError::IntegrityFailed);
-		}
 		if signer.public_key() != decode_32(&duty.service_key)? {
-			return Err(ContentError::IntegrityFailed);
-		}
-		let local = decoded
-			.authorities
-			.iter()
-			.find(|authority| authority.provider == provider)
-			.ok_or(ContentError::IntegrityFailed)?;
-		if local.active_service_key_version != duty.service_key_version ||
-			local.active_service_key != signer.public_key()
-		{
-			return Err(ContentError::IntegrityFailed);
-		}
-		if !matches!(
-			decoded.phase,
-			RuntimePhase::Primary |
-				RuntimePhase::ReplicaFallback |
-				RuntimePhase::ReplicaFallbackPromotion
-		) {
 			return Err(ContentError::IntegrityFailed);
 		}
 		let expected_start = match decoded.previous_commitment {
@@ -283,18 +237,19 @@ impl CheckpointProposalStore {
 		}
 		let duty_id = normalize_hash(&duty.duty_id)?;
 		let duty_fingerprint = normalize_hash(&duty.duty_fingerprint)?;
-		let finalized_hash = normalize_hash(&watermark.finalized_hash)?;
 		let snapshot_hash = normalize_hash(&duty.snapshot_hash)?;
 		let service_key = hex::encode(signer.public_key());
+		let bucket_id = normalize_hash(&duty.bucket_id)?;
 		if let Some(existing) = state.by_tuple.get(&tuple).cloned() {
 			if existing.duty_id == duty_id &&
 				existing.duty_fingerprint == duty_fingerprint &&
-				existing.finalized_number == watermark.finalized_number &&
-				existing.finalized_hash == finalized_hash &&
 				existing.snapshot_checkpoint == duty.snapshot_checkpoint &&
 				existing.snapshot_hash == snapshot_hash &&
 				existing.service_key_version == duty.service_key_version &&
-				existing.service_key == service_key
+				existing.service_key == service_key &&
+				existing.bucket_id == bucket_id &&
+				existing.nonce == decoded.expected_nonce &&
+				existing.start_seq == expected_start
 			{
 				return Ok(existing);
 			}
@@ -302,6 +257,54 @@ impl CheckpointProposalStore {
 		}
 		if state.by_duty.contains_key(&duty_id) || state.by_tuple.len() >= MAX_PROPOSALS {
 			return Err(ContentError::IdempotencyConflict);
+		}
+		let projected = validate_checkpoint_duty(
+			decoded.clone(),
+			&provider,
+			signer.public_key(),
+			duty.snapshot_checkpoint,
+		)
+		.map_err(|_| ContentError::IntegrityFailed)?;
+		if projected != *duty || watermark.snapshot_checkpoint != duty.snapshot_checkpoint {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let finalized_hash = normalize_hash(&watermark.finalized_hash)?;
+		if decoded.snapshot_checkpoint != duty.snapshot_checkpoint ||
+			decoded.expected_nonce != decoded.snapshot_checkpoint ||
+			hex::encode(decoded.snapshot_hash.as_bytes()) != snapshot_hash
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+		if !duty.may_sign ||
+			!duty.may_initiate ||
+			decoded.initiator.as_ref() != Some(&provider) ||
+			!matches!(
+				duty.phase,
+				CheckpointDutyPhase::Primary | CheckpointDutyPhase::ReplicaFallback
+			) || decoded.required_primary_confirmations != 1 ||
+			decoded.required_replica_confirmations != 2
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+		let local = decoded
+			.authorities
+			.iter()
+			.find(|authority| authority.provider == provider)
+			.ok_or(ContentError::IntegrityFailed)?;
+		if local.active_service_key_version != duty.service_key_version ||
+			local.active_service_key != signer.public_key() ||
+			!local.may_sign ||
+			!local.may_initiate ||
+			!local.eligible ||
+			!local.organization_sla_eligible ||
+			local.overdue_challenge ||
+			local.exclusion.is_some() ||
+			local.initiation_exclusion.is_some()
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+		if !matches!(decoded.phase, RuntimePhase::Primary | RuntimePhase::ReplicaFallback) {
+			return Err(ContentError::IntegrityFailed);
 		}
 		let commitment = mmr.commitment_candidate(streaming, bucket, expected_start)?;
 		if commitment.leaf_count == 0 ||
@@ -331,7 +334,7 @@ impl CheckpointProposalStore {
 			snapshot_hash,
 			service_key_version: duty.service_key_version,
 			service_key,
-			bucket_id: normalize_hash(&duty.bucket_id)?,
+			bucket_id,
 			nonce: decoded.expected_nonce,
 			start_seq: commitment.start_seq,
 			leaf_count: commitment.leaf_count,
@@ -577,7 +580,7 @@ mod tests {
 			snapshot_hash: H256::repeat_byte(12),
 			due_at: 100,
 			grace_until: 110,
-			expected_nonce: 7,
+			expected_nonce: 100,
 			scheduled_at: 99,
 			previous_commitment: None,
 			previous_checkpoint: None,
@@ -688,6 +691,18 @@ mod tests {
 		install(&streaming, &mmr, 2, b"second");
 		let retry = store.prepare(&disk, &duty.duty_id, &mmr, &streaming, &signer).unwrap();
 		assert_eq!(retry, first);
+		disk.stage_checkpoint_duty_page(CheckpointDutyBatch {
+			finalized_hash: format!("0x{}", "ee".repeat(32)),
+			finalized_number: 222,
+			provider: duty.provider.clone(),
+			snapshot_checkpoint: 101,
+			requested_cursor: None,
+			next_cursor: None,
+			duties: Vec::new(),
+		})
+		.unwrap();
+		let advanced = store.prepare(&disk, &duty.duty_id, &mmr, &streaming, &signer).unwrap();
+		assert_eq!(advanced, first);
 		assert_eq!(store.pending_checkpoint_proposals().unwrap(), vec![first]);
 		assert_eq!(
 			CheckpointProposalStore::open(temp.path())
@@ -763,6 +778,19 @@ mod tests {
 		let mut fingerprint = project(typed_duty(signer.public().0, 9), signer.public().0);
 		fingerprint.duty_fingerprint = format!("0x{}", "aa".repeat(32));
 		variants.push(fingerprint);
+		let mut wrong_nonce = typed_duty(signer.public().0, 10);
+		wrong_nonce.expected_nonce = 99;
+		variants.push(project(wrong_nonce, signer.public().0));
+		let mut cannot_sign = typed_duty(signer.public().0, 11);
+		cannot_sign.authorities[0].may_sign = false;
+		variants.push(project(cannot_sign, signer.public().0));
+		let mut ineligible = typed_duty(signer.public().0, 12);
+		ineligible.authorities[0].eligible = false;
+		variants.push(project(ineligible, signer.public().0));
+		let mut promotion = typed_duty(signer.public().0, 13);
+		promotion.phase = CheckpointDutyPhase::ReplicaFallbackPromotion;
+		promotion.mode = CheckpointDutyMode::PromotionPending;
+		variants.push(project(promotion, signer.public().0));
 
 		for duty in variants {
 			assert!(store.prepare_exact(&duty, &watermark(), &mmr, &streaming, &signer).is_err());
