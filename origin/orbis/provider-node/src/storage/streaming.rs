@@ -39,9 +39,9 @@ use crate::{
 
 #[allow(dead_code)]
 pub(crate) mod recovery;
-use recovery::RecoveryRecord;
+use recovery::{CapabilityReplayRecord, RecoveryRecord};
 
-const STREAM_VERSION: u16 = 5;
+const STREAM_VERSION: u16 = 7;
 const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
@@ -123,6 +123,14 @@ pub enum StreamingFault {
 	BeforeRecoveryCommit,
 	/// Combined recovery transition is durable but its response was not delivered.
 	AfterRecoveryCommit,
+	/// Cancellation is validated but its terminal journal transition is absent.
+	BeforeTerminalCommit,
+	/// Terminal cancellation is durable but staged-byte cleanup or response delivery is absent.
+	AfterTerminalCommit,
+	/// Expired recovery records have been selected but the bounded GC transition is absent.
+	BeforeRecoveryGcCommit,
+	/// The bounded GC transition is durable but staged-byte cleanup or completion is absent.
+	AfterRecoveryGcCommit,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -131,6 +139,7 @@ enum Phase {
 	Receiving,
 	Finalizing,
 	Installed,
+	Cancelled,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -161,6 +170,7 @@ struct JournalState {
 	quarantine: BTreeMap<String, QuarantineRecord>,
 	detection_sequence: u64,
 	recovery: BTreeMap<String, RecoveryRecord>,
+	capability_replay: BTreeMap<String, CapabilityReplayRecord>,
 }
 
 /// One immutable, fully reverified installed operation used by the private commitment store.
@@ -297,6 +307,7 @@ impl StreamingStore {
 				quarantine: BTreeMap::new(),
 				detection_sequence: 0,
 				recovery: BTreeMap::new(),
+				capability_replay: BTreeMap::new(),
 			}
 		};
 		let store = Self {
@@ -547,9 +558,8 @@ impl StreamingStore {
 		self.trip_fault(StreamingFault::AfterObjectRename)?;
 		let mut installed = state.clone();
 		let install_sequence = installed.next_install_sequence;
-		installed.next_install_sequence = install_sequence
-			.checked_add(1)
-			.ok_or(ContentError::IntegrityFailed)?;
+		installed.next_install_sequence =
+			install_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 		let installed_record = installed.operations.get_mut(&key).expect("record exists");
 		installed_record.phase = Phase::Installed;
 		installed_record.install_sequence = Some(install_sequence);
@@ -826,9 +836,8 @@ impl StreamingStore {
 					let (_, fingerprint, _) =
 						verify_file(&object, &record.descriptor, &record.chunks)?;
 					let install_sequence = next.next_install_sequence;
-					next.next_install_sequence = install_sequence
-						.checked_add(1)
-						.ok_or(ContentError::IntegrityFailed)?;
+					next.next_install_sequence =
+						install_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 					let recovered = next.operations.get_mut(&key).expect("key exists");
 					recovered.phase = Phase::Installed;
 					recovered.install_sequence = Some(install_sequence);
@@ -866,12 +875,23 @@ impl StreamingStore {
 						},
 					}
 				},
+				Phase::Cancelled => {
+					if record.install_sequence.is_some() || record.receipt.is_some() {
+						return Err(ContentError::IntegrityFailed)
+					}
+					let path = self.part_path(&key);
+					if path.exists() {
+						fs::remove_file(&path).map_err(io_error)?;
+						sync_dir(path.parent().expect("staging path has parent"))?;
+						changed = true;
+					}
+				},
 			}
 		}
 		let referenced_staging: BTreeSet<_> = next
 			.operations
 			.iter()
-			.filter(|(_, record)| record.phase != Phase::Installed)
+			.filter(|(_, record)| matches!(record.phase, Phase::Receiving | Phase::Finalizing))
 			.map(|(key, _)| format!("{key}.part"))
 			.collect();
 		changed |= remove_unowned(&self.root.join(STAGING), &referenced_staging)?;

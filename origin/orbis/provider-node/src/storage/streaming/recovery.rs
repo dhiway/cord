@@ -18,12 +18,13 @@
 
 //! Private, unrouted provider recovery transitions for `storage.object.put`.
 
-use std::{array, fs::OpenOptions, io::Write};
+use std::{array, fs, fs::OpenOptions, io::Write};
 
 use ciborium::value::Value;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sp_core::{ed25519, Pair as _};
+use unicode_normalization::UnicodeNormalization;
 
 use super::{
 	chunk_hash, operation_key, persist_state, sync_dir, validate_chunk_len, validate_descriptor,
@@ -42,6 +43,10 @@ use crate::{
 const METHOD: u16 = 1010;
 const RESUME_DOMAIN: &[u8] = b"cord.provider.resume.v1";
 const RECOVERY_TTL: u64 = 256;
+const MAX_REQUEST_BYTES: usize = 4096;
+const MAX_RESUME_TOKEN_BYTES: usize = 4096;
+const MAX_RECOVERY_ENTRY_BYTES: usize = 4 * 1024 * 1024 + 8192;
+const MAX_ACK_BYTES: usize = 256;
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub(crate) enum RecoveryError {
@@ -51,6 +56,8 @@ pub(crate) enum RecoveryError {
 	Content(#[from] ContentError),
 	#[error("RESUME_SIGNATURE_INVALID")]
 	ResumeSignatureInvalid,
+	#[error("RESUME_REVOKED")]
+	ResumeRevoked,
 	#[error("RESUME_AUDIENCE_INVALID")]
 	ResumeAudienceInvalid,
 	#[error("RESUME_REPLAY")]
@@ -86,6 +93,7 @@ pub(crate) struct ObjectPutRequestV2 {
 	pub product_id: String,
 	pub grant_id: [u8; 32],
 	pub operation_id: [u8; 16],
+	pub trace_context: Option<Vec<u8>>,
 	pub deadline: u64,
 	pub bucket_id: [u8; 32],
 	pub cid: CanonicalCid,
@@ -95,13 +103,16 @@ pub(crate) struct ObjectPutRequestV2 {
 
 impl ObjectPutRequestV2 {
 	pub(crate) fn decode(bytes: &[u8]) -> Result<Self, RecoveryError> {
+		if bytes.len() > MAX_REQUEST_BYTES {
+			return Err(RecoveryError::WireSchemaInvalid)
+		}
 		let value: Value =
 			ciborium::de::from_reader(bytes).map_err(|_| RecoveryError::WireSchemaInvalid)?;
 		let Value::Map(entries) = value else { return Err(RecoveryError::WireSchemaInvalid) };
 		let mut fields: [Option<Value>; 9] = array::from_fn(|_| None);
 		for (key, value) in entries {
 			let key = integer(key)? as usize;
-			if key > 8 || key == 6 || fields[key].replace(value).is_some() {
+			if key > 8 || fields[key].replace(value).is_some() {
 				return Err(RecoveryError::WireSchemaInvalid)
 			}
 		}
@@ -119,6 +130,8 @@ impl ObjectPutRequestV2 {
 		let product_id = text(take(&mut fields, 2)?, 128)?;
 		let grant_id = bytes_fixed(take(&mut fields, 4)?)?;
 		let operation_id = bytes_fixed(take(&mut fields, 5)?)?;
+		let trace_context =
+			fields[6].take().map(|value| bounded_bytes(value, 1, 64)).transpose()?;
 		let deadline = integer(take(&mut fields, 7)?)?;
 		let Value::Map(body) = take(&mut fields, 8)? else {
 			return Err(RecoveryError::WireSchemaInvalid)
@@ -149,6 +162,7 @@ impl ObjectPutRequestV2 {
 			product_id,
 			grant_id,
 			operation_id,
+			trace_context,
 			deadline,
 			bucket_id,
 			cid,
@@ -162,13 +176,18 @@ impl ObjectPutRequestV2 {
 	}
 
 	pub(crate) fn canonical_bytes(&self) -> Vec<u8> {
-		map(vec![
+		let mut fields = vec![
 			(0, uint(2)),
 			(1, bstr(&self.request_id)),
 			(2, Value::Text(self.product_id.clone())),
 			(3, uint(u64::from(METHOD))),
 			(4, bstr(&self.grant_id)),
 			(5, bstr(&self.operation_id)),
+		];
+		if let Some(trace_context) = &self.trace_context {
+			fields.push((6, bstr(trace_context)));
+		}
+		fields.extend([
 			(7, uint(self.deadline)),
 			(
 				8,
@@ -180,7 +199,8 @@ impl ObjectPutRequestV2 {
 					(uint(4), bstr(&self.operation_id)),
 				]),
 			),
-		])
+		]);
+		map(fields)
 	}
 }
 
@@ -205,6 +225,9 @@ pub(crate) struct ResumeTokenV1 {
 
 impl ResumeTokenV1 {
 	pub(crate) fn decode(bytes: &[u8]) -> Result<Self, RecoveryError> {
+		if bytes.len() > MAX_RESUME_TOKEN_BYTES {
+			return Err(RecoveryError::WireSchemaInvalid)
+		}
 		let value: Value =
 			ciborium::de::from_reader(bytes).map_err(|_| RecoveryError::WireSchemaInvalid)?;
 		let Value::Map(entries) = value else { return Err(RecoveryError::WireSchemaInvalid) };
@@ -318,6 +341,9 @@ pub(crate) struct RecoveryEntryV1 {
 
 impl RecoveryEntryV1 {
 	pub(crate) fn decode(bytes: &[u8]) -> Result<Self, RecoveryError> {
+		if bytes.len() > MAX_RECOVERY_ENTRY_BYTES {
+			return Err(RecoveryError::WireSchemaInvalid)
+		}
 		let value: Value =
 			ciborium::de::from_reader(bytes).map_err(|_| RecoveryError::WireSchemaInvalid)?;
 		let Value::Map(entries) = value else { return Err(RecoveryError::WireSchemaInvalid) };
@@ -384,6 +410,9 @@ impl RecoveryEntryV1 {
 
 impl ResponseAckV1 {
 	pub(crate) fn decode(bytes: &[u8]) -> Result<Self, RecoveryError> {
+		if bytes.len() > MAX_ACK_BYTES {
+			return Err(RecoveryError::WireSchemaInvalid)
+		}
 		let value: Value =
 			ciborium::de::from_reader(bytes).map_err(|_| RecoveryError::WireSchemaInvalid)?;
 		let Value::Map(entries) = value else { return Err(RecoveryError::WireSchemaInvalid) };
@@ -421,13 +450,22 @@ impl ResponseAckV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RecoveryResponseV1 {
 	pub response: Vec<u8>,
-	pub successor_token: Vec<u8>,
+	pub successor_token: Option<Vec<u8>>,
 	pub response_hash: [u8; 32],
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum RecoveryEffect {
+	Accepted,
+	Progress,
+	Cancelled,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct RecoveryRecord {
+	effect: RecoveryEffect,
 	request: String,
 	authority: String,
 	authority_public_key: String,
@@ -443,7 +481,7 @@ pub(super) struct RecoveryRecord {
 	received_bytes: u64,
 	response_sequence: u32,
 	response: String,
-	successor_token: String,
+	successor_token: Option<String>,
 	response_hash: String,
 	host_key_id: String,
 	acknowledged: bool,
@@ -454,6 +492,14 @@ pub(super) struct RecoveryRecord {
 	entry_cbor: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct CapabilityReplayRecord {
+	recovery_key: String,
+	fingerprint: String,
+	retain_until: u64,
+}
+
 struct Fresh;
 impl CapabilityReplayInspector for Fresh {
 	fn inspect(&self, _: &[u8; 32], _: &[u8; 16], _: &[u8; 32]) -> CapabilityReplayInspection {
@@ -462,6 +508,9 @@ impl CapabilityReplayInspector for Fresh {
 }
 
 pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(), ContentError> {
+	let mut terminal_operations = std::collections::BTreeSet::new();
+	let mut chains: std::collections::BTreeMap<String, Vec<&RecoveryRecord>> =
+		std::collections::BTreeMap::new();
 	for (stored_key, record) in &state.recovery {
 		let request_bytes =
 			hex::decode(&record.request).map_err(|_| ContentError::IntegrityFailed)?;
@@ -474,11 +523,19 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 		let nonce: [u8; 16] = decode_hex(&record.nonce)?;
 		let host_key: [u8; 32] = decode_hex(&record.host_key_id)?;
 		let provider: [u8; 32] = decode_hex(&record.provider)?;
-		let chunk_hash = if record.chunk_hash.is_empty() {
-			None
-		} else {
-			decode_hex::<32>(&record.chunk_hash)?;
-			Some(record.chunk_hash.as_str())
+		let chunk_hash = match record.effect {
+			RecoveryEffect::Accepted | RecoveryEffect::Cancelled => {
+				if !record.chunk_hash.is_empty() {
+					return Err(ContentError::IntegrityFailed)
+				}
+				None
+			},
+			RecoveryEffect::Progress => {
+				let encoded =
+					record.chunk_hash.strip_prefix("0x").ok_or(ContentError::IntegrityFailed)?;
+				decode_hex::<32>(encoded)?;
+				Some(record.chunk_hash.as_str())
+			},
 		};
 		if operation != request.operation_id ||
 			request_id != request.request_id ||
@@ -490,6 +547,7 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 			record.descriptor.object_len != request.object_len ||
 			record.effect_hash !=
 				hex::encode(effect_state_hash(
+					record.effect,
 					&record.descriptor,
 					record.cursor,
 					record.received_bytes,
@@ -498,7 +556,35 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 			return Err(ContentError::IntegrityFailed)
 		}
 		let response = hex::decode(&record.response).map_err(|_| ContentError::IntegrityFailed)?;
-		if record.response_hash != hex::encode(Sha256::digest(&response)) {
+		let expected_response = match record.effect {
+			RecoveryEffect::Accepted => {
+				if record.generation != 0 ||
+					record.prior_cursor != 0 ||
+					record.cursor != 0 ||
+					record.received_bytes != 0 ||
+					record.response_sequence != 0
+				{
+					return Err(ContentError::IntegrityFailed)
+				}
+				accepted_response(request_id)
+			},
+			RecoveryEffect::Progress => progress_response(
+				request_id,
+				record.response_sequence,
+				record.received_bytes,
+				record.cursor,
+			),
+			RecoveryEffect::Cancelled => {
+				if record.prior_cursor != record.cursor {
+					return Err(ContentError::IntegrityFailed)
+				}
+				terminal_operations.insert(operation_key(&record.descriptor));
+				cancelled_response(request_id, record.response_sequence)
+			},
+		};
+		if response != expected_response ||
+			record.response_hash != hex::encode(Sha256::digest(&response))
+		{
 			return Err(ContentError::IntegrityFailed)
 		}
 		let (authority_expiry, authority_provider) =
@@ -526,21 +612,30 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 		{
 			return Err(ContentError::IntegrityFailed)
 		}
-		let successor =
-			hex::decode(&record.successor_token).map_err(|_| ContentError::IntegrityFailed)?;
-		let successor =
-			ResumeTokenV1::decode(&successor).map_err(|_| ContentError::IntegrityFailed)?;
-		successor
-			.verify(decode_hex(&record.successor_public_key)?)
-			.map_err(|_| ContentError::IntegrityFailed)?;
-		if successor.provider != provider ||
-			successor.operation_id != operation ||
-			successor.cursor != record.cursor ||
-			successor.generation !=
-				record.generation.checked_add(1).ok_or(ContentError::IntegrityFailed)?
-		{
-			return Err(ContentError::IntegrityFailed)
-		}
+		let successor = match (&record.effect, &record.successor_token) {
+			(RecoveryEffect::Cancelled, None) => None,
+			(RecoveryEffect::Accepted | RecoveryEffect::Progress, Some(encoded)) => {
+				let bytes = hex::decode(encoded).map_err(|_| ContentError::IntegrityFailed)?;
+				let token =
+					ResumeTokenV1::decode(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
+				token
+					.verify(decode_hex(&record.successor_public_key)?)
+					.map_err(|_| ContentError::IntegrityFailed)?;
+				if token.provider != provider ||
+					token.operation_id != operation ||
+					token.cursor != record.cursor ||
+					token.generation !=
+						record
+							.generation
+							.checked_add(1)
+							.ok_or(ContentError::IntegrityFailed)?
+				{
+					return Err(ContentError::IntegrityFailed)
+				}
+				Some(token.canonical_bytes())
+			},
+			_ => return Err(ContentError::IntegrityFailed),
+		};
 		let entry = RecoveryEntryV1 {
 			operation_id: operation,
 			request_id,
@@ -550,7 +645,7 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 			prior_cursor: record.prior_cursor,
 			new_cursor: record.cursor,
 			response: response.clone(),
-			successor_token: Some(successor.canonical_bytes()),
+			successor_token: successor,
 			response_hash: decode_hex(&record.response_hash)?,
 			effect_state_hash: decode_hex(&record.effect_hash)?,
 			acknowledged: record.acknowledged,
@@ -562,9 +657,115 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 		}
 		RecoveryEntryV1::decode(&entry_bytes).map_err(|_| ContentError::IntegrityFailed)?;
 		let operation_key = operation_key(&record.descriptor);
+		chains.entry(operation_key.clone()).or_default().push(record);
 		if state.operations.get(&operation_key).map(|item| &item.descriptor) !=
 			Some(&record.descriptor)
 		{
+			return Err(ContentError::IntegrityFailed)
+		}
+		if record.effect == RecoveryEffect::Cancelled &&
+			state.operations.get(&operation_key).map(|item| item.phase) != Some(Phase::Cancelled)
+		{
+			return Err(ContentError::IntegrityFailed)
+		}
+	}
+	for (operation_key, chain) in &mut chains {
+		chain.sort_by_key(|record| record.generation);
+		let operation = state.operations.get(operation_key).ok_or(ContentError::IntegrityFailed)?;
+		let first = chain.first().ok_or(ContentError::IntegrityFailed)?;
+		if first.effect != RecoveryEffect::Accepted || first.generation != 0 {
+			return Err(ContentError::IntegrityFailed)
+		}
+		for pair in chain.windows(2) {
+			let previous = pair[0];
+			let current = pair[1];
+			if current.generation !=
+				previous.generation.checked_add(1).ok_or(ContentError::IntegrityFailed)? ||
+				current.authority !=
+					previous
+						.successor_token
+						.as_deref()
+						.ok_or(ContentError::IntegrityFailed)? ||
+				current.prior_cursor != previous.cursor ||
+				current.response_sequence !=
+					previous
+						.response_sequence
+						.checked_add(1)
+						.ok_or(ContentError::IntegrityFailed)? ||
+				current.request != first.request ||
+				current.request_id != first.request_id ||
+				current.descriptor != first.descriptor
+			{
+				return Err(ContentError::IntegrityFailed)
+			}
+			match current.effect {
+				RecoveryEffect::Progress
+					if current.prior_cursor.checked_add(1) == Some(current.cursor) => {},
+				RecoveryEffect::Cancelled if current.cursor == current.prior_cursor => {},
+				_ => return Err(ContentError::IntegrityFailed),
+			}
+		}
+		for record in chain.iter().filter(|record| record.effect == RecoveryEffect::Progress) {
+			let cursor: usize =
+				record.cursor.try_into().map_err(|_| ContentError::IntegrityFailed)?;
+			if cursor == 0 ||
+				cursor > operation.chunks.len() ||
+				operation.chunks[cursor - 1].hash != record.chunk_hash
+			{
+				return Err(ContentError::IntegrityFailed)
+			}
+			let cumulative = operation.chunks[..cursor].iter().try_fold(0u64, |total, chunk| {
+				total.checked_add(u64::from(chunk.length)).ok_or(ContentError::IntegrityFailed)
+			})?;
+			if record.received_bytes != cumulative {
+				return Err(ContentError::IntegrityFailed)
+			}
+		}
+		let latest = chain.last().ok_or(ContentError::IntegrityFailed)?;
+		if latest.cursor != u32::from(operation.next_chunk) ||
+			latest.received_bytes != operation.received_bytes ||
+			operation.chunks.len() != usize::from(operation.next_chunk)
+		{
+			return Err(ContentError::IntegrityFailed)
+		}
+		if let Some(last_progress) =
+			chain.iter().rev().find(|record| record.effect == RecoveryEffect::Progress)
+		{
+			if operation.chunks.last().map(|chunk| chunk.hash.as_str()) !=
+				Some(last_progress.chunk_hash.as_str())
+			{
+				return Err(ContentError::IntegrityFailed)
+			}
+		} else if !operation.chunks.is_empty() {
+			return Err(ContentError::IntegrityFailed)
+		}
+		match (operation.phase, latest.effect) {
+			(Phase::Receiving, RecoveryEffect::Accepted | RecoveryEffect::Progress) |
+			(Phase::Cancelled, RecoveryEffect::Cancelled) => {},
+			_ => return Err(ContentError::IntegrityFailed),
+		}
+	}
+	for (key, operation) in &state.operations {
+		if operation.phase == Phase::Cancelled && !terminal_operations.contains(key) {
+			return Err(ContentError::IntegrityFailed)
+		}
+	}
+	for (key, replay) in &state.capability_replay {
+		decode_hex::<32>(key)?;
+		decode_hex::<32>(&replay.fingerprint)?;
+		let recovery =
+			state.recovery.get(&replay.recovery_key).ok_or(ContentError::IntegrityFailed)?;
+		if recovery.effect != RecoveryEffect::Accepted ||
+			recovery.fingerprint != replay.fingerprint ||
+			recovery.retain_until != replay.retain_until
+		{
+			return Err(ContentError::IntegrityFailed)
+		}
+		let authority =
+			hex::decode(&recovery.authority).map_err(|_| ContentError::IntegrityFailed)?;
+		let capability =
+			ProviderCapabilityV1::decode(&authority).map_err(|_| ContentError::IntegrityFailed)?;
+		if *key != capability_replay_key(capability.grant_id, capability.nonce) {
 			return Err(ContentError::IntegrityFailed)
 		}
 	}
@@ -577,6 +778,7 @@ impl StreamingStore {
 		request_bytes: &[u8],
 		authority_bytes: &[u8],
 		snapshot: &CapabilityAuthoritySnapshot,
+		current_service_key: [u8; 32],
 		signer: &dyn RecoverySigner,
 		successor_nonce: [u8; 16],
 	) -> Result<RecoveryResponseV1, RecoveryError> {
@@ -606,18 +808,32 @@ impl StreamingStore {
 			return Err(CapabilityError::GrantScopeDenied.into())
 		}
 		let key = recovery_key(capability.issuer_key_id, request.operation_id, 0, capability.nonce);
+		let replay_key = capability_replay_key(capability.grant_id, capability.nonce);
 		let fingerprint = fingerprint(request_bytes, authority_bytes);
 		{
 			let state = self.read_state()?;
 			if let Some(record) = state.recovery.get(&key) {
 				return recover(
 					record,
+					RecoveryEffect::Accepted,
 					request_bytes,
 					authority_bytes,
 					fingerprint,
 					capability.provider,
 					u64::from(snapshot.finalized_number),
 				)
+			}
+		}
+		if signer.public_key() != current_service_key {
+			return Err(RecoveryError::ResumeRevoked)
+		}
+		if u64::from(snapshot.finalized_number) >= request.deadline {
+			return Err(CapabilityError::CapabilityExpired.into())
+		}
+		{
+			let state = self.read_state()?;
+			if state.capability_replay.contains_key(&replay_key) {
+				return Err(CapabilityError::CapabilityNonceReplay.into())
 			}
 		}
 		verify_capability(&capability, snapshot, capability_request, &Fresh)?;
@@ -632,6 +848,7 @@ impl StreamingStore {
 		if let Some(record) = state.recovery.get(&key) {
 			return recover(
 				record,
+				RecoveryEffect::Accepted,
 				request_bytes,
 				authority_bytes,
 				fingerprint,
@@ -639,12 +856,18 @@ impl StreamingStore {
 				u64::from(snapshot.finalized_number),
 			)
 		}
+		if state.capability_replay.contains_key(&replay_key) {
+			return Err(CapabilityError::CapabilityNonceReplay.into())
+		}
 		if state.recovery.len() >= MAX_STREAMING_OPERATIONS {
 			return Err(ContentError::ProviderRecoveryTableFull.into())
 		}
 		let operation_key = operation_key(&descriptor);
 		if state.operations.contains_key(&operation_key) {
 			return Err(ContentError::IdempotencyConflict.into())
+		}
+		if state.operations.len() >= self.operation_limit {
+			return Err(ContentError::ProviderRecoveryTableFull.into())
 		}
 		let path = self.root.join(STAGING).join(format!("{operation_key}.part"));
 		let file = OpenOptions::new()
@@ -679,7 +902,8 @@ impl StreamingStore {
 			.expires_at
 			.checked_add(RECOVERY_TTL)
 			.ok_or(ContentError::IntegrityFailed)?;
-		let initial_effect_hash = effect_state_hash(&descriptor, 0, 0, None);
+		let initial_effect_hash =
+			effect_state_hash(RecoveryEffect::Accepted, &descriptor, 0, 0, None);
 		let entry_cbor = RecoveryEntryV1 {
 			operation_id: request.operation_id,
 			request_id: request.request_id,
@@ -697,6 +921,7 @@ impl StreamingStore {
 		}
 		.canonical_bytes();
 		let record = RecoveryRecord {
+			effect: RecoveryEffect::Accepted,
 			request: hex::encode(request_bytes),
 			authority: hex::encode(authority_bytes),
 			authority_public_key: hex::encode(snapshot.delegation.issuer_public_key),
@@ -712,7 +937,7 @@ impl StreamingStore {
 			received_bytes: 0,
 			response_sequence: 0,
 			response: hex::encode(&response),
-			successor_token: hex::encode(&token_bytes),
+			successor_token: Some(hex::encode(&token_bytes)),
 			response_hash: hex::encode(response_hash),
 			host_key_id: hex::encode(capability.issuer_key_id),
 			acknowledged: false,
@@ -736,11 +961,24 @@ impl StreamingStore {
 			},
 		);
 		next.recovery.insert(key, record);
+		next.capability_replay.insert(
+			replay_key,
+			CapabilityReplayRecord {
+				recovery_key: recovery_key(
+					capability.issuer_key_id,
+					request.operation_id,
+					0,
+					capability.nonce,
+				),
+				fingerprint: hex::encode(fingerprint),
+				retain_until,
+			},
+		);
 		self.trip_fault(StreamingFault::BeforeRecoveryCommit)?;
 		persist_state(&self.root, &next)?;
 		*state = next;
 		self.trip_fault(StreamingFault::AfterRecoveryCommit)?;
-		Ok(RecoveryResponseV1 { response, successor_token: token_bytes, response_hash })
+		Ok(RecoveryResponseV1 { response, successor_token: Some(token_bytes), response_hash })
 	}
 
 	#[allow(clippy::too_many_arguments)]
@@ -772,39 +1010,40 @@ impl StreamingStore {
 		let key =
 			recovery_key(token.host_key_id, token.operation_id, token.generation, token.nonce);
 		let fingerprint = fingerprint(request_bytes, token_bytes);
-		let chunk_digest = hex::encode(Sha256::digest(chunk));
+		let chunk_digest = chunk_hash(chunk);
 		{
 			let state = self.read_state()?;
 			if let Some(record) = state.recovery.get(&key) {
-				if record.chunk_hash != chunk_digest {
+				if record.effect != RecoveryEffect::Progress || record.chunk_hash != chunk_digest {
 					return Err(RecoveryError::ResumeReplay)
 				}
-				return recover(record, request_bytes, token_bytes, fingerprint, local_provider, now)
+				return recover(
+					record,
+					RecoveryEffect::Progress,
+					request_bytes,
+					token_bytes,
+					fingerprint,
+					local_provider,
+					now,
+				)
 			}
 		}
-		token.verify(signer.public_key())?;
-		if signer.public_key() != current_service_key {
-			return Err(RecoveryError::ResumeAudienceInvalid)
+		if token.cancelled {
+			return Err(RecoveryError::ResumeReplay)
 		}
-		if token.host_key_id != snapshot.delegation.issuer_key_id.0 ||
-			request.grant_id != snapshot.delegation.grant_id.0 ||
-			request.product_id.as_bytes() != snapshot.delegation.product_id.as_slice() ||
-			request.bucket_id != snapshot.delegation.bucket_id.0 ||
-			request.object_len > snapshot.delegation.max_bytes
+		let (prior_snapshot, accepted) = {
+			let state = self.read_state()?;
+			let prior = predecessor(&state, token_bytes)?.clone();
+			let accepted = accepted_root(&state, &prior.descriptor)?.clone();
+			(prior, accepted)
+		};
+		let recorded_service_key = decode_hex(&prior_snapshot.successor_public_key)?;
+		token.verify(recorded_service_key)?;
+		if recorded_service_key != current_service_key || signer.public_key() != current_service_key
 		{
-			return Err(RecoveryError::ResumeAudienceInvalid)
+			return Err(RecoveryError::ResumeRevoked)
 		}
-		if snapshot.delegation.revoked_at.is_some() ||
-			now < u64::from(snapshot.delegation.issued_at) ||
-			now >= u64::from(snapshot.delegation.expires_at) ||
-			!snapshot.delegation.methods.contains(&METHOD) ||
-			request.object_len > snapshot.delegation.max_bytes
-		{
-			return Err(CapabilityError::GrantExpired.into())
-		}
-		if token.cancelled || now < token.issued_at || now >= token.expires_at {
-			return Err(RecoveryError::ResumeExpired)
-		}
+		validate_fresh_resume_authority(&request, &token, &accepted, snapshot, now)?;
 		if token.cursor.checked_add(1) != Some(cursor) {
 			return Err(RecoveryError::ResumeCursorInvalid)
 		}
@@ -813,19 +1052,23 @@ impl StreamingStore {
 		validate_chunk_len(request.object_len, internal_index, chunk.len())?;
 		let mut state = self.write_state()?;
 		if let Some(record) = state.recovery.get(&key) {
-			if record.chunk_hash != chunk_digest {
+			if record.effect != RecoveryEffect::Progress || record.chunk_hash != chunk_digest {
 				return Err(RecoveryError::ResumeReplay)
 			}
-			return recover(record, request_bytes, token_bytes, fingerprint, local_provider, now)
+			return recover(
+				record,
+				RecoveryEffect::Progress,
+				request_bytes,
+				token_bytes,
+				fingerprint,
+				local_provider,
+				now,
+			)
 		}
 		if state.recovery.len() >= MAX_STREAMING_OPERATIONS {
 			return Err(ContentError::ProviderRecoveryTableFull.into())
 		}
-		let prior = state
-			.recovery
-			.values()
-			.find(|record| record.successor_token == hex::encode(token_bytes))
-			.ok_or(RecoveryError::ResumeReplay)?;
+		let prior = predecessor(&state, token_bytes)?;
 		if prior.cursor != token.cursor || prior.provider != hex::encode(local_provider) {
 			return Err(RecoveryError::ResumeReplay)
 		}
@@ -875,8 +1118,13 @@ impl StreamingStore {
 		.signed(signer);
 		let successor_bytes = successor.canonical_bytes();
 		let descriptor = prior.descriptor.clone();
-		let effect_state_hash =
-			effect_state_hash(&descriptor, cursor, received, Some(&chunk_digest));
+		let effect_state_hash = effect_state_hash(
+			RecoveryEffect::Progress,
+			&descriptor,
+			cursor,
+			received,
+			Some(&chunk_digest),
+		);
 		let retain_until = token
 			.expires_at
 			.checked_add(RECOVERY_TTL)
@@ -898,6 +1146,7 @@ impl StreamingStore {
 		}
 		.canonical_bytes();
 		let record = RecoveryRecord {
+			effect: RecoveryEffect::Progress,
 			request: hex::encode(request_bytes),
 			authority: hex::encode(token_bytes),
 			authority_public_key: hex::encode(signer.public_key()),
@@ -913,7 +1162,7 @@ impl StreamingStore {
 			received_bytes: received,
 			response_sequence: sequence,
 			response: hex::encode(&response),
-			successor_token: hex::encode(&successor_bytes),
+			successor_token: Some(hex::encode(&successor_bytes)),
 			response_hash: hex::encode(response_hash),
 			host_key_id: hex::encode(token.host_key_id),
 			acknowledged: false,
@@ -936,7 +1185,253 @@ impl StreamingStore {
 		persist_state(&self.root, &next)?;
 		*state = next;
 		self.trip_fault(StreamingFault::AfterRecoveryCommit)?;
-		Ok(RecoveryResponseV1 { response, successor_token: successor_bytes, response_hash })
+		Ok(RecoveryResponseV1 { response, successor_token: Some(successor_bytes), response_hash })
+	}
+
+	pub(crate) fn cancel_object_put(
+		&self,
+		request_bytes: &[u8],
+		token_bytes: &[u8],
+		snapshot: &CapabilityAuthoritySnapshot,
+		current_service_key: [u8; 32],
+		signer: &dyn RecoverySigner,
+	) -> Result<RecoveryResponseV1, RecoveryError> {
+		let request = ObjectPutRequestV2::decode(request_bytes)?;
+		let token = ResumeTokenV1::decode(token_bytes)?;
+		let local_provider = snapshot.local_provider;
+		let now = u64::from(snapshot.finalized_number);
+		if token.provider != local_provider ||
+			token.registry_sha256 != snapshot.registry_sha256 ||
+			token.genesis_hash != snapshot.genesis_hash ||
+			token.operation_id != request.operation_id ||
+			token.bucket_id != request.bucket_id ||
+			token.cid != request.cid ||
+			token.object_len != request.object_len
+		{
+			return Err(RecoveryError::ResumeAudienceInvalid)
+		}
+		let key =
+			recovery_key(token.host_key_id, token.operation_id, token.generation, token.nonce);
+		let fingerprint = fingerprint(request_bytes, token_bytes);
+		{
+			let state = self.read_state()?;
+			if let Some(record) = state.recovery.get(&key).cloned() {
+				if record.effect != RecoveryEffect::Cancelled {
+					return Err(RecoveryError::ResumeReplay)
+				}
+				drop(state);
+				self.cleanup_cancelled_staging(&record)?;
+				return recover(
+					&record,
+					RecoveryEffect::Cancelled,
+					request_bytes,
+					token_bytes,
+					fingerprint,
+					local_provider,
+					now,
+				)
+			}
+		}
+		if token.cancelled {
+			return Err(RecoveryError::ResumeReplay)
+		}
+		let (prior_snapshot, accepted) = {
+			let state = self.read_state()?;
+			let prior = predecessor(&state, token_bytes)?.clone();
+			let accepted = accepted_root(&state, &prior.descriptor)?.clone();
+			(prior, accepted)
+		};
+		let recorded_service_key = decode_hex(&prior_snapshot.successor_public_key)?;
+		token.verify(recorded_service_key)?;
+		if recorded_service_key != current_service_key || signer.public_key() != current_service_key
+		{
+			return Err(RecoveryError::ResumeRevoked)
+		}
+		validate_fresh_resume_authority(&request, &token, &accepted, snapshot, now)?;
+		let mut state = self.write_state()?;
+		if let Some(record) = state.recovery.get(&key).cloned() {
+			if record.effect != RecoveryEffect::Cancelled {
+				return Err(RecoveryError::ResumeReplay)
+			}
+			drop(state);
+			self.cleanup_cancelled_staging(&record)?;
+			return recover(
+				&record,
+				RecoveryEffect::Cancelled,
+				request_bytes,
+				token_bytes,
+				fingerprint,
+				local_provider,
+				now,
+			)
+		}
+		if state.recovery.len() >= MAX_STREAMING_OPERATIONS {
+			return Err(ContentError::ProviderRecoveryTableFull.into())
+		}
+		let encoded_token = hex::encode(token_bytes);
+		let prior = state
+			.recovery
+			.values()
+			.find(|record| record.successor_token.as_deref() == Some(encoded_token.as_str()))
+			.ok_or(RecoveryError::ResumeReplay)?;
+		if prior.cursor != token.cursor || prior.provider != hex::encode(local_provider) {
+			return Err(RecoveryError::ResumeReplay)
+		}
+		let operation_key = operation_key(&prior.descriptor);
+		let operation =
+			state.operations.get(&operation_key).cloned().ok_or(ContentError::NotFound)?;
+		let current_chunk: u16 =
+			token.cursor.try_into().map_err(|_| RecoveryError::ResumeCursorInvalid)?;
+		if operation.phase != Phase::Receiving || operation.next_chunk != current_chunk {
+			return Err(RecoveryError::ResumeCursorInvalid)
+		}
+		let sequence =
+			prior.response_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+		let response = cancelled_response(request.request_id, sequence);
+		let response_hash: [u8; 32] = Sha256::digest(&response).into();
+		let effect_hash = effect_state_hash(
+			RecoveryEffect::Cancelled,
+			&prior.descriptor,
+			token.cursor,
+			operation.received_bytes,
+			None,
+		);
+		let retain_until = token
+			.expires_at
+			.checked_add(RECOVERY_TTL)
+			.ok_or(ContentError::IntegrityFailed)?;
+		let entry_cbor = RecoveryEntryV1 {
+			operation_id: request.operation_id,
+			request_id: request.request_id,
+			generation: token.generation,
+			fingerprint,
+			nonce: token.nonce,
+			prior_cursor: token.cursor,
+			new_cursor: token.cursor,
+			response: response.clone(),
+			successor_token: None,
+			response_hash,
+			effect_state_hash: effect_hash,
+			acknowledged: false,
+			retain_until,
+		}
+		.canonical_bytes();
+		let record = RecoveryRecord {
+			effect: RecoveryEffect::Cancelled,
+			request: hex::encode(request_bytes),
+			authority: encoded_token,
+			authority_public_key: hex::encode(signer.public_key()),
+			successor_public_key: hex::encode(signer.public_key()),
+			provider: hex::encode(local_provider),
+			operation_id: hex::encode(request.operation_id),
+			request_id: hex::encode(request.request_id),
+			generation: token.generation,
+			fingerprint: hex::encode(fingerprint),
+			nonce: hex::encode(token.nonce),
+			prior_cursor: token.cursor,
+			cursor: token.cursor,
+			received_bytes: operation.received_bytes,
+			response_sequence: sequence,
+			response: hex::encode(&response),
+			successor_token: None,
+			response_hash: hex::encode(response_hash),
+			host_key_id: hex::encode(token.host_key_id),
+			acknowledged: false,
+			retain_until,
+			descriptor: prior.descriptor.clone(),
+			effect_hash: hex::encode(effect_hash),
+			chunk_hash: String::new(),
+			entry_cbor: hex::encode(entry_cbor),
+		};
+		let mut next = state.clone();
+		next.operations.get_mut(&operation_key).expect("operation exists").phase = Phase::Cancelled;
+		next.recovery.insert(key, record.clone());
+		self.trip_fault(StreamingFault::BeforeTerminalCommit)?;
+		persist_state(&self.root, &next)?;
+		*state = next;
+		self.trip_fault(StreamingFault::AfterTerminalCommit)?;
+		drop(state);
+		self.cleanup_cancelled_staging(&record)?;
+		Ok(RecoveryResponseV1 { response, successor_token: None, response_hash })
+	}
+
+	pub(crate) fn gc_recovery(&self, finalized: u64, limit: usize) -> Result<usize, RecoveryError> {
+		if limit == 0 || limit > MAX_STREAMING_OPERATIONS {
+			return Err(ContentError::SchemaInvalid.into())
+		}
+		let mut state = self.write_state()?;
+		let mut keys = Vec::new();
+		for (expired_key, _) in state
+			.operations
+			.iter()
+			.filter(|(_, operation)| matches!(operation.phase, Phase::Receiving | Phase::Cancelled))
+		{
+			let operation_keys = state
+				.recovery
+				.iter()
+				.filter(|(_, record)| operation_key(&record.descriptor) == *expired_key)
+				.map(|(key, record)| (key.clone(), record.retain_until))
+				.collect::<Vec<_>>();
+			if operation_keys.is_empty() ||
+				operation_keys.iter().any(|(_, retain_until)| finalized <= *retain_until) ||
+				keys.len().saturating_add(operation_keys.len()) > limit
+			{
+				continue
+			}
+			keys.extend(operation_keys.into_iter().map(|(key, _)| key));
+		}
+		if keys.is_empty() {
+			return Ok(0)
+		}
+		let mut next = state.clone();
+		for key in &keys {
+			next.recovery.remove(key);
+		}
+		next.capability_replay.retain(|_, replay| {
+			next.recovery.contains_key(&replay.recovery_key) || finalized <= replay.retain_until
+		});
+		let expired = next
+			.operations
+			.iter()
+			.filter(|(_, operation)| matches!(operation.phase, Phase::Receiving | Phase::Cancelled))
+			.map(|(key, _)| key.clone())
+			.collect::<Vec<_>>();
+		let mut removed_operations = Vec::new();
+		for expired_key in expired {
+			if !next
+				.recovery
+				.values()
+				.any(|record| operation_key(&record.descriptor) == expired_key)
+			{
+				next.operations.remove(&expired_key);
+				removed_operations.push(expired_key);
+			}
+		}
+		self.trip_fault(StreamingFault::BeforeRecoveryGcCommit)?;
+		persist_state(&self.root, &next)?;
+		*state = next;
+		self.trip_fault(StreamingFault::AfterRecoveryGcCommit)?;
+		drop(state);
+		for operation_key in removed_operations {
+			let path = self.root.join(STAGING).join(format!("{operation_key}.part"));
+			if path.exists() {
+				fs::remove_file(&path).map_err(|error| ContentError::Io(error.to_string()))?;
+				sync_dir(path.parent().expect("staging path has parent"))?;
+			}
+		}
+		Ok(keys.len())
+	}
+
+	fn cleanup_cancelled_staging(&self, record: &RecoveryRecord) -> Result<(), RecoveryError> {
+		let path = self
+			.root
+			.join(STAGING)
+			.join(format!("{}.part", operation_key(&record.descriptor)));
+		if path.exists() {
+			fs::remove_file(&path).map_err(|error| ContentError::Io(error.to_string()))?;
+			sync_dir(path.parent().expect("staging path has parent"))?;
+		}
+		Ok(())
 	}
 
 	pub(crate) fn acknowledge_response(&self, ack_bytes: &[u8]) -> Result<Vec<u8>, RecoveryError> {
@@ -975,15 +1470,89 @@ impl StreamingStore {
 	}
 }
 
+fn predecessor<'a>(
+	state: &'a super::JournalState,
+	token_bytes: &[u8],
+) -> Result<&'a RecoveryRecord, RecoveryError> {
+	let encoded = hex::encode(token_bytes);
+	state
+		.recovery
+		.values()
+		.find(|record| record.successor_token.as_deref() == Some(encoded.as_str()))
+		.ok_or(RecoveryError::ResumeReplay)
+}
+
+fn accepted_root<'a>(
+	state: &'a super::JournalState,
+	descriptor: &StreamingDescriptor,
+) -> Result<&'a RecoveryRecord, RecoveryError> {
+	state
+		.recovery
+		.values()
+		.find(|record| {
+			record.effect == RecoveryEffect::Accepted && record.descriptor == *descriptor
+		})
+		.ok_or_else(|| ContentError::IntegrityFailed.into())
+}
+
+fn validate_fresh_resume_authority(
+	request: &ObjectPutRequestV2,
+	token: &ResumeTokenV1,
+	accepted: &RecoveryRecord,
+	snapshot: &CapabilityAuthoritySnapshot,
+	now: u64,
+) -> Result<(), RecoveryError> {
+	if now >= request.deadline {
+		return Err(RecoveryError::ResumeExpired)
+	}
+	if now < token.issued_at || now >= token.expires_at {
+		return Err(RecoveryError::ResumeExpired)
+	}
+	let authority = hex::decode(&accepted.authority).map_err(|_| ContentError::IntegrityFailed)?;
+	let capability =
+		ProviderCapabilityV1::decode(&authority).map_err(|_| ContentError::IntegrityFailed)?;
+	if accepted.effect != RecoveryEffect::Accepted ||
+		token.host_key_id != capability.issuer_key_id ||
+		token.expires_at != capability.expires_at ||
+		request.grant_id != capability.grant_id
+	{
+		return Err(RecoveryError::ResumeAudienceInvalid)
+	}
+	if snapshot.delegation.revoked_at.is_some() ||
+		token.host_key_id != snapshot.delegation.issuer_key_id.0 ||
+		capability.issuer_key_id != snapshot.delegation.issuer_key_id.0
+	{
+		return Err(RecoveryError::ResumeRevoked)
+	}
+	let capability_request = CapabilityRequest {
+		product_id: &request.product_id,
+		bucket_id: request.bucket_id,
+		agreement_id: capability.agreement_id,
+		method: METHOD,
+		cid: Some(&request.cid),
+		bytes: request.object_len,
+		requires_agreement: capability.agreement_id.is_some(),
+	};
+	match verify_capability(&capability, snapshot, capability_request, &Fresh) {
+		Err(CapabilityError::CapabilityIssuerRevoked) => return Err(RecoveryError::ResumeRevoked),
+		result => {
+			result?;
+		},
+	}
+	Ok(())
+}
+
 fn recover(
 	record: &RecoveryRecord,
+	expected_effect: RecoveryEffect,
 	request: &[u8],
 	authority: &[u8],
 	fingerprint: [u8; 32],
 	provider: [u8; 32],
 	now: u64,
 ) -> Result<RecoveryResponseV1, RecoveryError> {
-	if record.request != hex::encode(request) ||
+	if record.effect != expected_effect ||
+		record.request != hex::encode(request) ||
 		record.authority != hex::encode(authority) ||
 		record.fingerprint != hex::encode(fingerprint) ||
 		record.provider != hex::encode(provider)
@@ -1007,8 +1576,11 @@ fn recover(
 		ResumeTokenV1::decode(authority)?.verify(key)?;
 	}
 	let response = hex::decode(&record.response).map_err(|_| ContentError::IntegrityFailed)?;
-	let successor_token =
-		hex::decode(&record.successor_token).map_err(|_| ContentError::IntegrityFailed)?;
+	let successor_token = record
+		.successor_token
+		.as_ref()
+		.map(|encoded| hex::decode(encoded).map_err(|_| ContentError::IntegrityFailed))
+		.transpose()?;
 	let response_hash = hex::decode(&record.response_hash)
 		.map_err(|_| ContentError::IntegrityFailed)?
 		.try_into()
@@ -1043,6 +1615,15 @@ fn progress_response(request: [u8; 16], sequence: u32, bytes: u64, cursor: u32) 
 		(4, Value::Map(vec![(uint(0), uint(bytes)), (uint(1), uint(u64::from(cursor)))])),
 	])
 }
+fn cancelled_response(request: [u8; 16], sequence: u32) -> Vec<u8> {
+	map(vec![
+		(0, uint(2)),
+		(1, bstr(&request)),
+		(2, uint(u64::from(sequence))),
+		(3, uint(4)),
+		(4, Value::Map(vec![(uint(0), uint(107))])),
+	])
+}
 fn recovery_key(host: [u8; 32], operation: [u8; 16], generation: u64, nonce: [u8; 16]) -> String {
 	let mut b = Vec::new();
 	b.extend(host);
@@ -1051,6 +1632,13 @@ fn recovery_key(host: [u8; 32], operation: [u8; 16], generation: u64, nonce: [u8
 	b.extend(nonce);
 	hex::encode(Sha256::digest(b))
 }
+fn capability_replay_key(grant_id: [u8; 32], nonce: [u8; 16]) -> String {
+	let mut hash = Sha256::new();
+	hash.update(b"cord.provider.capability-replay.v1");
+	hash.update(grant_id);
+	hash.update(nonce);
+	hex::encode(hash.finalize())
+}
 fn fingerprint(request: &[u8], authority: &[u8]) -> [u8; 32] {
 	let mut h = Sha256::new();
 	h.update(request);
@@ -1058,6 +1646,7 @@ fn fingerprint(request: &[u8], authority: &[u8]) -> [u8; 32] {
 	h.finalize().into()
 }
 fn effect_state_hash(
+	effect: RecoveryEffect,
 	descriptor: &StreamingDescriptor,
 	cursor: u32,
 	received: u64,
@@ -1065,6 +1654,11 @@ fn effect_state_hash(
 ) -> [u8; 32] {
 	let mut hash = Sha256::new();
 	hash.update(b"cord.provider.recovery.effect.v1");
+	hash.update([match effect {
+		RecoveryEffect::Accepted => 0,
+		RecoveryEffect::Progress => 1,
+		RecoveryEffect::Cancelled => 2,
+	}]);
 	hash.update(serde_json::to_vec(descriptor).expect("descriptor serializes"));
 	hash.update(cursor.to_be_bytes());
 	hash.update(received.to_be_bytes());
@@ -1105,7 +1699,7 @@ fn bounded_bytes(v: Value, min: usize, max: usize) -> Result<Vec<u8>, RecoveryEr
 }
 fn text(v: Value, max: usize) -> Result<String, RecoveryError> {
 	let Value::Text(v) = v else { return Err(RecoveryError::WireSchemaInvalid) };
-	if v.is_empty() || v.len() > max {
+	if v.is_empty() || v.len() > max || !v.nfc().eq(v.chars()) {
 		return Err(RecoveryError::WireSchemaInvalid)
 	}
 	Ok(v)
@@ -1129,6 +1723,7 @@ fn decode_hex<const N: usize>(value: &str) -> Result<[u8; N], ContentError> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::CHUNK_BYTES;
 	use orbis_storage_runtime_api::{
 		AgreementInfo, AgreementStatus, BucketGrantInfo, BucketRole, ControlBucketInfo,
 		HostDelegationInfo,
@@ -1147,6 +1742,7 @@ mod tests {
 			product_id: "festival".into(),
 			grant_id: [3; 32],
 			operation_id: [4; 16],
+			trace_context: None,
 			deadline: 120,
 			bucket_id: [5; 32],
 			cid: cid.clone(),
@@ -1273,7 +1869,14 @@ mod tests {
 		let authority = capability.canonical_bytes();
 		let store = StreamingStore::open(temp.path()).unwrap();
 		let accepted = store
-			.accept_object_put(&request_bytes, &authority, &snapshot, &service, [10; 16])
+			.accept_object_put(
+				&request_bytes,
+				&authority,
+				&snapshot,
+				service.public().0,
+				&service,
+				[10; 16],
+			)
 			.unwrap();
 		let mut changed = request.clone();
 		changed.request_id = [2; 16];
@@ -1282,6 +1885,7 @@ mod tests {
 				&changed.canonical_bytes(),
 				&authority,
 				&snapshot,
+				service.public().0,
 				&service,
 				[10; 16]
 			),
@@ -1289,14 +1893,21 @@ mod tests {
 		));
 		assert_eq!(
 			store
-				.accept_object_put(&request_bytes, &authority, &snapshot, &service, [99; 16])
+				.accept_object_put(
+					&request_bytes,
+					&authority,
+					&snapshot,
+					service.public().0,
+					&service,
+					[99; 16]
+				)
 				.unwrap(),
 			accepted
 		);
 		let progress = store
 			.advance_object_put(
 				&request_bytes,
-				&accepted.successor_token,
+				accepted.successor_token.as_deref().unwrap(),
 				&snapshot,
 				service.public().0,
 				1,
@@ -1317,7 +1928,7 @@ mod tests {
 			store
 				.advance_object_put(
 					&request_bytes,
-					&accepted.successor_token,
+					accepted.successor_token.as_deref().unwrap(),
 					&snapshot,
 					service.public().0,
 					1,
@@ -1331,7 +1942,7 @@ mod tests {
 		assert_eq!(
 			store.advance_object_put(
 				&request_bytes,
-				&accepted.successor_token,
+				accepted.successor_token.as_deref().unwrap(),
 				&snapshot,
 				service.public().0,
 				1,
@@ -1355,7 +1966,14 @@ mod tests {
 		assert_eq!(reopened.acknowledge_response(&ack).unwrap(), first_ack);
 		assert_eq!(
 			reopened
-				.accept_object_put(&request_bytes, &authority, &snapshot, &service, [13; 16])
+				.accept_object_put(
+					&request_bytes,
+					&authority,
+					&snapshot,
+					service.public().0,
+					&service,
+					[13; 16]
+				)
 				.unwrap(),
 			accepted
 		);
@@ -1378,28 +1996,49 @@ mod tests {
 		let authority = capability.canonical_bytes();
 		let store = StreamingStore::open(temp.path()).unwrap();
 		let accepted = store
-			.accept_object_put(&request_bytes, &authority, &snapshot, &service, [10; 16])
+			.accept_object_put(
+				&request_bytes,
+				&authority,
+				&snapshot,
+				service.public().0,
+				&service,
+				[10; 16],
+			)
 			.unwrap();
 		let mut revoked = snapshot.clone();
 		revoked.finalized_number = 130;
 		revoked.delegation.revoked_at = Some(120);
 		assert_eq!(
 			store
-				.accept_object_put(&request_bytes, &authority, &revoked, &service, [99; 16])
+				.accept_object_put(
+					&request_bytes,
+					&authority,
+					&revoked,
+					service.public().0,
+					&service,
+					[99; 16]
+				)
 				.unwrap(),
 			accepted
 		);
 		let mut next = request.clone();
 		next.operation_id = [12; 16];
 		assert!(store
-			.accept_object_put(&next.canonical_bytes(), &authority, &revoked, &service, [12; 16])
+			.accept_object_put(
+				&next.canonical_bytes(),
+				&authority,
+				&revoked,
+				service.public().0,
+				&service,
+				[12; 16]
+			)
 			.is_err());
 		let mut expired = snapshot.clone();
 		expired.finalized_number = 128;
 		assert_eq!(
 			store.advance_object_put(
 				&request_bytes,
-				&accepted.successor_token,
+				accepted.successor_token.as_deref().unwrap(),
 				&expired,
 				service.public().0,
 				1,
@@ -1414,7 +2053,7 @@ mod tests {
 		assert_eq!(
 			store.advance_object_put(
 				&request_bytes,
-				&accepted.successor_token,
+				accepted.successor_token.as_deref().unwrap(),
 				&rotated,
 				service.public().0,
 				1,
@@ -1422,12 +2061,12 @@ mod tests {
 				&service,
 				[11; 16],
 			),
-			Err(RecoveryError::ResumeAudienceInvalid)
+			Err(RecoveryError::ResumeRevoked)
 		);
 		assert_eq!(
 			store.advance_object_put(
 				&request_bytes,
-				&accepted.successor_token,
+				accepted.successor_token.as_deref().unwrap(),
 				&snapshot,
 				[99; 32],
 				1,
@@ -1435,7 +2074,7 @@ mod tests {
 				&service,
 				[11; 16],
 			),
-			Err(RecoveryError::ResumeAudienceInvalid)
+			Err(RecoveryError::ResumeRevoked)
 		);
 		let existing = store.state.read().unwrap().recovery.values().next().unwrap().clone();
 		let mut state = store.state.write().unwrap();
@@ -1450,15 +2089,30 @@ mod tests {
 		drop(state);
 		assert_eq!(
 			store
-				.accept_object_put(&request_bytes, &authority, &snapshot, &service, [13; 16])
+				.accept_object_put(
+					&request_bytes,
+					&authority,
+					&snapshot,
+					service.public().0,
+					&service,
+					[13; 16]
+				)
 				.unwrap(),
 			accepted
 		);
 		assert_eq!(
 			store.accept_object_put(
 				&next.canonical_bytes(),
-				&authority,
+				&{
+					let host = ed25519::Pair::from_seed(&[9; 32]);
+					let mut next_capability = capability.clone();
+					next_capability.nonce = [10; 16];
+					next_capability.signature =
+						sp_core::Pair::sign(&host, &next_capability.signed_preimage()).0;
+					next_capability.canonical_bytes()
+				},
 				&snapshot,
+				service.public().0,
 				&service,
 				[13; 16]
 			),
@@ -1476,18 +2130,32 @@ mod tests {
 			let store = StreamingStore::open(temp.path()).unwrap();
 			store.inject_fault_once(fault).unwrap();
 			assert!(store
-				.accept_object_put(&request_bytes, &authority, &snapshot, &service, [10; 16])
+				.accept_object_put(
+					&request_bytes,
+					&authority,
+					&snapshot,
+					service.public().0,
+					&service,
+					[10; 16]
+				)
 				.is_err());
 			drop(store);
 			let reopened = StreamingStore::open(temp.path()).unwrap();
 			let accepted = reopened
-				.accept_object_put(&request_bytes, &authority, &snapshot, &service, [10; 16])
+				.accept_object_put(
+					&request_bytes,
+					&authority,
+					&snapshot,
+					service.public().0,
+					&service,
+					[10; 16],
+				)
 				.unwrap();
 			reopened.inject_fault_once(fault).unwrap();
 			assert!(reopened
 				.advance_object_put(
 					&request_bytes,
-					&accepted.successor_token,
+					accepted.successor_token.as_deref().unwrap(),
 					&snapshot,
 					service.public().0,
 					1,
@@ -1501,7 +2169,7 @@ mod tests {
 			assert!(recovered
 				.advance_object_put(
 					&request_bytes,
-					&accepted.successor_token,
+					accepted.successor_token.as_deref().unwrap(),
 					&snapshot,
 					service.public().0,
 					1,
@@ -1511,5 +2179,398 @@ mod tests {
 				)
 				.is_ok());
 		}
+	}
+
+	#[test]
+	fn terminal_cancel_is_exact_ackable_restart_safe_and_gc_bounded() {
+		let temp = TempDir::new().unwrap();
+		let (request, capability, snapshot, service) = fixture();
+		let request_bytes = request.canonical_bytes();
+		let authority = capability.canonical_bytes();
+		let store = StreamingStore::open(temp.path()).unwrap();
+		let accepted = store
+			.accept_object_put(
+				&request_bytes,
+				&authority,
+				&snapshot,
+				service.public().0,
+				&service,
+				[10; 16],
+			)
+			.unwrap();
+		let token = accepted.successor_token.as_deref().unwrap();
+		let mut cancelled_token = ResumeTokenV1::decode(token).unwrap();
+		cancelled_token.cancelled = true;
+		cancelled_token.signature = [0; 64];
+		let cancelled_token = cancelled_token.signed(&service).canonical_bytes();
+		assert_eq!(
+			store.cancel_object_put(
+				&request_bytes,
+				&cancelled_token,
+				&snapshot,
+				service.public().0,
+				&service,
+			),
+			Err(RecoveryError::ResumeReplay)
+		);
+		let terminal = store
+			.cancel_object_put(&request_bytes, token, &snapshot, service.public().0, &service)
+			.unwrap();
+		assert!(terminal.successor_token.is_none());
+		assert_eq!(
+			hex::encode(&terminal.response),
+			"a500020150010101010101010101010101010101010201030404a100186b"
+		);
+		let expected_hash: [u8; 32] = Sha256::digest(&terminal.response).into();
+		assert_eq!(terminal.response_hash, expected_hash);
+		let staging = store.root.join(STAGING).join(format!(
+			"{}.part",
+			operation_key(&StreamingDescriptor {
+				operation_id: OperationId::from_bytes(request.operation_id),
+				bucket_id: BucketId::from_bytes(request.bucket_id),
+				expected_cid: request.cid.as_str().into(),
+				object_len: request.object_len,
+			})
+		));
+		assert!(!staging.exists());
+		assert_eq!(
+			store.advance_object_put(
+				&request_bytes,
+				token,
+				&snapshot,
+				service.public().0,
+				1,
+				b"first",
+				&service,
+				[11; 16],
+			),
+			Err(RecoveryError::ResumeReplay)
+		);
+		let mut changed = request.clone();
+		changed.request_id = [22; 16];
+		assert_eq!(
+			store.cancel_object_put(
+				&changed.canonical_bytes(),
+				token,
+				&snapshot,
+				service.public().0,
+				&service,
+			),
+			Err(RecoveryError::ResumeReplay)
+		);
+		let ack = ResponseAckV1 {
+			request_id: request.request_id,
+			operation_id: request.operation_id,
+			generation: 1,
+			response_hash: terminal.response_hash,
+		}
+		.canonical_bytes();
+		let acked = store.acknowledge_response(&ack).unwrap();
+		assert_eq!(store.acknowledge_response(&ack).unwrap(), acked);
+		let original_keys = store
+			.state
+			.read()
+			.unwrap()
+			.recovery
+			.keys()
+			.cloned()
+			.collect::<std::collections::BTreeSet<_>>();
+		{
+			let mut state = store.state.write().unwrap();
+			let existing = state.recovery.values().next().unwrap().clone();
+			let mut index = 0u64;
+			while state.recovery.len() < MAX_STREAMING_OPERATIONS {
+				state
+					.recovery
+					.entry(format!("{index:064x}"))
+					.or_insert_with(|| existing.clone());
+				index += 1;
+			}
+		}
+		assert_eq!(
+			store
+				.cancel_object_put(&request_bytes, token, &snapshot, service.public().0, &service,)
+				.unwrap(),
+			terminal
+		);
+		store
+			.state
+			.write()
+			.unwrap()
+			.recovery
+			.retain(|key, _| original_keys.contains(key));
+		drop(store);
+		let reopened = StreamingStore::open(temp.path()).unwrap();
+		let mut rotated = snapshot.clone();
+		rotated.finalized_number = 200;
+		rotated.delegation.issuer_key_id = H256([44; 32]);
+		assert_eq!(
+			reopened
+				.cancel_object_put(&request_bytes, token, &rotated, [99; 32], &service)
+				.unwrap(),
+			terminal
+		);
+		assert_eq!(reopened.acknowledge_response(&ack).unwrap(), acked);
+		assert_eq!(reopened.gc_recovery(384, MAX_STREAMING_OPERATIONS).unwrap(), 0);
+		assert_eq!(reopened.gc_recovery(385, MAX_STREAMING_OPERATIONS).unwrap(), 2);
+		assert!(reopened.state.read().unwrap().recovery.is_empty());
+		assert!(reopened.state.read().unwrap().capability_replay.is_empty());
+		drop(reopened);
+		StreamingStore::open(temp.path()).unwrap();
+	}
+
+	#[test]
+	fn terminal_and_gc_crash_seams_recover_old_or_new_atomically() {
+		for fault in [StreamingFault::BeforeTerminalCommit, StreamingFault::AfterTerminalCommit] {
+			let temp = TempDir::new().unwrap();
+			let (request, capability, snapshot, service) = fixture();
+			let request_bytes = request.canonical_bytes();
+			let store = StreamingStore::open(temp.path()).unwrap();
+			let accepted = store
+				.accept_object_put(
+					&request_bytes,
+					&capability.canonical_bytes(),
+					&snapshot,
+					service.public().0,
+					&service,
+					[10; 16],
+				)
+				.unwrap();
+			let token = accepted.successor_token.unwrap();
+			store.inject_fault_once(fault).unwrap();
+			assert!(store
+				.cancel_object_put(&request_bytes, &token, &snapshot, service.public().0, &service,)
+				.is_err());
+			drop(store);
+			let reopened = StreamingStore::open(temp.path()).unwrap();
+			reopened
+				.cancel_object_put(&request_bytes, &token, &snapshot, service.public().0, &service)
+				.unwrap();
+			drop(reopened);
+			let reopened = StreamingStore::open(temp.path()).unwrap();
+			let gc_fault = if fault == StreamingFault::BeforeTerminalCommit {
+				StreamingFault::BeforeRecoveryGcCommit
+			} else {
+				StreamingFault::AfterRecoveryGcCommit
+			};
+			reopened.inject_fault_once(gc_fault).unwrap();
+			assert!(reopened.gc_recovery(385, MAX_STREAMING_OPERATIONS).is_err());
+			drop(reopened);
+			let recovered = StreamingStore::open(temp.path()).unwrap();
+			let removed = recovered.gc_recovery(385, MAX_STREAMING_OPERATIONS).unwrap();
+			assert_eq!(
+				removed,
+				usize::from(gc_fault == StreamingFault::BeforeRecoveryGcCommit) * 2
+			);
+		}
+	}
+
+	#[test]
+	fn request_bounds_trace_replay_deadline_service_key_and_operation_limit_fail_closed() {
+		let (mut request, _, _, _) = fixture();
+		request.trace_context = Some(vec![7; 64]);
+		let request_bytes = request.canonical_bytes();
+		assert_eq!(ObjectPutRequestV2::decode(&request_bytes).unwrap(), request);
+		assert_eq!(
+			ObjectPutRequestV2::decode(&vec![0; MAX_REQUEST_BYTES + 1]),
+			Err(RecoveryError::WireSchemaInvalid)
+		);
+		assert_eq!(
+			ResumeTokenV1::decode(&vec![0; MAX_RESUME_TOKEN_BYTES + 1]),
+			Err(RecoveryError::WireSchemaInvalid)
+		);
+		assert_eq!(
+			ResponseAckV1::decode(&vec![0; MAX_ACK_BYTES + 1]),
+			Err(RecoveryError::WireSchemaInvalid)
+		);
+		request.product_id = "festiv\u{0065}\u{0301}".into();
+		assert_eq!(
+			ObjectPutRequestV2::decode(&request.canonical_bytes()),
+			Err(RecoveryError::WireSchemaInvalid)
+		);
+
+		let temp = TempDir::new().unwrap();
+		let (request, capability, snapshot, service) = fixture();
+		let store = StreamingStore::open_with_operation_limit(temp.path(), 1).unwrap();
+		let request_bytes = request.canonical_bytes();
+		let authority = capability.canonical_bytes();
+		assert_eq!(
+			store.accept_object_put(
+				&request_bytes,
+				&authority,
+				&snapshot,
+				[99; 32],
+				&service,
+				[10; 16],
+			),
+			Err(RecoveryError::ResumeRevoked)
+		);
+		let accepted = store
+			.accept_object_put(
+				&request_bytes,
+				&authority,
+				&snapshot,
+				service.public().0,
+				&service,
+				[10; 16],
+			)
+			.unwrap();
+		let mut changed_request = request.clone();
+		changed_request.operation_id = [33; 16];
+		assert_eq!(
+			store.accept_object_put(
+				&changed_request.canonical_bytes(),
+				&authority,
+				&snapshot,
+				service.public().0,
+				&service,
+				[11; 16],
+			),
+			Err(RecoveryError::Capability(CapabilityError::CapabilityNonceReplay))
+		);
+		let host = ed25519::Pair::from_seed(&[9; 32]);
+		let mut next_capability = capability.clone();
+		next_capability.nonce = [23; 16];
+		next_capability.signature =
+			sp_core::Pair::sign(&host, &next_capability.signed_preimage()).0;
+		assert_eq!(
+			store.accept_object_put(
+				&changed_request.canonical_bytes(),
+				&next_capability.canonical_bytes(),
+				&snapshot,
+				service.public().0,
+				&service,
+				[11; 16],
+			),
+			Err(RecoveryError::Content(ContentError::ProviderRecoveryTableFull))
+		);
+		let mut past_deadline = changed_request;
+		past_deadline.operation_id = [34; 16];
+		past_deadline.deadline = u64::from(snapshot.finalized_number);
+		next_capability.nonce = [24; 16];
+		next_capability.signature =
+			sp_core::Pair::sign(&host, &next_capability.signed_preimage()).0;
+		assert!(matches!(
+			store.accept_object_put(
+				&past_deadline.canonical_bytes(),
+				&next_capability.canonical_bytes(),
+				&snapshot,
+				service.public().0,
+				&service,
+				[12; 16],
+			),
+			Err(RecoveryError::Capability(CapabilityError::CapabilityExpired))
+		));
+		assert_eq!(
+			store
+				.accept_object_put(
+					&request_bytes,
+					&authority,
+					&snapshot,
+					service.public().0,
+					&service,
+					[99; 16],
+				)
+				.unwrap(),
+			accepted
+		);
+	}
+
+	#[test]
+	fn gc_retires_expired_receiving_chain_and_staged_bytes() {
+		let temp = TempDir::new().unwrap();
+		let (request, capability, snapshot, service) = fixture();
+		let store = StreamingStore::open(temp.path()).unwrap();
+		store
+			.accept_object_put(
+				&request.canonical_bytes(),
+				&capability.canonical_bytes(),
+				&snapshot,
+				service.public().0,
+				&service,
+				[10; 16],
+			)
+			.unwrap();
+		assert_eq!(store.gc_recovery(384, MAX_STREAMING_OPERATIONS).unwrap(), 0);
+		assert_eq!(store.gc_recovery(385, MAX_STREAMING_OPERATIONS).unwrap(), 1);
+		let state = store.state.read().unwrap();
+		assert!(state.operations.is_empty());
+		assert!(state.recovery.is_empty());
+		assert!(state.capability_replay.is_empty());
+		drop(state);
+		assert!(fs::read_dir(store.root.join(STAGING)).unwrap().next().is_none());
+		drop(store);
+		StreamingStore::open(temp.path()).unwrap();
+	}
+
+	#[test]
+	fn reopen_rejects_recomputed_middle_progress_not_bound_to_operation_chunks() {
+		let temp = TempDir::new().unwrap();
+		let (mut request, mut capability, mut snapshot, service) = fixture();
+		request.object_len = CHUNK_BYTES as u64 + 1;
+		capability.max_bytes = request.object_len;
+		snapshot.delegation.max_bytes = request.object_len;
+		snapshot.agreement.as_mut().unwrap().bytes = request.object_len;
+		let host = ed25519::Pair::from_seed(&[9; 32]);
+		capability.signature = sp_core::Pair::sign(&host, &capability.signed_preimage()).0;
+		let request_bytes = request.canonical_bytes();
+		let store = StreamingStore::open(temp.path()).unwrap();
+		let accepted = store
+			.accept_object_put(
+				&request_bytes,
+				&capability.canonical_bytes(),
+				&snapshot,
+				service.public().0,
+				&service,
+				[10; 16],
+			)
+			.unwrap();
+		let first_chunk = vec![7; CHUNK_BYTES];
+		let first = store
+			.advance_object_put(
+				&request_bytes,
+				accepted.successor_token.as_deref().unwrap(),
+				&snapshot,
+				service.public().0,
+				1,
+				&first_chunk,
+				&service,
+				[11; 16],
+			)
+			.unwrap();
+		store
+			.advance_object_put(
+				&request_bytes,
+				first.successor_token.as_deref().unwrap(),
+				&snapshot,
+				service.public().0,
+				2,
+				&[8],
+				&service,
+				[12; 16],
+			)
+			.unwrap();
+		let mut state = store.state.write().unwrap();
+		let record = state
+			.recovery
+			.values_mut()
+			.find(|record| record.effect == RecoveryEffect::Progress && record.generation == 1)
+			.unwrap();
+		record.chunk_hash = chunk_hash(b"wrong");
+		let changed_effect = effect_state_hash(
+			RecoveryEffect::Progress,
+			&record.descriptor,
+			record.cursor,
+			record.received_bytes,
+			Some(&record.chunk_hash),
+		);
+		record.effect_hash = hex::encode(changed_effect);
+		let mut entry = RecoveryEntryV1::decode(&hex::decode(&record.entry_cbor).unwrap()).unwrap();
+		entry.effect_state_hash = changed_effect;
+		record.entry_cbor = hex::encode(entry.canonical_bytes());
+		persist_state(&store.root, &state).unwrap();
+		drop(state);
+		drop(store);
+		assert!(StreamingStore::open(temp.path()).is_err());
 	}
 }
