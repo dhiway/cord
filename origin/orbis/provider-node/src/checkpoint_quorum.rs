@@ -101,7 +101,7 @@ impl ReplicaConfirmationRequestV1 {
 		}
 	}
 
-	fn auth_message(&self) -> Vec<u8> {
+	pub(crate) fn auth_message(&self) -> Vec<u8> {
 		let mut message = AUTH_DOMAIN.to_vec();
 		self.unsigned().encode_to(&mut message);
 		message
@@ -130,7 +130,7 @@ pub(crate) struct ReplicaConfirmationResponseV1 {
 }
 
 impl ReplicaConfirmationResponseV1 {
-	fn decode_canonical(bytes: &[u8]) -> Result<Self, ContentError> {
+	pub(crate) fn decode_canonical(bytes: &[u8]) -> Result<Self, ContentError> {
 		if bytes.len() > MAX_RESPONSE_BYTES {
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -665,13 +665,13 @@ fn validate_record(record: &ConfirmationRecordV1) -> Result<String, ContentError
 	Ok(confirmation_key(&request))
 }
 
-fn checkpoint_digest(payload: &CommitmentPayloadV2<H256, u32>) -> [u8; 32] {
+pub(crate) fn checkpoint_digest(payload: &CommitmentPayloadV2<H256, u32>) -> [u8; 32] {
 	let mut message = DOMAIN.to_vec();
 	payload.encode_to(&mut message);
 	blake2_256(&message)
 }
 
-fn checkpoint_context_digest(context: &CheckpointContextV1<H256>) -> [u8; 32] {
+pub(crate) fn checkpoint_context_digest(context: &CheckpointContextV1<H256>) -> [u8; 32] {
 	let mut message = CONTEXT_DOMAIN.to_vec();
 	context.encode_to(&mut message);
 	blake2_256(&message)

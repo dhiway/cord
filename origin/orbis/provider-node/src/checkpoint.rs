@@ -18,6 +18,8 @@
 
 //! Private durable preparation of exact Commons checkpoint proposals.
 
+#[path = "checkpoint_primary.rs"]
+pub(crate) mod checkpoint_primary;
 #[path = "checkpoint_quorum.rs"]
 pub(crate) mod checkpoint_quorum;
 
@@ -54,6 +56,7 @@ const MAX_PROPOSALS: usize = 8_192;
 pub(crate) trait ServiceKeySigner {
 	fn public_key(&self) -> [u8; 32];
 	fn sign_digest(&self, digest: [u8; 32]) -> [u8; 64];
+	fn sign_message(&self, message: &[u8]) -> [u8; 64];
 }
 
 impl ServiceKeySigner for ed25519::Pair {
@@ -63,6 +66,10 @@ impl ServiceKeySigner for ed25519::Pair {
 
 	fn sign_digest(&self, digest: [u8; 32]) -> [u8; 64] {
 		self.sign(&digest).0
+	}
+
+	fn sign_message(&self, message: &[u8]) -> [u8; 64] {
+		self.sign(message).0
 	}
 }
 
