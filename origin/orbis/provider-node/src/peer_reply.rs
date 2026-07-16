@@ -57,31 +57,20 @@ enum PeerReplyKindV1 {
 	Chunk,
 }
 
-impl PeerReplyKindV1 {
-	fn file_tag(self) -> &'static str {
-		match self {
-			Self::Page => "page",
-			Self::Chunk => "chunk",
-		}
-	}
-}
-
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct PeerReplyKeyV1 {
-	kind: PeerReplyKindV1,
 	operation_id: [u8; 16],
 	request_nonce: [u8; 16],
 }
 
 impl PeerReplyKeyV1 {
-	fn from_identity(kind: PeerReplyKindV1, identity: PeerReplayIdentityV1) -> Self {
-		Self { kind, operation_id: identity.operation_id, request_nonce: identity.request_nonce }
+	fn from_identity(identity: PeerReplayIdentityV1) -> Self {
+		Self { operation_id: identity.operation_id, request_nonce: identity.request_nonce }
 	}
 
 	fn filename(self) -> String {
 		format!(
-			"{}-{}-{}{}",
-			self.kind.file_tag(),
+			"{}-{}{}",
 			hex::encode(self.operation_id),
 			hex::encode(self.request_nonce),
 			EXTENSION,
@@ -103,11 +92,7 @@ struct PeerReplyRecordV1 {
 
 impl PeerReplyRecordV1 {
 	fn key(&self) -> PeerReplyKeyV1 {
-		PeerReplyKeyV1 {
-			kind: self.kind,
-			operation_id: self.operation_id,
-			request_nonce: self.request_nonce,
-		}
+		PeerReplyKeyV1 { operation_id: self.operation_id, request_nonce: self.request_nonce }
 	}
 }
 
@@ -181,7 +166,7 @@ impl PeerReplyStore {
 		request: &PeerSyncPageRequestV1,
 	) -> Result<Vec<u8>, ContentError> {
 		let identity = request.authenticated_replay_identity()?;
-		let key = PeerReplyKeyV1::from_identity(PeerReplyKindV1::Page, identity);
+		let key = PeerReplyKeyV1::from_identity(identity);
 		let record = self.replay(key)?;
 		validate_page_request_binding(&record, request, identity)?;
 		Ok(record.response_bytes)
@@ -203,7 +188,7 @@ impl PeerReplyStore {
 		request: &PeerChunkRequestV1,
 	) -> Result<Vec<u8>, ContentError> {
 		let identity = request.authenticated_replay_identity()?;
-		let key = PeerReplyKeyV1::from_identity(PeerReplyKindV1::Chunk, identity);
+		let key = PeerReplyKeyV1::from_identity(identity);
 		let record = self.replay(key)?;
 		validate_chunk_request_binding(&record, request, identity)?;
 		Ok(record.response_bytes)
@@ -663,6 +648,32 @@ mod tests {
 		let mut trailing = response;
 		trailing.push(0);
 		assert!(store.record_page(&request, &trailing).is_err());
+	}
+
+	#[test]
+	fn page_and_chunk_share_one_operation_nonce_replay_identity() {
+		let page = page_request(22, 1, 1);
+		let page_response = one_item_page(&page, 4, 21);
+		let chunk_bytes = vec![31; CHUNK_BYTES];
+		let (chunk, chunk_response) = chunk_exchange(22, &chunk_bytes);
+
+		let page_first = TempDir::new().unwrap();
+		let store = PeerReplyStore::open(page_first.path()).unwrap();
+		store.record_page(&page, &page_response).unwrap();
+		assert_eq!(
+			store.record_chunk(&chunk, &chunk_response),
+			Err(ContentError::IdempotencyConflict)
+		);
+		assert_eq!(store.replay_chunk(&chunk), Err(ContentError::IdempotencyConflict));
+
+		let chunk_first = TempDir::new().unwrap();
+		let store = PeerReplyStore::open(chunk_first.path()).unwrap();
+		store.record_chunk(&chunk, &chunk_response).unwrap();
+		assert_eq!(
+			store.record_page(&page, &page_response),
+			Err(ContentError::IdempotencyConflict)
+		);
+		assert_eq!(store.replay_page(&page), Err(ContentError::IdempotencyConflict));
 	}
 
 	#[test]
