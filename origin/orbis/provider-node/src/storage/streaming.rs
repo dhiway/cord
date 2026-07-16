@@ -26,6 +26,9 @@ use std::{
 	sync::{Arc, Condvar, Mutex, RwLock},
 };
 
+#[cfg(test)]
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use blake2::{digest::consts::U32, Blake2b, Digest};
 use serde::{Deserialize, Serialize};
 
@@ -238,6 +241,10 @@ pub struct StreamingStore {
 	window: Arc<IngressShared>,
 	fault: RwLock<Option<StreamingFault>>,
 	operation_limit: usize,
+	#[cfg(test)]
+	exact_record_probes: AtomicUsize,
+	#[cfg(test)]
+	exact_quarantine_probes: AtomicUsize,
 }
 
 impl StreamingStore {
@@ -288,6 +295,10 @@ impl StreamingStore {
 			window: Arc::new(IngressShared::default()),
 			fault: RwLock::new(None),
 			operation_limit,
+			#[cfg(test)]
+			exact_record_probes: AtomicUsize::new(0),
+			#[cfg(test)]
+			exact_quarantine_probes: AtomicUsize::new(0),
 		};
 		store.recover()?;
 		if !journal.exists() {
@@ -494,6 +505,7 @@ impl StreamingStore {
 	) -> Result<StreamingReceipt, ContentError> {
 		let key = operation_key_parts(bucket_id, operation_id);
 		let mut state = self.write_state()?;
+		validate_install_sequences(&state)?;
 		let record = state.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
 		if record.phase == Phase::Installed {
 			if state.quarantine.contains_key(&record.descriptor.expected_cid) {
@@ -532,6 +544,7 @@ impl StreamingStore {
 		installed_record.phase = Phase::Installed;
 		installed_record.install_sequence = Some(install_sequence);
 		installed_record.receipt = Some(receipt.clone());
+		validate_install_sequences(&installed)?;
 		persist_state(&self.root, &installed)?;
 		*state = installed;
 		Ok(receipt)
@@ -900,20 +913,23 @@ impl StreamingStore {
 	) -> Result<VerifiedInstallation, ContentError> {
 		let key = operation_key_parts(bucket_id, operation_id);
 		let state = self.read_state()?;
-		validate_install_sequences(&state)?;
+		#[cfg(test)]
+		self.exact_record_probes.fetch_add(1, Ordering::Relaxed);
 		let record = state.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
-		let quarantined = state.quarantine.keys().cloned().collect::<BTreeSet<_>>();
+		#[cfg(test)]
+		self.exact_quarantine_probes.fetch_add(1, Ordering::Relaxed);
+		let quarantined = state.quarantine.contains_key(&record.descriptor.expected_cid);
 		drop(state);
-		self.verify_installation_record(record, &quarantined)
+		self.verify_installation_record(record, quarantined)
 	}
 
 	fn verify_installation_record(
 		&self,
 		record: OperationRecord,
-		quarantined: &BTreeSet<String>,
+		quarantined: bool,
 	) -> Result<VerifiedInstallation, ContentError> {
 		validate_installed_record(&record)?;
-		if quarantined.contains(&record.descriptor.expected_cid) {
+		if quarantined {
 			return Err(ContentError::IntegrityFailed)
 		}
 		let receipt = record.receipt.as_ref().ok_or(ContentError::IntegrityFailed)?;
@@ -1497,4 +1513,62 @@ fn io_error(error: impl std::fmt::Display) -> ContentError {
 
 fn lock_error() -> ContentError {
 	ContentError::Io("stream state lock poisoned".into())
+}
+
+#[cfg(test)]
+mod exact_lookup_tests {
+	use super::*;
+
+	#[test]
+	fn exact_verified_lookup_does_not_scan_operations_or_quarantine() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = StreamingStore::open(temp.path()).unwrap();
+		let bucket_id = BucketId::from_bytes([1; 32]);
+		let operation_id = OperationId::from_bytes([1; 16]);
+		let bytes = b"exact";
+		let cid = CanonicalCid::from_digest(sp_crypto_hashing::blake2_256(bytes));
+		store
+			.put_chunks(
+				StreamingDescriptor {
+					operation_id,
+					bucket_id,
+					expected_cid: cid.as_str().into(),
+					object_len: bytes.len() as u64,
+				},
+				[bytes.to_vec()],
+			)
+			.unwrap();
+		{
+			let mut state = store.write_state().unwrap();
+			let template = state
+				.operations
+				.get(&operation_key_parts(bucket_id, operation_id))
+				.unwrap()
+				.clone();
+			for value in 2u64..=1_025 {
+				let mut operation = [0u8; 16];
+				operation[..8].copy_from_slice(&value.to_le_bytes());
+				let operation = OperationId::from_bytes(operation);
+				let mut unrelated = template.clone();
+				unrelated.descriptor.operation_id = operation;
+				unrelated.phase = Phase::Receiving;
+				unrelated.install_sequence = Some(value);
+				unrelated.receipt = None;
+				state.operations.insert(operation_key_parts(bucket_id, operation), unrelated);
+				state.quarantine.insert(
+					format!("unrelated-{value}"),
+					QuarantineRecord {
+						reason: QuarantineReason::Missing,
+						expected_bytes: 1,
+						observed_bytes: None,
+						detection_sequence: value,
+					},
+				);
+			}
+		}
+		let verified = store.verified_installation(bucket_id, operation_id).unwrap();
+		assert_eq!(verified.install_sequence, 0);
+		assert_eq!(store.exact_record_probes.load(Ordering::Relaxed), 1);
+		assert_eq!(store.exact_quarantine_probes.load(Ordering::Relaxed), 1);
+	}
 }
