@@ -219,7 +219,7 @@ mod tests {
 		"checkpoint-scheduler-v1",
 		"checkpoint-publications-v1",
 		"checkpoint-promotions-v1",
-		"replication-v1",
+		"replication-v3",
 		"peer-replies-v1",
 	];
 

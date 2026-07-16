@@ -26,6 +26,7 @@ use std::{
 	sync::RwLock,
 };
 
+use codec::Encode;
 use serde::{Deserialize, Serialize};
 use sp_core::{ed25519, Pair as _};
 use sp_crypto_hashing::blake2_256;
@@ -33,51 +34,55 @@ use sp_crypto_hashing::blake2_256;
 use crate::{
 	peer::{
 		PeerChunkRequestV1, PeerChunkResponseV1, PeerContextV1, PeerMmrCommitmentV1,
-		PeerReplayIdentityV1, PeerSyncPageRequestV1, PeerSyncPageResponseV1, MAX_REQUEST_ENCODED,
+		PeerReplayIdentityV1, PeerRequestProofV1, PeerResponseProofV1, PeerSyncPageRequestV1,
+		PeerSyncPageResponseV1, MAX_REQUEST_ENCODED,
 	},
+	replication_session::ReplicationSessionV1,
 	storage::bucket_mmr::BucketMmrStore,
-	BucketId, CanonicalCid, ContentError, OperationId, StreamingStore, MAX_STORED_BYTES,
+	BucketId, CanonicalCid, ContentError, OperationId, StreamingStore, CHUNK_BYTES, MAX_CHUNKS,
+	MAX_STORED_BYTES,
 };
 
-const ROOT: &str = "replication-v1";
-const VERSION: u16 = 2;
+const ROOT: &str = "replication-v3";
+const VERSION: u16 = 3;
 const SCHEDULER: &str = "scheduler.json";
 const MAX_RECORDS: usize = 4_096;
 const MAX_TEMP_ARTIFACTS: usize = 128;
-const MAX_RECORD_BYTES: usize = 96 * 1024;
+const MAX_RECORD_BYTES: usize = 8 * 1024 * 1024;
+const MAX_TOTAL_RECORD_BYTES: u64 = 32 * 1024 * 1024;
 const MAX_TICK_WORK: usize = 128;
-const KEY_DOMAIN: &[u8] = b"origin/replication-intent-key/v2";
-const RECORD_DOMAIN: &[u8] = b"origin/replication-intent-record/v2";
+const KEY_DOMAIN: &[u8] = b"origin/replication-intent-key/v3";
+const RECORD_DOMAIN: &[u8] = b"origin/replication-intent-record/v3";
 const OPERATION_DOMAIN: &[u8] = b"origin/replication-stream-operation/v1";
 const REPAIR_DOMAIN: &[u8] = b"origin/replication-stream-repair/v1";
 const CONFIRMATION_DOMAIN: &[u8] = b"origin/replication-confirmation-binding/v1";
 const CONFIRMATION_SIGNATURE_DOMAIN: &[u8] = b"origin/replication-target-confirmation/v1";
-const SCHEDULER_DOMAIN: &[u8] = b"origin/replication-scheduler/v1";
+const SCHEDULER_DOMAIN: &[u8] = b"origin/replication-scheduler/v3";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ReplicationIntentInputV1 {
-	pub(crate) genesis_hash: [u8; 32],
-	pub(crate) topology_snapshot_hash: [u8; 32],
-	pub(crate) topology_finalized_hash: [u8; 32],
-	pub(crate) topology_finalized_number: u32,
-	pub(crate) topology_governed_checkpoint: u32,
-	pub(crate) bucket_id: [u8; 32],
-	pub(crate) bucket_version: u64,
-	pub(crate) source_provider: [u8; 32],
-	pub(crate) target_provider: [u8; 32],
-	pub(crate) source_service_key: [u8; 32],
-	pub(crate) source_service_key_version: u64,
-	pub(crate) target_service_key: [u8; 32],
-	pub(crate) target_service_key_version: u64,
-	pub(crate) source_endpoint_hash: [u8; 32],
-	pub(crate) target_endpoint_hash: [u8; 32],
-	pub(crate) target_may_confirm: bool,
-	pub(crate) candidate_mmr_root: [u8; 32],
-	pub(crate) candidate_start: u64,
-	pub(crate) candidate_count: u64,
-	pub(crate) candidate_predecessor_total: u64,
-	pub(crate) peer_operation_id: [u8; 16],
+	genesis_hash: [u8; 32],
+	topology_snapshot_hash: [u8; 32],
+	topology_finalized_hash: [u8; 32],
+	topology_finalized_number: u32,
+	topology_governed_checkpoint: u32,
+	bucket_id: [u8; 32],
+	bucket_version: u64,
+	source_provider: [u8; 32],
+	target_provider: [u8; 32],
+	source_service_key: [u8; 32],
+	source_service_key_version: u64,
+	target_service_key: [u8; 32],
+	target_service_key_version: u64,
+	source_endpoint_hash: [u8; 32],
+	target_endpoint_hash: [u8; 32],
+	target_may_confirm: bool,
+	candidate_mmr_root: [u8; 32],
+	candidate_start: u64,
+	candidate_count: u64,
+	candidate_predecessor_total: u64,
+	peer_operation_id: [u8; 16],
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
@@ -105,6 +110,52 @@ pub(crate) struct OutstandingReplicationRequestV1 {
 	pub(crate) signed_request_bytes: Vec<u8>,
 	pub(crate) request_hash: [u8; 32],
 	pub(crate) verified_response_hash: Option<[u8; 32]>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PeerCursorEvidenceV1 {
+	last_sequence: u64,
+	cumulative_total: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct VerifiedChunkEvidenceV1 {
+	index: u16,
+	chunk_hash: [u8; 32],
+	request_nonce: [u8; 16],
+	request_hash: [u8; 32],
+	target_signature: Vec<u8>,
+	response_wire_hash: [u8; 32],
+	source_response_hash: [u8; 32],
+	source_signature: Vec<u8>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AdmittedObjectEvidenceV1 {
+	sequence: u64,
+	cid: String,
+	length: u64,
+	cumulative_total: u64,
+	chunk_manifest_hash: [u8; 32],
+	chunk_hashes: Vec<[u8; 32]>,
+	verified_chunks: Vec<Option<VerifiedChunkEvidenceV1>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AdmittedPageEvidenceV1 {
+	request_hash: [u8; 32],
+	signed_request_bytes: Vec<u8>,
+	response_wire_hash: [u8; 32],
+	source_response_hash: [u8; 32],
+	source_signature: Vec<u8>,
+	requested_cursor: Option<PeerCursorEvidenceV1>,
+	next_cursor: Option<PeerCursorEvidenceV1>,
+	objects: Vec<AdmittedObjectEvidenceV1>,
+	next_object: usize,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -147,6 +198,7 @@ pub(crate) struct ReplicationIntentV1 {
 	pub(crate) cumulative_total: u64,
 	pub(crate) last_completed: Option<ReplicatedObjectCompletionV1>,
 	pub(crate) outstanding_request: Option<OutstandingReplicationRequestV1>,
+	admitted_page: Option<AdmittedPageEvidenceV1>,
 	pub(crate) attempts: u32,
 	pub(crate) local_commitment: Option<LocalCommitmentEvidenceV1>,
 	pub(crate) confirmation: Option<ReplicationConfirmationEvidenceV1>,
@@ -173,6 +225,7 @@ pub(crate) struct ReplicationIntentStore {
 	root: PathBuf,
 	records: RwLock<BTreeMap<String, ReplicationIntentV1>>,
 	scheduler: RwLock<SchedulerStateV1>,
+	durable_bytes: RwLock<u64>,
 	poisoned: RwLock<bool>,
 	fault: RwLock<Option<ReplicationFault>>,
 	limit: usize,
@@ -214,6 +267,7 @@ impl ReplicationIntentStore {
 			root,
 			records: RwLock::new(records),
 			scheduler: RwLock::new(scheduler),
+			durable_bytes: RwLock::new(loaded.durable_bytes),
 			poisoned: RwLock::new(false),
 			fault: RwLock::new(None),
 			limit,
@@ -225,7 +279,21 @@ impl ReplicationIntentStore {
 		Ok(store)
 	}
 
-	pub(crate) fn plan(
+	pub(crate) fn plan_session(
+		&self,
+		session: &ReplicationSessionV1,
+		peer_operation_id: [u8; 16],
+	) -> Result<ReplicationIntentV1, ContentError> {
+		let input = input_from_session(session, peer_operation_id)?;
+		self.plan_input(&input)
+	}
+
+	#[cfg(test)]
+	fn plan(&self, input: &ReplicationIntentInputV1) -> Result<ReplicationIntentV1, ContentError> {
+		self.plan_input(input)
+	}
+
+	fn plan_input(
 		&self,
 		input: &ReplicationIntentInputV1,
 	) -> Result<ReplicationIntentV1, ContentError> {
@@ -300,6 +368,32 @@ impl ReplicationIntentStore {
 					return Err(ContentError::IdempotencyConflict);
 				}
 			}
+			match kind {
+				ReplicationRequestKindV1::Page => {
+					if existing.admitted_page.is_some() {
+						return Err(ContentError::IdempotencyConflict);
+					}
+					let page = PeerSyncPageRequestV1::decode_authenticated(signed_request_bytes)?;
+					if cursor_evidence(page.page().0) != expected_request_cursor(existing)? {
+						return Err(ContentError::IdempotencyConflict);
+					}
+				},
+				ReplicationRequestKindV1::Chunk => {
+					let page =
+						existing.admitted_page.as_ref().ok_or(ContentError::IdempotencyConflict)?;
+					let expected =
+						page.objects.get(page.next_object).ok_or(ContentError::IntegrityFailed)?;
+					let chunk = PeerChunkRequestV1::decode_authenticated(signed_request_bytes)?;
+					let (object, index, hash) = chunk.chunk();
+					let index_usize = usize::from(index);
+					if !object_matches_evidence(object, expected)
+						|| expected.chunk_hashes.get(index_usize) != Some(&hash)
+						|| expected.verified_chunks.get(index_usize) != Some(&None)
+					{
+						return Err(ContentError::IdempotencyConflict);
+					}
+				},
+			}
 			let mut next = existing.clone();
 			next.attempts = next.attempts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 			next.outstanding_request = Some(request);
@@ -336,25 +430,73 @@ impl ReplicationIntentStore {
 				return Err(ContentError::IdempotencyConflict);
 			}
 			validate_request(&existing.identity, outstanding, true)?;
-			let response_hash = match kind {
+			let (response_hash, admitted_page, verified_chunk) = match kind {
 				ReplicationRequestKindV1::Page => {
 					let request = PeerSyncPageRequestV1::decode_authenticated(
 						&outstanding.signed_request_bytes,
 					)?;
 					let response =
 						PeerSyncPageResponseV1::decode_canonical(response_bytes, &request)?;
-					blake2_256(&response.encode_wire())
+					let wire_hash = blake2_256(&response.encode_wire());
+					let page =
+						admitted_page_from_response(existing, &request, &response, wire_hash)?;
+					(wire_hash, Some(page), None)
 				},
 				ReplicationRequestKindV1::Chunk => {
 					let request = PeerChunkRequestV1::decode_authenticated(
 						&outstanding.signed_request_bytes,
 					)?;
 					let response = PeerChunkResponseV1::decode_canonical(response_bytes, &request)?;
-					blake2_256(&response.encode_wire())
+					let wire_hash = blake2_256(&response.encode_wire());
+					let request_proof = request.compact_proof();
+					let proof = response.compact_proof();
+					let (object, index, _) = response.verified_chunk();
+					let page =
+						existing.admitted_page.as_ref().ok_or(ContentError::IdempotencyConflict)?;
+					let expected =
+						page.objects.get(page.next_object).ok_or(ContentError::IntegrityFailed)?;
+					let index_usize = usize::from(index);
+					let chunk_hash = *expected
+						.chunk_hashes
+						.get(index_usize)
+						.ok_or(ContentError::IdempotencyConflict)?;
+					if !object_matches_evidence(object, expected) {
+						return Err(ContentError::IdempotencyConflict);
+					}
+					(
+						wire_hash,
+						None,
+						Some(VerifiedChunkEvidenceV1 {
+							index,
+							chunk_hash,
+							request_nonce: request_proof.request_nonce(),
+							request_hash: request_proof.request_hash(),
+							target_signature: request_proof.signature().to_vec(),
+							response_wire_hash: wire_hash,
+							source_response_hash: proof.response_hash(),
+							source_signature: proof.signature().to_vec(),
+						}),
+					)
 				},
 			};
 			if outstanding.verified_response_hash == Some(response_hash) {
-				return Ok(existing.clone());
+				let exact = match (&admitted_page, &verified_chunk) {
+					(Some(page), None) => existing.admitted_page.as_ref() == Some(page),
+					(None, Some(chunk)) => {
+						existing
+							.admitted_page
+							.as_ref()
+							.and_then(|page| page.objects.get(page.next_object))
+							.and_then(|object| object.verified_chunks.get(usize::from(chunk.index)))
+							== Some(&Some(chunk.clone()))
+					},
+					_ => false,
+				};
+				return if exact {
+					Ok(existing.clone())
+				} else {
+					Err(ContentError::IdempotencyConflict)
+				};
 			}
 			if outstanding.verified_response_hash.is_some() {
 				return Err(ContentError::IdempotencyConflict);
@@ -362,6 +504,24 @@ impl ReplicationIntentStore {
 			let mut next = existing.clone();
 			next.outstanding_request.as_mut().expect("checked above").verified_response_hash =
 				Some(response_hash);
+			if let Some(page) = admitted_page {
+				if next.admitted_page.is_some() {
+					return Err(ContentError::IdempotencyConflict);
+				}
+				next.admitted_page = Some(page);
+			}
+			if let Some(chunk) = verified_chunk {
+				let slot = next
+					.admitted_page
+					.as_mut()
+					.and_then(|page| page.objects.get_mut(page.next_object))
+					.and_then(|object| object.verified_chunks.get_mut(usize::from(chunk.index)))
+					.ok_or(ContentError::IdempotencyConflict)?;
+				if slot.is_some() {
+					return Err(ContentError::IdempotencyConflict);
+				}
+				*slot = Some(chunk);
+			}
 			Ok(next)
 		})
 	}
@@ -375,13 +535,16 @@ impl ReplicationIntentStore {
 		length: u64,
 	) -> Result<ReplicationIntentV1, ContentError> {
 		self.ensure_healthy()?;
-		let identity = self
+		let record = self
 			.records
 			.read()
 			.map_err(|_| lock_error())?
 			.get(intent_key)
-			.map(|record| record.identity.clone())
+			.cloned()
 			.ok_or(ContentError::NotFound)?;
+		let identity = record.identity.clone();
+		let canonical = CanonicalCid::parse(cid)?;
+		validate_admitted_completion(&record, sequence, canonical.as_str(), length)?;
 		let operation_id = derived_stream_id(intent_key, sequence, OPERATION_DOMAIN);
 		let repair_id = derived_stream_id(intent_key, sequence, REPAIR_DOMAIN);
 		let ready = streaming.verified_replication_ready(
@@ -393,7 +556,7 @@ impl ReplicationIntentStore {
 		)?;
 		let completion = ReplicatedObjectCompletionV1 {
 			sequence,
-			cid: CanonicalCid::parse(cid)?.to_string(),
+			cid: canonical.to_string(),
 			length,
 			cumulative_total: 0,
 			streaming_operation_id: operation_id,
@@ -401,6 +564,12 @@ impl ReplicationIntentStore {
 			streaming_receipt_fingerprint: ready.receipt_fingerprint,
 		};
 		self.mutate(intent_key, |existing| {
+			validate_admitted_completion(
+				existing,
+				completion.sequence,
+				&completion.cid,
+				completion.length,
+			)?;
 			let mut completion = completion.clone();
 			completion.cumulative_total = existing
 				.cumulative_total
@@ -425,19 +594,17 @@ impl ReplicationIntentStore {
 			{
 				return Err(ContentError::IdempotencyConflict);
 			}
-			if existing
-				.outstanding_request
-				.as_ref()
-				.and_then(|request| request.verified_response_hash)
-				.is_none()
-			{
-				return Err(ContentError::IdempotencyConflict);
-			}
 			let mut next = existing.clone();
 			next.next_sequence =
 				next.next_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 			next.cumulative_total = completion.cumulative_total;
 			next.last_completed = Some(completion);
+			let page = next.admitted_page.as_mut().ok_or(ContentError::IntegrityFailed)?;
+			page.next_object =
+				page.next_object.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+			if page.next_object == page.objects.len() {
+				next.admitted_page = None;
+			}
 			next.phase = ReplicationPhase::Receiving;
 			Ok(next)
 		})
@@ -452,7 +619,10 @@ impl ReplicationIntentStore {
 				return Ok(existing.clone());
 			}
 			let end = candidate_end(&existing.identity)?;
-			if existing.phase != ReplicationPhase::Receiving || existing.next_sequence != end {
+			if existing.phase != ReplicationPhase::Receiving
+				|| existing.next_sequence != end
+				|| existing.admitted_page.is_some()
+			{
 				return Err(ContentError::IdempotencyConflict);
 			}
 			if existing
@@ -630,8 +800,23 @@ impl ReplicationIntentStore {
 		if bytes.len() > MAX_RECORD_BYTES {
 			return Err(ContentError::IntegrityFailed);
 		}
-		let temp = self.root.join(format!("{name}.tmp-{}", std::process::id()));
+		let mut durable_bytes = self.durable_bytes.write().map_err(|_| lock_error())?;
 		let path = self.root.join(name);
+		let existing_bytes = match fs::metadata(&path) {
+			Ok(metadata) if metadata.is_file() => metadata.len(),
+			Ok(_) => return Err(ContentError::IntegrityFailed),
+			Err(error) if error.kind() == std::io::ErrorKind::NotFound => 0,
+			Err(error) => return Err(io_error(error)),
+		};
+		let next_total = durable_bytes
+			.checked_sub(existing_bytes)
+			.ok_or(ContentError::IntegrityFailed)?
+			.checked_add(bytes.len() as u64)
+			.ok_or(ContentError::ProviderRecoveryTableFull)?;
+		if next_total > MAX_TOTAL_RECORD_BYTES {
+			return Err(ContentError::ProviderRecoveryTableFull);
+		}
+		let temp = self.root.join(format!("{name}.tmp-{}", std::process::id()));
 		let mut file = File::create(&temp).map_err(io_error)?;
 		file.write_all(&bytes).map_err(io_error)?;
 		self.trip(ReplicationFault::BeforeTempFsync)?;
@@ -640,7 +825,9 @@ impl ReplicationIntentStore {
 		fs::rename(&temp, path).map_err(io_error)?;
 		self.trip(ReplicationFault::AfterRename)?;
 		sync_dir(&self.root)?;
-		self.trip(ReplicationFault::AfterDirectoryFsync)
+		self.trip(ReplicationFault::AfterDirectoryFsync)?;
+		*durable_bytes = next_total;
+		Ok(())
 	}
 
 	fn trip(&self, point: ReplicationFault) -> Result<(), ContentError> {
@@ -662,6 +849,7 @@ struct RecordFile {
 struct ReadState {
 	records: Vec<RecordFile>,
 	scheduler: Option<Vec<u8>>,
+	durable_bytes: u64,
 }
 
 fn read_state(root: &Path, limit: usize) -> Result<ReadState, ContentError> {
@@ -669,6 +857,7 @@ fn read_state(root: &Path, limit: usize) -> Result<ReadState, ContentError> {
 	let mut scheduler = None;
 	let mut visited = 0usize;
 	let mut temps = 0usize;
+	let mut durable_bytes = 0u64;
 	for item in fs::read_dir(root).map_err(io_error)? {
 		visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 		if visited > limit + MAX_TEMP_ARTIFACTS + 1 {
@@ -694,6 +883,12 @@ fn read_state(root: &Path, limit: usize) -> Result<ReadState, ContentError> {
 		if bytes.len() > MAX_RECORD_BYTES {
 			return Err(ContentError::IntegrityFailed);
 		}
+		durable_bytes = durable_bytes
+			.checked_add(bytes.len() as u64)
+			.ok_or(ContentError::IntegrityFailed)?;
+		if durable_bytes > MAX_TOTAL_RECORD_BYTES {
+			return Err(ContentError::IntegrityFailed);
+		}
 		if name == SCHEDULER {
 			if scheduler.replace(bytes).is_some() {
 				return Err(ContentError::IntegrityFailed);
@@ -706,7 +901,44 @@ fn read_state(root: &Path, limit: usize) -> Result<ReadState, ContentError> {
 		}
 	}
 	sync_dir(root)?;
-	Ok(ReadState { records, scheduler })
+	Ok(ReadState { records, scheduler, durable_bytes })
+}
+
+fn input_from_session(
+	session: &ReplicationSessionV1,
+	peer_operation_id: [u8; 16],
+) -> Result<ReplicationIntentInputV1, ContentError> {
+	let topology = session.topology();
+	let commitment = session.context().candidate_commitment();
+	let (candidate_start, candidate_end) = commitment.sequence_range();
+	let candidate_count = candidate_end
+		.checked_sub(candidate_start)
+		.ok_or(ContentError::IntegrityFailed)?;
+	Ok(ReplicationIntentInputV1 {
+		genesis_hash: topology.genesis_hash,
+		topology_snapshot_hash: topology.snapshot_hash,
+		topology_finalized_hash: topology.finalized_hash,
+		topology_finalized_number: topology.finalized_number,
+		topology_governed_checkpoint: topology
+			.governed_finalized_checkpoint
+			.ok_or(ContentError::IntegrityFailed)?,
+		bucket_id: topology.bucket_id,
+		bucket_version: topology.bucket_version,
+		source_provider: session.source().provider(),
+		target_provider: session.target().provider(),
+		source_service_key: session.source().service_key(),
+		source_service_key_version: session.source().service_key_version(),
+		target_service_key: session.target().service_key(),
+		target_service_key_version: session.target().service_key_version(),
+		source_endpoint_hash: session.source().endpoint_hash(),
+		target_endpoint_hash: session.target().endpoint_hash(),
+		target_may_confirm: session.target_may_confirm(),
+		candidate_mmr_root: commitment.mmr_root(),
+		candidate_start,
+		candidate_count,
+		candidate_predecessor_total: commitment.predecessor_total_size(),
+		peer_operation_id,
+	})
 }
 
 fn new_record(input: &ReplicationIntentInputV1) -> Result<ReplicationIntentV1, ContentError> {
@@ -720,6 +952,7 @@ fn new_record(input: &ReplicationIntentInputV1) -> Result<ReplicationIntentV1, C
 		cumulative_total: input.candidate_predecessor_total,
 		last_completed: None,
 		outstanding_request: None,
+		admitted_page: None,
 		attempts: 0,
 		local_commitment: None,
 		confirmation: None,
@@ -774,6 +1007,9 @@ fn validate_record(record: &ReplicationIntentV1) -> Result<(), ContentError> {
 	if let Some(request) = &record.outstanding_request {
 		validate_request(&record.identity, request, true)?;
 	}
+	if let Some(page) = &record.admitted_page {
+		validate_admitted_page(record, page)?;
+	}
 	if let Some(completed) = &record.last_completed {
 		validate_completion(record, completed)?;
 		if completed.sequence.checked_add(1) != Some(record.next_sequence) {
@@ -798,15 +1034,18 @@ fn validate_record(record: &ReplicationIntentV1) -> Result<(), ContentError> {
 				&& record.confirmation.is_none() => {},
 		ReplicationPhase::Installed
 			if record.next_sequence == candidate_end(&record.identity)?
+				&& record.admitted_page.is_none()
 				&& record.local_commitment.is_none()
 				&& record.confirmation.is_none() => {},
 		ReplicationPhase::MmrCommitted
 			if record.next_sequence == candidate_end(&record.identity)?
+				&& record.admitted_page.is_none()
 				&& record.local_commitment.as_ref()
 					== Some(&expected_commitment(&record.identity))
 				&& record.confirmation.is_none() => {},
 		ReplicationPhase::Confirmed
 			if record.next_sequence == candidate_end(&record.identity)?
+				&& record.admitted_page.is_none()
 				&& record.local_commitment.as_ref()
 					== Some(&expected_commitment(&record.identity))
 				&& record.confirmation.as_ref().is_some_and(|evidence| {
@@ -886,6 +1125,304 @@ fn authenticate_request(
 		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(replay)
+}
+
+fn cursor_evidence(cursor: Option<crate::peer::PeerPageCursorV1>) -> Option<PeerCursorEvidenceV1> {
+	cursor.map(|cursor| {
+		let (last_sequence, cumulative_total) = cursor.position();
+		PeerCursorEvidenceV1 { last_sequence, cumulative_total }
+	})
+}
+
+fn expected_request_cursor(
+	record: &ReplicationIntentV1,
+) -> Result<Option<PeerCursorEvidenceV1>, ContentError> {
+	if record.next_sequence == record.identity.candidate_start {
+		if record.cumulative_total != record.identity.candidate_predecessor_total {
+			return Err(ContentError::IntegrityFailed);
+		}
+		Ok(None)
+	} else {
+		Ok(Some(PeerCursorEvidenceV1 {
+			last_sequence: record
+				.next_sequence
+				.checked_sub(1)
+				.ok_or(ContentError::IntegrityFailed)?,
+			cumulative_total: record.cumulative_total,
+		}))
+	}
+}
+
+fn object_matches_evidence(
+	object: &crate::peer::PeerObjectV1,
+	evidence: &AdmittedObjectEvidenceV1,
+) -> bool {
+	let (length, sequence, cumulative_total) = object.position();
+	object.cid() == evidence.cid
+		&& length == evidence.length
+		&& sequence == evidence.sequence
+		&& cumulative_total == evidence.cumulative_total
+		&& object.chunk_manifest_hash() == evidence.chunk_manifest_hash
+		&& object.chunk_hashes() == evidence.chunk_hashes
+}
+
+fn peer_object_from_evidence(
+	evidence: &AdmittedObjectEvidenceV1,
+) -> Result<crate::peer::PeerObjectV1, ContentError> {
+	crate::peer::PeerObjectV1::new(
+		&CanonicalCid::parse(&evidence.cid)?,
+		evidence.length,
+		evidence.sequence,
+		evidence.cumulative_total,
+		evidence.chunk_hashes.clone(),
+	)
+}
+
+fn peer_cursor_from_evidence(
+	cursor: Option<PeerCursorEvidenceV1>,
+) -> Option<crate::peer::PeerPageCursorV1> {
+	cursor.map(|cursor| {
+		crate::peer::PeerPageCursorV1::new(cursor.last_sequence, cursor.cumulative_total)
+	})
+}
+
+fn admitted_page_from_response(
+	record: &ReplicationIntentV1,
+	request: &PeerSyncPageRequestV1,
+	response: &PeerSyncPageResponseV1,
+	response_wire_hash: [u8; 32],
+) -> Result<AdmittedPageEvidenceV1, ContentError> {
+	let replay = request.authenticated_replay_identity()?;
+	let requested_cursor = cursor_evidence(request.page().0);
+	if response_wire_hash == [0; 32]
+		|| requested_cursor != expected_request_cursor(record)?
+		|| response.items().is_empty()
+		|| response.items().len() > 128
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	let mut objects = Vec::with_capacity(response.items().len());
+	for object in response.items() {
+		let (length, sequence, cumulative_total) = object.position();
+		if object.chunk_hashes().len() > MAX_CHUNKS {
+			return Err(ContentError::IntegrityFailed);
+		}
+		objects.push(AdmittedObjectEvidenceV1 {
+			sequence,
+			cid: object.cid().into(),
+			length,
+			cumulative_total,
+			chunk_manifest_hash: object.chunk_manifest_hash(),
+			chunk_hashes: object.chunk_hashes().to_vec(),
+			verified_chunks: vec![None; object.chunk_hashes().len()],
+		});
+	}
+	let page = AdmittedPageEvidenceV1 {
+		request_hash: replay.request_hash,
+		signed_request_bytes: request.encode_wire(),
+		response_wire_hash,
+		source_response_hash: response.compact_proof().response_hash(),
+		source_signature: response.compact_proof().signature().to_vec(),
+		requested_cursor,
+		next_cursor: cursor_evidence(response.next_cursor()),
+		objects,
+		next_object: 0,
+	};
+	validate_admitted_page(record, &page)?;
+	Ok(page)
+}
+
+fn validate_admitted_completion(
+	record: &ReplicationIntentV1,
+	sequence: u64,
+	cid: &str,
+	length: u64,
+) -> Result<(), ContentError> {
+	if record.last_completed.as_ref().is_some_and(|completed| {
+		completed.sequence == sequence
+			&& completed.cid == cid
+			&& completed.length == length
+			&& record.next_sequence == sequence.saturating_add(1)
+	}) {
+		return Ok(());
+	}
+	let object = record
+		.admitted_page
+		.as_ref()
+		.and_then(|page| page.objects.get(page.next_object))
+		.ok_or(ContentError::IdempotencyConflict)?;
+	if object.sequence != sequence
+		|| object.cid != cid
+		|| object.length != length
+		|| object.verified_chunks.iter().any(Option::is_none)
+	{
+		return Err(ContentError::IdempotencyConflict);
+	}
+	Ok(())
+}
+
+fn validate_admitted_page(
+	record: &ReplicationIntentV1,
+	page: &AdmittedPageEvidenceV1,
+) -> Result<(), ContentError> {
+	if page.request_hash == [0; 32]
+		|| page.signed_request_bytes.is_empty()
+		|| page.signed_request_bytes.len() > MAX_REQUEST_ENCODED
+		|| page.response_wire_hash == [0; 32]
+		|| page.objects.is_empty()
+		|| page.objects.len() > 128
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	let request = PeerSyncPageRequestV1::decode_authenticated(&page.signed_request_bytes)?;
+	let replay = authenticate_request(
+		&record.identity,
+		ReplicationRequestKindV1::Page,
+		&page.signed_request_bytes,
+	)?;
+	if replay.request_hash != page.request_hash
+		|| cursor_evidence(request.page().0) != page.requested_cursor
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	let page_signature: [u8; 64] = page
+		.source_signature
+		.as_slice()
+		.try_into()
+		.map_err(|_| ContentError::IntegrityFailed)?;
+	let page_items = page
+		.objects
+		.iter()
+		.map(peer_object_from_evidence)
+		.collect::<Result<Vec<_>, _>>()?;
+	PeerSyncPageResponseV1::verify_compact_proof(
+		&request,
+		page_items,
+		peer_cursor_from_evidence(page.next_cursor),
+		PeerResponseProofV1::from_parts(page.source_response_hash, page_signature),
+	)?;
+	if page.next_object >= page.objects.len() {
+		return Err(ContentError::IntegrityFailed);
+	}
+	let (mut sequence, mut cumulative_total) = match page.requested_cursor {
+		Some(cursor) => (
+			cursor.last_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?,
+			cursor.cumulative_total,
+		),
+		None => (record.identity.candidate_start, record.identity.candidate_predecessor_total),
+	};
+	for object in &page.objects {
+		CanonicalCid::parse(&object.cid)?;
+		let expected_chunks = if object.length == 0 {
+			0
+		} else {
+			object.length.div_ceil(CHUNK_BYTES as u64) as usize
+		};
+		if object.sequence != sequence
+			|| object.length > MAX_STORED_BYTES
+			|| object.chunk_manifest_hash == [0; 32]
+			|| object.chunk_manifest_hash != replication_chunk_manifest_hash(&object.chunk_hashes)
+			|| object.chunk_hashes.len() != expected_chunks
+			|| object.verified_chunks.len() != expected_chunks
+			|| expected_chunks > MAX_CHUNKS
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+		cumulative_total = cumulative_total
+			.checked_add(object.length)
+			.ok_or(ContentError::IntegrityFailed)?;
+		if object.cumulative_total != cumulative_total {
+			return Err(ContentError::IntegrityFailed);
+		}
+		for (index, evidence) in object.verified_chunks.iter().enumerate() {
+			if let Some(evidence) = evidence {
+				let target_signature: [u8; 64] = evidence
+					.target_signature
+					.as_slice()
+					.try_into()
+					.map_err(|_| ContentError::IntegrityFailed)?;
+				let source_signature: [u8; 64] = evidence
+					.source_signature
+					.as_slice()
+					.try_into()
+					.map_err(|_| ContentError::IntegrityFailed)?;
+				if usize::from(evidence.index) != index
+					|| object.chunk_hashes.get(index) != Some(&evidence.chunk_hash)
+					|| evidence.request_nonce == [0; 16]
+					|| evidence.request_hash == [0; 32]
+					|| evidence.response_wire_hash == [0; 32]
+					|| evidence.source_response_hash == [0; 32]
+				{
+					return Err(ContentError::IntegrityFailed);
+				}
+				let request = PeerChunkRequestV1::verify_compact_proof(
+					expected_peer_context(&record.identity)?,
+					record.identity.peer_operation_id,
+					peer_object_from_evidence(object)?,
+					evidence.index,
+					PeerRequestProofV1::from_parts(
+						evidence.request_nonce,
+						evidence.request_hash,
+						target_signature,
+					),
+				)?;
+				PeerChunkResponseV1::verify_compact_proof(
+					&request,
+					PeerResponseProofV1::from_parts(
+						evidence.source_response_hash,
+						source_signature,
+					),
+				)?;
+			}
+		}
+		sequence = sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+	}
+	if sequence > candidate_end(&record.identity)? {
+		return Err(ContentError::IntegrityFailed);
+	}
+	let first = page.objects.get(page.next_object).ok_or(ContentError::IntegrityFailed)?;
+	let expected_prior = if page.next_object == 0 {
+		match page.requested_cursor {
+			Some(cursor) => cursor.cumulative_total,
+			None => record.identity.candidate_predecessor_total,
+		}
+	} else {
+		page.objects[page.next_object - 1].cumulative_total
+	};
+	if first.sequence != record.next_sequence || expected_prior != record.cumulative_total {
+		return Err(ContentError::IntegrityFailed);
+	}
+	match page.requested_cursor {
+		None if first.sequence < record.identity.candidate_start => {
+			return Err(ContentError::IntegrityFailed)
+		},
+		Some(cursor)
+			if cursor.last_sequence >= first.sequence
+				|| cursor.cumulative_total > record.cumulative_total =>
+		{
+			return Err(ContentError::IntegrityFailed)
+		},
+		_ => {},
+	}
+	let last = page.objects.last().ok_or(ContentError::IntegrityFailed)?;
+	let expected_next = if last.sequence.checked_add(1) == Some(candidate_end(&record.identity)?) {
+		None
+	} else {
+		Some(PeerCursorEvidenceV1 {
+			last_sequence: last.sequence,
+			cumulative_total: last.cumulative_total,
+		})
+	};
+	if page.next_cursor != expected_next {
+		return Err(ContentError::IntegrityFailed);
+	}
+	Ok(())
+}
+
+fn replication_chunk_manifest_hash(chunk_hashes: &[[u8; 32]]) -> [u8; 32] {
+	let mut bytes = b"cord/provider/peer-replication/chunk-manifest/v1".to_vec();
+	bytes.extend_from_slice(&chunk_hashes.encode());
+	blake2_256(&bytes)
 }
 
 fn same_request_identity(
@@ -1061,6 +1598,9 @@ fn lock_error() -> ContentError {
 mod tests {
 	use super::*;
 	use crate::{
+		chain::{
+			ReplicationProviderExclusion, ReplicationProviderSnapshot, ReplicationTopologySnapshot,
+		},
 		peer::{
 			PeerChunkExpectationV1, PeerObjectV1, PeerPageCursorV1, PeerPageExpectationV1,
 			PeerRequestIdentityV1,
@@ -1080,6 +1620,94 @@ mod tests {
 
 	fn source_pair() -> ed25519::Pair {
 		ed25519::Pair::from_seed(&[8; 32])
+	}
+
+	fn session_provider(
+		provider: [u8; 32],
+		order: u8,
+		primary: bool,
+		service_key: [u8; 32],
+		confirmation_invalid: bool,
+	) -> ReplicationProviderSnapshot {
+		let endpoint = format!("https://replication-{order}.invalid").into_bytes();
+		ReplicationProviderSnapshot {
+			provider,
+			order,
+			primary,
+			record_present: true,
+			endpoint_hash: Some(blake2_256(&endpoint)),
+			endpoint: Some(endpoint),
+			active_service_key: Some(service_key),
+			active_service_key_version: Some(u64::from(order) + 1),
+			status_active: true,
+			organization_valid: true,
+			authority_validated_at: Some(90),
+			overdue_challenges: 0,
+			eligible: true,
+			usable: !confirmation_invalid,
+			exclusions: confirmation_invalid
+				.then_some(ReplicationProviderExclusion::ConfirmationInvalid)
+				.into_iter()
+				.collect(),
+			confirmed_checkpoint: None,
+		}
+	}
+
+	fn session_for_identity(
+		identity: &ReplicationIntentInputV1,
+		value: u16,
+		confirmation_invalid: bool,
+	) -> ReplicationSessionV1 {
+		let source = identity.source_provider;
+		let target = identity.target_provider;
+		let third = [250; 32];
+		let mut topology = ReplicationTopologySnapshot {
+			genesis_hash: identity.genesis_hash,
+			finalized_hash: identity.topology_finalized_hash,
+			finalized_number: identity.topology_finalized_number,
+			governed_finalized_checkpoint: Some(identity.topology_governed_checkpoint),
+			bucket_id: identity.bucket_id,
+			bucket_version: identity.bucket_version,
+			primary: source,
+			replicas: vec![target, third],
+			providers: vec![
+				session_provider(source, 0, true, source_pair().public().0, false),
+				session_provider(
+					target,
+					1,
+					false,
+					target_pair(value).public().0,
+					confirmation_invalid,
+				),
+				session_provider(
+					third,
+					2,
+					false,
+					ed25519::Pair::from_seed(&[77; 32]).public().0,
+					false,
+				),
+			],
+			current_checkpoint: None,
+			snapshot_hash: [0; 32],
+		};
+		let mut encoded = b"cord/provider/replication-topology/v1".to_vec();
+		topology.encode_to(&mut encoded);
+		topology.snapshot_hash = blake2_256(&encoded);
+		ReplicationSessionV1::from_topology(
+			topology,
+			target,
+			target_pair(value).public().0,
+			source,
+			target,
+			PeerMmrCommitmentV1::new(
+				identity.candidate_mmr_root,
+				identity.candidate_start,
+				identity.candidate_count,
+				identity.candidate_predecessor_total,
+			)
+			.unwrap(),
+		)
+		.unwrap()
 	}
 
 	fn input(value: u16) -> ReplicationIntentInputV1 {
@@ -1122,15 +1750,19 @@ mod tests {
 		let expectation = PeerPageExpectationV1::new(
 			expected_peer_context(&record.identity).unwrap(),
 			PeerRequestIdentityV1::new(operation, nonce).unwrap(),
-			None,
+			if record.next_sequence == record.identity.candidate_start {
+				None
+			} else {
+				Some(PeerPageCursorV1::new(record.next_sequence - 1, record.cumulative_total))
+			},
 			32,
 		)
 		.unwrap();
 		PeerSyncPageRequestV1::new_signed(
 			&expectation,
 			&target_pair(u16::from_le_bytes([
-				record.identity.topology_snapshot_hash[0],
-				record.identity.topology_snapshot_hash[1],
+				record.identity.target_provider[0],
+				record.identity.target_provider[1],
 			])),
 		)
 		.unwrap()
@@ -1139,39 +1771,37 @@ mod tests {
 	fn page_response(
 		record: &ReplicationIntentV1,
 		page: &PeerSyncPageRequestV1,
+		bytes: &[u8],
 	) -> PeerSyncPageResponseV1 {
-		let bytes = b"authenticated page object".to_vec();
-		let total = record.identity.candidate_predecessor_total + bytes.len() as u64;
+		let total = record.cumulative_total + bytes.len() as u64;
 		let object = PeerObjectV1::new(
 			&CanonicalCid::from_digest(blake2_256(&bytes)),
 			bytes.len() as u64,
-			record.identity.candidate_start,
+			record.next_sequence,
 			total,
 			vec![blake2_256(&bytes)],
 		)
 		.unwrap();
-		let next = (record.identity.candidate_count > 1)
-			.then(|| PeerPageCursorV1::new(record.identity.candidate_start, total));
+		let next = (record.next_sequence + 1 < candidate_end(&record.identity).unwrap())
+			.then(|| PeerPageCursorV1::new(record.next_sequence, total));
 		PeerSyncPageResponseV1::new_signed(page, vec![object], next, &source_pair()).unwrap()
 	}
 
 	fn with_verified_page(
 		store: &ReplicationIntentStore,
 		record: ReplicationIntentV1,
+		bytes: &[u8],
 	) -> ReplicationIntentV1 {
-		if record
-			.outstanding_request
-			.as_ref()
-			.and_then(|request| request.verified_response_hash)
-			.is_some()
-		{
+		if record.admitted_page.is_some() {
 			return record;
 		}
-		let page = page_request(&record, [77; 16], record.identity.peer_operation_id);
+		let mut nonce = [77; 16];
+		nonce[..8].copy_from_slice(&record.next_sequence.to_le_bytes());
+		let page = page_request(&record, nonce, record.identity.peer_operation_id);
 		let staged = store
 			.stage_page_request_before_send(&record.intent_key, &page.encode_wire())
 			.unwrap();
-		let response = page_response(&record, &page);
+		let response = page_response(&record, &page, bytes);
 		store.attach_page_response(&staged.intent_key, &response.encode_wire()).unwrap()
 	}
 
@@ -1199,6 +1829,63 @@ mod tests {
 		(cid.to_string(), length)
 	}
 
+	fn admit_object_chunks(
+		store: &ReplicationIntentStore,
+		record: ReplicationIntentV1,
+		bytes: &[u8],
+	) -> ReplicationIntentV1 {
+		let evidence = record
+			.admitted_page
+			.as_ref()
+			.and_then(|page| page.objects.get(page.next_object))
+			.unwrap()
+			.clone();
+		let object = PeerObjectV1::new(
+			&CanonicalCid::parse(&evidence.cid).unwrap(),
+			evidence.length,
+			evidence.sequence,
+			evidence.cumulative_total,
+			evidence.chunk_hashes.clone(),
+		)
+		.unwrap();
+		let mut record = record;
+		for index in 0..evidence.chunk_hashes.len() {
+			let mut nonce = [91; 16];
+			nonce[..8].copy_from_slice(&evidence.sequence.to_le_bytes());
+			nonce[8..10].copy_from_slice(&(index as u16).to_le_bytes());
+			let expectation = PeerChunkExpectationV1::new(
+				expected_peer_context(&record.identity).unwrap(),
+				PeerRequestIdentityV1::new(record.identity.peer_operation_id, nonce).unwrap(),
+				object.clone(),
+				index as u16,
+			)
+			.unwrap();
+			let request = PeerChunkRequestV1::new_signed(
+				&expectation,
+				&target_pair(u16::from_le_bytes([
+					record.identity.target_provider[0],
+					record.identity.target_provider[1],
+				])),
+			)
+			.unwrap();
+			record = store
+				.stage_chunk_request_before_send(&record.intent_key, &request.encode_wire())
+				.unwrap();
+			let start = index * CHUNK_BYTES;
+			let end = (start + CHUNK_BYTES).min(bytes.len());
+			let response = PeerChunkResponseV1::new_signed(
+				&request,
+				bytes[start..end].to_vec(),
+				&source_pair(),
+			)
+			.unwrap();
+			record = store
+				.attach_chunk_response(&record.intent_key, &response.encode_wire())
+				.unwrap();
+		}
+		record
+	}
+
 	fn complete_ready(
 		store: &ReplicationIntentStore,
 		streaming: &StreamingStore,
@@ -1206,8 +1893,10 @@ mod tests {
 		sequence: u64,
 		bytes: Vec<u8>,
 	) -> ReplicationIntentV1 {
+		let record = with_verified_page(store, record.clone(), &bytes);
+		let record = admit_object_chunks(store, record, &bytes);
 		let operation = derived_stream_id(&record.intent_key, sequence, OPERATION_DOMAIN);
-		let (cid, length) = install_ready(streaming, record, sequence, bytes, operation);
+		let (cid, length) = install_ready(streaming, &record, sequence, bytes, operation);
 		store
 			.complete_object(streaming, &record.intent_key, sequence, &cid, length)
 			.unwrap()
@@ -1218,7 +1907,7 @@ mod tests {
 		streaming: &StreamingStore,
 		record: ReplicationIntentV1,
 	) -> ReplicationIntentV1 {
-		let mut record = with_verified_page(store, record);
+		let mut record = record;
 		let end = candidate_end(&record.identity).unwrap();
 		while record.next_sequence < end {
 			let sequence = record.next_sequence;
@@ -1269,7 +1958,7 @@ mod tests {
 	) -> (ReplicationIntentStore, StreamingStore, BucketMmrStore, ReplicationIntentV1) {
 		let store = ReplicationIntentStore::open(root).unwrap();
 		let streaming = StreamingStore::open(root).unwrap();
-		let mut record = with_verified_page(&store, store.plan(input).unwrap());
+		let mut record = store.plan(input).unwrap();
 		for bytes in objects {
 			let sequence = record.next_sequence;
 			record = complete_ready(&store, &streaming, &record, sequence, bytes.clone());
@@ -1324,6 +2013,21 @@ mod tests {
 		assert!(store
 			.stage_chunk_request_before_send(&planned.intent_key, &page.encode_wire())
 			.is_err());
+		let wrong_cursor_expected = PeerPageExpectationV1::new(
+			expected_peer_context(&planned.identity).unwrap(),
+			PeerRequestIdentityV1::new(planned.identity.peer_operation_id, [8; 16]).unwrap(),
+			Some(PeerPageCursorV1::new(
+				planned.identity.candidate_start,
+				planned.identity.candidate_predecessor_total + 1,
+			)),
+			32,
+		)
+		.unwrap();
+		let wrong_cursor =
+			PeerSyncPageRequestV1::new_signed(&wrong_cursor_expected, &target_pair(20)).unwrap();
+		assert!(store
+			.stage_page_request_before_send(&planned.intent_key, &wrong_cursor.encode_wire())
+			.is_err());
 
 		let replay = page.authenticated_replay_identity().unwrap();
 		let staged = store
@@ -1334,24 +2038,25 @@ mod tests {
 		assert!(store
 			.attach_chunk_response(
 				&planned.intent_key,
-				&page_response(&planned, &page).encode_wire()
+				&page_response(&planned, &page, b"authenticated page object").encode_wire()
 			)
 			.is_err());
 		let other_page = page_request(&other, [6; 16], other.identity.peer_operation_id);
 		assert!(store
 			.attach_page_response(
 				&planned.intent_key,
-				&page_response(&other, &other_page).encode_wire()
+				&page_response(&other, &other_page, b"authenticated page object").encode_wire()
 			)
 			.is_err());
 		let changed_request = page_request(&planned, [7; 16], planned.identity.peer_operation_id);
 		assert!(store
 			.attach_page_response(
 				&planned.intent_key,
-				&page_response(&planned, &changed_request).encode_wire()
+				&page_response(&planned, &changed_request, b"authenticated page object")
+					.encode_wire()
 			)
 			.is_err());
-		let response = page_response(&planned, &page);
+		let response = page_response(&planned, &page, b"authenticated page object");
 		let mut bad_response_signature = response.encode_wire();
 		*bad_response_signature.last_mut().unwrap() ^= 1;
 		assert!(store
@@ -1367,7 +2072,7 @@ mod tests {
 			answered
 		);
 
-		let bytes = b"authenticated chunk".to_vec();
+		let bytes = b"authenticated page object".to_vec();
 		let object = PeerObjectV1::new(
 			&CanonicalCid::from_digest(blake2_256(&bytes)),
 			bytes.len() as u64,
@@ -1376,6 +2081,27 @@ mod tests {
 			vec![blake2_256(&bytes)],
 		)
 		.unwrap();
+		let unrelated_bytes = b"unrelated signed object".to_vec();
+		let unrelated = PeerObjectV1::new(
+			&CanonicalCid::from_digest(blake2_256(&unrelated_bytes)),
+			unrelated_bytes.len() as u64,
+			planned.identity.candidate_start,
+			planned.identity.candidate_predecessor_total + unrelated_bytes.len() as u64,
+			vec![blake2_256(&unrelated_bytes)],
+		)
+		.unwrap();
+		let unrelated_expected = PeerChunkExpectationV1::new(
+			expected_peer_context(&planned.identity).unwrap(),
+			PeerRequestIdentityV1::new(planned.identity.peer_operation_id, [44; 16]).unwrap(),
+			unrelated,
+			0,
+		)
+		.unwrap();
+		let unrelated_request =
+			PeerChunkRequestV1::new_signed(&unrelated_expected, &target_pair(20)).unwrap();
+		assert!(store
+			.stage_chunk_request_before_send(&planned.intent_key, &unrelated_request.encode_wire())
+			.is_err());
 		let chunk_expected = PeerChunkExpectationV1::new(
 			expected_peer_context(&planned.identity).unwrap(),
 			PeerRequestIdentityV1::new(planned.identity.peer_operation_id, [5; 16]).unwrap(),
@@ -1421,7 +2147,7 @@ mod tests {
 		let temp = tempfile::tempdir().unwrap();
 		let store = ReplicationIntentStore::open(temp.path()).unwrap();
 		let streaming = StreamingStore::open(temp.path()).unwrap();
-		let planned = with_verified_page(&store, store.plan(&input(30)).unwrap());
+		let planned = with_verified_page(&store, store.plan(&input(30)).unwrap(), b"first");
 		let fabricated = CanonicalCid::from_digest(blake2_256(b"not installed"));
 		assert!(store
 			.complete_object(
@@ -1483,6 +2209,8 @@ mod tests {
 		assert_eq!(replay, first);
 		let first_ids = first.last_completed.as_ref().unwrap().clone();
 		let second_sequence = first.next_sequence;
+		let first = with_verified_page(&store, first, b"skipped");
+		let first = admit_object_chunks(&store, first, b"skipped");
 		let second = store
 			.complete_object(
 				&streaming,
@@ -1559,6 +2287,187 @@ mod tests {
 			.commit_local_mmr(&unrelated_mmr, &unrelated_streaming, &installed.intent_key)
 			.is_err());
 		assert_eq!(store.plan(&identity).unwrap().phase, ReplicationPhase::Installed);
+	}
+
+	#[test]
+	fn session_factory_preserves_confirmation_invalid_as_non_confirming() {
+		let objects = vec![b"session-bound".to_vec()];
+		let raw = mmr_input(60, &objects);
+		let session = session_for_identity(&raw, 60, true);
+		assert!(!session.target_may_confirm());
+		let temp = tempfile::tempdir().unwrap();
+		let store = ReplicationIntentStore::open(temp.path()).unwrap();
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let planned = store.plan_session(&session, raw.peer_operation_id).unwrap();
+		assert!(!planned.identity.target_may_confirm);
+		assert_eq!(planned.identity.topology_snapshot_hash, session.topology().snapshot_hash);
+		let sequence = planned.next_sequence;
+		let completed = complete_ready(&store, &streaming, &planned, sequence, objects[0].clone());
+		let installed = store.mark_installed(&completed.intent_key).unwrap();
+		let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		let committed = store.commit_local_mmr(&mmr, &streaming, &installed.intent_key).unwrap();
+		let evidence = confirmation(&committed, &target_pair(60));
+		assert_eq!(
+			store.confirm(&committed.intent_key, &evidence),
+			Err(ContentError::IdempotencyConflict)
+		);
+	}
+
+	#[test]
+	fn schema_v3_faults_and_semantic_provenance_tamper_fail_closed() {
+		for (fault, persisted) in [
+			(ReplicationFault::BeforeTempFsync, false),
+			(ReplicationFault::AfterTempFsync, false),
+			(ReplicationFault::AfterRename, true),
+			(ReplicationFault::AfterDirectoryFsync, true),
+		] {
+			let temp = tempfile::tempdir().unwrap();
+			let store = ReplicationIntentStore::open(temp.path()).unwrap();
+			store.inject_fault_once(fault).unwrap();
+			assert!(matches!(store.plan(&input(70)), Err(ContentError::Io(_))));
+			assert_eq!(store.select_tick(), Err(ContentError::IntegrityFailed));
+			drop(store);
+			let reopened = ReplicationIntentStore::open(temp.path()).unwrap();
+			assert_eq!(!reopened.select_tick().unwrap().is_empty(), persisted);
+		}
+
+		for fault in [
+			ReplicationFault::BeforeTempFsync,
+			ReplicationFault::AfterTempFsync,
+			ReplicationFault::AfterRename,
+			ReplicationFault::AfterDirectoryFsync,
+		] {
+			let temp = tempfile::tempdir().unwrap();
+			let store = ReplicationIntentStore::open(temp.path()).unwrap();
+			store.plan(&input(71)).unwrap();
+			store.inject_fault_once(fault).unwrap();
+			assert!(matches!(store.select_tick(), Err(ContentError::Io(_))));
+			assert_eq!(store.select_tick(), Err(ContentError::IntegrityFailed));
+			drop(store);
+			assert!(ReplicationIntentStore::open(temp.path()).unwrap().select_tick().is_ok());
+		}
+
+		let aggregate = tempfile::tempdir().unwrap();
+		let aggregate_store = ReplicationIntentStore::open(aggregate.path()).unwrap();
+		*aggregate_store.durable_bytes.write().unwrap() = MAX_TOTAL_RECORD_BYTES;
+		assert_eq!(aggregate_store.plan(&input(79)), Err(ContentError::ProviderRecoveryTableFull));
+		let oversized = tempfile::tempdir().unwrap();
+		drop(ReplicationIntentStore::open(oversized.path()).unwrap());
+		fs::write(
+			oversized.path().join(ROOT).join("oversized.json"),
+			vec![0; MAX_RECORD_BYTES + 1],
+		)
+		.unwrap();
+		assert!(matches!(
+			ReplicationIntentStore::open(oversized.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+
+		let temp = tempfile::tempdir().unwrap();
+		let store = ReplicationIntentStore::open(temp.path()).unwrap();
+		let planned = store.plan(&input(72)).unwrap();
+		let admitted = with_verified_page(&store, planned, b"tamper-bound object");
+		let admitted = admit_object_chunks(&store, admitted, b"tamper-bound object");
+		let path = temp.path().join(ROOT).join(format!("{}.json", admitted.intent_key));
+		drop(store);
+		let original = fs::read(&path).unwrap();
+		let mut tampered: ReplicationIntentV1 = serde_json::from_slice(&original).unwrap();
+		tampered.admitted_page.as_mut().unwrap().source_signature[0] ^= 1;
+		tampered.record_hash = record_hash(&tampered).unwrap();
+		fs::write(&path, serde_json::to_vec(&tampered).unwrap()).unwrap();
+		assert!(matches!(
+			ReplicationIntentStore::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+		let mut tampered: ReplicationIntentV1 = serde_json::from_slice(&original).unwrap();
+		tampered.admitted_page.as_mut().unwrap().objects[0].verified_chunks[0]
+			.as_mut()
+			.unwrap()
+			.source_signature[0] ^= 1;
+		tampered.record_hash = record_hash(&tampered).unwrap();
+		fs::write(&path, serde_json::to_vec(&tampered).unwrap()).unwrap();
+		assert!(matches!(
+			ReplicationIntentStore::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+		let mut tampered: ReplicationIntentV1 = serde_json::from_slice(&original).unwrap();
+		tampered.admitted_page.as_mut().unwrap().objects[0].chunk_hashes[0][0] ^= 1;
+		tampered.record_hash = record_hash(&tampered).unwrap();
+		fs::write(&path, serde_json::to_vec(&tampered).unwrap()).unwrap();
+		assert!(matches!(
+			ReplicationIntentStore::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+	}
+
+	#[test]
+	fn admitted_provenance_enforces_page_request_and_manifest_bounds() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = ReplicationIntentStore::open(temp.path()).unwrap();
+		let mut bounded = input(73);
+		bounded.candidate_start = 0;
+		bounded.candidate_count = 128;
+		bounded.candidate_predecessor_total = 0;
+		let planned = store.plan(&bounded).unwrap();
+		let expectation = PeerPageExpectationV1::new(
+			expected_peer_context(&planned.identity).unwrap(),
+			PeerRequestIdentityV1::new(planned.identity.peer_operation_id, [73; 16]).unwrap(),
+			None,
+			128,
+		)
+		.unwrap();
+		let request = PeerSyncPageRequestV1::new_signed(&expectation, &target_pair(73)).unwrap();
+		let staged = store
+			.stage_page_request_before_send(&planned.intent_key, &request.encode_wire())
+			.unwrap();
+		let empty_cid = CanonicalCid::from_digest(blake2_256(&[]));
+		let items = (0..128)
+			.map(|sequence| PeerObjectV1::new(&empty_cid, 0, sequence, 0, Vec::new()).unwrap())
+			.collect();
+		let response =
+			PeerSyncPageResponseV1::new_signed(&request, items, None, &source_pair()).unwrap();
+		let admitted =
+			store.attach_page_response(&staged.intent_key, &response.encode_wire()).unwrap();
+		assert_eq!(admitted.admitted_page.as_ref().unwrap().objects.len(), 128);
+
+		let manifest_temp = tempfile::tempdir().unwrap();
+		let manifest_store = ReplicationIntentStore::open(manifest_temp.path()).unwrap();
+		let mut manifest_identity = input(74);
+		manifest_identity.candidate_start = 0;
+		manifest_identity.candidate_count = 1;
+		manifest_identity.candidate_predecessor_total = 0;
+		let manifest_plan = manifest_store.plan(&manifest_identity).unwrap();
+		let manifest_request =
+			page_request(&manifest_plan, [74; 16], manifest_plan.identity.peer_operation_id);
+		manifest_store
+			.stage_page_request_before_send(
+				&manifest_plan.intent_key,
+				&manifest_request.encode_wire(),
+			)
+			.unwrap();
+		let hashes = vec![[75; 32]; MAX_CHUNKS];
+		let object = PeerObjectV1::new(
+			&CanonicalCid::from_digest([76; 32]),
+			MAX_STORED_BYTES,
+			0,
+			MAX_STORED_BYTES,
+			hashes,
+		)
+		.unwrap();
+		let manifest_response = PeerSyncPageResponseV1::new_signed(
+			&manifest_request,
+			vec![object],
+			None,
+			&source_pair(),
+		)
+		.unwrap();
+		let manifest_admitted = manifest_store
+			.attach_page_response(&manifest_plan.intent_key, &manifest_response.encode_wire())
+			.unwrap();
+		assert_eq!(
+			manifest_admitted.admitted_page.as_ref().unwrap().objects[0].chunk_hashes.len(),
+			MAX_CHUNKS
+		);
 	}
 
 	#[test]

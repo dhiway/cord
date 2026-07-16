@@ -292,6 +292,64 @@ pub(crate) struct PeerReplayIdentityV1 {
 	pub request_hash: [u8; 32],
 }
 
+/// Compact source-authenticated response proof retained without response payload bytes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct PeerResponseProofV1 {
+	response_hash: [u8; 32],
+	signature: [u8; 64],
+}
+
+/// Compact target-authenticated request proof retained without repeated manifest bytes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct PeerRequestProofV1 {
+	request_nonce: [u8; 16],
+	request_hash: [u8; 32],
+	signature: [u8; 64],
+}
+
+impl PeerRequestProofV1 {
+	/// Return the stable request nonce.
+	pub(crate) fn request_nonce(&self) -> [u8; 16] {
+		self.request_nonce
+	}
+
+	/// Return the canonical authenticated request digest.
+	pub(crate) fn request_hash(&self) -> [u8; 32] {
+		self.request_hash
+	}
+
+	/// Return the target service-key signature.
+	pub(crate) fn signature(&self) -> [u8; 64] {
+		self.signature
+	}
+
+	/// Reconstruct one persisted compact target proof.
+	pub(crate) fn from_parts(
+		request_nonce: [u8; 16],
+		request_hash: [u8; 32],
+		signature: [u8; 64],
+	) -> Self {
+		Self { request_nonce, request_hash, signature }
+	}
+}
+
+impl PeerResponseProofV1 {
+	/// Return the exact response digest signed by the source service key.
+	pub(crate) fn response_hash(&self) -> [u8; 32] {
+		self.response_hash
+	}
+
+	/// Return the source service-key signature over the response digest.
+	pub(crate) fn signature(&self) -> [u8; 64] {
+		self.signature
+	}
+
+	/// Reconstruct one persisted compact proof for fail-closed validation.
+	pub(crate) fn from_parts(response_hash: [u8; 32], signature: [u8; 64]) -> Self {
+		Self { response_hash, signature }
+	}
+}
+
 /// One canonical object descriptor in the pinned bucket sequence.
 #[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
 pub(crate) struct PeerObjectV1 {
@@ -585,6 +643,32 @@ impl PeerSyncPageResponseV1 {
 		self.next_cursor
 	}
 
+	/// Return the compact source signature proof after full response verification.
+	pub(crate) fn compact_proof(&self) -> PeerResponseProofV1 {
+		PeerResponseProofV1 { response_hash: self.response_hash, signature: self.signature }
+	}
+
+	/// Revalidate persisted page provenance without retaining the original response bytes.
+	pub(crate) fn verify_compact_proof(
+		request: &PeerSyncPageRequestV1,
+		items: Vec<PeerObjectV1>,
+		next_cursor: Option<PeerPageCursorV1>,
+		proof: PeerResponseProofV1,
+	) -> Result<(), ContentError> {
+		let response = Self {
+			version: VERSION,
+			context: request.context.clone(),
+			identity: request.identity,
+			request_hash: request.request_hash(),
+			requested_cursor: request.cursor,
+			items,
+			next_cursor,
+			response_hash: proof.response_hash,
+			signature: proof.signature,
+		};
+		response.validate_request(request)
+	}
+
 	fn expected_response_hash(&self) -> [u8; 32] {
 		digest(
 			PAGE_RESPONSE_TAG,
@@ -769,6 +853,44 @@ impl PeerChunkRequestV1 {
 		&self.context
 	}
 
+	/// Return the compact target signature proof for durable provenance.
+	pub(crate) fn compact_proof(&self) -> PeerRequestProofV1 {
+		PeerRequestProofV1 {
+			request_nonce: self.identity.request_nonce,
+			request_hash: self.request_hash(),
+			signature: self.signature,
+		}
+	}
+
+	/// Revalidate compact persisted chunk-request provenance.
+	pub(crate) fn verify_compact_proof(
+		context: PeerContextV1,
+		operation_id: [u8; 16],
+		object: PeerObjectV1,
+		chunk_index: u16,
+		proof: PeerRequestProofV1,
+	) -> Result<Self, ContentError> {
+		object.validate()?;
+		let chunk_hash = *object
+			.chunk_hashes
+			.get(usize::from(chunk_index))
+			.ok_or(ContentError::ChunkOutOfOrder)?;
+		let request = Self {
+			version: VERSION,
+			context,
+			identity: PeerRequestIdentityV1::new(operation_id, proof.request_nonce)?,
+			object,
+			chunk_index,
+			chunk_hash,
+			signature: proof.signature,
+		};
+		request.validate_authentication()?;
+		if request.request_hash() != proof.request_hash {
+			return Err(ContentError::IntegrityFailed);
+		}
+		Ok(request)
+	}
+
 	fn request_hash(&self) -> [u8; 32] {
 		digest(
 			CHUNK_REQUEST_TAG,
@@ -916,6 +1038,38 @@ impl PeerChunkResponseV1 {
 		(&self.object, self.chunk_index, &self.chunk)
 	}
 
+	/// Return the compact source signature proof after full chunk verification.
+	pub(crate) fn compact_proof(&self) -> PeerResponseProofV1 {
+		PeerResponseProofV1 { response_hash: self.response_hash, signature: self.signature }
+	}
+
+	/// Revalidate persisted chunk provenance without retaining duplicate chunk bytes.
+	pub(crate) fn verify_compact_proof(
+		request: &PeerChunkRequestV1,
+		proof: PeerResponseProofV1,
+	) -> Result<(), ContentError> {
+		request.validate_authentication()?;
+		let expected = digest(
+			CHUNK_RESPONSE_TAG,
+			&(
+				VERSION,
+				&request.context,
+				request.identity,
+				request.request_hash(),
+				&request.object,
+				request.chunk_index,
+				request.chunk_hash,
+			)
+				.encode(),
+		);
+		if proof.response_hash != expected
+			|| !verify(request.context.source_service_key, expected, proof.signature)
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+		Ok(())
+	}
+
 	fn expected_response_hash(&self) -> [u8; 32] {
 		digest(
 			CHUNK_RESPONSE_TAG,
@@ -927,7 +1081,6 @@ impl PeerChunkResponseV1 {
 				&self.object,
 				self.chunk_index,
 				self.chunk_hash,
-				&self.chunk,
 			)
 				.encode(),
 		)
@@ -1479,6 +1632,45 @@ mod tests {
 		assert_eq!(PeerChunkResponseV1::decode_canonical(&encoded, &request).unwrap(), response);
 		assert_eq!(response.verified_chunk().1, 0);
 		assert_eq!(response.verified_chunk().2.len(), CHUNK_BYTES);
+		let request_proof = request.compact_proof();
+		let compact_request = PeerChunkRequestV1::verify_compact_proof(
+			request.context.clone(),
+			request.identity.operation_id,
+			request.object.clone(),
+			request.chunk_index,
+			request_proof,
+		)
+		.unwrap();
+		let response_proof = response.compact_proof();
+		PeerChunkResponseV1::verify_compact_proof(&compact_request, response_proof).unwrap();
+		let mut bad_target_signature = request_proof.signature();
+		bad_target_signature[0] ^= 1;
+		assert!(PeerChunkRequestV1::verify_compact_proof(
+			request.context.clone(),
+			request.identity.operation_id,
+			request.object.clone(),
+			request.chunk_index,
+			PeerRequestProofV1::from_parts(
+				request_proof.request_nonce(),
+				request_proof.request_hash(),
+				bad_target_signature,
+			),
+		)
+		.is_err());
+		let mut bad_source_signature = response_proof.signature();
+		bad_source_signature[0] ^= 1;
+		assert!(PeerChunkResponseV1::verify_compact_proof(
+			&compact_request,
+			PeerResponseProofV1::from_parts(response_proof.response_hash(), bad_source_signature,),
+		)
+		.is_err());
+		let mut bad_response_hash = response_proof.response_hash();
+		bad_response_hash[0] ^= 1;
+		assert!(PeerChunkResponseV1::verify_compact_proof(
+			&compact_request,
+			PeerResponseProofV1::from_parts(bad_response_hash, response_proof.signature(),),
+		)
+		.is_err());
 
 		let mut corrupt = response.clone();
 		corrupt.chunk[0] ^= 1;
