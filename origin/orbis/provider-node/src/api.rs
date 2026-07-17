@@ -589,12 +589,6 @@ fn query_usize(
 		.map(|value| value.parse().map_err(|_| ApiError::bad_request(format!("invalid {key}"))))
 		.unwrap_or(Ok(default))
 }
-fn decode_hash(value: &str) -> Result<[u8; 32], ApiError> {
-	let raw = hex::decode(value.strip_prefix("0x").unwrap_or(value))
-		.map_err(|_| ApiError::bad_request("hash must be hex"))?;
-	raw.try_into()
-		.map_err(|_| ApiError::bad_request("hash must be exactly 32 bytes"))
-}
 fn now_ms() -> u64 {
 	SystemTime::now()
 		.duration_since(UNIX_EPOCH)

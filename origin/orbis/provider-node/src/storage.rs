@@ -599,7 +599,7 @@ impl DiskStore {
 	}
 
 	/// Remove bytes only after the deletion submission has been durably appended to the outbox.
-	pub fn complete_delete(&self, commitment: &str) -> Result<(), StoreError> {
+	pub(crate) fn complete_delete(&self, commitment: &str) -> Result<(), StoreError> {
 		let normalized = normalize_hash(commitment)?;
 		let mut state = self.write_state()?;
 		if !state.pending_deletions.contains_key(&normalized) {
@@ -997,7 +997,7 @@ impl DiskStore {
 	}
 
 	/// Remove a root journal entry only after it has been durably appended to the outbox.
-	pub fn complete_root_submission(&self, sequence: u64) -> Result<(), StoreError> {
+	pub(crate) fn complete_root_submission(&self, sequence: u64) -> Result<(), StoreError> {
 		let mut state = self.write_state()?;
 		if !state.pending_roots.contains_key(&sequence) {
 			return Ok(());
