@@ -663,7 +663,7 @@ function decodeResult(operation: Operation, p: WireMap): unknown {
     case "storage.object.status": return { state: Number(p[0]), ...(p[1] ? { receipt: receipt(p[1] as WireMap) } : {}), ...(p[2] ? { checkpoint: cp(2) } : {}), replicas: Number(p[3]), publishable: p[4], finalized: fin(5) };
     case "storage.checkpoint.status": return { checkpoint: cp(0), sequence: Number(p[1]), block: u64(p[2]), quorum: Number(p[3]), finalized: fin(4) };
     case "storage.checkpoint.subscribe": case "storage.replica.subscribe": case "storage.deletion.subscribe": { const a = p[0] as WireMap; return { operationId: a[0], cursor: u64(a[1]) }; }
-    case "storage.replica.status": return { primary: p[0], providers: p[1], healthy: Number(p[2]), lastCheckpoint: u64(p[3]), pending: Number(p[4]), finalized: fin(5) };
+    case "storage.replica.status": return { primary: p[0], providers: p[1], confirmed: Number(p[2]), lag: u64(p[3]), eligibility: Number(p[4]), finalized: fin(5) };
     case "storage.deletion.status": return { version: u64(p[0]), confirmations: Number(p[1]), root: p[2], finalized: fin(3) };
     case "storage.drive.read": return { manifest: p[0], entry: p[1], version: u64(p[2]), finalized: fin(3) };
     case "storage.drive.commit": return { manifest: p[0], version: u64(p[1]), checkpoint: cp(2), finalized: fin(3) };

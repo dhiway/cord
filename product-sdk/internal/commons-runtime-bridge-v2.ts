@@ -390,24 +390,39 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     if (checkpointBlock > authority.number) {
       throw new TypeError("checkpoint is ahead of its finalized authority");
     }
-    const confirmations = await Promise.all(replicas.map(async (provider) => {
+    const replicaCheckpoints = await Promise.all(replicas.map(async (provider) => {
       const value = await this.#runtime.read<unknown>(
         hex(authority.hash), "StorageProviderApi.replica_checkpoint",
         { bucket_id: bucketId, provider: hex(provider) }, signal,
       );
       if (value === null || value === undefined) return null;
       const confirmed = uint(value, "replica checkpoint");
-      if (confirmed > authority.number) {
-        throw new TypeError("replica checkpoint is ahead of its finalized authority");
+      if (confirmed > checkpointBlock) {
+        throw new TypeError("replica checkpoint is ahead of the canonical checkpoint");
       }
       return confirmed;
     }));
-    const healthy = confirmations.filter((confirmed) => confirmed !== null && confirmed >= checkpointBlock).length;
+    if (replicaCheckpoints.some((confirmed) => confirmed === null)) {
+      throw new CommonsHostFailure(255, "replica checkpoint lag is unavailable at finalized state");
+    }
+    const exactCheckpoints = replicaCheckpoints as readonly bigint[];
+    const confirmed = exactCheckpoints.filter((block) => block === checkpointBlock).length;
+    const lag = exactCheckpoints.reduce((maximum, block) => {
+      const distance = checkpointBlock - block;
+      return distance > maximum ? distance : maximum;
+    }, 0n);
+    const eligibility = await Promise.all([primary, ...replicas].map(async (provider) => {
+      const eligible = await this.#runtime.read<unknown>(
+        hex(authority.hash), "StorageProviderApi.provider_is_eligible", { provider: hex(provider) }, signal,
+      );
+      if (typeof eligible !== "boolean") throw new TypeError("provider eligibility response is not boolean");
+      return eligible;
+    }));
     return {
       terminal: authority,
       result: {
-        0: primary, 1: replicas, 2: healthy, 3: checkpointBlock,
-        4: replicas.length - healthy, 5: finalityMap(authority),
+        0: primary, 1: replicas, 2: confirmed, 3: lag,
+        4: eligibility.filter(Boolean).length, 5: finalityMap(authority),
       } as HostV2Map,
     };
   }

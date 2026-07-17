@@ -70,9 +70,11 @@ test("replica status is derived from one finalized control, checkpoint, and repl
     "StorageProviderApi.control_bucket", "StorageProviderApi.checkpoint",
     "StorageProviderApi.replica_checkpoint", "StorageProviderApi.replica_checkpoint",
     "StorageProviderApi.replica_checkpoint",
+    "StorageProviderApi.provider_is_eligible", "StorageProviderApi.provider_is_eligible",
+    "StorageProviderApi.provider_is_eligible", "StorageProviderApi.provider_is_eligible",
   ];
   const calls: { readonly at: string; readonly target: string; readonly payload: Readonly<Record<string, unknown>> }[] = [];
-  const checkpoints: readonly (bigint | null)[] = [88n, 87n, null];
+  const checkpoints = [88n, 87n, 86n];
   const { events, terminalBlocks } = await dispatchReplica(async (at, target, payload) => {
     calls.push({ at, target, payload });
     if (target === "StorageProviderApi.control_bucket") {
@@ -88,18 +90,70 @@ test("replica status is derived from one finalized control, checkpoint, and repl
         },
       };
     }
-    return checkpoints[replicas.indexOf(payload.provider as `0x${string}`)];
+    if (target === "StorageProviderApi.replica_checkpoint") {
+      return checkpoints[replicas.indexOf(payload.provider as `0x${string}`)];
+    }
+    return payload.provider !== replicas[2];
   });
   assert.deepEqual(calls.map((call) => call.target), expectedTargets);
   assert.ok(calls.every((call) => call.at === finalizedHash));
-  assert.deepEqual(calls.slice(2).map((call) => call.payload), replicas.map((provider) => ({ bucket_id: bucket, provider })));
+  assert.deepEqual(calls.slice(2, 5).map((call) => call.payload), replicas.map((provider) => ({ bucket_id: bucket, provider })));
+  assert.deepEqual(calls.slice(5).map((call) => call.payload), [primary, ...replicas].map((provider) => ({ provider })));
   assert.deepEqual(terminalBlocks, [99n, 99n]);
   assert.deepEqual(events.map((event) => [Number(event[2]), Number(event[3])]), [[0, 0], [1, 2]]);
   const result = events[1][4];
   assert.equal(Buffer.from(result[0]).toString("hex"), primary.slice(2));
   assert.deepEqual(result[1].map((provider: Uint8Array) => Buffer.from(provider).toString("hex")), replicas.map((provider) => provider.slice(2)));
-  assert.deepEqual([Number(result[2]), Number(result[3]), Number(result[4])], [1, 88, 2]);
+  assert.deepEqual([Number(result[2]), Number(result[3]), Number(result[4])], [1, 2, 3]);
   assert.deepEqual([Number(result[5][0]), Buffer.from(result[5][1]).toString("hex")], [99, finalizedHash.slice(2)]);
+});
+
+test("replica status fails closed when finalized replica lag is unavailable", async () => {
+  const bucket = hex(0x22);
+  const replicas = [hex(0x32), hex(0x33)];
+  const { events } = await dispatchReplica(async (_at, target, payload) => {
+    if (target === "StorageProviderApi.control_bucket") {
+      return { version: 9, value: { bucket_id: bucket, owner: hex(0x30), version: 7, primary: hex(0x31), replicas } };
+    }
+    if (target === "StorageProviderApi.checkpoint") {
+      return {
+        version: 9,
+        value: {
+          bucket_id: bucket, commitment: { mmr_root: hex(0x40), start_seq: 1, leaf_count: 1 },
+          checkpoint_block: 88n, primary_signers: 1, commitment_nonce: 4,
+          replica_confirmations: [],
+        },
+      };
+    }
+    assert.equal(target, "StorageProviderApi.replica_checkpoint");
+    return payload.provider === replicas[0] ? 87n : null;
+  });
+  assert.deepEqual(events.map((event) => [Number(event[2]), Number(event[3])]), [[0, 0], [1, 3]]);
+  assert.deepEqual([Number(events[1][4][0]), events[1][4][1], events[1][4][2]], [255, "PROVIDER_INELIGIBLE", true]);
+});
+
+test("replica status rejects checkpoints ahead of finalized canonical authority", async () => {
+  const bucket = hex(0x22);
+  const replicas = [hex(0x32), hex(0x33)];
+  await assert.rejects(async () => {
+    await dispatchReplica(async (_at, target, payload) => {
+      if (target === "StorageProviderApi.control_bucket") {
+        return { version: 9, value: { bucket_id: bucket, owner: hex(0x30), version: 7, primary: hex(0x31), replicas } };
+      }
+      if (target === "StorageProviderApi.checkpoint") {
+        return {
+          version: 9,
+          value: {
+            bucket_id: bucket, commitment: { mmr_root: hex(0x40), start_seq: 1, leaf_count: 1 },
+            checkpoint_block: 88n, primary_signers: 1, commitment_nonce: 4,
+            replica_confirmations: [],
+          },
+        };
+      }
+      assert.equal(target, "StorageProviderApi.replica_checkpoint");
+      return payload.provider === replicas[0] ? 89n : 88n;
+    });
+  }, /replica checkpoint is ahead of the canonical checkpoint/);
 });
 
 test("replica status preserves accepted then bounded not-found error sequencing", async () => {
