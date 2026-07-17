@@ -150,8 +150,8 @@ fn enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail
 			name,
 			Some(manifest),
 			None,
-			[7; 16],
-		));
+			System::block_number().saturating_add(10),
+			[7; 16]));
 
 		let drive_name: pallet_orbis_drive::DriveNameOf<Runtime> =
 			b"enterprise-festival".to_vec().try_into().unwrap();

@@ -497,6 +497,8 @@ fn normalize_numbers(value: &mut Value) {
 					"additional_blocks",
 					"block",
 					"expected_version",
+					"expected_revision",
+					"operation_deadline",
 					"expected_bucket_version",
 					"expected_object_version",
 					"data_len",

@@ -79,6 +79,7 @@ fn setup_bucket() -> H256 {
 		H256::repeat_byte(10),
 		1,
 		replicas,
+		System::block_number().saturating_add(10),
 		[11; 16]
 	));
 	BucketIds::<Test>::get()[0]
@@ -91,13 +92,14 @@ fn bucket_creation_operation_id_replays_once_and_rejects_rebinding() {
 			register(id, 10_000);
 		}
 		let replicas: ReplicasOf<Test> = vec![2, 3].try_into().unwrap();
-		let operation_id = [0x51; 16];
+		let operation_id = [0x90; 16];
 		assert_ok!(StorageProvider::create_bucket(
 			RuntimeOrigin::signed(OWNER),
 			H256::repeat_byte(10),
 			1,
 			replicas.clone(),
-			operation_id,
+			System::block_number().saturating_add(10),
+			operation_id
 		));
 		let bucket = BucketIds::<Test>::get()[0];
 		Buckets::<Test>::mutate(bucket, |record| {
@@ -111,7 +113,8 @@ fn bucket_creation_operation_id_replays_once_and_rejects_rebinding() {
 			H256::repeat_byte(10),
 			1,
 			replicas.clone(),
-			operation_id,
+			System::block_number().saturating_add(10),
+			operation_id
 		));
 		assert_eq!(BucketIds::<Test>::get().as_slice(), &[bucket]);
 		assert_eq!(crate::BucketNonce::<Test>::get(OWNER), 1);
@@ -129,11 +132,66 @@ fn bucket_creation_operation_id_replays_once_and_rejects_rebinding() {
 				RuntimeOrigin::signed(OWNER),
 				H256::repeat_byte(11),
 				1,
-				replicas,
+				replicas.clone(),
+				System::block_number().saturating_add(10),
+				operation_id
+			),
+			Error::<Test>::OperationIdConflict
+		);
+		assert_noop!(
+			StorageProvider::create_bucket(
+				RuntimeOrigin::signed(OWNER),
+				H256::repeat_byte(10),
+				1,
+				replicas.clone(),
+				System::block_number().saturating_add(11),
 				operation_id,
 			),
 			Error::<Test>::OperationIdConflict
 		);
+		assert_ok!(StorageProvider::create_bucket(
+			RuntimeOrigin::signed(OWNER),
+			H256::repeat_byte(12),
+			1,
+			replicas.clone(),
+			10,
+			[0x10; 16],
+		));
+		assert_noop!(
+			StorageProvider::create_bucket(
+				RuntimeOrigin::signed(OWNER),
+				H256::repeat_byte(13),
+				1,
+				replicas.clone(),
+				10,
+				[0x80; 16],
+			),
+			Error::<Test>::BucketOperationReceiptCapacityReached
+		);
+		assert_eq!(crate::BucketNonce::<Test>::get(OWNER), 2);
+		System::set_block_number(11);
+		assert_noop!(
+			StorageProvider::create_bucket(
+				RuntimeOrigin::signed(OWNER),
+				H256::repeat_byte(10),
+				1,
+				replicas.clone(),
+				11,
+				operation_id,
+			),
+			Error::<Test>::OperationDeadlineExpired
+		);
+		assert_eq!(crate::BucketNonce::<Test>::get(OWNER), 2);
+		assert_ok!(StorageProvider::create_bucket(
+			RuntimeOrigin::signed(OWNER),
+			H256::repeat_byte(13),
+			1,
+			replicas,
+			20,
+			[0x80; 16],
+		));
+		assert_eq!(crate::BucketNonce::<Test>::get(OWNER), 3);
+		assert_eq!(crate::BucketOperationReceiptIds::<Test>::get(OWNER).as_slice(), &[[0x80; 16]]);
 	});
 }
 
@@ -704,6 +762,7 @@ fn provider_conflict_resolution_matrix_covers_eleven_distinct_conflicts() {
 				H256::repeat_byte(1),
 				1,
 				vec![1, 2].try_into().unwrap(),
+				System::block_number().saturating_add(10),
 				[176; 16]
 			),
 			Error::<Test>::DuplicateProviderAssignment
@@ -714,6 +773,7 @@ fn provider_conflict_resolution_matrix_covers_eleven_distinct_conflicts() {
 				H256::repeat_byte(1),
 				1,
 				vec![2, 2].try_into().unwrap(),
+				System::block_number().saturating_add(10),
 				[141; 16]
 			),
 			Error::<Test>::DuplicateProviderAssignment
@@ -724,6 +784,7 @@ fn provider_conflict_resolution_matrix_covers_eleven_distinct_conflicts() {
 				H256::repeat_byte(1),
 				1,
 				vec![2].try_into().unwrap(),
+				System::block_number().saturating_add(10),
 				[106; 16]
 			),
 			Error::<Test>::InvalidReplicaCount
@@ -739,6 +800,7 @@ fn provider_conflict_resolution_matrix_covers_eleven_distinct_conflicts() {
 				H256::repeat_byte(1),
 				1,
 				vec![2, 3].try_into().unwrap(),
+				System::block_number().saturating_add(10),
 				[178; 16]
 			),
 			Error::<Test>::ProviderIneligible
@@ -753,6 +815,7 @@ fn provider_conflict_resolution_matrix_covers_eleven_distinct_conflicts() {
 			H256::repeat_byte(1),
 			1,
 			vec![2, 3].try_into().unwrap(),
+			System::block_number().saturating_add(10),
 			[243; 16]
 		));
 		let bucket = BucketIds::<Test>::get()[0];
@@ -1259,7 +1322,8 @@ fn canonical_manifest_lifecycle_is_pending_publishable_then_tombstoned() {
 			record.service_key.previous = Some(pair(1).public());
 			record.service_key.active = pair(8).public();
 		});
-		let tombstoned_at = CanonicalManifests::<Test>::get(manifest).unwrap().tombstoned_at.unwrap();
+		let tombstoned_at =
+			CanonicalManifests::<Test>::get(manifest).unwrap().tombstoned_at.unwrap();
 		let old_evidence = H256::repeat_byte(1);
 		let old_digest = sp_runtime::traits::BlakeTwo256::hash_of(&(
 			b"cord/storage/deletion-ack/v1",
@@ -1679,6 +1743,7 @@ fn checkpoint_duties_are_initially_scheduled_and_frozen_until_next_finalized_sna
 			H256::repeat_byte(10),
 			1,
 			vec![2, 3].try_into().unwrap(),
+			System::block_number().saturating_add(10),
 			[194; 16]
 		));
 		let bucket = BucketIds::<Test>::get()[0];
@@ -1731,7 +1796,8 @@ fn checkpoint_duty_admission_is_exactly_bounded_per_block() {
 				H256::repeat_byte(index),
 				1,
 				replicas.clone(),
-				(index as u128).to_le_bytes(),
+				System::block_number().saturating_add(10),
+				(index as u128).to_le_bytes()
 			));
 		}
 		assert_eq!(DutyAdmissionCount::<Test>::get(), 8);
@@ -1742,6 +1808,7 @@ fn checkpoint_duty_admission_is_exactly_bounded_per_block() {
 				H256::repeat_byte(9),
 				1,
 				replicas,
+				System::block_number().saturating_add(10),
 				[38; 16]
 			),
 			Error::<Test>::CheckpointDutyLimit
@@ -1753,6 +1820,7 @@ fn checkpoint_duty_admission_is_exactly_bounded_per_block() {
 			H256::repeat_byte(10),
 			1,
 			vec![2, 3].try_into().unwrap(),
+			System::block_number().saturating_add(10),
 			[43; 16]
 		));
 		assert_eq!(DutyAdmissionCount::<Test>::get(), 1);
@@ -1784,7 +1852,8 @@ fn checkpoint_and_challenge_admissions_share_one_exact_bound() {
 				H256::from_low_u64_be(index),
 				1,
 				vec![2, 3].try_into().unwrap(),
-				(index as u128).to_le_bytes(),
+				System::block_number().saturating_add(10),
+				(index as u128).to_le_bytes()
 			));
 		}
 		for index in 0..4 {
@@ -1816,6 +1885,7 @@ fn checkpoint_and_challenge_admissions_share_one_exact_bound() {
 				H256::from_low_u64_be(9),
 				1,
 				vec![2, 3].try_into().unwrap(),
+				System::block_number().saturating_add(10),
 				[83; 16]
 			),
 			Error::<Test>::CheckpointDutyLimit
@@ -2352,6 +2422,7 @@ fn authority_only_fallback_promotion_rolls_back_every_surface_on_hostile_invaria
 				H256::repeat_byte(10),
 				1,
 				vec![2, 3, 4].try_into().unwrap(),
+				System::block_number().saturating_add(10),
 				[216; 16]
 			));
 			let bucket = BucketIds::<Test>::get()[0];
@@ -2463,6 +2534,7 @@ fn grace_fallback_atomically_promotes_with_two_eligible_post_promotion_confirmer
 			H256::repeat_byte(10),
 			1,
 			replicas,
+			System::block_number().saturating_add(10),
 			[48; 16]
 		));
 		let bucket = BucketIds::<Test>::get()[0];
@@ -2575,6 +2647,7 @@ fn grace_fallback_rolls_back_every_surface_on_hostile_invariants() {
 				H256::repeat_byte(10),
 				1,
 				replicas,
+				System::block_number().saturating_add(10),
 				[21; 16]
 			));
 			let bucket = BucketIds::<Test>::get()[0];
@@ -2728,6 +2801,7 @@ fn second_unfinalized_duty_update_fails_closed_without_overwriting_first() {
 			H256::repeat_byte(10),
 			1,
 			vec![2, 3].try_into().unwrap(),
+			System::block_number().saturating_add(10),
 			[146; 16]
 		));
 		let bucket = BucketIds::<Test>::get()[0];
@@ -2806,6 +2880,7 @@ fn checkpoint_dispatch_weights_cover_atomic_fallback_at_configured_bounds() {
 			H256::repeat_byte(10),
 			1,
 			replicas,
+			System::block_number().saturating_add(10),
 			[227; 16]
 		));
 		let bucket = BucketIds::<Test>::get()[0];
@@ -3047,6 +3122,7 @@ fn host_delegation_scope_lifetime_active_bound_and_nonce_are_fail_closed() {
 				H256::repeat_byte(11),
 				1,
 				replicas,
+				System::block_number().saturating_add(10),
 				[10; 16]
 			));
 			BucketIds::<Test>::get()[1]

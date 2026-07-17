@@ -571,6 +571,7 @@ pub enum NamesCommand {
 		name: NameId,
 		content: Option<ContentCommitment>,
 		expected_revision: u64,
+		operation_deadline: BlockNumber,
 		operation_id: OperationId,
 	},
 	SetText {

@@ -66,7 +66,7 @@ test("static packaging is deterministic and deployment reuses unchanged blocks",
     entrypoint: "index.html",
     contentFormat: "static",
     requestedCapabilities: ["accounts"],
-    publication: { expectedRevision: "0", operationId: operationId(`0x${"33".repeat(16)}`) },
+    publication: { expectedRevision: "0", operationDeadline: "10" as never, operationId: operationId(`0x${"33".repeat(16)}`) },
     files,
   });
   assert.equal(prepared.success, true);

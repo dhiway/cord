@@ -4424,6 +4424,13 @@ export const NATIVE_ROUTE_CONTRACT = {
           }
         },
         {
+          "name": "operation_deadline",
+          "schema": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,19})$"
+          }
+        },
+        {
           "name": "operation_id",
           "schema": {
             "type": "string",
@@ -4435,6 +4442,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "name": "0x1111111111111111111111111111111111111111111111111111111111111111",
         "content": null,
         "expected_revision": "0",
+        "operation_deadline": "10",
         "operation_id": "0x11111111111111111111111111111111"
       },
       "rust": {
@@ -4462,6 +4470,7 @@ export const NATIVE_ROUTE_CONTRACT = {
         "0x1111111111111111111111111111111111111111111111111111111111111111",
         null,
         "0",
+        "10",
         "0x11111111111111111111111111111111"
       ]
     },
@@ -11241,6 +11250,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                       "name",
                       "content",
                       "expected_revision",
+                      "operation_deadline",
                       "operation_id"
                     ],
                     "properties": {
@@ -11260,6 +11270,10 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ]
                       },
                       "expected_revision": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]{0,19})$"
+                      },
+                      "operation_deadline": {
                         "type": "string",
                         "pattern": "^(0|[1-9][0-9]{0,19})$"
                       },
@@ -15771,6 +15785,7 @@ export const NATIVE_ROUTE_CONTRACT = {
                               "name",
                               "content",
                               "expected_revision",
+                              "operation_deadline",
                               "operation_id"
                             ],
                             "properties": {
@@ -15790,6 +15805,10 @@ export const NATIVE_ROUTE_CONTRACT = {
                                 ]
                               },
                               "expected_revision": {
+                                "type": "string",
+                                "pattern": "^(0|[1-9][0-9]{0,19})$"
+                              },
+                              "operation_deadline": {
                                 "type": "string",
                                 "pattern": "^(0|[1-9][0-9]{0,19})$"
                               },

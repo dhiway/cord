@@ -34,6 +34,7 @@ import {
   nameId,
   type AccountId,
   type AttestationId,
+  type BlockNumber,
   type ContentCommitment,
   type NameId,
   type NamesRuntimeAdapter,
@@ -101,7 +102,7 @@ export interface ResolvedOriginApp {
 
 export interface OriginAppsClient {
   storeManifest(manifest: OriginAppManifestV1, signal?: AbortSignal): Promise<SdkResult<StoredOriginAppManifest>>;
-  prepareManifestBinding(stored: StoredOriginAppManifest, publication: { readonly expectedRevision: string; readonly operationId: OperationId }, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
+  prepareManifestBinding(stored: StoredOriginAppManifest, publication: { readonly expectedRevision: string; readonly operationDeadline: BlockNumber; readonly operationId: OperationId }, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
   resolveApp(name: NameId, signal?: AbortSignal): Promise<SdkResult<ResolvedOriginApp>>;
 }
 
@@ -309,6 +310,7 @@ export function createOriginAppsClient(
           normalized.nameId,
           stored.commitment,
           publication.expectedRevision,
+          publication.operationDeadline,
           publication.operationId,
           signal,
         ));

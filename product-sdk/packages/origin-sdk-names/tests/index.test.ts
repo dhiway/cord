@@ -23,10 +23,13 @@ import { COMMONS_NETWORK_BINDING } from "@cord-network/origin-sdk-descriptors";
 import { accountId } from "@cord-network/origin-sdk-identity";
 import type { PreparedTransaction } from "@cord-network/origin-sdk-tx";
 import {
-  NAMES_ADMIN_EXCLUSIONS,
-  createNamesClient,
-  nameId,
-  normalizedLabel,
+	NAMES_ADMIN_EXCLUSIONS,
+	blockNumber,
+	contentCommitment,
+	createNamesClient,
+	nameId,
+	normalizedLabel,
+	operationId,
   registrationCommitment,
   registrationSalt,
   type NamesRuntimeAdapter,
@@ -83,4 +86,24 @@ test("invalid names input fails before finality and administration stays exclude
     "Names.force_revoke",
     "Names.set_registrar",
   ]);
+});
+
+test("content publication forwards the caller deadline before the random operation id", async () => {
+	const seen: unknown[][] = [];
+	const chain = createCommonsChainClient({
+		async finalizedBlock() { return { hash: finalizedHash, number: 13n }; },
+		async runtimeIdentity() { return runtimeIdentity; },
+		async disconnect() {},
+	});
+	const runtime = {
+		async publishContent(...args: unknown[]) { seen.push(args); return transaction; },
+	} as unknown as NamesRuntimeAdapter;
+	const name = nameId(`0x${"99".repeat(32)}`);
+	const content = contentCommitment(`0x${"77".repeat(32)}`);
+	const deadline = blockNumber(20);
+	const id = operationId(`0x${"10".repeat(16)}`);
+	const prepared = await createNamesClient(chain, runtime)
+		.preparePublishContent(name, content, "0", deadline, id);
+	assert.equal(prepared.success, true);
+	assert.deepEqual(seen, [[finalizedHash, name, content, "0", deadline, id, undefined]]);
 });

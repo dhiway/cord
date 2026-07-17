@@ -656,6 +656,7 @@
           "name",
           "content",
           "expected_revision",
+          "operation_deadline",
           "operation_id"
         ]
       },

@@ -47,7 +47,7 @@ test("all native Orbis Names methods have exact finality and executable Host rou
     namesHostRoutes.transfer(context("transfer"), name, target), namesHostRoutes.addController(context("add_controller"), name, target),
     namesHostRoutes.removeController(context("remove_controller"), name, target), namesHostRoutes.setAddress(context("set_address"), name, namesAddress("cord:alice")),
     namesHostRoutes.setSubject(context("set_subject"), name, subject), namesHostRoutes.setAttestation(context("set_attestation"), name, ref as AttestationId),
-    namesHostRoutes.publishContent(context("publish_content"), name, ref as ContentCommitment, null, "0x11111111111111111111111111111111"), namesHostRoutes.setText(context("set_text"), name, textKey("url"), textValue("https://example.test")),
+    namesHostRoutes.publishContent(context("publish_content"), name, ref as ContentCommitment, "0", "10" as BlockNumber, "0x11111111111111111111111111111111"), namesHostRoutes.setText(context("set_text"), name, textKey("url"), textValue("https://example.test")),
     namesHostRoutes.setPrimaryName(context("set_primary_name"), name), namesHostRoutes.release(context("release"), name),
     namesHostRoutes.removeExpiredName(context("remove_expired_name"), name), namesHostRoutes.reserveName(context("reserve_name"), null, label, owner, "20" as BlockNumber),
     namesHostRoutes.clearReservation(context("clear_reservation"), name), namesHostRoutes.setLabelProtection(context("set_label_protection"), label, true),

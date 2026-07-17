@@ -139,8 +139,8 @@ export const namesHostRoutes = {
     return submitAndFinalize("names", context, "names", "set_attestation", { name, attestation });
   },
 
-  publishContent(context: RequestContext, name: NameId, content: ContentCommitment | null, expectedRevision: string, operationId: string) {
-    return submitAndFinalize("names", context, "names", "publish_content", { name, content, expected_revision: expectedRevision, operation_id: operationId });
+  publishContent(context: RequestContext, name: NameId, content: ContentCommitment | null, expectedRevision: string, operationDeadline: BlockNumber, operationId: string) {
+    return submitAndFinalize("names", context, "names", "publish_content", { name, content, expected_revision: expectedRevision, operation_deadline: operationDeadline, operation_id: operationId });
   },
 
   setText(context: RequestContext, name: NameId, key: TextKey, value: TextValue | null) {

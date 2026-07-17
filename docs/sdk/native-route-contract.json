@@ -4405,6 +4405,13 @@
           }
         },
         {
+          "name": "operation_deadline",
+          "schema": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,19})$"
+          }
+        },
+        {
           "name": "operation_id",
           "schema": {
             "type": "string",
@@ -4416,6 +4423,7 @@
         "name": "0x1111111111111111111111111111111111111111111111111111111111111111",
         "content": null,
         "expected_revision": "0",
+        "operation_deadline": "10",
         "operation_id": "0x11111111111111111111111111111111"
       },
       "rust": {
@@ -4443,6 +4451,7 @@
         "0x1111111111111111111111111111111111111111111111111111111111111111",
         null,
         "0",
+        "10",
         "0x11111111111111111111111111111111"
       ]
     },
@@ -11222,6 +11231,7 @@
                       "name",
                       "content",
                       "expected_revision",
+                      "operation_deadline",
                       "operation_id"
                     ],
                     "properties": {
@@ -11241,6 +11251,10 @@
                         ]
                       },
                       "expected_revision": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]{0,19})$"
+                      },
+                      "operation_deadline": {
                         "type": "string",
                         "pattern": "^(0|[1-9][0-9]{0,19})$"
                       },
@@ -15752,6 +15766,7 @@
                               "name",
                               "content",
                               "expected_revision",
+                              "operation_deadline",
                               "operation_id"
                             ],
                             "properties": {
@@ -15771,6 +15786,10 @@
                                 ]
                               },
                               "expected_revision": {
+                                "type": "string",
+                                "pattern": "^(0|[1-9][0-9]{0,19})$"
+                              },
+                              "operation_deadline": {
                                 "type": "string",
                                 "pattern": "^(0|[1-9][0-9]{0,19})$"
                               },

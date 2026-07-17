@@ -299,7 +299,7 @@ export interface NamesRuntimeAdapter {
   setAddress(at: `0x${string}`, name: NameId, address: NamesAddress | null, signal?: AbortSignal): Promise<PreparedTransaction>;
   setSubject(at: `0x${string}`, name: NameId, subject: SubjectId | null, signal?: AbortSignal): Promise<PreparedTransaction>;
   setAttestation(at: `0x${string}`, name: NameId, attestation: AttestationId | null, signal?: AbortSignal): Promise<PreparedTransaction>;
-  publishContent(at: `0x${string}`, name: NameId, content: ContentCommitment | null, expectedRevision: string, operationId: OperationId, signal?: AbortSignal): Promise<PreparedTransaction>;
+  publishContent(at: `0x${string}`, name: NameId, content: ContentCommitment | null, expectedRevision: string, operationDeadline: BlockNumber, operationId: OperationId, signal?: AbortSignal): Promise<PreparedTransaction>;
   setText(at: `0x${string}`, name: NameId, key: TextKey, value: TextValue | null, signal?: AbortSignal): Promise<PreparedTransaction>;
   setPrimaryName(at: `0x${string}`, name: NameId | null, signal?: AbortSignal): Promise<PreparedTransaction>;
   release(at: `0x${string}`, name: NameId, signal?: AbortSignal): Promise<PreparedTransaction>;
@@ -330,7 +330,7 @@ export interface NamesClient {
   prepareSetAddress(name: NameId, address: NamesAddress | null, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
   prepareSetSubject(name: NameId, subject: SubjectId | null, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
   prepareSetAttestation(name: NameId, attestation: AttestationId | null, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
-  preparePublishContent(name: NameId, content: ContentCommitment | null, expectedRevision: string, operationId: OperationId, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
+  preparePublishContent(name: NameId, content: ContentCommitment | null, expectedRevision: string, operationDeadline: BlockNumber, operationId: OperationId, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
   prepareSetText(name: NameId, key: TextKey, value: TextValue | null, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
   prepareSetPrimaryName(name: NameId | null, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
   prepareRelease(name: NameId, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
@@ -392,10 +392,10 @@ export function createNamesClient(chain: CommonsChainClient, runtime: NamesRunti
     prepareSetAddress: (name, address, signal) => checked(() => { validName(name); if (address !== null) namesAddress(address); }, () => prepare((at) => runtime.setAddress(at, name, address, signal), signal)),
     prepareSetSubject: (name, subject, signal) => checked(() => { validName(name); if (subject !== null) subjectId(subject); }, () => prepare((at) => runtime.setSubject(at, name, subject, signal), signal)),
     prepareSetAttestation: (name, attestation, signal) => checked(() => { validName(name); if (attestation !== null) hash32(attestation); }, () => prepare((at) => runtime.setAttestation(at, name, attestation, signal), signal)),
-    preparePublishContent: (name, content, expectedRevision, id, signal) => checked(() => {
-      validName(name); if (content !== null) contentCommitment(content); operationId(id);
+    preparePublishContent: (name, content, expectedRevision, operationDeadline, id, signal) => checked(() => {
+      validName(name); if (content !== null) contentCommitment(content); blockNumber(operationDeadline); operationId(id);
       if (!/^(0|[1-9][0-9]*)$/.test(expectedRevision) || BigInt(expectedRevision) > 0xffff_ffff_ffff_ffffn) throw new TypeError("expected revision must be a u64 decimal string");
-    }, () => prepare((at) => runtime.publishContent(at, name, content, expectedRevision, id, signal), signal)),
+    }, () => prepare((at) => runtime.publishContent(at, name, content, expectedRevision, operationDeadline, id, signal), signal)),
     prepareSetText: (name, key, value, signal) => checked(() => { validName(name); textKey(key); if (value !== null) textValue(value); }, () => prepare((at) => runtime.setText(at, name, key, value, signal), signal)),
     prepareSetPrimaryName: (name, signal) => checked(() => validOptionalName(name), () => prepare((at) => runtime.setPrimaryName(at, name, signal), signal)),
     prepareRelease: (name, signal) => checked(() => validName(name), () => prepare((at) => runtime.release(at, name, signal), signal)),

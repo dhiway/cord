@@ -328,8 +328,17 @@ mod benchmarks {
 		let owner: T::AccountId = account("owner", 0, SEED);
 		let (primary, _) = provider::<T>(0, ProviderStatus::Active);
 		let (replicas, _) = replicas::<T>(r);
+		let operation_deadline = frame_system::Pallet::<T>::block_number()
+			.saturating_add(T::MaxBucketOperationReceiptLifetime::get());
 		#[extrinsic_call]
-		_(RawOrigin::Signed(owner), T::Hashing::hash_of(&b"policy"), primary, replicas, [1; 16]);
+		_(
+			RawOrigin::Signed(owner),
+			T::Hashing::hash_of(&b"policy"),
+			primary,
+			replicas,
+			operation_deadline,
+			[1; 16],
+		);
 	}
 
 	#[benchmark]

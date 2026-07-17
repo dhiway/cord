@@ -237,8 +237,8 @@ export function createOriginAppRuntime(
       prepare(at, "Names.set_subject", { name, subject }, signal),
     setAttestation: (at, name, attestation, signal) =>
       prepare(at, "Names.set_attestation", { name, attestation }, signal),
-    publishContent: (at, name, content, expectedRevision, operationId, signal) =>
-      prepare(at, "Names.publish_content", { name, content, expected_revision: expectedRevision, operation_id: operationId }, signal),
+    publishContent: (at, name, content, expectedRevision, operationDeadline, operationId, signal) =>
+      prepare(at, "Names.publish_content", { name, content, expected_revision: expectedRevision, operation_deadline: operationDeadline, operation_id: operationId }, signal),
     setText: (at, name, key, value, signal) =>
       prepare(at, "Names.set_text", { name, key, value }, signal),
     setPrimaryName: (at, name, signal) =>

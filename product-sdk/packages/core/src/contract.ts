@@ -266,7 +266,7 @@ write("names", "remove_controller", { name: hash32, controller: account });
 write("names", "set_address", { name: hash32, address: nullable(string({ min: 1, maxBytes: 128 })) });
 write("names", "set_subject", { name: hash32, subject: nullable(subjectId) });
 write("names", "set_attestation", { name: hash32, attestation: nullable(hash32) });
-write("names", "publish_content", { name: hash32, content: nullable(hash32), expected_revision: decimalU64, operation_id: operationId16 });
+write("names", "publish_content", { name: hash32, content: nullable(hash32), expected_revision: decimalU64, operation_deadline: decimalU64, operation_id: operationId16 });
 write("names", "set_text", {
   name: hash32,
   key: string({ min: 1, maxBytes: 32 }),

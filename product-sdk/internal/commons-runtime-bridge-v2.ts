@@ -309,6 +309,7 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     const prepared = await this.#runtime.prepare(hex(authority.hash), "StorageProvider.create_bucket", {
       policy: hex(request[4], 32, "bucket policy grant"), primary: hex(providers[0], 32, "primary provider"),
       replicas: providers.slice(1).map((provider, index) => hex(provider, 32, `replica ${index}`)),
+	  operation_deadline: uint(request[7], "bucket operation deadline"),
       operation_id: hex(request[5], 16, "bucket operation ID"),
     }, undefined, signal);
     const receipt = await this.#submit(prepared, signal);
@@ -367,6 +368,7 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     const operationId = hex(request[5], 16, "publication operation ID");
     const prepared = await this.#runtime.prepare(hex(authority.hash), "Names.publish_content", {
       name, content: commitment, expected_revision: uint(payload[2], "expected publication revision"),
+	  operation_deadline: uint(request[7], "publication operation deadline"),
       operation_id: operationId,
     }, undefined, signal);
     const receipt = await this.#submit(prepared, signal);

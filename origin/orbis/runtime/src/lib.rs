@@ -2296,6 +2296,7 @@ parameter_types! {
 	pub const NamesMaxNameDepth: u32 = 16;
 	pub const NamesMaxCommitmentsPerAccount: u32 = 32;
 	pub const NamesMaxContentOperationReceipts: u32 = 64;
+	pub const NamesMaxContentOperationReceiptLifetime: BlockNumber = 128;
 	pub const NamesMinCommitmentAge: BlockNumber = 2;
 	pub const NamesMaxCommitmentAge: BlockNumber = 600;
 	pub const NamesRegistrationPeriod: BlockNumber = 365 * DAYS;
@@ -2325,6 +2326,7 @@ impl pallet_orbis_names::Config for Runtime {
 	type MaxNameDepth = NamesMaxNameDepth;
 	type MaxCommitmentsPerAccount = NamesMaxCommitmentsPerAccount;
 	type MaxContentOperationReceipts = NamesMaxContentOperationReceipts;
+	type MaxContentOperationReceiptLifetime = NamesMaxContentOperationReceiptLifetime;
 	type MinCommitmentAge = NamesMinCommitmentAge;
 	type MaxCommitmentAge = NamesMaxCommitmentAge;
 	type RegistrationPeriod = NamesRegistrationPeriod;
@@ -2359,6 +2361,8 @@ parameter_types! {
 	pub const ProviderMaxEndpointBytes: u32 = 512;
 	pub const ProviderMaxEntityIdBytes: u32 = 64;
 	pub const ProviderMaxBuckets: u32 = 4_096;
+	pub const ProviderMaxBucketOperationReceipts: u32 = 256;
+	pub const ProviderMaxBucketOperationReceiptLifetime: BlockNumber = 128;
 	pub const ProviderMaxBucketGrants: u32 = 256;
 	pub const ProviderMaxHostDelegationsPerBucket: u32 = 256;
 	pub const ProviderMaxCapabilityProductIdBytes: u32 = 128;
@@ -2581,6 +2585,8 @@ impl pallet_orbis_storage_provider::Config for Runtime {
 	type MaxEntityIdBytes = ProviderMaxEntityIdBytes;
 	type MaxProviders = ConstU32<1_024>;
 	type MaxBuckets = ProviderMaxBuckets;
+	type MaxBucketOperationReceipts = ProviderMaxBucketOperationReceipts;
+	type MaxBucketOperationReceiptLifetime = ProviderMaxBucketOperationReceiptLifetime;
 	type MaxBucketGrants = ProviderMaxBucketGrants;
 	type MaxHostDelegationsPerBucket = ProviderMaxHostDelegationsPerBucket;
 	type MaxCapabilityProductIdBytes = ProviderMaxCapabilityProductIdBytes;

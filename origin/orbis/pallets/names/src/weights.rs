@@ -33,7 +33,7 @@ pub trait WeightInfo {
 	fn transfer() -> Weight;
 	fn controller() -> Weight;
 	fn resolver_write() -> Weight;
-	fn publish_content() -> Weight;
+	fn publish_content(retained_receipts: u32) -> Weight;
 	fn set_text() -> Weight;
 	fn set_primary() -> Weight;
 	fn remove_name() -> Weight;
@@ -66,8 +66,10 @@ impl WeightInfo for () {
 	fn resolver_write() -> Weight {
 		Weight::from_parts(30_000_000, 4_500)
 	}
-	fn publish_content() -> Weight {
-		Weight::from_parts(34_000_000, 6_000)
+	fn publish_content(retained_receipts: u32) -> Weight {
+		Weight::from_parts(34_000_000, 6_000).saturating_add(
+			Weight::from_parts(1_000_000, 2_600).saturating_mul(retained_receipts.into()),
+		)
 	}
 	fn set_text() -> Weight {
 		Weight::from_parts(48_000_000, 6_000)
@@ -129,10 +131,18 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(6))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
-	fn publish_content() -> Weight {
+	fn publish_content(retained_receipts: u32) -> Weight {
 		Weight::from_parts(34_000_000, 6_000)
-			.saturating_add(T::DbWeight::get().reads(9))
-			.saturating_add(T::DbWeight::get().writes(5))
+			// Worst case scans and prunes every expired receipt in the bounded window.
+			.saturating_add(
+				Weight::from_parts(1_000_000, 2_600).saturating_mul(retained_receipts.into()),
+			)
+			.saturating_add(
+				T::DbWeight::get().reads(9_u64.saturating_add(retained_receipts.into())),
+			)
+			.saturating_add(
+				T::DbWeight::get().writes(5_u64.saturating_add(retained_receipts.into())),
+			)
 	}
 	fn set_text() -> Weight {
 		Weight::from_parts(48_000_000, 6_000)

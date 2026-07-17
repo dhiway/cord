@@ -834,7 +834,7 @@ test("concrete Commons bridge publishes and resolves through exact native finali
     async prepare(at: `0x${string}`, target: string, payload: Readonly<Record<string, unknown>>) {
       calls.push({ kind: "prepare", at, target, payload });
       assert.equal(target, "Names.publish_content");
-      assert.deepEqual(payload, { name: nameHex, content: digestHex, expected_revision: 0n, operation_id: `0x${Buffer.from(publishFrame[5]).toString("hex")}` });
+      assert.deepEqual(payload, { name: nameHex, content: digestHex, expected_revision: 0n, operation_deadline: BigInt(publishFrame[7]), operation_id: `0x${Buffer.from(publishFrame[5]).toString("hex")}` });
       return { async *signSubmitAndWatch(exactSigner: unknown) {
         assert.equal(exactSigner, signer); yield { type: "broadcast" as const };
         yield { type: "finalized" as const, blockHash: finalized100, transactionHash: `0x${"77".repeat(32)}` as const };
@@ -908,7 +908,7 @@ test("Commons bucket creation binds operation replay receipt before Accepted", a
       async read() { throw new Error("bucket creation must not perform an unbound read"); },
       async prepare(at, target, payload) {
         trace.push("prepare"); assert.equal(at, finalized99); assert.equal(target, "StorageProvider.create_bucket");
-        assert.equal(payload.operation_id, operationId);
+        assert.equal(payload.operation_deadline, 101n); assert.equal(payload.operation_id, operationId);
         return { async *signSubmitAndWatch(exactSigner: unknown) {
           assert.equal(exactSigner, signer); yield { type: "broadcast" as const }; trace.push("finalized");
           yield { type: "finalized" as const, blockHash: finalized100, transactionHash: `0x${"77".repeat(32)}` as const };
