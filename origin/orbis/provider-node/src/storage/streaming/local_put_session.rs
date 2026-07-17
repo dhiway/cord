@@ -317,11 +317,19 @@ mod tests {
 
 	#[test]
 	fn transfer_chunk_is_exact_canonical_bounded_and_hash_bound() {
-		let exact = chunk([7; 16], 3, b"CORD byte plane".to_vec());
+		let fixture: serde_json::Value = serde_json::from_str(include_str!(
+			"../../../../../../docs/specs/provider-transfer-chunk-v1.vectors.json"
+		))
+		.expect("shared transfer fixture is JSON");
+		assert_eq!(fixture["algorithm"], "BLAKE2b-256");
+		let vector = &fixture["vectors"][0];
+		let exact = hex::decode(vector["canonical_cbor_hex"].as_str().unwrap()).unwrap();
 		let decoded = ProviderTransferChunkV1::decode(&exact).unwrap();
-		assert_eq!(decoded.operation_id, [7; 16]);
-		assert_eq!(decoded.index, 3);
-		assert_eq!(decoded.bytes, b"CORD byte plane");
+		assert_eq!(hex::encode(decoded.operation_id), vector["operation_id_hex"]);
+		assert_eq!(u64::from(decoded.index), vector["index"]);
+		assert_eq!(hex::encode(&decoded.bytes), vector["bytes_hex"]);
+		assert_eq!(hex::encode(decoded.hash), vector["digest_hex"]);
+		assert_eq!(hex::encode(Blake2b::<U32>::digest(&decoded.bytes)), vector["digest_hex"]);
 
 		let mut wrong_hash: Value = ciborium::de::from_reader(exact.as_slice()).unwrap();
 		let Value::Map(fields) = &mut wrong_hash else { unreachable!() };
