@@ -50,7 +50,7 @@ const STORAGE_CODES: Readonly<Record<StorageOperationV2, number>> = {
   "storage.publish": 1050,
   "storage.resolve": 1051,
 };
-const STORAGE_REGISTRY_SHA256 = "338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf";
+const STORAGE_REGISTRY_SHA256 = "71d71f02b7c1b4e55892c88bb6cdeba53852f981625f7bf831b79c97520264e3";
 const utf8 = new TextEncoder();
 const utf8Decoder = new TextDecoder("utf-8", { fatal: true });
 const PRIVATE_APP_MANIFEST_SCHEMA = "cord.origin.private-app-manifest" as const;

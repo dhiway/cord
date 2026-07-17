@@ -28,7 +28,7 @@ export const STORAGE_V2_PROTOCOL = "cord.origin.host/2" as const;
 export const STORAGE_V2_MAJOR = 2 as const;
 export const STORAGE_V2_MINOR = 0 as const;
 export const STORAGE_V2_REGISTRY_SHA256 =
-  "338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf" as const;
+  "71d71f02b7c1b4e55892c88bb6cdeba53852f981625f7bf831b79c97520264e3" as const;
 
 export type Bytes16 = Uint8Array & { readonly __storageV2Bytes16: unique symbol };
 export type Bytes32 = Uint8Array & { readonly __storageV2Bytes32: unique symbol };

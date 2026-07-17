@@ -24,7 +24,7 @@ use validation::{StorageV2Error, StorageV2Progress, StorageV2Result};
 
 pub(crate) const STORAGE_V2_PROTOCOL: &str = "cord.origin.host/2";
 pub(crate) const STORAGE_V2_REGISTRY_SHA256: &str =
-	"338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf";
+	"71d71f02b7c1b4e55892c88bb6cdeba53852f981625f7bf831b79c97520264e3";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct Id16(pub [u8; 16]);

@@ -25,9 +25,9 @@
     "preimage",
     "TransactionStorage"
   ],
-  "vector_sha256": "f6d5369dc670869104483fdd85faa7cc7d642cb519f9774a60589810ad2a1bcf",
+  "vector_sha256": "cdcfa29ac404ad4e2164ac22497941a0df23b0acef6614d35f8ef025b53ed7eb",
   "source_sha256": {
-    "origin-host-registry-v2.operations.json": "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca",
-    "origin-host-registry-v2.vectors.json": "c6cc73e9cbe5b72f9c2ffb83ebf1781b611af2e75263152e1e8175e3af0fab83"
+    "origin-host-registry-v2.operations.json": "48934f781f5bd7f377684a5f17dd5eb3d9efa2b178b408cb0db80eb5b3d738b1",
+    "origin-host-registry-v2.vectors.json": "f9df803c2301c28306c5df87d010268e381fec3d503dbc9d72695e2ea4000292"
   }
 }

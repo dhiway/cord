@@ -150,6 +150,21 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
+          "code": 206,
+          "name": "STORAGE_IDEMPOTENCY_CONFLICT",
+          "retryable": false
+        },
+        {
+          "code": 212,
+          "name": "STORAGE_OPERATION_RECEIPT_CAPACITY_REACHED",
+          "retryable": true
+        },
+        {
           "code": 250,
           "name": "BUCKET_NOT_FOUND",
           "retryable": false
@@ -355,6 +370,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         },
         {
@@ -567,6 +587,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 250,
           "name": "BUCKET_NOT_FOUND",
           "retryable": false
@@ -773,6 +798,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         },
         {
@@ -985,6 +1015,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         },
         {
@@ -1306,6 +1341,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 200,
           "name": "STORAGE_CHUNK_OUT_OF_ORDER",
           "retryable": false
@@ -1511,6 +1551,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         },
         {
@@ -1722,6 +1767,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         },
         {
@@ -1993,6 +2043,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 200,
           "name": "STORAGE_CHUNK_OUT_OF_ORDER",
           "retryable": false
@@ -2198,6 +2253,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         },
         {
@@ -2467,6 +2527,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 220,
           "name": "STORAGE_CHECKPOINT_WRONG_DOMAIN",
           "retryable": false
@@ -2725,6 +2790,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 250,
           "name": "BUCKET_NOT_FOUND",
           "retryable": false
@@ -2941,6 +3011,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 250,
           "name": "BUCKET_NOT_FOUND",
           "retryable": false
@@ -3146,6 +3221,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         },
         {
@@ -3365,6 +3445,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 200,
           "name": "STORAGE_CHUNK_OUT_OF_ORDER",
           "retryable": false
@@ -3571,6 +3656,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         },
         {
@@ -3855,6 +3945,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 300,
           "name": "DRIVE_NAME_INVALID",
           "retryable": false
@@ -4134,6 +4229,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 250,
           "name": "BUCKET_NOT_FOUND",
           "retryable": false
@@ -4342,6 +4442,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         },
         {
@@ -4624,6 +4729,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 300,
           "name": "DRIVE_NAME_INVALID",
           "retryable": false
@@ -4900,6 +5010,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         },
         {
@@ -5182,6 +5297,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 300,
           "name": "DRIVE_NAME_INVALID",
           "retryable": false
@@ -5403,6 +5523,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 200,
           "name": "STORAGE_CHUNK_OUT_OF_ORDER",
           "retryable": false
@@ -5461,6 +5586,11 @@
           "code": 211,
           "name": "ENCRYPTION_NONCE_REUSE",
           "retryable": false
+        },
+        {
+          "code": 212,
+          "name": "STORAGE_OPERATION_RECEIPT_CAPACITY_REACHED",
+          "retryable": true
         },
         {
           "code": 250,
@@ -5671,6 +5801,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 200,
           "name": "STORAGE_CHUNK_OUT_OF_ORDER",
           "retryable": false
@@ -5876,6 +6011,11 @@
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
           "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
         }
       ]
     },
@@ -6022,6 +6162,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         }
       ]
@@ -6170,6 +6315,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         },
         {
@@ -6381,6 +6531,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 400,
           "name": "IDENTITY_AUDIENCE_INVALID",
           "retryable": false
@@ -6586,6 +6741,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         },
         {
@@ -6797,6 +6957,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 400,
           "name": "IDENTITY_AUDIENCE_INVALID",
           "retryable": false
@@ -7002,6 +7167,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         },
         {
@@ -7213,6 +7383,11 @@
           "retryable": false
         },
         {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
+          "retryable": false
+        },
+        {
           "code": 400,
           "name": "IDENTITY_AUDIENCE_INVALID",
           "retryable": false
@@ -7418,6 +7593,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         },
         {
@@ -7627,6 +7807,11 @@
         {
           "code": 116,
           "name": "HOST_OUTBOX_EXPIRED",
+          "retryable": false
+        },
+        {
+          "code": 117,
+          "name": "REQUEST_DEADLINE_TOO_FAR",
           "retryable": false
         },
         {

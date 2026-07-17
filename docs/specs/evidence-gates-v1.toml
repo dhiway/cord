@@ -666,23 +666,23 @@ sha256 = "de8116cb44b3b8f5a0a6d5bc135588edbb85366f1865db737c449f257deb99cf"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.cddl"
-sha256 = "338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf"
+sha256 = "71d71f02b7c1b4e55892c88bb6cdeba53852f981625f7bf831b79c97520264e3"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.operations.json"
-sha256 = "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca"
+sha256 = "48934f781f5bd7f377684a5f17dd5eb3d9efa2b178b408cb0db80eb5b3d738b1"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.errors.json"
-sha256 = "f9734782c6ade5eb8c0cbea5ad93a9808a6cc6a88363fec6f7bfc023de58d8ca"
+sha256 = "5bce2efd0c2c84d9bd09f568100467ffb2681a42e4f405746937c9651c6dc0eb"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.schema.json"
-sha256 = "0a8641e8f4abab8abc619f12b2890473e0d8acb666aa9b48af838644e9d63adb"
+sha256 = "ab087de1993230668ca5d37f5fecb15fdc3c71bd4d8fe10819b0f920a12b6a47"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.vectors.json"
-sha256 = "c6cc73e9cbe5b72f9c2ffb83ebf1781b611af2e75263152e1e8175e3af0fab83"
+sha256 = "f9df803c2301c28306c5df87d010268e381fec3d503dbc9d72695e2ea4000292"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.vectors.cbor"
@@ -1967,23 +1967,23 @@ sha256 = "de8116cb44b3b8f5a0a6d5bc135588edbb85366f1865db737c449f257deb99cf"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.cddl"
-sha256 = "338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf"
+sha256 = "71d71f02b7c1b4e55892c88bb6cdeba53852f981625f7bf831b79c97520264e3"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.schema.json"
-sha256 = "0a8641e8f4abab8abc619f12b2890473e0d8acb666aa9b48af838644e9d63adb"
+sha256 = "ab087de1993230668ca5d37f5fecb15fdc3c71bd4d8fe10819b0f920a12b6a47"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.operations.json"
-sha256 = "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca"
+sha256 = "48934f781f5bd7f377684a5f17dd5eb3d9efa2b178b408cb0db80eb5b3d738b1"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.errors.json"
-sha256 = "f9734782c6ade5eb8c0cbea5ad93a9808a6cc6a88363fec6f7bfc023de58d8ca"
+sha256 = "5bce2efd0c2c84d9bd09f568100467ffb2681a42e4f405746937c9651c6dc0eb"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.vectors.json"
-sha256 = "c6cc73e9cbe5b72f9c2ffb83ebf1781b611af2e75263152e1e8175e3af0fab83"
+sha256 = "f9df803c2301c28306c5df87d010268e381fec3d503dbc9d72695e2ea4000292"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.vectors.cbor"
@@ -2751,21 +2751,21 @@ clause = "cddl-authority"
 source = "target/p0-origin-host-cross-contract-report.json"
 json_pointer = "/authority/cddl_sha256"
 operator = "sha256_eq"
-expected = "338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf"
+expected = "71d71f02b7c1b4e55892c88bb6cdeba53852f981625f7bf831b79c97520264e3"
 
 [[gate.assertion]]
 clause = "operations-authority"
 source = "target/p0-origin-host-cross-contract-report.json"
 json_pointer = "/authority/operations_sha256"
 operator = "sha256_eq"
-expected = "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca"
+expected = "48934f781f5bd7f377684a5f17dd5eb3d9efa2b178b408cb0db80eb5b3d738b1"
 
 [[gate.assertion]]
 clause = "errors-authority"
 source = "target/p0-origin-host-cross-contract-report.json"
 json_pointer = "/authority/errors_sha256"
 operator = "sha256_eq"
-expected = "f9734782c6ade5eb8c0cbea5ad93a9808a6cc6a88363fec6f7bfc023de58d8ca"
+expected = "5bce2efd0c2c84d9bd09f568100467ffb2681a42e4f405746937c9651c6dc0eb"
 
 [[gate.assertion]]
 clause = "host-vectors-authority"

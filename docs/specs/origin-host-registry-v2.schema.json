@@ -1934,6 +1934,9 @@
           "$ref": "#/$defs/Error116"
         },
         {
+          "$ref": "#/$defs/Error117"
+        },
+        {
           "$ref": "#/$defs/Error200"
         },
         {
@@ -1968,6 +1971,9 @@
         },
         {
           "$ref": "#/$defs/Error211"
+        },
+        {
+          "$ref": "#/$defs/Error212"
         },
         {
           "$ref": "#/$defs/Error220"
@@ -2559,6 +2565,30 @@
         "3"
       ]
     },
+    "Error117": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 117
+        },
+        "1": {
+          "const": "REQUEST_DEADLINE_TOO_FAR"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
     "Error200": {
       "type": "object",
       "additionalProperties": false,
@@ -2835,6 +2865,30 @@
         },
         "2": {
           "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error212": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 212
+        },
+        "1": {
+          "const": "STORAGE_OPERATION_RECEIPT_CAPACITY_REACHED"
+        },
+        "2": {
+          "const": true
         },
         "3": {
           "$ref": "#/$defs/ErrorDetails"
@@ -8265,7 +8319,7 @@
     }
   },
   "x-cord-generated-from": {
-    "cddl_sha256": "338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf",
-    "operations_sha256": "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca"
+    "cddl_sha256": "71d71f02b7c1b4e55892c88bb6cdeba53852f981625f7bf831b79c97520264e3",
+    "operations_sha256": "48934f781f5bd7f377684a5f17dd5eb3d9efa2b178b408cb0db80eb5b3d738b1"
   }
 }

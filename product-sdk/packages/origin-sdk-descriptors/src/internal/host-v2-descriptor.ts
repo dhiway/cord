@@ -23,23 +23,23 @@ export const HOST_V2_MAJOR = 2 as const;
 export const HOST_V2_MINOR = 0 as const;
 
 export const HOST_V2_SOURCE_HASHES = {
-  cddl: "338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf",
-  operations: "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca",
-  errors: "f9734782c6ade5eb8c0cbea5ad93a9808a6cc6a88363fec6f7bfc023de58d8ca",
-  schema: "f6ce027cb6b4f93038f96d045e8abbeee751c901015d3e9bd58e2833beedc18b",
+  cddl: "71d71f02b7c1b4e55892c88bb6cdeba53852f981625f7bf831b79c97520264e3",
+  operations: "48934f781f5bd7f377684a5f17dd5eb3d9efa2b178b408cb0db80eb5b3d738b1",
+  errors: "5bce2efd0c2c84d9bd09f568100467ffb2681a42e4f405746937c9651c6dc0eb",
+  schema: "ab087de1993230668ca5d37f5fecb15fdc3c71bd4d8fe10819b0f920a12b6a47",
 } as const;
 
 export const HOST_V2_RUNTIME_SOURCE_HASHES = {
   metadataIdentity: "8c9dc98ce3f2578031be5bf1be7291d3118fc0b6e79c81f5fee97d73ca53ba43",
   metadataScale: "2785e1e501df231ea313a7613c7cadcdad550c79ecf87bb3797b61c64be462fe",
-  papiManifest: "863725ddb75dca2cda5550d8f28cebcbf0be38c06a3f038da05b3574b8ba3aaa",
+  papiManifest: "673d04218c99e6c17630a9fedf7689fa8b06761219c92a5e6f9b92ea25a8c595",
 } as const;
 
 export const LEGACY_PUBLIC_DESCRIPTOR_HASHES = {
   packageIndex: "5a416585aafda8454366fb48126617e59a0063cc0617c971a14cebf347304cd1",
   packageManifest: "fb9a653b3b1894d096e457724f2182d3443be8965c9249f9566e7adf7b38e1e2",
-  runtimeDescriptor: "62b0c9621c410dd3fbb919848306ea6601841fe83235a807af3cda61554cc729",
-  networkBinding: "20b0774c093fd8be510aac8d33a2fd46a54a845bc7caff3b9e536d9ea82519a1",
+  runtimeDescriptor: "6892d39913d2a755aec8fb129c3d8529b500884f934520102ab129896f174584",
+  networkBinding: "b3295d484e146e147b2e00edba5023db89f90de12507470845ebd073ad804bf1",
 } as const;
 
 export type HostV2OperationSignature = readonly [
@@ -296,7 +296,7 @@ export function projectPrivateHostV2Descriptor(
   network: FrozenCommonsNetworkBinding,
 ) {
   assertFrozenOperations(operations);
-  if (errors.errors.length !== 89) throw new TypeError(`host v2 error count drift: ${errors.errors.length}`);
+  if (errors.errors.length !== 91) throw new TypeError(`host v2 error count drift: ${errors.errors.length}`);
   const errorCodes = errors.errors.map(({ code }) => code);
   if (new Set(errorCodes).size !== errorCodes.length) throw new TypeError("duplicate host v2 error code");
   const projected = operations.operations.map(projectOperation);

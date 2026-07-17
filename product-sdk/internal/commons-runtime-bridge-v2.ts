@@ -176,9 +176,18 @@ function runtimeErrorCode(error: unknown): number | undefined {
   if (error instanceof CommonsHostFailure) return error.code;
   if (!error || typeof error !== "object") return undefined;
   const raw = (error as { code?: unknown }).code;
-  if (typeof raw === "number") return raw;
+  if (typeof raw === "number") return HOST_V2_ERROR_BINDINGS[String(raw) as keyof typeof HOST_V2_ERROR_BINDINGS] ? raw : undefined;
   if (typeof raw !== "string") return undefined;
   const normalized = raw.replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/[.\- ]/g, "_").toUpperCase();
+  const runtimeErrors: Readonly<Record<string, number>> = {
+    OPERATION_DEADLINE_EXPIRED: 106,
+    OPERATION_DEADLINE_TOO_FAR: 117,
+    OPERATION_ID_CONFLICT: 206,
+    CONTENT_OPERATION_RECEIPT_CAPACITY_REACHED: 212,
+    BUCKET_OPERATION_RECEIPT_CAPACITY_REACHED: 212,
+  };
+  const runtime = Object.entries(runtimeErrors).find(([name]) => normalized === name || normalized.endsWith(`_${name}`));
+  if (runtime) return runtime[1];
   const match = Object.entries(HOST_V2_ERROR_BINDINGS).find(([, binding]) => binding.name === normalized);
   return match ? Number(match[0]) : undefined;
 }
@@ -233,7 +242,9 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     let accepted = false;
     try {
       if (Number(request[3]) !== binding.code || request[2] === "") throw new CommonsHostFailure(100, "request binding is invalid");
-      if (uint(request[7], "request deadline") <= input.authority.number) throw new CommonsHostFailure(106, "request deadline has expired");
+      const requestDeadline = uint(request[7], "request deadline");
+      if (requestDeadline <= input.authority.number) throw new CommonsHostFailure(106, "request deadline has expired");
+      if (requestDeadline > input.authority.number + 128n) throw new CommonsHostFailure(117, "request deadline exceeds the Commons operation window");
       const payload = request[8] as WireMap;
       let result: HostV2Map; let terminal = input.authority;
       switch (input.operation) {
