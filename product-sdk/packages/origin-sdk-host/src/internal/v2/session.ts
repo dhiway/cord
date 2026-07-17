@@ -26,6 +26,8 @@ import {
   type EventV2,
   type HostV2FeatureId,
   type RequestId,
+  type RequestV2,
+  type ResumeTokenV1,
 } from "./generated.ts";
 
 export interface HostV2NegotiationOffer {
@@ -274,12 +276,46 @@ export class HostV2Session {
     negotiated: HostV2Negotiated,
     requestId: RequestId,
     nextSequence: number,
+  ): HostV2Session;
+  static resume(
+    negotiated: HostV2Negotiated,
+    exactRequestBytes: Uint8Array,
+    resumeTokenBytes: Uint8Array,
+    generation: number,
+  ): HostV2Session;
+  static resume(
+    negotiated: HostV2Negotiated,
+    requestOrId: Uint8Array,
+    sequenceOrToken: number | Uint8Array,
+    generation?: number,
   ): HostV2Session {
-    if (!Number.isSafeInteger(nextSequence) || nextSequence < 1) {
-      throw new HostV2SessionError("resumed host-v2 sequence must be a positive safe integer");
+    if (typeof sequenceOrToken === "number") {
+      if (generation !== undefined || !Number.isSafeInteger(sequenceOrToken) || sequenceOrToken < 1) {
+        throw new HostV2SessionError("resumed host-v2 sequence must be a positive safe integer");
+      }
+      const session = new HostV2Session(negotiated, requestOrId as RequestId);
+      session.nextSequence = sequenceOrToken;
+      session.accepted = true;
+      return session;
     }
-    const session = new HostV2Session(negotiated, requestId);
-    session.nextSequence = nextSequence;
+    if (generation === undefined || !Number.isSafeInteger(generation) || generation < 0 || generation > 0xffff_ffff) {
+      throw new HostV2SessionError("resume generation is outside the U32 range");
+    }
+    const request = decodeHostV2("RequestV2", requestOrId).value as RequestV2;
+    const token = decodeHostV2("ResumeTokenV1", sequenceOrToken).value as ResumeTokenV1;
+    const operationId = request[5];
+    if (!(operationId instanceof Uint8Array) || !equalBytes(operationId, token[5])) {
+      throw new HostV2SessionError("resume token operation ID does not match exact request");
+    }
+    if (Number(token[9]) !== generation) {
+      throw new HostV2SessionError("resume token generation does not match durable request");
+    }
+    const cursor = Number(token[8]);
+    if (!Number.isSafeInteger(cursor) || cursor < 0 || cursor >= 0xffff_ffff) {
+      throw new HostV2SessionError("resume token cursor cannot advance within the U32 event sequence");
+    }
+    const session = new HostV2Session(negotiated, request[1]);
+    session.nextSequence = cursor + 1;
     session.accepted = true;
     return session;
   }

@@ -19,8 +19,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { validateFestivalMobileHostV2Conformance } from "../../../examples/festival/host-v2-mobile-conformance-harness.ts";
+import {
+  validateFestivalMobileHostV2Conformance,
+  validateFestivalMobileHostV2HostileRejections,
+} from "../../../examples/festival/host-v2-mobile-conformance-harness.ts";
 
 test("Festival mobile projection has complete private Host-v2 conformance", () => {
   assert.deepEqual(validateFestivalMobileHostV2Conformance(), { vectors: 39, operations: 34 });
+});
+
+test("Festival mobile projection rejects coverage substitution and invalid resume bindings", () => {
+  assert.deepEqual(validateFestivalMobileHostV2HostileRejections(), { rejected: 8 });
 });

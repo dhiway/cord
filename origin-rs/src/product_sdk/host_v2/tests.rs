@@ -150,6 +150,70 @@ fn assert_mobile_vector<P: generated::Production>(vector: &serde_json::Value) {
 	);
 }
 
+fn mobile_value_field(value: &Value, wanted: u64) -> Option<&Value> {
+	let Value::Map(fields) = value else { return None };
+	fields.iter().find_map(|(key, value)| {
+		matches!(key, Value::Integer(key) if u64::try_from(*key).ok() == Some(wanted))
+			.then_some(value)
+	})
+}
+
+fn mobile_request_coverage(vectors: &[serde_json::Value]) -> Result<(), String> {
+	let operations = operations();
+	let authoritative = operations["operations"].as_array().expect("operations are an array");
+	let requests: Vec<_> =
+		vectors.iter().filter(|vector| vector["production"] == "RequestV2").collect();
+	let mut names = BTreeMap::new();
+	let mut codes = BTreeMap::new();
+	let mut sources = BTreeMap::new();
+	for vector in &requests {
+		let name = vector["operation"].as_str().ok_or("operation missing")?;
+		let code = vector["code"].as_u64().ok_or("code missing")?;
+		let source = vector["source_vector"].as_str().ok_or("source missing")?;
+		if names.insert(name, ()).is_some() ||
+			codes.insert(code, ()).is_some() ||
+			sources.insert(source, ()).is_some()
+		{
+			return Err("duplicate request metadata replaced an omission".into())
+		}
+		let decoded = Dto::<RequestV2>::decode(
+			&hex::decode(vector["canonical_cbor_hex"].as_str().ok_or("wire missing")?)
+				.map_err(|error| error.to_string())?,
+		)
+		.map_err(|error| error.to_string())?;
+		let decoded_code = mobile_value_field(decoded.value(), 3)
+			.and_then(|value| match value {
+				Value::Integer(value) => u64::try_from(*value).ok(),
+				_ => None,
+			})
+			.ok_or("decoded code missing")?;
+		if decoded_code != code {
+			return Err("decoded RequestV2 code does not match metadata".into())
+		}
+	}
+	let expected_names: BTreeMap<_, _> = authoritative
+		.iter()
+		.map(|operation| (operation["name"].as_str().unwrap(), ()))
+		.collect();
+	let expected_codes: BTreeMap<_, _> = authoritative
+		.iter()
+		.map(|operation| (operation["code"].as_u64().unwrap(), ()))
+		.collect();
+	let expected_sources: BTreeMap<_, _> = authoritative
+		.iter()
+		.flat_map(|operation| operation["positive_vectors"].as_array().unwrap())
+		.map(|source| (source.as_str().unwrap(), ()))
+		.collect();
+	if requests.len() != authoritative.len() ||
+		names != expected_names ||
+		codes != expected_codes ||
+		sources != expected_sources
+	{
+		return Err("mobile request set is not the exact authoritative operation set".into())
+	}
+	Ok(())
+}
+
 fn vector(id: &str) -> Vec<u8> {
 	let fixture = fixture();
 	let hex = fixture["vectors"]
@@ -346,6 +410,8 @@ fn festival_mobile_projection_matches_rust_host_v2_bytes_hashes_and_values() {
 	let fixture = mobile_vectors();
 	let vectors = fixture["vectors"].as_array().expect("mobile vectors are an array");
 	assert_eq!(vectors.len(), 39);
+	mobile_request_coverage(vectors)
+		.expect("mobile requests exactly cover authoritative operations");
 	for vector in vectors {
 		match vector["production"].as_str().expect("production name") {
 			"RequestV2" => assert_mobile_vector::<RequestV2>(vector),
@@ -359,6 +425,82 @@ fn festival_mobile_projection_matches_rust_host_v2_bytes_hashes_and_values() {
 		fixture["excluded_legacy_surfaces"],
 		serde_json::json!(["personhood", "PeopleLite", "preimage", "TransactionStorage"]),
 	);
+
+	let request_vector = vectors.iter().find(|vector| vector["code"] == 1000).unwrap();
+	let resume_vector =
+		vectors.iter().find(|vector| vector["production"] == "ResumeTokenV1").unwrap();
+	let request = Dto::<RequestV2>::decode(
+		&hex::decode(request_vector["canonical_cbor_hex"].as_str().unwrap()).unwrap(),
+	)
+	.unwrap();
+	let resume = Dto::<ResumeTokenV1>::decode(
+		&hex::decode(resume_vector["canonical_cbor_hex"].as_str().unwrap()).unwrap(),
+	)
+	.unwrap();
+	let mut resumed = Session::resume_bound(negotiated(), &request, &resume, 4).unwrap();
+	assert_eq!(resumed.next_sequence(), 4_097);
+	resumed.accept(&cancelled([0x11; 16], 4_097)).unwrap();
+	assert!(resumed.is_terminal());
+	assert!(resumed.is_closed());
+}
+
+#[test]
+fn festival_mobile_projection_rejects_coverage_substitution_and_resume_misbinding() {
+	let fixture = mobile_vectors();
+	let vectors = fixture["vectors"].as_array().unwrap();
+	let mut omitted = vectors.clone();
+	omitted.remove(0);
+	assert!(mobile_request_coverage(&omitted).is_err());
+	let mut duplicated = vectors.clone();
+	duplicated[1] = duplicated[0].clone();
+	assert!(mobile_request_coverage(&duplicated).is_err());
+	let mut duplicate_code = vectors.clone();
+	let first_code = duplicate_code[0]["code"].clone();
+	duplicate_code[1]["code"] = first_code;
+	assert!(mobile_request_coverage(&duplicate_code).is_err());
+	let mut duplicate_source = vectors.clone();
+	let first_source = duplicate_source[0]["source_vector"].clone();
+	duplicate_source[1]["source_vector"] = first_source;
+	assert!(mobile_request_coverage(&duplicate_source).is_err());
+
+	let request_vector = vectors.iter().find(|vector| vector["code"] == 1000).unwrap();
+	let resume_vector =
+		vectors.iter().find(|vector| vector["production"] == "ResumeTokenV1").unwrap();
+	let request = Dto::<RequestV2>::decode(
+		&hex::decode(request_vector["canonical_cbor_hex"].as_str().unwrap()).unwrap(),
+	)
+	.unwrap();
+	let resume_value = mobile_tagged_value(&resume_vector["projection"]);
+	let resume = Dto::<ResumeTokenV1>::from_value(resume_value.clone()).unwrap();
+	assert!(Session::resume_bound(negotiated(), &request, &resume, 5).is_err());
+
+	let mut wrong_operation = resume_value.clone();
+	let Value::Map(fields) = &mut wrong_operation else { unreachable!() };
+	*fields
+		.iter_mut()
+		.find_map(|(key, value)| {
+			matches!(key, Value::Integer(key) if u64::try_from(*key).ok() == Some(5))
+				.then_some(value)
+		})
+		.unwrap() = Value::Bytes([0x99; 16].to_vec());
+	let wrong_operation = Dto::<ResumeTokenV1>::from_value(wrong_operation).unwrap();
+	assert!(Session::resume_bound(negotiated(), &request, &wrong_operation, 4).is_err());
+
+	let mut exhausted_cursor = resume_value;
+	let Value::Map(fields) = &mut exhausted_cursor else { unreachable!() };
+	*fields
+		.iter_mut()
+		.find_map(|(key, value)| {
+			matches!(key, Value::Integer(key) if u64::try_from(*key).ok() == Some(8))
+				.then_some(value)
+		})
+		.unwrap() = Value::Integer(u64::from(u32::MAX).into());
+	let exhausted_cursor = Dto::<ResumeTokenV1>::from_value(exhausted_cursor).unwrap();
+	assert!(Session::resume_bound(negotiated(), &request, &exhausted_cursor, 4).is_err());
+
+	let mut wrong_lifecycle = Session::resume_bound(negotiated(), &request, &resume, 4).unwrap();
+	assert!(wrong_lifecycle.accept(&cancelled([0x12; 16], 4_097)).is_err());
+	assert!(wrong_lifecycle.is_closed());
 }
 
 #[test]

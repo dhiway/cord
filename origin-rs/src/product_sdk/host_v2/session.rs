@@ -23,7 +23,9 @@ use sha2::{Digest, Sha256};
 
 use super::{
 	codec::{CodecError, Dto},
-	generated::{EventV2, FEATURE_IDS, MAJOR, MINOR, PROTOCOL, REGISTRY_SHA256},
+	generated::{
+		EventV2, RequestV2, ResumeTokenV1, FEATURE_IDS, MAJOR, MINOR, PROTOCOL, REGISTRY_SHA256,
+	},
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -177,6 +179,14 @@ pub(crate) struct Session {
 	negotiated: Negotiated,
 }
 
+fn value_field(value: &Value, wanted: u64) -> Option<&Value> {
+	let Value::Map(fields) = value else { return None };
+	fields.iter().find_map(|(key, value)| {
+		matches!(key, Value::Integer(key) if u64::try_from(*key).ok() == Some(wanted))
+			.then_some(value)
+	})
+}
+
 impl Session {
 	pub(crate) fn new(negotiated: Negotiated, request_id: [u8; 16]) -> Self {
 		Self {
@@ -198,6 +208,51 @@ impl Session {
 			closed: false,
 			negotiated,
 		}
+	}
+
+	pub(crate) fn resume_bound(
+		negotiated: Negotiated,
+		request: &Dto<RequestV2>,
+		token: &Dto<ResumeTokenV1>,
+		generation: u32,
+	) -> Result<Self, SessionError> {
+		let request_id: [u8; 16] = match value_field(request.value(), 1) {
+			Some(Value::Bytes(value)) => value
+				.as_slice()
+				.try_into()
+				.map_err(|_| SessionError::Sequence("exact request ID is invalid".into()))?,
+			_ => return sequence("exact request ID is missing"),
+		};
+		let request_operation = match value_field(request.value(), 5) {
+			Some(Value::Bytes(value)) => value,
+			_ => return sequence("exact request has no resumable operation ID"),
+		};
+		let token_operation = match value_field(token.value(), 5) {
+			Some(Value::Bytes(value)) => value,
+			_ => return sequence("resume token operation ID is missing"),
+		};
+		if request_operation != token_operation {
+			return sequence("resume token operation ID does not match exact request")
+		}
+		let token_generation = match value_field(token.value(), 9) {
+			Some(Value::Integer(value)) => u64::try_from(*value).ok(),
+			_ => None,
+		};
+		if token_generation != Some(u64::from(generation)) {
+			return sequence("resume token generation does not match durable request")
+		}
+		let cursor = match value_field(token.value(), 8) {
+			Some(Value::Integer(value)) => u64::try_from(*value).ok(),
+			_ => None,
+		}
+		.ok_or_else(|| SessionError::Sequence("resume token cursor is missing".into()))?;
+		let next_sequence: u32 =
+			cursor.checked_add(1).and_then(|value| value.try_into().ok()).ok_or_else(|| {
+				SessionError::Sequence(
+					"resume token cursor cannot advance within the U32 event sequence".into(),
+				)
+			})?;
+		Ok(Self::resume(negotiated, request_id, next_sequence))
 	}
 
 	pub(crate) fn next_sequence(&self) -> u32 {

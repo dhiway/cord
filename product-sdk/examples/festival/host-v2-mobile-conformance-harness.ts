@@ -163,6 +163,46 @@ function reencode(production: HostV2TypeName, value: HostV2Value): Uint8Array {
   return encodeHostV2(production, value as never);
 }
 
+function authoritativeRequestCoverage(
+  requests: readonly ProjectionVector[],
+  operations: readonly Record<string, unknown>[],
+  frozen: readonly { readonly id: string; readonly wire_hex: string; readonly wire_sha256?: string }[],
+): void {
+  const exactSet = (values: readonly (string | number | undefined)[], label: string): (string | number)[] => {
+    assert.equal(values.includes(undefined), false, `${label}: metadata is present`);
+    const present = values as readonly (string | number)[];
+    assert.equal(new Set(present).size, present.length, `${label}: no duplicate may replace an omission`);
+    return [...present].sort((left, right) => String(left).localeCompare(String(right), "en", { numeric: true }));
+  };
+  assert.deepEqual(
+    exactSet(requests.map((vector) => vector.operation), "operation set"),
+    exactSet(operations.map((operation) => operation.name as string), "authoritative operation set"),
+  );
+  assert.deepEqual(
+    exactSet(requests.map((vector) => vector.code), "operation code set"),
+    exactSet(operations.map((operation) => operation.code as number), "authoritative code set"),
+  );
+  assert.deepEqual(
+    exactSet(requests.map((vector) => vector.source_vector), "source vector set"),
+    exactSet(operations.flatMap((operation) => operation.positive_vectors as string[]), "authoritative source set"),
+  );
+  for (const vector of requests) {
+    const operation = operations.find((item) => item.name === vector.operation);
+    assert.ok(operation, `${vector.id}: registered operation`);
+    assert.equal(operation.code, vector.code);
+    assert.equal(`${String((operation.cddl as Record<string, string>).Request).replace(/Request$/, "Frame")}`, vector.frame);
+    const source = frozen.find((item) => item.id === vector.source_vector);
+    assert.ok(source, `${vector.id}: frozen source`);
+    assert.equal(source.wire_hex, vector.canonical_cbor_hex);
+    assert.equal(source.wire_sha256, vector.canonical_sha256);
+    const decoded = decodeHostV2(
+      "RequestV2",
+      Uint8Array.from(Buffer.from(vector.canonical_cbor_hex, "hex")),
+    ).value as unknown as Record<number, HostV2Value>;
+    assert.equal(Number(decoded[3]), vector.code, `${vector.id}: decoded request code`);
+  }
+}
+
 export function validateFestivalMobileHostV2Conformance(): { readonly vectors: number; readonly operations: number } {
   const fixture = parseJson<Fixture>(vectorPath);
   const manifest = parseJson<{
@@ -207,16 +247,7 @@ export function validateFestivalMobileHostV2Conformance(): { readonly vectors: n
   assert.equal(requests.filter((vector) => vector.category === "storage").length, 26);
   assert.equal(requests.filter((vector) => vector.category === "identity").length, 7);
   assert.equal(requests.filter((vector) => vector.category === "signing").length, 1);
-  for (const vector of requests) {
-    const operation = operations.operations.find((item) => item.name === vector.operation);
-    assert.ok(operation, `${vector.id}: registered operation`);
-    assert.equal(operation.code, vector.code);
-    assert.equal(`${String((operation.cddl as Record<string, string>).Request).replace(/Request$/, "Frame")}`, vector.frame);
-    const source = frozen.vectors.find((item) => item.id === vector.source_vector);
-    assert.ok(source, `${vector.id}: frozen source`);
-    assert.equal(source.wire_hex, vector.canonical_cbor_hex);
-    assert.equal(source.wire_sha256, vector.canonical_sha256);
-  }
+  authoritativeRequestCoverage(requests, operations.operations, frozen.vectors);
 
   assert.equal(fixture.grant_contracts.length, operations.operations.length);
   assert.deepEqual(fixture.grant_contracts, operations.operations.map((operation) => ({
@@ -244,6 +275,22 @@ export function validateFestivalMobileHostV2Conformance(): { readonly vectors: n
   assert.equal(session.isTerminal, true);
   assert.equal(session.isClosed, true);
 
+  const request = requests.find((vector) => vector.code === 1000)!;
+  const resume = fixture.vectors.find((vector) => vector.production === "ResumeTokenV1")!;
+  const requestBytes = Uint8Array.from(Buffer.from(request.canonical_cbor_hex, "hex"));
+  const resumeBytes = Uint8Array.from(Buffer.from(resume.canonical_cbor_hex, "hex"));
+  const resumed = HostV2Session.resume(negotiated, requestBytes, resumeBytes, 4);
+  const resumedCancel = encodeHostV2("EventV2", {
+    0: 2,
+    1: new Uint8Array(16).fill(0x11),
+    2: 4097,
+    3: 4,
+    4: { 0: 107 },
+  } as never);
+  resumed.accept(resumedCancel);
+  assert.equal(resumed.isTerminal, true);
+  assert.equal(resumed.isClosed, true);
+
   for (const gate of fixture.capability_gates) {
     assert.equal(gate.expected_error, "MOBILE_DEVICE_CAPABILITY_UNSUPPORTED");
     assert.throws(
@@ -269,4 +316,48 @@ export function validateFestivalMobileHostV2Conformance(): { readonly vectors: n
   assert.equal(readFileSync(resolve(repositoryRoot, "product-sdk/packages/origin-sdk-host/src/index.ts"), "utf8").includes("mobile-conformance"), false);
 
   return { vectors: fixture.vectors.length, operations: operations.operations.length };
+}
+
+export function validateFestivalMobileHostV2HostileRejections(): { readonly rejected: number } {
+  const fixture = parseJson<Fixture>(vectorPath);
+  const operations = parseJson<{ readonly operations: readonly Record<string, unknown>[] }>(operationsPath);
+  const frozen = parseJson<{ readonly vectors: readonly { readonly id: string; readonly wire_hex: string; readonly wire_sha256?: string }[] }>(frozenPath);
+  const requests = fixture.vectors.filter((vector) => vector.production === "RequestV2");
+  assert.throws(() => authoritativeRequestCoverage(requests.slice(1), operations.operations, frozen.vectors));
+  assert.throws(() => authoritativeRequestCoverage([requests[0]!, requests[0]!, ...requests.slice(2)], operations.operations, frozen.vectors));
+  const duplicateCode = requests.map((vector, index) => index === 1 ? { ...vector, code: requests[0]!.code } : vector);
+  assert.throws(() => authoritativeRequestCoverage(duplicateCode, operations.operations, frozen.vectors));
+  const duplicateSource = requests.map((vector, index) => index === 1
+    ? { ...vector, source_vector: requests[0]!.source_vector }
+    : vector);
+  assert.throws(() => authoritativeRequestCoverage(duplicateSource, operations.operations, frozen.vectors));
+
+  const negotiated = negotiateHostV2(offer(fixture.negotiation.local_features), offer(fixture.negotiation.remote_features));
+  const request = requests.find((vector) => vector.code === 1000)!;
+  const resume = fixture.vectors.find((vector) => vector.production === "ResumeTokenV1")!;
+  const requestBytes = Uint8Array.from(Buffer.from(request.canonical_cbor_hex, "hex"));
+  const resumeBytes = Uint8Array.from(Buffer.from(resume.canonical_cbor_hex, "hex"));
+  assert.throws(() => HostV2Session.resume(negotiated, requestBytes, resumeBytes, 5), /generation/);
+
+  const resumeValue = decodeHostV2("ResumeTokenV1", resumeBytes).value as unknown as Record<number, HostV2Value>;
+  const wrongOperation = { ...resumeValue, 5: new Uint8Array(16).fill(0x99) };
+  assert.throws(
+    () => HostV2Session.resume(negotiated, requestBytes, encodeHostV2("ResumeTokenV1", wrongOperation as never), 4),
+    /operation ID/,
+  );
+  const exhaustedCursor = { ...resumeValue, 8: 0xffff_ffff };
+  assert.throws(
+    () => HostV2Session.resume(negotiated, requestBytes, encodeHostV2("ResumeTokenV1", exhaustedCursor as never), 4),
+    /cursor/,
+  );
+  const resumed = HostV2Session.resume(negotiated, requestBytes, resumeBytes, 4);
+  const wrongRequestCancel = encodeHostV2("EventV2", {
+    0: 2,
+    1: new Uint8Array(16).fill(0x12),
+    2: 4097,
+    3: 4,
+    4: { 0: 107 },
+  } as never);
+  assert.throws(() => resumed.accept(wrongRequestCancel), /request ID/);
+  return { rejected: 8 };
 }
