@@ -308,27 +308,37 @@ where
 			ClosedHostRequestV2::StorageBucketGet(frame) => call!(commons, bucket_get, frame),
 			ClosedHostRequestV2::StorageBucketGrant(frame) => call!(commons, bucket_grant, frame),
 			ClosedHostRequestV2::StorageBucketRevoke(frame) => call!(commons, bucket_revoke, frame),
-			ClosedHostRequestV2::StorageObjectPut(frame) =>
-				call!(provider_bytes, object_put, frame),
-			ClosedHostRequestV2::StorageObjectGet(frame) =>
-				call!(provider_bytes, object_get, frame),
-			ClosedHostRequestV2::StorageObjectRange(frame) =>
-				call!(provider_bytes, object_range, frame),
+			ClosedHostRequestV2::StorageObjectPut(frame) => {
+				call!(provider_bytes, object_put, frame)
+			},
+			ClosedHostRequestV2::StorageObjectGet(frame) => {
+				call!(provider_bytes, object_get, frame)
+			},
+			ClosedHostRequestV2::StorageObjectRange(frame) => {
+				call!(provider_bytes, object_range, frame)
+			},
 			ClosedHostRequestV2::StorageObjectDelete(frame) => call!(commons, object_delete, frame),
-			ClosedHostRequestV2::StorageObjectStatus(frame) =>
-				call!(provider_bytes, object_status, frame),
-			ClosedHostRequestV2::StorageCheckpointStatus(frame) =>
-				call!(commons, checkpoint_status, frame),
-			ClosedHostRequestV2::StorageCheckpointSubscribe(frame) =>
-				call!(commons, checkpoint_subscribe, frame),
-			ClosedHostRequestV2::StorageReplicaStatus(frame) =>
-				call!(commons, replica_status, frame),
-			ClosedHostRequestV2::StorageReplicaSubscribe(frame) =>
-				call!(commons, replica_subscribe, frame),
-			ClosedHostRequestV2::StorageDeletionStatus(frame) =>
-				call!(commons, deletion_status, frame),
-			ClosedHostRequestV2::StorageDeletionSubscribe(frame) =>
-				call!(commons, deletion_subscribe, frame),
+			ClosedHostRequestV2::StorageObjectStatus(frame) => {
+				call!(provider_bytes, object_status, frame)
+			},
+			ClosedHostRequestV2::StorageCheckpointStatus(frame) => {
+				call!(commons, checkpoint_status, frame)
+			},
+			ClosedHostRequestV2::StorageCheckpointSubscribe(frame) => {
+				call!(commons, checkpoint_subscribe, frame)
+			},
+			ClosedHostRequestV2::StorageReplicaStatus(frame) => {
+				call!(commons, replica_status, frame)
+			},
+			ClosedHostRequestV2::StorageReplicaSubscribe(frame) => {
+				call!(commons, replica_subscribe, frame)
+			},
+			ClosedHostRequestV2::StorageDeletionStatus(frame) => {
+				call!(commons, deletion_status, frame)
+			},
+			ClosedHostRequestV2::StorageDeletionSubscribe(frame) => {
+				call!(commons, deletion_subscribe, frame)
+			},
 			ClosedHostRequestV2::StorageDriveRead(frame) => call!(commons, drive_read, frame),
 			ClosedHostRequestV2::StorageDriveCommit(frame) => call!(commons, drive_commit, frame),
 			ClosedHostRequestV2::StorageDriveShare(frame) => call!(commons, drive_share, frame),
@@ -340,20 +350,27 @@ where
 			ClosedHostRequestV2::StorageResolve(frame) => call!(commons, storage_resolve, frame),
 			ClosedHostRequestV2::StorageKeysExport(frame) => call!(keystore, keys_export, frame),
 			ClosedHostRequestV2::StorageKeysImport(frame) => call!(keystore, keys_import, frame),
-			ClosedHostRequestV2::IdentityAccount(frame) =>
-				call!(identity_runtime, identity_account, frame),
-			ClosedHostRequestV2::IdentityProfileRead(frame) =>
-				call!(identity_host, identity_profile_read, frame),
-			ClosedHostRequestV2::IdentityProfileDisclose(frame) =>
-				call!(identity_host, identity_profile_disclose, frame),
-			ClosedHostRequestV2::IdentityHumanityStatus(frame) =>
-				call!(identity_runtime, identity_humanity_status, frame),
-			ClosedHostRequestV2::IdentityHumanityProve(frame) =>
-				call!(identity_host, identity_humanity_prove, frame),
-			ClosedHostRequestV2::IdentitySubjectDerive(frame) =>
-				call!(identity_host, identity_subject_derive, frame),
-			ClosedHostRequestV2::IdentityEntitlementsRead(frame) =>
-				call!(identity_runtime, identity_entitlements_read, frame),
+			ClosedHostRequestV2::IdentityAccount(frame) => {
+				call!(identity_runtime, identity_account, frame)
+			},
+			ClosedHostRequestV2::IdentityProfileRead(frame) => {
+				call!(identity_host, identity_profile_read, frame)
+			},
+			ClosedHostRequestV2::IdentityProfileDisclose(frame) => {
+				call!(identity_host, identity_profile_disclose, frame)
+			},
+			ClosedHostRequestV2::IdentityHumanityStatus(frame) => {
+				call!(identity_runtime, identity_humanity_status, frame)
+			},
+			ClosedHostRequestV2::IdentityHumanityProve(frame) => {
+				call!(identity_host, identity_humanity_prove, frame)
+			},
+			ClosedHostRequestV2::IdentitySubjectDerive(frame) => {
+				call!(identity_host, identity_subject_derive, frame)
+			},
+			ClosedHostRequestV2::IdentityEntitlementsRead(frame) => {
+				call!(identity_runtime, identity_entitlements_read, frame)
+			},
 			ClosedHostRequestV2::TransactionSign(frame) => call!(signing, transaction_sign, frame),
 		}
 	}
@@ -395,7 +412,7 @@ impl<'a, S: Read + Write, A: ProviderAckConfirmationV2> DurableCordProviderV2<'a
 				negotiated_tuple: call.outbox.negotiated_tuple,
 				provider_id: call.outbox.provider_id,
 				provider_endpoint_hash: call.outbox.provider_endpoint_hash,
-				expected_response_kind: 0,
+				expected_response_kind: 2,
 				created_at: call.outbox.created_at,
 				authority_expires_at: call.outbox.authority_expires_at,
 			},
@@ -501,11 +518,118 @@ fn optional_fixed_field(
 
 #[cfg(test)]
 mod tests {
-	use std::collections::{BTreeMap, BTreeSet};
+	use std::{
+		cell::RefCell,
+		collections::{BTreeMap, BTreeSet},
+		rc::Rc,
+	};
 
 	use sp_crypto_hashing::blake2_256;
 
 	use super::*;
+
+	#[derive(Clone, Default)]
+	struct RouteBackend(Rc<RefCell<Vec<(&'static str, OperationCode)>>>);
+
+	macro_rules! implement_routes {
+		($backend:ident, $authority:literal, { $($method:ident: $frame:ty => $operation:ident),+ $(,)? }) => {
+			impl $backend for RouteBackend {
+				$(fn $method(
+					&mut self,
+					_call: HostCallV2<'_, $frame>,
+				) -> Result<HostExecutionV2, HostExecutionErrorV2> {
+					self.0.borrow_mut().push(($authority, OperationCode::$operation));
+					Ok(HostExecutionV2 { events: Vec::new(), terminal_response_hash: None })
+				})+
+			}
+		};
+	}
+
+	implement_routes!(ProviderByteStorageV2, "provider", {
+		object_put: StorageObjectPutFrame => StorageObjectPut,
+		object_get: StorageObjectGetFrame => StorageObjectGet,
+		object_range: StorageObjectRangeFrame => StorageObjectRange,
+		object_status: StorageObjectStatusFrame => StorageObjectStatus,
+	});
+	implement_routes!(CommonsStorageControlV2, "commons", {
+		bucket_create: StorageBucketCreateFrame => StorageBucketCreate,
+		bucket_get: StorageBucketGetFrame => StorageBucketGet,
+		bucket_grant: StorageBucketGrantFrame => StorageBucketGrant,
+		bucket_revoke: StorageBucketRevokeFrame => StorageBucketRevoke,
+		object_delete: StorageObjectDeleteFrame => StorageObjectDelete,
+		checkpoint_status: StorageCheckpointStatusFrame => StorageCheckpointStatus,
+		checkpoint_subscribe: StorageCheckpointSubscribeFrame => StorageCheckpointSubscribe,
+		replica_status: StorageReplicaStatusFrame => StorageReplicaStatus,
+		replica_subscribe: StorageReplicaSubscribeFrame => StorageReplicaSubscribe,
+		deletion_status: StorageDeletionStatusFrame => StorageDeletionStatus,
+		deletion_subscribe: StorageDeletionSubscribeFrame => StorageDeletionSubscribe,
+		drive_read: StorageDriveReadFrame => StorageDriveRead,
+		drive_commit: StorageDriveCommitFrame => StorageDriveCommit,
+		drive_share: StorageDriveShareFrame => StorageDriveShare,
+		s3_put: StorageS3PutFrame => StorageS3Put,
+		s3_get: StorageS3GetFrame => StorageS3Get,
+		s3_list: StorageS3ListFrame => StorageS3List,
+		s3_delete: StorageS3DeleteFrame => StorageS3Delete,
+		storage_publish: StoragePublishFrame => StoragePublish,
+		storage_resolve: StorageResolveFrame => StorageResolve,
+	});
+	implement_routes!(HostStorageKeystoreV2, "keystore", {
+		keys_export: StorageKeysExportFrame => StorageKeysExport,
+		keys_import: StorageKeysImportFrame => StorageKeysImport,
+	});
+	implement_routes!(FinalizedIdentityRuntimeV2, "identity-runtime", {
+		identity_account: IdentityAccountFrame => IdentityAccount,
+		identity_humanity_status: IdentityHumanityStatusFrame => IdentityHumanityStatus,
+		identity_entitlements_read: IdentityEntitlementsReadFrame => IdentityEntitlementsRead,
+	});
+	implement_routes!(HostIdentityAuthorityV2, "identity-host", {
+		identity_profile_read: IdentityProfileReadFrame => IdentityProfileRead,
+		identity_profile_disclose: IdentityProfileDiscloseFrame => IdentityProfileDisclose,
+		identity_humanity_prove: IdentityHumanityProveFrame => IdentityHumanityProve,
+		identity_subject_derive: IdentitySubjectDeriveFrame => IdentitySubjectDerive,
+	});
+	implement_routes!(HostSigningAuthorityV2, "signing", {
+		transaction_sign: TransactionSignFrame => TransactionSign,
+	});
+
+	fn expected_authority(operation: OperationCode) -> &'static str {
+		match operation {
+			OperationCode::StorageObjectPut |
+			OperationCode::StorageObjectGet |
+			OperationCode::StorageObjectRange |
+			OperationCode::StorageObjectStatus => "provider",
+			OperationCode::StorageKeysExport | OperationCode::StorageKeysImport => "keystore",
+			OperationCode::IdentityAccount |
+			OperationCode::IdentityHumanityStatus |
+			OperationCode::IdentityEntitlementsRead => "identity-runtime",
+			OperationCode::IdentityProfileRead |
+			OperationCode::IdentityProfileDisclose |
+			OperationCode::IdentityHumanityProve |
+			OperationCode::IdentitySubjectDerive => "identity-host",
+			OperationCode::TransactionSign => "signing",
+			_ => "commons",
+		}
+	}
+
+	fn route_outbox() -> ProviderOutboxContextV2 {
+		ProviderOutboxContextV2 {
+			outbox_id: [1; 16],
+			generation: 1,
+			intended_cursor: 0,
+			negotiated_tuple: [2; 32],
+			provider_id: [3; 32],
+			provider_endpoint_hash: [4; 32],
+			created_at: 1,
+			authority_expires_at: 100,
+			terminal_block: 2,
+			prepare_nonce: [5; 24],
+			mark_sent_nonce: [6; 24],
+			install_nonce: [7; 24],
+			mark_ack_nonce: [8; 24],
+			confirm_nonce: [9; 24],
+			compact_nonce: [10; 24],
+		}
+	}
 
 	#[derive(Clone, Debug, Eq, PartialEq)]
 	struct FinalizedFixture {
@@ -680,6 +804,55 @@ mod tests {
 			OPERATIONS.iter().filter(|binding| (1100..1200).contains(&binding.code)).count();
 		let signing = OPERATIONS.iter().filter(|binding| binding.code == 1200).count();
 		assert_eq!((storage, identity, signing), (26, 7, 1));
+	}
+
+	#[test]
+	fn every_frozen_positive_request_decodes_and_routes_to_exactly_one_authority() {
+		let operations: serde_json::Value = serde_json::from_str(include_str!(
+			"../../../../docs/specs/origin-host-registry-v2.operations.json"
+		))
+		.expect("frozen operations are JSON");
+		let vectors: serde_json::Value = serde_json::from_str(include_str!(
+			"../../../../docs/specs/origin-host-registry-v2.vectors.json"
+		))
+		.expect("frozen vectors are JSON");
+		let routes = RouteBackend::default();
+		let mut dispatcher = CordHostDispatcherV2::new(
+			routes.clone(),
+			routes.clone(),
+			routes.clone(),
+			routes.clone(),
+			routes.clone(),
+			routes.clone(),
+		);
+		let mut decoded = BTreeSet::new();
+		for operation in operations["operations"].as_array().expect("operations are an array") {
+			let positive =
+				operation["positive_vectors"].as_array().expect("positive vectors are an array");
+			assert_eq!(positive.len(), 1, "one authoritative positive vector per operation");
+			let vector_id = positive[0].as_str().expect("vector ID is text");
+			let vector = vectors["vectors"]
+				.as_array()
+				.expect("vectors are an array")
+				.iter()
+				.find(|vector| vector["id"] == vector_id)
+				.unwrap_or_else(|| panic!("missing frozen vector {vector_id}"));
+			let wire = hex::decode(vector["wire_hex"].as_str().expect("wire is hexadecimal"))
+				.expect("frozen wire is hexadecimal");
+			let (request, _) = ClosedHostRequestV2::decode(&wire)
+				.unwrap_or_else(|error| panic!("{vector_id} failed closed decode: {error}"));
+			let code = request.operation();
+			assert_eq!(code as u64, operation["code"].as_u64().expect("operation code"));
+			assert!(decoded.insert(code as u16), "duplicate operation route");
+			let before = routes.0.borrow().len();
+			dispatcher
+				.dispatch(&wire, b"authority-bound-by-selected-backend", &route_outbox())
+				.unwrap_or_else(|error| panic!("{vector_id} dispatch failed: {error}"));
+			let recorded = routes.0.borrow();
+			assert_eq!(recorded.len(), before + 1, "{vector_id} did not route exactly once");
+			assert_eq!(recorded[before], (expected_authority(code), code), "{vector_id}");
+		}
+		assert_eq!(decoded.len(), 34);
 	}
 
 	#[test]

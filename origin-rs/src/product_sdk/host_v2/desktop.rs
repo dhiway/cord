@@ -31,7 +31,10 @@ use crate::product_sdk::host_outbox::{
 
 use super::{
 	codec::{CodecError, Dto},
-	generated::{CancelledEventV2, ProviderCapabilityV1, RequestV2, ResponseAckV1, ResumeTokenV1},
+	generated::{
+		self, CancelledEventV2, OperationCode, Production, ProviderCapabilityV1, RequestV2,
+		ResponseAckV1, ResumeTokenV1,
+	},
 	session::{negotiate, Negotiated, NegotiationError, NegotiationOffer, Session, SessionError},
 };
 
@@ -285,6 +288,14 @@ impl<S: Read + Write> DesktopHostV2Transport<S> {
 		Ok(())
 	}
 
+	fn finish_terminal(&mut self) -> Result<(), DesktopTransportError> {
+		if !self.session.as_ref().is_some_and(Session::is_terminal) {
+			return Err(DesktopTransportError::RequestBinding);
+		}
+		self.session = None;
+		Ok(())
+	}
+
 	fn close(&mut self) {
 		self.closed = true;
 	}
@@ -303,6 +314,7 @@ struct ActiveDesktopRequest {
 	request_id: [u8; 16],
 	operation_id: [u8; 16],
 	expected_response_kind: u16,
+	operation: Option<OperationCode>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -343,6 +355,7 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			request_id: input.request_id,
 			operation_id: input.operation_id,
 			expected_response_kind: input.expected_response_kind,
+			operation: Some(material.operation.ok_or(DesktopTransportError::RequestBinding)?),
 		};
 		let retry = self.outbox.prepare(input, prepare_nonce)?;
 		self.transport.begin(material.request_id)?;
@@ -383,6 +396,7 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			request_id: binding.request_id,
 			operation_id: binding.operation_id,
 			expected_response_kind: binding.expected_response_kind,
+			operation: material.operation,
 		});
 		Ok(retry)
 	}
@@ -442,9 +456,16 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		if !terminal {
 			return Ok(DurableDesktopEvent::NonTerminal(response));
 		}
-		let (_, _, kind) =
-			event_contract(Dto::<super::generated::EventV2>::decode(&response)?.value())?;
-		if active.expected_response_kind != 0 && active.expected_response_kind != kind as u16 {
+		let event_dto = Dto::<super::generated::EventV2>::decode(&response)?;
+		let (_, _, kind) = event_contract(event_dto.value())?;
+		if validate_terminal_contract(
+			active.operation,
+			active.expected_response_kind,
+			kind,
+			event_dto.value(),
+		)
+		.is_err()
+		{
 			self.transport.close();
 			return Err(DesktopTransportError::RequestBinding);
 		}
@@ -475,6 +496,8 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			self.transport.close();
 			return Err(error.into());
 		}
+		self.transport.finish_terminal()?;
+		self.active = None;
 		Ok(DurableDesktopEvent::Terminal { event, response_hash })
 	}
 
@@ -542,6 +565,7 @@ struct WireMaterial {
 	request_id: [u8; 16],
 	operation_id: Option<[u8; 16]>,
 	cancel: bool,
+	operation: Option<OperationCode>,
 }
 
 fn validate_wire_material(
@@ -568,14 +592,206 @@ fn validate_wire_material(
 			.map_err(|_| DesktopTransportError::RequestBinding)?;
 		let operation_id = optional_fixed_field(request.value(), 5, 16)?
 			.map(|bytes| bytes.try_into().expect("length checked"));
-		return Ok(WireMaterial { request_id, operation_id, cancel: false });
+		let operation = uint_field(request.value(), 3)
+			.and_then(|value| u16::try_from(value).ok())
+			.and_then(OperationCode::from_u16)
+			.ok_or(DesktopTransportError::RequestBinding)?;
+		return Ok(WireMaterial {
+			request_id,
+			operation_id,
+			cancel: false,
+			operation: Some(operation),
+		});
 	}
 	let cancel = Dto::<CancelledEventV2>::decode(request)?;
 	let (request_id, _, kind) = event_contract(cancel.value())?;
 	if kind != 4 {
 		return Err(DesktopTransportError::RequestBinding);
 	}
-	Ok(WireMaterial { request_id, operation_id: None, cancel: true })
+	Ok(WireMaterial { request_id, operation_id: None, cancel: true, operation: None })
+}
+
+fn uint_field(value: &Value, wanted: u64) -> Option<u64> {
+	let Value::Map(fields) = value else { return None };
+	fields.iter().find_map(|(key, value)| match (key, value) {
+		(Value::Integer(key), Value::Integer(value))
+			if u64::try_from(*key).ok() == Some(wanted) =>
+			u64::try_from(*value).ok(),
+		_ => None,
+	})
+}
+
+fn value_field(value: &Value, wanted: u64) -> Result<&Value, DesktopTransportError> {
+	let Value::Map(fields) = value else { return Err(DesktopTransportError::RequestBinding) };
+	fields
+		.iter()
+		.find_map(|(key, value)| {
+			matches!(key, Value::Integer(key) if u64::try_from(*key).ok() == Some(wanted))
+				.then_some(value)
+		})
+		.ok_or(DesktopTransportError::RequestBinding)
+}
+
+fn validate_production<P: Production>(value: &Value) -> Result<(), DesktopTransportError> {
+	Dto::<P>::from_value(value.clone())
+		.map(|_| ())
+		.map_err(|_| DesktopTransportError::RequestBinding)
+}
+
+macro_rules! operation_payload_table {
+	($operation:expr, $payload:expr, $validator:ident) => {
+		match $operation {
+			OperationCode::StorageBucketCreate => {
+				$validator!($payload, StorageBucketCreateResult, StorageBucketCreateError)
+			},
+			OperationCode::StorageBucketGet => {
+				$validator!($payload, StorageBucketGetResult, StorageBucketGetError)
+			},
+			OperationCode::StorageBucketGrant => {
+				$validator!($payload, StorageBucketGrantResult, StorageBucketGrantError)
+			},
+			OperationCode::StorageBucketRevoke => {
+				$validator!($payload, StorageBucketRevokeResult, StorageBucketRevokeError)
+			},
+			OperationCode::StorageObjectPut => {
+				$validator!($payload, StorageObjectPutResult, StorageObjectPutError)
+			},
+			OperationCode::StorageObjectGet => {
+				$validator!($payload, StorageObjectGetResult, StorageObjectGetError)
+			},
+			OperationCode::StorageObjectRange => {
+				$validator!($payload, StorageObjectRangeResult, StorageObjectRangeError)
+			},
+			OperationCode::StorageObjectDelete => {
+				$validator!($payload, StorageObjectDeleteResult, StorageObjectDeleteError)
+			},
+			OperationCode::StorageObjectStatus => {
+				$validator!($payload, StorageObjectStatusResult, StorageObjectStatusError)
+			},
+			OperationCode::StorageCheckpointStatus => {
+				$validator!($payload, StorageCheckpointStatusResult, StorageCheckpointStatusError)
+			},
+			OperationCode::StorageCheckpointSubscribe => $validator!(
+				$payload,
+				StorageCheckpointSubscribeResult,
+				StorageCheckpointSubscribeError
+			),
+			OperationCode::StorageReplicaStatus => {
+				$validator!($payload, StorageReplicaStatusResult, StorageReplicaStatusError)
+			},
+			OperationCode::StorageReplicaSubscribe => {
+				$validator!($payload, StorageReplicaSubscribeResult, StorageReplicaSubscribeError)
+			},
+			OperationCode::StorageDeletionStatus => {
+				$validator!($payload, StorageDeletionStatusResult, StorageDeletionStatusError)
+			},
+			OperationCode::StorageDeletionSubscribe => {
+				$validator!($payload, StorageDeletionSubscribeResult, StorageDeletionSubscribeError)
+			},
+			OperationCode::StorageDriveRead => {
+				$validator!($payload, StorageDriveReadResult, StorageDriveReadError)
+			},
+			OperationCode::StorageDriveCommit => {
+				$validator!($payload, StorageDriveCommitResult, StorageDriveCommitError)
+			},
+			OperationCode::StorageDriveShare => {
+				$validator!($payload, StorageDriveShareResult, StorageDriveShareError)
+			},
+			OperationCode::StorageS3Put => {
+				$validator!($payload, StorageS3PutResult, StorageS3PutError)
+			},
+			OperationCode::StorageS3Get => {
+				$validator!($payload, StorageS3GetResult, StorageS3GetError)
+			},
+			OperationCode::StorageS3List => {
+				$validator!($payload, StorageS3ListResult, StorageS3ListError)
+			},
+			OperationCode::StorageS3Delete => {
+				$validator!($payload, StorageS3DeleteResult, StorageS3DeleteError)
+			},
+			OperationCode::StoragePublish => {
+				$validator!($payload, StoragePublishResult, StoragePublishError)
+			},
+			OperationCode::StorageResolve => {
+				$validator!($payload, StorageResolveResult, StorageResolveError)
+			},
+			OperationCode::StorageKeysExport => {
+				$validator!($payload, StorageKeysExportResult, StorageKeysExportError)
+			},
+			OperationCode::StorageKeysImport => {
+				$validator!($payload, StorageKeysImportResult, StorageKeysImportError)
+			},
+			OperationCode::IdentityAccount => {
+				$validator!($payload, IdentityAccountResult, IdentityAccountError)
+			},
+			OperationCode::IdentityProfileRead => {
+				$validator!($payload, IdentityProfileReadResult, IdentityProfileReadError)
+			},
+			OperationCode::IdentityProfileDisclose => {
+				$validator!($payload, IdentityProfileDiscloseResult, IdentityProfileDiscloseError)
+			},
+			OperationCode::IdentityHumanityStatus => {
+				$validator!($payload, IdentityHumanityStatusResult, IdentityHumanityStatusError)
+			},
+			OperationCode::IdentityHumanityProve => {
+				$validator!($payload, IdentityHumanityProveResult, IdentityHumanityProveError)
+			},
+			OperationCode::IdentitySubjectDerive => {
+				$validator!($payload, IdentitySubjectDeriveResult, IdentitySubjectDeriveError)
+			},
+			OperationCode::IdentityEntitlementsRead => {
+				$validator!($payload, IdentityEntitlementsReadResult, IdentityEntitlementsReadError)
+			},
+			OperationCode::TransactionSign => {
+				$validator!($payload, TransactionSignResult, TransactionSignError)
+			},
+		}
+	};
+}
+
+macro_rules! validate_result {
+	($payload:expr, $result:ident, $error:ident) => {
+		validate_production::<generated::$result>($payload)
+	};
+}
+
+macro_rules! validate_error {
+	($payload:expr, $result:ident, $error:ident) => {
+		validate_production::<generated::$error>($payload)
+	};
+}
+
+fn validate_terminal_contract(
+	operation: Option<OperationCode>,
+	expected_response_kind: u16,
+	kind: u64,
+	event: &Value,
+) -> Result<(), DesktopTransportError> {
+	match (expected_response_kind, kind) {
+		(2, 2) => operation_payload_table!(
+			operation.ok_or(DesktopTransportError::RequestBinding)?,
+			value_field(event, 4)?,
+			validate_result
+		),
+		(2, 3) => {
+			let operation = operation.ok_or(DesktopTransportError::RequestBinding)?;
+			let payload = value_field(event, 4)?;
+			operation_payload_table!(operation, payload, validate_error)?;
+			let error_code = uint_field(payload, 0)
+				.and_then(|value| u16::try_from(value).ok())
+				.ok_or(DesktopTransportError::RequestBinding)?;
+			let binding = generated::OPERATIONS
+				.iter()
+				.find(|binding| binding.code == operation as u16)
+				.ok_or(DesktopTransportError::RequestBinding)?;
+			if !binding.allowed_errors.contains(&error_code) {
+				return Err(DesktopTransportError::RequestBinding);
+			}
+			Ok(())
+		},
+		(4, 4) if operation.is_none() => Ok(()),
+		_ => Err(DesktopTransportError::RequestBinding),
+	}
 }
 
 fn event_contract(value: &Value) -> Result<([u8; 16], u32, u64), DesktopTransportError> {
@@ -612,7 +828,7 @@ fn optional_fixed_field(
 		if matches!(candidate, Value::Integer(candidate) if u64::try_from(*candidate).ok() == Some(key))
 		{
 			let Value::Bytes(bytes) = value else {
-				return Err(DesktopTransportError::RequestBinding)
+				return Err(DesktopTransportError::RequestBinding);
 			};
 			if bytes.len() != length {
 				return Err(DesktopTransportError::RequestBinding);

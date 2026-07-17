@@ -32,6 +32,11 @@ use super::{
 		DesktopPeerBindingError, DesktopPeerIdentity, DesktopTransportError, DurableDesktopEvent,
 		DurableDesktopHostV2, MAX_DESKTOP_FRAME_BYTES,
 	},
+	execution::{
+		CordProviderByteBackendV2, DurableCordProviderV2, HostCallV2, HostExecutionErrorV2,
+		HostExecutionV2, HostRequestMetaV2, HostStorageEncryptionV2, ProviderAckConfirmationV2,
+		ProviderByteStorageV2, ProviderOutboxContextV2,
+	},
 	generated::{
 		self, AcceptedEventV2, AcceptedState, DriveManifestV1, ErrorCode, EventV2, OperationCode,
 		ProgressEventV2, ProviderCapabilityV1, RequestV2, ResumeTokenV1,
@@ -80,18 +85,18 @@ fn mobile_tagged_value(tagged: &serde_json::Value) -> Value {
 				.parse::<u64>()
 				.expect("uint fits u64")
 				.into(),
-		)
+		);
 	}
 	if let Some(value) = tagged.get("bytes") {
 		return Value::Bytes(
 			hex::decode(value.as_str().expect("bytes are hexadecimal")).expect("valid hex"),
-		)
+		);
 	}
 	if let Some(value) = tagged.get("text") {
-		return Value::Text(value.as_str().expect("text is a string").into())
+		return Value::Text(value.as_str().expect("text is a string").into());
 	}
 	if let Some(value) = tagged.get("bool") {
-		return Value::Bool(value.as_bool().expect("bool is a boolean"))
+		return Value::Bool(value.as_bool().expect("bool is a boolean"));
 	}
 	if let Some(value) = tagged.get("array") {
 		return Value::Array(
@@ -101,7 +106,7 @@ fn mobile_tagged_value(tagged: &serde_json::Value) -> Value {
 				.iter()
 				.map(mobile_tagged_value)
 				.collect(),
-		)
+		);
 	}
 	Value::Map(
 		tagged["map"]
@@ -174,7 +179,7 @@ fn mobile_request_coverage(vectors: &[serde_json::Value]) -> Result<(), String> 
 			codes.insert(code, ()).is_some() ||
 			sources.insert(source, ()).is_some()
 		{
-			return Err("duplicate request metadata replaced an omission".into())
+			return Err("duplicate request metadata replaced an omission".into());
 		}
 		let decoded = Dto::<RequestV2>::decode(
 			&hex::decode(vector["canonical_cbor_hex"].as_str().ok_or("wire missing")?)
@@ -188,7 +193,7 @@ fn mobile_request_coverage(vectors: &[serde_json::Value]) -> Result<(), String> 
 			})
 			.ok_or("decoded code missing")?;
 		if decoded_code != code {
-			return Err("decoded RequestV2 code does not match metadata".into())
+			return Err("decoded RequestV2 code does not match metadata".into());
 		}
 	}
 	let expected_names: BTreeMap<_, _> = authoritative
@@ -209,7 +214,7 @@ fn mobile_request_coverage(vectors: &[serde_json::Value]) -> Result<(), String> 
 		codes != expected_codes ||
 		sources != expected_sources
 	{
-		return Err("mobile request set is not the exact authoritative operation set".into())
+		return Err("mobile request set is not the exact authoritative operation set".into());
 	}
 	Ok(())
 }
@@ -289,6 +294,86 @@ fn cancelled(request_id: [u8; 16], sequence: u64) -> Vec<u8> {
 	.to_vec()
 }
 
+fn error_event(request_id: [u8; 16], sequence: u64, code: u64, name: &str) -> Vec<u8> {
+	Dto::<generated::ErrorEventV2>::from_value(Value::Map(vec![
+		(Value::Integer(0.into()), Value::Integer(2.into())),
+		(Value::Integer(1.into()), Value::Bytes(request_id.to_vec())),
+		(Value::Integer(2.into()), Value::Integer(sequence.into())),
+		(Value::Integer(3.into()), Value::Integer(3.into())),
+		(
+			Value::Integer(4.into()),
+			Value::Map(vec![
+				(Value::Integer(0.into()), Value::Integer(code.into())),
+				(Value::Integer(1.into()), Value::Text(name.into())),
+				(Value::Integer(2.into()), Value::Bool(false)),
+				(Value::Integer(3.into()), Value::Map(Vec::new())),
+			]),
+		),
+	]))
+	.expect("error fixture is closed")
+	.canonical()
+	.to_vec()
+}
+
+fn result_event(request_id: [u8; 16], sequence: u64, payload: Value) -> Vec<u8> {
+	Dto::<generated::ResultEventV2>::from_value(Value::Map(vec![
+		(Value::Integer(0.into()), Value::Integer(2.into())),
+		(Value::Integer(1.into()), Value::Bytes(request_id.to_vec())),
+		(Value::Integer(2.into()), Value::Integer(sequence.into())),
+		(Value::Integer(3.into()), Value::Integer(2.into())),
+		(Value::Integer(4.into()), payload),
+	]))
+	.expect("result fixture is closed")
+	.canonical()
+	.to_vec()
+}
+
+fn object_put_result(request_id: [u8; 16], sequence: u64) -> Vec<u8> {
+	result_event(
+		request_id,
+		sequence,
+		Value::Map(vec![
+			(
+				Value::Integer(0.into()),
+				Value::Map(vec![
+					(Value::Integer(0.into()), Value::Bytes([0x11; 32].to_vec())),
+					(Value::Integer(1.into()), Value::Text("bafk-cord-result".into())),
+					(Value::Integer(2.into()), Value::Integer(12.into())),
+					(Value::Integer(3.into()), Value::Bytes([0x55; 64].to_vec())),
+				]),
+			),
+			(Value::Integer(1.into()), Value::Bool(true)),
+			(
+				Value::Integer(2.into()),
+				Value::Map(vec![
+					(Value::Integer(0.into()), Value::Integer(42.into())),
+					(Value::Integer(1.into()), Value::Bytes([0x66; 32].to_vec())),
+				]),
+			),
+		]),
+	)
+}
+
+fn object_get_result(request_id: [u8; 16], sequence: u64) -> Vec<u8> {
+	result_event(
+		request_id,
+		sequence,
+		Value::Map(vec![
+			(Value::Integer(0.into()), Value::Text("bafk-foreign-result".into())),
+			(Value::Integer(1.into()), Value::Integer(12.into())),
+			(
+				Value::Integer(2.into()),
+				Value::Map(vec![
+					(Value::Integer(0.into()), Value::Bytes([0x77; 32].to_vec())),
+					(Value::Integer(1.into()), Value::Integer(1.into())),
+					(Value::Integer(2.into()), Value::Integer(2.into())),
+					(Value::Integer(3.into()), Value::Integer(1.into())),
+				]),
+			),
+		]),
+	)
+}
+
 fn outbox_context() -> HostOutboxContextV1 {
 	HostOutboxContextV1 {
 		profile_id: [0x11; 32],
@@ -337,7 +422,7 @@ fn outbox_input() -> PrepareHostOutboxV1 {
 		negotiated_tuple: negotiated().binding_digest(),
 		provider_id: entry.provider_id,
 		provider_endpoint_hash: [0x22; 32],
-		expected_response_kind: entry.expected_response_kind,
+		expected_response_kind: 2,
 		created_at: entry.created_at,
 		authority_expires_at: entry.authority_expires_at,
 	}
@@ -350,6 +435,64 @@ fn desktop_peer() -> DesktopPeerIdentity {
 		user_id: Some(1_000),
 		provider_id: [0x11; 32],
 		provider_endpoint_hash: [0x22; 32],
+	}
+}
+
+#[derive(Clone)]
+struct ConfirmedAcks(std::sync::Arc<std::sync::atomic::AtomicUsize>);
+
+impl ProviderAckConfirmationV2 for ConfirmedAcks {
+	fn confirmed(
+		&mut self,
+		_outbox_id: [u8; 16],
+		_response_hash: [u8; 32],
+	) -> Result<bool, HostExecutionErrorV2> {
+		self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+		Ok(true)
+	}
+}
+
+struct NoStorageEncryption;
+
+impl HostStorageEncryptionV2 for NoStorageEncryption {
+	fn prepare(
+		&mut self,
+		_operation: OperationCode,
+		_exact_frame: &[u8],
+	) -> Result<(), HostExecutionErrorV2> {
+		Ok(())
+	}
+
+	fn complete(
+		&mut self,
+		_operation: OperationCode,
+		_execution: &mut HostExecutionV2,
+	) -> Result<(), HostExecutionErrorV2> {
+		Ok(())
+	}
+}
+
+fn provider_outbox_context(
+	input: &PrepareHostOutboxV1,
+	outbox_id: [u8; 16],
+	nonce: u8,
+) -> ProviderOutboxContextV2 {
+	ProviderOutboxContextV2 {
+		outbox_id,
+		generation: input.generation,
+		intended_cursor: input.intended_cursor,
+		negotiated_tuple: input.negotiated_tuple,
+		provider_id: input.provider_id,
+		provider_endpoint_hash: input.provider_endpoint_hash,
+		created_at: input.created_at,
+		authority_expires_at: input.authority_expires_at,
+		terminal_block: 200,
+		prepare_nonce: [nonce; 24],
+		mark_sent_nonce: [nonce + 1; 24],
+		install_nonce: [nonce + 2; 24],
+		mark_ack_nonce: [nonce + 3; 24],
+		confirm_nonce: [nonce + 4; 24],
+		compact_nonce: [nonce + 5; 24],
 	}
 }
 
@@ -789,17 +932,17 @@ fn desktop_outbox_commit_restart_resume_cancel_ack_and_gc_are_loss_safe() {
 	let request = input.exact_request_bytes.clone();
 	let authority = input.exact_authority_bytes.clone();
 	let accepted = accepted(input.request_id, 0);
-	let cancelled = cancelled(input.request_id, 1);
+	let terminal = error_event(input.request_id, 1, 204, "STORAGE_CID_MISMATCH");
 
 	let (client, mut server) = UnixStream::pair().unwrap();
 	let accepted_for_server = accepted.clone();
-	let cancelled_for_server = cancelled.clone();
+	let terminal_for_server = terminal.clone();
 	let first_server = thread::spawn(move || {
 		assert_eq!(read_frame(&mut server).unwrap(), request);
 		assert_eq!(read_frame(&mut server).unwrap(), authority);
 		let mut coalesced = Vec::new();
 		write_frame(&mut coalesced, &accepted_for_server).unwrap();
-		write_frame(&mut coalesced, &cancelled_for_server).unwrap();
+		write_frame(&mut coalesced, &terminal_for_server).unwrap();
 		server.write_all(&coalesced).unwrap();
 		matches!(read_frame(&mut server), Err(DesktopTransportError::FrameTruncated))
 	});
@@ -830,7 +973,7 @@ fn desktop_outbox_commit_restart_resume_cancel_ack_and_gc_are_loss_safe() {
 
 	let store = HostOutboxStoreV1::open(temp.path(), outbox_context(), outbox_keyring()).unwrap();
 	let installed = store.installed_response(id).unwrap();
-	assert_eq!(installed.response, cancelled);
+	assert_eq!(installed.response, terminal);
 	assert!(installed.terminal);
 	let exact_ack = installed.response_ack.clone();
 	let response_hash = installed.response_hash;
@@ -995,6 +1138,77 @@ fn desktop_stream_abort_after_send_preserves_the_exact_durable_retry() {
 
 #[cfg(unix)]
 #[test]
+fn durable_provider_validates_terminal_payload_acks_and_runs_sequential_operations() {
+	use std::{
+		os::unix::net::UnixStream,
+		sync::{
+			atomic::{AtomicUsize, Ordering},
+			Arc,
+		},
+		thread,
+	};
+
+	let root = tempfile::tempdir().unwrap();
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let input = outbox_input();
+	let frame = Dto::<generated::StorageObjectPutFrame>::decode(&input.exact_request_bytes)
+		.expect("frozen put frame is canonical");
+	let request_id = input.request_id;
+	let request = input.exact_request_bytes.clone();
+	let authority = input.exact_authority_bytes.clone();
+	let (client, mut server) = UnixStream::pair().unwrap();
+	let server_thread = thread::spawn(move || {
+		let mut acks = Vec::new();
+		for _ in 0..2 {
+			assert_eq!(read_frame(&mut server).unwrap(), request);
+			assert_eq!(read_frame(&mut server).unwrap(), authority);
+			write_frame(&mut server, &accepted(request_id, 0)).unwrap();
+			write_frame(&mut server, &object_put_result(request_id, 1)).unwrap();
+			let ack = read_frame(&mut server).unwrap();
+			Dto::<generated::ResponseAckV1>::decode(&ack).expect("host emits canonical ACK");
+			acks.push(ack);
+		}
+		acks
+	});
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let confirmations = Arc::new(AtomicUsize::new(0));
+	let provider = DurableCordProviderV2::new(
+		DurableDesktopHostV2::new(transport, &store),
+		ConfirmedAcks(confirmations.clone()),
+	);
+	let mut backend = CordProviderByteBackendV2::new(provider, NoStorageEncryption);
+	for (outbox_id, nonce) in [([0x71; 16], 20), ([0x72; 16], 40)] {
+		let outbox = provider_outbox_context(&input, outbox_id, nonce);
+		let execution = backend
+			.object_put(HostCallV2 {
+				frame: &frame,
+				authority: &input.exact_authority_bytes,
+				meta: HostRequestMetaV2 {
+					request_id: input.request_id,
+					operation_id: Some(input.operation_id),
+					deadline_block: 200,
+				},
+				outbox: &outbox,
+			})
+			.expect("durable provider operation completes");
+		assert_eq!(execution.events.len(), 2);
+		assert!(execution.terminal_response_hash.is_some());
+	}
+	let acks = server_thread.join().unwrap();
+	assert_eq!(acks.len(), 2);
+	assert_eq!(acks[0], acks[1], "identical terminal records yield byte-exact ACKs");
+	assert_eq!(confirmations.load(Ordering::SeqCst), 2);
+}
+
+#[cfg(unix)]
+#[test]
 fn desktop_binding_operation_and_response_contract_mismatches_emit_no_ack_or_request() {
 	use std::{io::Read, os::unix::net::UnixStream, thread, time::Duration};
 
@@ -1076,12 +1290,12 @@ fn desktop_binding_operation_and_response_contract_mismatches_emit_no_ack_or_req
 	input.expected_response_kind = 2;
 	let request_id = input.request_id;
 	let (client, mut server) = UnixStream::pair().unwrap();
-	let accepted = accepted(request_id, 0);
+	let accepted_event = accepted(request_id, 0);
 	let cancel = cancelled(request_id, 1);
 	let server_thread = thread::spawn(move || {
 		read_frame(&mut server).unwrap();
 		read_frame(&mut server).unwrap();
-		write_frame(&mut server, &accepted).unwrap();
+		write_frame(&mut server, &accepted_event).unwrap();
 		write_frame(&mut server, &cancel).unwrap();
 		matches!(read_frame(&mut server), Err(DesktopTransportError::FrameTruncated))
 	});
@@ -1105,6 +1319,40 @@ fn desktop_binding_operation_and_response_contract_mismatches_emit_no_ack_or_req
 	));
 	drop(desktop);
 	assert!(server_thread.join().unwrap(), "response-kind mismatch emitted an ack");
+
+	let root = tempfile::tempdir().unwrap();
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let mut input = outbox_input();
+	input.outbox_id = [0x78; 16];
+	let request_id = input.request_id;
+	let (client, mut server) = UnixStream::pair().unwrap();
+	let server_thread = thread::spawn(move || {
+		read_frame(&mut server).unwrap();
+		read_frame(&mut server).unwrap();
+		write_frame(&mut server, &accepted(request_id, 0)).unwrap();
+		write_frame(&mut server, &object_get_result(request_id, 1)).unwrap();
+		matches!(read_frame(&mut server), Err(DesktopTransportError::FrameTruncated))
+	});
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	desktop.prepare_and_send(input, [12; 24], [13; 24]).unwrap();
+	assert!(matches!(
+		desktop.receive_event(200, [14; 24], [15; 24]).unwrap(),
+		DurableDesktopEvent::NonTerminal(_)
+	));
+	assert!(matches!(
+		desktop.receive_event(200, [16; 24], [17; 24]),
+		Err(DesktopTransportError::RequestBinding)
+	));
+	drop(desktop);
+	assert!(server_thread.join().unwrap(), "foreign result payload emitted an ack");
 }
 
 #[cfg(unix)]
