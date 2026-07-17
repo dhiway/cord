@@ -23,8 +23,18 @@
 
 use std::collections::BTreeSet;
 
+use ciborium::value::Value as CborValue;
 use serde::{Deserialize, Serialize};
 use unicode_normalization::UnicodeNormalization;
+
+use crate::product_sdk::host_v2::{
+	codec::{CodecError as HostV2CodecError, Dto as HostV2Dto},
+	generated::{
+		IdentityAccountFrame, IdentityEntitlementsReadFrame, IdentityHumanityProveFrame,
+		IdentityHumanityStatusFrame, IdentityProfileDiscloseFrame, IdentityProfileReadFrame,
+		IdentitySubjectDeriveFrame, TransactionSignFrame,
+	},
+};
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[repr(u16)]
@@ -81,8 +91,9 @@ impl IdentityV2Operation {
 
 	pub(crate) const fn cddl(self) -> (&'static str, &'static str, &'static str) {
 		match self {
-			Self::IdentityAccount =>
-				("IdentityAccountRequest", "IdentityAccountResult", "IdentityAccountError"),
+			Self::IdentityAccount => {
+				("IdentityAccountRequest", "IdentityAccountResult", "IdentityAccountError")
+			},
 			Self::IdentityProfileRead => (
 				"IdentityProfileReadRequest",
 				"IdentityProfileReadResult",
@@ -113,48 +124,66 @@ impl IdentityV2Operation {
 				"IdentityEntitlementsReadResult",
 				"IdentityEntitlementsReadError",
 			),
-			Self::TransactionSign =>
-				("TransactionSignRequest", "TransactionSignResult", "TransactionSignError"),
+			Self::TransactionSign => {
+				("TransactionSignRequest", "TransactionSignResult", "TransactionSignError")
+			},
 		}
 	}
 }
 
-pub(crate) const IDENTITY_V2_ALLOWED_ERRORS: &[&str] = &[
-	"WIRE_SCHEMA_INVALID",
-	"WIRE_NON_CANONICAL",
-	"WIRE_VERSION_MISMATCH",
-	"WIRE_GENESIS_MISMATCH",
-	"WIRE_DESCRIPTOR_MISMATCH",
-	"WIRE_SEQUENCE_INVALID",
-	"REQUEST_DEADLINE_EXPIRED",
-	"REQUEST_CANCELLED",
-	"REQUEST_NOT_FOUND",
-	"GRANT_REQUIRED",
-	"GRANT_SCOPE_DENIED",
-	"GRANT_EXPIRED",
-	"GRANT_REVOKED",
-	"HOST_OUTBOX_UNAVAILABLE",
-	"HOST_OUTBOX_FULL",
-	"HOST_OUTBOX_CORRUPT",
-	"HOST_OUTBOX_EXPIRED",
-	"IDENTITY_AUDIENCE_INVALID",
-	"IDENTITY_CHALLENGE_REPLAY",
-	"IDENTITY_PROOF_EXPIRED",
-	"IDENTITY_EPOCH_INVALID",
-	"IDENTITY_DISCLOSURE_DENIED",
-	"IDENTITY_HUMANITY_UNAVAILABLE",
-	"IDENTITY_ENTITLEMENT_UNAVAILABLE",
-	"SIGNING_CONSENT_REQUIRED",
-	"IDENTITY_RECOVERY_ENTROPY_FAILED",
-	"IDENTITY_RECOVERY_INSTALL_FAILED",
-	"IDENTITY_OLD_INCARNATION",
-	"IDENTITY_RETIRED_SET_FULL",
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct IdentityV2ErrorTuple {
+	pub(crate) code: u16,
+	pub(crate) name: &'static str,
+	pub(crate) retryable: bool,
+}
+
+pub(crate) const IDENTITY_V2_ERRORS: [IdentityV2ErrorTuple; 29] = [
+	IdentityV2ErrorTuple { code: 100, name: "WIRE_SCHEMA_INVALID", retryable: false },
+	IdentityV2ErrorTuple { code: 101, name: "WIRE_NON_CANONICAL", retryable: false },
+	IdentityV2ErrorTuple { code: 102, name: "WIRE_VERSION_MISMATCH", retryable: false },
+	IdentityV2ErrorTuple { code: 103, name: "WIRE_GENESIS_MISMATCH", retryable: false },
+	IdentityV2ErrorTuple { code: 104, name: "WIRE_DESCRIPTOR_MISMATCH", retryable: false },
+	IdentityV2ErrorTuple { code: 105, name: "WIRE_SEQUENCE_INVALID", retryable: false },
+	IdentityV2ErrorTuple { code: 106, name: "REQUEST_DEADLINE_EXPIRED", retryable: false },
+	IdentityV2ErrorTuple { code: 107, name: "REQUEST_CANCELLED", retryable: false },
+	IdentityV2ErrorTuple { code: 108, name: "REQUEST_NOT_FOUND", retryable: false },
+	IdentityV2ErrorTuple { code: 109, name: "GRANT_REQUIRED", retryable: false },
+	IdentityV2ErrorTuple { code: 110, name: "GRANT_SCOPE_DENIED", retryable: false },
+	IdentityV2ErrorTuple { code: 111, name: "GRANT_EXPIRED", retryable: false },
+	IdentityV2ErrorTuple { code: 112, name: "GRANT_REVOKED", retryable: false },
+	IdentityV2ErrorTuple { code: 113, name: "HOST_OUTBOX_UNAVAILABLE", retryable: false },
+	IdentityV2ErrorTuple { code: 114, name: "HOST_OUTBOX_FULL", retryable: true },
+	IdentityV2ErrorTuple { code: 115, name: "HOST_OUTBOX_CORRUPT", retryable: false },
+	IdentityV2ErrorTuple { code: 116, name: "HOST_OUTBOX_EXPIRED", retryable: false },
+	IdentityV2ErrorTuple { code: 400, name: "IDENTITY_AUDIENCE_INVALID", retryable: false },
+	IdentityV2ErrorTuple { code: 401, name: "IDENTITY_CHALLENGE_REPLAY", retryable: false },
+	IdentityV2ErrorTuple { code: 402, name: "IDENTITY_PROOF_EXPIRED", retryable: false },
+	IdentityV2ErrorTuple { code: 403, name: "IDENTITY_EPOCH_INVALID", retryable: false },
+	IdentityV2ErrorTuple { code: 404, name: "IDENTITY_DISCLOSURE_DENIED", retryable: false },
+	IdentityV2ErrorTuple { code: 405, name: "IDENTITY_HUMANITY_UNAVAILABLE", retryable: true },
+	IdentityV2ErrorTuple { code: 406, name: "IDENTITY_ENTITLEMENT_UNAVAILABLE", retryable: true },
+	IdentityV2ErrorTuple { code: 407, name: "SIGNING_CONSENT_REQUIRED", retryable: false },
+	IdentityV2ErrorTuple { code: 408, name: "IDENTITY_RECOVERY_ENTROPY_FAILED", retryable: false },
+	IdentityV2ErrorTuple { code: 409, name: "IDENTITY_RECOVERY_INSTALL_FAILED", retryable: false },
+	IdentityV2ErrorTuple { code: 410, name: "IDENTITY_OLD_INCARNATION", retryable: false },
+	IdentityV2ErrorTuple { code: 411, name: "IDENTITY_RETIRED_SET_FULL", retryable: false },
 ];
+
+pub(crate) const fn identity_v2_errors_for(
+	_operation: IdentityV2Operation,
+) -> &'static [IdentityV2ErrorTuple; 29] {
+	&IDENTITY_V2_ERRORS
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 pub(crate) enum IdentityV2Error {
 	#[error("WIRE_SCHEMA_INVALID")]
 	WireSchemaInvalid,
+	#[error("WIRE_NON_CANONICAL")]
+	WireNonCanonical,
+	#[error("REQUEST_DEADLINE_EXPIRED")]
+	DeadlineExpired,
 	#[error("GRANT_SCOPE_DENIED")]
 	GrantScopeDenied,
 	#[error("GRANT_EXPIRED")]
@@ -171,6 +200,51 @@ pub(crate) enum IdentityV2Error {
 	OldIncarnation,
 	#[error("SIGNING_CONSENT_REQUIRED")]
 	FreshConsentRequired,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct IdentityV2ErrorDetails {
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub(crate) message: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub(crate) lower: Option<u64>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub(crate) upper: Option<u64>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub(crate) hash: Option<[u8; 32]>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct IdentityV2ErrorEnvelope {
+	pub(crate) code: u16,
+	pub(crate) name: String,
+	pub(crate) retryable: bool,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub(crate) details: Option<IdentityV2ErrorDetails>,
+}
+
+impl IdentityV2ErrorEnvelope {
+	pub(crate) fn validate_for(
+		&self,
+		operation: IdentityV2Operation,
+	) -> Result<(), IdentityV2Error> {
+		let frozen = identity_v2_errors_for(operation).iter().find(|error| error.code == self.code);
+		if !frozen.is_some_and(|error| error.name == self.name && error.retryable == self.retryable)
+		{
+			return Err(IdentityV2Error::WireSchemaInvalid);
+		}
+		if self
+			.details
+			.as_ref()
+			.and_then(|details| details.message.as_ref())
+			.is_some_and(|message| text(message, 256).is_err())
+		{
+			return Err(IdentityV2Error::WireSchemaInvalid);
+		}
+		Ok(())
+	}
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -396,6 +470,78 @@ impl IdentityRequestV2 {
 			Self::TransactionSign(_) => Ok(()),
 		}
 	}
+
+	fn wire_value(&self) -> CborValue {
+		match self {
+			Self::Account(request) => cbor_map(vec![(0, CborValue::Text(request.session.clone()))]),
+			Self::ProfileRead(request) => {
+				let mut fields = vec![
+					(0, CborValue::Bytes(request.subject.to_vec())),
+					(
+						1,
+						CborValue::Array(
+							request.fields.iter().cloned().map(CborValue::Text).collect(),
+						),
+					),
+				];
+				if let Some(at) = request.at {
+					fields.push((2, CborValue::Bytes(at.to_vec())));
+				}
+				cbor_map(fields)
+			},
+			Self::ProfileDisclose(request) => cbor_map(vec![
+				(0, CborValue::Text(request.audience.clone())),
+				(
+					1,
+					CborValue::Array(request.fields.iter().cloned().map(CborValue::Text).collect()),
+				),
+				(2, CborValue::Text(request.purpose.clone())),
+				(3, cbor_uint(request.expires_at)),
+			]),
+			Self::HumanityStatus(request) => {
+				let mut fields = vec![(0, CborValue::Bytes(request.subject.to_vec()))];
+				if let Some(at) = request.at {
+					fields.push((1, CborValue::Bytes(at.to_vec())));
+				}
+				cbor_map(fields)
+			},
+			Self::HumanityProve(request) => cbor_map(vec![
+				(0, CborValue::Text(request.audience.clone())),
+				(1, CborValue::Bytes(request.challenge.clone())),
+				(2, cbor_uint(request.expires_at)),
+				(
+					3,
+					CborValue::Array(request.claims.iter().cloned().map(CborValue::Text).collect()),
+				),
+			]),
+			Self::SubjectDerive(request) => {
+				let mut fields = vec![
+					(0, CborValue::Text(request.product_id.clone())),
+					(1, CborValue::Text(request.context.clone())),
+					(2, CborValue::Text(request.verifier_audience.clone())),
+				];
+				if let Some(epoch) = request.epoch {
+					fields.push((3, cbor_uint(epoch.into())));
+				}
+				cbor_map(fields)
+			},
+			Self::EntitlementsRead(request) => {
+				let mut fields = vec![
+					(0, CborValue::Bytes(request.subject.to_vec())),
+					(1, CborValue::Text(request.scope.clone())),
+				];
+				if let Some(at) = request.at {
+					fields.push((2, CborValue::Bytes(at.to_vec())));
+				}
+				cbor_map(fields)
+			},
+			Self::TransactionSign(request) => cbor_map(vec![
+				(0, CborValue::Bytes(request.payload_hash.to_vec())),
+				(1, CborValue::Bytes(request.policy_hash.to_vec())),
+				(2, cbor_uint(request.expires_at)),
+			]),
+		}
+	}
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -433,20 +579,75 @@ impl IdentityResultV2 {
 		}
 	}
 
-	pub(crate) fn validate_for(
-		&self,
-		expected: IdentityV2Operation,
-	) -> Result<(), IdentityV2Error> {
+	fn validate_shape_for(&self, expected: IdentityV2Operation) -> Result<(), IdentityV2Error> {
 		if self.operation() != expected {
 			return Err(IdentityV2Error::WireSchemaInvalid);
 		}
 		match self {
-			Self::HumanityProve(result) if !(64..=4096).contains(&result.proof.len()) =>
-				Err(IdentityV2Error::WireSchemaInvalid),
+			Self::HumanityProve(result) if !(64..=4096).contains(&result.proof.len()) => {
+				Err(IdentityV2Error::WireSchemaInvalid)
+			},
 			Self::EntitlementsRead(result) => text(&result.scope, 256),
 			_ => Ok(()),
 		}
 	}
+
+	pub(crate) fn validate_for_request(
+		&self,
+		request: &IdentityRequestV2,
+		finalized_block: u64,
+	) -> Result<(), IdentityV2Error> {
+		self.validate_shape_for(request.operation())?;
+		match (self, request) {
+			(Self::ProfileRead(result), IdentityRequestV2::ProfileRead(request)) => {
+				validate_profile_receipt(&result.receipt, finalized_block, request.at)
+			},
+			(Self::ProfileDisclose(result), IdentityRequestV2::ProfileDisclose(request)) => {
+				validate_profile_receipt(&result.receipt, finalized_block, None)?;
+				if result.receipt.valid_until > request.expires_at {
+					Err(IdentityV2Error::WireSchemaInvalid)
+				} else {
+					Ok(())
+				}
+			},
+			(Self::HumanityProve(result), IdentityRequestV2::HumanityProve(request)) => {
+				if result.expires_at <= finalized_block || result.expires_at > request.expires_at {
+					Err(IdentityV2Error::ProofExpired)
+				} else {
+					Ok(())
+				}
+			},
+			(Self::EntitlementsRead(result), IdentityRequestV2::EntitlementsRead(request)) => {
+				if result.scope != request.scope
+					|| result.expires_at <= finalized_block
+					|| result.fresh_until <= finalized_block
+					|| result.fresh_until > result.expires_at
+					|| request.at.is_some_and(|at| at != result.finalized.block_hash)
+				{
+					Err(IdentityV2Error::WireSchemaInvalid)
+				} else {
+					Ok(())
+				}
+			},
+			_ => Ok(()),
+		}
+	}
+}
+
+fn validate_profile_receipt(
+	receipt: &IdentityReceiptV2,
+	finalized_block: u64,
+	requested_hash: Option<[u8; 32]>,
+) -> Result<(), IdentityV2Error> {
+	let Some(finalized) = &receipt.finalized else {
+		return Err(IdentityV2Error::WireSchemaInvalid);
+	};
+	if receipt.valid_until <= finalized_block
+		|| requested_hash.is_some_and(|hash| hash != finalized.block_hash)
+	{
+		return Err(IdentityV2Error::WireSchemaInvalid);
+	}
+	Ok(())
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -509,19 +710,99 @@ identity_grant!(TransactionSignGrantV2, IdentityV2Operation::TransactionSign);
 pub(crate) struct IdentityInvocationV2 {
 	pub(crate) protocol: String,
 	pub(crate) code: u16,
+	pub(crate) request_id: [u8; 16],
 	pub(crate) product_id: String,
 	pub(crate) grant_id: [u8; 32],
 	pub(crate) recovery_incarnation: [u8; 32],
+	pub(crate) deadline_block: u64,
 	pub(crate) operation: IdentityV2Operation,
 	pub(crate) input: IdentityRequestV2,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub(crate) operation_id: Option<[u8; 16]>,
 }
 
+impl IdentityInvocationV2 {
+	pub(crate) fn validate_result(
+		&self,
+		result: &IdentityResultV2,
+		finalized_block: u64,
+	) -> Result<(), IdentityV2Error> {
+		result.validate_for_request(&self.input, finalized_block)
+	}
+
+	fn frame_value(&self) -> CborValue {
+		let mut fields = vec![
+			(0, cbor_uint(2)),
+			(1, CborValue::Bytes(self.request_id.to_vec())),
+			(2, CborValue::Text(self.product_id.clone())),
+			(3, cbor_uint(self.code.into())),
+			(4, CborValue::Bytes(self.grant_id.to_vec())),
+		];
+		if let Some(operation_id) = self.operation_id {
+			fields.push((5, CborValue::Bytes(operation_id.to_vec())));
+		}
+		fields.extend([(7, cbor_uint(self.deadline_block)), (8, self.input.wire_value())]);
+		cbor_map(fields)
+	}
+
+	pub(crate) fn canonical_frame(&self) -> Result<Vec<u8>, IdentityV2Error> {
+		let value = self.frame_value();
+		macro_rules! encode {
+			($production:ty) => {
+				HostV2Dto::<$production>::from_value(value)
+					.map(|dto| dto.canonical().to_vec())
+					.map_err(map_host_codec_error)
+			};
+		}
+		match self.operation {
+			IdentityV2Operation::IdentityAccount => encode!(IdentityAccountFrame),
+			IdentityV2Operation::IdentityProfileRead => encode!(IdentityProfileReadFrame),
+			IdentityV2Operation::IdentityProfileDisclose => encode!(IdentityProfileDiscloseFrame),
+			IdentityV2Operation::IdentityHumanityStatus => encode!(IdentityHumanityStatusFrame),
+			IdentityV2Operation::IdentityHumanityProve => encode!(IdentityHumanityProveFrame),
+			IdentityV2Operation::IdentitySubjectDerive => encode!(IdentitySubjectDeriveFrame),
+			IdentityV2Operation::IdentityEntitlementsRead => encode!(IdentityEntitlementsReadFrame),
+			IdentityV2Operation::TransactionSign => encode!(TransactionSignFrame),
+		}
+	}
+
+	pub(crate) fn decode_canonical_frame(
+		operation: IdentityV2Operation,
+		bytes: &[u8],
+	) -> Result<Vec<u8>, IdentityV2Error> {
+		macro_rules! decode {
+			($production:ty) => {
+				HostV2Dto::<$production>::decode(bytes)
+					.map(|dto| dto.canonical().to_vec())
+					.map_err(map_host_codec_error)
+			};
+		}
+		match operation {
+			IdentityV2Operation::IdentityAccount => decode!(IdentityAccountFrame),
+			IdentityV2Operation::IdentityProfileRead => decode!(IdentityProfileReadFrame),
+			IdentityV2Operation::IdentityProfileDisclose => decode!(IdentityProfileDiscloseFrame),
+			IdentityV2Operation::IdentityHumanityStatus => decode!(IdentityHumanityStatusFrame),
+			IdentityV2Operation::IdentityHumanityProve => decode!(IdentityHumanityProveFrame),
+			IdentityV2Operation::IdentitySubjectDerive => decode!(IdentitySubjectDeriveFrame),
+			IdentityV2Operation::IdentityEntitlementsRead => decode!(IdentityEntitlementsReadFrame),
+			IdentityV2Operation::TransactionSign => decode!(TransactionSignFrame),
+		}
+	}
+}
+
+fn map_host_codec_error(error: HostV2CodecError) -> IdentityV2Error {
+	match error {
+		HostV2CodecError::Schema(_) => IdentityV2Error::WireSchemaInvalid,
+		HostV2CodecError::NonCanonical(_) => IdentityV2Error::WireNonCanonical,
+	}
+}
+
 pub(crate) fn prepare_identity_v2_invocation(
 	product_id: &str,
 	grant: &dyn IdentityGrantV2,
 	request: IdentityRequestV2,
+	request_id: [u8; 16],
+	deadline_block: u64,
 	finalized_block: u64,
 	current_recovery_incarnation: [u8; 32],
 	operation_id: Option<[u8; 16]>,
@@ -531,10 +812,10 @@ pub(crate) fn prepare_identity_v2_invocation(
 	request.validate()?;
 	let operation = request.operation();
 	let grant_core = grant.core();
-	if grant.operation() != operation ||
-		grant_core.version != 2 ||
-		grant_core.product_id != product_id ||
-		grant_core.scope != operation
+	if grant.operation() != operation
+		|| grant_core.version != 2
+		|| grant_core.product_id != product_id
+		|| grant_core.scope != operation
 	{
 		return Err(IdentityV2Error::GrantScopeDenied);
 	}
@@ -546,6 +827,14 @@ pub(crate) fn prepare_identity_v2_invocation(
 	}
 	if grant_core.recovery_incarnation != current_recovery_incarnation {
 		return Err(IdentityV2Error::OldIncarnation);
+	}
+	if deadline_block <= finalized_block {
+		return Err(IdentityV2Error::DeadlineExpired);
+	}
+	if let IdentityRequestV2::SubjectDerive(subject) = &request {
+		if subject.product_id != product_id {
+			return Err(IdentityV2Error::GrantScopeDenied);
+		}
 	}
 	if let Some(audience) = request.audience() {
 		if grant_core.audience.as_deref() != Some(audience) {
@@ -568,9 +857,11 @@ pub(crate) fn prepare_identity_v2_invocation(
 	Ok(IdentityInvocationV2 {
 		protocol: "cord.origin.host/2".into(),
 		code: operation as u16,
+		request_id,
 		product_id: product_id.into(),
 		grant_id: grant_core.id,
 		recovery_incarnation: grant_core.recovery_incarnation,
+		deadline_block,
 		operation,
 		input: request,
 		operation_id,
@@ -594,10 +885,10 @@ pub(crate) enum IdentityRecoveryDispositionV2 {
 pub(crate) const fn identity_recovery_disposition_v2(
 	evidence: IdentityRecoveryEvidenceV2,
 ) -> IdentityRecoveryDispositionV2 {
-	if evidence.same_store &&
-		evidence.authenticated &&
-		evidence.complete_replay_journal &&
-		evidence.monotonic
+	if evidence.same_store
+		&& evidence.authenticated
+		&& evidence.complete_replay_journal
+		&& evidence.monotonic
 	{
 		IdentityRecoveryDispositionV2::RestoreCompleteStore
 	} else {
@@ -629,6 +920,19 @@ impl FreshConsentJournalV2 {
 		}
 		Ok(())
 	}
+}
+
+fn cbor_uint(value: u64) -> CborValue {
+	CborValue::Integer(value.into())
+}
+
+fn cbor_map(fields: Vec<(u64, CborValue)>) -> CborValue {
+	CborValue::Map(
+		fields
+			.into_iter()
+			.map(|(key, value)| (CborValue::Integer(key.into()), value))
+			.collect(),
+	)
 }
 
 fn fields(values: &[String]) -> Result<(), IdentityV2Error> {
@@ -663,52 +967,119 @@ mod tests {
 
 	fn request(operation: IdentityV2Operation) -> IdentityRequestV2 {
 		match operation {
-			IdentityV2Operation::IdentityAccount =>
-				IdentityRequestV2::Account(IdentityAccountRequestV2 { session: "selected".into() }),
-			IdentityV2Operation::IdentityProfileRead =>
+			IdentityV2Operation::IdentityAccount => {
+				IdentityRequestV2::Account(IdentityAccountRequestV2 { session: "selected".into() })
+			},
+			IdentityV2Operation::IdentityProfileRead => {
 				IdentityRequestV2::ProfileRead(IdentityProfileReadRequestV2 {
 					subject: [1; 32],
 					fields: vec!["display".into()],
 					at: None,
-				}),
-			IdentityV2Operation::IdentityProfileDisclose =>
+				})
+			},
+			IdentityV2Operation::IdentityProfileDisclose => {
 				IdentityRequestV2::ProfileDisclose(IdentityProfileDiscloseRequestV2 {
 					audience: "festival.example".into(),
 					fields: vec!["email".into()],
 					purpose: "ticket".into(),
 					expires_at: 120,
-				}),
-			IdentityV2Operation::IdentityHumanityStatus =>
+				})
+			},
+			IdentityV2Operation::IdentityHumanityStatus => {
 				IdentityRequestV2::HumanityStatus(IdentityHumanityStatusRequestV2 {
 					subject: [2; 32],
 					at: None,
-				}),
-			IdentityV2Operation::IdentityHumanityProve =>
+				})
+			},
+			IdentityV2Operation::IdentityHumanityProve => {
 				IdentityRequestV2::HumanityProve(IdentityHumanityProveRequestV2 {
 					audience: "festival.example".into(),
 					challenge: vec![3; 16],
 					expires_at: 120,
 					claims: vec!["adult".into()],
-				}),
-			IdentityV2Operation::IdentitySubjectDerive =>
+				})
+			},
+			IdentityV2Operation::IdentitySubjectDerive => {
 				IdentityRequestV2::SubjectDerive(IdentitySubjectDeriveRequestV2 {
 					product_id: "festival".into(),
 					context: "attendee".into(),
 					verifier_audience: "festival.example".into(),
 					epoch: None,
-				}),
-			IdentityV2Operation::IdentityEntitlementsRead =>
+				})
+			},
+			IdentityV2Operation::IdentityEntitlementsRead => {
 				IdentityRequestV2::EntitlementsRead(IdentityEntitlementsReadRequestV2 {
 					subject: [4; 32],
 					scope: "festival.entry".into(),
 					at: None,
-				}),
-			IdentityV2Operation::TransactionSign =>
+				})
+			},
+			IdentityV2Operation::TransactionSign => {
 				IdentityRequestV2::TransactionSign(TransactionSignRequestV2 {
 					payload_hash: [5; 32],
 					policy_hash: [6; 32],
 					expires_at: 120,
-				}),
+				})
+			},
+		}
+	}
+
+	fn frozen_request(operation: IdentityV2Operation) -> IdentityRequestV2 {
+		match operation {
+			IdentityV2Operation::IdentityAccount => {
+				IdentityRequestV2::Account(IdentityAccountRequestV2 { session: "a".into() })
+			},
+			IdentityV2Operation::IdentityProfileRead => {
+				IdentityRequestV2::ProfileRead(IdentityProfileReadRequestV2 {
+					subject: [0x22; 32],
+					fields: vec!["a".into()],
+					at: None,
+				})
+			},
+			IdentityV2Operation::IdentityProfileDisclose => {
+				IdentityRequestV2::ProfileDisclose(IdentityProfileDiscloseRequestV2 {
+					audience: "a".into(),
+					fields: vec!["a".into()],
+					purpose: "a".into(),
+					expires_at: 1,
+				})
+			},
+			IdentityV2Operation::IdentityHumanityStatus => {
+				IdentityRequestV2::HumanityStatus(IdentityHumanityStatusRequestV2 {
+					subject: [0x22; 32],
+					at: None,
+				})
+			},
+			IdentityV2Operation::IdentityHumanityProve => {
+				IdentityRequestV2::HumanityProve(IdentityHumanityProveRequestV2 {
+					audience: "a".into(),
+					challenge: vec![0x33; 16],
+					expires_at: 1,
+					claims: vec![],
+				})
+			},
+			IdentityV2Operation::IdentitySubjectDerive => {
+				IdentityRequestV2::SubjectDerive(IdentitySubjectDeriveRequestV2 {
+					product_id: "a".into(),
+					context: "a".into(),
+					verifier_audience: "a".into(),
+					epoch: None,
+				})
+			},
+			IdentityV2Operation::IdentityEntitlementsRead => {
+				IdentityRequestV2::EntitlementsRead(IdentityEntitlementsReadRequestV2 {
+					subject: [0x22; 32],
+					scope: "a".into(),
+					at: None,
+				})
+			},
+			IdentityV2Operation::TransactionSign => {
+				IdentityRequestV2::TransactionSign(TransactionSignRequestV2 {
+					payload_hash: [0x22; 32],
+					policy_hash: [0x22; 32],
+					expires_at: 1,
+				})
+			},
 		}
 	}
 
@@ -722,9 +1093,9 @@ mod tests {
 			expires_at: 200,
 			audience: matches!(
 				operation,
-				IdentityV2Operation::IdentityProfileDisclose |
-					IdentityV2Operation::IdentityHumanityProve |
-					IdentityV2Operation::IdentitySubjectDerive
+				IdentityV2Operation::IdentityProfileDisclose
+					| IdentityV2Operation::IdentityHumanityProve
+					| IdentityV2Operation::IdentitySubjectDerive
 			)
 			.then(|| "festival.example".into()),
 			revoked: Some(false),
@@ -736,16 +1107,21 @@ mod tests {
 		match operation {
 			IdentityV2Operation::IdentityAccount => Box::new(IdentityAccountGrantV2(core)),
 			IdentityV2Operation::IdentityProfileRead => Box::new(IdentityProfileReadGrantV2(core)),
-			IdentityV2Operation::IdentityProfileDisclose =>
-				Box::new(IdentityProfileDiscloseGrantV2(core)),
-			IdentityV2Operation::IdentityHumanityStatus =>
-				Box::new(IdentityHumanityStatusGrantV2(core)),
-			IdentityV2Operation::IdentityHumanityProve =>
-				Box::new(IdentityHumanityProveGrantV2(core)),
-			IdentityV2Operation::IdentitySubjectDerive =>
-				Box::new(IdentitySubjectDeriveGrantV2(core)),
-			IdentityV2Operation::IdentityEntitlementsRead =>
-				Box::new(IdentityEntitlementsReadGrantV2(core)),
+			IdentityV2Operation::IdentityProfileDisclose => {
+				Box::new(IdentityProfileDiscloseGrantV2(core))
+			},
+			IdentityV2Operation::IdentityHumanityStatus => {
+				Box::new(IdentityHumanityStatusGrantV2(core))
+			},
+			IdentityV2Operation::IdentityHumanityProve => {
+				Box::new(IdentityHumanityProveGrantV2(core))
+			},
+			IdentityV2Operation::IdentitySubjectDerive => {
+				Box::new(IdentitySubjectDeriveGrantV2(core))
+			},
+			IdentityV2Operation::IdentityEntitlementsRead => {
+				Box::new(IdentityEntitlementsReadGrantV2(core))
+			},
 			IdentityV2Operation::TransactionSign => Box::new(TransactionSignGrantV2(core)),
 		}
 	}
@@ -767,18 +1143,18 @@ mod tests {
 			assert_eq!(row["cddl"]["Request"], request);
 			assert_eq!(row["cddl"]["Result"], result);
 			assert_eq!(row["cddl"]["Error"], error);
-			let allowed = row["allowed_errors"]
-				.as_array()
-				.unwrap()
-				.iter()
-				.map(|error| error["name"].as_str().unwrap())
-				.collect::<Vec<_>>();
-			assert_eq!(allowed, IDENTITY_V2_ALLOWED_ERRORS);
+			let allowed = row["allowed_errors"].as_array().unwrap();
+			assert_eq!(allowed.len(), 29);
+			for (actual, frozen) in allowed.iter().zip(identity_v2_errors_for(operation)) {
+				assert_eq!(actual["code"].as_u64(), Some(frozen.code.into()));
+				assert_eq!(actual["name"], frozen.name);
+				assert_eq!(actual["retryable"], frozen.retryable);
+			}
 		}
 	}
 
 	#[test]
-	fn concrete_host_vectors_cover_each_identity_request() {
+	fn semantic_identity_dtos_round_trip_every_generated_host_frame() {
 		let fixture: Value = serde_json::from_str(HOST_VECTORS).unwrap();
 		let vectors = fixture["vectors"].as_array().unwrap();
 		for operation in IdentityV2Operation::ALL {
@@ -788,17 +1164,30 @@ mod tests {
 			assert_eq!(vector["cddl"]["Request"], operation.cddl().0);
 			let wire = hex::decode(vector["wire_hex"].as_str().unwrap()).unwrap();
 			assert_eq!(hex::encode(Sha256::digest(&wire)), vector["wire_sha256"]);
-			let value: ciborium::value::Value = ciborium::from_reader(wire.as_slice()).unwrap();
-			let ciborium::value::Value::Map(fields) = value else { panic!("frame is a map") };
-			let code = fields
-				.iter()
-				.find_map(|(key, value)| {
-					(matches!(key, ciborium::value::Value::Integer(key) if u64::try_from(*key).ok() == Some(3)))
-					.then_some(value)
-				})
-				.unwrap();
-			assert!(
-				matches!(code, ciborium::value::Value::Integer(code) if u64::try_from(*code).ok() == Some(operation as u64))
+			let invocation = IdentityInvocationV2 {
+				protocol: "cord.origin.host/2".into(),
+				code: operation as u16,
+				request_id: [0x11; 16],
+				product_id: "festival".into(),
+				grant_id: [0x22; 32],
+				recovery_incarnation: [0x44; 32],
+				deadline_block: 100,
+				operation,
+				input: frozen_request(operation),
+				operation_id: operation.requires_fresh_consent().then_some([0x33; 16]),
+			};
+			assert_eq!(invocation.request_id, [0x11; 16]);
+			assert_eq!(invocation.deadline_block, 100);
+			assert_eq!(invocation.canonical_frame().unwrap(), wire, "{}", operation.name());
+			assert_eq!(
+				IdentityInvocationV2::decode_canonical_frame(operation, &wire).unwrap(),
+				wire
+			);
+			let mut noncanonical = vec![0xb8, wire[0] & 0x1f];
+			noncanonical.extend_from_slice(&wire[1..]);
+			assert_eq!(
+				IdentityInvocationV2::decode_canonical_frame(operation, &noncanonical),
+				Err(IdentityV2Error::WireNonCanonical),
 			);
 		}
 	}
@@ -814,6 +1203,8 @@ mod tests {
 					"festival",
 					&grant(wrong),
 					request(operation),
+					[0x11; 16],
+					150,
 					100,
 					[9; 32],
 					operation_id,
@@ -825,6 +1216,8 @@ mod tests {
 				"festival",
 				&grant(operation),
 				request(operation),
+				[0x11; 16],
+				150,
 				100,
 				[9; 32],
 				operation_id,
@@ -841,6 +1234,8 @@ mod tests {
 			"festival",
 			&grant(IdentityV2Operation::IdentityAccount),
 			request(IdentityV2Operation::IdentityAccount),
+			[0x11; 16],
+			150,
 			100,
 			[9; 32],
 			None,
@@ -854,9 +1249,11 @@ mod tests {
 			[
 				"protocol",
 				"code",
+				"requestId",
 				"productId",
 				"grantId",
 				"recoveryIncarnation",
+				"deadlineBlock",
 				"operation",
 				"input"
 			]
@@ -881,7 +1278,8 @@ mod tests {
 			expires_at: 200,
 		});
 		assert_eq!(
-			oversized.validate_for(IdentityV2Operation::IdentityHumanityProve),
+			oversized
+				.validate_for_request(&request(IdentityV2Operation::IdentityHumanityProve), 100),
 			Err(IdentityV2Error::WireSchemaInvalid),
 		);
 		let exact = IdentityResultV2::Account(IdentityAccountResultV2 {
@@ -890,7 +1288,7 @@ mod tests {
 			finalized: FinalizedIdentityV2 { block_number: 100, block_hash: [2; 32] },
 		});
 		assert_eq!(
-			exact.validate_for(IdentityV2Operation::IdentityProfileRead),
+			exact.validate_for_request(&request(IdentityV2Operation::IdentityProfileRead), 100),
 			Err(IdentityV2Error::WireSchemaInvalid),
 		);
 	}
@@ -907,6 +1305,8 @@ mod tests {
 				"festival",
 				&wrong_audience,
 				request(operation),
+				[0x11; 16],
+				150,
 				100,
 				[9; 32],
 				Some([7; 16]),
@@ -919,6 +1319,8 @@ mod tests {
 				"festival",
 				&grant(IdentityV2Operation::IdentitySubjectDerive),
 				request(IdentityV2Operation::IdentitySubjectDerive),
+				[0x11; 16],
+				150,
 				100,
 				[8; 32],
 				None,
@@ -926,6 +1328,160 @@ mod tests {
 			),
 			Err(IdentityV2Error::OldIncarnation),
 		);
+		let wrong_product = IdentityRequestV2::SubjectDerive(IdentitySubjectDeriveRequestV2 {
+			product_id: "other".into(),
+			context: "attendee".into(),
+			verifier_audience: "festival.example".into(),
+			epoch: None,
+		});
+		assert_eq!(
+			prepare_identity_v2_invocation(
+				"festival",
+				&grant(IdentityV2Operation::IdentitySubjectDerive),
+				wrong_product,
+				[0x11; 16],
+				150,
+				100,
+				[9; 32],
+				None,
+				&mut journal,
+			),
+			Err(IdentityV2Error::GrantScopeDenied),
+		);
+		assert_eq!(
+			prepare_identity_v2_invocation(
+				"festival",
+				&grant(IdentityV2Operation::IdentityAccount),
+				request(IdentityV2Operation::IdentityAccount),
+				[0x11; 16],
+				100,
+				100,
+				[9; 32],
+				None,
+				&mut journal,
+			),
+			Err(IdentityV2Error::DeadlineExpired),
+		);
+	}
+
+	#[test]
+	fn results_bind_to_request_and_finalized_freshness_context() {
+		let profile_request = IdentityRequestV2::ProfileRead(IdentityProfileReadRequestV2 {
+			subject: [1; 32],
+			fields: vec!["display".into()],
+			at: Some([8; 32]),
+		});
+		let missing_finality = IdentityResultV2::ProfileRead(IdentityProfileReadResultV2 {
+			receipt: IdentityReceiptV2 { commitment: [2; 32], valid_until: 120, finalized: None },
+		});
+		assert_eq!(
+			missing_finality.validate_for_request(&profile_request, 100),
+			Err(IdentityV2Error::WireSchemaInvalid),
+		);
+		let wrong_hash = IdentityResultV2::ProfileRead(IdentityProfileReadResultV2 {
+			receipt: IdentityReceiptV2 {
+				commitment: [2; 32],
+				valid_until: 120,
+				finalized: Some(FinalizedIdentityV2 { block_number: 100, block_hash: [7; 32] }),
+			},
+		});
+		assert_eq!(
+			wrong_hash.validate_for_request(&profile_request, 100),
+			Err(IdentityV2Error::WireSchemaInvalid),
+		);
+		let disclose_request =
+			IdentityRequestV2::ProfileDisclose(IdentityProfileDiscloseRequestV2 {
+				audience: "festival.example".into(),
+				fields: vec!["display".into()],
+				purpose: "entry".into(),
+				expires_at: 120,
+			});
+		let overlong_disclosure =
+			IdentityResultV2::ProfileDisclose(IdentityProfileDiscloseResultV2 {
+				receipt: IdentityReceiptV2 {
+					commitment: [2; 32],
+					valid_until: 121,
+					finalized: Some(FinalizedIdentityV2 { block_number: 100, block_hash: [8; 32] }),
+				},
+			});
+		assert_eq!(
+			overlong_disclosure.validate_for_request(&disclose_request, 100),
+			Err(IdentityV2Error::WireSchemaInvalid),
+		);
+
+		let entitlement_request =
+			IdentityRequestV2::EntitlementsRead(IdentityEntitlementsReadRequestV2 {
+				subject: [1; 32],
+				scope: "festival.entry".into(),
+				at: None,
+			});
+		let wrong_scope = IdentityResultV2::EntitlementsRead(IdentityEntitlementsReadResultV2 {
+			allowed: true,
+			scope: "other".into(),
+			policy_version: 1,
+			expires_at: 120,
+			fresh_until: 110,
+			finalized: FinalizedIdentityV2 { block_number: 100, block_hash: [8; 32] },
+		});
+		assert_eq!(
+			wrong_scope.validate_for_request(&entitlement_request, 100),
+			Err(IdentityV2Error::WireSchemaInvalid),
+		);
+		let stale = IdentityResultV2::EntitlementsRead(IdentityEntitlementsReadResultV2 {
+			allowed: true,
+			scope: "festival.entry".into(),
+			policy_version: 1,
+			expires_at: 120,
+			fresh_until: 100,
+			finalized: FinalizedIdentityV2 { block_number: 100, block_hash: [8; 32] },
+		});
+		assert_eq!(
+			stale.validate_for_request(&entitlement_request, 100),
+			Err(IdentityV2Error::WireSchemaInvalid),
+		);
+
+		let proof_request = IdentityRequestV2::HumanityProve(IdentityHumanityProveRequestV2 {
+			audience: "festival.example".into(),
+			challenge: vec![3; 16],
+			expires_at: 120,
+			claims: vec![],
+		});
+		let overlong = IdentityResultV2::HumanityProve(IdentityHumanityProveResultV2 {
+			proof: vec![4; 64],
+			derived_public_key: [5; 32],
+			proof_hash: [6; 32],
+			continuity: true,
+			expires_at: 121,
+		});
+		assert_eq!(
+			overlong.validate_for_request(&proof_request, 100),
+			Err(IdentityV2Error::ProofExpired),
+		);
+	}
+
+	#[test]
+	fn exact_numeric_error_envelopes_fail_closed() {
+		for operation in IdentityV2Operation::ALL {
+			for frozen in identity_v2_errors_for(operation) {
+				let envelope = IdentityV2ErrorEnvelope {
+					code: frozen.code,
+					name: frozen.name.into(),
+					retryable: frozen.retryable,
+					details: None,
+				};
+				assert_eq!(envelope.validate_for(operation), Ok(()));
+				let mut drift = envelope.clone();
+				drift.retryable = !drift.retryable;
+				assert_eq!(drift.validate_for(operation), Err(IdentityV2Error::WireSchemaInvalid));
+			}
+		}
+		let joined = serde_json::json!({
+			"code": 400,
+			"name": "IDENTITY_AUDIENCE_INVALID",
+			"retryable": false,
+			"profile": {"email": "hidden@example"}
+		});
+		assert!(serde_json::from_value::<IdentityV2ErrorEnvelope>(joined).is_err());
 	}
 
 	#[test]
@@ -956,6 +1512,8 @@ mod tests {
 			"festival",
 			&grant(IdentityV2Operation::IdentityHumanityProve),
 			request(IdentityV2Operation::IdentityHumanityProve),
+			[0x11; 16],
+			150,
 			100,
 			[9; 32],
 			Some([7; 16]),
@@ -967,6 +1525,8 @@ mod tests {
 				"festival",
 				&grant(IdentityV2Operation::IdentityHumanityProve),
 				request(IdentityV2Operation::IdentityHumanityProve),
+				[0x11; 16],
+				150,
 				100,
 				[9; 32],
 				Some([8; 16]),

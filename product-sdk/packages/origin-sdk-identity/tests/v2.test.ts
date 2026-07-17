@@ -20,13 +20,17 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { OriginSdkError, type SdkResult } from "@cord-network/origin-sdk-errors";
+import type { SdkResult } from "@cord-network/origin-sdk-errors";
+import { decodeHostV2, encodeHostV2, HostV2CodecError } from "../../origin-sdk-host/src/internal/v2/codec.ts";
 import {
 	IDENTITY_V2_OPERATION_CODES,
 	IDENTITY_V2_CONTRACTS,
 	IDENTITY_V2_ALLOWED_ERRORS,
+	IDENTITY_V2_ERRORS,
 	createIdentityV2Client,
+	identityV2WireFrame,
 	identityRecoveryDispositionV2,
+	validateIdentityV2ErrorEnvelope,
 	type IdentityGrantV2,
 	type IdentityV2Bridge,
 	type IdentityV2Call,
@@ -36,6 +40,8 @@ import {
 const bytes = (length: number, value: number): Uint8Array => new Uint8Array(length).fill(value);
 const incarnation = bytes(32, 9);
 const options: IdentityV2InvocationOptions = {
+	requestId: bytes(16, 11),
+	deadlineBlock: 150n,
 	finalizedBlock: 100n,
 	currentRecoveryIncarnation: incarnation,
 };
@@ -69,7 +75,7 @@ const inputByOperation = {
 const outputByOperation = {
 	"identity.account": { account: bytes(32, 1), sessionExpiresAt: 120n, finalized },
 	"identity.profile.read": { receipt: { commitment: bytes(32, 2), validUntil: 120n, finalized } },
-	"identity.profile.disclose": { receipt: { commitment: bytes(32, 3), validUntil: 120n } },
+	"identity.profile.disclose": { receipt: { commitment: bytes(32, 3), validUntil: 120n, finalized } },
 	"identity.humanity.status": { status: 1, freshUntil: 120n, finalized },
 	"identity.humanity.prove": {
 		proof: bytes(64, 4),
@@ -118,7 +124,7 @@ function grant<Operation extends IdentityV2Call>(
 
 function successBridge(calls: IdentityV2Call[] = []): IdentityV2Bridge {
 	return {
-		async request(invocation): Promise<SdkResult<unknown>> {
+		async request(invocation) {
 			calls.push(invocation.operation);
 			return { success: true, value: outputByOperation[invocation.operation] };
 		},
@@ -154,6 +160,22 @@ const operationOptions = (operation: IdentityV2Call): IdentityV2InvocationOption
 	...(freshConsent.has(operation) ? { operationId: bytes(16, IDENTITY_V2_OPERATION_CODES[operation] % 251) } : {}),
 });
 
+type WireRecord = Readonly<Record<number, unknown>>;
+const asBigInt = (value: unknown): bigint => typeof value === "bigint" ? value : BigInt(value as number);
+function semanticInput(operation: IdentityV2Call, raw: unknown): unknown {
+	const value = raw as WireRecord;
+	switch (operation) {
+		case "identity.account": return { session: value[0] };
+		case "identity.profile.read": return { subject: value[0], fields: value[1], ...(value[2] === undefined ? {} : { at: value[2] }) };
+		case "identity.profile.disclose": return { audience: value[0], fields: value[1], purpose: value[2], expiresAt: asBigInt(value[3]) };
+		case "identity.humanity.status": return { subject: value[0], ...(value[1] === undefined ? {} : { at: value[1] }) };
+		case "identity.humanity.prove": return { audience: value[0], challenge: value[1], expiresAt: asBigInt(value[2]), claims: value[3] };
+		case "identity.subject.derive": return { productId: value[0], context: value[1], verifierAudience: value[2], ...(value[3] === undefined ? {} : { epoch: value[3] }) };
+		case "identity.entitlements.read": return { subject: value[0], scope: value[1], ...(value[2] === undefined ? {} : { at: value[2] }) };
+		case "transaction.sign": return { payloadHash: value[0], policyHash: value[1], expiresAt: asBigInt(value[2]) };
+	}
+}
+
 test("private Identity-v2 operation codes remain equal to the frozen host registry", () => {
 	const registry = JSON.parse(readFileSync(
 		new URL("../../../../docs/specs/origin-host-registry-v2.operations.json", import.meta.url),
@@ -173,8 +195,16 @@ test("private Identity-v2 operation codes remain equal to the frozen host regist
 		assert.equal(contract.request, row.cddl.Request, name);
 		assert.equal(contract.result, row.cddl.Result, name);
 		assert.equal(contract.error, row.cddl.Error, name);
+		assert.deepEqual(row.allowed_errors, IDENTITY_V2_ERRORS);
 		assert.deepEqual(row.allowed_errors.map(({ name: error }: { name: string }) => error), IDENTITY_V2_ALLOWED_ERRORS);
 	}
+	const errors = JSON.parse(readFileSync(
+		new URL("../../../../docs/specs/origin-host-registry-v2.errors.json", import.meta.url),
+		"utf8",
+	));
+	assert.deepEqual(IDENTITY_V2_ERRORS, errors.errors
+		.filter(({ code }: { code: number }) => (code >= 100 && code <= 116) || (code >= 400 && code <= 411))
+		.map(({ code, name, retryable }: { code: number; name: string; retryable: boolean }) => ({ code, name, retryable })));
 	assert.deepEqual(Object.keys(IDENTITY_V2_OPERATION_CODES), [
 		"identity.account",
 		"identity.profile.read",
@@ -189,7 +219,7 @@ test("private Identity-v2 operation codes remain equal to the frozen host regist
 	assert.deepEqual(Object.keys(manifest.exports), ["."]);
 });
 
-test("frozen concrete host vectors cover every private Identity-v2 request contract", () => {
+test("semantic Identity DTOs encode and decode every frozen generated Host-v2 frame", () => {
 	const vectors = JSON.parse(readFileSync(
 		new URL("../../../../docs/specs/origin-host-registry-v2.vectors.json", import.meta.url),
 		"utf8",
@@ -201,11 +231,51 @@ test("frozen concrete host vectors cover every private Identity-v2 request contr
 		assert.equal(positive.operation, operation);
 		assert.equal(positive.cddl.Request, contract.request);
 		assert.equal(positive.expected, "accept");
-		assert.equal(createHash("sha256").update(Buffer.from(positive.wire_hex, "hex")).digest("hex"), positive.wire_sha256);
-		assert.equal(Buffer.from(positive.wire_hex, "hex").includes(Buffer.from([3, 0x19, contract.code >> 8, contract.code & 0xff])), true);
+		const wire = Uint8Array.from(Buffer.from(positive.wire_hex, "hex"));
+		assert.equal(createHash("sha256").update(wire).digest("hex"), positive.wire_sha256);
+		const decoded = decodeHostV2(contract.frame, wire).value as WireRecord;
+		assert.deepEqual(decoded[1], bytes(16, 0x11), `${operation} requestId`);
+		assert.equal(asBigInt(decoded[7]), 100n, `${operation} deadline`);
+		const frame = identityV2WireFrame(
+			operation as IdentityV2Call,
+			decoded[1] as Uint8Array,
+			decoded[2] as string,
+			decoded[4] as Uint8Array,
+			asBigInt(decoded[7]),
+			semanticInput(operation as IdentityV2Call, decoded[8]) as never,
+			decoded[5] as Uint8Array | undefined,
+		);
+		assert.deepEqual(encodeHostV2(contract.frame, frame as never), wire, operation);
+		const noncanonical = Uint8Array.of(0xb8, wire[0]! & 0x1f, ...wire.slice(1));
+		assert.throws(
+			() => decodeHostV2(contract.frame, noncanonical),
+			(error) => error instanceof HostV2CodecError && error.code === "WIRE_NON_CANONICAL",
+			operation,
+		);
 		assert.equal(schemaNegative.expected_error, "WIRE_SCHEMA_INVALID");
 		assert.equal(grantNegative.expected_error, "GRANT_SCOPE_DENIED");
 	}
+});
+
+test("client bridge receives exact generated requestId and deadline frames", async () => {
+	const seen: IdentityV2Call[] = [];
+	const bridge: IdentityV2Bridge = {
+		async request(invocation) {
+			const production = IDENTITY_V2_CONTRACTS[invocation.operation].frame;
+			const canonical = encodeHostV2(production, invocation.wireFrame as never);
+			const decoded = decodeHostV2(production, canonical).value as WireRecord;
+			assert.deepEqual(decoded[1], options.requestId);
+			assert.equal(asBigInt(decoded[7]), options.deadlineBlock);
+			assert.equal(decoded[3], invocation.code);
+			seen.push(invocation.operation);
+			return { success: true, value: outputByOperation[invocation.operation] };
+		},
+	};
+	const client = createIdentityV2Client("festival", bridge);
+	for (const operation of Object.keys(IDENTITY_V2_OPERATION_CODES) as IdentityV2Call[]) {
+		assert.equal((await call(client, operation, grant(operation), operationOptions(operation))).success, true, operation);
+	}
+	assert.deepEqual(seen, Object.keys(IDENTITY_V2_OPERATION_CODES));
 });
 
 test("every Identity operation accepts only its exact grant and transaction signing stays separate", async () => {
@@ -267,6 +337,18 @@ test("hostile inputs, grants, results, and bridge errors cannot escape the close
 	const grantRejected = await client.account(joinedGrant as never, inputByOperation["identity.account"], options);
 	assert.equal(!grantRejected.success && grantRejected.error.code, "WIRE_SCHEMA_INVALID");
 	assert.equal(calls.length, 0);
+	const wrongProduct = await client.subjectDerive(
+		grant("identity.subject.derive"),
+		{ ...inputByOperation["identity.subject.derive"], productId: "other" },
+		options,
+	);
+	assert.equal(!wrongProduct.success && wrongProduct.error.code, "GRANT_SCOPE_DENIED");
+	const expiredDeadline = await client.account(
+		grant("identity.account"),
+		inputByOperation["identity.account"],
+		{ ...options, deadlineBlock: options.finalizedBlock },
+	);
+	assert.equal(!expiredDeadline.success && expiredDeadline.error.code, "REQUEST_DEADLINE_EXPIRED");
 
 	const unbounded: IdentityV2Bridge = { async request() {
 		return { success: true, value: { ...outputByOperation["identity.humanity.prove"], proof: bytes(4_097, 1) } };
@@ -279,12 +361,65 @@ test("hostile inputs, grants, results, and bridge errors cannot escape the close
 	assert.equal(!resultRejected.success && resultRejected.error.code, "WIRE_SCHEMA_INVALID");
 
 	const unknownError: IdentityV2Bridge = { async request() {
-		return { success: false, error: new OriginSdkError({ source: "test", domain: "test", code: "legacy_people_error", message: "legacy" }) };
+		return { success: false, error: { code: 999, name: "legacy_people_error", retryable: false } };
 	} };
 	const errorRejected = await createIdentityV2Client("festival", unknownError).account(
 		grant("identity.account"), inputByOperation["identity.account"], options,
 	);
 	assert.equal(!errorRejected.success && errorRejected.error.code, "WIRE_SCHEMA_INVALID");
+});
+
+test("results bind profile finality, requested entitlement scope, and proof freshness", async () => {
+	const response = async (
+		operation: IdentityV2Call,
+		value: unknown,
+	): Promise<SdkResult<unknown>> => {
+		const bridge: IdentityV2Bridge = { async request() { return { success: true, value }; } };
+		return call(createIdentityV2Client("festival", bridge), operation, grant(operation), operationOptions(operation));
+	};
+	const noFinality = await response("identity.profile.read", {
+		receipt: { commitment: bytes(32, 2), validUntil: 120n },
+	});
+	assert.equal(!noFinality.success && noFinality.error.code, "WIRE_SCHEMA_INVALID");
+	const staleProfile = await response("identity.profile.disclose", {
+		receipt: { commitment: bytes(32, 2), validUntil: 100n, finalized },
+	});
+	assert.equal(!staleProfile.success && staleProfile.error.code, "WIRE_SCHEMA_INVALID");
+	const overlongDisclosure = await response("identity.profile.disclose", {
+		receipt: { commitment: bytes(32, 2), validUntil: 121n, finalized },
+	});
+	assert.equal(!overlongDisclosure.success && overlongDisclosure.error.code, "WIRE_SCHEMA_INVALID");
+	const wrongScope = await response("identity.entitlements.read", {
+		...outputByOperation["identity.entitlements.read"], scope: "other",
+	});
+	assert.equal(!wrongScope.success && wrongScope.error.code, "WIRE_SCHEMA_INVALID");
+	const staleEntitlement = await response("identity.entitlements.read", {
+		...outputByOperation["identity.entitlements.read"], freshUntil: 100n,
+	});
+	assert.equal(!staleEntitlement.success && staleEntitlement.error.code, "WIRE_SCHEMA_INVALID");
+	const overlongProof = await response("identity.humanity.prove", {
+		...outputByOperation["identity.humanity.prove"], expiresAt: 121n,
+	});
+	assert.equal(!overlongProof.success && overlongProof.error.code, "WIRE_SCHEMA_INVALID");
+});
+
+test("all exact numeric error envelopes are operation-scoped and tuple-closed", () => {
+	const operations = Object.keys(IDENTITY_V2_OPERATION_CODES) as IdentityV2Call[];
+	for (const operation of operations) {
+		for (const frozen of IDENTITY_V2_ERRORS) {
+			assert.deepEqual(validateIdentityV2ErrorEnvelope(operation, frozen), frozen);
+			assert.throws(
+				() => validateIdentityV2ErrorEnvelope(operation, { ...frozen, retryable: !frozen.retryable }),
+				/exact operation registry/,
+			);
+		}
+	}
+	assert.throws(() => validateIdentityV2ErrorEnvelope("identity.account", {
+		code: 400,
+		name: "IDENTITY_AUDIENCE_INVALID",
+		retryable: false,
+		personhood: true,
+	}), /unknown fields/);
 });
 
 test("fresh-consent replay and recovery-incarnation failures match frozen Identity vectors", async () => {
@@ -308,12 +443,12 @@ test("fresh-consent replay and recovery-incarnation failures match frozen Identi
 			if (consumed.has(id)) {
 				return {
 					success: false,
-					error: new OriginSdkError({
-						source: "identity-v2-test",
-						domain: "replay",
-						code: replayVector.expected_error,
-						message: "challenge already consumed",
-					}),
+					error: {
+						code: replayVector.expected_error_code,
+						name: replayVector.expected_error,
+						retryable: false,
+						details: { message: "challenge already consumed" },
+					},
 				};
 			}
 			consumed.add(id);
