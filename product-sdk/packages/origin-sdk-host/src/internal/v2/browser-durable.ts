@@ -41,7 +41,7 @@ interface ActiveBrowserRequest {
 
 export class DurableBrowserHostV2 {
   readonly #transport: BrowserHostV2Transport; readonly #outbox: BrowserHostOutboxV1;
-  #active?: ActiveBrowserRequest;
+  #active: ActiveBrowserRequest | undefined;
   constructor(transport: BrowserHostV2Transport, outbox: BrowserHostOutboxV1) {
     const transportBinding = transport.binding; const outboxBinding = outbox.contextBinding;
     if (!equal(transportBinding.registryHash, outboxBinding.registryHash) || !equal(transportBinding.genesisHash, outboxBinding.genesisHash)
@@ -69,7 +69,7 @@ export class DurableBrowserHostV2 {
     if (!active) throw new Error("browser host-v2 session has not sent a durable request");
     const event = active.session.accept(bytes);
     if (!active.session.isTerminal) return { terminal: false, event: bytes.slice() };
-    if (event[3] !== active.expectedResponseKind) { this.#transport.close(); throw new Error("browser terminal result kind mismatches durable request"); }
+    if (event[3] !== 3 && event[3] !== active.expectedResponseKind) { this.#transport.close(); throw new Error("browser terminal result kind mismatches durable request"); }
     const operation = Object.values(HOST_V2_OPERATION_BINDINGS).find(({ code }) => code === active.operationCode);
     if (!operation) { this.#transport.close(); throw new Error("browser durable operation binding is unknown"); }
     try {
@@ -79,8 +79,12 @@ export class DurableBrowserHostV2 {
     try {
       const installed = await this.#outbox.installTerminal(active.outboxId, bytes, terminalBlock);
       await this.#transport.send("ResponseAckV1", installed.ack, options);
+      this.#active = undefined;
       return { terminal: true, event: bytes.slice(), responseHash: installed.responseHash };
     } catch (error) { this.#transport.close(); throw error; }
+  }
+  async sendProviderTransferChunk(exactChunk: Uint8Array, options: BrowserHostV2IoOptions = {}): Promise<void> {
+    await this.#transport.send("ProviderTransferChunkV1", exactChunk, options);
   }
   async resumeAck(outboxId: Uint8Array, options: BrowserHostV2IoOptions = {}): Promise<Uint8Array> {
     const installed = this.#outbox.installedAck(outboxId);
