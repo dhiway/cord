@@ -304,7 +304,7 @@ export class HostV2Session {
     if (durableGeneration < 0n || durableGeneration > 0xffff_ffff_ffff_ffffn) {
       throw new HostV2SessionError("resume generation is outside the U64 range");
     }
-    const request = decodeHostV2("RequestV2", requestOrId).value as RequestV2;
+    const request = decodeHostV2("RequestV2", requestOrId).value as RequestV2 & Record<number, unknown>;
     const token = decodeHostV2("ResumeTokenV1", sequenceOrToken).value as ResumeTokenV1;
     const operationId = request[5];
     if (!(operationId instanceof Uint8Array) || !equalBytes(operationId, token[5])) {

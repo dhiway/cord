@@ -123,6 +123,7 @@ export class BrowserHostOutboxV1 {
     return outbox;
   }
   get contextBinding(): BrowserHostOutboxContextV1 { return copyContext(this.#context); }
+  get activeKeyVersion(): number { return this.#crypto.activeKeyVersion; }
 
   async prepare(input: BrowserPrepareOutboxV1): Promise<BrowserOutboxRetryV1> {
     const entry = cloneEntry(input.entry);
@@ -162,7 +163,8 @@ export class BrowserHostOutboxV1 {
   async installTerminal(outboxId: Uint8Array, response: Uint8Array, terminalBlock: bigint): Promise<{ readonly responseHash: Uint8Array; readonly ack: Uint8Array }> {
     const record = this.#live(outboxId); const event = decodeHostV2("EventV2", response).value;
     if (record.state === 2) { if (!equal(record.response!, response)) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "terminal response changed"); return { responseHash: record.responseHash!.slice(), ack: record.responseAck!.slice() }; }
-    if ((record.state !== 0 && record.state !== 1) || ![2, 3, 4].includes(event[3]) || event[3] !== record.entry[15] || !equal(event[1], record.entry[6])) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "terminal response is not bound to the durable request");
+    if ((record.state !== 0 && record.state !== 1) || ![2, 3, 4].includes(event[3])
+      || (event[3] !== 3 && event[3] !== record.entry[15]) || !equal(event[1], record.entry[6])) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "terminal response is not bound to the durable request");
     const responseHash = await this.#crypto.digest(response); const ack = encodeHostV2("ResponseAckV1", { 0: record.entry[6], 1: record.entry[7], 2: record.entry[8], 3: responseHash });
     const installed: LiveRecord = { ...record, state: 2, response: response.slice(), responseAck: ack, responseHash: responseHash.slice(), terminal: true, recoverUntil: terminalBlock + RECOVERY_BLOCKS };
     await this.#commit(installed, false); return { responseHash: responseHash.slice(), ack: ack.slice() };
@@ -215,8 +217,12 @@ export class BrowserHostOutboxV1 {
     let authority: Record<number, unknown>;
     try {
       authority = decodeHostV2("ProviderCapabilityV1", entry[4]).value as Record<number, unknown>;
+      const requestGrant = request[4];
+      const grantMatches = operation.grantScope === "public"
+        ? requestGrant === undefined
+        : requestGrant instanceof Uint8Array && equal(authority[3] as Uint8Array, requestGrant);
       if (!equal(authority[1] as Uint8Array, entry[10]) || !equal(authority[2] as Uint8Array, entry[11])
-        || !equal(authority[3] as Uint8Array, request[4] as Uint8Array) || authority[5] !== request[2]
+        || !grantMatches || authority[5] !== request[2]
         || !equal(authority[8] as Uint8Array, entry[13]) || !(authority[9] as unknown[]).includes(operationCode)
         || Number(authority[12]) !== Number(entry[17]) || Number(authority[13]) !== Number(entry[18])) throw new Error();
     } catch {

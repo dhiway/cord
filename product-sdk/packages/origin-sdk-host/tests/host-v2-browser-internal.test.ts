@@ -28,12 +28,16 @@ import {
 } from "../src/internal/v2/browser-outbox.ts";
 import { BrowserHostOutboxKeyRingV1, BrowserXChaCha20Poly1305, type BrowserHostOutboxContextV1 } from "../src/internal/v2/browser-crypto.ts";
 import { BROWSER_HOST_V2_WINDOW, BrowserHostV2Transport, BrowserHostV2TransportError, type BrowserHostV2Peer } from "../src/internal/v2/browser.ts";
-import { decodeCanonicalHostV2Value, decodeHostV2, encodeHostV2 } from "../src/internal/v2/codec.ts";
+import { decodeCanonicalHostV2Value, decodeHostV2, encodeHostV2, encodeHostV2Value } from "../src/internal/v2/codec.ts";
 import {
-  HOST_V2_FEATURE_IDS, HOST_V2_MAJOR, HOST_V2_MINOR, HOST_V2_PROTOCOL, HOST_V2_REGISTRY_SHA256,
+  HOST_V2_FEATURE_IDS, HOST_V2_MAJOR, HOST_V2_MINOR, HOST_V2_OPERATION_BINDINGS, HOST_V2_PROTOCOL, HOST_V2_REGISTRY_SHA256,
   type AcceptedEventV2, type CancelledEventV2, type HostOutboxEntryV1, type ProgressEventV2,
 } from "../src/internal/v2/generated.ts";
 import type { HostV2NegotiationOffer } from "../src/internal/v2/session.ts";
+import {
+  PrivateDurableBrowserHostV2, runPrivateBrowserRustProviderV2,
+  type PrivateBrowserRustProviderBridgeV2,
+} from "../../../internal/browser-host-v2.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const frozen = JSON.parse(readFileSync(resolve(root, "docs/specs/origin-host-registry-v2.vectors.json"), "utf8"));
@@ -267,6 +271,69 @@ test("terminal payload must match the exact requested operation result", async (
   await pair.provider.send("EventV2", accepted(sent.requestId)); await durable.receiveEvent(200n);
   const hash = new Uint8Array(32).fill(0x61); const wrongIdentityResult = encodeHostV2("ResultEventV2", { 0: 2, 1: sent.requestId, 2: 1, 3: 2, 4: { 0: hash, 1: 0, 2: { 0: 0, 1: hash } } } as any);
   await pair.provider.send("EventV2", wrongIdentityResult); await assert.rejects(durable.receiveEvent(200n), /payload mismatches/); pair.host.close(); pair.provider.close();
+});
+
+test("public resolve, generated errors, and sequential durable requests retain exact bindings", async () => {
+  const pair = await transports(); const backend = new StrictMemoryBackend(); const outbox = await openOutbox(backend, pair.host);
+  const publicResolve = await preparedEntry(pair.host, 1, { vector: "1051-positive", outbox: 0x61, request: 0x51, expected: 2 });
+  await outbox.prepare({ entry: publicResolve });
+  const durable = new DurableBrowserHostV2(pair.host, outbox);
+  const first = await durable.resumeAndSend(publicResolve[1], 100n); await pair.provider.receive("RequestV2"); await pair.provider.receive("ProviderCapabilityV1");
+  await pair.provider.send("EventV2", accepted(first.requestId)); await durable.receiveEvent(200n);
+  const exactError = encodeHostV2Value({ 0: 2, 1: first.requestId, 2: 1, 3: 3, 4: { 0: 108, 1: "REQUEST_NOT_FOUND", 2: false, 3: {} } });
+  await pair.provider.send("EventV2", exactError); assert.equal((await durable.receiveEvent(200n)).terminal, true); await pair.provider.receive("ResponseAckV1");
+
+  const secondEntry = await preparedEntry(pair.host, 1, { outbox: 0x62, request: 0x52, operation: 0x42, expected: 4 });
+  const second = await durable.prepareAndSend({ entry: secondEntry }); await pair.provider.receive("RequestV2"); await pair.provider.receive("ProviderCapabilityV1");
+  await pair.provider.send("EventV2", accepted(second.requestId)); await durable.receiveEvent(201n);
+  await pair.provider.send("EventV2", cancelled(second.requestId, 1)); assert.equal((await durable.receiveEvent(201n)).terminal, true); await pair.provider.receive("ResponseAckV1");
+  pair.host.close(); pair.provider.close();
+});
+
+test("private browser adapter streams the exact object.put vector through MessagePort and the Rust byte bridge", async () => {
+  const pair = await transports(); const outbox = await openOutbox(new StrictMemoryBackend(), pair.host);
+  const vector = frozen.vectors.find((candidate: any) => candidate.id === "1010-positive");
+  const request = bytes(vector.wire_hex); const frame = decodeHostV2("RequestV2", request).value as any;
+  const authorityVector = protocol.vectors.find((candidate: any) => candidate.id === "provider-capability-v1");
+  const capability = decodeHostV2("ProviderCapabilityV1", bytes(authorityVector.canonical_cbor_hex)).value as any;
+  capability[1] = pair.host.binding.registryHash; capability[2] = pair.host.binding.genesisHash;
+  capability[3] = frame[4]; capability[5] = frame[2]; capability[6] = frame[8][0];
+  capability[8] = pair.host.binding.providerId; capability[9] = [frame[3]]; capability[12] = 100; capability[13] = 228;
+  const authority = encodeHostV2("ProviderCapabilityV1", capability);
+  let acknowledged = false; let bridgedRequest: Uint8Array | undefined; let bridgedAuthority: Uint8Array | undefined;
+  const bridge: PrivateBrowserRustProviderBridgeV2 = {
+    async *dispatch(input) {
+      bridgedRequest = input.request.slice(); bridgedAuthority = input.authority.slice();
+      const chunks: Uint8Array[] = []; for await (const exact of input.upload ?? []) chunks.push(decodeHostV2("ProviderTransferChunkV1", exact).value[3]);
+      assert.deepEqual(chunks, [Uint8Array.of(0xab)]);
+      yield { event: accepted(frame[1]), terminalBlock: 200n };
+      yield { event: encodeHostV2Value({ 0: 2, 1: frame[1], 2: 1, 3: 2, 4: { 0: { 0: pair.host.binding.providerId, 1: frame[8][1], 2: 1, 3: new Uint8Array(64) }, 1: true, 2: { 0: 200, 1: new Uint8Array(32).fill(0x91) } } }), terminalBlock: 200n };
+    },
+    async acknowledge(exact) { decodeHostV2("ResponseAckV1", exact); acknowledged = true; },
+  };
+  const abort = new AbortController(); const pump = runPrivateBrowserRustProviderV2(pair.provider, bridge, { signal: abort.signal }).catch(() => undefined);
+  const host = new PrivateDurableBrowserHostV2({
+    durable: new DurableBrowserHostV2(pair.host, outbox), outbox,
+    finality: { async finalized() { return { number: 100n, hash: new Uint8Array(32).fill(0x42) }; } },
+    authority: { async resolve() { return authority.slice(); } },
+    outboxIds: { next() { return new Uint8Array(16).fill(0x71); } },
+  });
+  const result = await host.invoke("storage.object.put", request, { cid: frame[8][1], length: 1n, bytes: (async function* () { yield Uint8Array.of(0xab); })() });
+  assert.equal((result.value as any).publishable, true); assert.deepEqual(bridgedRequest, request); assert.deepEqual(bridgedAuthority, authority); assert.equal(acknowledged, true);
+  abort.abort(); await pump; pair.host.close(); pair.provider.close();
+});
+
+test("private browser adapter registry covers all 26 storage and eight identity/signing frozen vectors", () => {
+  const positives = frozen.vectors.filter((vector: any) => vector.kind === "operation-schema-positive");
+  assert.equal(positives.length, 34);
+  assert.equal(positives.filter((vector: any) => vector.operation.startsWith("storage.")).length, 26);
+  assert.equal(positives.filter((vector: any) => vector.operation.startsWith("identity.") || vector.operation === "transaction.sign").length, 8);
+  for (const vector of positives) {
+    const binding = HOST_V2_OPERATION_BINDINGS[vector.operation as keyof typeof HOST_V2_OPERATION_BINDINGS];
+    assert.ok(binding, `${vector.operation} is absent from the private browser binding`);
+    const exact = bytes(vector.wire_hex); const decoded = decodeHostV2(binding.frame, exact);
+    assert.deepEqual(encodeHostV2(binding.frame, decoded.value), exact, `${vector.operation} changed its cross-language bytes`);
+  }
 });
 
 test("strict abort sends nothing; durable cancel restarts exactly and terminal installs before ack", async () => {
