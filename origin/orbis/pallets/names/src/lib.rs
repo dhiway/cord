@@ -193,6 +193,9 @@ pub mod pallet {
 		type MaxNameDepth: Get<u32>;
 		#[pallet::constant]
 		type MaxCommitmentsPerAccount: Get<u32>;
+		/// Retained idempotency receipts per publisher. Oldest receipts are evicted deterministically.
+		#[pallet::constant]
+		type MaxContentOperationReceipts: Get<u32>;
 		#[pallet::constant]
 		type MinCommitmentAge: Get<BlockNumberFor<Self>>;
 		#[pallet::constant]
@@ -242,6 +245,16 @@ pub mod pallet {
 		[u8; 16],
 		ContentOperationReceipt<T::Hash, T::ContentCommitment>,
 		OptionQuery,
+	>;
+
+	/// Oldest-first bounded replay window for content publication operation identifiers.
+	#[pallet::storage]
+	pub type ContentOperationReceiptIds<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		BoundedVec<[u8; 16], T::MaxContentOperationReceipts>,
+		ValueQuery,
 	>;
 
 	#[pallet::storage]
@@ -444,6 +457,10 @@ pub mod pallet {
 			operation_id: [u8; 16],
 			replayed: bool,
 		},
+		ContentOperationReceiptPruned {
+			owner: T::AccountId,
+			operation_id: [u8; 16],
+		},
 		TextSet {
 			name: T::Hash,
 			key: TextKeyOf<T>,
@@ -512,6 +529,7 @@ pub mod pallet {
 		InvalidContentReference,
 		ContentRevisionConflict,
 		OperationIdConflict,
+		ContentOperationReceiptLimitDisabled,
 		TooManyTextRecords,
 		PrimaryNameInvalid,
 		InvalidSalt,
@@ -866,7 +884,8 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(11)]
-		#[pallet::weight(T::WeightInfo::resolver_write())]
+		#[pallet::weight(T::WeightInfo::publish_content())]
+		#[transactional]
 		pub fn publish_content(
 			origin: OriginFor<T>,
 			name: T::Hash,
@@ -902,6 +921,26 @@ pub mod pallet {
 			let present = content.is_some();
 			Self::mutate_authorized_record(&who, name, |record| record.content = content.clone())?;
 			ContentRevisions::<T>::insert(name, revision);
+			ContentOperationReceiptIds::<T>::try_mutate(
+				&who,
+				|ids| -> DispatchResult {
+					ensure!(
+						T::MaxContentOperationReceipts::get() > 0,
+						Error::<T>::ContentOperationReceiptLimitDisabled
+					);
+					if ids.len() as u32 == T::MaxContentOperationReceipts::get() {
+						let evicted = ids.remove(0);
+						ContentOperationReceipts::<T>::remove(&who, evicted);
+						Self::deposit_event(Event::ContentOperationReceiptPruned {
+							owner: who.clone(),
+							operation_id: evicted,
+						});
+					}
+					ids.try_push(operation_id)
+						.map_err(|_| Error::<T>::ContentOperationReceiptLimitDisabled)?;
+					Ok(())
+				},
+			)?;
 			ContentOperationReceipts::<T>::insert(
 				&who,
 				operation_id,

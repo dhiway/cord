@@ -204,6 +204,41 @@ fn content_publication_is_revisioned_idempotent_and_cleaned_with_the_name() {
 			[0x52; 16],
 		));
 		assert_eq!(crate::ContentRevisions::<Test>::get(name), 2);
+		assert_ok!(Names::publish_content(
+			RuntimeOrigin::signed(1),
+			name,
+			None,
+			Some(2),
+			[0x53; 16],
+		));
+		assert_eq!(crate::ContentRevisions::<Test>::get(name), 3);
+		assert!(!crate::ContentOperationReceipts::<Test>::contains_key(1, operation_id));
+		assert_eq!(
+			crate::ContentOperationReceiptIds::<Test>::get(1).as_slice(),
+			&[[0x52; 16], [0x53; 16]]
+		);
+		assert_ok!(Names::publish_content(
+			RuntimeOrigin::signed(1),
+			name,
+			Some(second),
+			Some(1),
+			[0x52; 16],
+		));
+		assert!(matches!(
+			System::events().last().map(|record| &record.event),
+			Some(RuntimeEvent::Names(Event::ContentSet {
+				revision: 2, replayed: true, ..
+			}))
+		));
+		assert_ok!(Names::publish_content(
+			RuntimeOrigin::signed(1),
+			name,
+			Some(first),
+			Some(3),
+			operation_id,
+		));
+		assert_eq!(crate::ContentRevisions::<Test>::get(name), 4);
+		assert!(!crate::ContentOperationReceipts::<Test>::contains_key(1, [0x52; 16]));
 		assert_ok!(Names::release(RuntimeOrigin::signed(1), name));
 		assert_eq!(crate::ContentRevisions::<Test>::get(name), 0);
 	});

@@ -173,7 +173,7 @@ pub struct NameStatus<BlockNumber> {
 	TypeInfo,
 )]
 pub struct ContentPublication<ContentCommitment> {
-	pub content: ContentCommitment,
+	pub content: Option<ContentCommitment>,
 	pub revision: u64,
 }
 

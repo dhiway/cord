@@ -92,6 +92,7 @@ impl pallet_orbis_names::Config for Test {
 	type MaxRootNames = ConstU32<32>;
 	type MaxNameDepth = ConstU32<4>;
 	type MaxCommitmentsPerAccount = ConstU32<8>;
+	type MaxContentOperationReceipts = ConstU32<2>;
 	type MinCommitmentAge = MinCommitmentAge;
 	type MaxCommitmentAge = MaxCommitmentAge;
 	type RegistrationPeriod = RegistrationPeriod;
