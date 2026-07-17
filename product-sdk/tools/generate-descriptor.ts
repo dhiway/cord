@@ -83,6 +83,8 @@ const extensions = readJson(rel.extensions);
 const versionMatrix = readJson(rel.versionMatrix);
 const metadata = readJson(rel.metadata);
 const vectors = readJson(rel.vectors);
+const metadataIdentity = readJson("docs/sdk/metadata/commons-v29.json");
+const papiAvailable = metadataIdentity.spec_version === metadata.spec_version;
 const ratification = readJson(rel.ratification);
 const productionActivationReady = ratification.derived_status.production_activation_ready === true;
 const finalGenesisStatus = ratification.payload.production_activation.final_genesis_status;
@@ -139,12 +141,19 @@ const descriptor = {
     methods: NATIVE_HOST_METHODS
   },
   descriptorProvenance: {
-    runtimeMetadataBinding: "checked-in-v14-scale-plus-reproduced-rfc78-wasm-metadata-hash",
+  runtimeMetadataBinding: papiAvailable
+    ? "checked-in-v14-scale-plus-reproduced-rfc78-wasm-metadata-hash"
+    : "unavailable-checked-in-papi-metadata-predates-current-runtime",
     papiDescriptor: "polkadot-api-2.1.6-byte-reproducible-generation",
     methodInventory: "authoritative-typed-native-route-contract",
     driftValidation: "metadata-hash-pallet-call-index-runtime-api-and-rust-typescript-route-harness",
   },
-  productionPapiDescriptorGenerated: true
+  papiAvailability: {
+    runtimeMetadataCurrent: papiAvailable,
+    sdkAdmission: papiAvailable,
+    reason: papiAvailable ? null : "checked-in PAPI metadata predates the current Commons runtime",
+  },
+  productionPapiDescriptorGenerated: papiAvailable
 };
 const serialized = `${JSON.stringify(descriptor, null, 2)}\n`;
 const output = resolve(sdkRoot, "packages/descriptors/generated/orbis-descriptor.json");

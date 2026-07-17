@@ -147,7 +147,7 @@
   },
   "nativeHostContract": {
     "version": 1,
-    "methodCount": 143,
+    "methodCount": 136,
     "pageLimit": 100,
     "payloadValidation": "closed-shape-plus-core-native-types-v1",
     "methods": [
@@ -519,7 +519,7 @@
       },
       {
         "capability": "names",
-        "method": "resolve_content",
+        "method": "resolve_content_publication",
         "finality": "finalized",
         "payloadFields": [
           "name"
@@ -928,26 +928,6 @@
       },
       {
         "capability": "storage",
-        "method": "owner_agreements",
-        "finality": "finalized",
-        "payloadFields": [
-          "owner",
-          "cursor",
-          "limit"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "container_agreements",
-        "finality": "finalized",
-        "payloadFields": [
-          "container_ref",
-          "cursor",
-          "limit"
-        ]
-      },
-      {
-        "capability": "storage",
         "method": "agreement_nonce",
         "finality": "finalized",
         "payloadFields": [
@@ -974,14 +954,6 @@
       },
       {
         "capability": "storage",
-        "method": "open_challenge_count",
-        "finality": "finalized",
-        "payloadFields": [
-          "agreement_id"
-        ]
-      },
-      {
-        "capability": "storage",
         "method": "can_accept_capacity",
         "finality": "finalized",
         "payloadFields": [
@@ -991,26 +963,10 @@
       },
       {
         "capability": "storage",
-        "method": "provider_checkpoint",
+        "method": "bucket_checkpoint",
         "finality": "finalized",
         "payloadFields": [
-          "provider"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "provider_root",
-        "finality": "finalized",
-        "payloadFields": [
-          "provider"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "deletion_acknowledgement",
-        "finality": "finalized",
-        "payloadFields": [
-          "agreement_id"
+          "bucket"
         ]
       },
       {
@@ -1099,11 +1055,13 @@
       },
       {
         "capability": "storage",
-        "method": "submit_checkpoint",
+        "method": "acknowledge_manifest_deletion",
         "finality": "submit-and-finalize",
         "payloadFields": [
-          "challenge_id",
-          "proof_commitment"
+          "manifest",
+          "evidence_hash",
+          "service_key",
+          "signature"
         ]
       },
       {
@@ -1121,29 +1079,6 @@
         "payloadFields": [
           "agreement_id",
           "expires_at"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "acknowledge_deletion",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "agreement_id",
-          "content_commitment",
-          "tombstone_root",
-          "root_sequence",
-          "leaf_index",
-          "leaf_count",
-          "inclusion_proof"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "commit_provider_root",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "sequence",
-          "appended_leaves"
         ]
       },
       {
@@ -1284,6 +1219,7 @@
         "finality": "finalized",
         "payloadFields": [
           "bucket",
+          "prefix",
           "cursor",
           "limit"
         ]
@@ -1418,10 +1354,15 @@
     ]
   },
   "descriptorProvenance": {
-    "runtimeMetadataBinding": "checked-in-v14-scale-plus-reproduced-rfc78-wasm-metadata-hash",
+    "runtimeMetadataBinding": "unavailable-checked-in-papi-metadata-predates-current-runtime",
     "papiDescriptor": "polkadot-api-2.1.6-byte-reproducible-generation",
     "methodInventory": "authoritative-typed-native-route-contract",
     "driftValidation": "metadata-hash-pallet-call-index-runtime-api-and-rust-typescript-route-harness"
   },
-  "productionPapiDescriptorGenerated": true
+  "productionPapiDescriptorGenerated": false,
+  "papiAvailability": {
+    "runtimeMetadataCurrent": false,
+    "sdkAdmission": false,
+    "reason": "checked-in PAPI metadata predates the current Commons runtime"
+  }
 }

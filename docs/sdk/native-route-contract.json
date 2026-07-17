@@ -17852,5 +17852,10 @@
     "rust_binding": "canonical samples deserialize into the named Rust query/command variants and validate or prepare successfully",
     "runtime_metadata": "checked-in Commons V14 SCALE metadata is extracted from the current runtime Wasm and drives the reproducible PAPI descriptor; this route contract remains the authoritative product-policy projection",
     "sdk_host_operation": "prepare_sponsored_intent is an SDK/host operation bound to current Orbis state; it is not represented as a runtime API or pallet call"
+  },
+  "papi_availability": {
+    "runtime_metadata_current": false,
+    "sdk_admission": false,
+    "reason": "checked-in PAPI metadata predates the current Commons runtime"
   }
 }

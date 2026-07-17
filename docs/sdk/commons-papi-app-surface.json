@@ -555,9 +555,6 @@
         "Commitments",
         "CommitmentCount",
         "Names",
-        "ContentRevisions",
-        "ContentOperationReceipts",
-        "ContentOperationReceiptIds",
         "Controllers",
         "Registrars",
         "BootstrapReservations",
@@ -584,7 +581,7 @@
         "set_address",
         "set_subject",
         "set_attestation",
-        "publish_content",
+        "set_content",
         "set_text",
         "set_primary_name",
         "release",
@@ -611,7 +608,6 @@
         "SubjectSet",
         "AttestationSet",
         "ContentSet",
-        "ContentOperationReceiptPruned",
         "TextSet",
         "PrimaryNameSet",
         "NameReserved",
@@ -658,10 +654,7 @@
         "InvalidSalt",
         "NotRegistrar",
         "TooManyRegistrars",
-        "RegistrarNotFound",
-        "OperationIdConflict",
-        "ContentRevisionConflict",
-        "ContentOperationReceiptLimitDisabled"
+        "RegistrarNotFound"
       ],
       "constants": [
         "MaxLabelLength",
@@ -681,8 +674,7 @@
         "MinCommitmentAge",
         "MaxCommitmentAge",
         "RegistrationPeriod",
-        "MaxRenewalPeriod",
-        "MaxContentOperationReceipts"
+        "MaxRenewalPeriod"
       ]
     },
     "TransactionStorage": {
@@ -1560,6 +1552,9 @@
     "native_pallets_authoritative": true,
     "metadata_presence_is_not_sdk_admission": true,
     "administrative_calls_require_explicit_exclusion": true,
-    "revive_is_optional_app_logic_only": true
+    "revive_is_optional_app_logic_only": true,
+    "runtime_metadata_current": false,
+    "sdk_admission": false,
+    "unavailable_reason": "checked-in PAPI metadata predates the current Commons runtime"
   }
 }

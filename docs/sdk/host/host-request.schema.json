@@ -4433,5 +4433,10 @@
       ]
     }
   ],
-  "$comment": "Payload field types and bounds are enforced by product-sdk/packages/core/src/contract.ts; this schema freezes exact closed shapes, semantic routes and finality."
+  "$comment": "Payload field types and bounds are enforced by product-sdk/packages/core/src/contract.ts; this schema freezes exact closed shapes, semantic routes and finality.",
+  "x-papi-availability": {
+    "runtime_metadata_current": false,
+    "sdk_admission": false,
+    "reason": "checked-in PAPI metadata predates the current Commons runtime"
+  }
 }
