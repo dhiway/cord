@@ -22,7 +22,7 @@ use std::{
 	ffi::OsString,
 	fs::{self, File},
 	io::{Read, Write},
-	os::unix::ffi::OsStringExt,
+	os::unix::ffi::{OsStrExt, OsStringExt},
 	path::{Component, Path, PathBuf},
 };
 
@@ -61,6 +61,82 @@ pub(crate) struct PreparedRegularFile {
 	pub(crate) name: OsString,
 	identity: FileIdentity,
 	length: u64,
+}
+
+/// An exclusively locked regular file owned by this process until explicitly preserved.
+pub(crate) struct OwnedLockedRegularFile {
+	file: File,
+	directory: File,
+	name: OsString,
+	identity: FileIdentity,
+	length: u64,
+	rollback_on_drop: bool,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(crate) enum OwnedLockPublishStage {
+	AfterRename,
+	BeforeDirectorySync,
+}
+
+impl OwnedLockedRegularFile {
+	pub(crate) fn file(&self) -> &File {
+		&self.file
+	}
+
+	pub(crate) fn identity(&self) -> FileIdentity {
+		self.identity
+	}
+
+	pub(crate) fn length(&self) -> u64 {
+		self.length
+	}
+
+	pub(crate) fn validate(&self) -> Result<(), ContentError> {
+		let metadata = self.file.metadata().map_err(io_error)?;
+		if !metadata.is_file() ||
+			file_identity(&metadata) != self.identity ||
+			metadata.len() != self.length
+		{
+			return Err(ContentError::IntegrityFailed)
+		}
+		validate_regular_file_at(
+			&self.directory,
+			&self.name,
+			self.identity,
+			self.length,
+		)
+	}
+
+	pub(crate) fn preserve(&mut self) {
+		self.rollback_on_drop = false;
+	}
+
+	pub(crate) fn rollback(mut self) -> Result<(), ContentError> {
+		quarantine_and_unlink_regular_file_at(
+			&self.directory,
+			&self.name,
+			self.identity,
+			self.length,
+			random_owned_lock_quarantine_name,
+		)?;
+		self.rollback_on_drop = false;
+		Ok(())
+	}
+}
+
+impl Drop for OwnedLockedRegularFile {
+	fn drop(&mut self) {
+		if self.rollback_on_drop {
+			let _ = quarantine_and_unlink_regular_file_at(
+				&self.directory,
+				&self.name,
+				self.identity,
+				self.length,
+				random_owned_lock_quarantine_name,
+			);
+		}
+	}
 }
 
 /// A no-follow parent-directory capability for one provider-root entry.
@@ -405,39 +481,45 @@ pub(crate) fn open_optional_regular_file_at(
 	Ok(Some(file))
 }
 
-pub(crate) fn create_new_regular_file_at(
+pub(crate) fn create_and_lock_regular_file_at_with_hook(
 	directory: &File,
 	name: &std::ffi::OsStr,
-) -> Result<File, ContentError> {
-	let fd = unix_fs::openat(
-		directory,
-		name,
-		OFlags::RDWR | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-		Mode::RUSR | Mode::WUSR,
-	)
-	.map_err(io_error)?;
-	let file = File::from(fd);
-	let metadata = file.metadata().map_err(io_error)?;
-	validate_regular_file_at(directory, name, file_identity(&metadata), metadata.len())?;
-	Ok(file)
-}
-
-pub(crate) fn create_and_lock_regular_file_at(
-	directory: &File,
-	name: &std::ffi::OsStr,
-) -> Result<File, ContentError> {
+	mut hook: impl FnMut(OwnedLockPublishStage) -> Result<(), ContentError>,
+) -> Result<OwnedLockedRegularFile, ContentError> {
+	let owned_directory = directory.try_clone().map_err(io_error)?;
 	for _ in 0..16 {
+		let guard_directory = owned_directory.try_clone().map_err(io_error)?;
 		let mut random = [0u8; 16];
 		OsRng.fill_bytes(&mut random);
 		let temporary = OsString::from(format!(".provider-lock.create-{}", hex::encode(random)));
-		let file = match create_new_regular_file_at(directory, &temporary) {
-			Ok(file) => file,
-			Err(_) => continue,
+		let file = match unix_fs::openat(
+			directory,
+			&temporary,
+			OFlags::RDWR | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+			Mode::RUSR | Mode::WUSR,
+		) {
+			Ok(file) => File::from(file),
+			Err(UnixErrno::EXIST) => continue,
+			Err(error) => return Err(io_error(error)),
 		};
-		let metadata = file.metadata().map_err(io_error)?;
+		let metadata = match file.metadata() {
+			Ok(metadata) => metadata,
+			Err(error) => {
+				let _ = unix_fs::unlinkat(directory, &temporary, AtFlags::empty());
+				return Err(io_error(error))
+			},
+		};
 		let identity = file_identity(&metadata);
-		if let Err(error) = file.try_lock_exclusive() {
-			let _ = unlink_regular_file_at(directory, &temporary, identity, metadata.len());
+		let mut owned = OwnedLockedRegularFile {
+			file,
+			directory: guard_directory,
+			name: temporary.clone(),
+			identity,
+			length: metadata.len(),
+			rollback_on_drop: true,
+		};
+		owned.validate()?;
+		if let Err(error) = owned.file.try_lock_exclusive() {
 			return Err(io_error(error))
 		}
 		match unix_fs::renameat_with(
@@ -448,31 +530,17 @@ pub(crate) fn create_and_lock_regular_file_at(
 			RenameFlags::NOREPLACE,
 		) {
 			Ok(()) => {
-				validate_regular_file_at(directory, name, identity, metadata.len())?;
+				owned.name = name.to_os_string();
+				hook(OwnedLockPublishStage::AfterRename)?;
+				owned.validate()?;
+				hook(OwnedLockPublishStage::BeforeDirectorySync)?;
 				unix_fs::fsync(directory).map_err(io_error)?;
-				return Ok(file)
+				return Ok(owned)
 			},
-			Err(error) => {
-				let _ = unlink_regular_file_at(directory, &temporary, identity, metadata.len());
-				return Err(io_error(error))
-			},
+			Err(error) => return Err(io_error(error)),
 		}
 	}
 	Err(ContentError::IntegrityFailed)
-}
-
-pub(crate) fn open_or_create_regular_file_at(
-	directory: &File,
-	name: &std::ffi::OsStr,
-) -> Result<File, ContentError> {
-	if let Some(file) = open_optional_regular_file_at(directory, name, true)? {
-		return Ok(file)
-	}
-	match create_new_regular_file_at(directory, name) {
-		Ok(file) => Ok(file),
-		Err(_) => open_optional_regular_file_at(directory, name, true)?
-			.ok_or(ContentError::IntegrityFailed),
-	}
 }
 
 pub(crate) fn open_append_regular_file_at(
@@ -507,17 +575,6 @@ pub(crate) fn validate_regular_file_at(
 		return Err(ContentError::IntegrityFailed)
 	}
 	Ok(())
-}
-
-pub(crate) fn unlink_regular_file_at(
-	directory: &File,
-	name: &std::ffi::OsStr,
-	expected_identity: FileIdentity,
-	expected_length: u64,
-) -> Result<(), ContentError> {
-	validate_regular_file_at(directory, name, expected_identity, expected_length)?;
-	unix_fs::unlinkat(directory, name, AtFlags::empty()).map_err(io_error)?;
-	unix_fs::fsync(directory).map_err(io_error)
 }
 
 pub(crate) fn sync_directory(directory: &File) -> Result<(), ContentError> {
@@ -623,20 +680,96 @@ pub(crate) fn remove_validated_temp_artifacts_at(
 	directory: &File,
 	temp_artifacts: &[PreparedRegularFile],
 ) -> Result<(), ContentError> {
+	remove_validated_temp_artifacts_at_with_hook(directory, temp_artifacts, |_, _| Ok(()))
+}
+
+fn remove_validated_temp_artifacts_at_with_hook(
+	directory: &File,
+	temp_artifacts: &[PreparedRegularFile],
+	mut before_quarantine: impl FnMut(&File, &PreparedRegularFile) -> Result<(), ContentError>,
+) -> Result<(), ContentError> {
 	for artifact in temp_artifacts {
 		open_prepared_regular_file_at(directory, artifact)?;
 	}
 	for artifact in temp_artifacts {
-		open_prepared_regular_file_at(directory, artifact)?;
-		match unix_fs::unlinkat(directory, &artifact.name, AtFlags::empty()) {
-			Ok(()) | Err(UnixErrno::NOENT) => {},
-			Err(error) => return Err(io_error(error)),
-		}
-	}
-	if !temp_artifacts.is_empty() {
-		unix_fs::fsync(directory).map_err(io_error)?;
+		before_quarantine(directory, artifact)?;
+		quarantine_and_unlink_regular_file_at(
+			directory,
+			&artifact.name,
+			artifact.identity,
+			artifact.length,
+			|original| random_temp_quarantine_name(original),
+		)?;
 	}
 	Ok(())
+}
+
+fn quarantine_and_unlink_regular_file_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+	expected_identity: FileIdentity,
+	expected_length: u64,
+	mut quarantine_name: impl FnMut(&std::ffi::OsStr) -> Result<OsString, ContentError>,
+) -> Result<(), ContentError> {
+	let quarantine = (0..16)
+		.find_map(|_| {
+			let quarantine = quarantine_name(name).ok()?;
+			match unix_fs::renameat_with(
+				directory,
+				name,
+				directory,
+				&quarantine,
+				RenameFlags::NOREPLACE,
+			) {
+				Ok(()) => Some(Ok(quarantine)),
+				Err(UnixErrno::EXIST) => None,
+				Err(error) => Some(Err(io_error(error))),
+			}
+		})
+		.transpose()?
+		.ok_or(ContentError::IntegrityFailed)?;
+	unix_fs::fsync(directory).map_err(io_error)?;
+	if validate_regular_file_at(directory, &quarantine, expected_identity, expected_length).is_err() {
+		if unix_fs::renameat_with(
+			directory,
+			&quarantine,
+			directory,
+			name,
+			RenameFlags::NOREPLACE,
+		)
+		.is_ok()
+		{
+			let _ = unix_fs::fsync(directory);
+		}
+		return Err(ContentError::IntegrityFailed)
+	}
+	unix_fs::unlinkat(directory, &quarantine, AtFlags::empty()).map_err(io_error)?;
+	unix_fs::fsync(directory).map_err(io_error)
+}
+
+fn random_temp_quarantine_name(name: &std::ffi::OsStr) -> Result<OsString, ContentError> {
+	let bytes = name.as_bytes();
+	let marker = bytes
+		.windows(5)
+		.rposition(|window| window == b".tmp-")
+		.ok_or(ContentError::IntegrityFailed)?;
+	let mut random = [0u8; 16];
+	OsRng.fill_bytes(&mut random);
+	let mut quarantine = OsString::from_vec(bytes[..marker + 5].to_vec());
+	quarantine.push(u128::from_le_bytes(random).to_string());
+	if quarantine.as_os_str() == name {
+		return Err(ContentError::IntegrityFailed)
+	}
+	Ok(quarantine)
+}
+
+fn random_owned_lock_quarantine_name(_: &std::ffi::OsStr) -> Result<OsString, ContentError> {
+	let mut random = [0u8; 16];
+	OsRng.fill_bytes(&mut random);
+	Ok(OsString::from(format!(
+		".provider-lock.create-{}",
+		hex::encode(random),
+	)))
 }
 
 pub(crate) fn validate_prepared_regular_files_at(
@@ -777,6 +910,61 @@ mod tests {
 	fn bare_relative_provider_root_uses_the_current_directory_as_parent() {
 		let prepared = prepare_directory_path(Path::new("data")).unwrap();
 		assert!(prepared.is_missing().is_ok());
+	}
+
+	#[test]
+	fn cleanup_never_unlinks_a_replacement_swapped_after_validation() {
+		let temp = tempfile::tempdir().unwrap();
+		let directory = File::open(temp.path()).unwrap();
+		let name = OsString::from("provider-index-v6.tmp-17");
+		fs::write(temp.path().join(&name), b"prepared").unwrap();
+		let guard = list_directory(&directory)
+			.unwrap()
+			.pop()
+			.unwrap()
+			.into_regular_guard()
+			.unwrap();
+		let displaced = temp.path().join("displaced-prepared");
+
+		let result = remove_validated_temp_artifacts_at_with_hook(
+			&directory,
+			&[guard],
+			|directory, artifact| {
+				unix_fs::renameat(directory, &artifact.name, directory, displaced.file_name().unwrap())
+					.map_err(io_error)?;
+				fs::write(temp.path().join(&artifact.name), b"replacement").map_err(io_error)
+			},
+		);
+
+		assert_eq!(result, Err(ContentError::IntegrityFailed));
+		assert_eq!(fs::read(temp.path().join(name)).unwrap(), b"replacement");
+		assert_eq!(fs::read(displaced).unwrap(), b"prepared");
+	}
+
+	#[test]
+	fn crash_shaped_quarantine_is_discovered_and_removed_by_the_next_recovery() {
+		let temp = tempfile::tempdir().unwrap();
+		let directory = File::open(temp.path()).unwrap();
+		let original = OsString::from("provider-index-v6.tmp-19");
+		fs::write(temp.path().join(&original), b"crash-residue").unwrap();
+		let quarantine = random_temp_quarantine_name(&original).unwrap();
+		assert!(quarantine.to_string_lossy().starts_with("provider-index-v6.tmp-"));
+		assert!(quarantine
+			.to_string_lossy()
+			.trim_start_matches("provider-index-v6.tmp-")
+			.bytes()
+			.all(|byte| byte.is_ascii_digit()));
+		unix_fs::renameat(&directory, &original, &directory, &quarantine).unwrap();
+		unix_fs::fsync(&directory).unwrap();
+
+		let recovered = list_directory(&directory)
+			.unwrap()
+			.pop()
+			.unwrap()
+			.into_regular_guard()
+			.unwrap();
+		remove_validated_temp_artifacts_at(&directory, &[recovered]).unwrap();
+		assert!(list_directory(&directory).unwrap().is_empty());
 	}
 
 	#[cfg(unix)]
