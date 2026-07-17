@@ -2,7 +2,7 @@
   "protocol": "cord.origin.host/2",
   "encoding": "RFC8949-4.2.3.1-length-first",
   "registry_sha256": "08fdf21728020b04a99e4b41d9924e0bda810d7b357576f938f6ce3e2c1be375",
-  "cbor_sha256": "9ef6624ba14275b9e30cca8ff786255011962e05986a12aac0071c85427be71c",
+  "cbor_sha256": "3845b833817f14f6b7a0bebfd15d6601d6a8325d2e518bf4ea9d29dbc683fdf4",
   "vectors": [
     {
       "id": "wire-1001-canonical",
@@ -1964,6 +1964,17 @@
       "concrete": true
     },
     {
+      "id": "error-117-request_deadline_too_far",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a4001875017818524551554553545f444541444c494e455f544f4f5f46415202f403a0",
+      "wire_sha256": "55b2e820521d036c46e6429bc7354f789bf390e430146fe5f250c7794b8003fc",
+      "expected": "REQUEST_DEADLINE_TOO_FAR",
+      "code": 117,
+      "retryable": false,
+      "concrete": true
+    },
+    {
       "id": "error-200-storage_chunk_out_of_order",
       "kind": "exact-error-event",
       "valid": true,
@@ -2092,6 +2103,17 @@
       "wire_sha256": "ee3e04769d0f8b951b9b18542806302684a88e859944b5c54976489c1d79aa7e",
       "expected": "ENCRYPTION_NONCE_REUSE",
       "code": 211,
+      "retryable": false,
+      "concrete": true
+    },
+    {
+      "id": "error-212-storage_operation_receipt_capacity_reached",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40018d401782a53544f524147455f4f5045524154494f4e5f524543454950545f43415041434954595f5245414348454402f403a0",
+      "wire_sha256": "60a3b1f7ebe4f49cedd3fbd8e44ae97e0dfebf3f03d019f4ae8f439678b27bec",
+      "expected": "STORAGE_OPERATION_RECEIPT_CAPACITY_REACHED",
+      "code": 212,
       "retryable": false,
       "concrete": true
     },
@@ -2756,5 +2778,5 @@
       "concrete": true
     }
   ],
-  "concrete_wire_vectors": 200
+  "concrete_wire_vectors": 202
 }
