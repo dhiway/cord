@@ -20,6 +20,7 @@
 
 pub(crate) mod codec;
 mod desktop;
+mod execution;
 #[rustfmt::skip]
 pub(crate) mod generated;
 mod session;

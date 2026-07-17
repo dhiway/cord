@@ -1,0 +1,748 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
+//! Private host-v2 execution binding. The public SDK cannot reach this module before P4/P5.
+
+use std::io::{Read, Write};
+
+use ciborium::value::Value;
+
+use crate::product_sdk::host_outbox::PrepareHostOutboxV1;
+
+use super::{
+	codec::{CodecError, Dto},
+	desktop::{DesktopTransportError, DurableDesktopEvent, DurableDesktopHostV2},
+	generated::{
+		IdentityAccountFrame, IdentityEntitlementsReadFrame, IdentityHumanityProveFrame,
+		IdentityHumanityStatusFrame, IdentityProfileDiscloseFrame, IdentityProfileReadFrame,
+		IdentitySubjectDeriveFrame, OperationCode, Production, RequestV2, StorageBucketCreateFrame,
+		StorageBucketGetFrame, StorageBucketGrantFrame, StorageBucketRevokeFrame,
+		StorageCheckpointStatusFrame, StorageCheckpointSubscribeFrame, StorageDeletionStatusFrame,
+		StorageDeletionSubscribeFrame, StorageDriveCommitFrame, StorageDriveReadFrame,
+		StorageDriveShareFrame, StorageKeysExportFrame, StorageKeysImportFrame,
+		StorageObjectDeleteFrame, StorageObjectGetFrame, StorageObjectPutFrame,
+		StorageObjectRangeFrame, StorageObjectStatusFrame, StoragePublishFrame,
+		StorageReplicaStatusFrame, StorageReplicaSubscribeFrame, StorageResolveFrame,
+		StorageS3DeleteFrame, StorageS3GetFrame, StorageS3ListFrame, StorageS3PutFrame,
+		TransactionSignFrame, OPERATIONS,
+	},
+};
+
+const MAX_EVENTS_PER_CALL: usize = 4_096;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct HostRequestMetaV2 {
+	pub(crate) request_id: [u8; 16],
+	pub(crate) operation_id: Option<[u8; 16]>,
+	pub(crate) deadline_block: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ProviderOutboxContextV2 {
+	pub(crate) outbox_id: [u8; 16],
+	pub(crate) generation: u64,
+	pub(crate) intended_cursor: u32,
+	pub(crate) negotiated_tuple: [u8; 32],
+	pub(crate) provider_id: [u8; 32],
+	pub(crate) provider_endpoint_hash: [u8; 32],
+	pub(crate) created_at: u64,
+	pub(crate) authority_expires_at: u64,
+	pub(crate) terminal_block: u64,
+	pub(crate) prepare_nonce: [u8; 24],
+	pub(crate) mark_sent_nonce: [u8; 24],
+	pub(crate) install_nonce: [u8; 24],
+	pub(crate) mark_ack_nonce: [u8; 24],
+	pub(crate) confirm_nonce: [u8; 24],
+	pub(crate) compact_nonce: [u8; 24],
+}
+
+pub(crate) struct HostCallV2<'a, P: Production> {
+	pub(crate) frame: &'a Dto<P>,
+	pub(crate) authority: &'a [u8],
+	pub(crate) meta: HostRequestMetaV2,
+	pub(crate) outbox: &'a ProviderOutboxContextV2,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct HostExecutionV2 {
+	pub(crate) events: Vec<Vec<u8>>,
+	pub(crate) terminal_response_hash: Option<[u8; 32]>,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum HostExecutionErrorV2 {
+	#[error(transparent)]
+	Codec(#[from] CodecError),
+	#[error(transparent)]
+	Desktop(#[from] DesktopTransportError),
+	#[error("HOST_OPERATION_REGISTRY_MISMATCH")]
+	Registry,
+	#[error("HOST_BACKEND_REJECTED: {0}")]
+	Backend(&'static str),
+	#[error("HOST_PROVIDER_ACK_UNCONFIRMED")]
+	AckUnconfirmed,
+	#[error("HOST_EVENT_LIMIT_EXCEEDED")]
+	EventLimit,
+	#[error("HOST_APP_BINDING_INVALID")]
+	AppBinding,
+}
+
+macro_rules! define_backend_trait {
+	($name:ident { $($method:ident: $frame:ty),+ $(,)? }) => {
+		pub(crate) trait $name {
+			$(fn $method(
+				&mut self,
+				call: HostCallV2<'_, $frame>,
+			) -> Result<HostExecutionV2, HostExecutionErrorV2>;)+
+		}
+	};
+}
+
+// The authority split is intentional: no one trait can claim the whole storage surface.
+define_backend_trait!(ProviderByteStorageV2 {
+	object_put: StorageObjectPutFrame,
+	object_get: StorageObjectGetFrame,
+	object_range: StorageObjectRangeFrame,
+	object_status: StorageObjectStatusFrame,
+});
+
+define_backend_trait!(CommonsStorageControlV2 {
+	bucket_create: StorageBucketCreateFrame,
+	bucket_get: StorageBucketGetFrame,
+	bucket_grant: StorageBucketGrantFrame,
+	bucket_revoke: StorageBucketRevokeFrame,
+	object_delete: StorageObjectDeleteFrame,
+	checkpoint_status: StorageCheckpointStatusFrame,
+	checkpoint_subscribe: StorageCheckpointSubscribeFrame,
+	replica_status: StorageReplicaStatusFrame,
+	replica_subscribe: StorageReplicaSubscribeFrame,
+	deletion_status: StorageDeletionStatusFrame,
+	deletion_subscribe: StorageDeletionSubscribeFrame,
+	drive_read: StorageDriveReadFrame,
+	drive_commit: StorageDriveCommitFrame,
+	drive_share: StorageDriveShareFrame,
+	s3_put: StorageS3PutFrame,
+	s3_get: StorageS3GetFrame,
+	s3_list: StorageS3ListFrame,
+	s3_delete: StorageS3DeleteFrame,
+	storage_publish: StoragePublishFrame,
+	storage_resolve: StorageResolveFrame,
+});
+
+define_backend_trait!(HostStorageKeystoreV2 {
+	keys_export: StorageKeysExportFrame,
+	keys_import: StorageKeysImportFrame,
+});
+
+/// Encryption policy and transformations are host-owned, never provider or Commons state.
+pub(crate) trait HostStorageEncryptionV2 {
+	fn prepare(
+		&mut self,
+		operation: OperationCode,
+		exact_frame: &[u8],
+	) -> Result<(), HostExecutionErrorV2>;
+	fn complete(
+		&mut self,
+		operation: OperationCode,
+		execution: &mut HostExecutionV2,
+	) -> Result<(), HostExecutionErrorV2>;
+}
+
+define_backend_trait!(FinalizedIdentityRuntimeV2 {
+	identity_account: IdentityAccountFrame,
+	identity_humanity_status: IdentityHumanityStatusFrame,
+	identity_entitlements_read: IdentityEntitlementsReadFrame,
+});
+
+define_backend_trait!(HostIdentityAuthorityV2 {
+	identity_profile_read: IdentityProfileReadFrame,
+	identity_profile_disclose: IdentityProfileDiscloseFrame,
+	identity_humanity_prove: IdentityHumanityProveFrame,
+	identity_subject_derive: IdentitySubjectDeriveFrame,
+});
+
+define_backend_trait!(HostSigningAuthorityV2 { transaction_sign: TransactionSignFrame });
+
+macro_rules! define_closed_requests {
+	($($variant:ident: $frame:ty => $code:ident),+ $(,)?) => {
+		pub(crate) enum ClosedHostRequestV2 {
+			$($variant(Dto<$frame>),)+
+		}
+
+		impl ClosedHostRequestV2 {
+			pub(crate) fn decode(
+				bytes: &[u8],
+			) -> Result<(Self, HostRequestMetaV2), HostExecutionErrorV2> {
+				let envelope = Dto::<RequestV2>::decode(bytes)?;
+				let operation = uint_field(envelope.value(), 3)
+					.and_then(|value| u16::try_from(value).ok())
+					.and_then(OperationCode::from_u16)
+					.ok_or(HostExecutionErrorV2::Registry)?;
+				let request_id = fixed_field(envelope.value(), 1, 16)?
+					.try_into()
+					.map_err(|_| HostExecutionErrorV2::Registry)?;
+				let operation_id = optional_fixed_field(envelope.value(), 5, 16)?
+					.map(|value| value.try_into().expect("operation id length was checked"));
+				let deadline_block =
+					uint_field(envelope.value(), 7).ok_or(HostExecutionErrorV2::Registry)?;
+				let meta = HostRequestMetaV2 { request_id, operation_id, deadline_block };
+				let request = match operation {
+					$(OperationCode::$code => Self::$variant(Dto::<$frame>::decode(bytes)?),)+
+				};
+				Ok((request, meta))
+			}
+
+			pub(crate) const fn operation(&self) -> OperationCode {
+				match self {
+					$(Self::$variant(_) => OperationCode::$code,)+
+				}
+			}
+		}
+	};
+}
+
+define_closed_requests!(
+	StorageBucketCreate: StorageBucketCreateFrame => StorageBucketCreate,
+	StorageBucketGet: StorageBucketGetFrame => StorageBucketGet,
+	StorageBucketGrant: StorageBucketGrantFrame => StorageBucketGrant,
+	StorageBucketRevoke: StorageBucketRevokeFrame => StorageBucketRevoke,
+	StorageObjectPut: StorageObjectPutFrame => StorageObjectPut,
+	StorageObjectGet: StorageObjectGetFrame => StorageObjectGet,
+	StorageObjectRange: StorageObjectRangeFrame => StorageObjectRange,
+	StorageObjectDelete: StorageObjectDeleteFrame => StorageObjectDelete,
+	StorageObjectStatus: StorageObjectStatusFrame => StorageObjectStatus,
+	StorageCheckpointStatus: StorageCheckpointStatusFrame => StorageCheckpointStatus,
+	StorageCheckpointSubscribe: StorageCheckpointSubscribeFrame => StorageCheckpointSubscribe,
+	StorageReplicaStatus: StorageReplicaStatusFrame => StorageReplicaStatus,
+	StorageReplicaSubscribe: StorageReplicaSubscribeFrame => StorageReplicaSubscribe,
+	StorageDeletionStatus: StorageDeletionStatusFrame => StorageDeletionStatus,
+	StorageDeletionSubscribe: StorageDeletionSubscribeFrame => StorageDeletionSubscribe,
+	StorageDriveRead: StorageDriveReadFrame => StorageDriveRead,
+	StorageDriveCommit: StorageDriveCommitFrame => StorageDriveCommit,
+	StorageDriveShare: StorageDriveShareFrame => StorageDriveShare,
+	StorageS3Put: StorageS3PutFrame => StorageS3Put,
+	StorageS3Get: StorageS3GetFrame => StorageS3Get,
+	StorageS3List: StorageS3ListFrame => StorageS3List,
+	StorageS3Delete: StorageS3DeleteFrame => StorageS3Delete,
+	StoragePublish: StoragePublishFrame => StoragePublish,
+	StorageResolve: StorageResolveFrame => StorageResolve,
+	StorageKeysExport: StorageKeysExportFrame => StorageKeysExport,
+	StorageKeysImport: StorageKeysImportFrame => StorageKeysImport,
+	IdentityAccount: IdentityAccountFrame => IdentityAccount,
+	IdentityProfileRead: IdentityProfileReadFrame => IdentityProfileRead,
+	IdentityProfileDisclose: IdentityProfileDiscloseFrame => IdentityProfileDisclose,
+	IdentityHumanityStatus: IdentityHumanityStatusFrame => IdentityHumanityStatus,
+	IdentityHumanityProve: IdentityHumanityProveFrame => IdentityHumanityProve,
+	IdentitySubjectDerive: IdentitySubjectDeriveFrame => IdentitySubjectDerive,
+	IdentityEntitlementsRead: IdentityEntitlementsReadFrame => IdentityEntitlementsRead,
+	TransactionSign: TransactionSignFrame => TransactionSign,
+);
+
+pub(crate) struct CordHostDispatcherV2<P, C, K, IR, IH, G> {
+	provider_bytes: P,
+	commons: C,
+	keystore: K,
+	identity_runtime: IR,
+	identity_host: IH,
+	signing: G,
+}
+
+impl<P, C, K, IR, IH, G> CordHostDispatcherV2<P, C, K, IR, IH, G>
+where
+	P: ProviderByteStorageV2,
+	C: CommonsStorageControlV2,
+	K: HostStorageKeystoreV2,
+	IR: FinalizedIdentityRuntimeV2,
+	IH: HostIdentityAuthorityV2,
+	G: HostSigningAuthorityV2,
+{
+	pub(crate) fn new(
+		provider_bytes: P,
+		commons: C,
+		keystore: K,
+		identity_runtime: IR,
+		identity_host: IH,
+		signing: G,
+	) -> Self {
+		Self { provider_bytes, commons, keystore, identity_runtime, identity_host, signing }
+	}
+
+	pub(crate) fn dispatch(
+		&mut self,
+		exact_request: &[u8],
+		exact_authority: &[u8],
+		outbox: &ProviderOutboxContextV2,
+	) -> Result<HostExecutionV2, HostExecutionErrorV2> {
+		let (request, meta) = ClosedHostRequestV2::decode(exact_request)?;
+		let operation = request.operation();
+		if !OPERATIONS.iter().any(|binding| binding.code == operation as u16) {
+			return Err(HostExecutionErrorV2::Registry);
+		}
+		macro_rules! call {
+			($backend:ident, $method:ident, $frame:ident) => {
+				self.$backend.$method(HostCallV2 {
+					frame: &$frame,
+					authority: exact_authority,
+					meta,
+					outbox,
+				})
+			};
+		}
+		match request {
+			ClosedHostRequestV2::StorageBucketCreate(frame) => call!(commons, bucket_create, frame),
+			ClosedHostRequestV2::StorageBucketGet(frame) => call!(commons, bucket_get, frame),
+			ClosedHostRequestV2::StorageBucketGrant(frame) => call!(commons, bucket_grant, frame),
+			ClosedHostRequestV2::StorageBucketRevoke(frame) => call!(commons, bucket_revoke, frame),
+			ClosedHostRequestV2::StorageObjectPut(frame) =>
+				call!(provider_bytes, object_put, frame),
+			ClosedHostRequestV2::StorageObjectGet(frame) =>
+				call!(provider_bytes, object_get, frame),
+			ClosedHostRequestV2::StorageObjectRange(frame) =>
+				call!(provider_bytes, object_range, frame),
+			ClosedHostRequestV2::StorageObjectDelete(frame) => call!(commons, object_delete, frame),
+			ClosedHostRequestV2::StorageObjectStatus(frame) =>
+				call!(provider_bytes, object_status, frame),
+			ClosedHostRequestV2::StorageCheckpointStatus(frame) =>
+				call!(commons, checkpoint_status, frame),
+			ClosedHostRequestV2::StorageCheckpointSubscribe(frame) =>
+				call!(commons, checkpoint_subscribe, frame),
+			ClosedHostRequestV2::StorageReplicaStatus(frame) =>
+				call!(commons, replica_status, frame),
+			ClosedHostRequestV2::StorageReplicaSubscribe(frame) =>
+				call!(commons, replica_subscribe, frame),
+			ClosedHostRequestV2::StorageDeletionStatus(frame) =>
+				call!(commons, deletion_status, frame),
+			ClosedHostRequestV2::StorageDeletionSubscribe(frame) =>
+				call!(commons, deletion_subscribe, frame),
+			ClosedHostRequestV2::StorageDriveRead(frame) => call!(commons, drive_read, frame),
+			ClosedHostRequestV2::StorageDriveCommit(frame) => call!(commons, drive_commit, frame),
+			ClosedHostRequestV2::StorageDriveShare(frame) => call!(commons, drive_share, frame),
+			ClosedHostRequestV2::StorageS3Put(frame) => call!(commons, s3_put, frame),
+			ClosedHostRequestV2::StorageS3Get(frame) => call!(commons, s3_get, frame),
+			ClosedHostRequestV2::StorageS3List(frame) => call!(commons, s3_list, frame),
+			ClosedHostRequestV2::StorageS3Delete(frame) => call!(commons, s3_delete, frame),
+			ClosedHostRequestV2::StoragePublish(frame) => call!(commons, storage_publish, frame),
+			ClosedHostRequestV2::StorageResolve(frame) => call!(commons, storage_resolve, frame),
+			ClosedHostRequestV2::StorageKeysExport(frame) => call!(keystore, keys_export, frame),
+			ClosedHostRequestV2::StorageKeysImport(frame) => call!(keystore, keys_import, frame),
+			ClosedHostRequestV2::IdentityAccount(frame) =>
+				call!(identity_runtime, identity_account, frame),
+			ClosedHostRequestV2::IdentityProfileRead(frame) =>
+				call!(identity_host, identity_profile_read, frame),
+			ClosedHostRequestV2::IdentityProfileDisclose(frame) =>
+				call!(identity_host, identity_profile_disclose, frame),
+			ClosedHostRequestV2::IdentityHumanityStatus(frame) =>
+				call!(identity_runtime, identity_humanity_status, frame),
+			ClosedHostRequestV2::IdentityHumanityProve(frame) =>
+				call!(identity_host, identity_humanity_prove, frame),
+			ClosedHostRequestV2::IdentitySubjectDerive(frame) =>
+				call!(identity_host, identity_subject_derive, frame),
+			ClosedHostRequestV2::IdentityEntitlementsRead(frame) =>
+				call!(identity_runtime, identity_entitlements_read, frame),
+			ClosedHostRequestV2::TransactionSign(frame) => call!(signing, transaction_sign, frame),
+		}
+	}
+}
+
+/// Confirmation arrives from the bound local provider peer after it processes `ResponseAckV1`.
+pub(crate) trait ProviderAckConfirmationV2 {
+	fn confirmed(
+		&mut self,
+		outbox_id: [u8; 16],
+		response_hash: [u8; 32],
+	) -> Result<bool, HostExecutionErrorV2>;
+}
+
+/// Concrete provider byte/recovery adapter over the existing durable local IPC kernel.
+pub(crate) struct DurableCordProviderV2<'a, S, A> {
+	host: DurableDesktopHostV2<'a, S>,
+	acknowledgements: A,
+}
+
+impl<'a, S: Read + Write, A: ProviderAckConfirmationV2> DurableCordProviderV2<'a, S, A> {
+	pub(crate) fn new(host: DurableDesktopHostV2<'a, S>, acknowledgements: A) -> Self {
+		Self { host, acknowledgements }
+	}
+
+	fn execute<P: Production>(
+		&mut self,
+		call: HostCallV2<'_, P>,
+	) -> Result<HostExecutionV2, HostExecutionErrorV2> {
+		self.host.prepare_and_send(
+			PrepareHostOutboxV1 {
+				outbox_id: call.outbox.outbox_id,
+				exact_request_bytes: call.frame.canonical().to_vec(),
+				exact_authority_bytes: call.authority.to_vec(),
+				request_id: call.meta.request_id,
+				operation_id: call.meta.operation_id.unwrap_or([0; 16]),
+				generation: call.outbox.generation,
+				intended_cursor: call.outbox.intended_cursor,
+				negotiated_tuple: call.outbox.negotiated_tuple,
+				provider_id: call.outbox.provider_id,
+				provider_endpoint_hash: call.outbox.provider_endpoint_hash,
+				expected_response_kind: 0,
+				created_at: call.outbox.created_at,
+				authority_expires_at: call.outbox.authority_expires_at,
+			},
+			call.outbox.prepare_nonce,
+			call.outbox.mark_sent_nonce,
+		)?;
+		let mut events = Vec::new();
+		for _ in 0..MAX_EVENTS_PER_CALL {
+			match self.host.receive_event(
+				call.outbox.terminal_block,
+				call.outbox.install_nonce,
+				call.outbox.mark_ack_nonce,
+			)? {
+				DurableDesktopEvent::NonTerminal(event) => events.push(event),
+				DurableDesktopEvent::Terminal { event, response_hash } => {
+					events.push(event);
+					if !self.acknowledgements.confirmed(call.outbox.outbox_id, response_hash)? {
+						return Err(HostExecutionErrorV2::AckUnconfirmed);
+					}
+					self.host.confirm_terminal(
+						call.outbox.outbox_id,
+						response_hash,
+						call.outbox.confirm_nonce,
+						call.outbox.compact_nonce,
+					)?;
+					return Ok(HostExecutionV2 {
+						events,
+						terminal_response_hash: Some(response_hash),
+					});
+				},
+			}
+		}
+		Err(HostExecutionErrorV2::EventLimit)
+	}
+}
+
+/// Provider bytes and host encryption are composed without transferring either authority.
+pub(crate) struct CordProviderByteBackendV2<'a, S, A, E> {
+	provider: DurableCordProviderV2<'a, S, A>,
+	encryption: E,
+}
+
+impl<'a, S, A, E> CordProviderByteBackendV2<'a, S, A, E> {
+	pub(crate) fn new(provider: DurableCordProviderV2<'a, S, A>, encryption: E) -> Self {
+		Self { provider, encryption }
+	}
+}
+
+macro_rules! provider_byte_method {
+	($method:ident, $frame:ty, $operation:ident) => {
+		fn $method(
+			&mut self,
+			call: HostCallV2<'_, $frame>,
+		) -> Result<HostExecutionV2, HostExecutionErrorV2> {
+			self.encryption.prepare(OperationCode::$operation, call.frame.canonical())?;
+			let mut execution = self.provider.execute(call)?;
+			self.encryption.complete(OperationCode::$operation, &mut execution)?;
+			Ok(execution)
+		}
+	};
+}
+
+impl<'a, S: Read + Write, A: ProviderAckConfirmationV2, E: HostStorageEncryptionV2>
+	ProviderByteStorageV2 for CordProviderByteBackendV2<'a, S, A, E>
+{
+	provider_byte_method!(object_put, StorageObjectPutFrame, StorageObjectPut);
+	provider_byte_method!(object_get, StorageObjectGetFrame, StorageObjectGet);
+	provider_byte_method!(object_range, StorageObjectRangeFrame, StorageObjectRange);
+	provider_byte_method!(object_status, StorageObjectStatusFrame, StorageObjectStatus);
+}
+
+fn uint_field(value: &Value, wanted: u64) -> Option<u64> {
+	let Value::Map(fields) = value else { return None };
+	fields.iter().find_map(|(key, value)| match (key, value) {
+		(Value::Integer(key), Value::Integer(value))
+			if u64::try_from(*key).ok() == Some(wanted) =>
+			u64::try_from(*value).ok(),
+		_ => None,
+	})
+}
+
+fn fixed_field(value: &Value, key: u64, length: usize) -> Result<Vec<u8>, HostExecutionErrorV2> {
+	optional_fixed_field(value, key, length)?.ok_or(HostExecutionErrorV2::Registry)
+}
+
+fn optional_fixed_field(
+	value: &Value,
+	wanted: u64,
+	length: usize,
+) -> Result<Option<Vec<u8>>, HostExecutionErrorV2> {
+	let Value::Map(fields) = value else { return Err(HostExecutionErrorV2::Registry) };
+	for (key, value) in fields {
+		if matches!(key, Value::Integer(key) if u64::try_from(*key).ok() == Some(wanted)) {
+			let Value::Bytes(bytes) = value else { return Err(HostExecutionErrorV2::Registry) };
+			if bytes.len() != length {
+				return Err(HostExecutionErrorV2::Registry);
+			}
+			return Ok(Some(bytes.clone()));
+		}
+	}
+	Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+	use std::collections::{BTreeMap, BTreeSet};
+
+	use sp_crypto_hashing::blake2_256;
+
+	use super::*;
+
+	#[derive(Clone, Debug, Eq, PartialEq)]
+	struct FinalizedFixture {
+		number: u64,
+		hash: [u8; 32],
+	}
+
+	#[derive(Clone, Debug, Eq, PartialEq)]
+	struct CheckpointFixture {
+		root: [u8; 32],
+		finalized: FinalizedFixture,
+		publishable: bool,
+	}
+
+	#[derive(Clone, Debug, Eq, PartialEq)]
+	struct PublishedFixture {
+		cid: String,
+		finalized: FinalizedFixture,
+	}
+
+	#[derive(Default)]
+	struct ProviderFixtureState {
+		objects: BTreeMap<String, Vec<u8>>,
+		checkpoints: BTreeMap<String, CheckpointFixture>,
+		trace: Vec<&'static str>,
+	}
+
+	impl ProviderFixtureState {
+		fn put_exact(
+			&mut self,
+			cid: &str,
+			digest: [u8; 32],
+			bytes: &[u8],
+		) -> Result<(), HostExecutionErrorV2> {
+			if blake2_256(bytes) != digest ||
+				self.objects.insert(cid.into(), bytes.to_vec()).is_some()
+			{
+				return Err(HostExecutionErrorV2::AppBinding);
+			}
+			self.trace.push("provider.object.put");
+			Ok(())
+		}
+
+		fn publishable_checkpoint(
+			&mut self,
+			cid: &str,
+			finalized: FinalizedFixture,
+		) -> Result<CheckpointFixture, HostExecutionErrorV2> {
+			let bytes = self.objects.get(cid).ok_or(HostExecutionErrorV2::AppBinding)?;
+			let checkpoint =
+				CheckpointFixture { root: blake2_256(bytes), finalized, publishable: true };
+			self.checkpoints.insert(cid.into(), checkpoint.clone());
+			self.trace.push("provider.checkpoint.publishable");
+			Ok(checkpoint)
+		}
+	}
+
+	#[derive(Default)]
+	struct RuntimeFixtureState {
+		height: u64,
+		canonical: BTreeMap<u64, [u8; 32]>,
+		published: BTreeMap<[u8; 32], PublishedFixture>,
+		names: BTreeMap<[u8; 32], ([u8; 32], FinalizedFixture)>,
+		trace: Vec<&'static str>,
+	}
+
+	impl RuntimeFixtureState {
+		fn finalize(&mut self, tag: &[u8]) -> FinalizedFixture {
+			self.height += 1;
+			let mut material = self.height.to_be_bytes().to_vec();
+			material.extend_from_slice(tag);
+			let finalized = FinalizedFixture { number: self.height, hash: blake2_256(&material) };
+			self.canonical.insert(finalized.number, finalized.hash);
+			finalized
+		}
+
+		fn publish(
+			&mut self,
+			name_hash: [u8; 32],
+			cid: &str,
+			checkpoint: &CheckpointFixture,
+		) -> Result<FinalizedFixture, HostExecutionErrorV2> {
+			if !checkpoint.publishable ||
+				self.canonical.get(&checkpoint.finalized.number) !=
+					Some(&checkpoint.finalized.hash)
+			{
+				return Err(HostExecutionErrorV2::AppBinding);
+			}
+			let finalized = self.finalize(b"storage.publish");
+			self.published.insert(
+				name_hash,
+				PublishedFixture { cid: cid.into(), finalized: finalized.clone() },
+			);
+			self.trace.push("commons.storage.publish");
+			Ok(finalized)
+		}
+
+		fn bind_name(
+			&mut self,
+			name: [u8; 32],
+			content_commitment: [u8; 32],
+			after: &FinalizedFixture,
+		) -> Result<FinalizedFixture, HostExecutionErrorV2> {
+			if self.canonical.get(&after.number) != Some(&after.hash) {
+				return Err(HostExecutionErrorV2::AppBinding);
+			}
+			let finalized = self.finalize(b"names.set_content");
+			self.names.insert(name, (content_commitment, finalized.clone()));
+			self.trace.push("commons.names.set_content_commitment");
+			Ok(finalized)
+		}
+	}
+
+	struct AppJourneyInput<'a> {
+		content_cid: &'a str,
+		content_digest: [u8; 32],
+		content: &'a [u8],
+		manifest_cid: &'a str,
+		manifest_digest: [u8; 32],
+		manifest: &'a [u8],
+		storage_name_hash: [u8; 32],
+		name: [u8; 32],
+	}
+
+	fn execute_app_journey(
+		provider: &mut ProviderFixtureState,
+		runtime: &mut RuntimeFixtureState,
+		input: AppJourneyInput<'_>,
+	) -> Result<(String, FinalizedFixture), HostExecutionErrorV2> {
+		provider.put_exact(input.content_cid, input.content_digest, input.content)?;
+		provider.put_exact(input.manifest_cid, input.manifest_digest, input.manifest)?;
+		let checkpoint_head = runtime.finalize(b"provider.checkpoint");
+		let checkpoint = provider.publishable_checkpoint(input.manifest_cid, checkpoint_head)?;
+		let published =
+			runtime.publish(input.storage_name_hash, input.manifest_cid, &checkpoint)?;
+		let names_finalized = runtime.bind_name(input.name, input.manifest_digest, &published)?;
+
+		let (commitment, binding_finality) =
+			runtime.names.get(&input.name).ok_or(HostExecutionErrorV2::AppBinding)?;
+		let resolved = runtime
+			.published
+			.get(&input.storage_name_hash)
+			.ok_or(HostExecutionErrorV2::AppBinding)?;
+		if commitment != &input.manifest_digest ||
+			binding_finality != &names_finalized ||
+			resolved.cid != input.manifest_cid ||
+			resolved.finalized != published ||
+			provider.objects.get(&resolved.cid).map(Vec::as_slice) != Some(input.manifest) ||
+			provider.checkpoints.get(&resolved.cid) != Some(&checkpoint)
+		{
+			return Err(HostExecutionErrorV2::AppBinding);
+		}
+		runtime.trace.push("commons.storage.resolve");
+		Ok((resolved.cid.clone(), names_finalized))
+	}
+
+	#[test]
+	fn generated_registry_is_closed_and_every_operation_has_a_named_backend_method() {
+		assert_eq!(OPERATIONS.len(), 34);
+		let codes = OPERATIONS.iter().map(|binding| binding.code).collect::<BTreeSet<_>>();
+		assert_eq!(codes.len(), 34);
+		for binding in OPERATIONS {
+			assert_eq!(
+				OperationCode::from_u16(binding.code).map(|code| code as u16),
+				Some(binding.code)
+			);
+			assert!(!binding.name.is_empty());
+		}
+		let storage =
+			OPERATIONS.iter().filter(|binding| (1000..1100).contains(&binding.code)).count();
+		let identity =
+			OPERATIONS.iter().filter(|binding| (1100..1200).contains(&binding.code)).count();
+		let signing = OPERATIONS.iter().filter(|binding| binding.code == 1200).count();
+		assert_eq!((storage, identity, signing), (26, 7, 1));
+	}
+
+	#[test]
+	fn app_journey_uses_stateful_provider_checkpoint_and_canonical_runtime_state() {
+		let content = b"CORD private app payload";
+		let manifest = b"CORD manifest naming the exact app payload";
+		let content_digest = blake2_256(content);
+		let manifest_digest = blake2_256(manifest);
+		let mut provider = ProviderFixtureState::default();
+		let mut runtime = RuntimeFixtureState::default();
+
+		let (cid, finalized) = execute_app_journey(
+			&mut provider,
+			&mut runtime,
+			AppJourneyInput {
+				content_cid: "bafk-cord-content",
+				content_digest,
+				content,
+				manifest_cid: "bafk-cord-manifest",
+				manifest_digest,
+				manifest,
+				storage_name_hash: blake2_256(b"festival.origin"),
+				name: blake2_256(b"festival"),
+			},
+		)
+		.expect("state-backed journey is valid");
+
+		assert_eq!(cid, "bafk-cord-manifest");
+		assert_eq!(runtime.canonical.get(&finalized.number), Some(&finalized.hash));
+		assert_eq!(
+			provider.trace,
+			["provider.object.put", "provider.object.put", "provider.checkpoint.publishable"]
+		);
+		assert_eq!(
+			runtime.trace,
+			[
+				"commons.storage.publish",
+				"commons.names.set_content_commitment",
+				"commons.storage.resolve"
+			]
+		);
+	}
+
+	#[test]
+	fn app_journey_rejects_unbound_bytes_before_mutating_runtime() {
+		let mut provider = ProviderFixtureState::default();
+		let mut runtime = RuntimeFixtureState::default();
+		let result = execute_app_journey(
+			&mut provider,
+			&mut runtime,
+			AppJourneyInput {
+				content_cid: "bafk-cord-content",
+				content_digest: [0; 32],
+				content: b"different",
+				manifest_cid: "bafk-cord-manifest",
+				manifest_digest: blake2_256(b"manifest"),
+				manifest: b"manifest",
+				storage_name_hash: [1; 32],
+				name: [2; 32],
+			},
+		);
+		assert!(matches!(result, Err(HostExecutionErrorV2::AppBinding)));
+		assert!(runtime.published.is_empty());
+		assert!(runtime.names.is_empty());
+	}
+}
