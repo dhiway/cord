@@ -22,8 +22,12 @@ const crypto = require('crypto');
 const root = process.cwd();
 const generatedTsDir = path.join(root, 'product-sdk/tools/origin-host-conformance/generated');
 const generatedRustDir = path.join(root, 'origin-rs/tests/generated');
+const runtimeTsDir = path.join(root, 'product-sdk/packages/origin-sdk-host/src/internal/v2');
+const runtimeRustDir = path.join(root, 'origin-rs/src/product_sdk/host_v2');
 fs.mkdirSync(generatedTsDir, { recursive: true });
 fs.mkdirSync(generatedRustDir, { recursive: true });
+fs.mkdirSync(runtimeTsDir, { recursive: true });
+fs.mkdirSync(runtimeRustDir, { recursive: true });
 const read = p => fs.readFileSync(path.join(root, p), 'utf8');
 const sha = value => crypto.createHash('sha256').update(value).digest('hex');
 const cddl = read('docs/specs/origin-host-registry-v2.cddl');
@@ -101,8 +105,42 @@ const semanticJson=JSON.stringify(semanticTable);
 const semanticHash=sha(semanticJson);
 const rustVariant=s=>{const v=id(s);return v[0].toUpperCase()+v.slice(1)};
 const defs=Object.entries(definitions).map(([name,cddl])=>({name,cddl}));
+const tsNode = node => {
+  if (node.kind === 'ref') return node.name;
+  if (node.kind === 'union') return node.variants.map(tsNode).join(' | ');
+  if (node.kind === 'map') return `{ ${node.fields.map(field => `readonly ${field.key}${field.required ? '' : '?'}: ${tsNode(field.schema)}`).join('; ')} }`;
+  if (node.kind === 'array') return `readonly (${tsNode(node.items)})[]`;
+  if (node.kind === 'uint') return 'number | bigint';
+  if (node.kind === 'bytes') return 'Uint8Array';
+  if (node.kind === 'text') return 'string';
+  if (node.kind === 'bool') return 'boolean';
+  if (node.kind === 'const') return JSON.stringify(node.value);
+  throw Error(`unsupported TypeScript schema node ${node.kind}`);
+};
+const operationBindings = Object.fromEntries(ops.map(operation => [operation.name, {
+  code: operation.code,
+  featureId: operation.feature_id,
+  grantScope: operation.grant_scope,
+  consentMode: operation.consent_mode,
+  stateChanging: operation.state_changing,
+  operationIdRequired: operation.operation_id_required,
+  frame: operation.cddl.Request.replace(/Request$/, 'Frame'),
+  request: operation.cddl.Request,
+  accepted: operation.cddl.Accepted,
+  progress: operation.cddl.Progress,
+  result: operation.cddl.Result,
+  error: operation.cddl.Error,
+  allowedErrors: operation.allowed_errors.map(error => error.code),
+}]));
 const ts=`${header}\n\nexport const REGISTRY_SHA256 = '${sha(cddl)}' as const;\nexport const JSON_PROJECTION_SHA256 = '${sha(projectionText)}' as const;\nexport const SEMANTIC_SCHEMA_SHA256 = '${semanticHash}' as const;\nexport const PROTOCOL = 'cord.origin.host/2' as const;\nexport const OPERATION_CODES = ${JSON.stringify(Object.fromEntries(ops.map(o=>[id(o.name),o.code])),null,2)} as const;\nexport const ERROR_CODES = ${JSON.stringify(Object.fromEntries(errors.map(e=>[e.name,e.code])),null,2)} as const;\nexport type OperationName = ${ops.map(o=>`'${o.name}'`).join(' | ')};\nexport type ErrorName = ${errors.map(e=>`'${e.name}'`).join(' | ')};\nexport type CddlTypeName = ${defs.map(d=>`'${d.name}'`).join(' | ')};\nexport type ClosedSchemaNode = { readonly kind:'ref'; readonly name:CddlTypeName } | { readonly kind:'union'; readonly variants:readonly ClosedSchemaNode[] } | { readonly kind:'map'; readonly fields:readonly {readonly key:number;readonly required:boolean;readonly schema:ClosedSchemaNode}[] } | {readonly kind:'array';readonly min:number;readonly max:number;readonly items:ClosedSchemaNode} | {readonly kind:'uint';readonly min:string;readonly max:string} | {readonly kind:'bytes'|'text';readonly min:number;readonly max:number;readonly nfc?:boolean} | {readonly kind:'bool'} | {readonly kind:'const';readonly value:number|string|boolean};\nexport interface ClosedTypeDefinition { readonly name:CddlTypeName; readonly cddl:string; readonly schema:ClosedSchemaNode; }\nexport const CLOSED_TYPES:readonly ClosedTypeDefinition[]=${JSON.stringify(defs.map(d=>({...d,schema:cddlSchemas[d.name]})))} as const;\nexport const CLOSED_SCHEMAS:Readonly<Record<CddlTypeName,ClosedSchemaNode>>=${JSON.stringify(cddlSchemas)} as const;\nexport const CROSS_FIELD_RULES=${JSON.stringify(crossFieldRules)} as const;\nexport const SEMANTIC_TABLE_JSON=${JSON.stringify(semanticJson)} as const;\n`;
 const rust=`${header}\n\npub const REGISTRY_SHA256:&str="${sha(cddl)}";\npub const JSON_PROJECTION_SHA256:&str="${sha(projectionText)}";\npub const SEMANTIC_SCHEMA_SHA256:&str="${semanticHash}";\npub const PROTOCOL:&str="cord.origin.host/2";\n#[derive(Clone,Copy,Debug,Eq,PartialEq)] #[repr(u16)] pub enum OperationCode {\n${ops.map(o=>`    ${rustVariant(o.name)} = ${o.code},`).join('\n')}\n}\n#[derive(Clone,Copy,Debug,Eq,PartialEq)] #[repr(u16)] pub enum ErrorCode {\n${errors.map(e=>`    ${rustVariant(e.name.toLowerCase())} = ${e.code},`).join('\n')}\n}\npub const OPERATIONS:&[(&str,u16)]=&[${ops.map(o=>`("${o.name}",${o.code})`).join(',')}];\npub const ERRORS:&[(&str,u16,bool)]=&[${errors.map(e=>`("${e.name}",${e.code},${e.retryable})`).join(',')}];\npub const CLOSED_TYPES:&[(&str,&str)]=&[${defs.map(d=>`("${d.name}",${JSON.stringify(d.cddl)})`).join(',')}];\npub const SEMANTIC_TABLE_JSON:&str=${JSON.stringify(semanticJson)};\n`;
-const outputs=[[path.join(generatedTsDir,'origin-host-registry-v2.ts'),ts],[path.join(generatedRustDir,'origin_host_registry_v2.rs'),rust]];
+const runtimeTs=`${header}\n\n// Generated from the frozen cord.origin.host/2 CDDL and operation registry. Do not edit.\nexport const HOST_V2_PROTOCOL = 'cord.origin.host/2' as const;\nexport const HOST_V2_MAJOR = 2 as const;\nexport const HOST_V2_REGISTRY_SHA256 = '${sha(cddl)}' as const;\nexport const HOST_V2_JSON_PROJECTION_SHA256 = '${sha(projectionText)}' as const;\nexport const HOST_V2_SEMANTIC_SCHEMA_SHA256 = '${semanticHash}' as const;\nexport type HostV2OperationName = ${ops.map(operation=>JSON.stringify(operation.name)).join(' | ')};\nexport type HostV2ErrorName = ${errors.map(error=>JSON.stringify(error.name)).join(' | ')};\nexport type HostV2TypeName = ${defs.map(definition=>JSON.stringify(definition.name)).join(' | ')};\nexport type HostV2SchemaNode = { readonly kind:'ref'; readonly name:HostV2TypeName } | { readonly kind:'union'; readonly variants:readonly HostV2SchemaNode[] } | { readonly kind:'map'; readonly fields:readonly {readonly key:number;readonly required:boolean;readonly schema:HostV2SchemaNode}[] } | {readonly kind:'array';readonly min:number;readonly max:number;readonly items:HostV2SchemaNode} | {readonly kind:'uint';readonly min:string;readonly max:string} | {readonly kind:'bytes'|'text';readonly min:number;readonly max:number;readonly nfc?:boolean} | {readonly kind:'bool'} | {readonly kind:'const';readonly value:number|string|boolean};\n${defs.map(definition=>`export type ${definition.name} = ${tsNode(cddlSchemas[definition.name])};`).join('\n')}\nexport interface HostV2TypeMap {\n${defs.map(definition=>`  readonly ${definition.name}: ${definition.name};`).join('\n')}\n}\nexport const HOST_V2_SCHEMAS:Readonly<Record<HostV2TypeName,HostV2SchemaNode>>=${JSON.stringify(cddlSchemas)} as const;\nexport const HOST_V2_CROSS_FIELD_RULES=${JSON.stringify(crossFieldRules)} as const;\nexport const HOST_V2_OPERATION_BINDINGS=${JSON.stringify(operationBindings,null,2)} as const;\nexport const HOST_V2_ERROR_BINDINGS=${JSON.stringify(Object.fromEntries(errors.map(error=>[error.code,{name:error.name,retryable:error.retryable}])),null,2)} as const;\nexport interface HostV2OperationTypeMap {\n${ops.map(operation=>`  readonly ${JSON.stringify(operation.name)}: { readonly code: ${operation.code}; readonly frame: ${operation.cddl.Request.replace(/Request$/,'Frame')}; readonly request: ${operation.cddl.Request}; readonly accepted: ${operation.cddl.Accepted}; readonly progress: ${operation.cddl.Progress}; readonly result: ${operation.cddl.Result}; readonly error: ${operation.cddl.Error} };`).join('\n')}\n}\n`;
+const runtimeRust=`${header}\n\n// Generated from the frozen cord.origin.host/2 CDDL and operation registry. Do not edit.\npub(crate) const PROTOCOL: &str = "cord.origin.host/2";\npub(crate) const MAJOR: u8 = 2;\npub(crate) const REGISTRY_SHA256: &str = "${sha(cddl)}";\npub(crate) const JSON_PROJECTION_SHA256: &str = "${sha(projectionText)}";\npub(crate) const SEMANTIC_SCHEMA_SHA256: &str = "${semanticHash}";\npub(crate) const SEMANTIC_TABLE_JSON: &str = ${JSON.stringify(semanticJson)};\n#[derive(Clone, Copy, Debug, Eq, PartialEq)] #[repr(u16)] pub(crate) enum OperationCode {\n${ops.map(operation=>`\t${rustVariant(operation.name)} = ${operation.code},`).join('\n')}\n}\nimpl OperationCode { pub(crate) fn from_u16(value: u16) -> Option<Self> { match value { ${ops.map(operation=>`${operation.code} => Some(Self::${rustVariant(operation.name)}),`).join(' ')} _ => None } } }\npub(crate) struct OperationBinding { pub(crate) name: &'static str, pub(crate) code: u16, pub(crate) feature_id: &'static str, pub(crate) grant_scope: &'static str, pub(crate) consent_mode: &'static str, pub(crate) state_changing: bool, pub(crate) operation_id_required: bool, pub(crate) frame: &'static str, pub(crate) request: &'static str, pub(crate) accepted: &'static str, pub(crate) progress: &'static str, pub(crate) result: &'static str, pub(crate) error: &'static str, pub(crate) allowed_errors: &'static [u16] }\npub(crate) const OPERATIONS: &[OperationBinding] = &[\n${ops.map(operation=>`\tOperationBinding { name: ${JSON.stringify(operation.name)}, code: ${operation.code}, feature_id: ${JSON.stringify(operation.feature_id)}, grant_scope: ${JSON.stringify(operation.grant_scope)}, consent_mode: ${JSON.stringify(operation.consent_mode)}, state_changing: ${operation.state_changing}, operation_id_required: ${operation.operation_id_required}, frame: ${JSON.stringify(operation.cddl.Request.replace(/Request$/,'Frame'))}, request: ${JSON.stringify(operation.cddl.Request)}, accepted: ${JSON.stringify(operation.cddl.Accepted)}, progress: ${JSON.stringify(operation.cddl.Progress)}, result: ${JSON.stringify(operation.cddl.Result)}, error: ${JSON.stringify(operation.cddl.Error)}, allowed_errors: &[${operation.allowed_errors.map(error=>error.code).join(',')}] },`).join('\n')}\n];\npub(crate) trait Production { const NAME: &'static str; }\n${defs.map(definition=>`pub(crate) enum ${definition.name} {} impl Production for ${definition.name} { const NAME: &'static str = ${JSON.stringify(definition.name)}; }`).join('\n')}\n`;
+const outputs=[
+  [path.join(generatedTsDir,'origin-host-registry-v2.ts'),ts],
+  [path.join(generatedRustDir,'origin_host_registry_v2.rs'),rust],
+  [path.join(runtimeTsDir,'generated.ts'),runtimeTs],
+  [path.join(runtimeRustDir,'generated.rs'),runtimeRust],
+];
 const check=process.argv.includes('--check');let bad=0;for(const [file,content] of outputs){if(check){if(!fs.existsSync(file)||fs.readFileSync(file,'utf8')!==content){console.error('drift '+file);bad=1}}else fs.writeFileSync(file,content)}if(bad)process.exit(1);
 console.log(JSON.stringify({status:'pass',registry_sha256:sha(cddl),json_projection_sha256:sha(projectionText),semantic_schema_sha256:semanticHash,types:defs.length,operations:ops.length,errors:errors.length,field_semantics_compared:defs.length,hostile_required_drift_rejected:true,mode:check?'check':'write'}));

@@ -28,6 +28,9 @@ pub mod domains;
 pub mod names_events;
 pub mod eqc;
 pub mod host;
+// Kept crate-private until the cord.origin.host/2 transport is bound in P4.
+#[allow(dead_code)]
+pub(crate) mod host_v2;
 // P2 compiles this private kernel before P3 binds real browser/desktop adapters.
 #[allow(dead_code)]
 pub(crate) mod host_outbox;
