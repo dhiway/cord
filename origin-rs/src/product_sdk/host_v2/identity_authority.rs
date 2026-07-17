@@ -41,17 +41,21 @@ use super::{
 		HostIdentityAuthorityV2, HostSigningAuthorityV2,
 	},
 	generated::{
-		AcceptedEventV2, IdentityAccountAccepted, IdentityAccountFrame, IdentityAccountResult,
-		IdentityEntitlementsReadAccepted, IdentityEntitlementsReadFrame,
-		IdentityEntitlementsReadResult, IdentityHumanityProveAccepted, IdentityHumanityProveFrame,
-		IdentityHumanityProveProgress, IdentityHumanityProveResult, IdentityHumanityStatusAccepted,
-		IdentityHumanityStatusFrame, IdentityHumanityStatusResult, IdentityProfileDiscloseAccepted,
-		IdentityProfileDiscloseFrame, IdentityProfileDiscloseProgress,
-		IdentityProfileDiscloseResult, IdentityProfileReadAccepted, IdentityProfileReadFrame,
-		IdentityProfileReadResult, IdentitySubjectDeriveAccepted, IdentitySubjectDeriveFrame,
-		IdentitySubjectDeriveResult, Production, ProgressEventV2, ResultEventV2, SubjectContextV2,
-		SubjectProofEnvelopeV2, SubjectProofV2, TransactionSignAccepted, TransactionSignFrame,
-		TransactionSignProgress, TransactionSignResult,
+		AcceptedEventV2, ErrorCode, ErrorEventV2, IdentityAccountAccepted, IdentityAccountError,
+		IdentityAccountFrame, IdentityAccountResult, IdentityEntitlementsReadAccepted,
+		IdentityEntitlementsReadError, IdentityEntitlementsReadFrame,
+		IdentityEntitlementsReadResult, IdentityHumanityProveAccepted, IdentityHumanityProveError,
+		IdentityHumanityProveFrame, IdentityHumanityProveProgress, IdentityHumanityProveResult,
+		IdentityHumanityStatusAccepted, IdentityHumanityStatusError, IdentityHumanityStatusFrame,
+		IdentityHumanityStatusResult, IdentityProfileDiscloseAccepted,
+		IdentityProfileDiscloseError, IdentityProfileDiscloseFrame,
+		IdentityProfileDiscloseProgress, IdentityProfileDiscloseResult,
+		IdentityProfileReadAccepted, IdentityProfileReadError, IdentityProfileReadFrame,
+		IdentityProfileReadResult, IdentitySubjectDeriveAccepted, IdentitySubjectDeriveError,
+		IdentitySubjectDeriveFrame, IdentitySubjectDeriveResult, Production, ProgressEventV2,
+		ResultEventV2, SubjectContextV2, SubjectProofEnvelopeV2, SubjectProofV2,
+		TransactionSignAccepted, TransactionSignError, TransactionSignFrame,
+		TransactionSignProgress, TransactionSignResult, ERRORS, OPERATIONS,
 	},
 };
 
@@ -59,6 +63,7 @@ const STATE_VERSION: u8 = 2;
 const ROOT: &str = "identity-authority-v2";
 const STATE: &str = "state.identity";
 const QUARANTINE: &str = "quarantine";
+const QUARANTINE_MARKER: &str = "recovery-required.identity";
 const STATE_KEY_DOMAIN: &[u8] = b"cord/identity/authority-state-key/v2";
 const STATE_NONCE_DOMAIN: &[u8] = b"cord/identity/authority-state-nonce/v2";
 const STATE_AAD_DOMAIN: &[u8] = b"cord/identity/authority-state/v2";
@@ -93,10 +98,14 @@ pub(crate) enum IdentityAuthorityErrorV2 {
 	GrantExpired,
 	#[error("GRANT_REVOKED")]
 	GrantRevoked,
+	#[error("REQUEST_DEADLINE_EXPIRED")]
+	DeadlineExpired,
 	#[error("IDENTITY_AUDIENCE_INVALID")]
 	AudienceInvalid,
 	#[error("IDENTITY_CHALLENGE_REPLAY")]
 	ChallengeReplay,
+	#[error("IDENTITY_PROOF_EXPIRED")]
+	ProofExpired,
 	#[error("IDENTITY_OLD_INCARNATION")]
 	OldIncarnation,
 	#[error("IDENTITY_EPOCH_INVALID")]
@@ -108,25 +117,30 @@ pub(crate) enum IdentityAuthorityErrorV2 {
 }
 
 impl IdentityAuthorityErrorV2 {
-	fn backend(self) -> HostExecutionErrorV2 {
-		let name = match self {
-			Self::KeystoreUnavailable => "HOST_IDENTITY_KEYSTORE_UNAVAILABLE",
-			Self::GrantsUnavailable => "HOST_IDENTITY_GRANTS_UNAVAILABLE",
-			Self::Corrupt => "HOST_IDENTITY_STATE_CORRUPT",
-			Self::Full => "HOST_IDENTITY_STATE_FULL",
-			Self::Unavailable => "HOST_IDENTITY_STATE_UNAVAILABLE",
-			Self::GrantRequired => "GRANT_REQUIRED",
-			Self::GrantScopeDenied => "GRANT_SCOPE_DENIED",
-			Self::GrantExpired => "GRANT_EXPIRED",
-			Self::GrantRevoked => "GRANT_REVOKED",
-			Self::AudienceInvalid => "IDENTITY_AUDIENCE_INVALID",
-			Self::ChallengeReplay => "IDENTITY_CHALLENGE_REPLAY",
-			Self::OldIncarnation => "IDENTITY_OLD_INCARNATION",
-			Self::EpochInvalid => "IDENTITY_EPOCH_INVALID",
-			Self::AuthorityUnavailable => "IDENTITY_AUTHORITY_UNAVAILABLE",
-			Self::EffectConflict => "IDENTITY_EFFECT_CONFLICT",
-		};
-		HostExecutionErrorV2::Backend(name)
+	fn code(self, operation: u16) -> ErrorCode {
+		match self {
+			Self::KeystoreUnavailable | Self::Unavailable => ErrorCode::HostOutboxUnavailable,
+			Self::GrantsUnavailable | Self::GrantRequired => ErrorCode::GrantRequired,
+			Self::Corrupt => ErrorCode::HostOutboxCorrupt,
+			Self::Full => ErrorCode::HostOutboxFull,
+			Self::GrantScopeDenied => ErrorCode::GrantScopeDenied,
+			Self::GrantExpired => ErrorCode::GrantExpired,
+			Self::GrantRevoked => ErrorCode::GrantRevoked,
+			Self::DeadlineExpired => ErrorCode::RequestDeadlineExpired,
+			Self::AudienceInvalid => ErrorCode::IdentityAudienceInvalid,
+			Self::ChallengeReplay => ErrorCode::IdentityChallengeReplay,
+			Self::ProofExpired => ErrorCode::IdentityProofExpired,
+			Self::OldIncarnation => ErrorCode::IdentityOldIncarnation,
+			Self::EpochInvalid => ErrorCode::IdentityEpochInvalid,
+			Self::AuthorityUnavailable => match operation {
+				1102 => ErrorCode::IdentityDisclosureDenied,
+				1103 | 1104 => ErrorCode::IdentityHumanityUnavailable,
+				1106 => ErrorCode::IdentityEntitlementUnavailable,
+				1200 => ErrorCode::SigningConsentRequired,
+				_ => ErrorCode::HostOutboxUnavailable,
+			},
+			Self::EffectConflict => ErrorCode::IdentityChallengeReplay,
+		}
 	}
 }
 
@@ -200,6 +214,20 @@ pub(crate) struct HostProfileDisclosureV2 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ProfileDisclosureRequestV2 {
+	pub(crate) operation_id: [u8; 16],
+	pub(crate) grant_id: [u8; 32],
+	pub(crate) product_id: String,
+	pub(crate) audience: String,
+	pub(crate) fields: Vec<String>,
+	pub(crate) purpose: String,
+	pub(crate) expires_at: u64,
+	pub(crate) request_hash: [u8; 32],
+	pub(crate) consent_receipt: [u8; 32],
+	pub(crate) intent_finality: FinalizedIdentityEffectV2,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct IdentityConsentRequestV2 {
 	pub(crate) operation_id: [u8; 16],
 	pub(crate) operation: u16,
@@ -262,12 +290,7 @@ pub(crate) trait HostIdentityDeliveryV2: Send {
 	fn account(&mut self, session: &str) -> Result<HostAccountSessionV2, IdentityAuthorityErrorV2>;
 	fn disclose(
 		&mut self,
-		product_id: &str,
-		audience: &str,
-		fields: &[String],
-		purpose: &str,
-		expires_at: u64,
-		finalized: FinalizedIdentityEffectV2,
+		request: &ProfileDisclosureRequestV2,
 	) -> Result<HostProfileDisclosureV2, IdentityAuthorityErrorV2>;
 }
 
@@ -306,6 +329,7 @@ pub(crate) struct DurableIdentityOperationV2 {
 	pub(crate) finalized_number: u64,
 	pub(crate) finalized_hash: [u8; 32],
 	pub(crate) consent_receipt: [u8; 32],
+	pub(crate) consent_recorded: bool,
 	pub(crate) events: Vec<Vec<u8>>,
 	pub(crate) completed: bool,
 }
@@ -348,7 +372,12 @@ impl DurableIdentityStateV2 {
 			}
 		}
 		for (id, operation) in &self.operations {
-			if *id != operation.operation_id || operation.events.len() > 3 {
+			if *id != operation.operation_id ||
+				operation.events.len() > 3 ||
+				(operation.consent_recorded == (operation.consent_receipt == [0; 32])) ||
+				(operation.completed &&
+					(!operation.consent_recorded || operation.events.is_empty()))
+			{
 				return Err(IdentityAuthorityErrorV2::Corrupt);
 			}
 		}
@@ -362,6 +391,21 @@ pub(crate) struct IdentityAuthorityStoreV2 {
 	key: [u8; 32],
 	aad: Vec<u8>,
 	state: RwLock<DurableIdentityStateV2>,
+	#[cfg(test)]
+	persist_fault: Mutex<Option<TestPersistFaultV2>>,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy)]
+enum TestPersistFaultPointV2 {
+	BeforeWrite,
+	AfterFileSync,
+}
+
+#[cfg(test)]
+struct TestPersistFaultV2 {
+	successful_persists_before_failure: usize,
+	point: TestPersistFaultPointV2,
 }
 
 impl IdentityAuthorityStoreV2 {
@@ -378,6 +422,10 @@ impl IdentityAuthorityStoreV2 {
 		let root = root.as_ref().join(ROOT);
 		ensure_directory(&root)?;
 		ensure_directory(&root.join(QUARANTINE))?;
+		if root.join(QUARANTINE_MARKER).exists() {
+			return Err(IdentityAuthorityErrorV2::Corrupt);
+		}
+		cleanup_stale_temporaries(&root)?;
 		let key = state_key(keystore.state_key, context)?;
 		let aad = state_aad(context);
 		let path = root.join(STATE);
@@ -412,7 +460,15 @@ impl IdentityAuthorityStoreV2 {
 			return Err(IdentityAuthorityErrorV2::OldIncarnation);
 		}
 		state.validate(context)?;
-		let store = Self { root, context, key, aad, state: RwLock::new(state) };
+		let store = Self {
+			root,
+			context,
+			key,
+			aad,
+			state: RwLock::new(state),
+			#[cfg(test)]
+			persist_fault: Mutex::new(None),
+		};
 		let replace_grants = store.read()?.grants != grants;
 		if replace_grants {
 			store.mutate(|state| {
@@ -426,8 +482,31 @@ impl IdentityAuthorityStoreV2 {
 		Ok(store)
 	}
 
+	/// Clears a persistent quarantine only as part of an explicit recovery/install flow.
+	pub(crate) fn authorize_recovery_install(
+		root: impl AsRef<Path>,
+	) -> Result<(), IdentityAuthorityErrorV2> {
+		let root = root.as_ref().join(ROOT);
+		let marker = root.join(QUARANTINE_MARKER);
+		if marker.exists() {
+			fs::remove_file(marker).map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
+			sync_dir(&root)?;
+		}
+		Ok(())
+	}
+
 	pub(crate) fn context(&self) -> IdentityAuthorityContextV2 {
 		self.context
+	}
+
+	#[cfg(test)]
+	fn fail_persist_after(
+		&self,
+		successful_persists_before_failure: usize,
+		point: TestPersistFaultPointV2,
+	) {
+		*self.persist_fault.lock().unwrap() =
+			Some(TestPersistFaultV2 { successful_persists_before_failure, point });
 	}
 
 	pub(crate) fn root_material(
@@ -517,6 +596,32 @@ impl IdentityAuthorityStoreV2 {
 		})
 	}
 
+	pub(crate) fn record_consent(
+		&self,
+		operation_id: [u8; 16],
+		consent_receipt: [u8; 32],
+	) -> Result<(), IdentityAuthorityErrorV2> {
+		if consent_receipt == [0; 32] {
+			return Err(IdentityAuthorityErrorV2::AuthorityUnavailable);
+		}
+		self.mutate(|state| {
+			let record = state
+				.operations
+				.get_mut(&operation_id)
+				.ok_or(IdentityAuthorityErrorV2::EffectConflict)?;
+			if record.consent_recorded {
+				return if record.consent_receipt == consent_receipt {
+					Ok(())
+				} else {
+					Err(IdentityAuthorityErrorV2::EffectConflict)
+				};
+			}
+			record.consent_receipt = consent_receipt;
+			record.consent_recorded = true;
+			Ok(())
+		})
+	}
+
 	fn read(
 		&self,
 	) -> Result<std::sync::RwLockReadGuard<'_, DurableIdentityStateV2>, IdentityAuthorityErrorV2> {
@@ -541,6 +646,23 @@ impl IdentityAuthorityStoreV2 {
 	}
 
 	fn persist(&self, state: &DurableIdentityStateV2) -> Result<(), IdentityAuthorityErrorV2> {
+		#[cfg(test)]
+		let fault = {
+			let mut fault = self.persist_fault.lock().unwrap();
+			match fault.as_mut() {
+				Some(armed) if armed.successful_persists_before_failure == 0 =>
+					fault.take().map(|armed| armed.point),
+				Some(armed) => {
+					armed.successful_persists_before_failure -= 1;
+					None
+				},
+				None => None,
+			}
+		};
+		#[cfg(test)]
+		if matches!(fault, Some(TestPersistFaultPointV2::BeforeWrite)) {
+			return Err(IdentityAuthorityErrorV2::Unavailable);
+		}
 		let plaintext = state.encode();
 		if plaintext.len() as u64 > MAX_STATE_BYTES {
 			return Err(IdentityAuthorityErrorV2::Full);
@@ -549,17 +671,28 @@ impl IdentityAuthorityStoreV2 {
 		let envelope = encrypt(&plaintext, &self.key, nonce, &self.aad)?;
 		let target = self.root.join(STATE);
 		let temporary = self.root.join(format!(".{STATE}.{}.tmp", state.revision));
-		let mut file = OpenOptions::new()
-			.create_new(true)
-			.write(true)
-			.open(&temporary)
-			.map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
-		set_private_file(&file)?;
-		file.write_all(&envelope).map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
-		file.sync_all().map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
-		fs::rename(&temporary, &target).map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
-		sync_dir(&self.root)?;
-		Ok(())
+		let result: Result<(), IdentityAuthorityErrorV2> = (|| {
+			let mut file = OpenOptions::new()
+				.create_new(true)
+				.write(true)
+				.open(&temporary)
+				.map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
+			set_private_file(&file)?;
+			file.write_all(&envelope).map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
+			file.sync_all().map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
+			#[cfg(test)]
+			if matches!(fault, Some(TestPersistFaultPointV2::AfterFileSync)) {
+				return Err(IdentityAuthorityErrorV2::Unavailable);
+			}
+			fs::rename(&temporary, &target).map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
+			sync_dir(&self.root)?;
+			Ok(())
+		})();
+		if result.is_err() && temporary.exists() {
+			let _ = fs::remove_file(&temporary);
+			let _ = sync_dir(&self.root);
+		}
+		result
 	}
 }
 
@@ -670,16 +803,65 @@ where
 		let purpose = text_field(input, 2)?;
 		let expires_at = uint_field(input, 3)?;
 		if expires_at <= authorized.head.block_number {
-			return Err(IdentityAuthorityErrorV2::AuthorityUnavailable);
+			return Err(IdentityAuthorityErrorV2::DeadlineExpired);
 		}
-		let disclosure = core.host.disclose(
-			&authorized.product_id,
-			&audience,
-			&fields,
-			purpose,
+		let operation_id =
+			authorized.operation_id.ok_or(IdentityAuthorityErrorV2::GrantScopeDenied)?;
+		let intent_effect = effect_hash(&[
+			&authorized.request_hash,
+			&expires_at.to_be_bytes(),
+			&authorized.head.block_number.to_be_bytes(),
+			&authorized.head.block_hash,
+		]);
+		let reservation = DurableIdentityOperationV2 {
+			operation_id,
+			operation: authorized.operation,
+			request_hash: authorized.request_hash,
+			grant_id: authorized.grant.id,
+			effect_hash: intent_effect,
+			finalized_number: authorized.head.block_number,
+			finalized_hash: authorized.head.block_hash,
+			consent_receipt: [0; 32],
+			consent_recorded: false,
+			events: Vec::new(),
+			completed: false,
+		};
+		core.store.prepare_operation(reservation, None)?;
+		let mut prepared = core
+			.store
+			.operation(operation_id)?
+			.ok_or(IdentityAuthorityErrorV2::EffectConflict)?;
+		validate_replay_record(&prepared, &authorized)?;
+		if prepared.effect_hash != intent_effect {
+			return Err(IdentityAuthorityErrorV2::EffectConflict);
+		}
+		if !prepared.consent_recorded {
+			let receipt = core.consent.consume(&IdentityConsentRequestV2 {
+				operation_id,
+				operation: authorized.operation,
+				grant_id: authorized.grant.id,
+				request_hash: authorized.request_hash,
+				effect_hash: intent_effect,
+				finalized: authorized.head,
+			})?;
+			core.store.record_consent(operation_id, receipt)?;
+			prepared = core
+				.store
+				.operation(operation_id)?
+				.ok_or(IdentityAuthorityErrorV2::EffectConflict)?;
+		}
+		let disclosure = core.host.disclose(&ProfileDisclosureRequestV2 {
+			operation_id,
+			grant_id: authorized.grant.id,
+			product_id: authorized.product_id.clone(),
+			audience,
+			fields,
+			purpose: purpose.to_owned(),
 			expires_at,
-			authorized.head,
-		)?;
+			request_hash: authorized.request_hash,
+			consent_receipt: prepared.consent_receipt,
+			intent_finality: authorized.head,
+		})?;
 		validate_query_finality(&mut core.runtime, authorized.head, None, disclosure.finalized)?;
 		if disclosure.valid_until <= disclosure.finalized.block_number ||
 			disclosure.valid_until > expires_at
@@ -701,7 +883,15 @@ where
 				),
 			)]),
 		)?;
-		complete_pure_consent(&mut core, &authorized, execution, None)
+		let final_effect = execution_hash(&execution);
+		core.store.complete_operation(
+			operation_id,
+			final_effect,
+			disclosure.finalized.block_number,
+			disclosure.finalized.block_hash,
+			execution.events.clone(),
+		)?;
+		Ok(execution)
 	}
 
 	fn execute_humanity_status(
@@ -745,7 +935,7 @@ where
 		if expires_at <= authorized.head.block_number ||
 			expires_at > authorized.head.block_number.saturating_add(PROOF_MAX_BLOCKS)
 		{
-			return Err(IdentityAuthorityErrorV2::AuthorityUnavailable);
+			return Err(IdentityAuthorityErrorV2::ProofExpired);
 		}
 		let claims_commitment = claims_commitment(&claims);
 		let humanity = core.runtime.humanity_proof(&authorized.product_id, &audience, &claims)?;
@@ -871,7 +1061,7 @@ where
 		let policy_hash: [u8; 32] = fixed_field(input, 1, 32)?.try_into().expect("length checked");
 		let expires_at = uint_field(input, 2)?;
 		if expires_at <= authorized.head.block_number {
-			return Err(IdentityAuthorityErrorV2::AuthorityUnavailable);
+			return Err(IdentityAuthorityErrorV2::DeadlineExpired);
 		}
 		let operation_id =
 			authorized.operation_id.ok_or(IdentityAuthorityErrorV2::GrantScopeDenied)?;
@@ -888,14 +1078,6 @@ where
 				record
 			},
 			None => {
-				let consent_receipt = core.consent.consume(&IdentityConsentRequestV2 {
-					operation_id,
-					operation: authorized.operation,
-					grant_id: authorized.grant.id,
-					request_hash: authorized.request_hash,
-					effect_hash: intent_effect,
-					finalized: authorized.head,
-				})?;
 				let record = DurableIdentityOperationV2 {
 					operation_id,
 					operation: authorized.operation,
@@ -904,7 +1086,8 @@ where
 					effect_hash: intent_effect,
 					finalized_number: authorized.head.block_number,
 					finalized_hash: authorized.head.block_hash,
-					consent_receipt,
+					consent_receipt: [0; 32],
+					consent_recorded: false,
 					events: Vec::new(),
 					completed: false,
 				};
@@ -915,6 +1098,22 @@ where
 		if prepared.effect_hash != intent_effect {
 			return Err(IdentityAuthorityErrorV2::EffectConflict);
 		}
+		let prepared = if prepared.consent_recorded {
+			prepared
+		} else {
+			let consent_receipt = core.consent.consume(&IdentityConsentRequestV2 {
+				operation_id,
+				operation: authorized.operation,
+				grant_id: authorized.grant.id,
+				request_hash: authorized.request_hash,
+				effect_hash: intent_effect,
+				finalized: authorized.head,
+			})?;
+			core.store.record_consent(operation_id, consent_receipt)?;
+			core.store
+				.operation(operation_id)?
+				.ok_or(IdentityAuthorityErrorV2::EffectConflict)?
+		};
 		let genesis_hash = core.store.context().genesis_hash;
 		let effect = core.signer.sign_and_finalize(&TransactionSigningRequestV2 {
 			operation_id,
@@ -975,21 +1174,32 @@ where
 		&mut self,
 		call: HostCallV2<'_, IdentityAccountFrame>,
 	) -> Result<HostExecutionV2, HostExecutionErrorV2> {
-		self.execute_account(call).map_err(IdentityAuthorityErrorV2::backend)
+		let request_id = call.meta.request_id;
+		authority_result::<IdentityAccountError>(request_id, 1100, self.execute_account(call))
 	}
 
 	fn identity_humanity_status(
 		&mut self,
 		call: HostCallV2<'_, IdentityHumanityStatusFrame>,
 	) -> Result<HostExecutionV2, HostExecutionErrorV2> {
-		self.execute_humanity_status(call).map_err(IdentityAuthorityErrorV2::backend)
+		let request_id = call.meta.request_id;
+		authority_result::<IdentityHumanityStatusError>(
+			request_id,
+			1103,
+			self.execute_humanity_status(call),
+		)
 	}
 
 	fn identity_entitlements_read(
 		&mut self,
 		call: HostCallV2<'_, IdentityEntitlementsReadFrame>,
 	) -> Result<HostExecutionV2, HostExecutionErrorV2> {
-		self.execute_entitlements_read(call).map_err(IdentityAuthorityErrorV2::backend)
+		let request_id = call.meta.request_id;
+		authority_result::<IdentityEntitlementsReadError>(
+			request_id,
+			1106,
+			self.execute_entitlements_read(call),
+		)
 	}
 }
 
@@ -1004,28 +1214,48 @@ where
 		&mut self,
 		call: HostCallV2<'_, IdentityProfileReadFrame>,
 	) -> Result<HostExecutionV2, HostExecutionErrorV2> {
-		self.execute_profile_read(call).map_err(IdentityAuthorityErrorV2::backend)
+		let request_id = call.meta.request_id;
+		authority_result::<IdentityProfileReadError>(
+			request_id,
+			1101,
+			self.execute_profile_read(call),
+		)
 	}
 
 	fn identity_profile_disclose(
 		&mut self,
 		call: HostCallV2<'_, IdentityProfileDiscloseFrame>,
 	) -> Result<HostExecutionV2, HostExecutionErrorV2> {
-		self.execute_profile_disclose(call).map_err(IdentityAuthorityErrorV2::backend)
+		let request_id = call.meta.request_id;
+		authority_result::<IdentityProfileDiscloseError>(
+			request_id,
+			1102,
+			self.execute_profile_disclose(call),
+		)
 	}
 
 	fn identity_humanity_prove(
 		&mut self,
 		call: HostCallV2<'_, IdentityHumanityProveFrame>,
 	) -> Result<HostExecutionV2, HostExecutionErrorV2> {
-		self.execute_humanity_prove(call).map_err(IdentityAuthorityErrorV2::backend)
+		let request_id = call.meta.request_id;
+		authority_result::<IdentityHumanityProveError>(
+			request_id,
+			1104,
+			self.execute_humanity_prove(call),
+		)
 	}
 
 	fn identity_subject_derive(
 		&mut self,
 		call: HostCallV2<'_, IdentitySubjectDeriveFrame>,
 	) -> Result<HostExecutionV2, HostExecutionErrorV2> {
-		self.execute_subject_derive(call).map_err(IdentityAuthorityErrorV2::backend)
+		let request_id = call.meta.request_id;
+		authority_result::<IdentitySubjectDeriveError>(
+			request_id,
+			1105,
+			self.execute_subject_derive(call),
+		)
 	}
 }
 
@@ -1040,7 +1270,12 @@ where
 		&mut self,
 		call: HostCallV2<'_, TransactionSignFrame>,
 	) -> Result<HostExecutionV2, HostExecutionErrorV2> {
-		self.execute_transaction_sign(call).map_err(IdentityAuthorityErrorV2::backend)
+		let request_id = call.meta.request_id;
+		authority_result::<TransactionSignError>(
+			request_id,
+			1200,
+			self.execute_transaction_sign(call),
+		)
 	}
 }
 
@@ -1103,7 +1338,7 @@ where
 		return Err(IdentityAuthorityErrorV2::GrantExpired);
 	}
 	if call.meta.deadline_block <= head.block_number {
-		return Err(IdentityAuthorityErrorV2::AuthorityUnavailable);
+		return Err(IdentityAuthorityErrorV2::DeadlineExpired);
 	}
 	let operation_id_required = matches!(operation, 1102 | 1104 | 1200);
 	if operation_id_required != call.meta.operation_id.is_some() {
@@ -1126,7 +1361,7 @@ fn replay(
 	let Some(operation_id) = authorized.operation_id else { return Ok(None) };
 	let Some(record) = store.operation(operation_id)? else { return Ok(None) };
 	validate_replay_record(&record, authorized)?;
-	if record.events.is_empty() {
+	if !record.consent_recorded || record.events.is_empty() {
 		return Ok(None);
 	}
 	if !record.completed {
@@ -1164,20 +1399,7 @@ where
 	C: FreshIdentityConsentV2,
 {
 	let operation_id = authorized.operation_id.ok_or(IdentityAuthorityErrorV2::GrantScopeDenied)?;
-	if let Some(challenge) = challenge {
-		if core.store.challenge_consumed(challenge)? {
-			return Err(IdentityAuthorityErrorV2::ChallengeReplay);
-		}
-	}
 	let effect_hash = execution_hash(&execution);
-	let consent_receipt = core.consent.consume(&IdentityConsentRequestV2 {
-		operation_id,
-		operation: authorized.operation,
-		grant_id: authorized.grant.id,
-		request_hash: authorized.request_hash,
-		effect_hash,
-		finalized: authorized.head,
-	})?;
 	core.store.prepare_operation(
 		DurableIdentityOperationV2 {
 			operation_id,
@@ -1187,12 +1409,29 @@ where
 			effect_hash,
 			finalized_number: authorized.head.block_number,
 			finalized_hash: authorized.head.block_hash,
-			consent_receipt,
+			consent_receipt: [0; 32],
+			consent_recorded: false,
 			events: execution.events.clone(),
 			completed: false,
 		},
 		challenge,
 	)?;
+	let prepared = core
+		.store
+		.operation(operation_id)?
+		.ok_or(IdentityAuthorityErrorV2::EffectConflict)?;
+	validate_replay_record(&prepared, authorized)?;
+	if !prepared.consent_recorded {
+		let consent_receipt = core.consent.consume(&IdentityConsentRequestV2 {
+			operation_id,
+			operation: authorized.operation,
+			grant_id: authorized.grant.id,
+			request_hash: authorized.request_hash,
+			effect_hash,
+			finalized: authorized.head,
+		})?;
+		core.store.record_consent(operation_id, consent_receipt)?;
+	}
 	core.store.complete_operation(
 		operation_id,
 		effect_hash,
@@ -1356,6 +1595,52 @@ fn consent_execution<A: Production, P: Production, R: Production>(
 		result_event(request_id, 2, result)?,
 	];
 	Ok(execution_from_events(events)?)
+}
+
+fn authority_result<E: Production>(
+	request_id: [u8; 16],
+	operation: u16,
+	result: Result<HostExecutionV2, IdentityAuthorityErrorV2>,
+) -> Result<HostExecutionV2, HostExecutionErrorV2> {
+	match result {
+		Ok(execution) => Ok(execution),
+		Err(error) => error_execution::<E>(request_id, operation, error)
+			.map_err(|_| HostExecutionErrorV2::Registry),
+	}
+}
+
+fn error_execution<E: Production>(
+	request_id: [u8; 16],
+	operation: u16,
+	error: IdentityAuthorityErrorV2,
+) -> Result<HostExecutionV2, IdentityAuthorityErrorV2> {
+	let code = error.code(operation) as u16;
+	let operation = OPERATIONS
+		.iter()
+		.find(|binding| binding.code == operation)
+		.ok_or(IdentityAuthorityErrorV2::Corrupt)?;
+	if !operation.allowed_errors.contains(&code) {
+		return Err(IdentityAuthorityErrorV2::Corrupt);
+	}
+	let binding = ERRORS
+		.iter()
+		.find(|binding| binding.code == code)
+		.ok_or(IdentityAuthorityErrorV2::Corrupt)?;
+	let payload = map(vec![
+		(0, uint(code.into())),
+		(1, Value::Text(binding.name.into())),
+		(2, Value::Bool(binding.retryable)),
+		(3, Value::Map(Vec::new())),
+	]);
+	Dto::<E>::from_value(payload.clone()).map_err(|_| IdentityAuthorityErrorV2::Corrupt)?;
+	let event = Dto::<ErrorEventV2>::from_value(event_value(request_id, 0, 3, payload))
+		.map_err(|_| IdentityAuthorityErrorV2::Corrupt)?
+		.canonical()
+		.to_vec();
+	Ok(HostExecutionV2 {
+		terminal_response_hash: Some(Sha256::digest(&event).into()),
+		events: vec![event],
+	})
 }
 
 fn execution<A: Production, R: Production>(
@@ -1564,7 +1849,6 @@ fn same_operation(left: &DurableIdentityOperationV2, right: &DurableIdentityOper
 		left.effect_hash == right.effect_hash &&
 		left.finalized_number == right.finalized_number &&
 		left.finalized_hash == right.finalized_hash &&
-		left.consent_receipt == right.consent_receipt &&
 		left.events == right.events
 }
 
@@ -1662,11 +1946,52 @@ fn load_state(
 
 fn quarantine(root: &Path, path: &Path) -> Result<(), IdentityAuthorityErrorV2> {
 	let bytes = fs::read(path).map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
+	let marker = root.join(QUARANTINE_MARKER);
+	if !marker.exists() {
+		let mut file = OpenOptions::new()
+			.create_new(true)
+			.write(true)
+			.open(&marker)
+			.map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
+		set_private_file(&file)?;
+		file.write_all(&Sha256::digest(&bytes))
+			.map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
+		file.sync_all().map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
+		sync_dir(root)?;
+	}
 	let name = format!("{}.identity", hex::encode(Sha256::digest(&bytes)));
 	fs::rename(path, root.join(QUARANTINE).join(name))
 		.map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
 	sync_dir(&root.join(QUARANTINE))?;
 	sync_dir(root)?;
+	Ok(())
+}
+
+fn cleanup_stale_temporaries(root: &Path) -> Result<(), IdentityAuthorityErrorV2> {
+	let prefix = format!(".{STATE}.");
+	let mut removed = false;
+	for entry in fs::read_dir(root).map_err(|_| IdentityAuthorityErrorV2::Unavailable)? {
+		let entry = entry.map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
+		let name = entry.file_name();
+		let name = name.to_string_lossy();
+		if !name.starts_with(&prefix) || !name.ends_with(".tmp") {
+			continue;
+		}
+		let metadata = entry.metadata().map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
+		if !metadata.is_file() ||
+			entry
+				.file_type()
+				.map_err(|_| IdentityAuthorityErrorV2::Unavailable)?
+				.is_symlink()
+		{
+			return Err(IdentityAuthorityErrorV2::Corrupt);
+		}
+		fs::remove_file(entry.path()).map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
+		removed = true;
+	}
+	if removed {
+		sync_dir(root)?;
+	}
 	Ok(())
 }
 
@@ -1738,6 +2063,7 @@ mod tests {
 			finalized_number: 100,
 			finalized_hash: [10; 32],
 			consent_receipt: [11; 32],
+			consent_recorded: true,
 			events: vec![b"accepted".to_vec(), b"result".to_vec()],
 			completed: false,
 		}
@@ -1845,6 +2171,48 @@ mod tests {
 		));
 		assert!(!state_path.exists());
 		assert_eq!(fs::read_dir(root.path().join(ROOT).join(QUARANTINE)).unwrap().count(), 1);
+		assert!(root.path().join(ROOT).join(QUARANTINE_MARKER).exists());
+		assert!(matches!(
+			IdentityAuthorityStoreV2::open(
+				root.path(),
+				context(),
+				Some(keystore()),
+				Some(vec![grant()]),
+			),
+			Err(IdentityAuthorityErrorV2::Corrupt)
+		));
+		IdentityAuthorityStoreV2::authorize_recovery_install(root.path()).unwrap();
+		IdentityAuthorityStoreV2::open(
+			root.path(),
+			context(),
+			Some(keystore()),
+			Some(vec![grant()]),
+		)
+		.unwrap();
+	}
+
+	#[test]
+	fn stale_atomic_temporary_is_removed_before_retrying_state() {
+		let root = tempfile::tempdir().unwrap();
+		let store = IdentityAuthorityStoreV2::open(
+			root.path(),
+			context(),
+			Some(keystore()),
+			Some(vec![grant()]),
+		)
+		.unwrap();
+		let temporary = store.root.join(format!(".{STATE}.{}.tmp", 99));
+		fs::write(&temporary, b"interrupted").unwrap();
+		drop(store);
+		let restored = IdentityAuthorityStoreV2::open(
+			root.path(),
+			context(),
+			Some(keystore()),
+			Some(vec![grant()]),
+		)
+		.unwrap();
+		assert!(!temporary.exists());
+		assert!(restored.grant([6; 32]).unwrap().is_some());
 	}
 
 	#[derive(Clone)]
@@ -1932,17 +2300,16 @@ mod tests {
 
 		fn disclose(
 			&mut self,
-			_product_id: &str,
-			_audience: &str,
-			_fields: &[String],
-			_purpose: &str,
-			_expires_at: u64,
-			finalized: FinalizedIdentityEffectV2,
+			request: &ProfileDisclosureRequestV2,
 		) -> Result<HostProfileDisclosureV2, IdentityAuthorityErrorV2> {
 			if !self.available.load(Ordering::SeqCst) {
 				return Err(IdentityAuthorityErrorV2::AuthorityUnavailable);
 			}
-			Ok(HostProfileDisclosureV2 { commitment: [32; 32], valid_until: 130, finalized })
+			Ok(HostProfileDisclosureV2 {
+				commitment: [32; 32],
+				valid_until: 130,
+				finalized: request.intent_finality,
+			})
 		}
 	}
 
@@ -1950,6 +2317,7 @@ mod tests {
 	struct ConsentFixture {
 		available: Arc<AtomicBool>,
 		calls: Arc<AtomicUsize>,
+		receipts: Arc<Mutex<BTreeMap<[u8; 16], ([u8; 32], [u8; 32])>>>,
 	}
 
 	impl FreshIdentityConsentV2 for ConsentFixture {
@@ -1960,13 +2328,25 @@ mod tests {
 			if !self.available.load(Ordering::SeqCst) {
 				return Err(IdentityAuthorityErrorV2::AuthorityUnavailable);
 			}
+			let binding =
+				effect_hash(&[&request.request_hash, &request.grant_id, &request.effect_hash]);
+			let mut receipts = self.receipts.lock().unwrap();
+			if let Some((existing_binding, receipt)) = receipts.get(&request.operation_id) {
+				return if *existing_binding == binding {
+					Ok(*receipt)
+				} else {
+					Err(IdentityAuthorityErrorV2::EffectConflict)
+				};
+			}
 			self.calls.fetch_add(1, Ordering::SeqCst);
-			Ok(effect_hash(&[
+			let receipt = effect_hash(&[
 				b"consent",
 				&request.operation_id,
 				&request.grant_id,
 				&request.effect_hash,
-			]))
+			]);
+			receipts.insert(request.operation_id, (binding, receipt));
+			Ok(receipt)
 		}
 	}
 
@@ -2014,6 +2394,7 @@ mod tests {
 		host_available: Arc<AtomicBool>,
 		consent_available: Arc<AtomicBool>,
 		consent_calls: Arc<AtomicUsize>,
+		consent_receipts: Arc<Mutex<BTreeMap<[u8; 16], ([u8; 32], [u8; 32])>>>,
 		signer_available: Arc<AtomicBool>,
 		signer_fail_after_effect_once: Arc<AtomicBool>,
 		signer_calls: Arc<AtomicUsize>,
@@ -2027,6 +2408,7 @@ mod tests {
 				host_available: Arc::new(AtomicBool::new(true)),
 				consent_available: Arc::new(AtomicBool::new(true)),
 				consent_calls: Arc::new(AtomicUsize::new(0)),
+				consent_receipts: Arc::new(Mutex::new(BTreeMap::new())),
 				signer_available: Arc::new(AtomicBool::new(true)),
 				signer_fail_after_effect_once: Arc::new(AtomicBool::new(false)),
 				signer_calls: Arc::new(AtomicUsize::new(0)),
@@ -2049,6 +2431,7 @@ mod tests {
 			ConsentFixture {
 				available: Arc::clone(&controls.consent_available),
 				calls: Arc::clone(&controls.consent_calls),
+				receipts: Arc::clone(&controls.consent_receipts),
 			},
 			SignerFixture {
 				available: Arc::clone(&controls.signer_available),
@@ -2148,6 +2531,74 @@ mod tests {
 			assert_eq!(uint_field(decoded.value(), 2).unwrap(), sequence as u64);
 		}
 		Dto::<ResultEventV2>::decode(execution.events.last().unwrap()).unwrap();
+	}
+
+	fn assert_error(execution: &HostExecutionV2, operation: u16, expected: ErrorCode) {
+		assert_eq!(execution.events.len(), 1);
+		let event = Dto::<ErrorEventV2>::decode(&execution.events[0]).unwrap();
+		let payload = field(event.value(), 4).unwrap();
+		assert_eq!(uint_field(payload, 0).unwrap(), expected as u64);
+		let binding = ERRORS.iter().find(|binding| binding.code == expected as u16).unwrap();
+		assert!(OPERATIONS
+			.iter()
+			.find(|binding| binding.code == operation)
+			.unwrap()
+			.allowed_errors
+			.contains(&(expected as u16)));
+		assert_eq!(text_field(payload, 1).unwrap(), binding.name);
+		assert_eq!(field(payload, 2).unwrap(), &Value::Bool(binding.retryable));
+		assert_eq!(
+			execution.terminal_response_hash,
+			Some(Sha256::digest(&execution.events[0]).into())
+		);
+	}
+
+	#[test]
+	fn every_authority_failure_uses_an_allowed_generated_error_binding() {
+		let common = [
+			(IdentityAuthorityErrorV2::KeystoreUnavailable, ErrorCode::HostOutboxUnavailable),
+			(IdentityAuthorityErrorV2::GrantsUnavailable, ErrorCode::GrantRequired),
+			(IdentityAuthorityErrorV2::Corrupt, ErrorCode::HostOutboxCorrupt),
+			(IdentityAuthorityErrorV2::Full, ErrorCode::HostOutboxFull),
+			(IdentityAuthorityErrorV2::Unavailable, ErrorCode::HostOutboxUnavailable),
+			(IdentityAuthorityErrorV2::GrantRequired, ErrorCode::GrantRequired),
+			(IdentityAuthorityErrorV2::GrantScopeDenied, ErrorCode::GrantScopeDenied),
+			(IdentityAuthorityErrorV2::GrantExpired, ErrorCode::GrantExpired),
+			(IdentityAuthorityErrorV2::GrantRevoked, ErrorCode::GrantRevoked),
+			(IdentityAuthorityErrorV2::DeadlineExpired, ErrorCode::RequestDeadlineExpired),
+			(IdentityAuthorityErrorV2::AudienceInvalid, ErrorCode::IdentityAudienceInvalid),
+			(IdentityAuthorityErrorV2::ChallengeReplay, ErrorCode::IdentityChallengeReplay),
+			(IdentityAuthorityErrorV2::ProofExpired, ErrorCode::IdentityProofExpired),
+			(IdentityAuthorityErrorV2::OldIncarnation, ErrorCode::IdentityOldIncarnation),
+			(IdentityAuthorityErrorV2::EpochInvalid, ErrorCode::IdentityEpochInvalid),
+		];
+		for (error, expected) in common {
+			let execution = error_execution::<IdentityAccountError>([99; 16], 1100, error).unwrap();
+			assert_error(&execution, 1100, expected);
+		}
+		for (operation, expected) in [
+			(1100, ErrorCode::HostOutboxUnavailable),
+			(1102, ErrorCode::IdentityDisclosureDenied),
+			(1103, ErrorCode::IdentityHumanityUnavailable),
+			(1104, ErrorCode::IdentityHumanityUnavailable),
+			(1106, ErrorCode::IdentityEntitlementUnavailable),
+			(1200, ErrorCode::SigningConsentRequired),
+		] {
+			let execution = error_execution::<IdentityAccountError>(
+				[98; 16],
+				operation,
+				IdentityAuthorityErrorV2::AuthorityUnavailable,
+			)
+			.unwrap();
+			assert_error(&execution, operation, expected);
+		}
+		let conflict = error_execution::<TransactionSignError>(
+			[97; 16],
+			1200,
+			IdentityAuthorityErrorV2::EffectConflict,
+		)
+		.unwrap();
+		assert_error(&conflict, 1200, ErrorCode::IdentityChallengeReplay);
 	}
 
 	#[test]
@@ -2270,15 +2721,15 @@ mod tests {
 				(3, Value::Array(vec![Value::Text("adult".into())])),
 			]),
 		);
-		assert!(matches!(
-			backend.identity_humanity_prove(HostCallV2 {
+		let challenge_error = backend
+			.identity_humanity_prove(HostCallV2 {
 				frame: &repeated_challenge,
 				authority: &grant_id(1104),
 				meta: meta([55; 16], Some([55; 16])),
 				outbox: &outbox,
-			}),
-			Err(HostExecutionErrorV2::Backend("IDENTITY_CHALLENGE_REPLAY"))
-		));
+			})
+			.unwrap();
+		assert_error(&challenge_error, 1104, ErrorCode::IdentityChallengeReplay);
 		assert_eq!(controls.consent_calls.load(Ordering::SeqCst), 2);
 
 		let subject = frame::<IdentitySubjectDeriveFrame>(
@@ -2348,15 +2799,15 @@ mod tests {
 		);
 		assert_eq!(controls.consent_calls.load(Ordering::SeqCst), 3);
 
-		assert!(matches!(
-			backend.identity_account(HostCallV2 {
+		let grant_error = backend
+			.identity_account(HostCallV2 {
 				frame: &account,
 				authority: &grant_id(1101),
 				meta: meta([1; 16], None),
 				outbox: &outbox,
-			}),
-			Err(HostExecutionErrorV2::Backend("GRANT_SCOPE_DENIED"))
-		));
+			})
+			.unwrap();
+		assert_error(&grant_error, 1100, ErrorCode::GrantScopeDenied);
 
 		let replay = backend
 			.identity_profile_disclose(HostCallV2 {
@@ -2388,14 +2839,15 @@ mod tests {
 			]),
 		);
 		let mut backend = authority(root.path(), &controls);
-		assert!(backend
+		let first = backend
 			.transaction_sign(HostCallV2 {
 				frame: &signing,
 				authority: &grant_id(1200),
 				meta: meta([72; 16], Some(operation_id)),
 				outbox: &outbox,
 			})
-			.is_err());
+			.unwrap();
+		assert_error(&first, 1200, ErrorCode::SigningConsentRequired);
 		drop(backend);
 
 		let mut backend = authority(root.path(), &controls);
@@ -2431,15 +2883,110 @@ mod tests {
 				(2, uint(120)),
 			]),
 		);
-		assert!(matches!(
-			backend.transaction_sign(HostCallV2 {
+		let conflict = backend
+			.transaction_sign(HostCallV2 {
 				frame: &changed,
 				authority: &grant_id(1200),
 				meta: meta([72; 16], Some(operation_id)),
 				outbox: &outbox,
-			}),
-			Err(HostExecutionErrorV2::Backend("IDENTITY_EFFECT_CONFLICT"))
-		));
+			})
+			.unwrap();
+		assert_error(&conflict, 1200, ErrorCode::IdentityChallengeReplay);
+	}
+
+	#[test]
+	fn consent_reservation_survives_pre_and_post_consent_persist_faults() {
+		fn proof(request_id: [u8; 16], operation_id: [u8; 16]) -> Dto<IdentityHumanityProveFrame> {
+			frame::<IdentityHumanityProveFrame>(
+				1104,
+				request_id,
+				Some(operation_id),
+				map(vec![
+					(0, Value::Text("festival.example".into())),
+					(1, Value::Bytes(vec![91; 16])),
+					(2, uint(120)),
+					(3, Value::Array(vec![Value::Text("adult".into())])),
+				]),
+			)
+		}
+
+		let before_root = tempfile::tempdir().unwrap();
+		let before_controls = FixtureControls::default();
+		let mut before = authority(before_root.path(), &before_controls);
+		before
+			.core
+			.lock()
+			.unwrap()
+			.store
+			.fail_persist_after(0, TestPersistFaultPointV2::BeforeWrite);
+		let operation_id = [92; 16];
+		let request = proof([92; 16], operation_id);
+		let failed = before
+			.identity_humanity_prove(HostCallV2 {
+				frame: &request,
+				authority: &grant_id(1104),
+				meta: meta([92; 16], Some(operation_id)),
+				outbox: &outbox(),
+			})
+			.unwrap();
+		assert_error(&failed, 1104, ErrorCode::HostOutboxUnavailable);
+		assert_eq!(before_controls.consent_calls.load(Ordering::SeqCst), 0);
+		assert!(before.core.lock().unwrap().store.operation(operation_id).unwrap().is_none());
+		assert_execution(
+			&before
+				.identity_humanity_prove(HostCallV2 {
+					frame: &request,
+					authority: &grant_id(1104),
+					meta: meta([92; 16], Some(operation_id)),
+					outbox: &outbox(),
+				})
+				.unwrap(),
+			3,
+		);
+		assert_eq!(before_controls.consent_calls.load(Ordering::SeqCst), 1);
+
+		let after_root = tempfile::tempdir().unwrap();
+		let after_controls = FixtureControls::default();
+		let mut after = authority(after_root.path(), &after_controls);
+		after
+			.core
+			.lock()
+			.unwrap()
+			.store
+			.fail_persist_after(1, TestPersistFaultPointV2::AfterFileSync);
+		let operation_id = [93; 16];
+		let request = proof([93; 16], operation_id);
+		let failed = after
+			.identity_humanity_prove(HostCallV2 {
+				frame: &request,
+				authority: &grant_id(1104),
+				meta: meta([93; 16], Some(operation_id)),
+				outbox: &outbox(),
+			})
+			.unwrap();
+		assert_error(&failed, 1104, ErrorCode::HostOutboxUnavailable);
+		assert_eq!(after_controls.consent_calls.load(Ordering::SeqCst), 1);
+		let reserved = after.core.lock().unwrap().store.operation(operation_id).unwrap().unwrap();
+		assert!(!reserved.consent_recorded);
+		assert!(after_root.path().join(ROOT).read_dir().unwrap().all(|entry| !entry
+			.unwrap()
+			.file_name()
+			.to_string_lossy()
+			.ends_with(".tmp")));
+		drop(after);
+		let mut after = authority(after_root.path(), &after_controls);
+		assert_execution(
+			&after
+				.identity_humanity_prove(HostCallV2 {
+					frame: &request,
+					authority: &grant_id(1104),
+					meta: meta([93; 16], Some(operation_id)),
+					outbox: &outbox(),
+				})
+				.unwrap(),
+			3,
+		);
+		assert_eq!(after_controls.consent_calls.load(Ordering::SeqCst), 1);
 	}
 
 	#[test]
@@ -2469,14 +3016,14 @@ mod tests {
 			None,
 			map(vec![(0, Value::Text("selected".into()))]),
 		);
-		assert!(matches!(
-			backend.identity_account(HostCallV2 {
+		let unavailable = backend
+			.identity_account(HostCallV2 {
 				frame: &account,
 				authority: &grant_id(1100),
 				meta: meta([81; 16], None),
 				outbox: &outbox(),
-			}),
-			Err(HostExecutionErrorV2::Backend("IDENTITY_AUTHORITY_UNAVAILABLE"))
-		));
+			})
+			.unwrap();
+		assert_error(&unavailable, 1100, ErrorCode::HostOutboxUnavailable);
 	}
 }

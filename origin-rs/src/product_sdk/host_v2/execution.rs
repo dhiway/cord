@@ -18,7 +18,10 @@
 
 //! Private host-v2 execution binding. The public SDK cannot reach this module before P4/P5.
 
-use std::io::{Read, Write};
+use std::{
+	io::{Read, Write},
+	path::Path,
+};
 
 use ciborium::value::Value;
 use sha2::{Digest, Sha256};
@@ -43,6 +46,11 @@ use super::{
 		StorageReplicaStatusFrame, StorageReplicaSubscribeFrame, StorageResolveFrame,
 		StorageS3DeleteFrame, StorageS3GetFrame, StorageS3ListFrame, StorageS3PutFrame,
 		TransactionSignFrame, OPERATIONS,
+	},
+	identity_authority::{
+		DurableIdentityAuthorityV2, FinalizedIdentitySourceV2, FinalizedTransactionSignerV2,
+		FreshIdentityConsentV2, HostIdentityDeliveryV2, IdentityAuthorityContextV2,
+		IdentityAuthorityErrorV2, IdentityGrantRecordV2, IdentityKeystoreMaterialV2,
 	},
 };
 
@@ -377,6 +385,60 @@ where
 	}
 }
 
+pub(crate) type PrivateIdentityDispatcherV2<P, C, K, R, H, A, S> = CordHostDispatcherV2<
+	P,
+	C,
+	K,
+	DurableIdentityAuthorityV2<R, H, A, S>,
+	DurableIdentityAuthorityV2<R, H, A, S>,
+	DurableIdentityAuthorityV2<R, H, A, S>,
+>;
+
+/// Private desktop composition entrypoint. The shared clone keeps runtime, host Identity, and
+/// signing authority in one durable state machine without exposing a public SDK taxonomy.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn compose_private_identity_dispatcher_v2<P, C, K, R, H, A, S>(
+	provider_bytes: P,
+	commons: C,
+	storage_keystore: K,
+	root: impl AsRef<Path>,
+	context: IdentityAuthorityContextV2,
+	identity_keystore: Option<IdentityKeystoreMaterialV2>,
+	grants: Option<Vec<IdentityGrantRecordV2>>,
+	runtime: R,
+	host: H,
+	consent: A,
+	signer: S,
+) -> Result<PrivateIdentityDispatcherV2<P, C, K, R, H, A, S>, IdentityAuthorityErrorV2>
+where
+	P: ProviderByteStorageV2,
+	C: CommonsStorageControlV2,
+	K: HostStorageKeystoreV2,
+	R: FinalizedIdentitySourceV2,
+	H: HostIdentityDeliveryV2,
+	A: FreshIdentityConsentV2,
+	S: FinalizedTransactionSignerV2,
+{
+	let identity = DurableIdentityAuthorityV2::open(
+		root,
+		context,
+		identity_keystore,
+		grants,
+		runtime,
+		host,
+		consent,
+		signer,
+	)?;
+	Ok(CordHostDispatcherV2::new(
+		provider_bytes,
+		commons,
+		storage_keystore,
+		identity.clone(),
+		identity.clone(),
+		identity,
+	))
+}
+
 pub(crate) struct ProviderSuccessorV2 {
 	pub(crate) exact_request: Vec<u8>,
 	pub(crate) outbox: ProviderOutboxContextV2,
@@ -652,6 +714,12 @@ mod tests {
 	use sp_crypto_hashing::blake2_256;
 
 	use super::*;
+	use crate::product_sdk::host_v2::identity_authority::{
+		FinalizedEntitlementAuthorityV2, FinalizedHumanityAuthorityV2, FinalizedIdentityEffectV2,
+		FinalizedProfileAuthorityV2, FinalizedTransactionEffectV2, HostAccountSessionV2,
+		HostProfileDisclosureV2, IdentityConsentRequestV2, ProfileDisclosureRequestV2,
+		TransactionSigningRequestV2,
+	};
 
 	#[derive(Clone, Default)]
 	struct RouteBackend(Rc<RefCell<Vec<(&'static str, OperationCode)>>>);
@@ -716,6 +784,127 @@ mod tests {
 	implement_routes!(HostSigningAuthorityV2, "signing", {
 		transaction_sign: TransactionSignFrame => TransactionSign,
 	});
+
+	#[derive(Clone)]
+	struct IdentityFactoryFixture;
+
+	impl FinalizedIdentitySourceV2 for IdentityFactoryFixture {
+		fn head(&mut self) -> Result<FinalizedIdentityEffectV2, IdentityAuthorityErrorV2> {
+			Ok(FinalizedIdentityEffectV2 { block_number: 1, block_hash: [7; 32] })
+		}
+
+		fn profile(
+			&mut self,
+			_subject: [u8; 32],
+			_fields: &[String],
+			_at: Option<[u8; 32]>,
+		) -> Result<FinalizedProfileAuthorityV2, IdentityAuthorityErrorV2> {
+			Err(IdentityAuthorityErrorV2::AuthorityUnavailable)
+		}
+
+		fn humanity_status(
+			&mut self,
+			_subject: [u8; 32],
+			_at: Option<[u8; 32]>,
+		) -> Result<FinalizedHumanityAuthorityV2, IdentityAuthorityErrorV2> {
+			Err(IdentityAuthorityErrorV2::AuthorityUnavailable)
+		}
+
+		fn humanity_proof(
+			&mut self,
+			_product_id: &str,
+			_audience: &str,
+			_claims: &[String],
+		) -> Result<FinalizedHumanityAuthorityV2, IdentityAuthorityErrorV2> {
+			Err(IdentityAuthorityErrorV2::AuthorityUnavailable)
+		}
+
+		fn entitlement(
+			&mut self,
+			_subject: [u8; 32],
+			_scope: &str,
+			_at: Option<[u8; 32]>,
+		) -> Result<FinalizedEntitlementAuthorityV2, IdentityAuthorityErrorV2> {
+			Err(IdentityAuthorityErrorV2::AuthorityUnavailable)
+		}
+
+		fn is_finalized(
+			&mut self,
+			_finality: FinalizedIdentityEffectV2,
+		) -> Result<bool, IdentityAuthorityErrorV2> {
+			Ok(true)
+		}
+	}
+
+	impl HostIdentityDeliveryV2 for IdentityFactoryFixture {
+		fn account(
+			&mut self,
+			_session: &str,
+		) -> Result<HostAccountSessionV2, IdentityAuthorityErrorV2> {
+			Ok(HostAccountSessionV2 { account: [8; 32], expires_at: 10 })
+		}
+
+		fn disclose(
+			&mut self,
+			_request: &ProfileDisclosureRequestV2,
+		) -> Result<HostProfileDisclosureV2, IdentityAuthorityErrorV2> {
+			Err(IdentityAuthorityErrorV2::AuthorityUnavailable)
+		}
+	}
+
+	impl FreshIdentityConsentV2 for IdentityFactoryFixture {
+		fn consume(
+			&mut self,
+			_request: &IdentityConsentRequestV2,
+		) -> Result<[u8; 32], IdentityAuthorityErrorV2> {
+			Err(IdentityAuthorityErrorV2::AuthorityUnavailable)
+		}
+	}
+
+	impl FinalizedTransactionSignerV2 for IdentityFactoryFixture {
+		fn sign_and_finalize(
+			&mut self,
+			_request: &TransactionSigningRequestV2,
+		) -> Result<FinalizedTransactionEffectV2, IdentityAuthorityErrorV2> {
+			Err(IdentityAuthorityErrorV2::AuthorityUnavailable)
+		}
+	}
+
+	#[test]
+	fn private_factory_constructs_dispatcher_with_one_shared_identity_authority() {
+		let root = tempfile::tempdir().unwrap();
+		let context = IdentityAuthorityContextV2 { profile_id: [1; 32], genesis_hash: [2; 32] };
+		let keystore = IdentityKeystoreMaterialV2 {
+			state_key: [3; 32],
+			subject_master_seed: [4; 32],
+			recovery_incarnation: [5; 32],
+			epoch: 1,
+			continuity: true,
+		};
+		let grant = IdentityGrantRecordV2 {
+			id: [6; 32],
+			product_id: b"factory".to_vec(),
+			operation: 1100,
+			recovery_incarnation: [5; 32],
+			expires_at: 10,
+			audience: None,
+			revoked: false,
+		};
+		let _dispatcher = compose_private_identity_dispatcher_v2(
+			RouteBackend::default(),
+			RouteBackend::default(),
+			RouteBackend::default(),
+			root.path(),
+			context,
+			Some(keystore),
+			Some(vec![grant]),
+			IdentityFactoryFixture,
+			IdentityFactoryFixture,
+			IdentityFactoryFixture,
+			IdentityFactoryFixture,
+		)
+		.unwrap();
+	}
 
 	fn expected_authority(operation: OperationCode) -> &'static str {
 		match operation {
