@@ -1810,7 +1810,7 @@ fn validate_durable_record(
 	Ok(())
 }
 
-fn encrypt(
+pub(crate) fn encrypt(
 	plaintext: &[u8],
 	key: &[u8; 32],
 	nonce: [u8; 24],
@@ -1831,7 +1831,11 @@ fn encrypt(
 	Ok(envelope)
 }
 
-fn decrypt(bytes: &[u8], key: &[u8; 32], aad: &[u8]) -> Result<Vec<u8>, HostOutboxError> {
+pub(crate) fn decrypt(
+	bytes: &[u8],
+	key: &[u8; 32],
+	aad: &[u8],
+) -> Result<Vec<u8>, HostOutboxError> {
 	if bytes.len() < 1 + 24 + 16 || bytes[0] != ENVELOPE_VERSION {
 		return Err(HostOutboxError::Corrupt);
 	}
@@ -2397,7 +2401,7 @@ fn decode_id(value: &str) -> Result<[u8; 16], HostOutboxError> {
 	bytes.try_into().map_err(|_| HostOutboxError::Corrupt)
 }
 
-fn sync_dir(path: &Path) -> Result<(), HostOutboxError> {
+pub(crate) fn sync_dir(path: &Path) -> Result<(), HostOutboxError> {
 	File::open(path)
 		.and_then(|directory| directory.sync_all())
 		.map_err(|_| HostOutboxError::Unavailable)

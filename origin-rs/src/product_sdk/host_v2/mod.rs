@@ -21,6 +21,7 @@
 pub(crate) mod codec;
 mod desktop;
 mod execution;
+mod identity_authority;
 #[rustfmt::skip]
 pub(crate) mod generated;
 mod session;

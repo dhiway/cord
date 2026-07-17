@@ -10149,6 +10149,7 @@ dependencies = [
  "frame-support",
  "futures",
  "hex",
+ "hkdf",
  "kvdb",
  "kvdb-rocksdb",
  "orbis-identity-personhood-runtime-api",
