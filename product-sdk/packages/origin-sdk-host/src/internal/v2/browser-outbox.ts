@@ -55,8 +55,11 @@ export interface BrowserOutboxRetryV1 {
   readonly operationCode: number;
 }
 interface LiveRecord {
-  readonly kind: 0; readonly entry: HostOutboxEntryV1; readonly state: 0 | 1 | 2;
+  readonly kind: 0; readonly entry: HostOutboxEntryV1; readonly state: 0 | 1 | 2 | 3;
   readonly response?: Uint8Array; readonly responseAck?: Uint8Array; readonly responseHash?: Uint8Array;
+  readonly successorAuthority?: Uint8Array; readonly successorCursor?: number;
+  readonly predecessorOutboxId?: Uint8Array; readonly predecessorResponseHash?: Uint8Array;
+  readonly successorOutboxId?: Uint8Array;
   readonly terminal: boolean; readonly recoverUntil: bigint; readonly operationCode: number;
 }
 interface TombstoneRecord {
@@ -65,7 +68,7 @@ interface TombstoneRecord {
   readonly terminal: boolean; readonly recoverUntil: bigint; readonly keyVersion: number;
 }
 type DurableRecord = LiveRecord | TombstoneRecord;
-interface LoadedRecord { readonly record: DurableRecord; readonly encryptedBytes: number }
+interface LoadedRecord { readonly record: DurableRecord; readonly encryptedBytes: number; readonly encryptedRow: BrowserOutboxEncryptedRow }
 interface ValidatedEntry { readonly operationCode: number; readonly operationIdRequired: boolean }
 
 export class StrictIndexedDbOutboxBackend implements StrictBrowserOutboxBackend {
@@ -135,12 +138,14 @@ export class BrowserHostOutboxV1 {
           const validated = await outbox.#validateEntry(record.entry, row.keyVersion, record.operationCode);
           if (validated.operationIdRequired && !operationGenerations.add(operationGeneration(record.entry))) throw new Error();
         }
-        outbox.#records.set(row.id, { record, encryptedBytes: row.ciphertext.length });
+        outbox.#records.set(row.id, { record, encryptedBytes: row.ciphertext.length, encryptedRow: copyRow(row) });
       } catch {
         try { await backend.quarantineStrict(row); } catch { throw new BrowserOutboxError("HOST_OUTBOX_UNAVAILABLE", "corrupt browser outbox quarantine failed"); }
         throw new BrowserOutboxError("HOST_OUTBOX_CORRUPT", "authenticated browser outbox record is corrupt");
       }
     }
+    try { outbox.#validateSuccessorLinks(); }
+    catch { throw new BrowserOutboxError("HOST_OUTBOX_CORRUPT", "authenticated browser outbox successor link is corrupt"); }
     if (outbox.#totalBytes() > byteLimit) throw new BrowserOutboxError("HOST_OUTBOX_CORRUPT", "encrypted browser outbox byte bound exceeded");
     return outbox;
   }
@@ -191,14 +196,81 @@ export class BrowserHostOutboxV1 {
     const installed: LiveRecord = { ...record, state: 2, response: response.slice(), responseAck: ack, responseHash: responseHash.slice(), terminal: true, recoverUntil: terminalBlock + RECOVERY_BLOCKS };
     await this.#commit(installed, false); return { responseHash: responseHash.slice(), ack: ack.slice() };
   }
+  async installSuccessor(
+    outboxId: Uint8Array, response: Uint8Array, exactResumeToken: Uint8Array, cursor: number,
+  ): Promise<{ readonly responseHash: Uint8Array; readonly ack: Uint8Array }> {
+    const record = this.#live(outboxId); const event = decodeHostV2("EventV2", response).value;
+    if (record.state === 2) {
+      if (!equal(record.response!, response) || !equal(record.successorAuthority!, exactResumeToken) || record.successorCursor !== cursor || record.terminal) {
+        throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "installed successor response changed");
+      }
+      return { responseHash: record.responseHash!.slice(), ack: record.responseAck!.slice() };
+    }
+    if ((record.state !== 0 && record.state !== 1) || ![0, 1].includes(Number(event[3])) || !equal(event[1], record.entry[6])
+      || !Number.isSafeInteger(Number(event[2])) || Number(event[2]) + 1 !== cursor) {
+      throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "successor response is not a live accepted/progress event");
+    }
+    const token = decodeHostV2("ResumeTokenV1", exactResumeToken).value;
+    if (!Number.isSafeInteger(cursor) || cursor < 0 || !equal(token[1], record.entry[10]) || !equal(token[2], record.entry[11])
+      || !equal(token[3], record.entry[13]) || !equal(token[5], record.entry[7]) || Number(token[9]) !== cursor
+      || BigInt(token[10]) !== BigInt(record.entry[8]) + 1n || token[14] !== false) {
+      throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "resume token is not the exact active successor");
+    }
+    const issued = BigInt(token[11]); const expires = BigInt(token[12]);
+    if (expires < issued || expires > issued + AUTHORITY_BLOCKS) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "resume token lifetime is invalid");
+    const responseHash = await this.#crypto.digest(response);
+    const ack = encodeHostV2("ResponseAckV1", { 0: record.entry[6], 1: record.entry[7], 2: record.entry[8], 3: responseHash });
+    const installed: LiveRecord = {
+      ...record, state: 2, response: response.slice(), responseAck: ack, responseHash: responseHash.slice(),
+      successorAuthority: exactResumeToken.slice(), successorCursor: cursor, terminal: false,
+    };
+    await this.#commit(installed, false); return { responseHash: responseHash.slice(), ack: ack.slice() };
+  }
   installedAck(outboxId: Uint8Array): { readonly responseHash: Uint8Array; readonly ack: Uint8Array } {
-    const record = this.#live(outboxId); if (record.state !== 2) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "response acknowledgement is absent"); return { responseHash: record.responseHash!.slice(), ack: record.responseAck!.slice() };
+    const record = this.#live(outboxId); if (record.state !== 2 && record.state !== 3) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "response acknowledgement is absent"); return { responseHash: record.responseHash!.slice(), ack: record.responseAck!.slice() };
   }
   async confirmAck(outboxId: Uint8Array, responseHash: Uint8Array): Promise<void> {
     const loaded = this.#get(outboxId); if (loaded.record.kind === 1 && loaded.record.state === 3 && equal(loaded.record.responseHash!, responseHash)) return;
-    if (loaded.record.kind !== 0 || loaded.record.state !== 2 || !equal(loaded.record.responseHash!, responseHash)) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "response acknowledgement mismatches");
+    if (loaded.record.kind !== 0 || (loaded.record.state !== 2 && loaded.record.state !== 3) || !equal(loaded.record.responseHash!, responseHash)) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "response acknowledgement mismatches");
+    if (!loaded.record.terminal) {
+      if (!loaded.record.successorAuthority || loaded.record.successorCursor === undefined) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "nonterminal acknowledgement has no exact successor");
+      if (loaded.record.state === 3) return;
+      await this.#commit({ ...loaded.record, state: 3 }, false); return;
+    }
     const tombstone: TombstoneRecord = { kind: 1, outboxId: loaded.record.entry[1].slice(), state: 3, responseHash: responseHash.slice(), requestFingerprint: loaded.record.entry[5].slice(), terminal: loaded.record.terminal, recoverUntil: loaded.record.recoverUntil, keyVersion: this.#crypto.activeKeyVersion };
     await this.#commit(tombstone, false);
+  }
+  async prepareSuccessor(predecessorId: Uint8Array, input: BrowserPrepareOutboxV1): Promise<BrowserOutboxRetryV1> {
+    const predecessorLoaded = this.#get(predecessorId); const predecessor = predecessorLoaded.record;
+    if (predecessor.kind !== 0 || predecessor.state !== 3 || predecessor.terminal || !predecessor.successorAuthority || predecessor.successorCursor === undefined || !predecessor.responseHash) {
+      throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "predecessor is not an acknowledged resumable response");
+    }
+    const entry = cloneEntry(input.entry); const successorId = toHex(entry[1]);
+    const expectedGeneration = BigInt(predecessor.entry[8]) + 1n;
+    if (!equal(entry[4], predecessor.successorAuthority) || !equal(entry[7], predecessor.entry[7])
+      || BigInt(entry[8]) !== expectedGeneration || Number(entry[9]) !== predecessor.successorCursor
+      || !equal(entry[10], predecessor.entry[10]) || !equal(entry[11], predecessor.entry[11])
+      || !equal(entry[12], predecessor.entry[12]) || !equal(entry[13], predecessor.entry[13])
+      || !equal(entry[14], predecessor.entry[14]) || Number(entry[15]) !== Number(predecessor.entry[15])) {
+      throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "successor entry is not bound to its predecessor");
+    }
+    const existing = this.#records.get(successorId);
+    if (existing) {
+      if (predecessor.successorOutboxId && equal(predecessor.successorOutboxId, entry[1]) && existing.record.kind === 0
+        && existing.record.predecessorOutboxId && equal(existing.record.predecessorOutboxId, predecessor.entry[1])
+        && existing.record.predecessorResponseHash && equal(existing.record.predecessorResponseHash, predecessor.responseHash)
+        && equal(encodeHostV2("HostOutboxEntryV1", existing.record.entry), encodeHostV2("HostOutboxEntryV1", entry))) return retry(existing.record);
+      throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "successor outbox identity was replayed");
+    }
+    if (predecessor.successorOutboxId) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "predecessor already has a different successor");
+    const validated = await this.#validateEntry(entry, this.#crypto.activeKeyVersion, predecessor.operationCode);
+    const successor: LiveRecord = {
+      kind: 0, entry, state: 0, terminal: false, recoverUntil: BigInt(entry[19]), operationCode: validated.operationCode,
+      predecessorOutboxId: predecessor.entry[1].slice(), predecessorResponseHash: predecessor.responseHash.slice(),
+    };
+    const updatedPredecessor: LiveRecord = { ...predecessor, successorOutboxId: entry[1].slice() };
+    await this.#commitSuccessor(predecessorLoaded, updatedPredecessor, successor);
+    return retry(successor);
   }
   async expire(outboxId: Uint8Array, finalized: bigint): Promise<void> {
     const loaded = this.#get(outboxId); if (loaded.record.kind === 1 || finalized < loaded.record.recoverUntil) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "browser outbox cannot expire yet");
@@ -232,7 +304,7 @@ export class BrowserHostOutboxV1 {
     const operation = Object.values(HOST_V2_OPERATION_BINDINGS).find(({ code }) => code === operationCode);
     if (!operation || !PROVIDER_BYTE_OPERATION_CODES.has(operationCode)
       || (expectedOperationCode !== undefined && operationCode !== expectedOperationCode)) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "request is not a provider-byte operation or its code mismatched");
-    if (!(request[1] instanceof Uint8Array) || !equal(request[1], entry[6]) || Number(request[7]) !== Number(entry[8])) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "request ID or generation mismatched");
+    if (!(request[1] instanceof Uint8Array) || !equal(request[1], entry[6])) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "request ID mismatched");
     const operationId = request[5];
     if (operation.operationIdRequired
       ? !(operationId instanceof Uint8Array) || !equal(operationId, entry[7])
@@ -271,8 +343,33 @@ export class BrowserHostOutboxV1 {
       const row = { id, keyVersion: sealed.keyVersion, ciphertext: sealed.ciphertext.slice() };
       try { await this.#backend.putStrict(row); }
       catch { throw new BrowserOutboxError("HOST_OUTBOX_UNAVAILABLE", "strict IndexedDB commit failed"); }
-      this.#records.set(id, { record, encryptedBytes: row.ciphertext.length });
+      this.#records.set(id, { record, encryptedBytes: row.ciphertext.length, encryptedRow: copyRow(row) });
     });
+  }
+  async #commitSuccessor(predecessorLoaded: LoadedRecord, predecessor: LiveRecord, successor: LiveRecord): Promise<void> {
+    let predecessorRow: BrowserOutboxEncryptedRow; let successorRow: BrowserOutboxEncryptedRow;
+    try { predecessorRow = await this.#sealRecord(predecessor); successorRow = await this.#sealRecord(successor); }
+    catch (error) { if (error instanceof BrowserOutboxError) throw error; throw new BrowserOutboxError("HOST_OUTBOX_UNAVAILABLE", "browser outbox successor encryption failed"); }
+    const predecessorId = predecessorRow.id; const successorId = successorRow.id;
+    await this.#withCommitCapacity(async () => {
+      if (this.#records.size >= this.#recordLimit || this.#totalBytes() - predecessorLoaded.encryptedBytes + predecessorRow.ciphertext.length + successorRow.ciphertext.length > this.#byteLimit) {
+        throw new BrowserOutboxError("HOST_OUTBOX_FULL", "browser outbox capacity is full");
+      }
+      try {
+        await this.#backend.transactStrict({
+          expected: { [predecessorId]: predecessorLoaded.encryptedRow, [successorId]: null },
+          puts: [predecessorRow, successorRow], deletes: [],
+        });
+      } catch { throw new BrowserOutboxError("HOST_OUTBOX_UNAVAILABLE", "strict successor transaction failed"); }
+      this.#records.set(predecessorId, { record: predecessor, encryptedBytes: predecessorRow.ciphertext.length, encryptedRow: copyRow(predecessorRow) });
+      this.#records.set(successorId, { record: successor, encryptedBytes: successorRow.ciphertext.length, encryptedRow: copyRow(successorRow) });
+    });
+  }
+  async #sealRecord(record: DurableRecord): Promise<BrowserOutboxEncryptedRow> {
+    const idBytes = recordId(record); const id = toHex(idBytes); const plaintext = encodeRecord(record);
+    const sealed = await this.#crypto.seal(idBytes, plaintext);
+    if (sealed.ciphertext.length > MAX_RECORD_BYTES) throw new BrowserOutboxError("HOST_OUTBOX_FULL", "encrypted browser outbox record is too large");
+    return { id, keyVersion: sealed.keyVersion, ciphertext: sealed.ciphertext.slice() };
   }
   async #withCommitCapacity<T>(operation: () => Promise<T>): Promise<T> {
     const previous = this.#commitTail;
@@ -290,6 +387,26 @@ export class BrowserHostOutboxV1 {
     }
     return false;
   }
+  #validateSuccessorLinks(): void {
+    for (const loaded of this.#records.values()) {
+      const record = loaded.record; if (record.kind !== 0) continue;
+      if (record.predecessorOutboxId) {
+        const predecessor = this.#records.get(toHex(record.predecessorOutboxId))?.record;
+        if (!predecessor || predecessor.kind !== 0 || predecessor.state !== 3 || predecessor.terminal
+          || !predecessor.successorOutboxId || !equal(predecessor.successorOutboxId, record.entry[1])
+          || !predecessor.responseHash || !record.predecessorResponseHash || !equal(predecessor.responseHash, record.predecessorResponseHash)
+          || !predecessor.successorAuthority || !equal(predecessor.successorAuthority, record.entry[4])
+          || predecessor.successorCursor !== Number(record.entry[9]) || BigInt(record.entry[8]) !== BigInt(predecessor.entry[8]) + 1n
+          || !equal(record.entry[7], predecessor.entry[7]) || record.operationCode !== predecessor.operationCode) throw new Error();
+      }
+      if (record.successorOutboxId) {
+        const successor = this.#records.get(toHex(record.successorOutboxId))?.record;
+        if (!successor || successor.kind !== 0 || !successor.predecessorOutboxId
+          || !equal(successor.predecessorOutboxId, record.entry[1]) || !successor.predecessorResponseHash
+          || !record.responseHash || !equal(successor.predecessorResponseHash, record.responseHash)) throw new Error();
+      }
+    }
+  }
   #totalBytes(): number { let total = 0; for (const loaded of this.#records.values()) total += loaded.encryptedBytes; return total; }
 }
 
@@ -302,7 +419,7 @@ function cloneEntry(entry: HostOutboxEntryV1): HostOutboxEntryV1 { return decode
 function recordId(record: DurableRecord): Uint8Array { return record.kind === 0 ? record.entry[1] : record.outboxId; }
 function recordKeyVersion(record: DurableRecord): number { return record.kind === 0 ? Number(record.entry[20]) : record.keyVersion; }
 function encodeRecord(record: DurableRecord): Uint8Array {
-  const map: HostV2Map = record.kind === 0 ? { 0: 1, 1: 0, 2: encodeHostV2("HostOutboxEntryV1", record.entry), 3: record.state, 7: record.terminal, 8: record.recoverUntil, 12: record.operationCode, ...(record.response ? { 4: record.response } : {}), ...(record.responseAck ? { 5: record.responseAck } : {}), ...(record.responseHash ? { 6: record.responseHash } : {}) }
+  const map: HostV2Map = record.kind === 0 ? { 0: 1, 1: 0, 2: encodeHostV2("HostOutboxEntryV1", record.entry), 3: record.state, 7: record.terminal, 8: record.recoverUntil, 12: record.operationCode, ...(record.response ? { 4: record.response } : {}), ...(record.responseAck ? { 5: record.responseAck } : {}), ...(record.responseHash ? { 6: record.responseHash } : {}), ...(record.successorAuthority ? { 13: record.successorAuthority } : {}), ...(record.successorCursor !== undefined ? { 14: record.successorCursor } : {}), ...(record.predecessorOutboxId ? { 15: record.predecessorOutboxId } : {}), ...(record.predecessorResponseHash ? { 16: record.predecessorResponseHash } : {}), ...(record.successorOutboxId ? { 17: record.successorOutboxId } : {}) }
     : { 0: 1, 1: 1, 3: record.state, 7: record.terminal, 8: record.recoverUntil, 9: record.outboxId, 10: record.keyVersion, 11: record.requestFingerprint, ...(record.responseHash ? { 6: record.responseHash } : {}) };
   return encodeHostV2Value(map);
 }
@@ -310,9 +427,24 @@ function decodeRecord(bytes: Uint8Array): DurableRecord {
   const value = decodeCanonicalHostV2Value(bytes); if (typeof value !== "object" || value === null || Array.isArray(value) || value instanceof Uint8Array) throw new Error(); const map = value as HostV2Map;
   const keys = Object.keys(map).map(Number).sort((a, b) => a - b); if (map[0] !== 1 || (map[1] !== 0 && map[1] !== 1) || typeof map[3] !== "number" || typeof map[7] !== "boolean" || (typeof map[8] !== "number" && typeof map[8] !== "bigint")) throw new Error();
   if (map[1] === 0) {
-    if (keys.some((key) => ![0, 1, 2, 3, 4, 5, 6, 7, 8, 12].includes(key)) || ![0, 1, 2, 3, 7, 8, 12].every((key) => keys.includes(key)) || !(map[2] instanceof Uint8Array) || ![0, 1, 2].includes(map[3]) || typeof map[12] !== "number") throw new Error();
-    const state = map[3] as 0 | 1 | 2; const response = optionalBytes(map[4]); const ack = optionalBytes(map[5]); const hash = optionalBytes(map[6], 32); if ((state === 2) !== Boolean(response && ack && hash) || (state === 2) !== map[7]) throw new Error();
-    return { kind: 0, entry: decodeHostV2("HostOutboxEntryV1", map[2]).value, state, ...(response ? { response } : {}), ...(ack ? { responseAck: ack } : {}), ...(hash ? { responseHash: hash } : {}), terminal: map[7], recoverUntil: BigInt(map[8] as number | bigint), operationCode: map[12] };
+    if (keys.some((key) => ![0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 13, 14, 15, 16, 17].includes(key)) || ![0, 1, 2, 3, 7, 8, 12].every((key) => keys.includes(key)) || !(map[2] instanceof Uint8Array) || ![0, 1, 2, 3].includes(map[3]) || typeof map[12] !== "number") throw new Error();
+    const state = map[3] as 0 | 1 | 2 | 3; const response = optionalBytes(map[4]); const ack = optionalBytes(map[5]); const hash = optionalBytes(map[6], 32);
+    const successorAuthority = optionalBytes(map[13]); const rawSuccessorCursor = map[14];
+    if (rawSuccessorCursor !== undefined && (typeof rawSuccessorCursor !== "number" || !Number.isSafeInteger(rawSuccessorCursor) || rawSuccessorCursor < 0)) throw new Error();
+    const successorCursor = rawSuccessorCursor as number | undefined;
+    const predecessorOutboxId = optionalBytes(map[15], 16); const predecessorResponseHash = optionalBytes(map[16], 32); const successorOutboxId = optionalBytes(map[17], 16);
+    const hasResponse = Boolean(response && ack && hash); const hasSuccessor = Boolean(successorAuthority) && successorCursor !== undefined;
+    if ((state >= 2) !== hasResponse || Boolean(successorAuthority) !== (successorCursor !== undefined)
+      || Boolean(predecessorOutboxId) !== Boolean(predecessorResponseHash) || (state < 2 && hasSuccessor)
+      || (state === 2 && map[7] === false && !hasSuccessor) || (state === 3 && (map[7] !== false || !hasSuccessor))
+      || (map[7] === true && state !== 2) || (successorOutboxId && state !== 3)) throw new Error();
+    return {
+      kind: 0, entry: decodeHostV2("HostOutboxEntryV1", map[2]).value, state,
+      ...(response ? { response } : {}), ...(ack ? { responseAck: ack } : {}), ...(hash ? { responseHash: hash } : {}),
+      ...(successorAuthority ? { successorAuthority } : {}), ...(successorCursor !== undefined ? { successorCursor } : {}),
+      ...(predecessorOutboxId ? { predecessorOutboxId } : {}), ...(predecessorResponseHash ? { predecessorResponseHash } : {}),
+      ...(successorOutboxId ? { successorOutboxId } : {}), terminal: map[7], recoverUntil: BigInt(map[8] as number | bigint), operationCode: map[12],
+    };
   }
   if (keys.some((key) => ![0, 1, 3, 6, 7, 8, 9, 10, 11].includes(key)) || ![0, 1, 3, 7, 8, 9, 10, 11].every((key) => keys.includes(key)) || ![3, 4].includes(map[3]) || !(map[9] instanceof Uint8Array) || map[9].length !== 16 || typeof map[10] !== "number" || !(map[11] instanceof Uint8Array) || map[11].length !== 32) throw new Error();
   const responseHash = optionalBytes(map[6], 32);

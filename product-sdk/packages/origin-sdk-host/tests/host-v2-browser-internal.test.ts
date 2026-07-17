@@ -101,7 +101,7 @@ async function transports(hostPeer?: PeerKey, providerPeer?: PeerKey): Promise<{
 }
 class StrictMemoryBackend implements StrictBrowserOutboxBackend {
   readonly records = new Map<string, BrowserOutboxEncryptedRow>(); readonly quarantine = new Map<string, BrowserOutboxEncryptedRow>();
-  failBeforeCommit = false; failAfterCommit = false; strictCommits = 0; putDelayMs = 0; putStarts = 0;
+  failBeforeCommit = false; failAfterCommit = false; failTransactionBeforeCommit = false; strictCommits = 0; putDelayMs = 0; putStarts = 0;
   async load() { return [...this.records.values()].map(copyRow); }
   async putStrict(row: BrowserOutboxEncryptedRow) { this.putStarts += 1; if (this.putDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, this.putDelayMs)); if (this.failBeforeCommit) { this.failBeforeCommit = false; throw new Error("abort"); } this.records.set(row.id, copyRow(row)); this.strictCommits += 1; if (this.failAfterCommit) { this.failAfterCommit = false; throw new Error("after commit"); } }
   async deleteStrict(id: string) { this.records.delete(id); this.strictCommits += 1; }
@@ -112,6 +112,7 @@ class StrictMemoryBackend implements StrictBrowserOutboxBackend {
       const same = expected === null ? current === undefined : current !== undefined && current.keyVersion === expected.keyVersion && equal(current.ciphertext, expected.ciphertext);
       if (!same) throw new Error("compare-and-swap failed");
     }
+    if (this.failTransactionBeforeCommit) { this.failTransactionBeforeCommit = false; throw new Error("transaction abort"); }
     for (const row of input.puts) this.records.set(row.id, copyRow(row));
     for (const id of input.deletes) this.records.delete(id);
     this.strictCommits += 1;
@@ -135,6 +136,17 @@ async function preparedEntry(transport: BrowserHostV2Transport, version = 1, opt
   const fingerprint = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", joined));
   return { 0: 1, 1: outboxId, 2: 0, 3: requestBytes, 4: authorityBytes, 5: fingerprint, 6: requestId, 7: request[5] === undefined ? new Uint8Array(16) : operationId, 8: 0, 9: 0, 10: binding.registryHash, 11: binding.genesisHash, 12: binding.negotiatedTuple, 13: binding.providerId, 14: binding.providerEndpointHash, 15: options.expected ?? 4, 17: 100, 18: 228, 19: 356, 20: version };
 }
+function exactResumeToken(transport: BrowserHostV2Transport, entry: HostOutboxEntryV1, cursor: number, cancelled = false): Uint8Array {
+  const vector = protocol.vectors.find((candidate: any) => candidate.id === "provider-resume-v1");
+  const token = decodeHostV2("ResumeTokenV1", bytes(vector.canonical_cbor_hex)).value as any; const binding = transport.binding;
+  token[1] = binding.registryHash; token[2] = binding.genesisHash; token[3] = binding.providerId; token[5] = entry[7];
+  token[9] = cursor; token[10] = Number(entry[8]) + 1; token[11] = 100; token[12] = 228; token[14] = cancelled;
+  return encodeHostV2("ResumeTokenV1", token);
+}
+async function successorEntry(predecessor: HostOutboxEntryV1, token: Uint8Array, cursor: number, outbox = 0x67): Promise<HostOutboxEntryV1> {
+  const joined = concatenate([predecessor[3], token]); const fingerprint = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", joined));
+  return { ...predecessor, 1: new Uint8Array(16).fill(outbox), 2: 0, 4: token.slice(), 5: fingerprint, 8: BigInt(predecessor[8]) + 1n, 9: cursor, 17: 100, 18: 228, 19: 356 };
+}
 function accepted(id: Uint8Array, sequence = 0) { return encodeHostV2("AcceptedEventV2", { 0: 2, 1: id, 2: sequence, 3: 0, 4: { 0: 0 } } as AcceptedEventV2); }
 function progress(id: Uint8Array, sequence: number) { return encodeHostV2("ProgressEventV2", { 0: 2, 1: id, 2: sequence, 3: 1, 4: { 0: 1 } } as ProgressEventV2); }
 function cancelled(id: Uint8Array, sequence: number) { return encodeHostV2("CancelledEventV2", { 0: 2, 1: id, 2: sequence, 3: 4, 4: { 0: 107 } } as CancelledEventV2); }
@@ -155,6 +167,66 @@ test("strict browser backend transaction atomically compares, replaces, and crea
   assert.deepEqual(backend.records.get("first")?.ciphertext, Uint8Array.of(2)); assert.ok(backend.records.has("second"));
   await assert.rejects(backend.transactStrict({ expected: { first }, puts: [], deletes: ["second"] }), /compare-and-swap/);
   assert.ok(backend.records.has("second"), "failed CAS partially deleted a record");
+});
+
+test("acknowledged resume successor survives crashes and advances generation and cursor exactly once", async () => {
+  const pair = await transports(); const backend = new StrictMemoryBackend(); const random = nonceSource();
+  let outbox = await openOutbox(backend, pair.host, keyring(), random); const entry = await preparedEntry(pair.host);
+  const prepared = await outbox.prepare({ entry }); await outbox.markSent(prepared.outboxId);
+  const event = progress(entry[6], 1); const token = exactResumeToken(pair.host, entry, 2);
+  const installed = await outbox.installSuccessor(prepared.outboxId, event, token, 2);
+
+  outbox = await openOutbox(backend, pair.host, keyring(), random);
+  assert.deepEqual(await outbox.installSuccessor(prepared.outboxId, event, token, 2), installed, "crash replay changed the installed successor");
+  await outbox.confirmAck(prepared.outboxId, installed.responseHash);
+  assert.throws(() => outbox.retry(prepared.outboxId, 200n), /not retryable/);
+
+  const successor = await successorEntry(entry, token, 2); const resumed = await outbox.prepareSuccessor(prepared.outboxId, { entry: successor });
+  assert.equal(resumed.intendedCursor, 2); assert.equal(resumed.operationCode, 1010); assert.deepEqual(resumed.authority, token);
+  assert.deepEqual(await outbox.prepareSuccessor(prepared.outboxId, { entry: successor }), resumed, "exact replay was not idempotent");
+  outbox = await openOutbox(backend, pair.host, keyring(), random);
+  assert.deepEqual(outbox.retry(resumed.outboxId, 200n), resumed); assert.equal(backend.records.size, 2, "acknowledged predecessor was discarded");
+
+  const changed = await successorEntry(entry, token, 2, 0x68);
+  await assert.rejects(outbox.prepareSuccessor(prepared.outboxId, { entry: changed }), (error) => error instanceof BrowserOutboxError && error.code === "HOST_OUTBOX_STATE_INVALID");
+  pair.host.close(); pair.provider.close();
+});
+
+test("successor transaction abort leaves predecessor replayable and creates no partial successor", async () => {
+  const pair = await transports(); const backend = new StrictMemoryBackend(); const random = nonceSource();
+  let outbox = await openOutbox(backend, pair.host, keyring(), random); const entry = await preparedEntry(pair.host);
+  const prepared = await outbox.prepare({ entry }); const event = progress(entry[6], 1); const token = exactResumeToken(pair.host, entry, 2);
+  const installed = await outbox.installSuccessor(prepared.outboxId, event, token, 2); await outbox.confirmAck(prepared.outboxId, installed.responseHash);
+  const successor = await successorEntry(entry, token, 2); backend.failTransactionBeforeCommit = true;
+  await assert.rejects(outbox.prepareSuccessor(prepared.outboxId, { entry: successor }), (error) => error instanceof BrowserOutboxError && error.code === "HOST_OUTBOX_UNAVAILABLE");
+  assert.equal(backend.records.size, 1, "failed successor transaction partially committed");
+  outbox = await openOutbox(backend, pair.host, keyring(), random);
+  assert.deepEqual((await outbox.prepareSuccessor(prepared.outboxId, { entry: successor })).authority, token); assert.equal(backend.records.size, 2);
+  pair.host.close(); pair.provider.close();
+});
+
+test("cancelled, expired, skipped-cursor, and wrong-generation resume authorities fail closed", async () => {
+  const pair = await transports(); const make = async (outboxByte: number, requestByte: number, operationByte: number) => {
+    const backend = new StrictMemoryBackend(); const outbox = await openOutbox(backend, pair.host); const entry = await preparedEntry(pair.host, 1, { outbox: outboxByte, request: requestByte, operation: operationByte });
+    return { outbox, entry, prepared: await outbox.prepare({ entry }) };
+  };
+  {
+    const { outbox, entry, prepared } = await make(0x61, 0x51, 0x41);
+    await assert.rejects(outbox.installSuccessor(prepared.outboxId, progress(entry[6], 1), exactResumeToken(pair.host, entry, 2, true), 2), (error) => error instanceof BrowserOutboxError && error.code === "HOST_OUTBOX_BINDING_INVALID");
+  }
+  {
+    const { entry } = await make(0x62, 0x52, 0x42); const token = decodeHostV2("ResumeTokenV1", exactResumeToken(pair.host, entry, 2)).value as any; token[12] = 229;
+    assert.throws(() => encodeHostV2("ResumeTokenV1", token), /resume-validity-at-most-128/);
+  }
+  {
+    const { outbox, entry, prepared } = await make(0x63, 0x53, 0x43);
+    await assert.rejects(outbox.installSuccessor(prepared.outboxId, progress(entry[6], 1), exactResumeToken(pair.host, entry, 3), 3), (error) => error instanceof BrowserOutboxError && error.code === "HOST_OUTBOX_BINDING_INVALID");
+  }
+  {
+    const { outbox, entry, prepared } = await make(0x64, 0x54, 0x44); const token = decodeHostV2("ResumeTokenV1", exactResumeToken(pair.host, entry, 2)).value as any; token[10] = 2;
+    await assert.rejects(outbox.installSuccessor(prepared.outboxId, progress(entry[6], 1), encodeHostV2("ResumeTokenV1", token), 2), (error) => error instanceof BrowserOutboxError && error.code === "HOST_OUTBOX_BINDING_INVALID");
+  }
+  pair.host.close(); pair.provider.close();
 });
 
 test("authenticated MessagePort negotiation owns the remote offer and pending operations fail closed", async () => {
