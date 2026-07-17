@@ -21,6 +21,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { parseContentCid } from "../../origin-sdk-cloud-storage/src/content.ts";
 import { blake2b256 } from "../../origin-sdk-crypto/src/index.ts";
 import { DurableBrowserHostV2 } from "../src/internal/v2/browser-durable.ts";
 import {
@@ -39,6 +40,7 @@ import {
   PrivateDurableBrowserHostV2, PrivateDurableBrowserStorageV2, PrivateOriginBrowserRouterV2, runPrivateBrowserRustProviderV2,
   type PrivateBrowserRustProviderBridgeV2, type PrivateFinalizedHostAuthorityV2,
 } from "../../../internal/browser-host-v2.ts";
+import { PrivateCordCommonsRuntimeBridgeV2 } from "../../../internal/commons-runtime-bridge-v2.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const frozen = JSON.parse(readFileSync(resolve(root, "docs/specs/origin-host-registry-v2.vectors.json"), "utf8"));
@@ -626,6 +628,78 @@ test("six-authority router keeps all 30 non-provider operations and grants off t
   assert.deepEqual(routed.provider, []);
   assert.deepEqual([routed.commons.length, routed.keys.length, routed.runtimeIdentity.length, routed.hostIdentity.length, routed.signing.length], [20, 2, 3, 4, 1]);
   assert.equal([...routed.runtimeIdentity, ...routed.hostIdentity, ...routed.signing].length, 8);
+});
+
+test("concrete Commons bridge publishes and resolves through exact native finality without provider traffic", async () => {
+  const publishVector = frozen.vectors.find((candidate: any) => candidate.id === "1050-positive");
+  const resolveVector = frozen.vectors.find((candidate: any) => candidate.id === "1051-positive");
+  const publishFrame = decodeHostV2("RequestV2", bytes(publishVector.wire_hex)).value as any;
+  const cid = publishFrame[8][1] as string;
+  const digest = parseContentCid(cid).digest;
+  const digestHex = `0x${Buffer.from(digest).toString("hex")}` as const;
+  const nameHex = `0x${"22".repeat(32)}` as const;
+  const bucketHex = `0x${"55".repeat(32)}` as const;
+  const finalized99 = `0x${"42".repeat(32)}` as const;
+  const finalized100 = `0x${"43".repeat(32)}` as const;
+  const calls: { kind: string; at: string; target: string; payload: unknown }[] = [];
+  const signer = { async accounts() { throw new Error("unused"); }, async sign() { throw new Error("unused"); } };
+  const runtime = {
+    async read(at: `0x${string}`, target: string, payload: Readonly<Record<string, unknown>>) {
+      calls.push({ kind: "read", at, target, payload });
+      if (target === "NamesApi.root_name_by_normalized_label") return { version: 1, value: nameHex };
+      if (target === "NamesApi.resolve_content") return { version: 1, value: digestHex };
+      if (target === "StorageProviderApi.canonical_manifest") return {
+        version: 11, value: { manifest: digestHex, bucket_id: bucketHex, state: "Publishable", checkpoint: 77 },
+      };
+      if (target === "StorageProviderApi.checkpoint") return {
+        version: 11, value: { bucket_id: bucketHex, commitment: { mmr_root: `0x${"66".repeat(32)}`, start_seq: 8, leaf_count: 3 },
+          checkpoint_block: 77, primary_signers: 1, commitment_nonce: 70, replica_confirmations: [nameHex, bucketHex] },
+      };
+      throw new Error(`unexpected read ${target}`);
+    },
+    async prepare(at: `0x${string}`, target: string, payload: Readonly<Record<string, unknown>>) {
+      calls.push({ kind: "prepare", at, target, payload });
+      assert.equal(target, "Names.set_content");
+      assert.deepEqual(payload, { name: nameHex, content: digestHex });
+      return { async *signSubmitAndWatch(exactSigner: unknown) {
+        assert.equal(exactSigner, signer); yield { type: "broadcast" as const };
+        yield { type: "finalized" as const, blockHash: finalized100, transactionHash: `0x${"77".repeat(32)}` as const };
+      } };
+    },
+  };
+  const verified: string[] = [];
+  const commons = new PrivateCordCommonsRuntimeBridgeV2({
+    runtime, signer: signer as never,
+    finality: {
+      async finalized() { return { number: 99n, hash: finalized99, proof: Uint8Array.of(0xa1) }; },
+      async verify(hash) { verified.push(hash); assert.equal(hash, finalized100); return { number: 100n, hash, proof: Uint8Array.of(0xa2) }; },
+    },
+    events: { async events(receipt) {
+      assert.deepEqual(receipt, { blockHash: finalized100, transactionHash: `0x${"77".repeat(32)}` });
+      return [{ pallet: "Names", event: "ContentSet", fields: { name: nameHex, present: true }, eventIndex: 9 }];
+    } },
+  });
+  let providerTraffic = 0;
+  const unreachable = { async finalizedAuthority() { throw new Error("unreachable authority"); }, async *dispatch() { throw new Error("unreachable dispatch"); } };
+  const router = new PrivateOriginBrowserRouterV2({
+    provider: { async invoke() { providerTraffic += 1; throw new Error("provider MessagePort received Commons traffic"); } },
+    commons, keystore: unreachable, identityRuntime: unreachable, identityHost: unreachable, signing: unreachable,
+  });
+  const published = await router.invoke("storage.publish", bytes(publishVector.wire_hex));
+  assert.equal(published.error, undefined); assert.equal((published.value as any).cid, cid);
+  const resolved = await router.invoke("storage.resolve", bytes(resolveVector.wire_hex));
+  assert.equal(resolved.error, undefined); assert.equal((resolved.value as any).cid, cid);
+  assert.equal((resolved.value as any).checkpoint.from, 8n); assert.equal((resolved.value as any).checkpoint.to, 10n);
+  assert.deepEqual(verified, [finalized100]); assert.equal(providerTraffic, 0);
+  assert.deepEqual(calls.map(({ kind, at, target }) => `${kind}:${at}:${target}`), [
+    `read:${finalized99}:StorageProviderApi.canonical_manifest`,
+    `prepare:${finalized99}:Names.set_content`,
+    `read:${finalized100}:NamesApi.resolve_content`,
+    `read:${finalized99}:NamesApi.root_name_by_normalized_label`,
+    `read:${finalized99}:NamesApi.resolve_content`,
+    `read:${finalized99}:StorageProviderApi.canonical_manifest`,
+    `read:${finalized99}:StorageProviderApi.checkpoint`,
+  ]);
 });
 
 test("real provider MessagePorts accept exactly the four provider-byte operations", async () => {
