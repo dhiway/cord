@@ -31,6 +31,13 @@ import {
   validateStorageV2Resume,
   type StorageV2Operation,
 } from "../src/internal/storage-v2-intents.ts";
+import { encodeStorageV2Intent, storageV2Hex } from "../src/internal/storage-v2-codec.ts";
+import {
+  validateStorageV2Error,
+  validateStorageV2Payload,
+  validateStorageV2Progress,
+  validateStorageV2Result,
+} from "../src/internal/storage-v2-validation.ts";
 
 const bytes16 = (fill: number) => storageV2Bytes16(new Uint8Array(16).fill(fill));
 const bytes32 = (fill: number) => storageV2Bytes32(new Uint8Array(32).fill(fill));
@@ -116,19 +123,85 @@ test("intent creation enforces exact operation code and per-operation grants", (
   } as never), /operationId is required/);
 });
 
-test("events are Accepted-first, contiguous, request-bound, and terminal", () => {
+test("hostile payload and result bounds fail closed", () => {
   const requestId = bytes16(0x11);
-  const sequence = new StorageV2EventSequence<"storage.object.put">(requestId);
-  sequence.accept({ kind: "accepted", requestId, seq: 0, state: 0 });
-  sequence.accept({ kind: "progress", requestId, seq: 1, completed: 1n, chunksAcked: 1n });
-  sequence.accept({ kind: "cancelled", requestId, seq: 2 });
-  assert.equal(sequence.terminal, true);
-  assert.throws(() => sequence.accept({ kind: "cancelled", requestId, seq: 3 }), /after terminal/);
+  const grantId = bytes32(0x22);
+  const operationId = bytes16(0x33);
+  const bucketId = bytes32(0x44);
+  const reject = (operation: StorageV2Operation, payload: unknown, pattern: RegExp) => assert.throws(
+    () => validateStorageV2Payload(operation, payload as never), pattern,
+  );
+  reject("storage.bucket.create", { replicaCount: 1, providers: [bytes32(1)], encryption: 0 }, /2-4 providers/);
+  reject("storage.bucket.grant", { bucketId, subject: bytes32(2), role: 1, issuedAt: 2n, expiresAt: 2n }, /greater than issuedAt/);
+  reject("storage.object.range", { bucketId, cid: "bafk", offset: 0n, length: 0n }, /positive u64/);
+  reject("storage.drive.commit", { bucketId, manifest: "bafk", bytes: new Uint8Array(), expectedVersion: 0n, mode: 0 }, /1-4194304 bytes/);
+  reject("storage.s3.list", { bucket: "bucket", limit: 101 }, /1..100/);
+  reject("storage.keys.export", { bucketId, keyVersion: 1, recipientKey: new Uint8Array(31) }, /32-256 bytes/);
+  reject("storage.object.put", { bucketId, cid: "bafk", length: 1n, encrypted: 0, transferId: operationId, extra: true }, /record shape/);
 
-  const skipped = new StorageV2EventSequence<"storage.object.get">(requestId);
-  assert.throws(() => skipped.accept({ kind: "progress", requestId, seq: 0, completed: 0n }), /first event/);
-  skipped.accept({ kind: "accepted", requestId, seq: 0, state: 0 });
-  assert.throws(() => skipped.accept({ kind: "error", requestId, seq: 2, code: 105, name: "WIRE_SEQUENCE_INVALID", retryable: false }), /sequence must be 1/);
+  assert.throws(() => validateStorageV2Result("storage.object.put", {
+    receipt: { provider: bytes32(1), cid: "bafk", length: 1n, signature: new Uint8Array(63) },
+    publishable: true,
+    finalized: { number: 1n, hash: bytes32(2) },
+  }), /64 bytes/);
+  assert.throws(() => validateStorageV2Result("storage.object.range", {
+    cid: "bafk", offset: 9n, length: 2n, total: 10n,
+    checkpoint: { root: bytes32(1), from: 1n, to: 2n, replicas: 2 },
+  }), /range exceeds total/);
+  assert.throws(() => validateStorageV2Result("storage.keys.export", {
+    wrappedKey: new Uint8Array(31), algorithm: 1, keyVersion: 1,
+  }), /32-1024 bytes/);
+});
+
+test("progress and frozen error tuples are operation-exact", () => {
+  const requestId = bytes16(0x11);
+  assert.throws(() => validateStorageV2Progress("storage.object.get", {
+    kind: "progress", requestId, seq: 1, completed: 1n,
+  } as never), /offset,bytes/);
+  assert.throws(() => validateStorageV2Progress("storage.object.put", {
+    kind: "progress", requestId, seq: 1, offset: 0n, bytes: new Uint8Array([1]),
+  } as never), /completed/);
+  assert.throws(() => validateStorageV2Progress("storage.s3.get", {
+    kind: "progress", requestId, seq: 1, offset: 0n, bytes: new Uint8Array(4_194_305),
+  }), /0-4194304 bytes/);
+  validateStorageV2Error({
+    kind: "error", requestId, seq: 1, code: 114, name: "HOST_OUTBOX_FULL", retryable: true,
+    details: { message: "capacity", lower: 1n, upper: 2n, hash: bytes32(3) },
+  });
+  assert.throws(() => validateStorageV2Error({
+    kind: "error", requestId, seq: 1, code: 114, name: "HOST_OUTBOX_FULL", retryable: false,
+  }), /code\/name\/retryability drift/);
+  assert.throws(() => validateStorageV2Error({
+    kind: "error", requestId, seq: 1, code: 999, name: "UNKNOWN", retryable: false,
+  }), /code\/name\/retryability drift/);
+});
+
+test("cancel is idempotent, terminal, and revokes resume authority", () => {
+  const requestId = bytes16(0x11);
+  const sequence = new StorageV2EventSequence("storage.object.put", requestId);
+  sequence.accept({ kind: "accepted", requestId, seq: 0, state: 0 });
+  sequence.authorizeResume({ kind: "provider-token", token: new Uint8Array([1]) });
+  assert.equal(sequence.resumeAuthority, true);
+  assert.equal(sequence.requestCancel(), true);
+  assert.equal(sequence.requestCancel(), false);
+  assert.equal(sequence.resumeAuthority, false);
+  assert.throws(() => sequence.authorizeResume({ kind: "provider-token", token: new Uint8Array([1]) }), /not live/);
+  assert.throws(() => sequence.accept({ kind: "progress", requestId, seq: 1, completed: 1n }), /cannot emit later progress/);
+  sequence.accept({ kind: "cancelled", requestId, seq: 1 });
+  assert.equal(sequence.terminal, true);
+  assert.throws(() => sequence.accept({ kind: "cancelled", requestId, seq: 2 }), /after terminal/);
+});
+
+test("typed TS codec emits the frozen canonical CBOR frame", async () => {
+  const requestId=bytes16(0x11);const grantId=bytes32(0x22);const operationId=bytes16(0x33);
+  const intent=createStorageV2Intent("storage.bucket.create",{
+    requestId,productId:"festival",grantId,operationId,deadlineBlock:100n,
+    payload:{replicaCount:1,providers:[bytes32(0x22),bytes32(0x22)],encryption:0},
+  });
+  const vectors=JSON.parse(await readFile(resolve(import.meta.dirname,"../../../..","docs/specs/origin-host-registry-v2.vectors.json"),"utf8")) as {vectors:Array<{id:string;wire_hex:string}>};
+  const golden=vectors.vectors.find(({id})=>id==="1000-positive");
+  assert.ok(golden);
+  assert.equal(storageV2Hex(encodeStorageV2Intent(intent)),golden.wire_hex);
 });
 
 test("resume state is operation-specific and v2 remains outside the public entrypoint", async () => {

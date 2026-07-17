@@ -21,6 +21,14 @@
  * This module is deliberately absent from the package entrypoint until the P4 authority cutover.
  */
 
+
+import {
+  validateStorageV2Error,
+  validateStorageV2Payload,
+  validateStorageV2Progress,
+  validateStorageV2Result,
+} from "./storage-v2-validation.ts";
+
 export const STORAGE_V2_PROTOCOL = "cord.origin.host/2" as const;
 export const STORAGE_V2_MAJOR = 2 as const;
 export const STORAGE_V2_MINOR = 0 as const;
@@ -193,11 +201,24 @@ export interface StorageV2Intent<Operation extends StorageV2Operation = StorageV
   readonly payload: StorageV2PayloadMap[Operation];
 }
 
+export type StorageV2ByteProgressOperation = "storage.object.get" | "storage.object.range" | "storage.s3.get";
+export type StorageV2Progress<Operation extends StorageV2Operation> = Operation extends StorageV2ByteProgressOperation
+  ? { readonly kind: "progress"; readonly requestId: RequestId; readonly seq: number; readonly offset: bigint; readonly bytes: Uint8Array }
+  : { readonly kind: "progress"; readonly requestId: RequestId; readonly seq: number; readonly completed: bigint; readonly total?: bigint; readonly chunksAcked?: bigint; readonly replicasConfirmed?: bigint; readonly bytes?: never };
+export interface StorageV2ErrorEvent {
+  readonly kind: "error";
+  readonly requestId: RequestId;
+  readonly seq: number;
+  readonly code: number;
+  readonly name: string;
+  readonly retryable: boolean;
+  readonly details?: { readonly message?: string; readonly lower?: bigint; readonly upper?: bigint; readonly hash?: Uint8Array };
+}
 export type StorageV2Event<Operation extends StorageV2Operation = StorageV2Operation> =
   | { readonly kind: "accepted"; readonly requestId: RequestId; readonly seq: 0; readonly state: 0 | 1 | 2 | 3 | 4 }
-  | { readonly kind: "progress"; readonly requestId: RequestId; readonly seq: number; readonly completed: bigint; readonly total?: bigint; readonly chunksAcked?: bigint; readonly replicasConfirmed?: bigint; readonly bytes?: Uint8Array }
+  | StorageV2Progress<Operation>
   | { readonly kind: "result"; readonly requestId: RequestId; readonly seq: number; readonly value: StorageV2ResultMap[Operation] }
-  | { readonly kind: "error"; readonly requestId: RequestId; readonly seq: number; readonly code: number; readonly name: string; readonly retryable: boolean; readonly details?: Readonly<Record<string, unknown>> }
+  | StorageV2ErrorEvent
   | { readonly kind: "cancelled"; readonly requestId: RequestId; readonly seq: number };
 
 export type StorageV2Resume =
@@ -279,9 +300,7 @@ export function createStorageV2Intent<Operation extends StorageV2Operation>(
   if (idempotencyKey !== undefined && (idempotencyKey.byteLength < 1 || idempotencyKey.byteLength > 64)) {
     throw new TypeError("idempotencyKey must contain 1-64 bytes");
   }
-  if (typeof input.payload !== "object" || input.payload === null || Array.isArray(input.payload)) {
-    throw new TypeError("payload must be a typed storage v2 record");
-  }
+  validateStorageV2Payload(operation, input.payload);
   return {
     protocol: STORAGE_V2_PROTOCOL,
     major: STORAGE_V2_MAJOR,
@@ -300,11 +319,30 @@ export function createStorageV2Intent<Operation extends StorageV2Operation>(
 }
 
 export class StorageV2EventSequence<Operation extends StorageV2Operation> {
+  readonly #operation: Operation;
   readonly #requestId: RequestId;
   #next = 0;
   #terminal = false;
+  #cancelRequested = false;
+  #resumeAuthority: boolean;
 
-  constructor(requestId: RequestId) { this.#requestId = requestId.slice() as RequestId; }
+  constructor(operation: Operation, requestId: RequestId) {
+    this.#operation = operation;
+    this.#requestId = requestId.slice() as RequestId;
+    this.#resumeAuthority = storageV2OperationContract(operation).resume !== "none";
+  }
+
+  requestCancel(): boolean {
+    if (this.#terminal || this.#cancelRequested) return false;
+    this.#cancelRequested = true;
+    this.#resumeAuthority = false;
+    return true;
+  }
+
+  authorizeResume(resume: StorageV2Resume): void {
+    if (!this.#resumeAuthority || this.#cancelRequested || this.#terminal) throw new TypeError("resume authority is not live");
+    validateStorageV2Resume(this.#operation, resume);
+  }
 
   accept(event: StorageV2Event<Operation>): void {
     if (this.#terminal) throw new TypeError("event received after terminal storage v2 event");
@@ -315,11 +353,17 @@ export class StorageV2EventSequence<Operation extends StorageV2Operation> {
     if (event.seq !== this.#next) throw new TypeError(`event sequence must be ${this.#next}`);
     if (this.#next === 0 && event.kind !== "accepted") throw new TypeError("first event must be accepted");
     if (this.#next > 0 && event.kind === "accepted") throw new TypeError("accepted event must appear exactly once");
+    if (this.#cancelRequested && event.kind !== "cancelled") throw new TypeError("cancelled operation cannot emit later progress or effects");
+    if (event.kind === "progress") validateStorageV2Progress(this.#operation, event as StorageV2Progress<StorageV2Operation>);
+    if (event.kind === "result") validateStorageV2Result(this.#operation, event.value);
+    if (event.kind === "error") validateStorageV2Error(event);
     this.#next += 1;
     this.#terminal = event.kind === "result" || event.kind === "error" || event.kind === "cancelled";
+    if (this.#terminal) this.#resumeAuthority = false;
   }
 
   get terminal(): boolean { return this.#terminal; }
+  get resumeAuthority(): boolean { return this.#resumeAuthority; }
 }
 
 export function validateStorageV2Resume(operation: StorageV2Operation, resume: StorageV2Resume): void {
