@@ -57,6 +57,20 @@ const utf8 = new TextEncoder();
 const utf8Decoder = new TextDecoder("utf-8", { fatal: true });
 const MAX_U64 = 0xffff_ffff_ffff_ffffn;
 
+function utf8Bytes(value: string, label: string): Uint8Array {
+  for (let index = 0; index < value.length; index += 1) {
+    const unit = value.charCodeAt(index);
+    if (unit >= 0xd800 && unit <= 0xdbff) {
+      const next = value.charCodeAt(index + 1);
+      if (!(next >= 0xdc00 && next <= 0xdfff)) failSchema(`${label} contains an unpaired UTF-16 surrogate`);
+      index += 1;
+    } else if (unit >= 0xdc00 && unit <= 0xdfff) {
+      failSchema(`${label} contains an unpaired UTF-16 surrogate`);
+    }
+  }
+  return utf8.encode(value);
+}
+
 function failSchema(message: string): never {
   throw new HostV2CodecError("WIRE_SCHEMA_INVALID", message);
 }
@@ -127,7 +141,7 @@ export function encodeHostV2Value(value: HostV2Value): Uint8Array {
   if (typeof value === "number" || typeof value === "bigint") return encodeHead(0, asUnsigned(value, "value"));
   if (typeof value === "string") {
     if (value.normalize("NFC") !== value) failSchema("text must already be NFC");
-    const bytes = utf8.encode(value);
+    const bytes = utf8Bytes(value, "text");
     return concat([encodeHead(3, BigInt(bytes.length)), bytes]);
   }
   if (value instanceof Uint8Array) return concat([encodeHead(2, BigInt(value.length)), value]);
@@ -299,7 +313,7 @@ function validateNode(node: HostV2SchemaNode, value: HostV2Value, path: string):
   }
   if (node.kind === "text") {
     if (typeof value !== "string") return failSchema(`${path} must be text`);
-    const length = utf8.encode(value).length;
+    const length = utf8Bytes(value, path).length;
     if (length < node.min || length > node.max || (node.nfc === true && value.normalize("NFC") !== value)) {
       return failSchema(`${path} violates text bounds`);
     }
@@ -341,8 +355,12 @@ function applyCrossFieldRules(production: HostV2TypeName, value: HostV2Value): v
       for (let index = 1; index < field.length; index += 1) {
         const previous = field[index - 1];
         const current = field[index];
-        if (!(previous instanceof Uint8Array) || !(current instanceof Uint8Array)
-          || compareBytes(previous, current) >= 0) failSchema(`${production} violates ${rule.id}`);
+        const ordered = previous instanceof Uint8Array && current instanceof Uint8Array
+          ? compareBytes(previous, current) < 0
+          : typeof previous === "string" && typeof current === "string"
+            ? compareBytes(utf8Bytes(previous, `${production}/${rule.key}`), utf8Bytes(current, `${production}/${rule.key}`)) < 0
+            : false;
+        if (!ordered) failSchema(`${production} violates ${rule.id}`);
       }
     }
   }
