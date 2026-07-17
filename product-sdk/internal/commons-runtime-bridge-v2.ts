@@ -353,6 +353,9 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     if (parsed.version !== 1 || parsed.codec !== "raw" || parsed.multihash !== "blake2b-256") {
       throw new CommonsHostFailure(204, "Names publication requires canonical raw BLAKE2b-256 CIDv1");
     }
+    if (cidForCommitment(parsed.digest) !== cid) {
+      throw new CommonsHostFailure(204, "Names publication CID must use canonical base32lower encoding");
+    }
     const commitment = hex(parsed.digest, 32, "content commitment");
     const manifest = versioned<ManifestInfo>(await this.#runtime.read(hex(authority.hash), "StorageProviderApi.canonical_manifest", { manifest: commitment }, signal), "canonical manifest");
     if (manifest.value === null || enumName(manifest.value.state) !== "publishable") {

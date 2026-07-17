@@ -37,6 +37,7 @@ interface ActiveBrowserRequest {
   readonly session: HostV2Session; readonly outboxId: Uint8Array; readonly operationId: Uint8Array;
   readonly expectedResponseKind: number;
   readonly operationCode: number;
+  readonly uploadPhase?: "initial" | "chunk" | "finalize";
 }
 
 export class DurableBrowserHostV2 {
@@ -52,22 +53,30 @@ export class DurableBrowserHostV2 {
   }
   async prepareAndSend(input: BrowserPrepareOutboxV1, options: BrowserHostV2IoOptions = {}): Promise<BrowserOutboxRetryV1> {
     const retry = await this.#outbox.prepare(input); this.#begin(retry);
-    try { await this.#sendRetry(retry, options); await this.#outbox.markSent(retry.outboxId); } catch (error) { this.#transport.close(); throw error; }
+    try { await this.#sendRetry(retry, options); await this.#outbox.markSent(retry.outboxId); } catch (error) { this.#resetAfterTransportFailure(); throw error; }
     return retry;
   }
   async prepareSuccessorAndSend(predecessorOutboxId: Uint8Array, input: BrowserPrepareOutboxV1, options: BrowserHostV2IoOptions = {}): Promise<BrowserOutboxRetryV1> {
     const retry = await this.#outbox.prepareSuccessor(predecessorOutboxId, input); this.#begin(retry);
-    try { await this.#sendRetry(retry, options); await this.#outbox.markSent(retry.outboxId); } catch (error) { this.#transport.close(); throw error; }
+    try { await this.#sendRetry(retry, options); await this.#outbox.markSent(retry.outboxId); } catch (error) { this.#resetAfterTransportFailure(); throw error; }
     return retry;
   }
   async resumeAndSend(outboxId: Uint8Array, finalized: bigint, options: BrowserHostV2IoOptions = {}): Promise<BrowserOutboxRetryV1> {
     const retry = this.#outbox.retry(outboxId, finalized); this.#begin(retry);
-    try { await this.#sendRetry(retry, options); } catch (error) { this.#transport.close(); throw error; } return retry;
+    try { await this.#sendRetry(retry, options); } catch (error) { this.#resetAfterTransportFailure(); throw error; } return retry;
+  }
+  async resumeLinkedSuccessorAndSend(predecessorOutboxId: Uint8Array, finalized: bigint, options: BrowserHostV2IoOptions = {}): Promise<BrowserOutboxRetryV1 | undefined> {
+    const retry = this.#outbox.linkedSuccessor(predecessorOutboxId, finalized);
+    if (!retry) return undefined;
+    this.#begin(retry);
+    try { await this.#sendRetry(retry, options); }
+    catch (error) { this.#resetAfterTransportFailure(); throw error; }
+    return retry;
   }
   async prepareCancelAndSend(exactCancel: Uint8Array, options: BrowserHostV2IoOptions = {}): Promise<BrowserOutboxRetryV1> {
     const active = this.#active; if (!active || active.session.isClosed) throw new Error("browser host-v2 session cannot prepare cancel");
     const retry = await this.#outbox.prepareCancel(active.outboxId, exactCancel, active.session.nextExpectedSequence);
-    try { await this.#sendRetry(retry, options); await this.#outbox.markSent(retry.outboxId); } catch (error) { this.#transport.close(); throw error; }
+    try { await this.#sendRetry(retry, options); await this.#outbox.markSent(retry.outboxId); } catch (error) { this.#resetAfterTransportFailure(); throw error; }
     this.#active = { ...active, expectedResponseKind: 4 }; return retry;
   }
   async receiveEvent(terminalBlock: bigint, options: BrowserHostV2IoOptions = {}): Promise<DurableBrowserEvent> {
@@ -97,6 +106,15 @@ export class DurableBrowserHostV2 {
     const active = this.#active;
     if (!active) throw new Error("browser host-v2 session has not sent a durable request");
     const event = active.session.accept(bytes);
+    if (active.uploadPhase === "initial" && (event[3] === 2 || (!active.session.isTerminal && event[3] !== 0))) {
+      this.#transport.close(); throw new Error("successful browser object.put initial generation must install its upload continuation");
+    }
+    if (active.uploadPhase === "chunk" && (event[3] === 2 || (!active.session.isTerminal && event[3] !== 1))) {
+      this.#transport.close(); throw new Error("successful browser object.put chunk generation must progress to a no-payload finalize generation");
+    }
+    if (active.uploadPhase === "finalize" && !active.session.isTerminal) {
+      this.#transport.close(); throw new Error("browser object.put finalize generation must be terminal");
+    }
     if (!active.session.isTerminal) return { terminal: false, event: bytes.slice() };
     if (event[3] !== 3 && event[3] !== active.expectedResponseKind) { this.#transport.close(); throw new Error("browser terminal result kind mismatches durable request"); }
     const operation = Object.values(HOST_V2_OPERATION_BINDINGS).find(({ code }) => code === active.operationCode);
@@ -117,9 +135,6 @@ export class DurableBrowserHostV2 {
       return { terminal: true, event: bytes.slice(), responseHash: installed.responseHash, outboxId };
     } catch (error) { this.#transport.close(); throw error; }
   }
-  async sendProviderTransferChunk(exactChunk: Uint8Array, options: BrowserHostV2IoOptions = {}): Promise<void> {
-    await this.#transport.send("ProviderTransferChunkV1", exactChunk, options);
-  }
   async resumeAck(outboxId: Uint8Array, options: BrowserHostV2IoOptions = {}): Promise<Uint8Array> {
     const installed = this.#outbox.installedAck(outboxId);
     try { await this.#transport.send("ResponseAckV1", installed.ack, options); } catch (error) { this.#transport.close(); throw error; }
@@ -130,11 +145,13 @@ export class DurableBrowserHostV2 {
     const message = providerAckConfirmationMessage(context, confirmation.outboxId, confirmation.responseHash);
     if (!await this.#outbox.verifyProviderAck(binding.acknowledgementPublicKey, message, confirmation.signature)) throw new Error("browser provider acknowledgement confirmation is unauthenticated");
     await this.#outbox.confirmAck(confirmation.outboxId, confirmation.responseHash);
+    await this.#outbox.retireUploadSpool(confirmation.outboxId);
     return this.#outbox.gc(finalized, 1);
   }
   async #sendRetry(retry: BrowserOutboxRetryV1, options: BrowserHostV2IoOptions): Promise<void> {
     const authority = authorityProduction(retry.authority); const request = retry.cancel ? "CancelledEventV2" : "RequestV2";
     await Promise.all([this.#transport.send(request, retry.request, options), this.#transport.send(authority, retry.authority, options)]);
+    if (retry.uploadChunk) await this.#transport.send("ProviderTransferChunkV1", retry.uploadChunk, options);
   }
   #begin(retry: BrowserOutboxRetryV1): void {
     if (this.#active) throw new Error("browser host-v2 transport already has a session");
@@ -143,8 +160,10 @@ export class DurableBrowserHostV2 {
         ? HostV2Session.resume(this.#transport.negotiation, retry.requestId, retry.intendedCursor)
         : new HostV2Session(this.#transport.negotiation, retry.requestId),
       outboxId: retry.outboxId.slice(), operationId: retry.operationId.slice(), expectedResponseKind: retry.expectedResponseKind, operationCode: retry.operationCode,
+      ...(retry.uploadPhase ? { uploadPhase: retry.uploadPhase } : {}),
     };
   }
+  #resetAfterTransportFailure(): void { this.#active = undefined; this.#pendingSuccessorEvent = undefined; this.#transport.close(); }
 }
 function authorityProduction(bytes: Uint8Array): "ProviderCapabilityV1" | "ResumeTokenV1" { try { decodeHostV2("ProviderCapabilityV1", bytes); return "ProviderCapabilityV1"; } catch { decodeHostV2("ResumeTokenV1", bytes); return "ResumeTokenV1"; } }
 function equal(left: Uint8Array, right: Uint8Array): boolean { return left.length === right.length && left.every((byte, index) => byte === right[index]); }
