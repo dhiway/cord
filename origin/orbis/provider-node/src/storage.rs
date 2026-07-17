@@ -1736,8 +1736,7 @@ fn validate_persisted_state_bounds(state: &PersistedState) -> Result<(), StoreEr
 		state.pending_roots.len() > MAX_PROVIDER_INDEX_LEAVES ||
 		state.pending_deletions.len() > MAX_PROVIDER_INDEX_RECORDS ||
 		state.pending_checkpoint_duties.len() > MAX_PROVIDER_INDEX_RECORDS ||
-		state.pending_manifest_deletions.len() > MAX_PROVIDER_INDEX_RECORDS ||
-		state.checkpoints.len() > MAX_PROVIDER_INDEX_RECORDS
+		state.pending_manifest_deletions.len() > MAX_PROVIDER_INDEX_RECORDS
 	{
 		return Err(StoreError::Capacity);
 	}
