@@ -381,6 +381,22 @@ test("results bind profile finality, requested entitlement scope, and proof fres
 		receipt: { commitment: bytes(32, 2), validUntil: 120n },
 	});
 	assert.equal(!noFinality.success && noFinality.error.code, "WIRE_SCHEMA_INVALID");
+	const staleAccount = await response("identity.account", {
+		...outputByOperation["identity.account"], sessionExpiresAt: 100n,
+	});
+	assert.equal(!staleAccount.success && staleAccount.error.code, "WIRE_SCHEMA_INVALID");
+	const crossSnapshotAccount = await response("identity.account", {
+		...outputByOperation["identity.account"],
+		finalized: { blockNumber: 99n, blockHash: bytes(32, 7) },
+	});
+	assert.equal(!crossSnapshotAccount.success && crossSnapshotAccount.error.code, "WIRE_SCHEMA_INVALID");
+	const crossSnapshotProfile = await response("identity.profile.read", {
+		receipt: {
+			commitment: bytes(32, 2), validUntil: 120n,
+			finalized: { blockNumber: 99n, blockHash: bytes(32, 7) },
+		},
+	});
+	assert.equal(!crossSnapshotProfile.success && crossSnapshotProfile.error.code, "WIRE_SCHEMA_INVALID");
 	const staleProfile = await response("identity.profile.disclose", {
 		receipt: { commitment: bytes(32, 2), validUntil: 100n, finalized },
 	});
@@ -389,6 +405,37 @@ test("results bind profile finality, requested entitlement scope, and proof fres
 		receipt: { commitment: bytes(32, 2), validUntil: 121n, finalized },
 	});
 	assert.equal(!overlongDisclosure.success && overlongDisclosure.error.code, "WIRE_SCHEMA_INVALID");
+	const staleHumanity = await response("identity.humanity.status", {
+		...outputByOperation["identity.humanity.status"], freshUntil: 100n,
+	});
+	assert.equal(!staleHumanity.success && staleHumanity.error.code, "WIRE_SCHEMA_INVALID");
+	const historicalHash = bytes(32, 9);
+	const historicalProfileBridge: IdentityV2Bridge = { async request() {
+		return { success: true, value: {
+			receipt: {
+				commitment: bytes(32, 2), validUntil: 110n,
+				finalized: { blockNumber: 99n, blockHash: historicalHash },
+			},
+		} };
+	} };
+	const historicalProfile = await createIdentityV2Client("festival", historicalProfileBridge).profileRead(
+		grant("identity.profile.read"),
+		{ ...inputByOperation["identity.profile.read"], at: historicalHash },
+		operationOptions("identity.profile.read"),
+	);
+	assert.equal(historicalProfile.success, true);
+	const futureHistoricalBridge: IdentityV2Bridge = { async request() {
+		return { success: true, value: {
+			...outputByOperation["identity.humanity.status"],
+			finalized: { blockNumber: 101n, blockHash: historicalHash },
+		} };
+	} };
+	const futureHistorical = await createIdentityV2Client("festival", futureHistoricalBridge).humanityStatus(
+		grant("identity.humanity.status"),
+		{ ...inputByOperation["identity.humanity.status"], at: historicalHash },
+		operationOptions("identity.humanity.status"),
+	);
+	assert.equal(!futureHistorical.success && futureHistorical.error.code, "WIRE_SCHEMA_INVALID");
 	const wrongScope = await response("identity.entitlements.read", {
 		...outputByOperation["identity.entitlements.read"], scope: "other",
 	});
@@ -397,10 +444,20 @@ test("results bind profile finality, requested entitlement scope, and proof fres
 		...outputByOperation["identity.entitlements.read"], freshUntil: 100n,
 	});
 	assert.equal(!staleEntitlement.success && staleEntitlement.error.code, "WIRE_SCHEMA_INVALID");
+	const crossSnapshotEntitlement = await response("identity.entitlements.read", {
+		...outputByOperation["identity.entitlements.read"],
+		finalized: { blockNumber: 99n, blockHash: bytes(32, 7) },
+	});
+	assert.equal(!crossSnapshotEntitlement.success && crossSnapshotEntitlement.error.code, "WIRE_SCHEMA_INVALID");
 	const overlongProof = await response("identity.humanity.prove", {
 		...outputByOperation["identity.humanity.prove"], expiresAt: 121n,
 	});
 	assert.equal(!overlongProof.success && overlongProof.error.code, "WIRE_SCHEMA_INVALID");
+	const crossSnapshotTransaction = await response("transaction.sign", {
+		...outputByOperation["transaction.sign"],
+		finalized: { blockNumber: 99n, blockHash: bytes(32, 7) },
+	});
+	assert.equal(!crossSnapshotTransaction.success && crossSnapshotTransaction.error.code, "WIRE_SCHEMA_INVALID");
 });
 
 test("all exact numeric error envelopes are operation-scoped and tuple-closed", () => {
@@ -465,6 +522,37 @@ test("fresh-consent replay and recovery-incarnation failures match frozen Identi
 	const oldGrant = grant("identity.subject.derive", { recoveryIncarnation: bytes(32, 7) });
 	const rejected = await call(client, "identity.subject.derive", oldGrant, options);
 	assert.equal(!rejected.success && rejected.error.code, old.expected_error);
+});
+
+test("fresh-consent replay state commits atomically only after a valid durable result", async () => {
+	let retryableFailure = true;
+	const bridge: IdentityV2Bridge = { async request(invocation) {
+		if (retryableFailure) {
+			retryableFailure = false;
+			return { success: false, error: { code: 114, name: "HOST_OUTBOX_FULL", retryable: true } };
+		}
+		return { success: true, value: outputByOperation[invocation.operation] };
+	} };
+	const client = createIdentityV2Client("festival", bridge);
+	const original = inputByOperation["identity.humanity.prove"];
+	const firstOptions = operationOptions("identity.humanity.prove");
+	const retry = await client.humanityProve(
+		grant("identity.humanity.prove"), original, firstOptions,
+	);
+	assert.equal(!retry.success && retry.error.retryable, true);
+	assert.equal((await client.humanityProve(
+		grant("identity.humanity.prove"), original, firstOptions,
+	)).success, true, "a retryable rejection must not burn operationId or challenge");
+
+	const secondOptions = { ...firstOptions, operationId: bytes(16, 77) };
+	const consumedChallenge = await client.humanityProve(
+		grant("identity.humanity.prove"), original, secondOptions,
+	);
+	assert.equal(!consumedChallenge.success && consumedChallenge.error.code, "IDENTITY_CHALLENGE_REPLAY");
+	const freshChallenge = { ...original, challenge: bytes(16, 78) };
+	assert.equal((await client.humanityProve(
+		grant("identity.humanity.prove"), freshChallenge, secondOptions,
+	)).success, true, "challenge rejection must not partially burn the new operationId");
 });
 
 test("all executable Identity vectors retain canonical, response, state, and effect commitments", () => {

@@ -599,12 +599,29 @@ impl IdentityResultV2 {
 	) -> Result<(), IdentityV2Error> {
 		self.validate_shape_for(request.operation())?;
 		match (self, request) {
+			(Self::Account(result), IdentityRequestV2::Account(_)) => {
+				let context = validate_result_finality(&result.finalized, finalized_block, None)?;
+				if result.session_expires_at <= context {
+					Err(IdentityV2Error::WireSchemaInvalid)
+				} else {
+					Ok(())
+				}
+			},
 			(Self::ProfileRead(result), IdentityRequestV2::ProfileRead(request)) => {
 				validate_profile_receipt(&result.receipt, finalized_block, request.at)
 			},
 			(Self::ProfileDisclose(result), IdentityRequestV2::ProfileDisclose(request)) => {
 				validate_profile_receipt(&result.receipt, finalized_block, None)?;
 				if result.receipt.valid_until > request.expires_at {
+					Err(IdentityV2Error::WireSchemaInvalid)
+				} else {
+					Ok(())
+				}
+			},
+			(Self::HumanityStatus(result), IdentityRequestV2::HumanityStatus(request)) => {
+				let context =
+					validate_result_finality(&result.finalized, finalized_block, request.at)?;
+				if result.fresh_until <= context {
 					Err(IdentityV2Error::WireSchemaInvalid)
 				} else {
 					Ok(())
@@ -618,20 +635,39 @@ impl IdentityResultV2 {
 				}
 			},
 			(Self::EntitlementsRead(result), IdentityRequestV2::EntitlementsRead(request)) => {
+				let context =
+					validate_result_finality(&result.finalized, finalized_block, request.at)?;
 				if result.scope != request.scope
-					|| result.expires_at <= finalized_block
-					|| result.fresh_until <= finalized_block
+					|| result.expires_at <= context
+					|| result.fresh_until <= context
 					|| result.fresh_until > result.expires_at
-					|| request.at.is_some_and(|at| at != result.finalized.block_hash)
 				{
 					Err(IdentityV2Error::WireSchemaInvalid)
 				} else {
 					Ok(())
 				}
 			},
+			(Self::TransactionSign(result), IdentityRequestV2::TransactionSign(_)) => {
+				validate_result_finality(&result.finalized, finalized_block, None).map(|_| ())
+			},
 			_ => Ok(()),
 		}
 	}
+}
+
+fn validate_result_finality(
+	finalized: &FinalizedIdentityV2,
+	invocation_finalized_block: u64,
+	requested_hash: Option<[u8; 32]>,
+) -> Result<u64, IdentityV2Error> {
+	if let Some(hash) = requested_hash {
+		if finalized.block_hash != hash || finalized.block_number > invocation_finalized_block {
+			return Err(IdentityV2Error::WireSchemaInvalid);
+		}
+	} else if finalized.block_number != invocation_finalized_block {
+		return Err(IdentityV2Error::WireSchemaInvalid);
+	}
+	Ok(finalized.block_number)
 }
 
 fn validate_profile_receipt(
@@ -642,9 +678,8 @@ fn validate_profile_receipt(
 	let Some(finalized) = &receipt.finalized else {
 		return Err(IdentityV2Error::WireSchemaInvalid);
 	};
-	if receipt.valid_until <= finalized_block
-		|| requested_hash.is_some_and(|hash| hash != finalized.block_hash)
-	{
+	let context = validate_result_finality(finalized, finalized_block, requested_hash)?;
+	if receipt.valid_until <= context {
 		return Err(IdentityV2Error::WireSchemaInvalid);
 	}
 	Ok(())
@@ -715,19 +750,26 @@ pub(crate) struct IdentityInvocationV2 {
 	pub(crate) grant_id: [u8; 32],
 	pub(crate) recovery_incarnation: [u8; 32],
 	pub(crate) deadline_block: u64,
+	#[serde(skip, default)]
+	finalized_block: u64,
 	pub(crate) operation: IdentityV2Operation,
 	pub(crate) input: IdentityRequestV2,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub(crate) operation_id: Option<[u8; 16]>,
+	#[serde(skip, default)]
+	replay_commit: FreshConsentReplayV2,
 }
 
 impl IdentityInvocationV2 {
-	pub(crate) fn validate_result(
+	pub(crate) fn validate_result(&self, result: &IdentityResultV2) -> Result<(), IdentityV2Error> {
+		result.validate_for_request(&self.input, self.finalized_block)
+	}
+
+	pub(crate) fn commit_durable_acceptance(
 		&self,
-		result: &IdentityResultV2,
-		finalized_block: u64,
+		replay_journal: &mut FreshConsentJournalV2,
 	) -> Result<(), IdentityV2Error> {
-		result.validate_for_request(&self.input, finalized_block)
+		replay_journal.commit(&self.replay_commit)
 	}
 
 	fn frame_value(&self) -> CborValue {
@@ -806,7 +848,7 @@ pub(crate) fn prepare_identity_v2_invocation(
 	finalized_block: u64,
 	current_recovery_incarnation: [u8; 32],
 	operation_id: Option<[u8; 16]>,
-	replay_journal: &mut FreshConsentJournalV2,
+	replay_journal: &FreshConsentJournalV2,
 ) -> Result<IdentityInvocationV2, IdentityV2Error> {
 	text(product_id, 128)?;
 	request.validate()?;
@@ -853,7 +895,12 @@ pub(crate) fn prepare_identity_v2_invocation(
 			return Err(IdentityV2Error::ProofExpired);
 		}
 	}
-	replay_journal.consume(&request, operation_id)?;
+	if let IdentityRequestV2::TransactionSign(signing) = &request {
+		if signing.expires_at <= finalized_block {
+			return Err(IdentityV2Error::DeadlineExpired);
+		}
+	}
+	let replay_commit = replay_journal.preflight(&request, operation_id)?;
 	Ok(IdentityInvocationV2 {
 		protocol: "cord.origin.host/2".into(),
 		code: operation as u16,
@@ -862,9 +909,11 @@ pub(crate) fn prepare_identity_v2_invocation(
 		grant_id: grant_core.id,
 		recovery_incarnation: grant_core.recovery_incarnation,
 		deadline_block,
+		finalized_block,
 		operation,
 		input: request,
 		operation_id,
+		replay_commit,
 	})
 }
 
@@ -896,6 +945,12 @@ pub(crate) const fn identity_recovery_disposition_v2(
 	}
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+struct FreshConsentReplayV2 {
+	operation_id: Option<[u8; 16]>,
+	proof_challenge: Option<Vec<u8>>,
+}
+
 #[derive(Default)]
 pub(crate) struct FreshConsentJournalV2 {
 	operation_ids: BTreeSet<[u8; 16]>,
@@ -903,20 +958,43 @@ pub(crate) struct FreshConsentJournalV2 {
 }
 
 impl FreshConsentJournalV2 {
-	pub(crate) fn consume(
-		&mut self,
+	fn preflight(
+		&self,
 		request: &IdentityRequestV2,
 		operation_id: Option<[u8; 16]>,
-	) -> Result<(), IdentityV2Error> {
+	) -> Result<FreshConsentReplayV2, IdentityV2Error> {
 		if let Some(operation_id) = operation_id {
-			if !self.operation_ids.insert(operation_id) {
+			if self.operation_ids.contains(&operation_id) {
 				return Err(IdentityV2Error::ChallengeReplay);
 			}
 		}
-		if let IdentityRequestV2::HumanityProve(proof) = request {
-			if !self.proof_challenges.insert(proof.challenge.clone()) {
+		let proof_challenge = if let IdentityRequestV2::HumanityProve(proof) = request {
+			if self.proof_challenges.contains(&proof.challenge) {
 				return Err(IdentityV2Error::ChallengeReplay);
 			}
+			Some(proof.challenge.clone())
+		} else {
+			None
+		};
+		Ok(FreshConsentReplayV2 { operation_id, proof_challenge })
+	}
+
+	fn commit(&mut self, accepted: &FreshConsentReplayV2) -> Result<(), IdentityV2Error> {
+		if accepted
+			.operation_id
+			.is_some_and(|operation_id| self.operation_ids.contains(&operation_id))
+			|| accepted
+				.proof_challenge
+				.as_ref()
+				.is_some_and(|challenge| self.proof_challenges.contains(challenge))
+		{
+			return Err(IdentityV2Error::ChallengeReplay);
+		}
+		if let Some(operation_id) = accepted.operation_id {
+			self.operation_ids.insert(operation_id);
+		}
+		if let Some(challenge) = &accepted.proof_challenge {
+			self.proof_challenges.insert(challenge.clone());
 		}
 		Ok(())
 	}
@@ -1172,9 +1250,11 @@ mod tests {
 				grant_id: [0x22; 32],
 				recovery_incarnation: [0x44; 32],
 				deadline_block: 100,
+				finalized_block: 100,
 				operation,
 				input: frozen_request(operation),
 				operation_id: operation.requires_fresh_consent().then_some([0x33; 16]),
+				replay_commit: FreshConsentReplayV2::default(),
 			};
 			assert_eq!(invocation.request_id, [0x11; 16]);
 			assert_eq!(invocation.deadline_block, 100);
@@ -1366,6 +1446,26 @@ mod tests {
 
 	#[test]
 	fn results_bind_to_request_and_finalized_freshness_context() {
+		let account_request =
+			IdentityRequestV2::Account(IdentityAccountRequestV2 { session: "selected".into() });
+		let stale_account = IdentityResultV2::Account(IdentityAccountResultV2 {
+			account: [1; 32],
+			session_expires_at: 100,
+			finalized: FinalizedIdentityV2 { block_number: 100, block_hash: [8; 32] },
+		});
+		assert_eq!(
+			stale_account.validate_for_request(&account_request, 100),
+			Err(IdentityV2Error::WireSchemaInvalid),
+		);
+		let cross_snapshot_account = IdentityResultV2::Account(IdentityAccountResultV2 {
+			account: [1; 32],
+			session_expires_at: 120,
+			finalized: FinalizedIdentityV2 { block_number: 99, block_hash: [7; 32] },
+		});
+		assert_eq!(
+			cross_snapshot_account.validate_for_request(&account_request, 100),
+			Err(IdentityV2Error::WireSchemaInvalid),
+		);
 		let profile_request = IdentityRequestV2::ProfileRead(IdentityProfileReadRequestV2 {
 			subject: [1; 32],
 			fields: vec!["display".into()],
@@ -1389,6 +1489,25 @@ mod tests {
 			wrong_hash.validate_for_request(&profile_request, 100),
 			Err(IdentityV2Error::WireSchemaInvalid),
 		);
+		let historical_profile = IdentityResultV2::ProfileRead(IdentityProfileReadResultV2 {
+			receipt: IdentityReceiptV2 {
+				commitment: [2; 32],
+				valid_until: 110,
+				finalized: Some(FinalizedIdentityV2 { block_number: 99, block_hash: [8; 32] }),
+			},
+		});
+		assert_eq!(historical_profile.validate_for_request(&profile_request, 100), Ok(()));
+		let future_profile = IdentityResultV2::ProfileRead(IdentityProfileReadResultV2 {
+			receipt: IdentityReceiptV2 {
+				commitment: [2; 32],
+				valid_until: 120,
+				finalized: Some(FinalizedIdentityV2 { block_number: 101, block_hash: [8; 32] }),
+			},
+		});
+		assert_eq!(
+			future_profile.validate_for_request(&profile_request, 100),
+			Err(IdentityV2Error::WireSchemaInvalid),
+		);
 		let disclose_request =
 			IdentityRequestV2::ProfileDisclose(IdentityProfileDiscloseRequestV2 {
 				audience: "festival.example".into(),
@@ -1406,6 +1525,19 @@ mod tests {
 			});
 		assert_eq!(
 			overlong_disclosure.validate_for_request(&disclose_request, 100),
+			Err(IdentityV2Error::WireSchemaInvalid),
+		);
+		let humanity_request = IdentityRequestV2::HumanityStatus(IdentityHumanityStatusRequestV2 {
+			subject: [1; 32],
+			at: None,
+		});
+		let stale_humanity = IdentityResultV2::HumanityStatus(IdentityHumanityStatusResultV2 {
+			status: 1,
+			fresh_until: 100,
+			finalized: FinalizedIdentityV2 { block_number: 100, block_hash: [8; 32] },
+		});
+		assert_eq!(
+			stale_humanity.validate_for_request(&humanity_request, 100),
 			Err(IdentityV2Error::WireSchemaInvalid),
 		);
 
@@ -1439,6 +1571,19 @@ mod tests {
 			stale.validate_for_request(&entitlement_request, 100),
 			Err(IdentityV2Error::WireSchemaInvalid),
 		);
+		let cross_snapshot_entitlement =
+			IdentityResultV2::EntitlementsRead(IdentityEntitlementsReadResultV2 {
+				allowed: true,
+				scope: "festival.entry".into(),
+				policy_version: 1,
+				expires_at: 120,
+				fresh_until: 110,
+				finalized: FinalizedIdentityV2 { block_number: 99, block_hash: [7; 32] },
+			});
+		assert_eq!(
+			cross_snapshot_entitlement.validate_for_request(&entitlement_request, 100),
+			Err(IdentityV2Error::WireSchemaInvalid),
+		);
 
 		let proof_request = IdentityRequestV2::HumanityProve(IdentityHumanityProveRequestV2 {
 			audience: "festival.example".into(),
@@ -1456,6 +1601,20 @@ mod tests {
 		assert_eq!(
 			overlong.validate_for_request(&proof_request, 100),
 			Err(IdentityV2Error::ProofExpired),
+		);
+		let transaction_request = IdentityRequestV2::TransactionSign(TransactionSignRequestV2 {
+			payload_hash: [1; 32],
+			policy_hash: [2; 32],
+			expires_at: 120,
+		});
+		let cross_snapshot_transaction =
+			IdentityResultV2::TransactionSign(TransactionSignResultV2 {
+				transaction_hash: [3; 32],
+				finalized: FinalizedIdentityV2 { block_number: 99, block_hash: [7; 32] },
+			});
+		assert_eq!(
+			cross_snapshot_transaction.validate_for_request(&transaction_request, 100),
+			Err(IdentityV2Error::WireSchemaInvalid),
 		);
 	}
 
@@ -1502,12 +1661,34 @@ mod tests {
 		assert_eq!(replay["expected_error"], IdentityV2Error::ChallengeReplay.to_string());
 		let mut journal = FreshConsentJournalV2::default();
 		let proof_request = request(IdentityV2Operation::IdentityHumanityProve);
-		assert_eq!(journal.consume(&proof_request, Some([7; 16])), Ok(()));
+		let accepted = journal.preflight(&proof_request, Some([7; 16])).unwrap();
+		assert_eq!(journal.commit(&accepted), Ok(()));
 		assert_eq!(
-			journal.consume(&proof_request, Some([8; 16])),
+			journal.preflight(&proof_request, Some([8; 16])),
 			Err(IdentityV2Error::ChallengeReplay),
 		);
+		let fresh_challenge = IdentityRequestV2::HumanityProve(IdentityHumanityProveRequestV2 {
+			audience: "festival.example".into(),
+			challenge: vec![4; 16],
+			expires_at: 120,
+			claims: vec![],
+		});
+		let operation_id_was_not_burned =
+			journal.preflight(&fresh_challenge, Some([8; 16])).unwrap();
+		assert_eq!(journal.commit(&operation_id_was_not_burned), Ok(()));
 		let mut integrated = FreshConsentJournalV2::default();
+		let pending = prepare_identity_v2_invocation(
+			"festival",
+			&grant(IdentityV2Operation::IdentityHumanityProve),
+			request(IdentityV2Operation::IdentityHumanityProve),
+			[0x11; 16],
+			150,
+			100,
+			[9; 32],
+			Some([7; 16]),
+			&integrated,
+		)
+		.unwrap();
 		assert!(prepare_identity_v2_invocation(
 			"festival",
 			&grant(IdentityV2Operation::IdentityHumanityProve),
@@ -1517,9 +1698,10 @@ mod tests {
 			100,
 			[9; 32],
 			Some([7; 16]),
-			&mut integrated,
+			&integrated,
 		)
 		.is_ok());
+		assert_eq!(pending.commit_durable_acceptance(&mut integrated), Ok(()));
 		assert_eq!(
 			prepare_identity_v2_invocation(
 				"festival",
@@ -1530,7 +1712,7 @@ mod tests {
 				100,
 				[9; 32],
 				Some([8; 16]),
-				&mut integrated,
+				&integrated,
 			),
 			Err(IdentityV2Error::ChallengeReplay),
 		);

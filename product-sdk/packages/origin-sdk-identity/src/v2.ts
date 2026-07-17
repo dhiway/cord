@@ -344,25 +344,45 @@ export function identityRecoveryDispositionV2(
 }
 
 /** Private replay state. A fresh-consent operation ID and a proof challenge are single-use. */
+interface IdentityReplayCommitV2 {
+	readonly operationId?: string;
+	readonly proofChallenge?: string;
+}
+
 export class IdentityReplayJournalV2 {
 	private readonly operationIds = new Set<string>();
 	private readonly proofChallenges = new Set<string>();
 
-	consume(
+	preflight(
 		operation: IdentityV2Call,
 		operationId: Uint8Array | undefined,
 		input: IdentityV2MethodMap[IdentityV2Call]["input"],
-	): void {
-		if (operationId !== undefined) {
-			const key = hex(operationId);
-			if (this.operationIds.has(key)) throw new Error("fresh-consent operation ID was already consumed");
-			this.operationIds.add(key);
+	): IdentityReplayCommitV2 {
+		const operationKey = operationId === undefined ? undefined : hex(operationId);
+		const challengeKey = operation === "identity.humanity.prove"
+			? hex((input as IdentityHumanityProveRequestV2).challenge)
+			: undefined;
+		if (operationKey !== undefined && this.operationIds.has(operationKey)) {
+			throw new Error("fresh-consent operation ID was already consumed");
 		}
-		if (operation === "identity.humanity.prove") {
-			const key = hex((input as IdentityHumanityProveRequestV2).challenge);
-			if (this.proofChallenges.has(key)) throw new Error("humanity proof challenge was already consumed");
-			this.proofChallenges.add(key);
+		if (challengeKey !== undefined && this.proofChallenges.has(challengeKey)) {
+			throw new Error("humanity proof challenge was already consumed");
 		}
+		return {
+			...(operationKey === undefined ? {} : { operationId: operationKey }),
+			...(challengeKey === undefined ? {} : { proofChallenge: challengeKey }),
+		};
+	}
+
+	commit(accepted: IdentityReplayCommitV2): void {
+		if (accepted.operationId !== undefined && this.operationIds.has(accepted.operationId)) {
+			throw new Error("fresh-consent operation ID was already consumed");
+		}
+		if (accepted.proofChallenge !== undefined && this.proofChallenges.has(accepted.proofChallenge)) {
+			throw new Error("humanity proof challenge was already consumed");
+		}
+		if (accepted.operationId !== undefined) this.operationIds.add(accepted.operationId);
+		if (accepted.proofChallenge !== undefined) this.proofChallenges.add(accepted.proofChallenge);
 	}
 }
 
@@ -699,14 +719,37 @@ function validateResult<Operation extends IdentityV2Call>(
 	input: IdentityV2MethodMap[Operation]["input"],
 	finalizedBlock: bigint,
 ): IdentityV2MethodMap[Operation]["output"] {
+	const resultContext = (
+		finality: FinalizedIdentityV2,
+		requestedAt: Uint8Array | undefined,
+		label: string,
+	): bigint => {
+		if (requestedAt === undefined) {
+			if (finality.blockNumber !== finalizedBlock) {
+				throw new TypeError(`${label} finalized block does not match the invocation context`);
+			}
+		} else {
+			if (!equalBytes(requestedAt, finality.blockHash)) {
+				throw new TypeError(`${label} finalized hash does not match the requested historical context`);
+			}
+			if (finality.blockNumber > finalizedBlock) {
+				throw new TypeError(`${label} historical context is newer than the invocation finality`);
+			}
+		}
+		return finality.blockNumber;
+	};
 	let output: unknown;
 	switch (operation) {
 		case "identity.account": {
 			const item = record(value, ["account", "sessionExpiresAt", "finalized"], "identity.account result");
+			const finality = finalized(item.finalized);
+			const contextBlock = resultContext(finality, undefined, "identity.account result");
+			const sessionExpiresAt = uint(item.sessionExpiresAt, 0xffff_ffff_ffff_ffffn, "session expiry");
+			if (sessionExpiresAt <= contextBlock) throw new TypeError("identity account session is not fresh");
 			output = {
 				account: bytes(item.account, 32, "account"),
-				sessionExpiresAt: uint(item.sessionExpiresAt, 0xffff_ffff_ffff_ffffn, "session expiry"),
-				finalized: finalized(item.finalized),
+				sessionExpiresAt,
+				finalized: finality,
 			};
 			break;
 		}
@@ -715,13 +758,13 @@ function validateResult<Operation extends IdentityV2Call>(
 			const item = record(value, ["receipt"], `${operation} result`);
 			const checked = receipt(item.receipt);
 			if (checked.finalized === undefined) throw new TypeError("profile receipt must carry finalized context");
-			if (checked.validUntil <= finalizedBlock) throw new TypeError("profile receipt is not fresh at the finalized request block");
-			if (operation === "identity.profile.read") {
-				const at = (input as IdentityProfileReadRequestV2).at;
-				if (at !== undefined && !equalBytes(at, checked.finalized.blockHash)) {
-					throw new TypeError("profile receipt finalized hash does not match requested context");
-				}
-			} else if (checked.validUntil > (input as IdentityProfileDiscloseRequestV2).expiresAt) {
+			const at = operation === "identity.profile.read"
+				? (input as IdentityProfileReadRequestV2).at
+				: undefined;
+			const contextBlock = resultContext(checked.finalized, at, `${operation} result`);
+			if (checked.validUntil <= contextBlock) throw new TypeError("profile receipt is not fresh at its finalized context");
+			if (operation === "identity.profile.disclose"
+				&& checked.validUntil > (input as IdentityProfileDiscloseRequestV2).expiresAt) {
 				throw new TypeError("profile receipt validity exceeds disclosure request");
 			}
 			output = { receipt: checked };
@@ -731,10 +774,18 @@ function validateResult<Operation extends IdentityV2Call>(
 			const item = record(value, ["status", "freshUntil", "finalized"], "identity.humanity.status result");
 			const status = u32(item.status, "humanity status");
 			if (status > 0xffff) throw new TypeError("humanity status must be a u16");
+			const finality = finalized(item.finalized);
+			const contextBlock = resultContext(
+				finality,
+				(input as IdentityHumanityStatusRequestV2).at,
+				"identity.humanity.status result",
+			);
+			const freshUntil = uint(item.freshUntil, 0xffff_ffff_ffff_ffffn, "humanity freshness");
+			if (freshUntil <= contextBlock) throw new TypeError("humanity status is stale at its finalized context");
 			output = {
 				status,
-				freshUntil: uint(item.freshUntil, 0xffff_ffff_ffff_ffffn, "humanity freshness"),
-				finalized: finalized(item.finalized),
+				freshUntil,
+				finalized: finality,
 			};
 			break;
 		}
@@ -790,12 +841,10 @@ function validateResult<Operation extends IdentityV2Call>(
 			const expiresAt = uint(item.expiresAt, 0xffff_ffff_ffff_ffffn, "entitlement expiry");
 			const freshUntil = uint(item.freshUntil, 0xffff_ffff_ffff_ffffn, "entitlement freshness");
 			const finality = finalized(item.finalized);
+			const contextBlock = resultContext(finality, request.at, "identity.entitlements.read result");
 			if (scope !== request.scope) throw new TypeError("entitlement scope does not match request");
-			if (expiresAt <= finalizedBlock || freshUntil <= finalizedBlock || freshUntil > expiresAt) {
-				throw new TypeError("entitlement result is not fresh at the finalized request block");
-			}
-			if (request.at !== undefined && !equalBytes(request.at, finality.blockHash)) {
-				throw new TypeError("entitlement finalized hash does not match requested context");
+			if (expiresAt <= contextBlock || freshUntil <= contextBlock || freshUntil > expiresAt) {
+				throw new TypeError("entitlement result is not fresh at its finalized context");
 			}
 			output = {
 				allowed: item.allowed,
@@ -809,9 +858,11 @@ function validateResult<Operation extends IdentityV2Call>(
 		}
 		case "transaction.sign": {
 			const item = record(value, ["transactionHash", "finalized"], "transaction.sign result");
+			const finality = finalized(item.finalized);
+			resultContext(finality, undefined, "transaction.sign result");
 			output = {
 				transactionHash: bytes(item.transactionHash, 32, "transaction hash"),
-				finalized: finalized(item.finalized),
+				finalized: finality,
 			};
 			break;
 		}
@@ -926,8 +977,13 @@ export function createIdentityV2Client(
 			&& (normalizedInput as IdentityHumanityProveRequestV2).expiresAt <= options.finalizedBlock) {
 			return identityError("IDENTITY_PROOF_EXPIRED", "Humanity proof request already expired");
 		}
+		if (operation === "transaction.sign"
+			&& (normalizedInput as TransactionSignRequestV2).expiresAt <= options.finalizedBlock) {
+			return identityError("REQUEST_DEADLINE_EXPIRED", "Transaction signing consent already expired");
+		}
+		let replayCommit: IdentityReplayCommitV2;
 		try {
-			replayJournal.consume(
+			replayCommit = replayJournal.preflight(
 				operation,
 				options.operationId,
 				normalizedInput as IdentityV2MethodMap[IdentityV2Call]["input"],
@@ -974,12 +1030,14 @@ export function createIdentityV2Client(
 			}
 		}
 		try {
-			return {
-				success: true,
-				value: validateResult(operation, response.value, normalizedInput, options.finalizedBlock),
-			};
+			const value = validateResult(operation, response.value, normalizedInput, options.finalizedBlock);
+			replayJournal.commit(replayCommit);
+			return { success: true, value };
 		} catch (error) {
-			return identityError("WIRE_SCHEMA_INVALID", error instanceof Error ? error.message : "Invalid identity response");
+			const message = error instanceof Error ? error.message : "Invalid identity response";
+			return message.includes("already consumed")
+				? identityError("IDENTITY_CHALLENGE_REPLAY", message)
+				: identityError("WIRE_SCHEMA_INVALID", message);
 		}
 	}
 
