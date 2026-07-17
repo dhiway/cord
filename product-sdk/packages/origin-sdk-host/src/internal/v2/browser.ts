@@ -235,7 +235,7 @@ export class BrowserHostV2Transport {
     if (options.signal?.aborted) return fail("BROWSER_OPERATION_ABORTED", "browser negotiation was aborted");
     return new Promise<BrowserHostV2Transport>((resolve, reject) => {
       let remoteOffer: HostV2NegotiationOffer | undefined; let negotiated: HostV2Negotiated | undefined;
-      let digest: Uint8Array | undefined; let remoteAck = false; let settled = false; let chain = Promise.resolve();
+      let digest: Uint8Array | undefined; let remoteAckDigest: Uint8Array | undefined; let settled = false; let chain = Promise.resolve();
       const finish = (error?: Error): void => {
         if (settled) return; settled = true; cleanup();
         if (error) { port.close(); reject(error); return; }
@@ -269,15 +269,18 @@ export class BrowserHostV2Transport {
           if (!exactBytes(ackSignature, 64)) return fail("BROWSER_PEER_REJECTED", "browser negotiation acknowledgement signature is invalid");
           const ack: NegotiatedEnvelope = { version: 2, channel: local.channel, source: local.source, target: expectedRemote.source, kind: "negotiated", digest: digest.slice(), signature: ackSignature };
           port.postMessage(ack);
-          if (remoteAck) finish();
+          if (remoteAckDigest) {
+            if (!equal(remoteAckDigest, digest)) return fail("BROWSER_PEER_REJECTED", "browser negotiated tuple mismatched");
+            finish();
+          }
           return;
         }
         if (candidate.kind === "negotiated") {
-          if (!exactKeys(candidate, ["channel", "digest", "kind", "signature", "source", "target", "version"])) return fail("BROWSER_MESSAGE_INVALID", "browser negotiation acknowledgement is open");
+          if (remoteAckDigest || !exactKeys(candidate, ["channel", "digest", "kind", "signature", "source", "target", "version"])) return fail("BROWSER_MESSAGE_INVALID", "browser negotiation acknowledgement is open or duplicated");
           validateCommon(candidate, local, expectedRemote);
           if (!exactBytes(candidate.digest, 32) || !exactBytes(candidate.signature, 64) || !await verifyEd25519(crypto, expectedRemote.acknowledgementPublicKey, ackAuthenticationMessage(expectedRemote, candidate.digest), candidate.signature)) return fail("BROWSER_PEER_REJECTED", "browser negotiation acknowledgement is unauthenticated");
-          remoteAck = true;
-          if (digest) { if (!equal(candidate.digest, digest)) return fail("BROWSER_PEER_REJECTED", "browser negotiated tuple mismatched"); finish(); }
+          remoteAckDigest = candidate.digest.slice();
+          if (digest) { if (!equal(remoteAckDigest, digest)) return fail("BROWSER_PEER_REJECTED", "browser negotiated tuple mismatched"); finish(); }
           return;
         }
         return fail("BROWSER_MESSAGE_INVALID", "request arrived before authenticated negotiation completed");

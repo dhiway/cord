@@ -59,6 +59,7 @@ interface TombstoneRecord {
 }
 type DurableRecord = LiveRecord | TombstoneRecord;
 interface LoadedRecord { readonly record: DurableRecord; readonly encryptedBytes: number }
+interface ValidatedEntry { readonly operationCode: number; readonly operationIdRequired: boolean }
 
 export class StrictIndexedDbOutboxBackend implements StrictBrowserOutboxBackend {
   readonly #database: IDBDatabase; readonly #records: string; readonly #quarantine: string;
@@ -85,6 +86,7 @@ function copyRow(row: BrowserOutboxEncryptedRow): BrowserOutboxEncryptedRow { re
 export class BrowserHostOutboxV1 {
   readonly #backend: StrictBrowserOutboxBackend; readonly #crypto: BrowserXChaCha20Poly1305;
   readonly #context: BrowserHostOutboxContextV1; readonly #records = new Map<string, LoadedRecord>();
+  readonly #preparingOutboxIds = new Set<string>(); readonly #preparingOperationGenerations = new Set<string>();
   readonly #recordLimit: number; readonly #byteLimit: number;
   private constructor(backend: StrictBrowserOutboxBackend, crypto: BrowserXChaCha20Poly1305, context: BrowserHostOutboxContextV1, recordLimit: number, byteLimit: number) {
     this.#backend = backend; this.#crypto = crypto; this.#context = copyContext(context); this.#recordLimit = recordLimit; this.#byteLimit = byteLimit;
@@ -100,12 +102,16 @@ export class BrowserHostOutboxV1 {
     const outbox = new BrowserHostOutboxV1(backend, crypto, context, recordLimit, byteLimit);
     let rows: readonly BrowserOutboxEncryptedRow[]; try { rows = await backend.load(); } catch { throw new BrowserOutboxError("HOST_OUTBOX_UNAVAILABLE", "strict IndexedDB is unavailable"); }
     if (rows.length > recordLimit) throw new BrowserOutboxError("HOST_OUTBOX_CORRUPT", "record bound exceeded");
+    const operationGenerations = new Set<string>();
     for (const row of rows) {
       try {
         if (!/^[0-9a-f]{32}$/.test(row.id) || !Number.isSafeInteger(row.keyVersion) || row.keyVersion < 0 || row.ciphertext.length > MAX_RECORD_BYTES) throw new Error();
         const id = fromHex(row.id); const plaintext = await crypto.open(id, row.keyVersion, row.ciphertext.slice()); const record = decodeRecord(plaintext);
         if (toHex(recordId(record)) !== row.id || recordKeyVersion(record) !== row.keyVersion || outbox.#records.has(row.id)) throw new Error();
-        if (record.kind === 0) await outbox.#validateEntry(record.entry, row.keyVersion, record.operationCode);
+        if (record.kind === 0) {
+          const validated = await outbox.#validateEntry(record.entry, row.keyVersion, record.operationCode);
+          if (validated.operationIdRequired && !operationGenerations.add(operationGeneration(record.entry))) throw new Error();
+        }
         outbox.#records.set(row.id, { record, encryptedBytes: row.ciphertext.length });
       } catch {
         try { await backend.quarantineStrict(row); } catch { throw new BrowserOutboxError("HOST_OUTBOX_UNAVAILABLE", "corrupt browser outbox quarantine failed"); }
@@ -119,10 +125,23 @@ export class BrowserHostOutboxV1 {
 
   async prepare(input: BrowserPrepareOutboxV1): Promise<BrowserOutboxRetryV1> {
     const entry = cloneEntry(input.entry);
-    if (entry[2] !== 0 || this.#records.has(toHex(entry[1])) || entry[20] !== this.#crypto.activeKeyVersion) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "browser outbox entry is not new Prepared with the active key");
-    const operationCode = await this.#validateEntry(entry, this.#crypto.activeKeyVersion);
-    const record: LiveRecord = { kind: 0, entry, state: 0, terminal: false, recoverUntil: BigInt(entry[19]), operationCode };
-    await this.#commit(record, true); return retry(record);
+    const outboxId = toHex(entry[1]);
+    if (entry[2] !== 0 || this.#records.has(outboxId) || this.#preparingOutboxIds.has(outboxId) || entry[20] !== this.#crypto.activeKeyVersion) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "browser outbox entry is not new Prepared with a unique outbox ID and the active key");
+    this.#preparingOutboxIds.add(outboxId);
+    let reservedOperation: string | undefined;
+    try {
+      const validated = await this.#validateEntry(entry, this.#crypto.activeKeyVersion);
+      if (validated.operationIdRequired) {
+        reservedOperation = operationGeneration(entry);
+        if (this.#preparingOperationGenerations.has(reservedOperation) || this.#hasLiveOperationGeneration(reservedOperation)) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "browser outbox operation generation is already live");
+        this.#preparingOperationGenerations.add(reservedOperation);
+      }
+      const record: LiveRecord = { kind: 0, entry, state: 0, terminal: false, recoverUntil: BigInt(entry[19]), operationCode: validated.operationCode };
+      await this.#commit(record, true); return retry(record);
+    } finally {
+      this.#preparingOutboxIds.delete(outboxId);
+      if (reservedOperation) this.#preparingOperationGenerations.delete(reservedOperation);
+    }
   }
   retry(outboxId: Uint8Array, finalized: bigint): BrowserOutboxRetryV1 {
     const record = this.#live(outboxId); if (finalized >= record.recoverUntil) throw new BrowserOutboxError("HOST_OUTBOX_EXPIRED", "browser outbox recovery window closed");
@@ -168,25 +187,30 @@ export class BrowserHostOutboxV1 {
   async digest(bytes: Uint8Array): Promise<Uint8Array> { return this.#crypto.digest(bytes); }
   async verifyProviderAck(publicKey: Uint8Array, message: Uint8Array, signature: Uint8Array): Promise<boolean> { return this.#crypto.verifyEd25519(publicKey, message, signature); }
 
-  async #validateEntry(entry: HostOutboxEntryV1, keyVersion: number, expectedOperationCode?: number): Promise<number> {
+  async #validateEntry(entry: HostOutboxEntryV1, keyVersion: number, expectedOperationCode?: number): Promise<ValidatedEntry> {
     if (!equal(entry[10], this.#context.registryHash) || !equal(entry[11], this.#context.genesisHash) || !equal(entry[12], this.#context.negotiatedTuple)
       || !equal(entry[13], this.#context.providerId) || !equal(entry[14], this.#context.providerEndpointHash) || entry[20] !== keyVersion) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "browser outbox chain, tuple, provider, endpoint, or key binding mismatched");
     if (![2, 3, 4].includes(Number(entry[15]))) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "expected terminal result kind is not exact");
     const created = BigInt(entry[17]); const authorityUntil = BigInt(entry[18]); const recoverUntil = BigInt(entry[19]);
     if (authorityUntil < created || authorityUntil > created + AUTHORITY_BLOCKS || recoverUntil < created + RECOVERY_BLOCKS || recoverUntil > created + MAX_RECOVERY_BLOCKS) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "browser outbox authority or recovery bounds are invalid");
-    if (!equal(entry[1], entry[7]) || !equal(entry[5], await this.#fingerprint(entry[3], entry[4]))) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "browser outbox operation or request fingerprint mismatched");
+    if (!equal(entry[5], await this.#fingerprint(entry[3], entry[4]))) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "browser outbox request fingerprint mismatched");
     let request: Record<number, unknown>;
     try { request = decodeHostV2("RequestV2", entry[3]).value as Record<number, unknown>; }
     catch {
       const cancel = decodeHostV2("CancelledEventV2", entry[3]).value;
       if (!equal(cancel[1], entry[6]) || Number(cancel[2]) !== Number(entry[9]) || cancel[3] !== 4 || entry[15] !== 4) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "durable cancel binding mismatched");
-      if (expectedOperationCode === undefined || !Object.values(HOST_V2_OPERATION_BINDINGS).some(({ code }) => code === expectedOperationCode)) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "durable cancel lost its exact operation binding");
-      return expectedOperationCode;
+      const operation = Object.values(HOST_V2_OPERATION_BINDINGS).find(({ code }) => code === expectedOperationCode);
+      if (!operation) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "durable cancel lost its exact operation binding");
+      return { operationCode: operation.code, operationIdRequired: operation.operationIdRequired };
     }
     const operationCode = Number(request[3]);
-    if (!Object.values(HOST_V2_OPERATION_BINDINGS).some(({ code }) => code === operationCode) || (expectedOperationCode !== undefined && operationCode !== expectedOperationCode)) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "request operation code mismatched");
+    const operation = Object.values(HOST_V2_OPERATION_BINDINGS).find(({ code }) => code === operationCode);
+    if (!operation || (expectedOperationCode !== undefined && operationCode !== expectedOperationCode)) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "request operation code mismatched");
     if (!(request[1] instanceof Uint8Array) || !equal(request[1], entry[6]) || Number(request[7]) !== Number(entry[8])) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "request ID or generation mismatched");
-    const operationId = request[5]; if (operationId instanceof Uint8Array ? !equal(operationId, entry[7]) : entry[7].some((byte) => byte !== 0)) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "request operation ID mismatched");
+    const operationId = request[5];
+    if (operation.operationIdRequired
+      ? !(operationId instanceof Uint8Array) || !equal(operationId, entry[7])
+      : operationId !== undefined || entry[7].some((byte) => byte !== 0)) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "request operation ID presence or value mismatched");
     let authority: Record<number, unknown>;
     try {
       authority = decodeHostV2("ProviderCapabilityV1", entry[4]).value as Record<number, unknown>;
@@ -203,7 +227,7 @@ export class BrowserHostOutboxV1 {
           || Number(authority[11]) !== Number(entry[17]) || Number(authority[12]) !== Number(entry[18])) throw new Error();
       } catch { throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "authority is not bound to request and provider"); }
     }
-    return operationCode;
+    return { operationCode, operationIdRequired: operation.operationIdRequired };
   }
   async #fingerprint(request: Uint8Array, authority: Uint8Array): Promise<Uint8Array> { const bytes = new Uint8Array(request.length + authority.length); bytes.set(request); bytes.set(authority, request.length); return this.#crypto.digest(bytes); }
   async #commit(record: DurableRecord, create: boolean): Promise<void> {
@@ -218,6 +242,12 @@ export class BrowserHostOutboxV1 {
   }
   #get(outboxId: Uint8Array): LoadedRecord { const loaded = this.#records.get(toHex(outboxId)); if (!loaded) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "browser outbox entry is absent"); return loaded; }
   #live(outboxId: Uint8Array): LiveRecord { const record = this.#get(outboxId).record; if (record.kind !== 0) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "browser outbox authority is retired"); return record; }
+  #hasLiveOperationGeneration(identity: string): boolean {
+    for (const loaded of this.#records.values()) {
+      if (loaded.record.kind === 0 && operationRequiresId(loaded.record.operationCode) && operationGeneration(loaded.record.entry) === identity) return true;
+    }
+    return false;
+  }
   #totalBytes(): number { let total = 0; for (const loaded of this.#records.values()) total += loaded.encryptedBytes; return total; }
 }
 
@@ -251,3 +281,5 @@ function optionalBytes(value: unknown, length?: number): Uint8Array | undefined 
 function equal(left: Uint8Array, right: Uint8Array): boolean { return left.length === right.length && left.every((byte, index) => byte === right[index]); }
 function toHex(bytes: Uint8Array): string { return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
 function fromHex(value: string): Uint8Array { return Uint8Array.from(value.match(/../g)!.map((byte) => Number.parseInt(byte, 16))); }
+function operationGeneration(entry: HostOutboxEntryV1): string { return `${toHex(entry[7])}:${BigInt(entry[8]).toString(10)}`; }
+function operationRequiresId(operationCode: number): boolean { return Object.values(HOST_V2_OPERATION_BINDINGS).some(({ code, operationIdRequired }) => code === operationCode && operationIdRequired); }

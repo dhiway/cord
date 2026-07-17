@@ -53,6 +53,40 @@ async function peer(source: string): Promise<PeerKey> {
   return { peer: { source, channel: "festival-v2", providerId, endpointHash, acknowledgementPublicKey: publicKey }, privateKey: pair.privateKey };
 }
 const negotiationSigner = (key: PeerKey) => async (message: Uint8Array): Promise<Uint8Array> => new Uint8Array(await globalThis.crypto.subtle.sign("Ed25519", key.privateKey, Uint8Array.from(message).buffer));
+function concatenate(parts: readonly Uint8Array[]): Uint8Array { const output = new Uint8Array(parts.reduce((length, part) => length + part.length, 0)); let offset = 0; for (const part of parts) { output.set(part, offset); offset += part.length; } return output; }
+function unsigned(value: number, length: number): Uint8Array { const output = new Uint8Array(length); for (let index = length - 1, remaining = value; index >= 0; index -= 1) { output[index] = remaining & 0xff; remaining = Math.floor(remaining / 256); } return output; }
+function text(value: string): Uint8Array { const encoded = new TextEncoder().encode(value); return concatenate([unsigned(encoded.length, 2), encoded]); }
+function offerMessage(remote: BrowserHostV2Peer, value: HostV2NegotiationOffer): Uint8Array {
+  return concatenate([
+    new TextEncoder().encode("cord.origin.host/2/browser-offer/v1"), text(remote.source), text(remote.channel), remote.providerId, remote.endpointHash,
+    remote.acknowledgementPublicKey, text(value.protocol), Uint8Array.of(value.major), unsigned(value.minors.length, 2), ...value.minors.map((minor) => unsigned(minor, 2)),
+    value.genesis, unsigned(value.finalizedSpecVersion, 4), unsigned(value.finalizedTransactionVersion, 4), text(value.registrySha256),
+    unsigned(value.features.length, 2), ...value.features.map(text),
+  ]);
+}
+function acknowledgementMessage(remote: BrowserHostV2Peer, digest: Uint8Array): Uint8Array {
+  return concatenate([new TextEncoder().encode("cord.origin.host/2/browser-negotiated/v1"), text(remote.source), text(remote.channel), remote.providerId, remote.endpointHash, digest]);
+}
+async function tupleDigest(value: HostV2NegotiationOffer): Promise<Uint8Array> {
+  const features = value.features.map((feature) => new TextEncoder().encode(feature));
+  const registry = bytes(value.registrySha256);
+  return new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", concatenate([
+    new TextEncoder().encode("cord.origin.host/2/negotiated-tuple/v1"), Uint8Array.of(value.major), unsigned(Math.max(...value.minors), 2), value.genesis,
+    unsigned(value.finalizedSpecVersion, 4), unsigned(value.finalizedTransactionVersion, 4), registry, unsigned(features.length, 2),
+    ...features.flatMap((feature) => [unsigned(feature.length, 2), feature]),
+  ])));
+}
+async function signedEnvelope(key: PeerKey, local: BrowserHostV2Peer, kind: "offer" | "negotiated", digest?: Uint8Array): Promise<Record<string, unknown>> {
+  const value = offer();
+  if (kind === "offer") return {
+    version: 2, channel: key.peer.channel, source: key.peer.source, target: local.source, kind,
+    providerId: key.peer.providerId, endpointHash: key.peer.endpointHash, acknowledgementPublicKey: key.peer.acknowledgementPublicKey,
+    offer: { protocol: value.protocol, major: value.major, minors: value.minors, genesis: value.genesis, finalizedSpecVersion: value.finalizedSpecVersion, finalizedTransactionVersion: value.finalizedTransactionVersion, registrySha256: value.registrySha256, features: value.features },
+    signature: await negotiationSigner(key)(offerMessage(key.peer, value)),
+  };
+  const exactDigest = digest ?? await tupleDigest(value);
+  return { version: 2, channel: key.peer.channel, source: key.peer.source, target: local.source, kind, digest: exactDigest, signature: await negotiationSigner(key)(acknowledgementMessage(key.peer, exactDigest)) };
+}
 async function transports(hostPeer?: PeerKey, providerPeer?: PeerKey): Promise<{ host: BrowserHostV2Transport; provider: BrowserHostV2Transport; hostPeer: PeerKey; providerPeer: PeerKey }> {
   const hostKey = hostPeer ?? await peer("host"); const providerKey = providerPeer ?? await peer("provider"); const channel = new MessageChannel();
   const [host, provider] = await Promise.all([
@@ -73,19 +107,19 @@ function copyRow(row: BrowserOutboxEncryptedRow): BrowserOutboxEncryptedRow { re
 function nonceSource() { let counter = 0; return (length: number): Uint8Array => { const value = new Uint8Array(length); value.fill(0x80); value[length - 1] = counter++; return value; }; }
 function keyring(active = 1, includeOld = true): BrowserHostOutboxKeyRingV1 { return new BrowserHostOutboxKeyRingV1(active, new Map([...(includeOld ? [[1, new Uint8Array(32).fill(0x8a)] as const] : []), ...(active === 2 ? [[2, new Uint8Array(32).fill(0x9a)] as const] : [])])); }
 function context(transport: BrowserHostV2Transport): BrowserHostOutboxContextV1 { const binding = transport.binding; return { profileId: new Uint8Array(32).fill(0x77), registryHash: binding.registryHash, genesisHash: binding.genesisHash, negotiatedTuple: binding.negotiatedTuple, providerId: binding.providerId, providerEndpointHash: binding.providerEndpointHash }; }
-async function preparedEntry(transport: BrowserHostV2Transport, version = 1): Promise<HostOutboxEntryV1> {
-  const requestVector = frozen.vectors.find((vector: any) => vector.id === "1010-positive");
+async function preparedEntry(transport: BrowserHostV2Transport, version = 1, options: { readonly vector?: string; readonly outbox?: number; readonly request?: number; readonly operation?: number; readonly expected?: number } = {}): Promise<HostOutboxEntryV1> {
+  const requestVector = frozen.vectors.find((vector: any) => vector.id === (options.vector ?? "1010-positive"));
   const request = decodeHostV2("RequestV2", bytes(requestVector.wire_hex)).value as any;
-  const requestId = new Uint8Array(16).fill(0x55); const operationId = new Uint8Array(16).fill(0x44); const grantId = new Uint8Array(32).fill(0x33);
-  request[1] = requestId; request[4] = grantId; request[5] = operationId; request[7] = 0;
+  const requestId = new Uint8Array(16).fill(options.request ?? 0x55); const operationId = new Uint8Array(16).fill(options.operation ?? 0x44); const outboxId = new Uint8Array(16).fill(options.outbox ?? 0x66); const grantId = new Uint8Array(32).fill(0x33);
+  request[1] = requestId; if (request[4] !== undefined) request[4] = grantId; if (request[5] !== undefined) request[5] = operationId; request[7] = 0;
   const requestBytes = encodeHostV2("RequestV2", request);
   const authorityVector = protocol.vectors.find((vector: any) => vector.id === "provider-capability-v1");
   const authority = decodeHostV2("ProviderCapabilityV1", bytes(authorityVector.canonical_cbor_hex)).value as any;
-  const binding = transport.binding; authority[1] = binding.registryHash; authority[2] = binding.genesisHash; authority[3] = grantId; authority[8] = binding.providerId;
+  const binding = transport.binding; authority[1] = binding.registryHash; authority[2] = binding.genesisHash; authority[3] = grantId; authority[8] = binding.providerId; authority[9] = [request[3]];
   const authorityBytes = encodeHostV2("ProviderCapabilityV1", authority);
   const joined = new Uint8Array(requestBytes.length + authorityBytes.length); joined.set(requestBytes); joined.set(authorityBytes, requestBytes.length);
   const fingerprint = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", joined));
-  return { 0: 1, 1: operationId, 2: 0, 3: requestBytes, 4: authorityBytes, 5: fingerprint, 6: requestId, 7: operationId, 8: 0, 9: 0, 10: binding.registryHash, 11: binding.genesisHash, 12: binding.negotiatedTuple, 13: binding.providerId, 14: binding.providerEndpointHash, 15: 4, 17: 100, 18: 228, 19: 356, 20: version };
+  return { 0: 1, 1: outboxId, 2: 0, 3: requestBytes, 4: authorityBytes, 5: fingerprint, 6: requestId, 7: request[5] === undefined ? new Uint8Array(16) : operationId, 8: 0, 9: 0, 10: binding.registryHash, 11: binding.genesisHash, 12: binding.negotiatedTuple, 13: binding.providerId, 14: binding.providerEndpointHash, 15: options.expected ?? 4, 17: 100, 18: 228, 19: 356, 20: version };
 }
 function accepted(id: Uint8Array, sequence = 0) { return encodeHostV2("AcceptedEventV2", { 0: 2, 1: id, 2: sequence, 3: 0, 4: { 0: 0 } } as AcceptedEventV2); }
 function progress(id: Uint8Array, sequence: number) { return encodeHostV2("ProgressEventV2", { 0: 2, 1: id, 2: sequence, 3: 1, 4: { 0: 1 } } as ProgressEventV2); }
@@ -115,6 +149,22 @@ test("authenticated MessagePort negotiation owns the remote offer and pending op
   await new Promise<void>((resolve) => { hostile.port2.onmessage = () => resolve(); hostile.port2.start(); });
   const remoteOffer = offer(); hostile.port2.postMessage({ version: 2, channel: claimed.peer.channel, source: claimed.peer.source, target: victimKey.peer.source, kind: "offer", providerId: claimed.peer.providerId, endpointHash: claimed.peer.endpointHash, acknowledgementPublicKey: claimed.peer.acknowledgementPublicKey, offer: { protocol: remoteOffer.protocol, major: remoteOffer.major, minors: remoteOffer.minors, genesis: remoteOffer.genesis, finalizedSpecVersion: remoteOffer.finalizedSpecVersion, finalizedTransactionVersion: remoteOffer.finalizedTransactionVersion, registrySha256: remoteOffer.registrySha256, features: remoteOffer.features }, signature: new Uint8Array(64) });
   await assert.rejects(victim, (error) => error instanceof BrowserHostV2TransportError && error.code === "BROWSER_PEER_REJECTED"); hostile.port2.close();
+});
+
+test("reordered signed acknowledgement retains its tuple and duplicate or mismatched acknowledgement fails closed", async () => {
+  const connectReordered = async (mode: "valid" | "duplicate" | "mismatch"): Promise<BrowserHostV2Transport> => {
+    const channel = new MessageChannel(); const host = await peer(`reordered-host-${mode}`); const provider = await peer(`reordered-provider-${mode}`);
+    const connected = BrowserHostV2Transport.connect(channel.port1, host.peer, provider.peer, () => {}, offer(), negotiationSigner(host), { timeoutMs: 1_000 });
+    await new Promise<void>((resolve) => { channel.port2.addEventListener("message", () => resolve(), { once: true }); channel.port2.start(); });
+    const ack = await signedEnvelope(provider, host.peer, "negotiated", mode === "mismatch" ? new Uint8Array(32).fill(0x99) : undefined);
+    channel.port2.postMessage(ack);
+    if (mode === "duplicate") channel.port2.postMessage(ack);
+    channel.port2.postMessage(await signedEnvelope(provider, host.peer, "offer"));
+    try { return await connected; } finally { channel.port2.close(); }
+  };
+  const valid = await connectReordered("valid"); assert.ok(equal(valid.binding.negotiatedTuple, await tupleDigest(offer()))); valid.close();
+  await assert.rejects(connectReordered("duplicate"), (error) => error instanceof BrowserHostV2TransportError && error.code === "BROWSER_MESSAGE_INVALID");
+  await assert.rejects(connectReordered("mismatch"), (error) => error instanceof BrowserHostV2TransportError && error.code === "BROWSER_PEER_REJECTED");
 });
 
 test("transport enforces cap, credits, abort and remote-close for pending send", async () => {
@@ -147,6 +197,22 @@ test("real XChaCha20-Poly1305 matches the frozen Rust envelope and rotates keys"
   const prepared = await outbox.prepare({ entry }); assert.equal([...backend.records.values()][0]!.keyVersion, 1);
   outbox = await openOutbox(backend, connected.host, keyring(2), random); await outbox.markSent(prepared.outboxId); assert.equal([...backend.records.values()][0]!.keyVersion, 2);
   await openOutbox(backend, connected.host, keyring(2, false), random); connected.host.close(); connected.provider.close();
+});
+
+test("outbox IDs are independent while concurrent provider reads do not collide on absent operation IDs", async () => {
+  const connected = await transports(); const backend = new StrictMemoryBackend(); const outbox = await openOutbox(backend, connected.host);
+  const first = await preparedEntry(connected.host, 1, { vector: "1011-positive", outbox: 0x61, request: 0x51, expected: 2 });
+  const second = await preparedEntry(connected.host, 1, { vector: "1011-positive", outbox: 0x62, request: 0x52, expected: 2 });
+  const [left, right] = await Promise.all([outbox.prepare({ entry: first }), outbox.prepare({ entry: second })]);
+  assert.ok(equal(left.operationId, new Uint8Array(16))); assert.ok(equal(right.operationId, new Uint8Array(16))); assert.equal(backend.records.size, 2);
+
+  const duplicateOutbox = await preparedEntry(connected.host, 1, { vector: "1011-positive", outbox: 0x61, request: 0x53, expected: 2 });
+  await assert.rejects(outbox.prepare({ entry: duplicateOutbox }), (error) => error instanceof BrowserOutboxError && error.code === "HOST_OUTBOX_STATE_INVALID");
+  const writeA = await preparedEntry(connected.host, 1, { outbox: 0x71, request: 0x71, operation: 0x41 });
+  const writeB = await preparedEntry(connected.host, 1, { outbox: 0x72, request: 0x72, operation: 0x41 });
+  const results = await Promise.allSettled([outbox.prepare({ entry: writeA }), outbox.prepare({ entry: writeB })]);
+  assert.equal(results.filter(({ status }) => status === "fulfilled").length, 1); assert.equal(results.filter(({ status }) => status === "rejected").length, 1);
+  connected.host.close(); connected.provider.close();
 });
 
 test("forged durable entry fields fail before any provider-visible send", async () => {
