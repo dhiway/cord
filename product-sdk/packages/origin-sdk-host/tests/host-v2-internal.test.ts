@@ -49,6 +49,7 @@ import {
   HostV2SessionError,
   negotiateHostV2,
   type HostV2NegotiationOffer,
+  type HostV2Negotiated,
 } from "../src/internal/v2/session.ts";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -257,6 +258,57 @@ test("negotiation binds descriptor, genesis, finalized versions, highest minor, 
     (error) => error instanceof HostV2NegotiationError && error.code === "WIRE_DESCRIPTOR_MISMATCH");
   assert.throws(() => negotiateHostV2(offer({ features: ["unknown"] as HostV2FeatureId[] }), offer()),
     (error) => error instanceof HostV2NegotiationError && error.code === "WIRE_DESCRIPTOR_MISMATCH");
+});
+
+test("negotiated authority is opaque, immutable, and rejects brand or prototype forgery", () => {
+  const authority = negotiated();
+  const exposedGenesis = authority.genesis;
+  exposedGenesis.fill(0xff);
+  assert.equal(authority.genesis[0], 0x42, "genesis access must return a defensive copy");
+  assert.ok(Object.isFrozen(authority.features));
+  assert.throws(() => (authority.features as HostV2FeatureId[]).push("storage.s3"));
+  assert.throws(() => Object.assign(authority, { minor: 65_535 }));
+  assert.equal(authority.minor, HOST_V2_MINOR);
+
+  const requestId = new Uint8Array(16) as Parameters<typeof accepted>[0];
+  const plainObject = {
+    protocol: authority.protocol,
+    major: authority.major,
+    minor: authority.minor,
+    genesis: authority.genesis,
+    finalizedSpecVersion: authority.finalizedSpecVersion,
+    finalizedTransactionVersion: authority.finalizedTransactionVersion,
+    registrySha256: authority.registrySha256,
+    features: authority.features,
+  } as unknown as HostV2Negotiated;
+  assert.throws(
+    () => new HostV2Session(plainObject, requestId),
+    (error) => error instanceof HostV2NegotiationError && error.code === "WIRE_DESCRIPTOR_MISMATCH",
+  );
+
+  const prototypeForgery = Object.create(Object.getPrototypeOf(authority)) as HostV2Negotiated;
+  assert.throws(
+    () => new HostV2Session(prototypeForgery, requestId),
+    (error) => error instanceof HostV2NegotiationError && error.code === "WIRE_DESCRIPTOR_MISMATCH",
+  );
+
+  const NegotiatedConstructor = authority.constructor as new (...args: unknown[]) => HostV2Negotiated;
+  assert.throws(
+    () => new NegotiatedConstructor(
+      Symbol("forged"),
+      authority.minor,
+      authority.genesis,
+      authority.finalizedSpecVersion,
+      authority.finalizedTransactionVersion,
+      authority.features,
+    ),
+    (error) => error instanceof HostV2NegotiationError && error.code === "WIRE_DESCRIPTOR_MISMATCH",
+  );
+
+  const session = new HostV2Session(authority, requestId);
+  const sessionGenesis = session.negotiation.genesis;
+  sessionGenesis.fill(0xaa);
+  assert.equal(session.negotiation.genesis[0], 0x42);
 });
 
 test("session snapshots its ID, enforces sequence law, and permanently closes on every fault or terminal", () => {

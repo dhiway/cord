@@ -39,18 +39,106 @@ export interface HostV2NegotiationOffer {
   readonly features: readonly HostV2FeatureId[];
 }
 
-const negotiatedBrand: unique symbol = Symbol("cord.origin.host/2 negotiated");
+const negotiatedAuthority = Symbol("cord.origin.host/2 negotiated authority");
 
-export interface HostV2Negotiated {
-  readonly [negotiatedBrand]: true;
-  readonly protocol: typeof HOST_V2_PROTOCOL;
-  readonly major: typeof HOST_V2_MAJOR;
-  readonly minor: number;
-  readonly genesis: Uint8Array;
-  readonly finalizedSpecVersion: number;
-  readonly finalizedTransactionVersion: number;
-  readonly registrySha256: typeof HOST_V2_REGISTRY_SHA256;
-  readonly features: readonly HostV2FeatureId[];
+class NegotiatedHostV2State {
+  readonly #authority = "cord.origin.host/2:negotiated";
+  readonly #minor: number;
+  readonly #genesis: Uint8Array;
+  readonly #finalizedSpecVersion: number;
+  readonly #finalizedTransactionVersion: number;
+  readonly #features: readonly HostV2FeatureId[];
+
+  constructor(
+    authority: symbol,
+    minor: number,
+    genesis: Uint8Array,
+    finalizedSpecVersion: number,
+    finalizedTransactionVersion: number,
+    features: readonly HostV2FeatureId[],
+  ) {
+    if (authority !== negotiatedAuthority) {
+      throw new HostV2NegotiationError(
+        "WIRE_DESCRIPTOR_MISMATCH",
+        "host-v2 negotiation authority is private",
+      );
+    }
+    this.#minor = minor;
+    this.#genesis = genesis.slice();
+    this.#finalizedSpecVersion = finalizedSpecVersion;
+    this.#finalizedTransactionVersion = finalizedTransactionVersion;
+    this.#features = Object.freeze([...features]);
+    Object.freeze(this);
+  }
+
+  static snapshot(value: HostV2Negotiated): NegotiatedHostV2State {
+    try {
+      if (value.#authority !== "cord.origin.host/2:negotiated") throw new Error("invalid authority");
+      return createNegotiatedHostV2State(
+        value.#minor,
+        value.#genesis,
+        value.#finalizedSpecVersion,
+        value.#finalizedTransactionVersion,
+        value.#features,
+      );
+    } catch {
+      throw new HostV2NegotiationError(
+        "WIRE_DESCRIPTOR_MISMATCH",
+        "session requires an opaque validated host-v2 negotiation",
+      );
+    }
+  }
+
+  get protocol(): typeof HOST_V2_PROTOCOL {
+    return HOST_V2_PROTOCOL;
+  }
+
+  get major(): typeof HOST_V2_MAJOR {
+    return HOST_V2_MAJOR;
+  }
+
+  get minor(): number {
+    return this.#minor;
+  }
+
+  get genesis(): Uint8Array {
+    return this.#genesis.slice();
+  }
+
+  get finalizedSpecVersion(): number {
+    return this.#finalizedSpecVersion;
+  }
+
+  get finalizedTransactionVersion(): number {
+    return this.#finalizedTransactionVersion;
+  }
+
+  get registrySha256(): typeof HOST_V2_REGISTRY_SHA256 {
+    return HOST_V2_REGISTRY_SHA256;
+  }
+
+  get features(): readonly HostV2FeatureId[] {
+    return Object.freeze([...this.#features]);
+  }
+}
+
+export type HostV2Negotiated = NegotiatedHostV2State;
+
+function createNegotiatedHostV2State(
+  minor: number,
+  genesis: Uint8Array,
+  finalizedSpecVersion: number,
+  finalizedTransactionVersion: number,
+  features: readonly HostV2FeatureId[],
+): NegotiatedHostV2State {
+  return new NegotiatedHostV2State(
+    negotiatedAuthority,
+    minor,
+    genesis,
+    finalizedSpecVersion,
+    finalizedTransactionVersion,
+    features,
+  );
 }
 
 export class HostV2NegotiationError extends Error {
@@ -114,10 +202,6 @@ function validateOffer(offer: HostV2NegotiationOffer, side: string): void {
   }
 }
 
-function cloneNegotiated(value: HostV2Negotiated): HostV2Negotiated {
-  return { ...value, genesis: value.genesis.slice(), features: [...value.features] };
-}
-
 export function negotiateHostV2(
   local: HostV2NegotiationOffer,
   remote: HostV2NegotiationOffer,
@@ -138,17 +222,13 @@ export function negotiateHostV2(
   }
   const remoteFeatures = new Set(remote.features);
   const features = HOST_V2_FEATURE_IDS.filter((feature) => local.features.includes(feature) && remoteFeatures.has(feature));
-  return {
-    [negotiatedBrand]: true,
-    protocol: HOST_V2_PROTOCOL,
-    major: HOST_V2_MAJOR,
+  return createNegotiatedHostV2State(
     minor,
-    genesis: local.genesis.slice(),
-    finalizedSpecVersion: local.finalizedSpecVersion,
-    finalizedTransactionVersion: local.finalizedTransactionVersion,
-    registrySha256: HOST_V2_REGISTRY_SHA256,
+    local.genesis,
+    local.finalizedSpecVersion,
+    local.finalizedTransactionVersion,
     features,
-  };
+  );
 }
 
 export class HostV2Session {
@@ -160,13 +240,10 @@ export class HostV2Session {
   private readonly negotiated: HostV2Negotiated;
 
   constructor(negotiated: HostV2Negotiated, requestId: RequestId) {
-    if (negotiated[negotiatedBrand] !== true) {
-      throw new HostV2NegotiationError("WIRE_DESCRIPTOR_MISMATCH", "session requires a validated host-v2 negotiation");
-    }
     if (!(requestId instanceof Uint8Array) || requestId.length !== 16) {
       throw new HostV2CodecError("WIRE_SCHEMA_INVALID", "host-v2 request ID must be exactly 16 bytes");
     }
-    this.negotiated = cloneNegotiated(negotiated);
+    this.negotiated = NegotiatedHostV2State.snapshot(negotiated);
     this.requestId = requestId.slice() as RequestId;
   }
 
@@ -179,7 +256,7 @@ export class HostV2Session {
   }
 
   get negotiation(): HostV2Negotiated {
-    return cloneNegotiated(this.negotiated);
+    return NegotiatedHostV2State.snapshot(this.negotiated);
   }
 
   private sequenceFault(message: string): never {
