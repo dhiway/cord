@@ -27,6 +27,9 @@ pub mod common;
 pub mod names;
 pub mod drive;
 pub mod identity_personhood;
+// Private P3 replacement facade; P5 controls its public cutover.
+#[allow(dead_code)]
+pub(crate) mod identity_v2;
 pub mod s3;
 pub mod storage;
 pub mod storage_events;
