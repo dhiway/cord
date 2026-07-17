@@ -431,7 +431,8 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			self.transport.close();
 			return Err(error.into());
 		}
-		self.active = Some(ActiveDesktopRequest { expected_response_kind: 4, ..active });
+		self.active =
+			Some(ActiveDesktopRequest { expected_response_kind: 4, operation: None, ..active });
 		Ok(retry)
 	}
 

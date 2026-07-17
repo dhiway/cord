@@ -1462,3 +1462,46 @@ fn desktop_cancel_is_durable_before_send_and_resumes_after_each_loss_boundary() 
 	assert_eq!(ack, store.retry_response_ack(id).unwrap().bytes);
 	desktop.confirm_terminal(id, response_hash, [11; 24], [12; 24]).unwrap();
 }
+
+#[cfg(unix)]
+#[test]
+fn desktop_live_cancel_accepts_only_cancel_terminal_and_emits_exact_ack() {
+	use std::os::unix::net::UnixStream;
+
+	let root = tempfile::tempdir().unwrap();
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let input = outbox_input();
+	let outbox_id = input.outbox_id;
+	let request_id = input.request_id;
+	let cancel = cancelled(request_id, 1);
+	let (client, mut server) = UnixStream::pair().unwrap();
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	desktop.prepare_and_send(input, [31; 24], [32; 24]).unwrap();
+	read_frame(&mut server).unwrap();
+	read_frame(&mut server).unwrap();
+	write_frame(&mut server, &accepted(request_id, 0)).unwrap();
+	assert!(matches!(
+		desktop.receive_event(200, [33; 24], [34; 24]).unwrap(),
+		DurableDesktopEvent::NonTerminal(_)
+	));
+	desktop.prepare_cancel_and_send(cancel.clone(), [35; 24], [36; 24]).unwrap();
+	assert_eq!(read_frame(&mut server).unwrap(), cancel);
+	read_frame(&mut server).unwrap();
+	write_frame(&mut server, &cancel).unwrap();
+	let (event, response_hash) = match desktop.receive_event(200, [37; 24], [38; 24]).unwrap() {
+		DurableDesktopEvent::Terminal { event, response_hash } => (event, response_hash),
+		DurableDesktopEvent::NonTerminal(_) => panic!("cancel was not terminal"),
+	};
+	assert_eq!(event, cancel);
+	Dto::<generated::ResponseAckV1>::decode(&read_frame(&mut server).unwrap())
+		.expect("cancel ACK is canonical");
+	desktop.confirm_terminal(outbox_id, response_hash, [39; 24], [40; 24]).unwrap();
+}
