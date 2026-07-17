@@ -33,6 +33,7 @@ import {
 } from "../src/internal/storage-v2-intents.ts";
 import { encodeStorageV2Intent, storageV2Hex } from "../src/internal/storage-v2-codec.ts";
 import {
+  STORAGE_V2_ERRORS,
   validateStorageV2Error,
   validateStorageV2Payload,
   validateStorageV2Progress,
@@ -70,6 +71,32 @@ test("private storage v2 contracts exactly project frozen operations 1000-1061",
       operation.operation_id_required,
       operation.state_changing,
     ], name);
+  }
+});
+
+test("frozen error tuples and per-operation scopes are exhaustive", async () => {
+  const root = resolve(import.meta.dirname, "../../../..", "docs/specs");
+  const errorsRegistry = JSON.parse(await readFile(resolve(root, "origin-host-registry-v2.errors.json"), "utf8")) as {
+    errors: Array<{ code: number; name: string; retryable: boolean }>;
+  };
+  assert.deepEqual(
+    Object.entries(STORAGE_V2_ERRORS).map(([code, [name, retryable]]) => ({ code: Number(code), name, retryable })),
+    errorsRegistry.errors.map(({ code, name, retryable }) => ({ code, name, retryable })),
+  );
+
+  const { operations } = await frozenStorageOperations();
+  const requestId = bytes16(0x11);
+  for (const frozenOperation of operations) {
+    const operation = frozenOperation.name as StorageV2Operation;
+    const allowed = new Set((frozenOperation.allowed_errors as Array<{ code: number }>).map(({ code }) => code));
+    for (const [codeText, [name, retryable]] of Object.entries(STORAGE_V2_ERRORS)) {
+      const code = Number(codeText);
+      const validate = () => validateStorageV2Error(operation, {
+        kind: "error", requestId, seq: 1, code, name, retryable,
+      });
+      if (allowed.has(code)) assert.doesNotThrow(validate, `${operation} must allow ${code}`);
+      else assert.throws(validate, /scope drift/, `${operation} must reject ${code}`);
+    }
   }
 });
 
