@@ -55,51 +55,70 @@
       "Personhood",
       "Resources",
       "S3",
-      "StorageProvider",
-      "TransactionStorage"
+      "StorageProvider"
     ],
-    "default_configuration_storage": {
-      "TransactionStorage": {
-        "ByteFee": {
-          "scale_type": "u128",
-          "value": 10
-        },
-        "EntryFee": {
-          "scale_type": "u128",
-          "value": 1000
-        },
-        "RetentionPeriod": {
-          "scale_type": "u32",
-          "value": 201600
-        }
-      }
-    },
-    "must_remain_absent_storage": {
-      "TransactionStorage": [
-        "AllowedAuthorizers",
-        "Authorizations",
-        "ResourceReservations",
-        "ReservationProviderRef",
-        "ResourceReservationLinks",
-        "ResourceReservationTombstones"
-      ]
-    },
+    "default_configuration_storage": {},
+    "must_remain_absent_storage": {},
     "approved_non_default_storage_items": {
-      "Aura": ["Authorities"],
-      "AuraExt": ["Authorities"],
-      "Balances": ["TotalIssuance"],
-      "CollatorSelection": ["CandidacyBond", "DesiredCandidates", "Invulnerables"],
-      "Names": ["BootstrapReservationLabels", "BootstrapReservations", "Registrars"],
-      "ParachainInfo": ["ParachainId"],
-      "PolkadotXcm": ["SafeXcmVersion"],
-      "Revive": ["BlockHash", "EthereumBlock", "ReceiptInfoData"],
-      "Score": ["ManagerAccount", "PayoutAccount"],
-      "Session": ["KeyOwner", "NextKeys", "QueuedKeys", "Validators"],
-      "Sudo": ["Key"],
-      "System": ["Account", "BlockHash", "BlockWeight", "LastRuntimeUpgrade", "ParentHash", "UpgradedToTripleRefCount", "UpgradedToU32RefCount"],
-      "Token": ["GenesisNetworkId"],
-      "TransactionPayment": ["NextFeeMultiplier", "StorageVersion"],
-      "TransactionStorage": ["ByteFee", "EntryFee", "RetentionPeriod"]
+      "Aura": [
+        "Authorities"
+      ],
+      "AuraExt": [
+        "Authorities"
+      ],
+      "Balances": [
+        "TotalIssuance"
+      ],
+      "CollatorSelection": [
+        "CandidacyBond",
+        "DesiredCandidates",
+        "Invulnerables"
+      ],
+      "Names": [
+        "BootstrapReservationLabels",
+        "BootstrapReservations",
+        "Registrars"
+      ],
+      "ParachainInfo": [
+        "ParachainId"
+      ],
+      "PolkadotXcm": [
+        "SafeXcmVersion"
+      ],
+      "Revive": [
+        "BlockHash",
+        "EthereumBlock",
+        "ReceiptInfoData"
+      ],
+      "Score": [
+        "ManagerAccount",
+        "PayoutAccount"
+      ],
+      "Session": [
+        "KeyOwner",
+        "NextKeys",
+        "QueuedKeys",
+        "Validators"
+      ],
+      "Sudo": [
+        "Key"
+      ],
+      "System": [
+        "Account",
+        "BlockHash",
+        "BlockWeight",
+        "LastRuntimeUpgrade",
+        "ParentHash",
+        "UpgradedToTripleRefCount",
+        "UpgradedToU32RefCount"
+      ],
+      "Token": [
+        "GenesisNetworkId"
+      ],
+      "TransactionPayment": [
+        "NextFeeMultiplier",
+        "StorageVersion"
+      ]
     },
     "approved_well_known_storage_keys": [
       ":c",

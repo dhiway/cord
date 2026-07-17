@@ -147,23 +147,18 @@ identity; no council, referendum, deposit, or stake is required for administrati
 Application authorization should require the configured registrar judgement when a verified
 person is needed; merely publishing self-claimed display data is not equivalent to an attestation.
 
-## Durable Orbis Storage storage
+## Native Commons storage
 
-`TransactionStorage` is at pallet index `110`. It is adapted from upstream transaction-storage reference revision
-`b6c2827d2326` onto CORD's SDK graph and provides bounded authorized storage, BLAKE2/CID content
-lookup, retention and renewal accounting, a permanent-storage cap, transaction indexing, proof
-inherents, and both the SDK transaction-storage API and Orbis Storage authorization query API.
+Commons exposes one storage plane: `StorageProvider` at index `120`, `Drive` at `121`, and `S3` at
+`122`. Provider owns governed zero-stake registration, agreements, manifests, checkpoints,
+challenges, replica accountability and deletion acknowledgement. Drive and S3 own bounded
+application metadata and reference provider commitments. Content bytes, CID/DAG-PB/UnixFS
+reconstruction and transport stay off-chain in the provider service.
 
-Sudo/root manages authorizers. An authorizer grants an account explicit transaction and byte
-allowances before signed `store` or `renew` calls are accepted. The transaction extension consumes
-the authorization before dispatch, so a failed call cannot reuse its allowance. Storage mutations
-must be direct extrinsics: Utility-wrapped mutations and XCM `Transact` storage mutations are
-rejected recursively. Root remains an emergency direct authorizer and storage origin.
-
-The initial development limits are 128 indexed transactions per block, 256 KiB per transaction,
-16 GiB total permanent storage, and 14 days for an authorization. These are safety limits, not
-production storage economics. The Orbis node must keep the transaction-storage inherent provider
-enabled; once retained data reaches its proof window, a block missing the expected proof is invalid.
+The former transaction-retention pallet, hop-promotion pallet, proof inherent and their runtime APIs
+are removed. They have no genesis state, node worker, SDK route, compatibility facade or migration
+path. Applications use typed Provider/Drive/S3 calls and finalized reads; they must not submit raw
+SCALE or depend on removed pallet indices.
 
 ## Multi-core test topology
 

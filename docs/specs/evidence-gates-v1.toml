@@ -162,15 +162,15 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "477ec7d420d84df33075395a5b883a37f7af65e63da13f2e2c49bcaa16618020"
+sha256 = "528b8986a1803dc92c30305304714b42691453acd7b6881420a405c9c988d64c"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "e0e58f314ffc82529b1f81a23e93799a5f2931ff3a2927f95d964bc5a70e8b4b"
+sha256 = "404e7debb220a86cdc76279396af748d9eade829a89a95ef456eb0b70bb45112"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "dfa9723ca19426d9fd80646bb91fafb32b2623cd25783106cbbdbf0415356675"
+sha256 = "7c36536d467c9122b27bc75d5214f09d453ddd2b458a323843d507e623907518"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -178,7 +178,7 @@ sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "7ed8207ac300bc2fc0c609316d3c4a567fac340e209c52c24aabd88ed0698242"
+sha256 = "eedc18cefac692fdf6100119b1f9b14d11d9d7e5e15589a4e2c1d8f4d8f7ae2c"
 
 [[gate.input]]
 path = "scripts/validate-storage-content-vectors.py"
@@ -263,15 +263,15 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "477ec7d420d84df33075395a5b883a37f7af65e63da13f2e2c49bcaa16618020"
+sha256 = "528b8986a1803dc92c30305304714b42691453acd7b6881420a405c9c988d64c"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "e0e58f314ffc82529b1f81a23e93799a5f2931ff3a2927f95d964bc5a70e8b4b"
+sha256 = "404e7debb220a86cdc76279396af748d9eade829a89a95ef456eb0b70bb45112"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "dfa9723ca19426d9fd80646bb91fafb32b2623cd25783106cbbdbf0415356675"
+sha256 = "7c36536d467c9122b27bc75d5214f09d453ddd2b458a323843d507e623907518"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -279,7 +279,7 @@ sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "7ed8207ac300bc2fc0c609316d3c4a567fac340e209c52c24aabd88ed0698242"
+sha256 = "eedc18cefac692fdf6100119b1f9b14d11d9d7e5e15589a4e2c1d8f4d8f7ae2c"
 
 [[gate.input]]
 path = "scripts/validate-storage-proof-vectors.py"
@@ -360,11 +360,11 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
+sha256 = "528b8986a1803dc92c30305304714b42691453acd7b6881420a405c9c988d64c"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
+sha256 = "404e7debb220a86cdc76279396af748d9eade829a89a95ef456eb0b70bb45112"
 
 [[gate.input]]
 path = "scripts/validate-provider-organization.py"
@@ -436,15 +436,15 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "477ec7d420d84df33075395a5b883a37f7af65e63da13f2e2c49bcaa16618020"
+sha256 = "528b8986a1803dc92c30305304714b42691453acd7b6881420a405c9c988d64c"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "e0e58f314ffc82529b1f81a23e93799a5f2931ff3a2927f95d964bc5a70e8b4b"
+sha256 = "404e7debb220a86cdc76279396af748d9eade829a89a95ef456eb0b70bb45112"
 
 [[gate.input]]
 path = "origin/orbis/provider-node"
-sha256 = "1178080c6dfd593112c72935aa4cf180d6f2af056d6421a0c4c58cdede3cd734"
+sha256 = "a0e502543e69f06830a46a68ee9cca3a8664b709fbd338627ba8f6a27ebd53c6"
 
 [[gate.input]]
 path = "scripts/validate-three-provider-recovery.py"
@@ -526,15 +526,15 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
+sha256 = "528b8986a1803dc92c30305304714b42691453acd7b6881420a405c9c988d64c"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
+sha256 = "404e7debb220a86cdc76279396af748d9eade829a89a95ef456eb0b70bb45112"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "0242db16952fddf0c4201ff2847e280fd297dc80f5c319aed4b4075fa7d5e63f"
+sha256 = "7c36536d467c9122b27bc75d5214f09d453ddd2b458a323843d507e623907518"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -542,7 +542,7 @@ sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "a66d8315ab531cd4644e5e5a1dd1f4e99c90b7abf3760e070488ac3b5e6dded8"
+sha256 = "eedc18cefac692fdf6100119b1f9b14d11d9d7e5e15589a4e2c1d8f4d8f7ae2c"
 
 [[gate.input]]
 path = "scripts/validate-drive-s3-vectors.py"
@@ -630,19 +630,19 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "477ec7d420d84df33075395a5b883a37f7af65e63da13f2e2c49bcaa16618020"
+sha256 = "528b8986a1803dc92c30305304714b42691453acd7b6881420a405c9c988d64c"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "e0e58f314ffc82529b1f81a23e93799a5f2931ff3a2927f95d964bc5a70e8b4b"
+sha256 = "404e7debb220a86cdc76279396af748d9eade829a89a95ef456eb0b70bb45112"
 
 [[gate.input]]
 path = "origin-rs"
-sha256 = "182cb5444249836f771c76dc0b998ba84acd6f15c7b55fbad85ae3e20bdc364f"
+sha256 = "205ebec8fd19bcd9ad924fe00a5007c95478a8ffe871d19fd3afc222cd8e9d5b"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "dfa9723ca19426d9fd80646bb91fafb32b2623cd25783106cbbdbf0415356675"
+sha256 = "7c36536d467c9122b27bc75d5214f09d453ddd2b458a323843d507e623907518"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -650,7 +650,7 @@ sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "7ed8207ac300bc2fc0c609316d3c4a567fac340e209c52c24aabd88ed0698242"
+sha256 = "eedc18cefac692fdf6100119b1f9b14d11d9d7e5e15589a4e2c1d8f4d8f7ae2c"
 
 [[gate.input]]
 path = "scripts/validate-host-provider-wire.py"
@@ -658,7 +658,7 @@ sha256 = "57ccf9526aee209063c673214cc4bec77ebea16bdc9e8762b3b64d5eed61b048"
 
 [[gate.input]]
 path = "docs/specs/host-provider-wire-v2.toml"
-sha256 = "8793d5689ed7b25cd8ee0cb18ccfc869c97be17c75e1a81e5dbe59a29a043fe4"
+sha256 = "f71085482d6ed0010ffd5adfe6dc340874e82e3ea232cf2b727c3a83fc202dc5"
 
 [[gate.input]]
 path = "docs/specs/host-provider-protocol-v2.md"
@@ -666,27 +666,27 @@ sha256 = "de8116cb44b3b8f5a0a6d5bc135588edbb85366f1865db737c449f257deb99cf"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.cddl"
-sha256 = "71d71f02b7c1b4e55892c88bb6cdeba53852f981625f7bf831b79c97520264e3"
+sha256 = "42e4e9660d7e2c26f15565a2448f9d2b384cb5c73321422a3b9ae9107f364b57"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.operations.json"
-sha256 = "48934f781f5bd7f377684a5f17dd5eb3d9efa2b178b408cb0db80eb5b3d738b1"
+sha256 = "0263f2d550e07a982b8c4a5f4b5edc471ee721ab28e8acab5f25f109e5e96abc"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.errors.json"
-sha256 = "5bce2efd0c2c84d9bd09f568100467ffb2681a42e4f405746937c9651c6dc0eb"
+sha256 = "20e8135116ac9b82f86891b798224ec5c08ac09cdc6c249269e7a8e236ae88c5"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.schema.json"
-sha256 = "ab087de1993230668ca5d37f5fecb15fdc3c71bd4d8fe10819b0f920a12b6a47"
+sha256 = "ca9325a8adb0aad5b7db9b24bc27f1305087d0aead872d548df79ffa54139950"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.vectors.json"
-sha256 = "f9df803c2301c28306c5df87d010268e381fec3d503dbc9d72695e2ea4000292"
+sha256 = "69f0bc1c834508861b69a6cee3ea53189712bbb88c8a7790e1913f4c49034862"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.vectors.cbor"
-sha256 = "f22d6486f25b25ae84c9472ec6e4ece093eda2dfc12f0c68b2b8ac3dcfd06190"
+sha256 = "3845b833817f14f6b7a0bebfd15d6601d6a8325d2e518bf4ea9d29dbc683fdf4"
 
 [[gate.input]]
 path = "docs/specs/protocol-executable-v2.vectors.json"
@@ -710,11 +710,11 @@ sha256 = "97086f7e8a84ba32108968b8f27babc7832bcb08573914773eb9ca3b7f92899a"
 
 [[gate.input]]
 path = "origin-rs/tests/generated/origin_host_registry_v2.rs"
-sha256 = "d569ecce7cb08cc50d1ba151f4f1bbe9d93542840071c92699e2bca0a6c7a6a7"
+sha256 = "9a4baccb03f411e298a662eef24c0ab645280f60cb88ac2d53a3361de9ce75d6"
 
 [[gate.input]]
 path = "origin/orbis/provider-node"
-sha256 = "1178080c6dfd593112c72935aa4cf180d6f2af056d6421a0c4c58cdede3cd734"
+sha256 = "a0e502543e69f06830a46a68ee9cca3a8664b709fbd338627ba8f6a27ebd53c6"
 
 [[gate.input]]
 path = "origin/orbis/provider-node/src/capability.rs"
@@ -722,7 +722,7 @@ sha256 = "9aa355f7e80df9cfd1810c5e3e42e511de74441ecec20ca01e3794577d6e9c93"
 
 [[gate.input]]
 path = "origin/orbis/provider-node/src/storage/streaming/recovery.rs"
-sha256 = "2acc221ecaca306d8c23ea0ccdfe1a646b055f5f440b33e9213a5011f53d4dd5"
+sha256 = "e00b6fc9c957c12d0da2967498cf2bf011ff94d810aea324cac7ad5b2d1e2231"
 
 [[gate.input]]
 path = "origin/orbis/runtime/vectors/transaction-policy-v8/intent-preimage.scale"
@@ -730,11 +730,11 @@ sha256 = "4c8546f3911947ee310b210b418fc2762c5560c670b71d7f7dcd7dcee685eedd"
 
 [[gate.input]]
 path = "docs/sdk/native-route-contract.json"
-sha256 = "ec85931fb3249f27f64130346b665778cc7aea78f3090b01b7c3d38c279425f4"
+sha256 = "ec11d606833f9504c2b1a2ab39c61cea2f6d0900a8fa56bdeab43d8292bd91d4"
 
 [[gate.input]]
 path = "docs/sdk/native-version-matrix.json"
-sha256 = "b7dbdee725a56d6d5b5d36c4c33a157c31a31973b2a5a86ac058ceee36b1a6d3"
+sha256 = "0fe369f1345b7a0625a8c68386245fb04da791bb5558f21176da81045f463a17"
 
 [[gate.input]]
 path = "docs/sdk/vectors/storage-provider-deletion-v1.json"
@@ -742,7 +742,7 @@ sha256 = "83181b0efee4197e6c10f6c629025b32dc88c0ab696c918ca9147342bfe279f8"
 
 [[gate.input]]
 path = "docs/sdk/vectors/names-v1.json"
-sha256 = "1a543ac96e7212854fb6e2105e8b0d1c947a19a65fe3f0d50f91fbe0b77bd700"
+sha256 = "267ec97ace7eae519729a7efb8083308e3ad660219e393afa5f80db995bd13d1"
 
 [[gate.input]]
 path = "docs/sdk/vectors/attestation-v1.json"
@@ -845,19 +845,19 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
+sha256 = "528b8986a1803dc92c30305304714b42691453acd7b6881420a405c9c988d64c"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
+sha256 = "404e7debb220a86cdc76279396af748d9eade829a89a95ef456eb0b70bb45112"
 
 [[gate.input]]
 path = "origin-rs"
-sha256 = "13fddab325b92fd8683c53e407de92dc0652fb6697ad6fbc3ba97b53de58b324"
+sha256 = "205ebec8fd19bcd9ad924fe00a5007c95478a8ffe871d19fd3afc222cd8e9d5b"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "0242db16952fddf0c4201ff2847e280fd297dc80f5c319aed4b4075fa7d5e63f"
+sha256 = "7c36536d467c9122b27bc75d5214f09d453ddd2b458a323843d507e623907518"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -865,7 +865,7 @@ sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "a66d8315ab531cd4644e5e5a1dd1f4e99c90b7abf3760e070488ac3b5e6dded8"
+sha256 = "eedc18cefac692fdf6100119b1f9b14d11d9d7e5e15589a4e2c1d8f4d8f7ae2c"
 
 [[gate.input]]
 path = "scripts/validate-product-projection.py"
@@ -1033,7 +1033,7 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "docs/specs/storage-identity-deletion-v1.toml"
-sha256 = "4b4ebe744c38516f2b70c20796a70ee9a9ad6e8ac1c0cc7140ae6396054e7e4f"
+sha256 = "f54dfee4e1346750b64f08006ce7c7b5cfe1d70f951870be7a78ff9024f82677"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-capability-ledger-v1.json"
@@ -1045,15 +1045,15 @@ sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
 
 [[gate.input]]
 path = "scripts/validate-storage-identity-deletion.py"
-sha256 = "c4bc7414c6b97679e87284511de3da9e2d779740db028e97bba18e0130c2ed43"
+sha256 = "4ecddee6ac73a663c34082ef83ae41bf6bcab8ce2edee00327717015b426fd1d"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
+sha256 = "528b8986a1803dc92c30305304714b42691453acd7b6881420a405c9c988d64c"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
+sha256 = "404e7debb220a86cdc76279396af748d9eade829a89a95ef456eb0b70bb45112"
 
 [[gate.input]]
 path = "docs/adr/0020-web3-storage-component-disposition-policy.md"
@@ -1064,164 +1064,44 @@ path = "docs/architecture/domains/identity-personhood-attestation.md"
 sha256 = "008eb0d87971ee92bcfbdac069bc00ba491ce36e1623501e860048dec82f1a01"
 
 [[gate.input]]
-path = "origin-rs/examples/orbis_storage_proof_fault.rs"
-sha256 = "14a817db7e754833956ecd359c943f5641eaba25c24495fadadf711eb2788550"
-
-[[gate.input]]
 path = "origin-rs/src/product_sdk/domains/storage_provider.rs"
-sha256 = "9000d050bf0e863e1b247b8414f613a6eee702232fec5031967b147e1f72bec0"
+sha256 = "253ff49de2ce2fb74171af51632e8592bd548906c2c436f717ee930b24e73ed7"
 
 [[gate.input]]
 path = "origin-rs/src/product_sdk/transport.rs"
-sha256 = "da4dccc8ec21c60882ff2d3cb9cbb5477e4d5f578b997b3b9107f8d9f6a5ac83"
-
-[[gate.input]]
-path = "origin/orbis/node/src/proof_campaign/config.rs"
-sha256 = "45b707e325c89c6bf483dc91c27f85a3c1b8bc909efe8f429c0b26e17ad1d141"
-
-[[gate.input]]
-path = "origin/orbis/node/src/proof_campaign/mod.rs"
-sha256 = "1f79deef645bfc6642c17644165ea8dc0b7866915b12aab2bca03f39225bced1"
-
-[[gate.input]]
-path = "origin/orbis/node/src/proof_campaign/proposer.rs"
-sha256 = "44194e0198b0a0a9c2b7abea09a2f628b83f931505e2178027dd621bc3a4c2f5"
-
-[[gate.input]]
-path = "origin/orbis/node/src/proof_campaign/provider.rs"
-sha256 = "81b97b33c730156ccae2afb4857f482ca48c7506ee221473bfef7eccad9ae851"
-
-[[gate.input]]
-path = "origin/orbis/node/src/proof_campaign/service.rs"
-sha256 = "f5b79b23349679c69c2053b3775f3080506a1661308c7b72ef54595ca9eac616"
+sha256 = "d44c40825f263d3f7dadc27a7a83223f5f5d7db06782d62e8dd904d1166de45e"
 
 [[gate.input]]
 path = "origin/orbis/pallets/drive/src/lib.rs"
-sha256 = "f59fc4b62ba76113f560125bbe861bbb865bcdd637fac7a2f10126a195406929"
-
-[[gate.input]]
-path = "origin/orbis/pallets/hop-promotion/Cargo.toml"
-sha256 = "96e4015ccafc1b75aa24b523cdccde7287e3fc99f21804fc7f4137609ded5b24"
-
-[[gate.input]]
-path = "origin/orbis/pallets/hop-promotion/README.md"
-sha256 = "b26a1a53405459f3f59dd5f642282258c59f4ff1f09e1c97982c6bf86e1fd5c7"
-
-[[gate.input]]
-path = "origin/orbis/pallets/hop-promotion/src/benchmarking.rs"
-sha256 = "39fa9c8822ce65020e466dcb57459731b0ed7dbfeb2d906c73da8030347fc1d1"
-
-[[gate.input]]
-path = "origin/orbis/pallets/hop-promotion/src/lib.rs"
-sha256 = "3f3682029d9acec874e8ffe1de4dc968d1deb51762435f7e76192ce9f40163f4"
-
-[[gate.input]]
-path = "origin/orbis/pallets/hop-promotion/src/mock.rs"
-sha256 = "39549770798f1c247ac73195bf0f305f924f31c50c41eef6c8831f2d8387081f"
-
-[[gate.input]]
-path = "origin/orbis/pallets/hop-promotion/src/tests.rs"
-sha256 = "cb77942d40c6532b7d41583860a727309ad95b5a9b86eb527844829f5f1e5bb4"
-
-[[gate.input]]
-path = "origin/orbis/pallets/hop-promotion/src/weights.rs"
-sha256 = "8867d8141250f74beab9d4acae87b2448fab4cc6fb020f15d00cabf0052c3edd"
+sha256 = "d6ee6dd5c26bd7b112662f06f53ea8640ebc7fc43c39d53209421290fcfa8a70"
 
 [[gate.input]]
 path = "origin/orbis/pallets/s3/src/lib.rs"
-sha256 = "7c5e1d67f9f73abcaa4526fc98cc8de5cf011f726e55d7eebb007f93466809b2"
+sha256 = "6ed56331cb8e0f7bf4c3c32c5f3a44a950cf2fa6f8ed8b446eb87a8c540518ea"
 
 [[gate.input]]
 path = "origin/orbis/pallets/storage-provider/src/lib.rs"
-sha256 = "f5e8ca0a747ee8f260eaebe1b0e934f969ba33eeb17740bbbd2c44ed5c444837"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/Cargo.toml"
-sha256 = "0c1cb446016a744d3b388589e5f489d748b6b7f04bf20d86260d56c65f9365b5"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/README.md"
-sha256 = "1e926f1f92d8e5ded2394f532ef79e75a4154d6b39f1e688878213724b09260b"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/primitives/Cargo.toml"
-sha256 = "a73968e9154ffe10e4f9a3bfec15008d40bb0fe95305454626a1a8a022cbcb76"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/primitives/README.md"
-sha256 = "a7f8e284da67c8486d66c9bb1abeabbd52131846c238ebae3bbf41c0ed5573c7"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/primitives/src/cids.rs"
-sha256 = "440e5cbe5a0fd53d5ab409e220d0f215ca0babd19a5a82283599961b60a04943"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
-sha256 = "9c7c9b89a1630867593e49af7eebb49a437d591376f1276bf9b18b6597164574"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/runtime-api/Cargo.toml"
-sha256 = "8013ca6d0d3a2ef01c7e7f6c7b5c52e276b24bad5f085496dde6f0ccf385fac3"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs"
-sha256 = "30ca8d7efe9a21fd0bfca674d04210195239cb91049eb15f2471366fbd46d480"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/benchmarking.rs"
-sha256 = "a2c16cfc40fb77cd00276db9c510b38ee5995c5b52202b1053b5cd3fd4565aab"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/extension.rs"
-sha256 = "80ca153202a3053b7f9f046829432cf7dfacfd92e75c256400618a3fce536927"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/lib.rs"
-sha256 = "3409322cef225ea0b7138a651dcfdd05f41590003cf587641bad7a6ed7e8ee9d"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/mock.rs"
-sha256 = "00cb4b8cfc6d45f422f85dffcc027ddde2affdd3eaeed7e7be2724294f2a5ccb"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/tests.rs"
-sha256 = "625d4e4e494abd10def5800281f77467dff673abe3048a6953abdb93a2c870b1"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/tests/runtime_api.rs"
-sha256 = "8078f4a18832d3e2430ee22c275b91015b1ef8b7a6d587b4864244e6963d2a4c"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/types.rs"
-sha256 = "2bc26d9a76f73abbce94bf9ab89b04a271090ef4bb37bb7066d7c98a87707582"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/weights.rs"
-sha256 = "dc6f3945d7c879d95dee5e48d7436544345ab175ea8d4fe4843225e2f21d5f2b"
+sha256 = "3e7e8ae0c70cc959c8b0f7862d6296b92d5a7c544149460cbd74a245a17dd356"
 
 [[gate.input]]
 path = "origin/orbis/provider-node/README.md"
-sha256 = "aee0501405ac13bdbfc0d09dbbf7ebca2c2883e25c4748f7a80d4104bf3dcea2"
+sha256 = "05461c07aeb80b6e170e06c94d924c266d0dede40432589b7e70884c79bc6960"
 
 [[gate.input]]
 path = "origin/orbis/provider-node/src/api.rs"
-sha256 = "ded04e7a416596f9121c33a7b2f0f59dd9c4f74ac307c03a149b93a06f45a8eb"
+sha256 = "f065fdafd11b08ad07b4f3d6a05f5b9504ac317febfd5030621d9b83b4a6ba2d"
 
 [[gate.input]]
 path = "origin/orbis/runtime/src/enterprise_journey.rs"
-sha256 = "ce25982d911319fd551b28e7fc932e7a0506b1e06edfe4aceb9233a60b41490a"
+sha256 = "a386898bf0c3d42affbd205fc66e11af0c508af2ecd5c76ac06464e9b6e27a01"
 
 [[gate.input]]
 path = "origin/orbis/runtime/src/lib.rs"
-sha256 = "348b2ac5008544a5a031bcef62ed3226abf631b7f80faffe752aee14080af116"
+sha256 = "f1e27547eb40ea54784ab308970563ffc0a31af8dcaa47c33579f5de75db2e3f"
 
 [[gate.input]]
 path = "origin/orbis/runtime/src/tests.rs"
-sha256 = "a998a285a93be0cd23b224efc24a095be6501ff1fd53774e4abbbe93b9f1ba3f"
-
-[[gate.input]]
-path = "origin/orbis/runtime/src/weights/pallet_orbis_hop_promotion.rs"
-sha256 = "8240875eefd114c0268391285ca582163d83e5f47507951bcaf40cda2ba6ef78"
+sha256 = "00424655eb5f6d4f1a8b1d67e2777abd6b7f785b2e4f785454a01def99b51e91"
 
 [[gate.input]]
 path = "product-sdk/examples/festival/mobile-contract-harness.ts"
@@ -1237,19 +1117,19 @@ sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
 
 [[gate.input]]
 path = "product-sdk/packages/descriptors/generated/commons-papi-manifest.json"
-sha256 = "863725ddb75dca2cda5550d8f28cebcbf0be38c06a3f038da05b3574b8ba3aaa"
+sha256 = "673d04218c99e6c17630a9fedf7689fa8b06761219c92a5e6f9b92ea25a8c595"
 
 [[gate.input]]
 path = "product-sdk/packages/descriptors/generated/native-route-contract.ts"
-sha256 = "ac8c668d36548cc4a40e28575022aaae73940ac4bab5a56d7e912ad0e7a97437"
+sha256 = "2dbc903458ea61219b12b2424985433b9acf39f53d8fa5bf855089b6be111df1"
 
 [[gate.input]]
 path = "product-sdk/packages/descriptors/generated/orbis-descriptor.json"
-sha256 = "62b0c9621c410dd3fbb919848306ea6601841fe83235a807af3cda61554cc729"
+sha256 = "6892d39913d2a755aec8fb129c3d8529b500884f934520102ab129896f174584"
 
 [[gate.input]]
 path = "product-sdk/packages/descriptors/generated/orbis-network-binding.ts"
-sha256 = "0473be87d0485799c17204c78039e618bbdaf6796a648d10657884a15b7c9845"
+sha256 = "725944d1c4f734efd6116b0c08e4f14d396e72d73b999b69aaf6c5b9439fef67"
 
 [[gate.input]]
 path = "product-sdk/packages/descriptors/src/identity-host-routes.ts"
@@ -1261,7 +1141,7 @@ sha256 = "a8362355c57d2b357439905f7670d99e2e3d6f3bcd636f2d849cca7396c123f2"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk-apps/src/index.ts"
-sha256 = "ff1ee42c1c12a446e13d2e622f151523d01bb34b3366e2a9a8b61d21083a1d42"
+sha256 = "92d574c01539fe48846f0ad88853086bc2bf4a433c980b59aa2913697aab46a6"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk-cloud-storage/README.md"
@@ -1269,7 +1149,7 @@ sha256 = "8ec34f224114a4ff196bfd005a3c894f50c5540a957022498e253a8c9a760e0e"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts"
-sha256 = "c9262bf69456c9e79ef05a97ef382d39e2fff45bf50f5f576bb176d92ad07bbb"
+sha256 = "928fb40b14298921a378f7dce03007d5c7baa76a7a982a8d1a7fef4fea84068d"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk-contracts/README.md"
@@ -1353,7 +1233,7 @@ sha256 = "d3acd66b0ceefb6066f751de33d754cbfba5d045947a276788d97fbb45cfd067"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk/src/runtime.ts"
-sha256 = "7ab9fd8c4b53b8a8601c31c624697a6ef7ae561b8e84295c4e4277c446cd6834"
+sha256 = "ddf9b49ca918a0449e94f21143a2c582107ad1ccb7115f6e121a92d22c47f093"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk/src/testing.ts"
@@ -1365,11 +1245,11 @@ sha256 = "dc32296053b5723ea12fccc2ad57a8cf8b787d24e1a6b63e4328b180730e98da"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk/tests/runtime.test.ts"
-sha256 = "ce66f41f12aa7396b39aef7bb92dcf9bc592dd1cf16c56156fcbde4e3f5cefcc"
+sha256 = "98776a92d93d8b5721f3ff44121647e86e4a29f5555dc139e0314fc73deb70a2"
 
 [[gate.input]]
 path = "product-sdk/src/version.ts"
-sha256 = "2c46e678303eb25805a91756003f1ff326c4a03953e9bd3a749a99f0491ca725"
+sha256 = "649f5953ed9f918b82fee0ab2e0845dead034b9be2bc7e7bc6d7e1cb23615cd2"
 
 [[gate.input]]
 path = "product-sdk/tests/conformance/identity-sponsored-contract.test.ts"
@@ -1381,22 +1261,22 @@ sha256 = "2025942f30325fd34d16b59237ee4ab8f9eee713dbaa158acf671966208d2204"
 
 [[gate.input]]
 path = "product-sdk/tools/generate-papi-app-surface.ts"
-sha256 = "11f3a566c591561f3f0b6481ceefa0d0ed99490aa9f0da18e44e13405269f5ca"
+sha256 = "2fcc416e364b32cedab8f9a55d99d4dd9239d8bfc7361d416b47ab13079e3f1d"
 
 [[gate.input]]
 path = "product-sdk/tools/test-packed-consumer.ts"
-sha256 = "10785678d67fc050b6b5b4b368b2c7707d88599e84483c2900a50a88885a086c"
+sha256 = "003cb5f5d36c6437d3312e59560b4259827f3b73ceddc0dd8dd6a370465c5dc4"
 
 [[gate.input]]
 path = "product-sdk/tools/validate-sdk-native-coverage.ts"
-sha256 = "08ae41f6d59120dc656241dba58a87407107f35ccb83fd14c554f2f02cf7e301"
+sha256 = "28e4915373bdb205672340958c3d8cdb4c0376e769269becf1718bf065a17e87"
 
 [[gate.command]]
 cwd = "."
 argv = ["python3", "scripts/validate-storage-identity-deletion.py", "--manifest", "docs/specs/storage-identity-deletion-v1.toml", "--ledger", "docs/specs/web3-storage-capability-ledger-v1.json", "--out", "target/evidence/ac10-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/ac10-assertions.json"]
-inputs = ["scripts/validate-storage-identity-deletion.py", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/web3-storage-capability-ledger-v1.json", "scripts/evidence_common.py", "Cargo.lock", "Cargo.toml", "docs/adr/0020-web3-storage-component-disposition-policy.md", "docs/architecture/domains/identity-personhood-attestation.md", "origin-rs/examples/orbis_storage_proof_fault.rs", "origin-rs/src/product_sdk/domains/storage_provider.rs", "origin-rs/src/product_sdk/transport.rs", "origin/orbis/node/src/proof_campaign/config.rs", "origin/orbis/node/src/proof_campaign/mod.rs", "origin/orbis/node/src/proof_campaign/proposer.rs", "origin/orbis/node/src/proof_campaign/provider.rs", "origin/orbis/node/src/proof_campaign/service.rs", "origin/orbis/pallets/drive/src/lib.rs", "origin/orbis/pallets/hop-promotion/Cargo.toml", "origin/orbis/pallets/hop-promotion/README.md", "origin/orbis/pallets/hop-promotion/src/benchmarking.rs", "origin/orbis/pallets/hop-promotion/src/lib.rs", "origin/orbis/pallets/hop-promotion/src/mock.rs", "origin/orbis/pallets/hop-promotion/src/tests.rs", "origin/orbis/pallets/hop-promotion/src/weights.rs", "origin/orbis/pallets/s3/src/lib.rs", "origin/orbis/pallets/storage-provider/src/lib.rs", "origin/orbis/pallets/transaction-storage/Cargo.toml", "origin/orbis/pallets/transaction-storage/README.md", "origin/orbis/pallets/transaction-storage/primitives/Cargo.toml", "origin/orbis/pallets/transaction-storage/primitives/README.md", "origin/orbis/pallets/transaction-storage/primitives/src/cids.rs", "origin/orbis/pallets/transaction-storage/primitives/src/lib.rs", "origin/orbis/pallets/transaction-storage/runtime-api/Cargo.toml", "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs", "origin/orbis/pallets/transaction-storage/src/benchmarking.rs", "origin/orbis/pallets/transaction-storage/src/extension.rs", "origin/orbis/pallets/transaction-storage/src/lib.rs", "origin/orbis/pallets/transaction-storage/src/mock.rs", "origin/orbis/pallets/transaction-storage/src/tests.rs", "origin/orbis/pallets/transaction-storage/src/tests/runtime_api.rs", "origin/orbis/pallets/transaction-storage/src/types.rs", "origin/orbis/pallets/transaction-storage/src/weights.rs", "origin/orbis/provider-node/README.md", "origin/orbis/provider-node/src/api.rs", "origin/orbis/runtime/src/enterprise_journey.rs", "origin/orbis/runtime/src/lib.rs", "origin/orbis/runtime/src/tests.rs", "origin/orbis/runtime/src/weights/pallet_orbis_hop_promotion.rs", "product-sdk/examples/festival/mobile-contract-harness.ts", "product-sdk/examples/festival/mobile-contract-vectors.json", "product-sdk/package-lock.json", "product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "product-sdk/packages/descriptors/generated/native-route-contract.ts", "product-sdk/packages/descriptors/generated/orbis-descriptor.json", "product-sdk/packages/descriptors/generated/orbis-network-binding.ts", "product-sdk/packages/descriptors/src/identity-host-routes.ts", "product-sdk/packages/origin-sdk-apps/README.md", "product-sdk/packages/origin-sdk-apps/src/index.ts", "product-sdk/packages/origin-sdk-cloud-storage/README.md", "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts", "product-sdk/packages/origin-sdk-contracts/README.md", "product-sdk/packages/origin-sdk-contracts/src/index.ts", "product-sdk/packages/origin-sdk-host/src/index.ts", "product-sdk/packages/origin-sdk-host/src/protocol.ts", "product-sdk/packages/origin-sdk-host/src/testing.ts", "product-sdk/packages/origin-sdk-host/tests/index.test.ts", "product-sdk/packages/origin-sdk-personhood/README.md", "product-sdk/packages/origin-sdk-personhood/package.json", "product-sdk/packages/origin-sdk-personhood/src/index.ts", "product-sdk/packages/origin-sdk-personhood/tests/index.test.ts", "product-sdk/packages/origin-sdk-resources/README.md", "product-sdk/packages/origin-sdk-resources/package.json", "product-sdk/packages/origin-sdk-resources/src/index.ts", "product-sdk/packages/origin-sdk-resources/tests/index.test.ts", "product-sdk/packages/origin-sdk-statement-store/README.md", "product-sdk/packages/origin-sdk-statement-store/package.json", "product-sdk/packages/origin-sdk-statement-store/src/index.ts", "product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts", "product-sdk/packages/origin-sdk/package.json", "product-sdk/packages/origin-sdk/src/index.ts", "product-sdk/packages/origin-sdk/src/runtime.ts", "product-sdk/packages/origin-sdk/src/testing.ts", "product-sdk/packages/origin-sdk/tests/index.test.ts", "product-sdk/packages/origin-sdk/tests/runtime.test.ts", "product-sdk/src/version.ts", "product-sdk/tests/conformance/identity-sponsored-contract.test.ts", "product-sdk/tests/content/content.test.ts", "product-sdk/tools/generate-papi-app-surface.ts", "product-sdk/tools/test-packed-consumer.ts", "product-sdk/tools/validate-sdk-native-coverage.ts"]
+inputs = ["scripts/validate-storage-identity-deletion.py", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/web3-storage-capability-ledger-v1.json", "scripts/evidence_common.py", "Cargo.lock", "Cargo.toml", "docs/adr/0020-web3-storage-component-disposition-policy.md", "docs/architecture/domains/identity-personhood-attestation.md", "origin-rs/src/product_sdk/domains/storage_provider.rs", "origin-rs/src/product_sdk/transport.rs", "origin/orbis/pallets/drive/src/lib.rs", "origin/orbis/pallets/s3/src/lib.rs", "origin/orbis/pallets/storage-provider/src/lib.rs", "origin/orbis/provider-node/README.md", "origin/orbis/provider-node/src/api.rs", "origin/orbis/runtime/src/enterprise_journey.rs", "origin/orbis/runtime/src/lib.rs", "origin/orbis/runtime/src/tests.rs", "product-sdk/examples/festival/mobile-contract-harness.ts", "product-sdk/examples/festival/mobile-contract-vectors.json", "product-sdk/package-lock.json", "product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "product-sdk/packages/descriptors/generated/native-route-contract.ts", "product-sdk/packages/descriptors/generated/orbis-descriptor.json", "product-sdk/packages/descriptors/generated/orbis-network-binding.ts", "product-sdk/packages/descriptors/src/identity-host-routes.ts", "product-sdk/packages/origin-sdk-apps/README.md", "product-sdk/packages/origin-sdk-apps/src/index.ts", "product-sdk/packages/origin-sdk-cloud-storage/README.md", "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts", "product-sdk/packages/origin-sdk-contracts/README.md", "product-sdk/packages/origin-sdk-contracts/src/index.ts", "product-sdk/packages/origin-sdk-host/src/index.ts", "product-sdk/packages/origin-sdk-host/src/protocol.ts", "product-sdk/packages/origin-sdk-host/src/testing.ts", "product-sdk/packages/origin-sdk-host/tests/index.test.ts", "product-sdk/packages/origin-sdk-personhood/README.md", "product-sdk/packages/origin-sdk-personhood/package.json", "product-sdk/packages/origin-sdk-personhood/src/index.ts", "product-sdk/packages/origin-sdk-personhood/tests/index.test.ts", "product-sdk/packages/origin-sdk-resources/README.md", "product-sdk/packages/origin-sdk-resources/package.json", "product-sdk/packages/origin-sdk-resources/src/index.ts", "product-sdk/packages/origin-sdk-resources/tests/index.test.ts", "product-sdk/packages/origin-sdk-statement-store/README.md", "product-sdk/packages/origin-sdk-statement-store/package.json", "product-sdk/packages/origin-sdk-statement-store/src/index.ts", "product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts", "product-sdk/packages/origin-sdk/package.json", "product-sdk/packages/origin-sdk/src/index.ts", "product-sdk/packages/origin-sdk/src/runtime.ts", "product-sdk/packages/origin-sdk/src/testing.ts", "product-sdk/packages/origin-sdk/tests/index.test.ts", "product-sdk/packages/origin-sdk/tests/runtime.test.ts", "product-sdk/src/version.ts", "product-sdk/tests/conformance/identity-sponsored-contract.test.ts", "product-sdk/tests/content/content.test.ts", "product-sdk/tools/generate-papi-app-surface.ts", "product-sdk/tools/test-packed-consumer.ts", "product-sdk/tools/validate-sdk-native-coverage.ts"]
 allowed_writes = []
 
 [[gate.artifact]]
@@ -1800,7 +1680,7 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "docs/specs/storage-identity-deletion-v1.toml"
-sha256 = "4b4ebe744c38516f2b70c20796a70ee9a9ad6e8ac1c0cc7140ae6396054e7e4f"
+sha256 = "f54dfee4e1346750b64f08006ce7c7b5cfe1d70f951870be7a78ff9024f82677"
 
 [[gate.input]]
 path = "target/evidence/ac12-assertions.json"
@@ -1923,7 +1803,7 @@ sha256 = "8bcf8b2a37a30214fc9188f6796c99a1f84e610c909eb989fab64d9fe4b3a9b4"
 
 [[gate.input]]
 path = "docs/specs/storage-identity-deletion-v1.toml"
-sha256 = "4b4ebe744c38516f2b70c20796a70ee9a9ad6e8ac1c0cc7140ae6396054e7e4f"
+sha256 = "f54dfee4e1346750b64f08006ce7c7b5cfe1d70f951870be7a78ff9024f82677"
 
 [[gate.input]]
 path = "docs/adr/0020-web3-storage-component-disposition-policy.md"
@@ -1947,7 +1827,7 @@ sha256 = "c6ad60147e9e9031b96f942d8b114682c60a0bd4f787d01404038b7df1843656"
 
 [[gate.input]]
 path = "docs/specs/s3-v1.md"
-sha256 = "db608449f7d0f9af8a43f6b221c520046407c00a23c66623be7b56eba7cc16bb"
+sha256 = "425876d1e4df0f5cd8a7bda540397f7992fd4596654f2fe88a83956af14bfcbc"
 
 [[gate.input]]
 path = "docs/specs/storage-encryption-v1.md"
@@ -1967,27 +1847,27 @@ sha256 = "de8116cb44b3b8f5a0a6d5bc135588edbb85366f1865db737c449f257deb99cf"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.cddl"
-sha256 = "71d71f02b7c1b4e55892c88bb6cdeba53852f981625f7bf831b79c97520264e3"
+sha256 = "42e4e9660d7e2c26f15565a2448f9d2b384cb5c73321422a3b9ae9107f364b57"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.schema.json"
-sha256 = "ab087de1993230668ca5d37f5fecb15fdc3c71bd4d8fe10819b0f920a12b6a47"
+sha256 = "ca9325a8adb0aad5b7db9b24bc27f1305087d0aead872d548df79ffa54139950"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.operations.json"
-sha256 = "48934f781f5bd7f377684a5f17dd5eb3d9efa2b178b408cb0db80eb5b3d738b1"
+sha256 = "0263f2d550e07a982b8c4a5f4b5edc471ee721ab28e8acab5f25f109e5e96abc"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.errors.json"
-sha256 = "5bce2efd0c2c84d9bd09f568100467ffb2681a42e4f405746937c9651c6dc0eb"
+sha256 = "20e8135116ac9b82f86891b798224ec5c08ac09cdc6c249269e7a8e236ae88c5"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.vectors.json"
-sha256 = "f9df803c2301c28306c5df87d010268e381fec3d503dbc9d72695e2ea4000292"
+sha256 = "69f0bc1c834508861b69a6cee3ea53189712bbb88c8a7790e1913f4c49034862"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.vectors.cbor"
-sha256 = "f22d6486f25b25ae84c9472ec6e4ece093eda2dfc12f0c68b2b8ac3dcfd06190"
+sha256 = "3845b833817f14f6b7a0bebfd15d6601d6a8325d2e518bf4ea9d29dbc683fdf4"
 
 [[gate.input]]
 path = "docs/specs/protocol-executable-v2.vectors.json"
@@ -2087,7 +1967,7 @@ sha256 = "2b9c997cb28128f88ff47a2485a10728a4eb32745b0910163d70cb389b432829"
 
 [[gate.input]]
 path = "scripts/validate-storage-identity-deletion.py"
-sha256 = "c4bc7414c6b97679e87284511de3da9e2d779740db028e97bba18e0130c2ed43"
+sha256 = "4ecddee6ac73a663c34082ef83ae41bf6bcab8ce2edee00327717015b426fd1d"
 
 [[gate.input]]
 path = "scripts/validate-phase-gate.py"
@@ -2099,11 +1979,11 @@ sha256 = "28509264003a2f17ca6441fe2eb084506eaf39af50e10f9cbba35a959719e9f1"
 
 [[gate.input]]
 path = "product-sdk/tools/origin-host-conformance/generate-origin-host-types.cjs"
-sha256 = "bf171c9d82c261b1c4ad5eef85d8286a73ea5b86ef2fac21b65fd73d39ec7476"
+sha256 = "2e87eb0d61c9d291732bb27c75d63279a067fe99c21a5345f8922868cf5d2ff5"
 
 [[gate.input]]
 path = "product-sdk/tools/origin-host-conformance/generated/origin-host-registry-v2.ts"
-sha256 = "65f1c4bc1e40d65da24570e04ec0ce66dd0ebbeca76c9fb7dd8eceeea87a7990"
+sha256 = "57aa6881a6e885f2cc661935a34091b428ba719811198446f4c67acfea720b30"
 
 [[gate.input]]
 path = "product-sdk/tools/origin-host-conformance/validate-origin-host-conformance.ts"
@@ -2115,19 +1995,19 @@ sha256 = "64bf5b285e32623598724e633e895d52f311f46f4ac4e2c8ff4e1b5f4fc4f183"
 
 [[gate.input]]
 path = "origin-rs/tests/generated/origin_host_registry_v2.rs"
-sha256 = "d569ecce7cb08cc50d1ba151f4f1bbe9d93542840071c92699e2bca0a6c7a6a7"
+sha256 = "9a4baccb03f411e298a662eef24c0ab645280f60cb88ac2d53a3361de9ce75d6"
 
 [[gate.input]]
 path = "origin-rs/Cargo.toml"
-sha256 = "27990674a5775d80b013e8658ae73cb46672ca649f415ed925c68c2324f659ac"
+sha256 = "0178dcce9ca135e7a2ce61258f0779f3510d2a1b4341ee9d4c3c6e89f622fded"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
+sha256 = "528b8986a1803dc92c30305304714b42691453acd7b6881420a405c9c988d64c"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "a66d8315ab531cd4644e5e5a1dd1f4e99c90b7abf3760e070488ac3b5e6dded8"
+sha256 = "eedc18cefac692fdf6100119b1f9b14d11d9d7e5e15589a4e2c1d8f4d8f7ae2c"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -2139,7 +2019,7 @@ sha256 = "6ee0927655e8cb283b4dc7e84839cbcd1cbc11917dbddf19acf83ba90455b39d"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
+sha256 = "404e7debb220a86cdc76279396af748d9eade829a89a95ef456eb0b70bb45112"
 
 [[gate.input]]
 path = "node"
@@ -2158,164 +2038,44 @@ path = "docs/architecture/domains/identity-personhood-attestation.md"
 sha256 = "008eb0d87971ee92bcfbdac069bc00ba491ce36e1623501e860048dec82f1a01"
 
 [[gate.input]]
-path = "origin-rs/examples/orbis_storage_proof_fault.rs"
-sha256 = "14a817db7e754833956ecd359c943f5641eaba25c24495fadadf711eb2788550"
-
-[[gate.input]]
 path = "origin-rs/src/product_sdk/domains/storage_provider.rs"
-sha256 = "9000d050bf0e863e1b247b8414f613a6eee702232fec5031967b147e1f72bec0"
+sha256 = "253ff49de2ce2fb74171af51632e8592bd548906c2c436f717ee930b24e73ed7"
 
 [[gate.input]]
 path = "origin-rs/src/product_sdk/transport.rs"
-sha256 = "da4dccc8ec21c60882ff2d3cb9cbb5477e4d5f578b997b3b9107f8d9f6a5ac83"
-
-[[gate.input]]
-path = "origin/orbis/node/src/proof_campaign/config.rs"
-sha256 = "45b707e325c89c6bf483dc91c27f85a3c1b8bc909efe8f429c0b26e17ad1d141"
-
-[[gate.input]]
-path = "origin/orbis/node/src/proof_campaign/mod.rs"
-sha256 = "1f79deef645bfc6642c17644165ea8dc0b7866915b12aab2bca03f39225bced1"
-
-[[gate.input]]
-path = "origin/orbis/node/src/proof_campaign/proposer.rs"
-sha256 = "44194e0198b0a0a9c2b7abea09a2f628b83f931505e2178027dd621bc3a4c2f5"
-
-[[gate.input]]
-path = "origin/orbis/node/src/proof_campaign/provider.rs"
-sha256 = "81b97b33c730156ccae2afb4857f482ca48c7506ee221473bfef7eccad9ae851"
-
-[[gate.input]]
-path = "origin/orbis/node/src/proof_campaign/service.rs"
-sha256 = "f5b79b23349679c69c2053b3775f3080506a1661308c7b72ef54595ca9eac616"
+sha256 = "d44c40825f263d3f7dadc27a7a83223f5f5d7db06782d62e8dd904d1166de45e"
 
 [[gate.input]]
 path = "origin/orbis/pallets/drive/src/lib.rs"
-sha256 = "f59fc4b62ba76113f560125bbe861bbb865bcdd637fac7a2f10126a195406929"
-
-[[gate.input]]
-path = "origin/orbis/pallets/hop-promotion/Cargo.toml"
-sha256 = "96e4015ccafc1b75aa24b523cdccde7287e3fc99f21804fc7f4137609ded5b24"
-
-[[gate.input]]
-path = "origin/orbis/pallets/hop-promotion/README.md"
-sha256 = "b26a1a53405459f3f59dd5f642282258c59f4ff1f09e1c97982c6bf86e1fd5c7"
-
-[[gate.input]]
-path = "origin/orbis/pallets/hop-promotion/src/benchmarking.rs"
-sha256 = "39fa9c8822ce65020e466dcb57459731b0ed7dbfeb2d906c73da8030347fc1d1"
-
-[[gate.input]]
-path = "origin/orbis/pallets/hop-promotion/src/lib.rs"
-sha256 = "3f3682029d9acec874e8ffe1de4dc968d1deb51762435f7e76192ce9f40163f4"
-
-[[gate.input]]
-path = "origin/orbis/pallets/hop-promotion/src/mock.rs"
-sha256 = "39549770798f1c247ac73195bf0f305f924f31c50c41eef6c8831f2d8387081f"
-
-[[gate.input]]
-path = "origin/orbis/pallets/hop-promotion/src/tests.rs"
-sha256 = "cb77942d40c6532b7d41583860a727309ad95b5a9b86eb527844829f5f1e5bb4"
-
-[[gate.input]]
-path = "origin/orbis/pallets/hop-promotion/src/weights.rs"
-sha256 = "8867d8141250f74beab9d4acae87b2448fab4cc6fb020f15d00cabf0052c3edd"
+sha256 = "d6ee6dd5c26bd7b112662f06f53ea8640ebc7fc43c39d53209421290fcfa8a70"
 
 [[gate.input]]
 path = "origin/orbis/pallets/s3/src/lib.rs"
-sha256 = "7c5e1d67f9f73abcaa4526fc98cc8de5cf011f726e55d7eebb007f93466809b2"
+sha256 = "6ed56331cb8e0f7bf4c3c32c5f3a44a950cf2fa6f8ed8b446eb87a8c540518ea"
 
 [[gate.input]]
 path = "origin/orbis/pallets/storage-provider/src/lib.rs"
-sha256 = "f5e8ca0a747ee8f260eaebe1b0e934f969ba33eeb17740bbbd2c44ed5c444837"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/Cargo.toml"
-sha256 = "0c1cb446016a744d3b388589e5f489d748b6b7f04bf20d86260d56c65f9365b5"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/README.md"
-sha256 = "1e926f1f92d8e5ded2394f532ef79e75a4154d6b39f1e688878213724b09260b"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/primitives/Cargo.toml"
-sha256 = "a73968e9154ffe10e4f9a3bfec15008d40bb0fe95305454626a1a8a022cbcb76"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/primitives/README.md"
-sha256 = "a7f8e284da67c8486d66c9bb1abeabbd52131846c238ebae3bbf41c0ed5573c7"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/primitives/src/cids.rs"
-sha256 = "440e5cbe5a0fd53d5ab409e220d0f215ca0babd19a5a82283599961b60a04943"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/primitives/src/lib.rs"
-sha256 = "9c7c9b89a1630867593e49af7eebb49a437d591376f1276bf9b18b6597164574"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/runtime-api/Cargo.toml"
-sha256 = "8013ca6d0d3a2ef01c7e7f6c7b5c52e276b24bad5f085496dde6f0ccf385fac3"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs"
-sha256 = "30ca8d7efe9a21fd0bfca674d04210195239cb91049eb15f2471366fbd46d480"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/benchmarking.rs"
-sha256 = "a2c16cfc40fb77cd00276db9c510b38ee5995c5b52202b1053b5cd3fd4565aab"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/extension.rs"
-sha256 = "80ca153202a3053b7f9f046829432cf7dfacfd92e75c256400618a3fce536927"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/lib.rs"
-sha256 = "3409322cef225ea0b7138a651dcfdd05f41590003cf587641bad7a6ed7e8ee9d"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/mock.rs"
-sha256 = "00cb4b8cfc6d45f422f85dffcc027ddde2affdd3eaeed7e7be2724294f2a5ccb"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/tests.rs"
-sha256 = "625d4e4e494abd10def5800281f77467dff673abe3048a6953abdb93a2c870b1"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/tests/runtime_api.rs"
-sha256 = "8078f4a18832d3e2430ee22c275b91015b1ef8b7a6d587b4864244e6963d2a4c"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/types.rs"
-sha256 = "2bc26d9a76f73abbce94bf9ab89b04a271090ef4bb37bb7066d7c98a87707582"
-
-[[gate.input]]
-path = "origin/orbis/pallets/transaction-storage/src/weights.rs"
-sha256 = "dc6f3945d7c879d95dee5e48d7436544345ab175ea8d4fe4843225e2f21d5f2b"
+sha256 = "3e7e8ae0c70cc959c8b0f7862d6296b92d5a7c544149460cbd74a245a17dd356"
 
 [[gate.input]]
 path = "origin/orbis/provider-node/README.md"
-sha256 = "aee0501405ac13bdbfc0d09dbbf7ebca2c2883e25c4748f7a80d4104bf3dcea2"
+sha256 = "05461c07aeb80b6e170e06c94d924c266d0dede40432589b7e70884c79bc6960"
 
 [[gate.input]]
 path = "origin/orbis/provider-node/src/api.rs"
-sha256 = "ded04e7a416596f9121c33a7b2f0f59dd9c4f74ac307c03a149b93a06f45a8eb"
+sha256 = "f065fdafd11b08ad07b4f3d6a05f5b9504ac317febfd5030621d9b83b4a6ba2d"
 
 [[gate.input]]
 path = "origin/orbis/runtime/src/enterprise_journey.rs"
-sha256 = "ce25982d911319fd551b28e7fc932e7a0506b1e06edfe4aceb9233a60b41490a"
+sha256 = "a386898bf0c3d42affbd205fc66e11af0c508af2ecd5c76ac06464e9b6e27a01"
 
 [[gate.input]]
 path = "origin/orbis/runtime/src/lib.rs"
-sha256 = "348b2ac5008544a5a031bcef62ed3226abf631b7f80faffe752aee14080af116"
+sha256 = "f1e27547eb40ea54784ab308970563ffc0a31af8dcaa47c33579f5de75db2e3f"
 
 [[gate.input]]
 path = "origin/orbis/runtime/src/tests.rs"
-sha256 = "a998a285a93be0cd23b224efc24a095be6501ff1fd53774e4abbbe93b9f1ba3f"
-
-[[gate.input]]
-path = "origin/orbis/runtime/src/weights/pallet_orbis_hop_promotion.rs"
-sha256 = "8240875eefd114c0268391285ca582163d83e5f47507951bcaf40cda2ba6ef78"
+sha256 = "00424655eb5f6d4f1a8b1d67e2777abd6b7f785b2e4f785454a01def99b51e91"
 
 [[gate.input]]
 path = "product-sdk/examples/festival/mobile-contract-harness.ts"
@@ -2327,19 +2087,19 @@ sha256 = "2e9ee4aba923383ed47bb0786a69246e800097f895b8309bbd377e7264df512b"
 
 [[gate.input]]
 path = "product-sdk/packages/descriptors/generated/commons-papi-manifest.json"
-sha256 = "863725ddb75dca2cda5550d8f28cebcbf0be38c06a3f038da05b3574b8ba3aaa"
+sha256 = "673d04218c99e6c17630a9fedf7689fa8b06761219c92a5e6f9b92ea25a8c595"
 
 [[gate.input]]
 path = "product-sdk/packages/descriptors/generated/native-route-contract.ts"
-sha256 = "ac8c668d36548cc4a40e28575022aaae73940ac4bab5a56d7e912ad0e7a97437"
+sha256 = "2dbc903458ea61219b12b2424985433b9acf39f53d8fa5bf855089b6be111df1"
 
 [[gate.input]]
 path = "product-sdk/packages/descriptors/generated/orbis-descriptor.json"
-sha256 = "62b0c9621c410dd3fbb919848306ea6601841fe83235a807af3cda61554cc729"
+sha256 = "6892d39913d2a755aec8fb129c3d8529b500884f934520102ab129896f174584"
 
 [[gate.input]]
 path = "product-sdk/packages/descriptors/generated/orbis-network-binding.ts"
-sha256 = "0473be87d0485799c17204c78039e618bbdaf6796a648d10657884a15b7c9845"
+sha256 = "725944d1c4f734efd6116b0c08e4f14d396e72d73b999b69aaf6c5b9439fef67"
 
 [[gate.input]]
 path = "product-sdk/packages/descriptors/src/identity-host-routes.ts"
@@ -2351,7 +2111,7 @@ sha256 = "a8362355c57d2b357439905f7670d99e2e3d6f3bcd636f2d849cca7396c123f2"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk-apps/src/index.ts"
-sha256 = "ff1ee42c1c12a446e13d2e622f151523d01bb34b3366e2a9a8b61d21083a1d42"
+sha256 = "92d574c01539fe48846f0ad88853086bc2bf4a433c980b59aa2913697aab46a6"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk-cloud-storage/README.md"
@@ -2359,7 +2119,7 @@ sha256 = "8ec34f224114a4ff196bfd005a3c894f50c5540a957022498e253a8c9a760e0e"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts"
-sha256 = "c9262bf69456c9e79ef05a97ef382d39e2fff45bf50f5f576bb176d92ad07bbb"
+sha256 = "928fb40b14298921a378f7dce03007d5c7baa76a7a982a8d1a7fef4fea84068d"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk-contracts/README.md"
@@ -2443,7 +2203,7 @@ sha256 = "d3acd66b0ceefb6066f751de33d754cbfba5d045947a276788d97fbb45cfd067"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk/src/runtime.ts"
-sha256 = "7ab9fd8c4b53b8a8601c31c624697a6ef7ae561b8e84295c4e4277c446cd6834"
+sha256 = "ddf9b49ca918a0449e94f21143a2c582107ad1ccb7115f6e121a92d22c47f093"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk/src/testing.ts"
@@ -2455,11 +2215,11 @@ sha256 = "dc32296053b5723ea12fccc2ad57a8cf8b787d24e1a6b63e4328b180730e98da"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk/tests/runtime.test.ts"
-sha256 = "ce66f41f12aa7396b39aef7bb92dcf9bc592dd1cf16c56156fcbde4e3f5cefcc"
+sha256 = "98776a92d93d8b5721f3ff44121647e86e4a29f5555dc139e0314fc73deb70a2"
 
 [[gate.input]]
 path = "product-sdk/src/version.ts"
-sha256 = "2c46e678303eb25805a91756003f1ff326c4a03953e9bd3a749a99f0491ca725"
+sha256 = "649f5953ed9f918b82fee0ab2e0845dead034b9be2bc7e7bc6d7e1cb23615cd2"
 
 [[gate.input]]
 path = "product-sdk/tests/conformance/identity-sponsored-contract.test.ts"
@@ -2471,15 +2231,15 @@ sha256 = "2025942f30325fd34d16b59237ee4ab8f9eee713dbaa158acf671966208d2204"
 
 [[gate.input]]
 path = "product-sdk/tools/generate-papi-app-surface.ts"
-sha256 = "11f3a566c591561f3f0b6481ceefa0d0ed99490aa9f0da18e44e13405269f5ca"
+sha256 = "2fcc416e364b32cedab8f9a55d99d4dd9239d8bfc7361d416b47ab13079e3f1d"
 
 [[gate.input]]
 path = "product-sdk/tools/test-packed-consumer.ts"
-sha256 = "10785678d67fc050b6b5b4b368b2c7707d88599e84483c2900a50a88885a086c"
+sha256 = "003cb5f5d36c6437d3312e59560b4259827f3b73ceddc0dd8dd6a370465c5dc4"
 
 [[gate.input]]
 path = "product-sdk/tools/validate-sdk-native-coverage.ts"
-sha256 = "08ae41f6d59120dc656241dba58a87407107f35ccb83fd14c554f2f02cf7e301"
+sha256 = "28e4915373bdb205672340958c3d8cdb4c0376e769269becf1718bf065a17e87"
 
 [[gate.input]]
 path = "scripts/run-p0-control-tests.py"
@@ -2507,19 +2267,19 @@ sha256 = "3376b985c5d0fc360534a0c347fa83a2e0441a34ba7e589ce14f80a7c1f5ad59"
 
 [[gate.input]]
 path = "origin"
-sha256 = "05905bbbcb6a6469a0ee6d4a90b5b13362ce1fc5e92f3150a2f7dad0d0d798d3"
+sha256 = "f20c9b10c61cb3204ca98cbf93e6d4870d54f2b2e22d940f6ffedb3cf7afd645"
 
 [[gate.input]]
 path = "origin-rs"
-sha256 = "13fddab325b92fd8683c53e407de92dc0652fb6697ad6fbc3ba97b53de58b324"
+sha256 = "205ebec8fd19bcd9ad924fe00a5007c95478a8ffe871d19fd3afc222cd8e9d5b"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "0242db16952fddf0c4201ff2847e280fd297dc80f5c319aed4b4075fa7d5e63f"
+sha256 = "7c36536d467c9122b27bc75d5214f09d453ddd2b458a323843d507e623907518"
 
 [[gate.input]]
 path = "docs/architecture/domains"
-sha256 = "6871bb84532221cee796ae95da6d2c331f4da7d6c3bd67099df44ad6108d23d0"
+sha256 = "6fa65bc1bc45a20e8de5a7ea2f4279dc79fbf9f820c11968c6b10fe642cf53ce"
 
 [[gate.command]]
 cwd = "."
@@ -2582,7 +2342,7 @@ cwd = "."
 argv = ["python3", "scripts/validate-storage-identity-deletion.py", "--manifest", "docs/specs/storage-identity-deletion-v1.toml", "--ledger", "docs/specs/web3-storage-capability-ledger-v1.json", "--p0-audit", "--out", "target/evidence/p0-deletion-dag.json"]
 test_count = 0
 outputs = ["target/evidence/p0-deletion-dag.json"]
-inputs = ["scripts/validate-storage-identity-deletion.py", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/web3-storage-capability-ledger-v1.json", "scripts/evidence_common.py", "Cargo.lock", "Cargo.toml", "docs/adr/0020-web3-storage-component-disposition-policy.md", "docs/architecture/domains/identity-personhood-attestation.md", "origin-rs/examples/orbis_storage_proof_fault.rs", "origin-rs/src/product_sdk/domains/storage_provider.rs", "origin-rs/src/product_sdk/transport.rs", "origin/orbis/node/src/proof_campaign/config.rs", "origin/orbis/node/src/proof_campaign/mod.rs", "origin/orbis/node/src/proof_campaign/proposer.rs", "origin/orbis/node/src/proof_campaign/provider.rs", "origin/orbis/node/src/proof_campaign/service.rs", "origin/orbis/pallets/drive/src/lib.rs", "origin/orbis/pallets/hop-promotion/Cargo.toml", "origin/orbis/pallets/hop-promotion/README.md", "origin/orbis/pallets/hop-promotion/src/benchmarking.rs", "origin/orbis/pallets/hop-promotion/src/lib.rs", "origin/orbis/pallets/hop-promotion/src/mock.rs", "origin/orbis/pallets/hop-promotion/src/tests.rs", "origin/orbis/pallets/hop-promotion/src/weights.rs", "origin/orbis/pallets/s3/src/lib.rs", "origin/orbis/pallets/storage-provider/src/lib.rs", "origin/orbis/pallets/transaction-storage/Cargo.toml", "origin/orbis/pallets/transaction-storage/README.md", "origin/orbis/pallets/transaction-storage/primitives/Cargo.toml", "origin/orbis/pallets/transaction-storage/primitives/README.md", "origin/orbis/pallets/transaction-storage/primitives/src/cids.rs", "origin/orbis/pallets/transaction-storage/primitives/src/lib.rs", "origin/orbis/pallets/transaction-storage/runtime-api/Cargo.toml", "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs", "origin/orbis/pallets/transaction-storage/src/benchmarking.rs", "origin/orbis/pallets/transaction-storage/src/extension.rs", "origin/orbis/pallets/transaction-storage/src/lib.rs", "origin/orbis/pallets/transaction-storage/src/mock.rs", "origin/orbis/pallets/transaction-storage/src/tests.rs", "origin/orbis/pallets/transaction-storage/src/tests/runtime_api.rs", "origin/orbis/pallets/transaction-storage/src/types.rs", "origin/orbis/pallets/transaction-storage/src/weights.rs", "origin/orbis/provider-node/README.md", "origin/orbis/provider-node/src/api.rs", "origin/orbis/runtime/src/enterprise_journey.rs", "origin/orbis/runtime/src/lib.rs", "origin/orbis/runtime/src/tests.rs", "origin/orbis/runtime/src/weights/pallet_orbis_hop_promotion.rs", "product-sdk/examples/festival/mobile-contract-harness.ts", "product-sdk/examples/festival/mobile-contract-vectors.json", "product-sdk/package-lock.json", "product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "product-sdk/packages/descriptors/generated/native-route-contract.ts", "product-sdk/packages/descriptors/generated/orbis-descriptor.json", "product-sdk/packages/descriptors/generated/orbis-network-binding.ts", "product-sdk/packages/descriptors/src/identity-host-routes.ts", "product-sdk/packages/origin-sdk-apps/README.md", "product-sdk/packages/origin-sdk-apps/src/index.ts", "product-sdk/packages/origin-sdk-cloud-storage/README.md", "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts", "product-sdk/packages/origin-sdk-contracts/README.md", "product-sdk/packages/origin-sdk-contracts/src/index.ts", "product-sdk/packages/origin-sdk-host/src/index.ts", "product-sdk/packages/origin-sdk-host/src/protocol.ts", "product-sdk/packages/origin-sdk-host/src/testing.ts", "product-sdk/packages/origin-sdk-host/tests/index.test.ts", "product-sdk/packages/origin-sdk-personhood/README.md", "product-sdk/packages/origin-sdk-personhood/package.json", "product-sdk/packages/origin-sdk-personhood/src/index.ts", "product-sdk/packages/origin-sdk-personhood/tests/index.test.ts", "product-sdk/packages/origin-sdk-resources/README.md", "product-sdk/packages/origin-sdk-resources/package.json", "product-sdk/packages/origin-sdk-resources/src/index.ts", "product-sdk/packages/origin-sdk-resources/tests/index.test.ts", "product-sdk/packages/origin-sdk-statement-store/README.md", "product-sdk/packages/origin-sdk-statement-store/package.json", "product-sdk/packages/origin-sdk-statement-store/src/index.ts", "product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts", "product-sdk/packages/origin-sdk/package.json", "product-sdk/packages/origin-sdk/src/index.ts", "product-sdk/packages/origin-sdk/src/runtime.ts", "product-sdk/packages/origin-sdk/src/testing.ts", "product-sdk/packages/origin-sdk/tests/index.test.ts", "product-sdk/packages/origin-sdk/tests/runtime.test.ts", "product-sdk/src/version.ts", "product-sdk/tests/conformance/identity-sponsored-contract.test.ts", "product-sdk/tests/content/content.test.ts", "product-sdk/tools/generate-papi-app-surface.ts", "product-sdk/tools/test-packed-consumer.ts", "product-sdk/tools/validate-sdk-native-coverage.ts", "origin", "origin-rs", "product-sdk", "docs/architecture/domains", "@repository_snapshot"]
+inputs = ["scripts/validate-storage-identity-deletion.py", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/web3-storage-capability-ledger-v1.json", "scripts/evidence_common.py", "Cargo.lock", "Cargo.toml", "docs/adr/0020-web3-storage-component-disposition-policy.md", "docs/architecture/domains/identity-personhood-attestation.md", "origin-rs/src/product_sdk/domains/storage_provider.rs", "origin-rs/src/product_sdk/transport.rs", "origin/orbis/pallets/drive/src/lib.rs", "origin/orbis/pallets/s3/src/lib.rs", "origin/orbis/pallets/storage-provider/src/lib.rs", "origin/orbis/provider-node/README.md", "origin/orbis/provider-node/src/api.rs", "origin/orbis/runtime/src/enterprise_journey.rs", "origin/orbis/runtime/src/lib.rs", "origin/orbis/runtime/src/tests.rs", "product-sdk/examples/festival/mobile-contract-harness.ts", "product-sdk/examples/festival/mobile-contract-vectors.json", "product-sdk/package-lock.json", "product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "product-sdk/packages/descriptors/generated/native-route-contract.ts", "product-sdk/packages/descriptors/generated/orbis-descriptor.json", "product-sdk/packages/descriptors/generated/orbis-network-binding.ts", "product-sdk/packages/descriptors/src/identity-host-routes.ts", "product-sdk/packages/origin-sdk-apps/README.md", "product-sdk/packages/origin-sdk-apps/src/index.ts", "product-sdk/packages/origin-sdk-cloud-storage/README.md", "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts", "product-sdk/packages/origin-sdk-contracts/README.md", "product-sdk/packages/origin-sdk-contracts/src/index.ts", "product-sdk/packages/origin-sdk-host/src/index.ts", "product-sdk/packages/origin-sdk-host/src/protocol.ts", "product-sdk/packages/origin-sdk-host/src/testing.ts", "product-sdk/packages/origin-sdk-host/tests/index.test.ts", "product-sdk/packages/origin-sdk-personhood/README.md", "product-sdk/packages/origin-sdk-personhood/package.json", "product-sdk/packages/origin-sdk-personhood/src/index.ts", "product-sdk/packages/origin-sdk-personhood/tests/index.test.ts", "product-sdk/packages/origin-sdk-resources/README.md", "product-sdk/packages/origin-sdk-resources/package.json", "product-sdk/packages/origin-sdk-resources/src/index.ts", "product-sdk/packages/origin-sdk-resources/tests/index.test.ts", "product-sdk/packages/origin-sdk-statement-store/README.md", "product-sdk/packages/origin-sdk-statement-store/package.json", "product-sdk/packages/origin-sdk-statement-store/src/index.ts", "product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts", "product-sdk/packages/origin-sdk/package.json", "product-sdk/packages/origin-sdk/src/index.ts", "product-sdk/packages/origin-sdk/src/runtime.ts", "product-sdk/packages/origin-sdk/src/testing.ts", "product-sdk/packages/origin-sdk/tests/index.test.ts", "product-sdk/packages/origin-sdk/tests/runtime.test.ts", "product-sdk/src/version.ts", "product-sdk/tests/conformance/identity-sponsored-contract.test.ts", "product-sdk/tests/content/content.test.ts", "product-sdk/tools/generate-papi-app-surface.ts", "product-sdk/tools/test-packed-consumer.ts", "product-sdk/tools/validate-sdk-native-coverage.ts", "origin", "origin-rs", "product-sdk", "docs/architecture/domains", "@repository_snapshot"]
 allowed_writes = []
 
 [[gate.command]]
@@ -2599,7 +2359,7 @@ cwd = "."
 argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P0", "--out", "target/evidence/p0-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/p0-assertions.json"]
-inputs = ["target/evidence/p0-control-tests.json", "scripts/validate-phase-gate.py", "scripts/evidence_common.py", "product-sdk/node_modules/@types", "product-sdk/package.json", "scripts/snapshot-repositories.py", "docs/specs/origin-host-registry-v2.errors.json", "HEADER-GPL3", "docs/specs/storage-bounds-v1.toml", "origin-rs/tests/generated/origin_host_registry_v2.rs", "product-sdk/tools/origin-host-conformance/generated/origin-host-registry-v2.ts", "docs/specs/protocol-executable-v2.vectors.json", "docs/specs/web3-storage-blocked-conflicts-v1.json", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/s3-v1.md", "docs/adr/0020-web3-storage-component-disposition-policy.md", "../.omx/cache/web3-storage", "docs/specs/identity-recovery-v2.state-machine.json", "scripts/validate-ac-decidability.py", "docs/specs/generated/identity-recovery-v2.md", "docs/specs/drive-s3-v1.vectors.json", "docs/specs/origin-host-registry-v2.vectors.json", "docs/specs/host-provider-protocol-v2.md", "docs/specs/storage-v1.vectors.json", "docs/specs/web3-storage-blocked-conflicts-v1.md", "scripts/run-evidence-gate.py", "product-sdk/tools/origin-host-conformance/generate-origin-host-types.cjs", "product-sdk/package-lock.json", "product-sdk/tools/origin-host-conformance/validate-origin-host-conformance.ts", "docs/specs/origin-host-registry-v2.schema.json", "docs/specs/origin-host-registry-v2.cddl", "docs/specs/provider-protocol-v1.vectors.json", "docs/specs/generated/host-outbox-v1.md", "docs/specs/storage-checkpoints-v2.md", "docs/specs/checkpoint-v2.vectors.json", "docs/specs/storage-encryption-v1.md", "docs/specs/origin-host-registry-v2.operations.json", "docs/specs/reference-repositories.toml", "scripts/build-web3-storage-inventory.py", "docs/specs/identity-v2.md", "docs/specs/host-outbox-v1.state-machine.json", "origin-rs/Cargo.toml", "docs/specs/web3-storage-capability-ledger-v1.json", "Cargo.lock", "scripts/validate-repository-boundary.py", "docs/specs/web3-storage-upstream-inventory-v1.json", "docs/specs/host-outbox-v1.vectors.json", "docs/specs/drive-filesystem-v1.md", "docs/specs/p0-ratification-v1.toml", "docs/specs/provider-organization-sla-v1.md", "Cargo.toml", "scripts/validate-storage-identity-deletion.py", "node", "docs/specs/web3-storage-upstream-sources-v1.toml", "scripts/web3_storage_semantic.py", "docs/specs/p0-open-decisions.toml", "docs/specs/storage-control-v1.md", "docs/specs/origin-host-registry-v2.vectors.cbor", "origin-rs/tests/origin_host_registry_conformance.rs", "docs/specs/provider-protocol-v1.registry.json", "docs/specs/identity-v2.vectors.json", "docs/specs/origin-host-conformance-report-v1.schema.json", "scripts/validate-web3-storage-parity.py", "docs/specs/storage-content-v1.md", "../.omx/evidence/origin-orbis-web3-storage/repos-before.json", "../.omx/evidence/origin-orbis-web3-storage/ac-decidability-v1.json", "target/evidence/ac1-assertions.json", "target/p0-origin-host-rust-conformance.json", "target/p0-origin-host-cross-contract-report.json", "target/evidence/p0-deletion-dag.json", "docs/architecture/domains/identity-personhood-attestation.md", "origin-rs/examples/orbis_storage_proof_fault.rs", "origin-rs/src/product_sdk/domains/storage_provider.rs", "origin-rs/src/product_sdk/transport.rs", "origin/orbis/node/src/proof_campaign/config.rs", "origin/orbis/node/src/proof_campaign/mod.rs", "origin/orbis/node/src/proof_campaign/proposer.rs", "origin/orbis/node/src/proof_campaign/provider.rs", "origin/orbis/node/src/proof_campaign/service.rs", "origin/orbis/pallets/drive/src/lib.rs", "origin/orbis/pallets/hop-promotion/Cargo.toml", "origin/orbis/pallets/hop-promotion/README.md", "origin/orbis/pallets/hop-promotion/src/benchmarking.rs", "origin/orbis/pallets/hop-promotion/src/lib.rs", "origin/orbis/pallets/hop-promotion/src/mock.rs", "origin/orbis/pallets/hop-promotion/src/tests.rs", "origin/orbis/pallets/hop-promotion/src/weights.rs", "origin/orbis/pallets/s3/src/lib.rs", "origin/orbis/pallets/storage-provider/src/lib.rs", "origin/orbis/pallets/transaction-storage/Cargo.toml", "origin/orbis/pallets/transaction-storage/README.md", "origin/orbis/pallets/transaction-storage/primitives/Cargo.toml", "origin/orbis/pallets/transaction-storage/primitives/README.md", "origin/orbis/pallets/transaction-storage/primitives/src/cids.rs", "origin/orbis/pallets/transaction-storage/primitives/src/lib.rs", "origin/orbis/pallets/transaction-storage/runtime-api/Cargo.toml", "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs", "origin/orbis/pallets/transaction-storage/src/benchmarking.rs", "origin/orbis/pallets/transaction-storage/src/extension.rs", "origin/orbis/pallets/transaction-storage/src/lib.rs", "origin/orbis/pallets/transaction-storage/src/mock.rs", "origin/orbis/pallets/transaction-storage/src/tests.rs", "origin/orbis/pallets/transaction-storage/src/tests/runtime_api.rs", "origin/orbis/pallets/transaction-storage/src/types.rs", "origin/orbis/pallets/transaction-storage/src/weights.rs", "origin/orbis/provider-node/README.md", "origin/orbis/provider-node/src/api.rs", "origin/orbis/runtime/src/enterprise_journey.rs", "origin/orbis/runtime/src/lib.rs", "origin/orbis/runtime/src/tests.rs", "origin/orbis/runtime/src/weights/pallet_orbis_hop_promotion.rs", "product-sdk/examples/festival/mobile-contract-harness.ts", "product-sdk/examples/festival/mobile-contract-vectors.json", "product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "product-sdk/packages/descriptors/generated/native-route-contract.ts", "product-sdk/packages/descriptors/generated/orbis-descriptor.json", "product-sdk/packages/descriptors/generated/orbis-network-binding.ts", "product-sdk/packages/descriptors/src/identity-host-routes.ts", "product-sdk/packages/origin-sdk-apps/README.md", "product-sdk/packages/origin-sdk-apps/src/index.ts", "product-sdk/packages/origin-sdk-cloud-storage/README.md", "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts", "product-sdk/packages/origin-sdk-contracts/README.md", "product-sdk/packages/origin-sdk-contracts/src/index.ts", "product-sdk/packages/origin-sdk-host/src/index.ts", "product-sdk/packages/origin-sdk-host/src/protocol.ts", "product-sdk/packages/origin-sdk-host/src/testing.ts", "product-sdk/packages/origin-sdk-host/tests/index.test.ts", "product-sdk/packages/origin-sdk-personhood/README.md", "product-sdk/packages/origin-sdk-personhood/package.json", "product-sdk/packages/origin-sdk-personhood/src/index.ts", "product-sdk/packages/origin-sdk-personhood/tests/index.test.ts", "product-sdk/packages/origin-sdk-resources/README.md", "product-sdk/packages/origin-sdk-resources/package.json", "product-sdk/packages/origin-sdk-resources/src/index.ts", "product-sdk/packages/origin-sdk-resources/tests/index.test.ts", "product-sdk/packages/origin-sdk-statement-store/README.md", "product-sdk/packages/origin-sdk-statement-store/package.json", "product-sdk/packages/origin-sdk-statement-store/src/index.ts", "product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts", "product-sdk/packages/origin-sdk/package.json", "product-sdk/packages/origin-sdk/src/index.ts", "product-sdk/packages/origin-sdk/src/runtime.ts", "product-sdk/packages/origin-sdk/src/testing.ts", "product-sdk/packages/origin-sdk/tests/index.test.ts", "product-sdk/packages/origin-sdk/tests/runtime.test.ts", "product-sdk/src/version.ts", "product-sdk/tests/conformance/identity-sponsored-contract.test.ts", "product-sdk/tests/content/content.test.ts", "product-sdk/tools/generate-papi-app-surface.ts", "product-sdk/tools/test-packed-consumer.ts", "product-sdk/tools/validate-sdk-native-coverage.ts"]
+inputs = ["target/evidence/p0-control-tests.json", "scripts/validate-phase-gate.py", "scripts/evidence_common.py", "product-sdk/node_modules/@types", "product-sdk/package.json", "scripts/snapshot-repositories.py", "docs/specs/origin-host-registry-v2.errors.json", "HEADER-GPL3", "docs/specs/storage-bounds-v1.toml", "origin-rs/tests/generated/origin_host_registry_v2.rs", "product-sdk/tools/origin-host-conformance/generated/origin-host-registry-v2.ts", "docs/specs/protocol-executable-v2.vectors.json", "docs/specs/web3-storage-blocked-conflicts-v1.json", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/s3-v1.md", "docs/adr/0020-web3-storage-component-disposition-policy.md", "../.omx/cache/web3-storage", "docs/specs/identity-recovery-v2.state-machine.json", "scripts/validate-ac-decidability.py", "docs/specs/generated/identity-recovery-v2.md", "docs/specs/drive-s3-v1.vectors.json", "docs/specs/origin-host-registry-v2.vectors.json", "docs/specs/host-provider-protocol-v2.md", "docs/specs/storage-v1.vectors.json", "docs/specs/web3-storage-blocked-conflicts-v1.md", "scripts/run-evidence-gate.py", "product-sdk/tools/origin-host-conformance/generate-origin-host-types.cjs", "product-sdk/package-lock.json", "product-sdk/tools/origin-host-conformance/validate-origin-host-conformance.ts", "docs/specs/origin-host-registry-v2.schema.json", "docs/specs/origin-host-registry-v2.cddl", "docs/specs/provider-protocol-v1.vectors.json", "docs/specs/generated/host-outbox-v1.md", "docs/specs/storage-checkpoints-v2.md", "docs/specs/checkpoint-v2.vectors.json", "docs/specs/storage-encryption-v1.md", "docs/specs/origin-host-registry-v2.operations.json", "docs/specs/reference-repositories.toml", "scripts/build-web3-storage-inventory.py", "docs/specs/identity-v2.md", "docs/specs/host-outbox-v1.state-machine.json", "origin-rs/Cargo.toml", "docs/specs/web3-storage-capability-ledger-v1.json", "Cargo.lock", "scripts/validate-repository-boundary.py", "docs/specs/web3-storage-upstream-inventory-v1.json", "docs/specs/host-outbox-v1.vectors.json", "docs/specs/drive-filesystem-v1.md", "docs/specs/p0-ratification-v1.toml", "docs/specs/provider-organization-sla-v1.md", "Cargo.toml", "scripts/validate-storage-identity-deletion.py", "node", "docs/specs/web3-storage-upstream-sources-v1.toml", "scripts/web3_storage_semantic.py", "docs/specs/p0-open-decisions.toml", "docs/specs/storage-control-v1.md", "docs/specs/origin-host-registry-v2.vectors.cbor", "origin-rs/tests/origin_host_registry_conformance.rs", "docs/specs/provider-protocol-v1.registry.json", "docs/specs/identity-v2.vectors.json", "docs/specs/origin-host-conformance-report-v1.schema.json", "scripts/validate-web3-storage-parity.py", "docs/specs/storage-content-v1.md", "../.omx/evidence/origin-orbis-web3-storage/repos-before.json", "../.omx/evidence/origin-orbis-web3-storage/ac-decidability-v1.json", "target/evidence/ac1-assertions.json", "target/p0-origin-host-rust-conformance.json", "target/p0-origin-host-cross-contract-report.json", "target/evidence/p0-deletion-dag.json", "docs/architecture/domains/identity-personhood-attestation.md", "origin-rs/src/product_sdk/domains/storage_provider.rs", "origin-rs/src/product_sdk/transport.rs", "origin/orbis/pallets/drive/src/lib.rs", "origin/orbis/pallets/s3/src/lib.rs", "origin/orbis/pallets/storage-provider/src/lib.rs", "origin/orbis/provider-node/README.md", "origin/orbis/provider-node/src/api.rs", "origin/orbis/runtime/src/enterprise_journey.rs", "origin/orbis/runtime/src/lib.rs", "origin/orbis/runtime/src/tests.rs", "product-sdk/examples/festival/mobile-contract-harness.ts", "product-sdk/examples/festival/mobile-contract-vectors.json", "product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "product-sdk/packages/descriptors/generated/native-route-contract.ts", "product-sdk/packages/descriptors/generated/orbis-descriptor.json", "product-sdk/packages/descriptors/generated/orbis-network-binding.ts", "product-sdk/packages/descriptors/src/identity-host-routes.ts", "product-sdk/packages/origin-sdk-apps/README.md", "product-sdk/packages/origin-sdk-apps/src/index.ts", "product-sdk/packages/origin-sdk-cloud-storage/README.md", "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts", "product-sdk/packages/origin-sdk-contracts/README.md", "product-sdk/packages/origin-sdk-contracts/src/index.ts", "product-sdk/packages/origin-sdk-host/src/index.ts", "product-sdk/packages/origin-sdk-host/src/protocol.ts", "product-sdk/packages/origin-sdk-host/src/testing.ts", "product-sdk/packages/origin-sdk-host/tests/index.test.ts", "product-sdk/packages/origin-sdk-personhood/README.md", "product-sdk/packages/origin-sdk-personhood/package.json", "product-sdk/packages/origin-sdk-personhood/src/index.ts", "product-sdk/packages/origin-sdk-personhood/tests/index.test.ts", "product-sdk/packages/origin-sdk-resources/README.md", "product-sdk/packages/origin-sdk-resources/package.json", "product-sdk/packages/origin-sdk-resources/src/index.ts", "product-sdk/packages/origin-sdk-resources/tests/index.test.ts", "product-sdk/packages/origin-sdk-statement-store/README.md", "product-sdk/packages/origin-sdk-statement-store/package.json", "product-sdk/packages/origin-sdk-statement-store/src/index.ts", "product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts", "product-sdk/packages/origin-sdk/package.json", "product-sdk/packages/origin-sdk/src/index.ts", "product-sdk/packages/origin-sdk/src/runtime.ts", "product-sdk/packages/origin-sdk/src/testing.ts", "product-sdk/packages/origin-sdk/tests/index.test.ts", "product-sdk/packages/origin-sdk/tests/runtime.test.ts", "product-sdk/src/version.ts", "product-sdk/tests/conformance/identity-sponsored-contract.test.ts", "product-sdk/tests/content/content.test.ts", "product-sdk/tools/generate-papi-app-surface.ts", "product-sdk/tools/test-packed-consumer.ts", "product-sdk/tools/validate-sdk-native-coverage.ts"]
 allowed_writes = []
 
 [[gate.artifact]]
@@ -2886,15 +2646,15 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "3b1909b88380c5f255ad5ca5621dadc4f4e3ac1b9a3ac0cc3c833ffc5f1e6690"
+sha256 = "404e7debb220a86cdc76279396af748d9eade829a89a95ef456eb0b70bb45112"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "ccac611a5dbdf2e5d7456e792d332060e27ddbf938f338419cf8879cc5972e68"
+sha256 = "528b8986a1803dc92c30305304714b42691453acd7b6881420a405c9c988d64c"
 
 [[gate.input]]
 path = "origin"
-sha256 = "6d01e07c9ed638a4861ae6d62afd79b8131c597854cb91485bf393571fc32045"
+sha256 = "f20c9b10c61cb3204ca98cbf93e6d4870d54f2b2e22d940f6ffedb3cf7afd645"
 
 [[gate.input]]
 path = "scripts/export-origin-commons-metadata.py"
@@ -2996,15 +2756,15 @@ sha256 = "1ee21acc0580bc7698cef67d6ef293c15d54d506288e38252fb6bcad7659e52a"
 
 [[gate.input]]
 path = "origin"
-sha256 = "6d01e07c9ed638a4861ae6d62afd79b8131c597854cb91485bf393571fc32045"
+sha256 = "f20c9b10c61cb3204ca98cbf93e6d4870d54f2b2e22d940f6ffedb3cf7afd645"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "3b1909b88380c5f255ad5ca5621dadc4f4e3ac1b9a3ac0cc3c833ffc5f1e6690"
+sha256 = "404e7debb220a86cdc76279396af748d9eade829a89a95ef456eb0b70bb45112"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "ccac611a5dbdf2e5d7456e792d332060e27ddbf938f338419cf8879cc5972e68"
+sha256 = "528b8986a1803dc92c30305304714b42691453acd7b6881420a405c9c988d64c"
 
 [[gate.input]]
 path = "HEADER-GPL3"
@@ -3024,11 +2784,11 @@ sha256 = "c8ea2c94e5bc7413f56cdb8c94030096372e10d74cdb0ecebebaa1b98e6dd136"
 
 [[gate.input]]
 path = "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json"
-sha256 = "1536d928d57f99cc8d72be5d14e4f0f2a7e74c1e4e8d614f2258a9ab67d45f20"
+sha256 = "0e5f0388f3f1f7fed0c5b3d870474aa7809448abe75e72b6fc1e941601aacbdf"
 
 [[gate.input]]
 path = "origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json"
-sha256 = "623e7f21f640c65e9f21f4571f3b1b12d6c2e7de2e8691612ee317bfbe70fe05"
+sha256 = "2904cc03e13e2a4a355847c2ccbdd3c4855a31bdd9ce9dfb4a12e75c69c95c53"
 
 [[gate.input]]
 path = "docs/specs/checkpoint-v2.vectors.json"
@@ -3343,7 +3103,7 @@ sha256 = "3272829b1aff6f4830fe70e1f32083d2215732905cdae184ae8ad6ceade63abe"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "a66d8315ab531cd4644e5e5a1dd1f4e99c90b7abf3760e070488ac3b5e6dded8"
+sha256 = "eedc18cefac692fdf6100119b1f9b14d11d9d7e5e15589a4e2c1d8f4d8f7ae2c"
 
 [[gate.input]]
 path = "target/evidence/p1-scale-metadata-binding.json"
@@ -3375,7 +3135,7 @@ producer_output = "product-sdk/generated/origin-commons-runtime.descriptor.json"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "0242db16952fddf0c4201ff2847e280fd297dc80f5c319aed4b4075fa7d5e63f"
+sha256 = "7c36536d467c9122b27bc75d5214f09d453ddd2b458a323843d507e623907518"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"

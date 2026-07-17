@@ -22,8 +22,8 @@ sandbox_isolation = "product-origin"
 default_bundle = "origin-static-v1"
 deterministic_file_order = true
 incremental_block_upload = true
-native_retention = "TransactionStorage.store_with_cid_config"
-binding_after_retention_finality = true
+native_storage = "StorageProvider.register_manifest plus Drive.update_root"
+binding_after_storage_finality = true
 car_unixfs = "injected-audited-packager-interface"
 
 [discovery]

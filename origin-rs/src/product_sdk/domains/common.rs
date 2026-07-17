@@ -162,7 +162,7 @@ impl Validate for SubjectId {
 	}
 }
 
-/// Orbis Storage transaction-storage reservation identifier.
+/// Commons resource storage-reservation identifier.
 ///
 /// The runtime type is `u64`, but the SDK JSON contract uses a canonical decimal string so IDs
 /// above JavaScript's safe-integer range cannot be rounded by mobile or web hosts.

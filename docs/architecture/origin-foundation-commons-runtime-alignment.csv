@@ -102,8 +102,6 @@ ORBIS-PAL-097,pallet,Score,Orbis,present,97,pallet_orbis_score,origin/orbis/runt
 ORBIS-PAL-099,pallet,Honour,Orbis,present,99,pallet_orbis_honour,origin/orbis/runtime/src/lib.rs:index-99,retain unless separately classified,
 ORBIS-PAL-100,pallet,Revive,Orbis,present,100,pallet_revive,origin/orbis/runtime/src/lib.rs:index-100,retain unless separately classified,
 ORBIS-PAL-105,pallet,Attestation,Orbis,present,105,pallet_orbis_attestation,origin/orbis/runtime/src/lib.rs:index-105,native schema and attestation authority; no migrated-domain ABI,
-ORBIS-PAL-110,pallet,TransactionStorage,Orbis,present,110,pallet_orbis_transaction_storage,origin/orbis/runtime/src/lib.rs:index-110,retain unless separately classified,
-ORBIS-PAL-111,pallet,HopPromotion,Orbis,present,111,pallet_orbis_hop_promotion,origin/orbis/runtime/src/lib.rs:index-111,retain unless separately classified,
 ORBIS-PAL-116,pallet,Names,Orbis,present,116,pallet_orbis_names,origin/orbis/runtime/src/lib.rs:index-116,native namespace authority; no migrated-domain ABI,
 ORBIS-PAL-120,pallet,StorageProvider,Orbis,present,120,pallet_orbis_storage_provider,origin/orbis/runtime/src/lib.rs:index-120,zero-stake Sudo-authorized provider agreements/challenges/deletion acknowledgement,
 ORBIS-PAL-121,pallet,Drive,Orbis,present,121,pallet_orbis_drive,origin/orbis/runtime/src/lib.rs:index-121,native bounded drive metadata,
@@ -160,9 +158,6 @@ ORBIS-API-019,runtime-api,"xcm_runtime_apis::conversions::LocationToAccountApi<B
 ORBIS-API-020,runtime-api,xcm_runtime_apis::trusted_query::TrustedQueryApi<Block>,Orbis,present,trait,xcm_runtime_apis::trusted_query::TrustedQueryApi<Block>,origin/orbis/runtime/src/lib.rs,retain and snapshot metadata,
 ORBIS-API-021,runtime-api,xcm_runtime_apis::authorized_aliases::AuthorizedAliasersApi<Block>,Orbis,present,trait,xcm_runtime_apis::authorized_aliases::AuthorizedAliasersApi<Block>,origin/orbis/runtime/src/lib.rs,retain and snapshot metadata,
 ORBIS-API-022,runtime-api,cumulus_primitives_core::CollectCollationInfo<Block>,Orbis,present,trait,cumulus_primitives_core::CollectCollationInfo<Block>,origin/orbis/runtime/src/lib.rs,retain and snapshot metadata,
-ORBIS-API-023,runtime-api,sp_transaction_storage_proof::runtime_api::TransactionStorageApi<Block>,Orbis,present,trait,sp_transaction_storage_proof::runtime_api::TransactionStorageApi<Block>,origin/orbis/runtime/src/lib.rs,retain and snapshot metadata,
-ORBIS-API-024,runtime-api,"sp_hop::HopRuntimeApi<Block, AccountId>",Orbis,present,trait,"sp_hop::HopRuntimeApi<Block, AccountId>",origin/orbis/runtime/src/lib.rs,retain and snapshot metadata,
-ORBIS-API-025,runtime-api,"pallet_orbis_transaction_storage_runtime_api::OrbisTransactionStorageApi<Block, AccountId, BlockNumber>",Orbis,present,trait,"pallet_orbis_transaction_storage_runtime_api::OrbisTransactionStorageApi<Block, AccountId, BlockNumber>",origin/orbis/runtime/src/lib.rs,retain and snapshot metadata,
 ORBIS-API-026,runtime-api,sp_genesis_builder::GenesisBuilder<Block>,Orbis,present,trait,sp_genesis_builder::GenesisBuilder<Block>,origin/orbis/runtime/src/lib.rs,retain and snapshot metadata,
 ORBIS-API-027,runtime-api,cumulus_primitives_core::GetParachainInfo<Block>,Orbis,present,trait,cumulus_primitives_core::GetParachainInfo<Block>,origin/orbis/runtime/src/lib.rs,retain and snapshot metadata,
 ORBIS-API-028,runtime-api,frame_try_runtime::TryRuntime<Block>,Orbis,present,trait,frame_try_runtime::TryRuntime<Block>,origin/orbis/runtime/src/lib.rs,retain and snapshot metadata,
@@ -187,7 +182,6 @@ ORBIS-EXT-14,transaction-extension,SetOrigin,Orbis,present,14,Revive execution a
 NODE-ORBIS-BINARY,node,origin-omni-node binary,origin-omni-node,present,0.9.9,polkadot-omni-node-lib DefaultRuntimeResolver,origin/orbis/node/src/main.rs,retain,
 NODE-ORBIS-CHAINSPEC,cli,orbis-dev/orbis-local/custom JSON chain specs,origin-omni-node,present,para=1006,ChainSpecLoader,origin/orbis/node/src/chain_spec.rs,retain,
 NODE-ORBIS-RPC,rpc,standard omni-node RPC plus runtime APIs,origin-omni-node,present,SDK-defined,polkadot-omni-node-lib,origin/orbis/node/src/main.rs,retain; custom provider RPC remains gap,
-NODE-PROOF-PROVIDER,node,production transaction-storage proof provider,origin-omni-node,present,SDK-v1.24 TransactionStorageApi v2; omni accepts v>=1,polkadot_omni_node_lib Aura provider registration,origin/orbis/node/src/main.rs;origin/orbis/runtime/src/lib.rs;Cargo.lock,retain SDK-owned provider composition; prove retention in P7,
 NODE-PROVIDER-SERVICES,node,provider/Drive/S3 HTTP services and workers,origin-omni-node,present,v4,origin-orbis-provider,origin/orbis/provider-node,provider-authenticated frontier-verified append-only roots; canonical bounded deletion proofs; deployment hardening belongs to P7,
 SDK-01,sdk,dynamic Rust client and metadata discovery,SDK,present,,origin-rs/src/client,origin-rs/src/client,extend,
 SDK-02,sdk,typed Entity/Register/Token views and transactions,SDK,present,,origin-rs/src/query;origin-rs/src/tx,origin-rs/src/query;origin-rs/src/tx,retain and conform,
@@ -209,11 +203,10 @@ GAP-PROVIDER,delivered-capability,zero-stake Sudo-authorized provider,Orbis,pres
 GAP-DRIVE,delivered-capability,Drive registry/API,Orbis,present,121,pallet_orbis_drive,origin/orbis/pallets/drive;origin/orbis/runtime/src/lib.rs,native bounded pallet/runtime API and CORD SDK,
 GAP-S3,delivered-capability,S3 registry/API,Orbis,present,122,pallet_orbis_s3,origin/orbis/pallets/s3;origin/orbis/runtime/src/lib.rs,native bounded pallet/runtime API and CORD SDK,
 GAP-XCM-E2E,planned-capability,Broker-to-Origin and XCM production E2E,Orbis,gap,,not present/complete,docs/orbis-native-capability-matrix.md,validate,P1/P7 blocker
-GAP-PROOF-E2E,planned-capability,proof retention production E2E,Orbis,gap,,not present/complete,docs/orbis-native-capability-matrix.md,validate,P1/P4 blocker
 GAP-WEIGHTS,planned-capability,Orbis-native generated weights for every retained pallet,Orbis,gap,,not present/complete,docs/orbis-native-capability-matrix.md,generate after final diff,P7 blocker
 EX-STAKING,exclusion,staking/nomination/elections,Origin/Orbis,excluded,,policy,docs/orbis-native-capability-matrix.md;docs/architecture/origin-foundation-commons-runtime-alignment.csv,keep excluded,
 EX-PUBLIC-GOV,exclusion,public governance/treasury,Origin/Orbis,excluded,,policy,docs/orbis-native-capability-matrix.md;docs/architecture/origin-foundation-commons-runtime-alignment.csv,keep excluded,
 EX-LEGACY,exclusion,legacy data/client migration,Origin/Orbis,excluded,,policy,docs/orbis-native-capability-matrix.md;docs/architecture/origin-foundation-commons-runtime-alignment.csv,keep excluded,
 EX-ABI,exclusion,Solidity ABI compatibility for migrated domains,Origin/Orbis,excluded,,policy,docs/orbis-native-capability-matrix.md;docs/architecture/origin-foundation-commons-runtime-alignment.csv,keep excluded,
 MANIFEST-V5,evidence,historical completion manifest,Orbis,present,version=5;evidence_phase=closed,immutable Slice-2 v5 evidence with independent Architect and Critic clearance,docs/evidence/orbis-v5/GATE-6-SLICE2-EVIDENCE.json,retain as historical evidence only,
-MANIFEST-CURRENT,evidence,current completion manifest,Origin/Orbis,present,version=21;activation=candidate-pending,clean-break native feature source of truth,docs/orbis-completion-manifest.toml;docs/adr/0017-native-feature-source-of-truth.md,candidate only; P1/P6/P7 validation and approvals remain blocking,P5/P7 approval required
+MANIFEST-CURRENT,evidence,current completion manifest,Origin/Orbis,present,version=22;activation=candidate-pending,clean-break native feature source of truth,docs/orbis-completion-manifest.toml;docs/adr/0017-native-feature-source-of-truth.md,candidate only; P1/P6/P7 validation and approvals remain blocking,P5/P7 approval required

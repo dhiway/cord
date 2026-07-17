@@ -234,7 +234,7 @@ def runtime_pallet_names() -> list[str]:
         "AssetsHolder", "ForeignAssets", "PoolAssets", "ForeignAssetsFreezer",
         "PoolAssetsFreezer", "Uniques", "Nfts", "AssetRate", "People", "ChunksManager",
         "Members", "MembersNotifier", "PeopleLite", "Personhood", "Resources", "Score",
-        "Honour", "Attestation", "Revive", "TransactionStorage", "HopPromotion", "Names",
+        "Honour", "Attestation", "Revive", "Names",
         "StorageProvider", "Drive", "S3", "AssetConversion", "AssetTxPayment", "MetaTx",
         "TxPause", "SafeMode", "VerifySignature", "CoretimeControl", "MultiBlockMigrations",
         "Sudo",

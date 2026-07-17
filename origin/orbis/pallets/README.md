@@ -14,7 +14,7 @@ This directory contains pallets and runtime APIs owned by the Commons runtime.
   mapped to Sudo/root and covered by origin tests.
 
 `people/`, `people-lite/`, `personhood/`, `chunks-manager/`, `members/`, `members-notifier/`,
-`individuality-support/`, `score/`, `honour/`, `hop-promotion/`, and `transaction-storage/` are
+`individuality-support/`, `score/`, `honour/`, `storage-provider/`, `drive/`, and `s3/` are
 Commons-owned native pallets or explicitly recorded adaptations. Their runtime pallet names and
 indices are frozen for the new-network launch contract; they do not imply predecessor-state or
 contract compatibility.

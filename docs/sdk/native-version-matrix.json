@@ -114,10 +114,6 @@
       "version": 2,
       "source": "origin/orbis/pallets/s3/src/lib.rs"
     },
-    "transaction_storage": {
-      "version": 8,
-      "source": "origin/orbis/pallets/transaction-storage/src/lib.rs"
-    },
     "resources": {
       "version": 1,
       "source": "origin/orbis/pallets/resources/src/lib.rs"

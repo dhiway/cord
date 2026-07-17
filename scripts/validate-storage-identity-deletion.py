@@ -267,15 +267,16 @@ def current_surface_census(root: Path) -> set[tuple[str, str, str]]:
                 surfaces.add((relative, "cargo-crate", name))
 
     pallet_path = "origin/orbis/pallets/transaction-storage/src/lib.rs"
-    pallet = (root / pallet_path).read_text(encoding="utf-8")
+    pallet_source = root / pallet_path
+    pallet = pallet_source.read_text(encoding="utf-8") if pallet_source.exists() else ""
     for match in re.finditer(
         r"#\[pallet::call_index\((\d+)\)\][\s\S]{0,300}?pub fn\s+([A-Za-z_][A-Za-z0-9_]*)",
         pallet,
     ):
         index, name = match.groups()
         surfaces.add((pallet_path, "pallet-call", f"Pallet::call[{index}]::{name}"))
-    event_start = pallet.index("pub enum Event<T: Config>")
-    body = rust_block(pallet, event_start)
+    event_start = pallet.find("pub enum Event<T: Config>")
+    body = rust_block(pallet, event_start) if event_start >= 0 else ""
     depth = 0
     for line in re.sub(r"///.*", "", body).splitlines():
         stripped = line.strip()
@@ -315,12 +316,14 @@ def current_surface_census(root: Path) -> set[tuple[str, str, str]]:
         surfaces.add((runtime_path, "signed-extension", "ValidateStorageCalls"))
 
     extension_path = "origin/orbis/pallets/transaction-storage/src/extension.rs"
-    extension = (root / extension_path).read_text(encoding="utf-8")
-    for name in re.findall(
-        r"(?m)^pub\s+(?:struct|enum|trait|type)\s+([A-Za-z_][A-Za-z0-9_]*)",
-        extension,
-    ):
-        surfaces.add((extension_path, "signed-extension", name))
+    extension_source = root / extension_path
+    if extension_source.exists():
+        extension = extension_source.read_text(encoding="utf-8")
+        for name in re.findall(
+            r"(?m)^pub\s+(?:struct|enum|trait|type)\s+([A-Za-z_][A-Za-z0-9_]*)",
+            extension,
+        ):
+            surfaces.add((extension_path, "signed-extension", name))
 
     proof_root = root / "origin/orbis/node/src/proof_campaign"
     for path in sorted(proof_root.glob("*.rs")):

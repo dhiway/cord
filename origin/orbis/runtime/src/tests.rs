@@ -262,11 +262,6 @@ fn completion_manifest_is_parseable_unique_and_clean_genesis() {
 		.expect("completion manifest is a table")
 		.keys()
 		.all(|key| !key.contains("v7_rehearsal") && !key.contains("v7_contract")));
-	assert!(manifest["provider_v8_contract"]
-		.as_array()
-		.unwrap()
-		.iter()
-		.all(|row| row["status"].as_str() == Some("present")));
 	let text = include_str!("../../../../docs/orbis-completion-manifest.toml");
 	for stale in
 		["LegacyUnknown", "LegacyContentUnrenewable", "MigrateV6ToV7", "provider_ref migration"]
