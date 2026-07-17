@@ -28,6 +28,7 @@ import {
 
 const MAX_RECORDS = 4_096; const MAX_TOTAL_BYTES = 268_435_456; const MAX_RECORD_BYTES = 4_456_448;
 const AUTHORITY_BLOCKS = 128n; const RECOVERY_BLOCKS = 256n; const MAX_RECOVERY_BLOCKS = 384n;
+const PROVIDER_BYTE_OPERATION_CODES = new Set([1010, 1011, 1012, 1014]);
 
 export interface BrowserOutboxEncryptedRow { readonly id: string; readonly keyVersion: number; readonly ciphertext: Uint8Array }
 export interface StrictBrowserOutboxBackend {
@@ -208,7 +209,8 @@ export class BrowserHostOutboxV1 {
     }
     const operationCode = Number(request[3]);
     const operation = Object.values(HOST_V2_OPERATION_BINDINGS).find(({ code }) => code === operationCode);
-    if (!operation || (expectedOperationCode !== undefined && operationCode !== expectedOperationCode)) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "request operation code mismatched");
+    if (!operation || !PROVIDER_BYTE_OPERATION_CODES.has(operationCode)
+      || (expectedOperationCode !== undefined && operationCode !== expectedOperationCode)) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "request is not a provider-byte operation or its code mismatched");
     if (!(request[1] instanceof Uint8Array) || !equal(request[1], entry[6]) || Number(request[7]) !== Number(entry[8])) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "request ID or generation mismatched");
     const operationId = request[5];
     if (operation.operationIdRequired
@@ -217,12 +219,8 @@ export class BrowserHostOutboxV1 {
     let authority: Record<number, unknown>;
     try {
       authority = decodeHostV2("ProviderCapabilityV1", entry[4]).value as Record<number, unknown>;
-      const requestGrant = request[4];
-      const grantMatches = operation.grantScope === "public"
-        ? requestGrant === undefined
-        : requestGrant instanceof Uint8Array && equal(authority[3] as Uint8Array, requestGrant);
       if (!equal(authority[1] as Uint8Array, entry[10]) || !equal(authority[2] as Uint8Array, entry[11])
-        || !grantMatches || authority[5] !== request[2]
+        || !(request[4] instanceof Uint8Array) || !equal(authority[3] as Uint8Array, request[4]) || authority[5] !== request[2]
         || !equal(authority[8] as Uint8Array, entry[13]) || !(authority[9] as unknown[]).includes(operationCode)
         || Number(authority[12]) !== Number(entry[17]) || Number(authority[13]) !== Number(entry[18])) throw new Error();
     } catch {
