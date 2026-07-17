@@ -1,17 +1,18 @@
 # Native SDK contract
 
-`native-version-matrix.json` is the canonical first-supported SDK/runtime contract for the
+`native-version-matrix.json` retains the historical first-supported SDK inventory for the
 clean-break Origin and Orbis network. Origin is the relay and deterministic control plane at
-spec/transaction `9901/2`; Orbis is the native application parachain at para `1006`,
-spec/transaction `29/8`. The Orbis metadata identity is
-`0x50c8958f…dc45`, reproduced from the current runtime Wasm with
-`origin/orbis/runtime/tools/reproduce-metadata-hash.sh`.
+spec/transaction `9901/2`. The matrix's Orbis `29/8` identity and metadata hash
+`0x50c8958f…dc45` are historical inputs only. The current Orbis source runtime is para `1006`,
+spec/transaction `33/8`, with metadata hash `0x824731ed…f8e`; no metadata-bound native SDK is
+admitted for that source runtime yet.
 
-`origin-rs` and `product-sdk` both publish release `0.9.9` and freeze those values in executable
-source. The matrix also freezes each adopted runtime API, pallet storage schema, Orbis Names label policy,
-and provider protocol version. `npm --prefix product-sdk run validate:sdk-freeze` verifies the
-matrix against the runtime sources, both SDK exports, the generated descriptor, and
-`sdk-native-coverage.report.json`.
+`origin-rs` and `product-sdk` both publish release `0.9.9` and retain those values in executable
+source. The matrix records adopted runtime APIs, pallet storage schemas, the Orbis Names label
+policy, and the provider protocol version. `npm --prefix product-sdk run validate:sdk-freeze`
+checks the structural route policy and explicitly refuses to generate authoritative SDK evidence
+while current-runtime metadata admission is false. The obsolete spec-29 coverage PASS report has
+been removed.
 
 The fail-closed network identity is the exact deterministic candidate genesis header
 `0x2584c9d4…70fc`, bound through `docs/genesis/orbis-candidate-genesis-identity.json` at artifact

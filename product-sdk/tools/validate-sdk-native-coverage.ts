@@ -531,6 +531,6 @@ if (process.argv.includes("--write")) {
 } else if (evidenceAuthoritative && readFileSync(reportPath, "utf8") !== serialized) {
   fail("native SDK coverage report drift; run npm run update:sdk-freeze");
 } else if (!evidenceAuthoritative) {
-  process.stdout.write("INFO existing native SDK evidence is historical and non-authoritative until current runtime metadata is regenerated\n");
+  process.stdout.write("INFO native SDK evidence is intentionally absent until current runtime metadata is regenerated and admitted\n");
 }
 process.stdout.write(`PASS native SDK mappings: inventory=${matrix.networks.orbis.spec_version}/${matrix.networks.orbis.transaction_version} current_source=${matrix.networks.orbis.current_source_runtime.spec_version}/${matrix.networks.orbis.current_source_runtime.transaction_version} design=${coverage.entries.length} adopted=${adopted.length} exact_m5_bindings=${m5Bindings.bindings.length} intentional_change=${intentionalChanges.length} executable_routes=${routeContract.route_count} Rust=${routeContract.route_count} TS=${routeContract.route_count}\n`);
