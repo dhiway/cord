@@ -1131,7 +1131,13 @@ mod tests {
 		let temp = tempfile::tempdir().unwrap();
 		let outbox = temp.path().join("outbox.jsonl");
 		fs::write(&outbox, b"one\ntwo\npartial").unwrap();
-		repair_incomplete_tail(&outbox).unwrap();
+		let mut file = File::open(&outbox).unwrap();
+		let metadata = file.metadata().unwrap();
+		let source = source_id(&metadata).unwrap();
+		let len = metadata.len();
+		let keep = complete_tail_len(&mut file, len).unwrap();
+		drop(file);
+		repair_incomplete_tail_exact(&outbox, source, len, keep).unwrap();
 		assert_eq!(fs::read(&outbox).unwrap(), b"one\ntwo\n");
 	}
 
