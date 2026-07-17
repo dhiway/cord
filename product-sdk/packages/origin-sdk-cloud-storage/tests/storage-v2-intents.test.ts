@@ -164,16 +164,19 @@ test("progress and frozen error tuples are operation-exact", () => {
   assert.throws(() => validateStorageV2Progress("storage.s3.get", {
     kind: "progress", requestId, seq: 1, offset: 0n, bytes: new Uint8Array(4_194_305),
   }), /0-4194304 bytes/);
-  validateStorageV2Error({
+  validateStorageV2Error("storage.object.put", {
     kind: "error", requestId, seq: 1, code: 114, name: "HOST_OUTBOX_FULL", retryable: true,
     details: { message: "capacity", lower: 1n, upper: 2n, hash: bytes32(3) },
   });
-  assert.throws(() => validateStorageV2Error({
+  assert.throws(() => validateStorageV2Error("storage.object.put", {
     kind: "error", requestId, seq: 1, code: 114, name: "HOST_OUTBOX_FULL", retryable: false,
-  }), /code\/name\/retryability drift/);
-  assert.throws(() => validateStorageV2Error({
+  }), /code\/name\/retryability\/scope drift/);
+  assert.throws(() => validateStorageV2Error("storage.object.put", {
     kind: "error", requestId, seq: 1, code: 999, name: "UNKNOWN", retryable: false,
-  }), /code\/name\/retryability drift/);
+  }), /code\/name\/retryability\/scope drift/);
+  assert.throws(() => validateStorageV2Error("storage.keys.export", {
+    kind: "error", requestId, seq: 1, code: 200, name: "STORAGE_CHUNK_OUT_OF_ORDER", retryable: false,
+  }), /code\/name\/retryability\/scope drift/);
 });
 
 test("cancel is idempotent, terminal, and revokes resume authority", () => {
@@ -207,6 +210,15 @@ test("typed TS codec emits the frozen canonical CBOR frame", async () => {
 test("resume state is operation-specific and v2 remains outside the public entrypoint", async () => {
   assert.equal(storageV2OperationContract("storage.object.put").resume, "provider-token");
   validateStorageV2Resume("storage.object.put", { kind: "provider-token", token: new Uint8Array([1]) });
+  assert.throws(() => validateStorageV2Resume("storage.object.put", {
+    kind: "provider-token", token: new Uint8Array(),
+  }), /1-4096 bytes/);
+  assert.throws(() => validateStorageV2Resume("storage.s3.list", {
+    kind: "cursor-versioned", cursor: new Uint8Array(2049), version: 0n,
+  }), /1-2048 bytes/);
+  assert.throws(() => validateStorageV2Resume("storage.drive.commit", {
+    kind: "per-object", cid: "e\u0301", version: 0n,
+  }), /NFC/);
   assert.throws(() => validateStorageV2Resume("storage.object.put", {
     kind: "verified-offset", offset: 0n, proof: bytes32(7),
   }), /requires provider-token/);

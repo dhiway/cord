@@ -356,7 +356,7 @@ export class StorageV2EventSequence<Operation extends StorageV2Operation> {
     if (this.#cancelRequested && event.kind !== "cancelled") throw new TypeError("cancelled operation cannot emit later progress or effects");
     if (event.kind === "progress") validateStorageV2Progress(this.#operation, event as StorageV2Progress<StorageV2Operation>);
     if (event.kind === "result") validateStorageV2Result(this.#operation, event.value);
-    if (event.kind === "error") validateStorageV2Error(event);
+    if (event.kind === "error") validateStorageV2Error(this.#operation, event);
     this.#next += 1;
     this.#terminal = event.kind === "result" || event.kind === "error" || event.kind === "cancelled";
     if (this.#terminal) this.#resumeAuthority = false;
@@ -370,5 +370,31 @@ export function validateStorageV2Resume(operation: StorageV2Operation, resume: S
   const expected = storageV2OperationContract(operation).resume;
   if (expected === "none" || resume.kind !== expected) {
     throw new TypeError(expected === "none" ? `${operation} is not resumable` : `${operation} requires ${expected} resume state`);
+  }
+  switch (resume.kind) {
+    case "chain-idempotent":
+      storageV2Bytes16(resume.operationId, "resume.operationId");
+      return;
+    case "provider-token":
+      if (!(resume.token instanceof Uint8Array) || resume.token.byteLength < 1 || resume.token.byteLength > 4096) {
+        throw new TypeError("resume.token must contain 1-4096 bytes");
+      }
+      return;
+    case "verified-offset":
+      u64(resume.offset, "resume.offset");
+      storageV2Bytes32(resume.proof, "resume.proof");
+      return;
+    case "cursor-256":
+      u64(resume.cursor, "resume.cursor");
+      return;
+    case "per-object":
+      text(resume.cid, 128, "resume.cid");
+      u64(resume.version, "resume.version");
+      return;
+    case "cursor-versioned":
+      if (!(resume.cursor instanceof Uint8Array) || resume.cursor.byteLength < 1 || resume.cursor.byteLength > 2048) {
+        throw new TypeError("resume.cursor must contain 1-2048 bytes");
+      }
+      u64(resume.version, "resume.version");
   }
 }
