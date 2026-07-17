@@ -38,7 +38,7 @@ use super::{
 	codec::Dto,
 	execution::{
 		FinalizedIdentityRuntimeV2, HostCallV2, HostExecutionErrorV2, HostExecutionV2,
-		HostIdentityAuthorityV2, HostRequestMetaV2, HostSigningAuthorityV2,
+		HostIdentityAuthorityV2, HostSigningAuthorityV2,
 	},
 	generated::{
 		AcceptedEventV2, IdentityAccountAccepted, IdentityAccountFrame, IdentityAccountResult,
@@ -1700,7 +1700,7 @@ mod tests {
 	use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 	use super::*;
-	use crate::product_sdk::host_v2::execution::ProviderOutboxContextV2;
+	use crate::product_sdk::host_v2::execution::{HostRequestMetaV2, ProviderOutboxContextV2};
 
 	fn context() -> IdentityAuthorityContextV2 {
 		IdentityAuthorityContextV2 { profile_id: [1; 32], genesis_hash: [2; 32] }
