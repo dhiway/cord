@@ -678,7 +678,7 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		)?;
 		if material.cancel ||
 			material.request_id != input.request_id ||
-			material.operation_id != Some(input.operation_id)
+			material.operation_id.is_some_and(|id| id != input.operation_id)
 		{
 			return Err(DesktopTransportError::RequestBinding);
 		}
@@ -693,7 +693,11 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		};
 		let outbox_id = input.outbox_id;
 		let retry = self.outbox.prepare_successor(predecessor_id, input, prepare_nonce)?;
-		self.transport.begin(material.request_id)?;
+		let next_sequence = active
+			.intended_cursor
+			.checked_add(1)
+			.ok_or(DesktopTransportError::RequestBinding)?;
+		self.transport.resume_session(material.request_id, next_sequence)?;
 		self.transport.send(&retry.request, &retry.authority)?;
 		if let Err(error) = self.outbox.mark_sent(outbox_id, mark_sent_nonce) {
 			self.transport.close();

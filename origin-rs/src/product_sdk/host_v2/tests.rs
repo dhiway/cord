@@ -1296,6 +1296,23 @@ fn desktop_continuation_installs_event_and_verified_token_before_ack_and_success
 		.unwrap();
 	assert_eq!(read_frame(&mut server).unwrap(), successor.exact_request_bytes);
 	assert_eq!(read_frame(&mut server).unwrap(), token);
+	let progress = progress(successor.request_id, 1);
+	let next_token = resume_token_for(&successor, 1, 2);
+	write_frame(&mut server, &progress).unwrap();
+	write_frame(&mut server, &next_token).unwrap();
+	let continued = desktop
+		.receive_continuation(
+			&mut |exact: &[u8]| {
+				(exact == next_token)
+					.then_some(())
+					.ok_or(DesktopTransportError::ResumeTokenUnverified)
+			},
+			[49; 24],
+			[50; 24],
+		)
+		.unwrap();
+	assert!(matches!(continued, DurableDesktopEvent::Continuation { cursor: 1, .. }));
+	Dto::<generated::ResponseAckV1>::decode(&read_frame(&mut server).unwrap()).unwrap();
 }
 
 #[cfg(unix)]
