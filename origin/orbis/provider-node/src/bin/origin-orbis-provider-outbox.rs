@@ -33,7 +33,7 @@ use oc::{
 			common::{AccountId, ContentCommitment, ProofCommitment, SubmitAndFinalize},
 			storage_provider::{ServiceKey, StorageProviderCommand},
 		},
-		OrbisDomainTransport, OrbisNativeClient,
+		NativeLifecycle, OrbisDomainTransport, OrbisNativeClient,
 	},
 	types::account::{account_id_to_ss58, CryptoScheme, OriginAccount},
 	OriginSdkError, OriginSigner,
@@ -49,6 +49,24 @@ const MAX_STATE_BYTES: u64 = 2 * 1024 * 1024 + 64 * 1024;
 const MAX_RECEIPTS: usize = 256;
 const COMPACT_AFTER_BYTES: u64 = 4 * 1024 * 1024;
 const SOURCE_PREFIX_BYTES: u64 = 64 * 1024;
+
+#[async_trait::async_trait]
+trait ProviderOutboxTransport: Send + Sync {
+	async fn submit(
+		&self,
+		intent: &SubmitAndFinalize<StorageProviderCommand>,
+	) -> Result<NativeLifecycle, String>;
+}
+
+#[async_trait::async_trait]
+impl ProviderOutboxTransport for OrbisDomainTransport {
+	async fn submit(
+		&self,
+		intent: &SubmitAndFinalize<StorageProviderCommand>,
+	) -> Result<NativeLifecycle, String> {
+		self.submit_storage_provider(intent).await.map_err(|error| error.to_string())
+	}
+}
 
 #[derive(Debug, Parser)]
 #[command(
@@ -234,11 +252,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	Ok(())
 }
 
-async fn consume(
+async fn consume<T: ProviderOutboxTransport>(
 	outbox: &Path,
 	receipts: &Path,
 	signer: &AccountId,
-	transport: &OrbisDomainTransport,
+	transport: &T,
 ) -> Result<(), Box<dyn std::error::Error>> {
 	let paths = StatePaths::new(receipts);
 	let _consumer = exclusive_lock(&paths.consumer_lock)?;
@@ -307,13 +325,18 @@ fn recover_local_finality(
 	ledger: &ReceiptLedger,
 	pending: &PendingRecord,
 ) -> Result<bool, Box<dyn std::error::Error>> {
-	if cursor.source == Some(pending.source)
-		&& cursor.prefix_len == pending.prefix_len
-		&& cursor.prefix_hash == pending.prefix_hash
-		&& cursor.offset == pending.end
+	if cursor.source != Some(pending.source) ||
+		cursor.prefix_len != pending.prefix_len ||
+		cursor.prefix_hash != pending.prefix_hash
 	{
+		return Err("pending provider outbox cursor binding changed".into());
+	}
+	if cursor.offset == pending.end {
 		remove_durable(&paths.pending)?;
 		return Ok(true);
+	}
+	if cursor.offset != pending.start {
+		return Err("pending provider outbox cursor is not at its exact start or end".into());
 	}
 	if ledger
 		.entries
@@ -327,7 +350,7 @@ fn recover_local_finality(
 	Ok(false)
 }
 
-async fn finalize_pending(
+async fn finalize_pending<T: ProviderOutboxTransport>(
 	outbox: &Path,
 	outbox_lock_path: &Path,
 	paths: &StatePaths,
@@ -335,7 +358,7 @@ async fn finalize_pending(
 	ledger: &mut ReceiptLedger,
 	pending: PendingRecord,
 	signer: &AccountId,
-	transport: &OrbisDomainTransport,
+	transport: &T,
 ) -> Result<(), Box<dyn std::error::Error>> {
 	validate_pending(&pending)?;
 	verify_pending_source(outbox, outbox_lock_path, &pending)?;
@@ -350,7 +373,7 @@ async fn finalize_pending(
 		command,
 	)
 	.map_err(native_error)?;
-	let lifecycle = transport.submit_storage_provider(&intent).await.map_err(native_error)?;
+	let lifecycle = transport.submit(&intent).await.map_err(native_error)?;
 	let receipt = FinalizedReceipt {
 		key,
 		record_hash: pending.record_hash.clone(),
@@ -990,41 +1013,57 @@ mod tests {
 		assert!(!paths.pending.exists());
 	}
 
-	#[test]
-	fn restart_rejects_cursor_ahead_of_pending_end() {
-		let temp = tempfile::tempdir().unwrap();
-		let paths = StatePaths::new(&temp.path().join("receipts.json"));
-		let source = SourceId { device: 7, inode: 9 };
-		let line = serde_json::to_string(&manifest_submission()).unwrap() + "\n";
-		let pending = PendingRecord {
-			version: STATE_VERSION,
-			source,
-			start: 0,
-			end: line.len() as u64,
-			record_hash: blake3::hash(line.as_bytes()).to_hex().to_string(),
-			prefix_len: 0,
-			prefix_hash: blake3::hash(&[]).to_hex().to_string(),
-			key: "manifest-deletion-corrupt-ahead".into(),
-			line,
-		};
-		atomic_json(&paths.pending, &pending).unwrap();
-		let mut cursor = Cursor {
-			version: STATE_VERSION,
-			source: Some(source),
-			offset: pending.end + 1,
-			prefix_len: pending.prefix_len,
-			prefix_hash: pending.prefix_hash.clone(),
-		};
+	struct CountingTransport(std::sync::atomic::AtomicUsize);
 
-		assert!(!recover_local_finality(
-			&paths,
-			&mut cursor,
-			&ReceiptLedger::default(),
-			&pending,
-		)
-		.unwrap());
-		assert_eq!(cursor.offset, pending.end + 1);
-		assert!(paths.pending.exists());
+	#[async_trait::async_trait]
+	impl ProviderOutboxTransport for CountingTransport {
+		async fn submit(
+			&self,
+			_intent: &SubmitAndFinalize<StorageProviderCommand>,
+		) -> Result<NativeLifecycle, String> {
+			self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+			Err("transport must not be called".into())
+		}
+	}
+
+	#[tokio::test]
+	async fn restart_rejects_cursor_ahead_or_overlap_before_transport_and_receipts() {
+		let line = serde_json::to_string(&manifest_submission()).unwrap() + "\n";
+		for corrupt_offset in [line.len() as u64 + 1, 1] {
+			let temp = tempfile::tempdir().unwrap();
+			let outbox = temp.path().join("outbox.jsonl");
+			let receipts = temp.path().join("receipts.json");
+			let paths = StatePaths::new(&receipts);
+			fs::write(&outbox, &line).unwrap();
+			let source = source_id(&File::open(&outbox).unwrap().metadata().unwrap()).unwrap();
+			let pending = PendingRecord {
+				version: STATE_VERSION,
+				source,
+				start: 0,
+				end: line.len() as u64,
+				record_hash: blake3::hash(line.as_bytes()).to_hex().to_string(),
+				prefix_len: 0,
+				prefix_hash: blake3::hash(&[]).to_hex().to_string(),
+				key: "manifest-deletion-corrupt-cursor".into(),
+				line: line.clone(),
+			};
+			atomic_json(&paths.pending, &pending).unwrap();
+			let cursor = Cursor {
+				version: STATE_VERSION,
+				source: Some(source),
+				offset: corrupt_offset,
+				prefix_len: pending.prefix_len,
+				prefix_hash: pending.prefix_hash.clone(),
+			};
+			atomic_json(&paths.cursor, &cursor).unwrap();
+			let transport = CountingTransport(std::sync::atomic::AtomicUsize::new(0));
+			let signer = AccountId::new("provider").unwrap();
+
+			assert!(consume(&outbox, &receipts, &signer, &transport).await.is_err());
+			assert_eq!(transport.0.load(std::sync::atomic::Ordering::SeqCst), 0);
+			assert!(paths.pending.exists());
+			assert!(!paths.receipts.exists());
+		}
 	}
 
 	#[test]

@@ -44,15 +44,21 @@ use sp_core::{crypto::AccountId32, H256};
 use crate::{
 	merkle, AgreementAuthorization, CheckpointDuty, CheckpointDutyBatch, CheckpointDutyPageRequest,
 	CheckpointDutyRole, CheckpointDutyScanCursor, DeletionDuty, DeletionDutyBatch,
-	DeletionDutyPageRequest, DeletionDutyScanCursor, PROTOCOL_VERSION,
+	DeletionDutyPageRequest, DeletionDutyScanCursor, MAX_STREAMING_OPERATIONS, PROTOCOL_VERSION,
 };
 
 const INDEX_FILE: &str = "provider-index-v6.json";
+const INDEX_TEMP_PREFIX: &str = "provider-index-v6.tmp-";
 const LEGACY_INDEX_FILE: &str = "provider-index-v5.json";
 const BLOBS_DIR: &str = "blobs";
 const MAX_BUCKET_BYTES: usize = 255;
 const MAX_KEY_BYTES: usize = 1024;
 const CHUNK_BYTES: usize = 256 * 1024;
+const MAX_PROVIDER_INDEX_BYTES: u64 = 128 * 1024 * 1024;
+const MAX_PROVIDER_INDEX_RECORDS: usize = MAX_STREAMING_OPERATIONS;
+const MAX_PROVIDER_INDEX_LEAVES: usize = MAX_PROVIDER_INDEX_RECORDS * 2;
+const MAX_PROVIDER_ROOT_ARTIFACTS: usize = 64;
+const MAX_PROVIDER_INDEX_TEMP_ARTIFACTS: usize = 1;
 
 /// A validated content write ready for persistence.
 #[derive(Clone, Debug)]
@@ -341,6 +347,7 @@ impl DiskStore {
 		validate_profile(&profile)?;
 		let root = root.as_ref().to_path_buf();
 		fs::create_dir_all(root.join(BLOBS_DIR)).map_err(io_error)?;
+		remove_index_temps(&root)?;
 		let path = root.join(INDEX_FILE);
 		if !path.exists() && root.join(LEGACY_INDEX_FILE).exists() {
 			return Err(StoreError::Invalid(
@@ -348,8 +355,10 @@ impl DiskStore {
 			));
 		}
 		let state = if path.exists() {
-			let data = fs::read(&path).map_err(io_error)?;
+			let data = crate::bounded_io::read_regular_file(&path, MAX_PROVIDER_INDEX_BYTES)
+				.map_err(io_error)?;
 			let existing: PersistedState = serde_json::from_slice(&data).map_err(io_error)?;
+			validate_persisted_state_bounds(&existing)?;
 			if existing.version != PROTOCOL_VERSION {
 				return Err(StoreError::Invalid(format!(
 					"unsupported persisted protocol version {}",
@@ -1711,8 +1720,61 @@ fn now_ms() -> Result<u64, StoreError> {
 }
 
 fn persist_state(root: &Path, state: &PersistedState) -> Result<(), StoreError> {
-	let bytes = serde_json::to_vec_pretty(state).map_err(io_error)?;
+	validate_persisted_state_bounds(state)?;
+	let bytes = serde_json::to_vec(state).map_err(io_error)?;
+	if bytes.len() as u64 > MAX_PROVIDER_INDEX_BYTES {
+		return Err(StoreError::Capacity);
+	}
 	write_atomic(&root.join(INDEX_FILE), &bytes)
+}
+
+fn validate_persisted_state_bounds(state: &PersistedState) -> Result<(), StoreError> {
+	if state.records.len() > MAX_PROVIDER_INDEX_RECORDS ||
+		state.leaf_hashes.len() > MAX_PROVIDER_INDEX_LEAVES ||
+		state.root_history.len() > MAX_PROVIDER_INDEX_LEAVES ||
+		state.root_index.len() > MAX_PROVIDER_INDEX_LEAVES ||
+		state.pending_roots.len() > MAX_PROVIDER_INDEX_LEAVES ||
+		state.pending_deletions.len() > MAX_PROVIDER_INDEX_RECORDS ||
+		state.pending_checkpoint_duties.len() > MAX_PROVIDER_INDEX_RECORDS ||
+		state.pending_manifest_deletions.len() > MAX_PROVIDER_INDEX_RECORDS ||
+		state.checkpoints.len() > MAX_PROVIDER_INDEX_RECORDS
+	{
+		return Err(StoreError::Capacity);
+	}
+	Ok(())
+}
+
+fn remove_index_temps(root: &Path) -> Result<(), StoreError> {
+	let mut visited = 0usize;
+	let mut temps = Vec::new();
+	for item in fs::read_dir(root).map_err(io_error)? {
+		visited = visited
+			.checked_add(1)
+			.ok_or_else(|| StoreError::Io("provider root artifact count overflow".into()))?;
+		if visited > MAX_PROVIDER_ROOT_ARTIFACTS {
+			return Err(StoreError::Io("provider root contains too many durable artifacts".into()));
+		}
+		let item = item.map_err(io_error)?;
+		let name = item.file_name().to_string_lossy().into_owned();
+		if name.starts_with(INDEX_TEMP_PREFIX) {
+			if !item.file_type().map_err(io_error)?.is_file() {
+				return Err(StoreError::Io("provider index temp artifact set is invalid".into()));
+			}
+			temps.push(item.path());
+			if temps.len() > MAX_PROVIDER_INDEX_TEMP_ARTIFACTS {
+				return Err(StoreError::Io("provider index temp artifact set is invalid".into()));
+			}
+		}
+	}
+	for temp in &temps {
+		fs::remove_file(temp).map_err(io_error)?;
+	}
+	if !temps.is_empty() {
+		fs::File::open(root)
+			.and_then(|directory| directory.sync_all())
+			.map_err(io_error)?;
+	}
+	Ok(())
 }
 
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
@@ -2325,5 +2387,48 @@ mod tests {
 			.is_err());
 		assert!(store.checkpoint_duty_resume_request().unwrap().is_none());
 		assert!(store.checkpoint_duty_watermark().unwrap().is_none());
+	}
+
+	#[test]
+	fn provider_index_recovery_is_metadata_and_count_bounded() {
+		let oversized = tempfile::tempdir().unwrap();
+		let index = fs::File::create(oversized.path().join(INDEX_FILE)).unwrap();
+		index.set_len(MAX_PROVIDER_INDEX_BYTES + 1).unwrap();
+		assert!(DiskStore::open(oversized.path(), profile(), 1024).is_err());
+
+		let counted = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(counted.path(), profile(), 1024).unwrap();
+		let mut state = store.read_state().unwrap().clone();
+		state.leaf_hashes = vec!["00".repeat(32); MAX_PROVIDER_INDEX_LEAVES];
+		validate_persisted_state_bounds(&state).unwrap();
+		state.leaf_hashes.push("00".repeat(32));
+		assert!(matches!(validate_persisted_state_bounds(&state), Err(StoreError::Capacity)));
+	}
+
+	#[test]
+	fn provider_index_recovery_cleans_one_temp_and_rejects_a_temp_flood() {
+		let recovered = tempfile::tempdir().unwrap();
+		let temp_path = recovered.path().join(format!("{INDEX_TEMP_PREFIX}11"));
+		fs::write(&temp_path, b"partial").unwrap();
+		DiskStore::open(recovered.path(), profile(), 1024).unwrap();
+		assert!(!temp_path.exists());
+
+		let flooded = tempfile::tempdir().unwrap();
+		fs::write(flooded.path().join(format!("{INDEX_TEMP_PREFIX}11")), b"partial").unwrap();
+		fs::write(flooded.path().join(format!("{INDEX_TEMP_PREFIX}12")), b"partial").unwrap();
+		assert!(DiskStore::open(flooded.path(), profile(), 1024).is_err());
+		assert_eq!(
+			fs::read_dir(flooded.path())
+				.unwrap()
+				.filter(|item| {
+					item.as_ref()
+						.unwrap()
+						.file_name()
+						.to_string_lossy()
+						.starts_with(INDEX_TEMP_PREFIX)
+				})
+				.count(),
+			2
+		);
 	}
 }

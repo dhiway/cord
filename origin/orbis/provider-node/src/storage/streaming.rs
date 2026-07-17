@@ -49,53 +49,121 @@ const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
 const OBJECTS: &str = "objects";
-// One durable metadata slot is derived from the maximum 256 chunk records at 128 encoded bytes
-// each (64-byte hash, length and JSON structure). Operation, recovery and private-query records
-// must each fit one slot. Two extra slots cover all top-level maps/cursors and JSON structure;
-// private-query response bodies remain in bounded external blob files.
+// Large records are bounded by the maximum 256 chunk records at 128 compact-JSON bytes each.
+// Small records have tighter schema-derived bounds. The journal limit accounts independently for
+// every durable map plus its canonical key and JSON framing; private-query response bodies remain
+// in bounded external blob files.
 const MAX_ENCODED_DURABLE_SLOT_BYTES: u64 = MAX_CHUNKS as u64 * 128;
-const JOURNAL_FIXED_SLOTS: usize = 2;
+const MAX_ENCODED_SMALL_RECORD_BYTES: u64 = 1024;
+const MAX_ENCODED_MAP_ENTRY_OVERHEAD_BYTES: u64 = 512;
+const MAX_ENCODED_JOURNAL_FIXED_BYTES: u64 = 64 * 1024;
+
+#[derive(Clone, Copy)]
+struct JournalCardinality {
+	operations: usize,
+	quarantine: usize,
+	repairs: usize,
+	recovery: usize,
+	capability_replay: usize,
+	private_queries: usize,
+	private_query_replay: usize,
+	manifest_tombstones: usize,
+}
+
+impl JournalCardinality {
+	fn from_state(state: &JournalState) -> Self {
+		Self {
+			operations: state.operations.len(),
+			quarantine: state.quarantine.len(),
+			repairs: state.repairs.len(),
+			recovery: state.recovery.len(),
+			capability_replay: state.capability_replay.len(),
+			private_queries: state.private_queries.len(),
+			private_query_replay: state.private_query_replay.len(),
+			manifest_tombstones: state.manifest_tombstones.len(),
+		}
+	}
+}
+
+fn validate_journal_cardinality(
+	counts: JournalCardinality,
+	operation_limit: usize,
+) -> Result<(), ContentError> {
+	if counts.operations > operation_limit ||
+		counts.quarantine > operation_limit ||
+		counts.repairs > operation_limit ||
+		counts.recovery > MAX_STREAMING_OPERATIONS ||
+		counts.capability_replay > MAX_STREAMING_OPERATIONS ||
+		counts.private_queries > MAX_STREAMING_OPERATIONS ||
+		counts.private_query_replay > MAX_STREAMING_OPERATIONS ||
+		counts.manifest_tombstones > operation_limit
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	Ok(())
+}
 
 fn journal_byte_limit(operation_limit: usize) -> Result<u64, ContentError> {
-	let slots = operation_limit
-		.checked_add(JOURNAL_FIXED_SLOTS)
-		.ok_or(ContentError::IntegrityFailed)?;
-	(slots as u64)
-		.checked_mul(MAX_ENCODED_DURABLE_SLOT_BYTES)
-		.ok_or(ContentError::IntegrityFailed)
+	fn map_limit(count: usize, record_bytes: u64) -> Result<u64, ContentError> {
+		(count as u64)
+			.checked_mul(
+				record_bytes
+					.checked_add(MAX_ENCODED_MAP_ENTRY_OVERHEAD_BYTES)
+					.ok_or(ContentError::IntegrityFailed)?,
+			)
+			.ok_or(ContentError::IntegrityFailed)
+	}
+	let maps = [
+		(operation_limit, MAX_ENCODED_DURABLE_SLOT_BYTES),
+		(operation_limit, MAX_ENCODED_SMALL_RECORD_BYTES),
+		(operation_limit, MAX_ENCODED_SMALL_RECORD_BYTES),
+		(MAX_STREAMING_OPERATIONS, MAX_ENCODED_DURABLE_SLOT_BYTES),
+		(MAX_STREAMING_OPERATIONS, MAX_ENCODED_SMALL_RECORD_BYTES),
+		(MAX_STREAMING_OPERATIONS, MAX_ENCODED_DURABLE_SLOT_BYTES),
+		(MAX_STREAMING_OPERATIONS, MAX_ENCODED_SMALL_RECORD_BYTES),
+		(operation_limit, MAX_ENCODED_SMALL_RECORD_BYTES),
+	];
+	maps.into_iter().try_fold(
+		MAX_ENCODED_JOURNAL_FIXED_BYTES,
+		|total, (count, bound)| {
+			total
+				.checked_add(map_limit(count, bound)?)
+				.ok_or(ContentError::IntegrityFailed)
+		},
+	)
 }
 
 fn validate_encoded_journal_records(state: &JournalState) -> Result<(), ContentError> {
-	fn validate<T: Serialize>(record: &T) -> Result<(), ContentError> {
+	fn validate<T: Serialize>(record: &T, max_bytes: u64) -> Result<(), ContentError> {
 		let bytes = serde_json::to_vec(record).map_err(io_error)?;
-		if bytes.len() as u64 > MAX_ENCODED_DURABLE_SLOT_BYTES {
+		if bytes.len() as u64 > max_bytes {
 			return Err(ContentError::IntegrityFailed);
 		}
 		Ok(())
 	}
 	for record in state.operations.values() {
-		validate(record)?;
+		validate(record, MAX_ENCODED_DURABLE_SLOT_BYTES)?;
 	}
 	for record in state.quarantine.values() {
-		validate(record)?;
+		validate(record, MAX_ENCODED_SMALL_RECORD_BYTES)?;
 	}
 	for record in state.repairs.values() {
-		validate(record)?;
+		validate(record, MAX_ENCODED_SMALL_RECORD_BYTES)?;
 	}
 	for record in state.recovery.values() {
-		validate(record)?;
+		validate(record, MAX_ENCODED_DURABLE_SLOT_BYTES)?;
 	}
 	for record in state.capability_replay.values() {
-		validate(record)?;
+		validate(record, MAX_ENCODED_SMALL_RECORD_BYTES)?;
 	}
 	for record in state.private_queries.values() {
-		validate(record)?;
+		validate(record, MAX_ENCODED_DURABLE_SLOT_BYTES)?;
 	}
 	for record in state.private_query_replay.values() {
-		validate(record)?;
+		validate(record, MAX_ENCODED_SMALL_RECORD_BYTES)?;
 	}
 	for record in state.manifest_tombstones.values() {
-		validate(record)?;
+		validate(record, MAX_ENCODED_SMALL_RECORD_BYTES)?;
 	}
 	Ok(())
 }
@@ -476,16 +544,10 @@ impl StreamingStore {
 				journal_byte_limit(MAX_STREAMING_OPERATIONS)?,
 			)?;
 			let state: JournalState = serde_json::from_slice(&bytes).map_err(io_error)?;
-			if state.version != STREAM_VERSION ||
-				state.operations.len() > operation_limit ||
-				state.recovery.len() > MAX_STREAMING_OPERATIONS ||
-				state.private_queries.len() > MAX_STREAMING_OPERATIONS ||
-				state.private_query_replay.len() > MAX_STREAMING_OPERATIONS ||
-				state.manifest_tombstones.len() > operation_limit ||
-				state.repairs.len() > operation_limit
-			{
+			if state.version != STREAM_VERSION {
 				return Err(ContentError::IntegrityFailed);
 			}
+			validate_journal_cardinality(JournalCardinality::from_state(&state), operation_limit)?;
 			validate_encoded_journal_records(&state)?;
 			recovery::validate_recovery_state(&state)?;
 			private_query::validate_private_query_state(&state)?;
@@ -2614,9 +2676,10 @@ fn remove_unowned(directory: &Path, owned: &BTreeSet<String>) -> Result<bool, Co
 }
 
 fn persist_state(root: &Path, state: &JournalState) -> Result<(), ContentError> {
-	validate_encoded_journal_records(state)
+	validate_journal_cardinality(JournalCardinality::from_state(state), MAX_STREAMING_OPERATIONS)
 		.map_err(|_| ContentError::ProviderRecoveryTableFull)?;
-	let bytes = serde_json::to_vec_pretty(state).map_err(io_error)?;
+	validate_encoded_journal_records(state).map_err(|_| ContentError::ProviderRecoveryTableFull)?;
+	let bytes = serde_json::to_vec(state).map_err(io_error)?;
 	if bytes.len() as u64 > journal_byte_limit(MAX_STREAMING_OPERATIONS)? {
 		return Err(ContentError::ProviderRecoveryTableFull);
 	}
@@ -2646,6 +2709,32 @@ mod exact_lookup_tests {
 	use super::*;
 	use crate::storage::bucket_mmr::BucketMmrStore;
 	use crate::{capability::ProviderCapabilityV1, CapabilityAuthoritySnapshot};
+
+	#[test]
+	fn journal_bound_covers_every_independent_runtime_table_and_rejects_one_over() {
+		let maximum = JournalCardinality {
+			operations: MAX_STREAMING_OPERATIONS,
+			quarantine: MAX_STREAMING_OPERATIONS,
+			repairs: MAX_STREAMING_OPERATIONS,
+			recovery: MAX_STREAMING_OPERATIONS,
+			capability_replay: MAX_STREAMING_OPERATIONS,
+			private_queries: MAX_STREAMING_OPERATIONS,
+			private_query_replay: MAX_STREAMING_OPERATIONS,
+			manifest_tombstones: MAX_STREAMING_OPERATIONS,
+		};
+		validate_journal_cardinality(maximum, MAX_STREAMING_OPERATIONS).unwrap();
+		assert!(
+			journal_byte_limit(MAX_STREAMING_OPERATIONS).unwrap() >
+				MAX_STREAMING_OPERATIONS as u64 * MAX_ENCODED_DURABLE_SLOT_BYTES
+		);
+
+		let one_over =
+			JournalCardinality { private_query_replay: MAX_STREAMING_OPERATIONS + 1, ..maximum };
+		assert_eq!(
+			validate_journal_cardinality(one_over, MAX_STREAMING_OPERATIONS),
+			Err(ContentError::IntegrityFailed)
+		);
+	}
 
 	#[test]
 	fn sparse_oversized_journal_fails_closed_before_decode() {

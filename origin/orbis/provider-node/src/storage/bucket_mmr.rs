@@ -54,6 +54,8 @@ const CHECKSUM_BYTES: usize = 32;
 const LENGTH_BYTES: usize = 4;
 const MAX_FRAME_BYTES: usize = LENGTH_BYTES + MAX_FRAME_PAYLOAD + CHECKSUM_BYTES;
 const MAX_LOG_BYTES: u64 = MAX_STREAMING_OPERATIONS as u64 * MAX_FRAME_BYTES as u64;
+const MAX_BUCKET_DIRECTORIES: usize = MAX_STREAMING_OPERATIONS;
+const MAX_META_TEMP_ARTIFACTS: usize = 1;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum BucketMmrFault {
@@ -149,7 +151,13 @@ impl BucketMmrStore {
 			state.known_sources.insert(record.install_sequence, record);
 		}
 		let mut bucket_ids = state.buckets.keys().copied().collect::<BTreeSet<_>>();
+		let mut visited_buckets = 0usize;
 		for item in fs::read_dir(&root).map_err(io_error)? {
+			visited_buckets =
+				visited_buckets.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+			if visited_buckets > MAX_BUCKET_DIRECTORIES {
+				return Err(ContentError::IntegrityFailed);
+			}
 			let item = item.map_err(io_error)?;
 			if !item.file_type().map_err(io_error)?.is_dir() {
 				return Err(ContentError::IntegrityFailed);
@@ -1057,18 +1065,31 @@ fn persist_meta(directory: &Path, meta: &BucketMeta) -> Result<(), ContentError>
 }
 
 fn remove_meta_temps(directory: &Path) -> Result<(), ContentError> {
-	let mut changed = false;
+	let mut visited = 0usize;
+	let mut temps = Vec::new();
 	for item in fs::read_dir(directory).map_err(io_error)? {
+		visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+		if visited > 2 + MAX_META_TEMP_ARTIFACTS {
+			return Err(ContentError::IntegrityFailed);
+		}
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().to_string_lossy().into_owned();
 		if name.starts_with(&format!("{META}.tmp-")) {
-			fs::remove_file(item.path()).map_err(io_error)?;
-			changed = true;
+			if !item.file_type().map_err(io_error)?.is_file() {
+				return Err(ContentError::IntegrityFailed);
+			}
+			temps.push(item.path());
+			if temps.len() > MAX_META_TEMP_ARTIFACTS {
+				return Err(ContentError::IntegrityFailed);
+			}
 		} else if name != LOG && name != META {
 			return Err(ContentError::IntegrityFailed);
 		}
 	}
-	if changed {
+	for temp in &temps {
+		fs::remove_file(temp).map_err(io_error)?;
+	}
+	if !temps.is_empty() {
 		sync_dir(directory)?;
 	}
 	Ok(())
@@ -1552,5 +1573,28 @@ mod tests {
 			mmr.append_verified(&streaming, bucket, operation),
 			Err(ContentError::IdempotencyConflict)
 		);
+	}
+
+	#[test]
+	fn recovery_rejects_bucket_directory_and_meta_temp_floods() {
+		let flooded = TempDir::new().unwrap();
+		let streaming = StreamingStore::open(flooded.path()).unwrap();
+		let root = flooded.path().join(ROOT);
+		fs::create_dir_all(&root).unwrap();
+		for index in 0..=MAX_BUCKET_DIRECTORIES {
+			let mut id = [0u8; 32];
+			id[..8].copy_from_slice(&(index as u64).to_be_bytes());
+			fs::create_dir(root.join(BucketId::from_bytes(id).to_string())).unwrap();
+		}
+		assert!(matches!(
+			BucketMmrStore::open(flooded.path(), &streaming),
+			Err(ContentError::IntegrityFailed)
+		));
+
+		let temps = TempDir::new().unwrap();
+		fs::write(temps.path().join(format!("{META}.tmp-11")), b"partial").unwrap();
+		fs::write(temps.path().join(format!("{META}.tmp-12")), b"partial").unwrap();
+		assert_eq!(remove_meta_temps(temps.path()), Err(ContentError::IntegrityFailed));
+		assert_eq!(fs::read_dir(temps.path()).unwrap().count(), 2);
 	}
 }
