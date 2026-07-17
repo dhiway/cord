@@ -29,11 +29,37 @@ use rustix::fs::{self as unix_fs, Mode, OFlags};
 
 use crate::ContentError;
 
+/// Stable identity of an opened durable filesystem object.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct FileIdentity {
+	#[cfg(unix)]
+	device: u64,
+	#[cfg(unix)]
+	inode: u64,
+	#[cfg(not(unix))]
+	length: u64,
+}
+
+/// Bytes and path identity captured by one bounded, no-follow regular-file read.
+pub(crate) struct RegularFileSnapshot {
+	pub(crate) bytes: Vec<u8>,
+	pub(crate) identity: FileIdentity,
+	pub(crate) length: u64,
+}
+
 /// Read one regular durable record without allocating beyond its declared hard limit.
 pub(crate) fn read_regular_file(
 	path: impl AsRef<Path>,
 	max_bytes: u64,
 ) -> Result<Vec<u8>, ContentError> {
+	Ok(read_regular_file_snapshot(path, max_bytes)?.bytes)
+}
+
+/// Capture a bounded regular file together with the exact opened object identity.
+pub(crate) fn read_regular_file_snapshot(
+	path: impl AsRef<Path>,
+	max_bytes: u64,
+) -> Result<RegularFileSnapshot, ContentError> {
 	let path = path.as_ref();
 	let path_metadata = fs::symlink_metadata(path).map_err(io_error)?;
 	if path_metadata.file_type().is_symlink() || !path_metadata.is_file() {
@@ -42,7 +68,7 @@ pub(crate) fn read_regular_file(
 	let file = open_regular_file_nofollow(path)?;
 	let metadata = file.metadata().map_err(io_error)?;
 	if !metadata.is_file()
-		|| !same_file_identity(&path_metadata, &metadata)
+		|| file_identity(&path_metadata) != file_identity(&metadata)
 		|| metadata.len() > max_bytes
 	{
 		return Err(ContentError::IntegrityFailed);
@@ -57,11 +83,15 @@ pub(crate) fn read_regular_file(
 	let current = fs::symlink_metadata(path).map_err(io_error)?;
 	if current.file_type().is_symlink()
 		|| !current.is_file()
-		|| !same_file_identity(&current, &metadata)
+		|| file_identity(&current) != file_identity(&metadata)
 	{
 		return Err(ContentError::IntegrityFailed)
 	}
-	Ok(bytes)
+	Ok(RegularFileSnapshot {
+		bytes,
+		identity: file_identity(&metadata),
+		length: metadata.len(),
+	})
 }
 
 #[cfg(unix)]
@@ -81,15 +111,15 @@ fn open_regular_file_nofollow(path: &Path) -> Result<File, ContentError> {
 }
 
 #[cfg(unix)]
-fn same_file_identity(left: &fs::Metadata, right: &fs::Metadata) -> bool {
+pub(crate) fn file_identity(metadata: &fs::Metadata) -> FileIdentity {
 	use std::os::unix::fs::MetadataExt as _;
 
-	left.dev() == right.dev() && left.ino() == right.ino()
+	FileIdentity { device: metadata.dev(), inode: metadata.ino() }
 }
 
 #[cfg(not(unix))]
-fn same_file_identity(left: &fs::Metadata, right: &fs::Metadata) -> bool {
-	left.file_type() == right.file_type() && left.len() == right.len()
+pub(crate) fn file_identity(metadata: &fs::Metadata) -> FileIdentity {
+	FileIdentity { length: metadata.len() }
 }
 
 /// Recognize only the crash artifact shape emitted by the durable JSON writers.

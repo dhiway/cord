@@ -38,11 +38,15 @@ use std::{
 
 use blake2::{digest::consts::U32, Blake2b, Digest as _};
 use codec::{Decode, Encode};
+use fs4::FileExt;
 use orbis_storage_runtime_api::{
 	CheckpointDutyInfo, DeletionDutyInfo, MAX_CHECKPOINT_DUTY_PAGE_SIZE,
 };
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::AccountId32, H256};
+
+#[cfg(unix)]
+use rustix::fs::{self as unix_fs, Mode, OFlags};
 
 use crate::{
 	merkle, AgreementAuthorization, CheckpointDuty, CheckpointDutyBatch, CheckpointDutyPageRequest,
@@ -336,6 +340,7 @@ pub enum StoreError {
 pub struct DiskStore {
 	root: PathBuf,
 	state: RwLock<PersistedState>,
+	_root_guard: Option<ProviderRootGuard>,
 }
 
 pub(crate) struct PreparedDiskStore {
@@ -344,21 +349,177 @@ pub(crate) struct PreparedDiskStore {
 	initial_index: Option<Vec<u8>>,
 	index_temps: Vec<PathBuf>,
 	blob_temps: Vec<PathBuf>,
+	blobs_missing: bool,
+	root_guard: PreparedProviderRootGuard,
+	index_guard: PreparedProviderIndexGuard,
+}
+
+pub(crate) struct ArmedDiskStore {
+	prepared: Option<PreparedDiskStore>,
+	root_guard: Option<ProviderRootGuard>,
+	remove_empty_root_on_drop: bool,
+}
+
+struct ProviderRootGuard {
+	directory: fs::File,
+	identity: crate::bounded_io::FileIdentity,
+}
+
+enum PreparedProviderRootGuard {
+	Missing,
+	Existing(ProviderRootGuard),
+}
+
+enum PreparedProviderIndexGuard {
+	Missing,
+	Present {
+		identity: crate::bounded_io::FileIdentity,
+		length: u64,
+		bytes: Vec<u8>,
+	},
+}
+
+impl ProviderRootGuard {
+	fn validate(&self, root: &Path) -> Result<(), StoreError> {
+		let path_metadata = fs::symlink_metadata(root).map_err(io_error)?;
+		let opened_metadata = self.directory.metadata().map_err(io_error)?;
+		if path_metadata.file_type().is_symlink()
+			|| !path_metadata.is_dir()
+			|| !opened_metadata.is_dir()
+			|| crate::bounded_io::file_identity(&path_metadata) != self.identity
+			|| crate::bounded_io::file_identity(&opened_metadata) != self.identity
+		{
+			return Err(StoreError::Io(
+				"provider root changed after startup validation".into(),
+			));
+		}
+		Ok(())
+	}
+}
+
+impl PreparedProviderIndexGuard {
+	fn validate(&self, path: &Path) -> Result<(), StoreError> {
+		match self {
+			Self::Missing => match fs::symlink_metadata(path) {
+				Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+				Ok(_) => Err(StoreError::Io(
+					"provider index appeared after startup validation".into(),
+				)),
+				Err(error) => Err(io_error(error)),
+			},
+			Self::Present { identity, length, bytes } => {
+				let current = crate::bounded_io::read_regular_file_snapshot(
+					path,
+					MAX_PROVIDER_INDEX_BYTES,
+				)
+				.map_err(io_error)?;
+				if current.identity != *identity
+					|| current.length != *length
+					|| current.bytes != *bytes
+				{
+					return Err(StoreError::Io(
+						"provider index changed after startup validation".into(),
+					));
+				}
+				Ok(())
+			},
+		}
+	}
 }
 
 impl PreparedDiskStore {
-	pub(crate) fn apply(self) -> Result<DiskStore, StoreError> {
-		let blobs = self.root.join(BLOBS_DIR);
-		fs::create_dir_all(&blobs).map_err(io_error)?;
-		crate::bounded_io::remove_validated_temp_artifacts(&self.root, &self.index_temps)
+	pub(crate) fn arm(mut self) -> Result<ArmedDiskStore, StoreError> {
+		let (root_guard, remove_empty_root_on_drop) = match self.root_guard {
+			PreparedProviderRootGuard::Existing(guard) => {
+				guard.validate(&self.root)?;
+				(guard, false)
+			},
+			PreparedProviderRootGuard::Missing => {
+				match fs::symlink_metadata(&self.root) {
+					Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+					Ok(_) => {
+						return Err(StoreError::Io(
+							"provider root appeared after startup validation".into(),
+						))
+					},
+					Err(error) => return Err(io_error(error)),
+				}
+				fs::create_dir(&self.root).map_err(io_error)?;
+				(acquire_provider_root_guard(&self.root)?, true)
+			},
+		};
+		self.root_guard = PreparedProviderRootGuard::Missing;
+		let armed = ArmedDiskStore {
+			prepared: Some(self),
+			root_guard: Some(root_guard),
+			remove_empty_root_on_drop,
+		};
+		let prepared = armed.prepared.as_ref().expect("armed plan contains prepared state");
+		let root_guard = armed.root_guard.as_ref().expect("armed plan contains root guard");
+		if remove_empty_root_on_drop {
+			sync_parent_directory(&prepared.root)?;
+		}
+		root_guard.validate(&prepared.root)?;
+		prepared.index_guard.validate(&prepared.root.join(INDEX_FILE))?;
+		Ok(armed)
+	}
+}
+
+impl ArmedDiskStore {
+	pub(crate) fn apply(mut self) -> Result<DiskStore, StoreError> {
+		let prepared = self
+			.prepared
+			.take()
+			.ok_or_else(|| StoreError::Io("provider disk plan was already applied".into()))?;
+		let root_guard = self
+			.root_guard
+			.take()
+			.ok_or_else(|| StoreError::Io("provider root guard is not armed".into()))?;
+		root_guard.validate(&prepared.root)?;
+		prepared.index_guard.validate(&prepared.root.join(INDEX_FILE))?;
+		let blobs = prepared.root.join(BLOBS_DIR);
+		if prepared.blobs_missing {
+			fs::create_dir(&blobs).map_err(io_error)?;
+			root_guard.directory.sync_all().map_err(io_error)?;
+		} else {
+			optional_owned_directory_exists(&blobs)?;
+		}
+		crate::bounded_io::remove_validated_temp_artifacts(&prepared.root, &prepared.index_temps)
 			.map_err(io_error)?;
-		crate::bounded_io::remove_validated_temp_artifacts(&blobs, &self.blob_temps)
+		crate::bounded_io::remove_validated_temp_artifacts(&blobs, &prepared.blob_temps)
 			.map_err(io_error)?;
-		let store = DiskStore { root: self.root, state: RwLock::new(self.state) };
-		if let Some(bytes) = self.initial_index {
+		let store = DiskStore {
+			root: prepared.root,
+			state: RwLock::new(prepared.state),
+			_root_guard: Some(root_guard),
+		};
+		if let Some(bytes) = prepared.initial_index {
 			write_atomic(&store.root.join(INDEX_FILE), &bytes)?;
 		}
+		self.remove_empty_root_on_drop = false;
 		Ok(store)
+	}
+}
+
+impl Drop for ArmedDiskStore {
+	fn drop(&mut self) {
+		if !self.remove_empty_root_on_drop {
+			return;
+		}
+		let (Some(prepared), Some(guard)) = (&self.prepared, &self.root_guard) else {
+			return;
+		};
+		if guard.validate(&prepared.root).is_err()
+			|| fs::read_dir(&prepared.root)
+				.ok()
+				.and_then(|mut entries| entries.next())
+				.is_some()
+		{
+			return;
+		}
+		if fs::remove_dir(&prepared.root).is_ok() {
+			let _ = sync_parent_directory(&prepared.root);
+		}
 	}
 }
 
@@ -375,7 +536,7 @@ impl DiskStore {
 		profile: NodeProfile,
 		capacity_bytes: u64,
 	) -> Result<Self, StoreError> {
-		Self::prepare_open(root, profile, capacity_bytes)?.apply()
+		Self::prepare_open(root, profile, capacity_bytes)?.arm()?.apply()
 	}
 
 	pub(crate) fn prepare_open(
@@ -389,6 +550,11 @@ impl DiskStore {
 		validate_profile(&profile)?;
 		let root = root.as_ref().to_path_buf();
 		let root_exists = optional_owned_directory_exists(&root)?;
+		let root_guard = if root_exists {
+			PreparedProviderRootGuard::Existing(acquire_provider_root_guard(&root)?)
+		} else {
+			PreparedProviderRootGuard::Missing
+		};
 		let (index_temps, root_artifacts) =
 			if root_exists { collect_index_temps(&root)? } else { (Vec::new(), 0) };
 		let path = root.join(INDEX_FILE);
@@ -398,10 +564,14 @@ impl DiskStore {
 				"provider protocol v5 state is unsupported; initialize a clean data path".into(),
 			));
 		}
-		let state = if index_exists {
-			let data = crate::bounded_io::read_regular_file(&path, MAX_PROVIDER_INDEX_BYTES)
-				.map_err(io_error)?;
-			let existing: PersistedState = serde_json::from_slice(&data).map_err(io_error)?;
+		let (state, index_guard) = if index_exists {
+			let snapshot = crate::bounded_io::read_regular_file_snapshot(
+				&path,
+				MAX_PROVIDER_INDEX_BYTES,
+			)
+			.map_err(io_error)?;
+			let existing: PersistedState =
+				serde_json::from_slice(&snapshot.bytes).map_err(io_error)?;
 			validate_persisted_state_bounds(&existing)?;
 			if existing.version != PROTOCOL_VERSION {
 				return Err(StoreError::Invalid(format!(
@@ -421,9 +591,16 @@ impl DiskStore {
 					"capacity changes require authenticated PUT /node".into(),
 				));
 			}
-			existing
+			(
+				existing,
+				PreparedProviderIndexGuard::Present {
+					identity: snapshot.identity,
+					length: snapshot.length,
+					bytes: snapshot.bytes,
+				},
+			)
 		} else {
-			PersistedState {
+			(PersistedState {
 				version: PROTOCOL_VERSION,
 				profile,
 				capacity_bytes,
@@ -443,9 +620,13 @@ impl DiskStore {
 				deletion_duty_intake: None,
 				deletion_duty_watermark: None,
 				pending_manifest_deletions: BTreeMap::new(),
-			}
+			}, PreparedProviderIndexGuard::Missing)
 		};
-		let store = Self { root: root.clone(), state: RwLock::new(state) };
+		let store = Self {
+			root: root.clone(),
+			state: RwLock::new(state),
+			_root_guard: None,
+		};
 		store.verify_index()?;
 		let state = store
 			.state
@@ -461,7 +642,19 @@ impl DiskStore {
 			return Err(StoreError::Io("provider root contains too many durable artifacts".into()));
 		}
 		let initial_index = (!index_exists).then(|| encode_persisted_state(&state)).transpose()?;
-		Ok(PreparedDiskStore { root, state, initial_index, index_temps, blob_temps })
+		if let PreparedProviderRootGuard::Existing(guard) = &root_guard {
+			guard.validate(&root)?;
+		}
+		Ok(PreparedDiskStore {
+			root,
+			state,
+			initial_index,
+			index_temps,
+			blob_temps,
+			blobs_missing: !blobs_exists,
+			root_guard,
+			index_guard,
+		})
 	}
 
 	/// Return the provider data root for co-located private durable kernels.
@@ -2081,6 +2274,56 @@ fn optional_owned_regular_file_exists(path: &Path) -> Result<bool, StoreError> {
 	}
 }
 
+fn acquire_provider_root_guard(root: &Path) -> Result<ProviderRootGuard, StoreError> {
+	let path_metadata = fs::symlink_metadata(root).map_err(io_error)?;
+	if path_metadata.file_type().is_symlink() || !path_metadata.is_dir() {
+		return Err(StoreError::Io("provider owned namespace is not a directory".into()));
+	}
+	let directory = open_provider_root_no_follow(root)?;
+	let opened_metadata = directory.metadata().map_err(io_error)?;
+	let identity = crate::bounded_io::file_identity(&opened_metadata);
+	if !opened_metadata.is_dir()
+		|| crate::bounded_io::file_identity(&path_metadata) != identity
+	{
+		return Err(StoreError::Io("provider root changed while opening".into()));
+	}
+	directory.try_lock_exclusive().map_err(|error| {
+		StoreError::Io(format!("provider root is already owned by another process: {error}"))
+	})?;
+	let guard = ProviderRootGuard { directory, identity };
+	guard.validate(root)?;
+	Ok(guard)
+}
+
+#[cfg(unix)]
+fn open_provider_root_no_follow(root: &Path) -> Result<fs::File, StoreError> {
+	unix_fs::open(
+		root,
+		OFlags::RDONLY
+			| OFlags::DIRECTORY
+			| OFlags::NONBLOCK
+			| OFlags::NOFOLLOW
+			| OFlags::CLOEXEC,
+		Mode::empty(),
+	)
+	.map(fs::File::from)
+	.map_err(io_error)
+}
+
+#[cfg(not(unix))]
+fn open_provider_root_no_follow(root: &Path) -> Result<fs::File, StoreError> {
+	fs::File::open(root).map_err(io_error)
+}
+
+fn sync_parent_directory(path: &Path) -> Result<(), StoreError> {
+	let parent = path
+		.parent()
+		.ok_or_else(|| StoreError::Io("provider root has no parent directory".into()))?;
+	fs::File::open(parent)
+		.and_then(|directory| directory.sync_all())
+		.map_err(io_error)
+}
+
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
 	let temporary = atomic_temp_path(path);
 	let mut created = false;
@@ -3140,9 +3383,99 @@ mod tests {
 
 		assert!(!index.exists());
 		assert!(!blobs.exists());
-		let _store = prepared.apply().unwrap();
+		let _store = prepared.arm().unwrap().apply().unwrap();
 		assert!(index.is_file());
 		assert!(blobs.is_dir());
+	}
+
+	#[test]
+	fn provider_root_lock_rolls_from_prepared_plan_into_live_store() {
+		let temp = tempfile::tempdir().unwrap();
+		drop(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+
+		let prepared = DiskStore::prepare_open(temp.path(), profile(), 1024).unwrap();
+		assert!(DiskStore::prepare_open(temp.path(), profile(), 1024).is_err());
+		let store = prepared.arm().unwrap().apply().unwrap();
+		assert!(DiskStore::prepare_open(temp.path(), profile(), 1024).is_err());
+		drop(store);
+
+		let retry = DiskStore::prepare_open(temp.path(), profile(), 1024).unwrap();
+		drop(retry);
+	}
+
+	#[test]
+	fn dropping_armed_missing_root_plan_removes_only_its_empty_root() {
+		let parent = tempfile::tempdir().unwrap();
+		let root = parent.path().join("provider");
+		let prepared = DiskStore::prepare_open(&root, profile(), 1024).unwrap();
+		let armed = prepared.arm().unwrap();
+		assert!(root.is_dir());
+		drop(armed);
+		assert!(!root.exists());
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn missing_provider_root_collision_is_rejected_without_following_symlink() {
+		use std::os::unix::fs::symlink;
+
+		let parent = tempfile::tempdir().unwrap();
+		let root = parent.path().join("provider");
+		let prepared = DiskStore::prepare_open(&root, profile(), 1024).unwrap();
+		let external = tempfile::tempdir().unwrap();
+		let marker = external.path().join("marker");
+		fs::write(&marker, b"external-must-remain-exact").unwrap();
+		symlink(external.path(), &root).unwrap();
+
+		assert!(prepared.arm().is_err());
+		assert_eq!(fs::read(marker).unwrap(), b"external-must-remain-exact");
+		assert!(fs::symlink_metadata(root).unwrap().file_type().is_symlink());
+	}
+
+	#[test]
+	fn canonical_index_replacement_after_arm_preserves_replacement_and_recovery_temp() {
+		let temp = tempfile::tempdir().unwrap();
+		drop(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		let canonical = temp.path().join(INDEX_FILE);
+		let mut replacement: serde_json::Value =
+			serde_json::from_slice(&fs::read(&canonical).unwrap()).unwrap();
+		replacement["profile"]["endpoint"] = "http://replacement.invalid".into();
+		let replacement_bytes = serde_json::to_vec(&replacement).unwrap();
+		let crash_temp = temp.path().join(format!("{INDEX_TEMP_PREFIX}904"));
+		let crash_bytes = b"preserve-planned-index-recovery-temp";
+		fs::write(&crash_temp, crash_bytes).unwrap();
+		let armed = DiskStore::prepare_open(temp.path(), profile(), 1024)
+			.unwrap()
+			.arm()
+			.unwrap();
+		let replacement_path = temp.path().join("replacement-index");
+		fs::write(&replacement_path, &replacement_bytes).unwrap();
+		fs::rename(replacement_path, &canonical).unwrap();
+
+		assert!(armed.apply().is_err());
+		assert_eq!(fs::read(canonical).unwrap(), replacement_bytes);
+		assert_eq!(fs::read(crash_temp).unwrap(), crash_bytes);
+	}
+
+	#[test]
+	fn missing_canonical_index_appearance_after_arm_is_preserved() {
+		let temp = tempfile::tempdir().unwrap();
+		drop(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		let canonical = temp.path().join(INDEX_FILE);
+		let unexpected = fs::read(&canonical).unwrap();
+		fs::remove_file(&canonical).unwrap();
+		let crash_temp = temp.path().join(format!("{INDEX_TEMP_PREFIX}905"));
+		let crash_bytes = b"preserve-missing-index-recovery-temp";
+		fs::write(&crash_temp, crash_bytes).unwrap();
+		let armed = DiskStore::prepare_open(temp.path(), profile(), 1024)
+			.unwrap()
+			.arm()
+			.unwrap();
+		fs::write(&canonical, &unexpected).unwrap();
+
+		assert!(armed.apply().is_err());
+		assert_eq!(fs::read(canonical).unwrap(), unexpected);
+		assert_eq!(fs::read(crash_temp).unwrap(), crash_bytes);
 	}
 
 	#[cfg(unix)]

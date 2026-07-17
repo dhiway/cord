@@ -103,10 +103,12 @@ impl<A: ChainAuthority> ProviderService<A> {
 	) -> Result<Self, ProviderOpenError> {
 		let root = root.as_ref();
 		DiskStore::validate_root(root)?;
-		let outbox_startup = outbox.prepare_startup().map_err(ProviderOpenError::Outbox)?;
 		let store = DiskStore::prepare_open(root, profile, capacity_bytes)?;
+		let outbox_startup = outbox.prepare_startup().map_err(ProviderOpenError::Outbox)?;
 		let checkpoint_stack = CheckpointStack::prepare_open(root)?;
 		let checkpoint_quorum_scheduler = CheckpointQuorumScheduler::prepare_open(root)?;
+		let store = store.arm()?;
+		let outbox_startup = outbox_startup.arm().map_err(ProviderOpenError::Outbox)?;
 		let store = Arc::new(store.apply()?);
 		let checkpoint_stack = Arc::new(checkpoint_stack.apply()?);
 		let checkpoint_quorum_scheduler = Arc::new(checkpoint_quorum_scheduler.apply()?);
@@ -135,6 +137,8 @@ impl<A: ChainAuthority> ProviderService<A> {
 		let checkpoint_stack = CheckpointStack::prepare_open(store.root())?;
 		let checkpoint_quorum_scheduler =
 			CheckpointQuorumScheduler::prepare_open(store.root())?;
+		let outbox_startup =
+			outbox_startup.arm().map_err(|error| ContentError::Io(error.to_string()))?;
 		let checkpoint_stack = Arc::new(checkpoint_stack.apply()?);
 		let checkpoint_quorum_scheduler = Arc::new(checkpoint_quorum_scheduler.apply()?);
 		outbox_startup.apply().map_err(ContentError::Io)?;

@@ -145,6 +145,23 @@ pub struct ManifestDeletionStartupPlan {
 }
 
 impl ManifestDeletionStartupPlan {
+	pub(crate) fn arm(self) -> Result<ArmedManifestDeletionStartupPlan, String> {
+		Ok(ArmedManifestDeletionStartupPlan {
+			jsonl: self.jsonl.map(PreparedJsonlStartup::arm).transpose()?,
+		})
+	}
+
+	pub(crate) fn apply(self) -> Result<(), String> {
+		self.arm()?.apply()
+	}
+}
+
+/// Startup recovery whose process lock is held and whose guarded mutation may now be applied.
+pub(crate) struct ArmedManifestDeletionStartupPlan {
+	jsonl: Option<ArmedJsonlStartup>,
+}
+
+impl ArmedManifestDeletionStartupPlan {
 	pub(crate) fn apply(self) -> Result<(), String> {
 		if let Some(jsonl) = self.jsonl {
 			jsonl.apply()?;
@@ -175,15 +192,28 @@ struct PreparedJsonlStartup {
 	qualified: Arc<AtomicBool>,
 }
 
+struct ArmedJsonlStartup {
+	prepared: Option<PreparedJsonlStartup>,
+	lock: Option<AcquiredPreparedOutboxLock>,
+}
+
 impl PreparedJsonlStartup {
-	fn apply(self) -> Result<(), String> {
+	fn arm(self) -> Result<ArmedJsonlStartup, String> {
 		let lock = acquire_prepared_outbox_lock(&self.path, &self.lock)?;
+		Ok(ArmedJsonlStartup { prepared: Some(self), lock: Some(lock) })
+	}
+}
+
+impl ArmedJsonlStartup {
+	fn apply(mut self) -> Result<(), String> {
+		let prepared = self.prepared.take().ok_or("outbox startup plan was already applied")?;
+		let lock = self.lock.take().ok_or("outbox startup lock is not armed")?;
 		let applied = apply_prepared_jsonl_guard(
-			&self.path,
-			&self.source,
-			self.tail_start,
-			&self.expected_tail,
-			self.truncate_to,
+			&prepared.path,
+			&prepared.source,
+			prepared.tail_start,
+			&prepared.expected_tail,
+			prepared.truncate_to,
 		);
 		if let Err(error) = applied {
 			return match lock.rollback_created() {
@@ -192,8 +222,16 @@ impl PreparedJsonlStartup {
 					Err(format!("{error}; created outbox lock cleanup failed: {cleanup}")),
 			}
 		}
-		self.qualified.store(true, Ordering::Release);
+		prepared.qualified.store(true, Ordering::Release);
 		Ok(())
+	}
+}
+
+impl Drop for ArmedJsonlStartup {
+	fn drop(&mut self) {
+		if let Some(lock) = self.lock.take() {
+			let _ = lock.rollback_created();
+		}
 	}
 }
 
