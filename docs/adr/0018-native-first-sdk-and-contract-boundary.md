@@ -23,8 +23,9 @@ worse developer surface.
    consent, local storage, preimage transport and statement transport.
 4. Off-chain services own content delivery, indexing, search, ranking and notifications. On-chain
    state contains bounded commitments and authorization only.
-5. `pallet_revive` remains available through the optional `origin-sdk-contracts` leaf for
-   application-owned business logic. The umbrella and native domains cannot depend on it.
+5. The product SDK does not expose `pallet_revive`, contract deployment, ABI calls, or a contracts
+   leaf. Adding programmable contract support requires a new ADR and must not duplicate a native
+   authority.
 6. A new pallet is admitted only when at least two concrete app journeys require the same canonical
    transition or a security invariant cannot be enforced outside consensus. SDK convenience is not
    sufficient justification.
@@ -32,6 +33,5 @@ worse developer surface.
 ## Consequences
 
 The stack has one authority per shared domain and a smaller default bundle. Contract deployment is
-not required to use Commons. App teams retain an explicit programmable extension path, but they own
-its lifecycle. Because this is a clean-break network, replaced contract facades and duplicate
-fixtures are deleted rather than deprecated or migrated.
+not part of the supported Commons application model. Because this is a clean-break network,
+replaced contract facades and duplicate fixtures are deleted rather than deprecated or migrated.

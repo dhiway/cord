@@ -45,8 +45,6 @@ test("one descriptor executor generates every native application adapter", async
   const runtime = createOriginAppRuntime(executor);
 
   await runtime.identity.identityStatus(at, "5Account");
-  await runtime.personhood.personhoodStatus(at, "5Account");
-  await runtime.resources.consumer(at, "5Account");
   await runtime.attestation.schemaCount(at);
   await runtime.names.resolveContentPublication(at, `0x${"22".repeat(32)}`);
   await runtime.storage.read(at, "storage", "account_authorization", { account: "5Account" });
@@ -55,15 +53,13 @@ test("one descriptor executor generates every native application adapter", async
 
   assert.deepEqual(seen.map(({ kind, target }) => `${kind}:${target}`), [
     "read:IdentityPersonhoodApi.identity_status",
-    "read:IdentityPersonhoodApi.personhood_status",
-    "read:Resources.Consumers",
     "read:AttestationApi.schema_count",
     "read:NamesApi.resolve_content_publication",
     "read:storage.account_authorization",
     "prepare:Assets.transfer",
   ]);
-  assert.deepEqual(seen[6]?.context, { payment });
-  assert.equal(ORIGIN_RUNTIME_EXECUTOR_CONTRACT.adapterCount, 7);
+  assert.deepEqual(seen[4]?.context, { payment });
+  assert.equal(ORIGIN_RUNTIME_EXECUTOR_CONTRACT.adapterCount, 5);
   assert.equal(ORIGIN_RUNTIME_EXECUTOR_CONTRACT.rawScaleAccepted, false);
   assert.equal(ORIGIN_RUNTIME_EXECUTOR_CONTRACT.palletIndicesAccepted, false);
   assert.equal(ORIGIN_RUNTIME_EXECUTOR_CONTRACT.applicationEndpointsAccepted, false);

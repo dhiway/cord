@@ -67,16 +67,6 @@ import {
   type NamesClient,
   type NamesRuntimeAdapter,
 } from "@cord-network/origin-sdk-names";
-import {
-  createPersonhoodClient,
-  type PersonhoodClient,
-  type PersonhoodRuntimeAdapter,
-} from "@cord-network/origin-sdk-personhood";
-import {
-  createResourcesClient,
-  type ResourcesClient,
-  type ResourcesRuntimeAdapter,
-} from "@cord-network/origin-sdk-resources";
 import { err, ok } from "@cord-network/origin-sdk-result";
 import {
   selectHostSigner,
@@ -88,16 +78,9 @@ import {
 } from "./runtime.ts";
 
 export * from "./runtime.ts";
-import {
-  createHostStatementStoreTransport,
-  createStatementStoreClient,
-  type StatementStoreClient,
-} from "@cord-network/origin-sdk-statement-store";
 
 export interface OriginAppRuntime {
   readonly identity: IdentityRuntimeAdapter;
-  readonly personhood: PersonhoodRuntimeAdapter;
-  readonly resources: ResourcesRuntimeAdapter;
   readonly attestation: AttestationRuntimeAdapter;
   readonly names: NamesRuntimeAdapter;
   readonly storage: CloudStorageRuntimeAdapter;
@@ -128,12 +111,9 @@ export interface OriginApp {
   readonly signer: SelectedOriginSigner;
   readonly storage: LocalStorageClient;
   readonly identity: IdentityClient;
-  readonly personhood: PersonhoodClient;
-  readonly resources: ResourcesClient;
   readonly attestations: AttestationClient;
   readonly names: NamesClient;
   readonly cloudStorage: CloudStorageClient;
-  readonly statements: StatementStoreClient;
   readonly assets: AssetsClient;
   readonly apps: OriginApplicationClient;
   readonly signal: AbortSignal;
@@ -193,13 +173,6 @@ export async function createApp(
     ? options.runtime
     : createOriginAppRuntime(options.runtime);
   const identity = createIdentityClient(chain, runtime.identity);
-  const personhood = createPersonhoodClient(chain, runtime.personhood);
-  const resources = createResourcesClient(chain, runtime.resources, runtime.personhood);
-  const statements = createStatementStoreClient(
-    host,
-    createHostStatementStoreTransport(host),
-    resources,
-  );
   const cloudStorage = createCloudStorageClient(chain, runtime.storage);
   const apps = createOriginAppsClient(chain, runtime.names, createHostOriginAppContentStore(host));
   const deployer = createOriginAppDeployer(
@@ -215,12 +188,9 @@ export async function createApp(
     signer: selected.value,
     storage: createLocalStorage(host, options.storageNamespace ?? "app"),
     identity,
-    personhood,
-    resources,
     attestations: createAttestationClient(chain, runtime.attestation),
     names: createNamesClient(chain, runtime.names),
     cloudStorage,
-    statements,
     assets: createAssetsClient(chain, runtime.assets),
     apps: { ...apps, prepareDeployment: deployer.prepare },
     signal: lifetime.signal,
@@ -250,8 +220,7 @@ export const ORIGIN_APP_CONTRACT = {
   hosted: true,
   endpointSelection: "host-only",
   nativeDomains: [
-    "identity", "personhood", "resources", "attestations", "names",
-    "cloudStorage", "statements", "assets",
+    "identity", "attestations", "names", "cloudStorage", "assets",
   ],
   contractsIncluded: false,
   applicationDomains: ["apps"],

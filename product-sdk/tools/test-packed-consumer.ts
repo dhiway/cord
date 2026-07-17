@@ -23,7 +23,7 @@ import { spawnSync } from "node:child_process";
 
 const sdkRoot = resolve(import.meta.dirname, "..");
 const consumer = mkdtempSync(resolve(tmpdir(), "cord-origin-sdk-consumer-"));
-const packages = ["result", "errors", "descriptors", "host", "chain-client", "signer", "tx", "identity", "personhood", "resources", "attestation", "crypto", "names", "statement-store", "cloud-storage", "apps", "assets", "local-storage", ""];
+const packages = ["result", "errors", "descriptors", "host", "chain-client", "signer", "tx", "identity", "attestation", "crypto", "names", "cloud-storage", "apps", "assets", "local-storage", ""];
 const run = (command: string, args: string[], cwd = consumer): string => {
   const result = spawnSync(command, args, { cwd, encoding: "utf8" });
   if (result.status !== 0) {
@@ -165,6 +165,11 @@ for (const specifier of entrypoints) {
   const umbrella = JSON.parse(readFileSync(resolve(consumer, "node_modules/@cord-network/origin-sdk/package.json"), "utf8"));
   if (umbrella.dependencies?.["@cord-network/origin-sdk-apps"] !== "0.1.0") {
     throw new Error("packed umbrella does not retain its exact origin-sdk-apps dependency");
+  }
+  for (const retired of ["contracts", "personhood", "resources", "statement-store"]) {
+    if (`@cord-network/origin-sdk-${retired}` in (umbrella.dependencies ?? {})) {
+      throw new Error(`packed umbrella retained retired ${retired} dependency`);
+    }
   }
   process.stdout.write(`PASS packed consumer and private-v2 export policy: packages=${packages.length} forbidden=${14}\n`);
 } finally {

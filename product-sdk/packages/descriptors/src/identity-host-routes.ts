@@ -22,8 +22,16 @@ import type {
   IdentityInfo,
   IdentityJudgement,
 } from "@cord-network/origin-sdk-identity";
-import type { LitePersonAttestation } from "@cord-network/origin-sdk-personhood";
 import { finalizedRead, submitAndFinalize, type RequestContext } from "../../../src/host.ts";
+
+interface IdentityHumanityAttestation {
+  readonly candidate: AccountId;
+  readonly candidate_signature:
+    | { readonly scheme: "sr25519" | "ed25519"; readonly bytes: string }
+    | { readonly scheme: "ecdsa"; readonly bytes: string };
+  readonly ring_vrf_key: Hash32;
+  readonly proof_of_ownership: string;
+}
 
 /** Exact host envelopes for native People identity routes. */
 export const identityHostRoutes = {
@@ -66,7 +74,7 @@ export const personhoodHostRoutes = {
   attestationAllowance(context: RequestContext, account: AccountId) {
     return finalizedRead("identity", context, "identity", "attestation_allowance", { account });
   },
-  attestLitePerson(context: RequestContext, input: LitePersonAttestation) {
+  attestLitePerson(context: RequestContext, input: IdentityHumanityAttestation) {
     return submitAndFinalize("identity", context, "identity", "attest_lite_person", { ...input });
   },
 } as const;

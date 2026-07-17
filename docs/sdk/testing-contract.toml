@@ -17,10 +17,6 @@ package = "@cord-network/origin-sdk-signer/testing"
 capabilities = ["accounts", "signing", "rejection", "inspection", "reset"]
 
 [[testing_export]]
-package = "@cord-network/origin-sdk-statement-store/testing"
-capabilities = ["submit", "query", "subscription", "injection", "inspection", "reset"]
-
-[[testing_export]]
 package = "@cord-network/origin-sdk-tx/testing"
 capabilities = ["transaction-status-stream"]
 

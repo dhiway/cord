@@ -50,25 +50,14 @@ evidence = "docs/sdk/host-protocol.toml; product-sdk/packages/origin-sdk-host/sr
 
 [[capability]]
 id = "identity"
-requirement = "Identity aliases, registrars, and judgements"
-journey = "Enterprise organization and user identities are resolved at finality"
-runtime_owner = "People pallet and identity runtime APIs"
-sdk_owner = "origin-sdk-identity"
+requirement = "One identity primitive for aliases, judgements, humanity, memberships, entitlements, and bounded resource claims"
+journey = "Enterprise and Festival applications resolve identity and eligibility through one consent-aware interface"
+runtime_owner = "People, PeopleLite, Members, Resources, and identity runtime APIs behind one Identity authority"
+sdk_owner = "origin-sdk-identity and the private host-v2 Identity projection"
 host_owner = "Account selection and disclosure consent"
-state = "runtime-present-sdk-present"
+state = "runtime-and-private-host-v2-present-public-facade-consolidation-pending"
 contract_policy = "forbidden-native-authority"
-evidence = "origin/orbis/runtime/src/lib.rs; product-sdk/packages/origin-sdk-identity/src/index.ts"
-
-[[capability]]
-id = "personhood-resources"
-requirement = "Personhood, memberships, resource claims, and statement allowances"
-journey = "Festival proves eligibility and obtains bounded messaging resources"
-runtime_owner = "Personhood, Members, PeopleLite, and Resources pallets"
-sdk_owner = "origin-sdk-personhood and origin-sdk-resources"
-host_owner = "Proof and disclosure consent"
-state = "runtime-sdk-present-host-proof-integration-pending"
-contract_policy = "forbidden-native-authority"
-evidence = "origin/orbis/pallets/resources/src/lib.rs; product-sdk/packages/origin-sdk-personhood/src/index.ts; product-sdk/packages/origin-sdk-resources/src/index.ts"
+evidence = "origin/orbis/runtime/src/lib.rs; origin-rs/src/product_sdk/host_v2/identity_authority.rs; product-sdk/packages/origin-sdk-host/src/internal/v2/generated.ts; product-sdk/packages/origin-sdk-identity/src/index.ts"
 
 [[capability]]
 id = "attestation"
@@ -125,16 +114,6 @@ state = "runtime-sdk-and-host-preimage-primitive-present-adapter-pending"
 contract_policy = "forbidden-native-authority"
 evidence = "origin/orbis/pallets/storage-provider/src/lib.rs; origin/orbis/pallets/drive/src/lib.rs; origin/orbis/pallets/s3/src/lib.rs; product-sdk/packages/origin-sdk-cloud-storage/src/index.ts"
 
-[[capability]]
-id = "statement-store"
-requirement = "Allowance acquisition, submit, query, subscription, persistence, and propagation"
-journey = "Festival sends bounded notifications and reconnects to subscriptions"
-runtime_owner = "Resources allowance policy and statement-store host functions"
-sdk_owner = "origin-sdk-statement-store and origin-sdk-resources"
-host_owner = "Statement transport and subscriptions"
-state = "runtime-node-sdk-host-adapter-and-umbrella-present"
-contract_policy = "forbidden"
-evidence = "docs/sdk/statement-store-audit.md; product-sdk/packages/origin-sdk-statement-store/src/index.ts"
 
 [[capability]]
 id = "assets-payments"
@@ -157,17 +136,6 @@ host_owner = "none except secure key custody"
 state = "result-errors-and-crypto-present-other-utilities-pending"
 contract_policy = "not-applicable"
 evidence = "docs/sdk/package-architecture.toml; product-sdk/packages/origin-sdk-crypto/src/index.ts"
-
-[[capability]]
-id = "app-contracts"
-requirement = "Optional application-owned programmable logic"
-journey = "An application explicitly deploys independent business logic"
-runtime_owner = "Revive execution only"
-sdk_owner = "origin-sdk-contracts optional leaf"
-host_owner = "Deployment and call approval"
-state = "runtime-and-optional-sdk-present-local-network-e2e-pending"
-contract_policy = "allowed-only-for-app-specific-non-authoritative-state"
-evidence = "docs/adr/0018-native-first-sdk-and-contract-boundary.md; docs/sdk/revive-contracts.toml; product-sdk/packages/origin-sdk-contracts/src/index.ts"
 
 [[capability]]
 id = "device-capabilities"

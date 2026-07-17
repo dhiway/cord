@@ -32,7 +32,6 @@ import {
 export * from "@cord-network/origin-sdk-host/testing";
 export * from "@cord-network/origin-sdk-local-storage/testing";
 export * from "@cord-network/origin-sdk-signer/testing";
-export * from "@cord-network/origin-sdk-statement-store/testing";
 export * from "@cord-network/origin-sdk-tx/testing";
 
 export interface FakePreparedRuntimeCall {
@@ -45,12 +44,9 @@ export interface FakePreparedRuntimeCall {
 export type FakeAppOverrides = Partial<Pick<
   OriginApp,
   | "identity"
-  | "personhood"
-  | "resources"
   | "attestations"
   | "names"
   | "cloudStorage"
-  | "statements"
   | "assets"
   | "apps"
 >>;
@@ -91,7 +87,7 @@ export async function createFakeApp(
   const account = options.account ?? { address: "5FakeOrigin", name: "Fake Origin" };
   const host = createFakeHost({ accounts: [account], runtimeIdentity });
   for (const capability of [
-    "accounts", "chain", "signing", "local-storage", "preimages", "resources", "statements",
+    "accounts", "chain", "signing", "local-storage", "preimages",
   ] as const) host.grant(product.id, capability);
 
   const prepared: FakePreparedRuntimeCall[] = [];

@@ -30,7 +30,7 @@ import {
 
 const product = { id: "festival.app", name: "Festival" } as const;
 const runtime = {
-  identity: {}, personhood: {}, resources: {}, attestation: {}, names: {}, storage: {}, assets: {},
+  identity: {}, attestation: {}, names: {}, storage: {}, assets: {},
 } as OriginAppRuntime;
 const runtimeIdentity = {
   genesis_hash: COMMONS_NETWORK_BINDING.genesis_hash,
@@ -56,8 +56,7 @@ test("createApp validates Commons and wires the hosted developer surface once", 
   if (!created.success) return;
   assert.equal(created.value.signer.account.address, "5Festival");
   assert.deepEqual(ORIGIN_APP_CONTRACT.nativeDomains, [
-    "identity", "personhood", "resources", "attestations", "names",
-    "cloudStorage", "statements", "assets",
+    "identity", "attestations", "names", "cloudStorage", "assets",
   ]);
   assert.equal(ORIGIN_APP_CONTRACT.contractsIncluded, false);
   assert.equal((await created.value.storage.set("theme", "dark", utf8Codec)).success, true);
