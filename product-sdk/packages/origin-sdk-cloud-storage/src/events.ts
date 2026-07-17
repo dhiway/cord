@@ -16,40 +16,127 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-import { invalidDomainInput, type AccountId, type AgreementId, type BlockHash, type BlockNumber, type BucketId, type ChallengeId, type ContentCommitment, type DecimalU64, type DriveId, type ObjectId, type ProviderId } from "./types.ts";
+import {
+  invalidDomainInput,
+  type AccountId,
+  type AgreementId,
+  type BlockHash,
+  type BlockNumber,
+  type BucketId,
+  type ChallengeId,
+  type ContentHash,
+  type ContentCommitment,
+  type DecimalU64,
+  type DriveId,
+  type ObjectId,
+  type ProviderId,
+} from "./types.ts";
+import type { AgreementStatus, ProviderStatus } from "./provider.ts";
+
+export type BucketRole = "reader" | "writer" | "admin";
+export type DriveRole = "reader" | "writer" | "admin";
+export type CommitmentState = "publishable" | "pending" | "tombstoned" | "missing";
+export type DriveNodeKind = "directory" | "file";
+
+export interface CheckpointCommitment {
+  readonly mmr_root: ContentCommitment;
+  readonly start_seq: DecimalU64;
+  readonly leaf_count: DecimalU64;
+}
 
 export type StorageNativeEventKind =
   | "provider_registered" | "provider_updated" | "provider_status_changed" | "provider_removed" | "heartbeat"
-  | "agreement_proposed" | "agreement_accepted" | "agreement_cancelled" | "agreement_renewal_requested" | "agreement_renewed" | "agreement_expired" | "agreement_pruned"
-  | "challenge_issued" | "checkpoint_submitted" | "challenge_timed_out" | "provider_root_committed" | "deletion_acknowledged"
-  | "drive_created" | "drive_root_updated" | "drive_controller_changed" | "drive_transferred" | "drive_archived"
-  | "bucket_created" | "bucket_controller_changed" | "bucket_transferred" | "bucket_archived" | "bucket_versioning_changed" | "object_put" | "object_deleted" | "bucket_deleted";
+  | "storage_bucket_created" | "storage_bucket_grant_changed" | "agreement_transitioned" | "agreement_capacity_released" | "agreement_provider_rebound"
+  | "challenge_issued" | "challenge_proved" | "challenge_timed_out" | "checkpoint_accepted" | "checkpoint_equivocation"
+  | "replica_selected" | "primary_promoted" | "bucket_replica_replaced" | "manifest_commitment_changed" | "manifest_deletion_acknowledged"
+  | "drive_created" | "drive_root_updated" | "drive_grant_changed" | "drive_transferred" | "drive_archived" | "drive_node_written" | "drive_node_removed"
+  | "s3_bucket_created" | "s3_controller_changed" | "s3_bucket_transferred" | "s3_bucket_archived" | "s3_bucket_versioning_changed"
+  | "s3_object_put" | "s3_object_deleted" | "s3_object_purged" | "s3_bucket_deleted" | "s3_object_history_pruned";
 
-type E<K extends StorageNativeEventKind,D>={readonly event:K;readonly data:Readonly<D>};
+type E<K extends StorageNativeEventKind, D> = { readonly event: K; readonly data: Readonly<D> };
 export type StorageNativeEvent =
- | E<"provider_registered",{provider:ProviderId;capacity_bytes:DecimalU64}> | E<"provider_updated",{provider:ProviderId;capacity_bytes:DecimalU64}> | E<"provider_status_changed",{provider:ProviderId;status:"active"|"suspended"}> | E<"provider_removed",{provider:ProviderId}> | E<"heartbeat",{provider:ProviderId;at:BlockNumber}>
- | E<"agreement_proposed",{agreement:AgreementId;owner:AccountId;provider:ProviderId}> | E<"agreement_accepted",{agreement:AgreementId}> | E<"agreement_cancelled",{agreement:AgreementId}> | E<"agreement_renewal_requested",{agreement:AgreementId;expires_at:BlockNumber}> | E<"agreement_renewed",{agreement:AgreementId;expires_at:BlockNumber}> | E<"agreement_expired",{agreement:AgreementId}> | E<"agreement_pruned",{agreement:AgreementId}>
- | E<"challenge_issued",{challenge:ChallengeId;provider:ProviderId;due_at:BlockNumber}> | E<"checkpoint_submitted",{challenge:ChallengeId;proof_commitment:ContentCommitment}> | E<"challenge_timed_out",{challenge:ChallengeId;provider:ProviderId}> | E<"provider_root_committed",{provider:ProviderId;sequence:DecimalU64;root:ContentCommitment;leaf_count:DecimalU64}> | E<"deletion_acknowledged",{agreement:AgreementId;provider:ProviderId;content_commitment:ContentCommitment;tombstone_root:ContentCommitment;root_sequence:DecimalU64;leaf_index:DecimalU64;leaf_count:DecimalU64;proof_commitment:ContentCommitment}>
- | E<"drive_created",{drive:DriveId;owner:AccountId}> | E<"drive_root_updated",{drive:DriveId;version:DecimalU64}> | E<"drive_controller_changed",{drive:DriveId;controller:AccountId;enabled:boolean}> | E<"drive_transferred",{drive:DriveId;old_owner:AccountId;new_owner:AccountId}> | E<"drive_archived",{drive:DriveId}>
- | E<"bucket_created",{bucket:BucketId;name:string;owner:AccountId}> | E<"bucket_controller_changed",{bucket:BucketId;controller:AccountId;enabled:boolean;version:DecimalU64}> | E<"bucket_transferred",{bucket:BucketId;from:AccountId;to:AccountId;version:DecimalU64}> | E<"bucket_archived",{bucket:BucketId;archived:boolean;version:DecimalU64}> | E<"bucket_versioning_changed",{bucket:BucketId;enabled:boolean;version:DecimalU64}> | E<"object_put",{bucket:BucketId;object:ObjectId;key:string;content_commitment:ContentCommitment;version:DecimalU64}> | E<"object_deleted",{bucket:BucketId;object:ObjectId;key:string;version:DecimalU64}> | E<"bucket_deleted",{bucket:BucketId;name:string;owner:AccountId}>;
+  | E<"provider_registered", { provider: ProviderId; capacity_bytes: DecimalU64 }>
+  | E<"provider_updated", { provider: ProviderId; capacity_bytes: DecimalU64 }>
+  | E<"provider_status_changed", { provider: ProviderId; status: ProviderStatus }>
+  | E<"provider_removed", { provider: ProviderId }>
+  | E<"heartbeat", { provider: ProviderId; at: BlockNumber }>
+  | E<"storage_bucket_created", { bucket: BucketId; owner: AccountId; primary: ProviderId; replicas: readonly ProviderId[]; version: DecimalU64 }>
+  | E<"storage_bucket_grant_changed", { bucket: BucketId; account: AccountId; role: BucketRole | null; previous_version: DecimalU64; new_version: DecimalU64 }>
+  | E<"agreement_transitioned", { agreement: AgreementId; previous: AgreementStatus | null; current: AgreementStatus; previous_version: DecimalU64; new_version: DecimalU64 }>
+  | E<"agreement_capacity_released", { agreement: AgreementId }>
+  | E<"agreement_provider_rebound", { agreement: AgreementId; old_provider: ProviderId; new_provider: ProviderId; status: AgreementStatus; bytes: DecimalU64 }>
+  | E<"challenge_issued", { challenge: ChallengeId; bucket: BucketId; provider: ProviderId; due_at: BlockNumber }>
+  | E<"challenge_proved", { challenge: ChallengeId; provider: ProviderId }>
+  | E<"challenge_timed_out", { challenge: ChallengeId; provider: ProviderId; checkpoint: BlockNumber }>
+  | E<"checkpoint_accepted", { bucket: BucketId; commitment: CheckpointCommitment; checkpoint: BlockNumber; replica_confirmations: readonly ProviderId[] }>
+  | E<"checkpoint_equivocation", { code: number; bucket: BucketId; provider: ProviderId; accepted_root: ContentCommitment; conflicting_root: ContentCommitment; nonce: BlockNumber }>
+  | E<"replica_selected", { bucket: BucketId; provider: ProviderId; checkpoint: BlockNumber }>
+  | E<"primary_promoted", { bucket: BucketId; old_provider: ProviderId; new_provider: ProviderId; checkpoint: BlockNumber }>
+  | E<"bucket_replica_replaced", { bucket: BucketId; old_provider: ProviderId; new_provider: ProviderId; previous_version: DecimalU64; new_version: DecimalU64 }>
+  | E<"manifest_commitment_changed", { manifest: ContentCommitment; bucket: BucketId; state: CommitmentState; checkpoint: BlockNumber | null }>
+  | E<"manifest_deletion_acknowledged", { manifest: ContentCommitment; bucket: BucketId; provider: ProviderId; evidence_hash: ContentCommitment; acknowledged_at: BlockNumber }>
+  | E<"drive_created", { drive: DriveId; owner: AccountId; version: DecimalU64 }>
+  | E<"drive_root_updated", { drive: DriveId; previous_root: ContentCommitment | null; new_root: ContentCommitment; previous_version: DecimalU64; version: DecimalU64 }>
+  | E<"drive_grant_changed", { drive: DriveId; subject: AccountId; role: DriveRole | null; previous_version: DecimalU64; version: DecimalU64 }>
+  | E<"drive_transferred", { drive: DriveId; old_owner: AccountId; new_owner: AccountId; previous_version: DecimalU64; version: DecimalU64 }>
+  | E<"drive_archived", { drive: DriveId; previous_version: DecimalU64; version: DecimalU64 }>
+  | E<"drive_node_written", { drive: DriveId; path: string; kind: DriveNodeKind; previous_version: DecimalU64; version: DecimalU64 }>
+  | E<"drive_node_removed", { drive: DriveId; path: string; previous_version: DecimalU64; version: DecimalU64 }>
+  | E<"s3_bucket_created", { bucket: BucketId; name: string; owner: AccountId }>
+  | E<"s3_controller_changed", { bucket: BucketId; controller: AccountId; enabled: boolean; version: DecimalU64 }>
+  | E<"s3_bucket_transferred", { bucket: BucketId; from: AccountId; to: AccountId; version: DecimalU64 }>
+  | E<"s3_bucket_archived", { bucket: BucketId; archived: boolean; version: DecimalU64 }>
+  | E<"s3_bucket_versioning_changed", { bucket: BucketId; enabled: boolean; version: DecimalU64 }>
+  | E<"s3_object_put", { bucket: BucketId; object: ObjectId; key: string; content_hash: ContentHash; version: DecimalU64 }>
+  | E<"s3_object_deleted", { bucket: BucketId; object: ObjectId; key: string; version: DecimalU64 }>
+  | E<"s3_object_purged", { bucket: BucketId; key: string }>
+  | E<"s3_bucket_deleted", { bucket: BucketId; name: string; owner: AccountId }>
+  | E<"s3_object_history_pruned", { bucket: BucketId; key: string; through_version: DecimalU64; removed: number }>;
 
-export type StorageLifecycleAction="registered"|"updated"|"status_changed"|"removed"|"heartbeat"|"proposed"|"accepted"|"cancelled"|"renewal_requested"|"renewed"|"expired"|"pruned"|"issued"|"checkpoint_submitted"|"timed_out"|"root_committed"|"deletion_acknowledged"|"created"|"root_updated"|"controller_changed"|"transferred"|"archived"|"versioning_changed"|"put"|"deleted";
-export type StorageNativeOutcome=
- | {readonly outcome:"provider";readonly data:{provider:ProviderId;action:StorageLifecycleAction}}
- | {readonly outcome:"agreement";readonly data:{agreement:AgreementId;action:StorageLifecycleAction}}
- | {readonly outcome:"challenge";readonly data:{challenge:ChallengeId;action:StorageLifecycleAction}}
- | {readonly outcome:"drive";readonly data:{drive:DriveId;action:StorageLifecycleAction;version:DecimalU64|null}}
- | {readonly outcome:"bucket";readonly data:{bucket:BucketId;action:StorageLifecycleAction;version:DecimalU64|null}}
- | {readonly outcome:"object";readonly data:{bucket:BucketId;object:ObjectId;action:StorageLifecycleAction;version:DecimalU64}};
-export interface FinalizedStorageNativeEvent{readonly finalized_block_hash:BlockHash;readonly event_index:number;readonly event:StorageNativeEvent}
-export interface StorageNativeEventSubscription{readonly finality:"finalized";readonly from_finalized_block:BlockHash;readonly kinds:readonly StorageNativeEventKind[]}
-export function storageNativeEventSubscription(from_finalized_block:BlockHash,kinds:readonly StorageNativeEventKind[]):StorageNativeEventSubscription{if(kinds.length<1||kinds.length>32||new Set(kinds).size!==kinds.length)invalidDomainInput("storage","event_subscription","subscription requires 1-32 unique event kinds");return{finality:"finalized",from_finalized_block,kinds:[...kinds]}}
+export type StorageNativeOutcome = {
+  readonly outcome: "provider" | "storage_bucket" | "agreement" | "challenge" | "checkpoint" | "manifest" | "drive" | "s3_bucket" | "s3_object";
+  readonly data: {
+    readonly action: StorageNativeEventKind;
+    readonly id: string | null;
+    readonly version: DecimalU64 | null;
+  };
+};
 
-export function storageNativeEventOutcome(e:StorageNativeEvent):StorageNativeOutcome{const d=e.data as any;const action=({provider_registered:"registered",provider_updated:"updated",provider_status_changed:"status_changed",provider_removed:"removed",heartbeat:"heartbeat",agreement_proposed:"proposed",agreement_accepted:"accepted",agreement_cancelled:"cancelled",agreement_renewal_requested:"renewal_requested",agreement_renewed:"renewed",agreement_expired:"expired",agreement_pruned:"pruned",challenge_issued:"issued",checkpoint_submitted:"checkpoint_submitted",challenge_timed_out:"timed_out",provider_root_committed:"root_committed",deletion_acknowledged:"deletion_acknowledged",drive_created:"created",drive_root_updated:"root_updated",drive_controller_changed:"controller_changed",drive_transferred:"transferred",drive_archived:"archived",bucket_created:"created",bucket_controller_changed:"controller_changed",bucket_transferred:"transferred",bucket_archived:"archived",bucket_versioning_changed:"versioning_changed",object_put:"put",object_deleted:"deleted",bucket_deleted:"deleted"} as const)[e.event];
- if(e.event.startsWith("provider_")||e.event==="heartbeat")return{outcome:"provider",data:{provider:d.provider,action}};
- if(e.event.startsWith("agreement_")||e.event==="deletion_acknowledged")return{outcome:"agreement",data:{agreement:d.agreement,action}};
- if(e.event.startsWith("challenge_")||e.event==="checkpoint_submitted")return{outcome:"challenge",data:{challenge:d.challenge,action}};
- if(e.event.startsWith("drive_"))return{outcome:"drive",data:{drive:d.drive,action,version:d.version??null}};
- if(e.event.startsWith("object_"))return{outcome:"object",data:{bucket:d.bucket,object:d.object,action,version:d.version}};
- return{outcome:"bucket",data:{bucket:d.bucket,action,version:d.version??null}};
+export interface FinalizedStorageNativeEvent {
+  readonly finalized_block_hash: BlockHash;
+  readonly event_index: number;
+  readonly event: StorageNativeEvent;
+}
+export interface StorageNativeEventSubscription {
+  readonly finality: "finalized";
+  readonly from_finalized_block: BlockHash;
+  readonly kinds: readonly StorageNativeEventKind[];
+}
+export function storageNativeEventSubscription(from_finalized_block: BlockHash, kinds: readonly StorageNativeEventKind[]): StorageNativeEventSubscription {
+  if (kinds.length < 1 || kinds.length > 37 || new Set(kinds).size !== kinds.length)
+    invalidDomainInput("storage", "event_subscription", "subscription requires 1-37 unique event kinds");
+  return { finality: "finalized", from_finalized_block, kinds: [...kinds] };
+}
+
+export function storageNativeEventOutcome(event: StorageNativeEvent): StorageNativeOutcome {
+  const data = event.data as Readonly<Record<string, unknown>>;
+  let outcome: StorageNativeOutcome["outcome"];
+  if (event.event.startsWith("provider_") || event.event === "heartbeat") outcome = "provider";
+  else if (event.event.startsWith("storage_bucket_")) outcome = "storage_bucket";
+  else if (event.event.startsWith("agreement_")) outcome = "agreement";
+  else if (event.event.startsWith("challenge_")) outcome = "challenge";
+  else if (event.event.startsWith("checkpoint_") || event.event === "replica_selected" || event.event === "primary_promoted" || event.event === "bucket_replica_replaced") outcome = "checkpoint";
+  else if (event.event.startsWith("manifest_")) outcome = "manifest";
+  else if (event.event.startsWith("drive_")) outcome = "drive";
+  else if (event.event.startsWith("s3_object_")) outcome = "s3_object";
+  else outcome = "s3_bucket";
+  const id = outcome === "provider" ? data.provider
+    : outcome === "storage_bucket" || outcome === "checkpoint" || outcome === "s3_bucket" ? data.bucket
+    : outcome === "agreement" ? data.agreement
+    : outcome === "challenge" ? data.challenge
+    : outcome === "manifest" ? data.manifest
+    : outcome === "drive" ? data.drive
+    : data.object ?? data.bucket ?? null;
+  const version = data.version ?? data.new_version ?? null;
+  return { outcome, data: { action: event.event, id: id as string | null, version: version as DecimalU64 | null } };
 }
