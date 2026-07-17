@@ -23,12 +23,13 @@ import { parseContentCid, rawContentAddress } from "@cord-network/origin-sdk-clo
 import { contentCommitment, nameId, type AccountId, type BlockNumber, type ContentCommitment, type NormalizedLabel } from "@cord-network/origin-sdk-names";
 import { createStorageV2Intent } from "../../origin-sdk-cloud-storage/src/internal/storage-v2-intents.ts";
 import {
-  FinalizedNamesEventIndexV2, createPrivateOriginAppsV2, deriveStorageNameHashV2,
+  FinalizedNamesEventIndexV2, createPrivateOriginAppsV2, decodePrivateOriginAppManifestV2,
+  deriveStorageNameHashV2, encodePrivateOriginAppManifestV2,
   type FinalityProofV2, type FinalizedNamesMutationV2, type FinalizedNamesObservationV2,
   type NamesAuthorityProofV2, type NamesAuthorityStateV2, type PrivateNamesBindingV2,
   type PrivateStorageExecutorV2, type PrivateStorageIntentFactoryV2, type PrivateStorageIntentV2,
-  type PrivateStorageUploadV2, type PublishOriginAppV2Input, type StorageOperationV2,
-  type VerifiedFinalizedBlockV2,
+  type PrivateOriginAppManifestV2, type PrivateStorageUploadV2, type PublishOriginAppV2Input,
+  type StorageOperationV2, type VerifiedFinalizedBlockV2,
 } from "../src/internal/v2-publishing.ts";
 
 const bytes = (length: number, fill: number) => new Uint8Array(length).fill(fill);
@@ -39,10 +40,18 @@ const block = (number: bigint, fill: string, parent: string): VerifiedFinalizedB
 const bootstrap = () => ({ finality: "finalized" as const, canonical: true as const, verified: true as const, finalized: fp(0n, "0") });
 const owner = "5Owner" as AccountId, controller = "5Controller" as AccountId, nextOwner = "5Next" as AccountId;
 const name = nameId(`0x${"22".repeat(32)}`), storageName = "festival.origin";
-const contentBytes = bytes(12, 7), manifestBytes = bytes(16, 8);
-const contentCid = rawContentAddress(contentBytes).cid, manifestCid = rawContentAddress(manifestBytes).cid;
-const commitment = contentCommitment(`0x${Buffer.from(parseContentCid(manifestCid).digest).toString("hex")}`);
-const nameHash = deriveStorageNameHashV2(storageName), bucketId = bytes(32, 4);
+const contentBytes = bytes(12, 7), contentCid = rawContentAddress(contentBytes).cid;
+const nameHash = deriveStorageNameHashV2(storageName);
+const bytesHex = (value: Uint8Array) => `0x${Buffer.from(value).toString("hex")}` as `0x${string}`;
+const appManifest: PrivateOriginAppManifestV2 = {
+  schema: "cord.origin.private-app-manifest", schemaVersion: 2, productId: "festival.app", nameId: name,
+  storageName, storageNameHash: bytesHex(nameHash), content: { cid: contentCid, length: contentBytes.length },
+  metadata: { version: "1.0.0", channel: "stable", entrypoint: "index.html", contentFormat: "pwa", requestedCapabilities: ["identity.profile", "storage.content"] },
+};
+const manifestBytes = encodePrivateOriginAppManifestV2(appManifest);
+const manifestCid = rawContentAddress(manifestBytes).cid;
+const commitment = contentCommitment(bytesHex(parseContentCid(manifestCid).digest));
+const bucketId = bytes(32, 4);
 const checkpoint = { root: bytes(32, 5), from: 1n, to: 2n, replicas: 2 }, storageFinality = wf(2n, 2);
 
 const factory: PrivateStorageIntentFactoryV2 = { create(operation, input) { return createStorageV2Intent(operation, input as never) as unknown as PrivateStorageIntentV2<typeof operation>; } };
@@ -82,12 +91,13 @@ async function collect(upload: PrivateStorageUploadV2): Promise<Uint8Array> {
   return body;
 }
 class StorageExecutor implements PrivateStorageExecutorV2 {
-  readonly operations: StorageOperationV2[] = []; readonly uploads: Uint8Array[] = []; statusCalls = 0; resolveFinality = wf(3n, 3);
+  readonly operations: StorageOperationV2[] = []; readonly uploads: Uint8Array[] = []; readonly uploadStreams: PrivateStorageUploadV2[] = [];
+  statusCalls = 0; resolveFinality = wf(3n, 3);
   readonly onOperation?: (operation: StorageOperationV2) => void;
   constructor(onOperation?: (operation: StorageOperationV2) => void) { this.onOperation = onOperation; }
   async execute<Operation extends StorageOperationV2>(intent: PrivateStorageIntentV2<Operation>, upload: Operation extends "storage.object.put" ? PrivateStorageUploadV2 : undefined): Promise<unknown> {
     this.operations.push(intent.operation); this.onOperation?.(intent.operation);
-    if (intent.operation === "storage.object.put") { assert.ok(upload); const body = await collect(upload); assert.equal(upload.length, BigInt(body.length)); assert.equal(upload.cid, rawContentAddress(body).cid); this.uploads.push(body); }
+    if (intent.operation === "storage.object.put") { assert.ok(upload); this.uploadStreams.push(upload); const body = await collect(upload); assert.equal(upload.length, BigInt(body.length)); assert.equal(upload.cid, rawContentAddress(body).cid); this.uploads.push(body); }
     else assert.equal(upload, undefined);
     if (intent.operation === "storage.object.status") return resultFor(intent.operation, ++this.statusCalls > 1);
     return resultFor(intent.operation, true, this.resolveFinality);
@@ -114,6 +124,7 @@ const resolveInput = () => ({ productId: "festival.app", name, storageName, buck
   const apps = createPrivateOriginAppsV2(factory, storage, names, index, { async has() { cacheChecks += 1; return true; } });
   assert.deepEqual(await apps.publish(publishInput()), { storageFinalized: fp(2n, "2"), namesFinalized: fp(3n, "3") });
   assert.equal(cacheChecks, 1); assert.deepEqual(storage.uploads, [contentBytes]);
+  await assert.rejects(() => collect(storage.uploadStreams[0]!), /single-consumption/);
   assert.deepEqual(storage.operations, ["storage.object.put", "storage.drive.commit", "storage.object.status", "storage.object.status", "storage.publish"]);
   assert.equal(index.resolve(name).content, commitment); assert.equal((await apps.resolve(resolveInput())).cid, manifestCid);
   assert.deepEqual(await apps.retract(name, controller), fp(4n, "4")); assert.throws(() => index.resolve(name), /not live/);
@@ -121,6 +132,7 @@ const resolveInput = () => ({ productId: "festival.app", name, storageName, buck
 
 test("Names index requires verified bootstrap, empty-block advancement, and actual monotonic event indices", () => {
   assert.throws(() => new FinalizedNamesEventIndexV2({ ...bootstrap(), verified: false } as never), /verified canonical finalized bootstrap/);
+  assert.throws(() => new FinalizedNamesEventIndexV2({ ...bootstrap(), finalized: fp(9n, "9") }), /only at genesis/);
   const index = new FinalizedNamesEventIndexV2(bootstrap());
   assert.throws(() => index.advance({ ...block(1n, "1", "0"), verified: false } as never), /verified canonical/);
   index.advance(block(1n, "1", "0")); index.append(registration());
@@ -161,14 +173,49 @@ test("content, manifest, name, receipt, and stream are cryptographically cross-b
   }
 });
 
-test("resolve rejects older, forked, or commitment-disagreeing authority results", async () => {
-  for (const hostile of ["names-older", "names-fork", "storage-older", "storage-fork", "cid"] as const) {
-    const index = newIndex(), storage = new StorageExecutor(), names = new NamesBinding(); const apps = createPrivateOriginAppsV2(factory, storage, names, index); await apps.publish(publishInput());
+for (const hostile of ["names-older", "names-fork", "names-owner", "names-controllers", "storage-older", "storage-fork", "cid"] as const) {
+  test(`resolve rejects hostile ${hostile} authority`, async () => {
+    const index = newIndex(), storage = new StorageExecutor(), names = new NamesBinding();
+    const apps = createPrivateOriginAppsV2(factory, storage, names, index); await apps.publish(publishInput());
     if (hostile === "names-older") names.finalized = fp(2n, "2"); if (hostile === "names-fork") names.finalized = fp(3n, "9");
+    if (hostile === "names-owner") names.state = { ...names.state, owner: nextOwner };
+    if (hostile === "names-controllers") names.state = { ...names.state, controllers: [] };
     if (hostile === "storage-older") storage.resolveFinality = wf(2n, 2); if (hostile === "storage-fork") storage.resolveFinality = wf(3n, 9);
     if (hostile === "cid") { const original = storage.execute.bind(storage), other = rawContentAddress(bytes(4, 44)).cid; storage.execute = async (intent, upload, signal) => intent.operation === "storage.resolve" ? { cid: other, version: 1n, checkpoint, finalized: wf(3n, 3) } : original(intent, upload as never, signal); }
     await assert.rejects(() => apps.resolve(resolveInput()), /exact event-index authority|exact finalized Names authority/);
+  });
+}
+
+test("private manifest has one canonical schema and rejects swapped bindings or noncanonical bytes", async () => {
+  assert.deepEqual(decodePrivateOriginAppManifestV2(manifestBytes), appManifest);
+  assert.deepEqual(encodePrivateOriginAppManifestV2(decodePrivateOriginAppManifestV2(manifestBytes)), manifestBytes);
+  const otherContent = rawContentAddress(bytes(4, 44)).cid;
+  const swapped: readonly PrivateOriginAppManifestV2[] = [
+    { ...appManifest, productId: "another.app" },
+    { ...appManifest, nameId: nameId(`0x${"44".repeat(32)}`) },
+    { ...appManifest, storageName: "other.origin", storageNameHash: bytesHex(deriveStorageNameHashV2("other.origin")) },
+    { ...appManifest, content: { cid: otherContent, length: 4 } },
+    { ...appManifest, content: { ...appManifest.content, length: appManifest.content.length + 1 } },
+  ];
+  for (const manifest of swapped) {
+    const encoded = encodePrivateOriginAppManifestV2(manifest), cid = rawContentAddress(encoded).cid;
+    await assert.rejects(
+      () => createPrivateOriginAppsV2(factory, new StorageExecutor(), new NamesBinding(), newIndex()).publish(publishInput({ manifestBytes: encoded, manifestCid: cid, contentCommitment: contentCommitment(bytesHex(parseContentCid(cid).digest)) })),
+      /does not bind the exact product, name, or content/,
+    );
   }
+  const noncanonical = new Uint8Array(manifestBytes.length + 1); noncanonical.set(manifestBytes); noncanonical[manifestBytes.length] = 0x20;
+  const noncanonicalCid = rawContentAddress(noncanonical).cid;
+  await assert.rejects(
+    () => createPrivateOriginAppsV2(factory, new StorageExecutor(), new NamesBinding(), newIndex()).publish(publishInput({ manifestBytes: noncanonical, manifestCid: noncanonicalCid, contentCommitment: contentCommitment(bytesHex(parseContentCid(noncanonicalCid).digest)) })),
+    /not in canonical encoding/,
+  );
+  assert.throws(() => decodePrivateOriginAppManifestV2(bytes(16, 8)), /not canonical UTF-8 JSON/);
+});
+
+test("storage executor must completely consume the single-use upload stream", async () => {
+  const storage: PrivateStorageExecutorV2 = { async execute(intent, upload) { if (intent.operation === "storage.object.put") { assert.ok(upload); upload.bytes[Symbol.asyncIterator](); } return resultFor(intent.operation); } };
+  await assert.rejects(() => createPrivateOriginAppsV2(factory, storage, new NamesBinding(), newIndex()).publish(publishInput()), /did not completely consume/);
 });
 
 test("private source has no duplicate Names CID authority or public v2 export", async () => {

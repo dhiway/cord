@@ -28,6 +28,7 @@ import {
 } from "@cord-network/origin-sdk-cloud-storage";
 import {
   contentCommitment,
+  nameId,
   type AccountId,
   type ContentCommitment,
   type NameId,
@@ -52,6 +53,9 @@ const STORAGE_CODES: Readonly<Record<StorageOperationV2, number>> = {
 };
 const STORAGE_REGISTRY_SHA256 = "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba";
 const utf8 = new TextEncoder();
+const utf8Decoder = new TextDecoder("utf-8", { fatal: true });
+const PRIVATE_APP_MANIFEST_SCHEMA = "cord.origin.private-app-manifest" as const;
+const PRIVATE_APP_MANIFEST_VERSION = 2 as const;
 
 export interface PrivateStorageIntentV2<Operation extends StorageOperationV2 = StorageOperationV2> {
   readonly protocol: "cord.origin.host/2";
@@ -169,6 +173,140 @@ function bytesHex(value: Uint8Array): `0x${string}` {
   return `0x${Array.from(value, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
 }
 
+export interface PrivateOriginAppManifestV2 {
+  readonly schema: typeof PRIVATE_APP_MANIFEST_SCHEMA;
+  readonly schemaVersion: typeof PRIVATE_APP_MANIFEST_VERSION;
+  readonly productId: string;
+  readonly nameId: NameId;
+  readonly storageName: string;
+  readonly storageNameHash: `0x${string}`;
+  readonly content: {
+    readonly cid: string;
+    readonly length: number;
+  };
+  readonly metadata: {
+    readonly version: string;
+    readonly channel: string;
+    readonly entrypoint: string;
+    readonly contentFormat: "static" | "pwa";
+    readonly requestedCapabilities: readonly string[];
+  };
+}
+
+function record(value: unknown, label: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new TypeError(`${label} must be a record`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function exactKeys(value: Record<string, unknown>, keys: readonly string[], label: string): void {
+  const actual = Object.keys(value).sort();
+  const expected = [...keys].sort();
+  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
+    throw new TypeError(`${label} contains missing or unknown fields`);
+  }
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value === "boolean" || typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new TypeError("private app manifest numbers must be finite");
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  const object = record(value, "private app manifest value");
+  return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(object[key])}`).join(",")}}`;
+}
+
+function normalizePrivateManifest(value: unknown): PrivateOriginAppManifestV2 {
+  const manifest = record(value, "private app manifest");
+  exactKeys(manifest, ["schema", "schemaVersion", "productId", "nameId", "storageName", "storageNameHash", "content", "metadata"], "private app manifest");
+  if (manifest.schema !== PRIVATE_APP_MANIFEST_SCHEMA || manifest.schemaVersion !== PRIVATE_APP_MANIFEST_VERSION) {
+    throw new TypeError("private app manifest schema must be cord.origin.private-app-manifest v2");
+  }
+  if (typeof manifest.productId !== "string" || !/^[a-z0-9][a-z0-9._-]{2,63}$/.test(manifest.productId)) {
+    throw new TypeError("private app manifest productId is invalid");
+  }
+  if (typeof manifest.nameId !== "string") throw new TypeError("private app manifest NameId is invalid");
+  const checkedName = nameId(manifest.nameId);
+  if (typeof manifest.storageName !== "string" || typeof manifest.storageNameHash !== "string") {
+    throw new TypeError("private app manifest storage name is invalid");
+  }
+  const derivedNameHash = bytesHex(deriveStorageNameHashV2(manifest.storageName));
+  if (manifest.storageNameHash !== derivedNameHash) {
+    throw new TypeError("private app manifest storage name hash is not derived from its name");
+  }
+  const content = record(manifest.content, "private app manifest content");
+  exactKeys(content, ["cid", "length"], "private app manifest content");
+  if (typeof content.cid !== "string") throw new TypeError("private app manifest content CID is invalid");
+  const parsed = parseContentCid(content.cid);
+  if (parsed.codec !== "raw" || !Number.isSafeInteger(content.length) || (content.length as number) < 1) {
+    throw new TypeError("private app manifest content declaration is invalid");
+  }
+  const metadata = record(manifest.metadata, "private app manifest metadata");
+  exactKeys(metadata, ["version", "channel", "entrypoint", "contentFormat", "requestedCapabilities"], "private app manifest metadata");
+  if (typeof metadata.version !== "string"
+    || !/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$/.test(metadata.version)) {
+    throw new TypeError("private app manifest version must use semantic version syntax");
+  }
+  if (typeof metadata.channel !== "string" || !/^[a-z0-9][a-z0-9-]{0,31}$/.test(metadata.channel)) {
+    throw new TypeError("private app manifest channel is invalid");
+  }
+  if (typeof metadata.entrypoint !== "string" || metadata.entrypoint.length < 1
+    || metadata.entrypoint.normalize("NFC") !== metadata.entrypoint
+    || utf8.encode(metadata.entrypoint).length > 256 || metadata.entrypoint.startsWith("/")
+    || metadata.entrypoint.includes("\\") || /[?#]/.test(metadata.entrypoint)
+    || metadata.entrypoint.split("/").some((part) => part === "" || part === "." || part === "..")) {
+    throw new TypeError("private app manifest entrypoint must be a safe relative path");
+  }
+  if (metadata.contentFormat !== "static" && metadata.contentFormat !== "pwa") {
+    throw new TypeError("private app manifest content format is unsupported");
+  }
+  if (!Array.isArray(metadata.requestedCapabilities)
+    || metadata.requestedCapabilities.some((capability) => typeof capability !== "string"
+      || !/^[a-z][a-z0-9.-]{0,63}$/.test(capability))
+    || new Set(metadata.requestedCapabilities).size !== metadata.requestedCapabilities.length) {
+    throw new TypeError("private app manifest capabilities must be unique canonical identifiers");
+  }
+  return {
+    schema: PRIVATE_APP_MANIFEST_SCHEMA,
+    schemaVersion: PRIVATE_APP_MANIFEST_VERSION,
+    productId: manifest.productId,
+    nameId: checkedName,
+    storageName: manifest.storageName,
+    storageNameHash: derivedNameHash,
+    content: { cid: content.cid, length: content.length as number },
+    metadata: {
+      version: metadata.version,
+      channel: metadata.channel,
+      entrypoint: metadata.entrypoint,
+      contentFormat: metadata.contentFormat,
+      requestedCapabilities: [...metadata.requestedCapabilities as string[]].sort(),
+    },
+  };
+}
+
+export function encodePrivateOriginAppManifestV2(manifest: PrivateOriginAppManifestV2): Uint8Array {
+  const bytes = utf8.encode(canonicalJson(normalizePrivateManifest(manifest)));
+  if (bytes.length > 65_536) throw new TypeError("private app manifest exceeds 65536 bytes");
+  return bytes;
+}
+
+export function decodePrivateOriginAppManifestV2(bytes: Uint8Array): PrivateOriginAppManifestV2 {
+  if (!(bytes instanceof Uint8Array) || bytes.length < 1 || bytes.length > 65_536) {
+    throw new TypeError("private app manifest bytes must contain 1-65536 bytes");
+  }
+  let parsed: unknown;
+  try { parsed = JSON.parse(utf8Decoder.decode(bytes)); }
+  catch { throw new TypeError("private app manifest is not canonical UTF-8 JSON"); }
+  const manifest = normalizePrivateManifest(parsed);
+  if (!equalBytes(bytes, encodePrivateOriginAppManifestV2(manifest))) {
+    throw new TypeError("private app manifest bytes are not in canonical encoding");
+  }
+  return manifest;
+}
+
 /** Canonical storage name key: Blake2b-256 over the exact normalized UTF-8 name. */
 export function deriveStorageNameHashV2(storageName: string): Uint8Array {
   if (storageName.length < 1 || storageName.length > 253 || storageName.normalize("NFC") !== storageName
@@ -202,6 +340,14 @@ function verifyApplicationBindings(input: PublishOriginAppV2Input): void {
   if (!(input.nameHash instanceof Uint8Array)
     || !equalBytes(input.nameHash, deriveStorageNameHashV2(input.storageName))) {
     throw new TypeError("storage name hash does not match the canonical storage name");
+  }
+  const manifest = decodePrivateOriginAppManifestV2(input.manifestBytes);
+  if (manifest.productId !== input.productId || manifest.nameId !== input.name
+    || manifest.storageName !== input.storageName
+    || manifest.storageNameHash !== bytesHex(input.nameHash)
+    || manifest.content.cid !== input.contentCid
+    || manifest.content.length !== input.contentBytes.length) {
+    throw new TypeError("private app manifest does not bind the exact product, name, or content");
   }
 }
 
@@ -262,6 +408,9 @@ export class FinalizedNamesEventIndexV2 {
       throw new TypeError("Names index requires a verified canonical finalized bootstrap checkpoint");
     }
     this.#head = proof(checkpoint.finalized, "Names bootstrap checkpoint");
+    if (this.#head.blockNumber !== 0n) {
+      throw new TypeError("empty Names bootstrap is valid only at genesis");
+    }
     this.#canonicalHashes.set(this.#head.blockNumber, this.#head.blockHash);
   }
 
@@ -564,13 +713,35 @@ function providerReceipt(value: unknown, label: string) {
   return record as { provider: Uint8Array; cid: string; length: bigint; signature: Uint8Array };
 }
 
-function exactUpload(cid: string, source: Uint8Array): PrivateStorageUploadV2 {
-  const copy = source.slice();
+function exactUpload(cid: string, source: Uint8Array): {
+  readonly upload: PrivateStorageUploadV2;
+  assertCompleted(): void;
+} {
+  const privateBytes = source.slice();
+  let iteratorCreated = false;
+  let completed = false;
+  const bytes: AsyncIterable<Uint8Array> = {
+    [Symbol.asyncIterator]() {
+      if (iteratorCreated) throw new TypeError("storage upload byte stream is single-consumption");
+      iteratorCreated = true;
+      let delivered = false;
+      return {
+        async next(): Promise<IteratorResult<Uint8Array>> {
+          if (!delivered) {
+            delivered = true;
+            return { done: false, value: privateBytes.slice() };
+          }
+          completed = true;
+          privateBytes.fill(0);
+          return { done: true, value: undefined };
+        },
+      };
+    },
+  };
   return {
-    cid,
-    length: BigInt(copy.length),
-    bytes: {
-      async *[Symbol.asyncIterator]() { yield copy; },
+    upload: { cid, length: BigInt(privateBytes.length), bytes },
+    assertCompleted() {
+      if (!completed) throw new TypeError("storage executor did not completely consume the upload byte stream");
     },
   };
 }
@@ -600,7 +771,8 @@ export function createPrivateOriginAppsV2(
       await cache.has(input.manifestCid, signal);
       const common = { productId: input.productId, deadlineBlock: input.deadlineBlock };
       const putOperationId = input.operationId();
-      const put = result(await execute("storage.object.put", {
+      const putUpload = exactUpload(input.contentCid, input.contentBytes);
+      const putValue = await execute("storage.object.put", {
         ...common,
         requestId: input.requestId(),
         grantId: input.writerGrantId,
@@ -612,8 +784,9 @@ export function createPrivateOriginAppsV2(
           encrypted: 0,
           transferId: putOperationId,
         },
-      }, exactUpload(input.contentCid, input.contentBytes), signal),
-      ["receipt", "publishable", "finalized"], "storage.object.put result");
+      }, putUpload.upload, signal);
+      putUpload.assertCompleted();
+      const put = result(putValue, ["receipt", "publishable", "finalized"], "storage.object.put result");
       const putReceipt = providerReceipt(put.receipt, "object put receipt");
       if (putReceipt.cid !== input.contentCid || putReceipt.length !== BigInt(input.contentBytes.length)
         || typeof put.publishable !== "boolean") {
@@ -741,7 +914,7 @@ export function createPrivateOriginAppsV2(
       const live = index.resolve(input.name);
       const native = await names.resolve(input.name, live.finalized, signal);
       const nativeState = exactAuthorityState(native.state);
-      if (!nativeState.active || nativeState.name !== input.name || nativeState.content !== live.content
+      if (!sameAuthorityState(nativeState, live)
         || !sameFinality(native.finalized, live.finalized)) {
         throw new TypeError("live finalized Names resolution disagrees with its exact event-index authority");
       }
