@@ -30,10 +30,11 @@ host request schema's route projection is reproducibly refreshed with
 Each entry binds ordered parameters, result/finality, Rust query or command variant, TypeScript
 callable, runtime API or pallet call, and the pallet/call indices used by current dispatch tables.
 Rust and TypeScript harnesses execute all 136 canonical request samples. The checked-in Commons V14
-SCALE metadata is extracted from the current runtime Wasm and drives a byte-reproducible
-`polkadot-api` descriptor build. The route contract remains the authoritative product-policy
-projection: its closed payload schemas and canonical Rust/TypeScript factories deliberately expose
-only admitted app methods, while the generated PAPI descriptor retains the complete metadata truth.
+SCALE metadata and byte-reproducible `polkadot-api` output are historical spec 29 inventory. They do
+not bind the current spec 33 source runtime, so native SDK admission stays disabled until metadata is
+regenerated from that runtime. The route contract remains an independent product-policy projection:
+its closed payload schemas and canonical Rust/TypeScript factories describe the intended app methods
+without claiming current metadata binding.
 Product methods use exact, closed payload shapes and metadata-resolved transports. Raw SCALE,
 pallet/call indices, migrated
 domain Revive calls, contract ABIs, and contract-address aliases are not reference SDK surfaces.
