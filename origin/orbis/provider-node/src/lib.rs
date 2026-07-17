@@ -80,9 +80,8 @@ pub use content::{
 	MAX_STREAMING_OPERATIONS, RAW_CODEC,
 };
 pub use storage::{
-	BeginStreaming, CheckpointDutyWatermark, ChunkProof, CommitInput, ContentRecord, DiskStore,
-	IngressPermit, IntegritySummary, NodeProfile, PendingDeletion, PendingRootSubmission,
-	ProgressAck, ProviderStats, RootObservation, SignedCheckpoint, StoreError, StreamingDescriptor,
+	BeginStreaming, CheckpointDutyWatermark, ChunkProof, ContentRecord, DiskStore, IngressPermit,
+	IntegritySummary, NodeProfile, ProgressAck, ProviderStats, StoreError, StreamingDescriptor,
 	StreamingFault, StreamingReceipt, StreamingStore,
 };
 #[cfg(feature = "evidence")]
@@ -92,8 +91,9 @@ pub use three_provider_evidence::{
 	ThreeProviderRecoveryEvidence,
 };
 pub use workers::{
-	poll_checkpoint_duties_once, poll_manifest_deletions_once, run_workers, CheckpointSubmitter,
-	JsonlCheckpointOutbox, ManifestDeletionSubmission, ProviderSubmission, WorkerConfig,
+	poll_checkpoint_duties_once, poll_manifest_deletions_once, run_workers,
+	JsonlManifestDeletionOutbox, ManifestDeletionSubmission, ManifestDeletionSubmitter,
+	ProviderSubmission, WorkerConfig,
 };
 
 /// Protocol version shared by persisted records and HTTP responses.

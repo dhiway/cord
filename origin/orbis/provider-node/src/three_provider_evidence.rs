@@ -78,7 +78,7 @@ use crate::{
 	replication_session::ReplicationSessionV1,
 	replication_worker::select_source,
 	storage::bucket_mmr::BucketMmrStore,
-	workers::CheckpointSubmitter,
+	workers::ManifestDeletionSubmitter,
 	AgreementAuthorization, BucketId, CanonicalCid, ChainAuthority, ChallengeBatch,
 	CheckpointDutyBatch, CheckpointDutyPageRequest, ContentError, DiskStore, NodeProfile,
 	OperationId, ProviderService, StreamingDescriptor, StreamingStore, CHUNK_BYTES,
@@ -280,22 +280,7 @@ impl CheckpointPublicationAuthority for ScriptedCommonsAuthority {
 struct NoopOutbox;
 
 #[async_trait]
-impl CheckpointSubmitter for NoopOutbox {
-	async fn submit(&self, _: crate::workers::CheckpointSubmission) -> Result<(), String> {
-		Ok(())
-	}
-
-	async fn submit_root(&self, _: crate::workers::ProviderRootSubmission) -> Result<(), String> {
-		Ok(())
-	}
-
-	async fn submit_deletion(
-		&self,
-		_: crate::workers::ContentDeletionSubmission,
-	) -> Result<(), String> {
-		Ok(())
-	}
-}
+impl ManifestDeletionSubmitter for NoopOutbox {}
 
 struct DirectPeerTransport {
 	responder: Arc<PeerResponder<ScriptedCommonsAuthority>>,

@@ -56,7 +56,7 @@ const CHUNK_BYTES: usize = 256 * 1024;
 
 /// A validated content write ready for persistence.
 #[derive(Clone, Debug)]
-pub struct CommitInput {
+pub(crate) struct CommitInput {
 	/// Canonical raw-content commitment (`blake2b-256(bytes)`).
 	pub commitment: [u8; 32],
 	/// Agreement authorization from finalized Orbis state.
@@ -131,7 +131,7 @@ struct ContentLeaf<'a> {
 /// Crash-recoverable deletion transition retained until its acknowledgement is fsynced.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct PendingDeletion {
+pub(crate) struct PendingDeletion {
 	/// Normalized raw-content commitment.
 	pub commitment: String,
 	/// Canonical runtime agreement id.
@@ -155,7 +155,7 @@ pub struct PendingDeletion {
 /// Crash-recoverable append-only root update retained until it is durably queued.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct PendingRootSubmission {
+pub(crate) struct PendingRootSubmission {
 	/// Exact next provider root sequence.
 	pub sequence: u64,
 	/// Exact leaf values appended by this update (one per local atomic transition).
@@ -258,29 +258,6 @@ pub struct ProviderStats {
 	pub proof_leaf_count: u64,
 }
 
-/// One authenticated root observation from the append log.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-pub struct RootObservation {
-	/// Canonical root hash.
-	pub root: String,
-	/// Exact append-log leaf count covered by the root.
-	pub leaf_count: u64,
-}
-
-/// Signed append-only provider root used by checkpoint and replica surfaces.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct SignedCheckpoint {
-	/// Current append-only proof root.
-	pub root: String,
-	/// Number of proof leaves covered.
-	pub leaves: u64,
-	/// Creation time for operator ordering.
-	pub created_unix_ms: u64,
-	/// Service-key signature over the domain-separated checkpoint payload.
-	pub signature: String,
-}
-
 /// Verifiable fixed-size content chunk and its content-local Merkle proof.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct ChunkProof {
@@ -323,8 +300,6 @@ struct PersistedState {
 	deletion_duty_watermark: Option<DeletionDutyWatermark>,
 	#[serde(default)]
 	pending_manifest_deletions: BTreeMap<String, DeletionDuty>,
-	#[serde(default)]
-	checkpoints: Vec<SignedCheckpoint>,
 }
 
 /// Storage failures. Callers map these to stable HTTP status codes.
@@ -415,7 +390,6 @@ impl DiskStore {
 				deletion_duty_intake: None,
 				deletion_duty_watermark: None,
 				pending_manifest_deletions: BTreeMap::new(),
-				checkpoints: Vec::new(),
 			}
 		};
 		let store = Self { root, state: RwLock::new(state) };
@@ -469,7 +443,7 @@ impl DiskStore {
 	}
 
 	/// Atomically commit a finalized-authorized object.
-	pub fn commit(&self, input: CommitInput) -> Result<ContentRecord, StoreError> {
+	pub(crate) fn commit(&self, input: CommitInput) -> Result<ContentRecord, StoreError> {
 		validate_locator(input.bucket.as_deref(), input.key.as_deref())?;
 		if Self::content_commitment(&input.bytes) != input.commitment {
 			return Err(StoreError::Invalid("content commitment mismatch".into()));
@@ -563,7 +537,7 @@ impl DiskStore {
 	}
 
 	/// Persist a tombstone and pending-deletion journal before any content bytes are removed.
-	pub fn prepare_delete(
+	pub(crate) fn prepare_delete(
 		&self,
 		commitment: &str,
 		authorization: &AgreementAuthorization,
@@ -644,12 +618,14 @@ impl DiskStore {
 	}
 
 	/// Return deletion journal entries which must be re-enqueued after a crash.
-	pub fn pending_deletions(&self) -> Result<Vec<PendingDeletion>, StoreError> {
+	pub(crate) fn pending_deletions(&self) -> Result<Vec<PendingDeletion>, StoreError> {
 		Ok(self.read_state()?.pending_deletions.values().cloned().collect())
 	}
 
 	/// Return root append journal entries in exact sequence order.
-	pub fn pending_root_submissions(&self) -> Result<Vec<PendingRootSubmission>, StoreError> {
+	pub(crate) fn pending_root_submissions(
+		&self,
+	) -> Result<Vec<PendingRootSubmission>, StoreError> {
 		Ok(self.read_state()?.pending_roots.values().cloned().collect())
 	}
 
@@ -875,7 +851,8 @@ impl DiskStore {
 		validate_deletion_duty_page(&batch, &state.profile)?;
 		if !state.pending_manifest_deletions.is_empty() {
 			return Err(StoreError::Invalid(
-				"manifest deletion page cannot advance before its staged duties are handed off".into(),
+				"manifest deletion page cannot advance before its staged duties are handed off"
+					.into(),
 			));
 		}
 		if let Some(previous) = &state.deletion_duty_watermark {
@@ -909,9 +886,9 @@ impl DiskStore {
 			},
 		}
 		let page_tail = batch.duties.last().map(|duty| duty.manifest.clone());
-		let last_manifest = page_tail.clone().or_else(|| {
-			batch.requested_cursor.as_ref().map(|cursor| cursor.last_manifest.clone())
-		});
+		let last_manifest = page_tail
+			.clone()
+			.or_else(|| batch.requested_cursor.as_ref().map(|cursor| cursor.last_manifest.clone()));
 		let mut next = state.clone();
 		for duty in &batch.duties {
 			next.pending_manifest_deletions
@@ -1074,14 +1051,6 @@ impl DiskStore {
 		})
 	}
 
-	/// Resolve an exact historical append-log root without requiring equality with the current
-	/// root.
-	pub fn root_observation(&self, root: &str) -> Result<RootObservation, StoreError> {
-		let normalized = normalize_hash(root)?;
-		let state = self.read_state()?;
-		root_observation(&state, &normalized)
-	}
-
 	/// Return a Merkle inclusion proof for a content record.
 	pub fn proof(&self, commitment: &str) -> Result<Vec<String>, StoreError> {
 		let record = self.record(commitment)?;
@@ -1136,46 +1105,6 @@ impl DiskStore {
 			return Err(StoreError::Invalid("limit must be in 1..=1024".into()));
 		}
 		Ok(self.read_state()?.leaf_hashes.iter().skip(start).take(limit).cloned().collect())
-	}
-
-	/// Persist a signed checkpoint if it advances the covered leaf count or root.
-	pub fn append_checkpoint(&self, checkpoint: SignedCheckpoint) -> Result<(), StoreError> {
-		let mut state = self.write_state()?;
-		let observation = root_observation(&state, &normalize_hash(&checkpoint.root)?)?;
-		if checkpoint.leaves != observation.leaf_count {
-			return Err(StoreError::Invalid(
-				"checkpoint leaf count does not match root history".into(),
-			));
-		}
-		if state
-			.checkpoints
-			.last()
-			.is_some_and(|last| last.root == checkpoint.root && last.leaves == checkpoint.leaves)
-		{
-			return Ok(());
-		}
-		let mut next = state.clone();
-		next.checkpoints.push(checkpoint);
-		if next.checkpoints.len() > 1024 {
-			next.checkpoints.remove(0);
-		}
-		persist_state(&self.root, &next)?;
-		*state = next;
-		Ok(())
-	}
-
-	/// Return bounded checkpoint history for replica catch-up.
-	pub fn checkpoints(&self, limit: usize) -> Result<Vec<SignedCheckpoint>, StoreError> {
-		if limit == 0 || limit > 100 {
-			return Err(StoreError::Invalid("limit must be in 1..=100".into()));
-		}
-		let state = self.read_state()?;
-		Ok(state.checkpoints.iter().rev().take(limit).cloned().collect())
-	}
-
-	/// Return the latest signed checkpoint without creating a new one.
-	pub fn latest_checkpoint(&self) -> Result<SignedCheckpoint, StoreError> {
-		self.read_state()?.checkpoints.last().cloned().ok_or(StoreError::NotFound)
 	}
 
 	fn verify_index(&self) -> Result<(), StoreError> {
@@ -1421,18 +1350,6 @@ fn current_root(state: &PersistedState) -> Result<String, StoreError> {
 		.cloned()
 		.or_else(|| Some(hex::encode(merkle::root(&[]))))
 		.ok_or_else(|| StoreError::Io("proof root is unavailable".into()))
-}
-
-fn root_observation(state: &PersistedState, root: &str) -> Result<RootObservation, StoreError> {
-	if state.leaf_hashes.is_empty() && root == hex::encode(merkle::root(&[])) {
-		return Ok(RootObservation { root: root.to_owned(), leaf_count: 0 });
-	}
-	let leaf_count = state
-		.root_index
-		.get(root)
-		.copied()
-		.ok_or_else(|| StoreError::Invalid("root is not present in append history".into()))?;
-	Ok(RootObservation { root: root.to_owned(), leaf_count })
 }
 
 fn stored_bytes(state: &PersistedState) -> u64 {
@@ -2066,9 +1983,8 @@ mod tests {
 				))
 				.unwrap();
 			assert_eq!(store.pending_manifest_deletions(2).unwrap(), vec![duty.clone()]);
-			largest_journal = largest_journal.max(
-				std::fs::metadata(temp.path().join(INDEX_FILE)).unwrap().len(),
-			);
+			largest_journal =
+				largest_journal.max(std::fs::metadata(temp.path().join(INDEX_FILE)).unwrap().len());
 			assert!(processed.insert(duty.manifest.clone()));
 			store
 				.complete_manifest_deletion(&duty.manifest, &duty.duty_fingerprint)
@@ -2104,10 +2020,7 @@ mod tests {
 		drop(store);
 
 		let reopened = DiskStore::open(temp.path(), profile(), 1024).unwrap();
-		assert_eq!(
-			reopened.pending_manifest_deletions(8).unwrap(),
-			vec![lexical_later.clone()],
-		);
+		assert_eq!(reopened.pending_manifest_deletions(8).unwrap(), vec![lexical_later.clone()],);
 		reopened
 			.complete_manifest_deletion(&lexical_later.manifest, &lexical_later.duty_fingerprint)
 			.unwrap();

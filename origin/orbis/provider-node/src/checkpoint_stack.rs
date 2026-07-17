@@ -950,7 +950,7 @@ mod tests {
 	};
 	use crate::{
 		AgreementAuthorization, ChainAuthority, ChainError, ChallengeBatch, CheckpointDutyBatch,
-		CheckpointDutyPageRequest, DiskStore, JsonlCheckpointOutbox, NodeProfile, OperationId,
+		CheckpointDutyPageRequest, DiskStore, JsonlManifestDeletionOutbox, NodeProfile, OperationId,
 		ProviderService,
 	};
 
@@ -1036,7 +1036,7 @@ mod tests {
 			store,
 			Arc::new(NoopAuthority),
 			sp_core::ed25519::Pair::from_seed(&[7u8; 32]),
-			Arc::new(JsonlCheckpointOutbox::new(root.join("test-outbox.jsonl"))),
+			Arc::new(JsonlManifestDeletionOutbox::new(root.join("test-outbox.jsonl"))),
 		)
 	}
 

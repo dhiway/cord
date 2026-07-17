@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! Provider background coordinators and the explicit checkpoint-submission seam.
+//! Canonical checkpoint-v2 and manifest-deletion background coordination.
 
 use std::{
 	path::{Path, PathBuf},
@@ -28,7 +28,7 @@ use async_trait::async_trait;
 use codec::Encode;
 use fs4::FileExt;
 use serde::{Deserialize, Serialize};
-use sp_core::{crypto::AccountId32, H256};
+use sp_core::H256;
 use tokio::{
 	io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
 	sync::Mutex,
@@ -39,29 +39,17 @@ const MANIFEST_DELETION_DEDUPE_TAIL_BYTES: u64 = 64 * 1024;
 const MAX_JSONL_RECORD_BYTES: u64 = 1024 * 1024;
 
 use crate::{
-	BucketId, ChainAuthority, ChallengeDuty, DeletionDuty, PendingDeletion, PendingRootSubmission,
-	ProviderService, SignedCheckpoint,
+	storage::{PendingDeletion, PendingRootSubmission},
+	BucketId, ChainAuthority, DeletionDuty, ProviderService,
 };
 
 const MAX_CHECKPOINT_DUTY_PAGES_PER_POLL: usize = 4_096;
 const MAX_MANIFEST_DELETIONS_PER_POLL: usize = 128;
 
-/// Durable request consumed by the CORD-owned Orbis signer/nonce/finality pipeline.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CheckpointSubmission {
-	/// Finalized runtime duty.
-	pub duty: ChallengeDuty,
-	/// Signed local provider root produced while handling the duty.
-	pub checkpoint: SignedCheckpoint,
-	/// Legacy challenge proof retained only for fail-closed cutover diagnostics.
-	pub proof_commitment: String,
-}
-
 /// Native provider deletion acknowledgement queued after finalized authorization and byte removal.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ContentDeletionSubmission {
+pub(crate) struct ContentDeletionSubmission {
 	/// Agreement whose provider must acknowledge content deletion.
 	pub agreement_id: String,
 	/// Deleted raw-content commitment.
@@ -107,7 +95,7 @@ pub struct ManifestDeletionSubmission {
 /// Provider-authenticated append-only root which must finalize before a deletion acknowledgement.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ProviderRootSubmission {
+pub(crate) struct ProviderRootSubmission {
 	/// Monotonic provider-authenticated submission sequence.
 	pub sequence: u64,
 	/// Exact leaf values appended and folded by the runtime accumulator.
@@ -126,21 +114,9 @@ pub enum ProviderSubmission {
 	ManifestDeletion(ManifestDeletionSubmission),
 }
 
-/// Explicit seam between proof production and signed Orbis extrinsic submission.
+/// Canonical manifest-deletion seam consumed by the metadata-derived Orbis finality lane.
 #[async_trait]
-pub trait CheckpointSubmitter: Send + Sync + 'static {
-	/// Legacy challenge seam. The production JSONL implementation fails closed because canonical
-	/// checkpoint v2 owns runtime submission.
-	async fn submit(&self, request: CheckpointSubmission) -> Result<(), String>;
-
-	/// Legacy local root-completion seam. Commons has no matching call; the production JSONL
-	/// implementation fails closed until the DiskStore/API completion path is removed.
-	async fn submit_root(&self, request: ProviderRootSubmission) -> Result<(), String>;
-
-	/// Legacy agreement-deletion seam. Commons has no matching call; the production JSONL
-	/// implementation fails closed until callers use canonical manifest deletion duties.
-	async fn submit_deletion(&self, request: ContentDeletionSubmission) -> Result<(), String>;
-
+pub trait ManifestDeletionSubmitter: Send + Sync + 'static {
 	/// Durably accept one idempotent canonical manifest-deletion acknowledgement.
 	async fn submit_manifest_deletion(
 		&self,
@@ -150,16 +126,25 @@ pub trait CheckpointSubmitter: Send + Sync + 'static {
 	}
 }
 
+/// Private P4 cutover bearer for the legacy DiskStore append journal.
+///
+/// No production worker or HTTP route invokes this seam. It remains private so P4 can replace the
+/// object mutation and completion unit atomically without publishing nonexistent Commons calls.
+#[async_trait]
+pub(crate) trait LegacyDiskCompletionSubmitter: Send + Sync {
+	async fn submit_root(&self, request: ProviderRootSubmission) -> Result<(), String>;
+	async fn submit_deletion(&self, request: ContentDeletionSubmission) -> Result<(), String>;
+}
+
 /// Append-only JSONL outbox for metadata-valid canonical manifest-deletion acknowledgements.
-/// Legacy challenge, root and agreement-deletion methods fail closed without emitting records.
-pub struct JsonlCheckpointOutbox {
+pub struct JsonlManifestDeletionOutbox {
 	path: PathBuf,
 	write_lock: Mutex<()>,
 	#[cfg(test)]
 	fail_next_directory_sync: std::sync::atomic::AtomicBool,
 }
 
-impl JsonlCheckpointOutbox {
+impl JsonlManifestDeletionOutbox {
 	/// Create an outbox at `path`; parent directories are created on first submission.
 	pub fn new(path: impl AsRef<Path>) -> Self {
 		Self {
@@ -172,22 +157,7 @@ impl JsonlCheckpointOutbox {
 }
 
 #[async_trait]
-impl CheckpointSubmitter for JsonlCheckpointOutbox {
-	async fn submit(&self, request: CheckpointSubmission) -> Result<(), String> {
-		let _ = request;
-		Err("legacy challenge checkpoint is superseded by the checkpoint v2 outbox".into())
-	}
-
-	async fn submit_root(&self, request: ProviderRootSubmission) -> Result<(), String> {
-		let _ = request;
-		Err("legacy provider-root submission is not a Commons runtime call".into())
-	}
-
-	async fn submit_deletion(&self, request: ContentDeletionSubmission) -> Result<(), String> {
-		let _ = request;
-		Err("legacy content-deletion submission is not a Commons runtime call".into())
-	}
-
+impl ManifestDeletionSubmitter for JsonlManifestDeletionOutbox {
 	async fn submit_manifest_deletion(
 		&self,
 		request: ManifestDeletionSubmission,
@@ -243,7 +213,7 @@ async fn read_bounded_jsonl_tail(path: &Path, limit: u64) -> Result<Vec<u8>, Str
 	Ok(bytes)
 }
 
-impl JsonlCheckpointOutbox {
+impl JsonlManifestDeletionOutbox {
 	async fn lock_outbox(&self) -> Result<std::fs::File, String> {
 		if let Some(parent) = self.path.parent() {
 			tokio::fs::create_dir_all(parent).await.map_err(|error| error.to_string())?;
@@ -334,106 +304,44 @@ async fn repair_incomplete_jsonl_tail(path: &Path) -> Result<(), String> {
 	file.sync_all().await.map_err(|error| error.to_string())
 }
 
-/// Bounded worker cadence.
+/// Bounded canonical runtime-duty cadence.
 #[derive(Clone, Debug)]
 pub struct WorkerConfig {
-	/// Local signed-root checkpoint cadence.
-	pub checkpoint_interval: Duration,
-	/// Finalized challenge polling cadence.
-	pub challenge_interval: Duration,
-	/// Replica/index integrity observation cadence.
-	pub replica_observation_interval: Duration,
-	/// Finalized checkpoint-duty intake cadence.
+	/// Finalized checkpoint-v2 and manifest-deletion duty intake cadence.
 	pub checkpoint_duty_interval: Duration,
 }
 
 impl Default for WorkerConfig {
 	fn default() -> Self {
-		Self {
-			checkpoint_interval: Duration::from_secs(60),
-			challenge_interval: Duration::from_secs(6),
-			replica_observation_interval: Duration::from_secs(30),
-			checkpoint_duty_interval: Duration::from_secs(6),
-		}
+		Self { checkpoint_duty_interval: Duration::from_secs(6) }
 	}
 }
 
-/// Run checkpoint, finalized challenge-responder and replica-sync coordinators until cancelled.
+/// Run only canonical checkpoint-v2 intake and manifest-deletion intake until cancelled.
 pub async fn run_workers<A: ChainAuthority>(
 	service: Arc<ProviderService<A>>,
 	config: WorkerConfig,
 ) {
-	let mut checkpoint = interval(config.checkpoint_interval);
-	checkpoint.set_missed_tick_behavior(MissedTickBehavior::Skip);
-	let mut challenge = interval(config.challenge_interval);
-	challenge.set_missed_tick_behavior(MissedTickBehavior::Skip);
-	let mut replica = interval(config.replica_observation_interval);
-	replica.set_missed_tick_behavior(MissedTickBehavior::Skip);
-	let mut checkpoint_duty = interval(config.checkpoint_duty_interval);
-	checkpoint_duty.set_missed_tick_behavior(MissedTickBehavior::Skip);
-	let mut last_scanned_due_block = None;
+	let mut runtime_duties = interval(config.checkpoint_duty_interval);
+	runtime_duties.set_missed_tick_behavior(MissedTickBehavior::Skip);
 	loop {
-		tokio::select! {
-			_ = checkpoint.tick() => {
-				if service.sign_checkpoint().is_err() {
-					eprintln!("checkpoint coordinator failed");
-				}
-				if recover_pending_submissions(&service).await.is_err() {
-					eprintln!("provider outbox recovery failed");
-				}
-			},
-			_ = challenge.tick() => {
-				match service.authority().challenge_duties(last_scanned_due_block).await {
-					Ok(batch) => {
-						let mut accepted = true;
-					for duty in batch.duties {
-						let checkpoint = match checkpoint_for_duty(&service, &duty) {
-							Ok(checkpoint) => checkpoint,
-							Err(_) => {
-								eprintln!("challenge responder local proof failed");
-								accepted = false;
-								continue;
-							},
-						};
-						match challenge_proof_commitment(
-								&duty,
-								&service.store().profile().map(|profile| profile.provider),
-							) {
-								Ok(proof_commitment) => {
-									let request = CheckpointSubmission { proof_commitment, duty, checkpoint };
-									if service.outbox().submit(request).await.is_err() {
-										eprintln!("challenge responder outbox failed");
-										accepted = false;
-									}
-								},
-								Err(_) => {
-									eprintln!("challenge responder proof failed");
-									accepted = false;
-								},
-							}
-						}
-						if accepted {
-							last_scanned_due_block = Some(batch.scanned_through);
-						}
-					},
-					Err(_) => eprintln!("challenge responder finalized scan failed"),
-				}
-			},
-			_ = replica.tick() => {
-				if service.store().stats().and_then(|_| service.store().peaks().map(|_| ())).is_err() {
-					eprintln!("replica sync coordinator detected local inconsistency");
-				}
-			},
-			_ = checkpoint_duty.tick() => {
-				if poll_checkpoint_duties_once(&service).await.is_err() {
-					eprintln!("checkpoint duty intake failed");
-				}
-				if poll_manifest_deletions_once(&service).await.is_err() {
-					eprintln!("manifest deletion duty processing failed");
-				}
-			},
+		runtime_duties.tick().await;
+		let (checkpoint, deletion) = poll_canonical_runtime_duties_once(&service).await;
+		if checkpoint.is_err() {
+			eprintln!("checkpoint-v2 duty intake failed");
+		}
+		if deletion.is_err() {
+			eprintln!("manifest deletion duty processing failed");
 		}
 	}
+}
+
+async fn poll_canonical_runtime_duties_once<A: ChainAuthority>(
+	service: &ProviderService<A>,
+) -> (Result<usize, String>, Result<usize, String>) {
+	let checkpoint = poll_checkpoint_duties_once(service).await;
+	let deletion = poll_manifest_deletions_once(service).await;
+	(checkpoint, deletion)
 }
 
 /// Poll and durably stage one complete fixed-finalized-state checkpoint-duty snapshot.
@@ -568,46 +476,6 @@ fn decode_prefixed_hash(value: &str, label: &str) -> Result<[u8; 32], String> {
 		.map_err(|_| format!("{label} is not 32 bytes"))
 }
 
-fn checkpoint_for_duty<A: ChainAuthority>(
-	service: &ProviderService<A>,
-	duty: &ChallengeDuty,
-) -> Result<SignedCheckpoint, String> {
-	let observation = service
-		.store()
-		.root_observation(&duty.expected_commitment)
-		.map_err(|error| error.to_string())?;
-	service
-		.store()
-		.read(&duty.content_commitment)
-		.map_err(|error| error.to_string())?;
-	service.sign_root_checkpoint(observation).map_err(|error| error.to_string())
-}
-
-fn challenge_proof_commitment(
-	duty: &ChallengeDuty,
-	provider: &Result<String, crate::StoreError>,
-) -> Result<String, String> {
-	let challenge = decode_h256(&duty.challenge_id)?;
-	let agreement = decode_h256(&duty.agreement_id)?;
-	let content = decode_h256(&duty.content_commitment)?;
-	let root = decode_h256(&duty.expected_commitment)?;
-	let provider = provider.as_ref().map_err(ToString::to_string)?;
-	let raw = hex::decode(provider.trim_start_matches("0x")).map_err(|error| error.to_string())?;
-	let provider = AccountId32::new(
-		raw.try_into().map_err(|_| "provider must be exactly 32 bytes".to_string())?,
-	);
-	let encoded =
-		(b"orbis/provider-challenge-proof/v1", challenge, agreement, content, &provider, root)
-			.encode();
-	Ok(format!("0x{}", hex::encode(sp_crypto_hashing::blake2_256(&encoded))))
-}
-
-fn decode_h256(value: &str) -> Result<H256, String> {
-	let raw = hex::decode(value.trim_start_matches("0x")).map_err(|error| error.to_string())?;
-	let raw: [u8; 32] = raw.try_into().map_err(|_| "hash must be exactly 32 bytes".to_string())?;
-	Ok(H256::from(raw))
-}
-
 pub(crate) fn deletion_submission(
 	pending: &PendingDeletion,
 ) -> Result<ContentDeletionSubmission, String> {
@@ -624,19 +492,12 @@ pub(crate) fn deletion_submission(
 	})
 }
 
-async fn recover_pending_submissions<A: ChainAuthority>(
-	service: &ProviderService<A>,
-) -> Result<(), String> {
-	let _root_order = service.root_outbox_lock().lock().await;
-	flush_pending_submissions(service.store(), service.outbox().as_ref()).await
-}
-
 /// Flush every journaled root in ascending sequence order while the caller holds the service's
 /// shared root/outbox ordering lock. A deletion root and acknowledgement are one indivisible
 /// ordering unit; failures stop the scan before any later sequence can be queued or cleared.
 pub(crate) async fn flush_pending_submissions(
 	store: &crate::DiskStore,
-	outbox: &dyn CheckpointSubmitter,
+	outbox: &dyn LegacyDiskCompletionSubmitter,
 ) -> Result<(), String> {
 	let deletions = store.pending_deletions().map_err(|error| error.to_string())?;
 	for pending in store.pending_root_submissions().map_err(|error| error.to_string())? {
@@ -670,14 +531,15 @@ pub(crate) fn root_submission(pending: &PendingRootSubmission) -> ProviderRootSu
 mod tests {
 	use super::*;
 	use std::sync::{
-		atomic::{AtomicBool, Ordering},
+		atomic::{AtomicBool, AtomicUsize, Ordering},
 		Mutex as StdMutex,
 	};
 
 	use crate::{
-		AgreementAuthorization, ChainError, ChallengeBatch, CommitInput, DiskStore, NodeProfile,
+		storage::CommitInput, AgreementAuthorization, ChainError, ChallengeBatch, DiskStore,
+		NodeProfile,
 	};
-	use sp_core::Pair as _;
+	use sp_core::{crypto::AccountId32, Pair as _};
 
 	#[derive(Default)]
 	struct FaultOutbox {
@@ -687,6 +549,13 @@ mod tests {
 	}
 
 	struct NoopAuthority;
+
+	#[derive(Default)]
+	struct CanonicalOnlyAuthority {
+		checkpoint_calls: AtomicUsize,
+		deletion_calls: AtomicUsize,
+		legacy_challenge_calls: AtomicUsize,
+	}
 
 	fn manifest_deletion(byte: &str) -> ManifestDeletionSubmission {
 		ManifestDeletionSubmission {
@@ -830,6 +699,66 @@ mod tests {
 		}
 	}
 
+	#[async_trait]
+	impl ChainAuthority for CanonicalOnlyAuthority {
+		async fn authorize_commit(
+			&self,
+			_agreement_id: [u8; 32],
+			_content_commitment: [u8; 32],
+			_bytes: u64,
+		) -> Result<AgreementAuthorization, ChainError> {
+			Err(ChainError::Rejected("legacy object commit invoked".into()))
+		}
+
+		async fn authorize_delete(
+			&self,
+			_agreement_id: [u8; 32],
+			_content_commitment: [u8; 32],
+		) -> Result<AgreementAuthorization, ChainError> {
+			Err(ChainError::Rejected("legacy object delete invoked".into()))
+		}
+
+		async fn challenge_duties(
+			&self,
+			_after_block: Option<u32>,
+		) -> Result<ChallengeBatch, ChainError> {
+			self.legacy_challenge_calls.fetch_add(1, Ordering::SeqCst);
+			Err(ChainError::Rejected("legacy challenge worker invoked".into()))
+		}
+
+		async fn checkpoint_duties(
+			&self,
+			_request: Option<crate::CheckpointDutyPageRequest>,
+		) -> Result<crate::CheckpointDutyBatch, ChainError> {
+			self.checkpoint_calls.fetch_add(1, Ordering::SeqCst);
+			Ok(crate::CheckpointDutyBatch {
+				finalized_hash: format!("0x{}", "10".repeat(32)),
+				finalized_number: 71,
+				provider: profile().provider,
+				snapshot_checkpoint: 70,
+				requested_cursor: None,
+				next_cursor: None,
+				duties: Vec::new(),
+			})
+		}
+
+		async fn deletion_duties(
+			&self,
+			_request: Option<crate::DeletionDutyPageRequest>,
+		) -> Result<crate::DeletionDutyBatch, ChainError> {
+			self.deletion_calls.fetch_add(1, Ordering::SeqCst);
+			Ok(crate::DeletionDutyBatch {
+				finalized_hash: format!("0x{}", "20".repeat(32)),
+				finalized_number: 71,
+				provider: profile().provider,
+				snapshot_checkpoint: 70,
+				requested_cursor: None,
+				next_cursor: None,
+				duties: Vec::new(),
+			})
+		}
+	}
+
 	impl FaultOutbox {
 		fn log(&self) -> Vec<String> {
 			self.log.lock().unwrap().clone()
@@ -837,11 +766,7 @@ mod tests {
 	}
 
 	#[async_trait]
-	impl CheckpointSubmitter for FaultOutbox {
-		async fn submit(&self, _request: CheckpointSubmission) -> Result<(), String> {
-			Ok(())
-		}
-
+	impl LegacyDiskCompletionSubmitter for FaultOutbox {
 		async fn submit_root(&self, request: ProviderRootSubmission) -> Result<(), String> {
 			if self.fail_next_root.swap(false, Ordering::SeqCst) {
 				return Err("injected root failure".into());
@@ -859,6 +784,9 @@ mod tests {
 			Ok(())
 		}
 	}
+
+	#[async_trait]
+	impl ManifestDeletionSubmitter for FaultOutbox {}
 
 	fn profile() -> NodeProfile {
 		let service_key = sp_core::ed25519::Pair::from_seed(&[7u8; 32]).public();
@@ -919,57 +847,33 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn every_legacy_outbox_path_fails_closed_without_emitting_invalid_runtime_calls() {
+	async fn production_duty_tick_never_invokes_legacy_challenge_or_completion_seams() {
 		let temp = tempfile::tempdir().unwrap();
-		let path = temp.path().join("outbox.jsonl");
-		let outbox = JsonlCheckpointOutbox::new(&path);
-		let checkpoint = CheckpointSubmission {
-			duty: ChallengeDuty {
-				challenge_id: format!("0x{}", "10".repeat(32)),
-				agreement_id: format!("0x{}", "11".repeat(32)),
-				content_commitment: format!("0x{}", "12".repeat(32)),
-				expected_commitment: format!("0x{}", "13".repeat(32)),
-				due_at: 10,
-				observed_at: format!("0x{}", "14".repeat(32)),
-			},
-			checkpoint: SignedCheckpoint {
-				root: format!("0x{}", "15".repeat(32)),
-				leaves: 1,
-				created_unix_ms: 1,
-				signature: format!("0x{}", "16".repeat(64)),
-			},
-			proof_commitment: format!("0x{}", "17".repeat(32)),
-		};
-		assert!(outbox.submit(checkpoint).await.is_err());
-		assert!(outbox
-			.submit_root(ProviderRootSubmission {
-				sequence: 1,
-				appended_leaves: vec![format!("0x{}", "18".repeat(32))],
-				expected_root: format!("0x{}", "19".repeat(32)),
-				expected_leaf_count: 1,
-			})
-			.await
-			.is_err());
-		let request = ContentDeletionSubmission {
-			agreement_id: format!("0x{}", "01".repeat(32)),
-			content_commitment: format!("0x{}", "02".repeat(32)),
-			authorized_at: format!("0x{}", "03".repeat(32)),
-			tombstone_root: format!("0x{}", "04".repeat(32)),
-			root_sequence: 3,
-			tombstone_leaf: format!("0x{}", "06".repeat(32)),
-			leaf_index: 2,
-			leaf_count: 3,
-			inclusion_proof: vec![format!("0x{}", "05".repeat(32))],
-		};
-		assert!(outbox.submit_deletion(request).await.is_err());
-		assert!(!path.exists());
+		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		let authority = Arc::new(CanonicalOnlyAuthority::default());
+		let outbox = Arc::new(FaultOutbox::default());
+		let service = ProviderService::new(
+			store,
+			Arc::clone(&authority),
+			sp_core::ed25519::Pair::from_seed(&[7u8; 32]),
+			outbox.clone(),
+		)
+		.unwrap();
+
+		let (checkpoints, deletions) = poll_canonical_runtime_duties_once(&service).await;
+		assert_eq!(checkpoints.unwrap(), 0);
+		assert_eq!(deletions.unwrap(), 0);
+		assert_eq!(authority.checkpoint_calls.load(Ordering::SeqCst), 1);
+		assert_eq!(authority.deletion_calls.load(Ordering::SeqCst), 1);
+		assert_eq!(authority.legacy_challenge_calls.load(Ordering::SeqCst), 0);
+		assert!(outbox.log().is_empty());
 	}
 
 	#[tokio::test]
 	async fn manifest_deletion_outbox_replay_is_idempotent_and_conflicts_fail_closed() {
 		let temp = tempfile::tempdir().unwrap();
 		let path = temp.path().join("outbox.jsonl");
-		let outbox = JsonlCheckpointOutbox::new(&path);
+		let outbox = JsonlManifestDeletionOutbox::new(&path);
 		let request = ManifestDeletionSubmission {
 			manifest: format!("0x{}", "11".repeat(32)),
 			bucket_id: format!("0x{}", "22".repeat(32)),
@@ -1000,7 +904,7 @@ mod tests {
 		for _ in 0..producer_count {
 			let barrier = barrier.clone();
 			let request = request.clone();
-			let outbox = JsonlCheckpointOutbox::new(&path);
+			let outbox = JsonlManifestDeletionOutbox::new(&path);
 			tasks.push(tokio::spawn(async move {
 				barrier.wait().await;
 				outbox.submit_manifest_deletion(request).await
@@ -1019,7 +923,7 @@ mod tests {
 		let path = temp.path().join("outbox.jsonl");
 		let prefix = b"{}\n".repeat(700_000);
 		tokio::fs::write(&path, &prefix).await.unwrap();
-		let outbox = JsonlCheckpointOutbox::new(&path);
+		let outbox = JsonlManifestDeletionOutbox::new(&path);
 		let request = ManifestDeletionSubmission {
 			manifest: format!("0x{}", "11".repeat(32)),
 			bucket_id: format!("0x{}", "22".repeat(32)),
@@ -1041,7 +945,7 @@ mod tests {
 	async fn producer_repairs_torn_final_submission_before_manifest_retry() {
 		let temp = tempfile::tempdir().unwrap();
 		let path = temp.path().join("outbox.jsonl");
-		let outbox = JsonlCheckpointOutbox::new(&path);
+		let outbox = JsonlManifestDeletionOutbox::new(&path);
 		outbox.submit_manifest_deletion(manifest_deletion("11")).await.unwrap();
 		let mut file = tokio::fs::OpenOptions::new().append(true).open(&path).await.unwrap();
 		file.write_all(b"{\"kind\":\"provider_root\"").await.unwrap();
@@ -1066,58 +970,11 @@ mod tests {
 	async fn producer_never_reports_success_before_parent_directory_sync() {
 		let temp = tempfile::tempdir().unwrap();
 		let path = temp.path().join("outbox.jsonl");
-		let outbox = JsonlCheckpointOutbox::new(&path);
+		let outbox = JsonlManifestDeletionOutbox::new(&path);
 		outbox.fail_next_directory_sync.store(true, Ordering::SeqCst);
 		let result = outbox.submit_manifest_deletion(manifest_deletion("11")).await;
 		assert_eq!(result.unwrap_err(), "injected parent directory sync failure");
 		assert!(tokio::fs::read(&path).await.unwrap().ends_with(b"\n"));
-	}
-
-	#[test]
-	fn deletion_checkpoint_uses_exact_append_log_leaf_count() {
-		let temp = tempfile::tempdir().unwrap();
-		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
-		let (commitment, authorization) = commit(&store, 9);
-		store.prepare_delete(&commitment, &authorization).unwrap();
-		let stats = store.stats().unwrap();
-		assert_eq!(stats.live_objects, 0);
-		assert_eq!(stats.deleted_objects, 1);
-		assert_eq!(stats.proof_leaf_count, 2);
-		let checkpoint = service(store.clone()).sign_checkpoint().unwrap();
-		assert_eq!(checkpoint.root, stats.root);
-		assert_eq!(checkpoint.leaves, 2);
-		let signature: [u8; 64] = hex::decode(&checkpoint.signature).unwrap().try_into().unwrap();
-		let payload = [
-			b"orbis/provider-checkpoint/v1".as_slice(),
-			checkpoint.root.as_bytes(),
-			&checkpoint.leaves.to_le_bytes(),
-			&checkpoint.created_unix_ms.to_le_bytes(),
-		]
-		.concat();
-		let pair = sp_core::ed25519::Pair::from_seed(&[7u8; 32]);
-		assert!(sp_core::ed25519::Pair::verify(
-			&sp_core::ed25519::Signature::from_raw(signature),
-			&payload,
-			&pair.public(),
-		));
-		assert_eq!(store.latest_checkpoint().unwrap(), checkpoint);
-	}
-
-	#[test]
-	fn historical_root_checkpoint_survives_later_append_and_unknown_root_fails() {
-		let temp = tempfile::tempdir().unwrap();
-		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
-		let (first, _) = commit(&store, 10);
-		let first_stats = store.stats().unwrap();
-		commit(&store, 11);
-		assert_ne!(store.stats().unwrap().root, first_stats.root);
-		assert!(store.read(&first).is_ok());
-		let observation = store.root_observation(&first_stats.root).unwrap();
-		assert_eq!(observation.leaf_count, 1);
-		let checkpoint = service(store.clone()).sign_root_checkpoint(observation).unwrap();
-		assert_eq!(checkpoint.root, first_stats.root);
-		assert_eq!(checkpoint.leaves, 1);
-		assert!(store.root_observation(&"ff".repeat(32)).is_err());
 	}
 
 	#[tokio::test]
