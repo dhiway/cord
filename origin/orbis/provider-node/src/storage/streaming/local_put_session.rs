@@ -31,7 +31,7 @@ use super::{
 	},
 	StreamingStore,
 };
-use crate::{CapabilityAuthoritySnapshot, CHUNK_BYTES};
+use crate::{CapabilityAuthoritySnapshot, CHUNK_BYTES, MAX_CHUNKS};
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub(crate) enum LocalPutSessionError {
@@ -53,7 +53,7 @@ pub(crate) enum LocalPutSessionError {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ProviderTransferChunkV1 {
 	pub(crate) operation_id: [u8; 16],
-	pub(crate) index: u16,
+	pub(crate) index: u32,
 	pub(crate) bytes: Vec<u8>,
 	pub(crate) hash: [u8; 32],
 }
@@ -83,6 +83,9 @@ impl ProviderTransferChunkV1 {
 		let index = uint(take(&mut fields, 2)?)?
 			.try_into()
 			.map_err(|_| LocalPutSessionError::WireSchemaInvalid)?;
+		if usize::try_from(index).ok().is_none_or(|index| index >= MAX_CHUNKS) {
+			return Err(LocalPutSessionError::WireSchemaInvalid)
+		}
 		let bytes = bounded_bytes(take(&mut fields, 3)?, CHUNK_BYTES)?;
 		let hash = fixed_bytes(take(&mut fields, 4)?)?;
 		let chunk = Self { operation_id, index, bytes, hash };
@@ -95,7 +98,7 @@ impl ProviderTransferChunkV1 {
 		Ok(chunk)
 	}
 
-	fn canonical_bytes(&self) -> Vec<u8> {
+	pub(crate) fn canonical_bytes(&self) -> Vec<u8> {
 		canonical_map(vec![
 			(0, Value::Integer(1.into())),
 			(1, Value::Bytes(self.operation_id.to_vec())),
@@ -115,7 +118,7 @@ pub(crate) struct LocalObjectPutSession<'a> {
 	request_bytes: Vec<u8>,
 	operation_id: [u8; 16],
 	token: Vec<u8>,
-	next_index: u16,
+	next_index: u32,
 	terminal: bool,
 	cancelled: bool,
 }
@@ -170,15 +173,31 @@ impl<'a> LocalObjectPutSession<'a> {
 		if token.operation_id != request.operation_id ||
 			token.bucket_id != request.bucket_id ||
 			token.cid != request.cid ||
-			token.object_len != request.object_len
+			token.object_len != request.object_len ||
+			token.provider != snapshot.local_provider ||
+			token.registry_sha256 != snapshot.registry_sha256 ||
+			token.genesis_hash != snapshot.genesis_hash
 		{
 			return Err(LocalPutSessionError::ChunkOutOfOrder)
 		}
 		if token.cancelled {
 			return Err(LocalPutSessionError::Cancelled)
 		}
-		let next_index =
-			token.cursor.try_into().map_err(|_| LocalPutSessionError::ChunkOutOfOrder)?;
+		if signer.public_key() != current_service_key {
+			return Err(RecoveryError::ResumeRevoked.into())
+		}
+		token.verify(current_service_key)?;
+		let now = u64::from(snapshot.finalized_number);
+		if token.issued_at > now {
+			return Err(RecoveryError::ResumeAudienceInvalid.into())
+		}
+		if now >= token.expires_at {
+			return Err(RecoveryError::ResumeExpired.into())
+		}
+		let next_index = token.cursor;
+		if usize::try_from(next_index).ok().is_none_or(|index| index > MAX_CHUNKS) {
+			return Err(LocalPutSessionError::ChunkOutOfOrder)
+		}
 		Ok(Self {
 			store,
 			snapshot,
@@ -203,9 +222,7 @@ impl<'a> LocalObjectPutSession<'a> {
 		if chunk.operation_id != self.operation_id || chunk.index != self.next_index {
 			return Err(LocalPutSessionError::ChunkOutOfOrder)
 		}
-		let cursor = u32::from(chunk.index)
-			.checked_add(1)
-			.ok_or(LocalPutSessionError::ChunkOutOfOrder)?;
+		let cursor = chunk.index.checked_add(1).ok_or(LocalPutSessionError::ChunkOutOfOrder)?;
 		let response = self.store.advance_object_put(
 			&self.request_bytes,
 			&self.token,
@@ -217,8 +234,11 @@ impl<'a> LocalObjectPutSession<'a> {
 			successor_nonce,
 		)?;
 		self.token = response.successor_token.clone().ok_or(LocalPutSessionError::Terminal)?;
-		self.next_index =
-			self.next_index.checked_add(1).ok_or(LocalPutSessionError::ChunkOutOfOrder)?;
+		self.next_index = self
+			.next_index
+			.checked_add(1)
+			.filter(|index| usize::try_from(*index).ok().is_some_and(|index| index <= MAX_CHUNKS))
+			.ok_or(LocalPutSessionError::ChunkOutOfOrder)?;
 		Ok(response)
 	}
 
@@ -305,7 +325,7 @@ fn canonical_map(entries: Vec<(u64, Value)>) -> Vec<u8> {
 mod tests {
 	use super::*;
 
-	fn chunk(operation_id: [u8; 16], index: u16, bytes: Vec<u8>) -> Vec<u8> {
+	fn chunk(operation_id: [u8; 16], index: u32, bytes: Vec<u8>) -> Vec<u8> {
 		ProviderTransferChunkV1 {
 			operation_id,
 			index,
@@ -344,6 +364,10 @@ mod tests {
 		assert!(ProviderTransferChunkV1::decode(&chunk([7; 16], 0, vec![0; CHUNK_BYTES])).is_ok());
 		assert_eq!(
 			ProviderTransferChunkV1::decode(&chunk([7; 16], 0, vec![0; CHUNK_BYTES + 1])),
+			Err(LocalPutSessionError::WireSchemaInvalid)
+		);
+		assert_eq!(
+			ProviderTransferChunkV1::decode(&chunk([7; 16], MAX_CHUNKS as u32, vec![])),
 			Err(LocalPutSessionError::WireSchemaInvalid)
 		);
 	}

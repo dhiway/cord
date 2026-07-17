@@ -2502,6 +2502,10 @@ fn decode_hex<const N: usize>(value: &str) -> Result<[u8; N], ContentError> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use super::super::local_put_session::{
+		LocalObjectPutSession, LocalPutSessionError, ProviderTransferChunkV1,
+	};
+	use blake2::{digest::consts::U32, Blake2b};
 	use crate::CHUNK_BYTES;
 	use orbis_storage_runtime_api::{
 		AgreementInfo, AgreementStatus, BucketGrantInfo, BucketRole, ControlBucketInfo,
@@ -2654,6 +2658,137 @@ mod tests {
 			)
 			.unwrap();
 		(store, request_bytes, snapshot, service, progress.successor_token.unwrap())
+	}
+
+	fn transfer(operation_id: [u8; 16], index: u32, bytes: &[u8]) -> Vec<u8> {
+		ProviderTransferChunkV1 {
+			operation_id,
+			index,
+			bytes: bytes.to_vec(),
+			hash: Blake2b::<U32>::digest(bytes).into(),
+		}
+		.canonical_bytes()
+	}
+
+	#[test]
+	fn local_put_session_uses_durable_resume_terminal_cancel_and_ack_transitions() {
+		let temp = TempDir::new().unwrap();
+		let (request, capability, snapshot, service) = fixture();
+		let request_bytes = request.canonical_bytes();
+		let store = StreamingStore::open(temp.path()).unwrap();
+		let (mut session, accepted) = LocalObjectPutSession::accept(
+			&store,
+			&request_bytes,
+			&capability.canonical_bytes(),
+			snapshot.clone(),
+			service.public().0,
+			&service,
+			[10; 16],
+		)
+		.unwrap();
+		let accepted_token = accepted.successor_token.clone().unwrap();
+		let progress = session.push_chunk(&transfer(request.operation_id, 0, b"first"), [11; 16]).unwrap();
+		let progress_token = progress.successor_token.clone().unwrap();
+		drop(session);
+		let mut forged = ResumeTokenV1::decode(&progress_token).unwrap();
+		forged.signature[0] ^= 1;
+		assert!(matches!(
+			LocalObjectPutSession::resume(
+				&store,
+				&request_bytes,
+				&forged.canonical_bytes(),
+				snapshot.clone(),
+				service.public().0,
+				&service,
+			),
+			Err(LocalPutSessionError::Recovery(RecoveryError::ResumeSignatureInvalid))
+		));
+		let mut expired = snapshot.clone();
+		expired.finalized_number = 128;
+		assert!(matches!(
+			LocalObjectPutSession::resume(
+				&store,
+				&request_bytes,
+				&progress_token,
+				expired,
+				service.public().0,
+				&service,
+			),
+			Err(LocalPutSessionError::Recovery(RecoveryError::ResumeExpired))
+		));
+		assert!(matches!(
+			LocalObjectPutSession::resume(
+				&store,
+				&request_bytes,
+				&progress_token,
+				snapshot.clone(),
+				[99; 32],
+				&service,
+			),
+			Err(LocalPutSessionError::Recovery(RecoveryError::ResumeRevoked))
+		));
+
+		let mut resumed = LocalObjectPutSession::resume(
+			&store,
+			&request_bytes,
+			&progress_token,
+			snapshot.clone(),
+			service.public().0,
+			&service,
+		)
+		.unwrap();
+		let installed = resumed.finalize().unwrap();
+		assert_eq!(
+			resumed.push_chunk(&transfer(request.operation_id, 1, b"later"), [12; 16]),
+			Err(LocalPutSessionError::Terminal)
+		);
+		for (generation, response) in [
+			(0, &accepted),
+			(1, &progress),
+			(2, &installed),
+		] {
+			let ack = ResponseAckV1 {
+				request_id: request.request_id,
+				operation_id: request.operation_id,
+				generation,
+				response_hash: response.response_hash,
+			}
+			.canonical_bytes();
+			resumed.acknowledge(capability.issuer_key_id, &ack).unwrap();
+		}
+
+		let mut replay = LocalObjectPutSession::resume(
+			&store,
+			&request_bytes,
+			&accepted_token,
+			snapshot.clone(),
+			service.public().0,
+			&service,
+		)
+		.unwrap();
+		assert_eq!(
+			replay.push_chunk(&transfer(request.operation_id, 0, b"other"), [13; 16]),
+			Err(LocalPutSessionError::Recovery(RecoveryError::ResumeReplay))
+		);
+
+		let cancel_root = temp.path().join("cancel");
+		fs::create_dir(&cancel_root).unwrap();
+		let cancel_store = StreamingStore::open(&cancel_root).unwrap();
+		let (mut cancelled, _) = LocalObjectPutSession::accept(
+			&cancel_store,
+			&request_bytes,
+			&capability.canonical_bytes(),
+			snapshot,
+			service.public().0,
+			&service,
+			[20; 16],
+		)
+		.unwrap();
+		cancelled.cancel().unwrap();
+		assert_eq!(
+			cancelled.push_chunk(&transfer(request.operation_id, 0, b"first"), [21; 16]),
+			Err(LocalPutSessionError::Cancelled)
+		);
 	}
 
 	#[test]
