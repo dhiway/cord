@@ -130,11 +130,14 @@ impl<A: ChainAuthority> ProviderService<A> {
 		service_key: ed25519::Pair,
 		outbox: Arc<dyn ManifestDeletionSubmitter>,
 	) -> Result<Self, ContentError> {
+		let outbox_startup =
+			outbox.prepare_startup().map_err(|error| ContentError::Io(error.to_string()))?;
 		let checkpoint_stack = CheckpointStack::prepare_open(store.root())?;
 		let checkpoint_quorum_scheduler =
 			CheckpointQuorumScheduler::prepare_open(store.root())?;
 		let checkpoint_stack = Arc::new(checkpoint_stack.apply()?);
 		let checkpoint_quorum_scheduler = Arc::new(checkpoint_quorum_scheduler.apply()?);
+		outbox_startup.apply().map_err(ContentError::Io)?;
 		Ok(Self {
 			store,
 			checkpoint_stack,
