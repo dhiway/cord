@@ -322,12 +322,13 @@ export class BrowserHostOutboxV1 {
     this.#preparingOperationGenerations.add(identity);
     try {
       const validated = await this.#validateEntry(entry, this.#crypto.activeKeyVersion, predecessor.operationCode);
+      const uploadChunkId = predecessor.uploadSpoolOutboxId ? this.#successorUploadChunk(predecessor, Number(entry[9])) : undefined;
       const successor: LiveRecord = {
         kind: 0, entry, state: 0, terminal: false, recoverUntil: BigInt(entry[19]), operationCode: validated.operationCode,
         predecessorOutboxId: predecessor.entry[1].slice(), predecessorResponseHash: predecessor.responseHash.slice(),
         ...(predecessor.uploadSpoolOutboxId ? {
           uploadSpoolOutboxId: predecessor.uploadSpoolOutboxId.slice(),
-          uploadChunkId: this.#successorUploadChunk(predecessor, Number(entry[9])),
+          ...(uploadChunkId ? { uploadChunkId } : {}),
         } : {}),
       };
       const updatedPredecessor: LiveRecord = { ...predecessor, successorOutboxId: entry[1].slice() };
@@ -387,11 +388,18 @@ export class BrowserHostOutboxV1 {
     const request = decodeHostV2("RequestV2", entry[3]).value as Record<number, unknown>;
     const declared = BigInt((request[8] as Record<number, unknown>)[2] as number | bigint);
     if (input.length > 256) throw new BrowserOutboxError("HOST_OUTBOX_FULL", "upload spool chunk bound exceeded");
+    const expectedCount = Number((declared + 262_143n) / 262_144n);
+    if (input.length !== expectedCount) {
+      throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "upload spool does not use the canonical object.put chunk count");
+    }
     let length = 0n; const records: UploadChunkRecord[] = [];
     for (let index = 0; index < input.length; index += 1) {
       const exactChunk = input[index]!.slice(); const chunk = decodeHostV2("ProviderTransferChunkV1", exactChunk).value;
+      const expectedLength = Number(declared - (BigInt(index) * 262_144n) >= 262_144n
+        ? 262_144n
+        : declared - (BigInt(index) * 262_144n));
       if (!equal(chunk[1], entry[7]) || Number(chunk[2]) !== index || !(chunk[3] instanceof Uint8Array)
-        || chunk[3].length > 262_144 || !equal(blake2b256(chunk[3]), chunk[4])) {
+        || chunk[3].length !== expectedLength || !equal(blake2b256(chunk[3]), chunk[4])) {
         throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "upload spool chunk is not exactly bound to object.put");
       }
       length += BigInt(chunk[3].length);
@@ -405,11 +413,15 @@ export class BrowserHostOutboxV1 {
     return records;
   }
 
-  #successorUploadChunk(predecessor: LiveRecord, intendedCursor: number): Uint8Array {
+  #successorUploadChunk(predecessor: LiveRecord, intendedCursor: number): Uint8Array | undefined {
     const rootId = predecessor.uploadSpoolOutboxId;
     if (!rootId) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "upload successor lost its spool root");
-    const root = this.#live(rootId); const chunkId = root.uploadChunkIds?.[intendedCursor - 1];
-    if (!chunkId || root.uploadSpoolRetired) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "upload successor cursor has no durable chunk");
+    const root = this.#live(rootId); const chunks = root.uploadChunkIds;
+    if (!chunks || root.uploadSpoolRetired) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "upload successor lost its durable chunk index");
+    const index = intendedCursor - 1;
+    if (index === chunks.length) return undefined;
+    const chunkId = chunks[index];
+    if (!chunkId) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "upload successor cursor skipped its exact durable chunk");
     return chunkId.slice();
   }
 
@@ -597,6 +609,9 @@ export class BrowserHostOutboxV1 {
         const root = this.#records.get(toHex(record.uploadSpoolOutboxId))?.record;
         const expected = root?.kind === 0 ? root.uploadChunkIds?.[Number(record.entry[9]) - 1] : undefined;
         if (!root || root.kind !== 0 || (!root.uploadSpoolRetired && (!expected || !equal(expected, record.uploadChunkId)))) throw new Error();
+      } else if (record.uploadSpoolOutboxId && record.predecessorOutboxId) {
+        const root = this.#records.get(toHex(record.uploadSpoolOutboxId))?.record;
+        if (!root || root.kind !== 0 || (!root.uploadSpoolRetired && Number(record.entry[9]) - 1 !== root.uploadChunkIds?.length)) throw new Error();
       }
     }
     for (const [id, loaded] of this.#records) if (loaded.record.kind === 2 && !referencedChunks.has(id)) throw new Error();

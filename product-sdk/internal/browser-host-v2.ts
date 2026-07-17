@@ -320,17 +320,22 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
 
   async #materializeUpload(operationId: Uint8Array, upload: PrivateStorageUploadV2, signal?: AbortSignal): Promise<readonly Uint8Array[]> {
     let sequence = 0; let length = 0n;
-    const chunks: Uint8Array[] = [];
+    const chunks: Uint8Array[] = []; const pending = new Uint8Array(262_144); let pendingLength = 0;
+    const flush = (): void => {
+      if (sequence >= 256) throw new TypeError("one-shot upload exceeds the 256-chunk object bound");
+      const chunk = pending.slice(0, pendingLength); const digest = blake2b256(chunk);
+      chunks.push(encodeHostV2("ProviderTransferChunkV1", { 0: 1, 1: operationId, 2: sequence++, 3: chunk, 4: digest })); pendingLength = 0;
+    };
     for await (const source of upload.bytes) {
       if (signal?.aborted) throw signal.reason ?? new Error("upload aborted");
-      for (let offset = 0; offset < source.length; offset += 262_144) {
-        if (sequence >= 256) throw new TypeError("one-shot upload exceeds the 256-chunk object bound");
-        const chunk = source.slice(offset, offset + 262_144); length += BigInt(chunk.length);
-        if (length > 67_108_864n) throw new TypeError("one-shot upload exceeds the 64 MiB object bound");
-        const digest = blake2b256(chunk);
-        chunks.push(encodeHostV2("ProviderTransferChunkV1", { 0: 1, 1: operationId, 2: sequence++, 3: chunk, 4: digest }));
+      length += BigInt(source.length); if (length > 67_108_864n) throw new TypeError("one-shot upload exceeds the 64 MiB object bound");
+      for (let offset = 0; offset < source.length;) {
+        const take = Math.min(pending.length - pendingLength, source.length - offset);
+        pending.set(source.subarray(offset, offset + take), pendingLength); pendingLength += take; offset += take;
+        if (pendingLength === pending.length) flush();
       }
     }
+    if (pendingLength > 0) flush();
     if (length !== upload.length) throw new TypeError("one-shot upload length mismatches its object.put intent");
     return chunks;
   }
@@ -503,9 +508,13 @@ export async function runPrivateBrowserRustProviderV2(
     const frame = decodeHostV2("RequestV2", request).value as WireMap;
     const operation = operationForCode(Number(frame[3]));
     if (!PROVIDER_BYTE_OPERATIONS.has(operation)) throw new TypeError("non-provider Host-v2 request reached the provider MessagePort");
-    const upload = Number(frame[3]) === 1010 && authorityMessage.production === "ResumeTokenV1"
-      ? receiveOneUpload(transport, bytes(frame[5], 16, "operation ID"), Number((decodeHostV2("ResumeTokenV1", authority).value as WireMap)[9]), options)
-      : undefined;
+    let upload: AsyncIterable<Uint8Array> | undefined;
+    if (Number(frame[3]) === 1010 && authorityMessage.production === "ResumeTokenV1") {
+      const cursor = Number((decodeHostV2("ResumeTokenV1", authority).value as WireMap)[9]);
+      const length = BigInt((frame[8] as WireMap)[2] as number | bigint); const chunks = Number((length + 262_143n) / 262_144n);
+      if (cursor < chunks) upload = receiveOneUpload(transport, bytes(frame[5], 16, "operation ID"), cursor, options);
+      else if (cursor !== chunks) throw new TypeError("provider upload finalize cursor is invalid");
+    }
     const cancellations = receiveProviderCancellations(transport, bytes(frame[1], 16, "request ID"), options);
     for await (const response of bridge.dispatch({ request, authority, ...(upload ? { upload } : {}), cancellations, ...(options.signal ? { signal: options.signal } : {}) })) {
       if (response.successor) {

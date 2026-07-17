@@ -37,6 +37,7 @@ interface ActiveBrowserRequest {
   readonly session: HostV2Session; readonly outboxId: Uint8Array; readonly operationId: Uint8Array;
   readonly expectedResponseKind: number;
   readonly operationCode: number;
+  readonly hasUploadChunk: boolean;
 }
 
 export class DurableBrowserHostV2 {
@@ -105,6 +106,9 @@ export class DurableBrowserHostV2 {
     const active = this.#active;
     if (!active) throw new Error("browser host-v2 session has not sent a durable request");
     const event = active.session.accept(bytes);
+    if (active.hasUploadChunk && (event[3] === 2 || (!active.session.isTerminal && event[3] !== 1))) {
+      this.#transport.close(); throw new Error("successful browser object.put chunk generation must progress to a no-payload finalize generation");
+    }
     if (!active.session.isTerminal) return { terminal: false, event: bytes.slice() };
     if (event[3] !== 3 && event[3] !== active.expectedResponseKind) { this.#transport.close(); throw new Error("browser terminal result kind mismatches durable request"); }
     const operation = Object.values(HOST_V2_OPERATION_BINDINGS).find(({ code }) => code === active.operationCode);
@@ -150,6 +154,7 @@ export class DurableBrowserHostV2 {
         ? HostV2Session.resume(this.#transport.negotiation, retry.requestId, retry.intendedCursor)
         : new HostV2Session(this.#transport.negotiation, retry.requestId),
       outboxId: retry.outboxId.slice(), operationId: retry.operationId.slice(), expectedResponseKind: retry.expectedResponseKind, operationCode: retry.operationCode,
+      hasUploadChunk: retry.uploadChunk !== undefined,
     };
   }
   #resetAfterTransportFailure(): void { this.#active = undefined; this.#pendingSuccessorEvent = undefined; this.#transport.close(); }

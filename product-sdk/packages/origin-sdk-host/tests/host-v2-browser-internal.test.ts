@@ -144,7 +144,9 @@ function exactResumeToken(transport: BrowserHostV2Transport, entry: HostOutboxEn
   const vector = protocol.vectors.find((candidate: any) => candidate.id === "provider-resume-v1");
   const token = decodeHostV2("ResumeTokenV1", bytes(vector.canonical_cbor_hex)).value as any; const binding = transport.binding;
   token[1] = binding.registryHash; token[2] = binding.genesisHash; token[3] = binding.providerId; token[5] = entry[7];
-  token[4] = (decodeHostV2("ProviderCapabilityV1", entry[4]).value as any)[4]; token[6] = (decodeHostV2("RequestV2", entry[3]).value as any)[8][0];
+  try { token[4] = (decodeHostV2("ProviderCapabilityV1", entry[4]).value as any)[4]; }
+  catch { token[4] = (decodeHostV2("ResumeTokenV1", entry[4]).value as any)[4]; }
+  token[6] = (decodeHostV2("RequestV2", entry[3]).value as any)[8][0];
   token[7] = (decodeHostV2("RequestV2", entry[3]).value as any)[8][1]; token[8] = (decodeHostV2("RequestV2", entry[3]).value as any)[8][2];
   token[9] = cursor - 1; token[10] = Number(entry[8]) + 1; token[11] = 100; token[12] = 228; token[14] = cancelled;
   return encodeHostV2("ResumeTokenV1", token);
@@ -462,7 +464,8 @@ test("encrypted upload spool survives Prepared, partial-send, and reopen with th
   assert.equal([...backend.records.values()].some(({ ciphertext }) => Buffer.from(ciphertext).includes(Buffer.from(exactChunk))), false, "upload chunk was stored in plaintext");
   const token = exactResumeToken(pair.host, entry, 1); const installed = await outbox.installSuccessor(initial.outboxId, accepted(entry[6]), token, 1);
   await outbox.confirmAck(initial.outboxId, installed.responseHash);
-  const successor = await outbox.prepareSuccessor(initial.outboxId, { entry: await successorEntry(entry, token, 1) });
+  const exactSuccessorEntry = await successorEntry(entry, token, 1);
+  const successor = await outbox.prepareSuccessor(initial.outboxId, { entry: exactSuccessorEntry });
   assert.deepEqual(successor.uploadChunk, exactChunk); assert.equal(backend.records.size, 3);
 
   outbox = await openOutbox(backend, pair.host, keyring(), random);
@@ -471,29 +474,52 @@ test("encrypted upload spool survives Prepared, partial-send, and reopen with th
   outbox = await openOutbox(backend, pair.host, keyring(), random);
   assert.deepEqual(outbox.retry(successor.outboxId, 100n).uploadChunk, exactChunk, "partial-send crash changed the exact next chunk");
 
-  const terminal = await outbox.installTerminal(successor.outboxId, cancelled(entry[6], 1), 100n);
-  await outbox.confirmAck(successor.outboxId, terminal.responseHash); await outbox.retireUploadSpool(successor.outboxId);
-  assert.equal(backend.records.size, 2, "terminal confirmation retained stale upload chunks");
+  const finalizeToken = exactResumeToken(pair.host, exactSuccessorEntry, 2);
+  const progressed = await outbox.installSuccessor(successor.outboxId, progress(entry[6], 1), finalizeToken, 2);
+  await outbox.confirmAck(successor.outboxId, progressed.responseHash);
+  const finalize = await outbox.prepareSuccessor(successor.outboxId, { entry: await successorEntry(exactSuccessorEntry, finalizeToken, 2, 0x68) });
+  assert.equal(finalize.uploadChunk, undefined, "finalize-only generation carried a payload");
+  outbox = await openOutbox(backend, pair.host, keyring(), random); assert.equal(outbox.retry(finalize.outboxId, 100n).uploadChunk, undefined);
+  const terminal = await outbox.installTerminal(finalize.outboxId, cancelled(entry[6], 2), 100n);
+  await outbox.confirmAck(finalize.outboxId, terminal.responseHash); await outbox.retireUploadSpool(finalize.outboxId);
+  assert.equal(backend.records.size, 3, "terminal confirmation retained stale upload chunks");
   await openOutbox(backend, pair.host, keyring(), random); pair.host.close(); pair.provider.close();
 });
 
-test("frozen 256-chunk upload bound respects record and byte caps across crash and expiry", async () => {
+test("direct outbox admission rejects non-canonical object.put fragmentation", async () => {
+  const pair = await transports(); const backend = new StrictMemoryBackend(); const outbox = await openOutbox(backend, pair.host);
+  const source = await preparedEntry(pair.host); const frame = decodeHostV2("RequestV2", source[3]).value as any;
+  frame[8][2] = 262_144; const request = encodeHostV2("RequestV2", frame);
+  const entry = { ...source, 3: request, 5: await outbox.digest(concatenate([request, source[4]])) } as HostOutboxEntryV1;
+  const first = Uint8Array.of(0x5a); const second = new Uint8Array(262_143).fill(0x5a);
+  const chunks = [first, second].map((payload, index) => encodeHostV2("ProviderTransferChunkV1", {
+    0: 1, 1: entry[7], 2: index, 3: payload, 4: blake2b256(payload),
+  }));
+  await assert.rejects(outbox.prepare({ entry, uploadChunks: chunks }),
+    (error) => error instanceof BrowserOutboxError && error.code === "HOST_OUTBOX_BINDING_INVALID");
+  assert.equal(backend.records.size, 0, "malformed fragmentation partially committed an upload spool");
+  pair.host.close(); pair.provider.close();
+});
+
+test("canonical upload spool respects frozen chunk, record, and byte caps across crash and expiry", async () => {
   const pair = await transports(); const backend = new StrictMemoryBackend(); const random = nonceSource();
   let outbox = await openOutbox(backend, pair.host, keyring(), random); const source = await preparedEntry(pair.host);
-  const frame = decodeHostV2("RequestV2", source[3]).value as any; frame[8][2] = 256;
+  const frame = decodeHostV2("RequestV2", source[3]).value as any; frame[8][2] = 262_145;
   const request = encodeHostV2("RequestV2", frame); const entry = { ...source, 3: request, 5: await outbox.digest(concatenate([request, source[4]])) } as HostOutboxEntryV1;
-  const payload = Uint8Array.of(0x5a);
-  const chunks = Array.from({ length: 256 }, (_, index) => encodeHostV2("ProviderTransferChunkV1", { 0: 1, 1: entry[7], 2: index, 3: payload, 4: blake2b256(payload) }));
-  const prepared = await outbox.prepare({ entry, uploadChunks: chunks }); assert.equal(prepared.uploadChunk, undefined); assert.equal(backend.records.size, 257);
+  const chunks = [new Uint8Array(262_144).fill(0x5a), Uint8Array.of(0x5a)].map((payload, index) => encodeHostV2("ProviderTransferChunkV1", { 0: 1, 1: entry[7], 2: index, 3: payload, 4: blake2b256(payload) }));
+  const prepared = await outbox.prepare({ entry, uploadChunks: chunks }); assert.equal(prepared.uploadChunk, undefined); assert.equal(backend.records.size, 3);
   const encryptedBytes = [...backend.records.values()].reduce((sum, row) => sum + row.ciphertext.length, 0);
   assert.ok([...backend.records.values()].every((row) => row.ciphertext.length <= 4_456_448)); assert.ok(encryptedBytes <= 268_435_456);
   outbox = await openOutbox(backend, pair.host, keyring(), random); assert.equal(outbox.retry(prepared.outboxId, 100n).uploadChunk, undefined);
   await outbox.expire(prepared.outboxId, 356n); assert.equal(backend.records.size, 1, "expiry retained max-object spool rows");
   await openOutbox(backend, pair.host, keyring(), random);
 
-  const boundedBackend = new StrictMemoryBackend(); const bounded = await BrowserHostOutboxV1.open(boundedBackend, context(pair.host), keyring(), { random: nonceSource(), records: 256 });
+  const boundedBackend = new StrictMemoryBackend(); const bounded = await BrowserHostOutboxV1.open(boundedBackend, context(pair.host), keyring(), { random: nonceSource(), records: 2 });
   await assert.rejects(bounded.prepare({ entry, uploadChunks: chunks }), (error) => error instanceof BrowserOutboxError && error.code === "HOST_OUTBOX_FULL");
-  assert.equal(boundedBackend.records.size, 0, "capacity failure partially committed a max-object spool");
+  assert.equal(boundedBackend.records.size, 0, "capacity failure partially committed an upload spool");
+
+  const tooMany = Array.from({ length: 257 }, () => new Uint8Array());
+  await assert.rejects(bounded.prepare({ entry, uploadChunks: tooMany }), (error) => error instanceof BrowserOutboxError && error.code === "HOST_OUTBOX_FULL");
 
   const hostileBackend = new StrictMemoryBackend(); const hostileOutbox = await openOutbox(hostileBackend, pair.host);
   const hostileHost = new PrivateDurableBrowserHostV2({
@@ -503,9 +529,8 @@ test("frozen 256-chunk upload bound respects record and byte caps across crash a
   });
   const original = decodeHostV2("RequestV2", source[3]).value as any;
   await assert.rejects(hostileHost.invoke("storage.object.put", source[3], {
-    cid: original[8][1], length: 1n,
-    bytes: (async function* () { for (let index = 0; index < 257; index += 1) yield Uint8Array.of(index); })(),
-  }), /256-chunk object bound/);
+    cid: original[8][1], length: 1n, bytes: (async function* () { yield Uint8Array.of(1, 2); })(),
+  }), /length mismatches/);
   assert.equal(hostileBackend.records.size, 0, "oversized async upload reached durable prepare"); pair.host.close(); pair.provider.close();
 });
 
@@ -515,6 +540,7 @@ test("object.put sends no initial bytes and exactly one durable chunk in each re
   const vector = frozen.vectors.find((candidate: any) => candidate.id === "1010-positive"); const request = bytes(vector.wire_hex);
   const frame = decodeHostV2("RequestV2", request).value as any; const authority = exactCapability(pair.host, frame, 1);
   const token = await signedResumeToken(pair.host, pair.providerPeer.privateKey, frame, authority, 1);
+  const finalizeToken = await signedResumeToken(pair.host, pair.providerPeer.privateKey, frame, authority, 2, 2);
   let dispatches = 0; let acked = 0; const ackWaiters: Array<() => void> = [];
   const waitAck = (target: number) => acked >= target ? Promise.resolve() : new Promise<void>((resolve) => ackWaiters.push(resolve));
   const bridge: PrivateBrowserRustProviderBridgeV2 = {
@@ -524,11 +550,15 @@ test("object.put sends no initial bytes and exactly one durable chunk in each re
         assert.deepEqual(input.authority, authority); assert.equal(input.upload, undefined);
         yield { event: accepted(frame[1]), terminalBlock: 100n, successor: { exactResumeToken: token, intendedCursor: 1 } }; return;
       }
-      assert.deepEqual(input.authority, token); const chunks: Uint8Array[] = [];
+      const chunks: Uint8Array[] = [];
       for await (const exact of input.upload ?? []) chunks.push(exact);
-      assert.equal(chunks.length, 1); const chunk = decodeHostV2("ProviderTransferChunkV1", chunks[0]).value;
-      assert.equal(chunk[2], 0); assert.deepEqual(chunk[3], Uint8Array.of(0xab)); assert.deepEqual(chunk[4], blake2b256(Uint8Array.of(0xab)));
-      yield { event: encodeHostV2Value({ 0: 2, 1: frame[1], 2: 1, 3: 3, 4: { 0: 108, 1: "REQUEST_NOT_FOUND", 2: false, 3: {} } }), terminalBlock: 100n };
+      if (dispatches === 2) {
+        assert.deepEqual(input.authority, token); assert.equal(chunks.length, 1); const chunk = decodeHostV2("ProviderTransferChunkV1", chunks[0]).value;
+        assert.equal(chunk[2], 0); assert.deepEqual(chunk[3], Uint8Array.of(0xab)); assert.deepEqual(chunk[4], blake2b256(Uint8Array.of(0xab)));
+        yield { event: encodeHostV2Value({ 0: 2, 1: frame[1], 2: 1, 3: 1, 4: { 0: 1, 2: 1 } }), terminalBlock: 100n, successor: { exactResumeToken: finalizeToken, intendedCursor: 2 } }; return;
+      }
+      assert.deepEqual(input.authority, finalizeToken); assert.equal(chunks.length, 0);
+      yield { event: encodeHostV2Value({ 0: 2, 1: frame[1], 2: 2, 3: 3, 4: { 0: 108, 1: "REQUEST_NOT_FOUND", 2: false, 3: {} } }), terminalBlock: 100n };
     },
     async acknowledge(exact) { decodeHostV2("ResponseAckV1", exact); acked += 1; for (const resolve of ackWaiters.splice(0)) resolve(); return { durable: true }; },
   };
@@ -544,13 +574,15 @@ test("object.put sends no initial bytes and exactly one durable chunk in each re
   const first = await makeHost().invoke("storage.object.put", request, { cid: frame[8][1], length: 1n, bytes: (async function* () { yield Uint8Array.of(0xab); })() });
   assert.deepEqual(first.continuation?.token, token); assert.equal(backend.records.size, 2);
   outbox = await openOutbox(backend, pair.host, keyring(), random);
-  assert.equal((await makeHost().resume(first.continuation!)).error?.code, 108);
-  assert.equal(dispatches, 2); assert.equal(acked, 2); assert.equal(backend.records.size, 2, "confirmed terminal retained an upload chunk");
+  const pushed = await makeHost().resume(first.continuation!); assert.deepEqual(pushed.continuation?.token, finalizeToken);
+  outbox = await openOutbox(backend, pair.host, keyring(), random);
+  assert.equal((await makeHost().resume(pushed.continuation!)).error?.code, 108);
+  assert.equal(dispatches, 3); assert.equal(acked, 3); assert.equal(backend.records.size, 3, "confirmed terminal retained an upload chunk");
   await openOutbox(backend, pair.host, keyring(), random);
   abort.abort(); await pump; pair.host.close(); pair.provider.close();
 });
 
-test("public storage resume reopens a committed successor and replays the same generation, cursor, and chunk once", async () => {
+test("public storage resume reopens one exact chunk and retires it after an authenticated terminal error", async () => {
   const hostPeer = await peer("host-reopen"); const providerPeer = await peer("provider-reopen");
   const firstPair = await transports(hostPeer, providerPeer); const backend = new StrictMemoryBackend(); const random = nonceSource();
   let outbox = await openOutbox(backend, firstPair.host, keyring(), random);
@@ -607,6 +639,7 @@ test("public storage resume reopens a committed successor and replays the same g
   const reopened = secondStorage.start(intent); const events: any[] = [];
   for await (const event of reopened.resume({ kind: "provider-token", token })) events.push(event);
   assert.equal(events[0].kind, "error"); assert.equal(resumedDispatches, 1); assert.equal(backend.records.size, 2);
+  await assert.rejects(async () => { for await (const _event of reopened.resume({ kind: "provider-token", token })) void _event; }, /recover|retired|replay|successor|terminal/i);
   secondAbort.abort(); await secondPump; firstPair.host.close(); secondPair.host.close(); secondPair.provider.close();
 });
 
@@ -616,6 +649,7 @@ test("developer execute drives a multi-chunk object.put through verified one-chu
   const length = 262_145; frame[8][2] = length; const request = encodeHostV2("RequestV2", frame); const authority = exactCapability(pair.host, frame, length);
   const firstToken = await signedResumeToken(pair.host, pair.providerPeer.privateKey, frame, authority, 1, 1);
   const secondToken = await signedResumeToken(pair.host, pair.providerPeer.privateKey, frame, authority, 2, 2);
+  const finalizeToken = await signedResumeToken(pair.host, pair.providerPeer.privateKey, frame, authority, 3, 3);
   let dispatch = 0; let acked = 0; let maxChunksPerGeneration = 0; const ackWaiters: Array<() => void> = [];
   const waitAck = (target: number) => acked >= target ? Promise.resolve() : new Promise<void>((resolve) => ackWaiters.push(resolve));
   const bridge: PrivateBrowserRustProviderBridgeV2 = {
@@ -625,15 +659,19 @@ test("developer execute drives a multi-chunk object.put through verified one-chu
       if (dispatch === 1) {
         assert.equal(chunks.length, 0); yield { event: accepted(frame[1]), terminalBlock: 100n, successor: { exactResumeToken: firstToken, intendedCursor: 1 } }; return;
       }
+      if (dispatch === 4) {
+        assert.deepEqual(input.authority, finalizeToken); assert.equal(chunks.length, 0);
+        yield { event: encodeHostV2Value({ 0: 2, 1: frame[1], 2: 3, 3: 2, 4: { 0: { 0: pair.host.binding.providerId, 1: frame[8][1], 2: length, 3: new Uint8Array(64) }, 1: true, 2: { 0: 100, 1: new Uint8Array(32).fill(0x91) } } }), terminalBlock: 100n }; return;
+      }
       assert.equal(chunks.length, 1); const decoded = decodeHostV2("ProviderTransferChunkV1", chunks[0]).value; assert.equal(decoded[2], dispatch - 2);
       if (dispatch === 2) {
-        assert.deepEqual(input.authority, firstToken);
+        assert.deepEqual(input.authority, firstToken); assert.equal(decoded[3].length, 262_144);
         yield { event: encodeHostV2Value({ 0: 2, 1: frame[1], 2: 1, 3: 1, 4: { 0: 262_144, 2: 1 } }), terminalBlock: 100n, successor: { exactResumeToken: secondToken, intendedCursor: 2 } }; return;
       }
       assert.deepEqual(input.authority, secondToken); assert.equal(decoded[3].length, 1);
-      yield { event: encodeHostV2Value({ 0: 2, 1: frame[1], 2: 2, 3: 2, 4: { 0: { 0: pair.host.binding.providerId, 1: frame[8][1], 2: length, 3: new Uint8Array(64) }, 1: true, 2: { 0: 100, 1: new Uint8Array(32).fill(0x91) } } }), terminalBlock: 100n };
+      yield { event: encodeHostV2Value({ 0: 2, 1: frame[1], 2: 2, 3: 1, 4: { 0: length, 2: 2 } }), terminalBlock: 100n, successor: { exactResumeToken: finalizeToken, intendedCursor: 3 } };
     },
-    async acknowledge(exact) { decodeHostV2("ResponseAckV1", exact); acked += 1; for (const resolve of ackWaiters.splice(0)) resolve(); return dispatch < 3 ? { durable: true } : undefined; },
+    async acknowledge(exact) { decodeHostV2("ResponseAckV1", exact); acked += 1; for (const resolve of ackWaiters.splice(0)) resolve(); return dispatch < 4 ? { durable: true } : undefined; },
   };
   const abort = new AbortController(); const pump = runPrivateBrowserRustProviderV2(pair.provider, bridge, { signal: abort.signal }).catch(() => undefined);
   let nextId = 0x91; let confirmation = 0;
@@ -647,8 +685,8 @@ test("developer execute drives a multi-chunk object.put through verified one-chu
   const unreachable = { async finalizedAuthority() { throw new Error("unreachable"); }, async *dispatch() { throw new Error("unreachable"); } };
   const storage = new PrivateDurableBrowserStorageV2(new PrivateOriginBrowserRouterV2({ provider: host, commons: unreachable, keystore: unreachable, identityRuntime: unreachable, identityHost: unreachable, signing: unreachable }));
   const intent = { protocol: "cord.origin.host/2", major: 2, minor: 0, registrySha256: "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba", requestId: frame[1], productId: frame[2], operation: "storage.object.put", code: 1010, grantId: frame[4], operationId: frame[5], deadlineBlock: BigInt(frame[7]), payload: { bucketId: frame[8][0], cid: frame[8][1], length: BigInt(length), encrypted: frame[8][3], transferId: frame[8][4] } } as any;
-  const result = await storage.execute(intent, { cid: frame[8][1], length: BigInt(length), bytes: (async function* () { yield new Uint8Array(262_144).fill(0x5a); yield Uint8Array.of(0xab); })() });
-  assert.equal((result as any).publishable, true); assert.equal(dispatch, 3); assert.equal(maxChunksPerGeneration, 1); assert.equal(acked, 3); assert.equal(backend.records.size, 3);
+  const result = await storage.execute(intent, { cid: frame[8][1], length: BigInt(length), bytes: (async function* () { yield new Uint8Array(100_000).fill(0x5a); yield new Uint8Array(162_145).fill(0x5a); })() });
+  assert.equal((result as any).publishable, true); assert.equal(dispatch, 4); assert.equal(maxChunksPerGeneration, 1); assert.equal(acked, 4); assert.equal(backend.records.size, 4);
   abort.abort(); await pump; pair.host.close(); pair.provider.close();
 });
 
