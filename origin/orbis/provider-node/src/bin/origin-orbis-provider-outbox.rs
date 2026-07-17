@@ -139,6 +139,11 @@ impl Default for Cursor {
 struct FinalizedReceipt {
 	key: String,
 	record_hash: String,
+	source: SourceId,
+	start: u64,
+	end: u64,
+	prefix_len: u64,
+	prefix_hash: String,
 	block_hash: String,
 	extrinsic_hash: String,
 }
@@ -264,11 +269,10 @@ async fn consume<T: ProviderOutboxTransport>(
 	recover_compaction(outbox, &outbox_lock_path, &paths)?;
 	let mut cursor = load_json::<Cursor>(&paths.cursor)?.unwrap_or_default();
 	let mut ledger = load_json::<ReceiptLedger>(&paths.receipts)?.unwrap_or_default();
-	ensure_version(cursor.version)?;
-	ensure_version(ledger.version)?;
+	validate_cursor(&cursor)?;
+	validate_ledger(&ledger)?;
 
 	if let Some(pending) = load_json::<PendingRecord>(&paths.pending)? {
-		ensure_version(pending.version)?;
 		validate_pending(&pending)?;
 		verify_pending_source(outbox, &outbox_lock_path, &pending)?;
 		if !recover_local_finality(&paths, &mut cursor, &ledger, &pending)? {
@@ -325,24 +329,27 @@ fn recover_local_finality(
 	ledger: &ReceiptLedger,
 	pending: &PendingRecord,
 ) -> Result<bool, Box<dyn std::error::Error>> {
-	if cursor.source != Some(pending.source) ||
-		cursor.prefix_len != pending.prefix_len ||
-		cursor.prefix_hash != pending.prefix_hash
+	validate_cursor(cursor)?;
+	validate_ledger(ledger)?;
+	validate_pending(pending)?;
+	if cursor.source != Some(pending.source)
+		|| cursor.prefix_len != pending.prefix_len
+		|| cursor.prefix_hash != pending.prefix_hash
 	{
 		return Err("pending provider outbox cursor binding changed".into());
 	}
+	let finalized = ledger.entries.iter().any(|entry| receipt_matches_pending(entry, pending));
 	if cursor.offset == pending.end {
+		if !finalized {
+			return Err("pending provider outbox end cursor has no exact finalized receipt".into());
+		}
 		remove_durable(&paths.pending)?;
 		return Ok(true);
 	}
 	if cursor.offset != pending.start {
 		return Err("pending provider outbox cursor is not at its exact start or end".into());
 	}
-	if ledger
-		.entries
-		.iter()
-		.any(|entry| entry.key == pending.key && entry.record_hash == pending.record_hash)
-	{
+	if finalized {
 		advance_cursor(&paths.cursor, cursor, pending)?;
 		remove_durable(&paths.pending)?;
 		return Ok(true);
@@ -377,6 +384,11 @@ async fn finalize_pending<T: ProviderOutboxTransport>(
 	let receipt = FinalizedReceipt {
 		key,
 		record_hash: pending.record_hash.clone(),
+		source: pending.source,
+		start: pending.start,
+		end: pending.end,
+		prefix_len: pending.prefix_len,
+		prefix_hash: pending.prefix_hash.clone(),
 		block_hash: lifecycle.block_hash.ok_or("finalized provider call has no block hash")?,
 		extrinsic_hash: lifecycle
 			.extrinsic_hash
@@ -430,19 +442,125 @@ fn canonical_hash(value: String) -> Result<String, Box<dyn std::error::Error>> {
 }
 
 fn validate_pending(pending: &PendingRecord) -> Result<(), Box<dyn std::error::Error>> {
+	ensure_version(pending.version)?;
 	if pending.line.len() > MAX_RECORD_BYTES || !pending.line.ends_with('\n') {
 		return Err("pending provider outbox record is not one bounded complete line".into());
 	}
 	if pending.start >= pending.end || pending.end - pending.start != pending.line.len() as u64 {
 		return Err("pending provider outbox offsets do not match its exact bytes".into());
 	}
-	if blake3::hash(pending.line.as_bytes()).to_hex().as_str() != pending.record_hash {
+	if !is_hash(&pending.record_hash)
+		|| blake3::hash(pending.line.as_bytes()).to_hex().as_str() != pending.record_hash
+	{
 		return Err("pending provider outbox record hash mismatch".into());
 	}
-	if pending.prefix_len > SOURCE_PREFIX_BYTES || pending.prefix_hash.len() != 64 {
+	if pending.prefix_len == 0
+		|| pending.prefix_len > SOURCE_PREFIX_BYTES
+		|| !is_hash(&pending.prefix_hash)
+	{
 		return Err("pending provider outbox prefix binding is invalid".into());
 	}
+	if pending.key.is_empty() || pending.key.len() > 512 {
+		return Err("pending provider outbox key is invalid".into());
+	}
 	Ok(())
+}
+
+fn validate_cursor(cursor: &Cursor) -> Result<(), Box<dyn std::error::Error>> {
+	ensure_version(cursor.version)?;
+	if cursor.prefix_len > SOURCE_PREFIX_BYTES || !is_hash(&cursor.prefix_hash) {
+		return Err("provider outbox cursor prefix binding is invalid".into());
+	}
+	if cursor.source.is_none()
+		&& (cursor.offset != 0
+			|| cursor.prefix_len != 0
+			|| cursor.prefix_hash != blake3::hash(&[]).to_hex().to_string())
+	{
+		return Err("unbound provider outbox cursor contains source state".into());
+	}
+	Ok(())
+}
+
+fn validate_cursor_source(
+	cursor: &Cursor,
+	source: SourceId,
+	source_len: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+	validate_cursor(cursor)?;
+	if cursor.source != Some(source)
+		|| cursor.offset > source_len
+		|| cursor.prefix_len > source_len
+		|| (source_len > 0 && cursor.prefix_len == 0)
+	{
+		return Err("provider outbox cursor is not bound to the exact source generation".into());
+	}
+	Ok(())
+}
+
+fn validate_receipt(receipt: &FinalizedReceipt) -> Result<(), Box<dyn std::error::Error>> {
+	if receipt.key.is_empty()
+		|| receipt.key.len() > 512
+		|| !is_hash(&receipt.record_hash)
+		|| receipt.start >= receipt.end
+		|| receipt.end - receipt.start > MAX_RECORD_BYTES as u64
+		|| receipt.prefix_len == 0
+		|| receipt.prefix_len > SOURCE_PREFIX_BYTES
+		|| !is_hash(&receipt.prefix_hash)
+		|| !is_prefixed_hash(&receipt.block_hash)
+		|| !is_prefixed_hash(&receipt.extrinsic_hash)
+	{
+		return Err("finalized provider receipt binding is invalid".into());
+	}
+	Ok(())
+}
+
+fn validate_ledger(ledger: &ReceiptLedger) -> Result<(), Box<dyn std::error::Error>> {
+	ensure_version(ledger.version)?;
+	if ledger.entries.len() > MAX_RECEIPTS {
+		return Err("finalized provider receipt ledger exceeds its entry limit".into());
+	}
+	for (index, receipt) in ledger.entries.iter().enumerate() {
+		validate_receipt(receipt)?;
+		if ledger.entries[..index]
+			.iter()
+			.any(|existing| existing.record_hash == receipt.record_hash || existing == receipt)
+		{
+			return Err("finalized provider receipt ledger contains duplicate bindings".into());
+		}
+	}
+	Ok(())
+}
+
+fn validate_marker(marker: &CompactionMarker) -> Result<(), Box<dyn std::error::Error>> {
+	ensure_version(marker.version)?;
+	if marker.consumed_len == 0
+		|| marker.prefix_len == 0
+		|| marker.prefix_len > marker.consumed_len
+		|| marker.prefix_len > SOURCE_PREFIX_BYTES
+		|| !is_hash(&marker.prefix_hash)
+	{
+		return Err("provider outbox compaction marker binding is invalid".into());
+	}
+	Ok(())
+}
+
+fn receipt_matches_pending(receipt: &FinalizedReceipt, pending: &PendingRecord) -> bool {
+	receipt.key == pending.key
+		&& receipt.record_hash == pending.record_hash
+		&& receipt.source == pending.source
+		&& receipt.start == pending.start
+		&& receipt.end == pending.end
+		&& receipt.prefix_len == pending.prefix_len
+		&& receipt.prefix_hash == pending.prefix_hash
+}
+
+fn is_hash(value: &str) -> bool {
+	value.len() == 64
+		&& value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+}
+
+fn is_prefixed_hash(value: &str) -> bool {
+	value.strip_prefix("0x").is_some_and(is_hash)
 }
 
 fn read_batch(
@@ -451,6 +569,7 @@ fn read_batch(
 	cursor_path: &Path,
 	cursor: &mut Cursor,
 ) -> Result<Vec<OutboxRecord>, Box<dyn std::error::Error>> {
+	validate_cursor(cursor)?;
 	let _lock = exclusive_lock(lock_path)?;
 	repair_incomplete_tail(outbox)?;
 	let mut file = File::open(outbox).map_err(|error| {
@@ -481,6 +600,7 @@ fn read_batch(
 	if cursor.offset > metadata.len() {
 		return Err("provider outbox cursor is beyond the source length".into());
 	}
+	validate_cursor_source(cursor, source, metadata.len())?;
 	verify_source_prefix(&mut file, cursor.prefix_len, &cursor.prefix_hash)?;
 	file.seek(SeekFrom::Start(cursor.offset))?;
 	let mut reader = BufReader::with_capacity(8192, file);
@@ -550,10 +670,14 @@ fn verify_pending_source(
 	lock_path: &Path,
 	pending: &PendingRecord,
 ) -> Result<(), Box<dyn std::error::Error>> {
+	validate_pending(pending)?;
 	let _lock = exclusive_lock(lock_path)?;
 	let mut file = File::open(outbox)?;
 	let metadata = file.metadata()?;
-	if source_id(&metadata)? != pending.source || metadata.len() < pending.end {
+	if source_id(&metadata)? != pending.source
+		|| metadata.len() < pending.end
+		|| pending.prefix_len > metadata.len()
+	{
 		return Err("pending provider outbox source generation changed".into());
 	}
 	verify_source_prefix(&mut file, pending.prefix_len, &pending.prefix_hash)?;
@@ -636,6 +760,8 @@ fn record_receipt(
 	ledger: &mut ReceiptLedger,
 	receipt: FinalizedReceipt,
 ) -> Result<(), Box<dyn std::error::Error>> {
+	validate_ledger(ledger)?;
+	validate_receipt(&receipt)?;
 	if let Some(existing) =
 		ledger.entries.iter().find(|entry| entry.record_hash == receipt.record_hash)
 	{
@@ -662,9 +788,12 @@ fn advance_cursor(
 		|| cursor.prefix_len != pending.prefix_len
 		|| cursor.prefix_hash != pending.prefix_hash
 	{
-		return Err("provider outbox cursor can advance only across the exact contiguous record".into());
+		return Err(
+			"provider outbox cursor can advance only across the exact contiguous record".into()
+		);
 	}
 	cursor.offset = pending.end;
+	validate_cursor(cursor)?;
 	atomic_json(path, cursor)
 }
 
@@ -675,6 +804,7 @@ fn compact_if_drained(
 	cursor: &mut Cursor,
 	threshold: u64,
 ) -> Result<(), Box<dyn std::error::Error>> {
+	validate_cursor(cursor)?;
 	if cursor.offset < threshold {
 		return Ok(());
 	}
@@ -685,6 +815,10 @@ fn compact_if_drained(
 	if cursor.source != Some(old_source) || cursor.offset != metadata.len() {
 		return Ok(());
 	}
+	if paths.pending.exists() {
+		return Err("provider outbox cannot compact while a pending record exists".into());
+	}
+	validate_cursor_source(cursor, old_source, metadata.len())?;
 	verify_source_prefix(&mut file, cursor.prefix_len, &cursor.prefix_hash)?;
 	let marker = CompactionMarker {
 		version: STATE_VERSION,
@@ -693,6 +827,7 @@ fn compact_if_drained(
 		prefix_len: cursor.prefix_len,
 		prefix_hash: cursor.prefix_hash.clone(),
 	};
+	validate_marker(&marker)?;
 	atomic_json(&paths.compaction, &marker)?;
 	install_empty_source(outbox)?;
 	let new_source = source_id(&File::open(outbox)?.metadata()?)?;
@@ -710,26 +845,63 @@ fn recover_compaction(
 	paths: &StatePaths,
 ) -> Result<(), Box<dyn std::error::Error>> {
 	let Some(marker) = load_json::<CompactionMarker>(&paths.compaction)? else { return Ok(()) };
-	ensure_version(marker.version)?;
+	validate_marker(&marker)?;
+	if paths.pending.exists() {
+		return Err(
+			"provider outbox cannot recover compaction while a pending record exists".into()
+		);
+	}
+	let mut cursor = load_json::<Cursor>(&paths.cursor)?.unwrap_or_default();
+	validate_cursor(&cursor)?;
 	let _lock = exclusive_lock(lock_path)?;
 	let mut file = File::open(outbox)?;
 	let metadata = file.metadata()?;
 	let current = source_id(&metadata)?;
-	let mut cursor = load_json::<Cursor>(&paths.cursor)?.unwrap_or_default();
 	if current == marker.old_source {
-		verify_source_prefix(&mut file, marker.prefix_len, &marker.prefix_hash)?;
-		if metadata.len() != marker.consumed_len {
-			remove_durable(&paths.compaction)?;
-			return Ok(());
+		if cursor.source != Some(marker.old_source)
+			|| cursor.offset != marker.consumed_len
+			|| cursor.prefix_len != marker.prefix_len
+			|| cursor.prefix_hash != marker.prefix_hash
+		{
+			return Err(
+				"provider outbox compaction marker does not match the durable cursor".into()
+			);
 		}
+		validate_cursor_source(&cursor, current, metadata.len())?;
+		if metadata.len() != marker.consumed_len {
+			return Err("provider outbox compaction source length changed".into());
+		}
+		verify_source_prefix(&mut file, marker.prefix_len, &marker.prefix_hash)?;
 		install_empty_source(outbox)?;
+		let new_source = source_id(&File::open(outbox)?.metadata()?)?;
+		cursor.source = Some(new_source);
+		cursor.offset = 0;
+		cursor.prefix_len = 0;
+		cursor.prefix_hash = blake3::hash(&[]).to_hex().to_string();
+		atomic_json(&paths.cursor, &cursor)?;
+		return remove_durable(&paths.compaction);
 	}
-	let new_source = source_id(&File::open(outbox)?.metadata()?)?;
-	cursor.source = Some(new_source);
-	cursor.offset = 0;
-	cursor.prefix_len = 0;
-	cursor.prefix_hash = blake3::hash(&[]).to_hex().to_string();
-	atomic_json(&paths.cursor, &cursor)?;
+
+	if metadata.len() != 0 {
+		return Err("provider outbox rotated compaction source is not empty".into());
+	}
+	let old_cursor = cursor.source == Some(marker.old_source)
+		&& cursor.offset == marker.consumed_len
+		&& cursor.prefix_len == marker.prefix_len
+		&& cursor.prefix_hash == marker.prefix_hash;
+	let reset_cursor = cursor.source == Some(current)
+		&& cursor.offset == 0
+		&& cursor.prefix_len == 0
+		&& cursor.prefix_hash == blake3::hash(&[]).to_hex().to_string();
+	if old_cursor {
+		cursor.source = Some(current);
+		cursor.offset = 0;
+		cursor.prefix_len = 0;
+		cursor.prefix_hash = blake3::hash(&[]).to_hex().to_string();
+		atomic_json(&paths.cursor, &cursor)?;
+	} else if !reset_cursor {
+		return Err("provider outbox compaction marker does not match a recoverable cursor".into());
+	}
 	remove_durable(&paths.compaction)
 }
 
@@ -837,6 +1009,20 @@ mod tests {
 		})
 	}
 
+	fn finalized_receipt(pending: &PendingRecord) -> FinalizedReceipt {
+		FinalizedReceipt {
+			key: pending.key.clone(),
+			record_hash: pending.record_hash.clone(),
+			source: pending.source,
+			start: pending.start,
+			end: pending.end,
+			prefix_len: pending.prefix_len,
+			prefix_hash: pending.prefix_hash.clone(),
+			block_hash: format!("0x{}", "31".repeat(32)),
+			extrinsic_hash: format!("0x{}", "32".repeat(32)),
+		}
+	}
+
 	#[test]
 	fn supported_submission_maps_only_to_runtime_valid_idempotent_manifest_deletion() {
 		let (_, deletion) = command(manifest_submission()).unwrap();
@@ -903,8 +1089,8 @@ mod tests {
 			start: 0,
 			end: line.len() as u64,
 			record_hash: blake3::hash(line.as_bytes()).to_hex().to_string(),
-			prefix_len: 0,
-			prefix_hash: blake3::hash(&[]).to_hex().to_string(),
+			prefix_len: line.len() as u64,
+			prefix_hash: blake3::hash(line.as_bytes()).to_hex().to_string(),
 			key: "manifest-deletion-1".into(),
 			line: line.clone(),
 		};
@@ -912,18 +1098,13 @@ mod tests {
 		assert_eq!(load_json::<PendingRecord>(&paths.pending).unwrap().unwrap().line, line);
 		assert!(load_json::<Cursor>(&paths.cursor).unwrap().is_none());
 		let mut ledger = ReceiptLedger::default();
-		record_receipt(
-			&paths.receipts,
-			&mut ledger,
-			FinalizedReceipt {
-				key: pending.key.clone(),
-				record_hash: pending.record_hash.clone(),
-				block_hash: "0x01".into(),
-				extrinsic_hash: "0x02".into(),
-			},
-		)
-		.unwrap();
-		let mut cursor = Cursor { source: Some(source), ..Cursor::default() };
+		record_receipt(&paths.receipts, &mut ledger, finalized_receipt(&pending)).unwrap();
+		let mut cursor = Cursor {
+			source: Some(source),
+			prefix_len: pending.prefix_len,
+			prefix_hash: pending.prefix_hash.clone(),
+			..Cursor::default()
+		};
 		advance_cursor(&paths.cursor, &mut cursor, &pending).unwrap();
 		assert_eq!(load_json::<Cursor>(&paths.cursor).unwrap().unwrap().offset, pending.end);
 	}
@@ -981,36 +1162,31 @@ mod tests {
 			start: 0,
 			end: line.len() as u64,
 			record_hash: blake3::hash(line.as_bytes()).to_hex().to_string(),
-			prefix_len: 0,
-			prefix_hash: blake3::hash(&[]).to_hex().to_string(),
+			prefix_len: line.len() as u64,
+			prefix_hash: blake3::hash(line.as_bytes()).to_hex().to_string(),
 			key: "manifest-deletion-restart".into(),
 			line,
 		};
 		atomic_json(&paths.pending, &pending).unwrap();
-		let mut cursor = Cursor { source: Some(source), ..Cursor::default() };
+		let mut cursor = Cursor {
+			source: Some(source),
+			prefix_len: pending.prefix_len,
+			prefix_hash: pending.prefix_hash.clone(),
+			..Cursor::default()
+		};
 		let mut ledger = ReceiptLedger::default();
 		assert!(!recover_local_finality(&paths, &mut cursor, &ledger, &pending).unwrap());
 		assert!(paths.pending.exists());
 
-		record_receipt(
-			&paths.receipts,
-			&mut ledger,
-			FinalizedReceipt {
-				key: pending.key.clone(),
-				record_hash: pending.record_hash.clone(),
-				block_hash: "block".into(),
-				extrinsic_hash: "tx".into(),
-			},
-		)
-		.unwrap();
+		record_receipt(&paths.receipts, &mut ledger, finalized_receipt(&pending)).unwrap();
 		assert!(recover_local_finality(&paths, &mut cursor, &ledger, &pending).unwrap());
 		assert_eq!(cursor.offset, pending.end);
 		assert!(!paths.pending.exists());
 
 		atomic_json(&paths.pending, &pending).unwrap();
 		assert!(recover_local_finality(&paths, &mut cursor, &ReceiptLedger::default(), &pending)
-			.unwrap());
-		assert!(!paths.pending.exists());
+			.is_err());
+		assert!(paths.pending.exists());
 	}
 
 	struct CountingTransport(std::sync::atomic::AtomicUsize);
@@ -1042,8 +1218,8 @@ mod tests {
 				start: 0,
 				end: line.len() as u64,
 				record_hash: blake3::hash(line.as_bytes()).to_hex().to_string(),
-				prefix_len: 0,
-				prefix_hash: blake3::hash(&[]).to_hex().to_string(),
+				prefix_len: line.len() as u64,
+				prefix_hash: blake3::hash(line.as_bytes()).to_hex().to_string(),
 				key: "manifest-deletion-corrupt-cursor".into(),
 				line: line.clone(),
 			};
@@ -1066,23 +1242,77 @@ mod tests {
 		}
 	}
 
+	#[tokio::test]
+	async fn end_cursor_requires_exact_receipt_before_pending_deletion_or_transport() {
+		let line = serde_json::to_string(&manifest_submission()).unwrap() + "\n";
+		for wrong_receipt in [false, true] {
+			let temp = tempfile::tempdir().unwrap();
+			let outbox = temp.path().join("outbox.jsonl");
+			let receipts = temp.path().join("receipts.json");
+			let paths = StatePaths::new(&receipts);
+			fs::write(&outbox, &line).unwrap();
+			let source = source_id(&File::open(&outbox).unwrap().metadata().unwrap()).unwrap();
+			let pending = PendingRecord {
+				version: STATE_VERSION,
+				source,
+				start: 0,
+				end: line.len() as u64,
+				record_hash: blake3::hash(line.as_bytes()).to_hex().to_string(),
+				prefix_len: line.len() as u64,
+				prefix_hash: blake3::hash(line.as_bytes()).to_hex().to_string(),
+				key: "manifest-deletion-end-cursor".into(),
+				line: line.clone(),
+			};
+			atomic_json(&paths.pending, &pending).unwrap();
+			atomic_json(
+				&paths.cursor,
+				&Cursor {
+					version: STATE_VERSION,
+					source: Some(source),
+					offset: pending.end,
+					prefix_len: pending.prefix_len,
+					prefix_hash: pending.prefix_hash.clone(),
+				},
+			)
+			.unwrap();
+			if wrong_receipt {
+				let mut receipt = finalized_receipt(&pending);
+				receipt.start = 1;
+				atomic_json(
+					&paths.receipts,
+					&ReceiptLedger { version: STATE_VERSION, entries: vec![receipt] },
+				)
+				.unwrap();
+			}
+			let transport = CountingTransport(std::sync::atomic::AtomicUsize::new(0));
+			let signer = AccountId::new("provider").unwrap();
+
+			assert!(consume(&outbox, &receipts, &signer, &transport).await.is_err());
+			assert_eq!(transport.0.load(std::sync::atomic::Ordering::SeqCst), 0);
+			assert!(paths.pending.exists());
+			assert_eq!(fs::read(&outbox).unwrap(), line.as_bytes());
+		}
+	}
+
 	#[test]
 	fn receipts_are_bounded_and_exact_replays_are_stable() {
 		let temp = tempfile::tempdir().unwrap();
 		let path = temp.path().join("receipts.json");
 		let mut ledger = ReceiptLedger::default();
 		for index in 0..MAX_RECEIPTS + 50 {
-			record_receipt(
-				&path,
-				&mut ledger,
-				FinalizedReceipt {
-					key: format!("key-{index}"),
-					record_hash: format!("hash-{index}"),
-					block_hash: "block".into(),
-					extrinsic_hash: "tx".into(),
-				},
-			)
-			.unwrap();
+			let line = format!("record-{index}\n");
+			let pending = PendingRecord {
+				version: STATE_VERSION,
+				source: SourceId { device: 1, inode: index as u64 + 1 },
+				start: index as u64,
+				end: index as u64 + line.len() as u64,
+				record_hash: blake3::hash(line.as_bytes()).to_hex().to_string(),
+				prefix_len: line.len() as u64,
+				prefix_hash: blake3::hash(line.as_bytes()).to_hex().to_string(),
+				key: format!("key-{index}"),
+				line,
+			};
+			record_receipt(&path, &mut ledger, finalized_receipt(&pending)).unwrap();
 		}
 		assert_eq!(ledger.entries.len(), MAX_RECEIPTS);
 		assert_eq!(ledger.entries.first().unwrap().key, "key-50");
@@ -1111,14 +1341,154 @@ mod tests {
 		let marker = CompactionMarker {
 			version: STATE_VERSION,
 			old_source: new_source,
-			consumed_len: 0,
-			prefix_len: 0,
-			prefix_hash: blake3::hash(&[]).to_hex().to_string(),
+			consumed_len: 1,
+			prefix_len: 1,
+			prefix_hash: blake3::hash(b"x").to_hex().to_string(),
 		};
 		atomic_json(&paths.compaction, &marker).unwrap();
 		fs::write(&outbox, b"late\n").unwrap();
-		recover_compaction(&outbox, &suffixed(&outbox, ".lock"), &paths).unwrap();
+		assert!(recover_compaction(&outbox, &suffixed(&outbox, ".lock"), &paths).is_err());
 		assert_eq!(fs::read(&outbox).unwrap(), b"late\n");
+		assert!(paths.compaction.exists());
+	}
+
+	#[test]
+	fn compaction_recovery_accepts_only_exact_crash_phase_bindings() {
+		for crash_phase in 0..3 {
+			let temp = tempfile::tempdir().unwrap();
+			let outbox = temp.path().join("outbox.jsonl");
+			let paths = StatePaths::new(&temp.path().join("receipts.json"));
+			let bytes = b"one\ntwo\n";
+			fs::write(&outbox, bytes).unwrap();
+			let old_source = source_id(&File::open(&outbox).unwrap().metadata().unwrap()).unwrap();
+			let marker = CompactionMarker {
+				version: STATE_VERSION,
+				old_source,
+				consumed_len: bytes.len() as u64,
+				prefix_len: bytes.len() as u64,
+				prefix_hash: blake3::hash(bytes).to_hex().to_string(),
+			};
+			let old_cursor = Cursor {
+				version: STATE_VERSION,
+				source: Some(old_source),
+				offset: bytes.len() as u64,
+				prefix_len: bytes.len() as u64,
+				prefix_hash: marker.prefix_hash.clone(),
+			};
+			atomic_json(&paths.cursor, &old_cursor).unwrap();
+			atomic_json(&paths.compaction, &marker).unwrap();
+
+			if crash_phase > 0 {
+				install_empty_source(&outbox).unwrap();
+			}
+			if crash_phase > 1 {
+				let new_source =
+					source_id(&File::open(&outbox).unwrap().metadata().unwrap()).unwrap();
+				atomic_json(
+					&paths.cursor,
+					&Cursor { source: Some(new_source), ..Cursor::default() },
+				)
+				.unwrap();
+			}
+
+			recover_compaction(&outbox, &suffixed(&outbox, ".lock"), &paths).unwrap();
+			assert!(fs::read(&outbox).unwrap().is_empty());
+			assert!(!paths.compaction.exists());
+			let recovered = load_json::<Cursor>(&paths.cursor).unwrap().unwrap();
+			let current = source_id(&File::open(&outbox).unwrap().metadata().unwrap()).unwrap();
+			assert_eq!(recovered.source, Some(current));
+			assert_eq!(recovered.offset, 0);
+		}
+	}
+
+	#[tokio::test]
+	async fn corrupted_loaded_state_fails_before_transport_or_source_mutation() {
+		for corruption in 0..4 {
+			let temp = tempfile::tempdir().unwrap();
+			let outbox = temp.path().join("outbox.jsonl");
+			let receipts = temp.path().join("receipts.json");
+			let paths = StatePaths::new(&receipts);
+			fs::write(&outbox, b"record\n").unwrap();
+			let source = source_id(&File::open(&outbox).unwrap().metadata().unwrap()).unwrap();
+			match corruption {
+				0 => atomic_json(
+					&paths.cursor,
+					&Cursor {
+						version: STATE_VERSION,
+						source: Some(source),
+						offset: 0,
+						prefix_len: SOURCE_PREFIX_BYTES + 1,
+						prefix_hash: blake3::hash(&[]).to_hex().to_string(),
+					},
+				)
+				.unwrap(),
+				1 => {
+					let prototype = PendingRecord {
+						version: STATE_VERSION,
+						source,
+						start: 0,
+						end: 7,
+						record_hash: blake3::hash(b"record\n").to_hex().to_string(),
+						prefix_len: 7,
+						prefix_hash: blake3::hash(b"record\n").to_hex().to_string(),
+						key: "key".into(),
+						line: "record\n".into(),
+					};
+					let entries = (0..=MAX_RECEIPTS)
+						.map(|index| {
+							let mut receipt = finalized_receipt(&prototype);
+							receipt.key = format!("key-{index}");
+							receipt.record_hash =
+								blake3::hash(format!("record-{index}").as_bytes())
+									.to_hex()
+									.to_string();
+							receipt
+						})
+						.collect();
+					atomic_json(
+						&paths.receipts,
+						&ReceiptLedger { version: STATE_VERSION, entries },
+					)
+					.unwrap();
+				},
+				2 => {
+					let pending = PendingRecord {
+						version: STATE_VERSION + 1,
+						source,
+						start: 0,
+						end: 7,
+						record_hash: blake3::hash(b"record\n").to_hex().to_string(),
+						prefix_len: 7,
+						prefix_hash: blake3::hash(b"record\n").to_hex().to_string(),
+						key: "key".into(),
+						line: "record\n".into(),
+					};
+					atomic_json(&paths.pending, &pending).unwrap();
+				},
+				_ => {
+					let marker = CompactionMarker {
+						version: STATE_VERSION,
+						old_source: source,
+						consumed_len: 7,
+						prefix_len: SOURCE_PREFIX_BYTES + 1,
+						prefix_hash: blake3::hash(b"record\n").to_hex().to_string(),
+					};
+					atomic_json(&paths.compaction, &marker).unwrap();
+				},
+			}
+			let transport = CountingTransport(std::sync::atomic::AtomicUsize::new(0));
+			let signer = AccountId::new("provider").unwrap();
+
+			assert!(consume(&outbox, &receipts, &signer, &transport).await.is_err());
+			assert_eq!(transport.0.load(std::sync::atomic::Ordering::SeqCst), 0);
+			assert_eq!(fs::read(&outbox).unwrap(), b"record\n");
+			if corruption == 2 {
+				assert!(paths.pending.exists());
+			}
+			if corruption == 3 {
+				assert!(paths.compaction.exists());
+			}
+		}
 	}
 
 	#[test]
