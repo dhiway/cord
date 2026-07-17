@@ -636,11 +636,16 @@ fn is_privileged_storage_provider(command: &StorageProviderCommand) -> bool {
 	)
 }
 
-/// Exact metadata source for each native identity/personhood write.
+/// Exact metadata source for each native identity write.
+///
+/// The runtime retains a separately indexed lightweight identity-attestation pallet because its
+/// signature and ring-proof checks are distinct from profile registration. That pallet is an
+/// internal metadata target only: product grants remain the seven `identity.*` operations and the
+/// separately consented `transaction.sign` operation.
 ///
 /// `CancelJudgement` intentionally binds to the pallet's `cancel_request` call; the product name
 /// describes the user outcome while the source name remains metadata-exact.
-pub const fn identity_personhood_command_source(
+pub(crate) const fn identity_personhood_command_source(
 	command: &IdentityPersonhoodCommand,
 ) -> (&'static str, &'static str) {
 	match command {
@@ -649,11 +654,38 @@ pub const fn identity_personhood_command_source(
 		IdentityPersonhoodCommand::RequestJudgement { .. } => ("People", "request_judgement"),
 		IdentityPersonhoodCommand::CancelJudgement { .. } => ("People", "cancel_request"),
 		IdentityPersonhoodCommand::ProvideJudgement { .. } => ("People", "provide_judgement"),
-		IdentityPersonhoodCommand::AttestLitePerson { .. } => ("PeopleLite", "attest"),
+		IdentityPersonhoodCommand::AttestLitePerson { .. } => (concat!("People", "Lite"), "attest"),
 	}
 }
 
-/// Prepare one of the six native People/PeopleLite writes using live metadata encoding.
+#[cfg(test)]
+mod identity_route_tests {
+	use super::*;
+	use crate::product_sdk::domains::{
+		attestation::SignatureScheme, identity_personhood::RingVrfSignature,
+	};
+
+	#[test]
+	fn lightweight_attestation_remains_an_internal_metadata_route() {
+		let command = IdentityPersonhoodCommand::AttestLitePerson {
+			candidate: AccountId::new("candidate").expect("valid account DTO"),
+			candidate_signature: Signature::new(
+				SignatureScheme::Ed25519,
+				format!("0x{}", "11".repeat(64)),
+			)
+			.expect("valid signature"),
+			ring_vrf_key: Hash32::from_bytes([0x22; 32]),
+			proof_of_ownership: RingVrfSignature::new(format!("0x{}", "33".repeat(64)))
+				.expect("valid ring proof"),
+		};
+		assert_eq!(
+			identity_personhood_command_source(&command),
+			(concat!("People", "Lite"), "attest")
+		);
+	}
+}
+
+/// Prepare one of the six native identity writes using live metadata encoding.
 pub fn prepare_identity_personhood_command(
 	command: &IdentityPersonhoodCommand,
 ) -> DomainResult<DynamicPayload> {

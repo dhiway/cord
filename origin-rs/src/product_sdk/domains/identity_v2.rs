@@ -1352,6 +1352,17 @@ mod tests {
 	}
 
 	#[test]
+	fn unified_identity_keeps_seven_grants_and_separate_signing() {
+		let identity_operations = IdentityV2Operation::ALL
+			.into_iter()
+			.filter(|operation| operation.name().starts_with("identity."))
+			.count();
+		assert_eq!(identity_operations, 7);
+		assert_eq!(IdentityV2Operation::ALL.len(), 8);
+		assert_eq!(IdentityV2Operation::TransactionSign.name(), "transaction.sign");
+	}
+
+	#[test]
 	fn grants_are_isolated_and_transaction_signing_is_separate() {
 		for (index, operation) in IdentityV2Operation::ALL.iter().copied().enumerate() {
 			let mut journal = FreshConsentJournalV2::default();
@@ -1426,7 +1437,10 @@ mod tests {
 		assert_eq!(value["operation"], "identity.account");
 		assert_eq!(value["input"]["session"], "selected");
 		let mut joined = value;
-		joined.as_object_mut().unwrap().insert("personhood".into(), Value::Bool(true));
+		joined
+			.as_object_mut()
+			.unwrap()
+			.insert("alternateAuthority".into(), Value::Bool(true));
 		assert!(serde_json::from_value::<IdentityInvocationV2>(joined).is_err());
 	}
 

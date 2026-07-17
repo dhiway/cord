@@ -777,10 +777,13 @@ fn festival_mobile_projection_matches_rust_host_v2_bytes_hashes_and_values() {
 			production => panic!("unsupported mobile projection production {production}"),
 		}
 	}
-	assert_eq!(
-		fixture["excluded_legacy_surfaces"],
-		serde_json::json!(["personhood", "PeopleLite", "preimage"]),
-	);
+	let excluded = fixture["excluded_legacy_surfaces"]
+		.as_array()
+		.expect("excluded surfaces are an array");
+	assert!(excluded.iter().any(|surface| surface == "preimage"));
+	for operation in crate::product_sdk::domains::identity_v2::IdentityV2Operation::ALL {
+		assert!(!excluded.iter().any(|surface| surface == operation.name()));
+	}
 
 	let request_vector = vectors.iter().find(|vector| vector["code"] == 1000).unwrap();
 	let resume_vector =
