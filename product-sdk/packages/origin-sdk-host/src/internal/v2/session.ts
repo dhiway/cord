@@ -270,6 +270,20 @@ export class HostV2Session {
     this.requestId = requestId.slice() as RequestId;
   }
 
+  static resume(
+    negotiated: HostV2Negotiated,
+    requestId: RequestId,
+    nextSequence: number,
+  ): HostV2Session {
+    if (!Number.isSafeInteger(nextSequence) || nextSequence < 1) {
+      throw new HostV2SessionError("resumed host-v2 sequence must be a positive safe integer");
+    }
+    const session = new HostV2Session(negotiated, requestId);
+    session.nextSequence = nextSequence;
+    session.accepted = true;
+    return session;
+  }
+
   get isTerminal(): boolean {
     return this.terminal;
   }
@@ -280,6 +294,10 @@ export class HostV2Session {
 
   get negotiation(): HostV2Negotiated {
     return snapshotNegotiatedHostV2State(this.negotiated);
+  }
+
+  get nextExpectedSequence(): number {
+    return this.nextSequence;
   }
 
   private sequenceFault(message: string): never {
