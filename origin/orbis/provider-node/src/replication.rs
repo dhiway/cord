@@ -276,18 +276,72 @@ pub(crate) struct ReplicationIntentStore {
 	limit: usize,
 }
 
+pub(crate) struct PreparedReplicationIntentStore {
+	root: PathBuf,
+	root_missing: bool,
+	records: BTreeMap<String, ReplicationIntentV1>,
+	scheduler: SchedulerStateV1,
+	scheduler_missing: bool,
+	durable_bytes: u64,
+	temp_artifacts: Vec<PathBuf>,
+	limit: usize,
+}
+
+impl PreparedReplicationIntentStore {
+	pub(crate) fn apply(self) -> Result<ReplicationIntentStore, ContentError> {
+		crate::bounded_io::create_prepared_directory(&self.root, self.root_missing)?;
+		crate::bounded_io::remove_validated_temp_artifacts(&self.root, &self.temp_artifacts)?;
+		let scheduler = self.scheduler;
+		let store = ReplicationIntentStore {
+			root: self.root,
+			records: RwLock::new(self.records),
+			scheduler: RwLock::new(scheduler.clone()),
+			durable_bytes: RwLock::new(self.durable_bytes),
+			poisoned: RwLock::new(false),
+			fault: RwLock::new(None),
+			limit: self.limit,
+		};
+		if self.scheduler_missing {
+			store.persist_scheduler(&scheduler)?;
+		}
+		Ok(store)
+	}
+}
+
 impl ReplicationIntentStore {
 	pub(crate) fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
 		Self::open_with_limit(root, MAX_RECORDS)
 	}
 
+	pub(crate) fn prepare_open(
+		root: impl AsRef<Path>,
+	) -> Result<PreparedReplicationIntentStore, ContentError> {
+		Self::prepare_open_with_limit(root, MAX_RECORDS)
+	}
+
 	fn open_with_limit(root: impl AsRef<Path>, limit: usize) -> Result<Self, ContentError> {
+		Self::prepare_open_with_limit(root, limit)?.apply()
+	}
+
+	fn prepare_open_with_limit(
+		root: impl AsRef<Path>,
+		limit: usize,
+	) -> Result<PreparedReplicationIntentStore, ContentError> {
 		if limit == 0 || limit > MAX_RECORDS {
 			return Err(ContentError::SchemaInvalid);
 		}
 		let root = root.as_ref().join(ROOT);
-		fs::create_dir_all(&root).map_err(io_error)?;
-		let loaded = read_state(&root, limit)?;
+		let root_missing = !crate::bounded_io::optional_directory_exists(&root)?;
+		let loaded = if root_missing {
+			ReadState {
+				records: Vec::new(),
+				scheduler: None,
+				durable_bytes: 0,
+				temp_artifacts: Vec::new(),
+			}
+		} else {
+			read_state(&root, limit)?
+		};
 		let mut records = BTreeMap::new();
 		for file in loaded.records {
 			let record: ReplicationIntentV1 =
@@ -299,6 +353,7 @@ impl ReplicationIntentStore {
 				return Err(ContentError::IntegrityFailed);
 			}
 		}
+		let scheduler_missing = loaded.scheduler.is_none();
 		let scheduler = match loaded.scheduler {
 			Some(bytes) => {
 				let scheduler: SchedulerStateV1 =
@@ -308,21 +363,16 @@ impl ReplicationIntentStore {
 			},
 			None => new_scheduler()?,
 		};
-		crate::bounded_io::remove_validated_temp_artifacts(&root, &loaded.temp_artifacts)?;
-		let store = Self {
+		Ok(PreparedReplicationIntentStore {
 			root,
-			records: RwLock::new(records),
-			scheduler: RwLock::new(scheduler),
-			durable_bytes: RwLock::new(loaded.durable_bytes),
-			poisoned: RwLock::new(false),
-			fault: RwLock::new(None),
+			root_missing,
+			records,
+			scheduler,
+			scheduler_missing,
+			durable_bytes: loaded.durable_bytes,
+			temp_artifacts: loaded.temp_artifacts,
 			limit,
-		};
-		if !store.root.join(SCHEDULER).exists() {
-			let scheduler = store.scheduler.read().map_err(|_| lock_error())?.clone();
-			store.persist_scheduler(&scheduler)?;
-		}
-		Ok(store)
+		})
 	}
 
 	pub(crate) fn plan_session(
@@ -1207,10 +1257,7 @@ fn read_state(root: &Path, limit: usize) -> Result<ReadState, ContentError> {
 		if !item.file_type().map_err(io_error)?.is_file() {
 			return Err(ContentError::IntegrityFailed);
 		}
-		let bytes = crate::bounded_io::read_regular_file(
-			item.path(),
-			MAX_RECORD_BYTES as u64,
-		)?;
+		let bytes = crate::bounded_io::read_regular_file(item.path(), MAX_RECORD_BYTES as u64)?;
 		durable_bytes = durable_bytes
 			.checked_add(bytes.len() as u64)
 			.ok_or(ContentError::IntegrityFailed)?;
@@ -2359,11 +2406,8 @@ mod tests {
 			planned.next_sequence,
 			b"completed before source partition".to_vec(),
 		);
-		let completed_cursor = (
-			completed.next_sequence,
-			completed.cumulative_total,
-			completed.last_completed.clone(),
-		);
+		let completed_cursor =
+			(completed.next_sequence, completed.cumulative_total, completed.last_completed.clone());
 		let admitted = with_verified_page(&store, completed, b"inflight source proof");
 		assert!(admitted.admitted_page.is_some());
 		assert!(admitted.outstanding_request.is_some());
@@ -2381,11 +2425,7 @@ mod tests {
 		.unwrap();
 		let replacement_operation = [42; 16];
 		let replanned = store
-			.replan_source(
-				&admitted.intent_key,
-				&replacement_session,
-				replacement_operation,
-			)
+			.replan_source(&admitted.intent_key, &replacement_session, replacement_operation)
 			.unwrap();
 
 		assert_eq!(replanned.intent_key, admitted.intent_key);
