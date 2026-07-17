@@ -84,14 +84,6 @@ impl OwnedLockedRegularFile {
 		&self.file
 	}
 
-	pub(crate) fn identity(&self) -> FileIdentity {
-		self.identity
-	}
-
-	pub(crate) fn length(&self) -> u64 {
-		self.length
-	}
-
 	pub(crate) fn validate(&self) -> Result<(), ContentError> {
 		let metadata = self.file.metadata().map_err(io_error)?;
 		if !metadata.is_file() ||
