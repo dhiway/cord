@@ -222,6 +222,31 @@ fn exclusive_lock(path: &Path) -> Result<LockedFile, Box<dyn std::error::Error>>
 	Ok(LockedFile(file))
 }
 
+fn exclusive_existing_lock(path: &Path) -> Result<LockedFile, Box<dyn std::error::Error>> {
+	use rustix::fs::{Mode, OFlags};
+
+	let path_metadata = fs::symlink_metadata(path)?;
+	if path_metadata.file_type().is_symlink() || !path_metadata.is_file() {
+		return Err("canonical provider outbox lock is not a regular file".into())
+	}
+	let file = File::from(rustix::fs::open(
+		path,
+		OFlags::RDWR | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+		Mode::empty(),
+	)?);
+	let identity = source_id(&file.metadata()?)?;
+	if source_id(&path_metadata)? != identity {
+		return Err("canonical provider outbox lock changed while opening".into())
+	}
+	FileExt::lock_exclusive(&file)?;
+	let current = fs::symlink_metadata(path)?;
+	if current.file_type().is_symlink() || !current.is_file() || source_id(&current)? != identity {
+		FileExt::unlock(&file)?;
+		return Err("canonical provider outbox lock changed while acquiring".into())
+	}
+	Ok(LockedFile(file))
+}
+
 #[derive(Debug)]
 struct OutboxRecord {
 	source: SourceId,
@@ -266,6 +291,9 @@ async fn consume<T: ProviderOutboxTransport>(
 	let paths = StatePaths::new(receipts);
 	let _consumer = exclusive_lock(&paths.consumer_lock)?;
 	let outbox_lock_path = suffixed(outbox, ".lock");
+	// One exact, no-follow canonical lock covers the complete consume transaction. Helper phases
+	// never reopen or create the provider-owned coordination file.
+	let _outbox_lock = exclusive_existing_lock(&outbox_lock_path)?;
 	let mut cursor = load_json::<Cursor>(&paths.cursor)?.unwrap_or_default();
 	let mut ledger = load_json::<ReceiptLedger>(&paths.receipts)?.unwrap_or_default();
 	let pending = load_json::<PendingRecord>(&paths.pending)?;
@@ -589,12 +617,11 @@ fn is_prefixed_hash(value: &str) -> bool {
 
 fn read_batch(
 	outbox: &Path,
-	lock_path: &Path,
+	_lock_path: &Path,
 	cursor_path: &Path,
 	cursor: &mut Cursor,
 ) -> Result<Vec<OutboxRecord>, Box<dyn std::error::Error>> {
 	validate_cursor(cursor)?;
-	let _lock = exclusive_lock(lock_path)?;
 	let open_outbox = || {
 		File::open(outbox).map_err(|error| {
 			if error.kind() == std::io::ErrorKind::NotFound {
@@ -700,11 +727,10 @@ fn hash_prefix(file: &mut File, len: u64) -> Result<String, Box<dyn std::error::
 
 fn verify_pending_source(
 	outbox: &Path,
-	lock_path: &Path,
+	_lock_path: &Path,
 	pending: &PendingRecord,
 ) -> Result<(), Box<dyn std::error::Error>> {
 	validate_pending(pending)?;
-	let _lock = exclusive_lock(lock_path)?;
 	let mut file = File::open(outbox)?;
 	let metadata = file.metadata()?;
 	if source_id(&metadata)? != pending.source
@@ -857,7 +883,7 @@ fn advance_cursor(
 
 fn compact_if_drained(
 	outbox: &Path,
-	lock_path: &Path,
+	_lock_path: &Path,
 	paths: &StatePaths,
 	cursor: &mut Cursor,
 	threshold: u64,
@@ -866,7 +892,6 @@ fn compact_if_drained(
 	if cursor.offset < threshold {
 		return Ok(());
 	}
-	let _lock = exclusive_lock(lock_path)?;
 	let mut file = File::open(outbox)?;
 	let metadata = file.metadata()?;
 	let old_source = source_id(&metadata)?;
@@ -899,7 +924,7 @@ fn compact_if_drained(
 
 fn recover_compaction(
 	outbox: &Path,
-	lock_path: &Path,
+	_lock_path: &Path,
 	paths: &StatePaths,
 	cursor: &mut Cursor,
 	marker: Option<&CompactionMarker>,
@@ -913,7 +938,6 @@ fn recover_compaction(
 		);
 	}
 	validate_cursor(&cursor)?;
-	let _lock = exclusive_lock(lock_path)?;
 	let mut file = File::open(outbox)?;
 	let metadata = file.metadata()?;
 	let current = source_id(&metadata)?;
@@ -1045,6 +1069,21 @@ fn native_error(error: impl std::fmt::Display) -> OriginSdkError {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn provider_lock_must_preexist_and_is_never_created_by_the_consumer() {
+		let temp = tempfile::tempdir().unwrap();
+		let lock = temp.path().join("provider-submissions-v3.jsonl.lock");
+		assert!(exclusive_existing_lock(&lock).is_err());
+		assert!(!lock.exists());
+		fs::write(&lock, b"").unwrap();
+		let held = exclusive_existing_lock(&lock).unwrap();
+		let contender = OpenOptions::new().read(true).write(true).open(&lock).unwrap();
+		assert!(FileExt::try_lock_exclusive(&contender).is_err());
+		drop(held);
+		FileExt::try_lock_exclusive(&contender).unwrap();
+		FileExt::unlock(&contender).unwrap();
+	}
 	use origin_orbis_provider::ManifestDeletionSubmission;
 
 	fn write_records(path: &Path, count: usize, payload: usize) {

@@ -292,6 +292,7 @@ impl ArmedJsonlStartup {
 			}
 		}
 		let lock = self.lock.canonical_guard();
+		FileExt::unlock(self.lock.file()).map_err(|error| error.to_string())?;
 		*root_capability = Some(InstalledOutboxRoot {
 			directory: self.directory,
 			lock_file: installed_lock,
@@ -998,6 +999,12 @@ struct AcquiredOutboxLock {
 	expected: PreparedFileGuard,
 }
 
+impl Drop for AcquiredOutboxLock {
+	fn drop(&mut self) {
+		let _ = FileExt::unlock(&self.file);
+	}
+}
+
 impl AcquiredOutboxLock {
 	fn validate(&self) -> Result<(), String> {
 		validate_open_file(&self.file, &self.expected)?;
@@ -1601,6 +1608,28 @@ mod tests {
 		assert!(outbox.submit_manifest_deletion(manifest_deletion("91")).await.is_err());
 		assert_eq!(fs::read(source).unwrap(), original);
 		assert_eq!(fs::read(lock).unwrap(), b"replacement");
+	}
+
+	#[tokio::test]
+	async fn qualified_exact_lock_fd_is_unlocked_when_idle_and_released_after_each_guard() {
+		let temp = tempfile::tempdir().unwrap();
+		let outbox = JsonlManifestDeletionOutbox::for_provider_root(temp.path());
+		qualify(&outbox);
+		let lock_path = temp.path().join(MANIFEST_DELETION_OUTBOX_LOCK_FILE);
+		let contender = fs::OpenOptions::new()
+			.read(true)
+			.write(true)
+			.open(&lock_path)
+			.unwrap();
+		FileExt::try_lock_exclusive(&contender).unwrap();
+		FileExt::unlock(&contender).unwrap();
+
+		let (directory, lock_file, expected) = outbox.installed_root_capability().unwrap();
+		let guard = outbox.lock_outbox(&directory, lock_file, &expected).await.unwrap();
+		assert!(FileExt::try_lock_exclusive(&contender).is_err());
+		drop(guard);
+		FileExt::try_lock_exclusive(&contender).unwrap();
+		FileExt::unlock(&contender).unwrap();
 	}
 
 	#[cfg(unix)]
