@@ -685,6 +685,10 @@ impl CapabilityReplayInspector for Fresh {
 
 pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(), ContentError> {
 	let mut terminal_operations = std::collections::BTreeSet::new();
+	let mut recovery_identities = std::collections::BTreeSet::new();
+	let mut acknowledgement_selectors = std::collections::BTreeSet::new();
+	let mut accepted_roots = std::collections::BTreeSet::new();
+	let mut successor_tokens = std::collections::BTreeSet::new();
 	let mut chains: std::collections::BTreeMap<String, Vec<&RecoveryRecord>> =
 		std::collections::BTreeMap::new();
 	for (stored_key, record) in &state.recovery {
@@ -699,6 +703,22 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 		let nonce: [u8; 16] = decode_hex(&record.nonce)?;
 		let host_key: [u8; 32] = decode_hex(&record.host_key_id)?;
 		let provider: [u8; 32] = decode_hex(&record.provider)?;
+		if !recovery_identities.insert((host_key, operation, record.generation)) ||
+			!acknowledgement_selectors.insert((
+				host_key,
+				request_id,
+				operation,
+				record.generation,
+				decode_hex::<32>(&record.response_hash)?,
+			)) || (record.effect == RecoveryEffect::Accepted &&
+			!accepted_roots.insert((host_key, operation))) ||
+			record
+				.successor_token
+				.as_ref()
+				.is_some_and(|token| !successor_tokens.insert(token.clone()))
+		{
+			return Err(ContentError::IntegrityFailed)
+		}
 		let chunk_hash = match record.effect {
 			RecoveryEffect::Accepted | RecoveryEffect::Installed | RecoveryEffect::Cancelled => {
 				if !record.chunk_hash.is_empty() {
@@ -1157,6 +1177,12 @@ impl StreamingStore {
 		if state.capability_replay.contains_key(&replay_key) {
 			return Err(CapabilityError::CapabilityNonceReplay.into())
 		}
+		ensure_recovery_identity_available(
+			&state,
+			capability.issuer_key_id,
+			request.operation_id,
+			0,
+		)?;
 		ensure_recovery_capacity(&state, 1, 1)?;
 		let operation_key = operation_key(&descriptor);
 		if state.operations.contains_key(&operation_key) {
@@ -1194,6 +1220,7 @@ impl StreamingStore {
 		}
 		.signed(signer);
 		let token_bytes = token.canonical_bytes();
+		ensure_successor_token_available(&state, &token_bytes)?;
 		let retain_until = capability
 			.expires_at
 			.checked_add(RECOVERY_TTL)
@@ -1334,7 +1361,7 @@ impl StreamingStore {
 		let (prior_snapshot, accepted) = {
 			let state = self.read_state()?;
 			let prior = predecessor(&state, token_bytes)?.clone();
-			let accepted = accepted_root(&state, &prior.descriptor)?.clone();
+			let accepted = accepted_root(&state, &prior.descriptor, token.host_key_id)?.clone();
 			(prior, accepted)
 		};
 		let recorded_service_key = decode_hex(&prior_snapshot.successor_public_key)?;
@@ -1365,6 +1392,12 @@ impl StreamingStore {
 				now,
 			)
 		}
+		ensure_recovery_identity_available(
+			&state,
+			token.host_key_id,
+			token.operation_id,
+			token.generation,
+		)?;
 		ensure_recovery_capacity(&state, 1, 0)?;
 		let prior = predecessor(&state, token_bytes)?;
 		if prior.cursor != token.cursor || prior.provider != hex::encode(local_provider) {
@@ -1415,6 +1448,7 @@ impl StreamingStore {
 		}
 		.signed(signer);
 		let successor_bytes = successor.canonical_bytes();
+		ensure_successor_token_available(&state, &successor_bytes)?;
 		let descriptor = prior.descriptor.clone();
 		let effect_state_hash = effect_state_hash(
 			RecoveryEffect::Progress,
@@ -1534,7 +1568,7 @@ impl StreamingStore {
 		let (prior_snapshot, accepted) = {
 			let state = self.read_state()?;
 			let prior = predecessor(&state, token_bytes)?.clone();
-			let accepted = accepted_root(&state, &prior.descriptor)?.clone();
+			let accepted = accepted_root(&state, &prior.descriptor, token.host_key_id)?.clone();
 			(prior, accepted)
 		};
 		let recorded_service_key = decode_hex(&prior_snapshot.successor_public_key)?;
@@ -1557,6 +1591,12 @@ impl StreamingStore {
 				now,
 			)
 		}
+		ensure_recovery_identity_available(
+			&state,
+			token.host_key_id,
+			token.operation_id,
+			token.generation,
+		)?;
 		ensure_terminal_capacity(&state)?;
 		validate_install_sequences(&state)?;
 		let prior = predecessor(&state, token_bytes)?;
@@ -1679,7 +1719,7 @@ impl StreamingStore {
 		let (prior_snapshot, accepted) = {
 			let state = self.read_state()?;
 			let prior = predecessor(&state, token_bytes)?.clone();
-			let accepted = accepted_root(&state, &prior.descriptor)?.clone();
+			let accepted = accepted_root(&state, &prior.descriptor, token.host_key_id)?.clone();
 			(prior, accepted)
 		};
 		let recorded_service_key = decode_hex(&prior_snapshot.successor_public_key)?;
@@ -1706,13 +1746,15 @@ impl StreamingStore {
 				now,
 			)
 		}
+		ensure_recovery_identity_available(
+			&state,
+			token.host_key_id,
+			token.operation_id,
+			token.generation,
+		)?;
 		ensure_terminal_capacity(&state)?;
 		let encoded_token = hex::encode(token_bytes);
-		let prior = state
-			.recovery
-			.values()
-			.find(|record| record.successor_token.as_deref() == Some(encoded_token.as_str()))
-			.ok_or(RecoveryError::ResumeReplay)?;
+		let prior = predecessor(&state, token_bytes)?;
 		if prior.cursor != token.cursor || prior.provider != hex::encode(local_provider) {
 			return Err(RecoveryError::ResumeReplay)
 		}
@@ -1874,19 +1916,28 @@ impl StreamingStore {
 		Ok(())
 	}
 
-	pub(crate) fn acknowledge_response(&self, ack_bytes: &[u8]) -> Result<Vec<u8>, RecoveryError> {
+	/// Durably acknowledge one exact PUT response for the host authenticated by the caller.
+	pub(crate) fn acknowledge_response(
+		&self,
+		authenticated_host_key_id: [u8; 32],
+		ack_bytes: &[u8],
+	) -> Result<Vec<u8>, RecoveryError> {
 		let ack = ResponseAckV1::decode(ack_bytes)?;
 		let mut state = self.write_state()?;
-		let key = state
+		let mut matches = state
 			.recovery
 			.iter()
-			.find(|(_, r)| {
-				r.request_id == hex::encode(ack.request_id) &&
+			.filter(|(_, r)| {
+				r.host_key_id == hex::encode(authenticated_host_key_id) &&
+					r.request_id == hex::encode(ack.request_id) &&
 					r.operation_id == hex::encode(ack.operation_id) &&
 					r.generation == ack.generation
 			})
-			.map(|(k, _)| k.clone())
-			.ok_or(ContentError::NotFound)?;
+			.map(|(key, _)| key.clone());
+		let key = matches.next().ok_or(ContentError::NotFound)?;
+		if matches.next().is_some() {
+			return Err(ContentError::IntegrityFailed.into())
+		}
 		let record = state.recovery.get(&key).expect("found");
 		if record.response_hash != hex::encode(ack.response_hash) {
 			return Err(ContentError::IdempotencyConflict.into())
@@ -1904,8 +1955,10 @@ impl StreamingStore {
 		.map_err(|_| ContentError::IntegrityFailed)?;
 		entry.acknowledged = true;
 		record.entry_cbor = hex::encode(entry.canonical_bytes());
+		self.trip_fault(StreamingFault::BeforeRecoveryAckCommit)?;
 		persist_state(&self.root, &next)?;
 		*state = next;
+		self.trip_fault(StreamingFault::AfterRecoveryAckCommit)?;
 		Ok(response)
 	}
 }
@@ -1968,7 +2021,13 @@ pub(super) fn append_installed_terminal(
 		return Err(ContentError::IntegrityFailed)
 	}
 	let key = recovery_key(token.host_key_id, token.operation_id, token.generation, token.nonce);
-	if state.recovery.contains_key(&key) || state.recovery.len() >= MAX_STREAMING_OPERATIONS {
+	if state.recovery.contains_key(&key) ||
+		state.recovery.len() >= MAX_STREAMING_OPERATIONS ||
+		state.recovery.values().any(|record| {
+			record.host_key_id == hex::encode(token.host_key_id) &&
+				record.operation_id == hex::encode(token.operation_id) &&
+				record.generation == token.generation
+		}) {
 		return Err(ContentError::IntegrityFailed)
 	}
 	let response_sequence =
@@ -2084,29 +2143,77 @@ fn ensure_terminal_capacity(state: &super::JournalState) -> Result<(), RecoveryE
 	Ok(())
 }
 
+fn ensure_recovery_identity_available(
+	state: &super::JournalState,
+	host_key_id: [u8; 32],
+	operation_id: [u8; 16],
+	generation: u64,
+) -> Result<(), RecoveryError> {
+	let host_key_id = hex::encode(host_key_id);
+	let operation_id = hex::encode(operation_id);
+	if state.recovery.values().any(|record| {
+		record.host_key_id == host_key_id &&
+			record.operation_id == operation_id &&
+			record.generation == generation
+	}) {
+		Err(if generation == 0 {
+			ContentError::IdempotencyConflict.into()
+		} else {
+			RecoveryError::ResumeReplay
+		})
+	} else {
+		Ok(())
+	}
+}
+
+fn ensure_successor_token_available(
+	state: &super::JournalState,
+	token_bytes: &[u8],
+) -> Result<(), RecoveryError> {
+	let encoded = hex::encode(token_bytes);
+	if state
+		.recovery
+		.values()
+		.any(|record| record.successor_token.as_deref() == Some(encoded.as_str()))
+	{
+		Err(ContentError::IntegrityFailed.into())
+	} else {
+		Ok(())
+	}
+}
+
 fn predecessor<'a>(
 	state: &'a super::JournalState,
 	token_bytes: &[u8],
 ) -> Result<&'a RecoveryRecord, RecoveryError> {
 	let encoded = hex::encode(token_bytes);
-	state
+	let mut matches = state
 		.recovery
 		.values()
-		.find(|record| record.successor_token.as_deref() == Some(encoded.as_str()))
-		.ok_or(RecoveryError::ResumeReplay)
+		.filter(|record| record.successor_token.as_deref() == Some(encoded.as_str()));
+	let predecessor = matches.next().ok_or(RecoveryError::ResumeReplay)?;
+	if matches.next().is_some() {
+		return Err(ContentError::IntegrityFailed.into())
+	}
+	Ok(predecessor)
 }
 
 fn accepted_root<'a>(
 	state: &'a super::JournalState,
 	descriptor: &StreamingDescriptor,
+	host_key_id: [u8; 32],
 ) -> Result<&'a RecoveryRecord, RecoveryError> {
-	state
-		.recovery
-		.values()
-		.find(|record| {
-			record.effect == RecoveryEffect::Accepted && record.descriptor == *descriptor
-		})
-		.ok_or_else(|| ContentError::IntegrityFailed.into())
+	let host_key_id = hex::encode(host_key_id);
+	let mut matches = state.recovery.values().filter(|record| {
+		record.effect == RecoveryEffect::Accepted &&
+			record.descriptor == *descriptor &&
+			record.host_key_id == host_key_id
+	});
+	let root = matches.next().ok_or(ContentError::IntegrityFailed)?;
+	if matches.next().is_some() {
+		return Err(ContentError::IntegrityFailed.into())
+	}
+	Ok(root)
 }
 
 fn validate_fresh_resume_authority(
@@ -2495,6 +2602,29 @@ mod tests {
 		(request, capability, snapshot, service)
 	}
 
+	fn host_bucket_fixture(
+		host_seed: u8,
+		issuer_key_id: [u8; 32],
+		grant_id: [u8; 32],
+		bucket_id: [u8; 32],
+	) -> (ObjectPutRequestV2, ProviderCapabilityV1, CapabilityAuthoritySnapshot, ed25519::Pair) {
+		let (mut request, mut capability, mut snapshot, service) = fixture();
+		let host = ed25519::Pair::from_seed(&[host_seed; 32]);
+		request.grant_id = grant_id;
+		request.bucket_id = bucket_id;
+		capability.grant_id = grant_id;
+		capability.issuer_key_id = issuer_key_id;
+		capability.bucket_id = bucket_id;
+		capability.signature = sp_core::Pair::sign(&host, &capability.signed_preimage()).0;
+		snapshot.delegation.grant_id = H256(grant_id);
+		snapshot.delegation.bucket_id = H256(bucket_id);
+		snapshot.delegation.issuer_key_id = H256(issuer_key_id);
+		snapshot.delegation.issuer_public_key = host.public().0;
+		snapshot.bucket.bucket_id = H256(bucket_id);
+		snapshot.agreement.as_mut().expect("fixture agreement").bucket_id = H256(bucket_id);
+		(request, capability, snapshot, service)
+	}
+
 	fn stage_complete_object(
 		root: &std::path::Path,
 	) -> (StreamingStore, Vec<u8>, CapabilityAuthoritySnapshot, ed25519::Pair, Vec<u8>) {
@@ -2633,7 +2763,7 @@ mod tests {
 			response_hash: installed.response_hash,
 		}
 		.canonical_bytes();
-		store.acknowledge_response(&ack).unwrap();
+		store.acknowledge_response([6; 32], &ack).unwrap();
 		drop(store);
 		let reopened = StreamingStore::open(temp.path()).unwrap();
 		assert_eq!(
@@ -2649,6 +2779,143 @@ mod tests {
 		assert!(state.recovery.is_empty());
 		assert!(state.capability_replay.is_empty());
 		assert_eq!(state.operations.len(), 1);
+	}
+
+	#[test]
+	fn response_ack_is_host_bound_unique_and_crash_safe_across_equal_wire_selectors() {
+		let temp = TempDir::new().unwrap();
+		let (request_a, capability_a, snapshot_a, service) = fixture();
+		let (request_b, capability_b, snapshot_b, _) =
+			host_bucket_fixture(8, [16; 32], [13; 32], [15; 32]);
+		assert_eq!(request_a.request_id, request_b.request_id);
+		assert_eq!(request_a.operation_id, request_b.operation_id);
+		assert_ne!(request_a.bucket_id, request_b.bucket_id);
+		assert_ne!(capability_a.issuer_key_id, capability_b.issuer_key_id);
+
+		let store = StreamingStore::open(temp.path()).unwrap();
+		let accepted_a = store
+			.accept_object_put(
+				&request_a.canonical_bytes(),
+				&capability_a.canonical_bytes(),
+				&snapshot_a,
+				service.public().0,
+				&service,
+				[10; 16],
+			)
+			.unwrap();
+		let accepted_b = store
+			.accept_object_put(
+				&request_b.canonical_bytes(),
+				&capability_b.canonical_bytes(),
+				&snapshot_b,
+				service.public().0,
+				&service,
+				[10; 16],
+			)
+			.unwrap();
+		assert_eq!(accepted_a.response_hash, accepted_b.response_hash);
+		assert_eq!(accepted_a.response, accepted_b.response);
+
+		let ack = ResponseAckV1 {
+			request_id: request_a.request_id,
+			operation_id: request_a.operation_id,
+			generation: 0,
+			response_hash: accepted_a.response_hash,
+		}
+		.canonical_bytes();
+		assert_eq!(store.acknowledge_response([99; 32], &ack), Err(ContentError::NotFound.into()));
+		let mut changed_hash = ResponseAckV1::decode(&ack).unwrap();
+		changed_hash.response_hash = [99; 32];
+		assert_eq!(
+			store.acknowledge_response(capability_a.issuer_key_id, &changed_hash.canonical_bytes()),
+			Err(ContentError::IdempotencyConflict.into())
+		);
+
+		store.inject_fault_once(StreamingFault::BeforeRecoveryAckCommit).unwrap();
+		assert!(store.acknowledge_response(capability_a.issuer_key_id, &ack).is_err());
+		drop(store);
+		let reopened = StreamingStore::open(temp.path()).unwrap();
+		let first_ack = reopened.acknowledge_response(capability_a.issuer_key_id, &ack).unwrap();
+		assert_eq!(
+			reopened.acknowledge_response(capability_a.issuer_key_id, &ack).unwrap(),
+			first_ack
+		);
+		{
+			let state = reopened.state.read().unwrap();
+			assert!(state
+				.recovery
+				.values()
+				.filter(|record| record.acknowledged)
+				.all(|record| record.host_key_id == hex::encode(capability_a.issuer_key_id)));
+			assert_eq!(state.recovery.values().filter(|record| record.acknowledged).count(), 1);
+		}
+
+		reopened.inject_fault_once(StreamingFault::AfterRecoveryAckCommit).unwrap();
+		assert!(reopened.acknowledge_response(capability_b.issuer_key_id, &ack).is_err());
+		drop(reopened);
+		let recovered = StreamingStore::open(temp.path()).unwrap();
+		assert_eq!(
+			recovered.acknowledge_response(capability_b.issuer_key_id, &ack).unwrap(),
+			first_ack
+		);
+		assert_eq!(
+			recovered
+				.state
+				.read()
+				.unwrap()
+				.recovery
+				.values()
+				.filter(|record| record.acknowledged)
+				.count(),
+			2
+		);
+
+		let (same_host_request, mut same_host_capability, same_host_snapshot, _) =
+			host_bucket_fixture(9, capability_a.issuer_key_id, [23; 32], [25; 32]);
+		same_host_capability.nonce = [19; 16];
+		let same_host = ed25519::Pair::from_seed(&[9; 32]);
+		same_host_capability.signature =
+			sp_core::Pair::sign(&same_host, &same_host_capability.signed_preimage()).0;
+		assert_eq!(same_host_request.operation_id, request_a.operation_id);
+		assert_eq!(
+			recovered.accept_object_put(
+				&same_host_request.canonical_bytes(),
+				&same_host_capability.canonical_bytes(),
+				&same_host_snapshot,
+				service.public().0,
+				&service,
+				[20; 16],
+			),
+			Err(ContentError::IdempotencyConflict.into())
+		);
+
+		let mut state = recovered.state.write().unwrap();
+		let mut duplicate = state
+			.recovery
+			.values()
+			.find(|record| {
+				record.effect == RecoveryEffect::Accepted &&
+					record.host_key_id == hex::encode(capability_a.issuer_key_id)
+			})
+			.cloned()
+			.unwrap();
+		let duplicate_nonce = [77; 16];
+		duplicate.nonce = hex::encode(duplicate_nonce);
+		let mut entry =
+			RecoveryEntryV1::decode(&hex::decode(&duplicate.entry_cbor).unwrap()).unwrap();
+		entry.nonce = duplicate_nonce;
+		duplicate.entry_cbor = hex::encode(entry.canonical_bytes());
+		let duplicate_key = recovery_key(
+			capability_a.issuer_key_id,
+			request_a.operation_id,
+			duplicate.generation,
+			duplicate_nonce,
+		);
+		state.recovery.insert(duplicate_key, duplicate);
+		persist_state(&recovered.root, &state).unwrap();
+		drop(state);
+		drop(recovered);
+		assert!(StreamingStore::open(temp.path()).is_err());
 	}
 
 	#[test]
@@ -2884,11 +3151,11 @@ mod tests {
 			response_hash: accepted.response_hash,
 		}
 		.canonical_bytes();
-		let first_ack = store.acknowledge_response(&ack).unwrap();
-		assert_eq!(store.acknowledge_response(&ack).unwrap(), first_ack);
+		let first_ack = store.acknowledge_response([6; 32], &ack).unwrap();
+		assert_eq!(store.acknowledge_response([6; 32], &ack).unwrap(), first_ack);
 		drop(store);
 		let reopened = StreamingStore::open(temp.path()).unwrap();
-		assert_eq!(reopened.acknowledge_response(&ack).unwrap(), first_ack);
+		assert_eq!(reopened.acknowledge_response([6; 32], &ack).unwrap(), first_ack);
 		assert_eq!(
 			reopened
 				.accept_object_put(
@@ -3190,8 +3457,8 @@ mod tests {
 			response_hash: terminal.response_hash,
 		}
 		.canonical_bytes();
-		let acked = store.acknowledge_response(&ack).unwrap();
-		assert_eq!(store.acknowledge_response(&ack).unwrap(), acked);
+		let acked = store.acknowledge_response([6; 32], &ack).unwrap();
+		assert_eq!(store.acknowledge_response([6; 32], &ack).unwrap(), acked);
 		let original_keys = store
 			.state
 			.read()
@@ -3235,7 +3502,7 @@ mod tests {
 				.unwrap(),
 			terminal
 		);
-		assert_eq!(reopened.acknowledge_response(&ack).unwrap(), acked);
+		assert_eq!(reopened.acknowledge_response([6; 32], &ack).unwrap(), acked);
 		assert_eq!(reopened.gc_recovery(384, MAX_STREAMING_OPERATIONS).unwrap(), 0);
 		assert_eq!(reopened.gc_recovery(385, MAX_STREAMING_OPERATIONS).unwrap(), 2);
 		assert!(reopened.state.read().unwrap().recovery.is_empty());
@@ -3621,6 +3888,7 @@ mod tests {
 		crate::capability::tests::executable_vector_fixes_canonical_signature_and_fingerprint_bytes();
 		crate::capability::tests::agreement_lifetime_and_replay_checks_fail_closed();
 		installed_terminal_is_canonical_exact_ackable_and_gc_safe();
+		response_ack_is_host_bound_unique_and_crash_safe_across_equal_wire_selectors();
 		combined_commit_crash_points_recover_old_or_new_for_accept_and_progress();
 		terminal_and_gc_crash_seams_recover_old_or_new_atomically();
 	}

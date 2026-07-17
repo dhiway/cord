@@ -174,6 +174,10 @@ pub enum StreamingFault {
 	BeforeRecoveryGcCommit,
 	/// The bounded GC transition is durable but staged-byte cleanup or completion is absent.
 	AfterRecoveryGcCommit,
+	/// A provider response acknowledgement is validated but not durable.
+	BeforeRecoveryAckCommit,
+	/// A provider response acknowledgement is durable but its reply was not delivered.
+	AfterRecoveryAckCommit,
 	/// Private query response is complete in memory but its cloned journal is not yet durable.
 	BeforePrivateQueryCommit,
 	/// Private query recovery entry is durable but its response has not been delivered.
