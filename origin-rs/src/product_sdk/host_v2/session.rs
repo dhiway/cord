@@ -19,6 +19,7 @@
 use std::collections::BTreeSet;
 
 use ciborium::value::Value;
+use sha2::{Digest, Sha256};
 
 use super::{
 	codec::{CodecError, Dto},
@@ -56,6 +57,34 @@ impl Negotiated {
 
 	pub(crate) fn features(&self) -> &[&'static str] {
 		&self.features
+	}
+
+	pub(crate) fn genesis(&self) -> [u8; 32] {
+		self.genesis
+	}
+
+	pub(crate) fn registry_hash(&self) -> [u8; 32] {
+		hex::decode(self.registry_sha256)
+			.expect("generated registry SHA-256 is hexadecimal")
+			.try_into()
+			.expect("generated registry SHA-256 is 32 bytes")
+	}
+
+	pub(crate) fn binding_digest(&self) -> [u8; 32] {
+		let mut digest = Sha256::new();
+		digest.update(b"cord.origin.host/2/negotiated-tuple/v1");
+		digest.update([self.major]);
+		digest.update(self.minor.to_be_bytes());
+		digest.update(self.genesis);
+		digest.update(self.finalized_spec_version.to_be_bytes());
+		digest.update(self.finalized_transaction_version.to_be_bytes());
+		digest.update(self.registry_hash());
+		digest.update((self.features.len() as u16).to_be_bytes());
+		for feature in &self.features {
+			digest.update((feature.len() as u16).to_be_bytes());
+			digest.update(feature.as_bytes());
+		}
+		digest.finalize().into()
 	}
 }
 
@@ -158,6 +187,21 @@ impl Session {
 			closed: false,
 			negotiated,
 		}
+	}
+
+	pub(crate) fn resume(negotiated: Negotiated, request_id: [u8; 16], next_sequence: u32) -> Self {
+		Self {
+			request_id,
+			next_sequence: u64::from(next_sequence),
+			accepted: true,
+			terminal: false,
+			closed: false,
+			negotiated,
+		}
+	}
+
+	pub(crate) fn next_sequence(&self) -> u32 {
+		self.next_sequence.try_into().expect("host-v2 sequence is bounded by U32")
 	}
 
 	pub(crate) fn is_terminal(&self) -> bool {

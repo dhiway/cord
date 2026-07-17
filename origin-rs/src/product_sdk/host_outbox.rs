@@ -370,6 +370,19 @@ pub(crate) struct HostOutboxResponseAckV1 {
 	pub(crate) response_hash: [u8; 32],
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct HostOutboxBindingV1 {
+	pub(crate) registry_hash: [u8; 32],
+	pub(crate) genesis_hash: [u8; 32],
+	pub(crate) negotiated_tuple: [u8; 32],
+	pub(crate) provider_id: [u8; 32],
+	pub(crate) provider_endpoint_hash: [u8; 32],
+	pub(crate) request_id: [u8; 16],
+	pub(crate) operation_id: [u8; 16],
+	pub(crate) expected_response_kind: u16,
+	pub(crate) intended_cursor: u32,
+}
+
 #[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
 struct LiveRecordV1 {
 	entry_cbor: Vec<u8>,
@@ -428,6 +441,30 @@ pub(crate) struct HostOutboxStoreV1 {
 }
 
 impl HostOutboxStoreV1 {
+	pub(crate) fn context_binding(&self) -> ([u8; 32], [u8; 32]) {
+		(self.context.registry_hash, self.context.genesis_hash)
+	}
+
+	pub(crate) fn binding(
+		&self,
+		outbox_id: [u8; 16],
+	) -> Result<HostOutboxBindingV1, HostOutboxError> {
+		let records = self.records.read().map_err(|_| HostOutboxError::Unavailable)?;
+		let live = live(records.get(&outbox_id).ok_or(HostOutboxError::StateInvalid)?)?;
+		let entry = decode_entry(live)?;
+		Ok(HostOutboxBindingV1 {
+			registry_hash: entry.registry_hash,
+			genesis_hash: entry.genesis_hash,
+			negotiated_tuple: entry.negotiated_tuple,
+			provider_id: entry.provider_id,
+			provider_endpoint_hash: entry.provider_endpoint_hash,
+			request_id: entry.request_id,
+			operation_id: entry.operation_id,
+			expected_response_kind: entry.expected_response_kind,
+			intended_cursor: entry.intended_cursor,
+		})
+	}
+
 	/// Open and authenticate every durable entry. One corrupt entry is quarantined and fails open.
 	pub(crate) fn open(
 		root: impl AsRef<Path>,
@@ -637,6 +674,50 @@ impl HostOutboxStoreV1 {
 			}
 			entry.state = HostOutboxStateV1::Sent;
 			Ok((None, None, None, None, false, false))
+		})
+	}
+
+	/// Replace a live request with its byte-exact terminal cancel before the cancel may be sent.
+	pub(crate) fn prepare_cancel(
+		&self,
+		outbox_id: [u8; 16],
+		exact_cancel_bytes: Vec<u8>,
+		next_sequence: u32,
+		nonce: [u8; 24],
+	) -> Result<HostOutboxRetryV1, HostOutboxError> {
+		if exact_cancel_bytes.is_empty() || exact_cancel_bytes.len() > MAX_REQUEST_BYTES {
+			return Err(HostOutboxError::Corrupt);
+		}
+		let cancel = exact_cancel_bytes.clone();
+		self.rewrite_live(
+			outbox_id,
+			nonce,
+			move |entry, response, ack, successor, cursor, attempted, terminal| {
+				if !matches!(entry.state, HostOutboxStateV1::Prepared | HostOutboxStateV1::Sent)
+					|| response.is_some()
+					|| ack.is_some()
+					|| terminal
+				{
+					return Err(HostOutboxError::StateInvalid);
+				}
+				entry.exact_request_bytes = cancel;
+				entry.request_fingerprint = request_fingerprint(
+					&entry.exact_request_bytes,
+					&entry.exact_authority_bytes,
+				);
+				entry.intended_cursor = next_sequence;
+				entry.expected_response_kind = 4;
+				entry.state = HostOutboxStateV1::Prepared;
+				Ok((None, None, successor, cursor, attempted, false))
+			},
+		)?;
+		let records = self.records.read().map_err(|_| HostOutboxError::Unavailable)?;
+		let live = live(records.get(&outbox_id).ok_or(HostOutboxError::StateInvalid)?)?;
+		let entry = decode_entry(live)?;
+		Ok(HostOutboxRetryV1 {
+			request: entry.exact_request_bytes,
+			authority: entry.exact_authority_bytes,
+			fingerprint: entry.request_fingerprint,
 		})
 	}
 

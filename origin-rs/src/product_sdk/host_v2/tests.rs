@@ -141,8 +141,8 @@ fn cancelled(request_id: [u8; 16], sequence: u64) -> Vec<u8> {
 fn outbox_context() -> HostOutboxContextV1 {
 	HostOutboxContextV1 {
 		profile_id: [0x11; 32],
-		registry_hash: [0x11; 32],
-		genesis_hash: [0x22; 32],
+		registry_hash: negotiated().registry_hash(),
+		genesis_hash: negotiated().genesis(),
 	}
 }
 
@@ -156,17 +156,36 @@ fn outbox_input() -> PrepareHostOutboxV1 {
 	let hex = root["base_vector"]["canonical_cbor_hex"].as_str().expect("outbox vector hex");
 	let entry = HostOutboxEntryV1::decode(&hex::decode(hex).expect("valid outbox vector hex"))
 		.expect("valid frozen outbox entry");
+	let mut authority =
+		Dto::<generated::ProviderCapabilityV1>::decode(&entry.exact_authority_bytes)
+			.expect("frozen authority is canonical")
+			.value()
+			.clone();
+	let Value::Map(fields) = &mut authority else { unreachable!() };
+	for (key, value) in fields {
+		let Value::Integer(key) = key else { continue };
+		match u64::try_from(*key).ok() {
+			Some(1) => *value = Value::Bytes(negotiated().registry_hash().to_vec()),
+			Some(2) => *value = Value::Bytes(negotiated().genesis().to_vec()),
+			Some(8) => *value = Value::Bytes([0x11; 32].to_vec()),
+			_ => {},
+		}
+	}
+	let authority = Dto::<generated::ProviderCapabilityV1>::from_value(authority)
+		.expect("bound authority remains canonical")
+		.canonical()
+		.to_vec();
 	PrepareHostOutboxV1 {
 		outbox_id: entry.outbox_id,
 		exact_request_bytes: entry.exact_request_bytes,
-		exact_authority_bytes: entry.exact_authority_bytes,
+		exact_authority_bytes: authority,
 		request_id: entry.request_id,
 		operation_id: entry.operation_id,
 		generation: entry.generation,
 		intended_cursor: entry.intended_cursor,
-		negotiated_tuple: entry.negotiated_tuple,
+		negotiated_tuple: negotiated().binding_digest(),
 		provider_id: entry.provider_id,
-		provider_endpoint_hash: entry.provider_endpoint_hash,
+		provider_endpoint_hash: [0x22; 32],
 		expected_response_kind: entry.expected_response_kind,
 		created_at: entry.created_at,
 		authority_expires_at: entry.authority_expires_at,
@@ -178,6 +197,8 @@ fn desktop_peer() -> DesktopPeerIdentity {
 		endpoint: "/private/test/cord-origin-host-v2.sock".into(),
 		process_id: Some(std::process::id()),
 		user_id: Some(1_000),
+		provider_id: [0x11; 32],
+		provider_endpoint_hash: [0x22; 32],
 	}
 }
 
@@ -519,12 +540,12 @@ fn desktop_outbox_commit_restart_resume_cancel_ack_and_gc_are_loss_safe() {
 	let mut desktop = DurableDesktopHostV2::new(transport, &store);
 	desktop.prepare_and_send(input, [1; 24], [2; 24]).unwrap();
 	assert_eq!(
-		desktop.receive_event(id, 200, [8; 24], [9; 24]).unwrap(),
+		desktop.receive_event(200, [8; 24], [9; 24]).unwrap(),
 		DurableDesktopEvent::NonTerminal(accepted)
 	);
 	store.inject_fault_once(HostOutboxFault::AfterDirectoryFsync).unwrap();
 	assert!(matches!(
-		desktop.receive_event(id, 200, [3; 24], [4; 24]),
+		desktop.receive_event(200, [3; 24], [4; 24]),
 		Err(DesktopTransportError::Outbox(HostOutboxError::Unavailable))
 	));
 	drop(desktop);
@@ -685,7 +706,7 @@ fn desktop_stream_abort_after_send_preserves_the_exact_durable_retry() {
 	let durable = desktop.prepare_and_send(input, [1; 24], [2; 24]).unwrap();
 	server.join().unwrap();
 	assert!(matches!(
-		desktop.receive_event(id, 200, [3; 24], [4; 24]),
+		desktop.receive_event(200, [3; 24], [4; 24]),
 		Err(DesktopTransportError::FrameTruncated)
 	));
 	drop(desktop);
@@ -694,4 +715,226 @@ fn desktop_stream_abort_after_send_preserves_the_exact_durable_retry() {
 	let reopened =
 		HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
 	assert_eq!(reopened.retry_request(id, 200).unwrap(), durable);
+}
+
+#[cfg(unix)]
+#[test]
+fn desktop_binding_operation_and_response_contract_mismatches_emit_no_ack_or_request() {
+	use std::{io::Read, os::unix::net::UnixStream, thread, time::Duration};
+
+	let root = tempfile::tempdir().unwrap();
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let input = outbox_input();
+	let id = input.outbox_id;
+	store.prepare(input.clone(), [1; 24]).unwrap();
+
+	let mut wrong_peer = desktop_peer();
+	wrong_peer.provider_endpoint_hash = [0x99; 32];
+	let (client, mut server) = UnixStream::pair().unwrap();
+	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&wrong_peer,
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	assert!(matches!(desktop.resume_and_send(id, 200), Err(DesktopTransportError::RequestBinding)));
+	let mut byte = [0u8; 1];
+	assert!(matches!(
+		server.read(&mut byte).unwrap_err().kind(),
+		std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+	));
+	drop(desktop);
+
+	let response = cancelled(input.request_id, 0);
+	store.install_response(id, response, None, None, Some(200), [2; 24]).unwrap();
+	let (client, mut server) = UnixStream::pair().unwrap();
+	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&wrong_peer,
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	assert!(matches!(desktop.resume_ack(id, [3; 24]), Err(DesktopTransportError::RequestBinding)));
+	assert!(matches!(
+		server.read(&mut byte).unwrap_err().kind(),
+		std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+	));
+	drop(desktop);
+	drop(store);
+
+	let root = tempfile::tempdir().unwrap();
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let mut mismatched = outbox_input();
+	mismatched.operation_id = [0xee; 16];
+	let (client, mut server) = UnixStream::pair().unwrap();
+	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	assert!(matches!(
+		desktop.prepare_and_send(mismatched, [4; 24], [5; 24]),
+		Err(DesktopTransportError::RequestBinding)
+	));
+	assert!(matches!(
+		server.read(&mut byte).unwrap_err().kind(),
+		std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+	));
+	drop(desktop);
+
+	let mut input = outbox_input();
+	input.outbox_id = [0x77; 16];
+	input.expected_response_kind = 2;
+	let request_id = input.request_id;
+	let (client, mut server) = UnixStream::pair().unwrap();
+	let accepted = accepted(request_id, 0);
+	let cancel = cancelled(request_id, 1);
+	let server_thread = thread::spawn(move || {
+		read_frame(&mut server).unwrap();
+		read_frame(&mut server).unwrap();
+		write_frame(&mut server, &accepted).unwrap();
+		write_frame(&mut server, &cancel).unwrap();
+		matches!(read_frame(&mut server), Err(DesktopTransportError::FrameTruncated))
+	});
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	desktop.prepare_and_send(input, [6; 24], [7; 24]).unwrap();
+	assert!(matches!(
+		desktop.receive_event(200, [10; 24], [11; 24]).unwrap(),
+		DurableDesktopEvent::NonTerminal(_)
+	));
+	assert!(matches!(
+		desktop.receive_event(200, [8; 24], [9; 24]),
+		Err(DesktopTransportError::RequestBinding)
+	));
+	drop(desktop);
+	assert!(server_thread.join().unwrap(), "response-kind mismatch emitted an ack");
+}
+
+#[cfg(unix)]
+#[test]
+fn desktop_cancel_is_durable_before_send_and_resumes_after_each_loss_boundary() {
+	use std::{io::Read, os::unix::net::UnixStream, thread, time::Duration};
+
+	let root = tempfile::tempdir().unwrap();
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let input = outbox_input();
+	let id = input.outbox_id;
+	let accepted = accepted(input.request_id, 0);
+	let cancel = cancelled(input.request_id, 1);
+	let (client, mut server) = UnixStream::pair().unwrap();
+	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	desktop.prepare_and_send(input, [1; 24], [2; 24]).unwrap();
+	assert_eq!(read_frame(&mut server).unwrap().len() > 0, true);
+	assert_eq!(read_frame(&mut server).unwrap().len() > 0, true);
+	write_frame(&mut server, &accepted).unwrap();
+	assert!(matches!(
+		desktop.receive_event(200, [3; 24], [4; 24]).unwrap(),
+		DurableDesktopEvent::NonTerminal(_)
+	));
+
+	store.inject_fault_once(HostOutboxFault::BeforeTempFsync).unwrap();
+	assert!(matches!(
+		desktop.prepare_cancel_and_send(cancel.clone(), [5; 24], [6; 24]),
+		Err(DesktopTransportError::Outbox(HostOutboxError::Unavailable))
+	));
+	let mut byte = [0u8; 1];
+	assert!(matches!(
+		server.read(&mut byte).unwrap_err().kind(),
+		std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+	));
+	drop(desktop);
+	drop(store);
+	drop(server);
+
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let (client, mut server) = UnixStream::pair().unwrap();
+	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	desktop.resume_and_send(id, 200).unwrap();
+	read_frame(&mut server).unwrap();
+	read_frame(&mut server).unwrap();
+	write_frame(&mut server, &accepted).unwrap();
+	assert!(matches!(
+		desktop.receive_event(200, [13; 24], [14; 24]).unwrap(),
+		DurableDesktopEvent::NonTerminal(_)
+	));
+	store.inject_fault_once(HostOutboxFault::AfterDirectoryFsync).unwrap();
+	assert!(matches!(
+		desktop.prepare_cancel_and_send(cancel.clone(), [7; 24], [8; 24]),
+		Err(DesktopTransportError::Outbox(HostOutboxError::Unavailable))
+	));
+	assert!(matches!(
+		server.read(&mut byte).unwrap_err().kind(),
+		std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+	));
+	drop(desktop);
+	drop(store);
+	drop(server);
+
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let durable_cancel = store.retry_request(id, 200).unwrap();
+	assert_eq!(durable_cancel.request, cancel);
+	let (client, mut server) = UnixStream::pair().unwrap();
+	let cancelled_response = cancel.clone();
+	let server_thread = thread::spawn(move || {
+		let sent_cancel = read_frame(&mut server).unwrap();
+		read_frame(&mut server).unwrap();
+		write_frame(&mut server, &cancelled_response).unwrap();
+		let ack = read_frame(&mut server).unwrap();
+		(sent_cancel, ack)
+	});
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	assert_eq!(desktop.resume_and_send(id, 200).unwrap(), durable_cancel);
+	let terminal = desktop.receive_event(200, [9; 24], [10; 24]).unwrap();
+	let DurableDesktopEvent::Terminal { response_hash, .. } = terminal else { panic!() };
+	let (sent_cancel, ack) = server_thread.join().unwrap();
+	assert_eq!(sent_cancel, cancel);
+	assert_eq!(ack, store.retry_response_ack(id).unwrap().bytes);
+	desktop.confirm_terminal(id, response_hash, [11; 24], [12; 24]).unwrap();
 }

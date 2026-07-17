@@ -26,12 +26,12 @@ use std::{
 use ciborium::value::Value;
 
 use crate::product_sdk::host_outbox::{
-	HostOutboxError, HostOutboxRetryV1, HostOutboxStoreV1, PrepareHostOutboxV1,
+	HostOutboxBindingV1, HostOutboxError, HostOutboxRetryV1, HostOutboxStoreV1, PrepareHostOutboxV1,
 };
 
 use super::{
 	codec::{CodecError, Dto},
-	generated::{ProviderCapabilityV1, RequestV2, ResponseAckV1, ResumeTokenV1},
+	generated::{CancelledEventV2, ProviderCapabilityV1, RequestV2, ResponseAckV1, ResumeTokenV1},
 	session::{negotiate, Negotiated, NegotiationError, NegotiationOffer, Session, SessionError},
 };
 
@@ -42,6 +42,8 @@ pub(crate) struct DesktopPeerIdentity {
 	pub(crate) endpoint: PathBuf,
 	pub(crate) process_id: Option<u32>,
 	pub(crate) user_id: Option<u32>,
+	pub(crate) provider_id: [u8; 32],
+	pub(crate) provider_endpoint_hash: [u8; 32],
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
@@ -187,6 +189,8 @@ pub(crate) struct DesktopHostV2Transport<S> {
 	negotiated: Negotiated,
 	session: Option<Session>,
 	closed: bool,
+	binding: HostOutboxBindingV1,
+	_peer: DesktopPeerIdentity,
 }
 
 impl<S: Read + Write> DesktopHostV2Transport<S> {
@@ -199,7 +203,25 @@ impl<S: Read + Write> DesktopHostV2Transport<S> {
 	) -> Result<Self, DesktopTransportError> {
 		binding.bind(peer)?;
 		let negotiated = negotiate(local, remote)?;
-		Ok(Self { stream, negotiated, session: None, closed: false })
+		let transport_binding = HostOutboxBindingV1 {
+			registry_hash: negotiated.registry_hash(),
+			genesis_hash: negotiated.genesis(),
+			negotiated_tuple: negotiated.binding_digest(),
+			provider_id: peer.provider_id,
+			provider_endpoint_hash: peer.provider_endpoint_hash,
+			request_id: [0; 16],
+			operation_id: [0; 16],
+			expected_response_kind: 0,
+			intended_cursor: 0,
+		};
+		Ok(Self {
+			stream,
+			negotiated,
+			session: None,
+			closed: false,
+			binding: transport_binding,
+			_peer: peer.clone(),
+		})
 	}
 
 	fn begin(&mut self, request_id: [u8; 16]) -> Result<(), DesktopTransportError> {
@@ -207,6 +229,18 @@ impl<S: Read + Write> DesktopHostV2Transport<S> {
 			return Err(DesktopTransportError::Closed);
 		}
 		self.session = Some(Session::new(self.negotiated.clone(), request_id));
+		Ok(())
+	}
+
+	fn resume_session(
+		&mut self,
+		request_id: [u8; 16],
+		next_sequence: u32,
+	) -> Result<(), DesktopTransportError> {
+		if self.closed || self.session.is_some() {
+			return Err(DesktopTransportError::Closed);
+		}
+		self.session = Some(Session::resume(self.negotiated.clone(), request_id, next_sequence));
 		Ok(())
 	}
 
@@ -260,6 +294,15 @@ impl<S: Read + Write> DesktopHostV2Transport<S> {
 pub(crate) struct DurableDesktopHostV2<'a, S> {
 	transport: DesktopHostV2Transport<S>,
 	outbox: &'a HostOutboxStoreV1,
+	active: Option<ActiveDesktopRequest>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ActiveDesktopRequest {
+	outbox_id: [u8; 16],
+	request_id: [u8; 16],
+	operation_id: [u8; 16],
+	expected_response_kind: u16,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -270,7 +313,7 @@ pub(crate) enum DurableDesktopEvent {
 
 impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 	pub(crate) fn new(transport: DesktopHostV2Transport<S>, outbox: &'a HostOutboxStoreV1) -> Self {
-		Self { transport, outbox }
+		Self { transport, outbox, active: None }
 	}
 
 	/// Validate first, fsync Prepared, and only then write the first provider-visible byte.
@@ -280,19 +323,35 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		prepare_nonce: [u8; 24],
 		mark_sent_nonce: [u8; 24],
 	) -> Result<HostOutboxRetryV1, DesktopTransportError> {
-		let request_id =
-			validate_wire_material(&input.exact_request_bytes, &input.exact_authority_bytes)?;
-		if request_id != input.request_id {
+		self.validate_context()?;
+		let material = validate_wire_material(
+			&input.exact_request_bytes,
+			&input.exact_authority_bytes,
+			&self.transport.binding,
+		)?;
+		if material.request_id != input.request_id ||
+			material.operation_id.is_some_and(|id| id != input.operation_id) ||
+			input.negotiated_tuple != self.transport.binding.negotiated_tuple ||
+			input.provider_id != self.transport.binding.provider_id ||
+			input.provider_endpoint_hash != self.transport.binding.provider_endpoint_hash
+		{
 			return Err(DesktopTransportError::RequestBinding);
 		}
 		let outbox_id = input.outbox_id;
+		let active = ActiveDesktopRequest {
+			outbox_id,
+			request_id: input.request_id,
+			operation_id: input.operation_id,
+			expected_response_kind: input.expected_response_kind,
+		};
 		let retry = self.outbox.prepare(input, prepare_nonce)?;
-		self.transport.begin(request_id)?;
+		self.transport.begin(material.request_id)?;
 		self.transport.send(&retry.request, &retry.authority)?;
 		if let Err(error) = self.outbox.mark_sent(outbox_id, mark_sent_nonce) {
 			self.transport.close();
 			return Err(error.into());
 		}
+		self.active = Some(active);
 		Ok(retry)
 	}
 
@@ -302,10 +361,63 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		outbox_id: [u8; 16],
 		finalized: u64,
 	) -> Result<HostOutboxRetryV1, DesktopTransportError> {
+		self.validate_context()?;
+		let binding = self.outbox.binding(outbox_id)?;
+		self.validate_outbox_binding(&binding)?;
 		let retry = self.outbox.retry_request(outbox_id, finalized)?;
-		let request_id = validate_wire_material(&retry.request, &retry.authority)?;
-		self.transport.begin(request_id)?;
+		let material =
+			validate_wire_material(&retry.request, &retry.authority, &self.transport.binding)?;
+		if material.request_id != binding.request_id ||
+			material.operation_id.is_some_and(|id| id != binding.operation_id)
+		{
+			return Err(DesktopTransportError::RequestBinding);
+		}
+		if material.cancel {
+			self.transport.resume_session(binding.request_id, binding.intended_cursor)?;
+		} else {
+			self.transport.begin(binding.request_id)?;
+		}
 		self.transport.send(&retry.request, &retry.authority)?;
+		self.active = Some(ActiveDesktopRequest {
+			outbox_id,
+			request_id: binding.request_id,
+			operation_id: binding.operation_id,
+			expected_response_kind: binding.expected_response_kind,
+		});
+		Ok(retry)
+	}
+
+	/// Durably replace the live request with an idempotent cancel before sending it.
+	pub(crate) fn prepare_cancel_and_send(
+		&mut self,
+		exact_cancel_bytes: Vec<u8>,
+		prepare_nonce: [u8; 24],
+		mark_sent_nonce: [u8; 24],
+	) -> Result<HostOutboxRetryV1, DesktopTransportError> {
+		let active = self.active.clone().ok_or(DesktopTransportError::Closed)?;
+		let cancel = Dto::<CancelledEventV2>::decode(&exact_cancel_bytes)?;
+		let (request_id, sequence, kind) = event_contract(cancel.value())?;
+		let next_sequence = self
+			.transport
+			.session
+			.as_ref()
+			.ok_or(DesktopTransportError::Closed)?
+			.next_sequence();
+		if request_id != active.request_id || sequence != next_sequence || kind != 4 {
+			return Err(DesktopTransportError::RequestBinding);
+		}
+		let retry = self.outbox.prepare_cancel(
+			active.outbox_id,
+			exact_cancel_bytes,
+			next_sequence,
+			prepare_nonce,
+		)?;
+		self.transport.send(&retry.request, &retry.authority)?;
+		if let Err(error) = self.outbox.mark_sent(active.outbox_id, mark_sent_nonce) {
+			self.transport.close();
+			return Err(error.into());
+		}
+		self.active = Some(ActiveDesktopRequest { expected_response_kind: 4, ..active });
 		Ok(retry)
 	}
 
@@ -313,18 +425,32 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 	/// leave.
 	pub(crate) fn receive_event(
 		&mut self,
-		outbox_id: [u8; 16],
 		terminal_block: u64,
 		install_nonce: [u8; 24],
 		mark_ack_nonce: [u8; 24],
 	) -> Result<DurableDesktopEvent, DesktopTransportError> {
+		let active = self.active.clone().ok_or(DesktopTransportError::Closed)?;
+		let binding = self.outbox.binding(active.outbox_id)?;
+		self.validate_outbox_binding(&binding)?;
+		if binding.request_id != active.request_id ||
+			binding.operation_id != active.operation_id ||
+			binding.expected_response_kind != active.expected_response_kind
+		{
+			return Err(DesktopTransportError::RequestBinding);
+		}
 		let (response, terminal) = self.transport.receive()?;
 		if !terminal {
 			return Ok(DurableDesktopEvent::NonTerminal(response));
 		}
+		let (_, _, kind) =
+			event_contract(Dto::<super::generated::EventV2>::decode(&response)?.value())?;
+		if active.expected_response_kind != 0 && active.expected_response_kind != kind as u16 {
+			self.transport.close();
+			return Err(DesktopTransportError::RequestBinding);
+		}
 		let event = response.clone();
 		let response_hash = match self.outbox.install_response(
-			outbox_id,
+			active.outbox_id,
 			response,
 			None,
 			None,
@@ -337,7 +463,7 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 				return Err(error.into());
 			},
 		};
-		let ack = match self.outbox.retry_response_ack(outbox_id) {
+		let ack = match self.outbox.retry_response_ack(active.outbox_id) {
 			Ok(ack) => ack,
 			Err(error) => {
 				self.transport.close();
@@ -345,7 +471,7 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			},
 		};
 		self.transport.send_ack(&ack.bytes)?;
-		if let Err(error) = self.outbox.mark_ack_sent(outbox_id, mark_ack_nonce) {
+		if let Err(error) = self.outbox.mark_ack_sent(active.outbox_id, mark_ack_nonce) {
 			self.transport.close();
 			return Err(error.into());
 		}
@@ -358,6 +484,9 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		outbox_id: [u8; 16],
 		mark_ack_nonce: [u8; 24],
 	) -> Result<[u8; 32], DesktopTransportError> {
+		self.validate_context()?;
+		let binding = self.outbox.binding(outbox_id)?;
+		self.validate_outbox_binding(&binding)?;
 		let ack = self.outbox.retry_response_ack(outbox_id)?;
 		self.transport.send_ack(&ack.bytes)?;
 		if let Err(error) = self.outbox.mark_ack_sent(outbox_id, mark_ack_nonce) {
@@ -375,32 +504,121 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		confirm_nonce: [u8; 24],
 		compact_nonce: [u8; 24],
 	) -> Result<(), DesktopTransportError> {
+		let binding = self.outbox.binding(outbox_id)?;
+		self.validate_outbox_binding(&binding)?;
 		self.outbox.confirm_ack(outbox_id, response_hash, confirm_nonce)?;
 		self.outbox.compact_acknowledged(outbox_id, compact_nonce)?;
 		Ok(())
 	}
+
+	fn validate_context(&self) -> Result<(), DesktopTransportError> {
+		let (registry, genesis) = self.outbox.context_binding();
+		if registry != self.transport.binding.registry_hash ||
+			genesis != self.transport.binding.genesis_hash
+		{
+			return Err(DesktopTransportError::RequestBinding);
+		}
+		Ok(())
+	}
+
+	fn validate_outbox_binding(
+		&self,
+		binding: &HostOutboxBindingV1,
+	) -> Result<(), DesktopTransportError> {
+		self.validate_context()?;
+		if binding.registry_hash != self.transport.binding.registry_hash ||
+			binding.genesis_hash != self.transport.binding.genesis_hash ||
+			binding.negotiated_tuple != self.transport.binding.negotiated_tuple ||
+			binding.provider_id != self.transport.binding.provider_id ||
+			binding.provider_endpoint_hash != self.transport.binding.provider_endpoint_hash
+		{
+			return Err(DesktopTransportError::RequestBinding);
+		}
+		Ok(())
+	}
+}
+
+struct WireMaterial {
+	request_id: [u8; 16],
+	operation_id: Option<[u8; 16]>,
+	cancel: bool,
 }
 
 fn validate_wire_material(
 	request: &[u8],
 	authority: &[u8],
-) -> Result<[u8; 16], DesktopTransportError> {
-	let request = Dto::<RequestV2>::decode(request)?;
-	if Dto::<ProviderCapabilityV1>::decode(authority).is_err() &&
-		Dto::<ResumeTokenV1>::decode(authority).is_err()
+	binding: &HostOutboxBindingV1,
+) -> Result<WireMaterial, DesktopTransportError> {
+	let authority = if let Ok(capability) = Dto::<ProviderCapabilityV1>::decode(authority) {
+		(capability.value().clone(), 8)
+	} else if let Ok(resume) = Dto::<ResumeTokenV1>::decode(authority) {
+		(resume.value().clone(), 3)
+	} else {
+		return Err(DesktopTransportError::RequestBinding);
+	};
+	if fixed_field(&authority.0, 1, 32)? != binding.registry_hash ||
+		fixed_field(&authority.0, 2, 32)? != binding.genesis_hash ||
+		fixed_field(&authority.0, authority.1, 32)? != binding.provider_id
 	{
 		return Err(DesktopTransportError::RequestBinding);
 	}
-	let Value::Map(fields) = request.value() else {
+	if let Ok(request) = Dto::<RequestV2>::decode(request) {
+		let request_id = fixed_field(request.value(), 1, 16)?
+			.try_into()
+			.map_err(|_| DesktopTransportError::RequestBinding)?;
+		let operation_id = optional_fixed_field(request.value(), 5, 16)?
+			.map(|bytes| bytes.try_into().expect("length checked"));
+		return Ok(WireMaterial { request_id, operation_id, cancel: false });
+	}
+	let cancel = Dto::<CancelledEventV2>::decode(request)?;
+	let (request_id, _, kind) = event_contract(cancel.value())?;
+	if kind != 4 {
 		return Err(DesktopTransportError::RequestBinding);
+	}
+	Ok(WireMaterial { request_id, operation_id: None, cancel: true })
+}
+
+fn event_contract(value: &Value) -> Result<([u8; 16], u32, u64), DesktopTransportError> {
+	let request_id: [u8; 16] = fixed_field(value, 1, 16)?
+		.try_into()
+		.map_err(|_| DesktopTransportError::RequestBinding)?;
+	let Value::Map(fields) = value else { return Err(DesktopTransportError::RequestBinding) };
+	let uint = |wanted| {
+		fields.iter().find_map(|(key, value)| match (key, value) {
+			(Value::Integer(key), Value::Integer(value))
+				if u64::try_from(*key).ok() == Some(wanted) =>
+				u64::try_from(*value).ok(),
+			_ => None,
+		})
 	};
-	let request_id = fields.iter().find_map(|(key, value)| match (key, value) {
-		(Value::Integer(key), Value::Bytes(bytes))
-			if u64::try_from(*key).ok() == Some(1) && bytes.len() == 16 =>
-			Some(bytes.clone()),
-		_ => None,
-	});
-	request_id
-		.and_then(|bytes| bytes.try_into().ok())
-		.ok_or(DesktopTransportError::RequestBinding)
+	let sequence = uint(2)
+		.and_then(|value| value.try_into().ok())
+		.ok_or(DesktopTransportError::RequestBinding)?;
+	let kind = uint(3).ok_or(DesktopTransportError::RequestBinding)?;
+	Ok((request_id, sequence, kind))
+}
+
+fn fixed_field(value: &Value, key: u64, length: usize) -> Result<Vec<u8>, DesktopTransportError> {
+	optional_fixed_field(value, key, length)?.ok_or(DesktopTransportError::RequestBinding)
+}
+
+fn optional_fixed_field(
+	value: &Value,
+	key: u64,
+	length: usize,
+) -> Result<Option<Vec<u8>>, DesktopTransportError> {
+	let Value::Map(fields) = value else { return Err(DesktopTransportError::RequestBinding) };
+	for (candidate, value) in fields {
+		if matches!(candidate, Value::Integer(candidate) if u64::try_from(*candidate).ok() == Some(key))
+		{
+			let Value::Bytes(bytes) = value else {
+				return Err(DesktopTransportError::RequestBinding)
+			};
+			if bytes.len() != length {
+				return Err(DesktopTransportError::RequestBinding);
+			}
+			return Ok(Some(bytes.clone()));
+		}
+	}
+	Ok(None)
 }
