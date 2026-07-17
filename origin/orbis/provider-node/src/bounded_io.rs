@@ -625,11 +625,12 @@ pub(crate) fn remove_optional_regular_file_at(
 	let metadata = file.metadata().map_err(io_error)?;
 	file.try_lock_exclusive().map_err(io_error)?;
 	validate_regular_file_at(directory, name, file_identity(&metadata), metadata.len())?;
-	quarantine_and_unlink_regular_file_at(
+	quarantine_and_unlink_owned_regular_file_at(
 		directory,
 		name,
 		file_identity(&metadata),
 		metadata.len(),
+		&file,
 		random_recovery_quarantine_name,
 	)
 }
