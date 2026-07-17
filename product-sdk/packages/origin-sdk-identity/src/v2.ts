@@ -273,6 +273,8 @@ export interface IdentityInvocationV2<Operation extends IdentityV2Call> {
 	readonly grantId: Bytes32;
 	readonly recoveryIncarnation: Bytes32;
 	readonly deadlineBlock: bigint;
+	readonly finalizedBlock: bigint;
+	readonly finalizedHash: Bytes32;
 	readonly input: IdentityV2MethodMap[Operation]["input"];
 	readonly operationId?: Bytes16;
 	readonly wireFrame: IdentityV2WireFrame;
@@ -318,6 +320,7 @@ export interface IdentityV2InvocationOptions {
 	readonly requestId: Bytes16;
 	readonly deadlineBlock: bigint;
 	readonly finalizedBlock: bigint;
+	readonly finalizedHash: Bytes32;
 	readonly currentRecoveryIncarnation: Bytes32;
 	readonly operationId?: Bytes16;
 }
@@ -344,7 +347,8 @@ export function identityRecoveryDispositionV2(
 }
 
 /** Private replay state. A fresh-consent operation ID and a proof challenge are single-use. */
-interface IdentityReplayCommitV2 {
+interface IdentityReplayLeaseV2 {
+	readonly token: symbol;
 	readonly operationId?: string;
 	readonly proofChallenge?: string;
 }
@@ -352,37 +356,66 @@ interface IdentityReplayCommitV2 {
 export class IdentityReplayJournalV2 {
 	private readonly operationIds = new Set<string>();
 	private readonly proofChallenges = new Set<string>();
+	private readonly reservedOperationIds = new Map<string, symbol>();
+	private readonly reservedProofChallenges = new Map<string, symbol>();
 
-	preflight(
+	reserve(
 		operation: IdentityV2Call,
 		operationId: Uint8Array | undefined,
 		input: IdentityV2MethodMap[IdentityV2Call]["input"],
-	): IdentityReplayCommitV2 {
+	): IdentityReplayLeaseV2 {
 		const operationKey = operationId === undefined ? undefined : hex(operationId);
 		const challengeKey = operation === "identity.humanity.prove"
 			? hex((input as IdentityHumanityProveRequestV2).challenge)
 			: undefined;
-		if (operationKey !== undefined && this.operationIds.has(operationKey)) {
+		if (operationKey !== undefined
+			&& (this.operationIds.has(operationKey) || this.reservedOperationIds.has(operationKey))) {
 			throw new Error("fresh-consent operation ID was already consumed");
 		}
-		if (challengeKey !== undefined && this.proofChallenges.has(challengeKey)) {
+		if (challengeKey !== undefined
+			&& (this.proofChallenges.has(challengeKey) || this.reservedProofChallenges.has(challengeKey))) {
 			throw new Error("humanity proof challenge was already consumed");
 		}
+		const token = Symbol("identity-replay-lease");
+		if (operationKey !== undefined) this.reservedOperationIds.set(operationKey, token);
+		if (challengeKey !== undefined) this.reservedProofChallenges.set(challengeKey, token);
 		return {
+			token,
 			...(operationKey === undefined ? {} : { operationId: operationKey }),
 			...(challengeKey === undefined ? {} : { proofChallenge: challengeKey }),
 		};
 	}
 
-	commit(accepted: IdentityReplayCommitV2): void {
-		if (accepted.operationId !== undefined && this.operationIds.has(accepted.operationId)) {
+	commit(accepted: IdentityReplayLeaseV2): void {
+		if (accepted.operationId !== undefined
+			&& (this.operationIds.has(accepted.operationId)
+				|| this.reservedOperationIds.get(accepted.operationId) !== accepted.token)) {
 			throw new Error("fresh-consent operation ID was already consumed");
 		}
-		if (accepted.proofChallenge !== undefined && this.proofChallenges.has(accepted.proofChallenge)) {
+		if (accepted.proofChallenge !== undefined
+			&& (this.proofChallenges.has(accepted.proofChallenge)
+				|| this.reservedProofChallenges.get(accepted.proofChallenge) !== accepted.token)) {
 			throw new Error("humanity proof challenge was already consumed");
 		}
-		if (accepted.operationId !== undefined) this.operationIds.add(accepted.operationId);
-		if (accepted.proofChallenge !== undefined) this.proofChallenges.add(accepted.proofChallenge);
+		if (accepted.operationId !== undefined) {
+			this.reservedOperationIds.delete(accepted.operationId);
+			this.operationIds.add(accepted.operationId);
+		}
+		if (accepted.proofChallenge !== undefined) {
+			this.reservedProofChallenges.delete(accepted.proofChallenge);
+			this.proofChallenges.add(accepted.proofChallenge);
+		}
+	}
+
+	rollback(accepted: IdentityReplayLeaseV2): void {
+		if (accepted.operationId !== undefined
+			&& this.reservedOperationIds.get(accepted.operationId) === accepted.token) {
+			this.reservedOperationIds.delete(accepted.operationId);
+		}
+		if (accepted.proofChallenge !== undefined
+			&& this.reservedProofChallenges.get(accepted.proofChallenge) === accepted.token) {
+			this.reservedProofChallenges.delete(accepted.proofChallenge);
+		}
 	}
 }
 
@@ -718,6 +751,7 @@ function validateResult<Operation extends IdentityV2Call>(
 	value: unknown,
 	input: IdentityV2MethodMap[Operation]["input"],
 	finalizedBlock: bigint,
+	finalizedHash: Uint8Array,
 ): IdentityV2MethodMap[Operation]["output"] {
 	const resultContext = (
 		finality: FinalizedIdentityV2,
@@ -725,7 +759,7 @@ function validateResult<Operation extends IdentityV2Call>(
 		label: string,
 	): bigint => {
 		if (requestedAt === undefined) {
-			if (finality.blockNumber !== finalizedBlock) {
+			if (finality.blockNumber !== finalizedBlock || !equalBytes(finality.blockHash, finalizedHash)) {
 				throw new TypeError(`${label} finalized block does not match the invocation context`);
 			}
 		} else {
@@ -928,7 +962,7 @@ export function createIdentityV2Client(
 			);
 			closedRecord(
 				options,
-				["requestId", "deadlineBlock", "finalizedBlock", "currentRecoveryIncarnation"],
+				["requestId", "deadlineBlock", "finalizedBlock", "finalizedHash", "currentRecoveryIncarnation"],
 				["operationId"],
 				"identity invocation options",
 			);
@@ -936,6 +970,7 @@ export function createIdentityV2Client(
 			bytes(grant.id, 32, "grant id");
 			bytes(grant.recoveryIncarnation, 32, "grant recovery incarnation");
 			bytes(options.currentRecoveryIncarnation, 32, "current recovery incarnation");
+			bytes(options.finalizedHash, 32, "finalized hash");
 			uint(grant.expiresAt, 0xffff_ffff_ffff_ffffn, "grant expiry");
 			uint(options.deadlineBlock, 0xffff_ffff_ffff_ffffn, "deadline block");
 			uint(options.finalizedBlock, 0xffff_ffff_ffff_ffffn, "finalized block");
@@ -981,9 +1016,9 @@ export function createIdentityV2Client(
 			&& (normalizedInput as TransactionSignRequestV2).expiresAt <= options.finalizedBlock) {
 			return identityError("REQUEST_DEADLINE_EXPIRED", "Transaction signing consent already expired");
 		}
-		let replayCommit: IdentityReplayCommitV2;
+		let replayCommit: IdentityReplayLeaseV2;
 		try {
-			replayCommit = replayJournal.preflight(
+			replayCommit = replayJournal.reserve(
 				operation,
 				options.operationId,
 				normalizedInput as IdentityV2MethodMap[IdentityV2Call]["input"],
@@ -1001,20 +1036,32 @@ export function createIdentityV2Client(
 			normalizedInput,
 			options.operationId,
 		);
-		const response = await bridge.request({
-			protocol: "cord.origin.host/2",
-			code: IDENTITY_V2_OPERATION_CODES[operation],
-			operation,
-			requestId: options.requestId.slice(),
-			productId,
-			grantId: grant.id.slice(),
-			recoveryIncarnation: grant.recoveryIncarnation.slice(),
-			deadlineBlock: options.deadlineBlock,
-			input: normalizedInput,
-			...(options.operationId === undefined ? {} : { operationId: options.operationId.slice() }),
-			wireFrame,
-		}, signal);
+		let response: IdentityV2BridgeResult;
+		try {
+			response = await bridge.request({
+				protocol: "cord.origin.host/2",
+				code: IDENTITY_V2_OPERATION_CODES[operation],
+				operation,
+				requestId: options.requestId.slice(),
+				productId,
+				grantId: grant.id.slice(),
+				recoveryIncarnation: grant.recoveryIncarnation.slice(),
+				deadlineBlock: options.deadlineBlock,
+				finalizedBlock: options.finalizedBlock,
+				finalizedHash: options.finalizedHash.slice(),
+				input: normalizedInput,
+				...(options.operationId === undefined ? {} : { operationId: options.operationId.slice() }),
+				wireFrame,
+			}, signal);
+		} catch (error) {
+			replayJournal.rollback(replayCommit);
+			return identityError(
+				signal?.aborted ? "REQUEST_CANCELLED" : "HOST_OUTBOX_UNAVAILABLE",
+				error instanceof Error ? error.message : "Identity bridge request failed",
+			);
+		}
 		if (!response.success) {
+			replayJournal.rollback(replayCommit);
 			try {
 				const frozen = validateIdentityV2ErrorEnvelope(operation, response.error);
 				return err(new OriginSdkError({
@@ -1030,10 +1077,17 @@ export function createIdentityV2Client(
 			}
 		}
 		try {
-			const value = validateResult(operation, response.value, normalizedInput, options.finalizedBlock);
+			const value = validateResult(
+				operation,
+				response.value,
+				normalizedInput,
+				options.finalizedBlock,
+				options.finalizedHash,
+			);
 			replayJournal.commit(replayCommit);
 			return { success: true, value };
 		} catch (error) {
+			replayJournal.rollback(replayCommit);
 			const message = error instanceof Error ? error.message : "Invalid identity response";
 			return message.includes("already consumed")
 				? identityError("IDENTITY_CHALLENGE_REPLAY", message)

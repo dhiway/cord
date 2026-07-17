@@ -43,6 +43,7 @@ const options: IdentityV2InvocationOptions = {
 	requestId: bytes(16, 11),
 	deadlineBlock: 150n,
 	finalizedBlock: 100n,
+	finalizedHash: bytes(32, 8),
 	currentRecoveryIncarnation: incarnation,
 };
 const finalized = { blockNumber: 100n, blockHash: bytes(32, 8) };
@@ -267,6 +268,8 @@ test("client bridge receives exact generated requestId and deadline frames", asy
 			assert.deepEqual(decoded[1], options.requestId);
 			assert.equal(asBigInt(decoded[7]), options.deadlineBlock);
 			assert.equal(decoded[3], invocation.code);
+			assert.equal(invocation.finalizedBlock, options.finalizedBlock);
+			assert.deepEqual(invocation.finalizedHash, options.finalizedHash);
 			seen.push(invocation.operation);
 			return { success: true, value: outputByOperation[invocation.operation] };
 		},
@@ -390,6 +393,11 @@ test("results bind profile finality, requested entitlement scope, and proof fres
 		finalized: { blockNumber: 99n, blockHash: bytes(32, 7) },
 	});
 	assert.equal(!crossSnapshotAccount.success && crossSnapshotAccount.error.code, "WIRE_SCHEMA_INVALID");
+	const wrongCurrentHash = await response("identity.account", {
+		...outputByOperation["identity.account"],
+		finalized: { blockNumber: 100n, blockHash: bytes(32, 7) },
+	});
+	assert.equal(!wrongCurrentHash.success && wrongCurrentHash.error.code, "WIRE_SCHEMA_INVALID");
 	const crossSnapshotProfile = await response("identity.profile.read", {
 		receipt: {
 			commitment: bytes(32, 2), validUntil: 120n,
@@ -553,6 +561,35 @@ test("fresh-consent replay state commits atomically only after a valid durable r
 	assert.equal((await client.humanityProve(
 		grant("identity.humanity.prove"), freshChallenge, secondOptions,
 	)).success, true, "challenge rejection must not partially burn the new operationId");
+});
+
+test("concurrent fresh-consent calls reserve challenge and operation ID before bridge effects", async () => {
+	let bridgeEffects = 0;
+	let release: (() => void) | undefined;
+	const gate = new Promise<void>((resolve) => { release = resolve; });
+	const bridge: IdentityV2Bridge = { async request(invocation) {
+		bridgeEffects += 1;
+		await gate;
+		return { success: true, value: outputByOperation[invocation.operation] };
+	} };
+	const client = createIdentityV2Client("festival", bridge);
+	const invocation = operationOptions("identity.humanity.prove");
+	const first = client.humanityProve(
+		grant("identity.humanity.prove"),
+		inputByOperation["identity.humanity.prove"],
+		invocation,
+	);
+	await Promise.resolve();
+	const concurrent = await client.humanityProve(
+		grant("identity.humanity.prove"),
+		inputByOperation["identity.humanity.prove"],
+		invocation,
+	);
+	assert.equal(!concurrent.success && concurrent.error.code, "IDENTITY_CHALLENGE_REPLAY");
+	assert.equal(bridgeEffects, 1, "only the lease holder may produce a bridge effect");
+	release?.();
+	assert.equal((await first).success, true);
+	assert.equal(bridgeEffects, 1);
 });
 
 test("all executable Identity vectors retain canonical, response, state, and effect commitments", () => {
