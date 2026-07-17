@@ -374,6 +374,34 @@ fn object_get_result(request_id: [u8; 16], sequence: u64) -> Vec<u8> {
 	)
 }
 
+fn resume_token_for(input: &PrepareHostOutboxV1, cursor: u64, generation: u64) -> Vec<u8> {
+	let fixture = mobile_vectors();
+	let vector = fixture["vectors"]
+		.as_array()
+		.unwrap()
+		.iter()
+		.find(|vector| vector["production"] == "ResumeTokenV1")
+		.unwrap();
+	let mut value = mobile_tagged_value(&vector["projection"]);
+	let Value::Map(fields) = &mut value else { unreachable!() };
+	for (key, value) in fields {
+		let Value::Integer(key) = key else { continue };
+		match u64::try_from(*key).ok() {
+			Some(1) => *value = Value::Bytes(negotiated().registry_hash().to_vec()),
+			Some(2) => *value = Value::Bytes(negotiated().genesis().to_vec()),
+			Some(3) => *value = Value::Bytes(input.provider_id.to_vec()),
+			Some(5) => *value = Value::Bytes(input.operation_id.to_vec()),
+			Some(9) => *value = Value::Integer(cursor.into()),
+			Some(10) => *value = Value::Integer(generation.into()),
+			Some(11) => *value = Value::Integer(input.created_at.into()),
+			Some(12) => *value = Value::Integer(input.authority_expires_at.into()),
+			Some(14) => *value = Value::Bool(false),
+			_ => {},
+		}
+	}
+	Dto::<ResumeTokenV1>::from_value(value).unwrap().canonical().to_vec()
+}
+
 fn outbox_context() -> HostOutboxContextV1 {
 	HostOutboxContextV1 {
 		profile_id: [0x11; 32],
@@ -1209,6 +1237,69 @@ fn durable_provider_validates_terminal_payload_acks_and_runs_sequential_operatio
 
 #[cfg(unix)]
 #[test]
+fn desktop_continuation_installs_event_and_verified_token_before_ack_and_successor_send() {
+	use std::os::unix::net::UnixStream;
+
+	let root = tempfile::tempdir().unwrap();
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let mut input = outbox_input();
+	input.outbox_id = [0x73; 16];
+	let predecessor_id = input.outbox_id;
+	let token = resume_token_for(&input, 0, 1);
+	let (client, mut server) = UnixStream::pair().unwrap();
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	desktop.prepare_and_send(input.clone(), [41; 24], [42; 24]).unwrap();
+	read_frame(&mut server).unwrap();
+	read_frame(&mut server).unwrap();
+	let accepted = accepted(input.request_id, 0);
+	write_frame(&mut server, &accepted).unwrap();
+	write_frame(&mut server, &token).unwrap();
+	let mut verified = false;
+	let continuation = desktop
+		.receive_continuation(
+			&mut |exact: &[u8]| {
+				verified = exact == token;
+				verified.then_some(()).ok_or(DesktopTransportError::ResumeTokenUnverified)
+			},
+			[43; 24],
+			[44; 24],
+		)
+		.unwrap();
+	let response_hash = match continuation {
+		DurableDesktopEvent::Continuation { event, resume_token, cursor, response_hash } => {
+			assert_eq!(event, accepted);
+			assert_eq!(resume_token, token);
+			assert_eq!(cursor, 0);
+			response_hash
+		},
+		_ => panic!("accepted generation was not installed as a continuation"),
+	};
+	assert!(verified);
+	Dto::<generated::ResponseAckV1>::decode(&read_frame(&mut server).unwrap()).unwrap();
+	desktop.confirm_continuation(predecessor_id, response_hash, [45; 24]).unwrap();
+
+	let mut successor = input;
+	successor.outbox_id = [0x74; 16];
+	successor.exact_authority_bytes = token.clone();
+	successor.generation = 1;
+	successor.intended_cursor = 0;
+	desktop
+		.prepare_successor_and_send(predecessor_id, successor.clone(), [46; 24], [47; 24], [48; 24])
+		.unwrap();
+	assert_eq!(read_frame(&mut server).unwrap(), successor.exact_request_bytes);
+	assert_eq!(read_frame(&mut server).unwrap(), token);
+}
+
+#[cfg(unix)]
+#[test]
 fn desktop_binding_operation_and_response_contract_mismatches_emit_no_ack_or_request() {
 	use std::{io::Read, os::unix::net::UnixStream, thread, time::Duration};
 
@@ -1499,6 +1590,7 @@ fn desktop_live_cancel_accepts_only_cancel_terminal_and_emits_exact_ack() {
 	let (event, response_hash) = match desktop.receive_event(200, [37; 24], [38; 24]).unwrap() {
 		DurableDesktopEvent::Terminal { event, response_hash } => (event, response_hash),
 		DurableDesktopEvent::NonTerminal(_) => panic!("cancel was not terminal"),
+		DurableDesktopEvent::Continuation { .. } => panic!("cancel produced a continuation"),
 	};
 	assert_eq!(event, cancel);
 	Dto::<generated::ResponseAckV1>::decode(&read_frame(&mut server).unwrap())

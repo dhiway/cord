@@ -427,6 +427,8 @@ impl<'a, S: Read + Write, A: ProviderAckConfirmationV2> DurableCordProviderV2<'a
 				call.outbox.mark_ack_nonce,
 			)? {
 				DurableDesktopEvent::NonTerminal(event) => events.push(event),
+				DurableDesktopEvent::Continuation { .. } =>
+					return Err(HostExecutionErrorV2::Backend("HOST_CONTINUATION_CYCLE_REQUIRED")),
 				DurableDesktopEvent::Terminal { event, response_hash } => {
 					events.push(event);
 					if !self.acknowledgements.confirmed(call.outbox.outbox_id, response_hash)? {

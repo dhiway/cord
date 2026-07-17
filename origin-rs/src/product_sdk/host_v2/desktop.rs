@@ -76,6 +76,8 @@ pub(crate) enum DesktopTransportError {
 	Closed,
 	#[error("DESKTOP_REQUEST_BINDING_INVALID")]
 	RequestBinding,
+	#[error("DESKTOP_RESUME_TOKEN_UNVERIFIED")]
+	ResumeTokenUnverified,
 	#[error(transparent)]
 	Peer(#[from] DesktopPeerBindingError),
 	#[error(transparent)]
@@ -216,6 +218,7 @@ impl<S: Read + Write> DesktopHostV2Transport<S> {
 			operation_id: [0; 16],
 			expected_response_kind: 0,
 			intended_cursor: 0,
+			generation: 0,
 		};
 		Ok(Self {
 			stream,
@@ -279,6 +282,19 @@ impl<S: Read + Write> DesktopHostV2Transport<S> {
 		Ok((bytes, session.is_terminal()))
 	}
 
+	fn receive_exact(&mut self) -> Result<Vec<u8>, DesktopTransportError> {
+		if self.closed || self.session.is_none() {
+			return Err(DesktopTransportError::Closed);
+		}
+		match read_frame(&mut self.stream) {
+			Ok(bytes) => Ok(bytes),
+			Err(error) => {
+				self.closed = true;
+				Err(error)
+			},
+		}
+	}
+
 	fn send_ack(&mut self, ack: &[u8]) -> Result<(), DesktopTransportError> {
 		Dto::<ResponseAckV1>::decode(ack)?;
 		if let Err(error) = write_frame(&mut self.stream, ack) {
@@ -291,6 +307,13 @@ impl<S: Read + Write> DesktopHostV2Transport<S> {
 	fn finish_terminal(&mut self) -> Result<(), DesktopTransportError> {
 		if !self.session.as_ref().is_some_and(Session::is_terminal) {
 			return Err(DesktopTransportError::RequestBinding);
+		}
+		self.finish_generation()
+	}
+
+	fn finish_generation(&mut self) -> Result<(), DesktopTransportError> {
+		if self.session.is_none() {
+			return Err(DesktopTransportError::Closed);
 		}
 		self.session = None;
 		Ok(())
@@ -315,12 +338,28 @@ struct ActiveDesktopRequest {
 	operation_id: [u8; 16],
 	expected_response_kind: u16,
 	operation: Option<OperationCode>,
+	generation: u64,
+	intended_cursor: u32,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum DurableDesktopEvent {
 	NonTerminal(Vec<u8>),
 	Terminal { event: Vec<u8>, response_hash: [u8; 32] },
+	Continuation { event: Vec<u8>, resume_token: Vec<u8>, cursor: u32, response_hash: [u8; 32] },
+}
+
+pub(crate) trait ResumeTokenVerifierV2 {
+	fn verify(&mut self, exact_token: &[u8]) -> Result<(), DesktopTransportError>;
+}
+
+impl<F> ResumeTokenVerifierV2 for F
+where
+	F: FnMut(&[u8]) -> Result<(), DesktopTransportError>,
+{
+	fn verify(&mut self, exact_token: &[u8]) -> Result<(), DesktopTransportError> {
+		self(exact_token)
+	}
 }
 
 impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
@@ -356,6 +395,8 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			operation_id: input.operation_id,
 			expected_response_kind: input.expected_response_kind,
 			operation: Some(material.operation.ok_or(DesktopTransportError::RequestBinding)?),
+			generation: input.generation,
+			intended_cursor: input.intended_cursor,
 		};
 		let retry = self.outbox.prepare(input, prepare_nonce)?;
 		self.transport.begin(material.request_id)?;
@@ -397,6 +438,8 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			operation_id: binding.operation_id,
 			expected_response_kind: binding.expected_response_kind,
 			operation: material.operation,
+			generation: binding.generation,
+			intended_cursor: binding.intended_cursor,
 		});
 		Ok(retry)
 	}
@@ -502,6 +545,104 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		Ok(DurableDesktopEvent::Terminal { event, response_hash })
 	}
 
+	/// Receive one Accepted/Progress event and its exact signed successor token. Both are installed
+	/// atomically before the exact response acknowledgement may leave the process.
+	pub(crate) fn receive_continuation(
+		&mut self,
+		verifier: &mut impl ResumeTokenVerifierV2,
+		install_nonce: [u8; 24],
+		mark_ack_nonce: [u8; 24],
+	) -> Result<DurableDesktopEvent, DesktopTransportError> {
+		let active = self.active.clone().ok_or(DesktopTransportError::Closed)?;
+		let binding = self.outbox.binding(active.outbox_id)?;
+		self.validate_outbox_binding(&binding)?;
+		if binding.request_id != active.request_id ||
+			binding.operation_id != active.operation_id ||
+			binding.generation != active.generation ||
+			binding.intended_cursor != active.intended_cursor
+		{
+			return Err(DesktopTransportError::RequestBinding);
+		}
+		let (event, terminal) = self.transport.receive()?;
+		if terminal {
+			self.transport.close();
+			return Err(DesktopTransportError::RequestBinding);
+		}
+		let event_dto = Dto::<super::generated::EventV2>::decode(&event)?;
+		let (_, _, kind) = event_contract(event_dto.value())?;
+		if !matches!(kind, 0 | 1) {
+			self.transport.close();
+			return Err(DesktopTransportError::RequestBinding);
+		}
+		let exact_token = self.transport.receive_exact()?;
+		let token = Dto::<ResumeTokenV1>::decode(&exact_token)?;
+		let cursor: u32 = uint_field(token.value(), 9)
+			.and_then(|value| value.try_into().ok())
+			.ok_or(DesktopTransportError::RequestBinding)?;
+		let generation =
+			uint_field(token.value(), 10).ok_or(DesktopTransportError::RequestBinding)?;
+		let issued_at =
+			uint_field(token.value(), 11).ok_or(DesktopTransportError::RequestBinding)?;
+		let expires_at =
+			uint_field(token.value(), 12).ok_or(DesktopTransportError::RequestBinding)?;
+		let expected_cursor = if kind == 0 {
+			active.intended_cursor
+		} else {
+			active
+				.intended_cursor
+				.checked_add(1)
+				.ok_or(DesktopTransportError::RequestBinding)?
+		};
+		if fixed_field(token.value(), 1, 32)? != binding.registry_hash ||
+			fixed_field(token.value(), 2, 32)? != binding.genesis_hash ||
+			fixed_field(token.value(), 3, 32)? != binding.provider_id ||
+			fixed_field(token.value(), 5, 16)? != binding.operation_id ||
+			cursor != expected_cursor ||
+			generation !=
+				active
+					.generation
+					.checked_add(1)
+					.ok_or(DesktopTransportError::RequestBinding)? ||
+			issued_at >= expires_at ||
+			bool_field(token.value(), 14) != Some(false)
+		{
+			self.transport.close();
+			return Err(DesktopTransportError::RequestBinding);
+		}
+		verifier.verify(&exact_token).map_err(|_| {
+			self.transport.close();
+			DesktopTransportError::ResumeTokenUnverified
+		})?;
+		let response_hash = match self.outbox.install_response(
+			active.outbox_id,
+			event.clone(),
+			Some(exact_token.clone()),
+			Some(cursor),
+			None,
+			install_nonce,
+		) {
+			Ok(hash) => hash,
+			Err(error) => {
+				self.transport.close();
+				return Err(error.into());
+			},
+		};
+		let ack = self.outbox.retry_response_ack(active.outbox_id)?;
+		self.transport.send_ack(&ack.bytes)?;
+		if let Err(error) = self.outbox.mark_ack_sent(active.outbox_id, mark_ack_nonce) {
+			self.transport.close();
+			return Err(error.into());
+		}
+		self.transport.finish_generation()?;
+		self.active = None;
+		Ok(DurableDesktopEvent::Continuation {
+			event,
+			resume_token: exact_token,
+			cursor,
+			response_hash,
+		})
+	}
+
 	/// Repeat only the acknowledgement bytes installed with the response after a restart.
 	pub(crate) fn resume_ack(
 		&mut self,
@@ -518,6 +659,68 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			return Err(error.into());
 		}
 		Ok(ack.response_hash)
+	}
+
+	/// Prepare generation N+1 only from a confirmed predecessor's exact installed token.
+	pub(crate) fn prepare_successor_and_send(
+		&mut self,
+		predecessor_id: [u8; 16],
+		input: PrepareHostOutboxV1,
+		prepare_nonce: [u8; 24],
+		mark_sent_nonce: [u8; 24],
+		compact_predecessor_nonce: [u8; 24],
+	) -> Result<HostOutboxRetryV1, DesktopTransportError> {
+		self.validate_context()?;
+		let material = validate_wire_material(
+			&input.exact_request_bytes,
+			&input.exact_authority_bytes,
+			&self.transport.binding,
+		)?;
+		if material.cancel ||
+			material.request_id != input.request_id ||
+			material.operation_id != Some(input.operation_id)
+		{
+			return Err(DesktopTransportError::RequestBinding);
+		}
+		let active = ActiveDesktopRequest {
+			outbox_id: input.outbox_id,
+			request_id: input.request_id,
+			operation_id: input.operation_id,
+			expected_response_kind: input.expected_response_kind,
+			operation: Some(material.operation.ok_or(DesktopTransportError::RequestBinding)?),
+			generation: input.generation,
+			intended_cursor: input.intended_cursor,
+		};
+		let outbox_id = input.outbox_id;
+		let retry = self.outbox.prepare_successor(predecessor_id, input, prepare_nonce)?;
+		self.transport.begin(material.request_id)?;
+		self.transport.send(&retry.request, &retry.authority)?;
+		if let Err(error) = self.outbox.mark_sent(outbox_id, mark_sent_nonce) {
+			self.transport.close();
+			return Err(error.into());
+		}
+		if let Err(error) =
+			self.outbox.compact_acknowledged(predecessor_id, compact_predecessor_nonce)
+		{
+			self.transport.close();
+			return Err(error.into());
+		}
+		self.active = Some(active);
+		Ok(retry)
+	}
+
+	/// Confirm a nonterminal generation ACK without erasing its successor token. Compaction is
+	/// permitted only after `prepare_successor_and_send` durably prepares generation N+1.
+	pub(crate) fn confirm_continuation(
+		&self,
+		outbox_id: [u8; 16],
+		response_hash: [u8; 32],
+		confirm_nonce: [u8; 24],
+	) -> Result<(), DesktopTransportError> {
+		let binding = self.outbox.binding(outbox_id)?;
+		self.validate_outbox_binding(&binding)?;
+		self.outbox.confirm_ack(outbox_id, response_hash, confirm_nonce)?;
+		Ok(())
 	}
 
 	/// Provider confirmation is durable before terminal ciphertext is compacted or later GC'd.
@@ -618,6 +821,15 @@ fn uint_field(value: &Value, wanted: u64) -> Option<u64> {
 		(Value::Integer(key), Value::Integer(value))
 			if u64::try_from(*key).ok() == Some(wanted) =>
 			u64::try_from(*value).ok(),
+		_ => None,
+	})
+}
+
+fn bool_field(value: &Value, wanted: u64) -> Option<bool> {
+	let Value::Map(fields) = value else { return None };
+	fields.iter().find_map(|(key, value)| match (key, value) {
+		(Value::Integer(key), Value::Bool(value)) if u64::try_from(*key).ok() == Some(wanted) =>
+			Some(*value),
 		_ => None,
 	})
 }

@@ -381,6 +381,7 @@ pub(crate) struct HostOutboxBindingV1 {
 	pub(crate) operation_id: [u8; 16],
 	pub(crate) expected_response_kind: u16,
 	pub(crate) intended_cursor: u32,
+	pub(crate) generation: u64,
 }
 
 #[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
@@ -462,6 +463,7 @@ impl HostOutboxStoreV1 {
 			operation_id: entry.operation_id,
 			expected_response_kind: entry.expected_response_kind,
 			intended_cursor: entry.intended_cursor,
+			generation: entry.generation,
 		})
 	}
 
