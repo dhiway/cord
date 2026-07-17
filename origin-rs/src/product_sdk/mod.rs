@@ -31,6 +31,9 @@ pub mod host;
 // P2 compiles this private kernel before P3 binds real browser/desktop adapters.
 #[allow(dead_code)]
 pub(crate) mod host_outbox;
+// P3 replacement intent surface remains crate-private until the P4 authority cutover.
+#[allow(dead_code)]
+pub(crate) mod storage_v2;
 pub mod orbis_reads;
 pub mod route_registry;
 pub mod sponsored_intent;
