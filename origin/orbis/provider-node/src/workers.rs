@@ -199,6 +199,7 @@ struct PreparedJsonlStartup {
 	path: PathBuf,
 	lock: PreparedFileGuard,
 	source: PreparedFileGuard,
+	source_digest: Option<[u8; 32]>,
 	tail_start: u64,
 	expected_tail: Vec<u8>,
 	truncate_to: u64,
@@ -215,6 +216,7 @@ impl PreparedJsonlStartup {
 				validate_prepared_jsonl_guard(
 					&self.path,
 					&self.source,
+					self.source_digest,
 					self.tail_start,
 					&self.expected_tail,
 				)
@@ -240,6 +242,7 @@ impl ArmedJsonlStartup {
 		let applied = apply_prepared_jsonl_guard(
 			&self.prepared.path,
 			&self.prepared.source,
+			self.prepared.source_digest,
 			self.prepared.tail_start,
 			&self.prepared.expected_tail,
 			self.prepared.truncate_to,
@@ -353,7 +356,8 @@ fn prepare_jsonl_manifest_deletion_outbox(
 	let lock_path = suffixed_path(path, ".lock");
 	let lock = open_optional_guarded_file(&lock_path, false)?
 		.map_or(PreparedFileGuard::Missing, |(_, guard)| guard);
-	let (source, tail_start, expected_tail, truncate_to) = prepare_jsonl_source_guard(path)?;
+	let (source, source_digest, tail_start, expected_tail, truncate_to) =
+		prepare_jsonl_source_guard(path)?;
 	Ok(ManifestDeletionStartupPlan {
 		jsonl: Some(PreparedJsonlStartup {
 			provider_root,
@@ -361,6 +365,7 @@ fn prepare_jsonl_manifest_deletion_outbox(
 			path: path.to_path_buf(),
 			lock,
 			source,
+			source_digest,
 			tail_start,
 			expected_tail,
 			truncate_to,
@@ -427,14 +432,38 @@ fn validate_canonical_outbox_path(provider_root: &Path, path: &Path) -> Result<(
 
 fn prepare_jsonl_source_guard(
 	path: &Path,
-) -> Result<(PreparedFileGuard, u64, Vec<u8>, u64), String> {
+) -> Result<(PreparedFileGuard, Option<[u8; 32]>, u64, Vec<u8>, u64), String> {
 	Ok(match open_optional_guarded_file(path, false)? {
-		None => (PreparedFileGuard::Missing, 0, Vec::new(), 0),
+		None => (PreparedFileGuard::Missing, None, 0, Vec::new(), 0),
 		Some((mut file, guard)) => {
+			let digest = jsonl_source_digest(&mut file, &guard)?;
 			let (tail_start, expected_tail, truncate_to) = jsonl_tail_view(&mut file, &guard)?;
-			(guard, tail_start, expected_tail, truncate_to)
+			validate_open_file(&file, &guard)?;
+			validate_path_guard(path, &guard)?;
+			(guard, Some(digest), tail_start, expected_tail, truncate_to)
 		},
 	})
+}
+
+fn jsonl_source_digest(file: &mut fs::File, guard: &PreparedFileGuard) -> Result<[u8; 32], String> {
+	let PreparedFileGuard::Present { length, .. } = guard else {
+		return Err("manifest deletion outbox guard has no source".into())
+	};
+	file.seek(SeekFrom::Start(0)).map_err(|error| error.to_string())?;
+	let mut remaining = *length;
+	let mut hasher = blake3::Hasher::new();
+	let mut buffer = [0u8; 64 * 1024];
+	while remaining > 0 {
+		let width = usize::try_from(remaining.min(buffer.len() as u64))
+			.map_err(|_| "manifest deletion outbox digest width exceeds platform bounds")?;
+		let read = file.read(&mut buffer[..width]).map_err(|error| error.to_string())?;
+		if read == 0 {
+			return Err("manifest deletion outbox changed while hashing".into())
+		}
+		hasher.update(&buffer[..read]);
+		remaining -= read as u64;
+	}
+	Ok(*hasher.finalize().as_bytes())
 }
 
 fn jsonl_tail_view(
@@ -487,6 +516,7 @@ fn open_optional_guarded_file(
 fn validate_prepared_jsonl_guard(
 	path: &Path,
 	guard: &PreparedFileGuard,
+	expected_digest: Option<[u8; 32]>,
 	tail_start: u64,
 	expected_tail: &[u8],
 ) -> Result<(), String> {
@@ -496,8 +526,13 @@ fn validate_prepared_jsonl_guard(
 			_ => Err("manifest deletion outbox changed after startup validation".into()),
 		}
 	};
+	let expected_digest = expected_digest
+		.ok_or("manifest deletion outbox startup source digest is missing")?;
 	let mut file = open_existing_no_follow(path, false)?;
 	validate_open_file(&file, guard)?;
+	if jsonl_source_digest(&mut file, guard)? != expected_digest {
+		return Err("manifest deletion outbox changed after startup validation".into())
+	}
 	let expected_width: usize = (length - tail_start)
 		.try_into()
 		.map_err(|_| "manifest deletion outbox tail exceeds the platform bound")?;
@@ -516,6 +551,7 @@ fn validate_prepared_jsonl_guard(
 fn apply_prepared_jsonl_guard(
 	path: &Path,
 	guard: &PreparedFileGuard,
+	expected_digest: Option<[u8; 32]>,
 	tail_start: u64,
 	expected_tail: &[u8],
 	truncate_to: u64,
@@ -526,8 +562,13 @@ fn apply_prepared_jsonl_guard(
 			_ => Err("manifest deletion outbox changed after startup validation".into()),
 		}
 	};
+	let expected_digest = expected_digest
+		.ok_or("manifest deletion outbox startup source digest is missing")?;
 	let mut file = open_existing_no_follow(path, true)?;
 	validate_open_file(&file, guard)?;
+	if jsonl_source_digest(&mut file, guard)? != expected_digest {
+		return Err("manifest deletion outbox changed after startup validation".into())
+	}
 	let expected_width: usize = (length - tail_start)
 		.try_into()
 		.map_err(|_| "manifest deletion outbox tail exceeds the platform bound")?;
@@ -700,7 +741,7 @@ fn acquire_prepared_outbox_lock(
 		},
 		PreparedFileGuard::Present { .. } => (open_existing_no_follow(&path, true)?, None),
 	};
-	if let Err(error) = FileExt::lock_exclusive(&file) {
+	if let Err(error) = FileExt::try_lock_exclusive(&file) {
 		if let Some((identity, length)) = created {
 			if validate_path_identity(&path, identity, length).is_ok() {
 				drop(file);
@@ -708,7 +749,7 @@ fn acquire_prepared_outbox_lock(
 				let _ = sync_parent_directory_blocking(&path);
 			}
 		}
-		return Err(error.to_string())
+		return Err(format!("manifest deletion outbox lock is already held: {error}"))
 	}
 	let validation = match expected {
 		PreparedFileGuard::Missing =>
@@ -903,8 +944,16 @@ async fn sync_parent_directory(path: &Path) -> Result<(), String> {
 async fn repair_incomplete_jsonl_tail(path: &Path) -> Result<(), String> {
 	let path = path.to_path_buf();
 	tokio::task::spawn_blocking(move || {
-		let (guard, tail_start, expected_tail, truncate_to) = prepare_jsonl_source_guard(&path)?;
-		apply_prepared_jsonl_guard(&path, &guard, tail_start, &expected_tail, truncate_to)
+		let (guard, digest, tail_start, expected_tail, truncate_to) =
+			prepare_jsonl_source_guard(&path)?;
+		apply_prepared_jsonl_guard(
+			&path,
+			&guard,
+			digest,
+			tail_start,
+			&expected_tail,
+			truncate_to,
+		)
 	})
 	.await
 	.map_err(|error| error.to_string())?
@@ -1136,6 +1185,7 @@ pub(crate) fn root_submission(pending: &PendingRootSubmission) -> ProviderRootSu
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use std::io::Write as _;
 	use std::sync::{
 		atomic::{AtomicBool, AtomicUsize, Ordering},
 		Mutex as StdMutex,
@@ -1254,6 +1304,69 @@ mod tests {
 		armed.rollback().unwrap();
 		assert!(!lock_path.exists());
 		assert!(!outbox.qualified.load(Ordering::Acquire));
+	}
+
+	#[test]
+	fn held_jsonl_startup_lock_fails_without_waiting() {
+		let temp = tempfile::tempdir().unwrap();
+		let outbox = JsonlManifestDeletionOutbox::for_provider_root(temp.path());
+		let held = outbox.prepare_startup(temp.path()).unwrap().arm().unwrap();
+		let contender = outbox.prepare_startup(temp.path()).unwrap();
+		let (sender, receiver) = std::sync::mpsc::channel();
+		let thread = std::thread::spawn(move || {
+			let result = contender.arm().map(|armed| armed.rollback()).and_then(|result| result);
+			sender.send(result).unwrap();
+		});
+
+		let result = match receiver.recv_timeout(Duration::from_secs(2)) {
+			Ok(result) => result,
+			Err(error) => {
+				held.rollback().unwrap();
+				thread.join().unwrap();
+				panic!("contended startup lock did not fail promptly: {error}");
+			},
+		};
+		assert!(result.unwrap_err().contains("already held"));
+		held.rollback().unwrap();
+		thread.join().unwrap();
+	}
+
+	#[test]
+	fn jsonl_startup_rejects_same_inode_prefix_mutation_outside_unchanged_tail() {
+		for mutate_after_arm in [false, true] {
+			let temp = tempfile::tempdir().unwrap();
+			let path = temp.path().join(MANIFEST_DELETION_OUTBOX_FILE);
+			let mut bytes = vec![b'a'; MAX_JSONL_RECORD_BYTES as usize + 8 * 1024];
+			*bytes.last_mut().unwrap() = b'\n';
+			let tail_start = bytes.len() - (MAX_JSONL_RECORD_BYTES as usize + 1);
+			let expected_tail = bytes[tail_start..].to_vec();
+			fs::write(&path, &bytes).unwrap();
+			let qualified = Arc::new(AtomicBool::new(false));
+			let plan =
+				prepare_jsonl_manifest_deletion_outbox(&path, Arc::clone(&qualified)).unwrap();
+			let mut plan = Some(plan);
+			let armed = mutate_after_arm.then(|| plan.take().unwrap().arm().unwrap());
+			let mut source = fs::OpenOptions::new().write(true).open(&path).unwrap();
+			source.seek(SeekFrom::Start(0)).unwrap();
+			source.write_all(b"z").unwrap();
+			source.sync_all().unwrap();
+			drop(source);
+
+			let result = match armed {
+				Some(armed) => armed.apply(),
+				None => plan
+					.take()
+					.unwrap()
+					.arm()
+					.and_then(ArmedManifestDeletionStartupPlan::apply),
+			};
+			assert!(result.is_err(), "mutate_after_arm={mutate_after_arm}");
+			let current = fs::read(&path).unwrap();
+			assert_eq!(current.len(), bytes.len());
+			assert_eq!(&current[tail_start..], expected_tail);
+			assert!(!suffixed_path(&path, ".lock").exists());
+			assert!(!qualified.load(Ordering::Acquire));
+		}
 	}
 
 	#[cfg(unix)]
