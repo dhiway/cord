@@ -1732,7 +1732,9 @@ mod tests {
 		fs::create_dir(&later).unwrap();
 		fs::write(later.join("invalid"), b"late-invalid-kernel").unwrap();
 		assert!(matches!(
-			crate::checkpoint_publication::CheckpointPublicationStoreV1::prepare_open(temp.path()),
+			crate::checkpoint::checkpoint_publication::CheckpointPublicationStoreV1::prepare_open(
+				temp.path(),
+			),
 			Err(ContentError::IntegrityFailed)
 		));
 		assert_eq!(fs::read(&crash_temp).unwrap(), crash_bytes);
