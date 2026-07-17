@@ -91,14 +91,37 @@ pub(crate) struct PromotionDiscoveryScheduler {
 	cursor: Mutex<Option<DiscoveryCursorV2>>,
 }
 
+pub(crate) struct PreparedPromotionDiscoveryScheduler {
+	root: PathBuf,
+	root_missing: bool,
+	cursor: Option<DiscoveryCursorV2>,
+	temp_artifacts: Vec<PathBuf>,
+}
+
+impl PreparedPromotionDiscoveryScheduler {
+	pub(crate) fn apply(self) -> Result<PromotionDiscoveryScheduler, ContentError> {
+		crate::bounded_io::create_prepared_directory(&self.root, self.root_missing)?;
+		crate::bounded_io::remove_validated_temp_artifacts(&self.root, &self.temp_artifacts)?;
+		Ok(PromotionDiscoveryScheduler { root: self.root, cursor: Mutex::new(self.cursor) })
+	}
+}
+
 impl PromotionDiscoveryScheduler {
 	pub(crate) fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
+		Self::prepare_open(root)?.apply()
+	}
+
+	pub(crate) fn prepare_open(
+		root: impl AsRef<Path>,
+	) -> Result<PreparedPromotionDiscoveryScheduler, ContentError> {
 		let root = root.as_ref().join(ROOT);
-		fs::create_dir_all(&root).map_err(io_error)?;
+		let root_missing = !crate::bounded_io::optional_directory_exists(&root)?;
 		let path = root.join("cursor.json");
 		let temp = root.join("cursor.json.tmp");
 		let mut temp_present = false;
-		for entry in fs::read_dir(&root).map_err(io_error)? {
+		let entries =
+			if root_missing { None } else { Some(fs::read_dir(&root).map_err(io_error)?) };
+		for entry in entries.into_iter().flatten() {
 			let entry = entry.map_err(io_error)?;
 			if entry.path() == temp && entry.file_type().map_err(io_error)?.is_file() {
 				temp_present = true;
@@ -108,7 +131,7 @@ impl PromotionDiscoveryScheduler {
 				return Err(ContentError::IntegrityFailed);
 			}
 		}
-		let cursor = if path.exists() {
+		let cursor = if !root_missing && path.try_exists().map_err(io_error)? {
 			let bytes = crate::bounded_io::read_regular_file(path, MAX_RECORD_BYTES as u64)?;
 			let cursor =
 				serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
@@ -117,13 +140,12 @@ impl PromotionDiscoveryScheduler {
 		} else {
 			None
 		};
-		if temp_present {
-			crate::bounded_io::remove_validated_temp_artifacts(
-				&root,
-				std::slice::from_ref(&temp),
-			)?;
-		}
-		Ok(Self { root, cursor: Mutex::new(cursor) })
+		Ok(PreparedPromotionDiscoveryScheduler {
+			root,
+			root_missing,
+			cursor,
+			temp_artifacts: temp_present.then_some(temp).into_iter().collect(),
+		})
 	}
 
 	fn reserve(
@@ -135,15 +157,15 @@ impl PromotionDiscoveryScheduler {
 		let finalized_hash = canonical_hash(&inventory.finalized_hash)?;
 		let mut guard = self.cursor.lock().map_err(|_| ContentError::IntegrityFailed)?;
 		let same_inventory = guard.as_ref().is_some_and(|cursor| {
-			cursor.finalized_hash == finalized_hash &&
-				cursor.finalized_number == inventory.finalized_number &&
-				cursor.snapshot_checkpoint == inventory.snapshot_checkpoint
+			cursor.finalized_hash == finalized_hash
+				&& cursor.finalized_number == inventory.finalized_number
+				&& cursor.snapshot_checkpoint == inventory.snapshot_checkpoint
 		});
 		if let Some(cursor) = guard.as_ref() {
-			if !same_inventory &&
-				(finalized_hash == cursor.finalized_hash ||
-					inventory.finalized_number <= cursor.finalized_number ||
-					inventory.snapshot_checkpoint < cursor.snapshot_checkpoint)
+			if !same_inventory
+				&& (finalized_hash == cursor.finalized_hash
+					|| inventory.finalized_number <= cursor.finalized_number
+					|| inventory.snapshot_checkpoint < cursor.snapshot_checkpoint)
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
@@ -166,9 +188,9 @@ impl PromotionDiscoveryScheduler {
 			let index =
 				usize::try_from(anchor.last_index).map_err(|_| ContentError::IntegrityFailed)?;
 			let duty = inventory.duties.get(index).ok_or(ContentError::IntegrityFailed)?;
-			if duty.duty_id != anchor.last_duty_id ||
-				duty.duty_fingerprint != anchor.last_duty_fingerprint ||
-				duty.bucket_id != anchor.last_bucket_id
+			if duty.duty_id != anchor.last_duty_id
+				|| duty.duty_fingerprint != anchor.last_duty_fingerprint
+				|| duty.bucket_id != anchor.last_bucket_id
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
@@ -333,10 +355,10 @@ fn decode_candidate(
 	local_provider: [u8; 32],
 	local_key: [u8; 32],
 ) -> Result<Candidate, ContentError> {
-	if !duty.may_initiate ||
-		duty.role != CheckpointDutyRole::Replica ||
-		duty.mode != crate::CheckpointDutyMode::Standard ||
-		duty.phase != CheckpointDutyPhase::ReplicaFallbackPromotion
+	if !duty.may_initiate
+		|| duty.role != CheckpointDutyRole::Replica
+		|| duty.mode != crate::CheckpointDutyMode::Standard
+		|| duty.phase != CheckpointDutyPhase::ReplicaFallbackPromotion
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -353,9 +375,9 @@ fn decode_candidate(
 		inventory.snapshot_checkpoint,
 	)
 	.map_err(|_| ContentError::IntegrityFailed)?;
-	if projected != *duty ||
-		decoded.mode != RuntimeMode::Standard ||
-		decoded.phase != RuntimePhase::ReplicaFallbackPromotion
+	if projected != *duty
+		|| decoded.mode != RuntimeMode::Standard
+		|| decoded.phase != RuntimePhase::ReplicaFallbackPromotion
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -379,25 +401,25 @@ fn validate_topologies(
 	current
 		.validate(local_provider, local_key)
 		.map_err(|_| ContentError::IntegrityFailed)?;
-	if pinned.finalized_hash != expected_hash ||
-		pinned.finalized_number != inventory.finalized_number ||
-		pinned.governed_finalized_checkpoint != Some(inventory.snapshot_checkpoint) ||
-		pinned.genesis_hash != duty.commons_genesis_hash.0 ||
-		pinned.bucket_id != duty.bucket_id.0 ||
-		pinned.primary != primary ||
-		pinned.replicas != replicas ||
-		current.genesis_hash != pinned.genesis_hash ||
-		current.bucket_id != pinned.bucket_id ||
-		current.governed_finalized_checkpoint != pinned.governed_finalized_checkpoint ||
-		current.bucket_version != pinned.bucket_version ||
-		current.primary != pinned.primary ||
-		current.replicas != pinned.replicas ||
-		current.current_checkpoint != pinned.current_checkpoint
+	if pinned.finalized_hash != expected_hash
+		|| pinned.finalized_number != inventory.finalized_number
+		|| pinned.governed_finalized_checkpoint != Some(inventory.snapshot_checkpoint)
+		|| pinned.genesis_hash != duty.commons_genesis_hash.0
+		|| pinned.bucket_id != duty.bucket_id.0
+		|| pinned.primary != primary
+		|| pinned.replicas != replicas
+		|| current.genesis_hash != pinned.genesis_hash
+		|| current.bucket_id != pinned.bucket_id
+		|| current.governed_finalized_checkpoint != pinned.governed_finalized_checkpoint
+		|| current.bucket_version != pinned.bucket_version
+		|| current.primary != pinned.primary
+		|| current.replicas != pinned.replicas
+		|| current.current_checkpoint != pinned.current_checkpoint
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
-	if pinned.providers.len() != duty.authorities.len() ||
-		current.providers.len() != pinned.providers.len()
+	if pinned.providers.len() != duty.authorities.len()
+		|| current.providers.len() != pinned.providers.len()
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -421,17 +443,17 @@ fn validate_provider(
 	authority: &ProviderDutyAuthority<AccountId32, H256, u32>,
 	provider: &ReplicationProviderSnapshot,
 ) -> Result<(), ContentError> {
-	if provider.provider != account_bytes(&authority.provider)? ||
-		provider.order != authority.order ||
-		provider.primary != (authority.role == ProviderDutyRole::Primary) ||
-		provider.active_service_key != Some(authority.active_service_key) ||
-		provider.active_service_key_version != Some(authority.active_service_key_version) ||
-		provider.endpoint_hash != Some(authority.endpoint_hash.0) ||
-		provider.organization_valid != authority.organization_sla_eligible ||
-		(provider.overdue_challenges > 0) != authority.overdue_challenge ||
-		provider.eligible != authority.eligible ||
-		provider.confirmed_checkpoint != authority.confirmed_checkpoint ||
-		provider.usable != selection_eligible(authority)
+	if provider.provider != account_bytes(&authority.provider)?
+		|| provider.order != authority.order
+		|| provider.primary != (authority.role == ProviderDutyRole::Primary)
+		|| provider.active_service_key != Some(authority.active_service_key)
+		|| provider.active_service_key_version != Some(authority.active_service_key_version)
+		|| provider.endpoint_hash != Some(authority.endpoint_hash.0)
+		|| provider.organization_valid != authority.organization_sla_eligible
+		|| (provider.overdue_challenges > 0) != authority.overdue_challenge
+		|| provider.eligible != authority.eligible
+		|| provider.confirmed_checkpoint != authority.confirmed_checkpoint
+		|| provider.usable != selection_eligible(authority)
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -439,13 +461,13 @@ fn validate_provider(
 }
 
 fn selection_eligible(authority: &ProviderDutyAuthority<AccountId32, H256, u32>) -> bool {
-	authority.eligible &&
-		authority.organization_sla_eligible &&
-		!authority.overdue_challenge &&
-		authority.exclusion.is_none() &&
-		authority.initiation_exclusion.is_none() &&
-		authority.active_service_key_version > 0 &&
-		authority.active_service_key != [0; 32]
+	authority.eligible
+		&& authority.organization_sla_eligible
+		&& !authority.overdue_challenge
+		&& authority.exclusion.is_none()
+		&& authority.initiation_exclusion.is_none()
+		&& authority.active_service_key_version > 0
+		&& authority.active_service_key != [0; 32]
 }
 
 fn topology_provider(
@@ -506,9 +528,9 @@ fn cursor_hash(cursor: &DiscoveryCursorV2) -> Result<String, ContentError> {
 }
 
 fn validate_cursor(cursor: &DiscoveryCursorV2) -> Result<(), ContentError> {
-	if cursor.version != VERSION ||
-		canonical_hash(&cursor.finalized_hash)? != cursor.finalized_hash ||
-		cursor.record_hash != cursor_hash(cursor)?
+	if cursor.version != VERSION
+		|| canonical_hash(&cursor.finalized_hash)? != cursor.finalized_hash
+		|| cursor.record_hash != cursor_hash(cursor)?
 	{
 		return Err(ContentError::IntegrityFailed);
 	}

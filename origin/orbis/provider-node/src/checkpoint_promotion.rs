@@ -54,8 +54,7 @@ const PROMOTION_DOMAIN: &[u8] = b"cord/storage/checkpoint-promotion/v1";
 const ID_DOMAIN: &[u8] = b"cord/provider/checkpoint-promotion-intent/v2";
 const TUPLE_DOMAIN: &[u8] = b"cord/provider/checkpoint-promotion-tuple/v2";
 const INTENT_RECORD_DOMAIN: &[u8] = b"cord/provider/checkpoint-promotion-intent-record/v2";
-const FINALIZED_RECEIPT_DOMAIN: &[u8] =
-	b"cord/provider/checkpoint-promotion-finalized-receipt/v2";
+const FINALIZED_RECEIPT_DOMAIN: &[u8] = b"cord/provider/checkpoint-promotion-finalized-receipt/v2";
 const FINALITY_ATTESTATION_DOMAIN: &[u8] =
 	b"cord/provider/checkpoint-promotion-finality-attestation/v1";
 const SCHEDULER_RECORD_DOMAIN: &[u8] = b"cord/provider/checkpoint-promotion-scheduler/v2";
@@ -145,8 +144,52 @@ pub(crate) struct CheckpointPromotionStoreV2 {
 	poisoned: RwLock<bool>,
 }
 
+pub(crate) struct PreparedCheckpointPromotionStoreV2 {
+	intents_root: PathBuf,
+	finalized_receipts_root: PathBuf,
+	scheduler_root: PathBuf,
+	missing_roots: [bool; 3],
+	intents: HashMap<String, FallbackPromotionIntentV2>,
+	intent_order: BTreeMap<(u32, String), String>,
+	by_tuple: HashMap<String, String>,
+	finalized_receipts: HashMap<String, FallbackPromotionFinalizedReceiptV2>,
+	scheduler_cursor: Option<CheckpointPromotionSchedulerCursorV2>,
+	temp_artifacts: [Vec<PathBuf>; 3],
+}
+
+impl PreparedCheckpointPromotionStoreV2 {
+	pub(crate) fn apply(self) -> Result<CheckpointPromotionStoreV2, ContentError> {
+		for (index, root) in
+			[&self.intents_root, &self.finalized_receipts_root, &self.scheduler_root]
+				.into_iter()
+				.enumerate()
+		{
+			crate::bounded_io::create_prepared_directory(root, self.missing_roots[index])?;
+			crate::bounded_io::remove_validated_temp_artifacts(root, &self.temp_artifacts[index])?;
+		}
+		Ok(CheckpointPromotionStoreV2 {
+			intents_root: self.intents_root,
+			finalized_receipts_root: self.finalized_receipts_root,
+			scheduler_root: self.scheduler_root,
+			intents: RwLock::new(self.intents),
+			intent_order: RwLock::new(self.intent_order),
+			by_tuple: RwLock::new(self.by_tuple),
+			finalized_receipts: RwLock::new(self.finalized_receipts),
+			scheduler_cursor: RwLock::new(self.scheduler_cursor),
+			fault: RwLock::new(None),
+			poisoned: RwLock::new(false),
+		})
+	}
+}
+
 impl CheckpointPromotionStoreV2 {
 	pub(crate) fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
+		Self::prepare_open(root)?.apply()
+	}
+
+	pub(crate) fn prepare_open(
+		root: impl AsRef<Path>,
+	) -> Result<PreparedCheckpointPromotionStoreV2, ContentError> {
 		let provider_root = root.as_ref();
 		if provider_root.join(LEGACY_ROOT).try_exists().map_err(io_error)? {
 			return Err(ContentError::IntegrityFailed);
@@ -154,14 +197,20 @@ impl CheckpointPromotionStoreV2 {
 		let intents_root = provider_root.join(INTENTS_ROOT);
 		let finalized_receipts_root = provider_root.join(FINALIZED_RECEIPTS_ROOT);
 		let scheduler_root = provider_root.join(SCHEDULER_ROOT);
-		fs::create_dir_all(&intents_root).map_err(io_error)?;
-		fs::create_dir_all(&finalized_receipts_root).map_err(io_error)?;
-		fs::create_dir_all(&scheduler_root).map_err(io_error)?;
+		let missing_roots = [
+			!crate::bounded_io::optional_directory_exists(&intents_root)?,
+			!crate::bounded_io::optional_directory_exists(&finalized_receipts_root)?,
+			!crate::bounded_io::optional_directory_exists(&scheduler_root)?,
+		];
 
 		let mut intents = HashMap::new();
 		let mut intent_order = BTreeMap::new();
 		let mut by_tuple = HashMap::new();
-		let intent_scan = read_records(&intents_root, MAX_INTENT_BYTES)?;
+		let intent_scan = if missing_roots[0] {
+			RecordScan { records: Vec::new(), temp_artifacts: Vec::new() }
+		} else {
+			read_records(&intents_root, MAX_INTENT_BYTES)?
+		};
 		for item in intent_scan.records {
 			let intent: FallbackPromotionIntentV2 =
 				serde_json::from_slice(&item.bytes).map_err(|_| ContentError::IntegrityFailed)?;
@@ -171,16 +220,18 @@ impl CheckpointPromotionStoreV2 {
 				|| intents.len() >= MAX_RECORDS
 				|| intents.insert(intent.intent_id.clone(), intent.clone()).is_some()
 				|| intent_order.insert(order_key, intent.intent_id.clone()).is_some()
-				|| by_tuple
-					.insert(intent.tuple_key.clone(), intent.intent_id.clone())
-					.is_some()
+				|| by_tuple.insert(intent.tuple_key.clone(), intent.intent_id.clone()).is_some()
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
 		}
 
 		let mut finalized_receipts = HashMap::new();
-		let finalized_receipt_scan = read_records(&finalized_receipts_root, MAX_RECEIPT_BYTES)?;
+		let finalized_receipt_scan = if missing_roots[1] {
+			RecordScan { records: Vec::new(), temp_artifacts: Vec::new() }
+		} else {
+			read_records(&finalized_receipts_root, MAX_RECEIPT_BYTES)?
+		};
 		for item in finalized_receipt_scan.records {
 			let receipt: FallbackPromotionFinalizedReceiptV2 =
 				serde_json::from_slice(&item.bytes).map_err(|_| ContentError::IntegrityFailed)?;
@@ -193,36 +244,31 @@ impl CheckpointPromotionStoreV2 {
 				return Err(ContentError::IntegrityFailed);
 			}
 		}
-		let scheduler_scan = read_scheduler_cursor(&scheduler_root)?;
+		let scheduler_scan = if missing_roots[2] {
+			SchedulerCursorScan { cursor: None, temp_artifacts: Vec::new() }
+		} else {
+			read_scheduler_cursor(&scheduler_root)?
+		};
 		let scheduler_cursor = scheduler_scan.cursor;
 		if let Some(cursor) = &scheduler_cursor {
 			let intent = intents.get(&cursor.intent_id).ok_or(ContentError::IntegrityFailed)?;
 			validate_scheduler_cursor_against_intent(cursor, intent)?;
 		}
-		crate::bounded_io::remove_validated_temp_artifacts(
-			&intents_root,
-			&intent_scan.temp_artifacts,
-		)?;
-		crate::bounded_io::remove_validated_temp_artifacts(
-			&finalized_receipts_root,
-			&finalized_receipt_scan.temp_artifacts,
-		)?;
-		crate::bounded_io::remove_validated_temp_artifacts(
-			&scheduler_root,
-			&scheduler_scan.temp_artifacts,
-		)?;
-
-		Ok(Self {
+		Ok(PreparedCheckpointPromotionStoreV2 {
 			intents_root,
 			finalized_receipts_root,
 			scheduler_root,
-			intents: RwLock::new(intents),
-			intent_order: RwLock::new(intent_order),
-			by_tuple: RwLock::new(by_tuple),
-			finalized_receipts: RwLock::new(finalized_receipts),
-			scheduler_cursor: RwLock::new(scheduler_cursor),
-			fault: RwLock::new(None),
-			poisoned: RwLock::new(false),
+			missing_roots,
+			intents,
+			intent_order,
+			by_tuple,
+			finalized_receipts,
+			scheduler_cursor,
+			temp_artifacts: [
+				intent_scan.temp_artifacts,
+				finalized_receipt_scan.temp_artifacts,
+				scheduler_scan.temp_artifacts,
+			],
 		})
 	}
 
@@ -303,12 +349,7 @@ impl CheckpointPromotionStoreV2 {
 					.map(|(_, intent_id)| intent_id.clone()),
 			);
 		} else {
-			ordered_ids.extend(
-				intent_order
-					.values()
-					.take(MAX_RESERVATION_SCAN)
-					.cloned(),
-			);
+			ordered_ids.extend(intent_order.values().take(MAX_RESERVATION_SCAN).cloned());
 		}
 		let mut pending = Vec::with_capacity(limit);
 		let mut last_considered = None;
@@ -335,9 +376,7 @@ impl CheckpointPromotionStoreV2 {
 		Ok(pending)
 	}
 
-	fn unreserved_pending_intents(
-		&self,
-	) -> Result<Vec<FallbackPromotionIntentV2>, ContentError> {
+	fn unreserved_pending_intents(&self) -> Result<Vec<FallbackPromotionIntentV2>, ContentError> {
 		self.ensure_healthy()?;
 		let intents = self.intents.read().map_err(|_| lock_error())?;
 		let receipts = self.finalized_receipts.read().map_err(|_| lock_error())?;
@@ -439,13 +478,7 @@ impl CheckpointPromotionStoreV2 {
 	) -> Result<(), ContentError> {
 		validate_scheduler_cursor(cursor)?;
 		let bytes = serde_json::to_vec(cursor).map_err(io_error)?;
-		persist_record(
-			&self.scheduler_root,
-			SCHEDULER_KEY,
-			&bytes,
-			MAX_RECEIPT_BYTES,
-			&self.fault,
-		)
+		persist_record(&self.scheduler_root, SCHEDULER_KEY, &bytes, MAX_RECEIPT_BYTES, &self.fault)
 	}
 
 	fn ensure_healthy(&self) -> Result<(), ContentError> {
@@ -511,18 +544,13 @@ fn read_records(root: &Path, max_record_bytes: usize) -> Result<RecordScan, Cont
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
-		let bytes = crate::bounded_io::read_regular_file(
-			item.path(),
-			max_record_bytes as u64,
-		)?;
+		let bytes = crate::bounded_io::read_regular_file(item.path(), max_record_bytes as u64)?;
 		records.push(RecordFile { name, bytes });
 	}
 	Ok(RecordScan { records, temp_artifacts })
 }
 
-fn read_scheduler_cursor(
-	root: &Path,
-) -> Result<SchedulerCursorScan, ContentError> {
+fn read_scheduler_cursor(root: &Path) -> Result<SchedulerCursorScan, ContentError> {
 	let expected = format!("{SCHEDULER_KEY}.json");
 	let temp_prefix = format!("{SCHEDULER_KEY}.json.tmp-");
 	let mut cursor = None;
@@ -542,10 +570,7 @@ fn read_scheduler_cursor(
 		if name != expected || cursor.is_some() || !item.file_type().map_err(io_error)?.is_file() {
 			return Err(ContentError::IntegrityFailed);
 		}
-		let bytes = crate::bounded_io::read_regular_file(
-			item.path(),
-			MAX_RECEIPT_BYTES as u64,
-		)?;
+		let bytes = crate::bounded_io::read_regular_file(item.path(), MAX_RECEIPT_BYTES as u64)?;
 		let decoded: CheckpointPromotionSchedulerCursorV2 =
 			serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
 		validate_scheduler_cursor(&decoded)?;
@@ -575,9 +600,7 @@ fn scheduler_cursor(
 fn validate_scheduler_cursor(
 	cursor: &CheckpointPromotionSchedulerCursorV2,
 ) -> Result<(), ContentError> {
-	if cursor.version != SCHEDULER_VERSION
-		|| cursor.record_hash != scheduler_cursor_hash(cursor)?
-	{
+	if cursor.version != SCHEDULER_VERSION || cursor.record_hash != scheduler_cursor_hash(cursor)? {
 		return Err(ContentError::IntegrityFailed);
 	}
 	for value in [
@@ -587,7 +610,8 @@ fn validate_scheduler_cursor(
 		&cursor.inventory_finalized_hash,
 		&cursor.record_hash,
 	] {
-		let _: [u8; 32] = decode_hex(value)?.try_into().map_err(|_| ContentError::IntegrityFailed)?;
+		let _: [u8; 32] =
+			decode_hex(value)?.try_into().map_err(|_| ContentError::IntegrityFailed)?;
 	}
 	Ok(())
 }
@@ -629,11 +653,7 @@ fn persist_record(
 		return Err(ContentError::IntegrityFailed);
 	}
 	let temp = root.join(format!("{key}.json.tmp-{}", std::process::id()));
-	let mut file = OpenOptions::new()
-		.write(true)
-		.create_new(true)
-		.open(&temp)
-		.map_err(io_error)?;
+	let mut file = OpenOptions::new().write(true).create_new(true).open(&temp).map_err(io_error)?;
 	file.write_all(bytes).map_err(io_error)?;
 	trip(fault, CheckpointPromotionFault::BeforeTempFsync)?;
 	file.sync_all().map_err(io_error)?;
@@ -823,23 +843,23 @@ fn validate_duty<'a>(
 	provider: &AccountId32,
 	service_key: &ed25519::Public,
 ) -> Result<&'a Authority, ContentError> {
-	if duty.response_version != RESPONSE_VERSION ||
-		duty.phase != CheckpointDutyPhase::ReplicaFallbackPromotion ||
-		duty.mode != CheckpointDutyMode::Standard ||
-		duty.expected_nonce != duty.snapshot_checkpoint ||
-		duty.due_at > duty.grace_until ||
-		duty.snapshot_checkpoint < duty.grace_until ||
-		duty.initiator.as_ref() != Some(provider) ||
-		!duty.replicas.contains(provider) ||
-		!(2..=4).contains(&duty.replicas.len()) ||
-		duty.required_primary_confirmations != 1 ||
-		duty.required_replica_confirmations != 2
+	if duty.response_version != RESPONSE_VERSION
+		|| duty.phase != CheckpointDutyPhase::ReplicaFallbackPromotion
+		|| duty.mode != CheckpointDutyMode::Standard
+		|| duty.expected_nonce != duty.snapshot_checkpoint
+		|| duty.due_at > duty.grace_until
+		|| duty.snapshot_checkpoint < duty.grace_until
+		|| duty.initiator.as_ref() != Some(provider)
+		|| !duty.replicas.contains(provider)
+		|| !(2..=4).contains(&duty.replicas.len())
+		|| duty.required_primary_confirmations != 1
+		|| duty.required_replica_confirmations != 2
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let expected_len = duty.replicas.len().checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 	if duty.authorities.len() != expected_len {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let mut seen = Vec::<Vec<u8>>::with_capacity(expected_len);
 	for (index, authority) in duty.authorities.iter().enumerate() {
@@ -850,12 +870,12 @@ fn validate_duty<'a>(
 		};
 		let expected_order = u8::try_from(index).map_err(|_| ContentError::IntegrityFailed)?;
 		let encoded = authority.provider.encode();
-		if authority.provider != *expected_provider ||
-			authority.role != expected_role ||
-			authority.order != expected_order ||
-			seen.iter().any(|item| item == &encoded)
+		if authority.provider != *expected_provider
+			|| authority.role != expected_role
+			|| authority.order != expected_order
+			|| seen.iter().any(|item| item == &encoded)
 		{
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		seen.push(encoded);
 	}
@@ -880,13 +900,13 @@ fn validate_duty<'a>(
 		.iter()
 		.filter(|authority| authority.eligible && authority.provider != selected.provider)
 		.count();
-	if &selected.provider != provider ||
-		!promotion_eligible(selected) ||
-		nonselected_initiator ||
-		eligible_others >= 2 ||
-		selected.active_service_key != service_key.0
+	if &selected.provider != provider
+		|| !promotion_eligible(selected)
+		|| nonselected_initiator
+		|| eligible_others >= 2
+		|| selected.active_service_key != service_key.0
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(selected)
 }
@@ -896,13 +916,13 @@ fn promotion_eligible(authority: &Authority) -> bool {
 }
 
 fn selection_eligible(authority: &Authority) -> bool {
-	authority.eligible &&
-		authority.organization_sla_eligible &&
-		!authority.overdue_challenge &&
-		authority.exclusion.is_none() &&
-		authority.initiation_exclusion.is_none() &&
-		authority.active_service_key_version > 0 &&
-		authority.active_service_key != [0; 32]
+	authority.eligible
+		&& authority.organization_sla_eligible
+		&& !authority.overdue_challenge
+		&& authority.exclusion.is_none()
+		&& authority.initiation_exclusion.is_none()
+		&& authority.active_service_key_version > 0
+		&& authority.active_service_key != [0; 32]
 }
 
 fn promotion_digest(payload: &Payload) -> [u8; 32] {
@@ -949,7 +969,7 @@ fn decode_scale<T: Decode + Encode>(bytes: &[u8]) -> Result<T, ContentError> {
 	let mut input = bytes;
 	let decoded = T::decode(&mut input).map_err(|_| ContentError::IntegrityFailed)?;
 	if !input.is_empty() || decoded.encode() != bytes {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(decoded)
 }
@@ -960,7 +980,7 @@ fn decode_hex_scale<T: Decode + Encode>(value: &str) -> Result<T, ContentError> 
 
 fn decode_hex(value: &str) -> Result<Vec<u8>, ContentError> {
 	if value.bytes().any(|byte| byte.is_ascii_uppercase()) {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	hex::decode(value).map_err(|_| ContentError::IntegrityFailed)
 }
@@ -1074,10 +1094,7 @@ mod tests {
 		duty
 	}
 
-	fn authorize_with(
-		store: &CheckpointPromotionStoreV2,
-		seed: u8,
-	) -> FallbackPromotionIntentV2 {
+	fn authorize_with(store: &CheckpointPromotionStoreV2, seed: u8) -> FallbackPromotionIntentV2 {
 		store.authorize(&account(2), &duty_with(seed).encode(), &pair(2)).unwrap()
 	}
 
@@ -1086,9 +1103,7 @@ mod tests {
 	}
 
 	fn receipt_path(temp: &TempDir, intent_id: &str) -> PathBuf {
-		temp.path()
-			.join(FINALIZED_RECEIPTS_ROOT)
-			.join(format!("{intent_id}.json"))
+		temp.path().join(FINALIZED_RECEIPTS_ROOT).join(format!("{intent_id}.json"))
 	}
 
 	fn finality_signature(
@@ -1280,9 +1295,10 @@ mod tests {
 				2 => local.organization_sla_eligible = false,
 				3 => local.overdue_challenge = true,
 				4 => local.exclusion = Some(ProviderDutyExclusion::Inactive),
-				5 =>
+				5 => {
 					local.initiation_exclusion =
-						Some(ProviderDutyExclusion::ReplicaCheckpointMissingOrStale),
+						Some(ProviderDutyExclusion::ReplicaCheckpointMissingOrStale)
+				},
 				6 => local.active_service_key_version = 0,
 				7 => local.active_service_key = [0; 32],
 				_ => unreachable!(),
@@ -1321,10 +1337,7 @@ mod tests {
 				intents.insert(dummy.intent_id.clone(), dummy);
 			}
 		}
-		assert_eq!(
-			store.authorize(&account(2), &base.encode(), &pair(2)).unwrap(),
-			intent
-		);
+		assert_eq!(store.authorize(&account(2), &base.encode(), &pair(2)).unwrap(), intent);
 		let mut next = base;
 		next.duty_id = H256::repeat_byte(89);
 		assert!(matches!(
@@ -1488,10 +1501,7 @@ mod tests {
 		fs::create_dir_all(&root).unwrap();
 		fs::write(root.join("cursor.json.tmp-1"), []).unwrap();
 		fs::write(root.join("cursor.json.tmp-2"), []).unwrap();
-		assert!(matches!(
-			read_scheduler_cursor(&root),
-			Err(ContentError::IntegrityFailed)
-		));
+		assert!(matches!(read_scheduler_cursor(&root), Err(ContentError::IntegrityFailed)));
 		assert!(root.join("cursor.json.tmp-1").exists());
 		assert!(root.join("cursor.json.tmp-2").exists());
 	}
@@ -1565,10 +1575,7 @@ mod tests {
 		for seed in 20..90 {
 			all.insert(authorize_with(&store, seed).intent_id);
 		}
-		assert!(matches!(
-			store.reserve_pending_intents(0),
-			Err(ContentError::IntegrityFailed)
-		));
+		assert!(matches!(store.reserve_pending_intents(0), Err(ContentError::IntegrityFailed)));
 		assert!(matches!(
 			store.reserve_pending_intents(MAX_RESERVATION_ACTIONS + 1),
 			Err(ContentError::IntegrityFailed)
@@ -1580,7 +1587,11 @@ mod tests {
 			assert!(!batch.is_empty());
 			assert!(batch.len() <= MAX_RESERVATION_ACTIONS);
 			assert_eq!(
-				batch.iter().map(|intent| &intent.intent_id).collect::<std::collections::HashSet<_>>().len(),
+				batch
+					.iter()
+					.map(|intent| &intent.intent_id)
+					.collect::<std::collections::HashSet<_>>()
+					.len(),
 				batch.len()
 			);
 			seen.extend(batch.into_iter().map(|intent| intent.intent_id));
@@ -1620,7 +1631,11 @@ mod tests {
 		let batch = reopened.reserve_pending_intents(MAX_RESERVATION_ACTIONS).unwrap();
 		assert_eq!(batch.len(), 2);
 		assert_eq!(
-			batch.iter().map(|intent| &intent.intent_id).collect::<std::collections::HashSet<_>>().len(),
+			batch
+				.iter()
+				.map(|intent| &intent.intent_id)
+				.collect::<std::collections::HashSet<_>>()
+				.len(),
 			2
 		);
 	}
@@ -1651,14 +1666,12 @@ mod tests {
 		] {
 			let temp = TempDir::new().unwrap();
 			let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
-			let expected = [authorize_with(&store, 20).intent_id, authorize_with(&store, 21).intent_id]
-				.into_iter()
-				.collect::<std::collections::HashSet<_>>();
+			let expected =
+				[authorize_with(&store, 20).intent_id, authorize_with(&store, 21).intent_id]
+					.into_iter()
+					.collect::<std::collections::HashSet<_>>();
 			store.inject_fault_once(fault).unwrap();
-			assert!(matches!(
-				store.reserve_pending_intents(1),
-				Err(ContentError::Io(_))
-			));
+			assert!(matches!(store.reserve_pending_intents(1), Err(ContentError::Io(_))));
 			drop(store);
 			let reopened = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
 			let batch = reopened.reserve_pending_intents(1).unwrap();
