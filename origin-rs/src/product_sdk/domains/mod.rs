@@ -38,7 +38,7 @@ pub mod storage_provider;
 pub use common::{
 	AccountId, AgreementId, AttestationId, BlockNumber, BucketId, ChallengeId, ContainerId,
 	ContentCommitment, ContentHash, DomainResult, DriveId, FinalizedPage, FinalizedQuery,
-	FinalizedValue, Hash32, NameId, ObjectId, PageRequest, PayloadCommitment, ProofCommitment,
+	FinalizedValue, Hash32, NameId, ObjectId, OperationId, PageRequest, PayloadCommitment, ProofCommitment,
 	ProviderReference, RegistrationCommitment, ReservationId, ReservationReference, SchemaId,
 	StatusCommitment, SubjectCommitment, SubjectId, SubmitAndFinalize, UniquenessCommitment,
 	Validate, DOMAIN_CONTRACT_VERSION, MAX_PAGE_SIZE,

@@ -650,11 +650,13 @@
       },
       {
         "capability": "names",
-        "method": "set_content",
+        "method": "publish_content",
         "finality": "submit-and-finalize",
         "payloadFields": [
           "name",
-          "content"
+          "content",
+          "expected_revision",
+          "operation_id"
         ]
       },
       {

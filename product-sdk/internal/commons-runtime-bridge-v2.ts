@@ -268,8 +268,7 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
       const code = runtimeErrorCode(error);
       if (code === undefined || !binding.allowedErrors.includes(code as never)) throw error;
       const message = error instanceof Error ? error.message : "Commons runtime rejected the operation";
-      if (!accepted) yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
-      yield { event: errorEvent(requestId, sequence, code, message), terminalBlock: input.authority.number };
+      yield { event: errorEvent(requestId, accepted ? sequence : 0, code, message), terminalBlock: input.authority.number };
     }
   }
 
@@ -365,13 +364,9 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
       throw new CommonsHostFailure(204, "Names publication CID must use canonical base32lower encoding");
     }
     const commitment = hex(parsed.digest, 32, "content commitment");
-    const manifest = versioned<ManifestInfo>(await this.#runtime.read(hex(authority.hash), "StorageProviderApi.canonical_manifest", { manifest: commitment }, signal), "canonical manifest");
-    if (manifest.value === null || enumName(manifest.value.state) !== "publishable") {
-      throw new CommonsHostFailure(209, "content is not publishable at finalized Commons state");
-    }
     const operationId = hex(request[5], 16, "publication operation ID");
     const prepared = await this.#runtime.prepare(hex(authority.hash), "Names.publish_content", {
-      name, content: commitment, expected_revision: payload[2] === undefined ? undefined : uint(payload[2], "expected publication revision"),
+      name, content: commitment, expected_revision: uint(payload[2], "expected publication revision"),
       operation_id: operationId,
     }, undefined, signal);
     const receipt = await this.#submit(prepared, signal);
@@ -412,7 +407,13 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     }
     return {
       terminal: at,
-      result: { 0: cidForCommitment(commitment), 1: uint(content.value.revision, "publication revision"), 2: this.#checkpointMap(checkpoint), 3: finalityMap(at) } as HostV2Map,
+      result: {
+        0: cidForCommitment(commitment),
+        1: uint(content.value.revision, "publication revision"),
+        2: this.#checkpointMap(checkpoint),
+        3: finalityMap(at),
+        4: bytes(nameId, 32, "resolved name ID"),
+      } as HostV2Map,
     };
   }
 

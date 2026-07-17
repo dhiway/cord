@@ -76,7 +76,7 @@ function publishInput(overrides: Partial<PublishOriginAppV2Input> = {}): Publish
   return { productId: "festival.app", name, storageName, nameHash: nameHash.slice(), controller, contentCommitment: commitment,
     contentCid, manifestCid, contentBytes: contentBytes.slice(), manifestBytes: manifestBytes.slice(), bucketId,
     writerGrantId: bytes(32, 9), readerGrantId: bytes(32, 10), publishGrantId: bytes(32, 11), deadlineBlock: 100n,
-    expectedDriveVersion: 0n, requestId: () => bytes(16, request++), operationId: () => bytes(16, operation++), ...overrides };
+    expectedDriveVersion: 0n, expectedPublishVersion: 0n, requestId: () => bytes(16, request++), operationId: () => bytes(16, operation++), ...overrides };
 }
 function resultFor(operation: StorageOperationV2, publishable = true, resolveFinality = wf(3n, 3)): unknown {
   switch (operation) {
@@ -84,7 +84,7 @@ function resultFor(operation: StorageOperationV2, publishable = true, resolveFin
     case "storage.drive.commit": return { manifest: manifestCid, version: 1n, checkpoint, finalized: storageFinality };
     case "storage.object.status": return { state: 2, replicas: 2, publishable, ...(publishable ? { checkpoint } : {}), finalized: storageFinality };
     case "storage.publish": return { nameHash: nameHash.slice(), cid: manifestCid, finalized: storageFinality };
-    case "storage.resolve": return { cid: manifestCid, version: 1n, checkpoint, finalized: resolveFinality };
+    case "storage.resolve": return { cid: manifestCid, version: 1n, checkpoint, finalized: resolveFinality, nameId: nameHash.slice() };
     case "storage.object.get": return { cid: manifestCid, length: BigInt(manifestBytes.length), checkpoint };
   }
 }
@@ -174,7 +174,7 @@ test("content, manifest, name, receipt, and stream are cryptographically cross-b
   }
 });
 
-for (const hostile of ["names-older", "names-fork", "names-owner", "names-controllers", "storage-older", "storage-fork", "cid"] as const) {
+for (const hostile of ["names-older", "names-fork", "names-owner", "names-controllers", "storage-older", "storage-fork", "cid", "name-id"] as const) {
   test(`resolve rejects hostile ${hostile} authority`, async () => {
     const index = newIndex(), storage = new StorageExecutor(), names = new NamesBinding();
     const apps = createPrivateOriginAppsV2(factory, storage, names, index); await apps.publish(publishInput());
@@ -183,7 +183,8 @@ for (const hostile of ["names-older", "names-fork", "names-owner", "names-contro
     if (hostile === "names-owner") names.state = { ...names.state, owner: nextOwner };
     if (hostile === "names-controllers") names.state = { ...names.state, controllers: [] };
     if (hostile === "storage-older") storage.resolveFinality = wf(2n, 2); if (hostile === "storage-fork") storage.resolveFinality = wf(3n, 9);
-    if (hostile === "cid") { const original = storage.execute.bind(storage), other = rawContentAddress(bytes(4, 44)).cid; storage.execute = async (intent, upload, signal) => intent.operation === "storage.resolve" ? { cid: other, version: 1n, checkpoint, finalized: wf(3n, 3) } : original(intent, upload as never, signal); }
+    if (hostile === "cid") { const original = storage.execute.bind(storage), other = rawContentAddress(bytes(4, 44)).cid; storage.execute = async (intent, upload, signal) => intent.operation === "storage.resolve" ? { cid: other, version: 1n, checkpoint, finalized: wf(3n, 3), nameId: nameHash.slice() } : original(intent, upload as never, signal); }
+    if (hostile === "name-id") { const original = storage.execute.bind(storage); storage.execute = async (intent, upload, signal) => intent.operation === "storage.resolve" ? { cid: manifestCid, version: 1n, checkpoint, finalized: wf(3n, 3), nameId: bytes(32, 99) } : original(intent, upload as never, signal); }
     await assert.rejects(() => apps.resolve(resolveInput()), /exact event-index authority|exact finalized Names authority/);
   });
 }

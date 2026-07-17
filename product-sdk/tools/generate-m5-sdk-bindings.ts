@@ -36,7 +36,7 @@ const routeIds = new Set(routeContract.routes.map((route: any) => route.id));
 
 const exactRoutes: Record<string, readonly string[]> = {
   "function:owner": ["names:name_by_id"], "function:recordExists": ["names:name_status"],
-  "function:contenthash": ["names:resolve_content"], "function:text": ["names:resolve_text"],
+  "function:contenthash": ["names:resolve_content_publication"], "function:text": ["names:resolve_text"],
   "function:addressOf": ["names:resolve_address"], "function:nameOf": ["names:primary_name"],
   "function:isSingleLabel": ["names:register", "names:reserve_name", "names:set_label_protection"],
   "function:isSingleLabelMemory": ["names:register", "names:reserve_name", "names:set_label_protection"],

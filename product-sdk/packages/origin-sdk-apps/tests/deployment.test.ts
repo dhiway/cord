@@ -20,7 +20,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { CloudStorageClient } from "@cord-network/origin-sdk-cloud-storage";
-import { nameId } from "@cord-network/origin-sdk-names";
+import { nameId, operationId } from "@cord-network/origin-sdk-names";
 import { ok } from "@cord-network/origin-sdk-result";
 import type { PreparedTransaction } from "@cord-network/origin-sdk-tx";
 import {
@@ -66,6 +66,7 @@ test("static packaging is deterministic and deployment reuses unchanged blocks",
     entrypoint: "index.html",
     contentFormat: "static",
     requestedCapabilities: ["accounts"],
+    publication: { expectedRevision: "0", operationId: operationId(`0x${"33".repeat(16)}`) },
     files,
   });
   assert.equal(prepared.success, true);

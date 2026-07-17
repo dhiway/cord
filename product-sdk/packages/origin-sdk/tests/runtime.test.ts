@@ -48,7 +48,7 @@ test("one descriptor executor generates every native application adapter", async
   await runtime.personhood.personhoodStatus(at, "5Account");
   await runtime.resources.consumer(at, "5Account");
   await runtime.attestation.schemaCount(at);
-  await runtime.names.resolveContent(at, `0x${"22".repeat(32)}`);
+  await runtime.names.resolveContentPublication(at, `0x${"22".repeat(32)}`);
   await runtime.storage.read(at, "storage", "account_authorization", { account: "5Account" });
   const payment = paymentOptions();
   await runtime.assets.prepare(at, "Assets.transfer", { id: 1 }, payment);
@@ -58,7 +58,7 @@ test("one descriptor executor generates every native application adapter", async
     "read:IdentityPersonhoodApi.personhood_status",
     "read:Resources.Consumers",
     "read:AttestationApi.schema_count",
-    "read:NamesApi.resolve_content",
+    "read:NamesApi.resolve_content_publication",
     "read:storage.account_authorization",
     "prepare:Assets.transfer",
   ]);

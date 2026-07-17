@@ -50,7 +50,7 @@ const STORAGE_CODES: Readonly<Record<StorageOperationV2, number>> = {
   "storage.publish": 1050,
   "storage.resolve": 1051,
 };
-const STORAGE_REGISTRY_SHA256 = "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba";
+const STORAGE_REGISTRY_SHA256 = "338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf";
 const utf8 = new TextEncoder();
 const utf8Decoder = new TextDecoder("utf-8", { fatal: true });
 const PRIVATE_APP_MANIFEST_SCHEMA = "cord.origin.private-app-manifest" as const;
@@ -611,7 +611,7 @@ export interface PublishOriginAppV2Input {
   readonly publishGrantId: Uint8Array;
   readonly deadlineBlock: bigint;
   readonly expectedDriveVersion: bigint;
-  readonly expectedPublishVersion?: bigint;
+  readonly expectedPublishVersion: bigint;
   requestId(): Uint8Array;
   operationId(): Uint8Array;
 }
@@ -858,7 +858,7 @@ export function createPrivateOriginAppsV2(
         payload: {
           nameHash: input.nameHash,
           cid: input.manifestCid,
-          ...(input.expectedPublishVersion === undefined ? {} : { expectedVersion: input.expectedPublishVersion }),
+          expectedVersion: input.expectedPublishVersion,
         },
       }, undefined, signal), ["nameHash", "cid", "finalized"], "storage.publish result");
       if (published.cid !== input.manifestCid
@@ -876,8 +876,9 @@ export function createPrivateOriginAppsV2(
       const resolved = result(await execute("storage.resolve", {
         ...common, requestId: input.requestId(),
         payload: { name: originRootLabel(input.storageName) },
-      }, undefined, signal), ["cid", "version", "checkpoint", "finalized"], "storage.resolve result");
+      }, undefined, signal), ["cid", "version", "checkpoint", "finalized", "nameId"], "storage.resolve result");
       if (resolved.cid !== input.manifestCid || typeof resolved.version !== "bigint" || resolved.version < 1n
+        || !(resolved.nameId instanceof Uint8Array) || !equalBytes(resolved.nameId, input.nameHash)
         || !sameCheckpoint(checkpoint(resolved.checkpoint, "resolved publication checkpoint"), publishable.checkpoint)) {
         throw new TypeError("native Names resolution does not match the published manifest");
       }
@@ -924,10 +925,11 @@ export function createPrivateOriginAppsV2(
         ...common,
         requestId: input.requestId(),
         payload: { name: label, at },
-      }, undefined, signal), ["cid", "version", "checkpoint", "finalized"], "storage.resolve result");
+      }, undefined, signal), ["cid", "version", "checkpoint", "finalized", "nameId"], "storage.resolve result");
       const resolveFinalized = finalized(resolved.finalized, "storage resolve finality");
       if (!sameFinality(resolveFinalized, live.finalized)
         || typeof resolved.cid !== "string" || cidCommitment(resolved.cid) !== live.content
+        || !(resolved.nameId instanceof Uint8Array) || bytesHex(resolved.nameId) !== input.name
         || typeof resolved.version !== "bigint" || resolved.version < 0n) {
         throw new TypeError("storage resolution is not bound to the exact finalized Names authority");
       }

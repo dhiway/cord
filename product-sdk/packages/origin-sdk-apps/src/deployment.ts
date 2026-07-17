@@ -28,7 +28,7 @@ import {
 } from "@cord-network/origin-sdk-cloud-storage";
 import { OriginSdkError, asSdkError, type SdkResult } from "@cord-network/origin-sdk-errors";
 import type { OriginHostClient, ProductIdentity } from "@cord-network/origin-sdk-host";
-import { contentCommitment, type AttestationId, type ContentCommitment, type NameId } from "@cord-network/origin-sdk-names";
+import { contentCommitment, type AttestationId, type ContentCommitment, type NameId, type OperationId } from "@cord-network/origin-sdk-names";
 import { err, ok } from "@cord-network/origin-sdk-result";
 import type { PreparedTransaction } from "@cord-network/origin-sdk-tx";
 import {
@@ -79,6 +79,7 @@ export interface PrepareOriginAppDeployment {
   readonly requestedCapabilities: readonly OriginRequestedCapability[];
   readonly attestation?: AttestationId;
   readonly files: readonly OriginStaticFile[];
+  readonly publication: { readonly expectedRevision: string; readonly operationId: OperationId };
 }
 
 export interface PreparedOriginAppDeployment {
@@ -262,7 +263,7 @@ export function createOriginAppDeployer(
           retentionTransactions,
           uploadedCommitments,
           reusedCommitments,
-          prepareBinding: (bindingSignal) => apps.prepareManifestBinding(stored.value, bindingSignal),
+          prepareBinding: (bindingSignal) => apps.prepareManifestBinding(stored.value, input.publication, bindingSignal),
         });
       } catch (error) {
         return err(asSdkError(error, {

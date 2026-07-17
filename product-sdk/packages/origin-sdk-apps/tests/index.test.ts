@@ -96,9 +96,9 @@ test("resolver pins all native authority reads to one finalized block", async ()
   const runtime = {
     async nameStatus(hash) { seen.push(`${hash}:status`); return { version: 1, exists: true, active: true, expires_at: "10" as never }; },
     async nameById(hash) { seen.push(`${hash}:name`); return { version: 1, value: { name: appName, parent: null, label: "festival" as never, owner, expires_at: "10" as never, depth: 0 } }; },
-    async resolveContent(hash) { seen.push(`${hash}:content`); return { version: 1, value: commitment }; },
+    async resolveContentPublication(hash) { seen.push(`${hash}:content`); return { version: 1, value: { content: commitment, revision: 1n } }; },
     async resolveAttestation(hash) { seen.push(`${hash}:attestation`); return { version: 1, value: null }; },
-    async setContent() { return tx; },
+    async publishContent() { return tx; },
   } as NamesRuntimeAdapter;
   const chain = createCommonsChainClient({
     async finalizedBlock() { return { hash: at, number: 7n }; },

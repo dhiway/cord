@@ -295,7 +295,7 @@ StorageS3DeleteProgress = ProgressState
 StorageS3DeleteResult = {0: U64, 1: U32, 2: Fin}
 StorageS3DeleteError = ErrorV2
 
-StoragePublishRequest = {0: Hash32, 1: Cid, ?2: U64}
+StoragePublishRequest = {0: Hash32, 1: Cid, 2: U64}
 StoragePublishAccepted = AcceptedState
 StoragePublishProgress = ProgressState
 StoragePublishResult = {0: Hash32, 1: Cid, 2: Fin}
@@ -304,7 +304,7 @@ StoragePublishError = ErrorV2
 StorageResolveRequest = {0: NfcText256, ?1: U64, ?2: Hash32}
 StorageResolveAccepted = AcceptedState
 StorageResolveProgress = ProgressState
-StorageResolveResult = {0: Cid, 1: U64, 2: CheckpointV2, 3: Fin}
+StorageResolveResult = {0: Cid, 1: U64, 2: CheckpointV2, 3: Fin, 4: Hash32}
 StorageResolveError = ErrorV2
 
 StorageKeysExportRequest = {0: BucketId, 1: U32, 2: bytes .size (32..256)}

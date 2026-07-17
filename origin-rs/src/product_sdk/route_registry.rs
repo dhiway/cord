@@ -360,7 +360,7 @@ fn sponsored_target_declaration(
 				"set_address",
 				"set_subject",
 				"set_attestation",
-				"set_content",
+				"publish_content",
 				"set_text",
 				"set_primary_name",
 				"release",

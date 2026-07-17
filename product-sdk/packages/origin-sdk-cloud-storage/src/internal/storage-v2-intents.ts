@@ -28,7 +28,7 @@ export const STORAGE_V2_PROTOCOL = "cord.origin.host/2" as const;
 export const STORAGE_V2_MAJOR = 2 as const;
 export const STORAGE_V2_MINOR = 0 as const;
 export const STORAGE_V2_REGISTRY_SHA256 =
-  "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba" as const;
+  "338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf" as const;
 
 export type Bytes16 = Uint8Array & { readonly __storageV2Bytes16: unique symbol };
 export type Bytes32 = Uint8Array & { readonly __storageV2Bytes32: unique symbol };
@@ -121,7 +121,7 @@ export interface StorageV2PayloadMap {
   "storage.s3.get": { bucket: string; key: Uint8Array; version?: bigint };
   "storage.s3.list": { bucket: string; prefix?: Uint8Array; cursor?: Uint8Array; limit: number };
   "storage.s3.delete": { bucket: string; key: Uint8Array; ifMatch?: string; transferId: OperationId };
-  "storage.publish": { nameHash: Hash32; cid: ContentId; expectedVersion?: bigint };
+  "storage.publish": { nameHash: Hash32; cid: ContentId; expectedVersion: bigint };
   "storage.resolve": { name: string; version?: bigint; at?: Hash32 };
   "storage.keys.export": { bucketId: BucketId; keyVersion: number; recipientKey: Uint8Array };
   "storage.keys.import": { bucketId: BucketId; wrappedKey: Uint8Array; replace: 0 | 1; keyVersion: number };

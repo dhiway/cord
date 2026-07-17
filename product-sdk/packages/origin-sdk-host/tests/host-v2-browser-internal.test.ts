@@ -657,7 +657,7 @@ test("public storage resume reopens one exact chunk and retires it after an auth
   assert.deepEqual(initial.continuation?.token, token); firstPair.provider.close(); await firstPump;
   const unreachable = { async finalizedAuthority() { throw new Error("unreachable"); }, async *dispatch() { throw new Error("unreachable"); } };
   const firstStorage = new PrivateDurableBrowserStorageV2(new PrivateOriginBrowserRouterV2({ provider: firstHost, commons: unreachable, keystore: unreachable, identityRuntime: unreachable, identityHost: unreachable, signing: unreachable }));
-  const intent = { protocol: "cord.origin.host/2", major: 2, minor: 0, registrySha256: "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba", requestId: frame[1], productId: frame[2], operation: "storage.object.put", code: 1010, grantId: frame[4], operationId: frame[5], deadlineBlock: BigInt(frame[7]), payload: { bucketId: frame[8][0], cid: frame[8][1], length: BigInt(frame[8][2]), encrypted: frame[8][3], transferId: frame[8][4] } } as any;
+  const intent = { protocol: "cord.origin.host/2", major: 2, minor: 0, registrySha256: "338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf", requestId: frame[1], productId: frame[2], operation: "storage.object.put", code: 1010, grantId: frame[4], operationId: frame[5], deadlineBlock: BigInt(frame[7]), payload: { bucketId: frame[8][0], cid: frame[8][1], length: BigInt(frame[8][2]), encrypted: frame[8][3], transferId: frame[8][4] } } as any;
   const failed = firstStorage.start(intent);
   await assert.rejects(async () => { for await (const _event of failed.resume({ kind: "provider-token", token })) void _event; }, /closed|transport/i);
   assert.equal(backend.records.size, 3, "failed successor send did not leave one exact Prepared successor");
@@ -731,7 +731,7 @@ test("developer execute drives a multi-chunk object.put through verified one-chu
   });
   const unreachable = { async finalizedAuthority() { throw new Error("unreachable"); }, async *dispatch() { throw new Error("unreachable"); } };
   const storage = new PrivateDurableBrowserStorageV2(new PrivateOriginBrowserRouterV2({ provider: host, commons: unreachable, keystore: unreachable, identityRuntime: unreachable, identityHost: unreachable, signing: unreachable }));
-  const intent = { protocol: "cord.origin.host/2", major: 2, minor: 0, registrySha256: "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba", requestId: frame[1], productId: frame[2], operation: "storage.object.put", code: 1010, grantId: frame[4], operationId: frame[5], deadlineBlock: BigInt(frame[7]), payload: { bucketId: frame[8][0], cid: frame[8][1], length: BigInt(length), encrypted: frame[8][3], transferId: frame[8][4] } } as any;
+  const intent = { protocol: "cord.origin.host/2", major: 2, minor: 0, registrySha256: "338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf", requestId: frame[1], productId: frame[2], operation: "storage.object.put", code: 1010, grantId: frame[4], operationId: frame[5], deadlineBlock: BigInt(frame[7]), payload: { bucketId: frame[8][0], cid: frame[8][1], length: BigInt(length), encrypted: frame[8][3], transferId: frame[8][4] } } as any;
   const result = await storage.execute(intent, { cid: frame[8][1], length: BigInt(length), bytes: (async function* () { yield new Uint8Array(100_000).fill(0x5a); yield new Uint8Array(162_145).fill(0x5a); })() });
   assert.equal((result as any).publishable, true); assert.equal(dispatch, 4); assert.equal(maxChunksPerGeneration, 1); assert.equal(acked, 4); assert.equal(backend.records.size, 4);
   abort.abort(); await pump; pair.host.close(); pair.provider.close();
@@ -741,7 +741,7 @@ test("developer execute admits 256 payload continuations plus one finalize and f
   const frame = decodeHostV2("RequestV2", bytes(frozen.vectors.find((candidate: any) => candidate.id === "1010-positive").wire_hex)).value as any;
   frame[8][2] = 67_108_864; const intent = {
     protocol: "cord.origin.host/2", major: 2, minor: 0,
-    registrySha256: "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba",
+    registrySha256: "338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf",
     requestId: frame[1], productId: frame[2], operation: "storage.object.put", code: 1010,
     grantId: frame[4], operationId: frame[5], deadlineBlock: BigInt(frame[7]),
     payload: { bucketId: frame[8][0], cid: frame[8][1], length: 67_108_864n, encrypted: frame[8][3], transferId: frame[8][4] },
@@ -806,6 +806,8 @@ test("concrete Commons bridge publishes and resolves through exact native finali
   const publishVector = frozen.vectors.find((candidate: any) => candidate.id === "1050-positive");
   const resolveVector = frozen.vectors.find((candidate: any) => candidate.id === "1051-positive");
   const publishFrame = decodeHostV2("RequestV2", bytes(publishVector.wire_hex)).value as any;
+  publishFrame[8][2] = 0;
+  const publishRequest = encodeHostV2("RequestV2", publishFrame);
   const cid = publishFrame[8][1] as string;
   const digest = parseContentCid(cid).digest;
   const digestHex = `0x${Buffer.from(digest).toString("hex")}` as const;
@@ -832,7 +834,7 @@ test("concrete Commons bridge publishes and resolves through exact native finali
     async prepare(at: `0x${string}`, target: string, payload: Readonly<Record<string, unknown>>) {
       calls.push({ kind: "prepare", at, target, payload });
       assert.equal(target, "Names.publish_content");
-      assert.deepEqual(payload, { name: nameHex, content: digestHex, expected_revision: undefined, operation_id: `0x${Buffer.from(publishFrame[5]).toString("hex")}` });
+      assert.deepEqual(payload, { name: nameHex, content: digestHex, expected_revision: 0n, operation_id: `0x${Buffer.from(publishFrame[5]).toString("hex")}` });
       return { async *signSubmitAndWatch(exactSigner: unknown) {
         assert.equal(exactSigner, signer); yield { type: "broadcast" as const };
         yield { type: "finalized" as const, blockHash: finalized100, transactionHash: `0x${"77".repeat(32)}` as const };
@@ -857,14 +859,14 @@ test("concrete Commons bridge publishes and resolves through exact native finali
     provider: { async invoke() { providerTraffic += 1; throw new Error("provider MessagePort received Commons traffic"); } },
     commons, keystore: unreachable, identityRuntime: unreachable, identityHost: unreachable, signing: unreachable,
   });
-  const published = await router.invoke("storage.publish", bytes(publishVector.wire_hex));
+  const published = await router.invoke("storage.publish", publishRequest);
   assert.equal(published.error, undefined); assert.equal((published.value as any).cid, cid);
   const resolved = await router.invoke("storage.resolve", bytes(resolveVector.wire_hex));
   assert.equal(resolved.error, undefined); assert.equal((resolved.value as any).cid, cid);
+  assert.deepEqual((resolved.value as any).nameId, bytes(nameHex.slice(2)));
   assert.equal((resolved.value as any).checkpoint.from, 8n); assert.equal((resolved.value as any).checkpoint.to, 10n);
   assert.deepEqual(verified, [finalized100]); assert.equal(providerTraffic, 0);
   assert.deepEqual(calls.map(({ kind, at, target }) => `${kind}:${at}:${target}`), [
-    `read:${finalized99}:StorageProviderApi.canonical_manifest`,
     `prepare:${finalized99}:Names.publish_content`,
     `read:${finalized100}:NamesApi.resolve_content_publication`,
     `read:${finalized99}:NamesApi.root_name_by_normalized_label`,
@@ -883,7 +885,7 @@ test("concrete Commons bridge publishes and resolves through exact native finali
       return `z${encoded}`;
     })(),
   ]) {
-    const hostile = decodeHostV2("RequestV2", bytes(publishVector.wire_hex)).value as any;
+    const hostile = decodeHostV2("RequestV2", publishRequest).value as any;
     hostile[8][1] = nonCanonicalCid;
     assert.equal((await router.invoke("storage.publish", encodeHostV2("RequestV2", hostile))).error?.code, 204);
   }
@@ -1009,7 +1011,7 @@ test("StorageV2Execution.resume retains its exact continuation across failure af
   };
   const unreachable = { async finalizedAuthority() { throw new Error("unreachable"); }, async *dispatch() { throw new Error("unreachable"); } };
   const storage = new PrivateDurableBrowserStorageV2(new PrivateOriginBrowserRouterV2({ provider, commons: unreachable, keystore: unreachable, identityRuntime: unreachable, identityHost: unreachable, signing: unreachable }));
-  const intent = { protocol: "cord.origin.host/2", major: 2, minor: 0, registrySha256: "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba", requestId: frame[1], productId: frame[2], operation: "storage.object.put", code: 1010, grantId: frame[4], operationId: frame[5], deadlineBlock: BigInt(frame[7]), payload: { bucketId: frame[8][0], cid: frame[8][1], length: BigInt(frame[8][2]), encrypted: frame[8][3], transferId: frame[8][4] } } as any;
+  const intent = { protocol: "cord.origin.host/2", major: 2, minor: 0, registrySha256: "338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf", requestId: frame[1], productId: frame[2], operation: "storage.object.put", code: 1010, grantId: frame[4], operationId: frame[5], deadlineBlock: BigInt(frame[7]), payload: { bucketId: frame[8][0], cid: frame[8][1], length: BigInt(frame[8][2]), encrypted: frame[8][3], transferId: frame[8][4] } } as any;
   const execution = storage.start(intent); const initial: any[] = []; for await (const event of execution.events) initial.push(event); assert.equal(initial[0].kind, "accepted");
   await assert.rejects(async () => { for await (const _event of execution.resume({ kind: "provider-token", token: Uint8Array.of(1) })) void _event; }, /exact live successor/);
   await assert.rejects(async () => { for await (const _event of execution.resume({ kind: "provider-token", token })) void _event; }, /failure after durable successor send/);
@@ -1036,7 +1038,7 @@ test("StorageV2Execution.resume recovers an exact continuation after public stor
   };
   const unreachable = { async finalizedAuthority() { throw new Error("unreachable"); }, async *dispatch() { throw new Error("unreachable"); } };
   const storage = new PrivateDurableBrowserStorageV2(new PrivateOriginBrowserRouterV2({ provider, commons: unreachable, keystore: unreachable, identityRuntime: unreachable, identityHost: unreachable, signing: unreachable }));
-  const intent = { protocol: "cord.origin.host/2", major: 2, minor: 0, registrySha256: "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba", requestId: frame[1], productId: frame[2], operation: "storage.object.put", code: 1010, grantId: frame[4], operationId: frame[5], deadlineBlock: BigInt(frame[7]), payload: { bucketId: frame[8][0], cid: frame[8][1], length: BigInt(frame[8][2]), encrypted: frame[8][3], transferId: frame[8][4] } } as any;
+  const intent = { protocol: "cord.origin.host/2", major: 2, minor: 0, registrySha256: "338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf", requestId: frame[1], productId: frame[2], operation: "storage.object.put", code: 1010, grantId: frame[4], operationId: frame[5], deadlineBlock: BigInt(frame[7]), payload: { bucketId: frame[8][0], cid: frame[8][1], length: BigInt(frame[8][2]), encrypted: frame[8][3], transferId: frame[8][4] } } as any;
   const reopened = storage.start(intent); const events: any[] = [];
   for await (const event of reopened.resume({ kind: "provider-token", token })) events.push(event);
   assert.equal(recovered, 1); assert.equal(resumed, 1); assert.equal(events[0].kind, "error");
@@ -1126,7 +1128,7 @@ test("StorageV2Execution.cancel durably sends CancelledEvent and waits for authe
   const unreachable = { async finalizedAuthority() { throw new Error("unreachable"); }, async *dispatch() { throw new Error("unreachable"); } };
   const router = new PrivateOriginBrowserRouterV2({ provider, commons: unreachable, keystore: unreachable, identityRuntime: unreachable, identityHost: unreachable, signing: unreachable });
   const storage = new PrivateDurableBrowserStorageV2(router); const intent = {
-    protocol: "cord.origin.host/2", major: 2, minor: 0, registrySha256: "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba",
+    protocol: "cord.origin.host/2", major: 2, minor: 0, registrySha256: "338002aba87bd6e97f4302a20abb3a2d30a90b6738c7bfc117af782a2eda8ddf",
     requestId: frame[1], productId: frame[2], operation: "storage.object.status", code: 1014, grantId: frame[4], deadlineBlock: BigInt(frame[7]),
     payload: { bucketId: frame[8][0], cid: frame[8][1] },
   } as any;

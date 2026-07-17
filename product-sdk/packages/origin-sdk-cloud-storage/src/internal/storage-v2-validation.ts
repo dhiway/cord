@@ -226,7 +226,7 @@ export function validateStorageV2Payload<Operation extends StorageV2Operation>(
     case "storage.s3.delete":
       p = shape(value, ["bucket", "key", "transferId"], ["ifMatch"]); nfcText(p.bucket, 1, 128, "bucket"); rangedBytes(p.key, 1, 1024, "key"); if (p.ifMatch !== undefined) nfcText(p.ifMatch, 64, 64, "ifMatch"); fixedBytes(p.transferId, 16, "transferId"); return;
     case "storage.publish":
-      p = shape(value, ["nameHash", "cid"], ["expectedVersion"]); fixedBytes(p.nameHash, 32, "nameHash"); cid(p.cid, "cid"); if (p.expectedVersion !== undefined) u64(p.expectedVersion, "expectedVersion"); return;
+      p = shape(value, ["nameHash", "cid", "expectedVersion"]); fixedBytes(p.nameHash, 32, "nameHash"); cid(p.cid, "cid"); u64(p.expectedVersion, "expectedVersion"); return;
     case "storage.resolve":
       p = shape(value, ["name"], ["version", "at"]); nfcText(p.name, 1, 256, "name"); if (p.version !== undefined) u64(p.version, "version"); if (p.at !== undefined) fixedBytes(p.at, 32, "at"); return;
     case "storage.keys.export":

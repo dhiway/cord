@@ -362,5 +362,10 @@ test("session snapshots its ID, enforces sequence law, and permanently closes on
   const beforeAccepted = new HostV2Session(negotiated(), new Uint8Array(16).fill(0x11));
   assert.throws(() => beforeAccepted.accept(progress(new Uint8Array(16).fill(0x11), 0)), HostV2SessionError);
   assert.equal(beforeAccepted.isClosed, true);
+  const rejected = decodeHostV2("EventV2", vector("error-100-wire_schema_invalid")).value as any;
+  rejected[2] = 0;
+  const rejectedBeforeAccepted = new HostV2Session(negotiated(), new Uint8Array(16).fill(0x11));
+  assert.equal(rejectedBeforeAccepted.accept(encodeHostV2("EventV2", rejected))[3], 3);
+  assert.equal(rejectedBeforeAccepted.isTerminal, true);
   assert.throws(() => new HostV2Session(negotiated(), new Uint8Array(15) as never), HostV2CodecError);
 });

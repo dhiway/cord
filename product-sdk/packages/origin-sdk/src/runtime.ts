@@ -199,8 +199,8 @@ export function createOriginAppRuntime(
       read(at, "NamesApi.resolve_subject", { name }, signal),
     resolveAttestation: (at, name, signal) =>
       read(at, "NamesApi.resolve_attestation", { name }, signal),
-    resolveContent: (at, name, signal) =>
-      read(at, "NamesApi.resolve_content", { name }, signal),
+    resolveContentPublication: (at, name, signal) =>
+      read(at, "NamesApi.resolve_content_publication", { name }, signal),
     resolveText: (at, name, key, signal) =>
       read(at, "NamesApi.resolve_text", { name, key }, signal),
     primaryName: (at, owner, signal) =>
@@ -237,8 +237,8 @@ export function createOriginAppRuntime(
       prepare(at, "Names.set_subject", { name, subject }, signal),
     setAttestation: (at, name, attestation, signal) =>
       prepare(at, "Names.set_attestation", { name, attestation }, signal),
-    setContent: (at, name, content, signal) =>
-      prepare(at, "Names.set_content", { name, content }, signal),
+    publishContent: (at, name, content, expectedRevision, operationId, signal) =>
+      prepare(at, "Names.publish_content", { name, content, expected_revision: expectedRevision, operation_id: operationId }, signal),
     setText: (at, name, key, value, signal) =>
       prepare(at, "Names.set_text", { name, key, value }, signal),
     setPrimaryName: (at, name, signal) =>
