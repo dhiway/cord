@@ -845,6 +845,56 @@ mod lifecycle_tests {
 		assert_eq!(fs::read(scheduler_temp).unwrap(), scheduler_temp_bytes);
 	}
 
+	#[cfg(unix)]
+	#[test]
+	fn production_open_rejects_late_dangling_namespace_before_earlier_cleanup() {
+		use std::os::unix::fs::symlink;
+
+		let temp = tempfile::tempdir().unwrap();
+		let profile = || NodeProfile {
+			provider: hex::encode([0x22; 32]),
+			endpoint: "http://127.0.0.1:8080".into(),
+			service_key: hex::encode(ed25519::Pair::from_seed(&[0x32; 32]).public().0),
+			region: None,
+		};
+		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		drop(
+			ProviderService::new_preopened(
+				store,
+				Arc::new(RouteAuthority),
+				ed25519::Pair::from_seed(&[0x32; 32]),
+				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("outbox.jsonl"))),
+			)
+			.unwrap(),
+		);
+
+		let disk_temp = temp.path().join("provider-index-v6.tmp-778");
+		let disk_temp_bytes = b"dangling-late-disk-evidence";
+		fs::write(&disk_temp, disk_temp_bytes).unwrap();
+		let journal_temp = temp.path().join("streaming-v1").join("journal.json.tmp-778");
+		let journal_temp_bytes = b"dangling-late-streaming-evidence";
+		fs::write(&journal_temp, journal_temp_bytes).unwrap();
+		let replication = temp.path().join("replication-v3");
+		fs::remove_dir_all(&replication).unwrap();
+		let missing_target = temp.path().join("missing-replication-target");
+		symlink(&missing_target, &replication).unwrap();
+
+		assert!(matches!(
+			ProviderService::open(
+				temp.path(),
+				profile(),
+				1024,
+				Arc::new(RouteAuthority),
+				ed25519::Pair::from_seed(&[0x32; 32]),
+				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("outbox.jsonl"))),
+			),
+			Err(ProviderOpenError::Content(ContentError::IntegrityFailed))
+		));
+		assert_eq!(fs::read(disk_temp).unwrap(), disk_temp_bytes);
+		assert_eq!(fs::read(journal_temp).unwrap(), journal_temp_bytes);
+		assert!(!missing_target.exists());
+	}
+
 	#[async_trait]
 	impl ChainAuthority for Authority {
 		async fn authorize_commit(

@@ -2838,7 +2838,7 @@ fn validate_streaming_namespace(
 	provider_root: &Path,
 ) -> Result<StreamingNamespacePlan, ContentError> {
 	let root = provider_root.join(STREAM_ROOT);
-	if !root.try_exists().map_err(io_error)? {
+	if !crate::bounded_io::optional_directory_exists(&root)? {
 		return Ok(StreamingNamespacePlan {
 			root,
 			root_missing: true,
@@ -2847,9 +2847,6 @@ fn validate_streaming_namespace(
 			objects_missing: true,
 			journal_temps: Vec::new(),
 		});
-	}
-	if !fs::metadata(&root).map_err(io_error)?.is_dir() {
-		return Err(ContentError::IntegrityFailed);
 	}
 	let mut journal = false;
 	let mut staging = false;
@@ -2916,7 +2913,7 @@ fn validate_streaming_namespace(
 
 fn apply_streaming_namespace(plan: &StreamingNamespacePlan) -> Result<(), ContentError> {
 	if plan.root_missing {
-		fs::create_dir_all(&plan.root).map_err(io_error)?;
+		fs::create_dir(&plan.root).map_err(io_error)?;
 		let parent = plan.root.parent().ok_or(ContentError::IntegrityFailed)?;
 		sync_dir(parent)?;
 	}
@@ -3107,6 +3104,19 @@ mod exact_lookup_tests {
 		assert!(matches!(StreamingStore::open(missing.path()), Err(ContentError::IntegrityFailed)));
 		assert_eq!(fs::read(orphan).unwrap(), b"unbound-object-evidence");
 		assert!(!missing_root.join(JOURNAL).exists());
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn streaming_namespace_symlink_is_rejected_without_external_writes() {
+		use std::os::unix::fs::symlink;
+
+		let temp = tempfile::tempdir().unwrap();
+		let external = tempfile::tempdir().unwrap();
+		symlink(external.path(), temp.path().join(STREAM_ROOT)).unwrap();
+
+		assert!(matches!(StreamingStore::open(temp.path()), Err(ContentError::IntegrityFailed)));
+		assert_eq!(fs::read_dir(external.path()).unwrap().count(), 0);
 	}
 
 	#[test]

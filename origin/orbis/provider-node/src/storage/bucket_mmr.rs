@@ -237,10 +237,7 @@ impl BucketMmrStore {
 		installations: &impl InstallationView,
 	) -> Result<PreparedBucketMmrStore, ContentError> {
 		let root = root.as_ref().join(ROOT);
-		let root_exists = root.try_exists().map_err(io_error)?;
-		if root_exists && !fs::metadata(&root).map_err(io_error)?.is_dir() {
-			return Err(ContentError::IntegrityFailed);
-		}
+		let root_exists = crate::bounded_io::optional_directory_exists(&root)?;
 		let records = installations.installation_records()?;
 		let mut state = State::default();
 		for record in records {
@@ -1850,6 +1847,23 @@ mod tests {
 		let reopened = BucketMmrStore::open(temp.path(), &streaming).unwrap();
 		assert!(reopened.commitment_candidate(&streaming, bucket_a, 0).is_err());
 		assert_eq!(reopened.commitment_candidate(&streaming, bucket_b, 0).unwrap(), healthy);
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn bucket_mmr_namespace_symlink_is_rejected_without_external_writes() {
+		use std::os::unix::fs::symlink;
+
+		let temp = TempDir::new().unwrap();
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let external = TempDir::new().unwrap();
+		symlink(external.path(), temp.path().join(ROOT)).unwrap();
+
+		assert!(matches!(
+			BucketMmrStore::open(temp.path(), &streaming),
+			Err(ContentError::IntegrityFailed)
+		));
+		assert_eq!(fs::read_dir(external.path()).unwrap().count(), 0);
 	}
 
 	#[test]

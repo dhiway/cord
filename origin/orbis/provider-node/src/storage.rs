@@ -492,7 +492,7 @@ impl DiskStore {
 				"provider and service_key are immutable for an initialized store".into(),
 			));
 		}
-		let stored = stored_bytes(&state);
+		let stored = retained_blob_bytes(&state)?;
 		if capacity_bytes < stored || capacity_bytes == 0 {
 			return Err(StoreError::Invalid("capacity is below stored bytes".into()));
 		}
@@ -526,7 +526,11 @@ impl DiskStore {
 			}
 			return Ok(record.clone());
 		}
-		if stored_bytes(&state).saturating_add(input.bytes.len() as u64) > state.capacity_bytes {
+		if retained_blob_bytes(&state)?
+			.checked_add(input.bytes.len() as u64)
+			.filter(|total| *total <= state.capacity_bytes)
+			.is_none()
+		{
 			return Err(StoreError::Capacity);
 		}
 		let mut next = state.clone();
@@ -1440,6 +1444,18 @@ fn stored_bytes(state: &PersistedState) -> u64 {
 		.fold(0u64, |total, record| total.saturating_add(record.bytes))
 }
 
+fn retained_blob_bytes(state: &PersistedState) -> Result<u64, StoreError> {
+	state.records.iter().try_fold(0u64, |total, (commitment, record)| {
+		if !record.deleted || state.pending_deletions.contains_key(commitment) {
+			total
+				.checked_add(record.bytes)
+				.ok_or_else(|| StoreError::Io("provider retained-byte total overflow".into()))
+		} else {
+			Ok(total)
+		}
+	})
+}
+
 fn validate_checkpoint_duty_page(
 	batch: &CheckpointDutyBatch,
 	profile: &NodeProfile,
@@ -1884,6 +1900,9 @@ fn validate_persisted_state_bounds(state: &PersistedState) -> Result<(), StoreEr
 	{
 		return Err(StoreError::Capacity);
 	}
+	if retained_blob_bytes(state)? > state.capacity_bytes {
+		return Err(StoreError::Capacity);
+	}
 	Ok(())
 }
 
@@ -1920,30 +1939,21 @@ fn validate_blob_namespace(
 	state: &PersistedState,
 	index_exists: bool,
 ) -> Result<(bool, Vec<PathBuf>), StoreError> {
-	let mut live_bytes = 0u64;
 	for (key, record) in &state.records {
 		if normalize_hash(key)? != *key || record.commitment != *key {
 			return Err(StoreError::Io("provider blob record key is not canonical".into()));
 		}
-		if !record.deleted {
-			live_bytes = live_bytes
-				.checked_add(record.bytes)
-				.ok_or_else(|| StoreError::Io("provider live-byte total overflow".into()))?;
-		}
 	}
-	if live_bytes > state.capacity_bytes {
-		return Err(StoreError::Io("provider live bytes exceed configured capacity".into()));
+	if retained_blob_bytes(state)? > state.capacity_bytes {
+		return Err(StoreError::Io("provider retained blob bytes exceed configured capacity".into()));
 	}
 	let directory = root.join(BLOBS_DIR);
-	let exists = directory.try_exists().map_err(io_error)?;
+	let exists = optional_owned_directory_exists(&directory)?;
 	if !exists {
 		if state.records.values().any(|record| !record.deleted) {
 			return Err(StoreError::Io("provider live blob directory is missing".into()));
 		}
 		return Ok((false, Vec::new()));
-	}
-	if !fs::metadata(&directory).map_err(io_error)?.is_dir() {
-		return Err(StoreError::Io("provider blob namespace is not a directory".into()));
 	}
 	if !index_exists {
 		if fs::read_dir(&directory)
@@ -2045,6 +2055,17 @@ fn verify_blob_file(path: &Path, record: &ContentRecord) -> Result<(), StoreErro
 		return Err(StoreError::Io("provider blob failed commitment verification".into()));
 	}
 	Ok(())
+}
+
+fn optional_owned_directory_exists(path: &Path) -> Result<bool, StoreError> {
+	match fs::symlink_metadata(path) {
+		Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+			Err(StoreError::Io("provider owned namespace is not a directory".into()))
+		},
+		Ok(_) => Ok(true),
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+		Err(error) => Err(io_error(error)),
+	}
 }
 
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
@@ -2438,6 +2459,74 @@ mod tests {
 		reopened.complete_delete(&record.commitment).unwrap();
 		assert!(reopened.pending_deletions().unwrap().is_empty());
 		assert!(!temp.path().join(BLOBS_DIR).join(&record.commitment).exists());
+	}
+
+	#[test]
+	fn pending_deletion_retains_capacity_across_reopen_until_bytes_are_removed() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(temp.path(), profile(), 16).unwrap();
+		let retained = b"twelve-bytes".to_vec();
+		let retained_commitment = DiskStore::content_commitment(&retained);
+		let retained_record = store
+			.commit(CommitInput {
+				commitment: retained_commitment,
+				authorization: authorization(retained_commitment, retained.len() as u64),
+				bucket: None,
+				key: None,
+				bytes: retained.clone(),
+			})
+			.unwrap();
+		store
+			.prepare_delete(
+				&retained_record.commitment,
+				&authorization(retained_commitment, retained.len() as u64),
+			)
+			.unwrap();
+		let replacement = b"12345".to_vec();
+		let replacement_commitment = DiskStore::content_commitment(&replacement);
+		let replacement_input = || CommitInput {
+			commitment: replacement_commitment,
+			authorization: authorization(replacement_commitment, replacement.len() as u64),
+			bucket: None,
+			key: None,
+			bytes: replacement.clone(),
+		};
+		assert!(matches!(store.commit(replacement_input()), Err(StoreError::Capacity)));
+		drop(store);
+
+		let reopened = DiskStore::open(temp.path(), profile(), 16).unwrap();
+		assert!(matches!(reopened.commit(replacement_input()), Err(StoreError::Capacity)));
+		reopened.complete_delete(&retained_record.commitment).unwrap();
+		reopened.commit(replacement_input()).unwrap();
+		drop(reopened);
+
+		let invalid = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(invalid.path(), profile(), 16).unwrap();
+		let commitment = DiskStore::content_commitment(&retained);
+		let record = store
+			.commit(CommitInput {
+				commitment,
+				authorization: authorization(commitment, retained.len() as u64),
+				bucket: None,
+				key: None,
+				bytes: retained.clone(),
+			})
+			.unwrap();
+		store
+			.prepare_delete(
+				&record.commitment,
+				&authorization(commitment, retained.len() as u64),
+			)
+			.unwrap();
+		drop(store);
+		let index = invalid.path().join(INDEX_FILE);
+		let mut state: PersistedState = serde_json::from_slice(&fs::read(&index).unwrap()).unwrap();
+		state.capacity_bytes = retained.len() as u64 - 1;
+		fs::write(&index, serde_json::to_vec(&state).unwrap()).unwrap();
+		assert!(matches!(
+			DiskStore::open(invalid.path(), profile(), retained.len() as u64 - 1),
+			Err(StoreError::Capacity)
+		));
 	}
 
 	#[test]
@@ -3041,6 +3130,22 @@ mod tests {
 		let _store = prepared.apply().unwrap();
 		assert!(index.is_file());
 		assert!(blobs.is_dir());
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn blob_namespace_symlink_is_rejected_without_external_writes() {
+		use std::os::unix::fs::symlink;
+
+		let temp = tempfile::tempdir().unwrap();
+		drop(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		let blobs = temp.path().join(BLOBS_DIR);
+		fs::remove_dir(&blobs).unwrap();
+		let external = tempfile::tempdir().unwrap();
+		symlink(external.path(), &blobs).unwrap();
+
+		assert!(DiskStore::open(temp.path(), profile(), 1024).is_err());
+		assert_eq!(fs::read_dir(external.path()).unwrap().count(), 0);
 	}
 
 	#[test]

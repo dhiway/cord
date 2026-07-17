@@ -82,11 +82,13 @@ pub(crate) fn remove_validated_temp_artifacts(
 
 /// Inspect one optional durable directory without creating it.
 pub(crate) fn optional_directory_exists(path: &Path) -> Result<bool, ContentError> {
-	let exists = path.try_exists().map_err(io_error)?;
-	if exists && !fs::metadata(path).map_err(io_error)?.is_dir() {
-		return Err(ContentError::IntegrityFailed);
+	match fs::symlink_metadata(path) {
+		Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() =>
+			Err(ContentError::IntegrityFailed),
+		Ok(_) => Ok(true),
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+		Err(error) => Err(io_error(error)),
 	}
-	Ok(exists)
 }
 
 /// Materialize a directory which was absent from a completely validated startup view.
@@ -94,7 +96,7 @@ pub(crate) fn create_prepared_directory(path: &Path, missing: bool) -> Result<()
 	if !missing {
 		return Ok(())
 	}
-	fs::create_dir_all(path).map_err(io_error)?;
+	fs::create_dir(path).map_err(io_error)?;
 	let parent = path.parent().ok_or(ContentError::IntegrityFailed)?;
 	File::open(parent).and_then(|directory| directory.sync_all()).map_err(io_error)
 }
@@ -122,5 +124,22 @@ mod tests {
 		let path = temp.path().join("record.json");
 		std::fs::write(&path, b"durable").unwrap();
 		assert_eq!(read_regular_file(path, 8).unwrap(), b"durable");
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn optional_directory_rejects_live_and_dangling_symlinks() {
+		use std::os::unix::fs::symlink;
+
+		let temp = tempfile::tempdir().unwrap();
+		let live_target = temp.path().join("live-target");
+		fs::create_dir(&live_target).unwrap();
+		let live = temp.path().join("live");
+		symlink(&live_target, &live).unwrap();
+		let dangling = temp.path().join("dangling");
+		symlink(temp.path().join("missing-target"), &dangling).unwrap();
+
+		assert_eq!(optional_directory_exists(&live), Err(ContentError::IntegrityFailed));
+		assert_eq!(optional_directory_exists(&dangling), Err(ContentError::IntegrityFailed));
 	}
 }
