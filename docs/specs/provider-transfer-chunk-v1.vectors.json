@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "algorithm": "BLAKE2b-256",
+  "vectors": [
+    {
+      "id": "cord-byte-plane-v1",
+      "operation_id_hex": "07070707070707070707070707070707",
+      "index": 3,
+      "bytes_hex": "434f5244206279746520706c616e65",
+      "digest_hex": "0f9c290a79970b4a55e49d9480812fec82f303f37a2aa694b7517c940181f26e",
+      "canonical_cbor_hex": "a500010150070707070707070707070707070707070203034f434f5244206279746520706c616e650458200f9c290a79970b4a55e49d9480812fec82f303f37a2aa694b7517c940181f26e"
+    }
+  ]
+}
