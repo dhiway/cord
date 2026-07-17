@@ -103,11 +103,12 @@ impl Drop for UnboundOwnedRegularFile {
 		let (Some(file), Some(directory)) = (&self.file, &self.directory) else { return };
 		let Ok(metadata) = file.metadata() else { return };
 		if metadata.is_file() {
-			let _ = quarantine_and_unlink_regular_file_at(
+			let _ = quarantine_and_unlink_owned_regular_file_at(
 				directory,
 				&self.name,
 				file_identity(&metadata),
 				metadata.len(),
+				file,
 				random_owned_lock_quarantine_name,
 			);
 		}
@@ -149,11 +150,12 @@ impl OwnedLockedRegularFile {
 		if !self.rollback_on_drop {
 			return Ok(())
 		}
-		quarantine_and_unlink_regular_file_at(
+		quarantine_and_unlink_owned_regular_file_at(
 			&self.directory,
 			&self.name,
 			self.identity,
 			self.length,
+			&self.file,
 			random_owned_lock_quarantine_name,
 		)?;
 		self.rollback_on_drop = false;
@@ -164,11 +166,12 @@ impl OwnedLockedRegularFile {
 impl Drop for OwnedLockedRegularFile {
 	fn drop(&mut self) {
 		if self.rollback_on_drop {
-			let _ = quarantine_and_unlink_regular_file_at(
+			let _ = quarantine_and_unlink_owned_regular_file_at(
 				&self.directory,
 				&self.name,
 				self.identity,
 				self.length,
+				&self.file,
 				random_owned_lock_quarantine_name,
 			);
 		}
@@ -784,6 +787,42 @@ fn quarantine_and_unlink_regular_file_at(
 	expected_length: u64,
 	mut quarantine_name: impl FnMut(&std::ffi::OsStr) -> Result<OsString, ContentError>,
 ) -> Result<(), ContentError> {
+	quarantine_and_unlink_regular_file_at_inner(
+		directory,
+		name,
+		expected_identity,
+		expected_length,
+		None,
+		&mut quarantine_name,
+	)
+}
+
+fn quarantine_and_unlink_owned_regular_file_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+	expected_identity: FileIdentity,
+	expected_length: u64,
+	held_file: &File,
+	mut quarantine_name: impl FnMut(&std::ffi::OsStr) -> Result<OsString, ContentError>,
+) -> Result<(), ContentError> {
+	quarantine_and_unlink_regular_file_at_inner(
+		directory,
+		name,
+		expected_identity,
+		expected_length,
+		Some(held_file),
+		&mut quarantine_name,
+	)
+}
+
+fn quarantine_and_unlink_regular_file_at_inner(
+	directory: &File,
+	name: &std::ffi::OsStr,
+	expected_identity: FileIdentity,
+	expected_length: u64,
+	held_file: Option<&File>,
+	quarantine_name: &mut impl FnMut(&std::ffi::OsStr) -> Result<OsString, ContentError>,
+) -> Result<(), ContentError> {
 	// Every caller holds the provider-root cooperative namespace lock (or is cleaning a private
 	// sibling before publication). Portable POSIX has no unlink-by-inode operation; fail if another
 	// cooperating process owns this directory rather than performing an unguarded pathname unlink.
@@ -806,9 +845,21 @@ fn quarantine_and_unlink_regular_file_at(
 		.transpose()?
 		.ok_or(ContentError::IntegrityFailed)?;
 	unix_fs::fsync(directory).map_err(io_error)?;
-	let quarantined = open_optional_regular_file_at(directory, &quarantine, false)?
-		.ok_or(ContentError::IntegrityFailed)?;
-	quarantined.try_lock_exclusive().map_err(io_error)?;
+	let quarantined = if let Some(file) = held_file {
+		let metadata = file.metadata().map_err(io_error)?;
+		if !metadata.is_file() ||
+			file_identity(&metadata) != expected_identity ||
+			metadata.len() != expected_length
+		{
+			return Err(ContentError::IntegrityFailed)
+		}
+		None
+	} else {
+		let file = open_optional_regular_file_at(directory, &quarantine, false)?
+			.ok_or(ContentError::IntegrityFailed)?;
+		file.try_lock_exclusive().map_err(io_error)?;
+		Some(file)
+	};
 	if validate_regular_file_at(directory, &quarantine, expected_identity, expected_length).is_err() {
 		if unix_fs::renameat_with(
 			directory,
@@ -825,6 +876,7 @@ fn quarantine_and_unlink_regular_file_at(
 	}
 	validate_regular_file_at(directory, &quarantine, expected_identity, expected_length)?;
 	unix_fs::unlinkat(directory, &quarantine, AtFlags::empty()).map_err(io_error)?;
+	drop(quarantined);
 	unix_fs::fsync(directory).map_err(io_error)
 }
 

@@ -30,7 +30,7 @@ pub use streaming::{
 use std::{
 	collections::BTreeMap,
 	fs,
-	io::{Read, Write},
+	io::Read,
 	path::{Path, PathBuf},
 	sync::RwLock,
 	time::{SystemTime, UNIX_EPOCH},
@@ -2415,40 +2415,6 @@ fn optional_owned_directory_exists(path: &Path) -> Result<bool, StoreError> {
 	}
 }
 
-fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
-	let temporary = atomic_temp_path(path);
-	let mut created = false;
-	let result = (|| {
-		let mut file = fs::OpenOptions::new()
-			.create_new(true)
-			.write(true)
-			.open(&temporary)
-			.map_err(io_error)?;
-		created = true;
-		file.write_all(bytes).map_err(io_error)?;
-		file.sync_all().map_err(io_error)?;
-		fs::rename(&temporary, path).map_err(io_error)?;
-		if let Some(parent) = path.parent() {
-			fs::File::open(parent)
-				.and_then(|directory| directory.sync_all())
-				.map_err(io_error)?;
-		}
-		Ok(())
-	})();
-	if result.is_err() && created {
-		match fs::remove_file(&temporary) {
-			Ok(()) => {
-				if let Some(parent) = path.parent() {
-					let _ = fs::File::open(parent).and_then(|directory| directory.sync_all());
-				}
-			},
-			Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
-			Err(_) => {},
-		}
-	}
-	result
-}
-
 fn atomic_temp_path(path: &Path) -> PathBuf {
 	path.with_extension(format!("tmp-{}", std::process::id()))
 }
@@ -3418,7 +3384,14 @@ mod tests {
 		let target = collision.path().join("collision");
 		let collision_temp = atomic_temp_path(&target);
 		fs::write(&collision_temp, b"unowned-collision-evidence").unwrap();
-		assert!(write_atomic(&target, b"new-bytes").is_err());
+		let directory = fs::File::open(collision.path()).unwrap();
+		assert!(crate::bounded_io::write_atomic_at(
+			&directory,
+			target.file_name().unwrap(),
+			collision_temp.file_name().unwrap(),
+			b"new-bytes",
+		)
+		.is_err());
 		assert_eq!(fs::read(collision_temp).unwrap(), b"unowned-collision-evidence");
 
 		let invalid = tempfile::tempdir().unwrap();

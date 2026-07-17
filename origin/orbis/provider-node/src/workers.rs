@@ -1278,7 +1278,6 @@ pub(crate) fn root_submission(pending: &PendingRootSubmission) -> ProviderRootSu
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::io::Write as _;
 	use std::sync::{
 		atomic::{AtomicBool, AtomicUsize, Ordering},
 		Mutex as StdMutex,
