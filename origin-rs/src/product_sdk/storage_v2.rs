@@ -19,6 +19,9 @@
 //! Private typed intents for the frozen `cord.origin.host/2` storage operation range.
 //! The module stays crate-private until the storage authority cutover.
 
+mod validation;
+use validation::{StorageV2Error, StorageV2Progress, StorageV2Result};
+
 pub(crate) const STORAGE_V2_PROTOCOL: &str = "cord.origin.host/2";
 pub(crate) const STORAGE_V2_REGISTRY_SHA256: &str =
 	"d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba";
@@ -425,6 +428,7 @@ pub(crate) enum IntentError {
 	OperationIdRequired,
 	OperationIdForbidden,
 	InvalidIdempotencyKey,
+	InvalidPayload,
 }
 
 impl StorageV2Intent {
@@ -437,9 +441,10 @@ impl StorageV2Intent {
 		deadline_block: u64,
 		payload: StorageV2Payload,
 	) -> Result<Self, IntentError> {
-		if product_id.is_empty() || product_id.len() > 128 {
+		if !validation::valid_text(&product_id, 1, 128) {
 			return Err(IntentError::InvalidProduct);
 		}
+		payload.validate().map_err(|_| IntentError::InvalidPayload)?;
 		let operation = payload.operation();
 		let contract = operation.contract();
 		match (contract.grant_scope, grant_id) {
@@ -496,34 +501,30 @@ impl StorageV2Resume {
 
 pub(crate) fn validate_resume(operation: StorageV2Operation, resume: &StorageV2Resume) -> bool {
 	operation.contract().resume == resume.mode()
+		&& match resume {
+			StorageV2Resume::ChainIdempotent { .. }
+			| StorageV2Resume::VerifiedOffset { .. }
+			| StorageV2Resume::Cursor256(_) => true,
+			StorageV2Resume::ProviderToken(token) => (1..=4096).contains(&token.len()),
+			StorageV2Resume::PerObject { cid, .. } => validation::valid_text(cid, 1, 128),
+			StorageV2Resume::CursorVersioned { cursor, .. } => (1..=2048).contains(&cursor.len()),
+		}
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum StorageV2EventPayload<Output> {
-	Accepted {
-		state: u8,
-	},
-	Progress {
-		completed: u64,
-		total: Option<u64>,
-		chunks_acked: Option<u64>,
-		replicas_confirmed: Option<u64>,
-		bytes: Vec<u8>,
-	},
-	Result(Output),
-	Error {
-		code: u16,
-		name: String,
-		retryable: bool,
-	},
+pub(crate) enum StorageV2EventPayload {
+	Accepted { state: u8 },
+	Progress(StorageV2Progress),
+	Result(StorageV2Result),
+	Error(StorageV2Error),
 	Cancelled,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct StorageV2Event<Output> {
+pub(crate) struct StorageV2Event {
 	pub request_id: RequestId,
 	pub seq: u32,
-	pub payload: StorageV2EventPayload<Output>,
+	pub payload: StorageV2EventPayload,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -533,23 +534,56 @@ pub(crate) enum EventSequenceError {
 	AcceptedRequired,
 	DuplicateAccepted,
 	EventAfterTerminal,
+	InvalidAccepted,
+	InvalidProgress,
+	InvalidResult,
+	InvalidError,
+	ProgressAfterCancel,
+	ResumeRevoked,
 }
 
 pub(crate) struct StorageV2EventSequence {
+	operation: StorageV2Operation,
 	request_id: RequestId,
 	next: u32,
 	terminal: bool,
+	cancel_requested: bool,
+	resume_authority: bool,
 }
 
 impl StorageV2EventSequence {
-	pub const fn new(request_id: RequestId) -> Self {
-		Self { request_id, next: 0, terminal: false }
+	pub fn new(operation: StorageV2Operation, request_id: RequestId) -> Self {
+		Self {
+			operation,
+			request_id,
+			next: 0,
+			terminal: false,
+			cancel_requested: false,
+			resume_authority: operation.contract().resume != ResumeMode::None,
+		}
 	}
 
-	pub fn accept<Output>(
-		&mut self,
-		event: &StorageV2Event<Output>,
-	) -> Result<(), EventSequenceError> {
+	pub fn request_cancel(&mut self) -> bool {
+		if self.terminal || self.cancel_requested {
+			return false;
+		}
+		self.cancel_requested = true;
+		self.resume_authority = false;
+		true
+	}
+
+	pub fn authorize_resume(&self, resume: &StorageV2Resume) -> Result<(), EventSequenceError> {
+		if !self.resume_authority
+			|| self.cancel_requested
+			|| self.terminal
+			|| !validate_resume(self.operation, resume)
+		{
+			return Err(EventSequenceError::ResumeRevoked);
+		}
+		Ok(())
+	}
+
+	pub fn accept(&mut self, event: &StorageV2Event) -> Result<(), EventSequenceError> {
 		if self.terminal {
 			return Err(EventSequenceError::EventAfterTerminal);
 		}
@@ -565,18 +599,46 @@ impl StorageV2EventSequence {
 		if self.next > 0 && matches!(event.payload, StorageV2EventPayload::Accepted { .. }) {
 			return Err(EventSequenceError::DuplicateAccepted);
 		}
+		if self.cancel_requested && !matches!(event.payload, StorageV2EventPayload::Cancelled) {
+			return Err(EventSequenceError::ProgressAfterCancel);
+		}
+		match &event.payload {
+			StorageV2EventPayload::Accepted { state } if *state > 4 => {
+				return Err(EventSequenceError::InvalidAccepted)
+			},
+			StorageV2EventPayload::Progress(progress)
+				if progress.validate(self.operation).is_err() =>
+			{
+				return Err(EventSequenceError::InvalidProgress)
+			},
+			StorageV2EventPayload::Result(result)
+				if result.operation() != self.operation || result.validate().is_err() =>
+			{
+				return Err(EventSequenceError::InvalidResult)
+			},
+			StorageV2EventPayload::Error(error) if error.validate_for(self.operation).is_err() => {
+				return Err(EventSequenceError::InvalidError)
+			},
+			_ => {},
+		}
 		self.next += 1;
 		self.terminal = matches!(
 			event.payload,
 			StorageV2EventPayload::Result(_)
-				| StorageV2EventPayload::Error { .. }
+				| StorageV2EventPayload::Error(_)
 				| StorageV2EventPayload::Cancelled
 		);
+		if self.terminal {
+			self.resume_authority = false;
+		}
 		Ok(())
 	}
 
 	pub const fn terminal(&self) -> bool {
 		self.terminal
+	}
+	pub const fn resume_authority(&self) -> bool {
+		self.resume_authority
 	}
 }
 
@@ -652,24 +714,64 @@ mod tests {
 			);
 			assert_eq!(contract.operation_id_required, frozen["operation_id_required"]);
 			assert_eq!(contract.state_changing, frozen["state_changing"]);
+			let allowed = frozen["allowed_errors"].as_array().unwrap();
+			for (code, name, retryable) in validation::STORAGE_V2_ERRORS {
+				let expected = allowed.iter().any(|error| error["code"] == u64::from(code));
+				let error = StorageV2Error {
+					code,
+					name: name.into(),
+					retryable,
+					details: Default::default(),
+				};
+				assert_eq!(
+					error.validate_for(*operation).is_ok(),
+					expected,
+					"{} scope for error {code}",
+					contract.name
+				);
+			}
+		}
+
+		let errors: serde_json::Value = serde_json::from_str(include_str!(
+			"../../../docs/specs/origin-host-registry-v2.errors.json"
+		))
+		.unwrap();
+		let errors = errors["errors"].as_array().unwrap();
+		assert_eq!(errors.len(), validation::STORAGE_V2_ERRORS.len());
+		for ((code, name, retryable), frozen) in validation::STORAGE_V2_ERRORS.iter().zip(errors) {
+			assert_eq!(u64::from(*code), frozen["code"]);
+			assert_eq!(*name, frozen["name"]);
+			assert_eq!(*retryable, frozen["retryable"]);
 		}
 	}
 
 	#[test]
-	fn every_storage_operation_is_bound_to_its_positive_golden_frame() {
-		use sha2::{Digest, Sha256};
+	fn rust_codec_emits_the_same_canonical_frame_as_typescript() {
+		let intent = StorageV2Intent::new(
+			id16(0x11),
+			"festival".into(),
+			Some(id32(0x22)),
+			Some(id16(0x33)),
+			None,
+			100,
+			StorageV2Payload::BucketCreate {
+				replica_count: 1,
+				providers: vec![id32(0x22), id32(0x22)],
+				encryption: 0,
+			},
+		)
+		.unwrap();
 		let vectors: serde_json::Value = serde_json::from_str(include_str!(
 			"../../../docs/specs/origin-host-registry-v2.vectors.json"
 		))
 		.unwrap();
-		let vectors = vectors["vectors"].as_array().unwrap();
-		for operation in STORAGE_V2_OPERATIONS {
-			let id = format!("{}-positive", operation.code());
-			let vector = vectors.iter().find(|value| value["id"] == id).unwrap();
-			assert_eq!(vector["operation"], operation.contract().name);
-			let wire = hex::decode(vector["wire_hex"].as_str().unwrap()).unwrap();
-			assert_eq!(hex::encode(Sha256::digest(&wire)), vector["wire_sha256"]);
-		}
+		let golden = vectors["vectors"]
+			.as_array()
+			.unwrap()
+			.iter()
+			.find(|value| value["id"] == "1000-positive")
+			.unwrap();
+		assert_eq!(hex::encode(validation::encode_intent(&intent).unwrap()), golden["wire_hex"]);
 	}
 
 	#[test]
@@ -722,60 +824,188 @@ mod tests {
 		);
 		assert!(StorageV2Intent::new(id16(3), "festival".into(), None, None, None, 100, resolve)
 			.is_ok());
+		assert_eq!(
+			StorageV2Intent::new(
+				id16(3),
+				"e\u{301}".into(),
+				None,
+				None,
+				None,
+				100,
+				StorageV2Payload::Resolve {
+					name: "festival.origin".into(),
+					version: None,
+					at: None,
+				},
+			),
+			Err(IntentError::InvalidProduct)
+		);
 	}
 
 	#[test]
-	fn event_sequence_and_resume_are_fail_closed() {
+	fn hostile_payload_result_progress_and_error_values_fail_closed() {
+		let invalid_range = StorageV2Payload::ObjectRange {
+			bucket_id: id32(1),
+			cid: "bafk".into(),
+			offset: 0,
+			length: 0,
+		};
+		assert_eq!(
+			StorageV2Intent::new(
+				id16(1),
+				"festival".into(),
+				Some(id32(2)),
+				None,
+				None,
+				10,
+				invalid_range
+			),
+			Err(IntentError::InvalidPayload)
+		);
+		assert_eq!(
+			StorageV2Payload::DriveCommit {
+				bucket_id: id32(1),
+				manifest: "bafk".into(),
+				bytes: vec![],
+				expected_version: 0,
+				mode: 0,
+			}
+			.validate(),
+			Err(validation::ValidationError::Bounds)
+		);
+		assert_eq!(
+			StorageV2Payload::S3List {
+				bucket: "bucket".into(),
+				prefix: None,
+				cursor: None,
+				limit: 0,
+			}
+			.validate(),
+			Err(validation::ValidationError::Bounds)
+		);
+		assert_eq!(
+			StorageV2Payload::KeysExport {
+				bucket_id: id32(1),
+				key_version: 1,
+				recipient_key: vec![0; 31],
+			}
+			.validate(),
+			Err(validation::ValidationError::Bounds)
+		);
+
+		let invalid_result = StorageV2Result::ObjectRange {
+			cid: "bafk".into(),
+			offset: 9,
+			length: 2,
+			total: 10,
+			checkpoint: validation::Checkpoint { root: id32(1), from: 1, to: 2, replicas: 2 },
+		};
+		assert_eq!(invalid_result.validate(), Err(validation::ValidationError::Bounds));
+		assert_eq!(
+			StorageV2Progress::State {
+				completed: 1,
+				total: None,
+				chunks_acked: None,
+				replicas_confirmed: None
+			}
+			.validate(StorageV2Operation::ObjectGet),
+			Err(validation::ValidationError::ProgressMismatch)
+		);
+		assert_eq!(
+			StorageV2Progress::Bytes { offset: 0, bytes: vec![0; 4_194_305] }
+				.validate(StorageV2Operation::S3Get),
+			Err(validation::ValidationError::ProgressMismatch)
+		);
+		assert!(StorageV2Error {
+			code: 114,
+			name: "HOST_OUTBOX_FULL".into(),
+			retryable: true,
+			details: Default::default()
+		}
+		.validate_for(StorageV2Operation::ObjectPut)
+		.is_ok());
+		assert_eq!(
+			StorageV2Error {
+				code: 114,
+				name: "HOST_OUTBOX_FULL".into(),
+				retryable: false,
+				details: Default::default()
+			}
+			.validate_for(StorageV2Operation::ObjectPut),
+			Err(validation::ValidationError::ErrorMismatch)
+		);
+		assert_eq!(
+			StorageV2Error {
+				code: 200,
+				name: "STORAGE_CHUNK_OUT_OF_ORDER".into(),
+				retryable: false,
+				details: Default::default(),
+			}
+			.validate_for(StorageV2Operation::KeysExport),
+			Err(validation::ValidationError::ErrorMismatch)
+		);
+		assert!(!validate_resume(
+			StorageV2Operation::S3List,
+			&StorageV2Resume::CursorVersioned { cursor: vec![0; 2049], version: 0 }
+		));
+		assert!(!validate_resume(
+			StorageV2Operation::DriveCommit,
+			&StorageV2Resume::PerObject { cid: "e\u{301}".into(), version: 0 }
+		));
+	}
+
+	#[test]
+	fn cancel_is_idempotent_terminal_and_revokes_resume_authority() {
 		let request_id = id16(9);
-		let mut sequence = StorageV2EventSequence::new(request_id);
+		let mut sequence = StorageV2EventSequence::new(StorageV2Operation::ObjectPut, request_id);
 		sequence
-			.accept(&StorageV2Event::<()> {
+			.accept(&StorageV2Event {
 				request_id,
 				seq: 0,
 				payload: StorageV2EventPayload::Accepted { state: 0 },
 			})
 			.unwrap();
-		sequence
-			.accept(&StorageV2Event::<()> {
+		assert!(sequence.authorize_resume(&StorageV2Resume::ProviderToken(vec![1])).is_ok());
+		assert_eq!(
+			sequence.authorize_resume(&StorageV2Resume::ProviderToken(vec![])),
+			Err(EventSequenceError::ResumeRevoked)
+		);
+		assert!(sequence.resume_authority());
+		assert!(sequence.request_cancel());
+		assert!(!sequence.request_cancel());
+		assert!(!sequence.resume_authority());
+		assert_eq!(
+			sequence.authorize_resume(&StorageV2Resume::ProviderToken(vec![1])),
+			Err(EventSequenceError::ResumeRevoked)
+		);
+		assert_eq!(
+			sequence.accept(&StorageV2Event {
 				request_id,
 				seq: 1,
-				payload: StorageV2EventPayload::Progress {
+				payload: StorageV2EventPayload::Progress(StorageV2Progress::State {
 					completed: 1,
 					total: None,
 					chunks_acked: Some(1),
-					replicas_confirmed: None,
-					bytes: vec![],
-				},
-			})
-			.unwrap();
+					replicas_confirmed: None
+				})
+			}),
+			Err(EventSequenceError::ProgressAfterCancel)
+		);
 		sequence
-			.accept(&StorageV2Event::<()> {
+			.accept(&StorageV2Event {
 				request_id,
-				seq: 2,
+				seq: 1,
 				payload: StorageV2EventPayload::Cancelled,
 			})
 			.unwrap();
 		assert!(sequence.terminal());
 		assert_eq!(
-			sequence.accept(&StorageV2Event::<()> {
+			sequence.accept(&StorageV2Event {
 				request_id,
-				seq: 3,
+				seq: 2,
 				payload: StorageV2EventPayload::Cancelled
 			}),
 			Err(EventSequenceError::EventAfterTerminal)
 		);
-
-		assert!(validate_resume(
-			StorageV2Operation::ObjectPut,
-			&StorageV2Resume::ProviderToken(vec![1])
-		));
-		assert!(!validate_resume(
-			StorageV2Operation::ObjectPut,
-			&StorageV2Resume::VerifiedOffset { offset: 0, proof: id32(1) }
-		));
-		assert!(!validate_resume(
-			StorageV2Operation::Resolve,
-			&StorageV2Resume::ChainIdempotent { operation_id: id16(1) }
-		));
 	}
 }
