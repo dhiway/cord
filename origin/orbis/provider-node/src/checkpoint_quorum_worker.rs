@@ -20,7 +20,7 @@
 
 use std::{
 	collections::BTreeSet,
-	fs::{self, File},
+	fs::{self, File, OpenOptions},
 	io::Write,
 	path::{Path, PathBuf},
 	sync::{Arc, Mutex},
@@ -63,11 +63,12 @@ pub(crate) async fn run(
 	authority: Arc<FinalizedRuntimeAuthority>,
 	stack: Arc<CheckpointStack>,
 	store: Arc<DiskStore>,
+	scheduler: Arc<CheckpointQuorumScheduler>,
 	local_provider: [u8; 32],
 	local_key: ed25519::Pair,
 	cadence: Duration,
 ) -> Result<(), ContentError> {
-	let (transport, scheduler) = initialize(store.root())?;
+	let transport = initialize()?;
 	let mut ticker = interval(cadence.max(Duration::from_secs(1)));
 	ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
 	loop {
@@ -88,21 +89,11 @@ pub(crate) async fn run(
 	}
 }
 
-fn initialize(
-	root: &Path,
-) -> Result<
-	(
-		Arc<HyperCheckpointConfirmationTransport>,
-		Arc<CheckpointQuorumScheduler>,
-	),
-	ContentError,
-> {
-	let scheduler = Arc::new(CheckpointQuorumScheduler::open(root)?);
-	let transport = Arc::new(
+fn initialize() -> Result<Arc<HyperCheckpointConfirmationTransport>, ContentError> {
+	Ok(Arc::new(
 		HyperCheckpointConfirmationTransport::new(TRANSPORT_TIMEOUT)
 			.map_err(|_| ContentError::IntegrityFailed)?,
-	);
-	Ok((transport, scheduler))
+	))
 }
 
 async fn tick<A, T>(
@@ -217,6 +208,7 @@ pub(crate) async fn evidence_tick<A, T>(
 	authority: Arc<A>,
 	stack: Arc<CheckpointStack>,
 	store: Arc<DiskStore>,
+	scheduler: Arc<CheckpointQuorumScheduler>,
 	local_provider: [u8; 32],
 	local_key: ed25519::Pair,
 	transport: Arc<T>,
@@ -225,8 +217,6 @@ where
 	A: ReplicationAuthority + 'static,
 	T: CheckpointConfirmationTransport + 'static,
 {
-	let scheduler =
-		Arc::new(CheckpointQuorumScheduler::open(store.root()).map_err(|error| error.to_string())?);
 	tick(authority, stack, store, local_provider, local_key, transport, scheduler).await
 }
 
@@ -259,22 +249,61 @@ struct SchedulerRecordV2 {
 	record_hash: String,
 }
 
-struct CheckpointQuorumScheduler {
+pub(crate) struct CheckpointQuorumScheduler {
 	root: PathBuf,
 	record: Mutex<Option<SchedulerRecordV2>>,
 }
 
+/// Fully validated scheduler startup whose cleanup actions have not been applied.
+pub(crate) struct PreparedCheckpointQuorumScheduler {
+	root: PathBuf,
+	root_missing: bool,
+	temp: Option<PathBuf>,
+	record: Option<SchedulerRecordV2>,
+}
+
+impl PreparedCheckpointQuorumScheduler {
+	/// Apply only the namespace creation and stale-temp cleanup selected during prepare.
+	pub(crate) fn apply(self) -> Result<CheckpointQuorumScheduler, ContentError> {
+		crate::bounded_io::create_prepared_directory(&self.root, self.root_missing)?;
+		if let Some(temp) = self.temp {
+			crate::bounded_io::remove_validated_temp_artifacts(&self.root, &[temp])?;
+		}
+		Ok(CheckpointQuorumScheduler { root: self.root, record: Mutex::new(self.record) })
+	}
+}
+
 impl CheckpointQuorumScheduler {
+	#[cfg(test)]
 	fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
+		Self::prepare_open(root)?.apply()
+	}
+
+	/// Validate the bounded scheduler namespace without creating or removing any artifact.
+	pub(crate) fn prepare_open(
+		root: impl AsRef<Path>,
+	) -> Result<PreparedCheckpointQuorumScheduler, ContentError> {
 		let root = root.as_ref().join(SCHEDULER_ROOT);
-		fs::create_dir_all(&root).map_err(io_error)?;
+		if !crate::bounded_io::optional_directory_exists(&root)? {
+			return Ok(PreparedCheckpointQuorumScheduler {
+				root,
+				root_missing: true,
+				temp: None,
+				record: None,
+			});
+		}
 		let path = root.join("cursor.json");
 		let temp = root.join("cursor.json.tmp");
-		let mut temp_present = false;
+		let mut temp_present = None;
+		let mut visited = 0usize;
 		for entry in fs::read_dir(&root).map_err(io_error)? {
+			visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+			if visited > 2 {
+				return Err(ContentError::IntegrityFailed);
+			}
 			let entry = entry.map_err(io_error)?;
 			if entry.path() == temp && entry.file_type().map_err(io_error)?.is_file() {
-				temp_present = true;
+				temp_present = Some(temp.clone());
 				continue;
 			}
 			if entry.path() != path || !entry.file_type().map_err(io_error)?.is_file() {
@@ -290,13 +319,12 @@ impl CheckpointQuorumScheduler {
 		} else {
 			None
 		};
-		if temp_present {
-			crate::bounded_io::remove_validated_temp_artifacts(
-				&root,
-				std::slice::from_ref(&temp),
-			)?;
-		}
-		Ok(Self { root, record: Mutex::new(record) })
+		Ok(PreparedCheckpointQuorumScheduler {
+			root,
+			root_missing: false,
+			temp: temp_present,
+			record,
+		})
 	}
 
 	fn scan(
@@ -378,10 +406,21 @@ impl CheckpointQuorumScheduler {
 		let bytes = serde_json::to_vec(record).map_err(io_error)?;
 		let temp = self.root.join("cursor.json.tmp");
 		let path = self.root.join("cursor.json");
-		let mut file = File::create(&temp).map_err(io_error)?;
-		file.write_all(&bytes).map_err(io_error)?;
-		file.sync_all().map_err(io_error)?;
-		fs::rename(temp, path).map_err(io_error)?;
+		let mut file = OpenOptions::new()
+			.create_new(true)
+			.write(true)
+			.open(&temp)
+			.map_err(io_error)?;
+		let result = (|| {
+			file.write_all(&bytes).map_err(io_error)?;
+			file.sync_all().map_err(io_error)?;
+			drop(file);
+			fs::rename(&temp, path).map_err(io_error)
+		})();
+		if result.is_err() {
+			let _ = fs::remove_file(&temp);
+		}
+		result?;
 		File::open(&self.root).and_then(|file| file.sync_all()).map_err(io_error)
 	}
 }
@@ -712,15 +751,33 @@ mod tests {
 	}
 
 	#[test]
-	fn initialize_rejects_unexpected_scheduler_state() {
+	fn scheduler_prepare_rejects_unexpected_state_without_mutation() {
 		let temp = TempDir::new().unwrap();
 		let scheduler = temp.path().join(SCHEDULER_ROOT);
 		fs::create_dir_all(&scheduler).unwrap();
 		fs::write(scheduler.join("unexpected"), b"not scheduler state").unwrap();
 		assert!(matches!(
-			initialize(temp.path()),
+			CheckpointQuorumScheduler::prepare_open(temp.path()),
 			Err(ContentError::IntegrityFailed)
 		));
+		assert_eq!(fs::read(scheduler.join("unexpected")).unwrap(), b"not scheduler state");
+	}
+
+	#[test]
+	fn scheduler_prepare_defers_namespace_and_temp_cleanup_until_apply() {
+		let temp = TempDir::new().unwrap();
+		let root = temp.path().join(SCHEDULER_ROOT);
+		let prepared = CheckpointQuorumScheduler::prepare_open(temp.path()).unwrap();
+		assert!(!root.exists());
+		drop(prepared.apply().unwrap());
+		assert!(root.is_dir());
+
+		let crash_temp = root.join("cursor.json.tmp");
+		fs::write(&crash_temp, b"partial").unwrap();
+		let prepared = CheckpointQuorumScheduler::prepare_open(temp.path()).unwrap();
+		assert_eq!(fs::read(&crash_temp).unwrap(), b"partial");
+		drop(prepared.apply().unwrap());
+		assert!(!crash_temp.exists());
 	}
 
 	fn proposal() -> PreparedCheckpointProposalV2 {

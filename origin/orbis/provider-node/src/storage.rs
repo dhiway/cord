@@ -364,6 +364,7 @@ impl PreparedDiskStore {
 
 impl DiskStore {
 	/// Open or create a provider store. Existing protocol/capacity/provider identity must match.
+	#[cfg(any(test, feature = "evidence", feature = "test-seams"))]
 	pub fn open(
 		root: impl AsRef<Path>,
 		profile: NodeProfile,

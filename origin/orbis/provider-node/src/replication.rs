@@ -39,8 +39,8 @@ use crate::{
 		MAX_REQUEST_ENCODED,
 	},
 	replication_session::ReplicationSessionV1,
-	storage::bucket_mmr::BucketMmrStore,
-	BucketId, CanonicalCid, ContentError, OperationId, StreamingStore, CHUNK_BYTES, MAX_CHUNKS,
+	storage::{bucket_mmr::BucketMmrStore, StreamingStore},
+	BucketId, CanonicalCid, ContentError, OperationId, CHUNK_BYTES, MAX_CHUNKS,
 	MAX_STORED_BYTES,
 };
 

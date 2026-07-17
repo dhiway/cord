@@ -12,8 +12,9 @@ publish = false
 default = ["checkpoint-live"]
 checkpoint-consumer = ["dep:scale-decode", "dep:scale-value", "dep:subxt"]
 checkpoint-live = ["checkpoint-consumer", "outbox"]
-evidence = ["dep:frame-metadata", "dep:scale-info"]
+evidence = ["dep:frame-metadata", "dep:scale-info", "test-seams"]
 outbox = ["dep:origin-rs"]
+test-seams = []
 
 [[bin]]
 name = "origin-orbis-provider"
@@ -29,6 +30,16 @@ required-features = ["outbox"]
 name = "three_provider_recovery"
 path = "tests/three_provider_recovery.rs"
 required-features = ["evidence"]
+
+[[test]]
+name = "content_contract"
+path = "tests/content_contract.rs"
+required-features = ["test-seams"]
+
+[[test]]
+name = "integrity_contract"
+path = "tests/integrity_contract.rs"
+required-features = ["test-seams"]
 
 [lints]
 workspace = true

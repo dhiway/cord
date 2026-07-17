@@ -765,6 +765,7 @@ async fn run_checkpoint(
 			services[0].authority().clone(),
 			services[0].checkpoint_stack().clone(),
 			services[0].store().clone(),
+			services[0].checkpoint_quorum_scheduler().clone(),
 			providers[0],
 			keys[0].clone(),
 			transport.clone(),

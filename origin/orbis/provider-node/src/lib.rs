@@ -83,8 +83,11 @@ pub use content::{
 pub use storage::{
 	BeginStreaming, CheckpointDutyWatermark, ChunkProof, ContentRecord, DiskStore, IngressPermit,
 	IntegritySummary, NodeProfile, ProgressAck, ProviderStats, StoreError, StreamingDescriptor,
-	StreamingFault, StreamingReceipt, StreamingStore,
+	StreamingFault, StreamingReceipt,
 };
+#[cfg(feature = "test-seams")]
+#[doc(hidden)]
+pub use storage::StreamingStore;
 #[cfg(feature = "evidence")]
 #[doc(hidden)]
 pub use three_provider_evidence::{

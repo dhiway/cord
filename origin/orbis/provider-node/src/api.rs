@@ -42,10 +42,13 @@ use sp_core::{ed25519, Pair as _};
 use tokio::net::TcpListener;
 
 use crate::{
-	chain::ReplicationAuthority, checkpoint_stack::CheckpointStack, peer_http::serve_peer_http,
-	peer_responder::PeerResponder, ChainAuthority, ContentError, DiskStore,
-	FinalizedRuntimeAuthority, ManifestDeletionSubmitter, NodeProfile, StoreError,
-	PROTOCOL_VERSION,
+	chain::ReplicationAuthority,
+	checkpoint_quorum_worker::CheckpointQuorumScheduler,
+	checkpoint_stack::CheckpointStack,
+	peer_http::serve_peer_http,
+	peer_responder::PeerResponder,
+	ChainAuthority, ContentError, DiskStore, FinalizedRuntimeAuthority, ManifestDeletionSubmitter,
+	NodeProfile, StoreError, PROTOCOL_VERSION,
 };
 
 type Body = Full<Bytes>;
@@ -78,6 +81,7 @@ pub struct ApiConfig {
 pub struct ProviderService<A: ChainAuthority> {
 	store: Arc<DiskStore>,
 	checkpoint_stack: Arc<CheckpointStack>,
+	checkpoint_quorum_scheduler: Arc<CheckpointQuorumScheduler>,
 	authority: Arc<A>,
 	service_key: ed25519::Pair,
 	outbox: Arc<dyn ManifestDeletionSubmitter>,
@@ -97,11 +101,14 @@ impl<A: ChainAuthority> ProviderService<A> {
 		let root = root.as_ref();
 		let store = DiskStore::prepare_open(root, profile, capacity_bytes)?;
 		let checkpoint_stack = CheckpointStack::prepare_open(root)?;
+		let checkpoint_quorum_scheduler = CheckpointQuorumScheduler::prepare_open(root)?;
 		let store = Arc::new(store.apply()?);
 		let checkpoint_stack = Arc::new(checkpoint_stack.apply()?);
+		let checkpoint_quorum_scheduler = Arc::new(checkpoint_quorum_scheduler.apply()?);
 		Ok(Self {
 			store,
 			checkpoint_stack,
+			checkpoint_quorum_scheduler,
 			authority,
 			service_key,
 			outbox,
@@ -117,10 +124,15 @@ impl<A: ChainAuthority> ProviderService<A> {
 		service_key: ed25519::Pair,
 		outbox: Arc<dyn ManifestDeletionSubmitter>,
 	) -> Result<Self, ContentError> {
-		let checkpoint_stack = Arc::new(CheckpointStack::open(store.root())?);
+		let checkpoint_stack = CheckpointStack::prepare_open(store.root())?;
+		let checkpoint_quorum_scheduler =
+			CheckpointQuorumScheduler::prepare_open(store.root())?;
+		let checkpoint_stack = Arc::new(checkpoint_stack.apply()?);
+		let checkpoint_quorum_scheduler = Arc::new(checkpoint_quorum_scheduler.apply()?);
 		Ok(Self {
 			store,
 			checkpoint_stack,
+			checkpoint_quorum_scheduler,
 			authority,
 			service_key,
 			outbox,
@@ -141,6 +153,11 @@ impl<A: ChainAuthority> ProviderService<A> {
 	/// Access the private checkpoint kernels for in-crate orchestration.
 	pub(crate) fn checkpoint_stack(&self) -> &Arc<CheckpointStack> {
 		&self.checkpoint_stack
+	}
+
+	/// Access the startup-validated quorum scheduler for worker orchestration.
+	pub(crate) fn checkpoint_quorum_scheduler(&self) -> &Arc<CheckpointQuorumScheduler> {
+		&self.checkpoint_quorum_scheduler
 	}
 
 	pub(crate) fn sign_manifest_deletion_digest(&self, digest: [u8; 32]) -> ([u8; 32], [u8; 64]) {
@@ -203,6 +220,7 @@ pub async fn run_checkpoint_quorum_worker(
 		Arc::clone(service.authority()),
 		Arc::clone(service.checkpoint_stack()),
 		Arc::clone(service.store()),
+		Arc::clone(service.checkpoint_quorum_scheduler()),
 		local_provider,
 		service.service_key.clone(),
 		cadence,
@@ -703,6 +721,59 @@ mod lifecycle_tests {
 		assert_eq!(fs::read(disk_temp).unwrap(), disk_temp_bytes);
 		assert_eq!(fs::read(journal_temp).unwrap(), journal_temp_bytes);
 		assert_eq!(fs::read(staging_orphan).unwrap(), staging_bytes);
+	}
+
+	#[test]
+	fn corrupt_quorum_scheduler_preserves_every_earlier_prepared_cleanup() {
+		let temp = tempfile::tempdir().unwrap();
+		let profile = || NodeProfile {
+			provider: hex::encode([0x21; 32]),
+			endpoint: "http://127.0.0.1:8080".into(),
+			service_key: hex::encode(ed25519::Pair::from_seed(&[0x31; 32]).public().0),
+			region: None,
+		};
+		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		drop(
+			ProviderService::new_preopened(
+				store,
+				Arc::new(RouteAuthority),
+				ed25519::Pair::from_seed(&[0x31; 32]),
+				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("outbox.jsonl"))),
+			)
+			.unwrap(),
+		);
+
+		let disk_temp = temp.path().join("provider-index-v6.tmp-778");
+		let disk_temp_bytes = b"stale-disk-index-evidence";
+		fs::write(&disk_temp, disk_temp_bytes).unwrap();
+		let streaming = temp.path().join("streaming-v1");
+		let journal_temp = streaming.join("journal.json.tmp-778");
+		let journal_temp_bytes = b"stale-streaming-journal-evidence";
+		fs::write(&journal_temp, journal_temp_bytes).unwrap();
+		let staging_orphan = streaming.join("staging").join("unowned-part");
+		let staging_bytes = b"unowned-staging-evidence";
+		fs::write(&staging_orphan, staging_bytes).unwrap();
+		let scheduler = temp.path().join("checkpoint-quorum-scheduler-v2");
+		let scheduler_temp = scheduler.join("cursor.json.tmp");
+		let scheduler_temp_bytes = b"partial-scheduler-evidence";
+		fs::write(&scheduler_temp, scheduler_temp_bytes).unwrap();
+		fs::write(scheduler.join("cursor.json"), b"not-json").unwrap();
+
+		assert!(matches!(
+			ProviderService::open(
+				temp.path(),
+				profile(),
+				1024,
+				Arc::new(RouteAuthority),
+				ed25519::Pair::from_seed(&[0x31; 32]),
+				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("outbox.jsonl"))),
+			),
+			Err(ProviderOpenError::Content(ContentError::IntegrityFailed))
+		));
+		assert_eq!(fs::read(disk_temp).unwrap(), disk_temp_bytes);
+		assert_eq!(fs::read(journal_temp).unwrap(), journal_temp_bytes);
+		assert_eq!(fs::read(staging_orphan).unwrap(), staging_bytes);
+		assert_eq!(fs::read(scheduler_temp).unwrap(), scheduler_temp_bytes);
 	}
 
 	#[async_trait]

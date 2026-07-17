@@ -56,9 +56,10 @@ use crate::{
 	storage::{
 		bucket_mmr::{BucketMmrStore, PreparedBucketMmrStore},
 		streaming::{ManifestDeletionEvidence, PreparedStreamingStore, ReplicationIngressState},
+		StreamingStore,
 	},
 	BeginStreaming, BucketId, CheckpointDuty, ContentError, DiskStore, IntegritySummary,
-	StreamingDescriptor, StreamingStore,
+	StreamingDescriptor,
 };
 
 /// All durable checkpoint kernels opened against one provider root.

@@ -57,8 +57,9 @@ use sp_core::{crypto::AccountId32, ed25519, Pair as _, H256};
 use sp_crypto_hashing::blake2_256;
 
 use crate::{
-	chain::validate_checkpoint_duty, storage::bucket_mmr::BucketMmrStore, BucketId, CheckpointDuty,
-	CheckpointDutyPhase, ContentError, DiskStore, StreamingStore,
+	chain::validate_checkpoint_duty,
+	storage::{bucket_mmr::BucketMmrStore, StreamingStore},
+	BucketId, CheckpointDuty, CheckpointDutyPhase, ContentError, DiskStore,
 };
 
 const ROOT: &str = "checkpoint-proposals-v2";

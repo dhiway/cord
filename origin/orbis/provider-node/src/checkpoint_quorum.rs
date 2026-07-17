@@ -37,8 +37,9 @@ use sp_crypto_hashing::blake2_256;
 
 use super::{ServiceKeySigner, CONTEXT_DOMAIN, DOMAIN};
 use crate::{
-	chain::validate_checkpoint_duty, storage::bucket_mmr::BucketMmrStore, BucketId, ContentError,
-	DiskStore, StreamingStore,
+	chain::validate_checkpoint_duty,
+	storage::{bucket_mmr::BucketMmrStore, StreamingStore},
+	BucketId, ContentError, DiskStore,
 };
 
 const ROOT: &str = "checkpoint-confirmations-v1";
