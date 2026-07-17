@@ -651,10 +651,10 @@ impl StorageNativeEvent {
 				Some(object.as_hash().as_str().to_owned()),
 				Some(*version),
 			),
-			Self::S3ObjectPurged { bucket, .. } => storage_out(
+			Self::S3ObjectPurged { bucket, key } => storage_out(
 				OutcomeCategory::S3Object,
 				K::S3ObjectPurged,
-				Some(bucket.as_hash().as_str().to_owned()),
+				Some(format!("s3-key:{}:{}", bucket.as_hash().as_str(), hex::encode(key))),
 				None,
 			),
 			Self::S3BucketDeleted { bucket, .. } => storage_out(
@@ -663,10 +663,10 @@ impl StorageNativeEvent {
 				Some(bucket.as_hash().as_str().to_owned()),
 				None,
 			),
-			Self::S3ObjectHistoryPruned { bucket, through_version, .. } => storage_out(
+			Self::S3ObjectHistoryPruned { bucket, key, through_version, .. } => storage_out(
 				OutcomeCategory::S3Object,
 				K::S3ObjectHistoryPruned,
-				Some(bucket.as_hash().as_str().to_owned()),
+				Some(format!("s3-key:{}:{}", bucket.as_hash().as_str(), hex::encode(key))),
 				Some(*through_version),
 			),
 		}

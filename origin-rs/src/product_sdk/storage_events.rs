@@ -34,6 +34,7 @@ use futures::{Stream, StreamExt};
 use scale_decode::DecodeAsType;
 use std::{collections::VecDeque, pin::Pin};
 use subxt::{blocks::Block, events::StaticEvent, OnlineClient};
+use unicode_normalization::UnicodeNormalization;
 type A = subxt::utils::AccountId32;
 type H = subxt::utils::H256;
 type RuntimeBlock = Block<OrbisConfig, OnlineClient<OrbisConfig>>;
@@ -325,11 +326,12 @@ fn decode_event(d: &subxt::events::EventDetails<OrbisConfig>) -> DomainResult<St
 		},
 		("StorageProvider", "BucketCreated") => {
 			let x = dec!(StorageBucketCreatedWire);
+			let replicas = accounts(x.replicas, 2, 4, false, Some(&x.primary))?;
 			StorageNativeEvent::StorageBucketCreated {
 				bucket: BucketId(hash(x.bucket_id)),
 				owner: account(&x.owner)?,
 				primary: account(&x.primary)?,
-				replicas: accounts(x.replicas)?,
+				replicas,
 				version: x.version,
 			}
 		},
@@ -395,15 +397,12 @@ fn decode_event(d: &subxt::events::EventDetails<OrbisConfig>) -> DomainResult<St
 		},
 		("StorageProvider", "CheckpointAccepted") => {
 			let x = dec!(CheckpointAcceptedWire);
+			let commitment = checkpoint_commitment(x.commitment)?;
 			StorageNativeEvent::CheckpointAccepted {
 				bucket: BucketId(hash(x.bucket_id)),
-				commitment: CheckpointCommitment {
-					mmr_root: ContentCommitment(hash(x.commitment.mmr_root)),
-					start_seq: x.commitment.start_seq,
-					leaf_count: x.commitment.leaf_count,
-				},
+				commitment,
 				checkpoint: x.checkpoint,
-				replica_confirmations: accounts(x.replica_confirmations)?,
+				replica_confirmations: accounts(x.replica_confirmations, 2, 2, true, None)?,
 			}
 		},
 		("StorageProvider", "CheckpointEquivocation") => {
@@ -511,6 +510,7 @@ fn decode_event(d: &subxt::events::EventDetails<OrbisConfig>) -> DomainResult<St
 		},
 		("Drive", "NodeWritten") => {
 			let x = dec!(DriveNodeWrittenWire);
+			validate_drive_path(&x.path)?;
 			StorageNativeEvent::DriveNodeWritten {
 				drive: DriveId(hash(x.drive_id)),
 				path: x.path,
@@ -521,6 +521,7 @@ fn decode_event(d: &subxt::events::EventDetails<OrbisConfig>) -> DomainResult<St
 		},
 		("Drive", "NodeRemoved") => {
 			let x = dec!(DriveNodeRemovedWire);
+			validate_drive_path(&x.path)?;
 			StorageNativeEvent::DriveNodeRemoved {
 				drive: DriveId(hash(x.drive_id)),
 				path: x.path,
@@ -530,6 +531,7 @@ fn decode_event(d: &subxt::events::EventDetails<OrbisConfig>) -> DomainResult<St
 		},
 		("S3", "BucketCreated") => {
 			let x = dec!(S3BucketCreatedWire);
+			validate_s3_bucket_name(&x.name)?;
 			StorageNativeEvent::S3BucketCreated {
 				bucket: BucketId(hash(x.bucket)),
 				name: x.name,
@@ -572,6 +574,7 @@ fn decode_event(d: &subxt::events::EventDetails<OrbisConfig>) -> DomainResult<St
 		},
 		("S3", "ObjectPut") => {
 			let x = dec!(S3ObjectPutWire);
+			validate_s3_object_key(&x.key)?;
 			StorageNativeEvent::S3ObjectPut {
 				bucket: BucketId(hash(x.bucket)),
 				object: ObjectId(hash(x.object)),
@@ -582,6 +585,7 @@ fn decode_event(d: &subxt::events::EventDetails<OrbisConfig>) -> DomainResult<St
 		},
 		("S3", "ObjectDeleted") => {
 			let x = dec!(S3ObjectDeletedWire);
+			validate_s3_object_key(&x.key)?;
 			StorageNativeEvent::S3ObjectDeleted {
 				bucket: BucketId(hash(x.bucket)),
 				object: ObjectId(hash(x.object)),
@@ -591,10 +595,12 @@ fn decode_event(d: &subxt::events::EventDetails<OrbisConfig>) -> DomainResult<St
 		},
 		("S3", "ObjectPurged") => {
 			let x = dec!(S3ObjectPurgedWire);
+			validate_s3_object_key(&x.key)?;
 			StorageNativeEvent::S3ObjectPurged { bucket: BucketId(hash(x.bucket)), key: x.key }
 		},
 		("S3", "BucketDeleted") => {
 			let x = dec!(S3BucketDeletedWire);
+			validate_s3_bucket_name(&x.name)?;
 			StorageNativeEvent::S3BucketDeleted {
 				bucket: BucketId(hash(x.bucket)),
 				name: x.name,
@@ -603,6 +609,7 @@ fn decode_event(d: &subxt::events::EventDetails<OrbisConfig>) -> DomainResult<St
 		},
 		("S3", "ObjectHistoryPruned") => {
 			let x = dec!(S3ObjectHistoryPrunedWire);
+			validate_s3_object_key(&x.key)?;
 			StorageNativeEvent::S3ObjectHistoryPruned {
 				bucket: BucketId(hash(x.bucket)),
 				key: x.key,
@@ -661,7 +668,22 @@ fn drive_node_kind(v: DriveNodeKindWire) -> DriveNodeKind {
 		DriveNodeKindWire::File => DriveNodeKind::File,
 	}
 }
-fn accounts(v: Vec<A>) -> DomainResult<Vec<AccountId>> {
+fn accounts(
+	v: Vec<A>,
+	minimum: usize,
+	maximum: usize,
+	sorted: bool,
+	excluded: Option<&A>,
+) -> DomainResult<Vec<AccountId>> {
+	if !(minimum..=maximum).contains(&v.len()) {
+		return Err(invalid_event("storage event account count violates native bounds"));
+	}
+	if excluded.is_some_and(|account| v.iter().any(|candidate| candidate.0 == account.0)) {
+		return Err(invalid_event("storage bucket replicas contain the primary provider"));
+	}
+	if sorted && v.windows(2).any(|pair| pair[0].0 >= pair[1].0) {
+		return Err(invalid_event("storage event accounts are not in canonical order"));
+	}
 	let decoded = v.iter().map(account).collect::<DomainResult<Vec<_>>>()?;
 	let unique = decoded.iter().collect::<std::collections::HashSet<_>>();
 	if unique.len() != decoded.len() {
@@ -671,6 +693,67 @@ fn accounts(v: Vec<A>) -> DomainResult<Vec<AccountId>> {
 		));
 	}
 	Ok(decoded)
+}
+fn checkpoint_commitment(value: CommitmentWire) -> DomainResult<CheckpointCommitment> {
+	if value.leaf_count == 0 || value.start_seq.checked_add(value.leaf_count).is_none() {
+		return Err(invalid_event("storage checkpoint sequence range is invalid"));
+	}
+	Ok(CheckpointCommitment {
+		mmr_root: ContentCommitment(hash(value.mmr_root)),
+		start_seq: value.start_seq,
+		leaf_count: value.leaf_count,
+	})
+}
+fn validate_drive_path(path: &[u8]) -> DomainResult<()> {
+	if path.is_empty() || path.len() > 4_096 || path[0] != b'/' {
+		return Err(invalid_event("storage Drive path violates native bounds"));
+	}
+	if path == b"/" {
+		return Ok(())
+	}
+	if path.last() == Some(&b'/') {
+		return Err(invalid_event("storage Drive path has a trailing separator"));
+	}
+	let components = path[1..].split(|byte| *byte == b'/').collect::<Vec<_>>();
+	if components.len() > 64 {
+		return Err(invalid_event("storage Drive path exceeds native depth"));
+	}
+	for component in components {
+		if component.is_empty()
+			|| component.len() > 256
+			|| component.contains(&0)
+			|| component == b"."
+			|| component == b".."
+		{
+			return Err(invalid_event("storage Drive path contains an invalid component"));
+		}
+		let text = core::str::from_utf8(component)
+			.map_err(|_| invalid_event("storage Drive path is not UTF-8"))?;
+		if !text.nfc().eq(text.chars()) {
+			return Err(invalid_event("storage Drive path is not NFC"));
+		}
+	}
+	Ok(())
+}
+fn validate_s3_bucket_name(name: &[u8]) -> DomainResult<()> {
+	let alphanumeric = |byte: u8| byte.is_ascii_lowercase() || byte.is_ascii_digit();
+	if !(3..=63).contains(&name.len())
+		|| !alphanumeric(name[0])
+		|| !alphanumeric(name[name.len() - 1])
+		|| name.iter().any(|byte| !alphanumeric(*byte) && *byte != b'-')
+	{
+		return Err(invalid_event("storage S3 bucket name violates native bounds"));
+	}
+	Ok(())
+}
+fn validate_s3_object_key(key: &[u8]) -> DomainResult<()> {
+	if key.is_empty() || key.len() > 1_024 || key.contains(&0) {
+		return Err(invalid_event("storage S3 object key violates native bounds"));
+	}
+	Ok(())
+}
+fn invalid_event(message: &'static str) -> NativeError {
+	NativeError::new(NativeErrorCode::InvalidInput, message)
 }
 fn hash(v: H) -> Hash32 {
 	Hash32::from_bytes(*v.as_fixed_bytes())
@@ -756,6 +839,54 @@ mod tests {
 	}
 	#[test]
 	fn duplicate_replica_accounts_fail_closed() {
-		assert!(accounts(vec![A::from([1; 32]), A::from([1; 32])]).is_err());
+		assert!(accounts(vec![A::from([1; 32]), A::from([1; 32])], 2, 4, false, None).is_err());
+	}
+	#[test]
+	fn native_storage_bounds_fail_closed() {
+		let primary = A::from([1; 32]);
+		assert!(accounts(vec![A::from([2; 32])], 2, 4, false, Some(&primary)).is_err());
+		assert!(accounts(
+			vec![A::from([1; 32]), A::from([2; 32])],
+			2,
+			4,
+			false,
+			Some(&primary)
+		)
+		.is_err());
+		assert!(accounts(
+			vec![A::from([3; 32]), A::from([2; 32])],
+			2,
+			2,
+			true,
+			None
+		)
+		.is_err());
+		assert!(checkpoint_commitment(CommitmentWire {
+			mmr_root: H::from([1; 32]),
+			start_seq: u64::MAX,
+			leaf_count: 1,
+		})
+		.is_err());
+		assert!(checkpoint_commitment(CommitmentWire {
+			mmr_root: H::from([1; 32]),
+			start_seq: 0,
+			leaf_count: 0,
+		})
+		.is_err());
+		assert!(validate_drive_path(b"/dir/file").is_ok());
+		assert!(validate_drive_path(b"dir/file").is_err());
+		assert!(validate_drive_path(b"/dir/..").is_err());
+		assert!(validate_drive_path("/e\u{301}".as_bytes()).is_err());
+		assert!(validate_s3_bucket_name(b"app-data").is_ok());
+		assert!(validate_s3_bucket_name(b"App").is_err());
+		assert!(validate_s3_object_key(&[0xff]).is_ok());
+		assert!(validate_s3_object_key(&[0]).is_err());
+	}
+	#[test]
+	fn s3_key_outcome_ids_do_not_collapse_within_a_bucket() {
+		let bucket = BucketId(Hash32::from_bytes([9; 32]));
+		let first = StorageNativeEvent::S3ObjectPurged { bucket: bucket.clone(), key: vec![0xff] };
+		let second = StorageNativeEvent::S3ObjectPurged { bucket, key: vec![0xfe] };
+		assert_ne!(first.outcome(), second.outcome());
 	}
 }
