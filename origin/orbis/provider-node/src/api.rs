@@ -47,8 +47,8 @@ use crate::{
 	checkpoint_stack::CheckpointStack,
 	peer_http::serve_peer_http,
 	peer_responder::PeerResponder,
-	ChainAuthority, ContentError, DiskStore, FinalizedRuntimeAuthority, ManifestDeletionSubmitter,
-	NodeProfile, StoreError, PROTOCOL_VERSION,
+	ChainAuthority, ContentError, DiskStore, FinalizedRuntimeAuthority,
+	JsonlManifestDeletionOutbox, ManifestDeletionSubmitter, NodeProfile, StoreError, PROTOCOL_VERSION,
 };
 
 type Body = Full<Bytes>;
@@ -99,9 +99,20 @@ impl<A: ChainAuthority> ProviderService<A> {
 		capacity_bytes: u64,
 		authority: Arc<A>,
 		service_key: ed25519::Pair,
-		outbox: Arc<dyn ManifestDeletionSubmitter>,
 	) -> Result<Self, ProviderOpenError> {
 		let root = root.as_ref();
+		let outbox = Arc::new(JsonlManifestDeletionOutbox::for_provider_root(root));
+		Self::open_with_submitter(root, profile, capacity_bytes, authority, service_key, outbox)
+	}
+
+	fn open_with_submitter(
+		root: &Path,
+		profile: NodeProfile,
+		capacity_bytes: u64,
+		authority: Arc<A>,
+		service_key: ed25519::Pair,
+		outbox: Arc<dyn ManifestDeletionSubmitter>,
+	) -> Result<Self, ProviderOpenError> {
 		DiskStore::validate_root(root)?;
 		let store = DiskStore::prepare_open(root, profile, capacity_bytes)?;
 		let checkpoint_stack = CheckpointStack::prepare_open(root)?;
@@ -140,6 +151,26 @@ impl<A: ChainAuthority> ProviderService<A> {
 			outbox,
 			started_unix_ms: now_ms(),
 		})
+	}
+
+	/// Construct with a crate-owned submitter for focused startup tests and evidence.
+	#[cfg(any(test, feature = "evidence"))]
+	pub(crate) fn open_injected(
+		root: impl AsRef<Path>,
+		profile: NodeProfile,
+		capacity_bytes: u64,
+		authority: Arc<A>,
+		service_key: ed25519::Pair,
+		outbox: Arc<dyn ManifestDeletionSubmitter>,
+	) -> Result<Self, ProviderOpenError> {
+		Self::open_with_submitter(
+			root.as_ref(),
+			profile,
+			capacity_bytes,
+			authority,
+			service_key,
+			outbox,
+		)
 	}
 
 	/// Construct around a store already opened by tests or the evidence harness.
@@ -756,7 +787,7 @@ mod lifecycle_tests {
 		for root in [&live, &dangling] {
 			let outbox = Arc::new(StartupProbe { prepares: AtomicUsize::new(0) });
 			assert!(matches!(
-				ProviderService::open(
+				ProviderService::open_injected(
 					root,
 					profile(),
 					1024,
@@ -818,7 +849,6 @@ mod lifecycle_tests {
 				1024,
 				Arc::new(RouteAuthority),
 				ed25519::Pair::from_seed(&[0x31; 32]),
-				Arc::new(JsonlManifestDeletionOutbox::new(&outbox_path)),
 			),
 			Err(ProviderOpenError::Content(ContentError::IntegrityFailed))
 		));
@@ -834,7 +864,6 @@ mod lifecycle_tests {
 			1024,
 			Arc::new(RouteAuthority),
 			ed25519::Pair::from_seed(&[0x31; 32]),
-			Arc::new(JsonlManifestDeletionOutbox::new(&outbox_path)),
 		)
 		.unwrap();
 		drop(service);
@@ -878,7 +907,6 @@ mod lifecycle_tests {
 				1024,
 				Arc::new(RouteAuthority),
 				ed25519::Pair::from_seed(&[0x31; 32]),
-				Arc::new(JsonlManifestDeletionOutbox::new(outbox)),
 			),
 			Err(ProviderOpenError::Outbox(_))
 		));
@@ -929,7 +957,6 @@ mod lifecycle_tests {
 				1024,
 				Arc::new(RouteAuthority),
 				ed25519::Pair::from_seed(&[0x31; 32]),
-				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
 			),
 			Err(ProviderOpenError::Content(ContentError::IntegrityFailed))
 		));
@@ -980,7 +1007,6 @@ mod lifecycle_tests {
 				1024,
 				Arc::new(RouteAuthority),
 				ed25519::Pair::from_seed(&[0x32; 32]),
-				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
 			),
 			Err(ProviderOpenError::Content(ContentError::IntegrityFailed))
 		));

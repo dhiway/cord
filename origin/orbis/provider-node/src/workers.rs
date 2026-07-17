@@ -124,7 +124,7 @@ pub enum ProviderSubmission {
 
 /// Canonical manifest-deletion seam consumed by the metadata-derived Orbis finality lane.
 #[async_trait]
-pub trait ManifestDeletionSubmitter: Send + Sync + 'static {
+pub(crate) trait ManifestDeletionSubmitter: Send + Sync + 'static {
 	/// Validate any local durable recovery owned by this submitter without mutating it.
 	fn prepare_startup(
 		&self,
@@ -144,7 +144,7 @@ pub trait ManifestDeletionSubmitter: Send + Sync + 'static {
 
 /// Type-erased startup recovery for a manifest-deletion submitter.
 #[derive(Default)]
-pub struct ManifestDeletionStartupPlan {
+pub(crate) struct ManifestDeletionStartupPlan {
 	jsonl: Option<PreparedJsonlStartup>,
 }
 
@@ -272,7 +272,7 @@ pub(crate) trait LegacyDiskCompletionSubmitter: Send + Sync {
 }
 
 /// Append-only JSONL outbox for metadata-valid canonical manifest-deletion acknowledgements.
-pub struct JsonlManifestDeletionOutbox {
+pub(crate) struct JsonlManifestDeletionOutbox {
 	path: PathBuf,
 	write_lock: Mutex<()>,
 	qualified: Arc<AtomicBool>,
@@ -282,7 +282,7 @@ pub struct JsonlManifestDeletionOutbox {
 
 impl JsonlManifestDeletionOutbox {
 	/// Create the canonical direct-child outbox for one validated provider root.
-	pub fn for_provider_root(root: impl AsRef<Path>) -> Self {
+	pub(crate) fn for_provider_root(root: impl AsRef<Path>) -> Self {
 		Self::new(root.as_ref().join(MANIFEST_DELETION_OUTBOX_FILE))
 	}
 
@@ -290,7 +290,7 @@ impl JsonlManifestDeletionOutbox {
 	///
 	/// A raw path remains inert unless `ProviderService` validates it as the canonical direct
 	/// child.
-	pub fn new(path: impl AsRef<Path>) -> Self {
+	pub(crate) fn new(path: impl AsRef<Path>) -> Self {
 		Self {
 			path: path.as_ref().to_path_buf(),
 			write_lock: Mutex::new(()),

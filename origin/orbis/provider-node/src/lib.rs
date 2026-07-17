@@ -94,10 +94,12 @@ pub use three_provider_evidence::{
 	run_three_provider_recovery_evidence, CorruptReadObservation, EligibleSourceObservation,
 	ThreeProviderRecoveryEvidence,
 };
+pub(crate) use workers::{JsonlManifestDeletionOutbox, ManifestDeletionSubmitter};
+#[cfg(any(test, feature = "evidence"))]
+pub(crate) use workers::ManifestDeletionStartupPlan;
 pub use workers::{
 	poll_checkpoint_duties_once, poll_manifest_deletions_once, run_workers,
-	JsonlManifestDeletionOutbox, ManifestDeletionStartupPlan, ManifestDeletionSubmission,
-	ManifestDeletionSubmitter, ProviderSubmission, WorkerConfig,
+	ManifestDeletionSubmission, ProviderSubmission, WorkerConfig,
 };
 
 /// Protocol version shared by persisted records and HTTP responses.

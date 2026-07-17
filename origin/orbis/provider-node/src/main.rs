@@ -23,8 +23,8 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 use clap::Parser;
 use origin_orbis_provider::{
 	run_checkpoint_live_worker, run_checkpoint_quorum_worker, run_replication_worker, run_workers,
-	serve_provider_ingress, ApiConfig, FinalizedRuntimeAuthority, JsonlManifestDeletionOutbox,
-	NodeProfile, ProviderService, WorkerConfig,
+	serve_provider_ingress, ApiConfig, FinalizedRuntimeAuthority, NodeProfile, ProviderService,
+	WorkerConfig,
 };
 use sp_core::{crypto::AccountId32, ed25519, Pair as _};
 
@@ -114,14 +114,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		provider,
 		service_key.public().0,
 	)?);
-	let submitter = Arc::new(JsonlManifestDeletionOutbox::for_provider_root(&cli.data_path));
 	let service = Arc::new(ProviderService::open(
 		&cli.data_path,
 		profile,
 		cli.capacity_bytes,
 		authority,
 		service_key,
-		submitter,
 	)?);
 	let api = ApiConfig {
 		listen: cli.listen,
