@@ -110,6 +110,16 @@ struct BucketRuntime {
 	unavailable: bool,
 	blocked_at: Option<u64>,
 	source_order: Vec<u64>,
+	recovery: Option<BucketRecovery>,
+}
+
+struct BucketRecovery {
+	directory: PathBuf,
+	directory_missing: bool,
+	log_missing: bool,
+	truncate_log_to: Option<u64>,
+	meta_missing: bool,
+	temp_artifacts: Vec<PathBuf>,
 }
 
 #[derive(Default)]
@@ -135,7 +145,10 @@ impl BucketMmrStore {
 		streaming: &StreamingStore,
 	) -> Result<Self, ContentError> {
 		let root = root.as_ref().join(ROOT);
-		fs::create_dir_all(&root).map_err(io_error)?;
+		let root_exists = root.try_exists().map_err(io_error)?;
+		if root_exists && !fs::metadata(&root).map_err(io_error)?.is_dir() {
+			return Err(ContentError::IntegrityFailed);
+		}
 		let records = streaming.installation_records()?;
 		let mut state = State::default();
 		for record in records {
@@ -152,17 +165,22 @@ impl BucketMmrStore {
 		}
 		let mut bucket_ids = state.buckets.keys().copied().collect::<BTreeSet<_>>();
 		let mut visited_buckets = 0usize;
-		for item in fs::read_dir(&root).map_err(io_error)? {
-			visited_buckets =
-				visited_buckets.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
-			if visited_buckets > MAX_BUCKET_DIRECTORIES {
-				return Err(ContentError::IntegrityFailed);
+		if root_exists {
+			for item in fs::read_dir(&root).map_err(io_error)? {
+				visited_buckets =
+					visited_buckets.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+				if visited_buckets > MAX_BUCKET_DIRECTORIES {
+					return Err(ContentError::IntegrityFailed);
+				}
+				let item = item.map_err(io_error)?;
+				if !item.file_type().map_err(io_error)?.is_dir() {
+					return Err(ContentError::IntegrityFailed);
+				}
+				bucket_ids.insert(BucketId::parse(&item.file_name().to_string_lossy())?);
 			}
-			let item = item.map_err(io_error)?;
-			if !item.file_type().map_err(io_error)?.is_dir() {
-				return Err(ContentError::IntegrityFailed);
-			}
-			bucket_ids.insert(BucketId::parse(&item.file_name().to_string_lossy())?);
+		}
+		if bucket_ids.len() > MAX_BUCKET_DIRECTORIES {
+			return Err(ContentError::IntegrityFailed);
 		}
 		for bucket_id in bucket_ids {
 			let bucket = state.buckets.entry(bucket_id).or_default();
@@ -170,7 +188,6 @@ impl BucketMmrStore {
 				bucket.unavailable = true;
 			}
 		}
-		index_confirmed_entries(&mut state)?;
 		for (bucket_id, bucket) in &mut state.buckets {
 			if bucket.unavailable {
 				continue;
@@ -193,6 +210,32 @@ impl BucketMmrStore {
 					break;
 				}
 			}
+		}
+		index_confirmed_entries(&mut state)?;
+		for (bucket_id, bucket) in &state.buckets {
+			if bucket.unavailable {
+				continue;
+			}
+			for sequence in bucket.source_order.iter().skip(bucket.entries.len()) {
+				let source = state.known_sources.get(sequence).ok_or(ContentError::IntegrityFailed)?;
+				if source.bucket_id != *bucket_id ||
+					streaming.verified_installation(source.bucket_id, source.operation_id)? != *source
+				{
+					return Err(ContentError::IntegrityFailed);
+				}
+			}
+		}
+		if !root_exists {
+			fs::create_dir(&root).map_err(io_error)?;
+			let parent = root.parent().ok_or(ContentError::IntegrityFailed)?;
+			sync_dir(parent)?;
+		}
+		for bucket in state.buckets.values_mut() {
+			if bucket.unavailable {
+				bucket.recovery = None;
+				continue;
+			}
+			apply_bucket_recovery(bucket)?;
 		}
 		let store = Self { root, state: RwLock::new(state), fault: RwLock::new(None) };
 		let bucket_ids = store
@@ -788,20 +831,19 @@ fn open_bucket(
 	bucket: &mut BucketRuntime,
 ) -> Result<(), ContentError> {
 	let directory = root.join(bucket_id.to_string());
-	fs::create_dir_all(&directory).map_err(io_error)?;
-	remove_meta_temps(&directory)?;
+	let directory_missing = !directory.try_exists().map_err(io_error)?;
+	let temp_artifacts =
+		if directory_missing { Vec::new() } else { collect_meta_temps(&directory)? };
 	let log_path = directory.join(LOG);
-	if !log_path.exists() {
-		File::create(&log_path).and_then(|file| file.sync_all()).map_err(io_error)?;
-		sync_dir(&directory)?;
-	}
-	let log_len = fs::metadata(&log_path).map_err(io_error)?.len();
+	let log_missing = directory_missing || !log_path.try_exists().map_err(io_error)?;
+	let log_len = if log_missing { 0 } else { fs::metadata(&log_path).map_err(io_error)?.len() };
 	if log_len > MAX_LOG_BYTES {
 		bucket.unavailable = true;
 		return Ok(());
 	}
 	let meta_path = directory.join(META);
-	let meta = if meta_path.exists() {
+	let meta_missing = directory_missing || !meta_path.try_exists().map_err(io_error)?;
+	let meta = if !meta_missing {
 		match read_json::<BucketMeta>(&meta_path, MAX_META_BYTES) {
 			Ok(meta)
 				if meta.version == VERSION
@@ -824,12 +866,20 @@ fn open_bucket(
 		return Ok(());
 	}
 	let mut parsed_frames = 0usize;
-	let confirmed = match read_confirmed_frames(
-		&log_path,
-		meta.confirmed_log_bytes,
-		meta.entry_count,
-		&mut parsed_frames,
-	) {
+	let confirmed = match if log_missing {
+		if meta.confirmed_log_bytes == 0 && meta.entry_count == 0 {
+			Ok(Vec::new())
+		} else {
+			Err(ContentError::IntegrityFailed)
+		}
+	} else {
+		read_confirmed_frames(
+			&log_path,
+			meta.confirmed_log_bytes,
+			meta.entry_count,
+			&mut parsed_frames,
+		)
+	} {
 		Ok(entries) => entries,
 		Err(_) => {
 			bucket.unavailable = true;
@@ -859,17 +909,50 @@ fn open_bucket(
 		bucket.unavailable = true;
 		return Ok(());
 	}
-	if log_len > meta.confirmed_log_bytes {
-		let file = OpenOptions::new().write(true).open(&log_path).map_err(io_error)?;
-		file.set_len(meta.confirmed_log_bytes).map_err(io_error)?;
-		file.sync_all().map_err(io_error)?;
-		sync_dir(&directory)?;
-	}
-	if !meta_path.exists() {
-		persist_meta(&directory, &meta)?;
-	}
 	bucket.entries = confirmed;
 	bucket.meta = meta;
+	bucket.recovery = Some(BucketRecovery {
+		directory,
+		directory_missing,
+		log_missing,
+		truncate_log_to: (log_len > bucket.meta.confirmed_log_bytes)
+			.then_some(bucket.meta.confirmed_log_bytes),
+		meta_missing,
+		temp_artifacts,
+	});
+	Ok(())
+}
+
+fn apply_bucket_recovery(bucket: &mut BucketRuntime) -> Result<(), ContentError> {
+	let Some(recovery) = bucket.recovery.take() else { return Ok(()) };
+	if recovery.directory_missing {
+		fs::create_dir(&recovery.directory).map_err(io_error)?;
+		let root = recovery.directory.parent().ok_or(ContentError::IntegrityFailed)?;
+		sync_dir(root)?;
+	}
+	crate::bounded_io::remove_validated_temp_artifacts(
+		&recovery.directory,
+		&recovery.temp_artifacts,
+	)?;
+	let log_path = recovery.directory.join(LOG);
+	if recovery.log_missing {
+		OpenOptions::new()
+			.create_new(true)
+			.write(true)
+			.open(&log_path)
+			.and_then(|file| file.sync_all())
+			.map_err(io_error)?;
+		sync_dir(&recovery.directory)?;
+	}
+	if let Some(length) = recovery.truncate_log_to {
+		let file = OpenOptions::new().write(true).open(&log_path).map_err(io_error)?;
+		file.set_len(length).map_err(io_error)?;
+		file.sync_all().map_err(io_error)?;
+		sync_dir(&recovery.directory)?;
+	}
+	if recovery.meta_missing {
+		persist_meta(&recovery.directory, &bucket.meta)?;
+	}
 	Ok(())
 }
 
@@ -1057,14 +1140,18 @@ fn read_confirmed_frames(
 fn persist_meta(directory: &Path, meta: &BucketMeta) -> Result<(), ContentError> {
 	let bytes = encode_json(meta, MAX_META_BYTES)?;
 	let temporary = directory.join(format!("{META}.tmp-{}", std::process::id()));
-	let mut file = File::create(&temporary).map_err(io_error)?;
+	let mut file = OpenOptions::new()
+		.create_new(true)
+		.write(true)
+		.open(&temporary)
+		.map_err(io_error)?;
 	file.write_all(&bytes).map_err(io_error)?;
 	file.sync_all().map_err(io_error)?;
 	fs::rename(temporary, directory.join(META)).map_err(io_error)?;
 	sync_dir(directory)
 }
 
-fn remove_meta_temps(directory: &Path) -> Result<(), ContentError> {
+fn collect_meta_temps(directory: &Path) -> Result<Vec<PathBuf>, ContentError> {
 	let mut visited = 0usize;
 	let mut temps = Vec::new();
 	for item in fs::read_dir(directory).map_err(io_error)? {
@@ -1074,8 +1161,17 @@ fn remove_meta_temps(directory: &Path) -> Result<(), ContentError> {
 		}
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().to_string_lossy().into_owned();
-		if name.starts_with(&format!("{META}.tmp-")) {
+		if let Some(process_id) = name.strip_prefix(&format!("{META}.tmp-")) {
 			if !item.file_type().map_err(io_error)?.is_file() {
+				return Err(ContentError::IntegrityFailed);
+			}
+			let mut parts = process_id.split('-');
+			let valid = parts
+				.by_ref()
+				.take(2)
+				.all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit())) &&
+				parts.next().is_none();
+			if !valid {
 				return Err(ContentError::IntegrityFailed);
 			}
 			temps.push(item.path());
@@ -1084,15 +1180,11 @@ fn remove_meta_temps(directory: &Path) -> Result<(), ContentError> {
 			}
 		} else if name != LOG && name != META {
 			return Err(ContentError::IntegrityFailed);
+		} else if !item.file_type().map_err(io_error)?.is_file() {
+			return Err(ContentError::IntegrityFailed);
 		}
 	}
-	for temp in &temps {
-		fs::remove_file(temp).map_err(io_error)?;
-	}
-	if !temps.is_empty() {
-		sync_dir(directory)?;
-	}
-	Ok(())
+	Ok(temps)
 }
 
 fn encode_json<T: Serialize>(value: &T, bound: usize) -> Result<Vec<u8>, ContentError> {
@@ -1557,22 +1649,17 @@ mod tests {
 	}
 
 	#[test]
-	fn changed_known_source_is_never_accepted() {
+	fn corrupt_pending_source_does_not_create_bucket_directory() {
 		let temp = TempDir::new().unwrap();
 		let streaming = StreamingStore::open(temp.path()).unwrap();
-		let (bucket, operation, cid) = install(temp.path(), &streaming, 13, 13, b"blocked");
+		let (bucket, _, cid) = install(temp.path(), &streaming, 13, 13, b"blocked");
 		let object = temp.path().join("streaming-v1").join("objects").join(cid.as_str());
 		fs::write(&object, b"corrupt").unwrap();
-		let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
-		fs::write(&object, b"blocked").unwrap();
-		{
-			let mut state = mmr.state.write().unwrap();
-			state.known_sources.get_mut(&0).unwrap().cid = CanonicalCid::from_digest([99; 32]);
-		}
-		assert_eq!(
-			mmr.append_verified(&streaming, bucket, operation),
-			Err(ContentError::IdempotencyConflict)
-		);
+
+		assert!(BucketMmrStore::open(temp.path(), &streaming).is_err());
+
+		assert!(!temp.path().join(ROOT).exists());
+		assert!(!temp.path().join(ROOT).join(bucket.to_string()).exists());
 	}
 
 	#[test]
@@ -1594,7 +1681,87 @@ mod tests {
 		let temps = TempDir::new().unwrap();
 		fs::write(temps.path().join(format!("{META}.tmp-11")), b"partial").unwrap();
 		fs::write(temps.path().join(format!("{META}.tmp-12")), b"partial").unwrap();
-		assert_eq!(remove_meta_temps(temps.path()), Err(ContentError::IntegrityFailed));
+		assert_eq!(collect_meta_temps(temps.path()), Err(ContentError::IntegrityFailed));
 		assert_eq!(fs::read_dir(temps.path()).unwrap().count(), 2);
+	}
+
+	#[test]
+	fn invalid_bucket_view_preserves_meta_temp_and_missing_log() {
+		for case in 0..3 {
+			let temp = TempDir::new().unwrap();
+			let streaming = StreamingStore::open(temp.path()).unwrap();
+			let (bucket, _, _) = install(temp.path(), &streaming, 31, 31, b"atomic-meta");
+			drop(BucketMmrStore::open(temp.path(), &streaming).unwrap());
+			let directory = temp.path().join(ROOT).join(bucket.to_string());
+			let crash_temp = directory.join(format!("{META}.tmp-77-1"));
+			let crash_bytes = b"exact-meta-crash-artifact";
+			fs::write(&crash_temp, crash_bytes).unwrap();
+			match case {
+				0 => fs::write(directory.join(META), b"not-json").unwrap(),
+				1 => fs::write(directory.join(LOG), b"corrupt-frame").unwrap(),
+				_ => fs::remove_file(directory.join(LOG)).unwrap(),
+			}
+			let reopened = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+			assert!(reopened.state.read().unwrap().buckets[&bucket].unavailable, "case {case}");
+			assert_eq!(fs::read(&crash_temp).unwrap(), crash_bytes, "case {case}");
+			if case == 2 {
+				assert!(!directory.join(LOG).exists());
+			}
+		}
+	}
+
+	#[test]
+	fn corrupt_pending_source_preserves_deferred_bucket_recovery() {
+		for case in 0..2 {
+			let temp = TempDir::new().unwrap();
+			let streaming = StreamingStore::open(temp.path()).unwrap();
+			let (bucket, _, _) = install(temp.path(), &streaming, 33, 33, b"confirmed");
+			drop(BucketMmrStore::open(temp.path(), &streaming).unwrap());
+			let (_, _, pending_cid) = install(temp.path(), &streaming, 33, 34, b"pending");
+			let pending_object =
+				temp.path().join("streaming-v1").join("objects").join(pending_cid.as_str());
+			fs::write(pending_object, b"corrupt-pending-source").unwrap();
+			let directory = temp.path().join(ROOT).join(bucket.to_string());
+			let log = directory.join(LOG);
+			let meta = directory.join(META);
+			let crash_temp = directory.join(format!("{META}.tmp-77-1"));
+			let crash_bytes = b"pending-source-crash-temp";
+			if case == 0 {
+				let mut file = OpenOptions::new().append(true).open(&log).unwrap();
+				file.write_all(b"truncatable-tail").unwrap();
+				file.sync_all().unwrap();
+			} else {
+				fs::remove_file(&meta).unwrap();
+				fs::write(&crash_temp, crash_bytes).unwrap();
+			}
+			let log_before = fs::read(&log).unwrap();
+			let meta_before = fs::read(&meta).ok();
+
+			assert!(BucketMmrStore::open(temp.path(), &streaming).is_err(), "case {case}");
+
+			assert_eq!(fs::read(&log).unwrap(), log_before, "case {case}");
+			assert_eq!(fs::read(&meta).ok(), meta_before, "case {case}");
+			if case == 1 {
+				assert_eq!(fs::read(&crash_temp).unwrap(), crash_bytes);
+			}
+		}
+	}
+
+	#[test]
+	fn missing_meta_recovers_around_same_process_temp() {
+		let temp = TempDir::new().unwrap();
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		let (bucket, _, _) = install(temp.path(), &streaming, 32, 32, b"meta-retry");
+		drop(BucketMmrStore::open(temp.path(), &streaming).unwrap());
+		let directory = temp.path().join(ROOT).join(bucket.to_string());
+		fs::remove_file(directory.join(META)).unwrap();
+		File::create(directory.join(LOG)).unwrap().sync_all().unwrap();
+		let crash_temp = directory.join(format!("{META}.tmp-{}", std::process::id()));
+		fs::write(&crash_temp, b"same-process-meta-crash").unwrap();
+
+		let reopened = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+
+		assert!(!crash_temp.exists());
+		assert_eq!(reopened.commitment_candidate(&streaming, bucket, 0).unwrap().leaf_count, 1);
 	}
 }

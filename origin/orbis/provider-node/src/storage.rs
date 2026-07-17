@@ -348,15 +348,20 @@ impl DiskStore {
 		}
 		validate_profile(&profile)?;
 		let root = root.as_ref().to_path_buf();
-		fs::create_dir_all(root.join(BLOBS_DIR)).map_err(io_error)?;
-		remove_index_temps(&root)?;
+		let root_exists = root.try_exists().map_err(io_error)?;
+		if root_exists && !fs::metadata(&root).map_err(io_error)?.is_dir() {
+			return Err(StoreError::Io("provider data root is not a directory".into()));
+		}
+		let (index_temps, root_artifacts) =
+			if root_exists { collect_index_temps(&root)? } else { (Vec::new(), 0) };
 		let path = root.join(INDEX_FILE);
-		if !path.exists() && root.join(LEGACY_INDEX_FILE).exists() {
+		let index_exists = path.try_exists().map_err(io_error)?;
+		if !index_exists && root.join(LEGACY_INDEX_FILE).try_exists().map_err(io_error)? {
 			return Err(StoreError::Invalid(
 				"provider protocol v5 state is unsupported; initialize a clean data path".into(),
 			));
 		}
-		let state = if path.exists() {
+		let state = if index_exists {
 			let data = crate::bounded_io::read_regular_file(&path, MAX_PROVIDER_INDEX_BYTES)
 				.map_err(io_error)?;
 			let existing: PersistedState = serde_json::from_slice(&data).map_err(io_error)?;
@@ -404,10 +409,23 @@ impl DiskStore {
 			}
 		};
 		let store = Self { root, state: RwLock::new(state) };
-		if !path.exists() {
+		store.verify_index()?;
+		let blobs = store.root.join(BLOBS_DIR);
+		let blobs_exists = blobs.try_exists().map_err(io_error)?;
+		let recovered_artifacts = root_artifacts
+			.checked_sub(index_temps.len())
+			.and_then(|count| count.checked_add(usize::from(!blobs_exists)))
+			.and_then(|count| count.checked_add(usize::from(!index_exists)))
+			.ok_or_else(|| StoreError::Io("provider root artifact count overflow".into()))?;
+		if recovered_artifacts > MAX_PROVIDER_ROOT_ARTIFACTS {
+			return Err(StoreError::Io("provider root contains too many durable artifacts".into()));
+		}
+		fs::create_dir_all(&blobs).map_err(io_error)?;
+		crate::bounded_io::remove_validated_temp_artifacts(&store.root, &index_temps)
+			.map_err(io_error)?;
+		if !index_exists {
 			store.persist()?;
 		}
-		store.verify_index()?;
 		Ok(store)
 	}
 
@@ -1830,7 +1848,7 @@ fn validate_persisted_state_bounds(state: &PersistedState) -> Result<(), StoreEr
 	Ok(())
 }
 
-fn remove_index_temps(root: &Path) -> Result<(), StoreError> {
+fn collect_index_temps(root: &Path) -> Result<(Vec<PathBuf>, usize), StoreError> {
 	let mut visited = 0usize;
 	let mut temps = Vec::new();
 	for item in fs::read_dir(root).map_err(io_error)? {
@@ -1842,8 +1860,11 @@ fn remove_index_temps(root: &Path) -> Result<(), StoreError> {
 		}
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().to_string_lossy().into_owned();
-		if name.starts_with(INDEX_TEMP_PREFIX) {
+		if let Some(process_id) = name.strip_prefix(INDEX_TEMP_PREFIX) {
 			if !item.file_type().map_err(io_error)?.is_file() {
+				return Err(StoreError::Io("provider index temp artifact set is invalid".into()));
+			}
+			if process_id.is_empty() || !process_id.bytes().all(|byte| byte.is_ascii_digit()) {
 				return Err(StoreError::Io("provider index temp artifact set is invalid".into()));
 			}
 			temps.push(item.path());
@@ -1852,20 +1873,16 @@ fn remove_index_temps(root: &Path) -> Result<(), StoreError> {
 			}
 		}
 	}
-	for temp in &temps {
-		fs::remove_file(temp).map_err(io_error)?;
-	}
-	if !temps.is_empty() {
-		fs::File::open(root)
-			.and_then(|directory| directory.sync_all())
-			.map_err(io_error)?;
-	}
-	Ok(())
+	Ok((temps, visited))
 }
 
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
 	let temporary = path.with_extension(format!("tmp-{}", std::process::id()));
-	let mut file = fs::File::create(&temporary).map_err(io_error)?;
+	let mut file = fs::OpenOptions::new()
+		.create_new(true)
+		.write(true)
+		.open(&temporary)
+		.map_err(io_error)?;
 	file.write_all(bytes).map_err(io_error)?;
 	file.sync_all().map_err(io_error)?;
 	fs::rename(&temporary, path).map_err(io_error).and_then(|()| {
@@ -2701,5 +2718,64 @@ mod tests {
 				.count(),
 			2
 		);
+	}
+
+	#[test]
+	fn invalid_provider_index_preserves_legal_temp_byte_for_byte() {
+		for case in 0..3 {
+			let temp = tempfile::tempdir().unwrap();
+			DiskStore::open(temp.path(), profile(), 1024).unwrap();
+			let crash_temp = temp.path().join(format!("{INDEX_TEMP_PREFIX}77"));
+			let crash_bytes = b"exact-index-crash-artifact";
+			fs::write(&crash_temp, crash_bytes).unwrap();
+			let index = temp.path().join(INDEX_FILE);
+			let result = match case {
+				0 => {
+					fs::write(&index, b"not-json").unwrap();
+					DiskStore::open(temp.path(), profile(), 1024)
+				},
+				1 => {
+					fs::OpenOptions::new()
+						.write(true)
+						.open(&index)
+						.unwrap()
+						.set_len(MAX_PROVIDER_INDEX_BYTES + 1)
+						.unwrap();
+					DiskStore::open(temp.path(), profile(), 1024)
+				},
+				_ => {
+					let mut wrong = profile();
+					wrong.provider = "03".repeat(32);
+					DiskStore::open(temp.path(), wrong, 1024)
+				},
+			};
+			assert!(result.is_err(), "case {case}");
+			assert_eq!(fs::read(&crash_temp).unwrap(), crash_bytes, "case {case}");
+		}
+	}
+
+	#[test]
+	fn invalid_provider_index_does_not_create_blob_directory() {
+		let temp = tempfile::tempdir().unwrap();
+		fs::write(temp.path().join(INDEX_FILE), b"not-json").unwrap();
+
+		assert!(DiskStore::open(temp.path(), profile(), 1024).is_err());
+
+		assert!(!temp.path().join(BLOBS_DIR).exists());
+	}
+
+	#[test]
+	fn missing_provider_index_recovers_around_same_process_temp() {
+		let temp = tempfile::tempdir().unwrap();
+		DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		fs::remove_file(temp.path().join(INDEX_FILE)).unwrap();
+		let crash_temp =
+			temp.path().join(format!("{INDEX_TEMP_PREFIX}{}", std::process::id()));
+		fs::write(&crash_temp, b"same-process-crash-artifact").unwrap();
+
+		DiskStore::open(temp.path(), profile(), 1024).unwrap();
+
+		assert!(temp.path().join(INDEX_FILE).is_file());
+		assert!(!crash_temp.exists());
 	}
 }
