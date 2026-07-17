@@ -343,12 +343,19 @@ pub(crate) struct PreparedDiskStore {
 	root: PathBuf,
 	state: PersistedState,
 	initial_index: Option<Vec<u8>>,
-	index_temps: Vec<PathBuf>,
-	blob_temps: Vec<PathBuf>,
+	index_temps: Vec<crate::bounded_io::PreparedRegularFile>,
+	blob_temps: Vec<crate::bounded_io::PreparedRegularFile>,
+	canonical_blobs: Vec<PreparedBlobGuard>,
 	blobs_missing: bool,
 	blobs_identity: Option<crate::bounded_io::FileIdentity>,
 	root_guard: PreparedProviderRootGuard,
 	index_guard: PreparedProviderIndexGuard,
+}
+
+struct PreparedBlobGuard {
+	file: crate::bounded_io::PreparedRegularFile,
+	commitment: String,
+	expected_bytes: u64,
 }
 
 pub(crate) struct ArmedDiskStore {
@@ -466,34 +473,50 @@ impl ArmedDiskStore {
 			.ok_or_else(|| StoreError::Io("provider root guard is not armed".into()))?;
 		root_guard.validate()?;
 		prepared.index_guard.validate(root_guard.directory.file())?;
-		let blobs = prepared.root.join(BLOBS_DIR);
-		let blob_directory = if prepared.blobs_missing {
-			crate::bounded_io::create_directory_at(
+		crate::bounded_io::validate_prepared_regular_files_at(
+			root_guard.directory.file(),
+			&prepared.index_temps,
+		)
+		.map_err(io_error)?;
+		let prepared_blob_directory = if prepared.blobs_missing {
+			None
+		} else {
+			let directory = crate::bounded_io::open_directory_at(
 				root_guard.directory.file(),
 				BLOBS_DIR.as_ref(),
 			)
-			.map_err(io_error)?
-		} else {
-			crate::bounded_io::open_directory_at(root_guard.directory.file(), BLOBS_DIR.as_ref())
-				.map_err(io_error)?
+			.map_err(io_error)?;
+			let identity = crate::bounded_io::file_identity(
+				&directory.metadata().map_err(io_error)?,
+			);
+			if prepared.blobs_identity != Some(identity) {
+				return Err(StoreError::Io(
+					"provider blob directory changed after startup validation".into(),
+				))
+			}
+			crate::bounded_io::validate_prepared_regular_files_at(
+				&directory,
+				&prepared.blob_temps,
+			)
+			.map_err(io_error)?;
+			validate_prepared_blobs(&directory, &prepared.canonical_blobs)?;
+			Some(directory)
+		};
+		let blob_directory = match prepared_blob_directory {
+			Some(directory) => directory,
+			None => crate::bounded_io::create_directory_at(
+				root_guard.directory.file(),
+				BLOBS_DIR.as_ref(),
+			)
+			.map_err(io_error)?,
 		};
 		crate::bounded_io::remove_validated_temp_artifacts_at(
 			root_guard.directory.file(),
-			&prepared.root,
 			&prepared.index_temps,
 		)
-			.map_err(io_error)?;
-		let blob_identity = crate::bounded_io::file_identity(
-			&blob_directory.metadata().map_err(io_error)?,
-		);
-		if prepared.blobs_identity.is_some_and(|identity| blob_identity != identity) {
-			return Err(StoreError::Io(
-				"provider blob directory changed after startup validation".into(),
-			))
-		}
+		.map_err(io_error)?;
 		crate::bounded_io::remove_validated_temp_artifacts_at(
 			&blob_directory,
-			&blobs,
 			&prepared.blob_temps,
 		)
 			.map_err(io_error)?;
@@ -565,7 +588,7 @@ impl DiskStore {
 		};
 		let (index_temps, root_artifacts) =
 			if let Some(directory) = root_directory {
-				collect_index_temps_at(&root, directory)?
+				collect_index_temps_at(directory)?
 			} else {
 				(Vec::new(), 0)
 			};
@@ -657,8 +680,7 @@ impl DiskStore {
 			.state
 			.into_inner()
 			.map_err(|_| StoreError::Io("provider index validation lock was poisoned".into()))?;
-		let (blobs_exists, blobs_identity, blob_temps) = validate_blob_namespace_at(
-			&root,
+		let (blobs_exists, blobs_identity, blob_temps, canonical_blobs) = validate_blob_namespace_at(
 			root_directory,
 			&state,
 			index_exists,
@@ -681,6 +703,7 @@ impl DiskStore {
 			initial_index,
 			index_temps,
 			blob_temps,
+			canonical_blobs,
 			blobs_missing: !blobs_exists,
 			blobs_identity,
 			root_guard,
@@ -2133,9 +2156,8 @@ fn validate_persisted_state_bounds(state: &PersistedState) -> Result<(), StoreEr
 }
 
 fn collect_index_temps_at(
-	root: &Path,
 	directory: &fs::File,
-) -> Result<(Vec<PathBuf>, usize), StoreError> {
+) -> Result<(Vec<crate::bounded_io::PreparedRegularFile>, usize), StoreError> {
 	let mut visited = 0usize;
 	let mut temps = Vec::new();
 	for item in crate::bounded_io::list_directory(directory).map_err(io_error)? {
@@ -2153,7 +2175,7 @@ fn collect_index_temps_at(
 			if process_id.is_empty() || !process_id.bytes().all(|byte| byte.is_ascii_digit()) {
 				return Err(StoreError::Io("provider index temp artifact set is invalid".into()));
 			}
-			temps.push(root.join(&item.name));
+			temps.push(item.into_regular_guard().map_err(io_error)?);
 			if temps.len() > MAX_PROVIDER_INDEX_TEMP_ARTIFACTS {
 				return Err(StoreError::Io("provider index temp artifact set is invalid".into()));
 			}
@@ -2163,11 +2185,15 @@ fn collect_index_temps_at(
 }
 
 fn validate_blob_namespace_at(
-	root: &Path,
 	root_directory: Option<&fs::File>,
 	state: &PersistedState,
 	index_exists: bool,
-) -> Result<(bool, Option<crate::bounded_io::FileIdentity>, Vec<PathBuf>), StoreError> {
+) -> Result<(
+	bool,
+	Option<crate::bounded_io::FileIdentity>,
+	Vec<crate::bounded_io::PreparedRegularFile>,
+	Vec<PreparedBlobGuard>,
+), StoreError> {
 	for (key, record) in &state.records {
 		if normalize_hash(key)? != *key || record.commitment != *key {
 			return Err(StoreError::Io("provider blob record key is not canonical".into()));
@@ -2176,7 +2202,6 @@ fn validate_blob_namespace_at(
 	if retained_blob_bytes(state)? > state.capacity_bytes {
 		return Err(StoreError::Io("provider retained blob bytes exceed configured capacity".into()));
 	}
-	let directory = root.join(BLOBS_DIR);
 	let exists = root_directory
 		.map(|root| crate::bounded_io::entry_missing_at(root, BLOBS_DIR.as_ref()).map(|missing| !missing))
 		.transpose()
@@ -2186,7 +2211,7 @@ fn validate_blob_namespace_at(
 		if state.records.values().any(|record| !record.deleted) {
 			return Err(StoreError::Io("provider live blob directory is missing".into()));
 		}
-		return Ok((false, None, Vec::new()));
+		return Ok((false, None, Vec::new(), Vec::new()));
 	}
 	let directory_handle = crate::bounded_io::open_directory_at(
 		root_directory.expect("existing blob directory has provider root"),
@@ -2203,7 +2228,7 @@ fn validate_blob_namespace_at(
 				"provider blobs exist without a canonical provider index".into(),
 			));
 		}
-		return Ok((true, Some(directory_identity), Vec::new()));
+		return Ok((true, Some(directory_identity), Vec::new(), Vec::new()));
 	}
 	let max_entries = state
 		.records
@@ -2212,6 +2237,7 @@ fn validate_blob_namespace_at(
 		.ok_or_else(|| StoreError::Io("provider blob artifact count overflow".into()))?;
 	let mut visited = 0usize;
 	let mut temps = Vec::new();
+	let mut canonical = Vec::new();
 	let mut seen = BTreeMap::new();
 	for item in entries {
 		visited = visited
@@ -2233,7 +2259,7 @@ fn validate_blob_namespace_at(
 			{
 				return Err(StoreError::Io("provider blob temp artifact name is invalid".into()));
 			}
-			temps.push(directory.join(&item.name));
+			temps.push(item.into_regular_guard().map_err(io_error)?);
 			if temps.len() > MAX_PROVIDER_BLOB_TEMP_ARTIFACTS {
 				return Err(StoreError::Io("provider blob temp artifact set is invalid".into()));
 			}
@@ -2249,7 +2275,8 @@ fn validate_blob_namespace_at(
 		if record.deleted && !state.pending_deletions.contains_key(&name) {
 			return Err(StoreError::Io("completed deletion retained provider blob bytes".into()));
 		}
-		verify_blob_file_at(&directory_handle, &item.name, record)?;
+		let guard = prepare_blob_guard(&directory_handle, item, record)?;
+		canonical.push(guard);
 		if seen.insert(name, ()).is_some() {
 			return Err(StoreError::Io("provider blob namespace contains a duplicate".into()));
 		}
@@ -2259,21 +2286,47 @@ fn validate_blob_namespace_at(
 			return Err(StoreError::Io("provider live blob is missing".into()));
 		}
 	}
-	Ok((true, Some(directory_identity), temps))
+	Ok((true, Some(directory_identity), temps, canonical))
 }
 
-fn verify_blob_file_at(
+fn prepare_blob_guard(
 	directory: &fs::File,
-	name: &std::ffi::OsStr,
+	entry: crate::bounded_io::DirectoryEntry,
 	record: &ContentRecord,
+) -> Result<PreparedBlobGuard, StoreError> {
+	let guard = entry.into_regular_guard().map_err(io_error)?;
+	let file = crate::bounded_io::open_prepared_regular_file_at(directory, &guard)
+		.map_err(io_error)?;
+	verify_blob_contents(file, record.bytes, &record.commitment)?;
+	Ok(PreparedBlobGuard {
+		file: guard,
+		commitment: record.commitment.clone(),
+		expected_bytes: record.bytes,
+	})
+}
+
+fn validate_prepared_blobs(
+	directory: &fs::File,
+	blobs: &[PreparedBlobGuard],
 ) -> Result<(), StoreError> {
-	let file = crate::bounded_io::open_regular_file_at(directory, name).map_err(io_error)?;
+	for blob in blobs {
+		let file = crate::bounded_io::open_prepared_regular_file_at(directory, &blob.file)
+			.map_err(io_error)?;
+		verify_blob_contents(file, blob.expected_bytes, &blob.commitment)?;
+	}
+	Ok(())
+}
+
+fn verify_blob_contents(
+	file: fs::File,
+	expected_bytes: u64,
+	expected_commitment: &str,
+) -> Result<(), StoreError> {
 	let metadata = file.metadata().map_err(io_error)?;
-	if !metadata.is_file() || metadata.len() != record.bytes {
+	if !metadata.is_file() || metadata.len() != expected_bytes {
 		return Err(StoreError::Io("provider blob length does not match its record".into()));
 	}
-	let limit = record
-		.bytes
+	let limit = expected_bytes
 		.checked_add(1)
 		.ok_or_else(|| StoreError::Io("provider blob read bound overflow".into()))?;
 	let mut reader = file.take(limit);
@@ -2290,7 +2343,7 @@ fn verify_blob_file_at(
 			.ok_or_else(|| StoreError::Io("provider blob length overflow".into()))?;
 		hash.update(&buffer[..read]);
 	}
-	if total != record.bytes || hex::encode(hash.finalize()) != record.commitment {
+	if total != expected_bytes || hex::encode(hash.finalize()) != expected_commitment {
 		return Err(StoreError::Io("provider blob failed commitment verification".into()));
 	}
 	Ok(())
@@ -3513,6 +3566,82 @@ mod tests {
 
 		assert!(armed.apply().is_err());
 		assert_eq!(fs::read(marker).unwrap(), b"replacement-must-remain-exact");
+	}
+
+	#[test]
+	fn prepared_index_temp_replacement_is_preserved() {
+		let temp = tempfile::tempdir().unwrap();
+		drop(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		let artifact = temp.path().join(format!("{INDEX_TEMP_PREFIX}906"));
+		fs::write(&artifact, b"prepared-index-temp").unwrap();
+		let armed = DiskStore::prepare_open(temp.path(), profile(), 1024)
+			.unwrap()
+			.arm()
+			.unwrap();
+		let replacement = temp.path().join("replacement-index-temp");
+		fs::write(&replacement, b"replacement-temp--").unwrap();
+		fs::rename(&replacement, &artifact).unwrap();
+
+		assert!(armed.apply().is_err());
+		assert_eq!(fs::read(artifact).unwrap(), b"replacement-temp--");
+	}
+
+	#[test]
+	fn prepared_blob_temp_replacement_is_preserved() {
+		let temp = tempfile::tempdir().unwrap();
+		drop(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		let artifact = temp
+			.path()
+			.join(BLOBS_DIR)
+			.join(format!("{}.tmp-906", "11".repeat(32)));
+		fs::write(&artifact, b"prepared-blob-temp").unwrap();
+		let armed = DiskStore::prepare_open(temp.path(), profile(), 1024)
+			.unwrap()
+			.arm()
+			.unwrap();
+		let replacement = temp.path().join(BLOBS_DIR).join("replacement-blob-temp");
+		fs::write(&replacement, b"replacement-temp-").unwrap();
+		fs::rename(&replacement, &artifact).unwrap();
+
+		assert!(armed.apply().is_err());
+		assert_eq!(fs::read(artifact).unwrap(), b"replacement-temp-");
+	}
+
+	#[test]
+	fn same_inode_blob_mutation_fails_before_prepared_temp_cleanup() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		let bytes = b"prepared-blob-exact".to_vec();
+		let commitment = DiskStore::content_commitment(&bytes);
+		let record = store
+			.commit(CommitInput {
+				commitment,
+				authorization: authorization(commitment, bytes.len() as u64),
+				bucket: None,
+				key: None,
+				bytes: bytes.clone(),
+			})
+			.unwrap();
+		drop(store);
+		let preserved = temp.path().join(format!("{INDEX_TEMP_PREFIX}907"));
+		fs::write(&preserved, b"preserve-before-mutation-reject").unwrap();
+		let armed = DiskStore::prepare_open(temp.path(), profile(), 1024)
+			.unwrap()
+			.arm()
+			.unwrap();
+		let blob = temp.path().join(BLOBS_DIR).join(record.commitment);
+		let metadata_before = fs::metadata(&blob).unwrap();
+		let mut mutated = bytes;
+		mutated[0] ^= 0x20;
+		fs::write(&blob, &mutated).unwrap();
+		let metadata_after = fs::metadata(&blob).unwrap();
+		assert_eq!(
+			crate::bounded_io::file_identity(&metadata_before),
+			crate::bounded_io::file_identity(&metadata_after),
+		);
+
+		assert!(armed.apply().is_err());
+		assert_eq!(fs::read(preserved).unwrap(), b"preserve-before-mutation-reject");
 	}
 
 	#[cfg(unix)]

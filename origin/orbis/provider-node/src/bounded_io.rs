@@ -52,6 +52,15 @@ pub(crate) struct RegularFileSnapshot {
 pub(crate) struct DirectoryEntry {
 	pub(crate) name: OsString,
 	pub(crate) file_type: FileType,
+	pub(crate) identity: FileIdentity,
+	pub(crate) length: u64,
+}
+
+/// Exact regular-file identity retained between provider startup prepare and apply.
+pub(crate) struct PreparedRegularFile {
+	pub(crate) name: OsString,
+	identity: FileIdentity,
+	length: u64,
 }
 
 /// A no-follow parent-directory capability for one provider-root entry.
@@ -175,7 +184,10 @@ impl Drop for LockedDirectory {
 /// Resolve every existing ancestor without following symlinks and retain the parent capability.
 pub(crate) fn prepare_directory_path(path: &Path) -> Result<PreparedDirectoryPath, ContentError> {
 	let name = path.file_name().ok_or(ContentError::IntegrityFailed)?.to_os_string();
-	let parent_path = path.parent().unwrap_or_else(|| Path::new("."));
+	let parent_path = path
+		.parent()
+		.filter(|parent| !parent.as_os_str().is_empty())
+		.unwrap_or_else(|| Path::new("."));
 	let mut directory = if parent_path.is_absolute() {
 		open_directory_path(Path::new("/"))?
 	} else {
@@ -306,12 +318,52 @@ pub(crate) fn list_directory(directory: &File) -> Result<Vec<DirectoryEntry>, Co
 		if bytes == b"." || bytes == b".." {
 			continue
 		}
+		let stat = unix_fs::statat(directory, entry.file_name(), AtFlags::SYMLINK_NOFOLLOW)
+			.map_err(io_error)?;
 		entries.push(DirectoryEntry {
 			name: OsString::from_vec(bytes.to_vec()),
-			file_type: entry.file_type(),
+			file_type: FileType::from_raw_mode(stat.st_mode),
+			identity: file_identity_from_stat(&stat),
+			length: stat.st_size as u64,
 		});
 	}
 	Ok(entries)
+}
+
+impl DirectoryEntry {
+	pub(crate) fn into_regular_guard(self) -> Result<PreparedRegularFile, ContentError> {
+		if self.file_type != FileType::RegularFile {
+			return Err(ContentError::IntegrityFailed)
+		}
+		Ok(PreparedRegularFile {
+			name: self.name,
+			identity: self.identity,
+			length: self.length,
+		})
+	}
+}
+
+pub(crate) fn open_prepared_regular_file_at(
+	directory: &File,
+	guard: &PreparedRegularFile,
+) -> Result<File, ContentError> {
+	let file = open_regular_file_at(directory, &guard.name)?;
+	let metadata = file.metadata().map_err(io_error)?;
+	if !metadata.is_file() ||
+		metadata.len() != guard.length ||
+		file_identity(&metadata) != guard.identity
+	{
+		return Err(ContentError::IntegrityFailed)
+	}
+	let stat = unix_fs::statat(directory, &guard.name, AtFlags::SYMLINK_NOFOLLOW)
+		.map_err(|_| ContentError::IntegrityFailed)?;
+	if FileType::from_raw_mode(stat.st_mode) != FileType::RegularFile ||
+		stat.st_size as u64 != guard.length ||
+		file_identity_from_stat(&stat) != guard.identity
+	{
+		return Err(ContentError::IntegrityFailed)
+	}
+	Ok(file)
 }
 
 pub(crate) fn open_regular_file_at(
@@ -425,21 +477,30 @@ fn rollback_created_directory(parent: &File, name: &std::ffi::OsStr, identity: F
 /// Remove prepared artifacts relative to a held directory capability.
 pub(crate) fn remove_validated_temp_artifacts_at(
 	directory: &File,
-	root: &Path,
-	temp_artifacts: &[PathBuf],
+	temp_artifacts: &[PreparedRegularFile],
 ) -> Result<(), ContentError> {
 	for artifact in temp_artifacts {
-		if artifact.parent() != Some(root) {
-			return Err(ContentError::IntegrityFailed)
-		}
-		let name = artifact.file_name().ok_or(ContentError::IntegrityFailed)?;
-		match unix_fs::unlinkat(directory, name, AtFlags::empty()) {
+		open_prepared_regular_file_at(directory, artifact)?;
+	}
+	for artifact in temp_artifacts {
+		open_prepared_regular_file_at(directory, artifact)?;
+		match unix_fs::unlinkat(directory, &artifact.name, AtFlags::empty()) {
 			Ok(()) | Err(UnixErrno::NOENT) => {},
 			Err(error) => return Err(io_error(error)),
 		}
 	}
 	if !temp_artifacts.is_empty() {
 		unix_fs::fsync(directory).map_err(io_error)?;
+	}
+	Ok(())
+}
+
+pub(crate) fn validate_prepared_regular_files_at(
+	directory: &File,
+	files: &[PreparedRegularFile],
+) -> Result<(), ContentError> {
+	for file in files {
+		open_prepared_regular_file_at(directory, file)?;
 	}
 	Ok(())
 }
@@ -566,6 +627,12 @@ mod tests {
 		let path = temp.path().join("record.json");
 		std::fs::write(&path, b"durable").unwrap();
 		assert_eq!(read_regular_file(path, 8).unwrap(), b"durable");
+	}
+
+	#[test]
+	fn bare_relative_provider_root_uses_the_current_directory_as_parent() {
+		let prepared = prepare_directory_path(Path::new("data")).unwrap();
+		assert!(prepared.is_missing().is_ok());
 	}
 
 	#[cfg(unix)]
