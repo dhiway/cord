@@ -18,8 +18,10 @@
 
 //! Conservative pre-benchmark weights for native Orbis Names.
 //!
-//! These functions keep the pallet integrable before runtime benchmarks are generated. Production
-//! activation must replace the constants with benchmark output for the final Commons runtime.
+//! Names does not yet have a runtime-benchmarking module. Until generated measurements replace
+//! these constants, `publish_content` charges the configured maximum receipt count rather than the
+//! observed count, covering the bounded worst-case scan/prune path without undercharging it.
+//! Production activation must replace these constants with benchmark output for Commons.
 
 use core::marker::PhantomData;
 use frame_support::{traits::Get, weights::Weight};
