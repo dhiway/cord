@@ -67,7 +67,7 @@ test("Commons runtime deadline, replay, and bounded receipt errors stay inside H
     ["storage.publish", "Names.ContentOperationReceiptCapacityReached", 212, "STORAGE_OPERATION_RECEIPT_CAPACITY_REACHED"],
   ] as const) {
     const error = await runtimeFailure(operation, runtimeCode);
-    assert.deepEqual([Number(error[0]), error[1], error[2]], [code, name, code === 212]);
+    assert.deepEqual([Number(error[0]), error[1], error[2]], [code, name, false]);
   }
 });
 

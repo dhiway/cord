@@ -221,7 +221,7 @@
       "family": "E_CONTENT",
       "code": 212,
       "name": "STORAGE_OPERATION_RECEIPT_CAPACITY_REACHED",
-      "retryable": true,
+      "retryable": false,
       "details": "closed integer-keyed map defined by operation Error production"
     },
     {
