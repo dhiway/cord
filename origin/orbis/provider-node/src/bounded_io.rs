@@ -19,25 +19,27 @@
 //! Metadata-first bounded reads for durable provider control-plane records.
 
 use std::{
+	ffi::OsString,
 	fs::{self, File},
-	io::Read,
-	path::{Path, PathBuf},
+	io::{Read, Write},
+	os::unix::ffi::OsStringExt,
+	path::{Component, Path, PathBuf},
 };
 
-#[cfg(unix)]
-use rustix::fs::{self as unix_fs, Mode, OFlags};
+use fs4::FileExt;
+use rand::{rngs::OsRng, RngCore};
+use rustix::{
+	fs::{self as unix_fs, AtFlags, FileType, Mode, OFlags, RenameFlags},
+	io::Errno as UnixErrno,
+};
 
 use crate::ContentError;
 
 /// Stable identity of an opened durable filesystem object.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct FileIdentity {
-	#[cfg(unix)]
 	device: u64,
-	#[cfg(unix)]
 	inode: u64,
-	#[cfg(not(unix))]
-	length: u64,
 }
 
 /// Bytes and path identity captured by one bounded, no-follow regular-file read.
@@ -45,6 +47,149 @@ pub(crate) struct RegularFileSnapshot {
 	pub(crate) bytes: Vec<u8>,
 	pub(crate) identity: FileIdentity,
 	pub(crate) length: u64,
+}
+
+pub(crate) struct DirectoryEntry {
+	pub(crate) name: OsString,
+	pub(crate) file_type: FileType,
+}
+
+/// A no-follow parent-directory capability for one provider-root entry.
+pub(crate) struct PreparedDirectoryPath {
+	parent: File,
+	name: OsString,
+}
+
+/// An exclusively locked provider-root capability whose pathname is identity-bound.
+pub(crate) struct LockedDirectory {
+	parent: File,
+	name: OsString,
+	directory: File,
+	identity: FileIdentity,
+	rollback_owned_empty_on_drop: bool,
+}
+
+impl PreparedDirectoryPath {
+	/// Open and exclusively lock the existing final directory without following any component.
+	pub(crate) fn lock_existing(self) -> Result<LockedDirectory, ContentError> {
+		let directory = open_directory_at(&self.parent, &self.name)?;
+		let identity = file_identity(&directory.metadata().map_err(io_error)?);
+		let locked = LockedDirectory {
+			parent: self.parent,
+			name: self.name,
+			directory,
+			identity,
+			rollback_owned_empty_on_drop: false,
+		};
+		locked.lock_and_validate()?;
+		Ok(locked)
+	}
+
+	/// Create, identity-bind and exclusively lock a previously missing final directory.
+	pub(crate) fn create_and_lock(self) -> Result<LockedDirectory, ContentError> {
+		match unix_fs::statat(&self.parent, &self.name, AtFlags::SYMLINK_NOFOLLOW) {
+			Err(UnixErrno::NOENT) => {},
+			_ => return Err(ContentError::IntegrityFailed),
+		}
+		let temporary = create_private_directory_name(&self.parent)?;
+		let created = unix_fs::statat(&self.parent, &temporary, AtFlags::SYMLINK_NOFOLLOW)
+			.map_err(io_error)?;
+		let identity = file_identity_from_stat(&created);
+		let directory = match open_directory_at(&self.parent, temporary.as_ref()) {
+			Ok(directory) => directory,
+			Err(error) => {
+				rollback_created_directory(&self.parent, &temporary, identity);
+				return Err(error)
+			},
+		};
+		if file_identity(&directory.metadata().map_err(io_error)?) != identity {
+			rollback_created_directory(&self.parent, &temporary, identity);
+			return Err(ContentError::IntegrityFailed)
+		}
+		let mut locked = LockedDirectory {
+			parent: self.parent,
+			name: temporary,
+			directory,
+			identity,
+			rollback_owned_empty_on_drop: true,
+		};
+		locked.lock_and_validate()?;
+		unix_fs::renameat_with(
+			&locked.parent,
+			&locked.name,
+			&locked.parent,
+			&self.name,
+			RenameFlags::NOREPLACE,
+		)
+		.map_err(io_error)?;
+		locked.name = self.name;
+		locked.validate_path_identity()?;
+		unix_fs::fsync(&locked.parent).map_err(io_error)?;
+		Ok(locked)
+	}
+
+	pub(crate) fn is_missing(&self) -> Result<bool, ContentError> {
+		match unix_fs::statat(&self.parent, &self.name, AtFlags::SYMLINK_NOFOLLOW) {
+			Err(UnixErrno::NOENT) => Ok(true),
+			Ok(_) => Ok(false),
+			Err(error) => Err(io_error(error)),
+		}
+	}
+}
+
+impl LockedDirectory {
+	fn lock_and_validate(&self) -> Result<(), ContentError> {
+		self.directory.try_lock_exclusive().map_err(io_error)?;
+		self.validate_path_identity()
+	}
+
+	pub(crate) fn file(&self) -> &File {
+		&self.directory
+	}
+
+	pub(crate) fn validate_path_identity(&self) -> Result<(), ContentError> {
+		let stat = unix_fs::statat(&self.parent, &self.name, AtFlags::SYMLINK_NOFOLLOW)
+			.map_err(io_error)?;
+		if FileType::from_raw_mode(stat.st_mode) != FileType::Directory ||
+			file_identity_from_stat(&stat) != self.identity ||
+			file_identity(&self.directory.metadata().map_err(io_error)?) != self.identity
+		{
+			return Err(ContentError::IntegrityFailed)
+		}
+		Ok(())
+	}
+
+	pub(crate) fn preserve_owned(&mut self) {
+		self.rollback_owned_empty_on_drop = false;
+	}
+}
+
+impl Drop for LockedDirectory {
+	fn drop(&mut self) {
+		if self.rollback_owned_empty_on_drop {
+			rollback_created_directory(&self.parent, &self.name, self.identity);
+		}
+	}
+}
+
+/// Resolve every existing ancestor without following symlinks and retain the parent capability.
+pub(crate) fn prepare_directory_path(path: &Path) -> Result<PreparedDirectoryPath, ContentError> {
+	let name = path.file_name().ok_or(ContentError::IntegrityFailed)?.to_os_string();
+	let parent_path = path.parent().unwrap_or_else(|| Path::new("."));
+	let mut directory = if parent_path.is_absolute() {
+		open_directory_path(Path::new("/"))?
+	} else {
+		open_directory_path(Path::new("."))?
+	};
+	for component in parent_path.components() {
+		match component {
+			Component::RootDir | Component::CurDir => {},
+			Component::Normal(name) => directory = open_directory_at(&directory, name)?,
+			Component::ParentDir | Component::Prefix(_) =>
+				return Err(ContentError::IntegrityFailed),
+		}
+	}
+	Ok(PreparedDirectoryPath { parent: directory, name })
 }
 
 /// Read one regular durable record without allocating beyond its declared hard limit.
@@ -94,7 +239,239 @@ pub(crate) fn read_regular_file_snapshot(
 	})
 }
 
-#[cfg(unix)]
+/// Capture a bounded regular file relative to an already validated directory capability.
+pub(crate) fn read_regular_file_snapshot_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+	max_bytes: u64,
+) -> Result<RegularFileSnapshot, ContentError> {
+	let fd = unix_fs::openat(
+		directory,
+		name,
+		OFlags::RDONLY | OFlags::NONBLOCK | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+		Mode::empty(),
+	)
+	.map_err(|_| ContentError::IntegrityFailed)?;
+	let file = File::from(fd);
+	let metadata = file.metadata().map_err(io_error)?;
+	if !metadata.is_file() || metadata.len() > max_bytes {
+		return Err(ContentError::IntegrityFailed)
+	}
+	let capacity = usize::try_from(metadata.len()).map_err(|_| ContentError::IntegrityFailed)?;
+	let mut bytes = Vec::with_capacity(capacity);
+	let mut bounded = file.take(max_bytes.checked_add(1).ok_or(ContentError::IntegrityFailed)?);
+	bounded.read_to_end(&mut bytes).map_err(io_error)?;
+	if bytes.len() as u64 != metadata.len() || bytes.len() as u64 > max_bytes {
+		return Err(ContentError::IntegrityFailed)
+	}
+	let stat = unix_fs::statat(directory, name, AtFlags::SYMLINK_NOFOLLOW)
+		.map_err(|_| ContentError::IntegrityFailed)?;
+	if FileType::from_raw_mode(stat.st_mode) != FileType::RegularFile ||
+		file_identity_from_stat(&stat) != file_identity(&metadata)
+	{
+		return Err(ContentError::IntegrityFailed)
+	}
+	Ok(RegularFileSnapshot { bytes, identity: file_identity(&metadata), length: metadata.len() })
+}
+
+pub(crate) fn entry_missing_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+) -> Result<bool, ContentError> {
+	match unix_fs::statat(directory, name, AtFlags::SYMLINK_NOFOLLOW) {
+		Err(UnixErrno::NOENT) => Ok(true),
+		Ok(_) => Ok(false),
+		Err(error) => Err(io_error(error)),
+	}
+}
+
+pub(crate) fn regular_file_exists_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+) -> Result<bool, ContentError> {
+	match unix_fs::statat(directory, name, AtFlags::SYMLINK_NOFOLLOW) {
+		Err(UnixErrno::NOENT) => Ok(false),
+		Ok(stat) if FileType::from_raw_mode(stat.st_mode) == FileType::RegularFile => Ok(true),
+		Ok(_) => Err(ContentError::IntegrityFailed),
+		Err(error) => Err(io_error(error)),
+	}
+}
+
+pub(crate) fn list_directory(directory: &File) -> Result<Vec<DirectoryEntry>, ContentError> {
+	let mut entries = Vec::new();
+	let mut stream = rustix::fs::Dir::read_from(directory).map_err(io_error)?;
+	for entry in &mut stream {
+		let entry = entry.map_err(io_error)?;
+		let bytes = entry.file_name().to_bytes();
+		if bytes == b"." || bytes == b".." {
+			continue
+		}
+		entries.push(DirectoryEntry {
+			name: OsString::from_vec(bytes.to_vec()),
+			file_type: entry.file_type(),
+		});
+	}
+	Ok(entries)
+}
+
+pub(crate) fn open_regular_file_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+) -> Result<File, ContentError> {
+	unix_fs::openat(
+		directory,
+		name,
+		OFlags::RDONLY | OFlags::NONBLOCK | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+		Mode::empty(),
+	)
+	.map(File::from)
+	.map_err(|_| ContentError::IntegrityFailed)
+}
+
+pub(crate) fn open_directory_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+) -> Result<File, ContentError> {
+	unix_fs::openat(
+		directory,
+		name,
+		OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NONBLOCK | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+		Mode::empty(),
+	)
+	.map(File::from)
+	.map_err(|_| ContentError::IntegrityFailed)
+}
+
+pub(crate) fn create_directory_at(
+	parent: &File,
+	name: &std::ffi::OsStr,
+) -> Result<File, ContentError> {
+	if !entry_missing_at(parent, name)? {
+		return Err(ContentError::IntegrityFailed)
+	}
+	let temporary = create_private_directory_name(parent)?;
+	let created = unix_fs::statat(parent, &temporary, AtFlags::SYMLINK_NOFOLLOW)
+		.map_err(io_error)?;
+	let identity = file_identity_from_stat(&created);
+	let directory = match open_directory_at(parent, temporary.as_ref()) {
+		Ok(directory) => directory,
+		Err(error) => {
+			rollback_created_directory(parent, &temporary, identity);
+			return Err(error)
+		},
+	};
+	if file_identity(&directory.metadata().map_err(io_error)?) != identity {
+		rollback_created_directory(parent, &temporary, identity);
+		return Err(ContentError::IntegrityFailed)
+	}
+	if let Err(error) = unix_fs::renameat_with(
+		parent,
+		&temporary,
+		parent,
+		name,
+		RenameFlags::NOREPLACE,
+	) {
+		rollback_created_directory(parent, &temporary, identity);
+		return Err(io_error(error))
+	}
+	let stat = unix_fs::statat(parent, name, AtFlags::SYMLINK_NOFOLLOW).map_err(io_error)?;
+	if file_identity_from_stat(&stat) != identity {
+		return Err(ContentError::IntegrityFailed)
+	}
+	unix_fs::fsync(parent).map_err(io_error)?;
+	Ok(directory)
+}
+
+fn open_directory_path(path: &Path) -> Result<File, ContentError> {
+	unix_fs::open(
+		path,
+		OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NONBLOCK | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+		Mode::empty(),
+	)
+	.map(File::from)
+	.map_err(|_| ContentError::IntegrityFailed)
+}
+
+fn file_identity_from_stat(stat: &rustix::fs::Stat) -> FileIdentity {
+	FileIdentity { device: stat.st_dev as u64, inode: stat.st_ino as u64 }
+}
+
+fn create_private_directory_name(parent: &File) -> Result<OsString, ContentError> {
+	for _ in 0..16 {
+		let mut random = [0u8; 16];
+		OsRng.fill_bytes(&mut random);
+		let name = OsString::from(format!(".provider-root.create-{}", hex::encode(random)));
+		match unix_fs::mkdirat(parent, &name, Mode::RUSR | Mode::WUSR | Mode::XUSR) {
+			Ok(()) => return Ok(name),
+			Err(UnixErrno::EXIST) => {},
+			Err(error) => return Err(io_error(error)),
+		}
+	}
+	Err(ContentError::IntegrityFailed)
+}
+
+fn rollback_created_directory(parent: &File, name: &std::ffi::OsStr, identity: FileIdentity) {
+	let Ok(stat) = unix_fs::statat(parent, name, AtFlags::SYMLINK_NOFOLLOW) else { return };
+	if FileType::from_raw_mode(stat.st_mode) != FileType::Directory ||
+		file_identity_from_stat(&stat) != identity
+	{
+		return
+	}
+	if unix_fs::unlinkat(parent, name, AtFlags::REMOVEDIR).is_ok() {
+		let _ = unix_fs::fsync(parent);
+	}
+}
+
+/// Remove prepared artifacts relative to a held directory capability.
+pub(crate) fn remove_validated_temp_artifacts_at(
+	directory: &File,
+	root: &Path,
+	temp_artifacts: &[PathBuf],
+) -> Result<(), ContentError> {
+	for artifact in temp_artifacts {
+		if artifact.parent() != Some(root) {
+			return Err(ContentError::IntegrityFailed)
+		}
+		let name = artifact.file_name().ok_or(ContentError::IntegrityFailed)?;
+		match unix_fs::unlinkat(directory, name, AtFlags::empty()) {
+			Ok(()) | Err(UnixErrno::NOENT) => {},
+			Err(error) => return Err(io_error(error)),
+		}
+	}
+	if !temp_artifacts.is_empty() {
+		unix_fs::fsync(directory).map_err(io_error)?;
+	}
+	Ok(())
+}
+
+/// Atomically replace a regular file relative to one held directory capability.
+pub(crate) fn write_atomic_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+	temporary: &std::ffi::OsStr,
+	bytes: &[u8],
+) -> Result<(), ContentError> {
+	let result = (|| {
+		let fd = unix_fs::openat(
+			directory,
+			temporary,
+			OFlags::WRONLY | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+			Mode::RUSR | Mode::WUSR,
+		)
+		.map_err(io_error)?;
+		let mut file = File::from(fd);
+		file.write_all(bytes).map_err(io_error)?;
+		file.sync_all().map_err(io_error)?;
+		unix_fs::renameat(directory, temporary, directory, name).map_err(io_error)?;
+		unix_fs::fsync(directory).map_err(io_error)
+	})();
+	if result.is_err() {
+		let _ = unix_fs::unlinkat(directory, temporary, AtFlags::empty());
+		let _ = unix_fs::fsync(directory);
+	}
+	result
+}
+
 fn open_regular_file_nofollow(path: &Path) -> Result<File, ContentError> {
 	unix_fs::open(
 		path,
@@ -105,21 +482,10 @@ fn open_regular_file_nofollow(path: &Path) -> Result<File, ContentError> {
 	.map_err(|_| ContentError::IntegrityFailed)
 }
 
-#[cfg(not(unix))]
-fn open_regular_file_nofollow(path: &Path) -> Result<File, ContentError> {
-	File::open(path).map_err(io_error)
-}
-
-#[cfg(unix)]
 pub(crate) fn file_identity(metadata: &fs::Metadata) -> FileIdentity {
 	use std::os::unix::fs::MetadataExt as _;
 
 	FileIdentity { device: metadata.dev(), inode: metadata.ino() }
-}
-
-#[cfg(not(unix))]
-pub(crate) fn file_identity(metadata: &fs::Metadata) -> FileIdentity {
-	FileIdentity { length: metadata.len() }
 }
 
 /// Recognize only the crash artifact shape emitted by the durable JSON writers.

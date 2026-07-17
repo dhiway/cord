@@ -25,6 +25,9 @@
 
 #![warn(missing_docs)]
 
+#[cfg(not(unix))]
+compile_error!("origin-orbis-provider requires Unix no-follow directory-handle semantics");
+
 mod api;
 mod bounded_io;
 // Deliberately private until the P4 route cutover removes the shared bearer atomically.

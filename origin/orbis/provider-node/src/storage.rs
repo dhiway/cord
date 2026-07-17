@@ -38,15 +38,11 @@ use std::{
 
 use blake2::{digest::consts::U32, Blake2b, Digest as _};
 use codec::{Decode, Encode};
-use fs4::FileExt;
 use orbis_storage_runtime_api::{
 	CheckpointDutyInfo, DeletionDutyInfo, MAX_CHECKPOINT_DUTY_PAGE_SIZE,
 };
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::AccountId32, H256};
-
-#[cfg(unix)]
-use rustix::fs::{self as unix_fs, Mode, OFlags};
 
 use crate::{
 	merkle, AgreementAuthorization, CheckpointDuty, CheckpointDutyBatch, CheckpointDutyPageRequest,
@@ -350,6 +346,7 @@ pub(crate) struct PreparedDiskStore {
 	index_temps: Vec<PathBuf>,
 	blob_temps: Vec<PathBuf>,
 	blobs_missing: bool,
+	blobs_identity: Option<crate::bounded_io::FileIdentity>,
 	root_guard: PreparedProviderRootGuard,
 	index_guard: PreparedProviderIndexGuard,
 }
@@ -357,17 +354,16 @@ pub(crate) struct PreparedDiskStore {
 pub(crate) struct ArmedDiskStore {
 	prepared: Option<PreparedDiskStore>,
 	root_guard: Option<ProviderRootGuard>,
-	remove_empty_root_on_drop: bool,
 }
 
 struct ProviderRootGuard {
-	directory: fs::File,
-	identity: crate::bounded_io::FileIdentity,
+	directory: crate::bounded_io::LockedDirectory,
 }
 
 enum PreparedProviderRootGuard {
-	Missing,
+	Missing(crate::bounded_io::PreparedDirectoryPath),
 	Existing(ProviderRootGuard),
+	Consumed,
 }
 
 enum PreparedProviderIndexGuard {
@@ -380,36 +376,29 @@ enum PreparedProviderIndexGuard {
 }
 
 impl ProviderRootGuard {
-	fn validate(&self, root: &Path) -> Result<(), StoreError> {
-		let path_metadata = fs::symlink_metadata(root).map_err(io_error)?;
-		let opened_metadata = self.directory.metadata().map_err(io_error)?;
-		if path_metadata.file_type().is_symlink()
-			|| !path_metadata.is_dir()
-			|| !opened_metadata.is_dir()
-			|| crate::bounded_io::file_identity(&path_metadata) != self.identity
-			|| crate::bounded_io::file_identity(&opened_metadata) != self.identity
-		{
-			return Err(StoreError::Io(
-				"provider root changed after startup validation".into(),
-			));
-		}
-		Ok(())
+	fn validate(&self) -> Result<(), StoreError> {
+		self.directory.validate_path_identity().map_err(io_error)
 	}
 }
 
 impl PreparedProviderIndexGuard {
-	fn validate(&self, path: &Path) -> Result<(), StoreError> {
+	fn validate(&self, directory: &fs::File) -> Result<(), StoreError> {
 		match self {
-			Self::Missing => match fs::symlink_metadata(path) {
-				Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-				Ok(_) => Err(StoreError::Io(
+			Self::Missing => {
+				if crate::bounded_io::entry_missing_at(directory, INDEX_FILE.as_ref())
+					.map_err(io_error)?
+				{
+					Ok(())
+				} else {
+					Err(StoreError::Io(
 					"provider index appeared after startup validation".into(),
-				)),
-				Err(error) => Err(io_error(error)),
+					))
+				}
 			},
 			Self::Present { identity, length, bytes } => {
-				let current = crate::bounded_io::read_regular_file_snapshot(
-					path,
+				let current = crate::bounded_io::read_regular_file_snapshot_at(
+					directory,
+					INDEX_FILE.as_ref(),
 					MAX_PROVIDER_INDEX_BYTES,
 				)
 				.map_err(io_error)?;
@@ -429,43 +418,43 @@ impl PreparedProviderIndexGuard {
 
 impl PreparedDiskStore {
 	pub(crate) fn arm(mut self) -> Result<ArmedDiskStore, StoreError> {
-		let (root_guard, remove_empty_root_on_drop) = match self.root_guard {
+		let prepared_root = std::mem::replace(
+			&mut self.root_guard,
+			PreparedProviderRootGuard::Consumed,
+		);
+		let root_guard = match prepared_root {
 			PreparedProviderRootGuard::Existing(guard) => {
-				guard.validate(&self.root)?;
-				(guard, false)
+				guard.validate()?;
+				guard
 			},
-			PreparedProviderRootGuard::Missing => {
-				match fs::symlink_metadata(&self.root) {
-					Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
-					Ok(_) => {
-						return Err(StoreError::Io(
-							"provider root appeared after startup validation".into(),
-						))
-					},
-					Err(error) => return Err(io_error(error)),
-				}
-				fs::create_dir(&self.root).map_err(io_error)?;
-				(acquire_provider_root_guard(&self.root)?, true)
+			PreparedProviderRootGuard::Missing(path) => {
+				let directory = path.create_and_lock().map_err(io_error)?;
+				ProviderRootGuard { directory }
 			},
+			PreparedProviderRootGuard::Consumed =>
+				return Err(StoreError::Io("provider root plan was already armed".into())),
 		};
-		self.root_guard = PreparedProviderRootGuard::Missing;
 		let armed = ArmedDiskStore {
 			prepared: Some(self),
 			root_guard: Some(root_guard),
-			remove_empty_root_on_drop,
 		};
 		let prepared = armed.prepared.as_ref().expect("armed plan contains prepared state");
 		let root_guard = armed.root_guard.as_ref().expect("armed plan contains root guard");
-		if remove_empty_root_on_drop {
-			sync_parent_directory(&prepared.root)?;
-		}
-		root_guard.validate(&prepared.root)?;
-		prepared.index_guard.validate(&prepared.root.join(INDEX_FILE))?;
+		root_guard.validate()?;
+		prepared.index_guard.validate(root_guard.directory.file())?;
 		Ok(armed)
 	}
 }
 
 impl ArmedDiskStore {
+	#[allow(dead_code)]
+	pub(crate) fn root_directory(&self) -> Result<&crate::bounded_io::LockedDirectory, StoreError> {
+		self.root_guard
+			.as_ref()
+			.map(|guard| &guard.directory)
+			.ok_or_else(|| StoreError::Io("provider root guard is not armed".into()))
+	}
+
 	pub(crate) fn apply(mut self) -> Result<DiskStore, StoreError> {
 		let prepared = self
 			.prepared
@@ -475,51 +464,63 @@ impl ArmedDiskStore {
 			.root_guard
 			.take()
 			.ok_or_else(|| StoreError::Io("provider root guard is not armed".into()))?;
-		root_guard.validate(&prepared.root)?;
-		prepared.index_guard.validate(&prepared.root.join(INDEX_FILE))?;
+		root_guard.validate()?;
+		prepared.index_guard.validate(root_guard.directory.file())?;
 		let blobs = prepared.root.join(BLOBS_DIR);
-		if prepared.blobs_missing {
-			fs::create_dir(&blobs).map_err(io_error)?;
-			root_guard.directory.sync_all().map_err(io_error)?;
+		let blob_directory = if prepared.blobs_missing {
+			crate::bounded_io::create_directory_at(
+				root_guard.directory.file(),
+				BLOBS_DIR.as_ref(),
+			)
+			.map_err(io_error)?
 		} else {
-			optional_owned_directory_exists(&blobs)?;
+			crate::bounded_io::open_directory_at(root_guard.directory.file(), BLOBS_DIR.as_ref())
+				.map_err(io_error)?
+		};
+		crate::bounded_io::remove_validated_temp_artifacts_at(
+			root_guard.directory.file(),
+			&prepared.root,
+			&prepared.index_temps,
+		)
+			.map_err(io_error)?;
+		let blob_identity = crate::bounded_io::file_identity(
+			&blob_directory.metadata().map_err(io_error)?,
+		);
+		if prepared.blobs_identity.is_some_and(|identity| blob_identity != identity) {
+			return Err(StoreError::Io(
+				"provider blob directory changed after startup validation".into(),
+			))
 		}
-		crate::bounded_io::remove_validated_temp_artifacts(&prepared.root, &prepared.index_temps)
+		crate::bounded_io::remove_validated_temp_artifacts_at(
+			&blob_directory,
+			&blobs,
+			&prepared.blob_temps,
+		)
 			.map_err(io_error)?;
-		crate::bounded_io::remove_validated_temp_artifacts(&blobs, &prepared.blob_temps)
-			.map_err(io_error)?;
-		let store = DiskStore {
+		let mut store = DiskStore {
 			root: prepared.root,
 			state: RwLock::new(prepared.state),
 			_root_guard: Some(root_guard),
 		};
 		if let Some(bytes) = prepared.initial_index {
-			write_atomic(&store.root.join(INDEX_FILE), &bytes)?;
+			let temporary = atomic_temp_path(Path::new(INDEX_FILE));
+			crate::bounded_io::write_atomic_at(
+				store._root_guard.as_ref().expect("root guard transferred").directory.file(),
+				INDEX_FILE.as_ref(),
+				temporary.file_name().ok_or_else(|| {
+					StoreError::Io("provider index temp name is invalid".into())
+				})?,
+				&bytes,
+			)
+			.map_err(io_error)?;
 		}
-		self.remove_empty_root_on_drop = false;
+		store
+			._root_guard
+			.as_mut()
+			.expect("root guard transferred")
+			.directory
+			.preserve_owned();
 		Ok(store)
-	}
-}
-
-impl Drop for ArmedDiskStore {
-	fn drop(&mut self) {
-		if !self.remove_empty_root_on_drop {
-			return;
-		}
-		let (Some(prepared), Some(guard)) = (&self.prepared, &self.root_guard) else {
-			return;
-		};
-		if guard.validate(&prepared.root).is_err()
-			|| fs::read_dir(&prepared.root)
-				.ok()
-				.and_then(|mut entries| entries.next())
-				.is_some()
-		{
-			return;
-		}
-		if fs::remove_dir(&prepared.root).is_ok() {
-			let _ = sync_parent_directory(&prepared.root);
-		}
 	}
 }
 
@@ -549,24 +550,48 @@ impl DiskStore {
 		}
 		validate_profile(&profile)?;
 		let root = root.as_ref().to_path_buf();
-		let root_exists = optional_owned_directory_exists(&root)?;
+		let root_path = crate::bounded_io::prepare_directory_path(&root).map_err(io_error)?;
+		let root_exists = !root_path.is_missing().map_err(io_error)?;
 		let root_guard = if root_exists {
-			PreparedProviderRootGuard::Existing(acquire_provider_root_guard(&root)?)
+			PreparedProviderRootGuard::Existing(ProviderRootGuard {
+				directory: root_path.lock_existing().map_err(io_error)?,
+			})
 		} else {
-			PreparedProviderRootGuard::Missing
+			PreparedProviderRootGuard::Missing(root_path)
+		};
+		let root_directory = match &root_guard {
+			PreparedProviderRootGuard::Existing(guard) => Some(guard.directory.file()),
+			_ => None,
 		};
 		let (index_temps, root_artifacts) =
-			if root_exists { collect_index_temps(&root)? } else { (Vec::new(), 0) };
-		let path = root.join(INDEX_FILE);
-		let index_exists = optional_owned_regular_file_exists(&path)?;
-		if !index_exists && optional_owned_regular_file_exists(&root.join(LEGACY_INDEX_FILE))? {
+			if let Some(directory) = root_directory {
+				collect_index_temps_at(&root, directory)?
+			} else {
+				(Vec::new(), 0)
+			};
+		let index_exists = root_directory
+			.map(|directory| {
+				crate::bounded_io::regular_file_exists_at(directory, INDEX_FILE.as_ref())
+					.map_err(io_error)
+			})
+			.transpose()?
+			.unwrap_or(false);
+		let legacy_exists = root_directory
+			.map(|directory| {
+				crate::bounded_io::regular_file_exists_at(directory, LEGACY_INDEX_FILE.as_ref())
+					.map_err(io_error)
+			})
+			.transpose()?
+			.unwrap_or(false);
+		if !index_exists && legacy_exists {
 			return Err(StoreError::Invalid(
 				"provider protocol v5 state is unsupported; initialize a clean data path".into(),
 			));
 		}
 		let (state, index_guard) = if index_exists {
-			let snapshot = crate::bounded_io::read_regular_file_snapshot(
-				&path,
+			let snapshot = crate::bounded_io::read_regular_file_snapshot_at(
+				root_directory.expect("existing index has root directory"),
+				INDEX_FILE.as_ref(),
 				MAX_PROVIDER_INDEX_BYTES,
 			)
 			.map_err(io_error)?;
@@ -632,7 +657,12 @@ impl DiskStore {
 			.state
 			.into_inner()
 			.map_err(|_| StoreError::Io("provider index validation lock was poisoned".into()))?;
-		let (blobs_exists, blob_temps) = validate_blob_namespace(&root, &state, index_exists)?;
+		let (blobs_exists, blobs_identity, blob_temps) = validate_blob_namespace_at(
+			&root,
+			root_directory,
+			&state,
+			index_exists,
+		)?;
 		let recovered_artifacts = root_artifacts
 			.checked_sub(index_temps.len())
 			.and_then(|count| count.checked_add(usize::from(!blobs_exists)))
@@ -643,7 +673,7 @@ impl DiskStore {
 		}
 		let initial_index = (!index_exists).then(|| encode_persisted_state(&state)).transpose()?;
 		if let PreparedProviderRootGuard::Existing(guard) = &root_guard {
-			guard.validate(&root)?;
+			guard.validate()?;
 		}
 		Ok(PreparedDiskStore {
 			root,
@@ -652,6 +682,7 @@ impl DiskStore {
 			index_temps,
 			blob_temps,
 			blobs_missing: !blobs_exists,
+			blobs_identity,
 			root_guard,
 			index_guard,
 		})
@@ -2101,26 +2132,28 @@ fn validate_persisted_state_bounds(state: &PersistedState) -> Result<(), StoreEr
 	Ok(())
 }
 
-fn collect_index_temps(root: &Path) -> Result<(Vec<PathBuf>, usize), StoreError> {
+fn collect_index_temps_at(
+	root: &Path,
+	directory: &fs::File,
+) -> Result<(Vec<PathBuf>, usize), StoreError> {
 	let mut visited = 0usize;
 	let mut temps = Vec::new();
-	for item in fs::read_dir(root).map_err(io_error)? {
+	for item in crate::bounded_io::list_directory(directory).map_err(io_error)? {
 		visited = visited
 			.checked_add(1)
 			.ok_or_else(|| StoreError::Io("provider root artifact count overflow".into()))?;
 		if visited > MAX_PROVIDER_ROOT_ARTIFACTS {
 			return Err(StoreError::Io("provider root contains too many durable artifacts".into()));
 		}
-		let item = item.map_err(io_error)?;
-		let name = item.file_name().to_string_lossy().into_owned();
+		let name = item.name.to_string_lossy().into_owned();
 		if let Some(process_id) = name.strip_prefix(INDEX_TEMP_PREFIX) {
-			if !item.file_type().map_err(io_error)?.is_file() {
+			if item.file_type != rustix::fs::FileType::RegularFile {
 				return Err(StoreError::Io("provider index temp artifact set is invalid".into()));
 			}
 			if process_id.is_empty() || !process_id.bytes().all(|byte| byte.is_ascii_digit()) {
 				return Err(StoreError::Io("provider index temp artifact set is invalid".into()));
 			}
-			temps.push(item.path());
+			temps.push(root.join(&item.name));
 			if temps.len() > MAX_PROVIDER_INDEX_TEMP_ARTIFACTS {
 				return Err(StoreError::Io("provider index temp artifact set is invalid".into()));
 			}
@@ -2129,11 +2162,12 @@ fn collect_index_temps(root: &Path) -> Result<(Vec<PathBuf>, usize), StoreError>
 	Ok((temps, visited))
 }
 
-fn validate_blob_namespace(
+fn validate_blob_namespace_at(
 	root: &Path,
+	root_directory: Option<&fs::File>,
 	state: &PersistedState,
 	index_exists: bool,
-) -> Result<(bool, Vec<PathBuf>), StoreError> {
+) -> Result<(bool, Option<crate::bounded_io::FileIdentity>, Vec<PathBuf>), StoreError> {
 	for (key, record) in &state.records {
 		if normalize_hash(key)? != *key || record.commitment != *key {
 			return Err(StoreError::Io("provider blob record key is not canonical".into()));
@@ -2143,26 +2177,33 @@ fn validate_blob_namespace(
 		return Err(StoreError::Io("provider retained blob bytes exceed configured capacity".into()));
 	}
 	let directory = root.join(BLOBS_DIR);
-	let exists = optional_owned_directory_exists(&directory)?;
+	let exists = root_directory
+		.map(|root| crate::bounded_io::entry_missing_at(root, BLOBS_DIR.as_ref()).map(|missing| !missing))
+		.transpose()
+		.map_err(io_error)?
+		.unwrap_or(false);
 	if !exists {
 		if state.records.values().any(|record| !record.deleted) {
 			return Err(StoreError::Io("provider live blob directory is missing".into()));
 		}
-		return Ok((false, Vec::new()));
+		return Ok((false, None, Vec::new()));
 	}
+	let directory_handle = crate::bounded_io::open_directory_at(
+		root_directory.expect("existing blob directory has provider root"),
+		BLOBS_DIR.as_ref(),
+	)
+	.map_err(io_error)?;
+	let directory_identity = crate::bounded_io::file_identity(
+		&directory_handle.metadata().map_err(io_error)?,
+	);
+	let entries = crate::bounded_io::list_directory(&directory_handle).map_err(io_error)?;
 	if !index_exists {
-		if fs::read_dir(&directory)
-			.map_err(io_error)?
-			.next()
-			.transpose()
-			.map_err(io_error)?
-			.is_some()
-		{
+		if !entries.is_empty() {
 			return Err(StoreError::Io(
 				"provider blobs exist without a canonical provider index".into(),
 			));
 		}
-		return Ok((true, Vec::new()));
+		return Ok((true, Some(directory_identity), Vec::new()));
 	}
 	let max_entries = state
 		.records
@@ -2172,7 +2213,7 @@ fn validate_blob_namespace(
 	let mut visited = 0usize;
 	let mut temps = Vec::new();
 	let mut seen = BTreeMap::new();
-	for item in fs::read_dir(&directory).map_err(io_error)? {
+	for item in entries {
 		visited = visited
 			.checked_add(1)
 			.ok_or_else(|| StoreError::Io("provider blob artifact count overflow".into()))?;
@@ -2181,11 +2222,10 @@ fn validate_blob_namespace(
 				"provider blob namespace contains too many artifacts".into(),
 			));
 		}
-		let item = item.map_err(io_error)?;
-		if !item.file_type().map_err(io_error)?.is_file() {
+		if item.file_type != rustix::fs::FileType::RegularFile {
 			return Err(StoreError::Io("provider blob artifact is not a regular file".into()));
 		}
-		let name = item.file_name().to_string_lossy().into_owned();
+		let name = item.name.to_string_lossy().into_owned();
 		if let Some((commitment, process_id)) = name.rsplit_once(".tmp-") {
 			if normalize_hash(commitment).ok().as_deref() != Some(commitment)
 				|| process_id.is_empty()
@@ -2193,7 +2233,7 @@ fn validate_blob_namespace(
 			{
 				return Err(StoreError::Io("provider blob temp artifact name is invalid".into()));
 			}
-			temps.push(item.path());
+			temps.push(directory.join(&item.name));
 			if temps.len() > MAX_PROVIDER_BLOB_TEMP_ARTIFACTS {
 				return Err(StoreError::Io("provider blob temp artifact set is invalid".into()));
 			}
@@ -2209,7 +2249,7 @@ fn validate_blob_namespace(
 		if record.deleted && !state.pending_deletions.contains_key(&name) {
 			return Err(StoreError::Io("completed deletion retained provider blob bytes".into()));
 		}
-		verify_blob_file(&item.path(), record)?;
+		verify_blob_file_at(&directory_handle, &item.name, record)?;
 		if seen.insert(name, ()).is_some() {
 			return Err(StoreError::Io("provider blob namespace contains a duplicate".into()));
 		}
@@ -2219,11 +2259,15 @@ fn validate_blob_namespace(
 			return Err(StoreError::Io("provider live blob is missing".into()));
 		}
 	}
-	Ok((true, temps))
+	Ok((true, Some(directory_identity), temps))
 }
 
-fn verify_blob_file(path: &Path, record: &ContentRecord) -> Result<(), StoreError> {
-	let file = fs::File::open(path).map_err(io_error)?;
+fn verify_blob_file_at(
+	directory: &fs::File,
+	name: &std::ffi::OsStr,
+	record: &ContentRecord,
+) -> Result<(), StoreError> {
+	let file = crate::bounded_io::open_regular_file_at(directory, name).map_err(io_error)?;
 	let metadata = file.metadata().map_err(io_error)?;
 	if !metadata.is_file() || metadata.len() != record.bytes {
 		return Err(StoreError::Io("provider blob length does not match its record".into()));
@@ -2261,67 +2305,6 @@ fn optional_owned_directory_exists(path: &Path) -> Result<bool, StoreError> {
 		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
 		Err(error) => Err(io_error(error)),
 	}
-}
-
-fn optional_owned_regular_file_exists(path: &Path) -> Result<bool, StoreError> {
-	match fs::symlink_metadata(path) {
-		Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
-			Err(StoreError::Io("provider owned record is not a regular file".into()))
-		},
-		Ok(_) => Ok(true),
-		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-		Err(error) => Err(io_error(error)),
-	}
-}
-
-fn acquire_provider_root_guard(root: &Path) -> Result<ProviderRootGuard, StoreError> {
-	let path_metadata = fs::symlink_metadata(root).map_err(io_error)?;
-	if path_metadata.file_type().is_symlink() || !path_metadata.is_dir() {
-		return Err(StoreError::Io("provider owned namespace is not a directory".into()));
-	}
-	let directory = open_provider_root_no_follow(root)?;
-	let opened_metadata = directory.metadata().map_err(io_error)?;
-	let identity = crate::bounded_io::file_identity(&opened_metadata);
-	if !opened_metadata.is_dir()
-		|| crate::bounded_io::file_identity(&path_metadata) != identity
-	{
-		return Err(StoreError::Io("provider root changed while opening".into()));
-	}
-	directory.try_lock_exclusive().map_err(|error| {
-		StoreError::Io(format!("provider root is already owned by another process: {error}"))
-	})?;
-	let guard = ProviderRootGuard { directory, identity };
-	guard.validate(root)?;
-	Ok(guard)
-}
-
-#[cfg(unix)]
-fn open_provider_root_no_follow(root: &Path) -> Result<fs::File, StoreError> {
-	unix_fs::open(
-		root,
-		OFlags::RDONLY
-			| OFlags::DIRECTORY
-			| OFlags::NONBLOCK
-			| OFlags::NOFOLLOW
-			| OFlags::CLOEXEC,
-		Mode::empty(),
-	)
-	.map(fs::File::from)
-	.map_err(io_error)
-}
-
-#[cfg(not(unix))]
-fn open_provider_root_no_follow(root: &Path) -> Result<fs::File, StoreError> {
-	fs::File::open(root).map_err(io_error)
-}
-
-fn sync_parent_directory(path: &Path) -> Result<(), StoreError> {
-	let parent = path
-		.parent()
-		.ok_or_else(|| StoreError::Io("provider root has no parent directory".into()))?;
-	fs::File::open(parent)
-		.and_then(|directory| directory.sync_all())
-		.map_err(io_error)
 }
 
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
@@ -3430,6 +3413,41 @@ mod tests {
 		assert!(prepared.arm().is_err());
 		assert_eq!(fs::read(marker).unwrap(), b"external-must-remain-exact");
 		assert!(fs::symlink_metadata(root).unwrap().file_type().is_symlink());
+		assert!(fs::read_dir(parent.path()).unwrap().all(|entry| {
+			!entry.unwrap().file_name().to_string_lossy().starts_with(".provider-root.create-")
+		}));
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn provider_root_ancestor_symlink_is_rejected_without_external_creation() {
+		use std::os::unix::fs::symlink;
+
+		let parent = tempfile::tempdir().unwrap();
+		let external = tempfile::tempdir().unwrap();
+		let alias = parent.path().join("alias");
+		symlink(external.path(), &alias).unwrap();
+		let root = alias.join("provider");
+
+		assert!(DiskStore::prepare_open(&root, profile(), 1024).is_err());
+		assert!(!external.path().join("provider").exists());
+	}
+
+	#[test]
+	fn existing_provider_root_substitution_is_rejected_without_touching_the_replacement() {
+		let parent = tempfile::tempdir().unwrap();
+		let root = parent.path().join("provider");
+		drop(DiskStore::open(&root, profile(), 1024).unwrap());
+		let prepared = DiskStore::prepare_open(&root, profile(), 1024).unwrap();
+		let displaced = parent.path().join("displaced");
+		fs::rename(&root, &displaced).unwrap();
+		fs::create_dir(&root).unwrap();
+		let marker = root.join("replacement-marker");
+		fs::write(&marker, b"replacement-must-remain-exact").unwrap();
+
+		assert!(prepared.arm().is_err());
+		assert_eq!(fs::read(marker).unwrap(), b"replacement-must-remain-exact");
+		assert!(displaced.join(INDEX_FILE).is_file());
 	}
 
 	#[test]
@@ -3476,6 +3494,25 @@ mod tests {
 		assert!(armed.apply().is_err());
 		assert_eq!(fs::read(canonical).unwrap(), unexpected);
 		assert_eq!(fs::read(crash_temp).unwrap(), crash_bytes);
+	}
+
+	#[test]
+	fn blob_directory_replacement_after_arm_is_preserved() {
+		let temp = tempfile::tempdir().unwrap();
+		drop(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		let armed = DiskStore::prepare_open(temp.path(), profile(), 1024)
+			.unwrap()
+			.arm()
+			.unwrap();
+		let blobs = temp.path().join(BLOBS_DIR);
+		let displaced = temp.path().join("displaced-blobs");
+		fs::rename(&blobs, &displaced).unwrap();
+		fs::create_dir(&blobs).unwrap();
+		let marker = blobs.join("replacement-marker");
+		fs::write(&marker, b"replacement-must-remain-exact").unwrap();
+
+		assert!(armed.apply().is_err());
+		assert_eq!(fs::read(marker).unwrap(), b"replacement-must-remain-exact");
 	}
 
 	#[cfg(unix)]

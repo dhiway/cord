@@ -10092,6 +10092,7 @@ dependencies = [
  "pallet-orbis-storage-control-primitives",
  "pallet-orbis-storage-provider",
  "parity-scale-codec",
+ "rand 0.8.6",
  "rustix 1.1.4",
  "scale-decode",
  "scale-info",
