@@ -407,7 +407,7 @@ export class PrivateDurableBrowserStorageV2 implements StorageV2Transport, Priva
     let result = await this.#host.invoke(intent.operation, encodePrivateIntent(intent), upload, signal);
     let resumptions = 0;
     while (result.continuation) {
-      if (resumptions++ >= 256) throw new TypeError("provider continuation count exceeds the 64 MiB chunk bound");
+      if (resumptions++ >= 257) throw new TypeError("provider continuation count exceeds the 256-chunk plus finalize bound");
       result = await this.#host.resumeProvider(result.continuation, signal);
     }
     if (result.error) throw Object.assign(new Error(result.error.name), result.error);

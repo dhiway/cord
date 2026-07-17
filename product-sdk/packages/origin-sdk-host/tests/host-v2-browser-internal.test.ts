@@ -690,6 +690,32 @@ test("developer execute drives a multi-chunk object.put through verified one-chu
   abort.abort(); await pump; pair.host.close(); pair.provider.close();
 });
 
+test("developer execute admits 256 payload continuations plus one finalize and fails closed beyond it", async () => {
+  const frame = decodeHostV2("RequestV2", bytes(frozen.vectors.find((candidate: any) => candidate.id === "1010-positive").wire_hex)).value as any;
+  frame[8][2] = 67_108_864; const intent = {
+    protocol: "cord.origin.host/2", major: 2, minor: 0,
+    registrySha256: "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba",
+    requestId: frame[1], productId: frame[2], operation: "storage.object.put", code: 1010,
+    grantId: frame[4], operationId: frame[5], deadlineBlock: BigInt(frame[7]),
+    payload: { bucketId: frame[8][0], cid: frame[8][1], length: 67_108_864n, encrypted: frame[8][3], transferId: frame[8][4] },
+  } as any;
+  const upload = { cid: frame[8][1], length: 67_108_864n, bytes: (async function* () {})() } as any;
+  let resumed = 0;
+  const exact = new PrivateDurableBrowserStorageV2({
+    async invoke() { return { continuation: {} }; },
+    async resumeProvider() { resumed += 1; return resumed === 257 ? { value: { finalized: true } } : { continuation: {} }; },
+  } as any);
+  assert.deepEqual(await exact.execute(intent, upload), { finalized: true }); assert.equal(resumed, 257);
+
+  let hostileResumptions = 0;
+  const hostile = new PrivateDurableBrowserStorageV2({
+    async invoke() { return { continuation: {} }; },
+    async resumeProvider() { hostileResumptions += 1; return { continuation: {} }; },
+  } as any);
+  await assert.rejects(hostile.execute(intent, upload), /256-chunk plus finalize bound/);
+  assert.equal(hostileResumptions, 257);
+});
+
 test("private browser adapter registry covers all 26 storage and eight identity/signing frozen vectors", () => {
   const positives = frozen.vectors.filter((vector: any) => vector.kind === "operation-schema-positive");
   assert.equal(positives.length, 34);
