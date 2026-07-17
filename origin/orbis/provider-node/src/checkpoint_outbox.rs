@@ -1716,4 +1716,25 @@ mod tests {
 			assert!(reopened.pending_submissions().unwrap().is_empty());
 		}
 	}
+
+	#[test]
+	fn prepared_outbox_does_not_clean_before_a_later_kernel_rejects() {
+		let temp = TempDir::new().unwrap();
+		drop(CheckpointOutboxV2::open(temp.path()).unwrap());
+		let crash_temp = temp.path().join(SUBMISSIONS_ROOT).join("pending.json.tmp-77");
+		let crash_bytes = b"exact-outbox-crash-artifact";
+		fs::write(&crash_temp, crash_bytes).unwrap();
+
+		let _prepared = CheckpointOutboxV2::prepare_open(temp.path()).unwrap();
+		assert_eq!(fs::read(&crash_temp).unwrap(), crash_bytes);
+
+		let later = temp.path().join("checkpoint-publications-v1");
+		fs::create_dir(&later).unwrap();
+		fs::write(later.join("invalid"), b"late-invalid-kernel").unwrap();
+		assert!(matches!(
+			crate::checkpoint_publication::CheckpointPublicationStoreV1::prepare_open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+		assert_eq!(fs::read(&crash_temp).unwrap(), crash_bytes);
+	}
 }
