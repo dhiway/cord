@@ -68,12 +68,22 @@ export interface PrivateBrowserAuthorityResolverV2 {
 }
 
 export interface PrivateBrowserOutboxIdResolverV2 { next(): Uint8Array }
+export interface PrivateBrowserAckConfirmationResolverV2 {
+  confirm(input: { readonly outboxId: Uint8Array; readonly responseHash: Uint8Array }, signal?: AbortSignal): Promise<Uint8Array>;
+}
+
+interface PrivateBrowserInvocationControlV2 {
+  bind(cancel: () => Promise<void>): Promise<void>;
+  finish(error?: unknown): void;
+}
 
 /** Exact-byte process boundary for the Rust P1/P2 dispatcher; it deliberately defines no duplicate DTO. */
 export interface PrivateBrowserRustProviderBridgeV2 {
   dispatch(input: {
     readonly request: Uint8Array; readonly authority: Uint8Array;
-    readonly upload?: AsyncIterable<Uint8Array>; readonly signal?: AbortSignal;
+    readonly upload?: AsyncIterable<Uint8Array>;
+    readonly cancellations: AsyncIterable<{ readonly event: Uint8Array; readonly authority: Uint8Array }>;
+    readonly signal?: AbortSignal;
   }): AsyncIterable<{ readonly event: Uint8Array; readonly terminalBlock: bigint }>;
   acknowledge(exactAck: Uint8Array, signal?: AbortSignal): Promise<void>;
 }
@@ -97,7 +107,7 @@ export interface PrivateHostSigningAuthorityBridgeV2 extends PrivateExactHostBri
 export interface PrivateProviderByteBridgeV2 {
   invoke(
     operation: PrivateProviderByteOperationV2, exactRequest: Uint8Array, upload?: PrivateStorageUploadV2,
-    signal?: AbortSignal, onEvent?: (event: Uint8Array) => void,
+    signal?: AbortSignal, onEvent?: (event: Uint8Array) => void, control?: PrivateBrowserInvocationControlV2,
   ): Promise<PrivateInvocationResultV2>;
 }
 
@@ -116,19 +126,20 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
   readonly #finality: PrivateBrowserFinalityResolverV2;
   readonly #authority: PrivateBrowserAuthorityResolverV2;
   readonly #ids: PrivateBrowserOutboxIdResolverV2;
+  readonly #acknowledgements?: PrivateBrowserAckConfirmationResolverV2;
 
   constructor(input: {
     readonly durable: DurableBrowserHostV2; readonly outbox: BrowserHostOutboxV1;
     readonly finality: PrivateBrowserFinalityResolverV2; readonly authority: PrivateBrowserAuthorityResolverV2;
-    readonly outboxIds: PrivateBrowserOutboxIdResolverV2;
+    readonly outboxIds: PrivateBrowserOutboxIdResolverV2; readonly acknowledgements?: PrivateBrowserAckConfirmationResolverV2;
   }) {
     this.#durable = input.durable; this.#outbox = input.outbox; this.#finality = input.finality;
-    this.#authority = input.authority; this.#ids = input.outboxIds;
+    this.#authority = input.authority; this.#ids = input.outboxIds; this.#acknowledgements = input.acknowledgements;
   }
 
   async invoke(
     operation: PrivateProviderByteOperationV2, exactRequest: Uint8Array, upload?: PrivateStorageUploadV2,
-    signal?: AbortSignal, onEvent?: (event: Uint8Array) => void,
+    signal?: AbortSignal, onEvent?: (event: Uint8Array) => void, control?: PrivateBrowserInvocationControlV2,
   ): Promise<PrivateInvocationResultV2> {
     const binding = HOST_V2_OPERATION_BINDINGS[operation];
     if (!binding) throw new TypeError("Host-v2 operation is not in the generated registry");
@@ -149,26 +160,46 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
     const outboxId = bytes(this.#ids.next(), 16, "outbox ID");
     const entry: HostOutboxEntryV1 = {
       0: 1, 1: outboxId, 2: 0, 3: exactRequest.slice(), 4: authority.slice(), 5: fingerprint,
-      6: bytes(request[1], 16, "request ID"), 7: operationId, 8: BigInt(request[7] as number | bigint), 9: 0,
+      6: bytes(request[1], 16, "request ID"), 7: operationId, 8: 0n, 9: 0,
       10: context.registryHash, 11: context.genesisHash, 12: context.negotiatedTuple,
       13: context.providerId, 14: context.providerEndpointHash, 15: 2,
       17: finalized.number, 18: BigInt(capability[13]), 19: finalized.number + 256n,
       20: this.#outbox.activeKeyVersion,
     };
     await this.#durable.prepareAndSend({ entry }, io(signal));
-    const uploadWindow = upload ? new ProviderUploadAckWindowV2() : undefined;
+    const uploadWindow = upload ? new ProviderUploadAckWindowV2(signal) : undefined;
     const uploadSending = upload ? this.#streamUpload(operationId, upload, uploadWindow!, signal) : undefined;
+    if (uploadSending) void uploadSending.catch(() => undefined);
+    let cancelRequested = false; let cancelSent: Promise<void> | undefined;
+    const requestCancel = (): Promise<void> => {
+      if (cancelSent) return cancelSent;
+      cancelRequested = true; uploadWindow?.seal();
+      const exact = encodeHostV2("CancelledEventV2", { 0: 2, 1: entry[6], 2: nextSequence, 3: 4, 4: { 0: 107 } });
+      cancelSent = this.#durable.prepareCancelAndSend(exact, io(signal)).then(() => undefined); return cancelSent;
+    };
+    let nextSequence = 0;
     while (true) {
       const received = await this.#durable.receiveEvent(finalized.number, io(signal));
-      onEvent?.(received.event.slice());
       const event = decodeHostV2("EventV2", received.event).value as WireMap;
+      nextSequence = Number(event[2]) + 1;
+      if (Number(event[3]) === 0 && control) await control.bind(requestCancel);
+      if (cancelRequested && Number(event[3]) !== 4) throw new TypeError("cancelled provider operation emitted a later progress or effect");
+      onEvent?.(received.event.slice());
       if (Number(event[3]) === 1 && uploadWindow) {
         const chunksAcked = (event[4] as WireMap)[2];
         if (chunksAcked !== undefined) uploadWindow.advance(Number(chunksAcked));
       }
       if (!received.terminal) continue;
+      uploadWindow?.seal();
+      if (cancelRequested && Number(event[3]) !== 4) throw new TypeError("provider cancellation did not terminate as CancelledEventV2");
+      if (cancelRequested && !this.#acknowledgements) throw new TypeError("durable provider cancellation requires authenticated acknowledgement confirmation");
+      if (this.#acknowledgements) {
+        const signature = await this.#acknowledgements.confirm({ outboxId, responseHash: received.responseHash }, signal);
+        await this.#durable.confirmAndGc({ outboxId, responseHash: received.responseHash, signature }, finalized.number);
+      }
+      if (Number(event[3]) === 4) return {};
       if (event[3] === 3) {
-        uploadWindow?.abort(); if (uploadSending) await uploadSending.catch(() => undefined);
+        if (uploadSending) void uploadSending.catch(() => undefined);
         return { error: decodeError(event[4] as WireMap) };
       }
       uploadWindow?.complete(); if (uploadSending) await uploadSending;
@@ -192,18 +223,27 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
 }
 
 class ProviderUploadAckWindowV2 {
-  #sent = 0; #acked = 0; #aborted = false; #waiters = new Set<() => void>();
-  async beforeSend(sequence: number): Promise<void> {
-    while (!this.#aborted && sequence - this.#acked >= 4) await new Promise<void>((resolve) => this.#waiters.add(resolve));
-    if (this.#aborted) throw new TypeError("provider upload terminated before progress acknowledgement");
+  #sent = 0; #acked = 0; #sealed = false; #waiters = new Set<() => void>();
+  readonly #signal?: AbortSignal; readonly #onAbort: () => void;
+  constructor(signal?: AbortSignal) {
+    this.#signal = signal; this.#onAbort = () => this.seal();
+    if (signal?.aborted) this.#sealed = true;
+    else signal?.addEventListener("abort", this.#onAbort, { once: true });
   }
-  sent(count: number): void { if (count !== this.#sent + 1) throw new TypeError("provider upload send cursor is non-contiguous"); this.#sent = count; }
+  async beforeSend(sequence: number): Promise<void> {
+    while (!this.#sealed && sequence - this.#acked >= 4) await new Promise<void>((resolve) => this.#waiters.add(resolve));
+    if (this.#sealed) throw new TypeError("provider upload terminated before progress acknowledgement");
+  }
+  sent(count: number): void {
+    if (this.#sealed) throw new TypeError("provider upload attempted a post-terminal send");
+    if (count !== this.#sent + 1) throw new TypeError("provider upload send cursor is non-contiguous"); this.#sent = count;
+  }
   advance(count: number): void {
     if (!Number.isSafeInteger(count) || count < this.#acked || count > this.#sent) throw new TypeError("provider chunks_acked cursor is invalid");
     this.#acked = count; this.#wake();
   }
   complete(): void { if (this.#acked !== this.#sent) throw new TypeError("provider terminal result preceded upload acknowledgement"); }
-  abort(): void { this.#aborted = true; this.#wake(); }
+  seal(): void { if (this.#sealed) return; this.#sealed = true; this.#signal?.removeEventListener("abort", this.#onAbort); this.#wake(); }
   #wake(): void { for (const resolve of this.#waiters) resolve(); this.#waiters.clear(); }
 }
 
@@ -222,11 +262,11 @@ export class PrivateOriginBrowserRouterV2 {
   }
   async invoke(
     operation: Operation, exactRequest: Uint8Array, upload?: PrivateStorageUploadV2,
-    signal?: AbortSignal, onEvent?: (event: Uint8Array) => void,
+    signal?: AbortSignal, onEvent?: (event: Uint8Array) => void, control?: PrivateBrowserInvocationControlV2,
   ): Promise<PrivateInvocationResultV2> {
     switch (operation) {
       case "storage.object.put": case "storage.object.get": case "storage.object.range": case "storage.object.status":
-        return this.#provider.invoke(operation, exactRequest, upload, signal, onEvent);
+        return this.#provider.invoke(operation, exactRequest, upload, signal, onEvent, control);
       case "storage.bucket.create": case "storage.bucket.get": case "storage.bucket.grant": case "storage.bucket.revoke":
       case "storage.object.delete": case "storage.checkpoint.status": case "storage.checkpoint.subscribe":
       case "storage.replica.status": case "storage.replica.subscribe": case "storage.deletion.status":
@@ -251,9 +291,9 @@ export class PrivateDurableBrowserStorageV2 implements StorageV2Transport, Priva
   constructor(host: PrivateOriginBrowserRouterV2) { this.#host = host; }
 
   start<Op extends StorageV2Operation>(intent: StorageV2Intent<Op>): StorageV2Execution<Op> {
-    const controller = new AbortController();
-    const events = this.#events(intent, undefined, controller.signal);
-    return { events, cancel: async () => controller.abort(), resume: (resume: StorageV2Resume) => failClosedResumeV2(resume) };
+    const control = new StorageInvocationControlV2();
+    const events = this.#events(intent, undefined, control);
+    return { events, cancel: () => control.cancel(), resume: (resume: StorageV2Resume) => failClosedResumeV2(resume) };
   }
 
   async execute<Op extends StorageOperationV2>(
@@ -265,14 +305,39 @@ export class PrivateDurableBrowserStorageV2 implements StorageV2Transport, Priva
     return result.value;
   }
 
-  async *#events<Op extends StorageV2Operation>(intent: StorageV2Intent<Op>, upload: PrivateStorageUploadV2 | undefined, signal: AbortSignal): AsyncIterable<StorageV2Event<Op>> {
+  async *#events<Op extends StorageV2Operation>(intent: StorageV2Intent<Op>, upload: PrivateStorageUploadV2 | undefined, control: StorageInvocationControlV2): AsyncIterable<StorageV2Event<Op>> {
     const buffered: StorageV2Event<Op>[] = [];
-    const result = await this.#host.invoke(intent.operation, encodeStorageV2Intent(intent), upload, signal, (exact) => {
-      buffered.push(decodeStorageEvent(intent.operation, exact) as StorageV2Event<Op>);
-    });
+    let result: PrivateInvocationResultV2;
+    try {
+      result = await this.#host.invoke(intent.operation, encodeStorageV2Intent(intent), upload, undefined, (exact) => {
+        buffered.push(decodeStorageEvent(intent.operation, exact) as StorageV2Event<Op>);
+      }, control);
+      control.finish();
+    } catch (error) { control.finish(error); throw error; }
     for (const event of buffered) yield event;
     if (result.error) return;
   }
+}
+
+class StorageInvocationControlV2 implements PrivateBrowserInvocationControlV2 {
+  #cancel?: () => Promise<void>; #requested = false; #finished = false; #error: unknown;
+  #cancelSent?: Promise<void>; readonly #completion: Promise<void>; #resolve!: () => void; #reject!: (error: unknown) => void;
+  constructor() { this.#completion = new Promise<void>((resolve, reject) => { this.#resolve = resolve; this.#reject = reject; }); }
+  async bind(cancel: () => Promise<void>): Promise<void> {
+    if (this.#cancel || this.#finished) throw new TypeError("durable provider cancellation binding is not live");
+    this.#cancel = cancel; if (this.#requested) await this.#send();
+  }
+  async cancel(): Promise<void> {
+    if (this.#finished) { if (this.#error !== undefined) throw this.#error; return; }
+    this.#requested = true; if (this.#cancel) await this.#send(); await this.#completion;
+  }
+  finish(error?: unknown): void {
+    if (this.#finished) return; this.#finished = true;
+    if (this.#requested && !this.#cancel && error === undefined) error = new TypeError("storage operation has no durable provider cancellation path");
+    this.#error = error;
+    if (error === undefined) this.#resolve(); else this.#reject(error);
+  }
+  #send(): Promise<void> { this.#cancelSent ??= this.#cancel!(); return this.#cancelSent; }
 }
 
 async function* failClosedResumeV2(resume: StorageV2Resume): AsyncIterable<never> {
@@ -305,7 +370,8 @@ export async function runPrivateBrowserRustProviderV2(
     if (!PROVIDER_BYTE_OPERATIONS.has(operation)) throw new TypeError("non-provider Host-v2 request reached the provider MessagePort");
     const length = Number(frame[3]) === 1010 ? BigInt((frame[8] as WireMap)[2] as bigint | number) : undefined;
     const upload = length === undefined ? undefined : receiveUpload(transport, bytes(frame[5], 16, "operation ID"), length, options);
-    for await (const response of bridge.dispatch({ request, authority, ...(upload ? { upload } : {}), ...(options.signal ? { signal: options.signal } : {}) })) {
+    const cancellations = receiveProviderCancellations(transport, bytes(frame[1], 16, "request ID"), options);
+    for await (const response of bridge.dispatch({ request, authority, ...(upload ? { upload } : {}), cancellations, ...(options.signal ? { signal: options.signal } : {}) })) {
       await transport.send("EventV2", response.event, options);
       const event = decodeHostV2("EventV2", response.event).value as WireMap;
       if ([2, 3, 4].includes(Number(event[3]))) {
@@ -314,6 +380,20 @@ export async function runPrivateBrowserRustProviderV2(
         break;
       }
     }
+  }
+}
+
+async function* receiveProviderCancellations(
+  transport: BrowserHostV2Transport, requestId: Uint8Array, options: BrowserHostV2IoOptions,
+): AsyncIterable<{ readonly event: Uint8Array; readonly authority: Uint8Array }> {
+  while (true) {
+    const [event, authority] = await Promise.all([
+      transport.receive("CancelledEventV2", options), transport.receive("ProviderCapabilityV1", options),
+    ]);
+    const decoded = decodeHostV2("CancelledEventV2", event).value;
+    if (!equal(decoded[1], requestId) || Number(decoded[3]) !== 4) throw new TypeError("provider cancellation is not bound to the active request");
+    decodeHostV2("ProviderCapabilityV1", authority);
+    yield { event: event.slice(), authority: authority.slice() };
   }
 }
 
