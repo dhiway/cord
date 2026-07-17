@@ -109,13 +109,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		service_key: format!("0x{}", hex::encode(service_key.public().0)),
 		region: cli.region,
 	};
-	let outbox_path = cli.data_path.join("provider-submissions-v3.jsonl");
 	let authority = Arc::new(FinalizedRuntimeAuthority::connect(
 		&cli.orbis_rpc,
 		provider,
 		service_key.public().0,
 	)?);
-	let submitter = Arc::new(JsonlManifestDeletionOutbox::new(outbox_path));
+	let submitter = Arc::new(JsonlManifestDeletionOutbox::for_provider_root(&cli.data_path));
 	let service = Arc::new(ProviderService::open(
 		&cli.data_path,
 		profile,

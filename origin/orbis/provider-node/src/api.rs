@@ -104,14 +104,32 @@ impl<A: ChainAuthority> ProviderService<A> {
 		let root = root.as_ref();
 		DiskStore::validate_root(root)?;
 		let store = DiskStore::prepare_open(root, profile, capacity_bytes)?;
-		let outbox_startup = outbox.prepare_startup().map_err(ProviderOpenError::Outbox)?;
 		let checkpoint_stack = CheckpointStack::prepare_open(root)?;
 		let checkpoint_quorum_scheduler = CheckpointQuorumScheduler::prepare_open(root)?;
+		let outbox_startup = outbox.prepare_startup(root).map_err(ProviderOpenError::Outbox)?;
 		let store = store.arm()?;
 		let outbox_startup = outbox_startup.arm().map_err(ProviderOpenError::Outbox)?;
-		let store = Arc::new(store.apply()?);
-		let checkpoint_stack = Arc::new(checkpoint_stack.apply()?);
-		let checkpoint_quorum_scheduler = Arc::new(checkpoint_quorum_scheduler.apply()?);
+		let store = match store.apply() {
+			Ok(store) => Arc::new(store),
+			Err(error) => {
+				outbox_startup.rollback().map_err(ProviderOpenError::Outbox)?;
+				return Err(error.into())
+			},
+		};
+		let checkpoint_stack = match checkpoint_stack.apply() {
+			Ok(stack) => Arc::new(stack),
+			Err(error) => {
+				outbox_startup.rollback().map_err(ProviderOpenError::Outbox)?;
+				return Err(error.into())
+			},
+		};
+		let checkpoint_quorum_scheduler = match checkpoint_quorum_scheduler.apply() {
+			Ok(scheduler) => Arc::new(scheduler),
+			Err(error) => {
+				outbox_startup.rollback().map_err(ProviderOpenError::Outbox)?;
+				return Err(error.into())
+			},
+		};
 		outbox_startup.apply().map_err(ProviderOpenError::Outbox)?;
 		Ok(Self {
 			store,
@@ -132,15 +150,24 @@ impl<A: ChainAuthority> ProviderService<A> {
 		service_key: ed25519::Pair,
 		outbox: Arc<dyn ManifestDeletionSubmitter>,
 	) -> Result<Self, ContentError> {
-		let outbox_startup =
-			outbox.prepare_startup().map_err(|error| ContentError::Io(error.to_string()))?;
 		let checkpoint_stack = CheckpointStack::prepare_open(store.root())?;
-		let checkpoint_quorum_scheduler =
-			CheckpointQuorumScheduler::prepare_open(store.root())?;
-		let outbox_startup =
-			outbox_startup.arm().map_err(|error| ContentError::Io(error.to_string()))?;
-		let checkpoint_stack = Arc::new(checkpoint_stack.apply()?);
-		let checkpoint_quorum_scheduler = Arc::new(checkpoint_quorum_scheduler.apply()?);
+		let checkpoint_quorum_scheduler = CheckpointQuorumScheduler::prepare_open(store.root())?;
+		let outbox_startup = outbox.prepare_startup(store.root()).map_err(ContentError::Io)?;
+		let outbox_startup = outbox_startup.arm().map_err(ContentError::Io)?;
+		let checkpoint_stack = match checkpoint_stack.apply() {
+			Ok(stack) => Arc::new(stack),
+			Err(error) => {
+				outbox_startup.rollback().map_err(ContentError::Io)?;
+				return Err(error)
+			},
+		};
+		let checkpoint_quorum_scheduler = match checkpoint_quorum_scheduler.apply() {
+			Ok(scheduler) => Arc::new(scheduler),
+			Err(error) => {
+				outbox_startup.rollback().map_err(ContentError::Io)?;
+				return Err(error)
+			},
+		};
 		outbox_startup.apply().map_err(ContentError::Io)?;
 		Ok(Self {
 			store,
@@ -695,7 +722,10 @@ mod lifecycle_tests {
 
 	#[async_trait]
 	impl ManifestDeletionSubmitter for StartupProbe {
-		fn prepare_startup(&self) -> Result<crate::ManifestDeletionStartupPlan, String> {
+		fn prepare_startup(
+			&self,
+			_provider_root: &Path,
+		) -> Result<crate::ManifestDeletionStartupPlan, String> {
 			self.prepares.fetch_add(1, Ordering::SeqCst);
 			Ok(crate::ManifestDeletionStartupPlan::default())
 		}
@@ -758,7 +788,7 @@ mod lifecycle_tests {
 				store,
 				Arc::new(RouteAuthority),
 				ed25519::Pair::from_seed(&[0x31; 32]),
-				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("outbox.jsonl"))),
+				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
 			)
 			.unwrap(),
 		);
@@ -773,7 +803,7 @@ mod lifecycle_tests {
 		let staging_orphan = streaming.join("staging").join("unowned-part");
 		let staging_bytes = b"unowned-staging-evidence";
 		fs::write(&staging_orphan, staging_bytes).unwrap();
-		let outbox_path = temp.path().join("outbox.jsonl");
+		let outbox_path = temp.path().join("provider-submissions-v3.jsonl");
 		let complete_outbox = b"complete-record\n";
 		let mut torn_outbox = complete_outbox.to_vec();
 		torn_outbox.extend_from_slice(b"torn-tail");
@@ -829,7 +859,7 @@ mod lifecycle_tests {
 				store,
 				Arc::new(RouteAuthority),
 				ed25519::Pair::from_seed(&[0x31; 32]),
-				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("unused.jsonl"))),
+				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
 			)
 			.unwrap(),
 		);
@@ -871,7 +901,7 @@ mod lifecycle_tests {
 				store,
 				Arc::new(RouteAuthority),
 				ed25519::Pair::from_seed(&[0x31; 32]),
-				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("outbox.jsonl"))),
+				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
 			)
 			.unwrap(),
 		);
@@ -899,7 +929,7 @@ mod lifecycle_tests {
 				1024,
 				Arc::new(RouteAuthority),
 				ed25519::Pair::from_seed(&[0x31; 32]),
-				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("outbox.jsonl"))),
+				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
 			),
 			Err(ProviderOpenError::Content(ContentError::IntegrityFailed))
 		));
@@ -927,7 +957,7 @@ mod lifecycle_tests {
 				store,
 				Arc::new(RouteAuthority),
 				ed25519::Pair::from_seed(&[0x32; 32]),
-				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("outbox.jsonl"))),
+				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
 			)
 			.unwrap(),
 		);
@@ -950,7 +980,7 @@ mod lifecycle_tests {
 				1024,
 				Arc::new(RouteAuthority),
 				ed25519::Pair::from_seed(&[0x32; 32]),
-				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("outbox.jsonl"))),
+				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
 			),
 			Err(ProviderOpenError::Content(ContentError::IntegrityFailed))
 		));
@@ -1118,7 +1148,7 @@ mod lifecycle_tests {
 				store,
 				Arc::new(Authority(topology.clone())),
 				key,
-				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("outbox.jsonl"))),
+				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
 			)
 			.unwrap(),
 		);
@@ -1185,7 +1215,7 @@ mod lifecycle_tests {
 				store,
 				Arc::new(RouteAuthority),
 				key,
-				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("outbox.jsonl"))),
+				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
 			)
 			.unwrap(),
 		);

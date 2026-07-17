@@ -1086,7 +1086,7 @@ mod tests {
 			store,
 			Arc::new(NoopAuthority),
 			sp_core::ed25519::Pair::from_seed(&[7u8; 32]),
-			Arc::new(JsonlManifestDeletionOutbox::new(root.join("test-outbox.jsonl"))),
+			Arc::new(JsonlManifestDeletionOutbox::for_provider_root(root)),
 		)
 	}
 
