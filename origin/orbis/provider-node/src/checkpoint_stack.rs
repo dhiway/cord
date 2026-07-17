@@ -26,31 +26,37 @@ use std::{
 
 use sp_core::{crypto::AccountId32, ed25519, H256};
 
-use crate::storage::streaming::ManifestDeletionEvidence;
 use crate::{
 	checkpoint::{
-		checkpoint_outbox::{CheckpointOutboxV2, CheckpointSubmissionV2},
-		checkpoint_primary::{
-			submission_input, CheckpointPrimaryQuorumStore, PrimaryQuorumSnapshotV1,
+		checkpoint_outbox::{
+			CheckpointOutboxV2, CheckpointSubmissionV2, PreparedCheckpointOutboxV2,
 		},
-		checkpoint_promotion::CheckpointPromotionStoreV2,
+		checkpoint_primary::{
+			submission_input, CheckpointPrimaryQuorumStore, PreparedCheckpointPrimaryQuorumStore,
+			PrimaryQuorumSnapshotV1,
+		},
+		checkpoint_promotion::{CheckpointPromotionStoreV2, PreparedCheckpointPromotionStoreV2},
 		checkpoint_publication::{
 			CheckpointPublicationStoreV1, FinalizedCheckpointPublicationInputV1,
-			PublishedCheckpointV1,
+			PreparedCheckpointPublicationStoreV1, PublishedCheckpointV1,
 		},
-		checkpoint_quorum::ReplicaConfirmationStore,
-		CheckpointProposalStore, PreparedCheckpointProposalV2, ServiceKeySigner,
+		checkpoint_quorum::{PreparedReplicaConfirmationStore, ReplicaConfirmationStore},
+		CheckpointProposalStore, PreparedCheckpointProposalStore, PreparedCheckpointProposalV2,
+		ServiceKeySigner,
 	},
 	peer::{
 		PeerChunkRequestV1, PeerChunkResponseV1, PeerSyncPageRequestV1, PeerSyncPageResponseV1,
 	},
-	peer_reply::{PeerReplyFault, PeerReplyStore},
+	peer_reply::{PeerReplyFault, PeerReplyStore, PreparedPeerReplyStore},
 	replication::{
-		ReplicationActionV1, ReplicationIntentStore, ReplicationIntentV1, ReplicationResumeV1,
-		VerifiedIncomingChunkV1,
+		PreparedReplicationIntentStore, ReplicationActionV1, ReplicationIntentStore,
+		ReplicationIntentV1, ReplicationResumeV1, VerifiedIncomingChunkV1,
 	},
 	replication_session::ReplicationSessionV1,
-	storage::{bucket_mmr::BucketMmrStore, streaming::ReplicationIngressState},
+	storage::{
+		bucket_mmr::{BucketMmrStore, PreparedBucketMmrStore},
+		streaming::{ManifestDeletionEvidence, PreparedStreamingStore, ReplicationIngressState},
+	},
 	BeginStreaming, BucketId, CheckpointDuty, ContentError, DiskStore, IntegritySummary,
 	StreamingDescriptor, StreamingStore,
 };
@@ -81,6 +87,43 @@ pub(crate) struct CheckpointStack {
 	state: Mutex<CheckpointStackState>,
 }
 
+/// Root-wide validated checkpoint-kernel view with no recovery actions applied.
+pub(crate) struct PreparedCheckpointStack {
+	streaming: PreparedStreamingStore,
+	bucket_mmr: PreparedBucketMmrStore,
+	proposals: PreparedCheckpointProposalStore,
+	replica_confirmations: PreparedReplicaConfirmationStore,
+	primary_quorum: PreparedCheckpointPrimaryQuorumStore,
+	outbox: PreparedCheckpointOutboxV2,
+	publications: PreparedCheckpointPublicationStoreV1,
+	fallback_promotions: PreparedCheckpointPromotionStoreV2,
+	#[cfg(feature = "checkpoint-live")]
+	promotion_discovery: crate::checkpoint_promotion_worker::PreparedPromotionDiscoveryScheduler,
+	replication: PreparedReplicationIntentStore,
+	peer_replies: PreparedPeerReplyStore,
+}
+
+impl PreparedCheckpointStack {
+	/// Apply only the retry-safe actions captured by the root-wide validated plan.
+	pub(crate) fn apply(self) -> Result<CheckpointStack, ContentError> {
+		let state = CheckpointStackState {
+			streaming: self.streaming.apply()?,
+			bucket_mmr: self.bucket_mmr.apply()?,
+			proposals: self.proposals.apply()?,
+			replica_confirmations: self.replica_confirmations.apply()?,
+			primary_quorum: self.primary_quorum.apply()?,
+			outbox: std::sync::Arc::new(self.outbox.apply()?),
+			publications: self.publications.apply()?,
+			fallback_promotions: std::sync::Arc::new(self.fallback_promotions.apply()?),
+			#[cfg(feature = "checkpoint-live")]
+			promotion_discovery: std::sync::Arc::new(self.promotion_discovery.apply()?),
+			replication: self.replication.apply()?,
+			peer_replies: self.peer_replies.apply()?,
+		};
+		Ok(CheckpointStack { state: Mutex::new(state) })
+	}
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct CheckpointPublicationIntentV1 {
 	pub(crate) submission: CheckpointSubmissionV2,
@@ -90,30 +133,36 @@ pub(crate) struct CheckpointPublicationIntentV1 {
 
 impl CheckpointStack {
 	/// Open every checkpoint kernel against the same provider root.
+	#[cfg(any(test, feature = "evidence"))]
 	pub(crate) fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
+		Self::prepare_open(root)?.apply()
+	}
+
+	/// Validate every kernel and cross-kernel relationship before any recovery action is applied.
+	pub(crate) fn prepare_open(
+		root: impl AsRef<Path>,
+	) -> Result<PreparedCheckpointStack, ContentError> {
 		let root = root.as_ref();
-		let streaming = StreamingStore::open(root)?;
-		let bucket_mmr = BucketMmrStore::open(root, &streaming)?;
-		let outbox = std::sync::Arc::new(CheckpointOutboxV2::open(root)?);
-		let publications = CheckpointPublicationStoreV1::open(root)?;
-		validate_publication_receipts(&outbox, &publications)?;
-		let state = CheckpointStackState {
+		let streaming = StreamingStore::prepare(root)?;
+		let bucket_mmr = BucketMmrStore::prepare(root, &streaming)?;
+		let outbox = CheckpointOutboxV2::prepare_open(root)?;
+		let publications = CheckpointPublicationStoreV1::prepare_open(root)?;
+		validate_prepared_publication_receipts(&outbox, &publications)?;
+		Ok(PreparedCheckpointStack {
 			streaming,
 			bucket_mmr,
-			proposals: CheckpointProposalStore::open(root)?,
-			replica_confirmations: ReplicaConfirmationStore::open(root)?,
-			primary_quorum: CheckpointPrimaryQuorumStore::open(root)?,
+			proposals: CheckpointProposalStore::prepare_open(root)?,
+			replica_confirmations: ReplicaConfirmationStore::prepare_open(root)?,
+			primary_quorum: CheckpointPrimaryQuorumStore::prepare_open(root)?,
 			outbox,
 			publications,
-			fallback_promotions: std::sync::Arc::new(CheckpointPromotionStoreV2::open(root)?),
+			fallback_promotions: CheckpointPromotionStoreV2::prepare_open(root)?,
 			#[cfg(feature = "checkpoint-live")]
-			promotion_discovery: std::sync::Arc::new(
-				crate::checkpoint_promotion_worker::PromotionDiscoveryScheduler::open(root)?,
-			),
-			replication: ReplicationIntentStore::open(root)?,
-			peer_replies: PeerReplyStore::open(root)?,
-		};
-		Ok(Self { state: Mutex::new(state) })
+			promotion_discovery:
+				crate::checkpoint_promotion_worker::PromotionDiscoveryScheduler::prepare_open(root)?,
+			replication: ReplicationIntentStore::prepare_open(root)?,
+			peer_replies: PeerReplyStore::prepare_open(root)?,
+		})
 	}
 
 	/// Audit the local byte plane and return only redacted readiness counts.
@@ -458,9 +507,8 @@ impl CheckpointStack {
 					object_len: incoming.object.position().0,
 				};
 				match state.streaming.begin(descriptor)? {
-					BeginStreaming::Installed(_) => {
-						ensure_exact_chunk(&state.streaming, &incoming)?
-					},
+					BeginStreaming::Installed(_) =>
+						ensure_exact_chunk(&state.streaming, &incoming)?,
 					BeginStreaming::Receiving(_) => {
 						let permit = state
 							.streaming
@@ -677,7 +725,8 @@ impl CheckpointStack {
 		crate::checkpoint::checkpoint_submitter::consume_one_with_lane(&outbox, lane).await
 	}
 
-	/// Consume at most `max_attempts` bucket heads without retaining the stack guard across finality.
+	/// Consume at most `max_attempts` bucket heads without retaining the stack guard across
+	/// finality.
 	#[cfg(feature = "checkpoint-live")]
 	pub(crate) async fn consume_one_with_lane_bounded(
 		&self,
@@ -723,8 +772,8 @@ impl CheckpointStack {
 			let split = pending
 				.iter()
 				.position(|intent| {
-					(intent.finalized_number, intent.submission.submission_id.as_str())
-						> (cursor.finalized_number, cursor.submission_id.as_str())
+					(intent.finalized_number, intent.submission.submission_id.as_str()) >
+						(cursor.finalized_number, cursor.submission_id.as_str())
 				})
 				.unwrap_or(0);
 			pending.rotate_left(split);
@@ -750,9 +799,9 @@ impl CheckpointStack {
 			.outbox
 			.finalized_receipt(&intent.submission.submission_id)?
 			.ok_or(ContentError::IntegrityFailed)?;
-		if receipt.submission_record_hash != intent.submission.record_hash
-			|| decode_canonical_hash(&receipt.finalized_hash)? != intent.finalized_hash.0
-			|| receipt.finalized_number != intent.finalized_number
+		if receipt.submission_record_hash != intent.submission.record_hash ||
+			decode_canonical_hash(&receipt.finalized_hash)? != intent.finalized_hash.0 ||
+			receipt.finalized_number != intent.finalized_number
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -770,8 +819,8 @@ impl CheckpointStack {
 }
 
 fn decode_canonical_hash(value: &str) -> Result<[u8; 32], ContentError> {
-	if value.len() != 64
-		|| value.bytes().any(|byte| !byte.is_ascii_hexdigit() || byte.is_ascii_uppercase())
+	if value.len() != 64 ||
+		value.bytes().any(|byte| !byte.is_ascii_hexdigit() || byte.is_ascii_uppercase())
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -804,33 +853,33 @@ fn checkpoint_publication_intents(
 		.collect()
 }
 
-fn validate_publication_receipts(
-	outbox: &CheckpointOutboxV2,
-	publications: &CheckpointPublicationStoreV1,
+fn validate_prepared_publication_receipts(
+	outbox: &PreparedCheckpointOutboxV2,
+	publications: &PreparedCheckpointPublicationStoreV1,
 ) -> Result<(), ContentError> {
 	let finalized = outbox
 		.finalized_submissions()?
 		.into_iter()
 		.map(|(submission, receipt)| (submission.submission_id.clone(), (submission, receipt)))
 		.collect::<HashMap<_, _>>();
-	for publication in publications.records()? {
+	for publication in publications.records() {
 		let (submission, receipt) =
 			finalized.get(&publication.submission_id).ok_or(ContentError::IntegrityFailed)?;
-		if submission != &publication.submission
-			|| receipt.submission_record_hash != publication.submission_record_hash
-			|| receipt.finalized_hash != publication.finalized_hash
-			|| receipt.finalized_number != publication.finalized_number
+		if submission != &publication.submission ||
+			receipt.submission_record_hash != publication.submission_record_hash ||
+			receipt.finalized_hash != publication.finalized_hash ||
+			receipt.finalized_number != publication.finalized_number
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
 	}
-	if let Some(cursor) = publications.cursor()? {
+	if let Some(cursor) = publications.cursor() {
 		let (submission, receipt) =
 			finalized.get(&cursor.submission_id).ok_or(ContentError::IntegrityFailed)?;
-		if submission.record_hash != cursor.submission_record_hash
-			|| receipt.submission_record_hash != cursor.submission_record_hash
-			|| receipt.finalized_hash != cursor.finalized_hash
-			|| receipt.finalized_number != cursor.finalized_number
+		if submission.record_hash != cursor.submission_record_hash ||
+			receipt.submission_record_hash != cursor.submission_record_hash ||
+			receipt.finalized_hash != cursor.finalized_hash ||
+			receipt.finalized_number != cursor.finalized_number
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -884,8 +933,8 @@ fn materialize_derived_replication_object(
 		BeginStreaming::Receiving(progress) => {
 			for index in progress.next_chunk..incoming.object.chunk_hashes().len() as u16 {
 				let bytes = streaming.read_chunk_verified(incoming.object.cid(), index)?;
-				if incoming.object.chunk_hashes().get(usize::from(index))
-					!= Some(&sp_crypto_hashing::blake2_256(&bytes))
+				if incoming.object.chunk_hashes().get(usize::from(index)) !=
+					Some(&sp_crypto_hashing::blake2_256(&bytes))
 				{
 					return Err(ContentError::IntegrityFailed);
 				}
@@ -950,8 +999,8 @@ mod tests {
 	};
 	use crate::{
 		AgreementAuthorization, ChainAuthority, ChainError, ChallengeBatch, CheckpointDutyBatch,
-		CheckpointDutyPageRequest, DiskStore, JsonlManifestDeletionOutbox, NodeProfile, OperationId,
-		ProviderService,
+		CheckpointDutyPageRequest, DiskStore, JsonlManifestDeletionOutbox, NodeProfile,
+		OperationId, ProviderService,
 	};
 
 	#[cfg(feature = "checkpoint-live")]
@@ -1032,7 +1081,7 @@ mod tests {
 		store: Arc<DiskStore>,
 		root: &Path,
 	) -> Result<ProviderService<NoopAuthority>, ContentError> {
-		ProviderService::new(
+		ProviderService::new_preopened(
 			store,
 			Arc::new(NoopAuthority),
 			sp_core::ed25519::Pair::from_seed(&[7u8; 32]),
@@ -1282,9 +1331,9 @@ mod tests {
 			finalized_number: u32,
 		) -> Result<FinalizedCheckpointObservation, ChainError> {
 			self.calls.fetch_add(1, Ordering::SeqCst);
-			if bucket_id != self.bucket_id
-				|| finalized_hash != [8; 32]
-				|| finalized_number != self.finalized_number
+			if bucket_id != self.bucket_id ||
+				finalized_hash != [8; 32] ||
+				finalized_number != self.finalized_number
 			{
 				return Err(ChainError::Rejected("unexpected promoted checkpoint identity".into()));
 			}
@@ -1293,6 +1342,34 @@ mod tests {
 				finalized_number,
 				response_scale: self.response_scale.clone(),
 			})
+		}
+	}
+
+	#[test]
+	fn late_kernel_rejection_preserves_prepared_streaming_cleanup_byte_for_byte() {
+		for later in ["bucket-mmr-v3", "checkpoint-proposals-v2"] {
+			let temp = tempfile::tempdir().unwrap();
+			drop(CheckpointStack::open(temp.path()).unwrap());
+			let streaming = temp.path().join("streaming-v1");
+			let journal_temp = streaming.join("journal.json.tmp-77");
+			let journal_temp_bytes = b"stale-but-bounded-journal-temp";
+			std::fs::write(&journal_temp, journal_temp_bytes).unwrap();
+			let staging_orphan = streaming.join("staging").join("unowned-part");
+			let staging_bytes = b"unowned-staging-evidence";
+			std::fs::write(&staging_orphan, staging_bytes).unwrap();
+			let later_root = temp.path().join(later);
+			if later == "bucket-mmr-v3" {
+				std::fs::write(later_root.join("not-a-bucket-directory"), b"late-invalid").unwrap();
+			} else {
+				std::fs::write(later_root.join("invalid.json"), b"not-json").unwrap();
+			}
+
+			assert!(matches!(
+				CheckpointStack::prepare_open(temp.path()),
+				Err(ContentError::IntegrityFailed)
+			));
+			assert_eq!(std::fs::read(&journal_temp).unwrap(), journal_temp_bytes, "{later}");
+			assert_eq!(std::fs::read(&staging_orphan).unwrap(), staging_bytes, "{later}");
 		}
 	}
 

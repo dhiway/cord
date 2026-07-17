@@ -41,7 +41,7 @@ use sha2::{Digest as _, Sha256};
 use sp_core::H256;
 use sp_crypto_hashing::blake2_256;
 
-use super::streaming::{StreamingStore, VerifiedInstallation};
+use super::streaming::{PreparedStreamingStore, StreamingStore, VerifiedInstallation};
 use crate::{
 	peer::{PeerMmrCommitmentV1, PeerObjectV1, PeerPageCursorV1},
 	BucketId, CanonicalCid, ContentError, OperationId, MAX_STREAMING_OPERATIONS,
@@ -177,6 +177,20 @@ impl InstallationView for StreamingStore {
 	}
 }
 
+impl InstallationView for PreparedStreamingStore {
+	fn installation_records(&self) -> Result<Vec<VerifiedInstallation>, ContentError> {
+		PreparedStreamingStore::installation_records(self)
+	}
+
+	fn verified_installation(
+		&self,
+		bucket_id: BucketId,
+		operation_id: OperationId,
+	) -> Result<VerifiedInstallation, ContentError> {
+		PreparedStreamingStore::verified_installation(self, bucket_id, operation_id)
+	}
+}
+
 pub(crate) struct PreparedBucketMmrStore {
 	root: PathBuf,
 	root_exists: bool,
@@ -276,9 +290,9 @@ impl BucketMmrStore {
 					bucket.unavailable = true;
 					break;
 				};
-				if bucket.source_order.get(index).copied() != Some(entry.install_sequence)
-					|| !entry_matches_installation(entry, source)?
-					|| source.bucket_id != *bucket_id
+				if bucket.source_order.get(index).copied() != Some(entry.install_sequence) ||
+					!entry_matches_installation(entry, source)? ||
+					source.bucket_id != *bucket_id
 				{
 					bucket.unavailable = true;
 					break;
@@ -301,9 +315,9 @@ impl BucketMmrStore {
 			for sequence in bucket.source_order.iter().skip(bucket.entries.len()) {
 				let source =
 					state.known_sources.get(sequence).ok_or(ContentError::IntegrityFailed)?;
-				if source.bucket_id != *bucket_id
-					|| installations.verified_installation(source.bucket_id, source.operation_id)?
-						!= *source
+				if source.bucket_id != *bucket_id ||
+					installations.verified_installation(source.bucket_id, source.operation_id)? !=
+						*source
 				{
 					return Err(ContentError::IntegrityFailed);
 				}
@@ -385,10 +399,10 @@ impl BucketMmrStore {
 		}
 		let (confirmed_entries, confirmed_log_bytes) = confirmed_totals(&state)?;
 		let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::IntegrityFailed)?;
-		if bucket.unavailable
-			|| confirmed_entries >= MAX_STREAMING_OPERATIONS as u64
-			|| bucket.source_order.get(bucket.entries.len()).copied()
-				!= Some(installation.install_sequence)
+		if bucket.unavailable ||
+			confirmed_entries >= MAX_STREAMING_OPERATIONS as u64 ||
+			bucket.source_order.get(bucket.entries.len()).copied() !=
+				Some(installation.install_sequence)
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -506,10 +520,10 @@ impl BucketMmrStore {
 			return Ok(false);
 		}
 		let entry = bucket.entries.get(index).ok_or(ContentError::IntegrityFailed)?;
-		if entry.sequence != sequence
-			|| entry.cid != cid
-			|| entry.data_size != length
-			|| entry.total_size != cumulative_total
+		if entry.sequence != sequence ||
+			entry.cid != cid ||
+			entry.data_size != length ||
+			entry.total_size != cumulative_total
 		{
 			return Err(ContentError::IdempotencyConflict);
 		}
@@ -536,18 +550,18 @@ impl BucketMmrStore {
 			}
 			bucket.entries.get(index).cloned().ok_or(ContentError::IntegrityFailed)?
 		};
-		if entry.sequence != sequence
-			|| entry.cid != object.cid()
-			|| entry.data_size != length
-			|| entry.total_size != cumulative_total
+		if entry.sequence != sequence ||
+			entry.cid != object.cid() ||
+			entry.data_size != length ||
+			entry.total_size != cumulative_total
 		{
 			return Err(ContentError::IdempotencyConflict);
 		}
 		let installed = streaming
 			.verified_replication_object(bucket_id, OperationId::parse(&entry.operation_id)?)?;
-		if installed.cid.as_str() != object.cid()
-			|| installed.stored_bytes != length
-			|| installed.chunk_hashes != object.chunk_hashes()
+		if installed.cid.as_str() != object.cid() ||
+			installed.stored_bytes != length ||
+			installed.chunk_hashes != object.chunk_hashes()
 		{
 			return Err(ContentError::IdempotencyConflict);
 		}
@@ -566,9 +580,9 @@ impl BucketMmrStore {
 			structural.iter().filter(|source| source.bucket_id == bucket_id).count();
 		let state = self.state.read().map_err(|_| lock_error())?;
 		let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::NotFound)?;
-		if bucket.unavailable
-			|| bucket.entries.len() != bucket.source_order.len()
-			|| bucket.entries.len() != structural_count
+		if bucket.unavailable ||
+			bucket.entries.len() != bucket.source_order.len() ||
+			bucket.entries.len() != structural_count
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -598,7 +612,8 @@ impl BucketMmrStore {
 
 	/// Validate one finalized commitment from durable bucket structure without reading object
 	/// bytes, and report exact CID/length membership within its committed sequence range. This is
-	/// the quarantine-safe seam used by private STATUS; byte-serving callers verify bytes separately.
+	/// the quarantine-safe seam used by private STATUS; byte-serving callers verify bytes
+	/// separately.
 	pub(crate) fn finalized_object_membership(
 		&self,
 		bucket_id: BucketId,
@@ -612,7 +627,7 @@ impl BucketMmrStore {
 		let state = self.state.read().map_err(|_| lock_error())?;
 		let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::NotFound)?;
 		if leaf_count == 0 || end > bucket.entries.len() as u64 || end > bucket.meta.entry_count {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let mut rebuilt = BucketMeta::default();
 		for (index, entry) in bucket.entries.iter().take(end as usize).enumerate() {
@@ -621,7 +636,7 @@ impl BucketMmrStore {
 				entry.sequence != index as u64 ||
 				bucket.source_order.get(index) != Some(&entry.install_sequence)
 			{
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 			let frame = encode_frame(entry)?;
 			rebuilt = advance_meta(&rebuilt, entry, frame.len() as u64)?;
@@ -630,7 +645,7 @@ impl BucketMmrStore {
 			decode_hash(rebuilt.root.as_deref().ok_or(ContentError::IntegrityFailed)?)? !=
 				expected_root
 		{
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		Ok(bucket.entries[..end as usize]
 			.iter()
@@ -648,17 +663,17 @@ impl BucketMmrStore {
 	) -> Result<u64, ContentError> {
 		let state = self.state.read().map_err(|_| lock_error())?;
 		let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::NotFound)?;
-		if expected_start_seq > bucket.meta.entry_count
-			|| bucket.entries.len() as u64 != bucket.meta.entry_count
+		if expected_start_seq > bucket.meta.entry_count ||
+			bucket.entries.len() as u64 != bucket.meta.entry_count
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
 		let mut rebuilt = BucketMeta::default();
 		for (index, entry) in bucket.entries.iter().enumerate() {
-			if entry.version != VERSION
-				|| entry.bucket_id != bucket_id.to_string()
-				|| entry.sequence != index as u64
-				|| bucket.source_order.get(index) != Some(&entry.install_sequence)
+			if entry.version != VERSION ||
+				entry.bucket_id != bucket_id.to_string() ||
+				entry.sequence != index as u64 ||
+				bucket.source_order.get(index) != Some(&entry.install_sequence)
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
@@ -697,9 +712,9 @@ impl BucketMmrStore {
 		commitment.validate()?;
 		let (start, end) = commitment.sequence_range();
 		let candidate = self.commitment_candidate(streaming, bucket_id, start)?;
-		if candidate.mmr_root != H256::from(commitment.mmr_root())
-			|| candidate.start_seq != start
-			|| candidate.leaf_count != end - start
+		if candidate.mmr_root != H256::from(commitment.mmr_root()) ||
+			candidate.start_seq != start ||
+			candidate.leaf_count != end - start
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -763,10 +778,10 @@ impl BucketMmrStore {
 			}
 			let operation_id = OperationId::parse(&entry.operation_id)?;
 			let source = streaming.verified_replication_object(bucket_id, operation_id)?;
-			if source.bucket_id != bucket_id
-				|| source.operation_id != operation_id
-				|| source.cid.as_str() != entry.cid
-				|| source.stored_bytes != entry.data_size
+			if source.bucket_id != bucket_id ||
+				source.operation_id != operation_id ||
+				source.cid.as_str() != entry.cid ||
+				source.stored_bytes != entry.data_size
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
@@ -908,10 +923,10 @@ fn preflight_recovery_budget(
 			continue;
 		}
 		let Ok(meta) = read_json::<BucketMeta>(&meta_path, MAX_META_BYTES) else { continue };
-		if meta.version != VERSION
-			|| meta.peaks.len() > 64
-			|| meta.entry_count > MAX_STREAMING_OPERATIONS as u64
-			|| meta.confirmed_log_bytes > MAX_LOG_BYTES
+		if meta.version != VERSION ||
+			meta.peaks.len() > 64 ||
+			meta.entry_count > MAX_STREAMING_OPERATIONS as u64 ||
+			meta.confirmed_log_bytes > MAX_LOG_BYTES
 		{
 			continue;
 		}
@@ -921,8 +936,8 @@ fn preflight_recovery_budget(
 		confirmed_log_bytes = confirmed_log_bytes
 			.checked_add(meta.confirmed_log_bytes)
 			.ok_or(ContentError::IntegrityFailed)?;
-		if confirmed_entries > MAX_STREAMING_OPERATIONS as u64
-			|| confirmed_log_bytes > MAX_LOG_BYTES
+		if confirmed_entries > MAX_STREAMING_OPERATIONS as u64 ||
+			confirmed_log_bytes > MAX_LOG_BYTES
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -951,13 +966,11 @@ fn open_bucket(
 	let meta = if !meta_missing {
 		match read_json::<BucketMeta>(&meta_path, MAX_META_BYTES) {
 			Ok(meta)
-				if meta.version == VERSION
-					&& meta.peaks.len() <= 64
-					&& meta.entry_count <= MAX_STREAMING_OPERATIONS as u64
-					&& meta.confirmed_log_bytes <= MAX_LOG_BYTES =>
-			{
-				meta
-			},
+				if meta.version == VERSION &&
+					meta.peaks.len() <= 64 &&
+					meta.entry_count <= MAX_STREAMING_OPERATIONS as u64 &&
+					meta.confirmed_log_bytes <= MAX_LOG_BYTES =>
+				meta,
 			_ => {
 				bucket.unavailable = true;
 				return Ok(());
@@ -993,9 +1006,9 @@ fn open_bucket(
 	};
 	let mut rebuilt = BucketMeta::default();
 	for (index, entry) in confirmed.iter().enumerate() {
-		if entry.version != VERSION
-			|| entry.bucket_id != bucket_id.to_string()
-			|| entry.sequence != index as u64
+		if entry.version != VERSION ||
+			entry.bucket_id != bucket_id.to_string() ||
+			entry.sequence != index as u64
 		{
 			bucket.unavailable = true;
 			return Ok(());
@@ -1067,8 +1080,8 @@ fn prepare_pending_append(
 ) -> Result<PreparedBucketAppend, ContentError> {
 	let bucket_id = installation.bucket_id;
 	let operation_id = installation.operation_id;
-	if state.operations.contains_key(&(bucket_id, operation_id))
-		|| state.known_sources.get(&installation.install_sequence) != Some(&installation)
+	if state.operations.contains_key(&(bucket_id, operation_id)) ||
+		state.known_sources.get(&installation.install_sequence) != Some(&installation)
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -1077,9 +1090,9 @@ fn prepare_pending_append(
 		return Err(ContentError::IntegrityFailed);
 	}
 	let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::IntegrityFailed)?;
-	if bucket.unavailable
-		|| bucket.source_order.get(bucket.entries.len()).copied()
-			!= Some(installation.install_sequence)
+	if bucket.unavailable ||
+		bucket.source_order.get(bucket.entries.len()).copied() !=
+			Some(installation.install_sequence)
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -1102,17 +1115,13 @@ fn prepare_pending_append(
 	bucket.entries.push(entry);
 	bucket.meta = next_meta;
 	bucket.blocked_at = None;
-	state.operations.insert((bucket_id, operation_id), installation.install_sequence);
+	state
+		.operations
+		.insert((bucket_id, operation_id), installation.install_sequence);
 	state
 		.committed_sources
 		.insert(installation.install_sequence, (bucket_id, index));
-	Ok(PreparedBucketAppend {
-		bucket_id,
-		expected_log_bytes,
-		next_entry_count,
-		frame,
-		meta_bytes,
-	})
+	Ok(PreparedBucketAppend { bucket_id, expected_log_bytes, next_entry_count, frame, meta_bytes })
 }
 
 fn confirmed_totals(state: &State) -> Result<(u64, u64), ContentError> {
@@ -1131,11 +1140,7 @@ fn confirmed_totals(state: &State) -> Result<(u64, u64), ContentError> {
 fn apply_prepared_append(root: &Path, append: &PreparedBucketAppend) -> Result<(), ContentError> {
 	let directory = root.join(append.bucket_id.to_string());
 	let log_path = directory.join(LOG);
-	let mut log = OpenOptions::new()
-		.read(true)
-		.write(true)
-		.open(&log_path)
-		.map_err(io_error)?;
+	let mut log = OpenOptions::new().read(true).write(true).open(&log_path).map_err(io_error)?;
 	if log.metadata().map_err(io_error)?.len() != append.expected_log_bytes {
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -1236,10 +1241,9 @@ fn advance_meta(
 }
 
 fn validate_entry(entry: &Entry, meta: &BucketMeta) -> Result<(), ContentError> {
-	if entry.sequence != meta.entry_count
-		|| entry.total_size
-			!= meta
-				.total_size
+	if entry.sequence != meta.entry_count ||
+		entry.total_size !=
+			meta.total_size
 				.checked_add(entry.data_size)
 				.ok_or(ContentError::IntegrityFailed)?
 	{
@@ -1261,11 +1265,11 @@ fn entry_matches_installation(
 	entry: &Entry,
 	installation: &VerifiedInstallation,
 ) -> Result<bool, ContentError> {
-	Ok(entry.install_sequence == installation.install_sequence
-		&& entry.bucket_id == installation.bucket_id.to_string()
-		&& entry.operation_id == installation.operation_id.to_string()
-		&& entry.cid == installation.cid.as_str()
-		&& entry.data_size == installation.stored_bytes)
+	Ok(entry.install_sequence == installation.install_sequence &&
+		entry.bucket_id == installation.bucket_id.to_string() &&
+		entry.operation_id == installation.operation_id.to_string() &&
+		entry.cid == installation.cid.as_str() &&
+		entry.data_size == installation.stored_bytes)
 }
 
 fn encode_frame(entry: &Entry) -> Result<Vec<u8>, ContentError> {
@@ -1339,8 +1343,7 @@ fn persist_meta_bytes(
 	entry_count: Option<u64>,
 ) -> Result<(), ContentError> {
 	let suffix = entry_count.map_or_else(String::new, |count| format!("-{count}"));
-	let temporary =
-		directory.join(format!("{META}.tmp-{}{suffix}", std::process::id()));
+	let temporary = directory.join(format!("{META}.tmp-{}{suffix}", std::process::id()));
 	let mut file = OpenOptions::new()
 		.create_new(true)
 		.write(true)
@@ -1957,7 +1960,8 @@ mod tests {
 		}
 		let root = temp.path().join(ROOT);
 
-		let prepared = BucketMmrStore::prepare(temp.path(), &VirtualFinalizing(installation)).unwrap();
+		let prepared =
+			BucketMmrStore::prepare(temp.path(), &VirtualFinalizing(installation)).unwrap();
 
 		assert!(!root.exists());
 		let mmr = prepared.apply().unwrap();

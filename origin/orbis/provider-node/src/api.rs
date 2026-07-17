@@ -21,6 +21,7 @@
 use std::{
 	convert::Infallible,
 	net::SocketAddr,
+	path::Path,
 	sync::Arc,
 	time::{SystemTime, UNIX_EPOCH},
 };
@@ -43,10 +44,22 @@ use tokio::net::TcpListener;
 use crate::{
 	chain::ReplicationAuthority, checkpoint_stack::CheckpointStack, peer_http::serve_peer_http,
 	peer_responder::PeerResponder, ChainAuthority, ContentError, DiskStore,
-	FinalizedRuntimeAuthority, ManifestDeletionSubmitter, NodeProfile, StoreError, PROTOCOL_VERSION,
+	FinalizedRuntimeAuthority, ManifestDeletionSubmitter, NodeProfile, StoreError,
+	PROTOCOL_VERSION,
 };
 
 type Body = Full<Bytes>;
+
+/// Failure to validate or apply the co-located provider stores during startup.
+#[derive(Debug, thiserror::Error)]
+pub enum ProviderOpenError {
+	/// The public disk store rejected its persisted state or recovery plan.
+	#[error(transparent)]
+	Store(#[from] StoreError),
+	/// A private checkpoint kernel rejected its persisted state or recovery plan.
+	#[error(transparent)]
+	Content(#[from] ContentError),
+}
 
 /// HTTP listener limits and authentication policy.
 #[derive(Clone, Debug)]
@@ -72,8 +85,33 @@ pub struct ProviderService<A: ChainAuthority> {
 }
 
 impl<A: ChainAuthority> ProviderService<A> {
-	/// Construct the service. The signing key must match the service key registered on Orbis.
-	pub fn new(
+	/// Validate the disk store and every private kernel before applying any startup recovery.
+	pub fn open(
+		root: impl AsRef<Path>,
+		profile: NodeProfile,
+		capacity_bytes: u64,
+		authority: Arc<A>,
+		service_key: ed25519::Pair,
+		outbox: Arc<dyn ManifestDeletionSubmitter>,
+	) -> Result<Self, ProviderOpenError> {
+		let root = root.as_ref();
+		let store = DiskStore::prepare_open(root, profile, capacity_bytes)?;
+		let checkpoint_stack = CheckpointStack::prepare_open(root)?;
+		let store = Arc::new(store.apply()?);
+		let checkpoint_stack = Arc::new(checkpoint_stack.apply()?);
+		Ok(Self {
+			store,
+			checkpoint_stack,
+			authority,
+			service_key,
+			outbox,
+			started_unix_ms: now_ms(),
+		})
+	}
+
+	/// Construct around a store already opened by tests or the evidence harness.
+	#[cfg(any(test, feature = "evidence"))]
+	pub(crate) fn new_preopened(
 		store: Arc<DiskStore>,
 		authority: Arc<A>,
 		service_key: ed25519::Pair,
@@ -287,16 +325,16 @@ where
 	let method = request.method().clone();
 	let path = request.uri().path().to_owned();
 	let query = parse_query(request.uri().query());
-	let requires_auth =
-		method != Method::GET
-			|| matches!(
+	let requires_auth = method != Method::GET ||
+		matches!(
 				path.as_str(),
-				"/read"
-					| "/commitment" | "/buckets"
-					| "/mmr_proof" | "/chunk_proof"
-					| "/mmr_peaks" | "/mmr_subtree"
-					| "/replica/sync_status"
-					| "/stats"
+			"/read" |
+				"/commitment" |
+				"/buckets" | "/mmr_proof" |
+				"/chunk_proof" |
+				"/mmr_peaks" | "/mmr_subtree" |
+				"/replica/sync_status" |
+				"/stats"
 			);
 	if requires_auth && !authorized(&request, config.bearer_token_hash) {
 		return Err(ApiError::unauthorized());
@@ -556,8 +594,8 @@ fn authorized<B>(request: &Request<B>, expected: [u8; 32]) -> bool {
 }
 
 fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
-	left.len() == right.len()
-		&& left.iter().zip(right).fold(0u8, |diff, (a, b)| diff | (a ^ b)) == 0
+	left.len() == right.len() &&
+		left.iter().zip(right).fold(0u8, |diff, (a, b)| diff | (a ^ b)) == 0
 }
 
 fn parse_query(query: Option<&str>) -> std::collections::BTreeMap<String, String> {
@@ -617,6 +655,55 @@ mod lifecycle_tests {
 
 	struct Authority(ReplicationTopologySnapshot);
 	struct RouteAuthority;
+
+	#[test]
+	fn production_open_preserves_all_prepared_cleanup_when_a_late_kernel_rejects() {
+		let temp = tempfile::tempdir().unwrap();
+		let profile = || NodeProfile {
+			provider: hex::encode([0x21; 32]),
+			endpoint: "http://127.0.0.1:8080".into(),
+			service_key: hex::encode(ed25519::Pair::from_seed(&[0x31; 32]).public().0),
+			region: None,
+		};
+		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		drop(
+			ProviderService::new_preopened(
+				store,
+				Arc::new(RouteAuthority),
+				ed25519::Pair::from_seed(&[0x31; 32]),
+				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("outbox.jsonl"))),
+			)
+			.unwrap(),
+		);
+
+		let disk_temp = temp.path().join("provider-index-v6.tmp-777");
+		let disk_temp_bytes = b"stale-disk-index-evidence";
+		fs::write(&disk_temp, disk_temp_bytes).unwrap();
+		let streaming = temp.path().join("streaming-v1");
+		let journal_temp = streaming.join("journal.json.tmp-777");
+		let journal_temp_bytes = b"stale-streaming-journal-evidence";
+		fs::write(&journal_temp, journal_temp_bytes).unwrap();
+		let staging_orphan = streaming.join("staging").join("unowned-part");
+		let staging_bytes = b"unowned-staging-evidence";
+		fs::write(&staging_orphan, staging_bytes).unwrap();
+		fs::write(temp.path().join("checkpoint-proposals-v2").join("invalid.json"), b"not-json")
+			.unwrap();
+
+		assert!(matches!(
+			ProviderService::open(
+				temp.path(),
+				profile(),
+				1024,
+				Arc::new(RouteAuthority),
+				ed25519::Pair::from_seed(&[0x31; 32]),
+				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("outbox.jsonl"))),
+			),
+			Err(ProviderOpenError::Content(ContentError::IntegrityFailed))
+		));
+		assert_eq!(fs::read(disk_temp).unwrap(), disk_temp_bytes);
+		assert_eq!(fs::read(journal_temp).unwrap(), journal_temp_bytes);
+		assert_eq!(fs::read(staging_orphan).unwrap(), staging_bytes);
+	}
 
 	#[async_trait]
 	impl ChainAuthority for Authority {
@@ -773,7 +860,7 @@ mod lifecycle_tests {
 			.unwrap(),
 		);
 		let service = Arc::new(
-			ProviderService::new(
+			ProviderService::new_preopened(
 				store,
 				Arc::new(Authority(topology.clone())),
 				key,
@@ -840,7 +927,7 @@ mod lifecycle_tests {
 			.unwrap(),
 		);
 		let service = Arc::new(
-			ProviderService::new(
+			ProviderService::new_preopened(
 				store,
 				Arc::new(RouteAuthority),
 				key,

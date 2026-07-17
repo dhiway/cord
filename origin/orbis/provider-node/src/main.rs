@@ -23,8 +23,8 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 use clap::Parser;
 use origin_orbis_provider::{
 	run_checkpoint_live_worker, run_checkpoint_quorum_worker, run_replication_worker, run_workers,
-	serve_provider_ingress, ApiConfig, DiskStore, FinalizedRuntimeAuthority,
-	JsonlManifestDeletionOutbox, NodeProfile, ProviderService, WorkerConfig,
+	serve_provider_ingress, ApiConfig, FinalizedRuntimeAuthority, JsonlManifestDeletionOutbox,
+	NodeProfile, ProviderService, WorkerConfig,
 };
 use sp_core::{crypto::AccountId32, ed25519, Pair as _};
 
@@ -110,14 +110,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		region: cli.region,
 	};
 	let outbox_path = cli.data_path.join("provider-submissions-v3.jsonl");
-	let store = Arc::new(DiskStore::open(&cli.data_path, profile, cli.capacity_bytes)?);
 	let authority = Arc::new(FinalizedRuntimeAuthority::connect(
 		&cli.orbis_rpc,
 		provider,
 		service_key.public().0,
 	)?);
 	let submitter = Arc::new(JsonlManifestDeletionOutbox::new(outbox_path));
-	let service = Arc::new(ProviderService::new(store, authority, service_key, submitter)?);
+	let service = Arc::new(ProviderService::open(
+		&cli.data_path,
+		profile,
+		cli.capacity_bytes,
+		authority,
+		service_key,
+		submitter,
+	)?);
 	let api = ApiConfig {
 		listen: cli.listen,
 		bearer_token_hash: *blake3::hash(bearer.as_bytes()).as_bytes(),

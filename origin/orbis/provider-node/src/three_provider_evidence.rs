@@ -220,7 +220,7 @@ impl ChainAuthority for ScriptedCommonsAuthority {
 		request: Option<CheckpointDutyPageRequest>,
 	) -> Result<CheckpointDutyBatch, ChainError> {
 		if request.is_some() {
-			return Err(ChainError::DutyProtocol("unexpected evidence duty cursor".into()))
+			return Err(ChainError::DutyProtocol("unexpected evidence duty cursor".into()));
 		}
 		self.duty_reads.fetch_add(1, Ordering::SeqCst);
 		Ok(self.batch.clone())
@@ -270,7 +270,7 @@ impl CheckpointPublicationAuthority for ScriptedCommonsAuthority {
 			observation.finalized_hash != finalized_hash ||
 			observation.finalized_number != finalized_number
 		{
-			return Err(ChainError::Rejected("wrong evidence finality observation".into()))
+			return Err(ChainError::Rejected("wrong evidence finality observation".into()));
 		}
 		Ok(observation)
 	}
@@ -326,7 +326,7 @@ impl CheckpointConfirmationTransport for DirectConfirmationTransport {
 		let target = account_bytes(&decoded.target_provider)
 			.map_err(|_| CheckpointTransportError::Rejected)?;
 		if self.partitioned.contains(&target) {
-			return Err(CheckpointTransportError::Timeout)
+			return Err(CheckpointTransportError::Timeout);
 		}
 		let responder = self
 			.responders
@@ -556,7 +556,7 @@ pub async fn run_three_provider_recovery_evidence(
 				CorruptReadObservation { result: "rejected_unexpected".into(), bytes_returned: 0 },
 		};
 	if corrupt_read.result != "rejected_integrity_failed" || corrupt_read.bytes_returned != 0 {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	drop(damaged);
 
@@ -606,7 +606,7 @@ pub async fn run_three_provider_recovery_evidence(
 	let selected_permuted = select_source(&permuted, PROVIDER_A, INITIAL_CHECKPOINT_FINALIZED)
 		.ok_or(ContentError::IntegrityFailed)?;
 	if selected != PROVIDER_B || selected_permuted != PROVIDER_B {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	repair_provider(
 		&roots[0],
@@ -649,7 +649,7 @@ pub async fn run_three_provider_recovery_evidence(
 		.map(|provider_root| observed_root(provider_root))
 		.collect::<Result<Vec<_>, _>>()?;
 	if provider_roots.iter().collect::<BTreeSet<_>>().len() != 1 {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let repaired_read_lengths = roots
 		.iter()
@@ -660,7 +660,7 @@ pub async fn run_three_provider_recovery_evidence(
 		})
 		.collect::<Result<Vec<_>, _>>()?;
 	if repaired_read_lengths.iter().any(|length| *length != second.len()) {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 
 	let runtime_duty_reads =
@@ -772,7 +772,7 @@ async fn run_checkpoint(
 		.await
 		.map_err(ContentError::Io)?;
 		if services[0].checkpoint_stack().submission_heads()?.len() == 1 {
-			break
+			break;
 		}
 	}
 	let submission = services[0]
@@ -786,7 +786,7 @@ async fn run_checkpoint(
 	if confirmation_providers.len() != 2 ||
 		confirmation_providers.iter().collect::<BTreeSet<_>>().len() != 2
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let before = serde_json::to_vec(&submission).map_err(io_error)?;
 	let before_hash = hex::encode(blake2_256(&before));
@@ -806,7 +806,7 @@ async fn run_checkpoint(
 	let after_hash =
 		hex::encode(blake2_256(&serde_json::to_vec(&reopened_submission).map_err(io_error)?));
 	if submission != reopened_submission || before_hash != after_hash {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let lane = ScriptedCheckpointLane {
 		metadata: metadata()?,
@@ -819,13 +819,13 @@ async fn run_checkpoint(
 	let completed = crate::checkpoint_live_worker::tick(&*authority, &reopened, &lane).await?;
 	let receipt = completed.finalized.ok_or(ContentError::IntegrityFailed)?;
 	if completed.published.len() != 1 || receipt.finalized_number != checkpoint_finalized {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let calls = lane.calls.load(Ordering::SeqCst);
 	let replay = crate::checkpoint_live_worker::tick(&*authority, &reopened, &lane).await?;
 	let replay_calls = lane.calls.load(Ordering::SeqCst) - calls;
 	if replay.finalized.is_some() || !replay.published.is_empty() || replay_calls != 0 {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 
 	Ok(CheckpointRun {
@@ -885,7 +885,7 @@ async fn run_promotion(
 	)
 	.await?;
 	if first.is_some() {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let receipt = crate::checkpoint_promotion_worker::tick(
 		&**service.authority(),
@@ -901,7 +901,7 @@ async fn run_promotion(
 	.await?
 	.ok_or(ContentError::IntegrityFailed)?;
 	if lane.calls.load(Ordering::SeqCst) != 1 || receipt.finalized_number != PROMOTION_FINALIZED {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok((
 		PromotionObservation {
@@ -950,11 +950,11 @@ async fn install_duty(
 		duties: vec![public],
 	};
 	let authority = Arc::new(ScriptedCommonsAuthority::new(batch, topology));
-	let service = ProviderService::new(store, authority, key, Arc::new(NoopOutbox))?;
+	let service = ProviderService::new_preopened(store, authority, key, Arc::new(NoopOutbox))?;
 	let discovered =
 		crate::poll_checkpoint_duties_once(&service).await.map_err(ContentError::Io)?;
 	if discovered != 1 {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(service)
 }
@@ -1195,7 +1195,7 @@ async fn reconcile_to_mmr(
 		if reconciler.reconcile_one(session, operation).await?.phase ==
 			ReplicationPhase::MmrCommitted
 		{
-			return Ok(step)
+			return Ok(step);
 		}
 	}
 	Err(ContentError::IntegrityFailed)
@@ -1269,7 +1269,7 @@ fn decode_hex_scale<T: Decode + Encode>(value: &str) -> Result<T, ContentError> 
 	let mut input = &bytes[..];
 	let decoded = T::decode(&mut input).map_err(|_| ContentError::IntegrityFailed)?;
 	if !input.is_empty() || decoded.encode() != bytes {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(decoded)
 }

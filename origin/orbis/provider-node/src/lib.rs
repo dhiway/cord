@@ -66,7 +66,7 @@ mod workers;
 pub use api::run_checkpoint_live_worker;
 pub use api::{
 	run_checkpoint_quorum_worker, run_replication_worker, serve, serve_provider_ingress, ApiConfig,
-	ProviderService,
+	ProviderOpenError, ProviderService,
 };
 pub use chain::{
 	AgreementAuthorization, CapabilityAuthoritySnapshot, ChainAuthority, ChainError,

@@ -826,7 +826,7 @@ mod tests {
 	}
 
 	fn service(store: Arc<DiskStore>) -> ProviderService<NoopAuthority> {
-		ProviderService::new(
+		ProviderService::new_preopened(
 			store,
 			Arc::new(NoopAuthority),
 			sp_core::ed25519::Pair::from_seed(&[7u8; 32]),
@@ -852,7 +852,7 @@ mod tests {
 		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
 		let authority = Arc::new(CanonicalOnlyAuthority::default());
 		let outbox = Arc::new(FaultOutbox::default());
-		let service = ProviderService::new(
+		let service = ProviderService::new_preopened(
 			store,
 			Arc::clone(&authority),
 			sp_core::ed25519::Pair::from_seed(&[7u8; 32]),
