@@ -32,8 +32,6 @@ use std::{
 use async_trait::async_trait;
 use codec::Encode;
 use fs4::FileExt;
-#[cfg(unix)]
-use rustix::fs::{self as unix_fs, Mode, OFlags};
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use tokio::{
@@ -45,6 +43,7 @@ use tokio::{
 const MANIFEST_DELETION_DEDUPE_TAIL_BYTES: u64 = 64 * 1024;
 const MAX_JSONL_RECORD_BYTES: u64 = 1024 * 1024;
 const MANIFEST_DELETION_OUTBOX_FILE: &str = "provider-submissions-v3.jsonl";
+const MANIFEST_DELETION_OUTBOX_LOCK_FILE: &str = "provider-submissions-v3.jsonl.lock";
 
 use crate::{
 	storage::{PendingDeletion, PendingRootSubmission},
@@ -129,6 +128,7 @@ pub(crate) trait ManifestDeletionSubmitter: Send + Sync + 'static {
 	fn prepare_startup(
 		&self,
 		_provider_root: &Path,
+		_prepared_root: Option<&fs::File>,
 	) -> Result<ManifestDeletionStartupPlan, String> {
 		Ok(ManifestDeletionStartupPlan::default())
 	}
@@ -149,8 +149,11 @@ pub(crate) struct ManifestDeletionStartupPlan {
 }
 
 impl ManifestDeletionStartupPlan {
-	pub(crate) fn arm(self) -> Result<ArmedManifestDeletionStartupPlan, String> {
-		let jsonl = self.jsonl.map(PreparedJsonlStartup::arm).transpose()?;
+	pub(crate) fn arm(
+		self,
+		root: &crate::bounded_io::LockedDirectory,
+	) -> Result<ArmedManifestDeletionStartupPlan, String> {
+		let jsonl = self.jsonl.map(|jsonl| jsonl.arm(root)).transpose()?;
 		Ok(ArmedManifestDeletionStartupPlan { jsonl })
 	}
 }
@@ -175,28 +178,13 @@ impl ArmedManifestDeletionStartupPlan {
 	}
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct FileIdentity {
-	device: u64,
-	inode: u64,
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum PreparedFileGuard {
 	Missing,
-	Present { identity: FileIdentity, length: u64 },
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum PreparedProviderRootGuard {
-	Missing,
-	Present(FileIdentity),
+	Present { identity: crate::bounded_io::FileIdentity, length: u64 },
 }
 
 struct PreparedJsonlStartup {
-	provider_root: PathBuf,
-	provider_root_guard: PreparedProviderRootGuard,
-	path: PathBuf,
 	lock: PreparedFileGuard,
 	source: PreparedFileGuard,
 	source_digest: Option<[u8; 32]>,
@@ -204,23 +192,23 @@ struct PreparedJsonlStartup {
 	expected_tail: Vec<u8>,
 	truncate_to: u64,
 	qualified: Arc<AtomicBool>,
+	root_capability: Arc<std::sync::Mutex<Option<fs::File>>>,
 }
 
 impl PreparedJsonlStartup {
-	fn arm(self) -> Result<ArmedJsonlStartup, String> {
-		let root_identity =
-			validate_provider_root_for_arm(&self.provider_root, self.provider_root_guard)?;
-		let lock = acquire_prepared_outbox_lock(&self.path, &self.lock)?;
-		let validated = validate_provider_root_identity(&self.provider_root, root_identity)
-			.and_then(|()| {
-				validate_prepared_jsonl_guard(
-					&self.path,
+	fn arm(
+		self,
+		root: &crate::bounded_io::LockedDirectory,
+	) -> Result<ArmedJsonlStartup, String> {
+		let directory = root.file().try_clone().map_err(|error| error.to_string())?;
+		let lock = acquire_prepared_outbox_lock(&directory, &self.lock)?;
+		let validated = validate_prepared_jsonl_guard(
+					&directory,
 					&self.source,
 					self.source_digest,
 					self.tail_start,
 					&self.expected_tail,
-				)
-			});
+				);
 		if let Err(error) = validated {
 			return match lock.rollback_created() {
 				Ok(()) => Err(error),
@@ -228,19 +216,20 @@ impl PreparedJsonlStartup {
 					Err(format!("{error}; created outbox lock cleanup failed: {cleanup}")),
 			}
 		}
-		Ok(ArmedJsonlStartup { prepared: self, lock })
+		Ok(ArmedJsonlStartup { prepared: self, lock, directory })
 	}
 }
 
 struct ArmedJsonlStartup {
 	prepared: PreparedJsonlStartup,
 	lock: AcquiredPreparedOutboxLock,
+	directory: fs::File,
 }
 
 impl ArmedJsonlStartup {
 	fn apply(mut self) -> Result<(), String> {
 		let applied = apply_prepared_jsonl_guard(
-			&self.prepared.path,
+			&self.directory,
 			&self.prepared.source,
 			self.prepared.source_digest,
 			self.prepared.tail_start,
@@ -254,6 +243,12 @@ impl ArmedJsonlStartup {
 					Err(format!("{error}; created outbox lock cleanup failed: {cleanup}")),
 			}
 		}
+		let mut root_capability = self
+			.prepared
+			.root_capability
+			.lock()
+			.map_err(|_| "manifest deletion outbox root capability lock was poisoned")?;
+		*root_capability = Some(self.directory);
 		self.lock.preserve_created();
 		self.prepared.qualified.store(true, Ordering::Release);
 		Ok(())
@@ -279,6 +274,7 @@ pub(crate) struct JsonlManifestDeletionOutbox {
 	path: PathBuf,
 	write_lock: Mutex<()>,
 	qualified: Arc<AtomicBool>,
+	root_capability: Arc<std::sync::Mutex<Option<fs::File>>>,
 	#[cfg(test)]
 	fail_next_directory_sync: std::sync::atomic::AtomicBool,
 }
@@ -298,6 +294,7 @@ impl JsonlManifestDeletionOutbox {
 			path: path.as_ref().to_path_buf(),
 			write_lock: Mutex::new(()),
 			qualified: Arc::new(AtomicBool::new(false)),
+			root_capability: Arc::new(std::sync::Mutex::new(None)),
 			#[cfg(test)]
 			fail_next_directory_sync: std::sync::atomic::AtomicBool::new(false),
 		}
@@ -306,9 +303,17 @@ impl JsonlManifestDeletionOutbox {
 
 #[async_trait]
 impl ManifestDeletionSubmitter for JsonlManifestDeletionOutbox {
-	fn prepare_startup(&self, provider_root: &Path) -> Result<ManifestDeletionStartupPlan, String> {
+	fn prepare_startup(
+		&self,
+		provider_root: &Path,
+		prepared_root: Option<&fs::File>,
+	) -> Result<ManifestDeletionStartupPlan, String> {
 		validate_canonical_outbox_path(provider_root, &self.path)?;
-		prepare_jsonl_manifest_deletion_outbox(&self.path, Arc::clone(&self.qualified))
+		prepare_jsonl_manifest_deletion_outbox(
+			prepared_root,
+			Arc::clone(&self.qualified),
+			Arc::clone(&self.root_capability),
+		)
 	}
 
 	async fn submit_manifest_deletion(
@@ -319,11 +324,10 @@ impl ManifestDeletionSubmitter for JsonlManifestDeletionOutbox {
 		if !self.qualified.load(Ordering::Acquire) {
 			return Err("manifest deletion outbox startup has not been applied".into())
 		}
-		validate_optional_regular_file(&self.path, "manifest deletion outbox")?;
-		let _process_lock = self.lock_outbox().await?;
-		repair_incomplete_jsonl_tail(&self.path).await?;
-		let existing =
-			read_bounded_jsonl_tail(&self.path, MANIFEST_DELETION_DEDUPE_TAIL_BYTES).await?;
+		let directory = self.installed_root_capability()?;
+		let _process_lock = self.lock_outbox(&directory).await?;
+		repair_incomplete_jsonl_tail(&directory).await?;
+		let existing = read_bounded_jsonl_tail(&directory, MANIFEST_DELETION_DEDUPE_TAIL_BYTES).await?;
 		for line in existing.split(|byte| *byte == b'\n').filter(|line| !line.is_empty()) {
 			let Ok(ProviderSubmission::ManifestDeletion(previous)) =
 				serde_json::from_slice::<ProviderSubmission>(line)
@@ -340,29 +344,32 @@ impl ManifestDeletionSubmitter for JsonlManifestDeletionOutbox {
 		}
 		let mut encoded = serde_json::to_vec(&ProviderSubmission::ManifestDeletion(request))
 			.map_err(|error| error.to_string())?;
-		self.append_locked(&mut encoded).await
+		self.append_locked(&directory, &mut encoded).await
 	}
 }
 
 fn prepare_jsonl_manifest_deletion_outbox(
-	path: &Path,
+	prepared_root: Option<&fs::File>,
 	qualified: Arc<AtomicBool>,
+	root_capability: Arc<std::sync::Mutex<Option<fs::File>>>,
 ) -> Result<ManifestDeletionStartupPlan, String> {
-	let provider_root = path
-		.parent()
-		.ok_or("manifest deletion outbox has no provider root")?
-		.to_path_buf();
-	let provider_root_guard = prepare_provider_root_guard(&provider_root)?;
-	let lock_path = suffixed_path(path, ".lock");
-	let lock = open_optional_guarded_file(&lock_path, false)?
-		.map_or(PreparedFileGuard::Missing, |(_, guard)| guard);
-	let (source, source_digest, tail_start, expected_tail, truncate_to) =
-		prepare_jsonl_source_guard(path)?;
+	let (lock, source, source_digest, tail_start, expected_tail, truncate_to) =
+		match prepared_root {
+			Some(root) => {
+				let lock = open_optional_guarded_file_at(
+					root,
+					MANIFEST_DELETION_OUTBOX_LOCK_FILE,
+					false,
+				)?
+				.map_or(PreparedFileGuard::Missing, |(_, guard)| guard);
+				let (source, digest, tail_start, tail, truncate_to) =
+					prepare_jsonl_source_guard_at(root)?;
+				(lock, source, digest, tail_start, tail, truncate_to)
+			},
+			None => (PreparedFileGuard::Missing, PreparedFileGuard::Missing, None, 0, Vec::new(), 0),
+		};
 	Ok(ManifestDeletionStartupPlan {
 		jsonl: Some(PreparedJsonlStartup {
-			provider_root,
-			provider_root_guard,
-			path: path.to_path_buf(),
 			lock,
 			source,
 			source_digest,
@@ -370,48 +377,9 @@ fn prepare_jsonl_manifest_deletion_outbox(
 			expected_tail,
 			truncate_to,
 			qualified,
+			root_capability,
 		}),
 	})
-}
-
-fn prepare_provider_root_guard(root: &Path) -> Result<PreparedProviderRootGuard, String> {
-	match fs::symlink_metadata(root) {
-		Ok(metadata) if metadata.is_dir() =>
-			Ok(PreparedProviderRootGuard::Present(file_identity(&metadata)?)),
-		Ok(_) => Err("manifest deletion outbox parent is not a provider directory".into()),
-		Err(error) if error.kind() == std::io::ErrorKind::NotFound =>
-			Ok(PreparedProviderRootGuard::Missing),
-		Err(error) => Err(error.to_string()),
-	}
-}
-
-fn validate_provider_root_for_arm(
-	root: &Path,
-	expected: PreparedProviderRootGuard,
-) -> Result<FileIdentity, String> {
-	let metadata = fs::symlink_metadata(root)
-		.map_err(|_| "manifest deletion outbox provider root is unavailable at startup arm")?;
-	if !metadata.is_dir() || metadata.file_type().is_symlink() {
-		return Err("manifest deletion outbox parent is not a provider directory".into())
-	}
-	let identity = file_identity(&metadata)?;
-	if let PreparedProviderRootGuard::Present(prepared) = expected {
-		if prepared != identity {
-			return Err("manifest deletion outbox provider root changed after validation".into())
-		}
-	}
-	Ok(identity)
-}
-
-fn validate_provider_root_identity(root: &Path, expected: FileIdentity) -> Result<(), String> {
-	let metadata = fs::symlink_metadata(root).map_err(|error| error.to_string())?;
-	if !metadata.is_dir() ||
-		metadata.file_type().is_symlink() ||
-		file_identity(&metadata)? != expected
-	{
-		return Err("manifest deletion outbox provider root changed during startup arm".into())
-	}
-	Ok(())
 }
 
 fn validate_canonical_outbox_path(provider_root: &Path, path: &Path) -> Result<(), String> {
@@ -421,25 +389,23 @@ fn validate_canonical_outbox_path(provider_root: &Path, path: &Path) -> Result<(
 	{
 		return Err("manifest deletion outbox must be the canonical provider-root child".into())
 	}
-	match fs::symlink_metadata(provider_root) {
-		Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() =>
-			Err("manifest deletion outbox parent is not a provider directory".into()),
-		Ok(_) => Ok(()),
-		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-		Err(error) => Err(error.to_string()),
-	}
+	Ok(())
 }
 
-fn prepare_jsonl_source_guard(
-	path: &Path,
+fn prepare_jsonl_source_guard_at(
+	directory: &fs::File,
 ) -> Result<(PreparedFileGuard, Option<[u8; 32]>, u64, Vec<u8>, u64), String> {
-	Ok(match open_optional_guarded_file(path, false)? {
+	Ok(match open_optional_guarded_file_at(
+		directory,
+		MANIFEST_DELETION_OUTBOX_FILE,
+		false,
+	)? {
 		None => (PreparedFileGuard::Missing, None, 0, Vec::new(), 0),
 		Some((mut file, guard)) => {
 			let digest = jsonl_source_digest(&mut file, &guard)?;
 			let (tail_start, expected_tail, truncate_to) = jsonl_tail_view(&mut file, &guard)?;
 			validate_open_file(&file, &guard)?;
-			validate_path_guard(path, &guard)?;
+			validate_file_guard_at(directory, MANIFEST_DELETION_OUTBOX_FILE, &guard)?;
 			(guard, Some(digest), tail_start, expected_tail, truncate_to)
 		},
 	})
@@ -492,43 +458,52 @@ fn jsonl_tail_view(
 	Ok((start, tail, truncate_to))
 }
 
-fn open_optional_guarded_file(
-	path: &Path,
+fn open_optional_guarded_file_at(
+	directory: &fs::File,
+	name: &str,
 	write: bool,
 ) -> Result<Option<(fs::File, PreparedFileGuard)>, String> {
-	match fs::symlink_metadata(path) {
-		Ok(metadata) if metadata.file_type().is_file() => {},
-		Ok(_) => return Err("manifest deletion outbox path is not a regular file".into()),
-		Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-		Err(error) => return Err(error.to_string()),
-	}
-	let file = open_existing_no_follow(path, write)?;
+	let Some(file) = crate::bounded_io::open_optional_regular_file_at(
+		directory,
+		name.as_ref(),
+		write,
+	)
+	.map_err(|error| error.to_string())?
+	else {
+		return Ok(None)
+	};
 	let metadata = file.metadata().map_err(|error| error.to_string())?;
-	if !metadata.file_type().is_file() {
-		return Err("manifest deletion outbox path is not a regular file".into())
-	}
-	let guard =
-		PreparedFileGuard::Present { identity: file_identity(&metadata)?, length: metadata.len() };
-	validate_path_guard(path, &guard)?;
+	let guard = PreparedFileGuard::Present {
+		identity: crate::bounded_io::file_identity(&metadata),
+		length: metadata.len(),
+	};
+	validate_file_guard_at(directory, name, &guard)?;
 	Ok(Some((file, guard)))
 }
 
 fn validate_prepared_jsonl_guard(
-	path: &Path,
+	directory: &fs::File,
 	guard: &PreparedFileGuard,
 	expected_digest: Option<[u8; 32]>,
 	tail_start: u64,
 	expected_tail: &[u8],
 ) -> Result<(), String> {
 	let PreparedFileGuard::Present { length, .. } = guard else {
-		return match fs::symlink_metadata(path) {
-			Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-			_ => Err("manifest deletion outbox changed after startup validation".into()),
-		}
+		return crate::bounded_io::entry_missing_at(directory, MANIFEST_DELETION_OUTBOX_FILE.as_ref())
+			.map_err(|error| error.to_string())
+			.and_then(|missing| missing.then_some(()).ok_or_else(|| {
+				"manifest deletion outbox changed after startup validation".into()
+			}))
 	};
 	let expected_digest = expected_digest
 		.ok_or("manifest deletion outbox startup source digest is missing")?;
-	let mut file = open_existing_no_follow(path, false)?;
+	let mut file = crate::bounded_io::open_optional_regular_file_at(
+		directory,
+		MANIFEST_DELETION_OUTBOX_FILE.as_ref(),
+		false,
+	)
+	.map_err(|error| error.to_string())?
+	.ok_or("manifest deletion outbox changed after startup validation")?;
 	validate_open_file(&file, guard)?;
 	if jsonl_source_digest(&mut file, guard)? != expected_digest {
 		return Err("manifest deletion outbox changed after startup validation".into())
@@ -545,11 +520,11 @@ fn validate_prepared_jsonl_guard(
 	if tail != expected_tail {
 		return Err("manifest deletion outbox tail changed after startup validation".into())
 	}
-	validate_path_guard(path, guard)
+	validate_file_guard_at(directory, MANIFEST_DELETION_OUTBOX_FILE, guard)
 }
 
 fn apply_prepared_jsonl_guard(
-	path: &Path,
+	directory: &fs::File,
 	guard: &PreparedFileGuard,
 	expected_digest: Option<[u8; 32]>,
 	tail_start: u64,
@@ -557,14 +532,21 @@ fn apply_prepared_jsonl_guard(
 	truncate_to: u64,
 ) -> Result<(), String> {
 	let PreparedFileGuard::Present { identity, length } = guard else {
-		return match fs::symlink_metadata(path) {
-			Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-			_ => Err("manifest deletion outbox changed after startup validation".into()),
-		}
+		return crate::bounded_io::entry_missing_at(directory, MANIFEST_DELETION_OUTBOX_FILE.as_ref())
+			.map_err(|error| error.to_string())
+			.and_then(|missing| missing.then_some(()).ok_or_else(|| {
+				"manifest deletion outbox changed after startup validation".into()
+			}))
 	};
 	let expected_digest = expected_digest
 		.ok_or("manifest deletion outbox startup source digest is missing")?;
-	let mut file = open_existing_no_follow(path, true)?;
+	let mut file = crate::bounded_io::open_optional_regular_file_at(
+		directory,
+		MANIFEST_DELETION_OUTBOX_FILE.as_ref(),
+		true,
+	)
+	.map_err(|error| error.to_string())?
+	.ok_or("manifest deletion outbox changed after startup validation")?;
 	validate_open_file(&file, guard)?;
 	if jsonl_source_digest(&mut file, guard)? != expected_digest {
 		return Err("manifest deletion outbox changed after startup validation".into())
@@ -581,46 +563,19 @@ fn apply_prepared_jsonl_guard(
 	if tail != expected_tail {
 		return Err("manifest deletion outbox tail changed after startup validation".into())
 	}
-	validate_path_guard(path, guard)?;
+	validate_file_guard_at(directory, MANIFEST_DELETION_OUTBOX_FILE, guard)?;
 	if truncate_to < *length {
 		file.set_len(truncate_to).map_err(|error| error.to_string())?;
 		file.sync_all().map_err(|error| error.to_string())?;
-		sync_parent_directory_blocking(path)?;
+		crate::bounded_io::sync_directory(directory).map_err(|error| error.to_string())?;
 	}
-	validate_path_identity(path, *identity, truncate_to)
-}
-
-fn validate_optional_regular_file(path: &Path, label: &str) -> Result<(), String> {
-	match fs::symlink_metadata(path) {
-		Ok(metadata) if metadata.file_type().is_file() => Ok(()),
-		Ok(_) => Err(format!("{label} is not a regular file")),
-		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-		Err(error) => Err(error.to_string()),
-	}
-}
-
-#[cfg(unix)]
-fn file_identity(metadata: &fs::Metadata) -> Result<FileIdentity, String> {
-	use std::os::unix::fs::MetadataExt;
-	Ok(FileIdentity { device: metadata.dev(), inode: metadata.ino() })
-}
-
-#[cfg(windows)]
-fn file_identity(metadata: &fs::Metadata) -> Result<FileIdentity, String> {
-	use std::os::windows::fs::MetadataExt;
-	Ok(FileIdentity {
-		device: u64::from(
-			metadata
-				.volume_serial_number()
-				.ok_or("manifest deletion outbox has no volume identity")?,
-		),
-		inode: metadata.file_index().ok_or("manifest deletion outbox has no file identity")?,
-	})
-}
-
-#[cfg(not(any(unix, windows)))]
-fn file_identity(_metadata: &fs::Metadata) -> Result<FileIdentity, String> {
-	Err("manifest deletion outbox file identity is unsupported on this platform".into())
+	crate::bounded_io::validate_regular_file_at(
+		directory,
+		MANIFEST_DELETION_OUTBOX_FILE.as_ref(),
+		*identity,
+		truncate_to,
+	)
+	.map_err(|error| error.to_string())
 }
 
 fn validate_open_file(file: &fs::File, expected: &PreparedFileGuard) -> Result<(), String> {
@@ -629,7 +584,7 @@ fn validate_open_file(file: &fs::File, expected: &PreparedFileGuard) -> Result<(
 	};
 	let metadata = file.metadata().map_err(|error| error.to_string())?;
 	if !metadata.file_type().is_file() ||
-		file_identity(&metadata)? != *identity ||
+		crate::bounded_io::file_identity(&metadata) != *identity ||
 		metadata.len() != *length
 	{
 		return Err("manifest deletion outbox changed after startup validation".into())
@@ -637,62 +592,22 @@ fn validate_open_file(file: &fs::File, expected: &PreparedFileGuard) -> Result<(
 	Ok(())
 }
 
-fn validate_path_guard(path: &Path, expected: &PreparedFileGuard) -> Result<(), String> {
-	let metadata = fs::symlink_metadata(path).map_err(|error| error.to_string())?;
+fn validate_file_guard_at(
+	directory: &fs::File,
+	name: &str,
+	expected: &PreparedFileGuard,
+) -> Result<(), String> {
 	let PreparedFileGuard::Present { identity, length } = expected else {
 		return Err("manifest deletion outbox expected a missing file".into())
 	};
-	if !metadata.file_type().is_file() ||
-		file_identity(&metadata)? != *identity ||
-		metadata.len() != *length
-	{
-		return Err("manifest deletion outbox changed after startup validation".into())
-	}
-	Ok(())
-}
-
-fn validate_path_identity(
-	path: &Path,
-	expected_identity: FileIdentity,
-	expected_length: u64,
-) -> Result<(), String> {
-	validate_path_guard(
-		path,
-		&PreparedFileGuard::Present { identity: expected_identity, length: expected_length },
-	)
-}
-
-#[cfg(unix)]
-fn open_existing_no_follow(path: &Path, write: bool) -> Result<fs::File, String> {
-	let access = if write { OFlags::RDWR } else { OFlags::RDONLY };
-	unix_fs::open(path, access | OFlags::NOFOLLOW | OFlags::CLOEXEC, Mode::empty())
-		.map(fs::File::from)
-		.map_err(|error| error.to_string())
-}
-
-#[cfg(not(unix))]
-fn open_existing_no_follow(path: &Path, write: bool) -> Result<fs::File, String> {
-	let before = fs::symlink_metadata(path).map_err(|error| error.to_string())?;
-	if !before.file_type().is_file() {
-		return Err("manifest deletion outbox path is not a regular file".into())
-	}
-	let file = fs::OpenOptions::new()
-		.read(true)
-		.write(write)
-		.open(path)
-		.map_err(|error| error.to_string())?;
-	let identity = file_identity(&file.metadata().map_err(|error| error.to_string())?)?;
-	if file_identity(&before)? != identity {
-		return Err("manifest deletion outbox changed while opening".into())
-	}
-	validate_path_identity(path, identity, before.len())?;
-	Ok(file)
+	crate::bounded_io::validate_regular_file_at(directory, name.as_ref(), *identity, *length)
+		.map_err(|_| "manifest deletion outbox changed after startup validation".into())
 }
 
 struct AcquiredPreparedOutboxLock {
 	_file: fs::File,
-	path: PathBuf,
-	created: Option<(FileIdentity, u64)>,
+	directory: fs::File,
+	created: Option<(crate::bounded_io::FileIdentity, u64)>,
 	rollback_on_drop: bool,
 }
 
@@ -704,9 +619,13 @@ impl AcquiredPreparedOutboxLock {
 		};
 		// Keep the owned handle locked through unlink and parent fsync; a pre-existing lock is
 		// never represented by `created` and therefore can never reach this cleanup path.
-		validate_path_identity(&self.path, identity, length)?;
-		fs::remove_file(&self.path).map_err(|error| error.to_string())?;
-		sync_parent_directory_blocking(&self.path)?;
+		crate::bounded_io::unlink_regular_file_at(
+			&self.directory,
+			MANIFEST_DELETION_OUTBOX_LOCK_FILE.as_ref(),
+			identity,
+			length,
+		)
+		.map_err(|error| error.to_string())?;
 		self.rollback_on_drop = false;
 		Ok(())
 	}
@@ -729,40 +648,50 @@ impl Drop for AcquiredPreparedOutboxLock {
 }
 
 fn acquire_prepared_outbox_lock(
-	outbox: &Path,
+	directory: &fs::File,
 	expected: &PreparedFileGuard,
 ) -> Result<AcquiredPreparedOutboxLock, String> {
-	let path = suffixed_path(outbox, ".lock");
 	let (file, created) = match expected {
 		PreparedFileGuard::Missing => {
-			let file = create_new_lock_no_follow(&path)?;
+			let file = crate::bounded_io::create_and_lock_regular_file_at(
+				directory,
+				MANIFEST_DELETION_OUTBOX_LOCK_FILE.as_ref(),
+			)
+			.map_err(|error| error.to_string())?;
 			let metadata = file.metadata().map_err(|error| error.to_string())?;
-			(file, Some((file_identity(&metadata)?, metadata.len())))
+			(file, Some((crate::bounded_io::file_identity(&metadata), metadata.len())))
 		},
-		PreparedFileGuard::Present { .. } => (open_existing_no_follow(&path, true)?, None),
+		PreparedFileGuard::Present { .. } => (
+			crate::bounded_io::open_optional_regular_file_at(
+				directory,
+				MANIFEST_DELETION_OUTBOX_LOCK_FILE.as_ref(),
+				true,
+			)
+			.map_err(|error| error.to_string())?
+			.ok_or("manifest deletion outbox lock changed after startup validation")?,
+			None,
+		),
 	};
-	if let Err(error) = FileExt::try_lock_exclusive(&file) {
-		if let Some((identity, length)) = created {
-			if validate_path_identity(&path, identity, length).is_ok() {
-				drop(file);
-				let _ = fs::remove_file(&path);
-				let _ = sync_parent_directory_blocking(&path);
-			}
-		}
-		return Err(format!("manifest deletion outbox lock is already held: {error}"))
+	if created.is_none() {
+		FileExt::try_lock_exclusive(&file).map_err(|error| {
+			format!("manifest deletion outbox lock is already held: {error}")
+		})?;
 	}
-	let validation = match expected {
-		PreparedFileGuard::Missing =>
-			file.metadata().map_err(|error| error.to_string()).and_then(|metadata| {
-				file_identity(&metadata)
-					.and_then(|identity| validate_path_identity(&path, identity, metadata.len()))
-			}),
-		PreparedFileGuard::Present { .. } =>
-			validate_open_file(&file, expected).and_then(|()| validate_path_guard(&path, expected)),
+	let metadata = file.metadata().map_err(|error| error.to_string())?;
+	let actual = PreparedFileGuard::Present {
+		identity: crate::bounded_io::file_identity(&metadata),
+		length: metadata.len(),
 	};
+	let validation = validate_open_file(&file, &actual)
+		.and_then(|()| {
+			if matches!(expected, PreparedFileGuard::Present { .. }) && &actual != expected {
+				return Err("manifest deletion outbox lock changed after startup validation".into())
+			}
+			validate_file_guard_at(directory, MANIFEST_DELETION_OUTBOX_LOCK_FILE, &actual)
+		});
 	let acquired = AcquiredPreparedOutboxLock {
 		_file: file,
-		path,
+		directory: directory.try_clone().map_err(|error| error.to_string())?,
 		created,
 		rollback_on_drop: created.is_some(),
 	};
@@ -775,96 +704,20 @@ fn acquire_prepared_outbox_lock(
 	Ok(acquired)
 }
 
-#[cfg(unix)]
-fn create_new_lock_no_follow(path: &Path) -> Result<fs::File, String> {
-	unix_fs::open(
-		path,
-		OFlags::RDWR | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-		Mode::RUSR | Mode::WUSR,
-	)
-	.map(fs::File::from)
-	.map_err(|error| error.to_string())
-}
-
-#[cfg(not(unix))]
-fn create_new_lock_no_follow(path: &Path) -> Result<fs::File, String> {
-	fs::OpenOptions::new()
-		.create_new(true)
-		.read(true)
-		.write(true)
-		.open(path)
+async fn read_bounded_jsonl_tail(directory: &fs::File, limit: u64) -> Result<Vec<u8>, String> {
+	let directory = directory.try_clone().map_err(|error| error.to_string())?;
+	let file = tokio::task::spawn_blocking(move || {
+		crate::bounded_io::open_optional_regular_file_at(
+			&directory,
+			MANIFEST_DELETION_OUTBOX_FILE.as_ref(),
+			false,
+		)
 		.map_err(|error| error.to_string())
-}
-
-#[cfg(unix)]
-fn open_or_create_lock_no_follow(path: &Path) -> Result<fs::File, String> {
-	let file = unix_fs::open(
-		path,
-		OFlags::RDWR | OFlags::CREATE | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-		Mode::RUSR | Mode::WUSR,
-	)
-	.map(fs::File::from)
-	.map_err(|error| error.to_string())?;
-	if !file.metadata().map_err(|error| error.to_string())?.file_type().is_file() {
-		return Err("manifest deletion outbox lock is not a regular file".into())
-	}
-	Ok(file)
-}
-
-#[cfg(not(unix))]
-fn open_or_create_lock_no_follow(path: &Path) -> Result<fs::File, String> {
-	match open_optional_guarded_file(path, true)? {
-		Some((file, _)) => Ok(file),
-		None => create_new_lock_no_follow(path),
-	}
-}
-
-#[cfg(unix)]
-fn open_append_no_follow(path: &Path) -> Result<fs::File, String> {
-	let file = unix_fs::open(
-		path,
-		OFlags::WRONLY | OFlags::APPEND | OFlags::CREATE | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-		Mode::RUSR | Mode::WUSR,
-	)
-	.map(fs::File::from)
-	.map_err(|error| error.to_string())?;
-	let metadata = file.metadata().map_err(|error| error.to_string())?;
-	if !metadata.file_type().is_file() {
-		return Err("manifest deletion outbox is not a regular file".into())
-	}
-	validate_path_identity(path, file_identity(&metadata)?, metadata.len())?;
-	Ok(file)
-}
-
-#[cfg(not(unix))]
-fn open_append_no_follow(path: &Path) -> Result<fs::File, String> {
-	match open_optional_guarded_file(path, true)? {
-		Some((file, _)) => Ok(file),
-		None => fs::OpenOptions::new()
-			.create_new(true)
-			.append(true)
-			.open(path)
-			.map_err(|error| error.to_string()),
-	}
-}
-
-fn sync_parent_directory_blocking(path: &Path) -> Result<(), String> {
-	let parent = path
-		.parent()
-		.filter(|parent| !parent.as_os_str().is_empty())
-		.unwrap_or(Path::new("."));
-	fs::File::open(parent)
-		.and_then(|directory| directory.sync_all())
-		.map_err(|error| error.to_string())
-}
-
-async fn read_bounded_jsonl_tail(path: &Path, limit: u64) -> Result<Vec<u8>, String> {
-	let path = path.to_path_buf();
-	let file = tokio::task::spawn_blocking(move || open_optional_guarded_file(&path, false))
+	})
 		.await
 		.map_err(|error| error.to_string())??;
 	let mut file = match file {
-		Some((file, _)) => tokio::fs::File::from_std(file),
+		Some(file) => tokio::fs::File::from_std(file),
 		None => return Ok(Vec::new()),
 	};
 	let len = file.metadata().await.map_err(|error| error.to_string())?.len();
@@ -888,17 +741,34 @@ async fn read_bounded_jsonl_tail(path: &Path, limit: u64) -> Result<Vec<u8>, Str
 }
 
 impl JsonlManifestDeletionOutbox {
-	async fn lock_outbox(&self) -> Result<std::fs::File, String> {
-		if let Some(parent) = self.path.parent() {
-			tokio::fs::create_dir_all(parent).await.map_err(|error| error.to_string())?;
-		}
-		let lock_path = suffixed_path(&self.path, ".lock");
-		validate_optional_regular_file(&lock_path, "manifest deletion outbox lock")?;
+	fn installed_root_capability(&self) -> Result<fs::File, String> {
+		self.root_capability
+			.lock()
+			.map_err(|_| "manifest deletion outbox root capability lock was poisoned")?
+			.as_ref()
+			.ok_or_else(|| "manifest deletion outbox root capability is unavailable".to_string())?
+			.try_clone()
+			.map_err(|error| error.to_string())
+	}
+
+	async fn lock_outbox(&self, directory: &fs::File) -> Result<std::fs::File, String> {
+		let directory = directory.try_clone().map_err(|error| error.to_string())?;
 		tokio::task::spawn_blocking(move || {
-			let lock = open_or_create_lock_no_follow(&lock_path)?;
-			FileExt::lock_exclusive(&lock).map_err(|error| error.to_string())?;
+			let lock = crate::bounded_io::open_or_create_regular_file_at(
+				&directory,
+				MANIFEST_DELETION_OUTBOX_LOCK_FILE.as_ref(),
+			)
+			.map_err(|error| error.to_string())?;
+			FileExt::try_lock_exclusive(&lock)
+				.map_err(|error| format!("manifest deletion outbox lock is already held: {error}"))?;
 			let metadata = lock.metadata().map_err(|error| error.to_string())?;
-			validate_path_identity(&lock_path, file_identity(&metadata)?, metadata.len())?;
+			crate::bounded_io::validate_regular_file_at(
+				&directory,
+				MANIFEST_DELETION_OUTBOX_LOCK_FILE.as_ref(),
+				crate::bounded_io::file_identity(&metadata),
+				metadata.len(),
+			)
+			.map_err(|error| error.to_string())?;
 			Ok(lock)
 		})
 		.await
@@ -906,13 +776,24 @@ impl JsonlManifestDeletionOutbox {
 	}
 
 	/// Append while the caller holds the shared process lock for the complete dedupe decision.
-	async fn append_locked(&self, encoded: &mut Vec<u8>) -> Result<(), String> {
+	async fn append_locked(
+		&self,
+		directory: &fs::File,
+		encoded: &mut Vec<u8>,
+	) -> Result<(), String> {
 		if encoded.len() as u64 > MAX_JSONL_RECORD_BYTES {
 			return Err("outbox record exceeds the bounded line limit".into());
 		}
 		encoded.push(b'\n');
-		let path = self.path.clone();
-		let file = tokio::task::spawn_blocking(move || open_append_no_follow(&path))
+		let directory = directory.try_clone().map_err(|error| error.to_string())?;
+		let sync_directory = directory.try_clone().map_err(|error| error.to_string())?;
+		let file = tokio::task::spawn_blocking(move || {
+			crate::bounded_io::open_append_regular_file_at(
+				&directory,
+				MANIFEST_DELETION_OUTBOX_FILE.as_ref(),
+			)
+			.map_err(|error| error.to_string())
+		})
 			.await
 			.map_err(|error| error.to_string())??;
 		let mut file = tokio::fs::File::from_std(file);
@@ -922,32 +803,28 @@ impl JsonlManifestDeletionOutbox {
 		if self.fail_next_directory_sync.swap(false, std::sync::atomic::Ordering::SeqCst) {
 			return Err("injected parent directory sync failure".into());
 		}
-		sync_parent_directory(&self.path).await
+		tokio::task::spawn_blocking(move || {
+			crate::bounded_io::sync_directory(&sync_directory).map_err(|error| error.to_string())
+		})
+		.await
+		.map_err(|error| error.to_string())?
 	}
 }
 
+#[cfg(test)]
 fn suffixed_path(path: &Path, suffix: &str) -> PathBuf {
 	let mut value = path.as_os_str().to_os_string();
 	value.push(suffix);
 	PathBuf::from(value)
 }
 
-async fn sync_parent_directory(path: &Path) -> Result<(), String> {
-	let parent = path
-		.parent()
-		.filter(|parent| !parent.as_os_str().is_empty())
-		.unwrap_or(Path::new("."));
-	let directory = tokio::fs::File::open(parent).await.map_err(|error| error.to_string())?;
-	directory.sync_all().await.map_err(|error| error.to_string())
-}
-
-async fn repair_incomplete_jsonl_tail(path: &Path) -> Result<(), String> {
-	let path = path.to_path_buf();
+async fn repair_incomplete_jsonl_tail(directory: &fs::File) -> Result<(), String> {
+	let directory = directory.try_clone().map_err(|error| error.to_string())?;
 	tokio::task::spawn_blocking(move || {
 		let (guard, digest, tail_start, expected_tail, truncate_to) =
-			prepare_jsonl_source_guard(&path)?;
+			prepare_jsonl_source_guard_at(&directory)?;
 		apply_prepared_jsonl_guard(
-			&path,
+			&directory,
 			&guard,
 			digest,
 			tail_start,
@@ -1228,7 +1105,43 @@ mod tests {
 
 	fn qualify(outbox: &JsonlManifestDeletionOutbox) {
 		let root = outbox.path.parent().unwrap();
-		outbox.prepare_startup(root).unwrap().arm().unwrap().apply().unwrap();
+		let locked = lock_test_root(root);
+		outbox
+			.prepare_startup(root, Some(locked.file()))
+			.unwrap()
+			.arm(&locked)
+			.unwrap()
+			.apply()
+			.unwrap();
+	}
+
+	fn lock_test_root(root: &Path) -> crate::bounded_io::LockedDirectory {
+		crate::bounded_io::prepare_directory_path(root)
+			.unwrap()
+			.lock_existing()
+			.unwrap()
+	}
+
+	fn direct_test_plan(
+		root: &crate::bounded_io::LockedDirectory,
+		qualified: Arc<AtomicBool>,
+	) -> ManifestDeletionStartupPlan {
+		prepare_jsonl_manifest_deletion_outbox(
+			Some(root.file()),
+			qualified,
+			Arc::new(std::sync::Mutex::new(None)),
+		)
+		.unwrap()
+	}
+
+	fn direct_test_plan_result(
+		root: &crate::bounded_io::LockedDirectory,
+	) -> Result<ManifestDeletionStartupPlan, String> {
+		prepare_jsonl_manifest_deletion_outbox(
+			Some(root.file()),
+			Arc::new(AtomicBool::new(false)),
+			Arc::new(std::sync::Mutex::new(None)),
+		)
 	}
 
 	#[test]
@@ -1241,10 +1154,11 @@ mod tests {
 		fs::write(&path, &original).unwrap();
 
 		let qualified = Arc::new(AtomicBool::new(false));
-		let plan = prepare_jsonl_manifest_deletion_outbox(&path, Arc::clone(&qualified)).unwrap();
+		let locked = lock_test_root(temp.path());
+		let plan = direct_test_plan(&locked, Arc::clone(&qualified));
 
 		assert_eq!(fs::read(&path).unwrap(), original);
-		let armed = plan.arm().unwrap();
+		let armed = plan.arm(&locked).unwrap();
 		assert_eq!(fs::read(&path).unwrap(), original);
 		armed.apply().unwrap();
 		assert_eq!(fs::read(path).unwrap(), durable);
@@ -1261,17 +1175,14 @@ mod tests {
 		fs::write(&target, b"durable\n").unwrap();
 		let link = temp.path().join("provider-submissions-v3.jsonl");
 		symlink(&target, &link).unwrap();
-		assert!(prepare_jsonl_manifest_deletion_outbox(&link, Arc::new(AtomicBool::new(false)),)
-			.is_err());
+		let locked = lock_test_root(temp.path());
+		assert!(direct_test_plan_result(&locked).is_err());
 		assert_eq!(fs::read(target).unwrap(), b"durable\n");
 
-		let directory = temp.path().join("nonregular");
-		fs::create_dir(&directory).unwrap();
-		assert!(prepare_jsonl_manifest_deletion_outbox(
-			&directory,
-			Arc::new(AtomicBool::new(false)),
-		)
-		.is_err());
+		let nonregular = tempfile::tempdir().unwrap();
+		fs::create_dir(nonregular.path().join(MANIFEST_DELETION_OUTBOX_FILE)).unwrap();
+		let locked = lock_test_root(nonregular.path());
+		assert!(direct_test_plan_result(&locked).is_err());
 	}
 
 	#[tokio::test]
@@ -1297,7 +1208,12 @@ mod tests {
 		let temp = tempfile::tempdir().unwrap();
 		let outbox = JsonlManifestDeletionOutbox::for_provider_root(temp.path());
 		let lock_path = suffixed_path(&outbox.path, ".lock");
-		let armed = outbox.prepare_startup(temp.path()).unwrap().arm().unwrap();
+		let locked = lock_test_root(temp.path());
+		let armed = outbox
+			.prepare_startup(temp.path(), Some(locked.file()))
+			.unwrap()
+			.arm(&locked)
+			.unwrap();
 		let contender = fs::OpenOptions::new().read(true).write(true).open(&lock_path).unwrap();
 
 		assert!(FileExt::try_lock_exclusive(&contender).is_err());
@@ -1310,11 +1226,18 @@ mod tests {
 	fn held_jsonl_startup_lock_fails_without_waiting() {
 		let temp = tempfile::tempdir().unwrap();
 		let outbox = JsonlManifestDeletionOutbox::for_provider_root(temp.path());
-		let held = outbox.prepare_startup(temp.path()).unwrap().arm().unwrap();
-		let contender = outbox.prepare_startup(temp.path()).unwrap();
+		let locked = lock_test_root(temp.path());
+		let held = outbox
+			.prepare_startup(temp.path(), Some(locked.file()))
+			.unwrap()
+			.arm(&locked)
+			.unwrap();
+		let contender = outbox.prepare_startup(temp.path(), Some(locked.file())).unwrap();
+		let contender_root = locked.file().try_clone().unwrap();
 		let (sender, receiver) = std::sync::mpsc::channel();
 		let thread = std::thread::spawn(move || {
-			let result = contender.arm().map(|armed| armed.rollback()).and_then(|result| result);
+			let result = acquire_prepared_outbox_lock(&contender_root, &contender.jsonl.unwrap().lock)
+				.map(|lock| lock.rollback_created());
 			sender.send(result).unwrap();
 		});
 
@@ -1332,6 +1255,76 @@ mod tests {
 	}
 
 	#[test]
+	fn three_missing_lock_contenders_never_unlink_the_winner() {
+		let temp = tempfile::tempdir().unwrap();
+		let locked = lock_test_root(temp.path());
+		let barrier = Arc::new(std::sync::Barrier::new(3));
+		let mut threads = Vec::new();
+		for _ in 0..3 {
+			let directory = locked.file().try_clone().unwrap();
+			let barrier = Arc::clone(&barrier);
+			threads.push(std::thread::spawn(move || {
+				barrier.wait();
+				acquire_prepared_outbox_lock(&directory, &PreparedFileGuard::Missing)
+			}));
+		}
+		let mut winners = Vec::new();
+		for thread in threads {
+			if let Ok(lock) = thread.join().unwrap() {
+				winners.push(lock);
+			}
+		}
+		assert_eq!(winners.len(), 1);
+		assert!(crate::bounded_io::regular_file_exists_at(
+			locked.file(),
+			MANIFEST_DELETION_OUTBOX_LOCK_FILE.as_ref(),
+		)
+		.unwrap());
+		assert!(!crate::bounded_io::list_directory(locked.file())
+			.unwrap()
+			.iter()
+			.any(|entry| entry.name.to_string_lossy().starts_with(".provider-lock.create-")));
+		winners.pop().unwrap().rollback_created().unwrap();
+	}
+
+	#[cfg(unix)]
+	#[tokio::test]
+	async fn root_path_substitution_never_redirects_startup_or_live_outbox_io() {
+		use std::os::unix::fs::symlink;
+
+		for stage in ["before-arm", "before-apply", "after-qualification"] {
+			let parent = tempfile::tempdir().unwrap();
+			let root = parent.path().join("provider");
+			fs::create_dir(&root).unwrap();
+			let moved = parent.path().join("provider-moved");
+			let external = tempfile::tempdir().unwrap();
+			let outbox = JsonlManifestDeletionOutbox::for_provider_root(&root);
+			let locked = lock_test_root(&root);
+			let mut plan = Some(outbox.prepare_startup(&root, Some(locked.file())).unwrap());
+			let mut armed = None;
+			if stage != "before-arm" {
+				armed = Some(plan.take().unwrap().arm(&locked).unwrap());
+			}
+			if stage == "after-qualification" {
+				armed.take().unwrap().apply().unwrap();
+			}
+			fs::rename(&root, &moved).unwrap();
+			symlink(external.path(), &root).unwrap();
+			if stage == "before-arm" {
+				plan.take().unwrap().arm(&locked).unwrap().apply().unwrap();
+			} else if stage == "before-apply" {
+				armed.take().unwrap().apply().unwrap();
+			}
+			if stage == "after-qualification" {
+				outbox.submit_manifest_deletion(manifest_deletion("81")).await.unwrap();
+				assert!(fs::read(moved.join(MANIFEST_DELETION_OUTBOX_FILE)).unwrap().ends_with(b"\n"));
+			}
+			assert_eq!(fs::read_dir(external.path()).unwrap().count(), 0, "{stage}");
+			assert!(moved.join(MANIFEST_DELETION_OUTBOX_LOCK_FILE).is_file());
+		}
+	}
+
+	#[test]
 	fn jsonl_startup_rejects_same_inode_prefix_mutation_outside_unchanged_tail() {
 		for mutate_after_arm in [false, true] {
 			let temp = tempfile::tempdir().unwrap();
@@ -1342,10 +1335,10 @@ mod tests {
 			let expected_tail = bytes[tail_start..].to_vec();
 			fs::write(&path, &bytes).unwrap();
 			let qualified = Arc::new(AtomicBool::new(false));
-			let plan =
-				prepare_jsonl_manifest_deletion_outbox(&path, Arc::clone(&qualified)).unwrap();
+			let locked = lock_test_root(temp.path());
+			let plan = direct_test_plan(&locked, Arc::clone(&qualified));
 			let mut plan = Some(plan);
-			let armed = mutate_after_arm.then(|| plan.take().unwrap().arm().unwrap());
+			let armed = mutate_after_arm.then(|| plan.take().unwrap().arm(&locked).unwrap());
 			let mut source = fs::OpenOptions::new().write(true).open(&path).unwrap();
 			source.seek(SeekFrom::Start(0)).unwrap();
 			source.write_all(b"z").unwrap();
@@ -1357,7 +1350,7 @@ mod tests {
 				None => plan
 					.take()
 					.unwrap()
-					.arm()
+					.arm(&locked)
 					.and_then(ArmedManifestDeletionStartupPlan::apply),
 			};
 			assert!(result.is_err(), "mutate_after_arm={mutate_after_arm}");
@@ -1371,50 +1364,28 @@ mod tests {
 
 	#[cfg(unix)]
 	#[test]
-	fn jsonl_arm_accepts_a_materialized_root_but_rejects_a_symlink_substitution() {
-		use std::os::unix::fs::symlink;
-
-		let temp = tempfile::tempdir().unwrap();
-		let root = temp.path().join("provider");
-		let outbox = JsonlManifestDeletionOutbox::for_provider_root(&root);
-		let plan = outbox.prepare_startup(&root).unwrap();
-		fs::create_dir(&root).unwrap();
-		plan.arm().unwrap().rollback().unwrap();
-
-		fs::remove_dir(&root).unwrap();
-		let target = temp.path().join("target");
-		fs::create_dir(&target).unwrap();
-		let plan = outbox.prepare_startup(&root).unwrap();
-		symlink(&target, &root).unwrap();
-		assert!(plan.arm().is_err());
-		assert!(!target.join("provider-submissions-v3.jsonl.lock").exists());
-	}
-
-	#[cfg(unix)]
-	#[test]
 	fn jsonl_startup_accepts_only_the_fixed_direct_child_of_the_validated_root() {
 		use std::os::unix::fs::symlink;
 
 		let root = tempfile::tempdir().unwrap();
 		let outside = tempfile::tempdir().unwrap();
 		let safe = JsonlManifestDeletionOutbox::for_provider_root(root.path());
-		assert!(safe.prepare_startup(root.path()).is_ok());
+		assert!(safe.prepare_startup(root.path(), None).is_ok());
 
 		for path in [
 			outside.path().join(MANIFEST_DELETION_OUTBOX_FILE),
 			root.path().join("nested").join(MANIFEST_DELETION_OUTBOX_FILE),
 			root.path().join("other.jsonl"),
 		] {
-			assert!(JsonlManifestDeletionOutbox::new(path).prepare_startup(root.path()).is_err());
+			assert!(JsonlManifestDeletionOutbox::new(path)
+				.prepare_startup(root.path(), None)
+				.is_err());
 		}
 
 		let alias = outside.path().join("provider-alias");
 		symlink(root.path(), &alias).unwrap();
 		assert!(JsonlManifestDeletionOutbox::new(alias.join(MANIFEST_DELETION_OUTBOX_FILE))
-			.prepare_startup(root.path())
-			.is_err());
-		assert!(JsonlManifestDeletionOutbox::for_provider_root(&alias)
-			.prepare_startup(&alias)
+			.prepare_startup(root.path(), None)
 			.is_err());
 	}
 
@@ -1432,14 +1403,14 @@ mod tests {
 				fs::write(&path, initial).unwrap();
 			}
 			let qualified = Arc::new(AtomicBool::new(false));
-			let plan =
-				prepare_jsonl_manifest_deletion_outbox(&path, Arc::clone(&qualified)).unwrap();
+			let locked = lock_test_root(temp.path());
+			let plan = direct_test_plan(&locked, Arc::clone(&qualified));
 			if path.exists() {
 				fs::remove_file(&path).unwrap();
 			}
 			fs::write(&path, replacement).unwrap();
 
-			assert!(plan.arm().is_err(), "{name}");
+			assert!(plan.arm(&locked).is_err(), "{name}");
 			assert_eq!(fs::read(&path).unwrap(), replacement, "{name}");
 			assert!(!suffixed_path(&path, ".lock").exists(), "{name}");
 			assert!(!qualified.load(Ordering::Acquire), "{name}");
@@ -1460,8 +1431,8 @@ mod tests {
 				fs::write(&lock, b"").unwrap();
 			}
 			let qualified = Arc::new(AtomicBool::new(false));
-			let plan =
-				prepare_jsonl_manifest_deletion_outbox(&path, Arc::clone(&qualified)).unwrap();
+			let locked = lock_test_root(temp.path());
+			let plan = direct_test_plan(&locked, Arc::clone(&qualified));
 			let swapped = if swap_lock { &lock } else { &path };
 			let target = temp.path().join(if swap_lock { "lock-target" } else { "source-target" });
 			let target_bytes = if swap_lock { b"".as_slice() } else { b"external-safe".as_slice() };
@@ -1469,7 +1440,7 @@ mod tests {
 			fs::remove_file(swapped).unwrap();
 			symlink(&target, swapped).unwrap();
 
-			assert!(plan.arm().is_err());
+			assert!(plan.arm(&locked).is_err());
 			assert_eq!(fs::read(&target).unwrap(), target_bytes);
 			if !swap_lock {
 				assert!(!lock.exists());

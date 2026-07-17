@@ -380,6 +380,150 @@ pub(crate) fn open_regular_file_at(
 	.map_err(|_| ContentError::IntegrityFailed)
 }
 
+pub(crate) fn open_optional_regular_file_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+	write: bool,
+) -> Result<Option<File>, ContentError> {
+	let flags = if write { OFlags::RDWR } else { OFlags::RDONLY };
+	let fd = match unix_fs::openat(
+		directory,
+		name,
+		flags | OFlags::NONBLOCK | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+		Mode::empty(),
+	) {
+		Ok(fd) => fd,
+		Err(UnixErrno::NOENT) => return Ok(None),
+		Err(_) => return Err(ContentError::IntegrityFailed),
+	};
+	let file = File::from(fd);
+	let metadata = file.metadata().map_err(io_error)?;
+	if !metadata.is_file() {
+		return Err(ContentError::IntegrityFailed)
+	}
+	validate_regular_file_at(directory, name, file_identity(&metadata), metadata.len())?;
+	Ok(Some(file))
+}
+
+pub(crate) fn create_new_regular_file_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+) -> Result<File, ContentError> {
+	let fd = unix_fs::openat(
+		directory,
+		name,
+		OFlags::RDWR | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+		Mode::RUSR | Mode::WUSR,
+	)
+	.map_err(io_error)?;
+	let file = File::from(fd);
+	let metadata = file.metadata().map_err(io_error)?;
+	validate_regular_file_at(directory, name, file_identity(&metadata), metadata.len())?;
+	Ok(file)
+}
+
+pub(crate) fn create_and_lock_regular_file_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+) -> Result<File, ContentError> {
+	for _ in 0..16 {
+		let mut random = [0u8; 16];
+		OsRng.fill_bytes(&mut random);
+		let temporary = OsString::from(format!(".provider-lock.create-{}", hex::encode(random)));
+		let file = match create_new_regular_file_at(directory, &temporary) {
+			Ok(file) => file,
+			Err(_) => continue,
+		};
+		let metadata = file.metadata().map_err(io_error)?;
+		let identity = file_identity(&metadata);
+		if let Err(error) = file.try_lock_exclusive() {
+			let _ = unlink_regular_file_at(directory, &temporary, identity, metadata.len());
+			return Err(io_error(error))
+		}
+		match unix_fs::renameat_with(
+			directory,
+			&temporary,
+			directory,
+			name,
+			RenameFlags::NOREPLACE,
+		) {
+			Ok(()) => {
+				validate_regular_file_at(directory, name, identity, metadata.len())?;
+				unix_fs::fsync(directory).map_err(io_error)?;
+				return Ok(file)
+			},
+			Err(error) => {
+				let _ = unlink_regular_file_at(directory, &temporary, identity, metadata.len());
+				return Err(io_error(error))
+			},
+		}
+	}
+	Err(ContentError::IntegrityFailed)
+}
+
+pub(crate) fn open_or_create_regular_file_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+) -> Result<File, ContentError> {
+	if let Some(file) = open_optional_regular_file_at(directory, name, true)? {
+		return Ok(file)
+	}
+	match create_new_regular_file_at(directory, name) {
+		Ok(file) => Ok(file),
+		Err(_) => open_optional_regular_file_at(directory, name, true)?
+			.ok_or(ContentError::IntegrityFailed),
+	}
+}
+
+pub(crate) fn open_append_regular_file_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+) -> Result<File, ContentError> {
+	let fd = unix_fs::openat(
+		directory,
+		name,
+		OFlags::WRONLY | OFlags::APPEND | OFlags::CREATE | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+		Mode::RUSR | Mode::WUSR,
+	)
+	.map_err(io_error)?;
+	let file = File::from(fd);
+	let metadata = file.metadata().map_err(io_error)?;
+	validate_regular_file_at(directory, name, file_identity(&metadata), metadata.len())?;
+	Ok(file)
+}
+
+pub(crate) fn validate_regular_file_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+	expected_identity: FileIdentity,
+	expected_length: u64,
+) -> Result<(), ContentError> {
+	let stat = unix_fs::statat(directory, name, AtFlags::SYMLINK_NOFOLLOW)
+		.map_err(|_| ContentError::IntegrityFailed)?;
+	if FileType::from_raw_mode(stat.st_mode) != FileType::RegularFile
+		|| file_identity_from_stat(&stat) != expected_identity
+		|| stat.st_size as u64 != expected_length
+	{
+		return Err(ContentError::IntegrityFailed)
+	}
+	Ok(())
+}
+
+pub(crate) fn unlink_regular_file_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+	expected_identity: FileIdentity,
+	expected_length: u64,
+) -> Result<(), ContentError> {
+	validate_regular_file_at(directory, name, expected_identity, expected_length)?;
+	unix_fs::unlinkat(directory, name, AtFlags::empty()).map_err(io_error)?;
+	unix_fs::fsync(directory).map_err(io_error)
+}
+
+pub(crate) fn sync_directory(directory: &File) -> Result<(), ContentError> {
+	unix_fs::fsync(directory).map_err(io_error)
+}
+
 pub(crate) fn open_directory_at(
 	directory: &File,
 	name: &std::ffi::OsStr,

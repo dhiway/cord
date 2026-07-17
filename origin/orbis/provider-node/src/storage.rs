@@ -424,6 +424,13 @@ impl PreparedProviderIndexGuard {
 }
 
 impl PreparedDiskStore {
+	pub(crate) fn prepared_root_directory(&self) -> Option<&crate::bounded_io::LockedDirectory> {
+		match &self.root_guard {
+			PreparedProviderRootGuard::Existing(guard) => Some(&guard.directory),
+			PreparedProviderRootGuard::Missing(_) | PreparedProviderRootGuard::Consumed => None,
+		}
+	}
+
 	pub(crate) fn arm(mut self) -> Result<ArmedDiskStore, StoreError> {
 		let prepared_root = std::mem::replace(
 			&mut self.root_guard,
@@ -548,6 +555,13 @@ impl ArmedDiskStore {
 }
 
 impl DiskStore {
+	pub(crate) fn root_directory(&self) -> Result<&crate::bounded_io::LockedDirectory, StoreError> {
+		self._root_guard
+			.as_ref()
+			.map(|guard| &guard.directory)
+			.ok_or_else(|| StoreError::Io("provider root guard is unavailable".into()))
+	}
+
 	/// Reject non-directory and symlink provider roots before any child startup validation.
 	pub(crate) fn validate_root(root: &Path) -> Result<(), StoreError> {
 		optional_owned_directory_exists(root).map(|_| ())
