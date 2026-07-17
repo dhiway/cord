@@ -19,7 +19,7 @@
 //! Finalized Commons runtime authority binding.
 
 use async_trait::async_trait;
-use codec::{Decode, Encode};
+use codec::{Compact, Decode, Encode};
 use jsonrpsee::{core::client::ClientT, http_client::HttpClient, rpc_params};
 use orbis_storage_runtime_api::{
 	AgreementInfo, AgreementStatus, CheckpointDutyCursor, CheckpointDutyInfo,
@@ -895,12 +895,18 @@ impl ChainAuthority for FinalizedRuntimeAuthority {
 		let params =
 			(self.provider.clone(), requested_cursor.clone(), MAX_CHECKPOINT_DUTY_PAGE_SIZE)
 				.encode();
+		let raw = self
+			.runtime_call_raw("StorageProviderApi_checkpoint_duties", params, &finalized_hash)
+			.await?;
+		validate_encoded_checkpoint_duty_page_count(&raw)?;
+		let mut input = &raw[..];
 		let result: Result<
 			CheckpointDutyPage<CheckpointDutyInfo<AccountId32, H256, u32>, u32>,
 			CheckpointDutyPageError,
-		> = self
-			.runtime_call("StorageProviderApi_checkpoint_duties", params, &finalized_hash)
-			.await?;
+		> = Decode::decode(&mut input).map_err(|error| ChainError::Decode(error.to_string()))?;
+		if !input.is_empty() {
+			return Err(ChainError::Decode("runtime API response contains trailing bytes".into()));
+		}
 		let page = result.map_err(|error| {
 			ChainError::DutyProtocol(format!("runtime rejected checkpoint duty page: {error:?}"))
 		})?;
@@ -1068,6 +1074,28 @@ impl ChainAuthority for FinalizedRuntimeAuthority {
 			next_cursor,
 			duties,
 		})
+	}
+}
+
+fn validate_encoded_checkpoint_duty_page_count(raw: &[u8]) -> Result<(), ChainError> {
+	let mut input = raw;
+	match u8::decode(&mut input).map_err(|error| ChainError::Decode(error.to_string()))? {
+		0 => {
+			let _version =
+				u16::decode(&mut input).map_err(|error| ChainError::Decode(error.to_string()))?;
+			let Compact(items) = Compact::<u32>::decode(&mut input)
+				.map_err(|error| ChainError::Decode(error.to_string()))?;
+			if items > MAX_CHECKPOINT_DUTY_PAGE_SIZE {
+				return Err(ChainError::DutyProtocol(
+					"checkpoint duty page exceeds the runtime bound".into(),
+				));
+			}
+			Ok(())
+		},
+		1 => Ok(()),
+		_ => Err(ChainError::Decode(
+			"runtime API checkpoint duty response has an invalid result variant".into(),
+		)),
 	}
 }
 
@@ -1744,6 +1772,24 @@ mod tests {
 	const FINALIZED_HASH: &str =
 		"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 	const GENESIS_HASH: &str = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+	#[test]
+	fn encoded_checkpoint_duty_page_count_is_checked_before_item_decode() {
+		for (count, accepted) in [
+			(MAX_CHECKPOINT_DUTY_PAGE_SIZE, true),
+			(MAX_CHECKPOINT_DUTY_PAGE_SIZE + 1, false),
+		] {
+			let response: Result<CheckpointDutyPage<(), u32>, CheckpointDutyPageError> =
+				Ok(CheckpointDutyPage {
+					version: RESPONSE_VERSION,
+					items: vec![(); count as usize],
+					next_cursor: None,
+					snapshot_checkpoint: 10,
+				});
+			let result = validate_encoded_checkpoint_duty_page_count(&response.encode());
+			assert_eq!(result.is_ok(), accepted, "count {count}");
+		}
+	}
 
 	#[test]
 	fn manifest_deletion_duty_validation_is_exactly_provider_scoped() {

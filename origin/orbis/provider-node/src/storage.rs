@@ -37,7 +37,9 @@ use std::{
 };
 
 use codec::{Decode, Encode};
-use orbis_storage_runtime_api::{CheckpointDutyInfo, DeletionDutyInfo};
+use orbis_storage_runtime_api::{
+	CheckpointDutyInfo, DeletionDutyInfo, MAX_CHECKPOINT_DUTY_PAGE_SIZE,
+};
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::AccountId32, H256};
 
@@ -650,6 +652,15 @@ impl DiskStore {
 	) -> Result<bool, StoreError> {
 		let mut state = self.write_state()?;
 		validate_checkpoint_duty_page(&batch, &state.profile)?;
+		let accumulated_duties = state
+			.checkpoint_duty_intake
+			.as_ref()
+			.map_or(0, |intake| intake.duties.len())
+			.checked_add(batch.duties.len())
+			.ok_or(StoreError::Capacity)?;
+		if accumulated_duties > MAX_PROVIDER_INDEX_RECORDS {
+			return Err(StoreError::Capacity);
+		}
 		if let Some(previous) = &state.checkpoint_duty_watermark {
 			if batch.snapshot_checkpoint < previous.snapshot_checkpoint
 				|| batch.finalized_number < previous.finalized_number
@@ -1373,7 +1384,9 @@ fn validate_checkpoint_duty_page(
 	batch: &CheckpointDutyBatch,
 	profile: &NodeProfile,
 ) -> Result<(), StoreError> {
-	normalize_hash(&batch.finalized_hash)?;
+	if batch.duties.len() > MAX_CHECKPOINT_DUTY_PAGE_SIZE as usize {
+		return Err(StoreError::Invalid("checkpoint duty page exceeds the runtime bound".into()));
+	}
 	if let Some(cursor) = &batch.requested_cursor {
 		if cursor.snapshot_checkpoint != batch.snapshot_checkpoint {
 			return Err(StoreError::Invalid(
@@ -1400,17 +1413,34 @@ fn validate_checkpoint_duty_page(
 			return Err(StoreError::Invalid("checkpoint duty page advanced an empty cursor".into()))
 		},
 	}
+	validate_checkpoint_duty_collection(
+		&batch.finalized_hash,
+		&batch.provider,
+		batch.snapshot_checkpoint,
+		&batch.duties,
+		profile,
+	)
+}
+
+fn validate_checkpoint_duty_collection(
+	finalized_hash: &str,
+	provider: &str,
+	snapshot_checkpoint: u32,
+	duties: &[CheckpointDuty],
+	profile: &NodeProfile,
+) -> Result<(), StoreError> {
+	normalize_hash(finalized_hash)?;
 	let expected_provider = normalize_hash(&profile.provider)?;
 	let expected_key = normalize_hash(&profile.service_key)?;
-	if normalize_hash(&batch.provider)? != expected_provider {
+	if normalize_hash(provider)? != expected_provider {
 		return Err(StoreError::Invalid("checkpoint duty page belongs to another provider".into()));
 	}
 	let mut previous_bucket = None;
 	let mut ids = BTreeMap::new();
-	for duty in &batch.duties {
+	for duty in duties {
 		let duty_id = normalize_hash(&duty.duty_id)?;
 		let bucket = normalize_hash(&duty.bucket_id)?;
-		if duty.snapshot_checkpoint != batch.snapshot_checkpoint {
+		if duty.snapshot_checkpoint != snapshot_checkpoint {
 			return Err(StoreError::Invalid(
 				"checkpoint duty does not belong to the installed snapshot".into(),
 			));
@@ -1454,7 +1484,7 @@ fn validate_checkpoint_duty_page(
 			decoded,
 			&provider,
 			service_key,
-			batch.snapshot_checkpoint,
+			snapshot_checkpoint,
 		)
 		.map_err(|error| StoreError::Invalid(error.to_string()))?;
 		if &projected != duty {
@@ -1643,6 +1673,27 @@ fn checkpoint_duty_order_key(duty: &CheckpointDuty) -> Result<String, StoreError
 }
 
 fn verify_checkpoint_duty_state(state: &PersistedState) -> Result<(), StoreError> {
+	if let Some(intake) = &state.checkpoint_duty_intake {
+		validate_checkpoint_duty_collection(
+			&intake.finalized_hash,
+			&intake.provider,
+			intake.snapshot_checkpoint,
+			&intake.duties,
+			&state.profile,
+		)
+		.map_err(|_| StoreError::Io("checkpoint duty intake is invalid".into()))?;
+		let tail = intake
+			.duties
+			.last()
+			.ok_or_else(|| StoreError::Io("checkpoint duty intake has no page tail".into()))?;
+		if intake.next_cursor.snapshot_checkpoint != intake.snapshot_checkpoint
+			|| normalize_hash(&intake.next_cursor.last_key)? != normalize_hash(&tail.bucket_id)?
+		{
+			return Err(StoreError::Io(
+				"checkpoint duty intake cursor does not match its tail".into(),
+			));
+		}
+	}
 	match (&state.checkpoint_duty_watermark, &state.checkpoint_duty_inventory) {
 		(None, None) => {},
 		(Some(watermark), Some(inventory)) => {
@@ -1664,16 +1715,11 @@ fn verify_checkpoint_duty_state(state: &PersistedState) -> Result<(), StoreError
 					"checkpoint duty inventory tail does not match its watermark".into(),
 				));
 			}
-			validate_checkpoint_duty_page(
-				&CheckpointDutyBatch {
-					finalized_hash: inventory.finalized_hash.clone(),
-					finalized_number: inventory.finalized_number,
-					provider: state.profile.provider.clone(),
-					snapshot_checkpoint: inventory.snapshot_checkpoint,
-					requested_cursor: None,
-					next_cursor: None,
-					duties: inventory.duties.clone(),
-				},
+			validate_checkpoint_duty_collection(
+				&inventory.finalized_hash,
+				&state.profile.provider,
+				inventory.snapshot_checkpoint,
+				&inventory.duties,
 				&state.profile,
 			)
 			.map_err(|_| StoreError::Io("checkpoint duty inventory is invalid".into()))?;
@@ -1736,6 +1782,14 @@ fn validate_persisted_state_bounds(state: &PersistedState) -> Result<(), StoreEr
 		state.pending_roots.len() > MAX_PROVIDER_INDEX_LEAVES ||
 		state.pending_deletions.len() > MAX_PROVIDER_INDEX_RECORDS ||
 		state.pending_checkpoint_duties.len() > MAX_PROVIDER_INDEX_RECORDS ||
+		state
+			.checkpoint_duty_intake
+			.as_ref()
+			.is_some_and(|intake| intake.duties.len() > MAX_PROVIDER_INDEX_RECORDS) ||
+		state
+			.checkpoint_duty_inventory
+			.as_ref()
+			.is_some_and(|inventory| inventory.duties.len() > MAX_PROVIDER_INDEX_RECORDS) ||
 		state.pending_manifest_deletions.len() > MAX_PROVIDER_INDEX_RECORDS
 	{
 		return Err(StoreError::Capacity);
@@ -1932,6 +1986,12 @@ mod tests {
 			next_cursor,
 			duties,
 		}
+	}
+
+	fn checkpoint_duties(count: usize, snapshot: u32) -> Vec<CheckpointDuty> {
+		(0..count)
+			.map(|index| duty(index as u8, index as u8, snapshot))
+			.collect()
 	}
 
 	fn deletion_duty(manifest: u8, snapshot: u32) -> DeletionDuty {
@@ -2142,6 +2202,90 @@ mod tests {
 			hex::encode(deletion_leaf(&record, &"07".repeat(32)).unwrap()),
 			"0ff8e8e8049774a562cf153e0361c2efa34a0f3c888ca4f9e4efaa7f510e11f4",
 		);
+	}
+
+	#[test]
+	fn checkpoint_duty_page_accepts_128_and_rejects_129_without_state_change() {
+		let accepted = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(accepted.path(), profile(), 1024).unwrap();
+		let duties = checkpoint_duties(MAX_CHECKPOINT_DUTY_PAGE_SIZE as usize, 40);
+		assert!(store.stage_checkpoint_duty_page(page(40, None, None, duties)).unwrap());
+		assert_eq!(
+			store.checkpoint_duty_inventory().unwrap().unwrap().duties.len(),
+			MAX_CHECKPOINT_DUTY_PAGE_SIZE as usize,
+		);
+		drop(store);
+		assert!(DiskStore::open(accepted.path(), profile(), 1024).is_ok());
+
+		let rejected = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(rejected.path(), profile(), 1024).unwrap();
+		let index_before = fs::read(rejected.path().join(INDEX_FILE)).unwrap();
+		let oversized = checkpoint_duties(MAX_CHECKPOINT_DUTY_PAGE_SIZE as usize + 1, 40);
+		assert!(matches!(
+			store.stage_checkpoint_duty_page(page(40, None, None, oversized)),
+			Err(StoreError::Invalid(_)),
+		));
+		assert!(store.checkpoint_duty_watermark().unwrap().is_none());
+		assert!(store.checkpoint_duty_inventory().unwrap().is_none());
+		assert!(store.pending_checkpoint_duties().unwrap().is_empty());
+		assert_eq!(fs::read(rejected.path().join(INDEX_FILE)).unwrap(), index_before);
+	}
+
+	#[test]
+	fn oversized_persisted_checkpoint_intake_and_inventory_fail_on_reopen() {
+		for intake in [true, false] {
+			let temp = tempfile::tempdir().unwrap();
+			let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+			let mut state = store.read_state().unwrap().clone();
+			drop(store);
+			let duties = vec![duty(1, 1, 70); MAX_PROVIDER_INDEX_RECORDS + 1];
+			if intake {
+				state.checkpoint_duty_intake = Some(CheckpointDutyIntake {
+					finalized_hash: format!("0x{}", "10".repeat(32)),
+					finalized_number: 71,
+					provider: format!("0x{}", "01".repeat(32)),
+					snapshot_checkpoint: 70,
+					next_cursor: cursor(70, 1),
+					duties,
+				});
+			} else {
+				state.checkpoint_duty_inventory = Some(CheckpointDutyInventory {
+					finalized_hash: format!("0x{}", "10".repeat(32)),
+					finalized_number: 71,
+					snapshot_checkpoint: 70,
+					duties,
+				});
+			}
+			let encoded = serde_json::to_vec(&state).unwrap();
+			assert!(encoded.len() as u64 <= MAX_PROVIDER_INDEX_BYTES);
+			fs::write(temp.path().join(INDEX_FILE), encoded).unwrap();
+			assert!(matches!(
+				DiskStore::open(temp.path(), profile(), 1024),
+				Err(StoreError::Capacity),
+			), "intake {intake}");
+		}
+	}
+
+	#[test]
+	fn duplicated_persisted_checkpoint_intake_fails_on_reopen() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		assert!(!store
+			.stage_checkpoint_duty_page(page(
+				70,
+				None,
+				Some(cursor(70, 1)),
+				vec![duty(1, 1, 70)],
+			))
+			.unwrap());
+		drop(store);
+		let bytes = fs::read(temp.path().join(INDEX_FILE)).unwrap();
+		let mut state: PersistedState = serde_json::from_slice(&bytes).unwrap();
+		let intake = state.checkpoint_duty_intake.as_mut().unwrap();
+		let duplicate = intake.duties[0].clone();
+		intake.duties.push(duplicate);
+		fs::write(temp.path().join(INDEX_FILE), serde_json::to_vec(&state).unwrap()).unwrap();
+		assert!(DiskStore::open(temp.path(), profile(), 1024).is_err());
 	}
 
 	#[test]
