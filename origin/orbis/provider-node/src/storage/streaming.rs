@@ -176,6 +176,20 @@ pub enum StreamingFault {
 	AfterRecoveryGcCommit,
 	/// Private query response is complete in memory but its cloned journal is not yet durable.
 	BeforePrivateQueryCommit,
+	/// Private query recovery entry is durable but its response has not been delivered.
+	AfterPrivateQueryCommit,
+	/// Private query acknowledgement is validated but not durable.
+	BeforePrivateQueryAckCommit,
+	/// Private query acknowledgement is durable but its reply has not been delivered.
+	AfterPrivateQueryAckCommit,
+	/// Private query cancellation is validated but not durable.
+	BeforePrivateQueryCancelCommit,
+	/// Private query cancellation is durable but its terminal response has not been delivered.
+	AfterPrivateQueryCancelCommit,
+	/// Expired private query records are selected but the bounded GC transition is absent.
+	BeforePrivateQueryGcCommit,
+	/// Bounded private query GC is durable but response-blob removal is incomplete.
+	AfterPrivateQueryGcCommit,
 	/// A manifest tombstone is durable but its object bytes may still be present.
 	AfterTombstoneJournal,
 	/// Tombstoned object bytes are absent but completion was not delivered.

@@ -43,7 +43,7 @@ use crate::{
 
 const METHOD: u16 = 1010;
 const RESUME_DOMAIN: &[u8] = b"cord.provider.resume.v1";
-const RECOVERY_TTL: u64 = 256;
+pub(super) const RECOVERY_TTL: u64 = 256;
 const MAX_REQUEST_BYTES: usize = 4096;
 const MAX_RESUME_TOKEN_BYTES: usize = 4096;
 const MAX_RECOVERY_ENTRY_BYTES: usize = 4 * 1024 * 1024 + 8192;
@@ -302,7 +302,7 @@ impl ResumeTokenV1 {
 		}
 		map(entries)
 	}
-	fn signed(mut self, signer: &dyn RecoverySigner) -> Self {
+	pub(super) fn signed(mut self, signer: &dyn RecoverySigner) -> Self {
 		self.signature = signer.sign(&self.signed_bytes());
 		self
 	}
