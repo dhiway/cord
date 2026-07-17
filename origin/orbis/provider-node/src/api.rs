@@ -102,6 +102,7 @@ impl<A: ChainAuthority> ProviderService<A> {
 		outbox: Arc<dyn ManifestDeletionSubmitter>,
 	) -> Result<Self, ProviderOpenError> {
 		let root = root.as_ref();
+		DiskStore::validate_root(root)?;
 		let outbox_startup = outbox.prepare_startup().map_err(ProviderOpenError::Outbox)?;
 		let store = DiskStore::prepare_open(root, profile, capacity_bytes)?;
 		let checkpoint_stack = CheckpointStack::prepare_open(root)?;
@@ -658,7 +659,10 @@ fn now_ms() -> u64 {
 
 #[cfg(test)]
 mod lifecycle_tests {
-	use std::fs;
+	use std::{
+		fs,
+		sync::atomic::{AtomicUsize, Ordering},
+	};
 
 	use async_trait::async_trait;
 	use sp_core::Pair as _;
@@ -678,6 +682,59 @@ mod lifecycle_tests {
 
 	struct Authority(ReplicationTopologySnapshot);
 	struct RouteAuthority;
+	struct StartupProbe {
+		prepares: AtomicUsize,
+	}
+
+	#[async_trait]
+	impl ManifestDeletionSubmitter for StartupProbe {
+		fn prepare_startup(&self) -> Result<crate::ManifestDeletionStartupPlan, String> {
+			self.prepares.fetch_add(1, Ordering::SeqCst);
+			Ok(crate::ManifestDeletionStartupPlan::default())
+		}
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn provider_service_rejects_symlink_root_before_any_child_prepare() {
+		use std::os::unix::fs::symlink;
+
+		let temp = tempfile::tempdir().unwrap();
+		let external = tempfile::tempdir().unwrap();
+		let marker = external.path().join("external-marker");
+		let marker_bytes = b"external-provider-tree";
+		fs::write(&marker, marker_bytes).unwrap();
+		let live = temp.path().join("live-root");
+		symlink(external.path(), &live).unwrap();
+		let missing = temp.path().join("missing-root");
+		let dangling = temp.path().join("dangling-root");
+		symlink(&missing, &dangling).unwrap();
+		let profile = || NodeProfile {
+			provider: hex::encode([0x23; 32]),
+			endpoint: "http://127.0.0.1:8080".into(),
+			service_key: hex::encode(ed25519::Pair::from_seed(&[0x33; 32]).public().0),
+			region: None,
+		};
+
+		for root in [&live, &dangling] {
+			let outbox = Arc::new(StartupProbe { prepares: AtomicUsize::new(0) });
+			assert!(matches!(
+				ProviderService::open(
+					root,
+					profile(),
+					1024,
+					Arc::new(RouteAuthority),
+					ed25519::Pair::from_seed(&[0x33; 32]),
+					outbox.clone(),
+				),
+				Err(ProviderOpenError::Store(_))
+			));
+			assert_eq!(outbox.prepares.load(Ordering::SeqCst), 0);
+		}
+		assert_eq!(fs::read(marker).unwrap(), marker_bytes);
+		assert_eq!(fs::read_dir(external.path()).unwrap().count(), 1);
+		assert!(!missing.exists());
+	}
 
 	#[test]
 	fn production_open_preserves_all_prepared_cleanup_when_a_late_kernel_rejects() {

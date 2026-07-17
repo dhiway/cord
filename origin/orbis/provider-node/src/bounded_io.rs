@@ -24,6 +24,9 @@ use std::{
 	path::{Path, PathBuf},
 };
 
+#[cfg(unix)]
+use rustix::fs::{self as unix_fs, Mode, OFlags};
+
 use crate::ContentError;
 
 /// Read one regular durable record without allocating beyond its declared hard limit.
@@ -31,9 +34,17 @@ pub(crate) fn read_regular_file(
 	path: impl AsRef<Path>,
 	max_bytes: u64,
 ) -> Result<Vec<u8>, ContentError> {
-	let file = File::open(path).map_err(io_error)?;
+	let path = path.as_ref();
+	let path_metadata = fs::symlink_metadata(path).map_err(io_error)?;
+	if path_metadata.file_type().is_symlink() || !path_metadata.is_file() {
+		return Err(ContentError::IntegrityFailed)
+	}
+	let file = open_regular_file_nofollow(path)?;
 	let metadata = file.metadata().map_err(io_error)?;
-	if !metadata.is_file() || metadata.len() > max_bytes {
+	if !metadata.is_file()
+		|| !same_file_identity(&path_metadata, &metadata)
+		|| metadata.len() > max_bytes
+	{
 		return Err(ContentError::IntegrityFailed);
 	}
 	let capacity = usize::try_from(metadata.len()).map_err(|_| ContentError::IntegrityFailed)?;
@@ -43,7 +54,42 @@ pub(crate) fn read_regular_file(
 	if bytes.len() as u64 != metadata.len() || bytes.len() as u64 > max_bytes {
 		return Err(ContentError::IntegrityFailed);
 	}
+	let current = fs::symlink_metadata(path).map_err(io_error)?;
+	if current.file_type().is_symlink()
+		|| !current.is_file()
+		|| !same_file_identity(&current, &metadata)
+	{
+		return Err(ContentError::IntegrityFailed)
+	}
 	Ok(bytes)
+}
+
+#[cfg(unix)]
+fn open_regular_file_nofollow(path: &Path) -> Result<File, ContentError> {
+	unix_fs::open(
+		path,
+		OFlags::RDONLY | OFlags::NONBLOCK | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+		Mode::empty(),
+	)
+	.map(File::from)
+	.map_err(|_| ContentError::IntegrityFailed)
+}
+
+#[cfg(not(unix))]
+fn open_regular_file_nofollow(path: &Path) -> Result<File, ContentError> {
+	File::open(path).map_err(io_error)
+}
+
+#[cfg(unix)]
+fn same_file_identity(left: &fs::Metadata, right: &fs::Metadata) -> bool {
+	use std::os::unix::fs::MetadataExt as _;
+
+	left.dev() == right.dev() && left.ino() == right.ino()
+}
+
+#[cfg(not(unix))]
+fn same_file_identity(left: &fs::Metadata, right: &fs::Metadata) -> bool {
+	left.file_type() == right.file_type() && left.len() == right.len()
 }
 
 /// Recognize only the crash artifact shape emitted by the durable JSON writers.
@@ -141,5 +187,26 @@ mod tests {
 
 		assert_eq!(optional_directory_exists(&live), Err(ContentError::IntegrityFailed));
 		assert_eq!(optional_directory_exists(&dangling), Err(ContentError::IntegrityFailed));
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn regular_file_read_rejects_live_and_dangling_symlinks_without_external_reads() {
+		use std::os::unix::fs::symlink;
+
+		let temp = tempfile::tempdir().unwrap();
+		let external = temp.path().join("external.json");
+		let external_bytes = b"external-durable-record";
+		fs::write(&external, external_bytes).unwrap();
+		let live = temp.path().join("live.json");
+		symlink(&external, &live).unwrap();
+		let missing = temp.path().join("missing.json");
+		let dangling = temp.path().join("dangling.json");
+		symlink(&missing, &dangling).unwrap();
+
+		assert_eq!(read_regular_file(&live, 1024), Err(ContentError::IntegrityFailed));
+		assert!(read_regular_file(&dangling, 1024).is_err());
+		assert_eq!(fs::read(external).unwrap(), external_bytes);
+		assert!(!missing.exists());
 	}
 }

@@ -363,6 +363,11 @@ impl PreparedDiskStore {
 }
 
 impl DiskStore {
+	/// Reject non-directory and symlink provider roots before any child startup validation.
+	pub(crate) fn validate_root(root: &Path) -> Result<(), StoreError> {
+		optional_owned_directory_exists(root).map(|_| ())
+	}
+
 	/// Open or create a provider store. Existing protocol/capacity/provider identity must match.
 	#[cfg(any(test, feature = "evidence", feature = "test-seams"))]
 	pub fn open(
@@ -383,15 +388,12 @@ impl DiskStore {
 		}
 		validate_profile(&profile)?;
 		let root = root.as_ref().to_path_buf();
-		let root_exists = root.try_exists().map_err(io_error)?;
-		if root_exists && !fs::metadata(&root).map_err(io_error)?.is_dir() {
-			return Err(StoreError::Io("provider data root is not a directory".into()));
-		}
+		let root_exists = optional_owned_directory_exists(&root)?;
 		let (index_temps, root_artifacts) =
 			if root_exists { collect_index_temps(&root)? } else { (Vec::new(), 0) };
 		let path = root.join(INDEX_FILE);
-		let index_exists = path.try_exists().map_err(io_error)?;
-		if !index_exists && root.join(LEGACY_INDEX_FILE).try_exists().map_err(io_error)? {
+		let index_exists = optional_owned_regular_file_exists(&path)?;
+		if !index_exists && optional_owned_regular_file_exists(&root.join(LEGACY_INDEX_FILE))? {
 			return Err(StoreError::Invalid(
 				"provider protocol v5 state is unsupported; initialize a clean data path".into(),
 			));
@@ -2068,6 +2070,17 @@ fn optional_owned_directory_exists(path: &Path) -> Result<bool, StoreError> {
 	}
 }
 
+fn optional_owned_regular_file_exists(path: &Path) -> Result<bool, StoreError> {
+	match fs::symlink_metadata(path) {
+		Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+			Err(StoreError::Io("provider owned record is not a regular file".into()))
+		},
+		Ok(_) => Ok(true),
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+		Err(error) => Err(io_error(error)),
+	}
+}
+
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
 	let temporary = atomic_temp_path(path);
 	let mut created = false;
@@ -3146,6 +3159,65 @@ mod tests {
 
 		assert!(DiskStore::open(temp.path(), profile(), 1024).is_err());
 		assert_eq!(fs::read_dir(external.path()).unwrap().count(), 0);
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn provider_root_rejects_live_and_dangling_symlinks_without_external_mutation() {
+		use std::os::unix::fs::symlink;
+
+		let temp = tempfile::tempdir().unwrap();
+		let external = tempfile::tempdir().unwrap();
+		let marker = external.path().join("external-marker");
+		let marker_bytes = b"external-tree-must-not-change";
+		fs::write(&marker, marker_bytes).unwrap();
+		let live = temp.path().join("live-root");
+		symlink(external.path(), &live).unwrap();
+		let missing = temp.path().join("missing-root");
+		let dangling = temp.path().join("dangling-root");
+		symlink(&missing, &dangling).unwrap();
+
+		assert!(DiskStore::prepare_open(&live, profile(), 1024).is_err());
+		assert!(DiskStore::prepare_open(&dangling, profile(), 1024).is_err());
+		assert_eq!(fs::read(marker).unwrap(), marker_bytes);
+		assert_eq!(fs::read_dir(external.path()).unwrap().count(), 1);
+		assert!(!missing.exists());
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn canonical_index_rejects_live_and_dangling_symlinks_without_external_mutation() {
+		use std::os::unix::fs::symlink;
+
+		let live = tempfile::tempdir().unwrap();
+		drop(DiskStore::open(live.path(), profile(), 1024).unwrap());
+		let canonical = live.path().join(INDEX_FILE);
+		let index_bytes = fs::read(&canonical).unwrap();
+		fs::remove_file(&canonical).unwrap();
+		let external = tempfile::tempdir().unwrap();
+		let external_index = external.path().join("external-index.json");
+		fs::write(&external_index, &index_bytes).unwrap();
+		let external_marker = external.path().join("marker");
+		fs::write(&external_marker, b"external-tree-marker").unwrap();
+		symlink(&external_index, &canonical).unwrap();
+		let local_temp = live.path().join(format!("{INDEX_TEMP_PREFIX}779"));
+		let local_temp_bytes = b"local-recovery-evidence";
+		fs::write(&local_temp, local_temp_bytes).unwrap();
+
+		assert!(DiskStore::prepare_open(live.path(), profile(), 1024).is_err());
+		assert_eq!(fs::read(&external_index).unwrap(), index_bytes);
+		assert_eq!(fs::read(&external_marker).unwrap(), b"external-tree-marker");
+		assert_eq!(fs::read(&local_temp).unwrap(), local_temp_bytes);
+		assert_eq!(fs::read_dir(external.path()).unwrap().count(), 2);
+
+		let dangling = tempfile::tempdir().unwrap();
+		drop(DiskStore::open(dangling.path(), profile(), 1024).unwrap());
+		let canonical = dangling.path().join(INDEX_FILE);
+		fs::remove_file(&canonical).unwrap();
+		let missing = dangling.path().join("missing-index.json");
+		symlink(&missing, &canonical).unwrap();
+		assert!(DiskStore::prepare_open(dangling.path(), profile(), 1024).is_err());
+		assert!(!missing.exists());
 	}
 
 	#[test]
