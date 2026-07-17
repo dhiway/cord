@@ -31,6 +31,9 @@ use std::{
 	sync::RwLock,
 };
 
+#[cfg(test)]
+use std::cell::Cell;
+
 use codec::Encode;
 use pallet_orbis_storage_provider::{CommitmentV1, MmrLeafV1};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -56,6 +59,11 @@ const MAX_FRAME_BYTES: usize = LENGTH_BYTES + MAX_FRAME_PAYLOAD + CHECKSUM_BYTES
 const MAX_LOG_BYTES: u64 = MAX_STREAMING_OPERATIONS as u64 * MAX_FRAME_BYTES as u64;
 const MAX_BUCKET_DIRECTORIES: usize = MAX_STREAMING_OPERATIONS;
 const MAX_META_TEMP_ARTIFACTS: usize = 1;
+
+#[cfg(test)]
+thread_local! {
+	static RECOVERY_FRAME_PARSE_COUNT: Cell<usize> = const { Cell::new(0) };
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum BucketMmrFault {
@@ -118,8 +126,16 @@ struct BucketRecovery {
 	directory_missing: bool,
 	log_missing: bool,
 	truncate_log_to: Option<u64>,
-	meta_missing: bool,
+	meta_bytes: Option<Vec<u8>>,
 	temp_artifacts: Vec<PathBuf>,
+}
+
+struct PreparedBucketAppend {
+	bucket_id: BucketId,
+	expected_log_bytes: u64,
+	next_entry_count: u64,
+	frame: Vec<u8>,
+	meta_bytes: Vec<u8>,
 }
 
 #[derive(Default)]
@@ -138,18 +154,80 @@ pub(crate) struct BucketMmrStore {
 	fault: RwLock<Option<BucketMmrFault>>,
 }
 
+pub(crate) trait InstallationView {
+	fn installation_records(&self) -> Result<Vec<VerifiedInstallation>, ContentError>;
+	fn verified_installation(
+		&self,
+		bucket_id: BucketId,
+		operation_id: OperationId,
+	) -> Result<VerifiedInstallation, ContentError>;
+}
+
+impl InstallationView for StreamingStore {
+	fn installation_records(&self) -> Result<Vec<VerifiedInstallation>, ContentError> {
+		StreamingStore::installation_records(self)
+	}
+
+	fn verified_installation(
+		&self,
+		bucket_id: BucketId,
+		operation_id: OperationId,
+	) -> Result<VerifiedInstallation, ContentError> {
+		StreamingStore::verified_installation(self, bucket_id, operation_id)
+	}
+}
+
+pub(crate) struct PreparedBucketMmrStore {
+	root: PathBuf,
+	root_exists: bool,
+	state: State,
+	appends: Vec<PreparedBucketAppend>,
+}
+
+impl PreparedBucketMmrStore {
+	pub(crate) fn apply(mut self) -> Result<BucketMmrStore, ContentError> {
+		if !self.root_exists {
+			fs::create_dir(&self.root).map_err(io_error)?;
+			let parent = self.root.parent().ok_or(ContentError::IntegrityFailed)?;
+			sync_dir(parent)?;
+		}
+		for bucket in self.state.buckets.values_mut() {
+			if bucket.unavailable {
+				bucket.recovery = None;
+				continue;
+			}
+			apply_bucket_recovery(bucket)?;
+		}
+		for append in &self.appends {
+			apply_prepared_append(&self.root, append)?;
+		}
+		Ok(BucketMmrStore {
+			root: self.root,
+			state: RwLock::new(self.state),
+			fault: RwLock::new(None),
+		})
+	}
+}
+
 impl BucketMmrStore {
 	/// Open every bucket independently and reconcile each contiguous verified bucket suffix.
 	pub(crate) fn open(
 		root: impl AsRef<Path>,
 		streaming: &StreamingStore,
 	) -> Result<Self, ContentError> {
+		Self::prepare(root, streaming)?.apply()
+	}
+
+	pub(crate) fn prepare(
+		root: impl AsRef<Path>,
+		installations: &impl InstallationView,
+	) -> Result<PreparedBucketMmrStore, ContentError> {
 		let root = root.as_ref().join(ROOT);
 		let root_exists = root.try_exists().map_err(io_error)?;
 		if root_exists && !fs::metadata(&root).map_err(io_error)?.is_dir() {
 			return Err(ContentError::IntegrityFailed);
 		}
-		let records = streaming.installation_records()?;
+		let records = installations.installation_records()?;
 		let mut state = State::default();
 		for record in records {
 			state.next_new_install_sequence = state
@@ -182,6 +260,7 @@ impl BucketMmrStore {
 		if bucket_ids.len() > MAX_BUCKET_DIRECTORIES {
 			return Err(ContentError::IntegrityFailed);
 		}
+		preflight_recovery_budget(&root, &bucket_ids)?;
 		for bucket_id in bucket_ids {
 			let bucket = state.buckets.entry(bucket_id).or_default();
 			if open_bucket(&root, bucket_id, bucket).is_err() {
@@ -204,7 +283,10 @@ impl BucketMmrStore {
 					bucket.unavailable = true;
 					break;
 				}
-				if streaming.verified_installation(source.bucket_id, source.operation_id).is_err() {
+				if installations
+					.verified_installation(source.bucket_id, source.operation_id)
+					.is_err()
+				{
 					bucket.unavailable = true;
 					bucket.blocked_at = Some(source.install_sequence);
 					break;
@@ -217,39 +299,21 @@ impl BucketMmrStore {
 				continue;
 			}
 			for sequence in bucket.source_order.iter().skip(bucket.entries.len()) {
-				let source = state.known_sources.get(sequence).ok_or(ContentError::IntegrityFailed)?;
-				if source.bucket_id != *bucket_id ||
-					streaming.verified_installation(source.bucket_id, source.operation_id)? != *source
+				let source =
+					state.known_sources.get(sequence).ok_or(ContentError::IntegrityFailed)?;
+				if source.bucket_id != *bucket_id
+					|| installations.verified_installation(source.bucket_id, source.operation_id)?
+						!= *source
 				{
 					return Err(ContentError::IntegrityFailed);
 				}
 			}
 		}
-		if !root_exists {
-			fs::create_dir(&root).map_err(io_error)?;
-			let parent = root.parent().ok_or(ContentError::IntegrityFailed)?;
-			sync_dir(parent)?;
-		}
-		for bucket in state.buckets.values_mut() {
-			if bucket.unavailable {
-				bucket.recovery = None;
-				continue;
-			}
-			apply_bucket_recovery(bucket)?;
-		}
-		let store = Self { root, state: RwLock::new(state), fault: RwLock::new(None) };
-		let bucket_ids = store
-			.state
-			.read()
-			.map_err(|_| lock_error())?
-			.buckets
-			.keys()
-			.copied()
-			.collect::<Vec<_>>();
+		let mut appends = Vec::new();
+		let bucket_ids = state.buckets.keys().copied().collect::<BTreeSet<_>>();
 		for bucket_id in bucket_ids {
 			loop {
-				let next = {
-					let state = store.state.read().map_err(|_| lock_error())?;
+				let source = {
 					let bucket = state.buckets.get(&bucket_id).expect("bucket exists");
 					if bucket.unavailable || bucket.entries.len() >= bucket.source_order.len() {
 						None
@@ -258,18 +322,11 @@ impl BucketMmrStore {
 						state.known_sources.get(&sequence).cloned()
 					}
 				};
-				let Some(source) = next else { break };
-				if store.append_verified(streaming, source.bucket_id, source.operation_id).is_err()
-				{
-					let mut state = store.state.write().map_err(|_| lock_error())?;
-					let bucket = state.buckets.get_mut(&bucket_id).expect("bucket exists");
-					bucket.unavailable = true;
-					bucket.blocked_at = Some(source.install_sequence);
-					break;
-				}
+				let Some(source) = source else { break };
+				appends.push(prepare_pending_append(&mut state, source)?);
 			}
 		}
-		Ok(store)
+		Ok(PreparedBucketMmrStore { root, root_exists, state, appends })
 	}
 
 	#[doc(hidden)]
@@ -286,6 +343,12 @@ impl BucketMmrStore {
 		operation_id: OperationId,
 	) -> Result<(), ContentError> {
 		let installation = streaming.verified_installation(bucket_id, operation_id)?;
+		self.append_preverified(installation)
+	}
+
+	fn append_preverified(&self, installation: VerifiedInstallation) -> Result<(), ContentError> {
+		let bucket_id = installation.bucket_id;
+		let operation_id = installation.operation_id;
 		let mut state = self.state.write().map_err(|_| lock_error())?;
 		if let Some(sequence) = state.operations.get(&(bucket_id, operation_id)).copied() {
 			let (committed_bucket, index) = state
@@ -320,9 +383,10 @@ impl BucketMmrStore {
 				.push(installation.install_sequence);
 			state.known_sources.insert(installation.install_sequence, installation.clone());
 		}
+		let (confirmed_entries, confirmed_log_bytes) = confirmed_totals(&state)?;
 		let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::IntegrityFailed)?;
 		if bucket.unavailable
-			|| bucket.meta.entry_count >= MAX_STREAMING_OPERATIONS as u64
+			|| confirmed_entries >= MAX_STREAMING_OPERATIONS as u64
 			|| bucket.source_order.get(bucket.entries.len()).copied()
 				!= Some(installation.install_sequence)
 		{
@@ -330,6 +394,13 @@ impl BucketMmrStore {
 		}
 		let entry = build_entry(&installation, &bucket.meta)?;
 		let frame = encode_frame(&entry)?;
+		if confirmed_log_bytes
+			.checked_add(frame.len() as u64)
+			.filter(|total| *total <= MAX_LOG_BYTES)
+			.is_none()
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
 		let next_meta = advance_meta(&bucket.meta, &entry, frame.len() as u64)?;
 		let result = self.persist_append(bucket_id, &bucket.meta, &next_meta, &frame);
 		if let Err(error) = result {
@@ -825,6 +896,40 @@ impl BucketMmrStore {
 	}
 }
 
+fn preflight_recovery_budget(
+	root: &Path,
+	bucket_ids: &BTreeSet<BucketId>,
+) -> Result<(), ContentError> {
+	let mut confirmed_entries = 0u64;
+	let mut confirmed_log_bytes = 0u64;
+	for bucket_id in bucket_ids {
+		let meta_path = root.join(bucket_id.to_string()).join(META);
+		if !meta_path.try_exists().map_err(io_error)? {
+			continue;
+		}
+		let Ok(meta) = read_json::<BucketMeta>(&meta_path, MAX_META_BYTES) else { continue };
+		if meta.version != VERSION
+			|| meta.peaks.len() > 64
+			|| meta.entry_count > MAX_STREAMING_OPERATIONS as u64
+			|| meta.confirmed_log_bytes > MAX_LOG_BYTES
+		{
+			continue;
+		}
+		confirmed_entries = confirmed_entries
+			.checked_add(meta.entry_count)
+			.ok_or(ContentError::IntegrityFailed)?;
+		confirmed_log_bytes = confirmed_log_bytes
+			.checked_add(meta.confirmed_log_bytes)
+			.ok_or(ContentError::IntegrityFailed)?;
+		if confirmed_entries > MAX_STREAMING_OPERATIONS as u64
+			|| confirmed_log_bytes > MAX_LOG_BYTES
+		{
+			return Err(ContentError::IntegrityFailed);
+		}
+	}
+	Ok(())
+}
+
 fn open_bucket(
 	root: &Path,
 	bucket_id: BucketId,
@@ -917,7 +1022,7 @@ fn open_bucket(
 		log_missing,
 		truncate_log_to: (log_len > bucket.meta.confirmed_log_bytes)
 			.then_some(bucket.meta.confirmed_log_bytes),
-		meta_missing,
+		meta_bytes: meta_missing.then(|| encode_json(&bucket.meta, MAX_META_BYTES)).transpose()?,
 		temp_artifacts,
 	});
 	Ok(())
@@ -950,10 +1055,94 @@ fn apply_bucket_recovery(bucket: &mut BucketRuntime) -> Result<(), ContentError>
 		file.sync_all().map_err(io_error)?;
 		sync_dir(&recovery.directory)?;
 	}
-	if recovery.meta_missing {
-		persist_meta(&recovery.directory, &bucket.meta)?;
+	if let Some(bytes) = recovery.meta_bytes {
+		persist_meta_bytes(&recovery.directory, &bytes, None)?;
 	}
 	Ok(())
+}
+
+fn prepare_pending_append(
+	state: &mut State,
+	installation: VerifiedInstallation,
+) -> Result<PreparedBucketAppend, ContentError> {
+	let bucket_id = installation.bucket_id;
+	let operation_id = installation.operation_id;
+	if state.operations.contains_key(&(bucket_id, operation_id))
+		|| state.known_sources.get(&installation.install_sequence) != Some(&installation)
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	let (confirmed_entries, confirmed_log_bytes) = confirmed_totals(state)?;
+	if confirmed_entries >= MAX_STREAMING_OPERATIONS as u64 {
+		return Err(ContentError::IntegrityFailed);
+	}
+	let bucket = state.buckets.get(&bucket_id).ok_or(ContentError::IntegrityFailed)?;
+	if bucket.unavailable
+		|| bucket.source_order.get(bucket.entries.len()).copied()
+			!= Some(installation.install_sequence)
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	let entry = build_entry(&installation, &bucket.meta)?;
+	let frame = encode_frame(&entry)?;
+	let frame_bytes: u64 = frame.len().try_into().map_err(|_| ContentError::IntegrityFailed)?;
+	if confirmed_log_bytes
+		.checked_add(frame_bytes)
+		.filter(|total| *total <= MAX_LOG_BYTES)
+		.is_none()
+	{
+		return Err(ContentError::IntegrityFailed);
+	}
+	let expected_log_bytes = bucket.meta.confirmed_log_bytes;
+	let next_meta = advance_meta(&bucket.meta, &entry, frame_bytes)?;
+	let meta_bytes = encode_json(&next_meta, MAX_META_BYTES)?;
+	let next_entry_count = next_meta.entry_count;
+	let bucket = state.buckets.get_mut(&bucket_id).expect("bucket exists");
+	let index = bucket.entries.len();
+	bucket.entries.push(entry);
+	bucket.meta = next_meta;
+	bucket.blocked_at = None;
+	state.operations.insert((bucket_id, operation_id), installation.install_sequence);
+	state
+		.committed_sources
+		.insert(installation.install_sequence, (bucket_id, index));
+	Ok(PreparedBucketAppend {
+		bucket_id,
+		expected_log_bytes,
+		next_entry_count,
+		frame,
+		meta_bytes,
+	})
+}
+
+fn confirmed_totals(state: &State) -> Result<(u64, u64), ContentError> {
+	state.buckets.values().try_fold((0u64, 0u64), |(entries, bytes), bucket| {
+		Ok((
+			entries
+				.checked_add(bucket.meta.entry_count)
+				.ok_or(ContentError::IntegrityFailed)?,
+			bytes
+				.checked_add(bucket.meta.confirmed_log_bytes)
+				.ok_or(ContentError::IntegrityFailed)?,
+		))
+	})
+}
+
+fn apply_prepared_append(root: &Path, append: &PreparedBucketAppend) -> Result<(), ContentError> {
+	let directory = root.join(append.bucket_id.to_string());
+	let log_path = directory.join(LOG);
+	let mut log = OpenOptions::new()
+		.read(true)
+		.write(true)
+		.open(&log_path)
+		.map_err(io_error)?;
+	if log.metadata().map_err(io_error)?.len() != append.expected_log_bytes {
+		return Err(ContentError::IntegrityFailed);
+	}
+	log.seek(SeekFrom::End(0)).map_err(io_error)?;
+	log.write_all(&append.frame).map_err(io_error)?;
+	log.sync_all().map_err(io_error)?;
+	persist_meta_bytes(&directory, &append.meta_bytes, Some(append.next_entry_count))
 }
 
 fn index_confirmed_entries(state: &mut State) -> Result<(), ContentError> {
@@ -1095,6 +1284,8 @@ fn read_confirmed_frames(
 	expected_entries: u64,
 	parsed_frames: &mut usize,
 ) -> Result<Vec<Entry>, ContentError> {
+	#[cfg(test)]
+	RECOVERY_FRAME_PARSE_COUNT.with(|count| count.set(count.get().saturating_add(1)));
 	if confirmed_bytes > MAX_LOG_BYTES || expected_entries > MAX_STREAMING_OPERATIONS as u64 {
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -1139,7 +1330,17 @@ fn read_confirmed_frames(
 
 fn persist_meta(directory: &Path, meta: &BucketMeta) -> Result<(), ContentError> {
 	let bytes = encode_json(meta, MAX_META_BYTES)?;
-	let temporary = directory.join(format!("{META}.tmp-{}", std::process::id()));
+	persist_meta_bytes(directory, &bytes, None)
+}
+
+fn persist_meta_bytes(
+	directory: &Path,
+	bytes: &[u8],
+	entry_count: Option<u64>,
+) -> Result<(), ContentError> {
+	let suffix = entry_count.map_or_else(String::new, |count| format!("-{count}"));
+	let temporary =
+		directory.join(format!("{META}.tmp-{}{suffix}", std::process::id()));
 	let mut file = OpenOptions::new()
 		.create_new(true)
 		.write(true)
@@ -1683,6 +1884,87 @@ mod tests {
 		fs::write(temps.path().join(format!("{META}.tmp-12")), b"partial").unwrap();
 		assert_eq!(collect_meta_temps(temps.path()), Err(ContentError::IntegrityFailed));
 		assert_eq!(fs::read_dir(temps.path()).unwrap().count(), 2);
+	}
+
+	#[test]
+	fn aggregate_recovery_budget_rejects_before_frame_parsing_or_mutation() {
+		for byte_budget in [false, true] {
+			let temp = TempDir::new().unwrap();
+			let streaming = StreamingStore::open(temp.path()).unwrap();
+			let root = temp.path().join(ROOT);
+			fs::create_dir(&root).unwrap();
+			let entry_count = if byte_budget { 1 } else { MAX_STREAMING_OPERATIONS as u64 / 2 + 1 };
+			let confirmed_log_bytes = if byte_budget { MAX_LOG_BYTES / 2 + 1 } else { 1 };
+			let mut logs = Vec::new();
+			for value in [41u8, 42] {
+				let directory = root.join(BucketId::from_bytes([value; 32]).to_string());
+				fs::create_dir(&directory).unwrap();
+				let meta = BucketMeta { entry_count, confirmed_log_bytes, ..BucketMeta::default() };
+				fs::write(directory.join(META), encode_json(&meta, MAX_META_BYTES).unwrap())
+					.unwrap();
+				let log = File::create(directory.join(LOG)).unwrap();
+				log.set_len(confirmed_log_bytes).unwrap();
+				log.sync_all().unwrap();
+				logs.push(directory.join(LOG));
+			}
+			let crash_temp = root
+				.join(BucketId::from_bytes([41; 32]).to_string())
+				.join(format!("{META}.tmp-77-1"));
+			let crash_bytes = b"aggregate-budget-crash-temp";
+			fs::write(&crash_temp, crash_bytes).unwrap();
+			RECOVERY_FRAME_PARSE_COUNT.with(|count| count.set(0));
+
+			assert!(matches!(
+				BucketMmrStore::open(temp.path(), &streaming),
+				Err(ContentError::IntegrityFailed)
+			));
+
+			RECOVERY_FRAME_PARSE_COUNT.with(|count| assert_eq!(count.get(), 0));
+			assert_eq!(fs::read(&crash_temp).unwrap(), crash_bytes);
+			assert!(logs.iter().all(|log| fs::metadata(log).unwrap().len() == confirmed_log_bytes));
+		}
+	}
+
+	#[test]
+	fn virtual_finalizing_suffix_is_prepared_without_mutation_and_applied_exactly() {
+		let temp = TempDir::new().unwrap();
+		let bucket = BucketId::from_bytes([43; 32]);
+		let operation = OperationId::from_bytes([43; 16]);
+		let installation = VerifiedInstallation {
+			install_sequence: 0,
+			operation_id: operation,
+			bucket_id: bucket,
+			cid: CanonicalCid::from_digest(blake2_256(b"virtual-finalizing")),
+			stored_bytes: 18,
+		};
+		struct VirtualFinalizing(VerifiedInstallation);
+		impl InstallationView for VirtualFinalizing {
+			fn installation_records(&self) -> Result<Vec<VerifiedInstallation>, ContentError> {
+				Ok(vec![self.0.clone()])
+			}
+
+			fn verified_installation(
+				&self,
+				bucket_id: BucketId,
+				operation_id: OperationId,
+			) -> Result<VerifiedInstallation, ContentError> {
+				if (bucket_id, operation_id) == (self.0.bucket_id, self.0.operation_id) {
+					Ok(self.0.clone())
+				} else {
+					Err(ContentError::NotFound)
+				}
+			}
+		}
+		let root = temp.path().join(ROOT);
+
+		let prepared = BucketMmrStore::prepare(temp.path(), &VirtualFinalizing(installation)).unwrap();
+
+		assert!(!root.exists());
+		let mmr = prepared.apply().unwrap();
+		assert!(root.is_dir());
+		let state = mmr.state.read().unwrap();
+		assert_eq!(state.buckets[&bucket].entries.len(), 1);
+		assert_eq!(state.buckets[&bucket].meta.entry_count, 1);
 	}
 
 	#[test]

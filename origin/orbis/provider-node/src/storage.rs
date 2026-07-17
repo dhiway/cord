@@ -30,12 +30,13 @@ pub use streaming::{
 use std::{
 	collections::BTreeMap,
 	fs,
-	io::Write,
+	io::{Read, Write},
 	path::{Path, PathBuf},
 	sync::RwLock,
 	time::{SystemTime, UNIX_EPOCH},
 };
 
+use blake2::{digest::consts::U32, Blake2b, Digest as _};
 use codec::{Decode, Encode};
 use orbis_storage_runtime_api::{
 	CheckpointDutyInfo, DeletionDutyInfo, MAX_CHECKPOINT_DUTY_PAGE_SIZE,
@@ -61,6 +62,7 @@ const MAX_PROVIDER_INDEX_RECORDS: usize = MAX_STREAMING_OPERATIONS;
 const MAX_PROVIDER_INDEX_LEAVES: usize = MAX_PROVIDER_INDEX_RECORDS * 2;
 const MAX_PROVIDER_ROOT_ARTIFACTS: usize = 64;
 const MAX_PROVIDER_INDEX_TEMP_ARTIFACTS: usize = 1;
+const MAX_PROVIDER_BLOB_TEMP_ARTIFACTS: usize = 1;
 
 /// A validated content write ready for persistence.
 #[derive(Clone, Debug)]
@@ -336,6 +338,30 @@ pub struct DiskStore {
 	state: RwLock<PersistedState>,
 }
 
+pub(crate) struct PreparedDiskStore {
+	root: PathBuf,
+	state: PersistedState,
+	initial_index: Option<Vec<u8>>,
+	index_temps: Vec<PathBuf>,
+	blob_temps: Vec<PathBuf>,
+}
+
+impl PreparedDiskStore {
+	pub(crate) fn apply(self) -> Result<DiskStore, StoreError> {
+		let blobs = self.root.join(BLOBS_DIR);
+		fs::create_dir_all(&blobs).map_err(io_error)?;
+		crate::bounded_io::remove_validated_temp_artifacts(&self.root, &self.index_temps)
+			.map_err(io_error)?;
+		crate::bounded_io::remove_validated_temp_artifacts(&blobs, &self.blob_temps)
+			.map_err(io_error)?;
+		let store = DiskStore { root: self.root, state: RwLock::new(self.state) };
+		if let Some(bytes) = self.initial_index {
+			write_atomic(&store.root.join(INDEX_FILE), &bytes)?;
+		}
+		Ok(store)
+	}
+}
+
 impl DiskStore {
 	/// Open or create a provider store. Existing protocol/capacity/provider identity must match.
 	pub fn open(
@@ -343,6 +369,14 @@ impl DiskStore {
 		profile: NodeProfile,
 		capacity_bytes: u64,
 	) -> Result<Self, StoreError> {
+		Self::prepare_open(root, profile, capacity_bytes)?.apply()
+	}
+
+	pub(crate) fn prepare_open(
+		root: impl AsRef<Path>,
+		profile: NodeProfile,
+		capacity_bytes: u64,
+	) -> Result<PreparedDiskStore, StoreError> {
 		if capacity_bytes == 0 {
 			return Err(StoreError::Invalid("capacity must be non-zero".into()));
 		}
@@ -408,10 +442,13 @@ impl DiskStore {
 				pending_manifest_deletions: BTreeMap::new(),
 			}
 		};
-		let store = Self { root, state: RwLock::new(state) };
+		let store = Self { root: root.clone(), state: RwLock::new(state) };
 		store.verify_index()?;
-		let blobs = store.root.join(BLOBS_DIR);
-		let blobs_exists = blobs.try_exists().map_err(io_error)?;
+		let state = store
+			.state
+			.into_inner()
+			.map_err(|_| StoreError::Io("provider index validation lock was poisoned".into()))?;
+		let (blobs_exists, blob_temps) = validate_blob_namespace(&root, &state, index_exists)?;
 		let recovered_artifacts = root_artifacts
 			.checked_sub(index_temps.len())
 			.and_then(|count| count.checked_add(usize::from(!blobs_exists)))
@@ -420,13 +457,8 @@ impl DiskStore {
 		if recovered_artifacts > MAX_PROVIDER_ROOT_ARTIFACTS {
 			return Err(StoreError::Io("provider root contains too many durable artifacts".into()));
 		}
-		fs::create_dir_all(&blobs).map_err(io_error)?;
-		crate::bounded_io::remove_validated_temp_artifacts(&store.root, &index_temps)
-			.map_err(io_error)?;
-		if !index_exists {
-			store.persist()?;
-		}
-		Ok(store)
+		let initial_index = (!index_exists).then(|| encode_persisted_state(&state)).transpose()?;
+		Ok(PreparedDiskStore { root, state, initial_index, index_temps, blob_temps })
 	}
 
 	/// Return the provider data root for co-located private durable kernels.
@@ -512,7 +544,9 @@ impl DiskStore {
 			deleted: false,
 		};
 		let leaf = record_leaf(&record, false)?;
-		write_atomic(&self.root.join(BLOBS_DIR).join(&commitment), &input.bytes)?;
+		let blob_path = self.root.join(BLOBS_DIR).join(&commitment);
+		remove_current_atomic_temp(&blob_path)?;
+		write_atomic(&blob_path, &input.bytes)?;
 		let encoded_leaf = hex::encode(leaf);
 		next.leaf_hashes.push(encoded_leaf.clone());
 		journal_root_append(&mut next, encoded_leaf)?;
@@ -534,7 +568,11 @@ impl DiskStore {
 			.get(&normalized)
 			.filter(|record| !record.deleted)
 			.ok_or(StoreError::NotFound)?;
-		let bytes = fs::read(self.root.join(BLOBS_DIR).join(&normalized)).map_err(io_error)?;
+		let bytes = crate::bounded_io::read_regular_file(
+			self.root.join(BLOBS_DIR).join(&normalized),
+			record.bytes,
+		)
+		.map_err(io_error)?;
 		if bytes.len() as u64 != record.bytes
 			|| hex::encode(Self::content_commitment(&bytes)) != normalized
 		{
@@ -1236,11 +1274,6 @@ impl DiskStore {
 		Ok(())
 	}
 
-	fn persist(&self) -> Result<(), StoreError> {
-		let state = self.read_state()?;
-		persist_state(&self.root, &state)
-	}
-
 	fn read_state(&self) -> Result<std::sync::RwLockReadGuard<'_, PersistedState>, StoreError> {
 		self.state.read().map_err(|_| StoreError::Io("store read lock poisoned".into()))
 	}
@@ -1817,12 +1850,17 @@ fn now_ms() -> Result<u64, StoreError> {
 }
 
 fn persist_state(root: &Path, state: &PersistedState) -> Result<(), StoreError> {
+	let bytes = encode_persisted_state(state)?;
+	write_atomic(&root.join(INDEX_FILE), &bytes)
+}
+
+fn encode_persisted_state(state: &PersistedState) -> Result<Vec<u8>, StoreError> {
 	validate_persisted_state_bounds(state)?;
 	let bytes = serde_json::to_vec(state).map_err(io_error)?;
 	if bytes.len() as u64 > MAX_PROVIDER_INDEX_BYTES {
 		return Err(StoreError::Capacity);
 	}
-	write_atomic(&root.join(INDEX_FILE), &bytes)
+	Ok(bytes)
 }
 
 fn validate_persisted_state_bounds(state: &PersistedState) -> Result<(), StoreError> {
@@ -1876,23 +1914,192 @@ fn collect_index_temps(root: &Path) -> Result<(Vec<PathBuf>, usize), StoreError>
 	Ok((temps, visited))
 }
 
+fn validate_blob_namespace(
+	root: &Path,
+	state: &PersistedState,
+	index_exists: bool,
+) -> Result<(bool, Vec<PathBuf>), StoreError> {
+	let mut live_bytes = 0u64;
+	for (key, record) in &state.records {
+		if normalize_hash(key)? != *key || record.commitment != *key {
+			return Err(StoreError::Io("provider blob record key is not canonical".into()));
+		}
+		if !record.deleted {
+			live_bytes = live_bytes
+				.checked_add(record.bytes)
+				.ok_or_else(|| StoreError::Io("provider live-byte total overflow".into()))?;
+		}
+	}
+	if live_bytes > state.capacity_bytes {
+		return Err(StoreError::Io("provider live bytes exceed configured capacity".into()));
+	}
+	let directory = root.join(BLOBS_DIR);
+	let exists = directory.try_exists().map_err(io_error)?;
+	if !exists {
+		if state.records.values().any(|record| !record.deleted) {
+			return Err(StoreError::Io("provider live blob directory is missing".into()));
+		}
+		return Ok((false, Vec::new()));
+	}
+	if !fs::metadata(&directory).map_err(io_error)?.is_dir() {
+		return Err(StoreError::Io("provider blob namespace is not a directory".into()));
+	}
+	if !index_exists {
+		if fs::read_dir(&directory)
+			.map_err(io_error)?
+			.next()
+			.transpose()
+			.map_err(io_error)?
+			.is_some()
+		{
+			return Err(StoreError::Io(
+				"provider blobs exist without a canonical provider index".into(),
+			));
+		}
+		return Ok((true, Vec::new()));
+	}
+	let max_entries = state
+		.records
+		.len()
+		.checked_add(MAX_PROVIDER_BLOB_TEMP_ARTIFACTS)
+		.ok_or_else(|| StoreError::Io("provider blob artifact count overflow".into()))?;
+	let mut visited = 0usize;
+	let mut temps = Vec::new();
+	let mut seen = BTreeMap::new();
+	for item in fs::read_dir(&directory).map_err(io_error)? {
+		visited = visited
+			.checked_add(1)
+			.ok_or_else(|| StoreError::Io("provider blob artifact count overflow".into()))?;
+		if visited > max_entries {
+			return Err(StoreError::Io(
+				"provider blob namespace contains too many artifacts".into(),
+			));
+		}
+		let item = item.map_err(io_error)?;
+		if !item.file_type().map_err(io_error)?.is_file() {
+			return Err(StoreError::Io("provider blob artifact is not a regular file".into()));
+		}
+		let name = item.file_name().to_string_lossy().into_owned();
+		if let Some((commitment, process_id)) = name.rsplit_once(".tmp-") {
+			if normalize_hash(commitment).ok().as_deref() != Some(commitment)
+				|| process_id.is_empty()
+				|| !process_id.bytes().all(|byte| byte.is_ascii_digit())
+			{
+				return Err(StoreError::Io("provider blob temp artifact name is invalid".into()));
+			}
+			temps.push(item.path());
+			if temps.len() > MAX_PROVIDER_BLOB_TEMP_ARTIFACTS {
+				return Err(StoreError::Io("provider blob temp artifact set is invalid".into()));
+			}
+			continue;
+		}
+		if normalize_hash(&name)? != name {
+			return Err(StoreError::Io("provider blob artifact name is invalid".into()));
+		}
+		let record = state
+			.records
+			.get(&name)
+			.ok_or_else(|| StoreError::Io("provider blob has no canonical index record".into()))?;
+		if record.deleted && !state.pending_deletions.contains_key(&name) {
+			return Err(StoreError::Io("completed deletion retained provider blob bytes".into()));
+		}
+		verify_blob_file(&item.path(), record)?;
+		if seen.insert(name, ()).is_some() {
+			return Err(StoreError::Io("provider blob namespace contains a duplicate".into()));
+		}
+	}
+	for record in state.records.values().filter(|record| !record.deleted) {
+		if !seen.contains_key(&record.commitment) {
+			return Err(StoreError::Io("provider live blob is missing".into()));
+		}
+	}
+	Ok((true, temps))
+}
+
+fn verify_blob_file(path: &Path, record: &ContentRecord) -> Result<(), StoreError> {
+	let file = fs::File::open(path).map_err(io_error)?;
+	let metadata = file.metadata().map_err(io_error)?;
+	if !metadata.is_file() || metadata.len() != record.bytes {
+		return Err(StoreError::Io("provider blob length does not match its record".into()));
+	}
+	let limit = record
+		.bytes
+		.checked_add(1)
+		.ok_or_else(|| StoreError::Io("provider blob read bound overflow".into()))?;
+	let mut reader = file.take(limit);
+	let mut hash = Blake2b::<U32>::new();
+	let mut total = 0u64;
+	let mut buffer = [0u8; 64 * 1024];
+	loop {
+		let read = reader.read(&mut buffer).map_err(io_error)?;
+		if read == 0 {
+			break;
+		}
+		total = total
+			.checked_add(read as u64)
+			.ok_or_else(|| StoreError::Io("provider blob length overflow".into()))?;
+		hash.update(&buffer[..read]);
+	}
+	if total != record.bytes || hex::encode(hash.finalize()) != record.commitment {
+		return Err(StoreError::Io("provider blob failed commitment verification".into()));
+	}
+	Ok(())
+}
+
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
-	let temporary = path.with_extension(format!("tmp-{}", std::process::id()));
-	let mut file = fs::OpenOptions::new()
-		.create_new(true)
-		.write(true)
-		.open(&temporary)
-		.map_err(io_error)?;
-	file.write_all(bytes).map_err(io_error)?;
-	file.sync_all().map_err(io_error)?;
-	fs::rename(&temporary, path).map_err(io_error).and_then(|()| {
+	let temporary = atomic_temp_path(path);
+	let mut created = false;
+	let result = (|| {
+		let mut file = fs::OpenOptions::new()
+			.create_new(true)
+			.write(true)
+			.open(&temporary)
+			.map_err(io_error)?;
+		created = true;
+		file.write_all(bytes).map_err(io_error)?;
+		file.sync_all().map_err(io_error)?;
+		fs::rename(&temporary, path).map_err(io_error)?;
 		if let Some(parent) = path.parent() {
 			fs::File::open(parent)
 				.and_then(|directory| directory.sync_all())
 				.map_err(io_error)?;
 		}
 		Ok(())
-	})
+	})();
+	if result.is_err() && created {
+		match fs::remove_file(&temporary) {
+			Ok(()) => {
+				if let Some(parent) = path.parent() {
+					let _ = fs::File::open(parent).and_then(|directory| directory.sync_all());
+				}
+			},
+			Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+			Err(_) => {},
+		}
+	}
+	result
+}
+
+fn atomic_temp_path(path: &Path) -> PathBuf {
+	path.with_extension(format!("tmp-{}", std::process::id()))
+}
+
+fn remove_current_atomic_temp(path: &Path) -> Result<(), StoreError> {
+	let temporary = atomic_temp_path(path);
+	match fs::symlink_metadata(&temporary) {
+		Ok(metadata) if metadata.is_file() => {
+			fs::remove_file(&temporary).map_err(io_error)?;
+			let parent = path
+				.parent()
+				.ok_or_else(|| StoreError::Io("durable blob path has no parent".into()))?;
+			fs::File::open(parent)
+				.and_then(|directory| directory.sync_all())
+				.map_err(io_error)
+		},
+		Ok(_) => Err(StoreError::Io("durable blob temp artifact is not a regular file".into())),
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+		Err(error) => Err(io_error(error)),
+	}
 }
 
 fn io_error(error: impl std::fmt::Display) -> StoreError {
@@ -2751,6 +2958,106 @@ mod tests {
 			};
 			assert!(result.is_err(), "case {case}");
 			assert_eq!(fs::read(&crash_temp).unwrap(), crash_bytes, "case {case}");
+		}
+	}
+
+	#[test]
+	fn blob_temp_recovery_is_retryable_bounded_and_validation_gated() {
+		let retry = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(retry.path(), profile(), 1024).unwrap();
+		let bytes = b"same-process-blob-retry".to_vec();
+		let commitment = DiskStore::content_commitment(&bytes);
+		let commitment_hex = hex::encode(commitment);
+		let blob = retry.path().join(BLOBS_DIR).join(&commitment_hex);
+		let same_process_temp = atomic_temp_path(&blob);
+		fs::write(&same_process_temp, b"partial").unwrap();
+		store
+			.commit(CommitInput {
+				commitment,
+				authorization: authorization(commitment, bytes.len() as u64),
+				bucket: None,
+				key: None,
+				bytes: bytes.clone(),
+			})
+			.unwrap();
+		assert!(!same_process_temp.exists());
+		assert_eq!(store.read(&commitment_hex).unwrap(), bytes);
+		drop(store);
+
+		let flooded = tempfile::tempdir().unwrap();
+		drop(DiskStore::open(flooded.path(), profile(), 1024).unwrap());
+		let blobs = flooded.path().join(BLOBS_DIR);
+		let first = blobs.join(format!("{}.tmp-77", "11".repeat(32)));
+		let second = blobs.join(format!("{}.tmp-78", "22".repeat(32)));
+		fs::write(&first, b"first-exact-temp").unwrap();
+		fs::write(&second, b"second-exact-temp").unwrap();
+		assert!(DiskStore::open(flooded.path(), profile(), 1024).is_err());
+		assert_eq!(fs::read(first).unwrap(), b"first-exact-temp");
+		assert_eq!(fs::read(second).unwrap(), b"second-exact-temp");
+
+		let collision = tempfile::tempdir().unwrap();
+		let target = collision.path().join("collision");
+		let collision_temp = atomic_temp_path(&target);
+		fs::write(&collision_temp, b"unowned-collision-evidence").unwrap();
+		assert!(write_atomic(&target, b"new-bytes").is_err());
+		assert_eq!(fs::read(collision_temp).unwrap(), b"unowned-collision-evidence");
+
+		let invalid = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(invalid.path(), profile(), 1024).unwrap();
+		let bytes = b"validation-before-cleanup".to_vec();
+		let commitment = DiskStore::content_commitment(&bytes);
+		let record = store
+			.commit(CommitInput {
+				commitment,
+				authorization: authorization(commitment, bytes.len() as u64),
+				bucket: None,
+				key: None,
+				bytes,
+			})
+			.unwrap();
+		drop(store);
+		fs::write(
+			invalid.path().join(BLOBS_DIR).join(&record.commitment),
+			b"same-length-corruption",
+		)
+		.unwrap();
+		let preserved = invalid.path().join(BLOBS_DIR).join(format!("{}.tmp-79", "33".repeat(32)));
+		fs::write(&preserved, b"preserve-until-valid").unwrap();
+		assert!(DiskStore::open(invalid.path(), profile(), 1024).is_err());
+		assert_eq!(fs::read(preserved).unwrap(), b"preserve-until-valid");
+	}
+
+	#[test]
+	fn prepared_disk_open_is_read_only_until_apply() {
+		let temp = tempfile::tempdir().unwrap();
+		let index = temp.path().join(INDEX_FILE);
+		let blobs = temp.path().join(BLOBS_DIR);
+
+		let prepared = DiskStore::prepare_open(temp.path(), profile(), 1024).unwrap();
+
+		assert!(!index.exists());
+		assert!(!blobs.exists());
+		let _store = prepared.apply().unwrap();
+		assert!(index.is_file());
+		assert!(blobs.is_dir());
+	}
+
+	#[test]
+	fn missing_provider_index_rejects_existing_blob_namespace_without_mutation() {
+		for temporary in [false, true] {
+			let temp = tempfile::tempdir().unwrap();
+			let blobs = temp.path().join(BLOBS_DIR);
+			fs::create_dir(&blobs).unwrap();
+			let name =
+				if temporary { format!("{}.tmp-77", "44".repeat(32)) } else { "44".repeat(32) };
+			let artifact = blobs.join(name);
+			let bytes = b"orphaned-without-index";
+			fs::write(&artifact, bytes).unwrap();
+
+			assert!(DiskStore::open(temp.path(), profile(), 1024).is_err());
+
+			assert_eq!(fs::read(&artifact).unwrap(), bytes);
+			assert!(!temp.path().join(INDEX_FILE).exists());
 		}
 	}
 
