@@ -142,7 +142,7 @@ export interface StorageV2ResultMap {
   "storage.object.status": { state: 0 | 1 | 2 | 3 | 4; receipt?: StorageV2ProviderReceipt; checkpoint?: StorageV2Checkpoint; replicas: number; publishable: boolean; finalized: StorageV2Finality };
   "storage.checkpoint.status": { checkpoint: StorageV2Checkpoint; sequence: number; block: bigint; quorum: number; finalized: StorageV2Finality };
   "storage.checkpoint.subscribe": { operationId: OperationId; cursor: bigint };
-  "storage.replica.status": { primary: ProviderId; providers: readonly ProviderId[]; healthy: number; lastCheckpoint: bigint; pending: number; finalized: StorageV2Finality };
+  "storage.replica.status": { primary: ProviderId; providers: readonly ProviderId[]; confirmed: number; lag: bigint; eligibility: number; finalized: StorageV2Finality };
   "storage.replica.subscribe": { operationId: OperationId; cursor: bigint };
   "storage.deletion.status": { version: bigint; confirmations: number; root: Hash32; finalized: StorageV2Finality };
   "storage.deletion.subscribe": { operationId: OperationId; cursor: bigint };
