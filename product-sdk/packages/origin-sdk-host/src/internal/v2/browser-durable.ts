@@ -74,7 +74,11 @@ export class DurableBrowserHostV2 {
     if (!operation) { this.#transport.close(); throw new Error("browser durable operation binding is unknown"); }
     try {
       if (event[3] === 2) encodeHostV2(operation.result as HostV2TypeName, event[4]);
-      if (event[3] === 3) encodeHostV2(operation.error as HostV2TypeName, event[4]);
+      if (event[3] === 3) {
+        encodeHostV2(operation.error as HostV2TypeName, event[4]);
+        const code = Number((event[4] as Record<number, unknown>)[0]);
+        if (!operation.allowedErrors.includes(code as never)) throw new Error();
+      }
     } catch { this.#transport.close(); throw new Error("browser terminal payload mismatches the requested operation"); }
     try {
       const installed = await this.#outbox.installTerminal(active.outboxId, bytes, terminalBlock);
