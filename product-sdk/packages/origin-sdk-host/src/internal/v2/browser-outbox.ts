@@ -55,6 +55,7 @@ export interface BrowserOutboxRetryV1 {
   readonly expectedResponseKind: number; readonly intendedCursor: number; readonly cancel: boolean;
   readonly operationCode: number;
   readonly uploadChunk?: Uint8Array;
+  readonly uploadPhase?: "initial" | "chunk" | "finalize";
 }
 export interface BrowserRecoveredSuccessorV1 {
   readonly predecessorOutboxId: Uint8Array; readonly cursor: number; readonly hostKeyId: Uint8Array;
@@ -180,9 +181,9 @@ export class BrowserHostOutboxV1 {
       const chunks = await this.#prepareUploadChunks(entry, validated.operationCode, input.uploadChunks);
       const record: LiveRecord = {
         kind: 0, entry, state: 0, terminal: false, recoverUntil: BigInt(entry[19]), operationCode: validated.operationCode,
-        ...(chunks.length > 0 ? { uploadSpoolOutboxId: entry[1].slice(), uploadChunkIds: chunks.map((chunk) => chunk.chunkId.slice()) } : {}),
+        ...(validated.operationCode === 1010 ? { uploadSpoolOutboxId: entry[1].slice(), uploadChunkIds: chunks.map((chunk) => chunk.chunkId.slice()) } : {}),
       };
-      if (chunks.length > 0) await this.#commitPreparedUpload(record, chunks);
+      if (validated.operationCode === 1010) await this.#commitPreparedUpload(record, chunks);
       else await this.#commit(record, true);
       return retry(record, this.#records);
     } finally {
@@ -381,8 +382,12 @@ export class BrowserHostOutboxV1 {
   async #prepareUploadChunks(
     entry: HostOutboxEntryV1, operationCode: number, input: readonly Uint8Array[] | undefined,
   ): Promise<readonly UploadChunkRecord[]> {
-    if (!input) return [];
-    if (operationCode !== 1010 || Number(entry[9]) !== 0 || BigInt(entry[8]) !== 0n) {
+    if (operationCode !== 1010) {
+      if (input !== undefined) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "non-object.put request cannot carry an upload spool");
+      return [];
+    }
+    if (input === undefined) throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "object.put requires an explicit durable upload spool");
+    if (Number(entry[9]) !== 0 || BigInt(entry[8]) !== 0n) {
       throw new BrowserOutboxError("HOST_OUTBOX_BINDING_INVALID", "upload spool is only valid for the initial object.put generation");
     }
     const request = decodeHostV2("RequestV2", entry[3]).value as Record<number, unknown>;
@@ -633,6 +638,9 @@ function retry(record: LiveRecord, records: ReadonlyMap<string, LoadedRecord>): 
     outboxId: record.entry[1].slice(), fingerprint: record.entry[5].slice(), expectedResponseKind: Number(record.entry[15]),
     intendedCursor: Number(record.entry[9]), cancel: isCancel(record.entry[3]), operationCode: record.operationCode,
     ...(upload?.kind === 2 ? { uploadChunk: upload.exactChunk.slice() } : {}),
+    ...(record.operationCode === 1010 && record.uploadSpoolOutboxId ? {
+      uploadPhase: record.predecessorOutboxId ? (record.uploadChunkId ? "chunk" : "finalize") : "initial",
+    } as const : {}),
   };
 }
 function isCancel(bytes: Uint8Array): boolean { try { decodeHostV2("CancelledEventV2", bytes); return true; } catch { return false; } }
