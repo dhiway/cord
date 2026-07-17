@@ -280,10 +280,7 @@ impl CheckpointQuorumScheduler {
 			}
 		}
 		let record = if path.exists() {
-			let bytes = fs::read(&path).map_err(io_error)?;
-			if bytes.len() > 4096 {
-				return Err(ContentError::IntegrityFailed);
-			}
+			let bytes = crate::bounded_io::read_regular_file(&path, 4096)?;
 			let record: SchedulerRecordV2 =
 				serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			validate_scheduler_record(&record)?;

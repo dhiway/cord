@@ -49,6 +49,8 @@ const MAX_REQUEST_BYTES: usize = 64 * 1024;
 const MAX_RESPONSE_BYTES: usize = 4 * 1024;
 const MAX_RECORD_BYTES: usize = 160 * 1024;
 const MAX_CONFIRMATIONS: usize = 8_192;
+// Atomic replacement creates at most one process-specific temporary artifact.
+const MAX_TEMP_ARTIFACTS: usize = 1;
 
 #[derive(Clone, Debug, Eq, PartialEq, Encode, Decode)]
 pub(crate) struct ReplicaConfirmationRequestV1 {
@@ -178,18 +180,34 @@ impl ReplicaConfirmationStore {
 		let root = root.as_ref().join(ROOT);
 		fs::create_dir_all(&root).map_err(io_error)?;
 		let mut records = HashMap::new();
+		let mut visited = 0usize;
+		let mut temp_artifacts = 0usize;
 		for entry in fs::read_dir(&root).map_err(io_error)? {
+			visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+			if visited > MAX_CONFIRMATIONS + MAX_TEMP_ARTIFACTS {
+				return Err(ContentError::IntegrityFailed);
+			}
 			let entry = entry.map_err(io_error)?;
 			let name = entry.file_name().to_string_lossy().into_owned();
 			if name.contains(".tmp-") {
+				temp_artifacts =
+					temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+				if temp_artifacts > MAX_TEMP_ARTIFACTS ||
+					!entry.file_type().map_err(io_error)?.is_file()
+				{
+					return Err(ContentError::IntegrityFailed);
+				}
 				fs::remove_file(entry.path()).map_err(io_error)?;
 				continue;
 			}
 			if !name.ends_with(".json") || !entry.file_type().map_err(io_error)?.is_file() {
 				return Err(ContentError::IntegrityFailed);
 			}
-			let bytes = fs::read(entry.path()).map_err(io_error)?;
-			if bytes.len() > MAX_RECORD_BYTES || records.len() >= MAX_CONFIRMATIONS {
+			let bytes = crate::bounded_io::read_regular_file(
+				entry.path(),
+				MAX_RECORD_BYTES as u64,
+			)?;
+			if records.len() >= MAX_CONFIRMATIONS {
 				return Err(ContentError::IntegrityFailed);
 			}
 			let record: ConfirmationRecordV1 =
@@ -300,7 +318,10 @@ impl ReplicaConfirmationStore {
 		}
 		let path = self.root.join(format!("{key}.json"));
 		if path.exists() {
-			let existing = fs::read(&path).map_err(io_error)?;
+			let existing = crate::bounded_io::read_regular_file(
+				&path,
+				MAX_RECORD_BYTES as u64,
+			)?;
 			return if existing == bytes { Ok(()) } else { Err(ContentError::IdempotencyConflict) };
 		}
 		let temp = self.root.join(format!("{key}.json.tmp-{}", std::process::id()));
@@ -1393,5 +1414,18 @@ mod tests {
 				.confirm(&fixture.disk, &fixture.mmr, &fixture.streaming, &fixture.local, &bytes)
 				.is_ok());
 		}
+	}
+
+	#[test]
+	fn recovery_rejects_temp_artifact_flood() {
+		let temp = TempDir::new().unwrap();
+		let root = temp.path().join(ROOT);
+		fs::create_dir_all(&root).unwrap();
+		fs::write(root.join("first.json.tmp-1"), b"partial").unwrap();
+		fs::write(root.join("second.json.tmp-1"), b"partial").unwrap();
+		assert!(matches!(
+			ReplicaConfirmationStore::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
 	}
 }

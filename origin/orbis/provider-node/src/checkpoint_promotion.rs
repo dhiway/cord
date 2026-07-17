@@ -489,10 +489,10 @@ fn read_records(root: &Path, max_record_bytes: usize) -> Result<Vec<RecordFile>,
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
-		let bytes = fs::read(item.path()).map_err(io_error)?;
-		if bytes.len() > max_record_bytes {
-			return Err(ContentError::IntegrityFailed);
-		}
+		let bytes = crate::bounded_io::read_regular_file(
+			item.path(),
+			max_record_bytes as u64,
+		)?;
 		records.push(RecordFile { name, bytes });
 	}
 	if removed_temp {
@@ -526,10 +526,10 @@ fn read_scheduler_cursor(
 		if name != expected || cursor.is_some() || !item.file_type().map_err(io_error)?.is_file() {
 			return Err(ContentError::IntegrityFailed);
 		}
-		let bytes = fs::read(item.path()).map_err(io_error)?;
-		if bytes.len() > MAX_RECEIPT_BYTES {
-			return Err(ContentError::IntegrityFailed);
-		}
+		let bytes = crate::bounded_io::read_regular_file(
+			item.path(),
+			MAX_RECEIPT_BYTES as u64,
+		)?;
 		let decoded: CheckpointPromotionSchedulerCursorV2 =
 			serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
 		validate_scheduler_cursor(&decoded)?;

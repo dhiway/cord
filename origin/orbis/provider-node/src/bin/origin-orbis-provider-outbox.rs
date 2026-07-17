@@ -310,7 +310,7 @@ fn recover_local_finality(
 	if cursor.source == Some(pending.source)
 		&& cursor.prefix_len == pending.prefix_len
 		&& cursor.prefix_hash == pending.prefix_hash
-		&& cursor.offset >= pending.end
+		&& cursor.offset == pending.end
 	{
 		remove_durable(&paths.pending)?;
 		return Ok(true);
@@ -988,6 +988,43 @@ mod tests {
 		assert!(recover_local_finality(&paths, &mut cursor, &ReceiptLedger::default(), &pending)
 			.unwrap());
 		assert!(!paths.pending.exists());
+	}
+
+	#[test]
+	fn restart_rejects_cursor_ahead_of_pending_end() {
+		let temp = tempfile::tempdir().unwrap();
+		let paths = StatePaths::new(&temp.path().join("receipts.json"));
+		let source = SourceId { device: 7, inode: 9 };
+		let line = serde_json::to_string(&manifest_submission()).unwrap() + "\n";
+		let pending = PendingRecord {
+			version: STATE_VERSION,
+			source,
+			start: 0,
+			end: line.len() as u64,
+			record_hash: blake3::hash(line.as_bytes()).to_hex().to_string(),
+			prefix_len: 0,
+			prefix_hash: blake3::hash(&[]).to_hex().to_string(),
+			key: "manifest-deletion-corrupt-ahead".into(),
+			line,
+		};
+		atomic_json(&paths.pending, &pending).unwrap();
+		let mut cursor = Cursor {
+			version: STATE_VERSION,
+			source: Some(source),
+			offset: pending.end + 1,
+			prefix_len: pending.prefix_len,
+			prefix_hash: pending.prefix_hash.clone(),
+		};
+
+		assert!(!recover_local_finality(
+			&paths,
+			&mut cursor,
+			&ReceiptLedger::default(),
+			&pending,
+		)
+		.unwrap());
+		assert_eq!(cursor.offset, pending.end + 1);
+		assert!(paths.pending.exists());
 	}
 
 	#[test]

@@ -26,6 +26,7 @@
 #![warn(missing_docs)]
 
 mod api;
+mod bounded_io;
 // Deliberately private until the P4 route cutover removes the shared bearer atomically.
 #[allow(dead_code)]
 mod capability;

@@ -1568,7 +1568,10 @@ pub(super) fn prepare_response_dir(_root: &Path) -> Result<(), ContentError> {
 }
 
 fn read_durable_journal(root: &Path) -> Result<super::JournalState, ContentError> {
-	let bytes = fs::read(root.join(super::JOURNAL)).map_err(blob_io)?;
+	let bytes = crate::bounded_io::read_regular_file(
+		root.join(super::JOURNAL),
+		super::journal_byte_limit(MAX_STREAMING_OPERATIONS)?,
+	)?;
 	let state: super::JournalState =
 		serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
 	if state.version != super::STREAM_VERSION {

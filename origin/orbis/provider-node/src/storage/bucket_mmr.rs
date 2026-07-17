@@ -1083,10 +1083,7 @@ fn encode_json<T: Serialize>(value: &T, bound: usize) -> Result<Vec<u8>, Content
 }
 
 fn read_json<T: DeserializeOwned>(path: &Path, bound: usize) -> Result<T, ContentError> {
-	let bytes = fs::read(path).map_err(io_error)?;
-	if bytes.len() > bound {
-		return Err(ContentError::IntegrityFailed);
-	}
+	let bytes = crate::bounded_io::read_regular_file(path, bound as u64)?;
 	serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)
 }
 

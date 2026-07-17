@@ -352,10 +352,10 @@ fn read_records(root: &Path) -> Result<Vec<RecordFile>, ContentError> {
 		{
 			return Err(ContentError::IntegrityFailed)
 		}
-		let bytes = fs::read(item.path()).map_err(io_error)?;
-		if bytes.len() > MAX_RECORD_BYTES {
-			return Err(ContentError::IntegrityFailed)
-		}
+		let bytes = crate::bounded_io::read_regular_file(
+			item.path(),
+			MAX_RECORD_BYTES as u64,
+		)?;
 		records.push(RecordFile { name, bytes });
 	}
 	Ok(records)
@@ -380,10 +380,10 @@ fn read_cursor(root: &Path) -> Result<Option<CheckpointPublicationCursorV1>, Con
 		if name != expected || cursor.is_some() || !item.file_type().map_err(io_error)?.is_file() {
 			return Err(ContentError::IntegrityFailed);
 		}
-		let bytes = fs::read(item.path()).map_err(io_error)?;
-		if bytes.len() > MAX_CURSOR_BYTES {
-			return Err(ContentError::IntegrityFailed);
-		}
+		let bytes = crate::bounded_io::read_regular_file(
+			item.path(),
+			MAX_CURSOR_BYTES as u64,
+		)?;
 		let decoded: CheckpointPublicationCursorV1 =
 			serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
 		validate_cursor(&decoded)?;

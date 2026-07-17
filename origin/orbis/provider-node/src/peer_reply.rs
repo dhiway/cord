@@ -442,8 +442,11 @@ fn load_records(
 		if !item.file_type().map_err(io_error)?.is_file() || !name.ends_with(EXTENSION) {
 			return Err(ContentError::IntegrityFailed);
 		}
-		let bytes = fs::read(item.path()).map_err(io_error)?;
-		if bytes.is_empty() || bytes.len() > MAX_RECORD_BYTES {
+		let bytes = crate::bounded_io::read_regular_file(
+			item.path(),
+			MAX_RECORD_BYTES as u64,
+		)?;
+		if bytes.is_empty() {
 			return Err(ContentError::IntegrityFailed);
 		}
 		let record: PeerReplyRecordV1 = decode_canonical(&bytes)?;

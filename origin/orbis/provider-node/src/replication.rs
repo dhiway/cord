@@ -1206,10 +1206,10 @@ fn read_state(root: &Path, limit: usize) -> Result<ReadState, ContentError> {
 		if !item.file_type().map_err(io_error)?.is_file() {
 			return Err(ContentError::IntegrityFailed);
 		}
-		let bytes = fs::read(item.path()).map_err(io_error)?;
-		if bytes.len() > MAX_RECORD_BYTES {
-			return Err(ContentError::IntegrityFailed);
-		}
+		let bytes = crate::bounded_io::read_regular_file(
+			item.path(),
+			MAX_RECORD_BYTES as u64,
+		)?;
 		durable_bytes = durable_bytes
 			.checked_add(bytes.len() as u64)
 			.ok_or(ContentError::IntegrityFailed)?;

@@ -68,6 +68,8 @@ const CONTEXT_DOMAIN: &[u8] = b"cord/storage/checkpoint-context/v1";
 const RECORD_DOMAIN: &[u8] = b"cord/storage/checkpoint-proposal-record/v2";
 const MAX_PROPOSAL_BYTES: usize = 32_768;
 const MAX_PROPOSALS: usize = 8_192;
+// Atomic replacement creates at most one process-specific temporary artifact.
+const MAX_TEMP_ARTIFACTS: usize = 1;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum QuorumDutyMode {
@@ -196,20 +198,33 @@ impl CheckpointProposalStore {
 		fs::create_dir_all(&root).map_err(io_error)?;
 		let mut by_tuple = HashMap::new();
 		let mut by_duty = HashMap::new();
+		let mut visited = 0usize;
+		let mut temp_artifacts = 0usize;
 		for item in fs::read_dir(&root).map_err(io_error)? {
+			visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+			if visited > MAX_PROPOSALS + MAX_TEMP_ARTIFACTS {
+				return Err(ContentError::IntegrityFailed);
+			}
 			let item = item.map_err(io_error)?;
 			let name = item.file_name().to_string_lossy().into_owned();
 			if name.contains(".tmp-") {
+				temp_artifacts =
+					temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+				if temp_artifacts > MAX_TEMP_ARTIFACTS ||
+					!item.file_type().map_err(io_error)?.is_file()
+				{
+					return Err(ContentError::IntegrityFailed);
+				}
 				fs::remove_file(item.path()).map_err(io_error)?;
 				continue;
 			}
 			if !name.ends_with(".json") || !item.file_type().map_err(io_error)?.is_file() {
 				return Err(ContentError::IntegrityFailed);
 			}
-			let bytes = fs::read(item.path()).map_err(io_error)?;
-			if bytes.len() > MAX_PROPOSAL_BYTES {
-				return Err(ContentError::IntegrityFailed);
-			}
+			let bytes = crate::bounded_io::read_regular_file(
+				item.path(),
+				MAX_PROPOSAL_BYTES as u64,
+			)?;
 			let proposal: PreparedCheckpointProposalV2 =
 				serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			validate_proposal(&proposal)?;
@@ -476,10 +491,10 @@ impl CheckpointProposalStore {
 		}
 		let path = self.root.join(format!("{key}.json"));
 		if path.exists() {
-			let existing = fs::read(&path).map_err(io_error)?;
-			if existing.len() > MAX_PROPOSAL_BYTES {
-				return Err(ContentError::IntegrityFailed);
-			}
+			let existing = crate::bounded_io::read_regular_file(
+				&path,
+				MAX_PROPOSAL_BYTES as u64,
+			)?;
 			let existing: PreparedCheckpointProposalV2 =
 				serde_json::from_slice(&existing).map_err(|_| ContentError::IntegrityFailed)?;
 			validate_proposal(&existing)?;
@@ -1301,5 +1316,18 @@ mod tests {
 			assert_eq!(reopened.state.read().unwrap().by_tuple.len(), usize::from(persisted));
 			assert!(reopened.prepare_exact(&duty, &watermark(), &mmr, &streaming, &signer).is_ok());
 		}
+	}
+
+	#[test]
+	fn recovery_rejects_temp_artifact_flood() {
+		let temp = TempDir::new().unwrap();
+		let root = temp.path().join(ROOT);
+		fs::create_dir_all(&root).unwrap();
+		fs::write(root.join("first.json.tmp-1"), b"partial").unwrap();
+		fs::write(root.join("second.json.tmp-1"), b"partial").unwrap();
+		assert!(matches!(
+			CheckpointProposalStore::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
 	}
 }

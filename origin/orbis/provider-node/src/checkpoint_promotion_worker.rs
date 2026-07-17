@@ -108,10 +108,7 @@ impl PromotionDiscoveryScheduler {
 			}
 		}
 		let cursor = if path.exists() {
-			let bytes = fs::read(path).map_err(io_error)?;
-			if bytes.len() > MAX_RECORD_BYTES {
-				return Err(ContentError::IntegrityFailed);
-			}
+			let bytes = crate::bounded_io::read_regular_file(path, MAX_RECORD_BYTES as u64)?;
 			let cursor =
 				serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			validate_cursor(&cursor)?;

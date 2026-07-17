@@ -49,6 +49,56 @@ const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
 const OBJECTS: &str = "objects";
+// One durable metadata slot is derived from the maximum 256 chunk records at 128 encoded bytes
+// each (64-byte hash, length and JSON structure). Operation, recovery and private-query records
+// must each fit one slot. Two extra slots cover all top-level maps/cursors and JSON structure;
+// private-query response bodies remain in bounded external blob files.
+const MAX_ENCODED_DURABLE_SLOT_BYTES: u64 = MAX_CHUNKS as u64 * 128;
+const JOURNAL_FIXED_SLOTS: usize = 2;
+
+fn journal_byte_limit(operation_limit: usize) -> Result<u64, ContentError> {
+	let slots = operation_limit
+		.checked_add(JOURNAL_FIXED_SLOTS)
+		.ok_or(ContentError::IntegrityFailed)?;
+	(slots as u64)
+		.checked_mul(MAX_ENCODED_DURABLE_SLOT_BYTES)
+		.ok_or(ContentError::IntegrityFailed)
+}
+
+fn validate_encoded_journal_records(state: &JournalState) -> Result<(), ContentError> {
+	fn validate<T: Serialize>(record: &T) -> Result<(), ContentError> {
+		let bytes = serde_json::to_vec(record).map_err(io_error)?;
+		if bytes.len() as u64 > MAX_ENCODED_DURABLE_SLOT_BYTES {
+			return Err(ContentError::IntegrityFailed);
+		}
+		Ok(())
+	}
+	for record in state.operations.values() {
+		validate(record)?;
+	}
+	for record in state.quarantine.values() {
+		validate(record)?;
+	}
+	for record in state.repairs.values() {
+		validate(record)?;
+	}
+	for record in state.recovery.values() {
+		validate(record)?;
+	}
+	for record in state.capability_replay.values() {
+		validate(record)?;
+	}
+	for record in state.private_queries.values() {
+		validate(record)?;
+	}
+	for record in state.private_query_replay.values() {
+		validate(record)?;
+	}
+	for record in state.manifest_tombstones.values() {
+		validate(record)?;
+	}
+	Ok(())
+}
 
 /// Immutable descriptor for one stored-byte operation.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -421,7 +471,10 @@ impl StreamingStore {
 		private_query::prepare_response_dir(&root)?;
 		let journal = root.join(JOURNAL);
 		let state = if journal.exists() {
-			let bytes = fs::read(&journal).map_err(io_error)?;
+			let bytes = crate::bounded_io::read_regular_file(
+				&journal,
+				journal_byte_limit(MAX_STREAMING_OPERATIONS)?,
+			)?;
 			let state: JournalState = serde_json::from_slice(&bytes).map_err(io_error)?;
 			if state.version != STREAM_VERSION ||
 				state.operations.len() > operation_limit ||
@@ -433,6 +486,7 @@ impl StreamingStore {
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
+			validate_encoded_journal_records(&state)?;
 			recovery::validate_recovery_state(&state)?;
 			private_query::validate_private_query_state(&state)?;
 			state
@@ -2560,7 +2614,12 @@ fn remove_unowned(directory: &Path, owned: &BTreeSet<String>) -> Result<bool, Co
 }
 
 fn persist_state(root: &Path, state: &JournalState) -> Result<(), ContentError> {
+	validate_encoded_journal_records(state)
+		.map_err(|_| ContentError::ProviderRecoveryTableFull)?;
 	let bytes = serde_json::to_vec_pretty(state).map_err(io_error)?;
+	if bytes.len() as u64 > journal_byte_limit(MAX_STREAMING_OPERATIONS)? {
+		return Err(ContentError::ProviderRecoveryTableFull);
+	}
 	let path = root.join(JOURNAL);
 	let temporary = root.join(format!("{JOURNAL}.tmp-{}", std::process::id()));
 	let mut file = File::create(&temporary).map_err(io_error)?;
@@ -2587,6 +2646,20 @@ mod exact_lookup_tests {
 	use super::*;
 	use crate::storage::bucket_mmr::BucketMmrStore;
 	use crate::{capability::ProviderCapabilityV1, CapabilityAuthoritySnapshot};
+
+	#[test]
+	fn sparse_oversized_journal_fails_closed_before_decode() {
+		let temp = tempfile::tempdir().unwrap();
+		let root = temp.path().join(STREAM_ROOT);
+		fs::create_dir_all(root.join(STAGING)).unwrap();
+		fs::create_dir_all(root.join(OBJECTS)).unwrap();
+		let journal = File::create(root.join(JOURNAL)).unwrap();
+		journal.set_len(journal_byte_limit(MAX_STREAMING_OPERATIONS).unwrap() + 1).unwrap();
+		assert!(matches!(
+			StreamingStore::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+	}
 	use orbis_storage_runtime_api::{
 		AgreementInfo, AgreementStatus, BucketGrantInfo, BucketRole, ControlBucketInfo,
 		HostDelegationInfo,

@@ -51,6 +51,8 @@ const VERSION: u8 = 1;
 const RECORD_DOMAIN: &[u8] = b"cord/provider/checkpoint-primary-quorum-record/v1";
 const MAX_RECORD_BYTES: usize = 256 * 1024;
 const MAX_RECORDS: usize = 8_192;
+// Atomic replacement creates at most one process-specific temporary artifact.
+const MAX_TEMP_ARTIFACTS: usize = 1;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -109,18 +111,34 @@ impl CheckpointPrimaryQuorumStore {
 		let root = root.as_ref().join(ROOT);
 		fs::create_dir_all(&root).map_err(io_error)?;
 		let mut records = HashMap::new();
+		let mut visited = 0usize;
+		let mut temp_artifacts = 0usize;
 		for item in fs::read_dir(&root).map_err(io_error)? {
+			visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+			if visited > MAX_RECORDS + MAX_TEMP_ARTIFACTS {
+				return Err(ContentError::IntegrityFailed)
+			}
 			let item = item.map_err(io_error)?;
 			let name = item.file_name().to_string_lossy().into_owned();
 			if name.contains(".tmp-") {
+				temp_artifacts =
+					temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+				if temp_artifacts > MAX_TEMP_ARTIFACTS ||
+					!item.file_type().map_err(io_error)?.is_file()
+				{
+					return Err(ContentError::IntegrityFailed)
+				}
 				fs::remove_file(item.path()).map_err(io_error)?;
 				continue
 			}
 			if !name.ends_with(".json") || !item.file_type().map_err(io_error)?.is_file() {
 				return Err(ContentError::IntegrityFailed)
 			}
-			let bytes = fs::read(item.path()).map_err(io_error)?;
-			if bytes.len() > MAX_RECORD_BYTES || records.len() >= MAX_RECORDS {
+			let bytes = crate::bounded_io::read_regular_file(
+				item.path(),
+				MAX_RECORD_BYTES as u64,
+			)?;
+			if records.len() >= MAX_RECORDS {
 				return Err(ContentError::IntegrityFailed)
 			}
 			let record: PrimaryQuorumRecordV1 =
@@ -1048,5 +1066,18 @@ pub(crate) mod tests {
 			let reopened = CheckpointPrimaryQuorumStore::open(temp.path()).unwrap();
 			assert!(reopened.accept_response(&proposal, &confirmation).is_ok(), "fault {fault:?}");
 		}
+	}
+
+	#[test]
+	fn recovery_rejects_temp_artifact_flood() {
+		let temp = TempDir::new().unwrap();
+		let root = temp.path().join(ROOT);
+		fs::create_dir_all(&root).unwrap();
+		fs::write(root.join("first.json.tmp-1"), b"partial").unwrap();
+		fs::write(root.join("second.json.tmp-1"), b"partial").unwrap();
+		assert!(matches!(
+			CheckpointPrimaryQuorumStore::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
 	}
 }
