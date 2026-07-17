@@ -1584,7 +1584,12 @@ fn read_durable_journal(root: &Path) -> Result<super::JournalState, ContentError
 pub(super) struct PrivateQueryBlobRecoveryPlan {
 	pub(super) orphans: Vec<String>,
 	#[cfg(unix)]
-	directory: ResponseDirectory,
+	directory: Option<ResponseDirectory>,
+	directory_missing: bool,
+}
+
+pub(super) const fn response_directory_name() -> &'static str {
+	RESPONSE_DIR
 }
 
 pub(super) fn validate_private_query_blobs(
@@ -1595,9 +1600,24 @@ pub(super) fn validate_private_query_blobs(
 	#[cfg(unix)]
 	{
 		let state = store.read_state()?;
+		let response_path = store.root.join(RESPONSE_DIR);
+		if !response_path.try_exists().map_err(blob_io)? {
+			if !state.private_queries.is_empty() || state.private_query_response_bytes != 0 {
+				return Err(ContentError::IntegrityFailed);
+			}
+			return Ok(PrivateQueryBlobRecoveryPlan {
+				orphans: Vec::new(),
+				directory: None,
+				directory_missing: true,
+			});
+		}
 		let directory = acquire_response_directory(&store.root)?;
 		let orphans = validate_private_query_blobs_in_directory(&state, &directory)?;
-		Ok(PrivateQueryBlobRecoveryPlan { orphans, directory })
+		Ok(PrivateQueryBlobRecoveryPlan {
+			orphans,
+			directory: Some(directory),
+			directory_missing: false,
+		})
 	}
 }
 
@@ -1608,7 +1628,15 @@ pub(super) fn apply_private_query_blob_recovery_plan(
 	#[cfg(not(unix))]
 	return Err(ContentError::IntegrityFailed);
 	#[cfg(unix)]
-	remove_private_query_orphans_in_directory(&plan.directory, &plan.orphans)
+	{
+		if plan.directory_missing {
+			fs::create_dir(_root.join(RESPONSE_DIR)).map_err(blob_io)?;
+			File::open(_root).and_then(|directory| directory.sync_all()).map_err(blob_io)?;
+			return Ok(());
+		}
+		let directory = plan.directory.as_ref().ok_or(ContentError::IntegrityFailed)?;
+		remove_private_query_orphans_in_directory(directory, &plan.orphans)
+	}
 }
 
 #[cfg(unix)]

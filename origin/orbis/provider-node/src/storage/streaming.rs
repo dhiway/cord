@@ -49,6 +49,9 @@ const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
 const OBJECTS: &str = "objects";
+const JOURNAL_TEMP_PREFIX: &str = "journal.json.tmp-";
+const MAX_JOURNAL_TEMP_ARTIFACTS: usize = 1;
+const MAX_STREAM_ROOT_ARTIFACTS: usize = 5;
 // A serialized transition can leave at most one renamed or newly-created file outside the last
 // durable journal. Recovery validates the complete directory before deleting that artifact.
 const MAX_UNOWNED_DIRECTORY_ARTIFACTS: usize = 1;
@@ -390,6 +393,90 @@ struct StreamingRecoveryPlan {
 	private_query_blobs: private_query::PrivateQueryBlobRecoveryPlan,
 }
 
+struct StreamingNamespacePlan {
+	root: PathBuf,
+	root_missing: bool,
+	journal_missing: bool,
+	staging_missing: bool,
+	objects_missing: bool,
+	journal_temps: Vec<PathBuf>,
+}
+
+/// Fully validated streaming open whose filesystem actions have not been applied.
+pub(crate) struct PreparedStreamingStore {
+	store: StreamingStore,
+	plan: StreamingRecoveryPlan,
+	namespace: StreamingNamespacePlan,
+}
+
+impl PreparedStreamingStore {
+	/// Return the virtual post-recovery installation sequence without applying recovery actions.
+	pub(crate) fn installation_records(&self) -> Result<Vec<VerifiedInstallation>, ContentError> {
+		installation_records_in(&self.plan.next)
+	}
+
+	/// Reverify one installation against its post-recovery object or planned install source.
+	pub(crate) fn verified_installation(
+		&self,
+		bucket_id: BucketId,
+		operation_id: OperationId,
+	) -> Result<VerifiedInstallation, ContentError> {
+		let key = operation_key_parts(bucket_id, operation_id);
+		let record = self
+			.plan
+			.next
+			.operations
+			.get(&key)
+			.cloned()
+			.ok_or(ContentError::NotFound)?;
+		if is_bucket_tombstoned(
+			&self.plan.next,
+			record.descriptor.bucket_id,
+			&record.descriptor.expected_cid,
+		) {
+			validate_installed_record(&record)?;
+			return verified_installation_from_record(&record);
+		}
+		if self.plan.next.quarantine.contains_key(&record.descriptor.expected_cid) {
+			return Err(ContentError::IntegrityFailed);
+		}
+		validate_installed_record(&record)?;
+		let object = self.store.object_path(&record.descriptor.expected_cid);
+		let path = self
+			.plan
+			.installs
+			.iter()
+			.find_map(|(part, install)| (install.object == object).then_some(part.as_path()))
+			.unwrap_or(object.as_path());
+		let receipt = record.receipt.as_ref().ok_or(ContentError::IntegrityFailed)?;
+		let (cid, fingerprint, length) =
+			verify_file(path, &record.descriptor, &record.chunks)
+				.map_err(|_| ContentError::IntegrityFailed)?;
+		if fingerprint != receipt.fingerprint || length != receipt.stored_bytes {
+			return Err(ContentError::IntegrityFailed);
+		}
+		Ok(VerifiedInstallation {
+			install_sequence: record.install_sequence.ok_or(ContentError::IntegrityFailed)?,
+			operation_id: record.descriptor.operation_id,
+			bucket_id: record.descriptor.bucket_id,
+			cid,
+			stored_bytes: length,
+		})
+	}
+
+	/// Apply only the already validated, retry-safe recovery actions.
+	pub(crate) fn apply(self) -> Result<StreamingStore, ContentError> {
+		let initial_journal = self.namespace.journal_missing && self.namespace.journal_temps.is_empty();
+		apply_streaming_namespace(&self.namespace)?;
+		apply_recovery_plan(&self.store.root, &self.plan)?;
+		if self.plan.persist || initial_journal {
+			persist_state_bytes(&self.store.root, &self.plan.journal_bytes)?;
+		}
+		*self.store.write_state()? = self.plan.next;
+		Ok(self.store)
+	}
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ManifestTombstoneRecord {
@@ -414,7 +501,7 @@ pub(crate) struct ManifestDeletionEvidence {
 
 /// One immutable, fully reverified installed operation used by the private commitment store.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct VerifiedInstallation {
+pub(crate) struct VerifiedInstallation {
 	pub(super) install_sequence: u64,
 	pub(super) operation_id: OperationId,
 	pub(super) bucket_id: BucketId,
@@ -539,7 +626,14 @@ pub struct StreamingStore {
 impl StreamingStore {
 	/// Open a staged store, recover durable transitions and remove unowned files.
 	pub fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
-		Self::open_with_limit(root, MAX_STREAMING_OPERATIONS)
+		Self::prepare(root)?.apply()
+	}
+
+	/// Validate the complete streaming recovery view without mutating its namespace.
+	pub(crate) fn prepare(
+		root: impl AsRef<Path>,
+	) -> Result<PreparedStreamingStore, ContentError> {
+		Self::prepare_with_limit(root, MAX_STREAMING_OPERATIONS)
 	}
 
 	/// Test seam for the durable operation-retention admission bound.
@@ -551,21 +645,24 @@ impl StreamingStore {
 		if operation_limit == 0 || operation_limit > MAX_STREAMING_OPERATIONS {
 			return Err(ContentError::SchemaInvalid);
 		}
-		Self::open_with_limit(root, operation_limit)
+		Self::prepare_with_limit(root, operation_limit)?.apply()
 	}
 
-	fn open_with_limit(
+	fn prepare_with_limit(
 		root: impl AsRef<Path>,
 		operation_limit: usize,
-	) -> Result<Self, ContentError> {
-		let root = root.as_ref().join(STREAM_ROOT);
-		fs::create_dir_all(root.join(STAGING)).map_err(io_error)?;
-		fs::create_dir_all(root.join(OBJECTS)).map_err(io_error)?;
-		private_query::prepare_response_dir(&root)?;
+	) -> Result<PreparedStreamingStore, ContentError> {
+		let namespace = validate_streaming_namespace(root.as_ref())?;
+		let root = namespace.root.clone();
 		let journal = root.join(JOURNAL);
-		let state = if journal.exists() {
+		let journal_source = if namespace.journal_missing {
+			namespace.journal_temps.first().cloned()
+		} else {
+			Some(journal.clone())
+		};
+		let state = if let Some(journal_source) = journal_source {
 			let bytes = crate::bounded_io::read_regular_file(
-				&journal,
+				&journal_source,
 				journal_byte_limit(MAX_STREAMING_OPERATIONS)?,
 			)?;
 			let state: JournalState = serde_json::from_slice(&bytes).map_err(io_error)?;
@@ -606,11 +703,11 @@ impl StreamingStore {
 			exact_quarantine_probes: AtomicUsize::new(0),
 		};
 		let private_query_blobs = private_query::validate_private_query_blobs(&store)?;
-		store.recover(private_query_blobs)?;
-		if !journal.exists() {
-			store.persist()?;
-		}
-		Ok(store)
+		let plan = {
+			let state = store.read_state()?;
+			store.plan_recovery(&state, private_query_blobs)?
+		};
+		Ok(PreparedStreamingStore { store, plan, namespace })
 	}
 
 	/// Arm one deterministic crash boundary for the next matching transition.
@@ -1375,20 +1472,6 @@ impl StreamingStore {
 		repair_progress(repair, &installed)
 	}
 
-	fn recover(
-		&self,
-		private_query_blobs: private_query::PrivateQueryBlobRecoveryPlan,
-	) -> Result<(), ContentError> {
-		let mut state = self.write_state()?;
-		let plan = self.plan_recovery(&state, private_query_blobs)?;
-		apply_recovery_plan(&self.root, &plan)?;
-		if plan.persist {
-			persist_state_bytes(&self.root, &plan.journal_bytes)?;
-			*state = plan.next;
-		}
-		Ok(())
-	}
-
 	fn plan_recovery(
 		&self,
 		state: &JournalState,
@@ -1551,10 +1634,25 @@ impl StreamingStore {
 					}
 				},
 				Phase::Finalizing => {
-					if record.install_sequence.is_some() || record.provider_receipt.is_some() {
+					if record.install_sequence.is_some()
+						|| record.receipt.is_some()
+						|| record.provider_receipt.is_some()
+					{
 						return Err(ContentError::IntegrityFailed);
 					}
 					let part = self.part_path(&key);
+					if tombstoned_cids.contains(&record.descriptor.expected_cid) {
+						if next.recovery.values().any(|item| item.descriptor == record.descriptor) {
+							return Err(ContentError::IntegrityFailed);
+						}
+						if part.exists() {
+							verify_file(&part, &record.descriptor, &record.chunks)?;
+							removals.insert(part);
+						}
+						next.operations.get_mut(&key).expect("key exists").phase = Phase::Cancelled;
+						state_changed = true;
+						continue;
+					}
 					let object = self.object_path(&record.descriptor.expected_cid);
 					let (_, fingerprint, _) = if object.exists() {
 						let verified = verify_file(&object, &record.descriptor, &record.chunks)?;
@@ -1716,26 +1814,7 @@ impl StreamingStore {
 	/// Return immutable installed descriptors in sequence order without admitting their bytes.
 	pub(super) fn installation_records(&self) -> Result<Vec<VerifiedInstallation>, ContentError> {
 		let state = self.read_state()?;
-		validate_install_sequences(&state)?;
-		let mut installations = state
-			.operations
-			.values()
-			.filter(|record| record.phase == Phase::Installed)
-			.map(|record| {
-				validate_installed_record(record)?;
-				Ok(VerifiedInstallation {
-					install_sequence: record
-						.install_sequence
-						.ok_or(ContentError::IntegrityFailed)?,
-					operation_id: record.descriptor.operation_id,
-					bucket_id: record.descriptor.bucket_id,
-					cid: CanonicalCid::parse(&record.descriptor.expected_cid)?,
-					stored_bytes: record.descriptor.object_len,
-				})
-			})
-			.collect::<Result<Vec<_>, ContentError>>()?;
-		installations.sort_by_key(|installation| installation.install_sequence);
-		Ok(installations)
+		installation_records_in(&state)
 	}
 
 	/// Reverify one exact installed operation without accepting a CID-only alias.
@@ -2147,11 +2226,6 @@ impl StreamingStore {
 		self.root.join(STAGING).join(format!("repair-{cid}.part"))
 	}
 
-	fn persist(&self) -> Result<(), ContentError> {
-		let state = self.read_state()?;
-		persist_state(&self.root, &state)
-	}
-
 	fn read_state(&self) -> Result<std::sync::RwLockReadGuard<'_, JournalState>, ContentError> {
 		self.state.read().map_err(|_| lock_error())
 	}
@@ -2530,6 +2604,33 @@ fn validate_install_sequences(state: &JournalState) -> Result<(), ContentError> 
 	Ok(())
 }
 
+fn installation_records_in(
+	state: &JournalState,
+) -> Result<Vec<VerifiedInstallation>, ContentError> {
+	validate_install_sequences(state)?;
+	let mut installations = state
+		.operations
+		.values()
+		.filter(|record| record.phase == Phase::Installed)
+		.map(verified_installation_from_record)
+		.collect::<Result<Vec<_>, ContentError>>()?;
+	installations.sort_by_key(|installation| installation.install_sequence);
+	Ok(installations)
+}
+
+fn verified_installation_from_record(
+	record: &OperationRecord,
+) -> Result<VerifiedInstallation, ContentError> {
+	validate_installed_record(record)?;
+	Ok(VerifiedInstallation {
+		install_sequence: record.install_sequence.ok_or(ContentError::IntegrityFailed)?,
+		operation_id: record.descriptor.operation_id,
+		bucket_id: record.descriptor.bucket_id,
+		cid: CanonicalCid::parse(&record.descriptor.expected_cid)?,
+		stored_bytes: record.descriptor.object_len,
+	})
+}
+
 fn validate_descriptor(descriptor: &StreamingDescriptor) -> Result<(), ContentError> {
 	CanonicalCid::parse(&descriptor.expected_cid)?;
 	chunk_count(descriptor.object_len)?;
@@ -2789,6 +2890,111 @@ fn insert_truncation(
 	Ok(())
 }
 
+fn validate_streaming_namespace(provider_root: &Path) -> Result<StreamingNamespacePlan, ContentError> {
+	let root = provider_root.join(STREAM_ROOT);
+	if !root.try_exists().map_err(io_error)? {
+		return Ok(StreamingNamespacePlan {
+			root,
+			root_missing: true,
+			journal_missing: true,
+			staging_missing: true,
+			objects_missing: true,
+			journal_temps: Vec::new(),
+		});
+	}
+	if !fs::metadata(&root).map_err(io_error)?.is_dir() {
+		return Err(ContentError::IntegrityFailed);
+	}
+	let mut journal = false;
+	let mut staging = false;
+	let mut objects = false;
+	let mut responses = false;
+	let mut journal_temps = Vec::new();
+	let mut visited = 0usize;
+	for entry in fs::read_dir(&root).map_err(io_error)? {
+		visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+		if visited > MAX_STREAM_ROOT_ARTIFACTS {
+			return Err(ContentError::IntegrityFailed);
+		}
+		let entry = entry.map_err(io_error)?;
+		let name = entry.file_name().to_string_lossy().into_owned();
+		let file_type = entry.file_type().map_err(io_error)?;
+		match name.as_str() {
+			JOURNAL if file_type.is_file() => journal = true,
+			STAGING if file_type.is_dir() => staging = true,
+			OBJECTS if file_type.is_dir() => objects = true,
+			name if name == private_query::response_directory_name() && file_type.is_dir() => {
+				responses = true;
+			},
+			name if name.starts_with(JOURNAL_TEMP_PREFIX) && file_type.is_file() => {
+				let process_id = &name[JOURNAL_TEMP_PREFIX.len()..];
+				if process_id.is_empty() || !process_id.bytes().all(|byte| byte.is_ascii_digit()) {
+					return Err(ContentError::IntegrityFailed);
+				}
+				journal_temps.push(entry.path());
+				if journal_temps.len() > MAX_JOURNAL_TEMP_ARTIFACTS {
+					return Err(ContentError::IntegrityFailed);
+				}
+			},
+			_ => return Err(ContentError::IntegrityFailed),
+		}
+	}
+	let expected = usize::from(journal)
+		+ usize::from(staging)
+		+ usize::from(objects)
+		+ usize::from(responses)
+		+ journal_temps.len();
+	if expected != visited {
+		return Err(ContentError::IntegrityFailed);
+	}
+	if !journal && journal_temps.is_empty() {
+		for (present, path) in [
+			(staging, root.join(STAGING)),
+			(objects, root.join(OBJECTS)),
+			(responses, root.join(private_query::response_directory_name())),
+		] {
+			if present && fs::read_dir(path).map_err(io_error)?.next().is_some() {
+				return Err(ContentError::IntegrityFailed);
+			}
+		}
+	}
+	Ok(StreamingNamespacePlan {
+		root,
+		root_missing: false,
+		journal_missing: !journal,
+		staging_missing: !staging,
+		objects_missing: !objects,
+		journal_temps,
+	})
+}
+
+fn apply_streaming_namespace(plan: &StreamingNamespacePlan) -> Result<(), ContentError> {
+	if plan.root_missing {
+		fs::create_dir_all(&plan.root).map_err(io_error)?;
+		let parent = plan.root.parent().ok_or(ContentError::IntegrityFailed)?;
+		sync_dir(parent)?;
+	}
+	let mut created_directory = false;
+	for (missing, name) in [(plan.staging_missing, STAGING), (plan.objects_missing, OBJECTS)] {
+		if missing {
+			fs::create_dir(plan.root.join(name)).map_err(io_error)?;
+			created_directory = true;
+		}
+	}
+	if created_directory {
+		sync_dir(&plan.root)?;
+	}
+	if plan.journal_missing {
+		if let Some(source) = plan.journal_temps.first() {
+			fs::rename(source, plan.root.join(JOURNAL)).map_err(io_error)?;
+			sync_dir(&plan.root)?;
+		}
+		Ok(())
+	} else {
+		crate::bounded_io::remove_validated_temp_artifacts(&plan.root, &plan.journal_temps)
+	}
+}
+
 fn apply_recovery_plan(root: &Path, plan: &StreamingRecoveryPlan) -> Result<(), ContentError> {
 	for (path, action) in &plan.truncations {
 		let file = OpenOptions::new()
@@ -2832,6 +3038,9 @@ fn apply_recovery_plan(root: &Path, plan: &StreamingRecoveryPlan) -> Result<(), 
 }
 
 fn scan_unowned(directory: &Path, owned: &BTreeSet<String>) -> Result<Vec<PathBuf>, ContentError> {
+	if !directory.try_exists().map_err(io_error)? {
+		return Ok(Vec::new());
+	}
 	let max_entries = owned
 		.len()
 		.checked_add(MAX_UNOWNED_DIRECTORY_ARTIFACTS)
@@ -2877,11 +3086,23 @@ fn encode_state(state: &JournalState, operation_limit: usize) -> Result<Vec<u8>,
 fn persist_state_bytes(root: &Path, bytes: &[u8]) -> Result<(), ContentError> {
 	let path = root.join(JOURNAL);
 	let temporary = root.join(format!("{JOURNAL}.tmp-{}", std::process::id()));
-	let mut file = File::create(&temporary).map_err(io_error)?;
-	file.write_all(bytes).map_err(io_error)?;
-	file.sync_all().map_err(io_error)?;
-	fs::rename(temporary, path).map_err(io_error)?;
-	sync_dir(root)
+	let mut file = OpenOptions::new()
+		.create_new(true)
+		.write(true)
+		.open(&temporary)
+		.map_err(io_error)?;
+	let result = (|| {
+		file.write_all(bytes).map_err(io_error)?;
+		file.sync_all().map_err(io_error)?;
+		drop(file);
+		fs::rename(&temporary, path).map_err(io_error)?;
+		sync_dir(root)
+	})();
+	if result.is_err() {
+		let _ = fs::remove_file(&temporary);
+		let _ = sync_dir(root);
+	}
+	result
 }
 
 fn sync_dir(path: &Path) -> Result<(), ContentError> {
@@ -2926,6 +3147,125 @@ mod exact_lookup_tests {
 			validate_journal_cardinality(one_over, MAX_STREAMING_OPERATIONS),
 			Err(ContentError::IntegrityFailed)
 		);
+	}
+
+	#[test]
+	fn corrupt_or_missing_journal_never_creates_or_scrubs_stream_namespaces() {
+		let corrupt = tempfile::tempdir().unwrap();
+		let corrupt_root = corrupt.path().join(STREAM_ROOT);
+		fs::create_dir(&corrupt_root).unwrap();
+		fs::write(corrupt_root.join(JOURNAL), b"not-json").unwrap();
+		assert!(StreamingStore::open(corrupt.path()).is_err());
+		assert_eq!(fs::read_dir(&corrupt_root).unwrap().count(), 1);
+		assert!(!corrupt_root.join(STAGING).exists());
+		assert!(!corrupt_root.join(OBJECTS).exists());
+
+		let missing = tempfile::tempdir().unwrap();
+		let missing_root = missing.path().join(STREAM_ROOT);
+		fs::create_dir(&missing_root).unwrap();
+		fs::create_dir(missing_root.join(STAGING)).unwrap();
+		fs::create_dir(missing_root.join(OBJECTS)).unwrap();
+		fs::create_dir(missing_root.join(private_query::response_directory_name())).unwrap();
+		let orphan = missing_root.join(OBJECTS).join("must-survive");
+		fs::write(&orphan, b"unbound-object-evidence").unwrap();
+		assert!(matches!(
+			StreamingStore::open(missing.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+		assert_eq!(fs::read(orphan).unwrap(), b"unbound-object-evidence");
+		assert!(!missing_root.join(JOURNAL).exists());
+	}
+
+	#[test]
+	fn sole_valid_journal_temp_is_promoted_and_temp_flood_is_preserved() {
+		let recovered = tempfile::tempdir().unwrap();
+		drop(StreamingStore::open(recovered.path()).unwrap());
+		let root = recovered.path().join(STREAM_ROOT);
+		let journal = root.join(JOURNAL);
+		let bytes = fs::read(&journal).unwrap();
+		fs::remove_file(&journal).unwrap();
+		let crash_temp = root.join(format!("{JOURNAL_TEMP_PREFIX}{}", std::process::id()));
+		fs::write(&crash_temp, &bytes).unwrap();
+		drop(StreamingStore::open(recovered.path()).unwrap());
+		assert_eq!(fs::read(&journal).unwrap(), bytes);
+		assert!(!crash_temp.exists());
+
+		let flooded = tempfile::tempdir().unwrap();
+		drop(StreamingStore::open(flooded.path()).unwrap());
+		let root = flooded.path().join(STREAM_ROOT);
+		let first = root.join(format!("{JOURNAL_TEMP_PREFIX}71"));
+		let second = root.join(format!("{JOURNAL_TEMP_PREFIX}72"));
+		fs::write(&first, b"first").unwrap();
+		fs::write(&second, b"second").unwrap();
+		assert!(matches!(
+			StreamingStore::open(flooded.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+		assert_eq!(fs::read(first).unwrap(), b"first");
+		assert_eq!(fs::read(second).unwrap(), b"second");
+	}
+
+	#[test]
+	fn tombstoned_cid_cancels_duplicate_finalizing_recovery_in_one_open() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = StreamingStore::open(temp.path()).unwrap();
+		let bytes = b"tombstoned-shared-finalizing";
+		let commitment = sp_crypto_hashing::blake2_256(bytes);
+		let cid = CanonicalCid::from_digest(commitment);
+		let installed_bucket = BucketId::from_bytes([0x81; 32]);
+		store
+			.put_chunks(
+				StreamingDescriptor {
+					operation_id: OperationId::from_bytes([0x82; 16]),
+					bucket_id: installed_bucket,
+					expected_cid: cid.to_string(),
+					object_len: bytes.len() as u64,
+				},
+				[bytes.to_vec()],
+			)
+			.unwrap();
+		let duplicate = StreamingDescriptor {
+			operation_id: OperationId::from_bytes([0x83; 16]),
+			bucket_id: BucketId::from_bytes([0x84; 32]),
+			expected_cid: cid.to_string(),
+			object_len: bytes.len() as u64,
+		};
+		store.begin(duplicate.clone()).unwrap();
+		store
+			.push_chunk_sync(duplicate.bucket_id, duplicate.operation_id, 0, bytes)
+			.unwrap();
+		store.inject_fault_once(StreamingFault::AfterFinalizingJournal).unwrap();
+		assert!(matches!(
+			store.finalize(duplicate.bucket_id, duplicate.operation_id),
+			Err(ContentError::Io(_))
+		));
+		let duplicate_part = store.part_path(&operation_key(&duplicate));
+		assert!(duplicate_part.exists());
+		store.inject_fault_once(StreamingFault::AfterTombstoneJournal).unwrap();
+		assert!(matches!(
+			store.tombstone_manifest([0x85; 32], installed_bucket, commitment, 99),
+			Err(ContentError::Io(_))
+		));
+		let object = store.object_path(cid.as_str());
+		assert!(object.exists());
+		drop(store);
+
+		let reopened = StreamingStore::open(temp.path()).unwrap();
+		assert!(!object.exists());
+		assert!(!duplicate_part.exists());
+		assert_eq!(
+			reopened
+				.read_state()
+				.unwrap()
+				.operations
+				.get(&operation_key(&duplicate))
+				.unwrap()
+				.phase,
+			Phase::Cancelled
+		);
+		drop(reopened);
+		drop(StreamingStore::open(temp.path()).unwrap());
+		assert!(!object.exists());
 	}
 
 	#[test]
