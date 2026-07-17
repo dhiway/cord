@@ -20,7 +20,7 @@
 
 use std::{
 	fs,
-	io::{Read as _, Seek as _, SeekFrom},
+	io::{Read as _, Seek as _, SeekFrom, Write as _},
 	path::{Path, PathBuf},
 	sync::{
 		atomic::{AtomicBool, Ordering},
@@ -186,6 +186,7 @@ enum PreparedFileGuard {
 
 struct PreparedJsonlStartup {
 	lock: PreparedFileGuard,
+	lock_temps: Vec<crate::bounded_io::PreparedRegularFile>,
 	source: PreparedFileGuard,
 	source_digest: Option<[u8; 32]>,
 	tail_start: u64,
@@ -197,6 +198,7 @@ struct PreparedJsonlStartup {
 
 struct InstalledOutboxRoot {
 	directory: fs::File,
+	lock_file: fs::File,
 	lock: PreparedFileGuard,
 }
 
@@ -207,6 +209,8 @@ impl PreparedJsonlStartup {
 	) -> Result<ArmedJsonlStartup, String> {
 		let directory = root.file().try_clone().map_err(|error| error.to_string())?;
 		let lock = acquire_prepared_outbox_lock(&directory, &self.lock)?;
+		crate::bounded_io::validate_prepared_regular_files_at(&directory, &self.lock_temps)
+			.map_err(|error| error.to_string())?;
 		let validated = validate_prepared_jsonl_guard(
 					&directory,
 					&self.source,
@@ -233,6 +237,7 @@ struct ArmedJsonlStartup {
 
 impl ArmedJsonlStartup {
 	fn apply(mut self) -> Result<(), String> {
+		let installed_lock = self.lock.file().try_clone().map_err(|error| error.to_string())?;
 		let mut root_capability = match self.prepared.root_capability.lock() {
 			Ok(root_capability) => root_capability,
 			Err(_) => return match self.lock.rollback_created() {
@@ -247,6 +252,17 @@ impl ArmedJsonlStartup {
 				Ok(()) => Err(error),
 				Err(cleanup) =>
 					Err(format!("{error}; created outbox lock cleanup failed: {cleanup}")),
+			}
+		}
+		if let Err(error) = crate::bounded_io::remove_validated_owned_lock_artifacts_at(
+			&self.directory,
+			&self.prepared.lock_temps,
+		)
+		.map_err(|error| error.to_string())
+		{
+			return match self.lock.rollback_created() {
+				Ok(()) => Err(error),
+				Err(cleanup) => Err(format!("{error}; outbox lock residue cleanup failed: {cleanup}")),
 			}
 		}
 		let applied = apply_prepared_jsonl_guard(
@@ -264,8 +280,23 @@ impl ArmedJsonlStartup {
 					Err(format!("{error}; created outbox lock cleanup failed: {cleanup}")),
 			}
 		}
+		if let Err(error) = self.lock.validate_canonical() {
+			return match restore_prepared_jsonl_source(
+				&self.directory,
+				&self.prepared.source,
+				self.prepared.tail_start,
+				&self.prepared.expected_tail,
+			) {
+				Ok(()) => Err(error),
+				Err(rollback) => Err(format!("{error}; outbox source rollback failed: {rollback}")),
+			}
+		}
 		let lock = self.lock.canonical_guard();
-		*root_capability = Some(InstalledOutboxRoot { directory: self.directory, lock });
+		*root_capability = Some(InstalledOutboxRoot {
+			directory: self.directory,
+			lock_file: installed_lock,
+			lock,
+		});
 		self.lock.preserve_created();
 		self.prepared.qualified.store(true, Ordering::Release);
 		Ok(())
@@ -341,8 +372,8 @@ impl ManifestDeletionSubmitter for JsonlManifestDeletionOutbox {
 		if !self.qualified.load(Ordering::Acquire) {
 			return Err("manifest deletion outbox startup has not been applied".into())
 		}
-		let (directory, expected_lock) = self.installed_root_capability()?;
-		let process_lock = self.lock_outbox(&directory, &expected_lock).await?;
+		let (directory, lock_file, expected_lock) = self.installed_root_capability()?;
+		let process_lock = self.lock_outbox(&directory, lock_file, &expected_lock).await?;
 		repair_incomplete_jsonl_tail(&directory, &process_lock).await?;
 		let existing = read_bounded_jsonl_tail(
 			&directory,
@@ -358,7 +389,7 @@ impl ManifestDeletionSubmitter for JsonlManifestDeletionOutbox {
 			};
 			if previous.manifest == request.manifest {
 				return if previous == request {
-					Ok(())
+					process_lock.validate()
 				} else {
 					Err("manifest deletion outbox replay changed its payload".into())
 				};
@@ -366,7 +397,8 @@ impl ManifestDeletionSubmitter for JsonlManifestDeletionOutbox {
 		}
 		let mut encoded = serde_json::to_vec(&ProviderSubmission::ManifestDeletion(request))
 			.map_err(|error| error.to_string())?;
-		self.append_locked(&directory, &process_lock, &mut encoded).await
+		self.append_locked(&directory, &process_lock, &mut encoded).await?;
+		process_lock.validate()
 	}
 }
 
@@ -375,9 +407,10 @@ fn prepare_jsonl_manifest_deletion_outbox(
 	qualified: Arc<AtomicBool>,
 	root_capability: Arc<std::sync::Mutex<Option<InstalledOutboxRoot>>>,
 ) -> Result<ManifestDeletionStartupPlan, String> {
-	let (lock, source, source_digest, tail_start, expected_tail, truncate_to) =
+	let (lock, lock_temps, source, source_digest, tail_start, expected_tail, truncate_to) =
 		match prepared_root {
 			Some(root) => {
+				let lock_temps = collect_owned_lock_temps(root)?;
 				let lock = open_optional_guarded_file_at(
 					root,
 					MANIFEST_DELETION_OUTBOX_LOCK_FILE,
@@ -386,13 +419,22 @@ fn prepare_jsonl_manifest_deletion_outbox(
 				.map_or(PreparedFileGuard::Missing, |(_, guard)| guard);
 				let (source, digest, tail_start, tail, truncate_to) =
 					prepare_jsonl_source_guard_at(root)?;
-				(lock, source, digest, tail_start, tail, truncate_to)
+				(lock, lock_temps, source, digest, tail_start, tail, truncate_to)
 			},
-			None => (PreparedFileGuard::Missing, PreparedFileGuard::Missing, None, 0, Vec::new(), 0),
+			None => (
+				PreparedFileGuard::Missing,
+				Vec::new(),
+				PreparedFileGuard::Missing,
+				None,
+				0,
+				Vec::new(),
+				0,
+			),
 		};
 	Ok(ManifestDeletionStartupPlan {
 		jsonl: Some(PreparedJsonlStartup {
 			lock,
+			lock_temps,
 			source,
 			source_digest,
 			tail_start,
@@ -412,6 +454,28 @@ fn validate_canonical_outbox_path(provider_root: &Path, path: &Path) -> Result<(
 		return Err("manifest deletion outbox must be the canonical provider-root child".into())
 	}
 	Ok(())
+}
+
+fn collect_owned_lock_temps(
+	directory: &fs::File,
+) -> Result<Vec<crate::bounded_io::PreparedRegularFile>, String> {
+	const PREFIX: &str = ".provider-lock.create-";
+	let mut temps = Vec::new();
+	for entry in crate::bounded_io::list_directory(directory).map_err(|error| error.to_string())? {
+		let name = entry.name.to_string_lossy();
+		let Some(random) = name.strip_prefix(PREFIX) else { continue };
+		if random.len() != 32 ||
+			!random.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) ||
+			entry.length != 0
+		{
+			return Err("manifest deletion outbox lock residue is invalid".into())
+		}
+		temps.push(entry.into_regular_guard().map_err(|error| error.to_string())?);
+		if temps.len() > 8 {
+			return Err("manifest deletion outbox lock residue set is too large".into())
+		}
+	}
+	Ok(temps)
 }
 
 fn prepare_jsonl_source_guard_at(
@@ -600,6 +664,45 @@ fn apply_prepared_jsonl_guard(
 	.map_err(|error| error.to_string())
 }
 
+fn restore_prepared_jsonl_source(
+	directory: &fs::File,
+	guard: &PreparedFileGuard,
+	tail_start: u64,
+	expected_tail: &[u8],
+) -> Result<(), String> {
+	let PreparedFileGuard::Present { identity, length } = guard else { return Ok(()) };
+	let mut file = crate::bounded_io::open_optional_regular_file_at(
+		directory,
+		MANIFEST_DELETION_OUTBOX_FILE.as_ref(),
+		true,
+	)
+	.map_err(|error| error.to_string())?
+	.ok_or("manifest deletion outbox disappeared before rollback")?;
+	let metadata = file.metadata().map_err(|error| error.to_string())?;
+	if crate::bounded_io::file_identity(&metadata) != *identity || metadata.len() > *length {
+		return Err("manifest deletion outbox changed before rollback".into())
+	}
+	crate::bounded_io::validate_regular_file_at(
+		directory,
+		MANIFEST_DELETION_OUTBOX_FILE.as_ref(),
+		*identity,
+		metadata.len(),
+	)
+	.map_err(|error| error.to_string())?;
+	file.set_len(tail_start).map_err(|error| error.to_string())?;
+	file.seek(SeekFrom::Start(tail_start)).map_err(|error| error.to_string())?;
+	file.write_all(expected_tail).map_err(|error| error.to_string())?;
+	file.sync_all().map_err(|error| error.to_string())?;
+	crate::bounded_io::sync_directory(directory).map_err(|error| error.to_string())?;
+	crate::bounded_io::validate_regular_file_at(
+		directory,
+		MANIFEST_DELETION_OUTBOX_FILE.as_ref(),
+		*identity,
+		*length,
+	)
+	.map_err(|error| error.to_string())
+}
+
 fn validate_open_file(file: &fs::File, expected: &PreparedFileGuard) -> Result<(), String> {
 	let PreparedFileGuard::Present { identity, length } = expected else {
 		return Err("manifest deletion outbox expected a missing file".into())
@@ -779,7 +882,10 @@ async fn read_bounded_jsonl_tail(
 		.map_err(|error| error.to_string())??;
 	let mut file = match file {
 		Some(file) => tokio::fs::File::from_std(file),
-		None => return Ok(Vec::new()),
+		None => {
+			lock.validate()?;
+			return Ok(Vec::new())
+		},
 	};
 	let len = file.metadata().await.map_err(|error| error.to_string())?.len();
 	let start = len.saturating_sub(limit);
@@ -798,11 +904,14 @@ async fn read_bounded_jsonl_tail(
 			bytes.clear();
 		}
 	}
+	lock.validate()?;
 	Ok(bytes)
 }
 
 impl JsonlManifestDeletionOutbox {
-	fn installed_root_capability(&self) -> Result<(fs::File, PreparedFileGuard), String> {
+	fn installed_root_capability(
+		&self,
+	) -> Result<(fs::File, fs::File, PreparedFileGuard), String> {
 		let root_capability = self.root_capability
 			.lock()
 			.map_err(|_| "manifest deletion outbox root capability lock was poisoned")?;
@@ -810,6 +919,7 @@ impl JsonlManifestDeletionOutbox {
 			.ok_or_else(|| "manifest deletion outbox root capability is unavailable".to_string())?;
 		Ok((
 			installed.directory.try_clone().map_err(|error| error.to_string())?,
+			installed.lock_file.try_clone().map_err(|error| error.to_string())?,
 			installed.lock.clone(),
 		))
 	}
@@ -817,18 +927,12 @@ impl JsonlManifestDeletionOutbox {
 	async fn lock_outbox(
 		&self,
 		directory: &fs::File,
+		lock: fs::File,
 		expected: &PreparedFileGuard,
 	) -> Result<AcquiredOutboxLock, String> {
 		let directory = directory.try_clone().map_err(|error| error.to_string())?;
 		let expected = expected.clone();
 		tokio::task::spawn_blocking(move || {
-			let lock = crate::bounded_io::open_optional_regular_file_at(
-				&directory,
-				MANIFEST_DELETION_OUTBOX_LOCK_FILE.as_ref(),
-				true,
-			)
-			.map_err(|error| error.to_string())?
-			.ok_or("manifest deletion outbox lock changed after startup qualification")?;
 			FileExt::try_lock_exclusive(&lock)
 				.map_err(|error| format!("manifest deletion outbox lock is already held: {error}"))?;
 			let acquired = AcquiredOutboxLock { file: lock, directory, expected };
@@ -863,8 +967,18 @@ impl JsonlManifestDeletionOutbox {
 			.await
 			.map_err(|error| error.to_string())??;
 		let mut file = tokio::fs::File::from_std(file);
+		let original_len = file.metadata().await.map_err(|error| error.to_string())?.len();
 		file.write_all(&encoded).await.map_err(|error| error.to_string())?;
 		file.sync_all().await.map_err(|error| error.to_string())?;
+		if let Err(error) = lock.validate() {
+			file.set_len(original_len).await.map_err(|rollback| {
+				format!("{error}; outbox append rollback failed: {rollback}")
+			})?;
+			file.sync_all().await.map_err(|rollback| {
+				format!("{error}; outbox append rollback sync failed: {rollback}")
+			})?;
+			return Err(error)
+		}
 		#[cfg(test)]
 		if self.fail_next_directory_sync.swap(false, std::sync::atomic::Ordering::SeqCst) {
 			return Err("injected parent directory sync failure".into());
@@ -873,7 +987,8 @@ impl JsonlManifestDeletionOutbox {
 			crate::bounded_io::sync_directory(&sync_directory).map_err(|error| error.to_string())
 		})
 		.await
-		.map_err(|error| error.to_string())?
+		.map_err(|error| error.to_string())??;
+		lock.validate()
 	}
 }
 
@@ -908,7 +1023,7 @@ async fn repair_incomplete_jsonl_tail(
 ) -> Result<(), String> {
 	lock.validate()?;
 	let directory = directory.try_clone().map_err(|error| error.to_string())?;
-	tokio::task::spawn_blocking(move || {
+	let (guard, tail_start, expected_tail) = tokio::task::spawn_blocking(move || {
 		let (guard, digest, tail_start, expected_tail, truncate_to) =
 			prepare_jsonl_source_guard_at(&directory)?;
 		apply_prepared_jsonl_guard(
@@ -918,10 +1033,23 @@ async fn repair_incomplete_jsonl_tail(
 			tail_start,
 			&expected_tail,
 			truncate_to,
-		)
+		)?;
+		Ok::<_, String>((guard, tail_start, expected_tail))
 	})
 	.await
-	.map_err(|error| error.to_string())?
+	.map_err(|error| error.to_string())??;
+	if let Err(error) = lock.validate() {
+		return match restore_prepared_jsonl_source(
+			&lock.directory,
+			&guard,
+			tail_start,
+			&expected_tail,
+		) {
+			Ok(()) => Err(error),
+			Err(rollback) => Err(format!("{error}; outbox repair rollback failed: {rollback}")),
+		}
+	}
+	Ok(())
 }
 
 /// Bounded canonical runtime-duty cadence.
@@ -1253,6 +1381,25 @@ mod tests {
 		assert!(qualified.load(Ordering::Acquire));
 	}
 
+	#[test]
+	fn startup_recovers_exact_crash_shaped_owned_lock_residue() {
+		let temp = tempfile::tempdir().unwrap();
+		let residue = temp
+			.path()
+			.join(".provider-lock.create-0123456789abcdef0123456789abcdef");
+		fs::write(&residue, b"").unwrap();
+		let outbox = JsonlManifestDeletionOutbox::for_provider_root(temp.path());
+		let locked = lock_test_root(temp.path());
+		let plan = outbox.prepare_startup(temp.path(), Some(locked.file())).unwrap();
+		assert!(residue.is_file());
+
+		plan.arm(&locked).unwrap().apply().unwrap();
+
+		assert!(!residue.exists());
+		assert!(temp.path().join(MANIFEST_DELETION_OUTBOX_LOCK_FILE).is_file());
+		assert!(outbox.qualified.load(Ordering::Acquire));
+	}
+
 	#[cfg(unix)]
 	#[test]
 	fn jsonl_startup_prepare_rejects_symlink_and_nonregular_paths() {
@@ -1292,7 +1439,7 @@ mod tests {
 	}
 
 	#[test]
-	fn armed_jsonl_holds_the_consumer_lock_and_rolls_back_an_owned_missing_lock() {
+	fn armed_jsonl_holds_the_consumer_lock_and_keeps_the_published_lock_permanent() {
 		let temp = tempfile::tempdir().unwrap();
 		let outbox = JsonlManifestDeletionOutbox::for_provider_root(temp.path());
 		let lock_path = suffixed_path(&outbox.path, ".lock");
@@ -1306,7 +1453,7 @@ mod tests {
 
 		assert!(FileExt::try_lock_exclusive(&contender).is_err());
 		armed.rollback().unwrap();
-		assert!(!lock_path.exists());
+		assert!(lock_path.exists());
 		assert!(!outbox.qualified.load(Ordering::Acquire));
 	}
 
@@ -1376,7 +1523,7 @@ mod tests {
 	}
 
 	#[test]
-	fn owned_lock_failures_after_publish_remove_only_the_owned_canonical_file() {
+	fn owned_lock_failures_after_publish_keep_the_canonical_lock_permanent() {
 		for failure in [
 			PreparedLockFailure::Publish(crate::bounded_io::OwnedLockPublishStage::AfterRename),
 			PreparedLockFailure::Publish(
@@ -1392,13 +1539,20 @@ mod tests {
 				Some(failure),
 			);
 			assert!(result.is_err());
-			assert!(!temp.path().join(MANIFEST_DELETION_OUTBOX_LOCK_FILE).exists());
+			assert!(temp.path().join(MANIFEST_DELETION_OUTBOX_LOCK_FILE).is_file());
 			assert!(!crate::bounded_io::list_directory(locked.file())
 				.unwrap()
 				.iter()
 				.any(|entry| entry.name.to_string_lossy().starts_with(".provider-lock.create-")));
 
-			acquire_prepared_outbox_lock(locked.file(), &PreparedFileGuard::Missing)
+			let (_, expected) = open_optional_guarded_file_at(
+				locked.file(),
+				MANIFEST_DELETION_OUTBOX_LOCK_FILE,
+				false,
+			)
+			.unwrap()
+			.unwrap();
+			acquire_prepared_outbox_lock(locked.file(), &expected)
 				.unwrap()
 				.rollback_created()
 				.unwrap();
@@ -1437,6 +1591,12 @@ mod tests {
 		let original = b"durable\ntorn";
 		fs::write(&source, original).unwrap();
 		fs::rename(&lock, &displaced).unwrap();
+		let displaced_contender = fs::OpenOptions::new()
+			.read(true)
+			.write(true)
+			.open(&displaced)
+			.unwrap();
+		assert!(FileExt::try_lock_exclusive(&displaced_contender).is_err());
 		fs::write(&lock, b"replacement").unwrap();
 
 		assert!(outbox.submit_manifest_deletion(manifest_deletion("91")).await.is_err());

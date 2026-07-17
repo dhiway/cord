@@ -337,6 +337,7 @@ pub struct DiskStore {
 	root: PathBuf,
 	state: RwLock<PersistedState>,
 	_root_guard: Option<ProviderRootGuard>,
+	blob_directory: Option<fs::File>,
 }
 
 pub(crate) struct PreparedDiskStore {
@@ -531,6 +532,7 @@ impl ArmedDiskStore {
 			root: prepared.root,
 			state: RwLock::new(prepared.state),
 			_root_guard: Some(root_guard),
+			blob_directory: Some(blob_directory),
 		};
 		if let Some(bytes) = prepared.initial_index {
 			let temporary = atomic_temp_path(Path::new(INDEX_FILE));
@@ -560,6 +562,20 @@ impl DiskStore {
 			.as_ref()
 			.map(|guard| &guard.directory)
 			.ok_or_else(|| StoreError::Io("provider root guard is unavailable".into()))
+	}
+
+	fn root_file(&self) -> Result<&fs::File, StoreError> {
+		Ok(self.root_directory()?.file())
+	}
+
+	fn blob_file(&self) -> Result<&fs::File, StoreError> {
+		self.blob_directory
+			.as_ref()
+			.ok_or_else(|| StoreError::Io("provider blob directory capability is unavailable".into()))
+	}
+
+	fn persist_state(&self, state: &PersistedState) -> Result<(), StoreError> {
+		persist_state_at(self.root_file()?, state)
 	}
 
 	/// Reject non-directory and symlink provider roots before any child startup validation.
@@ -684,11 +700,12 @@ impl DiskStore {
 				pending_manifest_deletions: BTreeMap::new(),
 			}, PreparedProviderIndexGuard::Missing)
 		};
-		let store = Self {
-			root: root.clone(),
-			state: RwLock::new(state),
-			_root_guard: None,
-		};
+			let store = Self {
+				root: root.clone(),
+				state: RwLock::new(state),
+				_root_guard: None,
+				blob_directory: None,
+			};
 		store.verify_index()?;
 		let state = store
 			.state
@@ -762,7 +779,7 @@ impl DiskStore {
 		let mut next = state.clone();
 		next.profile = profile;
 		next.capacity_bytes = capacity_bytes;
-		persist_state(&self.root, &next)?;
+		self.persist_state(&next)?;
 		*state = next;
 		Ok(())
 	}
@@ -812,15 +829,29 @@ impl DiskStore {
 			deleted: false,
 		};
 		let leaf = record_leaf(&record, false)?;
-		let blob_path = self.root.join(BLOBS_DIR).join(&commitment);
-		remove_current_atomic_temp(&blob_path)?;
-		write_atomic(&blob_path, &input.bytes)?;
+		let blob_directory = self.blob_file()?;
+		let temporary_path = atomic_temp_path(Path::new(&commitment));
+		let temporary = temporary_path
+			.file_name()
+			.ok_or_else(|| StoreError::Io("durable blob temp name is invalid".into()))?;
+		crate::bounded_io::remove_optional_regular_file_at(blob_directory, temporary)
+			.map_err(io_error)?;
+		crate::bounded_io::write_atomic_at(
+			blob_directory,
+			commitment.as_ref(),
+			temporary,
+			&input.bytes,
+		)
+		.map_err(io_error)?;
 		let encoded_leaf = hex::encode(leaf);
 		next.leaf_hashes.push(encoded_leaf.clone());
 		journal_root_append(&mut next, encoded_leaf)?;
 		next.records.insert(commitment, record.clone());
-		if let Err(error) = persist_state(&self.root, &next) {
-			let _ = fs::remove_file(self.root.join(BLOBS_DIR).join(&record.commitment));
+		if let Err(error) = self.persist_state(&next) {
+			let _ = crate::bounded_io::remove_optional_regular_file_at(
+				blob_directory,
+				record.commitment.as_ref(),
+			);
 			return Err(error);
 		}
 		*state = next;
@@ -836,8 +867,9 @@ impl DiskStore {
 			.get(&normalized)
 			.filter(|record| !record.deleted)
 			.ok_or(StoreError::NotFound)?;
-		let bytes = crate::bounded_io::read_regular_file(
-			self.root.join(BLOBS_DIR).join(&normalized),
+		let bytes = crate::bounded_io::read_regular_file_at(
+			self.blob_file()?,
+			normalized.as_ref(),
 			record.bytes,
 		)
 		.map_err(io_error)?;
@@ -928,7 +960,7 @@ impl DiskStore {
 			inclusion_proof,
 		};
 		next.pending_deletions.insert(normalized, pending.clone());
-		persist_state(&self.root, &next)?;
+		self.persist_state(&next)?;
 		*state = next;
 		Ok((result, pending))
 	}
@@ -940,14 +972,14 @@ impl DiskStore {
 		if !state.pending_deletions.contains_key(&normalized) {
 			return Ok(());
 		}
-		match fs::remove_file(self.root.join(BLOBS_DIR).join(&normalized)) {
-			Ok(()) => {},
-			Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
-			Err(error) => return Err(io_error(error)),
-		}
+		crate::bounded_io::remove_optional_regular_file_at(
+			self.blob_file()?,
+			normalized.as_ref(),
+		)
+		.map_err(io_error)?;
 		let mut next = state.clone();
 		next.pending_deletions.remove(&normalized);
-		persist_state(&self.root, &next)?;
+		self.persist_state(&next)?;
 		*state = next;
 		Ok(())
 	}
@@ -1043,7 +1075,7 @@ impl DiskStore {
 				next_cursor,
 				duties: accumulated,
 			});
-			persist_state(&self.root, &next)?;
+			self.persist_state(&next)?;
 			*state = next;
 			return Ok(false);
 		}
@@ -1104,7 +1136,7 @@ impl DiskStore {
 			next.checkpoint_duty_discovery_cursor = None;
 		}
 		next.checkpoint_duty_intake = None;
-		persist_state(&self.root, &next)?;
+		self.persist_state(&next)?;
 		*state = next;
 		Ok(true)
 	}
@@ -1187,7 +1219,7 @@ impl DiskStore {
 		};
 		let mut next = state.clone();
 		next.checkpoint_duty_discovery_cursor = Some(next_cursor);
-		persist_state(&self.root, &next)?;
+		self.persist_state(&next)?;
 		*state = next;
 		Ok(selected.into_iter().map(|(_, duty)| duty).collect())
 	}
@@ -1255,7 +1287,7 @@ impl DiskStore {
 				last_manifest,
 			});
 			next.deletion_duty_intake = None;
-			persist_state(&self.root, &next)?;
+			self.persist_state(&next)?;
 			*state = next;
 			return Ok(true);
 		}
@@ -1270,7 +1302,7 @@ impl DiskStore {
 		});
 		/* The watermark advances only after every duty in the terminal page is durable in the
 		 * acknowledgement outbox. */
-		persist_state(&self.root, &next)?;
+		self.persist_state(&next)?;
 		*state = next;
 		Ok(terminal)
 	}
@@ -1343,7 +1375,7 @@ impl DiskStore {
 		if next.pending_manifest_deletions.is_empty() {
 			Self::finalize_manifest_deletion_page(&mut next);
 		}
-		persist_state(&self.root, &next)?;
+		self.persist_state(&next)?;
 		*state = next;
 		Ok(())
 	}
@@ -1356,7 +1388,7 @@ impl DiskStore {
 		}
 		let mut next = state.clone();
 		next.pending_roots.remove(&sequence);
-		persist_state(&self.root, &next)?;
+		self.persist_state(&next)?;
 		*state = next;
 		Ok(())
 	}
@@ -2129,9 +2161,18 @@ fn now_ms() -> Result<u64, StoreError> {
 		.as_millis() as u64)
 }
 
-fn persist_state(root: &Path, state: &PersistedState) -> Result<(), StoreError> {
+fn persist_state_at(root: &fs::File, state: &PersistedState) -> Result<(), StoreError> {
 	let bytes = encode_persisted_state(state)?;
-	write_atomic(&root.join(INDEX_FILE), &bytes)
+	let temporary = atomic_temp_path(Path::new(INDEX_FILE));
+	crate::bounded_io::write_atomic_at(
+		root,
+		INDEX_FILE.as_ref(),
+		temporary
+			.file_name()
+			.ok_or_else(|| StoreError::Io("provider index temp name is invalid".into()))?,
+		&bytes,
+	)
+	.map_err(io_error)
 }
 
 fn encode_persisted_state(state: &PersistedState) -> Result<Vec<u8>, StoreError> {
@@ -2410,24 +2451,6 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
 
 fn atomic_temp_path(path: &Path) -> PathBuf {
 	path.with_extension(format!("tmp-{}", std::process::id()))
-}
-
-fn remove_current_atomic_temp(path: &Path) -> Result<(), StoreError> {
-	let temporary = atomic_temp_path(path);
-	match fs::symlink_metadata(&temporary) {
-		Ok(metadata) if metadata.is_file() => {
-			fs::remove_file(&temporary).map_err(io_error)?;
-			let parent = path
-				.parent()
-				.ok_or_else(|| StoreError::Io("durable blob path has no parent".into()))?;
-			fs::File::open(parent)
-				.and_then(|directory| directory.sync_all())
-				.map_err(io_error)
-		},
-		Ok(_) => Err(StoreError::Io("durable blob temp artifact is not a regular file".into())),
-		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-		Err(error) => Err(io_error(error)),
-	}
 }
 
 fn io_error(error: impl std::fmt::Display) -> StoreError {
@@ -3515,6 +3538,52 @@ mod tests {
 		assert!(prepared.arm().is_err());
 		assert_eq!(fs::read(marker).unwrap(), b"replacement-must-remain-exact");
 		assert!(displaced.join(INDEX_FILE).is_file());
+	}
+
+	#[test]
+	fn live_store_io_remains_bound_to_retained_root_and_blob_capabilities() {
+		let parent = tempfile::tempdir().unwrap();
+		let root = parent.path().join("provider");
+		let store = DiskStore::open(&root, profile(), 4096).unwrap();
+		let first = b"capability-bound-first-blob".to_vec();
+		let first_commitment = DiskStore::content_commitment(&first);
+		let first_record = store
+			.commit(CommitInput {
+				commitment: first_commitment,
+				authorization: authorization(first_commitment, first.len() as u64),
+				bucket: None,
+				key: None,
+				bytes: first.clone(),
+			})
+			.unwrap();
+		let displaced = parent.path().join("provider-displaced");
+		fs::rename(&root, &displaced).unwrap();
+		fs::create_dir(&root).unwrap();
+		fs::create_dir(root.join(BLOBS_DIR)).unwrap();
+		let replacement_marker = root.join("replacement-marker");
+		fs::write(&replacement_marker, b"replacement-must-remain-exact").unwrap();
+
+		assert_eq!(store.read(&first_record.commitment).unwrap(), first);
+		let mut updated = profile();
+		updated.endpoint = "http://127.0.0.1:9090".into();
+		store.update_profile(updated, 4096).unwrap();
+		let second = b"capability-bound-second-blob".to_vec();
+		let second_commitment = DiskStore::content_commitment(&second);
+		let second_record = store
+			.commit(CommitInput {
+				commitment: second_commitment,
+				authorization: authorization(second_commitment, second.len() as u64),
+				bucket: None,
+				key: None,
+				bytes: second,
+			})
+			.unwrap();
+
+		assert!(displaced.join(INDEX_FILE).is_file());
+		assert!(displaced.join(BLOBS_DIR).join(second_record.commitment).is_file());
+		assert!(!root.join(INDEX_FILE).exists());
+		assert_eq!(fs::read(replacement_marker).unwrap(), b"replacement-must-remain-exact");
+		assert_eq!(fs::read_dir(root.join(BLOBS_DIR)).unwrap().count(), 0);
 	}
 
 	#[test]

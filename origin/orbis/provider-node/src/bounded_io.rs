@@ -73,6 +73,47 @@ pub(crate) struct OwnedLockedRegularFile {
 	rollback_on_drop: bool,
 }
 
+struct UnboundOwnedRegularFile {
+	file: Option<File>,
+	directory: Option<File>,
+	name: OsString,
+}
+
+impl UnboundOwnedRegularFile {
+	fn bind(mut self) -> Result<OwnedLockedRegularFile, ContentError> {
+		let file = self.file.as_ref().ok_or(ContentError::IntegrityFailed)?;
+		let metadata = file.metadata().map_err(io_error)?;
+		if !metadata.is_file() {
+			return Err(ContentError::IntegrityFailed)
+		}
+		let owned = OwnedLockedRegularFile {
+			file: self.file.take().ok_or(ContentError::IntegrityFailed)?,
+			directory: self.directory.take().ok_or(ContentError::IntegrityFailed)?,
+			name: self.name.clone(),
+			identity: file_identity(&metadata),
+			length: metadata.len(),
+			rollback_on_drop: true,
+		};
+		Ok(owned)
+	}
+}
+
+impl Drop for UnboundOwnedRegularFile {
+	fn drop(&mut self) {
+		let (Some(file), Some(directory)) = (&self.file, &self.directory) else { return };
+		let Ok(metadata) = file.metadata() else { return };
+		if metadata.is_file() {
+			let _ = quarantine_and_unlink_regular_file_at(
+				directory,
+				&self.name,
+				file_identity(&metadata),
+				metadata.len(),
+				random_owned_lock_quarantine_name,
+			);
+		}
+	}
+}
+
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub(crate) enum OwnedLockPublishStage {
 	AfterRename,
@@ -105,6 +146,9 @@ impl OwnedLockedRegularFile {
 	}
 
 	pub(crate) fn rollback(mut self) -> Result<(), ContentError> {
+		if !self.rollback_on_drop {
+			return Ok(())
+		}
 		quarantine_and_unlink_regular_file_at(
 			&self.directory,
 			&self.name,
@@ -354,6 +398,14 @@ pub(crate) fn read_regular_file_snapshot_at(
 	Ok(RegularFileSnapshot { bytes, identity: file_identity(&metadata), length: metadata.len() })
 }
 
+pub(crate) fn read_regular_file_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+	max_bytes: u64,
+) -> Result<Vec<u8>, ContentError> {
+	Ok(read_regular_file_snapshot_at(directory, name, max_bytes)?.bytes)
+}
+
 pub(crate) fn entry_missing_at(
 	directory: &File,
 	name: &std::ffi::OsStr,
@@ -494,22 +546,12 @@ pub(crate) fn create_and_lock_regular_file_at_with_hook(
 			Err(UnixErrno::EXIST) => continue,
 			Err(error) => return Err(io_error(error)),
 		};
-		let metadata = match file.metadata() {
-			Ok(metadata) => metadata,
-			Err(error) => {
-				let _ = unix_fs::unlinkat(directory, &temporary, AtFlags::empty());
-				return Err(io_error(error))
-			},
-		};
-		let identity = file_identity(&metadata);
-		let mut owned = OwnedLockedRegularFile {
-			file,
-			directory: guard_directory,
+		let unbound = UnboundOwnedRegularFile {
+			file: Some(file),
+			directory: Some(guard_directory),
 			name: temporary.clone(),
-			identity,
-			length: metadata.len(),
-			rollback_on_drop: true,
 		};
+		let mut owned = unbound.bind()?;
 		owned.validate()?;
 		if let Err(error) = owned.file.try_lock_exclusive() {
 			return Err(io_error(error))
@@ -523,6 +565,9 @@ pub(crate) fn create_and_lock_regular_file_at_with_hook(
 		) {
 			Ok(()) => {
 				owned.name = name.to_os_string();
+				// The canonical lock is permanent once NOREPLACE publishes it. A later failure must
+				// never remove a name that another consumer can already observe.
+				owned.preserve();
 				hook(OwnedLockPublishStage::AfterRename)?;
 				owned.validate()?;
 				hook(OwnedLockPublishStage::BeforeDirectorySync)?;
@@ -567,6 +612,23 @@ pub(crate) fn validate_regular_file_at(
 		return Err(ContentError::IntegrityFailed)
 	}
 	Ok(())
+}
+
+pub(crate) fn remove_optional_regular_file_at(
+	directory: &File,
+	name: &std::ffi::OsStr,
+) -> Result<(), ContentError> {
+	let Some(file) = open_optional_regular_file_at(directory, name, false)? else { return Ok(()) };
+	let metadata = file.metadata().map_err(io_error)?;
+	file.try_lock_exclusive().map_err(io_error)?;
+	validate_regular_file_at(directory, name, file_identity(&metadata), metadata.len())?;
+	quarantine_and_unlink_regular_file_at(
+		directory,
+		name,
+		file_identity(&metadata),
+		metadata.len(),
+		random_recovery_quarantine_name,
+	)
 }
 
 pub(crate) fn sync_directory(directory: &File) -> Result<(), ContentError> {
@@ -675,6 +737,25 @@ pub(crate) fn remove_validated_temp_artifacts_at(
 	remove_validated_temp_artifacts_at_with_hook(directory, temp_artifacts, |_, _| Ok(()))
 }
 
+pub(crate) fn remove_validated_owned_lock_artifacts_at(
+	directory: &File,
+	artifacts: &[PreparedRegularFile],
+) -> Result<(), ContentError> {
+	for artifact in artifacts {
+		open_prepared_regular_file_at(directory, artifact)?;
+	}
+	for artifact in artifacts {
+		quarantine_and_unlink_regular_file_at(
+			directory,
+			&artifact.name,
+			artifact.identity,
+			artifact.length,
+			random_owned_lock_quarantine_name,
+		)?;
+	}
+	Ok(())
+}
+
 fn remove_validated_temp_artifacts_at_with_hook(
 	directory: &File,
 	temp_artifacts: &[PreparedRegularFile],
@@ -703,6 +784,10 @@ fn quarantine_and_unlink_regular_file_at(
 	expected_length: u64,
 	mut quarantine_name: impl FnMut(&std::ffi::OsStr) -> Result<OsString, ContentError>,
 ) -> Result<(), ContentError> {
+	// Every caller holds the provider-root cooperative namespace lock (or is cleaning a private
+	// sibling before publication). Portable POSIX has no unlink-by-inode operation; fail if another
+	// cooperating process owns this directory rather than performing an unguarded pathname unlink.
+	directory.try_lock_exclusive().map_err(io_error)?;
 	let quarantine = (0..16)
 		.find_map(|_| {
 			let quarantine = quarantine_name(name).ok()?;
@@ -721,6 +806,9 @@ fn quarantine_and_unlink_regular_file_at(
 		.transpose()?
 		.ok_or(ContentError::IntegrityFailed)?;
 	unix_fs::fsync(directory).map_err(io_error)?;
+	let quarantined = open_optional_regular_file_at(directory, &quarantine, false)?
+		.ok_or(ContentError::IntegrityFailed)?;
+	quarantined.try_lock_exclusive().map_err(io_error)?;
 	if validate_regular_file_at(directory, &quarantine, expected_identity, expected_length).is_err() {
 		if unix_fs::renameat_with(
 			directory,
@@ -735,6 +823,7 @@ fn quarantine_and_unlink_regular_file_at(
 		}
 		return Err(ContentError::IntegrityFailed)
 	}
+	validate_regular_file_at(directory, &quarantine, expected_identity, expected_length)?;
 	unix_fs::unlinkat(directory, &quarantine, AtFlags::empty()).map_err(io_error)?;
 	unix_fs::fsync(directory).map_err(io_error)
 }
@@ -752,6 +841,17 @@ fn random_temp_quarantine_name(name: &std::ffi::OsStr) -> Result<OsString, Conte
 	if quarantine.as_os_str() == name {
 		return Err(ContentError::IntegrityFailed)
 	}
+	Ok(quarantine)
+}
+
+fn random_recovery_quarantine_name(name: &std::ffi::OsStr) -> Result<OsString, ContentError> {
+	if name.as_bytes().windows(5).any(|window| window == b".tmp-") {
+		return random_temp_quarantine_name(name)
+	}
+	let mut random = [0u8; 16];
+	OsRng.fill_bytes(&mut random);
+	let mut quarantine = name.to_os_string();
+	quarantine.push(format!(".tmp-{}", u128::from_le_bytes(random)));
 	Ok(quarantine)
 }
 
@@ -781,23 +881,31 @@ pub(crate) fn write_atomic_at(
 	temporary: &std::ffi::OsStr,
 	bytes: &[u8],
 ) -> Result<(), ContentError> {
+	let fd = unix_fs::openat(
+		directory,
+		temporary,
+		OFlags::WRONLY | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+		Mode::RUSR | Mode::WUSR,
+	)
+	.map_err(io_error)?;
+	let mut file = File::from(fd);
+	let identity = file_identity(&file.metadata().map_err(io_error)?);
 	let result = (|| {
-		let fd = unix_fs::openat(
-			directory,
-			temporary,
-			OFlags::WRONLY | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-			Mode::RUSR | Mode::WUSR,
-		)
-		.map_err(io_error)?;
-		let mut file = File::from(fd);
 		file.write_all(bytes).map_err(io_error)?;
 		file.sync_all().map_err(io_error)?;
 		unix_fs::renameat(directory, temporary, directory, name).map_err(io_error)?;
 		unix_fs::fsync(directory).map_err(io_error)
 	})();
 	if result.is_err() {
-		let _ = unix_fs::unlinkat(directory, temporary, AtFlags::empty());
-		let _ = unix_fs::fsync(directory);
+		if let Ok(metadata) = file.metadata() {
+			let _ = quarantine_and_unlink_regular_file_at(
+				directory,
+				temporary,
+				identity,
+				metadata.len(),
+				random_recovery_quarantine_name,
+			);
+		}
 	}
 	result
 }
