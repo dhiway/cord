@@ -181,7 +181,7 @@ impl ReplicaConfirmationStore {
 		fs::create_dir_all(&root).map_err(io_error)?;
 		let mut records = HashMap::new();
 		let mut visited = 0usize;
-		let mut temp_artifacts = 0usize;
+		let mut temp_artifacts = Vec::new();
 		for entry in fs::read_dir(&root).map_err(io_error)? {
 			visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 			if visited > MAX_CONFIRMATIONS + MAX_TEMP_ARTIFACTS {
@@ -189,15 +189,13 @@ impl ReplicaConfirmationStore {
 			}
 			let entry = entry.map_err(io_error)?;
 			let name = entry.file_name().to_string_lossy().into_owned();
-			if name.contains(".tmp-") {
-				temp_artifacts =
-					temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
-				if temp_artifacts > MAX_TEMP_ARTIFACTS ||
+			if crate::bounded_io::is_json_temp_artifact(&name) {
+				if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS ||
 					!entry.file_type().map_err(io_error)?.is_file()
 				{
 					return Err(ContentError::IntegrityFailed);
 				}
-				fs::remove_file(entry.path()).map_err(io_error)?;
+				temp_artifacts.push(entry.path());
 				continue;
 			}
 			if !name.ends_with(".json") || !entry.file_type().map_err(io_error)?.is_file() {
@@ -217,6 +215,7 @@ impl ReplicaConfirmationStore {
 				return Err(ContentError::IntegrityFailed);
 			}
 		}
+		crate::bounded_io::remove_validated_temp_artifacts(&root, &temp_artifacts)?;
 		Ok(Self {
 			root,
 			records: RwLock::new(records),
@@ -1427,5 +1426,7 @@ mod tests {
 			ReplicaConfirmationStore::open(temp.path()),
 			Err(ContentError::IntegrityFailed)
 		));
+		assert!(root.join("first.json.tmp-1").exists());
+		assert!(root.join("second.json.tmp-1").exists());
 	}
 }

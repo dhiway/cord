@@ -199,7 +199,7 @@ impl CheckpointProposalStore {
 		let mut by_tuple = HashMap::new();
 		let mut by_duty = HashMap::new();
 		let mut visited = 0usize;
-		let mut temp_artifacts = 0usize;
+		let mut temp_artifacts = Vec::new();
 		for item in fs::read_dir(&root).map_err(io_error)? {
 			visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 			if visited > MAX_PROPOSALS + MAX_TEMP_ARTIFACTS {
@@ -207,15 +207,13 @@ impl CheckpointProposalStore {
 			}
 			let item = item.map_err(io_error)?;
 			let name = item.file_name().to_string_lossy().into_owned();
-			if name.contains(".tmp-") {
-				temp_artifacts =
-					temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
-				if temp_artifacts > MAX_TEMP_ARTIFACTS ||
+			if crate::bounded_io::is_json_temp_artifact(&name) {
+				if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS ||
 					!item.file_type().map_err(io_error)?.is_file()
 				{
 					return Err(ContentError::IntegrityFailed);
 				}
-				fs::remove_file(item.path()).map_err(io_error)?;
+				temp_artifacts.push(item.path());
 				continue;
 			}
 			if !name.ends_with(".json") || !item.file_type().map_err(io_error)?.is_file() {
@@ -238,6 +236,7 @@ impl CheckpointProposalStore {
 				return Err(ContentError::IdempotencyConflict);
 			}
 		}
+		crate::bounded_io::remove_validated_temp_artifacts(&root, &temp_artifacts)?;
 		Ok(Self {
 			root,
 			state: RwLock::new(ProposalState { by_tuple, by_duty, poisoned: false }),
@@ -1329,5 +1328,7 @@ mod tests {
 			CheckpointProposalStore::open(temp.path()),
 			Err(ContentError::IntegrityFailed)
 		));
+		assert!(root.join("first.json.tmp-1").exists());
+		assert!(root.join("second.json.tmp-1").exists());
 	}
 }

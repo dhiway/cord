@@ -18,7 +18,11 @@
 
 //! Metadata-first bounded reads for durable provider control-plane records.
 
-use std::{fs::File, io::Read, path::Path};
+use std::{
+	fs::{self, File},
+	io::Read,
+	path::{Path, PathBuf},
+};
 
 use crate::ContentError;
 
@@ -40,6 +44,36 @@ pub(crate) fn read_regular_file(
 		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(bytes)
+}
+
+/// Recognize only the crash artifact shape emitted by the durable JSON writers.
+pub(crate) fn is_json_temp_artifact(name: &str) -> bool {
+	let Some((record, process_id)) = name.rsplit_once(".tmp-") else {
+		return false
+	};
+	!record.is_empty() &&
+		record.ends_with(".json") &&
+		!process_id.is_empty() &&
+		process_id.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+/// Remove crash artifacts only after the caller has validated its complete recovery view.
+pub(crate) fn remove_validated_temp_artifacts(
+	root: &Path,
+	temp_artifacts: &[PathBuf],
+) -> Result<(), ContentError> {
+	if temp_artifacts.is_empty() {
+		return Ok(())
+	}
+	for artifact in temp_artifacts {
+		if artifact.parent() != Some(root) {
+			return Err(ContentError::IntegrityFailed)
+		}
+	}
+	for artifact in temp_artifacts {
+		fs::remove_file(artifact).map_err(io_error)?;
+	}
+	File::open(root).and_then(|directory| directory.sync_all()).map_err(io_error)
 }
 
 fn io_error(error: impl std::fmt::Display) -> ContentError {

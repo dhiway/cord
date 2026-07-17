@@ -125,10 +125,12 @@ impl CheckpointPublicationStoreV1 {
 		let cursor_root = base.join(CURSOR_ROOT);
 		fs::create_dir_all(&root).map_err(io_error)?;
 		fs::create_dir_all(&cursor_root).map_err(io_error)?;
-		let cursor = read_cursor(&cursor_root)?;
+		let cursor_scan = read_cursor(&cursor_root)?;
+		let cursor = cursor_scan.cursor;
 		let mut records = HashMap::new();
 		let mut by_tuple = HashMap::new();
-		for item in read_records(&root)? {
+		let record_scan = read_records(&root)?;
+		for item in record_scan.records {
 			let record: PublishedCheckpointV1 =
 				serde_json::from_slice(&item.bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			validate_record(&record)?;
@@ -141,6 +143,11 @@ impl CheckpointPublicationStoreV1 {
 				return Err(ContentError::IntegrityFailed)
 			}
 		}
+		crate::bounded_io::remove_validated_temp_artifacts(
+			&cursor_root,
+			&cursor_scan.temp_artifacts,
+		)?;
+		crate::bounded_io::remove_validated_temp_artifacts(&root, &record_scan.temp_artifacts)?;
 		Ok(Self {
 			root,
 			cursor_root,
@@ -327,10 +334,20 @@ struct RecordFile {
 	bytes: Vec<u8>,
 }
 
-fn read_records(root: &Path) -> Result<Vec<RecordFile>, ContentError> {
+struct RecordScan {
+	records: Vec<RecordFile>,
+	temp_artifacts: Vec<PathBuf>,
+}
+
+struct CursorScan {
+	cursor: Option<CheckpointPublicationCursorV1>,
+	temp_artifacts: Vec<PathBuf>,
+}
+
+fn read_records(root: &Path) -> Result<RecordScan, ContentError> {
 	let mut records = Vec::new();
 	let mut visited = 0usize;
-	let mut temp_artifacts = 0usize;
+	let mut temp_artifacts = Vec::new();
 	for item in fs::read_dir(root).map_err(io_error)? {
 		visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 		if visited > MAX_RECORDS + MAX_TEMP_ARTIFACTS {
@@ -338,12 +355,13 @@ fn read_records(root: &Path) -> Result<Vec<RecordFile>, ContentError> {
 		}
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().to_string_lossy().into_owned();
-		if name.contains(".tmp-") {
-			temp_artifacts = temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
-			if temp_artifacts > MAX_TEMP_ARTIFACTS {
+		if crate::bounded_io::is_json_temp_artifact(&name) {
+			if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS ||
+				!item.file_type().map_err(io_error)?.is_file()
+			{
 				return Err(ContentError::IntegrityFailed)
 			}
-			fs::remove_file(item.path()).map_err(io_error)?;
+			temp_artifacts.push(item.path());
 			continue
 		}
 		if records.len() >= MAX_RECORDS ||
@@ -358,23 +376,24 @@ fn read_records(root: &Path) -> Result<Vec<RecordFile>, ContentError> {
 		)?;
 		records.push(RecordFile { name, bytes });
 	}
-	Ok(records)
+	Ok(RecordScan { records, temp_artifacts })
 }
 
-fn read_cursor(root: &Path) -> Result<Option<CheckpointPublicationCursorV1>, ContentError> {
+fn read_cursor(root: &Path) -> Result<CursorScan, ContentError> {
 	let expected = format!("{CURSOR_KEY}.json");
 	let temp_prefix = format!("{CURSOR_KEY}.json.tmp-");
 	let mut cursor = None;
-	let mut temp_artifacts = 0usize;
+	let mut temp_artifacts = Vec::new();
 	for item in fs::read_dir(root).map_err(io_error)? {
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().to_string_lossy().into_owned();
-		if name.starts_with(&temp_prefix) {
-			temp_artifacts = temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
-			if temp_artifacts > MAX_TEMP_ARTIFACTS {
+		if name.starts_with(&temp_prefix) && crate::bounded_io::is_json_temp_artifact(&name) {
+			if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS ||
+				!item.file_type().map_err(io_error)?.is_file()
+			{
 				return Err(ContentError::IntegrityFailed);
 			}
-			fs::remove_file(item.path()).map_err(io_error)?;
+			temp_artifacts.push(item.path());
 			continue;
 		}
 		if name != expected || cursor.is_some() || !item.file_type().map_err(io_error)?.is_file() {
@@ -389,7 +408,7 @@ fn read_cursor(root: &Path) -> Result<Option<CheckpointPublicationCursorV1>, Con
 		validate_cursor(&decoded)?;
 		cursor = Some(decoded);
 	}
-	Ok(cursor)
+	Ok(CursorScan { cursor, temp_artifacts })
 }
 
 fn validate_cursor(cursor: &CheckpointPublicationCursorV1) -> Result<(), ContentError> {
@@ -899,11 +918,30 @@ mod tests {
 		fs::write(root.join("first.json.tmp-1"), []).unwrap();
 		fs::write(root.join("second.json.tmp-1"), []).unwrap();
 		assert!(matches!(read_records(&root), Err(ContentError::IntegrityFailed)));
+		assert!(root.join("first.json.tmp-1").exists());
+		assert!(root.join("second.json.tmp-1").exists());
 
 		let temp = TempDir::new().unwrap();
 		let root = temp.path().join(ROOT);
 		fs::create_dir_all(&root).unwrap();
 		fs::write(root.join("oversized.json"), vec![0; MAX_RECORD_BYTES + 1]).unwrap();
 		assert!(matches!(read_records(&root), Err(ContentError::IntegrityFailed)));
+	}
+
+	#[test]
+	fn recovery_validation_failure_preserves_cursor_temp() {
+		let temp = TempDir::new().unwrap();
+		let cursor_root = temp.path().join(CURSOR_ROOT);
+		let records_root = temp.path().join(ROOT);
+		fs::create_dir_all(&cursor_root).unwrap();
+		fs::create_dir_all(&records_root).unwrap();
+		let crash_temp = cursor_root.join("cursor.json.tmp-1");
+		fs::write(&crash_temp, b"partial").unwrap();
+		fs::write(records_root.join("corrupt.json"), b"not-json").unwrap();
+		assert!(matches!(
+			CheckpointPublicationStoreV1::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+		assert!(crash_temp.exists());
 	}
 }

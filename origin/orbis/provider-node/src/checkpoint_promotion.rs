@@ -161,7 +161,8 @@ impl CheckpointPromotionStoreV2 {
 		let mut intents = HashMap::new();
 		let mut intent_order = BTreeMap::new();
 		let mut by_tuple = HashMap::new();
-		for item in read_records(&intents_root, MAX_INTENT_BYTES)? {
+		let intent_scan = read_records(&intents_root, MAX_INTENT_BYTES)?;
+		for item in intent_scan.records {
 			let intent: FallbackPromotionIntentV2 =
 				serde_json::from_slice(&item.bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			validate_intent(&intent)?;
@@ -179,7 +180,8 @@ impl CheckpointPromotionStoreV2 {
 		}
 
 		let mut finalized_receipts = HashMap::new();
-		for item in read_records(&finalized_receipts_root, MAX_RECEIPT_BYTES)? {
+		let finalized_receipt_scan = read_records(&finalized_receipts_root, MAX_RECEIPT_BYTES)?;
+		for item in finalized_receipt_scan.records {
 			let receipt: FallbackPromotionFinalizedReceiptV2 =
 				serde_json::from_slice(&item.bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			let intent = intents.get(&receipt.intent_id).ok_or(ContentError::IntegrityFailed)?;
@@ -191,11 +193,24 @@ impl CheckpointPromotionStoreV2 {
 				return Err(ContentError::IntegrityFailed);
 			}
 		}
-		let scheduler_cursor = read_scheduler_cursor(&scheduler_root)?;
+		let scheduler_scan = read_scheduler_cursor(&scheduler_root)?;
+		let scheduler_cursor = scheduler_scan.cursor;
 		if let Some(cursor) = &scheduler_cursor {
 			let intent = intents.get(&cursor.intent_id).ok_or(ContentError::IntegrityFailed)?;
 			validate_scheduler_cursor_against_intent(cursor, intent)?;
 		}
+		crate::bounded_io::remove_validated_temp_artifacts(
+			&intents_root,
+			&intent_scan.temp_artifacts,
+		)?;
+		crate::bounded_io::remove_validated_temp_artifacts(
+			&finalized_receipts_root,
+			&finalized_receipt_scan.temp_artifacts,
+		)?;
+		crate::bounded_io::remove_validated_temp_artifacts(
+			&scheduler_root,
+			&scheduler_scan.temp_artifacts,
+		)?;
 
 		Ok(Self {
 			intents_root,
@@ -460,11 +475,20 @@ struct RecordFile {
 	bytes: Vec<u8>,
 }
 
-fn read_records(root: &Path, max_record_bytes: usize) -> Result<Vec<RecordFile>, ContentError> {
+struct RecordScan {
+	records: Vec<RecordFile>,
+	temp_artifacts: Vec<PathBuf>,
+}
+
+struct SchedulerCursorScan {
+	cursor: Option<CheckpointPromotionSchedulerCursorV2>,
+	temp_artifacts: Vec<PathBuf>,
+}
+
+fn read_records(root: &Path, max_record_bytes: usize) -> Result<RecordScan, ContentError> {
 	let mut records = Vec::new();
 	let mut visited = 0usize;
-	let mut temp_artifacts = 0usize;
-	let mut removed_temp = false;
+	let mut temp_artifacts = Vec::new();
 	for item in fs::read_dir(root).map_err(io_error)? {
 		visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 		if visited > MAX_RECORDS + MAX_TEMP_ARTIFACTS {
@@ -472,15 +496,13 @@ fn read_records(root: &Path, max_record_bytes: usize) -> Result<Vec<RecordFile>,
 		}
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().to_string_lossy().into_owned();
-		if name.contains(".tmp-") {
-			temp_artifacts = temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
-			if temp_artifacts > MAX_TEMP_ARTIFACTS
+		if crate::bounded_io::is_json_temp_artifact(&name) {
+			if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS
 				|| !item.file_type().map_err(io_error)?.is_file()
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
-			fs::remove_file(item.path()).map_err(io_error)?;
-			removed_temp = true;
+			temp_artifacts.push(item.path());
 			continue;
 		}
 		if records.len() >= MAX_RECORDS
@@ -495,32 +517,26 @@ fn read_records(root: &Path, max_record_bytes: usize) -> Result<Vec<RecordFile>,
 		)?;
 		records.push(RecordFile { name, bytes });
 	}
-	if removed_temp {
-		File::open(root).and_then(|directory| directory.sync_all()).map_err(io_error)?;
-	}
-	Ok(records)
+	Ok(RecordScan { records, temp_artifacts })
 }
 
 fn read_scheduler_cursor(
 	root: &Path,
-) -> Result<Option<CheckpointPromotionSchedulerCursorV2>, ContentError> {
+) -> Result<SchedulerCursorScan, ContentError> {
 	let expected = format!("{SCHEDULER_KEY}.json");
 	let temp_prefix = format!("{SCHEDULER_KEY}.json.tmp-");
 	let mut cursor = None;
-	let mut temp_artifacts = 0usize;
-	let mut removed_temp = false;
+	let mut temp_artifacts = Vec::new();
 	for item in fs::read_dir(root).map_err(io_error)? {
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().to_string_lossy().into_owned();
-		if name.starts_with(&temp_prefix) {
-			temp_artifacts = temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
-			if temp_artifacts > MAX_TEMP_ARTIFACTS
+		if name.starts_with(&temp_prefix) && crate::bounded_io::is_json_temp_artifact(&name) {
+			if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS
 				|| !item.file_type().map_err(io_error)?.is_file()
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
-			fs::remove_file(item.path()).map_err(io_error)?;
-			removed_temp = true;
+			temp_artifacts.push(item.path());
 			continue;
 		}
 		if name != expected || cursor.is_some() || !item.file_type().map_err(io_error)?.is_file() {
@@ -535,10 +551,7 @@ fn read_scheduler_cursor(
 		validate_scheduler_cursor(&decoded)?;
 		cursor = Some(decoded);
 	}
-	if removed_temp {
-		File::open(root).and_then(|directory| directory.sync_all()).map_err(io_error)?;
-	}
-	Ok(cursor)
+	Ok(SchedulerCursorScan { cursor, temp_artifacts })
 }
 
 fn scheduler_cursor(
@@ -1458,6 +1471,8 @@ mod tests {
 			read_records(&root, MAX_RECEIPT_BYTES),
 			Err(ContentError::IntegrityFailed)
 		));
+		assert!(root.join("first.json.tmp-1").exists());
+		assert!(root.join("second.json.tmp-1").exists());
 
 		let temp = TempDir::new().unwrap();
 		let root = temp.path().join(INTENTS_ROOT);
@@ -1467,6 +1482,35 @@ mod tests {
 			read_records(&root, MAX_INTENT_BYTES),
 			Err(ContentError::IntegrityFailed)
 		));
+
+		let temp = TempDir::new().unwrap();
+		let root = temp.path().join(SCHEDULER_ROOT);
+		fs::create_dir_all(&root).unwrap();
+		fs::write(root.join("cursor.json.tmp-1"), []).unwrap();
+		fs::write(root.join("cursor.json.tmp-2"), []).unwrap();
+		assert!(matches!(
+			read_scheduler_cursor(&root),
+			Err(ContentError::IntegrityFailed)
+		));
+		assert!(root.join("cursor.json.tmp-1").exists());
+		assert!(root.join("cursor.json.tmp-2").exists());
+	}
+
+	#[test]
+	fn recovery_validation_failure_preserves_temps_across_promotion_roots() {
+		let temp = TempDir::new().unwrap();
+		let intents_root = temp.path().join(INTENTS_ROOT);
+		let receipts_root = temp.path().join(FINALIZED_RECEIPTS_ROOT);
+		fs::create_dir_all(&intents_root).unwrap();
+		fs::create_dir_all(&receipts_root).unwrap();
+		let crash_temp = intents_root.join("intent.json.tmp-1");
+		fs::write(&crash_temp, b"partial").unwrap();
+		fs::write(receipts_root.join("corrupt.json"), b"not-json").unwrap();
+		assert!(matches!(
+			CheckpointPromotionStoreV2::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+		assert!(crash_temp.exists());
 	}
 
 	#[test]

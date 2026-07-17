@@ -192,10 +192,12 @@ impl CheckpointOutboxV2 {
 		fs::create_dir_all(&receipts_root).map_err(io_error)?;
 		fs::create_dir_all(&finalized_receipts_root).map_err(io_error)?;
 		fs::create_dir_all(&scheduler_root).map_err(io_error)?;
-		let scheduler_cursor = read_scheduler_cursor(&scheduler_root)?;
+		let scheduler_scan = read_scheduler_cursor(&scheduler_root)?;
+		let scheduler_cursor = scheduler_scan.cursor;
 		let mut submissions = HashMap::new();
 		let mut by_tuple = HashMap::new();
-		for item in read_records(&submissions_root)? {
+		let submission_scan = read_records(&submissions_root)?;
+		for item in submission_scan.records {
 			let record: CheckpointSubmissionV2 =
 				serde_json::from_slice(&item.bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			validate_submission(&record)?;
@@ -210,7 +212,8 @@ impl CheckpointOutboxV2 {
 			}
 		}
 		let mut receipts = HashMap::new();
-		for item in read_records(&receipts_root)? {
+		let receipt_scan = read_records(&receipts_root)?;
+		for item in receipt_scan.records {
 			let receipt: CheckpointReceiptV2 =
 				serde_json::from_slice(&item.bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			validate_receipt(&receipt)?;
@@ -225,7 +228,8 @@ impl CheckpointOutboxV2 {
 			}
 		}
 		let mut finalized_receipts = HashMap::new();
-		for item in read_records(&finalized_receipts_root)? {
+		let finalized_receipt_scan = read_records(&finalized_receipts_root)?;
+		for item in finalized_receipt_scan.records {
 			let receipt: CheckpointFinalizedReceiptV2 =
 				serde_json::from_slice(&item.bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			let submission =
@@ -238,6 +242,22 @@ impl CheckpointOutboxV2 {
 				return Err(ContentError::IntegrityFailed)
 			}
 		}
+		crate::bounded_io::remove_validated_temp_artifacts(
+			&scheduler_root,
+			&scheduler_scan.temp_artifacts,
+		)?;
+		crate::bounded_io::remove_validated_temp_artifacts(
+			&submissions_root,
+			&submission_scan.temp_artifacts,
+		)?;
+		crate::bounded_io::remove_validated_temp_artifacts(
+			&receipts_root,
+			&receipt_scan.temp_artifacts,
+		)?;
+		crate::bounded_io::remove_validated_temp_artifacts(
+			&finalized_receipts_root,
+			&finalized_receipt_scan.temp_artifacts,
+		)?;
 		Ok(Self {
 			submissions_root,
 			receipts_root,
@@ -613,10 +633,20 @@ struct RecordFile {
 	bytes: Vec<u8>,
 }
 
-fn read_records(root: &Path) -> Result<Vec<RecordFile>, ContentError> {
+struct RecordScan {
+	records: Vec<RecordFile>,
+	temp_artifacts: Vec<PathBuf>,
+}
+
+struct SchedulerCursorScan {
+	cursor: Option<CheckpointSchedulerCursorV1>,
+	temp_artifacts: Vec<PathBuf>,
+}
+
+fn read_records(root: &Path) -> Result<RecordScan, ContentError> {
 	let mut records = Vec::new();
 	let mut visited = 0usize;
-	let mut temp_artifacts = 0usize;
+	let mut temp_artifacts = Vec::new();
 	for item in fs::read_dir(root).map_err(io_error)? {
 		visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 		if visited > MAX_RECORDS + MAX_TEMP_ARTIFACTS {
@@ -624,12 +654,13 @@ fn read_records(root: &Path) -> Result<Vec<RecordFile>, ContentError> {
 		}
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().to_string_lossy().into_owned();
-		if name.contains(".tmp-") {
-			temp_artifacts = temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
-			if temp_artifacts > MAX_TEMP_ARTIFACTS {
+		if crate::bounded_io::is_json_temp_artifact(&name) {
+			if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS ||
+				!item.file_type().map_err(io_error)?.is_file()
+			{
 				return Err(ContentError::IntegrityFailed)
 			}
-			fs::remove_file(item.path()).map_err(io_error)?;
+			temp_artifacts.push(item.path());
 			continue
 		}
 		if !name.ends_with(".json") || !item.file_type().map_err(io_error)?.is_file() {
@@ -644,23 +675,24 @@ fn read_records(root: &Path) -> Result<Vec<RecordFile>, ContentError> {
 		)?;
 		records.push(RecordFile { name, bytes });
 	}
-	Ok(records)
+	Ok(RecordScan { records, temp_artifacts })
 }
 
-fn read_scheduler_cursor(root: &Path) -> Result<Option<CheckpointSchedulerCursorV1>, ContentError> {
+fn read_scheduler_cursor(root: &Path) -> Result<SchedulerCursorScan, ContentError> {
 	let mut record = None;
-	let mut temp_artifacts = 0usize;
+	let mut temp_artifacts = Vec::new();
 	let expected_name = format!("{SCHEDULER_CURSOR_KEY}.json");
 	let temp_prefix = format!("{expected_name}.tmp-");
 	for item in fs::read_dir(root).map_err(io_error)? {
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().to_string_lossy().into_owned();
-		if name.starts_with(&temp_prefix) {
-			temp_artifacts = temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
-			if temp_artifacts > MAX_TEMP_ARTIFACTS {
+		if name.starts_with(&temp_prefix) && crate::bounded_io::is_json_temp_artifact(&name) {
+			if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS ||
+				!item.file_type().map_err(io_error)?.is_file()
+			{
 				return Err(ContentError::IntegrityFailed)
 			}
-			fs::remove_file(item.path()).map_err(io_error)?;
+			temp_artifacts.push(item.path());
 			continue
 		}
 		if name != expected_name ||
@@ -678,7 +710,7 @@ fn read_scheduler_cursor(root: &Path) -> Result<Option<CheckpointSchedulerCursor
 		validate_scheduler_cursor(&cursor)?;
 		record = Some(cursor);
 	}
-	Ok(record)
+	Ok(SchedulerCursorScan { cursor: record, temp_artifacts })
 }
 
 fn validate_scheduler_cursor(cursor: &CheckpointSchedulerCursorV1) -> Result<(), ContentError> {
@@ -1295,6 +1327,8 @@ mod tests {
 			fs::write(root.join("first.json.tmp-1"), []).unwrap();
 			fs::write(root.join("second.json.tmp-1"), []).unwrap();
 			assert!(matches!(read_records(&root), Err(ContentError::IntegrityFailed)));
+			assert!(root.join("first.json.tmp-1").exists());
+			assert!(root.join("second.json.tmp-1").exists());
 		}
 	}
 
@@ -1402,6 +1436,8 @@ mod tests {
 			CheckpointOutboxV2::open(two_temps.path()),
 			Err(ContentError::IntegrityFailed)
 		));
+		assert!(root.join("cursor.json.tmp-1").exists());
+		assert!(root.join("cursor.json.tmp-2").exists());
 
 		let extra_record = TempDir::new().unwrap();
 		let root = extra_record.path().join(SCHEDULER_ROOT);
@@ -1420,6 +1456,23 @@ mod tests {
 			CheckpointOutboxV2::open(oversized.path()),
 			Err(ContentError::IntegrityFailed)
 		));
+	}
+
+	#[test]
+	fn recovery_validation_failure_preserves_temps_across_outbox_roots() {
+		let temp = TempDir::new().unwrap();
+		let scheduler_root = temp.path().join(SCHEDULER_ROOT);
+		let submissions_root = temp.path().join(SUBMISSIONS_ROOT);
+		fs::create_dir_all(&scheduler_root).unwrap();
+		fs::create_dir_all(&submissions_root).unwrap();
+		let crash_temp = scheduler_root.join("cursor.json.tmp-1");
+		fs::write(&crash_temp, b"partial").unwrap();
+		fs::write(submissions_root.join("corrupt.json"), b"not-json").unwrap();
+		assert!(matches!(
+			CheckpointOutboxV2::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+		assert!(crash_temp.exists());
 	}
 
 	#[test]

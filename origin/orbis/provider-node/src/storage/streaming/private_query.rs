@@ -1618,7 +1618,7 @@ fn validate_private_query_blobs_in_directory(
 		.map(|record| (format!("{}.bin", record.response_blob), record))
 		.collect::<std::collections::BTreeMap<_, _>>();
 	let mut seen = BTreeSet::new();
-	let mut scrubbed = false;
+	let mut orphans = Vec::new();
 	for name in artifacts {
 		if let Some(record) = referenced.get(&name) {
 			if !seen.insert(name) {
@@ -1632,14 +1632,16 @@ fn validate_private_query_blobs_in_directory(
 			if FileType::from_raw_mode(metadata.st_mode) == FileType::Directory {
 				return Err(ContentError::IntegrityFailed);
 			}
-			unix_fs::unlinkat(&directory.fd, name.as_str(), AtFlags::empty()).map_err(blob_io)?;
-			scrubbed = true;
+			orphans.push(name);
 		}
 	}
 	if seen.len() != referenced.len() {
 		return Err(ContentError::IntegrityFailed);
 	}
-	if scrubbed {
+	for orphan in &orphans {
+		unix_fs::unlinkat(&directory.fd, orphan.as_str(), AtFlags::empty()).map_err(blob_io)?;
+	}
+	if !orphans.is_empty() {
 		unix_fs::fsync(&directory.fd).map_err(blob_io)?;
 	}
 	Ok(())
@@ -3565,6 +3567,47 @@ mod tests {
 				[42; 16],
 			)
 			.is_ok());
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn missing_referenced_blob_preserves_unrelated_orphan() {
+		let fixture = query_fixture(b"atomic-blob-audit".to_vec());
+		let get = request(&fixture, GET, None);
+		let authority = capability(&fixture, GET, fixture.bytes.len() as u64, 116);
+		fixture
+			.streaming
+			.private_object_query(
+				&get,
+				&authority,
+				&fixture.authority,
+				&fixture.topology,
+				&fixture.mmr,
+				&fixture.service,
+				[42; 16],
+			)
+			.unwrap();
+		let state = fixture.streaming.read_state().unwrap().clone();
+		let referenced = state.private_queries.values().next().unwrap().response_blob.clone();
+		let directory = acquire_response_directory(&fixture.streaming.root).unwrap();
+		let orphan = "0".repeat(64);
+		persist_response_blob_in_directory(
+			&directory,
+			&orphan,
+			&encode_response_blob(&[b"orphan".to_vec()]).unwrap(),
+		)
+		.unwrap();
+		delete_response_blob_in_directory(&directory, &referenced).unwrap();
+		assert_eq!(
+			validate_private_query_blobs_in_directory(&state, &directory).unwrap_err(),
+			ContentError::IntegrityFailed
+		);
+		assert!(fixture
+			.streaming
+			.root
+			.join(RESPONSE_DIR)
+			.join(response_blob_name(&orphan).unwrap())
+			.exists());
 	}
 
 	#[test]

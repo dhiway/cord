@@ -308,6 +308,7 @@ impl ReplicationIntentStore {
 			},
 			None => new_scheduler()?,
 		};
+		crate::bounded_io::remove_validated_temp_artifacts(&root, &loaded.temp_artifacts)?;
 		let store = Self {
 			root,
 			records: RwLock::new(records),
@@ -1177,13 +1178,14 @@ struct ReadState {
 	records: Vec<RecordFile>,
 	scheduler: Option<Vec<u8>>,
 	durable_bytes: u64,
+	temp_artifacts: Vec<PathBuf>,
 }
 
 fn read_state(root: &Path, limit: usize) -> Result<ReadState, ContentError> {
 	let mut records = Vec::new();
 	let mut scheduler = None;
 	let mut visited = 0usize;
-	let mut temps = 0usize;
+	let mut temp_artifacts = Vec::new();
 	let mut durable_bytes = 0u64;
 	for item in fs::read_dir(root).map_err(io_error)? {
 		visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
@@ -1192,15 +1194,14 @@ fn read_state(root: &Path, limit: usize) -> Result<ReadState, ContentError> {
 		}
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().into_string().map_err(|_| ContentError::IntegrityFailed)?;
-		if name.contains(".tmp-") {
+		if crate::bounded_io::is_json_temp_artifact(&name) {
 			if !item.file_type().map_err(io_error)?.is_file() {
 				return Err(ContentError::IntegrityFailed);
 			}
-			temps = temps.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
-			if temps > MAX_TEMP_ARTIFACTS {
+			if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS {
 				return Err(ContentError::IntegrityFailed);
 			}
-			fs::remove_file(item.path()).map_err(io_error)?;
+			temp_artifacts.push(item.path());
 			continue;
 		}
 		if !item.file_type().map_err(io_error)?.is_file() {
@@ -1227,8 +1228,7 @@ fn read_state(root: &Path, limit: usize) -> Result<ReadState, ContentError> {
 			records.push(RecordFile { name, bytes });
 		}
 	}
-	sync_dir(root)?;
-	Ok(ReadState { records, scheduler, durable_bytes })
+	Ok(ReadState { records, scheduler, durable_bytes, temp_artifacts })
 }
 
 fn input_from_session(
@@ -2821,6 +2821,23 @@ mod tests {
 			ReplicationIntentStore::open(temp.path()),
 			Err(ContentError::IntegrityFailed)
 		));
+	}
+
+	#[test]
+	fn recovery_temp_overflow_preserves_every_replication_artifact() {
+		let temp = tempfile::tempdir().unwrap();
+		let root = temp.path().join(ROOT);
+		fs::create_dir_all(&root).unwrap();
+		for index in 0..=MAX_TEMP_ARTIFACTS {
+			fs::write(root.join(format!("artifact-{index}.json.tmp-1")), b"partial").unwrap();
+		}
+		assert!(matches!(
+			ReplicationIntentStore::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+		for index in 0..=MAX_TEMP_ARTIFACTS {
+			assert!(root.join(format!("artifact-{index}.json.tmp-1")).exists());
+		}
 	}
 
 	#[test]
