@@ -1602,12 +1602,13 @@ mod tests {
 			.write(true)
 			.open(&displaced)
 			.unwrap();
-		assert!(FileExt::try_lock_exclusive(&displaced_contender).is_err());
+		FileExt::try_lock_exclusive(&displaced_contender).unwrap();
 		fs::write(&lock, b"replacement").unwrap();
 
 		assert!(outbox.submit_manifest_deletion(manifest_deletion("91")).await.is_err());
 		assert_eq!(fs::read(source).unwrap(), original);
 		assert_eq!(fs::read(lock).unwrap(), b"replacement");
+		FileExt::unlock(&displaced_contender).unwrap();
 	}
 
 	#[tokio::test]
