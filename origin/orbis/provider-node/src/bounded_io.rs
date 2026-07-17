@@ -71,9 +71,32 @@ pub(crate) fn remove_validated_temp_artifacts(
 		}
 	}
 	for artifact in temp_artifacts {
-		fs::remove_file(artifact).map_err(io_error)?;
+		match fs::remove_file(artifact) {
+			Ok(()) => {},
+			Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+			Err(error) => return Err(io_error(error)),
+		}
 	}
 	File::open(root).and_then(|directory| directory.sync_all()).map_err(io_error)
+}
+
+/// Inspect one optional durable directory without creating it.
+pub(crate) fn optional_directory_exists(path: &Path) -> Result<bool, ContentError> {
+	let exists = path.try_exists().map_err(io_error)?;
+	if exists && !fs::metadata(path).map_err(io_error)?.is_dir() {
+		return Err(ContentError::IntegrityFailed);
+	}
+	Ok(exists)
+}
+
+/// Materialize a directory which was absent from a completely validated startup view.
+pub(crate) fn create_prepared_directory(path: &Path, missing: bool) -> Result<(), ContentError> {
+	if !missing {
+		return Ok(())
+	}
+	fs::create_dir_all(path).map_err(io_error)?;
+	let parent = path.parent().ok_or(ContentError::IntegrityFailed)?;
+	File::open(parent).and_then(|directory| directory.sync_all()).map_err(io_error)
 }
 
 fn io_error(error: impl std::fmt::Display) -> ContentError {
