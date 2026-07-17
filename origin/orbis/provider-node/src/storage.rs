@@ -661,14 +661,15 @@ impl DiskStore {
 		if accumulated_duties > MAX_PROVIDER_INDEX_RECORDS {
 			return Err(StoreError::Capacity);
 		}
-		if let Some(previous) = &state.checkpoint_duty_watermark {
-			if batch.snapshot_checkpoint < previous.snapshot_checkpoint
-				|| batch.finalized_number < previous.finalized_number
-			{
-				return Err(StoreError::Invalid(
-					"checkpoint duty snapshot or finalized height regressed".into(),
-				));
-			}
+		if checkpoint_duty_coordinates_regress(
+			batch.snapshot_checkpoint,
+			batch.finalized_number,
+			state.checkpoint_duty_watermark.as_ref(),
+			state.checkpoint_duty_inventory.as_ref(),
+		) {
+			return Err(StoreError::Invalid(
+				"checkpoint duty snapshot or finalized height regressed".into(),
+			));
 		}
 		let mut next = state.clone();
 		let mut accumulated = match next.checkpoint_duty_intake.take() {
@@ -702,6 +703,13 @@ impl DiskStore {
 			}
 		}
 		accumulated.extend(batch.duties);
+		validate_checkpoint_duty_collection(
+			&batch.finalized_hash,
+			&batch.provider,
+			batch.snapshot_checkpoint,
+			&accumulated,
+			&state.profile,
+		)?;
 		if let Some(next_cursor) = batch.next_cursor {
 			next.checkpoint_duty_intake = Some(CheckpointDutyIntake {
 				finalized_hash: batch.finalized_hash,
@@ -1672,6 +1680,21 @@ fn checkpoint_duty_order_key(duty: &CheckpointDuty) -> Result<String, StoreError
 	Ok(format!("{}:{}", normalize_hash(&duty.bucket_id)?, normalize_hash(&duty.duty_id)?))
 }
 
+fn checkpoint_duty_coordinates_regress(
+	snapshot_checkpoint: u32,
+	finalized_number: u32,
+	watermark: Option<&CheckpointDutyWatermark>,
+	inventory: Option<&CheckpointDutyInventory>,
+) -> bool {
+	watermark.is_some_and(|installed| {
+		snapshot_checkpoint < installed.snapshot_checkpoint
+			|| finalized_number < installed.finalized_number
+	}) || inventory.is_some_and(|installed| {
+		snapshot_checkpoint < installed.snapshot_checkpoint
+			|| finalized_number < installed.finalized_number
+	})
+}
+
 fn verify_checkpoint_duty_state(state: &PersistedState) -> Result<(), StoreError> {
 	if let Some(intake) = &state.checkpoint_duty_intake {
 		validate_checkpoint_duty_collection(
@@ -1691,6 +1714,16 @@ fn verify_checkpoint_duty_state(state: &PersistedState) -> Result<(), StoreError
 		{
 			return Err(StoreError::Io(
 				"checkpoint duty intake cursor does not match its tail".into(),
+			));
+		}
+		if checkpoint_duty_coordinates_regress(
+			intake.snapshot_checkpoint,
+			intake.finalized_number,
+			state.checkpoint_duty_watermark.as_ref(),
+			state.checkpoint_duty_inventory.as_ref(),
+		) {
+			return Err(StoreError::Io(
+				"checkpoint duty intake regresses behind its installed inventory".into(),
 			));
 		}
 	}
@@ -2327,6 +2360,87 @@ mod tests {
 	}
 
 	#[test]
+	fn cross_page_duplicate_duty_fails_without_changing_durable_intake() {
+		let temp = tempfile::tempdir().unwrap();
+		let snapshot = 41;
+		let first_cursor = cursor(snapshot, 1);
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		assert!(!store
+			.stage_checkpoint_duty_page(page(
+				snapshot,
+				None,
+				Some(first_cursor.clone()),
+				vec![duty(1, 1, snapshot)],
+			))
+			.unwrap());
+		let resume = store.checkpoint_duty_resume_request().unwrap().unwrap();
+		let index_before = fs::read(temp.path().join(INDEX_FILE)).unwrap();
+
+		assert!(store
+			.stage_checkpoint_duty_page(page(
+				snapshot,
+				Some(first_cursor),
+				Some(cursor(snapshot, 2)),
+				vec![duty(1, 2, snapshot)],
+			))
+			.is_err());
+		assert_eq!(store.checkpoint_duty_resume_request().unwrap().unwrap(), resume);
+		assert!(store.pending_checkpoint_duties().unwrap().is_empty());
+		assert!(store.checkpoint_duty_inventory().unwrap().is_none());
+		assert_eq!(fs::read(temp.path().join(INDEX_FILE)).unwrap(), index_before);
+		drop(store);
+
+		let reopened = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		assert_eq!(reopened.checkpoint_duty_resume_request().unwrap().unwrap(), resume);
+	}
+
+	#[test]
+	fn checkpoint_duty_intake_cannot_regress_on_admission_or_reopen() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		assert!(store
+			.stage_checkpoint_duty_page(page(80, None, None, vec![duty(1, 1, 80)]))
+			.unwrap());
+		let index_before = fs::read(temp.path().join(INDEX_FILE)).unwrap();
+
+		let mut snapshot_regression =
+			page(79, None, Some(cursor(79, 2)), vec![duty(2, 2, 79)]);
+		snapshot_regression.finalized_number = 82;
+		let mut finalized_regression =
+			page(81, None, Some(cursor(81, 2)), vec![duty(2, 2, 81)]);
+		finalized_regression.finalized_number = 80;
+		for batch in [snapshot_regression, finalized_regression] {
+			assert!(store.stage_checkpoint_duty_page(batch).is_err());
+			assert!(store.checkpoint_duty_resume_request().unwrap().is_none());
+			assert_eq!(fs::read(temp.path().join(INDEX_FILE)).unwrap(), index_before);
+		}
+		drop(store);
+		assert!(DiskStore::open(temp.path(), profile(), 1024).is_ok());
+
+		for regress_snapshot in [true, false] {
+			let temp = tempfile::tempdir().unwrap();
+			let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+			assert!(store
+				.stage_checkpoint_duty_page(page(80, None, None, vec![duty(1, 1, 80)]))
+				.unwrap());
+			let mut state = store.read_state().unwrap().clone();
+			drop(store);
+			let (snapshot_checkpoint, finalized_number) =
+				if regress_snapshot { (79, 82) } else { (81, 80) };
+			state.checkpoint_duty_intake = Some(CheckpointDutyIntake {
+				finalized_hash: format!("0x{}", "20".repeat(32)),
+				finalized_number,
+				provider: format!("0x{}", "01".repeat(32)),
+				snapshot_checkpoint,
+				next_cursor: cursor(snapshot_checkpoint, 2),
+				duties: vec![duty(2, 2, snapshot_checkpoint)],
+			});
+			fs::write(temp.path().join(INDEX_FILE), serde_json::to_vec(&state).unwrap()).unwrap();
+			assert!(DiskStore::open(temp.path(), profile(), 1024).is_err());
+		}
+	}
+
+	#[test]
 	fn latest_duty_inventory_survives_partial_next_scan_then_replaces_exactly() {
 		let temp = tempfile::tempdir().unwrap();
 		let snapshot = 45;
@@ -2428,8 +2542,22 @@ mod tests {
 		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
 		let duties =
 			(1..=200).map(|value| replica_duty(value, value, snapshot)).collect::<Vec<_>>();
+		let first_cursor = cursor(snapshot, 128);
+		assert!(!store
+			.stage_checkpoint_duty_page(page(
+				snapshot,
+				None,
+				Some(first_cursor.clone()),
+				duties[..128].to_vec(),
+			))
+			.unwrap());
 		assert!(store
-			.stage_checkpoint_duty_page(page(snapshot, None, None, duties.clone()))
+			.stage_checkpoint_duty_page(page(
+				snapshot,
+				Some(first_cursor),
+				None,
+				duties[128..].to_vec(),
+			))
 			.unwrap());
 		let inventory = store.checkpoint_duty_inventory().unwrap().unwrap();
 		let first = store.reserve_checkpoint_replica_duties(&inventory, 64).unwrap();
