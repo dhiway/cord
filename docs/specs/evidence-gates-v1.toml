@@ -162,7 +162,7 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "ad5914bc9ae2316d9b3980e5024f3070f75be3427ca065400fa7066b331699f5"
+sha256 = "477ec7d420d84df33075395a5b883a37f7af65e63da13f2e2c49bcaa16618020"
 
 [[gate.input]]
 path = "Cargo.toml"
@@ -170,7 +170,7 @@ sha256 = "e0e58f314ffc82529b1f81a23e93799a5f2931ff3a2927f95d964bc5a70e8b4b"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "29af21d05c6faff7a7e20b99a3540f8bc7bd40d7e2596ecc7a9f4c52b8921b24"
+sha256 = "dfa9723ca19426d9fd80646bb91fafb32b2623cd25783106cbbdbf0415356675"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -194,7 +194,7 @@ sha256 = "0dd0a38e5a064e23501f0f446bbef9bd6015fdbaef953bdf0e515f92bb1a2b2c"
 
 [[gate.command]]
 cwd = "."
-argv = ["cargo", "test", "-p", "origin-orbis-provider", "--test", "content_contract", "--", "--exact", "golden_contract"]
+argv = ["cargo", "test", "-p", "origin-orbis-provider", "--features", "test-seams", "--test", "content_contract", "--", "--exact", "golden_contract"]
 test_count = 1
 outputs = []
 inputs = ["Cargo.toml", "Cargo.lock", "docs/specs/storage-v1.vectors.json"]
@@ -263,7 +263,7 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "ad5914bc9ae2316d9b3980e5024f3070f75be3427ca065400fa7066b331699f5"
+sha256 = "477ec7d420d84df33075395a5b883a37f7af65e63da13f2e2c49bcaa16618020"
 
 [[gate.input]]
 path = "Cargo.toml"
@@ -271,7 +271,7 @@ sha256 = "e0e58f314ffc82529b1f81a23e93799a5f2931ff3a2927f95d964bc5a70e8b4b"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "29af21d05c6faff7a7e20b99a3540f8bc7bd40d7e2596ecc7a9f4c52b8921b24"
+sha256 = "dfa9723ca19426d9fd80646bb91fafb32b2623cd25783106cbbdbf0415356675"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -436,7 +436,7 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "ad5914bc9ae2316d9b3980e5024f3070f75be3427ca065400fa7066b331699f5"
+sha256 = "477ec7d420d84df33075395a5b883a37f7af65e63da13f2e2c49bcaa16618020"
 
 [[gate.input]]
 path = "Cargo.toml"
@@ -444,7 +444,7 @@ sha256 = "e0e58f314ffc82529b1f81a23e93799a5f2931ff3a2927f95d964bc5a70e8b4b"
 
 [[gate.input]]
 path = "origin/orbis/provider-node"
-sha256 = "62d9890807b8b3e96b33e6e5c98968deae87da9171b0eb10b64c54f7cb920f26"
+sha256 = "1178080c6dfd593112c72935aa4cf180d6f2af056d6421a0c4c58cdede3cd734"
 
 [[gate.input]]
 path = "scripts/validate-three-provider-recovery.py"
@@ -455,6 +455,14 @@ cwd = "."
 argv = ["cargo", "test", "-p", "origin-orbis-provider", "--features", "evidence", "--test", "three_provider_recovery", "--", "--exact", "deterministic_failover"]
 test_count = 1
 outputs = ["target/debug/ac5-three-provider-recovery-v1.json"]
+inputs = ["Cargo.toml", "Cargo.lock", "origin/orbis/provider-node"]
+allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
+
+[[gate.command]]
+cwd = "."
+argv = ["cargo", "test", "-p", "origin-orbis-provider", "--features", "test-seams", "--test", "integrity_contract"]
+test_count = 7
+outputs = []
 inputs = ["Cargo.toml", "Cargo.lock", "origin/orbis/provider-node"]
 allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
 
@@ -622,7 +630,7 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "ad5914bc9ae2316d9b3980e5024f3070f75be3427ca065400fa7066b331699f5"
+sha256 = "477ec7d420d84df33075395a5b883a37f7af65e63da13f2e2c49bcaa16618020"
 
 [[gate.input]]
 path = "Cargo.toml"
@@ -630,11 +638,11 @@ sha256 = "e0e58f314ffc82529b1f81a23e93799a5f2931ff3a2927f95d964bc5a70e8b4b"
 
 [[gate.input]]
 path = "origin-rs"
-sha256 = "dbf03eb3df4dbd92cdc3b6b8127a07986bc363a6f2b23df339996286cf337740"
+sha256 = "182cb5444249836f771c76dc0b998ba84acd6f15c7b55fbad85ae3e20bdc364f"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "29af21d05c6faff7a7e20b99a3540f8bc7bd40d7e2596ecc7a9f4c52b8921b24"
+sha256 = "dfa9723ca19426d9fd80646bb91fafb32b2623cd25783106cbbdbf0415356675"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -706,7 +714,7 @@ sha256 = "d569ecce7cb08cc50d1ba151f4f1bbe9d93542840071c92699e2bca0a6c7a6a7"
 
 [[gate.input]]
 path = "origin/orbis/provider-node"
-sha256 = "62d9890807b8b3e96b33e6e5c98968deae87da9171b0eb10b64c54f7cb920f26"
+sha256 = "1178080c6dfd593112c72935aa4cf180d6f2af056d6421a0c4c58cdede3cd734"
 
 [[gate.input]]
 path = "origin/orbis/provider-node/src/capability.rs"
@@ -714,7 +722,7 @@ sha256 = "9aa355f7e80df9cfd1810c5e3e42e511de74441ecec20ca01e3794577d6e9c93"
 
 [[gate.input]]
 path = "origin/orbis/provider-node/src/storage/streaming/recovery.rs"
-sha256 = "74182bf06735e6a5f3e68b86b7aab94d95c9dba7879508a600fd499f6dc53383"
+sha256 = "2acc221ecaca306d8c23ea0ccdfe1a646b055f5f440b33e9213a5011f53d4dd5"
 
 [[gate.input]]
 path = "origin/orbis/runtime/vectors/transaction-policy-v8/intent-preimage.scale"
@@ -722,7 +730,7 @@ sha256 = "4c8546f3911947ee310b210b418fc2762c5560c670b71d7f7dcd7dcee685eedd"
 
 [[gate.input]]
 path = "docs/sdk/native-route-contract.json"
-sha256 = "dfc03fe7109fe400386f7b91cd05f183ee34227570cab018453314373df1a9b8"
+sha256 = "ec85931fb3249f27f64130346b665778cc7aea78f3090b01b7c3d38c279425f4"
 
 [[gate.input]]
 path = "docs/sdk/native-version-matrix.json"
