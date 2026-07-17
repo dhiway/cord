@@ -4377,6 +4377,18 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 			names_api::Versioned::new(value)
 		}
 
+		fn resolve_content_publication(name: Hash) -> names_api::Versioned<names_api::ContentPublication<[u8; 32]>> {
+			let value = Names::is_name_active(name)
+				.then(|| pallet_orbis_names::Names::<Runtime>::get(name))
+				.flatten()
+				.and_then(|record| record.content)
+				.map(|content| names_api::ContentPublication {
+					content,
+					revision: pallet_orbis_names::ContentRevisions::<Runtime>::get(name),
+				});
+			names_api::Versioned::new(value)
+		}
+
 		fn resolve_text(name: Hash, key: names_api::TextKey) -> names_api::Versioned<names_api::TextValue> {
 			let value = if Names::is_name_active(name) {
 				pallet_orbis_names::TextKeyOf::<Runtime>::try_from(key.to_vec())

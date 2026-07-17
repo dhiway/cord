@@ -329,7 +329,7 @@ mod benchmarks {
 		let (primary, _) = provider::<T>(0, ProviderStatus::Active);
 		let (replicas, _) = replicas::<T>(r);
 		#[extrinsic_call]
-		_(RawOrigin::Signed(owner), T::Hashing::hash_of(&b"policy"), primary, replicas);
+		_(RawOrigin::Signed(owner), T::Hashing::hash_of(&b"policy"), primary, replicas, [1; 16]);
 	}
 
 	#[benchmark]

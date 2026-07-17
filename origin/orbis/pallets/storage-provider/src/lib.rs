@@ -352,6 +352,14 @@ pub struct BucketRecord<AccountId, Hash, BlockNumber, Replicas, Grants> {
 	pub created_at: BlockNumber,
 }
 
+#[derive(
+	Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, MaxEncodedLen, PartialEq, TypeInfo,
+)]
+pub struct BucketOperationReceipt<Hash> {
+	pub request_hash: Hash,
+	pub bucket_id: Hash,
+}
+
 /// Canonical finalized host-delegation authority for one provider capability grant.
 #[derive(
 	Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, MaxEncodedLen, PartialEq, TypeInfo,
@@ -856,6 +864,17 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, T::Hash, BucketRecordOf<T>, OptionQuery>;
 	#[pallet::storage]
 	pub type BucketIds<T: Config> = StorageValue<_, BoundedVec<T::Hash, T::MaxBuckets>, ValueQuery>;
+
+	#[pallet::storage]
+	pub type BucketOperationReceipts<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		Blake2_128Concat,
+		[u8; 16],
+		BucketOperationReceipt<T::Hash>,
+		OptionQuery,
+	>;
 	#[pallet::storage]
 	pub type BucketNonce<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, u64, ValueQuery>;
@@ -1087,6 +1106,8 @@ pub mod pallet {
 			primary: T::AccountId,
 			replicas: ReplicasOf<T>,
 			version: u64,
+			operation_id: [u8; 16],
+			replayed: bool,
 		},
 		BucketGrantChanged {
 			bucket_id: T::Hash,
@@ -1241,6 +1262,7 @@ pub mod pallet {
 		BucketNotFound,
 		BucketAlreadyExists,
 		BucketLimitReached,
+		OperationIdConflict,
 		BucketVersionConflict,
 		BucketMemberLimit,
 		HostDelegationLimit,
@@ -1573,8 +1595,25 @@ pub mod pallet {
 			policy: T::Hash,
 			primary: T::AccountId,
 			replicas: ReplicasOf<T>,
+			operation_id: [u8; 16],
 		) -> DispatchResult {
 			let owner = ensure_signed(origin)?;
+			let request_hash = T::Hashing::hash_of(&(policy, &primary, &replicas));
+			if let Some(receipt) = BucketOperationReceipts::<T>::get(&owner, operation_id) {
+				ensure!(receipt.request_hash == request_hash, Error::<T>::OperationIdConflict);
+				let record =
+					Buckets::<T>::get(receipt.bucket_id).ok_or(Error::<T>::BucketNotFound)?;
+				Self::deposit_event(Event::BucketCreated {
+					bucket_id: receipt.bucket_id,
+					owner,
+					primary: record.primary,
+					replicas: record.replicas,
+					version: record.version,
+					operation_id,
+					replayed: true,
+				});
+				return Ok(());
+			}
 			Self::ensure_assignments(&primary, &replicas)?;
 			let finalized = Self::finalized_checkpoint()?;
 			Self::ensure_provider_eligible(&primary, finalized)?;
@@ -1618,12 +1657,19 @@ pub mod pallet {
 					*count = count.saturating_add(1)
 				});
 			}
+			BucketOperationReceipts::<T>::insert(
+				&owner,
+				operation_id,
+				BucketOperationReceipt { request_hash, bucket_id },
+			);
 			Self::deposit_event(Event::BucketCreated {
 				bucket_id,
 				owner,
 				primary,
 				replicas,
 				version: 1,
+				operation_id,
+				replayed: false,
 			});
 			Ok(())
 		}

@@ -79,8 +79,53 @@ fn setup_bucket() -> H256 {
 		H256::repeat_byte(10),
 		1,
 		replicas,
+		[11; 16]
 	));
 	BucketIds::<Test>::get()[0]
+}
+
+#[test]
+fn bucket_creation_operation_id_replays_once_and_rejects_rebinding() {
+	new_test_ext().execute_with(|| {
+		for id in 1..=4 {
+			register(id, 10_000);
+		}
+		let replicas: ReplicasOf<Test> = vec![2, 3].try_into().unwrap();
+		let operation_id = [0x51; 16];
+		assert_ok!(StorageProvider::create_bucket(
+			RuntimeOrigin::signed(OWNER),
+			H256::repeat_byte(10),
+			1,
+			replicas.clone(),
+			operation_id,
+		));
+		let bucket = BucketIds::<Test>::get()[0];
+		assert_ok!(StorageProvider::create_bucket(
+			RuntimeOrigin::signed(OWNER),
+			H256::repeat_byte(10),
+			1,
+			replicas.clone(),
+			operation_id,
+		));
+		assert_eq!(BucketIds::<Test>::get().as_slice(), &[bucket]);
+		assert_eq!(crate::BucketNonce::<Test>::get(OWNER), 1);
+		assert!(matches!(
+			System::events().last().map(|record| &record.event),
+			Some(RuntimeEvent::StorageProvider(Event::BucketCreated {
+				bucket_id, operation_id: observed, replayed: true, ..
+			})) if *bucket_id == bucket && observed == &operation_id
+		));
+		assert_noop!(
+			StorageProvider::create_bucket(
+				RuntimeOrigin::signed(OWNER),
+				H256::repeat_byte(11),
+				1,
+				replicas,
+				operation_id,
+			),
+			Error::<Test>::OperationIdConflict
+		);
+	});
 }
 
 fn product(value: &[u8]) -> CapabilityProductIdOf<Test> {
@@ -649,7 +694,8 @@ fn provider_conflict_resolution_matrix_covers_eleven_distinct_conflicts() {
 				RuntimeOrigin::signed(OWNER),
 				H256::repeat_byte(1),
 				1,
-				vec![1, 2].try_into().unwrap()
+				vec![1, 2].try_into().unwrap(),
+				[176; 16]
 			),
 			Error::<Test>::DuplicateProviderAssignment
 		); // 3
@@ -658,7 +704,8 @@ fn provider_conflict_resolution_matrix_covers_eleven_distinct_conflicts() {
 				RuntimeOrigin::signed(OWNER),
 				H256::repeat_byte(1),
 				1,
-				vec![2, 2].try_into().unwrap()
+				vec![2, 2].try_into().unwrap(),
+				[141; 16]
 			),
 			Error::<Test>::DuplicateProviderAssignment
 		); // 4
@@ -667,7 +714,8 @@ fn provider_conflict_resolution_matrix_covers_eleven_distinct_conflicts() {
 				RuntimeOrigin::signed(OWNER),
 				H256::repeat_byte(1),
 				1,
-				vec![2].try_into().unwrap()
+				vec![2].try_into().unwrap(),
+				[106; 16]
 			),
 			Error::<Test>::InvalidReplicaCount
 		); // 5
@@ -681,7 +729,8 @@ fn provider_conflict_resolution_matrix_covers_eleven_distinct_conflicts() {
 				RuntimeOrigin::signed(OWNER),
 				H256::repeat_byte(1),
 				1,
-				vec![2, 3].try_into().unwrap()
+				vec![2, 3].try_into().unwrap(),
+				[178; 16]
 			),
 			Error::<Test>::ProviderIneligible
 		); // 6
@@ -694,7 +743,8 @@ fn provider_conflict_resolution_matrix_covers_eleven_distinct_conflicts() {
 			RuntimeOrigin::signed(OWNER),
 			H256::repeat_byte(1),
 			1,
-			vec![2, 3].try_into().unwrap()
+			vec![2, 3].try_into().unwrap(),
+			[243; 16]
 		));
 		let bucket = BucketIds::<Test>::get()[0];
 		assert_noop!(
@@ -1620,6 +1670,7 @@ fn checkpoint_duties_are_initially_scheduled_and_frozen_until_next_finalized_sna
 			H256::repeat_byte(10),
 			1,
 			vec![2, 3].try_into().unwrap(),
+			[194; 16]
 		));
 		let bucket = BucketIds::<Test>::get()[0];
 		assert!(CheckpointDutyCurrent::<Test>::get(bucket).is_none());
@@ -1671,6 +1722,7 @@ fn checkpoint_duty_admission_is_exactly_bounded_per_block() {
 				H256::repeat_byte(index),
 				1,
 				replicas.clone(),
+				(index as u128).to_le_bytes(),
 			));
 		}
 		assert_eq!(DutyAdmissionCount::<Test>::get(), 8);
@@ -1681,6 +1733,7 @@ fn checkpoint_duty_admission_is_exactly_bounded_per_block() {
 				H256::repeat_byte(9),
 				1,
 				replicas,
+				[38; 16]
 			),
 			Error::<Test>::CheckpointDutyLimit
 		);
@@ -1691,6 +1744,7 @@ fn checkpoint_duty_admission_is_exactly_bounded_per_block() {
 			H256::repeat_byte(10),
 			1,
 			vec![2, 3].try_into().unwrap(),
+			[43; 16]
 		));
 		assert_eq!(DutyAdmissionCount::<Test>::get(), 1);
 		assert_eq!(CheckpointDutyPending::<Test>::iter().count(), 9);
@@ -1721,6 +1775,7 @@ fn checkpoint_and_challenge_admissions_share_one_exact_bound() {
 				H256::from_low_u64_be(index),
 				1,
 				vec![2, 3].try_into().unwrap(),
+				(index as u128).to_le_bytes(),
 			));
 		}
 		for index in 0..4 {
@@ -1752,6 +1807,7 @@ fn checkpoint_and_challenge_admissions_share_one_exact_bound() {
 				H256::from_low_u64_be(9),
 				1,
 				vec![2, 3].try_into().unwrap(),
+				[83; 16]
 			),
 			Error::<Test>::CheckpointDutyLimit
 		);
@@ -2287,6 +2343,7 @@ fn authority_only_fallback_promotion_rolls_back_every_surface_on_hostile_invaria
 				H256::repeat_byte(10),
 				1,
 				vec![2, 3, 4].try_into().unwrap(),
+				[216; 16]
 			));
 			let bucket = BucketIds::<Test>::get()[0];
 			assert_ok!(StorageProvider::propose_agreement(
@@ -2397,6 +2454,7 @@ fn grace_fallback_atomically_promotes_with_two_eligible_post_promotion_confirmer
 			H256::repeat_byte(10),
 			1,
 			replicas,
+			[48; 16]
 		));
 		let bucket = BucketIds::<Test>::get()[0];
 		assert_ok!(StorageProvider::propose_agreement(
@@ -2508,6 +2566,7 @@ fn grace_fallback_rolls_back_every_surface_on_hostile_invariants() {
 				H256::repeat_byte(10),
 				1,
 				replicas,
+				[21; 16]
 			));
 			let bucket = BucketIds::<Test>::get()[0];
 			assert_ok!(StorageProvider::propose_agreement(
@@ -2660,6 +2719,7 @@ fn second_unfinalized_duty_update_fails_closed_without_overwriting_first() {
 			H256::repeat_byte(10),
 			1,
 			vec![2, 3].try_into().unwrap(),
+			[146; 16]
 		));
 		let bucket = BucketIds::<Test>::get()[0];
 		let pending = CheckpointDutyPending::<Test>::get(bucket).unwrap();
@@ -2737,6 +2797,7 @@ fn checkpoint_dispatch_weights_cover_atomic_fallback_at_configured_bounds() {
 			H256::repeat_byte(10),
 			1,
 			replicas,
+			[227; 16]
 		));
 		let bucket = BucketIds::<Test>::get()[0];
 		let agreement_ids: frame_support::BoundedVec<H256, MaxAgreements> = (0..max_agreements)
@@ -2977,6 +3038,7 @@ fn host_delegation_scope_lifetime_active_bound_and_nonce_are_fail_closed() {
 				H256::repeat_byte(11),
 				1,
 				replicas,
+				[10; 16]
 			));
 			BucketIds::<Test>::get()[1]
 		};

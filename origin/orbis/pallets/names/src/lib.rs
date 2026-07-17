@@ -111,6 +111,16 @@ pub struct Reservation<AccountId, BlockNumber> {
 	pub expires_at: Option<BlockNumber>,
 }
 
+#[derive(
+	Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, MaxEncodedLen, PartialEq, TypeInfo,
+)]
+pub struct ContentOperationReceipt<Hash, ContentCommitment> {
+	pub request_hash: Hash,
+	pub name: Hash,
+	pub content: Option<ContentCommitment>,
+	pub revision: u64,
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -218,6 +228,21 @@ pub mod pallet {
 	#[pallet::getter(fn name_record)]
 	pub type Names<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::Hash, NameRecordOf<T>, OptionQuery>;
+
+	#[pallet::storage]
+	pub type ContentRevisions<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::Hash, u64, ValueQuery>;
+
+	#[pallet::storage]
+	pub type ContentOperationReceipts<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		Blake2_128Concat,
+		[u8; 16],
+		ContentOperationReceipt<T::Hash, T::ContentCommitment>,
+		OptionQuery,
+	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn controllers)]
@@ -415,6 +440,9 @@ pub mod pallet {
 		ContentSet {
 			name: T::Hash,
 			present: bool,
+			revision: u64,
+			operation_id: [u8; 16],
+			replayed: bool,
 		},
 		TextSet {
 			name: T::Hash,
@@ -482,6 +510,8 @@ pub mod pallet {
 		InvalidSubjectReference,
 		InvalidAttestationReference,
 		InvalidContentReference,
+		ContentRevisionConflict,
+		OperationIdConflict,
 		TooManyTextRecords,
 		PrimaryNameInvalid,
 		InvalidSalt,
@@ -837,22 +867,53 @@ pub mod pallet {
 
 		#[pallet::call_index(11)]
 		#[pallet::weight(T::WeightInfo::resolver_write())]
-		pub fn set_content(
+		pub fn publish_content(
 			origin: OriginFor<T>,
 			name: T::Hash,
 			content: Option<T::ContentCommitment>,
+			expected_revision: Option<u64>,
+			operation_id: [u8; 16],
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			Self::ensure_running()?;
+			let request_hash = T::Hashing::hash_of(&(name, &content, expected_revision));
+			if let Some(receipt) = ContentOperationReceipts::<T>::get(&who, operation_id) {
+				ensure!(receipt.request_hash == request_hash, Error::<T>::OperationIdConflict);
+				Self::deposit_event(Event::ContentSet {
+					name: receipt.name,
+					present: receipt.content.is_some(),
+					revision: receipt.revision,
+					operation_id,
+					replayed: true,
+				});
+				return Ok(());
+			}
 			if let Some(reference) = content.as_ref() {
 				ensure!(
 					T::ContentReferenceValidator::contains(reference),
 					Error::<T>::InvalidContentReference
 				);
 			}
+			let current = ContentRevisions::<T>::get(name);
+			if let Some(expected) = expected_revision {
+				ensure!(expected == current, Error::<T>::ContentRevisionConflict);
+			}
+			let revision = current.checked_add(1).ok_or(Error::<T>::ContentRevisionConflict)?;
 			let present = content.is_some();
-			Self::mutate_authorized_record(&who, name, |record| record.content = content)?;
-			Self::deposit_event(Event::ContentSet { name, present });
+			Self::mutate_authorized_record(&who, name, |record| record.content = content.clone())?;
+			ContentRevisions::<T>::insert(name, revision);
+			ContentOperationReceipts::<T>::insert(
+				&who,
+				operation_id,
+				ContentOperationReceipt { request_hash, name, content, revision },
+			);
+			Self::deposit_event(Event::ContentSet {
+				name,
+				present,
+				revision,
+				operation_id,
+				replayed: false,
+			});
 			Ok(())
 		}
 
@@ -1243,6 +1304,7 @@ pub mod pallet {
 			}
 			Controllers::<T>::remove(name);
 			Children::<T>::remove(name);
+			ContentRevisions::<T>::remove(name);
 			Names::<T>::remove(name);
 			Ok(())
 		}
