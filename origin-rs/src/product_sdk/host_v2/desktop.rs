@@ -304,6 +304,16 @@ impl<S: Read + Write> DesktopHostV2Transport<S> {
 		Ok(())
 	}
 
+	fn send_payload(&mut self, payload: &[u8]) -> Result<(), DesktopTransportError> {
+		if self.closed || self.session.is_none() {
+			return Err(DesktopTransportError::Closed);
+		}
+		write_frame(&mut self.stream, payload).map_err(|error| {
+			self.closed = true;
+			error
+		})
+	}
+
 	fn finish_terminal(&mut self) -> Result<(), DesktopTransportError> {
 		if !self.session.as_ref().is_some_and(Session::is_terminal) {
 			return Err(DesktopTransportError::RequestBinding);
@@ -550,6 +560,7 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 	pub(crate) fn receive_continuation(
 		&mut self,
 		verifier: &mut impl ResumeTokenVerifierV2,
+		terminal_block: u64,
 		install_nonce: [u8; 24],
 		mark_ack_nonce: [u8; 24],
 	) -> Result<DurableDesktopEvent, DesktopTransportError> {
@@ -565,8 +576,28 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		}
 		let (event, terminal) = self.transport.receive()?;
 		if terminal {
-			self.transport.close();
-			return Err(DesktopTransportError::RequestBinding);
+			let event_dto = Dto::<super::generated::EventV2>::decode(&event)?;
+			let (_, _, kind) = event_contract(event_dto.value())?;
+			validate_terminal_contract(
+				active.operation,
+				active.expected_response_kind,
+				kind,
+				event_dto.value(),
+			)?;
+			let response_hash = self.outbox.install_response(
+				active.outbox_id,
+				event.clone(),
+				None,
+				None,
+				Some(terminal_block),
+				install_nonce,
+			)?;
+			let ack = self.outbox.retry_response_ack(active.outbox_id)?;
+			self.transport.send_ack(&ack.bytes)?;
+			self.outbox.mark_ack_sent(active.outbox_id, mark_ack_nonce)?;
+			self.transport.finish_terminal()?;
+			self.active = None;
+			return Ok(DurableDesktopEvent::Terminal { event, response_hash });
 		}
 		let event_dto = Dto::<super::generated::EventV2>::decode(&event)?;
 		let (_, _, kind) = event_contract(event_dto.value())?;
@@ -669,6 +700,7 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		prepare_nonce: [u8; 24],
 		mark_sent_nonce: [u8; 24],
 		compact_predecessor_nonce: [u8; 24],
+		exact_payload: Option<&[u8]>,
 	) -> Result<HostOutboxRetryV1, DesktopTransportError> {
 		self.validate_context()?;
 		let material = validate_wire_material(
@@ -699,6 +731,9 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			.ok_or(DesktopTransportError::RequestBinding)?;
 		self.transport.resume_session(material.request_id, next_sequence)?;
 		self.transport.send(&retry.request, &retry.authority)?;
+		if let Some(payload) = exact_payload {
+			self.transport.send_payload(payload)?;
+		}
 		if let Err(error) = self.outbox.mark_sent(outbox_id, mark_sent_nonce) {
 			self.transport.close();
 			return Err(error.into());

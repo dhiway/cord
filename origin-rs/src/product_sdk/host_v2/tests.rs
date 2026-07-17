@@ -35,7 +35,8 @@ use super::{
 	execution::{
 		CordProviderByteBackendV2, DurableCordProviderV2, HostCallV2, HostExecutionErrorV2,
 		HostExecutionV2, HostRequestMetaV2, HostStorageEncryptionV2, ProviderAckConfirmationV2,
-		ProviderByteStorageV2, ProviderOutboxContextV2,
+		ProviderByteStorageV2, ProviderContinuationSourceV2, ProviderOutboxContextV2,
+		ProviderSuccessorV2,
 	},
 	generated::{
 		self, AcceptedEventV2, AcceptedState, DriveManifestV1, ErrorCode, EventV2, OperationCode,
@@ -73,6 +74,17 @@ fn mobile_vectors() -> serde_json::Value {
 		"../../../../product-sdk/examples/festival/host-v2-mobile-conformance-vectors.json"
 	))
 	.expect("Festival mobile projection vectors are JSON")
+}
+
+fn provider_transfer_chunk() -> Vec<u8> {
+	let fixture: serde_json::Value = serde_json::from_str(include_str!(
+		"../../../../docs/specs/provider-transfer-chunk-v1.vectors.json"
+	))
+	.expect("provider transfer chunk vectors are JSON");
+	let exact = fixture["vectors"][0]["canonical_cbor_hex"]
+		.as_str()
+		.expect("provider transfer chunk vector has canonical CBOR");
+	hex::decode(exact).expect("provider transfer chunk vector is hexadecimal")
 }
 
 fn mobile_tagged_value(tagged: &serde_json::Value) -> Value {
@@ -477,6 +489,29 @@ impl ProviderAckConfirmationV2 for ConfirmedAcks {
 	) -> Result<bool, HostExecutionErrorV2> {
 		self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 		Ok(true)
+	}
+}
+
+struct QueuedContinuations(std::collections::VecDeque<ProviderSuccessorV2>);
+
+impl ProviderContinuationSourceV2 for QueuedContinuations {
+	fn next_generation(
+		&mut self,
+		operation: OperationCode,
+		predecessor: &ProviderOutboxContextV2,
+		_exact_resume_token: &[u8],
+		cursor: u32,
+		_response_hash: [u8; 32],
+	) -> Result<Option<ProviderSuccessorV2>, HostExecutionErrorV2> {
+		let successor = self.0.pop_front();
+		if operation != OperationCode::StorageObjectPut ||
+			successor.as_ref().is_some_and(|successor| {
+				successor.outbox.generation != predecessor.generation + 1 ||
+					successor.outbox.intended_cursor != cursor
+			}) {
+			return Err(HostExecutionErrorV2::AppBinding);
+		}
+		Ok(successor)
 	}
 }
 
@@ -1166,7 +1201,7 @@ fn desktop_stream_abort_after_send_preserves_the_exact_durable_retry() {
 
 #[cfg(unix)]
 #[test]
-fn durable_provider_validates_terminal_payload_acks_and_runs_sequential_operations() {
+fn durable_provider_runs_each_put_generation_from_verified_continuations() {
 	use std::{
 		os::unix::net::UnixStream,
 		sync::{
@@ -1184,17 +1219,34 @@ fn durable_provider_validates_terminal_payload_acks_and_runs_sequential_operatio
 	let request_id = input.request_id;
 	let request = input.exact_request_bytes.clone();
 	let authority = input.exact_authority_bytes.clone();
+	let first_token = resume_token_for(&input, 0, 1);
+	let second_token = resume_token_for(&input, 1, 2);
+	let exact_chunk = provider_transfer_chunk();
+	let server_first_token = first_token.clone();
+	let server_second_token = second_token.clone();
+	let server_chunk = exact_chunk.clone();
 	let (client, mut server) = UnixStream::pair().unwrap();
 	let server_thread = thread::spawn(move || {
 		let mut acks = Vec::new();
-		for _ in 0..2 {
-			assert_eq!(read_frame(&mut server).unwrap(), request);
-			assert_eq!(read_frame(&mut server).unwrap(), authority);
-			write_frame(&mut server, &accepted(request_id, 0)).unwrap();
-			write_frame(&mut server, &object_put_result(request_id, 1)).unwrap();
-			let ack = read_frame(&mut server).unwrap();
-			Dto::<generated::ResponseAckV1>::decode(&ack).expect("host emits canonical ACK");
-			acks.push(ack);
+		assert_eq!(read_frame(&mut server).unwrap(), request);
+		assert_eq!(read_frame(&mut server).unwrap(), authority);
+		write_frame(&mut server, &accepted(request_id, 0)).unwrap();
+		write_frame(&mut server, &server_first_token).unwrap();
+		acks.push(read_frame(&mut server).unwrap());
+
+		assert_eq!(read_frame(&mut server).unwrap(), request);
+		assert_eq!(read_frame(&mut server).unwrap(), server_first_token);
+		assert_eq!(read_frame(&mut server).unwrap(), server_chunk);
+		write_frame(&mut server, &progress(request_id, 1)).unwrap();
+		write_frame(&mut server, &server_second_token).unwrap();
+		acks.push(read_frame(&mut server).unwrap());
+
+		assert_eq!(read_frame(&mut server).unwrap(), request);
+		assert_eq!(read_frame(&mut server).unwrap(), server_second_token);
+		write_frame(&mut server, &object_put_result(request_id, 2)).unwrap();
+		acks.push(read_frame(&mut server).unwrap());
+		for ack in &acks {
+			Dto::<generated::ResponseAckV1>::decode(ack).expect("host emits canonical ACK");
 		}
 		acks
 	});
@@ -1207,32 +1259,57 @@ fn durable_provider_validates_terminal_payload_acks_and_runs_sequential_operatio
 	)
 	.unwrap();
 	let confirmations = Arc::new(AtomicUsize::new(0));
+	let mut first_successor = provider_outbox_context(&input, [0x72; 16], 40);
+	first_successor.generation = 1;
+	first_successor.intended_cursor = 0;
+	let mut second_successor = provider_outbox_context(&input, [0x73; 16], 60);
+	second_successor.generation = 2;
+	second_successor.intended_cursor = 1;
+	let verifier_first_token = first_token.clone();
+	let verifier_second_token = second_token.clone();
 	let provider = DurableCordProviderV2::new(
 		DurableDesktopHostV2::new(transport, &store),
 		ConfirmedAcks(confirmations.clone()),
+		move |exact: &[u8]| {
+			if exact == verifier_first_token || exact == verifier_second_token {
+				Dto::<ResumeTokenV1>::decode(exact)?;
+				Ok(())
+			} else {
+				Err(DesktopTransportError::ResumeTokenUnverified)
+			}
+		},
+		QueuedContinuations(std::collections::VecDeque::from([
+			ProviderSuccessorV2 {
+				exact_request: input.exact_request_bytes.clone(),
+				exact_payload: Some(exact_chunk),
+				outbox: first_successor,
+			},
+			ProviderSuccessorV2 {
+				exact_request: input.exact_request_bytes.clone(),
+				exact_payload: None,
+				outbox: second_successor,
+			},
+		])),
 	);
 	let mut backend = CordProviderByteBackendV2::new(provider, NoStorageEncryption);
-	for (outbox_id, nonce) in [([0x71; 16], 20), ([0x72; 16], 40)] {
-		let outbox = provider_outbox_context(&input, outbox_id, nonce);
-		let execution = backend
-			.object_put(HostCallV2 {
-				frame: &frame,
-				authority: &input.exact_authority_bytes,
-				meta: HostRequestMetaV2 {
-					request_id: input.request_id,
-					operation_id: Some(input.operation_id),
-					deadline_block: 200,
-				},
-				outbox: &outbox,
-			})
-			.expect("durable provider operation completes");
-		assert_eq!(execution.events.len(), 2);
-		assert!(execution.terminal_response_hash.is_some());
-	}
+	let outbox = provider_outbox_context(&input, [0x71; 16], 20);
+	let execution = backend
+		.object_put(HostCallV2 {
+			frame: &frame,
+			authority: &input.exact_authority_bytes,
+			meta: HostRequestMetaV2 {
+				request_id: input.request_id,
+				operation_id: Some(input.operation_id),
+				deadline_block: 200,
+			},
+			outbox: &outbox,
+		})
+		.expect("durable provider operation completes");
+	assert_eq!(execution.events.len(), 3);
+	assert!(execution.terminal_response_hash.is_some());
 	let acks = server_thread.join().unwrap();
-	assert_eq!(acks.len(), 2);
-	assert_eq!(acks[0], acks[1], "identical terminal records yield byte-exact ACKs");
-	assert_eq!(confirmations.load(Ordering::SeqCst), 2);
+	assert_eq!(acks.len(), 3);
+	assert_eq!(confirmations.load(Ordering::SeqCst), 3);
 }
 
 #[cfg(unix)]
@@ -1269,6 +1346,7 @@ fn desktop_continuation_installs_event_and_verified_token_before_ack_and_success
 				verified = exact == token;
 				verified.then_some(()).ok_or(DesktopTransportError::ResumeTokenUnverified)
 			},
+			200,
 			[43; 24],
 			[44; 24],
 		)
@@ -1292,7 +1370,14 @@ fn desktop_continuation_installs_event_and_verified_token_before_ack_and_success
 	successor.generation = 1;
 	successor.intended_cursor = 0;
 	desktop
-		.prepare_successor_and_send(predecessor_id, successor.clone(), [46; 24], [47; 24], [48; 24])
+		.prepare_successor_and_send(
+			predecessor_id,
+			successor.clone(),
+			[46; 24],
+			[47; 24],
+			[48; 24],
+			None,
+		)
 		.unwrap();
 	assert_eq!(read_frame(&mut server).unwrap(), successor.exact_request_bytes);
 	assert_eq!(read_frame(&mut server).unwrap(), token);
@@ -1307,6 +1392,7 @@ fn desktop_continuation_installs_event_and_verified_token_before_ack_and_success
 					.then_some(())
 					.ok_or(DesktopTransportError::ResumeTokenUnverified)
 			},
+			200,
 			[49; 24],
 			[50; 24],
 		)
