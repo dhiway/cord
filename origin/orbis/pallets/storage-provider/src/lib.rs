@@ -355,9 +355,12 @@ pub struct BucketRecord<AccountId, Hash, BlockNumber, Replicas, Grants> {
 #[derive(
 	Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, MaxEncodedLen, PartialEq, TypeInfo,
 )]
-pub struct BucketOperationReceipt<Hash> {
+pub struct BucketOperationReceipt<Hash, AccountId, Replicas> {
 	pub request_hash: Hash,
 	pub bucket_id: Hash,
+	pub primary: AccountId,
+	pub replicas: Replicas,
+	pub version: u64,
 }
 
 /// Canonical finalized host-delegation authority for one provider capability grant.
@@ -872,7 +875,7 @@ pub mod pallet {
 		T::AccountId,
 		Blake2_128Concat,
 		[u8; 16],
-		BucketOperationReceipt<T::Hash>,
+		BucketOperationReceipt<T::Hash, T::AccountId, ReplicasOf<T>>,
 		OptionQuery,
 	>;
 	#[pallet::storage]
@@ -1601,14 +1604,12 @@ pub mod pallet {
 			let request_hash = T::Hashing::hash_of(&(policy, &primary, &replicas));
 			if let Some(receipt) = BucketOperationReceipts::<T>::get(&owner, operation_id) {
 				ensure!(receipt.request_hash == request_hash, Error::<T>::OperationIdConflict);
-				let record =
-					Buckets::<T>::get(receipt.bucket_id).ok_or(Error::<T>::BucketNotFound)?;
 				Self::deposit_event(Event::BucketCreated {
 					bucket_id: receipt.bucket_id,
 					owner,
-					primary: record.primary,
-					replicas: record.replicas,
-					version: record.version,
+					primary: receipt.primary,
+					replicas: receipt.replicas,
+					version: receipt.version,
 					operation_id,
 					replayed: true,
 				});
@@ -1660,7 +1661,13 @@ pub mod pallet {
 			BucketOperationReceipts::<T>::insert(
 				&owner,
 				operation_id,
-				BucketOperationReceipt { request_hash, bucket_id },
+				BucketOperationReceipt {
+					request_hash,
+					bucket_id,
+					primary: primary.clone(),
+					replicas: replicas.clone(),
+					version: 1,
+				},
 			);
 			Self::deposit_event(Event::BucketCreated {
 				bucket_id,

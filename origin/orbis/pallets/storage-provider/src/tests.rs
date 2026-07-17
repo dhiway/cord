@@ -100,6 +100,12 @@ fn bucket_creation_operation_id_replays_once_and_rejects_rebinding() {
 			operation_id,
 		));
 		let bucket = BucketIds::<Test>::get()[0];
+		Buckets::<Test>::mutate(bucket, |record| {
+			let record = record.as_mut().expect("created bucket");
+			record.primary = 4;
+			record.replicas = vec![1, 4].try_into().unwrap();
+			record.version = 9;
+		});
 		assert_ok!(StorageProvider::create_bucket(
 			RuntimeOrigin::signed(OWNER),
 			H256::repeat_byte(10),
@@ -112,8 +118,11 @@ fn bucket_creation_operation_id_replays_once_and_rejects_rebinding() {
 		assert!(matches!(
 			System::events().last().map(|record| &record.event),
 			Some(RuntimeEvent::StorageProvider(Event::BucketCreated {
-				bucket_id, operation_id: observed, replayed: true, ..
-			})) if *bucket_id == bucket && observed == &operation_id
+				bucket_id, primary, replicas: replayed_replicas, version,
+				operation_id: observed, replayed: true, ..
+			})) if *bucket_id == bucket && *primary == 1
+				&& replayed_replicas.as_slice() == [2, 3] && *version == 1
+				&& observed == &operation_id
 		));
 		assert_noop!(
 			StorageProvider::create_bucket(
