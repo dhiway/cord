@@ -118,44 +118,93 @@ pub(crate) struct CheckpointPublicationStoreV1 {
 	poisoned: RwLock<bool>,
 }
 
+pub(crate) struct PreparedCheckpointPublicationStoreV1 {
+	root: PathBuf,
+	cursor_root: PathBuf,
+	missing_roots: [bool; 2],
+	records: HashMap<String, PublishedCheckpointV1>,
+	by_tuple: HashMap<String, String>,
+	cursor: Option<CheckpointPublicationCursorV1>,
+	temp_artifacts: [Vec<PathBuf>; 2],
+}
+
+impl PreparedCheckpointPublicationStoreV1 {
+	pub(crate) fn records(&self) -> Vec<PublishedCheckpointV1> {
+		let mut records = self.records.values().cloned().collect::<Vec<_>>();
+		records.sort_by(|left, right| left.submission_id.cmp(&right.submission_id));
+		records
+	}
+
+	pub(crate) fn cursor(&self) -> Option<CheckpointPublicationCursorV1> {
+		self.cursor.clone()
+	}
+
+	pub(crate) fn apply(self) -> Result<CheckpointPublicationStoreV1, ContentError> {
+		for (index, root) in [&self.root, &self.cursor_root].into_iter().enumerate() {
+			crate::bounded_io::create_prepared_directory(root, self.missing_roots[index])?;
+			crate::bounded_io::remove_validated_temp_artifacts(root, &self.temp_artifacts[index])?;
+		}
+		Ok(CheckpointPublicationStoreV1 {
+			root: self.root,
+			cursor_root: self.cursor_root,
+			records: RwLock::new(self.records),
+			by_tuple: RwLock::new(self.by_tuple),
+			cursor: RwLock::new(self.cursor),
+			fault: RwLock::new(None),
+			poisoned: RwLock::new(false),
+		})
+	}
+}
+
 impl CheckpointPublicationStoreV1 {
 	pub(crate) fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
+		Self::prepare_open(root)?.apply()
+	}
+
+	pub(crate) fn prepare_open(
+		root: impl AsRef<Path>,
+	) -> Result<PreparedCheckpointPublicationStoreV1, ContentError> {
 		let base = root.as_ref();
 		let root = base.join(ROOT);
 		let cursor_root = base.join(CURSOR_ROOT);
-		fs::create_dir_all(&root).map_err(io_error)?;
-		fs::create_dir_all(&cursor_root).map_err(io_error)?;
-		let cursor_scan = read_cursor(&cursor_root)?;
+		let missing_roots = [
+			!crate::bounded_io::optional_directory_exists(&root)?,
+			!crate::bounded_io::optional_directory_exists(&cursor_root)?,
+		];
+		let cursor_scan = if missing_roots[1] {
+			CursorScan { cursor: None, temp_artifacts: Vec::new() }
+		} else {
+			read_cursor(&cursor_root)?
+		};
 		let cursor = cursor_scan.cursor;
 		let mut records = HashMap::new();
 		let mut by_tuple = HashMap::new();
-		let record_scan = read_records(&root)?;
+		let record_scan = if missing_roots[0] {
+			RecordScan { records: Vec::new(), temp_artifacts: Vec::new() }
+		} else {
+			read_records(&root)?
+		};
 		for item in record_scan.records {
 			let record: PublishedCheckpointV1 =
 				serde_json::from_slice(&item.bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			validate_record(&record)?;
-			if item.name != format!("{}.json", record.submission_id) ||
-				records.insert(record.submission_id.clone(), record.clone()).is_some() ||
-				by_tuple
+			if item.name != format!("{}.json", record.submission_id)
+				|| records.insert(record.submission_id.clone(), record.clone()).is_some()
+				|| by_tuple
 					.insert(record.tuple_key.clone(), record.submission_id.clone())
 					.is_some()
 			{
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 		}
-		crate::bounded_io::remove_validated_temp_artifacts(
-			&cursor_root,
-			&cursor_scan.temp_artifacts,
-		)?;
-		crate::bounded_io::remove_validated_temp_artifacts(&root, &record_scan.temp_artifacts)?;
-		Ok(Self {
+		Ok(PreparedCheckpointPublicationStoreV1 {
 			root,
 			cursor_root,
-			records: RwLock::new(records),
-			by_tuple: RwLock::new(by_tuple),
-			cursor: RwLock::new(cursor),
-			fault: RwLock::new(None),
-			poisoned: RwLock::new(false),
+			missing_roots,
+			records,
+			by_tuple,
+			cursor,
+			temp_artifacts: [record_scan.temp_artifacts, cursor_scan.temp_artifacts],
 		})
 	}
 
@@ -189,9 +238,7 @@ impl CheckpointPublicationStoreV1 {
 		Ok(records)
 	}
 
-	pub(crate) fn cursor(
-		&self,
-	) -> Result<Option<CheckpointPublicationCursorV1>, ContentError> {
+	pub(crate) fn cursor(&self) -> Result<Option<CheckpointPublicationCursorV1>, ContentError> {
 		if *self.poisoned.read().map_err(|_| lock_error())? {
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -237,7 +284,7 @@ impl CheckpointPublicationStoreV1 {
 	) -> Result<PublishedCheckpointV1, ContentError> {
 		let candidate = publication_record(input)?;
 		if *self.poisoned.read().map_err(|_| lock_error())? {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		{
 			let records = self.records.read().map_err(|_| lock_error())?;
@@ -248,13 +295,13 @@ impl CheckpointPublicationStoreV1 {
 					Ok(existing.clone())
 				} else {
 					Err(ContentError::IdempotencyConflict)
-				}
+				};
 			}
 		}
 		let mut records = self.records.write().map_err(|_| lock_error())?;
 		let mut by_tuple = self.by_tuple.write().map_err(|_| lock_error())?;
 		if *self.poisoned.read().map_err(|_| lock_error())? {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		if let Some(existing_id) = by_tuple.get(&candidate.tuple_key) {
 			let existing = records.get(existing_id).ok_or(ContentError::IntegrityFailed)?;
@@ -262,14 +309,14 @@ impl CheckpointPublicationStoreV1 {
 				Ok(existing.clone())
 			} else {
 				Err(ContentError::IdempotencyConflict)
-			}
+			};
 		}
 		if records.len() >= MAX_RECORDS {
-			return Err(ContentError::ProviderRecoveryTableFull)
+			return Err(ContentError::ProviderRecoveryTableFull);
 		}
 		if let Err(error) = self.persist(&candidate) {
 			*self.poisoned.write().map_err(|_| lock_error())? = true;
-			return Err(error)
+			return Err(error);
 		}
 		by_tuple.insert(candidate.tuple_key.clone(), candidate.submission_id.clone());
 		records.insert(candidate.submission_id.clone(), candidate.clone());
@@ -280,7 +327,7 @@ impl CheckpointPublicationStoreV1 {
 		validate_record(record)?;
 		let bytes = serde_json::to_vec(record).map_err(io_error)?;
 		if bytes.len() > MAX_RECORD_BYTES {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let key = &record.submission_id;
 		let temp = self.root.join(format!("{key}.json.tmp-{}", std::process::id()));
@@ -309,8 +356,7 @@ impl CheckpointPublicationStoreV1 {
 		self.trip(CheckpointPublicationFault::BeforeTempFsync)?;
 		file.sync_all().map_err(io_error)?;
 		self.trip(CheckpointPublicationFault::AfterTempFsync)?;
-		fs::rename(&temp, self.cursor_root.join(format!("{CURSOR_KEY}.json")))
-			.map_err(io_error)?;
+		fs::rename(&temp, self.cursor_root.join(format!("{CURSOR_KEY}.json"))).map_err(io_error)?;
 		self.trip(CheckpointPublicationFault::AfterRename)?;
 		File::open(&self.cursor_root)
 			.and_then(|directory| directory.sync_all())
@@ -351,29 +397,26 @@ fn read_records(root: &Path) -> Result<RecordScan, ContentError> {
 	for item in fs::read_dir(root).map_err(io_error)? {
 		visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 		if visited > MAX_RECORDS + MAX_TEMP_ARTIFACTS {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().to_string_lossy().into_owned();
 		if crate::bounded_io::is_json_temp_artifact(&name) {
-			if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS ||
-				!item.file_type().map_err(io_error)?.is_file()
+			if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS
+				|| !item.file_type().map_err(io_error)?.is_file()
 			{
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 			temp_artifacts.push(item.path());
-			continue
+			continue;
 		}
-		if records.len() >= MAX_RECORDS ||
-			!name.ends_with(".json") ||
-			!item.file_type().map_err(io_error)?.is_file()
+		if records.len() >= MAX_RECORDS
+			|| !name.ends_with(".json")
+			|| !item.file_type().map_err(io_error)?.is_file()
 		{
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
-		let bytes = crate::bounded_io::read_regular_file(
-			item.path(),
-			MAX_RECORD_BYTES as u64,
-		)?;
+		let bytes = crate::bounded_io::read_regular_file(item.path(), MAX_RECORD_BYTES as u64)?;
 		records.push(RecordFile { name, bytes });
 	}
 	Ok(RecordScan { records, temp_artifacts })
@@ -388,8 +431,8 @@ fn read_cursor(root: &Path) -> Result<CursorScan, ContentError> {
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().to_string_lossy().into_owned();
 		if name.starts_with(&temp_prefix) && crate::bounded_io::is_json_temp_artifact(&name) {
-			if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS ||
-				!item.file_type().map_err(io_error)?.is_file()
+			if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS
+				|| !item.file_type().map_err(io_error)?.is_file()
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
@@ -399,10 +442,7 @@ fn read_cursor(root: &Path) -> Result<CursorScan, ContentError> {
 		if name != expected || cursor.is_some() || !item.file_type().map_err(io_error)?.is_file() {
 			return Err(ContentError::IntegrityFailed);
 		}
-		let bytes = crate::bounded_io::read_regular_file(
-			item.path(),
-			MAX_CURSOR_BYTES as u64,
-		)?;
+		let bytes = crate::bounded_io::read_regular_file(item.path(), MAX_CURSOR_BYTES as u64)?;
 		let decoded: CheckpointPublicationCursorV1 =
 			serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
 		validate_cursor(&decoded)?;
@@ -421,7 +461,8 @@ fn validate_cursor(cursor: &CheckpointPublicationCursorV1) -> Result<(), Content
 		&cursor.finalized_hash,
 		&cursor.record_hash,
 	] {
-		let _: [u8; 32] = decode_hex(value)?.try_into().map_err(|_| ContentError::IntegrityFailed)?;
+		let _: [u8; 32] =
+			decode_hex(value)?.try_into().map_err(|_| ContentError::IntegrityFailed)?;
 	}
 	Ok(())
 }
@@ -457,14 +498,14 @@ fn publication_record(
 }
 
 fn validate_record(record: &PublishedCheckpointV1) -> Result<(), ContentError> {
-	if record.version != VERSION ||
-		record.state != STATE ||
-		record.submission_id != record.submission.submission_id ||
-		record.tuple_key != record.submission.tuple_key ||
-		record.submission_record_hash != record.submission.record_hash ||
-		record.record_hash != record_hash(record)?
+	if record.version != VERSION
+		|| record.state != STATE
+		|| record.submission_id != record.submission.submission_id
+		|| record.tuple_key != record.submission.tuple_key
+		|| record.submission_record_hash != record.submission.record_hash
+		|| record.record_hash != record_hash(record)?
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	validate_submission(&record.submission)?;
 	let _: [u8; 32] = decode_hex(&record.finalized_hash)?
@@ -480,11 +521,11 @@ fn validate_observation(
 	response_scale: &[u8],
 ) -> Result<(), ContentError> {
 	if response_scale.len() > MAX_RESPONSE_BYTES {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let response = decode_scale::<CheckpointResponse>(response_scale)?;
 	if response.version != RESPONSE_VERSION {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let observed = response.value.ok_or(ContentError::IntegrityFailed)?;
 	let payload = decode_hex_scale::<CommitmentPayloadV2<H256, u32>>(&submission.payload_scale)?;
@@ -492,24 +533,24 @@ fn validate_observation(
 		decode_hex_scale::<Vec<ReplicaSignature<AccountId32>>>(&submission.confirmations_scale)?;
 	let expected_providers: Vec<_> =
 		confirmations.into_iter().map(|confirmation| confirmation.provider).collect();
-	if observed.bucket_id != payload.bucket_id ||
-		observed.commitment.mmr_root != payload.commitment.mmr_root ||
-		observed.commitment.start_seq != payload.commitment.start_seq ||
-		observed.commitment.leaf_count != payload.commitment.leaf_count ||
-		observed.commitment_nonce != payload.nonce ||
-		observed.primary_signers != 1 ||
-		observed.replica_confirmations.len() != 2 ||
-		expected_providers.len() != 2 ||
-		observed.replica_confirmations != expected_providers ||
-		observed.checkpoint_block < payload.nonce ||
-		finalized_number < observed.checkpoint_block
+	if observed.bucket_id != payload.bucket_id
+		|| observed.commitment.mmr_root != payload.commitment.mmr_root
+		|| observed.commitment.start_seq != payload.commitment.start_seq
+		|| observed.commitment.leaf_count != payload.commitment.leaf_count
+		|| observed.commitment_nonce != payload.nonce
+		|| observed.primary_signers != 1
+		|| observed.replica_confirmations.len() != 2
+		|| expected_providers.len() != 2
+		|| observed.replica_confirmations != expected_providers
+		|| observed.checkpoint_block < payload.nonce
+		|| finalized_number < observed.checkpoint_block
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let first = observed.replica_confirmations[0].encode();
 	let second = observed.replica_confirmations[1].encode();
 	if first >= second {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(())
 }
@@ -518,7 +559,7 @@ fn decode_scale<T: Decode + Encode>(bytes: &[u8]) -> Result<T, ContentError> {
 	let mut input = bytes;
 	let decoded = T::decode(&mut input).map_err(|_| ContentError::IntegrityFailed)?;
 	if !input.is_empty() || decoded.encode() != bytes {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(decoded)
 }
@@ -529,7 +570,7 @@ fn decode_hex_scale<T: Decode + Encode>(value: &str) -> Result<T, ContentError> 
 
 fn decode_hex(value: &str) -> Result<Vec<u8>, ContentError> {
 	if value.bytes().any(|byte| byte.is_ascii_uppercase()) {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	hex::decode(value).map_err(|_| ContentError::IntegrityFailed)
 }
@@ -750,9 +791,10 @@ mod tests {
 					},
 					7 => checkpoint.replica_confirmations.swap(0, 1),
 					8 => checkpoint.replica_confirmations[1] = account(9),
-					9 =>
+					9 => {
 						checkpoint.replica_confirmations[1] =
-							checkpoint.replica_confirmations[0].clone(),
+							checkpoint.replica_confirmations[0].clone()
+					},
 					10 => checkpoint.checkpoint_block = checkpoint.commitment_nonce - 1,
 					_ => unreachable!(),
 				}
@@ -858,9 +900,7 @@ mod tests {
 		let temp = TempDir::new().unwrap();
 		let (_submission_temp, submission) = durable_submission(&submission_input());
 		let store = CheckpointPublicationStoreV1::open(temp.path()).unwrap();
-		let cursor = store
-			.reserve_cursor(&submission, H256::repeat_byte(22), 120)
-			.unwrap();
+		let cursor = store.reserve_cursor(&submission, H256::repeat_byte(22), 120).unwrap();
 		assert_eq!(store.cursor().unwrap(), Some(cursor.clone()));
 		drop(store);
 		assert_eq!(
