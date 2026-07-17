@@ -23,9 +23,9 @@
 
 use std::{
 	array,
-	collections::BTreeMap,
+	collections::{BTreeMap, BTreeSet},
 	fs::{self, File, OpenOptions},
-	io::Write,
+	io::{Read, Write},
 	path::{Path, PathBuf},
 	sync::RwLock,
 };
@@ -40,7 +40,9 @@ use sha2::{Digest, Sha256};
 
 const VERSION: u8 = 1;
 const ENVELOPE_VERSION: u8 = 1;
+const AUTHORITY_BLOCKS: u64 = 128;
 const RECOVERY_BLOCKS: u64 = 256;
+const MAX_RECOVERY_BLOCKS: u64 = AUTHORITY_BLOCKS + RECOVERY_BLOCKS;
 const MAX_RECORDS: usize = 4_096;
 const MAX_TOTAL_ENCRYPTED_BYTES: u64 = 268_435_456;
 const MAX_ENCRYPTED_RECORD_BYTES: usize = 4_456_448;
@@ -251,6 +253,14 @@ impl HostOutboxEntryV1 {
 	}
 
 	fn validate(&self) -> Result<(), HostOutboxError> {
+		let max_authority_expiry =
+			self.created_at.checked_add(AUTHORITY_BLOCKS).ok_or(HostOutboxError::Corrupt)?;
+		let min_recovery =
+			self.created_at.checked_add(RECOVERY_BLOCKS).ok_or(HostOutboxError::Corrupt)?;
+		let max_recovery = self
+			.created_at
+			.checked_add(MAX_RECOVERY_BLOCKS)
+			.ok_or(HostOutboxError::Corrupt)?;
 		let authority_valid = match self.state {
 			HostOutboxStateV1::Prepared
 			| HostOutboxStateV1::Sent
@@ -268,8 +278,9 @@ impl HostOutboxEntryV1 {
 		if self.exact_request_bytes.len() > MAX_REQUEST_BYTES
 			|| self.exact_authority_bytes.len() > MAX_AUTHORITY_BYTES
 			|| self.authority_expires_at < self.created_at
-			|| self.recover_until
-				< self.created_at.checked_add(RECOVERY_BLOCKS).ok_or(HostOutboxError::Corrupt)?
+			|| self.authority_expires_at > max_authority_expiry
+			|| self.recover_until < min_recovery
+			|| self.recover_until > max_recovery
 			|| !authority_valid
 		{
 			return Err(HostOutboxError::Corrupt);
@@ -445,6 +456,7 @@ impl HostOutboxStoreV1 {
 		ensure_directory(&root)?;
 		ensure_directory(&quarantine)?;
 		let mut records = BTreeMap::new();
+		let mut loaded_bytes = 0u64;
 		let mut removed_temporary = false;
 		for item in fs::read_dir(&root).map_err(|_| HostOutboxError::Unavailable)? {
 			let item = item.map_err(|_| HostOutboxError::Unavailable)?;
@@ -470,7 +482,33 @@ impl HostOutboxStoreV1 {
 				return Err(HostOutboxError::Corrupt);
 			}
 			let id = decode_id(&name[..name.len() - EXTENSION.len()])?;
-			let bytes = fs::read(item.path()).map_err(|_| HostOutboxError::Unavailable)?;
+			if records.len() >= record_limit {
+				return Err(HostOutboxError::Corrupt);
+			}
+			let file = File::open(item.path()).map_err(|_| HostOutboxError::Unavailable)?;
+			let encrypted_len = file.metadata().map_err(|_| HostOutboxError::Unavailable)?.len();
+			if encrypted_len > MAX_ENCRYPTED_RECORD_BYTES as u64 {
+				drop(file);
+				Self::quarantine_file(&item.path(), &quarantine)?;
+				return Err(HostOutboxError::Corrupt);
+			}
+			if loaded_bytes.checked_add(encrypted_len).ok_or(HostOutboxError::Corrupt)? > byte_limit
+			{
+				return Err(HostOutboxError::Corrupt);
+			}
+			let mut bytes = Vec::with_capacity(encrypted_len as usize);
+			let mut bounded = file.take(MAX_ENCRYPTED_RECORD_BYTES as u64 + 1);
+			bounded.read_to_end(&mut bytes).map_err(|_| HostOutboxError::Unavailable)?;
+			drop(bounded);
+			if bytes.len() > MAX_ENCRYPTED_RECORD_BYTES {
+				Self::quarantine_file(&item.path(), &quarantine)?;
+				return Err(HostOutboxError::Corrupt);
+			}
+			loaded_bytes =
+				loaded_bytes.checked_add(bytes.len() as u64).ok_or(HostOutboxError::Corrupt)?;
+			if loaded_bytes > byte_limit {
+				return Err(HostOutboxError::Corrupt);
+			}
 			let loaded = match decrypt_record(&bytes, id, &context, &keys) {
 				Ok(record) => record,
 				Err(error) => {
@@ -485,6 +523,7 @@ impl HostOutboxStoreV1 {
 		if removed_temporary {
 			sync_dir(&root)?;
 		}
+		validate_unique_live_operation_generations(&records)?;
 		if records.len() > record_limit || total_bytes(&records)? > byte_limit {
 			return Err(HostOutboxError::Corrupt);
 		}
@@ -543,6 +582,7 @@ impl HostOutboxStoreV1 {
 		if records.contains_key(&entry.outbox_id) {
 			return Err(HostOutboxError::StateInvalid);
 		}
+		ensure_live_operation_generation_available(&records, entry.operation_id, entry.generation)?;
 		self.persist_new(&records, entry.outbox_id, record, nonce)?;
 		let bytes = fs::metadata(self.path(entry.outbox_id))
 			.map_err(|_| HostOutboxError::Unavailable)?
@@ -631,6 +671,11 @@ impl HostOutboxStoreV1 {
 		}
 		self.rewrite_live(outbox_id, nonce, move |entry, _, _, _, _, _, _| {
 			if !matches!(entry.state, HostOutboxStateV1::Prepared | HostOutboxStateV1::Sent) {
+				return Err(HostOutboxError::StateInvalid);
+			}
+			if terminal_block
+				.is_some_and(|block| block < entry.created_at || block > entry.authority_expires_at)
+			{
 				return Err(HostOutboxError::StateInvalid);
 			}
 			if successor_authority
@@ -769,6 +814,7 @@ impl HostOutboxStoreV1 {
 		entry.state = HostOutboxStateV1::AckConfirmed;
 		entry.key_version = active_version;
 		entry.exact_authority_bytes.clear();
+		entry.validate()?;
 		let record = live_record(
 			entry,
 			existing.response,
@@ -778,6 +824,7 @@ impl HostOutboxStoreV1 {
 			existing.ack_send_attempted,
 			existing.terminal,
 		);
+		validate_durable_record(&record, outbox_id, &self.context, active_version)?;
 		let encrypted_bytes = self.persist_replace(&records, outbox_id, record.clone(), nonce)?;
 		records.insert(outbox_id, LoadedRecordV1 { record, encrypted_bytes });
 		Ok(())
@@ -816,13 +863,33 @@ impl HostOutboxStoreV1 {
 		{
 			return Err(HostOutboxError::StateInvalid);
 		}
+		let recover_until = input
+			.authority_expires_at
+			.checked_add(RECOVERY_BLOCKS)
+			.ok_or(HostOutboxError::Corrupt)?;
+		let fingerprint =
+			request_fingerprint(&input.exact_request_bytes, &input.exact_authority_bytes);
 		if let Some(existing) = records.get(&input.outbox_id) {
 			let existing = live(existing)?;
 			let entry = decode_entry(existing)?;
 			if entry.state == HostOutboxStateV1::Prepared
 				&& entry.exact_request_bytes == input.exact_request_bytes
 				&& entry.exact_authority_bytes == input.exact_authority_bytes
+				&& entry.request_fingerprint == fingerprint
+				&& entry.request_id == input.request_id
+				&& entry.operation_id == input.operation_id
+				&& entry.generation == input.generation
+				&& entry.intended_cursor == input.intended_cursor
+				&& entry.registry_hash == self.context.registry_hash
+				&& entry.genesis_hash == self.context.genesis_hash
+				&& entry.negotiated_tuple == input.negotiated_tuple
+				&& entry.provider_id == input.provider_id
+				&& entry.provider_endpoint_hash == input.provider_endpoint_hash
+				&& entry.expected_response_kind == input.expected_response_kind
 				&& entry.prior_response_hash == predecessor_entry.prior_response_hash
+				&& entry.created_at == input.created_at
+				&& entry.authority_expires_at == input.authority_expires_at
+				&& entry.recover_until == recover_until
 			{
 				return Ok(HostOutboxRetryV1 {
 					request: entry.exact_request_bytes,
@@ -832,12 +899,7 @@ impl HostOutboxStoreV1 {
 			}
 			return Err(HostOutboxError::StateInvalid);
 		}
-		let recover_until = input
-			.authority_expires_at
-			.checked_add(RECOVERY_BLOCKS)
-			.ok_or(HostOutboxError::Corrupt)?;
-		let fingerprint =
-			request_fingerprint(&input.exact_request_bytes, &input.exact_authority_bytes);
+		ensure_live_operation_generation_available(&records, input.operation_id, input.generation)?;
 		let entry = HostOutboxEntryV1 {
 			outbox_id: input.outbox_id,
 			state: HostOutboxStateV1::Prepared,
@@ -1013,6 +1075,8 @@ impl HostOutboxStoreV1 {
 				existing.ack_send_attempted,
 				existing.terminal,
 			)?;
+		entry.validate()?;
+		let key_version = entry.key_version;
 		let record = live_record(
 			entry,
 			response,
@@ -1022,6 +1086,7 @@ impl HostOutboxStoreV1 {
 			ack_send_attempted,
 			terminal,
 		);
+		validate_durable_record(&record, outbox_id, &self.context, key_version)?;
 		let encrypted_bytes = self.persist_replace(&records, outbox_id, record.clone(), nonce)?;
 		records.insert(outbox_id, LoadedRecordV1 { record, encrypted_bytes });
 		Ok(())
@@ -1037,6 +1102,7 @@ impl HostOutboxStoreV1 {
 		if records.len() >= self.record_limit {
 			return Err(HostOutboxError::Full);
 		}
+		validate_durable_record(&record, id, &self.context, self.keys.active()?.0)?;
 		let bytes = encrypt_record(&record, id, &self.context, &self.keys, nonce)?;
 		ensure_capacity(records, None, bytes.len(), self.byte_limit)?;
 		self.persist_bytes(id, &bytes, true)
@@ -1049,6 +1115,7 @@ impl HostOutboxStoreV1 {
 		record: DurableRecordV1,
 		nonce: [u8; 24],
 	) -> Result<usize, HostOutboxError> {
+		validate_durable_record(&record, id, &self.context, self.keys.active()?.0)?;
 		let bytes = encrypt_record(&record, id, &self.context, &self.keys, nonce)?;
 		ensure_capacity(
 			records,
@@ -1245,11 +1312,19 @@ fn validate_durable_record(
 				.authority_expires_at
 				.checked_add(RECOVERY_BLOCKS)
 				.ok_or(HostOutboxError::Corrupt)?;
+			let recovery_valid = if record.terminal {
+				entry.recover_until.checked_sub(RECOVERY_BLOCKS).is_some_and(|terminal_block| {
+					terminal_block >= entry.created_at
+						&& terminal_block <= entry.authority_expires_at
+				})
+			} else {
+				entry.recover_until == initial_recovery
+			};
 			if entry.outbox_id != id
 				|| entry.registry_hash != context.registry_hash
 				|| entry.genesis_hash != context.genesis_hash
 				|| entry.key_version != key_version
-				|| (!record.terminal && entry.recover_until != initial_recovery)
+				|| !recovery_valid
 				|| record
 					.successor_authority
 					.as_ref()
@@ -1335,6 +1410,35 @@ fn response_ack_bytes(
 	])
 }
 
+fn ensure_live_operation_generation_available(
+	records: &BTreeMap<[u8; 16], LoadedRecordV1>,
+	operation_id: [u8; 16],
+	generation: u64,
+) -> Result<(), HostOutboxError> {
+	for loaded in records.values() {
+		let DurableRecordV1::Live(record) = &loaded.record else { continue };
+		let entry = decode_entry(record)?;
+		if entry.operation_id == operation_id && entry.generation == generation {
+			return Err(HostOutboxError::StateInvalid);
+		}
+	}
+	Ok(())
+}
+
+fn validate_unique_live_operation_generations(
+	records: &BTreeMap<[u8; 16], LoadedRecordV1>,
+) -> Result<(), HostOutboxError> {
+	let mut identities = BTreeSet::new();
+	for loaded in records.values() {
+		let DurableRecordV1::Live(record) = &loaded.record else { continue };
+		let entry = decode_entry(record)?;
+		if !identities.insert((entry.operation_id, entry.generation)) {
+			return Err(HostOutboxError::Corrupt);
+		}
+	}
+	Ok(())
+}
+
 fn has_durable_successor(
 	records: &BTreeMap<[u8; 16], LoadedRecordV1>,
 	predecessor: &HostOutboxEntryV1,
@@ -1350,6 +1454,12 @@ fn has_durable_successor(
 			&& entry.operation_id == predecessor.operation_id
 			&& entry.generation == generation
 			&& entry.intended_cursor == cursor
+			&& entry.registry_hash == predecessor.registry_hash
+			&& entry.genesis_hash == predecessor.genesis_hash
+			&& entry.negotiated_tuple == predecessor.negotiated_tuple
+			&& entry.provider_id == predecessor.provider_id
+			&& entry.provider_endpoint_hash == predecessor.provider_endpoint_hash
+			&& entry.expected_response_kind == predecessor.expected_response_kind
 			&& entry.exact_authority_bytes == *authority
 			&& entry.prior_response_hash == predecessor.prior_response_hash
 		{
@@ -1584,13 +1694,13 @@ mod tests {
 				response.clone(),
 				Some(b"forbidden-terminal-successor".to_vec()),
 				Some(1),
-				Some(300),
+				Some(200),
 				[3; 24],
 			),
 			Err(HostOutboxError::StateInvalid)
 		);
 		let hash = store
-			.install_response(id, response.clone(), None, None, Some(300), [3; 24])
+			.install_response(id, response.clone(), None, None, Some(200), [3; 24])
 			.unwrap();
 		drop(store);
 
@@ -1611,8 +1721,8 @@ mod tests {
 		assert_eq!(store.retry_response_ack(id).unwrap(), exact_ack);
 		store.compact_acknowledged(id, [7; 24]).unwrap();
 		assert_eq!(store.installed_response(id), Err(HostOutboxError::Expired));
-		assert_eq!(store.gc(555, 16).unwrap(), 0);
-		assert_eq!(store.gc(556, 16).unwrap(), 1);
+		assert_eq!(store.gc(455, 16).unwrap(), 0);
+		assert_eq!(store.gc(456, 16).unwrap(), 1);
 	}
 
 	#[test]
@@ -1789,7 +1899,7 @@ mod tests {
 			let id = input.outbox_id;
 			store.prepare(input, [1; 24]).unwrap();
 			store
-				.install_response(id, b"progress".to_vec(), None, None, Some(300), [2; 24])
+				.install_response(id, b"progress".to_vec(), None, None, Some(200), [2; 24])
 				.unwrap();
 			let expected_ack = store.retry_response_ack(id).unwrap();
 			store.inject_fault_once(fault).unwrap();
@@ -1891,7 +2001,7 @@ mod tests {
 			let id = input.outbox_id;
 			store.prepare(input, [1; 24]).unwrap();
 			let hash = store
-				.install_response(id, b"cancelled".to_vec(), None, None, Some(300), [2; 24])
+				.install_response(id, b"cancelled".to_vec(), None, None, Some(200), [2; 24])
 				.unwrap();
 			store.confirm_ack(id, hash, [3; 24]).unwrap();
 			store.inject_fault_once(fault).unwrap();
@@ -1920,20 +2030,202 @@ mod tests {
 			let id = input.outbox_id;
 			store.prepare(input, [1; 24]).unwrap();
 			let hash = store
-				.install_response(id, b"terminal".to_vec(), None, None, Some(300), [2; 24])
+				.install_response(id, b"terminal".to_vec(), None, None, Some(200), [2; 24])
 				.unwrap();
 			store.confirm_ack(id, hash, [3; 24]).unwrap();
 			store.compact_acknowledged(id, [4; 24]).unwrap();
 			store.inject_fault_once(fault).unwrap();
-			assert_eq!(store.gc(556, 1), Err(HostOutboxError::Unavailable));
+			assert_eq!(store.gc(456, 1), Err(HostOutboxError::Unavailable));
 			drop(store);
 			let reopened = HostOutboxStoreV1::open(temp.path(), context(), keyring()).unwrap();
 			if removed {
 				assert!(reopened.records.read().unwrap().get(&id).is_none());
 			} else {
-				assert_eq!(reopened.gc(556, 1).unwrap(), 1);
+				assert_eq!(reopened.gc(456, 1).unwrap(), 1);
 			}
 		}
+	}
+
+	#[test]
+	fn reopen_rejects_oversized_files_and_record_count_before_unbounded_work() {
+		let oversized = tempfile::tempdir().unwrap();
+		drop(HostOutboxStoreV1::open(oversized.path(), context(), keyring()).unwrap());
+		let path =
+			oversized
+				.path()
+				.join(ROOT)
+				.join(format!("{}{}", hex::encode([0x71; 16]), EXTENSION));
+		File::create(path)
+			.unwrap()
+			.set_len(MAX_ENCRYPTED_RECORD_BYTES as u64 + 1)
+			.unwrap();
+		assert!(matches!(
+			HostOutboxStoreV1::open(oversized.path(), context(), keyring()),
+			Err(HostOutboxError::Corrupt)
+		));
+		assert_eq!(fs::read_dir(oversized.path().join(ROOT).join(QUARANTINE)).unwrap().count(), 1);
+
+		let counted = tempfile::tempdir().unwrap();
+		let store = HostOutboxStoreV1::open_with_limits(
+			counted.path(),
+			context(),
+			keyring(),
+			2,
+			MAX_TOTAL_ENCRYPTED_BYTES,
+		)
+		.unwrap();
+		store.prepare(prepared(), [1; 24]).unwrap();
+		let mut second = prepared();
+		second.outbox_id = [0x72; 16];
+		second.operation_id = [0x73; 16];
+		store.prepare(second, [2; 24]).unwrap();
+		drop(store);
+		assert!(matches!(
+			HostOutboxStoreV1::open_with_limits(
+				counted.path(),
+				context(),
+				keyring(),
+				1,
+				MAX_TOTAL_ENCRYPTED_BYTES,
+			),
+			Err(HostOutboxError::Corrupt)
+		));
+		assert!(matches!(
+			HostOutboxStoreV1::open_with_limits(counted.path(), context(), keyring(), 2, 1),
+			Err(HostOutboxError::Corrupt)
+		));
+	}
+
+	#[test]
+	fn authority_and_terminal_lifetimes_are_exact_and_fail_closed() {
+		let excessive = tempfile::tempdir().unwrap();
+		let store = HostOutboxStoreV1::open(excessive.path(), context(), keyring()).unwrap();
+		let mut input = prepared();
+		input.authority_expires_at = input.created_at + AUTHORITY_BLOCKS + 1;
+		assert_eq!(store.prepare(input, [1; 24]), Err(HostOutboxError::Corrupt));
+		let base = &vector()["base_vector"];
+		let mut invalid_recovery =
+			HostOutboxEntryV1::decode(&hex_field(base, "canonical_cbor_hex")).unwrap();
+		invalid_recovery.recover_until = invalid_recovery.created_at + MAX_RECOVERY_BLOCKS + 1;
+		assert_eq!(
+			HostOutboxEntryV1::decode(&invalid_recovery.canonical_bytes()),
+			Err(HostOutboxError::Corrupt)
+		);
+		let mut non_normative =
+			HostOutboxEntryV1::decode(&hex_field(base, "canonical_cbor_hex")).unwrap();
+		non_normative.recover_until = non_normative.created_at + RECOVERY_BLOCKS + 1;
+		let non_normative_id = non_normative.outbox_id;
+		let record = live_record(non_normative, None, None, None, None, false, false);
+		assert_eq!(
+			validate_durable_record(&record, non_normative_id, &context(), 1),
+			Err(HostOutboxError::Corrupt)
+		);
+
+		let bounded = tempfile::tempdir().unwrap();
+		let store = HostOutboxStoreV1::open(bounded.path(), context(), keyring()).unwrap();
+		let input = prepared();
+		let id = input.outbox_id;
+		store.prepare(input, [2; 24]).unwrap();
+		assert_eq!(
+			store.install_response(id, b"stale".to_vec(), None, None, Some(99), [3; 24]),
+			Err(HostOutboxError::StateInvalid)
+		);
+		assert_eq!(
+			store.install_response(id, b"late".to_vec(), None, None, Some(229), [4; 24]),
+			Err(HostOutboxError::StateInvalid)
+		);
+		drop(store);
+		let reopened = HostOutboxStoreV1::open(bounded.path(), context(), keyring()).unwrap();
+		assert!(reopened.retry_request(id, 200).is_ok());
+		let hash = reopened
+			.install_response(id, b"bounded".to_vec(), None, None, Some(228), [5; 24])
+			.unwrap();
+		assert_eq!(
+			reopened.installed_response(id).unwrap().recover_until,
+			100 + MAX_RECOVERY_BLOCKS
+		);
+		let expected_hash: [u8; 32] = Sha256::digest(b"bounded").into();
+		assert_eq!(hash, expected_hash);
+	}
+
+	#[test]
+	fn successor_replay_and_cleanup_are_bound_to_the_exact_predecessor() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = HostOutboxStoreV1::open(temp.path(), context(), keyring()).unwrap();
+		let first = prepared();
+		let first_id = first.outbox_id;
+		store.prepare(first.clone(), [1; 24]).unwrap();
+		let mut duplicate_identity = first;
+		duplicate_identity.outbox_id = [0x72; 16];
+		duplicate_identity.request_id = [0x73; 16];
+		assert_eq!(store.prepare(duplicate_identity, [2; 24]), Err(HostOutboxError::StateInvalid));
+		let mut second = prepared();
+		second.outbox_id = [0x74; 16];
+		second.request_id = [0x75; 16];
+		second.operation_id = [0x76; 16];
+		let second_id = second.outbox_id;
+		let second_operation = second.operation_id;
+		store.prepare(second, [3; 24]).unwrap();
+
+		let authority = b"shared-successor-authority".to_vec();
+		let cursor = 9;
+		for (id, nonce) in [(first_id, [4; 24]), (second_id, [5; 24])] {
+			let hash = store
+				.install_response(
+					id,
+					b"shared-response".to_vec(),
+					Some(authority.clone()),
+					Some(cursor),
+					None,
+					nonce,
+				)
+				.unwrap();
+			store.confirm_ack(id, hash, [nonce[0] + 2; 24]).unwrap();
+		}
+
+		let first_successor = successor(authority.clone(), cursor);
+		let successor_id = first_successor.outbox_id;
+		store.prepare_successor(first_id, first_successor, [8; 24]).unwrap();
+		let mut duplicate_successor = successor(authority.clone(), cursor);
+		duplicate_successor.outbox_id = [0x78; 16];
+		assert_eq!(
+			store.prepare_successor(first_id, duplicate_successor, [9; 24]),
+			Err(HostOutboxError::StateInvalid)
+		);
+		let mut cross_predecessor_replay = successor(authority, cursor);
+		cross_predecessor_replay.outbox_id = successor_id;
+		cross_predecessor_replay.operation_id = second_operation;
+		assert_eq!(
+			store.prepare_successor(second_id, cross_predecessor_replay, [10; 24]),
+			Err(HostOutboxError::StateInvalid)
+		);
+		assert_eq!(
+			store.compact_acknowledged(second_id, [11; 24]),
+			Err(HostOutboxError::StateInvalid)
+		);
+		store.compact_acknowledged(first_id, [12; 24]).unwrap();
+
+		let left = tempfile::tempdir().unwrap();
+		let left_store = HostOutboxStoreV1::open(left.path(), context(), keyring()).unwrap();
+		let first = prepared();
+		left_store.prepare(first.clone(), [13; 24]).unwrap();
+		drop(left_store);
+		let right = tempfile::tempdir().unwrap();
+		let right_store = HostOutboxStoreV1::open(right.path(), context(), keyring()).unwrap();
+		let mut collision = first;
+		collision.outbox_id = [0x77; 16];
+		right_store.prepare(collision.clone(), [14; 24]).unwrap();
+		drop(right_store);
+		let collision_name = format!("{}{}", hex::encode(collision.outbox_id), EXTENSION);
+		fs::copy(
+			right.path().join(ROOT).join(&collision_name),
+			left.path().join(ROOT).join(collision_name),
+		)
+		.unwrap();
+		assert!(matches!(
+			HostOutboxStoreV1::open(left.path(), context(), keyring()),
+			Err(HostOutboxError::Corrupt)
+		));
 	}
 
 	#[test]
@@ -1953,6 +2245,7 @@ mod tests {
 		store.prepare(first, [1; 24]).unwrap();
 		let mut second = prepared();
 		second.outbox_id = [0x45; 16];
+		second.operation_id = [0x46; 16];
 		assert_eq!(store.prepare(second, [2; 24]), Err(HostOutboxError::Full));
 		drop(store);
 
@@ -1989,5 +2282,8 @@ mod tests {
 		response_install_and_ack_send_boundaries_preserve_exact_ack();
 		ack_confirmation_successor_and_cleanup_boundaries_recover_old_or_new();
 		terminal_tombstone_gc_boundaries_are_restart_safe();
+		reopen_rejects_oversized_files_and_record_count_before_unbounded_work();
+		authority_and_terminal_lifetimes_are_exact_and_fail_closed();
+		successor_replay_and_cleanup_are_bound_to_the_exact_predecessor();
 	}
 }
