@@ -54,9 +54,9 @@ import {
   type ProductIdentity,
 } from "@cord-network/origin-sdk-host";
 import {
-  createIdentityClient,
-  type IdentityClient,
-  type IdentityRuntimeAdapter,
+  createIdentityV2Client,
+  type IdentityV2Bridge,
+  type IdentityV2Client,
 } from "@cord-network/origin-sdk-identity";
 import {
   createLocalStorage,
@@ -80,7 +80,6 @@ import {
 export * from "./runtime.ts";
 
 export interface OriginAppRuntime {
-  readonly identity: IdentityRuntimeAdapter;
   readonly attestation: AttestationRuntimeAdapter;
   readonly names: NamesRuntimeAdapter;
   readonly storage: CloudStorageRuntimeAdapter;
@@ -97,6 +96,8 @@ export interface OriginApplicationClient extends OriginAppsClient {
 export interface CreateAppOptions {
   readonly product: ProductIdentity;
   readonly bridge: OriginHostBridge;
+  /** Host-v2 transport for independently granted Identity operations. */
+  readonly identityBridge: IdentityV2Bridge;
   /** One descriptor-backed integration bundle supplied by the host/platform integration. */
   readonly runtime: OriginAppRuntime | CommonsRuntimeExecutor;
   readonly account?: string;
@@ -110,7 +111,7 @@ export interface OriginApp {
   readonly chain: CommonsChainClient;
   readonly signer: SelectedOriginSigner;
   readonly storage: LocalStorageClient;
-  readonly identity: IdentityClient;
+  readonly identity: IdentityV2Client;
   readonly attestations: AttestationClient;
   readonly names: NamesClient;
   readonly cloudStorage: CloudStorageClient;
@@ -169,10 +170,10 @@ export async function createApp(
     return selected;
   }
 
-  const runtime = "identity" in options.runtime
-    ? options.runtime
-    : createOriginAppRuntime(options.runtime);
-  const identity = createIdentityClient(chain, runtime.identity);
+  const runtime = "read" in options.runtime
+    ? createOriginAppRuntime(options.runtime)
+    : options.runtime;
+  const identity = createIdentityV2Client(options.product.id, options.identityBridge);
   const cloudStorage = createCloudStorageClient(chain, runtime.storage);
   const apps = createOriginAppsClient(chain, runtime.names, createHostOriginAppContentStore(host));
   const deployer = createOriginAppDeployer(

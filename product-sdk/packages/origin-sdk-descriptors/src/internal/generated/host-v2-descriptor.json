@@ -3,7 +3,7 @@
   "protocol": {
     "id": "cord.origin.host/2",
     "major": 2,
-    "minor": 0
+    "minor": 1
   },
   "visibility": {
     "public": false,
@@ -11,10 +11,10 @@
     "cutover": "P4/P5"
   },
   "sources": {
-    "cddl": "08fdf21728020b04a99e4b41d9924e0bda810d7b357576f938f6ce3e2c1be375",
-    "operations": "48934f781f5bd7f377684a5f17dd5eb3d9efa2b178b408cb0db80eb5b3d738b1",
-    "errors": "0a8780d4026e221a357782405f2b26c87ec88f11885146577615f73cf1bf7ef5",
-    "schema": "259cdb6600b8824d81bce7d33c1e8a51b09c88b43133babaf092400c38714d5f"
+    "cddl": "42e4e9660d7e2c26f15565a2448f9d2b384cb5c73321422a3b9ae9107f364b57",
+    "operations": "0263f2d550e07a982b8c4a5f4b5edc471ee721ab28e8acab5f25f109e5e96abc",
+    "errors": "20e8135116ac9b82f86891b798224ec5c08ac09cdc6c249269e7a8e236ae88c5",
+    "schema": "ca9325a8adb0aad5b7db9b24bc27f1305087d0aead872d548df79ffa54139950"
   },
   "runtimeSources": {
     "metadataIdentity": "8c9dc98ce3f2578031be5bf1be7291d3118fc0b6e79c81f5fee97d73ca53ba43",
@@ -41,14 +41,14 @@
       "manifestSha256": "673d04218c99e6c17630a9fedf7689fa8b06761219c92a5e6f9b92ea25a8c595"
     },
     "network": {
-      "descriptorContractSha256": "3a46d330dfd54d92ba38137a2cdce40ca875dffba7ebf8408fe4d4ed2c12117b",
+      "descriptorContractSha256": "a1dc0259e1f5b42ba353f2c297df5371ef7603618afb03c9a6d672128c32a9d8",
       "chainSpecSourceSha256": "60e38b74de9c0ccdedfe9c1fa2ea4bdb0346739ba2fef5e7a5ad328c0920b451",
       "activationState": "candidate-pending",
       "productionActivationReady": false
     }
   },
   "operationCount": 34,
-  "errorCount": 91,
+  "errorCount": 93,
   "requiredNegotiationFeatures": [
     "identity.account",
     "identity.entitlements",
@@ -605,7 +605,9 @@
         408,
         409,
         410,
-        411
+        411,
+        412,
+        413
       ],
       "E_PROOF_AUTH": [
         220,
@@ -638,8 +640,8 @@
     "hashes": {
       "packageIndex": "5a416585aafda8454366fb48126617e59a0063cc0617c971a14cebf347304cd1",
       "packageManifest": "fb9a653b3b1894d096e457724f2182d3443be8965c9249f9566e7adf7b38e1e2",
-      "runtimeDescriptor": "6892d39913d2a755aec8fb129c3d8529b500884f934520102ab129896f174584",
-      "networkBinding": "b3295d484e146e147b2e00edba5023db89f90de12507470845ebd073ad804bf1"
+      "runtimeDescriptor": "80129838dd339f13222e2076a28fd4014368b9e04981038c76bc8de94dd02e3a",
+      "networkBinding": "0d885e7dc563d64bcbb43baf27cb77e1c3896952fbfae1c5ea67b6e9d6f0e27a"
     }
   }
 }

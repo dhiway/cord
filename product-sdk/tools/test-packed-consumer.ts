@@ -24,6 +24,10 @@ import { spawnSync } from "node:child_process";
 const sdkRoot = resolve(import.meta.dirname, "..");
 const consumer = mkdtempSync(resolve(tmpdir(), "cord-origin-sdk-consumer-"));
 const packages = ["result", "errors", "descriptors", "host", "chain-client", "signer", "tx", "identity", "attestation", "crypto", "names", "cloud-storage", "apps", "assets", "local-storage", ""];
+const publicIdentityEntrypoints = new Set([
+  "@cord-network/origin-sdk-identity",
+  "@cord-network/origin-sdk",
+]);
 const run = (command: string, args: string[], cwd = consumer): string => {
   const result = spawnSync(command, args, { cwd, encoding: "utf8" });
   if (result.status !== 0) {
@@ -55,7 +59,7 @@ import { createHostClient } from "@cord-network/origin-sdk-host";
 import { createFakeHost } from "@cord-network/origin-sdk-host/testing";
 import { createHostSigner } from "@cord-network/origin-sdk-signer";
 import { submitAndFinalize } from "@cord-network/origin-sdk-tx";
-import { accountId, createIdentityClient } from "@cord-network/origin-sdk-identity";
+import { accountId, IDENTITY_V2_CONTRACTS, IDENTITY_V2_OPERATION_CODES } from "@cord-network/origin-sdk-identity";
 import { blake2b256 } from "@cord-network/origin-sdk-crypto";
 import { normalizedLabel } from "@cord-network/origin-sdk-names";
 import { digestContent, s3Requests, objectKey } from "@cord-network/origin-sdk-cloud-storage";
@@ -78,13 +82,10 @@ const identity = {
 const chain = createCommonsChainClient({ finalizedBlock: async () => ({ hash, number: 1n }), runtimeIdentity: async () => identity, disconnect: async () => {} });
 const read = await chain.readFinalized(async (at) => at);
 if (!read.success || read.value !== hash) throw new Error("packed finalized read failed");
-const identityClient = createIdentityClient(chain, {
-  identityStatus: async (at, account) => ({ version: 1, value: { registered: at === hash && account === "5Packed", judgement_count: 0, requested: 0, reasonable: 0, known_good: 0, out_of_date: 0, low_quality: 0, erroneous: 0 } }),
-  setIdentity: async () => { throw new Error("not used"); }, clearIdentity: async () => { throw new Error("not used"); },
-  requestJudgement: async () => { throw new Error("not used"); }, cancelJudgementRequest: async () => { throw new Error("not used"); }, provideJudgement: async () => { throw new Error("not used"); },
-});
-const identityStatus = await identityClient.status(accountId("5Packed"));
-if (!identityStatus.success || !identityStatus.value.value?.registered) throw new Error("packed identity read failed");
+const identityOperations = Object.keys(IDENTITY_V2_OPERATION_CODES).filter((operation) => operation.startsWith("identity."));
+if (identityOperations.length !== 7 || !("transaction.sign" in IDENTITY_V2_OPERATION_CODES)) throw new Error("packed unified Identity projection is incomplete");
+if (new Set(identityOperations.map((operation) => IDENTITY_V2_CONTRACTS[operation].grantScope)).size !== 7) throw new Error("packed Identity grants are not separate");
+if (identityOperations.includes("transaction.sign")) throw new Error("packed transaction signing leaked into the Identity operation set");
 const fake = createFakeHost({ accounts: [{ address: "5Packed" }] });
 fake.grant("packed.app", "signing");
 const packedHost = createHostClient(fake.bridge, { id: "packed.app", name: "Packed" });
@@ -105,6 +106,10 @@ const entrypoints = [
   "@cord-network/origin-sdk-descriptors",
   "@cord-network/origin-sdk",
 ];
+const publicIdentityEntrypoints = new Set([
+  "@cord-network/origin-sdk-identity",
+  "@cord-network/origin-sdk",
+]);
 const forbidden = [
   "@cord-network/origin-sdk-host/v2",
   "@cord-network/origin-sdk-host/internal/v2",
@@ -135,7 +140,7 @@ for (const specifier of forbidden) {
 for (const specifier of entrypoints) {
   const publicSurface = await import(specifier);
   const leaked = Object.keys(publicSurface).filter((name) => /v2/i.test(name));
-  if (leaked.length > 0) throw new Error(\`private v2 runtime symbols leaked from \${specifier}: \${leaked.join(", ")}\`);
+  if (!publicIdentityEntrypoints.has(specifier) && leaked.length > 0) throw new Error(\`private v2 runtime symbols leaked from \${specifier}: \${leaked.join(", ")}\`);
 }
 `);
   run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund"]);
@@ -158,7 +163,7 @@ for (const specifier of entrypoints) {
       throw new Error(`${name} exports changed: expected ${expected.join(", ")}; got ${actual.join(", ")}`);
     }
     const declarations = readFileSync(resolve(packageRoot, "dist/index.d.ts"), "utf8");
-    if (/\b[A-Za-z][A-Za-z0-9_]*V2[A-Za-z0-9_]*\b|\/internal\/|(?:^|["'])\.\/v2(?:["']|$)/m.test(declarations)) {
+    if (!publicIdentityEntrypoints.has(name) && /\b[A-Za-z][A-Za-z0-9_]*V2[A-Za-z0-9_]*\b|\/internal\/|(?:^|["'])\.\/v2(?:["']|$)/m.test(declarations)) {
       throw new Error(`${name} root declarations leak a private v2 symbol or path`);
     }
   }
@@ -166,12 +171,14 @@ for (const specifier of entrypoints) {
   if (umbrella.dependencies?.["@cord-network/origin-sdk-apps"] !== "0.1.0") {
     throw new Error("packed umbrella does not retain its exact origin-sdk-apps dependency");
   }
-  for (const retired of ["contracts", "personhood", "resources", "statement-store"]) {
-    if (`@cord-network/origin-sdk-${retired}` in (umbrella.dependencies ?? {})) {
-      throw new Error(`packed umbrella retained retired ${retired} dependency`);
+  const packedPackageNames = new Set(packages.map((suffix) =>
+    suffix ? `@cord-network/origin-sdk-${suffix}` : "@cord-network/origin-sdk"));
+  for (const dependency of Object.keys(umbrella.dependencies ?? {})) {
+    if (dependency.startsWith("@cord-network/origin-sdk-") && !packedPackageNames.has(dependency)) {
+      throw new Error(`packed umbrella retained an unsupported SDK dependency: ${dependency}`);
     }
   }
-  process.stdout.write(`PASS packed consumer and private-v2 export policy: packages=${packages.length} forbidden=${14}\n`);
+  process.stdout.write(`PASS packed consumer, unified Identity projection, and private subpath policy: packages=${packages.length} forbidden=${14}\n`);
 } finally {
   rmSync(consumer, { recursive: true, force: true });
 }

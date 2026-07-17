@@ -1,13 +1,13 @@
 # @cord-network/origin-sdk-identity
 
-Typed, finalized-hash-pinned identity reads and People pallet transaction preparation for Commons.
-Applications inject the generated runtime adapter and use only typed Commons-native parameters.
+The canonical Commons Identity developer surface. Seven Host-v2 operations are independently
+granted and return closed, operation-specific responses; transaction signing has its own operation
+and grant.
 
 ```ts
-const identity = createIdentityClient(chain, adapter);
-const status = await identity.status(accountId("5..."));
-const prepared = await identity.prepareSetIdentity(info);
+const identity = createIdentityV2Client("festival.app", hostBridge);
+const result = await identity.humanityStatus(grant, request, finalizedInvocation);
 ```
 
-Registrar administration, username authority management, forced identity mutation, and maintenance
-calls are deliberately excluded from the application surface.
+The package also owns the shared typed account and hash constructors used by native domain packages.
+It does not expose a second direct-runtime Identity client or a composite identity record.

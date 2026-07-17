@@ -20,10 +20,10 @@ import { OriginSdkError, type SdkResult } from "@cord-network/origin-sdk-errors"
 import { err } from "@cord-network/origin-sdk-result";
 
 /**
- * Private P3 projection of the frozen `cord.origin.host/2` Identity registry.
+ * Canonical P5 projection of the frozen `cord.origin.host/2` Identity registry.
  *
- * This file is intentionally not re-exported by the package. P5 makes the public cutover only after
- * every legacy consumer is replaced and the separate-grant contract has passed its privacy gates.
+ * The package root exports this facade after the separate-grant, privacy, replay, and recovery
+ * contracts passed their focused conformance gates.
  */
 
 export const IDENTITY_V2_OPERATION_CODES = {
@@ -69,6 +69,7 @@ export const IDENTITY_V2_ERRORS = [
 	{ code: 114, name: "HOST_OUTBOX_FULL", retryable: true },
 	{ code: 115, name: "HOST_OUTBOX_CORRUPT", retryable: false },
 	{ code: 116, name: "HOST_OUTBOX_EXPIRED", retryable: false },
+	{ code: 117, name: "REQUEST_DEADLINE_TOO_FAR", retryable: false },
 	{ code: 400, name: "IDENTITY_AUDIENCE_INVALID", retryable: false },
 	{ code: 401, name: "IDENTITY_CHALLENGE_REPLAY", retryable: false },
 	{ code: 402, name: "IDENTITY_PROOF_EXPIRED", retryable: false },
@@ -81,6 +82,8 @@ export const IDENTITY_V2_ERRORS = [
 	{ code: 409, name: "IDENTITY_RECOVERY_INSTALL_FAILED", retryable: false },
 	{ code: 410, name: "IDENTITY_OLD_INCARNATION", retryable: false },
 	{ code: 411, name: "IDENTITY_RETIRED_SET_FULL", retryable: false },
+	{ code: 412, name: "IDENTITY_AUTHORITY_UNAVAILABLE", retryable: true },
+	{ code: 413, name: "IDENTITY_EFFECT_CONFLICT", retryable: false },
 ] as const;
 
 export const IDENTITY_V2_ALLOWED_ERRORS = IDENTITY_V2_ERRORS.map(({ name }) => name);
@@ -462,6 +465,10 @@ export interface IdentityV2Client {
 		options: IdentityV2InvocationOptions,
 		signal?: AbortSignal,
 	): Promise<SdkResult<IdentityEntitlementsReadResultV2>>;
+}
+
+/** Transaction signing is deliberately outside the seven-operation Identity client. */
+export interface TransactionSigningV2Client {
 	signTransaction(
 		grant: IdentityGrantV2<"transaction.sign">,
 		input: TransactionSignRequestV2,
@@ -936,11 +943,11 @@ export function validateIdentityV2ErrorEnvelope(
 	return { code: frozen.code, name: frozen.name, retryable: frozen.retryable, ...(details === undefined ? {} : { details }) };
 }
 
-export function createIdentityV2Client(
+function createIdentityAndSigningV2Clients(
 	productId: string,
 	bridge: IdentityV2Bridge,
 	replayJournal: IdentityReplayJournalV2 = new IdentityReplayJournalV2(),
-): IdentityV2Client {
+): { readonly identity: IdentityV2Client; readonly signing: TransactionSigningV2Client } {
 	text(productId, 128, "product id");
 
 	async function invoke<Operation extends IdentityV2Call>(
@@ -1096,19 +1103,39 @@ export function createIdentityV2Client(
 	}
 
 	return {
-		account: (grant, input, options, signal) => invoke("identity.account", grant, input, options, signal),
-		profileRead: (grant, input, options, signal) => invoke("identity.profile.read", grant, input, options, signal),
-		profileDisclose: (grant, input, options, signal) =>
-			invoke("identity.profile.disclose", grant, input, options, signal),
-		humanityStatus: (grant, input, options, signal) =>
-			invoke("identity.humanity.status", grant, input, options, signal),
-		humanityProve: (grant, input, options, signal) =>
-			invoke("identity.humanity.prove", grant, input, options, signal),
-		subjectDerive: (grant, input, options, signal) =>
-			invoke("identity.subject.derive", grant, input, options, signal),
-		entitlementsRead: (grant, input, options, signal) =>
-			invoke("identity.entitlements.read", grant, input, options, signal),
-		signTransaction: (grant, input, options, signal) =>
-			invoke("transaction.sign", grant, input, options, signal),
+		identity: {
+			account: (grant, input, options, signal) => invoke("identity.account", grant, input, options, signal),
+			profileRead: (grant, input, options, signal) => invoke("identity.profile.read", grant, input, options, signal),
+			profileDisclose: (grant, input, options, signal) =>
+				invoke("identity.profile.disclose", grant, input, options, signal),
+			humanityStatus: (grant, input, options, signal) =>
+				invoke("identity.humanity.status", grant, input, options, signal),
+			humanityProve: (grant, input, options, signal) =>
+				invoke("identity.humanity.prove", grant, input, options, signal),
+			subjectDerive: (grant, input, options, signal) =>
+				invoke("identity.subject.derive", grant, input, options, signal),
+			entitlementsRead: (grant, input, options, signal) =>
+				invoke("identity.entitlements.read", grant, input, options, signal),
+		},
+		signing: {
+			signTransaction: (grant, input, options, signal) =>
+				invoke("transaction.sign", grant, input, options, signal),
+		},
 	};
+}
+
+export function createIdentityV2Client(
+	productId: string,
+	bridge: IdentityV2Bridge,
+	replayJournal: IdentityReplayJournalV2 = new IdentityReplayJournalV2(),
+): IdentityV2Client {
+	return createIdentityAndSigningV2Clients(productId, bridge, replayJournal).identity;
+}
+
+export function createTransactionSigningV2Client(
+	productId: string,
+	bridge: IdentityV2Bridge,
+	replayJournal: IdentityReplayJournalV2 = new IdentityReplayJournalV2(),
+): TransactionSigningV2Client {
+	return createIdentityAndSigningV2Clients(productId, bridge, replayJournal).signing;
 }

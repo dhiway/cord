@@ -19,14 +19,15 @@
     "background-file-access",
     "device-transaction-signer"
   ],
-  "excluded_legacy_surfaces": [
-    "personhood",
-    "PeopleLite",
-    "preimage"
-  ],
-  "vector_sha256": "3f41c4fce4acac2b2a8b3ff6199515d03bb7227fcdc89aa227865337d0c93508",
+  "vector_sha256": "506205e5bfa539d2688419b46b79d095c0a0a7eac7c8ad7f118ea1528f6cc4d3",
   "source_sha256": {
-    "origin-host-registry-v2.operations.json": "48934f781f5bd7f377684a5f17dd5eb3d9efa2b178b408cb0db80eb5b3d738b1",
-    "origin-host-registry-v2.vectors.json": "930d9e60a8e618589100aca492176e592fd1baeaf3fe38ef3f5cc70f567ece47"
+    "origin-host-registry-v2.operations.json": "0263f2d550e07a982b8c4a5f4b5edc471ee721ab28e8acab5f25f109e5e96abc",
+    "origin-host-registry-v2.vectors.json": "69f0bc1c834508861b69a6cee3ea53189712bbb88c8a7790e1913f4c49034862"
+  },
+  "identity_projection": {
+    "operation_count": 7,
+    "separate_grants": true,
+    "composite_response": false,
+    "separate_signing": true
   }
 }

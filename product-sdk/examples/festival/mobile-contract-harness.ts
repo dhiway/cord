@@ -68,11 +68,9 @@ export async function validatePlatformContractHarness(
   for (const vector of vectors.vectors) assert.ok(routeIds.has(vector.route), vector.id);
   const capabilities = [...new Set(routeContract.routes.map((route: any) => route.capability))].sort();
   const identityRoutes = routeContract.routes.filter((route: any) => route.capability === "identity");
-  const personhoodRoutes = identityRoutes.filter((route: any) => /personhood/i.test(route.method));
   const sponsoredRoutes = [...routeIds].filter((id: any) => /sponsor|meta.?tx/i.test(id));
-  assert.deepEqual(capabilities, ["attestation", "identity", "names", "storage", "transaction"]);
-  assert.equal(identityRoutes.length, 9);
-  assert.equal(personhoodRoutes.length, 1);
+  assert.deepEqual(capabilities, ["attestation", "names", "storage", "transaction"]);
+  assert.equal(identityRoutes.length, 0);
   assert.equal(sponsoredRoutes.length, 2);
   assert.deepEqual(vectors.forbidden, {
     raw_scale: false,
@@ -83,7 +81,6 @@ export async function validatePlatformContractHarness(
 
   const resultKey: Record<string, string> = {
     "scoped-permission-denial": "permission_denial",
-    "personhood-credential": "personhood_credential",
     "participant-dot-registration": "dot_register",
     "sponsored-check-in": "sponsored_check_in",
     "sponsored-replay": "sponsored_replay",
@@ -149,7 +146,7 @@ export async function validatePlatformContractHarness(
     event_contract_parity: true,
     vector_routes_present_in_registry: true,
     host_harness_outcome_parity: true,
-    qualification: "Parity covers the sealed host envelope, native identity/personhood, and sponsored MetaTx routes through deterministic contract harnesses; it is not a production mobile implementation or live-network claim.",
+    qualification: "Parity covers the sealed native host envelope and sponsored MetaTx routes; the separate Host-v2 fixture covers the unified Identity operations. This is not a production mobile implementation or live-network claim.",
     production_evidence_deferred: [
       "Live-chain execution and production-finality observation.",
       "Final E/Q/C SLO and storage-headroom campaigns.",
@@ -157,8 +154,7 @@ export async function validatePlatformContractHarness(
     ],
     sealed_route_evidence: {
       capabilities,
-      identity_personhood_routes: identityRoutes.length,
-      personhood_routes: personhoodRoutes.length,
+      legacy_identity_routes: identityRoutes.length,
       sponsorship_or_metatx_routes: sponsoredRoutes.length,
     },
     inputs: {

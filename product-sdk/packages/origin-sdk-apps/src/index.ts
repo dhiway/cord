@@ -107,7 +107,7 @@ export interface OriginAppsClient {
 }
 
 const ALL_CAPABILITIES: readonly OriginRequestedCapability[] = [
-  "accounts", "chain", "signing", "local-storage", "preimages", "resources", "statements",
+  "accounts", "chain", "signing", "local-storage", "preimages", "statements",
   "camera", "nfc", "bluetooth", "location", "biometrics", "external-urls",
 ];
 const utf8 = new TextEncoder();

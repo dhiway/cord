@@ -20,13 +20,13 @@
 
 export const HOST_V2_PROTOCOL = "cord.origin.host/2" as const;
 export const HOST_V2_MAJOR = 2 as const;
-export const HOST_V2_MINOR = 0 as const;
+export const HOST_V2_MINOR = 1 as const;
 
 export const HOST_V2_SOURCE_HASHES = {
-  cddl: "08fdf21728020b04a99e4b41d9924e0bda810d7b357576f938f6ce3e2c1be375",
-  operations: "48934f781f5bd7f377684a5f17dd5eb3d9efa2b178b408cb0db80eb5b3d738b1",
-  errors: "0a8780d4026e221a357782405f2b26c87ec88f11885146577615f73cf1bf7ef5",
-  schema: "259cdb6600b8824d81bce7d33c1e8a51b09c88b43133babaf092400c38714d5f",
+  cddl: "42e4e9660d7e2c26f15565a2448f9d2b384cb5c73321422a3b9ae9107f364b57",
+  operations: "0263f2d550e07a982b8c4a5f4b5edc471ee721ab28e8acab5f25f109e5e96abc",
+  errors: "20e8135116ac9b82f86891b798224ec5c08ac09cdc6c249269e7a8e236ae88c5",
+  schema: "ca9325a8adb0aad5b7db9b24bc27f1305087d0aead872d548df79ffa54139950",
 } as const;
 
 export const HOST_V2_RUNTIME_SOURCE_HASHES = {
@@ -38,8 +38,8 @@ export const HOST_V2_RUNTIME_SOURCE_HASHES = {
 export const LEGACY_PUBLIC_DESCRIPTOR_HASHES = {
   packageIndex: "5a416585aafda8454366fb48126617e59a0063cc0617c971a14cebf347304cd1",
   packageManifest: "fb9a653b3b1894d096e457724f2182d3443be8965c9249f9566e7adf7b38e1e2",
-  runtimeDescriptor: "6892d39913d2a755aec8fb129c3d8529b500884f934520102ab129896f174584",
-  networkBinding: "b3295d484e146e147b2e00edba5023db89f90de12507470845ebd073ad804bf1",
+  runtimeDescriptor: "80129838dd339f13222e2076a28fd4014368b9e04981038c76bc8de94dd02e3a",
+  networkBinding: "0d885e7dc563d64bcbb43baf27cb77e1c3896952fbfae1c5ea67b6e9d6f0e27a",
 } as const;
 
 export type HostV2OperationSignature = readonly [
@@ -296,7 +296,7 @@ export function projectPrivateHostV2Descriptor(
   network: FrozenCommonsNetworkBinding,
 ) {
   assertFrozenOperations(operations);
-  if (errors.errors.length !== 91) throw new TypeError(`host v2 error count drift: ${errors.errors.length}`);
+  if (errors.errors.length !== 93) throw new TypeError(`host v2 error count drift: ${errors.errors.length}`);
   const errorCodes = errors.errors.map(({ code }) => code);
   if (new Set(errorCodes).size !== errorCodes.length) throw new TypeError("duplicate host v2 error code");
   const projected = operations.operations.map(projectOperation);

@@ -138,7 +138,7 @@ test("deterministic generator rejects checked-in descriptor drift", () => {
     encoding: "utf8",
   });
   assert.equal(checked.status, 0, checked.stderr);
-	assert.match(checked.stdout, /PASS private host v2 descriptor: 34 operations \/ 91 errors/);
+	assert.match(checked.stdout, /PASS private host v2 descriptor: 34 operations \/ 93 errors/);
 });
 
 test("projection fails closed on operation and error drift", async () => {
@@ -173,7 +173,7 @@ test("projection fails closed on operation and error drift", async () => {
   ), /network and generated metadata binding drift/);
 });
 
-test("host v2 descriptor stays non-public and legacy descriptor bytes stay unchanged", async () => {
+test("host v2 descriptor stays non-public and cutover descriptor bytes stay frozen", async () => {
   const legacy = {
     packageIndex: "product-sdk/packages/origin-sdk-descriptors/src/index.ts",
     packageManifest: "product-sdk/packages/origin-sdk-descriptors/package.json",

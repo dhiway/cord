@@ -28,6 +28,7 @@ import {
 	IDENTITY_V2_ALLOWED_ERRORS,
 	IDENTITY_V2_ERRORS,
 	createIdentityV2Client,
+	createTransactionSigningV2Client,
 	identityV2WireFrame,
 	identityRecoveryDispositionV2,
 	validateIdentityV2ErrorEnvelope,
@@ -36,6 +37,13 @@ import {
 	type IdentityV2Call,
 	type IdentityV2InvocationOptions,
 } from "../src/v2.ts";
+
+function createClient(productId: string, bridge: IdentityV2Bridge) {
+	return Object.assign(
+		createIdentityV2Client(productId, bridge),
+		createTransactionSigningV2Client(productId, bridge),
+	);
+}
 
 const bytes = (length: number, value: number): Uint8Array => new Uint8Array(length).fill(value);
 const incarnation = bytes(32, 9);
@@ -133,7 +141,7 @@ function successBridge(calls: IdentityV2Call[] = []): IdentityV2Bridge {
 }
 
 async function call(
-	client: ReturnType<typeof createIdentityV2Client>,
+	client: ReturnType<typeof createClient>,
 	operation: IdentityV2Call,
 	operationGrant: IdentityGrantV2<IdentityV2Call> = grant(operation),
 	invocationOptions: IdentityV2InvocationOptions = options,
@@ -177,7 +185,7 @@ function semanticInput(operation: IdentityV2Call, raw: unknown): unknown {
 	}
 }
 
-test("private Identity-v2 operation codes remain equal to the frozen host registry", () => {
+test("public Identity-v2 operation codes remain equal to the frozen host registry", () => {
 	const registry = JSON.parse(readFileSync(
 		new URL("../../../../docs/specs/origin-host-registry-v2.operations.json", import.meta.url),
 		"utf8",
@@ -204,7 +212,7 @@ test("private Identity-v2 operation codes remain equal to the frozen host regist
 		"utf8",
 	));
 	assert.deepEqual(IDENTITY_V2_ERRORS, errors.errors
-		.filter(({ code }: { code: number }) => (code >= 100 && code <= 116) || (code >= 400 && code <= 411))
+		.filter(({ code }: { code: number }) => (code >= 100 && code <= 117) || (code >= 400 && code <= 413))
 		.map(({ code, name, retryable }: { code: number; name: string; retryable: boolean }) => ({ code, name, retryable })));
 	assert.deepEqual(Object.keys(IDENTITY_V2_OPERATION_CODES), [
 		"identity.account",
@@ -274,7 +282,7 @@ test("client bridge receives exact generated requestId and deadline frames", asy
 			return { success: true, value: outputByOperation[invocation.operation] };
 		},
 	};
-	const client = createIdentityV2Client("festival", bridge);
+	const client = createClient("festival", bridge);
 	for (const operation of Object.keys(IDENTITY_V2_OPERATION_CODES) as IdentityV2Call[]) {
 		assert.equal((await call(client, operation, grant(operation), operationOptions(operation))).success, true, operation);
 	}
@@ -284,7 +292,19 @@ test("client bridge receives exact generated requestId and deadline frames", asy
 test("every Identity operation accepts only its exact grant and transaction signing stays separate", async () => {
 	const operations = Object.keys(IDENTITY_V2_OPERATION_CODES) as IdentityV2Call[];
 	const calls: IdentityV2Call[] = [];
-	const client = createIdentityV2Client("festival", successBridge(calls));
+	const identity = createIdentityV2Client("festival", successBridge(calls));
+	const signing = createTransactionSigningV2Client("festival", successBridge(calls));
+	assert.deepEqual(Object.keys(identity), [
+		"account",
+		"profileRead",
+		"profileDisclose",
+		"humanityStatus",
+		"humanityProve",
+		"subjectDerive",
+		"entitlementsRead",
+	]);
+	assert.deepEqual(Object.keys(signing), ["signTransaction"]);
+	const client = createClient("festival", successBridge(calls));
 	for (let index = 0; index < operations.length; index++) {
 		const operation = operations[index]!;
 		const wrong = operations[(index + 1) % operations.length]!;
@@ -299,7 +319,7 @@ test("every Identity operation accepts only its exact grant and transaction sign
 
 test("audience binding and closed result schemas prevent joined authority leakage", async () => {
 	const noCalls: IdentityV2Call[] = [];
-	const deniedClient = createIdentityV2Client("festival", successBridge(noCalls));
+	const deniedClient = createClient("festival", successBridge(noCalls));
 	const denied = await deniedClient.humanityProve(
 		grant("identity.humanity.prove", { audience: "other.example" }),
 		inputByOperation["identity.humanity.prove"],
@@ -319,7 +339,7 @@ test("audience binding and closed result schemas prevent joined authority leakag
 			};
 		},
 	};
-	const client = createIdentityV2Client("festival", leakingBridge);
+	const client = createClient("festival", leakingBridge);
 	const account = await client.account(grant("identity.account"), inputByOperation["identity.account"], options);
 	assert.equal(!account.success && account.error.code, "WIRE_SCHEMA_INVALID");
 	const entitlements = await client.entitlementsRead(
@@ -332,11 +352,11 @@ test("audience binding and closed result schemas prevent joined authority leakag
 
 test("hostile inputs, grants, results, and bridge errors cannot escape the closed facade", async () => {
 	const calls: IdentityV2Call[] = [];
-	const client = createIdentityV2Client("festival", successBridge(calls));
+	const client = createClient("festival", successBridge(calls));
 	const joinedInput = { ...inputByOperation["identity.account"], profile: { email: "hidden@example" } };
 	const inputRejected = await client.account(grant("identity.account"), joinedInput as never, options);
 	assert.equal(!inputRejected.success && inputRejected.error.code, "WIRE_SCHEMA_INVALID");
-	const joinedGrant = { ...grant("identity.account"), personhood: true };
+	const joinedGrant = { ...grant("identity.account"), compositeAuthority: true };
 	const grantRejected = await client.account(joinedGrant as never, inputByOperation["identity.account"], options);
 	assert.equal(!grantRejected.success && grantRejected.error.code, "WIRE_SCHEMA_INVALID");
 	assert.equal(calls.length, 0);
@@ -356,7 +376,7 @@ test("hostile inputs, grants, results, and bridge errors cannot escape the close
 	const unbounded: IdentityV2Bridge = { async request() {
 		return { success: true, value: { ...outputByOperation["identity.humanity.prove"], proof: bytes(4_097, 1) } };
 	} };
-	const resultRejected = await createIdentityV2Client("festival", unbounded).humanityProve(
+	const resultRejected = await createClient("festival", unbounded).humanityProve(
 		grant("identity.humanity.prove"),
 		inputByOperation["identity.humanity.prove"],
 		operationOptions("identity.humanity.prove"),
@@ -366,7 +386,7 @@ test("hostile inputs, grants, results, and bridge errors cannot escape the close
 	const unknownError: IdentityV2Bridge = { async request() {
 		return { success: false, error: { code: 999, name: "legacy_people_error", retryable: false } };
 	} };
-	const errorRejected = await createIdentityV2Client("festival", unknownError).account(
+	const errorRejected = await createClient("festival", unknownError).account(
 		grant("identity.account"), inputByOperation["identity.account"], options,
 	);
 	assert.equal(!errorRejected.success && errorRejected.error.code, "WIRE_SCHEMA_INVALID");
@@ -378,7 +398,7 @@ test("results bind profile finality, requested entitlement scope, and proof fres
 		value: unknown,
 	): Promise<SdkResult<unknown>> => {
 		const bridge: IdentityV2Bridge = { async request() { return { success: true, value }; } };
-		return call(createIdentityV2Client("festival", bridge), operation, grant(operation), operationOptions(operation));
+		return call(createClient("festival", bridge), operation, grant(operation), operationOptions(operation));
 	};
 	const noFinality = await response("identity.profile.read", {
 		receipt: { commitment: bytes(32, 2), validUntil: 120n },
@@ -426,7 +446,7 @@ test("results bind profile finality, requested entitlement scope, and proof fres
 			},
 		} };
 	} };
-	const historicalProfile = await createIdentityV2Client("festival", historicalProfileBridge).profileRead(
+	const historicalProfile = await createClient("festival", historicalProfileBridge).profileRead(
 		grant("identity.profile.read"),
 		{ ...inputByOperation["identity.profile.read"], at: historicalHash },
 		operationOptions("identity.profile.read"),
@@ -438,7 +458,7 @@ test("results bind profile finality, requested entitlement scope, and proof fres
 			finalized: { blockNumber: 101n, blockHash: historicalHash },
 		} };
 	} };
-	const futureHistorical = await createIdentityV2Client("festival", futureHistoricalBridge).humanityStatus(
+	const futureHistorical = await createClient("festival", futureHistoricalBridge).humanityStatus(
 		grant("identity.humanity.status"),
 		{ ...inputByOperation["identity.humanity.status"], at: historicalHash },
 		operationOptions("identity.humanity.status"),
@@ -483,7 +503,7 @@ test("all exact numeric error envelopes are operation-scoped and tuple-closed", 
 		code: 400,
 		name: "IDENTITY_AUDIENCE_INVALID",
 		retryable: false,
-		personhood: true,
+		compositeAuthority: true,
 	}), /unknown fields/);
 });
 
@@ -520,7 +540,7 @@ test("fresh-consent replay and recovery-incarnation failures match frozen Identi
 			return { success: true, value: outputByOperation[invocation.operation] };
 		},
 	};
-	const client = createIdentityV2Client("festival", bridge);
+	const client = createClient("festival", bridge);
 	const invocation = operationOptions("identity.humanity.prove");
 	assert.equal((await call(client, "identity.humanity.prove", grant("identity.humanity.prove"), invocation)).success, true);
 	const replay = await call(client, "identity.humanity.prove", grant("identity.humanity.prove"), invocation);
@@ -541,7 +561,7 @@ test("fresh-consent replay state commits atomically only after a valid durable r
 		}
 		return { success: true, value: outputByOperation[invocation.operation] };
 	} };
-	const client = createIdentityV2Client("festival", bridge);
+	const client = createClient("festival", bridge);
 	const original = inputByOperation["identity.humanity.prove"];
 	const firstOptions = operationOptions("identity.humanity.prove");
 	const retry = await client.humanityProve(
@@ -572,7 +592,7 @@ test("concurrent fresh-consent calls reserve challenge and operation ID before b
 		await gate;
 		return { success: true, value: outputByOperation[invocation.operation] };
 	} };
-	const client = createIdentityV2Client("festival", bridge);
+	const client = createClient("festival", bridge);
 	const invocation = operationOptions("identity.humanity.prove");
 	const first = client.humanityProve(
 		grant("identity.humanity.prove"),

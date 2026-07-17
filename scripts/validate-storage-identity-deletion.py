@@ -373,7 +373,8 @@ def current_surface_census(root: Path) -> set[tuple[str, str, str]]:
             surfaces.add((rust_sdk_path, "public-route", f"rust-export::{name}"))
 
     host_routes_path = "product-sdk/packages/descriptors/src/identity-host-routes.ts"
-    host_routes = (root / host_routes_path).read_text(encoding="utf-8")
+    host_routes_file = root / host_routes_path
+    host_routes = host_routes_file.read_text(encoding="utf-8") if host_routes_file.is_file() else ""
     marker = host_routes.find("export const personhoodHostRoutes")
     if marker >= 0:
         for name in re.findall(r"(?m)^\s{2}([A-Za-z_][A-Za-z0-9_]*)\(", rust_block(host_routes, marker)):

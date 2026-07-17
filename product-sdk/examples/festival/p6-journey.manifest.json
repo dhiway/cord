@@ -13,7 +13,6 @@
   },
   "permissions": {
     "self_host": [
-      "identity:personhood_status",
       "names:root_name_by_normalized_label",
       "names:commit",
       "names:register",

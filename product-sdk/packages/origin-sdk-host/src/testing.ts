@@ -191,17 +191,6 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
             ? reject("preimages", "not_found", "Preimage not found")
             : answer(bytes.slice());
         }
-        case "resources.allocate": {
-          const request = input as HostMethodMap["resources.allocate"]["input"];
-          return answer({
-            kind: request.kind,
-            account: request.account,
-            authorization: new Uint8Array(createHash("sha256").update(
-              `${product.id}:${request.kind}:${request.account}:${request.bytes}`,
-            ).digest()),
-            ...(request.expiresAt === undefined ? {} : { expiresAt: request.expiresAt }),
-          });
-        }
         case "statements.submit": {
           const draft = input as HostMethodMap["statements.submit"]["input"];
           const hash = `0x${createHash("sha256").update(draft.data).digest("hex")}`;

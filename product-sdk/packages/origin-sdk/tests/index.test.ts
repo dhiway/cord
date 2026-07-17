@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { COMMONS_NETWORK_BINDING } from "@cord-network/origin-sdk-descriptors";
 import { createFakeHost } from "@cord-network/origin-sdk-host/testing";
+import type { IdentityV2Bridge } from "@cord-network/origin-sdk-identity";
 import { utf8Codec } from "@cord-network/origin-sdk-local-storage";
 import {
   ORIGIN_APP_CONTRACT,
@@ -30,8 +31,11 @@ import {
 
 const product = { id: "festival.app", name: "Festival" } as const;
 const runtime = {
-  identity: {}, attestation: {}, names: {}, storage: {}, assets: {},
+  attestation: {}, names: {}, storage: {}, assets: {},
 } as OriginAppRuntime;
+const identityBridge: IdentityV2Bridge = {
+  async request() { throw new Error("identity request not configured in bootstrap test"); },
+};
 const runtimeIdentity = {
   genesis_hash: COMMONS_NETWORK_BINDING.genesis_hash,
   spec_version: COMMONS_NETWORK_BINDING.spec_version,
@@ -51,7 +55,7 @@ function readyHost(identity = runtimeIdentity) {
 
 test("createApp validates Commons and wires the hosted developer surface once", async () => {
   const fake = readyHost();
-  const created = await createApp({ product, bridge: fake.bridge, runtime });
+  const created = await createApp({ product, bridge: fake.bridge, identityBridge, runtime });
   assert.equal(created.success, true);
   if (!created.success) return;
   assert.equal(created.value.signer.account.address, "5Festival");
@@ -69,18 +73,18 @@ test("createApp validates Commons and wires the hosted developer surface once", 
 
 test("createApp fails before exposing clients on wrong genesis or metadata drift", async () => {
   const wrongGenesis = readyHost({ ...runtimeIdentity, genesis_hash: `0x${"ff".repeat(32)}` });
-  const wrong = await createApp({ product, bridge: wrongGenesis.bridge, runtime });
+  const wrong = await createApp({ product, bridge: wrongGenesis.bridge, identityBridge, runtime });
   assert.equal(!wrong.success && wrong.error.code, "runtime_identity_mismatch");
   assert.equal(!wrong.success && wrong.error.details?.field, "genesis_hash");
 
   const drifted = readyHost({ ...runtimeIdentity, metadata_hash: `0x${"ee".repeat(32)}` });
-  const drift = await createApp({ product, bridge: drifted.bridge, runtime });
+  const drift = await createApp({ product, bridge: drifted.bridge, identityBridge, runtime });
   assert.equal(!drift.success && drift.error.code, "runtime_identity_mismatch");
   assert.equal(!drift.success && drift.error.details?.field, "metadata_hash");
 });
 
 test("createApp requires host-owned chain and account permissions", async () => {
   const fake = createFakeHost({ accounts: [{ address: "5Festival" }], runtimeIdentity });
-  const denied = await createApp({ product, bridge: fake.bridge, runtime });
+  const denied = await createApp({ product, bridge: fake.bridge, identityBridge, runtime });
   assert.equal(!denied.success && denied.error.code, "permission_denied");
 });

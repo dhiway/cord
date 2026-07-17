@@ -3,8 +3,8 @@
   "protocol": {
     "name": "cord.origin.host/2",
     "major": 2,
-    "minor": 0,
-    "registry_sha256": "08fdf21728020b04a99e4b41d9924e0bda810d7b357576f938f6ce3e2c1be375"
+    "minor": 1,
+    "registry_sha256": "42e4e9660d7e2c26f15565a2448f9d2b384cb5c73321422a3b9ae9107f364b57"
   },
   "scope": {
     "visibility": "private-test-only",
@@ -3355,9 +3355,10 @@
       "expected_error": "MOBILE_DEVICE_CAPABILITY_UNSUPPORTED"
     }
   ],
-  "excluded_legacy_surfaces": [
-    "personhood",
-    "PeopleLite",
-    "preimage"
-  ]
+  "identity_projection": {
+    "operation_count": 7,
+    "separate_grants": true,
+    "composite_response": false,
+    "separate_signing": true
+  }
 }

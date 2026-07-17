@@ -74,9 +74,9 @@ test("permission expiry, cancellation, and host loss are typed failures", async 
   assert.equal(!unavailable.success && unavailable.error.code, "host_unavailable");
 });
 
-test("local storage, preimages, chain, and resources remain product and permission scoped", async () => {
+test("local storage, preimages, and chain remain product and permission scoped", async () => {
   const fake = createFakeHost();
-  for (const capability of ["local-storage", "preimages", "chain", "resources"] as const) {
+  for (const capability of ["local-storage", "preimages", "chain"] as const) {
     fake.grant(product.id, capability);
   }
   fake.grant("other.app", "local-storage");
@@ -101,10 +101,6 @@ test("local storage, preimages, chain, and resources remain product and permissi
   const provider = createHostChainProvider(host);
   assert.deepEqual(await provider.finalizedBlock(), { hash: `0x${"1".repeat(64)}`, number: 1n });
   assert.equal((await provider.runtimeIdentity((await provider.finalizedBlock()).hash)).spec_version, 1);
-  const resource = await host.allocateResources({
-    kind: "statement-allowance", account: "5Test", bytes: 1024n,
-  });
-  assert.equal(resource.success, true);
 });
 
 test("statement subscriptions are permission-gated and dispose on abort", async () => {

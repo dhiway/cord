@@ -30,7 +30,7 @@ import {
 const at = `0x${"11".repeat(32)}` as const;
 const transaction: PreparedTransaction = { async *signSubmitAndWatch() {} };
 
-test("one descriptor executor generates every native application adapter", async () => {
+test("one descriptor executor generates each direct native application adapter", async () => {
   const seen: Array<{ kind: string; target: string; payload: unknown; context?: unknown }> = [];
   const executor = {
     async read(_at, target, payload) {
@@ -44,7 +44,6 @@ test("one descriptor executor generates every native application adapter", async
   } satisfies CommonsRuntimeExecutor;
   const runtime = createOriginAppRuntime(executor);
 
-  await runtime.identity.identityStatus(at, "5Account");
   await runtime.attestation.schemaCount(at);
   await runtime.names.resolveContentPublication(at, `0x${"22".repeat(32)}`);
   await runtime.storage.read(at, "storage", "account_authorization", { account: "5Account" });
@@ -52,14 +51,13 @@ test("one descriptor executor generates every native application adapter", async
   await runtime.assets.prepare(at, "Assets.transfer", { id: 1 }, payment);
 
   assert.deepEqual(seen.map(({ kind, target }) => `${kind}:${target}`), [
-    "read:IdentityPersonhoodApi.identity_status",
     "read:AttestationApi.schema_count",
     "read:NamesApi.resolve_content_publication",
     "read:storage.account_authorization",
     "prepare:Assets.transfer",
   ]);
-  assert.deepEqual(seen[4]?.context, { payment });
-  assert.equal(ORIGIN_RUNTIME_EXECUTOR_CONTRACT.adapterCount, 5);
+  assert.deepEqual(seen[3]?.context, { payment });
+  assert.equal(ORIGIN_RUNTIME_EXECUTOR_CONTRACT.adapterCount, 4);
   assert.equal(ORIGIN_RUNTIME_EXECUTOR_CONTRACT.rawScaleAccepted, false);
   assert.equal(ORIGIN_RUNTIME_EXECUTOR_CONTRACT.palletIndicesAccepted, false);
   assert.equal(ORIGIN_RUNTIME_EXECUTOR_CONTRACT.applicationEndpointsAccepted, false);

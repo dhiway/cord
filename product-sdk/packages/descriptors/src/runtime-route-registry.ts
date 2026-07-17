@@ -23,20 +23,10 @@ import { driveHostRoutes, providerHostRoutes, s3HostRoutes } from "./storage-hos
 
 
 
-import { identityHostRoutes, personhoodHostRoutes } from "./identity-host-routes.ts";
 import { sponsoredTransaction } from "../../../src/sponsored-transaction.ts";
 
 /** Direct references to every real exported SDK route callable. */
 export const NATIVE_RUNTIME_ROUTE_REGISTRY = {
-  "identity:identity_status": identityHostRoutes.identityStatus,
-  "identity:personhood_status": personhoodHostRoutes.personhoodStatus,
-  "identity:attestation_allowance": personhoodHostRoutes.attestationAllowance,
-  "identity:set_identity": identityHostRoutes.setIdentity,
-  "identity:clear_identity": identityHostRoutes.clearIdentity,
-  "identity:request_judgement": identityHostRoutes.requestJudgement,
-  "identity:cancel_judgement_request": identityHostRoutes.cancelJudgementRequest,
-  "identity:provide_judgement": identityHostRoutes.provideJudgement,
-  "identity:attest_lite_person": personhoodHostRoutes.attestLitePerson,
   "attestation:schema_by_id": attestationHostRoutes.schemaById,
   "attestation:attestation_by_id": attestationHostRoutes.attestationById,
   "attestation:attestation_live_status": attestationHostRoutes.liveStatus,

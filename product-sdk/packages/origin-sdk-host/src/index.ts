@@ -24,8 +24,6 @@ import type {
   HostCapability,
   HostFinalizedBlock,
   HostPreimageReference,
-  HostResourceGrant,
-  HostResourceRequest,
   HostRuntimeIdentity,
   HostSignRequest,
   HostStatementDraft,
@@ -55,7 +53,6 @@ export interface OriginHostClient {
     signal?: AbortSignal,
   ): Promise<SdkResult<HostPreimageReference>>;
   getPreimage(contentHash: `0x${string}`, signal?: AbortSignal): Promise<SdkResult<Uint8Array>>;
-  allocateResources(request: HostResourceRequest, signal?: AbortSignal): Promise<SdkResult<HostResourceGrant>>;
   submitStatement(draft: HostStatementDraft, signal?: AbortSignal): Promise<SdkResult<HostStatementRecord>>;
   queryStatements(query: HostStatementQuery, signal?: AbortSignal): Promise<SdkResult<readonly HostStatementRecord[]>>;
   subscribeStatements(
@@ -227,9 +224,6 @@ export function createHostClient(
       );
       return result.success ? { success: true, value: result.value.slice() } : result;
     },
-    allocateResources: (request, signal) => granted(
-      "resources", () => bridge.request(product, "resources.allocate", request, signal), signal,
-    ),
     async submitStatement(draft, signal) {
       const result = await granted(
         "statements",

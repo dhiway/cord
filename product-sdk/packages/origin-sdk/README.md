@@ -6,6 +6,7 @@ Hosted Commons application bootstrap. `createApp` verifies the exact Commons gen
 const result = await createApp({
   product: { id: "festival.app", name: "Festival" },
   bridge: originHostBridge,
+  identityBridge: originIdentityHostV2Bridge,
   runtime: commonsRuntimeExecutor,
 });
 if (!result.success) throw result.error;

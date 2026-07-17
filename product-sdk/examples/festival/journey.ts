@@ -171,14 +171,6 @@ function finalizedTransaction(
 
 function selfRoutes(state: JourneyState): TypedNetworkRoutes<JourneyClient, TypedChainSigner> {
   return {
-    "identity:personhood_status": {
-      finality: "finalized",
-      async query(_payload, context): Promise<JsonValue> {
-        state.selfRouteSelections.push("identity:personhood_status");
-        state.participantAuthorizations.push(context.authorizationSignature);
-        return { version: 1, full_personal_id: "42", full_recognized: true, lite_recognized: true };
-      },
-    },
     "names:root_name_by_normalized_label": {
       finality: "finalized",
       async query(payload, context): Promise<JsonValue> {
@@ -476,10 +468,6 @@ export async function runFestivalJourney(): Promise<JsonObject> {
   const denied = build("names:set_text", [NAME_ID, textKey("festival"), textValue("denied")]);
   results.permission_denial = await execute(selfHost, denied);
 
-  results.personhood_credential = await execute(
-    selfHost,
-    build("identity:personhood_status", [selfSigner.accountId]),
-  );
   results.attestation_live_evidence = await execute(
     sponsorHost,
     build("attestation:attestation_live_status", [CREDENTIAL_ID]),
@@ -587,7 +575,6 @@ export async function runFestivalJourney(): Promise<JsonObject> {
 
   const expected: Record<string, string> = {
     permission_denial: "permission_denied",
-    personhood_credential: "success",
     attestation_live_evidence: "success",
     dot_lookup: "success",
     dot_commit: "success",
@@ -682,9 +669,8 @@ export async function runFestivalJourney(): Promise<JsonObject> {
       call_indices: false,
     },
     sealed_route_registry: {
-      capabilities: ["attestation", "names", "identity", "storage", "transaction"],
-      identity_routes: 9,
-      personhood_routes: 1,
+      capabilities: ["attestation", "names", "storage", "transaction"],
+      identity_routes: 0,
       sponsored_transaction_routes: 2,
     },
     production_evidence_deferred: [

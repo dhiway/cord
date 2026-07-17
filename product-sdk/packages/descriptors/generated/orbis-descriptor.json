@@ -73,7 +73,7 @@
     },
     "nativeRouteContract": {
       "path": "docs/sdk/native-route-contract.json",
-      "sha256": "ec11d606833f9504c2b1a2ab39c61cea2f6d0900a8fa56bdeab43d8292bd91d4"
+      "sha256": "37c993d3e5f91904bffa15f21fffa9cc8a5944604c2eaf0e1804b6f38dea7a6c"
     }
   },
   "signedExtensionSurfaces": {
@@ -156,85 +156,10 @@
   },
   "nativeHostContract": {
     "version": 1,
-    "methodCount": 120,
+    "methodCount": 111,
     "pageLimit": 100,
     "payloadValidation": "closed-shape-plus-core-native-types-v1",
     "methods": [
-      {
-        "capability": "identity",
-        "method": "identity_status",
-        "finality": "finalized",
-        "payloadFields": [
-          "account"
-        ]
-      },
-      {
-        "capability": "identity",
-        "method": "personhood_status",
-        "finality": "finalized",
-        "payloadFields": [
-          "account"
-        ]
-      },
-      {
-        "capability": "identity",
-        "method": "attestation_allowance",
-        "finality": "finalized",
-        "payloadFields": [
-          "account"
-        ]
-      },
-      {
-        "capability": "identity",
-        "method": "set_identity",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "info"
-        ]
-      },
-      {
-        "capability": "identity",
-        "method": "clear_identity",
-        "finality": "submit-and-finalize",
-        "payloadFields": []
-      },
-      {
-        "capability": "identity",
-        "method": "request_judgement",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "registrar"
-        ]
-      },
-      {
-        "capability": "identity",
-        "method": "cancel_judgement_request",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "registrar"
-        ]
-      },
-      {
-        "capability": "identity",
-        "method": "provide_judgement",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "target",
-          "judgement",
-          "identity_hash"
-        ]
-      },
-      {
-        "capability": "identity",
-        "method": "attest_lite_person",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "candidate",
-          "candidate_signature",
-          "ring_vrf_key",
-          "proof_of_ownership"
-        ]
-      },
       {
         "capability": "attestation",
         "method": "schema_by_id",

@@ -22,19 +22,6 @@
       }
     },
     {
-      "id": "personhood-credential",
-      "route": "identity:personhood_status",
-      "expected": {
-        "terminal": "success",
-        "response": {
-          "version": 1,
-          "full_personal_id": "42",
-          "full_recognized": true,
-          "lite_recognized": true
-        }
-      }
-    },
-    {
       "id": "participant-dot-registration",
       "route": "names:register",
       "expected": {

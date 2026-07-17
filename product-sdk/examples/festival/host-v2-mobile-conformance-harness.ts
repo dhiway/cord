@@ -90,7 +90,12 @@ interface Fixture {
     readonly requires: string;
     readonly expected_error: string;
   }[];
-  readonly excluded_legacy_surfaces: readonly string[];
+  readonly identity_projection: {
+    readonly operation_count: number;
+    readonly separate_grants: boolean;
+    readonly composite_response: boolean;
+    readonly separate_signing: boolean;
+  };
 }
 
 export class MobileDeviceCapabilityError extends Error {
@@ -299,13 +304,20 @@ export function validateFestivalMobileHostV2Conformance(): { readonly vectors: n
     );
   }
 
-  assert.deepEqual(fixture.excluded_legacy_surfaces, ["personhood", "PeopleLite", "preimage"]);
-  const searchable = JSON.stringify([fixture.vectors, fixture.grant_contracts]).toLowerCase();
-  for (const excluded of fixture.excluded_legacy_surfaces) assert.equal(searchable.includes(excluded.toLowerCase()), false);
+  assert.deepEqual(fixture.identity_projection, {
+    operation_count: 7,
+    separate_grants: true,
+    composite_response: false,
+    separate_signing: true,
+  });
+  assert.equal(fixture.grant_contracts.filter(({ operation }) =>
+    typeof operation === "string" && operation.startsWith("identity.")).length, 7);
+  assert.equal(fixture.grant_contracts.filter(({ operation }) => operation === "transaction.sign").length, 1);
 
   assert.equal(manifest.visibility, "private-test-only");
   assert.equal(manifest.off_chain_projection_only, true);
   assert.equal(manifest.production_mobile_rewrite, false);
+  assert.deepEqual(manifest.identity_projection, fixture.identity_projection);
   assert.equal(manifest.vector_sha256, sha256(readFileSync(vectorPath)));
   assert.equal(manifest.source_sha256["origin-host-registry-v2.operations.json"], sha256(readFileSync(operationsPath)));
   assert.equal(manifest.source_sha256["origin-host-registry-v2.vectors.json"], sha256(readFileSync(frozenPath)));

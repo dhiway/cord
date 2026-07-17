@@ -241,12 +241,12 @@ const schemaBindings = {
   storage_provider: ["storageProvider", "STORAGE_PROVIDER_STORAGE_SCHEMA_VERSION"],
   drive: ["drive", "DRIVE_STORAGE_SCHEMA_VERSION"],
   s3: ["s3", "S3_STORAGE_SCHEMA_VERSION"],
-  resources: ["resources", "RESOURCES_STORAGE_SCHEMA_VERSION"],
 } as const;
-for (const [name, contract] of Object.entries(matrix.native_storage_schemas) as [keyof typeof schemaBindings, any][]) {
+for (const [name, binding] of Object.entries(schemaBindings) as [keyof typeof schemaBindings, (typeof schemaBindings)[keyof typeof schemaBindings]][]) {
+  const contract = matrix.native_storage_schemas[name];
   equal(observedSchemas[name], contract.version, `${name} storage schema`);
-  equal((NATIVE_SDK_VERSION.storageSchemas as any)[schemaBindings[name][0]], contract.version, `${name} TypeScript storage schema`);
-  equal(Number(rustConstant(rust, schemaBindings[name][1])), contract.version, `${name} Rust storage schema`);
+  equal((NATIVE_SDK_VERSION.storageSchemas as any)[binding[0]], contract.version, `${name} TypeScript storage schema`);
+  equal(Number(rustConstant(rust, binding[1])), contract.version, `${name} Rust storage schema`);
 }
 const providerProtocol = Number(read(matrix.service_protocols.storage_provider.source).match(/PROTOCOL_VERSION:\s*u16\s*=\s*(\d+)/)?.[1]);
 equal(providerProtocol, matrix.service_protocols.storage_provider.version, "storage provider protocol");
@@ -384,7 +384,7 @@ equal(descriptor.fixtureIdentity.genesis_state_root, matrix.networks.orbis.candi
 equal(descriptor.fixtureIdentity.candidate_identity_sha256, matrix.networks.orbis.candidate_genesis_identity_sha256, "descriptor candidate artifact");
 equal(descriptor.nativeHostContract.methodCount, NATIVE_HOST_METHODS.length, "descriptor native method count");
 equal(routeContract.schema, "cord.native-route-contract.v1", "route contract schema");
-equal(routeContract.route_count, 120, "route contract count");
+equal(routeContract.route_count, 111, "route contract count");
 equal(routeContract.network.metadata_hash, matrix.networks.orbis.metadata_hash, "route contract metadata hash");
 equal(routeContract.network.activation_state, matrix.networks.orbis.activation_state, "route contract activation state");
 equal(routeContract.network.production_activation_ready, false, "route contract production gate");

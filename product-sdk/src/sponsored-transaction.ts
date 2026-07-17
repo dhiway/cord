@@ -22,14 +22,11 @@ import type { AccountId, BlockNumber, Hash32 } from "./types.ts";
 import type { attestationHostRoutes } from "../packages/descriptors/src/attestation-host-routes.ts";
 import type { namesHostRoutes } from "../packages/descriptors/src/names-host-routes.ts";
 import type { driveHostRoutes, providerHostRoutes, s3HostRoutes, storageHostRoutes } from "../packages/descriptors/src/storage-host-routes.ts";
-import type { identityHostRoutes, personhoodHostRoutes } from "../packages/descriptors/src/identity-host-routes.ts";
 
 type NativeRouteFactory =
   | typeof attestationHostRoutes[keyof typeof attestationHostRoutes]
   | typeof namesHostRoutes[keyof typeof namesHostRoutes]
   | typeof driveHostRoutes[keyof typeof driveHostRoutes]
-  | typeof identityHostRoutes[keyof typeof identityHostRoutes]
-  | typeof personhoodHostRoutes[keyof typeof personhoodHostRoutes]
   | typeof providerHostRoutes[keyof typeof providerHostRoutes]
   | typeof s3HostRoutes[keyof typeof s3HostRoutes]
   | typeof storageHostRoutes[keyof typeof storageHostRoutes];

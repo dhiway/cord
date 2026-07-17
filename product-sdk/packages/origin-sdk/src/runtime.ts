@@ -23,7 +23,6 @@ import type {
 } from "@cord-network/origin-sdk-assets";
 import type { AttestationRuntimeAdapter } from "@cord-network/origin-sdk-attestation";
 import type { CloudStorageRuntimeAdapter } from "@cord-network/origin-sdk-cloud-storage";
-import type { IdentityRuntimeAdapter } from "@cord-network/origin-sdk-identity";
 import type { NamesRuntimeAdapter } from "@cord-network/origin-sdk-names";
 import type { PreparedTransaction } from "@cord-network/origin-sdk-tx";
 import type { OriginAppRuntime } from "./index.ts";
@@ -67,21 +66,6 @@ export function createOriginAppRuntime(
     payload: Readonly<Record<string, unknown>>,
     signal?: AbortSignal,
   ): Promise<PreparedTransaction> => executor.prepare(at, target, payload, undefined, signal);
-
-  const identity: IdentityRuntimeAdapter = {
-    identityStatus: (at, account, signal) =>
-      read(at, "IdentityPersonhoodApi.identity_status", { account }, signal),
-    setIdentity: (at, info, signal) => prepare(at, "People.set_identity", { info }, signal),
-    clearIdentity: (at, signal) => prepare(at, "People.clear_identity", {}, signal),
-    requestJudgement: (at, registrar, signal) =>
-      prepare(at, "People.request_judgement", { registrar }, signal),
-    cancelJudgementRequest: (at, registrar, signal) =>
-      prepare(at, "People.cancel_request", { registrar }, signal),
-    provideJudgement: (at, target, judgement, identityHash, signal) =>
-      prepare(at, "People.provide_judgement", {
-        target, judgement, identity_hash: identityHash,
-      }, signal),
-  };
 
   const attestation: AttestationRuntimeAdapter = {
     schemaById: (at, schema, signal) =>
@@ -225,7 +209,7 @@ export function createOriginAppRuntime(
     ),
   };
 
-  return { identity, attestation, names, storage, assets };
+  return { attestation, names, storage, assets };
 }
 
 export const ORIGIN_RUNTIME_EXECUTOR_CONTRACT = {
@@ -233,5 +217,5 @@ export const ORIGIN_RUNTIME_EXECUTOR_CONTRACT = {
   rawScaleAccepted: false,
   palletIndicesAccepted: false,
   applicationEndpointsAccepted: false,
-  adapterCount: 5,
+  adapterCount: 4,
 } as const;
