@@ -21,11 +21,17 @@
  * entrypoint until the Host-v2 authority cutover is complete.
  */
 
-import type {
-  AccountId,
-  ContentCommitment,
-  NameId,
-  NamesEvent,
+import {
+  digestContent,
+  parseContentCid,
+  rawContentAddress,
+} from "@cord-network/origin-sdk-cloud-storage";
+import {
+  contentCommitment,
+  type AccountId,
+  type ContentCommitment,
+  type NameId,
+  type NamesEvent,
 } from "@cord-network/origin-sdk-names";
 
 export type StorageOperationV2 =
@@ -45,6 +51,7 @@ const STORAGE_CODES: Readonly<Record<StorageOperationV2, number>> = {
   "storage.resolve": 1051,
 };
 const STORAGE_REGISTRY_SHA256 = "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba";
+const utf8 = new TextEncoder();
 
 export interface PrivateStorageIntentV2<Operation extends StorageOperationV2 = StorageOperationV2> {
   readonly protocol: "cord.origin.host/2";
@@ -68,9 +75,17 @@ export interface PrivateStorageIntentFactoryV2 {
   ): PrivateStorageIntentV2<Operation>;
 }
 
+/** Exact upload body bound to one storage.object.put intent. The executor must consume it once. */
+export interface PrivateStorageUploadV2 {
+  readonly cid: string;
+  readonly length: bigint;
+  readonly bytes: AsyncIterable<Uint8Array>;
+}
+
 export interface PrivateStorageExecutorV2 {
   execute<Operation extends StorageOperationV2>(
     intent: PrivateStorageIntentV2<Operation>,
+    upload: Operation extends "storage.object.put" ? PrivateStorageUploadV2 : undefined,
     signal?: AbortSignal,
   ): Promise<unknown>;
 }
@@ -80,23 +95,41 @@ export interface FinalityProofV2 {
   readonly blockNumber: bigint;
 }
 
+export interface VerifiedFinalizedCheckpointV2 {
+  readonly finality: "finalized";
+  readonly canonical: true;
+  readonly verified: true;
+  readonly finalized: FinalityProofV2;
+}
+
+export interface VerifiedFinalizedBlockV2 extends VerifiedFinalizedCheckpointV2 {
+  readonly parentHash: `0x${string}`;
+}
+
 export interface NamesAuthorityStateV2 {
   readonly name: NameId;
   readonly owner: AccountId;
   readonly controllers: readonly AccountId[];
   readonly active: boolean;
+  /** The only application locator kept by Names. Storage remains the CID authority. */
   readonly content: ContentCommitment | null;
-  readonly cid: string | null;
 }
 
 export interface FinalizedNamesObservationV2 {
   readonly finality: "finalized";
   readonly canonical: true;
   readonly finalized: FinalityProofV2;
-  readonly parentHash: `0x${string}` | null;
+  readonly parentHash: `0x${string}`;
+  /** Actual frame_system event index. Gaps for unrelated events are valid. */
   readonly eventIndex: number;
   readonly event: NamesEvent;
   readonly postState: NamesAuthorityStateV2;
+}
+
+export interface FinalizedNamesMutationV2 {
+  /** Verified consecutive blocks after the index head, including the observation block if new. */
+  readonly finalizedBlocks: readonly VerifiedFinalizedBlockV2[];
+  readonly observation: FinalizedNamesObservationV2;
 }
 
 export interface NamesAuthorityProofV2 extends FinalityProofV2 {
@@ -116,8 +149,60 @@ const hash = (value: string, label: string): `0x${string}` => {
   return value as `0x${string}`;
 };
 
+function proof(value: FinalityProofV2, label: string): FinalityProofV2 {
+  hash(value.blockHash, `${label} hash`);
+  if (typeof value.blockNumber !== "bigint" || value.blockNumber < 0n) {
+    throw new TypeError(`${label} number must be an unsigned integer`);
+  }
+  return { ...value };
+}
+
+function sameFinality(left: FinalityProofV2, right: FinalityProofV2): boolean {
+  return left.blockHash === right.blockHash && left.blockNumber === right.blockNumber;
+}
+
 function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function bytesHex(value: Uint8Array): `0x${string}` {
+  return `0x${Array.from(value, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** Canonical storage name key: Blake2b-256 over the exact normalized UTF-8 name. */
+export function deriveStorageNameHashV2(storageName: string): Uint8Array {
+  if (storageName.length < 1 || storageName.length > 253 || storageName.normalize("NFC") !== storageName
+    || storageName.trim() !== storageName || utf8.encode(storageName).includes(0)) {
+    throw new TypeError("storage name must be non-empty normalized UTF-8 without surrounding whitespace or NUL");
+  }
+  return digestContent("blake2b-256", utf8.encode(storageName));
+}
+
+function cidCommitment(cid: string): ContentCommitment {
+  return contentCommitment(bytesHex(parseContentCid(cid).digest));
+}
+
+function verifyApplicationBindings(input: PublishOriginAppV2Input): void {
+  if (!(input.contentBytes instanceof Uint8Array) || !(input.manifestBytes instanceof Uint8Array)) {
+    throw new TypeError("application content and manifest must be byte arrays");
+  }
+  const contentAddress = parseContentCid(input.contentCid);
+  if (contentAddress.codec !== "raw"
+    || rawContentAddress(input.contentBytes, contentAddress.multihash).cid !== input.contentCid) {
+    throw new TypeError("content CID does not match the exact content bytes");
+  }
+  const manifestAddress = parseContentCid(input.manifestCid);
+  if (manifestAddress.codec !== "raw"
+    || rawContentAddress(input.manifestBytes, manifestAddress.multihash).cid !== input.manifestCid) {
+    throw new TypeError("manifest CID does not match the exact manifest bytes");
+  }
+  if (cidCommitment(input.manifestCid) !== input.contentCommitment) {
+    throw new TypeError("Names content commitment does not match the manifest CID digest");
+  }
+  if (!(input.nameHash instanceof Uint8Array)
+    || !equalBytes(input.nameHash, deriveStorageNameHashV2(input.storageName))) {
+    throw new TypeError("storage name hash does not match the canonical storage name");
+  }
 }
 
 function equalWireValue(left: unknown, right: unknown): boolean {
@@ -148,14 +233,8 @@ function exactAuthorityState(value: NamesAuthorityStateV2): NamesAuthorityStateV
   if (!Array.isArray(value.controllers) || new Set(value.controllers).size !== value.controllers.length) {
     throw new TypeError("Names controllers must be unique");
   }
-  if (!value.active && (value.content !== null || value.cid !== null)) {
+  if (!value.active && value.content !== null) {
     throw new TypeError("inactive Names state cannot retain application content");
-  }
-  if ((value.content === null) !== (value.cid === null)) {
-    throw new TypeError("Names content commitment and storage CID must be present together");
-  }
-  if (value.cid !== null && (value.cid.length < 1 || value.cid.length > 128 || value.cid.normalize("NFC") !== value.cid)) {
-    throw new TypeError("Names storage CID is invalid");
   }
   return { ...value, controllers: [...value.controllers] };
 }
@@ -167,52 +246,61 @@ function sameAccounts(left: readonly AccountId[], right: readonly AccountId[]): 
 function sameAuthorityState(left: NamesAuthorityStateV2, right: NamesAuthorityStateV2): boolean {
   return left.name === right.name && left.owner === right.owner
     && sameAccounts(left.controllers, right.controllers) && left.active === right.active
-    && left.content === right.content && left.cid === right.cid;
+    && left.content === right.content;
 }
 
-/** Rebuildable projection: every mutation is justified by one canonical finalized Names event. */
+/** Rebuildable projection over an explicitly advanced, verified finalized chain. */
 export class FinalizedNamesEventIndexV2 {
   readonly #states = new Map<NameId, IndexedNamesStateV2>();
-  #head: FinalityProofV2 | null = null;
+  readonly #canonicalHashes = new Map<bigint, `0x${string}`>();
+  #head: FinalityProofV2;
   #headParentHash: `0x${string}` | null = null;
   #eventIndex = -1;
+
+  constructor(checkpoint: VerifiedFinalizedCheckpointV2) {
+    if (checkpoint.finality !== "finalized" || checkpoint.canonical !== true || checkpoint.verified !== true) {
+      throw new TypeError("Names index requires a verified canonical finalized bootstrap checkpoint");
+    }
+    this.#head = proof(checkpoint.finalized, "Names bootstrap checkpoint");
+    this.#canonicalHashes.set(this.#head.blockNumber, this.#head.blockHash);
+  }
+
+  get head(): FinalityProofV2 { return { ...this.#head }; }
+
+  /** Advance finality even when a block contains no Names event. */
+  advance(block: VerifiedFinalizedBlockV2): void {
+    if (block.finality !== "finalized" || block.canonical !== true || block.verified !== true) {
+      throw new TypeError("Names index accepts verified canonical finalized blocks only");
+    }
+    const finalized = proof(block.finalized, "Names finalized block");
+    hash(block.parentHash, "Names finalized parent hash");
+    if (finalized.blockNumber !== this.#head.blockNumber + 1n || block.parentHash !== this.#head.blockHash) {
+      throw new TypeError("Names finalized block would introduce a gap or reorg");
+    }
+    this.#headParentHash = block.parentHash;
+    this.#head = finalized;
+    this.#eventIndex = -1;
+    this.#canonicalHashes.set(finalized.blockNumber, finalized.blockHash);
+  }
 
   append(observation: FinalizedNamesObservationV2): void {
     if (observation.finality !== "finalized" || observation.canonical !== true) {
       throw new TypeError("Names index accepts canonical finalized events only");
     }
-    hash(observation.finalized.blockHash, "finalized block hash");
-    if (typeof observation.finalized.blockNumber !== "bigint" || observation.finalized.blockNumber < 0n) {
-      throw new TypeError("Names finalized block number must be an unsigned integer");
+    proof(observation.finalized, "Names finalized event block");
+    hash(observation.parentHash, "Names finalized event parent hash");
+    if (!sameFinality(observation.finalized, this.#head)
+      || observation.parentHash !== this.#headParentHash) {
+      throw new TypeError("Names event is not in the explicitly advanced finalized head");
     }
-    if (observation.parentHash !== null) hash(observation.parentHash, "finalized parent hash");
-    if (!Number.isSafeInteger(observation.eventIndex) || observation.eventIndex < 0) {
-      throw new TypeError("Names event index must be a non-negative safe integer");
-    }
-    const sameBlock = this.#head?.blockHash === observation.finalized.blockHash;
-    if (this.#head !== null) {
-      if (sameBlock) {
-        if (observation.parentHash !== this.#headParentHash
-          || observation.finalized.blockNumber !== this.#head.blockNumber
-          || observation.eventIndex !== this.#eventIndex + 1) {
-          throw new TypeError("Names finalized event ordering is not reconstructible");
-        }
-      } else if (observation.parentHash !== this.#head.blockHash
-        || observation.finalized.blockNumber !== this.#head.blockNumber + 1n
-        || observation.eventIndex !== 0) {
-        throw new TypeError("Names finalized event would introduce a gap or reorg");
-      }
-    } else if (observation.parentHash !== null || observation.eventIndex !== 0) {
-      throw new TypeError("Names index genesis observation is not self-contained");
+    if (!Number.isSafeInteger(observation.eventIndex) || observation.eventIndex < 0
+      || observation.eventIndex <= this.#eventIndex) {
+      throw new TypeError("Names event index is not a monotonic system event index");
     }
     const state = exactAuthorityState(observation.postState);
     const affected = eventName(observation.event);
-    if (affected === null) {
-      throw new TypeError("Names event does not identify an authority state");
-    }
-    if (affected !== state.name) {
-      throw new TypeError("Names event and post-state refer to different names");
-    }
+    if (affected === null) throw new TypeError("Names event does not identify an authority state");
+    if (affected !== state.name) throw new TypeError("Names event and post-state refer to different names");
     const prior = this.#states.get(state.name);
     switch (observation.event.event) {
       case "name_registered":
@@ -223,8 +311,7 @@ export class FinalizedNamesEventIndexV2 {
       case "name_transferred":
         if (prior === undefined || prior.owner !== observation.event.data.from
           || state.owner !== observation.event.data.to || !state.active
-          || state.controllers.length !== 0
-          || prior.content !== state.content || prior.cid !== state.cid) {
+          || state.controllers.length !== 0 || prior.content !== state.content) {
           throw new TypeError("Names transfer post-state is inconsistent");
         }
         break;
@@ -233,8 +320,7 @@ export class FinalizedNamesEventIndexV2 {
           || state.controllers.length !== prior.controllers.length + 1
           || !prior.controllers.every((controller) => state.controllers.includes(controller))
           || !state.controllers.includes(observation.event.data.controller)
-          || state.owner !== prior.owner || state.active !== prior.active
-          || state.content !== prior.content || state.cid !== prior.cid) {
+          || state.owner !== prior.owner || state.active !== prior.active || state.content !== prior.content) {
           throw new TypeError("Names controller addition post-state is inconsistent");
         }
         break;
@@ -243,8 +329,7 @@ export class FinalizedNamesEventIndexV2 {
           || state.controllers.length !== prior.controllers.length - 1
           || state.controllers.includes(observation.event.data.controller)
           || !state.controllers.every((controller) => prior.controllers.includes(controller))
-          || state.owner !== prior.owner || state.active !== prior.active
-          || state.content !== prior.content || state.cid !== prior.cid) {
+          || state.owner !== prior.owner || state.active !== prior.active || state.content !== prior.content) {
           throw new TypeError("Names controller removal post-state is inconsistent");
         }
         break;
@@ -274,9 +359,41 @@ export class FinalizedNamesEventIndexV2 {
       finalized: { ...observation.finalized },
       revision,
     });
-    this.#head = { ...observation.finalized };
-    this.#headParentHash = observation.parentHash;
     this.#eventIndex = observation.eventIndex;
+  }
+
+  apply(mutation: FinalizedNamesMutationV2, requiredAncestor?: FinalityProofV2): void {
+    const states = new Map(this.#states);
+    const canonicalHashes = new Map(this.#canonicalHashes);
+    const head = this.#head;
+    const headParentHash = this.#headParentHash;
+    const eventIndex = this.#eventIndex;
+    try {
+      for (const block of mutation.finalizedBlocks) this.advance(block);
+      this.append(mutation.observation);
+      if (requiredAncestor !== undefined) {
+        this.assertCanonicalDescendant(mutation.observation.finalized, requiredAncestor);
+      }
+    } catch (error) {
+      this.#states.clear();
+      for (const [name, state] of states) this.#states.set(name, state);
+      this.#canonicalHashes.clear();
+      for (const [number, blockHash] of canonicalHashes) this.#canonicalHashes.set(number, blockHash);
+      this.#head = head;
+      this.#headParentHash = headParentHash;
+      this.#eventIndex = eventIndex;
+      throw error;
+    }
+  }
+
+  assertCanonicalDescendant(descendant: FinalityProofV2, ancestor: FinalityProofV2): void {
+    proof(descendant, "descendant finality");
+    proof(ancestor, "ancestor finality");
+    if (descendant.blockNumber < ancestor.blockNumber
+      || this.#canonicalHashes.get(descendant.blockNumber) !== descendant.blockHash
+      || this.#canonicalHashes.get(ancestor.blockNumber) !== ancestor.blockHash) {
+      throw new TypeError("finality proofs are not in the same verified canonical chain");
+    }
   }
 
   authority(name: NameId, controller: AccountId): NamesAuthorityProofV2 {
@@ -285,22 +402,16 @@ export class FinalizedNamesEventIndexV2 {
     if (state.owner !== controller && !state.controllers.includes(controller)) {
       throw new TypeError("publisher is not the finalized owner or controller");
     }
-    return {
-      name,
-      controller,
-      owner: state.owner,
-      revision: state.revision,
-      ...state.finalized,
-    };
+    return { name, controller, owner: state.owner, revision: state.revision, ...state.finalized };
   }
 
-  assertAuthority(proof: NamesAuthorityProofV2): IndexedNamesStateV2 {
-    const current = this.#states.get(proof.name);
+  assertAuthority(authority: NamesAuthorityProofV2): IndexedNamesStateV2 {
+    const current = this.#states.get(authority.name);
     if (current === undefined || !current.active
-      || current.owner !== proof.owner || current.revision !== proof.revision
-      || current.finalized.blockHash !== proof.blockHash
-      || current.finalized.blockNumber !== proof.blockNumber
-      || (current.owner !== proof.controller && !current.controllers.includes(proof.controller))) {
+      || current.owner !== authority.owner || current.revision !== authority.revision
+      || current.finalized.blockHash !== authority.blockHash
+      || current.finalized.blockNumber !== authority.blockNumber
+      || (current.owner !== authority.controller && !current.controllers.includes(authority.controller))) {
       throw new TypeError("Names authority changed after the finalized proof");
     }
     return { ...current, controllers: [...current.controllers], finalized: { ...current.finalized } };
@@ -308,7 +419,7 @@ export class FinalizedNamesEventIndexV2 {
 
   resolve(name: NameId): IndexedNamesStateV2 {
     const state = this.#states.get(name);
-    if (state === undefined || !state.active || state.content === null || state.cid === null) {
+    if (state === undefined || !state.active || state.content === null) {
       throw new TypeError("application is not live in the finalized Names index");
     }
     return { ...state, controllers: [...state.controllers], finalized: { ...state.finalized } };
@@ -320,16 +431,18 @@ export interface PrivateNamesBindingV2 {
     input: {
       readonly proof: NamesAuthorityProofV2;
       readonly content: ContentCommitment;
-      readonly cid: string;
+      /** Adapter guarantee: the bind must finalize at this block or a canonical descendant. */
+      readonly after: FinalityProofV2;
     },
     signal?: AbortSignal,
-  ): Promise<FinalizedNamesObservationV2>;
+  ): Promise<FinalizedNamesMutationV2>;
   retract(
     proof: NamesAuthorityProofV2,
     signal?: AbortSignal,
-  ): Promise<FinalizedNamesObservationV2>;
+  ): Promise<FinalizedNamesMutationV2>;
   resolve(
     name: NameId,
+    at: FinalityProofV2,
     signal?: AbortSignal,
   ): Promise<{ readonly state: NamesAuthorityStateV2; readonly finalized: FinalityProofV2 }>;
 }
@@ -409,14 +522,11 @@ function result(
 
 function finalized(value: unknown, label: string): FinalityProofV2 {
   const record = result(value, ["number", "hash"], label);
-  if (typeof record.number !== "bigint" || record.number < 0n || typeof record.hash !== "object"
+  if (typeof record.number !== "bigint" || record.number < 0n
     || !(record.hash instanceof Uint8Array) || record.hash.length !== 32) {
     throw new TypeError(`${label} is invalid`);
   }
-  return {
-    blockNumber: record.number,
-    blockHash: hash(`0x${Array.from(record.hash, (byte) => byte.toString(16).padStart(2, "0")).join("")}`, label),
-  };
+  return { blockNumber: record.number, blockHash: hash(bytesHex(record.hash), label) };
 }
 
 interface CheckpointV2 {
@@ -434,12 +544,7 @@ function checkpoint(value: unknown, label: string): CheckpointV2 {
     || !Number.isSafeInteger(record.replicas) || (record.replicas as number) < 1) {
     throw new TypeError(`${label} is invalid`);
   }
-  return {
-    root: record.root.slice(),
-    from: record.from,
-    to: record.to,
-    replicas: record.replicas as number,
-  };
+  return { root: record.root.slice(), from: record.from, to: record.to, replicas: record.replicas as number };
 }
 
 function sameCheckpoint(left: CheckpointV2, right: CheckpointV2): boolean {
@@ -459,6 +564,17 @@ function providerReceipt(value: unknown, label: string) {
   return record as { provider: Uint8Array; cid: string; length: bigint; signature: Uint8Array };
 }
 
+function exactUpload(cid: string, source: Uint8Array): PrivateStorageUploadV2 {
+  const copy = source.slice();
+  return {
+    cid,
+    length: BigInt(copy.length),
+    bytes: {
+      async *[Symbol.asyncIterator]() { yield copy; },
+    },
+  };
+}
+
 /** Native-only v2 app publisher: storage publishability precedes the finalized Names bind. */
 export function createPrivateOriginAppsV2(
   factory: PrivateStorageIntentFactoryV2,
@@ -470,16 +586,17 @@ export function createPrivateOriginAppsV2(
   const execute = <Operation extends StorageOperationV2>(
     operation: Operation,
     input: Readonly<Record<string, unknown>>,
+    upload: Operation extends "storage.object.put" ? PrivateStorageUploadV2 : undefined,
     signal?: AbortSignal,
-  ) => storage.execute(exactIntent(factory, operation, input), signal);
+  ) => storage.execute(exactIntent(factory, operation, input), upload, signal);
 
   return {
     async publish(
       input: PublishOriginAppV2Input,
       signal?: AbortSignal,
     ): Promise<{ readonly storageFinalized: FinalityProofV2; readonly namesFinalized: FinalityProofV2 }> {
+      verifyApplicationBindings(input);
       const authority = index.authority(input.name, input.controller);
-      // A cache hit is only a local optimization hint. It never proves a live finalized checkpoint.
       await cache.has(input.manifestCid, signal);
       const common = { productId: input.productId, deadlineBlock: input.deadlineBlock };
       const putOperationId = input.operationId();
@@ -495,7 +612,8 @@ export function createPrivateOriginAppsV2(
           encrypted: 0,
           transferId: putOperationId,
         },
-      }, signal), ["receipt", "publishable", "finalized"], "storage.object.put result");
+      }, exactUpload(input.contentCid, input.contentBytes), signal),
+      ["receipt", "publishable", "finalized"], "storage.object.put result");
       const putReceipt = providerReceipt(put.receipt, "object put receipt");
       if (putReceipt.cid !== input.contentCid || putReceipt.length !== BigInt(input.contentBytes.length)
         || typeof put.publishable !== "boolean") {
@@ -516,15 +634,17 @@ export function createPrivateOriginAppsV2(
           expectedVersion: input.expectedDriveVersion,
           mode: 0,
         },
-      }, signal), ["manifest", "version", "checkpoint", "finalized"], "storage.drive.commit result");
+      }, undefined, signal), ["manifest", "version", "checkpoint", "finalized"], "storage.drive.commit result");
       if (commit.manifest !== input.manifestCid || typeof commit.version !== "bigint"
         || commit.version !== input.expectedDriveVersion + 1n) {
         throw new TypeError("drive commit result is not bound to the expected manifest version");
       }
       const committedCheckpoint = checkpoint(commit.checkpoint, "drive commit checkpoint");
       const commitFinality = finalized(commit.finalized, "drive commit finality");
-      if (commitFinality.blockNumber < putFinality.blockNumber) {
-        throw new TypeError("drive commit finality predates the uploaded content");
+      if (commitFinality.blockNumber < putFinality.blockNumber
+        || (commitFinality.blockNumber === putFinality.blockNumber
+          && commitFinality.blockHash !== putFinality.blockHash)) {
+        throw new TypeError("drive commit finality is not at or after the uploaded content");
       }
 
       let publishable: { readonly checkpoint: CheckpointV2; readonly finalized: FinalityProofV2 } | undefined;
@@ -534,12 +654,15 @@ export function createPrivateOriginAppsV2(
           requestId: input.requestId(),
           grantId: input.readerGrantId,
           payload: { bucketId: input.bucketId, cid: input.manifestCid },
-        }, signal), ["state", "replicas", "publishable", "finalized",], "storage.object.status result", ["receipt", "checkpoint"]);
+        }, undefined, signal), ["state", "replicas", "publishable", "finalized"],
+        "storage.object.status result", ["receipt", "checkpoint"]);
         const statusFinality = finalized(status.finalized, "object status finality");
         if (!Number.isSafeInteger(status.state) || (status.state as number) < 0 || (status.state as number) > 4
           || !Number.isSafeInteger(status.replicas) || (status.replicas as number) < 0
-          || typeof status.publishable !== "boolean" || statusFinality.blockNumber < commitFinality.blockNumber) {
-          throw new TypeError("storage object status is invalid or predates the drive commit");
+          || typeof status.publishable !== "boolean" || statusFinality.blockNumber < commitFinality.blockNumber
+          || (statusFinality.blockNumber === commitFinality.blockNumber
+            && statusFinality.blockHash !== commitFinality.blockHash)) {
+          throw new TypeError("storage object status is invalid or not at or after the drive commit");
         }
         if (status.publishable === true && status.checkpoint !== undefined) {
           const statusCheckpoint = checkpoint(status.checkpoint, "publishability checkpoint");
@@ -561,31 +684,34 @@ export function createPrivateOriginAppsV2(
         payload: {
           nameHash: input.nameHash,
           cid: input.manifestCid,
-          ...(input.expectedPublishVersion === undefined
-            ? {}
-            : { expectedVersion: input.expectedPublishVersion }),
+          ...(input.expectedPublishVersion === undefined ? {} : { expectedVersion: input.expectedPublishVersion }),
         },
-      }, signal), ["nameHash", "cid", "finalized"], "storage.publish result");
+      }, undefined, signal), ["nameHash", "cid", "finalized"], "storage.publish result");
       if (published.cid !== input.manifestCid
-        || !(published.nameHash instanceof Uint8Array)
-        || !equalBytes(published.nameHash, input.nameHash)) {
+        || !(published.nameHash instanceof Uint8Array) || !equalBytes(published.nameHash, input.nameHash)) {
         throw new TypeError("storage publish result is not bound to the application name and manifest");
       }
       const storageFinalized = finalized(published.finalized, "storage publish finality");
-      if (storageFinalized.blockNumber < publishable.finalized.blockNumber) {
-        throw new TypeError("storage publish finality predates publishability");
+      if (storageFinalized.blockNumber < publishable.finalized.blockNumber
+        || (storageFinalized.blockNumber === publishable.finalized.blockNumber
+          && storageFinalized.blockHash !== publishable.finalized.blockHash)) {
+        throw new TypeError("storage publish finality is not at or after publishability");
       }
 
       index.assertAuthority(authority);
       const bound = await names.bind({
         proof: authority,
         content: input.contentCommitment,
-        cid: input.manifestCid,
+        after: storageFinalized,
       }, signal);
-      index.append(bound);
+      index.apply(bound, storageFinalized);
       const live = index.resolve(input.name);
-      if (live.content !== input.contentCommitment || live.cid !== input.manifestCid) {
-        throw new TypeError("finalized Names bind does not match the published manifest");
+      index.assertCanonicalDescendant(live.finalized, storageFinalized);
+      index.assertCanonicalDescendant(storageFinalized, publishable.finalized);
+      index.assertCanonicalDescendant(publishable.finalized, commitFinality);
+      index.assertCanonicalDescendant(commitFinality, putFinality);
+      if (live.content !== input.contentCommitment) {
+        throw new TypeError("finalized Names bind does not match the published manifest commitment");
       }
       return { storageFinalized, namesFinalized: live.finalized };
     },
@@ -595,14 +721,14 @@ export function createPrivateOriginAppsV2(
       controller: AccountId,
       signal?: AbortSignal,
     ): Promise<FinalityProofV2> {
-      const proof = index.authority(name, controller);
-      index.assertAuthority(proof);
-      const observation = await names.retract(proof, signal);
-      index.append(observation);
+      const authority = index.authority(name, controller);
+      index.assertAuthority(authority);
+      const mutation = await names.retract(authority, signal);
+      index.apply(mutation);
       try {
         index.resolve(name);
       } catch {
-        return observation.finalized;
+        return mutation.observation.finalized;
       }
       throw new TypeError("finalized Names retract left application content live");
     },
@@ -611,16 +737,13 @@ export function createPrivateOriginAppsV2(
       input: ResolveOriginAppV2Input,
       signal?: AbortSignal,
     ): Promise<{ readonly cid: string; readonly length: bigint; readonly checkpoint: unknown }> {
+      deriveStorageNameHashV2(input.storageName);
       const live = index.resolve(input.name);
-      const liveCid = live.cid;
-      if (liveCid === null) throw new TypeError("application has no finalized storage CID");
-      const native = await names.resolve(input.name, signal);
+      const native = await names.resolve(input.name, live.finalized, signal);
       const nativeState = exactAuthorityState(native.state);
-      if (!nativeState.active || nativeState.name !== input.name
-        || nativeState.content !== live.content || nativeState.cid !== liveCid
-        || native.finalized.blockHash !== live.finalized.blockHash
-        || native.finalized.blockNumber !== live.finalized.blockNumber) {
-        throw new TypeError("live finalized Names resolution disagrees with its event index");
+      if (!nativeState.active || nativeState.name !== input.name || nativeState.content !== live.content
+        || !sameFinality(native.finalized, live.finalized)) {
+        throw new TypeError("live finalized Names resolution disagrees with its exact event-index authority");
       }
       const at = Uint8Array.from(live.finalized.blockHash.slice(2).match(/../g)!.map((pair) => Number.parseInt(pair, 16)));
       const common = { productId: input.productId, deadlineBlock: input.deadlineBlock };
@@ -628,24 +751,26 @@ export function createPrivateOriginAppsV2(
         ...common,
         requestId: input.requestId(),
         payload: { name: input.storageName, at },
-      }, signal), ["cid", "version", "checkpoint", "finalized"], "storage.resolve result");
-      finalized(resolved.finalized, "storage resolve finality");
-      if (resolved.cid !== liveCid || typeof resolved.version !== "bigint" || resolved.version < 0n) {
-        throw new TypeError("Names and storage resolution disagree");
+      }, undefined, signal), ["cid", "version", "checkpoint", "finalized"], "storage.resolve result");
+      const resolveFinalized = finalized(resolved.finalized, "storage resolve finality");
+      if (!sameFinality(resolveFinalized, live.finalized)
+        || typeof resolved.cid !== "string" || cidCommitment(resolved.cid) !== live.content
+        || typeof resolved.version !== "bigint" || resolved.version < 0n) {
+        throw new TypeError("storage resolution is not bound to the exact finalized Names authority");
       }
       const resolvedCheckpoint = checkpoint(resolved.checkpoint, "storage resolve checkpoint");
       const object = result(await execute("storage.object.get", {
         ...common,
         requestId: input.requestId(),
         grantId: input.readerGrantId,
-        payload: { bucketId: input.bucketId, cid: liveCid },
-      }, signal), ["cid", "length", "checkpoint"], "storage.object.get result");
+        payload: { bucketId: input.bucketId, cid: resolved.cid },
+      }, undefined, signal), ["cid", "length", "checkpoint"], "storage.object.get result");
       const objectCheckpoint = checkpoint(object.checkpoint, "storage object checkpoint");
-      if (object.cid !== liveCid || typeof object.length !== "bigint" || object.length < 0n
+      if (object.cid !== resolved.cid || typeof object.length !== "bigint" || object.length < 0n
         || !sameCheckpoint(objectCheckpoint, resolvedCheckpoint)) {
         throw new TypeError("storage object result is not bound to the resolved manifest");
       }
-      return { cid: liveCid, length: object.length, checkpoint: objectCheckpoint };
+      return { cid: resolved.cid, length: object.length, checkpoint: objectCheckpoint };
     },
   };
 }
