@@ -41,7 +41,7 @@
     },
     "versionMatrix": {
       "path": "docs/sdk/native-version-matrix.json",
-      "sha256": "1cc0a4080c07386494586eac45fbfd21da59c6fe063e8fff066ac27e3a1a54e6"
+      "sha256": "9f09d1bb234a55b9d82e93316260e9f43b30724c5b880a03c443e1d4dbe8ab9e"
     },
     "extensions": {
       "path": "docs/sdk/signed-extension-manifest.json",

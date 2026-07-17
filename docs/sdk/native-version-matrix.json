@@ -81,7 +81,7 @@
       "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs"
     },
     "storage_provider": {
-      "version": 10,
+      "version": 11,
       "source": "origin/orbis/runtime-api/storage/src/lib.rs"
     },
     "drive": {
@@ -103,7 +103,7 @@
       "source": "origin/orbis/pallets/names/src/lib.rs"
     },
     "storage_provider": {
-      "version": 5,
+      "version": 2,
       "source": "origin/orbis/pallets/storage-provider/src/lib.rs"
     },
     "drive": {
@@ -111,7 +111,7 @@
       "source": "origin/orbis/pallets/drive/src/lib.rs"
     },
     "s3": {
-      "version": 1,
+      "version": 2,
       "source": "origin/orbis/pallets/s3/src/lib.rs"
     },
     "transaction_storage": {
